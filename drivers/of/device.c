@@ -85,7 +85,11 @@ of_dma_set_restricted_buffer(struct device *dev, struct device_node *np)
 			break;
 	}
 
-	if (i != count && of_reserved_mem_device_init_by_idx(dev, of_node, i))
+	/*
+	 * Attempt to initialize a restricted-dma-pool region if one was found.
+	 * Note that count can hold a negative error code.
+	 */
+	if (i < count && of_reserved_mem_device_init_by_idx(dev, of_node, i))
 		dev_warn(dev, "failed to initialise \"restricted-dma-pool\" memory node\n");
 }
 
