@@ -345,8 +345,6 @@ static struct prestera_trap prestera_trap_items_arr[] = {
 	},
 };
 
-static void prestera_devlink_traps_fini(struct prestera_switch *sw);
-
 static int prestera_drop_counter_get(struct devlink *devlink,
 				     const struct devlink_trap *trap,
 				     u64 *p_drops);
@@ -381,8 +379,6 @@ static int prestera_trap_action_set(struct devlink *devlink,
 				    enum devlink_trap_action action,
 				    struct netlink_ext_ack *extack);
 
-static int prestera_devlink_traps_register(struct prestera_switch *sw);
-
 static const struct devlink_ops prestera_dl_ops = {
 	.info_get = prestera_dl_info_get,
 	.trap_init = prestera_trap_init,
@@ -407,34 +403,18 @@ void prestera_devlink_free(struct prestera_switch *sw)
 	devlink_free(dl);
 }
 
-int prestera_devlink_register(struct prestera_switch *sw)
+void prestera_devlink_register(struct prestera_switch *sw)
 {
 	struct devlink *dl = priv_to_devlink(sw);
-	int err;
 
 	devlink_register(dl);
-
-	err = prestera_devlink_traps_register(sw);
-	if (err) {
-		devlink_unregister(dl);
-		dev_err(sw->dev->dev, "devlink_traps_register failed: %d\n",
-			err);
-		return err;
-	}
-
-	return 0;
 }
 
 void prestera_devlink_unregister(struct prestera_switch *sw)
 {
-	struct prestera_trap_data *trap_data = sw->trap_data;
 	struct devlink *dl = priv_to_devlink(sw);
 
-	prestera_devlink_traps_fini(sw);
 	devlink_unregister(dl);
-
-	kfree(trap_data->trap_items_arr);
-	kfree(trap_data);
 }
 
 int prestera_devlink_port_register(struct prestera_port *port)
@@ -482,7 +462,7 @@ struct devlink_port *prestera_devlink_get_port(struct net_device *dev)
 	return &port->dl_port;
 }
 
-static int prestera_devlink_traps_register(struct prestera_switch *sw)
+int prestera_devlink_traps_register(struct prestera_switch *sw)
 {
 	const u32 groups_count = ARRAY_SIZE(prestera_trap_groups_arr);
 	const u32 traps_count = ARRAY_SIZE(prestera_trap_items_arr);
@@ -621,8 +601,9 @@ static int prestera_drop_counter_get(struct devlink *devlink,
 						 cpu_code_type, p_drops);
 }
 
-static void prestera_devlink_traps_fini(struct prestera_switch *sw)
+void prestera_devlink_traps_unregister(struct prestera_switch *sw)
 {
+	struct prestera_trap_data *trap_data = sw->trap_data;
 	struct devlink *dl = priv_to_devlink(sw);
 	const struct devlink_trap *trap;
 	int i;
@@ -634,4 +615,6 @@ static void prestera_devlink_traps_fini(struct prestera_switch *sw)
 
 	devlink_trap_groups_unregister(dl, prestera_trap_groups_arr,
 				       ARRAY_SIZE(prestera_trap_groups_arr));
+	kfree(trap_data->trap_items_arr);
+	kfree(trap_data);
 }

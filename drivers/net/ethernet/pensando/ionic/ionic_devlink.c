@@ -82,7 +82,6 @@ int ionic_devlink_register(struct ionic *ionic)
 	struct devlink_port_attrs attrs = {};
 	int err;
 
-	devlink_register(dl);
 	attrs.flavour = DEVLINK_PORT_FLAVOUR_PHYSICAL;
 	devlink_port_attrs_set(&ionic->dl_port, &attrs);
 	err = devlink_port_register(dl, &ionic->dl_port, 0);
@@ -93,6 +92,7 @@ int ionic_devlink_register(struct ionic *ionic)
 	}
 
 	devlink_port_type_eth_set(&ionic->dl_port, ionic->lif->netdev);
+	devlink_register(dl);
 	return 0;
 }
 
@@ -100,6 +100,6 @@ void ionic_devlink_unregister(struct ionic *ionic)
 {
 	struct devlink *dl = priv_to_devlink(ionic);
 
-	devlink_port_unregister(&ionic->dl_port);
 	devlink_unregister(dl);
+	devlink_port_unregister(&ionic->dl_port);
 }
