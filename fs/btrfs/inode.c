@@ -489,9 +489,6 @@ static noinline int add_async_extent(struct async_chunk *cow,
  */
 static inline bool inode_can_compress(struct btrfs_inode *inode)
 {
-	/* Subpage doesn't support compression yet */
-	if (inode->root->fs_info->sectorsize < PAGE_SIZE)
-		return false;
 	if (inode->flags & BTRFS_INODE_NODATACOW ||
 	    inode->flags & BTRFS_INODE_NODATASUM)
 		return false;
@@ -513,6 +510,38 @@ static inline int inode_need_compress(struct btrfs_inode *inode, u64 start,
 			btrfs_ino(inode));
 		return 0;
 	}
+	/*
+	 * Special check for subpage.
+	 *
+	 * We lock the full page then run each delalloc range in the page, thus
+	 * for the following case, we will hit some subpage specific corner case:
+	 *
+	 * 0		32K		64K
+	 * |	|///////|	|///////|
+	 *		\- A		\- B
+	 *
+	 * In above case, both range A and range B will try to unlock the full
+	 * page [0, 64K), causing the one finished later will have page
+	 * unlocked already, triggering various page lock requirement BUG_ON()s.
+	 *
+	 * So here we add an artificial limit that subpage compression can only
+	 * if the range is fully page aligned.
+	 *
+	 * In theory we only need to ensure the first page is fully covered, but
+	 * the tailing partial page will be locked until the full compression
+	 * finishes, delaying the write of other range.
+	 *
+	 * TODO: Make btrfs_run_delalloc_range() to lock all delalloc range
+	 * first to prevent any submitted async extent to unlock the full page.
+	 * By this, we can ensure for subpage case that only the last async_cow
+	 * will unlock the full page.
+	 */
+	if (fs_info->sectorsize < PAGE_SIZE) {
+		if (!IS_ALIGNED(start, PAGE_SIZE) ||
+		    !IS_ALIGNED(end + 1, PAGE_SIZE))
+			return 0;
+	}
+
 	/* force compress */
 	if (btrfs_test_opt(fs_info, FORCE_COMPRESS))
 		return 1;
@@ -614,12 +643,23 @@ again:
 	total_compressed = actual_end - start;
 
 	/*
-	 * skip compression for a small file range(<=blocksize) that
+	 * Skip compression for a small file range(<=blocksize) that
 	 * isn't an inline extent, since it doesn't save disk space at all.
 	 */
 	if (total_compressed <= blocksize &&
 	   (start > 0 || end + 1 < BTRFS_I(inode)->disk_i_size))
 		goto cleanup_and_bail_uncompressed;
+
+	/*
+	 * For subpage case, we require full page alignment for the sector
+	 * aligned range.
+	 * Thus we must also check against @actual_end, not just @end.
+	 */
+	if (blocksize < PAGE_SIZE) {
+		if (!IS_ALIGNED(start, PAGE_SIZE) ||
+		    !IS_ALIGNED(round_up(actual_end, blocksize), PAGE_SIZE))
+			goto cleanup_and_bail_uncompressed;
+	}
 
 	total_compressed = min_t(unsigned long, total_compressed,
 			BTRFS_MAX_UNCOMPRESSED);
