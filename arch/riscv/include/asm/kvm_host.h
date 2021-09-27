@@ -12,6 +12,7 @@
 #include <linux/types.h>
 #include <linux/kvm.h>
 #include <linux/kvm_types.h>
+#include <asm/kvm_vcpu_timer.h>
 
 #ifdef CONFIG_64BIT
 #define KVM_MAX_VCPUS			(1U << 16)
@@ -60,6 +61,9 @@ struct kvm_arch {
 	/* stage2 page table */
 	pgd_t *pgd;
 	phys_addr_t pgd_phys;
+
+	/* Guest Timer */
+	struct kvm_guest_timer timer;
 };
 
 struct kvm_mmio_decode {
@@ -174,6 +178,9 @@ struct kvm_vcpu_arch {
 	 */
 	unsigned long irqs_pending;
 	unsigned long irqs_pending_mask;
+
+	/* VCPU Timer */
+	struct kvm_vcpu_timer timer;
 
 	/* MMIO instruction details */
 	struct kvm_mmio_decode mmio_decode;
