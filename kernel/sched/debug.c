@@ -173,16 +173,22 @@ static ssize_t sched_scaling_write(struct file *filp, const char __user *ubuf,
 				   size_t cnt, loff_t *ppos)
 {
 	char buf[16];
+	unsigned int scaling;
 
 	if (cnt > 15)
 		cnt = 15;
 
 	if (copy_from_user(&buf, ubuf, cnt))
 		return -EFAULT;
+	buf[cnt] = '\0';
 
-	if (kstrtouint(buf, 10, &sysctl_sched_tunable_scaling))
+	if (kstrtouint(buf, 10, &scaling))
 		return -EINVAL;
 
+	if (scaling >= SCHED_TUNABLESCALING_END)
+		return -EINVAL;
+
+	sysctl_sched_tunable_scaling = scaling;
 	if (sched_update_scaling())
 		return -EINVAL;
 
