@@ -256,6 +256,7 @@ static int intel_dvo_compute_config(struct intel_encoder *encoder,
 				    struct drm_connector_state *conn_state)
 {
 	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
+	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	const struct drm_display_mode *fixed_mode =
 		intel_dvo->attached_connector->panel.fixed_mode;
 	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
@@ -266,8 +267,13 @@ static int intel_dvo_compute_config(struct intel_encoder *encoder,
 	 * with the panel scaling set up to source from the H/VDisplay
 	 * of the original mode.
 	 */
-	if (fixed_mode)
-		intel_panel_fixed_mode(fixed_mode, adjusted_mode);
+	if (fixed_mode) {
+		int ret;
+
+		ret = intel_panel_compute_config(connector, adjusted_mode);
+		if (ret)
+			return ret;
+	}
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return -EINVAL;

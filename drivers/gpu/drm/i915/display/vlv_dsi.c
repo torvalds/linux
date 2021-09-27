@@ -279,7 +279,9 @@ static int intel_dsi_compute_config(struct intel_encoder *encoder,
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 
 	if (fixed_mode) {
-		intel_panel_fixed_mode(fixed_mode, adjusted_mode);
+		ret = intel_panel_compute_config(intel_connector, adjusted_mode);
+		if (ret)
+			return ret;
 
 		ret = intel_panel_fitting(pipe_config, conn_state);
 		if (ret)

@@ -1757,8 +1757,9 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 		pipe_config->has_audio = intel_conn_state->force_audio == HDMI_AUDIO_ON;
 
 	if (intel_dp_is_edp(intel_dp) && intel_connector->panel.fixed_mode) {
-		intel_panel_fixed_mode(intel_connector->panel.fixed_mode,
-				       adjusted_mode);
+		ret = intel_panel_compute_config(intel_connector, adjusted_mode);
+		if (ret)
+			return ret;
 
 		ret = intel_panel_fitting(pipe_config, conn_state);
 		if (ret)

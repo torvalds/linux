@@ -444,8 +444,9 @@ static int intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 	 * with the panel scaling set up to source from the H/VDisplay
 	 * of the original mode.
 	 */
-	intel_panel_fixed_mode(intel_connector->panel.fixed_mode,
-			       adjusted_mode);
+	ret = intel_panel_compute_config(intel_connector, adjusted_mode);
+	if (ret)
+		return ret;
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return -EINVAL;

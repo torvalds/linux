@@ -1335,6 +1335,13 @@ static int intel_sdvo_compute_config(struct intel_encoder *encoder,
 							   adjusted_mode);
 		pipe_config->sdvo_tv_clock = true;
 	} else if (IS_LVDS(intel_sdvo_connector)) {
+		int ret;
+
+		ret = intel_panel_compute_config(&intel_sdvo_connector->base,
+						 adjusted_mode);
+		if (ret)
+			return ret;
+
 		if (!intel_sdvo_set_output_timings_from_mode(intel_sdvo,
 							     intel_sdvo_connector->base.panel.fixed_mode))
 			return -EINVAL;
