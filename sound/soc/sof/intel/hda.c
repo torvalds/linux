@@ -52,6 +52,86 @@ static const struct sof_intel_dsp_desc
 	return chip_info;
 }
 
+int hda_ctrl_dai_widget_setup(struct snd_soc_dapm_widget *w)
+{
+	struct snd_sof_widget *swidget = w->dobj.private;
+	struct snd_soc_component *component = swidget->scomp;
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
+	struct sof_ipc_dai_config *config;
+	struct snd_sof_dai *sof_dai;
+	struct sof_ipc_reply reply;
+	int ret;
+
+	sof_dai = swidget->private;
+
+	if (!sof_dai || !sof_dai->dai_config) {
+		dev_err(sdev->dev, "No config for DAI %s\n", w->name);
+		return -EINVAL;
+	}
+
+	config = &sof_dai->dai_config[sof_dai->current_config];
+
+	/*
+	 * For static pipelines, the DAI widget would already be set up and calling
+	 * sof_widget_setup() simply returns without doing anything.
+	 * For dynamic pipelines, the DAI widget will be set up now.
+	 */
+	ret = sof_widget_setup(sdev, swidget);
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: failed setting up DAI widget %s\n", w->name);
+		return ret;
+	}
+
+	/* send DAI_CONFIG IPC */
+	ret = sof_ipc_tx_message(sdev->ipc, config->hdr.cmd, config, config->hdr.size,
+				 &reply, sizeof(reply));
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: failed setting DAI config for %s\n", w->name);
+		return ret;
+	}
+
+	sof_dai->configured = true;
+
+	return 0;
+}
+
+int hda_ctrl_dai_widget_free(struct snd_soc_dapm_widget *w)
+{
+	struct snd_sof_widget *swidget = w->dobj.private;
+	struct snd_soc_component *component = swidget->scomp;
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
+	struct sof_ipc_dai_config *config;
+	struct snd_sof_dai *sof_dai;
+	struct sof_ipc_reply reply;
+	int ret;
+
+	sof_dai = swidget->private;
+
+	if (!sof_dai || !sof_dai->dai_config) {
+		dev_err(sdev->dev, "error: No config to free DAI %s\n", w->name);
+		return -EINVAL;
+	}
+
+	/* nothing to do if hw_free() is called without restarting the stream after resume. */
+	if (!sof_dai->configured)
+		return 0;
+
+	config = &sof_dai->dai_config[sof_dai->current_config];
+
+	ret = sof_ipc_tx_message(sdev->ipc, config->hdr.cmd, config, config->hdr.size,
+				 &reply, sizeof(reply));
+	if (ret < 0)
+		dev_err(sdev->dev, "error: failed resetting DAI config for %s\n", w->name);
+
+	/*
+	 * Reset the configured_flag and free the widget even if the IPC fails to keep
+	 * the widget use_count balanced
+	 */
+	sof_dai->configured = false;
+
+	return sof_widget_free(sdev, swidget);
+}
+
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL_SOUNDWIRE)
 
 /*
@@ -64,67 +144,70 @@ static int sdw_clock_stop_quirks = SDW_INTEL_CLK_STOP_BUS_RESET;
 module_param(sdw_clock_stop_quirks, int, 0444);
 MODULE_PARM_DESC(sdw_clock_stop_quirks, "SOF SoundWire clock stop quirks");
 
+static int sdw_dai_config_ipc(struct snd_sof_dev *sdev,
+			      struct snd_soc_dapm_widget *w,
+			      int link_id, int alh_stream_id, int dai_id, bool setup)
+{
+	struct snd_sof_widget *swidget = w->dobj.private;
+	struct sof_ipc_dai_config *config;
+	struct snd_sof_dai *sof_dai;
+
+	if (!swidget) {
+		dev_err(sdev->dev, "error: No private data for widget %s\n", w->name);
+		return -EINVAL;
+	}
+
+	sof_dai = swidget->private;
+
+	if (!sof_dai || !sof_dai->dai_config) {
+		dev_err(sdev->dev, "error: No config for DAI %s\n", w->name);
+		return -EINVAL;
+	}
+
+	config = &sof_dai->dai_config[sof_dai->current_config];
+
+	/* update config with link and stream ID */
+	config->dai_index = (link_id << 8) | dai_id;
+	config->alh.stream_id = alh_stream_id;
+
+	if (setup)
+		return hda_ctrl_dai_widget_setup(w);
+
+	return hda_ctrl_dai_widget_free(w);
+}
+
 static int sdw_params_stream(struct device *dev,
 			     struct sdw_intel_stream_params_data *params_data)
 {
+	struct snd_pcm_substream *substream = params_data->substream;
 	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
 	struct snd_soc_dai *d = params_data->dai;
-	struct sof_ipc_dai_config config;
-	struct sof_ipc_reply reply;
-	int link_id = params_data->link_id;
-	int alh_stream_id = params_data->alh_stream_id;
-	int ret;
-	u32 size = sizeof(config);
+	struct snd_soc_dapm_widget *w;
 
-	memset(&config, 0, size);
-	config.hdr.size = size;
-	config.hdr.cmd = SOF_IPC_GLB_DAI_MSG | SOF_IPC_DAI_CONFIG;
-	config.type = SOF_DAI_INTEL_ALH;
-	config.dai_index = (link_id << 8) | (d->id);
-	config.alh.stream_id = alh_stream_id;
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		w = d->playback_widget;
+	else
+		w = d->capture_widget;
 
-	/* send message to DSP */
-	ret = sof_ipc_tx_message(sdev->ipc,
-				 config.hdr.cmd, &config, size, &reply,
-				 sizeof(reply));
-	if (ret < 0) {
-		dev_err(sdev->dev,
-			"error: failed to set DAI hw_params for link %d dai->id %d ALH %d\n",
-			link_id, d->id, alh_stream_id);
-	}
-
-	return ret;
+	return sdw_dai_config_ipc(sdev, w, params_data->link_id, params_data->alh_stream_id,
+				  d->id, true);
 }
 
 static int sdw_free_stream(struct device *dev,
 			   struct sdw_intel_stream_free_data *free_data)
 {
+	struct snd_pcm_substream *substream = free_data->substream;
 	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
 	struct snd_soc_dai *d = free_data->dai;
-	struct sof_ipc_dai_config config;
-	struct sof_ipc_reply reply;
-	int link_id = free_data->link_id;
-	int ret;
-	u32 size = sizeof(config);
+	struct snd_soc_dapm_widget *w;
 
-	memset(&config, 0, size);
-	config.hdr.size = size;
-	config.hdr.cmd = SOF_IPC_GLB_DAI_MSG | SOF_IPC_DAI_CONFIG;
-	config.type = SOF_DAI_INTEL_ALH;
-	config.dai_index = (link_id << 8) | d->id;
-	config.alh.stream_id = 0xFFFF; /* invalid value on purpose */
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		w = d->playback_widget;
+	else
+		w = d->capture_widget;
 
-	/* send message to DSP */
-	ret = sof_ipc_tx_message(sdev->ipc,
-				 config.hdr.cmd, &config, size, &reply,
-				 sizeof(reply));
-	if (ret < 0) {
-		dev_err(sdev->dev,
-			"error: failed to free stream for link %d dai->id %d\n",
-			link_id, d->id);
-	}
-
-	return ret;
+	/* send invalid stream_id */
+	return sdw_dai_config_ipc(sdev, w, free_data->link_id, 0xFFFF, d->id, false);
 }
 
 static const struct sdw_intel_ops sdw_callback = {

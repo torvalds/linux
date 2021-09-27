@@ -163,6 +163,7 @@ int sof_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 			return -ENOMEM;
 
 		dai = swidget->private;
+		dai->configured = false;
 		memcpy(comp, &dai->comp_dai, sizeof(struct sof_ipc_comp_dai));
 
 		/* append extended data to the end of the component */
