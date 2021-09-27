@@ -117,6 +117,10 @@ static const struct spi_device_id st_press_id_table[] = {
 	{ LPS33HW_PRESS_DEV_NAME },
 	{ LPS35HW_PRESS_DEV_NAME },
 	{ LPS22HH_PRESS_DEV_NAME },
+	{ "lps001wp-press" },
+	{ "lps25h-press", },
+	{ "lps331ap-press" },
+	{ "lps22hb-press" },
 	{},
 };
 MODULE_DEVICE_TABLE(spi, st_press_id_table);
