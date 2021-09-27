@@ -27,6 +27,9 @@ my $dbg_what_open = 2;
 my $dbg_dump_abi_structs = 4;
 my $dbg_undefined = 8;
 
+$Data::Dumper::Indent = 1;
+$Data::Dumper::Terse = 1;
+
 #
 # If true, assumes that the description is formatted with ReST
 #
@@ -597,7 +600,6 @@ sub graph_add_link {
 
 	my @queue;
 	my %seen;
-	my $base_name;
 	my $st;
 
 	push @queue, $file_ref;
@@ -610,6 +612,12 @@ sub graph_add_link {
 		foreach my $c(@child) {
 			next if $seen{$$v{$c}};
 			next if ($c eq "__name");
+
+			if (!defined($$v{$c}{"__name"})) {
+				printf STDERR "Error: Couldn't find a non-empty name on a children of $file/.*: ";
+				print STDERR Dumper(%{$v});
+				exit;
+			}
 
 			# Add new name
 			my $name = @{$$v{$c}{"__name"}}[0];
