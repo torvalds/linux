@@ -85,7 +85,6 @@ n	[A-Za-z0-9_-]
 
 %%
 	int str = 0;
-	int ts, i;
 
 #.*			/* ignore comment */
 [ \t]*			/* whitespaces */
@@ -196,6 +195,8 @@ n	[A-Za-z0-9_-]
 
 <HELP>{
 	[ \t]+	{
+		int ts, i;
+
 		ts = 0;
 		for (i = 0; i < yyleng; i++) {
 			if (yytext[i] == '\t')
