@@ -81,6 +81,8 @@ struct snd_sof_control {
 	bool comp_data_dirty;
 };
 
+struct snd_sof_widget;
+
 /* ASoC SOF DAPM widget */
 struct snd_sof_widget {
 	struct snd_soc_component *scomp;
@@ -90,8 +92,19 @@ struct snd_sof_widget {
 	int core;
 	int id;
 
+	/*
+	 * Flag indicating if the widget should be set up dynamically when a PCM is opened.
+	 * This flag is only set for the scheduler type widget in topology. During topology
+	 * loading, this flag is propagated to all the widgets belonging to the same pipeline.
+	 * When this flag is not set, a widget is set up at the time of topology loading
+	 * and retained until the DSP enters D3. It will need to be set up again when resuming
+	 * from D3.
+	 */
+	bool dynamic_pipeline_widget;
+
 	struct snd_soc_dapm_widget *widget;
 	struct list_head list;	/* list in sdev widget list */
+	struct snd_sof_widget *pipe_widget;
 
 	/* extended data for UUID components */
 	struct sof_ipc_comp_ext comp_ext;
