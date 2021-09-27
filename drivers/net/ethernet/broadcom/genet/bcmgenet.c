@@ -935,6 +935,48 @@ static int bcmgenet_set_coalesce(struct net_device *dev,
 	return 0;
 }
 
+static void bcmgenet_get_pauseparam(struct net_device *dev,
+				    struct ethtool_pauseparam *epause)
+{
+	struct bcmgenet_priv *priv;
+	u32 umac_cmd;
+
+	priv = netdev_priv(dev);
+
+	epause->autoneg = priv->autoneg_pause;
+
+	if (netif_carrier_ok(dev)) {
+		/* report active state when link is up */
+		umac_cmd = bcmgenet_umac_readl(priv, UMAC_CMD);
+		epause->tx_pause = !(umac_cmd & CMD_TX_PAUSE_IGNORE);
+		epause->rx_pause = !(umac_cmd & CMD_RX_PAUSE_IGNORE);
+	} else {
+		/* otherwise report stored settings */
+		epause->tx_pause = priv->tx_pause;
+		epause->rx_pause = priv->rx_pause;
+	}
+}
+
+static int bcmgenet_set_pauseparam(struct net_device *dev,
+				   struct ethtool_pauseparam *epause)
+{
+	struct bcmgenet_priv *priv = netdev_priv(dev);
+
+	if (!dev->phydev)
+		return -ENODEV;
+
+	if (!phy_validate_pause(dev->phydev, epause))
+		return -EINVAL;
+
+	priv->autoneg_pause = !!epause->autoneg;
+	priv->tx_pause = !!epause->tx_pause;
+	priv->rx_pause = !!epause->rx_pause;
+
+	bcmgenet_phy_pause_set(dev, priv->rx_pause, priv->tx_pause);
+
+	return 0;
+}
+
 /* standard ethtool support functions. */
 enum bcmgenet_stat_type {
 	BCMGENET_STAT_NETDEV = -1,
@@ -1587,6 +1629,8 @@ static const struct ethtool_ops bcmgenet_ethtool_ops = {
 	.get_ts_info		= ethtool_op_get_ts_info,
 	.get_rxnfc		= bcmgenet_get_rxnfc,
 	.set_rxnfc		= bcmgenet_set_rxnfc,
+	.get_pauseparam		= bcmgenet_get_pauseparam,
+	.set_pauseparam		= bcmgenet_set_pauseparam,
 };
 
 /* Power down the unimac, based on mode. */
@@ -3364,6 +3408,8 @@ static int bcmgenet_open(struct net_device *dev)
 		goto err_irq1;
 	}
 
+	bcmgenet_phy_pause_set(dev, priv->rx_pause, priv->tx_pause);
+
 	bcmgenet_netif_start(dev);
 
 	netif_tx_start_all_queues(dev);
@@ -3407,11 +3453,6 @@ static void bcmgenet_netif_stop(struct net_device *dev)
 	 * disabled no new work will be scheduled.
 	 */
 	cancel_work_sync(&priv->bcmgenet_irq_work);
-
-	priv->old_link = -1;
-	priv->old_speed = -1;
-	priv->old_duplex = -1;
-	priv->old_pause = -1;
 
 	/* tx reclaim */
 	bcmgenet_tx_reclaim_all(dev);
@@ -3949,6 +3990,11 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	}
 
 	spin_lock_init(&priv->lock);
+
+	/* Set default pause parameters */
+	priv->autoneg_pause = 1;
+	priv->tx_pause = 1;
+	priv->rx_pause = 1;
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	dev_set_drvdata(&pdev->dev, dev);
