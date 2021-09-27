@@ -973,15 +973,12 @@ retry:
 				    async_extent->nr_pages,
 				    async_chunk->write_flags,
 				    async_chunk->blkcg_css)) {
-			struct page *p = async_extent->pages[0];
 			const u64 start = async_extent->start;
 			const u64 end = start + async_extent->ram_size - 1;
 
-			p->mapping = inode->vfs_inode.i_mapping;
-			btrfs_writepage_endio_finish_ordered(inode, p, start,
+			btrfs_writepage_endio_finish_ordered(inode, NULL, start,
 							     end, false);
 
-			p->mapping = NULL;
 			extent_clear_unlock_delalloc(inode, start, end, NULL, 0,
 						     PAGE_END_WRITEBACK |
 						     PAGE_SET_ERROR);
