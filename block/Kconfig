@@ -190,11 +190,7 @@ config BLK_INLINE_ENCRYPTION_FALLBACK
 	  by falling back to the kernel crypto API when inline
 	  encryption hardware is not present.
 
-menu "Partition Types"
-
 source "block/partitions/Kconfig"
-
-endmenu
 
 config BLOCK_COMPAT
 	def_bool COMPAT
