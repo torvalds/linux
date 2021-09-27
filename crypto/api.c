@@ -32,6 +32,7 @@ BLOCKING_NOTIFIER_HEAD(crypto_chain);
 EXPORT_SYMBOL_GPL(crypto_chain);
 
 DEFINE_STATIC_KEY_FALSE(crypto_boot_test_finished);
+EXPORT_SYMBOL_GPL(crypto_boot_test_finished);
 
 static struct crypto_alg *crypto_larval_wait(struct crypto_alg *alg);
 
