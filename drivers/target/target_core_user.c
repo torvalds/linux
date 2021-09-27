@@ -1255,7 +1255,6 @@ tcmu_tmr_notify(struct se_device *se_dev, enum tcm_tmreq_table tmf,
 {
 	int i = 0, cmd_cnt = 0;
 	bool unqueued = false;
-	uint16_t *cmd_ids = NULL;
 	struct tcmu_cmd *cmd;
 	struct se_cmd *se_cmd;
 	struct tcmu_tmr *tmr;
@@ -1292,7 +1291,7 @@ tcmu_tmr_notify(struct se_device *se_dev, enum tcm_tmreq_table tmf,
 	pr_debug("TMR event %d on dev %s, aborted cmds %d, afflicted cmd_ids %d\n",
 		 tcmu_tmr_type(tmf), udev->name, i, cmd_cnt);
 
-	tmr = kmalloc(sizeof(*tmr) + cmd_cnt * sizeof(*cmd_ids), GFP_NOIO);
+	tmr = kmalloc(struct_size(tmr, tmr_cmd_ids, cmd_cnt), GFP_NOIO);
 	if (!tmr)
 		goto unlock;
 
