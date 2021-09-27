@@ -732,7 +732,8 @@ static int dim2_probe(struct platform_device *pdev)
 	struct dim2_hdm *dev;
 	struct resource *res;
 	int ret, i;
-	u8 dev_fcnt, hal_ret;
+	u8 hal_ret;
+	u8 dev_fcnt = fcnt;
 	int irq;
 
 	enum { MLB_INT_IDX, AHB0_INT_IDX };
@@ -765,16 +766,16 @@ static int dim2_probe(struct platform_device *pdev)
 
 	of_id = of_match_node(dim2_of_match, pdev->dev.of_node);
 	pdata = of_id->data;
-	ret = pdata && pdata->enable ? pdata->enable(pdev) : 0;
-	if (ret)
-		return ret;
-
-	dev->disable_platform = pdata ? pdata->disable : NULL;
-
-	if (pdata && pdata->fcnt)
-		dev_fcnt = pdata->fcnt;
-	else
-		dev_fcnt = fcnt;
+	if (pdata) {
+		if (pdata->enable) {
+			ret = pdata->enable(pdev);
+			if (ret)
+				return ret;
+		}
+		dev->disable_platform = pdata->disable;
+		if (pdata->fcnt)
+			dev_fcnt = pdata->fcnt;
+	}
 
 	dev_info(&pdev->dev, "sync: num of frames per sub-buffer: %u\n",
 		 dev_fcnt);
