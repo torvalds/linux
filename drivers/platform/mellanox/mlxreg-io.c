@@ -98,7 +98,7 @@ mlxreg_io_get_reg(void *regmap, struct mlxreg_core_data *data, u32 in_val,
 			if (ret)
 				goto access_error;
 
-			*regval |= rol32(val, regsize * i);
+			*regval |= rol32(val, regsize * i * 8);
 		}
 	}
 
