@@ -20,27 +20,27 @@ static void damon_dbgfs_test_str_to_target_ids(struct kunit *test)
 	ssize_t nr_integers = 0, i;
 
 	question = "123";
-	answers = str_to_target_ids(question, strnlen(question, 128),
+	answers = str_to_target_ids(question, strlen(question),
 			&nr_integers);
 	KUNIT_EXPECT_EQ(test, (ssize_t)1, nr_integers);
 	KUNIT_EXPECT_EQ(test, 123ul, answers[0]);
 	kfree(answers);
 
 	question = "123abc";
-	answers = str_to_target_ids(question, strnlen(question, 128),
+	answers = str_to_target_ids(question, strlen(question),
 			&nr_integers);
 	KUNIT_EXPECT_EQ(test, (ssize_t)1, nr_integers);
 	KUNIT_EXPECT_EQ(test, 123ul, answers[0]);
 	kfree(answers);
 
 	question = "a123";
-	answers = str_to_target_ids(question, strnlen(question, 128),
+	answers = str_to_target_ids(question, strlen(question),
 			&nr_integers);
 	KUNIT_EXPECT_EQ(test, (ssize_t)0, nr_integers);
 	kfree(answers);
 
 	question = "12 35";
-	answers = str_to_target_ids(question, strnlen(question, 128),
+	answers = str_to_target_ids(question, strlen(question),
 			&nr_integers);
 	KUNIT_EXPECT_EQ(test, (ssize_t)2, nr_integers);
 	for (i = 0; i < nr_integers; i++)
@@ -48,7 +48,7 @@ static void damon_dbgfs_test_str_to_target_ids(struct kunit *test)
 	kfree(answers);
 
 	question = "12 35 46";
-	answers = str_to_target_ids(question, strnlen(question, 128),
+	answers = str_to_target_ids(question, strlen(question),
 			&nr_integers);
 	KUNIT_EXPECT_EQ(test, (ssize_t)3, nr_integers);
 	for (i = 0; i < nr_integers; i++)
@@ -56,7 +56,7 @@ static void damon_dbgfs_test_str_to_target_ids(struct kunit *test)
 	kfree(answers);
 
 	question = "12 35 abc 46";
-	answers = str_to_target_ids(question, strnlen(question, 128),
+	answers = str_to_target_ids(question, strlen(question),
 			&nr_integers);
 	KUNIT_EXPECT_EQ(test, (ssize_t)2, nr_integers);
 	for (i = 0; i < 2; i++)
@@ -64,13 +64,13 @@ static void damon_dbgfs_test_str_to_target_ids(struct kunit *test)
 	kfree(answers);
 
 	question = "";
-	answers = str_to_target_ids(question, strnlen(question, 128),
+	answers = str_to_target_ids(question, strlen(question),
 			&nr_integers);
 	KUNIT_EXPECT_EQ(test, (ssize_t)0, nr_integers);
 	kfree(answers);
 
 	question = "\n";
-	answers = str_to_target_ids(question, strnlen(question, 128),
+	answers = str_to_target_ids(question, strlen(question),
 			&nr_integers);
 	KUNIT_EXPECT_EQ(test, (ssize_t)0, nr_integers);
 	kfree(answers);
