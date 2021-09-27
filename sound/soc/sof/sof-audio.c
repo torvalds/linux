@@ -11,6 +11,116 @@
 #include "sof-audio.h"
 #include "ops.h"
 
+static int sof_kcontrol_setup(struct snd_sof_dev *sdev, struct snd_sof_control *scontrol)
+{
+	int ipc_cmd, ctrl_type;
+	int ret;
+
+	/* reset readback offset for scontrol */
+	scontrol->readback_offset = 0;
+
+	/* notify DSP of kcontrol values */
+	switch (scontrol->cmd) {
+	case SOF_CTRL_CMD_VOLUME:
+	case SOF_CTRL_CMD_ENUM:
+	case SOF_CTRL_CMD_SWITCH:
+		ipc_cmd = SOF_IPC_COMP_SET_VALUE;
+		ctrl_type = SOF_CTRL_TYPE_VALUE_CHAN_SET;
+		break;
+	case SOF_CTRL_CMD_BINARY:
+		ipc_cmd = SOF_IPC_COMP_SET_DATA;
+		ctrl_type = SOF_CTRL_TYPE_DATA_SET;
+		break;
+	default:
+		return 0;
+	}
+
+	ret = snd_sof_ipc_set_get_comp_data(scontrol, ipc_cmd, ctrl_type, scontrol->cmd, true);
+	if (ret < 0)
+		dev_err(sdev->dev, "error: failed kcontrol value set for widget: %d\n",
+			scontrol->comp_id);
+
+	return ret;
+}
+
+static int sof_dai_config_setup(struct snd_sof_dev *sdev, struct snd_sof_dai *dai)
+{
+	struct sof_ipc_dai_config *config;
+	struct sof_ipc_reply reply;
+	int ret;
+
+	config = &dai->dai_config[dai->current_config];
+	if (!config) {
+		dev_err(sdev->dev, "error: no config for DAI %s\n", dai->name);
+		return -EINVAL;
+	}
+
+	ret = sof_ipc_tx_message(sdev->ipc, config->hdr.cmd, config, config->hdr.size,
+				 &reply, sizeof(reply));
+
+	if (ret < 0)
+		dev_err(sdev->dev, "error: failed to set dai config for %s\n", dai->name);
+
+	return ret;
+}
+
+static int sof_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
+{
+	struct sof_ipc_pipe_new *pipeline;
+	struct sof_ipc_comp_reply r;
+	struct sof_ipc_cmd_hdr *hdr;
+	struct sof_ipc_comp *comp;
+	struct snd_sof_dai *dai;
+	size_t ipc_size;
+	int ret;
+
+	/* skip if there is no private data */
+	if (!swidget->private)
+		return 0;
+
+	ret = sof_pipeline_core_enable(sdev, swidget);
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: failed to enable target core: %d for widget %s\n",
+			ret, swidget->widget->name);
+		return ret;
+	}
+
+	switch (swidget->id) {
+	case snd_soc_dapm_dai_in:
+	case snd_soc_dapm_dai_out:
+		ipc_size = sizeof(struct sof_ipc_comp_dai) + sizeof(struct sof_ipc_comp_ext);
+		comp = kzalloc(ipc_size, GFP_KERNEL);
+		if (!comp)
+			return -ENOMEM;
+
+		dai = swidget->private;
+		memcpy(comp, &dai->comp_dai, sizeof(struct sof_ipc_comp_dai));
+
+		/* append extended data to the end of the component */
+		memcpy((u8 *)comp + sizeof(struct sof_ipc_comp_dai), &swidget->comp_ext,
+		       sizeof(swidget->comp_ext));
+
+		ret = sof_ipc_tx_message(sdev->ipc, comp->hdr.cmd, comp, ipc_size, &r, sizeof(r));
+		kfree(comp);
+		break;
+	case snd_soc_dapm_scheduler:
+		pipeline = swidget->private;
+		ret = sof_load_pipeline_ipc(sdev->dev, pipeline, &r);
+		break;
+	default:
+		hdr = swidget->private;
+		ret = sof_ipc_tx_message(sdev->ipc, hdr->cmd, swidget->private, hdr->size,
+					 &r, sizeof(r));
+		break;
+	}
+	if (ret < 0)
+		dev_err(sdev->dev, "error: failed to load widget %s\n", swidget->widget->name);
+	else
+		dev_dbg(sdev->dev, "widget %s setup complete\n", swidget->widget->name);
+
+	return ret;
+}
+
 /*
  * helper to determine if there are only D0i3 compatible
  * streams active
@@ -97,46 +207,13 @@ static int sof_restore_kcontrols(struct device *dev)
 {
 	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
 	struct snd_sof_control *scontrol;
-	int ipc_cmd, ctrl_type;
 	int ret = 0;
 
 	/* restore kcontrol values */
 	list_for_each_entry(scontrol, &sdev->kcontrol_list, list) {
-		/* reset readback offset for scontrol after resuming */
-		scontrol->readback_offset = 0;
-
-		/* notify DSP of kcontrol values */
-		switch (scontrol->cmd) {
-		case SOF_CTRL_CMD_VOLUME:
-		case SOF_CTRL_CMD_ENUM:
-		case SOF_CTRL_CMD_SWITCH:
-			ipc_cmd = SOF_IPC_COMP_SET_VALUE;
-			ctrl_type = SOF_CTRL_TYPE_VALUE_CHAN_SET;
-			ret = snd_sof_ipc_set_get_comp_data(scontrol,
-							    ipc_cmd, ctrl_type,
-							    scontrol->cmd,
-							    true);
-			break;
-		case SOF_CTRL_CMD_BINARY:
-			ipc_cmd = SOF_IPC_COMP_SET_DATA;
-			ctrl_type = SOF_CTRL_TYPE_DATA_SET;
-			ret = snd_sof_ipc_set_get_comp_data(scontrol,
-							    ipc_cmd, ctrl_type,
-							    scontrol->cmd,
-							    true);
-			break;
-
-		default:
-			break;
-		}
-
-		if (ret < 0) {
-			dev_err(dev,
-				"error: failed kcontrol value set for widget: %d\n",
-				scontrol->comp_id);
-
+		ret = sof_kcontrol_setup(sdev, scontrol);
+		if (ret < 0)
 			return ret;
-		}
 	}
 
 	return 0;
@@ -163,77 +240,14 @@ int sof_restore_pipelines(struct device *dev)
 	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
 	struct snd_sof_widget *swidget;
 	struct snd_sof_route *sroute;
-	struct sof_ipc_pipe_new *pipeline;
 	struct snd_sof_dai *dai;
-	struct sof_ipc_cmd_hdr *hdr;
-	struct sof_ipc_comp *comp;
-	size_t ipc_size;
 	int ret;
 
 	/* restore pipeline components */
 	list_for_each_entry_reverse(swidget, &sdev->widget_list, list) {
-		struct sof_ipc_comp_reply r;
-
-		/* skip if there is no private data */
-		if (!swidget->private)
-			continue;
-
-		ret = sof_pipeline_core_enable(sdev, swidget);
-		if (ret < 0) {
-			dev_err(dev,
-				"error: failed to enable target core: %d\n",
-				ret);
-
+		ret = sof_widget_setup(sdev, swidget);
+		if (ret < 0)
 			return ret;
-		}
-
-		switch (swidget->id) {
-		case snd_soc_dapm_dai_in:
-		case snd_soc_dapm_dai_out:
-			ipc_size = sizeof(struct sof_ipc_comp_dai) +
-				   sizeof(struct sof_ipc_comp_ext);
-			comp = kzalloc(ipc_size, GFP_KERNEL);
-			if (!comp)
-				return -ENOMEM;
-
-			dai = swidget->private;
-			memcpy(comp, &dai->comp_dai,
-			       sizeof(struct sof_ipc_comp_dai));
-
-			/* append extended data to the end of the component */
-			memcpy((u8 *)comp + sizeof(struct sof_ipc_comp_dai),
-			       &swidget->comp_ext, sizeof(swidget->comp_ext));
-
-			ret = sof_ipc_tx_message(sdev->ipc, comp->hdr.cmd,
-						 comp, ipc_size,
-						 &r, sizeof(r));
-			kfree(comp);
-			break;
-		case snd_soc_dapm_scheduler:
-
-			/*
-			 * During suspend, all DSP cores are powered off.
-			 * Therefore upon resume, create the pipeline comp
-			 * and power up the core that the pipeline is
-			 * scheduled on.
-			 */
-			pipeline = swidget->private;
-			ret = sof_load_pipeline_ipc(dev, pipeline, &r);
-			break;
-		default:
-			hdr = swidget->private;
-			ret = sof_ipc_tx_message(sdev->ipc, hdr->cmd,
-						 swidget->private, hdr->size,
-						 &r, sizeof(r));
-			break;
-		}
-		if (ret < 0) {
-			dev_err(dev,
-				"error: failed to load widget type %d with ID: %d\n",
-				swidget->widget->id, swidget->comp_id);
-
-			return ret;
-		}
 	}
 
 	/* restore pipeline connections */
@@ -266,14 +280,7 @@ int sof_restore_pipelines(struct device *dev)
 
 	/* restore dai links */
 	list_for_each_entry_reverse(dai, &sdev->dai_list, list) {
-		struct sof_ipc_reply reply;
 		struct sof_ipc_dai_config *config = &dai->dai_config[dai->current_config];
-
-		if (!config) {
-			dev_err(dev, "error: no config for DAI %s\n",
-				dai->name);
-			continue;
-		}
 
 		/*
 		 * The link DMA channel would be invalidated for running
@@ -284,18 +291,9 @@ int sof_restore_pipelines(struct device *dev)
 		if (config->type == SOF_DAI_INTEL_HDA)
 			config->hda.link_dma_ch = DMA_CHAN_INVALID;
 
-		ret = sof_ipc_tx_message(sdev->ipc,
-					 config->hdr.cmd, config,
-					 config->hdr.size,
-					 &reply, sizeof(reply));
-
-		if (ret < 0) {
-			dev_err(dev,
-				"error: failed to set dai config for %s\n",
-				dai->name);
-
+		ret = sof_dai_config_setup(sdev, dai);
+		if (ret < 0)
 			return ret;
-		}
 	}
 
 	/* complete pipeline */
