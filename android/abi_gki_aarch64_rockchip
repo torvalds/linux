@@ -57,6 +57,7 @@
   clk_prepare
   clk_put
   clk_register
+  clk_round_rate
   clk_set_phase
   clk_set_rate
   clk_unprepare
@@ -77,6 +78,8 @@
   cpu_number
   __cpu_online_mask
   __cpu_possible_mask
+  cpus_read_lock
+  cpus_read_unlock
   crypto_destroy_tfm
   crypto_inc
   __crypto_memneq
@@ -96,6 +99,7 @@
   destroy_workqueue
   _dev_err
   dev_err_probe
+  devfreq_recommended_opp
   dev_fwnode
   device_add_disk
   device_create
@@ -149,9 +153,11 @@
   __devm_reset_control_get
   devm_snd_dmaengine_pcm_register
   devm_snd_soc_register_component
+  dev_pm_opp_find_freq_ceil
   dev_pm_opp_get_opp_count
   dev_pm_opp_get_voltage
   dev_pm_opp_put
+  dev_pm_opp_remove
   devres_add
   devres_alloc_node
   devres_free
@@ -297,6 +303,8 @@
   mutex_unlock
   no_llseek
   nr_cpu_ids
+  nvmem_cell_put
+  nvmem_cell_read
   of_alias_get_id
   of_clk_add_provider
   of_clk_del_provider
@@ -321,8 +329,10 @@
   of_match_device
   of_match_node
   of_node_name_eq
+  of_nvmem_cell_get
   of_parse_phandle
   of_phy_simple_xlate
+  of_property_count_elems_of_size
   of_property_read_string
   of_property_read_string_helper
   of_property_read_u32_index
@@ -409,6 +419,7 @@
   regulator_list_voltage_linear_range
   regulator_map_voltage_linear
   regulator_map_voltage_linear_range
+  regulator_set_voltage
   regulator_set_voltage_sel_regmap
   regulator_set_voltage_time_sel
   remap_pfn_range
@@ -483,6 +494,7 @@
   sysfs_remove_link
   system_wq
   __tasklet_schedule
+  thermal_zone_get_zone_by_name
   __traceiter_rwmmio_post_read
   __traceiter_rwmmio_read
   __traceiter_rwmmio_write
@@ -492,6 +504,7 @@
   __unregister_chrdev
   unregister_chrdev_region
   unregister_reboot_notifier
+  update_devfreq
   up_read
   up_write
   usleep_range
@@ -615,8 +628,6 @@
   cpufreq_dbs_governor_start
   cpufreq_dbs_governor_stop
   cpufreq_table_index_unsorted
-  cpus_read_lock
-  cpus_read_unlock
   dbs_update
   get_cpu_idle_time_us
   gov_update_cpu_data
@@ -683,7 +694,6 @@
 # required by gpio-regulator.ko
   devm_kstrdup
   gpiod_count
-  of_property_count_elems_of_size
 
 # required by gpio-rockchip.ko
   generic_handle_irq
@@ -1104,27 +1114,50 @@
 # required by rockchip_bus.ko
   cpufreq_register_notifier
   cpu_topology
-  devfreq_recommended_opp
-  regulator_set_voltage
 
 # required by rockchip_dmc.ko
+  cpufreq_cpu_get
+  cpufreq_cpu_put
+  cpufreq_quick_get
+  cpu_latency_qos_add_request
   cpu_latency_qos_update_request
+  devfreq_add_governor
   devfreq_event_disable_edev
   devfreq_event_enable_edev
   devfreq_event_get_edev_by_phandle
   devfreq_event_get_edev_count
+  devfreq_event_get_event
+  devfreq_monitor_resume
+  devfreq_monitor_start
+  devfreq_monitor_stop
+  devfreq_monitor_suspend
   devfreq_resume_device
   devfreq_suspend_device
+  devfreq_update_interval
+  devm_devfreq_add_device
+  devm_devfreq_register_opp_notifier
   _dev_notice
   dev_pm_opp_add
-  dev_pm_opp_find_freq_ceil
-  dev_pm_opp_remove
+  input_close_device
+  input_open_device
+  input_register_handle
+  input_register_handler
+  input_unregister_handle
   __memset_io
+  of_devfreq_cooling_register_power
   platform_get_irq_byname
 
 # required by rockchip_dmc_common.ko
   down_write_trylock
-  update_devfreq
+
+# required by rockchip_opp_select.ko
+  dev_pm_opp_get_opp_table
+  dev_pm_opp_of_add_table
+  dev_pm_opp_put_opp_table
+  dev_pm_opp_set_prop_name
+  of_find_node_opts_by_path
+  regulator_get_optional
+  regulator_put
 
 # required by rockchip_saradc.ko
   devm_iio_device_alloc
@@ -1139,9 +1172,6 @@
 
 # required by rockchip_thermal.ko
   devm_thermal_zone_of_sensor_register
-  nvmem_cell_put
-  nvmem_cell_read
-  of_nvmem_cell_get
   thermal_zone_device_disable
   thermal_zone_device_enable
   thermal_zone_device_update
@@ -1277,9 +1307,6 @@
   snd_pcm_create_iec958_consumer_hw_params
   snd_pcm_hw_constraint_eld
   snd_soc_dapm_add_routes
-
-# required by snd-soc-rockchip-pdm.ko
-  clk_round_rate
 
 # required by snd-soc-simple-card-utils.ko
   devm_get_clk_from_child
