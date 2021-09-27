@@ -3361,14 +3361,31 @@ static void handle_session(struct ceph_mds_session *session,
 
 	if (msg_version >= 3) {
 		u32 len;
-		/* version >= 2, metadata */
-		if (__decode_session_metadata(&p, end, &blocklisted) < 0)
+		/* version >= 2 and < 5, decode metadata, skip otherwise
+		 * as it's handled via flags.
+		 */
+		if (msg_version >= 5)
+			ceph_decode_skip_map(&p, end, string, string, bad);
+		else if (__decode_session_metadata(&p, end, &blocklisted) < 0)
 			goto bad;
+
 		/* version >= 3, feature bits */
 		ceph_decode_32_safe(&p, end, len, bad);
 		if (len) {
 			ceph_decode_64_safe(&p, end, features, bad);
 			p += len - sizeof(features);
+		}
+	}
+
+	if (msg_version >= 5) {
+		u32 flags;
+		/* version >= 4, struct_v, struct_cv, len, metric_spec */
+	        ceph_decode_skip_n(&p, end, 2 + sizeof(u32) * 2, bad);
+		/* version >= 5, flags   */
+                ceph_decode_32_safe(&p, end, flags, bad);
+		if (flags & CEPH_SESSION_BLOCKLISTED) {
+		        pr_warn("mds%d session blocklisted\n", session->s_mds);
+			blocklisted = true;
 		}
 	}
 
