@@ -1188,6 +1188,24 @@
   regmap_del_irq_chip
   regmap_irq_get_domain
 
+# required by rockchip-iommu.ko
+  bus_set_iommu
+  device_link_add
+  device_link_del
+  get_zeroed_page
+  iommu_device_register
+  iommu_device_sysfs_add
+  iommu_device_sysfs_remove
+  iommu_get_dma_cookie
+  iommu_group_alloc
+  iommu_group_put
+  iommu_group_ref_get
+  iommu_put_dma_cookie
+  platform_bus_type
+  platform_irq_count
+  report_iommu_fault
+  strstr
+
 # required by rockchip-rng.ko
   devm_hwrng_register
   devm_of_iomap
