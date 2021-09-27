@@ -455,11 +455,10 @@ struct async_chunk {
 	struct list_head extents;
 	struct cgroup_subsys_state *blkcg_css;
 	struct btrfs_work work;
-	atomic_t *pending;
+	struct async_cow *async_cow;
 };
 
 struct async_cow {
-	/* Number of chunks in flight; must be first in the structure */
 	atomic_t num_chunks;
 	struct async_chunk chunks[];
 };
@@ -1324,18 +1323,17 @@ static noinline void async_cow_submit(struct btrfs_work *work)
 static noinline void async_cow_free(struct btrfs_work *work)
 {
 	struct async_chunk *async_chunk;
+	struct async_cow *async_cow;
 
 	async_chunk = container_of(work, struct async_chunk, work);
 	if (async_chunk->inode)
 		btrfs_add_delayed_iput(async_chunk->inode);
 	if (async_chunk->blkcg_css)
 		css_put(async_chunk->blkcg_css);
-	/*
-	 * Since the pointer to 'pending' is at the beginning of the array of
-	 * async_chunk's, freeing it ensures the whole array has been freed.
-	 */
-	if (atomic_dec_and_test(async_chunk->pending))
-		kvfree(async_chunk->pending);
+
+	async_cow = async_chunk->async_cow;
+	if (atomic_dec_and_test(&async_cow->num_chunks))
+		kvfree(async_cow);
 }
 
 static int cow_file_range_async(struct btrfs_inode *inode,
@@ -1396,7 +1394,7 @@ static int cow_file_range_async(struct btrfs_inode *inode,
 		 * lightweight reference for the callback lifetime
 		 */
 		ihold(&inode->vfs_inode);
-		async_chunk[i].pending = &ctx->num_chunks;
+		async_chunk[i].async_cow = ctx;
 		async_chunk[i].inode = &inode->vfs_inode;
 		async_chunk[i].start = start;
 		async_chunk[i].end = cur_end;
