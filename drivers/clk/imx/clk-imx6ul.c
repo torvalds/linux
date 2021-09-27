@@ -380,7 +380,6 @@ static void __init imx6ul_clocks_init(struct device_node *ccm_node)
 		hws[IMX6ULL_CLK_ESAI_IPG]	= imx_clk_hw_gate2_shared("esai_ipg",	"ahb",		base + 0x70,	0, &share_count_esai);
 		hws[IMX6ULL_CLK_ESAI_MEM]	= imx_clk_hw_gate2_shared("esai_mem",	"ahb",		base + 0x70,	0, &share_count_esai);
 	}
-	hws[IMX6UL_CLK_CSI]		= imx_clk_hw_gate2("csi",		"csi_podf",		base + 0x70,	2);
 	hws[IMX6UL_CLK_I2C1]		= imx_clk_hw_gate2("i2c1",		"perclk",	base + 0x70,	6);
 	hws[IMX6UL_CLK_I2C2]		= imx_clk_hw_gate2("i2c2",		"perclk",	base + 0x70,	8);
 	hws[IMX6UL_CLK_I2C3]		= imx_clk_hw_gate2("i2c3",		"perclk",	base + 0x70,	10);
@@ -391,6 +390,12 @@ static void __init imx6ul_clocks_init(struct device_node *ccm_node)
 	hws[IMX6UL_CLK_PXP]		= imx_clk_hw_gate2("pxp",		"axi",		base + 0x70,	30);
 
 	/* CCGR3 */
+	/*
+	 * Although the imx6ull reference manual lists CCGR2 as the csi clk
+	 * gate register, tests have shown that it is actually the CCGR3
+	 * register bit 0/1, same as for the imx6ul.
+	 */
+	hws[IMX6UL_CLK_CSI]		= imx_clk_hw_gate2("csi",	"csi_podf",	base + 0x74,	0);
 	hws[IMX6UL_CLK_UART5_IPG]	= imx_clk_hw_gate2("uart5_ipg",	"ipg",		base + 0x74,	2);
 	hws[IMX6UL_CLK_UART5_SERIAL]	= imx_clk_hw_gate2("uart5_serial",	"uart_podf",	base + 0x74,	2);
 	if (clk_on_imx6ul()) {
