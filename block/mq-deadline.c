@@ -677,8 +677,10 @@ static void dd_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 	blk_req_zone_write_unlock(rq);
 
 	prio = ioprio_class_to_prio[ioprio_class];
-	dd_count(dd, inserted, prio);
-	rq->elv.priv[0] = (void *)(uintptr_t)1;
+	if (!rq->elv.priv[0]) {
+		dd_count(dd, inserted, prio);
+		rq->elv.priv[0] = (void *)(uintptr_t)1;
+	}
 
 	if (blk_mq_sched_try_insert_merge(q, rq, &free)) {
 		blk_mq_free_requests(&free);
@@ -759,12 +761,13 @@ static void dd_finish_request(struct request *rq)
 
 	/*
 	 * The block layer core may call dd_finish_request() without having
-	 * called dd_insert_requests(). Hence only update statistics for
-	 * requests for which dd_insert_requests() has been called. See also
-	 * blk_mq_request_bypass_insert().
+	 * called dd_insert_requests(). Skip requests that bypassed I/O
+	 * scheduling. See also blk_mq_request_bypass_insert().
 	 */
-	if (rq->elv.priv[0])
-		dd_count(dd, completed, prio);
+	if (!rq->elv.priv[0])
+		return;
+
+	dd_count(dd, completed, prio);
 
 	if (blk_queue_is_zoned(q)) {
 		unsigned long flags;
