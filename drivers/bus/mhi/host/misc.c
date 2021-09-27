@@ -1890,6 +1890,24 @@ error_unlock:
 }
 EXPORT_SYMBOL(mhi_get_remote_time);
 
+/* MHI host reset request*/
+int mhi_force_reset(struct mhi_controller *mhi_cntrl)
+{
+	struct device *dev = &mhi_cntrl->mhi_dev->dev;
+
+	MHI_VERB(dev, "Entered with pm_state:%s dev_state:%s ee:%s\n",
+		 to_mhi_pm_state_str(mhi_cntrl->pm_state),
+		 mhi_state_str(mhi_cntrl->dev_state),
+		 TO_MHI_EXEC_STR(mhi_cntrl->ee));
+
+	/* notify critical clients in absence of RDDM */
+	mhi_report_error(mhi_cntrl);
+
+	mhi_soc_reset(mhi_cntrl);
+	return mhi_rddm_download_status(mhi_cntrl);
+}
+EXPORT_SYMBOL(mhi_force_reset);
+
 /* Get SoC info before registering mhi controller */
 int mhi_get_soc_info(struct mhi_controller *mhi_cntrl)
 {
