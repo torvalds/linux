@@ -1955,6 +1955,13 @@ int btrfs_run_delalloc_range(struct btrfs_inode *inode, struct page *locked_page
 	int ret;
 	const bool zoned = btrfs_is_zoned(inode->root->fs_info);
 
+	/*
+	 * The range must cover part of the @locked_page, or the returned
+	 * @page_started can confuse the caller.
+	 */
+	ASSERT(!(end <= page_offset(locked_page) ||
+		 start >= page_offset(locked_page) + PAGE_SIZE));
+
 	if (should_nocow(inode, start, end)) {
 		/*
 		 * Normally on a zoned device we're only doing COW writes, but

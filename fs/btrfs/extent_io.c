@@ -1975,10 +1975,18 @@ static noinline int lock_delalloc_pages(struct inode *inode,
 
 /*
  * Find and lock a contiguous range of bytes in the file marked as delalloc, no
- * more than @max_bytes.  @Start and @end are used to return the range,
+ * more than @max_bytes.
  *
- * Return: true if we find something
- *         false if nothing was in the tree
+ * @start:	The original start bytenr to search.
+ *		Will store the extent range start bytenr.
+ * @end:	The original end bytenr of the search range
+ *		Will store the extent range end bytenr.
+ *
+ * Return true if we find a delalloc range which starts inside the original
+ * range, and @start/@end will store the delalloc range start/end.
+ *
+ * Return false if we can't find any delalloc range which starts inside the
+ * original range, and @start/@end will be the non-delalloc range start/end.
  */
 EXPORT_FOR_TESTS
 noinline_for_stack bool find_lock_delalloc_range(struct inode *inode,
@@ -1986,6 +1994,8 @@ noinline_for_stack bool find_lock_delalloc_range(struct inode *inode,
 				    u64 *end)
 {
 	struct extent_io_tree *tree = &BTRFS_I(inode)->io_tree;
+	const u64 orig_start = *start;
+	const u64 orig_end = *end;
 	u64 max_bytes = BTRFS_MAX_EXTENT_SIZE;
 	u64 delalloc_start;
 	u64 delalloc_end;
@@ -1994,15 +2004,23 @@ noinline_for_stack bool find_lock_delalloc_range(struct inode *inode,
 	int ret;
 	int loops = 0;
 
+	/* Caller should pass a valid @end to indicate the search range end */
+	ASSERT(orig_end > orig_start);
+
+	/* The range should at least cover part of the page */
+	ASSERT(!(orig_start >= page_offset(locked_page) + PAGE_SIZE ||
+		 orig_end <= page_offset(locked_page)));
 again:
 	/* step one, find a bunch of delalloc bytes starting at start */
 	delalloc_start = *start;
 	delalloc_end = 0;
 	found = btrfs_find_delalloc_range(tree, &delalloc_start, &delalloc_end,
 					  max_bytes, &cached_state);
-	if (!found || delalloc_end <= *start) {
+	if (!found || delalloc_end <= *start || delalloc_start > orig_end) {
 		*start = delalloc_start;
-		*end = delalloc_end;
+
+		/* @delalloc_end can be -1, never go beyond @orig_end */
+		*end = min(delalloc_end, orig_end);
 		free_extent_state(cached_state);
 		return false;
 	}
@@ -3771,16 +3789,16 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 		struct page *page, struct writeback_control *wbc,
 		unsigned long *nr_written)
 {
-	u64 page_end = page_offset(page) + PAGE_SIZE - 1;
-	bool found;
+	const u64 page_end = page_offset(page) + PAGE_SIZE - 1;
 	u64 delalloc_start = page_offset(page);
 	u64 delalloc_to_write = 0;
-	u64 delalloc_end = 0;
 	int ret;
 	int page_started = 0;
 
+	while (delalloc_start < page_end) {
+		u64 delalloc_end = page_end;
+		bool found;
 
-	while (delalloc_end < page_end) {
 		found = find_lock_delalloc_range(&inode->vfs_inode, page,
 					       &delalloc_start,
 					       &delalloc_end);
