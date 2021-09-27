@@ -25,7 +25,7 @@
 #include "xfs_dquot.h"
 #include "xfs_icache.h"
 
-kmem_zone_t	*xfs_trans_zone;
+struct kmem_cache	*xfs_trans_zone;
 
 #if defined(CONFIG_TRACEPOINTS)
 static void

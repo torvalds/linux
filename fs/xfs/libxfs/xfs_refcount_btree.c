@@ -21,7 +21,7 @@
 #include "xfs_rmap.h"
 #include "xfs_ag.h"
 
-static kmem_zone_t	*xfs_refcountbt_cur_cache;
+static struct kmem_cache	*xfs_refcountbt_cur_cache;
 
 static struct xfs_btree_cur *
 xfs_refcountbt_dup_cursor(

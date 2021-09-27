@@ -21,7 +21,7 @@
 #include "xfs_sb.h"
 #include "xfs_health.h"
 
-kmem_zone_t	*xfs_log_ticket_zone;
+struct kmem_cache	*xfs_log_ticket_zone;
 
 /* Local miscellaneous function prototypes */
 STATIC struct xlog *

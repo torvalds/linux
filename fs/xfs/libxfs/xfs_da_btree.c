@@ -72,7 +72,7 @@ STATIC int	xfs_da3_blk_unlink(xfs_da_state_t *state,
 				  xfs_da_state_blk_t *save_blk);
 
 
-kmem_zone_t *xfs_da_state_zone;	/* anchor for state struct zone */
+struct kmem_cache *xfs_da_state_zone;	/* anchor for state struct zone */
 
 /*
  * Allocate a dir-state structure.

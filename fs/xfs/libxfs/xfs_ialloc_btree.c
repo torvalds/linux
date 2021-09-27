@@ -22,7 +22,7 @@
 #include "xfs_rmap.h"
 #include "xfs_ag.h"
 
-static kmem_zone_t	*xfs_inobt_cur_cache;
+static struct kmem_cache	*xfs_inobt_cur_cache;
 
 STATIC int
 xfs_inobt_get_minrecs(

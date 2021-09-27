@@ -22,7 +22,7 @@
 #include "xfs_ag.h"
 #include "xfs_ag_resv.h"
 
-static kmem_zone_t	*xfs_rmapbt_cur_cache;
+static struct kmem_cache	*xfs_rmapbt_cur_cache;
 
 /*
  * Reverse map btree.

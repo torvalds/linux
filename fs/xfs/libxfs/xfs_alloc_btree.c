@@ -20,7 +20,7 @@
 #include "xfs_trans.h"
 #include "xfs_ag.h"
 
-static kmem_zone_t	*xfs_allocbt_cur_cache;
+static struct kmem_cache	*xfs_allocbt_cur_cache;
 
 STATIC struct xfs_btree_cur *
 xfs_allocbt_dup_cursor(

@@ -72,10 +72,6 @@ kmem_zalloc(size_t size, xfs_km_flags_t flags)
 /*
  * Zone interfaces
  */
-
-#define kmem_zone	kmem_cache
-#define kmem_zone_t	struct kmem_cache
-
 static inline struct page *
 kmem_to_page(void *addr)
 {

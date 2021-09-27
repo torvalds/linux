@@ -227,6 +227,6 @@ void	xfs_da3_node_hdr_from_disk(struct xfs_mount *mp,
 void	xfs_da3_node_hdr_to_disk(struct xfs_mount *mp,
 		struct xfs_da_intnode *to, struct xfs_da3_icnode_hdr *from);
 
-extern struct kmem_zone *xfs_da_state_zone;
+extern struct kmem_cache *xfs_da_state_zone;
 
 #endif	/* __XFS_DA_BTREE_H__ */

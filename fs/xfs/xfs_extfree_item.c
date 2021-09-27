@@ -25,8 +25,8 @@
 #include "xfs_log_priv.h"
 #include "xfs_log_recover.h"
 
-kmem_zone_t	*xfs_efi_zone;
-kmem_zone_t	*xfs_efd_zone;
+struct kmem_cache	*xfs_efi_zone;
+struct kmem_cache	*xfs_efd_zone;
 
 static const struct xfs_item_ops xfs_efi_item_ops;
 

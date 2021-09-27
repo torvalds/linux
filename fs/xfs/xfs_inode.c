@@ -36,7 +36,7 @@
 #include "xfs_reflink.h"
 #include "xfs_ag.h"
 
-kmem_zone_t *xfs_inode_zone;
+struct kmem_cache *xfs_inode_zone;
 
 /*
  * Used in xfs_itruncate_extents().  This is the maximum number of extents

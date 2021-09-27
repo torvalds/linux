@@ -20,7 +20,7 @@
 #include "xfs_ialloc.h"
 #include "xfs_trace.h"
 
-kmem_zone_t	*xfs_icreate_zone;		/* inode create item zone */
+struct kmem_cache	*xfs_icreate_zone;		/* inode create item zone */
 
 static inline struct xfs_icreate_item *ICR_ITEM(struct xfs_log_item *lip)
 {

@@ -230,7 +230,7 @@ struct xfs_btree_cur
 	struct xfs_trans	*bc_tp;	/* transaction we're in, if any */
 	struct xfs_mount	*bc_mp;	/* file system mount struct */
 	const struct xfs_btree_ops *bc_ops;
-	kmem_zone_t		*bc_cache; /* cursor cache */
+	struct kmem_cache	*bc_cache; /* cursor cache */
 	unsigned int		bc_flags; /* btree features - below */
 	xfs_btnum_t		bc_btnum; /* identifies which btree type */
 	union xfs_btree_irec	bc_rec;	/* current insert/search record value */
@@ -586,7 +586,7 @@ xfs_btree_alloc_cursor(
 	struct xfs_trans	*tp,
 	xfs_btnum_t		btnum,
 	uint8_t			maxlevels,
-	kmem_zone_t		*cache)
+	struct kmem_cache	*cache)
 {
 	struct xfs_btree_cur	*cur;
 

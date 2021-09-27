@@ -22,7 +22,7 @@
 #include "xfs_trace.h"
 #include "xfs_rmap.h"
 
-static kmem_zone_t	*xfs_bmbt_cur_cache;
+static struct kmem_cache	*xfs_bmbt_cur_cache;
 
 /*
  * Convert on-disk form of btree root to in-memory form.

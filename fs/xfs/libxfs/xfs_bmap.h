@@ -13,7 +13,7 @@ struct xfs_inode;
 struct xfs_mount;
 struct xfs_trans;
 
-extern kmem_zone_t	*xfs_bmap_free_item_zone;
+extern struct kmem_cache	*xfs_bmap_free_item_zone;
 
 /*
  * Argument structure for xfs_bmap_alloc.

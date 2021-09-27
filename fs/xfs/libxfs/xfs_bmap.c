@@ -38,7 +38,7 @@
 #include "xfs_iomap.h"
 
 
-kmem_zone_t		*xfs_bmap_free_item_zone;
+struct kmem_cache		*xfs_bmap_free_item_zone;
 
 /*
  * Miscellaneous helper functions
