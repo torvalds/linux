@@ -5507,6 +5507,7 @@ static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
 		params->acl = parse_acl_data(&rdev->wiphy, info);
 		if (IS_ERR(params->acl)) {
 			err = PTR_ERR(params->acl);
+			params->acl = NULL;
 			goto out;
 		}
 	}
