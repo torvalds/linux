@@ -687,6 +687,52 @@
   watchdog_set_restart_priority
   watchdog_unregister_device
 
+# required by dwc2.ko
+  __bitmap_clear
+  bitmap_find_next_zero_area_off
+  dev_driver_string
+  device_set_wakeup_capable
+  device_wakeup_enable
+  devm_usb_get_phy
+  dma_sync_single_for_cpu
+  dma_sync_single_for_device
+  hrtimer_cancel
+  hrtimer_init
+  hrtimer_start_range_ns
+  is_vmalloc_addr
+  phy_reset
+  _raw_spin_trylock
+  synchronize_irq
+  usb_add_gadget_udc
+  usb_add_hcd
+  usb_calc_bus_time
+  usb_create_hcd
+  usb_debug_root
+  usb_del_gadget_udc
+  usb_disabled
+  usb_ep_set_maxpacket_limit
+  usb_gadget_giveback_request
+  usb_gadget_map_request
+  usb_gadget_set_state
+  usb_gadget_unmap_request
+  usb_get_dr_mode
+  usb_hcd_check_unlink_urb
+  usb_hcd_giveback_urb
+  usb_hcd_link_urb_to_ep
+  usb_hcd_map_urb_for_dma
+  usb_hcd_resume_root_hub
+  usb_hcd_unlink_urb_from_ep
+  usb_hcd_unmap_urb_for_dma
+  usb_hub_clear_tt_buffer
+  usb_phy_set_charger_current
+  usb_put_hcd
+  usb_remove_hcd
+  usb_role_switch_get_drvdata
+  usb_role_switch_register
+  usb_role_switch_unregister
+  usb_speed_string
+  usb_wakeup_enabled_descendants
+
 # required by fan53555.ko
   gpiod_get_raw_value
   gpiod_set_raw_value
