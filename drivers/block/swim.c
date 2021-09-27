@@ -185,6 +185,7 @@ struct floppy_state {
 
 	int		track;
 	int		ref_count;
+	bool registered;
 
 	struct gendisk *disk;
 	struct blk_mq_tag_set tag_set;
@@ -779,6 +780,9 @@ static void swim_cleanup_floppy_disk(struct floppy_state *fs)
 	if (!disk)
 		return;
 
+	if (fs->registered)
+		del_gendisk(fs->disk);
+
 	blk_cleanup_disk(disk);
 	blk_mq_free_tag_set(&fs->tag_set);
 }
@@ -840,6 +844,7 @@ static int swim_floppy_init(struct swim_priv *swd)
 		swd->unit[drive].disk->private_data = &swd->unit[drive];
 		set_capacity(swd->unit[drive].disk, 2880);
 		add_disk(swd->unit[drive].disk);
+		swd->unit[drive].registered = true;
 	}
 
 	return 0;
@@ -916,10 +921,8 @@ static int swim_remove(struct platform_device *dev)
 	int drive;
 	struct resource *res;
 
-	for (drive = 0; drive < swd->floppy_count; drive++) {
-		del_gendisk(swd->unit[drive].disk);
+	for (drive = 0; drive < swd->floppy_count; drive++)
 		swim_cleanup_floppy_disk(&swd->unit[drive]);
-	}
 
 	unregister_blkdev(FLOPPY_MAJOR, "fd");
 
