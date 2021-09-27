@@ -1,10 +1,12 @@
 #!/usr/bin/env perl
 # SPDX-License-Identifier: GPL-2.0
 
+BEGIN { $Pod::Usage::Formatter = 'Pod::Text::Termcap'; }
+
 use strict;
 use warnings;
 use utf8;
-use Pod::Usage;
+use Pod::Usage qw(pod2usage);
 use Getopt::Long;
 use File::Find;
 use Fcntl ':mode';
@@ -47,7 +49,7 @@ GetOptions(
 ) or pod2usage(2);
 
 pod2usage(1) if $help;
-pod2usage(-exitstatus => 0, -verbose => 2) if $man;
+pod2usage(-exitstatus => 0, -noperldoc, -verbose => 2) if $man;
 
 pod2usage(2) if (scalar @ARGV < 1 || @ARGV > 2);
 
@@ -923,18 +925,18 @@ B<abi_book.pl> [--debug <level>] [--enable-lineno] [--man] [--help]
 	       [--search-string <regex>]
 	       <COMAND> [<ARGUMENT>]
 
-Where <COMMAND> can be:
+Where B<COMMAND> can be:
 
 =over 8
 
-B<search> [SEARCH_REGEX] - search for [SEARCH_REGEX] inside ABI
+B<search> I<SEARCH_REGEX> - search for I<SEARCH_REGEX> inside ABI
 
-B<rest>                  - output the ABI in ReST markup language
+B<rest>                   - output the ABI in ReST markup language
 
-B<validate>              - validate the ABI contents
+B<validate>               - validate the ABI contents
 
-B<undefined>             - existing symbols at the system that aren't
-                           defined at Documentation/ABI
+B<undefined>              - existing symbols at the system that aren't
+                            defined at Documentation/ABI
 
 =back
 
@@ -950,9 +952,9 @@ the Documentation/ABI directory.
 =item B<--rst-source> and B<--no-rst-source>
 
 The input file may be using ReST syntax or not. Those two options allow
-selecting between a rst-compliant source ABI (--rst-source), or a
+selecting between a rst-compliant source ABI (B<--rst-source>), or a
 plain text that may be violating ReST spec, so it requres some escaping
-logic (--no-rst-source).
+logic (B<--no-rst-source>).
 
 =item B<--enable-lineno>
 
@@ -972,7 +974,7 @@ following bitmask:
 Show hints about possible definitions for the missing ABI symbols.
 Used only when B<undefined>.
 
-=item B<--search-string> [regex string]
+=item B<--search-string> I<regex string>
 
 Show only occurences that match a search string.
 Used only when B<undefined>.
@@ -1021,11 +1023,11 @@ $ scripts/get_abi.pl rest --dir Documentation/ABI/obsolete
 
 =head1 BUGS
 
-Report bugs to Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
+Report bugs to Mauro Carvalho Chehab <mchehab+huawei@kernel.org>
 
 =head1 COPYRIGHT
 
-Copyright (c) 2016-2019 by Mauro Carvalho Chehab <mchehab+samsung@kernel.org>.
+Copyright (c) 2016-2021 by Mauro Carvalho Chehab <mchehab+huawei@kernel.org>.
 
 License GPLv2: GNU GPL version 2 <http://gnu.org/licenses/gpl.html>.
 
