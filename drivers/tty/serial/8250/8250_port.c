@@ -2547,6 +2547,19 @@ static unsigned int serial8250_get_divisor(struct uart_port *port,
 	return serial8250_do_get_divisor(port, baud, frac);
 }
 
+static unsigned int serial8250_compute_baud_rate(struct uart_port *port,
+						 unsigned int quot)
+{
+	if ((port->flags & UPF_MAGIC_MULTIPLIER) && quot == 0x8001)
+		return port->uartclk / 4;
+	else if ((port->flags & UPF_MAGIC_MULTIPLIER) && quot == 0x8002)
+		return port->uartclk / 8;
+	else if (port->type == PORT_NPCM)
+		return DIV_ROUND_CLOSEST(port->uartclk - 2 * (quot + 2), 16 * (quot + 2));
+	else
+		return DIV_ROUND_CLOSEST(port->uartclk, 16 * quot);
+}
+
 static unsigned char serial8250_compute_lcr(struct uart_8250_port *up,
 					    tcflag_t c_cflag)
 {
@@ -2688,11 +2701,14 @@ void serial8250_update_uartclk(struct uart_port *port, unsigned int uartclk)
 
 	baud = serial8250_get_baud_rate(port, termios, NULL);
 	quot = serial8250_get_divisor(port, baud, &frac);
+	baud = serial8250_compute_baud_rate(port, quot);
 
 	serial8250_rpm_get(up);
 	spin_lock_irqsave(&port->lock, flags);
 
 	uart_update_timeout(port, termios->c_cflag, baud);
+	if (tty_termios_baud_rate(termios))
+		tty_termios_encode_baud_rate(termios, baud, baud);
 
 	serial8250_set_divisor(port, baud, quot, frac);
 	serial_port_out(port, UART_LCR, up->lcr);
@@ -2726,6 +2742,7 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	baud = serial8250_get_baud_rate(port, termios, old);
 	quot = serial8250_get_divisor(port, baud, &frac);
+	baud = serial8250_compute_baud_rate(port, quot);
 
 	/*
 	 * Ok, we're now changing the port state.  Do it with
