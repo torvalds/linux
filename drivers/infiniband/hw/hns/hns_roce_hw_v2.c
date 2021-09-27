@@ -3299,7 +3299,7 @@ static void __hns_roce_v2_cq_clean(struct hns_roce_cq *hr_cq, u32 qpn,
 			dest = get_cqe_v2(hr_cq, (prod_index + nfreed) &
 					  hr_cq->ib_cq.cqe);
 			owner_bit = hr_reg_read(dest, CQE_OWNER);
-			memcpy(dest, cqe, sizeof(*cqe));
+			memcpy(dest, cqe, hr_cq->cqe_size);
 			hr_reg_write(dest, CQE_OWNER, owner_bit);
 		}
 	}
