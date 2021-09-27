@@ -367,10 +367,8 @@ static void ttm_tt_clear_mapping(struct ttm_tt *ttm)
 	if (ttm->page_flags & TTM_PAGE_FLAG_SG)
 		return;
 
-	for (i = 0; i < ttm->num_pages; ++i) {
+	for (i = 0; i < ttm->num_pages; ++i)
 		(*page)->mapping = NULL;
-		(*page++)->index = 0;
-	}
 }
 
 void ttm_tt_unpopulate(struct ttm_device *bdev, struct ttm_tt *ttm)
