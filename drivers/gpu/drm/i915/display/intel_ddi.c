@@ -104,10 +104,10 @@ void hsw_prepare_dp_ddi_buffers(struct intel_encoder *encoder,
 	u32 iboost_bit = 0;
 	int i, n_entries;
 	enum port port = encoder->port;
-	const struct intel_ddi_buf_trans *ddi_translations;
+	const struct intel_ddi_buf_trans *trans;
 
-	ddi_translations = encoder->get_buf_trans(encoder, crtc_state, &n_entries);
-	if (drm_WARN_ON_ONCE(&dev_priv->drm, !ddi_translations))
+	trans = encoder->get_buf_trans(encoder, crtc_state, &n_entries);
+	if (drm_WARN_ON_ONCE(&dev_priv->drm, !trans))
 		return;
 
 	/* If we're boosting the current, set bit 31 of trans1 */
@@ -117,9 +117,9 @@ void hsw_prepare_dp_ddi_buffers(struct intel_encoder *encoder,
 
 	for (i = 0; i < n_entries; i++) {
 		intel_de_write(dev_priv, DDI_BUF_TRANS_LO(port, i),
-			       ddi_translations->entries[i].hsw.trans1 | iboost_bit);
+			       trans->entries[i].hsw.trans1 | iboost_bit);
 		intel_de_write(dev_priv, DDI_BUF_TRANS_HI(port, i),
-			       ddi_translations->entries[i].hsw.trans2);
+			       trans->entries[i].hsw.trans2);
 	}
 }
 
@@ -136,10 +136,10 @@ static void hsw_prepare_hdmi_ddi_buffers(struct intel_encoder *encoder,
 	u32 iboost_bit = 0;
 	int n_entries;
 	enum port port = encoder->port;
-	const struct intel_ddi_buf_trans *ddi_translations;
+	const struct intel_ddi_buf_trans *trans;
 
-	ddi_translations = encoder->get_buf_trans(encoder, crtc_state, &n_entries);
-	if (drm_WARN_ON_ONCE(&dev_priv->drm, !ddi_translations))
+	trans = encoder->get_buf_trans(encoder, crtc_state, &n_entries);
+	if (drm_WARN_ON_ONCE(&dev_priv->drm, !trans))
 		return;
 	if (drm_WARN_ON_ONCE(&dev_priv->drm, level >= n_entries))
 		level = n_entries - 1;
@@ -151,9 +151,9 @@ static void hsw_prepare_hdmi_ddi_buffers(struct intel_encoder *encoder,
 
 	/* Entry 9 is for HDMI: */
 	intel_de_write(dev_priv, DDI_BUF_TRANS_LO(port, 9),
-		       ddi_translations->entries[level].hsw.trans1 | iboost_bit);
+		       trans->entries[level].hsw.trans1 | iboost_bit);
 	intel_de_write(dev_priv, DDI_BUF_TRANS_HI(port, 9),
-		       ddi_translations->entries[level].hsw.trans2);
+		       trans->entries[level].hsw.trans2);
 }
 
 void intel_wait_ddi_buf_idle(struct drm_i915_private *dev_priv,
@@ -971,16 +971,16 @@ static void skl_ddi_set_iboost(struct intel_encoder *encoder,
 		iboost = intel_bios_encoder_dp_boost_level(encoder->devdata);
 
 	if (iboost == 0) {
-		const struct intel_ddi_buf_trans *ddi_translations;
+		const struct intel_ddi_buf_trans *trans;
 		int n_entries;
 
-		ddi_translations = encoder->get_buf_trans(encoder, crtc_state, &n_entries);
-		if (drm_WARN_ON_ONCE(&dev_priv->drm, !ddi_translations))
+		trans = encoder->get_buf_trans(encoder, crtc_state, &n_entries);
+		if (drm_WARN_ON_ONCE(&dev_priv->drm, !trans))
 			return;
 		if (drm_WARN_ON_ONCE(&dev_priv->drm, level >= n_entries))
 			level = n_entries - 1;
 
-		iboost = ddi_translations->entries[level].hsw.i_boost;
+		iboost = trans->entries[level].hsw.i_boost;
 	}
 
 	/* Make sure that the requested I_boost is valid */
@@ -1000,21 +1000,21 @@ static void bxt_ddi_vswing_sequence(struct intel_encoder *encoder,
 				    int level)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	const struct intel_ddi_buf_trans *ddi_translations;
+	const struct intel_ddi_buf_trans *trans;
 	enum port port = encoder->port;
 	int n_entries;
 
-	ddi_translations = encoder->get_buf_trans(encoder, crtc_state, &n_entries);
-	if (drm_WARN_ON_ONCE(&dev_priv->drm, !ddi_translations))
+	trans = encoder->get_buf_trans(encoder, crtc_state, &n_entries);
+	if (drm_WARN_ON_ONCE(&dev_priv->drm, !trans))
 		return;
 	if (drm_WARN_ON_ONCE(&dev_priv->drm, level >= n_entries))
 		level = n_entries - 1;
 
 	bxt_ddi_phy_set_signal_level(dev_priv, port,
-				     ddi_translations->entries[level].bxt.margin,
-				     ddi_translations->entries[level].bxt.scale,
-				     ddi_translations->entries[level].bxt.enable,
-				     ddi_translations->entries[level].bxt.deemphasis);
+				     trans->entries[level].bxt.margin,
+				     trans->entries[level].bxt.scale,
+				     trans->entries[level].bxt.enable,
+				     trans->entries[level].bxt.deemphasis);
 }
 
 static u8 intel_ddi_dp_voltage_max(struct intel_dp *intel_dp,
@@ -1051,13 +1051,13 @@ static void icl_ddi_combo_vswing_program(struct intel_encoder *encoder,
 					 int level)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	const struct intel_ddi_buf_trans *ddi_translations;
+	const struct intel_ddi_buf_trans *trans;
 	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
 	int n_entries, ln;
 	u32 val;
 
-	ddi_translations = encoder->get_buf_trans(encoder, crtc_state, &n_entries);
-	if (drm_WARN_ON_ONCE(&dev_priv->drm, !ddi_translations))
+	trans = encoder->get_buf_trans(encoder, crtc_state, &n_entries);
+	if (drm_WARN_ON_ONCE(&dev_priv->drm, !trans))
 		return;
 	if (drm_WARN_ON_ONCE(&dev_priv->drm, level >= n_entries))
 		level = n_entries - 1;
@@ -1066,7 +1066,7 @@ static void icl_ddi_combo_vswing_program(struct intel_encoder *encoder,
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
 		val = EDP4K2K_MODE_OVRD_EN | EDP4K2K_MODE_OVRD_OPTIMIZED;
-		intel_dp->hobl_active = is_hobl_buf_trans(ddi_translations);
+		intel_dp->hobl_active = is_hobl_buf_trans(trans);
 		intel_de_rmw(dev_priv, ICL_PORT_CL_DW10(phy), val,
 			     intel_dp->hobl_active ? val : 0);
 	}
@@ -1084,8 +1084,8 @@ static void icl_ddi_combo_vswing_program(struct intel_encoder *encoder,
 	val = intel_de_read(dev_priv, ICL_PORT_TX_DW2_LN0(phy));
 	val &= ~(SWING_SEL_LOWER_MASK | SWING_SEL_UPPER_MASK |
 		 RCOMP_SCALAR_MASK);
-	val |= SWING_SEL_UPPER(ddi_translations->entries[level].icl.dw2_swing_sel);
-	val |= SWING_SEL_LOWER(ddi_translations->entries[level].icl.dw2_swing_sel);
+	val |= SWING_SEL_UPPER(trans->entries[level].icl.dw2_swing_sel);
+	val |= SWING_SEL_LOWER(trans->entries[level].icl.dw2_swing_sel);
 	/* Program Rcomp scalar for every table entry */
 	val |= RCOMP_SCALAR(0x98);
 	intel_de_write(dev_priv, ICL_PORT_TX_DW2_GRP(phy), val);
@@ -1096,16 +1096,16 @@ static void icl_ddi_combo_vswing_program(struct intel_encoder *encoder,
 		val = intel_de_read(dev_priv, ICL_PORT_TX_DW4_LN(ln, phy));
 		val &= ~(POST_CURSOR_1_MASK | POST_CURSOR_2_MASK |
 			 CURSOR_COEFF_MASK);
-		val |= POST_CURSOR_1(ddi_translations->entries[level].icl.dw4_post_cursor_1);
-		val |= POST_CURSOR_2(ddi_translations->entries[level].icl.dw4_post_cursor_2);
-		val |= CURSOR_COEFF(ddi_translations->entries[level].icl.dw4_cursor_coeff);
+		val |= POST_CURSOR_1(trans->entries[level].icl.dw4_post_cursor_1);
+		val |= POST_CURSOR_2(trans->entries[level].icl.dw4_post_cursor_2);
+		val |= CURSOR_COEFF(trans->entries[level].icl.dw4_cursor_coeff);
 		intel_de_write(dev_priv, ICL_PORT_TX_DW4_LN(ln, phy), val);
 	}
 
 	/* Program PORT_TX_DW7 */
 	val = intel_de_read(dev_priv, ICL_PORT_TX_DW7_LN0(phy));
 	val &= ~N_SCALAR_MASK;
-	val |= N_SCALAR(ddi_translations->entries[level].icl.dw7_n_scalar);
+	val |= N_SCALAR(trans->entries[level].icl.dw7_n_scalar);
 	intel_de_write(dev_priv, ICL_PORT_TX_DW7_GRP(phy), val);
 }
 
@@ -1176,15 +1176,15 @@ static void icl_mg_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum tc_port tc_port = intel_port_to_tc(dev_priv, encoder->port);
-	const struct intel_ddi_buf_trans *ddi_translations;
+	const struct intel_ddi_buf_trans *trans;
 	int n_entries, ln;
 	u32 val;
 
 	if (intel_tc_port_in_tbt_alt_mode(enc_to_dig_port(encoder)))
 		return;
 
-	ddi_translations = encoder->get_buf_trans(encoder, crtc_state, &n_entries);
-	if (drm_WARN_ON_ONCE(&dev_priv->drm, !ddi_translations))
+	trans = encoder->get_buf_trans(encoder, crtc_state, &n_entries);
+	if (drm_WARN_ON_ONCE(&dev_priv->drm, !trans))
 		return;
 	if (drm_WARN_ON_ONCE(&dev_priv->drm, level >= n_entries))
 		level = n_entries - 1;
@@ -1205,13 +1205,13 @@ static void icl_mg_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
 		val = intel_de_read(dev_priv, MG_TX1_SWINGCTRL(ln, tc_port));
 		val &= ~CRI_TXDEEMPH_OVERRIDE_17_12_MASK;
 		val |= CRI_TXDEEMPH_OVERRIDE_17_12(
-			ddi_translations->entries[level].mg.cri_txdeemph_override_17_12);
+			trans->entries[level].mg.cri_txdeemph_override_17_12);
 		intel_de_write(dev_priv, MG_TX1_SWINGCTRL(ln, tc_port), val);
 
 		val = intel_de_read(dev_priv, MG_TX2_SWINGCTRL(ln, tc_port));
 		val &= ~CRI_TXDEEMPH_OVERRIDE_17_12_MASK;
 		val |= CRI_TXDEEMPH_OVERRIDE_17_12(
-			ddi_translations->entries[level].mg.cri_txdeemph_override_17_12);
+			trans->entries[level].mg.cri_txdeemph_override_17_12);
 		intel_de_write(dev_priv, MG_TX2_SWINGCTRL(ln, tc_port), val);
 	}
 
@@ -1221,9 +1221,9 @@ static void icl_mg_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
 		val &= ~(CRI_TXDEEMPH_OVERRIDE_11_6_MASK |
 			 CRI_TXDEEMPH_OVERRIDE_5_0_MASK);
 		val |= CRI_TXDEEMPH_OVERRIDE_5_0(
-			ddi_translations->entries[level].mg.cri_txdeemph_override_5_0) |
+			trans->entries[level].mg.cri_txdeemph_override_5_0) |
 			CRI_TXDEEMPH_OVERRIDE_11_6(
-				ddi_translations->entries[level].mg.cri_txdeemph_override_11_6) |
+				trans->entries[level].mg.cri_txdeemph_override_11_6) |
 			CRI_TXDEEMPH_OVERRIDE_EN;
 		intel_de_write(dev_priv, MG_TX1_DRVCTRL(ln, tc_port), val);
 
@@ -1231,9 +1231,9 @@ static void icl_mg_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
 		val &= ~(CRI_TXDEEMPH_OVERRIDE_11_6_MASK |
 			 CRI_TXDEEMPH_OVERRIDE_5_0_MASK);
 		val |= CRI_TXDEEMPH_OVERRIDE_5_0(
-			ddi_translations->entries[level].mg.cri_txdeemph_override_5_0) |
+			trans->entries[level].mg.cri_txdeemph_override_5_0) |
 			CRI_TXDEEMPH_OVERRIDE_11_6(
-				ddi_translations->entries[level].mg.cri_txdeemph_override_11_6) |
+				trans->entries[level].mg.cri_txdeemph_override_11_6) |
 			CRI_TXDEEMPH_OVERRIDE_EN;
 		intel_de_write(dev_priv, MG_TX2_DRVCTRL(ln, tc_port), val);
 
@@ -1313,15 +1313,15 @@ tgl_dkl_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum tc_port tc_port = intel_port_to_tc(dev_priv, encoder->port);
-	const struct intel_ddi_buf_trans *ddi_translations;
+	const struct intel_ddi_buf_trans *trans;
 	u32 val, dpcnt_mask, dpcnt_val;
 	int n_entries, ln;
 
 	if (intel_tc_port_in_tbt_alt_mode(enc_to_dig_port(encoder)))
 		return;
 
-	ddi_translations = encoder->get_buf_trans(encoder, crtc_state, &n_entries);
-	if (drm_WARN_ON_ONCE(&dev_priv->drm, !ddi_translations))
+	trans = encoder->get_buf_trans(encoder, crtc_state, &n_entries);
+	if (drm_WARN_ON_ONCE(&dev_priv->drm, !trans))
 		return;
 	if (drm_WARN_ON_ONCE(&dev_priv->drm, level >= n_entries))
 		level = n_entries - 1;
@@ -1329,9 +1329,9 @@ tgl_dkl_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
 	dpcnt_mask = (DKL_TX_PRESHOOT_COEFF_MASK |
 		      DKL_TX_DE_EMPAHSIS_COEFF_MASK |
 		      DKL_TX_VSWING_CONTROL_MASK);
-	dpcnt_val = DKL_TX_VSWING_CONTROL(ddi_translations->entries[level].dkl.dkl_vswing_control);
-	dpcnt_val |= DKL_TX_DE_EMPHASIS_COEFF(ddi_translations->entries[level].dkl.dkl_de_emphasis_control);
-	dpcnt_val |= DKL_TX_PRESHOOT_COEFF(ddi_translations->entries[level].dkl.dkl_preshoot_control);
+	dpcnt_val = DKL_TX_VSWING_CONTROL(trans->entries[level].dkl.dkl_vswing_control);
+	dpcnt_val |= DKL_TX_DE_EMPHASIS_COEFF(trans->entries[level].dkl.dkl_de_emphasis_control);
+	dpcnt_val |= DKL_TX_PRESHOOT_COEFF(trans->entries[level].dkl.dkl_preshoot_control);
 
 	for (ln = 0; ln < 2; ln++) {
 		intel_de_write(dev_priv, HIP_INDEX_REG(tc_port),
