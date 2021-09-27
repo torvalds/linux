@@ -2528,7 +2528,7 @@ MODULE_PARM_DESC(nfs_access_max_cachesize, "NFS access maximum total cache lengt
 
 static void nfs_access_free_entry(struct nfs_access_entry *entry)
 {
-	put_cred(entry->cred);
+	put_group_info(entry->group_info);
 	kfree_rcu(entry, rcu_head);
 	smp_mb__before_atomic();
 	atomic_long_dec(&nfs_access_nr_entries);
@@ -2654,6 +2654,43 @@ void nfs_access_zap_cache(struct inode *inode)
 }
 EXPORT_SYMBOL_GPL(nfs_access_zap_cache);
 
+static int access_cmp(const struct cred *a, const struct nfs_access_entry *b)
+{
+	struct group_info *ga, *gb;
+	int g;
+
+	if (uid_lt(a->fsuid, b->fsuid))
+		return -1;
+	if (uid_gt(a->fsuid, b->fsuid))
+		return 1;
+
+	if (gid_lt(a->fsgid, b->fsgid))
+		return -1;
+	if (gid_gt(a->fsgid, b->fsgid))
+		return 1;
+
+	ga = a->group_info;
+	gb = b->group_info;
+	if (ga == gb)
+		return 0;
+	if (ga == NULL)
+		return -1;
+	if (gb == NULL)
+		return 1;
+	if (ga->ngroups < gb->ngroups)
+		return -1;
+	if (ga->ngroups > gb->ngroups)
+		return 1;
+
+	for (g = 0; g < ga->ngroups; g++) {
+		if (gid_lt(ga->gid[g], gb->gid[g]))
+			return -1;
+		if (gid_gt(ga->gid[g], gb->gid[g]))
+			return 1;
+	}
+	return 0;
+}
+
 static struct nfs_access_entry *nfs_access_search_rbtree(struct inode *inode, const struct cred *cred)
 {
 	struct rb_node *n = NFS_I(inode)->access_cache.rb_node;
@@ -2661,7 +2698,7 @@ static struct nfs_access_entry *nfs_access_search_rbtree(struct inode *inode, co
 	while (n != NULL) {
 		struct nfs_access_entry *entry =
 			rb_entry(n, struct nfs_access_entry, rb_node);
-		int cmp = cred_fscmp(cred, entry->cred);
+		int cmp = access_cmp(cred, entry);
 
 		if (cmp < 0)
 			n = n->rb_left;
@@ -2731,7 +2768,7 @@ static int nfs_access_get_cached_rcu(struct inode *inode, const struct cred *cre
 	lh = rcu_dereference(list_tail_rcu(&nfsi->access_cache_entry_lru));
 	cache = list_entry(lh, struct nfs_access_entry, lru);
 	if (lh == &nfsi->access_cache_entry_lru ||
-	    cred_fscmp(cred, cache->cred) != 0)
+	    access_cmp(cred, cache) != 0)
 		cache = NULL;
 	if (cache == NULL)
 		goto out;
@@ -2773,7 +2810,7 @@ static void nfs_access_add_rbtree(struct inode *inode,
 	while (*p != NULL) {
 		parent = *p;
 		entry = rb_entry(parent, struct nfs_access_entry, rb_node);
-		cmp = cred_fscmp(cred, entry->cred);
+		cmp = access_cmp(cred, entry);
 
 		if (cmp < 0)
 			p = &parent->rb_left;
@@ -2802,7 +2839,9 @@ void nfs_access_add_cache(struct inode *inode, struct nfs_access_entry *set,
 	if (cache == NULL)
 		return;
 	RB_CLEAR_NODE(&cache->rb_node);
-	cache->cred = get_cred(cred);
+	cache->fsuid = cred->fsuid;
+	cache->fsgid = cred->fsgid;
+	cache->group_info = get_group_info(cred->group_info);
 	cache->mask = set->mask;
 
 	/* The above field assignments must be visible
@@ -2895,7 +2934,6 @@ static int nfs_do_access(struct inode *inode, const struct cred *cred, int mask)
 		cache.mask |= NFS_ACCESS_DELETE | NFS_ACCESS_LOOKUP;
 	else
 		cache.mask |= NFS_ACCESS_EXECUTE;
-	cache.cred = cred;
 	status = NFS_PROTO(inode)->access(inode, &cache, cred);
 	if (status != 0) {
 		if (status == -ESTALE) {
