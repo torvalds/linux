@@ -139,9 +139,11 @@
   devm_of_clk_add_hw_provider
   __devm_of_phy_provider_register
   devm_phy_create
+  devm_phy_get
   devm_pinctrl_get
   devm_platform_get_and_ioremap_resource
   devm_platform_ioremap_resource
+  devm_platform_ioremap_resource_byname
   devm_power_supply_register
   devm_pwm_get
   __devm_regmap_init_i2c
@@ -188,6 +190,7 @@
   drm_display_info_set_bus_formats
   drm_get_edid
   drm_mode_vrefresh
+  dummy_irq_chip
   enable_irq
   extcon_get_edev_by_phandle
   extcon_get_state
@@ -205,6 +208,7 @@
   fwnode_property_present
   fwnode_property_read_string
   fwnode_property_read_u32_array
+  generic_handle_irq
   get_device
   gic_nonsecure_priorities
   gpiochip_add_pin_range
@@ -219,6 +223,7 @@
   gpiod_set_consumer_name
   gpiod_set_value
   gpiod_set_value_cansleep
+  handle_simple_irq
   hid_debug
   hid_hw_close
   hid_hw_open
@@ -258,10 +263,17 @@
   input_set_abs_params
   __ioremap
   iounmap
+  __irq_domain_add
+  irq_domain_remove
+  irq_find_mapping
   irq_get_irq_data
+  irq_set_chained_handler_and_data
+  irq_set_chip_and_handler_name
+  irq_set_chip_data
   irq_set_irq_wake
   jiffies
   kasan_flag_enabled
+  kasprintf
   kernel_neon_begin
   kernel_neon_end
   kfree
@@ -308,6 +320,7 @@
   nr_cpu_ids
   nvmem_cell_put
   nvmem_cell_read
+  of_address_to_resource
   of_alias_get_id
   of_clk_add_provider
   of_clk_del_provider
@@ -349,6 +362,10 @@
   param_ops_uint
   __per_cpu_offset
   pfn_valid
+  phy_exit
+  phy_init
+  phy_power_off
+  phy_power_on
   pinctrl_dev_get_drvdata
   pinctrl_lookup_state
   pinctrl_select_state
@@ -356,6 +373,7 @@
   __platform_driver_register
   platform_driver_unregister
   platform_get_irq
+  platform_get_irq_byname
   platform_get_resource
   platform_get_resource_byname
   pm_power_off
@@ -746,16 +764,12 @@
   gpiod_count
 
 # required by gpio-rockchip.ko
-  generic_handle_irq
   gpiochip_add_data_with_key
   gpiochip_remove
   handle_edge_irq
   handle_level_irq
   __irq_alloc_domain_generic_chips
   irq_create_mapping_affinity
-  __irq_domain_add
-  irq_domain_remove
-  irq_find_mapping
   irq_gc_ack_set_bit
   irq_gc_mask_clr_bit
   irq_gc_mask_set_bit
@@ -763,8 +777,6 @@
   irq_generic_chip_ops
   irq_get_domain_generic_chip
   irq_of_parse_and_map
-  irq_set_chained_handler_and_data
-  of_address_to_resource
   of_pinctrl_get
 
 # required by grf.ko
@@ -903,7 +915,6 @@
   ida_destroy
   ida_free
   init_srcu_struct
-  kasprintf
   kobject_uevent_env
   ktime_get_with_offset
   list_sort
@@ -1088,7 +1099,6 @@
   v4l2_subdev_init
 
 # required by phy-rockchip-inno-dsidphy.ko
-  devm_platform_ioremap_resource_byname
   phy_mipi_dphy_config_validate
 
 # required by phy-rockchip-inno-hdmi-phy.ko
@@ -1254,7 +1264,6 @@
   input_unregister_handle
   __memset_io
   of_devfreq_cooling_register_power
-  platform_get_irq_byname
 
 # required by rockchip_dmc_common.ko
   down_write_trylock
@@ -1515,11 +1524,6 @@
   rtc_update_irq
 
 # required by sdhci-of-arasan.ko
-  devm_phy_get
-  phy_exit
-  phy_init
-  phy_power_off
-  phy_power_on
   __sdhci_add_host
   sdhci_cleanup_host
   sdhci_cqe_disable
