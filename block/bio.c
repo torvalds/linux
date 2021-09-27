@@ -1469,7 +1469,7 @@ again:
 	if (!bio_integrity_endio(bio))
 		return;
 
-	if (bio->bi_bdev)
+	if (bio->bi_bdev && bio_flagged(bio, BIO_TRACKED))
 		rq_qos_done_bio(bio->bi_bdev->bd_disk->queue, bio);
 
 	if (bio->bi_bdev && bio_flagged(bio, BIO_TRACE_COMPLETION)) {
