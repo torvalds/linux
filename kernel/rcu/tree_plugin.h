@@ -51,8 +51,6 @@ static void __init rcu_bootup_announce_oddness(void)
 			RCU_FANOUT);
 	if (rcu_fanout_exact)
 		pr_info("\tHierarchical RCU autobalancing is disabled.\n");
-	if (IS_ENABLED(CONFIG_RCU_FAST_NO_HZ))
-		pr_info("\tRCU dyntick-idle grace-period acceleration is enabled.\n");
 	if (IS_ENABLED(CONFIG_PROVE_RCU))
 		pr_info("\tRCU lockdep checking is enabled.\n");
 	if (IS_ENABLED(CONFIG_RCU_STRICT_GRACE_PERIOD))
@@ -1253,16 +1251,14 @@ static void __init rcu_spawn_boost_kthreads(void)
 
 #endif /* #else #ifdef CONFIG_RCU_BOOST */
 
-#if !defined(CONFIG_RCU_FAST_NO_HZ)
-
 /*
  * Check to see if any future non-offloaded RCU-related work will need
  * to be done by the current CPU, even if none need be done immediately,
  * returning 1 if so.  This function is part of the RCU implementation;
  * it is -not- an exported member of the RCU API.
  *
- * Because we not have RCU_FAST_NO_HZ, just check whether or not this
- * CPU has RCU callbacks queued.
+ * Just check whether or not this CPU has non-offloaded RCU callbacks
+ * queued.
  */
 int rcu_needs_cpu(u64 basemono, u64 *nextevt)
 {
@@ -1270,183 +1266,6 @@ int rcu_needs_cpu(u64 basemono, u64 *nextevt)
 	return !rcu_segcblist_empty(&this_cpu_ptr(&rcu_data)->cblist) &&
 		!rcu_rdp_is_offloaded(this_cpu_ptr(&rcu_data));
 }
-
-/*
- * Because we do not have RCU_FAST_NO_HZ, don't bother cleaning up
- * after it.
- */
-static void rcu_cleanup_after_idle(void)
-{
-}
-
-/*
- * Do the idle-entry grace-period work, which, because CONFIG_RCU_FAST_NO_HZ=n,
- * is nothing.
- */
-static void rcu_prepare_for_idle(void)
-{
-}
-
-#else /* #if !defined(CONFIG_RCU_FAST_NO_HZ) */
-
-/*
- * This code is invoked when a CPU goes idle, at which point we want
- * to have the CPU do everything required for RCU so that it can enter
- * the energy-efficient dyntick-idle mode.
- *
- * The following preprocessor symbol controls this:
- *
- * RCU_IDLE_GP_DELAY gives the number of jiffies that a CPU is permitted
- *	to sleep in dyntick-idle mode with RCU callbacks pending.  This
- *	is sized to be roughly one RCU grace period.  Those energy-efficiency
- *	benchmarkers who might otherwise be tempted to set this to a large
- *	number, be warned: Setting RCU_IDLE_GP_DELAY too high can hang your
- *	system.  And if you are -that- concerned about energy efficiency,
- *	just power the system down and be done with it!
- *
- * The value below works well in practice.  If future workloads require
- * adjustment, they can be converted into kernel config parameters, though
- * making the state machine smarter might be a better option.
- */
-#define RCU_IDLE_GP_DELAY 4		/* Roughly one grace period. */
-
-static int rcu_idle_gp_delay = RCU_IDLE_GP_DELAY;
-module_param(rcu_idle_gp_delay, int, 0644);
-
-/*
- * Try to advance callbacks on the current CPU, but only if it has been
- * awhile since the last time we did so.  Afterwards, if there are any
- * callbacks ready for immediate invocation, return true.
- */
-static bool __maybe_unused rcu_try_advance_all_cbs(void)
-{
-	bool cbs_ready = false;
-	struct rcu_data *rdp = this_cpu_ptr(&rcu_data);
-	struct rcu_node *rnp;
-
-	/* Exit early if we advanced recently. */
-	if (jiffies == rdp->last_advance_all)
-		return false;
-	rdp->last_advance_all = jiffies;
-
-	rnp = rdp->mynode;
-
-	/*
-	 * Don't bother checking unless a grace period has
-	 * completed since we last checked and there are
-	 * callbacks not yet ready to invoke.
-	 */
-	if ((rcu_seq_completed_gp(rdp->gp_seq,
-				  rcu_seq_current(&rnp->gp_seq)) ||
-	     unlikely(READ_ONCE(rdp->gpwrap))) &&
-	    rcu_segcblist_pend_cbs(&rdp->cblist))
-		note_gp_changes(rdp);
-
-	if (rcu_segcblist_ready_cbs(&rdp->cblist))
-		cbs_ready = true;
-	return cbs_ready;
-}
-
-/*
- * Allow the CPU to enter dyntick-idle mode unless it has callbacks ready
- * to invoke.  If the CPU has callbacks, try to advance them.  Tell the
- * caller about what to set the timeout.
- *
- * The caller must have disabled interrupts.
- */
-int rcu_needs_cpu(u64 basemono, u64 *nextevt)
-{
-	struct rcu_data *rdp = this_cpu_ptr(&rcu_data);
-	unsigned long dj;
-
-	lockdep_assert_irqs_disabled();
-
-	/* If no non-offloaded callbacks, RCU doesn't need the CPU. */
-	if (rcu_segcblist_empty(&rdp->cblist) ||
-	    rcu_rdp_is_offloaded(rdp)) {
-		*nextevt = KTIME_MAX;
-		return 0;
-	}
-
-	/* Attempt to advance callbacks. */
-	if (rcu_try_advance_all_cbs()) {
-		/* Some ready to invoke, so initiate later invocation. */
-		invoke_rcu_core();
-		return 1;
-	}
-	rdp->last_accelerate = jiffies;
-
-	/* Request timer and round. */
-	dj = round_up(rcu_idle_gp_delay + jiffies, rcu_idle_gp_delay) - jiffies;
-
-	*nextevt = basemono + dj * TICK_NSEC;
-	return 0;
-}
-
-/*
- * Prepare a CPU for idle from an RCU perspective.  The first major task is to
- * sense whether nohz mode has been enabled or disabled via sysfs.  The second
- * major task is to accelerate (that is, assign grace-period numbers to) any
- * recently arrived callbacks.
- *
- * The caller must have disabled interrupts.
- */
-static void rcu_prepare_for_idle(void)
-{
-	bool needwake;
-	struct rcu_data *rdp = this_cpu_ptr(&rcu_data);
-	struct rcu_node *rnp;
-	int tne;
-
-	lockdep_assert_irqs_disabled();
-	if (rcu_rdp_is_offloaded(rdp))
-		return;
-
-	/* Handle nohz enablement switches conservatively. */
-	tne = READ_ONCE(tick_nohz_active);
-	if (tne != rdp->tick_nohz_enabled_snap) {
-		if (!rcu_segcblist_empty(&rdp->cblist))
-			invoke_rcu_core(); /* force nohz to see update. */
-		rdp->tick_nohz_enabled_snap = tne;
-		return;
-	}
-	if (!tne)
-		return;
-
-	/*
-	 * If we have not yet accelerated this jiffy, accelerate all
-	 * callbacks on this CPU.
-	 */
-	if (rdp->last_accelerate == jiffies)
-		return;
-	rdp->last_accelerate = jiffies;
-	if (rcu_segcblist_pend_cbs(&rdp->cblist)) {
-		rnp = rdp->mynode;
-		raw_spin_lock_rcu_node(rnp); /* irqs already disabled. */
-		needwake = rcu_accelerate_cbs(rnp, rdp);
-		raw_spin_unlock_rcu_node(rnp); /* irqs remain disabled. */
-		if (needwake)
-			rcu_gp_kthread_wake();
-	}
-}
-
-/*
- * Clean up for exit from idle.  Attempt to advance callbacks based on
- * any grace periods that elapsed while the CPU was idle, and if any
- * callbacks are now ready to invoke, initiate invocation.
- */
-static void rcu_cleanup_after_idle(void)
-{
-	struct rcu_data *rdp = this_cpu_ptr(&rcu_data);
-
-	lockdep_assert_irqs_disabled();
-	if (rcu_rdp_is_offloaded(rdp))
-		return;
-	if (rcu_try_advance_all_cbs())
-		invoke_rcu_core();
-}
-
-#endif /* #else #if !defined(CONFIG_RCU_FAST_NO_HZ) */
 
 /*
  * Is this CPU a NO_HZ_FULL CPU that should ignore RCU so that the
