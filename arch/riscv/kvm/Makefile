@@ -9,5 +9,15 @@ KVM := ../../../virt/kvm
 
 obj-$(CONFIG_KVM) += kvm.o
 
-kvm-y += $(KVM)/kvm_main.o $(KVM)/coalesced_mmio.o $(KVM)/binary_stats.o \
-	 $(KVM)/eventfd.o main.o vm.o mmu.o vcpu.o vcpu_exit.o vcpu_switch.o
+kvm-y += $(KVM)/kvm_main.o
+kvm-y += $(KVM)/coalesced_mmio.o
+kvm-y += $(KVM)/binary_stats.o
+kvm-y += $(KVM)/eventfd.o
+kvm-y += main.o
+kvm-y += vm.o
+kvm-y += vmid.o
+kvm-y += tlb.o
+kvm-y += mmu.o
+kvm-y += vcpu.o
+kvm-y += vcpu_exit.o
+kvm-y += vcpu_switch.o
