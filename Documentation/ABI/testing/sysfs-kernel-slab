@@ -496,3 +496,24 @@ Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
 Description:
 		Writing to the validate file causes SLUB to traverse all of its
 		cache's objects and check the validity of metadata.
+
+What:		/sys/kernel/slab/<cache>/usersize
+Date:		Jun 2017
+Contact:	David Windsor <dave@nullcore.net>
+Description:
+		The usersize file is read-only and contains the usercopy
+		region size.
+
+What:		/sys/kernel/slab/<cache>/slabs_cpu_partial
+Date:		Aug 2011
+Contact:	Christoph Lameter <cl@linux.com>
+Description:
+		This read-only file shows the number of partialli allocated
+		frozen slabs.
+
+What:		/sys/kernel/slab/<cache>/cpu_partial
+Date:		Aug 2011
+Contact:	Christoph Lameter <cl@linux.com>
+Description:
+		This read-only file shows the number of per cpu partial
+		pages to keep around.
