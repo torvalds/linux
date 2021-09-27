@@ -21,4 +21,5 @@ kvm-y += mmu.o
 kvm-y += vcpu.o
 kvm-y += vcpu_exit.o
 kvm-y += vcpu_switch.o
+kvm-y += vcpu_sbi.o
 kvm-y += vcpu_timer.o
