@@ -321,6 +321,7 @@ properties:
       - yes-optoelectronics,ytc700tlag-05-201c
 
   backlight: true
+  ddc-i2c-bus: true
   enable-gpios: true
   port: true
   power-supply: true
