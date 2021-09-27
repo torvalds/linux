@@ -292,6 +292,16 @@ bool btrfs_subpage_end_and_test_writer(const struct btrfs_fs_info *fs_info,
 
 	btrfs_subpage_assert(fs_info, page, start, len);
 
+	/*
+	 * We have call sites passing @lock_page into
+	 * extent_clear_unlock_delalloc() for compression path.
+	 *
+	 * This @locked_page is locked by plain lock_page(), thus its
+	 * subpage::writers is 0.  Handle them in a special way.
+	 */
+	if (atomic_read(&subpage->writers) == 0)
+		return true;
+
 	ASSERT(atomic_read(&subpage->writers) >= nbits);
 	return atomic_sub_and_test(nbits, &subpage->writers);
 }
