@@ -988,9 +988,8 @@ static void binder_restore_priority_hook(void *data,
 	if (unlikely(walt_disabled))
 		return;
 
-	if (wts->boost == TASK_BOOST_STRICT_MAX)
+	if (bndrtrans && wts->boost == TASK_BOOST_STRICT_MAX)
 		wts->boost = bndrtrans->android_vendor_data1;
-
 }
 
 /*
