@@ -5086,15 +5086,14 @@ int extent_write_locked_range(struct inode *inode, u64 start, u64 end)
 	struct address_space *mapping = inode->i_mapping;
 	struct page *page;
 	u64 cur = start;
-	unsigned long nr_pages = (end - start + PAGE_SIZE) >>
-		PAGE_SHIFT;
+	unsigned long nr_pages;
+	const u32 sectorsize = btrfs_sb(inode->i_sb)->sectorsize;
 	struct extent_page_data epd = {
 		.bio_ctrl = { 0 },
 		.extent_locked = 1,
 		.sync_io = 1,
 	};
 	struct writeback_control wbc_writepages = {
-		.nr_to_write	= nr_pages * 2,
 		.sync_mode	= WB_SYNC_ALL,
 		.range_start	= start,
 		.range_end	= end + 1,
@@ -5103,14 +5102,22 @@ int extent_write_locked_range(struct inode *inode, u64 start, u64 end)
 		.no_cgroup_owner = 1,
 	};
 
+	ASSERT(IS_ALIGNED(start, sectorsize) && IS_ALIGNED(end + 1, sectorsize));
+	nr_pages = (round_up(end, PAGE_SIZE) - round_down(start, PAGE_SIZE)) >>
+		   PAGE_SHIFT;
+	wbc_writepages.nr_to_write = nr_pages * 2;
+
 	wbc_attach_fdatawrite_inode(&wbc_writepages, inode);
 	while (cur <= end) {
+		u64 cur_end = min(round_down(cur, PAGE_SIZE) + PAGE_SIZE - 1, end);
+
 		page = find_get_page(mapping, cur >> PAGE_SHIFT);
 		/*
 		 * All pages in the range are locked since
 		 * btrfs_run_delalloc_range(), thus there is no way to clear
 		 * the page dirty flag.
 		 */
+		ASSERT(PageLocked(page));
 		ASSERT(PageDirty(page));
 		clear_page_dirty_for_io(page);
 		ret = __extent_writepage(page, &wbc_writepages, &epd);
@@ -5120,7 +5127,7 @@ int extent_write_locked_range(struct inode *inode, u64 start, u64 end)
 			first_error = ret;
 		}
 		put_page(page);
-		cur += PAGE_SIZE;
+		cur = cur_end + 1;
 	}
 
 	if (!found_error)
