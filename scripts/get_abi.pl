@@ -635,19 +635,29 @@ my $escape_symbols = qr { ([\x01-\x08\x0e-\x1f\x21-\x29\x2b-\x2d\x3a-\x40\x7b-\x
 sub parse_existing_sysfs {
 	my $file = $File::Find::name;
 
-	# Ignore cgroup and firmware
-	return if ($file =~ m#^/sys/(fs/cgroup|firmware)/#);
-
-	# Ignore some sysfs nodes
-	return if ($file =~ m#/(sections|notes)/#);
-
-	# Would need to check at
-	# Documentation/admin-guide/kernel-parameters.txt, but this
-	# is not easily parseable.
-	return if ($file =~ m#/parameters/#);
-
 	my $mode = (lstat($file))[2];
 	my $abs_file = abs_path($file);
+
+	my @tmp;
+	push @tmp, $file;
+	push @tmp, $abs_file if ($abs_file ne $file);
+
+	foreach my $f(@tmp) {
+		# Ignore cgroup, as this is big and has zero docs under ABI
+		return if ($f =~ m#^/sys/fs/cgroup/#);
+
+		# Ignore firmware as it is documented elsewhere
+		# Either ACPI or under Documentation/devicetree/bindings/
+		return if ($f =~ m#^/sys/firmware/#);
+
+		# Ignore some sysfs nodes that aren't actually part of ABI
+		return if ($f =~ m#/sections|notes/#);
+
+		# Would need to check at
+		# Documentation/admin-guide/kernel-parameters.txt, but this
+		# is not easily parseable.
+		return if ($f =~ m#/parameters/#);
+	}
 
 	if (S_ISLNK($mode)) {
 		$aliases{$file} = $abs_file;
