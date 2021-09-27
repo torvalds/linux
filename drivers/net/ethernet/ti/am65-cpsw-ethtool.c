@@ -61,7 +61,7 @@ struct am65_cpsw_regdump_item {
 
 #define AM65_CPSW_REGDUMP_REC(mod, start, end) { \
 	.hdr.module_id = (mod), \
-	.hdr.len = (((u32 *)(end)) - ((u32 *)(start)) + 1) * sizeof(u32) * 2 + \
+	.hdr.len = (end + 4 - start) * 2 + \
 		   sizeof(struct am65_cpsw_regdump_hdr), \
 	.start_ofs = (start), \
 	.end_ofs = end, \
