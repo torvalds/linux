@@ -190,6 +190,10 @@
   fwnode_property_read_u32_array
   get_device
   gic_nonsecure_priorities
+  gpiochip_add_pin_range
+  gpiochip_generic_free
+  gpiochip_generic_request
+  gpiochip_get_data
   gpiod_cansleep
   gpiod_direction_output
   gpiod_get_optional
@@ -285,6 +289,7 @@
   of_alias_get_id
   of_clk_add_provider
   of_clk_del_provider
+  of_clk_get
   of_clk_get_by_name
   of_clk_src_simple_get
   of_count_phandle_with_args
@@ -296,6 +301,7 @@
   of_get_child_by_name
   of_get_next_available_child
   of_get_next_child
+  of_get_parent
   of_get_property
   of_get_regulator_init_data
   of_iomap
@@ -318,6 +324,7 @@
   param_ops_int
   param_ops_uint
   __per_cpu_offset
+  pinctrl_dev_get_drvdata
   pinctrl_lookup_state
   pinctrl_select_state
   __platform_driver_probe
@@ -655,6 +662,28 @@
   gpiod_count
   of_property_count_elems_of_size
 
+# required by gpio-rockchip.ko
+  generic_handle_irq
+  gpiochip_add_data_with_key
+  gpiochip_remove
+  handle_edge_irq
+  handle_level_irq
+  __irq_alloc_domain_generic_chips
+  irq_create_mapping_affinity
+  __irq_domain_add
+  irq_domain_remove
+  irq_find_mapping
+  irq_gc_ack_set_bit
+  irq_gc_mask_clr_bit
+  irq_gc_mask_set_bit
+  irq_gc_set_wake
+  irq_generic_chip_ops
+  irq_get_domain_generic_chip
+  irq_of_parse_and_map
+  irq_set_chained_handler_and_data
+  of_address_to_resource
+  of_pinctrl_get
+
 # required by grf.ko
   of_find_matching_node_and_match
 
@@ -965,12 +994,7 @@
 # required by pinctrl-rk805.ko
   devm_gpiochip_add_data_with_key
   devm_pinctrl_register
-  gpiochip_add_pin_range
-  gpiochip_generic_free
-  gpiochip_generic_request
-  gpiochip_get_data
   pinconf_generic_dt_node_to_map
-  pinctrl_dev_get_drvdata
   pinctrl_gpio_direction_input
   pinctrl_gpio_direction_output
   pinctrl_utils_free_map
@@ -996,7 +1020,6 @@
 
 # required by pm_domains.ko
   clk_bulk_put
-  of_clk_get
   of_clk_get_parent_count
   of_genpd_add_provider_onecell
   panic
@@ -1222,7 +1245,6 @@
 
 # required by snd-soc-simple-card.ko
   devm_snd_soc_register_card
-  of_get_parent
   of_parse_phandle_with_args
   snd_soc_dai_link_set_capabilities
   snd_soc_of_get_dai_name
