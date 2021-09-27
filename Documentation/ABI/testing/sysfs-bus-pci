@@ -187,6 +187,24 @@ Description:
 		The symbolic link points to the PCI device sysfs entry of the
 		Physical Function this device associates with.
 
+What:		/sys/bus/pci/devices/.../modalias
+Date:		May 2005
+Contact:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Description:
+		This attribute indicates the PCI ID of the device object.
+
+		That is in the format:
+		pci:vXXXXXXXXdXXXXXXXXsvXXXXXXXXsdXXXXXXXXbcXXscXXiXX,
+		where:
+
+		    - vXXXXXXXX contains the vendor ID;
+		    - dXXXXXXXX contains the device ID;
+		    - svXXXXXXXX contains the sub-vendor ID;
+		    - sdXXXXXXXX contains the subsystem device ID;
+		    - bcXX contains the device class;
+		    - scXX contains the device subclass;
+		    - iXX contains the device class programming interface.
+
 What:		/sys/bus/pci/slots/.../module
 Date:		June 2009
 Contact:	linux-pci@vger.kernel.org
