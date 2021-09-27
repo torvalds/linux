@@ -92,7 +92,9 @@
   crypto_unregister_scomp
   crypto_unregister_shash
   __crypto_xor
+  debugfs_create_dir
   debugfs_create_file
+  debugfs_remove
   delayed_work_timer_fn
   del_gendisk
   del_timer_sync
@@ -287,6 +289,7 @@
   __log_write_mmio
   lzo1x_decompress_safe
   media_entity_pads_init
+  media_entity_remote_pad
   memcpy
   memdup_user
   memset
@@ -509,7 +512,10 @@
   up_write
   usleep_range
   uuid_null
+  v4l2_async_notifier_cleanup
+  v4l2_async_notifier_init
   v4l2_async_register_subdev
+  v4l2_async_subdev_notifier_register
   v4l2_async_unregister_subdev
   v4l2_ctrl_handler_free
   v4l2_ctrl_handler_init_class
@@ -674,9 +680,7 @@
   tasklet_init
 
 # required by dw_wdt.ko
-  debugfs_create_dir
   debugfs_create_regset32
-  debugfs_remove
   platform_get_irq_optional
   watchdog_init_timeout
   watchdog_register_device
@@ -1004,15 +1008,56 @@
   of_get_drm_display_mode
   videomode_from_timing
 
+# required by pcie-dw-rockchip.ko
+  dw_pcie_host_init
+  dw_pcie_link_up
+  dw_pcie_read
+  dw_pcie_read_dbi
+  dw_pcie_setup_rc
+  dw_pcie_write
+  dw_pcie_write_dbi
+  kthread_create_on_node
+  of_prop_next_string
+  phy_set_mode_ext
+  wake_up_process
+
+# required by pcierockchiphost.ko
+  devm_of_phy_get
+  devm_pci_alloc_host_bridge
+  devm_pci_remap_cfg_resource
+  jiffies_to_usecs
+  of_pci_get_max_link_speed
+  pci_host_probe
+  pci_remove_root_bus
+  pci_stop_root_bus
+  regulator_get_current_limit
+
+# required by phy-rockchip-csi2-dphy.ko
+  media_create_pad_link
+  of_find_device_by_node
+  v4l2_ctrl_find
+  v4l2_ctrl_g_ctrl
+  v4l2_querymenu
+  v4l2_subdev_call_wrappers
+  v4l2_subdev_init
+
 # required by phy-rockchip-inno-dsidphy.ko
   devm_platform_ioremap_resource_byname
   phy_mipi_dphy_config_validate
+
+# required by phy-rockchip-inno-hdmi-phy.ko
+  nvmem_cell_get
 
 # required by phy-rockchip-inno-usb2.ko
   devm_extcon_register_notifier
   extcon_set_state
   extcon_sync
   wakeup_source_remove
+
+# required by phy-rockchip-inno-usb3.ko
+  atomic_notifier_call_chain
+  strcasecmp
+  usb_add_phy
 
 # required by phy-rockchip-typec.ko
   extcon_get_property
@@ -1409,10 +1454,7 @@
   fwnode_property_read_u64_array
   v4l2_async_notifier_add_fwnode_subdev
   v4l2_async_notifier_add_subdev
-  v4l2_async_notifier_cleanup
-  v4l2_async_notifier_init
   v4l2_async_notifier_unregister
-  v4l2_async_subdev_notifier_register
 
 # required by zram.ko
   __alloc_percpu
