@@ -208,6 +208,8 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 	if (target_state == SOF_DSP_PM_D0)
 		goto suspend;
 
+	sof_tear_down_pipelines(dev);
+
 	/* release trace */
 	snd_sof_release_trace(sdev);
 

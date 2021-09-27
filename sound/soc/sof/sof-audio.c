@@ -276,6 +276,7 @@ int sof_restore_pipelines(struct device *dev)
 
 			return ret;
 		}
+		sroute->setup = true;
 	}
 
 	/* restore dai links */
@@ -315,6 +316,20 @@ int sof_restore_pipelines(struct device *dev)
 			"error: restoring kcontrols after resume\n");
 
 	return ret;
+}
+
+/* This function doesn't free widgets. It only resets the set up status for all routes */
+void sof_tear_down_pipelines(struct device *dev)
+{
+	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
+	struct snd_sof_route *sroute;
+
+	/*
+	 * No need to protect sroute->setup as this function is called only during the suspend
+	 * callback and all streams should be suspended by then
+	 */
+	list_for_each_entry(sroute, &sdev->route_list, list)
+		sroute->setup = false;
 }
 
 /*
