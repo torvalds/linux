@@ -51,11 +51,13 @@
   clk_get
   __clk_get_name
   clk_get_rate
+  clk_hw_get_name
   clk_notifier_register
   clk_notifier_unregister
   clk_prepare
   clk_put
   clk_register
+  clk_set_phase
   clk_set_rate
   clk_unprepare
   clk_unregister
@@ -111,6 +113,7 @@
   devm_clk_get
   devm_clk_get_optional
   devm_clk_hw_register
+  devm_clk_register
   devm_devfreq_event_add_edev
   devm_extcon_dev_allocate
   devm_extcon_dev_register
@@ -160,6 +163,7 @@
   dma_free_attrs
   dma_heap_add
   dma_heap_get_name
+  dmam_alloc_attrs
   dma_map_sg_attrs
   dma_release_channel
   dma_request_chan
@@ -181,6 +185,7 @@
   extcon_get_state
   extcon_set_state_sync
   failure_tracking
+  find_next_bit
   find_next_zero_bit
   finish_wait
   flush_delayed_work
@@ -339,6 +344,7 @@
   platform_driver_unregister
   platform_get_irq
   platform_get_resource
+  platform_get_resource_byname
   pm_power_off
   __pm_relax
   __pm_runtime_disable
@@ -419,6 +425,16 @@
   scsi_ioctl
   scsi_ioctl_block_when_processing_errors
   sdev_prefix_printk
+  sdhci_add_host
+  sdhci_get_property
+  sdhci_pltfm_clk_get_max_clock
+  sdhci_pltfm_free
+  sdhci_pltfm_init
+  sdhci_reset
+  sdhci_resume_host
+  sdhci_set_bus_width
+  sdhci_set_clock
+  sdhci_suspend_host
   seq_lseek
   seq_printf
   seq_read
@@ -531,7 +547,6 @@
   __clk_get_hw
   clk_get_parent
   clk_hw_get_flags
-  clk_hw_get_name
   clk_hw_get_parent
   clk_hw_get_rate
   clk_hw_register_composite
@@ -544,7 +559,6 @@
   clk_register_fixed_factor
   clk_register_gate
   clk_register_mux_table
-  devm_clk_register
   divider_get_val
   gcd
   kmemdup
@@ -608,6 +622,11 @@
   gov_update_cpu_data
   store_sampling_rate
 
+# required by cqhci.ko
+  devm_blk_ksm_init
+  dmam_free_coherent
+  mmc_cqe_request_done
+
 # required by cw2015_battery.ko
   device_property_read_u8_array
   power_supply_am_i_supplied
@@ -618,7 +637,6 @@
 
 # required by dw_mmc-rockchip.ko
   clk_get_phase
-  clk_set_phase
   mmc_send_tuning
 
 # required by dw_mmc.ko
@@ -626,7 +644,6 @@
   debugfs_create_x64
   del_timer
   device_property_read_string_array
-  dmam_alloc_attrs
   mmc_add_host
   mmc_alloc_host
   mmc_can_gpio_cd
@@ -980,7 +997,6 @@
 # required by phy-rockchip-inno-dsidphy.ko
   devm_platform_ioremap_resource_byname
   phy_mipi_dphy_config_validate
-  platform_get_resource_byname
 
 # required by phy-rockchip-inno-usb2.ko
   devm_extcon_register_notifier
@@ -1113,7 +1129,6 @@
 # required by rockchip_saradc.ko
   devm_iio_device_alloc
   __devm_iio_device_register
-  find_next_bit
   iio_get_time_ns
   iio_push_to_buffers
   iio_trigger_notify_done
@@ -1140,22 +1155,31 @@
   rtc_tm_to_time64
   rtc_update_irq
 
+# required by sdhci-of-arasan.ko
+  devm_phy_get
+  phy_exit
+  phy_init
+  phy_power_off
+  phy_power_on
+  __sdhci_add_host
+  sdhci_cleanup_host
+  sdhci_cqe_disable
+  sdhci_cqe_enable
+  sdhci_cqe_irq
+  sdhci_dumpregs
+  sdhci_enable_clk
+  sdhci_execute_tuning
+  sdhci_pltfm_unregister
+  sdhci_set_power_and_bus_voltage
+  sdhci_set_uhs_signaling
+  sdhci_setup_host
+
 # required by sdhci-of-dwcmshc.ko
   devm_clk_bulk_get_optional
   dma_get_required_mask
-  sdhci_add_host
   sdhci_adma_write_desc
-  sdhci_get_property
-  sdhci_pltfm_clk_get_max_clock
-  sdhci_pltfm_free
-  sdhci_pltfm_init
   sdhci_remove_host
   sdhci_request
-  sdhci_reset
-  sdhci_resume_host
-  sdhci_set_bus_width
-  sdhci_set_clock
-  sdhci_suspend_host
 
 # required by sg.ko
   blk_get_request
