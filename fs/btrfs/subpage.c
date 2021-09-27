@@ -690,3 +690,46 @@ void btrfs_page_assert_not_dirty(const struct btrfs_fs_info *fs_info,
 	ASSERT(PagePrivate(page) && page->private);
 	ASSERT(subpage_test_bitmap_all_zero(fs_info, subpage, dirty));
 }
+
+/*
+ * Handle different locked pages with different page sizes:
+ *
+ * - Page locked by plain lock_page()
+ *   It should not have any subpage::writers count.
+ *   Can be unlocked by unlock_page().
+ *   This is the most common locked page for __extent_writepage() called
+ *   inside extent_write_cache_pages() or extent_write_full_page().
+ *   Rarer cases include the @locked_page from extent_write_locked_range().
+ *
+ * - Page locked by lock_delalloc_pages()
+ *   There is only one caller, all pages except @locked_page for
+ *   extent_write_locked_range().
+ *   In this case, we have to call subpage helper to handle the case.
+ */
+void btrfs_page_unlock_writer(struct btrfs_fs_info *fs_info, struct page *page,
+			      u64 start, u32 len)
+{
+	struct btrfs_subpage *subpage;
+
+	ASSERT(PageLocked(page));
+	/* For regular page size case, we just unlock the page */
+	if (fs_info->sectorsize == PAGE_SIZE)
+		return unlock_page(page);
+
+	ASSERT(PagePrivate(page) && page->private);
+	subpage = (struct btrfs_subpage *)page->private;
+
+	/*
+	 * For subpage case, there are two types of locked page.  With or
+	 * without writers number.
+	 *
+	 * Since we own the page lock, no one else could touch subpage::writers
+	 * and we are safe to do several atomic operations without spinlock.
+	 */
+	if (atomic_read(&subpage->writers))
+		/* No writers, locked by plain lock_page() */
+		return unlock_page(page);
+
+	/* Have writers, use proper subpage helper to end it */
+	btrfs_page_end_writer_lock(fs_info, page, start, len);
+}

@@ -4051,6 +4051,7 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 			      struct extent_page_data *epd)
 {
 	struct inode *inode = page->mapping->host;
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	const u64 page_start = page_offset(page);
 	const u64 page_end = page_start + PAGE_SIZE - 1;
 	int ret;
@@ -4138,7 +4139,19 @@ done:
 	 */
 	if (PageError(page))
 		end_extent_writepage(page, ret, page_start, page_end);
-	unlock_page(page);
+	if (epd->extent_locked) {
+		/*
+		 * If epd->extent_locked, it's from extent_write_locked_range(),
+		 * the page can either be locked by lock_page() or
+		 * process_one_page().
+		 * Let btrfs_page_unlock_writer() handle both cases.
+		 */
+		ASSERT(wbc);
+		btrfs_page_unlock_writer(fs_info, page, wbc->range_start,
+					 wbc->range_end + 1 - wbc->range_start);
+	} else {
+		unlock_page(page);
+	}
 	ASSERT(ret <= 0);
 	return ret;
 }
