@@ -44,7 +44,7 @@ static DECLARE_TLV_DB_SCALE(digital_tlv, -6400, 50, 0);
 static DECLARE_TLV_DB_SCALE(noise_tlv, -13200, 600, 0);
 static DECLARE_TLV_DB_SCALE(ng_tlv, -10200, 600, 0);
 
-static const struct wm_adsp_region wm5102_dsp1_regions[] = {
+static const struct cs_dsp_region wm5102_dsp1_regions[] = {
 	{ .type = WMFW_ADSP2_PM, .base = 0x100000 },
 	{ .type = WMFW_ADSP2_ZM, .base = 0x180000 },
 	{ .type = WMFW_ADSP2_XM, .base = 0x190000 },
@@ -2046,13 +2046,13 @@ static int wm5102_probe(struct platform_device *pdev)
 	arizona_init_dvfs(&wm5102->core);
 
 	wm5102->core.adsp[0].part = "wm5102";
-	wm5102->core.adsp[0].num = 1;
-	wm5102->core.adsp[0].type = WMFW_ADSP2;
-	wm5102->core.adsp[0].base = ARIZONA_DSP1_CONTROL_1;
-	wm5102->core.adsp[0].dev = arizona->dev;
-	wm5102->core.adsp[0].regmap = arizona->regmap;
-	wm5102->core.adsp[0].mem = wm5102_dsp1_regions;
-	wm5102->core.adsp[0].num_mems = ARRAY_SIZE(wm5102_dsp1_regions);
+	wm5102->core.adsp[0].cs_dsp.num = 1;
+	wm5102->core.adsp[0].cs_dsp.type = WMFW_ADSP2;
+	wm5102->core.adsp[0].cs_dsp.base = ARIZONA_DSP1_CONTROL_1;
+	wm5102->core.adsp[0].cs_dsp.dev = arizona->dev;
+	wm5102->core.adsp[0].cs_dsp.regmap = arizona->regmap;
+	wm5102->core.adsp[0].cs_dsp.mem = wm5102_dsp1_regions;
+	wm5102->core.adsp[0].cs_dsp.num_mems = ARRAY_SIZE(wm5102_dsp1_regions);
 
 	ret = wm_adsp2_init(&wm5102->core.adsp[0]);
 	if (ret != 0)
