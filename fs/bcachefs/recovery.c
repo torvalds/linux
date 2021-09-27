@@ -1004,11 +1004,10 @@ static int bch2_fs_upgrade_for_subvolumes(struct btree_trans *trans)
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bch_inode_unpacked inode;
-	struct bkey_inode_buf *packed;
 	int ret;
 
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_inodes,
-			     POS(0, BCACHEFS_ROOT_INO), 0);
+			     SPOS(0, BCACHEFS_ROOT_INO, U32_MAX), 0);
 	k = bch2_btree_iter_peek_slot(&iter);
 	ret = bkey_err(k);
 	if (ret)
@@ -1025,13 +1024,7 @@ static int bch2_fs_upgrade_for_subvolumes(struct btree_trans *trans)
 
 	inode.bi_subvol = BCACHEFS_ROOT_SUBVOL;
 
-	packed = bch2_trans_kmalloc(trans, sizeof(*packed));
-	ret = PTR_ERR_OR_ZERO(packed);
-	if (ret)
-		goto err;
-
-	bch2_inode_pack(c, packed, &inode);
-	ret = bch2_trans_update(trans, &iter, &packed->inode.k_i, 0);
+	ret = bch2_inode_write(trans, &iter, &inode);
 err:
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
@@ -1096,8 +1089,8 @@ int bch2_fs_recovery(struct bch_fs *c)
 	} else if (c->sb.version < bcachefs_metadata_version_btree_ptr_sectors_written) {
 		bch_info(c, "version prior to btree_ptr_sectors_written, upgrade required");
 		c->opts.version_upgrade	= true;
-	} else if (c->sb.version < bcachefs_metadata_version_snapshot) {
-		bch_info(c, "filesystem version is prior to snapshot field - upgrading");
+	} else if (c->sb.version < bcachefs_metadata_version_snapshot_2) {
+		bch_info(c, "filesystem version is prior to snapshots - upgrading");
 		c->opts.version_upgrade = true;
 	}
 
@@ -1267,7 +1260,9 @@ use_clean:
 		bch_verbose(c, "alloc write done");
 	}
 
-	if (c->sb.version < bcachefs_metadata_version_snapshot) {
+	if (c->sb.version < bcachefs_metadata_version_snapshot_2) {
+		bch2_fs_lazy_rw(c);
+
 		err = "error creating root snapshot node";
 		ret = bch2_fs_initialize_subvolumes(c);
 		if (ret)
@@ -1281,7 +1276,7 @@ use_clean:
 		goto err;
 	bch_verbose(c, "reading snapshots done");
 
-	if (c->sb.version < bcachefs_metadata_version_snapshot) {
+	if (c->sb.version < bcachefs_metadata_version_snapshot_2) {
 		/* set bi_subvol on root inode */
 		err = "error upgrade root inode for subvolumes";
 		ret = bch2_trans_do(c, NULL, NULL, BTREE_INSERT_LAZY_RW,
