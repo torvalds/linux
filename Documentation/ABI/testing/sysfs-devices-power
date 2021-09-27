@@ -269,3 +269,17 @@ Description:
 		the current runtime PM status of the device, which may be
 		"suspended", "suspending", "resuming", "active", "error" (fatal
 		error), or "unsupported" (runtime PM is disabled).
+
+What:		/sys/devices/.../power/runtime_active_time
+Date:		Jul 2010
+Contact:	Arjan van de Ven <arjan@linux.intel.com>
+Description:
+		Reports the total time that the device has been active.
+		Used for runtime PM statistics.
+
+What:		/sys/devices/.../power/runtime_suspended_time
+Date:		Jul 2010
+Contact:	Arjan van de Ven <arjan@linux.intel.com>
+Description:
+		Reports total time that the device has been suspended.
+		Used for runtime PM statistics.
