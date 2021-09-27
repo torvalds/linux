@@ -20,7 +20,6 @@
 #define SUBMOD_NAME	"smb_direct"
 
 #include <linux/kthread.h>
-#include <linux/rwlock.h>
 #include <linux/list.h>
 #include <linux/mempool.h>
 #include <linux/highmem.h>

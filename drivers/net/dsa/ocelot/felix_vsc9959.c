@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /* Copyright 2017 Microsemi Corporation
- * Copyright 2018-2019 NXP Semiconductors
+ * Copyright 2018-2019 NXP
  */
 #include <linux/fsl/enetc_mdio.h>
 #include <soc/mscc/ocelot_qsys.h>
@@ -1472,9 +1472,10 @@ err_pci_enable:
 
 static void felix_pci_remove(struct pci_dev *pdev)
 {
-	struct felix *felix;
+	struct felix *felix = pci_get_drvdata(pdev);
 
-	felix = pci_get_drvdata(pdev);
+	if (!felix)
+		return;
 
 	dsa_unregister_switch(felix->ds);
 
@@ -1482,6 +1483,20 @@ static void felix_pci_remove(struct pci_dev *pdev)
 	kfree(felix);
 
 	pci_disable_device(pdev);
+
+	pci_set_drvdata(pdev, NULL);
+}
+
+static void felix_pci_shutdown(struct pci_dev *pdev)
+{
+	struct felix *felix = pci_get_drvdata(pdev);
+
+	if (!felix)
+		return;
+
+	dsa_switch_shutdown(felix->ds);
+
+	pci_set_drvdata(pdev, NULL);
 }
 
 static struct pci_device_id felix_ids[] = {
@@ -1498,6 +1513,7 @@ static struct pci_driver felix_vsc9959_pci_driver = {
 	.id_table	= felix_ids,
 	.probe		= felix_pci_probe,
 	.remove		= felix_pci_remove,
+	.shutdown	= felix_pci_shutdown,
 };
 module_pci_driver(felix_vsc9959_pci_driver);
 
