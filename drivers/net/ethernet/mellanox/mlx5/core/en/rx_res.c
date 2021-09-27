@@ -572,7 +572,7 @@ void mlx5e_rx_res_channels_activate(struct mlx5e_rx_res *res, struct mlx5e_chann
 	if (res->features & MLX5E_RX_RES_FEATURE_PTP) {
 		u32 rqn;
 
-		if (mlx5e_channels_get_ptp_rqn(chs, &rqn))
+		if (!mlx5e_channels_get_ptp_rqn(chs, &rqn))
 			rqn = res->drop_rqn;
 
 		err = mlx5e_rqt_redirect_direct(&res->ptp.rqt, rqn);
