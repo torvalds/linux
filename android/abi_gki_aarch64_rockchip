@@ -994,6 +994,20 @@
   tasklet_kill
   tasklet_setup
 
+# required by pm_domains.ko
+  clk_bulk_put
+  of_clk_get
+  of_clk_get_parent_count
+  of_genpd_add_provider_onecell
+  panic
+  pm_clk_add_clk
+  pm_clk_create
+  pm_clk_destroy
+  pm_genpd_add_subdomain
+  pm_genpd_init
+  pm_genpd_remove
+  strrchr
+
 # required by pwm-regulator.ko
   regulator_map_voltage_iterate
 
