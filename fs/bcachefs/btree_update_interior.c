@@ -165,7 +165,8 @@ static void bch2_btree_node_free_inmem(struct btree_trans *trans,
 	struct btree_path *path;
 
 	trans_for_each_path(trans, path)
-		BUG_ON(path->l[b->c.level].b == b);
+		BUG_ON(path->l[b->c.level].b == b &&
+		       path->l[b->c.level].lock_seq == b->c.lock.state.seq);
 
 	six_lock_write(&b->c.lock, NULL, NULL);
 
