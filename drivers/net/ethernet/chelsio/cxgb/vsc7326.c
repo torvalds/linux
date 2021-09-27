@@ -591,7 +591,7 @@ static void port_stats_update(struct cmac *mac)
 	} hw_stats[] = {
 
 #define HW_STAT(reg, stat_name) \
-	{ reg, (&((struct cmac_statistics *)NULL)->stat_name) - (u64 *)NULL }
+	{ reg, offsetof(struct cmac_statistics, stat_name) / sizeof(u64) }
 
 		/* Rx stats */
 		HW_STAT(RxUnicast, RxUnicastFramesOK),
