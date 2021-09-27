@@ -28,9 +28,6 @@ struct btrfs_inode;
 #define	BTRFS_ZLIB_DEFAULT_LEVEL		3
 
 struct compressed_bio {
-	/* Number of bios pending for this compressed extent */
-	atomic_t pending_bios;
-
 	/* Number of sectors with unfinished IO (unsubmitted or unfinished) */
 	refcount_t pending_sectors;
 
