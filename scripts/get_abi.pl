@@ -180,6 +180,7 @@ sub parse_abi {
 						$data{$what}->{file} = $name;
 						$data{$what}->{filepath} = $file;
 					} else {
+						$data{$what}->{description} .= "\n\n" if (defined($data{$what}->{description}));
 						if ($name ne $data{$what}->{file}) {
 							$data{$what}->{file} .= " " . $name;
 							$data{$what}->{filepath} .= " " . $file;
