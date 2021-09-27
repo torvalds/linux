@@ -36,6 +36,7 @@ struct btrfs_subpage_info {
 	unsigned int dirty_offset;
 	unsigned int writeback_offset;
 	unsigned int ordered_offset;
+	unsigned int checked_offset;
 };
 
 /*
@@ -142,6 +143,7 @@ DECLARE_BTRFS_SUBPAGE_OPS(error);
 DECLARE_BTRFS_SUBPAGE_OPS(dirty);
 DECLARE_BTRFS_SUBPAGE_OPS(writeback);
 DECLARE_BTRFS_SUBPAGE_OPS(ordered);
+DECLARE_BTRFS_SUBPAGE_OPS(checked);
 
 bool btrfs_subpage_clear_and_test_dirty(const struct btrfs_fs_info *fs_info,
 		struct page *page, u64 start, u32 len);

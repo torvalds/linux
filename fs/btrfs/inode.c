@@ -2764,7 +2764,7 @@ out_page:
 		clear_page_dirty_for_io(page);
 		SetPageError(page);
 	}
-	ClearPageChecked(page);
+	btrfs_page_clear_checked(inode->root->fs_info, page, page_start, PAGE_SIZE);
 	unlock_page(page);
 	put_page(page);
 	kfree(fixup);
@@ -2819,7 +2819,7 @@ int btrfs_writepage_cow_fixup(struct page *page)
 	 * page->mapping outside of the page lock.
 	 */
 	ihold(inode);
-	SetPageChecked(page);
+	btrfs_page_set_checked(fs_info, page, page_offset(page), PAGE_SIZE);
 	get_page(page);
 	btrfs_init_work(&fixup->work, btrfs_writepage_fixup_worker, NULL, NULL);
 	fixup->page = page;
@@ -3269,27 +3269,22 @@ unsigned int btrfs_verify_data_csum(struct btrfs_bio *bbio,
 				    u64 start, u64 end)
 {
 	struct inode *inode = page->mapping->host;
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	const u32 sectorsize = root->fs_info->sectorsize;
 	u32 pg_off;
 	unsigned int result = 0;
 
-	if (PageChecked(page)) {
-		ClearPageChecked(page);
+	if (btrfs_page_test_checked(fs_info, page, start, end + 1 - start)) {
+		btrfs_page_clear_checked(fs_info, page, start, end + 1 - start);
 		return 0;
 	}
 
 	/*
-	 * For subpage case, above PageChecked is not safe as it's not subpage
-	 * compatible.
-	 * But for now only cow fixup and compressed read utilize PageChecked
-	 * flag, while in this context we can easily use bbio->csum to
-	 * determine if we really need to do csum verification.
-	 *
-	 * So for now, just exit if bbio->csum is NULL, as it means it's
-	 * compressed read, and its compressed data csum has already been
-	 * verified.
+	 * This only happens for NODATASUM or compressed read.
+	 * Normally this should be covered by above check for compressed read
+	 * or the next check for NODATASUM.  Just do a quicker exit here.
 	 */
 	if (bbio->csum == NULL)
 		return 0;
@@ -5110,7 +5105,8 @@ again:
 				     len);
 		flush_dcache_page(page);
 	}
-	ClearPageChecked(page);
+	btrfs_page_clear_checked(fs_info, page, block_start,
+				 block_end + 1 - block_start);
 	btrfs_page_set_dirty(fs_info, page, block_start, block_end + 1 - block_start);
 	unlock_extent_cached(io_tree, block_start, block_end, &cached_state);
 
@@ -8705,9 +8701,9 @@ next:
 	 * did something wrong.
 	 */
 	ASSERT(!PageOrdered(page));
+	btrfs_page_clear_checked(fs_info, page, page_offset(page), PAGE_SIZE);
 	if (!inode_evicting)
 		__btrfs_releasepage(page, GFP_NOFS);
-	ClearPageChecked(page);
 	clear_page_extent_mapped(page);
 }
 
@@ -8851,7 +8847,7 @@ again:
 		memzero_page(page, zero_start, PAGE_SIZE - zero_start);
 		flush_dcache_page(page);
 	}
-	ClearPageChecked(page);
+	btrfs_page_clear_checked(fs_info, page, page_start, PAGE_SIZE);
 	btrfs_page_set_dirty(fs_info, page, page_start, end + 1 - page_start);
 	btrfs_page_set_uptodate(fs_info, page, page_start, end + 1 - page_start);
 

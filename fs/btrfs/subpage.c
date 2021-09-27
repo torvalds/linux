@@ -88,6 +88,9 @@ void btrfs_init_subpage_info(struct btrfs_subpage_info *subpage_info, u32 sector
 	subpage_info->ordered_offset = cur;
 	cur += nr_bits;
 
+	subpage_info->checked_offset = cur;
+	cur += nr_bits;
+
 	subpage_info->total_nr_bits = cur;
 }
 
@@ -255,8 +258,16 @@ static void btrfs_subpage_clamp_range(struct page *page, u64 *start, u32 *len)
 	u32 orig_len = *len;
 
 	*start = max_t(u64, page_offset(page), orig_start);
-	*len = min_t(u64, page_offset(page) + PAGE_SIZE,
-		     orig_start + orig_len) - *start;
+	/*
+	 * For certain call sites like btrfs_drop_pages(), we may have pages
+	 * beyond the target range. In that case, just set @len to 0, subpage
+	 * helpers can handle @len == 0 without any problem.
+	 */
+	if (page_offset(page) >= orig_start + orig_len)
+		*len = 0;
+	else
+		*len = min_t(u64, page_offset(page) + PAGE_SIZE,
+			     orig_start + orig_len) - *start;
 }
 
 void btrfs_subpage_start_writer(const struct btrfs_fs_info *fs_info,
@@ -532,6 +543,36 @@ void btrfs_subpage_clear_ordered(const struct btrfs_fs_info *fs_info,
 		ClearPageOrdered(page);
 	spin_unlock_irqrestore(&subpage->lock, flags);
 }
+
+void btrfs_subpage_set_checked(const struct btrfs_fs_info *fs_info,
+			       struct page *page, u64 start, u32 len)
+{
+	struct btrfs_subpage *subpage = (struct btrfs_subpage *)page->private;
+	unsigned int start_bit = subpage_calc_start_bit(fs_info, page,
+							checked, start, len);
+	unsigned long flags;
+
+	spin_lock_irqsave(&subpage->lock, flags);
+	bitmap_set(subpage->bitmaps, start_bit, len >> fs_info->sectorsize_bits);
+	if (subpage_test_bitmap_all_set(fs_info, subpage, checked))
+		SetPageChecked(page);
+	spin_unlock_irqrestore(&subpage->lock, flags);
+}
+
+void btrfs_subpage_clear_checked(const struct btrfs_fs_info *fs_info,
+				 struct page *page, u64 start, u32 len)
+{
+	struct btrfs_subpage *subpage = (struct btrfs_subpage *)page->private;
+	unsigned int start_bit = subpage_calc_start_bit(fs_info, page,
+							checked, start, len);
+	unsigned long flags;
+
+	spin_lock_irqsave(&subpage->lock, flags);
+	bitmap_clear(subpage->bitmaps, start_bit, len >> fs_info->sectorsize_bits);
+	ClearPageChecked(page);
+	spin_unlock_irqrestore(&subpage->lock, flags);
+}
+
 /*
  * Unlike set/clear which is dependent on each page status, for test all bits
  * are tested in the same way.
@@ -557,6 +598,7 @@ IMPLEMENT_BTRFS_SUBPAGE_TEST_OP(error);
 IMPLEMENT_BTRFS_SUBPAGE_TEST_OP(dirty);
 IMPLEMENT_BTRFS_SUBPAGE_TEST_OP(writeback);
 IMPLEMENT_BTRFS_SUBPAGE_TEST_OP(ordered);
+IMPLEMENT_BTRFS_SUBPAGE_TEST_OP(checked);
 
 /*
  * Note that, in selftests (extent-io-tests), we can have empty fs_info passed
@@ -627,6 +669,7 @@ IMPLEMENT_BTRFS_PAGE_OPS(writeback, set_page_writeback, end_page_writeback,
 			 PageWriteback);
 IMPLEMENT_BTRFS_PAGE_OPS(ordered, SetPageOrdered, ClearPageOrdered,
 			 PageOrdered);
+IMPLEMENT_BTRFS_PAGE_OPS(checked, SetPageChecked, ClearPageChecked, PageChecked);
 
 /*
  * Make sure not only the page dirty bit is cleared, but also subpage dirty bit
