@@ -873,8 +873,7 @@ static int submit_one_async_extent(struct btrfs_inode *inode,
 		 * drive.
 		 */
 		if (!page_started && !ret)
-			extent_write_locked_range(&inode->vfs_inode, start,
-						  end, WB_SYNC_ALL);
+			extent_write_locked_range(&inode->vfs_inode, start, end);
 		else if (ret && async_chunk->locked_page)
 			unlock_page(async_chunk->locked_page);
 		kfree(async_extent);
@@ -1454,7 +1453,7 @@ static noinline int run_delalloc_zoned(struct btrfs_inode *inode,
 
 	__set_page_dirty_nobuffers(locked_page);
 	account_page_redirty(locked_page);
-	extent_write_locked_range(&inode->vfs_inode, start, end, WB_SYNC_ALL);
+	extent_write_locked_range(&inode->vfs_inode, start, end);
 	*page_started = 1;
 
 	return 0;
