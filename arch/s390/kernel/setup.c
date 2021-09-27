@@ -95,10 +95,10 @@ EXPORT_SYMBOL(console_irq);
  * relocated above 2 GB, because it has to use 31 bit addresses.
  * Such code and data is part of the .amode31 section.
  */
-unsigned long __amode31_ref __samode31 = __pa(&_samode31);
-unsigned long __amode31_ref __eamode31 = __pa(&_eamode31);
-unsigned long __amode31_ref __stext_amode31 = __pa(&_stext_amode31);
-unsigned long __amode31_ref __etext_amode31 = __pa(&_etext_amode31);
+unsigned long __amode31_ref __samode31 = (unsigned long)&_samode31;
+unsigned long __amode31_ref __eamode31 = (unsigned long)&_eamode31;
+unsigned long __amode31_ref __stext_amode31 = (unsigned long)&_stext_amode31;
+unsigned long __amode31_ref __etext_amode31 = (unsigned long)&_etext_amode31;
 struct exception_table_entry __amode31_ref *__start_amode31_ex_table = _start_amode31_ex_table;
 struct exception_table_entry __amode31_ref *__stop_amode31_ex_table = _stop_amode31_ex_table;
 
@@ -149,6 +149,7 @@ struct mem_detect_info __bootdata(mem_detect);
 struct initrd_data __bootdata(initrd_data);
 
 unsigned long __bootdata_preserved(__kaslr_offset);
+unsigned long __bootdata(__amode31_base);
 unsigned int __bootdata_preserved(zlib_dfltcc_support);
 EXPORT_SYMBOL(zlib_dfltcc_support);
 u64 __bootdata_preserved(stfle_fac_list[16]);
@@ -800,6 +801,7 @@ static void __init reserve_kernel(void)
 
 	memblock_reserve(0, STARTUP_NORMAL_OFFSET);
 	memblock_reserve((unsigned long)sclp_early_sccb, EXT_SCCB_READ_SCP);
+	memblock_reserve(__amode31_base, __eamode31 - __samode31);
 	memblock_reserve((unsigned long)_stext, PFN_PHYS(start_pfn)
 			 - (unsigned long)_stext);
 }
@@ -820,20 +822,14 @@ static void __init setup_memory(void)
 
 static void __init relocate_amode31_section(void)
 {
-	unsigned long amode31_addr, amode31_size;
-	long amode31_offset;
+	unsigned long amode31_size = __eamode31 - __samode31;
+	long amode31_offset = __amode31_base - __samode31;
 	long *ptr;
 
-	/* Allocate a new AMODE31 capable memory region */
-	amode31_size = __eamode31 - __samode31;
 	pr_info("Relocating AMODE31 section of size 0x%08lx\n", amode31_size);
-	amode31_addr = (unsigned long)memblock_alloc_low(amode31_size, PAGE_SIZE);
-	if (!amode31_addr)
-		panic("Failed to allocate memory for AMODE31 section\n");
-	amode31_offset = amode31_addr - __samode31;
 
 	/* Move original AMODE31 section to the new one */
-	memmove((void *)amode31_addr, (void *)__samode31, amode31_size);
+	memmove((void *)__amode31_base, (void *)__samode31, amode31_size);
 	/* Zero out the old AMODE31 section to catch invalid accesses within it */
 	memset((void *)__samode31, 0, amode31_size);
 
