@@ -10,6 +10,7 @@
   __arch_copy_to_user
   arm64_const_caps_ready
   arm64_use_ng_mappings
+  __arm_smccc_smc
   atomic_notifier_chain_register
   bdget_disk
   bdput
@@ -50,6 +51,8 @@
   clk_get
   __clk_get_name
   clk_get_rate
+  clk_notifier_register
+  clk_notifier_unregister
   clk_prepare
   clk_put
   clk_register
@@ -232,6 +235,7 @@
   input_ff_create_memless
   input_register_device
   input_set_abs_params
+  iounmap
   irq_set_irq_wake
   jiffies
   kasan_flag_enabled
@@ -294,10 +298,13 @@
   of_get_next_child
   of_get_property
   of_get_regulator_init_data
+  of_iomap
   of_irq_get_byname
+  of_machine_is_compatible
   of_match_device
   of_match_node
   of_node_name_eq
+  of_parse_phandle
   of_phy_simple_xlate
   of_property_read_string
   of_property_read_string_helper
@@ -313,6 +320,7 @@
   __per_cpu_offset
   pinctrl_lookup_state
   pinctrl_select_state
+  __platform_driver_probe
   __platform_driver_register
   platform_driver_unregister
   platform_get_irq
@@ -335,6 +343,7 @@
   preempt_schedule
   preempt_schedule_notrace
   prepare_to_wait_event
+  print_hex_dump
   printk
   put_device
   put_disk
@@ -345,6 +354,7 @@
   queue_delayed_work_on
   queue_work_on
   ___ratelimit
+  rational_best_approximation
   _raw_spin_lock
   _raw_spin_lock_bh
   _raw_spin_lock_irqsave
@@ -497,6 +507,38 @@
 # required by clk-pwm.ko
   of_clk_add_hw_provider
   of_clk_hw_simple_get
+
+# required by clk-rockchip.ko
+  clk_divider_ops
+  clk_divider_ro_ops
+  clk_fixed_factor_ops
+  clk_fractional_divider_ops
+  clk_gate_ops
+  __clk_get_hw
+  clk_get_parent
+  clk_hw_get_flags
+  clk_hw_get_name
+  clk_hw_get_parent
+  clk_hw_get_rate
+  clk_hw_register_composite
+  clk_hw_round_rate
+  __clk_mux_determine_rate
+  clk_mux_ops
+  clk_mux_ro_ops
+  clk_register_composite
+  clk_register_divider_table
+  clk_register_fixed_factor
+  clk_register_gate
+  clk_register_mux_table
+  devm_clk_register
+  divider_get_val
+  gcd
+  kmemdup
+  match_string
+  of_clk_src_onecell_get
+  register_restart_handler
+  reset_controller_register
+  __udelay
 
 # required by clk-scmi.ko
   clk_hw_set_rate_range
@@ -667,8 +709,6 @@
   rt_mutex_unlock
 
 # required by i2c-rk3x.ko
-  clk_notifier_register
-  clk_notifier_unregister
   i2c_parse_fw_timings
 
 # required by industrialio-buffer-cb.ko
@@ -808,7 +848,6 @@
   __do_once_start
   flush_workqueue
   __ioremap
-  iounmap
   mempool_alloc
   mempool_create_node
   mempool_destroy
@@ -857,7 +896,6 @@
 # required by optee.ko
   alloc_pages_exact
   __arm_smccc_hvc
-  __arm_smccc_smc
   device_property_read_string
   device_register
   find_vma
@@ -905,7 +943,6 @@
   of_find_i2c_adapter_by_node
   of_get_display_timing
   of_get_drm_display_mode
-  of_parse_phandle
   videomode_from_timing
 
 # required by phy-rockchip-inno-dsidphy.ko
@@ -1022,7 +1059,6 @@
   nvmem_cell_put
   nvmem_cell_read
   of_nvmem_cell_get
-  print_hex_dump
   thermal_zone_device_disable
   thermal_zone_device_enable
   thermal_zone_device_update
@@ -1150,12 +1186,8 @@
   snd_pcm_hw_constraint_eld
   snd_soc_dapm_add_routes
 
-# required by snd-soc-rk3328.ko
-  of_machine_is_compatible
-
 # required by snd-soc-rockchip-pdm.ko
   clk_round_rate
-  rational_best_approximation
 
 # required by snd-soc-simple-card-utils.ko
   devm_get_clk_from_child
