@@ -192,12 +192,19 @@ static const struct of_device_id ice40_fpga_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, ice40_fpga_of_match);
 
+static const struct spi_device_id ice40_fpga_spi_ids[] = {
+	{ .name = "ice40-fpga-mgr", },
+	{},
+};
+MODULE_DEVICE_TABLE(spi, ice40_fpga_spi_ids);
+
 static struct spi_driver ice40_fpga_driver = {
 	.probe = ice40_fpga_probe,
 	.driver = {
 		.name = "ice40spi",
 		.of_match_table = of_match_ptr(ice40_fpga_of_match),
 	},
+	.id_table = ice40_fpga_spi_ids,
 };
 
 module_spi_driver(ice40_fpga_driver);
