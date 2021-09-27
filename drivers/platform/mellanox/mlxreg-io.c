@@ -141,7 +141,7 @@ mlxreg_io_attr_store(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 
 	/* Convert buffer to input value. */
-	ret = kstrtou32(buf, len, &input_val);
+	ret = kstrtou32(buf, 0, &input_val);
 	if (ret)
 		return ret;
 
