@@ -1252,22 +1252,6 @@ static void __init rcu_spawn_boost_kthreads(void)
 #endif /* #else #ifdef CONFIG_RCU_BOOST */
 
 /*
- * Check to see if any future non-offloaded RCU-related work will need
- * to be done by the current CPU, even if none need be done immediately,
- * returning 1 if so.  This function is part of the RCU implementation;
- * it is -not- an exported member of the RCU API.
- *
- * Just check whether or not this CPU has non-offloaded RCU callbacks
- * queued.
- */
-int rcu_needs_cpu(u64 basemono, u64 *nextevt)
-{
-	*nextevt = KTIME_MAX;
-	return !rcu_segcblist_empty(&this_cpu_ptr(&rcu_data)->cblist) &&
-		!rcu_rdp_is_offloaded(this_cpu_ptr(&rcu_data));
-}
-
-/*
  * Is this CPU a NO_HZ_FULL CPU that should ignore RCU so that the
  * grace-period kthread will do force_quiescent_state() processing?
  * The idea is to avoid waking up RCU core processing on such a
