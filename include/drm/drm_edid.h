@@ -511,8 +511,8 @@ static inline u8 drm_eld_get_conn_type(const uint8_t *eld)
 /**
  * drm_edid_encode_panel_id - Encode an ID for matching against drm_edid_get_panel_id()
  * @vend_chr_0: First character of the vendor string.
- * @vend_chr_2: Second character of the vendor string.
- * @vend_chr_3: Third character of the vendor string.
+ * @vend_chr_1: Second character of the vendor string.
+ * @vend_chr_2: Third character of the vendor string.
  * @product_id: The 16-bit product ID.
  *
  * This is a macro so that it can be calculated at compile time and used
