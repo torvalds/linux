@@ -142,6 +142,18 @@ static u32 ath11k_dp_rx_h_attn_mpdu_err(struct rx_attention *attn)
 	return errmap;
 }
 
+static bool ath11k_dp_rx_h_attn_msdu_len_err(struct ath11k_base *ab,
+					     struct hal_rx_desc *desc)
+{
+	struct rx_attention *rx_attention;
+	u32 errmap;
+
+	rx_attention = ath11k_dp_rx_get_attention(ab, desc);
+	errmap = ath11k_dp_rx_h_attn_mpdu_err(rx_attention);
+
+	return errmap & DP_RX_MPDU_ERR_MSDU_LEN;
+}
+
 static u16 ath11k_dp_rx_h_msdu_start_msdu_len(struct ath11k_base *ab,
 					      struct hal_rx_desc *desc)
 {
@@ -2525,6 +2537,12 @@ static int ath11k_dp_rx_process_msdu(struct ath11k *ar,
 	}
 
 	rx_desc = (struct hal_rx_desc *)msdu->data;
+	if (ath11k_dp_rx_h_attn_msdu_len_err(ab, rx_desc)) {
+		ath11k_warn(ar->ab, "msdu len not valid\n");
+		ret = -EIO;
+		goto free_out;
+	}
+
 	lrx_desc = (struct hal_rx_desc *)last_buf->data;
 	rx_attention = ath11k_dp_rx_get_attention(ab, lrx_desc);
 	if (!ath11k_dp_rx_h_attn_msdu_done(rx_attention)) {
