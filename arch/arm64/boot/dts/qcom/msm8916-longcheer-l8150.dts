@@ -30,14 +30,6 @@
 		};
 	};
 
-	// FIXME: Use extcon device provided by charger driver when available
-	usb_vbus: usb-vbus {
-		compatible = "linux,extcon-usb-gpio";
-		vbus-gpio = <&msmgpio 62 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&usb_vbus_default>;
-	};
-
 	gpio-keys {
 		compatible = "gpio-keys";
 
@@ -215,6 +207,10 @@
 	linux,code = <KEY_VOLUMEDOWN>;
 };
 
+&pm8916_usbin {
+	status = "okay";
+};
+
 &pm8916_vib {
 	status = "okay";
 };
@@ -244,11 +240,11 @@
 &usb {
 	status = "okay";
 	dr_mode = "peripheral";
-	extcon = <&usb_vbus>;
+	extcon = <&pm8916_usbin>;
 };
 
 &usb_hs_phy {
-	extcon = <&usb_vbus>;
+	extcon = <&pm8916_usbin>;
 };
 
 &smd_rpm_regulators {
@@ -409,12 +405,5 @@
 
 		drive-strength = <2>;
 		bias-disable;
-	};
-
-	usb_vbus_default: usb-vbus-default {
-		pins = "gpio62";
-		function = "gpio";
-
-		bias-pull-up;
 	};
 };
