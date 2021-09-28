@@ -1744,7 +1744,7 @@ static int add_kfunc_call(struct bpf_verifier_env *env, u32 func_id)
 
 	desc = &tab->descs[tab->nr_descs++];
 	desc->func_id = func_id;
-	desc->imm = BPF_CAST_CALL(addr) - __bpf_call_base;
+	desc->imm = BPF_CALL_IMM(addr);
 	err = btf_distill_func_proto(&env->log, btf_vmlinux,
 				     func_proto, func_name,
 				     &desc->func_model);
@@ -12514,8 +12514,7 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 			if (!bpf_pseudo_call(insn))
 				continue;
 			subprog = insn->off;
-			insn->imm = BPF_CAST_CALL(func[subprog]->bpf_func) -
-				    __bpf_call_base;
+			insn->imm = BPF_CALL_IMM(func[subprog]->bpf_func);
 		}
 
 		/* we use the aux data to keep a list of the start addresses
@@ -12995,32 +12994,25 @@ static int do_misc_fixups(struct bpf_verifier_env *env)
 patch_map_ops_generic:
 			switch (insn->imm) {
 			case BPF_FUNC_map_lookup_elem:
-				insn->imm = BPF_CAST_CALL(ops->map_lookup_elem) -
-					    __bpf_call_base;
+				insn->imm = BPF_CALL_IMM(ops->map_lookup_elem);
 				continue;
 			case BPF_FUNC_map_update_elem:
-				insn->imm = BPF_CAST_CALL(ops->map_update_elem) -
-					    __bpf_call_base;
+				insn->imm = BPF_CALL_IMM(ops->map_update_elem);
 				continue;
 			case BPF_FUNC_map_delete_elem:
-				insn->imm = BPF_CAST_CALL(ops->map_delete_elem) -
-					    __bpf_call_base;
+				insn->imm = BPF_CALL_IMM(ops->map_delete_elem);
 				continue;
 			case BPF_FUNC_map_push_elem:
-				insn->imm = BPF_CAST_CALL(ops->map_push_elem) -
-					    __bpf_call_base;
+				insn->imm = BPF_CALL_IMM(ops->map_push_elem);
 				continue;
 			case BPF_FUNC_map_pop_elem:
-				insn->imm = BPF_CAST_CALL(ops->map_pop_elem) -
-					    __bpf_call_base;
+				insn->imm = BPF_CALL_IMM(ops->map_pop_elem);
 				continue;
 			case BPF_FUNC_map_peek_elem:
-				insn->imm = BPF_CAST_CALL(ops->map_peek_elem) -
-					    __bpf_call_base;
+				insn->imm = BPF_CALL_IMM(ops->map_peek_elem);
 				continue;
 			case BPF_FUNC_redirect_map:
-				insn->imm = BPF_CAST_CALL(ops->map_redirect) -
-					    __bpf_call_base;
+				insn->imm = BPF_CALL_IMM(ops->map_redirect);
 				continue;
 			}
 
