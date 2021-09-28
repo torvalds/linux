@@ -45,6 +45,7 @@
 #include <sys/resource.h>		/* getrlimit */
 #include <ftw.h>
 #include <sys/stat.h>
+#include <linux/compiler.h>
 #include <linux/list.h>
 #include "jsmn.h"
 #include "json.h"
@@ -470,7 +471,7 @@ static void free_arch_std_events(void)
 	}
 }
 
-static int save_arch_std_events(void *data, struct json_event *je)
+static int save_arch_std_events(void *data __maybe_unused, struct json_event *je)
 {
 	struct event_struct *es;
 
