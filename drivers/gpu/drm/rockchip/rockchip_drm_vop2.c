@@ -526,6 +526,10 @@ struct vop2_video_port {
 	 * @plane_mask_prop: plane mask interaction with userspace
 	 */
 	struct drm_property *plane_mask_prop;
+	/**
+	 * @feature_prop: crtc feature interaction with userspace
+	 */
+	struct drm_property *feature_prop;
 
 	/**
 	 * @primary_plane_phy_id: vp primary plane phy id, the primary plane
@@ -5526,8 +5530,6 @@ static int vop2_crtc_atomic_get_property(struct drm_crtc *crtc,
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(state);
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
-	const struct vop2_data *vop2_data = vop2->data;
-	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
 
 	if (property == mode_config->tv_left_margin_property) {
 		*val = vcstate->left_margin;
@@ -5549,17 +5551,11 @@ static int vop2_crtc_atomic_get_property(struct drm_crtc *crtc,
 		return 0;
 	}
 
-	if (property == private->alpha_scale_prop) {
-		*val = (vp_data->feature & VOP_FEATURE_ALPHA_SCALE) ? 1 : 0;
-		return 0;
-	}
-
 	if (property == private->aclk_prop) {
 		/* KHZ, keep align with mode->clock */
 		*val = clk_get_rate(vop2->aclk) / 1000;
 		return 0;
 	}
-
 
 	if (property == private->bg_prop) {
 		*val = vcstate->background;
@@ -6118,6 +6114,42 @@ static int vop2_crtc_create_plane_mask_property(struct vop2 *vop2,
 	return 0;
 }
 
+static int vop2_crtc_create_feature_property(struct vop2 *vop2, struct drm_crtc *crtc)
+{
+	const struct vop2_data *vop2_data = vop2->data;
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
+	struct drm_property *prop;
+	u64 feature = 0;
+
+	static const struct drm_prop_enum_list props[] = {
+		{ ROCKCHIP_DRM_CRTC_FEATURE_ALPHA_SCALE, "ALPHA_SCALE" },
+		{ ROCKCHIP_DRM_CRTC_FEATURE_HDR10, "HDR10" },
+		{ ROCKCHIP_DRM_CRTC_FEATURE_DOLBY_HDR, "DOLBY_HDR" },
+	};
+
+	if (vp_data->feature & VOP_FEATURE_ALPHA_SCALE)
+		feature |= BIT(ROCKCHIP_DRM_CRTC_FEATURE_ALPHA_SCALE);
+	if (vp_data->feature & VOP_FEATURE_ALPHA_HDR10)
+		feature |= BIT(ROCKCHIP_DRM_CRTC_FEATURE_HDR10);
+	if (vp_data->feature & VOP_FEATURE_ALPHA_DOLBY_HDR)
+		feature |= BIT(ROCKCHIP_DRM_CRTC_FEATURE_DOLBY_HDR);
+
+	prop = drm_property_create_bitmask(vop2->drm_dev,
+					   DRM_MODE_PROP_IMMUTABLE, "FEATURE",
+					   props, ARRAY_SIZE(props),
+					   0xffffffff);
+	if (!prop) {
+		DRM_DEV_ERROR(vop2->dev, "create FEATURE prop for vp%d failed\n", vp->id);
+		return -ENOMEM;
+	}
+
+	vp->feature_prop = prop;
+	drm_object_attach_property(&crtc->base, vp->feature_prop, feature);
+
+	return 0;
+}
+
 /*
  * Returns:
  * Registered crtc number on success, negative error code on failure.
@@ -6282,7 +6314,6 @@ static int vop2_create_crtc(struct vop2 *vop2)
 		drm_object_attach_property(&crtc->base, private->aclk_prop, 0);
 		drm_object_attach_property(&crtc->base, private->bg_prop, 0);
 		drm_object_attach_property(&crtc->base, private->line_flag_prop, 0);
-		drm_object_attach_property(&crtc->base, private->alpha_scale_prop, 0);
 		drm_object_attach_property(&crtc->base,
 					   drm_dev->mode_config.tv_left_margin_property, 100);
 		drm_object_attach_property(&crtc->base,
@@ -6292,6 +6323,7 @@ static int vop2_create_crtc(struct vop2 *vop2)
 		drm_object_attach_property(&crtc->base,
 					   drm_dev->mode_config.tv_bottom_margin_property, 100);
 		vop2_crtc_create_plane_mask_property(vop2, crtc);
+		vop2_crtc_create_feature_property(vop2, crtc);
 		registered_num_crtcs++;
 	}
 

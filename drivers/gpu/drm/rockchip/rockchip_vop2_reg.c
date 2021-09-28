@@ -646,7 +646,7 @@ static const struct vop2_video_port_data rk3568_vop_video_ports[] = {
 	{
 	 .id = 0,
 	 .soc_id = { 0x3568, 0x3566 },
-	 .feature = VOP_FEATURE_OUTPUT_10BIT | VOP_FEATURE_ALPHA_SCALE,
+	 .feature = VOP_FEATURE_OUTPUT_10BIT | VOP_FEATURE_ALPHA_SCALE | VOP_FEATURE_ALPHA_HDR10,
 	 .gamma_lut_len = 1024,
 	 .cubic_lut_len = 729, /* 9x9x9 */
 	 .max_output = { 4096, 2304 },
