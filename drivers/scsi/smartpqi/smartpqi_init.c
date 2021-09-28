@@ -6297,9 +6297,13 @@ static int pqi_slave_alloc(struct scsi_device *sdev)
 		rphy = target_to_rphy(starget);
 		device = pqi_find_device_by_sas_rphy(ctrl_info, rphy);
 		if (device) {
-			device->target = sdev_id(sdev);
-			device->lun = sdev->lun;
-			device->target_lun_valid = true;
+			if (device->target_lun_valid) {
+				device->ignore_device = true;
+			} else {
+				device->target = sdev_id(sdev);
+				device->lun = sdev->lun;
+				device->target_lun_valid = true;
+			}
 		}
 	} else {
 		device = pqi_find_scsi_dev(ctrl_info, sdev_channel(sdev),
@@ -6336,14 +6340,25 @@ static int pqi_map_queues(struct Scsi_Host *shost)
 					ctrl_info->pci_dev, 0);
 }
 
+static inline bool pqi_is_tape_changer_device(struct pqi_scsi_dev *device)
+{
+	return device->devtype == TYPE_TAPE || device->devtype == TYPE_MEDIUM_CHANGER;
+}
+
 static int pqi_slave_configure(struct scsi_device *sdev)
 {
+	int rc = 0;
 	struct pqi_scsi_dev *device;
 
 	device = sdev->hostdata;
 	device->devtype = sdev->type;
 
-	return 0;
+	if (pqi_is_tape_changer_device(device) && device->ignore_device) {
+		rc = -ENXIO;
+		device->ignore_device = false;
+	}
+
+	return rc;
 }
 
 static int pqi_getpciinfo_ioctl(struct pqi_ctrl_info *ctrl_info, void __user *arg)
