@@ -537,6 +537,7 @@
   sysfs_create_link
   sysfs_remove_group
   sysfs_remove_link
+  system_unbound_wq
   system_wq
   __tasklet_schedule
   thermal_zone_get_zone_by_name
@@ -573,6 +574,22 @@
   __wake_up
   wakeup_source_add
   __warn_printk
+
+# required by 8250_dw.ko
+  of_device_is_big_endian
+  serial8250_clear_and_reinit_fifos
+  serial8250_do_pm
+  serial8250_do_set_divisor
+  serial8250_do_set_ldisc
+  serial8250_do_set_termios
+  serial8250_get_port
+  serial8250_handle_irq
+  serial8250_register_8250_port
+  serial8250_resume_port
+  serial8250_suspend_port
+  serial8250_unregister_port
+  serial8250_update_uartclk
+  tty_termios_baud_rate
 
 # required by act8865-regulator.ko
   regulator_set_pull_down_regmap
@@ -1534,7 +1551,6 @@
   sort
   __sw_hweight32
   __sw_hweight8
-  system_unbound_wq
   __vmalloc
   vm_get_page_prot
   vm_map_pages
