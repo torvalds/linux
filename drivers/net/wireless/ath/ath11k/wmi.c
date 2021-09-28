@@ -5251,9 +5251,11 @@ ath11k_wmi_pull_pdev_stats_tx(const struct wmi_pdev_stats_tx *src,
 	dst->hw_queued = src->hw_queued;
 	dst->hw_reaped = src->hw_reaped;
 	dst->underrun = src->underrun;
+	dst->hw_paused = src->hw_paused;
 	dst->tx_abort = src->tx_abort;
 	dst->mpdus_requeued = src->mpdus_requeued;
 	dst->tx_ko = src->tx_ko;
+	dst->tx_xretry = src->tx_xretry;
 	dst->data_rc = src->data_rc;
 	dst->self_triggers = src->self_triggers;
 	dst->sw_retry_failure = src->sw_retry_failure;
@@ -5264,6 +5266,16 @@ ath11k_wmi_pull_pdev_stats_tx(const struct wmi_pdev_stats_tx *src,
 	dst->stateless_tid_alloc_failure = src->stateless_tid_alloc_failure;
 	dst->phy_underrun = src->phy_underrun;
 	dst->txop_ovf = src->txop_ovf;
+	dst->seq_posted = src->seq_posted;
+	dst->seq_failed_queueing = src->seq_failed_queueing;
+	dst->seq_completed = src->seq_completed;
+	dst->seq_restarted = src->seq_restarted;
+	dst->mu_seq_posted = src->mu_seq_posted;
+	dst->mpdus_sw_flush = src->mpdus_sw_flush;
+	dst->mpdus_hw_filter = src->mpdus_hw_filter;
+	dst->mpdus_truncated = src->mpdus_truncated;
+	dst->mpdus_ack_failed = src->mpdus_ack_failed;
+	dst->mpdus_expired = src->mpdus_expired;
 }
 
 static void ath11k_wmi_pull_pdev_stats_rx(const struct wmi_pdev_stats_rx *src,
@@ -5283,6 +5295,7 @@ static void ath11k_wmi_pull_pdev_stats_rx(const struct wmi_pdev_stats_rx *src,
 	dst->phy_errs = src->phy_errs;
 	dst->phy_err_drop = src->phy_err_drop;
 	dst->mpdu_errs = src->mpdu_errs;
+	dst->rx_ovfl_errs = src->rx_ovfl_errs;
 }
 
 static void
@@ -5520,11 +5533,15 @@ ath11k_wmi_fw_pdev_tx_stats_fill(const struct ath11k_fw_stats_pdev *pdev,
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
 			 "Num underruns", pdev->underrun);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			 "Num HW Paused", pdev->hw_paused);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
 			 "PPDUs cleaned", pdev->tx_abort);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
 			 "MPDUs requeued", pdev->mpdus_requeued);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
-			 "Excessive retries", pdev->tx_ko);
+			 "PPDU OK", pdev->tx_ko);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			 "Excessive retries", pdev->tx_xretry);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
 			 "HW rate", pdev->data_rc);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
@@ -5548,6 +5565,26 @@ ath11k_wmi_fw_pdev_tx_stats_fill(const struct ath11k_fw_stats_pdev *pdev,
 			 "PHY underrun", pdev->phy_underrun);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
 			 "MPDU is more than txop limit", pdev->txop_ovf);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			 "Num sequences posted", pdev->seq_posted);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			 "Num seq failed queueing ", pdev->seq_failed_queueing);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			 "Num sequences completed ", pdev->seq_completed);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			 "Num sequences restarted ", pdev->seq_restarted);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			 "Num of MU sequences posted ", pdev->mu_seq_posted);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			 "Num of MPDUS SW flushed ", pdev->mpdus_sw_flush);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			 "Num of MPDUS HW filtered ", pdev->mpdus_hw_filter);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			 "Num of MPDUS truncated ", pdev->mpdus_truncated);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			 "Num of MPDUS ACK failed ", pdev->mpdus_ack_failed);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			 "Num of MPDUS expired ", pdev->mpdus_expired);
 	*length = len;
 }
 
@@ -5592,6 +5629,8 @@ ath11k_wmi_fw_pdev_rx_stats_fill(const struct ath11k_fw_stats_pdev *pdev,
 			 "PHY errors drops", pdev->phy_err_drop);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
 			 "MPDU errors (FCS, MIC, ENC)", pdev->mpdu_errs);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			 "Overflow errors", pdev->rx_ovfl_errs);
 	*length = len;
 }
 
