@@ -572,10 +572,14 @@ static int pqi_build_raid_path_request(struct pqi_ctrl_info *ctrl_info,
 	case CISS_REPORT_PHYS:
 		request->data_direction = SOP_READ_FLAG;
 		cdb[0] = cmd;
-		if (cmd == CISS_REPORT_PHYS)
-			cdb[1] = CISS_REPORT_PHYS_FLAG_OTHER;
-		else
+		if (cmd == CISS_REPORT_PHYS) {
+			if (ctrl_info->rpl_extended_format_4_5_supported)
+				cdb[1] = CISS_REPORT_PHYS_FLAG_EXTENDED_FORMAT_4;
+			else
+				cdb[1] = CISS_REPORT_PHYS_FLAG_EXTENDED_FORMAT_2;
+		} else {
 			cdb[1] = ctrl_info->ciss_report_log_flags;
+		}
 		put_unaligned_be32(cdb_length, &cdb[6]);
 		break;
 	case CISS_GET_RAID_MAP:
@@ -1132,7 +1136,64 @@ out:
 
 static inline int pqi_report_phys_luns(struct pqi_ctrl_info *ctrl_info, void **buffer)
 {
-	return pqi_report_phys_logical_luns(ctrl_info, CISS_REPORT_PHYS, buffer);
+	int rc;
+	unsigned int i;
+	u8 rpl_response_format;
+	u32 num_physicals;
+	size_t rpl_16byte_wwid_list_length;
+	void *rpl_list;
+	struct report_lun_header *rpl_header;
+	struct report_phys_lun_8byte_wwid_list *rpl_8byte_wwid_list;
+	struct report_phys_lun_16byte_wwid_list *rpl_16byte_wwid_list;
+
+	rc = pqi_report_phys_logical_luns(ctrl_info, CISS_REPORT_PHYS, &rpl_list);
+	if (rc)
+		return rc;
+
+	if (ctrl_info->rpl_extended_format_4_5_supported) {
+		rpl_header = rpl_list;
+		rpl_response_format = rpl_header->flags & CISS_REPORT_PHYS_FLAG_EXTENDED_FORMAT_MASK;
+		if (rpl_response_format == CISS_REPORT_PHYS_FLAG_EXTENDED_FORMAT_4) {
+			*buffer = rpl_list;
+			return 0;
+		} else if (rpl_response_format != CISS_REPORT_PHYS_FLAG_EXTENDED_FORMAT_2) {
+			dev_err(&ctrl_info->pci_dev->dev,
+				"RPL returned unsupported data format %u\n",
+				rpl_response_format);
+			return -EINVAL;
+		} else {
+			dev_warn(&ctrl_info->pci_dev->dev,
+				"RPL returned extended format 2 instead of 4\n");
+		}
+	}
+
+	rpl_8byte_wwid_list = rpl_list;
+	num_physicals = get_unaligned_be32(&rpl_8byte_wwid_list->header.list_length) / sizeof(rpl_8byte_wwid_list->lun_entries[0]);
+	rpl_16byte_wwid_list_length = sizeof(struct report_lun_header) + (num_physicals * sizeof(struct report_phys_lun_16byte_wwid));
+
+	rpl_16byte_wwid_list = kmalloc(rpl_16byte_wwid_list_length, GFP_KERNEL);
+	if (!rpl_16byte_wwid_list)
+		return -ENOMEM;
+
+	put_unaligned_be32(num_physicals * sizeof(struct report_phys_lun_16byte_wwid),
+		&rpl_16byte_wwid_list->header.list_length);
+	rpl_16byte_wwid_list->header.flags = rpl_8byte_wwid_list->header.flags;
+
+	for (i = 0; i < num_physicals; i++) {
+		memcpy(&rpl_16byte_wwid_list->lun_entries[i].lunid, &rpl_8byte_wwid_list->lun_entries[i].lunid, sizeof(rpl_8byte_wwid_list->lun_entries[i].lunid));
+		memset(&rpl_16byte_wwid_list->lun_entries[i].wwid, 0, 8);
+		memcpy(&rpl_16byte_wwid_list->lun_entries[i].wwid[8], &rpl_8byte_wwid_list->lun_entries[i].wwid, sizeof(rpl_8byte_wwid_list->lun_entries[i].wwid));
+		rpl_16byte_wwid_list->lun_entries[i].device_type = rpl_8byte_wwid_list->lun_entries[i].device_type;
+		rpl_16byte_wwid_list->lun_entries[i].device_flags = rpl_8byte_wwid_list->lun_entries[i].device_flags;
+		rpl_16byte_wwid_list->lun_entries[i].lun_count = rpl_8byte_wwid_list->lun_entries[i].lun_count;
+		rpl_16byte_wwid_list->lun_entries[i].redundant_paths = rpl_8byte_wwid_list->lun_entries[i].redundant_paths;
+		rpl_16byte_wwid_list->lun_entries[i].aio_handle = rpl_8byte_wwid_list->lun_entries[i].aio_handle;
+	}
+
+	kfree(rpl_8byte_wwid_list);
+	*buffer = rpl_16byte_wwid_list;
+
+	return 0;
 }
 
 static inline int pqi_report_logical_luns(struct pqi_ctrl_info *ctrl_info, void **buffer)
@@ -1141,14 +1202,14 @@ static inline int pqi_report_logical_luns(struct pqi_ctrl_info *ctrl_info, void 
 }
 
 static int pqi_get_device_lists(struct pqi_ctrl_info *ctrl_info,
-	struct report_phys_lun_extended **physdev_list,
-	struct report_log_lun_extended **logdev_list)
+	struct report_phys_lun_16byte_wwid_list **physdev_list,
+	struct report_log_lun_list **logdev_list)
 {
 	int rc;
 	size_t logdev_list_length;
 	size_t logdev_data_length;
-	struct report_log_lun_extended *internal_logdev_list;
-	struct report_log_lun_extended *logdev_data;
+	struct report_log_lun_list *internal_logdev_list;
+	struct report_log_lun_list *logdev_data;
 	struct report_lun_header report_lun_header;
 
 	rc = pqi_report_phys_luns(ctrl_info, (void **)physdev_list);
@@ -1173,7 +1234,7 @@ static int pqi_get_device_lists(struct pqi_ctrl_info *ctrl_info,
 	} else {
 		memset(&report_lun_header, 0, sizeof(report_lun_header));
 		logdev_data =
-			(struct report_log_lun_extended *)&report_lun_header;
+			(struct report_log_lun_list *)&report_lun_header;
 		logdev_list_length = 0;
 	}
 
@@ -1181,7 +1242,7 @@ static int pqi_get_device_lists(struct pqi_ctrl_info *ctrl_info,
 		logdev_list_length;
 
 	internal_logdev_list = kmalloc(logdev_data_length +
-		sizeof(struct report_log_lun_extended), GFP_KERNEL);
+		sizeof(struct report_log_lun), GFP_KERNEL);
 	if (!internal_logdev_list) {
 		kfree(*logdev_list);
 		*logdev_list = NULL;
@@ -1190,9 +1251,9 @@ static int pqi_get_device_lists(struct pqi_ctrl_info *ctrl_info,
 
 	memcpy(internal_logdev_list, logdev_data, logdev_data_length);
 	memset((u8 *)internal_logdev_list + logdev_data_length, 0,
-		sizeof(struct report_log_lun_extended_entry));
+		sizeof(struct report_log_lun));
 	put_unaligned_be32(logdev_list_length +
-		sizeof(struct report_log_lun_extended_entry),
+		sizeof(struct report_log_lun),
 		&internal_logdev_list->header.list_length);
 
 	kfree(*logdev_list);
@@ -1845,7 +1906,7 @@ static inline bool pqi_device_equal(struct pqi_scsi_dev *dev1, struct pqi_scsi_d
 		return false;
 
 	if (dev1->is_physical_device)
-		return dev1->wwid == dev2->wwid;
+		return memcmp(dev1->wwid, dev2->wwid, sizeof(dev1->wwid)) == 0;
 
 	return memcmp(dev1->volume_id, dev2->volume_id, sizeof(dev1->volume_id)) == 0;
 }
@@ -1915,7 +1976,9 @@ static void pqi_dev_info(struct pqi_ctrl_info *ctrl_info,
 	else
 		count += scnprintf(buffer + count,
 			PQI_DEV_INFO_BUFFER_LENGTH - count,
-			" %016llx", device->sas_address);
+			" %016llx%016llx",
+			get_unaligned_be64(&device->wwid[0]),
+			get_unaligned_be64(&device->wwid[8]));
 
 	count += scnprintf(buffer + count, PQI_DEV_INFO_BUFFER_LENGTH - count,
 		" %s %.8s %.16s ",
@@ -2229,13 +2292,14 @@ static inline bool pqi_expose_device(struct pqi_scsi_dev *device)
 }
 
 static inline void pqi_set_physical_device_wwid(struct pqi_ctrl_info *ctrl_info,
-	struct pqi_scsi_dev *device, struct report_phys_lun_extended_entry *phys_lun_ext_entry)
+	struct pqi_scsi_dev *device, struct report_phys_lun_16byte_wwid *phys_lun)
 {
 	if (ctrl_info->unique_wwid_in_report_phys_lun_supported ||
+		ctrl_info->rpl_extended_format_4_5_supported ||
 		pqi_is_device_with_sas_address(device))
-		device->wwid = phys_lun_ext_entry->wwid;
+		memcpy(device->wwid, phys_lun->wwid, sizeof(device->wwid));
 	else
-		device->wwid = cpu_to_be64(get_unaligned_be64(&device->page_83_identifier));
+		memcpy(&device->wwid[8], device->page_83_identifier, 8);
 }
 
 static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
@@ -2243,10 +2307,10 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 	int i;
 	int rc;
 	LIST_HEAD(new_device_list_head);
-	struct report_phys_lun_extended *physdev_list = NULL;
-	struct report_log_lun_extended *logdev_list = NULL;
-	struct report_phys_lun_extended_entry *phys_lun_ext_entry;
-	struct report_log_lun_extended_entry *log_lun_ext_entry;
+	struct report_phys_lun_16byte_wwid_list *physdev_list = NULL;
+	struct report_log_lun_list *logdev_list = NULL;
+	struct report_phys_lun_16byte_wwid *phys_lun;
+	struct report_log_lun *log_lun;
 	struct bmic_identify_physical_device *id_phys = NULL;
 	u32 num_physicals;
 	u32 num_logicals;
@@ -2297,10 +2361,9 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 
 		if (pqi_hide_vsep) {
 			for (i = num_physicals - 1; i >= 0; i--) {
-				phys_lun_ext_entry =
-						&physdev_list->lun_entries[i];
-				if (CISS_GET_DRIVE_NUMBER(phys_lun_ext_entry->lunid) == PQI_VSEP_CISS_BTL) {
-					pqi_mask_device(phys_lun_ext_entry->lunid);
+				phys_lun = &physdev_list->lun_entries[i];
+				if (CISS_GET_DRIVE_NUMBER(phys_lun->lunid) == PQI_VSEP_CISS_BTL) {
+					pqi_mask_device(phys_lun->lunid);
 					break;
 				}
 			}
@@ -2344,16 +2407,14 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 		if ((!pqi_expose_ld_first && i < num_physicals) ||
 			(pqi_expose_ld_first && i >= num_logicals)) {
 			is_physical_device = true;
-			phys_lun_ext_entry =
-				&physdev_list->lun_entries[physical_index++];
-			log_lun_ext_entry = NULL;
-			scsi3addr = phys_lun_ext_entry->lunid;
+			phys_lun = &physdev_list->lun_entries[physical_index++];
+			log_lun = NULL;
+			scsi3addr = phys_lun->lunid;
 		} else {
 			is_physical_device = false;
-			phys_lun_ext_entry = NULL;
-			log_lun_ext_entry =
-				&logdev_list->lun_entries[logical_index++];
-			scsi3addr = log_lun_ext_entry->lunid;
+			phys_lun = NULL;
+			log_lun = &logdev_list->lun_entries[logical_index++];
+			scsi3addr = log_lun->lunid;
 		}
 
 		if (is_physical_device && pqi_skip_device(scsi3addr))
@@ -2368,7 +2429,7 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 		memcpy(device->scsi3addr, scsi3addr, sizeof(device->scsi3addr));
 		device->is_physical_device = is_physical_device;
 		if (is_physical_device) {
-			device->device_type = phys_lun_ext_entry->device_type;
+			device->device_type = phys_lun->device_type;
 			if (device->device_type == SA_DEVICE_TYPE_EXPANDER_SMP)
 				device->is_expander_smp_device = true;
 		} else {
@@ -2393,8 +2454,9 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 		if (rc) {
 			if (device->is_physical_device)
 				dev_warn(&ctrl_info->pci_dev->dev,
-					"obtaining device info failed, skipping physical device %016llx\n",
-					get_unaligned_be64(&phys_lun_ext_entry->wwid));
+					"obtaining device info failed, skipping physical device %016llx%016llx\n",
+					get_unaligned_be64(&phys_lun->wwid[0]),
+					get_unaligned_be64(&phys_lun->wwid[8]));
 			else
 				dev_warn(&ctrl_info->pci_dev->dev,
 					"obtaining device info failed, skipping logical device %08x%08x\n",
@@ -2407,21 +2469,21 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 		pqi_assign_bus_target_lun(device);
 
 		if (device->is_physical_device) {
-			pqi_set_physical_device_wwid(ctrl_info, device, phys_lun_ext_entry);
-			if ((phys_lun_ext_entry->device_flags &
+			pqi_set_physical_device_wwid(ctrl_info, device, phys_lun);
+			if ((phys_lun->device_flags &
 				CISS_REPORT_PHYS_DEV_FLAG_AIO_ENABLED) &&
-				phys_lun_ext_entry->aio_handle) {
+				phys_lun->aio_handle) {
 					device->aio_enabled = true;
 					device->aio_handle =
-						phys_lun_ext_entry->aio_handle;
+						phys_lun->aio_handle;
 			}
 		} else {
-			memcpy(device->volume_id, log_lun_ext_entry->volume_id,
+			memcpy(device->volume_id, log_lun->volume_id,
 				sizeof(device->volume_id));
 		}
 
 		if (pqi_is_device_with_sas_address(device))
-			device->sas_address = get_unaligned_be64(&device->wwid);
+			device->sas_address = get_unaligned_be64(&device->wwid[8]);
 
 		new_device_list[num_valid_devices++] = device;
 	}
@@ -6804,12 +6866,10 @@ static ssize_t pqi_unique_id_show(struct device *dev,
 		return -ENODEV;
 	}
 
-	if (device->is_physical_device) {
-		memset(unique_id, 0, 8);
-		memcpy(unique_id + 8, &device->wwid, sizeof(device->wwid));
-	} else {
+	if (device->is_physical_device)
+		memcpy(unique_id, device->wwid, sizeof(device->wwid));
+	else
 		memcpy(unique_id, device->volume_id, sizeof(device->volume_id));
-	}
 
 	spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
 
@@ -7443,6 +7503,9 @@ static void pqi_ctrl_update_feature_flags(struct pqi_ctrl_info *ctrl_info,
 		ctrl_info->firmware_triage_supported = firmware_feature->enabled;
 		pqi_save_fw_triage_setting(ctrl_info, firmware_feature->enabled);
 		break;
+	case PQI_FIRMWARE_FEATURE_RPL_EXTENDED_FORMAT_4_5:
+		ctrl_info->rpl_extended_format_4_5_supported = firmware_feature->enabled;
+		break;
 	}
 
 	pqi_firmware_feature_status(ctrl_info, firmware_feature);
@@ -7541,6 +7604,11 @@ static struct pqi_firmware_feature pqi_firmware_features[] = {
 	{
 		.feature_name = "Firmware Triage",
 		.feature_bit = PQI_FIRMWARE_FEATURE_FW_TRIAGE,
+		.feature_status = pqi_ctrl_update_feature_flags,
+	},
+	{
+		.feature_name = "RPL Extended Formats 4 and 5",
+		.feature_bit = PQI_FIRMWARE_FEATURE_RPL_EXTENDED_FORMAT_4_5,
 		.feature_status = pqi_ctrl_update_feature_flags,
 	},
 };
@@ -7644,6 +7712,7 @@ static void pqi_ctrl_reset_config(struct pqi_ctrl_info *ctrl_info)
 	ctrl_info->tmf_iu_timeout_supported = false;
 	ctrl_info->unique_wwid_in_report_phys_lun_supported = false;
 	ctrl_info->firmware_triage_supported = false;
+	ctrl_info->rpl_extended_format_4_5_supported = false;
 }
 
 static int pqi_process_config_table(struct pqi_ctrl_info *ctrl_info)

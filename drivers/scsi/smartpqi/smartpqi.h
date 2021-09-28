@@ -868,7 +868,8 @@ struct pqi_config_table_firmware_features {
 #define PQI_FIRMWARE_FEATURE_RAID_BYPASS_ON_ENCRYPTED_NVME	15
 #define PQI_FIRMWARE_FEATURE_UNIQUE_WWID_IN_REPORT_PHYS_LUN	16
 #define PQI_FIRMWARE_FEATURE_FW_TRIAGE				17
-#define PQI_FIRMWARE_FEATURE_MAXIMUM				17
+#define PQI_FIRMWARE_FEATURE_RPL_EXTENDED_FORMAT_4_5		18
+#define PQI_FIRMWARE_FEATURE_MAXIMUM				18
 
 struct pqi_config_table_debug {
 	struct pqi_config_table_section_header header;
@@ -943,21 +944,33 @@ struct report_lun_header {
 #define CISS_REPORT_LOG_FLAG_QUEUE_DEPTH	(1 << 5)
 #define CISS_REPORT_LOG_FLAG_DRIVE_TYPE_MIX	(1 << 6)
 
-#define CISS_REPORT_PHYS_FLAG_OTHER		(1 << 1)
+#define CISS_REPORT_PHYS_FLAG_EXTENDED_FORMAT_2		0x2
+#define CISS_REPORT_PHYS_FLAG_EXTENDED_FORMAT_4		0x4
+#define CISS_REPORT_PHYS_FLAG_EXTENDED_FORMAT_MASK	0xf
 
-struct report_log_lun_extended_entry {
+struct report_log_lun {
 	u8	lunid[8];
 	u8	volume_id[16];
 };
 
-struct report_log_lun_extended {
+struct report_log_lun_list {
 	struct report_lun_header header;
-	struct report_log_lun_extended_entry lun_entries[1];
+	struct report_log_lun lun_entries[1];
 };
 
-struct report_phys_lun_extended_entry {
+struct report_phys_lun_8byte_wwid {
 	u8	lunid[8];
 	__be64	wwid;
+	u8	device_type;
+	u8	device_flags;
+	u8	lun_count;	/* number of LUNs in a multi-LUN device */
+	u8	redundant_paths;
+	u32	aio_handle;
+};
+
+struct report_phys_lun_16byte_wwid {
+	u8	lunid[8];
+	u8	wwid[16];
 	u8	device_type;
 	u8	device_flags;
 	u8	lun_count;	/* number of LUNs in a multi-LUN device */
@@ -968,9 +981,14 @@ struct report_phys_lun_extended_entry {
 /* for device_flags field of struct report_phys_lun_extended_entry */
 #define CISS_REPORT_PHYS_DEV_FLAG_AIO_ENABLED	0x8
 
-struct report_phys_lun_extended {
+struct report_phys_lun_8byte_wwid_list {
 	struct report_lun_header header;
-	struct report_phys_lun_extended_entry lun_entries[1];
+	struct report_phys_lun_8byte_wwid lun_entries[1];
+};
+
+struct report_phys_lun_16byte_wwid_list {
+	struct report_lun_header header;
+	struct report_phys_lun_16byte_wwid lun_entries[1];
 };
 
 struct raid_map_disk_data {
@@ -1077,7 +1095,7 @@ struct pqi_scsi_dev {
 	int	target;
 	int	lun;
 	u8	scsi3addr[8];
-	__be64	wwid;
+	u8	wwid[16];
 	u8	volume_id[16];
 	u8	is_physical_device : 1;
 	u8	is_external_raid_device : 1;
@@ -1316,6 +1334,7 @@ struct pqi_ctrl_info {
 	u8		tmf_iu_timeout_supported : 1;
 	u8		unique_wwid_in_report_phys_lun_supported : 1;
 	u8		firmware_triage_supported : 1;
+	u8		rpl_extended_format_4_5_supported : 1;
 	u8		enable_r1_writes : 1;
 	u8		enable_r5_writes : 1;
 	u8		enable_r6_writes : 1;
