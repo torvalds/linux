@@ -181,6 +181,42 @@ int adf_send_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 msg)
 	return adf_iov_putmsg(accel_dev, msg, 0);
 }
 
+/**
+ * adf_send_vf2pf_req() - send VF2PF request message
+ * @accel_dev:	Pointer to acceleration device.
+ * @msg:	Request message to send
+ *
+ * This function sends a message that requires a response from the VF to the PF
+ * and waits for a reply.
+ *
+ * Return: 0 on success, error code otherwise.
+ */
+static int adf_send_vf2pf_req(struct adf_accel_dev *accel_dev, u32 msg)
+{
+	unsigned long timeout = msecs_to_jiffies(ADF_PFVF_MSG_RESP_TIMEOUT);
+	int ret;
+
+	reinit_completion(&accel_dev->vf.iov_msg_completion);
+
+	/* Send request from VF to PF */
+	ret = adf_send_vf2pf_msg(accel_dev, msg);
+	if (ret) {
+		dev_err(&GET_DEV(accel_dev),
+			"Failed to send request msg to PF\n");
+		return ret;
+	}
+
+	/* Wait for response */
+	if (!wait_for_completion_timeout(&accel_dev->vf.iov_msg_completion,
+					 timeout)) {
+		dev_err(&GET_DEV(accel_dev),
+			"PFVF request/response message timeout expired\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
 void adf_vf2pf_req_hndl(struct adf_accel_vf_info *vf_info)
 {
 	struct adf_accel_dev *accel_dev = vf_info->accel_dev;
@@ -306,7 +342,6 @@ void adf_pf2vf_notify_restarting(struct adf_accel_dev *accel_dev)
 
 static int adf_vf2pf_request_version(struct adf_accel_dev *accel_dev)
 {
-	unsigned long timeout = msecs_to_jiffies(ADF_PFVF_MSG_RESP_TIMEOUT);
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	u32 msg = 0;
 	int ret;
@@ -316,22 +351,11 @@ static int adf_vf2pf_request_version(struct adf_accel_dev *accel_dev)
 	msg |= ADF_PFVF_COMPAT_THIS_VERSION << ADF_VF2PF_COMPAT_VER_REQ_SHIFT;
 	BUILD_BUG_ON(ADF_PFVF_COMPAT_THIS_VERSION > 255);
 
-	reinit_completion(&accel_dev->vf.iov_msg_completion);
-
-	/* Send request from VF to PF */
-	ret = adf_send_vf2pf_msg(accel_dev, msg);
+	ret = adf_send_vf2pf_req(accel_dev, msg);
 	if (ret) {
 		dev_err(&GET_DEV(accel_dev),
 			"Failed to send Compatibility Version Request.\n");
 		return ret;
-	}
-
-	/* Wait for response */
-	if (!wait_for_completion_timeout(&accel_dev->vf.iov_msg_completion,
-					 timeout)) {
-		dev_err(&GET_DEV(accel_dev),
-			"IOV request/response message timeout expired\n");
-		return -EIO;
 	}
 
 	/* Response from PF received, check compatibility */
