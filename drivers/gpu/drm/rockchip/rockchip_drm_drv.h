@@ -220,7 +220,6 @@ struct rockchip_drm_private {
 	/* private plane prop */
 	struct drm_property *eotf_prop;
 	struct drm_property *color_space_prop;
-	struct drm_property *alpha_scale_prop;
 	struct drm_property *async_commit_prop;
 	struct drm_property *share_id_prop;
 

@@ -233,6 +233,7 @@ struct vop {
 	struct drm_info_list *debugfs_files;
 	struct drm_property *plane_feature_prop;
 	struct drm_property *plane_mask_prop;
+	struct drm_property *feature_prop;
 
 	bool is_iommu_enabled;
 	bool is_iommu_needed;
@@ -3964,17 +3965,11 @@ static int vop_crtc_atomic_get_property(struct drm_crtc *crtc,
 		return 0;
 	}
 
-	if (property == private->alpha_scale_prop) {
-		*val = (vop->data->feature & VOP_FEATURE_ALPHA_SCALE) ? 1 : 0;
-		return 0;
-	}
-
 	if (property == private->aclk_prop) {
 		/* KHZ, keep align with mode->clock */
 		*val = clk_get_rate(vop->aclk) / 1000;
 		return 0;
 	}
-
 
 	if (property == private->bg_prop) {
 		*val = vop->background;
@@ -4374,6 +4369,41 @@ static int vop_crtc_create_plane_mask_property(struct vop *vop, struct drm_crtc 
 	return 0;
 }
 
+static int vop_crtc_create_feature_property(struct vop *vop, struct drm_crtc *crtc)
+{
+	const struct vop_data *vop_data = vop->data;
+
+	struct drm_property *prop;
+	u64 feature = 0;
+
+	static const struct drm_prop_enum_list props[] = {
+		{ ROCKCHIP_DRM_CRTC_FEATURE_ALPHA_SCALE, "ALPHA_SCALE" },
+		{ ROCKCHIP_DRM_CRTC_FEATURE_HDR10, "HDR10" },
+		{ ROCKCHIP_DRM_CRTC_FEATURE_DOLBY_HDR, "DOLBY_HDR" },
+	};
+
+	if (vop_data->feature & VOP_FEATURE_ALPHA_SCALE)
+		feature |= BIT(ROCKCHIP_DRM_CRTC_FEATURE_ALPHA_SCALE);
+	if (vop_data->feature & VOP_FEATURE_ALPHA_HDR10)
+		feature |= BIT(ROCKCHIP_DRM_CRTC_FEATURE_HDR10);
+	if (vop_data->feature & VOP_FEATURE_ALPHA_DOLBY_HDR)
+		feature |= BIT(ROCKCHIP_DRM_CRTC_FEATURE_DOLBY_HDR);
+
+	prop = drm_property_create_bitmask(vop->drm_dev,
+					   DRM_MODE_PROP_IMMUTABLE, "FEATURE",
+					   props, ARRAY_SIZE(props),
+					   0xffffffff);
+	if (!prop) {
+		DRM_DEV_ERROR(vop->dev, "create FEATURE prop for vop%d failed\n", vop->id);
+		return -ENOMEM;
+	}
+
+	vop->feature_prop = prop;
+	drm_object_attach_property(&crtc->base, vop->feature_prop, feature);
+
+	return 0;
+}
+
 static int vop_create_crtc(struct vop *vop)
 {
 	struct device *dev = vop->dev;
@@ -4455,7 +4485,6 @@ static int vop_create_crtc(struct vop *vop)
 	drm_object_attach_property(&crtc->base, private->aclk_prop, 0);
 	drm_object_attach_property(&crtc->base, private->bg_prop, 0);
 	drm_object_attach_property(&crtc->base, private->line_flag_prop, 0);
-	drm_object_attach_property(&crtc->base, private->alpha_scale_prop, 0);
 
 #define VOP_ATTACH_MODE_CONFIG_PROP(prop, v) \
 	drm_object_attach_property(&crtc->base, drm_dev->mode_config.prop, v)
@@ -4466,6 +4495,7 @@ static int vop_create_crtc(struct vop *vop)
 	VOP_ATTACH_MODE_CONFIG_PROP(tv_bottom_margin_property, 100);
 #undef VOP_ATTACH_MODE_CONFIG_PROP
 	vop_crtc_create_plane_mask_property(vop, crtc);
+	vop_crtc_create_feature_property(vop, crtc);
 
 	if (vop->lut_regs) {
 		u16 *r_base, *g_base, *b_base;

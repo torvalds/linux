@@ -426,12 +426,6 @@ static int rockchip_drm_create_properties(struct drm_device *dev)
 	private->color_space_prop = prop;
 
 	prop = drm_property_create_range(dev, DRM_MODE_PROP_ATOMIC,
-					 "ALPHA_SCALE", 0, 1);
-	if (!prop)
-		return -ENOMEM;
-	private->alpha_scale_prop = prop;
-
-	prop = drm_property_create_range(dev, DRM_MODE_PROP_ATOMIC,
 					 "ASYNC_COMMIT", 0, 1);
 	if (!prop)
 		return -ENOMEM;
