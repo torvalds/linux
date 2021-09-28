@@ -205,7 +205,6 @@ void ODM_DMWatchdog(struct odm_dm_struct *pDM_Odm)
 
 	odm_RefreshRateAdaptiveMask(pDM_Odm);
 
-	odm_DynamicBBPowerSaving(pDM_Odm);
 	if ((pDM_Odm->AntDivType ==  CG_TRX_HW_ANTDIV)	||
 	    (pDM_Odm->AntDivType == CGCS_RX_HW_ANTDIV)	||
 	    (pDM_Odm->AntDivType == CG_TRX_SMART_ANTDIV))
@@ -857,59 +856,6 @@ void odm_DynamicBBPowerSavingInit(struct odm_dm_struct *pDM_Odm)
 	pDM_PSTable->cur_rf_state = RF_MAX;
 	pDM_PSTable->rssi_val_min = 0;
 	pDM_PSTable->initialize = 0;
-}
-
-void odm_DynamicBBPowerSaving(struct odm_dm_struct *pDM_Odm)
-{
-	if ((pDM_Odm->SupportICType != ODM_RTL8192C) && (pDM_Odm->SupportICType != ODM_RTL8723A))
-		return;
-	if (!(pDM_Odm->SupportAbility & ODM_BB_PWR_SAVE))
-		return;
-	if (!(pDM_Odm->SupportPlatform & (ODM_MP | ODM_CE)))
-		return;
-
-	/* 1 2.Power Saving for 92C */
-	if ((pDM_Odm->SupportICType == ODM_RTL8192C) && (pDM_Odm->RFType == ODM_2T2R)) {
-		odm_1R_CCA(pDM_Odm);
-	} else {
-	/*  20100628 Joseph: Turn off BB power save for 88CE because it makesthroughput unstable. */
-	/*  20100831 Joseph: Turn ON BB power save again after modifying AGC delay from 900ns ot 600ns. */
-	/* 1 3.Power Saving for 88C */
-		ODM_RF_Saving(pDM_Odm, false);
-	}
-}
-
-void odm_1R_CCA(struct odm_dm_struct *pDM_Odm)
-{
-	struct rtl_ps *pDM_PSTable = &pDM_Odm->DM_PSTable;
-
-	if (pDM_Odm->RSSI_Min != 0xFF) {
-		if (pDM_PSTable->pre_cca_state == CCA_2R) {
-			if (pDM_Odm->RSSI_Min >= 35)
-				pDM_PSTable->cur_cca_state = CCA_1R;
-			else
-				pDM_PSTable->cur_cca_state = CCA_2R;
-		} else {
-			if (pDM_Odm->RSSI_Min <= 30)
-				pDM_PSTable->cur_cca_state = CCA_2R;
-			else
-				pDM_PSTable->cur_cca_state = CCA_1R;
-		}
-	} else {
-		pDM_PSTable->cur_cca_state = CCA_MAX;
-	}
-
-	if (pDM_PSTable->pre_cca_state != pDM_PSTable->cur_cca_state) {
-		if (pDM_PSTable->cur_cca_state == CCA_1R) {
-			if (pDM_Odm->RFType == ODM_2T2R)
-				ODM_SetBBReg(pDM_Odm, 0xc04, bMaskByte0, 0x13);
-			else
-				ODM_SetBBReg(pDM_Odm, 0xc04, bMaskByte0, 0x23);
-		} else {
-			ODM_SetBBReg(pDM_Odm, 0xc04, bMaskByte0, 0x33);
-		}
-		pDM_PSTable->pre_cca_state = pDM_PSTable->cur_cca_state;
-	}
 }
 
 void ODM_RF_Saving(struct odm_dm_struct *pDM_Odm, u8 bForceInNormal)
