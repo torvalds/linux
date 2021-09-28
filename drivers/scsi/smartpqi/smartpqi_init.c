@@ -4278,12 +4278,12 @@ static int pqi_create_admin_queues(struct pqi_ctrl_info *ctrl_info)
 
 	timeout = PQI_ADMIN_QUEUE_CREATE_TIMEOUT_JIFFIES + jiffies;
 	while (1) {
+		msleep(PQI_ADMIN_QUEUE_CREATE_POLL_INTERVAL_MSECS);
 		status = readb(&pqi_registers->function_and_status_code);
 		if (status == PQI_STATUS_IDLE)
 			break;
 		if (time_after(jiffies, timeout))
 			return -ETIMEDOUT;
-		msleep(PQI_ADMIN_QUEUE_CREATE_POLL_INTERVAL_MSECS);
 	}
 
 	/*
