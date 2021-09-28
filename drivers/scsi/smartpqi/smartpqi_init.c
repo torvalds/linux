@@ -33,11 +33,11 @@
 #define BUILD_TIMESTAMP
 #endif
 
-#define DRIVER_VERSION		"2.1.10-020"
+#define DRIVER_VERSION		"2.1.12-055"
 #define DRIVER_MAJOR		2
 #define DRIVER_MINOR		1
-#define DRIVER_RELEASE		10
-#define DRIVER_REVISION		20
+#define DRIVER_RELEASE		12
+#define DRIVER_REVISION		55
 
 #define DRIVER_NAME		"Microchip SmartPQI Driver (v" \
 				DRIVER_VERSION BUILD_TIMESTAMP ")"
