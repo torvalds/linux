@@ -1347,6 +1347,7 @@ static const struct ethtool_ops otx2vf_ethtool_ops = {
 	.get_pauseparam		= otx2_get_pauseparam,
 	.set_pauseparam		= otx2_set_pauseparam,
 	.get_link_ksettings     = otx2vf_get_link_ksettings,
+	.get_ts_info		= otx2_get_ts_info,
 };
 
 void otx2vf_set_ethtool_ops(struct net_device *netdev)
