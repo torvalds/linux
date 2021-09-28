@@ -30,6 +30,7 @@
 #define TPS_REG_INT_MASK2		0x17
 #define TPS_REG_INT_CLEAR1		0x18
 #define TPS_REG_INT_CLEAR2		0x19
+#define TPS_REG_SYSTEM_POWER_STATE	0x20
 #define TPS_REG_STATUS			0x1a
 #define TPS_REG_SYSTEM_CONF		0x28
 #define TPS_REG_CTRL_CONF		0x29
@@ -150,6 +151,11 @@ static int tps6598x_block_write(struct tps6598x *tps, u8 reg,
 	memcpy(&data[1], val, len);
 
 	return regmap_raw_write(tps->regmap, reg, data, len + 1);
+}
+
+static inline int tps6598x_read8(struct tps6598x *tps, u8 reg, u8 *val)
+{
+	return tps6598x_block_read(tps, reg, val, sizeof(u8));
 }
 
 static inline int tps6598x_read16(struct tps6598x *tps, u8 reg, u16 *val)
@@ -635,6 +641,32 @@ static int tps6598x_psy_get_prop(struct power_supply *psy,
 	return ret;
 }
 
+static int cd321x_switch_power_state(struct tps6598x *tps, u8 target_state)
+{
+	u8 state;
+	int ret;
+
+	ret = tps6598x_read8(tps, TPS_REG_SYSTEM_POWER_STATE, &state);
+	if (ret)
+		return ret;
+
+	if (state == target_state)
+		return 0;
+
+	ret = tps6598x_exec_cmd(tps, "SPSS", sizeof(u8), &target_state, 0, NULL);
+	if (ret)
+		return ret;
+
+	ret = tps6598x_read8(tps, TPS_REG_SYSTEM_POWER_STATE, &state);
+	if (ret)
+		return ret;
+
+	if (state != target_state)
+		return -EINVAL;
+
+	return 0;
+}
+
 static int devm_tps6598_psy_register(struct tps6598x *tps)
 {
 	struct power_supply_config psy_cfg = {};
@@ -707,6 +739,11 @@ static int tps6598x_probe(struct i2c_client *client)
 		return ret;
 
 	if (np && of_device_is_compatible(np, "apple,cd321x")) {
+		/* Switch CD321X chips to the correct system power state */
+		ret = cd321x_switch_power_state(tps, TPS_SYSTEM_POWER_STATE_S0);
+		if (ret)
+			return ret;
+
 		/* CD321X chips have all interrupts masked initially */
 		ret = tps6598x_write64(tps, TPS_REG_INT_MASK1,
 					APPLE_CD_REG_INT_POWER_STATUS_UPDATE |
