@@ -185,7 +185,7 @@ class KUnitParserTest(unittest.TestCase):
 				kunit_parser.extract_tap_lines(file.readlines()))
 		print_mock.assert_any_call(StrContains('could not parse test results!'))
 		print_mock.stop()
-		file.close()
+		self.assertEqual(0, len(result.suites))
 
 	def test_crashed_test(self):
 		crashed_log = test_data_path('test_is_test_passed-crash.log')
@@ -197,24 +197,22 @@ class KUnitParserTest(unittest.TestCase):
 
 	def test_skipped_test(self):
 		skipped_log = test_data_path('test_skip_tests.log')
-		file = open(skipped_log)
-		result = kunit_parser.parse_run_tests(file.readlines())
+		with open(skipped_log) as file:
+			result = kunit_parser.parse_run_tests(file.readlines())
 
 		# A skipped test does not fail the whole suite.
 		self.assertEqual(
 			kunit_parser.TestStatus.SUCCESS,
 			result.status)
-		file.close()
 
 	def test_skipped_all_tests(self):
 		skipped_log = test_data_path('test_skip_all_tests.log')
-		file = open(skipped_log)
-		result = kunit_parser.parse_run_tests(file.readlines())
+		with open(skipped_log) as file:
+			result = kunit_parser.parse_run_tests(file.readlines())
 
 		self.assertEqual(
 			kunit_parser.TestStatus.SKIPPED,
 			result.status)
-		file.close()
 
 
 	def test_ignores_prefix_printk_time(self):
@@ -283,13 +281,13 @@ class LinuxSourceTreeTest(unittest.TestCase):
 
 	def test_valid_kunitconfig(self):
 		with tempfile.NamedTemporaryFile('wt') as kunitconfig:
-			tree = kunit_kernel.LinuxSourceTree('', kunitconfig_path=kunitconfig.name)
+			kunit_kernel.LinuxSourceTree('', kunitconfig_path=kunitconfig.name)
 
 	def test_dir_kunitconfig(self):
 		with tempfile.TemporaryDirectory('') as dir:
-			with open(os.path.join(dir, '.kunitconfig'), 'w') as f:
+			with open(os.path.join(dir, '.kunitconfig'), 'w'):
 				pass
-			tree = kunit_kernel.LinuxSourceTree('', kunitconfig_path=dir)
+			kunit_kernel.LinuxSourceTree('', kunitconfig_path=dir)
 
 	# TODO: add more test cases.
 

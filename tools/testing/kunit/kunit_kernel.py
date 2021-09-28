@@ -14,10 +14,6 @@ import shutil
 import signal
 from typing import Iterator, Optional, Tuple
 
-from contextlib import ExitStack
-
-from collections import namedtuple
-
 import kunit_config
 import kunit_parser
 import qemu_config
@@ -168,10 +164,10 @@ class LinuxSourceTreeOperationsUml(LinuxSourceTreeOperations):
 		process.wait()
 		kunit_parser.print_with_timestamp(
 			'Disabling broken configs to run KUnit tests...')
-		with ExitStack() as es:
-			config = open(get_kconfig_path(build_dir), 'a')
-			disable = open(BROKEN_ALLCONFIG_PATH, 'r').read()
-			config.write(disable)
+
+		with open(get_kconfig_path(build_dir), 'a') as config:
+			with open(BROKEN_ALLCONFIG_PATH, 'r') as disable:
+				config.write(disable.read())
 		kunit_parser.print_with_timestamp(
 			'Starting Kernel with all configs takes a few minutes...')
 

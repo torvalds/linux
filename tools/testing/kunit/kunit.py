@@ -18,7 +18,6 @@ from collections import namedtuple
 from enum import Enum, auto
 from typing import Iterable, Sequence
 
-import kunit_config
 import kunit_json
 import kunit_kernel
 import kunit_parser
