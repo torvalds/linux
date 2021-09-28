@@ -220,17 +220,40 @@ struct reloc_desc {
 
 struct bpf_sec_def;
 
-typedef struct bpf_link *(*attach_fn_t)(const struct bpf_program *prog);
+typedef int (*init_fn_t)(struct bpf_program *prog, long cookie);
+typedef int (*preload_fn_t)(struct bpf_program *prog, struct bpf_prog_load_params *attr, long cookie);
+typedef struct bpf_link *(*attach_fn_t)(const struct bpf_program *prog, long cookie);
+
+/* stored as sec_def->cookie for all libbpf-supported SEC()s */
+enum sec_def_flags {
+	SEC_NONE = 0,
+	/* expected_attach_type is optional, if kernel doesn't support that */
+	SEC_EXP_ATTACH_OPT = 1,
+	/* legacy, only used by libbpf_get_type_names() and
+	 * libbpf_attach_type_by_name(), not used by libbpf itself at all.
+	 * This used to be associated with cgroup (and few other) BPF programs
+	 * that were attachable through BPF_PROG_ATTACH command. Pretty
+	 * meaningless nowadays, though.
+	 */
+	SEC_ATTACHABLE = 2,
+	SEC_ATTACHABLE_OPT = SEC_ATTACHABLE | SEC_EXP_ATTACH_OPT,
+	/* attachment target is specified through BTF ID in either kernel or
+	 * other BPF program's BTF object */
+	SEC_ATTACH_BTF = 4,
+	/* BPF program type allows sleeping/blocking in kernel */
+	SEC_SLEEPABLE = 8,
+	/* allow non-strict prefix matching */
+	SEC_SLOPPY_PFX = 16,
+};
 
 struct bpf_sec_def {
 	const char *sec;
-	size_t len;
 	enum bpf_prog_type prog_type;
 	enum bpf_attach_type expected_attach_type;
-	bool is_exp_attach_type_optional;
-	bool is_attachable;
-	bool is_attach_btf;
-	bool is_sleepable;
+	long cookie;
+
+	init_fn_t init_fn;
+	preload_fn_t preload_fn;
 	attach_fn_t attach_fn;
 };
 
@@ -1665,7 +1688,7 @@ static int bpf_object__process_kconfig_line(struct bpf_object *obj,
 	void *ext_val;
 	__u64 num;
 
-	if (strncmp(buf, "CONFIG_", 7))
+	if (!str_has_pfx(buf, "CONFIG_"))
 		return 0;
 
 	sep = strchr(buf, '=');
@@ -2914,7 +2937,7 @@ static Elf_Data *elf_sec_data(const struct bpf_object *obj, Elf_Scn *scn)
 static bool is_sec_name_dwarf(const char *name)
 {
 	/* approximation, but the actual list is too long */
-	return strncmp(name, ".debug_", sizeof(".debug_") - 1) == 0;
+	return str_has_pfx(name, ".debug_");
 }
 
 static bool ignore_elf_section(GElf_Shdr *hdr, const char *name)
@@ -2936,7 +2959,7 @@ static bool ignore_elf_section(GElf_Shdr *hdr, const char *name)
 	if (is_sec_name_dwarf(name))
 		return true;
 
-	if (strncmp(name, ".rel", sizeof(".rel") - 1) == 0) {
+	if (str_has_pfx(name, ".rel")) {
 		name += sizeof(".rel") - 1;
 		/* DWARF section relocations */
 		if (is_sec_name_dwarf(name))
@@ -6095,6 +6118,48 @@ static int bpf_object__sanitize_prog(struct bpf_object *obj, struct bpf_program 
 	return 0;
 }
 
+static int libbpf_find_attach_btf_id(struct bpf_program *prog, const char *attach_name,
+				     int *btf_obj_fd, int *btf_type_id);
+
+/* this is called as prog->sec_def->preload_fn for libbpf-supported sec_defs */
+static int libbpf_preload_prog(struct bpf_program *prog,
+			       struct bpf_prog_load_params *attr, long cookie)
+{
+	enum sec_def_flags def = cookie;
+
+	/* old kernels might not support specifying expected_attach_type */
+	if ((def & SEC_EXP_ATTACH_OPT) && !kernel_supports(prog->obj, FEAT_EXP_ATTACH_TYPE))
+		attr->expected_attach_type = 0;
+
+	if (def & SEC_SLEEPABLE)
+		attr->prog_flags |= BPF_F_SLEEPABLE;
+
+	if ((prog->type == BPF_PROG_TYPE_TRACING ||
+	     prog->type == BPF_PROG_TYPE_LSM ||
+	     prog->type == BPF_PROG_TYPE_EXT) && !prog->attach_btf_id) {
+		int btf_obj_fd = 0, btf_type_id = 0, err;
+		const char *attach_name;
+
+		attach_name = strchr(prog->sec_name, '/') + 1;
+		err = libbpf_find_attach_btf_id(prog, attach_name, &btf_obj_fd, &btf_type_id);
+		if (err)
+			return err;
+
+		/* cache resolved BTF FD and BTF type ID in the prog */
+		prog->attach_btf_obj_fd = btf_obj_fd;
+		prog->attach_btf_id = btf_type_id;
+
+		/* but by now libbpf common logic is not utilizing
+		 * prog->atach_btf_obj_fd/prog->attach_btf_id anymore because
+		 * this callback is called after attrs were populated by
+		 * libbpf, so this callback has to update attr explicitly here
+		 */
+		attr->attach_btf_obj_fd = btf_obj_fd;
+		attr->attach_btf_id = btf_type_id;
+	}
+	return 0;
+}
+
 static int
 load_program(struct bpf_program *prog, struct bpf_insn *insns, int insns_cnt,
 	     char *license, __u32 kern_version, int *pfd)
@@ -6103,7 +6168,7 @@ load_program(struct bpf_program *prog, struct bpf_insn *insns, int insns_cnt,
 	char *cp, errmsg[STRERR_BUFSIZE];
 	size_t log_buf_size = 0;
 	char *log_buf = NULL;
-	int btf_fd, ret;
+	int btf_fd, ret, err;
 
 	if (prog->type == BPF_PROG_TYPE_UNSPEC) {
 		/*
@@ -6119,22 +6184,15 @@ load_program(struct bpf_program *prog, struct bpf_insn *insns, int insns_cnt,
 		return -EINVAL;
 
 	load_attr.prog_type = prog->type;
-	/* old kernels might not support specifying expected_attach_type */
-	if (!kernel_supports(prog->obj, FEAT_EXP_ATTACH_TYPE) && prog->sec_def &&
-	    prog->sec_def->is_exp_attach_type_optional)
-		load_attr.expected_attach_type = 0;
-	else
-		load_attr.expected_attach_type = prog->expected_attach_type;
+	load_attr.expected_attach_type = prog->expected_attach_type;
 	if (kernel_supports(prog->obj, FEAT_PROG_NAME))
 		load_attr.name = prog->name;
 	load_attr.insns = insns;
 	load_attr.insn_cnt = insns_cnt;
 	load_attr.license = license;
 	load_attr.attach_btf_id = prog->attach_btf_id;
-	if (prog->attach_prog_fd)
-		load_attr.attach_prog_fd = prog->attach_prog_fd;
-	else
-		load_attr.attach_btf_obj_fd = prog->attach_btf_obj_fd;
+	load_attr.attach_prog_fd = prog->attach_prog_fd;
+	load_attr.attach_btf_obj_fd = prog->attach_btf_obj_fd;
 	load_attr.attach_btf_id = prog->attach_btf_id;
 	load_attr.kern_version = kern_version;
 	load_attr.prog_ifindex = prog->prog_ifindex;
@@ -6152,6 +6210,16 @@ load_program(struct bpf_program *prog, struct bpf_insn *insns, int insns_cnt,
 	}
 	load_attr.log_level = prog->log_level;
 	load_attr.prog_flags = prog->prog_flags;
+
+	/* adjust load_attr if sec_def provides custom preload callback */
+	if (prog->sec_def && prog->sec_def->preload_fn) {
+		err = prog->sec_def->preload_fn(prog, &load_attr, prog->sec_def->cookie);
+		if (err < 0) {
+			pr_warn("prog '%s': failed to prepare load attributes: %d\n",
+				prog->name, err);
+			return err;
+		}
+	}
 
 	if (prog->obj->gen_loader) {
 		bpf_gen__prog_load(prog->obj->gen_loader, &load_attr,
@@ -6268,8 +6336,6 @@ static int bpf_program__record_externs(struct bpf_program *prog)
 	return 0;
 }
 
-static int libbpf_find_attach_btf_id(struct bpf_program *prog, int *btf_obj_fd, int *btf_type_id);
-
 int bpf_program__load(struct bpf_program *prog, char *license, __u32 kern_ver)
 {
 	int err = 0, fd, i;
@@ -6277,19 +6343,6 @@ int bpf_program__load(struct bpf_program *prog, char *license, __u32 kern_ver)
 	if (prog->obj->loaded) {
 		pr_warn("prog '%s': can't load after object was loaded\n", prog->name);
 		return libbpf_err(-EINVAL);
-	}
-
-	if ((prog->type == BPF_PROG_TYPE_TRACING ||
-	     prog->type == BPF_PROG_TYPE_LSM ||
-	     prog->type == BPF_PROG_TYPE_EXT) && !prog->attach_btf_id) {
-		int btf_obj_fd = 0, btf_type_id = 0;
-
-		err = libbpf_find_attach_btf_id(prog, &btf_obj_fd, &btf_type_id);
-		if (err)
-			return libbpf_err(err);
-
-		prog->attach_btf_obj_fd = btf_obj_fd;
-		prog->attach_btf_id = btf_type_id;
 	}
 
 	if (prog->instances.nr < 0 || !prog->instances.fds) {
@@ -6401,6 +6454,7 @@ static const struct bpf_sec_def *find_sec_def(const char *sec_name);
 static int bpf_object_init_progs(struct bpf_object *obj, const struct bpf_object_open_opts *opts)
 {
 	struct bpf_program *prog;
+	int err;
 
 	bpf_object__for_each_program(prog, obj) {
 		prog->sec_def = find_sec_def(prog->sec_name);
@@ -6411,8 +6465,6 @@ static int bpf_object_init_progs(struct bpf_object *obj, const struct bpf_object
 			continue;
 		}
 
-		if (prog->sec_def->is_sleepable)
-			prog->prog_flags |= BPF_F_SLEEPABLE;
 		bpf_program__set_type(prog, prog->sec_def->prog_type);
 		bpf_program__set_expected_attach_type(prog, prog->sec_def->expected_attach_type);
 
@@ -6422,6 +6474,18 @@ static int bpf_object_init_progs(struct bpf_object *obj, const struct bpf_object
 		    prog->sec_def->prog_type == BPF_PROG_TYPE_EXT)
 			prog->attach_prog_fd = OPTS_GET(opts, attach_prog_fd, 0);
 #pragma GCC diagnostic pop
+
+		/* sec_def can have custom callback which should be called
+		 * after bpf_program is initialized to adjust its properties
+		 */
+		if (prog->sec_def->init_fn) {
+			err = prog->sec_def->init_fn(prog, prog->sec_def->cookie);
+			if (err < 0) {
+				pr_warn("prog '%s': failed to initialize: %d\n",
+					prog->name, err);
+				return err;
+			}
+		}
 	}
 
 	return 0;
@@ -6848,8 +6912,7 @@ static int bpf_object__resolve_externs(struct bpf_object *obj,
 			if (err)
 				return err;
 			pr_debug("extern (kcfg) %s=0x%x\n", ext->name, kver);
-		} else if (ext->type == EXT_KCFG &&
-			   strncmp(ext->name, "CONFIG_", 7) == 0) {
+		} else if (ext->type == EXT_KCFG && str_has_pfx(ext->name, "CONFIG_")) {
 			need_config = true;
 		} else if (ext->type == EXT_KSYM) {
 			if (ext->ksym.type_id)
@@ -7909,217 +7972,143 @@ void bpf_program__set_expected_attach_type(struct bpf_program *prog,
 	prog->expected_attach_type = type;
 }
 
-#define BPF_PROG_SEC_IMPL(string, ptype, eatype, eatype_optional,	    \
-			  attachable, attach_btf)			    \
-	{								    \
-		.sec = string,						    \
-		.len = sizeof(string) - 1,				    \
-		.prog_type = ptype,					    \
-		.expected_attach_type = eatype,				    \
-		.is_exp_attach_type_optional = eatype_optional,		    \
-		.is_attachable = attachable,				    \
-		.is_attach_btf = attach_btf,				    \
-	}
-
-/* Programs that can NOT be attached. */
-#define BPF_PROG_SEC(string, ptype) BPF_PROG_SEC_IMPL(string, ptype, 0, 0, 0, 0)
-
-/* Programs that can be attached. */
-#define BPF_APROG_SEC(string, ptype, atype) \
-	BPF_PROG_SEC_IMPL(string, ptype, atype, true, 1, 0)
-
-/* Programs that must specify expected attach type at load time. */
-#define BPF_EAPROG_SEC(string, ptype, eatype) \
-	BPF_PROG_SEC_IMPL(string, ptype, eatype, false, 1, 0)
-
-/* Programs that use BTF to identify attach point */
-#define BPF_PROG_BTF(string, ptype, eatype) \
-	BPF_PROG_SEC_IMPL(string, ptype, eatype, false, 0, 1)
-
-/* Programs that can be attached but attach type can't be identified by section
- * name. Kept for backward compatibility.
- */
-#define BPF_APROG_COMPAT(string, ptype) BPF_PROG_SEC(string, ptype)
-
-#define SEC_DEF(sec_pfx, ptype, ...) {					    \
+#define SEC_DEF(sec_pfx, ptype, atype, flags, ...) {			    \
 	.sec = sec_pfx,							    \
-	.len = sizeof(sec_pfx) - 1,					    \
 	.prog_type = BPF_PROG_TYPE_##ptype,				    \
+	.expected_attach_type = atype,					    \
+	.cookie = (long)(flags),					    \
+	.preload_fn = libbpf_preload_prog,				    \
 	__VA_ARGS__							    \
 }
 
-static struct bpf_link *attach_kprobe(const struct bpf_program *prog);
-static struct bpf_link *attach_tp(const struct bpf_program *prog);
-static struct bpf_link *attach_raw_tp(const struct bpf_program *prog);
-static struct bpf_link *attach_trace(const struct bpf_program *prog);
-static struct bpf_link *attach_lsm(const struct bpf_program *prog);
-static struct bpf_link *attach_iter(const struct bpf_program *prog);
+static struct bpf_link *attach_kprobe(const struct bpf_program *prog, long cookie);
+static struct bpf_link *attach_tp(const struct bpf_program *prog, long cookie);
+static struct bpf_link *attach_raw_tp(const struct bpf_program *prog, long cookie);
+static struct bpf_link *attach_trace(const struct bpf_program *prog, long cookie);
+static struct bpf_link *attach_lsm(const struct bpf_program *prog, long cookie);
+static struct bpf_link *attach_iter(const struct bpf_program *prog, long cookie);
 
 static const struct bpf_sec_def section_defs[] = {
-	BPF_PROG_SEC("socket",			BPF_PROG_TYPE_SOCKET_FILTER),
-	BPF_EAPROG_SEC("sk_reuseport/migrate",	BPF_PROG_TYPE_SK_REUSEPORT,
-						BPF_SK_REUSEPORT_SELECT_OR_MIGRATE),
-	BPF_EAPROG_SEC("sk_reuseport",		BPF_PROG_TYPE_SK_REUSEPORT,
-						BPF_SK_REUSEPORT_SELECT),
-	SEC_DEF("kprobe/", KPROBE,
-		.attach_fn = attach_kprobe),
-	BPF_PROG_SEC("uprobe/",			BPF_PROG_TYPE_KPROBE),
-	SEC_DEF("kretprobe/", KPROBE,
-		.attach_fn = attach_kprobe),
-	BPF_PROG_SEC("uretprobe/",		BPF_PROG_TYPE_KPROBE),
-	BPF_PROG_SEC("classifier",		BPF_PROG_TYPE_SCHED_CLS),
-	BPF_PROG_SEC("action",			BPF_PROG_TYPE_SCHED_ACT),
-	SEC_DEF("tracepoint/", TRACEPOINT,
-		.attach_fn = attach_tp),
-	SEC_DEF("tp/", TRACEPOINT,
-		.attach_fn = attach_tp),
-	SEC_DEF("raw_tracepoint/", RAW_TRACEPOINT,
-		.attach_fn = attach_raw_tp),
-	SEC_DEF("raw_tp/", RAW_TRACEPOINT,
-		.attach_fn = attach_raw_tp),
-	SEC_DEF("tp_btf/", TRACING,
-		.expected_attach_type = BPF_TRACE_RAW_TP,
-		.is_attach_btf = true,
-		.attach_fn = attach_trace),
-	SEC_DEF("fentry/", TRACING,
-		.expected_attach_type = BPF_TRACE_FENTRY,
-		.is_attach_btf = true,
-		.attach_fn = attach_trace),
-	SEC_DEF("fmod_ret/", TRACING,
-		.expected_attach_type = BPF_MODIFY_RETURN,
-		.is_attach_btf = true,
-		.attach_fn = attach_trace),
-	SEC_DEF("fexit/", TRACING,
-		.expected_attach_type = BPF_TRACE_FEXIT,
-		.is_attach_btf = true,
-		.attach_fn = attach_trace),
-	SEC_DEF("fentry.s/", TRACING,
-		.expected_attach_type = BPF_TRACE_FENTRY,
-		.is_attach_btf = true,
-		.is_sleepable = true,
-		.attach_fn = attach_trace),
-	SEC_DEF("fmod_ret.s/", TRACING,
-		.expected_attach_type = BPF_MODIFY_RETURN,
-		.is_attach_btf = true,
-		.is_sleepable = true,
-		.attach_fn = attach_trace),
-	SEC_DEF("fexit.s/", TRACING,
-		.expected_attach_type = BPF_TRACE_FEXIT,
-		.is_attach_btf = true,
-		.is_sleepable = true,
-		.attach_fn = attach_trace),
-	SEC_DEF("freplace/", EXT,
-		.is_attach_btf = true,
-		.attach_fn = attach_trace),
-	SEC_DEF("lsm/", LSM,
-		.is_attach_btf = true,
-		.expected_attach_type = BPF_LSM_MAC,
-		.attach_fn = attach_lsm),
-	SEC_DEF("lsm.s/", LSM,
-		.is_attach_btf = true,
-		.is_sleepable = true,
-		.expected_attach_type = BPF_LSM_MAC,
-		.attach_fn = attach_lsm),
-	SEC_DEF("iter/", TRACING,
-		.expected_attach_type = BPF_TRACE_ITER,
-		.is_attach_btf = true,
-		.attach_fn = attach_iter),
-	SEC_DEF("syscall", SYSCALL,
-		.is_sleepable = true),
-	BPF_EAPROG_SEC("xdp_devmap/",		BPF_PROG_TYPE_XDP,
-						BPF_XDP_DEVMAP),
-	BPF_EAPROG_SEC("xdp_cpumap/",		BPF_PROG_TYPE_XDP,
-						BPF_XDP_CPUMAP),
-	BPF_APROG_SEC("xdp",			BPF_PROG_TYPE_XDP,
-						BPF_XDP),
-	BPF_PROG_SEC("perf_event",		BPF_PROG_TYPE_PERF_EVENT),
-	BPF_PROG_SEC("lwt_in",			BPF_PROG_TYPE_LWT_IN),
-	BPF_PROG_SEC("lwt_out",			BPF_PROG_TYPE_LWT_OUT),
-	BPF_PROG_SEC("lwt_xmit",		BPF_PROG_TYPE_LWT_XMIT),
-	BPF_PROG_SEC("lwt_seg6local",		BPF_PROG_TYPE_LWT_SEG6LOCAL),
-	BPF_APROG_SEC("cgroup_skb/ingress",	BPF_PROG_TYPE_CGROUP_SKB,
-						BPF_CGROUP_INET_INGRESS),
-	BPF_APROG_SEC("cgroup_skb/egress",	BPF_PROG_TYPE_CGROUP_SKB,
-						BPF_CGROUP_INET_EGRESS),
-	BPF_APROG_COMPAT("cgroup/skb",		BPF_PROG_TYPE_CGROUP_SKB),
-	BPF_EAPROG_SEC("cgroup/sock_create",	BPF_PROG_TYPE_CGROUP_SOCK,
-						BPF_CGROUP_INET_SOCK_CREATE),
-	BPF_EAPROG_SEC("cgroup/sock_release",	BPF_PROG_TYPE_CGROUP_SOCK,
-						BPF_CGROUP_INET_SOCK_RELEASE),
-	BPF_APROG_SEC("cgroup/sock",		BPF_PROG_TYPE_CGROUP_SOCK,
-						BPF_CGROUP_INET_SOCK_CREATE),
-	BPF_EAPROG_SEC("cgroup/post_bind4",	BPF_PROG_TYPE_CGROUP_SOCK,
-						BPF_CGROUP_INET4_POST_BIND),
-	BPF_EAPROG_SEC("cgroup/post_bind6",	BPF_PROG_TYPE_CGROUP_SOCK,
-						BPF_CGROUP_INET6_POST_BIND),
-	BPF_APROG_SEC("cgroup/dev",		BPF_PROG_TYPE_CGROUP_DEVICE,
-						BPF_CGROUP_DEVICE),
-	BPF_APROG_SEC("sockops",		BPF_PROG_TYPE_SOCK_OPS,
-						BPF_CGROUP_SOCK_OPS),
-	BPF_APROG_SEC("sk_skb/stream_parser",	BPF_PROG_TYPE_SK_SKB,
-						BPF_SK_SKB_STREAM_PARSER),
-	BPF_APROG_SEC("sk_skb/stream_verdict",	BPF_PROG_TYPE_SK_SKB,
-						BPF_SK_SKB_STREAM_VERDICT),
-	BPF_APROG_COMPAT("sk_skb",		BPF_PROG_TYPE_SK_SKB),
-	BPF_APROG_SEC("sk_msg",			BPF_PROG_TYPE_SK_MSG,
-						BPF_SK_MSG_VERDICT),
-	BPF_APROG_SEC("lirc_mode2",		BPF_PROG_TYPE_LIRC_MODE2,
-						BPF_LIRC_MODE2),
-	BPF_APROG_SEC("flow_dissector",		BPF_PROG_TYPE_FLOW_DISSECTOR,
-						BPF_FLOW_DISSECTOR),
-	BPF_EAPROG_SEC("cgroup/bind4",		BPF_PROG_TYPE_CGROUP_SOCK_ADDR,
-						BPF_CGROUP_INET4_BIND),
-	BPF_EAPROG_SEC("cgroup/bind6",		BPF_PROG_TYPE_CGROUP_SOCK_ADDR,
-						BPF_CGROUP_INET6_BIND),
-	BPF_EAPROG_SEC("cgroup/connect4",	BPF_PROG_TYPE_CGROUP_SOCK_ADDR,
-						BPF_CGROUP_INET4_CONNECT),
-	BPF_EAPROG_SEC("cgroup/connect6",	BPF_PROG_TYPE_CGROUP_SOCK_ADDR,
-						BPF_CGROUP_INET6_CONNECT),
-	BPF_EAPROG_SEC("cgroup/sendmsg4",	BPF_PROG_TYPE_CGROUP_SOCK_ADDR,
-						BPF_CGROUP_UDP4_SENDMSG),
-	BPF_EAPROG_SEC("cgroup/sendmsg6",	BPF_PROG_TYPE_CGROUP_SOCK_ADDR,
-						BPF_CGROUP_UDP6_SENDMSG),
-	BPF_EAPROG_SEC("cgroup/recvmsg4",	BPF_PROG_TYPE_CGROUP_SOCK_ADDR,
-						BPF_CGROUP_UDP4_RECVMSG),
-	BPF_EAPROG_SEC("cgroup/recvmsg6",	BPF_PROG_TYPE_CGROUP_SOCK_ADDR,
-						BPF_CGROUP_UDP6_RECVMSG),
-	BPF_EAPROG_SEC("cgroup/getpeername4",	BPF_PROG_TYPE_CGROUP_SOCK_ADDR,
-						BPF_CGROUP_INET4_GETPEERNAME),
-	BPF_EAPROG_SEC("cgroup/getpeername6",	BPF_PROG_TYPE_CGROUP_SOCK_ADDR,
-						BPF_CGROUP_INET6_GETPEERNAME),
-	BPF_EAPROG_SEC("cgroup/getsockname4",	BPF_PROG_TYPE_CGROUP_SOCK_ADDR,
-						BPF_CGROUP_INET4_GETSOCKNAME),
-	BPF_EAPROG_SEC("cgroup/getsockname6",	BPF_PROG_TYPE_CGROUP_SOCK_ADDR,
-						BPF_CGROUP_INET6_GETSOCKNAME),
-	BPF_EAPROG_SEC("cgroup/sysctl",		BPF_PROG_TYPE_CGROUP_SYSCTL,
-						BPF_CGROUP_SYSCTL),
-	BPF_EAPROG_SEC("cgroup/getsockopt",	BPF_PROG_TYPE_CGROUP_SOCKOPT,
-						BPF_CGROUP_GETSOCKOPT),
-	BPF_EAPROG_SEC("cgroup/setsockopt",	BPF_PROG_TYPE_CGROUP_SOCKOPT,
-						BPF_CGROUP_SETSOCKOPT),
-	BPF_PROG_SEC("struct_ops",		BPF_PROG_TYPE_STRUCT_OPS),
-	BPF_EAPROG_SEC("sk_lookup/",		BPF_PROG_TYPE_SK_LOOKUP,
-						BPF_SK_LOOKUP),
+	SEC_DEF("socket",		SOCKET_FILTER, 0, SEC_NONE | SEC_SLOPPY_PFX),
+	SEC_DEF("sk_reuseport/migrate",	SK_REUSEPORT, BPF_SK_REUSEPORT_SELECT_OR_MIGRATE, SEC_ATTACHABLE | SEC_SLOPPY_PFX),
+	SEC_DEF("sk_reuseport",		SK_REUSEPORT, BPF_SK_REUSEPORT_SELECT, SEC_ATTACHABLE | SEC_SLOPPY_PFX),
+	SEC_DEF("kprobe/",		KPROBE,	0, SEC_NONE, attach_kprobe),
+	SEC_DEF("uprobe/",		KPROBE,	0, SEC_NONE),
+	SEC_DEF("kretprobe/",		KPROBE, 0, SEC_NONE, attach_kprobe),
+	SEC_DEF("uretprobe/",		KPROBE, 0, SEC_NONE),
+	SEC_DEF("tc",			SCHED_CLS, 0, SEC_NONE),
+	SEC_DEF("classifier",		SCHED_CLS, 0, SEC_NONE | SEC_SLOPPY_PFX),
+	SEC_DEF("action",		SCHED_ACT, 0, SEC_NONE | SEC_SLOPPY_PFX),
+	SEC_DEF("tracepoint/",		TRACEPOINT, 0, SEC_NONE, attach_tp),
+	SEC_DEF("tp/",			TRACEPOINT, 0, SEC_NONE, attach_tp),
+	SEC_DEF("raw_tracepoint/",	RAW_TRACEPOINT, 0, SEC_NONE, attach_raw_tp),
+	SEC_DEF("raw_tp/",		RAW_TRACEPOINT, 0, SEC_NONE, attach_raw_tp),
+	SEC_DEF("tp_btf/",		TRACING, BPF_TRACE_RAW_TP, SEC_ATTACH_BTF, attach_trace),
+	SEC_DEF("fentry/",		TRACING, BPF_TRACE_FENTRY, SEC_ATTACH_BTF, attach_trace),
+	SEC_DEF("fmod_ret/",		TRACING, BPF_MODIFY_RETURN, SEC_ATTACH_BTF, attach_trace),
+	SEC_DEF("fexit/",		TRACING, BPF_TRACE_FEXIT, SEC_ATTACH_BTF, attach_trace),
+	SEC_DEF("fentry.s/",		TRACING, BPF_TRACE_FENTRY, SEC_ATTACH_BTF | SEC_SLEEPABLE, attach_trace),
+	SEC_DEF("fmod_ret.s/",		TRACING, BPF_MODIFY_RETURN, SEC_ATTACH_BTF | SEC_SLEEPABLE, attach_trace),
+	SEC_DEF("fexit.s/",		TRACING, BPF_TRACE_FEXIT, SEC_ATTACH_BTF | SEC_SLEEPABLE, attach_trace),
+	SEC_DEF("freplace/",		EXT, 0, SEC_ATTACH_BTF, attach_trace),
+	SEC_DEF("lsm/",			LSM, BPF_LSM_MAC, SEC_ATTACH_BTF, attach_lsm),
+	SEC_DEF("lsm.s/",		LSM, BPF_LSM_MAC, SEC_ATTACH_BTF | SEC_SLEEPABLE, attach_lsm),
+	SEC_DEF("iter/",		TRACING, BPF_TRACE_ITER, SEC_ATTACH_BTF, attach_iter),
+	SEC_DEF("syscall",		SYSCALL, 0, SEC_SLEEPABLE),
+	SEC_DEF("xdp_devmap/",		XDP, BPF_XDP_DEVMAP, SEC_ATTACHABLE),
+	SEC_DEF("xdp_cpumap/",		XDP, BPF_XDP_CPUMAP, SEC_ATTACHABLE),
+	SEC_DEF("xdp",			XDP, BPF_XDP, SEC_ATTACHABLE_OPT | SEC_SLOPPY_PFX),
+	SEC_DEF("perf_event",		PERF_EVENT, 0, SEC_NONE | SEC_SLOPPY_PFX),
+	SEC_DEF("lwt_in",		LWT_IN, 0, SEC_NONE | SEC_SLOPPY_PFX),
+	SEC_DEF("lwt_out",		LWT_OUT, 0, SEC_NONE | SEC_SLOPPY_PFX),
+	SEC_DEF("lwt_xmit",		LWT_XMIT, 0, SEC_NONE | SEC_SLOPPY_PFX),
+	SEC_DEF("lwt_seg6local",	LWT_SEG6LOCAL, 0, SEC_NONE | SEC_SLOPPY_PFX),
+	SEC_DEF("cgroup_skb/ingress",	CGROUP_SKB, BPF_CGROUP_INET_INGRESS, SEC_ATTACHABLE_OPT | SEC_SLOPPY_PFX),
+	SEC_DEF("cgroup_skb/egress",	CGROUP_SKB, BPF_CGROUP_INET_EGRESS, SEC_ATTACHABLE_OPT | SEC_SLOPPY_PFX),
+	SEC_DEF("cgroup/skb",		CGROUP_SKB, 0, SEC_NONE | SEC_SLOPPY_PFX),
+	SEC_DEF("cgroup/sock_create",	CGROUP_SOCK, BPF_CGROUP_INET_SOCK_CREATE, SEC_ATTACHABLE | SEC_SLOPPY_PFX),
+	SEC_DEF("cgroup/sock_release",	CGROUP_SOCK, BPF_CGROUP_INET_SOCK_RELEASE, SEC_ATTACHABLE | SEC_SLOPPY_PFX),
+	SEC_DEF("cgroup/sock",		CGROUP_SOCK, BPF_CGROUP_INET_SOCK_CREATE, SEC_ATTACHABLE_OPT | SEC_SLOPPY_PFX),
+	SEC_DEF("cgroup/post_bind4",	CGROUP_SOCK, BPF_CGROUP_INET4_POST_BIND, SEC_ATTACHABLE | SEC_SLOPPY_PFX),
+	SEC_DEF("cgroup/post_bind6",	CGROUP_SOCK, BPF_CGROUP_INET6_POST_BIND, SEC_ATTACHABLE | SEC_SLOPPY_PFX),
+	SEC_DEF("cgroup/dev",		CGROUP_DEVICE, BPF_CGROUP_DEVICE, SEC_ATTACHABLE_OPT | SEC_SLOPPY_PFX),
+	SEC_DEF("sockops",		SOCK_OPS, BPF_CGROUP_SOCK_OPS, SEC_ATTACHABLE_OPT | SEC_SLOPPY_PFX),
+	SEC_DEF("sk_skb/stream_parser",	SK_SKB, BPF_SK_SKB_STREAM_PARSER, SEC_ATTACHABLE_OPT | SEC_SLOPPY_PFX),
+	SEC_DEF("sk_skb/stream_verdict",SK_SKB, BPF_SK_SKB_STREAM_VERDICT, SEC_ATTACHABLE_OPT | SEC_SLOPPY_PFX),
+	SEC_DEF("sk_skb",		SK_SKB, 0, SEC_NONE | SEC_SLOPPY_PFX),
+	SEC_DEF("sk_msg",		SK_MSG, BPF_SK_MSG_VERDICT, SEC_ATTACHABLE_OPT | SEC_SLOPPY_PFX),
+	SEC_DEF("lirc_mode2",		LIRC_MODE2, BPF_LIRC_MODE2, SEC_ATTACHABLE_OPT | SEC_SLOPPY_PFX),
+	SEC_DEF("flow_dissector",	FLOW_DISSECTOR, BPF_FLOW_DISSECTOR, SEC_ATTACHABLE_OPT | SEC_SLOPPY_PFX),
+	SEC_DEF("cgroup/bind4",		CGROUP_SOCK_ADDR, BPF_CGROUP_INET4_BIND, SEC_ATTACHABLE | SEC_SLOPPY_PFX),
+	SEC_DEF("cgroup/bind6",		CGROUP_SOCK_ADDR, BPF_CGROUP_INET6_BIND, SEC_ATTACHABLE | SEC_SLOPPY_PFX),
+	SEC_DEF("cgroup/connect4",	CGROUP_SOCK_ADDR, BPF_CGROUP_INET4_CONNECT, SEC_ATTACHABLE | SEC_SLOPPY_PFX),
+	SEC_DEF("cgroup/connect6",	CGROUP_SOCK_ADDR, BPF_CGROUP_INET6_CONNECT, SEC_ATTACHABLE | SEC_SLOPPY_PFX),
+	SEC_DEF("cgroup/sendmsg4",	CGROUP_SOCK_ADDR, BPF_CGROUP_UDP4_SENDMSG, SEC_ATTACHABLE | SEC_SLOPPY_PFX),
+	SEC_DEF("cgroup/sendmsg6",	CGROUP_SOCK_ADDR, BPF_CGROUP_UDP6_SENDMSG, SEC_ATTACHABLE | SEC_SLOPPY_PFX),
+	SEC_DEF("cgroup/recvmsg4",	CGROUP_SOCK_ADDR, BPF_CGROUP_UDP4_RECVMSG, SEC_ATTACHABLE | SEC_SLOPPY_PFX),
+	SEC_DEF("cgroup/recvmsg6",	CGROUP_SOCK_ADDR, BPF_CGROUP_UDP6_RECVMSG, SEC_ATTACHABLE | SEC_SLOPPY_PFX),
+	SEC_DEF("cgroup/getpeername4",	CGROUP_SOCK_ADDR, BPF_CGROUP_INET4_GETPEERNAME, SEC_ATTACHABLE | SEC_SLOPPY_PFX),
+	SEC_DEF("cgroup/getpeername6",	CGROUP_SOCK_ADDR, BPF_CGROUP_INET6_GETPEERNAME, SEC_ATTACHABLE | SEC_SLOPPY_PFX),
+	SEC_DEF("cgroup/getsockname4",	CGROUP_SOCK_ADDR, BPF_CGROUP_INET4_GETSOCKNAME, SEC_ATTACHABLE | SEC_SLOPPY_PFX),
+	SEC_DEF("cgroup/getsockname6",	CGROUP_SOCK_ADDR, BPF_CGROUP_INET6_GETSOCKNAME, SEC_ATTACHABLE | SEC_SLOPPY_PFX),
+	SEC_DEF("cgroup/sysctl",	CGROUP_SYSCTL, BPF_CGROUP_SYSCTL, SEC_ATTACHABLE | SEC_SLOPPY_PFX),
+	SEC_DEF("cgroup/getsockopt",	CGROUP_SOCKOPT, BPF_CGROUP_GETSOCKOPT, SEC_ATTACHABLE | SEC_SLOPPY_PFX),
+	SEC_DEF("cgroup/setsockopt",	CGROUP_SOCKOPT, BPF_CGROUP_SETSOCKOPT, SEC_ATTACHABLE | SEC_SLOPPY_PFX),
+	SEC_DEF("struct_ops+",		STRUCT_OPS, 0, SEC_NONE),
+	SEC_DEF("sk_lookup",		SK_LOOKUP, BPF_SK_LOOKUP, SEC_ATTACHABLE | SEC_SLOPPY_PFX),
 };
-
-#undef BPF_PROG_SEC_IMPL
-#undef BPF_PROG_SEC
-#undef BPF_APROG_SEC
-#undef BPF_EAPROG_SEC
-#undef BPF_APROG_COMPAT
-#undef SEC_DEF
 
 #define MAX_TYPE_NAME_SIZE 32
 
 static const struct bpf_sec_def *find_sec_def(const char *sec_name)
 {
-	int i, n = ARRAY_SIZE(section_defs);
+	const struct bpf_sec_def *sec_def;
+	enum sec_def_flags sec_flags;
+	int i, n = ARRAY_SIZE(section_defs), len;
+	bool strict = libbpf_mode & LIBBPF_STRICT_SEC_NAME;
 
 	for (i = 0; i < n; i++) {
-		if (strncmp(sec_name,
-			    section_defs[i].sec, section_defs[i].len))
+		sec_def = &section_defs[i];
+		sec_flags = sec_def->cookie;
+		len = strlen(sec_def->sec);
+
+		/* "type/" always has to have proper SEC("type/extras") form */
+		if (sec_def->sec[len - 1] == '/') {
+			if (str_has_pfx(sec_name, sec_def->sec))
+				return sec_def;
 			continue;
-		return &section_defs[i];
+		}
+
+		/* "type+" means it can be either exact SEC("type") or
+		 * well-formed SEC("type/extras") with proper '/' separator
+		 */
+		if (sec_def->sec[len - 1] == '+') {
+			len--;
+			/* not even a prefix */
+			if (strncmp(sec_name, sec_def->sec, len) != 0)
+				continue;
+			/* exact match or has '/' separator */
+			if (sec_name[len] == '\0' || sec_name[len] == '/')
+				return sec_def;
+			continue;
+		}
+
+		/* SEC_SLOPPY_PFX definitions are allowed to be just prefix
+		 * matches, unless strict section name mode
+		 * (LIBBPF_STRICT_SEC_NAME) is enabled, in which case the
+		 * match has to be exact.
+		 */
+		if ((sec_flags & SEC_SLOPPY_PFX) && !strict)  {
+			if (str_has_pfx(sec_name, sec_def->sec))
+				return sec_def;
+			continue;
+		}
+
+		/* Definitions not marked SEC_SLOPPY_PFX (e.g.,
+		 * SEC("syscall")) are exact matches in both modes.
+		 */
+		if (strcmp(sec_name, sec_def->sec) == 0)
+			return sec_def;
 	}
 	return NULL;
 }
@@ -8136,8 +8125,15 @@ static char *libbpf_get_type_names(bool attach_type)
 	buf[0] = '\0';
 	/* Forge string buf with all available names */
 	for (i = 0; i < ARRAY_SIZE(section_defs); i++) {
-		if (attach_type && !section_defs[i].is_attachable)
-			continue;
+		const struct bpf_sec_def *sec_def = &section_defs[i];
+
+		if (attach_type) {
+			if (sec_def->preload_fn != libbpf_preload_prog)
+				continue;
+
+			if (!(sec_def->cookie & SEC_ATTACHABLE))
+				continue;
+		}
 
 		if (strlen(buf) + strlen(section_defs[i].sec) + 2 > len) {
 			free(buf);
@@ -8461,19 +8457,12 @@ static int find_kernel_btf_id(struct bpf_object *obj, const char *attach_name,
 	return -ESRCH;
 }
 
-static int libbpf_find_attach_btf_id(struct bpf_program *prog, int *btf_obj_fd, int *btf_type_id)
+static int libbpf_find_attach_btf_id(struct bpf_program *prog, const char *attach_name,
+				     int *btf_obj_fd, int *btf_type_id)
 {
 	enum bpf_attach_type attach_type = prog->expected_attach_type;
 	__u32 attach_prog_fd = prog->attach_prog_fd;
-	const char *attach_name;
 	int err = 0;
-
-	if (!prog->sec_def || !prog->sec_def->is_attach_btf) {
-		pr_warn("failed to identify BTF ID based on ELF section name '%s'\n",
-			prog->sec_name);
-		return -ESRCH;
-	}
-	attach_name = prog->sec_name + prog->sec_def->len;
 
 	/* BPF program's BTF ID */
 	if (attach_prog_fd) {
@@ -8524,7 +8513,9 @@ int libbpf_attach_type_by_name(const char *name,
 		return libbpf_err(-EINVAL);
 	}
 
-	if (!sec_def->is_attachable)
+	if (sec_def->preload_fn != libbpf_preload_prog)
+		return libbpf_err(-EINVAL);
+	if (!(sec_def->cookie & SEC_ATTACHABLE))
 		return libbpf_err(-EINVAL);
 
 	*attach_type = sec_def->expected_attach_type;
@@ -9424,7 +9415,7 @@ struct bpf_link *bpf_program__attach_kprobe(const struct bpf_program *prog,
 	return bpf_program__attach_kprobe_opts(prog, func_name, &opts);
 }
 
-static struct bpf_link *attach_kprobe(const struct bpf_program *prog)
+static struct bpf_link *attach_kprobe(const struct bpf_program *prog, long cookie)
 {
 	DECLARE_LIBBPF_OPTS(bpf_kprobe_opts, opts);
 	unsigned long offset = 0;
@@ -9433,8 +9424,11 @@ static struct bpf_link *attach_kprobe(const struct bpf_program *prog)
 	char *func;
 	int n, err;
 
-	func_name = prog->sec_name + prog->sec_def->len;
-	opts.retprobe = strcmp(prog->sec_def->sec, "kretprobe/") == 0;
+	opts.retprobe = str_has_pfx(prog->sec_name, "kretprobe/");
+	if (opts.retprobe)
+		func_name = prog->sec_name + sizeof("kretprobe/") - 1;
+	else
+		func_name = prog->sec_name + sizeof("kprobe/") - 1;
 
 	n = sscanf(func_name, "%m[a-zA-Z0-9_.]+%li", &func, &offset);
 	if (n < 1) {
@@ -9707,7 +9701,7 @@ struct bpf_link *bpf_program__attach_tracepoint(const struct bpf_program *prog,
 	return bpf_program__attach_tracepoint_opts(prog, tp_category, tp_name, NULL);
 }
 
-static struct bpf_link *attach_tp(const struct bpf_program *prog)
+static struct bpf_link *attach_tp(const struct bpf_program *prog, long cookie)
 {
 	char *sec_name, *tp_cat, *tp_name;
 	struct bpf_link *link;
@@ -9716,8 +9710,11 @@ static struct bpf_link *attach_tp(const struct bpf_program *prog)
 	if (!sec_name)
 		return libbpf_err_ptr(-ENOMEM);
 
-	/* extract "tp/<category>/<name>" */
-	tp_cat = sec_name + prog->sec_def->len;
+	/* extract "tp/<category>/<name>" or "tracepoint/<category>/<name>" */
+	if (str_has_pfx(prog->sec_name, "tp/"))
+		tp_cat = sec_name + sizeof("tp/") - 1;
+	else
+		tp_cat = sec_name + sizeof("tracepoint/") - 1;
 	tp_name = strchr(tp_cat, '/');
 	if (!tp_name) {
 		free(sec_name);
@@ -9761,9 +9758,14 @@ struct bpf_link *bpf_program__attach_raw_tracepoint(const struct bpf_program *pr
 	return link;
 }
 
-static struct bpf_link *attach_raw_tp(const struct bpf_program *prog)
+static struct bpf_link *attach_raw_tp(const struct bpf_program *prog, long cookie)
 {
-	const char *tp_name = prog->sec_name + prog->sec_def->len;
+	const char *tp_name;
+
+	if (str_has_pfx(prog->sec_name, "raw_tp/"))
+		tp_name = prog->sec_name + sizeof("raw_tp/") - 1;
+	else
+		tp_name = prog->sec_name + sizeof("raw_tracepoint/") - 1;
 
 	return bpf_program__attach_raw_tracepoint(prog, tp_name);
 }
@@ -9808,12 +9810,12 @@ struct bpf_link *bpf_program__attach_lsm(const struct bpf_program *prog)
 	return bpf_program__attach_btf_id(prog);
 }
 
-static struct bpf_link *attach_trace(const struct bpf_program *prog)
+static struct bpf_link *attach_trace(const struct bpf_program *prog, long cookie)
 {
 	return bpf_program__attach_trace(prog);
 }
 
-static struct bpf_link *attach_lsm(const struct bpf_program *prog)
+static struct bpf_link *attach_lsm(const struct bpf_program *prog, long cookie)
 {
 	return bpf_program__attach_lsm(prog);
 }
@@ -9944,7 +9946,7 @@ bpf_program__attach_iter(const struct bpf_program *prog,
 	return link;
 }
 
-static struct bpf_link *attach_iter(const struct bpf_program *prog)
+static struct bpf_link *attach_iter(const struct bpf_program *prog, long cookie)
 {
 	return bpf_program__attach_iter(prog, NULL);
 }
@@ -9954,7 +9956,7 @@ struct bpf_link *bpf_program__attach(const struct bpf_program *prog)
 	if (!prog->sec_def || !prog->sec_def->attach_fn)
 		return libbpf_err_ptr(-ESRCH);
 
-	return prog->sec_def->attach_fn(prog);
+	return prog->sec_def->attach_fn(prog, prog->sec_def->cookie);
 }
 
 static int bpf_link__detach_struct_ops(struct bpf_link *link)

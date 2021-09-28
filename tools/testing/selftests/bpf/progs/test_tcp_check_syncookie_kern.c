@@ -148,7 +148,7 @@ release:
 	bpf_sk_release(sk);
 }
 
-SEC("clsact/check_syncookie")
+SEC("tc")
 int check_syncookie_clsact(struct __sk_buff *skb)
 {
 	check_syncookie(skb, (void *)(long)skb->data,
@@ -156,7 +156,7 @@ int check_syncookie_clsact(struct __sk_buff *skb)
 	return TC_ACT_OK;
 }
 
-SEC("xdp/check_syncookie")
+SEC("xdp")
 int check_syncookie_xdp(struct xdp_md *ctx)
 {
 	check_syncookie(ctx, (void *)(long)ctx->data,

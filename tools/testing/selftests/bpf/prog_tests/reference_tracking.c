@@ -2,14 +2,14 @@
 #include <test_progs.h>
 
 static void toggle_object_autoload_progs(const struct bpf_object *obj,
-					 const char *title_load)
+					 const char *name_load)
 {
 	struct bpf_program *prog;
 
 	bpf_object__for_each_program(prog, obj) {
-		const char *title = bpf_program__section_name(prog);
+		const char *name = bpf_program__name(prog);
 
-		if (!strcmp(title_load, title))
+		if (!strcmp(name_load, name))
 			bpf_program__set_autoload(prog, true);
 		else
 			bpf_program__set_autoload(prog, false);
@@ -39,23 +39,19 @@ void test_reference_tracking(void)
 		goto cleanup;
 
 	bpf_object__for_each_program(prog, obj_iter) {
-		const char *title;
+		const char *name;
 
-		/* Ignore .text sections */
-		title = bpf_program__section_name(prog);
-		if (strstr(title, ".text") != NULL)
-			continue;
-
-		if (!test__start_subtest(title))
+		name = bpf_program__name(prog);
+		if (!test__start_subtest(name))
 			continue;
 
 		obj = bpf_object__open_file(file, &open_opts);
 		if (!ASSERT_OK_PTR(obj, "obj_open_file"))
 			goto cleanup;
 
-		toggle_object_autoload_progs(obj, title);
+		toggle_object_autoload_progs(obj, name);
 		/* Expect verifier failure if test name has 'err' */
-		if (strstr(title, "err_") != NULL) {
+		if (strncmp(name, "err_", sizeof("err_") - 1) == 0) {
 			libbpf_print_fn_t old_print_fn;
 
 			old_print_fn = libbpf_set_print(NULL);
@@ -64,7 +60,8 @@ void test_reference_tracking(void)
 		} else {
 			err = bpf_object__load(obj);
 		}
-		CHECK(err, title, "\n");
+		ASSERT_OK(err, name);
+
 		bpf_object__close(obj);
 		obj = NULL;
 	}
