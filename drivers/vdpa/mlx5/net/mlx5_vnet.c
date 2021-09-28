@@ -1714,6 +1714,9 @@ static void mlx5_vdpa_set_vq_ready(struct vdpa_device *vdev, u16 idx, bool ready
 	struct mlx5_vdpa_net *ndev = to_mlx5_vdpa_ndev(mvdev);
 	struct mlx5_vdpa_virtqueue *mvq;
 
+	if (!mvdev->actual_features)
+		return;
+
 	if (!is_index_valid(mvdev, idx))
 		return;
 
@@ -2145,6 +2148,8 @@ static void clear_vqs_ready(struct mlx5_vdpa_net *ndev)
 
 	for (i = 0; i < ndev->mvdev.max_vqs; i++)
 		ndev->vqs[i].ready = false;
+
+	ndev->mvdev.cvq.ready = false;
 }
 
 static void mlx5_vdpa_set_status(struct vdpa_device *vdev, u8 status)
