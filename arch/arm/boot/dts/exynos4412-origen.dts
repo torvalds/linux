@@ -382,7 +382,7 @@
 			buck1_reg: BUCK1 {
 				regulator-name = "VDD_MIF";
 				regulator-min-microvolt = <950000>;
-				regulator-max-microvolt	= <1100000>;
+				regulator-max-microvolt = <1100000>;
 				regulator-always-on;
 				regulator-boot-on;
 				op_mode = <1>; /* Normal Mode */
@@ -391,7 +391,7 @@
 			buck2_reg: BUCK2 {
 				regulator-name = "VDD_ARM";
 				regulator-min-microvolt = <900000>;
-				regulator-max-microvolt	= <1350000>;
+				regulator-max-microvolt = <1350000>;
 				regulator-always-on;
 				regulator-boot-on;
 				op_mode = <1>; /* Normal Mode */
@@ -400,7 +400,7 @@
 			buck3_reg: BUCK3 {
 				regulator-name = "VDD_INT";
 				regulator-min-microvolt = <900000>;
-				regulator-max-microvolt	= <1200000>;
+				regulator-max-microvolt = <1200000>;
 				regulator-always-on;
 				regulator-boot-on;
 				op_mode = <1>; /* Normal Mode */
@@ -409,7 +409,7 @@
 			buck4_reg: BUCK4 {
 				regulator-name = "VDD_G3D";
 				regulator-min-microvolt = <750000>;
-				regulator-max-microvolt	= <1500000>;
+				regulator-max-microvolt = <1500000>;
 				regulator-always-on;
 				regulator-boot-on;
 				op_mode = <1>; /* Normal Mode */
@@ -418,7 +418,7 @@
 			buck5_reg: BUCK5 {
 				regulator-name = "VDD_M12";
 				regulator-min-microvolt = <750000>;
-				regulator-max-microvolt	= <1500000>;
+				regulator-max-microvolt = <1500000>;
 				regulator-always-on;
 				regulator-boot-on;
 				op_mode = <1>; /* Normal Mode */
@@ -427,7 +427,7 @@
 			buck6_reg: BUCK6 {
 				regulator-name = "VDD12_5M";
 				regulator-min-microvolt = <750000>;
-				regulator-max-microvolt	= <1500000>;
+				regulator-max-microvolt = <1500000>;
 				regulator-always-on;
 				regulator-boot-on;
 				op_mode = <1>; /* Normal Mode */
@@ -436,7 +436,7 @@
 			buck9_reg: BUCK9 {
 				regulator-name = "VDDF28_EMMC";
 				regulator-min-microvolt = <750000>;
-				regulator-max-microvolt	= <3000000>;
+				regulator-max-microvolt = <3000000>;
 				regulator-always-on;
 				regulator-boot-on;
 				op_mode = <1>; /* Normal Mode */
