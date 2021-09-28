@@ -12,8 +12,8 @@ struct {
 
 int count, which;
 
-SEC("classifier/0")
-int bpf_func_0(struct __sk_buff *skb)
+SEC("tc")
+int classifier_0(struct __sk_buff *skb)
 {
 	count++;
 	if (__builtin_constant_p(which))
@@ -22,7 +22,7 @@ int bpf_func_0(struct __sk_buff *skb)
 	return 1;
 }
 
-SEC("classifier")
+SEC("tc")
 int entry(struct __sk_buff *skb)
 {
 	if (__builtin_constant_p(which))
