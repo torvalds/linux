@@ -14,7 +14,6 @@
 #include <linux/i2c.h>
 #include <linux/property.h>
 #include <linux/fb.h>
-#include <linux/slab.h>
 #include <linux/backlight.h>
 #include <linux/input.h>
 #include <linux/input/matrix_keypad.h>
