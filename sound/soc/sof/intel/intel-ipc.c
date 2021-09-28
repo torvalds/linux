@@ -25,9 +25,9 @@ struct intel_stream {
 };
 
 /* Mailbox-based Intel IPC implementation */
-void intel_ipc_msg_data(struct snd_sof_dev *sdev,
-			struct snd_pcm_substream *substream,
-			void *p, size_t sz)
+int intel_ipc_msg_data(struct snd_sof_dev *sdev,
+		       struct snd_pcm_substream *substream,
+		       void *p, size_t sz)
 {
 	if (!substream || !sdev->stream_box.size) {
 		sof_mailbox_read(sdev, sdev->dsp_box.offset, p, sz);
@@ -35,9 +35,13 @@ void intel_ipc_msg_data(struct snd_sof_dev *sdev,
 		struct intel_stream *stream = substream->runtime->private_data;
 
 		/* The stream might already be closed */
-		if (stream)
-			sof_mailbox_read(sdev, stream->posn_offset, p, sz);
+		if (!stream)
+			return -ESTRPIPE;
+
+		sof_mailbox_read(sdev, stream->posn_offset, p, sz);
 	}
+
+	return 0;
 }
 EXPORT_SYMBOL_NS(intel_ipc_msg_data, SND_SOC_SOF_INTEL_HIFI_EP_IPC);
 

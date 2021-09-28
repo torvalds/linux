@@ -422,11 +422,11 @@ static inline int snd_sof_load_firmware(struct snd_sof_dev *sdev)
 }
 
 /* host DSP message data */
-static inline void snd_sof_ipc_msg_data(struct snd_sof_dev *sdev,
-					struct snd_pcm_substream *substream,
-					void *p, size_t sz)
+static inline int snd_sof_ipc_msg_data(struct snd_sof_dev *sdev,
+				       struct snd_pcm_substream *substream,
+				       void *p, size_t sz)
 {
-	sof_ops(sdev)->ipc_msg_data(sdev, substream, p, sz);
+	return sof_ops(sdev)->ipc_msg_data(sdev, substream, p, sz);
 }
 
 /* host configure DSP HW parameters */
