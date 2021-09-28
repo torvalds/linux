@@ -990,7 +990,7 @@ struct drm_i915_private {
 	const struct intel_dpll_funcs *dpll_funcs;
 
 	/* Display functions */
-	struct drm_i915_display_funcs display;
+	const struct drm_i915_display_funcs *display;
 
 	/* Display internal color functions */
 	const struct intel_color_funcs *color_funcs;
