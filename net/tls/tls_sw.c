@@ -498,9 +498,15 @@ static int tls_do_encryption(struct sock *sk,
 	int rc, iv_offset = 0;
 
 	/* For CCM based ciphers, first byte of IV is a constant */
-	if (prot->cipher_type == TLS_CIPHER_AES_CCM_128) {
+	switch (prot->cipher_type) {
+	case TLS_CIPHER_AES_CCM_128:
 		rec->iv_data[0] = TLS_AES_CCM_IV_B0_BYTE;
 		iv_offset = 1;
+		break;
+	case TLS_CIPHER_SM4_CCM:
+		rec->iv_data[0] = TLS_SM4_CCM_IV_B0_BYTE;
+		iv_offset = 1;
+		break;
 	}
 
 	memcpy(&rec->iv_data[iv_offset], tls_ctx->tx.iv,
@@ -1457,10 +1463,16 @@ static int decrypt_internal(struct sock *sk, struct sk_buff *skb,
 	aad = (u8 *)(sgout + n_sgout);
 	iv = aad + prot->aad_size;
 
-	/* For CCM based ciphers, first byte of nonce+iv is always '2' */
-	if (prot->cipher_type == TLS_CIPHER_AES_CCM_128) {
-		iv[0] = 2;
+	/* For CCM based ciphers, first byte of nonce+iv is a constant */
+	switch (prot->cipher_type) {
+	case TLS_CIPHER_AES_CCM_128:
+		iv[0] = TLS_AES_CCM_IV_B0_BYTE;
 		iv_offset = 1;
+		break;
+	case TLS_CIPHER_SM4_CCM:
+		iv[0] = TLS_SM4_CCM_IV_B0_BYTE;
+		iv_offset = 1;
+		break;
 	}
 
 	/* Prepare IV */
