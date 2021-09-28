@@ -8544,6 +8544,7 @@ static void pqi_fail_all_outstanding_requests(struct pqi_ctrl_info *ctrl_info)
 	unsigned int i;
 	struct pqi_io_request *io_request;
 	struct scsi_cmnd *scmd;
+	struct scsi_device *sdev;
 
 	for (i = 0; i < ctrl_info->max_io_slots; i++) {
 		io_request = &ctrl_info->io_request_pool[i];
@@ -8552,7 +8553,13 @@ static void pqi_fail_all_outstanding_requests(struct pqi_ctrl_info *ctrl_info)
 
 		scmd = io_request->scmd;
 		if (scmd) {
-			set_host_byte(scmd, DID_NO_CONNECT);
+			sdev = scmd->device;
+			if (!sdev || !scsi_device_online(sdev)) {
+				pqi_free_io_request(io_request);
+				continue;
+			} else {
+				set_host_byte(scmd, DID_NO_CONNECT);
+			}
 		} else {
 			io_request->status = -ENXIO;
 			io_request->error_info =
