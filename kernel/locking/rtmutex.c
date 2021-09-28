@@ -449,7 +449,7 @@ static __always_inline void rt_mutex_adjust_prio(struct task_struct *p)
 static __always_inline void rt_mutex_wake_q_add(struct rt_wake_q_head *wqh,
 						struct rt_mutex_waiter *w)
 {
-	if (IS_ENABLED(CONFIG_PREEMPT_RT) && w->wake_state != TASK_NORMAL) {
+	if (IS_ENABLED(CONFIG_PREEMPT_RT) && w->wake_state == TASK_RTLOCK_WAIT) {
 		if (IS_ENABLED(CONFIG_PROVE_LOCKING))
 			WARN_ON_ONCE(wqh->rtlock_task);
 		get_task_struct(w->task);
