@@ -1953,7 +1953,7 @@ ath11k_qmi_prepare_bdf_download(struct ath11k_base *ab, int type,
 		fw_size = min_t(u32, ab->hw_params.fw.board_size,
 				fw_entry->size);
 
-		memcpy_toio(bdf_addr + ATH11K_QMI_CALDATA_OFFSET,
+		memcpy_toio(bdf_addr + ab->hw_params.fw.cal_offset,
 			    fw_entry->data, fw_size);
 
 		release_firmware(fw_entry);
@@ -1979,7 +1979,7 @@ static int ath11k_qmi_load_bdf_fixed_addr(struct ath11k_base *ab)
 		return -ENOMEM;
 	memset(&resp, 0, sizeof(resp));
 
-	bdf_addr = ioremap(ab->hw_params.bdf_addr, ATH11K_QMI_BDF_MAX_SIZE);
+	bdf_addr = ioremap(ab->hw_params.bdf_addr, ab->hw_params.fw.board_size);
 	if (!bdf_addr) {
 		ath11k_warn(ab, "failed ioremap for board file\n");
 		ret = -EIO;
