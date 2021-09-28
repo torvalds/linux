@@ -373,7 +373,7 @@ struct intel_audio_funcs {
 				    const struct drm_connector_state *old_conn_state);
 };
 
-struct drm_i915_display_funcs {
+struct intel_cdclk_funcs {
 	void (*get_cdclk)(struct drm_i915_private *dev_priv,
 			  struct intel_cdclk_config *cdclk_config);
 	void (*set_cdclk)(struct drm_i915_private *dev_priv,
@@ -382,6 +382,9 @@ struct drm_i915_display_funcs {
 	int (*bw_calc_min_cdclk)(struct intel_atomic_state *state);
 	int (*modeset_calc_cdclk)(struct intel_cdclk_state *state);
 	u8 (*calc_voltage_level)(int cdclk);
+};
+
+struct drm_i915_display_funcs {
 	/* Returns the active state of the crtc, and if the crtc is active,
 	 * fills out the pipe-config with the hw state. */
 	bool (*get_pipe_config)(struct intel_crtc *,
@@ -983,6 +986,9 @@ struct drm_i915_private {
 
 	/* Display internal audio functions */
 	struct intel_audio_funcs audio_funcs;
+
+	/* Display CDCLK functions */
+	struct intel_cdclk_funcs cdclk_funcs;
 
 	/* PCH chipset type */
 	enum intel_pch pch_type;
