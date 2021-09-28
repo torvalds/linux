@@ -82,9 +82,11 @@ struct pqi_ctrl_registers {
 	__le32  sis_product_identifier;			/* B4h */
 	u8	reserved5[0xbc - (0xb4 + sizeof(__le32))];
 	__le32	sis_firmware_status;			/* BCh */
-	u8	reserved6[0x1000 - (0xbc + sizeof(__le32))];
+	u8	reserved6[0xcc - (0xbc + sizeof(__le32))];
+	__le32	sis_ctrl_shutdown_reason_code;		/* CCh */
+	u8	reserved7[0x1000 - (0xcc + sizeof(__le32))];
 	__le32	sis_mailbox[8];				/* 1000h */
-	u8	reserved7[0x4000 - (0x1000 + (sizeof(__le32) * 8))];
+	u8	reserved8[0x4000 - (0x1000 + (sizeof(__le32) * 8))];
 	/*
 	 * The PQI spec states that the PQI registers should be at
 	 * offset 0 from the PCIe BAR 0.  However, we can't map
@@ -101,6 +103,21 @@ struct pqi_ctrl_registers {
 #endif
 
 #define PQI_DEVICE_REGISTERS_OFFSET	0x4000
+
+/* shutdown reasons for taking the controller offline */
+enum pqi_ctrl_shutdown_reason {
+	PQI_IQ_NOT_DRAINED_TIMEOUT = 1,
+	PQI_LUN_RESET_TIMEOUT = 2,
+	PQI_IO_PENDING_POST_LUN_RESET_TIMEOUT = 3,
+	PQI_NO_HEARTBEAT = 4,
+	PQI_FIRMWARE_KERNEL_NOT_UP = 5,
+	PQI_OFA_RESPONSE_TIMEOUT = 6,
+	PQI_INVALID_REQ_ID = 7,
+	PQI_UNMATCHED_REQ_ID = 8,
+	PQI_IO_PI_OUT_OF_RANGE = 9,
+	PQI_EVENT_PI_OUT_OF_RANGE = 10,
+	PQI_UNEXPECTED_IU_TYPE = 11
+};
 
 enum pqi_io_path {
 	RAID_PATH = 0,
@@ -850,7 +867,8 @@ struct pqi_config_table_firmware_features {
 #define PQI_FIRMWARE_FEATURE_TMF_IU_TIMEOUT			14
 #define PQI_FIRMWARE_FEATURE_RAID_BYPASS_ON_ENCRYPTED_NVME	15
 #define PQI_FIRMWARE_FEATURE_UNIQUE_WWID_IN_REPORT_PHYS_LUN	16
-#define PQI_FIRMWARE_FEATURE_MAXIMUM				16
+#define PQI_FIRMWARE_FEATURE_FW_TRIAGE				17
+#define PQI_FIRMWARE_FEATURE_MAXIMUM				17
 
 struct pqi_config_table_debug {
 	struct pqi_config_table_section_header header;
@@ -1297,6 +1315,7 @@ struct pqi_ctrl_info {
 	u8		raid_iu_timeout_supported : 1;
 	u8		tmf_iu_timeout_supported : 1;
 	u8		unique_wwid_in_report_phys_lun_supported : 1;
+	u8		firmware_triage_supported : 1;
 	u8		enable_r1_writes : 1;
 	u8		enable_r5_writes : 1;
 	u8		enable_r6_writes : 1;

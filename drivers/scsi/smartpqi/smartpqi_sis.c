@@ -397,14 +397,17 @@ void sis_enable_intx(struct pqi_ctrl_info *ctrl_info)
 	sis_set_doorbell_bit(ctrl_info, SIS_ENABLE_INTX);
 }
 
-void sis_shutdown_ctrl(struct pqi_ctrl_info *ctrl_info)
+void sis_shutdown_ctrl(struct pqi_ctrl_info *ctrl_info,
+	enum pqi_ctrl_shutdown_reason ctrl_shutdown_reason)
 {
 	if (readl(&ctrl_info->registers->sis_firmware_status) &
 		SIS_CTRL_KERNEL_PANIC)
 		return;
 
-	writel(SIS_TRIGGER_SHUTDOWN,
-		&ctrl_info->registers->sis_host_to_ctrl_doorbell);
+	if (ctrl_info->firmware_triage_supported)
+		writel(ctrl_shutdown_reason, &ctrl_info->registers->sis_ctrl_shutdown_reason_code);
+
+	writel(SIS_TRIGGER_SHUTDOWN, &ctrl_info->registers->sis_host_to_ctrl_doorbell);
 }
 
 int sis_pqi_reset_quiesce(struct pqi_ctrl_info *ctrl_info)
