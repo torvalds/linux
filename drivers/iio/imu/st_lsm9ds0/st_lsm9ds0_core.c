@@ -24,10 +24,10 @@ static int st_lsm9ds0_power_enable(struct device *dev, struct st_lsm9ds0 *lsm9ds
 
 	/* Regulators not mandatory, but if requested we should enable them. */
 	lsm9ds0->vdd = devm_regulator_get(dev, "vdd");
-	if (IS_ERR(lsm9ds0->vdd)) {
-		dev_err(dev, "unable to get Vdd supply\n");
-		return PTR_ERR(lsm9ds0->vdd);
-	}
+	if (IS_ERR(lsm9ds0->vdd))
+		return dev_err_probe(dev, PTR_ERR(lsm9ds0->vdd),
+				     "unable to get Vdd supply\n");
+
 	ret = regulator_enable(lsm9ds0->vdd);
 	if (ret) {
 		dev_warn(dev, "Failed to enable specified Vdd supply\n");
@@ -36,9 +36,9 @@ static int st_lsm9ds0_power_enable(struct device *dev, struct st_lsm9ds0 *lsm9ds
 
 	lsm9ds0->vdd_io = devm_regulator_get(dev, "vddio");
 	if (IS_ERR(lsm9ds0->vdd_io)) {
-		dev_err(dev, "unable to get Vdd_IO supply\n");
 		regulator_disable(lsm9ds0->vdd);
-		return PTR_ERR(lsm9ds0->vdd_io);
+		return dev_err_probe(dev, PTR_ERR(lsm9ds0->vdd_io),
+				     "unable to get Vdd_IO supply\n");
 	}
 	ret = regulator_enable(lsm9ds0->vdd_io);
 	if (ret) {
