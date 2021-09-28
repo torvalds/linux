@@ -53,7 +53,7 @@ static int msc313_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	unsigned long seconds;
 
 	seconds = readw(priv->rtc_base + REG_RTC_MATCH_VAL_L)
-			| (readw(priv->rtc_base + REG_RTC_MATCH_VAL_H) << 16);
+			| ((unsigned long)readw(priv->rtc_base + REG_RTC_MATCH_VAL_H) << 16);
 
 	rtc_time64_to_tm(seconds, &alarm->time);
 
@@ -122,7 +122,7 @@ static int msc313_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		udelay(1);
 
 	seconds = readw(priv->rtc_base + REG_RTC_CNT_VAL_L)
-			| (readw(priv->rtc_base + REG_RTC_CNT_VAL_H) << 16);
+			| ((unsigned long)readw(priv->rtc_base + REG_RTC_CNT_VAL_H) << 16);
 
 	rtc_time64_to_tm(seconds, tm);
 
