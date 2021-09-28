@@ -775,6 +775,8 @@ sub check_undefined_symbols {
 	my $next_i = 0;
 	my $start_time = times;
 
+	@files = sort @files;
+
 	my $last_time = $start_time;
 
 	# When either debug or hint is enabled, there's no sense showing
@@ -909,16 +911,16 @@ sub undefined_symbols {
 		}
 	}
 	# Compile regexes
-	foreach my $l (keys %leaf) {
+	foreach my $l (sort keys %leaf) {
 		my @expr;
-		foreach my $w(split /\xac/, $leaf{$l}->{what}) {
+		foreach my $w(sort split /\xac/, $leaf{$l}->{what}) {
 			push @expr, qr /^$w$/;
 		}
 		$leaf{$l}->{expr} = \@expr;
 	}
 
 	# Take links into account
-	foreach my $link (keys %aliases) {
+	foreach my $link (sort keys %aliases) {
 		my $abs_file = $aliases{$link};
 		graph_add_link($abs_file, $link);
 	}
