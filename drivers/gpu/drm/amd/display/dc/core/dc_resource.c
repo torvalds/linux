@@ -3009,6 +3009,11 @@ enum dc_status dc_validate_plane(struct dc *dc, const struct dc_plane_state *pla
 {
 	enum dc_status res = DC_OK;
 
+	/* check if surface has invalid dimensions */
+	if (plane_state->src_rect.width == 0 || plane_state->src_rect.height == 0 ||
+		plane_state->dst_rect.width == 0 || plane_state->dst_rect.height == 0)
+		return DC_FAIL_SURFACE_VALIDATE;
+
 	/* TODO For now validates pixel format only */
 	if (dc->res_pool->funcs->validate_plane)
 		return dc->res_pool->funcs->validate_plane(plane_state, &dc->caps);
