@@ -92,7 +92,7 @@ setup_ns()
 		# Add a neigh entry for IPv4 ping test
 		ip -n ns$i neigh add 192.0.2.253 lladdr 00:00:00:00:00:01 dev veth0
 		ip -n ns$i link set veth0 $mode obj \
-			xdp_dummy.o sec xdp_dummy &> /dev/null || \
+			xdp_dummy.o sec xdp &> /dev/null || \
 			{ test_fail "Unable to load dummy xdp" && exit 1; }
 		IFACES="$IFACES veth$i"
 		veth_mac[$i]=$(ip -n ns0 link show veth$i | awk '/link\/ether/ {print $2}')
