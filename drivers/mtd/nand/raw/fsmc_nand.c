@@ -438,8 +438,10 @@ static int fsmc_correct_ecc1(struct nand_chip *chip,
 			     unsigned char *read_ecc,
 			     unsigned char *calc_ecc)
 {
+	bool sm_order = chip->ecc.options & NAND_ECC_SOFT_HAMMING_SM_ORDER;
+
 	return ecc_sw_hamming_correct(buf, read_ecc, calc_ecc,
-				      chip->ecc.size, false);
+				      chip->ecc.size, sm_order);
 }
 
 /* Count the number of 0's in buff upto a max of max_bits */
