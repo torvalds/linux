@@ -978,7 +978,7 @@ struct drm_i915_private {
 	const struct drm_i915_clock_gating_funcs *clock_gating_funcs;
 
 	/* pm display functions */
-	struct drm_i915_wm_disp_funcs wm_disp;
+	const struct drm_i915_wm_disp_funcs *wm_disp;
 
 	/* irq display functions */
 	const struct intel_hotplug_funcs *hotplug_funcs;
