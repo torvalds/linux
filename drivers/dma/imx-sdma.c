@@ -741,9 +741,8 @@ static int sdma_load_script(struct sdma_engine *sdma, void *buf, int size,
 	unsigned long flags;
 
 	buf_virt = dma_alloc_coherent(sdma->dev, size, &buf_phys, GFP_KERNEL);
-	if (!buf_virt) {
+	if (!buf_virt)
 		return -ENOMEM;
-	}
 
 	spin_lock_irqsave(&sdma->channel_0_lock, flags);
 
