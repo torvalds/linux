@@ -570,7 +570,7 @@ fail_msg_node:
 fail_db_node:
 	of_node_put(smu->db_node);
 fail_bootmem:
-	memblock_free(__pa(smu), sizeof(struct smu_device));
+	memblock_free_ptr(smu, sizeof(struct smu_device));
 	smu = NULL;
 fail_np:
 	of_node_put(np);

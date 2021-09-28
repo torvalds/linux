@@ -14,6 +14,7 @@
 #include <linux/rculist_nulls.h>
 #include <linux/cpu.h>
 #include <linux/tracehook.h>
+#include <uapi/linux/io_uring.h>
 
 #include "io-wq.h"
 
@@ -176,7 +177,6 @@ static void io_worker_ref_put(struct io_wq *wq)
 static void io_worker_exit(struct io_worker *worker)
 {
 	struct io_wqe *wqe = worker->wqe;
-	struct io_wqe_acct *acct = io_wqe_get_acct(worker);
 
 	if (refcount_dec_and_test(&worker->ref))
 		complete(&worker->ref_done);
@@ -186,7 +186,6 @@ static void io_worker_exit(struct io_worker *worker)
 	if (worker->flags & IO_WORKER_F_FREE)
 		hlist_nulls_del_rcu(&worker->nulls_node);
 	list_del_rcu(&worker->all_list);
-	acct->nr_workers--;
 	preempt_disable();
 	io_wqe_dec_running(worker);
 	worker->flags = 0;
@@ -246,8 +245,6 @@ static bool io_wqe_activate_free_worker(struct io_wqe *wqe,
  */
 static bool io_wqe_create_worker(struct io_wqe *wqe, struct io_wqe_acct *acct)
 {
-	bool do_create = false;
-
 	/*
 	 * Most likely an attempt to queue unbounded work on an io_wq that
 	 * wasn't setup with any unbounded workers.
@@ -256,18 +253,15 @@ static bool io_wqe_create_worker(struct io_wqe *wqe, struct io_wqe_acct *acct)
 		pr_warn_once("io-wq is not configured for unbound workers");
 
 	raw_spin_lock(&wqe->lock);
-	if (acct->nr_workers < acct->max_workers) {
-		acct->nr_workers++;
-		do_create = true;
+	if (acct->nr_workers == acct->max_workers) {
+		raw_spin_unlock(&wqe->lock);
+		return true;
 	}
+	acct->nr_workers++;
 	raw_spin_unlock(&wqe->lock);
-	if (do_create) {
-		atomic_inc(&acct->nr_running);
-		atomic_inc(&wqe->wq->worker_refs);
-		return create_io_worker(wqe->wq, wqe, acct->index);
-	}
-
-	return true;
+	atomic_inc(&acct->nr_running);
+	atomic_inc(&wqe->wq->worker_refs);
+	return create_io_worker(wqe->wq, wqe, acct->index);
 }
 
 static void io_wqe_inc_running(struct io_worker *worker)
@@ -574,6 +568,7 @@ loop:
 		}
 		/* timed out, exit unless we're the last worker */
 		if (last_timeout && acct->nr_workers > 1) {
+			acct->nr_workers--;
 			raw_spin_unlock(&wqe->lock);
 			__set_current_state(TASK_RUNNING);
 			break;
@@ -1286,6 +1281,10 @@ int io_wq_cpu_affinity(struct io_wq *wq, cpumask_var_t mask)
 int io_wq_max_workers(struct io_wq *wq, int *new_count)
 {
 	int i, node, prev = 0;
+
+	BUILD_BUG_ON((int) IO_WQ_ACCT_BOUND   != (int) IO_WQ_BOUND);
+	BUILD_BUG_ON((int) IO_WQ_ACCT_UNBOUND != (int) IO_WQ_UNBOUND);
+	BUILD_BUG_ON((int) IO_WQ_ACCT_NR      != 2);
 
 	for (i = 0; i < 2; i++) {
 		if (new_count[i] > task_rlimit(current, RLIMIT_NPROC))
