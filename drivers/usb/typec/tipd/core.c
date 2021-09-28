@@ -404,13 +404,69 @@ static const struct typec_operations tps6598x_ops = {
 	.pr_set = tps6598x_pr_set,
 };
 
+static bool tps6598x_read_status(struct tps6598x *tps, u32 *status)
+{
+	int ret;
+
+	ret = tps6598x_read32(tps, TPS_REG_STATUS, status);
+	if (ret) {
+		dev_err(tps->dev, "%s: failed to read status\n", __func__);
+		return false;
+	}
+	trace_tps6598x_status(*status);
+
+	return true;
+}
+
+static bool tps6598x_read_data_status(struct tps6598x *tps)
+{
+	u32 data_status;
+	int ret;
+
+	ret = tps6598x_read32(tps, TPS_REG_DATA_STATUS, &data_status);
+	if (ret < 0) {
+		dev_err(tps->dev, "failed to read data status: %d\n", ret);
+		return false;
+	}
+	trace_tps6598x_data_status(data_status);
+
+	return true;
+}
+
+static bool tps6598x_read_power_status(struct tps6598x *tps)
+{
+	u16 pwr_status;
+	int ret;
+
+	ret = tps6598x_read16(tps, TPS_REG_POWER_STATUS, &pwr_status);
+	if (ret < 0) {
+		dev_err(tps->dev, "failed to read power status: %d\n", ret);
+		return false;
+	}
+	trace_tps6598x_power_status(pwr_status);
+
+	return true;
+}
+
+static void tps6598x_handle_plug_event(struct tps6598x *tps, u32 status)
+{
+	int ret;
+
+	if (status & TPS_STATUS_PLUG_PRESENT) {
+		ret = tps6598x_connect(tps, status);
+		if (ret)
+			dev_err(tps->dev, "failed to register partner\n");
+	} else {
+		tps6598x_disconnect(tps, status);
+	}
+}
+
 static irqreturn_t tps6598x_interrupt(int irq, void *data)
 {
 	struct tps6598x *tps = data;
 	u64 event1;
 	u64 event2;
-	u32 status, data_status;
-	u16 pwr_status;
+	u32 status;
 	int ret;
 
 	mutex_lock(&tps->lock);
@@ -423,42 +479,20 @@ static irqreturn_t tps6598x_interrupt(int irq, void *data)
 	}
 	trace_tps6598x_irq(event1, event2);
 
-	ret = tps6598x_read32(tps, TPS_REG_STATUS, &status);
-	if (ret) {
-		dev_err(tps->dev, "%s: failed to read status\n", __func__);
+	if (!tps6598x_read_status(tps, &status))
 		goto err_clear_ints;
-	}
-	trace_tps6598x_status(status);
 
-	if ((event1 | event2) & TPS_REG_INT_POWER_STATUS_UPDATE) {
-		ret = tps6598x_read16(tps, TPS_REG_POWER_STATUS, &pwr_status);
-		if (ret < 0) {
-			dev_err(tps->dev, "failed to read power status: %d\n", ret);
+	if ((event1 | event2) & TPS_REG_INT_POWER_STATUS_UPDATE)
+		if (!tps6598x_read_power_status(tps))
 			goto err_clear_ints;
-		}
-		trace_tps6598x_power_status(pwr_status);
-	}
 
-	if ((event1 | event2) & TPS_REG_INT_DATA_STATUS_UPDATE) {
-		ret = tps6598x_read32(tps, TPS_REG_DATA_STATUS, &data_status);
-		if (ret < 0) {
-			dev_err(tps->dev, "failed to read data status: %d\n", ret);
+	if ((event1 | event2) & TPS_REG_INT_DATA_STATUS_UPDATE)
+		if (!tps6598x_read_data_status(tps))
 			goto err_clear_ints;
-		}
-		trace_tps6598x_data_status(data_status);
-	}
 
 	/* Handle plug insert or removal */
-	if ((event1 | event2) & TPS_REG_INT_PLUG_EVENT) {
-		if (status & TPS_STATUS_PLUG_PRESENT) {
-			ret = tps6598x_connect(tps, status);
-			if (ret)
-				dev_err(tps->dev,
-					"failed to register partner\n");
-		} else {
-			tps6598x_disconnect(tps, status);
-		}
-	}
+	if ((event1 | event2) & TPS_REG_INT_PLUG_EVENT)
+		tps6598x_handle_plug_event(tps, status);
 
 err_clear_ints:
 	tps6598x_write64(tps, TPS_REG_INT_CLEAR1, event1);
