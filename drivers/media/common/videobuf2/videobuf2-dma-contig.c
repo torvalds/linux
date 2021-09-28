@@ -497,6 +497,7 @@ static void *vb2_dc_get_userptr(struct vb2_buffer *vb, struct device *dev,
 
 	buf->dev = dev;
 	buf->dma_dir = vb->vb2_queue->dma_dir;
+	buf->vb = vb;
 
 	offset = lower_32_bits(offset_in_page(vaddr));
 	vec = vb2_create_framevec(vaddr, size);
@@ -683,6 +684,8 @@ static void *vb2_dc_attach_dmabuf(struct vb2_buffer *vb, struct device *dev,
 		return ERR_PTR(-ENOMEM);
 
 	buf->dev = dev;
+	buf->vb = vb;
+
 	/* create attachment for the dmabuf with the user device */
 	dba = dma_buf_attach(dbuf, buf->dev);
 	if (IS_ERR(dba)) {
