@@ -448,11 +448,8 @@ int nfsd_cache_lookup(struct svc_rqst *rqstp)
 	b = nfsd_cache_bucket_find(rqstp->rq_xid, nn);
 	spin_lock(&b->cache_lock);
 	found = nfsd_cache_insert(b, rp, nn);
-	if (found != rp) {
-		nfsd_reply_cache_free_locked(NULL, rp, nn);
-		rp = found;
+	if (found != rp)
 		goto found_entry;
-	}
 
 	nfsd_stats_rc_misses_inc();
 	rqstp->rq_cacherep = rp;
@@ -470,8 +467,10 @@ out:
 
 found_entry:
 	/* We found a matching entry which is either in progress or done. */
+	nfsd_reply_cache_free_locked(NULL, rp, nn);
 	nfsd_stats_rc_hits_inc();
 	rtn = RC_DROPIT;
+	rp = found;
 
 	/* Request being processed */
 	if (rp->c_state == RC_INPROG)
