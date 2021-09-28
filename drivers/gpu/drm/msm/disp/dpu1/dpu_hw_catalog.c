@@ -958,12 +958,6 @@ static const struct dpu_perf_cfg sdm845_perf_data = {
 	.min_core_ib = 2400000,
 	.min_llcc_ib = 800000,
 	.min_dram_ib = 800000,
-	.core_ib_ff = "6.0",
-	.core_clk_ff = "1.0",
-	.comp_ratio_rt =
-	"NV12/5/1/1.23 AB24/5/1/1.23 XB24/5/1/1.23",
-	.comp_ratio_nrt =
-	"NV12/5/1/1.25 AB24/5/1/1.25 XB24/5/1/1.25",
 	.undersized_prefill_lines = 2,
 	.xtra_prefill_lines = 2,
 	.dest_scale_prefill_lines = 3,
