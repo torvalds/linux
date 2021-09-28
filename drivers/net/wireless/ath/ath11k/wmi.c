@@ -2302,7 +2302,7 @@ int ath11k_wmi_send_scan_chan_list_cmd(struct ath11k *ar,
 	u16 num_send_chans, num_sends = 0, max_chan_limit = 0;
 	u32 *reg1, *reg2;
 
-	tchan_info = &chan_list->ch_param[0];
+	tchan_info = chan_list->ch_param;
 	while (chan_list->nallchans) {
 		len = sizeof(*cmd) + TLV_HDR_SIZE;
 		max_chan_limit = (wmi->wmi_ab->max_msg_len[ar->pdev_idx] - len) /

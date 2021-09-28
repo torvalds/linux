@@ -97,7 +97,6 @@ int ath11k_reg_update_chan_list(struct ath11k *ar)
 	struct channel_param *ch;
 	enum nl80211_band band;
 	int num_channels = 0;
-	int params_len;
 	int i, ret;
 
 	bands = hw->wiphy->bands;
@@ -117,10 +116,8 @@ int ath11k_reg_update_chan_list(struct ath11k *ar)
 	if (WARN_ON(!num_channels))
 		return -EINVAL;
 
-	params_len = sizeof(struct scan_chan_list_params) +
-			num_channels * sizeof(struct channel_param);
-	params = kzalloc(params_len, GFP_KERNEL);
-
+	params = kzalloc(struct_size(params, ch_param, num_channels),
+			 GFP_KERNEL);
 	if (!params)
 		return -ENOMEM;
 
