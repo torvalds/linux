@@ -1593,6 +1593,13 @@ struct ath11k_htt_extd_stats_msg {
 	u8 data[0];
 } __packed;
 
+#define	HTT_MAC_ADDR_L32_0	GENMASK(7, 0)
+#define	HTT_MAC_ADDR_L32_1	GENMASK(15, 8)
+#define	HTT_MAC_ADDR_L32_2	GENMASK(23, 16)
+#define	HTT_MAC_ADDR_L32_3	GENMASK(31, 24)
+#define	HTT_MAC_ADDR_H16_0	GENMASK(7, 0)
+#define	HTT_MAC_ADDR_H16_1	GENMASK(15, 8)
+
 struct htt_mac_addr {
 	u32 mac_addr_l32;
 	u32 mac_addr_h16;

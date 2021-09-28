@@ -137,6 +137,8 @@ struct htt_stats_string_tlv {
 	u32 data[0]; /* Can be variable length */
 } __packed;
 
+#define HTT_STATS_MAC_ID	GENMASK(7, 0)
+
 /* == TX PDEV STATS == */
 struct htt_tx_pdev_stats_cmn_tlv {
 	u32 mac_id__word;
@@ -290,6 +292,10 @@ struct htt_hw_stats_whal_tx_tlv {
 };
 
 /* ============ PEER STATS ============ */
+#define	HTT_MSDU_FLOW_STATS_TX_FLOW_NO	GENMASK(15, 0)
+#define	HTT_MSDU_FLOW_STATS_TID_NUM	GENMASK(19, 16)
+#define	HTT_MSDU_FLOW_STATS_DROP_RULE	BIT(20)
+
 struct htt_msdu_flow_stats_tlv {
 	u32 last_update_timestamp;
 	u32 last_add_timestamp;
@@ -305,6 +311,11 @@ struct htt_msdu_flow_stats_tlv {
 };
 
 #define MAX_HTT_TID_NAME 8
+
+#define	HTT_TX_TID_STATS_SW_PEER_ID		GENMASK(15, 0)
+#define	HTT_TX_TID_STATS_TID_NUM		GENMASK(31, 16)
+#define	HTT_TX_TID_STATS_NUM_SCHED_PENDING	GENMASK(7, 0)
+#define	HTT_TX_TID_STATS_NUM_PPDU_IN_HWQ	GENMASK(15, 8)
 
 /* Tidq stats */
 struct htt_tx_tid_stats_tlv {
@@ -325,6 +336,11 @@ struct htt_tx_tid_stats_tlv {
 	u32 block_module_id;
 	u32 tid_tx_airtime;
 };
+
+#define	HTT_TX_TID_STATS_V1_SW_PEER_ID		GENMASK(15, 0)
+#define	HTT_TX_TID_STATS_V1_TID_NUM		GENMASK(31, 16)
+#define	HTT_TX_TID_STATS_V1_NUM_SCHED_PENDING	GENMASK(7, 0)
+#define	HTT_TX_TID_STATS_V1_NUM_PPDU_IN_HWQ	GENMASK(15, 8)
 
 /* Tidq stats */
 struct htt_tx_tid_stats_v1_tlv {
@@ -347,6 +363,9 @@ struct htt_tx_tid_stats_v1_tlv {
 	u32 allow_n_flags;
 	u32 sendn_frms_allowed;
 };
+
+#define	HTT_RX_TID_STATS_SW_PEER_ID	GENMASK(15, 0)
+#define	HTT_RX_TID_STATS_TID_NUM	GENMASK(31, 16)
 
 struct htt_rx_tid_stats_tlv {
 	u32 sw_peer_id__tid_num;
@@ -385,6 +404,10 @@ struct htt_peer_stats_cmn_tlv {
 	u32 peer_ttl_removed_count;
 	u32 inactive_time;
 };
+
+#define HTT_PEER_DETAILS_VDEV_ID	GENMASK(7, 0)
+#define HTT_PEER_DETAILS_PDEV_ID	GENMASK(15, 8)
+#define HTT_PEER_DETAILS_AST_IDX	GENMASK(31, 16)
 
 struct htt_peer_details_tlv {
 	u32 peer_type;
@@ -509,6 +532,9 @@ struct htt_tx_hwq_mu_mimo_mpdu_stats_tlv {
 	u32 mu_mimo_mpdu_underrun_usr;
 	u32 mu_mimo_ampdu_underrun_usr;
 };
+
+#define	HTT_TX_HWQ_STATS_MAC_ID	GENMASK(7, 0)
+#define	HTT_TX_HWQ_STATS_HWQ_ID	GENMASK(15, 8)
 
 struct htt_tx_hwq_mu_mimo_cmn_stats_tlv {
 	u32 mac_id__hwq_id__word;
@@ -789,6 +815,9 @@ struct htt_sched_txq_sched_ineligibility_tlv_v {
 	u32 sched_ineligibility[0];
 };
 
+#define	HTT_TX_PDEV_STATS_SCHED_PER_TXQ_MAC_ID	GENMASK(7, 0)
+#define	HTT_TX_PDEV_STATS_SCHED_PER_TXQ_ID	GENMASK(15, 8)
+
 struct htt_tx_pdev_stats_sched_per_txq_tlv {
 	u32 mac_id__txq_id__word;
 	u32 sched_policy;
@@ -910,6 +939,9 @@ struct htt_tx_tqm_error_stats_tlv {
 };
 
 /* == TQM CMDQ stats == */
+#define	HTT_TX_TQM_CMDQ_STATUS_MAC_ID	GENMASK(7, 0)
+#define	HTT_TX_TQM_CMDQ_STATUS_CMDQ_ID	GENMASK(15, 8)
+
 struct htt_tx_tqm_cmdq_status_tlv {
 	u32 mac_id__cmdq_id__word;
 	u32 sync_cmd;
@@ -1055,6 +1087,15 @@ struct htt_tx_de_cmn_stats_tlv {
 #define HTT_STATS_LOW_WM_BINS      5
 #define HTT_STATS_HIGH_WM_BINS     5
 
+#define HTT_RING_IF_STATS_NUM_ELEMS		GENMASK(15, 0)
+#define	HTT_RING_IF_STATS_PREFETCH_TAIL_INDEX	GENMASK(31, 16)
+#define HTT_RING_IF_STATS_HEAD_IDX		GENMASK(15, 0)
+#define HTT_RING_IF_STATS_TAIL_IDX		GENMASK(31, 16)
+#define HTT_RING_IF_STATS_SHADOW_HEAD_IDX	GENMASK(15, 0)
+#define HTT_RING_IF_STATS_SHADOW_TAIL_IDX	GENMASK(31, 16)
+#define HTT_RING_IF_STATS_LWM_THRESH		GENMASK(15, 0)
+#define HTT_RING_IF_STATS_HWM_THRESH		GENMASK(31, 16)
+
 struct htt_ring_if_stats_tlv {
 	u32 base_addr; /* DWORD aligned base memory address of the ring */
 	u32 elem_size;
@@ -1117,6 +1158,19 @@ struct htt_sfm_cmn_tlv {
 };
 
 /* == SRNG STATS == */
+#define	HTT_SRING_STATS_MAC_ID			GENMASK(7, 0)
+#define HTT_SRING_STATS_RING_ID			GENMASK(15, 8)
+#define HTT_SRING_STATS_ARENA			GENMASK(23, 16)
+#define HTT_SRING_STATS_EP			BIT(24)
+#define HTT_SRING_STATS_NUM_AVAIL_WORDS		GENMASK(15, 0)
+#define HTT_SRING_STATS_NUM_VALID_WORDS		GENMASK(31, 16)
+#define HTT_SRING_STATS_HEAD_PTR		GENMASK(15, 0)
+#define HTT_SRING_STATS_TAIL_PTR		GENMASK(31, 16)
+#define HTT_SRING_STATS_CONSUMER_EMPTY		GENMASK(15, 0)
+#define HTT_SRING_STATS_PRODUCER_FULL		GENMASK(31, 16)
+#define HTT_SRING_STATS_PREFETCH_COUNT		GENMASK(15, 0)
+#define HTT_SRING_STATS_INTERNAL_TAIL_PTR	GENMASK(31, 16)
+
 struct htt_sring_stats_tlv {
 	u32 mac_id__ring_id__arena__ep;
 	u32 base_addr_lsb; /* DWORD aligned base memory address of the ring */
