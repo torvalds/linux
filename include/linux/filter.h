@@ -360,11 +360,6 @@ static inline bool insn_is_zext(const struct bpf_insn *insn)
 		.off   = 0,					\
 		.imm   = TGT })
 
-/* Function call */
-
-#define BPF_CAST_CALL(x)					\
-		((u64 (*)(u64, u64, u64, u64, u64))(x))
-
 /* Convert function address to BPF immediate */
 
 #define BPF_CALL_IMM(x)	((void *)(x) - (void *)__bpf_call_base)
