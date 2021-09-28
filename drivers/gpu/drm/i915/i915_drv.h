@@ -988,7 +988,7 @@ struct drm_i915_private {
 	struct drm_i915_wm_disp_funcs wm_disp;
 
 	/* irq display functions */
-	struct intel_hotplug_funcs hotplug_funcs;
+	const struct intel_hotplug_funcs *hotplug_funcs;
 
 	/* fdi display functions */
 	const struct intel_fdi_funcs *fdi_funcs;
