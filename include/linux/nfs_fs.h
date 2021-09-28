@@ -155,32 +155,38 @@ struct nfs_inode {
 	unsigned long		attrtimeo_timestamp;
 
 	unsigned long		attr_gencount;
-	/* "Generation counter" for the attribute cache. This is
-	 * bumped whenever we update the metadata on the
-	 * server.
-	 */
-	unsigned long		cache_change_attribute;
 
 	struct rb_root		access_cache;
 	struct list_head	access_cache_entry_lru;
 	struct list_head	access_cache_inode_lru;
 
-	/*
-	 * This is the cookie verifier used for NFSv3 readdir
-	 * operations
-	 */
-	__be32			cookieverf[NFS_DIR_VERIFIER_SIZE];
-
-	atomic_long_t		nrequests;
-	struct nfs_mds_commit_info commit_info;
+	union {
+		/* Directory */
+		struct {
+			/* "Generation counter" for the attribute cache.
+			 * This is bumped whenever we update the metadata
+			 * on the server.
+			 */
+			unsigned long	cache_change_attribute;
+			/*
+			 * This is the cookie verifier used for NFSv3 readdir
+			 * operations
+			 */
+			__be32		cookieverf[NFS_DIR_VERIFIER_SIZE];
+			/* Readers: in-flight sillydelete RPC calls */
+			/* Writers: rmdir */
+			struct rw_semaphore	rmdir_sem;
+		};
+		/* Regular file */
+		struct {
+			atomic_long_t	nrequests;
+			struct nfs_mds_commit_info commit_info;
+			struct mutex	commit_mutex;
+		};
+	};
 
 	/* Open contexts for shared mmap writes */
 	struct list_head	open_files;
-
-	/* Readers: in-flight sillydelete RPC calls */
-	/* Writers: rmdir */
-	struct rw_semaphore	rmdir_sem;
-	struct mutex		commit_mutex;
 
 #if IS_ENABLED(CONFIG_NFS_V4)
 	struct nfs4_cached_acl	*nfs4_acl;
