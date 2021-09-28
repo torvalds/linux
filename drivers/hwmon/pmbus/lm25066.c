@@ -51,7 +51,7 @@ struct __coeff {
 #define PSC_CURRENT_IN_L	(PSC_NUM_CLASSES)
 #define PSC_POWER_L		(PSC_NUM_CLASSES + 1)
 
-static struct __coeff lm25066_coeff[][PSC_NUM_CLASSES + 2] = {
+static const struct __coeff lm25066_coeff[][PSC_NUM_CLASSES + 2] = {
 	[lm25056] = {
 		[PSC_VOLTAGE_IN] = {
 			.m = 16296,
@@ -449,7 +449,7 @@ static int lm25066_probe(struct i2c_client *client)
 	int config;
 	struct lm25066_data *data;
 	struct pmbus_driver_info *info;
-	struct __coeff *coeff;
+	const struct __coeff *coeff;
 
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_READ_BYTE_DATA))
