@@ -5,6 +5,15 @@
 #include "adf_common_drv.h"
 #include "adf_pf2vf_msg.h"
 
+#define ADF_IOV_MSG_COLLISION_DETECT_DELAY	10
+#define ADF_IOV_MSG_ACK_DELAY			2
+#define ADF_IOV_MSG_ACK_MAX_RETRY		100
+#define ADF_IOV_MSG_RETRY_DELAY			5
+#define ADF_IOV_MSG_MAX_RETRIES			3
+#define ADF_IOV_MSG_RESP_TIMEOUT	(ADF_IOV_MSG_ACK_DELAY * \
+					 ADF_IOV_MSG_ACK_MAX_RETRY + \
+					 ADF_IOV_MSG_COLLISION_DETECT_DELAY)
+
 void adf_enable_vf2pf_interrupts(struct adf_accel_dev *accel_dev, u32 vf_mask)
 {
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
