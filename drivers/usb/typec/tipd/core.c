@@ -726,9 +726,6 @@ static int tps6598x_probe(struct i2c_client *client)
 	/*
 	 * Checking can the adapter handle SMBus protocol. If it can not, the
 	 * driver needs to take care of block reads separately.
-	 *
-	 * FIXME: Testing with I2C_FUNC_I2C. regmap-i2c uses I2C protocol
-	 * unconditionally if the adapter has I2C_FUNC_I2C set.
 	 */
 	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		tps->i2c_protocol = true;
