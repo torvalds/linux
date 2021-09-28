@@ -3626,55 +3626,12 @@ static int hci_suspend_notifier(struct notifier_block *nb, unsigned long action,
 	struct hci_dev *hdev =
 		container_of(nb, struct hci_dev, suspend_notifier);
 	int ret = 0;
-	u8 state = BT_RUNNING;
 
-	/* If powering down, wait for completion. */
-	if (mgmt_powering_down(hdev)) {
-		set_bit(SUSPEND_POWERING_DOWN, hdev->suspend_tasks);
-		ret = hci_suspend_wait_event(hdev);
-		if (ret)
-			goto done;
-	}
+	if (action == PM_SUSPEND_PREPARE)
+		ret = hci_suspend_dev(hdev);
+	else if (action == PM_POST_SUSPEND)
+		ret = hci_resume_dev(hdev);
 
-	/* Suspend notifier should only act on events when powered. */
-	if (!hdev_is_powered(hdev) ||
-	    hci_dev_test_flag(hdev, HCI_UNREGISTER))
-		goto done;
-
-	if (action == PM_SUSPEND_PREPARE) {
-		/* Suspend consists of two actions:
-		 *  - First, disconnect everything and make the controller not
-		 *    connectable (disabling scanning)
-		 *  - Second, program event filter/accept list and enable scan
-		 */
-		ret = hci_change_suspend_state(hdev, BT_SUSPEND_DISCONNECT);
-		if (!ret)
-			state = BT_SUSPEND_DISCONNECT;
-
-		/* Only configure accept list if disconnect succeeded and wake
-		 * isn't being prevented.
-		 */
-		if (!ret && !(hdev->prevent_wake && hdev->prevent_wake(hdev))) {
-			ret = hci_change_suspend_state(hdev,
-						BT_SUSPEND_CONFIGURE_WAKE);
-			if (!ret)
-				state = BT_SUSPEND_CONFIGURE_WAKE;
-		}
-
-		hci_clear_wake_reason(hdev);
-		mgmt_suspending(hdev, state);
-
-	} else if (action == PM_POST_SUSPEND) {
-		ret = hci_change_suspend_state(hdev, BT_RUNNING);
-
-		mgmt_resuming(hdev, hdev->wake_reason, &hdev->wake_addr,
-			      hdev->wake_addr_type);
-	}
-
-done:
-	/* We always allow suspend even if suspend preparation failed and
-	 * attempt to recover in resume.
-	 */
 	if (ret)
 		bt_dev_err(hdev, "Suspend notifier action (%lu) failed: %d",
 			   action, ret);
@@ -4017,16 +3974,77 @@ EXPORT_SYMBOL(hci_release_dev);
 /* Suspend HCI device */
 int hci_suspend_dev(struct hci_dev *hdev)
 {
+	int ret;
+	u8 state = BT_RUNNING;
+
+	bt_dev_dbg(hdev, "");
+
+	/* Suspend should only act on when powered. */
+	if (!hdev_is_powered(hdev) ||
+	    hci_dev_test_flag(hdev, HCI_UNREGISTER))
+		return 0;
+
+	/* If powering down, wait for completion. */
+	if (mgmt_powering_down(hdev)) {
+		set_bit(SUSPEND_POWERING_DOWN, hdev->suspend_tasks);
+		ret = hci_suspend_wait_event(hdev);
+		if (ret)
+			goto done;
+	}
+
+	/* Suspend consists of two actions:
+	 *  - First, disconnect everything and make the controller not
+	 *    connectable (disabling scanning)
+	 *  - Second, program event filter/accept list and enable scan
+	 */
+	ret = hci_change_suspend_state(hdev, BT_SUSPEND_DISCONNECT);
+	if (!ret)
+		state = BT_SUSPEND_DISCONNECT;
+
+	/* Only configure accept list if disconnect succeeded and wake
+	 * isn't being prevented.
+	 */
+	if (!ret && !(hdev->prevent_wake && hdev->prevent_wake(hdev))) {
+		ret = hci_change_suspend_state(hdev, BT_SUSPEND_CONFIGURE_WAKE);
+		if (!ret)
+			state = BT_SUSPEND_CONFIGURE_WAKE;
+	}
+
+	hci_clear_wake_reason(hdev);
+	mgmt_suspending(hdev, state);
+
+done:
+	/* We always allow suspend even if suspend preparation failed and
+	 * attempt to recover in resume.
+	 */
 	hci_sock_dev_event(hdev, HCI_DEV_SUSPEND);
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(hci_suspend_dev);
 
 /* Resume HCI device */
 int hci_resume_dev(struct hci_dev *hdev)
 {
+	int ret;
+
+	bt_dev_dbg(hdev, "");
+
+	/* Resume should only act on when powered. */
+	if (!hdev_is_powered(hdev) ||
+	    hci_dev_test_flag(hdev, HCI_UNREGISTER))
+		return 0;
+
+	/* If powering down don't attempt to resume */
+	if (mgmt_powering_down(hdev))
+		return 0;
+
+	ret = hci_change_suspend_state(hdev, BT_RUNNING);
+
+	mgmt_resuming(hdev, hdev->wake_reason, &hdev->wake_addr,
+			      hdev->wake_addr_type);
+
 	hci_sock_dev_event(hdev, HCI_DEV_RESUME);
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(hci_resume_dev);
 
