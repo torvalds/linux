@@ -1137,14 +1137,14 @@ void intel_color_load_luts(const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 
-	dev_priv->display.load_luts(crtc_state);
+	dev_priv->color_funcs.load_luts(crtc_state);
 }
 
 void intel_color_commit(const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 
-	dev_priv->display.color_commit(crtc_state);
+	dev_priv->color_funcs.color_commit(crtc_state);
 }
 
 static bool intel_can_preload_luts(const struct intel_crtc_state *new_crtc_state)
@@ -1200,15 +1200,15 @@ int intel_color_check(struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 
-	return dev_priv->display.color_check(crtc_state);
+	return dev_priv->color_funcs.color_check(crtc_state);
 }
 
 void intel_color_get_config(struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 
-	if (dev_priv->display.read_luts)
-		dev_priv->display.read_luts(crtc_state);
+	if (dev_priv->color_funcs.read_luts)
+		dev_priv->color_funcs.read_luts(crtc_state);
 }
 
 static bool need_plane_update(struct intel_plane *plane,
@@ -2101,51 +2101,51 @@ void intel_color_init(struct intel_crtc *crtc)
 
 	if (HAS_GMCH(dev_priv)) {
 		if (IS_CHERRYVIEW(dev_priv)) {
-			dev_priv->display.color_check = chv_color_check;
-			dev_priv->display.color_commit = i9xx_color_commit;
-			dev_priv->display.load_luts = chv_load_luts;
-			dev_priv->display.read_luts = chv_read_luts;
+			dev_priv->color_funcs.color_check = chv_color_check;
+			dev_priv->color_funcs.color_commit = i9xx_color_commit;
+			dev_priv->color_funcs.load_luts = chv_load_luts;
+			dev_priv->color_funcs.read_luts = chv_read_luts;
 		} else if (DISPLAY_VER(dev_priv) >= 4) {
-			dev_priv->display.color_check = i9xx_color_check;
-			dev_priv->display.color_commit = i9xx_color_commit;
-			dev_priv->display.load_luts = i965_load_luts;
-			dev_priv->display.read_luts = i965_read_luts;
+			dev_priv->color_funcs.color_check = i9xx_color_check;
+			dev_priv->color_funcs.color_commit = i9xx_color_commit;
+			dev_priv->color_funcs.load_luts = i965_load_luts;
+			dev_priv->color_funcs.read_luts = i965_read_luts;
 		} else {
-			dev_priv->display.color_check = i9xx_color_check;
-			dev_priv->display.color_commit = i9xx_color_commit;
-			dev_priv->display.load_luts = i9xx_load_luts;
-			dev_priv->display.read_luts = i9xx_read_luts;
+			dev_priv->color_funcs.color_check = i9xx_color_check;
+			dev_priv->color_funcs.color_commit = i9xx_color_commit;
+			dev_priv->color_funcs.load_luts = i9xx_load_luts;
+			dev_priv->color_funcs.read_luts = i9xx_read_luts;
 		}
 	} else {
 		if (DISPLAY_VER(dev_priv) >= 11)
-			dev_priv->display.color_check = icl_color_check;
+			dev_priv->color_funcs.color_check = icl_color_check;
 		else if (DISPLAY_VER(dev_priv) >= 10)
-			dev_priv->display.color_check = glk_color_check;
+			dev_priv->color_funcs.color_check = glk_color_check;
 		else if (DISPLAY_VER(dev_priv) >= 7)
-			dev_priv->display.color_check = ivb_color_check;
+			dev_priv->color_funcs.color_check = ivb_color_check;
 		else
-			dev_priv->display.color_check = ilk_color_check;
+			dev_priv->color_funcs.color_check = ilk_color_check;
 
 		if (DISPLAY_VER(dev_priv) >= 9)
-			dev_priv->display.color_commit = skl_color_commit;
+			dev_priv->color_funcs.color_commit = skl_color_commit;
 		else if (IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
-			dev_priv->display.color_commit = hsw_color_commit;
+			dev_priv->color_funcs.color_commit = hsw_color_commit;
 		else
-			dev_priv->display.color_commit = ilk_color_commit;
+			dev_priv->color_funcs.color_commit = ilk_color_commit;
 
 		if (DISPLAY_VER(dev_priv) >= 11) {
-			dev_priv->display.load_luts = icl_load_luts;
-			dev_priv->display.read_luts = icl_read_luts;
+			dev_priv->color_funcs.load_luts = icl_load_luts;
+			dev_priv->color_funcs.read_luts = icl_read_luts;
 		} else if (DISPLAY_VER(dev_priv) == 10) {
-			dev_priv->display.load_luts = glk_load_luts;
-			dev_priv->display.read_luts = glk_read_luts;
+			dev_priv->color_funcs.load_luts = glk_load_luts;
+			dev_priv->color_funcs.read_luts = glk_read_luts;
 		} else if (DISPLAY_VER(dev_priv) >= 8) {
-			dev_priv->display.load_luts = bdw_load_luts;
+			dev_priv->color_funcs.load_luts = bdw_load_luts;
 		} else if (DISPLAY_VER(dev_priv) >= 7) {
-			dev_priv->display.load_luts = ivb_load_luts;
+			dev_priv->color_funcs.load_luts = ivb_load_luts;
 		} else {
-			dev_priv->display.load_luts = ilk_load_luts;
-			dev_priv->display.read_luts = ilk_read_luts;
+			dev_priv->color_funcs.load_luts = ilk_load_luts;
+			dev_priv->color_funcs.read_luts = ilk_read_luts;
 		}
 	}
 
