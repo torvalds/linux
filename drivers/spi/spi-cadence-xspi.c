@@ -308,7 +308,7 @@ static int cdns_xspi_controller_init(struct cdns_xspi_dev *cdns_xspi)
 	hw_magic_num = FIELD_GET(CDNS_XSPI_MAGIC_NUM, ctrl_ver);
 	if (hw_magic_num != CDNS_XSPI_MAGIC_NUM_VALUE) {
 		dev_err(cdns_xspi->dev,
-			"Incorrect XSPI magic nunber: %x, expected: %x\n",
+			"Incorrect XSPI magic number: %x, expected: %x\n",
 			hw_magic_num, CDNS_XSPI_MAGIC_NUM_VALUE);
 		return -EIO;
 	}
