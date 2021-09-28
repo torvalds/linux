@@ -20,4 +20,9 @@ struct q6voice *q6voice_create(struct device *dev);
 int q6voice_start(struct q6voice *v, enum q6voice_path_type path, bool capture);
 int q6voice_stop(struct q6voice *v, enum q6voice_path_type path, bool capture);
 
+int q6voice_get_port(struct q6voice *v, enum q6voice_path_type path,
+		     bool capture);
+void q6voice_set_port(struct q6voice *v, enum q6voice_path_type path,
+		      bool capture, int index);
+
 #endif /*_Q6_VOICE_H */

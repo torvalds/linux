@@ -7,20 +7,11 @@
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include "q6afe.h"
 #include "q6cvp.h"
 #include "q6cvs.h"
 #include "q6mvm.h"
 #include "q6voice-common.h"
-
-/* FIXME: Remove */
-#define AFE_PORT_ID_PRIMARY_MI2S_RX         0x1000
-#define AFE_PORT_ID_PRIMARY_MI2S_TX         0x1001
-#define AFE_PORT_ID_SECONDARY_MI2S_RX       0x1002
-#define AFE_PORT_ID_SECONDARY_MI2S_TX       0x1003
-#define AFE_PORT_ID_TERTIARY_MI2S_RX        0x1004
-#define AFE_PORT_ID_TERTIARY_MI2S_TX        0x1005
-#define AFE_PORT_ID_QUATERNARY_MI2S_RX      0x1006
-#define AFE_PORT_ID_QUATERNARY_MI2S_TX      0x1007
 
 struct q6voice_path_runtime {
 	struct q6voice_session *sessions[Q6VOICE_SERVICE_COUNT];
@@ -31,6 +22,7 @@ struct q6voice_path {
 	struct q6voice *v;
 
 	enum q6voice_path_type type;
+	int tx_port, rx_port;
 	/* Serialize access to voice path session */
 	struct mutex lock;
 	struct q6voice_path_runtime *runtime;
@@ -59,9 +51,9 @@ static int q6voice_path_start(struct q6voice_path *p)
 
 	cvp = p->runtime->sessions[Q6VOICE_SERVICE_CVP];
 	if (!cvp) {
-		/* FIXME: Stop hardcoding */
-		cvp = q6cvp_session_create(p->type, AFE_PORT_ID_TERTIARY_MI2S_TX,
-					   AFE_PORT_ID_PRIMARY_MI2S_RX);
+		cvp = q6cvp_session_create(p->type,
+					   q6afe_get_port_id(p->tx_port),
+					   q6afe_get_port_id(p->rx_port));
 		if (IS_ERR(cvp))
 			return PTR_ERR(cvp);
 		p->runtime->sessions[Q6VOICE_SERVICE_CVP] = cvp;
@@ -243,6 +235,30 @@ struct q6voice *q6voice_create(struct device *dev)
 	return v;
 }
 EXPORT_SYMBOL_GPL(q6voice_create);
+
+int q6voice_get_port(struct q6voice *v, enum q6voice_path_type path,
+		     bool capture)
+{
+	struct q6voice_path *p = &v->paths[path];
+
+	if (capture)
+		return p->tx_port;
+	else
+		return p->rx_port;
+}
+EXPORT_SYMBOL_GPL(q6voice_get_port);
+
+void q6voice_set_port(struct q6voice *v, enum q6voice_path_type path,
+		      bool capture, int index)
+{
+	struct q6voice_path *p = &v->paths[path];
+
+	if (capture)
+		p->tx_port = index;
+	else
+		p->rx_port = index;
+}
+EXPORT_SYMBOL_GPL(q6voice_set_port);
 
 MODULE_AUTHOR("Stephan Gerhold <stephan@gerhold.net>");
 MODULE_DESCRIPTION("Q6Voice driver");
