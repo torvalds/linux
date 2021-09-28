@@ -25,6 +25,33 @@
 
 #define HDA_LTRP_GB_VALUE_US	95
 
+static inline const char *hda_hstream_direction_str(struct hdac_stream *hstream)
+{
+	if (hstream->direction == SNDRV_PCM_STREAM_PLAYBACK)
+		return "Playback";
+	else
+		return "Capture";
+}
+
+static char *hda_hstream_dbg_get_stream_info_str(struct hdac_stream *hstream)
+{
+	struct snd_soc_pcm_runtime *rtd;
+
+	if (hstream->substream)
+		rtd = asoc_substream_to_rtd(hstream->substream);
+	else if (hstream->cstream)
+		rtd = hstream->cstream->private_data;
+	else
+		/* Non audio DMA user, like dma-trace */
+		return kasprintf(GFP_KERNEL, "-- (%s, stream_tag: %u)",
+				 hda_hstream_direction_str(hstream),
+				 hstream->stream_tag);
+
+	return kasprintf(GFP_KERNEL, "dai_link \"%s\" (%s, stream_tag: %u)",
+			 rtd->dai_link->name, hda_hstream_direction_str(hstream),
+			 hstream->stream_tag);
+}
+
 /*
  * set up one of BDL entries for a stream
  */
@@ -257,7 +284,7 @@ int hda_dsp_stream_trigger(struct snd_sof_dev *sdev,
 	struct hdac_stream *hstream = &stream->hstream;
 	int sd_offset = SOF_STREAM_SD_OFFSET(hstream);
 	u32 dma_start = SOF_HDA_SD_CTL_DMA_START;
-	int ret;
+	int ret = 0;
 	u32 run;
 
 	/* cmd must be for audio stream */
@@ -283,14 +310,9 @@ int hda_dsp_stream_trigger(struct snd_sof_dev *sdev,
 					HDA_DSP_REG_POLL_INTERVAL_US,
 					HDA_DSP_STREAM_RUN_TIMEOUT);
 
-		if (ret < 0) {
-			dev_err(sdev->dev,
-				"error: %s: cmd %d: timeout on STREAM_SD_OFFSET read\n",
-				__func__, cmd);
-			return ret;
-		}
+		if (ret >= 0)
+			hstream->running = true;
 
-		hstream->running = true;
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
@@ -306,27 +328,32 @@ int hda_dsp_stream_trigger(struct snd_sof_dev *sdev,
 						HDA_DSP_REG_POLL_INTERVAL_US,
 						HDA_DSP_STREAM_RUN_TIMEOUT);
 
-		if (ret < 0) {
-			dev_err(sdev->dev,
-				"error: %s: cmd %d: timeout on STREAM_SD_OFFSET read\n",
-				__func__, cmd);
-			return ret;
+		if (ret >= 0) {
+			snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
+					  sd_offset + SOF_HDA_ADSP_REG_CL_SD_STS,
+					  SOF_HDA_CL_DMA_SD_INT_MASK);
+
+			hstream->running = false;
+			snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
+						SOF_HDA_INTCTL,
+						1 << hstream->index, 0x0);
 		}
-
-		snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR, sd_offset +
-				  SOF_HDA_ADSP_REG_CL_SD_STS,
-				  SOF_HDA_CL_DMA_SD_INT_MASK);
-
-		hstream->running = false;
-		snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, SOF_HDA_INTCTL,
-					1 << hstream->index, 0x0);
 		break;
 	default:
 		dev_err(sdev->dev, "error: unknown command: %d\n", cmd);
 		return -EINVAL;
 	}
 
-	return 0;
+	if (ret < 0) {
+		char *stream_name = hda_hstream_dbg_get_stream_info_str(hstream);
+
+		dev_err(sdev->dev,
+			"%s: cmd %d on %s: timeout on STREAM_SD_OFFSET read\n",
+			__func__, cmd, stream_name ? stream_name : "unknown stream");
+		kfree(stream_name);
+	}
+
+	return ret;
 }
 
 /* minimal recommended programming for ICCMAX stream */
@@ -440,9 +467,12 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 					    HDA_DSP_STREAM_RUN_TIMEOUT);
 
 	if (ret < 0) {
+		char *stream_name = hda_hstream_dbg_get_stream_info_str(hstream);
+
 		dev_err(sdev->dev,
-			"error: %s: timeout on STREAM_SD_OFFSET read1\n",
-			__func__);
+			"%s: on %s: timeout on STREAM_SD_OFFSET read1\n",
+			__func__, stream_name ? stream_name : "unknown stream");
+		kfree(stream_name);
 		return ret;
 	}
 
@@ -506,9 +536,12 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 					    HDA_DSP_STREAM_RUN_TIMEOUT);
 
 	if (ret < 0) {
+		char *stream_name = hda_hstream_dbg_get_stream_info_str(hstream);
+
 		dev_err(sdev->dev,
-			"error: %s: timeout on STREAM_SD_OFFSET read2\n",
-			__func__);
+			"%s: on %s: timeout on STREAM_SD_OFFSET read1\n",
+			__func__, stream_name ? stream_name : "unknown stream");
+		kfree(stream_name);
 		return ret;
 	}
 
