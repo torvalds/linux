@@ -15,7 +15,6 @@ properties:
 
   gpios:
     minItems: 1
-    maxItems: 2
     items:
       - description: Data I/O pin
       - description: Enable pin for an external pull-up resistor
