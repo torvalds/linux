@@ -4520,6 +4520,7 @@ void rvu_nix_lf_teardown(struct rvu *rvu, u16 pcifunc, int blkaddr, int nixlf)
 	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, pcifunc);
 	struct hwctx_disable_req ctx_req;
 	int pf = rvu_get_pf(pcifunc);
+	struct mac_ops *mac_ops;
 	u8 cgx_id, lmac_id;
 	void *cgxd;
 	int err;
@@ -4566,7 +4567,8 @@ void rvu_nix_lf_teardown(struct rvu *rvu, u16 pcifunc, int blkaddr, int nixlf)
 	if (pfvf->hw_rx_tstamp_en) {
 		rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
 		cgxd = rvu_cgx_pdata(cgx_id, rvu);
-		cgx_lmac_ptp_config(cgxd, lmac_id, false);
+		mac_ops = get_mac_ops(cgxd);
+		mac_ops->mac_enadis_ptp_config(cgxd, lmac_id, false);
 		/* Undo NPC config done for PTP */
 		if (npc_config_ts_kpuaction(rvu, pf, pcifunc, false))
 			dev_err(rvu->dev, "NPC config for PTP failed\n");
