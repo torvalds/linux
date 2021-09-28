@@ -2383,7 +2383,7 @@ static void intel_post_plane_update(struct intel_atomic_state *state,
 	intel_frontbuffer_flip(dev_priv, new_crtc_state->fb_bits);
 
 	if (new_crtc_state->update_wm_post && new_crtc_state->hw.active)
-		intel_update_watermarks(crtc);
+		intel_update_watermarks(dev_priv);
 
 	if (hsw_post_update_enable_ips(old_crtc_state, new_crtc_state))
 		hsw_enable_ips(new_crtc_state);
@@ -2540,7 +2540,7 @@ static void intel_pre_plane_update(struct intel_atomic_state *state,
 		if (dev_priv->display.initial_watermarks)
 			dev_priv->display.initial_watermarks(state, crtc);
 		else if (new_crtc_state->update_wm_pre)
-			intel_update_watermarks(crtc);
+			intel_update_watermarks(dev_priv);
 	}
 
 	/*
@@ -3587,7 +3587,7 @@ static void i9xx_crtc_enable(struct intel_atomic_state *state,
 	if (dev_priv->display.initial_watermarks)
 		dev_priv->display.initial_watermarks(state, crtc);
 	else
-		intel_update_watermarks(crtc);
+		intel_update_watermarks(dev_priv);
 	intel_enable_transcoder(new_crtc_state);
 
 	intel_crtc_vblank_on(new_crtc_state);
@@ -3654,7 +3654,7 @@ static void i9xx_crtc_disable(struct intel_atomic_state *state,
 		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
 
 	if (!dev_priv->display.initial_watermarks)
-		intel_update_watermarks(crtc);
+		intel_update_watermarks(dev_priv);
 
 	/* clock the pipe down to 640x480@60 to potentially save power */
 	if (IS_I830(dev_priv))
@@ -3730,7 +3730,7 @@ static void intel_crtc_disable_noatomic(struct intel_crtc *crtc,
 		encoder->base.crtc = NULL;
 
 	intel_fbc_disable(crtc);
-	intel_update_watermarks(crtc);
+	intel_update_watermarks(dev_priv);
 	intel_disable_shared_dpll(crtc_state);
 
 	intel_display_power_put_all_in_set(dev_priv, &crtc->enabled_power_domains);

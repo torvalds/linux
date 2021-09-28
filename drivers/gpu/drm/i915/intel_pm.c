@@ -881,9 +881,8 @@ static struct intel_crtc *single_enabled_crtc(struct drm_i915_private *dev_priv)
 	return enabled;
 }
 
-static void pnv_update_wm(struct intel_crtc *unused_crtc)
+static void pnv_update_wm(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(unused_crtc->base.dev);
 	struct intel_crtc *crtc;
 	const struct cxsr_latency *latency;
 	u32 reg;
@@ -2248,9 +2247,8 @@ static void vlv_optimize_watermarks(struct intel_atomic_state *state,
 	mutex_unlock(&dev_priv->wm.wm_mutex);
 }
 
-static void i965_update_wm(struct intel_crtc *unused_crtc)
+static void i965_update_wm(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(unused_crtc->base.dev);
 	struct intel_crtc *crtc;
 	int srwm = 1;
 	int cursor_sr = 16;
@@ -2324,9 +2322,8 @@ static void i965_update_wm(struct intel_crtc *unused_crtc)
 
 #undef FW_WM
 
-static void i9xx_update_wm(struct intel_crtc *unused_crtc)
+static void i9xx_update_wm(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(unused_crtc->base.dev);
 	const struct intel_watermark_params *wm_info;
 	u32 fwater_lo;
 	u32 fwater_hi;
@@ -2476,9 +2473,8 @@ static void i9xx_update_wm(struct intel_crtc *unused_crtc)
 		intel_set_memory_cxsr(dev_priv, true);
 }
 
-static void i845_update_wm(struct intel_crtc *unused_crtc)
+static void i845_update_wm(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(unused_crtc->base.dev);
 	struct intel_crtc *crtc;
 	const struct drm_display_mode *pipe_mode;
 	u32 fwater_lo;
@@ -7136,7 +7132,7 @@ void ilk_wm_get_hw_state(struct drm_i915_private *dev_priv)
 
 /**
  * intel_update_watermarks - update FIFO watermark values based on current modes
- * @crtc: the #intel_crtc on which to compute the WM
+ * @dev_priv: i915 device
  *
  * Calculate watermark values for the various WM regs based on current mode
  * and plane configuration.
@@ -7167,12 +7163,10 @@ void ilk_wm_get_hw_state(struct drm_i915_private *dev_priv)
  * We don't use the sprite, so we can ignore that.  And on Crestline we have
  * to set the non-SR watermarks to 8.
  */
-void intel_update_watermarks(struct intel_crtc *crtc)
+void intel_update_watermarks(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-
 	if (dev_priv->display.update_wm)
-		dev_priv->display.update_wm(crtc);
+		dev_priv->display.update_wm(dev_priv);
 }
 
 void intel_enable_ipc(struct drm_i915_private *dev_priv)
