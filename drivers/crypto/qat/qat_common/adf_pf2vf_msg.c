@@ -5,14 +5,14 @@
 #include "adf_common_drv.h"
 #include "adf_pf2vf_msg.h"
 
-#define ADF_IOV_MSG_COLLISION_DETECT_DELAY	10
-#define ADF_IOV_MSG_ACK_DELAY			2
-#define ADF_IOV_MSG_ACK_MAX_RETRY		100
-#define ADF_IOV_MSG_RETRY_DELAY			5
-#define ADF_IOV_MSG_MAX_RETRIES			3
-#define ADF_IOV_MSG_RESP_TIMEOUT	(ADF_IOV_MSG_ACK_DELAY * \
-					 ADF_IOV_MSG_ACK_MAX_RETRY + \
-					 ADF_IOV_MSG_COLLISION_DETECT_DELAY)
+#define ADF_PFVF_MSG_COLLISION_DETECT_DELAY	10
+#define ADF_PFVF_MSG_ACK_DELAY			2
+#define ADF_PFVF_MSG_ACK_MAX_RETRY		100
+#define ADF_PFVF_MSG_RETRY_DELAY		5
+#define ADF_PFVF_MSG_MAX_RETRIES		3
+#define ADF_PFVF_MSG_RESP_TIMEOUT	(ADF_PFVF_MSG_ACK_DELAY * \
+					 ADF_PFVF_MSG_ACK_MAX_RETRY + \
+					 ADF_PFVF_MSG_COLLISION_DETECT_DELAY)
 
 void adf_enable_vf2pf_interrupts(struct adf_accel_dev *accel_dev, u32 vf_mask)
 {
@@ -103,9 +103,9 @@ static int __adf_iov_putmsg(struct adf_accel_dev *accel_dev, u32 msg, u8 vf_nr)
 
 	/* Wait for confirmation from remote func it received the message */
 	do {
-		msleep(ADF_IOV_MSG_ACK_DELAY);
+		msleep(ADF_PFVF_MSG_ACK_DELAY);
 		val = ADF_CSR_RD(pmisc_bar_addr, pf2vf_offset);
-	} while ((val & int_bit) && (count++ < ADF_IOV_MSG_ACK_MAX_RETRY));
+	} while ((val & int_bit) && (count++ < ADF_PFVF_MSG_ACK_MAX_RETRY));
 
 	if (val != msg) {
 		dev_dbg(&GET_DEV(accel_dev),
@@ -146,8 +146,8 @@ int adf_iov_putmsg(struct adf_accel_dev *accel_dev, u32 msg, u8 vf_nr)
 	do {
 		ret = __adf_iov_putmsg(accel_dev, msg, vf_nr);
 		if (ret)
-			msleep(ADF_IOV_MSG_RETRY_DELAY);
-	} while (ret && (count++ < ADF_IOV_MSG_MAX_RETRIES));
+			msleep(ADF_PFVF_MSG_RETRY_DELAY);
+	} while (ret && (count++ < ADF_PFVF_MSG_MAX_RETRIES));
 
 	return ret;
 }
@@ -277,7 +277,7 @@ void adf_pf2vf_notify_restarting(struct adf_accel_dev *accel_dev)
 
 static int adf_vf2pf_request_version(struct adf_accel_dev *accel_dev)
 {
-	unsigned long timeout = msecs_to_jiffies(ADF_IOV_MSG_RESP_TIMEOUT);
+	unsigned long timeout = msecs_to_jiffies(ADF_PFVF_MSG_RESP_TIMEOUT);
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	u32 msg = 0;
 	int ret;
