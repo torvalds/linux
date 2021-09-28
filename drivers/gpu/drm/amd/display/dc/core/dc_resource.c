@@ -41,6 +41,8 @@
 #include "set_mode_types.h"
 #include "virtual/virtual_stream_encoder.h"
 #include "dpcd_defs.h"
+#include "link_enc_cfg.h"
+#include "dc_link_dp.h"
 
 #if defined(CONFIG_DRM_AMD_DC_SI)
 #include "dce60/dce60_resource.h"
@@ -345,6 +347,29 @@ bool resource_construct(
 			pool->stream_enc_count++;
 		}
 	}
+
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	pool->hpo_dp_stream_enc_count = 0;
+	if (create_funcs->create_hpo_dp_stream_encoder) {
+		for (i = 0; i < caps->num_hpo_dp_stream_encoder; i++) {
+			pool->hpo_dp_stream_enc[i] = create_funcs->create_hpo_dp_stream_encoder(i+ENGINE_ID_HPO_DP_0, ctx);
+			if (pool->hpo_dp_stream_enc[i] == NULL)
+				DC_ERR("DC: failed to create HPO DP stream encoder!\n");
+			pool->hpo_dp_stream_enc_count++;
+
+		}
+	}
+
+	pool->hpo_dp_link_enc_count = 0;
+	if (create_funcs->create_hpo_dp_link_encoder) {
+		for (i = 0; i < caps->num_hpo_dp_link_encoder; i++) {
+			pool->hpo_dp_link_enc[i] = create_funcs->create_hpo_dp_link_encoder(i, ctx);
+			if (pool->hpo_dp_link_enc[i] == NULL)
+				DC_ERR("DC: failed to create HPO DP link encoder!\n");
+			pool->hpo_dp_link_enc_count++;
+		}
+	}
+#endif
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	for (i = 0; i < caps->num_mpc_3dlut; i++) {
@@ -1665,6 +1690,22 @@ static void update_stream_engine_usage(
 	}
 }
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+static void update_hpo_dp_stream_engine_usage(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		struct hpo_dp_stream_encoder *hpo_dp_stream_enc,
+		bool acquired)
+{
+	int i;
+
+	for (i = 0; i < pool->hpo_dp_stream_enc_count; i++) {
+		if (pool->hpo_dp_stream_enc[i] == hpo_dp_stream_enc)
+			res_ctx->is_hpo_dp_stream_enc_acquired[i] = acquired;
+	}
+}
+#endif
+
 /* TODO: release audio object */
 void update_audio_usage(
 		struct resource_context *res_ctx,
@@ -1708,6 +1749,26 @@ static int acquire_first_free_pipe(
 	}
 	return -1;
 }
+
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+static struct hpo_dp_stream_encoder *find_first_free_match_hpo_dp_stream_enc_for_link(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		struct dc_stream_state *stream)
+{
+	int i;
+
+	for (i = 0; i < pool->hpo_dp_stream_enc_count; i++) {
+		if (!res_ctx->is_hpo_dp_stream_enc_acquired[i] &&
+				pool->hpo_dp_stream_enc[i]) {
+
+			return pool->hpo_dp_stream_enc[i];
+		}
+	}
+
+	return NULL;
+}
+#endif
 
 static struct audio *find_first_free_audio(
 		struct resource_context *res_ctx,
@@ -1798,6 +1859,15 @@ enum dc_status dc_remove_stream_from_ctx(
 	/* Release link encoder from stream in new dc_state. */
 	if (dc->res_pool->funcs->link_enc_unassign)
 		dc->res_pool->funcs->link_enc_unassign(new_ctx, del_pipe->stream);
+
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	if (is_dp_128b_132b_signal(del_pipe)) {
+		update_hpo_dp_stream_engine_usage(
+			&new_ctx->res_ctx, dc->res_pool,
+			del_pipe->stream_res.hpo_dp_stream_enc,
+			false);
+	}
+#endif
 
 	if (del_pipe->stream_res.audio)
 		update_audio_usage(
@@ -2051,6 +2121,31 @@ enum dc_status resource_map_pool_resources(
 		pipe_ctx->stream_res.stream_enc,
 		true);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	/* Allocate DP HPO Stream Encoder based on signal, hw capabilities
+	 * and link settings
+	 */
+	if (dc_is_dp_signal(stream->signal) &&
+			dc->caps.dp_hpo) {
+		struct dc_link_settings link_settings = {0};
+
+		decide_link_settings(stream, &link_settings);
+		if (dp_get_link_encoding_format(&link_settings) == DP_128b_132b_ENCODING) {
+			pipe_ctx->stream_res.hpo_dp_stream_enc =
+					find_first_free_match_hpo_dp_stream_enc_for_link(
+							&context->res_ctx, pool, stream);
+
+			if (!pipe_ctx->stream_res.hpo_dp_stream_enc)
+				return DC_NO_STREAM_ENC_RESOURCE;
+
+			update_hpo_dp_stream_engine_usage(
+					&context->res_ctx, pool,
+					pipe_ctx->stream_res.hpo_dp_stream_enc,
+					true);
+		}
+	}
+#endif
+
 	/* TODO: Add check if ASIC support and EDID audio */
 	if (!stream->converter_disable_audio &&
 	    dc_is_audio_capable_signal(pipe_ctx->stream->signal) &&
@@ -2147,7 +2242,7 @@ enum dc_status dc_validate_global_state(
 	 * Update link encoder to stream assignment.
 	 * TODO: Split out reason allocation from validation.
 	 */
-	if (dc->res_pool->funcs->link_encs_assign)
+	if (dc->res_pool->funcs->link_encs_assign && fast_validate == false)
 		dc->res_pool->funcs->link_encs_assign(
 			dc, new_ctx, new_ctx->streams, new_ctx->stream_count);
 #endif
@@ -2726,9 +2821,24 @@ bool pipe_need_reprogram(
 	if (pipe_ctx_old->stream_res.dsc != pipe_ctx->stream_res.dsc)
 		return true;
 
-	/* DIG link encoder resource assignment for stream changed. */
-	if (pipe_ctx_old->stream->link_enc != pipe_ctx->stream->link_enc)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	if (pipe_ctx_old->stream_res.hpo_dp_stream_enc != pipe_ctx->stream_res.hpo_dp_stream_enc)
 		return true;
+#endif
+
+	/* DIG link encoder resource assignment for stream changed. */
+	if (pipe_ctx_old->stream->ctx->dc->res_pool->funcs->link_encs_assign) {
+		bool need_reprogram = false;
+		struct dc *dc = pipe_ctx_old->stream->ctx->dc;
+		enum link_enc_cfg_mode mode = dc->current_state->res_ctx.link_enc_cfg_ctx.mode;
+
+		dc->current_state->res_ctx.link_enc_cfg_ctx.mode = LINK_ENC_CFG_STEADY;
+		if (link_enc_cfg_get_link_enc_used_by_stream(dc, pipe_ctx_old->stream) != pipe_ctx->stream->link_enc)
+			need_reprogram = true;
+		dc->current_state->res_ctx.link_enc_cfg_ctx.mode = mode;
+
+		return need_reprogram;
+	}
 
 	return false;
 }
@@ -2871,7 +2981,8 @@ enum dc_status dc_validate_stream(struct dc *dc, struct dc_stream_state *stream)
 		res = DC_FAIL_CONTROLLER_VALIDATE;
 
 	if (res == DC_OK) {
-		if (!link->link_enc->funcs->validate_output_with_stream(
+		if (link->ep_type == DISPLAY_ENDPOINT_PHY &&
+				!link->link_enc->funcs->validate_output_with_stream(
 						link->link_enc, stream))
 			res = DC_FAIL_ENC_VALIDATE;
 	}
@@ -2975,3 +3086,22 @@ void get_audio_check(struct audio_info *aud_modes,
 	}
 }
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+struct hpo_dp_link_encoder *resource_get_unused_hpo_dp_link_encoder(
+		const struct resource_pool *pool)
+{
+	uint8_t i;
+	struct hpo_dp_link_encoder *enc = NULL;
+
+	ASSERT(pool->hpo_dp_link_enc_count <= MAX_HPO_DP2_LINK_ENCODERS);
+
+	for (i = 0; i < pool->hpo_dp_link_enc_count; i++) {
+		if (pool->hpo_dp_link_enc[i]->transmitter == TRANSMITTER_UNKNOWN) {
+			enc = pool->hpo_dp_link_enc[i];
+			break;
+		}
+	}
+
+	return enc;
+}
+#endif

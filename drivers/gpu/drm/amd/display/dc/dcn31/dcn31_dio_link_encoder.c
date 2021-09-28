@@ -37,6 +37,7 @@
 
 #include "link_enc_cfg.h"
 #include "dc_dmub_srv.h"
+#include "dal_asic_id.h"
 
 #define CTX \
 	enc10->base.ctx
@@ -215,7 +216,7 @@ static const struct link_encoder_funcs dcn31_link_enc_funcs = {
 	.fec_is_active = enc2_fec_is_active,
 	.get_dig_frontend = dcn10_get_dig_frontend,
 	.get_dig_mode = dcn10_get_dig_mode,
-	.is_in_alt_mode = dcn20_link_encoder_is_in_alt_mode,
+	.is_in_alt_mode = dcn31_link_encoder_is_in_alt_mode,
 	.get_max_link_cap = dcn20_link_encoder_get_max_link_cap,
 	.set_dio_phy_mux = dcn31_link_encoder_set_dio_phy_mux,
 };
@@ -320,6 +321,10 @@ void dcn31_link_encoder_construct(
 		enc10->base.features.flags.bits.IS_HBR3_CAPABLE =
 				bp_cap_info.DP_HBR3_EN;
 		enc10->base.features.flags.bits.HDMI_6GB_EN = bp_cap_info.HDMI_6GB_EN;
+		enc10->base.features.flags.bits.IS_DP2_CAPABLE = bp_cap_info.IS_DP2_CAPABLE;
+		enc10->base.features.flags.bits.IS_UHBR10_CAPABLE = bp_cap_info.DP_UHBR10_EN;
+		enc10->base.features.flags.bits.IS_UHBR13_5_CAPABLE = bp_cap_info.DP_UHBR13_5_EN;
+		enc10->base.features.flags.bits.IS_UHBR20_CAPABLE = bp_cap_info.DP_UHBR20_EN;
 		enc10->base.features.flags.bits.DP_IS_USB_C =
 				bp_cap_info.DP_IS_USB_C;
 	} else {
@@ -363,7 +368,7 @@ void dcn31_link_encoder_enable_dp_output(
 	enum clock_source_id clock_source)
 {
 	/* Enable transmitter and encoder. */
-	if (!link_enc_cfg_is_transmitter_mappable(enc->ctx->dc->current_state, enc)) {
+	if (!link_enc_cfg_is_transmitter_mappable(enc->ctx->dc, enc)) {
 
 		dcn20_link_encoder_enable_dp_output(enc, link_settings, clock_source);
 
@@ -379,7 +384,7 @@ void dcn31_link_encoder_enable_dp_mst_output(
 	enum clock_source_id clock_source)
 {
 	/* Enable transmitter and encoder. */
-	if (!link_enc_cfg_is_transmitter_mappable(enc->ctx->dc->current_state, enc)) {
+	if (!link_enc_cfg_is_transmitter_mappable(enc->ctx->dc, enc)) {
 
 		dcn10_link_encoder_enable_dp_mst_output(enc, link_settings, clock_source);
 
@@ -394,7 +399,7 @@ void dcn31_link_encoder_disable_output(
 	enum signal_type signal)
 {
 	/* Disable transmitter and encoder. */
-	if (!link_enc_cfg_is_transmitter_mappable(enc->ctx->dc->current_state, enc)) {
+	if (!link_enc_cfg_is_transmitter_mappable(enc->ctx->dc, enc)) {
 
 		dcn10_link_encoder_disable_output(enc, signal);
 
@@ -404,3 +409,33 @@ void dcn31_link_encoder_disable_output(
 	}
 }
 
+bool dcn31_link_encoder_is_in_alt_mode(struct link_encoder *enc)
+{
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+	uint32_t dp_alt_mode_disable;
+	bool is_usb_c_alt_mode = false;
+
+	if (enc->features.flags.bits.DP_IS_USB_C) {
+		if (enc->ctx->asic_id.hw_internal_rev != YELLOW_CARP_B0) {
+			// [Note] no need to check hw_internal_rev once phy mux selection is ready
+			REG_GET(RDPCSTX_PHY_CNTL6, RDPCS_PHY_DPALT_DISABLE, &dp_alt_mode_disable);
+		} else {
+		/*
+		 * B0 phys use a new set of registers to check whether alt mode is disabled.
+		 * if value == 1 alt mode is disabled, otherwise it is enabled.
+		 */
+			if ((enc10->base.transmitter == TRANSMITTER_UNIPHY_A)
+					|| (enc10->base.transmitter == TRANSMITTER_UNIPHY_B)
+					|| (enc10->base.transmitter == TRANSMITTER_UNIPHY_E)) {
+				REG_GET(RDPCSTX_PHY_CNTL6, RDPCS_PHY_DPALT_DISABLE, &dp_alt_mode_disable);
+			} else {
+			// [Note] need to change TRANSMITTER_UNIPHY_C/D to F/G once phy mux selection is ready
+				REG_GET(RDPCSPIPE_PHY_CNTL6, RDPCS_PHY_DPALT_DISABLE, &dp_alt_mode_disable);
+			}
+		}
+
+		is_usb_c_alt_mode = (dp_alt_mode_disable == 0);
+	}
+
+	return is_usb_c_alt_mode;
+}

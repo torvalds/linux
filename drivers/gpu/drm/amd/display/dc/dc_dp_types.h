@@ -53,7 +53,17 @@ enum dc_link_rate {
 	LINK_RATE_RBR2 = 0x0C,		// Rate_5 (RBR2)- 3.24 Gbps/Lane
 	LINK_RATE_RATE_6 = 0x10,	// Rate_6		- 4.32 Gbps/Lane
 	LINK_RATE_HIGH2 = 0x14,		// Rate_7 (HBR2)- 5.40 Gbps/Lane
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	LINK_RATE_HIGH3 = 0x1E,		// Rate_8 (HBR3)- 8.10 Gbps/Lane
+	/* Starting from DP2.0 link rate enum directly represents actual
+	 * link rate value in unit of 10 mbps
+	 */
+	LINK_RATE_UHBR10 = 1000,	// UHBR10 - 10.0 Gbps/Lane
+	LINK_RATE_UHBR13_5 = 1350,	// UHBR13.5 - 13.5 Gbps/Lane
+	LINK_RATE_UHBR20 = 2000,	// UHBR10 - 20.0 Gbps/Lane
+#else
 	LINK_RATE_HIGH3 = 0x1E		// Rate_8 (HBR3)- 8.10 Gbps/Lane
+#endif
 };
 
 enum dc_link_spread {
@@ -90,17 +100,47 @@ enum dc_post_cursor2 {
 	POST_CURSOR2_MAX_LEVEL = POST_CURSOR2_LEVEL3,
 };
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+enum dc_dp_ffe_preset_level {
+	DP_FFE_PRESET_LEVEL0 = 0,
+	DP_FFE_PRESET_LEVEL1,
+	DP_FFE_PRESET_LEVEL2,
+	DP_FFE_PRESET_LEVEL3,
+	DP_FFE_PRESET_LEVEL4,
+	DP_FFE_PRESET_LEVEL5,
+	DP_FFE_PRESET_LEVEL6,
+	DP_FFE_PRESET_LEVEL7,
+	DP_FFE_PRESET_LEVEL8,
+	DP_FFE_PRESET_LEVEL9,
+	DP_FFE_PRESET_LEVEL10,
+	DP_FFE_PRESET_LEVEL11,
+	DP_FFE_PRESET_LEVEL12,
+	DP_FFE_PRESET_LEVEL13,
+	DP_FFE_PRESET_LEVEL14,
+	DP_FFE_PRESET_LEVEL15,
+	DP_FFE_PRESET_MAX_LEVEL = DP_FFE_PRESET_LEVEL15,
+};
+#endif
+
 enum dc_dp_training_pattern {
 	DP_TRAINING_PATTERN_SEQUENCE_1 = 0,
 	DP_TRAINING_PATTERN_SEQUENCE_2,
 	DP_TRAINING_PATTERN_SEQUENCE_3,
 	DP_TRAINING_PATTERN_SEQUENCE_4,
 	DP_TRAINING_PATTERN_VIDEOIDLE,
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	DP_128b_132b_TPS1,
+	DP_128b_132b_TPS2,
+	DP_128b_132b_TPS2_CDS,
+#endif
 };
 
 enum dp_link_encoding {
 	DP_UNKNOWN_ENCODING = 0,
 	DP_8b_10b_ENCODING = 1,
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	DP_128b_132b_ENCODING = 2,
+#endif
 };
 
 struct dc_link_settings {
@@ -112,10 +152,26 @@ struct dc_link_settings {
 	bool dpcd_source_device_specific_field_support;
 };
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+union dc_dp_ffe_preset {
+	struct {
+		uint8_t level		: 4;
+		uint8_t reserved	: 1;
+		uint8_t no_preshoot	: 1;
+		uint8_t no_deemphasis	: 1;
+		uint8_t method2		: 1;
+	} settings;
+	uint8_t raw;
+};
+#endif
+
 struct dc_lane_settings {
 	enum dc_voltage_swing VOLTAGE_SWING;
 	enum dc_pre_emphasis PRE_EMPHASIS;
 	enum dc_post_cursor2 POST_CURSOR2;
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	union dc_dp_ffe_preset FFE_PRESET;
+#endif
 };
 
 struct dc_link_training_settings {
@@ -127,6 +183,9 @@ struct dc_link_training_overrides {
 	enum dc_voltage_swing *voltage_swing;
 	enum dc_pre_emphasis *pre_emphasis;
 	enum dc_post_cursor2 *post_cursor2;
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	union dc_dp_ffe_preset *ffe_preset;
+#endif
 
 	uint16_t *cr_pattern_time;
 	uint16_t *eq_pattern_time;
@@ -139,6 +198,16 @@ struct dc_link_training_overrides {
 	bool *mst_enable;
 	bool *fec_enable;
 };
+
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+union payload_table_update_status {
+	struct {
+		uint8_t  VC_PAYLOAD_TABLE_UPDATED:1;
+		uint8_t  ACT_HANDLED:1;
+	} bits;
+	uint8_t  raw;
+};
+#endif
 
 union dpcd_rev {
 	struct {
@@ -227,7 +296,14 @@ union lane_align_status_updated {
 	struct {
 		uint8_t INTERLANE_ALIGN_DONE:1;
 		uint8_t POST_LT_ADJ_REQ_IN_PROGRESS:1;
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+		uint8_t EQ_INTERLANE_ALIGN_DONE_128b_132b:1;
+		uint8_t CDS_INTERLANE_ALIGN_DONE_128b_132b:1;
+		uint8_t LT_FAILED_128b_132b:1;
+		uint8_t RESERVED:1;
+#else
 		uint8_t RESERVED:4;
+#endif
 		uint8_t DOWNSTREAM_PORT_STATUS_CHANGED:1;
 		uint8_t LINK_STATUS_UPDATED:1;
 	} bits;
@@ -240,6 +316,12 @@ union lane_adjust {
 		uint8_t PRE_EMPHASIS_LANE:2;
 		uint8_t RESERVED:4;
 	} bits;
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	struct {
+		uint8_t PRESET_VALUE	:4;
+		uint8_t RESERVED	:4;
+	} tx_ffe;
+#endif
 	uint8_t raw;
 };
 
@@ -269,6 +351,12 @@ union dpcd_training_lane {
 		uint8_t MAX_PRE_EMPHASIS_REACHED:1;
 		uint8_t RESERVED:2;
 	} bits;
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	struct {
+		uint8_t PRESET_VALUE	:4;
+		uint8_t RESERVED	:4;
+	} tx_ffe;
+#endif
 	uint8_t raw;
 };
 
@@ -551,12 +639,18 @@ union test_response {
 
 union phy_test_pattern {
 	struct {
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+		/* This field is 7 bits for DP2.0 */
+		uint8_t PATTERN     :7;
+		uint8_t RESERVED    :1;
+#else
 		/* DpcdPhyTestPatterns. This field is 2 bits for DP1.1
 		 * and 3 bits for DP1.2.
 		 */
 		uint8_t PATTERN     :3;
 		/* BY speci, bit7:2 is 0 for DP1.1. */
 		uint8_t RESERVED    :5;
+#endif
 	} bits;
 	uint8_t raw;
 };
@@ -634,7 +728,14 @@ union dpcd_fec_capability {
 		uint8_t UNCORRECTED_BLOCK_ERROR_COUNT_CAPABLE:1;
 		uint8_t CORRECTED_BLOCK_ERROR_COUNT_CAPABLE:1;
 		uint8_t BIT_ERROR_COUNT_CAPABLE:1;
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+		uint8_t PARITY_BLOCK_ERROR_COUNT_CAPABLE:1;
+		uint8_t ARITY_BIT_ERROR_COUNT_CAPABLE:1;
+		uint8_t FEC_RUNNING_INDICATOR_SUPPORTED:1;
+		uint8_t FEC_ERROR_REPORTING_POLICY_SUPPORTED:1;
+#else
 		uint8_t RESERVED:4;
+#endif
 	} bits;
 	uint8_t raw;
 };
@@ -757,5 +858,126 @@ struct psr_caps {
 	unsigned int psr_rfb_setup_time;
 	bool psr_exit_link_training_required;
 };
+
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+#define DP_MAIN_LINK_CHANNEL_CODING_CAP			0x006
+#define DP_SINK_VIDEO_FALLBACK_FORMATS			0x020
+#define DP_FEC_CAPABILITY_1				0x091
+#define DP_DFP_CAPABILITY_EXTENSION_SUPPORT		0x0A3
+#define DP_DSC_CONFIGURATION				0x161
+#define DP_PHY_SQUARE_PATTERN				0x249
+#define DP_128b_132b_SUPPORTED_LINK_RATES		0x2215
+#define DP_128b_132b_TRAINING_AUX_RD_INTERVAL		0x2216
+#define DP_TEST_264BIT_CUSTOM_PATTERN_7_0		0X2230
+#define DP_TEST_264BIT_CUSTOM_PATTERN_263_256		0X2250
+#define DP_DSC_SUPPORT_AND_DECODER_COUNT		0x2260
+#define DP_DSC_MAX_SLICE_COUNT_AND_AGGREGATION_0	0x2270
+# define DP_DSC_DECODER_0_MAXIMUM_SLICE_COUNT_MASK	(1 << 0)
+# define DP_DSC_DECODER_0_AGGREGATION_SUPPORT_MASK	(0b111 << 1)
+# define DP_DSC_DECODER_0_AGGREGATION_SUPPORT_SHIFT	1
+# define DP_DSC_DECODER_COUNT_MASK			(0b111 << 5)
+# define DP_DSC_DECODER_COUNT_SHIFT			5
+#define DP_MAIN_LINK_CHANNEL_CODING_SET			0x108
+#define DP_MAIN_LINK_CHANNEL_CODING_PHY_REPEATER	0xF0006
+#define DP_PHY_REPEATER_128b_132b_RATES			0xF0007
+#define DP_128b_132b_TRAINING_AUX_RD_INTERVAL_PHY_REPEATER1	0xF0022
+#define DP_INTRA_HOP_AUX_REPLY_INDICATION		(1 << 3)
+/* TODO - Use DRM header to replace above once available */
+
+union dp_main_line_channel_coding_cap {
+	struct {
+		uint8_t DP_8b_10b_SUPPORTED	:1;
+		uint8_t DP_128b_132b_SUPPORTED	:1;
+		uint8_t RESERVED		:6;
+	} bits;
+	uint8_t raw;
+};
+
+union dp_main_link_channel_coding_lttpr_cap {
+	struct {
+		uint8_t DP_128b_132b_SUPPORTED	:1;
+		uint8_t RESERVED		:7;
+	} bits;
+	uint8_t raw;
+};
+
+union dp_128b_132b_supported_link_rates {
+	struct {
+		uint8_t UHBR10	:1;
+		uint8_t UHBR20	:1;
+		uint8_t UHBR13_5:1;
+		uint8_t RESERVED:5;
+	} bits;
+	uint8_t raw;
+};
+
+union dp_128b_132b_supported_lttpr_link_rates {
+	struct {
+		uint8_t UHBR10	:1;
+		uint8_t UHBR13_5:1;
+		uint8_t UHBR20	:1;
+		uint8_t RESERVED:5;
+	} bits;
+	uint8_t raw;
+};
+
+union dp_sink_video_fallback_formats {
+	struct {
+		uint8_t dp_1024x768_60Hz_24bpp_support	:1;
+		uint8_t dp_1280x720_60Hz_24bpp_support	:1;
+		uint8_t dp_1920x1080_60Hz_24bpp_support	:1;
+		uint8_t RESERVED			:5;
+	} bits;
+	uint8_t raw;
+};
+
+union dp_fec_capability1 {
+	struct {
+		uint8_t AGGREGATED_ERROR_COUNTERS_CAPABLE	:1;
+		uint8_t RESERVED				:7;
+	} bits;
+	uint8_t raw;
+};
+
+struct dp_color_depth_caps {
+	uint8_t support_6bpc	:1;
+	uint8_t support_8bpc	:1;
+	uint8_t support_10bpc	:1;
+	uint8_t support_12bpc	:1;
+	uint8_t support_16bpc	:1;
+	uint8_t RESERVED	:3;
+};
+
+struct dp_encoding_format_caps {
+	uint8_t support_rgb	:1;
+	uint8_t support_ycbcr444:1;
+	uint8_t support_ycbcr422:1;
+	uint8_t support_ycbcr420:1;
+	uint8_t RESERVED	:4;
+};
+
+union dp_dfp_cap_ext {
+	struct {
+		uint8_t supported;
+		uint8_t max_pixel_rate_in_mps[2];
+		uint8_t max_video_h_active_width[2];
+		uint8_t max_video_v_active_height[2];
+		struct dp_encoding_format_caps encoding_format_caps;
+		struct dp_color_depth_caps rgb_color_depth_caps;
+		struct dp_color_depth_caps ycbcr444_color_depth_caps;
+		struct dp_color_depth_caps ycbcr422_color_depth_caps;
+		struct dp_color_depth_caps ycbcr420_color_depth_caps;
+	} fields;
+	uint8_t raw[12];
+};
+
+union dp_128b_132b_training_aux_rd_interval {
+	struct {
+		uint8_t VALUE	:7;
+		uint8_t UNIT	:1;
+	} bits;
+	uint8_t raw;
+};
+#endif
 
 #endif /* DC_DP_TYPES_H */

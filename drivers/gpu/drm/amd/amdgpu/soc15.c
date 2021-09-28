@@ -85,6 +85,8 @@
 #define mmMP0_MISC_LIGHT_SLEEP_CTRL                                                             0x01ba
 #define mmMP0_MISC_LIGHT_SLEEP_CTRL_BASE_IDX                                                    0
 
+static const struct amd_ip_funcs soc15_common_ip_funcs;
+
 /* Vega, Raven, Arcturus */
 static const struct amdgpu_video_codec_info vega_video_codecs_encode_array[] =
 {
@@ -1645,7 +1647,7 @@ static int soc15_common_set_powergating_state(void *handle,
 	return 0;
 }
 
-const struct amd_ip_funcs soc15_common_ip_funcs = {
+static const struct amd_ip_funcs soc15_common_ip_funcs = {
 	.name = "soc15_common",
 	.early_init = soc15_common_early_init,
 	.late_init = soc15_common_late_init,

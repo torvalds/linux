@@ -1296,7 +1296,7 @@ struct stream_encoder *dcn10_find_first_free_match_stream_enc_for_link(
 			 * in daisy chain use case
 			 */
 			j = i;
-			if (pool->stream_enc[i]->id ==
+			if (link->ep_type == DISPLAY_ENDPOINT_PHY && pool->stream_enc[i]->id ==
 					link->link_enc->preferred_engine)
 				return pool->stream_enc[i];
 		}

@@ -49,7 +49,7 @@ struct dml_funcs {
 			struct display_mode_lib *mode_lib,
 			display_dlg_regs_st *dlg_regs,
 			display_ttu_regs_st *ttu_regs,
-			display_e2e_pipe_params_st *e2e_pipe_param,
+			const display_e2e_pipe_params_st *e2e_pipe_param,
 			const unsigned int num_pipes,
 			const unsigned int pipe_idx,
 			const bool cstate_en,
@@ -60,7 +60,7 @@ struct dml_funcs {
 	void (*rq_dlg_get_rq_reg)(
 		struct display_mode_lib *mode_lib,
 		display_rq_regs_st *rq_regs,
-		const display_pipe_params_st pipe_param);
+		const display_pipe_params_st *pipe_param);
 	void (*recalculate)(struct display_mode_lib *mode_lib);
 	void (*validate)(struct display_mode_lib *mode_lib);
 };
