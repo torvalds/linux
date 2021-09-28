@@ -26,6 +26,7 @@
 #include "reg_helper.h"
 #include "core_types.h"
 #include "dcn31_dccg.h"
+#include "dal_asic_id.h"
 
 #define TO_DCN_DCCG(dccg)\
 	container_of(dccg, struct dcn_dccg, base)
@@ -80,6 +81,18 @@ static void dccg31_update_dpp_dto(struct dccg *dccg, int dpp_inst, int req_dppcl
 	dccg->pipe_dppclk_khz[dpp_inst] = req_dppclk;
 }
 
+static enum phyd32clk_clock_source get_phy_mux_symclk(
+		struct dcn_dccg *dccg_dcn,
+		enum phyd32clk_clock_source src)
+{
+	if (dccg_dcn->base.ctx->asic_id.hw_internal_rev == YELLOW_CARP_B0) {
+		if (src == PHYD32CLKC)
+			src = PHYD32CLKF;
+		if (src == PHYD32CLKD)
+			src = PHYD32CLKG;
+	}
+	return src;
+}
 
 void dccg31_set_dpstreamclk(
 		struct dccg *dccg,
@@ -118,6 +131,8 @@ void dccg31_enable_symclk32_se(
 		enum phyd32clk_clock_source phyd32clk)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	phyd32clk = get_phy_mux_symclk(dccg_dcn, phyd32clk);
 
 	/* select one of the PHYD32CLKs as the source for symclk32_se */
 	switch (hpo_se_inst) {
@@ -187,6 +202,8 @@ void dccg31_enable_symclk32_le(
 		enum phyd32clk_clock_source phyd32clk)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	phyd32clk = get_phy_mux_symclk(dccg_dcn, phyd32clk);
 
 	/* select one of the PHYD32CLKs as the source for symclk32_le */
 	switch (hpo_le_inst) {
