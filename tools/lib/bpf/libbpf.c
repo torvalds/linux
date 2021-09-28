@@ -7968,6 +7968,7 @@ static const struct bpf_sec_def section_defs[] = {
 		.attach_fn = attach_kprobe),
 	BPF_PROG_SEC("uretprobe/",		BPF_PROG_TYPE_KPROBE),
 	BPF_PROG_SEC("classifier",		BPF_PROG_TYPE_SCHED_CLS),
+	BPF_PROG_SEC("tc",			BPF_PROG_TYPE_SCHED_CLS),
 	BPF_PROG_SEC("action",			BPF_PROG_TYPE_SCHED_ACT),
 	SEC_DEF("tracepoint/", TRACEPOINT,
 		.attach_fn = attach_tp),
