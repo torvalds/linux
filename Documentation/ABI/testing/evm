@@ -1,4 +1,5 @@
-What:		/sys/kernel/security/evm /sys/kernel/security/*/evm
+What:		/sys/kernel/security/evm
+What:		/sys/kernel/security/*/evm
 Date:		March 2011
 Contact:	Mimi Zohar <zohar@us.ibm.com>
 Description:
