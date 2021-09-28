@@ -22,6 +22,7 @@
 #include <dt-bindings/firmware/imx/rsrc.h>
 #include "../ops.h"
 #include "imx-common.h"
+#include "imx-ops.h"
 
 /* DSP memories */
 #define IRAM_OFFSET		0x10000
