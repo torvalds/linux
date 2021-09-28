@@ -27,7 +27,6 @@
 #define PCI_DEVID_CN10K_PTP			0xA09E
 
 #define PCI_PTP_BAR_NO				0
-#define PCI_RST_BAR_NO				0
 
 #define PTP_CLOCK_CFG				0xF00ULL
 #define PTP_CLOCK_CFG_PTP_EN			BIT_ULL(0)
@@ -35,45 +34,8 @@
 #define PTP_CLOCK_HI				0xF10ULL
 #define PTP_CLOCK_COMP				0xF18ULL
 
-#define RST_BOOT				0x1600ULL
-#define RST_MUL_BITS				GENMASK_ULL(38, 33)
-#define CLOCK_BASE_RATE				50000000ULL
-
 static struct ptp *first_ptp_block;
 static const struct pci_device_id ptp_id_table[];
-
-static u64 get_clock_rate(void)
-{
-	u64 cfg, ret = CLOCK_BASE_RATE * 16;
-	struct pci_dev *pdev;
-	void __iomem *base;
-
-	/* To get the input clock frequency with which PTP co-processor
-	 * block is running the base frequency(50 MHz) needs to be multiplied
-	 * with multiplier bits present in RST_BOOT register of RESET block.
-	 * Hence below code gets the multiplier bits from the RESET PCI
-	 * device present in the system.
-	 */
-	pdev = pci_get_device(PCI_VENDOR_ID_CAVIUM,
-			      PCI_DEVID_OCTEONTX2_RST, NULL);
-	if (!pdev)
-		goto error;
-
-	base = pci_ioremap_bar(pdev, PCI_RST_BAR_NO);
-	if (!base)
-		goto error_put_pdev;
-
-	cfg = readq(base + RST_BOOT);
-	ret = CLOCK_BASE_RATE * FIELD_GET(RST_MUL_BITS, cfg);
-
-	iounmap(base);
-
-error_put_pdev:
-	pci_dev_put(pdev);
-
-error:
-	return ret;
-}
 
 struct ptp *ptp_get(void)
 {
@@ -145,13 +107,40 @@ static int ptp_get_clock(struct ptp *ptp, u64 *clk)
 	return 0;
 }
 
+void ptp_start(struct ptp *ptp, u64 sclk)
+{
+	struct pci_dev *pdev;
+	u64 clock_comp;
+	u64 clock_cfg;
+
+	if (!ptp)
+		return;
+
+	pdev = ptp->pdev;
+
+	if (!sclk) {
+		dev_err(&pdev->dev, "PTP input clock cannot be zero\n");
+		return;
+	}
+
+	/* sclk is in MHz */
+	ptp->clock_rate = sclk * 1000000;
+
+	/* Enable PTP clock */
+	clock_cfg = readq(ptp->reg_base + PTP_CLOCK_CFG);
+	clock_cfg |= PTP_CLOCK_CFG_PTP_EN;
+	writeq(clock_cfg, ptp->reg_base + PTP_CLOCK_CFG);
+
+	clock_comp = ((u64)1000000000ull << 32) / ptp->clock_rate;
+	/* Initial compensation value to start the nanosecs counter */
+	writeq(clock_comp, ptp->reg_base + PTP_CLOCK_COMP);
+}
+
 static int ptp_probe(struct pci_dev *pdev,
 		     const struct pci_device_id *ent)
 {
 	struct device *dev = &pdev->dev;
 	struct ptp *ptp;
-	u64 clock_comp;
-	u64 clock_cfg;
 	int err;
 
 	ptp = devm_kzalloc(dev, sizeof(*ptp), GFP_KERNEL);
@@ -171,17 +160,6 @@ static int ptp_probe(struct pci_dev *pdev,
 		goto error_free;
 
 	ptp->reg_base = pcim_iomap_table(pdev)[PCI_PTP_BAR_NO];
-
-	ptp->clock_rate = get_clock_rate();
-
-	/* Enable PTP clock */
-	clock_cfg = readq(ptp->reg_base + PTP_CLOCK_CFG);
-	clock_cfg |= PTP_CLOCK_CFG_PTP_EN;
-	writeq(clock_cfg, ptp->reg_base + PTP_CLOCK_CFG);
-
-	clock_comp = ((u64)1000000000ull << 32) / ptp->clock_rate;
-	/* Initial compensation value to start the nanosecs counter */
-	writeq(clock_comp, ptp->reg_base + PTP_CLOCK_COMP);
 
 	pci_set_drvdata(pdev, ptp);
 	if (!first_ptp_block)

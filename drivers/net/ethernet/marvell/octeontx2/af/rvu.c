@@ -3240,6 +3240,9 @@ static int rvu_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	mutex_init(&rvu->rswitch.switch_lock);
 
+	if (rvu->fwdata)
+		ptp_start(rvu->ptp, rvu->fwdata->sclk);
+
 	return 0;
 err_dl:
 	rvu_unregister_dl(rvu);

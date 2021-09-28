@@ -20,6 +20,7 @@ struct ptp {
 
 struct ptp *ptp_get(void);
 void ptp_put(struct ptp *ptp);
+void ptp_start(struct ptp *ptp, u64 sclk);
 
 extern struct pci_driver ptp_driver;
 
