@@ -7312,7 +7312,7 @@ static int ath11k_mac_setup_channels_rates(struct ath11k *ar,
 					   u32 supported_bands)
 {
 	struct ieee80211_supported_band *band;
-	struct ath11k_hal_reg_capabilities_ext *reg_cap;
+	struct ath11k_hal_reg_capabilities_ext *reg_cap, *temp_reg_cap;
 	void *channels;
 	u32 phy_id;
 
@@ -7322,6 +7322,7 @@ static int ath11k_mac_setup_channels_rates(struct ath11k *ar,
 		     ATH11K_NUM_CHANS);
 
 	reg_cap = &ar->ab->hal_reg_cap[ar->pdev_idx];
+	temp_reg_cap = reg_cap;
 
 	if (supported_bands & WMI_HOST_WLAN_2G_CAP) {
 		channels = kmemdup(ath11k_2ghz_channels,
@@ -7340,11 +7341,11 @@ static int ath11k_mac_setup_channels_rates(struct ath11k *ar,
 
 		if (ar->ab->hw_params.single_pdev_only) {
 			phy_id = ath11k_get_phy_id(ar, WMI_HOST_WLAN_2G_CAP);
-			reg_cap = &ar->ab->hal_reg_cap[phy_id];
+			temp_reg_cap = &ar->ab->hal_reg_cap[phy_id];
 		}
 		ath11k_mac_update_ch_list(ar, band,
-					  reg_cap->low_2ghz_chan,
-					  reg_cap->high_2ghz_chan);
+					  temp_reg_cap->low_2ghz_chan,
+					  temp_reg_cap->high_2ghz_chan);
 	}
 
 	if (supported_bands & WMI_HOST_WLAN_5G_CAP) {
@@ -7364,9 +7365,15 @@ static int ath11k_mac_setup_channels_rates(struct ath11k *ar,
 			band->n_bitrates = ath11k_a_rates_size;
 			band->bitrates = ath11k_a_rates;
 			ar->hw->wiphy->bands[NL80211_BAND_6GHZ] = band;
+
+			if (ar->ab->hw_params.single_pdev_only) {
+				phy_id = ath11k_get_phy_id(ar, WMI_HOST_WLAN_5G_CAP);
+				temp_reg_cap = &ar->ab->hal_reg_cap[phy_id];
+			}
+
 			ath11k_mac_update_ch_list(ar, band,
-						  reg_cap->low_5ghz_chan,
-						  reg_cap->high_5ghz_chan);
+						  temp_reg_cap->low_5ghz_chan,
+						  temp_reg_cap->high_5ghz_chan);
 		}
 
 		if (reg_cap->low_5ghz_chan < ATH11K_MIN_6G_FREQ) {
@@ -7389,12 +7396,12 @@ static int ath11k_mac_setup_channels_rates(struct ath11k *ar,
 
 			if (ar->ab->hw_params.single_pdev_only) {
 				phy_id = ath11k_get_phy_id(ar, WMI_HOST_WLAN_5G_CAP);
-				reg_cap = &ar->ab->hal_reg_cap[phy_id];
+				temp_reg_cap = &ar->ab->hal_reg_cap[phy_id];
 			}
 
 			ath11k_mac_update_ch_list(ar, band,
-						  reg_cap->low_5ghz_chan,
-						  reg_cap->high_5ghz_chan);
+						  temp_reg_cap->low_5ghz_chan,
+						  temp_reg_cap->high_5ghz_chan);
 		}
 	}
 
