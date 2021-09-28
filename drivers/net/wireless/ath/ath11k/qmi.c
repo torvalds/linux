@@ -2033,6 +2033,7 @@ err_free_req:
 
 static int ath11k_qmi_load_bdf_qmi(struct ath11k_base *ab)
 {
+	struct device *dev = ab->dev;
 	char filename[ATH11K_QMI_MAX_BDF_FILE_NAME_SIZE];
 	const struct firmware *fw_entry;
 	struct ath11k_board_data bd;
@@ -2067,6 +2068,14 @@ static int ath11k_qmi_load_bdf_qmi(struct ath11k_base *ab)
 		goto out;
 
 	file_type = ATH11K_QMI_FILE_TYPE_CALDATA;
+
+	/* cal-<bus>-<id>.bin */
+	snprintf(filename, sizeof(filename), "cal-%s-%s.bin",
+		 ath11k_bus_str(ab->hif.bus), dev_name(dev));
+	fw_entry = ath11k_core_firmware_request(ab, filename);
+	if (!IS_ERR(fw_entry))
+		goto success;
+
 	fw_entry = ath11k_core_firmware_request(ab, ATH11K_DEFAULT_CAL_FILE);
 	if (IS_ERR(fw_entry)) {
 		ret = PTR_ERR(fw_entry);
@@ -2076,6 +2085,7 @@ static int ath11k_qmi_load_bdf_qmi(struct ath11k_base *ab)
 		goto out;
 	}
 
+success:
 	fw_size = min_t(u32, ab->hw_params.fw.board_size, fw_entry->size);
 	ret = ath11k_qmi_load_file_target_mem(ab, fw_entry->data, fw_size, file_type);
 	if (ret < 0) {
@@ -2083,8 +2093,7 @@ static int ath11k_qmi_load_bdf_qmi(struct ath11k_base *ab)
 		goto out_qmi_cal;
 	}
 
-	ath11k_dbg(ab, ATH11K_DBG_QMI, "qmi caldata downloaded: type: %u\n",
-		   file_type);
+	ath11k_dbg(ab, ATH11K_DBG_QMI, "qmi caldata type: %u\n", file_type);
 
 out_qmi_cal:
 	release_firmware(fw_entry);
