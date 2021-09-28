@@ -3863,19 +3863,12 @@ static int read_exp_features_info(struct sock *sk, struct hci_dev *hdev,
 		idx++;
 	}
 
-	if (hdev) {
-		if (hdev->set_quality_report) {
-			/* BIT(0): indicating if set_quality_report is
-			 * supported by controller.
-			 */
+	if (hdev && hdev->set_quality_report) {
+		if (hci_dev_test_flag(hdev, HCI_QUALITY_REPORT))
 			flags = BIT(0);
-
-			/* BIT(1): indicating if the feature is enabled. */
-			if (hci_dev_test_flag(hdev, HCI_QUALITY_REPORT))
-				flags |= BIT(1);
-		} else {
+		else
 			flags = 0;
-		}
+
 		memcpy(rp->features[idx].uuid, quality_report_uuid, 16);
 		rp->features[idx].flags = cpu_to_le32(flags);
 		idx++;
