@@ -226,7 +226,6 @@ typedef struct bpf_link *(*attach_fn_t)(const struct bpf_program *prog, long coo
 
 struct bpf_sec_def {
 	const char *sec;
-	size_t len;
 	enum bpf_prog_type prog_type;
 	enum bpf_attach_type expected_attach_type;
 	bool is_exp_attach_type_optional;
@@ -1671,7 +1670,7 @@ static int bpf_object__process_kconfig_line(struct bpf_object *obj,
 	void *ext_val;
 	__u64 num;
 
-	if (strncmp(buf, "CONFIG_", 7))
+	if (!str_has_pfx(buf, "CONFIG_"))
 		return 0;
 
 	sep = strchr(buf, '=');
@@ -2920,7 +2919,7 @@ static Elf_Data *elf_sec_data(const struct bpf_object *obj, Elf_Scn *scn)
 static bool is_sec_name_dwarf(const char *name)
 {
 	/* approximation, but the actual list is too long */
-	return strncmp(name, ".debug_", sizeof(".debug_") - 1) == 0;
+	return str_has_pfx(name, ".debug_");
 }
 
 static bool ignore_elf_section(GElf_Shdr *hdr, const char *name)
@@ -2942,7 +2941,7 @@ static bool ignore_elf_section(GElf_Shdr *hdr, const char *name)
 	if (is_sec_name_dwarf(name))
 		return true;
 
-	if (strncmp(name, ".rel", sizeof(".rel") - 1) == 0) {
+	if (str_has_pfx(name, ".rel")) {
 		name += sizeof(".rel") - 1;
 		/* DWARF section relocations */
 		if (is_sec_name_dwarf(name))
@@ -6891,8 +6890,7 @@ static int bpf_object__resolve_externs(struct bpf_object *obj,
 			if (err)
 				return err;
 			pr_debug("extern (kcfg) %s=0x%x\n", ext->name, kver);
-		} else if (ext->type == EXT_KCFG &&
-			   strncmp(ext->name, "CONFIG_", 7) == 0) {
+		} else if (ext->type == EXT_KCFG && str_has_pfx(ext->name, "CONFIG_")) {
 			need_config = true;
 		} else if (ext->type == EXT_KSYM) {
 			if (ext->ksym.type_id)
@@ -7956,7 +7954,6 @@ void bpf_program__set_expected_attach_type(struct bpf_program *prog,
 			  attachable, attach_btf)			    \
 	{								    \
 		.sec = string,						    \
-		.len = sizeof(string) - 1,				    \
 		.prog_type = ptype,					    \
 		.expected_attach_type = eatype,				    \
 		.is_exp_attach_type_optional = eatype_optional,		    \
@@ -7987,7 +7984,6 @@ void bpf_program__set_expected_attach_type(struct bpf_program *prog,
 
 #define SEC_DEF(sec_pfx, ptype, ...) {					    \
 	.sec = sec_pfx,							    \
-	.len = sizeof(sec_pfx) - 1,					    \
 	.prog_type = BPF_PROG_TYPE_##ptype,				    \
 	.preload_fn = libbpf_preload_prog,				    \
 	__VA_ARGS__							    \
@@ -8162,10 +8158,8 @@ static const struct bpf_sec_def *find_sec_def(const char *sec_name)
 	int i, n = ARRAY_SIZE(section_defs);
 
 	for (i = 0; i < n; i++) {
-		if (strncmp(sec_name,
-			    section_defs[i].sec, section_defs[i].len))
-			continue;
-		return &section_defs[i];
+		if (str_has_pfx(sec_name, section_defs[i].sec))
+			return &section_defs[i];
 	}
 	return NULL;
 }
@@ -8519,7 +8513,7 @@ static int libbpf_find_attach_btf_id(struct bpf_program *prog, int *btf_obj_fd, 
 			prog->sec_name);
 		return -ESRCH;
 	}
-	attach_name = prog->sec_name + prog->sec_def->len;
+	attach_name = prog->sec_name + strlen(prog->sec_def->sec);
 
 	/* BPF program's BTF ID */
 	if (attach_prog_fd) {
@@ -9479,8 +9473,11 @@ static struct bpf_link *attach_kprobe(const struct bpf_program *prog, long cooki
 	char *func;
 	int n, err;
 
-	func_name = prog->sec_name + prog->sec_def->len;
-	opts.retprobe = strcmp(prog->sec_def->sec, "kretprobe/") == 0;
+	opts.retprobe = str_has_pfx(prog->sec_name, "kretprobe/");
+	if (opts.retprobe)
+		func_name = prog->sec_name + sizeof("kretprobe/") - 1;
+	else
+		func_name = prog->sec_name + sizeof("kprobe/") - 1;
 
 	n = sscanf(func_name, "%m[a-zA-Z0-9_.]+%li", &func, &offset);
 	if (n < 1) {
@@ -9762,8 +9759,11 @@ static struct bpf_link *attach_tp(const struct bpf_program *prog, long cookie)
 	if (!sec_name)
 		return libbpf_err_ptr(-ENOMEM);
 
-	/* extract "tp/<category>/<name>" */
-	tp_cat = sec_name + prog->sec_def->len;
+	/* extract "tp/<category>/<name>" or "tracepoint/<category>/<name>" */
+	if (str_has_pfx(prog->sec_name, "tp/"))
+		tp_cat = sec_name + sizeof("tp/") - 1;
+	else
+		tp_cat = sec_name + sizeof("tracepoint/") - 1;
 	tp_name = strchr(tp_cat, '/');
 	if (!tp_name) {
 		free(sec_name);
@@ -9809,7 +9809,12 @@ struct bpf_link *bpf_program__attach_raw_tracepoint(const struct bpf_program *pr
 
 static struct bpf_link *attach_raw_tp(const struct bpf_program *prog, long cookie)
 {
-	const char *tp_name = prog->sec_name + prog->sec_def->len;
+	const char *tp_name;
+
+	if (str_has_pfx(prog->sec_name, "raw_tp/"))
+		tp_name = prog->sec_name + sizeof("raw_tp/") - 1;
+	else
+		tp_name = prog->sec_name + sizeof("raw_tracepoint/") - 1;
 
 	return bpf_program__attach_raw_tracepoint(prog, tp_name);
 }
