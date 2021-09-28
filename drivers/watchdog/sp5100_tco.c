@@ -10,6 +10,7 @@
  *				https://www.kernelconcepts.de
  *
  *	See AMD Publication 43009 "AMD SB700/710/750 Register Reference Guide",
+ *	    AMD Publication 44413 "AMD SP5100 Register Reference Guide"
  *	    AMD Publication 45482 "AMD SB800-Series Southbridges Register
  *	                                                      Reference Guide"
  *	    AMD Publication 48751 "BIOS and Kernel Developer’s Guide (BKDG)
@@ -142,6 +143,13 @@ static int tco_timer_set_timeout(struct watchdog_device *wdd,
 	wdd->timeout = t;
 
 	return 0;
+}
+
+static unsigned int tco_timer_get_timeleft(struct watchdog_device *wdd)
+{
+	struct sp5100_tco *tco = watchdog_get_drvdata(wdd);
+
+	return readl(SP5100_WDT_COUNT(tco->tcobase));
 }
 
 static u8 sp5100_tco_read_pm_reg8(u8 index)
@@ -386,6 +394,7 @@ static const struct watchdog_ops sp5100_tco_wdt_ops = {
 	.stop = tco_timer_stop,
 	.ping = tco_timer_ping,
 	.set_timeout = tco_timer_set_timeout,
+	.get_timeleft = tco_timer_get_timeleft,
 };
 
 static int sp5100_tco_probe(struct platform_device *pdev)
