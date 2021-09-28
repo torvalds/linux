@@ -116,18 +116,12 @@ static int stm32_dac_probe(struct platform_device *pdev)
 	priv->common.regmap = regmap;
 
 	priv->pclk = devm_clk_get(dev, "pclk");
-	if (IS_ERR(priv->pclk)) {
-		ret = PTR_ERR(priv->pclk);
-		dev_err(dev, "pclk get failed\n");
-		return ret;
-	}
+	if (IS_ERR(priv->pclk))
+		return dev_err_probe(dev, PTR_ERR(priv->pclk), "pclk get failed\n");
 
 	priv->vref = devm_regulator_get(dev, "vref");
-	if (IS_ERR(priv->vref)) {
-		ret = PTR_ERR(priv->vref);
-		dev_err(dev, "vref get failed, %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(priv->vref))
+		return dev_err_probe(dev, PTR_ERR(priv->vref), "vref get failed\n");
 
 	pm_runtime_get_noresume(dev);
 	pm_runtime_set_active(dev);
