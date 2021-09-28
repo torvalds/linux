@@ -1420,12 +1420,15 @@ struct npc_mcam_get_stats_rsp {
 enum ptp_op {
 	PTP_OP_ADJFINE = 0,
 	PTP_OP_GET_CLOCK = 1,
+	PTP_OP_GET_TSTMP = 2,
+	PTP_OP_SET_THRESH = 3,
 };
 
 struct ptp_req {
 	struct mbox_msghdr hdr;
 	u8 op;
 	s64 scaled_ppm;
+	u64 thresh;
 };
 
 struct ptp_rsp {

@@ -30,9 +30,22 @@
 
 #define PTP_CLOCK_CFG				0xF00ULL
 #define PTP_CLOCK_CFG_PTP_EN			BIT_ULL(0)
+#define PTP_CLOCK_CFG_EXT_CLK_EN		BIT_ULL(1)
+#define PTP_CLOCK_CFG_EXT_CLK_IN_MASK		GENMASK_ULL(7, 2)
+#define PTP_CLOCK_CFG_TSTMP_EDGE		BIT_ULL(9)
+#define PTP_CLOCK_CFG_TSTMP_EN			BIT_ULL(8)
+#define PTP_CLOCK_CFG_TSTMP_IN_MASK		GENMASK_ULL(15, 10)
+#define PTP_CLOCK_CFG_PPS_EN			BIT_ULL(30)
+#define PTP_CLOCK_CFG_PPS_INV			BIT_ULL(31)
+
+#define PTP_PPS_HI_INCR				0xF60ULL
+#define PTP_PPS_LO_INCR				0xF68ULL
+#define PTP_PPS_THRESH_HI			0xF58ULL
+
 #define PTP_CLOCK_LO				0xF08ULL
 #define PTP_CLOCK_HI				0xF10ULL
 #define PTP_CLOCK_COMP				0xF18ULL
+#define PTP_TIMESTAMP				0xF20ULL
 
 static struct ptp *first_ptp_block;
 static const struct pci_device_id ptp_id_table[];
@@ -107,7 +120,7 @@ static int ptp_get_clock(struct ptp *ptp, u64 *clk)
 	return 0;
 }
 
-void ptp_start(struct ptp *ptp, u64 sclk)
+void ptp_start(struct ptp *ptp, u64 sclk, u32 ext_clk_freq, u32 extts)
 {
 	struct pci_dev *pdev;
 	u64 clock_comp;
@@ -128,12 +141,46 @@ void ptp_start(struct ptp *ptp, u64 sclk)
 
 	/* Enable PTP clock */
 	clock_cfg = readq(ptp->reg_base + PTP_CLOCK_CFG);
+
+	if (ext_clk_freq) {
+		ptp->clock_rate = ext_clk_freq;
+		/* Set GPIO as PTP clock source */
+		clock_cfg &= ~PTP_CLOCK_CFG_EXT_CLK_IN_MASK;
+		clock_cfg |= PTP_CLOCK_CFG_EXT_CLK_EN;
+	}
+
+	if (extts) {
+		clock_cfg |= PTP_CLOCK_CFG_TSTMP_EDGE;
+		/* Set GPIO as timestamping source */
+		clock_cfg &= ~PTP_CLOCK_CFG_TSTMP_IN_MASK;
+		clock_cfg |= PTP_CLOCK_CFG_TSTMP_EN;
+	}
+
 	clock_cfg |= PTP_CLOCK_CFG_PTP_EN;
+	clock_cfg |= PTP_CLOCK_CFG_PPS_EN | PTP_CLOCK_CFG_PPS_INV;
 	writeq(clock_cfg, ptp->reg_base + PTP_CLOCK_CFG);
+
+	/* Set 50% duty cycle for 1Hz output */
+	writeq(0x1dcd650000000000, ptp->reg_base + PTP_PPS_HI_INCR);
+	writeq(0x1dcd650000000000, ptp->reg_base + PTP_PPS_LO_INCR);
 
 	clock_comp = ((u64)1000000000ull << 32) / ptp->clock_rate;
 	/* Initial compensation value to start the nanosecs counter */
 	writeq(clock_comp, ptp->reg_base + PTP_CLOCK_COMP);
+}
+
+static int ptp_get_tstmp(struct ptp *ptp, u64 *clk)
+{
+	*clk = readq(ptp->reg_base + PTP_TIMESTAMP);
+
+	return 0;
+}
+
+static int ptp_set_thresh(struct ptp *ptp, u64 thresh)
+{
+	writeq(thresh, ptp->reg_base + PTP_PPS_THRESH_HI);
+
+	return 0;
 }
 
 static int ptp_probe(struct pci_dev *pdev,
@@ -249,6 +296,12 @@ int rvu_mbox_handler_ptp_op(struct rvu *rvu, struct ptp_req *req,
 		break;
 	case PTP_OP_GET_CLOCK:
 		err = ptp_get_clock(rvu->ptp, &rsp->clk);
+		break;
+	case PTP_OP_GET_TSTMP:
+		err = ptp_get_tstmp(rvu->ptp, &rsp->clk);
+		break;
+	case PTP_OP_SET_THRESH:
+		err = ptp_set_thresh(rvu->ptp, req->thresh);
 		break;
 	default:
 		err = -EINVAL;
