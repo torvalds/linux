@@ -3030,6 +3030,8 @@ int ath11k_dp_rx_process_mon_status(struct ath11k_base *ab, int mac_id,
 	struct ath11k_peer *peer;
 	struct ath11k_sta *arsta;
 	int num_buffs_reaped = 0;
+	u32 rx_buf_sz;
+	u16 log_type = 0;
 
 	__skb_queue_head_init(&skb_list);
 
@@ -3042,8 +3044,16 @@ int ath11k_dp_rx_process_mon_status(struct ath11k_base *ab, int mac_id,
 		memset(&ppdu_info, 0, sizeof(ppdu_info));
 		ppdu_info.peer_id = HAL_INVALID_PEERID;
 
-		if (ath11k_debugfs_is_pktlog_rx_stats_enabled(ar))
-			trace_ath11k_htt_rxdesc(ar, skb->data, DP_RX_BUFFER_SIZE);
+		if (ath11k_debugfs_is_pktlog_lite_mode_enabled(ar)) {
+			log_type = ATH11K_PKTLOG_TYPE_LITE_RX;
+			rx_buf_sz = DP_RX_BUFFER_SIZE_LITE;
+		} else if (ath11k_debugfs_is_pktlog_rx_stats_enabled(ar)) {
+			log_type = ATH11K_PKTLOG_TYPE_RX_STATBUF;
+			rx_buf_sz = DP_RX_BUFFER_SIZE;
+		}
+
+		if (log_type)
+			trace_ath11k_htt_rxdesc(ar, skb->data, log_type, rx_buf_sz);
 
 		hal_status = ath11k_hal_rx_parse_mon_status(ab, &ppdu_info, skb);
 
@@ -3071,7 +3081,7 @@ int ath11k_dp_rx_process_mon_status(struct ath11k_base *ab, int mac_id,
 		ath11k_dp_rx_update_peer_stats(arsta, &ppdu_info);
 
 		if (ath11k_debugfs_is_pktlog_peer_valid(ar, peer->addr))
-			trace_ath11k_htt_rxdesc(ar, skb->data, DP_RX_BUFFER_SIZE);
+			trace_ath11k_htt_rxdesc(ar, skb->data, log_type, rx_buf_sz);
 
 		spin_unlock_bh(&ab->base_lock);
 		rcu_read_unlock();
