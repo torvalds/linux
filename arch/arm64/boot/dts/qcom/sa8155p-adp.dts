@@ -307,6 +307,16 @@
 	status = "okay";
 };
 
+&remoteproc_adsp {
+	status = "okay";
+	firmware-name = "qcom/sa8155p/adsp.mdt";
+};
+
+&remoteproc_cdsp {
+	status = "okay";
+	firmware-name = "qcom/sa8155p/cdsp.mdt";
+};
+
 &uart2 {
 	status = "okay";
 };
