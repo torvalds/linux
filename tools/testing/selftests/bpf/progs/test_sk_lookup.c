@@ -84,13 +84,13 @@ int lookup_drop(struct bpf_sk_lookup *ctx)
 	return SK_DROP;
 }
 
-SEC("sk_reuseport/reuse_pass")
+SEC("sk_reuseport")
 int reuseport_pass(struct sk_reuseport_md *ctx)
 {
 	return SK_PASS;
 }
 
-SEC("sk_reuseport/reuse_drop")
+SEC("sk_reuseport")
 int reuseport_drop(struct sk_reuseport_md *ctx)
 {
 	return SK_DROP;
@@ -194,7 +194,7 @@ int select_sock_a_no_reuseport(struct bpf_sk_lookup *ctx)
 	return err ? SK_DROP : SK_PASS;
 }
 
-SEC("sk_reuseport/select_sock_b")
+SEC("sk_reuseport")
 int select_sock_b(struct sk_reuseport_md *ctx)
 {
 	__u32 key = KEY_SERVER_B;
