@@ -763,8 +763,19 @@ static int ntfs_init_from_boot(struct super_block *sb, u32 sector_size,
 	sbi->mft.lbo = mlcn << sbi->cluster_bits;
 	sbi->mft.lbo2 = mlcn2 << sbi->cluster_bits;
 
-	if (sbi->cluster_size < sbi->sector_size)
+	/* Compare boot's cluster and sector. */
+	if (sbi->cluster_size < boot_sector_size)
 		goto out;
+
+	/* Compare boot's cluster and media sector. */
+	if (sbi->cluster_size < sector_size) {
+		/* No way to use ntfs_get_block in this case. */
+		ntfs_err(
+			sb,
+			"Failed to mount 'cause NTFS's cluster size (%u) is less than media sector size (%u)",
+			sbi->cluster_size, sector_size);
+		goto out;
+	}
 
 	sbi->cluster_mask = sbi->cluster_size - 1;
 	sbi->cluster_mask_inv = ~(u64)sbi->cluster_mask;
