@@ -182,7 +182,6 @@ void ODM_DMInit(struct odm_dm_struct *pDM_Odm)
 void ODM_DMWatchdog(struct odm_dm_struct *pDM_Odm)
 {
 	/* 2012.05.03 Luke: For all IC series */
-	odm_GlobalAdapterCheck();
 	odm_CommonInfoSelfUpdate(pDM_Odm);
 	odm_FalseAlarmCounterStatistics(pDM_Odm);
 	odm_RSSIMonitorCheck(pDM_Odm);
@@ -1520,11 +1519,6 @@ u32 ConvertTo_dB(u32 Value)
 
 	return dB;
 }
-
-/*  2011/09/22 MH Add for 92D global spin lock utilization. */
-void odm_GlobalAdapterCheck(void)
-{
-}	/*  odm_GlobalAdapterCheck */
 
 /*  Description: */
 /* 	Set Single/Dual Antenna default setting for products that do not do detection in advance. */
