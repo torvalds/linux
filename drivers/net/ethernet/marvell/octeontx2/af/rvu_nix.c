@@ -4519,6 +4519,9 @@ void rvu_nix_lf_teardown(struct rvu *rvu, u16 pcifunc, int blkaddr, int nixlf)
 {
 	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, pcifunc);
 	struct hwctx_disable_req ctx_req;
+	int pf = rvu_get_pf(pcifunc);
+	u8 cgx_id, lmac_id;
+	void *cgxd;
 	int err;
 
 	ctx_req.hdr.pcifunc = pcifunc;
@@ -4558,6 +4561,17 @@ void rvu_nix_lf_teardown(struct rvu *rvu, u16 pcifunc, int blkaddr, int nixlf)
 	/* reset HW config done for Switch headers */
 	rvu_npc_set_parse_mode(rvu, pcifunc, OTX2_PRIV_FLAGS_DEFAULT,
 			       (PKIND_TX | PKIND_RX), 0, 0, 0, 0);
+
+	/* Disabling CGX and NPC config done for PTP */
+	if (pfvf->hw_rx_tstamp_en) {
+		rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
+		cgxd = rvu_cgx_pdata(cgx_id, rvu);
+		cgx_lmac_ptp_config(cgxd, lmac_id, false);
+		/* Undo NPC config done for PTP */
+		if (npc_config_ts_kpuaction(rvu, pf, pcifunc, false))
+			dev_err(rvu->dev, "NPC config for PTP failed\n");
+		pfvf->hw_rx_tstamp_en = false;
+	}
 
 	nix_ctx_free(rvu, pfvf);
 
