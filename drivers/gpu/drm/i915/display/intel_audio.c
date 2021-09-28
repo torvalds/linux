@@ -848,8 +848,8 @@ void intel_audio_codec_enable(struct intel_encoder *encoder,
 
 	connector->eld[6] = drm_av_sync_delay(connector, adjusted_mode) / 2;
 
-	if (dev_priv->display.audio_codec_enable)
-		dev_priv->display.audio_codec_enable(encoder,
+	if (dev_priv->audio_funcs.audio_codec_enable)
+		dev_priv->audio_funcs.audio_codec_enable(encoder,
 						     crtc_state,
 						     conn_state);
 
@@ -893,8 +893,8 @@ void intel_audio_codec_disable(struct intel_encoder *encoder,
 	enum port port = encoder->port;
 	enum pipe pipe = crtc->pipe;
 
-	if (dev_priv->display.audio_codec_disable)
-		dev_priv->display.audio_codec_disable(encoder,
+	if (dev_priv->audio_funcs.audio_codec_disable)
+		dev_priv->audio_funcs.audio_codec_disable(encoder,
 						      old_crtc_state,
 						      old_conn_state);
 
@@ -922,17 +922,17 @@ void intel_audio_codec_disable(struct intel_encoder *encoder,
 void intel_init_audio_hooks(struct drm_i915_private *dev_priv)
 {
 	if (IS_G4X(dev_priv)) {
-		dev_priv->display.audio_codec_enable = g4x_audio_codec_enable;
-		dev_priv->display.audio_codec_disable = g4x_audio_codec_disable;
+		dev_priv->audio_funcs.audio_codec_enable = g4x_audio_codec_enable;
+		dev_priv->audio_funcs.audio_codec_disable = g4x_audio_codec_disable;
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
-		dev_priv->display.audio_codec_enable = ilk_audio_codec_enable;
-		dev_priv->display.audio_codec_disable = ilk_audio_codec_disable;
+		dev_priv->audio_funcs.audio_codec_enable = ilk_audio_codec_enable;
+		dev_priv->audio_funcs.audio_codec_disable = ilk_audio_codec_disable;
 	} else if (IS_HASWELL(dev_priv) || DISPLAY_VER(dev_priv) >= 8) {
-		dev_priv->display.audio_codec_enable = hsw_audio_codec_enable;
-		dev_priv->display.audio_codec_disable = hsw_audio_codec_disable;
+		dev_priv->audio_funcs.audio_codec_enable = hsw_audio_codec_enable;
+		dev_priv->audio_funcs.audio_codec_disable = hsw_audio_codec_disable;
 	} else if (HAS_PCH_SPLIT(dev_priv)) {
-		dev_priv->display.audio_codec_enable = ilk_audio_codec_enable;
-		dev_priv->display.audio_codec_disable = ilk_audio_codec_disable;
+		dev_priv->audio_funcs.audio_codec_enable = ilk_audio_codec_enable;
+		dev_priv->audio_funcs.audio_codec_disable = ilk_audio_codec_disable;
 	}
 }
 
