@@ -175,6 +175,52 @@ static void adf_enable_ints(struct adf_accel_dev *accel_dev)
 		   ADF_DH895XCC_SMIA1_MASK);
 }
 
+static u32 get_vf2pf_sources(void __iomem *pmisc_bar)
+{
+	u32 errsou5, errmsk5, vf_int_mask;
+
+	vf_int_mask = adf_gen2_get_vf2pf_sources(pmisc_bar);
+
+	/* Get the interrupt sources triggered by VFs, but to avoid duplicates
+	 * in the work queue, clear vf_int_mask_sets bits that are already
+	 * masked in ERRMSK register.
+	 */
+	errsou5 = ADF_CSR_RD(pmisc_bar, ADF_GEN2_ERRSOU5);
+	errmsk5 = ADF_CSR_RD(pmisc_bar, ADF_GEN2_ERRMSK5);
+	vf_int_mask |= ADF_DH895XCC_ERR_REG_VF2PF_U(errsou5);
+	vf_int_mask &= ~ADF_DH895XCC_ERR_REG_VF2PF_U(errmsk5);
+
+	return vf_int_mask;
+}
+
+static void enable_vf2pf_interrupts(void __iomem *pmisc_addr, u32 vf_mask)
+{
+	/* Enable VF2PF Messaging Ints - VFs 0 through 15 per vf_mask[15:0] */
+	adf_gen2_enable_vf2pf_interrupts(pmisc_addr, vf_mask);
+
+	/* Enable VF2PF Messaging Ints - VFs 16 through 31 per vf_mask[31:16] */
+	if (vf_mask >> 16) {
+		u32 val = ADF_CSR_RD(pmisc_addr, ADF_GEN2_ERRMSK5)
+			  & ~ADF_DH895XCC_ERR_MSK_VF2PF_U(vf_mask);
+
+		ADF_CSR_WR(pmisc_addr, ADF_GEN2_ERRMSK5, val);
+	}
+}
+
+static void disable_vf2pf_interrupts(void __iomem *pmisc_addr, u32 vf_mask)
+{
+	/* Disable VF2PF interrupts for VFs 0 through 15 per vf_mask[15:0] */
+	adf_gen2_disable_vf2pf_interrupts(pmisc_addr, vf_mask);
+
+	/* Disable VF2PF interrupts for VFs 16 through 31 per vf_mask[31:16] */
+	if (vf_mask >> 16) {
+		u32 val = ADF_CSR_RD(pmisc_addr, ADF_GEN2_ERRMSK5)
+			  | ADF_DH895XCC_ERR_MSK_VF2PF_U(vf_mask);
+
+		ADF_CSR_WR(pmisc_addr, ADF_GEN2_ERRMSK5, val);
+	}
+}
+
 static int adf_enable_pf2vf_comms(struct adf_accel_dev *accel_dev)
 {
 	spin_lock_init(&accel_dev->pf.vf2pf_ints_lock);
@@ -226,6 +272,9 @@ void adf_init_hw_data_dh895xcc(struct adf_hw_device_data *hw_data)
 	hw_data->enable_ints = adf_enable_ints;
 	hw_data->reset_device = adf_reset_sbr;
 	hw_data->get_pf2vf_offset = get_pf2vf_offset;
+	hw_data->get_vf2pf_sources = get_vf2pf_sources;
+	hw_data->enable_vf2pf_interrupts = enable_vf2pf_interrupts;
+	hw_data->disable_vf2pf_interrupts = disable_vf2pf_interrupts;
 	hw_data->enable_pfvf_comms = adf_enable_pf2vf_comms;
 	hw_data->disable_iov = adf_disable_sriov;
 	hw_data->min_iov_compat_ver = ADF_PFVF_COMPAT_THIS_VERSION;

@@ -177,6 +177,11 @@ struct adf_hw_device_data {
 	void (*enable_ints)(struct adf_accel_dev *accel_dev);
 	void (*set_ssm_wdtimer)(struct adf_accel_dev *accel_dev);
 	int (*enable_pfvf_comms)(struct adf_accel_dev *accel_dev);
+	u32 (*get_vf2pf_sources)(void __iomem *pmisc_addr);
+	void (*enable_vf2pf_interrupts)(void __iomem *pmisc_bar_addr,
+					u32 vf_mask);
+	void (*disable_vf2pf_interrupts)(void __iomem *pmisc_bar_addr,
+					 u32 vf_mask);
 	void (*reset_device)(struct adf_accel_dev *accel_dev);
 	void (*set_msix_rttable)(struct adf_accel_dev *accel_dev);
 	char *(*uof_get_name)(u32 obj_num);

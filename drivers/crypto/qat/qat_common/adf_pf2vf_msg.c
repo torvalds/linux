@@ -5,82 +5,42 @@
 #include "adf_common_drv.h"
 #include "adf_pf2vf_msg.h"
 
-#define ADF_DH895XCC_EP_OFFSET	0x3A000
-#define ADF_DH895XCC_ERRMSK3	(ADF_DH895XCC_EP_OFFSET + 0x1C)
-#define ADF_DH895XCC_ERRMSK3_VF2PF_L_MASK(vf_mask) ((vf_mask & 0xFFFF) << 9)
-#define ADF_DH895XCC_ERRMSK5	(ADF_DH895XCC_EP_OFFSET + 0xDC)
-#define ADF_DH895XCC_ERRMSK5_VF2PF_U_MASK(vf_mask) (vf_mask >> 16)
-
-static void __adf_enable_vf2pf_interrupts(struct adf_accel_dev *accel_dev,
-					  u32 vf_mask)
-{
-	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
-	struct adf_bar *pmisc =
-			&GET_BARS(accel_dev)[hw_data->get_misc_bar_id(hw_data)];
-	void __iomem *pmisc_addr = pmisc->virt_addr;
-	u32 reg;
-
-	/* Enable VF2PF Messaging Ints - VFs 1 through 16 per vf_mask[15:0] */
-	if (vf_mask & 0xFFFF) {
-		reg = ADF_CSR_RD(pmisc_addr, ADF_DH895XCC_ERRMSK3);
-		reg &= ~ADF_DH895XCC_ERRMSK3_VF2PF_L_MASK(vf_mask);
-		ADF_CSR_WR(pmisc_addr, ADF_DH895XCC_ERRMSK3, reg);
-	}
-
-	/* Enable VF2PF Messaging Ints - VFs 17 through 32 per vf_mask[31:16] */
-	if (vf_mask >> 16) {
-		reg = ADF_CSR_RD(pmisc_addr, ADF_DH895XCC_ERRMSK5);
-		reg &= ~ADF_DH895XCC_ERRMSK5_VF2PF_U_MASK(vf_mask);
-		ADF_CSR_WR(pmisc_addr, ADF_DH895XCC_ERRMSK5, reg);
-	}
-}
-
 void adf_enable_vf2pf_interrupts(struct adf_accel_dev *accel_dev, u32 vf_mask)
 {
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	u32 misc_bar_id = hw_data->get_misc_bar_id(hw_data);
+	struct adf_bar *pmisc = &GET_BARS(accel_dev)[misc_bar_id];
+	void __iomem *pmisc_addr = pmisc->virt_addr;
 	unsigned long flags;
 
 	spin_lock_irqsave(&accel_dev->pf.vf2pf_ints_lock, flags);
-	__adf_enable_vf2pf_interrupts(accel_dev, vf_mask);
+	hw_data->enable_vf2pf_interrupts(pmisc_addr, vf_mask);
 	spin_unlock_irqrestore(&accel_dev->pf.vf2pf_ints_lock, flags);
-}
-
-static void __adf_disable_vf2pf_interrupts(struct adf_accel_dev *accel_dev,
-					   u32 vf_mask)
-{
-	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
-	struct adf_bar *pmisc =
-			&GET_BARS(accel_dev)[hw_data->get_misc_bar_id(hw_data)];
-	void __iomem *pmisc_addr = pmisc->virt_addr;
-	u32 reg;
-
-	/* Disable VF2PF interrupts for VFs 1 through 16 per vf_mask[15:0] */
-	if (vf_mask & 0xFFFF) {
-		reg = ADF_CSR_RD(pmisc_addr, ADF_DH895XCC_ERRMSK3) |
-			ADF_DH895XCC_ERRMSK3_VF2PF_L_MASK(vf_mask);
-		ADF_CSR_WR(pmisc_addr, ADF_DH895XCC_ERRMSK3, reg);
-	}
-
-	/* Disable VF2PF interrupts for VFs 17 through 32 per vf_mask[31:16] */
-	if (vf_mask >> 16) {
-		reg = ADF_CSR_RD(pmisc_addr, ADF_DH895XCC_ERRMSK5) |
-			ADF_DH895XCC_ERRMSK5_VF2PF_U_MASK(vf_mask);
-		ADF_CSR_WR(pmisc_addr, ADF_DH895XCC_ERRMSK5, reg);
-	}
 }
 
 void adf_disable_vf2pf_interrupts(struct adf_accel_dev *accel_dev, u32 vf_mask)
 {
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	u32 misc_bar_id = hw_data->get_misc_bar_id(hw_data);
+	struct adf_bar *pmisc = &GET_BARS(accel_dev)[misc_bar_id];
+	void __iomem *pmisc_addr = pmisc->virt_addr;
 	unsigned long flags;
 
 	spin_lock_irqsave(&accel_dev->pf.vf2pf_ints_lock, flags);
-	__adf_disable_vf2pf_interrupts(accel_dev, vf_mask);
+	hw_data->disable_vf2pf_interrupts(pmisc_addr, vf_mask);
 	spin_unlock_irqrestore(&accel_dev->pf.vf2pf_ints_lock, flags);
 }
 
-void adf_disable_vf2pf_interrupts_irq(struct adf_accel_dev *accel_dev, u32 vf_mask)
+void adf_disable_vf2pf_interrupts_irq(struct adf_accel_dev *accel_dev,
+				      u32 vf_mask)
 {
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	u32 misc_bar_id = hw_data->get_misc_bar_id(hw_data);
+	struct adf_bar *pmisc = &GET_BARS(accel_dev)[misc_bar_id];
+	void __iomem *pmisc_addr = pmisc->virt_addr;
+
 	spin_lock(&accel_dev->pf.vf2pf_ints_lock);
-	__adf_disable_vf2pf_interrupts(accel_dev, vf_mask);
+	hw_data->disable_vf2pf_interrupts(pmisc_addr, vf_mask);
 	spin_unlock(&accel_dev->pf.vf2pf_ints_lock);
 }
 
