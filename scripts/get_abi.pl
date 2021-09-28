@@ -728,9 +728,9 @@ sub check_undefined_symbols {
 		for (my $i = 0; $i < @names; $i++) {
 			if ($found_string && $hint) {
 				if (!$i) {
-					print "--> $names[$i]\n";
+					print STDERR "--> $names[$i]\n";
 				} else {
-					print "    $names[$i]\n";
+					print STDERR "    $names[$i]\n";
 				}
 			}
 			foreach my $re (@expr) {
@@ -760,17 +760,17 @@ sub check_undefined_symbols {
 		}
 		next if ($exact);
 
+		print "$file not found.\n" if (!$search_string || $found_string);
+
 		if ($hint && (!$search_string || $found_string)) {
 			my $what = $leaf{$leave}->{what};
 			$what =~ s/\xac/\n\t/g;
 			if ($leave ne "others") {
-				print "    more likely regexes:\n\t$what\n";
+				print STDERR "    more likely regexes:\n\t$what\n";
 			} else {
-				print "    tested regexes:\n\t$what\n";
+				print STDERR "    tested regexes:\n\t$what\n";
 			}
-			next;
 		}
-		print "$file not found.\n" if (!$search_string || $found_string);
 	}
 }
 
@@ -852,7 +852,7 @@ sub undefined_symbols {
 				}
 			}
 			if ($search_string && $added) {
-				print "What: $what\n" if ($what =~ m#$search_string#);
+				print STDERR "What: $what\n" if ($what =~ m#$search_string#);
 			}
 
 		}
