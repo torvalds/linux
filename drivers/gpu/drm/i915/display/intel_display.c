@@ -9159,7 +9159,7 @@ static int intel_atomic_check_cdclk(struct intel_atomic_state *state,
 	    old_cdclk_state->force_min_cdclk != new_cdclk_state->force_min_cdclk)
 		*need_cdclk_calc = true;
 
-	ret = dev_priv->display.bw_calc_min_cdclk(state);
+	ret = intel_cdclk_bw_calc_min_cdclk(state);
 	if (ret)
 		return ret;
 
