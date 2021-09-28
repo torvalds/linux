@@ -138,7 +138,7 @@ out:
  *
  * Return: 0 on success, error code otherwise.
  */
-int adf_iov_putmsg(struct adf_accel_dev *accel_dev, u32 msg, u8 vf_nr)
+static int adf_iov_putmsg(struct adf_accel_dev *accel_dev, u32 msg, u8 vf_nr)
 {
 	u32 count = 0;
 	int ret;
@@ -150,6 +150,35 @@ int adf_iov_putmsg(struct adf_accel_dev *accel_dev, u32 msg, u8 vf_nr)
 	} while (ret && (count++ < ADF_PFVF_MSG_MAX_RETRIES));
 
 	return ret;
+}
+
+/**
+ * adf_send_pf2vf_msg() - send PF to VF message
+ * @accel_dev:	Pointer to acceleration device
+ * @vf_nr:	VF number to which the message will be sent
+ * @msg:	Message to send
+ *
+ * This function allows the PF to send a message to a specific VF.
+ *
+ * Return: 0 on success, error code otherwise.
+ */
+static int adf_send_pf2vf_msg(struct adf_accel_dev *accel_dev, u8 vf_nr, u32 msg)
+{
+	return adf_iov_putmsg(accel_dev, msg, vf_nr);
+}
+
+/**
+ * adf_send_vf2pf_msg() - send VF to PF message
+ * @accel_dev:	Pointer to acceleration device
+ * @msg:	Message to send
+ *
+ * This function allows the VF to send a message to the PF.
+ *
+ * Return: 0 on success, error code otherwise.
+ */
+int adf_send_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 msg)
+{
+	return adf_iov_putmsg(accel_dev, msg, 0);
 }
 
 void adf_vf2pf_req_hndl(struct adf_accel_vf_info *vf_info)
@@ -248,7 +277,7 @@ void adf_vf2pf_req_hndl(struct adf_accel_vf_info *vf_info)
 		goto err;
 	}
 
-	if (resp && adf_iov_putmsg(accel_dev, resp, vf_nr))
+	if (resp && adf_send_pf2vf_msg(accel_dev, vf_nr, resp))
 		dev_err(&GET_DEV(accel_dev), "Failed to send response to VF\n");
 
 out:
@@ -269,7 +298,7 @@ void adf_pf2vf_notify_restarting(struct adf_accel_dev *accel_dev)
 	int i, num_vfs = pci_num_vf(accel_to_pci_dev(accel_dev));
 
 	for (i = 0, vf = accel_dev->pf.vf_info; i < num_vfs; i++, vf++) {
-		if (vf->init && adf_iov_putmsg(accel_dev, msg, i))
+		if (vf->init && adf_send_pf2vf_msg(accel_dev, i, msg))
 			dev_err(&GET_DEV(accel_dev),
 				"Failed to send restarting msg to VF%d\n", i);
 	}
@@ -290,7 +319,7 @@ static int adf_vf2pf_request_version(struct adf_accel_dev *accel_dev)
 	reinit_completion(&accel_dev->vf.iov_msg_completion);
 
 	/* Send request from VF to PF */
-	ret = adf_iov_putmsg(accel_dev, msg, 0);
+	ret = adf_send_vf2pf_msg(accel_dev, msg);
 	if (ret) {
 		dev_err(&GET_DEV(accel_dev),
 			"Failed to send Compatibility Version Request.\n");
