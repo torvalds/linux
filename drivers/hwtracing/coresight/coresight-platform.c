@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012, 2021 The Linux Foundation. All rights reserved.
  */
 
 #include <linux/acpi.h>
@@ -202,6 +202,16 @@ static int of_coresight_get_cpu(struct device *dev)
 	of_node_put(dn);
 
 	return cpu;
+}
+
+int of_coresight_get_atid(struct coresight_device *csdev)
+{
+	int atid, ret = 0;
+
+	ret = of_property_read_u32(csdev->dev.parent->of_node, "atid", &atid);
+	if (ret)
+		return ret;
+	return atid;
 }
 
 /*

@@ -12,6 +12,7 @@
 #include <linux/miscdevice.h>
 #include <linux/mutex.h>
 #include <linux/refcount.h>
+#include "coresight-priv.h"
 
 #define TMC_RSZ			0x004
 #define TMC_STS			0x00c
@@ -211,6 +212,9 @@ struct tmc_drvdata {
 	struct mutex		idr_mutex;
 	struct etr_buf		*sysfs_buf;
 	struct etr_buf		*perf_buf;
+	struct coresight_csr	*csr;
+	const char		*csr_name;
+	u32			atid_offset;
 };
 
 struct etr_buf_operations {
@@ -274,6 +278,7 @@ int tmc_read_prepare_etr(struct tmc_drvdata *drvdata);
 int tmc_read_unprepare_etr(struct tmc_drvdata *drvdata);
 void tmc_etr_disable_hw(struct tmc_drvdata *drvdata);
 extern const struct coresight_ops tmc_etr_cs_ops;
+extern const struct csr_set_atid_op csr_atid_ops;
 ssize_t tmc_etr_get_sysfs_trace(struct tmc_drvdata *drvdata,
 				loff_t pos, size_t len, char **bufpp);
 
