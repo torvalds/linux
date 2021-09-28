@@ -54,31 +54,19 @@ EXPORT_SYMBOL_GPL(adf_gen2_disable_vf2pf_interrupts);
 
 u32 adf_gen2_get_num_accels(struct adf_hw_device_data *self)
 {
-	u32 i, ctr = 0;
-
 	if (!self || !self->accel_mask)
 		return 0;
 
-	for (i = 0; i < self->num_accel; i++)
-		if (self->accel_mask & (1 << i))
-			ctr++;
-
-	return ctr;
+	return hweight16(self->accel_mask);
 }
 EXPORT_SYMBOL_GPL(adf_gen2_get_num_accels);
 
 u32 adf_gen2_get_num_aes(struct adf_hw_device_data *self)
 {
-	u32 i, ctr = 0;
-
 	if (!self || !self->ae_mask)
 		return 0;
 
-	for (i = 0; i < self->num_engines; i++)
-		if (self->ae_mask & (1 << i))
-			ctr++;
-
-	return ctr;
+	return hweight32(self->ae_mask);
 }
 EXPORT_SYMBOL_GPL(adf_gen2_get_num_aes);
 
