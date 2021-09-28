@@ -122,6 +122,8 @@
 			 * Taken from NSLU2 PCI boardfile, INT A, B, C swizzled D constant
 			 * We have slots (IDSEL) 1, 2 and 3.
 			 */
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0xf800 0 0 7>;
 			interrupt-map =
 			/* IDSEL 1 */
 			<0x0800 0 0 1 &gpio0 11 IRQ_TYPE_LEVEL_LOW>, /* INT A on slot 1 is irq 11 */
