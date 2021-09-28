@@ -249,15 +249,17 @@ static int tx_wait_done(struct snd_sof_ipc *ipc, struct snd_sof_ipc_msg *msg,
 				 msecs_to_jiffies(sdev->ipc_timeout));
 
 	if (ret == 0) {
-		dev_err(sdev->dev, "error: ipc timed out for 0x%x size %d\n",
-			hdr->cmd, hdr->size);
+		dev_err(sdev->dev,
+			"ipc tx timed out for %#x (msg/reply size: %d/%zu)\n",
+			hdr->cmd, hdr->size, msg->reply_size);
 		snd_sof_handle_fw_exception(ipc->sdev);
 		ret = -ETIMEDOUT;
 	} else {
 		ret = msg->reply_error;
 		if (ret < 0) {
-			dev_err(sdev->dev, "error: ipc error for 0x%x size %zu\n",
-				hdr->cmd, msg->reply_size);
+			dev_err(sdev->dev,
+				"ipc tx error for %#x (msg/reply size: %d/%zu): %d\n",
+				hdr->cmd, hdr->size, msg->reply_size, ret);
 		} else {
 			ipc_log_header(sdev->dev, "ipc tx succeeded", hdr->cmd);
 			if (msg->reply_size)
