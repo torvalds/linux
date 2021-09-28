@@ -89,7 +89,8 @@ static int ethtool_get_features(struct net_device *dev, void __user *useraddr)
 	if (copy_to_user(useraddr, &cmd, sizeof(cmd)))
 		return -EFAULT;
 	useraddr += sizeof(cmd);
-	if (copy_to_user(useraddr, features, copy_size * sizeof(*features)))
+	if (copy_to_user(useraddr, features,
+			 array_size(copy_size, sizeof(*features))))
 		return -EFAULT;
 
 	return 0;
@@ -799,7 +800,7 @@ static noinline_for_stack int ethtool_get_sset_info(struct net_device *dev,
 		goto out;
 
 	useraddr += offsetof(struct ethtool_sset_info, data);
-	if (copy_to_user(useraddr, info_buf, idx * sizeof(u32)))
+	if (copy_to_user(useraddr, info_buf, array_size(idx, sizeof(u32))))
 		goto out;
 
 	ret = 0;
@@ -1022,7 +1023,7 @@ static int ethtool_copy_validate_indir(u32 *indir, void __user *useraddr,
 {
 	int i;
 
-	if (copy_from_user(indir, useraddr, size * sizeof(indir[0])))
+	if (copy_from_user(indir, useraddr, array_size(size, sizeof(indir[0]))))
 		return -EFAULT;
 
 	/* Validate ring indices */
@@ -1895,7 +1896,7 @@ static int ethtool_self_test(struct net_device *dev, char __user *useraddr)
 	if (copy_to_user(useraddr, &test, sizeof(test)))
 		goto out;
 	useraddr += sizeof(test);
-	if (copy_to_user(useraddr, data, test.len * sizeof(u64)))
+	if (copy_to_user(useraddr, data, array_size(test.len, sizeof(u64))))
 		goto out;
 	ret = 0;
 
@@ -1937,7 +1938,8 @@ static int ethtool_get_strings(struct net_device *dev, void __user *useraddr)
 		goto out;
 	useraddr += sizeof(gstrings);
 	if (gstrings.len &&
-	    copy_to_user(useraddr, data, gstrings.len * ETH_GSTRING_LEN))
+	    copy_to_user(useraddr, data,
+			 array_size(gstrings.len, ETH_GSTRING_LEN)))
 		goto out;
 	ret = 0;
 
