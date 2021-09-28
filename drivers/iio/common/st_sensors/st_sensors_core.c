@@ -228,10 +228,10 @@ int st_sensors_power_enable(struct iio_dev *indio_dev)
 
 	/* Regulators not mandatory, but if requested we should enable them. */
 	pdata->vdd = devm_regulator_get(parent, "vdd");
-	if (IS_ERR(pdata->vdd)) {
-		dev_err(&indio_dev->dev, "unable to get Vdd supply\n");
-		return PTR_ERR(pdata->vdd);
-	}
+	if (IS_ERR(pdata->vdd))
+		return dev_err_probe(&indio_dev->dev, PTR_ERR(pdata->vdd),
+				     "unable to get Vdd supply\n");
+
 	err = regulator_enable(pdata->vdd);
 	if (err != 0) {
 		dev_warn(&indio_dev->dev,
@@ -244,10 +244,10 @@ int st_sensors_power_enable(struct iio_dev *indio_dev)
 		return err;
 
 	pdata->vdd_io = devm_regulator_get(parent, "vddio");
-	if (IS_ERR(pdata->vdd_io)) {
-		dev_err(&indio_dev->dev, "unable to get Vdd_IO supply\n");
-		return PTR_ERR(pdata->vdd_io);
-	}
+	if (IS_ERR(pdata->vdd_io))
+		return dev_err_probe(&indio_dev->dev, PTR_ERR(pdata->vdd_io),
+				     "unable to get Vdd_IO supply\n");
+
 	err = regulator_enable(pdata->vdd_io);
 	if (err != 0) {
 		dev_warn(&indio_dev->dev,
