@@ -458,6 +458,7 @@ MODULE_DEVICE_TABLE(of, lm25066_of_match);
 static int lm25066_probe(struct i2c_client *client)
 {
 	int config;
+	u32 shunt;
 	struct lm25066_data *data;
 	struct pmbus_driver_info *info;
 	const struct __coeff *coeff;
@@ -533,6 +534,16 @@ static int lm25066_probe(struct i2c_client *client)
 		info->m[PSC_POWER] = coeff[PSC_POWER].m;
 		info->b[PSC_POWER] = coeff[PSC_POWER].b;
 	}
+
+	/*
+	 * Values in the TI datasheets are normalized for a 1mOhm sense
+	 * resistor; assume that unless DT specifies a value explicitly.
+	 */
+	if (of_property_read_u32(client->dev.of_node, "shunt-resistor-micro-ohms", &shunt))
+		shunt = 1000;
+
+	info->m[PSC_CURRENT_IN] = info->m[PSC_CURRENT_IN] * shunt / 1000;
+	info->m[PSC_POWER] = info->m[PSC_POWER] * shunt / 1000;
 
 	return pmbus_do_probe(client, info);
 }
