@@ -5799,63 +5799,90 @@ out:
 	return rc;
 }
 
-static int pqi_wait_until_queued_io_drained(struct pqi_ctrl_info *ctrl_info,
-	struct pqi_queue_group *queue_group)
+static unsigned int pqi_queued_io_count(struct pqi_ctrl_info *ctrl_info)
 {
+	unsigned int i;
 	unsigned int path;
 	unsigned long flags;
-	bool list_is_empty;
+	unsigned int queued_io_count;
+	struct pqi_queue_group *queue_group;
+	struct pqi_io_request *io_request;
 
-	for (path = 0; path < 2; path++) {
-		while (1) {
-			spin_lock_irqsave(
-				&queue_group->submit_lock[path], flags);
-			list_is_empty =
-				list_empty(&queue_group->request_list[path]);
-			spin_unlock_irqrestore(
-				&queue_group->submit_lock[path], flags);
-			if (list_is_empty)
-				break;
-			pqi_check_ctrl_health(ctrl_info);
-			if (pqi_ctrl_offline(ctrl_info))
-				return -ENXIO;
-			usleep_range(1000, 2000);
+	queued_io_count = 0;
+
+	for (i = 0; i < ctrl_info->num_queue_groups; i++) {
+		queue_group = &ctrl_info->queue_groups[i];
+		for (path = 0; path < 2; path++) {
+			spin_lock_irqsave(&queue_group->submit_lock[path], flags);
+			list_for_each_entry(io_request, &queue_group->request_list[path], request_list_entry)
+				queued_io_count++;
+			spin_unlock_irqrestore(&queue_group->submit_lock[path], flags);
 		}
 	}
 
-	return 0;
+	return queued_io_count;
 }
 
-static int pqi_wait_until_inbound_queues_empty(struct pqi_ctrl_info *ctrl_info)
+static unsigned int pqi_nonempty_inbound_queue_count(struct pqi_ctrl_info *ctrl_info)
 {
-	int rc;
 	unsigned int i;
 	unsigned int path;
+	unsigned int nonempty_inbound_queue_count;
 	struct pqi_queue_group *queue_group;
 	pqi_index_t iq_pi;
 	pqi_index_t iq_ci;
 
+	nonempty_inbound_queue_count = 0;
+
 	for (i = 0; i < ctrl_info->num_queue_groups; i++) {
 		queue_group = &ctrl_info->queue_groups[i];
-
-		rc = pqi_wait_until_queued_io_drained(ctrl_info, queue_group);
-		if (rc)
-			return rc;
-
 		for (path = 0; path < 2; path++) {
 			iq_pi = queue_group->iq_pi_copy[path];
-
-			while (1) {
-				iq_ci = readl(queue_group->iq_ci[path]);
-				if (iq_ci == iq_pi)
-					break;
-				pqi_check_ctrl_health(ctrl_info);
-				if (pqi_ctrl_offline(ctrl_info))
-					return -ENXIO;
-				usleep_range(1000, 2000);
-			}
+			iq_ci = readl(queue_group->iq_ci[path]);
+			if (iq_ci != iq_pi)
+				nonempty_inbound_queue_count++;
 		}
 	}
+
+	return nonempty_inbound_queue_count;
+}
+
+#define PQI_INBOUND_QUEUES_NONEMPTY_WARNING_TIMEOUT_SECS	10
+
+static int pqi_wait_until_inbound_queues_empty(struct pqi_ctrl_info *ctrl_info)
+{
+	unsigned long start_jiffies;
+	unsigned long warning_timeout;
+	unsigned int queued_io_count;
+	unsigned int nonempty_inbound_queue_count;
+	bool displayed_warning;
+
+	displayed_warning = false;
+	start_jiffies = jiffies;
+	warning_timeout = (PQI_INBOUND_QUEUES_NONEMPTY_WARNING_TIMEOUT_SECS * PQI_HZ) + start_jiffies;
+
+	while (1) {
+		queued_io_count = pqi_queued_io_count(ctrl_info);
+		nonempty_inbound_queue_count = pqi_nonempty_inbound_queue_count(ctrl_info);
+		if (queued_io_count == 0 && nonempty_inbound_queue_count == 0)
+			break;
+		pqi_check_ctrl_health(ctrl_info);
+		if (pqi_ctrl_offline(ctrl_info))
+			return -ENXIO;
+		if (time_after(jiffies, warning_timeout)) {
+			dev_warn(&ctrl_info->pci_dev->dev,
+				"waiting %u seconds for queued I/O to drain (queued I/O count: %u; non-empty inbound queue count: %u)\n",
+				jiffies_to_msecs(jiffies - start_jiffies) / 1000, queued_io_count, nonempty_inbound_queue_count);
+			displayed_warning = true;
+			warning_timeout = (PQI_INBOUND_QUEUES_NONEMPTY_WARNING_TIMEOUT_SECS * PQI_HZ) + jiffies;
+		}
+		usleep_range(1000, 2000);
+	}
+
+	if (displayed_warning)
+		dev_warn(&ctrl_info->pci_dev->dev,
+			"queued I/O drained after waiting for %u seconds\n",
+			jiffies_to_msecs(jiffies - start_jiffies) / 1000);
 
 	return 0;
 }
@@ -5922,7 +5949,7 @@ static int pqi_device_wait_for_pending_io(struct pqi_ctrl_info *ctrl_info,
 		if (pqi_ctrl_offline(ctrl_info))
 			return -ENXIO;
 		msecs_waiting = jiffies_to_msecs(jiffies - start_jiffies);
-		if (msecs_waiting > timeout_msecs) {
+		if (msecs_waiting >= timeout_msecs) {
 			dev_err(&ctrl_info->pci_dev->dev,
 				"scsi %d:%d:%d:%d: timed out after %lu seconds waiting for %d outstanding command(s)\n",
 				ctrl_info->scsi_host->host_no, device->bus, device->target,
@@ -5957,6 +5984,7 @@ static int pqi_wait_for_lun_reset_completion(struct pqi_ctrl_info *ctrl_info,
 {
 	int rc;
 	unsigned int wait_secs;
+	int cmds_outstanding;
 
 	wait_secs = 0;
 
@@ -5974,11 +6002,10 @@ static int pqi_wait_for_lun_reset_completion(struct pqi_ctrl_info *ctrl_info,
 		}
 
 		wait_secs += PQI_LUN_RESET_POLL_COMPLETION_SECS;
-
+		cmds_outstanding = atomic_read(&device->scsi_cmds_outstanding);
 		dev_warn(&ctrl_info->pci_dev->dev,
-			"scsi %d:%d:%d:%d: waiting %u seconds for LUN reset to complete\n",
-			ctrl_info->scsi_host->host_no, device->bus, device->target, device->lun,
-			wait_secs);
+			"scsi %d:%d:%d:%d: waiting %u seconds for LUN reset to complete (%d command(s) outstanding)\n",
+			ctrl_info->scsi_host->host_no, device->bus, device->target, device->lun, wait_secs, cmds_outstanding);
 	}
 
 	return rc;
