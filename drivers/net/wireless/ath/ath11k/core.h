@@ -93,6 +93,8 @@ struct ath11k_skb_rxcb {
 	bool is_first_msdu;
 	bool is_last_msdu;
 	bool is_continuation;
+	bool is_mcbc;
+	bool is_eapol;
 	struct hal_rx_desc *rx_desc;
 	u8 err_rel_src;
 	u8 err_code;
@@ -100,6 +102,8 @@ struct ath11k_skb_rxcb {
 	u8 unmapped;
 	u8 is_frag;
 	u8 tid;
+	u16 peer_id;
+	u16 seq_no;
 };
 
 enum ath11k_hw_rev {

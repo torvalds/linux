@@ -5370,7 +5370,8 @@ static void ath11k_mac_op_update_vif_offload(struct ieee80211_hw *hw,
 	if (ath11k_frame_mode != ATH11K_HW_TXRX_ETHERNET ||
 	    (vif->type != NL80211_IFTYPE_STATION &&
 	     vif->type != NL80211_IFTYPE_AP))
-		vif->offload_flags &= ~IEEE80211_OFFLOAD_ENCAP_ENABLED;
+		vif->offload_flags &= ~(IEEE80211_OFFLOAD_ENCAP_ENABLED |
+					IEEE80211_OFFLOAD_DECAP_ENABLED);
 
 	if (vif->offload_flags & IEEE80211_OFFLOAD_ENCAP_ENABLED)
 		param_value = ATH11K_HW_TXRX_ETHERNET;
@@ -5385,6 +5386,22 @@ static void ath11k_mac_op_update_vif_offload(struct ieee80211_hw *hw,
 		ath11k_warn(ab, "failed to set vdev %d tx encap mode: %d\n",
 			    arvif->vdev_id, ret);
 		vif->offload_flags &= ~IEEE80211_OFFLOAD_ENCAP_ENABLED;
+	}
+
+	param_id = WMI_VDEV_PARAM_RX_DECAP_TYPE;
+	if (vif->offload_flags & IEEE80211_OFFLOAD_DECAP_ENABLED)
+		param_value = ATH11K_HW_TXRX_ETHERNET;
+	else if (test_bit(ATH11K_FLAG_RAW_MODE, &ab->dev_flags))
+		param_value = ATH11K_HW_TXRX_RAW;
+	else
+		param_value = ATH11K_HW_TXRX_NATIVE_WIFI;
+
+	ret = ath11k_wmi_vdev_set_param_cmd(ar, arvif->vdev_id,
+					    param_id, param_value);
+	if (ret) {
+		ath11k_warn(ab, "failed to set vdev %d rx decap mode: %d\n",
+			    arvif->vdev_id, ret);
+		vif->offload_flags &= ~IEEE80211_OFFLOAD_DECAP_ENABLED;
 	}
 }
 
@@ -7550,7 +7567,11 @@ static int __ath11k_mac_register(struct ath11k *ar)
 	ieee80211_hw_set(ar->hw, QUEUE_CONTROL);
 	ieee80211_hw_set(ar->hw, SUPPORTS_TX_FRAG);
 	ieee80211_hw_set(ar->hw, REPORTS_LOW_ACK);
-	ieee80211_hw_set(ar->hw, SUPPORTS_TX_ENCAP_OFFLOAD);
+
+	if (ath11k_frame_mode == ATH11K_HW_TXRX_ETHERNET) {
+		ieee80211_hw_set(ar->hw, SUPPORTS_TX_ENCAP_OFFLOAD);
+		ieee80211_hw_set(ar->hw, SUPPORTS_RX_DECAP_OFFLOAD);
+	}
 
 	if (cap->nss_ratio_enabled)
 		ieee80211_hw_set(ar->hw, SUPPORTS_VHT_EXT_NSS_BW);

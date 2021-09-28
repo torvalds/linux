@@ -270,6 +270,18 @@ static bool ath11k_dp_rx_h_attn_is_mcbc(struct ath11k_base *ab,
 		 __le32_to_cpu(attn->info1)));
 }
 
+static bool ath11k_dp_rxdesc_mac_addr2_valid(struct ath11k_base *ab,
+					     struct hal_rx_desc *desc)
+{
+	return ab->hw_params.hw_ops->rx_desc_mac_addr2_valid(desc);
+}
+
+static u8 *ath11k_dp_rxdesc_mpdu_start_addr2(struct ath11k_base *ab,
+					     struct hal_rx_desc *desc)
+{
+	return ab->hw_params.hw_ops->rx_desc_mpdu_start_addr2(desc);
+}
+
 static void ath11k_dp_service_mon_ring(struct timer_list *t)
 {
 	struct ath11k_base *ab = from_timer(ab, t, mon_reap_timer);
@@ -2156,6 +2168,7 @@ static void ath11k_dp_rx_h_undecap(struct ath11k *ar, struct sk_buff *msdu,
 {
 	u8 *first_hdr;
 	u8 decap;
+	struct ethhdr *ehdr;
 
 	first_hdr = ath11k_dp_rx_h_80211_hdr(ar->ab, rx_desc);
 	decap = ath11k_dp_rx_h_msdu_start_decap_type(ar->ab, rx_desc);
@@ -2170,9 +2183,22 @@ static void ath11k_dp_rx_h_undecap(struct ath11k *ar, struct sk_buff *msdu,
 					   decrypted);
 		break;
 	case DP_RX_DECAP_TYPE_ETHERNET2_DIX:
-		/* TODO undecap support for middle/last msdu's of amsdu */
-		ath11k_dp_rx_h_undecap_eth(ar, msdu, first_hdr,
-					   enctype, status);
+		ehdr = (struct ethhdr *)msdu->data;
+
+		/* mac80211 allows fast path only for authorized STA */
+		if (ehdr->h_proto == cpu_to_be16(ETH_P_PAE)) {
+			ATH11K_SKB_RXCB(msdu)->is_eapol = true;
+			ath11k_dp_rx_h_undecap_eth(ar, msdu, first_hdr,
+						   enctype, status);
+			break;
+		}
+
+		/* PN for mcast packets will be validated in mac80211;
+		 * remove eth header and add 802.11 header.
+		 */
+		if (ATH11K_SKB_RXCB(msdu)->is_mcbc && decrypted)
+			ath11k_dp_rx_h_undecap_eth(ar, msdu, first_hdr,
+						   enctype, status);
 		break;
 	case DP_RX_DECAP_TYPE_8023:
 		/* TODO: Handle undecap for these formats */
@@ -2180,35 +2206,62 @@ static void ath11k_dp_rx_h_undecap(struct ath11k *ar, struct sk_buff *msdu,
 	}
 }
 
+static struct ath11k_peer *
+ath11k_dp_rx_h_find_peer(struct ath11k_base *ab, struct sk_buff *msdu)
+{
+	struct ath11k_skb_rxcb *rxcb = ATH11K_SKB_RXCB(msdu);
+	struct hal_rx_desc *rx_desc = rxcb->rx_desc;
+	struct ath11k_peer *peer = NULL;
+
+	lockdep_assert_held(&ab->base_lock);
+
+	if (rxcb->peer_id)
+		peer = ath11k_peer_find_by_id(ab, rxcb->peer_id);
+
+	if (peer)
+		return peer;
+
+	if (!rx_desc || !(ath11k_dp_rxdesc_mac_addr2_valid(ab, rx_desc)))
+		return NULL;
+
+	peer = ath11k_peer_find_by_addr(ab,
+					ath11k_dp_rxdesc_mpdu_start_addr2(ab, rx_desc));
+	return peer;
+}
+
 static void ath11k_dp_rx_h_mpdu(struct ath11k *ar,
 				struct sk_buff *msdu,
 				struct hal_rx_desc *rx_desc,
 				struct ieee80211_rx_status *rx_status)
 {
-	bool  fill_crypto_hdr, mcast;
+	bool  fill_crypto_hdr;
 	enum hal_encrypt_type enctype;
 	bool is_decrypted = false;
+	struct ath11k_skb_rxcb *rxcb;
 	struct ieee80211_hdr *hdr;
 	struct ath11k_peer *peer;
 	struct rx_attention *rx_attention;
 	u32 err_bitmap;
 
-	hdr = (struct ieee80211_hdr *)msdu->data;
-
 	/* PN for multicast packets will be checked in mac80211 */
+	rxcb = ATH11K_SKB_RXCB(msdu);
+	fill_crypto_hdr = ath11k_dp_rx_h_attn_is_mcbc(ar->ab, rx_desc);
+	rxcb->is_mcbc = fill_crypto_hdr;
 
-	mcast = is_multicast_ether_addr(hdr->addr1);
-	fill_crypto_hdr = mcast;
+	if (rxcb->is_mcbc) {
+		rxcb->peer_id = ath11k_dp_rx_h_mpdu_start_peer_id(ar->ab, rx_desc);
+		rxcb->seq_no = ath11k_dp_rx_h_mpdu_start_seq_no(ar->ab, rx_desc);
+	}
 
 	spin_lock_bh(&ar->ab->base_lock);
-	peer = ath11k_peer_find_by_addr(ar->ab, hdr->addr2);
+	peer = ath11k_dp_rx_h_find_peer(ar->ab, msdu);
 	if (peer) {
-		if (mcast)
+		if (rxcb->is_mcbc)
 			enctype = peer->sec_type_grp;
 		else
 			enctype = peer->sec_type;
 	} else {
-		enctype = HAL_ENCRYPT_TYPE_OPEN;
+		enctype = ath11k_dp_rx_h_mpdu_start_enctype(ar->ab, rx_desc);
 	}
 	spin_unlock_bh(&ar->ab->base_lock);
 
@@ -2247,8 +2300,11 @@ static void ath11k_dp_rx_h_mpdu(struct ath11k *ar,
 	if (!is_decrypted || fill_crypto_hdr)
 		return;
 
-	hdr = (void *)msdu->data;
-	hdr->frame_control &= ~__cpu_to_le16(IEEE80211_FCTL_PROTECTED);
+	if (ath11k_dp_rx_h_msdu_start_decap_type(ar->ab, rx_desc) !=
+	    DP_RX_DECAP_TYPE_ETHERNET2_DIX) {
+		hdr = (void *)msdu->data;
+		hdr->frame_control &= ~__cpu_to_le16(IEEE80211_FCTL_PROTECTED);
+	}
 }
 
 static void ath11k_dp_rx_h_rate(struct ath11k *ar, struct hal_rx_desc *rx_desc,
@@ -2362,51 +2418,49 @@ static void ath11k_dp_rx_h_ppdu(struct ath11k *ar, struct hal_rx_desc *rx_desc,
 	ath11k_dp_rx_h_rate(ar, rx_desc, rx_status);
 }
 
-static char *ath11k_print_get_tid(struct ieee80211_hdr *hdr, char *out,
-				  size_t size)
-{
-	u8 *qc;
-	int tid;
-
-	if (!ieee80211_is_data_qos(hdr->frame_control))
-		return "";
-
-	qc = ieee80211_get_qos_ctl(hdr);
-	tid = *qc & IEEE80211_QOS_CTL_TID_MASK;
-	snprintf(out, size, "tid %d", tid);
-
-	return out;
-}
-
 static void ath11k_dp_rx_deliver_msdu(struct ath11k *ar, struct napi_struct *napi,
-				      struct sk_buff *msdu)
+				      struct sk_buff *msdu,
+				      struct ieee80211_rx_status *status)
 {
 	static const struct ieee80211_radiotap_he known = {
 		.data1 = cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA1_DATA_MCS_KNOWN |
 				     IEEE80211_RADIOTAP_HE_DATA1_BW_RU_ALLOC_KNOWN),
 		.data2 = cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA2_GI_KNOWN),
 	};
-	struct ieee80211_rx_status *status;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)msdu->data;
+	struct ieee80211_rx_status *rx_status;
 	struct ieee80211_radiotap_he *he = NULL;
-	char tid[32];
+	struct ieee80211_sta *pubsta = NULL;
+	struct ath11k_peer *peer;
+	struct ath11k_skb_rxcb *rxcb = ATH11K_SKB_RXCB(msdu);
+	u8 decap = DP_RX_DECAP_TYPE_RAW;
+	bool is_mcbc = rxcb->is_mcbc;
+	bool is_eapol = rxcb->is_eapol;
 
-	status = IEEE80211_SKB_RXCB(msdu);
-	if (status->encoding == RX_ENC_HE) {
+	if (status->encoding == RX_ENC_HE &&
+	    !(status->flag & RX_FLAG_RADIOTAP_HE) &&
+	    !(status->flag & RX_FLAG_SKIP_MONITOR)) {
 		he = skb_push(msdu, sizeof(known));
 		memcpy(he, &known, sizeof(known));
 		status->flag |= RX_FLAG_RADIOTAP_HE;
 	}
 
+	if (!(status->flag & RX_FLAG_ONLY_MONITOR))
+		decap = ath11k_dp_rx_h_msdu_start_decap_type(ar->ab, rxcb->rx_desc);
+
+	spin_lock_bh(&ar->ab->base_lock);
+	peer = ath11k_dp_rx_h_find_peer(ar->ab, msdu);
+	if (peer && peer->sta)
+		pubsta = peer->sta;
+	spin_unlock_bh(&ar->ab->base_lock);
+
 	ath11k_dbg(ar->ab, ATH11K_DBG_DATA,
-		   "rx skb %pK len %u peer %pM %s %s sn %u %s%s%s%s%s%s%s %srate_idx %u vht_nss %u freq %u band %u flag 0x%x fcs-err %i mic-err %i amsdu-more %i\n",
+		   "rx skb %pK len %u peer %pM %d %s sn %u %s%s%s%s%s%s%s %srate_idx %u vht_nss %u freq %u band %u flag 0x%x fcs-err %i mic-err %i amsdu-more %i\n",
 		   msdu,
 		   msdu->len,
-		   ieee80211_get_SA(hdr),
-		   ath11k_print_get_tid(hdr, tid, sizeof(tid)),
-		   is_multicast_ether_addr(ieee80211_get_DA(hdr)) ?
-							"mcast" : "ucast",
-		   (__le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_SEQ) >> 4,
+		   peer ? peer->addr : NULL,
+		   rxcb->tid,
+		   is_mcbc ? "mcast" : "ucast",
+		   rxcb->seq_no,
 		   (status->encoding == RX_ENC_LEGACY) ? "legacy" : "",
 		   (status->encoding == RX_ENC_HT) ? "ht" : "",
 		   (status->encoding == RX_ENC_VHT) ? "vht" : "",
@@ -2426,22 +2480,32 @@ static void ath11k_dp_rx_deliver_msdu(struct ath11k *ar, struct napi_struct *nap
 	ath11k_dbg_dump(ar->ab, ATH11K_DBG_DP_RX, NULL, "dp rx msdu: ",
 			msdu->data, msdu->len);
 
+	rx_status = IEEE80211_SKB_RXCB(msdu);
+	*rx_status = *status;
+
 	/* TODO: trace rx packet */
 
-	ieee80211_rx_napi(ar->hw, NULL, msdu, napi);
+	/* PN for multicast packets are not validate in HW,
+	 * so skip 802.3 rx path
+	 * Also, fast_rx expectes the STA to be authorized, hence
+	 * eapol packets are sent in slow path.
+	 */
+	if (decap == DP_RX_DECAP_TYPE_ETHERNET2_DIX && !is_eapol &&
+	    !(is_mcbc && rx_status->flag & RX_FLAG_DECRYPTED))
+		rx_status->flag |= RX_FLAG_8023;
+
+	ieee80211_rx_napi(ar->hw, pubsta, msdu, napi);
 }
 
 static int ath11k_dp_rx_process_msdu(struct ath11k *ar,
 				     struct sk_buff *msdu,
-				     struct sk_buff_head *msdu_list)
+				     struct sk_buff_head *msdu_list,
+				     struct ieee80211_rx_status *rx_status)
 {
 	struct ath11k_base *ab = ar->ab;
 	struct hal_rx_desc *rx_desc, *lrx_desc;
 	struct rx_attention *rx_attention;
-	struct ieee80211_rx_status rx_status = {0};
-	struct ieee80211_rx_status *status;
 	struct ath11k_skb_rxcb *rxcb;
-	struct ieee80211_hdr *hdr;
 	struct sk_buff *last_buf;
 	u8 l3_pad_bytes;
 	u8 *hdr_status;
@@ -2497,19 +2561,11 @@ static int ath11k_dp_rx_process_msdu(struct ath11k *ar,
 		}
 	}
 
-	hdr = (struct ieee80211_hdr *)msdu->data;
+	ath11k_dp_rx_h_ppdu(ar, rx_desc, rx_status);
+	ath11k_dp_rx_h_mpdu(ar, msdu, rx_desc, rx_status);
 
-	/* Process only data frames */
-	if (!ieee80211_is_data(hdr->frame_control))
-		return -EINVAL;
+	rx_status->flag |= RX_FLAG_SKIP_MONITOR | RX_FLAG_DUP_VALIDATED;
 
-	ath11k_dp_rx_h_ppdu(ar, rx_desc, &rx_status);
-	ath11k_dp_rx_h_mpdu(ar, msdu, rx_desc, &rx_status);
-
-	rx_status.flag |= RX_FLAG_SKIP_MONITOR | RX_FLAG_DUP_VALIDATED;
-
-	status = IEEE80211_SKB_RXCB(msdu);
-	*status = rx_status;
 	return 0;
 
 free_out:
@@ -2524,6 +2580,7 @@ static void ath11k_dp_rx_process_received_packets(struct ath11k_base *ab,
 	struct ath11k_skb_rxcb *rxcb;
 	struct sk_buff *msdu;
 	struct ath11k *ar;
+	struct ieee80211_rx_status rx_status = {0};
 	u8 mac_id;
 	int ret;
 
@@ -2546,7 +2603,7 @@ static void ath11k_dp_rx_process_received_packets(struct ath11k_base *ab,
 			continue;
 		}
 
-		ret = ath11k_dp_rx_process_msdu(ar, msdu, msdu_list);
+		ret = ath11k_dp_rx_process_msdu(ar, msdu, msdu_list, &rx_status);
 		if (ret) {
 			ath11k_dbg(ab, ATH11K_DBG_DATA,
 				   "Unable to process msdu %d", ret);
@@ -2554,7 +2611,7 @@ static void ath11k_dp_rx_process_received_packets(struct ath11k_base *ab,
 			continue;
 		}
 
-		ath11k_dp_rx_deliver_msdu(ar, napi, msdu);
+		ath11k_dp_rx_deliver_msdu(ar, napi, msdu, &rx_status);
 		(*quota)--;
 	}
 
@@ -2636,10 +2693,14 @@ try_again:
 					RX_MSDU_DESC_INFO0_LAST_MSDU_IN_MPDU);
 		rxcb->is_continuation = !!(desc.rx_msdu_info.info0 &
 					   RX_MSDU_DESC_INFO0_MSDU_CONTINUATION);
-		rxcb->mac_id = mac_id;
+		rxcb->peer_id = FIELD_GET(RX_MPDU_DESC_META_DATA_PEER_ID,
+					  desc.rx_mpdu_info.meta_data);
+		rxcb->seq_no = FIELD_GET(RX_MPDU_DESC_INFO0_SEQ_NUM,
+					 desc.rx_mpdu_info.info0);
 		rxcb->tid = FIELD_GET(HAL_REO_DEST_RING_INFO0_RX_QUEUE_NUM,
 				      desc.info0);
 
+		rxcb->mac_id = mac_id;
 		__skb_queue_tail(&msdu_list, msdu);
 
 		if (total_msdu_reaped >= quota && !rxcb->is_continuation) {
@@ -3941,7 +4002,6 @@ static void ath11k_dp_rx_wbm_err(struct ath11k *ar,
 {
 	struct ath11k_skb_rxcb *rxcb = ATH11K_SKB_RXCB(msdu);
 	struct ieee80211_rx_status rxs = {0};
-	struct ieee80211_rx_status *status;
 	bool drop = true;
 
 	switch (rxcb->err_rel_src) {
@@ -3961,10 +4021,7 @@ static void ath11k_dp_rx_wbm_err(struct ath11k *ar,
 		return;
 	}
 
-	status = IEEE80211_SKB_RXCB(msdu);
-	*status = rxs;
-
-	ath11k_dp_rx_deliver_msdu(ar, napi, msdu);
+	ath11k_dp_rx_deliver_msdu(ar, napi, msdu, &rxs);
 }
 
 int ath11k_dp_rx_process_wbm_err(struct ath11k_base *ab,
@@ -4848,7 +4905,7 @@ static int ath11k_dp_rx_mon_deliver(struct ath11k *ar, u32 mac_id,
 {
 	struct ath11k_pdev_dp *dp = &ar->dp;
 	struct sk_buff *mon_skb, *skb_next, *header;
-	struct ieee80211_rx_status *rxs = &dp->rx_status, *status;
+	struct ieee80211_rx_status *rxs = &dp->rx_status;
 
 	mon_skb = ath11k_dp_rx_mon_merg_msdus(ar, mac_id, head_msdu,
 					      tail_msdu, rxs);
@@ -4874,10 +4931,7 @@ static int ath11k_dp_rx_mon_deliver(struct ath11k *ar, u32 mac_id,
 		}
 		rxs->flag |= RX_FLAG_ONLY_MONITOR;
 
-		status = IEEE80211_SKB_RXCB(mon_skb);
-		*status = *rxs;
-
-		ath11k_dp_rx_deliver_msdu(ar, napi, mon_skb);
+		ath11k_dp_rx_deliver_msdu(ar, napi, mon_skb, rxs);
 		mon_skb = skb_next;
 	} while (mon_skb);
 	rxs->flag = 0;

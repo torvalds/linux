@@ -209,6 +209,8 @@ struct ath11k_hw_ops {
 	u8 *(*rx_desc_get_msdu_payload)(struct hal_rx_desc *desc);
 	void (*reo_setup)(struct ath11k_base *ab);
 	u16 (*mpdu_info_get_peerid)(u8 *tlv_data);
+	bool (*rx_desc_mac_addr2_valid)(struct hal_rx_desc *desc);
+	u8* (*rx_desc_mpdu_start_addr2)(struct hal_rx_desc *desc);
 };
 
 extern const struct ath11k_hw_ops ipq8074_ops;
