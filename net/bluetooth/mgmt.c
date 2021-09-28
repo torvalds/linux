@@ -3874,21 +3874,12 @@ static int read_exp_features_info(struct sock *sk, struct hci_dev *hdev,
 		idx++;
 	}
 
-	if (hdev) {
-		if (hdev->get_data_path_id) {
-			/* BIT(0): indicating if offload codecs are
-			 * supported by controller.
-			 */
+	if (hdev && hdev->get_data_path_id) {
+		if (hci_dev_test_flag(hdev, HCI_OFFLOAD_CODECS_ENABLED))
 			flags = BIT(0);
-
-			/* BIT(1): indicating if codec offload feature
-			 * is enabled.
-			 */
-			if (hci_dev_test_flag(hdev, HCI_OFFLOAD_CODECS_ENABLED))
-				flags |= BIT(1);
-		} else {
+		else
 			flags = 0;
-		}
+
 		memcpy(rp->features[idx].uuid, offload_codecs_uuid, 16);
 		rp->features[idx].flags = cpu_to_le32(flags);
 		idx++;
