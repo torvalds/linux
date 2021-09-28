@@ -198,6 +198,7 @@ static int tegra186_emc_probe(struct platform_device *pdev)
 		goto put_bpmp;
 	}
 	if (msg.rx.ret < 0) {
+		err = -EINVAL;
 		dev_err(&pdev->dev, "EMC DVFS MRQ failed: %d (BPMP error code)\n", msg.rx.ret);
 		goto put_bpmp;
 	}
