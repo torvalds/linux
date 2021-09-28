@@ -116,13 +116,13 @@ int hda_dsp_stream_setup_bdl(struct snd_sof_dev *sdev,
 	int remain, ioc;
 
 	period_bytes = stream->period_bytes;
-	dev_dbg(sdev->dev, "period_bytes:0x%x\n", period_bytes);
+	dev_dbg(sdev->dev, "%s: period_bytes:0x%x\n", __func__, period_bytes);
 	if (!period_bytes)
 		period_bytes = stream->bufsize;
 
 	periods = stream->bufsize / period_bytes;
 
-	dev_dbg(sdev->dev, "periods:%d\n", periods);
+	dev_dbg(sdev->dev, "%s: periods:%d\n", __func__, periods);
 
 	remain = stream->bufsize % period_bytes;
 	if (remain)
@@ -271,7 +271,8 @@ int hda_dsp_stream_put(struct snd_sof_dev *sdev, int direction, int stream_tag)
 					HDA_VS_INTEL_EM2_L1SEN, HDA_VS_INTEL_EM2_L1SEN);
 
 	if (!found) {
-		dev_dbg(sdev->dev, "stream_tag %d not opened!\n", stream_tag);
+		dev_dbg(sdev->dev, "%s: stream_tag %d not opened!\n",
+			__func__, stream_tag);
 		return -ENODEV;
 	}
 
