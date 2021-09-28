@@ -1955,7 +1955,7 @@ static int sdma_init(struct sdma_engine *sdma)
 	writel_relaxed(0, sdma->regs + SDMA_H_C0PTR);
 
 	sdma->channel_control = dma_alloc_coherent(sdma->dev,
-			MAX_DMA_CHANNELS * sizeof (struct sdma_channel_control) +
+			MAX_DMA_CHANNELS * sizeof(struct sdma_channel_control) +
 			sizeof(struct sdma_context_data),
 			&ccb_phys, GFP_KERNEL);
 
@@ -1965,9 +1965,9 @@ static int sdma_init(struct sdma_engine *sdma)
 	}
 
 	sdma->context = (void *)sdma->channel_control +
-		MAX_DMA_CHANNELS * sizeof (struct sdma_channel_control);
+		MAX_DMA_CHANNELS * sizeof(struct sdma_channel_control);
 	sdma->context_phys = ccb_phys +
-		MAX_DMA_CHANNELS * sizeof (struct sdma_channel_control);
+		MAX_DMA_CHANNELS * sizeof(struct sdma_channel_control);
 
 	/* disable all channels */
 	for (i = 0; i < sdma->drvdata->num_events; i++)
