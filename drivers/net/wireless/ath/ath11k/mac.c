@@ -2069,11 +2069,16 @@ static void ath11k_peer_assoc_h_smps(struct ieee80211_sta *sta,
 	const struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	int smps;
 
-	if (!ht_cap->ht_supported)
+	if (!ht_cap->ht_supported && !sta->he_6ghz_capa.capa)
 		return;
 
-	smps = ht_cap->cap & IEEE80211_HT_CAP_SM_PS;
-	smps >>= IEEE80211_HT_CAP_SM_PS_SHIFT;
+	if (ht_cap->ht_supported) {
+		smps = ht_cap->cap & IEEE80211_HT_CAP_SM_PS;
+		smps >>= IEEE80211_HT_CAP_SM_PS_SHIFT;
+	} else {
+		smps = FIELD_GET(IEEE80211_HE_6GHZ_CAP_SM_PS,
+				 le16_to_cpu(sta->he_6ghz_capa.capa));
+	}
 
 	switch (smps) {
 	case WLAN_HT_CAP_SM_PS_STATIC:
@@ -2361,15 +2366,20 @@ static void ath11k_peer_assoc_prepare(struct ath11k *ar,
 
 static int ath11k_setup_peer_smps(struct ath11k *ar, struct ath11k_vif *arvif,
 				  const u8 *addr,
-				  const struct ieee80211_sta_ht_cap *ht_cap)
+				  const struct ieee80211_sta_ht_cap *ht_cap,
+				  u16 he_6ghz_capa)
 {
 	int smps;
 
-	if (!ht_cap->ht_supported)
+	if (!ht_cap->ht_supported && !he_6ghz_capa)
 		return 0;
 
-	smps = ht_cap->cap & IEEE80211_HT_CAP_SM_PS;
-	smps >>= IEEE80211_HT_CAP_SM_PS_SHIFT;
+	if (ht_cap->ht_supported) {
+		smps = ht_cap->cap & IEEE80211_HT_CAP_SM_PS;
+		smps >>= IEEE80211_HT_CAP_SM_PS_SHIFT;
+	} else {
+		smps = FIELD_GET(IEEE80211_HE_6GHZ_CAP_SM_PS, he_6ghz_capa);
+	}
 
 	if (smps >= ARRAY_SIZE(ath11k_smps_map))
 		return -EINVAL;
@@ -2422,7 +2432,8 @@ static void ath11k_bss_assoc(struct ieee80211_hw *hw,
 	}
 
 	ret = ath11k_setup_peer_smps(ar, arvif, bss_conf->bssid,
-				     &ap_sta->ht_cap);
+				     &ap_sta->ht_cap,
+				     le16_to_cpu(ap_sta->he_6ghz_capa.capa));
 	if (ret) {
 		ath11k_warn(ar->ab, "failed to setup peer SMPS for vdev %d: %d\n",
 			    arvif->vdev_id, ret);
@@ -3714,7 +3725,7 @@ static int ath11k_station_assoc(struct ath11k *ar,
 		return 0;
 
 	ret = ath11k_setup_peer_smps(ar, arvif, sta->addr,
-				     &sta->ht_cap);
+				     &sta->ht_cap, le16_to_cpu(sta->he_6ghz_capa.capa));
 	if (ret) {
 		ath11k_warn(ar->ab, "failed to setup peer SMPS for vdev %d: %d\n",
 			    arvif->vdev_id, ret);
@@ -7661,7 +7672,7 @@ static int __ath11k_mac_register(struct ath11k *ar)
 	 * for each band for a dual band capable radio. It will be tricky to
 	 * handle it when the ht capability different for each band.
 	 */
-	if (ht_cap & WMI_HT_CAP_DYNAMIC_SMPS)
+	if (ht_cap & WMI_HT_CAP_DYNAMIC_SMPS || ar->supports_6ghz)
 		ar->hw->wiphy->features |= NL80211_FEATURE_DYNAMIC_SMPS;
 
 	ar->hw->wiphy->max_scan_ssids = WLAN_SCAN_PARAMS_MAX_SSID;
