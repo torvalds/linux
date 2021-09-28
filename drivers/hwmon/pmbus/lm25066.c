@@ -234,8 +234,6 @@ struct lm25066_data {
 
 #define to_lm25066_data(x)  container_of(x, struct lm25066_data, info)
 
-static const struct i2c_device_id lm25066_id[];
-
 static int lm25066_read_word_data(struct i2c_client *client, int page,
 				  int phase, int reg)
 {
@@ -436,6 +434,16 @@ static int lm25066_write_word_data(struct i2c_client *client, int page, int reg,
 	return ret;
 }
 
+static const struct i2c_device_id lm25066_id[] = {
+	{"lm25056", lm25056},
+	{"lm25066", lm25066},
+	{"lm5064", lm5064},
+	{"lm5066", lm5066},
+	{"lm5066i", lm5066i},
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, lm25066_id);
+
 static int lm25066_probe(struct i2c_client *client)
 {
 	int config;
@@ -508,17 +516,6 @@ static int lm25066_probe(struct i2c_client *client)
 
 	return pmbus_do_probe(client, info);
 }
-
-static const struct i2c_device_id lm25066_id[] = {
-	{"lm25056", lm25056},
-	{"lm25066", lm25066},
-	{"lm5064", lm5064},
-	{"lm5066", lm5066},
-	{"lm5066i", lm5066i},
-	{ }
-};
-
-MODULE_DEVICE_TABLE(i2c, lm25066_id);
 
 /* This is the driver that will be inserted */
 static struct i2c_driver lm25066_driver = {
