@@ -1043,6 +1043,7 @@ TRACE_EVENT(sched_task_util,
 		__field(unsigned long,	cpus_allowed)
 		__field(int,		task_boost)
 		__field(bool,		low_latency)
+		__field(bool,		iowaited)
 	),
 
 	TP_fast_assign(
@@ -1066,16 +1067,18 @@ TRACE_EVENT(sched_task_util,
 		__entry->cpus_allowed		= cpumask_bits(&p->cpus_mask)[0];
 		__entry->task_boost		= per_task_boost(p);
 		__entry->low_latency		= walt_low_latency_task(p);
+		__entry->iowaited		=
+			((struct walt_task_struct *) p->android_vendor_data1)->iowaited;
 	),
 
-	TP_printk("pid=%d comm=%s util=%lu prev_cpu=%d candidates=%#lx best_energy_cpu=%d sync=%d need_idle=%d fastpath=%d placement_boost=%d latency=%llu stune_boosted=%d is_rtg=%d rtg_skip_min=%d start_cpu=%d unfilter=%u affinity=%lx task_boost=%d low_latency=%d",
+	TP_printk("pid=%d comm=%s util=%lu prev_cpu=%d candidates=%#lx best_energy_cpu=%d sync=%d need_idle=%d fastpath=%d placement_boost=%d latency=%llu stune_boosted=%d is_rtg=%d rtg_skip_min=%d start_cpu=%d unfilter=%u affinity=%lx task_boost=%d low_latency=%d iowaited=%d",
 		__entry->pid, __entry->comm, __entry->util, __entry->prev_cpu,
 		__entry->candidates, __entry->best_energy_cpu, __entry->sync,
 		__entry->need_idle, __entry->fastpath, __entry->placement_boost,
 		__entry->latency, __entry->uclamp_boosted,
 		__entry->is_rtg, __entry->rtg_skip_min, __entry->start_cpu,
 		__entry->unfilter, __entry->cpus_allowed, __entry->task_boost,
-		__entry->low_latency)
+		__entry->low_latency, __entry->iowaited)
 );
 
 /*
