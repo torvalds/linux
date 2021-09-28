@@ -694,10 +694,26 @@ static inline void account_load_subtractions(struct rq *rq)
 		ls[i].new_subs = 0;
 	}
 
-	WALT_PANIC((s64)wrq->prev_runnable_sum < 0);
-	WALT_PANIC((s64)wrq->curr_runnable_sum < 0);
-	WALT_PANIC((s64)wrq->nt_prev_runnable_sum < 0);
-	WALT_PANIC((s64)wrq->nt_curr_runnable_sum < 0);
+	if ((s64)wrq->prev_runnable_sum < 0) {
+		WALT_BUG(NULL, "wrq->prev_runnable_sum=%llu < 0",
+				(s64)wrq->prev_runnable_sum);
+		wrq->prev_runnable_sum = 0;
+	}
+	if ((s64)wrq->curr_runnable_sum < 0) {
+		WALT_BUG(NULL, "wrq->curr_runnable_sum=%llu < 0",
+				(s64)wrq->curr_runnable_sum);
+		wrq->curr_runnable_sum = 0;
+	}
+	if ((s64)wrq->nt_prev_runnable_sum < 0) {
+		WALT_BUG(NULL, "wrq->nt_prev_runnable_sum=%llu < 0",
+				(s64)wrq->nt_prev_runnable_sum);
+		wrq->nt_prev_runnable_sum = 0;
+	}
+	if ((s64)wrq->nt_curr_runnable_sum < 0) {
+		WALT_BUG(NULL, "wrq->nt_curr_runnable_sum=%llu < 0",
+				(s64)wrq->nt_curr_runnable_sum);
+		wrq->nt_curr_runnable_sum = 0;
+	}
 }
 
 static inline void create_subtraction_entry(struct rq *rq, u64 ws, int index)
