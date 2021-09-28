@@ -21,7 +21,7 @@ static inline bool is_shared_processor(void)
 	return static_branch_unlikely(&shared_processor);
 }
 
-/* If bit 0 is set, the cpu has been preempted */
+/* If bit 0 is set, the cpu has been ceded, conferred, or preempted */
 static inline u32 yield_count_of(int cpu)
 {
 	__be32 yield_count = READ_ONCE(lppaca_of(cpu).yield_count);
@@ -92,6 +92,19 @@ static inline void prod_cpu(int cpu)
 #define vcpu_is_preempted vcpu_is_preempted
 static inline bool vcpu_is_preempted(int cpu)
 {
+	/*
+	 * The dispatch/yield bit alone is an imperfect indicator of
+	 * whether the hypervisor has dispatched @cpu to run on a physical
+	 * processor. When it is clear, @cpu is definitely not preempted.
+	 * But when it is set, it means only that it *might* be, subject to
+	 * other conditions. So we check other properties of the VM and
+	 * @cpu first, resorting to the yield count last.
+	 */
+
+	/*
+	 * Hypervisor preemption isn't possible in dedicated processor
+	 * mode by definition.
+	 */
 	if (!is_shared_processor())
 		return false;
 
@@ -100,9 +113,10 @@ static inline bool vcpu_is_preempted(int cpu)
 		int first_cpu = cpu_first_thread_sibling(smp_processor_id());
 
 		/*
-		 * Preemption can only happen at core granularity. This CPU
-		 * is not preempted if one of the CPU of this core is not
-		 * preempted.
+		 * The PowerVM hypervisor dispatches VMs on a whole core
+		 * basis. So we know that a thread sibling of the local CPU
+		 * cannot have been preempted by the hypervisor, even if it
+		 * has called H_CONFER, which will set the yield bit.
 		 */
 		if (cpu_first_thread_sibling(cpu) == first_cpu)
 			return false;
