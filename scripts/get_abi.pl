@@ -9,6 +9,7 @@ use utf8;
 use Pod::Usage qw(pod2usage);
 use Getopt::Long;
 use File::Find;
+use IO::Handle;
 use Fcntl ':mode';
 use Cwd 'abs_path';
 use Data::Dumper;
@@ -702,87 +703,137 @@ sub get_leave($)
 	return $leave;
 }
 
-sub check_undefined_symbols {
-	foreach my $file_ref (sort @files) {
-		my @names = @{$$file_ref{"__name"}};
-		my $file = $names[0];
+my @not_found;
 
-		my $exact = 0;
-		my $found_string;
+sub check_file($$)
+{
+	my $file_ref = shift;
+	my $names_ref = shift;
+	my @names = @{$names_ref};
+	my $file = $names[0];
 
-		my $leave = get_leave($file);
-		if (!defined($leaf{$leave})) {
-			$leave = "others";
-		}
-		my @expr = @{$leaf{$leave}->{expr}};
-		die ("missing rules for $leave") if (!defined($leaf{$leave}));
+	my $found_string;
 
-		my $path = $file;
-		$path =~ s,(.*/).*,$1,;
+	my $leave = get_leave($file);
+	if (!defined($leaf{$leave})) {
+		$leave = "others";
+	}
+	my @expr = @{$leaf{$leave}->{expr}};
+	die ("\rmissing rules for $leave") if (!defined($leaf{$leave}));
 
-		if ($search_string) {
-			next if (!($file =~ m#$search_string#));
-			$found_string = 1;
-		}
+	my $path = $file;
+	$path =~ s,(.*/).*,$1,;
 
-		for (my $i = 0; $i < @names; $i++) {
-			if ($found_string && $hint) {
-				if (!$i) {
-					print STDERR "--> $names[$i]\n";
-				} else {
-					print STDERR "    $names[$i]\n";
-				}
-			}
-			foreach my $re (@expr) {
-				print "$names[$i] =~ /^$re\$/\n" if ($debug && $dbg_undefined);
-				if ($names[$i] =~ $re) {
-					$exact = 1;
-					last;
-				}
-			}
-			last if ($exact);
-		}
-		next if ($exact);
+	if ($search_string) {
+		return if (!($file =~ m#$search_string#));
+		$found_string = 1;
+	}
 
-		if ($leave ne "others") {
-			my @expr = @{$leaf{$leave}->{expr}};
-			for (my $i = 0; $i < @names; $i++) {
-				foreach my $re (@expr) {
-					print "$names[$i] =~ /^$re\$/\n" if ($debug && $dbg_undefined);
-					if ($names[$i] =~ $re) {
-						$exact = 1;
-						last;
-					}
-				}
-				last if ($exact);
-			}
-			last if ($exact);
-		}
-		next if ($exact);
-
-		print "$file not found.\n" if (!$search_string || $found_string);
-
-		if ($hint && (!$search_string || $found_string)) {
-			my $what = $leaf{$leave}->{what};
-			$what =~ s/\xac/\n\t/g;
-			if ($leave ne "others") {
-				print STDERR "    more likely regexes:\n\t$what\n";
+	for (my $i = 0; $i < @names; $i++) {
+		if ($found_string && $hint) {
+			if (!$i) {
+				print STDERR "--> $names[$i]\n";
 			} else {
-				print STDERR "    tested regexes:\n\t$what\n";
+				print STDERR "    $names[$i]\n";
 			}
+		}
+		foreach my $re (@expr) {
+			print STDERR "$names[$i] =~ /^$re\$/\n" if ($debug && $dbg_undefined);
+			if ($names[$i] =~ $re) {
+				return;
+			}
+		}
+	}
+
+	if ($leave ne "others") {
+		my @expr = @{$leaf{$leave}->{expr}};
+		for (my $i = 0; $i < @names; $i++) {
+			foreach my $re (@expr) {
+				print STDERR "$names[$i] =~ /^$re\$/\n" if ($debug && $dbg_undefined);
+				if ($names[$i] =~ $re) {
+					return;
+				}
+			}
+		}
+	}
+
+	push @not_found, $file if (!$search_string || $found_string);
+
+	if ($hint && (!$search_string || $found_string)) {
+		my $what = $leaf{$leave}->{what};
+		$what =~ s/\xac/\n\t/g;
+		if ($leave ne "others") {
+			print STDERR "\r    more likely regexes:\n\t$what\n";
+		} else {
+			print STDERR "\r    tested regexes:\n\t$what\n";
 		}
 	}
 }
 
+sub check_undefined_symbols {
+	my $num_files = scalar @files;
+	my $next_i = 0;
+	my $start_time = times;
+
+	my $last_time = $start_time;
+
+	# When either debug or hint is enabled, there's no sense showing
+	# progress, as the progress will be overriden.
+	if ($hint || ($debug && $dbg_undefined)) {
+		$next_i = $num_files;
+	}
+
+	my $is_console;
+	$is_console = 1 if (-t STDERR);
+
+	for (my $i = 0; $i < $num_files; $i++) {
+		my $file_ref = $files[$i];
+		my @names = @{$$file_ref{"__name"}};
+
+		check_file($file_ref, \@names);
+
+		my $cur_time = times;
+
+		if ($i == $next_i || $cur_time > $last_time + 1) {
+			my $percent = $i * 100 / $num_files;
+
+			my $tm = $cur_time - $start_time;
+			my $time = sprintf "%d:%02d", int($tm), 60 * ($tm - int($tm));
+
+			printf STDERR "\33[2K\r", if ($is_console);
+			printf STDERR "%s: processing sysfs files... %i%%: $names[0]", $time, $percent;
+			printf STDERR "\n", if (!$is_console);
+			STDERR->flush();
+
+			$next_i = int (($percent + 1) * $num_files / 100);
+			$last_time = $cur_time;
+		}
+	}
+
+	my $cur_time = times;
+	my $tm = $cur_time - $start_time;
+	my $time = sprintf "%d:%02d", int($tm), 60 * ($tm - int($tm));
+
+	printf STDERR "\33[2K\r", if ($is_console);
+	printf STDERR "%s: processing sysfs files... done\n", $time;
+
+	foreach my $file (@not_found) {
+		print "$file not found.\n";
+	}
+}
+
 sub undefined_symbols {
+	print STDERR "Reading $sysfs_prefix directory contents...";
 	find({
 		wanted =>\&parse_existing_sysfs,
 		preprocess =>\&dont_parse_special_attributes,
 		no_chdir => 1
 	     }, $sysfs_prefix);
+	print STDERR "done.\n";
 
 	$leaf{"others"}->{what} = "";
 
+	print STDERR "Converting ABI What fields into regexes...";
 	foreach my $w (sort keys %data) {
 		foreach my $what (split /\xac/,$w) {
 			next if (!($what =~ m/^$sysfs_prefix/));
@@ -871,6 +922,8 @@ sub undefined_symbols {
 		my $abs_file = $aliases{$link};
 		graph_add_link($abs_file, $link);
 	}
+	print STDERR "done.\n";
+
 	check_undefined_symbols;
 }
 
