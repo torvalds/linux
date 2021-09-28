@@ -101,7 +101,7 @@ static struct __coeff lm25066_coeff[6][PSC_NUM_CLASSES + 2] = {
 			.R = -2,
 		},
 		[PSC_CURRENT_IN_L] = {
-			.m = 6852,
+			.m = 6854,
 			.b = -3100,
 			.R = -2,
 		},
