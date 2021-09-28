@@ -24,6 +24,12 @@ properties:
       If present, hardware has dma capability.
     type: boolean
 
+  clocks:
+    minItems: 1
+
+  clock-names:
+    const: s_axi_aclk
+
 required:
   - compatible
   - reg
