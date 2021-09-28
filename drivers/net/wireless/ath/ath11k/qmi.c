@@ -951,6 +951,78 @@ static struct qmi_elem_info qmi_wlanfw_cap_resp_msg_v01_ei[] = {
 					   num_macs),
 	},
 	{
+		.data_type      = QMI_OPT_FLAG,
+		.elem_len       = 1,
+		.elem_size      = sizeof(u8),
+		.array_type     = NO_ARRAY,
+		.tlv_type       = 0x16,
+		.offset         = offsetof(struct qmi_wlanfw_cap_resp_msg_v01,
+					   voltage_mv_valid),
+	},
+	{
+		.data_type      = QMI_UNSIGNED_4_BYTE,
+		.elem_len       = 1,
+		.elem_size      = sizeof(u32),
+		.array_type     = NO_ARRAY,
+		.tlv_type       = 0x16,
+		.offset         = offsetof(struct qmi_wlanfw_cap_resp_msg_v01,
+					   voltage_mv),
+	},
+	{
+		.data_type      = QMI_OPT_FLAG,
+		.elem_len       = 1,
+		.elem_size      = sizeof(u8),
+		.array_type     = NO_ARRAY,
+		.tlv_type       = 0x17,
+		.offset         = offsetof(struct qmi_wlanfw_cap_resp_msg_v01,
+					   time_freq_hz_valid),
+	},
+	{
+		.data_type      = QMI_UNSIGNED_4_BYTE,
+		.elem_len       = 1,
+		.elem_size      = sizeof(u32),
+		.array_type     = NO_ARRAY,
+		.tlv_type       = 0x17,
+		.offset         = offsetof(struct qmi_wlanfw_cap_resp_msg_v01,
+					   time_freq_hz),
+	},
+	{
+		.data_type      = QMI_OPT_FLAG,
+		.elem_len       = 1,
+		.elem_size      = sizeof(u8),
+		.array_type     = NO_ARRAY,
+		.tlv_type       = 0x18,
+		.offset         = offsetof(struct qmi_wlanfw_cap_resp_msg_v01,
+					   otp_version_valid),
+	},
+	{
+		.data_type      = QMI_UNSIGNED_4_BYTE,
+		.elem_len       = 1,
+		.elem_size      = sizeof(u32),
+		.array_type     = NO_ARRAY,
+		.tlv_type       = 0x18,
+		.offset         = offsetof(struct qmi_wlanfw_cap_resp_msg_v01,
+					   otp_version),
+	},
+	{
+		.data_type      = QMI_OPT_FLAG,
+		.elem_len       = 1,
+		.elem_size      = sizeof(u8),
+		.array_type     = NO_ARRAY,
+		.tlv_type       = 0x19,
+		.offset         = offsetof(struct qmi_wlanfw_cap_resp_msg_v01,
+					   eeprom_read_timeout_valid),
+	},
+	{
+		.data_type      = QMI_UNSIGNED_4_BYTE,
+		.elem_len       = 1,
+		.elem_size      = sizeof(u32),
+		.array_type     = NO_ARRAY,
+		.tlv_type       = 0x19,
+		.offset         = offsetof(struct qmi_wlanfw_cap_resp_msg_v01,
+					   eeprom_read_timeout),
+	},
+	{
 		.data_type	= QMI_EOTI,
 		.array_type	= NO_ARRAY,
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
@@ -1846,8 +1918,8 @@ static int ath11k_qmi_request_target_cap(struct ath11k_base *ab)
 	memset(&req, 0, sizeof(req));
 	memset(&resp, 0, sizeof(resp));
 
-	ret = qmi_txn_init(&ab->qmi.handle, &txn,
-			   qmi_wlanfw_cap_resp_msg_v01_ei, &resp);
+	ret = qmi_txn_init(&ab->qmi.handle, &txn, qmi_wlanfw_cap_resp_msg_v01_ei,
+			   &resp);
 	if (ret < 0)
 		goto out;
 
@@ -1899,6 +1971,12 @@ static int ath11k_qmi_request_target_cap(struct ath11k_base *ab)
 	if (resp.fw_build_id_valid)
 		strlcpy(ab->qmi.target.fw_build_id, resp.fw_build_id,
 			sizeof(ab->qmi.target.fw_build_id));
+
+	if (resp.eeprom_read_timeout_valid) {
+		ab->qmi.target.eeprom_caldata =
+					resp.eeprom_read_timeout;
+		ath11k_dbg(ab, ATH11K_DBG_QMI, "qmi cal data supported from eeprom\n");
+	}
 
 	ath11k_info(ab, "chip_id 0x%x chip_family 0x%x board_id 0x%x soc_id 0x%x\n",
 		    ab->qmi.target.chip_id, ab->qmi.target.chip_family,
@@ -1963,7 +2041,8 @@ static int ath11k_qmi_load_file_target_mem(struct ath11k_base *ab,
 			req->end = 1;
 		}
 
-		if (ab->bus_params.fixed_bdf_addr) {
+		if (ab->bus_params.fixed_bdf_addr ||
+		    type == ATH11K_QMI_FILE_TYPE_EEPROM) {
 			req->data_valid = 0;
 			req->end = 1;
 			req->data_len = ATH11K_QMI_MAX_BDF_FILE_NAME_SIZE;
@@ -2010,7 +2089,8 @@ static int ath11k_qmi_load_file_target_mem(struct ath11k_base *ab,
 			goto err_iounmap;
 		}
 
-		if (ab->bus_params.fixed_bdf_addr) {
+		if (ab->bus_params.fixed_bdf_addr ||
+		    type == ATH11K_QMI_FILE_TYPE_EEPROM) {
 			remaining = 0;
 		} else {
 			remaining -= req->data_len;
@@ -2039,6 +2119,7 @@ static int ath11k_qmi_load_bdf_qmi(struct ath11k_base *ab)
 	struct ath11k_board_data bd;
 	u32 fw_size, file_type;
 	int ret = 0, bdf_type;
+	const u8 *tmp;
 
 	memset(&bd, 0, sizeof(bd));
 	ret = ath11k_core_fetch_bdf(ab, &bd);
@@ -2063,31 +2144,38 @@ static int ath11k_qmi_load_bdf_qmi(struct ath11k_base *ab)
 		goto out;
 	}
 
-	/* QCA6390 does not support cal data file, skip it */
+	/* QCA6390 does not support cal data, skip it */
 	if (bdf_type == ATH11K_QMI_BDF_TYPE_ELF)
 		goto out;
 
-	file_type = ATH11K_QMI_FILE_TYPE_CALDATA;
+	if (ab->qmi.target.eeprom_caldata) {
+		file_type = ATH11K_QMI_FILE_TYPE_EEPROM;
+		tmp = filename;
+		fw_size = ATH11K_QMI_MAX_BDF_FILE_NAME_SIZE;
+	} else {
+		file_type = ATH11K_QMI_FILE_TYPE_CALDATA;
 
-	/* cal-<bus>-<id>.bin */
-	snprintf(filename, sizeof(filename), "cal-%s-%s.bin",
-		 ath11k_bus_str(ab->hif.bus), dev_name(dev));
-	fw_entry = ath11k_core_firmware_request(ab, filename);
-	if (!IS_ERR(fw_entry))
-		goto success;
+		/* cal-<bus>-<id>.bin */
+		snprintf(filename, sizeof(filename), "cal-%s-%s.bin",
+			 ath11k_bus_str(ab->hif.bus), dev_name(dev));
+		fw_entry = ath11k_core_firmware_request(ab, filename);
+		if (!IS_ERR(fw_entry))
+			goto success;
 
-	fw_entry = ath11k_core_firmware_request(ab, ATH11K_DEFAULT_CAL_FILE);
-	if (IS_ERR(fw_entry)) {
-		ret = PTR_ERR(fw_entry);
-		ath11k_warn(ab,
-			    "qmi failed to load CAL data file:%s\n",
-			    filename);
-		goto out;
+		fw_entry = ath11k_core_firmware_request(ab, ATH11K_DEFAULT_CAL_FILE);
+		if (IS_ERR(fw_entry)) {
+			ret = PTR_ERR(fw_entry);
+			ath11k_warn(ab,
+				    "qmi failed to load CAL data file:%s\n",
+				    filename);
+			goto out;
+		}
+success:
+		fw_size = min_t(u32, ab->hw_params.fw.board_size, fw_entry->size);
+		tmp = fw_entry->data;
 	}
 
-success:
-	fw_size = min_t(u32, ab->hw_params.fw.board_size, fw_entry->size);
-	ret = ath11k_qmi_load_file_target_mem(ab, fw_entry->data, fw_size, file_type);
+	ret = ath11k_qmi_load_file_target_mem(ab, tmp, fw_size, file_type);
 	if (ret < 0) {
 		ath11k_warn(ab, "qmi failed to load caldata\n");
 		goto out_qmi_cal;
@@ -2096,7 +2184,8 @@ success:
 	ath11k_dbg(ab, ATH11K_DBG_QMI, "qmi caldata type: %u\n", file_type);
 
 out_qmi_cal:
-	release_firmware(fw_entry);
+	if (!ab->qmi.target.eeprom_caldata)
+		release_firmware(fw_entry);
 out:
 	ath11k_core_free_bdf(ab, &bd);
 	ath11k_dbg(ab, ATH11K_DBG_QMI, "qmi BDF download sequence completed\n");
