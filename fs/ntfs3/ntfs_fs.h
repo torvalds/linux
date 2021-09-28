@@ -211,10 +211,8 @@ struct ntfs_sb_info {
 	u32 blocks_per_cluster; // cluster_size / sb->s_blocksize
 
 	u32 record_size;
-	u32 sector_size;
 	u32 index_size;
 
-	u8 sector_bits;
 	u8 cluster_bits;
 	u8 record_bits;
 

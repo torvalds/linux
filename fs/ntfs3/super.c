@@ -682,7 +682,7 @@ static int ntfs_init_from_boot(struct super_block *sb, u32 sector_size,
 	struct ntfs_sb_info *sbi = sb->s_fs_info;
 	int err;
 	u32 mb, gb, boot_sector_size, sct_per_clst, record_size;
-	u64 sectors, clusters, fs_size, mlcn, mlcn2;
+	u64 sectors, clusters, mlcn, mlcn2;
 	struct NTFS_BOOT *boot;
 	struct buffer_head *bh;
 	struct MFT_REC *rec;
@@ -740,20 +740,20 @@ static int ntfs_init_from_boot(struct super_block *sb, u32 sector_size,
 		goto out;
 	}
 
-	sbi->sector_size = boot_sector_size;
-	sbi->sector_bits = blksize_bits(boot_sector_size);
-	fs_size = (sectors + 1) << sbi->sector_bits;
+	sbi->volume.size = sectors * boot_sector_size;
 
-	gb = format_size_gb(fs_size, &mb);
+	gb = format_size_gb(sbi->volume.size + boot_sector_size, &mb);
 
 	/*
 	 * - Volume formatted and mounted with the same sector size.
 	 * - Volume formatted 4K and mounted as 512.
 	 * - Volume formatted 512 and mounted as 4K.
 	 */
-	if (sbi->sector_size != sector_size) {
-		ntfs_warn(sb,
-			  "Different NTFS' sector size and media sector size");
+	if (boot_sector_size != sector_size) {
+		ntfs_warn(
+			sb,
+			"Different NTFS' sector size (%u) and media sector size (%u)",
+			boot_sector_size, sector_size);
 		dev_size += sector_size - 1;
 	}
 
@@ -800,10 +800,9 @@ static int ntfs_init_from_boot(struct super_block *sb, u32 sector_size,
 				  : (u32)boot->index_size << sbi->cluster_bits;
 
 	sbi->volume.ser_num = le64_to_cpu(boot->serial_num);
-	sbi->volume.size = sectors << sbi->sector_bits;
 
 	/* Warning if RAW volume. */
-	if (dev_size < fs_size) {
+	if (dev_size < sbi->volume.size + boot_sector_size) {
 		u32 mb0, gb0;
 
 		gb0 = format_size_gb(dev_size, &mb0);
