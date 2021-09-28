@@ -396,3 +396,21 @@ int adf_enable_vf2pf_comms(struct adf_accel_dev *accel_dev)
 	return adf_vf2pf_request_version(accel_dev);
 }
 EXPORT_SYMBOL_GPL(adf_enable_vf2pf_comms);
+
+/**
+ * adf_enable_pf2vf_comms() - Function enables communication from pf to vf
+ *
+ * @accel_dev: Pointer to acceleration device virtual function.
+ *
+ * This function carries out the necessary steps to setup and start the PFVF
+ * communication channel, if any.
+ *
+ * Return: 0 on success, error code otherwise.
+ */
+int adf_enable_pf2vf_comms(struct adf_accel_dev *accel_dev)
+{
+	spin_lock_init(&accel_dev->pf.vf2pf_ints_lock);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(adf_enable_pf2vf_comms);

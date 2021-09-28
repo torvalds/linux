@@ -158,13 +158,6 @@ static void disable_vf2pf_interrupts(void __iomem *pmisc_addr, u32 vf_mask)
 	}
 }
 
-static int adf_enable_pf2vf_comms(struct adf_accel_dev *accel_dev)
-{
-	spin_lock_init(&accel_dev->pf.vf2pf_ints_lock);
-
-	return 0;
-}
-
 static void configure_iov_threads(struct adf_accel_dev *accel_dev, bool enable)
 {
 	adf_gen2_cfg_iov_thds(accel_dev, enable,
