@@ -7960,7 +7960,7 @@ void intel_init_pm(struct drm_i915_private *dev_priv)
 	/* For FIFO watermark updates */
 	if (DISPLAY_VER(dev_priv) >= 9) {
 		skl_setup_wm_latency(dev_priv);
-		dev_priv->display.compute_global_watermarks = skl_compute_wm;
+		dev_priv->wm_disp.compute_global_watermarks = skl_compute_wm;
 	} else if (HAS_PCH_SPLIT(dev_priv)) {
 		ilk_setup_wm_latency(dev_priv);
 
@@ -7968,12 +7968,12 @@ void intel_init_pm(struct drm_i915_private *dev_priv)
 		     dev_priv->wm.spr_latency[1] && dev_priv->wm.cur_latency[1]) ||
 		    (DISPLAY_VER(dev_priv) != 5 && dev_priv->wm.pri_latency[0] &&
 		     dev_priv->wm.spr_latency[0] && dev_priv->wm.cur_latency[0])) {
-			dev_priv->display.compute_pipe_wm = ilk_compute_pipe_wm;
-			dev_priv->display.compute_intermediate_wm =
+			dev_priv->wm_disp.compute_pipe_wm = ilk_compute_pipe_wm;
+			dev_priv->wm_disp.compute_intermediate_wm =
 				ilk_compute_intermediate_wm;
-			dev_priv->display.initial_watermarks =
+			dev_priv->wm_disp.initial_watermarks =
 				ilk_initial_watermarks;
-			dev_priv->display.optimize_watermarks =
+			dev_priv->wm_disp.optimize_watermarks =
 				ilk_optimize_watermarks;
 		} else {
 			drm_dbg_kms(&dev_priv->drm,
@@ -7982,17 +7982,17 @@ void intel_init_pm(struct drm_i915_private *dev_priv)
 		}
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		vlv_setup_wm_latency(dev_priv);
-		dev_priv->display.compute_pipe_wm = vlv_compute_pipe_wm;
-		dev_priv->display.compute_intermediate_wm = vlv_compute_intermediate_wm;
-		dev_priv->display.initial_watermarks = vlv_initial_watermarks;
-		dev_priv->display.optimize_watermarks = vlv_optimize_watermarks;
-		dev_priv->display.atomic_update_watermarks = vlv_atomic_update_fifo;
+		dev_priv->wm_disp.compute_pipe_wm = vlv_compute_pipe_wm;
+		dev_priv->wm_disp.compute_intermediate_wm = vlv_compute_intermediate_wm;
+		dev_priv->wm_disp.initial_watermarks = vlv_initial_watermarks;
+		dev_priv->wm_disp.optimize_watermarks = vlv_optimize_watermarks;
+		dev_priv->wm_disp.atomic_update_watermarks = vlv_atomic_update_fifo;
 	} else if (IS_G4X(dev_priv)) {
 		g4x_setup_wm_latency(dev_priv);
-		dev_priv->display.compute_pipe_wm = g4x_compute_pipe_wm;
-		dev_priv->display.compute_intermediate_wm = g4x_compute_intermediate_wm;
-		dev_priv->display.initial_watermarks = g4x_initial_watermarks;
-		dev_priv->display.optimize_watermarks = g4x_optimize_watermarks;
+		dev_priv->wm_disp.compute_pipe_wm = g4x_compute_pipe_wm;
+		dev_priv->wm_disp.compute_intermediate_wm = g4x_compute_intermediate_wm;
+		dev_priv->wm_disp.initial_watermarks = g4x_initial_watermarks;
+		dev_priv->wm_disp.optimize_watermarks = g4x_optimize_watermarks;
 	} else if (IS_PINEVIEW(dev_priv)) {
 		if (!intel_get_cxsr_latency(!IS_MOBILE(dev_priv),
 					    dev_priv->is_ddr3,
@@ -8006,18 +8006,18 @@ void intel_init_pm(struct drm_i915_private *dev_priv)
 				 dev_priv->fsb_freq, dev_priv->mem_freq);
 			/* Disable CxSR and never update its watermark again */
 			intel_set_memory_cxsr(dev_priv, false);
-			dev_priv->display.update_wm = NULL;
+			dev_priv->wm_disp.update_wm = NULL;
 		} else
-			dev_priv->display.update_wm = pnv_update_wm;
+			dev_priv->wm_disp.update_wm = pnv_update_wm;
 	} else if (DISPLAY_VER(dev_priv) == 4) {
-		dev_priv->display.update_wm = i965_update_wm;
+		dev_priv->wm_disp.update_wm = i965_update_wm;
 	} else if (DISPLAY_VER(dev_priv) == 3) {
-		dev_priv->display.update_wm = i9xx_update_wm;
+		dev_priv->wm_disp.update_wm = i9xx_update_wm;
 	} else if (DISPLAY_VER(dev_priv) == 2) {
 		if (INTEL_NUM_PIPES(dev_priv) == 1)
-			dev_priv->display.update_wm = i845_update_wm;
+			dev_priv->wm_disp.update_wm = i845_update_wm;
 		else
-			dev_priv->display.update_wm = i9xx_update_wm;
+			dev_priv->wm_disp.update_wm = i9xx_update_wm;
 	} else {
 		drm_err(&dev_priv->drm,
 			"unexpected fall-through in %s\n", __func__);
