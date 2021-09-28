@@ -191,7 +191,7 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 	if (sdev->fw_state != SOF_FW_BOOT_COMPLETE)
 		goto suspend;
 
-	/* set restore_stream for all streams during system suspend */
+	/* prepare for streams to be resumed properly upon resume */
 	if (!runtime_suspend) {
 		ret = sof_set_hw_params_upon_resume(sdev->dev);
 		if (ret < 0) {
