@@ -1917,173 +1917,41 @@ out:
 	return ret;
 }
 
-static int
-ath11k_qmi_prepare_bdf_download(struct ath11k_base *ab, int type,
-				struct qmi_wlanfw_bdf_download_req_msg_v01 *req,
-				void __iomem *bdf_addr)
-{
-	const struct firmware *fw_entry;
-	struct ath11k_board_data bd;
-	u32 fw_size;
-	int ret;
-
-	switch (type) {
-	case ATH11K_QMI_FILE_TYPE_BDF_GOLDEN:
-		memset(&bd, 0, sizeof(bd));
-
-		ret = ath11k_core_fetch_bdf(ab, &bd);
-		if (ret) {
-			ath11k_warn(ab, "failed to load board file: %d\n", ret);
-			return ret;
-		}
-
-		fw_size = min_t(u32, ab->hw_params.fw.board_size, bd.len);
-		memcpy_toio(bdf_addr, bd.data, fw_size);
-		ath11k_core_free_bdf(ab, &bd);
-		break;
-	case ATH11K_QMI_FILE_TYPE_CALDATA:
-		fw_entry = ath11k_core_firmware_request(ab, ATH11K_DEFAULT_CAL_FILE);
-		if (IS_ERR(fw_entry)) {
-			ret = PTR_ERR(fw_entry);
-			ath11k_warn(ab, "failed to load %s: %d\n",
-				    ATH11K_DEFAULT_CAL_FILE, ret);
-			return ret;
-		}
-
-		fw_size = min_t(u32, ab->hw_params.fw.board_size,
-				fw_entry->size);
-
-		memcpy_toio(bdf_addr + ab->hw_params.fw.cal_offset,
-			    fw_entry->data, fw_size);
-
-		release_firmware(fw_entry);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	req->total_size = fw_size;
-	return 0;
-}
-
-static int ath11k_qmi_load_bdf_fixed_addr(struct ath11k_base *ab)
+static int ath11k_qmi_load_file_target_mem(struct ath11k_base *ab,
+					   const u8 *data, u32 len, u8 type)
 {
 	struct qmi_wlanfw_bdf_download_req_msg_v01 *req;
 	struct qmi_wlanfw_bdf_download_resp_msg_v01 resp;
 	struct qmi_txn txn = {};
+	const u8 *temp = data;
 	void __iomem *bdf_addr = NULL;
-	int type, ret;
-
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
-	if (!req)
-		return -ENOMEM;
-	memset(&resp, 0, sizeof(resp));
-
-	bdf_addr = ioremap(ab->hw_params.bdf_addr, ab->hw_params.fw.board_size);
-	if (!bdf_addr) {
-		ath11k_warn(ab, "failed ioremap for board file\n");
-		ret = -EIO;
-		goto out;
-	}
-
-	for (type = 0; type < ATH11K_QMI_MAX_FILE_TYPE; type++) {
-		req->valid = 1;
-		req->file_id_valid = 1;
-		req->file_id = ab->qmi.target.board_id;
-		req->total_size_valid = 1;
-		req->seg_id_valid = 1;
-		req->seg_id = type;
-		req->data_valid = 0;
-		req->data_len = ATH11K_QMI_MAX_BDF_FILE_NAME_SIZE;
-		req->bdf_type = 0;
-		req->bdf_type_valid = 0;
-		req->end_valid = 1;
-		req->end = 1;
-
-		ret = ath11k_qmi_prepare_bdf_download(ab, type, req, bdf_addr);
-		if (ret < 0)
-			goto out_qmi_bdf;
-
-		ret = qmi_txn_init(&ab->qmi.handle, &txn,
-				   qmi_wlanfw_bdf_download_resp_msg_v01_ei,
-				   &resp);
-		if (ret < 0)
-			goto out_qmi_bdf;
-
-		ath11k_dbg(ab, ATH11K_DBG_QMI, "qmi bdf download req fixed addr type %d\n",
-			   type);
-
-		ret = qmi_send_request(&ab->qmi.handle, NULL, &txn,
-				       QMI_WLANFW_BDF_DOWNLOAD_REQ_V01,
-				       QMI_WLANFW_BDF_DOWNLOAD_REQ_MSG_V01_MAX_LEN,
-				       qmi_wlanfw_bdf_download_req_msg_v01_ei, req);
-		if (ret < 0) {
-			qmi_txn_cancel(&txn);
-			goto out_qmi_bdf;
-		}
-
-		ret = qmi_txn_wait(&txn, msecs_to_jiffies(ATH11K_QMI_WLANFW_TIMEOUT_MS));
-		if (ret < 0)
-			goto out_qmi_bdf;
-
-		if (resp.resp.result != QMI_RESULT_SUCCESS_V01) {
-			ath11k_warn(ab, "board file download request failed: %d %d\n",
-				    resp.resp.result, resp.resp.error);
-			ret = -EINVAL;
-			goto out_qmi_bdf;
-		}
-	}
-
-out_qmi_bdf:
-	iounmap(bdf_addr);
-out:
-	kfree(req);
-	return ret;
-}
-
-static int ath11k_qmi_load_bdf_qmi(struct ath11k_base *ab)
-{
-	struct qmi_wlanfw_bdf_download_req_msg_v01 *req;
-	struct qmi_wlanfw_bdf_download_resp_msg_v01 resp;
-	struct ath11k_board_data bd;
-	unsigned int remaining;
-	struct qmi_txn txn = {};
 	int ret;
-	const u8 *temp;
-	int bdf_type;
+	u32 remaining = len;
 
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
 	if (!req)
 		return -ENOMEM;
+
 	memset(&resp, 0, sizeof(resp));
 
-	memset(&bd, 0, sizeof(bd));
-	ret = ath11k_core_fetch_bdf(ab, &bd);
-	if (ret) {
-		ath11k_warn(ab, "failed to fetch board file: %d\n", ret);
-		goto out;
+	if (ab->bus_params.fixed_bdf_addr) {
+		bdf_addr = ioremap(ab->hw_params.bdf_addr, ab->hw_params.fw.board_size);
+		if (!bdf_addr) {
+			ath11k_warn(ab, "qmi ioremap error for bdf_addr\n");
+			ret = -EIO;
+			goto err_free_req;
+		}
 	}
-
-	temp = bd.data;
-	remaining = bd.len;
-
-	if (bd.len >= SELFMAG && memcmp(bd.data, ELFMAG, SELFMAG) == 0)
-		bdf_type = ATH11K_QMI_BDF_TYPE_ELF;
-	else
-		bdf_type = ATH11K_QMI_BDF_TYPE_BIN;
-
-	ath11k_dbg(ab, ATH11K_DBG_QMI, "qmi bdf_type %d\n", bdf_type);
 
 	while (remaining) {
 		req->valid = 1;
 		req->file_id_valid = 1;
 		req->file_id = ab->qmi.target.board_id;
 		req->total_size_valid = 1;
-		req->total_size = bd.len;
+		req->total_size = remaining;
 		req->seg_id_valid = 1;
 		req->data_valid = 1;
-		req->data_len = ATH11K_QMI_MAX_BDF_FILE_NAME_SIZE;
-		req->bdf_type = bdf_type;
+		req->bdf_type = type;
 		req->bdf_type_valid = 1;
 		req->end_valid = 1;
 		req->end = 0;
@@ -2095,16 +1963,29 @@ static int ath11k_qmi_load_bdf_qmi(struct ath11k_base *ab)
 			req->end = 1;
 		}
 
-		memcpy(req->data, temp, req->data_len);
+		if (ab->bus_params.fixed_bdf_addr) {
+			req->data_valid = 0;
+			req->end = 1;
+			req->data_len = ATH11K_QMI_MAX_BDF_FILE_NAME_SIZE;
+		} else {
+			memcpy(req->data, temp, req->data_len);
+		}
+
+		if (ab->bus_params.fixed_bdf_addr) {
+			if (type == ATH11K_QMI_FILE_TYPE_CALDATA)
+				bdf_addr += ab->hw_params.fw.cal_offset;
+
+			memcpy_toio(bdf_addr, temp, len);
+		}
 
 		ret = qmi_txn_init(&ab->qmi.handle, &txn,
 				   qmi_wlanfw_bdf_download_resp_msg_v01_ei,
 				   &resp);
 		if (ret < 0)
-			goto out_qmi_bdf;
+			goto err_iounmap;
 
-		ath11k_dbg(ab, ATH11K_DBG_QMI, "qmi bdf download request remaining %i\n",
-			   remaining);
+		ath11k_dbg(ab, ATH11K_DBG_QMI, "qmi bdf download req fixed addr type %d\n",
+			   type);
 
 		ret = qmi_send_request(&ab->qmi.handle, NULL, &txn,
 				       QMI_WLANFW_BDF_DOWNLOAD_REQ_V01,
@@ -2112,29 +1993,105 @@ static int ath11k_qmi_load_bdf_qmi(struct ath11k_base *ab)
 				       qmi_wlanfw_bdf_download_req_msg_v01_ei, req);
 		if (ret < 0) {
 			qmi_txn_cancel(&txn);
-			goto out_qmi_bdf;
+			goto err_iounmap;
 		}
 
 		ret = qmi_txn_wait(&txn, msecs_to_jiffies(ATH11K_QMI_WLANFW_TIMEOUT_MS));
-		if (ret < 0)
-			goto out_qmi_bdf;
+		if (ret < 0) {
+			ath11k_warn(ab, "failed to wait board file download request: %d\n",
+				    ret);
+			goto err_iounmap;
+		}
 
 		if (resp.resp.result != QMI_RESULT_SUCCESS_V01) {
-			ath11k_warn(ab, "bdf download request failed: %d %d\n",
+			ath11k_warn(ab, "board file download request failed: %d %d\n",
 				    resp.resp.result, resp.resp.error);
-			ret = resp.resp.result;
-			goto out_qmi_bdf;
+			ret = -EINVAL;
+			goto err_iounmap;
 		}
-		remaining -= req->data_len;
-		temp += req->data_len;
-		req->seg_id++;
+
+		if (ab->bus_params.fixed_bdf_addr) {
+			remaining = 0;
+		} else {
+			remaining -= req->data_len;
+			temp += req->data_len;
+			req->seg_id++;
+			ath11k_dbg(ab, ATH11K_DBG_QMI, "qmi bdf download request remaining %i\n",
+				   remaining);
+		}
 	}
 
-out_qmi_bdf:
-	ath11k_core_free_bdf(ab, &bd);
+err_iounmap:
+	if (ab->bus_params.fixed_bdf_addr)
+		iounmap(bdf_addr);
 
-out:
+err_free_req:
 	kfree(req);
+
+	return ret;
+}
+
+static int ath11k_qmi_load_bdf_qmi(struct ath11k_base *ab)
+{
+	char filename[ATH11K_QMI_MAX_BDF_FILE_NAME_SIZE];
+	const struct firmware *fw_entry;
+	struct ath11k_board_data bd;
+	u32 fw_size, file_type;
+	int ret = 0, bdf_type;
+
+	memset(&bd, 0, sizeof(bd));
+	ret = ath11k_core_fetch_bdf(ab, &bd);
+	if (ret) {
+		ath11k_warn(ab, "qmi failed to fetch board file: %d\n", ret);
+		goto out;
+	}
+
+	if (bd.len >= SELFMAG && memcmp(bd.data, ELFMAG, SELFMAG) == 0)
+		bdf_type = ATH11K_QMI_BDF_TYPE_ELF;
+	else
+		bdf_type = ATH11K_QMI_BDF_TYPE_BIN;
+
+	ath11k_dbg(ab, ATH11K_DBG_QMI, "qmi bdf_type %d\n", bdf_type);
+
+	fw_size = bd.len;
+	fw_size = min_t(u32, ab->hw_params.fw.board_size, bd.len);
+
+	ret = ath11k_qmi_load_file_target_mem(ab, bd.data, fw_size, bdf_type);
+	if (ret < 0) {
+		ath11k_warn(ab, "qmi failed to load bdf file\n");
+		goto out;
+	}
+
+	/* QCA6390 does not support cal data file, skip it */
+	if (bdf_type == ATH11K_QMI_BDF_TYPE_ELF)
+		goto out;
+
+	file_type = ATH11K_QMI_FILE_TYPE_CALDATA;
+	fw_entry = ath11k_core_firmware_request(ab, ATH11K_DEFAULT_CAL_FILE);
+	if (IS_ERR(fw_entry)) {
+		ret = PTR_ERR(fw_entry);
+		ath11k_warn(ab,
+			    "qmi failed to load CAL data file:%s\n",
+			    filename);
+		goto out;
+	}
+
+	fw_size = min_t(u32, ab->hw_params.fw.board_size, fw_entry->size);
+	ret = ath11k_qmi_load_file_target_mem(ab, fw_entry->data, fw_size, file_type);
+	if (ret < 0) {
+		ath11k_warn(ab, "qmi failed to load caldata\n");
+		goto out_qmi_cal;
+	}
+
+	ath11k_dbg(ab, ATH11K_DBG_QMI, "qmi caldata downloaded: type: %u\n",
+		   file_type);
+
+out_qmi_cal:
+	release_firmware(fw_entry);
+out:
+	ath11k_core_free_bdf(ab, &bd);
+	ath11k_dbg(ab, ATH11K_DBG_QMI, "qmi BDF download sequence completed\n");
+
 	return ret;
 }
 
@@ -2519,10 +2476,7 @@ static int ath11k_qmi_event_load_bdf(struct ath11k_qmi *qmi)
 		return ret;
 	}
 
-	if (ab->bus_params.fixed_bdf_addr)
-		ret = ath11k_qmi_load_bdf_fixed_addr(ab);
-	else
-		ret = ath11k_qmi_load_bdf_qmi(ab);
+	ret = ath11k_qmi_load_bdf_qmi(ab);
 	if (ret < 0) {
 		ath11k_warn(ab, "failed to load board data file: %d\n", ret);
 		return ret;
