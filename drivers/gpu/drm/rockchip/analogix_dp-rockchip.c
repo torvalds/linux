@@ -77,6 +77,7 @@ struct rockchip_dp_device {
 
 	struct platform_device *audio_pdev;
 	const struct rockchip_dp_chip_data *data;
+	int id;
 
 	struct analogix_dp_device *adp;
 	struct analogix_dp_plat_data plat_data;
@@ -331,6 +332,7 @@ rockchip_dp_drm_encoder_atomic_check(struct drm_encoder *encoder,
 				      struct drm_crtc_state *crtc_state,
 				      struct drm_connector_state *conn_state)
 {
+	struct rockchip_dp_device *dp = to_dp(encoder);
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
 	struct drm_display_info *di = &conn_state->connector->display_info;
 
@@ -349,7 +351,7 @@ rockchip_dp_drm_encoder_atomic_check(struct drm_encoder *encoder,
 
 	s->output_mode = ROCKCHIP_OUT_MODE_AAAA;
 	s->output_type = DRM_MODE_CONNECTOR_eDP;
-	s->output_if |= VOP_OUTPUT_IF_eDP0;
+	s->output_if |= dp->id ? VOP_OUTPUT_IF_eDP1 : VOP_OUTPUT_IF_eDP0;
 	s->output_bpc = di->bpc;
 	s->bus_flags = di->bus_flags;
 	s->tv_state = &conn_state->tv;
@@ -491,7 +493,7 @@ static int rockchip_dp_probe(struct platform_device *pdev)
 	struct drm_panel *panel = NULL;
 	struct drm_bridge *bridge = NULL;
 	struct rockchip_dp_device *dp;
-	int ret;
+	int id, i, ret;
 
 	dp_data = of_device_get_match_data(dev);
 	if (!dp_data)
@@ -505,9 +507,23 @@ static int rockchip_dp_probe(struct platform_device *pdev)
 	if (!dp)
 		return -ENOMEM;
 
+	id = of_alias_get_id(dev->of_node, "edp");
+	if (id < 0)
+		id = 0;
+
+	i = 0;
+	while (is_rockchip(dp_data[i].chip_type))
+		i++;
+
+	if (id >= i) {
+		dev_err(dev, "invalid id: %d\n", id);
+		return -ENODEV;
+	}
+
 	dp->dev = dev;
+	dp->id = id;
 	dp->adp = ERR_PTR(-ENODEV);
-	dp->data = dp_data;
+	dp->data = &dp_data[id];
 	dp->plat_data.ssc = dp->data->ssc;
 	dp->plat_data.panel = panel;
 	dp->plat_data.dev_type = dp->data->chip_type;
@@ -567,22 +583,31 @@ static const struct dev_pm_ops rockchip_dp_pm_ops = {
 			   rockchip_dp_runtime_resume, NULL)
 };
 
-static const struct rockchip_dp_chip_data rk3399_edp = {
-	.chip_type = RK3399_EDP,
-	.lcdc_sel = GRF_REG_FIELD(0x6250, 5, 5),
-	.ssc = true,
+static const struct rockchip_dp_chip_data rk3399_edp[] = {
+	{
+		.chip_type = RK3399_EDP,
+		.lcdc_sel = GRF_REG_FIELD(0x6250, 5, 5),
+		.ssc = true,
+	},
+	{ /* sentinel */ }
 };
 
-static const struct rockchip_dp_chip_data rk3288_dp = {
-	.chip_type = RK3288_DP,
-	.lcdc_sel = GRF_REG_FIELD(0x025c, 5, 5),
-	.ssc = true,
+static const struct rockchip_dp_chip_data rk3288_dp[] = {
+	{
+		.chip_type = RK3288_DP,
+		.lcdc_sel = GRF_REG_FIELD(0x025c, 5, 5),
+		.ssc = true,
+	},
+	{ /* sentinel */ }
 };
 
-static const struct rockchip_dp_chip_data rk3568_edp = {
-	.chip_type = RK3568_EDP,
-	.ssc = true,
-	.audio = true,
+static const struct rockchip_dp_chip_data rk3568_edp[] = {
+	{
+		.chip_type = RK3568_EDP,
+		.ssc = true,
+		.audio = true,
+	},
+	{ /* sentinel */ }
 };
 
 static const struct of_device_id rockchip_dp_dt_ids[] = {
