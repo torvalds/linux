@@ -12439,7 +12439,7 @@ static __init int prepare_tail_call_tests(struct bpf_array **pprogs)
 					err = -EFAULT;
 					goto out_err;
 				}
-				*insn = BPF_EMIT_CALL(BPF_CAST_CALL(addr));
+				*insn = BPF_EMIT_CALL(addr);
 				if ((long)__bpf_call_base + insn->imm != addr)
 					*insn = BPF_JMP_A(0); /* Skip: NOP */
 				break;

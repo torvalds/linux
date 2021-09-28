@@ -365,13 +365,17 @@ static inline bool insn_is_zext(const struct bpf_insn *insn)
 #define BPF_CAST_CALL(x)					\
 		((u64 (*)(u64, u64, u64, u64, u64))(x))
 
+/* Convert function address to BPF immediate */
+
+#define BPF_CALL_IMM(x)	((void *)(x) - (void *)__bpf_call_base)
+
 #define BPF_EMIT_CALL(FUNC)					\
 	((struct bpf_insn) {					\
 		.code  = BPF_JMP | BPF_CALL,			\
 		.dst_reg = 0,					\
 		.src_reg = 0,					\
 		.off   = 0,					\
-		.imm   = ((FUNC) - __bpf_call_base) })
+		.imm   = BPF_CALL_IMM(FUNC) })
 
 /* Raw code statement block */
 
