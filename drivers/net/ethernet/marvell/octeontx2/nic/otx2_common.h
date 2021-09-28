@@ -264,6 +264,12 @@ struct otx2_ptp {
 
 	struct cyclecounter cycle_counter;
 	struct timecounter time_counter;
+
+	struct delayed_work extts_work;
+	u64 last_extts;
+	u64 thresh;
+
+	struct ptp_pin_desc extts_config;
 };
 
 #define OTX2_HW_TIMESTAMP_LEN	8
