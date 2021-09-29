@@ -249,6 +249,7 @@ struct gud_state_req {
   #define GUD_PIXEL_FORMAT_R1			0x01 /* 1-bit monochrome */
   #define GUD_PIXEL_FORMAT_R8			0x08 /* 8-bit greyscale */
   #define GUD_PIXEL_FORMAT_XRGB1111		0x20
+  #define GUD_PIXEL_FORMAT_RGB332		0x30
   #define GUD_PIXEL_FORMAT_RGB565		0x40
   #define GUD_PIXEL_FORMAT_XRGB8888		0x80
   #define GUD_PIXEL_FORMAT_ARGB8888		0x81

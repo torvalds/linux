@@ -191,6 +191,8 @@ retry:
 			}
 		} else if (format->format == DRM_FORMAT_R8) {
 			drm_fb_xrgb8888_to_gray8(buf, vaddr, fb, rect);
+		} else if (format->format == DRM_FORMAT_RGB332) {
+			drm_fb_xrgb8888_to_rgb332(buf, vaddr, fb, rect);
 		} else if (format->format == DRM_FORMAT_RGB565) {
 			drm_fb_xrgb8888_to_rgb565(buf, vaddr, fb, rect, gud_is_big_endian());
 		} else {
