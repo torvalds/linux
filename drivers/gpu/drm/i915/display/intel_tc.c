@@ -834,6 +834,14 @@ void intel_tc_port_put_link(struct intel_digital_port *dig_port)
 	intel_tc_port_lock(dig_port);
 	--dig_port->tc_link_refcount;
 	intel_tc_port_unlock(dig_port);
+
+	/*
+	 * Disconnecting the PHY after the PHY's PLL gets disabled may
+	 * hang the system on ADL-P, so disconnect the PHY here synchronously.
+	 * TODO: remove this once the root cause of the ordering requirement
+	 * is found/fixed.
+	 */
+	intel_tc_port_flush_work(dig_port);
 }
 
 static bool
