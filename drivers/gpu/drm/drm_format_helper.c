@@ -301,6 +301,44 @@ static void drm_fb_xrgb8888_to_rgb888_line(u8 *dbuf, u32 *sbuf,
 }
 
 /**
+ * drm_fb_xrgb8888_to_rgb888 - Convert XRGB8888 to RGB888 clip buffer
+ * @dst: RGB888 destination buffer
+ * @src: XRGB8888 source buffer
+ * @fb: DRM framebuffer
+ * @clip: Clip rectangle area to copy
+ *
+ * Drivers can use this function for RGB888 devices that don't natively
+ * support XRGB8888.
+ *
+ * This function does not apply clipping on dst, i.e. the destination
+ * is a small buffer containing the clip rect only.
+ */
+void drm_fb_xrgb8888_to_rgb888(void *dst, void *src, struct drm_framebuffer *fb,
+			       struct drm_rect *clip)
+{
+	size_t width = drm_rect_width(clip);
+	size_t src_len = width * sizeof(u32);
+	unsigned int y;
+	void *sbuf;
+
+	/* Use a buffer to speed up access on buffers with uncached read mapping (i.e. WC) */
+	sbuf = kmalloc(src_len, GFP_KERNEL);
+	if (!sbuf)
+		return;
+
+	src += clip_offset(clip, fb->pitches[0], sizeof(u32));
+	for (y = 0; y < drm_rect_height(clip); y++) {
+		memcpy(sbuf, src, src_len);
+		drm_fb_xrgb8888_to_rgb888_line(dst, sbuf, width);
+		src += fb->pitches[0];
+		dst += width * 3;
+	}
+
+	kfree(sbuf);
+}
+EXPORT_SYMBOL(drm_fb_xrgb8888_to_rgb888);
+
+/**
  * drm_fb_xrgb8888_to_rgb888_dstclip - Convert XRGB8888 to RGB888 clip buffer
  * @dst: RGB565 destination buffer (iomem)
  * @dst_pitch: destination buffer pitch
