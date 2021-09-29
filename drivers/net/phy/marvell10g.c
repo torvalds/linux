@@ -22,6 +22,7 @@
  * If both the fiber and copper ports are connected, the first to gain
  * link takes priority and the other port is completely locked out.
  */
+#include <linux/bitfield.h>
 #include <linux/ctype.h>
 #include <linux/delay.h>
 #include <linux/hwmon.h>
@@ -32,6 +33,8 @@
 
 #define MV_PHY_ALASKA_NBT_QUIRK_MASK	0xfffffffe
 #define MV_PHY_ALASKA_NBT_QUIRK_REV	(MARVELL_PHY_ID_88X3310 | 0xa)
+
+#define MV_VERSION(a,b,c,d) ((a) << 24 | (b) << 16 | (c) << 8 | (d))
 
 enum {
 	MV_PMA_FW_VER0		= 0xc011,
@@ -61,6 +64,15 @@ enum {
 	MV_PCS_CSCR1_MDIX_MDI	= 0x0000,
 	MV_PCS_CSCR1_MDIX_MDIX	= 0x0020,
 	MV_PCS_CSCR1_MDIX_AUTO	= 0x0060,
+
+	MV_PCS_DSC1		= 0x8003,
+	MV_PCS_DSC1_ENABLE	= BIT(9),
+	MV_PCS_DSC1_10GBT	= 0x01c0,
+	MV_PCS_DSC1_1GBR	= 0x0038,
+	MV_PCS_DSC1_100BTX	= 0x0007,
+	MV_PCS_DSC2		= 0x8004,
+	MV_PCS_DSC2_2P5G	= 0xf000,
+	MV_PCS_DSC2_5G		= 0x0f00,
 
 	MV_PCS_CSSR1		= 0x8008,
 	MV_PCS_CSSR1_SPD1_MASK	= 0xc000,
@@ -125,6 +137,7 @@ enum {
 };
 
 struct mv3310_chip {
+	bool (*has_downshift)(struct phy_device *phydev);
 	void (*init_supported_interfaces)(unsigned long *mask);
 	int (*get_mactype)(struct phy_device *phydev);
 	int (*init_interface)(struct phy_device *phydev, int mactype);
@@ -138,6 +151,7 @@ struct mv3310_priv {
 	DECLARE_BITMAP(supported_interfaces, PHY_INTERFACE_MODE_MAX);
 
 	u32 firmware_ver;
+	bool has_downshift;
 	bool rate_match;
 	phy_interface_t const_interface;
 
@@ -330,6 +344,71 @@ static int mv3310_reset(struct phy_device *phydev, u32 unit)
 					 5000, 100000, true);
 }
 
+static int mv3310_get_downshift(struct phy_device *phydev, u8 *ds)
+{
+	struct mv3310_priv *priv = dev_get_drvdata(&phydev->mdio.dev);
+	int val;
+
+	if (!priv->has_downshift)
+		return -EOPNOTSUPP;
+
+	val = phy_read_mmd(phydev, MDIO_MMD_PCS, MV_PCS_DSC1);
+	if (val < 0)
+		return val;
+
+	if (val & MV_PCS_DSC1_ENABLE)
+		/* assume that all fields are the same */
+		*ds = 1 + FIELD_GET(MV_PCS_DSC1_10GBT, (u16)val);
+	else
+		*ds = DOWNSHIFT_DEV_DISABLE;
+
+	return 0;
+}
+
+static int mv3310_set_downshift(struct phy_device *phydev, u8 ds)
+{
+	struct mv3310_priv *priv = dev_get_drvdata(&phydev->mdio.dev);
+	u16 val;
+	int err;
+
+	if (!priv->has_downshift)
+		return -EOPNOTSUPP;
+
+	if (ds == DOWNSHIFT_DEV_DISABLE)
+		return phy_clear_bits_mmd(phydev, MDIO_MMD_PCS, MV_PCS_DSC1,
+					  MV_PCS_DSC1_ENABLE);
+
+	/* DOWNSHIFT_DEV_DEFAULT_COUNT is confusing. It looks like it should
+	 * set the default settings for the PHY. However, it is used for
+	 * "ethtool --set-phy-tunable ethN downshift on". The intention is
+	 * to enable downshift at a default number of retries. The default
+	 * settings for 88x3310 are for two retries with downshift disabled.
+	 * So let's use two retries with downshift enabled.
+	 */
+	if (ds == DOWNSHIFT_DEV_DEFAULT_COUNT)
+		ds = 2;
+
+	if (ds > 8)
+		return -E2BIG;
+
+	ds -= 1;
+	val = FIELD_PREP(MV_PCS_DSC2_2P5G, ds);
+	val |= FIELD_PREP(MV_PCS_DSC2_5G, ds);
+	err = phy_modify_mmd(phydev, MDIO_MMD_PCS, MV_PCS_DSC2,
+			     MV_PCS_DSC2_2P5G | MV_PCS_DSC2_5G, val);
+	if (err < 0)
+		return err;
+
+	val = MV_PCS_DSC1_ENABLE;
+	val |= FIELD_PREP(MV_PCS_DSC1_10GBT, ds);
+	val |= FIELD_PREP(MV_PCS_DSC1_1GBR, ds);
+	val |= FIELD_PREP(MV_PCS_DSC1_100BTX, ds);
+
+	return phy_modify_mmd(phydev, MDIO_MMD_PCS, MV_PCS_DSC1,
+			      MV_PCS_DSC1_ENABLE | MV_PCS_DSC1_10GBT |
+			      MV_PCS_DSC1_1GBR | MV_PCS_DSC1_100BTX, val);
+}
+
 static int mv3310_get_edpd(struct phy_device *phydev, u16 *edpd)
 {
 	int val;
@@ -447,6 +526,9 @@ static int mv3310_probe(struct phy_device *phydev)
 	phydev_info(phydev, "Firmware version %u.%u.%u.%u\n",
 		    priv->firmware_ver >> 24, (priv->firmware_ver >> 16) & 255,
 		    (priv->firmware_ver >> 8) & 255, priv->firmware_ver & 255);
+
+	if (chip->has_downshift)
+		priv->has_downshift = chip->has_downshift(phydev);
 
 	/* Powering down the port when not in use saves about 600mW */
 	ret = mv3310_power_down(phydev);
@@ -616,7 +698,16 @@ static int mv3310_config_init(struct phy_device *phydev)
 	}
 
 	/* Enable EDPD mode - saving 600mW */
-	return mv3310_set_edpd(phydev, ETHTOOL_PHY_EDPD_DFLT_TX_MSECS);
+	err = mv3310_set_edpd(phydev, ETHTOOL_PHY_EDPD_DFLT_TX_MSECS);
+	if (err)
+		return err;
+
+	/* Allow downshift */
+	err = mv3310_set_downshift(phydev, DOWNSHIFT_DEV_DEFAULT_COUNT);
+	if (err && err != -EOPNOTSUPP)
+		return err;
+
+	return 0;
 }
 
 static int mv3310_get_features(struct phy_device *phydev)
@@ -886,6 +977,8 @@ static int mv3310_get_tunable(struct phy_device *phydev,
 			      struct ethtool_tunable *tuna, void *data)
 {
 	switch (tuna->id) {
+	case ETHTOOL_PHY_DOWNSHIFT:
+		return mv3310_get_downshift(phydev, data);
 	case ETHTOOL_PHY_EDPD:
 		return mv3310_get_edpd(phydev, data);
 	default:
@@ -897,11 +990,21 @@ static int mv3310_set_tunable(struct phy_device *phydev,
 			      struct ethtool_tunable *tuna, const void *data)
 {
 	switch (tuna->id) {
+	case ETHTOOL_PHY_DOWNSHIFT:
+		return mv3310_set_downshift(phydev, *(u8 *)data);
 	case ETHTOOL_PHY_EDPD:
 		return mv3310_set_edpd(phydev, *(u16 *)data);
 	default:
 		return -EOPNOTSUPP;
 	}
+}
+
+static bool mv3310_has_downshift(struct phy_device *phydev)
+{
+	struct mv3310_priv *priv = dev_get_drvdata(&phydev->mdio.dev);
+
+	/* Fails to downshift with firmware older than v0.3.5.0 */
+	return priv->firmware_ver >= MV_VERSION(0,3,5,0);
 }
 
 static void mv3310_init_supported_interfaces(unsigned long *mask)
@@ -943,6 +1046,7 @@ static void mv2111_init_supported_interfaces(unsigned long *mask)
 }
 
 static const struct mv3310_chip mv3310_type = {
+	.has_downshift = mv3310_has_downshift,
 	.init_supported_interfaces = mv3310_init_supported_interfaces,
 	.get_mactype = mv3310_get_mactype,
 	.init_interface = mv3310_init_interface,
@@ -953,6 +1057,7 @@ static const struct mv3310_chip mv3310_type = {
 };
 
 static const struct mv3310_chip mv3340_type = {
+	.has_downshift = mv3310_has_downshift,
 	.init_supported_interfaces = mv3340_init_supported_interfaces,
 	.get_mactype = mv3310_get_mactype,
 	.init_interface = mv3340_init_interface,
