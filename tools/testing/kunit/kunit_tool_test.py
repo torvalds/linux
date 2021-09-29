@@ -289,6 +289,10 @@ class LinuxSourceTreeTest(unittest.TestCase):
 				pass
 			kunit_kernel.LinuxSourceTree('', kunitconfig_path=dir)
 
+	def test_invalid_arch(self):
+		with self.assertRaisesRegex(kunit_kernel.ConfigError, 'not a valid arch, options are.*x86_64'):
+			kunit_kernel.LinuxSourceTree('', arch='invalid')
+
 	# TODO: add more test cases.
 
 

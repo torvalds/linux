@@ -198,8 +198,9 @@ def get_source_tree_ops(arch: str, cross_compile: Optional[str]) -> LinuxSourceT
 		return LinuxSourceTreeOperationsUml(cross_compile=cross_compile)
 	elif os.path.isfile(config_path):
 		return get_source_tree_ops_from_qemu_config(config_path, cross_compile)[1]
-	else:
-		raise ConfigError(arch + ' is not a valid arch')
+
+	options = [f[:-3] for f in os.listdir(QEMU_CONFIGS_DIR) if f.endswith('.py')]
+	raise ConfigError(arch + ' is not a valid arch, options are ' + str(sorted(options)))
 
 def get_source_tree_ops_from_qemu_config(config_path: str,
 					 cross_compile: Optional[str]) -> Tuple[
