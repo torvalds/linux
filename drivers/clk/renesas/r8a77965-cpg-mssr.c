@@ -205,6 +205,7 @@ static const struct mssr_mod_clk r8a77965_mod_clks[] __initconst = {
 	DEF_MOD("lvds",			727,	R8A77965_CLK_S2D1),
 	DEF_MOD("hdmi0",		729,	R8A77965_CLK_HDMI),
 
+	DEF_MOD("mlp",			802,	R8A77965_CLK_S2D1),
 	DEF_MOD("vin7",			804,	R8A77965_CLK_S0D2),
 	DEF_MOD("vin6",			805,	R8A77965_CLK_S0D2),
 	DEF_MOD("vin5",			806,	R8A77965_CLK_S0D2),
