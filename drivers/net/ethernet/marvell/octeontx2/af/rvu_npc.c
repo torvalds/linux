@@ -3167,7 +3167,7 @@ int rvu_mbox_handler_npc_get_kex_cfg(struct rvu *rvu, struct msg_req *req,
 	return 0;
 }
 
-int
+static int
 npc_set_var_len_offset_pkind(struct rvu *rvu, u16 pcifunc, u64 pkind,
 			     u8 var_len_off, u8 var_len_off_mask, u8 shift_dir)
 {
