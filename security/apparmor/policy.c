@@ -259,8 +259,7 @@ struct aa_profile *aa_alloc_profile(const char *hname, struct aa_proxy *proxy,
 	struct aa_profile *profile;
 
 	/* freed by free_profile - usually through aa_put_profile */
-	profile = kzalloc(sizeof(*profile) + sizeof(struct aa_profile *) * 2,
-			  gfp);
+	profile = kzalloc(struct_size(profile, label.vec, 2), gfp);
 	if (!profile)
 		return NULL;
 
