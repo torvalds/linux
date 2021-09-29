@@ -23,8 +23,10 @@
 #include <linux/iopoll.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
+#include <linux/list.h>
 #include <linux/module.h>
 #include <linux/msi.h>
+#include <linux/notifier.h>
 #include <linux/of_irq.h>
 #include <linux/pci-ecam.h>
 
@@ -116,6 +118,8 @@
 #define   PORT_TUNSTAT_PERST_ACK_PEND	BIT(1)
 #define PORT_PREFMEM_ENABLE		0x00994
 
+#define MAX_RID2SID			64
+
 /*
  * The doorbell address is set to 0xfffff000, which by convention
  * matches what MacOS does, and it is possible to use any other
@@ -131,6 +135,7 @@ struct apple_pcie {
 	void __iomem            *base;
 	struct irq_domain	*domain;
 	unsigned long		*bitmap;
+	struct list_head	ports;
 	struct completion	event;
 	struct irq_fwspec	fwspec;
 	u32			nvecs;
@@ -141,6 +146,9 @@ struct apple_pcie_port {
 	struct device_node	*np;
 	void __iomem		*base;
 	struct irq_domain	*domain;
+	struct list_head	entry;
+	DECLARE_BITMAP(sid_map, MAX_RID2SID);
+	int			sid_map_sz;
 	int			idx;
 };
 
@@ -490,6 +498,14 @@ static int apple_pcie_setup_refclk(struct apple_pcie *pcie,
 	return 0;
 }
 
+static u32 apple_pcie_rid2sid_write(struct apple_pcie_port *port,
+				    int idx, u32 val)
+{
+	writel_relaxed(val, port->base + PORT_RID2SID(idx));
+	/* Read back to ensure completion of the write */
+	return readl_relaxed(port->base + PORT_RID2SID(idx));
+}
+
 static int apple_pcie_setup_port(struct apple_pcie *pcie,
 				 struct device_node *np)
 {
@@ -497,7 +513,7 @@ static int apple_pcie_setup_port(struct apple_pcie *pcie,
 	struct apple_pcie_port *port;
 	struct gpio_desc *reset;
 	u32 stat, idx;
-	int ret;
+	int ret, i;
 
 	reset = gpiod_get_from_of_node(np, "reset-gpios", 0,
 				       GPIOD_OUT_LOW, "#PERST");
@@ -541,6 +557,18 @@ static int apple_pcie_setup_port(struct apple_pcie *pcie,
 	if (ret)
 		return ret;
 
+	/* Reset all RID/SID mappings, and check for RAZ/WI registers */
+	for (i = 0; i < MAX_RID2SID; i++) {
+		if (apple_pcie_rid2sid_write(port, i, 0xbad1d) != 0xbad1d)
+			break;
+		apple_pcie_rid2sid_write(port, i, 0);
+	}
+
+	dev_dbg(pcie->dev, "%pOF: %d RID/SID mapping entries\n", np, i);
+
+	port->sid_map_sz = i;
+
+	list_add_tail(&port->entry, &pcie->ports);
 	init_completion(&pcie->event);
 
 	ret = apple_pcie_port_register_irqs(port);
@@ -603,6 +631,121 @@ static int apple_msi_init(struct apple_pcie *pcie)
 	return 0;
 }
 
+static struct apple_pcie_port *apple_pcie_get_port(struct pci_dev *pdev)
+{
+	struct pci_config_window *cfg = pdev->sysdata;
+	struct apple_pcie *pcie = cfg->priv;
+	struct pci_dev *port_pdev;
+	struct apple_pcie_port *port;
+
+	/* Find the root port this device is on */
+	port_pdev = pcie_find_root_port(pdev);
+
+	/* If finding the port itself, nothing to do */
+	if (WARN_ON(!port_pdev) || pdev == port_pdev)
+		return NULL;
+
+	list_for_each_entry(port, &pcie->ports, entry) {
+		if (port->idx == PCI_SLOT(port_pdev->devfn))
+			return port;
+	}
+
+	return NULL;
+}
+
+static int apple_pcie_add_device(struct apple_pcie_port *port,
+				 struct pci_dev *pdev)
+{
+	u32 sid, rid = PCI_DEVID(pdev->bus->number, pdev->devfn);
+	int idx, err;
+
+	dev_dbg(&pdev->dev, "added to bus %s, index %d\n",
+		pci_name(pdev->bus->self), port->idx);
+
+	err = of_map_id(port->pcie->dev->of_node, rid, "iommu-map",
+			"iommu-map-mask", NULL, &sid);
+	if (err)
+		return err;
+
+	mutex_lock(&port->pcie->lock);
+
+	idx = bitmap_find_free_region(port->sid_map, port->sid_map_sz, 0);
+	if (idx >= 0) {
+		apple_pcie_rid2sid_write(port, idx,
+					 PORT_RID2SID_VALID |
+					 (sid << PORT_RID2SID_SID_SHIFT) | rid);
+
+		dev_dbg(&pdev->dev, "mapping RID%x to SID%x (index %d)\n",
+			rid, sid, idx);
+	}
+
+	mutex_unlock(&port->pcie->lock);
+
+	return idx >= 0 ? 0 : -ENOSPC;
+}
+
+static void apple_pcie_release_device(struct apple_pcie_port *port,
+				      struct pci_dev *pdev)
+{
+	u32 rid = PCI_DEVID(pdev->bus->number, pdev->devfn);
+	int idx;
+
+	mutex_lock(&port->pcie->lock);
+
+	for_each_set_bit(idx, port->sid_map, port->sid_map_sz) {
+		u32 val;
+
+		val = readl_relaxed(port->base + PORT_RID2SID(idx));
+		if ((val & 0xffff) == rid) {
+			apple_pcie_rid2sid_write(port, idx, 0);
+			bitmap_release_region(port->sid_map, idx, 0);
+			dev_dbg(&pdev->dev, "Released %x (%d)\n", val, idx);
+			break;
+		}
+	}
+
+	mutex_unlock(&port->pcie->lock);
+}
+
+static int apple_pcie_bus_notifier(struct notifier_block *nb,
+				   unsigned long action,
+				   void *data)
+{
+	struct device *dev = data;
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct apple_pcie_port *port;
+	int err;
+
+	/*
+	 * This is a bit ugly. We assume that if we get notified for
+	 * any PCI device, we must be in charge of it, and that there
+	 * is no other PCI controller in the whole system. It probably
+	 * holds for now, but who knows for how long?
+	 */
+	port = apple_pcie_get_port(pdev);
+	if (!port)
+		return NOTIFY_DONE;
+
+	switch (action) {
+	case BUS_NOTIFY_ADD_DEVICE:
+		err = apple_pcie_add_device(port, pdev);
+		if (err)
+			return notifier_from_errno(err);
+		break;
+	case BUS_NOTIFY_DEL_DEVICE:
+		apple_pcie_release_device(port, pdev);
+		break;
+	default:
+		return NOTIFY_DONE;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block apple_pcie_nb = {
+	.notifier_call = apple_pcie_bus_notifier,
+};
+
 static int apple_pcie_init(struct pci_config_window *cfg)
 {
 	struct device *dev = cfg->parent;
@@ -623,6 +766,9 @@ static int apple_pcie_init(struct pci_config_window *cfg)
 	if (IS_ERR(pcie->base))
 		return PTR_ERR(pcie->base);
 
+	cfg->priv = pcie;
+	INIT_LIST_HEAD(&pcie->ports);
+
 	for_each_child_of_node(dev->of_node, of_port) {
 		ret = apple_pcie_setup_port(pcie, of_port);
 		if (ret) {
@@ -633,6 +779,21 @@ static int apple_pcie_init(struct pci_config_window *cfg)
 	}
 
 	return apple_msi_init(pcie);
+}
+
+static int apple_pcie_probe(struct platform_device *pdev)
+{
+	int ret;
+
+	ret = bus_register_notifier(&pci_bus_type, &apple_pcie_nb);
+	if (ret)
+		return ret;
+
+	ret = pci_host_common_probe(pdev);
+	if (ret)
+		bus_unregister_notifier(&pci_bus_type, &apple_pcie_nb);
+
+	return ret;
 }
 
 static const struct pci_ecam_ops apple_pcie_cfg_ecam_ops = {
@@ -651,7 +812,7 @@ static const struct of_device_id apple_pcie_of_match[] = {
 MODULE_DEVICE_TABLE(of, apple_pcie_of_match);
 
 static struct platform_driver apple_pcie_driver = {
-	.probe	= pci_host_common_probe,
+	.probe	= apple_pcie_probe,
 	.driver	= {
 		.name			= "pcie-apple",
 		.of_match_table		= apple_pcie_of_match,
