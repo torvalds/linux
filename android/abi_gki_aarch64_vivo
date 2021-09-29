@@ -1876,6 +1876,7 @@
   ucsi_destroy
   ucsi_get_drvdata
   ucsi_register
+  ucsi_send_command
   ucsi_set_drvdata
   ucsi_unregister
   __udelay
