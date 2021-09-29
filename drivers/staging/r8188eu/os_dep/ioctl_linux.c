@@ -3996,10 +3996,10 @@ static int rtw_dbg_port(struct net_device *dev,
 		case 0x0c:/* dump rx/tx packet */
 			if (arg == 0) {
 				DBG_88E("dump rx packet (%d)\n", extra_arg);
-				rtw_hal_set_def_var(padapter, HAL_DEF_DBG_DUMP_RXPKT, &(extra_arg));
+				SetHalDefVar8188EUsb(padapter, HAL_DEF_DBG_DUMP_RXPKT, &extra_arg);
 			} else if (arg == 1) {
 				DBG_88E("dump tx packet (%d)\n", extra_arg);
-				rtw_hal_set_def_var(padapter, HAL_DEF_DBG_DUMP_TXPKT, &(extra_arg));
+				SetHalDefVar8188EUsb(padapter, HAL_DEF_DBG_DUMP_TXPKT, &extra_arg);
 			}
 			break;
 		case 0x0f:
@@ -4097,7 +4097,7 @@ static int rtw_dbg_port(struct net_device *dev,
 						extra_arg = 2  - disable tx power tracking
 						extra_arg = 3  - turn on all dynamic func
 					*/
-					rtw_hal_set_def_var(padapter, HAL_DEF_DBG_DM_FUNC, &(extra_arg));
+					SetHalDefVar8188EUsb(padapter, HAL_DEF_DBG_DM_FUNC, &extra_arg);
 					rtw_hal_get_def_var(padapter, HAL_DEF_DBG_DM_FUNC, &odm_flag);
 					DBG_88E(" === DMFlag(0x%08x) ===\n", odm_flag);
 				}
