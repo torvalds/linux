@@ -262,7 +262,7 @@ struct rtw_cbuf *rtw_cbuf_alloc(u32 size)
 {
 	struct rtw_cbuf *cbuf;
 
-	cbuf = kmalloc(sizeof(*cbuf) + sizeof(void *) * size, GFP_KERNEL);
+	cbuf = kmalloc(struct_size(cbuf, bufs, size), GFP_KERNEL);
 
 	if (cbuf) {
 		cbuf->write = 0;
