@@ -1024,13 +1024,6 @@ exit:
 	return status;
 }
 
-static unsigned int rtl8188eu_inirp_deinit(struct adapter *Adapter)
-{
-	rtw_read_port_cancel(Adapter);
-
-	return _SUCCESS;
-}
-
 /*  */
 /*  */
 /*	EEPROM/EFUSE Content Parsing */
@@ -2149,8 +2142,6 @@ void rtl8188eu_set_hal_ops(struct adapter *adapt)
 
 	halfunc->hal_init = &rtl8188eu_hal_init;
 	halfunc->hal_deinit = &rtl8188eu_hal_deinit;
-
-	halfunc->inirp_deinit = &rtl8188eu_inirp_deinit;
 
 	halfunc->SetHwRegHandler = &SetHwReg8188EU;
 	halfunc->GetHwRegHandler = &GetHwReg8188EU;

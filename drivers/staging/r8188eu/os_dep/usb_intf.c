@@ -186,7 +186,7 @@ static void usb_intf_start(struct adapter *padapter)
 static void usb_intf_stop(struct adapter *padapter)
 {
 	/* cancel in irp */
-	rtw_hal_inirp_deinit(padapter);
+	rtw_read_port_cancel(padapter);
 
 	/* cancel out irp */
 	rtw_write_port_cancel(padapter);
