@@ -194,7 +194,7 @@ static int otx2_ptp_enable(struct ptp_clock_info *ptp_info,
 {
 	struct otx2_ptp *ptp = container_of(ptp_info, struct otx2_ptp,
 					    ptp_info);
-	int pin = -1;
+	int pin;
 
 	if (!ptp->nic)
 		return -ENODEV;
