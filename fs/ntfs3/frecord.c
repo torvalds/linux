@@ -3080,7 +3080,9 @@ static bool ni_update_parent(struct ntfs_inode *ni, struct NTFS_DUP_INFO *dup,
 			const struct EA_INFO *info;
 
 			info = resident_data_ex(attr, sizeof(struct EA_INFO));
-			dup->ea_size = info->size_pack;
+			/* If ATTR_EA_INFO exists 'info' can't be NULL. */
+			if (info)
+				dup->ea_size = info->size_pack;
 		}
 	}
 
