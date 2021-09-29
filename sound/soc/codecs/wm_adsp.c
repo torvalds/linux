@@ -28,7 +28,6 @@
 #include <sound/jack.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
-#include <linux/firmware.h>
 
 #include "wm_adsp.h"
 
