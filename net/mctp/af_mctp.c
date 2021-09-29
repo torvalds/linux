@@ -435,7 +435,7 @@ static __exit void mctp_exit(void)
 	sock_unregister(PF_MCTP);
 }
 
-module_init(mctp_init);
+subsys_initcall(mctp_init);
 module_exit(mctp_exit);
 
 MODULE_DESCRIPTION("MCTP core");
