@@ -356,9 +356,12 @@ static int mctp_register(struct net_device *dev)
 	if (rtnl_dereference(dev->mctp_ptr))
 		return 0;
 
-	/* only register specific types; MCTP-specific and loopback for now */
-	if (dev->type != ARPHRD_MCTP && dev->type != ARPHRD_LOOPBACK)
+	/* only register specific types (inc. NONE for TUN devices) */
+	if (!(dev->type == ARPHRD_MCTP ||
+	      dev->type == ARPHRD_LOOPBACK ||
+	      dev->type == ARPHRD_NONE)) {
 		return 0;
+	}
 
 	mdev = mctp_add_dev(dev);
 	if (IS_ERR(mdev))
