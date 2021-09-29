@@ -270,6 +270,14 @@ static u32 tc_port_live_status_mask(struct intel_digital_port *dig_port)
 	return icl_tc_port_live_status_mask(dig_port);
 }
 
+/*
+ * Return the PHY status complete flag indicating that display can acquire the
+ * PHY ownership. The IOM firmware sets this flag when a DP-alt or legacy sink
+ * is connected and it's ready to switch the ownership to display. The flag
+ * will be left cleared when a TBT-alt sink is connected, where the PHY is
+ * owned by the TBT subsystem and so switching the ownership to display is not
+ * required.
+ */
 static bool icl_tc_phy_status_complete(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
@@ -288,6 +296,13 @@ static bool icl_tc_phy_status_complete(struct intel_digital_port *dig_port)
 	return val & DP_PHY_MODE_STATUS_COMPLETED(dig_port->tc_phy_fia_idx);
 }
 
+/*
+ * Return the PHY status complete flag indicating that display can acquire the
+ * PHY ownership. The IOM firmware sets this flag when it's ready to switch
+ * the ownership to display, regardless of what sink is connected (TBT-alt,
+ * DP-alt, legacy or nothing). For TBT-alt sinks the PHY is owned by the TBT
+ * subsystem and so switching the ownership to display is not required.
+ */
 static bool adl_tc_phy_status_complete(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
@@ -424,11 +439,19 @@ static void icl_tc_phy_connect(struct intel_digital_port *dig_port,
 			       int required_lanes)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	u32 live_status_mask;
 	int max_lanes;
 
 	if (!tc_phy_status_complete(dig_port)) {
 		drm_dbg_kms(&i915->drm, "Port %s: PHY not ready\n",
 			    dig_port->tc_port_name);
+		goto out_set_tbt_alt_mode;
+	}
+
+	live_status_mask = tc_port_live_status_mask(dig_port);
+	if (!(live_status_mask & (BIT(TC_PORT_DP_ALT) | BIT(TC_PORT_LEGACY)))) {
+		drm_dbg_kms(&i915->drm, "Port %s: PHY ownership not required (live status %02x)\n",
+			    dig_port->tc_port_name, live_status_mask);
 		goto out_set_tbt_alt_mode;
 	}
 
