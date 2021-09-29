@@ -171,6 +171,8 @@ struct otx2_hw {
 	struct otx2_rss_info	rss_info;
 	u16                     rx_queues;
 	u16                     tx_queues;
+	u16                     xdp_queues;
+	u16                     tot_tx_queues;
 	u16			max_queues;
 	u16			pool_cnt;
 	u16			rqpool_cnt;
@@ -345,6 +347,7 @@ struct otx2_nic {
 	u64			flags;
 	u64			*cq_op_addr;
 
+	struct bpf_prog		*xdp_prog;
 	struct otx2_qset	qset;
 	struct otx2_hw		hw;
 	struct pci_dev		*pdev;
@@ -857,6 +860,7 @@ int otx2_del_macfilter(struct net_device *netdev, const u8 *mac);
 int otx2_add_macfilter(struct net_device *netdev, const u8 *mac);
 int otx2_enable_rxvlan(struct otx2_nic *pf, bool enable);
 int otx2_install_rxvlan_offload_flow(struct otx2_nic *pfvf);
+bool otx2_xdp_sq_append_pkt(struct otx2_nic *pfvf, u64 iova, int len, u16 qidx);
 u16 otx2_get_max_mtu(struct otx2_nic *pfvf);
 /* tc support */
 int otx2_init_tc(struct otx2_nic *nic);
