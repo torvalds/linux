@@ -927,6 +927,7 @@ void snd_usb_endpoint_sync_pending_stop(struct snd_usb_endpoint *ep)
 static int stop_urbs(struct snd_usb_endpoint *ep, bool force)
 {
 	unsigned int i;
+	unsigned long flags;
 
 	if (!force && atomic_read(&ep->running))
 		return -EBUSY;
@@ -934,9 +935,11 @@ static int stop_urbs(struct snd_usb_endpoint *ep, bool force)
 	if (!ep_state_update(ep, EP_STATE_RUNNING, EP_STATE_STOPPING))
 		return 0;
 
+	spin_lock_irqsave(&ep->lock, flags);
 	INIT_LIST_HEAD(&ep->ready_playback_urbs);
 	ep->next_packet_head = 0;
 	ep->next_packet_queued = 0;
+	spin_unlock_irqrestore(&ep->lock, flags);
 
 	for (i = 0; i < ep->nurbs; i++) {
 		if (test_bit(i, &ep->active_mask)) {
