@@ -734,6 +734,7 @@ static int hw_rule_rate(struct snd_pcm_hw_params *params,
 			struct snd_pcm_hw_rule *rule)
 {
 	struct snd_usb_substream *subs = rule->private;
+	struct snd_usb_audio *chip = subs->stream->chip;
 	const struct audioformat *fp;
 	struct snd_interval *it = hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
 	unsigned int rmin, rmax, r;
@@ -745,6 +746,14 @@ static int hw_rule_rate(struct snd_pcm_hw_params *params,
 	list_for_each_entry(fp, &subs->fmt_list, list) {
 		if (!hw_check_valid_format(subs, params, fp))
 			continue;
+		r = snd_usb_endpoint_get_clock_rate(chip, fp->clock);
+		if (r > 0) {
+			if (!snd_interval_test(it, r))
+				continue;
+			rmin = min(rmin, r);
+			rmax = max(rmax, r);
+			continue;
+		}
 		if (fp->rate_table && fp->nr_rates) {
 			for (i = 0; i < fp->nr_rates; i++) {
 				r = fp->rate_table[i];

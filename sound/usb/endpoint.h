@@ -19,6 +19,7 @@ void snd_usb_endpoint_close(struct snd_usb_audio *chip,
 			    struct snd_usb_endpoint *ep);
 int snd_usb_endpoint_configure(struct snd_usb_audio *chip,
 			       struct snd_usb_endpoint *ep);
+int snd_usb_endpoint_get_clock_rate(struct snd_usb_audio *chip, int clock);
 
 bool snd_usb_endpoint_compatible(struct snd_usb_audio *chip,
 				 struct snd_usb_endpoint *ep,
