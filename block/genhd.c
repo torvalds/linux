@@ -596,7 +596,8 @@ void del_gendisk(struct gendisk *disk)
 	/*
 	 * Allow using passthrough request again after the queue is torn down.
 	 */
-	blk_mq_unfreeze_queue(q);
+	blk_queue_flag_clear(QUEUE_FLAG_INIT_DONE, q);
+	__blk_mq_unfreeze_queue(q, true);
 
 	if (!(disk->flags & GENHD_FL_HIDDEN)) {
 		sysfs_remove_link(&disk_to_dev(disk)->kobj, "bdi");
