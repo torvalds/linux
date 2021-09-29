@@ -540,6 +540,82 @@ static void prctl_set_onexec(struct vec_data *data)
 	file_write_integer(data->default_vl_file, data->default_vl);
 }
 
+/* For each VQ verify that setting via prctl() does the right thing */
+static void prctl_set_all_vqs(struct vec_data *data)
+{
+	int ret, vq, vl, new_vl;
+	int errors = 0;
+
+	if (!data->min_vl || !data->max_vl) {
+		ksft_test_result_skip("%s Failed to enumerate VLs, not testing VL setting\n",
+				      data->name);
+		return;
+	}
+
+	for (vq = SVE_VQ_MIN; vq <= SVE_VQ_MAX; vq++) {
+		vl = sve_vl_from_vq(vq);
+
+		/* Attempt to set the VL */
+		ret = prctl(data->prctl_set, vl);
+		if (ret < 0) {
+			errors++;
+			ksft_print_msg("%s prctl set failed for %d: %d (%s)\n",
+				       data->name, vl,
+				       errno, strerror(errno));
+			continue;
+		}
+
+		new_vl = ret & PR_SVE_VL_LEN_MASK;
+
+		/* Check that we actually have the reported new VL */
+		if (data->rdvl() != new_vl) {
+			ksft_print_msg("Set %s VL %d but RDVL reports %d\n",
+				       data->name, new_vl, data->rdvl());
+			errors++;
+		}
+
+		/* Was that the VL we asked for? */
+		if (new_vl == vl)
+			continue;
+
+		/* Should round up to the minimum VL if below it */
+		if (vl < data->min_vl) {
+			if (new_vl != data->min_vl) {
+				ksft_print_msg("%s VL %d returned %d not minimum %d\n",
+					       data->name, vl, new_vl,
+					       data->min_vl);
+				errors++;
+			}
+
+			continue;
+		}
+
+		/* Should round down to maximum VL if above it */
+		if (vl > data->max_vl) {
+			if (new_vl != data->max_vl) {
+				ksft_print_msg("%s VL %d returned %d not maximum %d\n",
+					       data->name, vl, new_vl,
+					       data->max_vl);
+				errors++;
+			}
+
+			continue;
+		}
+
+		/* Otherwise we should've rounded down */
+		if (!(new_vl < vl)) {
+			ksft_print_msg("%s VL %d returned %d, did not round down\n",
+				       data->name, vl, new_vl);
+			errors++;
+
+			continue;
+		}
+	}
+
+	ksft_test_result(errors == 0, "%s prctl() set all VLs, %d errors\n",
+			 data->name, errors);
+}
+
 typedef void (*test_type)(struct vec_data *);
 
 static const test_type tests[] = {
@@ -557,6 +633,7 @@ static const test_type tests[] = {
 	prctl_set_no_child,
 	prctl_set_for_child,
 	prctl_set_onexec,
+	prctl_set_all_vqs,
 };
 
 int main(void)
