@@ -270,6 +270,7 @@ enum tc_port {
 };
 
 enum tc_port_mode {
+	TC_PORT_DISCONNECTED,
 	TC_PORT_TBT_ALT,
 	TC_PORT_DP_ALT,
 	TC_PORT_LEGACY,

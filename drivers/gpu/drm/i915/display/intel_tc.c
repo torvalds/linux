@@ -12,13 +12,14 @@
 static const char *tc_port_mode_name(enum tc_port_mode mode)
 {
 	static const char * const names[] = {
+		[TC_PORT_DISCONNECTED] = "disconnected",
 		[TC_PORT_TBT_ALT] = "tbt-alt",
 		[TC_PORT_DP_ALT] = "dp-alt",
 		[TC_PORT_LEGACY] = "legacy",
 	};
 
 	if (WARN_ON(mode >= ARRAY_SIZE(names)))
-		mode = TC_PORT_TBT_ALT;
+		mode = TC_PORT_DISCONNECTED;
 
 	return names[mode];
 }
@@ -529,10 +530,11 @@ static void icl_tc_phy_disconnect(struct intel_digital_port *dig_port)
 	case TC_PORT_LEGACY:
 	case TC_PORT_DP_ALT:
 		tc_phy_take_ownership(dig_port, false);
-		dig_port->tc_mode = TC_PORT_TBT_ALT;
-		break;
+		fallthrough;
 	case TC_PORT_TBT_ALT:
-		/* Nothing to do, we stay in TBT-alt mode */
+		dig_port->tc_mode = TC_PORT_DISCONNECTED;
+		fallthrough;
+	case TC_PORT_DISCONNECTED:
 		break;
 	default:
 		MISSING_CASE(dig_port->tc_mode);
@@ -637,31 +639,34 @@ void intel_tc_port_sanitize(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	struct intel_encoder *encoder = &dig_port->base;
-	intel_wakeref_t tc_cold_wref;
 	int active_links = 0;
 
 	mutex_lock(&dig_port->tc_lock);
-	tc_cold_wref = tc_cold_block(dig_port);
 
-	dig_port->tc_mode = intel_tc_port_get_current_mode(dig_port);
 	if (dig_port->dp.is_mst)
 		active_links = intel_dp_mst_encoder_active_links(dig_port);
 	else if (encoder->base.crtc)
 		active_links = to_intel_crtc(encoder->base.crtc)->active;
 
+	drm_WARN_ON(&i915->drm, dig_port->tc_mode != TC_PORT_DISCONNECTED);
 	if (active_links) {
+		intel_wakeref_t tc_cold_wref = tc_cold_block(dig_port);
+
+		dig_port->tc_mode = intel_tc_port_get_current_mode(dig_port);
+
 		if (!icl_tc_phy_is_connected(dig_port))
 			drm_dbg_kms(&i915->drm,
 				    "Port %s: PHY disconnected with %d active link(s)\n",
 				    dig_port->tc_port_name, active_links);
 		intel_tc_port_link_init_refcount(dig_port, active_links);
+
+		tc_cold_unblock(dig_port, tc_cold_wref);
 	}
 
 	drm_dbg_kms(&i915->drm, "Port %s: sanitize mode (%s)\n",
 		    dig_port->tc_port_name,
 		    tc_port_mode_name(dig_port->tc_mode));
 
-	tc_cold_unblock(dig_port, tc_cold_wref);
 	mutex_unlock(&dig_port->tc_lock);
 }
 
@@ -832,6 +837,7 @@ void intel_tc_port_init(struct intel_digital_port *dig_port, bool is_legacy)
 
 	mutex_init(&dig_port->tc_lock);
 	dig_port->tc_legacy_port = is_legacy;
+	dig_port->tc_mode = TC_PORT_DISCONNECTED;
 	dig_port->tc_link_refcount = 0;
 	tc_port_load_fia_params(i915, dig_port);
 }
