@@ -30,8 +30,9 @@ void snd_usb_endpoint_set_sync(struct snd_usb_audio *chip,
 			       struct snd_usb_endpoint *data_ep,
 			       struct snd_usb_endpoint *sync_ep);
 void snd_usb_endpoint_set_callback(struct snd_usb_endpoint *ep,
-				   void (*prepare)(struct snd_usb_substream *subs,
-						   struct urb *urb),
+				   int (*prepare)(struct snd_usb_substream *subs,
+						  struct urb *urb,
+						  bool in_stream_lock),
 				   void (*retire)(struct snd_usb_substream *subs,
 						  struct urb *urb),
 				   struct snd_usb_substream *data_subs);
@@ -48,5 +49,7 @@ int snd_usb_endpoint_implicit_feedback_sink(struct snd_usb_endpoint *ep);
 int snd_usb_endpoint_next_packet_size(struct snd_usb_endpoint *ep,
 				      struct snd_urb_ctx *ctx, int idx,
 				      unsigned int avail);
+void snd_usb_queue_pending_output_urbs(struct snd_usb_endpoint *ep,
+				       bool in_stream_lock);
 
 #endif /* __USBAUDIO_ENDPOINT_H */

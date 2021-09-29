@@ -598,9 +598,6 @@ static int lowlatency_playback_available(struct snd_pcm_runtime *runtime,
 	/* implicit feedback mode has own operation mode */
 	if (snd_usb_endpoint_implicit_feedback_sink(subs->data_endpoint))
 		return false;
-	/* too short periods? */
-	if (subs->data_endpoint->nominal_queue_size >= subs->buffer_bytes)
-		return false;
 	return true;
 }
 
@@ -1095,6 +1092,10 @@ static int snd_usb_pcm_open(struct snd_pcm_substream *substream)
 	int ret;
 
 	runtime->hw = snd_usb_hardware;
+	/* need an explicit sync to catch applptr update in low-latency mode */
+	if (direction == SNDRV_PCM_STREAM_PLAYBACK &&
+	    as->chip->lowlatency)
+		runtime->hw.info |= SNDRV_PCM_INFO_EXPLICIT_SYNC;
 	runtime->private_data = subs;
 	subs->pcm_substream = substream;
 	/* runtime PM is also done there */
@@ -1347,44 +1348,66 @@ static unsigned int copy_to_urb_quirk(struct snd_usb_substream *subs,
 	return bytes;
 }
 
-static void prepare_playback_urb(struct snd_usb_substream *subs,
-				 struct urb *urb)
+static int prepare_playback_urb(struct snd_usb_substream *subs,
+				struct urb *urb,
+				bool in_stream_lock)
 {
 	struct snd_pcm_runtime *runtime = subs->pcm_substream->runtime;
 	struct snd_usb_endpoint *ep = subs->data_endpoint;
 	struct snd_urb_ctx *ctx = urb->context;
-	unsigned int counts, frames, bytes;
+	unsigned int frames, bytes;
+	int counts;
+	unsigned int transfer_done, frame_limit, avail = 0;
 	int i, stride, period_elapsed = 0;
 	unsigned long flags;
+	int err = 0;
 
 	stride = ep->stride;
 
 	frames = 0;
 	ctx->queued = 0;
 	urb->number_of_packets = 0;
+
 	spin_lock_irqsave(&subs->lock, flags);
-	subs->frame_limit += ep->max_urb_frames;
+	frame_limit = subs->frame_limit + ep->max_urb_frames;
+	transfer_done = subs->transfer_done;
+
+	if (subs->lowlatency_playback &&
+	    runtime->status->state != SNDRV_PCM_STATE_DRAINING) {
+		unsigned int hwptr = subs->hwptr_done / stride;
+
+		/* calculate the byte offset-in-buffer of the appl_ptr */
+		avail = (runtime->control->appl_ptr - runtime->hw_ptr_base)
+			% runtime->buffer_size;
+		if (avail <= hwptr)
+			avail += runtime->buffer_size;
+		avail -= hwptr;
+	}
+
 	for (i = 0; i < ctx->packets; i++) {
-		counts = snd_usb_endpoint_next_packet_size(ep, ctx, i, 0);
+		counts = snd_usb_endpoint_next_packet_size(ep, ctx, i, avail);
+		if (counts < 0)
+			break;
 		/* set up descriptor */
 		urb->iso_frame_desc[i].offset = frames * stride;
 		urb->iso_frame_desc[i].length = counts * stride;
 		frames += counts;
+		avail -= counts;
 		urb->number_of_packets++;
-		subs->transfer_done += counts;
-		if (subs->transfer_done >= runtime->period_size) {
-			subs->transfer_done -= runtime->period_size;
-			subs->frame_limit = 0;
+		transfer_done += counts;
+		if (transfer_done >= runtime->period_size) {
+			transfer_done -= runtime->period_size;
+			frame_limit = 0;
 			period_elapsed = 1;
 			if (subs->fmt_type == UAC_FORMAT_TYPE_II) {
-				if (subs->transfer_done > 0) {
+				if (transfer_done > 0) {
 					/* FIXME: fill-max mode is not
 					 * supported yet */
-					frames -= subs->transfer_done;
-					counts -= subs->transfer_done;
+					frames -= transfer_done;
+					counts -= transfer_done;
 					urb->iso_frame_desc[i].length =
 						counts * stride;
-					subs->transfer_done = 0;
+					transfer_done = 0;
 				}
 				i++;
 				if (i < ctx->packets) {
@@ -1398,13 +1421,19 @@ static void prepare_playback_urb(struct snd_usb_substream *subs,
 			}
 		}
 		/* finish at the period boundary or after enough frames */
-		if ((period_elapsed ||
-				subs->transfer_done >= subs->frame_limit) &&
+		if ((period_elapsed || transfer_done >= frame_limit) &&
 		    !snd_usb_endpoint_implicit_feedback_sink(ep))
 			break;
 	}
-	bytes = frames * stride;
 
+	if (!frames) {
+		err = -EAGAIN;
+		goto unlock;
+	}
+
+	bytes = frames * stride;
+	subs->transfer_done = transfer_done;
+	subs->frame_limit = frame_limit;
 	if (unlikely(ep->cur_format == SNDRV_PCM_FORMAT_DSD_U16_LE &&
 		     subs->cur_audiofmt->dsd_dop)) {
 		fill_playback_urb_dsd_dop(subs, urb, bytes);
@@ -1434,10 +1463,19 @@ static void prepare_playback_urb(struct snd_usb_substream *subs,
 		subs->period_elapsed_pending = 1;
 		period_elapsed = 0;
 	}
+
+ unlock:
 	spin_unlock_irqrestore(&subs->lock, flags);
+	if (err < 0)
+		return err;
 	urb->transfer_buffer_length = bytes;
-	if (period_elapsed)
-		snd_pcm_period_elapsed(subs->pcm_substream);
+	if (period_elapsed) {
+		if (in_stream_lock)
+			snd_pcm_period_elapsed_under_stream_lock(subs->pcm_substream);
+		else
+			snd_pcm_period_elapsed(subs->pcm_substream);
+	}
+	return 0;
 }
 
 /*
@@ -1467,6 +1505,27 @@ static void retire_playback_urb(struct snd_usb_substream *subs,
 	spin_unlock_irqrestore(&subs->lock, flags);
 	if (period_elapsed)
 		snd_pcm_period_elapsed(subs->pcm_substream);
+}
+
+/* PCM ack callback for the playback stream;
+ * this plays a role only when the stream is running in low-latency mode.
+ */
+static int snd_usb_pcm_playback_ack(struct snd_pcm_substream *substream)
+{
+	struct snd_usb_substream *subs = substream->runtime->private_data;
+	struct snd_usb_endpoint *ep;
+
+	if (!subs->lowlatency_playback || !subs->running)
+		return 0;
+	ep = subs->data_endpoint;
+	if (!ep)
+		return 0;
+	/* When no more in-flight URBs available, try to process the pending
+	 * outputs here
+	 */
+	if (!ep->active_mask)
+		snd_usb_queue_pending_output_urbs(ep, true);
+	return 0;
 }
 
 static int snd_usb_substream_playback_trigger(struct snd_pcm_substream *substream,
@@ -1572,6 +1631,7 @@ static const struct snd_pcm_ops snd_usb_playback_ops = {
 	.trigger =	snd_usb_substream_playback_trigger,
 	.sync_stop =	snd_usb_pcm_sync_stop,
 	.pointer =	snd_usb_pcm_pointer,
+	.ack =		snd_usb_pcm_playback_ack,
 };
 
 static const struct snd_pcm_ops snd_usb_capture_ops = {

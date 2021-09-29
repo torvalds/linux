@@ -74,8 +74,9 @@ struct snd_usb_endpoint {
 
 	atomic_t state;		/* running state */
 
-	void (*prepare_data_urb) (struct snd_usb_substream *subs,
-				  struct urb *urb);
+	int (*prepare_data_urb) (struct snd_usb_substream *subs,
+				 struct urb *urb,
+				 bool in_stream_lock);
 	void (*retire_data_urb) (struct snd_usb_substream *subs,
 				 struct urb *urb);
 
@@ -94,7 +95,6 @@ struct snd_usb_endpoint {
 	struct list_head ready_playback_urbs; /* playback URB FIFO for implicit fb */
 
 	unsigned int nurbs;		/* # urbs */
-	unsigned int nominal_queue_size; /* total buffer sizes in URBs */
 	unsigned long active_mask;	/* bitmask of active urbs */
 	unsigned long unlink_mask;	/* bitmask of unlinked urbs */
 	atomic_t submitted_urbs;	/* currently submitted urbs */
