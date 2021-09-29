@@ -180,7 +180,7 @@ static void chip_by_usb_id(struct adapter *padapter)
 
 static void usb_intf_start(struct adapter *padapter)
 {
-	rtw_hal_inirp_init(padapter);
+	rtl8188eu_inirp_init(padapter);
 }
 
 static void usb_intf_stop(struct adapter *padapter)

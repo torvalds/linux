@@ -53,17 +53,6 @@ void rtw_hal_get_hwreg(struct adapter *adapt, u8 variable, u8 *val)
 		adapt->HalFunc.GetHwRegHandler(adapt, variable, val);
 }
 
-u32 rtw_hal_inirp_init(struct adapter *adapt)
-{
-	u32 rst = _FAIL;
-
-	if (adapt->HalFunc.inirp_init)
-		rst = adapt->HalFunc.inirp_init(adapt);
-	else
-		DBG_88E(" %s HalFunc.inirp_init is NULL!!!\n", __func__);
-	return rst;
-}
-
 u32 rtw_hal_inirp_deinit(struct adapter *adapt)
 {
 	if (adapt->HalFunc.inirp_deinit)

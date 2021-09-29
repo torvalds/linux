@@ -997,7 +997,7 @@ static u32 rtl8188eu_hal_deinit(struct adapter *Adapter)
 	return _SUCCESS;
  }
 
-static unsigned int rtl8188eu_inirp_init(struct adapter *Adapter)
+unsigned int rtl8188eu_inirp_init(struct adapter *Adapter)
 {
 	u8 i;
 	struct recv_buf *precvbuf;
@@ -2150,7 +2150,6 @@ void rtl8188eu_set_hal_ops(struct adapter *adapt)
 	halfunc->hal_init = &rtl8188eu_hal_init;
 	halfunc->hal_deinit = &rtl8188eu_hal_deinit;
 
-	halfunc->inirp_init = &rtl8188eu_inirp_init;
 	halfunc->inirp_deinit = &rtl8188eu_inirp_deinit;
 
 	halfunc->SetHwRegHandler = &SetHwReg8188EU;
