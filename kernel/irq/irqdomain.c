@@ -1502,6 +1502,7 @@ out_free_desc:
 	irq_free_descs(virq, nr_irqs);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(__irq_domain_alloc_irqs);
 
 /* The irq_data was moved, fix the revmap to refer to the new location */
 static void irq_domain_fix_revmap(struct irq_data *d)
