@@ -38,35 +38,57 @@ struct ttm_resource;
 struct ttm_buffer_object;
 struct ttm_operation_ctx;
 
+/**
+ * struct ttm_tt - This is a structure holding the pages, caching- and aperture
+ * binding status for a buffer object that isn't backed by fixed (VRAM / AGP)
+ * memory.
+ */
+struct ttm_tt {
+	/** @pages: Array of pages backing the data. */
+	struct page **pages;
+	/**
+	 * @page_flags: The page flags.
+	 *
+	 * Supported values:
+	 *
+	 * TTM_TT_FLAG_SWAPPED: Set by TTM when the pages have been unpopulated
+	 * and swapped out by TTM.  Calling ttm_tt_populate() will then swap the
+	 * pages back in, and unset the flag. Drivers should in general never
+	 * need to touch this.
+	 *
+	 * TTM_TT_FLAG_ZERO_ALLOC: Set if the pages will be zeroed on
+	 * allocation.
+	 *
+	 * TTM_TT_FLAG_EXTERNAL: Set if the underlying pages were allocated
+	 * externally, like with dma-buf or userptr. This effectively disables
+	 * TTM swapping out such pages.  Also important is to prevent TTM from
+	 * ever directly mapping these pages.
+	 *
+	 * Note that enum ttm_bo_type.ttm_bo_type_sg objects will always enable
+	 * this flag.
+	 *
+	 * TTM_TT_FLAG_PRIV_POPULATED: TTM internal only. DO NOT USE. This is
+	 * set by TTM after ttm_tt_populate() has successfully returned, and is
+	 * then unset when TTM calls ttm_tt_unpopulate().
+	 */
 #define TTM_TT_FLAG_SWAPPED	(1 << 0)
 #define TTM_TT_FLAG_ZERO_ALLOC	(1 << 1)
 #define TTM_TT_FLAG_EXTERNAL	(1 << 2)
 
 #define TTM_TT_FLAG_PRIV_POPULATED  (1 << 31)
-
-/**
- * struct ttm_tt
- *
- * @pages: Array of pages backing the data.
- * @page_flags: see TTM_TT_FLAG_*
- * @num_pages: Number of pages in the page array.
- * @sg: for SG objects via dma-buf
- * @dma_address: The DMA (bus) addresses of the pages
- * @swap_storage: Pointer to shmem struct file for swap storage.
- * @pages_list: used by some page allocation backend
- * @caching: The current caching state of the pages, see enum ttm_caching.
- *
- * This is a structure holding the pages, caching- and aperture binding
- * status for a buffer object that isn't backed by fixed (VRAM / AGP)
- * memory.
- */
-struct ttm_tt {
-	struct page **pages;
 	uint32_t page_flags;
+	/** @num_pages: Number of pages in the page array. */
 	uint32_t num_pages;
+	/** @sg: for SG objects via dma-buf. */
 	struct sg_table *sg;
+	/** @dma_address: The DMA (bus) addresses of the pages. */
 	dma_addr_t *dma_address;
+	/** @swap_storage: Pointer to shmem struct file for swap storage. */
 	struct file *swap_storage;
+	/**
+	 * @caching: The current caching state of the pages, see enum
+	 * ttm_caching.
+	 */
 	enum ttm_caching caching;
 };
 
