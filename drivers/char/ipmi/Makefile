@@ -19,6 +19,7 @@ obj-$(CONFIG_IPMI_SI) += ipmi_si.o
 obj-$(CONFIG_IPMI_DMI_DECODE) += ipmi_dmi.o
 obj-$(CONFIG_IPMI_PLAT_DATA) += ipmi_plat_data.o
 obj-$(CONFIG_IPMI_SSIF) += ipmi_ssif.o
+obj-$(CONFIG_IPMI_IPMB) += ipmi_ipmb.o
 obj-$(CONFIG_IPMI_POWERNV) += ipmi_powernv.o
 obj-$(CONFIG_IPMI_WATCHDOG) += ipmi_watchdog.o
 obj-$(CONFIG_IPMI_POWEROFF) += ipmi_poweroff.o
