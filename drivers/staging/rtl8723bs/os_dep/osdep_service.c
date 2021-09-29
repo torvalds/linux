@@ -274,7 +274,7 @@ struct rtw_cbuf *rtw_cbuf_alloc(u32 size)
 {
 	struct rtw_cbuf *cbuf;
 
-	cbuf = rtw_malloc(sizeof(*cbuf) + sizeof(void *) * size);
+	cbuf = rtw_malloc(struct_size(cbuf, bufs, size));
 
 	if (cbuf) {
 		cbuf->write = cbuf->read = 0;
