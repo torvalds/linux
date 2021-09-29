@@ -12796,8 +12796,12 @@ static void hclge_sync_promisc_mode(struct hclge_dev *hdev)
 			continue;
 
 		if (vport->vf_info.trusted) {
-			uc_en = vport->vf_info.request_uc_en > 0;
-			mc_en = vport->vf_info.request_mc_en > 0;
+			uc_en = vport->vf_info.request_uc_en > 0 ||
+				vport->overflow_promisc_flags &
+				HNAE3_OVERFLOW_UPE;
+			mc_en = vport->vf_info.request_mc_en > 0 ||
+				vport->overflow_promisc_flags &
+				HNAE3_OVERFLOW_MPE;
 		}
 		bc_en = vport->vf_info.request_bc_en > 0;
 
