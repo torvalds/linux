@@ -1069,7 +1069,7 @@ int mlx5dr_matcher_destroy(struct mlx5dr_matcher *matcher)
 {
 	struct mlx5dr_table *tbl = matcher->tbl;
 
-	if (refcount_read(&matcher->refcount) > 1)
+	if (WARN_ON_ONCE(refcount_read(&matcher->refcount) > 1))
 		return -EBUSY;
 
 	mlx5dr_domain_lock(tbl->dmn);

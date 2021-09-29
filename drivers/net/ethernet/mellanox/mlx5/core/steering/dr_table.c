@@ -283,7 +283,7 @@ int mlx5dr_table_destroy(struct mlx5dr_table *tbl)
 {
 	int ret;
 
-	if (refcount_read(&tbl->refcount) > 1)
+	if (WARN_ON_ONCE(refcount_read(&tbl->refcount) > 1))
 		return -EBUSY;
 
 	mlx5dr_dbg_tbl_del(tbl);

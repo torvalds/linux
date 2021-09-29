@@ -431,7 +431,7 @@ int mlx5dr_domain_sync(struct mlx5dr_domain *dmn, u32 flags)
 
 int mlx5dr_domain_destroy(struct mlx5dr_domain *dmn)
 {
-	if (refcount_read(&dmn->refcount) > 1)
+	if (WARN_ON_ONCE(refcount_read(&dmn->refcount) > 1))
 		return -EBUSY;
 
 	/* make sure resources are not used by the hardware */
