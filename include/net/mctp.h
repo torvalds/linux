@@ -62,35 +62,46 @@ struct mctp_sock {
 	 * by sk->net->keys_lock
 	 */
 	struct hlist_head keys;
+
+	/* mechanism for expiring allocated keys; will release an allocated
+	 * tag, and any netdev state for a request/response pairing
+	 */
+	struct timer_list key_expiry;
 };
 
 /* Key for matching incoming packets to sockets or reassembly contexts.
  * Packets are matched on (src,dest,tag).
  *
- * Lifetime requirements:
+ * Lifetime / locking requirements:
  *
- *  - keys are free()ed via RCU
+ *  - individual key data (ie, the struct itself) is protected by key->lock;
+ *    changes must be made with that lock held.
+ *
+ *  - the lookup fields: peer_addr, local_addr and tag are set before the
+ *    key is added to lookup lists, and never updated.
+ *
+ *  - A ref to the key must be held (throuh key->refs) if a pointer to the
+ *    key is to be accessed after key->lock is released.
  *
  *  - a mctp_sk_key contains a reference to a struct sock; this is valid
  *    for the life of the key. On sock destruction (through unhash), the key is
- *    removed from lists (see below), and will not be observable after a RCU
- *    grace period.
- *
- *    any RX occurring within that grace period may still queue to the socket,
- *    but will hit the SOCK_DEAD case before the socket is freed.
+ *    removed from lists (see below), and marked invalid.
  *
  * - these mctp_sk_keys appear on two lists:
  *     1) the struct mctp_sock->keys list
  *     2) the struct netns_mctp->keys list
  *
- *        updates to either list are performed under the netns_mctp->keys
- *        lock.
+ *   presences on these lists requires a (single) refcount to be held; both
+ *   lists are updated as a single operation.
+ *
+ *   Updates and lookups in either list are performed under the
+ *   netns_mctp->keys lock. Lookup functions will need to lock the key and
+ *   take a reference before unlocking the keys_lock. Consequently, the list's
+ *   keys_lock *cannot* be acquired with the individual key->lock held.
  *
  * - a key may have a sk_buff attached as part of an in-progress message
- *   reassembly (->reasm_head). The reassembly context is protected by
- *   reasm_lock, which may be acquired with the keys lock (above) held, if
- *   necessary. Consequently, keys lock *cannot* be acquired with the
- *   reasm_lock held.
+ *   reassembly (->reasm_head). The reasm data is protected by the individual
+ *   key->lock.
  *
  * - there are two destruction paths for a mctp_sk_key:
  *
@@ -101,6 +112,8 @@ struct mctp_sock {
  *      the (complete) reply, or during reassembly errors. Here, we clean up
  *      the reassembly context (marking reasm_dead, to prevent another from
  *      starting), and remove the socket from the netns & socket lists.
+ *
+ *    - through an expiry timeout, on a per-socket timer
  */
 struct mctp_sk_key {
 	mctp_eid_t	peer_addr;
@@ -116,14 +129,25 @@ struct mctp_sk_key {
 	/* per-socket list */
 	struct hlist_node sklist;
 
+	/* lock protects against concurrent updates to the reassembly and
+	 * expiry data below.
+	 */
+	spinlock_t	lock;
+
+	/* Keys are referenced during the output path, which may sleep */
+	refcount_t	refs;
+
 	/* incoming fragment reassembly context */
-	spinlock_t	reasm_lock;
 	struct sk_buff	*reasm_head;
 	struct sk_buff	**reasm_tailp;
 	bool		reasm_dead;
 	u8		last_seq;
 
-	struct rcu_head	rcu;
+	/* key validity */
+	bool		valid;
+
+	/* expiry timeout; valid (above) cleared on expiry */
+	unsigned long	expiry;
 };
 
 struct mctp_skb_cb {
@@ -190,6 +214,8 @@ int mctp_do_route(struct mctp_route *rt, struct sk_buff *skb);
 
 int mctp_local_output(struct sock *sk, struct mctp_route *rt,
 		      struct sk_buff *skb, mctp_eid_t daddr, u8 req_tag);
+
+void mctp_key_unref(struct mctp_sk_key *key);
 
 /* routing <--> device interface */
 unsigned int mctp_default_net(struct net *net);
