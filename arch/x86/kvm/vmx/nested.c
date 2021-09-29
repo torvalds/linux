@@ -191,7 +191,7 @@ static int nested_vmx_fail(struct kvm_vcpu *vcpu, u32 vm_instruction_error)
 	 * failValid writes the error number to the current VMCS, which
 	 * can't be done if there isn't a current VMCS.
 	 */
-	if (vmx->nested.current_vmptr == -1ull &&
+	if (vmx->nested.current_vmptr == INVALID_GPA &&
 	    !evmptr_is_valid(vmx->nested.hv_evmcs_vmptr))
 		return nested_vmx_failInvalid(vcpu);
 
@@ -218,7 +218,7 @@ static inline u64 vmx_control_msr(u32 low, u32 high)
 static void vmx_disable_shadow_vmcs(struct vcpu_vmx *vmx)
 {
 	secondary_exec_controls_clearbit(vmx, SECONDARY_EXEC_SHADOW_VMCS);
-	vmcs_write64(VMCS_LINK_POINTER, -1ull);
+	vmcs_write64(VMCS_LINK_POINTER, INVALID_GPA);
 	vmx->nested.need_vmcs12_to_shadow_sync = false;
 }
 
@@ -292,7 +292,7 @@ static void free_nested(struct kvm_vcpu *vcpu)
 	vmx->nested.smm.vmxon = false;
 	free_vpid(vmx->nested.vpid02);
 	vmx->nested.posted_intr_nv = -1;
-	vmx->nested.current_vmptr = -1ull;
+	vmx->nested.current_vmptr = INVALID_GPA;
 	if (enable_shadow_vmcs) {
 		vmx_disable_shadow_vmcs(vmx);
 		vmcs_clear(vmx->vmcs01.shadow_vmcs);
@@ -709,7 +709,7 @@ static void nested_cache_shadow_vmcs12(struct kvm_vcpu *vcpu,
 	struct vmcs12 *shadow;
 
 	if (!nested_cpu_has_shadow_vmcs(vmcs12) ||
-	    vmcs12->vmcs_link_pointer == -1ull)
+	    vmcs12->vmcs_link_pointer == INVALID_GPA)
 		return;
 
 	shadow = get_shadow_vmcs12(vcpu);
@@ -727,7 +727,7 @@ static void nested_flush_cached_shadow_vmcs12(struct kvm_vcpu *vcpu,
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
 	if (!nested_cpu_has_shadow_vmcs(vmcs12) ||
-	    vmcs12->vmcs_link_pointer == -1ull)
+	    vmcs12->vmcs_link_pointer == INVALID_GPA)
 		return;
 
 	kvm_write_guest(vmx->vcpu.kvm, vmcs12->vmcs_link_pointer,
@@ -1994,7 +1994,7 @@ static enum nested_evmptrld_status nested_vmx_handle_enlightened_vmptrld(
 	}
 
 	if (unlikely(evmcs_gpa != vmx->nested.hv_evmcs_vmptr)) {
-		vmx->nested.current_vmptr = -1ull;
+		vmx->nested.current_vmptr = INVALID_GPA;
 
 		nested_release_evmcs(vcpu);
 
@@ -2178,7 +2178,7 @@ static void prepare_vmcs02_constant_state(struct vcpu_vmx *vmx)
 	}
 
 	if (cpu_has_vmx_encls_vmexit())
-		vmcs_write64(ENCLS_EXITING_BITMAP, -1ull);
+		vmcs_write64(ENCLS_EXITING_BITMAP, INVALID_GPA);
 
 	/*
 	 * Set the MSR load/store lists to match L0's settings.  Only the
@@ -2197,7 +2197,7 @@ static void prepare_vmcs02_early_rare(struct vcpu_vmx *vmx,
 {
 	prepare_vmcs02_constant_state(vmx);
 
-	vmcs_write64(VMCS_LINK_POINTER, -1ull);
+	vmcs_write64(VMCS_LINK_POINTER, INVALID_GPA);
 
 	if (enable_vpid) {
 		if (nested_cpu_has_vpid(vmcs12) && vmx->nested.vpid02)
@@ -2949,7 +2949,7 @@ static int nested_vmx_check_vmcs_link_ptr(struct kvm_vcpu *vcpu,
 	struct vmcs12 *shadow;
 	struct kvm_host_map map;
 
-	if (vmcs12->vmcs_link_pointer == -1ull)
+	if (vmcs12->vmcs_link_pointer == INVALID_GPA)
 		return 0;
 
 	if (CC(!page_address_valid(vcpu, vmcs12->vmcs_link_pointer)))
@@ -3216,7 +3216,7 @@ static bool nested_get_vmcs12_pages(struct kvm_vcpu *vcpu)
 			 * Write an illegal value to VIRTUAL_APIC_PAGE_ADDR to
 			 * force VM-Entry to fail.
 			 */
-			vmcs_write64(VIRTUAL_APIC_PAGE_ADDR, -1ull);
+			vmcs_write64(VIRTUAL_APIC_PAGE_ADDR, INVALID_GPA);
 		}
 	}
 
@@ -3527,7 +3527,7 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	}
 
 	if (CC(!evmptr_is_valid(vmx->nested.hv_evmcs_vmptr) &&
-	       vmx->nested.current_vmptr == -1ull))
+	       vmx->nested.current_vmptr == INVALID_GPA))
 		return nested_vmx_failInvalid(vcpu);
 
 	vmcs12 = get_vmcs12(vcpu);
@@ -4975,7 +4975,7 @@ static inline void nested_release_vmcs12(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
-	if (vmx->nested.current_vmptr == -1ull)
+	if (vmx->nested.current_vmptr == INVALID_GPA)
 		return;
 
 	copy_vmcs02_to_vmcs12_rare(vcpu, get_vmcs12(vcpu));
@@ -4995,7 +4995,7 @@ static inline void nested_release_vmcs12(struct kvm_vcpu *vcpu)
 
 	kvm_mmu_free_roots(vcpu, &vcpu->arch.guest_mmu, KVM_MMU_ROOTS_ALL);
 
-	vmx->nested.current_vmptr = -1ull;
+	vmx->nested.current_vmptr = INVALID_GPA;
 }
 
 /* Emulate the VMXOFF instruction */
@@ -5090,12 +5090,12 @@ static int handle_vmread(struct kvm_vcpu *vcpu)
 		return 1;
 
 	/*
-	 * In VMX non-root operation, when the VMCS-link pointer is -1ull,
+	 * In VMX non-root operation, when the VMCS-link pointer is INVALID_GPA,
 	 * any VMREAD sets the ALU flags for VMfailInvalid.
 	 */
-	if (vmx->nested.current_vmptr == -1ull ||
+	if (vmx->nested.current_vmptr == INVALID_GPA ||
 	    (is_guest_mode(vcpu) &&
-	     get_vmcs12(vcpu)->vmcs_link_pointer == -1ull))
+	     get_vmcs12(vcpu)->vmcs_link_pointer == INVALID_GPA))
 		return nested_vmx_failInvalid(vcpu);
 
 	/* Decode instruction info and find the field to read */
@@ -5182,12 +5182,12 @@ static int handle_vmwrite(struct kvm_vcpu *vcpu)
 		return 1;
 
 	/*
-	 * In VMX non-root operation, when the VMCS-link pointer is -1ull,
+	 * In VMX non-root operation, when the VMCS-link pointer is INVALID_GPA,
 	 * any VMWRITE sets the ALU flags for VMfailInvalid.
 	 */
-	if (vmx->nested.current_vmptr == -1ull ||
+	if (vmx->nested.current_vmptr == INVALID_GPA ||
 	    (is_guest_mode(vcpu) &&
-	     get_vmcs12(vcpu)->vmcs_link_pointer == -1ull))
+	     get_vmcs12(vcpu)->vmcs_link_pointer == INVALID_GPA))
 		return nested_vmx_failInvalid(vcpu);
 
 	if (instr_info & BIT(10))
@@ -5630,7 +5630,7 @@ bool nested_vmx_check_io_bitmaps(struct kvm_vcpu *vcpu, unsigned int port,
 	gpa_t bitmap, last_bitmap;
 	u8 b;
 
-	last_bitmap = (gpa_t)-1;
+	last_bitmap = INVALID_GPA;
 	b = -1;
 
 	while (size > 0) {
@@ -6106,8 +6106,8 @@ static int vmx_get_nested_state(struct kvm_vcpu *vcpu,
 		.format = KVM_STATE_NESTED_FORMAT_VMX,
 		.size = sizeof(kvm_state),
 		.hdr.vmx.flags = 0,
-		.hdr.vmx.vmxon_pa = -1ull,
-		.hdr.vmx.vmcs12_pa = -1ull,
+		.hdr.vmx.vmxon_pa = INVALID_GPA,
+		.hdr.vmx.vmcs12_pa = INVALID_GPA,
 		.hdr.vmx.preemption_timer_deadline = 0,
 	};
 	struct kvm_vmx_nested_state_data __user *user_vmx_nested_state =
@@ -6133,7 +6133,7 @@ static int vmx_get_nested_state(struct kvm_vcpu *vcpu,
 
 			if (is_guest_mode(vcpu) &&
 			    nested_cpu_has_shadow_vmcs(vmcs12) &&
-			    vmcs12->vmcs_link_pointer != -1ull)
+			    vmcs12->vmcs_link_pointer != INVALID_GPA)
 				kvm_state.size += sizeof(user_vmx_nested_state->shadow_vmcs12);
 		}
 
@@ -6209,7 +6209,7 @@ static int vmx_get_nested_state(struct kvm_vcpu *vcpu,
 		return -EFAULT;
 
 	if (nested_cpu_has_shadow_vmcs(vmcs12) &&
-	    vmcs12->vmcs_link_pointer != -1ull) {
+	    vmcs12->vmcs_link_pointer != INVALID_GPA) {
 		if (copy_to_user(user_vmx_nested_state->shadow_vmcs12,
 				 get_shadow_vmcs12(vcpu), VMCS12_SIZE))
 			return -EFAULT;
@@ -6244,11 +6244,11 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 	if (kvm_state->format != KVM_STATE_NESTED_FORMAT_VMX)
 		return -EINVAL;
 
-	if (kvm_state->hdr.vmx.vmxon_pa == -1ull) {
+	if (kvm_state->hdr.vmx.vmxon_pa == INVALID_GPA) {
 		if (kvm_state->hdr.vmx.smm.flags)
 			return -EINVAL;
 
-		if (kvm_state->hdr.vmx.vmcs12_pa != -1ull)
+		if (kvm_state->hdr.vmx.vmcs12_pa != INVALID_GPA)
 			return -EINVAL;
 
 		/*
@@ -6302,7 +6302,7 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 
 	vmx_leave_nested(vcpu);
 
-	if (kvm_state->hdr.vmx.vmxon_pa == -1ull)
+	if (kvm_state->hdr.vmx.vmxon_pa == INVALID_GPA)
 		return 0;
 
 	vmx->nested.vmxon_ptr = kvm_state->hdr.vmx.vmxon_pa;
@@ -6315,13 +6315,13 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 		/* See vmx_has_valid_vmcs12.  */
 		if ((kvm_state->flags & KVM_STATE_NESTED_GUEST_MODE) ||
 		    (kvm_state->flags & KVM_STATE_NESTED_EVMCS) ||
-		    (kvm_state->hdr.vmx.vmcs12_pa != -1ull))
+		    (kvm_state->hdr.vmx.vmcs12_pa != INVALID_GPA))
 			return -EINVAL;
 		else
 			return 0;
 	}
 
-	if (kvm_state->hdr.vmx.vmcs12_pa != -1ull) {
+	if (kvm_state->hdr.vmx.vmcs12_pa != INVALID_GPA) {
 		if (kvm_state->hdr.vmx.vmcs12_pa == kvm_state->hdr.vmx.vmxon_pa ||
 		    !page_address_valid(vcpu, kvm_state->hdr.vmx.vmcs12_pa))
 			return -EINVAL;
@@ -6366,7 +6366,7 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 
 	ret = -EINVAL;
 	if (nested_cpu_has_shadow_vmcs(vmcs12) &&
-	    vmcs12->vmcs_link_pointer != -1ull) {
+	    vmcs12->vmcs_link_pointer != INVALID_GPA) {
 		struct vmcs12 *shadow_vmcs12 = get_shadow_vmcs12(vcpu);
 
 		if (kvm_state->size <

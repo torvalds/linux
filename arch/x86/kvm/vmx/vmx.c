@@ -4340,7 +4340,7 @@ static void init_vmcs(struct vcpu_vmx *vmx)
 	if (cpu_has_vmx_msr_bitmap())
 		vmcs_write64(MSR_BITMAP, __pa(vmx->vmcs01.msr_bitmap));
 
-	vmcs_write64(VMCS_LINK_POINTER, -1ull); /* 22.3.1.5 */
+	vmcs_write64(VMCS_LINK_POINTER, INVALID_GPA); /* 22.3.1.5 */
 
 	/* Control */
 	pin_controls_set(vmx, vmx_pin_based_exec_ctrl(vmx));
@@ -6902,7 +6902,7 @@ static int vmx_create_vcpu(struct kvm_vcpu *vcpu)
 	vcpu_setup_sgx_lepubkeyhash(vcpu);
 
 	vmx->nested.posted_intr_nv = -1;
-	vmx->nested.current_vmptr = -1ull;
+	vmx->nested.current_vmptr = INVALID_GPA;
 	vmx->nested.hv_evmcs_vmptr = EVMPTR_INVALID;
 
 	vcpu->arch.microcode_version = 0x100000000ULL;
