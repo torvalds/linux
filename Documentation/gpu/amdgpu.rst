@@ -300,8 +300,8 @@ pcie_replay_count
 .. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
    :doc: pcie_replay_count
 
-+GPU SmartShift Information
-============================
+GPU SmartShift Information
+==========================
 
 GPU SmartShift information via sysfs
 
