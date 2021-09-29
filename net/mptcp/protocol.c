@@ -2735,7 +2735,7 @@ cleanup:
 	inet_csk(sk)->icsk_mtup.probe_timestamp = tcp_jiffies32;
 	mptcp_for_each_subflow(mptcp_sk(sk), subflow) {
 		struct sock *ssk = mptcp_subflow_tcp_sock(subflow);
-		bool slow = lock_sock_fast(ssk);
+		bool slow = lock_sock_fast_nested(ssk);
 
 		sock_orphan(ssk);
 		unlock_sock_fast(ssk, slow);
