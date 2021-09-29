@@ -16,6 +16,9 @@
 #include <net/mctpdevice.h>
 #include <net/sock.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/mctp.h>
+
 /* socket implementation */
 
 static int mctp_release(struct socket *sock)
@@ -239,6 +242,7 @@ static void mctp_sk_expire_keys(struct timer_list *timer)
 		spin_lock(&key->lock);
 
 		if (!time_after_eq(key->expiry, jiffies)) {
+			trace_mctp_key_release(key, MCTP_TRACE_KEY_TIMEOUT);
 			key->valid = false;
 			hlist_del_rcu(&key->hlist);
 			hlist_del_rcu(&key->sklist);
@@ -309,6 +313,8 @@ static void mctp_sk_unhash(struct sock *sk)
 	hlist_for_each_entry_safe(key, tmp, &msk->keys, sklist) {
 		hlist_del(&key->sklist);
 		hlist_del(&key->hlist);
+
+		trace_mctp_key_release(key, MCTP_TRACE_KEY_CLOSED);
 
 		spin_lock(&key->lock);
 		if (key->reasm_head)

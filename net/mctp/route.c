@@ -23,9 +23,10 @@
 #include <net/netlink.h>
 #include <net/sock.h>
 
+#include <trace/events/mctp.h>
+
 static const unsigned int mctp_message_maxlen = 64 * 1024;
 static const unsigned long mctp_key_lifetime = 6 * CONFIG_HZ;
-
 
 /* route output callbacks */
 static int mctp_route_discard(struct mctp_route *route, struct sk_buff *skb)
@@ -332,6 +333,8 @@ static int mctp_route_input(struct mctp_route *route, struct sk_buff *skb)
 				/* we've hit a pending reassembly; not much we
 				 * can do but drop it
 				 */
+				trace_mctp_key_release(key,
+						       MCTP_TRACE_KEY_REPLIED);
 				__mctp_key_unlock_drop(key, net, f);
 				key = NULL;
 			}
@@ -365,12 +368,16 @@ static int mctp_route_input(struct mctp_route *route, struct sk_buff *skb)
 			if (rc)
 				kfree(key);
 
+			trace_mctp_key_acquire(key);
+
 			/* we don't need to release key->lock on exit */
 			key = NULL;
 
 		} else {
 			if (key->reasm_head || key->reasm_dead) {
 				/* duplicate start? drop everything */
+				trace_mctp_key_release(key,
+						       MCTP_TRACE_KEY_INVALIDATED);
 				__mctp_key_unlock_drop(key, net, f);
 				rc = -EEXIST;
 				key = NULL;
@@ -396,6 +403,7 @@ static int mctp_route_input(struct mctp_route *route, struct sk_buff *skb)
 		if (!rc && flags & MCTP_HDR_FLAG_EOM) {
 			sock_queue_rcv_skb(key->sk, key->reasm_head);
 			key->reasm_head = NULL;
+			trace_mctp_key_release(key, MCTP_TRACE_KEY_REPLIED);
 			__mctp_key_unlock_drop(key, net, f);
 			key = NULL;
 		}
@@ -572,6 +580,8 @@ static int mctp_alloc_local_tag(struct mctp_sock *msk,
 	if (tagbits) {
 		key->tag = __ffs(tagbits);
 		mctp_reserve_tag(net, key, msk);
+		trace_mctp_key_acquire(key);
+
 		*tagp = key->tag;
 		rc = 0;
 	}
