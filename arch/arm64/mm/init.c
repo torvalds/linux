@@ -416,8 +416,6 @@ void __init mem_init(void)
 	else if (!xen_swiotlb_detect())
 		swiotlb_force = SWIOTLB_NO_FORCE;
 
-	set_max_mapnr(max_pfn - PHYS_PFN_OFFSET);
-
 	/* this will put all unused low memory onto the freelists */
 	memblock_free_all();
 
