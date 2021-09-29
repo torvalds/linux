@@ -567,8 +567,7 @@ static int pcan_usb_fd_decode_status(struct pcan_usb_fd_if *usb_if,
 
 	/* allocate an skb to store the error frame */
 	skb = alloc_can_err_skb(netdev, &cf);
-	if (skb)
-		can_change_state(netdev, cf, tx_state, rx_state);
+	can_change_state(netdev, cf, tx_state, rx_state);
 
 	/* things must be done even in case of OOM */
 	if (new_state == CAN_STATE_BUS_OFF)
