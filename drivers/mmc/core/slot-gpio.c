@@ -39,24 +39,24 @@ static irqreturn_t mmc_gpio_cd_irqt(int irq, void *dev_id)
 
 int mmc_gpio_alloc(struct mmc_host *host)
 {
-	struct mmc_gpio *ctx = devm_kzalloc(host->parent,
-					    sizeof(*ctx), GFP_KERNEL);
+	const char *devname = dev_name(host->parent);
+	struct mmc_gpio *ctx;
 
-	if (ctx) {
-		ctx->cd_debounce_delay_ms = 200;
-		ctx->cd_label = devm_kasprintf(host->parent, GFP_KERNEL,
-				"%s cd", dev_name(host->parent));
-		if (!ctx->cd_label)
-			return -ENOMEM;
-		ctx->ro_label = devm_kasprintf(host->parent, GFP_KERNEL,
-				"%s ro", dev_name(host->parent));
-		if (!ctx->ro_label)
-			return -ENOMEM;
-		host->slot.handler_priv = ctx;
-		host->slot.cd_irq = -EINVAL;
-	}
+	ctx = devm_kzalloc(host->parent, sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
 
-	return ctx ? 0 : -ENOMEM;
+	ctx->cd_debounce_delay_ms = 200;
+	ctx->cd_label = devm_kasprintf(host->parent, GFP_KERNEL, "%s cd", devname);
+	if (!ctx->cd_label)
+		return -ENOMEM;
+	ctx->ro_label = devm_kasprintf(host->parent, GFP_KERNEL, "%s ro", devname);
+	if (!ctx->ro_label)
+		return -ENOMEM;
+	host->slot.handler_priv = ctx;
+	host->slot.cd_irq = -EINVAL;
+
+	return 0;
 }
 
 int mmc_gpio_get_ro(struct mmc_host *host)
