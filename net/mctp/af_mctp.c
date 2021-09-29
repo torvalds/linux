@@ -263,21 +263,21 @@ static void mctp_sk_unhash(struct sock *sk)
 	/* remove tag allocations */
 	spin_lock_irqsave(&net->mctp.keys_lock, flags);
 	hlist_for_each_entry_safe(key, tmp, &msk->keys, sklist) {
-		hlist_del_rcu(&key->sklist);
-		hlist_del_rcu(&key->hlist);
+		hlist_del(&key->sklist);
+		hlist_del(&key->hlist);
 
-		spin_lock(&key->reasm_lock);
+		spin_lock(&key->lock);
 		if (key->reasm_head)
 			kfree_skb(key->reasm_head);
 		key->reasm_head = NULL;
 		key->reasm_dead = true;
-		spin_unlock(&key->reasm_lock);
+		key->valid = false;
+		spin_unlock(&key->lock);
 
-		kfree_rcu(key, rcu);
+		/* key is no longer on the lookup lists, unref */
+		mctp_key_unref(key);
 	}
 	spin_unlock_irqrestore(&net->mctp.keys_lock, flags);
-
-	synchronize_rcu();
 }
 
 static struct proto mctp_proto = {
