@@ -10,7 +10,7 @@
 #include <linux/types.h>
 #include <linux/v4l2-controls.h>
 
-#define RKISP_API_VERSION		KERNEL_VERSION(1, 6, 2)
+#define RKISP_API_VERSION		KERNEL_VERSION(1, 7, 0)
 
 /****************ISP SUBDEV IOCTL*****************************/
 
