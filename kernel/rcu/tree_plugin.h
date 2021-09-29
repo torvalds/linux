@@ -927,7 +927,18 @@ static bool rcu_preempt_need_deferred_qs(struct task_struct *t)
 {
 	return false;
 }
-static void rcu_preempt_deferred_qs(struct task_struct *t) { }
+
+// Except that we do need to respond to a request by an expedited grace
+// period for a quiescent state from this CPU.  Note that requests from
+// tasks are handled when removing the task from the blocked-tasks list
+// below.
+static void rcu_preempt_deferred_qs(struct task_struct *t)
+{
+	struct rcu_data *rdp = this_cpu_ptr(&rcu_data);
+
+	if (rdp->cpu_no_qs.b.exp)
+		rcu_report_exp_rdp(rdp);
+}
 
 /*
  * Because there is no preemptible RCU, there can be no readers blocked,
