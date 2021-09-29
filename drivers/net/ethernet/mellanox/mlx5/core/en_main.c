@@ -5098,6 +5098,18 @@ static const struct mlx5e_profile mlx5e_nic_profile = {
 		BIT(MLX5E_PROFILE_FEATURE_QOS_HTB),
 };
 
+static int mlx5e_profile_max_num_channels(struct mlx5_core_dev *mdev,
+					  const struct mlx5e_profile *profile)
+{
+	int nch;
+
+	nch = mlx5e_get_max_num_channels(mdev);
+
+	if (profile->max_nch_limit)
+		nch = min_t(int, nch, profile->max_nch_limit(mdev));
+	return nch;
+}
+
 static unsigned int
 mlx5e_calc_max_nch(struct mlx5_core_dev *mdev, struct net_device *netdev,
 		   const struct mlx5e_profile *profile)
@@ -5106,7 +5118,7 @@ mlx5e_calc_max_nch(struct mlx5_core_dev *mdev, struct net_device *netdev,
 	unsigned int max_nch, tmp;
 
 	/* core resources */
-	max_nch = mlx5e_get_max_num_channels(mdev);
+	max_nch = mlx5e_profile_max_num_channels(mdev, profile);
 
 	/* netdev rx queues */
 	tmp = netdev->num_rx_queues / max_t(u8, profile->rq_groups, 1);
@@ -5235,7 +5247,7 @@ static unsigned int mlx5e_get_max_num_txqs(struct mlx5_core_dev *mdev,
 {
 	unsigned int nch, ptp_txqs, qos_txqs;
 
-	nch = mlx5e_get_max_num_channels(mdev);
+	nch = mlx5e_profile_max_num_channels(mdev, profile);
 
 	ptp_txqs = MLX5_CAP_GEN(mdev, ts_cqe_to_dest_cqn) &&
 		mlx5e_profile_feature_cap(profile, PTP_TX) ?
@@ -5253,7 +5265,7 @@ static unsigned int mlx5e_get_max_num_rxqs(struct mlx5_core_dev *mdev,
 {
 	unsigned int nch;
 
-	nch = mlx5e_get_max_num_channels(mdev);
+	nch = mlx5e_profile_max_num_channels(mdev, profile);
 
 	return nch * profile->rq_groups;
 }
