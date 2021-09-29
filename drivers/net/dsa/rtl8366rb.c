@@ -337,12 +337,10 @@
  * struct rtl8366rb - RTL8366RB-specific data
  * @max_mtu: per-port max MTU setting
  * @pvid_enabled: if PVID is set for respective port
- * @vlan_filtering: if VLAN filtering is enabled for respective port
  */
 struct rtl8366rb {
 	unsigned int max_mtu[RTL8366RB_NUM_PORTS];
 	bool pvid_enabled[RTL8366RB_NUM_PORTS];
-	bool vlan_filtering[RTL8366RB_NUM_PORTS];
 };
 
 static struct rtl8366_mib_counter rtl8366rb_mib_counters[] = {
@@ -1262,12 +1260,9 @@ static int rtl8366rb_vlan_filtering(struct dsa_switch *ds, int port,
 	if (ret)
 		return ret;
 
-	/* Keep track if filtering is enabled on each port */
-	rb->vlan_filtering[port] = vlan_filtering;
-
 	/* If VLAN filtering is enabled and PVID is also enabled, we must
 	 * not drop any untagged or C-tagged frames. If we turn off VLAN
-	 * filtering on a port, we need ti accept any frames.
+	 * filtering on a port, we need to accept any frames.
 	 */
 	if (vlan_filtering)
 		ret = rtl8366rb_drop_untagged(smi, port, !rb->pvid_enabled[port]);
@@ -1512,7 +1507,7 @@ static int rtl8366rb_set_mc_index(struct realtek_smi *smi, int port, int index)
 	 * not drop any untagged or C-tagged frames. Make sure to update the
 	 * filtering setting.
 	 */
-	if (rb->vlan_filtering[port])
+	if (dsa_port_is_vlan_filtering(dsa_to_port(smi->ds, port)))
 		ret = rtl8366rb_drop_untagged(smi, port, !pvid_enabled);
 
 	return ret;
