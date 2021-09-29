@@ -942,6 +942,8 @@ static int rkcif_plat_hw_probe(struct platform_device *pdev)
 
 	rkcif_hw_soft_reset(cif_hw, true);
 
+	mutex_init(&cif_hw->dev_lock);
+
 	pm_runtime_enable(&pdev->dev);
 
 	if (data->chip_id == CHIP_RK1808_CIF ||
@@ -962,6 +964,7 @@ static int rkcif_plat_remove(struct platform_device *pdev)
 	if (cif_hw->iommu_en)
 		rkcif_iommu_cleanup(cif_hw);
 
+	mutex_destroy(&cif_hw->dev_lock);
 	if (cif_hw->chip_id != CHIP_RK1808_CIF &&
 	    cif_hw->chip_id != CHIP_RV1126_CIF &&
 	    cif_hw->chip_id != CHIP_RV1126_CIF_LITE &&

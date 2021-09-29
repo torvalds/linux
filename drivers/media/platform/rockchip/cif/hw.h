@@ -84,6 +84,7 @@ struct rkcif_hw {
 
 	atomic_t power_cnt;
 	const struct rkcif_hw_match_data *match_data;
+	struct mutex			dev_lock;
 };
 
 void rkcif_hw_soft_reset(struct rkcif_hw *cif_hw, bool is_rst_iommu);

@@ -2491,7 +2491,7 @@ static void rkcif_stop_streaming(struct vb2_queue *queue)
 		dev->can_be_reset = false;
 		dev->reset_work_cancel = true;
 	}
-	pm_runtime_put(dev->dev);
+	pm_runtime_put_sync(dev->dev);
 
 	if (!atomic_read(&dev->pipe.stream_cnt) && dev->dummy_buf.vaddr)
 		rkcif_destroy_dummy_buf(stream);
@@ -3189,7 +3189,7 @@ stop_stream:
 pipe_stream_off:
 	dev->pipe.set_stream(&dev->pipe, false);
 runtime_put:
-	pm_runtime_put(dev->dev);
+	pm_runtime_put_sync(dev->dev);
 destroy_buf:
 	if (stream->next_buf)
 		vb2_buffer_done(&stream->next_buf->vb.vb2_buf,
