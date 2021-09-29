@@ -582,7 +582,8 @@ static int snd_usb_hw_free(struct snd_pcm_substream *substream)
 }
 
 /* check whether early start is needed for playback stream */
-static int lowlatency_playback_available(struct snd_usb_substream *subs)
+static int lowlatency_playback_available(struct snd_pcm_runtime *runtime,
+					 struct snd_usb_substream *subs)
 {
 	struct snd_usb_audio *chip = subs->stream->chip;
 
@@ -590,6 +591,9 @@ static int lowlatency_playback_available(struct snd_usb_substream *subs)
 		return false;
 	/* disabled via module option? */
 	if (!chip->lowlatency)
+		return false;
+	/* free-wheeling mode? (e.g. dmix) */
+	if (runtime->stop_threshold > runtime->buffer_size)
 		return false;
 	/* too short periods? */
 	if (subs->data_endpoint->nominal_queue_size >= subs->buffer_bytes)
@@ -630,7 +634,7 @@ static int snd_usb_pcm_prepare(struct snd_pcm_substream *substream)
 	subs->period_elapsed_pending = 0;
 	runtime->delay = 0;
 
-	subs->lowlatency_playback = lowlatency_playback_available(subs);
+	subs->lowlatency_playback = lowlatency_playback_available(runtime, subs);
 	if (!subs->lowlatency_playback)
 		ret = start_endpoints(subs);
 
