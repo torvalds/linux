@@ -2378,6 +2378,7 @@ static inline void sk_stream_moderate_sndbuf(struct sock *sk)
 		return;
 
 	val = min(sk->sk_sndbuf, sk->sk_wmem_queued >> 1);
+	val = max_t(u32, val, sk_unused_reserved_mem(sk));
 
 	WRITE_ONCE(sk->sk_sndbuf, max_t(u32, val, SOCK_MIN_SNDBUF));
 }
