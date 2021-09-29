@@ -378,6 +378,9 @@ union ice_32b_rx_flex_desc;
 
 bool ice_alloc_rx_bufs(struct ice_ring *rxr, u16 cleaned_count);
 netdev_tx_t ice_start_xmit(struct sk_buff *skb, struct net_device *netdev);
+u16
+ice_select_queue(struct net_device *dev, struct sk_buff *skb,
+		 struct net_device *sb_dev);
 void ice_clean_tx_ring(struct ice_ring *tx_ring);
 void ice_clean_rx_ring(struct ice_ring *rx_ring);
 int ice_setup_tx_ring(struct ice_ring *tx_ring);

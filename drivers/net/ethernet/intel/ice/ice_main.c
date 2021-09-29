@@ -624,7 +624,10 @@ static void ice_print_topo_conflict(struct ice_vsi *vsi)
 		netdev_info(vsi->netdev, "Potential misconfiguration of the Ethernet port detected. If it was not intended, please use the Intel (R) Ethernet Port Configuration Tool to address the issue.\n");
 		break;
 	case ICE_AQ_LINK_TOPO_UNSUPP_MEDIA:
-		netdev_info(vsi->netdev, "Rx/Tx is disabled on this device because an unsupported module type was detected. Refer to the Intel(R) Ethernet Adapters and Devices User Guide for a list of supported modules.\n");
+		if (test_bit(ICE_FLAG_LINK_LENIENT_MODE_ENA, vsi->back->flags))
+			netdev_warn(vsi->netdev, "An unsupported module type was detected. Refer to the Intel(R) Ethernet Adapters and Devices User Guide for a list of supported modules\n");
+		else
+			netdev_err(vsi->netdev, "Rx/Tx is disabled on this device because an unsupported module type was detected. Refer to the Intel(R) Ethernet Adapters and Devices User Guide for a list of supported modules.\n");
 		break;
 	default:
 		break;
@@ -1965,7 +1968,8 @@ static int ice_configure_phy(struct ice_vsi *vsi)
 
 	ice_print_topo_conflict(vsi);
 
-	if (phy->link_info.topo_media_conflict == ICE_AQ_LINK_TOPO_UNSUPP_MEDIA)
+	if (!test_bit(ICE_FLAG_LINK_LENIENT_MODE_ENA, pf->flags) &&
+	    phy->link_info.topo_media_conflict == ICE_AQ_LINK_TOPO_UNSUPP_MEDIA)
 		return -EPERM;
 
 	if (test_bit(ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA, pf->flags))
@@ -4269,6 +4273,8 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 		err = -EIO;
 		goto err_exit_unroll;
 	}
+
+	ice_init_feature_support(pf);
 
 	ice_request_fw(pf);
 
@@ -7230,6 +7236,7 @@ static const struct net_device_ops ice_netdev_ops = {
 	.ndo_open = ice_open,
 	.ndo_stop = ice_stop,
 	.ndo_start_xmit = ice_start_xmit,
+	.ndo_select_queue = ice_select_queue,
 	.ndo_features_check = ice_features_check,
 	.ndo_set_rx_mode = ice_set_rx_mode,
 	.ndo_set_mac_address = ice_set_mac_address,
