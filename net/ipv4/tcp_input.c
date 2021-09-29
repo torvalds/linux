@@ -500,8 +500,11 @@ static void tcp_grow_window(struct sock *sk, const struct sk_buff *skb,
 
 	room = min_t(int, tp->window_clamp, tcp_space(sk)) - tp->rcv_ssthresh;
 
+	if (room <= 0)
+		return;
+
 	/* Check #1 */
-	if (room > 0 && !tcp_under_memory_pressure(sk)) {
+	if (!tcp_under_memory_pressure(sk)) {
 		unsigned int truesize = truesize_adjust(adjust, skb);
 		int incr;
 
@@ -518,6 +521,11 @@ static void tcp_grow_window(struct sock *sk, const struct sk_buff *skb,
 			tp->rcv_ssthresh += min(room, incr);
 			inet_csk(sk)->icsk_ack.quick |= 1;
 		}
+	} else {
+		/* Under pressure:
+		 * Adjust rcv_ssthresh according to reserved mem
+		 */
+		tcp_adjust_rcv_ssthresh(sk);
 	}
 }
 
@@ -5345,7 +5353,7 @@ static int tcp_prune_queue(struct sock *sk)
 	if (atomic_read(&sk->sk_rmem_alloc) >= sk->sk_rcvbuf)
 		tcp_clamp_window(sk);
 	else if (tcp_under_memory_pressure(sk))
-		tp->rcv_ssthresh = min(tp->rcv_ssthresh, 4U * tp->advmss);
+		tcp_adjust_rcv_ssthresh(sk);
 
 	if (atomic_read(&sk->sk_rmem_alloc) <= sk->sk_rcvbuf)
 		return 0;
