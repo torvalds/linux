@@ -337,12 +337,26 @@ static int mctp_set_link_af(struct net_device *dev, const struct nlattr *attr,
 	return 0;
 }
 
+/* Matches netdev types that should have MCTP handling */
+static bool mctp_known(struct net_device *dev)
+{
+	/* only register specific types (inc. NONE for TUN devices) */
+	return dev->type == ARPHRD_MCTP ||
+		   dev->type == ARPHRD_LOOPBACK ||
+		   dev->type == ARPHRD_NONE;
+}
+
 static void mctp_unregister(struct net_device *dev)
 {
 	struct mctp_dev *mdev;
 
 	mdev = mctp_dev_get_rtnl(dev);
-
+	if (mctp_known(dev) != (bool)mdev) {
+		// Sanity check, should match what was set in mctp_register
+		netdev_warn(dev, "%s: mdev pointer %d but type (%d) match is %d",
+			    __func__, (bool)mdev, mctp_known(dev), dev->type);
+		return;
+	}
 	if (!mdev)
 		return;
 
@@ -360,15 +374,18 @@ static int mctp_register(struct net_device *dev)
 	struct mctp_dev *mdev;
 
 	/* Already registered? */
-	if (rtnl_dereference(dev->mctp_ptr))
-		return 0;
+	mdev = rtnl_dereference(dev->mctp_ptr);
 
-	/* only register specific types (inc. NONE for TUN devices) */
-	if (!(dev->type == ARPHRD_MCTP ||
-	      dev->type == ARPHRD_LOOPBACK ||
-	      dev->type == ARPHRD_NONE)) {
+	if (mdev) {
+		if (!mctp_known(dev))
+			netdev_warn(dev, "%s: mctp_dev set for unknown type %d",
+				    __func__, dev->type);
 		return 0;
 	}
+
+	/* only register specific types */
+	if (!mctp_known(dev))
+		return 0;
 
 	mdev = mctp_add_dev(dev);
 	if (IS_ERR(mdev))
