@@ -62,6 +62,11 @@ struct mctp_sock {
 	 * by sk->net->keys_lock
 	 */
 	struct hlist_head keys;
+
+	/* mechanism for expiring allocated keys; will release an allocated
+	 * tag, and any netdev state for a request/response pairing
+	 */
+	struct timer_list key_expiry;
 };
 
 /* Key for matching incoming packets to sockets or reassembly contexts.
@@ -107,6 +112,8 @@ struct mctp_sock {
  *      the (complete) reply, or during reassembly errors. Here, we clean up
  *      the reassembly context (marking reasm_dead, to prevent another from
  *      starting), and remove the socket from the netns & socket lists.
+ *
+ *    - through an expiry timeout, on a per-socket timer
  */
 struct mctp_sk_key {
 	mctp_eid_t	peer_addr;
@@ -138,6 +145,9 @@ struct mctp_sk_key {
 
 	/* key validity */
 	bool		valid;
+
+	/* expiry timeout; valid (above) cleared on expiry */
+	unsigned long	expiry;
 };
 
 struct mctp_skb_cb {

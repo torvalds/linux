@@ -24,6 +24,8 @@
 #include <net/sock.h>
 
 static const unsigned int mctp_message_maxlen = 64 * 1024;
+static const unsigned long mctp_key_lifetime = 6 * CONFIG_HZ;
+
 
 /* route output callbacks */
 static int mctp_route_discard(struct mctp_route *route, struct sk_buff *skb)
@@ -175,6 +177,9 @@ static int mctp_key_add(struct mctp_sk_key *key, struct mctp_sock *msk)
 
 	if (!rc) {
 		refcount_inc(&key->refs);
+		key->expiry = jiffies + mctp_key_lifetime;
+		timer_reduce(&msk->key_expiry, key->expiry);
+
 		hlist_add_head(&key->hlist, &net->mctp.keys);
 		hlist_add_head(&key->sklist, &msk->keys);
 	}
@@ -496,6 +501,9 @@ static void mctp_reserve_tag(struct net *net, struct mctp_sk_key *key,
 	struct netns_mctp *mns = &net->mctp;
 
 	lockdep_assert_held(&mns->keys_lock);
+
+	key->expiry = jiffies + mctp_key_lifetime;
+	timer_reduce(&msk->key_expiry, key->expiry);
 
 	/* we hold the net->key_lock here, allowing updates to both
 	 * then net and sk
