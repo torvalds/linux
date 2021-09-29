@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3358-evb-ddr3.dtsi"
+#include "rk3358-linux.dtsi"
+
+/ {
+	model = "Rockchip linux RK3358 EVB DDR3 board";
+	compatible = "rockchip,rk3358-evb-ddr3-v10-linux", "rockchip,px30", "rockchip,rk3358";
+};

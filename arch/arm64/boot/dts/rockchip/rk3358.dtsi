@@ -1,0 +1,122 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#include "px30.dtsi"
+
+&cpu0_opp_table {
+	/delete-node/ opp-1200000000;
+	/delete-node/ opp-1248000000;
+	/delete-node/ opp-1296000000;
+	/delete-node/ opp-1416000000;
+	/delete-node/ opp-1512000000;
+};
+
+&cru {
+	assigned-clocks = <&cru PLL_NPLL>;
+	assigned-clock-rates = <1040000000>;
+};
+
+&display_subsystem {
+	status = "disabled";
+	ports = <&vopb_out>, <&vopl_out>;
+	logo-memory-region = <&drm_logo>;
+
+	route {
+		route_lvds: route-lvds {
+			status = "disabled";
+			logo,uboot = "logo.bmp";
+			logo,kernel = "logo_kernel.bmp";
+			logo,mode = "center";
+			charge_logo,mode = "center";
+			connect = <&vopb_out_lvds>;
+		};
+
+		route_dsi: route-dsi {
+			status = "disabled";
+			logo,uboot = "logo.bmp";
+			logo,kernel = "logo_kernel.bmp";
+			logo,mode = "center";
+			charge_logo,mode = "center";
+			connect = <&vopb_out_dsi>;
+		};
+
+		route_rgb: route-rgb {
+			status = "disabled";
+			logo,uboot = "logo.bmp";
+			logo,kernel = "logo_kernel.bmp";
+			logo,mode = "center";
+			charge_logo,mode = "center";
+			connect = <&vopb_out_rgb>;
+		};
+	};
+};
+
+&gpu_opp_table {
+	opp-520000000 {
+		opp-hz = /bits/ 64 <520000000>;
+		opp-microvolt = <1175000>;
+		opp-microvolt-L0 = <1175000>;
+		opp-microvolt-L1 = <1150000>;
+		opp-microvolt-L2 = <1100000>;
+		opp-microvolt-L3 = <1050000>;
+	};
+};
+
+&rgb {
+	phys = <&video_phy>;
+	phy-names = "phy";
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&lcdc_m1_rgb_pins>;
+	pinctrl-1 = <&lcdc_m1_sleep_pins>;
+};
+
+&pinctrl {
+	lcdc {
+		lcdc_m1_rgb_pins: lcdc-m1-rgb-pins {
+			rockchip,pins =
+				<3 RK_PA0 1 &pcfg_pull_none_8ma>,	/* LCDC_DCLK */
+				<3 RK_PA4 1 &pcfg_pull_none_8ma>,	/* LCDC_D0 */
+				<3 RK_PA6 1 &pcfg_pull_none_8ma>,	/* LCDC_D2 */
+				<3 RK_PB2 1 &pcfg_pull_none_8ma>,	/* LCDC_D6 */
+				<3 RK_PB3 1 &pcfg_pull_none_8ma>,	/* LCDC_D7 */
+				<3 RK_PB5 1 &pcfg_pull_none_8ma>,	/* LCDC_D9 */
+				<3 RK_PC0 1 &pcfg_pull_none_8ma>,	/* LCDC_D12 */
+				<3 RK_PC1 1 &pcfg_pull_none_8ma>,	/* LCDC_D13 */
+				<3 RK_PC2 1 &pcfg_pull_none_8ma>,	/* LCDC_D14 */
+				<3 RK_PC3 1 &pcfg_pull_none_8ma>,	/* LCDC_D15 */
+				<3 RK_PC4 1 &pcfg_pull_none_8ma>,	/* LCDC_D16 */
+				<3 RK_PC5 1 &pcfg_pull_none_8ma>,	/* LCDC_D17 */
+				<3 RK_PC6 1 &pcfg_pull_none_8ma>,	/* LCDC_D18 */
+				<3 RK_PC7 1 &pcfg_pull_none_8ma>,	/* LCDC_D19 */
+				<3 RK_PD0 1 &pcfg_pull_none_8ma>,	/* LCDC_D20 */
+				<3 RK_PD1 1 &pcfg_pull_none_8ma>,	/* LCDC_D21 */
+				<3 RK_PD2 1 &pcfg_pull_none_8ma>,	/* LCDC_D22 */
+				<3 RK_PD3 1 &pcfg_pull_none_8ma>;	/* LCDC_D23 */
+		};
+
+		lcdc_m1_sleep_pins: lcdc-m1-sleep-pins {
+			rockchip,pins =
+				<3 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_DCLK */
+				<3 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D0 */
+				<3 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D2 */
+				<3 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D6 */
+				<3 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D7 */
+				<3 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D9 */
+				<3 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D12 */
+				<3 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D13 */
+				<3 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D14 */
+				<3 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D15 */
+				<3 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D16 */
+				<3 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D17 */
+				<3 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D18 */
+				<3 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D19 */
+				<3 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D20 */
+				<3 RK_PD1 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D21 */
+				<3 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D22 */
+				<3 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;	/* LCDC_D23 */
+		};
+	};
+};
