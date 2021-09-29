@@ -9,6 +9,7 @@
 #include "../include/mlme_osdep.h"
 #include "../include/usb_ops.h"
 #include "../include/wifi.h"
+#include "../include/rtl8188e_recv.h"
 
 static u8 SNAP_ETH_TYPE_IPX[2] = {0x81, 0x37};
 static u8 SNAP_ETH_TYPE_APPLETALK_AARP[2] = {0x80, 0xf3};
@@ -82,7 +83,7 @@ int _rtw_init_recv_priv(struct recv_priv *precvpriv, struct adapter *padapter)
 
 	sema_init(&precvpriv->allrxreturnevt, 0);
 
-	res = rtw_hal_init_recv_priv(padapter);
+	res = rtl8188eu_init_recv_priv(padapter);
 
 	timer_setup(&precvpriv->signal_stat_timer, rtw_signal_stat_timer_hdl, 0);
 	precvpriv->signal_stat_sampling_interval = 1000; /* ms */
