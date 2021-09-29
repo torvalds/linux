@@ -955,7 +955,7 @@ void snd_usb_endpoint_sync_pending_stop(struct snd_usb_endpoint *ep)
  *
  * This function moves the EP to STOPPING state if it's being RUNNING.
  */
-static int stop_urbs(struct snd_usb_endpoint *ep, bool force)
+static int stop_urbs(struct snd_usb_endpoint *ep, bool force, bool keep_pending)
 {
 	unsigned int i;
 	unsigned long flags;
@@ -971,6 +971,9 @@ static int stop_urbs(struct snd_usb_endpoint *ep, bool force)
 	ep->next_packet_head = 0;
 	ep->next_packet_queued = 0;
 	spin_unlock_irqrestore(&ep->lock, flags);
+
+	if (keep_pending)
+		return 0;
 
 	for (i = 0; i < ep->nurbs; i++) {
 		if (test_bit(i, &ep->active_mask)) {
@@ -995,7 +998,7 @@ static int release_urbs(struct snd_usb_endpoint *ep, bool force)
 	snd_usb_endpoint_set_callback(ep, NULL, NULL, NULL);
 
 	/* stop and unlink urbs */
-	err = stop_urbs(ep, force);
+	err = stop_urbs(ep, force, false);
 	if (err)
 		return err;
 
@@ -1527,7 +1530,7 @@ int snd_usb_endpoint_start(struct snd_usb_endpoint *ep)
 	return 0;
 
 __error:
-	snd_usb_endpoint_stop(ep);
+	snd_usb_endpoint_stop(ep, false);
 	return -EPIPE;
 }
 
@@ -1535,6 +1538,7 @@ __error:
  * snd_usb_endpoint_stop: stop an snd_usb_endpoint
  *
  * @ep: the endpoint to stop (may be NULL)
+ * @keep_pending: keep in-flight URBs
  *
  * A call to this function will decrement the running count of the endpoint.
  * In case the last user has requested the endpoint stop, the URBs will
@@ -1545,7 +1549,7 @@ __error:
  * The caller needs to synchronize the pending stop operation via
  * snd_usb_endpoint_sync_pending_stop().
  */
-void snd_usb_endpoint_stop(struct snd_usb_endpoint *ep)
+void snd_usb_endpoint_stop(struct snd_usb_endpoint *ep, bool keep_pending)
 {
 	if (!ep)
 		return;
@@ -1560,7 +1564,7 @@ void snd_usb_endpoint_stop(struct snd_usb_endpoint *ep)
 	if (!atomic_dec_return(&ep->running)) {
 		if (ep->sync_source)
 			WRITE_ONCE(ep->sync_source->sync_sink, NULL);
-		stop_urbs(ep, false);
+		stop_urbs(ep, false, keep_pending);
 	}
 }
 
