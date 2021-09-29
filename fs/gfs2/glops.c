@@ -482,13 +482,13 @@ int gfs2_inode_refresh(struct gfs2_inode *ip)
 }
 
 /**
- * inode_go_lock - operation done after an inode lock is locked by a process
+ * inode_go_instantiate - read in an inode if necessary
  * @gh: The glock holder
  *
  * Returns: errno
  */
 
-static int inode_go_lock(struct gfs2_holder *gh)
+static int inode_go_instantiate(struct gfs2_holder *gh)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
@@ -740,7 +740,7 @@ const struct gfs2_glock_operations gfs2_inode_glops = {
 	.go_sync = inode_go_sync,
 	.go_inval = inode_go_inval,
 	.go_demote_ok = inode_go_demote_ok,
-	.go_lock = inode_go_lock,
+	.go_instantiate = inode_go_instantiate,
 	.go_dump = inode_go_dump,
 	.go_type = LM_TYPE_INODE,
 	.go_flags = GLOF_ASPACE | GLOF_LRU | GLOF_LVB,
@@ -750,7 +750,7 @@ const struct gfs2_glock_operations gfs2_inode_glops = {
 const struct gfs2_glock_operations gfs2_rgrp_glops = {
 	.go_sync = rgrp_go_sync,
 	.go_inval = rgrp_go_inval,
-	.go_lock = gfs2_rgrp_go_lock,
+	.go_instantiate = gfs2_rgrp_go_instantiate,
 	.go_dump = gfs2_rgrp_go_dump,
 	.go_type = LM_TYPE_RGRP,
 	.go_flags = GLOF_LVB,

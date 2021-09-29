@@ -501,11 +501,11 @@ restart:
 				first_gh = gh;
 			}
 			if (gh->gh_list.prev == &gl->gl_holders &&
-			    glops->go_lock) {
+			    glops->go_instantiate) {
 				if (!(gh->gh_flags & GL_SKIP)) {
 					spin_unlock(&gl->gl_lockref.lock);
 					/* FIXME: eliminate this eventually */
-					ret = glops->go_lock(gh);
+					ret = glops->go_instantiate(gh);
 					spin_lock(&gl->gl_lockref.lock);
 					if (ret) {
 						if (ret == 1)

@@ -1288,7 +1288,7 @@ static int update_rgrp_lvb(struct gfs2_rgrpd *rgd)
 	return 0;
 }
 
-int gfs2_rgrp_go_lock(struct gfs2_holder *gh)
+int gfs2_rgrp_go_instantiate(struct gfs2_holder *gh)
 {
 	struct gfs2_rgrpd *rgd = gh->gh_gl->gl_object;
 
