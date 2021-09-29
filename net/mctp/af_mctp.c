@@ -223,16 +223,60 @@ static const struct proto_ops mctp_dgram_ops = {
 	.sendpage	= sock_no_sendpage,
 };
 
+static void mctp_sk_expire_keys(struct timer_list *timer)
+{
+	struct mctp_sock *msk = container_of(timer, struct mctp_sock,
+					     key_expiry);
+	struct net *net = sock_net(&msk->sk);
+	unsigned long next_expiry, flags;
+	struct mctp_sk_key *key;
+	struct hlist_node *tmp;
+	bool next_expiry_valid = false;
+
+	spin_lock_irqsave(&net->mctp.keys_lock, flags);
+
+	hlist_for_each_entry_safe(key, tmp, &msk->keys, sklist) {
+		spin_lock(&key->lock);
+
+		if (!time_after_eq(key->expiry, jiffies)) {
+			key->valid = false;
+			hlist_del_rcu(&key->hlist);
+			hlist_del_rcu(&key->sklist);
+			spin_unlock(&key->lock);
+			mctp_key_unref(key);
+			continue;
+		}
+
+		if (next_expiry_valid) {
+			if (time_before(key->expiry, next_expiry))
+				next_expiry = key->expiry;
+		} else {
+			next_expiry = key->expiry;
+			next_expiry_valid = true;
+		}
+		spin_unlock(&key->lock);
+	}
+
+	spin_unlock_irqrestore(&net->mctp.keys_lock, flags);
+
+	if (next_expiry_valid)
+		mod_timer(timer, next_expiry);
+}
+
 static int mctp_sk_init(struct sock *sk)
 {
 	struct mctp_sock *msk = container_of(sk, struct mctp_sock, sk);
 
 	INIT_HLIST_HEAD(&msk->keys);
+	timer_setup(&msk->key_expiry, mctp_sk_expire_keys, 0);
 	return 0;
 }
 
 static void mctp_sk_close(struct sock *sk, long timeout)
 {
+	struct mctp_sock *msk = container_of(sk, struct mctp_sock, sk);
+
+	del_timer_sync(&msk->key_expiry);
 	sk_common_release(sk);
 }
 
