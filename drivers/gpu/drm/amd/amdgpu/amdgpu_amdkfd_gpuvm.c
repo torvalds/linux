@@ -563,6 +563,7 @@ kfd_mem_dmaunmap_userptr(struct kgd_mem *mem,
 
 	dma_unmap_sgtable(adev->dev, ttm->sg, direction, 0);
 	sg_free_table(ttm->sg);
+	kfree(ttm->sg);
 	ttm->sg = NULL;
 }
 
