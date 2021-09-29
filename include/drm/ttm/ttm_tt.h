@@ -38,17 +38,17 @@ struct ttm_resource;
 struct ttm_buffer_object;
 struct ttm_operation_ctx;
 
-#define TTM_PAGE_FLAG_SWAPPED         (1 << 4)
-#define TTM_PAGE_FLAG_ZERO_ALLOC      (1 << 6)
-#define TTM_PAGE_FLAG_SG              (1 << 8)
+#define TTM_TT_FLAG_SWAPPED	(1 << 0)
+#define TTM_TT_FLAG_ZERO_ALLOC	(1 << 1)
+#define TTM_TT_FLAG_EXTERNAL	(1 << 2)
 
-#define TTM_PAGE_FLAG_PRIV_POPULATED  (1 << 31)
+#define TTM_TT_FLAG_PRIV_POPULATED  (1 << 31)
 
 /**
  * struct ttm_tt
  *
  * @pages: Array of pages backing the data.
- * @page_flags: see TTM_PAGE_FLAG_*
+ * @page_flags: see TTM_TT_FLAG_*
  * @num_pages: Number of pages in the page array.
  * @sg: for SG objects via dma-buf
  * @dma_address: The DMA (bus) addresses of the pages
@@ -84,7 +84,7 @@ struct ttm_kmap_iter_tt {
 
 static inline bool ttm_tt_is_populated(struct ttm_tt *tt)
 {
-	return tt->page_flags & TTM_PAGE_FLAG_PRIV_POPULATED;
+	return tt->page_flags & TTM_TT_FLAG_PRIV_POPULATED;
 }
 
 /**
@@ -103,7 +103,7 @@ int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc);
  *
  * @ttm: The struct ttm_tt.
  * @bo: The buffer object we create the ttm for.
- * @page_flags: Page flags as identified by TTM_PAGE_FLAG_XX flags.
+ * @page_flags: Page flags as identified by TTM_TT_FLAG_XX flags.
  * @caching: the desired caching state of the pages
  *
  * Create a struct ttm_tt to back data with system memory pages.
@@ -178,7 +178,7 @@ void ttm_tt_unpopulate(struct ttm_device *bdev, struct ttm_tt *ttm);
  */
 static inline void ttm_tt_mark_for_clear(struct ttm_tt *ttm)
 {
-	ttm->page_flags |= TTM_PAGE_FLAG_ZERO_ALLOC;
+	ttm->page_flags |= TTM_TT_FLAG_ZERO_ALLOC;
 }
 
 void ttm_tt_mgr_init(unsigned long num_pages, unsigned long num_dma32_pages);
@@ -194,7 +194,7 @@ struct ttm_kmap_iter *ttm_kmap_iter_tt_init(struct ttm_kmap_iter_tt *iter_tt,
  *
  * @bo: Buffer object we allocate the ttm for.
  * @bridge: The agp bridge this device is sitting on.
- * @page_flags: Page flags as identified by TTM_PAGE_FLAG_XX flags.
+ * @page_flags: Page flags as identified by TTM_TT_FLAG_XX flags.
  *
  *
  * Create a TTM backend that uses the indicated AGP bridge as an aperture
