@@ -474,6 +474,10 @@ static int mctp_alloc_local_tag(struct mctp_sock *msk,
 	int rc = -EAGAIN;
 	u8 tagbits;
 
+	/* for NULL destination EIDs, we may get a response from any peer */
+	if (daddr == MCTP_ADDR_NULL)
+		daddr = MCTP_ADDR_ANY;
+
 	/* be optimistic, alloc now */
 	key = mctp_key_alloc(msk, saddr, daddr, 0, GFP_KERNEL);
 	if (!key)
@@ -550,6 +554,20 @@ struct mctp_route *mctp_route_lookup(struct net *net, unsigned int dnet,
 	}
 
 	return rt;
+}
+
+static struct mctp_route *mctp_route_lookup_null(struct net *net,
+						 struct net_device *dev)
+{
+	struct mctp_route *rt;
+
+	list_for_each_entry_rcu(rt, &net->mctp.routes, list) {
+		if (rt->dev->dev == dev && rt->type == RTN_LOCAL &&
+		    refcount_inc_not_zero(&rt->refs))
+			return rt;
+	}
+
+	return NULL;
 }
 
 /* sends a skb to rt and releases the route. */
@@ -849,6 +867,11 @@ static int mctp_pkttype_receive(struct sk_buff *skb, struct net_device *dev,
 	cb->net = READ_ONCE(mdev->net);
 
 	rt = mctp_route_lookup(net, cb->net, mh->dest);
+
+	/* NULL EID, but addressed to our physical address */
+	if (!rt && mh->dest == MCTP_ADDR_NULL && skb->pkt_type == PACKET_HOST)
+		rt = mctp_route_lookup_null(net, dev);
+
 	if (!rt)
 		goto err_drop;
 
