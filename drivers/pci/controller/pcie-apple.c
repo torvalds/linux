@@ -132,6 +132,48 @@ static void rmw_set(u32 set, void __iomem *addr)
 	writel_relaxed(readl_relaxed(addr) | set, addr);
 }
 
+static void rmw_clear(u32 clr, void __iomem *addr)
+{
+	writel_relaxed(readl_relaxed(addr) & ~clr, addr);
+}
+
+static int apple_pcie_setup_refclk(struct apple_pcie *pcie,
+				   struct apple_pcie_port *port)
+{
+	u32 stat;
+	int res;
+
+	res = readl_relaxed_poll_timeout(pcie->base + CORE_RC_PHYIF_STAT, stat,
+					 stat & CORE_RC_PHYIF_STAT_REFCLK,
+					 100, 50000);
+	if (res < 0)
+		return res;
+
+	rmw_set(CORE_LANE_CTL_CFGACC, pcie->base + CORE_LANE_CTL(port->idx));
+	rmw_set(CORE_LANE_CFG_REFCLK0REQ, pcie->base + CORE_LANE_CFG(port->idx));
+
+	res = readl_relaxed_poll_timeout(pcie->base + CORE_LANE_CFG(port->idx),
+					 stat, stat & CORE_LANE_CFG_REFCLK0ACK,
+					 100, 50000);
+	if (res < 0)
+		return res;
+
+	rmw_set(CORE_LANE_CFG_REFCLK1, pcie->base + CORE_LANE_CFG(port->idx));
+	res = readl_relaxed_poll_timeout(pcie->base + CORE_LANE_CFG(port->idx),
+					 stat, stat & CORE_LANE_CFG_REFCLK1,
+					 100, 50000);
+
+	if (res < 0)
+		return res;
+
+	rmw_clear(CORE_LANE_CTL_CFGACC, pcie->base + CORE_LANE_CTL(port->idx));
+
+	rmw_set(CORE_LANE_CFG_REFCLKEN, pcie->base + CORE_LANE_CFG(port->idx));
+	rmw_set(PORT_REFCLK_EN, port->base + PORT_REFCLK);
+
+	return 0;
+}
+
 static int apple_pcie_setup_port(struct apple_pcie *pcie,
 				 struct device_node *np)
 {
@@ -164,6 +206,10 @@ static int apple_pcie_setup_port(struct apple_pcie *pcie,
 		return PTR_ERR(port->base);
 
 	rmw_set(PORT_APPCLK_EN, port->base + PORT_APPCLK);
+
+	ret = apple_pcie_setup_refclk(pcie, port);
+	if (ret < 0)
+		return ret;
 
 	rmw_set(PORT_PERST_OFF, port->base + PORT_PERST);
 	gpiod_set_value(reset, 1);
