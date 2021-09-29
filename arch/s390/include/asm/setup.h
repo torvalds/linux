@@ -12,6 +12,7 @@
 
 #define PARMAREA		0x10400
 
+#define COMMAND_LINE_SIZE CONFIG_COMMAND_LINE_SIZE
 /*
  * Machine features detected in early.c
  */
