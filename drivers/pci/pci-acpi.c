@@ -910,9 +910,6 @@ pci_power_t acpi_pci_choose_state(struct pci_dev *pdev)
 {
 	int acpi_state, d_max;
 
-	if (acpi_pci_disabled)
-		return PCI_POWER_ERROR;
-
 	if (pdev->no_d3cold)
 		d_max = ACPI_STATE_D3_HOT;
 	else

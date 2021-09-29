@@ -1394,44 +1394,6 @@ int pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 }
 EXPORT_SYMBOL(pci_set_power_state);
 
-/**
- * pci_choose_state - Choose the power state of a PCI device
- * @dev: PCI device to be suspended
- * @state: target sleep state for the whole system. This is the value
- *	   that is passed to suspend() function.
- *
- * Returns PCI power state suitable for given device and given system
- * message.
- */
-pci_power_t pci_choose_state(struct pci_dev *dev, pm_message_t state)
-{
-	pci_power_t ret;
-
-	if (!dev->pm_cap)
-		return PCI_D0;
-
-	ret = platform_pci_choose_state(dev);
-	if (ret != PCI_POWER_ERROR)
-		return ret;
-
-	switch (state.event) {
-	case PM_EVENT_ON:
-		return PCI_D0;
-	case PM_EVENT_FREEZE:
-	case PM_EVENT_PRETHAW:
-		/* REVISIT both freeze and pre-thaw "should" use D0 */
-	case PM_EVENT_SUSPEND:
-	case PM_EVENT_HIBERNATE:
-		return PCI_D3hot;
-	default:
-		pci_info(dev, "unrecognized suspend event %d\n",
-			 state.event);
-		BUG();
-	}
-	return PCI_D0;
-}
-EXPORT_SYMBOL(pci_choose_state);
-
 #define PCI_EXP_SAVE_REGS	7
 
 static struct pci_cap_saved_state *_pci_find_saved_cap(struct pci_dev *pci_dev,
@@ -2842,6 +2804,22 @@ void pci_dev_complete_resume(struct pci_dev *pci_dev)
 
 	spin_unlock_irq(&dev->power.lock);
 }
+
+/**
+ * pci_choose_state - Choose the power state of a PCI device.
+ * @dev: Target PCI device.
+ * @state: Target state for the whole system.
+ *
+ * Returns PCI power state suitable for @dev and @state.
+ */
+pci_power_t pci_choose_state(struct pci_dev *dev, pm_message_t state)
+{
+	if (state.event == PM_EVENT_ON)
+		return PCI_D0;
+
+	return pci_target_state(dev, false);
+}
+EXPORT_SYMBOL(pci_choose_state);
 
 void pci_config_pm_runtime_get(struct pci_dev *pdev)
 {
