@@ -1868,6 +1868,8 @@ static int bpf_object__init_user_maps(struct bpf_object *obj, bool strict)
 			continue;
 		if (sym.st_shndx != obj->efile.maps_shndx)
 			continue;
+		if (GELF_ST_TYPE(sym.st_info) == STT_SECTION)
+			continue;
 		nr_maps++;
 	}
 	/* Assume equally sized map definitions */
