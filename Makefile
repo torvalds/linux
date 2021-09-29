@@ -953,6 +953,11 @@ KBUILD_CFLAGS += -Wvla
 # disable pointer signed / unsigned warnings in gcc 4.0
 KBUILD_CFLAGS += -Wno-pointer-sign
 
+# In order to make sure new function cast mismatches are not introduced
+# in the kernel (to avoid tripping CFI checking), the kernel should be
+# globally built with -Wcast-function-type.
+KBUILD_CFLAGS += $(call cc-option, -Wcast-function-type)
+
 # disable stringop warnings in gcc 8+
 KBUILD_CFLAGS += $(call cc-disable-warning, stringop-truncation)
 
