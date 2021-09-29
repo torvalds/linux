@@ -995,6 +995,9 @@ int amdgpu_ras_query_error_status(struct amdgpu_device *adev,
 		}
 	}
 
+	if (!amdgpu_persistent_edc_harvesting_supported(adev))
+		amdgpu_ras_reset_error_status(adev, info->head.block);
+
 	return 0;
 }
 
