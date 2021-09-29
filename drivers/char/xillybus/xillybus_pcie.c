@@ -32,104 +32,20 @@ static const struct pci_device_id xillyids[] = {
 	{ /* End: all zeroes */ }
 };
 
-static int xilly_pci_direction(int direction)
-{
-	switch (direction) {
-	case DMA_TO_DEVICE:
-	case DMA_FROM_DEVICE:
-		return direction;
-	default:
-		return DMA_BIDIRECTIONAL;
-	}
-}
-
-static void xilly_dma_sync_single_for_cpu_pci(struct xilly_endpoint *ep,
-					      dma_addr_t dma_handle,
-					      size_t size,
-					      int direction)
-{
-	dma_sync_single_for_cpu(ep->dev, dma_handle, size,
-				xilly_pci_direction(direction));
-}
-
-static void xilly_dma_sync_single_for_device_pci(struct xilly_endpoint *ep,
-						 dma_addr_t dma_handle,
-						 size_t size,
-						 int direction)
-{
-	dma_sync_single_for_device(ep->dev, dma_handle, size,
-				   xilly_pci_direction(direction));
-}
-
-static void xilly_pci_unmap(void *ptr)
-{
-	struct xilly_mapping *data = ptr;
-
-	dma_unmap_single(data->device, data->dma_addr, data->size,
-			 data->direction);
-
-	kfree(ptr);
-}
-
-/*
- * Map either through the PCI DMA mapper or the non_PCI one. Behind the
- * scenes exactly the same functions are called with the same parameters,
- * but that can change.
- */
-
-static int xilly_map_single_pci(struct xilly_endpoint *ep,
-				void *ptr,
-				size_t size,
-				int direction,
-				dma_addr_t *ret_dma_handle
-	)
-{
-	int pci_direction;
-	dma_addr_t addr;
-	struct xilly_mapping *this;
-
-	this = kzalloc(sizeof(*this), GFP_KERNEL);
-	if (!this)
-		return -ENOMEM;
-
-	pci_direction = xilly_pci_direction(direction);
-
-	addr = dma_map_single(ep->dev, ptr, size, pci_direction);
-
-	if (dma_mapping_error(ep->dev, addr)) {
-		kfree(this);
-		return -ENODEV;
-	}
-
-	this->device = ep->dev;
-	this->dma_addr = addr;
-	this->size = size;
-	this->direction = pci_direction;
-
-	*ret_dma_handle = addr;
-
-	return devm_add_action_or_reset(ep->dev, xilly_pci_unmap, this);
-}
-
-static struct xilly_endpoint_hardware pci_hw = {
-	.owner = THIS_MODULE,
-	.hw_sync_sgl_for_cpu = xilly_dma_sync_single_for_cpu_pci,
-	.hw_sync_sgl_for_device = xilly_dma_sync_single_for_device_pci,
-	.map_single = xilly_map_single_pci,
-};
-
 static int xilly_probe(struct pci_dev *pdev,
 		       const struct pci_device_id *ent)
 {
 	struct xilly_endpoint *endpoint;
 	int rc;
 
-	endpoint = xillybus_init_endpoint(&pdev->dev, &pci_hw);
+	endpoint = xillybus_init_endpoint(&pdev->dev);
 
 	if (!endpoint)
 		return -ENOMEM;
 
 	pci_set_drvdata(pdev, endpoint);
+
+	endpoint->owner = THIS_MODULE;
 
 	rc = pcim_enable_device(pdev);
 	if (rc) {

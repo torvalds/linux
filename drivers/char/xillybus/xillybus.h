@@ -88,7 +88,7 @@ struct xilly_channel {
 
 struct xilly_endpoint {
 	struct device *dev;
-	struct xilly_endpoint_hardware *ephw;
+	struct module *owner;
 
 	int dma_using_dac; /* =1 if 64-bit DMA is used, =0 otherwise. */
 	__iomem void *registers;
@@ -108,23 +108,6 @@ struct xilly_endpoint {
 	unsigned int msg_buf_size;
 };
 
-struct xilly_endpoint_hardware {
-	struct module *owner;
-	void (*hw_sync_sgl_for_cpu)(struct xilly_endpoint *,
-				    dma_addr_t,
-				    size_t,
-				    int);
-	void (*hw_sync_sgl_for_device)(struct xilly_endpoint *,
-				       dma_addr_t,
-				       size_t,
-				       int);
-	int (*map_single)(struct xilly_endpoint *,
-			  void *,
-			  size_t,
-			  int,
-			  dma_addr_t *);
-};
-
 struct xilly_mapping {
 	struct device *device;
 	dma_addr_t dma_addr;
@@ -134,9 +117,7 @@ struct xilly_mapping {
 
 irqreturn_t xillybus_isr(int irq, void *data);
 
-struct xilly_endpoint *xillybus_init_endpoint(struct device *dev,
-					      struct xilly_endpoint_hardware
-					      *ephw);
+struct xilly_endpoint *xillybus_init_endpoint(struct device *dev);
 
 int xillybus_endpoint_discovery(struct xilly_endpoint *endpoint);
 
