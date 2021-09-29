@@ -180,7 +180,6 @@ static int file_read_integer(const char *name, int *val)
 static int file_write_integer(const char *name, int val)
 {
 	FILE *f;
-	int ret;
 
 	f = fopen(name, "w");
 	if (!f) {
@@ -192,11 +191,6 @@ static int file_write_integer(const char *name, int val)
 
 	fprintf(f, "%d", val);
 	fclose(f);
-	if (ret < 0) {
-		ksft_test_result_fail("Error writing %d to %s\n",
-				      val, name);
-		return -1;
-	}
 
 	return 0;
 }
