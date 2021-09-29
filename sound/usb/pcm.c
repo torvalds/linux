@@ -1365,7 +1365,7 @@ static void prepare_playback_urb(struct snd_usb_substream *subs,
 	spin_lock_irqsave(&subs->lock, flags);
 	subs->frame_limit += ep->max_urb_frames;
 	for (i = 0; i < ctx->packets; i++) {
-		counts = snd_usb_endpoint_next_packet_size(ep, ctx, i);
+		counts = snd_usb_endpoint_next_packet_size(ep, ctx, i, 0);
 		/* set up descriptor */
 		urb->iso_frame_desc[i].offset = frames * stride;
 		urb->iso_frame_desc[i].length = counts * stride;

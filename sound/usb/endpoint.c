@@ -148,18 +148,23 @@ int snd_usb_endpoint_implicit_feedback_sink(struct snd_usb_endpoint *ep)
  * This won't be used for implicit feedback which takes the packet size
  * returned from the sync source
  */
-static int slave_next_packet_size(struct snd_usb_endpoint *ep)
+static int slave_next_packet_size(struct snd_usb_endpoint *ep,
+				  unsigned int avail)
 {
 	unsigned long flags;
+	unsigned int phase;
 	int ret;
 
 	if (ep->fill_max)
 		return ep->maxframesize;
 
 	spin_lock_irqsave(&ep->lock, flags);
-	ep->phase = (ep->phase & 0xffff)
-		+ (ep->freqm << ep->datainterval);
-	ret = min(ep->phase >> 16, ep->maxframesize);
+	phase = (ep->phase & 0xffff) + (ep->freqm << ep->datainterval);
+	ret = min(phase >> 16, ep->maxframesize);
+	if (avail && ret >= avail)
+		ret = -EAGAIN;
+	else
+		ep->phase = phase;
 	spin_unlock_irqrestore(&ep->lock, flags);
 
 	return ret;
@@ -169,20 +174,25 @@ static int slave_next_packet_size(struct snd_usb_endpoint *ep)
  * Return the number of samples to be sent in the next packet
  * for adaptive and synchronous endpoints
  */
-static int next_packet_size(struct snd_usb_endpoint *ep)
+static int next_packet_size(struct snd_usb_endpoint *ep, unsigned int avail)
 {
+	unsigned int sample_accum;
 	int ret;
 
 	if (ep->fill_max)
 		return ep->maxframesize;
 
-	ep->sample_accum += ep->sample_rem;
-	if (ep->sample_accum >= ep->pps) {
-		ep->sample_accum -= ep->pps;
+	sample_accum += ep->sample_rem;
+	if (sample_accum >= ep->pps) {
+		sample_accum -= ep->pps;
 		ret = ep->packsize[1];
 	} else {
 		ret = ep->packsize[0];
 	}
+	if (avail && ret >= avail)
+		ret = -EAGAIN;
+	else
+		ep->sample_accum = sample_accum;
 
 	return ret;
 }
@@ -190,16 +200,27 @@ static int next_packet_size(struct snd_usb_endpoint *ep)
 /*
  * snd_usb_endpoint_next_packet_size: Return the number of samples to be sent
  * in the next packet
+ *
+ * If the size is equal or exceeds @avail, don't proceed but return -EAGAIN
+ * Exception: @avail = 0 for skipping the check.
  */
 int snd_usb_endpoint_next_packet_size(struct snd_usb_endpoint *ep,
-				      struct snd_urb_ctx *ctx, int idx)
+				      struct snd_urb_ctx *ctx, int idx,
+				      unsigned int avail)
 {
-	if (ctx->packet_size[idx])
-		return ctx->packet_size[idx];
-	else if (ep->sync_source)
-		return slave_next_packet_size(ep);
+	unsigned int packet;
+
+	packet = ctx->packet_size[idx];
+	if (packet) {
+		if (avail && packet >= avail)
+			return -EAGAIN;
+		return packet;
+	}
+
+	if (ep->sync_source)
+		return slave_next_packet_size(ep, avail);
 	else
-		return next_packet_size(ep);
+		return next_packet_size(ep, avail);
 }
 
 static void call_retire_callback(struct snd_usb_endpoint *ep,
@@ -263,7 +284,7 @@ static void prepare_silent_urb(struct snd_usb_endpoint *ep,
 		unsigned int length;
 		int counts;
 
-		counts = snd_usb_endpoint_next_packet_size(ep, ctx, i);
+		counts = snd_usb_endpoint_next_packet_size(ep, ctx, i, 0);
 		length = counts * ep->stride; /* number of silent bytes */
 		offset = offs * ep->stride + extra * i;
 		urb->iso_frame_desc[i].offset = offset;
