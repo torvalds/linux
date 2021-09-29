@@ -178,6 +178,10 @@ int mmc_gpiod_request_cd(struct mmc_host *host, const char *con_id,
 	if (IS_ERR(desc))
 		return PTR_ERR(desc);
 
+	/* Update default label if no con_id provided */
+	if (!con_id)
+		gpiod_set_consumer_name(desc, ctx->cd_label);
+
 	if (debounce) {
 		ret = gpiod_set_debounce(desc, debounce);
 		if (ret < 0)
@@ -225,6 +229,10 @@ int mmc_gpiod_request_ro(struct mmc_host *host, const char *con_id,
 	desc = devm_gpiod_get_index(host->parent, con_id, idx, GPIOD_IN);
 	if (IS_ERR(desc))
 		return PTR_ERR(desc);
+
+	/* Update default label if no con_id provided */
+	if (!con_id)
+		gpiod_set_consumer_name(desc, ctx->ro_label);
 
 	if (debounce) {
 		ret = gpiod_set_debounce(desc, debounce);
