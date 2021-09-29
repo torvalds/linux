@@ -120,8 +120,10 @@
  * The doorbell address is set to 0xfffff000, which by convention
  * matches what MacOS does, and it is possible to use any other
  * address (in the bottom 4GB, as the base register is only 32bit).
+ * However, it has to be excluded from the IOVA range, and the DART
+ * driver has to know about it.
  */
-#define DOORBELL_ADDR			0xfffff000
+#define DOORBELL_ADDR		CONFIG_PCIE_APPLE_MSI_DOORBELL_ADDR
 
 struct apple_pcie {
 	struct mutex		lock;
