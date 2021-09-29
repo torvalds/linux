@@ -99,6 +99,10 @@ static enum bp_result get_firmware_info_v3_2(
 	struct bios_parser *bp,
 	struct dc_firmware_info *info);
 
+static enum bp_result get_firmware_info_v3_4(
+	struct bios_parser *bp,
+	struct dc_firmware_info *info);
+
 static struct atom_hpd_int_record *get_hpd_record(struct bios_parser *bp,
 		struct atom_display_object_path_v2 *object);
 
@@ -1426,8 +1430,10 @@ static enum bp_result bios_parser_get_firmware_info(
 				break;
 			case 2:
 			case 3:
-			case 4:
 				result = get_firmware_info_v3_2(bp, info);
+                                break;
+			case 4:
+				result = get_firmware_info_v3_4(bp, info);
 				break;
 			default:
 				break;
@@ -1564,6 +1570,88 @@ static enum bp_result get_firmware_info_v3_2(
 			info->smu_gpu_pll_output_freq =
 					bp->cmd_tbl.get_smu_clock_info(bp, SMU11_SYSPLL3_0_ID) * 10;
 	}
+
+	if (firmware_info->board_i2c_feature_id == 0x2) {
+		info->oem_i2c_present = true;
+		info->oem_i2c_obj_id = firmware_info->board_i2c_feature_gpio_id;
+	} else {
+		info->oem_i2c_present = false;
+	}
+
+	return BP_RESULT_OK;
+}
+
+static enum bp_result get_firmware_info_v3_4(
+	struct bios_parser *bp,
+	struct dc_firmware_info *info)
+{
+	struct atom_firmware_info_v3_4 *firmware_info;
+	struct atom_common_table_header *header;
+	struct atom_data_revision revision;
+	struct atom_display_controller_info_v4_1 *dce_info_v4_1 = NULL;
+	struct atom_display_controller_info_v4_4 *dce_info_v4_4 = NULL;
+	if (!info)
+		return BP_RESULT_BADINPUT;
+
+	firmware_info = GET_IMAGE(struct atom_firmware_info_v3_4,
+			DATA_TABLES(firmwareinfo));
+
+	if (!firmware_info)
+		return BP_RESULT_BADBIOSTABLE;
+
+	memset(info, 0, sizeof(*info));
+
+	header = GET_IMAGE(struct atom_common_table_header,
+					DATA_TABLES(dce_info));
+
+	get_atom_data_table_revision(header, &revision);
+
+	switch (revision.major) {
+	case 4:
+		switch (revision.minor) {
+		case 4:
+			dce_info_v4_4 = GET_IMAGE(struct atom_display_controller_info_v4_4,
+							DATA_TABLES(dce_info));
+
+			if (!dce_info_v4_4)
+				return BP_RESULT_BADBIOSTABLE;
+
+			/* 100MHz expected */
+			info->pll_info.crystal_frequency = dce_info_v4_4->dce_refclk_10khz * 10;
+			info->dp_phy_ref_clk             = dce_info_v4_4->dpphy_refclk_10khz * 10;
+			/* 50MHz expected */
+			info->i2c_engine_ref_clk         = dce_info_v4_4->i2c_engine_refclk_10khz * 10;
+
+			/* Get SMU Display PLL VCO Frequency in KHz*/
+			info->smu_gpu_pll_output_freq =	dce_info_v4_4->dispclk_pll_vco_freq * 10;
+			break;
+
+		default:
+			/* should not come here, keep as backup, as was before */
+			dce_info_v4_1 = GET_IMAGE(struct atom_display_controller_info_v4_1,
+							DATA_TABLES(dce_info));
+
+			if (!dce_info_v4_1)
+				return BP_RESULT_BADBIOSTABLE;
+
+			info->pll_info.crystal_frequency = dce_info_v4_1->dce_refclk_10khz * 10;
+			info->dp_phy_ref_clk             = dce_info_v4_1->dpphy_refclk_10khz * 10;
+			info->i2c_engine_ref_clk         = dce_info_v4_1->i2c_engine_refclk_10khz * 10;
+			break;
+		}
+		break;
+
+	default:
+		ASSERT(0);
+		break;
+	}
+
+	header = GET_IMAGE(struct atom_common_table_header,
+					DATA_TABLES(smu_info));
+	get_atom_data_table_revision(header, &revision);
+
+	 // We need to convert from 10KHz units into KHz units.
+	info->default_memory_clk = firmware_info->bootup_mclk_in10khz * 10;
 
 	if (firmware_info->board_i2c_feature_id == 0x2) {
 		info->oem_i2c_present = true;
