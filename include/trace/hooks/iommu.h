@@ -20,9 +20,19 @@ DECLARE_HOOK(android_vh_iommu_alloc_iova,
 	TP_PROTO(struct device *dev, dma_addr_t iova, size_t size),
 	TP_ARGS(dev, iova, size));
 
+struct iova_domain;
+
+DECLARE_HOOK(android_vh_iommu_iovad_alloc_iova,
+	TP_PROTO(struct device *dev, struct iova_domain *iovad, dma_addr_t iova, size_t size),
+	TP_ARGS(dev, iovad, iova, size));
+
 DECLARE_HOOK(android_vh_iommu_free_iova,
 	TP_PROTO(dma_addr_t iova, size_t size),
 	TP_ARGS(iova, size));
+
+DECLARE_HOOK(android_vh_iommu_iovad_free_iova,
+	TP_PROTO(struct iova_domain *iovad, dma_addr_t iova, size_t size),
+	TP_ARGS(iovad, iova, size));
 
 
 #endif /* _TRACE_HOOK_IOMMU_H */
