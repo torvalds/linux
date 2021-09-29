@@ -16,8 +16,6 @@
 #include <linux/devcoredump.h>
 #include <linux/soc/qcom/mdt_loader.h>
 
-#define RAMDUMP_TIMEOUT 120000
-
 struct qcom_ramdump_desc {
 	void *data;
 	struct completion dump_done;
@@ -45,24 +43,21 @@ static void qcom_devcd_freev(void *data)
 	struct qcom_ramdump_desc *desc = data;
 
 	vfree(desc->data);
-	complete(&desc->dump_done);
+	complete_all(&desc->dump_done);
 }
 
 static int qcom_devcd_dump(struct device *dev, void *data, size_t datalen, gfp_t gfp)
 {
 	struct qcom_ramdump_desc desc;
-	int ret;
 
 	desc.data = data;
 	init_completion(&desc.dump_done);
 
 	dev_coredumpm(dev, NULL, &desc, datalen, gfp, qcom_devcd_readv, qcom_devcd_freev);
 
-	ret = wait_for_completion_timeout(&desc.dump_done, msecs_to_jiffies(RAMDUMP_TIMEOUT));
-	if (!ret)
-		dev_err(dev, "ramdump collection timed out\n");
+	wait_for_completion(&desc.dump_done);
 
-	return ret ? 0 : -ETIMEDOUT;
+	return !completion_done(&desc.dump_done);
 }
 
 int qcom_dump(struct list_head *segs, struct device *dev)
