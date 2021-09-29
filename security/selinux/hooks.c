@@ -230,19 +230,6 @@ static inline u32 cred_sid(const struct cred *cred)
 }
 
 /*
- * get the subjective security ID of a task
- */
-static inline u32 task_sid_subj(const struct task_struct *task)
-{
-	u32 sid;
-
-	rcu_read_lock();
-	sid = cred_sid(rcu_dereference(task->cred));
-	rcu_read_unlock();
-	return sid;
-}
-
-/*
  * get the objective security ID of a task
  */
 static inline u32 task_sid_obj(const struct task_struct *task)
@@ -4205,9 +4192,9 @@ static int selinux_task_getsid(struct task_struct *p)
 			    PROCESS__GETSESSION, NULL);
 }
 
-static void selinux_task_getsecid_subj(struct task_struct *p, u32 *secid)
+static void selinux_current_getsecid_subj(u32 *secid)
 {
-	*secid = task_sid_subj(p);
+	*secid = current_sid();
 }
 
 static void selinux_task_getsecid_obj(struct task_struct *p, u32 *secid)
@@ -7159,7 +7146,7 @@ static struct security_hook_list selinux_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(task_setpgid, selinux_task_setpgid),
 	LSM_HOOK_INIT(task_getpgid, selinux_task_getpgid),
 	LSM_HOOK_INIT(task_getsid, selinux_task_getsid),
-	LSM_HOOK_INIT(task_getsecid_subj, selinux_task_getsecid_subj),
+	LSM_HOOK_INIT(current_getsecid_subj, selinux_current_getsecid_subj),
 	LSM_HOOK_INIT(task_getsecid_obj, selinux_task_getsecid_obj),
 	LSM_HOOK_INIT(task_setnice, selinux_task_setnice),
 	LSM_HOOK_INIT(task_setioprio, selinux_task_setioprio),
