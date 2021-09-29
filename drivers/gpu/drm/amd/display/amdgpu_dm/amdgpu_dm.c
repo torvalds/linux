@@ -11410,8 +11410,9 @@ int amdgpu_dm_process_dmub_aux_transfer_sync(bool is_cmd_aux, struct dc_context 
 					(uint32_t *)operation_result);
 	}
 
-	ret = wait_for_completion_interruptible_timeout(&adev->dm.dmub_aux_transfer_done, 10*HZ);
+	ret = wait_for_completion_timeout(&adev->dm.dmub_aux_transfer_done, 10 * HZ);
 	if (ret == 0) {
+		DRM_ERROR("wait_for_completion_timeout timeout!");
 		return amdgpu_dm_set_dmub_async_sync_status(is_cmd_aux,
 				ctx, DMUB_ASYNC_TO_SYNC_ACCESS_TIMEOUT,
 				(uint32_t *)operation_result);
