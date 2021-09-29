@@ -786,7 +786,7 @@ static inline void max17042_override_por_values(struct max17042_chip *chip)
 	if ((chip->chip_type == MAXIM_DEVICE_TYPE_MAX17042) ||
 	    (chip->chip_type == MAXIM_DEVICE_TYPE_MAX17047) ||
 	    (chip->chip_type == MAXIM_DEVICE_TYPE_MAX17050)) {
-		max17042_override_por(map, MAX17042_LAvg_empty, config->lavg_empty);
+		max17042_override_por(map, MAX17042_IAvg_empty, config->iavg_empty);
 		max17042_override_por(map, MAX17042_TempNom, config->temp_nom);
 		max17042_override_por(map, MAX17042_TempLim, config->temp_lim);
 		max17042_override_por(map, MAX17042_FCTC, config->fctc);
