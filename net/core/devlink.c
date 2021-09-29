@@ -1072,7 +1072,9 @@ static void devlink_rate_notify(struct devlink_rate *devlink_rate,
 	int err;
 
 	WARN_ON(cmd != DEVLINK_CMD_RATE_NEW && cmd != DEVLINK_CMD_RATE_DEL);
-	WARN_ON(!xa_get_mark(&devlinks, devlink->index, DEVLINK_REGISTERED));
+
+	if (!xa_get_mark(&devlinks, devlink->index, DEVLINK_REGISTERED))
+		return;
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
@@ -5155,7 +5157,8 @@ static void devlink_nl_region_notify(struct devlink_region *region,
 	struct sk_buff *msg;
 
 	WARN_ON(cmd != DEVLINK_CMD_REGION_NEW && cmd != DEVLINK_CMD_REGION_DEL);
-	WARN_ON(!xa_get_mark(&devlinks, devlink->index, DEVLINK_REGISTERED));
+	if (!xa_get_mark(&devlinks, devlink->index, DEVLINK_REGISTERED))
+		return;
 
 	msg = devlink_nl_region_notify_build(region, snapshot, cmd, 0, 0);
 	if (IS_ERR(msg))
@@ -8981,6 +8984,8 @@ static void devlink_notify_register(struct devlink *devlink)
 	struct devlink_trap_group_item *group_item;
 	struct devlink_trap_item *trap_item;
 	struct devlink_port *devlink_port;
+	struct devlink_rate *rate_node;
+	struct devlink_region *region;
 
 	devlink_notify(devlink, DEVLINK_CMD_NEW);
 	list_for_each_entry(devlink_port, &devlink->port_list, list)
@@ -8997,6 +9002,12 @@ static void devlink_notify_register(struct devlink *devlink)
 	list_for_each_entry(trap_item, &devlink->trap_list, list)
 		devlink_trap_notify(devlink, trap_item, DEVLINK_CMD_TRAP_NEW);
 
+	list_for_each_entry(rate_node, &devlink->rate_list, list)
+		devlink_rate_notify(rate_node, DEVLINK_CMD_RATE_NEW);
+
+	list_for_each_entry(region, &devlink->region_list, list)
+		devlink_nl_region_notify(region, NULL, DEVLINK_CMD_REGION_NEW);
+
 	devlink_params_publish(devlink);
 }
 
@@ -9006,8 +9017,16 @@ static void devlink_notify_unregister(struct devlink *devlink)
 	struct devlink_trap_group_item *group_item;
 	struct devlink_trap_item *trap_item;
 	struct devlink_port *devlink_port;
+	struct devlink_rate *rate_node;
+	struct devlink_region *region;
 
 	devlink_params_unpublish(devlink);
+
+	list_for_each_entry_reverse(region, &devlink->region_list, list)
+		devlink_nl_region_notify(region, NULL, DEVLINK_CMD_REGION_DEL);
+
+	list_for_each_entry_reverse(rate_node, &devlink->rate_list, list)
+		devlink_rate_notify(rate_node, DEVLINK_CMD_RATE_DEL);
 
 	list_for_each_entry_reverse(trap_item, &devlink->trap_list, list)
 		devlink_trap_notify(devlink, trap_item, DEVLINK_CMD_TRAP_DEL);
