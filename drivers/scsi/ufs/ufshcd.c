@@ -5845,7 +5845,6 @@ static void ufshcd_exception_event_handler(struct work_struct *work)
 	ufs_debugfs_exception_event(hba, status);
 out:
 	ufshcd_scsi_unblock_requests(hba);
-	return;
 }
 
 /* Complete requests that have door-bell cleared */
