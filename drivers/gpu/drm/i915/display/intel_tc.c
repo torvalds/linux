@@ -59,10 +59,10 @@ bool intel_tc_cold_requires_aux_pw(struct intel_digital_port *dig_port)
 static enum intel_display_power_domain
 tc_cold_get_power_domain(struct intel_digital_port *dig_port, enum tc_port_mode mode)
 {
-	if (intel_tc_cold_requires_aux_pw(dig_port))
-		return intel_legacy_aux_to_power_domain(dig_port->aux_ch);
-	else
+	if (mode == TC_PORT_TBT_ALT || !intel_tc_cold_requires_aux_pw(dig_port))
 		return POWER_DOMAIN_TC_COLD_OFF;
+
+	return intel_legacy_aux_to_power_domain(dig_port->aux_ch);
 }
 
 static intel_wakeref_t
@@ -645,6 +645,36 @@ static void intel_tc_port_reset_mode(struct intel_digital_port *dig_port,
 		    tc_port_mode_name(dig_port->tc_mode));
 }
 
+static bool intel_tc_port_needs_reset(struct intel_digital_port *dig_port)
+{
+	return intel_tc_port_get_target_mode(dig_port) != dig_port->tc_mode;
+}
+
+static void intel_tc_port_update_mode(struct intel_digital_port *dig_port,
+				      int required_lanes, bool force_disconnect)
+{
+	enum intel_display_power_domain domain;
+	intel_wakeref_t wref;
+	bool needs_reset = force_disconnect;
+
+	if (!needs_reset) {
+		/* Get power domain required to check the hotplug live status. */
+		wref = tc_cold_block(dig_port, &domain);
+		needs_reset = intel_tc_port_needs_reset(dig_port);
+		tc_cold_unblock(dig_port, domain, wref);
+	}
+
+	if (!needs_reset)
+		return;
+
+	/* Get power domain required for resetting the mode. */
+	wref = tc_cold_block_in_mode(dig_port, TC_PORT_DISCONNECTED, &domain);
+
+	intel_tc_port_reset_mode(dig_port, required_lanes, force_disconnect);
+
+	tc_cold_unblock(dig_port, domain, wref);
+}
+
 static void
 intel_tc_port_link_init_refcount(struct intel_digital_port *dig_port,
 				 int refcount)
@@ -691,11 +721,6 @@ void intel_tc_port_sanitize(struct intel_digital_port *dig_port)
 	mutex_unlock(&dig_port->tc_lock);
 }
 
-static bool intel_tc_port_needs_reset(struct intel_digital_port *dig_port)
-{
-	return intel_tc_port_get_target_mode(dig_port) != dig_port->tc_mode;
-}
-
 /*
  * The type-C ports are different because even when they are connected, they may
  * not be available/usable by the graphics driver: see the comment on
@@ -735,18 +760,10 @@ static void __intel_tc_port_lock(struct intel_digital_port *dig_port,
 
 	mutex_lock(&dig_port->tc_lock);
 
-	if (!dig_port->tc_link_refcount) {
-		enum intel_display_power_domain domain;
-		intel_wakeref_t tc_cold_wref;
 
-		tc_cold_wref = tc_cold_block(dig_port, &domain);
-
-		if (force_disconnect || intel_tc_port_needs_reset(dig_port))
-			intel_tc_port_reset_mode(dig_port, required_lanes,
-						 force_disconnect);
-
-		tc_cold_unblock(dig_port, domain, tc_cold_wref);
-	}
+	if (!dig_port->tc_link_refcount)
+		intel_tc_port_update_mode(dig_port, required_lanes,
+					  force_disconnect);
 
 	drm_WARN_ON(&i915->drm, dig_port->tc_lock_wakeref);
 	dig_port->tc_lock_wakeref = wakeref;
