@@ -2026,7 +2026,6 @@ void scsi_exit_queue(void)
  *	@sdev:	SCSI device to be queried
  *	@pf:	Page format bit (1 == standard, 0 == vendor specific)
  *	@sp:	Save page bit (0 == don't save, 1 == save)
- *	@modepage: mode page being requested
  *	@buffer: request buffer (may not be smaller than eight bytes)
  *	@len:	length of request buffer.
  *	@timeout: command timeout
@@ -2039,10 +2038,9 @@ void scsi_exit_queue(void)
  *	status on error
  *
  */
-int
-scsi_mode_select(struct scsi_device *sdev, int pf, int sp, int modepage,
-		 unsigned char *buffer, int len, int timeout, int retries,
-		 struct scsi_mode_data *data, struct scsi_sense_hdr *sshdr)
+int scsi_mode_select(struct scsi_device *sdev, int pf, int sp,
+		     unsigned char *buffer, int len, int timeout, int retries,
+		     struct scsi_mode_data *data, struct scsi_sense_hdr *sshdr)
 {
 	unsigned char cmd[10];
 	unsigned char *real_buffer;
