@@ -911,7 +911,7 @@ static int wdm_wwan_port_tx(struct wwan_port *port, struct sk_buff *skb)
 	return rv;
 }
 
-static struct wwan_port_ops wdm_wwan_port_ops = {
+static const struct wwan_port_ops wdm_wwan_port_ops = {
 	.start = wdm_wwan_port_start,
 	.stop = wdm_wwan_port_stop,
 	.tx = wdm_wwan_port_tx,
