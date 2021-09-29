@@ -26,9 +26,8 @@
 #include "en.h"
 #include "en_tc.h"
 #include "en_rep.h"
+#include "fs_core.h"
 
-#define MLX5_CT_ZONE_BITS (mlx5e_tc_attr_to_reg_mappings[ZONE_TO_REG].mlen)
-#define MLX5_CT_ZONE_MASK GENMASK(MLX5_CT_ZONE_BITS - 1, 0)
 #define MLX5_CT_STATE_ESTABLISHED_BIT BIT(1)
 #define MLX5_CT_STATE_TRK_BIT BIT(2)
 #define MLX5_CT_STATE_NAT_BIT BIT(3)
@@ -819,7 +818,7 @@ mlx5_tc_ct_entry_add_rule(struct mlx5_tc_ct_priv *ct_priv,
 	mlx5_tc_ct_set_tuple_match(ct_priv, spec, flow_rule);
 	mlx5e_tc_match_to_reg_match(spec, ZONE_TO_REG, entry->tuple.zone, MLX5_CT_ZONE_MASK);
 
-	zone_rule->rule = ct_priv->fs_ops->ct_rule_add(ct_priv->fs, spec, attr);
+	zone_rule->rule = ct_priv->fs_ops->ct_rule_add(ct_priv->fs, spec, attr, flow_rule);
 	if (IS_ERR(zone_rule->rule)) {
 		err = PTR_ERR(zone_rule->rule);
 		ct_dbg("Failed to add ct entry rule, nat: %d", nat);
@@ -1966,9 +1965,17 @@ mlx5_tc_ct_delete_flow(struct mlx5_tc_ct_priv *priv,
 static int
 mlx5_tc_ct_fs_init(struct mlx5_tc_ct_priv *ct_priv)
 {
+	struct mlx5_flow_table *post_ct = mlx5e_tc_post_act_get_ft(ct_priv->post_act);
 	struct mlx5_ct_fs_ops *fs_ops = mlx5_ct_fs_dmfs_ops_get();
+	int err;
 
-	ct_priv->fs = kzalloc(sizeof(*ct_priv->fs), GFP_KERNEL);
+	if (ct_priv->ns_type == MLX5_FLOW_NAMESPACE_FDB &&
+	    ct_priv->dev->priv.steering->mode == MLX5_FLOW_STEERING_MODE_SMFS) {
+		ct_dbg("Using SMFS ct flow steering provider");
+		fs_ops = mlx5_ct_fs_smfs_ops_get();
+	}
+
+	ct_priv->fs = kzalloc(sizeof(*ct_priv->fs) + fs_ops->priv_size, GFP_KERNEL);
 	if (!ct_priv->fs)
 		return -ENOMEM;
 
@@ -1976,7 +1983,15 @@ mlx5_tc_ct_fs_init(struct mlx5_tc_ct_priv *ct_priv)
 	ct_priv->fs->dev = ct_priv->dev;
 	ct_priv->fs_ops = fs_ops;
 
+	err = ct_priv->fs_ops->init(ct_priv->fs, ct_priv->ct, ct_priv->ct_nat, post_ct);
+	if (err)
+		goto err_init;
+
 	return 0;
+
+err_init:
+	kfree(ct_priv->fs);
+	return err;
 }
 
 static int
@@ -2155,6 +2170,7 @@ mlx5_tc_ct_clean(struct mlx5_tc_ct_priv *ct_priv)
 
 	chains = ct_priv->chains;
 
+	ct_priv->fs_ops->destroy(ct_priv->fs);
 	kfree(ct_priv->fs);
 
 	mlx5_chains_destroy_global_table(chains, ct_priv->ct_nat);

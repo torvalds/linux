@@ -55,7 +55,11 @@ mlx5_core-$(CONFIG_MLX5_CLS_ACT)     += en/tc/act/act.o en/tc/act/drop.o en/tc/a
 					en/tc/act/ct.o en/tc/act/sample.o en/tc/act/ptype.o \
 					en/tc/act/redirect_ingress.o
 
-mlx5_core-$(CONFIG_MLX5_TC_CT)	     += en/tc_ct.o en/tc/ct_fs_dmfs.o
+ifneq ($(CONFIG_MLX5_TC_CT),)
+	mlx5_core-y			     += en/tc_ct.o en/tc/ct_fs_dmfs.o
+	mlx5_core-$(CONFIG_MLX5_SW_STEERING) += en/tc/ct_fs_smfs.o
+endif
+
 mlx5_core-$(CONFIG_MLX5_TC_SAMPLE)   += en/tc/sample.o
 
 #

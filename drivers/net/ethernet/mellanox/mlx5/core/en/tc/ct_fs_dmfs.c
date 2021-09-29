@@ -14,9 +14,21 @@ struct mlx5_ct_fs_dmfs_rule {
 	struct mlx5_flow_attr *attr;
 };
 
+static int
+mlx5_ct_fs_dmfs_init(struct mlx5_ct_fs *fs, struct mlx5_flow_table *ct,
+		     struct mlx5_flow_table *ct_nat, struct mlx5_flow_table *post_ct)
+{
+	return 0;
+}
+
+static void
+mlx5_ct_fs_dmfs_destroy(struct mlx5_ct_fs *fs)
+{
+}
+
 static struct mlx5_ct_fs_rule *
 mlx5_ct_fs_dmfs_ct_rule_add(struct mlx5_ct_fs *fs, struct mlx5_flow_spec *spec,
-			    struct mlx5_flow_attr *attr)
+			    struct mlx5_flow_attr *attr, struct flow_rule *flow_rule)
 {
 	struct mlx5e_priv *priv = netdev_priv(fs->netdev);
 	struct mlx5_ct_fs_dmfs_rule *dmfs_rule;
@@ -56,6 +68,9 @@ mlx5_ct_fs_dmfs_ct_rule_del(struct mlx5_ct_fs *fs, struct mlx5_ct_fs_rule *fs_ru
 static struct mlx5_ct_fs_ops dmfs_ops = {
 	.ct_rule_add = mlx5_ct_fs_dmfs_ct_rule_add,
 	.ct_rule_del = mlx5_ct_fs_dmfs_ct_rule_del,
+
+	.init = mlx5_ct_fs_dmfs_init,
+	.destroy = mlx5_ct_fs_dmfs_destroy,
 };
 
 struct mlx5_ct_fs_ops *mlx5_ct_fs_dmfs_ops_get(void)
