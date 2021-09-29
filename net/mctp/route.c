@@ -1026,10 +1026,15 @@ static int mctp_route_nlparse(struct sk_buff *skb, struct nlmsghdr *nlh,
 	return 0;
 }
 
+static const struct nla_policy rta_metrics_policy[RTAX_MAX + 1] = {
+	[RTAX_MTU]		= { .type = NLA_U32 },
+};
+
 static int mctp_newroute(struct sk_buff *skb, struct nlmsghdr *nlh,
 			 struct netlink_ext_ack *extack)
 {
 	struct nlattr *tb[RTA_MAX + 1];
+	struct nlattr *tbx[RTAX_MAX + 1];
 	mctp_eid_t daddr_start;
 	struct mctp_dev *mdev;
 	struct rtmsg *rtm;
@@ -1046,8 +1051,15 @@ static int mctp_newroute(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return -EINVAL;
 	}
 
-	/* TODO: parse mtu from nlparse */
 	mtu = 0;
+	if (tb[RTA_METRICS]) {
+		rc = nla_parse_nested(tbx, RTAX_MAX, tb[RTA_METRICS],
+				      rta_metrics_policy, NULL);
+		if (rc < 0)
+			return rc;
+		if (tbx[RTAX_MTU])
+			mtu = nla_get_u32(tbx[RTAX_MTU]);
+	}
 
 	if (rtm->rtm_type != RTN_UNICAST)
 		return -EINVAL;
