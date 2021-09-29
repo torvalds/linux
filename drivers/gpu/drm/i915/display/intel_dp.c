@@ -927,18 +927,14 @@ intel_dp_mode_valid(struct drm_connector *connector,
 	return intel_mode_valid_max_plane_size(dev_priv, mode, bigjoiner);
 }
 
-bool intel_dp_source_supports_hbr2(struct intel_dp *intel_dp)
+bool intel_dp_source_supports_tps3(struct drm_i915_private *i915)
 {
-	int max_rate = intel_dp->source_rates[intel_dp->num_source_rates - 1];
-
-	return max_rate >= 540000;
+	return DISPLAY_VER(i915) >= 9 || IS_BROADWELL(i915) || IS_HASWELL(i915);
 }
 
-bool intel_dp_source_supports_hbr3(struct intel_dp *intel_dp)
+bool intel_dp_source_supports_tps4(struct drm_i915_private *i915)
 {
-	int max_rate = intel_dp->source_rates[intel_dp->num_source_rates - 1];
-
-	return max_rate >= 810000;
+	return DISPLAY_VER(i915) >= 10;
 }
 
 static void snprintf_int_array(char *str, size_t len,
