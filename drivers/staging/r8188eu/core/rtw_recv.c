@@ -104,7 +104,7 @@ void _rtw_free_recv_priv(struct recv_priv *precvpriv)
 
 	vfree(precvpriv->pallocated_frame_buf);
 
-	rtw_hal_free_recv_priv(padapter);
+	rtl8188eu_free_recv_priv(padapter);
 }
 
 struct recv_frame *_rtw_alloc_recvframe(struct __queue *pfree_recv_queue)
