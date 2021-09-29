@@ -29,6 +29,8 @@ properties:
       - 0 # dmic1 data is not used
       - 1 # using GPIO2 pin as dmic1 data pin
       - 2 # using GPIO5 pin as dmic1 data pin
+    description: |
+      Specify which GPIO pin be used as DMIC1 data pin.
 
   realtek,dmic1-clk-pin:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -36,12 +38,16 @@ properties:
       - 0 # dmic1 clk is not used
       - 1 # using GPIO1 pin as dmic1 clock pin
       - 2 # using GPIO3 pin as dmic1 clock pin
+    description: |
+      Specify which GPIO pin be used as DMIC1 clk pin.
 
   realtek,jd-src:
     $ref: /schemas/types.yaml#/definitions/uint32
     enum:
       - 0 # No JD is used
       - 1 # using JD1 as JD source
+    description: |
+      Specify which JD source be used.
 
   realtek,ldo1-en-gpios:
     description: |
@@ -72,9 +78,9 @@ properties:
     const: 1
 
   clock-output-names:
-    items:
-      - description: Name given for DAI word clock output.
-      - description: Name given for DAI bit clock output.
+    minItems: 2
+    maxItems: 2
+    description: Name given for DAI word clock and bit clock outputs.
 
 additionalProperties: false
 
