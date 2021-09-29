@@ -2569,8 +2569,8 @@ err:
  */
 static void vop2_layer_map_initial(struct vop2 *vop2, uint32_t current_vp_id)
 {
-	struct vop2_layer *layer = &vop2->layers[0];
-	struct vop2_video_port *vp = &vop2->vps[0];
+	struct vop2_layer *layer;
+	struct vop2_video_port *vp;
 	struct vop2_win *win;
 	unsigned long win_mask;
 	uint32_t used_layers = 0;
@@ -2609,6 +2609,7 @@ static void vop2_layer_map_initial(struct vop2 *vop2, uint32_t current_vp_id)
 	 * at the last level of the all the mixers by hardware design,
 	 * so we just need to handle (nr_vps - 1) vps here.
 	 */
+	used_layers = 0;
 	for (i = 0; i < vop2->data->nr_vps - 1; i++) {
 		vp = &vop2->vps[i];
 		used_layers += hweight32(vp->win_mask);
