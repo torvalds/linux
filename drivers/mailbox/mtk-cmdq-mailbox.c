@@ -195,7 +195,6 @@ static void cmdq_task_exec_done(struct cmdq_task *task, int sta)
 	struct cmdq_task_cb *cb = &task->pkt->async_cb;
 	struct cmdq_cb_data data;
 
-	WARN_ON(cb->cb == (cmdq_async_flush_cb)NULL);
 	data.sta = sta;
 	data.data = cb->data;
 	data.pkt = task->pkt;
