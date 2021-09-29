@@ -21,6 +21,7 @@
 
 #include <linux/skbuff.h>
 #include <linux/miscdevice.h>
+#include <linux/debugfs.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -37,6 +38,8 @@ struct vhci_data {
 
 	struct mutex open_mutex;
 	struct delayed_work open_timeout;
+
+	bool suspended;
 };
 
 static int vhci_open_dev(struct hci_dev *hdev)
@@ -90,6 +93,53 @@ static int vhci_get_codec_config_data(struct hci_dev *hdev, __u8 type,
 	*vnd_data = NULL;
 	return 0;
 }
+
+static ssize_t force_suspend_read(struct file *file, char __user *user_buf,
+				  size_t count, loff_t *ppos)
+{
+	struct vhci_data *data = file->private_data;
+	char buf[3];
+
+	buf[0] = data->suspended ? 'Y' : 'N';
+	buf[1] = '\n';
+	buf[2] = '\0';
+	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
+}
+
+static ssize_t force_suspend_write(struct file *file,
+				   const char __user *user_buf,
+				   size_t count, loff_t *ppos)
+{
+	struct vhci_data *data = file->private_data;
+	bool enable;
+	int err;
+
+	err = kstrtobool_from_user(user_buf, count, &enable);
+	if (err)
+		return err;
+
+	if (data->suspended == enable)
+		return -EALREADY;
+
+	if (enable)
+		err = hci_suspend_dev(data->hdev);
+	else
+		err = hci_resume_dev(data->hdev);
+
+	if (err)
+		return err;
+
+	data->suspended = enable;
+
+	return count;
+}
+
+static const struct file_operations force_suspend_fops = {
+	.open		= simple_open,
+	.read		= force_suspend_read,
+	.write		= force_suspend_write,
+	.llseek		= default_llseek,
+};
 
 static int __vhci_create_device(struct vhci_data *data, __u8 opcode)
 {
@@ -148,6 +198,9 @@ static int __vhci_create_device(struct vhci_data *data, __u8 opcode)
 		kfree_skb(skb);
 		return -EBUSY;
 	}
+
+	debugfs_create_file("force_suspend", 0644, hdev->debugfs, data,
+			    &force_suspend_fops);
 
 	hci_skb_pkt_type(skb) = HCI_VENDOR_PKT;
 
