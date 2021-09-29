@@ -595,6 +595,9 @@ static int lowlatency_playback_available(struct snd_pcm_runtime *runtime,
 	/* free-wheeling mode? (e.g. dmix) */
 	if (runtime->stop_threshold > runtime->buffer_size)
 		return false;
+	/* implicit feedback mode has own operation mode */
+	if (snd_usb_endpoint_implicit_feedback_sink(subs->data_endpoint))
+		return false;
 	/* too short periods? */
 	if (subs->data_endpoint->nominal_queue_size >= subs->buffer_bytes)
 		return false;
