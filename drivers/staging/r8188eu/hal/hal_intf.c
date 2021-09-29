@@ -72,13 +72,6 @@ u32 rtw_hal_inirp_deinit(struct adapter *adapt)
 	return _FAIL;
 }
 
-s32 rtw_hal_init_xmit_priv(struct adapter *adapt)
-{
-	if (adapt->HalFunc.init_xmit_priv)
-		return adapt->HalFunc.init_xmit_priv(adapt);
-	return _FAIL;
-}
-
 s32 rtw_hal_init_recv_priv(struct adapter *adapt)
 {
 	if (adapt->HalFunc.init_recv_priv)
