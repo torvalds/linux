@@ -6,7 +6,6 @@
  * dsa_8021q_netdev_ops is registered for API compliance and not used
  * directly by callers.
  */
-#include <linux/if_bridge.h>
 #include <linux/if_vlan.h>
 #include <linux/dsa/8021q.h>
 
