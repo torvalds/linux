@@ -251,6 +251,9 @@ struct mlx5e_params {
 		u16 mode;
 		u8 num_tc;
 		struct netdev_tc_txq tc_to_txq[TC_MAX_QUEUE];
+		struct {
+			struct mlx5e_mqprio_rl *rl;
+		} channel;
 	} mqprio;
 	bool rx_cqe_compress_def;
 	bool tunneled_offload_en;
@@ -877,6 +880,7 @@ struct mlx5e_priv {
 #endif
 	struct mlx5e_scratchpad    scratchpad;
 	struct mlx5e_htb           htb;
+	struct mlx5e_mqprio_rl    *mqprio_rl;
 };
 
 struct mlx5e_rx_handlers {
