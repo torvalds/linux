@@ -329,12 +329,9 @@ static void prctl_set_same(struct vec_data *data)
 		return;
 	}
 
-	if (cur_vl != data->rdvl())
-		ksft_test_result_pass("%s current VL is %d\n",
-				      data->name, ret);
-	else
-		ksft_test_result_fail("%s prctl() VL %d but RDVL is %d\n",
-				      data->name, ret, data->rdvl());
+	ksft_test_result(cur_vl == data->rdvl(),
+			 "%s set VL %d and have VL %d\n",
+			 data->name, cur_vl, data->rdvl());
 }
 
 /* Can we set a new VL for this process? */
@@ -555,6 +552,7 @@ static const test_type tests[] = {
 	proc_write_max,
 
 	prctl_get,
+	prctl_set_same,
 	prctl_set,
 	prctl_set_no_child,
 	prctl_set_for_child,
