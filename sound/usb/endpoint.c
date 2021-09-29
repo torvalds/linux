@@ -451,6 +451,7 @@ static void queue_pending_output_urbs(struct snd_usb_endpoint *ep)
 		}
 
 		set_bit(ctx->index, &ep->active_mask);
+		atomic_inc(&ep->submitted_urbs);
 	}
 }
 
@@ -488,6 +489,7 @@ static void snd_complete_urb(struct urb *urb)
 			clear_bit(ctx->index, &ep->active_mask);
 			spin_unlock_irqrestore(&ep->lock, flags);
 			queue_pending_output_urbs(ep);
+			atomic_dec(&ep->submitted_urbs); /* decrement at last */
 			return;
 		}
 
@@ -513,6 +515,7 @@ static void snd_complete_urb(struct urb *urb)
 
 exit_clear:
 	clear_bit(ctx->index, &ep->active_mask);
+	atomic_dec(&ep->submitted_urbs);
 }
 
 /*
@@ -596,6 +599,7 @@ int snd_usb_add_endpoint(struct snd_usb_audio *chip, int ep_num, int type)
 	ep->type = type;
 	ep->ep_num = ep_num;
 	INIT_LIST_HEAD(&ep->ready_playback_urbs);
+	atomic_set(&ep->submitted_urbs, 0);
 
 	is_playback = ((ep_num & USB_ENDPOINT_DIR_MASK) == USB_DIR_OUT);
 	ep_num &= USB_ENDPOINT_NUMBER_MASK;
@@ -859,7 +863,7 @@ static int wait_clear_urbs(struct snd_usb_endpoint *ep)
 		return 0;
 
 	do {
-		alive = bitmap_weight(&ep->active_mask, ep->nurbs);
+		alive = atomic_read(&ep->submitted_urbs);
 		if (!alive)
 			break;
 
@@ -1420,6 +1424,7 @@ int snd_usb_endpoint_start(struct snd_usb_endpoint *ep)
 			goto __error;
 		}
 		set_bit(i, &ep->active_mask);
+		atomic_inc(&ep->submitted_urbs);
 	}
 
 	usb_audio_dbg(ep->chip, "%d URBs submitted for EP 0x%x\n",
