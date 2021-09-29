@@ -455,7 +455,7 @@ static int mctp_route_output(struct mctp_route *route, struct sk_buff *skb)
 static void mctp_route_release(struct mctp_route *rt)
 {
 	if (refcount_dec_and_test(&rt->refs)) {
-		dev_put(rt->dev->dev);
+		mctp_dev_put(rt->dev);
 		kfree_rcu(rt, rcu);
 	}
 }
@@ -815,7 +815,7 @@ static int mctp_route_add(struct mctp_dev *mdev, mctp_eid_t daddr_start,
 	rt->max = daddr_start + daddr_extent;
 	rt->mtu = mtu;
 	rt->dev = mdev;
-	dev_hold(rt->dev->dev);
+	mctp_dev_hold(rt->dev);
 	rt->type = type;
 	rt->output = rtfn;
 
