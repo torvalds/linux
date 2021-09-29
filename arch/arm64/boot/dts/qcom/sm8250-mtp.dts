@@ -647,9 +647,7 @@
 	status = "okay";
 
 	vdda-phy-supply = <&vreg_l5a_0p875>;
-	vdda-max-microamp = <90200>;
 	vdda-pll-supply = <&vreg_l9a_1p2>;
-	vdda-pll-max-microamp = <19000>;
 };
 
 &usb_1 {
