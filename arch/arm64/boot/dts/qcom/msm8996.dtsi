@@ -597,7 +597,7 @@
 			reset-names = "phy", "common", "cfg";
 			status = "disabled";
 
-			pciephy_0: lane@35000 {
+			pciephy_0: phy@35000 {
 				reg = <0x00035000 0x130>,
 				      <0x00035200 0x200>,
 				      <0x00035400 0x1dc>;
@@ -611,7 +611,7 @@
 				reset-names = "lane0";
 			};
 
-			pciephy_1: lane@36000 {
+			pciephy_1: phy@36000 {
 				reg = <0x00036000 0x130>,
 				      <0x00036200 0x200>,
 				      <0x00036400 0x1dc>;
@@ -624,7 +624,7 @@
 				reset-names = "lane1";
 			};
 
-			pciephy_2: lane@37000 {
+			pciephy_2: phy@37000 {
 				reg = <0x00037000 0x130>,
 				      <0x00037200 0x200>,
 				      <0x00037400 0x1dc>;
@@ -1779,7 +1779,7 @@
 			reset-names = "ufsphy";
 			status = "disabled";
 
-			ufsphy_lane: lanes@627400 {
+			ufsphy_lane: phy@627400 {
 				reg = <0x627400 0x12c>,
 				      <0x627600 0x200>,
 				      <0x627c00 0x1b4>;
@@ -2633,7 +2633,7 @@
 			reset-names = "phy", "common";
 			status = "disabled";
 
-			ssusb_phy_0: lane@7410200 {
+			ssusb_phy_0: phy@7410200 {
 				reg = <0x07410200 0x200>,
 				      <0x07410400 0x130>,
 				      <0x07410600 0x1a8>;

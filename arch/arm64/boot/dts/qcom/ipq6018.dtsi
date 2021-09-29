@@ -401,7 +401,7 @@
 			reset-names = "phy",
 				      "common";
 
-			pcie_phy0: lane@84200 {
+			pcie_phy0: phy@84200 {
 				reg = <0x0 0x84200 0x0 0x16c>, /* Serdes Tx */
 				      <0x0 0x84400 0x0 0x200>, /* Serdes Rx */
 				      <0x0 0x84800 0x0 0x4f4>; /* PCS: Lane0, COM, PCIE */

@@ -105,7 +105,7 @@
 			reset-names = "phy","common";
 			status = "disabled";
 
-			usb1_ssphy: lane@58200 {
+			usb1_ssphy: phy@58200 {
 				reg = <0x00058200 0x130>,       /* Tx */
 				      <0x00058400 0x200>,     /* Rx */
 				      <0x00058800 0x1f8>,     /* PCS  */
@@ -148,7 +148,7 @@
 			reset-names = "phy","common";
 			status = "disabled";
 
-			usb0_ssphy: lane@78200 {
+			usb0_ssphy: phy@78200 {
 				reg = <0x00078200 0x130>,       /* Tx */
 				      <0x00078400 0x200>,     /* Rx */
 				      <0x00078800 0x1f8>,     /* PCS  */

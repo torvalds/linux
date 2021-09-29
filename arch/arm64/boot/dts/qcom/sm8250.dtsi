@@ -1455,7 +1455,7 @@
 
 			status = "disabled";
 
-			pcie0_lane: lanes@1c06200 {
+			pcie0_lane: phy@1c06200 {
 				reg = <0 0x1c06200 0 0x170>, /* tx */
 				      <0 0x1c06400 0 0x200>, /* rx */
 				      <0 0x1c06800 0 0x1f0>, /* pcs */
@@ -1559,7 +1559,7 @@
 
 			status = "disabled";
 
-			pcie1_lane: lanes@1c0e200 {
+			pcie1_lane: phy@1c0e200 {
 				reg = <0 0x1c0e200 0 0x170>, /* tx0 */
 				      <0 0x1c0e400 0 0x200>, /* rx0 */
 				      <0 0x1c0ea00 0 0x1f0>, /* pcs */
@@ -1665,7 +1665,7 @@
 
 			status = "disabled";
 
-			pcie2_lane: lanes@1c16200 {
+			pcie2_lane: phy@1c16200 {
 				reg = <0 0x1c16200 0 0x170>, /* tx0 */
 				      <0 0x1c16400 0 0x200>, /* rx0 */
 				      <0 0x1c16a00 0 0x1f0>, /* pcs */
@@ -1742,7 +1742,7 @@
 			reset-names = "ufsphy";
 			status = "disabled";
 
-			ufs_mem_phy_lanes: lanes@1d87400 {
+			ufs_mem_phy_lanes: phy@1d87400 {
 				reg = <0 0x01d87400 0 0x108>,
 				      <0 0x01d87600 0 0x1e0>,
 				      <0 0x01d87c00 0 0x1dc>,
@@ -2323,7 +2323,7 @@
 				 <&gcc GCC_USB3_PHY_SEC_BCR>;
 			reset-names = "phy", "common";
 
-			usb_2_ssphy: lanes@88eb200 {
+			usb_2_ssphy: phy@88eb200 {
 				reg = <0 0x088eb200 0 0x200>,
 				      <0 0x088eb400 0 0x200>,
 				      <0 0x088eb800 0 0x800>;
