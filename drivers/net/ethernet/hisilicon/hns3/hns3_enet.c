@@ -623,13 +623,9 @@ static int hns3_nic_set_real_num_queue(struct net_device *netdev)
 			return ret;
 		}
 
-		for (i = 0; i < HNAE3_MAX_TC; i++) {
-			if (!test_bit(i, &tc_info->tc_en))
-				continue;
-
+		for (i = 0; i < tc_info->num_tc; i++)
 			netdev_set_tc_queue(netdev, i, tc_info->tqp_count[i],
 					    tc_info->tqp_offset[i]);
-		}
 	}
 
 	ret = netif_set_real_num_tx_queues(netdev, queue_size);
@@ -4870,11 +4866,8 @@ static void hns3_init_tx_ring_tc(struct hns3_nic_priv *priv)
 	struct hnae3_tc_info *tc_info = &kinfo->tc_info;
 	int i;
 
-	for (i = 0; i < HNAE3_MAX_TC; i++) {
+	for (i = 0; i < tc_info->num_tc; i++) {
 		int j;
-
-		if (!test_bit(i, &tc_info->tc_en))
-			continue;
 
 		for (j = 0; j < tc_info->tqp_count[i]; j++) {
 			struct hnae3_queue *q;
