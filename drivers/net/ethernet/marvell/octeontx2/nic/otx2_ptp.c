@@ -223,6 +223,11 @@ int otx2_ptp_init(struct otx2_nic *pfvf)
 	struct ptp_req *req;
 	int err;
 
+	if (is_otx2_lbkvf(pfvf->pdev)) {
+		pfvf->ptp = NULL;
+		return 0;
+	}
+
 	mutex_lock(&pfvf->mbox.lock);
 	/* check if PTP block is available */
 	req = otx2_mbox_alloc_msg_ptp_op(&pfvf->mbox);
