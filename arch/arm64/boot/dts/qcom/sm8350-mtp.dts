@@ -286,6 +286,10 @@
 	firmware-name = "qcom/sm8350/modem.mbn";
 };
 
+&pmk8350_rtc {
+	status = "okay";
+};
+
 &qupv3_id_0 {
 	status = "okay";
 };

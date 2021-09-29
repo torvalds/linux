@@ -61,6 +61,10 @@
 	modem-init;
 };
 
+&pmk8350_rtc {
+	status = "okay";
+};
+
 &pmk8350_vadc {
 	pmr735a_die_temp {
 		reg = <PMR735A_ADC7_DIE_TEMP>;
