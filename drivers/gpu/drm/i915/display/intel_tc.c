@@ -666,6 +666,13 @@ static void intel_tc_port_update_mode(struct intel_digital_port *dig_port,
 
 	intel_tc_port_reset_mode(dig_port, required_lanes, force_disconnect);
 
+	/* Get power domain matching the new mode after reset. */
+	tc_cold_unblock(dig_port, dig_port->tc_lock_power_domain,
+			fetch_and_zero(&dig_port->tc_lock_wakeref));
+	if (dig_port->tc_mode != TC_PORT_DISCONNECTED)
+		dig_port->tc_lock_wakeref = tc_cold_block(dig_port,
+							  &dig_port->tc_lock_power_domain);
+
 	tc_cold_unblock(dig_port, domain, wref);
 }
 
@@ -693,6 +700,7 @@ void intel_tc_port_sanitize(struct intel_digital_port *dig_port)
 		active_links = to_intel_crtc(encoder->base.crtc)->active;
 
 	drm_WARN_ON(&i915->drm, dig_port->tc_mode != TC_PORT_DISCONNECTED);
+	drm_WARN_ON(&i915->drm, dig_port->tc_lock_wakeref);
 	if (active_links) {
 		enum intel_display_power_domain domain;
 		intel_wakeref_t tc_cold_wref = tc_cold_block(dig_port, &domain);
@@ -704,6 +712,9 @@ void intel_tc_port_sanitize(struct intel_digital_port *dig_port)
 				    "Port %s: PHY disconnected with %d active link(s)\n",
 				    dig_port->tc_port_name, active_links);
 		intel_tc_port_link_init_refcount(dig_port, active_links);
+
+		dig_port->tc_lock_wakeref = tc_cold_block(dig_port,
+							  &dig_port->tc_lock_power_domain);
 
 		tc_cold_unblock(dig_port, domain, tc_cold_wref);
 	}
@@ -745,56 +756,67 @@ bool intel_tc_port_connected(struct intel_encoder *encoder)
 }
 
 static void __intel_tc_port_lock(struct intel_digital_port *dig_port,
-				 int required_lanes, bool force_disconnect)
+				 int required_lanes)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-	intel_wakeref_t wakeref;
-
-	wakeref = intel_display_power_get(i915, POWER_DOMAIN_DISPLAY_CORE);
 
 	mutex_lock(&dig_port->tc_lock);
 
+	cancel_delayed_work(&dig_port->tc_disconnect_phy_work);
 
 	if (!dig_port->tc_link_refcount)
 		intel_tc_port_update_mode(dig_port, required_lanes,
-					  force_disconnect);
+					  false);
 
-	drm_WARN_ON(&i915->drm, dig_port->tc_lock_wakeref);
-	dig_port->tc_lock_wakeref = wakeref;
+	drm_WARN_ON(&i915->drm, dig_port->tc_mode == TC_PORT_DISCONNECTED);
+	drm_WARN_ON(&i915->drm, dig_port->tc_mode != TC_PORT_TBT_ALT &&
+				!tc_phy_is_owned(dig_port));
 }
 
 void intel_tc_port_lock(struct intel_digital_port *dig_port)
 {
-	__intel_tc_port_lock(dig_port, 1, false);
+	__intel_tc_port_lock(dig_port, 1);
+}
+
+/**
+ * intel_tc_port_disconnect_phy_work: disconnect TypeC PHY from display port
+ * @dig_port: digital port
+ *
+ * Disconnect the given digital port from its TypeC PHY (handing back the
+ * control of the PHY to the TypeC subsystem). This will happen in a delayed
+ * manner after each aux transactions and modeset disables.
+ */
+static void intel_tc_port_disconnect_phy_work(struct work_struct *work)
+{
+	struct intel_digital_port *dig_port =
+		container_of(work, struct intel_digital_port, tc_disconnect_phy_work.work);
+
+	mutex_lock(&dig_port->tc_lock);
+
+	if (!dig_port->tc_link_refcount)
+		intel_tc_port_update_mode(dig_port, 1, true);
+
+	mutex_unlock(&dig_port->tc_lock);
+}
+
+/**
+ * intel_tc_port_flush_work: flush the work disconnecting the PHY
+ * @dig_port: digital port
+ *
+ * Flush the delayed work disconnecting an idle PHY.
+ */
+void intel_tc_port_flush_work(struct intel_digital_port *dig_port)
+{
+	flush_delayed_work(&dig_port->tc_disconnect_phy_work);
 }
 
 void intel_tc_port_unlock(struct intel_digital_port *dig_port)
 {
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-	intel_wakeref_t wakeref = fetch_and_zero(&dig_port->tc_lock_wakeref);
+	if (!dig_port->tc_link_refcount && dig_port->tc_mode != TC_PORT_DISCONNECTED)
+		queue_delayed_work(system_unbound_wq, &dig_port->tc_disconnect_phy_work,
+				   msecs_to_jiffies(1000));
 
 	mutex_unlock(&dig_port->tc_lock);
-
-	intel_display_power_put_async(i915, POWER_DOMAIN_DISPLAY_CORE,
-				      wakeref);
-}
-
-/**
- * intel_tc_port_disconnect_phy: disconnect TypeC PHY from display port
- * @dig_port: digital port
- *
- * Disconnect the given digital port from its TypeC PHY (handing back the
- * control of the PHY to the TypeC subsystem). The only purpose of this
- * function is to force the disconnect even with a TypeC display output still
- * plugged to the TypeC connector, which is required by the TypeC firmwares
- * during system suspend and shutdown. Otherwise - during the unplug event
- * handling - the PHY ownership is released automatically by
- * intel_tc_port_reset_mode(), when calling this function is not required.
- */
-void intel_tc_port_disconnect_phy(struct intel_digital_port *dig_port)
-{
-	__intel_tc_port_lock(dig_port, 1, true);
-	intel_tc_port_unlock(dig_port);
 }
 
 bool intel_tc_port_ref_held(struct intel_digital_port *dig_port)
@@ -806,16 +828,16 @@ bool intel_tc_port_ref_held(struct intel_digital_port *dig_port)
 void intel_tc_port_get_link(struct intel_digital_port *dig_port,
 			    int required_lanes)
 {
-	__intel_tc_port_lock(dig_port, required_lanes, false);
+	__intel_tc_port_lock(dig_port, required_lanes);
 	dig_port->tc_link_refcount++;
 	intel_tc_port_unlock(dig_port);
 }
 
 void intel_tc_port_put_link(struct intel_digital_port *dig_port)
 {
-	mutex_lock(&dig_port->tc_lock);
-	dig_port->tc_link_refcount--;
-	mutex_unlock(&dig_port->tc_lock);
+	intel_tc_port_lock(dig_port);
+	--dig_port->tc_link_refcount;
+	intel_tc_port_unlock(dig_port);
 }
 
 static bool
@@ -871,6 +893,7 @@ void intel_tc_port_init(struct intel_digital_port *dig_port, bool is_legacy)
 		 "%c/TC#%d", port_name(port), tc_port + 1);
 
 	mutex_init(&dig_port->tc_lock);
+	INIT_DELAYED_WORK(&dig_port->tc_disconnect_phy_work, intel_tc_port_disconnect_phy_work);
 	dig_port->tc_legacy_port = is_legacy;
 	dig_port->tc_mode = TC_PORT_DISCONNECTED;
 	dig_port->tc_link_refcount = 0;
