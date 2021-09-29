@@ -1413,7 +1413,6 @@ struct sighand_struct *__lock_task_sighand(struct task_struct *tsk,
 
 	return sighand;
 }
-EXPORT_SYMBOL_GPL(__lock_task_sighand);
 
 #ifdef CONFIG_LOCKDEP
 void lockdep_assert_task_sighand_held(struct task_struct *task)
