@@ -53,14 +53,6 @@ void rtw_hal_get_hwreg(struct adapter *adapt, u8 variable, u8 *val)
 		adapt->HalFunc.GetHwRegHandler(adapt, variable, val);
 }
 
-u8 rtw_hal_get_def_var(struct adapter *adapt,
-		       enum hal_def_variable var, void *val)
-{
-	if (adapt->HalFunc.GetHalDefVarHandler)
-		return adapt->HalFunc.GetHalDefVarHandler(adapt, var, val);
-	return _FAIL;
-}
-
 u32 rtw_hal_inirp_init(struct adapter *adapt)
 {
 	u32 rst = _FAIL;

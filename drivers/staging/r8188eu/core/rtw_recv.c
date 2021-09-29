@@ -1114,7 +1114,7 @@ static int validate_recv_frame(struct adapter *adapter, struct recv_frame *precv
 	pattrib->order = GetOrder(ptr);
 
 	/* Dump rx packets */
-	rtw_hal_get_def_var(adapter, HAL_DEF_DBG_DUMP_RXPKT, &(bDumpRxPkt));
+	GetHalDefVar8188EUsb(adapter, HAL_DEF_DBG_DUMP_RXPKT, &bDumpRxPkt);
 	if (bDumpRxPkt == 1) {/* dump all rx packets */
 		int i;
 		DBG_88E("#############################\n");

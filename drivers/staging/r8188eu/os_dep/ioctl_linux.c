@@ -4082,7 +4082,7 @@ static int rtw_dbg_port(struct net_device *dev,
 				u32 odm_flag;
 
 				if (0xf == extra_arg) {
-					rtw_hal_get_def_var(padapter, HAL_DEF_DBG_DM_FUNC, &odm_flag);
+					GetHalDefVar8188EUsb(padapter, HAL_DEF_DBG_DM_FUNC, &odm_flag);
 					DBG_88E(" === DMFlag(0x%08x) ===\n", odm_flag);
 					DBG_88E("extra_arg = 0  - disable all dynamic func\n");
 					DBG_88E("extra_arg = 1  - disable DIG- BIT(0)\n");
@@ -4098,7 +4098,7 @@ static int rtw_dbg_port(struct net_device *dev,
 						extra_arg = 3  - turn on all dynamic func
 					*/
 					SetHalDefVar8188EUsb(padapter, HAL_DEF_DBG_DM_FUNC, &extra_arg);
-					rtw_hal_get_def_var(padapter, HAL_DEF_DBG_DM_FUNC, &odm_flag);
+					GetHalDefVar8188EUsb(padapter, HAL_DEF_DBG_DM_FUNC, &odm_flag);
 					DBG_88E(" === DMFlag(0x%08x) ===\n", odm_flag);
 				}
 			}
