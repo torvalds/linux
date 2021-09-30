@@ -267,7 +267,7 @@ retry:
 	}
 
 	if (needs_recompute)
-		return I915_DISPLAY_CONFIG_RETRY;
+		return -EAGAIN;
 
 	return ret;
 }

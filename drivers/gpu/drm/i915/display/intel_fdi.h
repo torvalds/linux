@@ -12,7 +12,6 @@ struct intel_crtc;
 struct intel_crtc_state;
 struct intel_encoder;
 
-#define I915_DISPLAY_CONFIG_RETRY 1
 int intel_fdi_link_freq(struct drm_i915_private *i915,
 			const struct intel_crtc_state *pipe_config);
 int ilk_fdi_compute_config(struct intel_crtc *intel_crtc,
