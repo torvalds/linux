@@ -99,9 +99,11 @@
 			no-map;
 		};
 
-		smem_mem: memory@86000000 {
+		smem@86000000 {
+			compatible = "qcom,smem";
 			reg = <0x0 0x86000000 0 0x200000>;
 			no-map;
+			hwlocks = <&tcsr_mutex 3>;
 		};
 
 		tz_mem: memory@86200000 {
@@ -938,12 +940,6 @@
 		compatible = "qcom,tcsr-mutex";
 		syscon = <&tcsr_mutex_regs 0 0x1000>;
 		#hwlock-cells = <1>;
-	};
-
-	smem {
-		compatible = "qcom,smem";
-		memory-region = <&smem_mem>;
-		hwlocks = <&tcsr_mutex 3>;
 	};
 
 	smp2p-cdsp {
