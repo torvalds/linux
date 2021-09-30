@@ -60,29 +60,6 @@ void machine_kexec_cleanup(struct kimage *kimage)
 	/* Empty routine needed to avoid build errors. */
 }
 
-int machine_kexec_post_load(struct kimage *kimage)
-{
-	void *reloc_code = page_to_virt(kimage->control_code_page);
-
-	memcpy(reloc_code, arm64_relocate_new_kernel,
-	       arm64_relocate_new_kernel_size);
-	kimage->arch.kern_reloc = __pa(reloc_code);
-	kexec_image_info(kimage);
-
-	/*
-	 * For execution with the MMU off, reloc_code needs to be cleaned to the
-	 * PoC and invalidated from the I-cache.
-	 */
-	dcache_clean_inval_poc((unsigned long)reloc_code,
-			    (unsigned long)reloc_code +
-				    arm64_relocate_new_kernel_size);
-	icache_inval_pou((uintptr_t)reloc_code,
-				(uintptr_t)reloc_code +
-					arm64_relocate_new_kernel_size);
-
-	return 0;
-}
-
 /**
  * machine_kexec_prepare - Prepare for a kexec reboot.
  *
@@ -163,6 +140,32 @@ static void kexec_segment_flush(const struct kimage *kimage)
 	}
 }
 
+int machine_kexec_post_load(struct kimage *kimage)
+{
+	void *reloc_code = page_to_virt(kimage->control_code_page);
+
+	/* If in place flush new kernel image, else flush lists and buffers */
+	if (kimage->head & IND_DONE)
+		kexec_segment_flush(kimage);
+	else
+		kexec_list_flush(kimage);
+
+	memcpy(reloc_code, arm64_relocate_new_kernel,
+	       arm64_relocate_new_kernel_size);
+	kimage->arch.kern_reloc = __pa(reloc_code);
+	kexec_image_info(kimage);
+
+	/* Flush the reloc_code in preparation for its execution. */
+	dcache_clean_inval_poc((unsigned long)reloc_code,
+			       (unsigned long)reloc_code +
+			       arm64_relocate_new_kernel_size);
+	icache_inval_pou((uintptr_t)reloc_code,
+			 (uintptr_t)reloc_code +
+			 arm64_relocate_new_kernel_size);
+
+	return 0;
+}
+
 /**
  * machine_kexec - Do the kexec reboot.
  *
@@ -179,13 +182,6 @@ void machine_kexec(struct kimage *kimage)
 	BUG_ON(!in_kexec_crash && (stuck_cpus || (num_online_cpus() > 1)));
 	WARN(in_kexec_crash && (stuck_cpus || smp_crash_stop_failed()),
 		"Some CPUs may be stale, kdump will be unreliable.\n");
-
-	/* Flush the kimage list and its buffers. */
-	kexec_list_flush(kimage);
-
-	/* Flush the new image if already in place. */
-	if ((kimage != kexec_crash_image) && (kimage->head & IND_DONE))
-		kexec_segment_flush(kimage);
 
 	pr_info("Bye!\n");
 
@@ -260,8 +256,6 @@ void machine_crash_shutdown(struct pt_regs *regs)
 void arch_kexec_protect_crashkres(void)
 {
 	int i;
-
-	kexec_segment_flush(kexec_crash_image);
 
 	for (i = 0; i < kexec_crash_image->nr_segments; i++)
 		set_memory_valid(
