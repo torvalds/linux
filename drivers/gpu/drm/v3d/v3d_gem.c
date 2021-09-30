@@ -392,6 +392,9 @@ v3d_render_job_free(struct kref *ref)
 
 void v3d_job_cleanup(struct v3d_job *job)
 {
+	if (!job)
+		return;
+
 	drm_sched_job_cleanup(&job->base);
 	v3d_job_put(job);
 }
@@ -450,35 +453,48 @@ v3d_job_add_deps(struct drm_file *file_priv, struct v3d_job *job,
 
 static int
 v3d_job_init(struct v3d_dev *v3d, struct drm_file *file_priv,
-	     struct v3d_job *job, void (*free)(struct kref *ref),
+	     void **container, size_t size, void (*free)(struct kref *ref),
 	     u32 in_sync, enum v3d_queue queue)
 {
 	struct v3d_file_priv *v3d_priv = file_priv->driver_priv;
+	struct v3d_job *job;
 	int ret;
 
+	*container = kcalloc(1, size, GFP_KERNEL);
+	if (!*container) {
+		DRM_ERROR("Cannot allocate memory for v3d job.");
+		return -ENOMEM;
+	}
+
+	job = *container;
 	job->v3d = v3d;
 	job->free = free;
 
 	ret = pm_runtime_get_sync(v3d->drm.dev);
 	if (ret < 0)
-		return ret;
+		goto fail;
 
 	ret = drm_sched_job_init(&job->base, &v3d_priv->sched_entity[queue],
 				 v3d_priv);
 	if (ret)
-		goto fail;
+		goto fail_job;
 
 	ret = v3d_job_add_deps(file_priv, job, in_sync, 0);
 	if (ret)
-		goto fail_job;
+		goto fail_deps;
 
 	kref_init(&job->refcount);
 
 	return 0;
-fail_job:
+
+fail_deps:
 	drm_sched_job_cleanup(&job->base);
-fail:
+fail_job:
 	pm_runtime_put_autosuspend(v3d->drm.dev);
+fail:
+	kfree(*container);
+	*container = NULL;
+
 	return ret;
 }
 
@@ -541,7 +557,7 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 	struct v3d_file_priv *v3d_priv = file_priv->driver_priv;
 	struct drm_v3d_submit_cl *args = data;
 	struct v3d_bin_job *bin = NULL;
-	struct v3d_render_job *render;
+	struct v3d_render_job *render = NULL;
 	struct v3d_job *clean_job = NULL;
 	struct v3d_job *last_job;
 	struct ww_acquire_ctx acquire_ctx;
@@ -558,35 +574,20 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	render = kcalloc(1, sizeof(*render), GFP_KERNEL);
-	if (!render)
-		return -ENOMEM;
+	ret = v3d_job_init(v3d, file_priv, (void *)&render, sizeof(*render),
+			   v3d_render_job_free, args->in_sync_rcl, V3D_RENDER);
+	if (ret)
+		goto fail;
 
 	render->start = args->rcl_start;
 	render->end = args->rcl_end;
 	INIT_LIST_HEAD(&render->unref_list);
 
-	ret = v3d_job_init(v3d, file_priv, &render->base,
-			   v3d_render_job_free, args->in_sync_rcl, V3D_RENDER);
-	if (ret) {
-		kfree(render);
-		return ret;
-	}
-
 	if (args->bcl_start != args->bcl_end) {
-		bin = kcalloc(1, sizeof(*bin), GFP_KERNEL);
-		if (!bin) {
-			v3d_job_cleanup(&render->base);
-			return -ENOMEM;
-		}
-
-		ret = v3d_job_init(v3d, file_priv, &bin->base,
+		ret = v3d_job_init(v3d, file_priv, (void *)&bin, sizeof(*bin),
 				   v3d_job_free, args->in_sync_bcl, V3D_BIN);
-		if (ret) {
-			v3d_job_cleanup(&render->base);
-			kfree(bin);
-			return ret;
-		}
+		if (ret)
+			goto fail;
 
 		bin->start = args->bcl_start;
 		bin->end = args->bcl_end;
@@ -597,18 +598,10 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 	}
 
 	if (args->flags & DRM_V3D_SUBMIT_CL_FLUSH_CACHE) {
-		clean_job = kcalloc(1, sizeof(*clean_job), GFP_KERNEL);
-		if (!clean_job) {
-			ret = -ENOMEM;
+		ret = v3d_job_init(v3d, file_priv, (void *)&clean_job, sizeof(*clean_job),
+				   v3d_job_free, 0, V3D_CACHE_CLEAN);
+		if (ret)
 			goto fail;
-		}
-
-		ret = v3d_job_init(v3d, file_priv, clean_job, v3d_job_free, 0, V3D_CACHE_CLEAN);
-		if (ret) {
-			kfree(clean_job);
-			clean_job = NULL;
-			goto fail;
-		}
 
 		last_job = clean_job;
 	} else {
@@ -681,11 +674,9 @@ fail_unreserve:
 	drm_gem_unlock_reservations(last_job->bo,
 				    last_job->bo_count, &acquire_ctx);
 fail:
-	if (bin)
-		v3d_job_cleanup(&bin->base);
-	v3d_job_cleanup(&render->base);
-	if (clean_job)
-		v3d_job_cleanup(clean_job);
+	v3d_job_cleanup((void *)bin);
+	v3d_job_cleanup((void *)render);
+	v3d_job_cleanup(clean_job);
 
 	return ret;
 }
@@ -705,28 +696,22 @@ v3d_submit_tfu_ioctl(struct drm_device *dev, void *data,
 {
 	struct v3d_dev *v3d = to_v3d_dev(dev);
 	struct drm_v3d_submit_tfu *args = data;
-	struct v3d_tfu_job *job;
+	struct v3d_tfu_job *job = NULL;
 	struct ww_acquire_ctx acquire_ctx;
 	int ret = 0;
 
 	trace_v3d_submit_tfu_ioctl(&v3d->drm, args->iia);
 
-	job = kcalloc(1, sizeof(*job), GFP_KERNEL);
-	if (!job)
-		return -ENOMEM;
-
-	ret = v3d_job_init(v3d, file_priv, &job->base,
+	ret = v3d_job_init(v3d, file_priv, (void *)&job, sizeof(*job),
 			   v3d_job_free, args->in_sync, V3D_TFU);
-	if (ret) {
-		kfree(job);
-		return ret;
-	}
+	if (ret)
+		goto fail;
 
 	job->base.bo = kcalloc(ARRAY_SIZE(args->bo_handles),
 			       sizeof(*job->base.bo), GFP_KERNEL);
 	if (!job->base.bo) {
-		v3d_job_cleanup(&job->base);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto fail;
 	}
 
 	job->args = *args;
@@ -773,7 +758,7 @@ v3d_submit_tfu_ioctl(struct drm_device *dev, void *data,
 	return 0;
 
 fail:
-	v3d_job_cleanup(&job->base);
+	v3d_job_cleanup((void *)job);
 
 	return ret;
 }
@@ -794,8 +779,8 @@ v3d_submit_csd_ioctl(struct drm_device *dev, void *data,
 	struct v3d_dev *v3d = to_v3d_dev(dev);
 	struct v3d_file_priv *v3d_priv = file_priv->driver_priv;
 	struct drm_v3d_submit_csd *args = data;
-	struct v3d_csd_job *job;
-	struct v3d_job *clean_job;
+	struct v3d_csd_job *job = NULL;
+	struct v3d_job *clean_job = NULL;
 	struct ww_acquire_ctx acquire_ctx;
 	int ret;
 
@@ -806,29 +791,15 @@ v3d_submit_csd_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	job = kcalloc(1, sizeof(*job), GFP_KERNEL);
-	if (!job)
-		return -ENOMEM;
-
-	ret = v3d_job_init(v3d, file_priv, &job->base,
+	ret = v3d_job_init(v3d, file_priv, (void *)&job, sizeof(*job),
 			   v3d_job_free, args->in_sync, V3D_CSD);
-	if (ret) {
-		kfree(job);
-		return ret;
-	}
+	if (ret)
+		goto fail;
 
-	clean_job = kcalloc(1, sizeof(*clean_job), GFP_KERNEL);
-	if (!clean_job) {
-		v3d_job_cleanup(&job->base);
-		return -ENOMEM;
-	}
-
-	ret = v3d_job_init(v3d, file_priv, clean_job, v3d_job_free, 0, V3D_CACHE_CLEAN);
-	if (ret) {
-		v3d_job_cleanup(&job->base);
-		kfree(clean_job);
-		return ret;
-	}
+	ret = v3d_job_init(v3d, file_priv, (void *)&clean_job, sizeof(*clean_job),
+			   v3d_job_free, 0, V3D_CACHE_CLEAN);
+	if (ret)
+		goto fail;
 
 	job->args = *args;
 
@@ -877,7 +848,7 @@ fail_unreserve:
 	drm_gem_unlock_reservations(clean_job->bo, clean_job->bo_count,
 				    &acquire_ctx);
 fail:
-	v3d_job_cleanup(&job->base);
+	v3d_job_cleanup((void *)job);
 	v3d_job_cleanup(clean_job);
 
 	return ret;
