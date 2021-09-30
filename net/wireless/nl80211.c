@@ -3670,14 +3670,16 @@ static int nl80211_send_iface(struct sk_buff *msg, u32 portid, u32 seq, int flag
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_ADHOC: {
-		const u8 *ssid_ie;
+		const struct element *ssid_elem;
+
 		if (!wdev->current_bss)
 			break;
 		rcu_read_lock();
-		ssid_ie = ieee80211_bss_get_ie(&wdev->current_bss->pub,
-					       WLAN_EID_SSID);
-		if (ssid_ie &&
-		    nla_put(msg, NL80211_ATTR_SSID, ssid_ie[1], ssid_ie + 2))
+		ssid_elem = ieee80211_bss_get_elem(&wdev->current_bss->pub,
+						   WLAN_EID_SSID);
+		if (ssid_elem &&
+		    nla_put(msg, NL80211_ATTR_SSID, ssid_elem->datalen,
+			    ssid_elem->data))
 			goto nla_put_failure_rcu_locked;
 		rcu_read_unlock();
 		break;
