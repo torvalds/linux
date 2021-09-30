@@ -2011,6 +2011,7 @@ static unsigned char dummy_mapping[PAGE_SIZE] __page_aligned_bss;
 static void xen_set_fixmap(unsigned idx, phys_addr_t phys, pgprot_t prot)
 {
 	pte_t pte;
+	unsigned long vaddr;
 
 	phys >>= PAGE_SHIFT;
 
@@ -2051,15 +2052,15 @@ static void xen_set_fixmap(unsigned idx, phys_addr_t phys, pgprot_t prot)
 		break;
 	}
 
-	__native_set_fixmap(idx, pte);
+	vaddr = __fix_to_virt(idx);
+	if (HYPERVISOR_update_va_mapping(vaddr, pte, UVMF_INVLPG))
+		BUG();
 
 #ifdef CONFIG_X86_VSYSCALL_EMULATION
 	/* Replicate changes to map the vsyscall page into the user
 	   pagetable vsyscall mapping. */
-	if (idx == VSYSCALL_PAGE) {
-		unsigned long vaddr = __fix_to_virt(idx);
+	if (idx == VSYSCALL_PAGE)
 		set_pte_vaddr_pud(level3_user_vsyscall, vaddr, pte);
-	}
 #endif
 }
 
