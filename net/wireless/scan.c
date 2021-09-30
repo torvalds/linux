@@ -1791,25 +1791,13 @@ cfg80211_bss_update(struct cfg80211_registered_device *rdev,
 	return NULL;
 }
 
-/*
- * Update RX channel information based on the available frame payload
- * information. This is mainly for the 2.4 GHz band where frames can be received
- * from neighboring channels and the Beacon frames use the DSSS Parameter Set
- * element to indicate the current (transmitting) channel, but this might also
- * be needed on other bands if RX frequency does not match with the actual
- * operating channel of a BSS.
- */
-static struct ieee80211_channel *
-cfg80211_get_bss_channel(struct wiphy *wiphy, const u8 *ie, size_t ielen,
-			 struct ieee80211_channel *channel,
-			 enum nl80211_bss_scan_width scan_width)
+int cfg80211_get_ies_channel_number(const u8 *ie, size_t ielen,
+				    enum nl80211_band band)
 {
 	const u8 *tmp;
-	u32 freq;
 	int channel_number = -1;
-	struct ieee80211_channel *alt_channel;
 
-	if (channel->band == NL80211_BAND_S1GHZ) {
+	if (band == NL80211_BAND_S1GHZ) {
 		tmp = cfg80211_find_ie(WLAN_EID_S1G_OPERATION, ie, ielen);
 		if (tmp && tmp[1] >= sizeof(struct ieee80211_s1g_oper_ie)) {
 			struct ieee80211_s1g_oper_ie *s1gop = (void *)(tmp + 2);
@@ -1829,6 +1817,29 @@ cfg80211_get_bss_channel(struct wiphy *wiphy, const u8 *ie, size_t ielen,
 			}
 		}
 	}
+
+	return channel_number;
+}
+EXPORT_SYMBOL(cfg80211_get_ies_channel_number);
+
+/*
+ * Update RX channel information based on the available frame payload
+ * information. This is mainly for the 2.4 GHz band where frames can be received
+ * from neighboring channels and the Beacon frames use the DSSS Parameter Set
+ * element to indicate the current (transmitting) channel, but this might also
+ * be needed on other bands if RX frequency does not match with the actual
+ * operating channel of a BSS.
+ */
+static struct ieee80211_channel *
+cfg80211_get_bss_channel(struct wiphy *wiphy, const u8 *ie, size_t ielen,
+			 struct ieee80211_channel *channel,
+			 enum nl80211_bss_scan_width scan_width)
+{
+	u32 freq;
+	int channel_number;
+	struct ieee80211_channel *alt_channel;
+
+	channel_number = cfg80211_get_ies_channel_number(ie, ielen, channel->band);
 
 	if (channel_number < 0) {
 		/* No channel information in frame payload */
