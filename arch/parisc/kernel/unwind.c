@@ -302,7 +302,8 @@ static void unwind_frame_regs(struct unwind_frame_info *info)
 				break;
 			}
 
-			if (get_user(tmp, (unsigned long *)(info->prev_sp - RP_OFFSET))) 
+			if (copy_from_kernel_nofault(&tmp,
+			    (void *)info->prev_sp - RP_OFFSET, sizeof(tmp)))
 				break;
 			info->prev_ip = tmp;
 			sp = info->prev_sp;
