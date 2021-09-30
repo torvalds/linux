@@ -129,27 +129,35 @@ static void wait_for_cmds_dispatched_to_panel(struct intel_encoder *encoder)
 	}
 }
 
-static bool add_payld_to_queue(struct intel_dsi_host *host, const u8 *data,
-			       u32 len)
+static int dsi_send_pkt_payld(struct intel_dsi_host *host,
+			      const struct mipi_dsi_packet *packet)
 {
 	struct intel_dsi *intel_dsi = host->intel_dsi;
-	struct drm_i915_private *dev_priv = to_i915(intel_dsi->base.base.dev);
+	struct drm_i915_private *i915 = to_i915(intel_dsi->base.base.dev);
 	enum transcoder dsi_trans = dsi_port_to_transcoder(host->port);
+	const u8 *data = packet->payload;
+	u32 len = packet->payload_length;
 	int i, j;
+
+	/* payload queue can accept *256 bytes*, check limit */
+	if (len > MAX_PLOAD_CREDIT * 4) {
+		drm_err(&i915->drm, "payload size exceeds max queue limit\n");
+		return -EINVAL;
+	}
 
 	for (i = 0; i < len; i += 4) {
 		u32 tmp = 0;
 
-		if (!wait_for_payload_credits(dev_priv, dsi_trans, 1))
-			return false;
+		if (!wait_for_payload_credits(i915, dsi_trans, 1))
+			return -EBUSY;
 
 		for (j = 0; j < min_t(u32, len - i, 4); j++)
 			tmp |= *data++ << 8 * j;
 
-		intel_de_write(dev_priv, DSI_CMD_TXPYLD(dsi_trans), tmp);
+		intel_de_write(i915, DSI_CMD_TXPYLD(dsi_trans), tmp);
 	}
 
-	return true;
+	return 0;
 }
 
 static int dsi_send_pkt_hdr(struct intel_dsi_host *host,
@@ -183,27 +191,6 @@ static int dsi_send_pkt_hdr(struct intel_dsi_host *host,
 	tmp |= (packet->header[1] << PARAM_WC_LOWER_SHIFT);
 	tmp |= (packet->header[2] << PARAM_WC_UPPER_SHIFT);
 	intel_de_write(dev_priv, DSI_CMD_TXHDR(dsi_trans), tmp);
-
-	return 0;
-}
-
-static int dsi_send_pkt_payld(struct intel_dsi_host *host,
-			      const struct mipi_dsi_packet *packet)
-{
-	struct intel_dsi *intel_dsi = host->intel_dsi;
-	struct drm_i915_private *i915 = to_i915(intel_dsi->base.base.dev);
-
-	/* payload queue can accept *256 bytes*, check limit */
-	if (packet->payload_length > MAX_PLOAD_CREDIT * 4) {
-		drm_err(&i915->drm, "payload size exceeds max queue limit\n");
-		return -1;
-	}
-
-	/* load data into command payload queue */
-	if (!add_payld_to_queue(host, packet->payload, packet->payload_length)) {
-		drm_err(&i915->drm, "adding payload to queue failed\n");
-		return -1;
-	}
 
 	return 0;
 }
