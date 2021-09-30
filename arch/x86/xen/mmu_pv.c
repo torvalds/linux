@@ -241,9 +241,11 @@ static void xen_set_pmd(pmd_t *ptr, pmd_t val)
  * Associate a virtual page frame with a given physical page frame
  * and protection flags for that frame.
  */
-void set_pte_mfn(unsigned long vaddr, unsigned long mfn, pgprot_t flags)
+void __init set_pte_mfn(unsigned long vaddr, unsigned long mfn, pgprot_t flags)
 {
-	set_pte_vaddr(vaddr, mfn_pte(mfn, flags));
+	if (HYPERVISOR_update_va_mapping(vaddr, mfn_pte(mfn, flags),
+					 UVMF_INVLPG))
+		BUG();
 }
 
 static bool xen_batched_set_pte(pte_t *ptep, pte_t pteval)
