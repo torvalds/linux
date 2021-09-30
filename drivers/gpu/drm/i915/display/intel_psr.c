@@ -1563,28 +1563,6 @@ static void intel_psr2_sel_fetch_pipe_alignment(const struct intel_crtc_state *c
 }
 
 /*
- * FIXME: Not sure why but when moving the cursor fast it causes some artifacts
- * of the cursor to be left in the cursor path, adding some pixels above the
- * cursor to the damaged area fixes the issue.
- */
-static void cursor_area_workaround(const struct intel_plane_state *new_plane_state,
-				   struct drm_rect *damaged_area,
-				   struct drm_rect *pipe_clip)
-{
-	const struct intel_plane *plane = to_intel_plane(new_plane_state->uapi.plane);
-	int height;
-
-	if (plane->id != PLANE_CURSOR)
-		return;
-
-	height = drm_rect_height(&new_plane_state->uapi.dst) / 2;
-	damaged_area->y1 -=  height;
-	damaged_area->y1 = max(damaged_area->y1, 0);
-
-	clip_area_update(pipe_clip, damaged_area);
-}
-
-/*
  * TODO: Not clear how to handle planes with negative position,
  * also planes are not updated if they have a negative X
  * position so for now doing a full update in this cases
@@ -1684,9 +1662,6 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 				damaged_area.y2 = new_plane_state->uapi.dst.y2;
 				clip_area_update(&pipe_clip, &damaged_area);
 			}
-
-			cursor_area_workaround(new_plane_state, &damaged_area,
-					       &pipe_clip);
 			continue;
 		} else if (new_plane_state->uapi.alpha != old_plane_state->uapi.alpha) {
 			/* If alpha changed mark the whole plane area as damaged */
@@ -2120,20 +2095,16 @@ void intel_psr_invalidate(struct drm_i915_private *dev_priv,
 /*
  * When we will be completely rely on PSR2 S/W tracking in future,
  * intel_psr_flush() will invalidate and flush the PSR for ORIGIN_FLIP
- * event also therefore tgl_dc3co_flush() require to be changed
+ * event also therefore tgl_dc3co_flush_locked() require to be changed
  * accordingly in future.
  */
 static void
-tgl_dc3co_flush(struct intel_dp *intel_dp, unsigned int frontbuffer_bits,
-		enum fb_op_origin origin)
+tgl_dc3co_flush_locked(struct intel_dp *intel_dp, unsigned int frontbuffer_bits,
+		       enum fb_op_origin origin)
 {
-	mutex_lock(&intel_dp->psr.lock);
-
-	if (!intel_dp->psr.dc3co_exitline)
-		goto unlock;
-
-	if (!intel_dp->psr.psr2_enabled || !intel_dp->psr.active)
-		goto unlock;
+	if (!intel_dp->psr.dc3co_exitline || !intel_dp->psr.psr2_enabled ||
+	    !intel_dp->psr.active)
+		return;
 
 	/*
 	 * At every frontbuffer flush flip event modified delay of delayed work,
@@ -2141,14 +2112,11 @@ tgl_dc3co_flush(struct intel_dp *intel_dp, unsigned int frontbuffer_bits,
 	 */
 	if (!(frontbuffer_bits &
 	    INTEL_FRONTBUFFER_ALL_MASK(intel_dp->psr.pipe)))
-		goto unlock;
+		return;
 
 	tgl_psr2_enable_dc3co(intel_dp);
 	mod_delayed_work(system_wq, &intel_dp->psr.dc3co_work,
 			 intel_dp->psr.dc3co_exit_delay);
-
-unlock:
-	mutex_unlock(&intel_dp->psr.lock);
 }
 
 /**
@@ -2173,11 +2141,6 @@ void intel_psr_flush(struct drm_i915_private *dev_priv,
 		unsigned int pipe_frontbuffer_bits = frontbuffer_bits;
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
-		if (origin == ORIGIN_FLIP) {
-			tgl_dc3co_flush(intel_dp, frontbuffer_bits, origin);
-			continue;
-		}
-
 		mutex_lock(&intel_dp->psr.lock);
 		if (!intel_dp->psr.enabled) {
 			mutex_unlock(&intel_dp->psr.lock);
@@ -2194,6 +2157,14 @@ void intel_psr_flush(struct drm_i915_private *dev_priv,
 		 * intel_psr_resume() is called.
 		 */
 		if (intel_dp->psr.paused) {
+			mutex_unlock(&intel_dp->psr.lock);
+			continue;
+		}
+
+		if (origin == ORIGIN_FLIP ||
+		    (origin == ORIGIN_CURSOR_UPDATE &&
+		     !intel_dp->psr.psr2_sel_fetch_enabled)) {
+			tgl_dc3co_flush_locked(intel_dp, frontbuffer_bits, origin);
 			mutex_unlock(&intel_dp->psr.lock);
 			continue;
 		}

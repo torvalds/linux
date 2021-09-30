@@ -1200,7 +1200,7 @@ void intel_fbc_invalidate(struct drm_i915_private *dev_priv,
 	if (!HAS_FBC(dev_priv))
 		return;
 
-	if (origin == ORIGIN_FLIP)
+	if (origin == ORIGIN_FLIP || origin == ORIGIN_CURSOR_UPDATE)
 		return;
 
 	mutex_lock(&fbc->lock);
@@ -1225,7 +1225,7 @@ void intel_fbc_flush(struct drm_i915_private *dev_priv,
 
 	fbc->busy_bits &= ~frontbuffer_bits;
 
-	if (origin == ORIGIN_FLIP)
+	if (origin == ORIGIN_FLIP || origin == ORIGIN_CURSOR_UPDATE)
 		goto out;
 
 	if (!fbc->busy_bits && fbc->crtc &&
