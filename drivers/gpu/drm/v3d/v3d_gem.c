@@ -454,11 +454,12 @@ v3d_job_add_deps(struct drm_file *file_priv, struct v3d_job *job,
 static int
 v3d_job_init(struct v3d_dev *v3d, struct drm_file *file_priv,
 	     void **container, size_t size, void (*free)(struct kref *ref),
-	     u32 in_sync, enum v3d_queue queue)
+	     u32 in_sync, struct v3d_submit_ext *se, enum v3d_queue queue)
 {
 	struct v3d_file_priv *v3d_priv = file_priv->driver_priv;
 	struct v3d_job *job;
-	int ret;
+	bool has_multisync = se && (se->flags & DRM_V3D_EXT_ID_MULTI_SYNC);
+	int ret, i;
 
 	*container = kcalloc(1, size, GFP_KERNEL);
 	if (!*container) {
@@ -479,9 +480,28 @@ v3d_job_init(struct v3d_dev *v3d, struct drm_file *file_priv,
 	if (ret)
 		goto fail_job;
 
-	ret = v3d_job_add_deps(file_priv, job, in_sync, 0);
-	if (ret)
-		goto fail_deps;
+	if (has_multisync) {
+		if (se->in_sync_count && se->wait_stage == queue) {
+			struct drm_v3d_sem __user *handle = u64_to_user_ptr(se->in_syncs);
+
+			for (i = 0; i < se->in_sync_count; i++) {
+				struct drm_v3d_sem in;
+
+				ret = copy_from_user(&in, handle++, sizeof(in));
+				if (ret) {
+					DRM_DEBUG("Failed to copy wait dep handle.\n");
+					goto fail_deps;
+				}
+				ret = v3d_job_add_deps(file_priv, job, in.handle, 0);
+				if (ret)
+					goto fail_deps;
+			}
+		}
+	} else {
+		ret = v3d_job_add_deps(file_priv, job, in_sync, 0);
+		if (ret)
+			goto fail_deps;
+	}
 
 	kref_init(&job->refcount);
 
@@ -516,9 +536,11 @@ v3d_attach_fences_and_unlock_reservation(struct drm_file *file_priv,
 					 struct v3d_job *job,
 					 struct ww_acquire_ctx *acquire_ctx,
 					 u32 out_sync,
+					 struct v3d_submit_ext *se,
 					 struct dma_fence *done_fence)
 {
 	struct drm_syncobj *sync_out;
+	bool has_multisync = se && (se->flags & DRM_V3D_EXT_ID_MULTI_SYNC);
 	int i;
 
 	for (i = 0; i < job->bo_count; i++) {
@@ -530,20 +552,130 @@ v3d_attach_fences_and_unlock_reservation(struct drm_file *file_priv,
 	drm_gem_unlock_reservations(job->bo, job->bo_count, acquire_ctx);
 
 	/* Update the return sync object for the job */
-	sync_out = drm_syncobj_find(file_priv, out_sync);
-	if (sync_out) {
-		drm_syncobj_replace_fence(sync_out, done_fence);
-		drm_syncobj_put(sync_out);
+	/* If it only supports a single signal semaphore*/
+	if (!has_multisync) {
+		sync_out = drm_syncobj_find(file_priv, out_sync);
+		if (sync_out) {
+			drm_syncobj_replace_fence(sync_out, done_fence);
+			drm_syncobj_put(sync_out);
+		}
+		return;
 	}
+
+	/* If multiple semaphores extension is supported */
+	if (se->out_sync_count) {
+		for (i = 0; i < se->out_sync_count; i++) {
+			drm_syncobj_replace_fence(se->out_syncs[i].syncobj,
+						  done_fence);
+			drm_syncobj_put(se->out_syncs[i].syncobj);
+		}
+		kvfree(se->out_syncs);
+	}
+}
+
+static void
+v3d_put_multisync_post_deps(struct v3d_submit_ext *se)
+{
+	unsigned int i;
+
+	if (!(se && se->out_sync_count))
+		return;
+
+	for (i = 0; i < se->out_sync_count; i++)
+		drm_syncobj_put(se->out_syncs[i].syncobj);
+	kvfree(se->out_syncs);
+}
+
+static int
+v3d_get_multisync_post_deps(struct drm_file *file_priv,
+			    struct v3d_submit_ext *se,
+			    u32 count, u64 handles)
+{
+	struct drm_v3d_sem __user *post_deps;
+	int i, ret;
+
+	if (!count)
+		return 0;
+
+	se->out_syncs = (struct v3d_submit_outsync *)
+			kvmalloc_array(count,
+				       sizeof(struct v3d_submit_outsync),
+				       GFP_KERNEL);
+	if (!se->out_syncs)
+		return -ENOMEM;
+
+	post_deps = u64_to_user_ptr(handles);
+
+	for (i = 0; i < count; i++) {
+		struct drm_v3d_sem out;
+
+		ret = copy_from_user(&out, post_deps++, sizeof(out));
+		if (ret) {
+			DRM_DEBUG("Failed to copy post dep handles\n");
+			goto fail;
+		}
+
+		se->out_syncs[i].syncobj = drm_syncobj_find(file_priv,
+							    out.handle);
+		if (!se->out_syncs[i].syncobj) {
+			ret = -EINVAL;
+			goto fail;
+		}
+	}
+	se->out_sync_count = count;
+
+	return 0;
+
+fail:
+	for (i--; i >= 0; i--)
+		drm_syncobj_put(se->out_syncs[i].syncobj);
+	kvfree(se->out_syncs);
+
+	return ret;
+}
+
+/* Get data for multiple binary semaphores synchronization. Parse syncobj
+ * to be signaled when job completes (out_sync).
+ */
+static int
+v3d_get_multisync_submit_deps(struct drm_file *file_priv,
+			      struct drm_v3d_extension __user *ext,
+			      void *data)
+{
+	struct drm_v3d_multi_sync multisync;
+	struct v3d_submit_ext *se = data;
+	int ret;
+
+	ret = copy_from_user(&multisync, ext, sizeof(multisync));
+	if (ret)
+		return ret;
+
+	if (multisync.pad)
+		return -EINVAL;
+
+	ret = v3d_get_multisync_post_deps(file_priv, data, multisync.out_sync_count,
+					  multisync.out_syncs);
+	if (ret)
+		return ret;
+
+	se->in_sync_count = multisync.in_sync_count;
+	se->in_syncs = multisync.in_syncs;
+	se->flags |= DRM_V3D_EXT_ID_MULTI_SYNC;
+	se->wait_stage = multisync.wait_stage;
+
+	return 0;
 }
 
 /* Whenever userspace sets ioctl extensions, v3d_get_extensions parses data
  * according to the extension id (name).
  */
 static int
-v3d_get_extensions(struct drm_file *file_priv, u64 ext_handles)
+v3d_get_extensions(struct drm_file *file_priv,
+		   u64 ext_handles,
+		   void *data)
 {
 	struct drm_v3d_extension __user *user_ext;
+	int ret;
 
 	user_ext = u64_to_user_ptr(ext_handles);
 	while (user_ext) {
@@ -555,7 +687,11 @@ v3d_get_extensions(struct drm_file *file_priv, u64 ext_handles)
 		}
 
 		switch (ext.id) {
-		case 0:
+		case DRM_V3D_EXT_ID_MULTI_SYNC:
+			ret = v3d_get_multisync_submit_deps(file_priv, user_ext, data);
+			if (ret)
+				return ret;
+			break;
 		default:
 			DRM_DEBUG_DRIVER("Unknown extension id: %d\n", ext.id);
 			return -EINVAL;
@@ -586,6 +722,7 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 	struct v3d_dev *v3d = to_v3d_dev(dev);
 	struct v3d_file_priv *v3d_priv = file_priv->driver_priv;
 	struct drm_v3d_submit_cl *args = data;
+	struct v3d_submit_ext se = {0};
 	struct v3d_bin_job *bin = NULL;
 	struct v3d_render_job *render = NULL;
 	struct v3d_job *clean_job = NULL;
@@ -606,7 +743,7 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 	}
 
 	if (args->flags & DRM_V3D_SUBMIT_EXTENSION) {
-		ret = v3d_get_extensions(file_priv, args->extensions);
+		ret = v3d_get_extensions(file_priv, args->extensions, &se);
 		if (ret) {
 			DRM_DEBUG("Failed to get extensions.\n");
 			return ret;
@@ -614,7 +751,7 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 	}
 
 	ret = v3d_job_init(v3d, file_priv, (void *)&render, sizeof(*render),
-			   v3d_render_job_free, args->in_sync_rcl, V3D_RENDER);
+			   v3d_render_job_free, args->in_sync_rcl, &se, V3D_RENDER);
 	if (ret)
 		goto fail;
 
@@ -624,7 +761,7 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 
 	if (args->bcl_start != args->bcl_end) {
 		ret = v3d_job_init(v3d, file_priv, (void *)&bin, sizeof(*bin),
-				   v3d_job_free, args->in_sync_bcl, V3D_BIN);
+				   v3d_job_free, args->in_sync_bcl, &se, V3D_BIN);
 		if (ret)
 			goto fail;
 
@@ -638,7 +775,7 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 
 	if (args->flags & DRM_V3D_SUBMIT_CL_FLUSH_CACHE) {
 		ret = v3d_job_init(v3d, file_priv, (void *)&clean_job, sizeof(*clean_job),
-				   v3d_job_free, 0, V3D_CACHE_CLEAN);
+				   v3d_job_free, 0, 0, V3D_CACHE_CLEAN);
 		if (ret)
 			goto fail;
 
@@ -698,6 +835,7 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 						 last_job,
 						 &acquire_ctx,
 						 args->out_sync,
+						 &se,
 						 last_job->done_fence);
 
 	if (bin)
@@ -716,6 +854,7 @@ fail:
 	v3d_job_cleanup((void *)bin);
 	v3d_job_cleanup((void *)render);
 	v3d_job_cleanup(clean_job);
+	v3d_put_multisync_post_deps(&se);
 
 	return ret;
 }
@@ -735,6 +874,7 @@ v3d_submit_tfu_ioctl(struct drm_device *dev, void *data,
 {
 	struct v3d_dev *v3d = to_v3d_dev(dev);
 	struct drm_v3d_submit_tfu *args = data;
+	struct v3d_submit_ext se = {0};
 	struct v3d_tfu_job *job = NULL;
 	struct ww_acquire_ctx acquire_ctx;
 	int ret = 0;
@@ -747,7 +887,7 @@ v3d_submit_tfu_ioctl(struct drm_device *dev, void *data,
 	}
 
 	if (args->flags & DRM_V3D_SUBMIT_EXTENSION) {
-		ret = v3d_get_extensions(file_priv, args->extensions);
+		ret = v3d_get_extensions(file_priv, args->extensions, &se);
 		if (ret) {
 			DRM_DEBUG("Failed to get extensions.\n");
 			return ret;
@@ -755,7 +895,7 @@ v3d_submit_tfu_ioctl(struct drm_device *dev, void *data,
 	}
 
 	ret = v3d_job_init(v3d, file_priv, (void *)&job, sizeof(*job),
-			   v3d_job_free, args->in_sync, V3D_TFU);
+			   v3d_job_free, args->in_sync, &se, V3D_TFU);
 	if (ret)
 		goto fail;
 
@@ -803,6 +943,7 @@ v3d_submit_tfu_ioctl(struct drm_device *dev, void *data,
 	v3d_attach_fences_and_unlock_reservation(file_priv,
 						 &job->base, &acquire_ctx,
 						 args->out_sync,
+						 &se,
 						 job->base.done_fence);
 
 	v3d_job_put(&job->base);
@@ -811,6 +952,7 @@ v3d_submit_tfu_ioctl(struct drm_device *dev, void *data,
 
 fail:
 	v3d_job_cleanup((void *)job);
+	v3d_put_multisync_post_deps(&se);
 
 	return ret;
 }
@@ -831,6 +973,7 @@ v3d_submit_csd_ioctl(struct drm_device *dev, void *data,
 	struct v3d_dev *v3d = to_v3d_dev(dev);
 	struct v3d_file_priv *v3d_priv = file_priv->driver_priv;
 	struct drm_v3d_submit_csd *args = data;
+	struct v3d_submit_ext se = {0};
 	struct v3d_csd_job *job = NULL;
 	struct v3d_job *clean_job = NULL;
 	struct ww_acquire_ctx acquire_ctx;
@@ -852,7 +995,7 @@ v3d_submit_csd_ioctl(struct drm_device *dev, void *data,
 	}
 
 	if (args->flags & DRM_V3D_SUBMIT_EXTENSION) {
-		ret = v3d_get_extensions(file_priv, args->extensions);
+		ret = v3d_get_extensions(file_priv, args->extensions, &se);
 		if (ret) {
 			DRM_DEBUG("Failed to get extensions.\n");
 			return ret;
@@ -860,12 +1003,12 @@ v3d_submit_csd_ioctl(struct drm_device *dev, void *data,
 	}
 
 	ret = v3d_job_init(v3d, file_priv, (void *)&job, sizeof(*job),
-			   v3d_job_free, args->in_sync, V3D_CSD);
+			   v3d_job_free, args->in_sync, &se, V3D_CSD);
 	if (ret)
 		goto fail;
 
 	ret = v3d_job_init(v3d, file_priv, (void *)&clean_job, sizeof(*clean_job),
-			   v3d_job_free, 0, V3D_CACHE_CLEAN);
+			   v3d_job_free, 0, 0, V3D_CACHE_CLEAN);
 	if (ret)
 		goto fail;
 
@@ -904,6 +1047,7 @@ v3d_submit_csd_ioctl(struct drm_device *dev, void *data,
 						 clean_job,
 						 &acquire_ctx,
 						 args->out_sync,
+						 &se,
 						 clean_job->done_fence);
 
 	v3d_job_put(&job->base);
@@ -918,6 +1062,7 @@ fail_unreserve:
 fail:
 	v3d_job_cleanup((void *)job);
 	v3d_job_cleanup(clean_job);
+	v3d_put_multisync_post_deps(&se);
 
 	return ret;
 }
