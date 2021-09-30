@@ -911,7 +911,7 @@ static void gfs2_glock_poke(struct gfs2_glock *gl)
 	struct gfs2_holder gh;
 	int error;
 
-	gfs2_holder_init(gl, LM_ST_SHARED, flags, &gh);
+	__gfs2_holder_init(gl, LM_ST_SHARED, flags, &gh, _RET_IP_);
 	error = gfs2_glock_nq(&gh);
 	if (!error)
 		gfs2_glock_dq(&gh);
@@ -1208,12 +1208,12 @@ out:
  *
  */
 
-void gfs2_holder_init(struct gfs2_glock *gl, unsigned int state, u16 flags,
-		      struct gfs2_holder *gh)
+void __gfs2_holder_init(struct gfs2_glock *gl, unsigned int state, u16 flags,
+			struct gfs2_holder *gh, unsigned long ip)
 {
 	INIT_LIST_HEAD(&gh->gh_list);
 	gh->gh_gl = gl;
-	gh->gh_ip = _RET_IP_;
+	gh->gh_ip = ip;
 	gh->gh_owner_pid = get_pid(task_pid(current));
 	gh->gh_state = state;
 	gh->gh_flags = flags;

@@ -190,8 +190,15 @@ extern int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 extern void gfs2_glock_hold(struct gfs2_glock *gl);
 extern void gfs2_glock_put(struct gfs2_glock *gl);
 extern void gfs2_glock_queue_put(struct gfs2_glock *gl);
-extern void gfs2_holder_init(struct gfs2_glock *gl, unsigned int state,
-			     u16 flags, struct gfs2_holder *gh);
+
+extern void __gfs2_holder_init(struct gfs2_glock *gl, unsigned int state,
+			       u16 flags, struct gfs2_holder *gh,
+			       unsigned long ip);
+static inline void gfs2_holder_init(struct gfs2_glock *gl, unsigned int state,
+				    u16 flags, struct gfs2_holder *gh) {
+	__gfs2_holder_init(gl, state, flags, gh, _RET_IP_);
+}
+
 extern void gfs2_holder_reinit(unsigned int state, u16 flags,
 			       struct gfs2_holder *gh);
 extern void gfs2_holder_uninit(struct gfs2_holder *gh);
@@ -241,7 +248,7 @@ static inline int gfs2_glock_nq_init(struct gfs2_glock *gl,
 {
 	int error;
 
-	gfs2_holder_init(gl, state, flags, gh);
+	__gfs2_holder_init(gl, state, flags, gh, _RET_IP_);
 
 	error = gfs2_glock_nq(gh);
 	if (error)
