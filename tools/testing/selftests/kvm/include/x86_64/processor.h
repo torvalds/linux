@@ -312,37 +312,37 @@ static inline void set_xmm(int n, unsigned long val)
 	}
 }
 
-typedef unsigned long v1di __attribute__ ((vector_size (8)));
+#define GET_XMM(__xmm)							\
+({									\
+	unsigned long __val;						\
+	asm volatile("movq %%"#__xmm", %0" : "=r"(__val) : : #__xmm);	\
+	__val;								\
+})
+
 static inline unsigned long get_xmm(int n)
 {
 	assert(n >= 0 && n <= 7);
 
-	register v1di xmm0 __asm__("%xmm0");
-	register v1di xmm1 __asm__("%xmm1");
-	register v1di xmm2 __asm__("%xmm2");
-	register v1di xmm3 __asm__("%xmm3");
-	register v1di xmm4 __asm__("%xmm4");
-	register v1di xmm5 __asm__("%xmm5");
-	register v1di xmm6 __asm__("%xmm6");
-	register v1di xmm7 __asm__("%xmm7");
 	switch (n) {
 	case 0:
-		return (unsigned long)xmm0;
+		return GET_XMM(xmm0);
 	case 1:
-		return (unsigned long)xmm1;
+		return GET_XMM(xmm1);
 	case 2:
-		return (unsigned long)xmm2;
+		return GET_XMM(xmm2);
 	case 3:
-		return (unsigned long)xmm3;
+		return GET_XMM(xmm3);
 	case 4:
-		return (unsigned long)xmm4;
+		return GET_XMM(xmm4);
 	case 5:
-		return (unsigned long)xmm5;
+		return GET_XMM(xmm5);
 	case 6:
-		return (unsigned long)xmm6;
+		return GET_XMM(xmm6);
 	case 7:
-		return (unsigned long)xmm7;
+		return GET_XMM(xmm7);
 	}
+
+	/* never reached */
 	return 0;
 }
 

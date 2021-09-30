@@ -758,7 +758,6 @@ struct hnae3_tc_info {
 	u8 prio_tc[HNAE3_MAX_USER_PRIO]; /* TC indexed by prio */
 	u16 tqp_count[HNAE3_MAX_TC];
 	u16 tqp_offset[HNAE3_MAX_TC];
-	unsigned long tc_en; /* bitmap of TC enabled */
 	u8 num_tc; /* Total number of enabled TCs */
 	bool mqprio_active;
 };

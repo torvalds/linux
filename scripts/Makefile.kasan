@@ -33,9 +33,10 @@ else
 	CFLAGS_KASAN := $(CFLAGS_KASAN_SHADOW) \
 	 $(call cc-param,asan-globals=1) \
 	 $(call cc-param,asan-instrumentation-with-call-threshold=$(call_threshold)) \
-	 $(call cc-param,asan-stack=$(stack_enable)) \
 	 $(call cc-param,asan-instrument-allocas=1)
 endif
+
+CFLAGS_KASAN += $(call cc-param,asan-stack=$(stack_enable))
 
 endif # CONFIG_KASAN_GENERIC
 

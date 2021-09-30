@@ -264,7 +264,8 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 
 			/* Uid is not converted */
 			buffer->Uid = treeCon->ses->Suid;
-			buffer->Mid = get_next_mid(treeCon->ses->server);
+			if (treeCon->ses->server)
+				buffer->Mid = get_next_mid(treeCon->ses->server);
 		}
 		if (treeCon->Flags & SMB_SHARE_IS_IN_DFS)
 			buffer->Flags2 |= SMBFLG2_DFS;
@@ -590,6 +591,7 @@ void cifs_put_writer(struct cifsInodeInfo *cinode)
 
 /**
  * cifs_queue_oplock_break - queue the oplock break handler for cfile
+ * @cfile: The file to break the oplock on
  *
  * This function is called from the demultiplex thread when it
  * receives an oplock break for @cfile.
@@ -1065,6 +1067,9 @@ setup_aio_ctx_iter(struct cifs_aio_ctx *ctx, struct iov_iter *iter, int rw)
 
 /**
  * cifs_alloc_hash - allocate hash and hash context together
+ * @name: The name of the crypto hash algo
+ * @shash: Where to put the pointer to the hash algo
+ * @sdesc: Where to put the pointer to the hash descriptor
  *
  * The caller has to make sure @sdesc is initialized to either NULL or
  * a valid context. Both can be freed via cifs_free_hash().
@@ -1103,6 +1108,8 @@ cifs_alloc_hash(const char *name,
 
 /**
  * cifs_free_hash - free hash and hash context together
+ * @shash: Where to find the pointer to the hash algo
+ * @sdesc: Where to find the pointer to the hash descriptor
  *
  * Freeing a NULL hash or context is safe.
  */
@@ -1118,8 +1125,10 @@ cifs_free_hash(struct crypto_shash **shash, struct sdesc **sdesc)
 
 /**
  * rqst_page_get_length - obtain the length and offset for a page in smb_rqst
- * Input: rqst - a smb_rqst, page - a page index for rqst
- * Output: *len - the length for this page, *offset - the offset for this page
+ * @rqst: The request descriptor
+ * @page: The index of the page to query
+ * @len: Where to store the length for this page:
+ * @offset: Where to store the offset for this page
  */
 void rqst_page_get_length(struct smb_rqst *rqst, unsigned int page,
 				unsigned int *len, unsigned int *offset)
@@ -1152,6 +1161,8 @@ void extract_unc_hostname(const char *unc, const char **h, size_t *len)
 
 /**
  * copy_path_name - copy src path to dst, possibly truncating
+ * @dst: The destination buffer
+ * @src: The source name
  *
  * returns number of bytes written (including trailing nul)
  */

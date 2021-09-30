@@ -8719,15 +8719,8 @@ int hclge_add_uc_addr_common(struct hclge_vport *vport,
 	}
 
 	/* check if we just hit the duplicate */
-	if (!ret) {
-		dev_warn(&hdev->pdev->dev, "VF %u mac(%pM) exists\n",
-			 vport->vport_id, addr);
-		return 0;
-	}
-
-	dev_err(&hdev->pdev->dev,
-		"PF failed to add unicast entry(%pM) in the MAC table\n",
-		addr);
+	if (!ret)
+		return -EEXIST;
 
 	return ret;
 }
@@ -8896,7 +8889,13 @@ static void hclge_sync_vport_mac_list(struct hclge_vport *vport,
 		} else {
 			set_bit(HCLGE_VPORT_STATE_MAC_TBL_CHANGE,
 				&vport->state);
-			break;
+
+			/* If one unicast mac address is existing in hardware,
+			 * we need to try whether other unicast mac addresses
+			 * are new addresses that can be added.
+			 */
+			if (ret != -EEXIST)
+				break;
 		}
 	}
 }
@@ -12825,8 +12824,12 @@ static void hclge_sync_promisc_mode(struct hclge_dev *hdev)
 			continue;
 
 		if (vport->vf_info.trusted) {
-			uc_en = vport->vf_info.request_uc_en > 0;
-			mc_en = vport->vf_info.request_mc_en > 0;
+			uc_en = vport->vf_info.request_uc_en > 0 ||
+				vport->overflow_promisc_flags &
+				HNAE3_OVERFLOW_UPE;
+			mc_en = vport->vf_info.request_mc_en > 0 ||
+				vport->overflow_promisc_flags &
+				HNAE3_OVERFLOW_MPE;
 		}
 		bc_en = vport->vf_info.request_bc_en > 0;
 
