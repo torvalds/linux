@@ -58,6 +58,7 @@ struct msm_file_private {
 	int queueid;
 	struct msm_gem_address_space *aspace;
 	struct kref ref;
+	int seqno;
 };
 
 enum msm_mdp_plane_property {
