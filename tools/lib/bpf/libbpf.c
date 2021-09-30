@@ -6894,7 +6894,8 @@ int bpf_object__load_xattr(struct bpf_object_load_attr *attr)
 
 	if (obj->gen_loader) {
 		/* reset FDs */
-		btf__set_fd(obj->btf, -1);
+		if (obj->btf)
+			btf__set_fd(obj->btf, -1);
 		for (i = 0; i < obj->nr_maps; i++)
 			obj->maps[i].fd = -1;
 		if (!err)
