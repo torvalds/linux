@@ -1711,8 +1711,6 @@ valid_fb:
 	plane_state->uapi.crtc = &crtc->base;
 	intel_plane_copy_uapi_to_hw_state(plane_state, plane_state, crtc);
 
-	intel_frontbuffer_flush(to_intel_frontbuffer(fb), ORIGIN_DIRTYFB);
-
 	atomic_or(plane->frontbuffer_bit, &to_intel_frontbuffer(fb)->bits);
 }
 
@@ -10814,7 +10812,6 @@ intel_prepare_plane_fb(struct drm_plane *_plane,
 		return ret;
 
 	i915_gem_object_wait_priority(obj, 0, &attr);
-	i915_gem_object_flush_frontbuffer(obj, ORIGIN_DIRTYFB);
 
 	if (!new_plane_state->uapi.fence) { /* implicit fencing */
 		struct dma_fence *fence;
