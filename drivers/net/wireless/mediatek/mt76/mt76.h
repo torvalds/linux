@@ -255,7 +255,7 @@ struct mt76_wcid {
 	u8 amsdu:1;
 
 	u8 rx_check_pn;
-	u8 rx_key_pn[IEEE80211_NUM_TIDS][6];
+	u8 rx_key_pn[IEEE80211_NUM_TIDS + 1][6];
 	u16 cipher;
 
 	u32 tx_info;
