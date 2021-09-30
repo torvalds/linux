@@ -54,7 +54,7 @@ void cros_usbpd_unregister_notify(struct notifier_block *nb)
 EXPORT_SYMBOL_GPL(cros_usbpd_unregister_notify);
 
 /**
- * cros_ec_pd_command - Send a command to the EC.
+ * cros_ec_command - Send a command to the EC.
  *
  * @ec_dev: EC device
  * @command: EC command
@@ -65,12 +65,12 @@ EXPORT_SYMBOL_GPL(cros_usbpd_unregister_notify);
  *
  * Return: >= 0 on success, negative error number on failure.
  */
-static int cros_ec_pd_command(struct cros_ec_device *ec_dev,
-			      int command,
-			      uint8_t *outdata,
-			      int outsize,
-			      uint8_t *indata,
-			      int insize)
+static int cros_ec_command(struct cros_ec_device *ec_dev,
+			   int command,
+			   uint8_t *outdata,
+			   int outsize,
+			   uint8_t *indata,
+			   int insize)
 {
 	struct cros_ec_command *msg;
 	int ret;
@@ -115,10 +115,8 @@ static void cros_usbpd_get_event_and_notify(struct device  *dev,
 	}
 
 	/* Check for PD host events on EC. */
-	ret = cros_ec_pd_command(ec_dev, EC_CMD_PD_HOST_EVENT_STATUS,
-				 NULL, 0,
-				 (uint8_t *)&host_event_status,
-				 sizeof(host_event_status));
+	ret = cros_ec_command(ec_dev, EC_CMD_PD_HOST_EVENT_STATUS,
+			      NULL, 0, (uint8_t *)&host_event_status, sizeof(host_event_status));
 	if (ret < 0) {
 		dev_warn(dev, "Can't get host event status (err: %d)\n", ret);
 		goto send_notify;
