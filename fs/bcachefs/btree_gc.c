@@ -504,22 +504,6 @@ static int bch2_check_fix_ptrs(struct bch_fs *c, enum btree_id btree_id,
 		struct bucket *g2 = PTR_BUCKET(ca, &p.ptr, false);
 		enum bch_data_type data_type = bch2_bkey_ptr_data_type(*k, &entry->ptr);
 
-		if (fsck_err_on(g->mark.data_type &&
-				g->mark.data_type != data_type, c,
-				"bucket %u:%zu different types of data in same bucket: %s, %s\n"
-				"while marking %s",
-				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
-				bch2_data_types[g->mark.data_type],
-				bch2_data_types[data_type],
-				(bch2_bkey_val_to_text(&PBUF(buf), c, *k), buf))) {
-			if (data_type == BCH_DATA_btree) {
-				g2->_mark.data_type = g->_mark.data_type = data_type;
-				set_bit(BCH_FS_NEED_ALLOC_WRITE, &c->flags);
-			} else {
-				do_update = true;
-			}
-		}
-
 		if (fsck_err_on(!g->gen_valid, c,
 				"bucket %u:%zu data type %s ptr gen %u missing in alloc btree\n"
 				"while marking %s",
@@ -534,6 +518,19 @@ static int bch2_check_fix_ptrs(struct bch_fs *c, enum btree_id btree_id,
 			} else {
 				do_update = true;
 			}
+		}
+
+		if (fsck_err_on(data_type == BCH_DATA_btree &&
+				g->mark.gen != p.ptr.gen, c,
+				"bucket %u:%zu data type %s has metadata but wrong gen: %u != %u\n"
+				"while marking %s",
+				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
+				bch2_data_types[ptr_data_type(k->k, &p.ptr)],
+				p.ptr.gen, g->mark.gen,
+				(bch2_bkey_val_to_text(&PBUF(buf), c, *k), buf))) {
+			g2->_mark.data_type	= g->_mark.data_type	= data_type;
+			g2->gen_valid		= g->gen_valid		= true;
+			set_bit(BCH_FS_NEED_ALLOC_WRITE, &c->flags);
 		}
 
 		if (fsck_err_on(gen_cmp(p.ptr.gen, g->mark.gen) > 0, c,
@@ -565,6 +562,26 @@ static int bch2_check_fix_ptrs(struct bch_fs *c, enum btree_id btree_id,
 				p.ptr.gen, g->mark.gen,
 				(bch2_bkey_val_to_text(&PBUF(buf), c, *k), buf)))
 			do_update = true;
+
+		if (p.ptr.gen != g->mark.gen)
+			continue;
+
+		if (fsck_err_on(g->mark.data_type &&
+				g->mark.data_type != data_type, c,
+				"bucket %u:%zu different types of data in same bucket: %s, %s\n"
+				"while marking %s",
+				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
+				bch2_data_types[g->mark.data_type],
+				bch2_data_types[data_type],
+				(bch2_bkey_val_to_text(&PBUF(buf), c, *k), buf))) {
+			if (data_type == BCH_DATA_btree) {
+				g2->_mark.data_type	= g->_mark.data_type	= data_type;
+				g2->gen_valid		= g->gen_valid		= true;
+				set_bit(BCH_FS_NEED_ALLOC_WRITE, &c->flags);
+			} else {
+				do_update = true;
+			}
+		}
 
 		if (p.has_ec) {
 			struct stripe *m = genradix_ptr(&c->stripes[true], p.ec.idx);
