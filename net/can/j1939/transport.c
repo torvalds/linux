@@ -1788,6 +1788,7 @@ static void j1939_xtp_rx_dpo(struct j1939_priv *priv, struct sk_buff *skb,
 static void j1939_xtp_rx_dat_one(struct j1939_session *session,
 				 struct sk_buff *skb)
 {
+	enum j1939_xtp_abort abort = J1939_XTP_ABORT_FAULT;
 	struct j1939_priv *priv = session->priv;
 	struct j1939_sk_buff_cb *skcb, *se_skcb;
 	struct sk_buff *se_skb = NULL;
@@ -1802,9 +1803,11 @@ static void j1939_xtp_rx_dat_one(struct j1939_session *session,
 
 	skcb = j1939_skb_to_cb(skb);
 	dat = skb->data;
-	if (skb->len <= 1)
+	if (skb->len != 8) {
 		/* makes no sense */
+		abort = J1939_XTP_ABORT_UNEXPECTED_DATA;
 		goto out_session_cancel;
+	}
 
 	switch (session->last_cmd) {
 	case 0xff:
@@ -1903,7 +1906,7 @@ static void j1939_xtp_rx_dat_one(struct j1939_session *session,
  out_session_cancel:
 	kfree_skb(se_skb);
 	j1939_session_timers_cancel(session);
-	j1939_session_cancel(session, J1939_XTP_ABORT_FAULT);
+	j1939_session_cancel(session, abort);
 	j1939_session_put(session);
 }
 
