@@ -499,8 +499,6 @@ intel_dp_prepare_link_train(struct intel_dp *intel_dp,
 		DP_SET_ANSI_128B132B : DP_SET_ANSI_8B10B;
 	drm_dp_dpcd_write(&intel_dp->aux, DP_DOWNSPREAD_CTRL, link_config, 2);
 
-	intel_dp->DP |= DP_PORT_EN;
-
 	return true;
 }
 
