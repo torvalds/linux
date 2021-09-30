@@ -69,13 +69,6 @@ static void hpriv_release(struct kref *ref)
 
 	mutex_destroy(&hpriv->restore_phase_mutex);
 
-	mutex_lock(&hdev->fpriv_list_lock);
-	list_del(&hpriv->dev_node);
-	hdev->compute_ctx = NULL;
-	mutex_unlock(&hdev->fpriv_list_lock);
-
-	kfree(hpriv);
-
 	if ((!hdev->pldm) && (hdev->pdev) &&
 			(!hdev->asic_funcs->is_device_idle(hdev,
 				idle_mask,
@@ -87,9 +80,32 @@ static void hpriv_release(struct kref *ref)
 		device_is_idle = false;
 	}
 
+	/* We need to remove the user from the list to make sure the reset process won't
+	 * try to kill the user process. Because, if we got here, it means there are no
+	 * more driver/device resources that the user process is occupying so there is
+	 * no need to kill it
+	 *
+	 * However, we can't set the compute_ctx to NULL at this stage. This is to prevent
+	 * a race between the release and opening the device again. We don't want to let
+	 * a user open the device while there a reset is about to happen.
+	 */
+	mutex_lock(&hdev->fpriv_list_lock);
+	list_del(&hpriv->dev_node);
+	mutex_unlock(&hdev->fpriv_list_lock);
+
 	if ((hdev->reset_if_device_not_idle && !device_is_idle)
 			|| hdev->reset_upon_device_release)
 		hl_device_reset(hdev, HL_RESET_DEVICE_RELEASE);
+
+	/* Now we can mark the compute_ctx as empty. Even if a reset is running in a different
+	 * thread, we don't care because the in_reset is marked so if a user will try to open
+	 * the device it will fail on that, even if compute_ctx is NULL.
+	 */
+	mutex_lock(&hdev->fpriv_list_lock);
+	hdev->compute_ctx = NULL;
+	mutex_unlock(&hdev->fpriv_list_lock);
+
+	kfree(hpriv);
 }
 
 void hl_hpriv_get(struct hl_fpriv *hpriv)
