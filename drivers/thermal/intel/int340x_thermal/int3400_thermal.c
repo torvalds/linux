@@ -129,11 +129,10 @@ static ssize_t available_uuids_show(struct device *dev,
 
 	for (i = 0; i < INT3400_THERMAL_MAXIMUM_UUID; i++) {
 		if (priv->uuid_bitmap & (1 << i))
-			if (PAGE_SIZE - length > 0)
-				length += scnprintf(&buf[length],
-						   PAGE_SIZE - length,
-						   "%s\n",
-						   int3400_thermal_uuids[i]);
+			length += scnprintf(&buf[length],
+					    PAGE_SIZE - length,
+					    "%s\n",
+					    int3400_thermal_uuids[i]);
 	}
 
 	return length;
