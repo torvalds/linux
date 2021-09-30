@@ -10,6 +10,8 @@
 
 #include <xen/xen.h>
 #include <xen/features.h>
+#include <xen/interface/sched.h>
+#include <xen/interface/version.h>
 #include <xen/page.h>
 
 #include <asm/xen/hypercall.h>
@@ -255,6 +257,21 @@ int xen_vcpu_setup(int cpu)
 		xen_vcpu_info_reset(cpu);
 
 	return ((per_cpu(xen_vcpu, cpu) == NULL) ? -ENODEV : 0);
+}
+
+/* Check if running on Xen version (major, minor) or later */
+bool xen_running_on_version_or_later(unsigned int major, unsigned int minor)
+{
+	unsigned int version;
+
+	if (!xen_domain())
+		return false;
+
+	version = HYPERVISOR_xen_version(XENVER_version, NULL);
+	if ((((version >> 16) == major) && ((version & 0xffff) >= minor)) ||
+		((version >> 16) > major))
+		return true;
+	return false;
 }
 
 void xen_reboot(int reason)
