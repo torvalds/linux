@@ -2127,7 +2127,6 @@
 		clocks = <&scmi_clk 3>;
 		clock-names = "dmc_clk";
 		operating-points-v2 = <&dmc_opp_table>;
-		ddr_timing = <&ddr_timing>;
 		vop-bw-dmc-freq = <
 		/* min_bw(MB/s) max_bw(MB/s) freq(KHz) */
 			0	505	324000
