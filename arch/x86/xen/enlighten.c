@@ -3,6 +3,7 @@
 #ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
 #include <linux/memblock.h>
 #endif
+#include <linux/console.h>
 #include <linux/cpu.h>
 #include <linux/kexec.h>
 #include <linux/slab.h>
@@ -18,6 +19,7 @@
 #include <asm/xen/hypervisor.h>
 #include <asm/cpu.h>
 #include <asm/e820/api.h> 
+#include <asm/setup.h>
 
 #include "xen-ops.h"
 #include "smp.h"
@@ -272,6 +274,16 @@ bool xen_running_on_version_or_later(unsigned int major, unsigned int minor)
 		((version >> 16) > major))
 		return true;
 	return false;
+}
+
+void __init xen_add_preferred_consoles(void)
+{
+	add_preferred_console("xenboot", 0, NULL);
+	if (!boot_params.screen_info.orig_video_isVGA)
+		add_preferred_console("tty", 0, NULL);
+	add_preferred_console("hvc", 0, NULL);
+	if (boot_params.screen_info.orig_video_isVGA)
+		add_preferred_console("tty", 0, NULL);
 }
 
 void xen_reboot(int reason)

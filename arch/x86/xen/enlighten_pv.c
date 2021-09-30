@@ -28,7 +28,6 @@
 #include <linux/mm.h>
 #include <linux/page-flags.h>
 #include <linux/highmem.h>
-#include <linux/console.h>
 #include <linux/pci.h>
 #include <linux/gfp.h>
 #include <linux/edd.h>
@@ -1392,12 +1391,7 @@ asmlinkage __visible void __init xen_start_kernel(void)
 #endif
 	}
 
-	add_preferred_console("xenboot", 0, NULL);
-	if (!boot_params.screen_info.orig_video_isVGA)
-		add_preferred_console("tty", 0, NULL);
-	add_preferred_console("hvc", 0, NULL);
-	if (boot_params.screen_info.orig_video_isVGA)
-		add_preferred_console("tty", 0, NULL);
+	xen_add_preferred_consoles();
 
 #ifdef CONFIG_PCI
 	/* PCI BIOS service won't work from a PV guest. */

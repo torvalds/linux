@@ -36,6 +36,9 @@ void __init xen_pvh_init(struct boot_params *boot_params)
 	pfn = __pa(hypercall_page);
 	wrmsr_safe(msr, (u32)pfn, (u32)(pfn >> 32));
 
+	if (xen_initial_domain())
+		x86_init.oem.arch_setup = xen_add_preferred_consoles;
+
 	xen_efi_init(boot_params);
 }
 
