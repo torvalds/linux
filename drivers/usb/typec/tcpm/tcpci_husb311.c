@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 #include <linux/usb/tcpm.h>
 #include "tcpci.h"
 
@@ -27,6 +28,8 @@ struct husb311_chip {
 	struct tcpci_data data;
 	struct tcpci *tcpci;
 	struct device *dev;
+	struct regulator *vbus;
+	bool vbus_on;
 };
 
 static int husb311_write8(struct husb311_chip *chip, unsigned int reg, u8 val)
@@ -73,6 +76,33 @@ static int husb311_init(struct tcpci *tcpci, struct tcpci_data *tdata)
 	if (ret < 0)
 		dev_err(chip->dev, "fail to init registers(%d)\n", ret);
 
+	return ret;
+}
+
+static int husb311_set_vbus(struct tcpci *tcpci, struct tcpci_data *tdata,
+			    bool on, bool charge)
+{
+	struct husb311_chip *chip = tdata_to_husb311(tdata);
+	int ret = 0;
+
+	if (chip->vbus_on == on) {
+		dev_dbg(chip->dev, "vbus is already %s", on ? "On" : "Off");
+		goto done;
+	}
+
+	if (on)
+		ret = regulator_enable(chip->vbus);
+	else
+		ret = regulator_disable(chip->vbus);
+	if (ret < 0) {
+		dev_err(chip->dev, "cannot %s vbus regulator, ret=%d",
+			on ? "enable" : "disable", ret);
+		goto done;
+	}
+
+	chip->vbus_on = on;
+
+done:
 	return ret;
 }
 
@@ -136,12 +166,22 @@ static int husb311_probe(struct i2c_client *client,
 	chip->dev = &client->dev;
 	i2c_set_clientdata(client, chip);
 
+	chip->vbus = devm_regulator_get_optional(chip->dev, "vbus");
+	if (IS_ERR(chip->vbus)) {
+		ret = PTR_ERR(chip->vbus);
+		chip->vbus = NULL;
+		if (ret != -ENODEV)
+			return ret;
+	}
+
 	ret = husb311_sw_reset(chip);
 	if (ret < 0) {
 		dev_err(chip->dev, "fail to soft reset, ret = %d\n", ret);
 		return ret;
 	}
 
+	if (chip->vbus)
+		chip->data.set_vbus = husb311_set_vbus;
 	chip->data.init = husb311_init;
 	chip->tcpci = tcpci_register_port(chip->dev, &chip->data);
 	if (IS_ERR(chip->tcpci))
