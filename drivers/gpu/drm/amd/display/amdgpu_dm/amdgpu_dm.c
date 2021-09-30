@@ -5105,11 +5105,11 @@ fill_gfx9_plane_attributes_from_modifiers(struct amdgpu_device *adev,
 		dcc->independent_64b_blks = independent_64b_blks;
 		if (AMD_FMT_MOD_GET(TILE_VERSION, modifier) == AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS) {
 			if (independent_64b_blks && independent_128b_blks)
-				dcc->dcc_ind_blk = hubp_ind_block_64b;
+				dcc->dcc_ind_blk = hubp_ind_block_64b_no_128bcl;
 			else if (independent_128b_blks)
 				dcc->dcc_ind_blk = hubp_ind_block_128b;
 			else if (independent_64b_blks && !independent_128b_blks)
-				dcc->dcc_ind_blk = hubp_ind_block_64b_no_128bcl;
+				dcc->dcc_ind_blk = hubp_ind_block_64b;
 			else
 				dcc->dcc_ind_blk = hubp_ind_block_unconstrained;
 		} else {

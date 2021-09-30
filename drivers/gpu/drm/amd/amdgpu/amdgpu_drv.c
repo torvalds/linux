@@ -97,9 +97,10 @@
  * - 3.41.0 - Add video codec query
  * - 3.42.0 - Add 16bpc fixed point display support
  * - 3.43.0 - Add device hot plug/unplug support
+ * - 3.44.0 - DCN3 supports DCC independent block settings: !64B && 128B, 64B && 128B
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	43
+#define KMS_DRIVER_MINOR	44
 #define KMS_DRIVER_PATCHLEVEL	0
 
 int amdgpu_vram_limit;
