@@ -22,6 +22,7 @@ properties:
   compatible:
     items:
       - enum:
+          - qcom,sc7180-qspi
           - qcom,sc7280-qspi
           - qcom,sdm845-qspi
 
