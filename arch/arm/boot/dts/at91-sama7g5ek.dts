@@ -196,11 +196,13 @@
 
 					regulator-state-standby {
 						regulator-on-in-suspend;
+						regulator-suspend-microvolt = <1350000>;
 						regulator-mode = <4>;
 					};
 
 					regulator-state-mem {
 						regulator-on-in-suspend;
+						regulator-suspend-microvolt = <1350000>;
 						regulator-mode = <4>;
 					};
 				};
