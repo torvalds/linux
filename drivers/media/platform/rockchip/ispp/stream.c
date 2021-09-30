@@ -346,7 +346,8 @@ static void check_to_force_update(struct rkispp_device *dev, u32 mis_val)
 	/* wait nr_shp/fec/scl idle */
 	for (i = STREAM_S0; i <= STREAM_S2; i++) {
 		stream = &vdev->stream[i];
-		if (stream->is_upd && !is_fec_en)
+		if (stream->is_upd && !is_fec_en &&
+		    rkispp_read(dev, stream->config->reg.ctrl) & SW_SCL_ENABLE)
 			mask |= stream->config->frame_end_id;
 	}
 
@@ -2628,6 +2629,8 @@ static void fec_work_event(struct rkispp_device *dev,
 			rkispp_update_regs(dev, RKISPP_FEC, RKISPP_FEC_CROP);
 		writel(FEC_FORCE_UPD, base + RKISPP_CTRL_UPDATE);
 		if (vdev->nr.is_end) {
+			if (!dev->hw_dev->is_single)
+				rkispp_update_regs(dev, RKISPP_SCL0_CTRL, RKISPP_SCL2_FACTOR);
 			writel(OTHER_FORCE_UPD, base + RKISPP_CTRL_UPDATE);
 			/* check scale stream stop state */
 			for (val = STREAM_S0; val <= STREAM_S2; val++) {
@@ -2923,8 +2926,12 @@ static void nr_work_event(struct rkispp_device *dev,
 			if (!stream->streaming || !stream->is_cfg || stream->curr_buf)
 				continue;
 			get_stream_buf(stream);
-			if (stream->curr_buf)
+			if (stream->curr_buf) {
 				update_mi(stream);
+				rkispp_set_bits(dev, stream->config->reg.ctrl, 0, SW_SCL_ENABLE);
+			} else {
+				rkispp_clear_bits(dev, stream->config->reg.ctrl, SW_SCL_ENABLE);
+			}
 		}
 
 		if (!dev->hw_dev->is_single) {
@@ -2951,8 +2958,16 @@ static void nr_work_event(struct rkispp_device *dev,
 
 		for (val = STREAM_S0; val <= STREAM_S2 && !is_fec_en; val++) {
 			stream = &vdev->stream[val];
-			if (stream->stopping && stream->ops->stop)
-				stream->ops->stop(stream);
+			/* check scale stream stop state */
+			if (stream->streaming && stream->stopping) {
+				if (stream->ops->is_stopped(stream)) {
+					stream->stopping = false;
+					stream->streaming = false;
+					wake_up(&stream->done);
+				} else {
+					stream->ops->stop(stream);
+				}
+			}
 		}
 
 		vdev->nr.dbg.id = seq;
