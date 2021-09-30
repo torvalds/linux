@@ -2621,7 +2621,7 @@ int goya_mmu_init(struct hl_device *hdev)
 			(~STLB_STLB_FEATURE_EN_FOLLOWER_EN_MASK));
 
 	hdev->asic_funcs->mmu_invalidate_cache(hdev, true,
-					VM_TYPE_USERPTR | VM_TYPE_PHYS_PACK);
+					MMU_OP_USERPTR | MMU_OP_PHYS_PACK);
 
 	WREG32(mmMMU_MMU_ENABLE, 1);
 	WREG32(mmMMU_SPI_MASK, 0xF);

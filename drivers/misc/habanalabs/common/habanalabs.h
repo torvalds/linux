@@ -353,6 +353,17 @@ enum vm_type {
 };
 
 /**
+ * enum mmu_op_flags - mmu operation relevant information.
+ * @MMU_OP_USERPTR: operation on user memory (host resident).
+ * @MMU_OP_PHYS_PACK: operation on DRAM (device resident).
+ */
+enum mmu_op_flags {
+	MMU_OP_USERPTR = 0x1,
+	MMU_OP_PHYS_PACK = 0x2
+};
+
+
+/**
  * enum hl_device_hw_state - H/W device state. use this to understand whether
  *                           to do reset before hw_init or not
  * @HL_DEVICE_HW_STATE_CLEAN: H/W state is clean. i.e. after hard reset

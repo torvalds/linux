@@ -8688,7 +8688,7 @@ static int gaudi_internal_cb_pool_init(struct hl_device *hdev,
 			hdev->internal_cb_pool_dma_addr,
 			HOST_SPACE_INTERNAL_CB_SZ);
 
-	hdev->asic_funcs->mmu_invalidate_cache(hdev, false, VM_TYPE_USERPTR);
+	hdev->asic_funcs->mmu_invalidate_cache(hdev, false, MMU_OP_USERPTR);
 	mutex_unlock(&ctx->mmu_lock);
 
 	if (rc)
@@ -8723,7 +8723,7 @@ static void gaudi_internal_cb_pool_fini(struct hl_device *hdev,
 			HOST_SPACE_INTERNAL_CB_SZ);
 	hl_unreserve_va_block(hdev, ctx, hdev->internal_cb_va_base,
 			HOST_SPACE_INTERNAL_CB_SZ);
-	hdev->asic_funcs->mmu_invalidate_cache(hdev, true, VM_TYPE_USERPTR);
+	hdev->asic_funcs->mmu_invalidate_cache(hdev, true, MMU_OP_USERPTR);
 	mutex_unlock(&ctx->mmu_lock);
 
 	gen_pool_destroy(hdev->internal_cb_pool);
