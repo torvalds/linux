@@ -44,6 +44,7 @@
 #include "intel_connector.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
+#include "intel_fdi.h"
 #include "intel_gmbus.h"
 #include "intel_lvds.h"
 #include "intel_panel.h"

@@ -6,6 +6,7 @@
 #ifndef _INTEL_FDI_H_
 #define _INTEL_FDI_H_
 
+enum pipe;
 struct drm_i915_private;
 struct intel_crtc;
 struct intel_crtc_state;
@@ -28,4 +29,13 @@ void lpt_fdi_program_mphy(struct drm_i915_private *i915);
 
 void intel_fdi_link_train(struct intel_crtc *crtc,
 			  const struct intel_crtc_state *crtc_state);
+
+void assert_fdi_tx_enabled(struct drm_i915_private *i915, enum pipe pipe);
+void assert_fdi_tx_disabled(struct drm_i915_private *i915, enum pipe pipe);
+void assert_fdi_rx_enabled(struct drm_i915_private *i915, enum pipe pipe);
+void assert_fdi_rx_disabled(struct drm_i915_private *i915, enum pipe pipe);
+void assert_fdi_tx_pll_enabled(struct drm_i915_private *i915, enum pipe pipe);
+void assert_fdi_rx_pll_enabled(struct drm_i915_private *i915, enum pipe pipe);
+void assert_fdi_rx_pll_disabled(struct drm_i915_private *i915, enum pipe pipe);
+
 #endif

@@ -654,10 +654,6 @@ void assert_pll(struct drm_i915_private *dev_priv,
 void assert_dsi_pll(struct drm_i915_private *dev_priv, bool state);
 #define assert_dsi_pll_enabled(d) assert_dsi_pll(d, true)
 #define assert_dsi_pll_disabled(d) assert_dsi_pll(d, false)
-void assert_fdi_rx_pll(struct drm_i915_private *dev_priv,
-		       enum pipe pipe, bool state);
-#define assert_fdi_rx_pll_enabled(d, p) assert_fdi_rx_pll(d, p, true)
-#define assert_fdi_rx_pll_disabled(d, p) assert_fdi_rx_pll(d, p, false)
 void assert_transcoder(struct drm_i915_private *dev_priv,
 		       enum transcoder cpu_transcoder, bool state);
 #define assert_transcoder_enabled(d, t) assert_transcoder(d, t, true)

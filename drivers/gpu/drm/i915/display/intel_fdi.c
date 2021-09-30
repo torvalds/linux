@@ -10,6 +10,97 @@
 #include "intel_fdi.h"
 #include "intel_sideband.h"
 
+static void assert_fdi_tx(struct drm_i915_private *dev_priv,
+			  enum pipe pipe, bool state)
+{
+	bool cur_state;
+
+	if (HAS_DDI(dev_priv)) {
+		/*
+		 * DDI does not have a specific FDI_TX register.
+		 *
+		 * FDI is never fed from EDP transcoder
+		 * so pipe->transcoder cast is fine here.
+		 */
+		enum transcoder cpu_transcoder = (enum transcoder)pipe;
+		cur_state = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder)) & TRANS_DDI_FUNC_ENABLE;
+	} else {
+		cur_state = intel_de_read(dev_priv, FDI_TX_CTL(pipe)) & FDI_TX_ENABLE;
+	}
+	I915_STATE_WARN(cur_state != state,
+			"FDI TX state assertion failure (expected %s, current %s)\n",
+			onoff(state), onoff(cur_state));
+}
+
+void assert_fdi_tx_enabled(struct drm_i915_private *i915, enum pipe pipe)
+{
+	assert_fdi_tx(i915, pipe, true);
+}
+
+void assert_fdi_tx_disabled(struct drm_i915_private *i915, enum pipe pipe)
+{
+	assert_fdi_tx(i915, pipe, false);
+}
+
+static void assert_fdi_rx(struct drm_i915_private *dev_priv,
+			  enum pipe pipe, bool state)
+{
+	bool cur_state;
+
+	cur_state = intel_de_read(dev_priv, FDI_RX_CTL(pipe)) & FDI_RX_ENABLE;
+	I915_STATE_WARN(cur_state != state,
+			"FDI RX state assertion failure (expected %s, current %s)\n",
+			onoff(state), onoff(cur_state));
+}
+
+void assert_fdi_rx_enabled(struct drm_i915_private *i915, enum pipe pipe)
+{
+	assert_fdi_rx(i915, pipe, true);
+}
+
+void assert_fdi_rx_disabled(struct drm_i915_private *i915, enum pipe pipe)
+{
+	assert_fdi_rx(i915, pipe, false);
+}
+
+void assert_fdi_tx_pll_enabled(struct drm_i915_private *i915,
+			       enum pipe pipe)
+{
+	bool cur_state;
+
+	/* ILK FDI PLL is always enabled */
+	if (IS_IRONLAKE(i915))
+		return;
+
+	/* On Haswell, DDI ports are responsible for the FDI PLL setup */
+	if (HAS_DDI(i915))
+		return;
+
+	cur_state = intel_de_read(i915, FDI_TX_CTL(pipe)) & FDI_TX_PLL_ENABLE;
+	I915_STATE_WARN(!cur_state, "FDI TX PLL assertion failure, should be active but is disabled\n");
+}
+
+static void assert_fdi_rx_pll(struct drm_i915_private *i915,
+			      enum pipe pipe, bool state)
+{
+	bool cur_state;
+
+	cur_state = intel_de_read(i915, FDI_RX_CTL(pipe)) & FDI_RX_PLL_ENABLE;
+	I915_STATE_WARN(cur_state != state,
+			"FDI RX PLL assertion failure (expected %s, current %s)\n",
+			onoff(state), onoff(cur_state));
+}
+
+void assert_fdi_rx_pll_enabled(struct drm_i915_private *i915, enum pipe pipe)
+{
+	assert_fdi_rx_pll(i915, pipe, true);
+}
+
+void assert_fdi_rx_pll_disabled(struct drm_i915_private *i915, enum pipe pipe)
+{
+	assert_fdi_rx_pll(i915, pipe, false);
+}
+
 void intel_fdi_link_train(struct intel_crtc *crtc,
 			  const struct intel_crtc_state *crtc_state)
 {
