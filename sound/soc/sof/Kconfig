@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
-config SND_SOC_SOF_TOPLEVEL
+menuconfig SND_SOC_SOF_TOPLEVEL
 	bool "Sound Open Firmware Support"
 	help
 	  This adds support for Sound Open Firmware (SOF). SOF is free and
