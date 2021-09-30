@@ -2369,6 +2369,13 @@ static void bmc_device_id_handler(struct ipmi_smi *intf,
 		return;
 	}
 
+	if (msg->msg.data[0]) {
+		dev_warn(intf->si_dev, "device id fetch failed: 0x%2.2x\n",
+			 msg->msg.data[0]);
+		intf->bmc->dyn_id_set = 0;
+		goto out;
+	}
+
 	rv = ipmi_demangle_device_id(msg->msg.netfn, msg->msg.cmd,
 			msg->msg.data, msg->msg.data_len, &intf->bmc->fetch_id);
 	if (rv) {
@@ -2384,7 +2391,7 @@ static void bmc_device_id_handler(struct ipmi_smi *intf,
 		smp_wmb();
 		intf->bmc->dyn_id_set = 1;
 	}
-
+out:
 	wake_up(&intf->waitq);
 }
 
