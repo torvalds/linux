@@ -746,7 +746,7 @@ sub check_file($$)
 	}
 
 	if ($leave ne "others") {
-		my @expr = @{$leaf{$leave}->{expr}};
+		my @expr = @{$leaf{"others"}->{expr}};
 		for (my $i = 0; $i < @names; $i++) {
 			foreach my $re (@expr) {
 				print STDERR "$names[$i] =~ /^$re\$/\n" if ($debug && $dbg_undefined);
