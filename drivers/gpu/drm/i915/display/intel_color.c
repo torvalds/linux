@@ -26,6 +26,7 @@
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_dpll.h"
+#include "intel_dsi.h"
 
 #define CTM_COEFF_SIGN	(1ULL << 63)
 

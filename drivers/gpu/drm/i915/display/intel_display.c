@@ -398,22 +398,6 @@ intel_wait_for_pipe_off(const struct intel_crtc_state *old_crtc_state)
 	}
 }
 
-/* XXX: the dsi pll is shared between MIPI DSI ports */
-void assert_dsi_pll(struct drm_i915_private *dev_priv, bool state)
-{
-	u32 val;
-	bool cur_state;
-
-	vlv_cck_get(dev_priv);
-	val = vlv_cck_read(dev_priv, CCK_REG_DSI_PLL_CONTROL);
-	vlv_cck_put(dev_priv);
-
-	cur_state = val & DSI_PLL_VCO_EN;
-	I915_STATE_WARN(cur_state != state,
-	     "DSI PLL state assertion failure (expected %s, current %s)\n",
-			onoff(state), onoff(cur_state));
-}
-
 void assert_transcoder(struct drm_i915_private *dev_priv,
 		       enum transcoder cpu_transcoder, bool state)
 {
