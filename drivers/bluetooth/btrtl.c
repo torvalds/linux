@@ -601,8 +601,10 @@ struct btrtl_device_info *btrtl_initialize(struct hci_dev *hdev,
 	hci_rev = le16_to_cpu(resp->hci_rev);
 	lmp_subver = le16_to_cpu(resp->lmp_subver);
 
-	if (resp->hci_ver == 0x8 && le16_to_cpu(resp->hci_rev) == 0x826c &&
-	    resp->lmp_ver == 0x8 && le16_to_cpu(resp->lmp_subver) == 0xa99e)
+	btrtl_dev->ic_info = btrtl_match_ic(lmp_subver, hci_rev, hci_ver,
+					    hdev->bus);
+
+	if (!btrtl_dev->ic_info)
 		btrtl_dev->drop_fw = true;
 
 	if (btrtl_dev->drop_fw) {
@@ -641,12 +643,12 @@ struct btrtl_device_info *btrtl_initialize(struct hci_dev *hdev,
 		hci_ver = resp->hci_ver;
 		hci_rev = le16_to_cpu(resp->hci_rev);
 		lmp_subver = le16_to_cpu(resp->lmp_subver);
+
+		btrtl_dev->ic_info = btrtl_match_ic(lmp_subver, hci_rev, hci_ver,
+						    hdev->bus);
 	}
 out_free:
 	kfree_skb(skb);
-
-	btrtl_dev->ic_info = btrtl_match_ic(lmp_subver, hci_rev, hci_ver,
-					    hdev->bus);
 
 	if (!btrtl_dev->ic_info) {
 		rtl_dev_info(hdev, "unknown IC info, lmp subver %04x, hci rev %04x, hci ver %04x",
