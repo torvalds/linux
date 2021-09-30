@@ -2647,7 +2647,7 @@
 		};
 
 		qspi: spi@88dc000 {
-			compatible = "qcom,qspi-v1";
+			compatible = "qcom,sc7180-qspi", "qcom,qspi-v1";
 			reg = <0 0x088dc000 0 0x600>;
 			#address-cells = <1>;
 			#size-cells = <0>;
