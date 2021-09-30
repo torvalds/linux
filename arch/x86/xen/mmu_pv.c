@@ -1194,6 +1194,13 @@ static void __init xen_pagetable_p2m_setup(void)
 
 static void __init xen_pagetable_init(void)
 {
+	/*
+	 * The majority of further PTE writes is to pagetables already
+	 * announced as such to Xen. Hence it is more efficient to use
+	 * hypercalls for these updates.
+	 */
+	pv_ops.mmu.set_pte = __xen_set_pte;
+
 	paging_init();
 	xen_post_allocator_init();
 
@@ -1423,10 +1430,18 @@ static void xen_pgd_free(struct mm_struct *mm, pgd_t *pgd)
  *
  * Many of these PTE updates are done on unpinned and writable pages
  * and doing a hypercall for these is unnecessary and expensive.  At
- * this point it is not possible to tell if a page is pinned or not,
- * so always write the PTE directly and rely on Xen trapping and
+ * this point it is rarely possible to tell if a page is pinned, so
+ * mostly write the PTE directly and rely on Xen trapping and
  * emulating any updates as necessary.
  */
+static void __init xen_set_pte_init(pte_t *ptep, pte_t pte)
+{
+	if (unlikely(is_early_ioremap_ptep(ptep)))
+		__xen_set_pte(ptep, pte);
+	else
+		native_set_pte(ptep, pte);
+}
+
 __visible pte_t xen_make_pte_init(pteval_t pte)
 {
 	unsigned long pfn;
@@ -1447,11 +1462,6 @@ __visible pte_t xen_make_pte_init(pteval_t pte)
 	return native_make_pte(pte);
 }
 PV_CALLEE_SAVE_REGS_THUNK(xen_make_pte_init);
-
-static void __init xen_set_pte_init(pte_t *ptep, pte_t pte)
-{
-	__xen_set_pte(ptep, pte);
-}
 
 /* Early in boot, while setting up the initial pagetable, assume
    everything is pinned. */
