@@ -1018,7 +1018,14 @@ do_reset:
 
 		take_release_locks(hdev);
 
-		dev_err(hdev->dev, "Going to RESET device!\n");
+		if (hard_reset)
+			dev_info(hdev->dev, "Going to reset device\n");
+		else if (flags & HL_RESET_DEVICE_RELEASE)
+			dev_info(hdev->dev,
+				"Going to reset device after it was released by user\n");
+		else
+			dev_info(hdev->dev,
+				"Going to reset compute engines of inference device\n");
 	}
 
 again:
