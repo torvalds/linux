@@ -11,7 +11,6 @@
 #include <linux/build_bug.h>
 
 #define PARMAREA		0x10400
-#define HEAD_END		0x11000
 
 /*
  * Machine features detected in early.c

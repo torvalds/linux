@@ -400,5 +400,3 @@ SYM_DATA_START(parmarea)
 	.byte	0
 	.org	PARMAREA+__PARMAREA_SIZE
 SYM_DATA_END(parmarea)
-
-	.org	HEAD_END
