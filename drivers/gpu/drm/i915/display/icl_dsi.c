@@ -153,7 +153,8 @@ static bool add_payld_to_queue(struct intel_dsi_host *host, const u8 *data,
 }
 
 static int dsi_send_pkt_hdr(struct intel_dsi_host *host,
-			    struct mipi_dsi_packet pkt, bool enable_lpdt)
+			    const struct mipi_dsi_packet *packet,
+			    bool enable_lpdt)
 {
 	struct intel_dsi *intel_dsi = host->intel_dsi;
 	struct drm_i915_private *dev_priv = to_i915(intel_dsi->base.base.dev);
@@ -166,7 +167,7 @@ static int dsi_send_pkt_hdr(struct intel_dsi_host *host,
 
 	tmp = intel_de_read(dev_priv, DSI_CMD_TXHDR(dsi_trans));
 
-	if (pkt.payload)
+	if (packet->payload)
 		tmp |= PAYLOAD_PRESENT;
 	else
 		tmp &= ~PAYLOAD_PRESENT;
@@ -177,30 +178,29 @@ static int dsi_send_pkt_hdr(struct intel_dsi_host *host,
 		tmp |= LP_DATA_TRANSFER;
 
 	tmp &= ~(PARAM_WC_MASK | VC_MASK | DT_MASK);
-	tmp |= ((pkt.header[0] & VC_MASK) << VC_SHIFT);
-	tmp |= ((pkt.header[0] & DT_MASK) << DT_SHIFT);
-	tmp |= (pkt.header[1] << PARAM_WC_LOWER_SHIFT);
-	tmp |= (pkt.header[2] << PARAM_WC_UPPER_SHIFT);
+	tmp |= ((packet->header[0] & VC_MASK) << VC_SHIFT);
+	tmp |= ((packet->header[0] & DT_MASK) << DT_SHIFT);
+	tmp |= (packet->header[1] << PARAM_WC_LOWER_SHIFT);
+	tmp |= (packet->header[2] << PARAM_WC_UPPER_SHIFT);
 	intel_de_write(dev_priv, DSI_CMD_TXHDR(dsi_trans), tmp);
 
 	return 0;
 }
 
 static int dsi_send_pkt_payld(struct intel_dsi_host *host,
-			      struct mipi_dsi_packet pkt)
+			      const struct mipi_dsi_packet *packet)
 {
 	struct intel_dsi *intel_dsi = host->intel_dsi;
 	struct drm_i915_private *i915 = to_i915(intel_dsi->base.base.dev);
 
 	/* payload queue can accept *256 bytes*, check limit */
-	if (pkt.payload_length > MAX_PLOAD_CREDIT * 4) {
+	if (packet->payload_length > MAX_PLOAD_CREDIT * 4) {
 		drm_err(&i915->drm, "payload size exceeds max queue limit\n");
 		return -1;
 	}
 
 	/* load data into command payload queue */
-	if (!add_payld_to_queue(host, pkt.payload,
-				pkt.payload_length)) {
+	if (!add_payld_to_queue(host, packet->payload, packet->payload_length)) {
 		drm_err(&i915->drm, "adding payload to queue failed\n");
 		return -1;
 	}
@@ -1840,13 +1840,13 @@ static ssize_t gen11_dsi_host_transfer(struct mipi_dsi_host *host,
 
 	/* only long packet contains payload */
 	if (mipi_dsi_packet_format_is_long(msg->type)) {
-		ret = dsi_send_pkt_payld(intel_dsi_host, dsi_pkt);
+		ret = dsi_send_pkt_payld(intel_dsi_host, &dsi_pkt);
 		if (ret < 0)
 			return ret;
 	}
 
 	/* send packet header */
-	ret  = dsi_send_pkt_hdr(intel_dsi_host, dsi_pkt, enable_lpdt);
+	ret  = dsi_send_pkt_hdr(intel_dsi_host, &dsi_pkt, enable_lpdt);
 	if (ret < 0)
 		return ret;
 
