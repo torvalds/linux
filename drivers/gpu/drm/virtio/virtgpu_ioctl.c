@@ -819,7 +819,7 @@ static int virtio_gpu_context_init_ioctl(struct drm_device *dev,
 	if (vfpriv->ring_idx_mask) {
 		valid_ring_mask = 0;
 		for (i = 0; i < vfpriv->num_rings; i++)
-			valid_ring_mask |= 1 << i;
+			valid_ring_mask |= 1ULL << i;
 
 		if (~valid_ring_mask & vfpriv->ring_idx_mask) {
 			ret = -EINVAL;
