@@ -1397,9 +1397,21 @@ unlock:
 	mutex_unlock(&psr->lock);
 }
 
+static inline u32 man_trk_ctl_single_full_frame_bit_get(struct drm_i915_private *dev_priv)
+{
+	return IS_ALDERLAKE_P(dev_priv) ?
+	       ADLP_PSR2_MAN_TRK_CTL_SF_SINGLE_FULL_FRAME :
+	       PSR2_MAN_TRK_CTL_SF_SINGLE_FULL_FRAME;
+}
+
 static void psr_force_hw_tracking_exit(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+
+	if (intel_dp->psr.psr2_sel_fetch_enabled)
+		intel_de_rmw(dev_priv,
+			     PSR2_MAN_TRK_CTL(intel_dp->psr.transcoder), 0,
+			     man_trk_ctl_single_full_frame_bit_get(dev_priv));
 
 	/*
 	 * Display WA #0884: skl+
@@ -1409,6 +1421,10 @@ static void psr_force_hw_tracking_exit(struct intel_dp *intel_dp)
 	 * Workaround tells us to write 0 to CUR_SURFLIVE_A,
 	 * but it makes more sense write to the current active
 	 * pipe.
+	 *
+	 * This workaround do not exist for platforms with display 10 or newer
+	 * but testing proved that it works for up display 13, for newer
+	 * than that testing will be needed.
 	 */
 	intel_de_write(dev_priv, CURSURFLIVE(intel_dp->psr.pipe), 0);
 }
