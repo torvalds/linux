@@ -282,9 +282,10 @@ static void intel_ddi_init_dp_buf_reg(struct intel_encoder *encoder,
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	enum phy phy = intel_port_to_phy(i915, encoder->port);
 
+	/* DDI_BUF_CTL_ENABLE will be set by intel_ddi_prepare_link_retrain() later */
 	intel_dp->DP = dig_port->saved_port_bits |
-		DDI_BUF_CTL_ENABLE | DDI_BUF_TRANS_SELECT(0);
-	intel_dp->DP |= DDI_PORT_WIDTH(crtc_state->lane_count);
+		DDI_PORT_WIDTH(crtc_state->lane_count) |
+		DDI_BUF_TRANS_SELECT(0);
 
 	if (IS_ALDERLAKE_P(i915) && intel_phy_is_tc(i915, phy)) {
 		intel_dp->DP |= ddi_buf_phy_link_rate(crtc_state->port_clock);
@@ -2361,6 +2362,12 @@ static void dg2_ddi_pre_enable_dp(struct intel_atomic_state *state,
 				 crtc_state->lane_count);
 
 	/*
+	 * We only configure what the register value will be here.  Actual
+	 * enabling happens during link training farther down.
+	 */
+	intel_ddi_init_dp_buf_reg(encoder, crtc_state);
+
+	/*
 	 * 1. Enable Power Wells
 	 *
 	 * This was handled at the beginning of intel_atomic_commit_tail(),
@@ -2416,16 +2423,6 @@ static void dg2_ddi_pre_enable_dp(struct intel_atomic_state *state,
 	/* 5.e Configure voltage swing and related IO settings */
 	intel_snps_phy_ddi_vswing_sequence(encoder, crtc_state, level);
 
-	/*
-	 * 5.f Configure and enable DDI_BUF_CTL
-	 * 5.g Wait for DDI_BUF_CTL DDI Idle Status = 0b (Not Idle), timeout
-	 *     after 1200 us.
-	 *
-	 * We only configure what the register value will be here.  Actual
-	 * enabling happens during link training farther down.
-	 */
-	intel_ddi_init_dp_buf_reg(encoder, crtc_state);
-
 	if (!is_mst)
 		intel_dp_set_power(intel_dp, DP_SET_POWER_D0);
 
@@ -2472,6 +2469,12 @@ static void tgl_ddi_pre_enable_dp(struct intel_atomic_state *state,
 	intel_dp_set_link_params(intel_dp,
 				 crtc_state->port_clock,
 				 crtc_state->lane_count);
+
+	/*
+	 * We only configure what the register value will be here.  Actual
+	 * enabling happens during link training farther down.
+	 */
+	intel_ddi_init_dp_buf_reg(encoder, crtc_state);
 
 	/*
 	 * 1. Enable Power Wells
@@ -2554,16 +2557,6 @@ static void tgl_ddi_pre_enable_dp(struct intel_atomic_state *state,
 	 */
 	intel_ddi_mso_configure(crtc_state);
 
-	/*
-	 * 7.g Configure and enable DDI_BUF_CTL
-	 * 7.h Wait for DDI_BUF_CTL DDI Idle Status = 0b (Not Idle), timeout
-	 *     after 500 us.
-	 *
-	 * We only configure what the register value will be here.  Actual
-	 * enabling happens during link training farther down.
-	 */
-	intel_ddi_init_dp_buf_reg(encoder, crtc_state);
-
 	if (!is_mst)
 		intel_dp_set_power(intel_dp, DP_SET_POWER_D0);
 
@@ -2620,6 +2613,12 @@ static void hsw_ddi_pre_enable_dp(struct intel_atomic_state *state,
 				 crtc_state->port_clock,
 				 crtc_state->lane_count);
 
+	/*
+	 * We only configure what the register value will be here.  Actual
+	 * enabling happens during link training farther down.
+	 */
+	intel_ddi_init_dp_buf_reg(encoder, crtc_state);
+
 	intel_pps_on(intel_dp);
 
 	intel_ddi_enable_clock(encoder, crtc_state);
@@ -2641,7 +2640,6 @@ static void hsw_ddi_pre_enable_dp(struct intel_atomic_state *state,
 
 	intel_ddi_power_up_lanes(encoder, crtc_state);
 
-	intel_ddi_init_dp_buf_reg(encoder, crtc_state);
 	if (!is_mst)
 		intel_dp_set_power(intel_dp, DP_SET_POWER_D0);
 	intel_dp_configure_protocol_converter(intel_dp, crtc_state);
