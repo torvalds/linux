@@ -2440,8 +2440,12 @@ struct multi_cs_data {
  * @collective_mon_idx: helper index for collective initialization
  * @supports_coresight: is CoreSight supported.
  * @supports_soft_reset: is soft reset supported.
- * @allow_external_soft_reset: true if soft reset initiated by user or TDR is
- *                             allowed.
+ * @allow_inference_soft_reset: true if the ASIC supports soft reset that is
+ *                              initiated by user or TDR. This is only true
+ *                              in inference ASICs, as there is no real-world
+ *                              use-case of doing soft-reset in training (due
+ *                              to the fact that training runs on multiple
+ *                              devices)
  * @supports_cb_mapping: is mapping a CB to the device's MMU supported.
  * @needs_reset: true if reset_on_lockup is false and device should be reset
  *               due to lockup.
@@ -2572,7 +2576,7 @@ struct hl_device {
 	u8				collective_mon_idx;
 	u8				supports_coresight;
 	u8				supports_soft_reset;
-	u8				allow_external_soft_reset;
+	u8				allow_inference_soft_reset;
 	u8				supports_cb_mapping;
 	u8				needs_reset;
 	u8				process_kill_trial_cnt;

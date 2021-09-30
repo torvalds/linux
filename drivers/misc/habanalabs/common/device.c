@@ -954,7 +954,7 @@ int hl_device_reset(struct hl_device *hdev, u32 flags)
 		goto do_reset;
 	}
 
-	if (!hard_reset && !hdev->allow_external_soft_reset) {
+	if (!hard_reset && !hdev->allow_inference_soft_reset) {
 		hard_instead_soft = true;
 		hard_reset = true;
 	}
