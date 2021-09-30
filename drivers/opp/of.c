@@ -170,7 +170,7 @@ static void _opp_table_alloc_required_tables(struct opp_table *opp_table,
 	}
 
 	count = of_count_phandle_with_args(np, "required-opps", NULL);
-	if (!count)
+	if (count <= 0)
 		goto put_np;
 
 	required_opp_tables = kcalloc(count, sizeof(*required_opp_tables),
