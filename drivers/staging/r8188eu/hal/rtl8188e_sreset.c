@@ -6,10 +6,6 @@
 #include "../include/rtl8188e_sreset.h"
 #include "../include/rtl8188e_hal.h"
 
-void rtl8188e_silentreset_for_specific_platform(struct adapter *padapter)
-{
-}
-
 void rtl8188e_sreset_xmit_status_check(struct adapter *padapter)
 {
 	struct hal_data_8188e	*pHalData = GET_HAL_DATA(padapter);
@@ -24,7 +20,6 @@ void rtl8188e_sreset_xmit_status_check(struct adapter *padapter)
 	if (txdma_status != 0x00) {
 		DBG_88E("%s REG_TXDMA_STATUS:0x%08x\n", __func__, txdma_status);
 		rtw_write32(padapter, REG_TXDMA_STATUS, txdma_status);
-		rtl8188e_silentreset_for_specific_platform(padapter);
 	}
 	/* total xmit irp = 4 */
 	current_time = jiffies;
@@ -32,15 +27,8 @@ void rtl8188e_sreset_xmit_status_check(struct adapter *padapter)
 		diff_time = jiffies_to_msecs(current_time - psrtpriv->last_tx_time);
 
 		if (diff_time > 2000) {
-			if (psrtpriv->last_tx_complete_time == 0) {
+			if (psrtpriv->last_tx_complete_time == 0)
 				psrtpriv->last_tx_complete_time = current_time;
-			} else {
-				diff_time = jiffies_to_msecs(current_time - psrtpriv->last_tx_complete_time);
-				if (diff_time > 4000) {
-					DBG_88E("%s tx hang\n", __func__);
-					rtl8188e_silentreset_for_specific_platform(padapter);
-				}
-			}
 		}
 	}
 }

@@ -4002,12 +4002,6 @@ static int rtw_dbg_port(struct net_device *dev,
 				SetHalDefVar8188EUsb(padapter, HAL_DEF_DBG_DUMP_TXPKT, &extra_arg);
 			}
 			break;
-		case 0x0f:
-			if (extra_arg == 0) {
-				DBG_88E("###### silent reset test.......#####\n");
-				rtl8188e_silentreset_for_specific_platform(padapter);
-			}
-			break;
 		case 0x15:
 			{
 				struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
