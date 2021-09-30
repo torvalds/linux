@@ -2311,6 +2311,33 @@ static bool needs_cursorclk_wa(const struct intel_crtc_state *crtc_state)
 	return false;
 }
 
+static void intel_async_flip_vtd_wa(struct drm_i915_private *i915,
+				    enum pipe pipe, bool enable)
+{
+	if (DISPLAY_VER(i915) == 9) {
+		/*
+		 * "Plane N strech max must be programmed to 11b (x1)
+		 *  when Async flips are enabled on that plane."
+		 */
+		intel_de_rmw(i915, CHICKEN_PIPESL_1(pipe),
+			     SKL_PLANE1_STRETCH_MAX_MASK,
+			     enable ? SKL_PLANE1_STRETCH_MAX_X1 : SKL_PLANE1_STRETCH_MAX_X8);
+	} else {
+		/* Also needed on HSW/BDW albeit undocumented */
+		intel_de_rmw(i915, CHICKEN_PIPESL_1(pipe),
+			     HSW_PRI_STRETCH_MAX_MASK,
+			     enable ? HSW_PRI_STRETCH_MAX_X1 : HSW_PRI_STRETCH_MAX_X8);
+	}
+}
+
+static bool needs_async_flip_vtd_wa(const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+
+	return crtc_state->uapi.async_flip && intel_vtd_active() &&
+		(DISPLAY_VER(i915) == 9 || IS_BROADWELL(i915) || IS_HASWELL(i915));
+}
+
 static bool planes_enabling(const struct intel_crtc_state *old_crtc_state,
 			    const struct intel_crtc_state *new_crtc_state)
 {
@@ -2345,6 +2372,10 @@ static void intel_post_plane_update(struct intel_atomic_state *state,
 
 	intel_fbc_post_update(state, crtc);
 	intel_drrs_page_flip(state, crtc);
+
+	if (needs_async_flip_vtd_wa(old_crtc_state) &&
+	    !needs_async_flip_vtd_wa(new_crtc_state))
+		intel_async_flip_vtd_wa(dev_priv, pipe, false);
 
 	if (needs_nv12_wa(old_crtc_state) &&
 	    !needs_nv12_wa(new_crtc_state))
@@ -2443,6 +2474,10 @@ static void intel_pre_plane_update(struct intel_atomic_state *state,
 
 	if (intel_fbc_pre_update(state, crtc))
 		intel_wait_for_vblank(dev_priv, pipe);
+
+	if (!needs_async_flip_vtd_wa(old_crtc_state) &&
+	    needs_async_flip_vtd_wa(new_crtc_state))
+		intel_async_flip_vtd_wa(dev_priv, pipe, true);
 
 	/* Display WA 827 */
 	if (!needs_nv12_wa(old_crtc_state) &&
