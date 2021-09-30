@@ -383,7 +383,7 @@ static bool is_bss(struct cfg80211_bss *a, const u8 *bssid,
 		   const u8 *ssid, size_t ssid_len)
 {
 	const struct cfg80211_bss_ies *ies;
-	const u8 *ssidie;
+	const struct element *ssid_elem;
 
 	if (bssid && !ether_addr_equal(a->bssid, bssid))
 		return false;
@@ -394,12 +394,12 @@ static bool is_bss(struct cfg80211_bss *a, const u8 *bssid,
 	ies = rcu_access_pointer(a->ies);
 	if (!ies)
 		return false;
-	ssidie = cfg80211_find_ie(WLAN_EID_SSID, ies->data, ies->len);
-	if (!ssidie)
+	ssid_elem = cfg80211_find_elem(WLAN_EID_SSID, ies->data, ies->len);
+	if (!ssid_elem)
 		return false;
-	if (ssidie[1] != ssid_len)
+	if (ssid_elem->datalen != ssid_len)
 		return false;
-	return memcmp(ssidie + 2, ssid, ssid_len) == 0;
+	return memcmp(ssid_elem->data, ssid, ssid_len) == 0;
 }
 
 static int
@@ -2072,12 +2072,12 @@ static void cfg80211_parse_mbssid_data(struct wiphy *wiphy,
 
 	if (!non_tx_data)
 		return;
-	if (!cfg80211_find_ie(WLAN_EID_MULTIPLE_BSSID, ie, ielen))
+	if (!cfg80211_find_elem(WLAN_EID_MULTIPLE_BSSID, ie, ielen))
 		return;
 	if (!wiphy->support_mbssid)
 		return;
 	if (wiphy->support_only_he_mbssid &&
-	    !cfg80211_find_ext_ie(WLAN_EID_EXT_HE_CAPABILITY, ie, ielen))
+	    !cfg80211_find_ext_elem(WLAN_EID_EXT_HE_CAPABILITY, ie, ielen))
 		return;
 
 	new_ie = kmalloc(IEEE80211_MAX_DATA_LEN, gfp);
@@ -2444,10 +2444,10 @@ cfg80211_inform_bss_frame_data(struct wiphy *wiphy,
 	res = cfg80211_inform_single_bss_frame_data(wiphy, data, mgmt,
 						    len, gfp);
 	if (!res || !wiphy->support_mbssid ||
-	    !cfg80211_find_ie(WLAN_EID_MULTIPLE_BSSID, ie, ielen))
+	    !cfg80211_find_elem(WLAN_EID_MULTIPLE_BSSID, ie, ielen))
 		return res;
 	if (wiphy->support_only_he_mbssid &&
-	    !cfg80211_find_ext_ie(WLAN_EID_EXT_HE_CAPABILITY, ie, ielen))
+	    !cfg80211_find_ext_elem(WLAN_EID_EXT_HE_CAPABILITY, ie, ielen))
 		return res;
 
 	non_tx_data.tx_bss = res;
