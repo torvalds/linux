@@ -169,9 +169,8 @@ static int dsi_send_pkt_hdr(struct intel_dsi_host *host,
 	enum transcoder dsi_trans = dsi_port_to_transcoder(host->port);
 	u32 tmp;
 
-	/* check if header credit available */
 	if (!wait_for_header_credits(dev_priv, dsi_trans, 1))
-		return -1;
+		return -EBUSY;
 
 	tmp = intel_de_read(dev_priv, DSI_CMD_TXHDR(dsi_trans));
 
