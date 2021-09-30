@@ -46,6 +46,7 @@ static struct ap_device_id ap_queue_ids[] = {
 static struct ap_driver vfio_ap_drv = {
 	.probe = vfio_ap_mdev_probe_queue,
 	.remove = vfio_ap_mdev_remove_queue,
+	.in_use = vfio_ap_mdev_resource_in_use,
 	.ids = ap_queue_ids,
 };
 

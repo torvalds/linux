@@ -906,6 +906,21 @@ static int vfio_ap_mdev_verify_no_sharing(unsigned long *mdev_apm,
 	return 0;
 }
 
+/**
+ * vfio_ap_mdev_validate_masks - verify that the APQNs assigned to the mdev are
+ *				 not reserved for the default zcrypt driver and
+ *				 are not assigned to another mdev.
+ *
+ * @matrix_mdev: the mdev to which the APQNs being validated are assigned.
+ *
+ * Return: One of the following values:
+ * o the error returned from the ap_apqn_in_matrix_owned_by_def_drv() function,
+ *   most likely -EBUSY indicating the ap_perms_mutex lock is already held.
+ * o EADDRNOTAVAIL if an APQN assigned to @matrix_mdev is reserved for the
+ *		   zcrypt default driver.
+ * o EADDRINUSE if an APQN assigned to @matrix_mdev is assigned to another mdev
+ * o A zero indicating validation succeeded.
+ */
 static int vfio_ap_mdev_validate_masks(struct ap_matrix_mdev *matrix_mdev)
 {
 	if (ap_apqn_in_matrix_owned_by_def_drv(matrix_mdev->matrix.apm,
@@ -955,6 +970,10 @@ static void vfio_ap_mdev_link_adapter(struct ap_matrix_mdev *matrix_mdev,
  *	   An APQN derived from the cross product of the APID being assigned
  *	   and the APQIs previously assigned is being used by another mediated
  *	   matrix device
+ *
+ *	5. -EAGAIN
+ *	   A lock required to validate the mdev's AP configuration could not
+ *	   be obtained.
  */
 static ssize_t assign_adapter_store(struct device *dev,
 				    struct device_attribute *attr,
@@ -965,6 +984,7 @@ static ssize_t assign_adapter_store(struct device *dev,
 	DECLARE_BITMAP(apm_delta, AP_DEVICES);
 	struct ap_matrix_mdev *matrix_mdev = dev_get_drvdata(dev);
 
+	mutex_lock(&ap_perms_mutex);
 	get_update_locks_for_mdev(matrix_mdev);
 
 	ret = kstrtoul(buf, 0, &apid);
@@ -995,6 +1015,7 @@ static ssize_t assign_adapter_store(struct device *dev,
 	ret = count;
 done:
 	release_update_locks_for_mdev(matrix_mdev);
+	mutex_unlock(&ap_perms_mutex);
 
 	return ret;
 }
@@ -1148,6 +1169,10 @@ static void vfio_ap_mdev_link_domain(struct ap_matrix_mdev *matrix_mdev,
  *	   An APQN derived from the cross product of the APQI being assigned
  *	   and the APIDs previously assigned is being used by another mediated
  *	   matrix device
+ *
+ *	5. -EAGAIN
+ *	   The lock required to validate the mdev's AP configuration could not
+ *	   be obtained.
  */
 static ssize_t assign_domain_store(struct device *dev,
 				   struct device_attribute *attr,
@@ -1158,6 +1183,7 @@ static ssize_t assign_domain_store(struct device *dev,
 	DECLARE_BITMAP(aqm_delta, AP_DOMAINS);
 	struct ap_matrix_mdev *matrix_mdev = dev_get_drvdata(dev);
 
+	mutex_lock(&ap_perms_mutex);
 	get_update_locks_for_mdev(matrix_mdev);
 
 	ret = kstrtoul(buf, 0, &apqi);
@@ -1188,6 +1214,7 @@ static ssize_t assign_domain_store(struct device *dev,
 	ret = count;
 done:
 	release_update_locks_for_mdev(matrix_mdev);
+	mutex_unlock(&ap_perms_mutex);
 
 	return ret;
 }
@@ -1903,4 +1930,31 @@ void vfio_ap_mdev_remove_queue(struct ap_device *apdev)
 	dev_set_drvdata(&apdev->device, NULL);
 	kfree(q);
 	release_update_locks_for_mdev(matrix_mdev);
+}
+
+/**
+ * vfio_ap_mdev_resource_in_use: check whether any of a set of APQNs is
+ *				 assigned to a mediated device under the control
+ *				 of the vfio_ap device driver.
+ *
+ * @apm: a bitmap specifying a set of APIDs comprising the APQNs to check.
+ * @aqm: a bitmap specifying a set of APQIs comprising the APQNs to check.
+ *
+ * Return:
+ *	* -EADDRINUSE if one or more of the APQNs specified via @apm/@aqm are
+ *	  assigned to a mediated device under the control of the vfio_ap
+ *	  device driver.
+ *	* Otherwise, return 0.
+ */
+int vfio_ap_mdev_resource_in_use(unsigned long *apm, unsigned long *aqm)
+{
+	int ret;
+
+	mutex_lock(&matrix_dev->guests_lock);
+	mutex_lock(&matrix_dev->mdevs_lock);
+	ret = vfio_ap_mdev_verify_no_sharing(apm, aqm);
+	mutex_unlock(&matrix_dev->mdevs_lock);
+	mutex_unlock(&matrix_dev->guests_lock);
+
+	return ret;
 }
