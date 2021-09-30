@@ -1,0 +1,96 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/usb/hynetek,husb311.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Hynetek HUSB311 Type-C Port controller DT bindings
+
+maintainers:
+  - Guenter Roeck <linux@roeck-us.net>
+  - Heikki Krogerus <heikki.krogerus@linux.intel.com>
+
+properties:
+  compatible:
+    const: hynetek,husb311
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  ports:
+    type: object
+    properties:
+      port@0:
+        type: object
+        description: TCPC connected to USB controller to support dual-role switch.
+
+    required:
+      - port@0
+
+  connector:
+    type: object
+    $ref: ../connector/usb-connector.yaml#
+    description:
+      Properties for usb c connector that attached to the tcpci chip.
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - connector
+
+additionalProperties: true
+
+examples:
+  - |
+    #include "dt-bindings/usb/pd.h"
+
+    usbc0: husb311@4e {
+        compatible = "hynetek,husb311";
+        reg = <0x4e>;
+        interrupt-parent = <&gpio1>;
+        interrupts = <RK_PA2 IRQ_TYPE_LEVEL_LOW>;
+        vbus-supply = <&vcc5v0_typec>;
+        status = "okay";
+
+        ports {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            port@0 {
+                reg = <0>;
+                usbc0_role_sw: endpoint@0 {
+                    remote-endpoint = <&dwc3_0_role_switch>;
+                };
+            };
+        };
+
+        usb_con: connector {
+            compatible = "usb-c-connector";
+            label = "USB-C";
+            data-role = "dual";
+            power-role = "dual";
+            try-power-role = "sink";
+            op-sink-microwatt = <1000000>;
+            sink-pdos =
+                <PDO_FIXED(5000, 1000, PDO_FIXED_USB_COMM)>;
+            source-pdos =
+                <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
+
+            ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                port@0 {
+                    reg = <0>;
+                    usbc0_orien_sw: endpoint {
+                        remote-endpoint = <&usbdp_phy0_orientation_switch>;
+                    };
+                };
+            };
+        };
+    };
+...
