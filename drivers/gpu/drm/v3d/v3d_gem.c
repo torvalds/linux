@@ -416,7 +416,7 @@ v3d_wait_bo_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 
 	ret = drm_gem_dma_resv_wait(file_priv, args->handle,
-					      true, timeout_jiffies);
+				    true, timeout_jiffies);
 
 	/* Decrement the user's timeout, in case we got interrupted
 	 * such that the ioctl will be restarted.
@@ -435,11 +435,24 @@ v3d_wait_bo_ioctl(struct drm_device *dev, void *data,
 }
 
 static int
+v3d_job_add_deps(struct drm_file *file_priv, struct v3d_job *job,
+		 u32 in_sync, u32 point)
+{
+	struct dma_fence *in_fence = NULL;
+	int ret;
+
+	ret = drm_syncobj_find_fence(file_priv, in_sync, point, 0, &in_fence);
+	if (ret == -EINVAL)
+		return ret;
+
+	return drm_sched_job_add_dependency(&job->base, in_fence);
+}
+
+static int
 v3d_job_init(struct v3d_dev *v3d, struct drm_file *file_priv,
 	     struct v3d_job *job, void (*free)(struct kref *ref),
 	     u32 in_sync, enum v3d_queue queue)
 {
-	struct dma_fence *in_fence = NULL;
 	struct v3d_file_priv *v3d_priv = file_priv->driver_priv;
 	int ret;
 
@@ -455,11 +468,7 @@ v3d_job_init(struct v3d_dev *v3d, struct drm_file *file_priv,
 	if (ret)
 		goto fail;
 
-	ret = drm_syncobj_find_fence(file_priv, in_sync, 0, 0, &in_fence);
-	if (ret == -EINVAL)
-		goto fail_job;
-
-	ret = drm_sched_job_add_dependency(&job->base, in_fence);
+	ret = v3d_job_add_deps(file_priv, job, in_sync, 0);
 	if (ret)
 		goto fail_job;
 
@@ -499,7 +508,7 @@ v3d_attach_fences_and_unlock_reservation(struct drm_file *file_priv,
 	for (i = 0; i < job->bo_count; i++) {
 		/* XXX: Use shared fences for read-only objects. */
 		dma_resv_add_excl_fence(job->bo[i]->resv,
-						  job->done_fence);
+					job->done_fence);
 	}
 
 	drm_gem_unlock_reservations(job->bo, job->bo_count, acquire_ctx);
@@ -903,8 +912,7 @@ v3d_gem_init(struct drm_device *dev)
 	if (!v3d->pt) {
 		drm_mm_takedown(&v3d->mm);
 		dev_err(v3d->drm.dev,
-			"Failed to allocate page tables. "
-			"Please ensure you have CMA enabled.\n");
+			"Failed to allocate page tables. Please ensure you have CMA enabled.\n");
 		return -ENOMEM;
 	}
 
