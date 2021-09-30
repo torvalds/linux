@@ -793,11 +793,13 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 			case XDP_PASS:
 				break;
 			case XDP_REDIRECT:
-				if (xdp_do_redirect(dev, &xdp, xdp_prog) >= 0) {
+				if (likely(!xdp_do_redirect(dev, &xdp, xdp_prog))) {
+					ring->xdp_redirect++;
 					xdp_redir_flush = true;
 					frags[0].page = NULL;
 					goto next;
 				}
+				ring->xdp_redirect_fail++;
 				trace_xdp_exception(dev, xdp_prog, act);
 				goto xdp_drop_no_cnt;
 			case XDP_TX:
