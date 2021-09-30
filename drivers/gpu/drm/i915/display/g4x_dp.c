@@ -426,7 +426,6 @@ intel_dp_link_down(struct intel_encoder *encoder,
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
 	enum port port = encoder->port;
-	u32 DP = intel_dp->DP;
 
 	if (drm_WARN_ON(&dev_priv->drm,
 			(intel_de_read(dev_priv, intel_dp->output_reg) &
@@ -437,17 +436,17 @@ intel_dp_link_down(struct intel_encoder *encoder,
 
 	if ((IS_IVYBRIDGE(dev_priv) && port == PORT_A) ||
 	    (HAS_PCH_CPT(dev_priv) && port != PORT_A)) {
-		DP &= ~DP_LINK_TRAIN_MASK_CPT;
-		DP |= DP_LINK_TRAIN_PAT_IDLE_CPT;
+		intel_dp->DP &= ~DP_LINK_TRAIN_MASK_CPT;
+		intel_dp->DP |= DP_LINK_TRAIN_PAT_IDLE_CPT;
 	} else {
-		DP &= ~DP_LINK_TRAIN_MASK;
-		DP |= DP_LINK_TRAIN_PAT_IDLE;
+		intel_dp->DP &= ~DP_LINK_TRAIN_MASK;
+		intel_dp->DP |= DP_LINK_TRAIN_PAT_IDLE;
 	}
-	intel_de_write(dev_priv, intel_dp->output_reg, DP);
+	intel_de_write(dev_priv, intel_dp->output_reg, intel_dp->DP);
 	intel_de_posting_read(dev_priv, intel_dp->output_reg);
 
-	DP &= ~(DP_PORT_EN | DP_AUDIO_OUTPUT_ENABLE);
-	intel_de_write(dev_priv, intel_dp->output_reg, DP);
+	intel_dp->DP &= ~(DP_PORT_EN | DP_AUDIO_OUTPUT_ENABLE);
+	intel_de_write(dev_priv, intel_dp->output_reg, intel_dp->DP);
 	intel_de_posting_read(dev_priv, intel_dp->output_reg);
 
 	/*
@@ -464,14 +463,14 @@ intel_dp_link_down(struct intel_encoder *encoder,
 		intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, false);
 
 		/* always enable with pattern 1 (as per spec) */
-		DP &= ~(DP_PIPE_SEL_MASK | DP_LINK_TRAIN_MASK);
-		DP |= DP_PORT_EN | DP_PIPE_SEL(PIPE_A) |
+		intel_dp->DP &= ~(DP_PIPE_SEL_MASK | DP_LINK_TRAIN_MASK);
+		intel_dp->DP |= DP_PORT_EN | DP_PIPE_SEL(PIPE_A) |
 			DP_LINK_TRAIN_PAT_1;
-		intel_de_write(dev_priv, intel_dp->output_reg, DP);
+		intel_de_write(dev_priv, intel_dp->output_reg, intel_dp->DP);
 		intel_de_posting_read(dev_priv, intel_dp->output_reg);
 
-		DP &= ~DP_PORT_EN;
-		intel_de_write(dev_priv, intel_dp->output_reg, DP);
+		intel_dp->DP &= ~DP_PORT_EN;
+		intel_de_write(dev_priv, intel_dp->output_reg, intel_dp->DP);
 		intel_de_posting_read(dev_priv, intel_dp->output_reg);
 
 		intel_wait_for_vblank_if_active(dev_priv, PIPE_A);
@@ -480,8 +479,6 @@ intel_dp_link_down(struct intel_encoder *encoder,
 	}
 
 	msleep(intel_dp->pps.panel_power_down_delay);
-
-	intel_dp->DP = DP;
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		intel_wakeref_t wakeref;
@@ -582,19 +579,18 @@ cpt_set_link_train(struct intel_dp *intel_dp,
 		   u8 dp_train_pat)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	u32 *DP = &intel_dp->DP;
 
-	*DP &= ~DP_LINK_TRAIN_MASK_CPT;
+	intel_dp->DP &= ~DP_LINK_TRAIN_MASK_CPT;
 
 	switch (intel_dp_training_pattern_symbol(dp_train_pat)) {
 	case DP_TRAINING_PATTERN_DISABLE:
-		*DP |= DP_LINK_TRAIN_OFF_CPT;
+		intel_dp->DP |= DP_LINK_TRAIN_OFF_CPT;
 		break;
 	case DP_TRAINING_PATTERN_1:
-		*DP |= DP_LINK_TRAIN_PAT_1_CPT;
+		intel_dp->DP |= DP_LINK_TRAIN_PAT_1_CPT;
 		break;
 	case DP_TRAINING_PATTERN_2:
-		*DP |= DP_LINK_TRAIN_PAT_2_CPT;
+		intel_dp->DP |= DP_LINK_TRAIN_PAT_2_CPT;
 		break;
 	default:
 		MISSING_CASE(intel_dp_training_pattern_symbol(dp_train_pat));
@@ -611,19 +607,18 @@ g4x_set_link_train(struct intel_dp *intel_dp,
 		   u8 dp_train_pat)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	u32 *DP = &intel_dp->DP;
 
-	*DP &= ~DP_LINK_TRAIN_MASK;
+	intel_dp->DP &= ~DP_LINK_TRAIN_MASK;
 
 	switch (intel_dp_training_pattern_symbol(dp_train_pat)) {
 	case DP_TRAINING_PATTERN_DISABLE:
-		*DP |= DP_LINK_TRAIN_OFF;
+		intel_dp->DP |= DP_LINK_TRAIN_OFF;
 		break;
 	case DP_TRAINING_PATTERN_1:
-		*DP |= DP_LINK_TRAIN_PAT_1;
+		intel_dp->DP |= DP_LINK_TRAIN_PAT_1;
 		break;
 	case DP_TRAINING_PATTERN_2:
-		*DP |= DP_LINK_TRAIN_PAT_2;
+		intel_dp->DP |= DP_LINK_TRAIN_PAT_2;
 		break;
 	default:
 		MISSING_CASE(intel_dp_training_pattern_symbol(dp_train_pat));
