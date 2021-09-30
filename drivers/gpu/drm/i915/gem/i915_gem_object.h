@@ -58,6 +58,9 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 			  const struct drm_i915_gem_object_ops *ops,
 			  struct lock_class_key *key,
 			  unsigned alloc_flags);
+
+void __i915_gem_object_fini(struct drm_i915_gem_object *obj);
+
 struct drm_i915_gem_object *
 i915_gem_object_create_shmem(struct drm_i915_private *i915,
 			     resource_size_t size);
@@ -581,6 +584,8 @@ int i915_gem_object_read_from_page(struct drm_i915_gem_object *obj, u64 offset, 
 bool i915_gem_object_is_shmem(const struct drm_i915_gem_object *obj);
 
 void __i915_gem_free_object_rcu(struct rcu_head *head);
+
+void __i915_gem_object_pages_fini(struct drm_i915_gem_object *obj);
 
 void __i915_gem_free_object(struct drm_i915_gem_object *obj);
 
