@@ -830,12 +830,8 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 		return false;
 	}
 
-	/*
-	 * We are missing the implementation of some workarounds to enabled PSR2
-	 * in Alderlake_P, until ready PSR2 should be kept disabled.
-	 */
-	if (IS_ALDERLAKE_P(dev_priv)) {
-		drm_dbg_kms(&dev_priv->drm, "PSR2 is missing the implementation of workarounds\n");
+	if (IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0)) {
+		drm_dbg_kms(&dev_priv->drm, "PSR2 not completely functional in this stepping\n");
 		return false;
 	}
 
