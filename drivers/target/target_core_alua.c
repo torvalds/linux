@@ -1835,8 +1835,6 @@ static void __target_detach_tg_pt_gp(struct se_lun *lun,
 	list_del_init(&lun->lun_tg_pt_gp_link);
 	tg_pt_gp->tg_pt_gp_members--;
 	spin_unlock(&tg_pt_gp->tg_pt_gp_lock);
-
-	rcu_assign_pointer(lun->lun_tg_pt_gp, NULL);
 }
 
 void target_detach_tg_pt_gp(struct se_lun *lun)
@@ -1846,10 +1844,23 @@ void target_detach_tg_pt_gp(struct se_lun *lun)
 	spin_lock(&lun->lun_tg_pt_gp_lock);
 	tg_pt_gp = rcu_dereference_check(lun->lun_tg_pt_gp,
 				lockdep_is_held(&lun->lun_tg_pt_gp_lock));
-	if (tg_pt_gp)
+	if (tg_pt_gp) {
 		__target_detach_tg_pt_gp(lun, tg_pt_gp);
+		rcu_assign_pointer(lun->lun_tg_pt_gp, NULL);
+	}
 	spin_unlock(&lun->lun_tg_pt_gp_lock);
 	synchronize_rcu();
+}
+
+static void target_swap_tg_pt_gp(struct se_lun *lun,
+				 struct t10_alua_tg_pt_gp *old_tg_pt_gp,
+				 struct t10_alua_tg_pt_gp *new_tg_pt_gp)
+{
+	assert_spin_locked(&lun->lun_tg_pt_gp_lock);
+
+	if (old_tg_pt_gp)
+		__target_detach_tg_pt_gp(lun, old_tg_pt_gp);
+	__target_attach_tg_pt_gp(lun, new_tg_pt_gp);
 }
 
 ssize_t core_alua_show_tg_pt_gp_info(struct se_lun *lun, char *page)
@@ -1941,18 +1952,16 @@ ssize_t core_alua_store_tg_pt_gp_info(
 					&tg_pt_gp->tg_pt_gp_group.cg_item),
 				tg_pt_gp->tg_pt_gp_id);
 
-			__target_detach_tg_pt_gp(lun, tg_pt_gp);
-			__target_attach_tg_pt_gp(lun,
+			target_swap_tg_pt_gp(lun, tg_pt_gp,
 					dev->t10_alua.default_tg_pt_gp);
 			spin_unlock(&lun->lun_tg_pt_gp_lock);
 
 			goto sync_rcu;
 		}
-		__target_detach_tg_pt_gp(lun, tg_pt_gp);
 		move = 1;
 	}
 
-	__target_attach_tg_pt_gp(lun, tg_pt_gp_new);
+	target_swap_tg_pt_gp(lun, tg_pt_gp, tg_pt_gp_new);
 	spin_unlock(&lun->lun_tg_pt_gp_lock);
 	pr_debug("Target_Core_ConfigFS: %s %s/tpgt_%hu/%s to ALUA"
 		" Target Port Group: alua/%s, ID: %hu\n", (move) ?
