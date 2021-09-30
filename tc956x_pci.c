@@ -62,6 +62,9 @@
  *  VERSION     : 01-00-13
  *  23 Sep 2021 : 1. Version update
  *  VERSION     : 01-00-14
+ *  29 Sep 2021 : 1. Version update
+		: 2. Added check for Device presence before changing PCIe ports speed.
+ *  VERSION     : 01-00-15
  */
 
 #include <linux/clk-provider.h>
@@ -91,7 +94,7 @@ static unsigned int tc956x_speed = 3;
 static unsigned int tc956x_port0_interface = ENABLE_XFI_INTERFACE;
 static unsigned int tc956x_port1_interface = ENABLE_SGMII_INTERFACE;
 
-static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 1, 4};
+static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 1, 5};
 
 /*
  * This struct is used to associate PCI Function of MAC controller on a board,
@@ -1613,6 +1616,9 @@ static int tc956x_set_speed(struct pci_dev *pdev, u32 speed)
 	u32 lnkcap;
 	u32 max_speed = 0, cur_speed = 0, org_speed = 0;
 
+	if (!pdev)
+		return -EINVAL;
+
 	ret = pcie_capability_read_dword(pdev, PCI_EXP_LNKCAP, &lnkcap);
 	if (ret == 0)
 		max_speed = (lnkcap & 0xf);
@@ -1683,12 +1689,15 @@ int tc956x_set_pci_speed(struct pci_dev *pdev, u32 speed)
 	if ((ret == 0) && (cur_speed == speed))
 		return 0;
 
+	/* reset all dsp (down stream ports) information */
+	memset(dsp, 0, sizeof(dsp));
+
 	i = 0;
 	for_each_pci_bridge(pd, usp->subordinate)
 		dsp[i++] = pd;
 
 	dev_num = 0;
-	for (i = 0; i < 3; i++) {
+	for (i = 0; ((i < 3) && (dsp[i] != NULL)); i++) {
 		struct pci_bus *bus = dsp[i]->subordinate;
 
 		if (bus)
@@ -1707,7 +1716,7 @@ int tc956x_set_pci_speed(struct pci_dev *pdev, u32 speed)
 	}
 
 	j = 0;
-	for (i = 0; i < 3; i++) {
+	for (i = 0; ((i < 3) && (dsp[i] != NULL)); i++) {
 		struct pci_bus *bus = dsp[i]->subordinate;
 
 		if (bus)
