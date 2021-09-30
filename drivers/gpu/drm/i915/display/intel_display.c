@@ -398,20 +398,6 @@ intel_wait_for_pipe_off(const struct intel_crtc_state *old_crtc_state)
 	}
 }
 
-/* Only for pre-ILK configs */
-void assert_pll(struct drm_i915_private *dev_priv,
-		enum pipe pipe, bool state)
-{
-	u32 val;
-	bool cur_state;
-
-	val = intel_de_read(dev_priv, DPLL(pipe));
-	cur_state = !!(val & DPLL_VCO_ENABLE);
-	I915_STATE_WARN(cur_state != state,
-	     "PLL state assertion failure (expected %s, current %s)\n",
-			onoff(state), onoff(cur_state));
-}
-
 /* XXX: the dsi pll is shared between MIPI DSI ports */
 void assert_dsi_pll(struct drm_i915_private *dev_priv, bool state)
 {

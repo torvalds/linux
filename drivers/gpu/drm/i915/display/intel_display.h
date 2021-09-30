@@ -645,10 +645,6 @@ void intel_init_pch_refclk(struct drm_i915_private *dev_priv);
 int intel_modeset_all_pipes(struct intel_atomic_state *state);
 
 /* modesetting asserts */
-void assert_pll(struct drm_i915_private *dev_priv,
-		enum pipe pipe, bool state);
-#define assert_pll_enabled(d, p) assert_pll(d, p, true)
-#define assert_pll_disabled(d, p) assert_pll(d, p, false)
 void assert_dsi_pll(struct drm_i915_private *dev_priv, bool state);
 #define assert_dsi_pll_enabled(d) assert_dsi_pll(d, true)
 #define assert_dsi_pll_disabled(d) assert_dsi_pll(d, false)

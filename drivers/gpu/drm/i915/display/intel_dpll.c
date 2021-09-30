@@ -1923,3 +1923,25 @@ void vlv_force_pll_off(struct drm_i915_private *dev_priv, enum pipe pipe)
 	else
 		vlv_disable_pll(dev_priv, pipe);
 }
+
+/* Only for pre-ILK configs */
+static void assert_pll(struct drm_i915_private *dev_priv,
+		       enum pipe pipe, bool state)
+{
+	bool cur_state;
+
+	cur_state = intel_de_read(dev_priv, DPLL(pipe)) & DPLL_VCO_ENABLE;
+	I915_STATE_WARN(cur_state != state,
+			"PLL state assertion failure (expected %s, current %s)\n",
+			onoff(state), onoff(cur_state));
+}
+
+void assert_pll_enabled(struct drm_i915_private *i915, enum pipe pipe)
+{
+	assert_pll(i915, pipe, true);
+}
+
+void assert_pll_disabled(struct drm_i915_private *i915, enum pipe pipe)
+{
+	assert_pll(i915, pipe, false);
+}
