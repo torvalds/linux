@@ -67,26 +67,14 @@ int bch2_create_trans(struct btree_trans *trans,
 
 		if (!snapshot_src.inum) {
 			/* Inode wasn't specified, just snapshot: */
-			struct btree_iter subvol_iter;
-			struct bkey_s_c k;
+			struct bch_subvolume s;
 
-			bch2_trans_iter_init(trans, &subvol_iter, BTREE_ID_subvolumes,
-					     POS(0, snapshot_src.subvol), 0);
-			k = bch2_btree_iter_peek_slot(&subvol_iter);
-
-			ret = bkey_err(k);
-			if (!ret && k.k->type != KEY_TYPE_subvolume) {
-				bch_err(c, "subvolume %u not found",
-					snapshot_src.subvol);
-				ret = -ENOENT;
-			}
-
-			if (!ret)
-				snapshot_src.inum = le64_to_cpu(bkey_s_c_to_subvolume(k).v->inode);
-			bch2_trans_iter_exit(trans, &subvol_iter);
-
+			ret = bch2_subvolume_get(trans, snapshot_src.subvol, true,
+						 BTREE_ITER_CACHED, &s);
 			if (ret)
 				goto err;
+
+			snapshot_src.inum = le64_to_cpu(s.inode);
 		}
 
 		ret = bch2_inode_peek(trans, &inode_iter, new_inode, snapshot_src,

@@ -103,29 +103,14 @@ static int snapshot_lookup_subvol(struct btree_trans *trans, u32 snapshot,
 static int __subvol_lookup(struct btree_trans *trans, u32 subvol,
 			   u32 *snapshot, u64 *inum)
 {
-	struct btree_iter iter;
-	struct bkey_s_c k;
+	struct bch_subvolume s;
 	int ret;
 
-	bch2_trans_iter_init(trans, &iter, BTREE_ID_subvolumes,
-			     POS(0, subvol), 0);
-	k = bch2_btree_iter_peek_slot(&iter);
-	ret = bkey_err(k);
-	if (ret)
-		goto err;
+	ret = bch2_subvolume_get(trans, subvol, false, 0, &s);
 
-	if (k.k->type != KEY_TYPE_subvolume) {
-		bch_err(trans->c, "subvolume %u not fonud", subvol);
-		ret = -ENOENT;
-		goto err;
-	}
-
-	*snapshot = le32_to_cpu(bkey_s_c_to_subvolume(k).v->snapshot);
-	*inum = le64_to_cpu(bkey_s_c_to_subvolume(k).v->inode);
-err:
-	bch2_trans_iter_exit(trans, &iter);
+	*snapshot = le32_to_cpu(s.snapshot);
+	*inum = le64_to_cpu(s.inode);
 	return ret;
-
 }
 
 static int subvol_lookup(struct btree_trans *trans, u32 subvol,

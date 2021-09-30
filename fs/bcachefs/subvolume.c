@@ -89,23 +89,6 @@ int bch2_mark_snapshot(struct bch_fs *c,
 	return 0;
 }
 
-static int subvol_lookup(struct btree_trans *trans, unsigned id, struct bch_subvolume *s)
-{
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	int ret;
-
-	bch2_trans_iter_init(trans, &iter, BTREE_ID_subvolumes, POS(0, id), 0);
-	k = bch2_btree_iter_peek_slot(&iter);
-	ret = bkey_err(k) ?: k.k->type == KEY_TYPE_subvolume ? 0 : -ENOENT;
-
-	if (!ret)
-		*s = *bkey_s_c_to_subvolume(k).v;
-
-	bch2_trans_iter_exit(trans, &iter);
-	return ret;
-}
-
 static int snapshot_lookup(struct btree_trans *trans, u32 id,
 			   struct bch_snapshot *s)
 {
@@ -195,7 +178,7 @@ static int bch2_snapshot_check(struct btree_trans *trans,
 	int ret;
 
 	id = le32_to_cpu(s.v->subvol);
-	ret = lockrestart_do(trans, subvol_lookup(trans, id, &subvol));
+	ret = lockrestart_do(trans, bch2_subvolume_get(trans, id, 0, false, &subvol));
 	if (ret == -ENOENT)
 		bch_err(trans->c, "snapshot node %llu has nonexistent subvolume %u",
 			s.k->p.offset, id);
@@ -798,31 +781,41 @@ void bch2_subvolume_to_text(struct printbuf *out, struct bch_fs *c,
 	       le32_to_cpu(s.v->snapshot));
 }
 
-int bch2_subvolume_get_snapshot(struct btree_trans *trans, u32 subvol,
-				u32 *snapid)
+int bch2_subvolume_get(struct btree_trans *trans, unsigned subvol,
+		       bool inconsistent_if_not_found,
+		       int iter_flags,
+		       struct bch_subvolume *s)
 {
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	int ret;
 
-	bch2_trans_iter_init(trans, &iter, BTREE_ID_subvolumes,
-			     POS(0, subvol),
-			     BTREE_ITER_CACHED|
-			     BTREE_ITER_WITH_UPDATES);
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_subvolumes, POS(0, subvol),
+			     iter_flags);
 	k = bch2_btree_iter_peek_slot(&iter);
-	ret = bkey_err(k);
-	if (ret)
-		goto err;
+	ret = bkey_err(k) ?: k.k->type == KEY_TYPE_subvolume ? 0 : -ENOENT;
 
-	if (k.k->type != KEY_TYPE_subvolume) {
+	if (ret == -ENOENT && inconsistent_if_not_found)
 		bch2_fs_inconsistent(trans->c, "missing subvolume %u", subvol);
-		ret = -EIO;
-		goto err;
-	}
+	if (!ret)
+		*s = *bkey_s_c_to_subvolume(k).v;
 
-	*snapid = le32_to_cpu(bkey_s_c_to_subvolume(k).v->snapshot);
-err:
 	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
+int bch2_subvolume_get_snapshot(struct btree_trans *trans, u32 subvol,
+				u32 *snapid)
+{
+	struct bch_subvolume s;
+	int ret;
+
+	ret = bch2_subvolume_get(trans, subvol, true,
+				 BTREE_ITER_CACHED|
+				 BTREE_ITER_WITH_UPDATES,
+				 &s);
+
+	*snapid = le32_to_cpu(s.snapshot);
 	return ret;
 }
 

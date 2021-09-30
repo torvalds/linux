@@ -191,34 +191,15 @@ int __bch2_dirent_read_target(struct btree_trans *trans,
 	if (likely(d.v->d_type != DT_SUBVOL)) {
 		*inum = le64_to_cpu(d.v->d_inum);
 	} else {
-		struct btree_iter iter;
-		struct bkey_s_c k;
-		struct bkey_s_c_subvolume s;
+		struct bch_subvolume s;
 		int ret;
 
 		*subvol = le64_to_cpu(d.v->d_inum);
-		bch2_trans_iter_init(trans, &iter, BTREE_ID_subvolumes,
-				     POS(0, *subvol),
-				     BTREE_ITER_CACHED);
-		k = bch2_btree_iter_peek_slot(&iter);
-		ret = bkey_err(k);
-		if (ret)
-			goto err;
 
-		if (k.k->type != KEY_TYPE_subvolume) {
-			ret = -ENOENT;
-			goto err;
-		}
+		ret = bch2_subvolume_get(trans, *subvol, !is_fsck, BTREE_ITER_CACHED, &s);
 
-		s = bkey_s_c_to_subvolume(k);
-		*snapshot	= le32_to_cpu(s.v->snapshot);
-		*inum		= le64_to_cpu(s.v->inode);
-err:
-		if (ret == -ENOENT && !is_fsck)
-			bch2_fs_inconsistent(trans->c, "pointer to missing subvolume %u",
-					     *subvol);
-
-		bch2_trans_iter_exit(trans, &iter);
+		*snapshot	= le32_to_cpu(s.snapshot);
+		*inum		= le64_to_cpu(s.inode);
 	}
 
 	return ret;

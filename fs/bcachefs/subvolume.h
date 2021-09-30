@@ -104,6 +104,8 @@ void bch2_subvolume_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c)
 	.val_to_text	= bch2_subvolume_to_text,		\
 }
 
+int bch2_subvolume_get(struct btree_trans *, unsigned,
+		       bool, int, struct bch_subvolume *);
 int bch2_subvolume_get_snapshot(struct btree_trans *, u32, u32 *);
 
 int bch2_subvolume_delete(struct btree_trans *, u32, int);
