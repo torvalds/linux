@@ -231,8 +231,8 @@ bool cros_ec_check_features(struct cros_ec_dev *ec, int feature);
 
 int cros_ec_get_sensor_count(struct cros_ec_dev *ec);
 
-int cros_ec_command(struct cros_ec_device *ec_dev, int command, uint8_t *outdata, int outsize,
-		    uint8_t *indata, int insize);
+int cros_ec_command(struct cros_ec_device *ec_dev, int command, void *outdata, int outsize,
+		    void *indata, int insize);
 
 /**
  * cros_ec_get_time_ns() - Return time in ns.

@@ -925,9 +925,9 @@ EXPORT_SYMBOL_GPL(cros_ec_get_sensor_count);
  */
 int cros_ec_command(struct cros_ec_device *ec_dev,
 		    int command,
-		    uint8_t *outdata,
+		    void *outdata,
 		    int outsize,
-		    uint8_t *indata,
+		    void *indata,
 		    int insize)
 {
 	struct cros_ec_command *msg;

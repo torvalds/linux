@@ -72,7 +72,7 @@ static void cros_usbpd_get_event_and_notify(struct device  *dev,
 
 	/* Check for PD host events on EC. */
 	ret = cros_ec_command(ec_dev, EC_CMD_PD_HOST_EVENT_STATUS,
-			      NULL, 0, (uint8_t *)&host_event_status, sizeof(host_event_status));
+			      NULL, 0, &host_event_status, sizeof(host_event_status));
 	if (ret < 0) {
 		dev_warn(dev, "Can't get host event status (err: %d)\n", ret);
 		goto send_notify;
