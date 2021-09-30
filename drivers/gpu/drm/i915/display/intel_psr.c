@@ -1503,15 +1503,10 @@ static void psr2_man_trk_ctl_calc(struct intel_crtc_state *crtc_state,
 
 	if (full_update) {
 		/*
-		 * Wa_14014971508:adlp
-		 * SINGLE_FULL_FRAME bit is not hold in register so can not be
-		 * restored by DMC, so using CONTINUOS_FULL_FRAME to mimic that
+		 * Not applying Wa_14014971508:adlp as we do not support the
+		 * feature that requires this workaround.
 		 */
-		if (IS_ALDERLAKE_P(dev_priv))
-			val |= ADLP_PSR2_MAN_TRK_CTL_SF_CONTINUOS_FULL_FRAME;
-		else
-			val |= PSR2_MAN_TRK_CTL_SF_SINGLE_FULL_FRAME;
-
+		val |= man_trk_ctl_single_full_frame_bit_get(dev_priv);
 		goto exit;
 	}
 
