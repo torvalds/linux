@@ -1573,6 +1573,9 @@ static void cursor_area_workaround(const struct intel_plane_state *new_plane_sta
  * also planes are not updated if they have a negative X
  * position so for now doing a full update in this cases
  *
+ * TODO: We are missing multi-planar formats handling, until it is
+ * implemented it will send full frame updates.
+ *
  * Plane scaling and rotation is not supported by selective fetch and both
  * properties can change without a modeset, so need to be check at every
  * atomic commmit.
@@ -1582,6 +1585,7 @@ static bool psr2_sel_fetch_plane_state_supported(const struct intel_plane_state 
 	if (plane_state->uapi.dst.y1 < 0 ||
 	    plane_state->uapi.dst.x1 < 0 ||
 	    plane_state->scaler_id >= 0 ||
+	    plane_state->hw.fb->format->num_planes > 1 ||
 	    plane_state->uapi.rotation != DRM_MODE_ROTATE_0)
 		return false;
 
