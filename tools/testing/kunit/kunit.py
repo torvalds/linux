@@ -100,11 +100,13 @@ def exec_tests(linux: kunit_kernel.LinuxSourceTree, request: KunitExecRequest,
 		filter_glob=request.filter_glob,
 		build_dir=request.build_dir)
 
+	result = parse_tests(parse_request, run_result)
+
+	# run_kernel() doesn't block on the kernel exiting.
+	# That only happens after we get the last line of output from `run_result`.
+	# So exec_time here actually contains parsing + execution time, which is fine.
 	test_end = time.time()
 	exec_time = test_end - test_start
-
-	# Named tuples are immutable, so we rebuild them here manually
-	result = parse_tests(parse_request, run_result)
 
 	return KunitResult(status=result.status, result=result.result, elapsed_time=exec_time)
 
