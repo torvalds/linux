@@ -848,42 +848,6 @@ end:
 	of_node_put(np_tim);
 }
 
-static void of_get_rk3568_timings(struct device *dev,
-				  struct device_node *np, uint32_t *timing)
-{
-	struct device_node *np_tim;
-	u32 *p;
-	struct rk3568_ddr_dts_config_timing *dts_timing;
-	int ret = 0;
-	u32 i;
-
-	dts_timing =
-		(struct rk3568_ddr_dts_config_timing *)(timing +
-							DTS_PAR_OFFSET / 4);
-
-	np_tim = of_parse_phandle(np, "ddr_timing", 0);
-	if (!np_tim) {
-		ret = -EINVAL;
-		goto end;
-	}
-
-	p = (u32 *)dts_timing;
-	for (i = 0; i < ARRAY_SIZE(px30_dts_timing); i++) {
-		ret |= of_property_read_u32(np_tim, px30_dts_timing[i],
-					p + i);
-	}
-
-end:
-	if (!ret) {
-		dts_timing->available = 1;
-	} else {
-		dts_timing->available = 0;
-		dev_err(dev, "of_get_ddr_timings: fail\n");
-	}
-
-	of_node_put(np_tim);
-}
-
 static void of_get_rv1126_timings(struct device *dev,
 				  struct device_node *np, uint32_t *timing)
 {
@@ -1769,7 +1733,6 @@ static __maybe_unused int rk3568_dmc_init(struct platform_device *pdev,
 					  struct rockchip_dmcfreq *dmcfreq)
 {
 	struct arm_smccc_res res;
-	u32 size;
 	int ret;
 	int complt_irq;
 
@@ -1783,18 +1746,17 @@ static __maybe_unused int rk3568_dmc_init(struct platform_device *pdev,
 
 	/*
 	 * first 4KB is used for interface parameters
-	 * after 4KB * N is dts parameters
+	 * after 4KB is dts parameters
+	 * request share memory size 4KB * 2
 	 */
-	size = sizeof(struct rk1808_ddr_dts_config_timing);
-	res = sip_smc_request_share_mem(DIV_ROUND_UP(size, 4096) + 1,
-					SHARE_PAGE_TYPE_DDR);
+	res = sip_smc_request_share_mem(2, SHARE_PAGE_TYPE_DDR);
 	if (res.a0 != 0) {
 		dev_err(&pdev->dev, "no ATF memory for init\n");
 		return -ENOMEM;
 	}
 	ddr_psci_param = (struct share_params *)res.a1;
-	of_get_rk3568_timings(&pdev->dev, pdev->dev.of_node,
-			      (uint32_t *)ddr_psci_param);
+	/* Clear ddr_psci_param, size is 4KB * 2 */
+	memset_io(ddr_psci_param, 0x0, 4096 * 2);
 
 	/* start mcu with sip_smc_dram */
 	wait_ctrl.dcf_en = 2;
@@ -1818,14 +1780,6 @@ static __maybe_unused int rk3568_dmc_init(struct platform_device *pdev,
 		return ret;
 	}
 	disable_irq(complt_irq);
-
-	if (of_property_read_u32(pdev->dev.of_node, "update_drv_odt_cfg",
-				 &ddr_psci_param->update_drv_odt_cfg))
-		ddr_psci_param->update_drv_odt_cfg = 0;
-
-	if (of_property_read_u32(pdev->dev.of_node, "update_deskew_cfg",
-				 &ddr_psci_param->update_deskew_cfg))
-		ddr_psci_param->update_deskew_cfg = 0;
 
 	res = sip_smc_dram(SHARE_PAGE_TYPE_DDR, 0,
 			   ROCKCHIP_SIP_CONFIG_DRAM_INIT);
