@@ -75,7 +75,7 @@ EXPORT_SYMBOL_GPL(xen_have_vector_callback);
  */
 enum xen_domain_type __ro_after_init xen_domain_type = XEN_NATIVE;
 EXPORT_SYMBOL_GPL(xen_domain_type);
-uint32_t xen_start_flags __section(".data") = 0;
+uint32_t __ro_after_init xen_start_flags;
 EXPORT_SYMBOL(xen_start_flags);
 
 /*
