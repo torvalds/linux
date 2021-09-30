@@ -166,8 +166,8 @@ and the type is IPMI_SYSTEM_INTERFACE_ADDR_TYPE.  This is used for talking
 straight to the BMC on the current card.  The channel must be
 IPMI_BMC_CHANNEL.
 
-Messages that are destined to go out on the IPMB bus use the
-IPMI_IPMB_ADDR_TYPE address type.  The format is::
+Messages that are destined to go out on the IPMB bus going through the
+BMC use the IPMI_IPMB_ADDR_TYPE address type.  The format is::
 
   struct ipmi_ipmb_addr
   {
@@ -181,6 +181,23 @@ The "channel" here is generally zero, but some devices support more
 than one channel, it corresponds to the channel as defined in the IPMI
 spec.
 
+There is also an IPMB direct address for a situation where the sender
+is directly on an IPMB bus and doesn't have to go through the BMC.
+You can send messages to a specific management controller (MC) on the
+IPMB using the IPMI_IPMB_DIRECT_ADDR_TYPE with the following format::
+
+  struct ipmi_ipmb_direct_addr
+  {
+	int           addr_type;
+	short         channel;
+	unsigned char slave_addr;
+	unsigned char rq_lun;
+	unsigned char rs_lun;
+  };
+
+The channel is always zero.  You can also receive commands from other
+MCs that you have registered to handle and respond to them, so you can
+use this to implement a management controller on a bus..
 
 Messages
 --------
@@ -347,6 +364,10 @@ specify a bitmask of the channels you want to receive the command from
 user may be registered for each netfn/cmd/channel, but different users
 may register for different commands, or the same command if the
 channel bitmasks do not overlap.
+
+To respond to a received command, set the response bit in the returned
+netfn, use the address from the received message, and use the same
+msgid that you got in the receive message.
 
 From userland, equivalent IOCTLs are provided to do these functions.
 
