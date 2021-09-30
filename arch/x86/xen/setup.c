@@ -306,10 +306,6 @@ static void __init xen_update_mem_tables(unsigned long pfn, unsigned long mfn)
 		BUG();
 	}
 
-	/* Update kernel mapping, but not for highmem. */
-	if (pfn >= PFN_UP(__pa(high_memory - 1)))
-		return;
-
 	if (HYPERVISOR_update_va_mapping((unsigned long)__va(pfn << PAGE_SHIFT),
 					 mfn_pte(mfn, PAGE_KERNEL), 0)) {
 		WARN(1, "Failed to update kernel mapping for mfn=%ld pfn=%ld\n",
