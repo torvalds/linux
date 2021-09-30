@@ -72,7 +72,6 @@ static void rt5682s_apply_patch_list(struct rt5682s_priv *rt5682s,
 }
 
 const struct reg_default rt5682s_reg[] = {
-	{0x0000, 0x0001},
 	{0x0002, 0x8080},
 	{0x0003, 0x0001},
 	{0x0005, 0x0000},
