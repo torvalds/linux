@@ -108,17 +108,6 @@ struct tls_descs {
  */
 static DEFINE_PER_CPU(struct tls_descs, shadow_tls_desc);
 
-static void __init xen_banner(void)
-{
-	unsigned version = HYPERVISOR_xen_version(XENVER_version, NULL);
-	struct xen_extraversion extra;
-	HYPERVISOR_xen_version(XENVER_extraversion, &extra);
-
-	pr_info("Booting paravirtualized kernel on %s\n", pv_info.name);
-	pr_info("Xen version: %d.%d%s (preserve-AD)\n",
-		version >> 16, version & 0xffff, extra.extraversion);
-}
-
 static void __init xen_pv_init_platform(void)
 {
 	populate_extra_pte(fix_to_virt(FIX_PARAVIRT_BOOTMAP));

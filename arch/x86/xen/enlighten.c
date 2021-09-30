@@ -261,6 +261,20 @@ int xen_vcpu_setup(int cpu)
 	return ((per_cpu(xen_vcpu, cpu) == NULL) ? -ENODEV : 0);
 }
 
+void __init xen_banner(void)
+{
+	unsigned version = HYPERVISOR_xen_version(XENVER_version, NULL);
+	struct xen_extraversion extra;
+
+	HYPERVISOR_xen_version(XENVER_extraversion, &extra);
+
+	pr_info("Booting kernel on %s\n", pv_info.name);
+	pr_info("Xen version: %u.%u%s%s\n",
+		version >> 16, version & 0xffff, extra.extraversion,
+		xen_feature(XENFEAT_mmu_pt_update_preserve_ad)
+		? " (preserve-AD)" : "");
+}
+
 /* Check if running on Xen version (major, minor) or later */
 bool xen_running_on_version_or_later(unsigned int major, unsigned int minor)
 {

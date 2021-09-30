@@ -38,6 +38,7 @@ void __init xen_pvh_init(struct boot_params *boot_params)
 
 	if (xen_initial_domain())
 		x86_init.oem.arch_setup = xen_add_preferred_consoles;
+	x86_init.oem.banner = xen_banner;
 
 	xen_efi_init(boot_params);
 }
