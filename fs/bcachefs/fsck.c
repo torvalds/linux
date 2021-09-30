@@ -2094,11 +2094,7 @@ static int check_nlinks_update_hardlinks(struct bch_fs *c,
 				bch2_inode_nlink_get(&u), link->count)) {
 			bch2_inode_nlink_set(&u, link->count);
 
-			ret = __bch2_trans_do(&trans, NULL, NULL,
-					      BTREE_INSERT_NOFAIL|
-					      BTREE_INSERT_LAZY_RW,
-					      bch2_btree_iter_traverse(&iter) ?:
-					bch2_inode_write(&trans, &iter, &u));
+			ret = write_inode(&trans, &u, k.k->p.snapshot);
 			if (ret)
 				bch_err(c, "error in fsck: error %i updating inode", ret);
 		}
