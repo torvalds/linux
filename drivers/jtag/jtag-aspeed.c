@@ -1107,6 +1107,7 @@ static int aspeed_jtag_xfer_hw2(struct aspeed_jtag *aspeed_jtag,
 	} else if (aspeed_jtag->current_state == JTAG_STATE_IDLE ||
 		   aspeed_jtag->current_state == JTAG_STATE_TLRESET ||
 		   aspeed_jtag->current_state == pause ||
+		   aspeed_jtag->current_state == exit ||
 		   aspeed_jtag->current_state == exitx) {
 		start_shift = ASPEED_JTAG_SHCTRL_START_SHIFT;
 	} else {
