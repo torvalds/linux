@@ -537,6 +537,36 @@ v3d_attach_fences_and_unlock_reservation(struct drm_file *file_priv,
 	}
 }
 
+/* Whenever userspace sets ioctl extensions, v3d_get_extensions parses data
+ * according to the extension id (name).
+ */
+static int
+v3d_get_extensions(struct drm_file *file_priv, u64 ext_handles)
+{
+	struct drm_v3d_extension __user *user_ext;
+
+	user_ext = u64_to_user_ptr(ext_handles);
+	while (user_ext) {
+		struct drm_v3d_extension ext;
+
+		if (copy_from_user(&ext, user_ext, sizeof(ext))) {
+			DRM_DEBUG("Failed to copy submit extension\n");
+			return -EFAULT;
+		}
+
+		switch (ext.id) {
+		case 0:
+		default:
+			DRM_DEBUG_DRIVER("Unknown extension id: %d\n", ext.id);
+			return -EINVAL;
+		}
+
+		user_ext = u64_to_user_ptr(ext.next);
+	}
+
+	return 0;
+}
+
 /**
  * v3d_submit_cl_ioctl() - Submits a job (frame) to the V3D.
  * @dev: DRM device
@@ -565,13 +595,22 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 
 	trace_v3d_submit_cl_ioctl(&v3d->drm, args->rcl_start, args->rcl_end);
 
-	if (args->pad != 0)
+	if (args->pad)
 		return -EINVAL;
 
-	if (args->flags != 0 &&
-	    args->flags != DRM_V3D_SUBMIT_CL_FLUSH_CACHE) {
+	if (args->flags &&
+	    args->flags & ~(DRM_V3D_SUBMIT_CL_FLUSH_CACHE |
+			    DRM_V3D_SUBMIT_EXTENSION)) {
 		DRM_INFO("invalid flags: %d\n", args->flags);
 		return -EINVAL;
+	}
+
+	if (args->flags & DRM_V3D_SUBMIT_EXTENSION) {
+		ret = v3d_get_extensions(file_priv, args->extensions);
+		if (ret) {
+			DRM_DEBUG("Failed to get extensions.\n");
+			return ret;
+		}
 	}
 
 	ret = v3d_job_init(v3d, file_priv, (void *)&render, sizeof(*render),
@@ -702,6 +741,19 @@ v3d_submit_tfu_ioctl(struct drm_device *dev, void *data,
 
 	trace_v3d_submit_tfu_ioctl(&v3d->drm, args->iia);
 
+	if (args->flags && !(args->flags & DRM_V3D_SUBMIT_EXTENSION)) {
+		DRM_DEBUG("invalid flags: %d\n", args->flags);
+		return -EINVAL;
+	}
+
+	if (args->flags & DRM_V3D_SUBMIT_EXTENSION) {
+		ret = v3d_get_extensions(file_priv, args->extensions);
+		if (ret) {
+			DRM_DEBUG("Failed to get extensions.\n");
+			return ret;
+		}
+	}
+
 	ret = v3d_job_init(v3d, file_priv, (void *)&job, sizeof(*job),
 			   v3d_job_free, args->in_sync, V3D_TFU);
 	if (ret)
@@ -786,9 +838,25 @@ v3d_submit_csd_ioctl(struct drm_device *dev, void *data,
 
 	trace_v3d_submit_csd_ioctl(&v3d->drm, args->cfg[5], args->cfg[6]);
 
+	if (args->pad)
+		return -EINVAL;
+
 	if (!v3d_has_csd(v3d)) {
 		DRM_DEBUG("Attempting CSD submit on non-CSD hardware\n");
 		return -EINVAL;
+	}
+
+	if (args->flags && !(args->flags & DRM_V3D_SUBMIT_EXTENSION)) {
+		DRM_INFO("invalid flags: %d\n", args->flags);
+		return -EINVAL;
+	}
+
+	if (args->flags & DRM_V3D_SUBMIT_EXTENSION) {
+		ret = v3d_get_extensions(file_priv, args->extensions);
+		if (ret) {
+			DRM_DEBUG("Failed to get extensions.\n");
+			return ret;
+		}
 	}
 
 	ret = v3d_job_init(v3d, file_priv, (void *)&job, sizeof(*job),
