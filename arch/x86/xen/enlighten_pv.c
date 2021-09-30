@@ -1348,7 +1348,6 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	boot_params.hdr.hardware_subarch = X86_SUBARCH_XEN;
 
 	if (!xen_initial_domain()) {
-		add_preferred_console("xenboot", 0, NULL);
 		if (pci_xen)
 			x86_init.pci.arch_init = pci_xen_init;
 		x86_platform.set_legacy_features =
@@ -1393,6 +1392,7 @@ asmlinkage __visible void __init xen_start_kernel(void)
 #endif
 	}
 
+	add_preferred_console("xenboot", 0, NULL);
 	if (!boot_params.screen_info.orig_video_isVGA)
 		add_preferred_console("tty", 0, NULL);
 	add_preferred_console("hvc", 0, NULL);
