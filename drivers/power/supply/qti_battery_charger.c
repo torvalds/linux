@@ -1192,15 +1192,6 @@ static int battery_chg_init_psy(struct battery_chg_dev *bcdev)
 
 	psy_cfg.drv_data = bcdev;
 	psy_cfg.of_node = bcdev->dev->of_node;
-	bcdev->psy_list[PSY_TYPE_BATTERY].psy =
-		devm_power_supply_register(bcdev->dev, &batt_psy_desc,
-						&psy_cfg);
-	if (IS_ERR(bcdev->psy_list[PSY_TYPE_BATTERY].psy)) {
-		rc = PTR_ERR(bcdev->psy_list[PSY_TYPE_BATTERY].psy);
-		pr_err("Failed to register battery power supply, rc=%d\n", rc);
-		return rc;
-	}
-
 	bcdev->psy_list[PSY_TYPE_USB].psy =
 		devm_power_supply_register(bcdev->dev, &usb_psy_desc, &psy_cfg);
 	if (IS_ERR(bcdev->psy_list[PSY_TYPE_USB].psy)) {
@@ -1214,6 +1205,15 @@ static int battery_chg_init_psy(struct battery_chg_dev *bcdev)
 	if (IS_ERR(bcdev->psy_list[PSY_TYPE_WLS].psy)) {
 		rc = PTR_ERR(bcdev->psy_list[PSY_TYPE_WLS].psy);
 		pr_err("Failed to register wireless power supply, rc=%d\n", rc);
+		return rc;
+	}
+
+	bcdev->psy_list[PSY_TYPE_BATTERY].psy =
+		devm_power_supply_register(bcdev->dev, &batt_psy_desc,
+						&psy_cfg);
+	if (IS_ERR(bcdev->psy_list[PSY_TYPE_BATTERY].psy)) {
+		rc = PTR_ERR(bcdev->psy_list[PSY_TYPE_BATTERY].psy);
+		pr_err("Failed to register battery power supply, rc=%d\n", rc);
 		return rc;
 	}
 
