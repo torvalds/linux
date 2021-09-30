@@ -8215,6 +8215,7 @@ L:	linux-hwmon@vger.kernel.org
 S:	Maintained
 W:	http://hwmon.wiki.kernel.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/groeck/linux-staging.git
+F:	Documentation/ABI/testing/sysfs-class-hwmon
 F:	Documentation/devicetree/bindings/hwmon/
 F:	Documentation/hwmon/
 F:	drivers/hwmon/
