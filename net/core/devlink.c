@@ -5078,6 +5078,11 @@ static int devlink_nl_region_fill(struct sk_buff *msg, struct devlink *devlink,
 	if (err)
 		goto nla_put_failure;
 
+	err = nla_put_u32(msg, DEVLINK_ATTR_REGION_MAX_SNAPSHOTS,
+			  region->max_snapshots);
+	if (err)
+		goto nla_put_failure;
+
 	err = devlink_nl_region_snapshots_id_put(msg, devlink, region);
 	if (err)
 		goto nla_put_failure;
