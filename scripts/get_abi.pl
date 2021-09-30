@@ -842,8 +842,8 @@ sub undefined_symbols {
 
 			# Convert what into regular expressions
 
-			$what =~ s,/\.\.\./,/*/,g;
-			$what =~ s,\*,.*,g;
+			# Escape dot characters
+			$what =~ s/\./\xf6/g;
 
 			# Temporarily change [0-9]+ type of patterns
 			$what =~ s/\[0\-9\]\+/\xff/g;
@@ -859,6 +859,8 @@ sub undefined_symbols {
 			$what =~ s/[\{\<\[]([\w_]+)(?:[,|]+([\w_]+)){1,}[\}\>\]]/($1|$2)/g;
 
 			# Handle wildcards
+			$what =~ s,\*,.*,g;
+			$what =~ s,/\xf6..,/.*,g;
 			$what =~ s/\<[^\>]+\>/.*/g;
 			$what =~ s/\{[^\}]+\}/.*/g;
 			$what =~ s/\[[^\]]+\]/.*/g;
@@ -890,6 +892,13 @@ sub undefined_symbols {
 
 			# Special case: IIO ABI which a parenthesis.
 			$what =~ s/sqrt(.*)/sqrt\(.*\)/;
+
+			# Simplify regexes with multiple .*
+			$what =~ s#(?:\.\*){2,}##g;
+#			$what =~ s#\.\*/\.\*#.*#g;
+
+			# Recover dot characters
+			$what =~ s/\xf6/\./g;
 
 			my $leave = get_leave($what);
 
