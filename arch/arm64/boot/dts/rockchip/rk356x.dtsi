@@ -921,9 +921,8 @@
 		assigned-clock-rates = <17000000>, <700000>;
 		clocks = <&cru CLK_TSADC>, <&cru PCLK_TSADC>;
 		clock-names = "tsadc", "apb_pclk";
-		resets = <&cru SRST_TSADC>, <&cru SRST_P_TSADC>,
+		resets = <&cru SRST_P_TSADC>, <&cru SRST_TSADC>,
 			 <&cru SRST_TSADCPHY>;
-		reset-names = "tsadc", "tsadc-apb", "tsadc-phy";
 		rockchip,grf = <&grf>;
 		rockchip,hw-tshut-temp = <95000>;
 		pinctrl-names = "init", "default", "sleep";
