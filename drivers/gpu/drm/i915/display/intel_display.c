@@ -4046,13 +4046,6 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 		}
 	}
 
-	/* Cantiga+ cannot handle modes with a hsync front porch of 0.
-	 * WaPruneModeWithIncorrectHsyncOffset:ctg,elk,ilk,snb,ivb,vlv,hsw.
-	 */
-	if ((DISPLAY_VER(dev_priv) > 4 || IS_G4X(dev_priv)) &&
-	    pipe_mode->crtc_hsync_start == pipe_mode->crtc_hdisplay)
-		return -EINVAL;
-
 	intel_crtc_compute_pixel_rate(pipe_config);
 
 	if (pipe_config->has_pch_encoder)
@@ -11158,6 +11151,14 @@ intel_mode_valid(struct drm_device *dev,
 		if (mode->vtotal - mode->vdisplay < 3)
 			return MODE_V_ILLEGAL;
 	}
+
+	/*
+	 * Cantiga+ cannot handle modes with a hsync front porch of 0.
+	 * WaPruneModeWithIncorrectHsyncOffset:ctg,elk,ilk,snb,ivb,vlv,hsw.
+	 */
+	if ((DISPLAY_VER(dev_priv) > 4 || IS_G4X(dev_priv)) &&
+	    mode->hsync_start == mode->hdisplay)
+		return MODE_H_ILLEGAL;
 
 	return MODE_OK;
 }
