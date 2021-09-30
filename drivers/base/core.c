@@ -821,9 +821,7 @@ struct device_link *device_link_add(struct device *consumer,
 		     dev_bus_name(supplier), dev_name(supplier),
 		     dev_bus_name(consumer), dev_name(consumer));
 	if (device_register(&link->link_dev)) {
-		put_device(consumer);
-		put_device(supplier);
-		kfree(link);
+		put_device(&link->link_dev);
 		link = NULL;
 		goto out;
 	}
