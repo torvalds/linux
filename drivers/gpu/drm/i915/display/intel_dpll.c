@@ -2,16 +2,19 @@
 /*
  * Copyright © 2020 Intel Corporation
  */
+
 #include <linux/kernel.h>
+
 #include "intel_crtc.h"
 #include "intel_de.h"
-#include "intel_display_types.h"
 #include "intel_display.h"
+#include "intel_display_types.h"
 #include "intel_dpll.h"
 #include "intel_lvds.h"
 #include "intel_panel.h"
+#include "intel_pps.h"
 #include "intel_sideband.h"
-#include "display/intel_snps_phy.h"
+#include "intel_snps_phy.h"
 
 struct intel_limit {
 	struct {
@@ -1438,7 +1441,7 @@ void i9xx_enable_pll(const struct intel_crtc_state *crtc_state)
 
 	/* PLL is protected by panel, make sure we can write it */
 	if (i9xx_has_pps(dev_priv))
-		assert_panel_unlocked(dev_priv, pipe);
+		assert_pps_unlocked(dev_priv, pipe);
 
 	intel_de_write(dev_priv, FP0(pipe), crtc_state->dpll_hw_state.fp0);
 	intel_de_write(dev_priv, FP1(pipe), crtc_state->dpll_hw_state.fp1);
@@ -1617,7 +1620,7 @@ void vlv_enable_pll(const struct intel_crtc_state *crtc_state)
 	assert_transcoder_disabled(dev_priv, crtc_state->cpu_transcoder);
 
 	/* PLL is protected by panel, make sure we can write it */
-	assert_panel_unlocked(dev_priv, pipe);
+	assert_pps_unlocked(dev_priv, pipe);
 
 	/* Enable Refclk */
 	intel_de_write(dev_priv, DPLL(pipe),
@@ -1769,7 +1772,7 @@ void chv_enable_pll(const struct intel_crtc_state *crtc_state)
 	assert_transcoder_disabled(dev_priv, crtc_state->cpu_transcoder);
 
 	/* PLL is protected by panel, make sure we can write it */
-	assert_panel_unlocked(dev_priv, pipe);
+	assert_pps_unlocked(dev_priv, pipe);
 
 	/* Enable Refclk and SSC */
 	intel_de_write(dev_priv, DPLL(pipe),
