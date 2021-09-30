@@ -1703,7 +1703,7 @@ int intel_hdmi_hdcp2_read_msg(struct intel_digital_port *dig_port,
 		drm_dbg_kms(&i915->drm,
 			    "msg_sz(%zd) is more than exp size(%zu)\n",
 			    ret, size);
-		return -1;
+		return -EINVAL;
 	}
 
 	offset = HDCP_2_2_HDMI_REG_RD_MSG_OFFSET;
