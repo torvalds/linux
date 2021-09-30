@@ -410,6 +410,20 @@ Description:
 
 		RW
 
+What:		/sys/class/hwmon/hwmonX/tempY_crit_alarm
+Description:
+		Critical high temperature alarm flag.
+
+		- 0: OK
+		- 1: temperature has reached tempY_crit
+
+		RW
+
+		Contrary to regular alarm flags which clear themselves
+		automatically when read, this one sticks until cleared by
+		the user. This is done by writing 0 to the file. Writing
+		other values is unsupported.
+
 What:		/sys/class/hwmon/hwmonX/tempY_crit_hyst
 Description:
 		Temperature hysteresis value for critical limit.
