@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * Copyright (C) 2020 Microchip
  *
  * Author: Kamel Bouhara <kamel.bouhara@bootlin.com>
