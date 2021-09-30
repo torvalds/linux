@@ -1094,7 +1094,7 @@
 #define RT5682S_PLLA_K_BP_SFT			6
 
 /* PLL M/N/K Code Control 7 (0x009e) */
-#define RT5682S_PLLB_SRC_MASK			(0x3 << 0)
+#define RT5682S_PLLB_SRC_MASK			(0x1)
 #define RT5682S_PLLB_SRC_DFIN			(0x1)
 #define RT5682S_PLLB_SRC_PLLA			(0x0)
 
