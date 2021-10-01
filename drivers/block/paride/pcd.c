@@ -613,8 +613,7 @@ static int pcd_identify(struct pcd_unit *cd)
 }
 
 /*
- * returns  0, with id set if drive is detected
- *	    -1, if drive detection failed
+ * returns 0, with id set if drive is detected, otherwise an error code.
  */
 static int pcd_probe(struct pcd_unit *cd, int ms)
 {
@@ -627,7 +626,7 @@ static int pcd_probe(struct pcd_unit *cd, int ms)
 		if (!pcd_reset(cd) && !pcd_identify(cd))
 			return 0;
 	}
-	return -1;
+	return -ENODEV;
 }
 
 static int pcd_probe_capabilities(struct pcd_unit *cd)
@@ -933,9 +932,12 @@ static int pcd_init_unit(struct pcd_unit *cd, bool autoprobe, int port,
 	disk->events = DISK_EVENT_MEDIA_CHANGE;
 
 	if (!pi_init(cd->pi, autoprobe, port, mode, unit, protocol, delay,
-			pcd_buffer, PI_PCD, verbose, cd->name))
+			pcd_buffer, PI_PCD, verbose, cd->name)) {
+		ret = -ENODEV;
 		goto out_free_disk;
-	if (pcd_probe(cd, ms))
+	}
+	ret = pcd_probe(cd, ms);
+	if (ret)
 		goto out_pi_release;
 
 	cd->present = 1;
