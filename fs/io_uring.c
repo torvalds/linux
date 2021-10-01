@@ -573,7 +573,6 @@ struct io_sr_msg {
 	int				msg_flags;
 	int				bgid;
 	size_t				len;
-	struct io_buffer		*kbuf;
 };
 
 struct io_open {
@@ -877,6 +876,7 @@ struct io_kiocb {
 	struct io_mapped_ubuf		*imu;
 	struct io_wq_work		work;
 	const struct cred		*creds;
+	struct io_buffer		*kbuf;
 };
 
 struct io_tctx_node {
@@ -2376,12 +2376,9 @@ static unsigned int io_put_kbuf(struct io_kiocb *req, struct io_buffer *kbuf)
 
 static inline unsigned int io_put_rw_kbuf(struct io_kiocb *req)
 {
-	struct io_buffer *kbuf;
-
 	if (likely(!(req->flags & REQ_F_BUFFER_SELECTED)))
 		return 0;
-	kbuf = (struct io_buffer *) (unsigned long) req->rw.addr;
-	return io_put_kbuf(req, kbuf);
+	return io_put_kbuf(req, req->kbuf);
 }
 
 static inline bool io_run_task_work(void)
@@ -3000,9 +2997,9 @@ static void io_ring_submit_lock(struct io_ring_ctx *ctx, bool needs_lock)
 }
 
 static struct io_buffer *io_buffer_select(struct io_kiocb *req, size_t *len,
-					  int bgid, struct io_buffer *kbuf,
-					  bool needs_lock)
+					  int bgid, bool needs_lock)
 {
+	struct io_buffer *kbuf = req->kbuf;
 	struct io_buffer *head;
 
 	if (req->flags & REQ_F_BUFFER_SELECTED)
@@ -3024,12 +3021,13 @@ static struct io_buffer *io_buffer_select(struct io_kiocb *req, size_t *len,
 		}
 		if (*len > kbuf->len)
 			*len = kbuf->len;
+		req->flags |= REQ_F_BUFFER_SELECTED;
+		req->kbuf = kbuf;
 	} else {
 		kbuf = ERR_PTR(-ENOBUFS);
 	}
 
 	io_ring_submit_unlock(req->ctx, needs_lock);
-
 	return kbuf;
 }
 
@@ -3039,13 +3037,10 @@ static void __user *io_rw_buffer_select(struct io_kiocb *req, size_t *len,
 	struct io_buffer *kbuf;
 	u16 bgid;
 
-	kbuf = (struct io_buffer *) (unsigned long) req->rw.addr;
 	bgid = req->buf_index;
-	kbuf = io_buffer_select(req, len, bgid, kbuf, needs_lock);
+	kbuf = io_buffer_select(req, len, bgid, needs_lock);
 	if (IS_ERR(kbuf))
 		return kbuf;
-	req->rw.addr = (u64) (unsigned long) kbuf;
-	req->flags |= REQ_F_BUFFER_SELECTED;
 	return u64_to_user_ptr(kbuf->addr);
 }
 
@@ -3101,9 +3096,8 @@ static ssize_t io_iov_buffer_select(struct io_kiocb *req, struct iovec *iov,
 				    bool needs_lock)
 {
 	if (req->flags & REQ_F_BUFFER_SELECTED) {
-		struct io_buffer *kbuf;
+		struct io_buffer *kbuf = req->kbuf;
 
-		kbuf = (struct io_buffer *) (unsigned long) req->rw.addr;
 		iov[0].iov_base = u64_to_user_ptr(kbuf->addr);
 		iov[0].iov_len = kbuf->len;
 		return 0;
@@ -4869,20 +4863,13 @@ static struct io_buffer *io_recv_buffer_select(struct io_kiocb *req,
 					       bool needs_lock)
 {
 	struct io_sr_msg *sr = &req->sr_msg;
-	struct io_buffer *kbuf;
 
-	kbuf = io_buffer_select(req, &sr->len, sr->bgid, sr->kbuf, needs_lock);
-	if (IS_ERR(kbuf))
-		return kbuf;
-
-	sr->kbuf = kbuf;
-	req->flags |= REQ_F_BUFFER_SELECTED;
-	return kbuf;
+	return io_buffer_select(req, &sr->len, sr->bgid, needs_lock);
 }
 
 static inline unsigned int io_put_recv_kbuf(struct io_kiocb *req)
 {
-	return io_put_kbuf(req, req->sr_msg.kbuf);
+	return io_put_kbuf(req, req->kbuf);
 }
 
 static int io_recvmsg_prep_async(struct io_kiocb *req)
@@ -6473,17 +6460,8 @@ fail:
 static void io_clean_op(struct io_kiocb *req)
 {
 	if (req->flags & REQ_F_BUFFER_SELECTED) {
-		switch (req->opcode) {
-		case IORING_OP_READV:
-		case IORING_OP_READ_FIXED:
-		case IORING_OP_READ:
-			kfree((void *)(unsigned long)req->rw.addr);
-			break;
-		case IORING_OP_RECVMSG:
-		case IORING_OP_RECV:
-			kfree(req->sr_msg.kbuf);
-			break;
-		}
+		kfree(req->kbuf);
+		req->kbuf = NULL;
 	}
 
 	if (req->flags & REQ_F_NEED_CLEANUP) {
