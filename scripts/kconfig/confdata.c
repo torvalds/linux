@@ -957,32 +957,50 @@ next:
 }
 
 /* write a dependency file as used by kbuild to track dependencies */
-static int conf_write_dep(const char *name)
+static int conf_write_autoconf_cmd(const char *autoconf_name)
 {
+	char name[PATH_MAX], tmp[PATH_MAX];
 	struct file *file;
 	FILE *out;
+	int ret;
 
-	out = fopen("..config.tmp", "w");
-	if (!out)
-		return 1;
-	fprintf(out, "deps_config := \\\n");
-	for (file = file_list; file; file = file->next) {
-		if (file->next)
-			fprintf(out, "\t%s \\\n", file->name);
-		else
-			fprintf(out, "\t%s\n", file->name);
-	}
-	fprintf(out, "\n%s: \\\n"
-		     "\t$(deps_config)\n\n", conf_get_autoconfig_name());
-
-	env_write_dep(out, conf_get_autoconfig_name());
-
-	fprintf(out, "\n$(deps_config): ;\n");
-	fclose(out);
+	ret = snprintf(name, sizeof(name), "%s.cmd", autoconf_name);
+	if (ret >= sizeof(name)) /* check truncation */
+		return -1;
 
 	if (make_parent_dir(name))
-		return 1;
-	rename("..config.tmp", name);
+		return -1;
+
+	ret = snprintf(tmp, sizeof(tmp), "%s.cmd.tmp", autoconf_name);
+	if (ret >= sizeof(tmp)) /* check truncation */
+		return -1;
+
+	out = fopen(tmp, "w");
+	if (!out) {
+		perror("fopen");
+		return -1;
+	}
+
+	fprintf(out, "deps_config := \\\n");
+	for (file = file_list; file; file = file->next)
+		fprintf(out, "\t%s \\\n", file->name);
+
+	fprintf(out, "\n%s: $(deps_config)\n\n", autoconf_name);
+
+	env_write_dep(out, autoconf_name);
+
+	fprintf(out, "\n$(deps_config): ;\n");
+
+	if (ferror(out)) /* error check for all fprintf() calls */
+		return -1;
+
+	fclose(out);
+
+	if (rename(tmp, name)) {
+		perror("rename");
+		return -1;
+	}
+
 	return 0;
 }
 
@@ -1109,7 +1127,9 @@ int conf_write_autoconf(int overwrite)
 	if (!overwrite && is_present(autoconf_name))
 		return 0;
 
-	conf_write_dep("include/config/auto.conf.cmd");
+	ret = conf_write_autoconf_cmd(autoconf_name);
+	if (ret)
+		return -1;
 
 	if (conf_touch_deps())
 		return 1;
