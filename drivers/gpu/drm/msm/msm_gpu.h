@@ -275,6 +275,19 @@ struct msm_file_private {
 	struct msm_gem_address_space *aspace;
 	struct kref ref;
 	int seqno;
+
+	/**
+	 * entities:
+	 *
+	 * Table of per-priority-level sched entities used by submitqueues
+	 * associated with this &drm_file.  Because some userspace apps
+	 * make assumptions about rendering from multiple gl contexts
+	 * (of the same priority) within the process happening in FIFO
+	 * order without requiring any fencing beyond MakeCurrent(), we
+	 * create at most one &drm_sched_entity per-process per-priority-
+	 * level.
+	 */
+	struct drm_sched_entity *entities[NR_SCHED_PRIORITIES * MSM_GPU_MAX_RINGS];
 };
 
 /**
@@ -355,7 +368,7 @@ struct msm_gpu_submitqueue {
 	struct idr fence_idr;
 	struct mutex lock;
 	struct kref ref;
-	struct drm_sched_entity entity;
+	struct drm_sched_entity *entity;
 };
 
 struct msm_gpu_state_bo {
@@ -456,14 +469,7 @@ void msm_submitqueue_close(struct msm_file_private *ctx);
 
 void msm_submitqueue_destroy(struct kref *kref);
 
-static inline void __msm_file_private_destroy(struct kref *kref)
-{
-	struct msm_file_private *ctx = container_of(kref,
-		struct msm_file_private, ref);
-
-	msm_gem_address_space_put(ctx->aspace);
-	kfree(ctx);
-}
+void __msm_file_private_destroy(struct kref *kref);
 
 static inline void msm_file_private_put(struct msm_file_private *ctx)
 {
