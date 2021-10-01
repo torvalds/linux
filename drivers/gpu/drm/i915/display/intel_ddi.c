@@ -92,6 +92,11 @@ static int intel_ddi_hdmi_level(struct intel_encoder *encoder,
 	return level;
 }
 
+static bool has_iboost(struct drm_i915_private *i915)
+{
+	return DISPLAY_VER(i915) == 9 && !IS_BROXTON(i915);
+}
+
 /*
  * Starting with Haswell, DDI port buffers must be programmed with correct
  * values in advance. This function programs the correct values for
@@ -111,7 +116,7 @@ void hsw_prepare_dp_ddi_buffers(struct intel_encoder *encoder,
 		return;
 
 	/* If we're boosting the current, set bit 31 of trans1 */
-	if (DISPLAY_VER(dev_priv) == 9 && !IS_BROXTON(dev_priv) &&
+	if (has_iboost(dev_priv) &&
 	    intel_bios_encoder_dp_boost_level(encoder->devdata))
 		iboost_bit = DDI_BUF_BALANCE_LEG_ENABLE;
 
@@ -145,7 +150,7 @@ static void hsw_prepare_hdmi_ddi_buffers(struct intel_encoder *encoder,
 		level = n_entries - 1;
 
 	/* If we're boosting the current, set bit 31 of trans1 */
-	if (DISPLAY_VER(dev_priv) == 9 && !IS_BROXTON(dev_priv) &&
+	if (has_iboost(dev_priv) &&
 	    intel_bios_encoder_hdmi_boost_level(encoder->devdata))
 		iboost_bit = DDI_BUF_BALANCE_LEG_ENABLE;
 
@@ -1463,7 +1468,7 @@ hsw_set_signal_levels(struct intel_dp *intel_dp,
 	intel_dp->DP &= ~DDI_BUF_EMP_MASK;
 	intel_dp->DP |= signal_levels;
 
-	if (DISPLAY_VER(dev_priv) == 9 && !IS_BROXTON(dev_priv))
+	if (has_iboost(dev_priv))
 		skl_ddi_set_iboost(encoder, crtc_state, level);
 
 	intel_de_write(dev_priv, DDI_BUF_CTL(port), intel_dp->DP);
@@ -3084,7 +3089,7 @@ static void intel_enable_ddi_hdmi(struct intel_atomic_state *state,
 	else
 		hsw_prepare_hdmi_ddi_buffers(encoder, crtc_state, level);
 
-	if (DISPLAY_VER(dev_priv) == 9 && !IS_BROXTON(dev_priv))
+	if (has_iboost(dev_priv))
 		skl_ddi_set_iboost(encoder, crtc_state, level);
 
 	/* Display WA #1143: skl,kbl,cfl */
