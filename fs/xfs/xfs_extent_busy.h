@@ -58,8 +58,7 @@ void
 xfs_extent_busy_wait_all(struct xfs_mount *mp);
 
 int
-xfs_extent_busy_ag_cmp(void *priv, const struct list_head *a,
-	const struct list_head *b);
+xfs_extent_busy_ag_cmp(void *priv, struct list_head *a, struct list_head *b);
 
 static inline void xfs_extent_busy_sort(struct list_head *list)
 {

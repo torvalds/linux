@@ -354,8 +354,8 @@ static unsigned int ext4_getfsmap_find_sb(struct super_block *sb,
 
 /* Compare two fsmap items. */
 static int ext4_getfsmap_compare(void *priv,
-				 const struct list_head *a,
-				 const struct list_head *b)
+				 struct list_head *a,
+				 struct list_head *b)
 {
 	struct ext4_fsmap *fa;
 	struct ext4_fsmap *fb;

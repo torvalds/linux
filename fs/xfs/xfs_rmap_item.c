@@ -337,8 +337,8 @@ xfs_trans_log_finish_rmap_update(
 static int
 xfs_rmap_update_diff_items(
 	void				*priv,
-	const struct list_head		*a,
-	const struct list_head		*b)
+	struct list_head		*a,
+	struct list_head		*b)
 {
 	struct xfs_mount		*mp = priv;
 	struct xfs_rmap_intent		*ra;

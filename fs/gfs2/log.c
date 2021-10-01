@@ -605,7 +605,7 @@ void log_flush_wait(struct gfs2_sbd *sdp)
 	}
 }
 
-static int ip_cmp(void *priv, const struct list_head *a, const struct list_head *b)
+static int ip_cmp(void *priv, struct list_head *a, struct list_head *b)
 {
 	struct gfs2_inode *ipa, *ipb;
 

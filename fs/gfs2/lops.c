@@ -627,8 +627,7 @@ static void gfs2_check_magic(struct buffer_head *bh)
 	kunmap_atomic(kaddr);
 }
 
-static int blocknr_cmp(void *priv, const struct list_head *a,
-		       const struct list_head *b)
+static int blocknr_cmp(void *priv, struct list_head *a, struct list_head *b)
 {
 	struct gfs2_bufdata *bda, *bdb;
 

@@ -558,8 +558,7 @@ static bool hmat_update_best(u8 type, u32 value, u32 *best)
 	return updated;
 }
 
-static int initiator_cmp(void *priv, const struct list_head *a,
-			 const struct list_head *b)
+static int initiator_cmp(void *priv, struct list_head *a, struct list_head *b)
 {
 	struct memory_initiator *ia;
 	struct memory_initiator *ib;

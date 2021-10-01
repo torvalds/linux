@@ -56,8 +56,7 @@ static int __init check(struct debug_el *ela, struct debug_el *elb)
 	return 0;
 }
 
-static int __init cmp(void *priv, const struct list_head *a,
-		      const struct list_head *b)
+static int __init cmp(void *priv, struct list_head *a, struct list_head *b)
 {
 	struct debug_el *ela, *elb;
 

@@ -144,8 +144,8 @@ static void sram_free_partitions(struct sram_dev *sram)
 	}
 }
 
-static int sram_reserve_cmp(void *priv, const struct list_head *a,
-					const struct list_head *b)
+static int sram_reserve_cmp(void *priv, struct list_head *a,
+					struct list_head *b)
 {
 	struct sram_reserve *ra = list_entry(a, struct sram_reserve, list);
 	struct sram_reserve *rb = list_entry(b, struct sram_reserve, list);

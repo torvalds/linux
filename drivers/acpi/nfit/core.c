@@ -1194,8 +1194,7 @@ static int __nfit_mem_init(struct acpi_nfit_desc *acpi_desc,
 	return 0;
 }
 
-static int nfit_mem_cmp(void *priv, const struct list_head *_a,
-		const struct list_head *_b)
+static int nfit_mem_cmp(void *priv, struct list_head *_a, struct list_head *_b)
 {
 	struct nfit_mem *a = container_of(_a, typeof(*a), list);
 	struct nfit_mem *b = container_of(_b, typeof(*b), list);

@@ -397,8 +397,8 @@ xfs_trans_free_extent(
 static int
 xfs_extent_free_diff_items(
 	void				*priv,
-	const struct list_head		*a,
-	const struct list_head		*b)
+	struct list_head		*a,
+	struct list_head		*b)
 {
 	struct xfs_mount		*mp = priv;
 	struct xfs_extent_free_item	*ra;

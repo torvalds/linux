@@ -381,8 +381,8 @@ static struct publication *tipc_service_remove_publ(struct service_range *sr,
  * Code reused: time_after32() for the same purpose
  */
 #define publication_after(pa, pb) time_after32((pa)->id, (pb)->id)
-static int tipc_publ_sort(void *priv, const struct list_head *a,
-			  const struct list_head *b)
+static int tipc_publ_sort(void *priv, struct list_head *a,
+			  struct list_head *b)
 {
 	struct publication *pa, *pb;
 

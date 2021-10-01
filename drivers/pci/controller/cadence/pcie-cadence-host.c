@@ -345,8 +345,7 @@ static int cdns_pcie_host_bar_config(struct cdns_pcie_rc *rc,
 	return 0;
 }
 
-static int cdns_pcie_host_dma_ranges_cmp(void *priv, const struct list_head *a,
-					 const struct list_head *b)
+static int cdns_pcie_host_dma_ranges_cmp(void *priv, struct list_head *a, struct list_head *b)
 {
 	struct resource_entry *entry1, *entry2;
 
