@@ -2890,6 +2890,9 @@ int ionic_lif_alloc(struct ionic *ionic)
 
 	snprintf(lif->name, sizeof(lif->name), "lif%u", lif->index);
 
+	mutex_init(&lif->queue_lock);
+	mutex_init(&lif->config_lock);
+
 	spin_lock_init(&lif->adminq_lock);
 
 	spin_lock_init(&lif->deferred.lock);
@@ -2903,7 +2906,7 @@ int ionic_lif_alloc(struct ionic *ionic)
 	if (!lif->info) {
 		dev_err(dev, "Failed to allocate lif info, aborting\n");
 		err = -ENOMEM;
-		goto err_out_free_netdev;
+		goto err_out_free_mutex;
 	}
 
 	ionic_debugfs_add_lif(lif);
@@ -2938,6 +2941,9 @@ err_out_free_lif_info:
 	dma_free_coherent(dev, lif->info_sz, lif->info, lif->info_pa);
 	lif->info = NULL;
 	lif->info_pa = 0;
+err_out_free_mutex:
+	mutex_destroy(&lif->config_lock);
+	mutex_destroy(&lif->queue_lock);
 err_out_free_netdev:
 	free_netdev(lif->netdev);
 	lif = NULL;
@@ -3078,6 +3084,9 @@ void ionic_lif_free(struct ionic_lif *lif)
 	kfree(lif->dbid_inuse);
 	lif->dbid_inuse = NULL;
 
+	mutex_destroy(&lif->config_lock);
+	mutex_destroy(&lif->queue_lock);
+
 	/* free netdev & lif */
 	ionic_debugfs_del_lif(lif);
 	free_netdev(lif->netdev);
@@ -3100,8 +3109,6 @@ void ionic_lif_deinit(struct ionic_lif *lif)
 	ionic_lif_qcq_deinit(lif, lif->notifyqcq);
 	ionic_lif_qcq_deinit(lif, lif->adminqcq);
 
-	mutex_destroy(&lif->config_lock);
-	mutex_destroy(&lif->queue_lock);
 	ionic_lif_reset(lif);
 }
 
@@ -3267,8 +3274,6 @@ int ionic_lif_init(struct ionic_lif *lif)
 		return err;
 
 	lif->hw_index = le16_to_cpu(comp.hw_index);
-	mutex_init(&lif->queue_lock);
-	mutex_init(&lif->config_lock);
 
 	/* now that we have the hw_index we can figure out our doorbell page */
 	lif->dbid_count = le32_to_cpu(lif->ionic->ident.dev.ndbpgs_per_lif);
