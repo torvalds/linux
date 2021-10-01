@@ -396,6 +396,8 @@ static void axi_chan_block_xfer_start(struct axi_dma_chan *chan,
 				DWAXIDMAC_TT_FC_MEM_TO_PER_DMAC;
 		if (chan->chip->apb_regs)
 			config.dst_per = chan->id;
+		else
+			config.dst_per = chan->hw_handshake_num;
 		break;
 	case DMA_DEV_TO_MEM:
 		config.tt_fc = chan->config.device_fc ?
@@ -403,6 +405,8 @@ static void axi_chan_block_xfer_start(struct axi_dma_chan *chan,
 				DWAXIDMAC_TT_FC_PER_TO_MEM_DMAC;
 		if (chan->chip->apb_regs)
 			config.src_per = chan->id;
+		else
+			config.src_per = chan->hw_handshake_num;
 		break;
 	default:
 		break;
