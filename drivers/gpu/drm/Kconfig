@@ -100,6 +100,21 @@ config DRM_DEBUG_DP_MST_TOPOLOGY_REFS
           This has the potential to use a lot of memory and print some very
           large kernel messages. If in doubt, say "N".
 
+config DRM_DEBUG_MODESET_LOCK
+	bool "Enable backtrace history for lock contention"
+	depends on STACKTRACE_SUPPORT
+	depends on DEBUG_KERNEL
+	depends on EXPERT
+	select STACKDEPOT
+	default y if DEBUG_WW_MUTEX_SLOWPATH
+	help
+	  Enable debug tracing of failures to gracefully handle drm modeset lock
+	  contention. A history of each drm modeset lock path hitting -EDEADLK
+	  will be saved until gracefully handled, and the backtrace will be
+	  printed when attempting to lock a contended lock.
+
+	  If in doubt, say "N".
+
 config DRM_FBDEV_EMULATION
 	bool "Enable legacy fbdev support for your modesetting driver"
 	depends on DRM
