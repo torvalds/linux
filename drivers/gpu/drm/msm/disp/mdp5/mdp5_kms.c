@@ -370,22 +370,7 @@ static int modeset_init_intf(struct mdp5_kms *mdp5_kms,
 
 	switch (intf->type) {
 	case INTF_eDP:
-		if (!priv->edp)
-			break;
-
-		ctl = mdp5_ctlm_request(ctlm, intf->num);
-		if (!ctl) {
-			ret = -EINVAL;
-			break;
-		}
-
-		encoder = construct_encoder(mdp5_kms, intf, ctl);
-		if (IS_ERR(encoder)) {
-			ret = PTR_ERR(encoder);
-			break;
-		}
-
-		ret = msm_edp_modeset_init(priv->edp, dev, encoder);
+		DRM_DEV_INFO(dev->dev, "Skipping eDP interface %d\n", intf->num);
 		break;
 	case INTF_HDMI:
 		if (!priv->hdmi)
