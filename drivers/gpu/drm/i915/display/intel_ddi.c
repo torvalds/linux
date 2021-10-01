@@ -92,6 +92,11 @@ static int intel_ddi_hdmi_level(struct intel_encoder *encoder,
 	return level;
 }
 
+static bool has_buf_trans_select(struct drm_i915_private *i915)
+{
+	return DISPLAY_VER(i915) < 10 && !IS_BROXTON(i915);
+}
+
 static bool has_iboost(struct drm_i915_private *i915)
 {
 	return DISPLAY_VER(i915) == 9 && !IS_BROXTON(i915);
@@ -2640,7 +2645,8 @@ static void hsw_ddi_pre_enable_dp(struct intel_atomic_state *state,
 		icl_ddi_vswing_sequence(encoder, crtc_state, level);
 	else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 		bxt_ddi_vswing_sequence(encoder, crtc_state, level);
-	else
+
+	if (has_buf_trans_select(dev_priv))
 		hsw_prepare_dp_ddi_buffers(encoder, crtc_state);
 
 	intel_ddi_power_up_lanes(encoder, crtc_state);
@@ -3086,7 +3092,8 @@ static void intel_enable_ddi_hdmi(struct intel_atomic_state *state,
 		icl_ddi_vswing_sequence(encoder, crtc_state, level);
 	else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 		bxt_ddi_vswing_sequence(encoder, crtc_state, level);
-	else
+
+	if (has_buf_trans_select(dev_priv))
 		hsw_prepare_hdmi_ddi_buffers(encoder, crtc_state, level);
 
 	if (has_iboost(dev_priv))
