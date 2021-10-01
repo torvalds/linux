@@ -6992,7 +6992,7 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 {
 	struct io_submit_state *state;
 	unsigned int sqe_flags;
-	int personality, ret = 0;
+	int personality;
 
 	/* req is partially pre-initialised, see io_preinit_req() */
 	req->opcode = READ_ONCE(sqe->opcode);
@@ -7053,9 +7053,10 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		req->file = io_file_get(ctx, req, READ_ONCE(sqe->fd),
 					(sqe_flags & IOSQE_FIXED_FILE));
 		if (unlikely(!req->file))
-			ret = -EBADF;
+			return -EBADF;
 	}
-	return ret;
+
+	return io_req_prep(req, sqe);
 }
 
 static int io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
@@ -7067,7 +7068,6 @@ static int io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
 
 	ret = io_init_req(ctx, req, sqe);
 	if (unlikely(ret)) {
-fail_req:
 		trace_io_uring_req_failed(sqe, ret);
 
 		/* fail even hard links since we don't submit */
@@ -7092,10 +7092,6 @@ fail_req:
 			return ret;
 		}
 		req_fail_link_node(req, ret);
-	} else {
-		ret = io_req_prep(req, sqe);
-		if (unlikely(ret))
-			goto fail_req;
 	}
 
 	/* don't need @sqe from now on */
