@@ -78,7 +78,7 @@ struct soc_tplg {
 };
 
 static int soc_tplg_process_headers(struct soc_tplg *tplg);
-static void soc_tplg_complete(struct soc_tplg *tplg);
+static int soc_tplg_complete(struct soc_tplg *tplg);
 
 /* check we dont overflow the data for this control chunk */
 static int soc_tplg_check_elem_count(struct soc_tplg *tplg, size_t elem_size,
@@ -312,10 +312,12 @@ static int soc_tplg_dai_link_load(struct soc_tplg *tplg,
 }
 
 /* tell the component driver that all firmware has been loaded in this request */
-static void soc_tplg_complete(struct soc_tplg *tplg)
+static int soc_tplg_complete(struct soc_tplg *tplg)
 {
 	if (tplg->ops && tplg->ops->complete)
-		tplg->ops->complete(tplg->comp);
+		return tplg->ops->complete(tplg->comp);
+
+	return 0;
 }
 
 /* add a dynamic kcontrol */
@@ -2625,7 +2627,7 @@ static int soc_tplg_load(struct soc_tplg *tplg)
 
 	ret = soc_tplg_process_headers(tplg);
 	if (ret == 0)
-		soc_tplg_complete(tplg);
+		return soc_tplg_complete(tplg);
 
 	return ret;
 }

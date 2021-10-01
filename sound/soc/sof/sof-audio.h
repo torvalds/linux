@@ -28,6 +28,8 @@
 
 #define DMA_CHAN_INVALID	0xFFFFFFFF
 
+#define WIDGET_IS_DAI(id) ((id) == snd_soc_dapm_dai_in || (id) == snd_soc_dapm_dai_out)
+
 /* PCM stream, mapped to FW component  */
 struct snd_sof_pcm_stream {
 	u32 comp_id;
@@ -35,6 +37,7 @@ struct snd_sof_pcm_stream {
 	struct sof_ipc_stream_posn posn;
 	struct snd_pcm_substream *substream;
 	struct work_struct period_elapsed_work;
+	struct snd_soc_dapm_widget_list *list; /* list of connected DAPM widgets */
 	bool d0i3_compatible; /* DSP can be in D0I3 when this pcm is opened */
 	/*
 	 * flag to indicate that the DSP pipelines should be kept
@@ -66,6 +69,7 @@ struct snd_sof_control {
 	int min_volume_step; /* min volume step for volume_table */
 	int max_volume_step; /* max volume step for volume_table */
 	int num_channels;
+	unsigned int access;
 	u32 readback_offset; /* offset to mmapped data if used */
 	struct sof_ipc_ctrl_data *control_data;
 	u32 size;	/* cdata size */
@@ -80,17 +84,31 @@ struct snd_sof_control {
 	bool comp_data_dirty;
 };
 
+struct snd_sof_widget;
+
 /* ASoC SOF DAPM widget */
 struct snd_sof_widget {
 	struct snd_soc_component *scomp;
 	int comp_id;
 	int pipeline_id;
 	int complete;
+	int use_count; /* use_count will be protected by the PCM mutex held by the core */
 	int core;
 	int id;
 
+	/*
+	 * Flag indicating if the widget should be set up dynamically when a PCM is opened.
+	 * This flag is only set for the scheduler type widget in topology. During topology
+	 * loading, this flag is propagated to all the widgets belonging to the same pipeline.
+	 * When this flag is not set, a widget is set up at the time of topology loading
+	 * and retained until the DSP enters D3. It will need to be set up again when resuming
+	 * from D3.
+	 */
+	bool dynamic_pipeline_widget;
+
 	struct snd_soc_dapm_widget *widget;
 	struct list_head list;	/* list in sdev widget list */
+	struct snd_sof_widget *pipe_widget;
 
 	/* extended data for UUID components */
 	struct sof_ipc_comp_ext comp_ext;
@@ -104,6 +122,9 @@ struct snd_sof_route {
 
 	struct snd_soc_dapm_route *route;
 	struct list_head list;	/* list in sdev route list */
+	struct snd_sof_widget *src_widget;
+	struct snd_sof_widget *sink_widget;
+	bool setup;
 
 	void *private;
 };
@@ -112,11 +133,11 @@ struct snd_sof_route {
 struct snd_sof_dai {
 	struct snd_soc_component *scomp;
 	const char *name;
-	const char *cpu_dai_name;
 
 	struct sof_ipc_comp_dai comp_dai;
 	int number_configs;
 	int current_config;
+	bool configured; /* DAI configured during BE hw_params */
 	struct sof_ipc_dai_config *dai_config;
 	struct list_head list;	/* list in sdev dai list */
 };
@@ -225,7 +246,8 @@ int snd_sof_ipc_set_get_comp_data(struct snd_sof_control *scontrol,
 int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd, struct snd_pcm_hw_params *params);
 
 /* PM */
-int sof_restore_pipelines(struct device *dev);
+int sof_set_up_pipelines(struct device *dev, bool verify);
+int sof_tear_down_pipelines(struct device *dev, bool verify);
 int sof_set_hw_params_upon_resume(struct device *dev);
 bool snd_sof_stream_suspend_ignored(struct snd_sof_dev *sdev);
 bool snd_sof_dsp_only_d0i3_compatible_stream_active(struct snd_sof_dev *sdev);
@@ -234,4 +256,10 @@ bool snd_sof_dsp_only_d0i3_compatible_stream_active(struct snd_sof_dev *sdev);
 int sof_machine_register(struct snd_sof_dev *sdev, void *pdata);
 void sof_machine_unregister(struct snd_sof_dev *sdev, void *pdata);
 
+int sof_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget);
+int sof_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget);
+
+/* PCM */
+int sof_widget_list_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm, int dir);
+int sof_widget_list_free(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm, int dir);
 #endif

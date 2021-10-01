@@ -157,7 +157,7 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 	}
 
 	/* restore pipelines */
-	ret = sof_restore_pipelines(sdev->dev);
+	ret = sof_set_up_pipelines(sdev->dev, false);
 	if (ret < 0) {
 		dev_err(sdev->dev,
 			"error: failed to restore pipeline after resume %d\n",
@@ -207,6 +207,8 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 	/* Skip to platform-specific suspend if DSP is entering D0 */
 	if (target_state == SOF_DSP_PM_D0)
 		goto suspend;
+
+	sof_tear_down_pipelines(dev, false);
 
 	/* release trace */
 	snd_sof_release_trace(sdev);
