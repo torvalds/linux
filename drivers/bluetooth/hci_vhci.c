@@ -40,7 +40,7 @@ struct vhci_data {
 	struct delayed_work open_timeout;
 
 	bool suspended;
-	bool prevent_wake;
+	bool wakeup;
 };
 
 static int vhci_open_dev(struct hci_dev *hdev)
@@ -95,11 +95,11 @@ static int vhci_get_codec_config_data(struct hci_dev *hdev, __u8 type,
 	return 0;
 }
 
-static bool vhci_prevent_wake(struct hci_dev *hdev)
+static bool vhci_wakeup(struct hci_dev *hdev)
 {
 	struct vhci_data *data = hci_get_drvdata(hdev);
 
-	return data->prevent_wake;
+	return data->wakeup;
 }
 
 static ssize_t force_suspend_read(struct file *file, char __user *user_buf,
@@ -149,21 +149,21 @@ static const struct file_operations force_suspend_fops = {
 	.llseek		= default_llseek,
 };
 
-static ssize_t force_prevent_wake_read(struct file *file, char __user *user_buf,
-				       size_t count, loff_t *ppos)
+static ssize_t force_wakeup_read(struct file *file, char __user *user_buf,
+				 size_t count, loff_t *ppos)
 {
 	struct vhci_data *data = file->private_data;
 	char buf[3];
 
-	buf[0] = data->prevent_wake ? 'Y' : 'N';
+	buf[0] = data->wakeup ? 'Y' : 'N';
 	buf[1] = '\n';
 	buf[2] = '\0';
 	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
 }
 
-static ssize_t force_prevent_wake_write(struct file *file,
-					const char __user *user_buf,
-					size_t count, loff_t *ppos)
+static ssize_t force_wakeup_write(struct file *file,
+				  const char __user *user_buf, size_t count,
+				  loff_t *ppos)
 {
 	struct vhci_data *data = file->private_data;
 	bool enable;
@@ -173,16 +173,16 @@ static ssize_t force_prevent_wake_write(struct file *file,
 	if (err)
 		return err;
 
-	if (data->prevent_wake == enable)
+	if (data->wakeup == enable)
 		return -EALREADY;
 
 	return count;
 }
 
-static const struct file_operations force_prevent_wake_fops = {
+static const struct file_operations force_wakeup_fops = {
 	.open		= simple_open,
-	.read		= force_prevent_wake_read,
-	.write		= force_prevent_wake_write,
+	.read		= force_wakeup_read,
+	.write		= force_wakeup_write,
 	.llseek		= default_llseek,
 };
 
@@ -227,7 +227,7 @@ static int __vhci_create_device(struct vhci_data *data, __u8 opcode)
 	hdev->send  = vhci_send_frame;
 	hdev->get_data_path_id = vhci_get_data_path_id;
 	hdev->get_codec_config_data = vhci_get_codec_config_data;
-	hdev->prevent_wake = vhci_prevent_wake;
+	hdev->wakeup = vhci_wakeup;
 
 	/* bit 6 is for external configuration */
 	if (opcode & 0x40)
@@ -248,8 +248,8 @@ static int __vhci_create_device(struct vhci_data *data, __u8 opcode)
 	debugfs_create_file("force_suspend", 0644, hdev->debugfs, data,
 			    &force_suspend_fops);
 
-	debugfs_create_file("force_prevent_wake", 0644, hdev->debugfs, data,
-			    &force_prevent_wake_fops);
+	debugfs_create_file("force_wakeup", 0644, hdev->debugfs, data,
+			    &force_wakeup_fops);
 
 	hci_skb_pkt_type(skb) = HCI_VENDOR_PKT;
 

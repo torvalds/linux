@@ -1577,7 +1577,7 @@ static void qca_cmd_timeout(struct hci_dev *hdev)
 	mutex_unlock(&qca->hci_memdump_lock);
 }
 
-static bool qca_prevent_wake(struct hci_dev *hdev)
+static bool qca_wakeup(struct hci_dev *hdev)
 {
 	struct hci_uart *hu = hci_get_drvdata(hdev);
 	bool wakeup;
@@ -1765,7 +1765,7 @@ retry:
 		qca_debugfs_init(hdev);
 		hu->hdev->hw_error = qca_hw_error;
 		hu->hdev->cmd_timeout = qca_cmd_timeout;
-		hu->hdev->prevent_wake = qca_prevent_wake;
+		hu->hdev->wakeup = qca_wakeup;
 	} else if (ret == -ENOENT) {
 		/* No patch/nvm-config found, run with original fw/config */
 		set_bit(QCA_ROM_FW, &qca->flags);

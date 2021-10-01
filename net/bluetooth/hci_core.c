@@ -3998,18 +3998,19 @@ int hci_suspend_dev(struct hci_dev *hdev)
 	 *  - Second, program event filter/accept list and enable scan
 	 */
 	ret = hci_change_suspend_state(hdev, BT_SUSPEND_DISCONNECT);
-	if (!ret)
-		state = BT_SUSPEND_DISCONNECT;
+	if (ret)
+		goto clear;
 
-	/* Only configure accept list if disconnect succeeded and wake
-	 * isn't being prevented.
-	 */
-	if (!ret && !(hdev->prevent_wake && hdev->prevent_wake(hdev))) {
+	state = BT_SUSPEND_DISCONNECT;
+
+	/* Only configure accept list if device may wakeup. */
+	if (hdev->wakeup && hdev->wakeup(hdev)) {
 		ret = hci_change_suspend_state(hdev, BT_SUSPEND_CONFIGURE_WAKE);
 		if (!ret)
 			state = BT_SUSPEND_CONFIGURE_WAKE;
 	}
 
+clear:
 	hci_clear_wake_reason(hdev);
 	mgmt_suspending(hdev, state);
 
