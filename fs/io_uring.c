@@ -6428,46 +6428,39 @@ static u32 io_get_sequence(struct io_kiocb *req)
 	return seq;
 }
 
-static bool io_drain_req(struct io_kiocb *req)
+static void io_drain_req(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_defer_entry *de;
 	int ret;
-	u32 seq;
+	u32 seq = io_get_sequence(req);
 
 	/* Still need defer if there is pending req in defer list. */
-	if (likely(list_empty_careful(&ctx->defer_list) &&
-		!(req->flags & REQ_F_IO_DRAIN))) {
-		ctx->drain_active = false;
-		return false;
-	}
-
-	seq = io_get_sequence(req);
-	/* Still a chance to pass the sequence check */
 	if (!req_need_defer(req, seq) && list_empty_careful(&ctx->defer_list)) {
+queue:
 		ctx->drain_active = false;
-		return false;
+		io_req_task_queue(req);
+		return;
 	}
 
 	ret = io_req_prep_async(req);
-	if (ret)
-		goto fail;
+	if (ret) {
+fail:
+		io_req_complete_failed(req, ret);
+		return;
+	}
 	io_prep_async_link(req);
 	de = kmalloc(sizeof(*de), GFP_KERNEL);
 	if (!de) {
 		ret = -ENOMEM;
-fail:
-		io_req_complete_failed(req, ret);
-		return true;
+		goto fail;
 	}
 
 	spin_lock(&ctx->completion_lock);
 	if (!req_need_defer(req, seq) && list_empty(&ctx->defer_list)) {
 		spin_unlock(&ctx->completion_lock);
 		kfree(de);
-		io_queue_async_work(req, NULL);
-		ctx->drain_active = false;
-		return true;
+		goto queue;
 	}
 
 	trace_io_uring_defer(ctx, req, req->user_data);
@@ -6475,7 +6468,6 @@ fail:
 	de->seq = seq;
 	list_add_tail(&de->list, &ctx->defer_list);
 	spin_unlock(&ctx->completion_lock);
-	return true;
 }
 
 static void io_clean_op(struct io_kiocb *req)
@@ -6931,8 +6923,8 @@ static void io_queue_sqe_fallback(struct io_kiocb *req)
 {
 	if (req->flags & REQ_F_FAIL) {
 		io_req_complete_fail_submit(req);
-	} else if (unlikely(req->ctx->drain_active) && io_drain_req(req)) {
-		return;
+	} else if (unlikely(req->ctx->drain_active)) {
+		io_drain_req(req);
 	} else {
 		int ret = io_req_prep_async(req);
 
