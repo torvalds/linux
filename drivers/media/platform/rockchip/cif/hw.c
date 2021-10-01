@@ -765,7 +765,7 @@ err:
 static void rkcif_iommu_cleanup(struct rkcif_hw *cif_hw)
 {
 	if (cif_hw->domain)
-		cif_hw->domain->ops->detach_dev(cif_hw->domain, cif_hw->dev);
+		iommu_detach_device(cif_hw->domain, cif_hw->dev);
 }
 
 static void rkcif_iommu_enable(struct rkcif_hw *cif_hw)
@@ -774,7 +774,7 @@ static void rkcif_iommu_enable(struct rkcif_hw *cif_hw)
 		cif_hw->domain = iommu_get_domain_for_dev(cif_hw->dev);
 
 	if (cif_hw->domain)
-		cif_hw->domain->ops->attach_dev(cif_hw->domain, cif_hw->dev);
+		iommu_attach_device(cif_hw->domain, cif_hw->dev);
 }
 
 static inline bool is_iommu_enable(struct device *dev)

@@ -2356,8 +2356,8 @@ static void rkcif_do_cru_reset(struct rkcif_device *dev)
 
 		domain = iommu_get_domain_for_dev(cif_hw->dev);
 		if (domain) {
-			domain->ops->detach_dev(domain, cif_hw->dev);
-			domain->ops->attach_dev(domain, cif_hw->dev);
+			iommu_detach_device(domain, cif_hw->dev);
+			iommu_attach_device(domain, cif_hw->dev);
 		}
 	}
 }
