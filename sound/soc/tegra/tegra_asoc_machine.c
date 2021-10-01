@@ -313,7 +313,7 @@ static int tegra_machine_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops tegra_machine_snd_ops = {
+static const struct snd_soc_ops tegra_machine_snd_ops = {
 	.hw_params = tegra_machine_hw_params,
 };
 
