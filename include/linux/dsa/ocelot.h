@@ -210,9 +210,9 @@ static inline void ocelot_ifh_set_tag_type(void *injection, u64 tag_type)
 	packing(injection, &tag_type, 16, 16, OCELOT_TAG_LEN, PACK, 0);
 }
 
-static inline void ocelot_ifh_set_vid(void *injection, u64 vid)
+static inline void ocelot_ifh_set_vlan_tci(void *injection, u64 vlan_tci)
 {
-	packing(injection, &vid, 11, 0, OCELOT_TAG_LEN, PACK, 0);
+	packing(injection, &vlan_tci, 15, 0, OCELOT_TAG_LEN, PACK, 0);
 }
 
 #endif
