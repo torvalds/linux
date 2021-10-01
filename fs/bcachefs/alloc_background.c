@@ -857,10 +857,10 @@ static int bch2_invalidate_buckets(struct bch_fs *c, struct bch_dev *ca)
 	/* If we used NOWAIT, don't return the error: */
 	if (!fifo_empty(&ca->free_inc))
 		ret = 0;
-	if (ret) {
+	if (ret < 0)
 		bch_err(ca, "error invalidating buckets: %i", ret);
+	if (ret)
 		return ret;
-	}
 
 	if (journal_seq)
 		ret = bch2_journal_flush_seq(&c->journal, journal_seq);
