@@ -138,6 +138,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_NAU8315
 	imply SND_SOC_NAU8540
 	imply SND_SOC_NAU8810
+	imply SND_SOC_NAU8821
 	imply SND_SOC_NAU8822
 	imply SND_SOC_NAU8824
 	imply SND_SOC_NAU8825
@@ -1920,6 +1921,10 @@ config SND_SOC_NAU8540
 
 config SND_SOC_NAU8810
 	tristate "Nuvoton Technology Corporation NAU88C10 CODEC"
+	depends on I2C
+
+config SND_SOC_NAU8821
+	tristate "Nuvoton Technology Corporation NAU88L21 CODEC"
 	depends on I2C
 
 config SND_SOC_NAU8822
