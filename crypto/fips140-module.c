@@ -279,6 +279,11 @@ static void __init unapply_rodata_relocations(void *section, int section_size,
 	}
 }
 
+extern struct {
+	u32	offset;
+	u32	count;
+} fips140_rela_text, fips140_rela_rodata;
+
 static bool __init check_fips140_module_hmac(void)
 {
 	SHASH_DESC_ON_STACK(desc, dontcare);
@@ -306,15 +311,12 @@ static bool __init check_fips140_module_hmac(void)
 
 	// apply the relocations in reverse on the copies of .text  and .rodata
 	unapply_text_relocations(textcopy, textsize,
-				 __this_module.arch.text_relocations,
-				 __this_module.arch.num_text_relocations);
+				 offset_to_ptr(&fips140_rela_text.offset),
+				 fips140_rela_text.count);
 
 	unapply_rodata_relocations(rodatacopy, rodatasize,
-				   __this_module.arch.rodata_relocations,
-				   __this_module.arch.num_rodata_relocations);
-
-	kfree(__this_module.arch.text_relocations);
-	kfree(__this_module.arch.rodata_relocations);
+				  offset_to_ptr(&fips140_rela_rodata.offset),
+				  fips140_rela_rodata.count);
 
 	desc->tfm = crypto_alloc_shash("hmac(sha256)", 0, 0);
 	if (IS_ERR(desc->tfm)) {

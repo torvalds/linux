@@ -3,8 +3,11 @@
 #
 # This file is included by the generic Kbuild makefile to permit the
 # architecture to perform postlink actions on vmlinux and any .ko module file.
-# In this case, we only need it for fips140.ko, which needs a HMAC digest to be
-# injected into it. All other targets are NOPs.
+# In this case, we only need it for fips140.ko, which needs some postprocessing
+# for the integrity check mandated by FIPS. This involves making copies of the
+# relocation sections so that the module will have access to them at
+# initialization time, and calculating and injecting a HMAC digest into the
+# module. All other targets are NOPs.
 #
 
 PHONY := __archpost
@@ -15,7 +18,14 @@ include scripts/Kbuild.include
 
 CMD_FIPS140_GEN_HMAC = crypto/fips140_gen_hmac
 quiet_cmd_gen_hmac = HMAC    $@
-      cmd_gen_hmac = $(CMD_FIPS140_GEN_HMAC) $@
+      cmd_gen_hmac = $(OBJCOPY) $@ \
+	--dump-section=$(shell $(READELF) -SW $@|grep -Eo '\.rela\.text\S*')=$@.rela.text \
+	--dump-section=$(shell $(READELF) -SW $@|grep -Eo '\.rela\.rodata\S*')=$@.rela.rodata \
+	--add-section=.init.rela.text=$@.rela.text \
+	--add-section=.init.rela.rodata=$@.rela.rodata \
+	--set-section-flags=.init.rela.text=alloc,readonly \
+	--set-section-flags=.init.rela.rodata=alloc,readonly && \
+	$(CMD_FIPS140_GEN_HMAC) $@
 
 # `@true` prevents complaints when there is nothing to be done
 
@@ -29,7 +39,7 @@ $(objtree)/crypto/fips140.ko: FORCE
 	@true
 
 clean:
-	@true
+	rm -f $(objtree)/crypto/fips140.ko.rela.*
 
 PHONY += FORCE clean
 
