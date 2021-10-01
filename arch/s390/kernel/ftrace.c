@@ -17,6 +17,7 @@
 #include <linux/kprobes.h>
 #include <trace/syscall.h>
 #include <asm/asm-offsets.h>
+#include <asm/text-patching.h>
 #include <asm/cacheflush.h>
 #include <asm/ftrace.lds.h>
 #include <asm/nospec-branch.h>
@@ -207,14 +208,13 @@ void arch_ftrace_update_code(int command)
 	ftrace_modify_all_code(command);
 }
 
-static void __ftrace_sync(void *dummy)
-{
-}
-
 int ftrace_arch_code_modify_post_process(void)
 {
-	/* Send SIGP to the other CPUs, so they see the new code. */
-	smp_call_function(__ftrace_sync, NULL, 1);
+	/*
+	 * Flush any pre-fetched instructions on all
+	 * CPUs to make the new code visible.
+	 */
+	text_poke_sync_lock();
 	return 0;
 }
 
