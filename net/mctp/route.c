@@ -11,7 +11,6 @@
  */
 
 #include <linux/idr.h>
-#include <linux/kconfig.h>
 #include <linux/mctp.h>
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
@@ -1229,7 +1228,3 @@ void __exit mctp_routes_exit(void)
 	rtnl_unregister(PF_MCTP, RTM_GETROUTE);
 	dev_remove_pack(&mctp_packet_type);
 }
-
-#if IS_ENABLED(CONFIG_MCTP_TEST)
-#include "test/route-test.c"
-#endif
