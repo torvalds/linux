@@ -130,31 +130,17 @@ static size_t depfile_prefix_len;
 /* touch depfile for symbol 'name' */
 static int conf_touch_dep(const char *name)
 {
-	int fd, ret;
-	char *d;
+	int fd;
 
 	/* check overflow: prefix + name + '\0' must fit in buffer. */
 	if (depfile_prefix_len + strlen(name) + 1 > sizeof(depfile_path))
 		return -1;
 
-	d = depfile_path + depfile_prefix_len;
-	strcpy(d, name);
+	strcpy(depfile_path + depfile_prefix_len, name);
 
-	/* Assume directory path already exists. */
 	fd = open(depfile_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-	if (fd == -1) {
-		if (errno != ENOENT)
-			return -1;
-
-		ret = make_parent_dir(depfile_path);
-		if (ret)
-			return ret;
-
-		/* Try it again. */
-		fd = open(depfile_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-		if (fd == -1)
-			return -1;
-	}
+	if (fd == -1)
+		return -1;
 	close(fd);
 
 	return 0;
