@@ -487,7 +487,7 @@ static void tx2_uncore_event_update(struct perf_event *event)
 		new = reg_readl(hwc->event_base);
 		prev = local64_xchg(&hwc->prev_count, new);
 		/* handles rollover of 32 bit counter */
-		delta = (u32)(((1UL << 32) - prev) + new);
+		delta = (u32)(((1ULL << 32) - prev) + new);
 	}
 
 	/* DMC event data_transfers granularity is 16 Bytes, convert it to 64 */
