@@ -651,9 +651,9 @@ static int pf_identify(struct pf_unit *pf)
 	return 0;
 }
 
-/*	returns  0, with id set if drive is detected
-	        -1, if drive detection failed
-*/
+/*
+ * returns 0, with id set if drive is detected, otherwise an error code.
+ */
 static int pf_probe(struct pf_unit *pf)
 {
 	if (pf->drive == -1) {
@@ -675,7 +675,7 @@ static int pf_probe(struct pf_unit *pf)
 			if (!pf_identify(pf))
 				return 0;
 	}
-	return -1;
+	return -ENODEV;
 }
 
 /* The i/o request engine */
@@ -957,9 +957,12 @@ static int __init pf_init_unit(struct pf_unit *pf, bool autoprobe, int port,
 	snprintf(pf->name, PF_NAMELEN, "%s%d", name, disk->first_minor);
 
 	if (!pi_init(pf->pi, autoprobe, port, mode, unit, protocol, delay,
-			pf_scratch, PI_PF, verbose, pf->name))
+			pf_scratch, PI_PF, verbose, pf->name)) {
+		ret = -ENODEV;
 		goto out_free_disk;
-	if (pf_probe(pf))
+	}
+	ret = pf_probe(pf);
+	if (ret)
 		goto out_pi_release;
 
 	ret = add_disk(disk);
