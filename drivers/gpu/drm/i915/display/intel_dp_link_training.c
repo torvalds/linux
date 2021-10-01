@@ -398,7 +398,8 @@ void intel_dp_set_signal_levels(struct intel_dp *intel_dp,
 				const struct intel_crtc_state *crtc_state,
 				enum drm_dp_phy dp_phy)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	u8 train_set = intel_dp->train_set[0];
 	char phy_name[10];
 
@@ -412,7 +413,7 @@ void intel_dp_set_signal_levels(struct intel_dp *intel_dp,
 		    intel_dp_phy_name(dp_phy, phy_name, sizeof(phy_name)));
 
 	if (intel_dp_phy_is_downstream_of_source(intel_dp, dp_phy))
-		intel_dp->set_signal_levels(intel_dp, crtc_state);
+		encoder->set_signal_levels(encoder, crtc_state);
 }
 
 static bool

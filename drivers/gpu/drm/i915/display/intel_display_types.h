@@ -269,6 +269,9 @@ struct intel_encoder {
 	const struct intel_ddi_buf_trans *(*get_buf_trans)(struct intel_encoder *encoder,
 							   const struct intel_crtc_state *crtc_state,
 							   int *n_entries);
+	void (*set_signal_levels)(struct intel_encoder *encoder,
+				  const struct intel_crtc_state *crtc_state);
+
 	enum hpd_pin hpd_pin;
 	enum intel_display_power_domain power_domain;
 	/* for communication with audio component; protected by av_mutex */
@@ -1601,8 +1604,6 @@ struct intel_dp {
 			       u8 dp_train_pat);
 	void (*set_idle_link_train)(struct intel_dp *intel_dp,
 				    const struct intel_crtc_state *crtc_state);
-	void (*set_signal_levels)(struct intel_dp *intel_dp,
-				  const struct intel_crtc_state *crtc_state);
 
 	u8 (*preemph_max)(struct intel_dp *intel_dp);
 	u8 (*voltage_max)(struct intel_dp *intel_dp,

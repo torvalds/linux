@@ -808,10 +808,10 @@ static u8 intel_dp_preemph_max_3(struct intel_dp *intel_dp)
 	return DP_TRAIN_PRE_EMPH_LEVEL_3;
 }
 
-static void vlv_set_signal_levels(struct intel_dp *intel_dp,
+static void vlv_set_signal_levels(struct intel_encoder *encoder,
 				  const struct intel_crtc_state *crtc_state)
 {
-	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	unsigned long demph_reg_value, preemph_reg_value,
 		uniqtranscale_reg_value;
 	u8 train_set = intel_dp->train_set[0];
@@ -894,10 +894,10 @@ static void vlv_set_signal_levels(struct intel_dp *intel_dp,
 				 uniqtranscale_reg_value, 0);
 }
 
-static void chv_set_signal_levels(struct intel_dp *intel_dp,
+static void chv_set_signal_levels(struct intel_encoder *encoder,
 				  const struct intel_crtc_state *crtc_state)
 {
-	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	u32 deemph_reg_value, margin_reg_value;
 	bool uniq_trans_scale = false;
 	u8 train_set = intel_dp->train_set[0];
@@ -1015,10 +1015,11 @@ static u32 g4x_signal_levels(u8 train_set)
 }
 
 static void
-g4x_set_signal_levels(struct intel_dp *intel_dp,
+g4x_set_signal_levels(struct intel_encoder *encoder,
 		      const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	u8 train_set = intel_dp->train_set[0];
 	u32 signal_levels;
 
@@ -1062,10 +1063,11 @@ static u32 snb_cpu_edp_signal_levels(u8 train_set)
 }
 
 static void
-snb_cpu_edp_set_signal_levels(struct intel_dp *intel_dp,
+snb_cpu_edp_set_signal_levels(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	u8 train_set = intel_dp->train_set[0];
 	u32 signal_levels;
 
@@ -1113,10 +1115,11 @@ static u32 ivb_cpu_edp_signal_levels(u8 train_set)
 }
 
 static void
-ivb_cpu_edp_set_signal_levels(struct intel_dp *intel_dp,
+ivb_cpu_edp_set_signal_levels(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	u8 train_set = intel_dp->train_set[0];
 	u32 signal_levels;
 
@@ -1359,15 +1362,15 @@ bool g4x_dp_init(struct drm_i915_private *dev_priv,
 		dig_port->dp.set_link_train = g4x_set_link_train;
 
 	if (IS_CHERRYVIEW(dev_priv))
-		dig_port->dp.set_signal_levels = chv_set_signal_levels;
+		intel_encoder->set_signal_levels = chv_set_signal_levels;
 	else if (IS_VALLEYVIEW(dev_priv))
-		dig_port->dp.set_signal_levels = vlv_set_signal_levels;
+		intel_encoder->set_signal_levels = vlv_set_signal_levels;
 	else if (IS_IVYBRIDGE(dev_priv) && port == PORT_A)
-		dig_port->dp.set_signal_levels = ivb_cpu_edp_set_signal_levels;
+		intel_encoder->set_signal_levels = ivb_cpu_edp_set_signal_levels;
 	else if (IS_SANDYBRIDGE(dev_priv) && port == PORT_A)
-		dig_port->dp.set_signal_levels = snb_cpu_edp_set_signal_levels;
+		intel_encoder->set_signal_levels = snb_cpu_edp_set_signal_levels;
 	else
-		dig_port->dp.set_signal_levels = g4x_set_signal_levels;
+		intel_encoder->set_signal_levels = g4x_set_signal_levels;
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv) ||
 	    (HAS_PCH_SPLIT(dev_priv) && port != PORT_A)) {
