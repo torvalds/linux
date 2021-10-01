@@ -542,28 +542,29 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 
-		gta04_led0: red_aux@0 {
+		gta04_led0: led@0 {
 			label = "gta04:red:aux";
 			reg = <0x0>;
 		};
 
-		gta04_led1: green_aux@1 {
+		gta04_led1: led@1 {
 			label = "gta04:green:aux";
 			reg = <0x1>;
 		};
 
-		gta04_led3: red_power@3 {
+		gta04_led3: led@3 {
 			label = "gta04:red:power";
 			reg = <0x3>;
 			linux,default-trigger = "default-on";
 		};
 
-		gta04_led4: green_power@4 {
+		gta04_led4: led@4 {
 			label = "gta04:green:power";
 			reg = <0x4>;
 		};
 
-		wifi_reset: wifi_reset@6 { /* reference as <&tca_gpios 0 0> since it is currently the only GPIO */
+		wifi_reset: led@6 {
+			/* reference as <&tca_gpios 0 0> since it is currently the only GPIO */
 			reg = <0x6>;
 			compatible = "gpio";
 		};
