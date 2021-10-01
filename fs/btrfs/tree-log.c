@@ -957,8 +957,7 @@ static noinline int inode_in_dir(struct btrfs_root *root,
 	di = btrfs_lookup_dir_index_item(NULL, root, path, dirid,
 					 index, name, name_len, 0);
 	if (IS_ERR(di)) {
-		if (PTR_ERR(di) != -ENOENT)
-			ret = PTR_ERR(di);
+		ret = PTR_ERR(di);
 		goto out;
 	} else if (di) {
 		btrfs_dir_item_key_to_cpu(path->nodes[0], di, &location);
@@ -1191,8 +1190,7 @@ next:
 	di = btrfs_lookup_dir_index_item(trans, root, path, btrfs_ino(dir),
 					 ref_index, name, namelen, 0);
 	if (IS_ERR(di)) {
-		if (PTR_ERR(di) != -ENOENT)
-			return PTR_ERR(di);
+		return PTR_ERR(di);
 	} else if (di) {
 		ret = drop_one_dir_item(trans, root, path, dir, di);
 		if (ret)
@@ -1994,9 +1992,6 @@ static noinline int replay_one_name(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 
-	if (dst_di == ERR_PTR(-ENOENT))
-		dst_di = NULL;
-
 	if (IS_ERR(dst_di)) {
 		ret = PTR_ERR(dst_di);
 		goto out;
@@ -2304,7 +2299,7 @@ again:
 						     dir_key->offset,
 						     name, name_len, 0);
 		}
-		if (!log_di || log_di == ERR_PTR(-ENOENT)) {
+		if (!log_di) {
 			btrfs_dir_item_key_to_cpu(eb, di, &location);
 			btrfs_release_path(path);
 			btrfs_release_path(log_path);
@@ -3563,8 +3558,7 @@ out_unlock:
 	if (err == -ENOSPC) {
 		btrfs_set_log_full_commit(trans);
 		err = 0;
-	} else if (err < 0 && err != -ENOENT) {
-		/* ENOENT can be returned if the entry hasn't been fsynced yet */
+	} else if (err < 0) {
 		btrfs_abort_transaction(trans, err);
 	}
 
