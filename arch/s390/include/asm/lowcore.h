@@ -65,7 +65,7 @@ struct lowcore {
 	__u32	external_damage_code;		/* 0x00f4 */
 	__u64	failing_storage_address;	/* 0x00f8 */
 	__u8	pad_0x0100[0x0110-0x0100];	/* 0x0100 */
-	__u64	breaking_event_addr;		/* 0x0110 */
+	__u64	pgm_last_break;			/* 0x0110 */
 	__u8	pad_0x0118[0x0120-0x0118];	/* 0x0118 */
 	psw_t	restart_old_psw;		/* 0x0120 */
 	psw_t	external_old_psw;		/* 0x0130 */

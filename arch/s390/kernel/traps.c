@@ -300,7 +300,7 @@ static void (*pgm_check_table[128])(struct pt_regs *regs);
 
 void noinstr __do_pgm_check(struct pt_regs *regs)
 {
-	unsigned long last_break = S390_lowcore.breaking_event_addr;
+	unsigned long last_break = S390_lowcore.pgm_last_break;
 	unsigned int trapnr;
 	irqentry_state_t state;
 
