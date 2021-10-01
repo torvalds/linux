@@ -997,6 +997,7 @@ struct ravb_hw_info {
 	netdev_features_t net_features;
 	int stats_len;
 	size_t max_rx_len;
+	u32 tsrq;
 	unsigned aligned_tx: 1;
 
 	/* hardware features */
