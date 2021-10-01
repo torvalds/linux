@@ -314,7 +314,7 @@ void noinstr __do_pgm_check(struct pt_regs *regs)
 		if (last_break < 4096)
 			last_break = 1;
 		current->thread.last_break = last_break;
-		regs->args[0] = last_break;
+		regs->last_break = last_break;
 	}
 
 	if (S390_lowcore.pgm_code & 0x0200) {
