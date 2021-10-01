@@ -156,6 +156,11 @@ create_tcam_skeleton()
 
 setup_prepare()
 {
+	ip link set $eth0 up
+	ip link set $eth1 up
+	ip link set $eth2 up
+	ip link set $eth3 up
+
 	create_tcam_skeleton $eth0
 
 	ip link add br0 type bridge
