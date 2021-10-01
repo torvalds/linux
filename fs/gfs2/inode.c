@@ -731,18 +731,17 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	if (error)
 		goto fail_free_inode;
 	flush_delayed_work(&ip->i_gl->gl_work);
-	glock_set_object(ip->i_gl, ip);
 
 	error = gfs2_glock_get(sdp, ip->i_no_addr, &gfs2_iopen_glops, CREATE, &io_gl);
 	if (error)
 		goto fail_free_inode;
 	gfs2_cancel_delete_work(io_gl);
-	glock_set_object(io_gl, ip);
 
 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, GL_SKIP, ghs + 1);
 	if (error)
 		goto fail_gunlock2;
 
+	glock_set_object(ip->i_gl, ip);
 	error = gfs2_trans_begin(sdp, blocks, 0);
 	if (error)
 		goto fail_gunlock2;
@@ -758,6 +757,7 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	if (error)
 		goto fail_gunlock2;
 
+	glock_set_object(io_gl, ip);
 	gfs2_set_iop(inode);
 	insert_inode_hash(inode);
 
