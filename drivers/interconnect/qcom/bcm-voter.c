@@ -39,7 +39,7 @@ struct bcm_voter {
 	u32 tcs_wait;
 };
 
-static int cmp_vcd(void *priv, struct list_head *a, struct list_head *b)
+static int cmp_vcd(void *priv, const struct list_head *a, const struct list_head *b)
 {
 	const struct qcom_icc_bcm *bcm_a =
 			list_entry(a, struct qcom_icc_bcm, list);

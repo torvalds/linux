@@ -1075,7 +1075,8 @@ static int igt_ppgtt_shrink_boom(void *arg)
 	return exercise_ppgtt(arg, shrink_boom);
 }
 
-static int sort_holes(void *priv, struct list_head *A, struct list_head *B)
+static int sort_holes(void *priv, const struct list_head *A,
+		      const struct list_head *B)
 {
 	struct drm_mm_node *a = list_entry(A, typeof(*a), hole_stack);
 	struct drm_mm_node *b = list_entry(B, typeof(*b), hole_stack);

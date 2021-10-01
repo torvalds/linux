@@ -643,8 +643,8 @@ xfs_extent_busy_wait_all(
 int
 xfs_extent_busy_ag_cmp(
 	void			*priv,
-	struct list_head	*l1,
-	struct list_head	*l2)
+	const struct list_head	*l1,
+	const struct list_head	*l2)
 {
 	struct xfs_extent_busy	*b1 =
 		container_of(l1, struct xfs_extent_busy, list);
