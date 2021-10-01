@@ -287,11 +287,10 @@ static int ionic_qcq_enable(struct ionic_qcq *qcq)
 	return ionic_adminq_post_wait(lif, &ctx);
 }
 
-static int ionic_qcq_disable(struct ionic_qcq *qcq, bool send_to_hw)
+static int ionic_qcq_disable(struct ionic_qcq *qcq, int fw_err)
 {
 	struct ionic_queue *q;
 	struct ionic_lif *lif;
-	int err = 0;
 
 	struct ionic_admin_ctx ctx = {
 		.work = COMPLETION_INITIALIZER_ONSTACK(ctx.work),
@@ -318,17 +317,19 @@ static int ionic_qcq_disable(struct ionic_qcq *qcq, bool send_to_hw)
 		napi_disable(&qcq->napi);
 	}
 
-	if (send_to_hw) {
-		ctx.cmd.q_control.lif_index = cpu_to_le16(lif->index);
-		ctx.cmd.q_control.type = q->type;
-		ctx.cmd.q_control.index = cpu_to_le32(q->index);
-		dev_dbg(lif->ionic->dev, "q_disable.index %d q_disable.qtype %d\n",
-			ctx.cmd.q_control.index, ctx.cmd.q_control.type);
+	/* If there was a previous fw communcation error, don't bother with
+	 * sending the adminq command and just return the same error value.
+	 */
+	if (fw_err == -ETIMEDOUT || fw_err == -ENXIO)
+		return fw_err;
 
-		err = ionic_adminq_post_wait(lif, &ctx);
-	}
+	ctx.cmd.q_control.lif_index = cpu_to_le16(lif->index);
+	ctx.cmd.q_control.type = q->type;
+	ctx.cmd.q_control.index = cpu_to_le32(q->index);
+	dev_dbg(lif->ionic->dev, "q_disable.index %d q_disable.qtype %d\n",
+		ctx.cmd.q_control.index, ctx.cmd.q_control.type);
 
-	return err;
+	return ionic_adminq_post_wait(lif, &ctx);
 }
 
 static void ionic_lif_qcq_deinit(struct ionic_lif *lif, struct ionic_qcq *qcq)
@@ -1947,19 +1948,19 @@ static void ionic_txrx_disable(struct ionic_lif *lif)
 
 	if (lif->txqcqs) {
 		for (i = 0; i < lif->nxqs; i++)
-			err = ionic_qcq_disable(lif->txqcqs[i], (err != -ETIMEDOUT));
+			err = ionic_qcq_disable(lif->txqcqs[i], err);
 	}
 
 	if (lif->hwstamp_txq)
-		err = ionic_qcq_disable(lif->hwstamp_txq, (err != -ETIMEDOUT));
+		err = ionic_qcq_disable(lif->hwstamp_txq, err);
 
 	if (lif->rxqcqs) {
 		for (i = 0; i < lif->nxqs; i++)
-			err = ionic_qcq_disable(lif->rxqcqs[i], (err != -ETIMEDOUT));
+			err = ionic_qcq_disable(lif->rxqcqs[i], err);
 	}
 
 	if (lif->hwstamp_rxq)
-		err = ionic_qcq_disable(lif->hwstamp_rxq, (err != -ETIMEDOUT));
+		err = ionic_qcq_disable(lif->hwstamp_rxq, err);
 
 	ionic_lif_quiesce(lif);
 }
@@ -2159,7 +2160,7 @@ static int ionic_txrx_enable(struct ionic_lif *lif)
 
 		err = ionic_qcq_enable(lif->txqcqs[i]);
 		if (err) {
-			derr = ionic_qcq_disable(lif->rxqcqs[i], (err != -ETIMEDOUT));
+			derr = ionic_qcq_disable(lif->rxqcqs[i], err);
 			goto err_out;
 		}
 	}
@@ -2181,13 +2182,13 @@ static int ionic_txrx_enable(struct ionic_lif *lif)
 
 err_out_hwstamp_tx:
 	if (lif->hwstamp_rxq)
-		derr = ionic_qcq_disable(lif->hwstamp_rxq, (derr != -ETIMEDOUT));
+		derr = ionic_qcq_disable(lif->hwstamp_rxq, derr);
 err_out_hwstamp_rx:
 	i = lif->nxqs;
 err_out:
 	while (i--) {
-		derr = ionic_qcq_disable(lif->txqcqs[i], (derr != -ETIMEDOUT));
-		derr = ionic_qcq_disable(lif->rxqcqs[i], (derr != -ETIMEDOUT));
+		derr = ionic_qcq_disable(lif->txqcqs[i], derr);
+		derr = ionic_qcq_disable(lif->rxqcqs[i], derr);
 	}
 
 	return err;
