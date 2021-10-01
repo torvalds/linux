@@ -1284,6 +1284,7 @@
   of_root
   of_thermal_get_ntrips
   of_thermal_get_trip_points
+  of_thermal_is_trip_valid
   of_translate_address
   of_usb_host_tpl_support
   page_endio
@@ -1931,6 +1932,7 @@
   __traceiter_android_rvh_typec_tcpci_chk_contaminant
   __traceiter_android_rvh_typec_tcpci_get_vbus
   __traceiter_android_rvh_uclamp_eff_get
+  __traceiter_android_rvh_ufs_complete_init
   __traceiter_android_rvh_ufs_reprogram_all_keys
   __traceiter_android_rvh_util_est_update
   __traceiter_android_vh_arch_set_freq_scale
@@ -2008,6 +2010,7 @@
   __tracepoint_android_rvh_typec_tcpci_chk_contaminant
   __tracepoint_android_rvh_typec_tcpci_get_vbus
   __tracepoint_android_rvh_uclamp_eff_get
+  __tracepoint_android_rvh_ufs_complete_init
   __tracepoint_android_rvh_ufs_reprogram_all_keys
   __tracepoint_android_rvh_util_est_update
   __tracepoint_android_vh_arch_set_freq_scale
