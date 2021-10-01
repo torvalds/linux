@@ -78,6 +78,7 @@ static const char * const boot_msg =
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
+#include <linux/etherdevice.h>
 #include <linux/fddidevice.h>
 #include <linux/skbuff.h>
 #include <linux/bitops.h>
@@ -433,7 +434,7 @@ static  int skfp_driver_init(struct net_device *dev)
 	}
 	read_address(smc, NULL);
 	pr_debug("HW-Addr: %pMF\n", smc->hw.fddi_canon_addr.a);
-	memcpy(dev->dev_addr, smc->hw.fddi_canon_addr.a, ETH_ALEN);
+	eth_hw_addr_set(dev, smc->hw.fddi_canon_addr.a);
 
 	smt_reset_defaults(smc, 0);
 
@@ -500,7 +501,7 @@ static int skfp_open(struct net_device *dev)
 	 *               address.
 	 */
 	read_address(smc, NULL);
-	memcpy(dev->dev_addr, smc->hw.fddi_canon_addr.a, ETH_ALEN);
+	eth_hw_addr_set(dev, smc->hw.fddi_canon_addr.a);
 
 	init_smt(smc, NULL);
 	smt_online(smc, 1);
