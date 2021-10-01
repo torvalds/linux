@@ -1150,6 +1150,7 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(4, 0, 1):
 	case IP_VERSION(4, 1, 0):
 	case IP_VERSION(4, 1, 1):
+	case IP_VERSION(4, 1, 2):
 	case IP_VERSION(4, 2, 0):
 	case IP_VERSION(4, 2, 1):
 	case IP_VERSION(4, 4, 0):
