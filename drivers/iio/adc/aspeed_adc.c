@@ -581,7 +581,7 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 			}
 		} else
 			dev_warn(&pdev->dev,
-				 "Failed to enable battey-sensing mode\n");
+				 "Failed to enable battery-sensing mode\n");
 	}
 
 	ret = clk_prepare_enable(data->clk_scaler->clk);
