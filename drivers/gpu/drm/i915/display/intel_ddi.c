@@ -1005,11 +1005,11 @@ static void skl_ddi_set_iboost(struct intel_encoder *encoder,
 		_skl_ddi_set_iboost(dev_priv, PORT_E, iboost);
 }
 
-static void bxt_ddi_vswing_sequence(struct intel_encoder *encoder,
-				    const struct intel_crtc_state *crtc_state,
-				    int level)
+static void bxt_set_signal_levels(struct intel_encoder *encoder,
+				  const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	int level = intel_ddi_level(encoder, crtc_state);
 	const struct intel_ddi_buf_trans *trans;
 	enum port port = encoder->port;
 	int n_entries;
@@ -1057,10 +1057,10 @@ static u8 intel_ddi_dp_preemph_max(struct intel_dp *intel_dp)
 }
 
 static void icl_ddi_combo_vswing_program(struct intel_encoder *encoder,
-					 const struct intel_crtc_state *crtc_state,
-					 int level)
+					 const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	int level = intel_ddi_level(encoder, crtc_state);
 	const struct intel_ddi_buf_trans *trans;
 	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
 	int n_entries, ln;
@@ -1119,9 +1119,8 @@ static void icl_ddi_combo_vswing_program(struct intel_encoder *encoder,
 	intel_de_write(dev_priv, ICL_PORT_TX_DW7_GRP(phy), val);
 }
 
-static void icl_combo_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
-					      const struct intel_crtc_state *crtc_state,
-					      int level)
+static void icl_combo_phy_set_signal_levels(struct intel_encoder *encoder,
+					    const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
@@ -1172,7 +1171,7 @@ static void icl_combo_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
 	intel_de_write(dev_priv, ICL_PORT_TX_DW5_GRP(phy), val);
 
 	/* 5. Program swing and de-emphasis */
-	icl_ddi_combo_vswing_program(encoder, crtc_state, level);
+	icl_ddi_combo_vswing_program(encoder, crtc_state);
 
 	/* 6. Set training enable to trigger update */
 	val = intel_de_read(dev_priv, ICL_PORT_TX_DW5_LN0(phy));
@@ -1180,12 +1179,12 @@ static void icl_combo_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
 	intel_de_write(dev_priv, ICL_PORT_TX_DW5_GRP(phy), val);
 }
 
-static void icl_mg_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
-					   const struct intel_crtc_state *crtc_state,
-					   int level)
+static void icl_mg_phy_set_signal_levels(struct intel_encoder *encoder,
+					 const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum tc_port tc_port = intel_port_to_tc(dev_priv, encoder->port);
+	int level = intel_ddi_level(encoder, crtc_state);
 	const struct intel_ddi_buf_trans *trans;
 	int n_entries, ln;
 	u32 val;
@@ -1303,26 +1302,12 @@ static void icl_mg_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
 	}
 }
 
-static void icl_ddi_vswing_sequence(struct intel_encoder *encoder,
-				    const struct intel_crtc_state *crtc_state,
-				    int level)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
-
-	if (intel_phy_is_combo(dev_priv, phy))
-		icl_combo_phy_ddi_vswing_sequence(encoder, crtc_state, level);
-	else
-		icl_mg_phy_ddi_vswing_sequence(encoder, crtc_state, level);
-}
-
-static void
-tgl_dkl_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
-				const struct intel_crtc_state *crtc_state,
-				int level)
+static void tgl_dkl_phy_set_signal_levels(struct intel_encoder *encoder,
+					  const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum tc_port tc_port = intel_port_to_tc(dev_priv, encoder->port);
+	int level = intel_ddi_level(encoder, crtc_state);
 	const struct intel_ddi_buf_trans *trans;
 	u32 val, dpcnt_mask, dpcnt_val;
 	int n_entries, ln;
@@ -1374,19 +1359,6 @@ tgl_dkl_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
 	}
 }
 
-static void tgl_ddi_vswing_sequence(struct intel_encoder *encoder,
-				    const struct intel_crtc_state *crtc_state,
-				    int level)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
-
-	if (intel_phy_is_combo(dev_priv, phy))
-		icl_combo_phy_ddi_vswing_sequence(encoder, crtc_state, level);
-	else
-		tgl_dkl_phy_ddi_vswing_sequence(encoder, crtc_state, level);
-}
-
 static int translate_signal_level(struct intel_dp *intel_dp,
 				  u8 signal_levels)
 {
@@ -1414,49 +1386,13 @@ static int intel_ddi_dp_level(struct intel_dp *intel_dp)
 	return translate_signal_level(intel_dp, signal_levels);
 }
 
-static int intel_ddi_level(struct intel_encoder *encoder,
-			   const struct intel_crtc_state *crtc_state)
+int intel_ddi_level(struct intel_encoder *encoder,
+		    const struct intel_crtc_state *crtc_state)
 {
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
 		return intel_ddi_hdmi_level(encoder, crtc_state);
 	else
 		return intel_ddi_dp_level(enc_to_intel_dp(encoder));
-}
-
-static void
-dg2_set_signal_levels(struct intel_encoder *encoder,
-		      const struct intel_crtc_state *crtc_state)
-{
-	int level = intel_ddi_level(encoder, crtc_state);
-
-	intel_snps_phy_ddi_vswing_sequence(encoder, crtc_state, level);
-}
-
-static void
-tgl_set_signal_levels(struct intel_encoder *encoder,
-		      const struct intel_crtc_state *crtc_state)
-{
-	int level = intel_ddi_level(encoder, crtc_state);
-
-	tgl_ddi_vswing_sequence(encoder, crtc_state, level);
-}
-
-static void
-icl_set_signal_levels(struct intel_encoder *encoder,
-		      const struct intel_crtc_state *crtc_state)
-{
-	int level = intel_ddi_level(encoder, crtc_state);
-
-	icl_ddi_vswing_sequence(encoder, crtc_state, level);
-}
-
-static void
-bxt_set_signal_levels(struct intel_encoder *encoder,
-		      const struct intel_crtc_state *crtc_state)
-{
-	int level = intel_ddi_level(encoder, crtc_state);
-
-	bxt_ddi_vswing_sequence(encoder, crtc_state, level);
 }
 
 static void
@@ -4631,16 +4567,23 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 		encoder->get_config = hsw_ddi_get_config;
 	}
 
-	if (IS_DG2(dev_priv))
-		encoder->set_signal_levels = dg2_set_signal_levels;
-	else if (DISPLAY_VER(dev_priv) >= 12)
-		encoder->set_signal_levels = tgl_set_signal_levels;
-	else if (DISPLAY_VER(dev_priv) >= 11)
-		encoder->set_signal_levels = icl_set_signal_levels;
-	else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
+	if (IS_DG2(dev_priv)) {
+		encoder->set_signal_levels = intel_snps_phy_set_signal_levels;
+	} else if (DISPLAY_VER(dev_priv) >= 12) {
+		if (intel_phy_is_combo(dev_priv, phy))
+			encoder->set_signal_levels = icl_combo_phy_set_signal_levels;
+		else
+			encoder->set_signal_levels = tgl_dkl_phy_set_signal_levels;
+	} else if (DISPLAY_VER(dev_priv) >= 11) {
+		if (intel_phy_is_combo(dev_priv, phy))
+			encoder->set_signal_levels = icl_combo_phy_set_signal_levels;
+		else
+			encoder->set_signal_levels = icl_mg_phy_set_signal_levels;
+	} else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) {
 		encoder->set_signal_levels = bxt_set_signal_levels;
-	else
+	} else {
 		encoder->set_signal_levels = hsw_set_signal_levels;
+	}
 
 	intel_ddi_buf_trans_init(encoder);
 
