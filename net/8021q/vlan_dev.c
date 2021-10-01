@@ -250,7 +250,7 @@ bool vlan_dev_inherit_address(struct net_device *dev,
 	if (dev->addr_assign_type != NET_ADDR_STOLEN)
 		return false;
 
-	ether_addr_copy(dev->dev_addr, real_dev->dev_addr);
+	eth_hw_addr_set(dev, real_dev->dev_addr);
 	call_netdevice_notifiers(NETDEV_CHANGEADDR, dev);
 	return true;
 }
@@ -349,7 +349,7 @@ static int vlan_dev_set_mac_address(struct net_device *dev, void *p)
 		dev_uc_del(real_dev, dev->dev_addr);
 
 out:
-	ether_addr_copy(dev->dev_addr, addr->sa_data);
+	eth_hw_addr_set(dev, addr->sa_data);
 	return 0;
 }
 
@@ -586,7 +586,7 @@ static int vlan_dev_init(struct net_device *dev)
 	dev->dev_id = real_dev->dev_id;
 
 	if (is_zero_ether_addr(dev->dev_addr)) {
-		ether_addr_copy(dev->dev_addr, real_dev->dev_addr);
+		eth_hw_addr_set(dev, real_dev->dev_addr);
 		dev->addr_assign_type = NET_ADDR_STOLEN;
 	}
 	if (is_zero_ether_addr(dev->broadcast))
