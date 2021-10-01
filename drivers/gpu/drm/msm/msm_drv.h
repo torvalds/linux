@@ -151,12 +151,6 @@ struct msm_drm_private {
 	 */
 	struct hdmi *hdmi;
 
-	/* eDP is for mdp5 only, but kms has not been created
-	 * when edp_bind() and edp_init() are called. Here is the only
-	 * place to keep the edp instance.
-	 */
-	struct msm_edp *edp;
-
 	/* DSI is shared by mdp4 and mdp5 */
 	struct msm_dsi *dsi[2];
 
@@ -334,12 +328,6 @@ int msm_hdmi_modeset_init(struct hdmi *hdmi, struct drm_device *dev,
 		struct drm_encoder *encoder);
 void __init msm_hdmi_register(void);
 void __exit msm_hdmi_unregister(void);
-
-struct msm_edp;
-void __init msm_edp_register(void);
-void __exit msm_edp_unregister(void);
-int msm_edp_modeset_init(struct msm_edp *edp, struct drm_device *dev,
-		struct drm_encoder *encoder);
 
 struct msm_dsi;
 #ifdef CONFIG_DRM_MSM_DSI

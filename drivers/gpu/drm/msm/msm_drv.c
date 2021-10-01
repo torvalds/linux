@@ -1478,7 +1478,6 @@ static int __init msm_drm_register(void)
 	msm_mdp_register();
 	msm_dpu_register();
 	msm_dsi_register();
-	msm_edp_register();
 	msm_hdmi_register();
 	msm_dp_register();
 	adreno_register();
@@ -1492,7 +1491,6 @@ static void __exit msm_drm_unregister(void)
 	msm_dp_unregister();
 	msm_hdmi_unregister();
 	adreno_unregister();
-	msm_edp_unregister();
 	msm_dsi_unregister();
 	msm_mdp_unregister();
 	msm_dpu_unregister();
