@@ -1889,7 +1889,7 @@ static int gmac_set_mac_address(struct net_device *netdev, void *addr)
 {
 	struct sockaddr *sa = addr;
 
-	memcpy(netdev->dev_addr, sa->sa_data, ETH_ALEN);
+	eth_hw_addr_set(netdev, sa->sa_data);
 	gmac_write_mac_address(netdev);
 
 	return 0;

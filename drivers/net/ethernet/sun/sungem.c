@@ -2797,7 +2797,7 @@ static int gem_get_device_address(struct gem *gp)
 		return -1;
 #endif
 	}
-	memcpy(dev->dev_addr, addr, ETH_ALEN);
+	eth_hw_addr_set(dev, addr);
 #else
 	get_gem_mac_nonobp(gp->pdev, gp->dev->dev_addr);
 #endif

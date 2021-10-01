@@ -920,7 +920,7 @@ static int ioc3eth_probe(struct platform_device *pdev)
 
 	ioc3_mii_start(ip);
 	ioc3_ssram_disc(ip);
-	memcpy(dev->dev_addr, mac_addr, ETH_ALEN);
+	eth_hw_addr_set(dev, mac_addr);
 
 	/* The IOC3-specific entries in the device structure. */
 	dev->watchdog_timeo	= 5 * HZ;

@@ -4663,7 +4663,7 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 
 	/* Store the fw version for ethttool option */
 	strcpy(vdev->fw_version, ll_config->device_hw_info.fw_version.version);
-	memcpy(vdev->ndev->dev_addr, (u8 *)vdev->vpaths[0].macaddr, ETH_ALEN);
+	eth_hw_addr_set(vdev->ndev, (u8 *)vdev->vpaths[0].macaddr);
 
 	/* Copy the station mac address to the list */
 	for (i = 0; i < vdev->no_of_vpath; i++) {

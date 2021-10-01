@@ -5249,7 +5249,7 @@ static int mvneta_probe(struct platform_device *pdev)
 		mvneta_get_mac_addr(pp, hw_mac_addr);
 		if (is_valid_ether_addr(hw_mac_addr)) {
 			mac_from = "hardware";
-			memcpy(dev->dev_addr, hw_mac_addr, ETH_ALEN);
+			eth_hw_addr_set(dev, hw_mac_addr);
 		} else {
 			mac_from = "random";
 			eth_hw_addr_random(dev);

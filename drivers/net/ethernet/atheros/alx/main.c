@@ -1832,7 +1832,7 @@ static int alx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	memcpy(hw->mac_addr, hw->perm_addr, ETH_ALEN);
-	memcpy(netdev->dev_addr, hw->mac_addr, ETH_ALEN);
+	eth_hw_addr_set(netdev, hw->mac_addr);
 	memcpy(netdev->perm_addr, hw->perm_addr, ETH_ALEN);
 
 	hw->mdio.prtad = 0;

@@ -2986,7 +2986,7 @@ static struct ehea_port *ehea_setup_single_port(struct ehea_adapter *adapter,
 	SET_NETDEV_DEV(dev, port_dev);
 
 	/* initialize net_device structure */
-	memcpy(dev->dev_addr, &port->mac_addr, ETH_ALEN);
+	eth_hw_addr_set(dev, &port->mac_addr);
 
 	dev->netdev_ops = &ehea_netdev_ops;
 	ehea_set_ethtool_ops(dev);

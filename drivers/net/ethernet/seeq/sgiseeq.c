@@ -764,7 +764,7 @@ static int sgiseeq_probe(struct platform_device *pdev)
 	setup_rx_ring(dev, sp->rx_desc, SEEQ_RX_BUFFERS);
 	setup_tx_ring(dev, sp->tx_desc, SEEQ_TX_BUFFERS);
 
-	memcpy(dev->dev_addr, pd->mac, ETH_ALEN);
+	eth_hw_addr_set(dev, pd->mac);
 
 #ifdef DEBUG
 	gpriv = sp;

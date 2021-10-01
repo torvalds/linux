@@ -6815,7 +6815,7 @@ int stmmac_dvr_probe(struct device *device,
 		priv->tx_irq[i] = res->tx_irq[i];
 
 	if (!is_zero_ether_addr(res->mac))
-		memcpy(priv->dev->dev_addr, res->mac, ETH_ALEN);
+		eth_hw_addr_set(priv->dev, res->mac);
 
 	dev_set_drvdata(device, priv->dev);
 

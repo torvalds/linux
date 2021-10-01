@@ -797,7 +797,7 @@ static int mlx4_en_set_mac(struct net_device *dev, void *addr)
 	if (err)
 		goto out;
 
-	memcpy(dev->dev_addr, saddr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(dev, saddr->sa_data);
 	mlx4_en_update_user_mac(priv, new_mac);
 out:
 	mutex_unlock(&mdev->state_lock);

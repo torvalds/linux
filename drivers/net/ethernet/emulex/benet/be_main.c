@@ -4599,7 +4599,7 @@ static int be_mac_setup(struct be_adapter *adapter)
 		if (status)
 			return status;
 
-		memcpy(adapter->netdev->dev_addr, mac, ETH_ALEN);
+		eth_hw_addr_set(adapter->netdev, mac);
 		memcpy(adapter->netdev->perm_addr, mac, ETH_ALEN);
 
 		/* Initial MAC for BE3 VFs is already programmed by PF */
