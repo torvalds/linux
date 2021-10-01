@@ -27,7 +27,7 @@
 #include "dc.h"
 
 #include "dcn201_init.h"
-#include "dml/dcn2x/dcn2x.h"
+#include "dml/dcn20/dcn20_fpu.h"
 #include "resource.h"
 #include "include/irq_service_interface.h"
 #include "dcn201_resource.h"

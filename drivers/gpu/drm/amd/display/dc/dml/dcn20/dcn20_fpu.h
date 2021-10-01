@@ -24,11 +24,11 @@
  *
  */
 
-#ifndef __DCN2X_H__
-#define __DCN2X_H__
+#ifndef __DCN20_FPU_H__
+#define __DCN20_FPU_H__
 
 void dcn20_populate_dml_writeback_from_context(struct dc *dc,
 					       struct resource_context *res_ctx,
 					       display_e2e_pipe_params_st *pipes);
 
-#endif /* __DCN2X_H__ */
+#endif /* __DCN20_FPU_H__ */
