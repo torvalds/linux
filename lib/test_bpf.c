@@ -10586,6 +10586,149 @@ static struct bpf_test tests[] = {
 		{},
 		{ { 0, 2 } },
 	},
+	/* Checking that ALU32 src is not zero extended in place */
+#define BPF_ALU32_SRC_ZEXT(op)					\
+	{							\
+		"ALU32_" #op "_X: src preserved in zext",	\
+		.u.insns_int = {				\
+			BPF_LD_IMM64(R1, 0x0123456789acbdefULL),\
+			BPF_LD_IMM64(R2, 0xfedcba9876543210ULL),\
+			BPF_ALU64_REG(BPF_MOV, R0, R1),		\
+			BPF_ALU32_REG(BPF_##op, R2, R1),	\
+			BPF_ALU64_REG(BPF_SUB, R0, R1),		\
+			BPF_ALU64_REG(BPF_MOV, R1, R0),		\
+			BPF_ALU64_IMM(BPF_RSH, R1, 32),		\
+			BPF_ALU64_REG(BPF_OR, R0, R1),		\
+			BPF_EXIT_INSN(),			\
+		},						\
+		INTERNAL,					\
+		{ },						\
+		{ { 0, 0 } },					\
+	}
+	BPF_ALU32_SRC_ZEXT(MOV),
+	BPF_ALU32_SRC_ZEXT(AND),
+	BPF_ALU32_SRC_ZEXT(OR),
+	BPF_ALU32_SRC_ZEXT(XOR),
+	BPF_ALU32_SRC_ZEXT(ADD),
+	BPF_ALU32_SRC_ZEXT(SUB),
+	BPF_ALU32_SRC_ZEXT(MUL),
+	BPF_ALU32_SRC_ZEXT(DIV),
+	BPF_ALU32_SRC_ZEXT(MOD),
+#undef BPF_ALU32_SRC_ZEXT
+	/* Checking that ATOMIC32 src is not zero extended in place */
+#define BPF_ATOMIC32_SRC_ZEXT(op)					\
+	{								\
+		"ATOMIC_W_" #op ": src preserved in zext",		\
+		.u.insns_int = {					\
+			BPF_LD_IMM64(R0, 0x0123456789acbdefULL),	\
+			BPF_ALU64_REG(BPF_MOV, R1, R0),			\
+			BPF_ST_MEM(BPF_W, R10, -4, 0),			\
+			BPF_ATOMIC_OP(BPF_W, BPF_##op, R10, R1, -4),	\
+			BPF_ALU64_REG(BPF_SUB, R0, R1),			\
+			BPF_ALU64_REG(BPF_MOV, R1, R0),			\
+			BPF_ALU64_IMM(BPF_RSH, R1, 32),			\
+			BPF_ALU64_REG(BPF_OR, R0, R1),			\
+			BPF_EXIT_INSN(),				\
+		},							\
+		INTERNAL,						\
+		{ },							\
+		{ { 0, 0 } },						\
+		.stack_depth = 8,					\
+	}
+	BPF_ATOMIC32_SRC_ZEXT(ADD),
+	BPF_ATOMIC32_SRC_ZEXT(AND),
+	BPF_ATOMIC32_SRC_ZEXT(OR),
+	BPF_ATOMIC32_SRC_ZEXT(XOR),
+#undef BPF_ATOMIC32_SRC_ZEXT
+	/* Checking that CMPXCHG32 src is not zero extended in place */
+	{
+		"ATOMIC_W_CMPXCHG: src preserved in zext",
+		.u.insns_int = {
+			BPF_LD_IMM64(R1, 0x0123456789acbdefULL),
+			BPF_ALU64_REG(BPF_MOV, R2, R1),
+			BPF_ALU64_REG(BPF_MOV, R0, 0),
+			BPF_ST_MEM(BPF_W, R10, -4, 0),
+			BPF_ATOMIC_OP(BPF_W, BPF_CMPXCHG, R10, R1, -4),
+			BPF_ALU64_REG(BPF_SUB, R1, R2),
+			BPF_ALU64_REG(BPF_MOV, R2, R1),
+			BPF_ALU64_IMM(BPF_RSH, R2, 32),
+			BPF_ALU64_REG(BPF_OR, R1, R2),
+			BPF_ALU64_REG(BPF_MOV, R0, R1),
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL,
+		{ },
+		{ { 0, 0 } },
+		.stack_depth = 8,
+	},
+	/* Checking that JMP32 immediate src is not zero extended in place */
+#define BPF_JMP32_IMM_ZEXT(op)					\
+	{							\
+		"JMP32_" #op "_K: operand preserved in zext",	\
+		.u.insns_int = {				\
+			BPF_LD_IMM64(R0, 0x0123456789acbdefULL),\
+			BPF_ALU64_REG(BPF_MOV, R1, R0),		\
+			BPF_JMP32_IMM(BPF_##op, R0, 1234, 1),	\
+			BPF_JMP_A(0), /* Nop */			\
+			BPF_ALU64_REG(BPF_SUB, R0, R1),		\
+			BPF_ALU64_REG(BPF_MOV, R1, R0),		\
+			BPF_ALU64_IMM(BPF_RSH, R1, 32),		\
+			BPF_ALU64_REG(BPF_OR, R0, R1),		\
+			BPF_EXIT_INSN(),			\
+		},						\
+		INTERNAL,					\
+		{ },						\
+		{ { 0, 0 } },					\
+	}
+	BPF_JMP32_IMM_ZEXT(JEQ),
+	BPF_JMP32_IMM_ZEXT(JNE),
+	BPF_JMP32_IMM_ZEXT(JSET),
+	BPF_JMP32_IMM_ZEXT(JGT),
+	BPF_JMP32_IMM_ZEXT(JGE),
+	BPF_JMP32_IMM_ZEXT(JLT),
+	BPF_JMP32_IMM_ZEXT(JLE),
+	BPF_JMP32_IMM_ZEXT(JSGT),
+	BPF_JMP32_IMM_ZEXT(JSGE),
+	BPF_JMP32_IMM_ZEXT(JSGT),
+	BPF_JMP32_IMM_ZEXT(JSLT),
+	BPF_JMP32_IMM_ZEXT(JSLE),
+#undef BPF_JMP2_IMM_ZEXT
+	/* Checking that JMP32 dst & src are not zero extended in place */
+#define BPF_JMP32_REG_ZEXT(op)					\
+	{							\
+		"JMP32_" #op "_X: operands preserved in zext",	\
+		.u.insns_int = {				\
+			BPF_LD_IMM64(R0, 0x0123456789acbdefULL),\
+			BPF_LD_IMM64(R1, 0xfedcba9876543210ULL),\
+			BPF_ALU64_REG(BPF_MOV, R2, R0),		\
+			BPF_ALU64_REG(BPF_MOV, R3, R1),		\
+			BPF_JMP32_IMM(BPF_##op, R0, R1, 1),	\
+			BPF_JMP_A(0), /* Nop */			\
+			BPF_ALU64_REG(BPF_SUB, R0, R2),		\
+			BPF_ALU64_REG(BPF_SUB, R1, R3),		\
+			BPF_ALU64_REG(BPF_OR, R0, R1),		\
+			BPF_ALU64_REG(BPF_MOV, R1, R0),		\
+			BPF_ALU64_IMM(BPF_RSH, R1, 32),		\
+			BPF_ALU64_REG(BPF_OR, R0, R1),		\
+			BPF_EXIT_INSN(),			\
+		},						\
+		INTERNAL,					\
+		{ },						\
+		{ { 0, 0 } },					\
+	}
+	BPF_JMP32_REG_ZEXT(JEQ),
+	BPF_JMP32_REG_ZEXT(JNE),
+	BPF_JMP32_REG_ZEXT(JSET),
+	BPF_JMP32_REG_ZEXT(JGT),
+	BPF_JMP32_REG_ZEXT(JGE),
+	BPF_JMP32_REG_ZEXT(JLT),
+	BPF_JMP32_REG_ZEXT(JLE),
+	BPF_JMP32_REG_ZEXT(JSGT),
+	BPF_JMP32_REG_ZEXT(JSGE),
+	BPF_JMP32_REG_ZEXT(JSGT),
+	BPF_JMP32_REG_ZEXT(JSLT),
+	BPF_JMP32_REG_ZEXT(JSLE),
+#undef BPF_JMP2_REG_ZEXT
 	/* Exhaustive test of ALU64 shift operations */
 	{
 		"ALU64_LSH_K: all shift values",
