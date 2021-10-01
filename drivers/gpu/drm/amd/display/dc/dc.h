@@ -477,6 +477,23 @@ union mem_low_power_enable_options {
 	uint32_t u32All;
 };
 
+union root_clock_optimization_options {
+	struct {
+		bool dpp: 1;
+		bool dsc: 1;
+		bool hdmistream: 1;
+		bool hdmichar: 1;
+		bool dpstream: 1;
+		bool symclk32_se: 1;
+		bool symclk32_le: 1;
+		bool symclk_fe: 1;
+		bool physymclk: 1;
+		bool dpiasymclk: 1;
+		uint32_t reserved: 22;
+	} bits;
+	uint32_t u32All;
+};
+
 struct dc_debug_data {
 	uint32_t ltFailCount;
 	uint32_t i2cErrorCount;
@@ -637,6 +654,7 @@ struct dc_debug_options {
 	bool legacy_dp2_lt;
 #endif
 	union mem_low_power_enable_options enable_mem_low_power;
+	union root_clock_optimization_options root_clock_optimization;
 	bool force_vblank_alignment;
 
 	/* Enable dmub aux for legacy ddc */
