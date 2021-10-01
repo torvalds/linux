@@ -11133,6 +11133,64 @@ static struct bpf_test tests[] = {
 		{},
 		{ { 0, 2 } },
 	},
+	/* BPF_LDX_MEM with operand aliasing */
+	{
+		"LDX_MEM_B: operand register aliasing",
+		.u.insns_int = {
+			BPF_ST_MEM(BPF_B, R10, -8, 123),
+			BPF_MOV64_REG(R0, R10),
+			BPF_LDX_MEM(BPF_B, R0, R0, -8),
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL,
+		{ },
+		{ { 0, 123 } },
+		.stack_depth = 8,
+	},
+	{
+		"LDX_MEM_H: operand register aliasing",
+		.u.insns_int = {
+			BPF_ST_MEM(BPF_H, R10, -8, 12345),
+			BPF_MOV64_REG(R0, R10),
+			BPF_LDX_MEM(BPF_H, R0, R0, -8),
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL,
+		{ },
+		{ { 0, 12345 } },
+		.stack_depth = 8,
+	},
+	{
+		"LDX_MEM_W: operand register aliasing",
+		.u.insns_int = {
+			BPF_ST_MEM(BPF_W, R10, -8, 123456789),
+			BPF_MOV64_REG(R0, R10),
+			BPF_LDX_MEM(BPF_W, R0, R0, -8),
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL,
+		{ },
+		{ { 0, 123456789 } },
+		.stack_depth = 8,
+	},
+	{
+		"LDX_MEM_DW: operand register aliasing",
+		.u.insns_int = {
+			BPF_LD_IMM64(R1, 0x123456789abcdefULL),
+			BPF_STX_MEM(BPF_DW, R10, R1, -8),
+			BPF_MOV64_REG(R0, R10),
+			BPF_LDX_MEM(BPF_DW, R0, R0, -8),
+			BPF_ALU64_REG(BPF_SUB, R0, R1),
+			BPF_MOV64_REG(R1, R0),
+			BPF_ALU64_IMM(BPF_RSH, R1, 32),
+			BPF_ALU64_REG(BPF_OR, R0, R1),
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL,
+		{ },
+		{ { 0, 0 } },
+		.stack_depth = 8,
+	},
 	/*
 	 * Register (non-)clobbering tests for the case where a JIT implements
 	 * complex ALU or ATOMIC operations via function calls. If so, the
