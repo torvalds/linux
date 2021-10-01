@@ -268,12 +268,14 @@ NOKPROBE_SYMBOL(prepare_ftrace_return);
 int ftrace_enable_ftrace_graph_caller(void)
 {
 	brcl_disable(ftrace_graph_caller);
+	text_poke_sync_lock();
 	return 0;
 }
 
 int ftrace_disable_ftrace_graph_caller(void)
 {
 	brcl_enable(ftrace_graph_caller);
+	text_poke_sync_lock();
 	return 0;
 }
 
