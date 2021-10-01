@@ -1917,7 +1917,7 @@ void blank_all_dp_displays(struct dc *dc, bool hw_init)
 
 		if ((signal == SIGNAL_TYPE_EDP) ||
 			(signal == SIGNAL_TYPE_DISPLAY_PORT)) {
-			if (hw_init && signal != SIGNAL_TYPE_EDP) {
+			if (hw_init && signal != SIGNAL_TYPE_EDP && dc->links[i]->priv != NULL) {
 				/* DP 2.0 spec requires that we read LTTPR caps first */
 				dp_retrieve_lttpr_cap(dc->links[i]);
 				/* if any of the displays are lit up turn them off */
@@ -1943,7 +1943,7 @@ void blank_all_dp_displays(struct dc *dc, bool hw_init)
 				}
 
 				if (!dc->links[i]->wa_flags.dp_keep_receiver_powered ||
-					(hw_init && signal != SIGNAL_TYPE_EDP))
+					(hw_init && signal != SIGNAL_TYPE_EDP && dc->links[i]->priv != NULL))
 					dp_receiver_power_ctrl(dc->links[i], false);
 			}
 		}
