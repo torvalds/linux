@@ -287,10 +287,9 @@ static int ionic_qcq_enable(struct ionic_qcq *qcq)
 	return ionic_adminq_post_wait(lif, &ctx);
 }
 
-static int ionic_qcq_disable(struct ionic_qcq *qcq, int fw_err)
+static int ionic_qcq_disable(struct ionic_lif *lif, struct ionic_qcq *qcq, int fw_err)
 {
 	struct ionic_queue *q;
-	struct ionic_lif *lif;
 
 	struct ionic_admin_ctx ctx = {
 		.work = COMPLETION_INITIALIZER_ONSTACK(ctx.work),
@@ -300,11 +299,12 @@ static int ionic_qcq_disable(struct ionic_qcq *qcq, int fw_err)
 		},
 	};
 
-	if (!qcq)
+	if (!qcq) {
+		netdev_err(lif->netdev, "%s: bad qcq\n", __func__);
 		return -ENXIO;
+	}
 
 	q = &qcq->q;
-	lif = q->lif;
 
 	if (qcq->flags & IONIC_QCQ_F_INTR) {
 		struct ionic_dev *idev = &lif->ionic->idev;
@@ -1948,19 +1948,19 @@ static void ionic_txrx_disable(struct ionic_lif *lif)
 
 	if (lif->txqcqs) {
 		for (i = 0; i < lif->nxqs; i++)
-			err = ionic_qcq_disable(lif->txqcqs[i], err);
+			err = ionic_qcq_disable(lif, lif->txqcqs[i], err);
 	}
 
 	if (lif->hwstamp_txq)
-		err = ionic_qcq_disable(lif->hwstamp_txq, err);
+		err = ionic_qcq_disable(lif, lif->hwstamp_txq, err);
 
 	if (lif->rxqcqs) {
 		for (i = 0; i < lif->nxqs; i++)
-			err = ionic_qcq_disable(lif->rxqcqs[i], err);
+			err = ionic_qcq_disable(lif, lif->rxqcqs[i], err);
 	}
 
 	if (lif->hwstamp_rxq)
-		err = ionic_qcq_disable(lif->hwstamp_rxq, err);
+		err = ionic_qcq_disable(lif, lif->hwstamp_rxq, err);
 
 	ionic_lif_quiesce(lif);
 }
@@ -2160,7 +2160,7 @@ static int ionic_txrx_enable(struct ionic_lif *lif)
 
 		err = ionic_qcq_enable(lif->txqcqs[i]);
 		if (err) {
-			derr = ionic_qcq_disable(lif->rxqcqs[i], err);
+			derr = ionic_qcq_disable(lif, lif->rxqcqs[i], err);
 			goto err_out;
 		}
 	}
@@ -2182,13 +2182,13 @@ static int ionic_txrx_enable(struct ionic_lif *lif)
 
 err_out_hwstamp_tx:
 	if (lif->hwstamp_rxq)
-		derr = ionic_qcq_disable(lif->hwstamp_rxq, derr);
+		derr = ionic_qcq_disable(lif, lif->hwstamp_rxq, derr);
 err_out_hwstamp_rx:
 	i = lif->nxqs;
 err_out:
 	while (i--) {
-		derr = ionic_qcq_disable(lif->txqcqs[i], derr);
-		derr = ionic_qcq_disable(lif->rxqcqs[i], derr);
+		derr = ionic_qcq_disable(lif, lif->txqcqs[i], derr);
+		derr = ionic_qcq_disable(lif, lif->rxqcqs[i], derr);
 	}
 
 	return err;
