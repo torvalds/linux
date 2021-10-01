@@ -64,6 +64,7 @@ int intel_ddi_toggle_hdcp_bits(struct intel_encoder *intel_encoder,
 			       bool enable, u32 hdcp_mask);
 void intel_ddi_sanitize_encoder_pll_mapping(struct intel_encoder *encoder);
 int intel_ddi_level(struct intel_encoder *encoder,
-		    const struct intel_crtc_state *crtc_state);
+		    const struct intel_crtc_state *crtc_state,
+		    int lane);
 
 #endif /* __INTEL_DDI_H__ */

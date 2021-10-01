@@ -58,7 +58,7 @@ void intel_snps_phy_set_signal_levels(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	const struct intel_ddi_buf_trans *trans;
 	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
-	int level = intel_ddi_level(encoder, crtc_state);
+	int level = intel_ddi_level(encoder, crtc_state, 0);
 	int n_entries, ln;
 
 	trans = encoder->get_buf_trans(encoder, crtc_state, &n_entries);

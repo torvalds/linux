@@ -135,7 +135,7 @@ static void hsw_prepare_hdmi_ddi_buffers(struct intel_encoder *encoder,
 					 const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	int level = intel_ddi_level(encoder, crtc_state);
+	int level = intel_ddi_level(encoder, crtc_state, 0);
 	u32 iboost_bit = 0;
 	int n_entries;
 	enum port port = encoder->port;
@@ -1027,7 +1027,7 @@ static void icl_ddi_combo_vswing_program(struct intel_encoder *encoder,
 					 const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	int level = intel_ddi_level(encoder, crtc_state);
+	int level = intel_ddi_level(encoder, crtc_state, 0);
 	const struct intel_ddi_buf_trans *trans;
 	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
 	int n_entries, ln;
@@ -1149,7 +1149,7 @@ static void icl_mg_phy_set_signal_levels(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum tc_port tc_port = intel_port_to_tc(dev_priv, encoder->port);
-	int level = intel_ddi_level(encoder, crtc_state);
+	int level = intel_ddi_level(encoder, crtc_state, 0);
 	const struct intel_ddi_buf_trans *trans;
 	int n_entries, ln;
 	u32 val;
@@ -1270,7 +1270,7 @@ static void tgl_dkl_phy_set_signal_levels(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum tc_port tc_port = intel_port_to_tc(dev_priv, encoder->port);
-	int level = intel_ddi_level(encoder, crtc_state);
+	int level = intel_ddi_level(encoder, crtc_state, 0);
 	const struct intel_ddi_buf_trans *trans;
 	u32 val, dpcnt_mask, dpcnt_val;
 	int n_entries, ln;
@@ -1338,9 +1338,9 @@ static int translate_signal_level(struct intel_dp *intel_dp,
 	return 0;
 }
 
-static int intel_ddi_dp_level(struct intel_dp *intel_dp)
+static int intel_ddi_dp_level(struct intel_dp *intel_dp, int lane)
 {
-	u8 train_set = intel_dp->train_set[0];
+	u8 train_set = intel_dp->train_set[lane];
 	u8 signal_levels = train_set & (DP_TRAIN_VOLTAGE_SWING_MASK |
 					DP_TRAIN_PRE_EMPHASIS_MASK);
 
@@ -1348,7 +1348,8 @@ static int intel_ddi_dp_level(struct intel_dp *intel_dp)
 }
 
 int intel_ddi_level(struct intel_encoder *encoder,
-		    const struct intel_crtc_state *crtc_state)
+		    const struct intel_crtc_state *crtc_state,
+		    int lane)
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	const struct intel_ddi_buf_trans *trans;
@@ -1361,7 +1362,7 @@ int intel_ddi_level(struct intel_encoder *encoder,
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
 		level = intel_ddi_hdmi_level(encoder, trans);
 	else
-		level = intel_ddi_dp_level(enc_to_intel_dp(encoder));
+		level = intel_ddi_dp_level(enc_to_intel_dp(encoder), lane);
 
 	if (drm_WARN_ON_ONCE(&i915->drm, level >= n_entries))
 		level = n_entries - 1;
@@ -1375,7 +1376,7 @@ hsw_set_signal_levels(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-	int level = intel_ddi_level(encoder, crtc_state);
+	int level = intel_ddi_level(encoder, crtc_state, 0);
 	enum port port = encoder->port;
 	u32 signal_levels;
 
