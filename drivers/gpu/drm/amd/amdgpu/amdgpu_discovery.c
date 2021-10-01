@@ -43,8 +43,6 @@
 #include "uvd_v7_0.h"
 #include "vce_v4_0.h"
 #include "vcn_v1_0.h"
-#include "vcn_v2_0.h"
-#include "jpeg_v2_0.h"
 #include "vcn_v2_5.h"
 #include "jpeg_v2_5.h"
 #include "smuio_v9_0.h"
