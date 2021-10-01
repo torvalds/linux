@@ -143,8 +143,6 @@ void ionic_debugfs_add_qcq(struct ionic_lif *lif, struct ionic_qcq *qcq)
 	debugfs_create_u32("qid", 0400, q_dentry, &q->hw_index);
 	debugfs_create_u32("qtype", 0400, q_dentry, &q->hw_type);
 	debugfs_create_u64("drop", 0400, q_dentry, &q->drop);
-	debugfs_create_u64("stop", 0400, q_dentry, &q->stop);
-	debugfs_create_u64("wake", 0400, q_dentry, &q->wake);
 
 	debugfs_create_file("tail", 0400, q_dentry, q, &q_tail_fops);
 	debugfs_create_file("head", 0400, q_dentry, q, &q_head_fops);
