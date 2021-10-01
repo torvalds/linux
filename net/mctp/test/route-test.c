@@ -383,10 +383,144 @@ static void mctp_route_input_sk_to_desc(const struct mctp_route_input_sk_test *t
 KUNIT_ARRAY_PARAM(mctp_route_input_sk, mctp_route_input_sk_tests,
 		  mctp_route_input_sk_to_desc);
 
+struct mctp_route_input_sk_reasm_test {
+	const char *name;
+	struct mctp_hdr hdrs[4];
+	int n_hdrs;
+	int rx_len;
+};
+
+static void mctp_test_route_input_sk_reasm(struct kunit *test)
+{
+	const struct mctp_route_input_sk_reasm_test *params;
+	struct sk_buff *skb, *skb2;
+	struct mctp_test_route *rt;
+	struct mctp_test_dev *dev;
+	struct socket *sock;
+	int i, rc;
+	u8 c;
+
+	params = test->param_value;
+
+	__mctp_route_test_init(test, &dev, &rt, &sock);
+
+	for (i = 0; i < params->n_hdrs; i++) {
+		c = i;
+		skb = mctp_test_create_skb_data(&params->hdrs[i], &c);
+		KUNIT_ASSERT_NOT_ERR_OR_NULL(test, skb);
+
+		skb->dev = dev->ndev;
+		__mctp_cb(skb);
+
+		rc = mctp_route_input(&rt->rt, skb);
+	}
+
+	skb2 = skb_recv_datagram(sock->sk, 0, 1, &rc);
+
+	if (params->rx_len) {
+		KUNIT_EXPECT_NOT_ERR_OR_NULL(test, skb2);
+		KUNIT_EXPECT_EQ(test, skb2->len, params->rx_len);
+		skb_free_datagram(sock->sk, skb2);
+
+	} else {
+		KUNIT_EXPECT_PTR_EQ(test, skb2, NULL);
+	}
+
+	__mctp_route_test_fini(dev, rt, sock);
+}
+
+#define RX_FRAG(f, s) RX_HDR(1, 10, 8, FL_T | (f) | ((s) << MCTP_HDR_SEQ_SHIFT))
+
+static const struct mctp_route_input_sk_reasm_test mctp_route_input_sk_reasm_tests[] = {
+	{
+		.name = "single packet",
+		.hdrs = {
+			RX_FRAG(FL_S | FL_E, 0),
+		},
+		.n_hdrs = 1,
+		.rx_len = 1,
+	},
+	{
+		.name = "single packet, offset seq",
+		.hdrs = {
+			RX_FRAG(FL_S | FL_E, 1),
+		},
+		.n_hdrs = 1,
+		.rx_len = 1,
+	},
+	{
+		.name = "start & end packets",
+		.hdrs = {
+			RX_FRAG(FL_S, 0),
+			RX_FRAG(FL_E, 1),
+		},
+		.n_hdrs = 2,
+		.rx_len = 2,
+	},
+	{
+		.name = "start & end packets, offset seq",
+		.hdrs = {
+			RX_FRAG(FL_S, 1),
+			RX_FRAG(FL_E, 2),
+		},
+		.n_hdrs = 2,
+		.rx_len = 2,
+	},
+	{
+		.name = "start & end packets, out of order",
+		.hdrs = {
+			RX_FRAG(FL_E, 1),
+			RX_FRAG(FL_S, 0),
+		},
+		.n_hdrs = 2,
+		.rx_len = 0,
+	},
+	{
+		.name = "start, middle & end packets",
+		.hdrs = {
+			RX_FRAG(FL_S, 0),
+			RX_FRAG(0,    1),
+			RX_FRAG(FL_E, 2),
+		},
+		.n_hdrs = 3,
+		.rx_len = 3,
+	},
+	{
+		.name = "missing seq",
+		.hdrs = {
+			RX_FRAG(FL_S, 0),
+			RX_FRAG(FL_E, 2),
+		},
+		.n_hdrs = 2,
+		.rx_len = 0,
+	},
+	{
+		.name = "seq wrap",
+		.hdrs = {
+			RX_FRAG(FL_S, 3),
+			RX_FRAG(FL_E, 0),
+		},
+		.n_hdrs = 2,
+		.rx_len = 2,
+	},
+};
+
+static void mctp_route_input_sk_reasm_to_desc(
+				const struct mctp_route_input_sk_reasm_test *t,
+				char *desc)
+{
+	sprintf(desc, "%s", t->name);
+}
+
+KUNIT_ARRAY_PARAM(mctp_route_input_sk_reasm, mctp_route_input_sk_reasm_tests,
+		  mctp_route_input_sk_reasm_to_desc);
+
 static struct kunit_case mctp_test_cases[] = {
 	KUNIT_CASE_PARAM(mctp_test_fragment, mctp_frag_gen_params),
 	KUNIT_CASE_PARAM(mctp_test_rx_input, mctp_rx_input_gen_params),
 	KUNIT_CASE_PARAM(mctp_test_route_input_sk, mctp_route_input_sk_gen_params),
+	KUNIT_CASE_PARAM(mctp_test_route_input_sk_reasm,
+			 mctp_route_input_sk_reasm_gen_params),
 	{}
 };
 
