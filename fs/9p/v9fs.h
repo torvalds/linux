@@ -135,13 +135,13 @@ static inline struct fscache_cookie *v9fs_inode_cookie(struct v9fs_inode *v9inod
 
 extern int v9fs_show_options(struct seq_file *m, struct dentry *root);
 
-struct p9_fid *v9fs_session_init(struct v9fs_session_info *, const char *,
-									char *);
+struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
+				 const char *dev_name, char *data);
 extern void v9fs_session_close(struct v9fs_session_info *v9ses);
 extern void v9fs_session_cancel(struct v9fs_session_info *v9ses);
 extern void v9fs_session_begin_cancel(struct v9fs_session_info *v9ses);
 extern struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
-			unsigned int flags);
+				      unsigned int flags);
 extern int v9fs_vfs_unlink(struct inode *i, struct dentry *d);
 extern int v9fs_vfs_rmdir(struct inode *i, struct dentry *d);
 extern int v9fs_vfs_rename(struct user_namespace *mnt_userns,
@@ -167,7 +167,7 @@ extern struct inode *v9fs_inode_from_fid_dotl(struct v9fs_session_info *v9ses,
 
 static inline struct v9fs_session_info *v9fs_inode2v9ses(struct inode *inode)
 {
-	return (inode->i_sb->s_fs_info);
+	return inode->i_sb->s_fs_info;
 }
 
 static inline struct v9fs_session_info *v9fs_dentry2v9ses(struct dentry *dentry)
