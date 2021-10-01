@@ -6,8 +6,8 @@
  * Author(s): Jan Glauber <jang@linux.vnet.ibm.com>
  */
 #include <linux/uaccess.h>
-#include <linux/stop_machine.h>
 #include <linux/jump_label.h>
+#include <asm/text-patching.h>
 #include <asm/ipl.h>
 
 struct insn {
@@ -72,15 +72,11 @@ static void __jump_label_transform(struct jump_entry *entry,
 	s390_kernel_write(code, &new, sizeof(new));
 }
 
-static void __jump_label_sync(void *dummy)
-{
-}
-
 void arch_jump_label_transform(struct jump_entry *entry,
 			       enum jump_label_type type)
 {
 	__jump_label_transform(entry, type, 0);
-	smp_call_function(__jump_label_sync, NULL, 1);
+	text_poke_sync();
 }
 
 void arch_jump_label_transform_static(struct jump_entry *entry,
