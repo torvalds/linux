@@ -224,11 +224,9 @@ struct resource_pool *dc_create_resource_pool(struct dc  *dc,
 	case DCN_VERSION_2_1:
 		res_pool = dcn21_create_resource_pool(init_data, dc);
 		break;
-#if defined(CONFIG_DRM_AMD_DC_DCN201)
 	case DCN_VERSION_2_01:
 		res_pool = dcn201_create_resource_pool(init_data, dc);
 		break;
-#endif
 	case DCN_VERSION_3_0:
 		res_pool = dcn30_create_resource_pool(init_data, dc);
 		break;
