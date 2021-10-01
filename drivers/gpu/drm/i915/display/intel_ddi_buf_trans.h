@@ -68,10 +68,6 @@ struct intel_ddi_buf_trans {
 
 bool is_hobl_buf_trans(const struct intel_ddi_buf_trans *table);
 
-int intel_ddi_hdmi_num_entries(struct intel_encoder *encoder,
-			       const struct intel_crtc_state *crtc_state,
-			       int *default_entry);
-
 void intel_ddi_buf_trans_init(struct intel_encoder *encoder);
 
 #endif

@@ -74,20 +74,13 @@ static const u8 index_to_dp_signal_levels[] = {
 };
 
 static int intel_ddi_hdmi_level(struct intel_encoder *encoder,
-				const struct intel_crtc_state *crtc_state)
+				const struct intel_ddi_buf_trans *trans)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	int n_entries, level, default_entry;
+	int level;
 
-	n_entries = intel_ddi_hdmi_num_entries(encoder, crtc_state, &default_entry);
-	if (n_entries == 0)
-		return 0;
 	level = intel_bios_hdmi_level_shift(encoder);
 	if (level < 0)
-		level = default_entry;
-
-	if (drm_WARN_ON_ONCE(&dev_priv->drm, level >= n_entries))
-		level = n_entries - 1;
+		level = trans->hdmi_default_entry;
 
 	return level;
 }
@@ -142,7 +135,7 @@ static void hsw_prepare_hdmi_ddi_buffers(struct intel_encoder *encoder,
 					 const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	int level = intel_ddi_hdmi_level(encoder, crtc_state);
+	int level = intel_ddi_level(encoder, crtc_state);
 	u32 iboost_bit = 0;
 	int n_entries;
 	enum port port = encoder->port;
@@ -1366,7 +1359,7 @@ int intel_ddi_level(struct intel_encoder *encoder,
 		return 0;
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
-		level = intel_ddi_hdmi_level(encoder, crtc_state);
+		level = intel_ddi_hdmi_level(encoder, trans);
 	else
 		level = intel_ddi_dp_level(enc_to_intel_dp(encoder));
 

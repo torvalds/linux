@@ -1617,26 +1617,6 @@ dg2_get_snps_buf_trans(struct intel_encoder *encoder,
 		return intel_get_buf_trans(&dg2_snps_trans, n_entries);
 }
 
-int intel_ddi_hdmi_num_entries(struct intel_encoder *encoder,
-			       const struct intel_crtc_state *crtc_state,
-			       int *default_entry)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	const struct intel_ddi_buf_trans *trans;
-	int n_entries;
-
-	trans = encoder->get_buf_trans(encoder, crtc_state, &n_entries);
-
-	if (drm_WARN_ON(&dev_priv->drm, !trans)) {
-		*default_entry = 0;
-		return 0;
-	}
-
-	*default_entry = trans->hdmi_default_entry;
-
-	return n_entries;
-}
-
 void intel_ddi_buf_trans_init(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
