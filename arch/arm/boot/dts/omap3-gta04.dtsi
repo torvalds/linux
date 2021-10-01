@@ -104,16 +104,16 @@
 		#sound-dai-cells = <0>;
 	};
 
-	spi_lcd: spi_lcd {
+	spi_lcd: spi {
 		compatible = "spi-gpio";
 		#address-cells = <0x1>;
 		#size-cells = <0x0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi_gpio_pins>;
 
-		gpio-sck = <&gpio1 12 GPIO_ACTIVE_HIGH>;
-		gpio-miso = <&gpio1 18 GPIO_ACTIVE_HIGH>;
-		gpio-mosi = <&gpio1 20 GPIO_ACTIVE_HIGH>;
+		sck-gpios = <&gpio1 12 GPIO_ACTIVE_HIGH>;
+		miso-gpios = <&gpio1 18 GPIO_ACTIVE_HIGH>;
+		mosi-gpios = <&gpio1 20 GPIO_ACTIVE_HIGH>;
 		cs-gpios = <&gpio1 19 GPIO_ACTIVE_LOW>;
 		num-chipselects = <1>;
 
