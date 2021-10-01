@@ -9733,6 +9733,11 @@ enum {
 #define   AUDIO_CP_READY(trans)		((1 << 1) << ((trans) * 4))
 #define   AUDIO_ELD_VALID(trans)	((1 << 0) << ((trans) * 4))
 
+#define _AUD_TCA_DP_2DOT0_CTRL		0x650bc
+#define _AUD_TCB_DP_2DOT0_CTRL		0x651bc
+#define AUD_DP_2DOT0_CTRL(trans)	_MMIO_TRANS(trans, _AUD_TCA_DP_2DOT0_CTRL, _AUD_TCB_DP_2DOT0_CTRL)
+#define  AUD_ENABLE_SDP_SPLIT		REG_BIT(31)
+
 #define HSW_AUD_CHICKENBIT			_MMIO(0x65f10)
 #define   SKL_AUD_CODEC_WAKE_SIGNAL		(1 << 15)
 
