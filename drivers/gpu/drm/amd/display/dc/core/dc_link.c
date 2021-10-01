@@ -1926,9 +1926,9 @@ void blank_all_dp_displays(struct dc *dc, bool hw_init)
 			}
 
 			if ((signal != SIGNAL_TYPE_EDP && status == DC_OK && dpcd_power_state == DP_POWER_STATE_D0) ||
-				(!hw_init && dc->links[i]->link_enc->funcs->is_dig_enabled(dc->links[i]->link_enc))) {
-				if (dc->links[i]->ep_type == DISPLAY_ENDPOINT_PHY &&
-						dc->links[i]->link_enc->funcs->get_dig_frontend) {
+					(!hw_init && dc->links[i]->link_enc &&
+					dc->links[i]->link_enc->funcs->is_dig_enabled(dc->links[i]->link_enc))) {
+				if (dc->links[i]->link_enc->funcs->get_dig_frontend) {
 					fe = dc->links[i]->link_enc->funcs->get_dig_frontend(dc->links[i]->link_enc);
 					if (fe == ENGINE_ID_UNKNOWN)
 						continue;
