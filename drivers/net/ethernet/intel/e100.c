@@ -2921,7 +2921,7 @@ static int e100_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	e100_phy_init(nic);
 
-	memcpy(netdev->dev_addr, nic->eeprom, ETH_ALEN);
+	eth_hw_addr_set(netdev, (u8 *)nic->eeprom);
 	if (!is_valid_ether_addr(netdev->dev_addr)) {
 		if (!eeprom_bad_csum_allow) {
 			netif_err(nic, probe, nic->netdev, "Invalid MAC address from EEPROM, aborting\n");
