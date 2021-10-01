@@ -511,6 +511,25 @@ static void intel_dp_link_training_clock_recovery_delay(struct intel_dp *intel_d
 		drm_dp_lttpr_link_train_clock_recovery_delay();
 }
 
+static bool intel_dp_adjust_request_changed(int lane_count,
+					    const u8 old_link_status[DP_LINK_STATUS_SIZE],
+					    const u8 new_link_status[DP_LINK_STATUS_SIZE])
+{
+	int lane;
+
+	for (lane = 0; lane < lane_count; lane++) {
+		u8 old = drm_dp_get_adjust_request_voltage(old_link_status, lane) |
+			drm_dp_get_adjust_request_pre_emphasis(old_link_status, lane);
+		u8 new = drm_dp_get_adjust_request_voltage(new_link_status, lane) |
+			drm_dp_get_adjust_request_pre_emphasis(new_link_status, lane);
+
+		if (old != new)
+			return true;
+	}
+
+	return false;
+}
+
 /*
  * Perform the link training clock recovery phase on the given DP PHY using
  * training pattern 1.
@@ -521,7 +540,7 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp,
 				      enum drm_dp_phy dp_phy)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
-	u8 voltage;
+	u8 old_link_status[DP_LINK_STATUS_SIZE] = {};
 	int voltage_tries, cr_tries, max_cr_tries;
 	bool max_vswing_reached = false;
 
@@ -574,8 +593,6 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp,
 			return false;
 		}
 
-		voltage = intel_dp->train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK;
-
 		/* Update training set as requested by target */
 		intel_dp_get_adjust_train(intel_dp, crtc_state, dp_phy,
 					  link_status);
@@ -585,11 +602,13 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp,
 			return false;
 		}
 
-		if ((intel_dp->train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK) ==
-		    voltage)
+		if (!intel_dp_adjust_request_changed(crtc_state->lane_count,
+						     old_link_status, link_status))
 			++voltage_tries;
 		else
 			voltage_tries = 1;
+
+		memcpy(old_link_status, link_status, sizeof(link_status));
 
 		if (intel_dp_link_max_vswing_reached(intel_dp, crtc_state))
 			max_vswing_reached = true;
