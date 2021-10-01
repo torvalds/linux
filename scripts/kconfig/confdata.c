@@ -728,21 +728,22 @@ static struct conf_printer header_printer_cb =
 static void conf_write_symbol(FILE *fp, struct symbol *sym,
 			      struct conf_printer *printer, void *printer_arg)
 {
-	const char *str;
+	const char *val;
+	char *escaped = NULL;
 
-	switch (sym->type) {
-	case S_UNKNOWN:
-		break;
-	case S_STRING:
-		str = sym_get_string_value(sym);
-		str = sym_escape_string_value(str);
-		printer->print_symbol(fp, sym, str, printer_arg);
-		free((void *)str);
-		break;
-	default:
-		str = sym_get_string_value(sym);
-		printer->print_symbol(fp, sym, str, printer_arg);
+	if (sym->type == S_UNKNOWN)
+		return;
+
+	val = sym_get_string_value(sym);
+
+	if (sym->type == S_STRING) {
+		escaped = sym_escape_string_value(val);
+		val = escaped;
 	}
+
+	printer->print_symbol(fp, sym, val, printer_arg);
+
+	free(escaped);
 }
 
 static void
