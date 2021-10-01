@@ -447,11 +447,8 @@ again:
 again_1:
 	align = sbi->cluster_size;
 
-	if (is_ext) {
+	if (is_ext)
 		align <<= attr_b->nres.c_unit;
-		if (is_attr_sparsed(attr_b))
-			keep_prealloc = false;
-	}
 
 	old_valid = le64_to_cpu(attr_b->nres.valid_size);
 	old_size = le64_to_cpu(attr_b->nres.data_size);
@@ -460,9 +457,6 @@ again_1:
 
 	new_alloc = (new_size + align - 1) & ~(u64)(align - 1);
 	new_alen = new_alloc >> cluster_bits;
-
-	if (keep_prealloc && is_ext)
-		keep_prealloc = false;
 
 	if (keep_prealloc && new_size < old_size) {
 		attr_b->nres.data_size = cpu_to_le64(new_size);
