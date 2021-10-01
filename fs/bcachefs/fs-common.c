@@ -267,18 +267,33 @@ int bch2_unlink_trans(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
-	if (deleting_snapshot == 1 && !inode_u->bi_subvol) {
-		ret = -ENOENT;
-		goto err;
-	}
-
 	if (deleting_snapshot <= 0 && S_ISDIR(inode_u->bi_mode)) {
 		ret = bch2_empty_dir_trans(trans, inum);
 		if (ret)
 			goto err;
 	}
 
-	if (inode_u->bi_subvol) {
+	if (deleting_snapshot < 0 &&
+	    inode_u->bi_subvol) {
+		struct bch_subvolume s;
+
+		ret = bch2_subvolume_get(trans, inode_u->bi_subvol, true,
+					 BTREE_ITER_CACHED|
+					 BTREE_ITER_WITH_UPDATES,
+					 &s);
+		if (ret)
+			goto err;
+
+		if (BCH_SUBVOLUME_SNAP(&s))
+			deleting_snapshot = 1;
+	}
+
+	if (deleting_snapshot == 1) {
+		if (!inode_u->bi_subvol) {
+			ret = -ENOENT;
+			goto err;
+		}
+
 		ret = bch2_subvolume_delete(trans, inode_u->bi_subvol,
 					    deleting_snapshot);
 		if (ret)
@@ -297,6 +312,8 @@ int bch2_unlink_trans(struct btree_trans *trans,
 		ret = bch2_btree_iter_traverse(&dirent_iter);
 		if (ret)
 			goto err;
+	} else {
+		bch2_inode_nlink_dec(inode_u);
 	}
 
 	if (inode_u->bi_dir		== dirent_iter.pos.inode &&
@@ -307,7 +324,6 @@ int bch2_unlink_trans(struct btree_trans *trans,
 
 	dir_u->bi_mtime = dir_u->bi_ctime = inode_u->bi_ctime = now;
 	dir_u->bi_nlink -= is_subdir_for_nlink(inode_u);
-	bch2_inode_nlink_dec(inode_u);
 
 	ret =   bch2_hash_delete_at(trans, bch2_dirent_hash_desc,
 				    &dir_hash, &dirent_iter,
