@@ -930,9 +930,10 @@ static int mlx5e_alloc_xdpsq_fifo(struct mlx5e_xdpsq *sq, int numa)
 	struct mlx5e_xdp_info_fifo *xdpi_fifo = &sq->db.xdpi_fifo;
 	int wq_sz        = mlx5_wq_cyc_get_size(&sq->wq);
 	int dsegs_per_wq = wq_sz * MLX5_SEND_WQEBB_NUM_DS;
+	size_t size;
 
-	xdpi_fifo->xi = kvzalloc_node(sizeof(*xdpi_fifo->xi) * dsegs_per_wq,
-				      GFP_KERNEL, numa);
+	size = array_size(sizeof(*xdpi_fifo->xi), dsegs_per_wq);
+	xdpi_fifo->xi = kvzalloc_node(size, GFP_KERNEL, numa);
 	if (!xdpi_fifo->xi)
 		return -ENOMEM;
 
@@ -946,10 +947,11 @@ static int mlx5e_alloc_xdpsq_fifo(struct mlx5e_xdpsq *sq, int numa)
 static int mlx5e_alloc_xdpsq_db(struct mlx5e_xdpsq *sq, int numa)
 {
 	int wq_sz = mlx5_wq_cyc_get_size(&sq->wq);
+	size_t size;
 	int err;
 
-	sq->db.wqe_info = kvzalloc_node(sizeof(*sq->db.wqe_info) * wq_sz,
-					GFP_KERNEL, numa);
+	size = array_size(sizeof(*sq->db.wqe_info), wq_sz);
+	sq->db.wqe_info = kvzalloc_node(size, GFP_KERNEL, numa);
 	if (!sq->db.wqe_info)
 		return -ENOMEM;
 
