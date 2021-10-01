@@ -1061,6 +1061,9 @@ int rt5682s_sel_asrc_clk_src(struct snd_soc_component *component,
 			RT5682S_FILTER_CLK_SEL_MASK, clk_src << RT5682S_FILTER_CLK_SEL_SFT);
 	}
 
+	snd_soc_component_update_bits(component, RT5682S_PLL_TRACK_11,
+		RT5682S_ASRCIN_AUTO_CLKOUT_MASK, RT5682S_ASRCIN_AUTO_CLKOUT_EN);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rt5682s_sel_asrc_clk_src);
