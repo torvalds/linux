@@ -7398,15 +7398,20 @@ static struct bpf_test tests[] = {
 	 * Individual tests are expanded from template macros for all
 	 * combinations of ALU operation, word size and fetching.
 	 */
+#define BPF_ATOMIC_POISON(width) ((width) == BPF_W ? (0xbaadf00dULL << 32) : 0)
+
 #define BPF_ATOMIC_OP_TEST1(width, op, logic, old, update, result)	\
 {									\
 	"BPF_ATOMIC | " #width ", " #op ": Test: "			\
 		#old " " #logic " " #update " = " #result,		\
 	.u.insns_int = {						\
-		BPF_ALU32_IMM(BPF_MOV, R5, update),			\
+		BPF_LD_IMM64(R5, (update) | BPF_ATOMIC_POISON(width)),	\
 		BPF_ST_MEM(width, R10, -40, old),			\
 		BPF_ATOMIC_OP(width, op, R10, R5, -40),			\
 		BPF_LDX_MEM(width, R0, R10, -40),			\
+		BPF_ALU64_REG(BPF_MOV, R1, R0),				\
+		BPF_ALU64_IMM(BPF_RSH, R1, 32),				\
+		BPF_ALU64_REG(BPF_OR, R0, R1),				\
 		BPF_EXIT_INSN(),					\
 	},								\
 	INTERNAL,							\
@@ -7420,11 +7425,14 @@ static struct bpf_test tests[] = {
 		#old " " #logic " " #update " = " #result,		\
 	.u.insns_int = {						\
 		BPF_ALU64_REG(BPF_MOV, R1, R10),			\
-		BPF_ALU32_IMM(BPF_MOV, R0, update),			\
+		BPF_LD_IMM64(R0, (update) | BPF_ATOMIC_POISON(width)),	\
 		BPF_ST_MEM(BPF_W, R10, -40, old),			\
 		BPF_ATOMIC_OP(width, op, R10, R0, -40),			\
 		BPF_ALU64_REG(BPF_MOV, R0, R10),			\
 		BPF_ALU64_REG(BPF_SUB, R0, R1),				\
+		BPF_ALU64_REG(BPF_MOV, R1, R0),				\
+		BPF_ALU64_IMM(BPF_RSH, R1, 32),				\
+		BPF_ALU64_REG(BPF_OR, R0, R1),				\
 		BPF_EXIT_INSN(),					\
 	},								\
 	INTERNAL,							\
@@ -7438,10 +7446,13 @@ static struct bpf_test tests[] = {
 		#old " " #logic " " #update " = " #result,		\
 	.u.insns_int = {						\
 		BPF_ALU64_REG(BPF_MOV, R0, R10),			\
-		BPF_ALU32_IMM(BPF_MOV, R1, update),			\
+		BPF_LD_IMM64(R1, (update) | BPF_ATOMIC_POISON(width)),	\
 		BPF_ST_MEM(width, R10, -40, old),			\
 		BPF_ATOMIC_OP(width, op, R10, R1, -40),			\
 		BPF_ALU64_REG(BPF_SUB, R0, R10),			\
+		BPF_ALU64_REG(BPF_MOV, R1, R0),				\
+		BPF_ALU64_IMM(BPF_RSH, R1, 32),				\
+		BPF_ALU64_REG(BPF_OR, R0, R1),				\
 		BPF_EXIT_INSN(),					\
 	},								\
 	INTERNAL,                                                       \
@@ -7454,10 +7465,10 @@ static struct bpf_test tests[] = {
 	"BPF_ATOMIC | " #width ", " #op ": Test fetch: "		\
 		#old " " #logic " " #update " = " #result,		\
 	.u.insns_int = {						\
-		BPF_ALU32_IMM(BPF_MOV, R3, update),			\
+		BPF_LD_IMM64(R3, (update) | BPF_ATOMIC_POISON(width)),	\
 		BPF_ST_MEM(width, R10, -40, old),			\
 		BPF_ATOMIC_OP(width, op, R10, R3, -40),			\
-		BPF_ALU64_REG(BPF_MOV, R0, R3),                         \
+		BPF_ALU32_REG(BPF_MOV, R0, R3),                         \
 		BPF_EXIT_INSN(),					\
 	},								\
 	INTERNAL,                                                       \
@@ -7555,6 +7566,7 @@ static struct bpf_test tests[] = {
 	BPF_ATOMIC_OP_TEST2(BPF_DW, BPF_XCHG, xchg, 0x12, 0xab, 0xab),
 	BPF_ATOMIC_OP_TEST3(BPF_DW, BPF_XCHG, xchg, 0x12, 0xab, 0xab),
 	BPF_ATOMIC_OP_TEST4(BPF_DW, BPF_XCHG, xchg, 0x12, 0xab, 0xab),
+#undef BPF_ATOMIC_POISON
 #undef BPF_ATOMIC_OP_TEST1
 #undef BPF_ATOMIC_OP_TEST2
 #undef BPF_ATOMIC_OP_TEST3
