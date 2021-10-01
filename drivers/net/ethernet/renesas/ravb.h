@@ -1007,6 +1007,7 @@ struct ravb_hw_info {
 	unsigned gptp:1;		/* AVB-DMAC has gPTP support */
 	unsigned ccc_gac:1;		/* AVB-DMAC has gPTP support active in config mode */
 	unsigned nc_queue:1;		/* AVB-DMAC has NC queue */
+	unsigned magic_pkt:1;		/* E-MAC supports magic packet detection */
 };
 
 struct ravb_private {

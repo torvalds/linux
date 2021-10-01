@@ -1436,8 +1436,9 @@ static void ravb_get_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
 static int ravb_set_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
 {
 	struct ravb_private *priv = netdev_priv(ndev);
+	const struct ravb_hw_info *info = priv->info;
 
-	if (wol->wolopts & ~WAKE_MAGIC)
+	if (!info->magic_pkt || (wol->wolopts & ~WAKE_MAGIC))
 		return -EOPNOTSUPP;
 
 	priv->wol_enabled = !!(wol->wolopts & WAKE_MAGIC);
@@ -2136,6 +2137,7 @@ static const struct ravb_hw_info ravb_gen3_hw_info = {
 	.multi_irqs = 1,
 	.ccc_gac = 1,
 	.nc_queue = 1,
+	.magic_pkt = 1,
 };
 
 static const struct ravb_hw_info ravb_gen2_hw_info = {
@@ -2157,6 +2159,7 @@ static const struct ravb_hw_info ravb_gen2_hw_info = {
 	.aligned_tx = 1,
 	.gptp = 1,
 	.nc_queue = 1,
+	.magic_pkt = 1,
 };
 
 static const struct ravb_hw_info gbeth_hw_info = {
