@@ -620,6 +620,49 @@ static void conf_write_heading(FILE *fp, const struct comment_style *cs)
 	fprintf(fp, "%s\n", cs->postfix);
 }
 
+/* The returned pointer must be freed on the caller side */
+static char *escape_string_value(const char *in)
+{
+	const char *p;
+	char *out;
+	size_t len;
+
+	len = strlen(in) + strlen("\"\"") + 1;
+
+	p = in;
+	while (1) {
+		p += strcspn(p, "\"\\");
+
+		if (p[0] == '\0')
+			break;
+
+		len++;
+		p++;
+	}
+
+	out = xmalloc(len);
+	out[0] = '\0';
+
+	strcat(out, "\"");
+
+	p = in;
+	while (1) {
+		len = strcspn(p, "\"\\");
+		strncat(out, p, len);
+		p += len;
+
+		if (p[0] == '\0')
+			break;
+
+		strcat(out, "\\");
+		strncat(out, p++, 1);
+	}
+
+	strcat(out, "\"");
+
+	return out;
+}
+
 /*
  * Kconfig configuration printer
  *
@@ -648,7 +691,7 @@ static void __print_symbol(FILE *fp, struct symbol *sym, enum output_n output_n,
 	}
 
 	if (sym->type == S_STRING && escape_string) {
-		escaped = sym_escape_string_value(val);
+		escaped = escape_string_value(val);
 		val = escaped;
 	}
 
@@ -702,7 +745,7 @@ static void print_symbol_for_c(FILE *fp, struct symbol *sym)
 			val_prefix = "0x";
 		break;
 	case S_STRING:
-		escaped = sym_escape_string_value(val);
+		escaped = escape_string_value(val);
 		val = escaped;
 	default:
 		break;
