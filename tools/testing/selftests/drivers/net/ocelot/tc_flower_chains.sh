@@ -247,9 +247,9 @@ test_vlan_push()
 	tcpdump_cleanup
 }
 
-test_vlan_modify()
+test_vlan_ingress_modify()
 {
-	printf "Testing VLAN modification..		"
+	printf "Testing ingress VLAN modification..		"
 
 	ip link set br0 type bridge vlan_filtering 1
 	bridge vlan add dev $eth0 vid 200
@@ -309,7 +309,7 @@ trap cleanup EXIT
 ALL_TESTS="
 	test_vlan_pop
 	test_vlan_push
-	test_vlan_modify
+	test_vlan_ingress_modify
 	test_skbedit_priority
 "
 
