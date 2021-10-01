@@ -83,6 +83,11 @@ static int ravb_config(struct net_device *ndev)
 	return error;
 }
 
+static void ravb_set_rate_gbeth(struct net_device *ndev)
+{
+	/* Place holder */
+}
+
 static void ravb_set_rate(struct net_device *ndev)
 {
 	struct ravb_private *priv = netdev_priv(ndev);
@@ -217,6 +222,11 @@ static int ravb_tx_free(struct net_device *ndev, int q, bool free_txed_only)
 	return free_num;
 }
 
+static void ravb_rx_ring_free_gbeth(struct net_device *ndev, int q)
+{
+	/* Place holder */
+}
+
 static void ravb_rx_ring_free(struct net_device *ndev, int q)
 {
 	struct ravb_private *priv = netdev_priv(ndev);
@@ -281,6 +291,11 @@ static void ravb_ring_free(struct net_device *ndev, int q)
 	 */
 	kfree(priv->tx_skb[q]);
 	priv->tx_skb[q] = NULL;
+}
+
+static void ravb_rx_ring_format_gbeth(struct net_device *ndev, int q)
+{
+	/* Place holder */
 }
 
 static void ravb_rx_ring_format(struct net_device *ndev, int q)
@@ -356,6 +371,12 @@ static void ravb_ring_format(struct net_device *ndev, int q)
 	desc->dptr = cpu_to_le32((u32)priv->tx_desc_dma[q]);
 }
 
+static void *ravb_alloc_rx_desc_gbeth(struct net_device *ndev, int q)
+{
+	/* Place holder */
+	return NULL;
+}
+
 static void *ravb_alloc_rx_desc(struct net_device *ndev, int q)
 {
 	struct ravb_private *priv = netdev_priv(ndev);
@@ -426,6 +447,11 @@ error:
 	return -ENOMEM;
 }
 
+static void ravb_emac_init_gbeth(struct net_device *ndev)
+{
+	/* Place holder */
+}
+
 static void ravb_rcar_emac_init(struct net_device *ndev)
 {
 	/* Receive frame limit set register */
@@ -459,6 +485,12 @@ static void ravb_emac_init(struct net_device *ndev)
 	const struct ravb_hw_info *info = priv->info;
 
 	info->emac_init(ndev);
+}
+
+static int ravb_dmac_init_gbeth(struct net_device *ndev)
+{
+	/* Place holder */
+	return 0;
 }
 
 static int ravb_dmac_init_rcar(struct net_device *ndev)
@@ -584,6 +616,14 @@ static void ravb_rx_csum(struct sk_buff *skb)
 	skb_trim(skb, skb->len - sizeof(__sum16));
 }
 
+/* Packet receive function for Gigabit Ethernet */
+static bool ravb_rx_gbeth(struct net_device *ndev, int *quota, int q)
+{
+	/* Place holder */
+	return true;
+}
+
+/* Packet receive function for Ethernet AVB */
 static bool ravb_rcar_rx(struct net_device *ndev, int *quota, int q)
 {
 	struct ravb_private *priv = netdev_priv(ndev);
@@ -1949,6 +1989,13 @@ static void ravb_set_rx_csum(struct net_device *ndev, bool enable)
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
+static int ravb_set_features_gbeth(struct net_device *ndev,
+				   netdev_features_t features)
+{
+	/* Place holder */
+	return 0;
+}
+
 static int ravb_set_features_rcar(struct net_device *ndev,
 				  netdev_features_t features)
 {
@@ -2073,12 +2120,27 @@ static const struct ravb_hw_info ravb_gen2_hw_info = {
 	.nc_queue = 1,
 };
 
+static const struct ravb_hw_info gbeth_hw_info = {
+	.rx_ring_free = ravb_rx_ring_free_gbeth,
+	.rx_ring_format = ravb_rx_ring_format_gbeth,
+	.alloc_rx_desc = ravb_alloc_rx_desc_gbeth,
+	.receive = ravb_rx_gbeth,
+	.set_rate = ravb_set_rate_gbeth,
+	.set_feature = ravb_set_features_gbeth,
+	.dmac_init = ravb_dmac_init_gbeth,
+	.emac_init = ravb_emac_init_gbeth,
+	.max_rx_len = GBETH_RX_BUFF_MAX + RAVB_ALIGN - 1,
+	.aligned_tx = 1,
+	.tx_counters = 1,
+};
+
 static const struct of_device_id ravb_match_table[] = {
 	{ .compatible = "renesas,etheravb-r8a7790", .data = &ravb_gen2_hw_info },
 	{ .compatible = "renesas,etheravb-r8a7794", .data = &ravb_gen2_hw_info },
 	{ .compatible = "renesas,etheravb-rcar-gen2", .data = &ravb_gen2_hw_info },
 	{ .compatible = "renesas,etheravb-r8a7795", .data = &ravb_gen3_hw_info },
 	{ .compatible = "renesas,etheravb-rcar-gen3", .data = &ravb_gen3_hw_info },
+	{ .compatible = "renesas,rzg2l-gbeth", .data = &gbeth_hw_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ravb_match_table);

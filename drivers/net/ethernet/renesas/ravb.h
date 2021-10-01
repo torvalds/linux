@@ -956,6 +956,8 @@ enum RAVB_QUEUE {
 
 #define RX_BUF_SZ	(2048 - ETH_FCS_LEN + sizeof(__sum16))
 
+#define GBETH_RX_BUFF_MAX 8192
+
 struct ravb_tstamp_skb {
 	struct list_head list;
 	struct sk_buff *skb;
