@@ -317,10 +317,6 @@ void dcn31_dsc_pg_control(
 		if (hws->ctx->dc->res_pool->dccg->funcs->disable_dsc && !power_on)
 			hws->ctx->dc->res_pool->dccg->funcs->disable_dsc(
 				hws->ctx->dc->res_pool->dccg, dsc_inst);
-
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-		dc_z10_save_init(hws->ctx->dc);
-#endif
 	}
 
 }
