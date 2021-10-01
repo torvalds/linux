@@ -277,6 +277,7 @@ bool dc_link_setup_psr(struct dc_link *dc_link,
 		struct psr_context *psr_context);
 
 void dc_link_get_psr_residency(const struct dc_link *link, uint32_t *residency);
+void blank_all_dp_displays(struct dc *dc, bool hw_init);
 
 /* Request DC to detect if there is a Panel connected.
  * boot - If this call is during initial boot.
