@@ -1918,8 +1918,8 @@ static void ravb_set_rx_csum(struct net_device *ndev, bool enable)
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
-static int ravb_set_features_rx_csum(struct net_device *ndev,
-				     netdev_features_t features)
+static int ravb_set_features_rcar(struct net_device *ndev,
+				  netdev_features_t features)
 {
 	netdev_features_t changed = ndev->features ^ features;
 
@@ -1937,7 +1937,7 @@ static int ravb_set_features(struct net_device *ndev,
 	struct ravb_private *priv = netdev_priv(ndev);
 	const struct ravb_hw_info *info = priv->info;
 
-	return info->set_rx_csum_feature(ndev, features);
+	return info->set_feature(ndev, features);
 }
 
 static const struct net_device_ops ravb_netdev_ops = {
@@ -2006,7 +2006,7 @@ static const struct ravb_hw_info ravb_gen3_hw_info = {
 	.alloc_rx_desc = ravb_alloc_rx_desc,
 	.receive = ravb_rcar_rx,
 	.set_rate = ravb_set_rate,
-	.set_rx_csum_feature = ravb_set_features_rx_csum,
+	.set_feature = ravb_set_features_rcar,
 	.dmac_init = ravb_rcar_dmac_init,
 	.emac_init = ravb_rcar_emac_init,
 	.gstrings_stats = ravb_gstrings_stats,
@@ -2027,7 +2027,7 @@ static const struct ravb_hw_info ravb_gen2_hw_info = {
 	.alloc_rx_desc = ravb_alloc_rx_desc,
 	.receive = ravb_rcar_rx,
 	.set_rate = ravb_set_rate,
-	.set_rx_csum_feature = ravb_set_features_rx_csum,
+	.set_feature = ravb_set_features_rcar,
 	.dmac_init = ravb_rcar_dmac_init,
 	.emac_init = ravb_rcar_emac_init,
 	.gstrings_stats = ravb_gstrings_stats,
