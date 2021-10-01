@@ -660,37 +660,37 @@ static int __bpf_fill_alu_shift(struct bpf_test *self, u8 op,
 
 	self->u.ptr.insns = insn;
 	self->u.ptr.len = len;
-	BUG_ON(i > len);
+	BUG_ON(i != len);
 
 	return 0;
 }
 
-static int bpf_fill_alu_lsh_imm(struct bpf_test *self)
+static int bpf_fill_alu64_lsh_imm(struct bpf_test *self)
 {
 	return __bpf_fill_alu_shift(self, BPF_LSH, BPF_K, false);
 }
 
-static int bpf_fill_alu_rsh_imm(struct bpf_test *self)
+static int bpf_fill_alu64_rsh_imm(struct bpf_test *self)
 {
 	return __bpf_fill_alu_shift(self, BPF_RSH, BPF_K, false);
 }
 
-static int bpf_fill_alu_arsh_imm(struct bpf_test *self)
+static int bpf_fill_alu64_arsh_imm(struct bpf_test *self)
 {
 	return __bpf_fill_alu_shift(self, BPF_ARSH, BPF_K, false);
 }
 
-static int bpf_fill_alu_lsh_reg(struct bpf_test *self)
+static int bpf_fill_alu64_lsh_reg(struct bpf_test *self)
 {
 	return __bpf_fill_alu_shift(self, BPF_LSH, BPF_X, false);
 }
 
-static int bpf_fill_alu_rsh_reg(struct bpf_test *self)
+static int bpf_fill_alu64_rsh_reg(struct bpf_test *self)
 {
 	return __bpf_fill_alu_shift(self, BPF_RSH, BPF_X, false);
 }
 
-static int bpf_fill_alu_arsh_reg(struct bpf_test *self)
+static int bpf_fill_alu64_arsh_reg(struct bpf_test *self)
 {
 	return __bpf_fill_alu_shift(self, BPF_ARSH, BPF_X, false);
 }
@@ -723,6 +723,86 @@ static int bpf_fill_alu32_rsh_reg(struct bpf_test *self)
 static int bpf_fill_alu32_arsh_reg(struct bpf_test *self)
 {
 	return __bpf_fill_alu_shift(self, BPF_ARSH, BPF_X, true);
+}
+
+/*
+ * Test an ALU register shift operation for all valid shift values
+ * for the case when the source and destination are the same.
+ */
+static int __bpf_fill_alu_shift_same_reg(struct bpf_test *self, u8 op,
+					 bool alu32)
+{
+	int bits = alu32 ? 32 : 64;
+	int len = 3 + 6 * bits;
+	struct bpf_insn *insn;
+	int i = 0;
+	u64 val;
+
+	insn = kmalloc_array(len, sizeof(*insn), GFP_KERNEL);
+	if (!insn)
+		return -ENOMEM;
+
+	insn[i++] = BPF_ALU64_IMM(BPF_MOV, R0, 0);
+
+	for (val = 0; val < bits; val++) {
+		u64 res;
+
+		/* Perform operation */
+		insn[i++] = BPF_ALU64_IMM(BPF_MOV, R1, val);
+		if (alu32)
+			insn[i++] = BPF_ALU32_REG(op, R1, R1);
+		else
+			insn[i++] = BPF_ALU64_REG(op, R1, R1);
+
+		/* Compute the reference result */
+		__bpf_alu_result(&res, val, val, op);
+		if (alu32)
+			res = (u32)res;
+		i += __bpf_ld_imm64(&insn[i], R2, res);
+
+		/* Check the actual result */
+		insn[i++] = BPF_JMP_REG(BPF_JEQ, R1, R2, 1);
+		insn[i++] = BPF_EXIT_INSN();
+	}
+
+	insn[i++] = BPF_ALU64_IMM(BPF_MOV, R0, 1);
+	insn[i++] = BPF_EXIT_INSN();
+
+	self->u.ptr.insns = insn;
+	self->u.ptr.len = len;
+	BUG_ON(i != len);
+
+	return 0;
+}
+
+static int bpf_fill_alu64_lsh_same_reg(struct bpf_test *self)
+{
+	return __bpf_fill_alu_shift_same_reg(self, BPF_LSH, false);
+}
+
+static int bpf_fill_alu64_rsh_same_reg(struct bpf_test *self)
+{
+	return __bpf_fill_alu_shift_same_reg(self, BPF_RSH, false);
+}
+
+static int bpf_fill_alu64_arsh_same_reg(struct bpf_test *self)
+{
+	return __bpf_fill_alu_shift_same_reg(self, BPF_ARSH, false);
+}
+
+static int bpf_fill_alu32_lsh_same_reg(struct bpf_test *self)
+{
+	return __bpf_fill_alu_shift_same_reg(self, BPF_LSH, true);
+}
+
+static int bpf_fill_alu32_rsh_same_reg(struct bpf_test *self)
+{
+	return __bpf_fill_alu_shift_same_reg(self, BPF_RSH, true);
+}
+
+static int bpf_fill_alu32_arsh_same_reg(struct bpf_test *self)
+{
+	return __bpf_fill_alu_shift_same_reg(self, BPF_ARSH, true);
 }
 
 /*
@@ -11788,7 +11868,7 @@ static struct bpf_test tests[] = {
 		INTERNAL | FLAG_NO_DATA,
 		{ },
 		{ { 0, 1 } },
-		.fill_helper = bpf_fill_alu_lsh_imm,
+		.fill_helper = bpf_fill_alu64_lsh_imm,
 	},
 	{
 		"ALU64_RSH_K: all shift values",
@@ -11796,7 +11876,7 @@ static struct bpf_test tests[] = {
 		INTERNAL | FLAG_NO_DATA,
 		{ },
 		{ { 0, 1 } },
-		.fill_helper = bpf_fill_alu_rsh_imm,
+		.fill_helper = bpf_fill_alu64_rsh_imm,
 	},
 	{
 		"ALU64_ARSH_K: all shift values",
@@ -11804,7 +11884,7 @@ static struct bpf_test tests[] = {
 		INTERNAL | FLAG_NO_DATA,
 		{ },
 		{ { 0, 1 } },
-		.fill_helper = bpf_fill_alu_arsh_imm,
+		.fill_helper = bpf_fill_alu64_arsh_imm,
 	},
 	{
 		"ALU64_LSH_X: all shift values",
@@ -11812,7 +11892,7 @@ static struct bpf_test tests[] = {
 		INTERNAL | FLAG_NO_DATA,
 		{ },
 		{ { 0, 1 } },
-		.fill_helper = bpf_fill_alu_lsh_reg,
+		.fill_helper = bpf_fill_alu64_lsh_reg,
 	},
 	{
 		"ALU64_RSH_X: all shift values",
@@ -11820,7 +11900,7 @@ static struct bpf_test tests[] = {
 		INTERNAL | FLAG_NO_DATA,
 		{ },
 		{ { 0, 1 } },
-		.fill_helper = bpf_fill_alu_rsh_reg,
+		.fill_helper = bpf_fill_alu64_rsh_reg,
 	},
 	{
 		"ALU64_ARSH_X: all shift values",
@@ -11828,7 +11908,7 @@ static struct bpf_test tests[] = {
 		INTERNAL | FLAG_NO_DATA,
 		{ },
 		{ { 0, 1 } },
-		.fill_helper = bpf_fill_alu_arsh_reg,
+		.fill_helper = bpf_fill_alu64_arsh_reg,
 	},
 	/* Exhaustive test of ALU32 shift operations */
 	{
@@ -11878,6 +11958,62 @@ static struct bpf_test tests[] = {
 		{ },
 		{ { 0, 1 } },
 		.fill_helper = bpf_fill_alu32_arsh_reg,
+	},
+	/*
+	 * Exhaustive test of ALU64 shift operations when
+	 * source and destination register are the same.
+	 */
+	{
+		"ALU64_LSH_X: all shift values with the same register",
+		{ },
+		INTERNAL | FLAG_NO_DATA,
+		{ },
+		{ { 0, 1 } },
+		.fill_helper = bpf_fill_alu64_lsh_same_reg,
+	},
+	{
+		"ALU64_RSH_X: all shift values with the same register",
+		{ },
+		INTERNAL | FLAG_NO_DATA,
+		{ },
+		{ { 0, 1 } },
+		.fill_helper = bpf_fill_alu64_rsh_same_reg,
+	},
+	{
+		"ALU64_ARSH_X: all shift values with the same register",
+		{ },
+		INTERNAL | FLAG_NO_DATA,
+		{ },
+		{ { 0, 1 } },
+		.fill_helper = bpf_fill_alu64_arsh_same_reg,
+	},
+	/*
+	 * Exhaustive test of ALU32 shift operations when
+	 * source and destination register are the same.
+	 */
+	{
+		"ALU32_LSH_X: all shift values with the same register",
+		{ },
+		INTERNAL | FLAG_NO_DATA,
+		{ },
+		{ { 0, 1 } },
+		.fill_helper = bpf_fill_alu32_lsh_same_reg,
+	},
+	{
+		"ALU32_RSH_X: all shift values with the same register",
+		{ },
+		INTERNAL | FLAG_NO_DATA,
+		{ },
+		{ { 0, 1 } },
+		.fill_helper = bpf_fill_alu32_rsh_same_reg,
+	},
+	{
+		"ALU32_ARSH_X: all shift values with the same register",
+		{ },
+		INTERNAL | FLAG_NO_DATA,
+		{ },
+		{ { 0, 1 } },
+		.fill_helper = bpf_fill_alu32_arsh_same_reg,
 	},
 	/* ALU64 immediate magnitudes */
 	{
