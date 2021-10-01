@@ -886,8 +886,8 @@ void MACvSetLongRetryLimit(struct vnt_private *priv, unsigned char byRetryLimit)
 
 void MACvSetLoopbackMode(struct vnt_private *priv, unsigned char byLoopbackMode);
 
-void MACvSaveContext(struct vnt_private *priv, unsigned char *pbyCxtBuf);
-void MACvRestoreContext(struct vnt_private *priv, unsigned char *pbyCxtBuf);
+void MACvSaveContext(struct vnt_private *priv, unsigned char *cxt_buf);
+void MACvRestoreContext(struct vnt_private *priv, unsigned char *cxt_buf);
 
 bool MACbSoftwareReset(struct vnt_private *priv);
 bool MACbSafeSoftwareReset(struct vnt_private *priv);
