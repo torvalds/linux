@@ -150,7 +150,7 @@ static int bgmac_probe(struct bcma_device *core)
 			err = -ENOTSUPP;
 			goto err;
 		}
-		ether_addr_copy(bgmac->net_dev->dev_addr, mac);
+		eth_hw_addr_set(bgmac->net_dev, mac);
 	}
 
 	/* On BCM4706 we need common core to access PHY */

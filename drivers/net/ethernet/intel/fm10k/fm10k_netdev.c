@@ -990,7 +990,7 @@ static int fm10k_set_mac(struct net_device *dev, void *p)
 	}
 
 	if (!err) {
-		ether_addr_copy(dev->dev_addr, addr->sa_data);
+		eth_hw_addr_set(dev, addr->sa_data);
 		ether_addr_copy(hw->mac.addr, addr->sa_data);
 		dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 	}

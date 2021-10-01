@@ -55,7 +55,7 @@ nfp_net_get_mac_addr(struct nfp_pf *pf, struct net_device *netdev,
 		return;
 	}
 
-	ether_addr_copy(netdev->dev_addr, eth_port->mac_addr);
+	eth_hw_addr_set(netdev, eth_port->mac_addr);
 	ether_addr_copy(netdev->perm_addr, eth_port->mac_addr);
 }
 

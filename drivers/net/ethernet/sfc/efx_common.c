@@ -181,11 +181,11 @@ int efx_set_mac_address(struct net_device *net_dev, void *data)
 
 	/* save old address */
 	ether_addr_copy(old_addr, net_dev->dev_addr);
-	ether_addr_copy(net_dev->dev_addr, new_addr);
+	eth_hw_addr_set(net_dev, new_addr);
 	if (efx->type->set_mac_address) {
 		rc = efx->type->set_mac_address(efx);
 		if (rc) {
-			ether_addr_copy(net_dev->dev_addr, old_addr);
+			eth_hw_addr_set(net_dev, old_addr);
 			return rc;
 		}
 	}
