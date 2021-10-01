@@ -223,6 +223,13 @@ static const char *conf_get_autoconfig_name(void)
 	return name ? name : "include/config/auto.conf";
 }
 
+static const char *conf_get_autoheader_name(void)
+{
+	char *name = getenv("KCONFIG_AUTOHEADER");
+
+	return name ? name : "include/generated/autoconf.h";
+}
+
 static int conf_set_sym_val(struct symbol *sym, int def, int def_flags, char *p)
 {
 	char *p2;
@@ -1092,9 +1099,7 @@ int conf_write_autoconf(int overwrite)
 	fclose(out);
 	fclose(out_h);
 
-	name = getenv("KCONFIG_AUTOHEADER");
-	if (!name)
-		name = "include/generated/autoconf.h";
+	name = conf_get_autoheader_name();
 	if (make_parent_dir(name))
 		return 1;
 	if (rename(".tmpconfig.h", name))
