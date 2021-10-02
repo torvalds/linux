@@ -948,6 +948,36 @@ static int imx_pgc_domain_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int imx_pgc_domain_suspend(struct device *dev)
+{
+	int ret;
+
+	/*
+	 * This may look strange, but is done so the generic PM_SLEEP code
+	 * can power down our domain and more importantly power it up again
+	 * after resume, without tripping over our usage of runtime PM to
+	 * power up/down the nested domains.
+	 */
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(dev);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int imx_pgc_domain_resume(struct device *dev)
+{
+	return pm_runtime_put(dev);
+}
+#endif
+
+static const struct dev_pm_ops imx_pgc_domain_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(imx_pgc_domain_suspend, imx_pgc_domain_resume)
+};
+
 static const struct platform_device_id imx_pgc_domain_id[] = {
 	{ "imx-pgc-domain", },
 	{ },
@@ -956,6 +986,7 @@ static const struct platform_device_id imx_pgc_domain_id[] = {
 static struct platform_driver imx_pgc_domain_driver = {
 	.driver = {
 		.name = "imx-pgc",
+		.pm = &imx_pgc_domain_pm_ops,
 	},
 	.probe    = imx_pgc_domain_probe,
 	.remove   = imx_pgc_domain_remove,
