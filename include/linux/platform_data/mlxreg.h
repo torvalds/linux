@@ -150,6 +150,7 @@ struct mlxreg_core_data {
 	bool attached;
 	u8 regnum;
 	u8 slot;
+	u8 secured;
 };
 
 /**
