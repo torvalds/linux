@@ -172,6 +172,7 @@ config SPS30_SERIAL
 
 config SENSEAIR_SUNRISE_CO2
 	tristate "Senseair Sunrise 006-0-0007 CO2 sensor"
+	depends on I2C
 	select REGMAP_I2C
 	help
 	  Say yes here to build support for Senseair Sunrise 006-0-0007 CO2
