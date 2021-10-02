@@ -361,3 +361,106 @@ Description:	This file allows to unlock ASIC after thermal shutdown event.
 		Default is 1.
 
 		The file is read/write.
+
+What:		/sys/devices/platform/mlxplat/i2c_mlxcpld.*/i2c-*/i2c-*/i2c-*/*-0032/mlxreg-io.*/hwmon/hwmon*/cpld1_pn
+What:		/sys/devices/platform/mlxplat/i2c_mlxcpld.*/i2c-*/i2c-*/i2c-*/*-0032/mlxreg-io.*/hwmon/hwmon*/cpld1_version
+What:		/sys/devices/platform/mlxplat/i2c_mlxcpld.*/i2c-*/i2c-*/i2c-*/*-0032/mlxreg-io.*/hwmon/hwmon*/cpld1_version_min
+Date:		October 2021
+KernelVersion:	5.16
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
+Description:	These files show with which CPLD major and minor versions
+		and part number has been burned CPLD device on line card.
+
+		The files are read only.
+
+What:		/sys/devices/platform/mlxplat/i2c_mlxcpld.*/i2c-*/i2c-*/i2c-*/*-0032/mlxreg-io.*/hwmon/hwmon*/fpga1_pn
+What:		/sys/devices/platform/mlxplat/i2c_mlxcpld.*/i2c-*/i2c-*/i2c-*/*-0032/mlxreg-io.*/hwmon/hwmon*/fpga1_version
+What:		/sys/devices/platform/mlxplat/i2c_mlxcpld.*/i2c-*/i2c-*/i2c-*/*-0032/mlxreg-io.*/hwmon/hwmon*/fpga1_version_min
+Date:		October 2021
+KernelVersion:	5.16
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
+Description:	These files show with which FPGA major and minor versions
+		and part number has been burned FPGA device on line card.
+
+		The files are read only.
+
+What:		/sys/devices/platform/mlxplat/i2c_mlxcpld.*/i2c-*/i2c-*/i2c-*/*-0032/mlxreg-io.*/hwmon/hwmon*/vpd_wp
+Date:		October 2021
+KernelVersion:	5.16
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
+Description:	This file allow to overwrite line card VPD hardware write
+		protection mode. When attribute is set 1 - write protection is
+		disabled, when 0 - enabled.
+		Default is 0.
+		If the system is in locked-down mode writing this file will not
+		be allowed.
+		The purpose if this file is to allow line card VPD burning
+		during production flow.
+
+		The file is read/write.
+
+What:		/sys/devices/platform/mlxplat/i2c_mlxcpld.*/i2c-*/i2c-*/i2c-*/*-0032/mlxreg-io.*/hwmon/hwmon*/reset_aux_pwr_or_ref
+What:		/sys/devices/platform/mlxplat/i2c_mlxcpld.*/i2c-*/i2c-*/i2c-*/*-0032/mlxreg-io.*/hwmon/hwmon*/reset_dc_dc_pwr_fail
+What:		/sys/devices/platform/mlxplat/i2c_mlxcpld.*/i2c-*/i2c-*/i2c-*/*-0032/mlxreg-io.*/hwmon/hwmon*/reset_fpga_not_done
+What:		/sys/devices/platform/mlxplat/i2c_mlxcpld.*/i2c-*/i2c-*/i2c-*/*-0032/mlxreg-io.*/hwmon/hwmon*/reset_from_chassis
+What:		/sys/devices/platform/mlxplat/i2c_mlxcpld.*/i2c-*/i2c-*/i2c-*/*-0032/mlxreg-io.*/hwmon/hwmon*/reset_line_card
+What:		/sys/devices/platform/mlxplat/i2c_mlxcpld.*/i2c-*/i2c-*/i2c-*/*-0032/mlxreg-io.*/hwmon/hwmon*/reset_pwr_off_from_chassis
+Date:		October 2021
+KernelVersion:	5.16
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
+Description:	These files show the line reset cause, as following: power
+		auxiliary outage or power refresh, DC-to-DC power failure, FPGA reset
+		failed, line card reset failed, power off from chassis.
+		Value 1 in file means this is reset cause, 0 - otherwise. Only one of
+		the above causes could be 1 at the same time, representing only last
+		reset cause.
+
+		The files are read only.
+
+What:		/sys/devices/platform/mlxplat/i2c_mlxcpld.*/i2c-*/i2c-*/i2c-*/*-0032/mlxreg-io.*/hwmon/hwmon*/cpld_upgrade_en
+What:		/sys/devices/platform/mlxplat/i2c_mlxcpld.*/i2c-*/i2c-*/i2c-*/*-0032/mlxreg-io.*/hwmon/hwmon*/fpga_upgrade_en
+Date:		October 2021
+KernelVersion:	5.16
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
+Description:	These files allow CPLD and FPGA burning. Value 1 in file means burning
+		is enabled, 0 - otherwise.
+		If the system is in locked-down mode writing these files will
+		not be allowed.
+		The purpose of these files to allow line card CPLD and FPGA
+		upgrade through the JTAG daisy-chain.
+
+		The files are read/write.
+
+What:		/sys/devices/platform/mlxplat/i2c_mlxcpld.*/i2c-*/i2c-*/i2c-*/*-0032/mlxreg-io.*/hwmon/hwmon*/qsfp_pwr_en
+What:		/sys/devices/platform/mlxplat/i2c_mlxcpld.*/i2c-*/i2c-*/i2c-*/*-0032/mlxreg-io.*/hwmon/hwmon*/pwr_en
+Date:		October 2021
+KernelVersion:	5.16
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
+Description:	These files allow to power on/off all QSFP ports and whole line card.
+		The attributes are set 1 for power on, 0 - for power off.
+
+		The files are read/write.
+
+What:		/sys/devices/platform/mlxplat/i2c_mlxcpld.*/i2c-*/i2c-*/i2c-*/*-0032/mlxreg-io.*/hwmon/hwmon*/agb_spi_burn_en
+What:		/sys/devices/platform/mlxplat/i2c_mlxcpld.*/i2c-*/i2c-*/i2c-*/*-0032/mlxreg-io.*/hwmon/hwmon*/fpga_spi_burn_en
+Date:		October 2021
+KernelVersion:	5.16
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
+Description:	These files allow gearboxes and FPGA SPI flash burning.
+		The attributes are set 1 to enable burning, 0 - to disable.
+		If the system is in locked-down mode writing these files will
+		not be allowed.
+		The purpose of these files to allow line card Gearboxes and FPGA
+		burning during production flow.
+
+		The file is read/write.
+
+What:		/sys/devices/platform/mlxplat/i2c_mlxcpld.*/i2c-*/i2c-*/i2c-*/*-0032/mlxreg-io.*/hwmon/hwmon*/max_power
+What:		/sys/devices/platform/mlxplat/i2c_mlxcpld.*/i2c-*/i2c-*/i2c-*/*-0032/mlxreg-io.*/hwmon/hwmon*/config
+Date:		October 2021
+KernelVersion:	5.16
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
+Description:	These files provide the maximum powered required for line card
+		feeding and line card configuration Id.
+
+		The files are read only.
