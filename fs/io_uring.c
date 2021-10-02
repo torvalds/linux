@@ -5857,7 +5857,10 @@ err:
 
 static void io_req_task_timeout(struct io_kiocb *req, bool *locked)
 {
-	req_set_fail(req);
+	struct io_timeout_data *data = req->async_data;
+
+	if (!(data->flags & IORING_TIMEOUT_ETIME_SUCCESS))
+		req_set_fail(req);
 	io_req_complete_post(req, -ETIME, 0);
 }
 
@@ -6063,7 +6066,8 @@ static int io_timeout_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	if (off && is_timeout_link)
 		return -EINVAL;
 	flags = READ_ONCE(sqe->timeout_flags);
-	if (flags & ~(IORING_TIMEOUT_ABS | IORING_TIMEOUT_CLOCK_MASK))
+	if (flags & ~(IORING_TIMEOUT_ABS | IORING_TIMEOUT_CLOCK_MASK |
+		      IORING_TIMEOUT_ETIME_SUCCESS))
 		return -EINVAL;
 	/* more than one clock specified is invalid, obviously */
 	if (hweight32(flags & IORING_TIMEOUT_CLOCK_MASK) > 1)
