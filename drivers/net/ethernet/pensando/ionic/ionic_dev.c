@@ -581,7 +581,6 @@ unsigned int ionic_cq_service(struct ionic_cq *cq, unsigned int work_to_do,
 			cq->done_color = !cq->done_color;
 		cq->tail_idx = (cq->tail_idx + 1) & (cq->num_descs - 1);
 		cq_info = &cq->info[cq->tail_idx];
-		DEBUG_STATS_CQE_CNT(cq);
 
 		if (++work_done >= work_to_do)
 			break;

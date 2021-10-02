@@ -151,33 +151,11 @@ static const struct ionic_stat_desc ionic_rx_stats_desc[] = {
 	IONIC_RX_STAT_DESC(vlan_stripped),
 };
 
-static const struct ionic_stat_desc ionic_txq_stats_desc[] = {
-	IONIC_TX_Q_STAT_DESC(stop),
-	IONIC_TX_Q_STAT_DESC(wake),
-	IONIC_TX_Q_STAT_DESC(drop),
-	IONIC_TX_Q_STAT_DESC(dbell_count),
-};
-
-static const struct ionic_stat_desc ionic_dbg_cq_stats_desc[] = {
-	IONIC_CQ_STAT_DESC(compl_count),
-};
-
-static const struct ionic_stat_desc ionic_dbg_intr_stats_desc[] = {
-	IONIC_INTR_STAT_DESC(rearm_count),
-};
-
-static const struct ionic_stat_desc ionic_dbg_napi_stats_desc[] = {
-	IONIC_NAPI_STAT_DESC(poll_count),
-};
 
 #define IONIC_NUM_LIF_STATS ARRAY_SIZE(ionic_lif_stats_desc)
 #define IONIC_NUM_PORT_STATS ARRAY_SIZE(ionic_port_stats_desc)
 #define IONIC_NUM_TX_STATS ARRAY_SIZE(ionic_tx_stats_desc)
 #define IONIC_NUM_RX_STATS ARRAY_SIZE(ionic_rx_stats_desc)
-#define IONIC_NUM_TX_Q_STATS ARRAY_SIZE(ionic_txq_stats_desc)
-#define IONIC_NUM_DBG_CQ_STATS ARRAY_SIZE(ionic_dbg_cq_stats_desc)
-#define IONIC_NUM_DBG_INTR_STATS ARRAY_SIZE(ionic_dbg_intr_stats_desc)
-#define IONIC_NUM_DBG_NAPI_STATS ARRAY_SIZE(ionic_dbg_napi_stats_desc)
 
 #define MAX_Q(lif)   ((lif)->netdev->real_num_tx_queues)
 
@@ -253,21 +231,6 @@ static u64 ionic_sw_stats_get_count(struct ionic_lif *lif)
 	total += tx_queues * IONIC_NUM_TX_STATS;
 	total += rx_queues * IONIC_NUM_RX_STATS;
 
-	if (test_bit(IONIC_LIF_F_UP, lif->state) &&
-	    test_bit(IONIC_LIF_F_SW_DEBUG_STATS, lif->state)) {
-		/* tx debug stats */
-		total += tx_queues * (IONIC_NUM_DBG_CQ_STATS +
-				      IONIC_NUM_TX_Q_STATS +
-				      IONIC_NUM_DBG_INTR_STATS +
-				      IONIC_MAX_NUM_SG_CNTR);
-
-		/* rx debug stats */
-		total += rx_queues * (IONIC_NUM_DBG_CQ_STATS +
-				      IONIC_NUM_DBG_INTR_STATS +
-				      IONIC_NUM_DBG_NAPI_STATS +
-				      IONIC_MAX_NUM_NAPI_CNTR);
-	}
-
 	return total;
 }
 
@@ -279,22 +242,6 @@ static void ionic_sw_stats_get_tx_strings(struct ionic_lif *lif, u8 **buf,
 	for (i = 0; i < IONIC_NUM_TX_STATS; i++)
 		ethtool_sprintf(buf, "tx_%d_%s", q_num,
 				ionic_tx_stats_desc[i].name);
-
-	if (!test_bit(IONIC_LIF_F_UP, lif->state) ||
-	    !test_bit(IONIC_LIF_F_SW_DEBUG_STATS, lif->state))
-		return;
-
-	for (i = 0; i < IONIC_NUM_TX_Q_STATS; i++)
-		ethtool_sprintf(buf, "txq_%d_%s", q_num,
-				ionic_txq_stats_desc[i].name);
-	for (i = 0; i < IONIC_NUM_DBG_CQ_STATS; i++)
-		ethtool_sprintf(buf, "txq_%d_cq_%s", q_num,
-				ionic_dbg_cq_stats_desc[i].name);
-	for (i = 0; i < IONIC_NUM_DBG_INTR_STATS; i++)
-		ethtool_sprintf(buf, "txq_%d_intr_%s", q_num,
-				ionic_dbg_intr_stats_desc[i].name);
-	for (i = 0; i < IONIC_MAX_NUM_SG_CNTR; i++)
-		ethtool_sprintf(buf, "txq_%d_sg_cntr_%d", q_num, i);
 }
 
 static void ionic_sw_stats_get_rx_strings(struct ionic_lif *lif, u8 **buf,
@@ -305,22 +252,6 @@ static void ionic_sw_stats_get_rx_strings(struct ionic_lif *lif, u8 **buf,
 	for (i = 0; i < IONIC_NUM_RX_STATS; i++)
 		ethtool_sprintf(buf, "rx_%d_%s", q_num,
 				ionic_rx_stats_desc[i].name);
-
-	if (!test_bit(IONIC_LIF_F_UP, lif->state) ||
-	    !test_bit(IONIC_LIF_F_SW_DEBUG_STATS, lif->state))
-		return;
-
-	for (i = 0; i < IONIC_NUM_DBG_CQ_STATS; i++)
-		ethtool_sprintf(buf, "rxq_%d_cq_%s", q_num,
-				ionic_dbg_cq_stats_desc[i].name);
-	for (i = 0; i < IONIC_NUM_DBG_INTR_STATS; i++)
-		ethtool_sprintf(buf, "rxq_%d_intr_%s", q_num,
-				ionic_dbg_intr_stats_desc[i].name);
-	for (i = 0; i < IONIC_NUM_DBG_NAPI_STATS; i++)
-		ethtool_sprintf(buf, "rxq_%d_napi_%s", q_num,
-				ionic_dbg_napi_stats_desc[i].name);
-	for (i = 0; i < IONIC_MAX_NUM_NAPI_CNTR; i++)
-		ethtool_sprintf(buf, "rxq_%d_napi_work_done_%d", q_num, i);
 }
 
 static void ionic_sw_stats_get_strings(struct ionic_lif *lif, u8 **buf)
@@ -350,7 +281,6 @@ static void ionic_sw_stats_get_txq_values(struct ionic_lif *lif, u64 **buf,
 					  int q_num)
 {
 	struct ionic_tx_stats *txstats;
-	struct ionic_qcq *txqcq;
 	int i;
 
 	txstats = &lif->txqstats[q_num];
@@ -359,69 +289,18 @@ static void ionic_sw_stats_get_txq_values(struct ionic_lif *lif, u64 **buf,
 		**buf = IONIC_READ_STAT64(txstats, &ionic_tx_stats_desc[i]);
 		(*buf)++;
 	}
-
-	if (!test_bit(IONIC_LIF_F_UP, lif->state) ||
-	    !test_bit(IONIC_LIF_F_SW_DEBUG_STATS, lif->state))
-		return;
-
-	txqcq = lif->txqcqs[q_num];
-	for (i = 0; i < IONIC_NUM_TX_Q_STATS; i++) {
-		**buf = IONIC_READ_STAT64(&txqcq->q,
-					  &ionic_txq_stats_desc[i]);
-		(*buf)++;
-	}
-	for (i = 0; i < IONIC_NUM_DBG_CQ_STATS; i++) {
-		**buf = IONIC_READ_STAT64(&txqcq->cq,
-					  &ionic_dbg_cq_stats_desc[i]);
-		(*buf)++;
-	}
-	for (i = 0; i < IONIC_NUM_DBG_INTR_STATS; i++) {
-		**buf = IONIC_READ_STAT64(&txqcq->intr,
-					  &ionic_dbg_intr_stats_desc[i]);
-		(*buf)++;
-	}
-	for (i = 0; i < IONIC_MAX_NUM_SG_CNTR; i++) {
-		**buf = txstats->sg_cntr[i];
-		(*buf)++;
-	}
 }
 
 static void ionic_sw_stats_get_rxq_values(struct ionic_lif *lif, u64 **buf,
 					  int q_num)
 {
 	struct ionic_rx_stats *rxstats;
-	struct ionic_qcq *rxqcq;
 	int i;
 
 	rxstats = &lif->rxqstats[q_num];
 
 	for (i = 0; i < IONIC_NUM_RX_STATS; i++) {
 		**buf = IONIC_READ_STAT64(rxstats, &ionic_rx_stats_desc[i]);
-		(*buf)++;
-	}
-
-	if (!test_bit(IONIC_LIF_F_UP, lif->state) ||
-	    !test_bit(IONIC_LIF_F_SW_DEBUG_STATS, lif->state))
-		return;
-
-	rxqcq = lif->rxqcqs[q_num];
-	for (i = 0; i < IONIC_NUM_DBG_CQ_STATS; i++) {
-		**buf = IONIC_READ_STAT64(&rxqcq->cq,
-					  &ionic_dbg_cq_stats_desc[i]);
-		(*buf)++;
-	}
-	for (i = 0; i < IONIC_NUM_DBG_INTR_STATS; i++) {
-		**buf = IONIC_READ_STAT64(&rxqcq->intr,
-					  &ionic_dbg_intr_stats_desc[i]);
-		(*buf)++;
-	}
-	for (i = 0; i < IONIC_NUM_DBG_NAPI_STATS; i++) {
-		**buf = IONIC_READ_STAT64(&rxqcq->napi_stats,
-					  &ionic_dbg_napi_stats_desc[i]);
-		(*buf)++;
-	}
-	for (i = 0; i < IONIC_MAX_NUM_NAPI_CNTR; i++) {
-		**buf = rxqcq->napi_stats.work_done_cntr[i];
 		(*buf)++;
 	}
 }
