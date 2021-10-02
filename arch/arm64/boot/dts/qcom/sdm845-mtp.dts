@@ -361,9 +361,6 @@
 	qcom,dual-dsi-mode;
 	qcom,master-dsi;
 
-	#address-cells = <1>;
-	#size-cells = <0>;
-
 	ports {
 		port@1 {
 			endpoint {
