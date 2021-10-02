@@ -26,7 +26,6 @@
 
 #include <drm/drm_edid.h>
 #include <drm/i915_component.h>
-#include <drm/drm_drv.h>
 
 #include "i915_drv.h"
 #include "intel_atomic.h"
@@ -1215,8 +1214,7 @@ static int i915_audio_component_bind(struct device *i915_kdev,
 {
 	struct i915_audio_component *acomp = data;
 	struct drm_i915_private *dev_priv = kdev_to_i915(i915_kdev);
-	struct drm_modeset_acquire_ctx ctx;
-	int i, ret;
+	int i;
 
 	if (drm_WARN_ON(&dev_priv->drm, acomp->base.ops || acomp->base.dev))
 		return -EEXIST;
@@ -1226,16 +1224,16 @@ static int i915_audio_component_bind(struct device *i915_kdev,
 					 DL_FLAG_STATELESS)))
 		return -ENOMEM;
 
-	DRM_MODESET_LOCK_ALL_BEGIN((&dev_priv->drm), ctx, 0, ret);
+	drm_modeset_lock_all(&dev_priv->drm);
 	acomp->base.ops = &i915_audio_component_ops;
 	acomp->base.dev = i915_kdev;
 	BUILD_BUG_ON(MAX_PORTS != I915_MAX_PORTS);
 	for (i = 0; i < ARRAY_SIZE(acomp->aud_sample_rate); i++)
 		acomp->aud_sample_rate[i] = 0;
 	dev_priv->audio_component = acomp;
-	DRM_MODESET_LOCK_ALL_END((&dev_priv->drm), ctx, ret);
+	drm_modeset_unlock_all(&dev_priv->drm);
 
-	return ret;
+	return 0;
 }
 
 static void i915_audio_component_unbind(struct device *i915_kdev,
@@ -1243,14 +1241,12 @@ static void i915_audio_component_unbind(struct device *i915_kdev,
 {
 	struct i915_audio_component *acomp = data;
 	struct drm_i915_private *dev_priv = kdev_to_i915(i915_kdev);
-	struct drm_modeset_acquire_ctx ctx;
-	int ret;
 
-	DRM_MODESET_LOCK_ALL_BEGIN((&dev_priv->drm), ctx, 0, ret);
+	drm_modeset_lock_all(&dev_priv->drm);
 	acomp->base.ops = NULL;
 	acomp->base.dev = NULL;
 	dev_priv->audio_component = NULL;
-	DRM_MODESET_LOCK_ALL_END((&dev_priv->drm), ctx, ret);
+	drm_modeset_unlock_all(&dev_priv->drm);
 
 	device_link_remove(hda_kdev, i915_kdev);
 
