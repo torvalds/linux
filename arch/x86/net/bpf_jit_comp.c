@@ -1028,19 +1028,30 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 		case BPF_ALU64 | BPF_MOD | BPF_X:
 		case BPF_ALU64 | BPF_DIV | BPF_X:
 		case BPF_ALU64 | BPF_MOD | BPF_K:
-		case BPF_ALU64 | BPF_DIV | BPF_K:
-			EMIT1(0x50); /* push rax */
-			EMIT1(0x52); /* push rdx */
+		case BPF_ALU64 | BPF_DIV | BPF_K: {
+			bool is64 = BPF_CLASS(insn->code) == BPF_ALU64;
 
-			if (BPF_SRC(insn->code) == BPF_X)
-				/* mov r11, src_reg */
-				EMIT_mov(AUX_REG, src_reg);
-			else
+			if (dst_reg != BPF_REG_0)
+				EMIT1(0x50); /* push rax */
+			if (dst_reg != BPF_REG_3)
+				EMIT1(0x52); /* push rdx */
+
+			if (BPF_SRC(insn->code) == BPF_X) {
+				if (src_reg == BPF_REG_0 ||
+				    src_reg == BPF_REG_3) {
+					/* mov r11, src_reg */
+					EMIT_mov(AUX_REG, src_reg);
+					src_reg = AUX_REG;
+				}
+			} else {
 				/* mov r11, imm32 */
 				EMIT3_off32(0x49, 0xC7, 0xC3, imm32);
+				src_reg = AUX_REG;
+			}
 
-			/* mov rax, dst_reg */
-			EMIT_mov(BPF_REG_0, dst_reg);
+			if (dst_reg != BPF_REG_0)
+				/* mov rax, dst_reg */
+				emit_mov_reg(&prog, is64, BPF_REG_0, dst_reg);
 
 			/*
 			 * xor edx, edx
@@ -1048,26 +1059,28 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 			 */
 			EMIT2(0x31, 0xd2);
 
-			if (BPF_CLASS(insn->code) == BPF_ALU64)
-				/* div r11 */
-				EMIT3(0x49, 0xF7, 0xF3);
-			else
-				/* div r11d */
-				EMIT3(0x41, 0xF7, 0xF3);
+			if (is64)
+				EMIT1(add_1mod(0x48, src_reg));
+			else if (is_ereg(src_reg))
+				EMIT1(add_1mod(0x40, src_reg));
+			/* div src_reg */
+			EMIT2(0xF7, add_1reg(0xF0, src_reg));
 
-			if (BPF_OP(insn->code) == BPF_MOD)
-				/* mov r11, rdx */
-				EMIT3(0x49, 0x89, 0xD3);
-			else
-				/* mov r11, rax */
-				EMIT3(0x49, 0x89, 0xC3);
+			if (BPF_OP(insn->code) == BPF_MOD &&
+			    dst_reg != BPF_REG_3)
+				/* mov dst_reg, rdx */
+				emit_mov_reg(&prog, is64, dst_reg, BPF_REG_3);
+			else if (BPF_OP(insn->code) == BPF_DIV &&
+				 dst_reg != BPF_REG_0)
+				/* mov dst_reg, rax */
+				emit_mov_reg(&prog, is64, dst_reg, BPF_REG_0);
 
-			EMIT1(0x5A); /* pop rdx */
-			EMIT1(0x58); /* pop rax */
-
-			/* mov dst_reg, r11 */
-			EMIT_mov(dst_reg, AUX_REG);
+			if (dst_reg != BPF_REG_3)
+				EMIT1(0x5A); /* pop rdx */
+			if (dst_reg != BPF_REG_0)
+				EMIT1(0x58); /* pop rax */
 			break;
+		}
 
 		case BPF_ALU | BPF_MUL | BPF_K:
 		case BPF_ALU64 | BPF_MUL | BPF_K:
