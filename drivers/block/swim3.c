@@ -27,6 +27,7 @@
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
+#include <linux/major.h>
 #include <asm/io.h>
 #include <asm/dbdma.h>
 #include <asm/prom.h>
