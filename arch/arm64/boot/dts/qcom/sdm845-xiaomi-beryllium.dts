@@ -291,10 +291,6 @@
 	status = "okay";
 };
 
-&mdss_mdp {
-	status = "okay";
-};
-
 &mss_pil {
 	status = "okay";
 	firmware-name = "qcom/sdm845/mba.mbn", "qcom/sdm845/modem.mdt";

@@ -637,10 +637,6 @@ ap_ts_i2c: &i2c14 {
 	status = "okay";
 };
 
-&mdss_mdp {
-	status = "okay";
-};
-
 /*
  * Cheza fw does not properly program the GPU aperture to allow the
  * GPU to update the SMMU pagetables for context switches.  Work

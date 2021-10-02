@@ -433,10 +433,6 @@
 	status = "okay";
 };
 
-&mdss_mdp {
-	status = "okay";
-};
-
 &mss_pil {
 	status = "okay";
 	firmware-name = "qcom/LENOVO/81JL/qcdsp1v2850.mbn", "qcom/LENOVO/81JL/qcdsp2850.mbn";

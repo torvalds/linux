@@ -427,10 +427,6 @@
 	status = "okay";
 };
 
-&mdss_mdp {
-	status = "okay";
-};
-
 /* Modem/wifi*/
 &mss_pil {
 	status = "okay";
