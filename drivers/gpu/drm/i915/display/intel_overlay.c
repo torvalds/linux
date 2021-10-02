@@ -1105,7 +1105,6 @@ int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 	struct drm_crtc *drmmode_crtc;
 	struct intel_crtc *crtc;
 	struct drm_i915_gem_object *new_bo;
-	struct drm_modeset_acquire_ctx ctx;
 	int ret;
 
 	overlay = dev_priv->overlay;
@@ -1114,24 +1113,24 @@ int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 		return -ENODEV;
 	}
 
-	if (params->flags & I915_OVERLAY_ENABLE) {
-
-		drmmode_crtc = drm_crtc_find(dev, file_priv, params->crtc_id);
-		if (!drmmode_crtc)
-			return -ENOENT;
-		crtc = to_intel_crtc(drmmode_crtc);
-
-		new_bo = i915_gem_object_lookup(file_priv, params->bo_handle);
-		if (!new_bo)
-			return -ENOENT;
-	}
-
-	DRM_MODESET_LOCK_ALL_BEGIN(dev, ctx, 0, ret);
-
 	if (!(params->flags & I915_OVERLAY_ENABLE)) {
+		drm_modeset_lock_all(dev);
 		ret = intel_overlay_switch_off(overlay);
-		goto out_unlock;
+		drm_modeset_unlock_all(dev);
+
+		return ret;
 	}
+
+	drmmode_crtc = drm_crtc_find(dev, file_priv, params->crtc_id);
+	if (!drmmode_crtc)
+		return -ENOENT;
+	crtc = to_intel_crtc(drmmode_crtc);
+
+	new_bo = i915_gem_object_lookup(file_priv, params->bo_handle);
+	if (!new_bo)
+		return -ENOENT;
+
+	drm_modeset_lock_all(dev);
 
 	if (i915_gem_object_is_tiled(new_bo)) {
 		drm_dbg_kms(&dev_priv->drm,
@@ -1196,11 +1195,14 @@ int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 	if (ret != 0)
 		goto out_unlock;
 
-out_unlock:
-	DRM_MODESET_LOCK_ALL_END(dev, ctx, ret);
+	drm_modeset_unlock_all(dev);
+	i915_gem_object_put(new_bo);
 
-	if (params->flags & I915_OVERLAY_ENABLE)
-		i915_gem_object_put(new_bo);
+	return 0;
+
+out_unlock:
+	drm_modeset_unlock_all(dev);
+	i915_gem_object_put(new_bo);
 
 	return ret;
 }
