@@ -638,7 +638,7 @@ static void dpcd_set_lt_pattern_and_lane_settings(
 	uint32_t dpcd_base_lt_offset;
 
 	uint8_t dpcd_lt_buffer[5] = {0};
-	union dpcd_training_pattern dpcd_pattern = { 0 };
+	union dpcd_training_pattern dpcd_pattern = {0};
 	uint32_t size_in_bytes;
 	bool edp_workaround = false; /* TODO link_prop.INTERNAL */
 	dpcd_base_lt_offset = DP_TRAINING_PATTERN_SET;
@@ -1369,7 +1369,7 @@ static enum link_training_result perform_clock_recovery_sequence(
 	enum dc_lane_count lane_count = lt_settings->link_settings.lane_count;
 	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX];
 	union lane_align_status_updated dpcd_lane_status_updated;
-	union lane_adjust dpcd_lane_adjust[LANE_COUNT_DP_MAX] = { { {0} } };
+	union lane_adjust dpcd_lane_adjust[LANE_COUNT_DP_MAX] = {0};
 
 	retries_cr = 0;
 	retry_count = 0;
@@ -2164,7 +2164,7 @@ static enum link_training_result dp_perform_128b_132b_cds_done_sequence(
 	enum link_training_result result = LINK_TRAINING_SUCCESS;
 	union lane_align_status_updated dpcd_lane_status_updated = {0};
 	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = {0};
-	union lane_adjust dpcd_lane_adjust[LANE_COUNT_DP_MAX] = { { {0} } };
+	union lane_adjust dpcd_lane_adjust[LANE_COUNT_DP_MAX] = {0};
 	uint32_t wait_time = 0;
 
 	/* initiate CDS done sequence */

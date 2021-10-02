@@ -1528,7 +1528,7 @@ static bool dc_link_construct_legacy(struct dc_link *link,
 				     const struct link_init_data *init_params)
 {
 	uint8_t i;
-	struct ddc_service_init_data ddc_service_init_data = { { 0 } };
+	struct ddc_service_init_data ddc_service_init_data = { 0 };
 	struct dc_context *dc_ctx = init_params->ctx;
 	struct encoder_init_data enc_init_data = { 0 };
 	struct panel_cntl_init_data panel_cntl_init_data = { 0 };
@@ -1828,7 +1828,7 @@ create_fail:
 static bool dc_link_construct_dpia(struct dc_link *link,
 				   const struct link_init_data *init_params)
 {
-	struct ddc_service_init_data ddc_service_init_data = { { 0 } };
+	struct ddc_service_init_data ddc_service_init_data = { 0 };
 	struct dc_context *dc_ctx = init_params->ctx;
 
 	DC_LOGGER_INIT(dc_ctx->logger);

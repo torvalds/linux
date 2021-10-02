@@ -226,7 +226,7 @@ static enum dc_status dpcd_set_lt_pattern(struct dc_link *link,
 	enum dc_dp_training_pattern pattern,
 	uint32_t hop)
 {
-	union dpcd_training_pattern dpcd_pattern = { {0} };
+	union dpcd_training_pattern dpcd_pattern = {0};
 	uint32_t dpcd_tps_offset = DP_TRAINING_PATTERN_SET;
 	enum dc_status status;
 
@@ -287,9 +287,9 @@ static enum link_training_result dpia_training_cr_non_transparent(
 	/* From DP spec, CR read interval is always 100us. */
 	uint32_t wait_time_microsec = TRAINING_AUX_RD_INTERVAL;
 	enum dc_lane_count lane_count = lt_settings->link_settings.lane_count;
-	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = { { {0} } };
-	union lane_align_status_updated dpcd_lane_status_updated = { {0} };
-	union lane_adjust dpcd_lane_adjust[LANE_COUNT_DP_MAX] = { { {0} } };
+	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = {0};
+	union lane_align_status_updated dpcd_lane_status_updated = {0};
+	union lane_adjust dpcd_lane_adjust[LANE_COUNT_DP_MAX] = {0};
 	uint8_t set_cfg_data;
 	enum dpia_set_config_ts ts;
 
@@ -445,9 +445,9 @@ static enum link_training_result dpia_training_cr_transparent(
 	uint32_t retry_count = 0;
 	uint32_t wait_time_microsec = lt_settings->cr_pattern_time;
 	enum dc_lane_count lane_count = lt_settings->link_settings.lane_count;
-	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = { { {0} } };
-	union lane_align_status_updated dpcd_lane_status_updated = { {0} };
-	union lane_adjust dpcd_lane_adjust[LANE_COUNT_DP_MAX] = { { {0} } };
+	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = {0};
+	union lane_align_status_updated dpcd_lane_status_updated = {0};
+	union lane_adjust dpcd_lane_adjust[LANE_COUNT_DP_MAX] = {0};
 
 	/* Cap of LINK_TRAINING_MAX_CR_RETRY attempts at clock recovery.
 	 * Fix inherited from perform_clock_recovery_sequence() -
@@ -599,9 +599,9 @@ static enum link_training_result dpia_training_eq_non_transparent(
 	enum dc_dp_training_pattern tr_pattern;
 	uint32_t wait_time_microsec;
 	enum dc_lane_count lane_count = lt_settings->link_settings.lane_count;
-	union lane_align_status_updated dpcd_lane_status_updated = { {0} };
-	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = { { {0} } };
-	union lane_adjust dpcd_lane_adjust[LANE_COUNT_DP_MAX] = { { {0} } };
+	union lane_align_status_updated dpcd_lane_status_updated = {0};
+	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = {0};
+	union lane_adjust dpcd_lane_adjust[LANE_COUNT_DP_MAX] = {0};
 	uint8_t set_cfg_data;
 	enum dpia_set_config_ts ts;
 
@@ -738,9 +738,9 @@ static enum link_training_result dpia_training_eq_transparent(
 	enum dc_dp_training_pattern tr_pattern = lt_settings->pattern_for_eq;
 	uint32_t wait_time_microsec;
 	enum dc_lane_count lane_count = lt_settings->link_settings.lane_count;
-	union lane_align_status_updated dpcd_lane_status_updated = { {0} };
-	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = { { {0} } };
-	union lane_adjust dpcd_lane_adjust[LANE_COUNT_DP_MAX] = { { {0} } };
+	union lane_align_status_updated dpcd_lane_status_updated = {0};
+	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = {0};
+	union lane_adjust dpcd_lane_adjust[LANE_COUNT_DP_MAX] = {0};
 
 	wait_time_microsec = dpia_get_eq_aux_rd_interval(link, lt_settings, DPRX);
 
@@ -827,7 +827,7 @@ static enum link_training_result dpia_training_eq_phase(
 /* End training of specified hop in display path. */
 static enum dc_status dpcd_clear_lt_pattern(struct dc_link *link, uint32_t hop)
 {
-	union dpcd_training_pattern dpcd_pattern = { {0} };
+	union dpcd_training_pattern dpcd_pattern = {0};
 	uint32_t dpcd_tps_offset = DP_TRAINING_PATTERN_SET;
 	enum dc_status status;
 
