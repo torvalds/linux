@@ -785,24 +785,54 @@ static void tc358768_bridge_pre_enable(struct drm_bridge *bridge)
 	/* START[0] */
 	tc358768_write(priv, TC358768_STARTCNTRL, 1);
 
-	/* Set event mode */
-	tc358768_write(priv, TC358768_DSI_EVENT, 1);
+	if (dsi_dev->mode_flags & MIPI_DSI_MODE_VIDEO_SYNC_PULSE) {
+		/* Set pulse mode */
+		tc358768_write(priv, TC358768_DSI_EVENT, 0);
 
-	/* vsw (+ vbp) */
-	tc358768_write(priv, TC358768_DSI_VSW,
-		       mode->vtotal - mode->vsync_start);
-	/* vbp (not used in event mode) */
-	tc358768_write(priv, TC358768_DSI_VBPR, 0);
-	/* vact */
-	tc358768_write(priv, TC358768_DSI_VACT, mode->vdisplay);
+		/* vact */
+		tc358768_write(priv, TC358768_DSI_VACT, mode->vdisplay);
 
-	/* (hsw + hbp) * byteclk * ndl / pclk */
-	val = (u32)div_u64((mode->htotal - mode->hsync_start) *
-			   ((u64)priv->dsiclk / 4) * priv->dsi_lanes,
-			   mode->clock * 1000);
-	tc358768_write(priv, TC358768_DSI_HSW, val);
-	/* hbp (not used in event mode) */
-	tc358768_write(priv, TC358768_DSI_HBPR, 0);
+		/* vsw */
+		tc358768_write(priv, TC358768_DSI_VSW,
+			       mode->vsync_end - mode->vsync_start);
+		/* vbp */
+		tc358768_write(priv, TC358768_DSI_VBPR,
+			       mode->vtotal - mode->vsync_end);
+
+		/* hsw * byteclk * ndl / pclk */
+		val = (u32)div_u64((mode->hsync_end - mode->hsync_start) *
+				   ((u64)priv->dsiclk / 4) * priv->dsi_lanes,
+				   mode->clock * 1000);
+		tc358768_write(priv, TC358768_DSI_HSW, val);
+
+		/* hbp * byteclk * ndl / pclk */
+		val = (u32)div_u64((mode->htotal - mode->hsync_end) *
+				   ((u64)priv->dsiclk / 4) * priv->dsi_lanes,
+				   mode->clock * 1000);
+		tc358768_write(priv, TC358768_DSI_HBPR, val);
+	} else {
+		/* Set event mode */
+		tc358768_write(priv, TC358768_DSI_EVENT, 1);
+
+		/* vact */
+		tc358768_write(priv, TC358768_DSI_VACT, mode->vdisplay);
+
+		/* vsw (+ vbp) */
+		tc358768_write(priv, TC358768_DSI_VSW,
+			       mode->vtotal - mode->vsync_start);
+		/* vbp (not used in event mode) */
+		tc358768_write(priv, TC358768_DSI_VBPR, 0);
+
+		/* (hsw + hbp) * byteclk * ndl / pclk */
+		val = (u32)div_u64((mode->htotal - mode->hsync_start) *
+				   ((u64)priv->dsiclk / 4) * priv->dsi_lanes,
+				   mode->clock * 1000);
+		tc358768_write(priv, TC358768_DSI_HSW, val);
+
+		/* hbp (not used in event mode) */
+		tc358768_write(priv, TC358768_DSI_HBPR, 0);
+	}
+
 	/* hact (bytes) */
 	tc358768_write(priv, TC358768_DSI_HACT, hact);
 
