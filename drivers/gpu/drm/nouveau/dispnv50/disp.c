@@ -42,7 +42,6 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_scdc_helper.h>
 #include <drm/drm_vblank.h>
-#include <drm/drm_drv.h>
 
 #include <nvif/push507c.h>
 
@@ -668,18 +667,16 @@ nv50_audio_component_bind(struct device *kdev, struct device *hda_kdev,
 	struct drm_device *drm_dev = dev_get_drvdata(kdev);
 	struct nouveau_drm *drm = nouveau_drm(drm_dev);
 	struct drm_audio_component *acomp = data;
-	struct drm_modeset_acquire_ctx ctx;
-	int ret;
 
 	if (WARN_ON(!device_link_add(hda_kdev, kdev, DL_FLAG_STATELESS)))
 		return -ENOMEM;
 
-	DRM_MODESET_LOCK_ALL_BEGIN(drm_dev, ctx, 0, ret);
+	drm_modeset_lock_all(drm_dev);
 	acomp->ops = &nv50_audio_component_ops;
 	acomp->dev = kdev;
 	drm->audio.component = acomp;
-	DRM_MODESET_LOCK_ALL_END(drm_dev, ctx, ret);
-	return ret;
+	drm_modeset_unlock_all(drm_dev);
+	return 0;
 }
 
 static void
@@ -689,14 +686,12 @@ nv50_audio_component_unbind(struct device *kdev, struct device *hda_kdev,
 	struct drm_device *drm_dev = dev_get_drvdata(kdev);
 	struct nouveau_drm *drm = nouveau_drm(drm_dev);
 	struct drm_audio_component *acomp = data;
-	struct drm_modeset_acquire_ctx ctx;
-	int ret;
 
-	DRM_MODESET_LOCK_ALL_BEGIN(drm_dev, ctx, 0, ret);
+	drm_modeset_lock_all(drm_dev);
 	drm->audio.component = NULL;
 	acomp->ops = NULL;
 	acomp->dev = NULL;
-	DRM_MODESET_LOCK_ALL_END(drm_dev, ctx, ret);
+	drm_modeset_unlock_all(drm_dev);
 }
 
 static const struct component_ops nv50_audio_component_bind_ops = {
