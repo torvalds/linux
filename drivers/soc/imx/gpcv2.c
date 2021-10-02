@@ -244,6 +244,8 @@ static int imx_pgc_power_up(struct generic_pm_domain *genpd)
 		goto out_regulator_disable;
 	}
 
+	reset_control_assert(domain->reset);
+
 	if (domain->bits.pxx) {
 		/* request the domain to power up */
 		regmap_update_bits(domain->regmap, GPC_PU_PGC_SW_PUP_REQ,
@@ -265,8 +267,6 @@ static int imx_pgc_power_up(struct generic_pm_domain *genpd)
 		regmap_clear_bits(domain->regmap, GPC_PGC_CTRL(domain->pgc),
 				  GPC_PGC_CTRL_PCR);
 	}
-
-	reset_control_assert(domain->reset);
 
 	/* delay for reset to propagate */
 	udelay(5);
