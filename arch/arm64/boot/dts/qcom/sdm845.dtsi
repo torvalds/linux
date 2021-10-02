@@ -3493,8 +3493,9 @@
 			interrupt-names = "hc_irq", "pwr_irq";
 
 			clocks = <&gcc GCC_SDCC2_AHB_CLK>,
-				 <&gcc GCC_SDCC2_APPS_CLK>;
-			clock-names = "iface", "core";
+				 <&gcc GCC_SDCC2_APPS_CLK>,
+				 <&rpmhcc RPMH_CXO_CLK>;
+			clock-names = "iface", "core", "xo";
 			iommus = <&apps_smmu 0xa0 0xf>;
 			power-domains = <&rpmhpd SDM845_CX>;
 			operating-points-v2 = <&sdhc2_opp_table>;
