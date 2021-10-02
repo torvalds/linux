@@ -634,7 +634,8 @@ static void tc358768_bridge_pre_enable(struct drm_bridge *bridge)
 	u32 val, val2, lptxcnt, hact, data_type;
 	const struct drm_display_mode *mode;
 	u32 dsibclk_nsk, dsiclk_nsk, ui_nsk, phy_delay_nsk;
-	u32 dsiclk, dsibclk;
+	u32 dsiclk, dsibclk, video_start;
+	const u32 internal_delay = 40;
 	int ret, i;
 
 	tc358768_hw_enable(priv);
@@ -663,23 +664,27 @@ static void tc358768_bridge_pre_enable(struct drm_bridge *bridge)
 	case MIPI_DSI_FMT_RGB888:
 		val |= (0x3 << 4);
 		hact = mode->hdisplay * 3;
+		video_start = (mode->htotal - mode->hsync_start) * 3;
 		data_type = MIPI_DSI_PACKED_PIXEL_STREAM_24;
 		break;
 	case MIPI_DSI_FMT_RGB666:
 		val |= (0x4 << 4);
 		hact = mode->hdisplay * 3;
+		video_start = (mode->htotal - mode->hsync_start) * 3;
 		data_type = MIPI_DSI_PACKED_PIXEL_STREAM_18;
 		break;
 
 	case MIPI_DSI_FMT_RGB666_PACKED:
 		val |= (0x4 << 4) | BIT(3);
 		hact = mode->hdisplay * 18 / 8;
+		video_start = (mode->htotal - mode->hsync_start) * 18 / 8;
 		data_type = MIPI_DSI_PIXEL_STREAM_3BYTE_18;
 		break;
 
 	case MIPI_DSI_FMT_RGB565:
 		val |= (0x5 << 4);
 		hact = mode->hdisplay * 2;
+		video_start = (mode->htotal - mode->hsync_start) * 2;
 		data_type = MIPI_DSI_PACKED_PIXEL_STREAM_16;
 		break;
 	default:
@@ -690,7 +695,8 @@ static void tc358768_bridge_pre_enable(struct drm_bridge *bridge)
 	}
 
 	/* VSDly[9:0] */
-	tc358768_write(priv, TC358768_VSDLY, 1);
+	video_start = max(video_start, internal_delay + 1) - internal_delay;
+	tc358768_write(priv, TC358768_VSDLY, video_start);
 
 	tc358768_write(priv, TC358768_DATAFMT, val);
 	tc358768_write(priv, TC358768_DSITX_DT, data_type);
