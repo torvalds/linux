@@ -202,6 +202,7 @@ struct imx_pgc_domain {
 	} bits;
 
 	const int voltage;
+	const bool keep_clocks;
 	struct device *dev;
 };
 
@@ -295,7 +296,8 @@ static int imx_pgc_power_up(struct generic_pm_domain *genpd)
 	}
 
 	/* Disable reset clocks for all devices in the domain */
-	clk_bulk_disable_unprepare(domain->num_clks, domain->clks);
+	if (!domain->keep_clocks)
+		clk_bulk_disable_unprepare(domain->num_clks, domain->clks);
 
 	return 0;
 
@@ -317,10 +319,12 @@ static int imx_pgc_power_down(struct generic_pm_domain *genpd)
 	int ret;
 
 	/* Enable reset clocks for all devices in the domain */
-	ret = clk_bulk_prepare_enable(domain->num_clks, domain->clks);
-	if (ret) {
-		dev_err(domain->dev, "failed to enable reset clocks\n");
-		return ret;
+	if (!domain->keep_clocks) {
+		ret = clk_bulk_prepare_enable(domain->num_clks, domain->clks);
+		if (ret) {
+			dev_err(domain->dev, "failed to enable reset clocks\n");
+			return ret;
+		}
 	}
 
 	/* request the ADB400 to power down */
