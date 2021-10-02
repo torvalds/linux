@@ -64,6 +64,9 @@
 /* maximum number of reset retries before giving up */
 #define MAX_HOST_RESET_RETRIES 5
 
+/* Maximum number of error handler retries before giving up */
+#define MAX_ERR_HANDLER_RETRIES 5
+
 /* Expose the flag value from utp_upiu_query.value */
 #define MASK_QUERY_UPIU_FLAG_LOC 0xFF
 
@@ -6065,12 +6068,14 @@ static bool ufshcd_is_pwr_mode_restore_needed(struct ufs_hba *hba)
 static void ufshcd_err_handler(struct Scsi_Host *host)
 {
 	struct ufs_hba *hba = shost_priv(host);
+	int retries = MAX_ERR_HANDLER_RETRIES;
 	unsigned long flags;
-	bool err_xfer = false;
-	bool err_tm = false;
-	int err = 0, pmc_err;
+	bool needs_restore;
+	bool needs_reset;
+	bool err_xfer;
+	bool err_tm;
+	int pmc_err;
 	int tag;
-	bool needs_reset = false, needs_restore = false;
 
 	down(&hba->host_sem);
 	spin_lock_irqsave(hba->host->host_lock, flags);
@@ -6088,6 +6093,12 @@ static void ufshcd_err_handler(struct Scsi_Host *host)
 	/* Complete requests that have door-bell cleared by h/w */
 	ufshcd_complete_requests(hba);
 	spin_lock_irqsave(hba->host->host_lock, flags);
+again:
+	needs_restore = false;
+	needs_reset = false;
+	err_xfer = false;
+	err_tm = false;
+
 	if (hba->ufshcd_state != UFSHCD_STATE_ERROR)
 		hba->ufshcd_state = UFSHCD_STATE_RESET;
 	/*
@@ -6208,6 +6219,8 @@ lock_skip_pending_xfer_clear:
 do_reset:
 	/* Fatal errors need reset */
 	if (needs_reset) {
+		int err;
+
 		hba->force_reset = false;
 		spin_unlock_irqrestore(hba->host->host_lock, flags);
 		err = ufshcd_reset_and_restore(hba);
@@ -6226,6 +6239,13 @@ skip_err_handling:
 		if (hba->saved_err || hba->saved_uic_err)
 			dev_err_ratelimited(hba->dev, "%s: exit: saved_err 0x%x saved_uic_err 0x%x",
 			    __func__, hba->saved_err, hba->saved_uic_err);
+	}
+	/* Exit in an operational state or dead */
+	if (hba->ufshcd_state != UFSHCD_STATE_OPERATIONAL &&
+	    hba->ufshcd_state != UFSHCD_STATE_ERROR) {
+		if (--retries)
+			goto again;
+		hba->ufshcd_state = UFSHCD_STATE_ERROR;
 	}
 	ufshcd_clear_eh_in_progress(hba);
 	spin_unlock_irqrestore(hba->host->host_lock, flags);
