@@ -1451,8 +1451,6 @@ static void nfs_wcc_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 			&& (fattr->valid & NFS_ATTR_FATTR_MTIME)
 			&& timespec64_equal(&ts, &fattr->pre_mtime)) {
 		inode->i_mtime = fattr->mtime;
-		if (S_ISDIR(inode->i_mode))
-			nfs_set_cache_invalid(inode, NFS_INO_INVALID_DATA);
 	}
 	if ((fattr->valid & NFS_ATTR_FATTR_PRESIZE)
 			&& (fattr->valid & NFS_ATTR_FATTR_SIZE)
@@ -2162,11 +2160,8 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 			save_cache_validity & NFS_INO_INVALID_OTHER;
 
 	if (fattr->valid & NFS_ATTR_FATTR_NLINK) {
-		if (inode->i_nlink != fattr->nlink) {
-			if (S_ISDIR(inode->i_mode))
-				invalid |= NFS_INO_INVALID_DATA;
+		if (inode->i_nlink != fattr->nlink)
 			set_nlink(inode, fattr->nlink);
-		}
 	} else if (fattr_supported & NFS_ATTR_FATTR_NLINK)
 		nfsi->cache_validity |=
 			save_cache_validity & NFS_INO_INVALID_NLINK;
