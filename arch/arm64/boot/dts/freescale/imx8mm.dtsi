@@ -1170,6 +1170,19 @@
 			power-domains = <&pgc_gpu>;
 		};
 
+		vpu_blk_ctrl: blk-ctrl@38330000 {
+			compatible = "fsl,imx8mm-vpu-blk-ctrl", "syscon";
+			reg = <0x38330000 0x100>;
+			power-domains = <&pgc_vpumix>, <&pgc_vpu_g1>,
+					<&pgc_vpu_g2>, <&pgc_vpu_h1>;
+			power-domain-names = "bus", "g1", "g2", "h1";
+			clocks = <&clk IMX8MM_CLK_VPU_G1_ROOT>,
+				 <&clk IMX8MM_CLK_VPU_G2_ROOT>,
+				 <&clk IMX8MM_CLK_VPU_H1_ROOT>;
+			clock-names = "g1", "g2", "h1";
+			#power-domain-cells = <1>;
+		};
+
 		gic: interrupt-controller@38800000 {
 			compatible = "arm,gic-v3";
 			reg = <0x38800000 0x10000>, /* GIC Dist */
