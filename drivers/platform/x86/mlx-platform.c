@@ -1171,6 +1171,33 @@ static struct i2c_board_info mlxplat_mlxcpld_lc_i2c_dev[] = {
 	},
 };
 
+static struct mlxreg_core_hotplug_notifier mlxplat_mlxcpld_modular_lc_notifier[] = {
+	{
+		.identity = "lc1",
+	},
+	{
+		.identity = "lc2",
+	},
+	{
+		.identity = "lc3",
+	},
+	{
+		.identity = "lc4",
+	},
+	{
+		.identity = "lc5",
+	},
+	{
+		.identity = "lc6",
+	},
+	{
+		.identity = "lc7",
+	},
+	{
+		.identity = "lc8",
+	},
+};
+
 static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_pr_items_data[] = {
 	{
 		.label = "lc1_present",
@@ -1179,6 +1206,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_pr_items_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[0],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(0),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[0],
 		.slot = 1,
 	},
 	{
@@ -1188,6 +1216,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_pr_items_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[1],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(1),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[1],
 		.slot = 2,
 	},
 	{
@@ -1197,6 +1226,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_pr_items_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[2],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(2),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[2],
 		.slot = 3,
 	},
 	{
@@ -1206,6 +1236,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_pr_items_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[3],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(3),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[3],
 		.slot = 4,
 	},
 	{
@@ -1215,6 +1246,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_pr_items_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[4],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(4),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[4],
 		.slot = 5,
 	},
 	{
@@ -1224,6 +1256,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_pr_items_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[5],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(5),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[5],
 		.slot = 6,
 	},
 	{
@@ -1233,6 +1266,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_pr_items_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[6],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(6),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[6],
 		.slot = 7,
 	},
 	{
@@ -1242,6 +1276,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_pr_items_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[7],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(7),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[7],
 		.slot = 8,
 	},
 };
@@ -1258,6 +1293,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_ver_items_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[0],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(0),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_PLATFORM_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[0],
 		.slot = 1,
 	},
 	{
@@ -1271,6 +1307,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_ver_items_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[1],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(1),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_PLATFORM_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[1],
 		.slot = 2,
 	},
 	{
@@ -1284,6 +1321,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_ver_items_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[2],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(2),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_PLATFORM_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[2],
 		.slot = 3,
 	},
 	{
@@ -1297,6 +1335,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_ver_items_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[3],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(3),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_PLATFORM_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[3],
 		.slot = 4,
 	},
 	{
@@ -1310,6 +1349,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_ver_items_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[4],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(4),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_PLATFORM_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[4],
 		.slot = 5,
 	},
 	{
@@ -1323,6 +1363,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_ver_items_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[5],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(5),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_PLATFORM_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[5],
 		.slot = 6,
 	},
 	{
@@ -1336,6 +1377,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_ver_items_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[6],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(6),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_PLATFORM_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[6],
 		.slot = 7,
 	},
 	{
@@ -1349,6 +1391,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_ver_items_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[7],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(7),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_PLATFORM_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[7],
 		.slot = 8,
 	},
 };
@@ -1361,6 +1404,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_pg_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[0],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(0),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[0],
 		.slot = 1,
 	},
 	{
@@ -1370,6 +1414,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_pg_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[1],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(1),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[1],
 		.slot = 2,
 	},
 	{
@@ -1379,6 +1424,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_pg_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[2],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(2),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[2],
 		.slot = 3,
 	},
 	{
@@ -1388,6 +1434,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_pg_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[3],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(3),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[3],
 		.slot = 4,
 	},
 	{
@@ -1397,6 +1444,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_pg_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[4],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(4),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[4],
 		.slot = 5,
 	},
 	{
@@ -1406,6 +1454,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_pg_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[5],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(5),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[5],
 		.slot = 6,
 	},
 	{
@@ -1415,6 +1464,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_pg_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[6],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(6),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[6],
 		.slot = 7,
 	},
 	{
@@ -1424,6 +1474,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_pg_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[7],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(7),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[7],
 		.slot = 8,
 	},
 };
@@ -1436,6 +1487,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_ready_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[0],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(0),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[0],
 		.slot = 1,
 	},
 	{
@@ -1445,6 +1497,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_ready_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[1],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(1),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[1],
 		.slot = 2,
 	},
 	{
@@ -1454,6 +1507,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_ready_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[2],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(2),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[2],
 		.slot = 3,
 	},
 	{
@@ -1463,6 +1517,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_ready_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[3],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(3),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[3],
 		.slot = 4,
 	},
 	{
@@ -1472,6 +1527,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_ready_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[4],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(4),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[4],
 		.slot = 5,
 	},
 	{
@@ -1481,6 +1537,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_ready_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[5],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(5),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[5],
 		.slot = 6,
 	},
 	{
@@ -1490,6 +1547,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_ready_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[6],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(6),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[6],
 		.slot = 7,
 	},
 	{
@@ -1499,6 +1557,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_ready_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[7],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(7),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[7],
 		.slot = 8,
 	},
 };
@@ -1511,6 +1570,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_synced_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[0],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(0),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[0],
 		.slot = 1,
 	},
 	{
@@ -1520,6 +1580,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_synced_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[1],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(1),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[1],
 		.slot = 2,
 	},
 	{
@@ -1529,6 +1590,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_synced_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[2],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(2),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[2],
 		.slot = 3,
 	},
 	{
@@ -1538,6 +1600,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_synced_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[3],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(3),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[3],
 		.slot = 4,
 	},
 	{
@@ -1547,6 +1610,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_synced_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[4],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(4),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[4],
 		.slot = 5,
 	},
 	{
@@ -1556,6 +1620,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_synced_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[5],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(5),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[5],
 		.slot = 6,
 	},
 	{
@@ -1565,6 +1630,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_synced_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[6],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(6),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[6],
 		.slot = 7,
 	},
 	{
@@ -1574,6 +1640,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_synced_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[7],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(7),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[7],
 		.slot = 8,
 	},
 };
@@ -1586,6 +1653,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_act_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[0],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(0),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[0],
 		.slot = 1,
 	},
 	{
@@ -1595,6 +1663,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_act_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[1],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(1),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[1],
 		.slot = 2,
 	},
 	{
@@ -1604,6 +1673,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_act_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[2],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(2),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[2],
 		.slot = 3,
 	},
 	{
@@ -1613,6 +1683,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_act_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[3],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(3),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[3],
 		.slot = 4,
 	},
 	{
@@ -1622,6 +1693,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_act_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[4],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(4),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[4],
 		.slot = 5,
 	},
 	{
@@ -1631,6 +1703,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_act_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[5],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(5),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[5],
 		.slot = 6,
 	},
 	{
@@ -1640,6 +1713,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_act_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[6],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(6),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[6],
 		.slot = 7,
 	},
 	{
@@ -1649,6 +1723,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_act_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[7],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(7),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[7],
 		.slot = 8,
 	},
 };
@@ -1661,6 +1736,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_sd_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[0],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(0),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[0],
 		.slot = 1,
 	},
 	{
@@ -1670,6 +1746,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_sd_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[1],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(1),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[1],
 		.slot = 2,
 	},
 	{
@@ -1679,6 +1756,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_sd_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[2],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(2),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[2],
 		.slot = 3,
 	},
 	{
@@ -1688,6 +1766,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_sd_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[3],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(3),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[3],
 		.slot = 4,
 	},
 	{
@@ -1697,6 +1776,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_sd_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[4],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(4),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[4],
 		.slot = 5,
 	},
 	{
@@ -1706,6 +1786,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_sd_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[5],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(5),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[5],
 		.slot = 6,
 	},
 	{
@@ -1715,6 +1796,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_sd_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[6],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(6),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[6],
 		.slot = 7,
 	},
 	{
@@ -1724,6 +1806,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_lc_sd_data[] = {
 		.hpdev.brdinfo = &mlxplat_mlxcpld_lc_i2c_dev[7],
 		.hpdev.nr = MLXPLAT_CPLD_NR_LC_SET(7),
 		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
+		.hpdev.notifier = &mlxplat_mlxcpld_modular_lc_notifier[7],
 		.slot = 8,
 	},
 };
