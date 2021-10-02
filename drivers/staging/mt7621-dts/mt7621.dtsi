@@ -127,16 +127,6 @@
 			reg = <0x5000 0x1000>;
 		};
 
-		cpc: cpc@1fbf0000 {
-			     compatible = "mediatek,mt7621-cpc";
-			     reg = <0x1fbf0000 0x8000>;
-		};
-
-		mc: mc@1fbf8000 {
-			    compatible = "mediatek,mt7621-mc";
-			    reg = <0x1fbf8000 0x8000>;
-		};
-
 		uartlite: uartlite@c00 {
 			compatible = "ns16550a";
 			reg = <0xc00 0x100>;
@@ -356,6 +346,16 @@
 			interrupts = <GIC_LOCAL 1 IRQ_TYPE_NONE>;
 			clocks = <&sysc MT7621_CLK_CPU>;
 		};
+	};
+
+	cpc: cpc@1fbf0000 {
+		compatible = "mti,mips-cpc";
+		reg = <0x1fbf0000 0x8000>;
+	};
+
+	cdmm: cdmm@1fbf8000 {
+		compatible = "mti,mips-cdmm";
+		reg = <0x1fbf8000 0x8000>;
 	};
 
 	nand: nand@1e003000 {
