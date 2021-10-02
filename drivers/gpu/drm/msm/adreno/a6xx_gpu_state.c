@@ -180,7 +180,7 @@ static int debugbus_read(struct msm_gpu *gpu, u32 block, u32 offset,
 	msm_readl((ptr) + ((offset) << 2))
 
 /* read a value from the CX debug bus */
-static int cx_debugbus_read(void *__iomem cxdbg, u32 block, u32 offset,
+static int cx_debugbus_read(void __iomem *cxdbg, u32 block, u32 offset,
 		u32 *data)
 {
 	u32 reg = A6XX_CX_DBGC_CFG_DBGBUS_SEL_A_PING_INDEX(offset) |
