@@ -1123,7 +1123,7 @@ out_unlock:
 }
 
 static int
-eid_info_cmp(void *priv, struct list_head *a, struct list_head *b)
+eid_info_cmp(void *priv, const struct list_head *a, const struct list_head *b)
 {
 	struct aspeed_mctp_endpoint *endpoint_a;
 	struct aspeed_mctp_endpoint *endpoint_b;
@@ -1221,7 +1221,7 @@ aspeed_mctp_set_eid_info(struct aspeed_mctp *priv, void __user *userbuf)
 		list_add_tail(&endpoint->link, &list);
 	}
 
-	list_sort(NULL, &list, &eid_info_cmp);
+	list_sort(NULL, &list, eid_info_cmp);
 	if (!aspeed_mctp_eid_info_list_valid(&list)) {
 		ret = -EINVAL;
 		goto out;
