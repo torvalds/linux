@@ -10,6 +10,7 @@
 
 #include <linux/bcma/bcma.h>
 #include <linux/brcmphy.h>
+#include <linux/of_mdio.h>
 #include "bgmac.h"
 
 static bool bcma_mdio_wait_value(struct bcma_device *core, u16 reg, u32 mask,
@@ -211,6 +212,7 @@ struct mii_bus *bcma_mdio_mii_register(struct bgmac *bgmac)
 {
 	struct bcma_device *core = bgmac->bcma.core;
 	struct mii_bus *mii_bus;
+	struct device_node *np;
 	int err;
 
 	mii_bus = mdiobus_alloc();
@@ -229,7 +231,9 @@ struct mii_bus *bcma_mdio_mii_register(struct bgmac *bgmac)
 	mii_bus->parent = &core->dev;
 	mii_bus->phy_mask = ~(1 << bgmac->phyaddr);
 
-	err = mdiobus_register(mii_bus);
+	np = of_get_child_by_name(core->dev.of_node, "mdio");
+
+	err = of_mdiobus_register(mii_bus, np);
 	if (err) {
 		dev_err(&core->dev, "Registration of mii bus failed\n");
 		goto err_free_bus;
