@@ -7151,31 +7151,41 @@ static int ufshcd_host_reset_and_restore(struct ufs_hba *hba)
  */
 static int ufshcd_reset_and_restore(struct ufs_hba *hba)
 {
-	u32 saved_err;
-	u32 saved_uic_err;
+	u32 saved_err = 0;
+	u32 saved_uic_err = 0;
 	int err = 0;
 	unsigned long flags;
 	int retries = MAX_HOST_RESET_RETRIES;
 
-	/*
-	 * This is a fresh start, cache and clear saved error first,
-	 * in case new error generated during reset and restore.
-	 */
 	spin_lock_irqsave(hba->host->host_lock, flags);
-	saved_err = hba->saved_err;
-	saved_uic_err = hba->saved_uic_err;
-	hba->saved_err = 0;
-	hba->saved_uic_err = 0;
-	spin_unlock_irqrestore(hba->host->host_lock, flags);
-
 	do {
+		/*
+		 * This is a fresh start, cache and clear saved error first,
+		 * in case new error generated during reset and restore.
+		 */
+		saved_err |= hba->saved_err;
+		saved_uic_err |= hba->saved_uic_err;
+		hba->saved_err = 0;
+		hba->saved_uic_err = 0;
+		hba->force_reset = false;
+		hba->ufshcd_state = UFSHCD_STATE_RESET;
+		spin_unlock_irqrestore(hba->host->host_lock, flags);
+
 		/* Reset the attached device */
 		ufshcd_device_reset(hba);
 
 		err = ufshcd_host_reset_and_restore(hba);
+
+		spin_lock_irqsave(hba->host->host_lock, flags);
+		if (err)
+			continue;
+		/* Do not exit unless operational or dead */
+		if (hba->ufshcd_state != UFSHCD_STATE_OPERATIONAL &&
+		    hba->ufshcd_state != UFSHCD_STATE_ERROR &&
+		    hba->ufshcd_state != UFSHCD_STATE_EH_SCHEDULED_NON_FATAL)
+			err = -EAGAIN;
 	} while (err && --retries);
 
-	spin_lock_irqsave(hba->host->host_lock, flags);
 	/*
 	 * Inform scsi mid-layer that we did reset and allow to handle
 	 * Unit Attention properly.
