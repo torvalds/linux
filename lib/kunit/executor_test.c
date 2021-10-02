@@ -149,6 +149,7 @@ static void filter_suites_test(struct kunit *test)
 
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, filtered.start);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, filtered.start[0]);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, filtered.start[0][0]);
 	KUNIT_EXPECT_STREQ(test, (const char *)filtered.start[0][0]->name, "suite0");
 }
 

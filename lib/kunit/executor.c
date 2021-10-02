@@ -33,7 +33,7 @@ static void kunit_parse_filter_glob(struct kunit_test_filter *parsed,
 	const char *period = strchr(filter_glob, '.');
 
 	if (!period) {
-		parsed->suite_glob = kmalloc(len, GFP_KERNEL);
+		parsed->suite_glob = kzalloc(len + 1, GFP_KERNEL);
 		parsed->test_glob = NULL;
 		strcpy(parsed->suite_glob, filter_glob);
 		return;
