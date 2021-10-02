@@ -237,6 +237,10 @@ static void tc358768_hw_enable(struct tc358768_priv *priv)
 	if (priv->enabled)
 		return;
 
+	ret = clk_prepare_enable(priv->refclk);
+	if (ret < 0)
+		dev_err(priv->dev, "error enabling refclk (%d)\n", ret);
+
 	ret = regulator_bulk_enable(ARRAY_SIZE(priv->supplies), priv->supplies);
 	if (ret < 0)
 		dev_err(priv->dev, "error enabling regulators (%d)\n", ret);
@@ -273,6 +277,8 @@ static void tc358768_hw_disable(struct tc358768_priv *priv)
 				     priv->supplies);
 	if (ret < 0)
 		dev_err(priv->dev, "error disabling regulators (%d)\n", ret);
+
+	clk_disable_unprepare(priv->refclk);
 
 	priv->enabled = false;
 }
