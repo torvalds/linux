@@ -18,7 +18,6 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_rect.h>
 #include <drm/drm_vblank.h>
-#include <drm/drm_drv.h>
 
 #include "dpu_kms.h"
 #include "dpu_hw_lm.h"
@@ -1173,15 +1172,14 @@ static int _dpu_debugfs_status_show(struct seq_file *s, void *data)
 	struct drm_display_mode *mode;
 	struct drm_framebuffer *fb;
 	struct drm_plane_state *state;
-	struct drm_modeset_acquire_ctx ctx;
 	struct dpu_crtc_state *cstate;
 
-	int i, out_width, ret;
+	int i, out_width;
 
 	dpu_crtc = s->private;
 	crtc = &dpu_crtc->base;
 
-	DRM_MODESET_LOCK_ALL_BEGIN(crtc->dev, ctx, 0, ret);
+	drm_modeset_lock_all(crtc->dev);
 	cstate = to_dpu_crtc_state(crtc->state);
 
 	mode = &crtc->state->adjusted_mode;
@@ -1265,9 +1263,9 @@ static int _dpu_debugfs_status_show(struct seq_file *s, void *data)
 		dpu_crtc->vblank_cb_time = ktime_set(0, 0);
 	}
 
-	DRM_MODESET_LOCK_ALL_END(crtc->dev, ctx, ret);
+	drm_modeset_unlock_all(crtc->dev);
 
-	return ret;
+	return 0;
 }
 
 DEFINE_SHOW_ATTRIBUTE(_dpu_debugfs_status);
