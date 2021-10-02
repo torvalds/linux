@@ -605,7 +605,7 @@ static int ocelot_port_set_mac_address(struct net_device *dev, void *p)
 	/* Then forget the previous one. */
 	ocelot_mact_forget(ocelot, dev->dev_addr, ocelot_port->pvid_vlan.vid);
 
-	ether_addr_copy(dev->dev_addr, addr->sa_data);
+	eth_hw_addr_set(dev, addr->sa_data);
 	return 0;
 }
 
@@ -1704,7 +1704,7 @@ int ocelot_probe_port(struct ocelot *ocelot, int port, struct regmap *target,
 		NETIF_F_HW_TC;
 	dev->features |= NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_HW_TC;
 
-	memcpy(dev->dev_addr, ocelot->base_mac, ETH_ALEN);
+	eth_hw_addr_set(dev, ocelot->base_mac);
 	dev->dev_addr[ETH_ALEN - 1] += port;
 	ocelot_mact_learn(ocelot, PGID_CPU, dev->dev_addr,
 			  ocelot_port->pvid_vlan.vid, ENTRYTYPE_LOCKED);

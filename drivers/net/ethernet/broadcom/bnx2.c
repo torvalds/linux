@@ -8574,7 +8574,7 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (is_kdump_kernel())
 		bnx2_wait_dma_complete(bp);
 
-	memcpy(dev->dev_addr, bp->mac_addr, ETH_ALEN);
+	eth_hw_addr_set(dev, bp->mac_addr);
 
 	dev->hw_features = NETIF_F_IP_CSUM | NETIF_F_SG |
 		NETIF_F_TSO | NETIF_F_TSO_ECN |

@@ -360,7 +360,7 @@ static void axienet_set_mac_address(struct net_device *ndev,
 	struct axienet_local *lp = netdev_priv(ndev);
 
 	if (address)
-		memcpy(ndev->dev_addr, address, ETH_ALEN);
+		eth_hw_addr_set(ndev, address);
 	if (!is_valid_ether_addr(ndev->dev_addr))
 		eth_hw_addr_random(ndev);
 

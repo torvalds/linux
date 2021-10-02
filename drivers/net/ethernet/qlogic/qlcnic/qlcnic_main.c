@@ -304,7 +304,7 @@ int qlcnic_read_mac_addr(struct qlcnic_adapter *adapter)
 	if (ret)
 		return ret;
 
-	memcpy(netdev->dev_addr, mac_addr, ETH_ALEN);
+	eth_hw_addr_set(netdev, mac_addr);
 	memcpy(adapter->mac_addr, netdev->dev_addr, netdev->addr_len);
 
 	/* set station address */

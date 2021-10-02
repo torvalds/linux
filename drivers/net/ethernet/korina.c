@@ -1297,7 +1297,7 @@ static int korina_probe(struct platform_device *pdev)
 	lp = netdev_priv(dev);
 
 	if (mac_addr)
-		ether_addr_copy(dev->dev_addr, mac_addr);
+		eth_hw_addr_set(dev, mac_addr);
 	else if (of_get_mac_address(pdev->dev.of_node, dev->dev_addr) < 0)
 		eth_hw_addr_random(dev);
 

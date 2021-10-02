@@ -323,7 +323,7 @@ static inline void eth_hw_addr_inherit(struct net_device *dst,
 				       struct net_device *src)
 {
 	dst->addr_assign_type = src->addr_assign_type;
-	ether_addr_copy(dst->dev_addr, src->dev_addr);
+	eth_hw_addr_set(dst, src->dev_addr);
 }
 
 /**

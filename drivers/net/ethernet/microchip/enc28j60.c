@@ -517,7 +517,7 @@ static int enc28j60_set_mac_address(struct net_device *dev, void *addr)
 	if (!is_valid_ether_addr(address->sa_data))
 		return -EADDRNOTAVAIL;
 
-	ether_addr_copy(dev->dev_addr, address->sa_data);
+	eth_hw_addr_set(dev, address->sa_data);
 	return enc28j60_set_hw_macaddr(dev);
 }
 
@@ -1573,7 +1573,7 @@ static int enc28j60_probe(struct spi_device *spi)
 	}
 
 	if (device_get_mac_address(&spi->dev, macaddr, sizeof(macaddr)))
-		ether_addr_copy(dev->dev_addr, macaddr);
+		eth_hw_addr_set(dev, macaddr);
 	else
 		eth_hw_addr_random(dev);
 	enc28j60_set_hw_macaddr(dev);

@@ -985,7 +985,7 @@ static int cpsw_ndo_set_mac_address(struct net_device *ndev, void *p)
 			   flags, vid);
 
 	memcpy(priv->mac_addr, addr->sa_data, ETH_ALEN);
-	memcpy(ndev->dev_addr, priv->mac_addr, ETH_ALEN);
+	eth_hw_addr_set(ndev, priv->mac_addr);
 	for_each_slave(priv, cpsw_set_slave_mac, priv);
 
 	pm_runtime_put(cpsw->dev);
@@ -1460,7 +1460,7 @@ static int cpsw_probe_dual_emac(struct cpsw_priv *priv)
 		dev_info(cpsw->dev, "cpsw: Random MACID = %pM\n",
 			 priv_sl2->mac_addr);
 	}
-	memcpy(ndev->dev_addr, priv_sl2->mac_addr, ETH_ALEN);
+	eth_hw_addr_set(ndev, priv_sl2->mac_addr);
 
 	priv_sl2->emac_port = 1;
 	cpsw->slaves[1].ndev = ndev;
@@ -1639,7 +1639,7 @@ static int cpsw_probe(struct platform_device *pdev)
 		dev_info(dev, "Random MACID = %pM\n", priv->mac_addr);
 	}
 
-	memcpy(ndev->dev_addr, priv->mac_addr, ETH_ALEN);
+	eth_hw_addr_set(ndev, priv->mac_addr);
 
 	cpsw->slaves[0].ndev = ndev;
 

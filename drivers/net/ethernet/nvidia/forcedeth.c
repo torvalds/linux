@@ -3175,7 +3175,7 @@ static int nv_set_mac_address(struct net_device *dev, void *addr)
 		return -EADDRNOTAVAIL;
 
 	/* synchronized against open : rtnl_lock() held by caller */
-	memcpy(dev->dev_addr, macaddr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(dev, macaddr->sa_data);
 
 	if (netif_running(dev)) {
 		netif_tx_lock_bh(dev);

@@ -582,7 +582,7 @@ static unsigned long __init lance_probe1( struct net_device *dev,
 	switch( lp->cardtype ) {
 	  case OLD_RIEBL:
 		/* No ethernet address! (Set some default address) */
-		memcpy(dev->dev_addr, OldRieblDefHwaddr, ETH_ALEN);
+		eth_hw_addr_set(dev, OldRieblDefHwaddr);
 		break;
 	  case NEW_RIEBL:
 		lp->memcpy_f(dev->dev_addr, RIEBL_HWADDR_ADDR, ETH_ALEN);

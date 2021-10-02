@@ -1608,7 +1608,7 @@ static int mana_init_port(struct net_device *ndev)
 	if (apc->num_queues > apc->max_queues)
 		apc->num_queues = apc->max_queues;
 
-	ether_addr_copy(ndev->dev_addr, apc->mac_addr);
+	eth_hw_addr_set(ndev, apc->mac_addr);
 
 	return 0;
 

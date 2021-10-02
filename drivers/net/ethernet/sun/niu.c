@@ -6386,7 +6386,7 @@ static int niu_set_mac_addr(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(dev, addr->sa_data);
 
 	if (!netif_running(dev))
 		return 0;
@@ -8344,7 +8344,7 @@ static void niu_pci_vpd_validate(struct niu *np)
 		return;
 	}
 
-	memcpy(dev->dev_addr, vpd->local_mac, ETH_ALEN);
+	eth_hw_addr_set(dev, vpd->local_mac);
 
 	val8 = dev->dev_addr[5];
 	dev->dev_addr[5] += np->port;

@@ -313,7 +313,7 @@ jme_load_macaddr(struct net_device *netdev)
 	val = jread32(jme, JME_RXUMA_HI);
 	macaddr[4] = (val >>  0) & 0xFF;
 	macaddr[5] = (val >>  8) & 0xFF;
-	memcpy(netdev->dev_addr, macaddr, ETH_ALEN);
+	eth_hw_addr_set(netdev, macaddr);
 	spin_unlock_bh(&jme->macaddr_lock);
 }
 

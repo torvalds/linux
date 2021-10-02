@@ -816,7 +816,7 @@ static int lan743x_mac_init(struct lan743x_adapter *adapter)
 			eth_random_addr(adapter->mac_address);
 	}
 	lan743x_mac_set_address(adapter, adapter->mac_address);
-	ether_addr_copy(netdev->dev_addr, adapter->mac_address);
+	eth_hw_addr_set(netdev, adapter->mac_address);
 
 	return 0;
 }
@@ -2645,7 +2645,7 @@ static int lan743x_netdev_set_mac_address(struct net_device *netdev,
 	ret = eth_prepare_mac_addr_change(netdev, sock_addr);
 	if (ret)
 		return ret;
-	ether_addr_copy(netdev->dev_addr, sock_addr->sa_data);
+	eth_hw_addr_set(netdev, sock_addr->sa_data);
 	lan743x_mac_set_address(adapter, sock_addr->sa_data);
 	lan743x_rfe_update_mac_address(adapter);
 	return 0;

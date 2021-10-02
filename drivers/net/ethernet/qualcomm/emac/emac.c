@@ -550,7 +550,7 @@ static int emac_probe_resources(struct platform_device *pdev,
 
 	/* get mac address */
 	if (device_get_mac_address(&pdev->dev, maddr, ETH_ALEN))
-		ether_addr_copy(netdev->dev_addr, maddr);
+		eth_hw_addr_set(netdev, maddr);
 	else
 		eth_hw_addr_random(netdev);
 

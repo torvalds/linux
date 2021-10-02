@@ -356,7 +356,7 @@ static int emac_set_mac_address(struct net_device *dev, void *p)
 	if (netif_running(dev))
 		return -EBUSY;
 
-	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(dev, addr->sa_data);
 
 	writel(dev->dev_addr[0] << 16 | dev->dev_addr[1] << 8 | dev->
 	       dev_addr[2], db->membase + EMAC_MAC_A1_REG);

@@ -391,7 +391,7 @@ static int dm9601_bind(struct usbnet *dev, struct usb_interface *intf)
 	 * Overwrite the auto-generated address only with good ones.
 	 */
 	if (is_valid_ether_addr(mac))
-		memcpy(dev->net->dev_addr, mac, ETH_ALEN);
+		eth_hw_addr_set(dev->net, mac);
 	else {
 		printk(KERN_WARNING
 			"dm9601: No valid MAC address in EEPROM, using %pM\n",
