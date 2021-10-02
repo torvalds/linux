@@ -26,23 +26,6 @@ The ``iosm`` driver implements the following driver-specific parameters.
        the device during firmware flashing.
        If set, Full nand erase command will be sent to the device. By default,
        only conditional erase support is enabled.
-   * - ``download_region``
-     - u8
-     - runtime
-     - download_region parameter is used to identify if we are flashing the
-       loadmap/region file during the firmware flashing.
-   * - ``address``
-     - u32
-     - runtime
-     - address parameter is used to send the address information of the
-       loadmap/region file which is required during the firmware flashing
-       process. Each region file has be flashed to its respective flash address.
-   * - ``region_count``
-     - u8
-     - runtime
-     - region_count parameter is used to inform the driver on how many total
-       loadmap/region files are present in modem firmware image that has to be
-       flashed.
 
 
 Flash Update
@@ -87,7 +70,7 @@ Flash Commands:
 1) When modem is in Boot ROM stage, user can use below command to inject PSI RAM
 image using devlink flash command.
 
-$ devlink dev flash pci/0000:02:00.0 file <PSI_RAM_File_name> component PSI
+$ devlink dev flash pci/0000:02:00.0 file <PSI_RAM_File_name>
 
 2) If user want to do a full erase, below command need to be issued to set the
 erase full flash param (To be set only if full erase required).
@@ -95,22 +78,19 @@ erase full flash param (To be set only if full erase required).
 $ devlink dev param set pci/0000:02:00.0 name erase_full_flash value true cmode runtime
 
 3) Inject EBL after the modem is in PSI stage.
-$ devlink dev flash pci/0000:02:00.0 file <EBL_File_name> component EBL
+
+$ devlink dev flash pci/0000:02:00.0 file <EBL_File_name>
 
 4) Once EBL is injected successfully, then the actual firmware flashing takes
 place. Below is the sequence of commands used for each of the firmware images.
 
 a) Flash secure bin file.
-$ devlink dev flash pci/0000:02:00.0 file <Secure_bin_file_name> component FLS
+
+$ devlink dev flash pci/0000:02:00.0 file <Secure_bin_file_name>
 
 b) Flashing the Loadmap/Region file
-$ devlink dev param set pci/0000:02:00.0 name region_count value 1 cmode runtime
 
-$ devlink dev param set pci/0000:02:00.0 name download_region value true cmode runtime
-
-$ devlink dev param set pci/0000:02:00.0 name address value <Nand_address> cmode runtime
-
-$ devlink dev flash pci/0000:02:00.0 file <Load_map_file_name> component FLS
+$ devlink dev flash pci/0000:02:00.0 file <Load_map_file_name>
 
 Regions
 =======

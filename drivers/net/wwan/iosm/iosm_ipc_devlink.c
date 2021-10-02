@@ -23,31 +23,11 @@ static int ipc_devlink_get_param(struct devlink *dl, u32 id,
 				 struct devlink_param_gset_ctx *ctx)
 {
 	struct iosm_devlink *ipc_devlink = devlink_priv(dl);
-	int rc = 0;
 
-	switch (id) {
-	case IOSM_DEVLINK_PARAM_ID_ERASE_FULL_FLASH:
+	if (id == IOSM_DEVLINK_PARAM_ID_ERASE_FULL_FLASH)
 		ctx->val.vu8 = ipc_devlink->param.erase_full_flash;
-		break;
 
-	case IOSM_DEVLINK_PARAM_ID_DOWNLOAD_REGION:
-		ctx->val.vu8 = ipc_devlink->param.download_region;
-		break;
-
-	case IOSM_DEVLINK_PARAM_ID_ADDRESS:
-		ctx->val.vu32 = ipc_devlink->param.address;
-		break;
-
-	case IOSM_DEVLINK_PARAM_ID_REGION_COUNT:
-		ctx->val.vu8 = ipc_devlink->param.region_count;
-		break;
-
-	default:
-		rc = -EOPNOTSUPP;
-		break;
-	}
-
-	return rc;
+	return 0;
 }
 
 /* Set the param values for the specific param ID's */
@@ -55,52 +35,17 @@ static int ipc_devlink_set_param(struct devlink *dl, u32 id,
 				 struct devlink_param_gset_ctx *ctx)
 {
 	struct iosm_devlink *ipc_devlink = devlink_priv(dl);
-	int rc = 0;
 
-	switch (id) {
-	case IOSM_DEVLINK_PARAM_ID_ERASE_FULL_FLASH:
+	if (id == IOSM_DEVLINK_PARAM_ID_ERASE_FULL_FLASH)
 		ipc_devlink->param.erase_full_flash = ctx->val.vu8;
-		break;
 
-	case IOSM_DEVLINK_PARAM_ID_DOWNLOAD_REGION:
-		ipc_devlink->param.download_region = ctx->val.vu8;
-		break;
-
-	case IOSM_DEVLINK_PARAM_ID_ADDRESS:
-		ipc_devlink->param.address = ctx->val.vu32;
-		break;
-
-	case IOSM_DEVLINK_PARAM_ID_REGION_COUNT:
-		ipc_devlink->param.region_count = ctx->val.vu8;
-		break;
-
-	default:
-		rc = -EOPNOTSUPP;
-		break;
-	}
-
-	return rc;
+	return 0;
 }
 
 /* Devlink param structure array */
 static const struct devlink_param iosm_devlink_params[] = {
 	DEVLINK_PARAM_DRIVER(IOSM_DEVLINK_PARAM_ID_ERASE_FULL_FLASH,
 			     "erase_full_flash", DEVLINK_PARAM_TYPE_BOOL,
-			     BIT(DEVLINK_PARAM_CMODE_RUNTIME),
-			     ipc_devlink_get_param, ipc_devlink_set_param,
-			     NULL),
-	DEVLINK_PARAM_DRIVER(IOSM_DEVLINK_PARAM_ID_DOWNLOAD_REGION,
-			     "download_region", DEVLINK_PARAM_TYPE_BOOL,
-			     BIT(DEVLINK_PARAM_CMODE_RUNTIME),
-			     ipc_devlink_get_param, ipc_devlink_set_param,
-			     NULL),
-	DEVLINK_PARAM_DRIVER(IOSM_DEVLINK_PARAM_ID_ADDRESS,
-			     "address", DEVLINK_PARAM_TYPE_U32,
-			     BIT(DEVLINK_PARAM_CMODE_RUNTIME),
-			     ipc_devlink_get_param, ipc_devlink_set_param,
-			     NULL),
-	DEVLINK_PARAM_DRIVER(IOSM_DEVLINK_PARAM_ID_REGION_COUNT,
-			     "region_count", DEVLINK_PARAM_TYPE_U8,
 			     BIT(DEVLINK_PARAM_CMODE_RUNTIME),
 			     ipc_devlink_get_param, ipc_devlink_set_param,
 			     NULL),
@@ -134,18 +79,23 @@ static int ipc_devlink_flash_update(struct devlink *devlink,
 {
 	struct iosm_devlink *ipc_devlink = devlink_priv(devlink);
 	enum iosm_flash_comp_type fls_type;
+	struct iosm_devlink_image *header;
 	int rc = -EINVAL;
 	u8 *mdm_rsp;
 
-	if (!params->component)
+	header = (struct iosm_devlink_image *)params->fw->data;
+
+	if (!header || params->fw->size <= IOSM_DEVLINK_HDR_SIZE ||
+	    (memcmp(header->magic_header, IOSM_DEVLINK_MAGIC_HEADER,
+	     IOSM_DEVLINK_MAGIC_HEADER_LEN) != 0))
 		return -EINVAL;
 
 	mdm_rsp = kzalloc(IOSM_EBL_DW_PACK_SIZE, GFP_KERNEL);
 	if (!mdm_rsp)
 		return -ENOMEM;
 
-	fls_type = ipc_devlink_get_flash_comp_type(params->component,
-						   strlen(params->component));
+	fls_type = ipc_devlink_get_flash_comp_type(header->image_type,
+						   IOSM_DEVLINK_MAX_IMG_LEN);
 
 	switch (fls_type) {
 	case FLASH_COMP_TYPE_PSI:
@@ -165,16 +115,16 @@ static int ipc_devlink_flash_update(struct devlink *devlink,
 		break;
 	default:
 		devlink_flash_update_status_notify(devlink, "Invalid component",
-						   params->component, 0, 0);
+						   NULL, 0, 0);
 		break;
 	}
 
 	if (!rc)
 		devlink_flash_update_status_notify(devlink, "Flashing success",
-						   params->component, 0, 0);
+						   header->image_type, 0, 0);
 	else
 		devlink_flash_update_status_notify(devlink, "Flashing failed",
-						   params->component, 0, 0);
+						   header->image_type, 0, 0);
 
 	kfree(mdm_rsp);
 	return rc;
@@ -182,7 +132,6 @@ static int ipc_devlink_flash_update(struct devlink *devlink,
 
 /* Call back function for devlink ops */
 static const struct devlink_ops devlink_flash_ops = {
-	.supported_flash_update_params = DEVLINK_SUPPORT_FLASH_UPDATE_COMPONENT,
 	.flash_update = ipc_devlink_flash_update,
 };
 
