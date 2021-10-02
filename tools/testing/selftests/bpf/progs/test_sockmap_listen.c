@@ -56,7 +56,7 @@ int prog_stream_verdict(struct __sk_buff *skb)
 	return verdict;
 }
 
-SEC("sk_skb/skb_verdict")
+SEC("sk_skb")
 int prog_skb_verdict(struct __sk_buff *skb)
 {
 	unsigned int *count;

@@ -33,23 +33,23 @@ int subprog_tail(struct __sk_buff *skb)
 	return skb->len * 2;
 }
 
-SEC("classifier/0")
-int bpf_func_0(struct __sk_buff *skb)
+SEC("tc")
+int classifier_0(struct __sk_buff *skb)
 {
 	volatile char arr[128] = {};
 
 	return subprog_tail2(skb);
 }
 
-SEC("classifier/1")
-int bpf_func_1(struct __sk_buff *skb)
+SEC("tc")
+int classifier_1(struct __sk_buff *skb)
 {
 	volatile char arr[128] = {};
 
 	return skb->len * 3;
 }
 
-SEC("classifier")
+SEC("tc")
 int entry(struct __sk_buff *skb)
 {
 	volatile char arr[128] = {};
@@ -58,4 +58,3 @@ int entry(struct __sk_buff *skb)
 }
 
 char __license[] SEC("license") = "GPL";
-int _version SEC("version") = 1;

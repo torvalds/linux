@@ -16,31 +16,31 @@ volatile const __u32 IFINDEX_DST;
 static const __u8 src_mac[] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55};
 static const __u8 dst_mac[] = {0x00, 0x22, 0x33, 0x44, 0x55, 0x66};
 
-SEC("classifier/chk_egress")
+SEC("tc")
 int tc_chk(struct __sk_buff *skb)
 {
 	return TC_ACT_SHOT;
 }
 
-SEC("classifier/dst_ingress")
+SEC("tc")
 int tc_dst(struct __sk_buff *skb)
 {
 	return bpf_redirect_peer(IFINDEX_SRC, 0);
 }
 
-SEC("classifier/src_ingress")
+SEC("tc")
 int tc_src(struct __sk_buff *skb)
 {
 	return bpf_redirect_peer(IFINDEX_DST, 0);
 }
 
-SEC("classifier/dst_ingress_l3")
+SEC("tc")
 int tc_dst_l3(struct __sk_buff *skb)
 {
 	return bpf_redirect(IFINDEX_SRC, 0);
 }
 
-SEC("classifier/src_ingress_l3")
+SEC("tc")
 int tc_src_l3(struct __sk_buff *skb)
 {
 	__u16 proto = skb->protocol;
