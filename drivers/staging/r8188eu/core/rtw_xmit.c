@@ -1575,7 +1575,7 @@ static int rtw_br_client_tx(struct adapter *padapter, struct sk_buff **pskb)
 		if (*((__be16 *)(skb->data + MACADDRLEN * 2)) == __constant_htons(ETH_P_IP)) {
 			if (memcmp(padapter->scdb_mac, skb->data + MACADDRLEN, MACADDRLEN)) {
 				padapter->scdb_entry = (struct nat25_network_db_entry *)scdb_findEntry(padapter,
-							skb->data + MACADDRLEN, skb->data + WLAN_ETHHDR_LEN + 12);
+							skb->data + WLAN_ETHHDR_LEN + 12);
 				if (padapter->scdb_entry) {
 					memcpy(padapter->scdb_mac, skb->data + MACADDRLEN, MACADDRLEN);
 					memcpy(padapter->scdb_ip, skb->data + WLAN_ETHHDR_LEN + 12, 4);
