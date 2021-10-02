@@ -29,6 +29,7 @@
 #include "nau8824.h"
 
 #define NAU8824_JD_ACTIVE_HIGH			BIT(0)
+#define NAU8824_MONO_SPEAKER			BIT(1)
 
 static int nau8824_quirk;
 static int quirk_override = -1;
@@ -1861,7 +1862,25 @@ static const struct dmi_system_id nau8824_quirk_table[] = {
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "Cherry Trail CR"),
 			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "20170531"),
 		},
-		.driver_data = (void *)(NAU8824_JD_ACTIVE_HIGH),
+		.driver_data = (void *)(NAU8824_JD_ACTIVE_HIGH |
+					NAU8824_MONO_SPEAKER),
+	},
+	{
+		/* CUBE iwork8 Air */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "cube"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "i1-TF"),
+			DMI_MATCH(DMI_BOARD_NAME, "Cherry Trail CR"),
+		},
+		.driver_data = (void *)(NAU8824_MONO_SPEAKER),
+	},
+	{
+		/* Pipo W2S */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "PIPO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "W2S"),
+		},
+		.driver_data = (void *)(NAU8824_MONO_SPEAKER),
 	},
 	{}
 };
@@ -1879,6 +1898,17 @@ static void nau8824_check_quirks(void)
 	if (dmi_id)
 		nau8824_quirk = (unsigned long)dmi_id->driver_data;
 }
+
+const char *nau8824_components(void)
+{
+	nau8824_check_quirks();
+
+	if (nau8824_quirk & NAU8824_MONO_SPEAKER)
+		return "cfg-spk:1";
+	else
+		return "cfg-spk:2";
+}
+EXPORT_SYMBOL_GPL(nau8824_components);
 
 static int nau8824_i2c_probe(struct i2c_client *i2c,
 	const struct i2c_device_id *id)
