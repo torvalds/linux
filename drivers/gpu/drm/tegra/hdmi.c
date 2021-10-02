@@ -22,7 +22,6 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
-#include <drm/drm_drv.h>
 
 #include "hda.h"
 #include "hdmi.h"
@@ -1032,11 +1031,10 @@ static int tegra_hdmi_show_regs(struct seq_file *s, void *data)
 	struct tegra_hdmi *hdmi = node->info_ent->data;
 	struct drm_crtc *crtc = hdmi->output.encoder.crtc;
 	struct drm_device *drm = node->minor->dev;
-	struct drm_modeset_acquire_ctx ctx;
 	unsigned int i;
 	int err = 0;
 
-	DRM_MODESET_LOCK_ALL_BEGIN(drm, ctx, 0, err);
+	drm_modeset_lock_all(drm);
 
 	if (!crtc || !crtc->state->active) {
 		err = -EBUSY;
@@ -1051,7 +1049,7 @@ static int tegra_hdmi_show_regs(struct seq_file *s, void *data)
 	}
 
 unlock:
-	DRM_MODESET_LOCK_ALL_END(drm, ctx, err);
+	drm_modeset_unlock_all(drm);
 	return err;
 }
 
