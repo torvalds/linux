@@ -6672,7 +6672,7 @@ bpf_object__open_buffer(const void *obj_buf, size_t obj_buf_sz,
 	return libbpf_ptr(__bpf_object__open(NULL, obj_buf, obj_buf_sz, &opts));
 }
 
-int bpf_object__unload(struct bpf_object *obj)
+static int bpf_object_unload(struct bpf_object *obj)
 {
 	size_t i;
 
@@ -6690,6 +6690,8 @@ int bpf_object__unload(struct bpf_object *obj)
 
 	return 0;
 }
+
+int bpf_object__unload(struct bpf_object *obj) __attribute__((alias("bpf_object_unload")));
 
 static int bpf_object__sanitize_maps(struct bpf_object *obj)
 {
@@ -7089,7 +7091,7 @@ out:
 		if (obj->maps[i].pinned && !obj->maps[i].reused)
 			bpf_map__unpin(&obj->maps[i], NULL);
 
-	bpf_object__unload(obj);
+	bpf_object_unload(obj);
 	pr_warn("failed to load object '%s'\n", obj->path);
 	return libbpf_err(err);
 }
@@ -7698,7 +7700,7 @@ void bpf_object__close(struct bpf_object *obj)
 
 	bpf_gen__free(obj->gen_loader);
 	bpf_object__elf_finish(obj);
-	bpf_object__unload(obj);
+	bpf_object_unload(obj);
 	btf__free(obj->btf);
 	btf_ext__free(obj->btf_ext);
 
