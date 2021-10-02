@@ -616,6 +616,14 @@ ap_ts_i2c: &i2c14 {
 	};
 };
 
+&gmu {
+	status = "okay";
+};
+
+&gpu {
+	status = "okay";
+};
+
 &ipa {
 	status = "okay";
 	modem-init;
@@ -643,6 +651,8 @@ ap_ts_i2c: &i2c14 {
 };
 
 &mss_pil {
+	status = "okay";
+
 	iommus = <&apps_smmu 0x781 0x0>,
 		 <&apps_smmu 0x724 0x3>;
 };
@@ -1317,6 +1327,8 @@ ap_ts_i2c: &i2c14 {
 };
 
 &venus {
+	status = "okay";
+
 	video-firmware {
 		iommus = <&apps_smmu 0x10b2 0x0>;
 	};

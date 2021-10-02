@@ -2995,6 +2995,8 @@
 					<&rpmhpd SDM845_MSS>;
 			power-domain-names = "cx", "mx", "mss";
 
+			status = "disabled";
+
 			mba {
 				memory-region = <&mba_region>;
 			};
@@ -3889,6 +3891,8 @@
 					<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_VENUS_CFG 0>;
 			interconnect-names = "video-mem", "cpu-cfg";
 
+			status = "disabled";
+
 			video-core0 {
 				compatible = "venus-decoder";
 			};
@@ -4423,6 +4427,8 @@
 			interconnects = <&mem_noc MASTER_GFX3D 0 &mem_noc SLAVE_EBI1 0>;
 			interconnect-names = "gfx-mem";
 
+			status = "disabled";
+
 			gpu_opp_table: opp-table {
 				compatible = "operating-points-v2";
 
@@ -4517,6 +4523,8 @@
 			iommus = <&adreno_smmu 5>;
 
 			operating-points-v2 = <&gmu_opp_table>;
+
+			status = "disabled";
 
 			gmu_opp_table: opp-table {
 				compatible = "operating-points-v2";

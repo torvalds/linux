@@ -311,7 +311,12 @@
 			   <GCC_LPASS_SWAY_CLK>;
 };
 
+&gmu {
+	status = "okay";
+};
+
 &gpu {
+	status = "okay";
 	zap-shader {
 		memory-region = <&gpu_mem>;
 		firmware-name = "qcom/LENOVO/81JL/qcdxkmsuc850.mbn";
@@ -433,6 +438,7 @@
 };
 
 &mss_pil {
+	status = "okay";
 	firmware-name = "qcom/LENOVO/81JL/qcdsp1v2850.mbn", "qcom/LENOVO/81JL/qcdsp2850.mbn";
 };
 
@@ -692,6 +698,10 @@
 
 	vdda-phy-supply = <&vdda_usb2_ss_1p2>;
 	vdda-pll-supply = <&vdda_usb2_ss_core>;
+};
+
+&venus {
+	status = "okay";
 };
 
 &wcd9340{

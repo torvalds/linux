@@ -439,7 +439,13 @@
 			   <GCC_LPASS_SWAY_CLK>;
 };
 
+&gmu {
+	status = "okay";
+};
+
 &gpu {
+	status = "okay";
+
 	zap-shader {
 		memory-region = <&gpu_mem>;
 		firmware-name = "qcom/sdm845/a630_zap.mbn";
@@ -564,6 +570,10 @@
 
 	vdda-phy-supply = <&vdda_usb2_ss_1p2>;
 	vdda-pll-supply = <&vdda_usb2_ss_core>;
+};
+
+&venus {
+	status = "okay";
 };
 
 &wifi {
