@@ -70,13 +70,30 @@ enum mlxreg_hotplug_device_action {
 };
 
 /**
+ * struct mlxreg_core_hotplug_notifier - hotplug notifier block:
+ *
+ * @identity: notifier identity name;
+ * @handle: user handle to be passed by user handler function;
+ * @user_handler: user handler function associated with the event;
+ */
+struct mlxreg_core_hotplug_notifier {
+	char identity[MLXREG_CORE_LABEL_MAX_SIZE];
+	void *handle;
+	int (*user_handler)(void *handle, enum mlxreg_hotplug_kind kind, u8 action);
+};
+
+/**
  * struct mlxreg_hotplug_device - I2C device data:
  *
  * @adapter: I2C device adapter;
  * @client: I2C device client;
  * @brdinfo: device board information;
  * @nr: I2C device adapter number, to which device is to be attached;
+ * @pdev: platform device, if device is instantiated as a platform device;
  * @action: action to be performed upon event receiving;
+ * @handle: user handle to be passed by user handler function;
+ * @user_handler: user handler function associated with the event;
+ * @notifier: pointer to event notifier block;
  *
  * Structure represents I2C hotplug device static data (board topology) and
  * dynamic data (related kernel objects handles).
@@ -86,7 +103,11 @@ struct mlxreg_hotplug_device {
 	struct i2c_client *client;
 	struct i2c_board_info *brdinfo;
 	int nr;
+	struct platform_device *pdev;
 	enum mlxreg_hotplug_device_action action;
+	void *handle;
+	int (*user_handler)(void *handle, enum mlxreg_hotplug_kind kind, u8 action);
+	struct mlxreg_core_hotplug_notifier *notifier;
 };
 
 /**
@@ -104,10 +125,12 @@ struct mlxreg_hotplug_device {
  * @mode: access mode;
  * @np - pointer to node platform associated with attribute;
  * @hpdev - hotplug device data;
+ * @notifier: pointer to event notifier block;
  * @health_cntr: dynamic device health indication counter;
  * @attached: true if device has been attached after good health indication;
  * @regnum: number of registers occupied by multi-register attribute;
  * @slot: slot number, at which device is located;
+ * @secured: if set indicates that entry access is secured;
  */
 struct mlxreg_core_data {
 	char label[MLXREG_CORE_LABEL_MAX_SIZE];
@@ -122,6 +145,7 @@ struct mlxreg_core_data {
 	umode_t	mode;
 	struct device_node *np;
 	struct mlxreg_hotplug_device hpdev;
+	struct mlxreg_core_hotplug_notifier *notifier;
 	u32 health_cntr;
 	bool attached;
 	u8 regnum;
