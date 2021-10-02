@@ -24,7 +24,6 @@
  */
 
 #include <linux/uaccess.h>
-#include <drm/drm_drv.h>
 
 #include "dc.h"
 #include "amdgpu.h"
@@ -1192,14 +1191,12 @@ static ssize_t trigger_hotplug(struct file *f, const char __user *buf,
 	struct drm_connector *connector = &aconnector->base;
 	struct dc_link *link = NULL;
 	struct drm_device *dev = connector->dev;
-	struct drm_modeset_acquire_ctx ctx;
 	enum dc_connection_type new_connection_type = dc_connection_none;
 	char *wr_buf = NULL;
 	uint32_t wr_buf_size = 42;
 	int max_param_num = 1;
 	long param[1] = {0};
 	uint8_t param_nums = 0;
-	int ret;
 
 	if (!aconnector || !aconnector->dc_link)
 		return -EINVAL;
@@ -1239,6 +1236,12 @@ static ssize_t trigger_hotplug(struct file *f, const char __user *buf,
 			goto unlock;
 
 		amdgpu_dm_update_connector_after_detect(aconnector);
+
+		drm_modeset_lock_all(dev);
+		dm_restore_drm_connector_state(dev, connector);
+		drm_modeset_unlock_all(dev);
+
+		drm_kms_helper_hotplug_event(dev);
 	} else if (param[0] == 0) {
 		if (!aconnector->dc_link)
 			goto unlock;
@@ -1256,18 +1259,12 @@ static ssize_t trigger_hotplug(struct file *f, const char __user *buf,
 
 		amdgpu_dm_update_connector_after_detect(aconnector);
 
-	} else {
-		goto unlock;
+		drm_modeset_lock_all(dev);
+		dm_restore_drm_connector_state(dev, connector);
+		drm_modeset_unlock_all(dev);
+
+		drm_kms_helper_hotplug_event(dev);
 	}
-
-	DRM_MODESET_LOCK_ALL_BEGIN(dev, ctx, 0, ret);
-	dm_restore_drm_connector_state(dev, connector);
-	DRM_MODESET_LOCK_ALL_END(dev, ctx, ret);
-
-	if (ret)
-		return ret;
-
-	drm_kms_helper_hotplug_event(dev);
 
 unlock:
 	mutex_unlock(&aconnector->hpd_lock);
