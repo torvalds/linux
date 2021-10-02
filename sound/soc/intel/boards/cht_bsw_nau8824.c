@@ -278,6 +278,8 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 		snd_soc_card_cht.driver_name = DRIVER_NAME;
 	}
 
+	snd_soc_card_cht.components = nau8824_components();
+
 	/* set pm ops */
 	if (sof_parent)
 		pdev->dev.driver->pm = &snd_soc_pm_ops;
