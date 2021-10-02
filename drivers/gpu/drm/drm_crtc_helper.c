@@ -218,14 +218,11 @@ static void __drm_helper_disable_unused_functions(struct drm_device *dev)
  */
 void drm_helper_disable_unused_functions(struct drm_device *dev)
 {
-	struct drm_modeset_acquire_ctx ctx;
-	int ret;
-
 	WARN_ON(drm_drv_uses_atomic_modeset(dev));
 
-	DRM_MODESET_LOCK_ALL_BEGIN(dev, ctx, 0, ret);
+	drm_modeset_lock_all(dev);
 	__drm_helper_disable_unused_functions(dev);
-	DRM_MODESET_LOCK_ALL_END(dev, ctx, ret);
+	drm_modeset_unlock_all(dev);
 }
 EXPORT_SYMBOL(drm_helper_disable_unused_functions);
 
@@ -945,14 +942,12 @@ void drm_helper_resume_force_mode(struct drm_device *dev)
 	struct drm_crtc *crtc;
 	struct drm_encoder *encoder;
 	const struct drm_crtc_helper_funcs *crtc_funcs;
-	struct drm_modeset_acquire_ctx ctx;
 	int encoder_dpms;
 	bool ret;
-	int err;
 
 	WARN_ON(drm_drv_uses_atomic_modeset(dev));
 
-	DRM_MODESET_LOCK_ALL_BEGIN(dev, ctx, 0, err);
+	drm_modeset_lock_all(dev);
 	drm_for_each_crtc(crtc, dev) {
 
 		if (!crtc->enabled)
@@ -987,7 +982,7 @@ void drm_helper_resume_force_mode(struct drm_device *dev)
 
 	/* disable the unused connectors while restoring the modesetting */
 	__drm_helper_disable_unused_functions(dev);
-	DRM_MODESET_LOCK_ALL_END(dev, ctx, err);
+	drm_modeset_unlock_all(dev);
 }
 EXPORT_SYMBOL(drm_helper_resume_force_mode);
 
@@ -1007,10 +1002,9 @@ EXPORT_SYMBOL(drm_helper_resume_force_mode);
 int drm_helper_force_disable_all(struct drm_device *dev)
 {
 	struct drm_crtc *crtc;
-	struct drm_modeset_acquire_ctx ctx;
 	int ret = 0;
 
-	DRM_MODESET_LOCK_ALL_BEGIN(dev, ctx, 0, ret);
+	drm_modeset_lock_all(dev);
 	drm_for_each_crtc(crtc, dev)
 		if (crtc->enabled) {
 			struct drm_mode_set set = {
@@ -1022,7 +1016,7 @@ int drm_helper_force_disable_all(struct drm_device *dev)
 				goto out;
 		}
 out:
-	DRM_MODESET_LOCK_ALL_END(dev, ctx, ret);
+	drm_modeset_unlock_all(dev);
 	return ret;
 }
 EXPORT_SYMBOL(drm_helper_force_disable_all);
