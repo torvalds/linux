@@ -1195,13 +1195,11 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 
 	map = em->map_lookup;
 
-	cache->physical_map = kmalloc(map_lookup_size(map->num_stripes), GFP_NOFS);
+	cache->physical_map = kmemdup(map, map_lookup_size(map->num_stripes), GFP_NOFS);
 	if (!cache->physical_map) {
 		ret = -ENOMEM;
 		goto out;
 	}
-
-	memcpy(cache->physical_map, map, map_lookup_size(map->num_stripes));
 
 	alloc_offsets = kcalloc(map->num_stripes, sizeof(*alloc_offsets), GFP_NOFS);
 	if (!alloc_offsets) {
