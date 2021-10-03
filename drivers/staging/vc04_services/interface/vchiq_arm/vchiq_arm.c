@@ -68,12 +68,51 @@ struct vchiq_state g_state;
 static struct platform_device *bcm2835_camera;
 static struct platform_device *bcm2835_audio;
 
+struct vchiq_drvdata {
+	const unsigned int cache_line_size;
+	struct rpi_firmware *fw;
+};
+
 static struct vchiq_drvdata bcm2835_drvdata = {
 	.cache_line_size = 32,
 };
 
 static struct vchiq_drvdata bcm2836_drvdata = {
 	.cache_line_size = 64,
+};
+
+struct vchiq_arm_state {
+	/* Keepalive-related data */
+	struct task_struct *ka_thread;
+	struct completion ka_evt;
+	atomic_t ka_use_count;
+	atomic_t ka_use_ack_count;
+	atomic_t ka_release_count;
+
+	rwlock_t susp_res_lock;
+
+	struct vchiq_state *state;
+
+	/*
+	 * Global use count for videocore.
+	 * This is equal to the sum of the use counts for all services.  When
+	 * this hits zero the videocore suspend procedure will be initiated.
+	 */
+	int videocore_use_count;
+
+	/*
+	 * Use count to track requests from videocore peer.
+	 * This use count is not associated with a service, so needs to be
+	 * tracked separately with the state.
+	 */
+	int peer_use_count;
+
+	/*
+	 * Flag to indicate that the first vchiq connect has made it through.
+	 * This means that both sides should be fully ready, and we should
+	 * be able to suspend after this point.
+	 */
+	int first_connect;
 };
 
 struct vchiq_2835_state {
