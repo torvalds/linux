@@ -4657,7 +4657,7 @@ W:	http://linux-cifs.samba.org/
 T:	git git://git.samba.org/sfrench/cifs-2.6.git
 F:	Documentation/admin-guide/cifs/
 F:	fs/cifs/
-F:	fs/cifs_common/
+F:	fs/smbfs_common/
 
 COMPACTPCI HOTPLUG CORE
 M:	Scott Murray <scott@spiteful.org>
@@ -10195,8 +10195,8 @@ M:	Hyunchul Lee <hyc.lee@gmail.com>
 L:	linux-cifs@vger.kernel.org
 S:	Maintained
 T:	git git://git.samba.org/ksmbd.git
-F:	fs/cifs_common/
 F:	fs/ksmbd/
+F:	fs/smbfs_common/
 
 KERNEL UNIT TESTING FRAMEWORK (KUnit)
 M:	Brendan Higgins <brendanhiggins@google.com>

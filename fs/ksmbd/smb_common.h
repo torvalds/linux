@@ -48,14 +48,6 @@
 #define CIFS_DEFAULT_IOSIZE	(64 * 1024)
 #define MAX_CIFS_SMALL_BUFFER_SIZE 448 /* big enough for most */
 
-/* RFC 1002 session packet types */
-#define RFC1002_SESSION_MESSAGE			0x00
-#define RFC1002_SESSION_REQUEST			0x81
-#define RFC1002_POSITIVE_SESSION_RESPONSE	0x82
-#define RFC1002_NEGATIVE_SESSION_RESPONSE	0x83
-#define RFC1002_RETARGET_SESSION_RESPONSE	0x84
-#define RFC1002_SESSION_KEEP_ALIVE		0x85
-
 /* Responses when opening a file. */
 #define F_SUPERSEDED	0
 #define F_OPENED	1
