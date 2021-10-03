@@ -610,6 +610,9 @@ struct asic_fixed_properties {
  * @error: mark this fence with error
  * @timestamp: timestamp upon completion
  * @take_timestamp: timestamp shall be taken upon completion
+ * @mcs_handling_done: indicates that corresponding command submission has
+ *                     finished msc handling, this does not mean it was part
+ *                     of the mcs
  */
 struct hl_fence {
 	struct completion	completion;
@@ -619,6 +622,7 @@ struct hl_fence {
 	int			error;
 	ktime_t			timestamp;
 	u8			take_timestamp;
+	u8			mcs_handling_done;
 };
 
 /**

@@ -143,6 +143,7 @@ static void hl_fence_init(struct hl_fence *fence, u64 sequence)
 	fence->cs_sequence = sequence;
 	fence->error = 0;
 	fence->timestamp = ktime_set(0, 0);
+	fence->mcs_handling_done = false;
 	init_completion(&fence->completion);
 }
 
@@ -535,10 +536,21 @@ static void complete_multi_cs(struct hl_device *hdev, struct hl_cs *cs)
 				mcs_compl->timestamp =
 						ktime_to_ns(fence->timestamp);
 			complete_all(&mcs_compl->completion);
+
+			/*
+			 * Setting mcs_handling_done inside the lock ensures
+			 * at least one fence have mcs_handling_done set to
+			 * true before wait for mcs finish. This ensures at
+			 * least one CS will be set as completed when polling
+			 * mcs fences.
+			 */
+			fence->mcs_handling_done = true;
 		}
 
 		spin_unlock(&mcs_compl->lock);
 	}
+	/* In case CS completed without mcs completion initialized */
+	fence->mcs_handling_done = true;
 }
 
 static inline void cs_release_sob_reset_handler(struct hl_device *hdev,
@@ -2372,7 +2384,13 @@ static int hl_cs_poll_fences(struct multi_cs_data *mcs_data)
 
 		mcs_data->stream_master_qid_map |= fence->stream_master_qid_map;
 
-		if (status == CS_WAIT_STATUS_BUSY)
+		/*
+		 * Using mcs_handling_done to avoid possibility of mcs_data
+		 * returns to user indicating CS completed before it finished
+		 * all of its mcs handling, to avoid race the next time the
+		 * user waits for mcs.
+		 */
+		if (status == CS_WAIT_STATUS_BUSY || !fence->mcs_handling_done)
 			continue;
 
 		mcs_data->completion_bitmap |= BIT(i);
