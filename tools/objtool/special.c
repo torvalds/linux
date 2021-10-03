@@ -106,8 +106,10 @@ static int get_alt_entry(struct elf *elf, struct special_entry *entry,
 		return -1;
 	}
 	if (!reloc2sec_off(orig_reloc, &alt->orig_sec, &alt->orig_off)) {
-		WARN_FUNC("don't know how to handle reloc symbol type: %s",
-			   sec, offset + entry->orig, orig_reloc->sym->name);
+		WARN_FUNC("don't know how to handle reloc symbol type %d: %s",
+			   sec, offset + entry->orig,
+			   orig_reloc->sym->type,
+			   orig_reloc->sym->name);
 		return -1;
 	}
 
@@ -128,8 +130,10 @@ static int get_alt_entry(struct elf *elf, struct special_entry *entry,
 			return 1;
 
 		if (!reloc2sec_off(new_reloc, &alt->new_sec, &alt->new_off)) {
-			WARN_FUNC("don't know how to handle reloc symbol type: %s",
-				  sec, offset + entry->new, new_reloc->sym->name);
+			WARN_FUNC("don't know how to handle reloc symbol type %d: %s",
+				  sec, offset + entry->new,
+				  new_reloc->sym->type,
+				  new_reloc->sym->name);
 			return -1;
 		}
 
