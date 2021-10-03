@@ -20,14 +20,14 @@
 
 #define EFA_IRQNAME_SIZE        40
 
-/* 1 for AENQ + ADMIN */
-#define EFA_NUM_MSIX_VEC                  1
 #define EFA_MGMNT_MSIX_VEC_IDX            0
+#define EFA_COMP_EQS_VEC_BASE             1
 
 struct efa_irq {
 	irq_handler_t handler;
 	void *data;
 	u32 irqn;
+	u32 vector;
 	cpumask_t affinity_hint_mask;
 	char name[EFA_IRQNAME_SIZE];
 };
@@ -61,6 +61,13 @@ struct efa_dev {
 	struct efa_irq admin_irq;
 
 	struct efa_stats stats;
+
+	/* Array of completion EQs */
+	struct efa_eq *eqs;
+	unsigned int neqs;
+
+	/* Only stores CQs with interrupts enabled */
+	struct xarray cqs_xa;
 };
 
 struct efa_ucontext {
@@ -84,8 +91,11 @@ struct efa_cq {
 	dma_addr_t dma_addr;
 	void *cpu_addr;
 	struct rdma_user_mmap_entry *mmap_entry;
+	struct rdma_user_mmap_entry *db_mmap_entry;
 	size_t size;
 	u16 cq_idx;
+	/* NULL when no interrupts requested */
+	struct efa_eq *eq;
 };
 
 struct efa_qp {
@@ -114,6 +124,11 @@ struct efa_ah {
 	u16 ah;
 	/* dest_addr */
 	u8 id[EFA_GID_SIZE];
+};
+
+struct efa_eq {
+	struct efa_com_eq eeq;
+	struct efa_irq irq;
 };
 
 int efa_query_device(struct ib_device *ibdev,

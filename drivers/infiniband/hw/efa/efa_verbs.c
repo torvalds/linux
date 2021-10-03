@@ -245,6 +245,9 @@ int efa_query_device(struct ib_device *ibdev,
 		if (EFA_DEV_CAP(dev, RNR_RETRY))
 			resp.device_caps |= EFA_QUERY_DEVICE_CAPS_RNR_RETRY;
 
+		if (dev->neqs)
+			resp.device_caps |= EFA_QUERY_DEVICE_CAPS_CQ_NOTIFICATIONS;
+
 		err = ib_copy_to_udata(udata, &resp,
 				       min(sizeof(resp), udata->outlen));
 		if (err) {
@@ -984,6 +987,12 @@ static int efa_destroy_cq_idx(struct efa_dev *dev, int cq_idx)
 	return efa_com_destroy_cq(&dev->edev, &params);
 }
 
+static void efa_cq_user_mmap_entries_remove(struct efa_cq *cq)
+{
+	rdma_user_mmap_entry_remove(cq->db_mmap_entry);
+	rdma_user_mmap_entry_remove(cq->mmap_entry);
+}
+
 int efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 {
 	struct efa_dev *dev = to_edev(ibcq->device);
@@ -993,15 +1002,25 @@ int efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 		  "Destroy cq[%d] virt[0x%p] freed: size[%lu], dma[%pad]\n",
 		  cq->cq_idx, cq->cpu_addr, cq->size, &cq->dma_addr);
 
-	rdma_user_mmap_entry_remove(cq->mmap_entry);
+	efa_cq_user_mmap_entries_remove(cq);
 	efa_destroy_cq_idx(dev, cq->cq_idx);
+	if (cq->eq) {
+		xa_erase(&dev->cqs_xa, cq->cq_idx);
+		synchronize_irq(cq->eq->irq.irqn);
+	}
 	efa_free_mapped(dev, cq->cpu_addr, cq->dma_addr, cq->size,
 			DMA_FROM_DEVICE);
 	return 0;
 }
 
+static struct efa_eq *efa_vec2eq(struct efa_dev *dev, int vec)
+{
+	return &dev->eqs[vec];
+}
+
 static int cq_mmap_entries_setup(struct efa_dev *dev, struct efa_cq *cq,
-				 struct efa_ibv_create_cq_resp *resp)
+				 struct efa_ibv_create_cq_resp *resp,
+				 bool db_valid)
 {
 	resp->q_mmap_size = cq->size;
 	cq->mmap_entry = efa_user_mmap_entry_insert(&cq->ucontext->ibucontext,
@@ -1011,6 +1030,21 @@ static int cq_mmap_entries_setup(struct efa_dev *dev, struct efa_cq *cq,
 	if (!cq->mmap_entry)
 		return -ENOMEM;
 
+	if (db_valid) {
+		cq->db_mmap_entry =
+			efa_user_mmap_entry_insert(&cq->ucontext->ibucontext,
+						   dev->db_bar_addr + resp->db_off,
+						   PAGE_SIZE, EFA_MMAP_IO_NC,
+						   &resp->db_mmap_key);
+		if (!cq->db_mmap_entry) {
+			rdma_user_mmap_entry_remove(cq->mmap_entry);
+			return -ENOMEM;
+		}
+
+		resp->db_off &= ~PAGE_MASK;
+		resp->comp_mask |= EFA_CREATE_CQ_RESP_DB_OFF;
+	}
+
 	return 0;
 }
 
@@ -1019,8 +1053,8 @@ int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 {
 	struct efa_ucontext *ucontext = rdma_udata_to_drv_context(
 		udata, struct efa_ucontext, ibucontext);
+	struct efa_com_create_cq_params params = {};
 	struct efa_ibv_create_cq_resp resp = {};
-	struct efa_com_create_cq_params params;
 	struct efa_com_create_cq_result result;
 	struct ib_device *ibdev = ibcq->device;
 	struct efa_dev *dev = to_edev(ibdev);
@@ -1065,7 +1099,7 @@ int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		goto err_out;
 	}
 
-	if (cmd.comp_mask || !is_reserved_cleared(cmd.reserved_50)) {
+	if (cmd.comp_mask || !is_reserved_cleared(cmd.reserved_58)) {
 		ibdev_dbg(ibdev,
 			  "Incompatible ABI params, unknown fields in udata\n");
 		err = -EINVAL;
@@ -1101,20 +1135,36 @@ int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	params.dma_addr = cq->dma_addr;
 	params.entry_size_in_bytes = cmd.cq_entry_size;
 	params.num_sub_cqs = cmd.num_sub_cqs;
+	if (cmd.flags & EFA_CREATE_CQ_WITH_COMPLETION_CHANNEL) {
+		cq->eq = efa_vec2eq(dev, attr->comp_vector);
+		params.eqn = cq->eq->eeq.eqn;
+		params.interrupt_mode_enabled = true;
+	}
+
 	err = efa_com_create_cq(&dev->edev, &params, &result);
 	if (err)
 		goto err_free_mapped;
 
+	resp.db_off = result.db_off;
 	resp.cq_idx = result.cq_idx;
 	cq->cq_idx = result.cq_idx;
 	cq->ibcq.cqe = result.actual_depth;
 	WARN_ON_ONCE(entries != result.actual_depth);
 
-	err = cq_mmap_entries_setup(dev, cq, &resp);
+	err = cq_mmap_entries_setup(dev, cq, &resp, result.db_valid);
 	if (err) {
 		ibdev_dbg(ibdev, "Could not setup cq[%u] mmap entries\n",
 			  cq->cq_idx);
 		goto err_destroy_cq;
+	}
+
+	if (cq->eq) {
+		err = xa_err(xa_store(&dev->cqs_xa, cq->cq_idx, cq, GFP_KERNEL));
+		if (err) {
+			ibdev_dbg(ibdev, "Failed to store cq[%u] in xarray\n",
+				  cq->cq_idx);
+			goto err_remove_mmap;
+		}
 	}
 
 	if (udata->outlen) {
@@ -1123,7 +1173,7 @@ int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		if (err) {
 			ibdev_dbg(ibdev,
 				  "Failed to copy udata for create_cq\n");
-			goto err_remove_mmap;
+			goto err_xa_erase;
 		}
 	}
 
@@ -1132,8 +1182,11 @@ int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 
 	return 0;
 
+err_xa_erase:
+	if (cq->eq)
+		xa_erase(&dev->cqs_xa, cq->cq_idx);
 err_remove_mmap:
-	rdma_user_mmap_entry_remove(cq->mmap_entry);
+	efa_cq_user_mmap_entries_remove(cq);
 err_destroy_cq:
 	efa_destroy_cq_idx(dev, cq->cq_idx);
 err_free_mapped:
