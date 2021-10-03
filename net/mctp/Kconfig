@@ -11,3 +11,8 @@ menuconfig MCTP
 	  This option enables core MCTP support. For communicating with other
 	  devices, you'll want to enable a driver for a specific hardware
 	  channel.
+
+config MCTP_TEST
+        bool "MCTP core tests" if !KUNIT_ALL_TESTS
+        depends on MCTP=y && KUNIT=y
+        default KUNIT_ALL_TESTS
