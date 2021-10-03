@@ -121,14 +121,9 @@ extern int vchiq_susp_log_level;
 extern spinlock_t msg_queue_spinlock;
 extern struct vchiq_state g_state;
 
-int vchiq_platform_init(struct platform_device *pdev,
-			struct vchiq_state *state);
-
 extern struct vchiq_state *
 vchiq_get_state(void);
 
-extern void
-vchiq_check_suspend(struct vchiq_state *state);
 enum vchiq_status
 vchiq_use_service(unsigned int handle);
 
@@ -143,9 +138,6 @@ vchiq_dump_platform_use_state(struct vchiq_state *state);
 
 extern void
 vchiq_dump_service_use_state(struct vchiq_state *state);
-
-extern struct vchiq_arm_state*
-vchiq_platform_get_arm_state(struct vchiq_state *state);
 
 extern enum vchiq_status
 vchiq_use_internal(struct vchiq_state *state, struct vchiq_service *service,
