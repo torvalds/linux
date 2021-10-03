@@ -10,6 +10,7 @@
 #include <signal.h>
 #include <syscall.h>
 #include <sys/ioctl.h>
+#include <sys/sysinfo.h>
 #include <asm/barrier.h>
 #include <linux/atomic.h>
 #include <linux/rseq.h>
@@ -39,6 +40,7 @@ static __thread volatile struct rseq __rseq = {
 
 static pthread_t migration_thread;
 static cpu_set_t possible_mask;
+static int min_cpu, max_cpu;
 static bool done;
 
 static atomic_t seq_cnt;
@@ -57,20 +59,37 @@ static void sys_rseq(int flags)
 	TEST_ASSERT(!r, "rseq failed, errno = %d (%s)", errno, strerror(errno));
 }
 
+static int next_cpu(int cpu)
+{
+	/*
+	 * Advance to the next CPU, skipping those that weren't in the original
+	 * affinity set.  Sadly, there is no CPU_SET_FOR_EACH, and cpu_set_t's
+	 * data storage is considered as opaque.  Note, if this task is pinned
+	 * to a small set of discontigous CPUs, e.g. 2 and 1023, this loop will
+	 * burn a lot cycles and the test will take longer than normal to
+	 * complete.
+	 */
+	do {
+		cpu++;
+		if (cpu > max_cpu) {
+			cpu = min_cpu;
+			TEST_ASSERT(CPU_ISSET(cpu, &possible_mask),
+				    "Min CPU = %d must always be usable", cpu);
+			break;
+		}
+	} while (!CPU_ISSET(cpu, &possible_mask));
+
+	return cpu;
+}
+
 static void *migration_worker(void *ign)
 {
 	cpu_set_t allowed_mask;
-	int r, i, nr_cpus, cpu;
+	int r, i, cpu;
 
 	CPU_ZERO(&allowed_mask);
 
-	nr_cpus = CPU_COUNT(&possible_mask);
-
-	for (i = 0; i < NR_TASK_MIGRATIONS; i++) {
-		cpu = i % nr_cpus;
-		if (!CPU_ISSET(cpu, &possible_mask))
-			continue;
-
+	for (i = 0, cpu = min_cpu; i < NR_TASK_MIGRATIONS; i++, cpu = next_cpu(cpu)) {
 		CPU_SET(cpu, &allowed_mask);
 
 		/*
@@ -154,6 +173,36 @@ static void *migration_worker(void *ign)
 	return NULL;
 }
 
+static int calc_min_max_cpu(void)
+{
+	int i, cnt, nproc;
+
+	if (CPU_COUNT(&possible_mask) < 2)
+		return -EINVAL;
+
+	/*
+	 * CPU_SET doesn't provide a FOR_EACH helper, get the min/max CPU that
+	 * this task is affined to in order to reduce the time spent querying
+	 * unusable CPUs, e.g. if this task is pinned to a small percentage of
+	 * total CPUs.
+	 */
+	nproc = get_nprocs_conf();
+	min_cpu = -1;
+	max_cpu = -1;
+	cnt = 0;
+
+	for (i = 0; i < nproc; i++) {
+		if (!CPU_ISSET(i, &possible_mask))
+			continue;
+		if (min_cpu == -1)
+			min_cpu = i;
+		max_cpu = i;
+		cnt++;
+	}
+
+	return (cnt < 2) ? -EINVAL : 0;
+}
+
 int main(int argc, char *argv[])
 {
 	int r, i, snapshot;
@@ -167,8 +216,8 @@ int main(int argc, char *argv[])
 	TEST_ASSERT(!r, "sched_getaffinity failed, errno = %d (%s)", errno,
 		    strerror(errno));
 
-	if (CPU_COUNT(&possible_mask) < 2) {
-		print_skip("Only one CPU, task migration not possible\n");
+	if (calc_min_max_cpu()) {
+		print_skip("Only one usable CPU, task migration not possible");
 		exit(KSFT_SKIP);
 	}
 
@@ -180,6 +229,7 @@ int main(int argc, char *argv[])
 	 * CPU affinity.
 	 */
 	vm = vm_create_default(VCPU_ID, 0, guest_code);
+	ucall_init(vm, NULL);
 
 	pthread_create(&migration_thread, NULL, migration_worker, 0);
 
