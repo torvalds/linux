@@ -509,6 +509,23 @@ int vchiq_platform_init(struct platform_device *pdev, struct vchiq_state *state)
 	return 0;
 }
 
+static void
+vchiq_arm_init_state(struct vchiq_state *state,
+		     struct vchiq_arm_state *arm_state)
+{
+	if (arm_state) {
+		rwlock_init(&arm_state->susp_res_lock);
+
+		init_completion(&arm_state->ka_evt);
+		atomic_set(&arm_state->ka_use_count, 0);
+		atomic_set(&arm_state->ka_use_ack_count, 0);
+		atomic_set(&arm_state->ka_release_count, 0);
+
+		arm_state->state = state;
+		arm_state->first_connect = 0;
+	}
+}
+
 int
 vchiq_platform_init_state(struct vchiq_state *state)
 {
@@ -1322,23 +1339,6 @@ shutdown:
 	vchiq_shutdown(instance);
 exit:
 	return 0;
-}
-
-void
-vchiq_arm_init_state(struct vchiq_state *state,
-		     struct vchiq_arm_state *arm_state)
-{
-	if (arm_state) {
-		rwlock_init(&arm_state->susp_res_lock);
-
-		init_completion(&arm_state->ka_evt);
-		atomic_set(&arm_state->ka_use_count, 0);
-		atomic_set(&arm_state->ka_use_ack_count, 0);
-		atomic_set(&arm_state->ka_release_count, 0);
-
-		arm_state->state = state;
-		arm_state->first_connect = 0;
-	}
 }
 
 int
