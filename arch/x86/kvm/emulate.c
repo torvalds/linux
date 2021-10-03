@@ -452,7 +452,6 @@ static int fastop(struct x86_emulate_ctxt *ctxt, fastop_t fop);
 	".skip " __stringify(SETCC_ALIGN) " - (.-" #op "), 0xcc \n\t"
 
 asm(".pushsection .fixup, \"ax\"\n"
-    ".global kvm_fastop_exception \n"
     "kvm_fastop_exception: xor %esi, %esi; " ASM_RET
     ".popsection");
 
