@@ -4183,12 +4183,11 @@ static int rtw_wx_set_priv(struct net_device *dev,
 			kfree(pmlmepriv->wps_probe_req_ie);
 			pmlmepriv->wps_probe_req_ie = NULL;
 
-			pmlmepriv->wps_probe_req_ie = kmalloc(cp_sz, GFP_KERNEL);
+			pmlmepriv->wps_probe_req_ie = kmemdup(probereq_wpsie, cp_sz, GFP_KERNEL);
 			if (!pmlmepriv->wps_probe_req_ie) {
 				ret =  -EINVAL;
 				goto FREE_EXT;
 			}
-			memcpy(pmlmepriv->wps_probe_req_ie, probereq_wpsie, cp_sz);
 			pmlmepriv->wps_probe_req_ie_len = cp_sz;
 		}
 		goto FREE_EXT;
