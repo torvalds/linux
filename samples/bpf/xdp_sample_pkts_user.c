@@ -154,7 +154,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	map = bpf_map__next(NULL, obj);
+	map = bpf_object__next_map(obj, NULL);
 	if (!map) {
 		printf("finding a map in obj file failed\n");
 		return 1;
