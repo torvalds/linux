@@ -1243,7 +1243,7 @@ EXC_COMMON_BEGIN(machine_check_common)
 	li	r10,MSR_RI
 	mtmsrd 	r10,1
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	machine_check_exception
+	bl	machine_check_exception_async
 	b	interrupt_return_srr
 
 
@@ -1303,7 +1303,11 @@ END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
 	subi	r12,r12,1
 	sth	r12,PACA_IN_MCE(r13)
 
-	/* Invoke machine_check_exception to print MCE event and panic. */
+	/*
+	 * Invoke machine_check_exception to print MCE event and panic.
+	 * This is the NMI version of the handler because we are called from
+	 * the early handler which is a true NMI.
+	 */
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	machine_check_exception
 
