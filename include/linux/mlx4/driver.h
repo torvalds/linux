@@ -92,14 +92,4 @@ void *mlx4_get_protocol_dev(struct mlx4_dev *dev, enum mlx4_protocol proto, int 
 
 struct devlink_port *mlx4_get_devlink_port(struct mlx4_dev *dev, int port);
 
-static inline void mlx4_u64_to_mac(u8 *addr, u64 mac)
-{
-	int i;
-
-	for (i = ETH_ALEN; i > 0; i--) {
-		addr[i - 1] = mac & 0xFF;
-		mac >>= 8;
-	}
-}
-
 #endif /* MLX4_DRIVER_H */

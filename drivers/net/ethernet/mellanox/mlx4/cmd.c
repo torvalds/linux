@@ -3195,7 +3195,7 @@ int mlx4_set_vf_spoofchk(struct mlx4_dev *dev, int port, int vf, bool setting)
 	port = mlx4_slaves_closest_port(dev, slave, port);
 	s_info = &priv->mfunc.master.vf_admin[slave].vport[port];
 
-	mlx4_u64_to_mac(mac, s_info->mac);
+	u64_to_ether_addr(s_info->mac, mac);
 	if (setting && !is_valid_ether_addr(mac)) {
 		mlx4_info(dev, "Illegal MAC with spoofchk\n");
 		return -EPERM;
