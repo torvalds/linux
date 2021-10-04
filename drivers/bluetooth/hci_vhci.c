@@ -182,6 +182,8 @@ static ssize_t force_wakeup_write(struct file *file,
 	if (data->wakeup == enable)
 		return -EALREADY;
 
+	data->wakeup = enable;
+
 	return count;
 }
 
