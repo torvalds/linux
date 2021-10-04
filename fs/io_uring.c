@@ -684,11 +684,6 @@ struct io_hardlink {
 	int				flags;
 };
 
-struct io_completion {
-	struct file			*file;
-	u32				cflags;
-};
-
 struct io_async_connect {
 	struct sockaddr_storage		address;
 };
@@ -847,22 +842,20 @@ struct io_kiocb {
 		struct io_mkdir		mkdir;
 		struct io_symlink	symlink;
 		struct io_hardlink	hardlink;
-		/* use only after cleaning per-op data, see io_clean_op() */
-		struct io_completion	compl;
 	};
 
 	u8				opcode;
 	/* polled IO has completed */
 	u8				iopoll_completed;
-
 	u16				buf_index;
+	unsigned int			flags;
+
+	u64				user_data;
 	u32				result;
+	u32				cflags;
 
 	struct io_ring_ctx		*ctx;
-	unsigned int			flags;
-	atomic_t			refs;
 	struct task_struct		*task;
-	u64				user_data;
 
 	struct percpu_ref		*fixed_rsrc_refs;
 	/* store used ubuf, so we can prevent reloading */
@@ -870,13 +863,13 @@ struct io_kiocb {
 
 	/* used by request caches, completion batching and iopoll */
 	struct io_wq_work_node		comp_list;
+	atomic_t			refs;
 	struct io_kiocb			*link;
 	struct io_task_work		io_task_work;
 	/* for polled requests, i.e. IORING_OP_POLL_ADD and async armed poll */
 	struct hlist_node		hash_node;
 	/* internal polling, see IORING_FEAT_FAST_POLL */
 	struct async_poll		*apoll;
-
 	/* opcode allocated if it needs to store data for async defer */
 	void				*async_data;
 	struct io_wq_work		work;
@@ -1831,11 +1824,8 @@ static inline bool io_req_needs_clean(struct io_kiocb *req)
 static inline void io_req_complete_state(struct io_kiocb *req, long res,
 					 unsigned int cflags)
 {
-	/* clean per-opcode space, because req->compl is aliased with it */
-	if (io_req_needs_clean(req))
-		io_clean_op(req);
 	req->result = res;
-	req->compl.cflags = cflags;
+	req->cflags = cflags;
 	req->flags |= REQ_F_COMPLETE_INLINE;
 }
 
@@ -2321,7 +2311,7 @@ static void __io_submit_flush_completions(struct io_ring_ctx *ctx)
 						    comp_list);
 
 		__io_cqring_fill_event(ctx, req->user_data, req->result,
-					req->compl.cflags);
+					req->cflags);
 	}
 	io_commit_cqring(ctx);
 	spin_unlock(&ctx->completion_lock);
