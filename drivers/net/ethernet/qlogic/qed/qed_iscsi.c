@@ -29,6 +29,7 @@
 #include "qed_hsi.h"
 #include "qed_hw.h"
 #include "qed_int.h"
+#include "qed_iro_hsi.h"
 #include "qed_iscsi.h"
 #include "qed_ll2.h"
 #include "qed_mcp.h"

@@ -23,6 +23,8 @@
 #include <linux/qed/qed_if.h>
 #include "qed_debug.h"
 #include "qed_hsi.h"
+#include "qed_dbg_hsi.h"
+#include "qed_mfw_hsi.h"
 
 extern const struct qed_common_ops qed_common_ops_pass;
 

@@ -13,6 +13,7 @@
 #include "qed_hsi.h"
 #include "qed_hw.h"
 #include "qed_init_ops.h"
+#include "qed_iro_hsi.h"
 #include "qed_reg_addr.h"
 
 #define CDU_VALIDATION_DEFAULT_CFG	61

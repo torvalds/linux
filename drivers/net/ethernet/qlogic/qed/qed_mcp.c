@@ -17,6 +17,7 @@
 #include "qed_cxt.h"
 #include "qed_dcbx.h"
 #include "qed_hsi.h"
+#include "qed_mfw_hsi.h"
 #include "qed_hw.h"
 #include "qed_mcp.h"
 #include "qed_reg_addr.h"

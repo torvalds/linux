@@ -22,6 +22,7 @@
 #include "qed.h"
 #include "qed_cxt.h"
 #include "qed_hsi.h"
+#include "qed_iro_hsi.h"
 #include "qed_hw.h"
 #include "qed_init_ops.h"
 #include "qed_int.h"
@@ -32,7 +33,6 @@
 #include "qed_rdma.h"
 #include "qed_roce.h"
 #include "qed_sp.h"
-
 
 int qed_rdma_bmap_alloc(struct qed_hwfn *p_hwfn,
 			struct qed_bmap *bmap, u32 max_count, char *name)
@@ -1902,7 +1902,6 @@ void qed_rdma_dpm_conf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		   "Changing DPM_EN state to %d (DCBX=%d, DB_BAR=%d)\n",
 		   val, p_hwfn->dcbx_no_edpm, p_hwfn->db_bar_no_edpm);
 }
-
 
 void qed_rdma_dpm_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {

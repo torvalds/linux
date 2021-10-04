@@ -32,7 +32,6 @@
 #define QED_LL2_LEGACY_CONN_BASE_PF     0
 #define QED_LL2_CTX_CONN_BASE_PF        QED_MAX_NUM_OF_LEGACY_LL2_CONNS_PF
 
-
 struct qed_ll2_rx_packet {
 	struct list_head list_entry;
 	struct core_rx_bd_with_buff_len *rxq_bd;

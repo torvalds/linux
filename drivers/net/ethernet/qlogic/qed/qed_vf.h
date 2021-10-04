@@ -48,7 +48,7 @@ struct channel_tlv {
 	u16 length;
 };
 
-/* header of first vf->pf tlv carries the offset used to calculate reponse
+/* header of first vf->pf tlv carries the offset used to calculate response
  * buffer address
  */
 struct vfpf_first_tlv {
@@ -85,8 +85,8 @@ struct vfpf_acquire_tlv {
 	struct vfpf_first_tlv first_tlv;
 
 	struct vf_pf_vfdev_info {
-#define VFPF_ACQUIRE_CAP_PRE_FP_HSI     (1 << 0) /* VF pre-FP hsi version */
-#define VFPF_ACQUIRE_CAP_100G		(1 << 1) /* VF can support 100g */
+#define VFPF_ACQUIRE_CAP_PRE_FP_HSI     BIT(0) /* VF pre-FP hsi version */
+#define VFPF_ACQUIRE_CAP_100G		BIT(1) /* VF can support 100g */
 	/* A requirement for supporting multi-Tx queues on a single queue-zone,
 	 * VF would pass qids as additional information whenever passing queue
 	 * references.
