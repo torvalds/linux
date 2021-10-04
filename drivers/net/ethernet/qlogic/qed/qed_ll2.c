@@ -28,6 +28,7 @@
 #include "qed_cxt.h"
 #include "qed_dev_api.h"
 #include "qed_hsi.h"
+#include "qed_iro_hsi.h"
 #include "qed_hw.h"
 #include "qed_int.h"
 #include "qed_ll2.h"
@@ -42,6 +43,8 @@
 
 #define QED_LL2_TX_SIZE (256)
 #define QED_LL2_RX_SIZE (4096)
+
+#define QED_LL2_INVALID_STATS_ID        0xff
 
 struct qed_cb_ll2_info {
 	int rx_cnt;
@@ -61,6 +64,29 @@ struct qed_ll2_buffer {
 	void *data;
 	dma_addr_t phys_addr;
 };
+
+static u8 qed_ll2_handle_to_stats_id(struct qed_hwfn *p_hwfn,
+				     u8 ll2_queue_type, u8 qid)
+{
+	u8 stats_id;
+
+	/* For legacy (RAM based) queues, the stats_id will be set as the
+	 * queue_id. Otherwise (context based queue), it will be set to
+	 * the "abs_pf_id" offset from the end of the RAM based queue IDs.
+	 * If the final value exceeds the total counters amount, return
+	 * INVALID value to indicate that the stats for this connection should
+	 * be disabled.
+	 */
+	if (ll2_queue_type == QED_LL2_RX_TYPE_LEGACY)
+		stats_id = qid;
+	else
+		stats_id = MAX_NUM_LL2_RX_RAM_QUEUES + p_hwfn->abs_pf_id;
+
+	if (stats_id < MAX_NUM_LL2_TX_STATS_COUNTERS)
+		return stats_id;
+	else
+		return QED_LL2_INVALID_STATS_ID;
+}
 
 static void qed_ll2b_complete_tx_packet(void *cxt,
 					u8 connection_handle,
@@ -106,7 +132,7 @@ static int qed_ll2_alloc_buffer(struct qed_dev *cdev,
 }
 
 static int qed_ll2_dealloc_buffer(struct qed_dev *cdev,
-				 struct qed_ll2_buffer *buffer)
+				  struct qed_ll2_buffer *buffer)
 {
 	spin_lock_bh(&cdev->ll2->lock);
 
@@ -1124,6 +1150,7 @@ static int qed_sp_ll2_tx_queue_stop(struct qed_hwfn *p_hwfn,
 	struct qed_spq_entry *p_ent = NULL;
 	struct qed_sp_init_data init_data;
 	int rc = -EINVAL;
+
 	qed_db_recovery_del(p_hwfn->cdev, p_tx->doorbell_addr, &p_tx->db_msg);
 
 	/* Get SPQ entry */
@@ -1533,7 +1560,7 @@ static inline u8 qed_ll2_handle_to_queue_id(struct qed_hwfn *p_hwfn,
 
 int qed_ll2_establish_connection(void *cxt, u8 connection_handle)
 {
-	struct e4_core_conn_context *p_cxt;
+	struct core_conn_context *p_cxt;
 	struct qed_ll2_tx_packet *p_pkt;
 	struct qed_ll2_info *p_ll2_conn;
 	struct qed_hwfn *p_hwfn = cxt;
@@ -1544,7 +1571,7 @@ int qed_ll2_establish_connection(void *cxt, u8 connection_handle)
 	int rc = -EINVAL;
 	u32 i, capacity;
 	size_t desc_size;
-	u8 qid;
+	u8 qid, stats_id;
 
 	p_ptt = qed_ptt_acquire(p_hwfn);
 	if (!p_ptt)
@@ -1610,16 +1637,32 @@ int qed_ll2_establish_connection(void *cxt, u8 connection_handle)
 
 	qid = qed_ll2_handle_to_queue_id(p_hwfn, connection_handle,
 					 p_ll2_conn->input.rx_conn_type);
+	stats_id = qed_ll2_handle_to_stats_id(p_hwfn,
+					      p_ll2_conn->input.rx_conn_type,
+					      qid);
 	p_ll2_conn->queue_id = qid;
-	p_ll2_conn->tx_stats_id = qid;
+	p_ll2_conn->tx_stats_id = stats_id;
 
-	DP_VERBOSE(p_hwfn, QED_MSG_LL2,
-		   "Establishing ll2 queue. PF %d ctx_based=%d abs qid=%d\n",
-		   p_hwfn->rel_pf_id, p_ll2_conn->input.rx_conn_type, qid);
+	/* If there is no valid stats id for this connection, disable stats */
+	if (p_ll2_conn->tx_stats_id == QED_LL2_INVALID_STATS_ID) {
+		p_ll2_conn->tx_stats_en = 0;
+		DP_VERBOSE(p_hwfn,
+			   QED_MSG_LL2,
+			   "Disabling stats for queue %d - not enough counters\n",
+			   qid);
+	}
+
+	DP_VERBOSE(p_hwfn,
+		   QED_MSG_LL2,
+		   "Establishing ll2 queue. PF %d ctx_bsaed=%d abs qid=%d stats_id=%d\n",
+		   p_hwfn->rel_pf_id,
+		   p_ll2_conn->input.rx_conn_type, qid, stats_id);
 
 	if (p_ll2_conn->input.rx_conn_type == QED_LL2_RX_TYPE_LEGACY) {
-		p_rx->set_prod_addr = p_hwfn->regview +
-		    GTT_BAR0_MAP_REG_TSDM_RAM + TSTORM_LL2_RX_PRODS_OFFSET(qid);
+		p_rx->set_prod_addr =
+		    (u8 __iomem *)p_hwfn->regview +
+		    GET_GTT_REG_ADDR(GTT_BAR0_MAP_REG_TSDM_RAM,
+				     TSTORM_LL2_RX_PRODS, qid);
 	} else {
 		/* QED_LL2_RX_TYPE_CTX - using doorbell */
 		p_rx->ctx_based = 1;
@@ -1762,7 +1805,7 @@ int qed_ll2_post_rx_buffer(void *cxt,
 		}
 	}
 
-	/* If we're lacking entires, let's try to flush buffers to FW */
+	/* If we're lacking entries, let's try to flush buffers to FW */
 	if (!p_curp || !p_curb) {
 		rc = -EBUSY;
 		p_curp = NULL;
@@ -2609,7 +2652,6 @@ static int qed_ll2_start(struct qed_dev *cdev, struct qed_ll2_params *params)
 			DP_NOTICE(cdev, "Failed to add an LLH filter\n");
 			goto err3;
 		}
-
 	}
 
 	ether_addr_copy(cdev->ll2_mac_address, params->ll2_mac_address);

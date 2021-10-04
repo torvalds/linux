@@ -351,12 +351,12 @@ static int qedi_init_uio(struct qedi_ctx *qedi)
 static int qedi_alloc_and_init_sb(struct qedi_ctx *qedi,
 				  struct qed_sb_info *sb_info, u16 sb_id)
 {
-	struct status_block_e4 *sb_virt;
+	struct status_block *sb_virt;
 	dma_addr_t sb_phys;
 	int ret;
 
 	sb_virt = dma_alloc_coherent(&qedi->pdev->dev,
-				     sizeof(struct status_block_e4), &sb_phys,
+				     sizeof(struct status_block), &sb_phys,
 				     GFP_KERNEL);
 	if (!sb_virt) {
 		QEDI_ERR(&qedi->dbg_ctx,
@@ -865,7 +865,8 @@ static int qedi_set_iscsi_pf_param(struct qedi_ctx *qedi)
 	qedi->pf_params.iscsi_pf_params.num_uhq_pages_in_ring = num_sq_pages;
 	qedi->pf_params.iscsi_pf_params.num_queues = qedi->num_queues;
 	qedi->pf_params.iscsi_pf_params.debug_mode = qedi_fw_debug;
-	qedi->pf_params.iscsi_pf_params.two_msl_timer = 4000;
+	qedi->pf_params.iscsi_pf_params.two_msl_timer = QED_TWO_MSL_TIMER_DFLT;
+	qedi->pf_params.iscsi_pf_params.tx_sws_timer = QED_TX_SWS_TIMER_DFLT;
 	qedi->pf_params.iscsi_pf_params.max_fin_rt = 2;
 
 	for (log_page_size = 0 ; log_page_size < 32 ; log_page_size++) {
@@ -1259,7 +1260,7 @@ static bool qedi_process_completions(struct qedi_fastpath *fp)
 {
 	struct qedi_ctx *qedi = fp->qedi;
 	struct qed_sb_info *sb_info = fp->sb_info;
-	struct status_block_e4 *sb = sb_info->sb_virt;
+	struct status_block *sb = sb_info->sb_virt;
 	struct qedi_percpu_s *p = NULL;
 	struct global_queue *que;
 	u16 prod_idx;
@@ -1315,7 +1316,7 @@ static bool qedi_fp_has_work(struct qedi_fastpath *fp)
 	struct qedi_ctx *qedi = fp->qedi;
 	struct global_queue *que;
 	struct qed_sb_info *sb_info = fp->sb_info;
-	struct status_block_e4 *sb = sb_info->sb_virt;
+	struct status_block *sb = sb_info->sb_virt;
 	u16 prod_idx;
 
 	barrier();
