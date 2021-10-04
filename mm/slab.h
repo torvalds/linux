@@ -583,24 +583,23 @@ static inline struct kmem_cache *virt_to_cache(const void *obj)
 	return page->slab_cache;
 }
 
-static __always_inline void account_slab_page(struct page *page, int order,
-					      struct kmem_cache *s,
-					      gfp_t gfp)
+static __always_inline void account_slab(struct slab *slab, int order,
+					 struct kmem_cache *s, gfp_t gfp)
 {
 	if (memcg_kmem_enabled() && (s->flags & SLAB_ACCOUNT))
-		memcg_alloc_page_obj_cgroups(page, s, gfp, true);
+		memcg_alloc_page_obj_cgroups(slab_page(slab), s, gfp, true);
 
-	mod_node_page_state(page_pgdat(page), cache_vmstat_idx(s),
+	mod_node_page_state(slab_pgdat(slab), cache_vmstat_idx(s),
 			    PAGE_SIZE << order);
 }
 
-static __always_inline void unaccount_slab_page(struct page *page, int order,
-						struct kmem_cache *s)
+static __always_inline void unaccount_slab(struct slab *slab, int order,
+					   struct kmem_cache *s)
 {
 	if (memcg_kmem_enabled())
-		memcg_free_page_obj_cgroups(page);
+		memcg_free_page_obj_cgroups(slab_page(slab));
 
-	mod_node_page_state(page_pgdat(page), cache_vmstat_idx(s),
+	mod_node_page_state(slab_pgdat(slab), cache_vmstat_idx(s),
 			    -(PAGE_SIZE << order));
 }
 

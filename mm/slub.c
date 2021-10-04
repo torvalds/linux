@@ -1943,7 +1943,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
 
 	page->objects = oo_objects(oo);
 
-	account_slab_page(page, oo_order(oo), s, flags);
+	account_slab(page_slab(page), oo_order(oo), s, flags);
 
 	page->slab_cache = s;
 	__SetPageSlab(page);
@@ -2014,7 +2014,7 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
 	page->slab_cache = NULL;
 	if (current->reclaim_state)
 		current->reclaim_state->reclaimed_slab += pages;
-	unaccount_slab_page(page, order, s);
+	unaccount_slab(page_slab(page), order, s);
 	__free_pages(page, order);
 }
 
