@@ -1957,7 +1957,7 @@ static inline void io_dismantle_req(struct io_kiocb *req)
 {
 	unsigned int flags = req->flags;
 
-	if (io_req_needs_clean(req))
+	if (unlikely(io_req_needs_clean(req)))
 		io_clean_op(req);
 	if (!(flags & REQ_F_FIXED_FILE))
 		io_put_file(req->file);
@@ -7198,11 +7198,11 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
 	unsigned int entries = io_sqring_entries(ctx);
 	int submitted = 0;
 
-	if (!entries)
+	if (unlikely(!entries))
 		return 0;
 	/* make sure SQ entry isn't read before tail */
 	nr = min3(nr, ctx->sq_entries, entries);
-	if (!percpu_ref_tryget_many(&ctx->refs, nr))
+	if (unlikely(!percpu_ref_tryget_many(&ctx->refs, nr)))
 		return -EAGAIN;
 	io_get_task_refs(nr);
 
