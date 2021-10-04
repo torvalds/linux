@@ -440,6 +440,11 @@ static const struct snd_soc_dai_ops hda_link_dai_ops = {
 
 #endif
 
+/* only one flag used so far to harden hw_params/hw_free/trigger/prepare */
+struct ssp_dai_dma_data {
+	bool setup;
+};
+
 static int ssp_dai_setup_or_free(struct snd_pcm_substream *substream, struct snd_soc_dai *dai,
 				 bool setup)
 {
@@ -469,22 +474,95 @@ static int ssp_dai_setup_or_free(struct snd_pcm_substream *substream, struct snd
 	return hda_ctrl_dai_widget_free(w);
 }
 
+static int ssp_dai_startup(struct snd_pcm_substream *substream,
+			   struct snd_soc_dai *dai)
+{
+	struct ssp_dai_dma_data *dma_data;
+
+	dma_data = kzalloc(sizeof(*dma_data), GFP_KERNEL);
+	if (!dma_data)
+		return -ENOMEM;
+
+	snd_soc_dai_set_dma_data(dai, substream, dma_data);
+
+	return 0;
+}
+
+static int ssp_dai_setup(struct snd_pcm_substream *substream,
+			 struct snd_soc_dai *dai,
+			 bool setup)
+{
+	struct ssp_dai_dma_data *dma_data;
+	int ret = 0;
+
+	dma_data = snd_soc_dai_get_dma_data(dai, substream);
+	if (!dma_data) {
+		dev_err(dai->dev, "%s: failed to get dma_data\n", __func__);
+		return -EIO;
+	}
+
+	if (dma_data->setup != setup) {
+		ret = ssp_dai_setup_or_free(substream, dai, setup);
+		if (!ret)
+			dma_data->setup = setup;
+	}
+	return ret;
+}
+
 static int ssp_dai_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params,
 			     struct snd_soc_dai *dai)
 {
-	return ssp_dai_setup_or_free(substream, dai, true);
+	/* params are ignored for now */
+	return ssp_dai_setup(substream, dai, true);
+}
+
+static int ssp_dai_prepare(struct snd_pcm_substream *substream,
+			   struct snd_soc_dai *dai)
+{
+	/*
+	 * the SSP will only be reconfigured during resume operations and
+	 * not in case of xruns
+	 */
+	return ssp_dai_setup(substream, dai, true);
+}
+
+static int ssp_dai_trigger(struct snd_pcm_substream *substream,
+			   int cmd, struct snd_soc_dai *dai)
+{
+	if (cmd != SNDRV_PCM_TRIGGER_SUSPEND)
+		return 0;
+
+	return ssp_dai_setup(substream, dai, false);
 }
 
 static int ssp_dai_hw_free(struct snd_pcm_substream *substream,
 			   struct snd_soc_dai *dai)
 {
-	return ssp_dai_setup_or_free(substream, dai, false);
+	return ssp_dai_setup(substream, dai, false);
+}
+
+static void ssp_dai_shutdown(struct snd_pcm_substream *substream,
+			     struct snd_soc_dai *dai)
+{
+	struct ssp_dai_dma_data *dma_data;
+
+	dma_data = snd_soc_dai_get_dma_data(dai, substream);
+	if (!dma_data) {
+		dev_err(dai->dev, "%s: failed to get dma_data\n", __func__);
+		return;
+	}
+	snd_soc_dai_set_dma_data(dai, substream, NULL);
+	kfree(dma_data);
 }
 
 static const struct snd_soc_dai_ops ssp_dai_ops = {
+	.startup = ssp_dai_startup,
 	.hw_params = ssp_dai_hw_params,
+	.prepare = ssp_dai_prepare,
+	.trigger = ssp_dai_trigger,
 	.hw_free = ssp_dai_hw_free,
+	.shutdown = ssp_dai_shutdown,
 };
 
 /*
