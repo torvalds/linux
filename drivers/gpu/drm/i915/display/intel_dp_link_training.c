@@ -376,7 +376,7 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 	int len;
 
 	intel_dp_program_link_training_pattern(intel_dp, crtc_state,
-					       dp_train_pat);
+					       dp_phy, dp_train_pat);
 
 	buf[0] = dp_train_pat;
 	/* DP_TRAINING_LANEx_SET follow DP_TRAINING_PATTERN_SET */
@@ -404,17 +404,20 @@ static char dp_training_pattern_name(u8 train_pat)
 void
 intel_dp_program_link_training_pattern(struct intel_dp *intel_dp,
 				       const struct intel_crtc_state *crtc_state,
+				       enum drm_dp_phy dp_phy,
 				       u8 dp_train_pat)
 {
 	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	u8 train_pat = intel_dp_training_pattern_symbol(dp_train_pat);
+	char phy_name[10];
 
 	if (train_pat != DP_TRAINING_PATTERN_DISABLE)
 		drm_dbg_kms(&dev_priv->drm,
-			    "[ENCODER:%d:%s] Using DP training pattern TPS%c\n",
+			    "[ENCODER:%d:%s] Using DP training pattern TPS%c, at %s\n",
 			    encoder->base.base.id, encoder->base.name,
-			    dp_training_pattern_name(train_pat));
+			    dp_training_pattern_name(train_pat),
+			    intel_dp_phy_name(dp_phy, phy_name, sizeof(phy_name)));
 
 	intel_dp->set_link_train(intel_dp, crtc_state, dp_train_pat);
 }
@@ -855,7 +858,7 @@ void intel_dp_stop_link_train(struct intel_dp *intel_dp,
 	intel_dp->link_trained = true;
 
 	intel_dp_disable_dpcd_training_pattern(intel_dp, DP_PHY_DPRX);
-	intel_dp_program_link_training_pattern(intel_dp, crtc_state,
+	intel_dp_program_link_training_pattern(intel_dp, crtc_state, DP_PHY_DPRX,
 					       DP_TRAINING_PATTERN_DISABLE);
 }
 

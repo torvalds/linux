@@ -637,7 +637,7 @@ static void intel_dp_enable_port(struct intel_dp *intel_dp,
 	/* enable with pattern 1 (as per spec) */
 
 	intel_dp_program_link_training_pattern(intel_dp, crtc_state,
-					       DP_TRAINING_PATTERN_1);
+					       DP_PHY_DPRX, DP_TRAINING_PATTERN_1);
 
 	/*
 	 * Magic for VLV/CHV. We _must_ first set up the register
