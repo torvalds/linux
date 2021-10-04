@@ -60,6 +60,74 @@ DECLARE_EVENT_CLASS(rpcrdma_completion_class,
 				),					\
 				TP_ARGS(wc, cid))
 
+DECLARE_EVENT_CLASS(rpcrdma_send_completion_class,
+	TP_PROTO(
+		const struct ib_wc *wc,
+		const struct rpc_rdma_cid *cid
+	),
+
+	TP_ARGS(wc, cid),
+
+	TP_STRUCT__entry(
+		__field(u32, cq_id)
+		__field(int, completion_id)
+	),
+
+	TP_fast_assign(
+		__entry->cq_id = cid->ci_queue_id;
+		__entry->completion_id = cid->ci_completion_id;
+	),
+
+	TP_printk("cq.id=%u cid=%d",
+		__entry->cq_id, __entry->completion_id
+	)
+);
+
+#define DEFINE_SEND_COMPLETION_EVENT(name)				\
+		DEFINE_EVENT(rpcrdma_send_completion_class, name,	\
+				TP_PROTO(				\
+					const struct ib_wc *wc,		\
+					const struct rpc_rdma_cid *cid	\
+				),					\
+				TP_ARGS(wc, cid))
+
+DECLARE_EVENT_CLASS(rpcrdma_send_flush_class,
+	TP_PROTO(
+		const struct ib_wc *wc,
+		const struct rpc_rdma_cid *cid
+	),
+
+	TP_ARGS(wc, cid),
+
+	TP_STRUCT__entry(
+		__field(u32, cq_id)
+		__field(int, completion_id)
+		__field(unsigned long, status)
+		__field(unsigned int, vendor_err)
+	),
+
+	TP_fast_assign(
+		__entry->cq_id = cid->ci_queue_id;
+		__entry->completion_id = cid->ci_completion_id;
+		__entry->status = wc->status;
+		__entry->vendor_err = wc->vendor_err;
+	),
+
+	TP_printk("cq.id=%u cid=%d status=%s (%lu/0x%x)",
+		__entry->cq_id, __entry->completion_id,
+		rdma_show_wc_status(__entry->status),
+		__entry->status, __entry->vendor_err
+	)
+);
+
+#define DEFINE_SEND_FLUSH_EVENT(name)					\
+		DEFINE_EVENT(rpcrdma_send_flush_class, name,		\
+				TP_PROTO(				\
+					const struct ib_wc *wc,		\
+					const struct rpc_rdma_cid *cid	\
+				),					\
+				TP_ARGS(wc, cid))
+
 DECLARE_EVENT_CLASS(rpcrdma_mr_completion_class,
 	TP_PROTO(
 		const struct ib_wc *wc,
@@ -1939,7 +2007,9 @@ TRACE_EVENT(svcrdma_post_send,
 	)
 );
 
-DEFINE_COMPLETION_EVENT(svcrdma_wc_send);
+DEFINE_SEND_COMPLETION_EVENT(svcrdma_wc_send);
+DEFINE_SEND_FLUSH_EVENT(svcrdma_wc_send_flush);
+DEFINE_SEND_FLUSH_EVENT(svcrdma_wc_send_err);
 
 TRACE_EVENT(svcrdma_post_recv,
 	TP_PROTO(
