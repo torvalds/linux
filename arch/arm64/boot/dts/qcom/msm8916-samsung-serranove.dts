@@ -185,6 +185,21 @@
 	};
 };
 
+&blsp_i2c4 {
+	status = "okay";
+
+	battery@35 {
+		compatible = "richtek,rt5033-battery";
+		reg = <0x35>;
+
+		interrupt-parent = <&msmgpio>;
+		interrupts = <121 IRQ_TYPE_EDGE_FALLING>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&fg_alert_default>;
+	};
+};
+
 &blsp_i2c5 {
 	status = "okay";
 
@@ -371,6 +386,14 @@
 };
 
 &msmgpio {
+	fg_alert_default: fg-alert-default {
+		pins = "gpio121";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
+	};
+
 	gpio_keys_default: gpio-keys-default {
 		pins = "gpio107", "gpio109";
 		function = "gpio";
