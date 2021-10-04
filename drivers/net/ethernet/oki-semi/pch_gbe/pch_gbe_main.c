@@ -2137,7 +2137,7 @@ static int pch_gbe_set_mac(struct net_device *netdev, void *addr)
 	if (!is_valid_ether_addr(skaddr->sa_data)) {
 		ret_val = -EADDRNOTAVAIL;
 	} else {
-		memcpy(netdev->dev_addr, skaddr->sa_data, netdev->addr_len);
+		eth_hw_addr_set(netdev, skaddr->sa_data);
 		memcpy(adapter->hw.mac.addr, skaddr->sa_data, netdev->addr_len);
 		pch_gbe_mac_mar_set(&adapter->hw, adapter->hw.mac.addr, 0);
 		ret_val = 0;
@@ -2555,7 +2555,7 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 		goto err_free_adapter;
 	}
 
-	memcpy(netdev->dev_addr, adapter->hw.mac.addr, netdev->addr_len);
+	eth_hw_addr_set(netdev, adapter->hw.mac.addr);
 	if (!is_valid_ether_addr(netdev->dev_addr)) {
 		/*
 		 * If the MAC is invalid (or just missing), display a warning

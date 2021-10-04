@@ -1168,7 +1168,7 @@ static int liquidio_set_mac(struct net_device *netdev, void *p)
 		return -EPERM;
 	}
 
-	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
+	eth_hw_addr_set(netdev, addr->sa_data);
 	ether_addr_copy(((u8 *)&lio->linfo.hw_addr) + 2, addr->sa_data);
 
 	return 0;

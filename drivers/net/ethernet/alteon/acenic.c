@@ -2718,7 +2718,7 @@ static int ace_set_mac_addr(struct net_device *dev, void *p)
 	if(netif_running(dev))
 		return -EBUSY;
 
-	memcpy(dev->dev_addr, addr->sa_data,dev->addr_len);
+	eth_hw_addr_set(dev, addr->sa_data);
 
 	da = (u8 *)dev->dev_addr;
 

@@ -1123,7 +1123,7 @@ static int lance_set_mac_address( struct net_device *dev, void *addr )
 		return -EIO;
 	}
 
-	memcpy( dev->dev_addr, saddr->sa_data, dev->addr_len );
+	eth_hw_addr_set(dev, saddr->sa_data);
 	for( i = 0; i < 6; i++ )
 		MEM->init.hwaddr[i] = dev->dev_addr[i^1]; /* <- 16 bit swap! */
 	lp->memcpy_f( RIEBL_HWADDR_ADDR, dev->dev_addr, 6 );

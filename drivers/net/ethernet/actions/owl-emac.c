@@ -1173,7 +1173,7 @@ static int owl_emac_ndo_set_mac_addr(struct net_device *netdev, void *addr)
 	if (netif_running(netdev))
 		return -EBUSY;
 
-	memcpy(netdev->dev_addr, skaddr->sa_data, netdev->addr_len);
+	eth_hw_addr_set(netdev, skaddr->sa_data);
 	owl_emac_set_hw_mac_addr(netdev);
 
 	return owl_emac_setup_frame_xmit(netdev_priv(netdev));

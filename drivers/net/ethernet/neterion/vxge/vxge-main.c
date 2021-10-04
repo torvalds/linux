@@ -1328,7 +1328,7 @@ static int vxge_set_mac_addr(struct net_device *dev, void *p)
 	}
 
 	if (unlikely(!is_vxge_card_up(vdev))) {
-		memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+		eth_hw_addr_set(dev, addr->sa_data);
 		return VXGE_HW_OK;
 	}
 
@@ -1341,7 +1341,7 @@ static int vxge_set_mac_addr(struct net_device *dev, void *p)
 			return -EINVAL;
 	}
 
-	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+	eth_hw_addr_set(dev, addr->sa_data);
 
 	return status;
 }

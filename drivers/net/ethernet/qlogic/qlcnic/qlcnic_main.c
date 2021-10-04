@@ -356,7 +356,7 @@ static int qlcnic_set_mac(struct net_device *netdev, void *p)
 
 	qlcnic_delete_adapter_mac(adapter);
 	memcpy(adapter->mac_addr, addr->sa_data, netdev->addr_len);
-	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
+	eth_hw_addr_set(netdev, addr->sa_data);
 	qlcnic_set_multi(adapter->netdev);
 
 	if (test_bit(__QLCNIC_DEV_UP, &adapter->state)) {
