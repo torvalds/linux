@@ -31,23 +31,18 @@ struct qed_spq_comp_cb {
 };
 
 /**
- * @brief qed_eth_cqe_completion - handles the completion of a
- *        ramrod on the cqe ring
+ * qed_eth_cqe_completion(): handles the completion of a
+ *                           ramrod on the cqe ring.
  *
- * @param p_hwfn
- * @param cqe
+ * @p_hwfn: HW device data.
+ * @cqe: CQE.
  *
- * @return int
+ * Return: Int.
  */
 int qed_eth_cqe_completion(struct qed_hwfn *p_hwfn,
 			   struct eth_slow_path_rx_cqe *cqe);
 
-/**
- *  @file
- *
- *  QED Slow-hwfn queue interface
- */
-
+ /*  QED Slow-hwfn queue interface */
 union ramrod_data {
 	struct pf_start_ramrod_data pf_start;
 	struct pf_update_ramrod_data pf_update;
@@ -207,117 +202,128 @@ struct qed_spq {
 };
 
 /**
- * @brief qed_spq_post - Posts a Slow hwfn request to FW, or lacking that
- *        Pends it to the future list.
+ * qed_spq_post(): Posts a Slow hwfn request to FW, or lacking that
+ *                 Pends it to the future list.
  *
- * @param p_hwfn
- * @param p_req
+ * @p_hwfn: HW device data.
+ * @p_ent: Ent.
+ * @fw_return_code: Return code from firmware.
  *
- * @return int
+ * Return: Int.
  */
 int qed_spq_post(struct qed_hwfn *p_hwfn,
 		 struct qed_spq_entry *p_ent,
 		 u8 *fw_return_code);
 
 /**
- * @brief qed_spq_allocate - Alloocates & initializes the SPQ and EQ.
+ * qed_spq_alloc(): Alloocates & initializes the SPQ and EQ.
  *
- * @param p_hwfn
+ * @p_hwfn: HW device data.
  *
- * @return int
+ * Return: Int.
  */
 int qed_spq_alloc(struct qed_hwfn *p_hwfn);
 
 /**
- * @brief qed_spq_setup - Reset the SPQ to its start state.
+ * qed_spq_setup(): Reset the SPQ to its start state.
  *
- * @param p_hwfn
+ * @p_hwfn: HW device data.
+ *
+ * Return: Void.
  */
 void qed_spq_setup(struct qed_hwfn *p_hwfn);
 
 /**
- * @brief qed_spq_deallocate - Deallocates the given SPQ struct.
+ * qed_spq_free(): Deallocates the given SPQ struct.
  *
- * @param p_hwfn
+ * @p_hwfn: HW device data.
+ *
+ * Return: Void.
  */
 void qed_spq_free(struct qed_hwfn *p_hwfn);
 
 /**
- * @brief qed_spq_get_entry - Obtain an entrry from the spq
- *        free pool list.
+ * qed_spq_get_entry(): Obtain an entrry from the spq
+ *                      free pool list.
  *
+ * @p_hwfn: HW device data.
+ * @pp_ent: PP ENT.
  *
- *
- * @param p_hwfn
- * @param pp_ent
- *
- * @return int
+ * Return: Int.
  */
 int
 qed_spq_get_entry(struct qed_hwfn *p_hwfn,
 		  struct qed_spq_entry **pp_ent);
 
 /**
- * @brief qed_spq_return_entry - Return an entry to spq free
- *                                 pool list
+ * qed_spq_return_entry(): Return an entry to spq free pool list.
  *
- * @param p_hwfn
- * @param p_ent
+ * @p_hwfn: HW device data.
+ * @p_ent: P ENT.
+ *
+ * Return: Void.
  */
 void qed_spq_return_entry(struct qed_hwfn *p_hwfn,
 			  struct qed_spq_entry *p_ent);
 /**
- * @brief qed_eq_allocate - Allocates & initializes an EQ struct
+ * qed_eq_alloc(): Allocates & initializes an EQ struct.
  *
- * @param p_hwfn
- * @param num_elem number of elements in the eq
+ * @p_hwfn: HW device data.
+ * @num_elem: number of elements in the eq.
  *
- * @return int
+ * Return: Int.
  */
 int qed_eq_alloc(struct qed_hwfn *p_hwfn, u16 num_elem);
 
 /**
- * @brief qed_eq_setup - Reset the EQ to its start state.
+ * qed_eq_setup(): Reset the EQ to its start state.
  *
- * @param p_hwfn
+ * @p_hwfn: HW device data.
+ *
+ * Return: Void.
  */
 void qed_eq_setup(struct qed_hwfn *p_hwfn);
 
 /**
- * @brief qed_eq_free - deallocates the given EQ struct.
+ * qed_eq_free(): deallocates the given EQ struct.
  *
- * @param p_hwfn
+ * @p_hwfn: HW device data.
+ *
+ * Return: Void.
  */
 void qed_eq_free(struct qed_hwfn *p_hwfn);
 
 /**
- * @brief qed_eq_prod_update - update the FW with default EQ producer
+ * qed_eq_prod_update(): update the FW with default EQ producer.
  *
- * @param p_hwfn
- * @param prod
+ * @p_hwfn: HW device data.
+ * @prod: Prod.
+ *
+ * Return: Void.
  */
 void qed_eq_prod_update(struct qed_hwfn *p_hwfn,
 			u16 prod);
 
 /**
- * @brief qed_eq_completion - Completes currently pending EQ elements
+ * qed_eq_completion(): Completes currently pending EQ elements.
  *
- * @param p_hwfn
- * @param cookie
+ * @p_hwfn: HW device data.
+ * @cookie: Cookie.
  *
- * @return int
+ * Return: Int.
  */
 int qed_eq_completion(struct qed_hwfn *p_hwfn,
 		      void *cookie);
 
 /**
- * @brief qed_spq_completion - Completes a single event
+ * qed_spq_completion(): Completes a single event.
  *
- * @param p_hwfn
- * @param echo - echo value from cookie (used for determining completion)
- * @param p_data - data from cookie (used in callback function if applicable)
+ * @p_hwfn: HW device data.
+ * @echo: echo value from cookie (used for determining completion).
+ * @fw_return_code: FW return code.
+ * @p_data: data from cookie (used in callback function if applicable).
  *
- * @return int
+ * Return: Int.
  */
 int qed_spq_completion(struct qed_hwfn *p_hwfn,
 		       __le16 echo,
@@ -325,44 +331,43 @@ int qed_spq_completion(struct qed_hwfn *p_hwfn,
 		       union event_ring_data *p_data);
 
 /**
- * @brief qed_spq_get_cid - Given p_hwfn, return cid for the hwfn's SPQ
+ * qed_spq_get_cid(): Given p_hwfn, return cid for the hwfn's SPQ.
  *
- * @param p_hwfn
+ * @p_hwfn: HW device data.
  *
- * @return u32 - SPQ CID
+ * Return: u32 - SPQ CID.
  */
 u32 qed_spq_get_cid(struct qed_hwfn *p_hwfn);
 
 /**
- * @brief qed_consq_alloc - Allocates & initializes an ConsQ
- *        struct
+ * qed_consq_alloc(): Allocates & initializes an ConsQ struct.
  *
- * @param p_hwfn
+ * @p_hwfn: HW device data.
  *
- * @return int
+ * Return: Int.
  */
 int qed_consq_alloc(struct qed_hwfn *p_hwfn);
 
 /**
- * @brief qed_consq_setup - Reset the ConsQ to its start state.
+ * qed_consq_setup(): Reset the ConsQ to its start state.
  *
- * @param p_hwfn
+ * @p_hwfn: HW device data.
+ *
+ * Return Void.
  */
 void qed_consq_setup(struct qed_hwfn *p_hwfn);
 
 /**
- * @brief qed_consq_free - deallocates the given ConsQ struct.
+ * qed_consq_free(): deallocates the given ConsQ struct.
  *
- * @param p_hwfn
+ * @p_hwfn: HW device data.
+ *
+ * Return Void.
  */
 void qed_consq_free(struct qed_hwfn *p_hwfn);
 int qed_spq_pend_post(struct qed_hwfn *p_hwfn);
 
-/**
- * @file
- *
- * @brief Slow-hwfn low-level commands (Ramrods) function definitions.
- */
+/* Slow-hwfn low-level commands (Ramrods) function definitions. */
 
 #define QED_SP_EQ_COMPLETION  0x01
 #define QED_SP_CQE_COMPLETION 0x02
@@ -377,12 +382,15 @@ struct qed_sp_init_data {
 };
 
 /**
- * @brief Returns a SPQ entry to the pool / frees the entry if allocated.
- *        Should be called on in error flows after initializing the SPQ entry
- *        and before posting it.
+ * qed_sp_destroy_request(): Returns a SPQ entry to the pool / frees the
+ *                           entry if allocated. Should be called on in error
+ *                           flows after initializing the SPQ entry
+ *                           and before posting it.
  *
- * @param p_hwfn
- * @param p_ent
+ * @p_hwfn: HW device data.
+ * @p_ent: Ent.
+ *
+ * Return: Void.
  */
 void qed_sp_destroy_request(struct qed_hwfn *p_hwfn,
 			    struct qed_spq_entry *p_ent);
@@ -394,7 +402,14 @@ int qed_sp_init_request(struct qed_hwfn *p_hwfn,
 			struct qed_sp_init_data *p_data);
 
 /**
- * @brief qed_sp_pf_start - PF Function Start Ramrod
+ * qed_sp_pf_start(): PF Function Start Ramrod.
+ *
+ * @p_hwfn: HW device data.
+ * @p_ptt: P_ptt.
+ * @p_tunn: P_tunn.
+ * @allow_npar_tx_switch: Allow NPAR TX Switch.
+ *
+ * Return: Int.
  *
  * This ramrod is sent to initialize a physical function (PF). It will
  * configure the function related parameters and write its completion to the
@@ -404,12 +419,6 @@ int qed_sp_init_request(struct qed_hwfn *p_hwfn,
  * allocated by the driver on host memory and its parameters are written
  * to the internal RAM of the UStorm by the Function Start Ramrod.
  *
- * @param p_hwfn
- * @param p_ptt
- * @param p_tunn
- * @param allow_npar_tx_switch
- *
- * @return int
  */
 
 int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
@@ -418,47 +427,33 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 		    bool allow_npar_tx_switch);
 
 /**
- * @brief qed_sp_pf_update - PF Function Update Ramrod
+ * qed_sp_pf_update(): PF Function Update Ramrod.
+ *
+ * @p_hwfn: HW device data.
+ *
+ * Return: Int.
  *
  * This ramrod updates function-related parameters. Every parameter can be
  * updated independently, according to configuration flags.
- *
- * @param p_hwfn
- *
- * @return int
  */
 
 int qed_sp_pf_update(struct qed_hwfn *p_hwfn);
 
 /**
- * @brief qed_sp_pf_update_stag - Update firmware of new outer tag
+ * qed_sp_pf_update_stag(): Update firmware of new outer tag.
  *
- * @param p_hwfn
+ * @p_hwfn: HW device data.
  *
- * @return int
+ * Return: Int.
  */
 int qed_sp_pf_update_stag(struct qed_hwfn *p_hwfn);
 
 /**
- * @brief qed_sp_pf_stop - PF Function Stop Ramrod
+ * qed_sp_pf_update_ufp(): PF ufp update Ramrod.
  *
- * This ramrod is sent to close a Physical Function (PF). It is the last ramrod
- * sent and the last completion written to the PFs Event Ring. This ramrod also
- * deletes the context for the Slowhwfn connection on this PF.
+ * @p_hwfn: HW device data.
  *
- * @note Not required for first packet.
- *
- * @param p_hwfn
- *
- * @return int
- */
-
-/**
- * @brief qed_sp_pf_update_ufp - PF ufp update Ramrod
- *
- * @param p_hwfn
- *
- * @return int
+ * Return: Int.
  */
 int qed_sp_pf_update_ufp(struct qed_hwfn *p_hwfn);
 
@@ -470,11 +465,11 @@ int qed_sp_pf_update_tunn_cfg(struct qed_hwfn *p_hwfn,
 			      enum spq_mode comp_mode,
 			      struct qed_spq_comp_cb *p_comp_data);
 /**
- * @brief qed_sp_heartbeat_ramrod - Send empty Ramrod
+ * qed_sp_heartbeat_ramrod(): Send empty Ramrod.
  *
- * @param p_hwfn
+ * @p_hwfn: HW device data.
  *
- * @return int
+ * Return: Int.
  */
 
 int qed_sp_heartbeat_ramrod(struct qed_hwfn *p_hwfn);

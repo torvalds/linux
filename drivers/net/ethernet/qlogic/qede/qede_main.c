@@ -2800,9 +2800,12 @@ static void qede_get_eth_tlv_data(void *dev, void *data)
 }
 
 /**
- * qede_io_error_detected - called when PCI error is detected
+ * qede_io_error_detected(): Called when PCI error is detected
+ *
  * @pdev: Pointer to PCI device
  * @state: The current pci connection state
+ *
+ *Return: pci_ers_result_t.
  *
  * This function is called after a PCI bus error affecting
  * this device has been detected.

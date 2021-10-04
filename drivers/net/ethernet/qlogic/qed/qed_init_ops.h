@@ -12,23 +12,24 @@
 #include "qed.h"
 
 /**
- * @brief qed_init_iro_array - init iro_arr.
+ * qed_init_iro_array(): init iro_arr.
  *
+ * @cdev: Qed dev pointer.
  *
- * @param cdev
+ * Return: Void.
  */
 void qed_init_iro_array(struct qed_dev *cdev);
 
 /**
- * @brief qed_init_run - Run the init-sequence.
+ * qed_init_run(): Run the init-sequence.
  *
+ * @p_hwfn: HW device data.
+ * @p_ptt: P_ptt.
+ * @phase: Phase.
+ * @phase_id: Phase ID.
+ * @modes: Mode.
  *
- * @param p_hwfn
- * @param p_ptt
- * @param phase
- * @param phase_id
- * @param modes
- * @return _qed_status_t
+ * Return: _qed_status_t
  */
 int qed_init_run(struct qed_hwfn *p_hwfn,
 		 struct qed_ptt *p_ptt,
@@ -37,30 +38,31 @@ int qed_init_run(struct qed_hwfn *p_hwfn,
 		 int modes);
 
 /**
- * @brief qed_init_hwfn_allocate - Allocate RT array, Store 'values' ptrs.
+ * qed_init_alloc(): Allocate RT array, Store 'values' ptrs.
  *
+ * @p_hwfn: HW device data.
  *
- * @param p_hwfn
- *
- * @return _qed_status_t
+ * Return: _qed_status_t.
  */
 int qed_init_alloc(struct qed_hwfn *p_hwfn);
 
 /**
- * @brief qed_init_hwfn_deallocate
+ * qed_init_free(): Init HW function deallocate.
  *
+ * @p_hwfn: HW device data.
  *
- * @param p_hwfn
+ * Return: Void.
  */
 void qed_init_free(struct qed_hwfn *p_hwfn);
 
 /**
- * @brief qed_init_store_rt_reg - Store a configuration value in the RT array.
+ * qed_init_store_rt_reg(): Store a configuration value in the RT array.
  *
+ * @p_hwfn: HW device data.
+ * @rt_offset: RT offset.
+ * @val: Val.
  *
- * @param p_hwfn
- * @param rt_offset
- * @param val
+ * Return: Void.
  */
 void qed_init_store_rt_reg(struct qed_hwfn *p_hwfn,
 			   u32 rt_offset,
@@ -72,15 +74,6 @@ void qed_init_store_rt_reg(struct qed_hwfn *p_hwfn,
 #define OVERWRITE_RT_REG(hwfn, offset, val) \
 	qed_init_store_rt_reg(hwfn, offset, val)
 
-/**
- * @brief
- *
- *
- * @param p_hwfn
- * @param rt_offset
- * @param val
- * @param size
- */
 void qed_init_store_rt_agg(struct qed_hwfn *p_hwfn,
 			   u32 rt_offset,
 			   u32 *val,
@@ -90,11 +83,12 @@ void qed_init_store_rt_agg(struct qed_hwfn *p_hwfn,
 	qed_init_store_rt_agg(hwfn, offset, (u32 *)&val, sizeof(val))
 
 /**
- * @brief
- *      Initialize GTT global windows and set admin window
- *      related params of GTT/PTT to default values.
+ * qed_gtt_init(): Initialize GTT global windows and set admin window
+ *                 related params of GTT/PTT to default values.
  *
- * @param p_hwfn
+ * @p_hwfn: HW device data.
+ *
+ * Return Void.
  */
 void qed_gtt_init(struct qed_hwfn *p_hwfn);
 #endif

@@ -877,12 +877,13 @@ u32 qed_get_hsi_def_val(struct qed_dev *cdev, enum qed_hsi_def_type type);
 
 
 /**
- * @brief qed_concrete_to_sw_fid - get the sw function id from
- *        the concrete value.
+ * qed_concrete_to_sw_fid(): Get the sw function id from
+ *                           the concrete value.
  *
- * @param concrete_fid
+ * @cdev: Qed dev pointer.
+ * @concrete_fid: Concrete fid.
  *
- * @return inline u8
+ * Return: inline u8.
  */
 static inline u8 qed_concrete_to_sw_fid(struct qed_dev *cdev,
 					u32 concrete_fid)

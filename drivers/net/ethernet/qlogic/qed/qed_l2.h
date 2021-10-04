@@ -92,18 +92,18 @@ struct qed_filter_mcast {
 };
 
 /**
- * @brief qed_eth_rx_queue_stop - This ramrod closes an Rx queue
+ * qed_eth_rx_queue_stop(): This ramrod closes an Rx queue.
  *
- * @param p_hwfn
- * @param p_rxq			Handler of queue to close
- * @param eq_completion_only	If True completion will be on
- *				EQe, if False completion will be
- *				on EQe if p_hwfn opaque
- *				different from the RXQ opaque
- *				otherwise on CQe.
- * @param cqe_completion	If True completion will be
- *				receive on CQe.
- * @return int
+ * @p_hwfn: HW device data.
+ * @p_rxq: Handler of queue to close
+ * @eq_completion_only: If True completion will be on
+ *                      EQe, if False completion will be
+ *                      on EQe if p_hwfn opaque
+ *                      different from the RXQ opaque
+ *                      otherwise on CQe.
+ * @cqe_completion: If True completion will be receive on CQe.
+ *
+ * Return: Int.
  */
 int
 qed_eth_rx_queue_stop(struct qed_hwfn *p_hwfn,
@@ -111,12 +111,12 @@ qed_eth_rx_queue_stop(struct qed_hwfn *p_hwfn,
 		      bool eq_completion_only, bool cqe_completion);
 
 /**
- * @brief qed_eth_tx_queue_stop - closes a Tx queue
+ * qed_eth_tx_queue_stop(): Closes a Tx queue.
  *
- * @param p_hwfn
- * @param p_txq - handle to Tx queue needed to be closed
+ * @p_hwfn: HW device data.
+ * @p_txq: handle to Tx queue needed to be closed.
  *
- * @return int
+ * Return: Int.
  */
 int qed_eth_tx_queue_stop(struct qed_hwfn *p_hwfn, void *p_txq);
 
@@ -205,16 +205,15 @@ int qed_sp_vport_update(struct qed_hwfn *p_hwfn,
 			struct qed_spq_comp_cb *p_comp_data);
 
 /**
- * @brief qed_sp_vport_stop -
+ * qed_sp_vport_stop: This ramrod closes a VPort after all its
+ *                    RX and TX queues are terminated.
+ *                    An Assert is generated if any queues are left open.
  *
- * This ramrod closes a VPort after all its RX and TX queues are terminated.
- * An Assert is generated if any queues are left open.
+ * @p_hwfn: HW device data.
+ * @opaque_fid: Opaque FID
+ * @vport_id: VPort ID.
  *
- * @param p_hwfn
- * @param opaque_fid
- * @param vport_id VPort ID
- *
- * @return int
+ * Return: Int.
  */
 int qed_sp_vport_stop(struct qed_hwfn *p_hwfn, u16 opaque_fid, u8 vport_id);
 
@@ -225,22 +224,21 @@ int qed_sp_eth_filter_ucast(struct qed_hwfn *p_hwfn,
 			    struct qed_spq_comp_cb *p_comp_data);
 
 /**
- * @brief qed_sp_rx_eth_queues_update -
+ * qed_sp_eth_rx_queues_update(): This ramrod updates an RX queue.
+ *                                It is used for setting the active state
+ *                                of the queue and updating the TPA and
+ *                                SGE parameters.
+ * @p_hwfn: HW device data.
+ * @pp_rxq_handlers: An array of queue handlers to be updated.
+ * @num_rxqs: number of queues to update.
+ * @complete_cqe_flg: Post completion to the CQE Ring if set.
+ * @complete_event_flg: Post completion to the Event Ring if set.
+ * @comp_mode: Comp mode.
+ * @p_comp_data: Pointer Comp data.
  *
- * This ramrod updates an RX queue. It is used for setting the active state
- * of the queue and updating the TPA and SGE parameters.
+ * Return: Int.
  *
- * @note At the moment - only used by non-linux VFs.
- *
- * @param p_hwfn
- * @param pp_rxq_handlers	An array of queue handlers to be updated.
- * @param num_rxqs              number of queues to update.
- * @param complete_cqe_flg	Post completion to the CQE Ring if set
- * @param complete_event_flg	Post completion to the Event Ring if set
- * @param comp_mode
- * @param p_comp_data
- *
- * @return int
+ * Note At the moment - only used by non-linux VFs.
  */
 
 int
@@ -257,30 +255,32 @@ void qed_get_vport_stats(struct qed_dev *cdev, struct qed_eth_stats *stats);
 void qed_reset_vport_stats(struct qed_dev *cdev);
 
 /**
- * *@brief qed_arfs_mode_configure -
+ * qed_arfs_mode_configure(): Enable or disable rfs mode.
+ *                            It must accept at least one of tcp or udp true
+ *                            and at least one of ipv4 or ipv6 true to enable
+ *                            rfs mode.
  *
- **Enable or disable rfs mode. It must accept atleast one of tcp or udp true
- **and atleast one of ipv4 or ipv6 true to enable rfs mode.
+ * @p_hwfn: HW device data.
+ * @p_ptt: P_ptt.
+ * @p_cfg_params: arfs mode configuration parameters.
  *
- **@param p_hwfn
- **@param p_ptt
- **@param p_cfg_params - arfs mode configuration parameters.
- *
+ * Return. Void.
  */
 void qed_arfs_mode_configure(struct qed_hwfn *p_hwfn,
 			     struct qed_ptt *p_ptt,
 			     struct qed_arfs_config_params *p_cfg_params);
 
 /**
- * @brief - qed_configure_rfs_ntuple_filter
+ * qed_configure_rfs_ntuple_filter(): This ramrod should be used to add
+ *                                     or remove arfs hw filter
  *
- * This ramrod should be used to add or remove arfs hw filter
+ * @p_hwfn: HW device data.
+ * @p_cb: Used for QED_SPQ_MODE_CB,where client would initialize
+ *        it with cookie and callback function address, if not
+ *        using this mode then client must pass NULL.
+ * @p_params: Pointer to params.
  *
- * @params p_hwfn
- * @params p_cb - Used for QED_SPQ_MODE_CB,where client would initialize
- *		  it with cookie and callback function address, if not
- *		  using this mode then client must pass NULL.
- * @params p_params
+ * Return: Void.
  */
 int
 qed_configure_rfs_ntuple_filter(struct qed_hwfn *p_hwfn,
@@ -374,16 +374,17 @@ qed_sp_eth_vport_start(struct qed_hwfn *p_hwfn,
 		       struct qed_sp_vport_start_params *p_params);
 
 /**
- * @brief - Starts an Rx queue, when queue_cid is already prepared
+ * qed_eth_rxq_start_ramrod(): Starts an Rx queue, when queue_cid is
+ *                             already prepared
  *
- * @param p_hwfn
- * @param p_cid
- * @param bd_max_bytes
- * @param bd_chain_phys_addr
- * @param cqe_pbl_addr
- * @param cqe_pbl_size
+ * @p_hwfn: HW device data.
+ * @p_cid: Pointer CID.
+ * @bd_max_bytes: Max bytes.
+ * @bd_chain_phys_addr: Chain physcial address.
+ * @cqe_pbl_addr: PBL address.
+ * @cqe_pbl_size: PBL size.
  *
- * @return int
+ * Return: Int.
  */
 int
 qed_eth_rxq_start_ramrod(struct qed_hwfn *p_hwfn,
@@ -393,15 +394,16 @@ qed_eth_rxq_start_ramrod(struct qed_hwfn *p_hwfn,
 			 dma_addr_t cqe_pbl_addr, u16 cqe_pbl_size);
 
 /**
- * @brief - Starts a Tx queue, where queue_cid is already prepared
+ * qed_eth_txq_start_ramrod(): Starts a Tx queue, where queue_cid is
+ *                             already prepared
  *
- * @param p_hwfn
- * @param p_cid
- * @param pbl_addr
- * @param pbl_size
- * @param p_pq_params - parameters for choosing the PQ for this Tx queue
+ * @p_hwfn: HW device data.
+ * @p_cid: Pointer CID.
+ * @pbl_addr: PBL address.
+ * @pbl_size: PBL size.
+ * @pq_id: Parameters for choosing the PQ for this Tx queue.
  *
- * @return int
+ * Return: Int.
  */
 int
 qed_eth_txq_start_ramrod(struct qed_hwfn *p_hwfn,

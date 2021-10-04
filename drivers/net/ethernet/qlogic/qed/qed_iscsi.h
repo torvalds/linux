@@ -34,10 +34,13 @@ void qed_iscsi_setup(struct qed_hwfn *p_hwfn);
 void qed_iscsi_free(struct qed_hwfn *p_hwfn);
 
 /**
- * @brief - Fills provided statistics struct with statistics.
+ * qed_get_protocol_stats_iscsi(): Fills provided statistics
+ *                                 struct with statistics.
  *
- * @param cdev
- * @param stats - points to struct that will be filled with statistics.
+ * @cdev: Qed dev pointer.
+ * @stats: Points to struct that will be filled with statistics.
+ *
+ * Return: Void.
  */
 void qed_get_protocol_stats_iscsi(struct qed_dev *cdev,
 				  struct qed_mcp_iscsi_stats *stats);
