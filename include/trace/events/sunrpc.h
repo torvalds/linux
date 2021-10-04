@@ -1859,6 +1859,24 @@ TRACE_EVENT(svc_wake_up,
 	TP_printk("pid=%d", __entry->pid)
 );
 
+TRACE_EVENT(svc_alloc_arg_err,
+	TP_PROTO(
+		unsigned int pages
+	),
+
+	TP_ARGS(pages),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, pages)
+	),
+
+	TP_fast_assign(
+		__entry->pages = pages;
+	),
+
+	TP_printk("pages=%u", __entry->pages)
+);
+
 TRACE_EVENT(svc_handle_xprt,
 	TP_PROTO(struct svc_xprt *xprt, int len),
 
