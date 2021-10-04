@@ -149,6 +149,14 @@ the Microchip website: http://www.microchip.com.
 
           Coming soon
 
+      - lan966 family
+        - lan9662
+        - lan9668
+
+          * Datasheet
+
+          Coming soon
+
     * ARM Cortex-M7 MCUs
       - sams70 family
 
