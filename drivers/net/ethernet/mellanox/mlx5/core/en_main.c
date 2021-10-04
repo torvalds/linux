@@ -2981,8 +2981,8 @@ static int mlx5e_mqprio_channel_validate(struct mlx5e_priv *priv,
 		agg_count += mqprio->qopt.count[i];
 	}
 
-	if (priv->channels.params.num_channels < agg_count) {
-		netdev_err(netdev, "Num of queues (%d) exceeds available (%d)\n",
+	if (priv->channels.params.num_channels != agg_count) {
+		netdev_err(netdev, "Num of queues (%d) does not match available (%d)\n",
 			   agg_count, priv->channels.params.num_channels);
 		return -EINVAL;
 	}
