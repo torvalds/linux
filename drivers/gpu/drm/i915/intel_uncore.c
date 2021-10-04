@@ -346,7 +346,7 @@ static void __gen6_gt_wait_for_thread_c0(struct intel_uncore *uncore)
 static void fw_domains_get_with_thread_status(struct intel_uncore *uncore,
 					      enum forcewake_domains fw_domains)
 {
-	fw_domains_get(uncore, fw_domains);
+	fw_domains_get_normal(uncore, fw_domains);
 
 	/* WaRsForcewakeWaitTC0:snb,ivb,hsw,bdw,vlv */
 	__gen6_gt_wait_for_thread_c0(uncore);
