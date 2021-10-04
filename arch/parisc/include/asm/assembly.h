@@ -42,6 +42,9 @@
 #define ASM_ULONG_INSN	.word
 #endif
 
+/* Frame alignment for 32- and 64-bit */
+#define FRAME_ALIGN     64
+
 #define CALLEE_SAVE_FRAME_SIZE (CALLEE_REG_FRAME_SIZE + CALLEE_FLOAT_FRAME_SIZE)
 
 #ifdef CONFIG_PA20
@@ -57,6 +60,10 @@
 #define BL		bl
 #define PA_ASM_LEVEL	1.1
 #endif
+
+/* Privilege level field in the rightmost two bits of the IA queues */
+#define PRIV_USER	3
+#define PRIV_KERNEL	0
 
 #ifdef __ASSEMBLY__
 
