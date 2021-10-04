@@ -1527,15 +1527,13 @@ int qed_mcp_set_link(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, bool b_up)
 	    FW_MB_PARAM_FEATURE_SUPPORT_EXT_SPEED_FEC_CONTROL) {
 		ext_speed = 0;
 		if (params->ext_speed.autoneg)
-			ext_speed |= ETH_EXT_SPEED_AN;
+			ext_speed |= ETH_EXT_SPEED_NONE;
 
 		val = params->ext_speed.forced_speed;
 		if (val & QED_EXT_SPEED_1G)
 			ext_speed |= ETH_EXT_SPEED_1G;
 		if (val & QED_EXT_SPEED_10G)
 			ext_speed |= ETH_EXT_SPEED_10G;
-		if (val & QED_EXT_SPEED_20G)
-			ext_speed |= ETH_EXT_SPEED_20G;
 		if (val & QED_EXT_SPEED_25G)
 			ext_speed |= ETH_EXT_SPEED_25G;
 		if (val & QED_EXT_SPEED_40G)
@@ -1561,8 +1559,6 @@ int qed_mcp_set_link(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, bool b_up)
 			ext_speed |= ETH_EXT_ADV_SPEED_1G;
 		if (val & QED_EXT_SPEED_MASK_10G)
 			ext_speed |= ETH_EXT_ADV_SPEED_10G;
-		if (val & QED_EXT_SPEED_MASK_20G)
-			ext_speed |= ETH_EXT_ADV_SPEED_20G;
 		if (val & QED_EXT_SPEED_MASK_25G)
 			ext_speed |= ETH_EXT_ADV_SPEED_25G;
 		if (val & QED_EXT_SPEED_MASK_40G)
@@ -2445,9 +2441,6 @@ qed_mcp_get_shmem_proto(struct qed_hwfn *p_hwfn,
 		break;
 	case FUNC_MF_CFG_PROTOCOL_ISCSI:
 		*p_proto = QED_PCI_ISCSI;
-		break;
-	case FUNC_MF_CFG_PROTOCOL_NVMETCP:
-		*p_proto = QED_PCI_NVMETCP;
 		break;
 	case FUNC_MF_CFG_PROTOCOL_FCOE:
 		*p_proto = QED_PCI_FCOE;
@@ -3389,7 +3382,7 @@ qed_mcp_get_nvm_image_att(struct qed_hwfn *p_hwfn,
 		type = NVM_TYPE_DEFAULT_CFG;
 		break;
 	case QED_NVM_IMAGE_NVM_META:
-		type = NVM_TYPE_META;
+		type = NVM_TYPE_NVM_META;
 		break;
 	default:
 		DP_NOTICE(p_hwfn, "Unknown request of image_id %08x\n",
