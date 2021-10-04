@@ -969,6 +969,7 @@ int qed_mcp_reset(struct qed_hwfn *p_hwfn,
  * @o_mcp_param: MCP response param.
  * @o_txn_size: Buffer size output.
  * @o_buf: Pointer to the buffer returned by the MFW.
+ * @b_can_sleep: Can sleep.
  *
  * Return: 0 upon success.
  */
@@ -977,7 +978,8 @@ int qed_mcp_nvm_rd_cmd(struct qed_hwfn *p_hwfn,
 		       u32 cmd,
 		       u32 param,
 		       u32 *o_mcp_resp,
-		       u32 *o_mcp_param, u32 *o_txn_size, u32 *o_buf);
+		       u32 *o_mcp_param,
+		       u32 *o_txn_size, u32 *o_buf, bool b_can_sleep);
 
 /**
  * qed_mcp_phy_sfp_read(): Read from sfp.

@@ -1003,4 +1003,5 @@ int qed_llh_add_dst_tcp_port_filter(struct qed_dev *cdev, u16 dest_port);
 void qed_llh_remove_src_tcp_port_filter(struct qed_dev *cdev, u16 src_port);
 void qed_llh_remove_dst_tcp_port_filter(struct qed_dev *cdev, u16 src_port);
 void qed_llh_clear_all_filters(struct qed_dev *cdev);
+unsigned long qed_get_epoch_time(void);
 #endif /* _QED_H */

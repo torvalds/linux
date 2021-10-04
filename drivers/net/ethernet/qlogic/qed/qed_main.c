@@ -3156,3 +3156,8 @@ int qed_mfw_fill_tlv_data(struct qed_hwfn *hwfn, enum qed_mfw_tlv_type type,
 
 	return 0;
 }
+
+unsigned long qed_get_epoch_time(void)
+{
+	return ktime_get_real_seconds();
+}
