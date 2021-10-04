@@ -1807,7 +1807,6 @@ static void io_req_complete_post(struct io_kiocb *req, long res,
 		io_put_task(req->task, 1);
 		wq_list_add_head(&req->comp_list, &ctx->locked_free_list);
 		ctx->locked_free_nr++;
-		percpu_ref_put(&ctx->refs);
 	}
 	io_commit_cqring(ctx);
 	spin_unlock(&ctx->completion_lock);
@@ -1929,6 +1928,7 @@ static bool __io_alloc_req_refill(struct io_ring_ctx *ctx)
 		ret = 1;
 	}
 
+	percpu_ref_get_many(&ctx->refs, ret);
 	for (i = 0; i < ret; i++) {
 		req = reqs[i];
 
@@ -1986,8 +1986,6 @@ static void __io_free_req(struct io_kiocb *req)
 	wq_list_add_head(&req->comp_list, &ctx->locked_free_list);
 	ctx->locked_free_nr++;
 	spin_unlock(&ctx->completion_lock);
-
-	percpu_ref_put(&ctx->refs);
 }
 
 static inline void io_remove_next_linked(struct io_kiocb *req)
@@ -2276,7 +2274,7 @@ static void io_free_batch_list(struct io_ring_ctx *ctx,
 	__must_hold(&ctx->uring_lock)
 {
 	struct task_struct *task = NULL;
-	int task_refs = 0, ctx_refs = 0;
+	int task_refs = 0;
 
 	do {
 		struct io_kiocb *req = container_of(node, struct io_kiocb,
@@ -2296,12 +2294,9 @@ static void io_free_batch_list(struct io_ring_ctx *ctx,
 			task_refs = 0;
 		}
 		task_refs++;
-		ctx_refs++;
 		wq_stack_add_head(&req->comp_list, &ctx->submit_state.free_list);
 	} while (node);
 
-	if (ctx_refs)
-		percpu_ref_put_many(&ctx->refs, ctx_refs);
 	if (task)
 		io_put_task(task, task_refs);
 }
@@ -7212,8 +7207,6 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
 		return 0;
 	/* make sure SQ entry isn't read before tail */
 	nr = min3(nr, ctx->sq_entries, entries);
-	if (unlikely(!percpu_ref_tryget_many(&ctx->refs, nr)))
-		return -EAGAIN;
 	io_get_task_refs(nr);
 
 	io_submit_state_start(&ctx->submit_state, nr);
@@ -7243,7 +7236,6 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
 		int unused = nr - ref_used;
 
 		current->io_uring->cached_refs += unused;
-		percpu_ref_put_many(&ctx->refs, unused);
 	}
 
 	io_submit_state_end(ctx);
@@ -9164,6 +9156,7 @@ static void io_destroy_buffers(struct io_ring_ctx *ctx)
 static void io_req_caches_free(struct io_ring_ctx *ctx)
 {
 	struct io_submit_state *state = &ctx->submit_state;
+	int nr = 0;
 
 	mutex_lock(&ctx->uring_lock);
 	io_flush_cached_locked_reqs(ctx, state);
@@ -9175,7 +9168,10 @@ static void io_req_caches_free(struct io_ring_ctx *ctx)
 		node = wq_stack_extract(&state->free_list);
 		req = container_of(node, struct io_kiocb, comp_list);
 		kmem_cache_free(req_cachep, req);
+		nr++;
 	}
+	if (nr)
+		percpu_ref_put_many(&ctx->refs, nr);
 	mutex_unlock(&ctx->uring_lock);
 }
 
@@ -9344,6 +9340,8 @@ static void io_ring_exit_work(struct work_struct *work)
 						io_cancel_ctx_cb, ctx, true);
 			io_sq_thread_unpark(sqd);
 		}
+
+		io_req_caches_free(ctx);
 
 		if (WARN_ON_ONCE(time_after(jiffies, timeout))) {
 			/* there is little hope left, don't run it too often */
@@ -10724,10 +10722,14 @@ static int io_ctx_quiesce(struct io_ring_ctx *ctx)
 	 */
 	mutex_unlock(&ctx->uring_lock);
 	do {
-		ret = wait_for_completion_interruptible(&ctx->ref_comp);
-		if (!ret)
+		ret = wait_for_completion_interruptible_timeout(&ctx->ref_comp, HZ);
+		if (ret) {
+			ret = min(0L, ret);
 			break;
+		}
+
 		ret = io_run_task_work_sig();
+		io_req_caches_free(ctx);
 	} while (ret >= 0);
 	mutex_lock(&ctx->uring_lock);
 
