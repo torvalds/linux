@@ -18,6 +18,7 @@
 
 #include "pmbus.h"
 
+#define CFFPS_MFG_ID_CMD                        0x99
 #define CFFPS_FRU_CMD				0x9A
 #define CFFPS_PN_CMD				0x9B
 #define CFFPS_HEADER_CMD			0x9C
@@ -34,7 +35,7 @@
 #define CFFPS_INPUT_HISTORY_SIZE		100
 
 #define CFFPS_CCIN_REVISION			GENMASK(7, 0)
-#define  CFFPS_CCIN_REVISION_LEGACY		 0xde
+#define CFFPS_CCIN_REVISION_LEGACY		 0xde
 #define CFFPS_CCIN_VERSION			GENMASK(15, 8)
 #define CFFPS_CCIN_VERSION_1			 0x2b
 #define CFFPS_CCIN_VERSION_2			 0x2e
@@ -57,6 +58,7 @@
 
 enum {
 	CFFPS_DEBUGFS_INPUT_HISTORY = 0,
+	CFFPS_DEBUGFS_MFG_ID,
 	CFFPS_DEBUGFS_FRU,
 	CFFPS_DEBUGFS_PN,
 	CFFPS_DEBUGFS_HEADER,
@@ -158,6 +160,9 @@ static ssize_t ibm_cffps_debugfs_read(struct file *file, char __user *buf,
 	switch (idx) {
 	case CFFPS_DEBUGFS_INPUT_HISTORY:
 		return ibm_cffps_read_input_history(psu, buf, count, ppos);
+	case CFFPS_DEBUGFS_MFG_ID:
+		cmd = CFFPS_MFG_ID_CMD;
+		break;
 	case CFFPS_DEBUGFS_FRU:
 		cmd = CFFPS_FRU_CMD;
 		break;
@@ -563,6 +568,9 @@ static int ibm_cffps_probe(struct i2c_client *client)
 
 	debugfs_create_file("input_history", 0444, ibm_cffps_dir,
 			    &psu->debugfs_entries[CFFPS_DEBUGFS_INPUT_HISTORY],
+			    &ibm_cffps_fops);
+	debugfs_create_file("mfg_id", 0444, ibm_cffps_dir,
+			    &psu->debugfs_entries[CFFPS_DEBUGFS_MFG_ID],
 			    &ibm_cffps_fops);
 	debugfs_create_file("fru", 0444, ibm_cffps_dir,
 			    &psu->debugfs_entries[CFFPS_DEBUGFS_FRU],
