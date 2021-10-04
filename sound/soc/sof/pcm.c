@@ -57,13 +57,18 @@ static int sof_pcm_dsp_params(struct snd_sof_pcm *spcm, struct snd_pcm_substream
 /*
  * sof pcm period elapse work
  */
-void snd_sof_pcm_period_elapsed_work(struct work_struct *work)
+static void snd_sof_pcm_period_elapsed_work(struct work_struct *work)
 {
 	struct snd_sof_pcm_stream *sps =
 		container_of(work, struct snd_sof_pcm_stream,
 			     period_elapsed_work);
 
 	snd_pcm_period_elapsed(sps->substream);
+}
+
+void snd_sof_pcm_init_elapsed_work(struct work_struct *work)
+{
+	 INIT_WORK(work, snd_sof_pcm_period_elapsed_work);
 }
 
 /*

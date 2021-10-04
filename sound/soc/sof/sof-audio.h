@@ -36,6 +36,7 @@ struct snd_sof_pcm_stream {
 	struct snd_dma_buffer page_table;
 	struct sof_ipc_stream_posn posn;
 	struct snd_pcm_substream *substream;
+	struct snd_compr_stream *cstream;
 	struct work_struct period_elapsed_work;
 	struct snd_soc_dapm_widget_list *list; /* list of connected DAPM widgets */
 	bool d0i3_compatible; /* DSP can be in D0I3 when this pcm is opened */
@@ -231,7 +232,15 @@ struct snd_sof_pcm *snd_sof_find_spcm_pcm_id(struct snd_soc_component *scomp,
 const struct sof_ipc_pipe_new *snd_sof_pipeline_find(struct snd_sof_dev *sdev,
 						     int pipeline_id);
 void snd_sof_pcm_period_elapsed(struct snd_pcm_substream *substream);
-void snd_sof_pcm_period_elapsed_work(struct work_struct *work);
+void snd_sof_pcm_init_elapsed_work(struct work_struct *work);
+
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_COMPRESS)
+void snd_sof_compr_fragment_elapsed(struct snd_compr_stream *cstream);
+void snd_sof_compr_init_elapsed_work(struct work_struct *work);
+#else
+static inline void snd_sof_compr_fragment_elapsed(struct snd_compr_stream *cstream) { }
+static inline void snd_sof_compr_init_elapsed_work(struct work_struct *work) { }
+#endif
 
 /*
  * Mixer IPC
