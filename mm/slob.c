@@ -462,10 +462,10 @@ out:
 }
 
 #ifdef CONFIG_PRINTK
-void kmem_obj_info(struct kmem_obj_info *kpp, void *object, struct page *page)
+void kmem_obj_info(struct kmem_obj_info *kpp, void *object, struct slab *slab)
 {
 	kpp->kp_ptr = object;
-	kpp->kp_page = page;
+	kpp->kp_slab = slab;
 }
 #endif
 

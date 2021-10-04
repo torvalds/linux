@@ -3646,21 +3646,21 @@ EXPORT_SYMBOL(__kmalloc_node_track_caller);
 #endif /* CONFIG_NUMA */
 
 #ifdef CONFIG_PRINTK
-void kmem_obj_info(struct kmem_obj_info *kpp, void *object, struct page *page)
+void kmem_obj_info(struct kmem_obj_info *kpp, void *object, struct slab *slab)
 {
 	struct kmem_cache *cachep;
 	unsigned int objnr;
 	void *objp;
 
 	kpp->kp_ptr = object;
-	kpp->kp_page = page;
-	cachep = page->slab_cache;
+	kpp->kp_slab = slab;
+	cachep = slab->slab_cache;
 	kpp->kp_slab_cache = cachep;
 	objp = object - obj_offset(cachep);
 	kpp->kp_data_offset = obj_offset(cachep);
-	page = virt_to_head_page(objp);
-	objnr = obj_to_index(cachep, page, objp);
-	objp = index_to_obj(cachep, page, objnr);
+	slab = virt_to_slab(objp);
+	objnr = obj_to_index(cachep, slab_page(slab), objp);
+	objp = index_to_obj(cachep, slab_page(slab), objnr);
 	kpp->kp_objp = objp;
 	if (DEBUG && cachep->flags & SLAB_STORE_USER)
 		kpp->kp_ret = *dbg_userword(cachep, objp);

@@ -4322,31 +4322,32 @@ int __kmem_cache_shutdown(struct kmem_cache *s)
 }
 
 #ifdef CONFIG_PRINTK
-void kmem_obj_info(struct kmem_obj_info *kpp, void *object, struct page *page)
+void kmem_obj_info(struct kmem_obj_info *kpp, void *object, struct slab *slab)
 {
 	void *base;
 	int __maybe_unused i;
 	unsigned int objnr;
 	void *objp;
 	void *objp0;
-	struct kmem_cache *s = page->slab_cache;
+	struct kmem_cache *s = slab->slab_cache;
 	struct track __maybe_unused *trackp;
 
 	kpp->kp_ptr = object;
-	kpp->kp_page = page;
+	kpp->kp_slab = slab;
 	kpp->kp_slab_cache = s;
-	base = page_address(page);
+	base = slab_address(slab);
 	objp0 = kasan_reset_tag(object);
 #ifdef CONFIG_SLUB_DEBUG
 	objp = restore_red_left(s, objp0);
 #else
 	objp = objp0;
 #endif
-	objnr = obj_to_index(s, page, objp);
+	objnr = obj_to_index(s, slab_page(slab), objp);
 	kpp->kp_data_offset = (unsigned long)((char *)objp0 - (char *)objp);
 	objp = base + s->size * objnr;
 	kpp->kp_objp = objp;
-	if (WARN_ON_ONCE(objp < base || objp >= base + page->objects * s->size || (objp - base) % s->size) ||
+	if (WARN_ON_ONCE(objp < base || objp >= base + slab->objects * s->size
+			 || (objp - base) % s->size) ||
 	    !(s->flags & SLAB_STORE_USER))
 		return;
 #ifdef CONFIG_SLUB_DEBUG
