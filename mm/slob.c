@@ -570,7 +570,7 @@ EXPORT_SYMBOL(kfree);
 /* can't use ksize for kmem_cache_alloc memory, only kmalloc */
 size_t __ksize(const void *block)
 {
-	struct page *sp;
+	struct folio *folio;
 	int align;
 	unsigned int *m;
 
@@ -578,9 +578,9 @@ size_t __ksize(const void *block)
 	if (unlikely(block == ZERO_SIZE_PTR))
 		return 0;
 
-	sp = virt_to_page(block);
-	if (unlikely(!PageSlab(sp)))
-		return page_size(sp);
+	folio = virt_to_folio(block);
+	if (unlikely(!folio_test_slab(folio)))
+		return folio_size(folio);
 
 	align = max_t(size_t, ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
 	m = (unsigned int *)(block - align);
