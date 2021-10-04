@@ -1564,7 +1564,7 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver)
 
 	mutex_unlock(&udc_lock);
 	if (ret)
-		pr_warn("couldn't find an available UDC or it's busy\n");
+		pr_warn("couldn't find an available UDC or it's busy: %d\n", ret);
 	return ret;
 found:
 	ret = udc_bind_to_driver(udc, driver);
