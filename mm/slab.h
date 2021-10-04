@@ -574,13 +574,13 @@ static inline void memcg_slab_free_hook(struct kmem_cache *s,
 
 static inline struct kmem_cache *virt_to_cache(const void *obj)
 {
-	struct page *page;
+	struct slab *slab;
 
-	page = virt_to_head_page(obj);
-	if (WARN_ONCE(!PageSlab(page), "%s: Object is not a Slab page!\n",
+	slab = virt_to_slab(obj);
+	if (WARN_ONCE(!slab, "%s: Object is not a Slab page!\n",
 					__func__))
 		return NULL;
-	return page->slab_cache;
+	return slab->slab_cache;
 }
 
 static __always_inline void account_slab(struct slab *slab, int order,
