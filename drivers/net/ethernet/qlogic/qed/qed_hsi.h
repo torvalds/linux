@@ -1093,7 +1093,7 @@ enum malicious_vf_error_id {
 /* Mstorm non-triggering VF zone */
 struct mstorm_non_trigger_vf_zone {
 	struct eth_mstorm_per_queue_stat eth_queue_stat;
-	struct eth_rx_prod_data eth_rx_queue_producers[ETH_MAX_NUM_RX_QUEUES_PER_VF_QUAD];
+	struct eth_rx_prod_data eth_rx_queue_producers[ETH_MAX_RXQ_VF_QUAD];
 };
 
 /* Mstorm VF zone */
