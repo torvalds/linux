@@ -38,7 +38,6 @@ struct io_wq_work_list {
 #define wq_list_empty(list)	(READ_ONCE((list)->first) == NULL)
 #define INIT_WQ_LIST(list)	do {				\
 	(list)->first = NULL;					\
-	(list)->last = NULL;					\
 } while (0)
 
 static inline void wq_list_add_after(struct io_wq_work_node *node,
