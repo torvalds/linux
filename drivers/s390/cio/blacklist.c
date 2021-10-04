@@ -262,10 +262,12 @@ static int blacklist_parse_proc_parameters(char *buf)
 
 	if (strcmp("free", parm) == 0) {
 		rc = blacklist_parse_parameters(buf, free, 0);
-		/* There could be subchannels without proper devices connected.
-		 * evaluate all the entries
+		/*
+		 * Evaluate the subchannels without an online device. This way,
+		 * no path-verification will be triggered on those subchannels
+		 * and it avoids unnecessary delays.
 		 */
-		css_schedule_eval_all();
+		css_schedule_eval_cond(CSS_EVAL_NOT_ONLINE, 0);
 	} else if (strcmp("add", parm) == 0)
 		rc = blacklist_parse_parameters(buf, add, 0);
 	else if (strcmp("purge", parm) == 0)

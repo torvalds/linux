@@ -952,6 +952,8 @@ int armpmu_register(struct arm_pmu *pmu)
 		pmu->name, pmu->num_events,
 		has_nmi ? ", using NMIs" : "");
 
+	kvm_host_pmu_init(pmu);
+
 	return 0;
 
 out_destroy:
