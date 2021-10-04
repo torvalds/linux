@@ -1446,6 +1446,13 @@ static void io_prep_async_link(struct io_kiocb *req)
 	}
 }
 
+static inline void io_req_add_compl_list(struct io_kiocb *req)
+{
+	struct io_submit_state *state = &req->ctx->submit_state;
+
+	wq_list_add_tail(&req->comp_list, &state->compl_reqs);
+}
+
 static void io_queue_async_work(struct io_kiocb *req, bool *locked)
 {
 	struct io_ring_ctx *ctx = req->ctx;
@@ -1820,20 +1827,15 @@ static inline bool io_req_needs_clean(struct io_kiocb *req)
 	return req->flags & IO_REQ_CLEAN_FLAGS;
 }
 
-static void io_req_complete_state(struct io_kiocb *req, long res,
-				  unsigned int cflags)
+static inline void io_req_complete_state(struct io_kiocb *req, long res,
+					 unsigned int cflags)
 {
-	struct io_submit_state *state;
-
 	/* clean per-opcode space, because req->compl is aliased with it */
 	if (io_req_needs_clean(req))
 		io_clean_op(req);
 	req->result = res;
 	req->compl.cflags = cflags;
 	req->flags |= REQ_F_COMPLETE_INLINE;
-
-	state = &req->ctx->submit_state;
-	wq_list_add_tail(&req->comp_list, &state->compl_reqs);
 }
 
 static inline void __io_req_complete(struct io_kiocb *req, unsigned issue_flags,
@@ -2626,10 +2628,12 @@ static void io_req_task_complete(struct io_kiocb *req, bool *locked)
 	unsigned int cflags = io_put_rw_kbuf(req);
 	long res = req->result;
 
-	if (*locked)
+	if (*locked) {
 		io_req_complete_state(req, res, cflags);
-	else
+		io_req_add_compl_list(req);
+	} else {
 		io_req_complete_post(req, res, cflags);
+	}
 }
 
 static void __io_complete_rw(struct io_kiocb *req, long res, long res2,
@@ -6886,8 +6890,10 @@ static inline void __io_queue_sqe(struct io_kiocb *req)
 
 	ret = io_issue_sqe(req, IO_URING_F_NONBLOCK|IO_URING_F_COMPLETE_DEFER);
 
-	if (req->flags & REQ_F_COMPLETE_INLINE)
+	if (req->flags & REQ_F_COMPLETE_INLINE) {
+		io_req_add_compl_list(req);
 		return;
+	}
 	/*
 	 * We async punt it if the file wasn't marked NOWAIT, or if the file
 	 * doesn't support non-blocking read/write attempts
