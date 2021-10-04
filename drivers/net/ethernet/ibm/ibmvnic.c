@@ -4708,14 +4708,6 @@ static int handle_login_rsp(union ibmvnic_crq *login_rsp_crq,
 		return 0;
 	}
 
-	if (adapter->failover_pending) {
-		adapter->init_done_rc = -EAGAIN;
-		netdev_dbg(netdev, "Failover pending, ignoring login response\n");
-		complete(&adapter->init_done);
-		/* login response buffer will be released on reset */
-		return 0;
-	}
-
 	netdev->mtu = adapter->req_mtu - ETH_HLEN;
 
 	netdev_dbg(adapter->netdev, "Login Response Buffer:\n");

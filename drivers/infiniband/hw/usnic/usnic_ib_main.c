@@ -572,7 +572,7 @@ static int usnic_ib_pci_probe(struct pci_dev *pdev,
 	}
 
 	vf->pf = pf;
-	spin_lock_init(&vf->lock);
+	mutex_init(&vf->lock);
 	mutex_lock(&pf->usdev_lock);
 	list_add_tail(&vf->link, &pf->vf_dev_list);
 	/*

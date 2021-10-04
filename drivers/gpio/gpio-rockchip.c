@@ -141,7 +141,7 @@ static int rockchip_gpio_get_direction(struct gpio_chip *chip,
 	u32 data;
 
 	data = rockchip_gpio_readl_bit(bank, offset, bank->gpio_regs->port_ddr);
-	if (data & BIT(offset))
+	if (data)
 		return GPIO_LINE_DIRECTION_OUT;
 
 	return GPIO_LINE_DIRECTION_IN;
@@ -195,7 +195,7 @@ static int rockchip_gpio_set_debounce(struct gpio_chip *gc,
 	unsigned int cur_div_reg;
 	u64 div;
 
-	if (!IS_ERR(bank->db_clk)) {
+	if (bank->gpio_type == GPIO_TYPE_V2 && !IS_ERR(bank->db_clk)) {
 		div_debounce_support = true;
 		freq = clk_get_rate(bank->db_clk);
 		max_debounce = (GENMASK(23, 0) + 1) * 2 * 1000000 / freq;
@@ -689,6 +689,7 @@ static int rockchip_gpio_probe(struct platform_device *pdev)
 	struct device_node *pctlnp = of_get_parent(np);
 	struct pinctrl_dev *pctldev = NULL;
 	struct rockchip_pin_bank *bank = NULL;
+	struct rockchip_pin_output_deferred *cfg;
 	static int gpio;
 	int id, ret;
 
@@ -716,11 +717,32 @@ static int rockchip_gpio_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	/*
+	 * Prevent clashes with a deferred output setting
+	 * being added right at this moment.
+	 */
+	mutex_lock(&bank->deferred_lock);
+
 	ret = rockchip_gpiolib_register(bank);
 	if (ret) {
 		clk_disable_unprepare(bank->clk);
+		mutex_unlock(&bank->deferred_lock);
 		return ret;
 	}
+
+	while (!list_empty(&bank->deferred_output)) {
+		cfg = list_first_entry(&bank->deferred_output,
+				       struct rockchip_pin_output_deferred, head);
+		list_del(&cfg->head);
+
+		ret = rockchip_gpio_direction_output(&bank->gpio_chip, cfg->pin, cfg->arg);
+		if (ret)
+			dev_warn(dev, "setting output pin %u to %u failed\n", cfg->pin, cfg->arg);
+
+		kfree(cfg);
+	}
+
+	mutex_unlock(&bank->deferred_lock);
 
 	platform_set_drvdata(pdev, bank);
 	dev_info(dev, "probed %pOF\n", np);
