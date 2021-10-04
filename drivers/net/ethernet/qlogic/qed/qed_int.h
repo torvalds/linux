@@ -204,7 +204,7 @@ int qed_db_rec_handler(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 #define QED_SB_EVENT_MASK       0x0003
 
 #define SB_ALIGNED_SIZE(p_hwfn)	\
-	ALIGNED_TYPE_SIZE(struct status_block_e4, p_hwfn)
+	ALIGNED_TYPE_SIZE(struct status_block, p_hwfn)
 
 #define QED_SB_INVALID_IDX      0xffff
 

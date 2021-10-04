@@ -17,13 +17,13 @@
 
 #define CDU_VALIDATION_DEFAULT_CFG	61
 
-static u16 con_region_offsets[3][NUM_OF_CONNECTION_TYPES_E4] = {
+static u16 con_region_offsets[3][NUM_OF_CONNECTION_TYPES] = {
 	{400, 336, 352, 368, 304, 384, 416, 352},	/* region 3 offsets */
 	{528, 496, 416, 512, 448, 512, 544, 480},	/* region 4 offsets */
 	{608, 544, 496, 576, 576, 592, 624, 560}	/* region 5 offsets */
 };
 
-static u16 task_region_offsets[1][NUM_OF_CONNECTION_TYPES_E4] = {
+static u16 task_region_offsets[1][NUM_OF_CONNECTION_TYPES] = {
 	{240, 240, 112, 0, 0, 0, 0, 96}	/* region 1 offsets */
 };
 
@@ -54,7 +54,7 @@ static u16 task_region_offsets[1][NUM_OF_CONNECTION_TYPES_E4] = {
 #define QM_WFQ_VP_PQ_VOQ_SHIFT	0
 
 /* Bit  of PF in WFQ VP PQ map */
-#define QM_WFQ_VP_PQ_PF_E4_SHIFT	5
+#define QM_WFQ_VP_PQ_PF_SHIFT	5
 
 /* 0x9000 = 4*9*1024 */
 #define QM_WFQ_INC_VAL(weight)	((weight) * 0x9000)
@@ -156,20 +156,20 @@ static u16 task_region_offsets[1][NUM_OF_CONNECTION_TYPES_E4] = {
 		  cmd ## _ ## field, \
 		  value)
 
-#define QM_INIT_TX_PQ_MAP(p_hwfn, map, chip, pq_id, vp_pq_id, rl_valid,	      \
+#define QM_INIT_TX_PQ_MAP(p_hwfn, map, pq_id, vp_pq_id, rl_valid,	      \
 			  rl_id, ext_voq, wrr)				      \
 	do {								      \
 		u32 __reg = 0;						      \
 									      \
 		BUILD_BUG_ON(sizeof((map).reg) != sizeof(__reg));	      \
 									      \
-		SET_FIELD(__reg, QM_RF_PQ_MAP_##chip##_PQ_VALID, 1);	      \
-		SET_FIELD(__reg, QM_RF_PQ_MAP_##chip##_RL_VALID,	      \
+		SET_FIELD(__reg, QM_RF_PQ_MAP_PQ_VALID, 1);	      \
+		SET_FIELD(__reg, QM_RF_PQ_MAP_RL_VALID,	      \
 			  !!(rl_valid));				      \
-		SET_FIELD(__reg, QM_RF_PQ_MAP_##chip##_VP_PQ_ID, (vp_pq_id)); \
-		SET_FIELD(__reg, QM_RF_PQ_MAP_##chip##_RL_ID, (rl_id));	      \
-		SET_FIELD(__reg, QM_RF_PQ_MAP_##chip##_VOQ, (ext_voq));	      \
-		SET_FIELD(__reg, QM_RF_PQ_MAP_##chip##_WRR_WEIGHT_GROUP,      \
+		SET_FIELD(__reg, QM_RF_PQ_MAP_VP_PQ_ID, (vp_pq_id)); \
+		SET_FIELD(__reg, QM_RF_PQ_MAP_RL_ID, (rl_id));	      \
+		SET_FIELD(__reg, QM_RF_PQ_MAP_VOQ, (ext_voq));	      \
+		SET_FIELD(__reg, QM_RF_PQ_MAP_WRR_WEIGHT_GROUP,      \
 			  (wrr));					      \
 									      \
 		STORE_RT_REG((p_hwfn), QM_REG_TXPQMAP_RT_OFFSET + (pq_id),    \
@@ -204,7 +204,7 @@ static void qed_enable_pf_rl(struct qed_hwfn *p_hwfn, bool pf_rl_en)
 {
 	STORE_RT_REG(p_hwfn, QM_REG_RLPFENABLE_RT_OFFSET, pf_rl_en ? 1 : 0);
 	if (pf_rl_en) {
-		u8 num_ext_voqs = MAX_NUM_VOQS_E4;
+		u8 num_ext_voqs = MAX_NUM_VOQS;
 		u64 voq_bit_mask = ((u64)1 << num_ext_voqs) - 1;
 
 		/* Enable RLs for all VOQs */
@@ -298,7 +298,7 @@ static void qed_cmdq_lines_rt_init(
 	struct init_qm_port_params port_params[MAX_NUM_PORTS])
 {
 	u8 tc, ext_voq, port_id, num_tcs_in_port;
-	u8 num_ext_voqs = MAX_NUM_VOQS_E4;
+	u8 num_ext_voqs = MAX_NUM_VOQS;
 
 	/* Clear PBF lines of all VOQs */
 	for (ext_voq = 0; ext_voq < num_ext_voqs; ext_voq++)
@@ -487,7 +487,7 @@ static void qed_tx_pq_map_rt_init(struct qed_hwfn *p_hwfn,
 	/* Go over all Tx PQs */
 	for (i = 0, pq_id = p_params->start_pq; i < num_pqs; i++, pq_id++) {
 		u16 *p_first_tx_pq_id, vport_id_in_pf;
-		struct qm_rf_pq_map_e4 tx_pq_map;
+		struct qm_rf_pq_map tx_pq_map;
 		u8 tc_id = pq_params[i].tc_id;
 		bool is_vf_pq;
 		u8 ext_voq;
@@ -505,7 +505,7 @@ static void qed_tx_pq_map_rt_init(struct qed_hwfn *p_hwfn,
 		if (*p_first_tx_pq_id == QM_INVALID_PQ_ID) {
 			u32 map_val =
 				(ext_voq << QM_WFQ_VP_PQ_VOQ_SHIFT) |
-				(p_params->pf_id << QM_WFQ_VP_PQ_PF_E4_SHIFT);
+				(p_params->pf_id << QM_WFQ_VP_PQ_PF_SHIFT);
 
 			/* Create new VP PQ */
 			*p_first_tx_pq_id = pq_id;
@@ -520,7 +520,6 @@ static void qed_tx_pq_map_rt_init(struct qed_hwfn *p_hwfn,
 		/* Prepare PQ map entry */
 		QM_INIT_TX_PQ_MAP(p_hwfn,
 				  tx_pq_map,
-				  E4,
 				  pq_id,
 				  *p_first_tx_pq_id,
 				  pq_params[i].rl_valid,

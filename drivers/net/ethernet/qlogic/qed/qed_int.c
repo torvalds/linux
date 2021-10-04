@@ -36,7 +36,7 @@ struct qed_sb_sp_info {
 	struct qed_sb_info sb_info;
 
 	/* per protocol index data */
-	struct qed_pi_info pi_info_arr[PIS_PER_SB_E4];
+	struct qed_pi_info pi_info_arr[PIS_PER_SB];
 };
 
 enum qed_attention_type {
@@ -1507,7 +1507,7 @@ static void qed_int_cau_conf_pi(struct qed_hwfn *p_hwfn,
 	else
 		SET_FIELD(prod, CAU_PI_ENTRY_FSM_SEL, 1);
 
-	sb_offset = igu_sb_id * PIS_PER_SB_E4;
+	sb_offset = igu_sb_id * PIS_PER_SB;
 	pi_offset = sb_offset + pi_index;
 
 	if (p_hwfn->hw_init_done)

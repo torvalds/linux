@@ -4744,9 +4744,9 @@ static u32 qed_ilt_dump(struct qed_hwfn *p_hwfn,
 	offset += qed_dump_section_hdr(dump_buf + offset,
 				       dump, "num_pf_cids_per_conn_type", 1);
 	offset += qed_dump_num_param(dump_buf + offset,
-				     dump, "size", NUM_OF_CONNECTION_TYPES_E4);
+				     dump, "size", NUM_OF_CONNECTION_TYPES);
 	for (conn_type = 0, valid_conn_pf_cids = 0;
-	     conn_type < NUM_OF_CONNECTION_TYPES_E4; conn_type++, offset++) {
+	     conn_type < NUM_OF_CONNECTION_TYPES; conn_type++, offset++) {
 		u32 num_pf_cids =
 		    p_hwfn->p_cxt_mngr->conn_cfg[conn_type].cid_count;
 
@@ -4759,9 +4759,9 @@ static u32 qed_ilt_dump(struct qed_hwfn *p_hwfn,
 	offset += qed_dump_section_hdr(dump_buf + offset,
 				       dump, "num_vf_cids_per_conn_type", 1);
 	offset += qed_dump_num_param(dump_buf + offset,
-				     dump, "size", NUM_OF_CONNECTION_TYPES_E4);
+				     dump, "size", NUM_OF_CONNECTION_TYPES);
 	for (conn_type = 0, valid_conn_vf_cids = 0;
-	     conn_type < NUM_OF_CONNECTION_TYPES_E4; conn_type++, offset++) {
+	     conn_type < NUM_OF_CONNECTION_TYPES; conn_type++, offset++) {
 		u32 num_vf_cids =
 		    p_hwfn->p_cxt_mngr->conn_cfg[conn_type].cids_per_vf;
 

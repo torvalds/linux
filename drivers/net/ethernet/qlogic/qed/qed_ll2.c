@@ -1533,7 +1533,7 @@ static inline u8 qed_ll2_handle_to_queue_id(struct qed_hwfn *p_hwfn,
 
 int qed_ll2_establish_connection(void *cxt, u8 connection_handle)
 {
-	struct e4_core_conn_context *p_cxt;
+	struct core_conn_context *p_cxt;
 	struct qed_ll2_tx_packet *p_pkt;
 	struct qed_ll2_info *p_ll2_conn;
 	struct qed_hwfn *p_hwfn = cxt;
