@@ -1316,7 +1316,7 @@ static int mptcp_sendmsg_frag(struct sock *sk, struct sock *ssk,
 			goto alloc_skb;
 		}
 
-		must_collapse = (info->size_goal - skb->len > 0) &&
+		must_collapse = (info->size_goal > skb->len) &&
 				(skb_shinfo(skb)->nr_frags < sysctl_max_skb_frags);
 		if (must_collapse) {
 			size_bias = skb->len;
@@ -1325,7 +1325,7 @@ static int mptcp_sendmsg_frag(struct sock *sk, struct sock *ssk,
 	}
 
 alloc_skb:
-	if (!must_collapse && !ssk->sk_tx_skb_cache &&
+	if (!must_collapse &&
 	    !mptcp_alloc_tx_skb(sk, ssk, info->data_lock_held))
 		return 0;
 
@@ -2735,7 +2735,7 @@ cleanup:
 	inet_csk(sk)->icsk_mtup.probe_timestamp = tcp_jiffies32;
 	mptcp_for_each_subflow(mptcp_sk(sk), subflow) {
 		struct sock *ssk = mptcp_subflow_tcp_sock(subflow);
-		bool slow = lock_sock_fast(ssk);
+		bool slow = lock_sock_fast_nested(ssk);
 
 		sock_orphan(ssk);
 		unlock_sock_fast(ssk, slow);

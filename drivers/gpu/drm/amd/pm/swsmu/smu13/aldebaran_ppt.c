@@ -733,15 +733,19 @@ static int aldebaran_print_clk_levels(struct smu_context *smu,
 	uint32_t freq_values[3] = {0};
 	uint32_t min_clk, max_clk;
 
-	if (amdgpu_ras_intr_triggered())
-		return sysfs_emit(buf, "unavailable\n");
+	smu_cmn_get_sysfs_buf(&buf, &size);
+
+	if (amdgpu_ras_intr_triggered()) {
+		size += sysfs_emit_at(buf, size, "unavailable\n");
+		return size;
+	}
 
 	dpm_context = smu_dpm->dpm_context;
 
 	switch (type) {
 
 	case SMU_OD_SCLK:
-		size = sysfs_emit(buf, "%s:\n", "GFXCLK");
+		size += sysfs_emit_at(buf, size, "%s:\n", "GFXCLK");
 		fallthrough;
 	case SMU_SCLK:
 		ret = aldebaran_get_current_clk_freq_by_table(smu, SMU_GFXCLK, &now);
@@ -795,7 +799,7 @@ static int aldebaran_print_clk_levels(struct smu_context *smu,
 		break;
 
 	case SMU_OD_MCLK:
-		size = sysfs_emit(buf, "%s:\n", "MCLK");
+		size += sysfs_emit_at(buf, size, "%s:\n", "MCLK");
 		fallthrough;
 	case SMU_MCLK:
 		ret = aldebaran_get_current_clk_freq_by_table(smu, SMU_UCLK, &now);

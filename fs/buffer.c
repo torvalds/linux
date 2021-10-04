@@ -1425,12 +1425,16 @@ void invalidate_bh_lrus(void)
 }
 EXPORT_SYMBOL_GPL(invalidate_bh_lrus);
 
-void invalidate_bh_lrus_cpu(int cpu)
+/*
+ * It's called from workqueue context so we need a bh_lru_lock to close
+ * the race with preemption/irq.
+ */
+void invalidate_bh_lrus_cpu(void)
 {
 	struct bh_lru *b;
 
 	bh_lru_lock();
-	b = per_cpu_ptr(&bh_lrus, cpu);
+	b = this_cpu_ptr(&bh_lrus);
 	__invalidate_bh_lrus(b);
 	bh_lru_unlock();
 }
