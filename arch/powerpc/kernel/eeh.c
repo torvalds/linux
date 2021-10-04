@@ -399,6 +399,14 @@ out:
 	return ret;
 }
 
+static inline const char *eeh_driver_name(struct pci_dev *pdev)
+{
+	if (pdev)
+		return dev_driver_string(&pdev->dev);
+
+	return "<null>";
+}
+
 /**
  * eeh_dev_check_failure - Check if all 1's data is due to EEH slot freeze
  * @edev: eeh device
