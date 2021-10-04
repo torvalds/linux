@@ -343,13 +343,40 @@ static u8 intel_dp_get_lane_adjust_train(struct intel_dp *intel_dp,
 	return v | p;
 }
 
+#define TRAIN_REQ_FMT "%d/%d/%d/%d"
+#define _TRAIN_REQ_VSWING_ARGS(link_status, lane) \
+	(drm_dp_get_adjust_request_voltage((link_status), (lane)) >> DP_TRAIN_VOLTAGE_SWING_SHIFT)
+#define TRAIN_REQ_VSWING_ARGS(link_status) \
+	_TRAIN_REQ_VSWING_ARGS(link_status, 0), \
+	_TRAIN_REQ_VSWING_ARGS(link_status, 1), \
+	_TRAIN_REQ_VSWING_ARGS(link_status, 2), \
+	_TRAIN_REQ_VSWING_ARGS(link_status, 3)
+#define _TRAIN_REQ_PREEMPH_ARGS(link_status, lane) \
+	(drm_dp_get_adjust_request_pre_emphasis((link_status), (lane)) >> DP_TRAIN_PRE_EMPHASIS_SHIFT)
+#define TRAIN_REQ_PREEMPH_ARGS(link_status) \
+	_TRAIN_REQ_PREEMPH_ARGS(link_status, 0), \
+	_TRAIN_REQ_PREEMPH_ARGS(link_status, 1), \
+	_TRAIN_REQ_PREEMPH_ARGS(link_status, 2), \
+	_TRAIN_REQ_PREEMPH_ARGS(link_status, 3)
+
 void
 intel_dp_get_adjust_train(struct intel_dp *intel_dp,
 			  const struct intel_crtc_state *crtc_state,
 			  enum drm_dp_phy dp_phy,
 			  const u8 link_status[DP_LINK_STATUS_SIZE])
 {
+	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
+	char phy_name[10];
 	int lane;
+
+	drm_dbg_kms(encoder->base.dev, "[ENCODER:%d:%s] lanes: %d, "
+		    "vswing request: " TRAIN_REQ_FMT ", "
+		    "pre-emphasis request: " TRAIN_REQ_FMT ", at %s\n",
+		    encoder->base.base.id, encoder->base.name,
+		    crtc_state->lane_count,
+		    TRAIN_REQ_VSWING_ARGS(link_status),
+		    TRAIN_REQ_PREEMPH_ARGS(link_status),
+		    intel_dp_phy_name(dp_phy, phy_name, sizeof(phy_name)));
 
 	for (lane = 0; lane < 4; lane++)
 		intel_dp->train_set[lane] =
