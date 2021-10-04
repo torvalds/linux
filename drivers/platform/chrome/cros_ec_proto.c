@@ -812,36 +812,37 @@ EXPORT_SYMBOL(cros_ec_get_host_event);
  */
 bool cros_ec_check_features(struct cros_ec_dev *ec, int feature)
 {
+	struct ec_response_get_features *features = &ec->features;
 	struct cros_ec_command *msg;
 	int ret;
 
-	if (ec->features[0] == -1U && ec->features[1] == -1U) {
+	if (features->flags[0] == -1U && features->flags[1] == -1U) {
 		/* features bitmap not read yet */
-		msg = kzalloc(sizeof(*msg) + sizeof(ec->features), GFP_KERNEL);
+		msg = kzalloc(sizeof(*msg) + sizeof(*features), GFP_KERNEL);
 		if (!msg) {
 			dev_err(ec->dev, "failed to allocate memory to get EC features\n");
 			return false;
 		}
 
 		msg->command = EC_CMD_GET_FEATURES + ec->cmd_offset;
-		msg->insize = sizeof(ec->features);
+		msg->insize = sizeof(*features);
 
 		ret = cros_ec_cmd_xfer_status(ec->ec_dev, msg);
 		if (ret < 0) {
 			dev_warn(ec->dev, "cannot get EC features: %d/%d\n",
 				 ret, msg->result);
-			memset(ec->features, 0, sizeof(ec->features));
+			memset(features, 0, sizeof(*features));
 		} else {
-			memcpy(ec->features, msg->data, sizeof(ec->features));
+			memcpy(features, msg->data, sizeof(*features));
 		}
 
 		dev_dbg(ec->dev, "EC features %08x %08x\n",
-			ec->features[0], ec->features[1]);
+			features->flags[0], features->flags[1]);
 
 		kfree(msg);
 	}
 
-	return !!(ec->features[feature / 32] & EC_FEATURE_MASK_0(feature));
+	return !!(features->flags[feature / 32] & EC_FEATURE_MASK_0(feature));
 }
 EXPORT_SYMBOL_GPL(cros_ec_check_features);
 

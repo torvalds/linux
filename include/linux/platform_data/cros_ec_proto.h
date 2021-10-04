@@ -205,7 +205,7 @@ struct cros_ec_dev {
 	struct cros_ec_debugfs *debug_info;
 	bool has_kb_wake_angle;
 	u16 cmd_offset;
-	u32 features[2];
+	struct ec_response_get_features features;
 };
 
 #define to_cros_ec_dev(dev)  container_of(dev, struct cros_ec_dev, class_dev)

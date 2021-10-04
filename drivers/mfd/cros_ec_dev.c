@@ -146,8 +146,8 @@ static int ec_device_probe(struct platform_device *pdev)
 	ec->ec_dev = dev_get_drvdata(dev->parent);
 	ec->dev = dev;
 	ec->cmd_offset = ec_platform->cmd_offset;
-	ec->features[0] = -1U; /* Not cached yet */
-	ec->features[1] = -1U; /* Not cached yet */
+	ec->features.flags[0] = -1U; /* Not cached yet */
+	ec->features.flags[1] = -1U; /* Not cached yet */
 	device_initialize(&ec->class_dev);
 
 	for (i = 0; i < ARRAY_SIZE(cros_mcu_devices); i++) {
