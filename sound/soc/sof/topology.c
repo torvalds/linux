@@ -1759,9 +1759,14 @@ static int sof_widget_load_pipeline(struct snd_soc_component *scomp, int index,
 		goto err;
 	}
 
-	dev_dbg(scomp->dev, "pipeline %s: period %d pri %d mips %d core %d frames %d\n",
+	if (sof_core_debug & SOF_DBG_DYNAMIC_PIPELINES_OVERRIDE)
+		swidget->dynamic_pipeline_widget = sof_core_debug &
+			SOF_DBG_DYNAMIC_PIPELINES_ENABLE;
+
+	dev_dbg(scomp->dev, "pipeline %s: period %d pri %d mips %d core %d frames %d dynamic %d\n",
 		swidget->widget->name, pipeline->period, pipeline->priority,
-		pipeline->period_mips, pipeline->core, pipeline->frames_per_sched);
+		pipeline->period_mips, pipeline->core, pipeline->frames_per_sched,
+		swidget->dynamic_pipeline_widget);
 
 	swidget->private = pipeline;
 

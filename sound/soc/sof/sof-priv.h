@@ -24,6 +24,12 @@
 #define SOF_DBG_ENABLE_TRACE	BIT(0)
 #define SOF_DBG_RETAIN_CTX	BIT(1)	/* prevent DSP D3 on FW exception */
 #define SOF_DBG_VERIFY_TPLG	BIT(2) /* verify topology during load */
+#define SOF_DBG_DYNAMIC_PIPELINES_OVERRIDE	BIT(3) /* 0: use topology token
+							* 1: override topology
+							*/
+#define SOF_DBG_DYNAMIC_PIPELINES_ENABLE	BIT(4) /* 0: use static pipelines
+							* 1: use dynamic pipelines
+							*/
 
 #define SOF_DBG_DUMP_REGS		BIT(0)
 #define SOF_DBG_DUMP_MBOX		BIT(1)
