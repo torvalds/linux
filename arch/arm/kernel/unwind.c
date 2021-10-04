@@ -411,7 +411,21 @@ int unwind_frame(struct stackframe *frame)
 	if (idx->insn == 1)
 		/* can't unwind */
 		return -URC_FAILURE;
-	else if ((idx->insn & 0x80000000) == 0)
+	else if (frame->pc == prel31_to_addr(&idx->addr_offset)) {
+		/*
+		 * Unwinding is tricky when we're halfway through the prologue,
+		 * since the stack frame that the unwinder expects may not be
+		 * fully set up yet. However, one thing we do know for sure is
+		 * that if we are unwinding from the very first instruction of
+		 * a function, we are still effectively in the stack frame of
+		 * the caller, and the unwind info has no relevance yet.
+		 */
+		if (frame->pc == frame->lr)
+			return -URC_FAILURE;
+		frame->sp_low = frame->sp;
+		frame->pc = frame->lr;
+		return URC_OK;
+	} else if ((idx->insn & 0x80000000) == 0)
 		/* prel31 to the unwind table */
 		ctrl.insn = (unsigned long *)prel31_to_addr(&idx->insn);
 	else if ((idx->insn & 0xff000000) == 0x80000000)
