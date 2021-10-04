@@ -7,6 +7,7 @@
  */
 #include <linux/uaccess.h>
 #include <linux/jump_label.h>
+#include <linux/module.h>
 #include <asm/text-patching.h>
 #include <asm/ipl.h>
 
@@ -91,8 +92,8 @@ void arch_jump_label_transform_apply(void)
 	text_poke_sync();
 }
 
-void arch_jump_label_transform_static(struct jump_entry *entry,
-				      enum jump_label_type type)
+void __init_or_module arch_jump_label_transform_static(struct jump_entry *entry,
+						       enum jump_label_type type)
 {
 	jump_label_transform(entry, type, 1);
 	text_poke_sync();
