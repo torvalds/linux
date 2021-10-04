@@ -788,12 +788,13 @@ void print_tracking(struct kmem_cache *s, void *object)
 	print_track("Freed", get_track(s, object, TRACK_FREE), pr_time);
 }
 
-static void print_page_info(struct page *page)
+static void print_slab_info(const struct slab *slab)
 {
-	pr_err("Slab 0x%p objects=%u used=%u fp=0x%p flags=%pGp\n",
-	       page, page->objects, page->inuse, page->freelist,
-	       &page->flags);
+	struct folio *folio = (struct folio *)slab_folio(slab);
 
+	pr_err("Slab 0x%p objects=%u used=%u fp=0x%p flags=%pGp\n",
+	       slab, slab->objects, slab->inuse, slab->freelist,
+	       folio_flags(folio, 0));
 }
 
 static void slab_bug(struct kmem_cache *s, char *fmt, ...)
@@ -833,7 +834,7 @@ static void print_trailer(struct kmem_cache *s, struct page *page, u8 *p)
 
 	print_tracking(s, p);
 
-	print_page_info(page);
+	print_slab_info(page_slab(page));
 
 	pr_err("Object 0x%p @offset=%tu fp=0x%p\n\n",
 	       p, p - addr, get_freepointer(s, p));
@@ -903,7 +904,7 @@ static __printf(3, 4) void slab_err(struct kmem_cache *s, struct page *page,
 	vsnprintf(buf, sizeof(buf), fmt, args);
 	va_end(args);
 	slab_bug(s, "%s", buf);
-	print_page_info(page);
+	print_slab_info(page_slab(page));
 	dump_stack();
 	add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
 }
