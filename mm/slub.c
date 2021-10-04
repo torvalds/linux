@@ -2128,7 +2128,7 @@ static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain);
 static inline void put_cpu_partial(struct kmem_cache *s, struct page *page,
 				   int drain) { }
 #endif
-static inline bool pfmemalloc_match(struct page *page, gfp_t gfpflags);
+static inline bool pfmemalloc_match(struct slab *slab, gfp_t gfpflags);
 
 /*
  * Try to allocate a partial slab from a specific node.
@@ -2154,7 +2154,7 @@ static void *get_partial_node(struct kmem_cache *s, struct kmem_cache_node *n,
 	list_for_each_entry_safe(page, page2, &n->partial, slab_list) {
 		void *t;
 
-		if (!pfmemalloc_match(page, gfpflags))
+		if (!pfmemalloc_match(page_slab(page), gfpflags))
 			continue;
 
 		t = acquire_slab(s, n, page, object == NULL);
@@ -2832,22 +2832,9 @@ slab_out_of_memory(struct kmem_cache *s, gfp_t gfpflags, int nid)
 #endif
 }
 
-static inline bool pfmemalloc_match(struct page *page, gfp_t gfpflags)
+static inline bool pfmemalloc_match(struct slab *slab, gfp_t gfpflags)
 {
-	if (unlikely(PageSlabPfmemalloc(page)))
-		return gfp_pfmemalloc_allowed(gfpflags);
-
-	return true;
-}
-
-/*
- * A variant of pfmemalloc_match() that tests page flags without asserting
- * PageSlab. Intended for opportunistic checks before taking a lock and
- * rechecking that nobody else freed the page under us.
- */
-static inline bool pfmemalloc_match_unsafe(struct page *page, gfp_t gfpflags)
-{
-	if (unlikely(__PageSlabPfmemalloc(page)))
+	if (unlikely(slab_test_pfmemalloc(slab)))
 		return gfp_pfmemalloc_allowed(gfpflags);
 
 	return true;
@@ -2949,7 +2936,7 @@ redo:
 	 * PFMEMALLOC but right now, we are losing the pfmemalloc
 	 * information when the page leaves the per-cpu allocator
 	 */
-	if (unlikely(!pfmemalloc_match_unsafe(page, gfpflags)))
+	if (unlikely(!pfmemalloc_match(page_slab(page), gfpflags)))
 		goto deactivate_slab;
 
 	/* must check again c->page in case we got preempted and it changed */
@@ -3061,7 +3048,7 @@ check_new_page:
 		}
 	}
 
-	if (unlikely(!pfmemalloc_match(page, gfpflags)))
+	if (unlikely(!pfmemalloc_match(page_slab(page), gfpflags)))
 		/*
 		 * For !pfmemalloc_match() case we don't load freelist so that
 		 * we don't make further mismatched allocations easier.
