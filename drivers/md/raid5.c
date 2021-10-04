@@ -8279,7 +8279,7 @@ static int raid5_start_reshape(struct mddev *mddev)
 	}
 	conf->reshape_checkpoint = jiffies;
 	md_wakeup_thread(mddev->sync_thread);
-	md_new_event(mddev);
+	md_new_event();
 	return 0;
 }
 
