@@ -946,6 +946,12 @@ void qed_db_recovery_dp(struct qed_hwfn *p_hwfn);
 void qed_db_recovery_execute(struct qed_hwfn *p_hwfn);
 bool qed_edpm_enabled(struct qed_hwfn *p_hwfn);
 
+#define GET_GTT_REG_ADDR(__base, __offset, __idx) \
+	((__base) + __offset ## _GTT_OFFSET((__idx)))
+
+#define GET_GTT_BDQ_REG_ADDR(__base, __offset, __idx, __bdq_idx) \
+	((__base) + __offset ## _GTT_OFFSET((__idx), (__bdq_idx)))
+
 /* Other Linux specific common definitions */
 #define DP_NAME(cdev) ((cdev)->name)
 

@@ -313,8 +313,8 @@ qed_spq_unregister_async_cb(struct qed_hwfn *p_hwfn,
  ***************************************************************************/
 void qed_eq_prod_update(struct qed_hwfn *p_hwfn, u16 prod)
 {
-	u32 addr = GTT_BAR0_MAP_REG_USDM_RAM +
-		   USTORM_EQE_CONS_OFFSET(p_hwfn->rel_pf_id);
+	u32 addr = GET_GTT_REG_ADDR(GTT_BAR0_MAP_REG_USDM_RAM,
+				    USTORM_EQE_CONS, p_hwfn->rel_pf_id);
 
 	REG_WR16(p_hwfn, addr, prod);
 }

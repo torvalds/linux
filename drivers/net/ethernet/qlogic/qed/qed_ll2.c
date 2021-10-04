@@ -1620,8 +1620,10 @@ int qed_ll2_establish_connection(void *cxt, u8 connection_handle)
 		   p_hwfn->rel_pf_id, p_ll2_conn->input.rx_conn_type, qid);
 
 	if (p_ll2_conn->input.rx_conn_type == QED_LL2_RX_TYPE_LEGACY) {
-		p_rx->set_prod_addr = p_hwfn->regview +
-		    GTT_BAR0_MAP_REG_TSDM_RAM + TSTORM_LL2_RX_PRODS_OFFSET(qid);
+		p_rx->set_prod_addr =
+		    (u8 __iomem *)p_hwfn->regview +
+		    GET_GTT_REG_ADDR(GTT_BAR0_MAP_REG_TSDM_RAM,
+				     TSTORM_LL2_RX_PRODS, qid);
 	} else {
 		/* QED_LL2_RX_TYPE_CTX - using doorbell */
 		p_rx->ctx_based = 1;

@@ -1222,8 +1222,8 @@ static void qed_iov_send_response(struct qed_hwfn *p_hwfn,
 	 * channel would be re-set to ready prior to that.
 	 */
 	REG_WR(p_hwfn,
-	       GTT_BAR0_MAP_REG_USDM_RAM +
-	       USTORM_VF_PF_CHANNEL_READY_OFFSET(eng_vf_id), 1);
+	       GET_GTT_REG_ADDR(GTT_BAR0_MAP_REG_USDM_RAM,
+				USTORM_VF_PF_CHANNEL_READY, eng_vf_id), 1);
 
 	qed_dmae_host2host(p_hwfn, p_ptt, mbx->reply_phys,
 			   mbx->req_virt->first_tlv.reply_address,
@@ -2140,10 +2140,10 @@ static void qed_iov_vf_mbx_start_rxq(struct qed_hwfn *p_hwfn,
 	 * calculate on their own and clean the producer prior to this.
 	 */
 	if (!(vf_legacy & QED_QCID_LEGACY_VF_RX_PROD))
-		REG_WR(p_hwfn,
-		       GTT_BAR0_MAP_REG_MSDM_RAM +
-		       MSTORM_ETH_VF_PRODS_OFFSET(vf->abs_vf_id, req->rx_qid),
-		       0);
+		qed_wr(p_hwfn, p_ptt, MSEM_REG_FAST_MEMORY +
+		       SEM_FAST_REG_INT_RAM +
+		       MSTORM_ETH_VF_PRODS_OFFSET(vf->abs_vf_id,
+						  req->rx_qid), 0);
 
 	rc = qed_eth_rxq_start_ramrod(p_hwfn, p_cid,
 				      req->bd_max_bytes,
@@ -3708,8 +3708,8 @@ qed_iov_execute_vf_flr_cleanup(struct qed_hwfn *p_hwfn,
 		 * doesn't do that as a part of FLR.
 		 */
 		REG_WR(p_hwfn,
-		       GTT_BAR0_MAP_REG_USDM_RAM +
-		       USTORM_VF_PF_CHANNEL_READY_OFFSET(vfid), 1);
+		       GET_GTT_REG_ADDR(GTT_BAR0_MAP_REG_USDM_RAM,
+					USTORM_VF_PF_CHANNEL_READY, vfid), 1);
 
 		/* VF_STOPPED has to be set only after final cleanup
 		 * but prior to re-enabling the VF.

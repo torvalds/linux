@@ -904,9 +904,10 @@ qed_eth_pf_rx_queue_start(struct qed_hwfn *p_hwfn,
 {
 	u32 init_prod_val = 0;
 
-	*pp_prod = p_hwfn->regview +
-		   GTT_BAR0_MAP_REG_MSDM_RAM +
-		    MSTORM_ETH_PF_PRODS_OFFSET(p_cid->abs.queue_id);
+	*pp_prod = (u8 __iomem *)
+	    p_hwfn->regview +
+	    GET_GTT_REG_ADDR(GTT_BAR0_MAP_REG_MSDM_RAM,
+			     MSTORM_ETH_PF_PRODS, p_cid->abs.queue_id);
 
 	/* Init the rcq, rx bd and rx sge (if valid) producers to 0 */
 	__internal_ram_wr(p_hwfn, *pp_prod, sizeof(u32),
@@ -2099,7 +2100,7 @@ int qed_get_rxq_coalesce(struct qed_hwfn *p_hwfn,
 			      CAU_SB_ENTRY_TIMER_RES0);
 
 	address = BAR0_MAP_REG_USDM_RAM +
-		  USTORM_ETH_QUEUE_ZONE_OFFSET(p_cid->abs.queue_id);
+		  USTORM_ETH_QUEUE_ZONE_GTT_OFFSET(p_cid->abs.queue_id);
 	coalesce = qed_rd(p_hwfn, p_ptt, address);
 
 	is_valid = GET_FIELD(coalesce, COALESCING_TIMESET_VALID);
@@ -2133,7 +2134,7 @@ int qed_get_txq_coalesce(struct qed_hwfn *p_hwfn,
 			      CAU_SB_ENTRY_TIMER_RES1);
 
 	address = BAR0_MAP_REG_XSDM_RAM +
-		  XSTORM_ETH_QUEUE_ZONE_OFFSET(p_cid->abs.queue_id);
+		  XSTORM_ETH_QUEUE_ZONE_GTT_OFFSET(p_cid->abs.queue_id);
 	coalesce = qed_rd(p_hwfn, p_ptt, address);
 
 	is_valid = GET_FIELD(coalesce, COALESCING_TIMESET_VALID);

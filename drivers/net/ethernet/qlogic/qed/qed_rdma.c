@@ -865,8 +865,8 @@ static void qed_rdma_cnq_prod_update(void *rdma_cxt, u8 qz_offset, u16 prod)
 	}
 
 	qz_num = p_hwfn->p_rdma_info->queue_zone_base + qz_offset;
-	addr = GTT_BAR0_MAP_REG_USDM_RAM +
-	       USTORM_COMMON_QUEUE_CONS_OFFSET(qz_num);
+	addr = GET_GTT_REG_ADDR(GTT_BAR0_MAP_REG_USDM_RAM,
+				USTORM_COMMON_QUEUE_CONS, qz_num);
 
 	REG_WR16(p_hwfn, addr, prod);
 
