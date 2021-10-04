@@ -51,6 +51,14 @@ static __always_inline struct pt_regs *arch_ftrace_get_regs(struct ftrace_regs *
 	return &fregs->regs;
 }
 
+static __always_inline void ftrace_instruction_pointer_set(struct ftrace_regs *fregs,
+							   unsigned long ip)
+{
+	struct pt_regs *regs = arch_ftrace_get_regs(fregs);
+
+	regs->psw.addr = ip;
+}
+
 /*
  * Even though the system call numbers are identical for s390/s390x a
  * different system call table is used for compat tasks. This may lead
