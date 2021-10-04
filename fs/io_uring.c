@@ -1619,8 +1619,6 @@ static void io_cqring_ev_posted(struct io_ring_ctx *ctx)
 	 */
 	if (wq_has_sleeper(&ctx->cq_wait))
 		wake_up_all(&ctx->cq_wait);
-	if (ctx->sq_data && waitqueue_active(&ctx->sq_data->wait))
-		wake_up(&ctx->sq_data->wait);
 	if (io_should_trigger_evfd(ctx))
 		eventfd_signal(ctx->cq_ev_fd, 1);
 	if (waitqueue_active(&ctx->poll_wait))
