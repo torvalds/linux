@@ -1854,8 +1854,8 @@ static void gsm_queue(struct gsm_mux *gsm)
 				if (address_tmp == address) {
 					for (k = j; k < addr_cnt; k++)
 						addr_open[k] = addr_open[k+1];
-				addr_cnt--;
-				break;
+					addr_cnt--;
+					break;
 				}
 			}
 		}
