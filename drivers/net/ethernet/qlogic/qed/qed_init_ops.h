@@ -80,7 +80,7 @@ void qed_init_store_rt_agg(struct qed_hwfn *p_hwfn,
 			   size_t size);
 
 #define STORE_RT_REG_AGG(hwfn, offset, val) \
-	qed_init_store_rt_agg(hwfn, offset, (u32 *)&val, sizeof(val))
+	qed_init_store_rt_agg(hwfn, offset, (u32 *)&(val), sizeof(val))
 
 /**
  * qed_gtt_init(): Initialize GTT global windows and set admin window

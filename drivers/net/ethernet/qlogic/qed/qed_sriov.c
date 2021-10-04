@@ -3580,48 +3580,73 @@ qed_iov_vf_flr_poll_dorq(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
+#define MAX_NUM_EXT_VOQS        (MAX_NUM_PORTS * NUM_OF_TCS)
+
 static int
 qed_iov_vf_flr_poll_pbf(struct qed_hwfn *p_hwfn,
 			struct qed_vf_info *p_vf, struct qed_ptt *p_ptt)
 {
-	u32 cons[MAX_NUM_VOQS], distance[MAX_NUM_VOQS];
-	int i, cnt;
+	u32 prod, cons[MAX_NUM_EXT_VOQS], distance[MAX_NUM_EXT_VOQS], tmp;
+	u8 max_phys_tcs_per_port = p_hwfn->qm_info.max_phys_tcs_per_port;
+	u8 max_ports_per_engine = p_hwfn->cdev->num_ports_in_engine;
+	u32 prod_voq0_addr = PBF_REG_NUM_BLOCKS_ALLOCATED_PROD_VOQ0;
+	u32 cons_voq0_addr = PBF_REG_NUM_BLOCKS_ALLOCATED_CONS_VOQ0;
+	u8 port_id, tc, tc_id = 0, voq = 0;
+	int cnt;
+
+	memset(cons, 0, MAX_NUM_EXT_VOQS * sizeof(u32));
+	memset(distance, 0, MAX_NUM_EXT_VOQS * sizeof(u32));
 
 	/* Read initial consumers & producers */
-	for (i = 0; i < MAX_NUM_VOQS; i++) {
-		u32 prod;
-
-		cons[i] = qed_rd(p_hwfn, p_ptt,
-				 PBF_REG_NUM_BLOCKS_ALLOCATED_CONS_VOQ0 +
-				 i * 0x40);
-		prod = qed_rd(p_hwfn, p_ptt,
-			      PBF_REG_NUM_BLOCKS_ALLOCATED_PROD_VOQ0 +
-			      i * 0x40);
-		distance[i] = prod - cons[i];
+	for (port_id = 0; port_id < max_ports_per_engine; port_id++) {
+		/* "max_phys_tcs_per_port" active TCs + 1 pure LB TC */
+		for (tc = 0; tc < max_phys_tcs_per_port + 1; tc++) {
+			tc_id = (tc < max_phys_tcs_per_port) ? tc : PURE_LB_TC;
+			voq = VOQ(port_id, tc_id, max_phys_tcs_per_port);
+			cons[voq] = qed_rd(p_hwfn, p_ptt,
+					   cons_voq0_addr + voq * 0x40);
+			prod = qed_rd(p_hwfn, p_ptt,
+				      prod_voq0_addr + voq * 0x40);
+			distance[voq] = prod - cons[voq];
+		}
 	}
 
 	/* Wait for consumers to pass the producers */
-	i = 0;
+	port_id = 0;
+	tc = 0;
 	for (cnt = 0; cnt < 50; cnt++) {
-		for (; i < MAX_NUM_VOQS; i++) {
-			u32 tmp;
+		for (; port_id < max_ports_per_engine; port_id++) {
+			/* "max_phys_tcs_per_port" active TCs + 1 pure LB TC */
+			for (; tc < max_phys_tcs_per_port + 1; tc++) {
+				tc_id = (tc < max_phys_tcs_per_port) ?
+				    tc : PURE_LB_TC;
+				voq = VOQ(port_id,
+					  tc_id, max_phys_tcs_per_port);
+				tmp = qed_rd(p_hwfn, p_ptt,
+					     cons_voq0_addr + voq * 0x40);
+				if (distance[voq] > tmp - cons[voq])
+					break;
+			}
 
-			tmp = qed_rd(p_hwfn, p_ptt,
-				     PBF_REG_NUM_BLOCKS_ALLOCATED_CONS_VOQ0 +
-				     i * 0x40);
-			if (distance[i] > tmp - cons[i])
+			if (tc == max_phys_tcs_per_port + 1)
+				tc = 0;
+			else
 				break;
 		}
 
-		if (i == MAX_NUM_VOQS)
+		if (port_id == max_ports_per_engine)
 			break;
 
 		msleep(20);
 	}
 
 	if (cnt == 50) {
-		DP_ERR(p_hwfn, "VF[%d] - pbf polling failed on VOQ %d\n",
-		       p_vf->abs_vf_id, i);
+		DP_ERR(p_hwfn, "VF[%d]: pbf poll failed on VOQ%d\n",
+		       p_vf->abs_vf_id, (int)voq);
+
+		DP_ERR(p_hwfn, "VOQ %d has port_id as %d and tc_id as %d]\n",
+		       (int)voq, (int)port_id, (int)tc_id);
+
 		return -EBUSY;
 	}
 

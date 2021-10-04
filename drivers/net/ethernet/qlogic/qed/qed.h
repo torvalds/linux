@@ -91,14 +91,14 @@ static inline u32 qed_db_addr_vf(u32 cid, u32 DEMS)
 }
 
 #define ALIGNED_TYPE_SIZE(type_name, p_hwfn)				     \
-	((sizeof(type_name) + (u32)(1 << (p_hwfn->cdev->cache_shift)) - 1) & \
+	((sizeof(type_name) + (u32)(1 << ((p_hwfn)->cdev->cache_shift)) - 1) & \
 	 ~((1 << (p_hwfn->cdev->cache_shift)) - 1))
 
-#define for_each_hwfn(cdev, i)  for (i = 0; i < cdev->num_hwfns; i++)
+#define for_each_hwfn(cdev, i)  for (i = 0; i < (cdev)->num_hwfns; i++)
 
 #define D_TRINE(val, cond1, cond2, true1, true2, def) \
-	(val == (cond1) ? true1 :		      \
-	 (val == (cond2) ? true2 : def))
+	((val) == (cond1) ? true1 :		      \
+	 ((val) == (cond2) ? true2 : def))
 
 /* forward */
 struct qed_ptt_pool;
@@ -512,7 +512,7 @@ enum qed_hsi_def_type {
 
 struct qed_simd_fp_handler {
 	void	*token;
-	void	(*func)(void *);
+	void	(*func)(void *cookie);
 };
 
 enum qed_slowpath_wq_flag {
@@ -875,7 +875,6 @@ u32 qed_get_hsi_def_val(struct qed_dev *cdev, enum qed_hsi_def_type type);
 #define NUM_OF_BTB_BLOCKS(dev) \
 	qed_get_hsi_def_val(dev, QED_HSI_DEF_MAX_BTB_BLOCKS)
 
-
 /**
  * qed_concrete_to_sw_fid(): Get the sw function id from
  *                           the concrete value.
@@ -903,7 +902,6 @@ static inline u8 qed_concrete_to_sw_fid(struct qed_dev *cdev,
 }
 
 #define PKT_LB_TC	9
-#define MAX_NUM_VOQS	20
 
 int qed_configure_vport_wfq(struct qed_dev *cdev, u16 vp_id, u32 rate);
 void qed_configure_vp_wfq_on_link_change(struct qed_dev *cdev,
@@ -915,7 +913,7 @@ int qed_device_num_engines(struct qed_dev *cdev);
 void qed_set_fw_mac_addr(__le16 *fw_msb,
 			 __le16 *fw_mid, __le16 *fw_lsb, u8 *mac);
 
-#define QED_LEADING_HWFN(dev)   (&dev->hwfns[0])
+#define QED_LEADING_HWFN(dev)   (&(dev)->hwfns[0])
 #define QED_IS_CMT(dev)		((dev)->num_hwfns > 1)
 /* Macros for getting the engine-affinitized hwfn (FIR: fcoe,iscsi,roce) */
 #define QED_FIR_AFFIN_HWFN(dev)		(&(dev)->hwfns[dev->fir_affin])
@@ -936,7 +934,7 @@ void qed_set_fw_mac_addr(__le16 *fw_msb,
 #define PQ_FLAGS_LLT    (BIT(7))
 #define PQ_FLAGS_MTC    (BIT(8))
 
-/* physical queue index for cm context intialization */
+/* physical queue index for cm context initialization */
 u16 qed_get_cm_pq_idx(struct qed_hwfn *p_hwfn, u32 pq_flags);
 u16 qed_get_cm_pq_idx_mcos(struct qed_hwfn *p_hwfn, u8 tc);
 u16 qed_get_cm_pq_idx_vf(struct qed_hwfn *p_hwfn, u16 vf);
@@ -951,9 +949,9 @@ bool qed_edpm_enabled(struct qed_hwfn *p_hwfn);
 /* Other Linux specific common definitions */
 #define DP_NAME(cdev) ((cdev)->name)
 
-#define REG_ADDR(cdev, offset)          (void __iomem *)((u8 __iomem *)\
-						(cdev->regview) + \
-							 (offset))
+#define REG_ADDR(cdev, offset)          ((void __iomem *)((u8 __iomem *)\
+						((cdev)->regview) + \
+							 (offset)))
 
 #define REG_RD(cdev, offset)            readl(REG_ADDR(cdev, offset))
 #define REG_WR(cdev, offset, val)       writel((u32)val, REG_ADDR(cdev, offset))
@@ -961,7 +959,7 @@ bool qed_edpm_enabled(struct qed_hwfn *p_hwfn);
 
 #define DOORBELL(cdev, db_addr, val)			 \
 	writel((u32)val, (void __iomem *)((u8 __iomem *)\
-					  (cdev->doorbells) + (db_addr)))
+					  ((cdev)->doorbells) + (db_addr)))
 
 #define MFW_PORT(_p_hwfn)       ((_p_hwfn)->abs_pf_id %			  \
 				  qed_device_num_ports((_p_hwfn)->cdev))
