@@ -331,7 +331,7 @@ static int dm9601_set_mac_address(struct net_device *net, void *p)
 		return -EINVAL;
 	}
 
-	memcpy(net->dev_addr, addr->sa_data, net->addr_len);
+	eth_hw_addr_set(net, addr->sa_data);
 	__dm9601_set_mac_address(dev);
 
 	return 0;
