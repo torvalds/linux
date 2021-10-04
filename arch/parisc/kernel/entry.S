@@ -826,10 +826,10 @@ ENTRY_CFI(syscall_exit_rfi)
 	 * context via sigcontext. Also Filter the PSW for the same reason.
 	 */
 	LDREG	PT_IAOQ0(%r16),%r19
-	depi	3,31,2,%r19
+	depi	PRIV_USER,31,2,%r19
 	STREG	%r19,PT_IAOQ0(%r16)
 	LDREG	PT_IAOQ1(%r16),%r19
-	depi	3,31,2,%r19
+	depi	PRIV_USER,31,2,%r19
 	STREG	%r19,PT_IAOQ1(%r16)
 	LDREG   PT_PSW(%r16),%r19
 	load32	USER_PSW_MASK,%r1
@@ -1873,7 +1873,7 @@ syscall_restore:
 	mtsp	%r1,%sr5			   /* Restore sr5 */
 	mtsp	%r1,%sr6			   /* Restore sr6 */
 
-	depi	3,31,2,%r31			   /* ensure return to user mode. */
+	depi	PRIV_USER,31,2,%r31	/* ensure return to user mode. */
 
 #ifdef CONFIG_64BIT
 	/* decide whether to reset the wide mode bit
@@ -1949,7 +1949,7 @@ syscall_restore_rfi:
 	STREG	%r0,TASK_PT_SR2(%r1)
 
 	LDREG	TASK_PT_GR31(%r1),%r2
-	depi	3,31,2,%r2		   /* ensure return to user mode. */
+	depi	PRIV_USER,31,2,%r2	/* ensure return to user mode. */
 	STREG   %r2,TASK_PT_IAOQ0(%r1)
 	ldo	4(%r2),%r2
 	STREG	%r2,TASK_PT_IAOQ1(%r1)
@@ -1958,10 +1958,10 @@ syscall_restore_rfi:
 
 pt_regs_ok:
 	LDREG	TASK_PT_IAOQ0(%r1),%r2
-	depi	3,31,2,%r2		   /* ensure return to user mode. */
+	depi	PRIV_USER,31,2,%r2	/* ensure return to user mode. */
 	STREG	%r2,TASK_PT_IAOQ0(%r1)
 	LDREG	TASK_PT_IAOQ1(%r1),%r2
-	depi	3,31,2,%r2
+	depi	PRIV_USER,31,2,%r2
 	STREG	%r2,TASK_PT_IAOQ1(%r1)
 	b	intr_restore
 	copy	%r25,%r16
