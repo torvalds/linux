@@ -2099,8 +2099,42 @@ DEFINE_POST_CHUNK_EVENT(read);
 DEFINE_POST_CHUNK_EVENT(write);
 DEFINE_POST_CHUNK_EVENT(reply);
 
-DEFINE_COMPLETION_EVENT(svcrdma_wc_read);
-DEFINE_COMPLETION_EVENT(svcrdma_wc_write);
+TRACE_EVENT(svcrdma_wc_read,
+	TP_PROTO(
+		const struct ib_wc *wc,
+		const struct rpc_rdma_cid *cid,
+		unsigned int totalbytes,
+		const ktime_t posttime
+	),
+
+	TP_ARGS(wc, cid, totalbytes, posttime),
+
+	TP_STRUCT__entry(
+		__field(u32, cq_id)
+		__field(int, completion_id)
+		__field(s64, read_latency)
+		__field(unsigned int, totalbytes)
+	),
+
+	TP_fast_assign(
+		__entry->cq_id = cid->ci_queue_id;
+		__entry->completion_id = cid->ci_completion_id;
+		__entry->totalbytes = totalbytes;
+		__entry->read_latency = ktime_us_delta(ktime_get(), posttime);
+	),
+
+	TP_printk("cq.id=%u cid=%d totalbytes=%u latency-us=%lld",
+		__entry->cq_id, __entry->completion_id,
+		__entry->totalbytes, __entry->read_latency
+	)
+);
+
+DEFINE_SEND_FLUSH_EVENT(svcrdma_wc_read_flush);
+DEFINE_SEND_FLUSH_EVENT(svcrdma_wc_read_err);
+
+DEFINE_SEND_COMPLETION_EVENT(svcrdma_wc_write);
+DEFINE_SEND_FLUSH_EVENT(svcrdma_wc_write_flush);
+DEFINE_SEND_FLUSH_EVENT(svcrdma_wc_write_err);
 
 TRACE_EVENT(svcrdma_qp_error,
 	TP_PROTO(
