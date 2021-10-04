@@ -15,11 +15,10 @@
 #include "ntfs_fs.h"
 
 /* Convert little endian UTF-16 to NLS string. */
-int ntfs_utf16_to_nls(struct ntfs_sb_info *sbi, const struct le_str *uni,
+int ntfs_utf16_to_nls(struct ntfs_sb_info *sbi, const __le16 *name, u32 len,
 		      u8 *buf, int buf_len)
 {
-	int ret, uni_len, warn;
-	const __le16 *ip;
+	int ret, warn;
 	u8 *op;
 	struct nls_table *nls = sbi->options->nls;
 
@@ -27,18 +26,16 @@ int ntfs_utf16_to_nls(struct ntfs_sb_info *sbi, const struct le_str *uni,
 
 	if (!nls) {
 		/* UTF-16 -> UTF-8 */
-		ret = utf16s_to_utf8s((wchar_t *)uni->name, uni->len,
-				      UTF16_LITTLE_ENDIAN, buf, buf_len);
+		ret = utf16s_to_utf8s(name, len, UTF16_LITTLE_ENDIAN, buf,
+				      buf_len);
 		buf[ret] = '\0';
 		return ret;
 	}
 
-	ip = uni->name;
 	op = buf;
-	uni_len = uni->len;
 	warn = 0;
 
-	while (uni_len--) {
+	while (len--) {
 		u16 ec;
 		int charlen;
 		char dump[5];
@@ -49,7 +46,7 @@ int ntfs_utf16_to_nls(struct ntfs_sb_info *sbi, const struct le_str *uni,
 			break;
 		}
 
-		ec = le16_to_cpu(*ip++);
+		ec = le16_to_cpu(*name++);
 		charlen = nls->uni2char(ec, op, buf_len);
 
 		if (charlen > 0) {
@@ -304,8 +301,8 @@ static inline int ntfs_filldir(struct ntfs_sb_info *sbi, struct ntfs_inode *ni,
 	if (sbi->options->nohidden && (fname->dup.fa & FILE_ATTRIBUTE_HIDDEN))
 		return 0;
 
-	name_len = ntfs_utf16_to_nls(sbi, (struct le_str *)&fname->name_len,
-				     name, PATH_MAX);
+	name_len = ntfs_utf16_to_nls(sbi, fname->name, fname->name_len, name,
+				     PATH_MAX);
 	if (name_len <= 0) {
 		ntfs_warn(sbi->sb, "failed to convert name for inode %lx.",
 			  ino);
