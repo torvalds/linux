@@ -146,7 +146,6 @@ struct qed_sp_vport_start_params {
 int qed_sp_eth_vport_start(struct qed_hwfn *p_hwfn,
 			   struct qed_sp_vport_start_params *p_params);
 
-
 struct qed_filter_accept_flags {
 	u8	update_rx_mode_config;
 	u8	update_tx_mode_config;

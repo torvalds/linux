@@ -920,7 +920,8 @@ int qed_init_vport_wfq(struct qed_hwfn *p_hwfn,
 }
 
 int qed_init_global_rl(struct qed_hwfn *p_hwfn,
-		       struct qed_ptt *p_ptt, u16 rl_id, u32 rate_limit)
+		       struct qed_ptt *p_ptt, u16 rl_id, u32 rate_limit,
+		       enum init_qm_rl_type vport_rl_type)
 {
 	u32 inc_val;
 
@@ -1645,7 +1646,7 @@ struct phys_mem_desc *qed_fw_overlay_mem_alloc(struct qed_hwfn *p_hwfn,
 
 	/* If memory allocation has failed, free all allocated memory */
 	if (buf_offset < buf_size) {
-		qed_fw_overlay_mem_free(p_hwfn, allocated_mem);
+		qed_fw_overlay_mem_free(p_hwfn, &allocated_mem);
 		return NULL;
 	}
 
@@ -1679,16 +1680,16 @@ void qed_fw_overlay_init_ram(struct qed_hwfn *p_hwfn,
 }
 
 void qed_fw_overlay_mem_free(struct qed_hwfn *p_hwfn,
-			     struct phys_mem_desc *fw_overlay_mem)
+			     struct phys_mem_desc **fw_overlay_mem)
 {
 	u8 storm_id;
 
-	if (!fw_overlay_mem)
+	if (!fw_overlay_mem || !(*fw_overlay_mem))
 		return;
 
 	for (storm_id = 0; storm_id < NUM_STORMS; storm_id++) {
 		struct phys_mem_desc *storm_mem_desc =
-		    (struct phys_mem_desc *)fw_overlay_mem + storm_id;
+		    (struct phys_mem_desc *)*fw_overlay_mem + storm_id;
 
 		/* Free Storm's physical memory */
 		if (storm_mem_desc->virt_addr)
@@ -1699,5 +1700,6 @@ void qed_fw_overlay_mem_free(struct qed_hwfn *p_hwfn,
 	}
 
 	/* Free allocated virtual memory */
-	kfree(fw_overlay_mem);
+	kfree(*fw_overlay_mem);
+	*fw_overlay_mem = NULL;
 }

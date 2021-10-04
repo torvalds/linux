@@ -38,7 +38,6 @@
 #include "qed_sp.h"
 #include "qed_sriov.h"
 
-
 #define QED_MAX_SGES_NUM 16
 #define CRC32_POLY 0x1edc6f41
 
@@ -1112,7 +1111,6 @@ qed_eth_pf_tx_queue_start(struct qed_hwfn *p_hwfn,
 {
 	int rc;
 
-
 	rc = qed_eth_txq_start_ramrod(p_hwfn, p_cid,
 				      pbl_addr, pbl_size,
 				      qed_get_cm_pq_idx_mcos(p_hwfn, tc));
@@ -2011,7 +2009,7 @@ qed_configure_rfs_ntuple_filter(struct qed_hwfn *p_hwfn,
 				struct qed_spq_comp_cb *p_cb,
 				struct qed_ntuple_filter_params *p_params)
 {
-	struct rx_update_gft_filter_data *p_ramrod = NULL;
+	struct rx_update_gft_filter_ramrod_data *p_ramrod = NULL;
 	struct qed_spq_entry *p_ent = NULL;
 	struct qed_sp_init_data init_data;
 	u16 abs_rx_q_id = 0;
@@ -2032,7 +2030,7 @@ qed_configure_rfs_ntuple_filter(struct qed_hwfn *p_hwfn,
 	}
 
 	rc = qed_sp_init_request(p_hwfn, &p_ent,
-				 ETH_RAMROD_GFT_UPDATE_FILTER,
+				 ETH_RAMROD_RX_UPDATE_GFT_FILTER,
 				 PROTOCOLID_ETH, &init_data);
 	if (rc)
 		return rc;

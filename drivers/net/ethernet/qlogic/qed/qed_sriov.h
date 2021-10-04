@@ -142,7 +142,7 @@ struct qed_vf_queue {
 
 enum vf_state {
 	VF_FREE = 0,		/* VF ready to be acquired holds no resc */
-	VF_ACQUIRED,		/* VF, acquired, but not initalized */
+	VF_ACQUIRED,		/* VF, acquired, but not initialized */
 	VF_ENABLED,		/* VF, Enabled */
 	VF_RESET,		/* VF, FLR'd, pending cleanup */
 	VF_STOPPED		/* VF, Stopped */
@@ -312,6 +312,31 @@ void *qed_add_tlv(struct qed_hwfn *p_hwfn, u8 **offset, u16 type, u16 length);
  * Return: Void.
  */
 void qed_dp_tlv_list(struct qed_hwfn *p_hwfn, void *tlvs_list);
+
+/**
+ * qed_sriov_vfpf_malicious(): Handle malicious VF/PF.
+ *
+ * @p_hwfn: HW device data.
+ * @p_data: Pointer to data.
+ *
+ * Return: Void.
+ */
+void qed_sriov_vfpf_malicious(struct qed_hwfn *p_hwfn,
+			      struct fw_err_data *p_data);
+
+/**
+ * qed_sriov_eqe_event(): Callback for SRIOV events.
+ *
+ * @p_hwfn: HW device data.
+ * @opcode: Opcode.
+ * @echo: Echo.
+ * @data: data
+ * @fw_return_code: FW return code.
+ *
+ * Return: Int.
+ */
+int qed_sriov_eqe_event(struct qed_hwfn *p_hwfn, u8 opcode, __le16 echo,
+			union event_ring_data *data, u8  fw_return_code);
 
 /**
  * qed_iov_alloc(): allocate sriov related resources
