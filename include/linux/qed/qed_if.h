@@ -25,6 +25,7 @@
 #include <net/devlink.h>
 
 #define QED_TX_SWS_TIMER_DFLT  500
+#define QED_TWO_MSL_TIMER_DFLT 4000
 
 enum dcbx_protocol_type {
 	DCBX_PROTOCOL_ISCSI,
