@@ -1763,15 +1763,15 @@ void ntfs_evict_inode(struct inode *inode)
 static noinline int ntfs_readlink_hlp(struct inode *inode, char *buffer,
 				      int buflen)
 {
-	int i, err = 0;
+	int i, err = -EINVAL;
 	struct ntfs_inode *ni = ntfs_i(inode);
 	struct super_block *sb = inode->i_sb;
 	struct ntfs_sb_info *sbi = sb->s_fs_info;
-	u64 i_size = inode->i_size;
-	u16 nlen = 0;
+	u64 size;
+	u16 ulen = 0;
 	void *to_free = NULL;
 	struct REPARSE_DATA_BUFFER *rp;
-	struct le_str *uni;
+	const __le16 *uname;
 	struct ATTRIB *attr;
 
 	/* Reparse data present. Try to parse it. */
@@ -1780,68 +1780,64 @@ static noinline int ntfs_readlink_hlp(struct inode *inode, char *buffer,
 
 	*buffer = 0;
 
-	/* Read into temporal buffer. */
-	if (i_size > sbi->reparse.max_size || i_size <= sizeof(u32)) {
-		err = -EINVAL;
-		goto out;
-	}
-
 	attr = ni_find_attr(ni, NULL, NULL, ATTR_REPARSE, NULL, 0, NULL, NULL);
-	if (!attr) {
-		err = -EINVAL;
+	if (!attr)
 		goto out;
-	}
 
 	if (!attr->non_res) {
-		rp = resident_data_ex(attr, i_size);
-		if (!rp) {
-			err = -EINVAL;
+		rp = resident_data_ex(attr, sizeof(struct REPARSE_DATA_BUFFER));
+		if (!rp)
 			goto out;
-		}
+		size = le32_to_cpu(attr->res.data_size);
 	} else {
-		rp = kmalloc(i_size, GFP_NOFS);
+		size = le64_to_cpu(attr->nres.data_size);
+		rp = NULL;
+	}
+
+	if (size > sbi->reparse.max_size || size <= sizeof(u32))
+		goto out;
+
+	if (!rp) {
+		rp = kmalloc(size, GFP_NOFS);
 		if (!rp) {
 			err = -ENOMEM;
 			goto out;
 		}
 		to_free = rp;
-		err = ntfs_read_run_nb(sbi, &ni->file.run, 0, rp, i_size, NULL);
+		/* Read into temporal buffer. */
+		err = ntfs_read_run_nb(sbi, &ni->file.run, 0, rp, size, NULL);
 		if (err)
 			goto out;
 	}
-
-	err = -EINVAL;
 
 	/* Microsoft Tag. */
 	switch (rp->ReparseTag) {
 	case IO_REPARSE_TAG_MOUNT_POINT:
 		/* Mount points and junctions. */
 		/* Can we use 'Rp->MountPointReparseBuffer.PrintNameLength'? */
-		if (i_size <= offsetof(struct REPARSE_DATA_BUFFER,
-				       MountPointReparseBuffer.PathBuffer))
+		if (size <= offsetof(struct REPARSE_DATA_BUFFER,
+				     MountPointReparseBuffer.PathBuffer))
 			goto out;
-		uni = Add2Ptr(rp,
-			      offsetof(struct REPARSE_DATA_BUFFER,
-				       MountPointReparseBuffer.PathBuffer) +
-				      le16_to_cpu(rp->MountPointReparseBuffer
-							  .PrintNameOffset) -
-				      2);
-		nlen = le16_to_cpu(rp->MountPointReparseBuffer.PrintNameLength);
+		uname = Add2Ptr(rp,
+				offsetof(struct REPARSE_DATA_BUFFER,
+					 MountPointReparseBuffer.PathBuffer) +
+					le16_to_cpu(rp->MountPointReparseBuffer
+							    .PrintNameOffset));
+		ulen = le16_to_cpu(rp->MountPointReparseBuffer.PrintNameLength);
 		break;
 
 	case IO_REPARSE_TAG_SYMLINK:
 		/* FolderSymbolicLink */
 		/* Can we use 'Rp->SymbolicLinkReparseBuffer.PrintNameLength'? */
-		if (i_size <= offsetof(struct REPARSE_DATA_BUFFER,
-				       SymbolicLinkReparseBuffer.PathBuffer))
+		if (size <= offsetof(struct REPARSE_DATA_BUFFER,
+				     SymbolicLinkReparseBuffer.PathBuffer))
 			goto out;
-		uni = Add2Ptr(rp,
-			      offsetof(struct REPARSE_DATA_BUFFER,
-				       SymbolicLinkReparseBuffer.PathBuffer) +
-				      le16_to_cpu(rp->SymbolicLinkReparseBuffer
-							  .PrintNameOffset) -
-				      2);
-		nlen = le16_to_cpu(
+		uname = Add2Ptr(
+			rp, offsetof(struct REPARSE_DATA_BUFFER,
+				     SymbolicLinkReparseBuffer.PathBuffer) +
+				    le16_to_cpu(rp->SymbolicLinkReparseBuffer
+							.PrintNameOffset));
+		ulen = le16_to_cpu(
 			rp->SymbolicLinkReparseBuffer.PrintNameLength);
 		break;
 
@@ -1873,29 +1869,28 @@ static noinline int ntfs_readlink_hlp(struct inode *inode, char *buffer,
 			goto out;
 		}
 		if (!IsReparseTagNameSurrogate(rp->ReparseTag) ||
-		    i_size <= sizeof(struct REPARSE_POINT)) {
+		    size <= sizeof(struct REPARSE_POINT)) {
 			goto out;
 		}
 
 		/* Users tag. */
-		uni = Add2Ptr(rp, sizeof(struct REPARSE_POINT) - 2);
-		nlen = le16_to_cpu(rp->ReparseDataLength) -
+		uname = Add2Ptr(rp, sizeof(struct REPARSE_POINT));
+		ulen = le16_to_cpu(rp->ReparseDataLength) -
 		       sizeof(struct REPARSE_POINT);
 	}
 
 	/* Convert nlen from bytes to UNICODE chars. */
-	nlen >>= 1;
+	ulen >>= 1;
 
 	/* Check that name is available. */
-	if (!nlen || &uni->name[nlen] > (__le16 *)Add2Ptr(rp, i_size))
+	if (!ulen || uname + ulen > (__le16 *)Add2Ptr(rp, size))
 		goto out;
 
 	/* If name is already zero terminated then truncate it now. */
-	if (!uni->name[nlen - 1])
-		nlen -= 1;
-	uni->len = nlen;
+	if (!uname[ulen - 1])
+		ulen -= 1;
 
-	err = ntfs_utf16_to_nls(sbi, uni, buffer, buflen);
+	err = ntfs_utf16_to_nls(sbi, uname, ulen, buffer, buflen);
 
 	if (err < 0)
 		goto out;
