@@ -48,9 +48,9 @@ static struct insn orignop = {
 	.offset = JUMP_LABEL_NOP_OFFSET >> 1,
 };
 
-static void __jump_label_transform(struct jump_entry *entry,
-				   enum jump_label_type type,
-				   int init)
+static void jump_label_transform(struct jump_entry *entry,
+				 enum jump_label_type type,
+				 int init)
 {
 	void *code = (void *)jump_entry_code(entry);
 	struct insn old, new;
@@ -75,14 +75,14 @@ static void __jump_label_transform(struct jump_entry *entry,
 void arch_jump_label_transform(struct jump_entry *entry,
 			       enum jump_label_type type)
 {
-	__jump_label_transform(entry, type, 0);
+	jump_label_transform(entry, type, 0);
 	text_poke_sync();
 }
 
 bool arch_jump_label_transform_queue(struct jump_entry *entry,
 				     enum jump_label_type type)
 {
-	__jump_label_transform(entry, type, 0);
+	jump_label_transform(entry, type, 0);
 	return true;
 }
 
@@ -94,6 +94,6 @@ void arch_jump_label_transform_apply(void)
 void arch_jump_label_transform_static(struct jump_entry *entry,
 				      enum jump_label_type type)
 {
-	__jump_label_transform(entry, type, 1);
+	jump_label_transform(entry, type, 1);
 	text_poke_sync();
 }
