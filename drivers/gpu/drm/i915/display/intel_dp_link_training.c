@@ -492,10 +492,26 @@ static bool intel_dp_link_max_vswing_reached(struct intel_dp *intel_dp,
 {
 	int lane;
 
-	for (lane = 0; lane < crtc_state->lane_count; lane++)
-		if ((intel_dp->train_set[lane] &
-		     DP_TRAIN_MAX_SWING_REACHED) == 0)
+	/*
+	 * FIXME: The DP spec is very confusing here, also the Link CTS
+	 * spec seems to have self contradicting tests around this area.
+	 *
+	 * In lieu of better ideas let's just stop when we've reached the
+	 * max supported vswing with its max pre-emphasis, which is either
+	 * 2+1 or 3+0 depending on whether vswing level 3 is supported or not.
+	 */
+	for (lane = 0; lane < crtc_state->lane_count; lane++) {
+		u8 v = (intel_dp->train_set[lane] & DP_TRAIN_VOLTAGE_SWING_MASK) >>
+			DP_TRAIN_VOLTAGE_SWING_SHIFT;
+		u8 p = (intel_dp->train_set[lane] & DP_TRAIN_PRE_EMPHASIS_MASK) >>
+			DP_TRAIN_PRE_EMPHASIS_SHIFT;
+
+		if ((intel_dp->train_set[lane] & DP_TRAIN_MAX_SWING_REACHED) == 0)
 			return false;
+
+		if (v + p != 3)
+			return false;
+	}
 
 	return true;
 }
