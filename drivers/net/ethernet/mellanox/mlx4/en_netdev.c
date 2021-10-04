@@ -527,14 +527,12 @@ static int mlx4_en_vlan_rx_kill_vid(struct net_device *dev,
 	return err;
 }
 
-static void mlx4_en_u64_to_mac(unsigned char dst_mac[ETH_ALEN + 2], u64 src_mac)
+static void mlx4_en_u64_to_mac(struct net_device *dev, u64 src_mac)
 {
-	int i;
-	for (i = ETH_ALEN - 1; i >= 0; --i) {
-		dst_mac[i] = src_mac & 0xff;
-		src_mac >>= 8;
-	}
-	memset(&dst_mac[ETH_ALEN], 0, 2);
+	u8 addr[ETH_ALEN];
+
+	u64_to_ether_addr(src_mac, addr);
+	eth_hw_addr_set(dev, addr);
 }
 
 
@@ -3267,7 +3265,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 
 	/* Set default MAC */
 	dev->addr_len = ETH_ALEN;
-	mlx4_en_u64_to_mac(dev->dev_addr, mdev->dev->caps.def_mac[priv->port]);
+	mlx4_en_u64_to_mac(dev, mdev->dev->caps.def_mac[priv->port]);
 	if (!is_valid_ether_addr(dev->dev_addr)) {
 		en_err(priv, "Port: %d, invalid mac burned: %pM, quitting\n",
 		       priv->port, dev->dev_addr);
