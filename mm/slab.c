@@ -372,8 +372,8 @@ static void **dbg_userword(struct kmem_cache *cachep, void *objp)
 static int slab_max_order = SLAB_MAX_ORDER_LO;
 static bool slab_max_order_set __initdata;
 
-static inline void *index_to_obj(struct kmem_cache *cache, struct page *page,
-				 unsigned int idx)
+static inline void *index_to_obj(struct kmem_cache *cache,
+				 const struct page *page, unsigned int idx)
 {
 	return page->s_mem + cache->size * idx;
 }
@@ -4166,8 +4166,8 @@ ssize_t slabinfo_write(struct file *file, const char __user *buffer,
  * Returns NULL if check passes, otherwise const char * to name of cache
  * to indicate an error.
  */
-void __check_heap_object(const void *ptr, unsigned long n, struct page *page,
-			 bool to_user)
+void __check_heap_object(const void *ptr, unsigned long n,
+			 const struct slab *slab, bool to_user)
 {
 	struct kmem_cache *cachep;
 	unsigned int objnr;
@@ -4176,15 +4176,15 @@ void __check_heap_object(const void *ptr, unsigned long n, struct page *page,
 	ptr = kasan_reset_tag(ptr);
 
 	/* Find and validate object. */
-	cachep = page->slab_cache;
-	objnr = obj_to_index(cachep, page, (void *)ptr);
+	cachep = slab->slab_cache;
+	objnr = obj_to_index(cachep, slab_page(slab), (void *)ptr);
 	BUG_ON(objnr >= cachep->num);
 
 	/* Find offset within object. */
 	if (is_kfence_address(ptr))
 		offset = ptr - kfence_object_start(ptr);
 	else
-		offset = ptr - index_to_obj(cachep, page, objnr) - obj_offset(cachep);
+		offset = ptr - index_to_obj(cachep, slab_page(slab), objnr) - obj_offset(cachep);
 
 	/* Allow address range falling entirely within usercopy region. */
 	if (offset >= cachep->useroffset &&

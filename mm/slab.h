@@ -812,4 +812,15 @@ struct kmem_obj_info {
 void kmem_obj_info(struct kmem_obj_info *kpp, void *object, struct slab *slab);
 #endif
 
+#ifdef CONFIG_HAVE_HARDENED_USERCOPY_ALLOCATOR
+void __check_heap_object(const void *ptr, unsigned long n,
+			 const struct slab *slab, bool to_user);
+#else
+static inline
+void __check_heap_object(const void *ptr, unsigned long n,
+			 const struct slab *slab, bool to_user)
+{
+}
+#endif
+
 #endif /* MM_SLAB_H */

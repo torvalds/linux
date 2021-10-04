@@ -4485,8 +4485,8 @@ EXPORT_SYMBOL(__kmalloc_node);
  * Returns NULL if check passes, otherwise const char * to name of cache
  * to indicate an error.
  */
-void __check_heap_object(const void *ptr, unsigned long n, struct page *page,
-			 bool to_user)
+void __check_heap_object(const void *ptr, unsigned long n,
+			 const struct slab *slab, bool to_user)
 {
 	struct kmem_cache *s;
 	unsigned int offset;
@@ -4495,10 +4495,10 @@ void __check_heap_object(const void *ptr, unsigned long n, struct page *page,
 	ptr = kasan_reset_tag(ptr);
 
 	/* Find object and usable object size. */
-	s = page->slab_cache;
+	s = slab->slab_cache;
 
 	/* Reject impossible pointers. */
-	if (ptr < page_address(page))
+	if (ptr < slab_address(slab))
 		usercopy_abort("SLUB object not in SLUB page?!", NULL,
 			       to_user, 0, n);
 
@@ -4506,7 +4506,7 @@ void __check_heap_object(const void *ptr, unsigned long n, struct page *page,
 	if (is_kfence)
 		offset = ptr - kfence_object_start(ptr);
 	else
-		offset = (ptr - page_address(page)) % s->size;
+		offset = (ptr - slab_address(slab)) % s->size;
 
 	/* Adjust for redzone and reject if within the redzone. */
 	if (!is_kfence && kmem_cache_debug_flags(s, SLAB_RED_ZONE)) {
