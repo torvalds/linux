@@ -22,17 +22,11 @@
 #include <linux/kbuild.h>
 #include <linux/pgtable.h>
 
+#include <asm/assembly.h>
 #include <asm/ptrace.h>
 #include <asm/processor.h>
 #include <asm/pdc.h>
 #include <linux/uaccess.h>
-
-#ifdef CONFIG_64BIT
-#define FRAME_SIZE	128
-#else
-#define FRAME_SIZE	64
-#endif
-#define FRAME_ALIGN	64
 
 /* Add FRAME_SIZE to the size x and align it to y. All definitions
  * that use align_frame will include space for a frame.
