@@ -1488,7 +1488,10 @@ struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 		asize = ALIGN(SIZEOF_RESIDENT + nsize, 8);
 		t16 = PtrOffset(rec, attr);
 
-		/* 0x78 - the size of EA + EAINFO to store WSL */
+		/*
+		 * Below function 'ntfs_save_wsl_perm' requires 0x78 bytes.
+		 * It is good idea to keep extened attributes resident.
+		 */
 		if (asize + t16 + 0x78 + 8 > sbi->record_size) {
 			CLST alen;
 			CLST clst = bytes_to_cluster(sbi, nsize);
@@ -1523,14 +1526,14 @@ struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 			}
 
 			asize = SIZEOF_NONRESIDENT + ALIGN(err, 8);
-			inode->i_size = nsize;
 		} else {
 			attr->res.data_off = SIZEOF_RESIDENT_LE;
 			attr->res.data_size = cpu_to_le32(nsize);
 			memcpy(Add2Ptr(attr, SIZEOF_RESIDENT), rp, nsize);
-			inode->i_size = nsize;
 			nsize = 0;
 		}
+		/* Size of symlink equals the length of input string. */
+		inode->i_size = size;
 
 		attr->size = cpu_to_le32(asize);
 
@@ -1567,6 +1570,8 @@ struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 		inode->i_op = &ntfs_link_inode_operations;
 		inode->i_fop = NULL;
 		inode->i_mapping->a_ops = &ntfs_aops;
+		inode->i_size = size;
+		inode_nohighmem(inode);
 	} else if (S_ISREG(mode)) {
 		inode->i_op = &ntfs_file_inode_operations;
 		inode->i_fop = &ntfs_file_operations;
