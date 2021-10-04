@@ -12,6 +12,7 @@
 #ifndef __ASSEMBLY__
 #include <linux/threads.h>
 
+#include <asm/assembly.h>
 #include <asm/prefetch.h>
 #include <asm/hardware.h>
 #include <asm/pdc.h>
@@ -101,7 +102,7 @@ DECLARE_PER_CPU(struct cpuinfo_parisc, cpu_data);
 
 #define CPU_HVERSION ((boot_cpu_data.hversion >> 4) & 0x0FFF)
 
-#define ARCH_MIN_TASKALIGN	8
+#define ARCH_MIN_TASKALIGN	FRAME_ALIGN
 
 struct thread_struct {
 	struct pt_regs regs;
