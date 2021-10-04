@@ -1816,11 +1816,6 @@ static void io_req_complete_post(struct io_kiocb *req, long res,
 	io_cqring_ev_posted(ctx);
 }
 
-static inline bool io_req_needs_clean(struct io_kiocb *req)
-{
-	return req->flags & IO_REQ_CLEAN_FLAGS;
-}
-
 static inline void io_req_complete_state(struct io_kiocb *req, long res,
 					 unsigned int cflags)
 {
@@ -1963,7 +1958,7 @@ static inline void io_dismantle_req(struct io_kiocb *req)
 {
 	unsigned int flags = req->flags;
 
-	if (unlikely(io_req_needs_clean(req)))
+	if (unlikely(flags & IO_REQ_CLEAN_FLAGS))
 		io_clean_op(req);
 	if (!(flags & REQ_F_FIXED_FILE))
 		io_put_file(req->file);
