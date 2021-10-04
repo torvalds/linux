@@ -288,6 +288,7 @@ static void nfs_grow_file(struct page *page, unsigned int offset, unsigned int c
 	end = page_file_offset(page) + ((loff_t)offset+count);
 	if (i_size >= end)
 		goto out;
+	trace_nfs_size_grow(inode, end);
 	i_size_write(inode, end);
 	NFS_I(inode)->cache_validity &= ~NFS_INO_INVALID_SIZE;
 	nfs_inc_stats(inode, NFSIOS_EXTENDWRITE);

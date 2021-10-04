@@ -671,6 +671,7 @@ static int nfs_vmtruncate(struct inode * inode, loff_t offset)
 	if (err)
 		goto out;
 
+	trace_nfs_size_truncate(inode, offset);
 	i_size_write(inode, offset);
 	/* Optimisation */
 	if (offset == 0)
@@ -1456,6 +1457,7 @@ static void nfs_wcc_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 			&& (fattr->valid & NFS_ATTR_FATTR_SIZE)
 			&& i_size_read(inode) == nfs_size_to_loff_t(fattr->pre_size)
 			&& !nfs_have_writebacks(inode)) {
+		trace_nfs_size_wcc(inode, fattr->size);
 		i_size_write(inode, nfs_size_to_loff_t(fattr->size));
 	}
 }
@@ -2100,16 +2102,11 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 			/* Do we perhaps have any outstanding writes, or has
 			 * the file grown beyond our last write? */
 			if (!nfs_have_writebacks(inode) || new_isize > cur_isize) {
+				trace_nfs_size_update(inode, new_isize);
 				i_size_write(inode, new_isize);
 				if (!have_writers)
 					invalid |= NFS_INO_INVALID_DATA;
 			}
-			dprintk("NFS: isize change on server for file %s/%ld "
-					"(%Ld to %Ld)\n",
-					inode->i_sb->s_id,
-					inode->i_ino,
-					(long long)cur_isize,
-					(long long)new_isize);
 		}
 		if (new_isize == 0 &&
 		    !(fattr->valid & (NFS_ATTR_FATTR_SPACE_USED |

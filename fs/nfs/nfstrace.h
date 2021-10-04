@@ -231,6 +231,56 @@ TRACE_EVENT(nfs_access_exit,
 		)
 );
 
+DECLARE_EVENT_CLASS(nfs_update_size_class,
+		TP_PROTO(
+			const struct inode *inode,
+			loff_t new_size
+		),
+
+		TP_ARGS(inode, new_size),
+
+		TP_STRUCT__entry(
+			__field(dev_t, dev)
+			__field(u32, fhandle)
+			__field(u64, fileid)
+			__field(u64, version)
+			__field(loff_t, cur_size)
+			__field(loff_t, new_size)
+		),
+
+		TP_fast_assign(
+			const struct nfs_inode *nfsi = NFS_I(inode);
+
+			__entry->dev = inode->i_sb->s_dev;
+			__entry->fhandle = nfs_fhandle_hash(&nfsi->fh);
+			__entry->fileid = nfsi->fileid;
+			__entry->version = inode_peek_iversion_raw(inode);
+			__entry->cur_size = i_size_read(inode);
+			__entry->new_size = new_size;
+		),
+
+		TP_printk(
+			"fileid=%02x:%02x:%llu fhandle=0x%08x version=%llu cursize=%lld newsize=%lld",
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->fileid,
+			__entry->fhandle, __entry->version,
+			__entry->cur_size, __entry->new_size
+		)
+);
+
+#define DEFINE_NFS_UPDATE_SIZE_EVENT(name) \
+	DEFINE_EVENT(nfs_update_size_class, nfs_size_##name, \
+			TP_PROTO( \
+				const struct inode *inode, \
+				loff_t new_size \
+			), \
+			TP_ARGS(inode, new_size))
+
+DEFINE_NFS_UPDATE_SIZE_EVENT(truncate);
+DEFINE_NFS_UPDATE_SIZE_EVENT(wcc);
+DEFINE_NFS_UPDATE_SIZE_EVENT(update);
+DEFINE_NFS_UPDATE_SIZE_EVENT(grow);
+
 #define show_lookup_flags(flags) \
 	__print_flags(flags, "|", \
 			{ LOOKUP_FOLLOW, "FOLLOW" }, \
