@@ -1397,6 +1397,8 @@ EXPORT_SYMBOL(drm_connector_attach_dp_subconnector_property);
  *	Game:
  *		Content type is game
  *
+ *	The meaning of each content type is defined in CTA-861-G table 15.
+ *
  *	Drivers can set up this property by calling
  *	drm_connector_attach_content_type_property(). Decoding to
  *	infoframe values is done through drm_hdmi_avi_infoframe_content_type().
