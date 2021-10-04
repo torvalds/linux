@@ -1912,18 +1912,17 @@ static bool io_flush_cached_reqs(struct io_ring_ctx *ctx)
  * Because of that, io_alloc_req() should be called only under ->uring_lock
  * and with extra caution to not get a request that is still worked on.
  */
-static struct io_kiocb *io_alloc_req(struct io_ring_ctx *ctx)
+static bool __io_alloc_req_refill(struct io_ring_ctx *ctx)
 	__must_hold(&ctx->uring_lock)
 {
 	struct io_submit_state *state = &ctx->submit_state;
 	gfp_t gfp = GFP_KERNEL | __GFP_NOWARN;
 	void *reqs[IO_REQ_ALLOC_BATCH];
-	struct io_wq_work_node *node;
 	struct io_kiocb *req;
 	int ret, i;
 
 	if (likely(state->free_list.next || io_flush_cached_reqs(ctx)))
-		goto got_req;
+		return true;
 
 	ret = kmem_cache_alloc_bulk(req_cachep, gfp, ARRAY_SIZE(reqs), reqs);
 
@@ -1934,7 +1933,7 @@ static struct io_kiocb *io_alloc_req(struct io_ring_ctx *ctx)
 	if (unlikely(ret <= 0)) {
 		reqs[0] = kmem_cache_alloc(req_cachep, gfp);
 		if (!reqs[0])
-			return NULL;
+			return false;
 		ret = 1;
 	}
 
@@ -1944,8 +1943,21 @@ static struct io_kiocb *io_alloc_req(struct io_ring_ctx *ctx)
 		io_preinit_req(req, ctx);
 		wq_stack_add_head(&req->comp_list, &state->free_list);
 	}
-got_req:
-	node = wq_stack_extract(&state->free_list);
+	return true;
+}
+
+static inline bool io_alloc_req_refill(struct io_ring_ctx *ctx)
+{
+	if (unlikely(!ctx->submit_state.free_list.next))
+		return __io_alloc_req_refill(ctx);
+	return true;
+}
+
+static inline struct io_kiocb *io_alloc_req(struct io_ring_ctx *ctx)
+{
+	struct io_wq_work_node *node;
+
+	node = wq_stack_extract(&ctx->submit_state.free_list);
 	return container_of(node, struct io_kiocb, comp_list);
 }
 
@@ -7217,12 +7229,12 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
 		const struct io_uring_sqe *sqe;
 		struct io_kiocb *req;
 
-		req = io_alloc_req(ctx);
-		if (unlikely(!req)) {
+		if (unlikely(!io_alloc_req_refill(ctx))) {
 			if (!submitted)
 				submitted = -EAGAIN;
 			break;
 		}
+		req = io_alloc_req(ctx);
 		sqe = io_get_sqe(ctx);
 		if (unlikely(!sqe)) {
 			wq_stack_add_head(&req->comp_list, &ctx->submit_state.free_list);
