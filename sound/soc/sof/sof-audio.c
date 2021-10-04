@@ -8,6 +8,7 @@
 // Author: Ranjani Sridharan <ranjani.sridharan@linux.intel.com>
 //
 
+#include <linux/bitfield.h>
 #include "sof-audio.h"
 #include "ops.h"
 
@@ -54,6 +55,9 @@ static int sof_dai_config_setup(struct snd_sof_dev *sdev, struct snd_sof_dai *da
 		dev_err(sdev->dev, "error: no config for DAI %s\n", dai->name);
 		return -EINVAL;
 	}
+
+	/* set NONE flag to clear all previous settings */
+	config->flags = FIELD_PREP(SOF_DAI_CONFIG_FLAGS_MASK, SOF_DAI_CONFIG_FLAGS_NONE);
 
 	ret = sof_ipc_tx_message(sdev->ipc, config->hdr.cmd, config, config->hdr.size,
 				 &reply, sizeof(reply));
