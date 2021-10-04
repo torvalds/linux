@@ -39,7 +39,7 @@
 #define AO_SECURE_REG0_AHB_SRAM_BITS_19_12			GENMASK(15, 8)
 
 /* Only bits [31:20] and [17:14] are usable, all other bits must be zero */
-#define MESON_AO_RPROC_SRAM_USABLE_BITS				0xfff3c000
+#define MESON_AO_RPROC_SRAM_USABLE_BITS				0xfff3c000ULL
 
 #define MESON_AO_RPROC_MEMORY_OFFSET				0x10000000
 
