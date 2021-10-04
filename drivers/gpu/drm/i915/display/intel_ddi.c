@@ -3937,8 +3937,7 @@ static void intel_ddi_encoder_destroy(struct drm_encoder *encoder)
 	intel_display_power_flush_work(i915);
 
 	drm_encoder_cleanup(encoder);
-	if (dig_port)
-		kfree(dig_port->hdcp_port_data.streams);
+	kfree(dig_port->hdcp_port_data.streams);
 	kfree(dig_port);
 }
 
