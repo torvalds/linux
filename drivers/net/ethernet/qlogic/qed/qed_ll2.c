@@ -44,6 +44,8 @@
 #define QED_LL2_TX_SIZE (256)
 #define QED_LL2_RX_SIZE (4096)
 
+#define QED_LL2_INVALID_STATS_ID        0xff
+
 struct qed_cb_ll2_info {
 	int rx_cnt;
 	u32 rx_size;
@@ -62,6 +64,29 @@ struct qed_ll2_buffer {
 	void *data;
 	dma_addr_t phys_addr;
 };
+
+static u8 qed_ll2_handle_to_stats_id(struct qed_hwfn *p_hwfn,
+				     u8 ll2_queue_type, u8 qid)
+{
+	u8 stats_id;
+
+	/* For legacy (RAM based) queues, the stats_id will be set as the
+	 * queue_id. Otherwise (context based queue), it will be set to
+	 * the "abs_pf_id" offset from the end of the RAM based queue IDs.
+	 * If the final value exceeds the total counters amount, return
+	 * INVALID value to indicate that the stats for this connection should
+	 * be disabled.
+	 */
+	if (ll2_queue_type == QED_LL2_RX_TYPE_LEGACY)
+		stats_id = qid;
+	else
+		stats_id = MAX_NUM_LL2_RX_RAM_QUEUES + p_hwfn->abs_pf_id;
+
+	if (stats_id < MAX_NUM_LL2_TX_STATS_COUNTERS)
+		return stats_id;
+	else
+		return QED_LL2_INVALID_STATS_ID;
+}
 
 static void qed_ll2b_complete_tx_packet(void *cxt,
 					u8 connection_handle,
@@ -1546,7 +1571,7 @@ int qed_ll2_establish_connection(void *cxt, u8 connection_handle)
 	int rc = -EINVAL;
 	u32 i, capacity;
 	size_t desc_size;
-	u8 qid;
+	u8 qid, stats_id;
 
 	p_ptt = qed_ptt_acquire(p_hwfn);
 	if (!p_ptt)
@@ -1612,12 +1637,26 @@ int qed_ll2_establish_connection(void *cxt, u8 connection_handle)
 
 	qid = qed_ll2_handle_to_queue_id(p_hwfn, connection_handle,
 					 p_ll2_conn->input.rx_conn_type);
+	stats_id = qed_ll2_handle_to_stats_id(p_hwfn,
+					      p_ll2_conn->input.rx_conn_type,
+					      qid);
 	p_ll2_conn->queue_id = qid;
-	p_ll2_conn->tx_stats_id = qid;
+	p_ll2_conn->tx_stats_id = stats_id;
 
-	DP_VERBOSE(p_hwfn, QED_MSG_LL2,
-		   "Establishing ll2 queue. PF %d ctx_based=%d abs qid=%d\n",
-		   p_hwfn->rel_pf_id, p_ll2_conn->input.rx_conn_type, qid);
+	/* If there is no valid stats id for this connection, disable stats */
+	if (p_ll2_conn->tx_stats_id == QED_LL2_INVALID_STATS_ID) {
+		p_ll2_conn->tx_stats_en = 0;
+		DP_VERBOSE(p_hwfn,
+			   QED_MSG_LL2,
+			   "Disabling stats for queue %d - not enough counters\n",
+			   qid);
+	}
+
+	DP_VERBOSE(p_hwfn,
+		   QED_MSG_LL2,
+		   "Establishing ll2 queue. PF %d ctx_bsaed=%d abs qid=%d stats_id=%d\n",
+		   p_hwfn->rel_pf_id,
+		   p_ll2_conn->input.rx_conn_type, qid, stats_id);
 
 	if (p_ll2_conn->input.rx_conn_type == QED_LL2_RX_TYPE_LEGACY) {
 		p_rx->set_prod_addr =
