@@ -239,7 +239,7 @@ static int cdns_xspi_wait_for_controller_idle(struct cdns_xspi_dev *cdns_xspi)
 }
 
 static void cdns_xspi_trigger_command(struct cdns_xspi_dev *cdns_xspi,
-				      u32 cmd_regs[5])
+				      u32 cmd_regs[6])
 {
 	writel(cmd_regs[5], cdns_xspi->iobase + CDNS_XSPI_CMD_REG_5);
 	writel(cmd_regs[4], cdns_xspi->iobase + CDNS_XSPI_CMD_REG_4);
@@ -346,7 +346,7 @@ static int cdns_xspi_send_stig_command(struct cdns_xspi_dev *cdns_xspi,
 				       const struct spi_mem_op *op,
 				       bool data_phase)
 {
-	u32 cmd_regs[5];
+	u32 cmd_regs[6];
 	u32 cmd_status;
 	int ret;
 
