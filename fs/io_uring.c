@@ -2280,9 +2280,10 @@ static void io_free_batch_list(struct io_ring_ctx *ctx,
 		struct io_kiocb *req = container_of(node, struct io_kiocb,
 						    comp_list);
 
-		node = req->comp_list.next;
-		if (!req_ref_put_and_test(req))
+		if (!req_ref_put_and_test(req)) {
+			node = req->comp_list.next;
 			continue;
+		}
 
 		io_queue_next(req);
 		io_dismantle_req(req);
@@ -2294,6 +2295,7 @@ static void io_free_batch_list(struct io_ring_ctx *ctx,
 			task_refs = 0;
 		}
 		task_refs++;
+		node = req->comp_list.next;
 		wq_stack_add_head(&req->comp_list, &ctx->submit_state.free_list);
 	} while (node);
 
