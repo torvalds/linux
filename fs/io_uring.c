@@ -863,19 +863,22 @@ struct io_kiocb {
 	struct task_struct		*task;
 	u64				user_data;
 
-	struct io_kiocb			*link;
 	struct percpu_ref		*fixed_rsrc_refs;
 
-	/* used with ctx->iopoll_list with reads/writes */
+	/* used by request caches, completion batching and iopoll */
 	struct io_wq_work_node		comp_list;
+	struct io_kiocb			*link;
 	struct io_task_work		io_task_work;
 	/* for polled requests, i.e. IORING_OP_POLL_ADD and async armed poll */
 	struct hlist_node		hash_node;
+	/* internal polling, see IORING_FEAT_FAST_POLL */
 	struct async_poll		*apoll;
 	/* store used ubuf, so we can prevent reloading */
 	struct io_mapped_ubuf		*imu;
 	struct io_wq_work		work;
+	/* custom credentials, valid IFF REQ_F_CREDS is set */
 	const struct cred		*creds;
+	/* stores selected buf, valid IFF REQ_F_BUFFER_SELECTED is set */
 	struct io_buffer		*kbuf;
 };
 
