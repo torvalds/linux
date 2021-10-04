@@ -150,6 +150,18 @@ properties:
           - const: microchip,sama7g5
           - const: microchip,sama7
 
+      - description: Microchip LAN9662 PCB8291 Evaluation Board.
+        items:
+          - const: microchip,lan9662-pcb8291
+          - const: microchip,lan9662
+          - const: microchip,lan966
+
+      - description: Microchip LAN9668 PCB8290 Evaluation Board.
+        items:
+          - const: microchip,lan9668-pcb8290
+          - const: microchip,lan9668
+          - const: microchip,lan966
+
       - items:
           - enum:
               - atmel,sams70j19
