@@ -287,7 +287,7 @@ static int max1027_wait_eoc(struct iio_dev *indio_dev)
 						  msecs_to_jiffies(1000));
 		reinit_completion(&st->complete);
 		if (!ret)
-			return ret;
+			return -ETIMEDOUT;
 	} else {
 		if (indio_dev->active_scan_mask)
 			conversion_time *= hweight32(*indio_dev->active_scan_mask);
