@@ -24,6 +24,8 @@
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <net/devlink.h>
 
+#define QED_TX_SWS_TIMER_DFLT  500
+
 enum dcbx_protocol_type {
 	DCBX_PROTOCOL_ISCSI,
 	DCBX_PROTOCOL_FCOE,
