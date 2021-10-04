@@ -2379,13 +2379,14 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 		}
 
 		ret = sof_widget_load_dai(scomp, index, swidget, tw, dai);
-		if (ret == 0) {
-			sof_connect_dai_widget(scomp, w, tw, dai);
-			list_add(&dai->list, &sdev->dai_list);
-			swidget->private = dai;
-		} else {
+		if (!ret)
+			ret = sof_connect_dai_widget(scomp, w, tw, dai);
+		if (ret < 0) {
 			kfree(dai);
+			break;
 		}
+		list_add(&dai->list, &sdev->dai_list);
+		swidget->private = dai;
 		break;
 	case snd_soc_dapm_mixer:
 		ret = sof_widget_load_mixer(scomp, index, swidget, tw);
