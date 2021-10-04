@@ -145,6 +145,77 @@ DECLARE_EVENT_CLASS(rpcrdma_receive_completion_class,
 				),					\
 				TP_ARGS(wc, cid))
 
+DECLARE_EVENT_CLASS(rpcrdma_receive_success_class,
+	TP_PROTO(
+		const struct ib_wc *wc,
+		const struct rpc_rdma_cid *cid
+	),
+
+	TP_ARGS(wc, cid),
+
+	TP_STRUCT__entry(
+		__field(u32, cq_id)
+		__field(int, completion_id)
+		__field(u32, received)
+	),
+
+	TP_fast_assign(
+		__entry->cq_id = cid->ci_queue_id;
+		__entry->completion_id = cid->ci_completion_id;
+		__entry->received = wc->byte_len;
+	),
+
+	TP_printk("cq.id=%u cid=%d received=%u",
+		__entry->cq_id, __entry->completion_id,
+		__entry->received
+	)
+);
+
+#define DEFINE_RECEIVE_SUCCESS_EVENT(name)				\
+		DEFINE_EVENT(rpcrdma_receive_success_class, name,	\
+				TP_PROTO(				\
+					const struct ib_wc *wc,		\
+					const struct rpc_rdma_cid *cid	\
+				),					\
+				TP_ARGS(wc, cid))
+
+DECLARE_EVENT_CLASS(rpcrdma_receive_flush_class,
+	TP_PROTO(
+		const struct ib_wc *wc,
+		const struct rpc_rdma_cid *cid
+	),
+
+	TP_ARGS(wc, cid),
+
+	TP_STRUCT__entry(
+		__field(u32, cq_id)
+		__field(int, completion_id)
+		__field(unsigned long, status)
+		__field(unsigned int, vendor_err)
+	),
+
+	TP_fast_assign(
+		__entry->cq_id = cid->ci_queue_id;
+		__entry->completion_id = cid->ci_completion_id;
+		__entry->status = wc->status;
+		__entry->vendor_err = wc->vendor_err;
+	),
+
+	TP_printk("cq.id=%u cid=%d status=%s (%lu/0x%x)",
+		__entry->cq_id, __entry->completion_id,
+		rdma_show_wc_status(__entry->status),
+		__entry->status, __entry->vendor_err
+	)
+);
+
+#define DEFINE_RECEIVE_FLUSH_EVENT(name)				\
+		DEFINE_EVENT(rpcrdma_receive_flush_class, name,		\
+				TP_PROTO(				\
+					const struct ib_wc *wc,		\
+					const struct rpc_rdma_cid *cid	\
+				),					\
+				TP_ARGS(wc, cid))
+
 DECLARE_EVENT_CLASS(xprtrdma_reply_class,
 	TP_PROTO(
 		const struct rpcrdma_rep *rep
@@ -1892,7 +1963,9 @@ TRACE_EVENT(svcrdma_post_recv,
 	)
 );
 
-DEFINE_RECEIVE_COMPLETION_EVENT(svcrdma_wc_receive);
+DEFINE_RECEIVE_SUCCESS_EVENT(svcrdma_wc_recv);
+DEFINE_RECEIVE_FLUSH_EVENT(svcrdma_wc_recv_flush);
+DEFINE_RECEIVE_FLUSH_EVENT(svcrdma_wc_recv_err);
 
 TRACE_EVENT(svcrdma_rq_post_err,
 	TP_PROTO(
