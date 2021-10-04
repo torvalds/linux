@@ -277,9 +277,17 @@ static int rpc_wait_bit_killable(struct wait_bit_key *key, int mode)
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG) || IS_ENABLED(CONFIG_TRACEPOINTS)
 static void rpc_task_set_debuginfo(struct rpc_task *task)
 {
-	static atomic_t rpc_pid;
+	struct rpc_clnt *clnt = task->tk_client;
 
-	task->tk_pid = atomic_inc_return(&rpc_pid);
+	/* Might be a task carrying a reverse-direction operation */
+	if (!clnt) {
+		static atomic_t rpc_pid;
+
+		task->tk_pid = atomic_inc_return(&rpc_pid);
+		return;
+	}
+
+	task->tk_pid = atomic_inc_return(&clnt->cl_pid);
 }
 #else
 static inline void rpc_task_set_debuginfo(struct rpc_task *task)
