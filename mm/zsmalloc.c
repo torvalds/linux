@@ -17,10 +17,10 @@
  *
  * Usage of struct page fields:
  *	page->private: points to zspage
- *	page->freelist(index): links together all component pages of a zspage
+ *	page->index: links together all component pages of a zspage
  *		For the huge page, this is always 0, so we use this field
  *		to store handle.
- *	page->units: first object offset in a subpage of zspage
+ *	page->page_type: first object offset in a subpage of zspage
  *
  * Usage of struct page flags:
  *	PG_private: identifies the first component page
@@ -489,12 +489,12 @@ static inline struct page *get_first_page(struct zspage *zspage)
 
 static inline int get_first_obj_offset(struct page *page)
 {
-	return page->units;
+	return page->page_type;
 }
 
 static inline void set_first_obj_offset(struct page *page, int offset)
 {
-	page->units = offset;
+	page->page_type = offset;
 }
 
 static inline unsigned int get_freeobj(struct zspage *zspage)
@@ -827,7 +827,7 @@ static struct page *get_next_page(struct page *page)
 	if (unlikely(PageHugeObject(page)))
 		return NULL;
 
-	return page->freelist;
+	return (struct page *)page->index;
 }
 
 /**
@@ -901,7 +901,7 @@ static void reset_page(struct page *page)
 	set_page_private(page, 0);
 	page_mapcount_reset(page);
 	ClearPageHugeObject(page);
-	page->freelist = NULL;
+	page->index = 0;
 }
 
 static int trylock_zspage(struct zspage *zspage)
@@ -1027,7 +1027,7 @@ static void create_page_chain(struct size_class *class, struct zspage *zspage,
 
 	/*
 	 * Allocate individual pages and link them together as:
-	 * 1. all pages are linked together using page->freelist
+	 * 1. all pages are linked together using page->index
 	 * 2. each sub-page point to zspage using page->private
 	 *
 	 * we set PG_private to identify the first page (i.e. no other sub-page
@@ -1036,7 +1036,7 @@ static void create_page_chain(struct size_class *class, struct zspage *zspage,
 	for (i = 0; i < nr_pages; i++) {
 		page = pages[i];
 		set_page_private(page, (unsigned long)zspage);
-		page->freelist = NULL;
+		page->index = 0;
 		if (i == 0) {
 			zspage->first_page = page;
 			SetPagePrivate(page);
@@ -1044,7 +1044,7 @@ static void create_page_chain(struct size_class *class, struct zspage *zspage,
 					class->pages_per_zspage == 1))
 				SetPageHugeObject(page);
 		} else {
-			prev_page->freelist = page;
+			prev_page->index = (unsigned long)page;
 		}
 		prev_page = page;
 	}
