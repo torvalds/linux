@@ -1566,6 +1566,8 @@ static void svm_clear_vintr(struct vcpu_svm *svm)
 
 		svm->vmcb->control.int_ctl |= svm->nested.ctl.int_ctl &
 			V_IRQ_INJECTION_BITS_MASK;
+
+		svm->vmcb->control.int_vector = svm->nested.ctl.int_vector;
 	}
 
 	vmcb_mark_dirty(svm->vmcb, VMCB_INTR);
@@ -2220,6 +2222,10 @@ static int gp_interception(struct kvm_vcpu *vcpu)
 
 	/* Both #GP cases have zero error_code */
 	if (error_code)
+		goto reinject;
+
+	/* All SVM instructions expect page aligned RAX */
+	if (svm->vmcb->save.rax & ~PAGE_MASK)
 		goto reinject;
 
 	/* Decode the instruction for usage later */
@@ -4285,43 +4291,44 @@ static int svm_enter_smm(struct kvm_vcpu *vcpu, char *smstate)
 	struct kvm_host_map map_save;
 	int ret;
 
-	if (is_guest_mode(vcpu)) {
-		/* FED8h - SVM Guest */
-		put_smstate(u64, smstate, 0x7ed8, 1);
-		/* FEE0h - SVM Guest VMCB Physical Address */
-		put_smstate(u64, smstate, 0x7ee0, svm->nested.vmcb12_gpa);
+	if (!is_guest_mode(vcpu))
+		return 0;
 
-		svm->vmcb->save.rax = vcpu->arch.regs[VCPU_REGS_RAX];
-		svm->vmcb->save.rsp = vcpu->arch.regs[VCPU_REGS_RSP];
-		svm->vmcb->save.rip = vcpu->arch.regs[VCPU_REGS_RIP];
+	/* FED8h - SVM Guest */
+	put_smstate(u64, smstate, 0x7ed8, 1);
+	/* FEE0h - SVM Guest VMCB Physical Address */
+	put_smstate(u64, smstate, 0x7ee0, svm->nested.vmcb12_gpa);
 
-		ret = nested_svm_vmexit(svm);
-		if (ret)
-			return ret;
+	svm->vmcb->save.rax = vcpu->arch.regs[VCPU_REGS_RAX];
+	svm->vmcb->save.rsp = vcpu->arch.regs[VCPU_REGS_RSP];
+	svm->vmcb->save.rip = vcpu->arch.regs[VCPU_REGS_RIP];
 
-		/*
-		 * KVM uses VMCB01 to store L1 host state while L2 runs but
-		 * VMCB01 is going to be used during SMM and thus the state will
-		 * be lost. Temporary save non-VMLOAD/VMSAVE state to the host save
-		 * area pointed to by MSR_VM_HSAVE_PA. APM guarantees that the
-		 * format of the area is identical to guest save area offsetted
-		 * by 0x400 (matches the offset of 'struct vmcb_save_area'
-		 * within 'struct vmcb'). Note: HSAVE area may also be used by
-		 * L1 hypervisor to save additional host context (e.g. KVM does
-		 * that, see svm_prepare_guest_switch()) which must be
-		 * preserved.
-		 */
-		if (kvm_vcpu_map(vcpu, gpa_to_gfn(svm->nested.hsave_msr),
-				 &map_save) == -EINVAL)
-			return 1;
+	ret = nested_svm_vmexit(svm);
+	if (ret)
+		return ret;
 
-		BUILD_BUG_ON(offsetof(struct vmcb, save) != 0x400);
+	/*
+	 * KVM uses VMCB01 to store L1 host state while L2 runs but
+	 * VMCB01 is going to be used during SMM and thus the state will
+	 * be lost. Temporary save non-VMLOAD/VMSAVE state to the host save
+	 * area pointed to by MSR_VM_HSAVE_PA. APM guarantees that the
+	 * format of the area is identical to guest save area offsetted
+	 * by 0x400 (matches the offset of 'struct vmcb_save_area'
+	 * within 'struct vmcb'). Note: HSAVE area may also be used by
+	 * L1 hypervisor to save additional host context (e.g. KVM does
+	 * that, see svm_prepare_guest_switch()) which must be
+	 * preserved.
+	 */
+	if (kvm_vcpu_map(vcpu, gpa_to_gfn(svm->nested.hsave_msr),
+			 &map_save) == -EINVAL)
+		return 1;
 
-		svm_copy_vmrun_state(map_save.hva + 0x400,
-				     &svm->vmcb01.ptr->save);
+	BUILD_BUG_ON(offsetof(struct vmcb, save) != 0x400);
 
-		kvm_vcpu_unmap(vcpu, &map_save, true);
-	}
+	svm_copy_vmrun_state(map_save.hva + 0x400,
+			     &svm->vmcb01.ptr->save);
+
+	kvm_vcpu_unmap(vcpu, &map_save, true);
 	return 0;
 }
 
@@ -4329,50 +4336,54 @@ static int svm_leave_smm(struct kvm_vcpu *vcpu, const char *smstate)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct kvm_host_map map, map_save;
-	int ret = 0;
+	u64 saved_efer, vmcb12_gpa;
+	struct vmcb *vmcb12;
+	int ret;
 
-	if (guest_cpuid_has(vcpu, X86_FEATURE_LM)) {
-		u64 saved_efer = GET_SMSTATE(u64, smstate, 0x7ed0);
-		u64 guest = GET_SMSTATE(u64, smstate, 0x7ed8);
-		u64 vmcb12_gpa = GET_SMSTATE(u64, smstate, 0x7ee0);
-		struct vmcb *vmcb12;
+	if (!guest_cpuid_has(vcpu, X86_FEATURE_LM))
+		return 0;
 
-		if (guest) {
-			if (!guest_cpuid_has(vcpu, X86_FEATURE_SVM))
-				return 1;
+	/* Non-zero if SMI arrived while vCPU was in guest mode. */
+	if (!GET_SMSTATE(u64, smstate, 0x7ed8))
+		return 0;
 
-			if (!(saved_efer & EFER_SVME))
-				return 1;
+	if (!guest_cpuid_has(vcpu, X86_FEATURE_SVM))
+		return 1;
 
-			if (kvm_vcpu_map(vcpu,
-					 gpa_to_gfn(vmcb12_gpa), &map) == -EINVAL)
-				return 1;
+	saved_efer = GET_SMSTATE(u64, smstate, 0x7ed0);
+	if (!(saved_efer & EFER_SVME))
+		return 1;
 
-			if (svm_allocate_nested(svm))
-				return 1;
+	vmcb12_gpa = GET_SMSTATE(u64, smstate, 0x7ee0);
+	if (kvm_vcpu_map(vcpu, gpa_to_gfn(vmcb12_gpa), &map) == -EINVAL)
+		return 1;
 
-			vmcb12 = map.hva;
+	ret = 1;
+	if (kvm_vcpu_map(vcpu, gpa_to_gfn(svm->nested.hsave_msr), &map_save) == -EINVAL)
+		goto unmap_map;
 
-			nested_load_control_from_vmcb12(svm, &vmcb12->control);
+	if (svm_allocate_nested(svm))
+		goto unmap_save;
 
-			ret = enter_svm_guest_mode(vcpu, vmcb12_gpa, vmcb12);
-			kvm_vcpu_unmap(vcpu, &map, true);
+	/*
+	 * Restore L1 host state from L1 HSAVE area as VMCB01 was
+	 * used during SMM (see svm_enter_smm())
+	 */
 
-			/*
-			 * Restore L1 host state from L1 HSAVE area as VMCB01 was
-			 * used during SMM (see svm_enter_smm())
-			 */
-			if (kvm_vcpu_map(vcpu, gpa_to_gfn(svm->nested.hsave_msr),
-					 &map_save) == -EINVAL)
-				return 1;
+	svm_copy_vmrun_state(&svm->vmcb01.ptr->save, map_save.hva + 0x400);
 
-			svm_copy_vmrun_state(&svm->vmcb01.ptr->save,
-					     map_save.hva + 0x400);
+	/*
+	 * Enter the nested guest now
+	 */
 
-			kvm_vcpu_unmap(vcpu, &map_save, true);
-		}
-	}
+	vmcb12 = map.hva;
+	nested_load_control_from_vmcb12(svm, &vmcb12->control);
+	ret = enter_svm_guest_mode(vcpu, vmcb12_gpa, vmcb12, false);
 
+unmap_save:
+	kvm_vcpu_unmap(vcpu, &map_save, true);
+unmap_map:
+	kvm_vcpu_unmap(vcpu, &map, true);
 	return ret;
 }
 

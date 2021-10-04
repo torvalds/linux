@@ -719,9 +719,9 @@ static void hclge_dbg_fill_shaper_content(struct hclge_tm_shaper_para *para,
 	sprintf(result[(*index)++], "%6u", para->rate);
 }
 
-static int hclge_dbg_dump_tm_pg(struct hclge_dev *hdev, char *buf, int len)
+static int __hclge_dbg_dump_tm_pg(struct hclge_dev *hdev, char *data_str,
+				  char *buf, int len)
 {
-	char data_str[ARRAY_SIZE(tm_pg_items)][HCLGE_DBG_DATA_STR_LEN];
 	struct hclge_tm_shaper_para c_shaper_para, p_shaper_para;
 	char *result[ARRAY_SIZE(tm_pg_items)], *sch_mode_str;
 	u8 pg_id, sch_mode, weight, pri_bit_map, i, j;
@@ -729,8 +729,10 @@ static int hclge_dbg_dump_tm_pg(struct hclge_dev *hdev, char *buf, int len)
 	int pos = 0;
 	int ret;
 
-	for (i = 0; i < ARRAY_SIZE(tm_pg_items); i++)
-		result[i] = &data_str[i][0];
+	for (i = 0; i < ARRAY_SIZE(tm_pg_items); i++) {
+		result[i] = data_str;
+		data_str += HCLGE_DBG_DATA_STR_LEN;
+	}
 
 	hclge_dbg_fill_content(content, sizeof(content), tm_pg_items,
 			       NULL, ARRAY_SIZE(tm_pg_items));
@@ -779,6 +781,24 @@ static int hclge_dbg_dump_tm_pg(struct hclge_dev *hdev, char *buf, int len)
 	}
 
 	return 0;
+}
+
+static int hclge_dbg_dump_tm_pg(struct hclge_dev *hdev, char *buf, int len)
+{
+	char *data_str;
+	int ret;
+
+	data_str = kcalloc(ARRAY_SIZE(tm_pg_items),
+			   HCLGE_DBG_DATA_STR_LEN, GFP_KERNEL);
+
+	if (!data_str)
+		return -ENOMEM;
+
+	ret = __hclge_dbg_dump_tm_pg(hdev, data_str, buf, len);
+
+	kfree(data_str);
+
+	return ret;
 }
 
 static int hclge_dbg_dump_tm_port(struct hclge_dev *hdev,  char *buf, int len)

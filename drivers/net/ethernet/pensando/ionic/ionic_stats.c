@@ -380,15 +380,6 @@ static void ionic_sw_stats_get_txq_values(struct ionic_lif *lif, u64 **buf,
 					  &ionic_dbg_intr_stats_desc[i]);
 		(*buf)++;
 	}
-	for (i = 0; i < IONIC_NUM_DBG_NAPI_STATS; i++) {
-		**buf = IONIC_READ_STAT64(&txqcq->napi_stats,
-					  &ionic_dbg_napi_stats_desc[i]);
-		(*buf)++;
-	}
-	for (i = 0; i < IONIC_MAX_NUM_NAPI_CNTR; i++) {
-		**buf = txqcq->napi_stats.work_done_cntr[i];
-		(*buf)++;
-	}
 	for (i = 0; i < IONIC_MAX_NUM_SG_CNTR; i++) {
 		**buf = txstats->sg_cntr[i];
 		(*buf)++;

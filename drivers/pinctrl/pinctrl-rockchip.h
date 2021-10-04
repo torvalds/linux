@@ -141,6 +141,8 @@ struct rockchip_drv {
  * @toggle_edge_mode: bit mask to toggle (falling/rising) edge mode
  * @recalced_mask: bit mask to indicate a need to recalulate the mask
  * @route_mask: bits describing the routing pins of per bank
+ * @deferred_output: gpio output settings to be done after gpio bank probed
+ * @deferred_lock: mutex for the deferred_output shared btw gpio and pinctrl
  */
 struct rockchip_pin_bank {
 	struct device			*dev;
@@ -169,6 +171,8 @@ struct rockchip_pin_bank {
 	u32				toggle_edge_mode;
 	u32				recalced_mask;
 	u32				route_mask;
+	struct list_head		deferred_output;
+	struct mutex			deferred_lock;
 };
 
 /**
@@ -241,6 +245,12 @@ struct rockchip_pin_config {
 	unsigned int		func;
 	unsigned long		*configs;
 	unsigned int		nconfigs;
+};
+
+struct rockchip_pin_output_deferred {
+	struct list_head head;
+	unsigned int pin;
+	u32 arg;
 };
 
 /**
