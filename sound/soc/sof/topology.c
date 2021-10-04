@@ -2825,12 +2825,12 @@ static int sof_link_ssp_load(struct snd_soc_component *scomp, int index,
 		config[i].ssp.rx_slots = le32_to_cpu(hw_config[i].rx_slots);
 		config[i].ssp.tx_slots = le32_to_cpu(hw_config[i].tx_slots);
 
-		dev_dbg(scomp->dev, "tplg: config SSP%d fmt 0x%x mclk %d bclk %d fclk %d width (%d)%d slots %d mclk id %d quirks %d\n",
+		dev_dbg(scomp->dev, "tplg: config SSP%d fmt %#x mclk %d bclk %d fclk %d width (%d)%d slots %d mclk id %d quirks %d clks_control %#x\n",
 			config[i].dai_index, config[i].format,
 			config[i].ssp.mclk_rate, config[i].ssp.bclk_rate,
 			config[i].ssp.fsync_rate, config[i].ssp.sample_valid_bits,
 			config[i].ssp.tdm_slot_width, config[i].ssp.tdm_slots,
-			config[i].ssp.mclk_id, config[i].ssp.quirks);
+			config[i].ssp.mclk_id, config[i].ssp.quirks, config[i].ssp.clks_control);
 
 		/* validate SSP fsync rate and channel count */
 		if (config[i].ssp.fsync_rate < 8000 || config[i].ssp.fsync_rate > 192000) {
