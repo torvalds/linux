@@ -93,7 +93,7 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 
 	DRM_DEBUG("\n");
 
-	switch (adev->ip_versions[MP0_HWIP]) {
+	switch (adev->ip_versions[MP0_HWIP][0]) {
 	case IP_VERSION(11, 0, 2):
 		chip_name = "vega20";
 		break;
@@ -129,7 +129,7 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 	}
 
 
-	switch (adev->ip_versions[MP0_HWIP]) {
+	switch (adev->ip_versions[MP0_HWIP][0]) {
 	case IP_VERSION(11, 0, 2):
 	case IP_VERSION(11, 0, 4):
 		err = psp_init_sos_microcode(psp, chip_name);

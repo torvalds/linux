@@ -187,7 +187,7 @@ static u32 sdma_v5_0_get_reg_offset(struct amdgpu_device *adev, u32 instance, u3
 
 static void sdma_v5_0_init_golden_registers(struct amdgpu_device *adev)
 {
-	switch (adev->ip_versions[SDMA0_HWIP]) {
+	switch (adev->ip_versions[SDMA0_HWIP][0]) {
 	case IP_VERSION(5, 0, 0):
 		soc15_program_register_sequence(adev,
 						golden_settings_sdma_5,
@@ -248,12 +248,12 @@ static int sdma_v5_0_init_microcode(struct amdgpu_device *adev)
 	const struct common_firmware_header *header = NULL;
 	const struct sdma_firmware_header_v1_0 *hdr;
 
-	if (amdgpu_sriov_vf(adev) && (adev->ip_versions[SDMA0_HWIP] == IP_VERSION(5, 0, 5)))
+	if (amdgpu_sriov_vf(adev) && (adev->ip_versions[SDMA0_HWIP][0] == IP_VERSION(5, 0, 5)))
 		return 0;
 
 	DRM_DEBUG("\n");
 
-	switch (adev->ip_versions[SDMA0_HWIP]) {
+	switch (adev->ip_versions[SDMA0_HWIP][0]) {
 	case IP_VERSION(5, 0, 0):
 		chip_name = "navi10";
 		break;
@@ -1634,7 +1634,7 @@ static int sdma_v5_0_set_clockgating_state(void *handle,
 	if (amdgpu_sriov_vf(adev))
 		return 0;
 
-	switch (adev->ip_versions[SDMA0_HWIP]) {
+	switch (adev->ip_versions[SDMA0_HWIP][0]) {
 	case IP_VERSION(5, 0, 0):
 	case IP_VERSION(5, 0, 2):
 	case IP_VERSION(5, 0, 5):

@@ -47,7 +47,7 @@ static int psp_v13_0_init_microcode(struct psp_context *psp)
 	const char *chip_name;
 	int err = 0;
 
-	switch (adev->ip_versions[MP0_HWIP]) {
+	switch (adev->ip_versions[MP0_HWIP][0]) {
 	case IP_VERSION(13, 0, 2):
 		chip_name = "aldebaran";
 		break;
@@ -58,7 +58,7 @@ static int psp_v13_0_init_microcode(struct psp_context *psp)
 	default:
 		BUG();
 	}
-	switch (adev->ip_versions[MP0_HWIP]) {
+	switch (adev->ip_versions[MP0_HWIP][0]) {
 	case IP_VERSION(13, 0, 2):
 		err = psp_init_sos_microcode(psp, chip_name);
 		if (err)
