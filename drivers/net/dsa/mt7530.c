@@ -3286,6 +3286,9 @@ mt7530_remove(struct mdio_device *mdiodev)
 	struct mt7530_priv *priv = dev_get_drvdata(&mdiodev->dev);
 	int ret = 0;
 
+	if (!priv)
+		return;
+
 	ret = regulator_disable(priv->core_pwr);
 	if (ret < 0)
 		dev_err(priv->dev,
@@ -3301,11 +3304,26 @@ mt7530_remove(struct mdio_device *mdiodev)
 
 	dsa_unregister_switch(priv->ds);
 	mutex_destroy(&priv->reg_mutex);
+
+	dev_set_drvdata(&mdiodev->dev, NULL);
+}
+
+static void mt7530_shutdown(struct mdio_device *mdiodev)
+{
+	struct mt7530_priv *priv = dev_get_drvdata(&mdiodev->dev);
+
+	if (!priv)
+		return;
+
+	dsa_switch_shutdown(priv->ds);
+
+	dev_set_drvdata(&mdiodev->dev, NULL);
 }
 
 static struct mdio_driver mt7530_mdio_driver = {
 	.probe  = mt7530_probe,
 	.remove = mt7530_remove,
+	.shutdown = mt7530_shutdown,
 	.mdiodrv.driver = {
 		.name = "mt7530",
 		.of_match_table = mt7530_of_match,

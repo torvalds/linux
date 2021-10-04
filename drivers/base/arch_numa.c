@@ -264,7 +264,7 @@ void __init numa_free_distance(void)
 	size = numa_distance_cnt * numa_distance_cnt *
 		sizeof(numa_distance[0]);
 
-	memblock_free(__pa(numa_distance), size);
+	memblock_free_ptr(numa_distance, size);
 	numa_distance_cnt = 0;
 	numa_distance = NULL;
 }

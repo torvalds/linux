@@ -348,9 +348,9 @@ static int xics_host_map(struct irq_domain *domain, unsigned int virq,
 	if (xics_ics->check(xics_ics, hwirq))
 		return -EINVAL;
 
-	/* No chip data for the XICS domain */
+	/* Let the ICS be the chip data for the XICS domain. For ICS native */
 	irq_domain_set_info(domain, virq, hwirq, xics_ics->chip,
-			    NULL, handle_fasteoi_irq, NULL, NULL);
+			    xics_ics, handle_fasteoi_irq, NULL, NULL);
 
 	return 0;
 }

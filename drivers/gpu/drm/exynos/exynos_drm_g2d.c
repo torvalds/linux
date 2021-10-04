@@ -1449,7 +1449,6 @@ static const struct component_ops g2d_component_ops = {
 static int g2d_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct resource *res;
 	struct g2d_data *g2d;
 	int ret;
 
@@ -1491,9 +1490,7 @@ static int g2d_probe(struct platform_device *pdev)
 	clear_bit(G2D_BIT_SUSPEND_RUNQUEUE, &g2d->flags);
 	clear_bit(G2D_BIT_ENGINE_BUSY, &g2d->flags);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	g2d->regs = devm_ioremap_resource(dev, res);
+	g2d->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(g2d->regs)) {
 		ret = PTR_ERR(g2d->regs);
 		goto err_put_clk;
