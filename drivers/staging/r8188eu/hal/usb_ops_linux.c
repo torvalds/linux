@@ -558,9 +558,3 @@ void rtl8188eu_xmit_tasklet(unsigned long priv)
 			break;
 	}
 }
-
-void rtl8188eu_set_hw_type(struct adapter *adapt)
-{
-	adapt->chip_type = RTL8188E;
-	DBG_88E("CHIP TYPE: RTL8188E\n");
-}
