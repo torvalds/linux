@@ -164,6 +164,9 @@ static int ehl_serial_setup(struct lpss8250 *lpss, struct uart_port *port)
 	 * matching with the registered General Purpose DMA controllers.
 	 */
 	up->dma = dma;
+
+	port->set_termios = dw8250_do_set_termios;
+
 	return 0;
 }
 
