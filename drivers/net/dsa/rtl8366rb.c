@@ -1308,6 +1308,19 @@ rtl8366rb_port_bridge_flags(struct dsa_switch *ds, int port,
 	return 0;
 }
 
+static void
+rtl8366rb_port_fast_age(struct dsa_switch *ds, int port)
+{
+	struct realtek_smi *smi = ds->priv;
+
+	/* This will age out any learned L2 entries */
+	regmap_update_bits(smi->map, RTL8366RB_SECURITY_CTRL,
+			   BIT(port), BIT(port));
+	/* Restore the normal state of things */
+	regmap_update_bits(smi->map, RTL8366RB_SECURITY_CTRL,
+			   BIT(port), 0);
+}
+
 static int rtl8366rb_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
 {
 	struct realtek_smi *smi = ds->priv;
@@ -1720,6 +1733,7 @@ static const struct dsa_switch_ops rtl8366rb_switch_ops = {
 	.port_disable = rtl8366rb_port_disable,
 	.port_pre_bridge_flags = rtl8366rb_port_pre_bridge_flags,
 	.port_bridge_flags = rtl8366rb_port_bridge_flags,
+	.port_fast_age = rtl8366rb_port_fast_age,
 	.port_change_mtu = rtl8366rb_change_mtu,
 	.port_max_mtu = rtl8366rb_max_mtu,
 };
