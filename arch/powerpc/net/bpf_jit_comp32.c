@@ -357,7 +357,7 @@ int bpf_jit_build_body(struct bpf_prog *fp, u32 *image, struct codegen_context *
 				PPC_LI32(_R0, imm);
 				EMIT(PPC_RAW_ADDC(dst_reg, dst_reg, _R0));
 			}
-			if (imm >= 0)
+			if (imm >= 0 || (BPF_OP(code) == BPF_SUB && imm == 0x80000000))
 				EMIT(PPC_RAW_ADDZE(dst_reg_h, dst_reg_h));
 			else
 				EMIT(PPC_RAW_ADDME(dst_reg_h, dst_reg_h));
