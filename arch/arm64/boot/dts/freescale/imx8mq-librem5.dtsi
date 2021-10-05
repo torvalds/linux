@@ -1010,6 +1010,7 @@
 		vddi-supply = <&reg_lcd_1v8>;
 		backlight = <&backlight_dsi>;
 		reset-gpios = <&gpio1 29 GPIO_ACTIVE_LOW>;
+		mantix,tp-rstn-gpios = <&gpio1 24 GPIO_ACTIVE_LOW>;
 
 		port {
 			panel_in: endpoint {
