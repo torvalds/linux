@@ -22,7 +22,7 @@
 #include "../../kselftest.h"
 
 #define VL_TESTS (((SVE_VQ_MAX - SVE_VQ_MIN) + 1) * 3)
-#define FPSIMD_TESTS 3
+#define FPSIMD_TESTS 5
 
 #define EXPECTED_TESTS (VL_TESTS + FPSIMD_TESTS)
 
@@ -103,6 +103,56 @@ static int set_sve(pid_t pid, const struct user_sve_header *sve)
 	iov.iov_base = (void *)sve;
 	iov.iov_len = sve->size;
 	return ptrace(PTRACE_SETREGSET, pid, NT_ARM_SVE, &iov);
+}
+
+/* Validate setting and getting the inherit flag */
+static void ptrace_set_get_inherit(pid_t child)
+{
+	struct user_sve_header sve;
+	struct user_sve_header *new_sve = NULL;
+	size_t new_sve_size = 0;
+	int ret;
+
+	/* First set the flag */
+	memset(&sve, 0, sizeof(sve));
+	sve.size = sizeof(sve);
+	sve.vl = sve_vl_from_vq(SVE_VQ_MIN);
+	sve.flags = SVE_PT_VL_INHERIT;
+	ret = set_sve(child, &sve);
+	if (ret != 0) {
+		ksft_test_result_fail("Failed to set SVE_PT_VL_INHERIT\n");
+		return;
+	}
+
+	/*
+	 * Read back the new register state and verify that we have
+	 * set the flags we expected.
+	 */
+	if (!get_sve(child, (void **)&new_sve, &new_sve_size)) {
+		ksft_test_result_fail("Failed to read SVE flags\n");
+		return;
+	}
+
+	ksft_test_result(new_sve->flags & SVE_PT_VL_INHERIT,
+			 "SVE_PT_VL_INHERIT set\n");
+
+	/* Now clear */
+	sve.flags &= ~SVE_PT_VL_INHERIT;
+	ret = set_sve(child, &sve);
+	if (ret != 0) {
+		ksft_test_result_fail("Failed to clear SVE_PT_VL_INHERIT\n");
+		return;
+	}
+
+	if (!get_sve(child, (void **)&new_sve, &new_sve_size)) {
+		ksft_test_result_fail("Failed to read SVE flags\n");
+		return;
+	}
+
+	ksft_test_result(!(new_sve->flags & SVE_PT_VL_INHERIT),
+			 "SVE_PT_VL_INHERIT cleared\n");
+
+	free(new_sve);
 }
 
 /* Validate attempting to set the specfied VL via ptrace */
@@ -451,6 +501,9 @@ static int do_parent(pid_t child)
 
 	/* FPSIMD via SVE regset */
 	ptrace_sve_fpsimd(child);
+
+	/* prctl() flags */
+	ptrace_set_get_inherit(child);
 
 	/* Step through every possible VQ */
 	for (vq = SVE_VQ_MIN; vq <= SVE_VQ_MAX; vq++) {
