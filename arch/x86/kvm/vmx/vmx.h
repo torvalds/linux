@@ -248,12 +248,8 @@ struct vcpu_vmx {
 	 * only loaded into hardware when necessary, e.g. SYSCALL #UDs outside
 	 * of 64-bit mode or if EFER.SCE=1, thus the SYSCALL MSRs don't need to
 	 * be loaded into hardware if those conditions aren't met.
-	 * nr_active_uret_msrs tracks the number of MSRs that need to be loaded
-	 * into hardware when running the guest.  guest_uret_msrs[] is resorted
-	 * whenever the number of "active" uret MSRs is modified.
 	 */
 	struct vmx_uret_msr   guest_uret_msrs[MAX_NR_USER_RETURN_MSRS];
-	int                   nr_active_uret_msrs;
 	bool                  guest_uret_msrs_loaded;
 #ifdef CONFIG_X86_64
 	u64		      msr_host_kernel_gs_base;
@@ -359,6 +355,7 @@ void vmx_prepare_switch_to_guest(struct kvm_vcpu *vcpu);
 void vmx_set_host_fs_gs(struct vmcs_host_state *host, u16 fs_sel, u16 gs_sel,
 			unsigned long fs_base, unsigned long gs_base);
 int vmx_get_cpl(struct kvm_vcpu *vcpu);
+bool vmx_emulation_required(struct kvm_vcpu *vcpu);
 unsigned long vmx_get_rflags(struct kvm_vcpu *vcpu);
 void vmx_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags);
 u32 vmx_get_interrupt_shadow(struct kvm_vcpu *vcpu);

@@ -472,7 +472,7 @@ static int __init_memblock memblock_double_array(struct memblock_type *type,
 		kfree(old_array);
 	else if (old_array != memblock_memory_init_regions &&
 		 old_array != memblock_reserved_init_regions)
-		memblock_free(__pa(old_array), old_alloc_size);
+		memblock_free_ptr(old_array, old_alloc_size);
 
 	/*
 	 * Reserve the new array if that comes from the memblock.  Otherwise, we
@@ -793,6 +793,20 @@ int __init_memblock memblock_remove(phys_addr_t base, phys_addr_t size)
 		     &base, &end, (void *)_RET_IP_);
 
 	return memblock_remove_range(&memblock.memory, base, size);
+}
+
+/**
+ * memblock_free_ptr - free boot memory allocation
+ * @ptr: starting address of the  boot memory allocation
+ * @size: size of the boot memory block in bytes
+ *
+ * Free boot memory block previously allocated by memblock_alloc_xx() API.
+ * The freeing memory will not be released to the buddy allocator.
+ */
+void __init_memblock memblock_free_ptr(void *ptr, size_t size)
+{
+	if (ptr)
+		memblock_free(__pa(ptr), size);
 }
 
 /**

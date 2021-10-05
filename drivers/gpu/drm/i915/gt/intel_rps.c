@@ -1973,8 +1973,14 @@ u32 intel_rps_read_actual_frequency(struct intel_rps *rps)
 u32 intel_rps_read_punit_req(struct intel_rps *rps)
 {
 	struct intel_uncore *uncore = rps_to_uncore(rps);
+	struct intel_runtime_pm *rpm = rps_to_uncore(rps)->rpm;
+	intel_wakeref_t wakeref;
+	u32 freq = 0;
 
-	return intel_uncore_read(uncore, GEN6_RPNSWREQ);
+	with_intel_runtime_pm_if_in_use(rpm, wakeref)
+		freq = intel_uncore_read(uncore, GEN6_RPNSWREQ);
+
+	return freq;
 }
 
 static u32 intel_rps_get_req(u32 pureq)

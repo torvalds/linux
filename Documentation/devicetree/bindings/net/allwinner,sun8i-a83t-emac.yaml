@@ -19,7 +19,9 @@ properties:
       - const: allwinner,sun8i-v3s-emac
       - const: allwinner,sun50i-a64-emac
       - items:
-          - const: allwinner,sun50i-h6-emac
+          - enum:
+              - allwinner,sun20i-d1-emac
+              - allwinner,sun50i-h6-emac
           - const: allwinner,sun50i-a64-emac
 
   reg:
