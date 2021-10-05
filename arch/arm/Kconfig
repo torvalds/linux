@@ -1169,6 +1169,8 @@ config CURRENT_POINTER_IN_TPIDRURO
 config IRQSTACKS
 	def_bool y
 	depends on GENERIC_IRQ_MULTI_HANDLER && THREAD_INFO_IN_TASK
+	select HAVE_IRQ_EXIT_ON_IRQ_STACK
+	select HAVE_SOFTIRQ_ON_OWN_STACK
 
 config ARM_CPU_TOPOLOGY
 	bool "Support cpu topology definition"

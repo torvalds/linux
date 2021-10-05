@@ -36,10 +36,13 @@
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/hardware/cache-uniphier.h>
 #include <asm/outercache.h>
+#include <asm/softirq_stack.h>
 #include <asm/exception.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
+
+#include "reboot.h"
 
 unsigned long irq_err_count;
 
@@ -58,6 +61,17 @@ static void __init init_irq_stacks(void)
 			break;
 		per_cpu(irq_stack_ptr, cpu) = &stack[THREAD_SIZE];
 	}
+}
+
+static void ____do_softirq(void *arg)
+{
+	__do_softirq();
+}
+
+void do_softirq_own_stack(void)
+{
+	call_with_stack(____do_softirq, NULL,
+			__this_cpu_read(irq_stack_ptr));
 }
 
 #endif
