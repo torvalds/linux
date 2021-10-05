@@ -1056,13 +1056,13 @@
 
 &pwm3 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_led_g>;
+	pinctrl-0 = <&pinctrl_led_r>;
 	status = "okay";
 };
 
 &pwm4 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_led_r>;
+	pinctrl-0 = <&pinctrl_led_g>;
 	status = "okay";
 };
 
