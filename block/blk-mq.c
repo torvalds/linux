@@ -725,7 +725,14 @@ void blk_mq_start_request(struct request *rq)
 	trace_block_rq_issue(rq);
 
 	if (test_bit(QUEUE_FLAG_STATS, &q->queue_flags)) {
-		rq->io_start_time_ns = ktime_get_ns();
+		u64 start_time;
+#ifdef CONFIG_BLK_CGROUP
+		if (rq->bio)
+			start_time = bio_issue_time(&rq->bio->bi_issue);
+		else
+#endif
+			start_time = ktime_get_ns();
+		rq->io_start_time_ns = start_time;
 		rq->stats_sectors = blk_rq_sectors(rq);
 		rq->rq_flags |= RQF_STATS;
 		rq_qos_issue(q, rq);
