@@ -517,7 +517,7 @@ pnfs_mark_request_commit(struct nfs_page *req, struct pnfs_layout_segment *lseg,
 {
 	struct pnfs_ds_commit_info *fl_cinfo = cinfo->ds;
 
-	if (!lseg || !fl_cinfo->ops->mark_request_commit)
+	if (!lseg || !fl_cinfo->ops || !fl_cinfo->ops->mark_request_commit)
 		return false;
 	fl_cinfo->ops->mark_request_commit(req, lseg, cinfo, ds_commit_idx);
 	return true;
