@@ -624,4 +624,19 @@ THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
 	.endif
 	.endm
 
+	/*
+	 * bl_r - branch and link to register
+	 *
+	 * @dst: target to branch to
+	 * @c: conditional opcode suffix
+	 */
+	.macro		bl_r, dst:req, c
+	.if		__LINUX_ARM_ARCH__ < 6
+	mov\c		lr, pc
+	mov\c		pc, \dst
+	.else
+	blx\c		\dst
+	.endif
+	.endm
+
 #endif /* __ASM_ASSEMBLER_H__ */
