@@ -76,7 +76,6 @@ struct rpcrdma_ep {
 	unsigned int		re_max_rdma_segs;
 	unsigned int		re_max_fr_depth;
 	struct rpcrdma_mr	*re_write_pad_mr;
-	bool			re_implicit_roundup;
 	enum ib_mr_type		re_mrtype;
 	struct completion	re_done;
 	unsigned int		re_send_count;
