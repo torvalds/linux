@@ -222,9 +222,6 @@ next_attr:
 		if (!attr->non_res) {
 			ni->i_valid = inode->i_size = rsize;
 			inode_set_bytes(inode, rsize);
-			t32 = asize;
-		} else {
-			t32 = le16_to_cpu(attr->nres.run_off);
 		}
 
 		mode = S_IFREG | (0777 & sbi->options->fs_fmask_inv);
@@ -313,17 +310,14 @@ next_attr:
 		rp_fa = ni_parse_reparse(ni, attr, &rp);
 		switch (rp_fa) {
 		case REPARSE_LINK:
-			if (!attr->non_res) {
-				inode->i_size = rsize;
-				inode_set_bytes(inode, rsize);
-				t32 = asize;
-			} else {
-				inode->i_size =
-					le64_to_cpu(attr->nres.data_size);
-				t32 = le16_to_cpu(attr->nres.run_off);
-			}
+			/*
+			 * Normal symlink.
+			 * Assume one unicode symbol == one utf8.
+			 */
+			inode->i_size = le16_to_cpu(rp.SymbolicLinkReparseBuffer
+							    .PrintNameLength) /
+					sizeof(u16);
 
-			/* Looks like normal symlink. */
 			ni->i_valid = inode->i_size;
 
 			/* Clear directory bit. */
@@ -420,7 +414,7 @@ end_enum:
 		ni->std_fa &= ~FILE_ATTRIBUTE_DIRECTORY;
 		inode->i_op = &ntfs_link_inode_operations;
 		inode->i_fop = NULL;
-		inode_nohighmem(inode); // ??
+		inode_nohighmem(inode);
 	} else if (S_ISREG(mode)) {
 		ni->std_fa &= ~FILE_ATTRIBUTE_DIRECTORY;
 		inode->i_op = &ntfs_file_inode_operations;
