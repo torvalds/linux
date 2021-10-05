@@ -686,7 +686,9 @@ unsigned long long bic_present = BIC_USEC | BIC_TOD | BIC_sysfs | BIC_APIC | BIC
 #define BIC_IS_ENABLED(COUNTER_BIT) (bic_enabled & COUNTER_BIT)
 
 #define MAX_DEFERRED 16
+char *deferred_add_names[MAX_DEFERRED];
 char *deferred_skip_names[MAX_DEFERRED];
+int deferred_add_index;
 int deferred_skip_index;
 
 /*
@@ -780,17 +782,23 @@ unsigned long long bic_lookup(char *name_list, enum show_hide_mode mode)
 		}
 		if (i == MAX_BIC) {
 			if (mode == SHOW_LIST) {
-				fprintf(stderr, "Invalid counter name: %s\n", name_list);
-				exit(-1);
-			}
-			deferred_skip_names[deferred_skip_index++] = name_list;
-			if (debug)
-				fprintf(stderr, "deferred \"%s\"\n", name_list);
-			if (deferred_skip_index >= MAX_DEFERRED) {
-				fprintf(stderr, "More than max %d un-recognized --skip options '%s'\n",
-					MAX_DEFERRED, name_list);
-				help();
-				exit(1);
+				deferred_add_names[deferred_add_index++] = name_list;
+				if (deferred_add_index >= MAX_DEFERRED) {
+					fprintf(stderr, "More than max %d un-recognized --add options '%s'\n",
+							MAX_DEFERRED, name_list);
+					help();
+					exit(1);
+				}
+			} else {
+				deferred_skip_names[deferred_skip_index++] = name_list;
+				if (debug)
+					fprintf(stderr, "deferred \"%s\"\n", name_list);
+				if (deferred_skip_index >= MAX_DEFERRED) {
+					fprintf(stderr, "More than max %d un-recognized --skip options '%s'\n",
+							MAX_DEFERRED, name_list);
+					help();
+					exit(1);
+				}
 			}
 		}
 
@@ -6152,6 +6160,16 @@ next:
 	}
 }
 
+int is_deferred_add(char *name)
+{
+	int i;
+
+	for (i = 0; i < deferred_add_index; ++i)
+		if (!strcmp(name, deferred_add_names[i]))
+			return 1;
+	return 0;
+}
+
 int is_deferred_skip(char *name)
 {
 	int i;
@@ -6169,9 +6187,6 @@ void probe_sysfs(void)
 	FILE *input;
 	int state;
 	char *sp;
-
-	if (!DO_BIC(BIC_sysfs))
-		return;
 
 	for (state = 10; state >= 0; --state) {
 
@@ -6194,6 +6209,9 @@ void probe_sysfs(void)
 		fclose(input);
 
 		sprintf(path, "cpuidle/state%d/time", state);
+
+		if (!DO_BIC(BIC_sysfs) && !is_deferred_add(name_buf))
+			continue;
 
 		if (is_deferred_skip(name_buf))
 			continue;
@@ -6219,6 +6237,9 @@ void probe_sysfs(void)
 		remove_underbar(name_buf);
 
 		sprintf(path, "cpuidle/state%d/usage", state);
+
+		if (!DO_BIC(BIC_sysfs) && !is_deferred_add(name_buf))
+			continue;
 
 		if (is_deferred_skip(name_buf))
 			continue;
