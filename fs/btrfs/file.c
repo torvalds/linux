@@ -2018,7 +2018,7 @@ static ssize_t btrfs_file_write_iter(struct kiocb *iocb,
 	 * have opened a file as writable, we have to stop this write operation
 	 * to ensure consistency.
 	 */
-	if (test_bit(BTRFS_FS_STATE_ERROR, &inode->root->fs_info->fs_state))
+	if (BTRFS_FS_ERROR(inode->root->fs_info))
 		return -EROFS;
 
 	if (!(iocb->ki_flags & IOCB_DIRECT) &&
