@@ -8,13 +8,6 @@
 #include "drv_types.h"
 #include "Hal8188EPhyCfg.h"
 
-enum RTL871X_HCI_TYPE {
-	RTW_PCIE	= BIT(0),
-	RTW_USB		= BIT(1),
-	RTW_SDIO	= BIT(2),
-	RTW_GSPI	= BIT(3),
-};
-
 enum hw_variables {
 	HW_VAR_MEDIA_STATUS,
 	HW_VAR_MEDIA_STATUS1,
