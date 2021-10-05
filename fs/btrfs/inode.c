@@ -4120,19 +4120,9 @@ skip_backref:
 		goto err;
 	}
 
-	ret = btrfs_del_inode_ref_in_log(trans, root, name, name_len, inode,
-			dir_ino);
-	if (ret != 0 && ret != -ENOENT) {
-		btrfs_abort_transaction(trans, ret);
-		goto err;
-	}
-
-	ret = btrfs_del_dir_entries_in_log(trans, root, name, name_len, dir,
-			index);
-	if (ret == -ENOENT)
-		ret = 0;
-	else if (ret)
-		btrfs_abort_transaction(trans, ret);
+	btrfs_del_inode_ref_in_log(trans, root, name, name_len, inode,
+				   dir_ino);
+	btrfs_del_dir_entries_in_log(trans, root, name, name_len, dir, index);
 
 	/*
 	 * If we have a pending delayed iput we could end up with the final iput

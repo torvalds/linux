@@ -3518,10 +3518,10 @@ static bool inode_logged(struct btrfs_trans_handle *trans,
  * This optimizations allows us to avoid relogging the entire inode
  * or the entire directory.
  */
-int btrfs_del_dir_entries_in_log(struct btrfs_trans_handle *trans,
-				 struct btrfs_root *root,
-				 const char *name, int name_len,
-				 struct btrfs_inode *dir, u64 index)
+void btrfs_del_dir_entries_in_log(struct btrfs_trans_handle *trans,
+				  struct btrfs_root *root,
+				  const char *name, int name_len,
+				  struct btrfs_inode *dir, u64 index)
 {
 	struct btrfs_root *log;
 	struct btrfs_dir_item *di;
@@ -3531,11 +3531,11 @@ int btrfs_del_dir_entries_in_log(struct btrfs_trans_handle *trans,
 	u64 dir_ino = btrfs_ino(dir);
 
 	if (!inode_logged(trans, dir))
-		return 0;
+		return;
 
 	ret = join_running_log_trans(root);
 	if (ret)
-		return 0;
+		return;
 
 	mutex_lock(&dir->log_mutex);
 
@@ -3583,48 +3583,36 @@ fail:
 	btrfs_free_path(path);
 out_unlock:
 	mutex_unlock(&dir->log_mutex);
-	if (err == -ENOSPC) {
+	if (err < 0)
 		btrfs_set_log_full_commit(trans);
-		err = 0;
-	} else if (err < 0) {
-		btrfs_abort_transaction(trans, err);
-	}
-
 	btrfs_end_log_trans(root);
-
-	return err;
 }
 
 /* see comments for btrfs_del_dir_entries_in_log */
-int btrfs_del_inode_ref_in_log(struct btrfs_trans_handle *trans,
-			       struct btrfs_root *root,
-			       const char *name, int name_len,
-			       struct btrfs_inode *inode, u64 dirid)
+void btrfs_del_inode_ref_in_log(struct btrfs_trans_handle *trans,
+				struct btrfs_root *root,
+				const char *name, int name_len,
+				struct btrfs_inode *inode, u64 dirid)
 {
 	struct btrfs_root *log;
 	u64 index;
 	int ret;
 
 	if (!inode_logged(trans, inode))
-		return 0;
+		return;
 
 	ret = join_running_log_trans(root);
 	if (ret)
-		return 0;
+		return;
 	log = root->log_root;
 	mutex_lock(&inode->log_mutex);
 
 	ret = btrfs_del_inode_ref(trans, log, name, name_len, btrfs_ino(inode),
 				  dirid, &index);
 	mutex_unlock(&inode->log_mutex);
-	if (ret == -ENOSPC) {
+	if (ret < 0 && ret != -ENOENT)
 		btrfs_set_log_full_commit(trans);
-		ret = 0;
-	} else if (ret < 0 && ret != -ENOENT)
-		btrfs_abort_transaction(trans, ret);
 	btrfs_end_log_trans(root);
-
-	return ret;
 }
 
 /*
