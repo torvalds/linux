@@ -44,6 +44,9 @@
 #define avc_cache_stats_incr(field)	do {} while (0)
 #endif
 
+#undef CREATE_TRACE_POINTS
+#include <trace/hooks/avc.h>
+
 struct avc_entry {
 	u32			ssid;
 	u32			tsid;
@@ -441,6 +444,7 @@ static void avc_node_free(struct rcu_head *rhead)
 
 static void avc_node_delete(struct selinux_avc *avc, struct avc_node *node)
 {
+	trace_android_rvh_selinux_avc_node_delete(node);
 	hlist_del_rcu(&node->list);
 	call_rcu(&node->rhead, avc_node_free);
 	atomic_dec(&avc->avc_cache.active_nodes);
@@ -457,6 +461,7 @@ static void avc_node_kill(struct selinux_avc *avc, struct avc_node *node)
 static void avc_node_replace(struct selinux_avc *avc,
 			     struct avc_node *new, struct avc_node *old)
 {
+	trace_android_rvh_selinux_avc_node_replace(old, new);
 	hlist_replace_rcu(&old->list, &new->list);
 	call_rcu(&old->rhead, avc_node_free);
 	atomic_dec(&avc->avc_cache.active_nodes);
@@ -565,8 +570,10 @@ static struct avc_node *avc_lookup(struct selinux_avc *avc,
 	avc_cache_stats_incr(lookups);
 	node = avc_search_node(avc, ssid, tsid, tclass);
 
-	if (node)
+	if (node) {
+		trace_android_rvh_selinux_avc_lookup(node, ssid, tsid, tclass);
 		return node;
+	}
 
 	avc_cache_stats_incr(misses);
 	return NULL;
@@ -650,6 +657,7 @@ static struct avc_node *avc_insert(struct selinux_avc *avc,
 		}
 	}
 	hlist_add_head_rcu(&node->list, head);
+	trace_android_rvh_selinux_avc_insert(node);
 found:
 	spin_unlock_irqrestore(lock, flag);
 	return node;
