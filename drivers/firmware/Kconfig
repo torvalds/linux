@@ -204,7 +204,7 @@ config INTEL_STRATIX10_RSU
 
 config QCOM_SCM
 	tristate "Qcom SCM driver"
-	depends on ARM || ARM64
+	depends on ARCH_QCOM || COMPILE_TEST
 	depends on HAVE_ARM_SMCCC
 	select RESET_CONTROLLER
 
