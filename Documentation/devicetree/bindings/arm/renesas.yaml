@@ -255,12 +255,19 @@ properties:
               - enum:
                   - renesas,h3ulcb
                   - renesas,m3ulcb
+                  - renesas,m3nulcb
               - enum:
+                  - renesas,r8a779m0
                   - renesas,r8a779m1
+                  - renesas,r8a779m2
                   - renesas,r8a779m3
+                  - renesas,r8a779m4
+                  - renesas,r8a779m5
+                  - renesas,r8a779m8
               - enum:
                   - renesas,r8a7795
                   - renesas,r8a77961
+                  - renesas,r8a77965
 
       - description: R-Car M3-N (R8A77965)
         items:
@@ -308,6 +315,14 @@ properties:
           - const: renesas,falcon-cpu
           - const: renesas,r8a779a0
 
+      - description: R-Car H3e (R8A779M0)
+        items:
+          - enum:
+              - renesas,h3ulcb      # H3ULCB (R-Car Starter Kit Premier)
+              - renesas,salvator-xs # Salvator-XS (Salvator-X 2nd version)
+          - const: renesas,r8a779m0
+          - const: renesas,r8a7795
+
       - description: R-Car H3e-2G (R8A779M1)
         items:
           - enum:
@@ -316,6 +331,14 @@ properties:
           - const: renesas,r8a779m1
           - const: renesas,r8a7795
 
+      - description: R-Car M3e (R8A779M2)
+        items:
+          - enum:
+              - renesas,m3ulcb      # M3ULCB (R-Car Starter Kit Pro)
+              - renesas,salvator-xs # Salvator-XS (Salvator-X 2nd version)
+          - const: renesas,r8a779m2
+          - const: renesas,r8a77961
+
       - description: R-Car M3e-2G (R8A779M3)
         items:
           - enum:
@@ -323,6 +346,44 @@ properties:
               - renesas,salvator-xs # Salvator-XS (Salvator-X 2nd version)
           - const: renesas,r8a779m3
           - const: renesas,r8a77961
+
+      - description: R-Car M3Ne (R8A779M4)
+        items:
+          - enum:
+              - renesas,m3nulcb     # M3NULCB (R-Car Starter Kit Pro)
+              - renesas,salvator-xs # Salvator-XS (Salvator-X 2nd version)
+          - const: renesas,r8a779m4
+          - const: renesas,r8a77965
+
+      - description: R-Car M3Ne-2G (R8A779M5)
+        items:
+          - enum:
+              - renesas,m3nulcb     # M3NULCB (R-Car Starter Kit Pro)
+              - renesas,salvator-xs # Salvator-XS (Salvator-X 2nd version)
+          - const: renesas,r8a779m5
+          - const: renesas,r8a77965
+
+      - description: R-Car E3e (R8A779M6)
+        items:
+          - enum:
+              - renesas,ebisu       # Ebisu
+          - const: renesas,r8a779m6
+          - const: renesas,r8a77990
+
+      - description: R-Car D3e (R8A779M7)
+        items:
+          - enum:
+              - renesas,draak       # Draak
+          - const: renesas,r8a779m7
+          - const: renesas,r8a77995
+
+      - description: R-Car H3Ne (R8A779M8)
+        items:
+          - enum:
+              - renesas,h3ulcb      # H3ULCB (R-Car Starter Kit Premier)
+              - renesas,salvator-xs # Salvator-XS (Salvator-X 2nd version)
+          - const: renesas,r8a779m8
+          - const: renesas,r8a7795
 
       - description: RZ/N1D (R9A06G032)
         items:
