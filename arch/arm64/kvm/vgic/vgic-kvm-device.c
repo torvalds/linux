@@ -14,38 +14,20 @@
 
 /* common helpers */
 
-int vgic_check_ioaddr(struct kvm *kvm, phys_addr_t *ioaddr,
-		      phys_addr_t addr, phys_addr_t alignment)
-{
-	if (addr & ~kvm_phys_mask(kvm))
-		return -E2BIG;
-
-	if (!IS_ALIGNED(addr, alignment))
-		return -EINVAL;
-
-	if (!IS_VGIC_ADDR_UNDEF(*ioaddr))
-		return -EEXIST;
-
-	return 0;
-}
-
 int vgic_check_iorange(struct kvm *kvm, phys_addr_t ioaddr,
 		       phys_addr_t addr, phys_addr_t alignment,
 		       phys_addr_t size)
 {
-	int ret;
+	if (!IS_VGIC_ADDR_UNDEF(ioaddr))
+		return -EEXIST;
 
-	ret = vgic_check_ioaddr(kvm, &ioaddr, addr, alignment);
-	if (ret)
-		return ret;
-
-	if (!IS_ALIGNED(size, alignment))
+	if (!IS_ALIGNED(addr, alignment) || !IS_ALIGNED(size, alignment))
 		return -EINVAL;
 
 	if (addr + size < addr)
 		return -EINVAL;
 
-	if (addr + size > kvm_phys_size(kvm))
+	if (addr & ~kvm_phys_mask(kvm) || addr + size > kvm_phys_size(kvm))
 		return -E2BIG;
 
 	return 0;
