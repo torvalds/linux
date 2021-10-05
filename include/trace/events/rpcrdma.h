@@ -375,10 +375,16 @@ DECLARE_EVENT_CLASS(xprtrdma_mr_class,
 
 	TP_fast_assign(
 		const struct rpcrdma_req *req = mr->mr_req;
-		const struct rpc_task *task = req->rl_slot.rq_task;
 
-		__entry->task_id = task->tk_pid;
-		__entry->client_id = task->tk_client->cl_clid;
+		if (req) {
+			const struct rpc_task *task = req->rl_slot.rq_task;
+
+			__entry->task_id = task->tk_pid;
+			__entry->client_id = task->tk_client->cl_clid;
+		} else {
+			__entry->task_id = 0;
+			__entry->client_id = -1;
+		}
 		__entry->mr_id  = mr->mr_ibmr->res.id;
 		__entry->nents  = mr->mr_nents;
 		__entry->handle = mr->mr_handle;
@@ -639,6 +645,7 @@ TRACE_EVENT(xprtrdma_nomrs_err,
 DEFINE_RDCH_EVENT(read);
 DEFINE_WRCH_EVENT(write);
 DEFINE_WRCH_EVENT(reply);
+DEFINE_WRCH_EVENT(wp);
 
 TRACE_DEFINE_ENUM(rpcrdma_noch);
 TRACE_DEFINE_ENUM(rpcrdma_noch_pullup);

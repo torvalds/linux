@@ -666,3 +666,38 @@ void frwr_unmap_async(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	 */
 	rpcrdma_force_disconnect(ep);
 }
+
+/**
+ * frwr_wp_create - Create an MR for padding Write chunks
+ * @r_xprt: transport resources to use
+ *
+ * Return 0 on success, negative errno on failure.
+ */
+int frwr_wp_create(struct rpcrdma_xprt *r_xprt)
+{
+	struct rpcrdma_ep *ep = r_xprt->rx_ep;
+	struct rpcrdma_mr_seg seg;
+	struct rpcrdma_mr *mr;
+
+	mr = rpcrdma_mr_get(r_xprt);
+	if (!mr)
+		return -EAGAIN;
+	mr->mr_req = NULL;
+	ep->re_write_pad_mr = mr;
+
+	seg.mr_len = XDR_UNIT;
+	seg.mr_page = virt_to_page(ep->re_write_pad);
+	seg.mr_offset = offset_in_page(ep->re_write_pad);
+	if (IS_ERR(frwr_map(r_xprt, &seg, 1, true, xdr_zero, mr)))
+		return -EIO;
+	trace_xprtrdma_mr_fastreg(mr);
+
+	mr->mr_cqe.done = frwr_wc_fastreg;
+	mr->mr_regwr.wr.next = NULL;
+	mr->mr_regwr.wr.wr_cqe = &mr->mr_cqe;
+	mr->mr_regwr.wr.num_sge = 0;
+	mr->mr_regwr.wr.opcode = IB_WR_REG_MR;
+	mr->mr_regwr.wr.send_flags = 0;
+
+	return ib_post_send(ep->re_id->qp, &mr->mr_regwr.wr, NULL);
+}

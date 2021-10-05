@@ -551,6 +551,7 @@ int rpcrdma_xprt_connect(struct rpcrdma_xprt *r_xprt)
 		goto out;
 	}
 	rpcrdma_mrs_create(r_xprt);
+	frwr_wp_create(r_xprt);
 
 out:
 	trace_xprtrdma_connect(r_xprt, rc);
