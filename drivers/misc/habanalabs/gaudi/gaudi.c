@@ -2616,7 +2616,7 @@ static void gaudi_init_e2e(struct hl_device *hdev)
 
 static void gaudi_init_hbm_cred(struct hl_device *hdev)
 {
-	uint32_t hbm0_wr, hbm1_wr, hbm0_rd, hbm1_rd;
+	u32 hbm0_wr, hbm1_wr, hbm0_rd, hbm1_rd;
 
 	if (hdev->asic_prop.fw_security_enabled)
 		return;
