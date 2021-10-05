@@ -138,9 +138,14 @@
 
 	reg_wifi_3v3: regulator-wifi-3v3 {
 		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_wifi_pwr>;
 		regulator-name = "3V3_WIFI";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio3 10 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		vin-supply = <&reg_vdd_3v3>;
 	};
 
 	sound {
@@ -635,6 +640,13 @@
 			MX8MQ_IOMUXC_SD2_DATA2_USDHC2_DATA2	0xcf
 			MX8MQ_IOMUXC_SD2_DATA3_USDHC2_DATA3	0xcf
 			MX8MQ_IOMUXC_SD2_RESET_B_USDHC2_RESET_B 0xc1
+		>;
+	};
+
+	pinctrl_wifi_pwr: wifipwrgrp {
+		fsl,pins = <
+			/* WIFI3V3_EN */
+			MX8MQ_IOMUXC_NAND_DATA04_GPIO3_IO10	0x83
 		>;
 	};
 
