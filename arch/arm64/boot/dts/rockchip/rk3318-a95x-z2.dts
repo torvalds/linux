@@ -185,7 +185,6 @@
 	assigned-clock-parents = <&cru SCLK_MAC2PHY_SRC>;
 	assigned-clock-rate = <50000000>;
 	assigned-clocks = <&cru SCLK_MAC2PHY>;
-	clock_in_out = "output";
 	status = "okay";
 };
 
@@ -194,8 +193,6 @@
 };
 
 &hdmi {
-	ddc-i2c-scl-high-time-ns = <9625>;
-	ddc-i2c-scl-low-time-ns = <10000>;
 	status = "okay";
 };
 
