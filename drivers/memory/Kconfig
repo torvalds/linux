@@ -210,6 +210,7 @@ config RENESAS_RPCIF
 	tristate "Renesas RPC-IF driver"
 	depends on ARCH_RENESAS || COMPILE_TEST
 	select REGMAP_MMIO
+	select RESET_CONTROLLER
 	help
 	  This supports Renesas R-Car Gen3 or RZ/G2 RPC-IF which provides
 	  either SPI host or HyperFlash. You'll have to select individual
