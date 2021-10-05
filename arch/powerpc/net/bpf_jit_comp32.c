@@ -1075,7 +1075,7 @@ cond_branch:
 				break;
 			case BPF_JMP32 | BPF_JSET | BPF_K:
 				/* andi does not sign-extend the immediate */
-				if (imm >= -32768 && imm < 32768) {
+				if (imm >= 0 && imm < 32768) {
 					/* PPC_ANDI is _only/always_ dot-form */
 					EMIT(PPC_RAW_ANDI(_R0, dst_reg, imm));
 				} else {
