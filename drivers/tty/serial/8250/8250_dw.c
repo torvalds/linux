@@ -350,11 +350,7 @@ static void dw8250_set_termios(struct uart_port *p, struct ktermios *termios,
 	}
 	clk_prepare_enable(d->clk);
 
-	p->status &= ~UPSTAT_AUTOCTS;
-	if (termios->c_cflag & CRTSCTS)
-		p->status |= UPSTAT_AUTOCTS;
-
-	serial8250_do_set_termios(p, termios, old);
+	dw8250_do_set_termios(p, termios, old);
 }
 
 static void dw8250_set_ldisc(struct uart_port *p, struct ktermios *termios)
