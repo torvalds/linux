@@ -1710,17 +1710,15 @@ out:
 /*
  * ni_parse_reparse
  *
- * Buffer is at least 24 bytes.
+ * buffer - memory for reparse buffer header
  */
 enum REPARSE_SIGN ni_parse_reparse(struct ntfs_inode *ni, struct ATTRIB *attr,
-				   void *buffer)
+				   struct REPARSE_DATA_BUFFER *buffer)
 {
 	const struct REPARSE_DATA_BUFFER *rp = NULL;
 	u8 bits;
 	u16 len;
 	typeof(rp->CompressReparseBuffer) *cmpr;
-
-	static_assert(sizeof(struct REPARSE_DATA_BUFFER) <= 24);
 
 	/* Try to estimate reparse point. */
 	if (!attr->non_res) {
@@ -1806,6 +1804,9 @@ enum REPARSE_SIGN ni_parse_reparse(struct ntfs_inode *ni, struct ATTRIB *attr,
 
 		return REPARSE_NONE;
 	}
+
+	if (buffer != rp)
+		memcpy(buffer, rp, sizeof(struct REPARSE_DATA_BUFFER));
 
 	/* Looks like normal symlink. */
 	return REPARSE_LINK;
