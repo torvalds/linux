@@ -28,6 +28,7 @@
 struct vm_gic {
 	struct kvm_vm *vm;
 	int gic_fd;
+	uint32_t gic_dev_type;
 };
 
 static int max_ipa_bits;
@@ -61,12 +62,13 @@ static int run_vcpu(struct kvm_vm *vm, uint32_t vcpuid)
 	return 0;
 }
 
-static struct vm_gic vm_gic_v3_create(void)
+static struct vm_gic vm_gic_create_with_vcpus(uint32_t gic_dev_type, uint32_t nr_vcpus)
 {
 	struct vm_gic v;
 
-	v.vm = vm_create_default_with_vcpus(NR_VCPUS, 0, 0, guest_code, NULL);
-	v.gic_fd = kvm_create_device(v.vm, KVM_DEV_TYPE_ARM_VGIC_V3, false);
+	v.gic_dev_type = gic_dev_type;
+	v.vm = vm_create_default_with_vcpus(nr_vcpus, 0, 0, guest_code, NULL);
+	v.gic_fd = kvm_create_device(v.vm, gic_dev_type, false);
 
 	return v;
 }
@@ -257,8 +259,7 @@ static void test_v3_vgic_then_vcpus(uint32_t gic_dev_type)
 	struct vm_gic v;
 	int ret, i;
 
-	v.vm = vm_create_default(0, 0, guest_code);
-	v.gic_fd = kvm_create_device(v.vm, KVM_DEV_TYPE_ARM_VGIC_V3, false);
+	v = vm_gic_create_with_vcpus(gic_dev_type, 1);
 
 	subtest_v3_dist_rdist(&v);
 
@@ -278,7 +279,7 @@ static void test_v3_vcpus_then_vgic(uint32_t gic_dev_type)
 	struct vm_gic v;
 	int ret;
 
-	v = vm_gic_v3_create();
+	v = vm_gic_create_with_vcpus(gic_dev_type, NR_VCPUS);
 
 	subtest_v3_dist_rdist(&v);
 
@@ -295,7 +296,7 @@ static void test_v3_new_redist_regions(void)
 	uint64_t addr;
 	int ret;
 
-	v = vm_gic_v3_create();
+	v = vm_gic_create_with_vcpus(KVM_DEV_TYPE_ARM_VGIC_V3, NR_VCPUS);
 	subtest_v3_redist_regions(&v);
 	kvm_device_access(v.gic_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
 			  KVM_DEV_ARM_VGIC_CTRL_INIT, NULL, true);
@@ -306,7 +307,7 @@ static void test_v3_new_redist_regions(void)
 
 	/* step2 */
 
-	v = vm_gic_v3_create();
+	v = vm_gic_create_with_vcpus(KVM_DEV_TYPE_ARM_VGIC_V3, NR_VCPUS);
 	subtest_v3_redist_regions(&v);
 
 	addr = REDIST_REGION_ATTR_ADDR(1, 0x280000, 0, 2);
@@ -320,7 +321,7 @@ static void test_v3_new_redist_regions(void)
 
 	/* step 3 */
 
-	v = vm_gic_v3_create();
+	v = vm_gic_create_with_vcpus(KVM_DEV_TYPE_ARM_VGIC_V3, NR_VCPUS);
 	subtest_v3_redist_regions(&v);
 
 	_kvm_device_access(v.gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
