@@ -50,6 +50,7 @@
 #include "blk-mq.h"
 #include "blk-mq-sched.h"
 #include "blk-pm.h"
+#include "blk-throttle.h"
 
 struct dentry *blk_debugfs_root;
 
