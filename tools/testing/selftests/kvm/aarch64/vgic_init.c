@@ -79,74 +79,120 @@ static void vm_gic_destroy(struct vm_gic *v)
 	kvm_vm_free(v->vm);
 }
 
+struct vgic_region_attr {
+	uint64_t attr;
+	uint64_t size;
+	uint64_t alignment;
+};
+
+struct vgic_region_attr gic_v3_dist_region = {
+	.attr = KVM_VGIC_V3_ADDR_TYPE_DIST,
+	.size = 0x10000,
+	.alignment = 0x10000,
+};
+
+struct vgic_region_attr gic_v3_redist_region = {
+	.attr = KVM_VGIC_V3_ADDR_TYPE_REDIST,
+	.size = NR_VCPUS * 0x20000,
+	.alignment = 0x10000,
+};
+
+struct vgic_region_attr gic_v2_dist_region = {
+	.attr = KVM_VGIC_V2_ADDR_TYPE_DIST,
+	.size = 0x1000,
+	.alignment = 0x1000,
+};
+
+struct vgic_region_attr gic_v2_cpu_region = {
+	.attr = KVM_VGIC_V2_ADDR_TYPE_CPU,
+	.size = 0x2000,
+	.alignment = 0x1000,
+};
+
 /**
- * Helper routine that performs KVM device tests in general and
- * especially ARM_VGIC_V3 ones. Eventually the ARM_VGIC_V3
- * device gets created, a legacy RDIST region is set at @0x0
- * and a DIST region is set @0x60000
+ * Helper routine that performs KVM device tests in general. Eventually the
+ * ARM_VGIC (GICv2 or GICv3) device gets created with an overlapping
+ * DIST/REDIST (or DIST/CPUIF for GICv2). Assumption is 4 vcpus are going to be
+ * used hence the overlap. In the case of GICv3, A RDIST region is set at @0x0
+ * and a DIST region is set @0x70000. The GICv2 case sets a CPUIF @0x0 and a
+ * DIST region @0x1000.
  */
-static void subtest_v3_dist_rdist(struct vm_gic *v)
+static void subtest_dist_rdist(struct vm_gic *v)
 {
 	int ret;
 	uint64_t addr;
+	struct vgic_region_attr rdist; /* CPU interface in GICv2*/
+	struct vgic_region_attr dist;
+
+	rdist = VGIC_DEV_IS_V3(v->gic_dev_type) ? gic_v3_redist_region
+						: gic_v2_cpu_region;
+	dist = VGIC_DEV_IS_V3(v->gic_dev_type) ? gic_v3_dist_region
+						: gic_v2_dist_region;
 
 	/* Check existing group/attributes */
 	kvm_device_check_attr(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
-			      KVM_VGIC_V3_ADDR_TYPE_DIST);
+			      dist.attr);
 
 	kvm_device_check_attr(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
-			      KVM_VGIC_V3_ADDR_TYPE_REDIST);
+			      rdist.attr);
 
 	/* check non existing attribute */
-	ret = _kvm_device_check_attr(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR, 0);
+	ret = _kvm_device_check_attr(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR, -1);
 	TEST_ASSERT(ret && errno == ENXIO, "attribute not supported");
 
 	/* misaligned DIST and REDIST address settings */
-	addr = 0x1000;
+	addr = dist.alignment / 0x10;
 	ret = _kvm_device_access(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
-				 KVM_VGIC_V3_ADDR_TYPE_DIST, &addr, true);
-	TEST_ASSERT(ret && errno == EINVAL, "GICv3 dist base not 64kB aligned");
+				 dist.attr, &addr, true);
+	TEST_ASSERT(ret && errno == EINVAL, "GIC dist base not aligned");
 
+	addr = rdist.alignment / 0x10;
 	ret = _kvm_device_access(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
-				 KVM_VGIC_V3_ADDR_TYPE_REDIST, &addr, true);
-	TEST_ASSERT(ret && errno == EINVAL, "GICv3 redist base not 64kB aligned");
+				 rdist.attr, &addr, true);
+	TEST_ASSERT(ret && errno == EINVAL, "GIC redist/cpu base not aligned");
 
 	/* out of range address */
 	if (max_ipa_bits) {
 		addr = 1ULL << max_ipa_bits;
 		ret = _kvm_device_access(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
-					 KVM_VGIC_V3_ADDR_TYPE_DIST, &addr, true);
+					 dist.attr, &addr, true);
 		TEST_ASSERT(ret && errno == E2BIG, "dist address beyond IPA limit");
 
 		ret = _kvm_device_access(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
-					 KVM_VGIC_V3_ADDR_TYPE_REDIST, &addr, true);
+					 rdist.attr, &addr, true);
 		TEST_ASSERT(ret && errno == E2BIG, "redist address beyond IPA limit");
 	}
 
 	/* set REDIST base address @0x0*/
 	addr = 0x00000;
 	kvm_device_access(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
-			  KVM_VGIC_V3_ADDR_TYPE_REDIST, &addr, true);
+			  rdist.attr, &addr, true);
 
 	/* Attempt to create a second legacy redistributor region */
 	addr = 0xE0000;
 	ret = _kvm_device_access(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
-				 KVM_VGIC_V3_ADDR_TYPE_REDIST, &addr, true);
-	TEST_ASSERT(ret && errno == EEXIST, "GICv3 redist base set again");
+				 rdist.attr, &addr, true);
+	TEST_ASSERT(ret && errno == EEXIST, "GIC redist base set again");
 
-	/* Attempt to mix legacy and new redistributor regions */
-	addr = REDIST_REGION_ATTR_ADDR(NR_VCPUS, 0x100000, 0, 0);
-	ret = _kvm_device_access(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
-				 KVM_VGIC_V3_ADDR_TYPE_REDIST_REGION, &addr, true);
-	TEST_ASSERT(ret && errno == EINVAL, "attempt to mix GICv3 REDIST and REDIST_REGION");
+	ret = _kvm_device_check_attr(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
+				     KVM_VGIC_V3_ADDR_TYPE_REDIST);
+	if (!ret) {
+		/* Attempt to mix legacy and new redistributor regions */
+		addr = REDIST_REGION_ATTR_ADDR(NR_VCPUS, 0x100000, 0, 0);
+		ret = _kvm_device_access(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
+					 KVM_VGIC_V3_ADDR_TYPE_REDIST_REGION,
+					 &addr, true);
+		TEST_ASSERT(ret && errno == EINVAL,
+			    "attempt to mix GICv3 REDIST and REDIST_REGION");
+	}
 
 	/*
 	 * Set overlapping DIST / REDIST, cannot be detected here. Will be detected
 	 * on first vcpu run instead.
 	 */
-	addr = 3 * 2 * 0x10000;
-	kvm_device_access(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR, KVM_VGIC_V3_ADDR_TYPE_DIST,
-			  &addr, true);
+	addr = rdist.size - rdist.alignment;
+	kvm_device_access(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
+			  dist.attr, &addr, true);
 }
 
 /* Test the new REDIST region API */
@@ -254,14 +300,14 @@ static void subtest_v3_redist_regions(struct vm_gic *v)
  * VGIC KVM device is created and initialized before the secondary CPUs
  * get created
  */
-static void test_v3_vgic_then_vcpus(uint32_t gic_dev_type)
+static void test_vgic_then_vcpus(uint32_t gic_dev_type)
 {
 	struct vm_gic v;
 	int ret, i;
 
 	v = vm_gic_create_with_vcpus(gic_dev_type, 1);
 
-	subtest_v3_dist_rdist(&v);
+	subtest_dist_rdist(&v);
 
 	/* Add the rest of the VCPUs */
 	for (i = 1; i < NR_VCPUS; ++i)
@@ -274,14 +320,14 @@ static void test_v3_vgic_then_vcpus(uint32_t gic_dev_type)
 }
 
 /* All the VCPUs are created before the VGIC KVM device gets initialized */
-static void test_v3_vcpus_then_vgic(uint32_t gic_dev_type)
+static void test_vcpus_then_vgic(uint32_t gic_dev_type)
 {
 	struct vm_gic v;
 	int ret;
 
 	v = vm_gic_create_with_vcpus(gic_dev_type, NR_VCPUS);
 
-	subtest_v3_dist_rdist(&v);
+	subtest_dist_rdist(&v);
 
 	ret = run_vcpu(v.vm, 3);
 	TEST_ASSERT(ret == -EINVAL, "dist/rdist overlap detected on 1st vcpu run");
@@ -550,9 +596,10 @@ int test_kvm_device(uint32_t gic_dev_type)
 
 void run_tests(uint32_t gic_dev_type)
 {
+	test_vcpus_then_vgic(gic_dev_type);
+	test_vgic_then_vcpus(gic_dev_type);
+
 	if (VGIC_DEV_IS_V3(gic_dev_type)) {
-		test_v3_vcpus_then_vgic(gic_dev_type);
-		test_v3_vgic_then_vcpus(gic_dev_type);
 		test_v3_new_redist_regions();
 		test_v3_typer_accesses();
 		test_v3_last_bit_redist_regions();
