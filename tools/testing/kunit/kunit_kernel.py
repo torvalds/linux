@@ -12,7 +12,8 @@ import subprocess
 import os
 import shutil
 import signal
-from typing import Iterator, Optional, Tuple
+import threading
+from typing import Iterator, List, Optional, Tuple
 
 import kunit_config
 import kunit_parser
@@ -99,8 +100,8 @@ class LinuxSourceTreeOperations(object):
 		if stderr:  # likely only due to build warnings
 			print(stderr.decode())
 
-	def run(self, params, timeout, build_dir, outfile) -> None:
-		pass
+	def start(self, params: List[str], build_dir: str) -> subprocess.Popen:
+		raise RuntimeError('not implemented!')
 
 
 class LinuxSourceTreeOperationsQemu(LinuxSourceTreeOperations):
@@ -119,7 +120,7 @@ class LinuxSourceTreeOperationsQemu(LinuxSourceTreeOperations):
 		kconfig.parse_from_string(self._kconfig)
 		base_kunitconfig.merge_in_entries(kconfig)
 
-	def run(self, params, timeout, build_dir, outfile):
+	def start(self, params: List[str], build_dir: str) -> subprocess.Popen:
 		kernel_path = os.path.join(build_dir, self._kernel_path)
 		qemu_command = ['qemu-system-' + self._qemu_arch,
 				'-nodefaults',
@@ -130,18 +131,11 @@ class LinuxSourceTreeOperationsQemu(LinuxSourceTreeOperations):
 				'-nographic',
 				'-serial stdio'] + self._extra_qemu_params
 		print('Running tests with:\n$', ' '.join(qemu_command))
-		with open(outfile, 'w') as output:
-			process = subprocess.Popen(' '.join(qemu_command),
-						   stdin=subprocess.PIPE,
-						   stdout=output,
-						   stderr=subprocess.STDOUT,
-						   text=True, shell=True)
-		try:
-			process.wait(timeout=timeout)
-		except Exception as e:
-			print(e)
-			process.terminate()
-		return process
+		return subprocess.Popen(' '.join(qemu_command),
+					   stdin=subprocess.PIPE,
+					   stdout=subprocess.PIPE,
+					   stderr=subprocess.STDOUT,
+					   text=True, shell=True)
 
 class LinuxSourceTreeOperationsUml(LinuxSourceTreeOperations):
 	"""An abstraction over command line operations performed on a source tree."""
@@ -171,17 +165,14 @@ class LinuxSourceTreeOperationsUml(LinuxSourceTreeOperations):
 		kunit_parser.print_with_timestamp(
 			'Starting Kernel with all configs takes a few minutes...')
 
-	def run(self, params, timeout, build_dir, outfile):
+	def start(self, params: List[str], build_dir: str) -> subprocess.Popen:
 		"""Runs the Linux UML binary. Must be named 'linux'."""
 		linux_bin = get_file_path(build_dir, 'linux')
-		outfile = get_outfile_path(build_dir)
-		with open(outfile, 'w') as output:
-			process = subprocess.Popen([linux_bin] + params,
-						   stdin=subprocess.PIPE,
-						   stdout=output,
-						   stderr=subprocess.STDOUT,
-						   text=True)
-			process.wait(timeout)
+		return subprocess.Popen([linux_bin] + params,
+					   stdin=subprocess.PIPE,
+					   stdout=subprocess.PIPE,
+					   stderr=subprocess.STDOUT,
+					   text=True)
 
 def get_kconfig_path(build_dir) -> str:
 	return get_file_path(build_dir, KCONFIG_PATH)
@@ -327,12 +318,36 @@ class LinuxSourceTree(object):
 		args.extend(['mem=1G', 'console=tty', 'kunit_shutdown=halt'])
 		if filter_glob:
 			args.append('kunit.filter_glob='+filter_glob)
-		outfile = get_outfile_path(build_dir)
-		self._ops.run(args, timeout, build_dir, outfile)
-		subprocess.call(['stty', 'sane'])
-		with open(outfile, 'r') as file:
-			for line in file:
+
+		process = self._ops.start(args, build_dir)
+		assert process.stdout is not None  # tell mypy it's set
+
+		# Enforce the timeout in a background thread.
+		def _wait_proc():
+			try:
+				process.wait(timeout=timeout)
+			except Exception as e:
+				print(e)
+				process.terminate()
+				process.wait()
+		waiter = threading.Thread(target=_wait_proc)
+		waiter.start()
+
+		output = open(get_outfile_path(build_dir), 'w')
+		try:
+			# Tee the output to the file and to our caller in real time.
+			for line in process.stdout:
+				output.write(line)
 				yield line
+		# This runs even if our caller doesn't consume every line.
+		finally:
+			# Flush any leftover output to the file
+			output.write(process.stdout.read())
+			output.close()
+			process.stdout.close()
+
+			waiter.join()
+			subprocess.call(['stty', 'sane'])
 
 	def signal_handler(self, sig, frame) -> None:
 		logging.error('Build interruption occurred. Cleaning console.')
