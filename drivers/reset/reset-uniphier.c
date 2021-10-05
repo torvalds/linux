@@ -136,6 +136,8 @@ static const struct uniphier_reset_data uniphier_pxs3_sys_reset_data[] = {
 	UNIPHIER_RESETX(28, 0x200c, 7),		/* SATA0 */
 	UNIPHIER_RESETX(29, 0x200c, 8),		/* SATA1 */
 	UNIPHIER_RESETX(30, 0x200c, 21),	/* SATA-PHY */
+	UNIPHIER_RESETX(40, 0x2008, 0),		/* AIO */
+	UNIPHIER_RESETX(42, 0x2010, 2),		/* EXIV */
 	UNIPHIER_RESET_END,
 };
 
