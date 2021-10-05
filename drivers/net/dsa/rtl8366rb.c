@@ -110,6 +110,18 @@
 
 #define RTL8366RB_POWER_SAVING_REG	0x0021
 
+/* Spanning tree status (STP) control, two bits per port per FID */
+#define RTL8366RB_STP_STATE_BASE	0x0050 /* 0x0050..0x0057 */
+#define RTL8366RB_STP_STATE_DISABLED	0x0
+#define RTL8366RB_STP_STATE_BLOCKING	0x1
+#define RTL8366RB_STP_STATE_LEARNING	0x2
+#define RTL8366RB_STP_STATE_FORWARDING	0x3
+#define RTL8366RB_STP_MASK		GENMASK(1, 0)
+#define RTL8366RB_STP_STATE(port, state) \
+	((state) << ((port) * 2))
+#define RTL8366RB_STP_STATE_MASK(port) \
+	RTL8366RB_STP_STATE((port), RTL8366RB_STP_MASK)
+
 /* CPU port control reg */
 #define RTL8368RB_CPU_CTRL_REG		0x0061
 #define RTL8368RB_CPU_PORTS_MSK		0x00FF
@@ -234,6 +246,7 @@
 #define RTL8366RB_NUM_LEDGROUPS		4
 #define RTL8366RB_NUM_VIDS		4096
 #define RTL8366RB_PRIORITYMAX		7
+#define RTL8366RB_NUM_FIDS		8
 #define RTL8366RB_FIDMAX		7
 
 #define RTL8366RB_PORT_1		BIT(0) /* In userspace port 0 */
@@ -1309,6 +1322,40 @@ rtl8366rb_port_bridge_flags(struct dsa_switch *ds, int port,
 }
 
 static void
+rtl8366rb_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
+{
+	struct realtek_smi *smi = ds->priv;
+	u32 val;
+	int i;
+
+	switch (state) {
+	case BR_STATE_DISABLED:
+		val = RTL8366RB_STP_STATE_DISABLED;
+		break;
+	case BR_STATE_BLOCKING:
+	case BR_STATE_LISTENING:
+		val = RTL8366RB_STP_STATE_BLOCKING;
+		break;
+	case BR_STATE_LEARNING:
+		val = RTL8366RB_STP_STATE_LEARNING;
+		break;
+	case BR_STATE_FORWARDING:
+		val = RTL8366RB_STP_STATE_FORWARDING;
+		break;
+	default:
+		dev_err(smi->dev, "unknown bridge state requested\n");
+		return;
+	};
+
+	/* Set the same status for the port on all the FIDs */
+	for (i = 0; i < RTL8366RB_NUM_FIDS; i++) {
+		regmap_update_bits(smi->map, RTL8366RB_STP_STATE_BASE + i,
+				   RTL8366RB_STP_STATE_MASK(port),
+				   RTL8366RB_STP_STATE(port, val));
+	}
+}
+
+static void
 rtl8366rb_port_fast_age(struct dsa_switch *ds, int port)
 {
 	struct realtek_smi *smi = ds->priv;
@@ -1733,6 +1780,7 @@ static const struct dsa_switch_ops rtl8366rb_switch_ops = {
 	.port_disable = rtl8366rb_port_disable,
 	.port_pre_bridge_flags = rtl8366rb_port_pre_bridge_flags,
 	.port_bridge_flags = rtl8366rb_port_bridge_flags,
+	.port_stp_state_set = rtl8366rb_port_stp_state_set,
 	.port_fast_age = rtl8366rb_port_fast_age,
 	.port_change_mtu = rtl8366rb_change_mtu,
 	.port_max_mtu = rtl8366rb_max_mtu,
