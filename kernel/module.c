@@ -63,6 +63,10 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/module.h>
 
+#undef CREATE_TRACE_POINTS
+#include <trace/hooks/module.h>
+#include <trace/hooks/memory.h>
+
 #ifndef ARCH_SHF_SMALL
 #define ARCH_SHF_SMALL 0
 #endif
@@ -2202,6 +2206,10 @@ static void free_module(struct module *mod)
 
 	/* This may be empty, but that's OK */
 	module_arch_freeing_init(mod);
+	trace_android_vh_set_memory_rw((unsigned long)mod->init_layout.base,
+		(mod->init_layout.size)>>PAGE_SHIFT);
+	trace_android_vh_set_memory_nx((unsigned long)mod->init_layout.base,
+		(mod->init_layout.size)>>PAGE_SHIFT);
 	module_memfree(mod->init_layout.base);
 	kfree(mod->args);
 	percpu_modfree(mod);
@@ -2210,6 +2218,10 @@ static void free_module(struct module *mod)
 	lockdep_free_key_range(mod->core_layout.base, mod->core_layout.size);
 
 	/* Finally, free the core (containing the module structure) */
+	trace_android_vh_set_memory_rw((unsigned long)mod->core_layout.base,
+		(mod->core_layout.size)>>PAGE_SHIFT);
+	trace_android_vh_set_memory_nx((unsigned long)mod->core_layout.base,
+		(mod->core_layout.size)>>PAGE_SHIFT);
 	module_memfree(mod->core_layout.base);
 }
 
@@ -3587,7 +3599,15 @@ static void module_deallocate(struct module *mod, struct load_info *info)
 {
 	percpu_modfree(mod);
 	module_arch_freeing_init(mod);
+	trace_android_vh_set_memory_rw((unsigned long)mod->init_layout.base,
+		(mod->init_layout.size)>>PAGE_SHIFT);
+	trace_android_vh_set_memory_nx((unsigned long)mod->init_layout.base,
+		(mod->init_layout.size)>>PAGE_SHIFT);
 	module_memfree(mod->init_layout.base);
+	trace_android_vh_set_memory_rw((unsigned long)mod->core_layout.base,
+		(mod->core_layout.size)>>PAGE_SHIFT);
+	trace_android_vh_set_memory_nx((unsigned long)mod->core_layout.base,
+		(mod->core_layout.size)>>PAGE_SHIFT);
 	module_memfree(mod->core_layout.base);
 }
 
@@ -3745,8 +3765,13 @@ static noinline int do_init_module(struct module *mod)
 	rcu_assign_pointer(mod->kallsyms, &mod->core_kallsyms);
 #endif
 	module_enable_ro(mod, true);
+	trace_android_vh_set_module_permit_after_init(mod);
 	mod_tree_remove_init(mod);
 	module_arch_freeing_init(mod);
+	trace_android_vh_set_memory_rw((unsigned long)mod->init_layout.base,
+		(mod->init_layout.size)>>PAGE_SHIFT);
+	trace_android_vh_set_memory_nx((unsigned long)mod->init_layout.base,
+		(mod->init_layout.size)>>PAGE_SHIFT);
 	mod->init_layout.base = NULL;
 	mod->init_layout.size = 0;
 	mod->init_layout.ro_size = 0;
@@ -3857,6 +3882,7 @@ static int complete_formation(struct module *mod, struct load_info *info)
 	module_enable_ro(mod, false);
 	module_enable_nx(mod);
 	module_enable_x(mod);
+	trace_android_vh_set_module_permit_before_init(mod);
 
 	/*
 	 * Mark state as coming so strong_try_module_get() ignores us,
