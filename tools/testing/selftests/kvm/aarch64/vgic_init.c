@@ -31,7 +31,7 @@ struct vm_gic {
 	uint32_t gic_dev_type;
 };
 
-static int max_ipa_bits;
+static uint64_t max_phys_size;
 
 /* helper to access a redistributor register */
 static int access_v3_redist_reg(int gicv3_fd, int vcpu, int offset,
@@ -152,16 +152,21 @@ static void subtest_dist_rdist(struct vm_gic *v)
 	TEST_ASSERT(ret && errno == EINVAL, "GIC redist/cpu base not aligned");
 
 	/* out of range address */
-	if (max_ipa_bits) {
-		addr = 1ULL << max_ipa_bits;
-		ret = _kvm_device_access(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
-					 dist.attr, &addr, true);
-		TEST_ASSERT(ret && errno == E2BIG, "dist address beyond IPA limit");
+	addr = max_phys_size;
+	ret = _kvm_device_access(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
+				 dist.attr, &addr, true);
+	TEST_ASSERT(ret && errno == E2BIG, "dist address beyond IPA limit");
 
-		ret = _kvm_device_access(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
-					 rdist.attr, &addr, true);
-		TEST_ASSERT(ret && errno == E2BIG, "redist address beyond IPA limit");
-	}
+	ret = _kvm_device_access(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
+				 rdist.attr, &addr, true);
+	TEST_ASSERT(ret && errno == E2BIG, "redist address beyond IPA limit");
+
+	/* Space for half a rdist (a rdist is: 2 * rdist.alignment). */
+	addr = max_phys_size - dist.alignment;
+	ret = _kvm_device_access(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
+				 rdist.attr, &addr, true);
+	TEST_ASSERT(ret && errno == E2BIG,
+			"half of the redist is beyond IPA limit");
 
 	/* set REDIST base address @0x0*/
 	addr = 0x00000;
@@ -250,11 +255,18 @@ static void subtest_v3_redist_regions(struct vm_gic *v)
 	kvm_device_access(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
 			  KVM_VGIC_V3_ADDR_TYPE_REDIST_REGION, &addr, true);
 
-	addr = REDIST_REGION_ATTR_ADDR(1, 1ULL << max_ipa_bits, 0, 2);
+	addr = REDIST_REGION_ATTR_ADDR(1, max_phys_size, 0, 2);
 	ret = _kvm_device_access(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
 				 KVM_VGIC_V3_ADDR_TYPE_REDIST_REGION, &addr, true);
 	TEST_ASSERT(ret && errno == E2BIG,
 		    "register redist region with base address beyond IPA range");
+
+	/* The last redist is above the pa range. */
+	addr = REDIST_REGION_ATTR_ADDR(2, max_phys_size - 0x30000, 0, 2);
+	ret = _kvm_device_access(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
+				 KVM_VGIC_V3_ADDR_TYPE_REDIST_REGION, &addr, true);
+	TEST_ASSERT(ret && errno == E2BIG,
+		    "register redist region with top address beyond IPA range");
 
 	addr = 0x260000;
 	ret = _kvm_device_access(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
@@ -610,8 +622,10 @@ void run_tests(uint32_t gic_dev_type)
 int main(int ac, char **av)
 {
 	int ret;
+	int pa_bits;
 
-	max_ipa_bits = kvm_check_cap(KVM_CAP_ARM_VM_IPA_SIZE);
+	pa_bits = vm_guest_mode_params[VM_MODE_DEFAULT].pa_bits;
+	max_phys_size = 1ULL << pa_bits;
 
 	ret = test_kvm_device(KVM_DEV_TYPE_ARM_VGIC_V3);
 	if (!ret) {
