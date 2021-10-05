@@ -24,6 +24,11 @@ int drm_privacy_screen_set_sw_state(struct drm_privacy_screen *priv,
 void drm_privacy_screen_get_state(struct drm_privacy_screen *priv,
 				  enum drm_privacy_screen_status *sw_state_ret,
 				  enum drm_privacy_screen_status *hw_state_ret);
+
+int drm_privacy_screen_register_notifier(struct drm_privacy_screen *priv,
+					 struct notifier_block *nb);
+int drm_privacy_screen_unregister_notifier(struct drm_privacy_screen *priv,
+					   struct notifier_block *nb);
 #else
 static inline struct drm_privacy_screen *drm_privacy_screen_get(struct device *dev,
 								const char *con_id)
@@ -44,6 +49,16 @@ static inline void drm_privacy_screen_get_state(struct drm_privacy_screen *priv,
 {
 	*sw_state_ret = PRIVACY_SCREEN_DISABLED;
 	*hw_state_ret = PRIVACY_SCREEN_DISABLED;
+}
+static inline int drm_privacy_screen_register_notifier(struct drm_privacy_screen *priv,
+						       struct notifier_block *nb)
+{
+	return -ENODEV;
+}
+static inline int drm_privacy_screen_unregister_notifier(struct drm_privacy_screen *priv,
+							 struct notifier_block *nb)
+{
+	return -ENODEV;
 }
 #endif
 
