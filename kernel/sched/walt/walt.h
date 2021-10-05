@@ -49,8 +49,9 @@ enum migrate_types {
 	RQ_TO_GROUP,
 };
 
-#define WALT_LOW_LATENCY_PROCFS	BIT(0)
-#define WALT_LOW_LATENCY_BINDER	BIT(1)
+#define WALT_LOW_LATENCY_PROCFS		BIT(0)
+#define WALT_LOW_LATENCY_BINDER		BIT(1)
+#define WALT_LOW_LATENCY_PIPELINE	BIT(2)
 
 struct walt_cpu_load {
 	unsigned long	nl;
@@ -419,6 +420,48 @@ static inline unsigned long cpu_util_cum(int cpu)
 	return READ_ONCE(cpu_rq(cpu)->cfs.avg.util_avg);
 }
 
+/* applying the task threshold for all types of low latency tasks. */
+static inline bool walt_low_latency_task(struct task_struct *p)
+{
+	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
+
+	return wts->low_latency &&
+		(task_util(p) < sysctl_walt_low_latency_task_threshold);
+}
+
+static inline bool walt_binder_low_latency_task(struct task_struct *p)
+{
+	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
+
+	return (wts->low_latency & WALT_LOW_LATENCY_BINDER) &&
+		(task_util(p) < sysctl_walt_low_latency_task_threshold);
+}
+
+static inline bool walt_procfs_low_latency_task(struct task_struct *p)
+{
+	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
+
+	return (wts->low_latency & WALT_LOW_LATENCY_PROCFS) &&
+		(task_util(p) < sysctl_walt_low_latency_task_threshold);
+}
+
+static inline bool walt_pipeline_low_latency_task(struct task_struct *p)
+{
+	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
+
+	return wts->low_latency & WALT_LOW_LATENCY_PIPELINE;
+}
+
+static inline unsigned int walt_get_idle_exit_latency(struct rq *rq)
+{
+	struct cpuidle_state *idle = idle_get_state(rq);
+
+	if (idle)
+		return idle->exit_latency;
+
+	return 0; /* CPU is not idle */
+}
+
 static inline bool rt_boost_on_big(void)
 {
 	return sched_boost_type == FULL_THROTTLE_BOOST ?
@@ -477,7 +520,8 @@ static inline enum sched_boost_policy task_boost_policy(struct task_struct *p)
 		 * under conservative boost.
 		 */
 		if (sched_boost_type == CONSERVATIVE_BOOST &&
-			task_util(p) <= sysctl_sched_min_task_util_for_boost)
+			task_util(p) <= sysctl_sched_min_task_util_for_boost &&
+			!walt_pipeline_low_latency_task(p))
 			policy = SCHED_BOOST_NONE;
 	}
 
@@ -723,41 +767,6 @@ static inline bool task_fits_max(struct task_struct *p, int cpu)
 	}
 
 	return task_fits_capacity(p, capacity, cpu);
-}
-
-/* applying the task threshold for all types of low latency tasks. */
-static inline bool walt_low_latency_task(struct task_struct *p)
-{
-	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
-
-	return wts->low_latency &&
-		(task_util(p) < sysctl_walt_low_latency_task_threshold);
-}
-
-static inline bool walt_binder_low_latency_task(struct task_struct *p)
-{
-	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
-
-	return (wts->low_latency & WALT_LOW_LATENCY_BINDER) &&
-		(task_util(p) < sysctl_walt_low_latency_task_threshold);
-}
-
-static inline bool walt_procfs_low_latency_task(struct task_struct *p)
-{
-	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
-
-	return (wts->low_latency & WALT_LOW_LATENCY_PROCFS) &&
-		(task_util(p) < sysctl_walt_low_latency_task_threshold);
-}
-
-static inline unsigned int walt_get_idle_exit_latency(struct rq *rq)
-{
-	struct cpuidle_state *idle = idle_get_state(rq);
-
-	if (idle)
-		return idle->exit_latency;
-
-	return 0; /* CPU is not idle */
 }
 
 extern void sched_get_nr_running_avg(struct sched_avg_stats *stats);

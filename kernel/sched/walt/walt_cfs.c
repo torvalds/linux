@@ -138,7 +138,8 @@ static inline bool walt_task_skip_min_cpu(struct task_struct *p)
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 
 	return (sched_boost_type != CONSERVATIVE_BOOST) &&
-		walt_get_rtg_status(p) && wts->unfilter;
+		walt_get_rtg_status(p) && (wts->unfilter ||
+		walt_pipeline_low_latency_task(p));
 }
 
 static inline bool walt_is_many_wakeup(int sibling_count_hint)
@@ -1007,7 +1008,8 @@ static inline int walt_get_mvp_task_prio(struct task_struct *p)
 	if (walt_binder_low_latency_task(p))
 		return WALT_BINDER_MVP;
 
-	if (task_rtg_high_prio(p) || walt_procfs_low_latency_task(p))
+	if (task_rtg_high_prio(p) || walt_procfs_low_latency_task(p) ||
+			walt_pipeline_low_latency_task(p))
 		return WALT_RTG_MVP;
 
 	return WALT_NOT_MVP;

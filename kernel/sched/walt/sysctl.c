@@ -186,6 +186,7 @@ enum {
 	PER_TASK_BOOST,
 	PER_TASK_BOOST_PERIOD_MS,
 	LOW_LATENCY,
+	PIPELINE,
 };
 
 static int sched_task_handler(struct ctl_table *table, int write,
@@ -237,6 +238,10 @@ static int sched_task_handler(struct ctl_table *table, int write,
 		case LOW_LATENCY:
 			pid_and_val[1] = wts->low_latency &
 					 WALT_LOW_LATENCY_PROCFS;
+			break;
+		case PIPELINE:
+			pid_and_val[1] = wts->low_latency &
+					 WALT_LOW_LATENCY_PIPELINE;
 			break;
 		default:
 			ret = -EINVAL;
@@ -301,6 +306,12 @@ static int sched_task_handler(struct ctl_table *table, int write,
 			wts->low_latency |= WALT_LOW_LATENCY_PROCFS;
 		else
 			wts->low_latency &= ~WALT_LOW_LATENCY_PROCFS;
+		break;
+	case PIPELINE:
+		if (val)
+			wts->low_latency |= WALT_LOW_LATENCY_PIPELINE;
+		else
+			wts->low_latency &= ~WALT_LOW_LATENCY_PIPELINE;
 		break;
 	default:
 		ret = -EINVAL;
@@ -819,6 +830,13 @@ struct ctl_table walt_table[] = {
 	{
 		.procname	= "sched_low_latency",
 		.data		= (int *) LOW_LATENCY,
+		.maxlen		= sizeof(unsigned int) * 2,
+		.mode		= 0644,
+		.proc_handler	= sched_task_handler,
+	},
+	{
+		.procname	= "sched_pipeline",
+		.data		= (int *) PIPELINE,
 		.maxlen		= sizeof(unsigned int) * 2,
 		.mode		= 0644,
 		.proc_handler	= sched_task_handler,
