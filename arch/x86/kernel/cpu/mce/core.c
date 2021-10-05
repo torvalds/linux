@@ -127,7 +127,7 @@ static struct irq_work mce_irq_work;
 BLOCKING_NOTIFIER_HEAD(x86_mce_decoder_chain);
 
 /* Do initial initialization of a struct mce */
-noinstr void mce_setup(struct mce *m)
+void mce_setup(struct mce *m)
 {
 	memset(m, 0, sizeof(struct mce));
 	m->cpu = m->extcpu = smp_processor_id();
@@ -430,9 +430,15 @@ static noinstr void mce_wrmsrl(u32 msr, u64 v)
  * check into our "mce" struct so that we can use it later to assess
  * the severity of the problem as we read per-bank specific details.
  */
-static inline void mce_gather_info(struct mce *m, struct pt_regs *regs)
+static noinstr void mce_gather_info(struct mce *m, struct pt_regs *regs)
 {
+	/*
+	 * Enable instrumentation around mce_setup() which calls external
+	 * facilities.
+	 */
+	instrumentation_begin();
 	mce_setup(m);
+	instrumentation_end();
 
 	m->mcgstatus = mce_rdmsrl(MSR_IA32_MCG_STATUS);
 	if (regs) {
@@ -1312,11 +1318,11 @@ static noinstr void unexpected_machine_check(struct pt_regs *regs)
 }
 
 /*
- * The actual machine check handler. This only handles real
- * exceptions when something got corrupted coming in through int 18.
+ * The actual machine check handler. This only handles real exceptions when
+ * something got corrupted coming in through int 18.
  *
- * This is executed in NMI context not subject to normal locking rules. This
- * implies that most kernel services cannot be safely used. Don't even
+ * This is executed in #MC context not subject to normal locking rules.
+ * This implies that most kernel services cannot be safely used. Don't even
  * think about putting a printk in there!
  *
  * On Intel systems this is entered on all CPUs in parallel through
@@ -1328,6 +1334,14 @@ static noinstr void unexpected_machine_check(struct pt_regs *regs)
  * issues: if the machine check was due to a failure of the memory
  * backing the user stack, tracing that reads the user stack will cause
  * potentially infinite recursion.
+ *
+ * Currently, the #MC handler calls out to a number of external facilities
+ * and, therefore, allows instrumentation around them. The optimal thing to
+ * have would be to do the absolutely minimal work required in #MC context
+ * and have instrumentation disabled only around that. Further processing can
+ * then happen in process context where instrumentation is allowed. Achieving
+ * that requires careful auditing and modifications. Until then, the code
+ * allows instrumentation temporarily, where required. *
  */
 noinstr void do_machine_check(struct pt_regs *regs)
 {
