@@ -1107,7 +1107,7 @@ cond_branch:
 			return -EOPNOTSUPP;
 		}
 		if (BPF_CLASS(code) == BPF_ALU && !fp->aux->verifier_zext &&
-		    !insn_is_zext(&insn[i + 1]))
+		    !insn_is_zext(&insn[i + 1]) && !(BPF_OP(code) == BPF_END && imm == 64))
 			EMIT(PPC_RAW_LI(dst_reg_h, 0));
 	}
 
