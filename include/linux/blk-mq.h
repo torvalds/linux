@@ -442,9 +442,9 @@ enum hctx_type {
  *		   tag set.
  * @tags:	   Tag sets. One tag set per hardware queue. Has @nr_hw_queues
  *		   elements.
- * @shared_sbitmap_tags:
- *		   Shared sbitmap set of tags. Has @nr_hw_queues elements. If
- *		   set, shared by all @tags.
+ * @shared_tags:
+ *		   Shared set of tags. Has @nr_hw_queues elements. If set,
+ *		   shared by all @tags.
  * @tag_list_lock: Serializes tag_list accesses.
  * @tag_list:	   List of the request queues that use this tag set. See also
  *		   request_queue.tag_set_list.
@@ -464,7 +464,7 @@ struct blk_mq_tag_set {
 
 	struct blk_mq_tags	**tags;
 
-	struct blk_mq_tags	*shared_sbitmap_tags;
+	struct blk_mq_tags	*shared_tags;
 
 	struct mutex		tag_list_lock;
 	struct list_head	tag_list;

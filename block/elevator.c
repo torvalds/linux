@@ -637,7 +637,7 @@ static struct elevator_type *elevator_get_default(struct request_queue *q)
 		return NULL;
 
 	if (q->nr_hw_queues != 1 &&
-			!blk_mq_is_sbitmap_shared(q->tag_set->flags))
+	    !blk_mq_is_shared_tags(q->tag_set->flags))
 		return NULL;
 
 	return elevator_get(q, "mq-deadline", false);

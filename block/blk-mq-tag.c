@@ -24,7 +24,7 @@
  */
 bool __blk_mq_tag_busy(struct blk_mq_hw_ctx *hctx)
 {
-	if (blk_mq_is_sbitmap_shared(hctx->flags)) {
+	if (blk_mq_is_shared_tags(hctx->flags)) {
 		struct request_queue *q = hctx->queue;
 
 		if (!test_bit(QUEUE_FLAG_HCTX_ACTIVE, &q->queue_flags) &&
@@ -57,18 +57,18 @@ void __blk_mq_tag_idle(struct blk_mq_hw_ctx *hctx)
 {
 	struct blk_mq_tags *tags = hctx->tags;
 
-	if (blk_mq_is_sbitmap_shared(hctx->flags)) {
+	if (blk_mq_is_shared_tags(hctx->flags)) {
 		struct request_queue *q = hctx->queue;
 
 		if (!test_and_clear_bit(QUEUE_FLAG_HCTX_ACTIVE,
 					&q->queue_flags))
 			return;
-		atomic_dec(&tags->active_queues);
 	} else {
 		if (!test_and_clear_bit(BLK_MQ_S_TAG_ACTIVE, &hctx->state))
 			return;
-		atomic_dec(&tags->active_queues);
 	}
+
+	atomic_dec(&tags->active_queues);
 
 	blk_mq_tag_wakeup_all(tags, false);
 }
@@ -557,7 +557,7 @@ int blk_mq_tag_update_depth(struct blk_mq_hw_ctx *hctx,
 		 * Only the sbitmap needs resizing since we allocated the max
 		 * initially.
 		 */
-		if (blk_mq_is_sbitmap_shared(set->flags))
+		if (blk_mq_is_shared_tags(set->flags))
 			return 0;
 
 		new = blk_mq_alloc_map_and_rqs(set, hctx->queue_num, tdepth);
@@ -578,16 +578,16 @@ int blk_mq_tag_update_depth(struct blk_mq_hw_ctx *hctx,
 	return 0;
 }
 
-void blk_mq_tag_resize_shared_sbitmap(struct blk_mq_tag_set *set, unsigned int size)
+void blk_mq_tag_resize_shared_tags(struct blk_mq_tag_set *set, unsigned int size)
 {
-	struct blk_mq_tags *tags = set->shared_sbitmap_tags;
+	struct blk_mq_tags *tags = set->shared_tags;
 
 	sbitmap_queue_resize(&tags->bitmap_tags, size - set->reserved_tags);
 }
 
-void blk_mq_tag_update_sched_shared_sbitmap(struct request_queue *q)
+void blk_mq_tag_update_sched_shared_tags(struct request_queue *q)
 {
-	sbitmap_queue_resize(&q->shared_sbitmap_tags->bitmap_tags,
+	sbitmap_queue_resize(&q->sched_shared_tags->bitmap_tags,
 			     q->nr_requests - q->tag_set->reserved_tags);
 }
 

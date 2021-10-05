@@ -2235,7 +2235,7 @@ blk_qc_t blk_mq_submit_bio(struct bio *bio)
 		blk_insert_flush(rq);
 		blk_mq_run_hw_queue(data.hctx, true);
 	} else if (plug && (q->nr_hw_queues == 1 ||
-		   blk_mq_is_sbitmap_shared(rq->mq_hctx->flags) ||
+		   blk_mq_is_shared_tags(rq->mq_hctx->flags) ||
 		   q->mq_ops->commit_rqs || !blk_queue_nonrot(q))) {
 		/*
 		 * Use plugging if we have a ->commit_rqs() hook as well, as
@@ -2353,8 +2353,8 @@ void blk_mq_free_rqs(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
 	struct blk_mq_tags *drv_tags;
 	struct page *page;
 
-	if (blk_mq_is_sbitmap_shared(set->flags))
-		drv_tags = set->shared_sbitmap_tags;
+	if (blk_mq_is_shared_tags(set->flags))
+		drv_tags = set->shared_tags;
 	else
 		drv_tags = set->tags[hctx_idx];
 
@@ -2883,8 +2883,8 @@ struct blk_mq_tags *blk_mq_alloc_map_and_rqs(struct blk_mq_tag_set *set,
 static bool __blk_mq_alloc_map_and_rqs(struct blk_mq_tag_set *set,
 				       int hctx_idx)
 {
-	if (blk_mq_is_sbitmap_shared(set->flags)) {
-		set->tags[hctx_idx] = set->shared_sbitmap_tags;
+	if (blk_mq_is_shared_tags(set->flags)) {
+		set->tags[hctx_idx] = set->shared_tags;
 
 		return true;
 	}
@@ -2908,7 +2908,7 @@ void blk_mq_free_map_and_rqs(struct blk_mq_tag_set *set,
 static void __blk_mq_free_map_and_rqs(struct blk_mq_tag_set *set,
 				      unsigned int hctx_idx)
 {
-	if (!blk_mq_is_sbitmap_shared(set->flags))
+	if (!blk_mq_is_shared_tags(set->flags))
 		blk_mq_free_map_and_rqs(set, set->tags[hctx_idx], hctx_idx);
 
 	set->tags[hctx_idx] = NULL;
@@ -3375,11 +3375,11 @@ static int __blk_mq_alloc_rq_maps(struct blk_mq_tag_set *set)
 {
 	int i;
 
-	if (blk_mq_is_sbitmap_shared(set->flags)) {
-		set->shared_sbitmap_tags = blk_mq_alloc_map_and_rqs(set,
+	if (blk_mq_is_shared_tags(set->flags)) {
+		set->shared_tags = blk_mq_alloc_map_and_rqs(set,
 						BLK_MQ_NO_HCTX_IDX,
 						set->queue_depth);
-		if (!set->shared_sbitmap_tags)
+		if (!set->shared_tags)
 			return -ENOMEM;
 	}
 
@@ -3395,8 +3395,8 @@ out_unwind:
 	while (--i >= 0)
 		__blk_mq_free_map_and_rqs(set, i);
 
-	if (blk_mq_is_sbitmap_shared(set->flags)) {
-		blk_mq_free_map_and_rqs(set, set->shared_sbitmap_tags,
+	if (blk_mq_is_shared_tags(set->flags)) {
+		blk_mq_free_map_and_rqs(set, set->shared_tags,
 					BLK_MQ_NO_HCTX_IDX);
 	}
 
@@ -3617,8 +3617,8 @@ void blk_mq_free_tag_set(struct blk_mq_tag_set *set)
 	for (i = 0; i < set->nr_hw_queues; i++)
 		__blk_mq_free_map_and_rqs(set, i);
 
-	if (blk_mq_is_sbitmap_shared(set->flags)) {
-		blk_mq_free_map_and_rqs(set, set->shared_sbitmap_tags,
+	if (blk_mq_is_shared_tags(set->flags)) {
+		blk_mq_free_map_and_rqs(set, set->shared_tags,
 					BLK_MQ_NO_HCTX_IDX);
 	}
 
@@ -3669,11 +3669,11 @@ int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr)
 	}
 	if (!ret) {
 		q->nr_requests = nr;
-		if (blk_mq_is_sbitmap_shared(set->flags)) {
+		if (blk_mq_is_shared_tags(set->flags)) {
 			if (q->elevator)
-				blk_mq_tag_update_sched_shared_sbitmap(q);
+				blk_mq_tag_update_sched_shared_tags(q);
 			else
-				blk_mq_tag_resize_shared_sbitmap(set, nr);
+				blk_mq_tag_resize_shared_tags(set, nr);
 		}
 	}
 

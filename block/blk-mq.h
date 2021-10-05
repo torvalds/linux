@@ -157,7 +157,7 @@ struct blk_mq_alloc_data {
 	struct blk_mq_hw_ctx *hctx;
 };
 
-static inline bool blk_mq_is_sbitmap_shared(unsigned int flags)
+static inline bool blk_mq_is_shared_tags(unsigned int flags)
 {
 	return flags & BLK_MQ_F_TAG_HCTX_SHARED;
 }
@@ -217,24 +217,24 @@ static inline int blk_mq_get_rq_budget_token(struct request *rq)
 
 static inline void __blk_mq_inc_active_requests(struct blk_mq_hw_ctx *hctx)
 {
-	if (blk_mq_is_sbitmap_shared(hctx->flags))
-		atomic_inc(&hctx->queue->nr_active_requests_shared_sbitmap);
+	if (blk_mq_is_shared_tags(hctx->flags))
+		atomic_inc(&hctx->queue->nr_active_requests_shared_tags);
 	else
 		atomic_inc(&hctx->nr_active);
 }
 
 static inline void __blk_mq_dec_active_requests(struct blk_mq_hw_ctx *hctx)
 {
-	if (blk_mq_is_sbitmap_shared(hctx->flags))
-		atomic_dec(&hctx->queue->nr_active_requests_shared_sbitmap);
+	if (blk_mq_is_shared_tags(hctx->flags))
+		atomic_dec(&hctx->queue->nr_active_requests_shared_tags);
 	else
 		atomic_dec(&hctx->nr_active);
 }
 
 static inline int __blk_mq_active_requests(struct blk_mq_hw_ctx *hctx)
 {
-	if (blk_mq_is_sbitmap_shared(hctx->flags))
-		return atomic_read(&hctx->queue->nr_active_requests_shared_sbitmap);
+	if (blk_mq_is_shared_tags(hctx->flags))
+		return atomic_read(&hctx->queue->nr_active_requests_shared_tags);
 	return atomic_read(&hctx->nr_active);
 }
 static inline void __blk_mq_put_driver_tag(struct blk_mq_hw_ctx *hctx,
@@ -328,7 +328,7 @@ static inline bool hctx_may_queue(struct blk_mq_hw_ctx *hctx,
 	if (bt->sb.depth == 1)
 		return true;
 
-	if (blk_mq_is_sbitmap_shared(hctx->flags)) {
+	if (blk_mq_is_shared_tags(hctx->flags)) {
 		struct request_queue *q = hctx->queue;
 
 		if (!test_bit(QUEUE_FLAG_HCTX_ACTIVE, &q->queue_flags))
