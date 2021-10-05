@@ -36,5 +36,7 @@ void arm_get_current_stackframe(struct pt_regs *regs, struct stackframe *frame)
 extern int unwind_frame(struct stackframe *frame);
 extern void walk_stackframe(struct stackframe *frame,
 			    int (*fn)(struct stackframe *, void *), void *data);
+extern void dump_mem(const char *lvl, const char *str, unsigned long bottom,
+		     unsigned long top);
 
 #endif	/* __ASM_STACKTRACE_H */

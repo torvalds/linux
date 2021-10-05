@@ -35,6 +35,7 @@
 #include <asm/ptrace.h>
 #include <asm/unwind.h>
 #include <asm/tls.h>
+#include <asm/stacktrace.h>
 #include <asm/system_misc.h>
 #include <asm/opcodes.h>
 
@@ -59,8 +60,6 @@ static int __init user_debug_setup(char *str)
 }
 __setup("user_debug=", user_debug_setup);
 #endif
-
-static void dump_mem(const char *, const char *, unsigned long, unsigned long);
 
 void dump_backtrace_entry(unsigned long where, unsigned long from,
 			  unsigned long frame, const char *loglvl)
@@ -118,8 +117,8 @@ static int verify_stack(unsigned long sp)
 /*
  * Dump out the contents of some memory nicely...
  */
-static void dump_mem(const char *lvl, const char *str, unsigned long bottom,
-		     unsigned long top)
+void dump_mem(const char *lvl, const char *str, unsigned long bottom,
+	      unsigned long top)
 {
 	unsigned long first;
 	int i;
