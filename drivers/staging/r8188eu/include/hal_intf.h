@@ -137,8 +137,6 @@ struct hal_ops {
 #define RF_CHANGE_BY_HW		BIT(30)
 #define RF_CHANGE_BY_SW		BIT(31)
 
-#define HARDWARE_TYPE_RTL8188EU 17
-
 #define is_boot_from_eeprom(adapter) (adapter->eeprompriv.EepromOrEfuse)
 
 void rtl8188eu_set_hal_ops(struct adapter *padapter);
