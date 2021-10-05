@@ -299,11 +299,6 @@ static inline u32 advk_readl(struct advk_pcie *pcie, u64 reg)
 	return readl(pcie->base + reg);
 }
 
-static inline u16 advk_read16(struct advk_pcie *pcie, u64 reg)
-{
-	return advk_readl(pcie, (reg & ~0x3)) >> ((reg & 0x3) * 8);
-}
-
 static u8 advk_pcie_ltssm_state(struct advk_pcie *pcie)
 {
 	u32 val;
@@ -377,22 +372,8 @@ static void advk_pcie_wait_for_retrain(struct advk_pcie *pcie)
 
 static void advk_pcie_issue_perst(struct advk_pcie *pcie)
 {
-	u32 reg;
-
 	if (!pcie->reset_gpio)
 		return;
-
-	/*
-	 * As required by PCI Express spec (PCI Express Base Specification, REV.
-	 * 4.0 PCI Express, February 19 2014, 6.6.1 Conventional Reset) a delay
-	 * for at least 100ms after de-asserting PERST# signal is needed before
-	 * link training is enabled. So ensure that link training is disabled
-	 * prior de-asserting PERST# signal to fulfill that PCI Express spec
-	 * requirement.
-	 */
-	reg = advk_readl(pcie, PCIE_CORE_CTRL0_REG);
-	reg &= ~LINK_TRAINING_EN;
-	advk_writel(pcie, reg, PCIE_CORE_CTRL0_REG);
 
 	/* 10ms delay is needed for some cards */
 	dev_info(&pcie->pdev->dev, "issuing PERST via reset GPIO for 10ms\n");
@@ -401,52 +382,45 @@ static void advk_pcie_issue_perst(struct advk_pcie *pcie)
 	gpiod_set_value_cansleep(pcie->reset_gpio, 0);
 }
 
-static int advk_pcie_train_at_gen(struct advk_pcie *pcie, int gen)
+static void advk_pcie_train_link(struct advk_pcie *pcie)
 {
-	int ret, neg_gen;
+	struct device *dev = &pcie->pdev->dev;
 	u32 reg;
+	int ret;
 
-	/* Setup link speed */
+	/*
+	 * Setup PCIe rev / gen compliance based on device tree property
+	 * 'max-link-speed' which also forces maximal link speed.
+	 */
 	reg = advk_readl(pcie, PCIE_CORE_CTRL0_REG);
 	reg &= ~PCIE_GEN_SEL_MSK;
-	if (gen == 3)
+	if (pcie->link_gen == 3)
 		reg |= SPEED_GEN_3;
-	else if (gen == 2)
+	else if (pcie->link_gen == 2)
 		reg |= SPEED_GEN_2;
 	else
 		reg |= SPEED_GEN_1;
 	advk_writel(pcie, reg, PCIE_CORE_CTRL0_REG);
 
 	/*
-	 * Enable link training. This is not needed in every call to this
-	 * function, just once suffices, but it does not break anything either.
+	 * Set maximal link speed value also into PCIe Link Control 2 register.
+	 * Armada 3700 Functional Specification says that default value is based
+	 * on SPEED_GEN but tests showed that default value is always 8.0 GT/s.
 	 */
+	reg = advk_readl(pcie, PCIE_CORE_PCIEXP_CAP + PCI_EXP_LNKCTL2);
+	reg &= ~PCI_EXP_LNKCTL2_TLS;
+	if (pcie->link_gen == 3)
+		reg |= PCI_EXP_LNKCTL2_TLS_8_0GT;
+	else if (pcie->link_gen == 2)
+		reg |= PCI_EXP_LNKCTL2_TLS_5_0GT;
+	else
+		reg |= PCI_EXP_LNKCTL2_TLS_2_5GT;
+	advk_writel(pcie, reg, PCIE_CORE_PCIEXP_CAP + PCI_EXP_LNKCTL2);
+
+	/* Enable link training after selecting PCIe generation */
 	reg = advk_readl(pcie, PCIE_CORE_CTRL0_REG);
 	reg |= LINK_TRAINING_EN;
 	advk_writel(pcie, reg, PCIE_CORE_CTRL0_REG);
-
-	/*
-	 * Start link training immediately after enabling it.
-	 * This solves problems for some buggy cards.
-	 */
-	reg = advk_readl(pcie, PCIE_CORE_PCIEXP_CAP + PCI_EXP_LNKCTL);
-	reg |= PCI_EXP_LNKCTL_RL;
-	advk_writel(pcie, reg, PCIE_CORE_PCIEXP_CAP + PCI_EXP_LNKCTL);
-
-	ret = advk_pcie_wait_for_link(pcie);
-	if (ret)
-		return ret;
-
-	reg = advk_read16(pcie, PCIE_CORE_PCIEXP_CAP + PCI_EXP_LNKSTA);
-	neg_gen = reg & PCI_EXP_LNKSTA_CLS;
-
-	return neg_gen;
-}
-
-static void advk_pcie_train_link(struct advk_pcie *pcie)
-{
-	struct device *dev = &pcie->pdev->dev;
-	int neg_gen = -1, gen;
 
 	/*
 	 * Reset PCIe card via PERST# signal. Some cards are not detected
@@ -458,41 +432,18 @@ static void advk_pcie_train_link(struct advk_pcie *pcie)
 	 * PERST# signal could have been asserted by pinctrl subsystem before
 	 * probe() callback has been called or issued explicitly by reset gpio
 	 * function advk_pcie_issue_perst(), making the endpoint going into
-	 * fundamental reset. As required by PCI Express spec a delay for at
-	 * least 100ms after such a reset before link training is needed.
+	 * fundamental reset. As required by PCI Express spec (PCI Express
+	 * Base Specification, REV. 4.0 PCI Express, February 19 2014, 6.6.1
+	 * Conventional Reset) a delay for at least 100ms after such a reset
+	 * before sending a Configuration Request to the device is needed.
+	 * So wait until PCIe link is up. Function advk_pcie_wait_for_link()
+	 * waits for link at least 900ms.
 	 */
-	msleep(PCI_PM_D3COLD_WAIT);
-
-	/*
-	 * Try link training at link gen specified by device tree property
-	 * 'max-link-speed'. If this fails, iteratively train at lower gen.
-	 */
-	for (gen = pcie->link_gen; gen > 0; --gen) {
-		neg_gen = advk_pcie_train_at_gen(pcie, gen);
-		if (neg_gen > 0)
-			break;
-	}
-
-	if (neg_gen < 0)
-		goto err;
-
-	/*
-	 * After successful training if negotiated gen is lower than requested,
-	 * train again on negotiated gen. This solves some stability issues for
-	 * some buggy gen1 cards.
-	 */
-	if (neg_gen < gen) {
-		gen = neg_gen;
-		neg_gen = advk_pcie_train_at_gen(pcie, gen);
-	}
-
-	if (neg_gen == gen) {
-		dev_info(dev, "link up at gen %i\n", gen);
-		return;
-	}
-
-err:
-	dev_err(dev, "link never came up\n");
+	ret = advk_pcie_wait_for_link(pcie);
+	if (ret < 0)
+		dev_err(dev, "link never came up\n");
+	else
+		dev_info(dev, "link up\n");
 }
 
 /*
