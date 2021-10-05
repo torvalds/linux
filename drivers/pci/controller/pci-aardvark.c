@@ -699,6 +699,7 @@ static int advk_pcie_check_pio_status(struct advk_pcie *pcie, bool allow_crs, u3
 	u32 reg;
 	unsigned int status;
 	char *strcomp_status, *str_posted;
+	int ret;
 
 	reg = advk_readl(pcie, PIO_STAT);
 	status = (reg & PIO_COMPLETION_STATUS_MASK) >>
@@ -723,6 +724,7 @@ static int advk_pcie_check_pio_status(struct advk_pcie *pcie, bool allow_crs, u3
 	case PIO_COMPLETION_STATUS_OK:
 		if (reg & PIO_ERR_STATUS) {
 			strcomp_status = "COMP_ERR";
+			ret = -EFAULT;
 			break;
 		}
 		/* Get the read result */
@@ -730,9 +732,11 @@ static int advk_pcie_check_pio_status(struct advk_pcie *pcie, bool allow_crs, u3
 			*val = advk_readl(pcie, PIO_RD_DATA);
 		/* No error */
 		strcomp_status = NULL;
+		ret = 0;
 		break;
 	case PIO_COMPLETION_STATUS_UR:
 		strcomp_status = "UR";
+		ret = -EOPNOTSUPP;
 		break;
 	case PIO_COMPLETION_STATUS_CRS:
 		if (allow_crs && val) {
@@ -750,6 +754,7 @@ static int advk_pcie_check_pio_status(struct advk_pcie *pcie, bool allow_crs, u3
 			 */
 			*val = CFG_RD_CRS_VAL;
 			strcomp_status = NULL;
+			ret = 0;
 			break;
 		}
 		/* PCIe r4.0, sec 2.3.2, says:
@@ -765,21 +770,24 @@ static int advk_pcie_check_pio_status(struct advk_pcie *pcie, bool allow_crs, u3
 		 * Request and taking appropriate action, e.g., complete the
 		 * Request to the host as a failed transaction.
 		 *
-		 * To simplify implementation do not re-issue the Configuration
-		 * Request and complete the Request as a failed transaction.
+		 * So return -EAGAIN and caller (pci-aardvark.c driver) will
+		 * re-issue request again up to the PIO_RETRY_CNT retries.
 		 */
 		strcomp_status = "CRS";
+		ret = -EAGAIN;
 		break;
 	case PIO_COMPLETION_STATUS_CA:
 		strcomp_status = "CA";
+		ret = -ECANCELED;
 		break;
 	default:
 		strcomp_status = "Unknown";
+		ret = -EINVAL;
 		break;
 	}
 
 	if (!strcomp_status)
-		return 0;
+		return ret;
 
 	if (reg & PIO_NON_POSTED_REQ)
 		str_posted = "Non-posted";
@@ -789,7 +797,7 @@ static int advk_pcie_check_pio_status(struct advk_pcie *pcie, bool allow_crs, u3
 	dev_dbg(dev, "%s PIO Response Status: %s, %#x @ %#x\n",
 		str_posted, strcomp_status, reg, advk_readl(pcie, PIO_ADDR_LS));
 
-	return -EFAULT;
+	return ret;
 }
 
 static int advk_pcie_wait_pio(struct advk_pcie *pcie)
@@ -797,13 +805,13 @@ static int advk_pcie_wait_pio(struct advk_pcie *pcie)
 	struct device *dev = &pcie->pdev->dev;
 	int i;
 
-	for (i = 0; i < PIO_RETRY_CNT; i++) {
+	for (i = 1; i <= PIO_RETRY_CNT; i++) {
 		u32 start, isr;
 
 		start = advk_readl(pcie, PIO_START);
 		isr = advk_readl(pcie, PIO_ISR);
 		if (!start && isr)
-			return 0;
+			return i;
 		udelay(PIO_RETRY_DELAY);
 	}
 
@@ -1075,6 +1083,7 @@ static int advk_pcie_rd_conf(struct pci_bus *bus, u32 devfn,
 			     int where, int size, u32 *val)
 {
 	struct advk_pcie *pcie = bus->sysdata;
+	int retry_count;
 	bool allow_crs;
 	u32 reg;
 	int ret;
@@ -1117,16 +1126,22 @@ static int advk_pcie_rd_conf(struct pci_bus *bus, u32 devfn,
 	/* Program the data strobe */
 	advk_writel(pcie, 0xf, PIO_WR_DATA_STRB);
 
-	/* Clear PIO DONE ISR and start the transfer */
-	advk_writel(pcie, 1, PIO_ISR);
-	advk_writel(pcie, 1, PIO_START);
+	retry_count = 0;
+	do {
+		/* Clear PIO DONE ISR and start the transfer */
+		advk_writel(pcie, 1, PIO_ISR);
+		advk_writel(pcie, 1, PIO_START);
 
-	ret = advk_pcie_wait_pio(pcie);
-	if (ret < 0)
-		goto try_crs;
+		ret = advk_pcie_wait_pio(pcie);
+		if (ret < 0)
+			goto try_crs;
 
-	/* Check PIO status and get the read result */
-	ret = advk_pcie_check_pio_status(pcie, allow_crs, val);
+		retry_count += ret;
+
+		/* Check PIO status and get the read result */
+		ret = advk_pcie_check_pio_status(pcie, allow_crs, val);
+	} while (ret == -EAGAIN && retry_count < PIO_RETRY_CNT);
+
 	if (ret < 0)
 		goto fail;
 
@@ -1158,6 +1173,7 @@ static int advk_pcie_wr_conf(struct pci_bus *bus, u32 devfn,
 	struct advk_pcie *pcie = bus->sysdata;
 	u32 reg;
 	u32 data_strobe = 0x0;
+	int retry_count;
 	int offset;
 	int ret;
 
@@ -1199,19 +1215,22 @@ static int advk_pcie_wr_conf(struct pci_bus *bus, u32 devfn,
 	/* Program the data strobe */
 	advk_writel(pcie, data_strobe, PIO_WR_DATA_STRB);
 
-	/* Clear PIO DONE ISR and start the transfer */
-	advk_writel(pcie, 1, PIO_ISR);
-	advk_writel(pcie, 1, PIO_START);
+	retry_count = 0;
+	do {
+		/* Clear PIO DONE ISR and start the transfer */
+		advk_writel(pcie, 1, PIO_ISR);
+		advk_writel(pcie, 1, PIO_START);
 
-	ret = advk_pcie_wait_pio(pcie);
-	if (ret < 0)
-		return PCIBIOS_SET_FAILED;
+		ret = advk_pcie_wait_pio(pcie);
+		if (ret < 0)
+			return PCIBIOS_SET_FAILED;
 
-	ret = advk_pcie_check_pio_status(pcie, false, NULL);
-	if (ret < 0)
-		return PCIBIOS_SET_FAILED;
+		retry_count += ret;
 
-	return PCIBIOS_SUCCESSFUL;
+		ret = advk_pcie_check_pio_status(pcie, false, NULL);
+	} while (ret == -EAGAIN && retry_count < PIO_RETRY_CNT);
+
+	return ret < 0 ? PCIBIOS_SET_FAILED : PCIBIOS_SUCCESSFUL;
 }
 
 static struct pci_ops advk_pcie_ops = {
