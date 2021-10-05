@@ -32,6 +32,7 @@
 #include <linux/module.h>
 #include <linux/dma-resv.h>
 #include <linux/slab.h>
+#include <linux/vga_switcheroo.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
@@ -10863,6 +10864,18 @@ void intel_modeset_driver_remove_nogem(struct drm_i915_private *i915)
 	intel_vga_unregister(i915);
 
 	intel_bios_driver_remove(i915);
+}
+
+bool intel_modeset_probe_defer(struct pci_dev *pdev)
+{
+	/*
+	 * apple-gmux is needed on dual GPU MacBook Pro
+	 * to probe the panel if we're the inactive GPU.
+	 */
+	if (vga_switcheroo_client_probe_defer(pdev))
+		return true;
+
+	return false;
 }
 
 void intel_display_driver_register(struct drm_i915_private *i915)
