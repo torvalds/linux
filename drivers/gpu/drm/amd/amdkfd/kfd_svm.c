@@ -33,6 +33,11 @@
 #include "kfd_svm.h"
 #include "kfd_migrate.h"
 
+#ifdef dev_fmt
+#undef dev_fmt
+#endif
+#define dev_fmt(fmt) "kfd_svm: %s: " fmt, __func__
+
 #define AMDGPU_SVM_RANGE_RESTORE_DELAY_MS 1
 
 /* Long enough to ensure no retry fault comes after svm range is restored and
@@ -158,17 +163,17 @@ svm_range_dma_map_dev(struct amdgpu_device *adev, struct svm_range *prange,
 				   bo_adev->vm_manager.vram_base_offset -
 				   bo_adev->kfd.dev->pgmap.range.start;
 			addr[i] |= SVM_RANGE_VRAM_DOMAIN;
-			pr_debug("vram address detected: 0x%llx\n", addr[i]);
+			pr_debug_ratelimited("vram address: 0x%llx\n", addr[i]);
 			continue;
 		}
 		addr[i] = dma_map_page(dev, page, 0, PAGE_SIZE, dir);
 		r = dma_mapping_error(dev, addr[i]);
 		if (r) {
-			pr_debug("failed %d dma_map_page\n", r);
+			dev_err(dev, "failed %d dma_map_page\n", r);
 			return r;
 		}
-		pr_debug("dma mapping 0x%llx for page addr 0x%lx\n",
-			 addr[i] >> PAGE_SHIFT, page_to_pfn(page));
+		pr_debug_ratelimited("dma mapping 0x%llx for page addr 0x%lx\n",
+				     addr[i] >> PAGE_SHIFT, page_to_pfn(page));
 	}
 	return 0;
 }
@@ -217,7 +222,7 @@ void svm_range_dma_unmap(struct device *dev, dma_addr_t *dma_addr,
 	for (i = offset; i < offset + npages; i++) {
 		if (!svm_is_valid_dma_mapping_addr(dev, dma_addr[i]))
 			continue;
-		pr_debug("dma unmapping 0x%llx\n", dma_addr[i] >> PAGE_SHIFT);
+		pr_debug_ratelimited("unmap 0x%llx\n", dma_addr[i] >> PAGE_SHIFT);
 		dma_unmap_page(dev, dma_addr[i], PAGE_SIZE, dir);
 		dma_addr[i] = 0;
 	}
@@ -1454,7 +1459,7 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 		/* This should never happen. actual_loc gets set by
 		 * svm_migrate_ram_to_vram after allocating a BO.
 		 */
-		WARN(1, "VRAM BO missing during validation\n");
+		WARN_ONCE(1, "VRAM BO missing during validation\n");
 		return -EINVAL;
 	}
 

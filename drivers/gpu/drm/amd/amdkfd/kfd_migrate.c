@@ -20,7 +20,6 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-
 #include <linux/types.h>
 #include <linux/hmm.h>
 #include <linux/dma-direction.h>
@@ -33,6 +32,11 @@
 #include "kfd_priv.h"
 #include "kfd_svm.h"
 #include "kfd_migrate.h"
+
+#ifdef dev_fmt
+#undef dev_fmt
+#endif
+#define dev_fmt(fmt) "kfd_migrate: %s: " fmt, __func__
 
 static uint64_t
 svm_migrate_direct_mapping_addr(struct amdgpu_device *adev, uint64_t addr)
@@ -151,14 +155,14 @@ svm_migrate_copy_memory_gart(struct amdgpu_device *adev, dma_addr_t *sys,
 			gart_d = svm_migrate_direct_mapping_addr(adev, *vram);
 		}
 		if (r) {
-			pr_debug("failed %d to create gart mapping\n", r);
+			dev_err(adev->dev, "fail %d create gart mapping\n", r);
 			goto out_unlock;
 		}
 
 		r = amdgpu_copy_buffer(ring, gart_s, gart_d, size * PAGE_SIZE,
 				       NULL, &next, false, true, false);
 		if (r) {
-			pr_debug("failed %d to copy memory\n", r);
+			dev_err(adev->dev, "fail %d to copy memory\n", r);
 			goto out_unlock;
 		}
 
@@ -285,7 +289,7 @@ svm_migrate_copy_to_vram(struct amdgpu_device *adev, struct svm_range *prange,
 
 	r = svm_range_vram_node_new(adev, prange, true);
 	if (r) {
-		pr_debug("failed %d get 0x%llx pages from vram\n", r, npages);
+		dev_err(adev->dev, "fail %d to alloc vram\n", r);
 		goto out;
 	}
 
@@ -305,7 +309,7 @@ svm_migrate_copy_to_vram(struct amdgpu_device *adev, struct svm_range *prange,
 					      DMA_TO_DEVICE);
 			r = dma_mapping_error(dev, src[i]);
 			if (r) {
-				pr_debug("failed %d dma_map_page\n", r);
+				dev_err(adev->dev, "fail %d dma_map_page\n", r);
 				goto out_free_vram_pages;
 			}
 		} else {
@@ -325,8 +329,8 @@ svm_migrate_copy_to_vram(struct amdgpu_device *adev, struct svm_range *prange,
 			continue;
 		}
 
-		pr_debug("dma mapping src to 0x%llx, page_to_pfn 0x%lx\n",
-			 src[i] >> PAGE_SHIFT, page_to_pfn(spage));
+		pr_debug_ratelimited("dma mapping src to 0x%llx, pfn 0x%lx\n",
+				     src[i] >> PAGE_SHIFT, page_to_pfn(spage));
 
 		if (j >= (cursor.size >> PAGE_SHIFT) - 1 && i < npages - 1) {
 			r = svm_migrate_copy_memory_gart(adev, src + i - j,
@@ -405,8 +409,8 @@ svm_migrate_vma_to_vram(struct amdgpu_device *adev, struct svm_range *prange,
 
 	r = migrate_vma_setup(&migrate);
 	if (r) {
-		pr_debug("failed %d prepare migrate svms 0x%p [0x%lx 0x%lx]\n",
-			 r, prange->svms, prange->start, prange->last);
+		dev_err(adev->dev, "vma setup fail %d range [0x%lx 0x%lx]\n", r,
+			prange->start, prange->last);
 		goto out_free;
 	}
 	if (migrate.cpages != npages) {
@@ -506,7 +510,7 @@ static void svm_migrate_page_free(struct page *page)
 	struct svm_range_bo *svm_bo = page->zone_device_data;
 
 	if (svm_bo) {
-		pr_debug("svm_bo ref left: %d\n", kref_read(&svm_bo->kref));
+		pr_debug_ratelimited("ref: %d\n", kref_read(&svm_bo->kref));
 		svm_range_bo_unref(svm_bo);
 	}
 }
@@ -572,12 +576,12 @@ svm_migrate_copy_to_ram(struct amdgpu_device *adev, struct svm_range *prange,
 		dst[i] = dma_map_page(dev, dpage, 0, PAGE_SIZE, DMA_FROM_DEVICE);
 		r = dma_mapping_error(dev, dst[i]);
 		if (r) {
-			pr_debug("failed %d dma_map_page\n", r);
+			dev_err(adev->dev, "fail %d dma_map_page\n", r);
 			goto out_oom;
 		}
 
-		pr_debug("dma mapping dst to 0x%llx, page_to_pfn 0x%lx\n",
-			      dst[i] >> PAGE_SHIFT, page_to_pfn(dpage));
+		pr_debug_ratelimited("dma mapping dst to 0x%llx, pfn 0x%lx\n",
+				     dst[i] >> PAGE_SHIFT, page_to_pfn(dpage));
 
 		migrate->dst[i] = migrate_pfn(page_to_pfn(dpage));
 		migrate->dst[i] |= MIGRATE_PFN_LOCKED;
@@ -631,8 +635,8 @@ svm_migrate_vma_to_ram(struct amdgpu_device *adev, struct svm_range *prange,
 
 	r = migrate_vma_setup(&migrate);
 	if (r) {
-		pr_debug("failed %d prepare migrate svms 0x%p [0x%lx 0x%lx]\n",
-			 r, prange->svms, prange->start, prange->last);
+		dev_err(adev->dev, "vma setup fail %d range [0x%lx 0x%lx]\n", r,
+			prange->start, prange->last);
 		goto out_free;
 	}
 
