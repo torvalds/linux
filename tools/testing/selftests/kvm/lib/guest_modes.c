@@ -38,6 +38,16 @@ void guest_modes_append_default(void)
 			guest_mode_append(VM_MODE_P47V64_4K, true, true);
 	}
 #endif
+#ifdef __riscv
+	{
+		unsigned int sz = kvm_check_cap(KVM_CAP_VM_GPA_BITS);
+
+		if (sz >= 52)
+			guest_mode_append(VM_MODE_P52V48_4K, true, true);
+		if (sz >= 48)
+			guest_mode_append(VM_MODE_P48V48_4K, true, true);
+	}
+#endif
 }
 
 void for_each_guest_mode(void (*func)(enum vm_guest_mode, void *), void *arg)
