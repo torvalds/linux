@@ -518,12 +518,12 @@ restart:
 					}
 				}
 				set_bit(HIF_HOLDER, &gh->gh_iflags);
-				trace_gfs2_promote(gh, 1);
+				trace_gfs2_promote(gh);
 				gfs2_holder_wake(gh);
 				goto restart;
 			}
 			set_bit(HIF_HOLDER, &gh->gh_iflags);
-			trace_gfs2_promote(gh, 0);
+			trace_gfs2_promote(gh);
 			gfs2_holder_wake(gh);
 			continue;
 		}
