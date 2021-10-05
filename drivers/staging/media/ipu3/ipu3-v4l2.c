@@ -864,7 +864,7 @@ static int imgu_vidioc_g_meta_fmt(struct file *file, void *fh,
 
 /******************** function pointers ********************/
 
-static struct v4l2_subdev_internal_ops imgu_subdev_internal_ops = {
+static const struct v4l2_subdev_internal_ops imgu_subdev_internal_ops = {
 	.open = imgu_subdev_open,
 };
 
