@@ -565,6 +565,39 @@ static void test_v3_last_bit_single_rdist(void)
 	vm_gic_destroy(&v);
 }
 
+/* Uses the legacy REDIST region API. */
+static void test_v3_redist_ipa_range_check_at_vcpu_run(void)
+{
+	struct vm_gic v;
+	int ret, i;
+	uint64_t addr;
+
+	v = vm_gic_create_with_vcpus(KVM_DEV_TYPE_ARM_VGIC_V3, 1);
+
+	/* Set space for 3 redists, we have 1 vcpu, so this succeeds. */
+	addr = max_phys_size - (3 * 2 * 0x10000);
+	kvm_device_access(v.gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
+				 KVM_VGIC_V3_ADDR_TYPE_REDIST, &addr, true);
+
+	addr = 0x00000;
+	kvm_device_access(v.gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
+			KVM_VGIC_V3_ADDR_TYPE_DIST, &addr, true);
+
+	/* Add the rest of the VCPUs */
+	for (i = 1; i < NR_VCPUS; ++i)
+		vm_vcpu_add_default(v.vm, i, guest_code);
+
+	kvm_device_access(v.gic_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
+			  KVM_DEV_ARM_VGIC_CTRL_INIT, NULL, true);
+
+	/* Attempt to run a vcpu without enough redist space. */
+	ret = run_vcpu(v.vm, 2);
+	TEST_ASSERT(ret && errno == EINVAL,
+		"redist base+size above PA range detected on 1st vcpu run");
+
+	vm_gic_destroy(&v);
+}
+
 /*
  * Returns 0 if it's possible to create GIC device of a given type (V2 or V3).
  */
@@ -616,6 +649,7 @@ void run_tests(uint32_t gic_dev_type)
 		test_v3_typer_accesses();
 		test_v3_last_bit_redist_regions();
 		test_v3_last_bit_single_rdist();
+		test_v3_redist_ipa_range_check_at_vcpu_run();
 	}
 }
 
