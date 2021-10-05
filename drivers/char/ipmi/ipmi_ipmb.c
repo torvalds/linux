@@ -192,7 +192,7 @@ static int ipmi_ipmb_slave_cb(struct i2c_client *client,
 		break;
 
 	case I2C_SLAVE_WRITE_RECEIVED:
-		if (iidev->rcvlen > sizeof(iidev->rcvmsg))
+		if (iidev->rcvlen >= sizeof(iidev->rcvmsg))
 			iidev->overrun = true;
 		else
 			iidev->rcvmsg[iidev->rcvlen++] = *val;
