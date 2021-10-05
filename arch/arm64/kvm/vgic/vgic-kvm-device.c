@@ -29,6 +29,28 @@ int vgic_check_ioaddr(struct kvm *kvm, phys_addr_t *ioaddr,
 	return 0;
 }
 
+int vgic_check_iorange(struct kvm *kvm, phys_addr_t ioaddr,
+		       phys_addr_t addr, phys_addr_t alignment,
+		       phys_addr_t size)
+{
+	int ret;
+
+	ret = vgic_check_ioaddr(kvm, &ioaddr, addr, alignment);
+	if (ret)
+		return ret;
+
+	if (!IS_ALIGNED(size, alignment))
+		return -EINVAL;
+
+	if (addr + size < addr)
+		return -EINVAL;
+
+	if (addr + size > kvm_phys_size(kvm))
+		return -E2BIG;
+
+	return 0;
+}
+
 static int vgic_check_type(struct kvm *kvm, int type_needed)
 {
 	if (kvm->arch.vgic.vgic_model != type_needed)
