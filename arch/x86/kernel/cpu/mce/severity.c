@@ -288,8 +288,7 @@ static int error_context(struct mce *m, struct pt_regs *regs)
 
 static int mce_severity_amd_smca(struct mce *m, enum context err_ctx)
 {
-	u32 addr = MSR_AMD64_SMCA_MCx_CONFIG(m->bank);
-	u32 low, high;
+	u64 mcx_cfg;
 
 	/*
 	 * We need to look at the following bits:
@@ -300,11 +299,10 @@ static int mce_severity_amd_smca(struct mce *m, enum context err_ctx)
 	if (!mce_flags.succor)
 		return MCE_PANIC_SEVERITY;
 
-	if (rdmsr_safe(addr, &low, &high))
-		return MCE_PANIC_SEVERITY;
+	mcx_cfg = mce_rdmsrl(MSR_AMD64_SMCA_MCx_CONFIG(m->bank));
 
 	/* TCC (Task context corrupt). If set and if IN_KERNEL, panic. */
-	if ((low & MCI_CONFIG_MCAX) &&
+	if ((mcx_cfg & MCI_CONFIG_MCAX) &&
 	    (m->status & MCI_STATUS_TCC) &&
 	    (err_ctx == IN_KERNEL))
 		return MCE_PANIC_SEVERITY;
