@@ -87,7 +87,7 @@ struct jit_context {
 };
 
 /* Emit the instruction if the JIT memory space has been allocated */
-#define emit(ctx, func, ...)					\
+#define __emit(ctx, func, ...)					\
 do {								\
 	if ((ctx)->target != NULL) {				\
 		u32 *p = &(ctx)->target[ctx->jit_index];	\
@@ -95,6 +95,30 @@ do {								\
 	}							\
 	(ctx)->jit_index++;					\
 } while (0)
+#define emit(...) __emit(__VA_ARGS__)
+
+/* Workaround for R10000 ll/sc errata */
+#ifdef CONFIG_WAR_R10000
+#define LLSC_beqz	beqzl
+#else
+#define LLSC_beqz	beqz
+#endif
+
+/* Workaround for Loongson-3 ll/sc errata */
+#ifdef CONFIG_CPU_LOONGSON3_WORKAROUNDS
+#define LLSC_sync(ctx)	emit(ctx, sync, 0)
+#define LLSC_offset	4
+#else
+#define LLSC_sync(ctx)
+#define LLSC_offset	0
+#endif
+
+/* Workaround for Loongson-2F jump errata */
+#ifdef CONFIG_CPU_JUMP_WORKAROUNDS
+#define JALR_MASK	0xffffffffcfffffffULL
+#else
+#define JALR_MASK	(~0ULL)
+#endif
 
 /*
  * Mark a BPF register as accessed, it needs to be

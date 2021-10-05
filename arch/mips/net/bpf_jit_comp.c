@@ -404,6 +404,7 @@ void emit_alu_r(struct jit_context *ctx, u8 dst, u8 src, u8 op)
 /* Atomic read-modify-write (32-bit) */
 void emit_atomic_r(struct jit_context *ctx, u8 dst, u8 src, s16 off, u8 code)
 {
+	LLSC_sync(ctx);
 	emit(ctx, ll, MIPS_R_T9, off, dst);
 	switch (code) {
 	case BPF_ADD:
@@ -427,7 +428,7 @@ void emit_atomic_r(struct jit_context *ctx, u8 dst, u8 src, s16 off, u8 code)
 		break;
 	}
 	emit(ctx, sc, MIPS_R_T8, off, dst);
-	emit(ctx, beqz, MIPS_R_T8, -16);
+	emit(ctx, LLSC_beqz, MIPS_R_T8, -16 - LLSC_offset);
 	emit(ctx, nop); /* Delay slot */
 
 	if (code & BPF_FETCH) {
@@ -439,11 +440,12 @@ void emit_atomic_r(struct jit_context *ctx, u8 dst, u8 src, s16 off, u8 code)
 /* Atomic compare-and-exchange (32-bit) */
 void emit_cmpxchg_r(struct jit_context *ctx, u8 dst, u8 src, u8 res, s16 off)
 {
+	LLSC_sync(ctx);
 	emit(ctx, ll, MIPS_R_T9, off, dst);
 	emit(ctx, bne, MIPS_R_T9, res, 12);
 	emit(ctx, move, MIPS_R_T8, src);     /* Delay slot */
 	emit(ctx, sc, MIPS_R_T8, off, dst);
-	emit(ctx, beqz, MIPS_R_T8, -20);
+	emit(ctx, LLSC_beqz, MIPS_R_T8, -20 - LLSC_offset);
 	emit(ctx, move, res, MIPS_R_T9);     /* Delay slot */
 	clobber_reg(ctx, res);
 }
