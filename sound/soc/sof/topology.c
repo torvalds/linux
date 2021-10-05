@@ -1759,9 +1759,14 @@ static int sof_widget_load_pipeline(struct snd_soc_component *scomp, int index,
 		goto err;
 	}
 
-	dev_dbg(scomp->dev, "pipeline %s: period %d pri %d mips %d core %d frames %d\n",
+	if (sof_core_debug & SOF_DBG_DYNAMIC_PIPELINES_OVERRIDE)
+		swidget->dynamic_pipeline_widget = sof_core_debug &
+			SOF_DBG_DYNAMIC_PIPELINES_ENABLE;
+
+	dev_dbg(scomp->dev, "pipeline %s: period %d pri %d mips %d core %d frames %d dynamic %d\n",
 		swidget->widget->name, pipeline->period, pipeline->priority,
-		pipeline->period_mips, pipeline->core, pipeline->frames_per_sched);
+		pipeline->period_mips, pipeline->core, pipeline->frames_per_sched,
+		swidget->dynamic_pipeline_widget);
 
 	swidget->private = pipeline;
 
@@ -2374,13 +2379,14 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 		}
 
 		ret = sof_widget_load_dai(scomp, index, swidget, tw, dai);
-		if (ret == 0) {
-			sof_connect_dai_widget(scomp, w, tw, dai);
-			list_add(&dai->list, &sdev->dai_list);
-			swidget->private = dai;
-		} else {
+		if (!ret)
+			ret = sof_connect_dai_widget(scomp, w, tw, dai);
+		if (ret < 0) {
 			kfree(dai);
+			break;
 		}
+		list_add(&dai->list, &sdev->dai_list);
+		swidget->private = dai;
 		break;
 	case snd_soc_dapm_mixer:
 		ret = sof_widget_load_mixer(scomp, index, swidget, tw);
@@ -2825,12 +2831,12 @@ static int sof_link_ssp_load(struct snd_soc_component *scomp, int index,
 		config[i].ssp.rx_slots = le32_to_cpu(hw_config[i].rx_slots);
 		config[i].ssp.tx_slots = le32_to_cpu(hw_config[i].tx_slots);
 
-		dev_dbg(scomp->dev, "tplg: config SSP%d fmt 0x%x mclk %d bclk %d fclk %d width (%d)%d slots %d mclk id %d quirks %d\n",
+		dev_dbg(scomp->dev, "tplg: config SSP%d fmt %#x mclk %d bclk %d fclk %d width (%d)%d slots %d mclk id %d quirks %d clks_control %#x\n",
 			config[i].dai_index, config[i].format,
 			config[i].ssp.mclk_rate, config[i].ssp.bclk_rate,
 			config[i].ssp.fsync_rate, config[i].ssp.sample_valid_bits,
 			config[i].ssp.tdm_slot_width, config[i].ssp.tdm_slots,
-			config[i].ssp.mclk_id, config[i].ssp.quirks);
+			config[i].ssp.mclk_id, config[i].ssp.quirks, config[i].ssp.clks_control);
 
 		/* validate SSP fsync rate and channel count */
 		if (config[i].ssp.fsync_rate < 8000 || config[i].ssp.fsync_rate > 192000) {
