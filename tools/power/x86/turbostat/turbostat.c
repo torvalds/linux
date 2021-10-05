@@ -48,6 +48,7 @@ struct timespec interval_ts = { 5, 0 };
 unsigned int model_orig;
 
 unsigned int num_iterations;
+unsigned int header_iterations;
 unsigned int debug;
 unsigned int quiet;
 unsigned int shown;
@@ -722,6 +723,8 @@ void help(void)
 		"  -l, --list	list column headers only\n"
 		"  -n, --num_iterations num\n"
 		"		number of the measurement iterations\n"
+		"  -N, --header_iterations num\n"
+		"		print header every num iterations\n"
 		"  -o, --out file\n"
 		"		create or truncate \"file\" for all output\n"
 		"  -q, --quiet	skip decoding system configuration header\n"
@@ -1399,14 +1402,14 @@ void flush_output_stderr(void)
 
 void format_all_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 {
-	static int printed;
+	static int count;
 
-	if (!printed || !summary_only)
+	if ((!count || (header_iterations && !(count % header_iterations))) || !summary_only)
 		print_header("\t");
 
 	format_counters(&average.threads, &average.cores, &average.packages);
 
-	printed = 1;
+	count++;
 
 	if (summary_only)
 		return;
@@ -6348,6 +6351,7 @@ void cmdline(int argc, char **argv)
 		{ "interval", required_argument, 0, 'i' },
 		{ "IPC", no_argument, 0, 'I' },
 		{ "num_iterations", required_argument, 0, 'n' },
+		{ "header_iterations", required_argument, 0, 'N' },
 		{ "help", no_argument, 0, 'h' },
 		{ "hide", required_argument, 0, 'H' },	// meh, -h taken by --help
 		{ "Joules", no_argument, 0, 'J' },
@@ -6426,6 +6430,15 @@ void cmdline(int argc, char **argv)
 
 			if (num_iterations <= 0) {
 				fprintf(outf, "iterations %d should be positive number\n", num_iterations);
+				exit(2);
+			}
+			break;
+		case 'N':
+			header_iterations = strtod(optarg, NULL);
+
+			if (header_iterations <= 0) {
+				fprintf(outf, "iterations %d should be positive number\n",
+					header_iterations);
 				exit(2);
 			}
 			break;
