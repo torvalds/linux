@@ -6018,7 +6018,7 @@ static void apply_dsc_policy_for_stream(struct amdgpu_dm_connector *aconnector,
  * - Cinema HFR (48 FPS)
  * - TV/PAL (50 FPS)
  * - Commonly used (60 FPS)
- * - Multiples of 24 (48,72,96 FPS)
+ * - Multiples of 24 (48,72,96,120 FPS)
  *
  * The list of standards video format is not huge and can be added to the
  * connector modeset list beforehand. With that, userspace can leverage
@@ -7980,19 +7980,19 @@ static uint add_fs_modes(struct amdgpu_dm_connector *aconnector)
 
 	/* Standard FPS values
 	 *
-	 * 23.976   - TV/NTSC
-	 * 24 	    - Cinema
-	 * 25 	    - TV/PAL
-	 * 29.97    - TV/NTSC
-	 * 30 	    - TV/NTSC
-	 * 48 	    - Cinema HFR
-	 * 50 	    - TV/PAL
-	 * 60 	    - Commonly used
-	 * 48,72,96 - Multiples of 24
+	 * 23.976       - TV/NTSC
+	 * 24 	        - Cinema
+	 * 25 	        - TV/PAL
+	 * 29.97        - TV/NTSC
+	 * 30 	        - TV/NTSC
+	 * 48 	        - Cinema HFR
+	 * 50 	        - TV/PAL
+	 * 60 	        - Commonly used
+	 * 48,72,96,120 - Multiples of 24
 	 */
 	static const uint32_t common_rates[] = {
 		23976, 24000, 25000, 29970, 30000,
-		48000, 50000, 60000, 72000, 96000
+		48000, 50000, 60000, 72000, 96000, 120000
 	};
 
 	/*
