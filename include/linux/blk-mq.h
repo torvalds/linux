@@ -12,7 +12,7 @@ struct blk_mq_tags;
 struct blk_flush_queue;
 
 #define BLKDEV_MIN_RQ	4
-#define BLKDEV_MAX_RQ	128	/* Default maximum */
+#define BLKDEV_DEFAULT_RQ	128
 
 typedef void (rq_end_io_fn)(struct request *, blk_status_t);
 
