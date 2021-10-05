@@ -198,6 +198,14 @@
 		};
 	};
 
+	usdhc2_pwrseq: pwrseq {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_bt>, <&pinctrl_wifi_disable>;
+		compatible = "mmc-pwrseq-simple";
+		reset-gpios = <&gpio3 25 GPIO_ACTIVE_HIGH>,
+			      <&gpio4 29 GPIO_ACTIVE_HIGH>;
+	};
+
 	bm818_codec: sound-wwan-codec {
 		compatible = "broadmobi,bm818", "option,gtm601";
 		#sound-dai-cells = <0>;
@@ -309,6 +317,13 @@
 		fsl,pins = <
 			/* BACKLINGE_EN */
 			MX8MQ_IOMUXC_NAND_DQS_GPIO3_IO14	0x83
+		>;
+	};
+
+	pinctrl_bt: btgrp {
+		fsl,pins = <
+			/* BT_REG_ON */
+			MX8MQ_IOMUXC_SAI5_MCLK_GPIO3_IO25	0x83
 		>;
 	};
 
@@ -640,6 +655,13 @@
 			MX8MQ_IOMUXC_SD2_DATA2_USDHC2_DATA2	0xcf
 			MX8MQ_IOMUXC_SD2_DATA3_USDHC2_DATA3	0xcf
 			MX8MQ_IOMUXC_SD2_RESET_B_USDHC2_RESET_B 0xc1
+		>;
+	};
+
+	pinctrl_wifi_disable: wifidisablegrp {
+		fsl,pins = <
+			/* WIFI_REG_ON */
+			MX8MQ_IOMUXC_SAI3_RXC_GPIO4_IO29	0x83
 		>;
 	};
 
@@ -1212,6 +1234,7 @@
 	pinctrl-2 = <&pinctrl_usdhc2_200mhz>;
 	bus-width = <4>;
 	vmmc-supply = <&reg_wifi_3v3>;
+	mmc-pwrseq = <&usdhc2_pwrseq>;
 	post-power-on-delay-ms = <1000>;
 	cd-gpios = <&gpio2 12 GPIO_ACTIVE_LOW>;
 	disable-wp;
