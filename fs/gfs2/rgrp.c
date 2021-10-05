@@ -932,7 +932,7 @@ static int read_rindex_entry(struct gfs2_inode *ip)
 		goto fail;
 
 	rgd->rd_rgl = (struct gfs2_rgrp_lvb *)rgd->rd_gl->gl_lksb.sb_lvbptr;
-	rgd->rd_flags &= ~(GFS2_RDF_UPTODATE | GFS2_RDF_PREFERRED);
+	rgd->rd_flags &= ~GFS2_RDF_PREFERRED;
 	if (rgd->rd_data > sdp->sd_max_rg_data)
 		sdp->sd_max_rg_data = rgd->rd_data;
 	spin_lock(&sdp->sd_rindex_spin);
@@ -1185,8 +1185,8 @@ static void rgrp_set_bitmap_flags(struct gfs2_rgrpd *rgd)
 }
 
 /**
- * gfs2_rgrp_bh_get - Read in a RG's header and bitmaps
- * @rgd: the struct gfs2_rgrpd describing the RG to read in
+ * gfs2_rgrp_go_instantiate - Read in a RG's header and bitmaps
+ * @gh: the glock holder representing the rgrpd to read in
  *
  * Read in all of a Resource Group's header and bitmap blocks.
  * Caller must eventually call gfs2_rgrp_brelse() to free the bitmaps.
@@ -1194,10 +1194,11 @@ static void rgrp_set_bitmap_flags(struct gfs2_rgrpd *rgd)
  * Returns: errno
  */
 
-static int gfs2_rgrp_bh_get(struct gfs2_rgrpd *rgd)
+int gfs2_rgrp_go_instantiate(struct gfs2_holder *gh)
 {
+	struct gfs2_glock *gl = gh->gh_gl;
+	struct gfs2_rgrpd *rgd = gl->gl_object;
 	struct gfs2_sbd *sdp = rgd->rd_sbd;
-	struct gfs2_glock *gl = rgd->rd_gl;
 	unsigned int length = rgd->rd_length;
 	struct gfs2_bitmap *bi;
 	unsigned int x, y;
@@ -1225,15 +1226,13 @@ static int gfs2_rgrp_bh_get(struct gfs2_rgrpd *rgd)
 		}
 	}
 
-	if (!(rgd->rd_flags & GFS2_RDF_UPTODATE)) {
-		gfs2_rgrp_in(rgd, (rgd->rd_bits[0].bi_bh)->b_data);
-		rgrp_set_bitmap_flags(rgd);
-		rgd->rd_flags |= (GFS2_RDF_UPTODATE | GFS2_RDF_CHECK);
-		rgd->rd_free_clone = rgd->rd_free;
-		GLOCK_BUG_ON(rgd->rd_gl, rgd->rd_reserved);
-		/* max out the rgrp allocation failure point */
-		rgd->rd_extfail_pt = rgd->rd_free;
-	}
+	gfs2_rgrp_in(rgd, (rgd->rd_bits[0].bi_bh)->b_data);
+	rgrp_set_bitmap_flags(rgd);
+	rgd->rd_flags |= GFS2_RDF_CHECK;
+	rgd->rd_free_clone = rgd->rd_free;
+	GLOCK_BUG_ON(rgd->rd_gl, rgd->rd_reserved);
+	/* max out the rgrp allocation failure point */
+	rgd->rd_extfail_pt = rgd->rd_free;
 	if (cpu_to_be32(GFS2_MAGIC) != rgd->rd_rgl->rl_magic) {
 		rgd->rd_rgl->rl_unlinked = cpu_to_be32(count_unlinked(rgd));
 		gfs2_rgrp_ondisk2lvb(rgd->rd_rgl,
@@ -1263,7 +1262,7 @@ static int update_rgrp_lvb(struct gfs2_rgrpd *rgd, struct gfs2_holder *gh)
 {
 	u32 rl_flags;
 
-	if (rgd->rd_flags & GFS2_RDF_UPTODATE)
+	if (!test_bit(GLF_INSTANTIATE_NEEDED, &gh->gh_gl->gl_flags))
 		return 0;
 
 	if (cpu_to_be32(GFS2_MAGIC) != rgd->rd_rgl->rl_magic)
@@ -1284,13 +1283,6 @@ static int update_rgrp_lvb(struct gfs2_rgrpd *rgd, struct gfs2_holder *gh)
 	rgd->rd_dinodes = be32_to_cpu(rgd->rd_rgl->rl_dinodes);
 	rgd->rd_igeneration = be64_to_cpu(rgd->rd_rgl->rl_igeneration);
 	return 0;
-}
-
-int gfs2_rgrp_go_instantiate(struct gfs2_holder *gh)
-{
-	struct gfs2_rgrpd *rgd = gh->gh_gl->gl_object;
-
-	return gfs2_rgrp_bh_get(rgd);
 }
 
 /**
