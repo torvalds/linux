@@ -173,7 +173,7 @@ bool set_channel(struct vnt_private *priv, struct ieee80211_channel *ch)
 	}
 
 	/* clear NAV */
-	MACvRegBitsOn(priv->PortOffset, MAC_REG_MACCR, MACCR_CLRNAV);
+	MACvRegBitsOn(priv->port_offset, MAC_REG_MACCR, MACCR_CLRNAV);
 
 	/* TX_PE will reserve 3 us for MAX2829 A mode only,
 	 * it is for better TX throughput
@@ -199,14 +199,14 @@ bool set_channel(struct vnt_private *priv, struct ieee80211_channel *ch)
 		spin_lock_irqsave(&priv->lock, flags);
 
 		/* set HW default power register */
-		MACvSelectPage1(priv->PortOffset);
+		MACvSelectPage1(priv->port_offset);
 		RFbSetPower(priv, RATE_1M, priv->byCurrentCh);
-		VNSvOutPortB(priv->PortOffset + MAC_REG_PWRCCK,
+		VNSvOutPortB(priv->port_offset + MAC_REG_PWRCCK,
 			     priv->byCurPwr);
 		RFbSetPower(priv, RATE_6M, priv->byCurrentCh);
-		VNSvOutPortB(priv->PortOffset + MAC_REG_PWROFDM,
+		VNSvOutPortB(priv->port_offset + MAC_REG_PWROFDM,
 			     priv->byCurPwr);
-		MACvSelectPage0(priv->PortOffset);
+		MACvSelectPage0(priv->port_offset);
 
 		spin_unlock_irqrestore(&priv->lock, flags);
 	}

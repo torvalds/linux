@@ -1905,7 +1905,7 @@ void vnt_get_phy_field(struct vnt_private *priv, u32 frame_length,
 bool bb_read_embedded(struct vnt_private *priv, unsigned char by_bb_addr,
 		      unsigned char *pby_data)
 {
-	void __iomem *iobase = priv->PortOffset;
+	void __iomem *iobase = priv->port_offset;
 	unsigned short ww;
 	unsigned char by_value;
 
@@ -1948,7 +1948,7 @@ bool bb_read_embedded(struct vnt_private *priv, unsigned char by_bb_addr,
 bool bb_write_embedded(struct vnt_private *priv, unsigned char by_bb_addr,
 		       unsigned char by_data)
 {
-	void __iomem *iobase = priv->PortOffset;
+	void __iomem *iobase = priv->port_offset;
 	unsigned short ww;
 	unsigned char by_value;
 
@@ -1992,7 +1992,7 @@ bool bb_vt3253_init(struct vnt_private *priv)
 {
 	bool result = true;
 	int        ii;
-	void __iomem *iobase = priv->PortOffset;
+	void __iomem *iobase = priv->port_offset;
 	unsigned char by_rf_type = priv->byRFType;
 	unsigned char by_local_id = priv->byLocalID;
 

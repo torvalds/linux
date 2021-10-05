@@ -124,7 +124,7 @@ struct vnt_private {
 	unsigned char *tx1_bufs;
 	unsigned char *tx_beacon_bufs;
 
-	void __iomem                *PortOffset;
+	void __iomem                *port_offset;
 	u32                         memaddr;
 	u32                         ioaddr;
 
