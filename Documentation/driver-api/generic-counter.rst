@@ -237,6 +237,9 @@ for defining a counter device.
 .. kernel-doc:: drivers/counter/counter-core.c
    :export:
 
+.. kernel-doc:: drivers/counter/counter-chrdev.c
+   :export:
+
 Driver Implementation
 =====================
 
