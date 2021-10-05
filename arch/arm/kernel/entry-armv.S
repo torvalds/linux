@@ -36,10 +36,58 @@
 /*
  * Interrupt handling.
  */
-	.macro	irq_handler
+	.macro	irq_handler, from_user:req
 #ifdef CONFIG_GENERIC_IRQ_MULTI_HANDLER
 	mov	r0, sp
+#ifdef CONFIG_IRQSTACKS
+	mov_l	r2, irq_stack_ptr	@ Take base address
+	mrc	p15, 0, r3, c13, c0, 4	@ Get CPU offset
+#ifdef CONFIG_UNWINDER_ARM
+	mov	fpreg, sp		@ Preserve original SP
+#else
+	mov	r8, fp			@ Preserve original FP
+	mov	r9, sp			@ Preserve original SP
+#endif
+	ldr	sp, [r2, r3]		@ Load SP from per-CPU var
+	.if	\from_user == 0
+UNWIND(	.setfp	fpreg, sp		)
+	@
+	@ If we took the interrupt while running in the kernel, we may already
+	@ be using the IRQ stack, so revert to the original value in that case.
+	@
+	subs	r2, sp, r0		@ SP above bottom of IRQ stack?
+	rsbscs	r2, r2, #THREAD_SIZE	@ ... and below the top?
+	movcs	sp, r0			@ If so, revert to incoming SP
+
+#ifndef CONFIG_UNWINDER_ARM
+	@
+	@ Inform the frame pointer unwinder where the next frame lives
+	@
+	movcc	lr, pc			@ Make LR point into .entry.text so
+					@ that we will get a dump of the
+					@ exception stack for this frame.
+#ifdef CONFIG_CC_IS_GCC
+	movcc	ip, r0			@ Store the old SP in the frame record.
+	stmdbcc	sp!, {fp, ip, lr, pc}	@ Push frame record
+	addcc	fp, sp, #12
+#else
+	stmdbcc	sp!, {fp, lr}		@ Push frame record
+	movcc	fp, sp
+#endif // CONFIG_CC_IS_GCC
+#endif // CONFIG_UNWINDER_ARM
+	.endif
+#endif // CONFIG_IRQSTACKS
+
 	bl	generic_handle_arch_irq
+
+#ifdef CONFIG_IRQSTACKS
+#ifdef CONFIG_UNWINDER_ARM
+	mov	sp, fpreg		@ Restore original SP
+#else
+	mov	fp, r8			@ Restore original FP
+	mov	sp, r9			@ Restore original SP
+#endif // CONFIG_UNWINDER_ARM
+#endif // CONFIG_IRQSTACKS
 #else
 	arch_irq_handler_default
 #endif
@@ -199,7 +247,7 @@ ENDPROC(__dabt_svc)
 	.align	5
 __irq_svc:
 	svc_entry
-	irq_handler
+	irq_handler from_user=0
 
 #ifdef CONFIG_PREEMPTION
 	ldr	r8, [tsk, #TI_PREEMPT]		@ get preempt count
@@ -426,7 +474,7 @@ ENDPROC(__dabt_usr)
 __irq_usr:
 	usr_entry
 	kuser_cmpxchg_check
-	irq_handler
+	irq_handler from_user=1
 	get_thread_info tsk
 	mov	why, #0
 	b	ret_to_user_from_irq

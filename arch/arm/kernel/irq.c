@@ -43,6 +43,25 @@
 
 unsigned long irq_err_count;
 
+#ifdef CONFIG_IRQSTACKS
+
+asmlinkage DEFINE_PER_CPU_READ_MOSTLY(u8 *, irq_stack_ptr);
+
+static void __init init_irq_stacks(void)
+{
+	u8 *stack;
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		stack = (u8 *)__get_free_pages(GFP_KERNEL, THREAD_SIZE_ORDER);
+		if (WARN_ON(!stack))
+			break;
+		per_cpu(irq_stack_ptr, cpu) = &stack[THREAD_SIZE];
+	}
+}
+
+#endif
+
 int arch_show_interrupts(struct seq_file *p, int prec)
 {
 #ifdef CONFIG_FIQ
@@ -100,6 +119,10 @@ asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
 void __init init_IRQ(void)
 {
 	int ret;
+
+#ifdef CONFIG_IRQSTACKS
+	init_irq_stacks();
+#endif
 
 	if (IS_ENABLED(CONFIG_OF) && !machine_desc->init_irq)
 		irqchip_init();

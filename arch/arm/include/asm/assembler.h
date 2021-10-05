@@ -86,6 +86,10 @@
 
 #define IMM12_MASK 0xfff
 
+/* the frame pointer used for stack unwinding */
+ARM(	fpreg	.req	r11	)
+THUMB(	fpreg	.req	r7	)
+
 /*
  * Enable and disable interrupts
  */

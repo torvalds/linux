@@ -66,6 +66,19 @@ void dump_backtrace_entry(unsigned long where, unsigned long from,
 {
 	unsigned long end = frame + 4 + sizeof(struct pt_regs);
 
+	if (IS_ENABLED(CONFIG_UNWINDER_FRAME_POINTER) &&
+	    IS_ENABLED(CONFIG_CC_IS_GCC) &&
+	    end > ALIGN(frame, THREAD_SIZE)) {
+		/*
+		 * If we are walking past the end of the stack, it may be due
+		 * to the fact that we are on an IRQ or overflow stack. In this
+		 * case, we can load the address of the other stack from the
+		 * frame record.
+		 */
+		frame = ((unsigned long *)frame)[-2] - 4;
+		end = frame + 4 + sizeof(struct pt_regs);
+	}
+
 #ifdef CONFIG_KALLSYMS
 	printk("%s[<%08lx>] (%ps) from [<%08lx>] (%pS)\n",
 		loglvl, where, (void *)where, from, (void *)from);
@@ -278,7 +291,7 @@ static int __die(const char *str, int err, struct pt_regs *regs)
 
 	if (!user_mode(regs) || in_interrupt()) {
 		dump_mem(KERN_EMERG, "Stack: ", regs->ARM_sp,
-			 THREAD_SIZE + (unsigned long)task_stack_page(tsk));
+			 ALIGN(regs->ARM_sp, THREAD_SIZE));
 		dump_backtrace(regs, tsk, KERN_EMERG);
 		dump_instr(KERN_EMERG, regs);
 	}
