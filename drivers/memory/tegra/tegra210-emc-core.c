@@ -1662,7 +1662,7 @@ static int tegra210_emc_debug_min_rate_set(void *data, u64 rate)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(tegra210_emc_debug_min_rate_fops,
+DEFINE_DEBUGFS_ATTRIBUTE(tegra210_emc_debug_min_rate_fops,
 			tegra210_emc_debug_min_rate_get,
 			tegra210_emc_debug_min_rate_set, "%llu\n");
 
