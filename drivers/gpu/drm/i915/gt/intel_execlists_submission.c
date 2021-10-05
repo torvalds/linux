@@ -3339,7 +3339,7 @@ logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 		engine->flags |= I915_ENGINE_HAS_SEMAPHORES;
 		if (can_preempt(engine)) {
 			engine->flags |= I915_ENGINE_HAS_PREEMPTION;
-			if (IS_ACTIVE(CONFIG_DRM_I915_TIMESLICE_DURATION))
+			if (CONFIG_DRM_I915_TIMESLICE_DURATION)
 				engine->flags |= I915_ENGINE_HAS_TIMESLICES;
 		}
 	}

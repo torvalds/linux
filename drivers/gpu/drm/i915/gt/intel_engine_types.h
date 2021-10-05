@@ -556,7 +556,7 @@ intel_engine_has_semaphores(const struct intel_engine_cs *engine)
 static inline bool
 intel_engine_has_timeslices(const struct intel_engine_cs *engine)
 {
-	if (!IS_ACTIVE(CONFIG_DRM_I915_TIMESLICE_DURATION))
+	if (!CONFIG_DRM_I915_TIMESLICE_DURATION)
 		return false;
 
 	return engine->flags & I915_ENGINE_HAS_TIMESLICES;

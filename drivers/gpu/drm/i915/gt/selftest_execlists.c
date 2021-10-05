@@ -992,7 +992,7 @@ static int live_timeslice_preempt(void *arg)
 	 * need to preempt the current task and replace it with another
 	 * ready task.
 	 */
-	if (!IS_ACTIVE(CONFIG_DRM_I915_TIMESLICE_DURATION))
+	if (!CONFIG_DRM_I915_TIMESLICE_DURATION)
 		return 0;
 
 	obj = i915_gem_object_create_internal(gt->i915, PAGE_SIZE);
@@ -1122,7 +1122,7 @@ static int live_timeslice_rewind(void *arg)
 	 * but only a few of those requests, forcing us to rewind the
 	 * RING_TAIL of the original request.
 	 */
-	if (!IS_ACTIVE(CONFIG_DRM_I915_TIMESLICE_DURATION))
+	if (!CONFIG_DRM_I915_TIMESLICE_DURATION)
 		return 0;
 
 	for_each_engine(engine, gt, id) {
@@ -1299,7 +1299,7 @@ static int live_timeslice_queue(void *arg)
 	 * ELSP[1] is already occupied, so must rely on timeslicing to
 	 * eject ELSP[0] in favour of the queue.)
 	 */
-	if (!IS_ACTIVE(CONFIG_DRM_I915_TIMESLICE_DURATION))
+	if (!CONFIG_DRM_I915_TIMESLICE_DURATION)
 		return 0;
 
 	obj = i915_gem_object_create_internal(gt->i915, PAGE_SIZE);
@@ -1420,7 +1420,7 @@ static int live_timeslice_nopreempt(void *arg)
 	 * We should not timeslice into a request that is marked with
 	 * I915_REQUEST_NOPREEMPT.
 	 */
-	if (!IS_ACTIVE(CONFIG_DRM_I915_TIMESLICE_DURATION))
+	if (!CONFIG_DRM_I915_TIMESLICE_DURATION)
 		return 0;
 
 	if (igt_spinner_init(&spin, gt))
@@ -2260,7 +2260,7 @@ static int __cancel_hostile(struct live_preempt_cancel *arg)
 	int err;
 
 	/* Preempt cancel non-preemptible spinner in ELSP0 */
-	if (!IS_ACTIVE(CONFIG_DRM_I915_PREEMPT_TIMEOUT))
+	if (!CONFIG_DRM_I915_PREEMPT_TIMEOUT)
 		return 0;
 
 	if (!intel_has_reset_engine(arg->engine->gt))
@@ -2316,7 +2316,7 @@ static int __cancel_fail(struct live_preempt_cancel *arg)
 	struct i915_request *rq;
 	int err;
 
-	if (!IS_ACTIVE(CONFIG_DRM_I915_PREEMPT_TIMEOUT))
+	if (!CONFIG_DRM_I915_PREEMPT_TIMEOUT)
 		return 0;
 
 	if (!intel_has_reset_engine(engine->gt))
@@ -3375,7 +3375,7 @@ static int live_preempt_timeout(void *arg)
 	 * Check that we force preemption to occur by cancelling the previous
 	 * context if it refuses to yield the GPU.
 	 */
-	if (!IS_ACTIVE(CONFIG_DRM_I915_PREEMPT_TIMEOUT))
+	if (!CONFIG_DRM_I915_PREEMPT_TIMEOUT)
 		return 0;
 
 	if (!intel_has_reset_engine(gt))

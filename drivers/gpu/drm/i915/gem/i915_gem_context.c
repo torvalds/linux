@@ -804,7 +804,7 @@ static int intel_context_set_gem(struct intel_context *ce,
 	    intel_engine_has_semaphores(ce->engine))
 		__set_bit(CONTEXT_USE_SEMAPHORES, &ce->flags);
 
-	if (IS_ACTIVE(CONFIG_DRM_I915_REQUEST_TIMEOUT) &&
+	if (CONFIG_DRM_I915_REQUEST_TIMEOUT &&
 	    ctx->i915->params.request_timeout_ms) {
 		unsigned int timeout_ms = ctx->i915->params.request_timeout_ms;
 

@@ -1862,7 +1862,7 @@ long i915_request_wait(struct i915_request *rq,
 	 * completion. That requires having a good predictor for the request
 	 * duration, which we currently lack.
 	 */
-	if (IS_ACTIVE(CONFIG_DRM_I915_MAX_REQUEST_BUSYWAIT) &&
+	if (CONFIG_DRM_I915_MAX_REQUEST_BUSYWAIT &&
 	    __i915_spin_request(rq, state))
 		goto out;
 
