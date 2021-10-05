@@ -29,6 +29,7 @@
 #include <linux/spinlock.h>
 #include <linux/list.h>
 
+#include <asm/sections.h>
 #include <asm/stacktrace.h>
 #include <asm/traps.h>
 #include <asm/unwind.h>
@@ -459,6 +460,7 @@ int unwind_frame(struct stackframe *frame)
 	frame->sp = ctrl.vrs[SP];
 	frame->lr = ctrl.vrs[LR];
 	frame->pc = ctrl.vrs[PC];
+	frame->sp_low = ctrl.sp_low;
 
 	return URC_OK;
 }
@@ -502,7 +504,11 @@ void unwind_backtrace(struct pt_regs *regs, struct task_struct *tsk,
 		urc = unwind_frame(&frame);
 		if (urc < 0)
 			break;
-		dump_backtrace_entry(where, frame.pc, frame.sp - 4, loglvl);
+		if (in_entry_text(where))
+			dump_mem(loglvl, "Exception stack", frame.sp_low,
+				 frame.sp_low + sizeof(struct pt_regs));
+
+		dump_backtrace_entry(where, frame.pc, 0, loglvl);
 	}
 }
 
