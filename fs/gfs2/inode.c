@@ -182,7 +182,6 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned int type,
 		}
 
 		glock_set_object(ip->i_gl, ip);
-		set_bit(GIF_INVALID, &ip->i_flags);
 		set_bit(GLF_INSTANTIATE_NEEDED, &ip->i_gl->gl_flags);
 		error = gfs2_glock_nq_init(io_gl, LM_ST_SHARED, GL_EXACT, &ip->i_iopen_gh);
 		if (unlikely(error))

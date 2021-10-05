@@ -356,7 +356,6 @@ static void inode_go_inval(struct gfs2_glock *gl, int flags)
 		struct address_space *mapping = gfs2_glock2aspace(gl);
 		truncate_inode_pages(mapping, 0);
 		if (ip) {
-			set_bit(GIF_INVALID, &ip->i_flags);
 			set_bit(GLF_INSTANTIATE_NEEDED, &gl->gl_flags);
 			forget_all_cached_acls(&ip->i_inode);
 			security_inode_invalidate_secctx(&ip->i_inode);
@@ -477,8 +476,6 @@ int gfs2_inode_refresh(struct gfs2_inode *ip)
 
 	error = gfs2_dinode_in(ip, dibh->b_data);
 	brelse(dibh);
-	clear_bit(GIF_INVALID, &ip->i_flags);
-
 	return error;
 }
 
@@ -499,11 +496,9 @@ static int inode_go_instantiate(struct gfs2_holder *gh)
 	if (!ip) /* no inode to populate - read it in later */
 		goto out;
 
-	if (test_bit(GIF_INVALID, &ip->i_flags)) {
-		error = gfs2_inode_refresh(ip);
-		if (error)
-			goto out;
-	}
+	error = gfs2_inode_refresh(ip);
+	if (error)
+		goto out;
 
 	if (gh->gh_state != LM_ST_DEFERRED)
 		inode_dio_wait(&ip->i_inode);
