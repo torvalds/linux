@@ -69,7 +69,7 @@ config IPMI_SI
 
 config IPMI_SSIF
 	tristate 'IPMI SMBus handler (SSIF)'
-	select I2C
+	depends on I2C
 	help
 	  Provides a driver for a SMBus interface to a BMC, meaning that you
 	  have a driver that must be accessed over an I2C bus instead of a
