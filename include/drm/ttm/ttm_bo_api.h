@@ -351,9 +351,10 @@ bool ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
  * @bo: Pointer to a ttm_buffer_object to be initialized.
  * @size: Requested size of buffer object.
  * @type: Requested type of buffer object.
- * @flags: Initial placement flags.
+ * @placement: Initial placement for buffer object.
  * @page_alignment: Data alignment in pages.
  * @ctx: TTM operation context for memory allocation.
+ * @sg: Scatter-gather table.
  * @resv: Pointer to a dma_resv, or NULL to let ttm allocate one.
  * @destroy: Destroy function. Use NULL for kfree().
  *
@@ -394,7 +395,7 @@ int ttm_bo_init_reserved(struct ttm_device *bdev,
  * @bo: Pointer to a ttm_buffer_object to be initialized.
  * @size: Requested size of buffer object.
  * @type: Requested type of buffer object.
- * @flags: Initial placement flags.
+ * @placement: Initial placement for buffer object.
  * @page_alignment: Data alignment in pages.
  * @interruptible: If needing to sleep to wait for GPU resources,
  * sleep interruptible.
@@ -402,6 +403,7 @@ int ttm_bo_init_reserved(struct ttm_device *bdev,
  * holds a pointer to a persistent shmem object. Typically, this would
  * point to the shmem object backing a GEM object if TTM is used to back a
  * GEM user interface.
+ * @sg: Scatter-gather table.
  * @resv: Pointer to a dma_resv, or NULL to let ttm allocate one.
  * @destroy: Destroy function. Use NULL for kfree().
  *
