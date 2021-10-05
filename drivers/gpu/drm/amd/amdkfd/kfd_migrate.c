@@ -376,7 +376,7 @@ out:
 	return r;
 }
 
-static int
+static long
 svm_migrate_vma_to_vram(struct amdgpu_device *adev, struct svm_range *prange,
 			struct vm_area_struct *vma, uint64_t start,
 			uint64_t end)
@@ -413,19 +413,23 @@ svm_migrate_vma_to_vram(struct amdgpu_device *adev, struct svm_range *prange,
 			prange->start, prange->last);
 		goto out_free;
 	}
-	if (migrate.cpages != npages) {
-		pr_debug("Partial migration. 0x%lx/0x%llx pages can be migrated\n",
-			 migrate.cpages,
-			 npages);
+
+	if (migrate.cpages != npages)
+		pr_debug("partial migration, 0x%lx/0x%llx pages migrated\n",
+			 migrate.cpages, npages);
+	else
+		pr_debug("0x%lx pages migrated\n", migrate.cpages);
+
+	if (!migrate.cpages) {
+		pr_debug("failed collect migrate sys pages [0x%lx 0x%lx]\n",
+			 prange->start, prange->last);
+		goto out_free;
 	}
 
-	if (migrate.cpages) {
-		r = svm_migrate_copy_to_vram(adev, prange, &migrate, &mfence,
-					     scratch);
-		migrate_vma_pages(&migrate);
-		svm_migrate_copy_done(adev, mfence);
-		migrate_vma_finalize(&migrate);
-	}
+	r = svm_migrate_copy_to_vram(adev, prange, &migrate, &mfence, scratch);
+	migrate_vma_pages(&migrate);
+	svm_migrate_copy_done(adev, mfence);
+	migrate_vma_finalize(&migrate);
 
 	svm_range_dma_unmap(adev->dev, scratch, 0, npages);
 	svm_range_free_dma_mappings(prange);
@@ -433,12 +437,13 @@ svm_migrate_vma_to_vram(struct amdgpu_device *adev, struct svm_range *prange,
 out_free:
 	kvfree(buf);
 out:
-	if (!r) {
+	if (!r && migrate.cpages) {
 		pdd = svm_range_get_pdd_by_adev(prange, adev);
 		if (pdd)
 			WRITE_ONCE(pdd->page_in, pdd->page_in + migrate.cpages);
-	}
 
+		return migrate.cpages;
+	}
 	return r;
 }
 
@@ -460,7 +465,8 @@ svm_migrate_ram_to_vram(struct svm_range *prange, uint32_t best_loc,
 	unsigned long addr, start, end;
 	struct vm_area_struct *vma;
 	struct amdgpu_device *adev;
-	int r = 0;
+	unsigned long cpages = 0;
+	long r = 0;
 
 	if (prange->actual_loc == best_loc) {
 		pr_debug("svms 0x%p [0x%lx 0x%lx] already on best_loc 0x%x\n",
@@ -492,17 +498,19 @@ svm_migrate_ram_to_vram(struct svm_range *prange, uint32_t best_loc,
 
 		next = min(vma->vm_end, end);
 		r = svm_migrate_vma_to_vram(adev, prange, vma, addr, next);
-		if (r) {
-			pr_debug("failed to migrate\n");
+		if (r < 0) {
+			pr_debug("failed %ld to migrate\n", r);
 			break;
+		} else {
+			cpages += r;
 		}
 		addr = next;
 	}
 
-	if (!r)
+	if (cpages)
 		prange->actual_loc = best_loc;
 
-	return r;
+	return r < 0 ? r : 0;
 }
 
 static void svm_migrate_page_free(struct page *page)
@@ -603,7 +611,7 @@ out_oom:
 	return r;
 }
 
-static int
+static long
 svm_migrate_vma_to_ram(struct amdgpu_device *adev, struct svm_range *prange,
 		       struct vm_area_struct *vma, uint64_t start, uint64_t end)
 {
@@ -640,29 +648,35 @@ svm_migrate_vma_to_ram(struct amdgpu_device *adev, struct svm_range *prange,
 		goto out_free;
 	}
 
-	pr_debug("cpages %ld\n", migrate.cpages);
+	if (migrate.cpages != npages)
+		pr_debug("partial migration, 0x%lx/0x%llx pages migrated\n",
+			 migrate.cpages, npages);
+	else
+		pr_debug("0x%lx pages migrated\n", migrate.cpages);
 
-	if (migrate.cpages) {
-		r = svm_migrate_copy_to_ram(adev, prange, &migrate, &mfence,
-					    scratch, npages);
-		migrate_vma_pages(&migrate);
-		svm_migrate_copy_done(adev, mfence);
-		migrate_vma_finalize(&migrate);
-	} else {
+	if (!migrate.cpages) {
 		pr_debug("failed collect migrate device pages [0x%lx 0x%lx]\n",
 			 prange->start, prange->last);
+		goto out_free;
 	}
 
+	r = svm_migrate_copy_to_ram(adev, prange, &migrate, &mfence,
+				    scratch, npages);
+	migrate_vma_pages(&migrate);
+	svm_migrate_copy_done(adev, mfence);
+	migrate_vma_finalize(&migrate);
 	svm_range_dma_unmap(adev->dev, scratch, 0, npages);
 
 out_free:
 	kvfree(buf);
 out:
-	if (!r) {
+	if (!r && migrate.cpages) {
 		pdd = svm_range_get_pdd_by_adev(prange, adev);
 		if (pdd)
 			WRITE_ONCE(pdd->page_out,
 				   pdd->page_out + migrate.cpages);
+
+		return migrate.cpages;
 	}
 	return r;
 }
@@ -684,7 +698,8 @@ int svm_migrate_vram_to_ram(struct svm_range *prange, struct mm_struct *mm)
 	unsigned long addr;
 	unsigned long start;
 	unsigned long end;
-	int r = 0;
+	unsigned long cpages = 0;
+	long r = 0;
 
 	if (!prange->actual_loc) {
 		pr_debug("[0x%lx 0x%lx] already migrated to ram\n",
@@ -715,18 +730,21 @@ int svm_migrate_vram_to_ram(struct svm_range *prange, struct mm_struct *mm)
 
 		next = min(vma->vm_end, end);
 		r = svm_migrate_vma_to_ram(adev, prange, vma, addr, next);
-		if (r) {
-			pr_debug("failed %d to migrate\n", r);
+		if (r < 0) {
+			pr_debug("failed %ld to migrate\n", r);
 			break;
+		} else {
+			cpages += r;
 		}
 		addr = next;
 	}
 
-	if (!r) {
+	if (cpages) {
 		svm_range_vram_node_free(prange);
 		prange->actual_loc = 0;
 	}
-	return r;
+
+	return r < 0 ? r : 0;
 }
 
 /**
