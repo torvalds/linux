@@ -4031,6 +4031,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	int32_t primary_planes;
 	enum dc_connection_type new_connection_type = dc_connection_none;
 	const struct dc_plane_cap *plane;
+	bool psr_feature_enabled = false;
 
 	dm->display_indexes_num = dm->dc->caps.max_streams;
 	/* Update the actual used number of crtc */
@@ -4113,6 +4114,19 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		DRM_DEBUG_KMS("Unsupported DCN IP version for outbox: 0x%X\n",
 			      adev->ip_versions[DCE_HWIP][0]);
 	}
+
+	/* Determine whether to enable PSR support by default. */
+	if (!(amdgpu_dc_debug_mask & DC_DISABLE_PSR)) {
+		switch (adev->ip_versions[DCE_HWIP][0]) {
+		case IP_VERSION(3, 1, 2):
+		case IP_VERSION(3, 1, 3):
+			psr_feature_enabled = true;
+			break;
+		default:
+			psr_feature_enabled = amdgpu_dc_feature_mask & DC_PSR_MASK;
+			break;
+		}
+	}
 #endif
 
 	/* loops over all connectors on the board */
@@ -4156,7 +4170,8 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		} else if (dc_link_detect(link, DETECT_REASON_BOOT)) {
 			amdgpu_dm_update_connector_after_detect(aconnector);
 			register_backlight_device(dm, link);
-			if (amdgpu_dc_feature_mask & DC_PSR_MASK)
+
+			if (psr_feature_enabled)
 				amdgpu_dm_set_psr_caps(link);
 		}
 
