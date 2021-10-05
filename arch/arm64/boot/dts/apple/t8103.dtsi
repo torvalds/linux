@@ -96,11 +96,11 @@
 			     <AIC_FIQ AIC_TMR_HV_VIRT IRQ_TYPE_LEVEL_HIGH>;
 	};
 
-	clk24: clock-24m {
+	clkref: clock-ref {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <24000000>;
-		clock-output-names = "clk24";
+		clock-output-names = "clkref";
 	};
 
 	soc {
@@ -114,7 +114,7 @@
 		i2c0: i2c@235010000 {
 			compatible = "apple,t8103-i2c", "apple,i2c";
 			reg = <0x2 0x35010000 0x0 0x4000>;
-			clocks = <&clk24>;
+			clocks = <&clkref>;
 			interrupt-parent = <&aic>;
 			interrupts = <AIC_IRQ 627 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-0 = <&i2c0_pins>;
@@ -127,7 +127,7 @@
 		i2c1: i2c@235014000 {
 			compatible = "apple,t8103-i2c", "apple,i2c";
 			reg = <0x2 0x35014000 0x0 0x4000>;
-			clocks = <&clk24>;
+			clocks = <&clkref>;
 			interrupt-parent = <&aic>;
 			interrupts = <AIC_IRQ 628 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-0 = <&i2c1_pins>;
@@ -140,7 +140,7 @@
 		i2c2: i2c@235018000 {
 			compatible = "apple,t8103-i2c", "apple,i2c";
 			reg = <0x2 0x35018000 0x0 0x4000>;
-			clocks = <&clk24>;
+			clocks = <&clkref>;
 			interrupt-parent = <&aic>;
 			interrupts = <AIC_IRQ 629 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-0 = <&i2c2_pins>;
@@ -154,7 +154,7 @@
 		i2c3: i2c@23501c000 {
 			compatible = "apple,t8103-i2c", "apple,i2c";
 			reg = <0x2 0x3501c000 0x0 0x4000>;
-			clocks = <&clk24>;
+			clocks = <&clkref>;
 			interrupt-parent = <&aic>;
 			interrupts = <AIC_IRQ 630 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-0 = <&i2c3_pins>;
@@ -167,7 +167,7 @@
 		i2c4: i2c@235020000 {
 			compatible = "apple,t8103-i2c", "apple,i2c";
 			reg = <0x2 0x35020000 0x0 0x4000>;
-			clocks = <&clk24>;
+			clocks = <&clkref>;
 			interrupt-parent = <&aic>;
 			interrupts = <AIC_IRQ 631 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-0 = <&i2c4_pins>;
@@ -188,7 +188,7 @@
 			 * TODO: figure out the clocking properly, there may
 			 * be a third selectable clock.
 			 */
-			clocks = <&clk24>, <&clk24>;
+			clocks = <&clkref>, <&clkref>;
 			clock-names = "uart", "clk_uart_baud0";
 			power-domains = <&ps_uart0>;
 			status = "disabled";
@@ -200,7 +200,7 @@
 			reg-io-width = <4>;
 			interrupt-parent = <&aic>;
 			interrupts = <AIC_IRQ 607 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&clk24>, <&clk24>;
+			clocks = <&clkref>, <&clkref>;
 			clock-names = "uart", "clk_uart_baud0";
 			power-domains = <&ps_uart2>;
 			status = "disabled";
@@ -327,7 +327,7 @@
 		wdt: watchdog@23d2b0000 {
 			compatible = "apple,t8103-wdt", "apple,wdt";
 			reg = <0x2 0x3d2b0000 0x0 0x4000>;
-			clocks = <&clk24>;
+			clocks = <&clkref>;
 			interrupt-parent = <&aic>;
 			interrupts = <AIC_IRQ 338 IRQ_TYPE_LEVEL_HIGH>;
 		};
