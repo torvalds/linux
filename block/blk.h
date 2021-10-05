@@ -242,7 +242,7 @@ static inline void elevator_exit(struct request_queue *q,
 {
 	lockdep_assert_held(&q->sysfs_lock);
 
-	blk_mq_sched_free_requests(q);
+	blk_mq_sched_free_rqs(q);
 	__elevator_exit(q, e);
 }
 
