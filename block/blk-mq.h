@@ -54,7 +54,7 @@ void blk_mq_put_rq_ref(struct request *rq);
  */
 void blk_mq_free_rqs(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
 		     unsigned int hctx_idx);
-void blk_mq_free_rq_map(struct blk_mq_tags *tags, unsigned int flags);
+void blk_mq_free_rq_map(struct blk_mq_tags *tags);
 struct blk_mq_tags *blk_mq_alloc_map_and_rqs(struct blk_mq_tag_set *set,
 				unsigned int hctx_idx, unsigned int depth);
 void blk_mq_free_map_and_rqs(struct blk_mq_tag_set *set,
@@ -330,16 +330,15 @@ static inline bool hctx_may_queue(struct blk_mq_hw_ctx *hctx,
 
 	if (blk_mq_is_sbitmap_shared(hctx->flags)) {
 		struct request_queue *q = hctx->queue;
-		struct blk_mq_tag_set *set = q->tag_set;
 
 		if (!test_bit(QUEUE_FLAG_HCTX_ACTIVE, &q->queue_flags))
 			return true;
-		users = atomic_read(&set->active_queues_shared_sbitmap);
 	} else {
 		if (!test_bit(BLK_MQ_S_TAG_ACTIVE, &hctx->state))
 			return true;
-		users = atomic_read(&hctx->tags->active_queues);
 	}
+
+	users = atomic_read(&hctx->tags->active_queues);
 
 	if (!users)
 		return true;

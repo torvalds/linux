@@ -440,13 +440,11 @@ enum hctx_type {
  * @flags:	   Zero or more BLK_MQ_F_* flags.
  * @driver_data:   Pointer to data owned by the block driver that created this
  *		   tag set.
- * @active_queues_shared_sbitmap:
- * 		   number of active request queues per tag set.
- * @__bitmap_tags: A shared tags sbitmap, used over all hctx's
- * @__breserved_tags:
- *		   A shared reserved tags sbitmap, used over all hctx's
  * @tags:	   Tag sets. One tag set per hardware queue. Has @nr_hw_queues
  *		   elements.
+ * @shared_sbitmap_tags:
+ *		   Shared sbitmap set of tags. Has @nr_hw_queues elements. If
+ *		   set, shared by all @tags.
  * @tag_list_lock: Serializes tag_list accesses.
  * @tag_list:	   List of the request queues that use this tag set. See also
  *		   request_queue.tag_set_list.
@@ -463,11 +461,10 @@ struct blk_mq_tag_set {
 	unsigned int		timeout;
 	unsigned int		flags;
 	void			*driver_data;
-	atomic_t		active_queues_shared_sbitmap;
 
-	struct sbitmap_queue	__bitmap_tags;
-	struct sbitmap_queue	__breserved_tags;
 	struct blk_mq_tags	**tags;
+
+	struct blk_mq_tags	*shared_sbitmap_tags;
 
 	struct mutex		tag_list_lock;
 	struct list_head	tag_list;
@@ -639,6 +636,8 @@ enum {
 #define BLK_ALLOC_POLICY_TO_MQ_FLAG(policy) \
 	((policy & ((1 << BLK_MQ_F_ALLOC_POLICY_BITS) - 1)) \
 		<< BLK_MQ_F_ALLOC_POLICY_START_BIT)
+
+#define BLK_MQ_NO_HCTX_IDX	(-1U)
 
 struct gendisk *__blk_mq_alloc_disk(struct blk_mq_tag_set *set, void *queuedata,
 		struct lock_class_key *lkclass);
