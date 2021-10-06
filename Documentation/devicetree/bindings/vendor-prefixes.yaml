@@ -353,6 +353,8 @@ patternProperties:
     description: Shenzhen Elida Technology Co., Ltd.
   "^elimo,.*":
     description: Elimo Engineering Ltd.
+  "^elpida,.*":
+    description: Elpida Memory, Inc.
   "^embest,.*":
     description: Shenzhen Embest Technology Co., Ltd.
   "^emlid,.*":
