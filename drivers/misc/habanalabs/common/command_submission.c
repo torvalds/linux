@@ -2382,7 +2382,15 @@ static int hl_cs_poll_fences(struct multi_cs_data *mcs_data)
 			break;
 		}
 
-		mcs_data->stream_master_qid_map |= fence->stream_master_qid_map;
+		/*
+		 * It is possible to get an old sequence numbers from user
+		 * which related to already completed CSs and their fences
+		 * already gone. In this case, no need to consider its QID for
+		 * mcs completion.
+		 */
+		if (fence)
+			mcs_data->stream_master_qid_map |=
+					fence->stream_master_qid_map;
 
 		/*
 		 * Using mcs_handling_done to avoid possibility of mcs_data
@@ -2390,7 +2398,8 @@ static int hl_cs_poll_fences(struct multi_cs_data *mcs_data)
 		 * all of its mcs handling, to avoid race the next time the
 		 * user waits for mcs.
 		 */
-		if (status == CS_WAIT_STATUS_BUSY || !fence->mcs_handling_done)
+		if (status == CS_WAIT_STATUS_BUSY ||
+				(fence && !fence->mcs_handling_done))
 			continue;
 
 		mcs_data->completion_bitmap |= BIT(i);
