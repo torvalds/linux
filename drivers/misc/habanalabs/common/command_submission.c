@@ -2768,7 +2768,7 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 				u32 timeout_us, u64 user_address,
 				u64 target_value, u16 interrupt_offset,
 				enum hl_cs_wait_status *status,
-				bool take_timestamp, u64 *timestamp)
+				u64 *timestamp)
 {
 	struct hl_user_pending_interrupt *pend;
 	struct hl_user_interrupt *interrupt;
@@ -2792,8 +2792,6 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 
 	hl_fence_init(&pend->fence, ULONG_MAX);
 
-	pend->fence.take_timestamp = take_timestamp;
-
 	if (interrupt_offset == HL_COMMON_USER_INTERRUPT_ID)
 		interrupt = &hdev->common_user_interrupt;
 	else
@@ -2815,9 +2813,11 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 		goto remove_pending_user_interrupt;
 	}
 
-	if (completion_value >= target_value)
+	if (completion_value >= target_value) {
 		*status = CS_WAIT_STATUS_COMPLETED;
-	else
+		/* There was no interrupt, we assume the completion is now. */
+		pend->fence.timestamp = ktime_get();
+	} else
 		*status = CS_WAIT_STATUS_BUSY;
 
 	if (!timeout_us || (*status == CS_WAIT_STATUS_COMPLETED))
@@ -2914,7 +2914,6 @@ static int hl_interrupt_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 	rc = _hl_interrupt_wait_ioctl(hdev, hpriv->ctx,
 				args->in.interrupt_timeout_us, args->in.addr,
 				args->in.target, interrupt_offset, &status,
-				args->in.flags & HL_CS_FLAGS_TIMESTAMP,
 				&timestamp);
 
 	if (rc) {
