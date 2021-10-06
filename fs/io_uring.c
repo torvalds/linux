@@ -308,19 +308,15 @@ struct io_submit_link {
 };
 
 struct io_submit_state {
-	struct blk_plug		plug;
+	/* inline/task_work completion list, under ->uring_lock */
+	struct io_wq_work_node	free_list;
+	/* batch completion logic */
+	struct io_wq_work_list	compl_reqs;
 	struct io_submit_link	link;
 
 	bool			plug_started;
 	bool			need_plug;
-
-	/*
-	 * Batch completion logic
-	 */
-	struct io_wq_work_list	compl_reqs;
-
-	/* inline/task_work completion list, under ->uring_lock */
-	struct io_wq_work_node	free_list;
+	struct blk_plug		plug;
 };
 
 struct io_ring_ctx {
