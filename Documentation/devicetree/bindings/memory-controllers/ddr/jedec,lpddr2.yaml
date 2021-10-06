@@ -24,6 +24,18 @@ properties:
           - enum:
               - jedec,lpddr2-nvm
 
+  revision-id1:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 255
+    description: |
+      Revision 1 value of SDRAM chip. Obtained from device datasheet.
+
+  revision-id2:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 255
+    description: |
+      Revision 2 value of SDRAM chip. Obtained from device datasheet.
+
   density:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: |
@@ -151,6 +163,8 @@ examples:
         compatible = "elpida,ECB240ABACN", "jedec,lpddr2-s4";
         density = <2048>;
         io-width = <32>;
+        revision-id1 = <1>;
+        revision-id2 = <0>;
 
         tRPab-min-tck = <3>;
         tRCD-min-tck = <3>;
