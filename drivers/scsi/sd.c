@@ -109,7 +109,7 @@ static int  sd_remove(struct device *);
 static void sd_shutdown(struct device *);
 static int sd_suspend_system(struct device *);
 static int sd_suspend_runtime(struct device *);
-static int sd_resume(struct device *);
+static int sd_resume_system(struct device *);
 static int sd_resume_runtime(struct device *);
 static void sd_rescan(struct device *);
 static blk_status_t sd_init_command(struct scsi_cmnd *SCpnt);
@@ -602,9 +602,9 @@ static struct class sd_disk_class = {
 
 static const struct dev_pm_ops sd_pm_ops = {
 	.suspend		= sd_suspend_system,
-	.resume			= sd_resume,
+	.resume			= sd_resume_system,
 	.poweroff		= sd_suspend_system,
-	.restore		= sd_resume,
+	.restore		= sd_resume_system,
 	.runtime_suspend	= sd_suspend_runtime,
 	.runtime_resume		= sd_resume_runtime,
 };
@@ -3684,6 +3684,11 @@ static int sd_resume(struct device *dev)
 	if (!ret)
 		opal_unlock_from_suspend(sdkp->opal_dev);
 	return ret;
+}
+
+static int sd_resume_system(struct device *dev)
+{
+	return sd_resume(dev);
 }
 
 static int sd_resume_runtime(struct device *dev)
