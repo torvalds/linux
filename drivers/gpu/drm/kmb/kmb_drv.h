@@ -57,6 +57,7 @@ struct kmb_drm_private {
 	spinlock_t			irq_lock;
 	int				irq_lcd;
 	int				sys_clk_mhz;
+	struct disp_cfg			init_disp_cfg[KMB_MAX_PLANES];
 	struct layer_status		plane_status[KMB_MAX_PLANES];
 	int				kmb_under_flow;
 	int				kmb_flush_done;
