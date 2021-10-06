@@ -1069,14 +1069,16 @@ static void icl_ddi_combo_vswing_program(struct intel_encoder *encoder,
 	intel_de_write(dev_priv, ICL_PORT_TX_DW5_GRP(phy), val);
 
 	/* Program PORT_TX_DW2 */
-	val = intel_de_read(dev_priv, ICL_PORT_TX_DW2_LN(0, phy));
-	val &= ~(SWING_SEL_LOWER_MASK | SWING_SEL_UPPER_MASK |
-		 RCOMP_SCALAR_MASK);
-	val |= SWING_SEL_UPPER(trans->entries[level].icl.dw2_swing_sel);
-	val |= SWING_SEL_LOWER(trans->entries[level].icl.dw2_swing_sel);
-	/* Program Rcomp scalar for every table entry */
-	val |= RCOMP_SCALAR(0x98);
-	intel_de_write(dev_priv, ICL_PORT_TX_DW2_GRP(phy), val);
+	for (ln = 0; ln < 4; ln++) {
+		val = intel_de_read(dev_priv, ICL_PORT_TX_DW2_LN(ln, phy));
+		val &= ~(SWING_SEL_LOWER_MASK | SWING_SEL_UPPER_MASK |
+			 RCOMP_SCALAR_MASK);
+		val |= SWING_SEL_UPPER(trans->entries[level].icl.dw2_swing_sel);
+		val |= SWING_SEL_LOWER(trans->entries[level].icl.dw2_swing_sel);
+		/* Program Rcomp scalar for every table entry */
+		val |= RCOMP_SCALAR(0x98);
+		intel_de_write(dev_priv, ICL_PORT_TX_DW2_LN(ln, phy), val);
+	}
 
 	/* Program PORT_TX_DW4 */
 	/* We cannot write to GRP. It would overwrite individual loadgen. */
@@ -1091,10 +1093,12 @@ static void icl_ddi_combo_vswing_program(struct intel_encoder *encoder,
 	}
 
 	/* Program PORT_TX_DW7 */
-	val = intel_de_read(dev_priv, ICL_PORT_TX_DW7_LN(0, phy));
-	val &= ~N_SCALAR_MASK;
-	val |= N_SCALAR(trans->entries[level].icl.dw7_n_scalar);
-	intel_de_write(dev_priv, ICL_PORT_TX_DW7_GRP(phy), val);
+	for (ln = 0; ln < 4; ln++) {
+		val = intel_de_read(dev_priv, ICL_PORT_TX_DW7_LN(ln, phy));
+		val &= ~N_SCALAR_MASK;
+		val |= N_SCALAR(trans->entries[level].icl.dw7_n_scalar);
+		intel_de_write(dev_priv, ICL_PORT_TX_DW7_LN(ln, phy), val);
+	}
 }
 
 static void icl_combo_phy_set_signal_levels(struct intel_encoder *encoder,
