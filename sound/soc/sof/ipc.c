@@ -267,6 +267,12 @@ static int tx_wait_done(struct snd_sof_ipc *ipc, struct snd_sof_ipc_msg *msg,
 				memcpy(reply_data, msg->reply_data,
 				       msg->reply_size);
 		}
+
+		/* re-enable dumps after successful IPC tx */
+		if (sdev->ipc_dump_printed) {
+			sdev->dbg_dump_printed = false;
+			sdev->ipc_dump_printed = false;
+		}
 	}
 
 	return ret;
