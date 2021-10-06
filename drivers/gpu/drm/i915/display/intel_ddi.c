@@ -1164,7 +1164,6 @@ static void icl_mg_phy_set_signal_levels(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum tc_port tc_port = intel_port_to_tc(dev_priv, encoder->port);
-	int level = intel_ddi_level(encoder, crtc_state, 0);
 	const struct intel_ddi_buf_trans *trans;
 	int n_entries, ln;
 	u32 val;
@@ -1189,11 +1188,17 @@ static void icl_mg_phy_set_signal_levels(struct intel_encoder *encoder,
 
 	/* Program MG_TX_SWINGCTRL with values from vswing table */
 	for (ln = 0; ln < 2; ln++) {
+		int level;
+
+		level = intel_ddi_level(encoder, crtc_state, 2*ln+0);
+
 		val = intel_de_read(dev_priv, MG_TX1_SWINGCTRL(ln, tc_port));
 		val &= ~CRI_TXDEEMPH_OVERRIDE_17_12_MASK;
 		val |= CRI_TXDEEMPH_OVERRIDE_17_12(
 			trans->entries[level].mg.cri_txdeemph_override_17_12);
 		intel_de_write(dev_priv, MG_TX1_SWINGCTRL(ln, tc_port), val);
+
+		level = intel_ddi_level(encoder, crtc_state, 2*ln+1);
 
 		val = intel_de_read(dev_priv, MG_TX2_SWINGCTRL(ln, tc_port));
 		val &= ~CRI_TXDEEMPH_OVERRIDE_17_12_MASK;
@@ -1204,6 +1209,10 @@ static void icl_mg_phy_set_signal_levels(struct intel_encoder *encoder,
 
 	/* Program MG_TX_DRVCTRL with values from vswing table */
 	for (ln = 0; ln < 2; ln++) {
+		int level;
+
+		level = intel_ddi_level(encoder, crtc_state, 2*ln+0);
+
 		val = intel_de_read(dev_priv, MG_TX1_DRVCTRL(ln, tc_port));
 		val &= ~(CRI_TXDEEMPH_OVERRIDE_11_6_MASK |
 			 CRI_TXDEEMPH_OVERRIDE_5_0_MASK);
@@ -1213,6 +1222,8 @@ static void icl_mg_phy_set_signal_levels(struct intel_encoder *encoder,
 				trans->entries[level].mg.cri_txdeemph_override_11_6) |
 			CRI_TXDEEMPH_OVERRIDE_EN;
 		intel_de_write(dev_priv, MG_TX1_DRVCTRL(ln, tc_port), val);
+
+		level = intel_ddi_level(encoder, crtc_state, 2*ln+1);
 
 		val = intel_de_read(dev_priv, MG_TX2_DRVCTRL(ln, tc_port));
 		val &= ~(CRI_TXDEEMPH_OVERRIDE_11_6_MASK |
