@@ -139,6 +139,8 @@ static inline bool is_parallel_16bit_bus(struct v4l2_fwnode_endpoint *ep)
  * Check for conditions that require the IPU to handle the
  * data internally as generic data, aka passthrough mode:
  * - raw bayer media bus formats, or
+ * - BT.656 and BT.1120 (8/10-bit YUV422) data can always be processed
+ *   on-the-fly
  * - the CSI is receiving from a 16-bit parallel bus, or
  * - the CSI is receiving from an 8-bit parallel bus and the incoming
  *   media bus format is other than UYVY8_2X8/YUYV8_2X8.
@@ -147,6 +149,9 @@ static inline bool requires_passthrough(struct v4l2_fwnode_endpoint *ep,
 					struct v4l2_mbus_framefmt *infmt,
 					const struct imx_media_pixfmt *incc)
 {
+	if (ep->bus_type == V4L2_MBUS_BT656) // including BT.1120
+		return 0;
+
 	return incc->bayer || is_parallel_16bit_bus(ep) ||
 		(is_parallel_bus(ep) &&
 		 infmt->code != MEDIA_BUS_FMT_UYVY8_2X8 &&
