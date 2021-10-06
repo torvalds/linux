@@ -3874,6 +3874,9 @@ static void update_psp_stream_config(struct pipe_ctx *pipe_ctx, bool dpms_off)
 	struct cp_psp *cp_psp = &pipe_ctx->stream->ctx->cp_psp;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	struct link_encoder *link_enc = NULL;
+	struct dc_state *state = pipe_ctx->stream->ctx->dc->current_state;
+	struct link_enc_assignment link_enc_assign;
+	int i;
 #endif
 
 	if (cp_psp && cp_psp->funcs.update_stream_config) {
@@ -3887,9 +3890,57 @@ static void update_psp_stream_config(struct pipe_ctx *pipe_ctx, bool dpms_off)
 		config.dig_be = pipe_ctx->stream->link->link_enc_hw_inst;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 		config.stream_enc_idx = pipe_ctx->stream_res.stream_enc->id - ENGINE_ID_DIGA;
-		if (pipe_ctx->stream->link->ep_type == DISPLAY_ENDPOINT_PHY) {
+		
+		if (pipe_ctx->stream->link->ep_type == DISPLAY_ENDPOINT_PHY ||
+				pipe_ctx->stream->link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) {
 			link_enc = pipe_ctx->stream->link->link_enc;
+			config.dio_output_type = pipe_ctx->stream->link->ep_type;
+			config.dio_output_idx = link_enc->transmitter - TRANSMITTER_UNIPHY_A;
+			// Initialize PHY ID with ABCDE - 01234 mapping except when it is B0
 			config.phy_idx = link_enc->transmitter - TRANSMITTER_UNIPHY_A;
+
+			//look up the link_enc_assignment for the current pipe_ctx
+			for (i = 0; i < state->stream_count; i++) {
+				if (pipe_ctx->stream == state->streams[i]) {
+					link_enc_assign = state->res_ctx.link_enc_cfg_ctx.link_enc_assignments[i];
+				}
+			}
+
+			if (pipe_ctx->stream->ctx->dc->enable_c20_dtm_b0)
+				config.dig_be = link_enc_assign.eng_id;
+
+			// Add RegKey to guard B0 implementation
+			if (pipe_ctx->stream->ctx->dc->enable_c20_dtm_b0 && link_enc->ctx->asic_id.hw_internal_rev == YELLOW_CARP_B0) {
+				if (pipe_ctx->stream->link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) {
+					link_enc = pipe_ctx->stream->link->link_enc;
+
+					// enum ID 1-4 maps to DPIA PHY ID 0-3
+					config.phy_idx = link_enc_assign.ep_id.link_id.enum_id - ENUM_ID_1;
+				} else {  // for non DPIA mode over B0, ABCDE maps to 01564
+
+					switch (link_enc->transmitter) {
+					case TRANSMITTER_UNIPHY_A:
+						config.phy_idx = 0;
+						break;
+					case TRANSMITTER_UNIPHY_B:
+						config.phy_idx = 1;
+						break;
+					case TRANSMITTER_UNIPHY_C:
+						config.phy_idx = 5;
+						break;
+					case TRANSMITTER_UNIPHY_D:
+						config.phy_idx = 6;
+						break;
+					case TRANSMITTER_UNIPHY_E:
+						config.phy_idx = 4;
+						break;
+					default:
+						config.phy_idx = 0;
+						break;
+					}
+
+				}
+			}
 		} else if (pipe_ctx->stream->link->dc->res_pool->funcs->link_encs_assign) {
 			link_enc = link_enc_cfg_get_link_enc_used_by_stream(
 					pipe_ctx->stream->ctx->dc,
