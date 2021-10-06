@@ -5,6 +5,7 @@
 #include <linux/iopoll.h>
 #include <linux/slab.h>
 
+#include "ipu3.h"
 #include "ipu3-css.h"
 #include "ipu3-css-fw.h"
 #include "ipu3-css-params.h"
@@ -53,7 +54,6 @@ static const struct imgu_css_format imgu_css_formats[] = {
 		.frame_format = IMGU_ABI_FRAME_FORMAT_NV12,
 		.osys_format = IMGU_ABI_OSYS_FORMAT_NV12,
 		.osys_tiling = IMGU_ABI_OSYS_TILING_NONE,
-		.bytesperpixel_num = 1 * IPU3_CSS_FORMAT_BPP_DEN,
 		.chroma_decim = 4,
 		.width_align = IPU3_UAPI_ISP_VEC_ELEMS,
 		.flags = IPU3_CSS_FORMAT_FL_OUT | IPU3_CSS_FORMAT_FL_VF,
@@ -64,7 +64,6 @@ static const struct imgu_css_format imgu_css_formats[] = {
 		.frame_format = IMGU_ABI_FRAME_FORMAT_RAW_PACKED,
 		.bayer_order = IMGU_ABI_BAYER_ORDER_BGGR,
 		.bit_depth = 10,
-		.bytesperpixel_num = 64,
 		.width_align = 2 * IPU3_UAPI_ISP_VEC_ELEMS,
 		.flags = IPU3_CSS_FORMAT_FL_IN,
 	}, {
@@ -73,7 +72,6 @@ static const struct imgu_css_format imgu_css_formats[] = {
 		.frame_format = IMGU_ABI_FRAME_FORMAT_RAW_PACKED,
 		.bayer_order = IMGU_ABI_BAYER_ORDER_GBRG,
 		.bit_depth = 10,
-		.bytesperpixel_num = 64,
 		.width_align = 2 * IPU3_UAPI_ISP_VEC_ELEMS,
 		.flags = IPU3_CSS_FORMAT_FL_IN,
 	}, {
@@ -82,7 +80,6 @@ static const struct imgu_css_format imgu_css_formats[] = {
 		.frame_format = IMGU_ABI_FRAME_FORMAT_RAW_PACKED,
 		.bayer_order = IMGU_ABI_BAYER_ORDER_GRBG,
 		.bit_depth = 10,
-		.bytesperpixel_num = 64,
 		.width_align = 2 * IPU3_UAPI_ISP_VEC_ELEMS,
 		.flags = IPU3_CSS_FORMAT_FL_IN,
 	}, {
@@ -91,7 +88,6 @@ static const struct imgu_css_format imgu_css_formats[] = {
 		.frame_format = IMGU_ABI_FRAME_FORMAT_RAW_PACKED,
 		.bayer_order = IMGU_ABI_BAYER_ORDER_RGGB,
 		.bit_depth = 10,
-		.bytesperpixel_num = 64,
 		.width_align = 2 * IPU3_UAPI_ISP_VEC_ELEMS,
 		.flags = IPU3_CSS_FORMAT_FL_IN,
 	},
@@ -150,17 +146,8 @@ static int imgu_css_queue_init(struct imgu_css_queue *queue,
 	f->height = ALIGN(clamp_t(u32, f->height,
 				  IPU3_CSS_MIN_RES, IPU3_CSS_MAX_H), 2);
 	queue->width_pad = ALIGN(f->width, queue->css_fmt->width_align);
-	if (queue->css_fmt->frame_format != IMGU_ABI_FRAME_FORMAT_RAW_PACKED)
-		f->plane_fmt[0].bytesperline = DIV_ROUND_UP(queue->width_pad *
-					queue->css_fmt->bytesperpixel_num,
-					IPU3_CSS_FORMAT_BPP_DEN);
-	else
-		/* For packed raw, alignment for bpl is by 50 to the width */
-		f->plane_fmt[0].bytesperline =
-				DIV_ROUND_UP(f->width,
-					     IPU3_CSS_FORMAT_BPP_DEN) *
-					     queue->css_fmt->bytesperpixel_num;
-
+	f->plane_fmt[0].bytesperline =
+		imgu_bytesperline(f->width, queue->css_fmt->frame_format);
 	sizeimage = f->height * f->plane_fmt[0].bytesperline;
 	if (queue->css_fmt->chroma_decim)
 		sizeimage += 2 * sizeimage / queue->css_fmt->chroma_decim;
