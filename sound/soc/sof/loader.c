@@ -791,6 +791,10 @@ int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 
 	init_waitqueue_head(&sdev->boot_wait);
 
+	/* (re-)enable dsp dump */
+	sdev->dbg_dump_printed = false;
+	sdev->ipc_dump_printed = false;
+
 	/* create read-only fw_version debugfs to store boot version info */
 	if (sdev->first_boot) {
 		ret = snd_sof_debugfs_buf_item(sdev, &sdev->fw_version,

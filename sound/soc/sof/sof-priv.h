@@ -33,6 +33,7 @@
 #define SOF_DBG_DISABLE_MULTICORE		BIT(5) /* schedule all pipelines/widgets
 							* on primary core
 							*/
+#define SOF_DBG_PRINT_ALL_DUMPS		BIT(6) /* Print all ipc and dsp dumps */
 
 #define SOF_DBG_DUMP_REGS		BIT(0)
 #define SOF_DBG_DUMP_MBOX		BIT(1)
@@ -421,6 +422,8 @@ struct snd_sof_dev {
 	/* debug */
 	struct dentry *debugfs_root;
 	struct list_head dfsentry_list;
+	bool dbg_dump_printed;
+	bool ipc_dump_printed;
 
 	/* firmware loader */
 	struct snd_dma_buffer dmab;

@@ -827,7 +827,9 @@ void snd_sof_handle_fw_exception(struct snd_sof_dev *sdev)
 	if (IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_RETAIN_DSP_CONTEXT) ||
 	    (sof_core_debug & SOF_DBG_RETAIN_CTX)) {
 		/* should we prevent DSP entering D3 ? */
-		dev_info(sdev->dev, "info: preventing DSP entering D3 state to preserve context\n");
+		if (!sdev->ipc_dump_printed)
+			dev_info(sdev->dev,
+				 "preventing DSP entering D3 state to preserve context\n");
 		pm_runtime_get_noresume(sdev->dev);
 	}
 
