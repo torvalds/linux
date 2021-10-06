@@ -1040,7 +1040,6 @@ static void icl_ddi_combo_vswing_program(struct intel_encoder *encoder,
 					 const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	int level = intel_ddi_level(encoder, crtc_state, 0);
 	const struct intel_ddi_buf_trans *trans;
 	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
 	int n_entries, ln;
@@ -1070,6 +1069,8 @@ static void icl_ddi_combo_vswing_program(struct intel_encoder *encoder,
 
 	/* Program PORT_TX_DW2 */
 	for (ln = 0; ln < 4; ln++) {
+		int level = intel_ddi_level(encoder, crtc_state, ln);
+
 		val = intel_de_read(dev_priv, ICL_PORT_TX_DW2_LN(ln, phy));
 		val &= ~(SWING_SEL_LOWER_MASK | SWING_SEL_UPPER_MASK |
 			 RCOMP_SCALAR_MASK);
@@ -1083,6 +1084,8 @@ static void icl_ddi_combo_vswing_program(struct intel_encoder *encoder,
 	/* Program PORT_TX_DW4 */
 	/* We cannot write to GRP. It would overwrite individual loadgen. */
 	for (ln = 0; ln < 4; ln++) {
+		int level = intel_ddi_level(encoder, crtc_state, ln);
+
 		val = intel_de_read(dev_priv, ICL_PORT_TX_DW4_LN(ln, phy));
 		val &= ~(POST_CURSOR_1_MASK | POST_CURSOR_2_MASK |
 			 CURSOR_COEFF_MASK);
@@ -1094,6 +1097,8 @@ static void icl_ddi_combo_vswing_program(struct intel_encoder *encoder,
 
 	/* Program PORT_TX_DW7 */
 	for (ln = 0; ln < 4; ln++) {
+		int level = intel_ddi_level(encoder, crtc_state, ln);
+
 		val = intel_de_read(dev_priv, ICL_PORT_TX_DW7_LN(ln, phy));
 		val &= ~N_SCALAR_MASK;
 		val |= N_SCALAR(trans->entries[level].icl.dw7_n_scalar);
