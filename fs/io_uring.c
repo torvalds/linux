@@ -317,6 +317,7 @@ struct io_submit_state {
 
 	bool			plug_started;
 	bool			need_plug;
+	unsigned short		submit_nr;
 	struct blk_plug		plug;
 };
 
@@ -7060,7 +7061,7 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		if (state->need_plug && io_op_defs[opcode].plug) {
 			state->plug_started = true;
 			state->need_plug = false;
-			blk_start_plug(&state->plug);
+			blk_start_plug_nr_ios(&state->plug, state->submit_nr);
 		}
 
 		req->file = io_file_get(ctx, req, READ_ONCE(sqe->fd),
@@ -7181,6 +7182,7 @@ static void io_submit_state_start(struct io_submit_state *state,
 {
 	state->plug_started = false;
 	state->need_plug = max_ios > 2;
+	state->submit_nr = max_ios;
 	/* set only head, no need to init link_last in advance */
 	state->link.head = NULL;
 }
