@@ -1574,7 +1574,6 @@ struct intel_dp {
 
 	struct intel_pps pps;
 
-	bool can_mst; /* this port supports mst */
 	bool is_mst;
 	int active_mst_links;
 

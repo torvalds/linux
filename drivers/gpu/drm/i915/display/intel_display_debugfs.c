@@ -7,12 +7,13 @@
 #include <drm/drm_fourcc.h>
 
 #include "i915_debugfs.h"
+#include "intel_de.h"
 #include "intel_display_debugfs.h"
 #include "intel_display_power.h"
-#include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_dmc.h"
 #include "intel_dp.h"
+#include "intel_dp_mst.h"
 #include "intel_drrs.h"
 #include "intel_fbc.h"
 #include "intel_hdcp.h"
@@ -1379,7 +1380,7 @@ static int i915_dp_mst_info(struct seq_file *m, void *unused)
 			continue;
 
 		dig_port = enc_to_dig_port(intel_encoder);
-		if (!dig_port->dp.can_mst)
+		if (!intel_dp_mst_source_support(&dig_port->dp))
 			continue;
 
 		seq_printf(m, "MST Source Port [ENCODER:%d:%s]\n",

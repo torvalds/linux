@@ -977,12 +977,17 @@ intel_dp_mst_encoder_init(struct intel_digital_port *dig_port, int conn_base_id)
 					   dig_port->max_lanes,
 					   max_source_rate,
 					   conn_base_id);
-	if (ret)
+	if (ret) {
+		intel_dp->mst_mgr.cbs = NULL;
 		return ret;
-
-	intel_dp->can_mst = true;
+	}
 
 	return 0;
+}
+
+bool intel_dp_mst_source_support(struct intel_dp *intel_dp)
+{
+	return intel_dp->mst_mgr.cbs;
 }
 
 void
@@ -990,11 +995,13 @@ intel_dp_mst_encoder_cleanup(struct intel_digital_port *dig_port)
 {
 	struct intel_dp *intel_dp = &dig_port->dp;
 
-	if (!intel_dp->can_mst)
+	if (!intel_dp_mst_source_support(intel_dp))
 		return;
 
 	drm_dp_mst_topology_mgr_destroy(&intel_dp->mst_mgr);
 	/* encoders will get killed by normal cleanup */
+
+	intel_dp->mst_mgr.cbs = NULL;
 }
 
 bool intel_dp_mst_is_master_trans(const struct intel_crtc_state *crtc_state)
