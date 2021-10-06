@@ -3927,7 +3927,9 @@ static int exp_debug_feature_changed(bool enabled, struct sock *skip)
 }
 #endif
 
-static int exp_quality_report_feature_changed(bool enabled, struct sock *skip)
+static int exp_quality_report_feature_changed(bool enabled,
+					      struct hci_dev *hdev,
+					      struct sock *skip)
 {
 	struct mgmt_ev_exp_feature_changed ev;
 
@@ -3935,7 +3937,7 @@ static int exp_quality_report_feature_changed(bool enabled, struct sock *skip)
 	memcpy(ev.uuid, quality_report_uuid, 16);
 	ev.flags = cpu_to_le32(enabled ? BIT(0) : 0);
 
-	return mgmt_limited_event(MGMT_EV_EXP_FEATURE_CHANGED, NULL,
+	return mgmt_limited_event(MGMT_EV_EXP_FEATURE_CHANGED, hdev,
 				  &ev, sizeof(ev),
 				  HCI_MGMT_EXP_FEATURE_EVENTS, skip);
 }
@@ -4156,14 +4158,15 @@ static int set_quality_report_func(struct sock *sk, struct hci_dev *hdev,
 				&rp, sizeof(rp));
 
 	if (changed)
-		exp_quality_report_feature_changed(val, sk);
+		exp_quality_report_feature_changed(val, hdev, sk);
 
 unlock_quality_report:
 	hci_req_sync_unlock(hdev);
 	return err;
 }
 
-static int exp_offload_codec_feature_changed(bool enabled, struct sock *skip)
+static int exp_offload_codec_feature_changed(bool enabled, struct hci_dev *hdev,
+					     struct sock *skip)
 {
 	struct mgmt_ev_exp_feature_changed ev;
 
@@ -4171,7 +4174,7 @@ static int exp_offload_codec_feature_changed(bool enabled, struct sock *skip)
 	memcpy(ev.uuid, offload_codecs_uuid, 16);
 	ev.flags = cpu_to_le32(enabled ? BIT(0) : 0);
 
-	return mgmt_limited_event(MGMT_EV_EXP_FEATURE_CHANGED, NULL,
+	return mgmt_limited_event(MGMT_EV_EXP_FEATURE_CHANGED, hdev,
 				  &ev, sizeof(ev),
 				  HCI_MGMT_EXP_FEATURE_EVENTS, skip);
 }
@@ -4229,7 +4232,7 @@ static int set_offload_codec_func(struct sock *sk, struct hci_dev *hdev,
 				&rp, sizeof(rp));
 
 	if (changed)
-		exp_offload_codec_feature_changed(val, sk);
+		exp_offload_codec_feature_changed(val, hdev, sk);
 
 	return err;
 }
