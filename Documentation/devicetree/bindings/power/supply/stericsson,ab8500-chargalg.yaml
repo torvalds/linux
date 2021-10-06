@@ -17,13 +17,17 @@ properties:
   compatible:
     const: stericsson,ab8500-chargalg
 
-  battery:
+  monitored-battery:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: phandle to battery node
 
+  battery:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    deprecated: true
+
 required:
   - compatible
-  - battery
+  - monitored-battery
 
 additionalProperties: false
 
@@ -32,6 +36,6 @@ examples:
     pmic {
       charging-algorithm {
         compatible = "stericsson,ab8500-chargalg";
-        battery = <&ab8500_battery>;
+        monitored-battery = <&ab8500_battery>;
       };
     };
