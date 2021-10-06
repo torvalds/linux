@@ -7081,7 +7081,7 @@ ath11k_mac_op_set_bitrate_mask(struct ieee80211_hw *hw,
 
 		if (!ath11k_mac_validate_vht_he_fixed_rate_settings(ar, band, mask))
 			ath11k_warn(ar->ab,
-				    "could not update fixed rate settings to all peers due to mcs/nss incompaitiblity\n");
+				    "could not update fixed rate settings to all peers due to mcs/nss incompatibility\n");
 		nss = min_t(u32, ar->num_tx_chains,
 			    max(max(ath11k_mac_max_ht_nss(ht_mcs_mask),
 				    ath11k_mac_max_vht_nss(vht_mcs_mask)),
