@@ -1121,8 +1121,6 @@ static int setup_config(struct daemon *daemon)
 #ifndef F_TLOCK
 #define F_TLOCK 2
 
-#include <sys/file.h>
-
 static int lockf(int fd, int cmd, off_t len)
 {
 	if (cmd != F_TLOCK || len != 0)
