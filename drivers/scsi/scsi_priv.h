@@ -116,7 +116,7 @@ extern void scsi_exit_procfs(void);
 #endif /* CONFIG_PROC_FS */
 
 /* scsi_scan.c */
-extern char scsi_scan_type[];
+void scsi_enable_async_suspend(struct device *dev);
 extern int scsi_complete_async_scans(void);
 extern int scsi_scan_host_selected(struct Scsi_Host *, unsigned int,
 				   unsigned int, u64, enum scsi_scan_mode);
@@ -169,8 +169,6 @@ static inline void scsi_autopm_put_target(struct scsi_target *t) {}
 static inline int scsi_autopm_get_host(struct Scsi_Host *h) { return 0; }
 static inline void scsi_autopm_put_host(struct Scsi_Host *h) {}
 #endif /* CONFIG_PM */
-
-extern struct async_domain scsi_sd_pm_domain;
 
 /* scsi_dh.c */
 #ifdef CONFIG_SCSI_DH
