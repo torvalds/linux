@@ -148,6 +148,7 @@ static int test_stat_user_read(int event)
 	__T("failed to mmap evsel", err == 0);
 
 	pc = perf_evsel__mmap_base(evsel, 0, 0);
+	__T("failed to get mmapped address", pc);
 
 #if defined(__i386__) || defined(__x86_64__)
 	__T("userspace counter access not supported", pc->cap_user_rdpmc);
