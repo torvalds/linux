@@ -6975,9 +6975,10 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 {
 	unsigned int sqe_flags;
 	int personality;
+	u8 opcode;
 
 	/* req is partially pre-initialised, see io_preinit_req() */
-	req->opcode = READ_ONCE(sqe->opcode);
+	req->opcode = opcode = READ_ONCE(sqe->opcode);
 	/* same numerical values with corresponding REQ_F_*, safe to copy */
 	req->flags = sqe_flags = READ_ONCE(sqe->flags);
 	req->user_data = READ_ONCE(sqe->user_data);
@@ -6985,14 +6986,16 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	req->fixed_rsrc_refs = NULL;
 	req->task = current;
 
-	if (unlikely(req->opcode >= IORING_OP_LAST))
+	if (unlikely(opcode >= IORING_OP_LAST)) {
+		req->opcode = 0;
 		return -EINVAL;
+	}
 	if (unlikely(sqe_flags & ~SQE_COMMON_FLAGS)) {
 		/* enforce forwards compatibility on users */
 		if (sqe_flags & ~SQE_VALID_FLAGS)
 			return -EINVAL;
 		if ((sqe_flags & IOSQE_BUFFER_SELECT) &&
-		    !io_op_defs[req->opcode].buffer_select)
+		    !io_op_defs[opcode].buffer_select)
 			return -EOPNOTSUPP;
 		if (sqe_flags & IOSQE_IO_DRAIN)
 			io_init_req_drain(req);
@@ -7011,23 +7014,14 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		}
 	}
 
-	personality = READ_ONCE(sqe->personality);
-	if (personality) {
-		req->creds = xa_load(&ctx->personalities, personality);
-		if (!req->creds)
-			return -EINVAL;
-		get_cred(req->creds);
-		req->flags |= REQ_F_CREDS;
-	}
-
-	if (io_op_defs[req->opcode].needs_file) {
+	if (io_op_defs[opcode].needs_file) {
 		struct io_submit_state *state = &ctx->submit_state;
 
 		/*
 		 * Plug now if we have more than 2 IO left after this, and the
 		 * target is potentially a read/write to block based storage.
 		 */
-		if (state->need_plug && io_op_defs[req->opcode].plug) {
+		if (state->need_plug && io_op_defs[opcode].plug) {
 			state->plug_started = true;
 			state->need_plug = false;
 			blk_start_plug(&state->plug);
@@ -7037,6 +7031,15 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 					(sqe_flags & IOSQE_FIXED_FILE));
 		if (unlikely(!req->file))
 			return -EBADF;
+	}
+
+	personality = READ_ONCE(sqe->personality);
+	if (personality) {
+		req->creds = xa_load(&ctx->personalities, personality);
+		if (!req->creds)
+			return -EINVAL;
+		get_cred(req->creds);
+		req->flags |= REQ_F_CREDS;
 	}
 
 	return io_req_prep(req, sqe);
