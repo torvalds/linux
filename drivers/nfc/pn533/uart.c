@@ -123,7 +123,7 @@ static int pn532_dev_down(struct pn533 *dev)
 	return 0;
 }
 
-static struct pn533_phy_ops uart_phy_ops = {
+static const struct pn533_phy_ops uart_phy_ops = {
 	.send_frame = pn532_uart_send_frame,
 	.send_ack = pn532_uart_send_ack,
 	.abort_cmd = pn532_uart_abort_cmd,
