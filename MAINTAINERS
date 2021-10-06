@@ -16374,7 +16374,6 @@ F:	drivers/s390/crypto/vfio_ap_ops.c
 F:	drivers/s390/crypto/vfio_ap_private.h
 
 S390 VFIO-CCW DRIVER
-M:	Cornelia Huck <cohuck@redhat.com>
 M:	Eric Farman <farman@linux.ibm.com>
 M:	Matthew Rosato <mjrosato@linux.ibm.com>
 R:	Halil Pasic <pasic@linux.ibm.com>
