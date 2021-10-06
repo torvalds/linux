@@ -15,6 +15,7 @@ properties:
       - items:
           - enum:
               - elpida,ECB240ABACN
+              - elpida,B8132B2PB-6D-F
           - enum:
               - jedec,lpddr2-s4
       - items:
