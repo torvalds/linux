@@ -1071,14 +1071,11 @@ static void icl_ddi_combo_vswing_program(struct intel_encoder *encoder,
 	for (ln = 0; ln < 4; ln++) {
 		int level = intel_ddi_level(encoder, crtc_state, ln);
 
-		val = intel_de_read(dev_priv, ICL_PORT_TX_DW2_LN(ln, phy));
-		val &= ~(SWING_SEL_LOWER_MASK | SWING_SEL_UPPER_MASK |
-			 RCOMP_SCALAR_MASK);
-		val |= SWING_SEL_UPPER(trans->entries[level].icl.dw2_swing_sel);
-		val |= SWING_SEL_LOWER(trans->entries[level].icl.dw2_swing_sel);
-		/* Program Rcomp scalar for every table entry */
-		val |= RCOMP_SCALAR(0x98);
-		intel_de_write(dev_priv, ICL_PORT_TX_DW2_LN(ln, phy), val);
+		intel_de_rmw(dev_priv, ICL_PORT_TX_DW2_LN(ln, phy),
+			     SWING_SEL_UPPER_MASK | SWING_SEL_LOWER_MASK | RCOMP_SCALAR_MASK,
+			     SWING_SEL_UPPER(trans->entries[level].icl.dw2_swing_sel) |
+			     SWING_SEL_LOWER(trans->entries[level].icl.dw2_swing_sel) |
+			     RCOMP_SCALAR(0x98));
 	}
 
 	/* Program PORT_TX_DW4 */
@@ -1086,23 +1083,20 @@ static void icl_ddi_combo_vswing_program(struct intel_encoder *encoder,
 	for (ln = 0; ln < 4; ln++) {
 		int level = intel_ddi_level(encoder, crtc_state, ln);
 
-		val = intel_de_read(dev_priv, ICL_PORT_TX_DW4_LN(ln, phy));
-		val &= ~(POST_CURSOR_1_MASK | POST_CURSOR_2_MASK |
-			 CURSOR_COEFF_MASK);
-		val |= POST_CURSOR_1(trans->entries[level].icl.dw4_post_cursor_1);
-		val |= POST_CURSOR_2(trans->entries[level].icl.dw4_post_cursor_2);
-		val |= CURSOR_COEFF(trans->entries[level].icl.dw4_cursor_coeff);
-		intel_de_write(dev_priv, ICL_PORT_TX_DW4_LN(ln, phy), val);
+		intel_de_rmw(dev_priv, ICL_PORT_TX_DW4_LN(ln, phy),
+			     POST_CURSOR_1_MASK | POST_CURSOR_2_MASK | CURSOR_COEFF_MASK,
+			     POST_CURSOR_1(trans->entries[level].icl.dw4_post_cursor_1) |
+			     POST_CURSOR_2(trans->entries[level].icl.dw4_post_cursor_2) |
+			     CURSOR_COEFF(trans->entries[level].icl.dw4_cursor_coeff));
 	}
 
 	/* Program PORT_TX_DW7 */
 	for (ln = 0; ln < 4; ln++) {
 		int level = intel_ddi_level(encoder, crtc_state, ln);
 
-		val = intel_de_read(dev_priv, ICL_PORT_TX_DW7_LN(ln, phy));
-		val &= ~N_SCALAR_MASK;
-		val |= N_SCALAR(trans->entries[level].icl.dw7_n_scalar);
-		intel_de_write(dev_priv, ICL_PORT_TX_DW7_LN(ln, phy), val);
+		intel_de_rmw(dev_priv, ICL_PORT_TX_DW7_LN(ln, phy),
+			     N_SCALAR_MASK,
+			     N_SCALAR(trans->entries[level].icl.dw7_n_scalar));
 	}
 }
 
@@ -1134,16 +1128,14 @@ static void icl_combo_phy_set_signal_levels(struct intel_encoder *encoder,
 	 * > 6 GHz (LN0=0, LN1=0, LN2=0, LN3=0)
 	 */
 	for (ln = 0; ln < 4; ln++) {
-		val = intel_de_read(dev_priv, ICL_PORT_TX_DW4_LN(ln, phy));
-		val &= ~LOADGEN_SELECT;
-		val |= icl_combo_phy_loadgen_select(crtc_state, ln);
-		intel_de_write(dev_priv, ICL_PORT_TX_DW4_LN(ln, phy), val);
+		intel_de_rmw(dev_priv, ICL_PORT_TX_DW4_LN(ln, phy),
+			     LOADGEN_SELECT,
+			     icl_combo_phy_loadgen_select(crtc_state, ln));
 	}
 
 	/* 3. Set PORT_CL_DW5 SUS Clock Config to 11b */
-	val = intel_de_read(dev_priv, ICL_PORT_CL_DW5(phy));
-	val |= SUS_CLOCK_CONFIG;
-	intel_de_write(dev_priv, ICL_PORT_CL_DW5(phy), val);
+	intel_de_rmw(dev_priv, ICL_PORT_CL_DW5(phy),
+		     0, SUS_CLOCK_CONFIG);
 
 	/* 4. Clear training enable to change swing values */
 	val = intel_de_read(dev_priv, ICL_PORT_TX_DW5_LN(0, phy));
