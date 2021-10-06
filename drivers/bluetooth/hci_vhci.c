@@ -38,6 +38,7 @@ struct vhci_data {
 
 	struct mutex open_mutex;
 	struct delayed_work open_timeout;
+	struct work_struct suspend_work;
 
 	bool suspended;
 	bool wakeup;
@@ -114,6 +115,17 @@ static ssize_t force_suspend_read(struct file *file, char __user *user_buf,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
 }
 
+static void vhci_suspend_work(struct work_struct *work)
+{
+	struct vhci_data *data = container_of(work, struct vhci_data,
+					      suspend_work);
+
+	if (data->suspended)
+		hci_suspend_dev(data->hdev);
+	else
+		hci_resume_dev(data->hdev);
+}
+
 static ssize_t force_suspend_write(struct file *file,
 				   const char __user *user_buf,
 				   size_t count, loff_t *ppos)
@@ -129,15 +141,9 @@ static ssize_t force_suspend_write(struct file *file,
 	if (data->suspended == enable)
 		return -EALREADY;
 
-	if (enable)
-		err = hci_suspend_dev(data->hdev);
-	else
-		err = hci_resume_dev(data->hdev);
-
-	if (err)
-		return err;
-
 	data->suspended = enable;
+
+	schedule_work(&data->suspend_work);
 
 	return count;
 }
@@ -440,6 +446,7 @@ static int vhci_open(struct inode *inode, struct file *file)
 
 	mutex_init(&data->open_mutex);
 	INIT_DELAYED_WORK(&data->open_timeout, vhci_open_timeout);
+	INIT_WORK(&data->suspend_work, vhci_suspend_work);
 
 	file->private_data = data;
 	nonseekable_open(inode, file);
@@ -455,6 +462,7 @@ static int vhci_release(struct inode *inode, struct file *file)
 	struct hci_dev *hdev;
 
 	cancel_delayed_work_sync(&data->open_timeout);
+	flush_work(&data->suspend_work);
 
 	hdev = data->hdev;
 
