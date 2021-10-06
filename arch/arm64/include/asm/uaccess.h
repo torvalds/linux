@@ -196,13 +196,13 @@ static inline void __uaccess_enable_tco(void)
  */
 static inline void __uaccess_disable_tco_async(void)
 {
-	if (system_uses_mte_async_mode())
+	if (system_uses_mte_async_or_asymm_mode())
 		 __uaccess_disable_tco();
 }
 
 static inline void __uaccess_enable_tco_async(void)
 {
-	if (system_uses_mte_async_mode())
+	if (system_uses_mte_async_or_asymm_mode())
 		__uaccess_enable_tco();
 }
 

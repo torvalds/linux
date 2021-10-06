@@ -26,9 +26,12 @@
 static DEFINE_PER_CPU_READ_MOSTLY(u64, mte_tcf_preferred);
 
 #ifdef CONFIG_KASAN_HW_TAGS
-/* Whether the MTE asynchronous mode is enabled. */
-DEFINE_STATIC_KEY_FALSE(mte_async_mode);
-EXPORT_SYMBOL_GPL(mte_async_mode);
+/*
+ * The asynchronous and asymmetric MTE modes have the same behavior for
+ * store operations. This flag is set when either of these modes is enabled.
+ */
+DEFINE_STATIC_KEY_FALSE(mte_async_or_asymm_mode);
+EXPORT_SYMBOL_GPL(mte_async_or_asymm_mode);
 #endif
 
 static void mte_sync_page_tags(struct page *page, pte_t old_pte,
@@ -116,7 +119,7 @@ void mte_enable_kernel_sync(void)
 	 * Make sure we enter this function when no PE has set
 	 * async mode previously.
 	 */
-	WARN_ONCE(system_uses_mte_async_mode(),
+	WARN_ONCE(system_uses_mte_async_or_asymm_mode(),
 			"MTE async mode enabled system wide!");
 
 	__mte_enable_kernel("synchronous", SCTLR_ELx_TCF_SYNC);
@@ -134,8 +137,34 @@ void mte_enable_kernel_async(void)
 	 * mode in between sync and async, this strategy needs
 	 * to be reviewed.
 	 */
-	if (!system_uses_mte_async_mode())
-		static_branch_enable(&mte_async_mode);
+	if (!system_uses_mte_async_or_asymm_mode())
+		static_branch_enable(&mte_async_or_asymm_mode);
+}
+
+void mte_enable_kernel_asymm(void)
+{
+	if (cpus_have_cap(ARM64_MTE_ASYMM)) {
+		__mte_enable_kernel("asymmetric", SCTLR_ELx_TCF_ASYMM);
+
+		/*
+		 * MTE asymm mode behaves as async mode for store
+		 * operations. The mode is set system wide by the
+		 * first PE that executes this function.
+		 *
+		 * Note: If in future KASAN acquires a runtime switching
+		 * mode in between sync and async, this strategy needs
+		 * to be reviewed.
+		 */
+		if (!system_uses_mte_async_or_asymm_mode())
+			static_branch_enable(&mte_async_or_asymm_mode);
+	} else {
+		/*
+		 * If the CPU does not support MTE asymmetric mode the
+		 * kernel falls back on synchronous mode which is the
+		 * default for kasan=on.
+		 */
+		mte_enable_kernel_sync();
+	}
 }
 #endif
 
