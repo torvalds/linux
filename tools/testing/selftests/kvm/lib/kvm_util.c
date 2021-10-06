@@ -1792,7 +1792,7 @@ void vcpu_sregs_get(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_sregs *sregs)
 void vcpu_sregs_set(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_sregs *sregs)
 {
 	int ret = _vcpu_sregs_set(vm, vcpuid, sregs);
-	TEST_ASSERT(ret == 0, "KVM_RUN IOCTL failed, "
+	TEST_ASSERT(ret == 0, "KVM_SET_SREGS IOCTL failed, "
 		"rc: %i errno: %i", ret, errno);
 }
 
