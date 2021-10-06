@@ -494,48 +494,47 @@ restart:
 	list_for_each_entry_safe(gh, tmp, &gl->gl_holders, gh_list) {
 		if (!test_bit(HIF_WAIT, &gh->gh_iflags))
 			continue;
-		if (may_grant(gl, first_gh, gh)) {
-			if (!incompat_holders_demoted) {
-				demote_incompat_holders(gl, first_gh);
-				incompat_holders_demoted = true;
-				first_gh = gh;
-			}
-			if (gh->gh_list.prev == &gl->gl_holders &&
-			    glops->go_instantiate) {
-				if (!(gh->gh_flags & GL_SKIP)) {
-					spin_unlock(&gl->gl_lockref.lock);
-					/* FIXME: eliminate this eventually */
-					ret = glops->go_instantiate(gh);
-					spin_lock(&gl->gl_lockref.lock);
-					if (ret) {
-						if (ret == 1)
-							return 2;
-						gh->gh_error = ret;
-						list_del_init(&gh->gh_list);
-						trace_gfs2_glock_queue(gh, 0);
-						gfs2_holder_wake(gh);
-						goto restart;
-					}
+		if (!may_grant(gl, first_gh, gh)) {
+			/*
+			 * If we get here, it means we may not grant this holder for
+			 * some reason. If this holder is the head of the list, it
+			 * means we have a blocked holder at the head, so return 1.
+			 */
+			if (gh->gh_list.prev == &gl->gl_holders)
+				return 1;
+			do_error(gl, 0);
+			break;
+		}
+		if (!incompat_holders_demoted) {
+			demote_incompat_holders(gl, first_gh);
+			incompat_holders_demoted = true;
+			first_gh = gh;
+		}
+		if (gh->gh_list.prev == &gl->gl_holders &&
+		    glops->go_instantiate) {
+			if (!(gh->gh_flags & GL_SKIP)) {
+				spin_unlock(&gl->gl_lockref.lock);
+				/* FIXME: eliminate this eventually */
+				ret = glops->go_instantiate(gh);
+				spin_lock(&gl->gl_lockref.lock);
+				if (ret) {
+					if (ret == 1)
+						return 2;
+					gh->gh_error = ret;
+					list_del_init(&gh->gh_list);
+					trace_gfs2_glock_queue(gh, 0);
+					gfs2_holder_wake(gh);
+					goto restart;
 				}
-				set_bit(HIF_HOLDER, &gh->gh_iflags);
-				trace_gfs2_promote(gh);
-				gfs2_holder_wake(gh);
-				goto restart;
 			}
 			set_bit(HIF_HOLDER, &gh->gh_iflags);
 			trace_gfs2_promote(gh);
 			gfs2_holder_wake(gh);
-			continue;
+			goto restart;
 		}
-		/*
-		 * If we get here, it means we may not grant this holder for
-		 * some reason. If this holder is the head of the list, it
-		 * means we have a blocked holder at the head, so return 1.
-		 */
-		if (gh->gh_list.prev == &gl->gl_holders)
-			return 1;
-		do_error(gl, 0);
-		break;
+		set_bit(HIF_HOLDER, &gh->gh_iflags);
+		trace_gfs2_promote(gh);
+		gfs2_holder_wake(gh);
 	}
 	return 0;
 }
