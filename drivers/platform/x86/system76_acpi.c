@@ -13,6 +13,7 @@
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/init.h>
+#include <linux/input.h>
 #include <linux/kernel.h>
 #include <linux/leds.h>
 #include <linux/module.h>
@@ -29,6 +30,7 @@ struct system76_data {
 	struct device *therm;
 	union acpi_object *nfan;
 	union acpi_object *ntmp;
+	struct input_dev *input;
 };
 
 static const struct acpi_device_id device_ids[] = {
@@ -463,6 +465,15 @@ static const struct hwmon_chip_info thermal_chip_info = {
 	.info = thermal_channel_info,
 };
 
+static void input_key(struct system76_data *data, unsigned int code)
+{
+	input_report_key(data->input, code, 1);
+	input_sync(data->input);
+
+	input_report_key(data->input, code, 0);
+	input_sync(data->input);
+}
+
 // Handle ACPI notification
 static void system76_notify(struct acpi_device *acpi_dev, u32 event)
 {
@@ -484,6 +495,9 @@ static void system76_notify(struct acpi_device *acpi_dev, u32 event)
 		break;
 	case 0x84:
 		kb_led_hotkey_color(data);
+		break;
+	case 0x85:
+		input_key(data, KEY_SCREENLOCK);
 		break;
 	}
 }
@@ -539,6 +553,20 @@ static int system76_add(struct acpi_device *acpi_dev)
 			return err;
 	}
 
+	data->input = devm_input_allocate_device(&acpi_dev->dev);
+	if (!data->input)
+		return -ENOMEM;
+
+	data->input->name = "System76 ACPI Hotkeys";
+	data->input->phys = "system76_acpi/input0";
+	data->input->id.bustype = BUS_HOST;
+	data->input->dev.parent = &acpi_dev->dev;
+	input_set_capability(data->input, EV_KEY, KEY_SCREENLOCK);
+
+	err = input_register_device(data->input);
+	if (err)
+		goto error;
+
 	err = system76_get_object(data, "NFAN", &data->nfan);
 	if (err)
 		goto error;
@@ -558,6 +586,7 @@ static int system76_add(struct acpi_device *acpi_dev)
 error:
 	kfree(data->ntmp);
 	kfree(data->nfan);
+	input_free_device(data->input);
 	return err;
 }
 
