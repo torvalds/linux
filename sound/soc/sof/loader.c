@@ -819,7 +819,9 @@ int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 	/* boot the firmware on the DSP */
 	ret = snd_sof_dsp_run(sdev);
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: failed to reset DSP\n");
+		dev_err(sdev->dev, "error: failed to start DSP\n");
+		snd_sof_dsp_dbg_dump(sdev, SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_MBOX |
+				     SOF_DBG_DUMP_PCI | SOF_DBG_DUMP_FORCE_ERR_LEVEL);
 		return ret;
 	}
 
