@@ -444,6 +444,11 @@ static int hns3_nic_net_open(struct net_device *netdev)
 	if (hns3_nic_resetting(netdev))
 		return -EBUSY;
 
+	if (!test_bit(HNS3_NIC_STATE_DOWN, &priv->state)) {
+		netdev_warn(netdev, "net open repeatedly!\n");
+		return 0;
+	}
+
 	netif_carrier_off(netdev);
 
 	ret = hns3_nic_set_real_num_queue(netdev);

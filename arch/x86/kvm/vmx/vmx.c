@@ -1867,10 +1867,11 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 				    &msr_info->data))
 			return 1;
 		/*
-		 * Enlightened VMCS v1 doesn't have certain fields, but buggy
-		 * Hyper-V versions are still trying to use corresponding
-		 * features when they are exposed. Filter out the essential
-		 * minimum.
+		 * Enlightened VMCS v1 doesn't have certain VMCS fields but
+		 * instead of just ignoring the features, different Hyper-V
+		 * versions are either trying to use them and fail or do some
+		 * sanity checking and refuse to boot. Filter all unsupported
+		 * features out.
 		 */
 		if (!msr_info->host_initiated &&
 		    vmx->nested.enlightened_vmcs_enabled)
