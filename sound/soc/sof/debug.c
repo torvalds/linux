@@ -824,11 +824,16 @@ EXPORT_SYMBOL_GPL(snd_sof_free_debug);
 
 void snd_sof_dsp_dbg_dump(struct snd_sof_dev *sdev, u32 flags)
 {
+	bool print_all = !!(sof_core_debug & SOF_DBG_PRINT_ALL_DUMPS);
+
+	if (flags & SOF_DBG_DUMP_OPTIONAL && !print_all)
+		return;
+
 	if (sof_ops(sdev)->dbg_dump && !sdev->dbg_dump_printed) {
 		dev_err(sdev->dev, "------------[ DSP dump start ]------------\n");
 		sof_ops(sdev)->dbg_dump(sdev, flags);
 		dev_err(sdev->dev, "------------[ DSP dump end ]------------\n");
-		if (!(sof_core_debug & SOF_DBG_PRINT_ALL_DUMPS))
+		if (!print_all)
 			sdev->dbg_dump_printed = true;
 	}
 }
