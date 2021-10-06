@@ -301,7 +301,10 @@ static u8 intel_dp_phy_preemph_max(struct intel_dp *intel_dp,
 static bool has_per_lane_signal_levels(struct intel_dp *intel_dp,
 				       enum drm_dp_phy dp_phy)
 {
-	return !intel_dp_phy_is_downstream_of_source(intel_dp, dp_phy);
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+
+	return !intel_dp_phy_is_downstream_of_source(intel_dp, dp_phy) ||
+		DISPLAY_VER(i915) >= 11;
 }
 
 /* 128b/132b */
