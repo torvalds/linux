@@ -13112,7 +13112,8 @@ static int do_misc_fixups(struct bpf_verifier_env *env)
 		     insn->imm == BPF_FUNC_map_push_elem   ||
 		     insn->imm == BPF_FUNC_map_pop_elem    ||
 		     insn->imm == BPF_FUNC_map_peek_elem   ||
-		     insn->imm == BPF_FUNC_redirect_map)) {
+		     insn->imm == BPF_FUNC_redirect_map    ||
+		     insn->imm == BPF_FUNC_for_each_map_elem)) {
 			aux = &env->insn_aux_data[i + delta];
 			if (bpf_map_ptr_poisoned(aux))
 				goto patch_call_imm;
@@ -13156,6 +13157,11 @@ static int do_misc_fixups(struct bpf_verifier_env *env)
 				     (int (*)(struct bpf_map *map, void *value))NULL));
 			BUILD_BUG_ON(!__same_type(ops->map_redirect,
 				     (int (*)(struct bpf_map *map, u32 ifindex, u64 flags))NULL));
+			BUILD_BUG_ON(!__same_type(ops->map_for_each_callback,
+				     (int (*)(struct bpf_map *map,
+					      bpf_callback_t callback_fn,
+					      void *callback_ctx,
+					      u64 flags))NULL));
 
 patch_map_ops_generic:
 			switch (insn->imm) {
@@ -13179,6 +13185,9 @@ patch_map_ops_generic:
 				continue;
 			case BPF_FUNC_redirect_map:
 				insn->imm = BPF_CALL_IMM(ops->map_redirect);
+				continue;
+			case BPF_FUNC_for_each_map_elem:
+				insn->imm = BPF_CALL_IMM(ops->map_for_each_callback);
 				continue;
 			}
 
