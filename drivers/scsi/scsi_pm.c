@@ -66,71 +66,30 @@ static int scsi_dev_type_suspend(struct device *dev,
 	return err;
 }
 
-static int scsi_dev_type_resume(struct device *dev,
-		int (*cb)(struct device *, const struct dev_pm_ops *))
-{
-	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
-	int err = 0;
-
-	err = cb(dev, pm);
-	scsi_device_resume(to_scsi_device(dev));
-	dev_dbg(dev, "scsi resume: %d\n", err);
-
-	if (err == 0) {
-		pm_runtime_disable(dev);
-		err = pm_runtime_set_active(dev);
-		pm_runtime_enable(dev);
-
-		/*
-		 * Forcibly set runtime PM status of request queue to "active"
-		 * to make sure we can again get requests from the queue
-		 * (see also blk_pm_peek_request()).
-		 *
-		 * The resume hook will correct runtime PM status of the disk.
-		 */
-		if (!err && scsi_is_sdev_device(dev)) {
-			struct scsi_device *sdev = to_scsi_device(dev);
-
-			blk_set_runtime_active(sdev->request_queue);
-		}
-	}
-
-	return err;
-}
-
 static int
 scsi_bus_suspend_common(struct device *dev,
 		int (*cb)(struct device *, const struct dev_pm_ops *))
 {
-	int err = 0;
+	if (!scsi_is_sdev_device(dev))
+		return 0;
 
-	if (scsi_is_sdev_device(dev)) {
-		/*
-		 * All the high-level SCSI drivers that implement runtime
-		 * PM treat runtime suspend, system suspend, and system
-		 * hibernate nearly identically. In all cases the requirements
-		 * for runtime suspension are stricter.
-		 */
-		if (pm_runtime_suspended(dev))
-			return 0;
-
-		err = scsi_dev_type_suspend(dev, cb);
-	}
-
-	return err;
+	return scsi_dev_type_suspend(dev, cb);
 }
 
 static int scsi_bus_resume_common(struct device *dev,
 		int (*cb)(struct device *, const struct dev_pm_ops *))
 {
-	if (scsi_is_sdev_device(dev)) {
-		scsi_dev_type_resume(dev, cb);
-	} else {
-		pm_runtime_disable(dev);
-		pm_runtime_set_active(dev);
-		pm_runtime_enable(dev);
-	}
-	return 0;
+	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
+	int err;
+
+	if (!scsi_is_sdev_device(dev))
+		return 0;
+
+	err = cb(dev, pm);
+	scsi_device_resume(to_scsi_device(dev));
+	dev_dbg(dev, "scsi resume: %d\n", err);
+
+	return err;
 }
 
 static int scsi_bus_prepare(struct device *dev)
