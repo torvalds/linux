@@ -224,7 +224,7 @@ static int pn532_receive_buf(struct serdev_device *serdev,
 	return i;
 }
 
-static struct serdev_device_ops pn532_serdev_ops = {
+static const struct serdev_device_ops pn532_serdev_ops = {
 	.receive_buf = pn532_receive_buf,
 	.write_wakeup = serdev_device_write_wakeup,
 };
