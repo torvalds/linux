@@ -180,14 +180,9 @@ err:
 	flags = SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_PCI | SOF_DBG_DUMP_MBOX |
 		SOF_DBG_DUMP_OPTIONAL;
 
-	/*
-	 * after max boot attempts make sure that the dump is printed and error
-	 * log level is used
-	 */
-	if (hda->boot_iteration == HDA_FW_BOOT_ATTEMPTS) {
-		flags |= SOF_DBG_DUMP_FORCE_ERR_LEVEL;
+	/* after max boot attempts make sure that the dump is printed */
+	if (hda->boot_iteration == HDA_FW_BOOT_ATTEMPTS)
 		flags &= ~SOF_DBG_DUMP_OPTIONAL;
-	}
 
 	snd_sof_dsp_dbg_dump(sdev, flags);
 	snd_sof_dsp_core_power_down(sdev, chip->host_managed_cores_mask);
@@ -421,7 +416,7 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 		dev_dbg(sdev->dev, "Firmware download successful, booting...\n");
 	} else {
 		snd_sof_dsp_dbg_dump(sdev, SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_PCI |
-				     SOF_DBG_DUMP_MBOX | SOF_DBG_DUMP_FORCE_ERR_LEVEL);
+				     SOF_DBG_DUMP_MBOX);
 		dev_err(sdev->dev, "error: load fw failed ret: %d\n", ret);
 	}
 
