@@ -1023,6 +1023,18 @@ static u8 intel_ddi_dp_preemph_max(struct intel_dp *intel_dp)
 	return DP_TRAIN_PRE_EMPH_LEVEL_3;
 }
 
+static u32 icl_combo_phy_loadgen_select(const struct intel_crtc_state *crtc_state,
+					int lane)
+{
+	if (crtc_state->port_clock > 600000)
+		return 0;
+
+	if (crtc_state->lane_count == 4)
+		return lane >= 1 ? LOADGEN_SELECT : 0;
+	else
+		return lane == 1 || lane == 2 ? LOADGEN_SELECT : 0;
+}
+
 static void icl_ddi_combo_vswing_program(struct intel_encoder *encoder,
 					 const struct intel_crtc_state *crtc_state)
 {
@@ -1089,11 +1101,8 @@ static void icl_combo_phy_set_signal_levels(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
-	int width, rate, ln;
 	u32 val;
-
-	width = crtc_state->lane_count;
-	rate = crtc_state->port_clock;
+	int ln;
 
 	/*
 	 * 1. If port type is eDP or DP,
@@ -1117,11 +1126,7 @@ static void icl_combo_phy_set_signal_levels(struct intel_encoder *encoder,
 	for (ln = 0; ln < 4; ln++) {
 		val = intel_de_read(dev_priv, ICL_PORT_TX_DW4_LN(ln, phy));
 		val &= ~LOADGEN_SELECT;
-
-		if ((rate <= 600000 && width == 4 && ln >= 1) ||
-		    (rate <= 600000 && width < 4 && (ln == 1 || ln == 2))) {
-			val |= LOADGEN_SELECT;
-		}
+		val |= icl_combo_phy_loadgen_select(crtc_state, ln);
 		intel_de_write(dev_priv, ICL_PORT_TX_DW4_LN(ln, phy), val);
 	}
 
