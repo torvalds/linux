@@ -2187,14 +2187,20 @@ void msm_dsi_host_cmd_xfer_commit(struct mipi_dsi_host *host, u32 dma_base,
 	wmb();
 }
 
+void msm_dsi_host_set_phy_mode(struct mipi_dsi_host *host,
+	struct msm_dsi_phy *src_phy)
+{
+	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
+
+	msm_host->cphy_mode = src_phy->cphy_mode;
+}
+
 int msm_dsi_host_set_src_pll(struct mipi_dsi_host *host,
 	struct msm_dsi_phy *src_phy)
 {
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
 	struct clk *byte_clk_provider, *pixel_clk_provider;
 	int ret;
-
-	msm_host->cphy_mode = src_phy->cphy_mode;
 
 	ret = msm_dsi_phy_get_clk_provider(src_phy,
 				&byte_clk_provider, &pixel_clk_provider);
