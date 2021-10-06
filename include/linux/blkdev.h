@@ -722,10 +722,17 @@ extern void blk_set_queue_dying(struct request_queue *);
  */
 struct blk_plug {
 	struct list_head mq_list; /* blk-mq requests */
-	struct list_head cb_list; /* md requires an unplug callback */
+
+	/* if ios_left is > 1, we can batch tag/rq allocations */
+	struct request *cached_rq;
+	unsigned short nr_ios;
+
 	unsigned short rq_count;
+
 	bool multiple_queues;
 	bool nowait;
+
+	struct list_head cb_list; /* md requires an unplug callback */
 };
 
 struct blk_plug_cb;
@@ -738,6 +745,7 @@ struct blk_plug_cb {
 extern struct blk_plug_cb *blk_check_plugged(blk_plug_cb_fn unplug,
 					     void *data, int size);
 extern void blk_start_plug(struct blk_plug *);
+extern void blk_start_plug_nr_ios(struct blk_plug *, unsigned short);
 extern void blk_finish_plug(struct blk_plug *);
 extern void blk_flush_plug_list(struct blk_plug *, bool);
 
@@ -771,6 +779,11 @@ long nr_blockdev_pages(void);
 #else /* CONFIG_BLOCK */
 struct blk_plug {
 };
+
+static inline void blk_start_plug_nr_ios(struct blk_plug *plug,
+					 unsigned short nr_ios)
+{
+}
 
 static inline void blk_start_plug(struct blk_plug *plug)
 {

@@ -359,6 +359,7 @@ static struct request *__blk_mq_alloc_request(struct blk_mq_alloc_data *data)
 	struct request_queue *q = data->q;
 	struct elevator_queue *e = q->elevator;
 	u64 alloc_time_ns = 0;
+	struct request *rq;
 	unsigned int tag;
 
 	/* alloc_time includes depth and tag waits */
@@ -392,10 +393,21 @@ retry:
 	 * case just retry the hctx assignment and tag allocation as CPU hotplug
 	 * should have migrated us to an online CPU by now.
 	 */
-	tag = blk_mq_get_tag(data);
-	if (tag == BLK_MQ_NO_TAG) {
+	do {
+		tag = blk_mq_get_tag(data);
+		if (tag != BLK_MQ_NO_TAG) {
+			rq = blk_mq_rq_ctx_init(data, tag, alloc_time_ns);
+			if (!--data->nr_tags)
+				return rq;
+			if (e || data->hctx->flags & BLK_MQ_F_TAG_QUEUE_SHARED)
+				return rq;
+			rq->rq_next = *data->cached_rq;
+			*data->cached_rq = rq;
+			data->flags |= BLK_MQ_REQ_NOWAIT;
+			continue;
+		}
 		if (data->flags & BLK_MQ_REQ_NOWAIT)
-			return NULL;
+			break;
 
 		/*
 		 * Give up the CPU and sleep for a random short time to ensure
@@ -404,8 +416,15 @@ retry:
 		 */
 		msleep(3);
 		goto retry;
+	} while (1);
+
+	if (data->cached_rq) {
+		rq = *data->cached_rq;
+		*data->cached_rq = rq->rq_next;
+		return rq;
 	}
-	return blk_mq_rq_ctx_init(data, tag, alloc_time_ns);
+
+	return NULL;
 }
 
 struct request *blk_mq_alloc_request(struct request_queue *q, unsigned int op,
@@ -415,6 +434,7 @@ struct request *blk_mq_alloc_request(struct request_queue *q, unsigned int op,
 		.q		= q,
 		.flags		= flags,
 		.cmd_flags	= op,
+		.nr_tags	= 1,
 	};
 	struct request *rq;
 	int ret;
@@ -443,6 +463,7 @@ struct request *blk_mq_alloc_request_hctx(struct request_queue *q,
 		.q		= q,
 		.flags		= flags,
 		.cmd_flags	= op,
+		.nr_tags	= 1,
 	};
 	u64 alloc_time_ns = 0;
 	unsigned int cpu;
@@ -543,6 +564,18 @@ void blk_mq_free_request(struct request *rq)
 		__blk_mq_free_request(rq);
 }
 EXPORT_SYMBOL_GPL(blk_mq_free_request);
+
+void blk_mq_free_plug_rqs(struct blk_plug *plug)
+{
+	while (plug->cached_rq) {
+		struct request *rq;
+
+		rq = plug->cached_rq;
+		plug->cached_rq = rq->rq_next;
+		percpu_ref_get(&rq->q->q_usage_counter);
+		blk_mq_free_request(rq);
+	}
+}
 
 inline void __blk_mq_end_request(struct request *rq, blk_status_t error)
 {
@@ -2185,6 +2218,7 @@ blk_qc_t blk_mq_submit_bio(struct bio *bio)
 	const int is_flush_fua = op_is_flush(bio->bi_opf);
 	struct blk_mq_alloc_data data = {
 		.q		= q,
+		.nr_tags	= 1,
 	};
 	struct request *rq;
 	struct blk_plug *plug;
@@ -2211,13 +2245,26 @@ blk_qc_t blk_mq_submit_bio(struct bio *bio)
 
 	hipri = bio->bi_opf & REQ_HIPRI;
 
-	data.cmd_flags = bio->bi_opf;
-	rq = __blk_mq_alloc_request(&data);
-	if (unlikely(!rq)) {
-		rq_qos_cleanup(q, bio);
-		if (bio->bi_opf & REQ_NOWAIT)
-			bio_wouldblock_error(bio);
-		goto queue_exit;
+	plug = blk_mq_plug(q, bio);
+	if (plug && plug->cached_rq) {
+		rq = plug->cached_rq;
+		plug->cached_rq = rq->rq_next;
+		INIT_LIST_HEAD(&rq->queuelist);
+		data.hctx = rq->mq_hctx;
+	} else {
+		data.cmd_flags = bio->bi_opf;
+		if (plug) {
+			data.nr_tags = plug->nr_ios;
+			plug->nr_ios = 1;
+			data.cached_rq = &plug->cached_rq;
+		}
+		rq = __blk_mq_alloc_request(&data);
+		if (unlikely(!rq)) {
+			rq_qos_cleanup(q, bio);
+			if (bio->bi_opf & REQ_NOWAIT)
+				bio_wouldblock_error(bio);
+			goto queue_exit;
+		}
 	}
 
 	trace_block_getrq(bio);
@@ -2236,7 +2283,6 @@ blk_qc_t blk_mq_submit_bio(struct bio *bio)
 		return BLK_QC_T_NONE;
 	}
 
-	plug = blk_mq_plug(q, bio);
 	if (unlikely(is_flush_fua)) {
 		/* Bypass scheduler for flush requests */
 		blk_insert_flush(rq);

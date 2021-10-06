@@ -125,6 +125,7 @@ extern int __blk_mq_register_dev(struct device *dev, struct request_queue *q);
 extern int blk_mq_sysfs_register(struct request_queue *q);
 extern void blk_mq_sysfs_unregister(struct request_queue *q);
 extern void blk_mq_hctx_kobj_init(struct blk_mq_hw_ctx *hctx);
+void blk_mq_free_plug_rqs(struct blk_plug *plug);
 
 void blk_mq_release(struct request_queue *q);
 
@@ -151,6 +152,10 @@ struct blk_mq_alloc_data {
 	blk_mq_req_flags_t flags;
 	unsigned int shallow_depth;
 	unsigned int cmd_flags;
+
+	/* allocate multiple requests/tags in one go */
+	unsigned int nr_tags;
+	struct request **cached_rq;
 
 	/* input & output parameter */
 	struct blk_mq_ctx *ctx;

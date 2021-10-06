@@ -90,7 +90,10 @@ struct request {
 	struct bio *bio;
 	struct bio *biotail;
 
-	struct list_head queuelist;
+	union {
+		struct list_head queuelist;
+		struct request *rq_next;
+	};
 
 	/*
 	 * The hash is used inside the scheduler, and killed once the
