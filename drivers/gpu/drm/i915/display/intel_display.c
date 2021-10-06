@@ -70,8 +70,6 @@
 
 #include "gt/gen8_ppgtt.h"
 
-#include "pxp/intel_pxp.h"
-
 #include "g4x_dp.h"
 #include "g4x_hdmi.h"
 #include "i915_drv.h"
@@ -6238,6 +6236,7 @@ static int icl_check_nv12_planes(struct intel_crtc_state *crtc_state)
 		linked_state->ctl = plane_state->ctl | PLANE_CTL_YUV420_Y_PLANE;
 		linked_state->color_ctl = plane_state->color_ctl;
 		linked_state->view = plane_state->view;
+		linked_state->decrypt = plane_state->decrypt;
 
 		intel_plane_copy_hw_state(linked_state, plane_state);
 		linked_state->uapi.src = plane_state->uapi.src;
@@ -8600,28 +8599,13 @@ static int intel_bigjoiner_add_affected_planes(struct intel_atomic_state *state)
 	return 0;
 }
 
-static bool bo_has_valid_encryption(struct drm_i915_gem_object *obj)
-{
-	struct drm_i915_private *i915 = to_i915(obj->base.dev);
-
-	return intel_pxp_key_check(&i915->gt.pxp, obj, false) == 0;
-}
-
-static bool pxp_is_borked(struct drm_i915_gem_object *obj)
-{
-	return i915_gem_object_is_protected(obj) && !bo_has_valid_encryption(obj);
-}
-
 static int intel_atomic_check_planes(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc_state *old_crtc_state, *new_crtc_state;
 	struct intel_plane_state *plane_state;
 	struct intel_plane *plane;
-	struct intel_plane_state *new_plane_state;
-	struct intel_plane_state *old_plane_state;
 	struct intel_crtc *crtc;
-	const struct drm_framebuffer *fb;
 	int i, ret;
 
 	ret = icl_add_linked_planes(state);
@@ -8667,19 +8651,6 @@ static int intel_atomic_check_planes(struct intel_atomic_state *state)
 		ret = intel_crtc_add_planes_to_state(state, crtc, new_active_planes);
 		if (ret)
 			return ret;
-	}
-
-	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
-		new_plane_state = intel_atomic_get_new_plane_state(state, plane);
-		old_plane_state = intel_atomic_get_old_plane_state(state, plane);
-		fb = new_plane_state->hw.fb;
-		if (fb) {
-			new_plane_state->decrypt = bo_has_valid_encryption(intel_fb_obj(fb));
-			new_plane_state->force_black = pxp_is_borked(intel_fb_obj(fb));
-		} else {
-			new_plane_state->decrypt = old_plane_state->decrypt;
-			new_plane_state->force_black = old_plane_state->force_black;
-		}
 	}
 
 	return 0;
