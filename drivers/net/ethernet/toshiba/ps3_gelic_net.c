@@ -1477,7 +1477,7 @@ int gelic_net_setup_netdev(struct net_device *netdev, struct gelic_card *card)
 			 __func__, status);
 		return -EINVAL;
 	}
-	eth_hw_addr_set(netdev, &v1);
+	eth_hw_addr_set(netdev, (u8 *)&v1);
 
 	if (card->vlan_required) {
 		netdev->hard_header_len += VLAN_HLEN;
