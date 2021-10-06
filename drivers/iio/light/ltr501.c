@@ -15,6 +15,7 @@
 #include <linux/delay.h>
 #include <linux/regmap.h>
 #include <linux/acpi.h>
+#include <linux/regulator/consumer.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/events.h>
@@ -151,6 +152,7 @@ struct ltr501_chip_info {
 
 struct ltr501_data {
 	struct i2c_client *client;
+	struct regulator_bulk_data regulators[2];
 	struct mutex lock_als, lock_ps;
 	const struct ltr501_chip_info *chip_info;
 	u8 als_contr, ps_contr;
@@ -1379,6 +1381,13 @@ static const struct regmap_config ltr501_regmap_config = {
 	.volatile_reg = ltr501_is_volatile_reg,
 };
 
+static void ltr501_disable_regulators(void *d)
+{
+	struct ltr501_data *data = d;
+
+	regulator_bulk_disable(ARRAY_SIZE(data->regulators), data->regulators);
+}
+
 static int ltr501_powerdown(struct ltr501_data *data)
 {
 	return ltr501_write_contr(data, data->als_contr &
@@ -1422,6 +1431,25 @@ static int ltr501_probe(struct i2c_client *client,
 	data->regmap = regmap;
 	mutex_init(&data->lock_als);
 	mutex_init(&data->lock_ps);
+
+	data->regulators[0].supply = "vdd";
+	data->regulators[1].supply = "vddio";
+	ret = devm_regulator_bulk_get(&client->dev,
+				      ARRAY_SIZE(data->regulators),
+				      data->regulators);
+	if (ret)
+		return dev_err_probe(&client->dev, ret,
+				     "Failed to get regulators\n");
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(data->regulators),
+				    data->regulators);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(&client->dev,
+				       ltr501_disable_regulators, data);
+	if (ret)
+		return ret;
 
 	data->reg_it = devm_regmap_field_alloc(&client->dev, regmap,
 					       reg_field_it);
