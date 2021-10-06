@@ -545,8 +545,7 @@ void hda_dsp_dump(struct snd_sof_dev *sdev, u32 flags)
 	/* print ROM/FW status */
 	hda_dsp_get_status(sdev);
 
-	/* print panic info if FW boot is complete. Otherwise, print the extended ROM status */
-	if (sdev->fw_state == SOF_FW_BOOT_COMPLETE) {
+	if (flags & SOF_DBG_DUMP_REGS) {
 		u32 status = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_SRAM_REG_FW_STATUS);
 		u32 panic = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_SRAM_REG_FW_TRACEP);
 
