@@ -91,10 +91,10 @@ static int bcm63xx_pmb_get_resources(struct device_node *dn,
 	struct of_phandle_args args;
 	int ret;
 
-	ret = of_property_read_u32(dn, "reg", cpu);
-	if (ret) {
+	*cpu = of_get_cpu_hwid(dn, 0);
+	if (*cpu == ~0U) {
 		pr_err("CPU is missing a reg node\n");
-		return ret;
+		return -ENODEV;
 	}
 
 	ret = of_parse_phandle_with_args(dn, "resets", "#reset-cells",
