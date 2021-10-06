@@ -1690,11 +1690,10 @@ err:
 /*
  * Pipeline Topology
  */
-int sof_load_pipeline_ipc(struct device *dev,
+int sof_load_pipeline_ipc(struct snd_sof_dev *sdev,
 			  struct sof_ipc_pipe_new *pipeline,
 			  struct sof_ipc_comp_reply *r)
 {
-	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
 	int ret = sof_core_enable(sdev, pipeline->core);
 
 	if (ret < 0)
@@ -1703,7 +1702,7 @@ int sof_load_pipeline_ipc(struct device *dev,
 	ret = sof_ipc_tx_message(sdev->ipc, pipeline->hdr.cmd, pipeline,
 				 sizeof(*pipeline), r, sizeof(*r));
 	if (ret < 0)
-		dev_err(dev, "error: load pipeline ipc failure\n");
+		dev_err(sdev->dev, "error: load pipeline ipc failure\n");
 
 	return ret;
 }
@@ -3382,15 +3381,14 @@ err:
 	return ret;
 }
 
-int snd_sof_complete_pipeline(struct device *dev,
+int snd_sof_complete_pipeline(struct snd_sof_dev *sdev,
 			      struct snd_sof_widget *swidget)
 {
-	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
 	struct sof_ipc_pipe_ready ready;
 	struct sof_ipc_reply reply;
 	int ret;
 
-	dev_dbg(dev, "tplg: complete pipeline %s id %d\n",
+	dev_dbg(sdev->dev, "tplg: complete pipeline %s id %d\n",
 		swidget->widget->name, swidget->comp_id);
 
 	memset(&ready, 0, sizeof(ready));
@@ -3469,13 +3467,13 @@ static int sof_complete(struct snd_soc_component *scomp)
 
 	/* verify topology components loading including dynamic pipelines */
 	if (sof_core_debug & SOF_DBG_VERIFY_TPLG) {
-		ret = sof_set_up_pipelines(scomp->dev, true);
+		ret = sof_set_up_pipelines(sdev, true);
 		if (ret < 0) {
 			dev_err(sdev->dev, "error: topology verification failed %d\n", ret);
 			return ret;
 		}
 
-		ret = sof_tear_down_pipelines(scomp->dev, true);
+		ret = sof_tear_down_pipelines(sdev, true);
 		if (ret < 0) {
 			dev_err(sdev->dev, "error: topology tear down pipelines failed %d\n", ret);
 			return ret;
@@ -3483,7 +3481,7 @@ static int sof_complete(struct snd_soc_component *scomp)
 	}
 
 	/* set up static pipelines */
-	return sof_set_up_pipelines(scomp->dev, false);
+	return sof_set_up_pipelines(sdev, false);
 }
 
 /* manifest - optional to inform component of manifest */

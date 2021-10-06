@@ -181,10 +181,10 @@ void snd_sof_control_notify(struct snd_sof_dev *sdev,
  * be freed by snd_soc_unregister_component,
  */
 int snd_sof_load_topology(struct snd_soc_component *scomp, const char *file);
-int snd_sof_complete_pipeline(struct device *dev,
+int snd_sof_complete_pipeline(struct snd_sof_dev *sdev,
 			      struct snd_sof_widget *swidget);
 
-int sof_load_pipeline_ipc(struct device *dev,
+int sof_load_pipeline_ipc(struct snd_sof_dev *sdev,
 			  struct sof_ipc_pipe_new *pipeline,
 			  struct sof_ipc_comp_reply *r);
 int sof_pipeline_core_enable(struct snd_sof_dev *sdev,
@@ -246,8 +246,8 @@ int snd_sof_ipc_set_get_comp_data(struct snd_sof_control *scontrol,
 int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd, struct snd_pcm_hw_params *params);
 
 /* PM */
-int sof_set_up_pipelines(struct device *dev, bool verify);
-int sof_tear_down_pipelines(struct device *dev, bool verify);
+int sof_set_up_pipelines(struct snd_sof_dev *sdev, bool verify);
+int sof_tear_down_pipelines(struct snd_sof_dev *sdev, bool verify);
 int sof_set_hw_params_upon_resume(struct device *dev);
 bool snd_sof_stream_suspend_ignored(struct snd_sof_dev *sdev);
 bool snd_sof_dsp_only_d0i3_compatible_stream_active(struct snd_sof_dev *sdev);
