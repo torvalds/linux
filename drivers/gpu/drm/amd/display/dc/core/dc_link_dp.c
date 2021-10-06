@@ -1661,7 +1661,13 @@ static void override_training_settings(
 	if (overrides->ffe_preset != NULL)
 		lt_settings->ffe_preset = overrides->ffe_preset;
 #endif
-
+	/* Override HW lane settings with BIOS forced values if present */
+	if (link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN &&
+			link->lttpr_mode == LTTPR_MODE_TRANSPARENT) {
+		lt_settings->voltage_swing = &link->bios_forced_drive_settings.VOLTAGE_SWING;
+		lt_settings->pre_emphasis = &link->bios_forced_drive_settings.PRE_EMPHASIS;
+		lt_settings->always_match_dpcd_with_hw_lane_settings = false;
+	}
 	for (lane = 0; lane < LANE_COUNT_DP_MAX; lane++) {
 		lt_settings->lane_settings[lane].VOLTAGE_SWING =
 			lt_settings->voltage_swing != NULL ?

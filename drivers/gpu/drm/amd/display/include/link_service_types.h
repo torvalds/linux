@@ -117,6 +117,12 @@ struct link_training_settings {
 	bool enhanced_framing;
 	bool allow_invalid_msa_timing_param;
 	enum lttpr_mode lttpr_mode;
+
+	/* disallow different lanes to have different lane settings */
+	bool disallow_per_lane_settings;
+	/* dpcd lane settings will always use the same hw lane settings
+	 * even if it doesn't match requested lane adjust */
+	bool always_match_dpcd_with_hw_lane_settings;
 };
 
 /*TODO: Move this enum test harness*/

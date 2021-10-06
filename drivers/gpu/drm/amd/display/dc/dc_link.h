@@ -178,6 +178,9 @@ struct dc_link {
 
 	struct psr_settings psr_settings;
 
+	/* Drive settings read from integrated info table */
+	struct dc_lane_settings bios_forced_drive_settings;
+
 	/* MST record stream using this link */
 	struct link_flags {
 		bool dp_keep_receiver_powered;
