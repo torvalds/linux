@@ -487,12 +487,14 @@ __acquires(&gl->gl_lockref.lock)
 	const struct gfs2_glock_operations *glops = gl->gl_ops;
 	struct gfs2_holder *gh, *tmp, *first_gh;
 	bool incompat_holders_demoted = false;
+	bool lock_released;
 	int ret;
 
 restart:
 	first_gh = find_first_strong_holder(gl);
 	list_for_each_entry_safe(gh, tmp, &gl->gl_holders, gh_list) {
-		if (!test_bit(HIF_WAIT, &gh->gh_iflags))
+		lock_released = false;
+		if (test_bit(HIF_HOLDER, &gh->gh_iflags))
 			continue;
 		if (!may_grant(gl, first_gh, gh)) {
 			/*
@@ -511,30 +513,31 @@ restart:
 			first_gh = gh;
 		}
 		if (gh->gh_list.prev == &gl->gl_holders &&
-		    glops->go_instantiate) {
-			if (!(gh->gh_flags & GL_SKIP)) {
-				spin_unlock(&gl->gl_lockref.lock);
-				/* FIXME: eliminate this eventually */
-				ret = glops->go_instantiate(gh);
-				spin_lock(&gl->gl_lockref.lock);
-				if (ret) {
-					if (ret == 1)
-						return 2;
-					gh->gh_error = ret;
-					list_del_init(&gh->gh_list);
-					trace_gfs2_glock_queue(gh, 0);
-					gfs2_holder_wake(gh);
-					goto restart;
-				}
+		    !(gh->gh_flags & GL_SKIP) && glops->go_instantiate) {
+			lock_released = true;
+			spin_unlock(&gl->gl_lockref.lock);
+			ret = glops->go_instantiate(gh);
+			spin_lock(&gl->gl_lockref.lock);
+			if (ret) {
+				if (ret == 1)
+					return 2;
+				gh->gh_error = ret;
+				list_del_init(&gh->gh_list);
+				trace_gfs2_glock_queue(gh, 0);
+				gfs2_holder_wake(gh);
+				goto restart;
 			}
-			set_bit(HIF_HOLDER, &gh->gh_iflags);
-			trace_gfs2_promote(gh);
-			gfs2_holder_wake(gh);
-			goto restart;
 		}
 		set_bit(HIF_HOLDER, &gh->gh_iflags);
 		trace_gfs2_promote(gh);
 		gfs2_holder_wake(gh);
+		/*
+		 * If we released the gl_lockref.lock the holders list may have
+		 * changed. For that reason, we start again at the start of
+		 * the holders queue.
+		 */
+		if (lock_released)
+			goto restart;
 	}
 	return 0;
 }
