@@ -1308,7 +1308,6 @@ static void tgl_dkl_phy_set_signal_levels(struct intel_encoder *encoder,
 
 	for (ln = 0; ln < 2; ln++) {
 		int level;
-		u32 val;
 
 		intel_de_write(dev_priv, HIP_INDEX_REG(tc_port),
 			       HIP_INDEX_VAL(tc_port, ln));
@@ -1317,29 +1316,26 @@ static void tgl_dkl_phy_set_signal_levels(struct intel_encoder *encoder,
 
 		level = intel_ddi_level(encoder, crtc_state, 2*ln+0);
 
-		val = intel_de_read(dev_priv, DKL_TX_DPCNTL0(tc_port));
-		val &= ~(DKL_TX_PRESHOOT_COEFF_MASK |
-			 DKL_TX_DE_EMPAHSIS_COEFF_MASK |
-			 DKL_TX_VSWING_CONTROL_MASK);
-		val |= DKL_TX_VSWING_CONTROL(trans->entries[level].dkl.vswing) |
-			DKL_TX_DE_EMPHASIS_COEFF(trans->entries[level].dkl.de_emphasis) |
-			DKL_TX_PRESHOOT_COEFF(trans->entries[level].dkl.preshoot);
-		intel_de_write(dev_priv, DKL_TX_DPCNTL0(tc_port), val);
+		intel_de_rmw(dev_priv, DKL_TX_DPCNTL0(tc_port),
+			     DKL_TX_PRESHOOT_COEFF_MASK |
+			     DKL_TX_DE_EMPAHSIS_COEFF_MASK |
+			     DKL_TX_VSWING_CONTROL_MASK,
+			     DKL_TX_PRESHOOT_COEFF(trans->entries[level].dkl.preshoot) |
+			     DKL_TX_DE_EMPHASIS_COEFF(trans->entries[level].dkl.de_emphasis) |
+			     DKL_TX_VSWING_CONTROL(trans->entries[level].dkl.vswing));
 
 		level = intel_ddi_level(encoder, crtc_state, 2*ln+1);
 
-		val = intel_de_read(dev_priv, DKL_TX_DPCNTL1(tc_port));
-		val &= ~(DKL_TX_PRESHOOT_COEFF_MASK |
-			 DKL_TX_DE_EMPAHSIS_COEFF_MASK |
-			 DKL_TX_VSWING_CONTROL_MASK);
-		val |= DKL_TX_VSWING_CONTROL(trans->entries[level].dkl.vswing) |
-			DKL_TX_DE_EMPHASIS_COEFF(trans->entries[level].dkl.de_emphasis) |
-			DKL_TX_PRESHOOT_COEFF(trans->entries[level].dkl.preshoot);
-		intel_de_write(dev_priv, DKL_TX_DPCNTL1(tc_port), val);
+		intel_de_rmw(dev_priv, DKL_TX_DPCNTL1(tc_port),
+			     DKL_TX_PRESHOOT_COEFF_MASK |
+			     DKL_TX_DE_EMPAHSIS_COEFF_MASK |
+			     DKL_TX_VSWING_CONTROL_MASK,
+			     DKL_TX_PRESHOOT_COEFF(trans->entries[level].dkl.preshoot) |
+			     DKL_TX_DE_EMPHASIS_COEFF(trans->entries[level].dkl.de_emphasis) |
+			     DKL_TX_VSWING_CONTROL(trans->entries[level].dkl.vswing));
 
-		val = intel_de_read(dev_priv, DKL_TX_DPCNTL2(tc_port));
-		val &= ~DKL_TX_DP20BITMODE;
-		intel_de_write(dev_priv, DKL_TX_DPCNTL2(tc_port), val);
+		intel_de_rmw(dev_priv, DKL_TX_DPCNTL2(tc_port),
+			     DKL_TX_DP20BITMODE, 0);
 	}
 }
 
