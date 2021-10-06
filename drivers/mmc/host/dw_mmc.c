@@ -1802,10 +1802,15 @@ static enum hrtimer_restart dw_mci_fault_timer(struct hrtimer *t)
 
 	spin_lock_irqsave(&host->irq_lock, flags);
 
-	if (!host->data_status)
+	/*
+	 * Only inject an error if we haven't already got an error or data over
+	 * interrupt.
+	 */
+	if (!host->data_status) {
 		host->data_status = SDMMC_INT_DCRC;
-	set_bit(EVENT_DATA_ERROR, &host->pending_events);
-	tasklet_schedule(&host->tasklet);
+		set_bit(EVENT_DATA_ERROR, &host->pending_events);
+		tasklet_schedule(&host->tasklet);
+	}
 
 	spin_unlock_irqrestore(&host->irq_lock, flags);
 
@@ -2721,12 +2726,16 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 		}
 
 		if (pending & DW_MCI_DATA_ERROR_FLAGS) {
+			spin_lock(&host->irq_lock);
+
 			/* if there is an error report DATA_ERROR */
 			mci_writel(host, RINTSTS, DW_MCI_DATA_ERROR_FLAGS);
 			host->data_status = pending;
 			smp_wmb(); /* drain writebuffer */
 			set_bit(EVENT_DATA_ERROR, &host->pending_events);
 			tasklet_schedule(&host->tasklet);
+
+			spin_unlock(&host->irq_lock);
 		}
 
 		if (pending & SDMMC_INT_DATA_OVER) {

@@ -81,12 +81,6 @@ static struct shash_desc *alloc_shash_desc(int id)
 	case CRYPTO_SHASH_SHA512:
 		tfm = crypto_alloc_shash("sha512", 0, 0);
 		break;
-	case CRYPTO_SHASH_MD4:
-		tfm = crypto_alloc_shash("md4", 0, 0);
-		break;
-	case CRYPTO_SHASH_MD5:
-		tfm = crypto_alloc_shash("md5", 0, 0);
-		break;
 	default:
 		return NULL;
 	}
@@ -212,16 +206,6 @@ struct ksmbd_crypto_ctx *ksmbd_crypto_ctx_find_sha256(void)
 struct ksmbd_crypto_ctx *ksmbd_crypto_ctx_find_sha512(void)
 {
 	return ____crypto_shash_ctx_find(CRYPTO_SHASH_SHA512);
-}
-
-struct ksmbd_crypto_ctx *ksmbd_crypto_ctx_find_md4(void)
-{
-	return ____crypto_shash_ctx_find(CRYPTO_SHASH_MD4);
-}
-
-struct ksmbd_crypto_ctx *ksmbd_crypto_ctx_find_md5(void)
-{
-	return ____crypto_shash_ctx_find(CRYPTO_SHASH_MD5);
 }
 
 static struct ksmbd_crypto_ctx *____crypto_aead_ctx_find(int id)

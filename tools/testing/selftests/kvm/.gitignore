@@ -24,6 +24,7 @@
 /x86_64/smm_test
 /x86_64/state_test
 /x86_64/svm_vmcall_test
+/x86_64/svm_int_ctl_test
 /x86_64/sync_regs_test
 /x86_64/tsc_msrs_test
 /x86_64/userspace_msr_exit_test
@@ -48,6 +49,7 @@
 /kvm_page_table_test
 /memslot_modification_stress_test
 /memslot_perf_test
+/rseq_test
 /set_memory_region_test
 /steal_time
 /kvm_binary_stats_test
