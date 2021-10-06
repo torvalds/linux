@@ -1759,6 +1759,9 @@ static int sof_widget_load_pipeline(struct snd_soc_component *scomp, int index,
 		goto err;
 	}
 
+	if (sof_core_debug & SOF_DBG_DISABLE_MULTICORE)
+		pipeline->core = SOF_DSP_PRIMARY_CORE;
+
 	if (sof_core_debug & SOF_DBG_DYNAMIC_PIPELINES_OVERRIDE)
 		swidget->dynamic_pipeline_widget = sof_core_debug &
 			SOF_DBG_DYNAMIC_PIPELINES_ENABLE;
@@ -2355,6 +2358,9 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 		kfree(swidget);
 		return ret;
 	}
+
+	if (sof_core_debug & SOF_DBG_DISABLE_MULTICORE)
+		comp.core = SOF_DSP_PRIMARY_CORE;
 
 	swidget->core = comp.core;
 

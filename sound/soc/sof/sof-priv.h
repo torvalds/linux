@@ -30,6 +30,9 @@
 #define SOF_DBG_DYNAMIC_PIPELINES_ENABLE	BIT(4) /* 0: use static pipelines
 							* 1: use dynamic pipelines
 							*/
+#define SOF_DBG_DISABLE_MULTICORE		BIT(5) /* schedule all pipelines/widgets
+							* on primary core
+							*/
 
 #define SOF_DBG_DUMP_REGS		BIT(0)
 #define SOF_DBG_DUMP_MBOX		BIT(1)
