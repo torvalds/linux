@@ -58,6 +58,8 @@ static const struct of_device_id rk_spdif_match[] __maybe_unused = {
 	  .data = (void *)RK_SPDIF_RK3366 },
 	{ .compatible = "rockchip,rk3399-spdif",
 	  .data = (void *)RK_SPDIF_RK3366 },
+	{ .compatible = "rockchip,rk3568-spdif",
+	  .data = (void *)RK_SPDIF_RK3366 },
 	{},
 };
 MODULE_DEVICE_TABLE(of, rk_spdif_match);
@@ -103,8 +105,8 @@ static int __maybe_unused rk_spdif_runtime_resume(struct device *dev)
 }
 
 static int rk_spdif_hw_params(struct snd_pcm_substream *substream,
-				  struct snd_pcm_hw_params *params,
-				  struct snd_soc_dai *dai)
+			      struct snd_pcm_hw_params *params,
+			      struct snd_soc_dai *dai)
 {
 	struct rk_spdif_dev *spdif = snd_soc_dai_get_drvdata(dai);
 	unsigned int val = SPDIF_CFGR_HALFWORD_ENABLE;
@@ -137,15 +139,15 @@ static int rk_spdif_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	ret = regmap_update_bits(spdif->regmap, SPDIF_CFGR,
-		SPDIF_CFGR_CLK_DIV_MASK | SPDIF_CFGR_HALFWORD_ENABLE |
-		SDPIF_CFGR_VDW_MASK,
-		val);
+				 SPDIF_CFGR_CLK_DIV_MASK |
+				 SPDIF_CFGR_HALFWORD_ENABLE |
+				 SDPIF_CFGR_VDW_MASK, val);
 
 	return ret;
 }
 
 static int rk_spdif_trigger(struct snd_pcm_substream *substream,
-				int cmd, struct snd_soc_dai *dai)
+			    int cmd, struct snd_soc_dai *dai)
 {
 	struct rk_spdif_dev *spdif = snd_soc_dai_get_drvdata(dai);
 	int ret;
@@ -155,31 +157,31 @@ static int rk_spdif_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		ret = regmap_update_bits(spdif->regmap, SPDIF_DMACR,
-				   SPDIF_DMACR_TDE_ENABLE |
-				   SPDIF_DMACR_TDL_MASK,
-				   SPDIF_DMACR_TDE_ENABLE |
-				   SPDIF_DMACR_TDL(16));
+					 SPDIF_DMACR_TDE_ENABLE |
+					 SPDIF_DMACR_TDL_MASK,
+					 SPDIF_DMACR_TDE_ENABLE |
+					 SPDIF_DMACR_TDL(16));
 
 		if (ret != 0)
 			return ret;
 
 		ret = regmap_update_bits(spdif->regmap, SPDIF_XFER,
-				   SPDIF_XFER_TXS_START,
-				   SPDIF_XFER_TXS_START);
+					 SPDIF_XFER_TXS_START,
+					 SPDIF_XFER_TXS_START);
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		ret = regmap_update_bits(spdif->regmap, SPDIF_DMACR,
-				   SPDIF_DMACR_TDE_ENABLE,
-				   SPDIF_DMACR_TDE_DISABLE);
+					 SPDIF_DMACR_TDE_ENABLE,
+					 SPDIF_DMACR_TDE_DISABLE);
 
 		if (ret != 0)
 			return ret;
 
 		ret = regmap_update_bits(spdif->regmap, SPDIF_XFER,
-				   SPDIF_XFER_TXS_START,
-				   SPDIF_XFER_TXS_STOP);
+					 SPDIF_XFER_TXS_START,
+					 SPDIF_XFER_TXS_STOP);
 		break;
 	default:
 		ret = -EINVAL;
@@ -247,6 +249,7 @@ static bool rk_spdif_rd_reg(struct device *dev, unsigned int reg)
 	case SPDIF_INTCR:
 	case SPDIF_INTSR:
 	case SPDIF_XFER:
+	case SPDIF_SMPDR:
 		return true;
 	default:
 		return false;
@@ -258,6 +261,7 @@ static bool rk_spdif_volatile_reg(struct device *dev, unsigned int reg)
 	switch (reg) {
 	case SPDIF_INTSR:
 	case SPDIF_SDBLR:
+	case SPDIF_SMPDR:
 		return true;
 	default:
 		return false;
@@ -291,7 +295,7 @@ static int rk_spdif_probe(struct platform_device *pdev)
 		grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
 		if (IS_ERR(grf)) {
 			dev_err(&pdev->dev,
-				"rockchip_spdif missing 'rockchip,grf' \n");
+				"rockchip_spdif missing 'rockchip,grf'\n");
 			return PTR_ERR(grf);
 		}
 

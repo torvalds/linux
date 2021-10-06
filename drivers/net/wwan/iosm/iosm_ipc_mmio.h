@@ -10,10 +10,10 @@
 #define IOSM_CP_VERSION 0x0100UL
 
 /* DL dir Aggregation support mask */
-#define DL_AGGR BIT(23)
+#define DL_AGGR BIT(9)
 
 /* UL dir Aggregation support mask */
-#define UL_AGGR BIT(22)
+#define UL_AGGR BIT(8)
 
 /* UL flow credit support mask */
 #define UL_FLOW_CREDIT BIT(21)

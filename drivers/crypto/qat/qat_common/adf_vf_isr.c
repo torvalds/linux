@@ -18,6 +18,7 @@
 #include "adf_pf2vf_msg.h"
 
 #define ADF_VINTSOU_OFFSET	0x204
+#define ADF_VINTMSK_OFFSET	0x208
 #define ADF_VINTSOU_BUN		BIT(0)
 #define ADF_VINTSOU_PF2VF	BIT(1)
 
@@ -27,6 +28,27 @@ struct adf_vf_stop_data {
 	struct adf_accel_dev *accel_dev;
 	struct work_struct work;
 };
+
+void adf_enable_pf2vf_interrupts(struct adf_accel_dev *accel_dev)
+{
+	struct adf_accel_pci *pci_info = &accel_dev->accel_pci_dev;
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	void __iomem *pmisc_bar_addr =
+		pci_info->pci_bars[hw_data->get_misc_bar_id(hw_data)].virt_addr;
+
+	ADF_CSR_WR(pmisc_bar_addr, ADF_VINTMSK_OFFSET, 0x0);
+}
+
+void adf_disable_pf2vf_interrupts(struct adf_accel_dev *accel_dev)
+{
+	struct adf_accel_pci *pci_info = &accel_dev->accel_pci_dev;
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	void __iomem *pmisc_bar_addr =
+		pci_info->pci_bars[hw_data->get_misc_bar_id(hw_data)].virt_addr;
+
+	ADF_CSR_WR(pmisc_bar_addr, ADF_VINTMSK_OFFSET, 0x2);
+}
+EXPORT_SYMBOL_GPL(adf_disable_pf2vf_interrupts);
 
 static int adf_enable_msi(struct adf_accel_dev *accel_dev)
 {
@@ -160,10 +182,20 @@ static irqreturn_t adf_isr(int irq, void *privdata)
 	struct adf_bar *pmisc =
 			&GET_BARS(accel_dev)[hw_data->get_misc_bar_id(hw_data)];
 	void __iomem *pmisc_bar_addr = pmisc->virt_addr;
-	u32 v_int;
+	bool handled = false;
+	u32 v_int, v_mask;
 
 	/* Read VF INT source CSR to determine the source of VF interrupt */
 	v_int = ADF_CSR_RD(pmisc_bar_addr, ADF_VINTSOU_OFFSET);
+
+	/* Read VF INT mask CSR to determine which sources are masked */
+	v_mask = ADF_CSR_RD(pmisc_bar_addr, ADF_VINTMSK_OFFSET);
+
+	/*
+	 * Recompute v_int ignoring sources that are masked. This is to
+	 * avoid rescheduling the tasklet for interrupts already handled
+	 */
+	v_int &= ~v_mask;
 
 	/* Check for PF2VF interrupt */
 	if (v_int & ADF_VINTSOU_PF2VF) {
@@ -172,7 +204,7 @@ static irqreturn_t adf_isr(int irq, void *privdata)
 
 		/* Schedule tasklet to handle interrupt BH */
 		tasklet_hi_schedule(&accel_dev->vf.pf2vf_bh_tasklet);
-		return IRQ_HANDLED;
+		handled = true;
 	}
 
 	/* Check bundle interrupt */
@@ -184,10 +216,10 @@ static irqreturn_t adf_isr(int irq, void *privdata)
 		csr_ops->write_csr_int_flag_and_col(bank->csr_addr,
 						    bank->bank_number, 0);
 		tasklet_hi_schedule(&bank->resp_handler);
-		return IRQ_HANDLED;
+		handled = true;
 	}
 
-	return IRQ_NONE;
+	return handled ? IRQ_HANDLED : IRQ_NONE;
 }
 
 static int adf_request_msi_irq(struct adf_accel_dev *accel_dev)
@@ -285,6 +317,30 @@ err_out:
 }
 EXPORT_SYMBOL_GPL(adf_vf_isr_resource_alloc);
 
+/**
+ * adf_flush_vf_wq() - Flush workqueue for VF
+ * @accel_dev:  Pointer to acceleration device.
+ *
+ * Function disables the PF/VF interrupts on the VF so that no new messages
+ * are received and flushes the workqueue 'adf_vf_stop_wq'.
+ *
+ * Return: void.
+ */
+void adf_flush_vf_wq(struct adf_accel_dev *accel_dev)
+{
+	adf_disable_pf2vf_interrupts(accel_dev);
+
+	flush_workqueue(adf_vf_stop_wq);
+}
+EXPORT_SYMBOL_GPL(adf_flush_vf_wq);
+
+/**
+ * adf_init_vf_wq() - Init workqueue for VF
+ *
+ * Function init workqueue 'adf_vf_stop_wq' for VF.
+ *
+ * Return: 0 on success, error code otherwise.
+ */
 int __init adf_init_vf_wq(void)
 {
 	adf_vf_stop_wq = alloc_workqueue("adf_vf_stop_wq", WQ_MEM_RECLAIM, 0);

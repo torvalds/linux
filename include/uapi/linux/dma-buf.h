@@ -22,8 +22,56 @@
 
 #include <linux/types.h>
 
-/* begin/end dma-buf functions used for userspace mmap. */
+/**
+ * struct dma_buf_sync - Synchronize with CPU access.
+ *
+ * When a DMA buffer is accessed from the CPU via mmap, it is not always
+ * possible to guarantee coherency between the CPU-visible map and underlying
+ * memory.  To manage coherency, DMA_BUF_IOCTL_SYNC must be used to bracket
+ * any CPU access to give the kernel the chance to shuffle memory around if
+ * needed.
+ *
+ * Prior to accessing the map, the client must call DMA_BUF_IOCTL_SYNC
+ * with DMA_BUF_SYNC_START and the appropriate read/write flags.  Once the
+ * access is complete, the client should call DMA_BUF_IOCTL_SYNC with
+ * DMA_BUF_SYNC_END and the same read/write flags.
+ *
+ * The synchronization provided via DMA_BUF_IOCTL_SYNC only provides cache
+ * coherency.  It does not prevent other processes or devices from
+ * accessing the memory at the same time.  If synchronization with a GPU or
+ * other device driver is required, it is the client's responsibility to
+ * wait for buffer to be ready for reading or writing before calling this
+ * ioctl with DMA_BUF_SYNC_START.  Likewise, the client must ensure that
+ * follow-up work is not submitted to GPU or other device driver until
+ * after this ioctl has been called with DMA_BUF_SYNC_END?
+ *
+ * If the driver or API with which the client is interacting uses implicit
+ * synchronization, waiting for prior work to complete can be done via
+ * poll() on the DMA buffer file descriptor.  If the driver or API requires
+ * explicit synchronization, the client may have to wait on a sync_file or
+ * other synchronization primitive outside the scope of the DMA buffer API.
+ */
 struct dma_buf_sync {
+	/**
+	 * @flags: Set of access flags
+	 *
+	 * DMA_BUF_SYNC_START:
+	 *     Indicates the start of a map access session.
+	 *
+	 * DMA_BUF_SYNC_END:
+	 *     Indicates the end of a map access session.
+	 *
+	 * DMA_BUF_SYNC_READ:
+	 *     Indicates that the mapped DMA buffer will be read by the
+	 *     client via the CPU map.
+	 *
+	 * DMA_BUF_SYNC_WRITE:
+	 *     Indicates that the mapped DMA buffer will be written by the
+	 *     client via the CPU map.
+	 *
+	 * DMA_BUF_SYNC_RW:
+	 *     An alias for DMA_BUF_SYNC_READ | DMA_BUF_SYNC_WRITE.
+	 */
 	__u64 flags;
 };
 

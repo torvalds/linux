@@ -153,13 +153,20 @@ static int init_stream(struct snd_oxfw *oxfw, struct amdtp_stream *stream)
 	struct cmp_connection *conn;
 	enum cmp_direction c_dir;
 	enum amdtp_stream_direction s_dir;
-	unsigned int flags = CIP_UNAWARE_SYT;
+	unsigned int flags = 0;
 	int err;
 
 	if (!(oxfw->quirks & SND_OXFW_QUIRK_BLOCKING_TRANSMISSION))
 		flags |= CIP_NONBLOCKING;
 	else
 		flags |= CIP_BLOCKING;
+
+	// OXFW 970/971 has no function to generate playback timing according to the sequence
+	// of value in syt field, thus the packet should include NO_INFO value in the field.
+	// However, some models just ignore data blocks in packet with NO_INFO for audio data
+	// processing.
+	if (!(oxfw->quirks & SND_OXFW_QUIRK_IGNORE_NO_INFO_PACKET))
+		flags |= CIP_UNAWARE_SYT;
 
 	if (stream == &oxfw->tx_stream) {
 		conn = &oxfw->out_conn;

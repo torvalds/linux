@@ -1,11 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/*  Marvell OcteonTx2 RVU Admin Function driver
+/* Marvell RVU Admin Function driver
  *
- * Copyright (C) 2018 Marvell International Ltd.
+ * Copyright (C) 2018 Marvell.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef NPC_H
@@ -151,7 +148,10 @@ enum npc_kpu_lh_ltype {
  * Software assigns pkind for each incoming port such as CGX
  * Ethernet interfaces, LBK interfaces, etc.
  */
+#define NPC_UNRESERVED_PKIND_COUNT NPC_RX_VLAN_EXDSA_PKIND
+
 enum npc_pkind_type {
+	NPC_RX_LBK_PKIND = 0ULL,
 	NPC_RX_VLAN_EXDSA_PKIND = 56ULL,
 	NPC_RX_CHLEN24B_PKIND = 57ULL,
 	NPC_RX_CPT_HDR_PKIND,
@@ -169,6 +169,8 @@ enum key_fields {
 	NPC_DMAC,
 	NPC_SMAC,
 	NPC_ETYPE,
+	NPC_VLAN_ETYPE_CTAG, /* 0x8100 */
+	NPC_VLAN_ETYPE_STAG, /* 0x88A8 */
 	NPC_OUTER_VID,
 	NPC_TOS,
 	NPC_SIP_IPV4,

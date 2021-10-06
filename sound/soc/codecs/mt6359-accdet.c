@@ -234,7 +234,7 @@ static void recover_eint_setting(struct mt6359_accdet *priv)
 
 static void mt6359_accdet_recover_jd_setting(struct mt6359_accdet *priv)
 {
-	int ret = 0;
+	int ret;
 	unsigned int value = 0;
 
 	regmap_update_bits(priv->regmap, ACCDET_IRQ_ADDR,
@@ -461,7 +461,7 @@ static irqreturn_t mt6359_accdet_irq(int irq, void *data)
 {
 	struct mt6359_accdet *priv = data;
 	unsigned int irq_val = 0, val = 0, value = 0;
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&priv->res_lock);
 	regmap_read(priv->regmap, ACCDET_IRQ_ADDR, &irq_val);
@@ -551,7 +551,7 @@ static irqreturn_t mt6359_accdet_irq(int irq, void *data)
 
 static int mt6359_accdet_parse_dt(struct mt6359_accdet *priv)
 {
-	int ret = 0;
+	int ret;
 	struct device *dev = priv->dev;
 	struct device_node *node = NULL;
 	int pwm_deb[15] = {0};
@@ -926,7 +926,7 @@ static int mt6359_accdet_probe(struct platform_device *pdev)
 {
 	struct mt6359_accdet *priv;
 	struct mt6397_chip *mt6397 = dev_get_drvdata(pdev->dev.parent);
-	int ret = 0;
+	int ret;
 
 	dev_dbg(&pdev->dev, "%s(), dev name %s\n",
 		__func__, dev_name(&pdev->dev));
@@ -1057,22 +1057,7 @@ static struct platform_driver mt6359_accdet_driver = {
 	.probe = mt6359_accdet_probe,
 };
 
-static int __init mt6359_accdet_driver_init(void)
-{
-	int ret = 0;
-
-	ret = platform_driver_register(&mt6359_accdet_driver);
-	if (ret)
-		return -ENODEV;
-	return 0;
-}
-
-static void __exit mt6359_accdet_driver_exit(void)
-{
-	platform_driver_unregister(&mt6359_accdet_driver);
-}
-module_init(mt6359_accdet_driver_init);
-module_exit(mt6359_accdet_driver_exit);
+module_platform_driver(mt6359_accdet_driver)
 
 /* Module information */
 MODULE_DESCRIPTION("MT6359 ALSA SoC codec jack driver");

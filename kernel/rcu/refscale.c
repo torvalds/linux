@@ -467,6 +467,40 @@ static struct ref_scale_ops acqrel_ops = {
 	.name		= "acqrel"
 };
 
+static volatile u64 stopopts;
+
+static void ref_clock_section(const int nloops)
+{
+	u64 x = 0;
+	int i;
+
+	preempt_disable();
+	for (i = nloops; i >= 0; i--)
+		x += ktime_get_real_fast_ns();
+	preempt_enable();
+	stopopts = x;
+}
+
+static void ref_clock_delay_section(const int nloops, const int udl, const int ndl)
+{
+	u64 x = 0;
+	int i;
+
+	preempt_disable();
+	for (i = nloops; i >= 0; i--) {
+		x += ktime_get_real_fast_ns();
+		un_delay(udl, ndl);
+	}
+	preempt_enable();
+	stopopts = x;
+}
+
+static struct ref_scale_ops clock_ops = {
+	.readsection	= ref_clock_section,
+	.delaysection	= ref_clock_delay_section,
+	.name		= "clock"
+};
+
 static void rcu_scale_one_reader(void)
 {
 	if (readdelay <= 0)
@@ -487,13 +521,13 @@ ref_scale_reader(void *arg)
 	s64 duration;
 
 	VERBOSE_SCALEOUT_BATCH("ref_scale_reader %ld: task started", me);
-	set_cpus_allowed_ptr(current, cpumask_of(me % nr_cpu_ids));
+	WARN_ON_ONCE(set_cpus_allowed_ptr(current, cpumask_of(me % nr_cpu_ids)));
 	set_user_nice(current, MAX_NICE);
 	atomic_inc(&n_init);
 	if (holdoff)
 		schedule_timeout_interruptible(holdoff * HZ);
 repeat:
-	VERBOSE_SCALEOUT_BATCH("ref_scale_reader %ld: waiting to start next experiment on cpu %d", me, smp_processor_id());
+	VERBOSE_SCALEOUT_BATCH("ref_scale_reader %ld: waiting to start next experiment on cpu %d", me, raw_smp_processor_id());
 
 	// Wait for signal that this reader can start.
 	wait_event(rt->wq, (atomic_read(&nreaders_exp) && smp_load_acquire(&rt->start_reader)) ||
@@ -503,7 +537,7 @@ repeat:
 		goto end;
 
 	// Make sure that the CPU is affinitized appropriately during testing.
-	WARN_ON_ONCE(smp_processor_id() != me);
+	WARN_ON_ONCE(raw_smp_processor_id() != me);
 
 	WRITE_ONCE(rt->start_reader, 0);
 	if (!atomic_dec_return(&n_started))
@@ -759,7 +793,7 @@ ref_scale_init(void)
 	int firsterr = 0;
 	static struct ref_scale_ops *scale_ops[] = {
 		&rcu_ops, &srcu_ops, &rcu_trace_ops, &rcu_tasks_ops, &refcnt_ops, &rwlock_ops,
-		&rwsem_ops, &lock_ops, &lock_irq_ops, &acqrel_ops,
+		&rwsem_ops, &lock_ops, &lock_irq_ops, &acqrel_ops, &clock_ops,
 	};
 
 	if (!torture_init_begin(scale_type, verbose))

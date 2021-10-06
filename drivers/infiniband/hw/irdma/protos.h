@@ -71,8 +71,6 @@ void irdma_qp_rem_qos(struct irdma_sc_qp *qp);
 struct irdma_sc_qp *irdma_get_qp_from_list(struct list_head *head,
 					   struct irdma_sc_qp *qp);
 void irdma_reinitialize_ieq(struct irdma_sc_vsi *vsi);
-u16 irdma_alloc_ws_node_id(struct irdma_sc_dev *dev);
-void irdma_free_ws_node_id(struct irdma_sc_dev *dev, u16 node_id);
 /* terminate functions*/
 void irdma_terminate_send_fin(struct irdma_sc_qp *qp);
 

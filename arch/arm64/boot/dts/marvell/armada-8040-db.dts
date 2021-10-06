@@ -195,7 +195,7 @@
 
 &cp0_eth0 {
 	status = "okay";
-	phy-mode = "10gbase-kr";
+	phy-mode = "10gbase-r";
 
 	fixed-link {
 		speed = <10000>;
@@ -348,7 +348,7 @@
 
 &cp1_eth0 {
 	status = "okay";
-	phy-mode = "10gbase-kr";
+	phy-mode = "10gbase-r";
 
 	fixed-link {
 		speed = <10000>;

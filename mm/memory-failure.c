@@ -68,7 +68,7 @@ atomic_long_t num_poisoned_pages __read_mostly = ATOMIC_LONG_INIT(0);
 
 static bool __page_handle_poison(struct page *page)
 {
-	bool ret;
+	int ret;
 
 	zone_pcp_disable(page_zone(page));
 	ret = dissolve_free_huge_page(page);
@@ -76,7 +76,7 @@ static bool __page_handle_poison(struct page *page)
 		ret = take_page_off_buddy(page);
 	zone_pcp_enable(page_zone(page));
 
-	return ret;
+	return ret > 0;
 }
 
 static bool page_handle_poison(struct page *page, bool hugepage_or_freepage, bool release)
@@ -282,9 +282,9 @@ static int kill_proc(struct to_kill *tk, unsigned long pfn, int flags)
 
 /*
  * Unknown page type encountered. Try to check whether it can turn PageLRU by
- * lru_add_drain_all, or a free page by reclaiming slabs when possible.
+ * lru_add_drain_all.
  */
-void shake_page(struct page *p, int access)
+void shake_page(struct page *p)
 {
 	if (PageHuge(p))
 		return;
@@ -296,11 +296,9 @@ void shake_page(struct page *p, int access)
 	}
 
 	/*
-	 * Only call shrink_node_slabs here (which would also shrink
-	 * other caches) if access is not potentially fatal.
+	 * TODO: Could shrink slab caches here if a lightweight range-based
+	 * shrinker will be available.
 	 */
-	if (access)
-		drop_slab_node(page_to_nid(p));
 }
 EXPORT_SYMBOL_GPL(shake_page);
 
@@ -391,8 +389,8 @@ static void add_to_kill(struct task_struct *tsk, struct page *p,
 /*
  * Kill the processes that have been collected earlier.
  *
- * Only do anything when DOIT is set, otherwise just free the list
- * (this is used for clean pages which do not need killing)
+ * Only do anything when FORCEKILL is set, otherwise just free the
+ * list (this is used for clean pages which do not need killing)
  * Also when FAIL is set do a force kill because something went
  * wrong earlier.
  */
@@ -632,7 +630,7 @@ static int hwpoison_pte_range(pmd_t *pmdp, unsigned long addr,
 {
 	struct hwp_walk *hwp = (struct hwp_walk *)walk->private;
 	int ret = 0;
-	pte_t *ptep;
+	pte_t *ptep, *mapped_pte;
 	spinlock_t *ptl;
 
 	ptl = pmd_trans_huge_lock(pmdp, walk->vma);
@@ -645,14 +643,15 @@ static int hwpoison_pte_range(pmd_t *pmdp, unsigned long addr,
 	if (pmd_trans_unstable(pmdp))
 		goto out;
 
-	ptep = pte_offset_map_lock(walk->vma->vm_mm, pmdp, addr, &ptl);
+	mapped_pte = ptep = pte_offset_map_lock(walk->vma->vm_mm, pmdp,
+						addr, &ptl);
 	for (; addr != end; ptep++, addr += PAGE_SIZE) {
 		ret = check_hwpoisoned_entry(*ptep, addr, PAGE_SHIFT,
 					     hwp->pfn, &hwp->tk);
 		if (ret == 1)
 			break;
 	}
-	pte_unmap_unlock(ptep - 1, ptl);
+	pte_unmap_unlock(mapped_pte, ptl);
 out:
 	cond_resched();
 	return ret;
@@ -866,7 +865,7 @@ static int me_pagecache_clean(struct page *p, unsigned long pfn)
 	/*
 	 * Truncation is a bit tricky. Enable it per file system for now.
 	 *
-	 * Open: to take i_mutex or not for this? Right now we don't.
+	 * Open: to take i_rwsem or not for this? Right now we don't.
 	 */
 	ret = truncate_error_page(p, pfn, mapping);
 out:
@@ -1146,7 +1145,7 @@ static int __get_hwpoison_page(struct page *page)
 	 * unexpected races caused by taking a page refcount.
 	 */
 	if (!HWPoisonHandlable(head))
-		return 0;
+		return -EBUSY;
 
 	if (PageTransHuge(head)) {
 		/*
@@ -1199,9 +1198,15 @@ try_again:
 			}
 			goto out;
 		} else if (ret == -EBUSY) {
-			/* We raced with freeing huge page to buddy, retry. */
-			if (pass++ < 3)
+			/*
+			 * We raced with (possibly temporary) unhandlable
+			 * page, retry.
+			 */
+			if (pass++ < 3) {
+				shake_page(p);
 				goto try_again;
+			}
+			ret = -EIO;
 			goto out;
 		}
 	}
@@ -1215,7 +1220,7 @@ try_again:
 		 */
 		if (pass++ < 3) {
 			put_page(p);
-			shake_page(p, 1);
+			shake_page(p);
 			count_increased = false;
 			goto try_again;
 		}
@@ -1223,6 +1228,9 @@ try_again:
 		ret = -EIO;
 	}
 out:
+	if (ret == -EIO)
+		dump_page(p, "hwpoison: unhandlable page");
+
 	return ret;
 }
 
@@ -1264,14 +1272,13 @@ static int get_hwpoison_page(struct page *p, unsigned long flags)
  * the pages and send SIGBUS to the processes if the data was dirty.
  */
 static bool hwpoison_user_mappings(struct page *p, unsigned long pfn,
-				  int flags, struct page **hpagep)
+				  int flags, struct page *hpage)
 {
 	enum ttu_flags ttu = TTU_IGNORE_MLOCK | TTU_SYNC;
 	struct address_space *mapping;
 	LIST_HEAD(tokill);
 	bool unmap_success;
 	int kill = 1, forcekill;
-	struct page *hpage = *hpagep;
 	bool mlocked = PageMlocked(hpage);
 
 	/*
@@ -1363,7 +1370,7 @@ static bool hwpoison_user_mappings(struct page *p, unsigned long pfn,
 	 * shake_page() again to ensure that it's flushed.
 	 */
 	if (mlocked)
-		shake_page(hpage, 0);
+		shake_page(hpage);
 
 	/*
 	 * Now that the dirty bit has been propagated to the
@@ -1496,7 +1503,7 @@ static int memory_failure_hugetlb(unsigned long pfn, int flags)
 		goto out;
 	}
 
-	if (!hwpoison_user_mappings(p, pfn, flags, &head)) {
+	if (!hwpoison_user_mappings(p, pfn, flags, head)) {
 		action_result(pfn, MF_MSG_UNMAP_FAILED, MF_IGNORED);
 		res = -EBUSY;
 		goto out;
@@ -1512,7 +1519,6 @@ static int memory_failure_dev_pagemap(unsigned long pfn, int flags,
 		struct dev_pagemap *pgmap)
 {
 	struct page *page = pfn_to_page(pfn);
-	const bool unmap_success = true;
 	unsigned long size = 0;
 	struct to_kill *tk;
 	LIST_HEAD(tokill);
@@ -1584,7 +1590,7 @@ static int memory_failure_dev_pagemap(unsigned long pfn, int flags,
 		start = (page->index << PAGE_SHIFT) & ~(size - 1);
 		unmap_mapping_range(page->mapping, start, size, 0);
 	}
-	kill_procs(&tokill, flags & MF_MUST_KILL, !unmap_success, pfn, flags);
+	kill_procs(&tokill, flags & MF_MUST_KILL, false, pfn, flags);
 	rc = 0;
 unlock:
 	dax_unlock_page(page, cookie);
@@ -1718,7 +1724,7 @@ try_again:
 	 * The check (unnecessarily) ignores LRU pages being isolated and
 	 * walked by the page reclaim code, however that's not a big loss.
 	 */
-	shake_page(p, 0);
+	shake_page(p);
 
 	lock_page(p);
 
@@ -1777,7 +1783,7 @@ try_again:
 	 * Now take care of user space mappings.
 	 * Abort on fail: __delete_from_page_cache() assumes unmapped page.
 	 */
-	if (!hwpoison_user_mappings(p, pfn, flags, &p)) {
+	if (!hwpoison_user_mappings(p, pfn, flags, p)) {
 		action_result(pfn, MF_MSG_UNMAP_FAILED, MF_IGNORED);
 		res = -EBUSY;
 		goto unlock_page;
@@ -2093,7 +2099,7 @@ static int __soft_offline_page(struct page *page)
 
 	if (isolate_page(hpage, &pagelist)) {
 		ret = migrate_pages(&pagelist, alloc_migration_target, NULL,
-			(unsigned long)&mtc, MIGRATE_SYNC, MR_MEMORY_FAILURE);
+			(unsigned long)&mtc, MIGRATE_SYNC, MR_MEMORY_FAILURE, NULL);
 		if (!ret) {
 			bool release = !huge;
 
@@ -2202,9 +2208,6 @@ retry:
 			try_again = false;
 			goto retry;
 		}
-	} else if (ret == -EIO) {
-		pr_info("%s: %#lx: unknown page type: %lx (%pGp)\n",
-			 __func__, pfn, page->flags, &page->flags);
 	}
 
 	return ret;

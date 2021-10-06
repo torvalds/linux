@@ -1961,6 +1961,59 @@ static struct sk_buff *xfrm_policy_netlink(struct sk_buff *in_skb,
 	return skb;
 }
 
+static int xfrm_set_default(struct sk_buff *skb, struct nlmsghdr *nlh,
+			    struct nlattr **attrs)
+{
+	struct net *net = sock_net(skb->sk);
+	struct xfrm_userpolicy_default *up = nlmsg_data(nlh);
+	u8 dirmask;
+	u8 old_default = net->xfrm.policy_default;
+
+	if (up->dirmask >= XFRM_USERPOLICY_DIRMASK_MAX)
+		return -EINVAL;
+
+	dirmask = (1 << up->dirmask) & XFRM_POL_DEFAULT_MASK;
+
+	net->xfrm.policy_default = (old_default & (0xff ^ dirmask))
+				    | (up->action << up->dirmask);
+
+	rt_genid_bump_all(net);
+
+	return 0;
+}
+
+static int xfrm_get_default(struct sk_buff *skb, struct nlmsghdr *nlh,
+			    struct nlattr **attrs)
+{
+	struct sk_buff *r_skb;
+	struct nlmsghdr *r_nlh;
+	struct net *net = sock_net(skb->sk);
+	struct xfrm_userpolicy_default *r_up, *up;
+	int len = NLMSG_ALIGN(sizeof(struct xfrm_userpolicy_default));
+	u32 portid = NETLINK_CB(skb).portid;
+	u32 seq = nlh->nlmsg_seq;
+
+	up = nlmsg_data(nlh);
+
+	r_skb = nlmsg_new(len, GFP_ATOMIC);
+	if (!r_skb)
+		return -ENOMEM;
+
+	r_nlh = nlmsg_put(r_skb, portid, seq, XFRM_MSG_GETDEFAULT, sizeof(*r_up), 0);
+	if (!r_nlh) {
+		kfree_skb(r_skb);
+		return -EMSGSIZE;
+	}
+
+	r_up = nlmsg_data(r_nlh);
+
+	r_up->action = ((net->xfrm.policy_default & (1 << up->dirmask)) >> up->dirmask);
+	r_up->dirmask = up->dirmask;
+	nlmsg_end(r_skb, r_nlh);
+
+	return nlmsg_unicast(net->xfrm.nlsk, r_skb, portid);
+}
+
 static int xfrm_get_policy(struct sk_buff *skb, struct nlmsghdr *nlh,
 		struct nlattr **attrs)
 {
@@ -2664,6 +2717,8 @@ const int xfrm_msg_min[XFRM_NR_MSGTYPES] = {
 	[XFRM_MSG_GETSADINFO  - XFRM_MSG_BASE] = sizeof(u32),
 	[XFRM_MSG_NEWSPDINFO  - XFRM_MSG_BASE] = sizeof(u32),
 	[XFRM_MSG_GETSPDINFO  - XFRM_MSG_BASE] = sizeof(u32),
+	[XFRM_MSG_SETDEFAULT  - XFRM_MSG_BASE] = XMSGSIZE(xfrm_userpolicy_default),
+	[XFRM_MSG_GETDEFAULT  - XFRM_MSG_BASE] = XMSGSIZE(xfrm_userpolicy_default),
 };
 EXPORT_SYMBOL_GPL(xfrm_msg_min);
 
@@ -2743,6 +2798,8 @@ static const struct xfrm_link {
 						   .nla_pol = xfrma_spd_policy,
 						   .nla_max = XFRMA_SPD_MAX },
 	[XFRM_MSG_GETSPDINFO  - XFRM_MSG_BASE] = { .doit = xfrm_get_spdinfo   },
+	[XFRM_MSG_SETDEFAULT  - XFRM_MSG_BASE] = { .doit = xfrm_set_default   },
+	[XFRM_MSG_GETDEFAULT  - XFRM_MSG_BASE] = { .doit = xfrm_get_default   },
 };
 
 static int xfrm_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
@@ -2810,6 +2867,16 @@ static int xfrm_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 	}
 
 	err = link->doit(skb, nlh, attrs);
+
+	/* We need to free skb allocated in xfrm_alloc_compat() before
+	 * returning from this function, because consume_skb() won't take
+	 * care of frag_list since netlink destructor sets
+	 * sbk->head to NULL. (see netlink_skb_destructor())
+	 */
+	if (skb_has_frag_list(skb)) {
+		kfree_skb(skb_shinfo(skb)->frag_list);
+		skb_shinfo(skb)->frag_list = NULL;
+	}
 
 err:
 	kvfree(nlh64);

@@ -100,9 +100,9 @@ int kernfs_setattr(struct kernfs_node *kn, const struct iattr *iattr)
 {
 	int ret;
 
-	mutex_lock(&kernfs_mutex);
+	down_write(&kernfs_rwsem);
 	ret = __kernfs_setattr(kn, iattr);
-	mutex_unlock(&kernfs_mutex);
+	up_write(&kernfs_rwsem);
 	return ret;
 }
 
@@ -116,7 +116,7 @@ int kernfs_iop_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 	if (!kn)
 		return -EINVAL;
 
-	mutex_lock(&kernfs_mutex);
+	down_write(&kernfs_rwsem);
 	error = setattr_prepare(&init_user_ns, dentry, iattr);
 	if (error)
 		goto out;
@@ -129,7 +129,7 @@ int kernfs_iop_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 	setattr_copy(&init_user_ns, inode, iattr);
 
 out:
-	mutex_unlock(&kernfs_mutex);
+	up_write(&kernfs_rwsem);
 	return error;
 }
 
@@ -185,11 +185,13 @@ int kernfs_iop_getattr(struct user_namespace *mnt_userns,
 	struct inode *inode = d_inode(path->dentry);
 	struct kernfs_node *kn = inode->i_private;
 
-	mutex_lock(&kernfs_mutex);
+	down_read(&kernfs_rwsem);
+	spin_lock(&inode->i_lock);
 	kernfs_refresh_inode(kn, inode);
-	mutex_unlock(&kernfs_mutex);
-
 	generic_fillattr(&init_user_ns, inode, stat);
+	spin_unlock(&inode->i_lock);
+	up_read(&kernfs_rwsem);
+
 	return 0;
 }
 
@@ -272,17 +274,21 @@ int kernfs_iop_permission(struct user_namespace *mnt_userns,
 			  struct inode *inode, int mask)
 {
 	struct kernfs_node *kn;
+	int ret;
 
 	if (mask & MAY_NOT_BLOCK)
 		return -ECHILD;
 
 	kn = inode->i_private;
 
-	mutex_lock(&kernfs_mutex);
+	down_read(&kernfs_rwsem);
+	spin_lock(&inode->i_lock);
 	kernfs_refresh_inode(kn, inode);
-	mutex_unlock(&kernfs_mutex);
+	ret = generic_permission(&init_user_ns, inode, mask);
+	spin_unlock(&inode->i_lock);
+	up_read(&kernfs_rwsem);
 
-	return generic_permission(&init_user_ns, inode, mask);
+	return ret;
 }
 
 int kernfs_xattr_get(struct kernfs_node *kn, const char *name,

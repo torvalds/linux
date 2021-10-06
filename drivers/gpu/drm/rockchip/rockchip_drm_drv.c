@@ -116,7 +116,7 @@ static int rockchip_drm_bind(struct device *dev)
 	int ret;
 
 	/* Remove existing drivers that may own the framebuffer memory. */
-	ret = drm_aperture_remove_framebuffers(false, "rockchip-drm-fb");
+	ret = drm_aperture_remove_framebuffers(false, &rockchip_drm_driver);
 	if (ret) {
 		DRM_DEV_ERROR(dev,
 			      "Failed to remove existing framebuffers - %d.\n",
@@ -161,12 +161,6 @@ static int rockchip_drm_bind(struct device *dev)
 		goto err_unbind_all;
 
 	drm_mode_config_reset(drm_dev);
-
-	/*
-	 * enable drm irq mode.
-	 * - with irq_enabled = true, we can use the vblank feature.
-	 */
-	drm_dev->irq_enabled = true;
 
 	ret = rockchip_drm_fbdev_init(drm_dev);
 	if (ret)

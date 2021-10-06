@@ -556,17 +556,22 @@ out:
 #undef COND
 }
 
-void intel_pcode_init(struct drm_i915_private *i915)
+int intel_pcode_init(struct drm_i915_private *i915)
 {
-	int ret;
+	int ret = 0;
 
 	if (!IS_DGFX(i915))
-		return;
+		return ret;
 
 	ret = skl_pcode_request(i915, DG1_PCODE_STATUS,
 				DG1_UNCORE_GET_INIT_STATUS,
 				DG1_UNCORE_INIT_STATUS_COMPLETE,
-				DG1_UNCORE_INIT_STATUS_COMPLETE, 50);
+				DG1_UNCORE_INIT_STATUS_COMPLETE, 180000);
+
+	drm_dbg(&i915->drm, "PCODE init status %d\n", ret);
+
 	if (ret)
 		drm_err(&i915->drm, "Pcode did not report uncore initialization completion!\n");
+
+	return ret;
 }

@@ -20,6 +20,10 @@
 #include "firmware_attributes_class.h"
 #include "think-lmi.h"
 
+static bool debug_support;
+module_param(debug_support, bool, 0444);
+MODULE_PARM_DESC(debug_support, "Enable debug command support");
+
 /*
  * Name:
  *  Lenovo_BiosSetting
@@ -115,6 +119,14 @@
  *  <- "Enabled,Disabled"
  */
 #define LENOVO_GET_BIOS_SELECTIONS_GUID	"7364651A-132F-4FE7-ADAA-40C6C7EE2E3B"
+
+/*
+ * Name:
+ *  Lenovo_DebugCmdGUID
+ * Description
+ *  Debug entry GUID method for entering debug commands to the BIOS
+ */
+#define LENOVO_DEBUG_CMD_GUID "7FF47003-3B6C-4E5E-A227-E979824A85D1"
 
 #define TLMI_POP_PWD (1 << 0)
 #define TLMI_PAP_PWD (1 << 1)
@@ -571,6 +583,11 @@ static ssize_t current_value_store(struct kobject *kobj,
 	else
 		ret = tlmi_save_bios_settings("");
 
+	if (!ret && !tlmi_priv.pending_changes) {
+		tlmi_priv.pending_changes = true;
+		/* let userland know it may need to check reboot pending again */
+		kobject_uevent(&tlmi_priv.class_dev->kobj, KOBJ_CHANGE);
+	}
 out:
 	kfree(auth_str);
 	kfree(set_str);
@@ -647,6 +664,72 @@ static struct kobj_type tlmi_pwd_setting_ktype = {
 	.sysfs_ops	= &tlmi_kobj_sysfs_ops,
 };
 
+static ssize_t pending_reboot_show(struct kobject *kobj, struct kobj_attribute *attr,
+				   char *buf)
+{
+	return sprintf(buf, "%d\n", tlmi_priv.pending_changes);
+}
+
+static struct kobj_attribute pending_reboot = __ATTR_RO(pending_reboot);
+
+/* ---- Debug interface--------------------------------------------------------- */
+static ssize_t debug_cmd_store(struct kobject *kobj, struct kobj_attribute *attr,
+				const char *buf, size_t count)
+{
+	char *set_str = NULL, *new_setting = NULL;
+	char *auth_str = NULL;
+	char *p;
+	int ret;
+
+	if (!tlmi_priv.can_debug_cmd)
+		return -EOPNOTSUPP;
+
+	new_setting = kstrdup(buf, GFP_KERNEL);
+	if (!new_setting)
+		return -ENOMEM;
+
+	/* Strip out CR if one is present */
+	p = strchrnul(new_setting, '\n');
+	*p = '\0';
+
+	if (tlmi_priv.pwd_admin->valid && tlmi_priv.pwd_admin->password[0]) {
+		auth_str = kasprintf(GFP_KERNEL, "%s,%s,%s;",
+				tlmi_priv.pwd_admin->password,
+				encoding_options[tlmi_priv.pwd_admin->encoding],
+				tlmi_priv.pwd_admin->kbdlang);
+		if (!auth_str) {
+			ret = -ENOMEM;
+			goto out;
+		}
+	}
+
+	if (auth_str)
+		set_str = kasprintf(GFP_KERNEL, "%s,%s", new_setting, auth_str);
+	else
+		set_str = kasprintf(GFP_KERNEL, "%s;", new_setting);
+	if (!set_str) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	ret = tlmi_simple_call(LENOVO_DEBUG_CMD_GUID, set_str);
+	if (ret)
+		goto out;
+
+	if (!ret && !tlmi_priv.pending_changes) {
+		tlmi_priv.pending_changes = true;
+		/* let userland know it may need to check reboot pending again */
+		kobject_uevent(&tlmi_priv.class_dev->kobj, KOBJ_CHANGE);
+	}
+out:
+	kfree(auth_str);
+	kfree(set_str);
+	kfree(new_setting);
+	return ret ?: count;
+}
+
+static struct kobj_attribute debug_cmd = __ATTR_WO(debug_cmd);
+
 /* ---- Initialisation --------------------------------------------------------- */
 static void tlmi_release_attr(void)
 {
@@ -659,6 +742,9 @@ static void tlmi_release_attr(void)
 			kobject_put(&tlmi_priv.setting[i]->kobj);
 		}
 	}
+	sysfs_remove_file(&tlmi_priv.attribute_kset->kobj, &pending_reboot.attr);
+	if (tlmi_priv.can_debug_cmd && debug_support)
+		sysfs_remove_file(&tlmi_priv.attribute_kset->kobj, &debug_cmd.attr);
 	kset_unregister(tlmi_priv.attribute_kset);
 
 	/* Authentication structures */
@@ -709,8 +795,8 @@ static int tlmi_sysfs_init(void)
 
 		/* Build attribute */
 		tlmi_priv.setting[i]->kobj.kset = tlmi_priv.attribute_kset;
-		ret = kobject_init_and_add(&tlmi_priv.setting[i]->kobj, &tlmi_attr_setting_ktype,
-				NULL, "%s", tlmi_priv.setting[i]->display_name);
+		ret = kobject_add(&tlmi_priv.setting[i]->kobj, NULL,
+				  "%s", tlmi_priv.setting[i]->display_name);
 		if (ret)
 			goto fail_create_attr;
 
@@ -719,6 +805,15 @@ static int tlmi_sysfs_init(void)
 			goto fail_create_attr;
 	}
 
+	ret = sysfs_create_file(&tlmi_priv.attribute_kset->kobj, &pending_reboot.attr);
+	if (ret)
+		goto fail_create_attr;
+
+	if (tlmi_priv.can_debug_cmd && debug_support) {
+		ret = sysfs_create_file(&tlmi_priv.attribute_kset->kobj, &debug_cmd.attr);
+		if (ret)
+			goto fail_create_attr;
+	}
 	/* Create authentication entries */
 	tlmi_priv.authentication_kset = kset_create_and_add("authentication", NULL,
 								&tlmi_priv.class_dev->kobj);
@@ -727,8 +822,7 @@ static int tlmi_sysfs_init(void)
 		goto fail_create_attr;
 	}
 	tlmi_priv.pwd_admin->kobj.kset = tlmi_priv.authentication_kset;
-	ret = kobject_init_and_add(&tlmi_priv.pwd_admin->kobj, &tlmi_pwd_setting_ktype,
-			NULL, "%s", "Admin");
+	ret = kobject_add(&tlmi_priv.pwd_admin->kobj, NULL, "%s", "Admin");
 	if (ret)
 		goto fail_create_attr;
 
@@ -737,8 +831,7 @@ static int tlmi_sysfs_init(void)
 		goto fail_create_attr;
 
 	tlmi_priv.pwd_power->kobj.kset = tlmi_priv.authentication_kset;
-	ret = kobject_init_and_add(&tlmi_priv.pwd_power->kobj, &tlmi_pwd_setting_ktype,
-			NULL, "%s", "System");
+	ret = kobject_add(&tlmi_priv.pwd_power->kobj, NULL, "%s", "System");
 	if (ret)
 		goto fail_create_attr;
 
@@ -776,6 +869,9 @@ static int tlmi_analyze(void)
 
 	if (wmi_has_guid(LENOVO_BIOS_PASSWORD_SETTINGS_GUID))
 		tlmi_priv.can_get_password_settings = true;
+
+	if (wmi_has_guid(LENOVO_DEBUG_CMD_GUID))
+		tlmi_priv.can_debug_cmd = true;
 
 	/*
 	 * Try to find the number of valid settings of this machine
@@ -818,6 +914,7 @@ static int tlmi_analyze(void)
 				pr_info("Error retrieving possible values for %d : %s\n",
 						i, setting->display_name);
 		}
+		kobject_init(&setting->kobj, &tlmi_attr_setting_ktype);
 		tlmi_priv.setting[i] = setting;
 		tlmi_priv.settings_count++;
 		kfree(item);
@@ -844,10 +941,12 @@ static int tlmi_analyze(void)
 	if (pwdcfg.password_state & TLMI_PAP_PWD)
 		tlmi_priv.pwd_admin->valid = true;
 
+	kobject_init(&tlmi_priv.pwd_admin->kobj, &tlmi_pwd_setting_ktype);
+
 	tlmi_priv.pwd_power = kzalloc(sizeof(struct tlmi_pwd_setting), GFP_KERNEL);
 	if (!tlmi_priv.pwd_power) {
 		ret = -ENOMEM;
-		goto fail_clear_attr;
+		goto fail_free_pwd_admin;
 	}
 	strscpy(tlmi_priv.pwd_power->kbdlang, "us", TLMI_LANG_MAXLEN);
 	tlmi_priv.pwd_power->encoding = TLMI_ENCODING_ASCII;
@@ -859,11 +958,19 @@ static int tlmi_analyze(void)
 	if (pwdcfg.password_state & TLMI_POP_PWD)
 		tlmi_priv.pwd_power->valid = true;
 
+	kobject_init(&tlmi_priv.pwd_power->kobj, &tlmi_pwd_setting_ktype);
+
 	return 0;
 
+fail_free_pwd_admin:
+	kfree(tlmi_priv.pwd_admin);
 fail_clear_attr:
-	for (i = 0; i < TLMI_SETTINGS_COUNT; ++i)
-		kfree(tlmi_priv.setting[i]);
+	for (i = 0; i < TLMI_SETTINGS_COUNT; ++i) {
+		if (tlmi_priv.setting[i]) {
+			kfree(tlmi_priv.setting[i]->possible_values);
+			kfree(tlmi_priv.setting[i]);
+		}
+	}
 	return ret;
 }
 

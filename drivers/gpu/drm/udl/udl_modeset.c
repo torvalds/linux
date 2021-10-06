@@ -6,10 +6,7 @@
  * Copyright (C) 2009 Roberto De Ioris <roberto@unbit.it>
  * Copyright (C) 2009 Jaya Kumar <jayakumar.lkml@gmail.com>
  * Copyright (C) 2009 Bernie Thompson <bernie@plugable.com>
-
  */
-
-#include <linux/dma-buf.h>
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
@@ -271,9 +268,8 @@ static int udl_handle_damage(struct drm_framebuffer *fb, const struct dma_buf_ma
 			     int x, int y, int width, int height)
 {
 	struct drm_device *dev = fb->dev;
-	struct dma_buf_attachment *import_attach = fb->obj[0]->import_attach;
 	void *vaddr = map->vaddr; /* TODO: Use mapping abstraction properly */
-	int i, ret, tmp_ret;
+	int i, ret;
 	char *cmd;
 	struct urb *urb;
 	struct drm_rect clip;
@@ -290,17 +286,14 @@ static int udl_handle_damage(struct drm_framebuffer *fb, const struct dma_buf_ma
 	else if ((clip.x2 > fb->width) || (clip.y2 > fb->height))
 		return -EINVAL;
 
-	if (import_attach) {
-		ret = dma_buf_begin_cpu_access(import_attach->dmabuf,
-					       DMA_FROM_DEVICE);
-		if (ret)
-			return ret;
-	}
+	ret = drm_gem_fb_begin_cpu_access(fb, DMA_FROM_DEVICE);
+	if (ret)
+		return ret;
 
 	urb = udl_get_urb(dev);
 	if (!urb) {
 		ret = -ENOMEM;
-		goto out_dma_buf_end_cpu_access;
+		goto out_drm_gem_fb_end_cpu_access;
 	}
 	cmd = urb->transfer_buffer;
 
@@ -313,7 +306,7 @@ static int udl_handle_damage(struct drm_framebuffer *fb, const struct dma_buf_ma
 				       &cmd, byte_offset, dev_byte_offset,
 				       byte_width);
 		if (ret)
-			goto out_dma_buf_end_cpu_access;
+			goto out_drm_gem_fb_end_cpu_access;
 	}
 
 	if (cmd > (char *)urb->transfer_buffer) {
@@ -329,14 +322,8 @@ static int udl_handle_damage(struct drm_framebuffer *fb, const struct dma_buf_ma
 
 	ret = 0;
 
-out_dma_buf_end_cpu_access:
-	if (import_attach) {
-		tmp_ret = dma_buf_end_cpu_access(import_attach->dmabuf,
-						 DMA_FROM_DEVICE);
-		if (tmp_ret && !ret)
-			ret = tmp_ret; /* only update ret if not set yet */
-	}
-
+out_drm_gem_fb_end_cpu_access:
+	drm_gem_fb_end_cpu_access(fb, DMA_FROM_DEVICE);
 	return ret;
 }
 
@@ -392,7 +379,7 @@ udl_simple_display_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	udl->mode_buf_len = wrptr - buf;
 
-	udl_handle_damage(fb, &shadow_plane_state->map[0], 0, 0, fb->width, fb->height);
+	udl_handle_damage(fb, &shadow_plane_state->data[0], 0, 0, fb->width, fb->height);
 
 	if (!crtc_state->mode_changed)
 		return;
@@ -435,7 +422,7 @@ udl_simple_display_pipe_update(struct drm_simple_display_pipe *pipe,
 		return;
 
 	if (drm_atomic_helper_damage_merged(old_plane_state, state, &rect))
-		udl_handle_damage(fb, &shadow_plane_state->map[0], rect.x1, rect.y1,
+		udl_handle_damage(fb, &shadow_plane_state->data[0], rect.x1, rect.y1,
 				  rect.x2 - rect.x1, rect.y2 - rect.y1);
 }
 

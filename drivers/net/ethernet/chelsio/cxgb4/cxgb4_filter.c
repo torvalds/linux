@@ -1441,7 +1441,7 @@ static int cxgb4_set_hash_filter(struct net_device *dev,
 	} else if (iconf & USE_ENC_IDX_F) {
 		if (f->fs.val.encap_vld) {
 			struct port_info *pi = netdev_priv(f->dev);
-			u8 match_all_mac[] = { 0, 0, 0, 0, 0, 0 };
+			static const u8 match_all_mac[] = { 0, 0, 0, 0, 0, 0 };
 
 			/* allocate MPS TCAM entry */
 			ret = t4_alloc_encap_mac_filt(adapter, pi->viid,
@@ -1688,7 +1688,7 @@ int __cxgb4_set_filter(struct net_device *dev, int ftid,
 	} else if (iconf & USE_ENC_IDX_F) {
 		if (f->fs.val.encap_vld) {
 			struct port_info *pi = netdev_priv(f->dev);
-			u8 match_all_mac[] = { 0, 0, 0, 0, 0, 0 };
+			static const u8 match_all_mac[] = { 0, 0, 0, 0, 0, 0 };
 
 			/* allocate MPS TCAM entry */
 			ret = t4_alloc_encap_mac_filt(adapter, pi->viid,

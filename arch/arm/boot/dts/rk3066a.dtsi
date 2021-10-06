@@ -218,7 +218,7 @@
 	};
 
 	timer2: timer@2000e000 {
-		compatible = "snps,dw-apb-timer-osc";
+		compatible = "snps,dw-apb-timer";
 		reg = <0x2000e000 0x100>;
 		interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_TIMER2>, <&cru PCLK_TIMER2>;
@@ -239,7 +239,7 @@
 	};
 
 	timer0: timer@20038000 {
-		compatible = "snps,dw-apb-timer-osc";
+		compatible = "snps,dw-apb-timer";
 		reg = <0x20038000 0x100>;
 		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_TIMER0>, <&cru PCLK_TIMER0>;
@@ -247,7 +247,7 @@
 	};
 
 	timer1: timer@2003a000 {
-		compatible = "snps,dw-apb-timer-osc";
+		compatible = "snps,dw-apb-timer";
 		reg = <0x2003a000 0x100>;
 		interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_TIMER1>, <&cru PCLK_TIMER1>;
@@ -351,11 +351,11 @@
 			#interrupt-cells = <2>;
 		};
 
-		pcfg_pull_default: pcfg_pull_default {
+		pcfg_pull_default: pcfg-pull-default {
 			bias-pull-pin-default;
 		};
 
-		pcfg_pull_none: pcfg_pull_none {
+		pcfg_pull_none: pcfg-pull-none {
 			bias-disable;
 		};
 

@@ -288,7 +288,7 @@ static int ipc_mux_net_receive(struct iosm_mux *ipc_mux, int if_id,
 	/* Pass the packet to the netif layer. */
 	dest_skb->priority = service_class;
 
-	return ipc_wwan_receive(wwan, dest_skb, false, if_id + 1);
+	return ipc_wwan_receive(wwan, dest_skb, false, if_id);
 }
 
 /* Decode Flow Credit Table in the block */
@@ -320,7 +320,7 @@ static void ipc_mux_dl_fcth_decode(struct iosm_mux *ipc_mux,
 		return;
 	}
 
-	ul_credits = fct->vfl.nr_of_bytes;
+	ul_credits = le32_to_cpu(fct->vfl.nr_of_bytes);
 
 	dev_dbg(ipc_mux->dev, "Flow_Credit:: if_id[%d] Old: %d Grants: %d",
 		if_id, ipc_mux->session[if_id].ul_flow_credits, ul_credits);
@@ -586,7 +586,7 @@ static bool ipc_mux_lite_send_qlt(struct iosm_mux *ipc_mux)
 		qlt->reserved[0] = 0;
 		qlt->reserved[1] = 0;
 
-		qlt->vfl.nr_of_bytes = session->ul_list.qlen;
+		qlt->vfl.nr_of_bytes = cpu_to_le32(session->ul_list.qlen);
 
 		/* Add QLT to the transfer list. */
 		skb_queue_tail(&ipc_mux->channel->ul_list,

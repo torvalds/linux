@@ -68,6 +68,10 @@ MODULE_PARM_DESC(report_undeciphered, "Report undeciphered multi-touch state fie
 #define TOUCH_STATE_START 0x30
 #define TOUCH_STATE_DRAG  0x40
 
+/* Number of high-resolution events for each low-resolution detent. */
+#define SCROLL_HR_STEPS 10
+#define SCROLL_HR_MULT (120 / SCROLL_HR_STEPS)
+#define SCROLL_HR_THRESHOLD 90 /* units */
 #define SCROLL_ACCEL_DEFAULT 7
 
 /* Touch surface information. Dimension is in hundredths of a mm, min and max
@@ -126,7 +130,11 @@ struct magicmouse_sc {
 		short y;
 		short scroll_x;
 		short scroll_y;
+		short scroll_x_hr;
+		short scroll_y_hr;
 		u8 size;
+		bool scroll_x_active;
+		bool scroll_y_active;
 	} touches[16];
 	int tracking_ids[16];
 
@@ -248,12 +256,20 @@ static void magicmouse_emit_touch(struct magicmouse_sc *msc, int raw_id, u8 *tda
 		unsigned long now = jiffies;
 		int step_x = msc->touches[id].scroll_x - x;
 		int step_y = msc->touches[id].scroll_y - y;
+		int step_hr = ((64 - (int)scroll_speed) * msc->scroll_accel) /
+			      SCROLL_HR_STEPS;
+		int step_x_hr = msc->touches[id].scroll_x_hr - x;
+		int step_y_hr = msc->touches[id].scroll_y_hr - y;
 
 		/* Calculate and apply the scroll motion. */
 		switch (state) {
 		case TOUCH_STATE_START:
 			msc->touches[id].scroll_x = x;
 			msc->touches[id].scroll_y = y;
+			msc->touches[id].scroll_x_hr = x;
+			msc->touches[id].scroll_y_hr = y;
+			msc->touches[id].scroll_x_active = false;
+			msc->touches[id].scroll_y_active = false;
 
 			/* Reset acceleration after half a second. */
 			if (scroll_acceleration && time_before(now,
@@ -279,6 +295,40 @@ static void magicmouse_emit_touch(struct magicmouse_sc *msc, int raw_id, u8 *tda
 					(64 - scroll_speed) * msc->scroll_accel;
 				msc->scroll_jiffies = now;
 				input_report_rel(input, REL_WHEEL, step_y);
+			}
+
+			if (!msc->touches[id].scroll_x_active &&
+			    abs(step_x_hr) > SCROLL_HR_THRESHOLD) {
+				msc->touches[id].scroll_x_active = true;
+				msc->touches[id].scroll_x_hr = x;
+				step_x_hr = 0;
+			}
+
+			step_x_hr /= step_hr;
+			if (step_x_hr != 0 &&
+			    msc->touches[id].scroll_x_active) {
+				msc->touches[id].scroll_x_hr -= step_x_hr *
+					step_hr;
+				input_report_rel(input,
+						 REL_HWHEEL_HI_RES,
+						 -step_x_hr * SCROLL_HR_MULT);
+			}
+
+			if (!msc->touches[id].scroll_y_active &&
+			    abs(step_y_hr) > SCROLL_HR_THRESHOLD) {
+				msc->touches[id].scroll_y_active = true;
+				msc->touches[id].scroll_y_hr = y;
+				step_y_hr = 0;
+			}
+
+			step_y_hr /= step_hr;
+			if (step_y_hr != 0 &&
+			    msc->touches[id].scroll_y_active) {
+				msc->touches[id].scroll_y_hr -= step_y_hr *
+					step_hr;
+				input_report_rel(input,
+						 REL_WHEEL_HI_RES,
+						 step_y_hr * SCROLL_HR_MULT);
 			}
 			break;
 		}
@@ -481,6 +531,8 @@ static int magicmouse_setup_input(struct input_dev *input, struct hid_device *hd
 		if (emulate_scroll_wheel) {
 			__set_bit(REL_WHEEL, input->relbit);
 			__set_bit(REL_HWHEEL, input->relbit);
+			__set_bit(REL_WHEEL_HI_RES, input->relbit);
+			__set_bit(REL_HWHEEL_HI_RES, input->relbit);
 		}
 	} else if (input->id.product == USB_DEVICE_ID_APPLE_MAGICTRACKPAD2) {
 		/* setting the device name to ensure the same driver settings

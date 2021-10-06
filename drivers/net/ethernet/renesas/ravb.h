@@ -864,7 +864,7 @@ enum GECMR_BIT {
 
 /* The Ethernet AVB descriptor definitions. */
 struct ravb_desc {
-	__le16 ds;		/* Descriptor size */
+	__le16 ds;	/* Descriptor size */
 	u8 cc;		/* Content control MSBs (reserved) */
 	u8 die_dt;	/* Descriptor interrupt enable and type */
 	__le32 dptr;	/* Descriptor pointer */
@@ -956,10 +956,6 @@ enum RAVB_QUEUE {
 
 #define RX_BUF_SZ	(2048 - ETH_FCS_LEN + sizeof(__sum16))
 
-/* TX descriptors per packet */
-#define NUM_TX_DESC_GEN2	2
-#define NUM_TX_DESC_GEN3	1
-
 struct ravb_tstamp_skb {
 	struct list_head list;
 	struct sk_buff *skb;
@@ -983,9 +979,29 @@ struct ravb_ptp {
 	struct ravb_ptp_perout perout[N_PER_OUT];
 };
 
-enum ravb_chip_id {
-	RCAR_GEN2,
-	RCAR_GEN3,
+struct ravb_hw_info {
+	void (*rx_ring_free)(struct net_device *ndev, int q);
+	void (*rx_ring_format)(struct net_device *ndev, int q);
+	void *(*alloc_rx_desc)(struct net_device *ndev, int q);
+	bool (*receive)(struct net_device *ndev, int *quota, int q);
+	void (*set_rate)(struct net_device *ndev);
+	int (*set_rx_csum_feature)(struct net_device *ndev, netdev_features_t features);
+	void (*dmac_init)(struct net_device *ndev);
+	void (*emac_init)(struct net_device *ndev);
+	const char (*gstrings_stats)[ETH_GSTRING_LEN];
+	size_t gstrings_size;
+	netdev_features_t net_hw_features;
+	netdev_features_t net_features;
+	int stats_len;
+	size_t max_rx_len;
+	unsigned aligned_tx: 1;
+
+	/* hardware features */
+	unsigned internal_delay:1;	/* AVB-DMAC has internal delays */
+	unsigned tx_counters:1;		/* E-MAC has TX counters */
+	unsigned multi_irqs:1;		/* AVB-DMAC and E-MAC has multiple irqs */
+	unsigned no_ptp_cfg_active:1;	/* AVB-DMAC does not support gPTP active in config mode */
+	unsigned ptp_cfg_active:1;	/* AVB-DMAC has gPTP support active in config mode */
 };
 
 struct ravb_private {
@@ -1029,7 +1045,6 @@ struct ravb_private {
 	int msg_enable;
 	int speed;
 	int emac_irq;
-	enum ravb_chip_id chip_id;
 	int rx_irqs[NUM_RX_QUEUE];
 	int tx_irqs[NUM_TX_QUEUE];
 
@@ -1039,7 +1054,10 @@ struct ravb_private {
 	unsigned rxcidm:1;		/* RX Clock Internal Delay Mode */
 	unsigned txcidm:1;		/* TX Clock Internal Delay Mode */
 	unsigned rgmii_override:1;	/* Deprecated rgmii-*id behavior */
-	int num_tx_desc;		/* TX descriptors per packet */
+	unsigned int num_tx_desc;	/* TX descriptors per packet */
+
+	const struct ravb_hw_info *info;
+	struct reset_control *rstc;
 };
 
 static inline u32 ravb_read(struct net_device *ndev, enum ravb_reg reg)

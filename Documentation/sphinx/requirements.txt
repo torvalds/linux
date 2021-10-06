@@ -1,3 +1,2 @@
-docutils
-Sphinx==2.4.4
 sphinx_rtd_theme
+Sphinx==2.4.4

@@ -168,20 +168,18 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
 /* only on e500mc */
 #define DBG_STACK_BASE		dbgirq_ctx
 
-#define EXC_LVL_FRAME_OVERHEAD	(THREAD_SIZE - INT_FRAME_SIZE - EXC_LVL_SIZE)
-
 #ifdef CONFIG_SMP
 #define BOOKE_LOAD_EXC_LEVEL_STACK(level)		\
 	mfspr	r8,SPRN_PIR;				\
 	slwi	r8,r8,2;				\
 	addis	r8,r8,level##_STACK_BASE@ha;		\
 	lwz	r8,level##_STACK_BASE@l(r8);		\
-	addi	r8,r8,EXC_LVL_FRAME_OVERHEAD;
+	addi	r8,r8,THREAD_SIZE - INT_FRAME_SIZE;
 #else
 #define BOOKE_LOAD_EXC_LEVEL_STACK(level)		\
 	lis	r8,level##_STACK_BASE@ha;		\
 	lwz	r8,level##_STACK_BASE@l(r8);		\
-	addi	r8,r8,EXC_LVL_FRAME_OVERHEAD;
+	addi	r8,r8,THREAD_SIZE - INT_FRAME_SIZE;
 #endif
 
 /*
@@ -208,7 +206,7 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
 	mtmsr	r11;							\
 	mfspr	r11,SPRN_SPRG_THREAD;	/* if from user, start at top of   */\
 	lwz	r11, TASK_STACK - THREAD(r11); /* this thread's kernel stack */\
-	addi	r11,r11,EXC_LVL_FRAME_OVERHEAD;	/* allocate stack frame    */\
+	addi	r11,r11,THREAD_SIZE - INT_FRAME_SIZE;	/* allocate stack frame    */\
 	beq	1f;							     \
 	/* COMING FROM USER MODE */					     \
 	stw	r9,_CCR(r11);		/* save CR			   */\
@@ -515,25 +513,6 @@ label:
 1:	prepare_transfer_to_handler;					      \
 	bl	kernel_fp_unavailable_exception;			      \
 	b	interrupt_return
-
-#else /* __ASSEMBLY__ */
-struct exception_regs {
-	unsigned long mas0;
-	unsigned long mas1;
-	unsigned long mas2;
-	unsigned long mas3;
-	unsigned long mas6;
-	unsigned long mas7;
-	unsigned long srr0;
-	unsigned long srr1;
-	unsigned long csrr0;
-	unsigned long csrr1;
-	unsigned long dsrr0;
-	unsigned long dsrr1;
-};
-
-/* ensure this structure is always sized to a multiple of the stack alignment */
-#define STACK_EXC_LVL_FRAME_SIZE	ALIGN(sizeof (struct exception_regs), 16)
 
 #endif /* __ASSEMBLY__ */
 #endif /* __HEAD_BOOKE_H__ */

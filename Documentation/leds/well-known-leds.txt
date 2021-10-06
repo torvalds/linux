@@ -1,0 +1,58 @@
+-*- org -*-
+
+It is somehow important to provide consistent interface to the
+userland. LED devices have one problem there, and that is naming of
+directories in /sys/class/leds. It would be nice if userland would
+just know right "name" for given LED function, but situation got more
+complex.
+
+Anyway, if backwards compatibility is not an issue, new code should
+use one of the "good" names from this list, and you should extend the
+list where applicable.
+
+Legacy names are listed, too; in case you are writing application that
+wants to use particular feature, you should probe for good name, first,
+but then try the legacy ones, too.
+
+Notice there's a list of functions in include/dt-bindings/leds/common.h .
+
+* Keyboards
+  
+Good: "input*:*:capslock"
+Good: "input*:*:scrolllock"
+Good: "input*:*:numlock"
+Legacy: "shift-key-light" (Motorola Droid 4, capslock)
+
+Set of common keyboard LEDs, going back to PC AT or so.
+
+Legacy: "tpacpi::thinklight" (IBM/Lenovo Thinkpads)
+Legacy: "lp5523:kb{1,2,3,4,5,6}" (Nokia N900)
+
+Frontlight/backlight of main keyboard.
+
+Legacy: "button-backlight" (Motorola Droid 4)
+
+Some phones have touch buttons below screen; it is different from main
+keyboard. And this is their backlight.
+
+* Sound subsystem
+
+Good: "platform:*:mute"
+Good: "platform:*:micmute"
+
+LEDs on notebook body, indicating that sound input / output is muted.
+
+* System notification
+
+Legacy: "status-led:{red,green,blue}" (Motorola Droid 4)
+Legacy: "lp5523:{r,g,b}" (Nokia N900)
+
+Phones usually have multi-color status LED.
+
+* Power management
+
+Good: "platform:*:charging" (allwinner sun50i)
+
+* Screen
+
+Good: ":backlight" (Motorola Droid 4)

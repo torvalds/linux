@@ -2206,22 +2206,12 @@ static void tb_test_credit_alloc_dma_multiple(struct kunit *test)
 	tb_tunnel_free(tunnel2);
 }
 
-static void tb_test_credit_alloc_all(struct kunit *test)
+static struct tb_tunnel *TB_TEST_PCIE_TUNNEL(struct kunit *test,
+			struct tb_switch *host, struct tb_switch *dev)
 {
-	struct tb_port *up, *down, *in, *out, *nhi, *port;
-	struct tb_tunnel *pcie_tunnel, *dp_tunnel1, *dp_tunnel2, *usb3_tunnel;
-	struct tb_tunnel *dma_tunnel1, *dma_tunnel2;
-	struct tb_switch *host, *dev;
+	struct tb_port *up, *down;
+	struct tb_tunnel *pcie_tunnel;
 	struct tb_path *path;
-
-	/*
-	 * Create PCIe, 2 x DP, USB 3.x and two DMA tunnels from host to
-	 * device. Expectation is that all these can be established with
-	 * the default credit allocation found in Intel hardware.
-	 */
-
-	host = alloc_host_usb4(test);
-	dev = alloc_dev_usb4(test, host, 0x1, true);
 
 	down = &host->ports[8];
 	up = &dev->ports[9];
@@ -2243,9 +2233,18 @@ static void tb_test_credit_alloc_all(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, path->hops[1].nfc_credits, 0U);
 	KUNIT_EXPECT_EQ(test, path->hops[1].initial_credits, 64U);
 
+	return pcie_tunnel;
+}
+
+static struct tb_tunnel *TB_TEST_DP_TUNNEL1(struct kunit *test,
+			struct tb_switch *host, struct tb_switch *dev)
+{
+	struct tb_port *in, *out;
+	struct tb_tunnel *dp_tunnel1;
+	struct tb_path *path;
+
 	in = &host->ports[5];
 	out = &dev->ports[13];
-
 	dp_tunnel1 = tb_tunnel_alloc_dp(NULL, in, out, 0, 0);
 	KUNIT_ASSERT_TRUE(test, dp_tunnel1 != NULL);
 	KUNIT_ASSERT_EQ(test, dp_tunnel1->npaths, (size_t)3);
@@ -2271,9 +2270,18 @@ static void tb_test_credit_alloc_all(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, path->hops[1].nfc_credits, 0U);
 	KUNIT_EXPECT_EQ(test, path->hops[1].initial_credits, 1U);
 
+	return dp_tunnel1;
+}
+
+static struct tb_tunnel *TB_TEST_DP_TUNNEL2(struct kunit *test,
+			struct tb_switch *host, struct tb_switch *dev)
+{
+	struct tb_port *in, *out;
+	struct tb_tunnel *dp_tunnel2;
+	struct tb_path *path;
+
 	in = &host->ports[6];
 	out = &dev->ports[14];
-
 	dp_tunnel2 = tb_tunnel_alloc_dp(NULL, in, out, 0, 0);
 	KUNIT_ASSERT_TRUE(test, dp_tunnel2 != NULL);
 	KUNIT_ASSERT_EQ(test, dp_tunnel2->npaths, (size_t)3);
@@ -2299,6 +2307,16 @@ static void tb_test_credit_alloc_all(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, path->hops[1].nfc_credits, 0U);
 	KUNIT_EXPECT_EQ(test, path->hops[1].initial_credits, 1U);
 
+	return dp_tunnel2;
+}
+
+static struct tb_tunnel *TB_TEST_USB3_TUNNEL(struct kunit *test,
+			struct tb_switch *host, struct tb_switch *dev)
+{
+	struct tb_port *up, *down;
+	struct tb_tunnel *usb3_tunnel;
+	struct tb_path *path;
+
 	down = &host->ports[12];
 	up = &dev->ports[16];
 	usb3_tunnel = tb_tunnel_alloc_usb3(NULL, up, down, 0, 0);
@@ -2319,9 +2337,18 @@ static void tb_test_credit_alloc_all(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, path->hops[1].nfc_credits, 0U);
 	KUNIT_EXPECT_EQ(test, path->hops[1].initial_credits, 32U);
 
+	return usb3_tunnel;
+}
+
+static struct tb_tunnel *TB_TEST_DMA_TUNNEL1(struct kunit *test,
+			struct tb_switch *host, struct tb_switch *dev)
+{
+	struct tb_port *nhi, *port;
+	struct tb_tunnel *dma_tunnel1;
+	struct tb_path *path;
+
 	nhi = &host->ports[7];
 	port = &dev->ports[3];
-
 	dma_tunnel1 = tb_tunnel_alloc_dma(NULL, nhi, port, 8, 1, 8, 1);
 	KUNIT_ASSERT_TRUE(test, dma_tunnel1 != NULL);
 	KUNIT_ASSERT_EQ(test, dma_tunnel1->npaths, (size_t)2);
@@ -2340,6 +2367,18 @@ static void tb_test_credit_alloc_all(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, path->hops[1].nfc_credits, 0U);
 	KUNIT_EXPECT_EQ(test, path->hops[1].initial_credits, 14U);
 
+	return dma_tunnel1;
+}
+
+static struct tb_tunnel *TB_TEST_DMA_TUNNEL2(struct kunit *test,
+			struct tb_switch *host, struct tb_switch *dev)
+{
+	struct tb_port *nhi, *port;
+	struct tb_tunnel *dma_tunnel2;
+	struct tb_path *path;
+
+	nhi = &host->ports[7];
+	port = &dev->ports[3];
 	dma_tunnel2 = tb_tunnel_alloc_dma(NULL, nhi, port, 9, 2, 9, 2);
 	KUNIT_ASSERT_TRUE(test, dma_tunnel2 != NULL);
 	KUNIT_ASSERT_EQ(test, dma_tunnel2->npaths, (size_t)2);
@@ -2357,6 +2396,31 @@ static void tb_test_credit_alloc_all(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, path->hops[0].initial_credits, 0U);
 	KUNIT_EXPECT_EQ(test, path->hops[1].nfc_credits, 0U);
 	KUNIT_EXPECT_EQ(test, path->hops[1].initial_credits, 1U);
+
+	return dma_tunnel2;
+}
+
+static void tb_test_credit_alloc_all(struct kunit *test)
+{
+	struct tb_tunnel *pcie_tunnel, *dp_tunnel1, *dp_tunnel2, *usb3_tunnel;
+	struct tb_tunnel *dma_tunnel1, *dma_tunnel2;
+	struct tb_switch *host, *dev;
+
+	/*
+	 * Create PCIe, 2 x DP, USB 3.x and two DMA tunnels from host to
+	 * device. Expectation is that all these can be established with
+	 * the default credit allocation found in Intel hardware.
+	 */
+
+	host = alloc_host_usb4(test);
+	dev = alloc_dev_usb4(test, host, 0x1, true);
+
+	pcie_tunnel = TB_TEST_PCIE_TUNNEL(test, host, dev);
+	dp_tunnel1 = TB_TEST_DP_TUNNEL1(test, host, dev);
+	dp_tunnel2 = TB_TEST_DP_TUNNEL2(test, host, dev);
+	usb3_tunnel = TB_TEST_USB3_TUNNEL(test, host, dev);
+	dma_tunnel1 = TB_TEST_DMA_TUNNEL1(test, host, dev);
+	dma_tunnel2 = TB_TEST_DMA_TUNNEL2(test, host, dev);
 
 	tb_tunnel_free(dma_tunnel2);
 	tb_tunnel_free(dma_tunnel1);

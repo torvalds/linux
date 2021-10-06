@@ -119,11 +119,8 @@ static int raw_diag_dump_one(struct netlink_callback *cb,
 		return err;
 	}
 
-	err = netlink_unicast(net->diag_nlsk, rep,
-			      NETLINK_CB(in_skb).portid,
-			      MSG_DONTWAIT);
-	if (err > 0)
-		err = 0;
+	err = nlmsg_unicast(net->diag_nlsk, rep, NETLINK_CB(in_skb).portid);
+
 	return err;
 }
 

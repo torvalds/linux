@@ -6,9 +6,9 @@
 #include <linux/sched.h>
 #include <linux/mm_types.h>
 #include <linux/memblock.h>
+#include <linux/debugfs.h>
 #include <misc/cxl-base.h>
 
-#include <asm/debugfs.h>
 #include <asm/pgalloc.h>
 #include <asm/tlb.h>
 #include <asm/trace.h>
@@ -172,8 +172,8 @@ pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
-/* For use by kexec */
-void mmu_cleanup_all(void)
+/* For use by kexec, called with MMU off */
+notrace void mmu_cleanup_all(void)
 {
 	if (radix_enabled())
 		radix__mmu_cleanup_all();
@@ -520,7 +520,7 @@ static int __init pgtable_debugfs_setup(void)
 	 * invalidated as expected.
 	 */
 	debugfs_create_bool("tlbie_enabled", 0600,
-			powerpc_debugfs_root,
+			arch_debugfs_dir,
 			&tlbie_enabled);
 
 	return 0;

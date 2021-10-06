@@ -28,6 +28,8 @@
  *    Christian König <christian.koenig@amd.com>
  */
 
+#include <linux/dma-fence-chain.h>
+
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
 #include "amdgpu_amdkfd.h"
@@ -186,6 +188,55 @@ int amdgpu_sync_vm_fence(struct amdgpu_sync *sync, struct dma_fence *fence)
 	return amdgpu_sync_fence(sync, fence);
 }
 
+/* Determine based on the owner and mode if we should sync to a fence or not */
+static bool amdgpu_sync_test_fence(struct amdgpu_device *adev,
+				   enum amdgpu_sync_mode mode,
+				   void *owner, struct dma_fence *f)
+{
+	void *fence_owner = amdgpu_sync_get_owner(f);
+
+	/* Always sync to moves, no matter what */
+	if (fence_owner == AMDGPU_FENCE_OWNER_UNDEFINED)
+		return true;
+
+	/* We only want to trigger KFD eviction fences on
+	 * evict or move jobs. Skip KFD fences otherwise.
+	 */
+	if (fence_owner == AMDGPU_FENCE_OWNER_KFD &&
+	    owner != AMDGPU_FENCE_OWNER_UNDEFINED)
+		return false;
+
+	/* Never sync to VM updates either. */
+	if (fence_owner == AMDGPU_FENCE_OWNER_VM &&
+	    owner != AMDGPU_FENCE_OWNER_UNDEFINED)
+		return false;
+
+	/* Ignore fences depending on the sync mode */
+	switch (mode) {
+	case AMDGPU_SYNC_ALWAYS:
+		return true;
+
+	case AMDGPU_SYNC_NE_OWNER:
+		if (amdgpu_sync_same_dev(adev, f) &&
+		    fence_owner == owner)
+			return false;
+		break;
+
+	case AMDGPU_SYNC_EQ_OWNER:
+		if (amdgpu_sync_same_dev(adev, f) &&
+		    fence_owner != owner)
+			return false;
+		break;
+
+	case AMDGPU_SYNC_EXPLICIT:
+		return false;
+	}
+
+	WARN(debug_evictions && fence_owner == AMDGPU_FENCE_OWNER_KFD,
+	     "Adding eviction fence to sync obj");
+	return true;
+}
+
 /**
  * amdgpu_sync_resv - sync to a reservation object
  *
@@ -211,67 +262,34 @@ int amdgpu_sync_resv(struct amdgpu_device *adev, struct amdgpu_sync *sync,
 
 	/* always sync to the exclusive fence */
 	f = dma_resv_excl_fence(resv);
-	r = amdgpu_sync_fence(sync, f);
+	dma_fence_chain_for_each(f, f) {
+		struct dma_fence_chain *chain = to_dma_fence_chain(f);
+
+		if (amdgpu_sync_test_fence(adev, mode, owner, chain ?
+					   chain->fence : f)) {
+			r = amdgpu_sync_fence(sync, f);
+			dma_fence_put(f);
+			if (r)
+				return r;
+			break;
+		}
+	}
 
 	flist = dma_resv_shared_list(resv);
-	if (!flist || r)
-		return r;
+	if (!flist)
+		return 0;
 
 	for (i = 0; i < flist->shared_count; ++i) {
-		void *fence_owner;
-
 		f = rcu_dereference_protected(flist->shared[i],
 					      dma_resv_held(resv));
 
-		fence_owner = amdgpu_sync_get_owner(f);
-
-		/* Always sync to moves, no matter what */
-		if (fence_owner == AMDGPU_FENCE_OWNER_UNDEFINED) {
+		if (amdgpu_sync_test_fence(adev, mode, owner, f)) {
 			r = amdgpu_sync_fence(sync, f);
 			if (r)
-				break;
+				return r;
 		}
-
-		/* We only want to trigger KFD eviction fences on
-		 * evict or move jobs. Skip KFD fences otherwise.
-		 */
-		if (fence_owner == AMDGPU_FENCE_OWNER_KFD &&
-		    owner != AMDGPU_FENCE_OWNER_UNDEFINED)
-			continue;
-
-		/* Never sync to VM updates either. */
-		if (fence_owner == AMDGPU_FENCE_OWNER_VM &&
-		    owner != AMDGPU_FENCE_OWNER_UNDEFINED)
-			continue;
-
-		/* Ignore fences depending on the sync mode */
-		switch (mode) {
-		case AMDGPU_SYNC_ALWAYS:
-			break;
-
-		case AMDGPU_SYNC_NE_OWNER:
-			if (amdgpu_sync_same_dev(adev, f) &&
-			    fence_owner == owner)
-				continue;
-			break;
-
-		case AMDGPU_SYNC_EQ_OWNER:
-			if (amdgpu_sync_same_dev(adev, f) &&
-			    fence_owner != owner)
-				continue;
-			break;
-
-		case AMDGPU_SYNC_EXPLICIT:
-			continue;
-		}
-
-		WARN(debug_evictions && fence_owner == AMDGPU_FENCE_OWNER_KFD,
-		     "Adding eviction fence to sync obj");
-		r = amdgpu_sync_fence(sync, f);
-		if (r)
-			break;
 	}
-	return r;
+	return 0;
 }
 
 /**

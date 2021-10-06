@@ -39,10 +39,8 @@ static irqreturn_t cplds_irq_handler(int in_irq, void *d)
 
 	do {
 		pending = readl(fpga->base + FPGA_IRQ_SET_CLR) & fpga->irq_mask;
-		for_each_set_bit(bit, &pending, CPLDS_NB_IRQ) {
-			generic_handle_irq(irq_find_mapping(fpga->irqdomain,
-							    bit));
-		}
+		for_each_set_bit(bit, &pending, CPLDS_NB_IRQ)
+			generic_handle_domain_irq(fpga->irqdomain, bit);
 	} while (pending);
 
 	return IRQ_HANDLED;

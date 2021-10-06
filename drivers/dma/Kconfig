@@ -277,10 +277,15 @@ config INTEL_IDMA64
 	  Enable DMA support for Intel Low Power Subsystem such as found on
 	  Intel Skylake PCH.
 
+config INTEL_IDXD_BUS
+	tristate
+	default INTEL_IDXD
+
 config INTEL_IDXD
 	tristate "Intel Data Accelerators support"
-	depends on PCI && X86_64
+	depends on PCI && X86_64 && !UML
 	depends on PCI_MSI
+	depends on PCI_PASID
 	depends on SBITMAP
 	select DMA_ENGINE
 	help
@@ -288,6 +293,23 @@ config INTEL_IDXD
 	  in Intel Xeon CPU.
 
 	  Say Y if you have such a platform.
+
+	  If unsure, say N.
+
+config INTEL_IDXD_COMPAT
+	bool "Legacy behavior for idxd driver"
+	depends on PCI && X86_64
+	select INTEL_IDXD_BUS
+	help
+	  Compatible driver to support old /sys/bus/dsa/drivers/dsa behavior.
+	  The old behavior performed driver bind/unbind for device and wq
+	  devices all under the dsa driver. The compat driver will emulate
+	  the legacy behavior in order to allow existing support apps (i.e.
+	  accel-config) to continue function. It is expected that accel-config
+	  v3.2 and earlier will need the compat mode. A distro with later
+	  accel-config version can disable this compat config.
+
+	  Say Y if you have old applications that require such behavior.
 
 	  If unsure, say N.
 
@@ -315,7 +337,7 @@ config INTEL_IDXD_PERFMON
 
 config INTEL_IOATDMA
 	tristate "Intel I/OAT DMA support"
-	depends on PCI && X86_64
+	depends on PCI && X86_64 && !UML
 	select DMA_ENGINE
 	select DMA_ENGINE_RAID
 	select DCA
@@ -715,6 +737,8 @@ config XILINX_ZYNQMP_DPDMA
 source "drivers/dma/bestcomm/Kconfig"
 
 source "drivers/dma/mediatek/Kconfig"
+
+source "drivers/dma/ptdma/Kconfig"
 
 source "drivers/dma/qcom/Kconfig"
 

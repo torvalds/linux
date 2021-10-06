@@ -168,6 +168,8 @@ void mlx5_lag_add_netdev(struct mlx5_core_dev *dev, struct net_device *netdev);
 void mlx5_lag_remove_netdev(struct mlx5_core_dev *dev, struct net_device *netdev);
 void mlx5_lag_add_mdev(struct mlx5_core_dev *dev);
 void mlx5_lag_remove_mdev(struct mlx5_core_dev *dev);
+void mlx5_lag_disable_change(struct mlx5_core_dev *dev);
+void mlx5_lag_enable_change(struct mlx5_core_dev *dev);
 
 int mlx5_events_init(struct mlx5_core_dev *dev);
 void mlx5_events_cleanup(struct mlx5_core_dev *dev);
@@ -206,8 +208,13 @@ int mlx5_firmware_flash(struct mlx5_core_dev *dev, const struct firmware *fw,
 int mlx5_fw_version_query(struct mlx5_core_dev *dev,
 			  u32 *running_ver, u32 *stored_ver);
 
+#ifdef CONFIG_MLX5_CORE_EN
 int mlx5e_init(void);
 void mlx5e_cleanup(void);
+#else
+static inline int mlx5e_init(void){ return 0; }
+static inline void mlx5e_cleanup(void){}
+#endif
 
 static inline bool mlx5_sriov_is_enabled(struct mlx5_core_dev *dev)
 {
@@ -270,4 +277,9 @@ static inline u32 mlx5_sriov_get_vf_total_msix(struct pci_dev *pdev)
 
 	return MLX5_CAP_GEN_MAX(dev, num_total_dynamic_vf_msix);
 }
+
+bool mlx5_eth_supported(struct mlx5_core_dev *dev);
+bool mlx5_rdma_supported(struct mlx5_core_dev *dev);
+bool mlx5_vnet_supported(struct mlx5_core_dev *dev);
+
 #endif /* __MLX5_CORE_H__ */

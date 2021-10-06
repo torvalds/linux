@@ -50,10 +50,34 @@ grep '^#' $1/qemu-cmd | sed -e 's/^# //' > $T/qemu-cmd-settings
 echo ---- System running test: `uname -a`
 echo ---- Starting kernels. `date` | tee -a log
 $TORTURE_JITTER_START
+kvm-assign-cpus.sh /sys/devices/system/node > $T/cpuarray.awk
 for i in "$@"
 do
 	echo ---- System running test: `uname -a` > $i/kvm-test-1-run-qemu.sh.out
 	echo > $i/kvm-test-1-run-qemu.sh.out
+	export TORTURE_AFFINITY=
+	kvm-get-cpus-script.sh $T/cpuarray.awk $T/cpubatches.awk $T/cpustate
+	cat << '	___EOF___' >> $T/cpubatches.awk
+	END {
+		affinitylist = "";
+		if (!gotcpus()) {
+			print "echo No CPU-affinity information, so no taskset command.";
+		} else if (cpu_count !~ /^[0-9][0-9]*$/) {
+			print "echo " scenario ": Bogus number of CPUs (old qemu-cmd?), so no taskset command.";
+		} else {
+			affinitylist = nextcpus(cpu_count);
+			if (!(affinitylist ~ /^[0-9,-][0-9,-]*$/))
+				print "echo " scenario ": Bogus CPU-affinity information, so no taskset command.";
+			else if (!dumpcpustate())
+				print "echo " scenario ": Could not dump state, so no taskset command.";
+			else
+				print "export TORTURE_AFFINITY=" affinitylist;
+		}
+	}
+	___EOF___
+	cpu_count="`grep '# TORTURE_CPU_COUNT=' $i/qemu-cmd | sed -e 's/^.*=//'`"
+	affinity_export="`awk -f $T/cpubatches.awk -v cpu_count="$cpu_count" -v scenario=$i < /dev/null`"
+	$affinity_export
 	kvm-test-1-run-qemu.sh $i >> $i/kvm-test-1-run-qemu.sh.out 2>&1 &
 done
 for i in $runfiles

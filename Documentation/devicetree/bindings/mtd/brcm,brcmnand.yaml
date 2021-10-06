@@ -84,7 +84,6 @@ properties:
 
   interrupts:
     minItems: 1
-    maxItems: 3
     items:
       - description: NAND CTLRDY interrupt
       - description: FLASH_DMA_DONE if flash DMA is available
@@ -92,7 +91,6 @@ properties:
 
   interrupt-names:
     minItems: 1
-    maxItems: 3
     items:
       - const: nand_ctlrdy
       - const: flash_dma_done
@@ -148,8 +146,6 @@ allOf:
     then:
       properties:
         reg-names:
-          minItems: 2
-          maxItems: 2
           items:
             - const: nand
             - const: nand-int-base
@@ -161,8 +157,6 @@ allOf:
     then:
       properties:
         reg-names:
-          minItems: 3
-          maxItems: 3
           items:
             - const: nand
             - const: nand-int-base
@@ -175,8 +169,6 @@ allOf:
     then:
       properties:
         reg-names:
-          minItems: 3
-          maxItems: 3
           items:
             - const: nand
             - const: iproc-idm

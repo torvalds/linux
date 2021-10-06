@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2021 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2014 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -334,6 +334,19 @@ lpfc_mem_free_all(struct lpfc_hba *phba)
 
 	dma_pool_destroy(phba->lpfc_cmd_rsp_buf_pool);
 	phba->lpfc_cmd_rsp_buf_pool = NULL;
+
+	/* Free Congestion Data buffer */
+	if (phba->cgn_i) {
+		dma_free_coherent(&phba->pcidev->dev,
+				  sizeof(struct lpfc_cgn_info),
+				  phba->cgn_i->virt, phba->cgn_i->phys);
+		kfree(phba->cgn_i);
+		phba->cgn_i = NULL;
+	}
+
+	/* Free RX table */
+	kfree(phba->rxtable);
+	phba->rxtable = NULL;
 
 	/* Free the iocb lookup array */
 	kfree(psli->iocbq_lookup);

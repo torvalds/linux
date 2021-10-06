@@ -1048,53 +1048,28 @@ static SIMPLE_DEV_PM_OPS(snd_via82xx_pm, snd_via82xx_suspend, snd_via82xx_resume
 #define SND_VIA82XX_PM_OPS	NULL
 #endif /* CONFIG_PM_SLEEP */
 
-static int snd_via82xx_free(struct via82xx_modem *chip)
+static void snd_via82xx_free(struct snd_card *card)
 {
+	struct via82xx_modem *chip = card->private_data;
 	unsigned int i;
 
-	if (chip->irq < 0)
-		goto __end_hw;
 	/* disable interrupts */
 	for (i = 0; i < chip->num_devs; i++)
 		snd_via82xx_channel_reset(chip, &chip->devs[i]);
-
-      __end_hw:
-	if (chip->irq >= 0)
-		free_irq(chip->irq, chip);
-	pci_release_regions(chip->pci);
-	pci_disable_device(chip->pci);
-	kfree(chip);
-	return 0;
-}
-
-static int snd_via82xx_dev_free(struct snd_device *device)
-{
-	struct via82xx_modem *chip = device->device_data;
-	return snd_via82xx_free(chip);
 }
 
 static int snd_via82xx_create(struct snd_card *card,
 			      struct pci_dev *pci,
 			      int chip_type,
 			      int revision,
-			      unsigned int ac97_clock,
-			      struct via82xx_modem **r_via)
+			      unsigned int ac97_clock)
 {
-	struct via82xx_modem *chip;
+	struct via82xx_modem *chip = card->private_data;
 	int err;
-	static const struct snd_device_ops ops = {
-		.dev_free =	snd_via82xx_dev_free,
-        };
 
-	err = pci_enable_device(pci);
+	err = pcim_enable_device(pci);
 	if (err < 0)
 		return err;
-
-	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
-	if (!chip) {
-		pci_disable_device(pci);
-		return -ENOMEM;
-	}
 
 	spin_lock_init(&chip->reg_lock);
 	chip->card = card;
@@ -1102,41 +1077,28 @@ static int snd_via82xx_create(struct snd_card *card,
 	chip->irq = -1;
 
 	err = pci_request_regions(pci, card->driver);
-	if (err < 0) {
-		kfree(chip);
-		pci_disable_device(pci);
+	if (err < 0)
 		return err;
-	}
 	chip->port = pci_resource_start(pci, 0);
-	if (request_irq(pci->irq, snd_via82xx_interrupt, IRQF_SHARED,
-			KBUILD_MODNAME, chip)) {
+	if (devm_request_irq(&pci->dev, pci->irq, snd_via82xx_interrupt,
+			     IRQF_SHARED, KBUILD_MODNAME, chip)) {
 		dev_err(card->dev, "unable to grab IRQ %d\n", pci->irq);
-		snd_via82xx_free(chip);
 		return -EBUSY;
 	}
 	chip->irq = pci->irq;
 	card->sync_irq = chip->irq;
+	card->private_free = snd_via82xx_free;
 	if (ac97_clock >= 8000 && ac97_clock <= 48000)
 		chip->ac97_clock = ac97_clock;
 
 	err = snd_via82xx_chip_init(chip);
-	if (err < 0) {
-		snd_via82xx_free(chip);
+	if (err < 0)
 		return err;
-	}
-
-	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
-	if (err < 0) {
-		snd_via82xx_free(chip);
-		return err;
-	}
 
 	/* The 8233 ac97 controller does not implement the master bit
 	 * in the pci command register. IMHO this is a violation of the PCI spec.
 	 * We call pci_set_master here because it does not hurt. */
 	pci_set_master(pci);
-
-	*r_via = chip;
 	return 0;
 }
 
@@ -1150,9 +1112,11 @@ static int snd_via82xx_probe(struct pci_dev *pci,
 	unsigned int i;
 	int err;
 
-	err = snd_card_new(&pci->dev, index, id, THIS_MODULE, 0, &card);
+	err = snd_devm_card_new(&pci->dev, index, id, THIS_MODULE,
+				sizeof(*chip), &card);
 	if (err < 0)
 		return err;
+	chip = card->private_data;
 
 	card_type = pci_id->driver_data;
 	switch (card_type) {
@@ -1162,22 +1126,20 @@ static int snd_via82xx_probe(struct pci_dev *pci,
 		break;
 	default:
 		dev_err(card->dev, "invalid card type %d\n", card_type);
-		err = -EINVAL;
-		goto __error;
+		return -EINVAL;
 	}
 		
 	err = snd_via82xx_create(card, pci, chip_type, pci->revision,
-				 ac97_clock, &chip);
+				 ac97_clock);
 	if (err < 0)
-		goto __error;
-	card->private_data = chip;
+		return err;
 	err = snd_via82xx_mixer_new(chip);
 	if (err < 0)
-		goto __error;
+		return err;
 
 	err = snd_via686_pcm_new(chip);
 	if (err < 0)
-		goto __error;
+		return err;
 
 	/* disable interrupts */
 	for (i = 0; i < chip->num_devs; i++)
@@ -1189,28 +1151,16 @@ static int snd_via82xx_probe(struct pci_dev *pci,
 	snd_via82xx_proc_init(chip);
 
 	err = snd_card_register(card);
-	if (err < 0) {
-		snd_card_free(card);
+	if (err < 0)
 		return err;
-	}
 	pci_set_drvdata(pci, card);
 	return 0;
-
- __error:
-	snd_card_free(card);
-	return err;
-}
-
-static void snd_via82xx_remove(struct pci_dev *pci)
-{
-	snd_card_free(pci_get_drvdata(pci));
 }
 
 static struct pci_driver via82xx_modem_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_via82xx_modem_ids,
 	.probe = snd_via82xx_probe,
-	.remove = snd_via82xx_remove,
 	.driver = {
 		.pm = SND_VIA82XX_PM_OPS,
 	},

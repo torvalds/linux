@@ -6,7 +6,6 @@
 #include <linux/suspend.h>
 
 #include "i915_drv.h"
-#include "i915_globals.h"
 #include "i915_params.h"
 #include "intel_context.h"
 #include "intel_engine_pm.h"
@@ -67,8 +66,6 @@ static int __gt_unpark(struct intel_wakeref *wf)
 
 	GT_TRACE(gt, "\n");
 
-	i915_globals_unpark();
-
 	/*
 	 * It seems that the DMC likes to transition between the DC states a lot
 	 * when there are no connected displays (no active power domains) during
@@ -115,8 +112,6 @@ static int __gt_park(struct intel_wakeref *wf)
 	/* Defer dropping the display power well for 100ms, it's slow! */
 	GEM_BUG_ON(!wakeref);
 	intel_display_power_put_async(i915, POWER_DOMAIN_GT_IRQ, wakeref);
-
-	i915_globals_park();
 
 	return 0;
 }
@@ -174,8 +169,6 @@ static void gt_sanitize(struct intel_gt *gt, bool force)
 	if (intel_gt_is_wedged(gt))
 		intel_gt_unset_wedged(gt);
 
-	intel_uc_sanitize(&gt->uc);
-
 	for_each_engine(engine, gt, id)
 		if (engine->reset.prepare)
 			engine->reset.prepare(engine);
@@ -190,6 +183,8 @@ static void gt_sanitize(struct intel_gt *gt, bool force)
 		for_each_engine(engine, gt, id)
 			__intel_engine_reset(engine, false);
 	}
+
+	intel_uc_reset(&gt->uc, false);
 
 	for_each_engine(engine, gt, id)
 		if (engine->reset.finish)
@@ -242,6 +237,8 @@ int intel_gt_resume(struct intel_gt *gt)
 				 "Failed to initialize GPU, declaring it wedged!\n");
 		goto err_wedged;
 	}
+
+	intel_uc_reset_finish(&gt->uc);
 
 	intel_rps_enable(&gt->rps);
 	intel_llc_enable(&gt->llc);

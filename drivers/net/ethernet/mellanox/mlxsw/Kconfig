@@ -58,10 +58,10 @@ config MLXSW_SPECTRUM
 	depends on NET_IPGRE || NET_IPGRE=n
 	depends on IPV6_GRE || IPV6_GRE=n
 	depends on VXLAN || VXLAN=n
+	depends on PTP_1588_CLOCK_OPTIONAL
 	select GENERIC_ALLOCATOR
 	select PARMAN
 	select OBJAGG
-	imply PTP_1588_CLOCK
 	select NET_PTP_CLASSIFY if PTP_1588_CLOCK
 	default m
 	help

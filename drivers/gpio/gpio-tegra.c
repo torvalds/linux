@@ -408,6 +408,8 @@ static void tegra_gpio_irq_handler(struct irq_desc *desc)
 		lvl = tegra_gpio_readl(tgi, GPIO_INT_LVL(tgi, gpio));
 
 		for_each_set_bit(pin, &sta, 8) {
+			int ret;
+
 			tegra_gpio_writel(tgi, 1 << pin,
 					  GPIO_INT_CLR(tgi, gpio));
 
@@ -420,11 +422,8 @@ static void tegra_gpio_irq_handler(struct irq_desc *desc)
 				chained_irq_exit(chip, desc);
 			}
 
-			irq = irq_find_mapping(domain, gpio + pin);
-			if (WARN_ON(irq == 0))
-				continue;
-
-			generic_handle_irq(irq);
+			ret = generic_handle_domain_irq(domain, gpio + pin);
+			WARN_RATELIMIT(ret, "hwirq = %d", gpio + pin);
 		}
 	}
 

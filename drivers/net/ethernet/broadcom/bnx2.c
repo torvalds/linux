@@ -2730,7 +2730,7 @@ bnx2_alloc_rx_page(struct bnx2 *bp, struct bnx2_rx_ring_info *rxr, u16 index, gf
 	if (!page)
 		return -ENOMEM;
 	mapping = dma_map_page(&bp->pdev->dev, page, 0, PAGE_SIZE,
-			       PCI_DMA_FROMDEVICE);
+			       DMA_FROM_DEVICE);
 	if (dma_mapping_error(&bp->pdev->dev, mapping)) {
 		__free_page(page);
 		return -EIO;
@@ -2753,7 +2753,7 @@ bnx2_free_rx_page(struct bnx2 *bp, struct bnx2_rx_ring_info *rxr, u16 index)
 		return;
 
 	dma_unmap_page(&bp->pdev->dev, dma_unmap_addr(rx_pg, mapping),
-		       PAGE_SIZE, PCI_DMA_FROMDEVICE);
+		       PAGE_SIZE, DMA_FROM_DEVICE);
 
 	__free_page(page);
 	rx_pg->page = NULL;
@@ -2775,7 +2775,7 @@ bnx2_alloc_rx_data(struct bnx2 *bp, struct bnx2_rx_ring_info *rxr, u16 index, gf
 	mapping = dma_map_single(&bp->pdev->dev,
 				 get_l2_fhdr(data),
 				 bp->rx_buf_use_size,
-				 PCI_DMA_FROMDEVICE);
+				 DMA_FROM_DEVICE);
 	if (dma_mapping_error(&bp->pdev->dev, mapping)) {
 		kfree(data);
 		return -EIO;
@@ -2881,7 +2881,7 @@ bnx2_tx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 		}
 
 		dma_unmap_single(&bp->pdev->dev, dma_unmap_addr(tx_buf, mapping),
-			skb_headlen(skb), PCI_DMA_TODEVICE);
+			skb_headlen(skb), DMA_TO_DEVICE);
 
 		tx_buf->skb = NULL;
 		last = tx_buf->nr_frags;
@@ -2895,7 +2895,7 @@ bnx2_tx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 			dma_unmap_page(&bp->pdev->dev,
 				dma_unmap_addr(tx_buf, mapping),
 				skb_frag_size(&skb_shinfo(skb)->frags[i]),
-				PCI_DMA_TODEVICE);
+				DMA_TO_DEVICE);
 		}
 
 		sw_cons = BNX2_NEXT_TX_BD(sw_cons);
@@ -3003,7 +3003,7 @@ bnx2_reuse_rx_data(struct bnx2 *bp, struct bnx2_rx_ring_info *rxr,
 
 	dma_sync_single_for_device(&bp->pdev->dev,
 		dma_unmap_addr(cons_rx_buf, mapping),
-		BNX2_RX_OFFSET + BNX2_RX_COPY_THRESH, PCI_DMA_FROMDEVICE);
+		BNX2_RX_OFFSET + BNX2_RX_COPY_THRESH, DMA_FROM_DEVICE);
 
 	rxr->rx_prod_bseq += bp->rx_buf_use_size;
 
@@ -3044,7 +3044,7 @@ error:
 	}
 
 	dma_unmap_single(&bp->pdev->dev, dma_addr, bp->rx_buf_use_size,
-			 PCI_DMA_FROMDEVICE);
+			 DMA_FROM_DEVICE);
 	skb = build_skb(data, 0);
 	if (!skb) {
 		kfree(data);
@@ -3110,7 +3110,7 @@ error:
 			}
 
 			dma_unmap_page(&bp->pdev->dev, mapping_old,
-				       PAGE_SIZE, PCI_DMA_FROMDEVICE);
+				       PAGE_SIZE, DMA_FROM_DEVICE);
 
 			frag_size -= frag_len;
 			skb->data_len += frag_len;
@@ -3180,7 +3180,7 @@ bnx2_rx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 
 		dma_sync_single_for_cpu(&bp->pdev->dev, dma_addr,
 			BNX2_RX_OFFSET + BNX2_RX_COPY_THRESH,
-			PCI_DMA_FROMDEVICE);
+			DMA_FROM_DEVICE);
 
 		next_ring_idx = BNX2_RX_RING_IDX(BNX2_NEXT_RX_BD(sw_cons));
 		next_rx_buf = &rxr->rx_buf_ring[next_ring_idx];
@@ -5449,7 +5449,7 @@ bnx2_free_tx_skbs(struct bnx2 *bp)
 			dma_unmap_single(&bp->pdev->dev,
 					 dma_unmap_addr(tx_buf, mapping),
 					 skb_headlen(skb),
-					 PCI_DMA_TODEVICE);
+					 DMA_TO_DEVICE);
 
 			tx_buf->skb = NULL;
 
@@ -5460,7 +5460,7 @@ bnx2_free_tx_skbs(struct bnx2 *bp)
 				dma_unmap_page(&bp->pdev->dev,
 					dma_unmap_addr(tx_buf, mapping),
 					skb_frag_size(&skb_shinfo(skb)->frags[k]),
-					PCI_DMA_TODEVICE);
+					DMA_TO_DEVICE);
 			}
 			dev_kfree_skb(skb);
 		}
@@ -5491,7 +5491,7 @@ bnx2_free_rx_skbs(struct bnx2 *bp)
 			dma_unmap_single(&bp->pdev->dev,
 					 dma_unmap_addr(rx_buf, mapping),
 					 bp->rx_buf_use_size,
-					 PCI_DMA_FROMDEVICE);
+					 DMA_FROM_DEVICE);
 
 			rx_buf->data = NULL;
 
@@ -5843,7 +5843,7 @@ bnx2_run_loopback(struct bnx2 *bp, int loopback_mode)
 		packet[i] = (unsigned char) (i & 0xff);
 
 	map = dma_map_single(&bp->pdev->dev, skb->data, pkt_size,
-			     PCI_DMA_TODEVICE);
+			     DMA_TO_DEVICE);
 	if (dma_mapping_error(&bp->pdev->dev, map)) {
 		dev_kfree_skb(skb);
 		return -EIO;
@@ -5882,7 +5882,7 @@ bnx2_run_loopback(struct bnx2 *bp, int loopback_mode)
 
 	udelay(5);
 
-	dma_unmap_single(&bp->pdev->dev, map, pkt_size, PCI_DMA_TODEVICE);
+	dma_unmap_single(&bp->pdev->dev, map, pkt_size, DMA_TO_DEVICE);
 	dev_kfree_skb(skb);
 
 	if (bnx2_get_hw_tx_cons(tx_napi) != txr->tx_prod)
@@ -5901,7 +5901,7 @@ bnx2_run_loopback(struct bnx2 *bp, int loopback_mode)
 
 	dma_sync_single_for_cpu(&bp->pdev->dev,
 		dma_unmap_addr(rx_buf, mapping),
-		bp->rx_buf_use_size, PCI_DMA_FROMDEVICE);
+		bp->rx_buf_use_size, DMA_FROM_DEVICE);
 
 	if (rx_hdr->l2_fhdr_status &
 		(L2_FHDR_ERRORS_BAD_CRC |
@@ -6660,7 +6660,8 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	} else
 		mss = 0;
 
-	mapping = dma_map_single(&bp->pdev->dev, skb->data, len, PCI_DMA_TODEVICE);
+	mapping = dma_map_single(&bp->pdev->dev, skb->data, len,
+				 DMA_TO_DEVICE);
 	if (dma_mapping_error(&bp->pdev->dev, mapping)) {
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
@@ -6741,7 +6742,7 @@ dma_error:
 	tx_buf = &txr->tx_buf_ring[ring_prod];
 	tx_buf->skb = NULL;
 	dma_unmap_single(&bp->pdev->dev, dma_unmap_addr(tx_buf, mapping),
-			 skb_headlen(skb), PCI_DMA_TODEVICE);
+			 skb_headlen(skb), DMA_TO_DEVICE);
 
 	/* unmap remaining mapped pages */
 	for (i = 0; i < last_frag; i++) {
@@ -6750,7 +6751,7 @@ dma_error:
 		tx_buf = &txr->tx_buf_ring[ring_prod];
 		dma_unmap_page(&bp->pdev->dev, dma_unmap_addr(tx_buf, mapping),
 			       skb_frag_size(&skb_shinfo(skb)->frags[i]),
-			       PCI_DMA_TODEVICE);
+			       DMA_TO_DEVICE);
 	}
 
 	dev_kfree_skb_any(skb);
@@ -7241,8 +7242,10 @@ bnx2_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 	return rc;
 }
 
-static int
-bnx2_get_coalesce(struct net_device *dev, struct ethtool_coalesce *coal)
+static int bnx2_get_coalesce(struct net_device *dev,
+			     struct ethtool_coalesce *coal,
+			     struct kernel_ethtool_coalesce *kernel_coal,
+			     struct netlink_ext_ack *extack)
 {
 	struct bnx2 *bp = netdev_priv(dev);
 
@@ -7263,8 +7266,10 @@ bnx2_get_coalesce(struct net_device *dev, struct ethtool_coalesce *coal)
 	return 0;
 }
 
-static int
-bnx2_set_coalesce(struct net_device *dev, struct ethtool_coalesce *coal)
+static int bnx2_set_coalesce(struct net_device *dev,
+			     struct ethtool_coalesce *coal,
+			     struct kernel_ethtool_coalesce *kernel_coal,
+			     struct netlink_ext_ack *extack)
 {
 	struct bnx2 *bp = netdev_priv(dev);
 
@@ -8033,62 +8038,40 @@ bnx2_get_pci_speed(struct bnx2 *bp)
 static void
 bnx2_read_vpd_fw_ver(struct bnx2 *bp)
 {
+	unsigned int len;
 	int rc, i, j;
 	u8 *data;
-	unsigned int block_end, rosize, len;
 
 #define BNX2_VPD_NVRAM_OFFSET	0x300
 #define BNX2_VPD_LEN		128
 #define BNX2_MAX_VER_SLEN	30
 
-	data = kmalloc(256, GFP_KERNEL);
+	data = kmalloc(BNX2_VPD_LEN, GFP_KERNEL);
 	if (!data)
 		return;
 
-	rc = bnx2_nvram_read(bp, BNX2_VPD_NVRAM_OFFSET, data + BNX2_VPD_LEN,
-			     BNX2_VPD_LEN);
+	rc = bnx2_nvram_read(bp, BNX2_VPD_NVRAM_OFFSET, data, BNX2_VPD_LEN);
 	if (rc)
 		goto vpd_done;
 
-	for (i = 0; i < BNX2_VPD_LEN; i += 4) {
-		data[i] = data[i + BNX2_VPD_LEN + 3];
-		data[i + 1] = data[i + BNX2_VPD_LEN + 2];
-		data[i + 2] = data[i + BNX2_VPD_LEN + 1];
-		data[i + 3] = data[i + BNX2_VPD_LEN];
-	}
+	for (i = 0; i < BNX2_VPD_LEN; i += 4)
+		swab32s((u32 *)&data[i]);
 
-	i = pci_vpd_find_tag(data, BNX2_VPD_LEN, PCI_VPD_LRDT_RO_DATA);
-	if (i < 0)
-		goto vpd_done;
-
-	rosize = pci_vpd_lrdt_size(&data[i]);
-	i += PCI_VPD_LRDT_TAG_SIZE;
-	block_end = i + rosize;
-
-	if (block_end > BNX2_VPD_LEN)
-		goto vpd_done;
-
-	j = pci_vpd_find_info_keyword(data, i, rosize,
-				      PCI_VPD_RO_KEYWORD_MFR_ID);
+	j = pci_vpd_find_ro_info_keyword(data, BNX2_VPD_LEN,
+					 PCI_VPD_RO_KEYWORD_MFR_ID, &len);
 	if (j < 0)
 		goto vpd_done;
 
-	len = pci_vpd_info_field_size(&data[j]);
-
-	j += PCI_VPD_INFO_FLD_HDR_SIZE;
-	if (j + len > block_end || len != 4 ||
-	    memcmp(&data[j], "1028", 4))
+	if (len != 4 || memcmp(&data[j], "1028", 4))
 		goto vpd_done;
 
-	j = pci_vpd_find_info_keyword(data, i, rosize,
-				      PCI_VPD_RO_KEYWORD_VENDOR0);
+	j = pci_vpd_find_ro_info_keyword(data, BNX2_VPD_LEN,
+					 PCI_VPD_RO_KEYWORD_VENDOR0,
+					 &len);
 	if (j < 0)
 		goto vpd_done;
 
-	len = pci_vpd_info_field_size(&data[j]);
-
-	j += PCI_VPD_INFO_FLD_HDR_SIZE;
-	if (j + len > block_end || len > BNX2_MAX_VER_SLEN)
+	if (len > BNX2_MAX_VER_SLEN)
 		goto vpd_done;
 
 	memcpy(bp->fw_version, &data[j], len);
@@ -8224,15 +8207,15 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 		persist_dma_mask = dma_mask = DMA_BIT_MASK(64);
 
 	/* Configure DMA attributes. */
-	if (pci_set_dma_mask(pdev, dma_mask) == 0) {
+	if (dma_set_mask(&pdev->dev, dma_mask) == 0) {
 		dev->features |= NETIF_F_HIGHDMA;
-		rc = pci_set_consistent_dma_mask(pdev, persist_dma_mask);
+		rc = dma_set_coherent_mask(&pdev->dev, persist_dma_mask);
 		if (rc) {
 			dev_err(&pdev->dev,
 				"pci_set_consistent_dma_mask failed, aborting\n");
 			goto err_out_unmap;
 		}
-	} else if ((rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) != 0) {
+	} else if ((rc = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) != 0) {
 		dev_err(&pdev->dev, "System does not support DMA, aborting\n");
 		goto err_out_unmap;
 	}
@@ -8546,7 +8529,7 @@ static const struct net_device_ops bnx2_netdev_ops = {
 	.ndo_stop		= bnx2_close,
 	.ndo_get_stats64	= bnx2_get_stats64,
 	.ndo_set_rx_mode	= bnx2_set_rx_mode,
-	.ndo_do_ioctl		= bnx2_ioctl,
+	.ndo_eth_ioctl		= bnx2_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= bnx2_change_mac_addr,
 	.ndo_change_mtu		= bnx2_change_mtu,

@@ -1,6 +1,6 @@
 cat <<EOF
 /**
- * ${arch}${atomic}_add_negative - add and test if negative
+ * arch_${atomic}_add_negative - add and test if negative
  * @i: integer value to add
  * @v: pointer of type ${atomic}_t
  *
@@ -9,8 +9,8 @@ cat <<EOF
  * result is greater than or equal to zero.
  */
 static __always_inline bool
-${arch}${atomic}_add_negative(${int} i, ${atomic}_t *v)
+arch_${atomic}_add_negative(${int} i, ${atomic}_t *v)
 {
-	return ${arch}${atomic}_add_return(i, v) < 0;
+	return arch_${atomic}_add_return(i, v) < 0;
 }
 EOF

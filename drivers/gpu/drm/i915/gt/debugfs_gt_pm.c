@@ -437,20 +437,20 @@ static int frequency_show(struct seq_file *m, void *unused)
 		max_freq = (IS_GEN9_LP(i915) ? rp_state_cap >> 0 :
 			    rp_state_cap >> 16) & 0xff;
 		max_freq *= (IS_GEN9_BC(i915) ||
-			     GRAPHICS_VER(i915) >= 10 ? GEN9_FREQ_SCALER : 1);
+			     GRAPHICS_VER(i915) >= 11 ? GEN9_FREQ_SCALER : 1);
 		seq_printf(m, "Lowest (RPN) frequency: %dMHz\n",
 			   intel_gpu_freq(rps, max_freq));
 
 		max_freq = (rp_state_cap & 0xff00) >> 8;
 		max_freq *= (IS_GEN9_BC(i915) ||
-			     GRAPHICS_VER(i915) >= 10 ? GEN9_FREQ_SCALER : 1);
+			     GRAPHICS_VER(i915) >= 11 ? GEN9_FREQ_SCALER : 1);
 		seq_printf(m, "Nominal (RP1) frequency: %dMHz\n",
 			   intel_gpu_freq(rps, max_freq));
 
 		max_freq = (IS_GEN9_LP(i915) ? rp_state_cap >> 16 :
 			    rp_state_cap >> 0) & 0xff;
 		max_freq *= (IS_GEN9_BC(i915) ||
-			     GRAPHICS_VER(i915) >= 10 ? GEN9_FREQ_SCALER : 1);
+			     GRAPHICS_VER(i915) >= 11 ? GEN9_FREQ_SCALER : 1);
 		seq_printf(m, "Max non-overclocked (RP0) frequency: %dMHz\n",
 			   intel_gpu_freq(rps, max_freq));
 		seq_printf(m, "Max overclocked frequency: %dMHz\n",
@@ -500,7 +500,7 @@ static int llc_show(struct seq_file *m, void *data)
 
 	min_gpu_freq = rps->min_freq;
 	max_gpu_freq = rps->max_freq;
-	if (IS_GEN9_BC(i915) || GRAPHICS_VER(i915) >= 10) {
+	if (IS_GEN9_BC(i915) || GRAPHICS_VER(i915) >= 11) {
 		/* Convert GT frequency to 50 HZ units */
 		min_gpu_freq /= GEN9_FREQ_SCALER;
 		max_gpu_freq /= GEN9_FREQ_SCALER;
@@ -518,7 +518,7 @@ static int llc_show(struct seq_file *m, void *data)
 			   intel_gpu_freq(rps,
 					  (gpu_freq *
 					   (IS_GEN9_BC(i915) ||
-					    GRAPHICS_VER(i915) >= 10 ?
+					    GRAPHICS_VER(i915) >= 11 ?
 					    GEN9_FREQ_SCALER : 1))),
 			   ((ia_freq >> 0) & 0xff) * 100,
 			   ((ia_freq >> 8) & 0xff) * 100);

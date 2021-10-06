@@ -3,8 +3,6 @@
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
  *
- * File: upc.h
- *
  * Purpose: Macros to access device
  *
  * Author: Tevin Chen

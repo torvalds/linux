@@ -288,6 +288,12 @@
 			AM64X_IOPAD(0x0008, PIN_INPUT, 0) /* (N19) OSPI0_DQS */
 		>;
 	};
+
+	main_ecap0_pins_default: main-ecap0-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x0270, PIN_INPUT, 0) /* (D18) ECAP0_IN_APWM_OUT */
+		>;
+	};
 };
 
 &main_uart0 {
@@ -572,5 +578,55 @@
 	phys = <&serdes0_pcie_link>;
 	phy-names = "pcie-phy";
 	num-lanes = <1>;
+	status = "disabled";
+};
+
+&ecap0 {
+	/* PWM is available on Pin 1 of header J12 */
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_ecap0_pins_default>;
+};
+
+&ecap1 {
+	status = "disabled";
+};
+
+&ecap2 {
+	status = "disabled";
+};
+
+&epwm0 {
+	status = "disabled";
+};
+
+&epwm1 {
+	status = "disabled";
+};
+
+&epwm2 {
+	status = "disabled";
+};
+
+&epwm3 {
+	status = "disabled";
+};
+
+&epwm4 {
+	status = "disabled";
+};
+
+&epwm5 {
+	status = "disabled";
+};
+
+&epwm6 {
+	status = "disabled";
+};
+
+&epwm7 {
+	status = "disabled";
+};
+
+&epwm8 {
 	status = "disabled";
 };

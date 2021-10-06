@@ -11,7 +11,6 @@
 struct thread_info {
 	struct task_struct *task;	/* main task structure */
 	unsigned long flags;		/* thread_info flags (see TIF_*) */
-	mm_segment_t addr_limit;	/* user-level address space limit */
 	__u32 cpu;			/* current CPU */
 	int preempt_count;		/* 0=premptable, <0=BUG; will also serve as bh-counter */
 };
@@ -21,7 +20,6 @@ struct thread_info {
 	.task		= &tsk,			\
 	.flags		= 0,			\
 	.cpu		= 0,			\
-	.addr_limit	= KERNEL_DS,		\
 	.preempt_count	= INIT_PREEMPT_COUNT,	\
 }
 

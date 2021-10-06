@@ -55,8 +55,24 @@ exist then it will allocate a new Linux irq_desc, associate it with
 the hwirq, and call the .map() callback so the driver can perform any
 required hardware setup.
 
-When an interrupt is received, irq_find_mapping() function should
-be used to find the Linux IRQ number from the hwirq number.
+Once a mapping has been established, it can be retrieved or used via a
+variety of methods:
+
+- irq_resolve_mapping() returns a pointer to the irq_desc structure
+  for a given domain and hwirq number, and NULL if there was no
+  mapping.
+- irq_find_mapping() returns a Linux IRQ number for a given domain and
+  hwirq number, and 0 if there was no mapping
+- irq_linear_revmap() is now identical to irq_find_mapping(), and is
+  deprecated
+- generic_handle_domain_irq() handles an interrupt described by a
+  domain and a hwirq number
+- handle_domain_irq() does the same thing for root interrupt
+  controllers and deals with the set_irq_reg()/irq_enter() sequences
+  that most architecture requires
+
+Note that irq domain lookups must happen in contexts that are
+compatible with a RCU read-side critical section.
 
 The irq_create_mapping() function must be called *atleast once*
 before any call to irq_find_mapping(), lest the descriptor will not
@@ -137,7 +153,9 @@ required.  Calling irq_create_direct_mapping() will allocate a Linux
 IRQ number and call the .map() callback so that driver can program the
 Linux IRQ number into the hardware.
 
-Most drivers cannot use this mapping.
+Most drivers cannot use this mapping, and it is now gated on the
+CONFIG_IRQ_DOMAIN_NOMAP option. Please refrain from introducing new
+users of this API.
 
 Legacy
 ------
@@ -156,6 +174,10 @@ example, many embedded system board support files use a set of #defines
 for IRQ numbers that are passed to struct device registrations.  In that
 case the Linux IRQ numbers cannot be dynamically assigned and the legacy
 mapping should be used.
+
+As the name implies, the *_legacy() functions are deprecated and only
+exist to ease the support of ancient platforms. No new users should be
+added.
 
 The legacy map assumes a contiguous range of IRQ numbers has already
 been allocated for the controller and that the IRQ number can be

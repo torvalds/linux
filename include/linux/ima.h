@@ -11,9 +11,11 @@
 #include <linux/fs.h>
 #include <linux/security.h>
 #include <linux/kexec.h>
+#include <crypto/hash_info.h>
 struct linux_binprm;
 
 #ifdef CONFIG_IMA
+extern enum hash_algo ima_get_current_hash_algo(void);
 extern int ima_bprm_check(struct linux_binprm *bprm);
 extern int ima_file_check(struct file *file, int mask);
 extern void ima_post_create_tmpfile(struct user_namespace *mnt_userns,
@@ -33,10 +35,10 @@ extern void ima_post_path_mknod(struct user_namespace *mnt_userns,
 extern int ima_file_hash(struct file *file, char *buf, size_t buf_size);
 extern int ima_inode_hash(struct inode *inode, char *buf, size_t buf_size);
 extern void ima_kexec_cmdline(int kernel_fd, const void *buf, int size);
-extern void ima_measure_critical_data(const char *event_label,
-				      const char *event_name,
-				      const void *buf, size_t buf_len,
-				      bool hash);
+extern int ima_measure_critical_data(const char *event_label,
+				     const char *event_name,
+				     const void *buf, size_t buf_len,
+				     bool hash, u8 *digest, size_t digest_len);
 
 #ifdef CONFIG_IMA_APPRAISE_BOOTPARAM
 extern void ima_appraise_parse_cmdline(void);
@@ -64,6 +66,11 @@ static inline const char * const *arch_get_ima_policy(void)
 #endif
 
 #else
+static inline enum hash_algo ima_get_current_hash_algo(void)
+{
+	return HASH_ALGO__LAST;
+}
+
 static inline int ima_bprm_check(struct linux_binprm *bprm)
 {
 	return 0;
@@ -137,10 +144,14 @@ static inline int ima_inode_hash(struct inode *inode, char *buf, size_t buf_size
 
 static inline void ima_kexec_cmdline(int kernel_fd, const void *buf, int size) {}
 
-static inline void ima_measure_critical_data(const char *event_label,
+static inline int ima_measure_critical_data(const char *event_label,
 					     const char *event_name,
 					     const void *buf, size_t buf_len,
-					     bool hash) {}
+					     bool hash, u8 *digest,
+					     size_t digest_len)
+{
+	return -ENOENT;
+}
 
 #endif /* CONFIG_IMA */
 

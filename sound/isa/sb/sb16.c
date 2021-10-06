@@ -285,15 +285,6 @@ __wt_error:
 
 #endif /* CONFIG_PNP */
 
-static void snd_sb16_free(struct snd_card *card)
-{
-	struct snd_card_sb16 *acard = card->private_data;
-        
-	if (acard == NULL)
-		return;
-	release_and_free_resource(acard->fm_res);
-}
-
 #ifdef CONFIG_PNP
 #define is_isapnp_selected(dev)		isapnp[dev]
 #else
@@ -306,11 +297,10 @@ static int snd_sb16_card_new(struct device *devptr, int dev,
 	struct snd_card *card;
 	int err;
 
-	err = snd_card_new(devptr, index[dev], id[dev], THIS_MODULE,
-			   sizeof(struct snd_card_sb16), &card);
+	err = snd_devm_card_new(devptr, index[dev], id[dev], THIS_MODULE,
+				sizeof(struct snd_card_sb16), &card);
 	if (err < 0)
 		return err;
-	card->private_free = snd_sb16_free;
 	*cardp = card;
 	return 0;
 }
@@ -482,17 +472,16 @@ static int snd_sb16_isa_probe1(int dev, struct device *pdev)
 	/* non-PnP FM port address is hardwired with base port address */
 	fm_port[dev] = port[dev];
 	/* block the 0x388 port to avoid PnP conflicts */
-	acard->fm_res = request_region(0x388, 4, "SoundBlaster FM");
+	acard->fm_res = devm_request_region(card->dev, 0x388, 4,
+					    "SoundBlaster FM");
 #ifdef SNDRV_SBAWE_EMU8000
 	/* non-PnP AWE port address is hardwired with base port address */
 	awe_port[dev] = port[dev] + 0x400;
 #endif
 
 	err = snd_sb16_probe(card, dev);
-	if (err < 0) {
-		snd_card_free(card);
+	if (err < 0)
 		return err;
-	}
 	dev_set_drvdata(pdev, card);
 	return 0;
 }
@@ -547,11 +536,6 @@ static int snd_sb16_isa_probe(struct device *pdev, unsigned int dev)
 	}
 }
 
-static void snd_sb16_isa_remove(struct device *pdev, unsigned int dev)
-{
-	snd_card_free(dev_get_drvdata(pdev));
-}
-
 #ifdef CONFIG_PM
 static int snd_sb16_isa_suspend(struct device *dev, unsigned int n,
 				pm_message_t state)
@@ -574,7 +558,6 @@ static int snd_sb16_isa_resume(struct device *dev, unsigned int n)
 static struct isa_driver snd_sb16_isa_driver = {
 	.match		= snd_sb16_isa_match,
 	.probe		= snd_sb16_isa_probe,
-	.remove		= snd_sb16_isa_remove,
 #ifdef CONFIG_PM
 	.suspend	= snd_sb16_isa_suspend,
 	.resume		= snd_sb16_isa_resume,
@@ -600,27 +583,17 @@ static int snd_sb16_pnp_detect(struct pnp_card_link *pcard,
 		if (res < 0)
 			return res;
 		res = snd_card_sb16_pnp(dev, card->private_data, pcard, pid);
-		if (res < 0) {
-			snd_card_free(card);
+		if (res < 0)
 			return res;
-		}
 		res = snd_sb16_probe(card, dev);
-		if (res < 0) {
-			snd_card_free(card);
+		if (res < 0)
 			return res;
-		}
 		pnp_set_card_drvdata(pcard, card);
 		dev++;
 		return 0;
 	}
 
 	return -ENODEV;
-}
-
-static void snd_sb16_pnp_remove(struct pnp_card_link *pcard)
-{
-	snd_card_free(pnp_get_card_drvdata(pcard));
-	pnp_set_card_drvdata(pcard, NULL);
 }
 
 #ifdef CONFIG_PM
@@ -643,7 +616,6 @@ static struct pnp_card_driver sb16_pnpc_driver = {
 #endif
 	.id_table = snd_sb16_pnpids,
 	.probe = snd_sb16_pnp_detect,
-	.remove = snd_sb16_pnp_remove,
 #ifdef CONFIG_PM
 	.suspend = snd_sb16_pnp_suspend,
 	.resume = snd_sb16_pnp_resume,

@@ -22,6 +22,22 @@ void guest_modes_append_default(void)
 		}
 	}
 #endif
+#ifdef __s390x__
+	{
+		int kvm_fd, vm_fd;
+		struct kvm_s390_vm_cpu_processor info;
+
+		kvm_fd = open_kvm_dev_path_or_exit();
+		vm_fd = ioctl(kvm_fd, KVM_CREATE_VM, 0);
+		kvm_device_access(vm_fd, KVM_S390_VM_CPU_MODEL,
+				  KVM_S390_VM_CPU_PROCESSOR, &info, false);
+		close(vm_fd);
+		close(kvm_fd);
+		/* Starting with z13 we have 47bits of physical address */
+		if (info.ibc >= 0x30)
+			guest_mode_append(VM_MODE_P47V64_4K, true, true);
+	}
+#endif
 }
 
 void for_each_guest_mode(void (*func)(enum vm_guest_mode, void *), void *arg)

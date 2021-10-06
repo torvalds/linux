@@ -8,6 +8,7 @@
  *
  **************************************************************************/
 
+#include <drm/drm_drv.h>
 #include <drm/drm_vblank.h>
 
 #include "power.h"
@@ -222,7 +223,7 @@ static void psb_sgx_interrupt(struct drm_device *dev, u32 stat_1, u32 stat_2)
 	PSB_RSGX32(PSB_CR_EVENT_HOST_CLEAR2);
 }
 
-irqreturn_t psb_irq_handler(int irq, void *arg)
+static irqreturn_t psb_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = arg;
 	struct drm_psb_private *dev_priv = dev->dev_private;
@@ -304,7 +305,7 @@ void psb_irq_preinstall(struct drm_device *dev)
 	spin_unlock_irqrestore(&dev_priv->irqmask_lock, irqflags);
 }
 
-int psb_irq_postinstall(struct drm_device *dev)
+void psb_irq_postinstall(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
@@ -332,12 +333,31 @@ int psb_irq_postinstall(struct drm_device *dev)
 		dev_priv->ops->hotplug_enable(dev, true);
 
 	spin_unlock_irqrestore(&dev_priv->irqmask_lock, irqflags);
+}
+
+int psb_irq_install(struct drm_device *dev, unsigned int irq)
+{
+	int ret;
+
+	if (irq == IRQ_NOTCONNECTED)
+		return -ENOTCONN;
+
+	psb_irq_preinstall(dev);
+
+	/* PCI devices require shared interrupts. */
+	ret = request_irq(irq, psb_irq_handler, IRQF_SHARED, dev->driver->name, dev);
+	if (ret)
+		return ret;
+
+	psb_irq_postinstall(dev);
+
 	return 0;
 }
 
 void psb_irq_uninstall(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	unsigned long irqflags;
 	unsigned int i;
 
@@ -366,6 +386,8 @@ void psb_irq_uninstall(struct drm_device *dev)
 	/* This register is safe even if display island is off */
 	PSB_WVDC32(PSB_RVDC32(PSB_INT_IDENTITY_R), PSB_INT_IDENTITY_R);
 	spin_unlock_irqrestore(&dev_priv->irqmask_lock, irqflags);
+
+	free_irq(pdev->irq, dev);
 }
 
 /*

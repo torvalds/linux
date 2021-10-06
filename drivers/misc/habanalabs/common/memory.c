@@ -124,7 +124,7 @@ static int alloc_device_memory(struct hl_ctx *ctx, struct hl_mem_in *args,
 
 	spin_lock(&vm->idr_lock);
 	handle = idr_alloc(&vm->phys_pg_pack_handles, phys_pg_pack, 1, 0,
-				GFP_KERNEL);
+				GFP_ATOMIC);
 	spin_unlock(&vm->idr_lock);
 
 	if (handle < 0) {
@@ -529,6 +529,33 @@ static inline int add_va_block(struct hl_device *hdev,
 }
 
 /**
+ * is_hint_crossing_range() - check if hint address crossing specified reserved
+ * range.
+ */
+static inline bool is_hint_crossing_range(enum hl_va_range_type range_type,
+		u64 start_addr, u32 size, struct asic_fixed_properties *prop) {
+	bool range_cross;
+
+	if (range_type == HL_VA_RANGE_TYPE_DRAM)
+		range_cross =
+			hl_mem_area_crosses_range(start_addr, size,
+			prop->hints_dram_reserved_va_range.start_addr,
+			prop->hints_dram_reserved_va_range.end_addr);
+	else if (range_type == HL_VA_RANGE_TYPE_HOST)
+		range_cross =
+			hl_mem_area_crosses_range(start_addr,	size,
+			prop->hints_host_reserved_va_range.start_addr,
+			prop->hints_host_reserved_va_range.end_addr);
+	else
+		range_cross =
+			hl_mem_area_crosses_range(start_addr, size,
+			prop->hints_host_hpage_reserved_va_range.start_addr,
+			prop->hints_host_hpage_reserved_va_range.end_addr);
+
+	return range_cross;
+}
+
+/**
  * get_va_block() - get a virtual block for the given size and alignment.
  *
  * @hdev: pointer to the habanalabs device structure.
@@ -536,6 +563,8 @@ static inline int add_va_block(struct hl_device *hdev,
  * @size: requested block size.
  * @hint_addr: hint for requested address by the user.
  * @va_block_align: required alignment of the virtual block start address.
+ * @range_type: va range type (host, dram)
+ * @flags: additional memory flags, currently only uses HL_MEM_FORCE_HINT
  *
  * This function does the following:
  * - Iterate on the virtual block list to find a suitable virtual block for the
@@ -545,13 +574,19 @@ static inline int add_va_block(struct hl_device *hdev,
  */
 static u64 get_va_block(struct hl_device *hdev,
 				struct hl_va_range *va_range,
-				u64 size, u64 hint_addr, u32 va_block_align)
+				u64 size, u64 hint_addr, u32 va_block_align,
+				enum hl_va_range_type range_type,
+				u32 flags)
 {
 	struct hl_vm_va_block *va_block, *new_va_block = NULL;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	u64 tmp_hint_addr, valid_start, valid_size, prev_start, prev_end,
-		align_mask, reserved_valid_start = 0, reserved_valid_size = 0;
+		align_mask, reserved_valid_start = 0, reserved_valid_size = 0,
+		dram_hint_mask = prop->dram_hints_align_mask;
 	bool add_prev = false;
 	bool is_align_pow_2  = is_power_of_2(va_range->page_size);
+	bool is_hint_dram_addr = hl_is_dram_va(hdev, hint_addr);
+	bool force_hint = flags & HL_MEM_FORCE_HINT;
 
 	if (is_align_pow_2)
 		align_mask = ~((u64)va_block_align - 1);
@@ -564,12 +599,20 @@ static u64 get_va_block(struct hl_device *hdev,
 		size = DIV_ROUND_UP_ULL(size, va_range->page_size) *
 							va_range->page_size;
 
-	tmp_hint_addr = hint_addr;
+	tmp_hint_addr = hint_addr & ~dram_hint_mask;
 
 	/* Check if we need to ignore hint address */
 	if ((is_align_pow_2 && (hint_addr & (va_block_align - 1))) ||
-			(!is_align_pow_2 &&
-				do_div(tmp_hint_addr, va_range->page_size))) {
+		(!is_align_pow_2 && is_hint_dram_addr &&
+			do_div(tmp_hint_addr, va_range->page_size))) {
+
+		if (force_hint) {
+			/* Hint must be respected, so here we just fail */
+			dev_err(hdev->dev,
+				"Hint address 0x%llx is not page aligned - cannot be respected\n",
+				hint_addr);
+			return 0;
+		}
 
 		dev_dbg(hdev->dev,
 			"Hint address 0x%llx will be ignored because it is not aligned\n",
@@ -596,6 +639,16 @@ static u64 get_va_block(struct hl_device *hdev,
 		if (valid_size < size)
 			continue;
 
+		/*
+		 * In case hint address is 0, and arc_hints_range_reservation
+		 * property enabled, then avoid allocating va blocks from the
+		 * range reserved for hint addresses
+		 */
+		if (prop->hints_range_reservation && !hint_addr)
+			if (is_hint_crossing_range(range_type, valid_start,
+					size, prop))
+				continue;
+
 		/* Pick the minimal length block which has the required size */
 		if (!new_va_block || (valid_size < reserved_valid_size)) {
 			new_va_block = va_block;
@@ -615,6 +668,17 @@ static u64 get_va_block(struct hl_device *hdev,
 	if (!new_va_block) {
 		dev_err(hdev->dev, "no available va block for size %llu\n",
 								size);
+		goto out;
+	}
+
+	if (force_hint && reserved_valid_start != hint_addr) {
+		/* Hint address must be respected. If we are here - this means
+		 * we could not respect it.
+		 */
+		dev_err(hdev->dev,
+			"Hint address 0x%llx could not be respected\n",
+			hint_addr);
+		reserved_valid_start = 0;
 		goto out;
 	}
 
@@ -670,7 +734,8 @@ u64 hl_reserve_va_block(struct hl_device *hdev, struct hl_ctx *ctx,
 		enum hl_va_range_type type, u32 size, u32 alignment)
 {
 	return get_va_block(hdev, ctx->va_range[type], size, 0,
-			max(alignment, ctx->va_range[type]->page_size));
+			max(alignment, ctx->va_range[type]->page_size),
+			type, 0);
 }
 
 /**
@@ -732,28 +797,15 @@ int hl_unreserve_va_block(struct hl_device *hdev, struct hl_ctx *ctx,
 }
 
 /**
- * get_sg_info() - get number of pages and the DMA address from SG list.
- * @sg: the SG list.
- * @dma_addr: pointer to DMA address to return.
- *
- * Calculate the number of consecutive pages described by the SG list. Take the
- * offset of the address in the first page, add to it the length and round it up
- * to the number of needed pages.
- */
-static u32 get_sg_info(struct scatterlist *sg, dma_addr_t *dma_addr)
-{
-	*dma_addr = sg_dma_address(sg);
-
-	return ((((*dma_addr) & (PAGE_SIZE - 1)) + sg_dma_len(sg)) +
-			(PAGE_SIZE - 1)) >> PAGE_SHIFT;
-}
-
-/**
  * init_phys_pg_pack_from_userptr() - initialize physical page pack from host
  *                                    memory
  * @ctx: pointer to the context structure.
  * @userptr: userptr to initialize from.
  * @pphys_pg_pack: result pointer.
+ * @force_regular_page: tell the function to ignore huge page optimization,
+ *                      even if possible. Needed for cases where the device VA
+ *                      is allocated before we know the composition of the
+ *                      physical pages
  *
  * This function does the following:
  * - Pin the physical pages related to the given virtual block.
@@ -762,17 +814,18 @@ static u32 get_sg_info(struct scatterlist *sg, dma_addr_t *dma_addr)
  */
 static int init_phys_pg_pack_from_userptr(struct hl_ctx *ctx,
 				struct hl_userptr *userptr,
-				struct hl_vm_phys_pg_pack **pphys_pg_pack)
+				struct hl_vm_phys_pg_pack **pphys_pg_pack,
+				bool force_regular_page)
 {
-	struct hl_vm_phys_pg_pack *phys_pg_pack;
-	struct scatterlist *sg;
-	dma_addr_t dma_addr;
-	u64 page_mask, total_npages;
 	u32 npages, page_size = PAGE_SIZE,
 		huge_page_size = ctx->hdev->asic_prop.pmmu_huge.page_size;
-	bool first = true, is_huge_page_opt = true;
-	int rc, i, j;
 	u32 pgs_in_huge_page = huge_page_size >> __ffs(page_size);
+	struct hl_vm_phys_pg_pack *phys_pg_pack;
+	bool first = true, is_huge_page_opt;
+	u64 page_mask, total_npages;
+	struct scatterlist *sg;
+	dma_addr_t dma_addr;
+	int rc, i, j;
 
 	phys_pg_pack = kzalloc(sizeof(*phys_pg_pack), GFP_KERNEL);
 	if (!phys_pg_pack)
@@ -783,6 +836,8 @@ static int init_phys_pg_pack_from_userptr(struct hl_ctx *ctx,
 	phys_pg_pack->asid = ctx->asid;
 	atomic_set(&phys_pg_pack->mapping_cnt, 1);
 
+	is_huge_page_opt = (force_regular_page ? false : true);
+
 	/* Only if all dma_addrs are aligned to 2MB and their
 	 * sizes is at least 2MB, we can use huge page mapping.
 	 * We limit the 2MB optimization to this condition,
@@ -791,7 +846,7 @@ static int init_phys_pg_pack_from_userptr(struct hl_ctx *ctx,
 	 */
 	total_npages = 0;
 	for_each_sg(userptr->sgt->sgl, sg, userptr->sgt->nents, i) {
-		npages = get_sg_info(sg, &dma_addr);
+		npages = hl_get_sg_info(sg, &dma_addr);
 
 		total_npages += npages;
 
@@ -820,7 +875,7 @@ static int init_phys_pg_pack_from_userptr(struct hl_ctx *ctx,
 
 	j = 0;
 	for_each_sg(userptr->sgt->sgl, sg, userptr->sgt->nents, i) {
-		npages = get_sg_info(sg, &dma_addr);
+		npages = hl_get_sg_info(sg, &dma_addr);
 
 		/* align down to physical page size and save the offset */
 		if (first) {
@@ -1001,11 +1056,12 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 	struct hl_userptr *userptr = NULL;
 	struct hl_vm_hash_node *hnode;
 	struct hl_va_range *va_range;
-	enum vm_type_t *vm_type;
+	enum vm_type *vm_type;
 	u64 ret_vaddr, hint_addr;
 	u32 handle = 0, va_block_align;
 	int rc;
 	bool is_userptr = args->flags & HL_MEM_USERPTR;
+	enum hl_va_range_type va_range_type = 0;
 
 	/* Assume failure */
 	*device_addr = 0;
@@ -1023,7 +1079,7 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 		}
 
 		rc = init_phys_pg_pack_from_userptr(ctx, userptr,
-				&phys_pg_pack);
+				&phys_pg_pack, false);
 		if (rc) {
 			dev_err(hdev->dev,
 				"unable to init page pack for vaddr 0x%llx\n",
@@ -1031,14 +1087,14 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 			goto init_page_pack_err;
 		}
 
-		vm_type = (enum vm_type_t *) userptr;
+		vm_type = (enum vm_type *) userptr;
 		hint_addr = args->map_host.hint_addr;
 		handle = phys_pg_pack->handle;
 
 		/* get required alignment */
 		if (phys_pg_pack->page_size == page_size) {
 			va_range = ctx->va_range[HL_VA_RANGE_TYPE_HOST];
-
+			va_range_type = HL_VA_RANGE_TYPE_HOST;
 			/*
 			 * huge page alignment may be needed in case of regular
 			 * page mapping, depending on the host VA alignment
@@ -1053,6 +1109,7 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 			 * mapping
 			 */
 			va_range = ctx->va_range[HL_VA_RANGE_TYPE_HOST_HUGE];
+			va_range_type = HL_VA_RANGE_TYPE_HOST_HUGE;
 			va_block_align = huge_page_size;
 		}
 	} else {
@@ -1072,12 +1129,13 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 
 		spin_unlock(&vm->idr_lock);
 
-		vm_type = (enum vm_type_t *) phys_pg_pack;
+		vm_type = (enum vm_type *) phys_pg_pack;
 
 		hint_addr = args->map_device.hint_addr;
 
 		/* DRAM VA alignment is the same as the MMU page size */
 		va_range = ctx->va_range[HL_VA_RANGE_TYPE_DRAM];
+		va_range_type = HL_VA_RANGE_TYPE_DRAM;
 		va_block_align = hdev->asic_prop.dmmu.page_size;
 	}
 
@@ -1100,8 +1158,23 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 		goto hnode_err;
 	}
 
+	if (hint_addr && phys_pg_pack->offset) {
+		if (args->flags & HL_MEM_FORCE_HINT) {
+			/* Fail if hint must be respected but it can't be */
+			dev_err(hdev->dev,
+				"Hint address 0x%llx cannot be respected because source memory is not aligned 0x%x\n",
+				hint_addr, phys_pg_pack->offset);
+			rc = -EINVAL;
+			goto va_block_err;
+		}
+		dev_dbg(hdev->dev,
+			"Hint address 0x%llx will be ignored because source memory is not aligned 0x%x\n",
+			hint_addr, phys_pg_pack->offset);
+	}
+
 	ret_vaddr = get_va_block(hdev, va_range, phys_pg_pack->total_size,
-					hint_addr, va_block_align);
+					hint_addr, va_block_align,
+					va_range_type, args->flags);
 	if (!ret_vaddr) {
 		dev_err(hdev->dev, "no available va block for handle %u\n",
 				handle);
@@ -1181,16 +1254,18 @@ init_page_pack_err:
 static int unmap_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 				bool ctx_free)
 {
-	struct hl_device *hdev = ctx->hdev;
-	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct hl_vm_phys_pg_pack *phys_pg_pack = NULL;
+	u64 vaddr = args->unmap.device_virt_addr;
 	struct hl_vm_hash_node *hnode = NULL;
+	struct asic_fixed_properties *prop;
+	struct hl_device *hdev = ctx->hdev;
 	struct hl_userptr *userptr = NULL;
 	struct hl_va_range *va_range;
-	u64 vaddr = args->unmap.device_virt_addr;
-	enum vm_type_t *vm_type;
+	enum vm_type *vm_type;
 	bool is_userptr;
 	int rc = 0;
+
+	prop = &hdev->asic_prop;
 
 	/* protect from double entrance */
 	mutex_lock(&ctx->mem_hash_lock);
@@ -1214,8 +1289,9 @@ static int unmap_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 	if (*vm_type == VM_TYPE_USERPTR) {
 		is_userptr = true;
 		userptr = hnode->ptr;
-		rc = init_phys_pg_pack_from_userptr(ctx, userptr,
-							&phys_pg_pack);
+
+		rc = init_phys_pg_pack_from_userptr(ctx, userptr, &phys_pg_pack,
+							false);
 		if (rc) {
 			dev_err(hdev->dev,
 				"unable to init page pack for vaddr 0x%llx\n",
@@ -1299,7 +1375,7 @@ static int unmap_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 	kfree(hnode);
 
 	if (is_userptr) {
-		rc = free_phys_pg_pack(hdev, phys_pg_pack);
+		free_phys_pg_pack(hdev, phys_pg_pack);
 		dma_unmap_host_va(hdev, userptr);
 	}
 
@@ -1669,6 +1745,7 @@ int hl_pin_host_memory(struct hl_device *hdev, u64 addr, u64 size,
 		return -EINVAL;
 	}
 
+	userptr->pid = current->pid;
 	userptr->sgt = kzalloc(sizeof(*userptr->sgt), GFP_KERNEL);
 	if (!userptr->sgt)
 		return -ENOMEM;
@@ -2033,7 +2110,7 @@ void hl_vm_ctx_fini(struct hl_ctx *ctx)
 	 * another side effect error
 	 */
 	if (!hdev->hard_reset_pending && !hash_empty(ctx->mem_hash))
-		dev_notice(hdev->dev,
+		dev_dbg(hdev->dev,
 			"user released device without removing its memory mappings\n");
 
 	hash_for_each_safe(ctx->mem_hash, i, tmp_node, hnode, node) {

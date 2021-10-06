@@ -70,6 +70,7 @@ struct mlx5_flow_attr {
 	struct mlx5_fc *counter;
 	struct mlx5_modify_hdr *modify_hdr;
 	struct mlx5_ct_attr ct_attr;
+	struct mlx5e_sample_attr *sample_attr;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 	u32 chain;
 	u16 prio;

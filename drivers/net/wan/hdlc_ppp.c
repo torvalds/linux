@@ -100,7 +100,7 @@ static const char *const event_names[EVENTS] = {
 
 static struct sk_buff_head tx_queue; /* used when holding the spin lock */
 
-static int ppp_ioctl(struct net_device *dev, struct ifreq *ifr);
+static int ppp_ioctl(struct net_device *dev, struct if_settings *ifs);
 
 static inline struct ppp *get_ppp(struct net_device *dev)
 {
@@ -655,17 +655,17 @@ static const struct header_ops ppp_header_ops = {
 	.create = ppp_hard_header,
 };
 
-static int ppp_ioctl(struct net_device *dev, struct ifreq *ifr)
+static int ppp_ioctl(struct net_device *dev, struct if_settings *ifs)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
 	struct ppp *ppp;
 	int result;
 
-	switch (ifr->ifr_settings.type) {
+	switch (ifs->type) {
 	case IF_GET_PROTO:
 		if (dev_to_hdlc(dev)->proto != &proto)
 			return -EINVAL;
-		ifr->ifr_settings.type = IF_PROTO_PPP;
+		ifs->type = IF_PROTO_PPP;
 		return 0; /* return protocol only, no settable parameters */
 
 	case IF_PROTO_PPP:
@@ -705,20 +705,20 @@ static int ppp_ioctl(struct net_device *dev, struct ifreq *ifr)
 	return -EINVAL;
 }
 
-static int __init mod_init(void)
+static int __init hdlc_ppp_init(void)
 {
 	skb_queue_head_init(&tx_queue);
 	register_hdlc_protocol(&proto);
 	return 0;
 }
 
-static void __exit mod_exit(void)
+static void __exit hdlc_ppp_exit(void)
 {
 	unregister_hdlc_protocol(&proto);
 }
 
-module_init(mod_init);
-module_exit(mod_exit);
+module_init(hdlc_ppp_init);
+module_exit(hdlc_ppp_exit);
 
 MODULE_AUTHOR("Krzysztof Halasa <khc@pm.waw.pl>");
 MODULE_DESCRIPTION("PPP protocol support for generic HDLC");

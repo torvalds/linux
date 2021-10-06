@@ -14,8 +14,12 @@
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
+#include <linux/hashtable.h>
+#include <linux/list.h>
 #include <linux/module.h>
+#include <linux/refcount.h>
 #include <linux/scmi_protocol.h>
+#include <linux/spinlock.h>
 #include <linux/types.h>
 
 #include <asm/unaligned.h>
@@ -65,11 +69,22 @@ struct scmi_msg_resp_prot_version {
 #define MSG_XTRACT_TOKEN(hdr)	FIELD_GET(MSG_TOKEN_ID_MASK, (hdr))
 #define MSG_TOKEN_MAX		(MSG_XTRACT_TOKEN(MSG_TOKEN_ID_MASK) + 1)
 
+/*
+ * Size of @pending_xfers hashtable included in @scmi_xfers_info; ideally, in
+ * order to minimize space and collisions, this should equal max_msg, i.e. the
+ * maximum number of in-flight messages on a specific platform, but such value
+ * is only available at runtime while kernel hashtables are statically sized:
+ * pick instead as a fixed static size the maximum number of entries that can
+ * fit the whole table into one 4k page.
+ */
+#define SCMI_PENDING_XFERS_HT_ORDER_SZ		9
+
 /**
  * struct scmi_msg_hdr - Message(Tx/Rx) header
  *
  * @id: The identifier of the message being sent
  * @protocol_id: The identifier of the protocol used to send @id message
+ * @type: The SCMI type for this message
  * @seq: The token to identify the message. When a message returns, the
  *	platform returns the whole message header unmodified including the
  *	token
@@ -80,6 +95,7 @@ struct scmi_msg_resp_prot_version {
 struct scmi_msg_hdr {
 	u8 id;
 	u8 protocol_id;
+	u8 type;
 	u16 seq;
 	u32 status;
 	bool poll_completion;
@@ -89,13 +105,14 @@ struct scmi_msg_hdr {
  * pack_scmi_header() - packs and returns 32-bit header
  *
  * @hdr: pointer to header containing all the information on message id,
- *	protocol id and sequence id.
+ *	protocol id, sequence id and type.
  *
  * Return: 32-bit packed message header to be sent to the platform.
  */
 static inline u32 pack_scmi_header(struct scmi_msg_hdr *hdr)
 {
 	return FIELD_PREP(MSG_ID_MASK, hdr->id) |
+		FIELD_PREP(MSG_TYPE_MASK, hdr->type) |
 		FIELD_PREP(MSG_TOKEN_ID_MASK, hdr->seq) |
 		FIELD_PREP(MSG_PROTOCOL_ID_MASK, hdr->protocol_id);
 }
@@ -110,6 +127,7 @@ static inline void unpack_scmi_header(u32 msg_hdr, struct scmi_msg_hdr *hdr)
 {
 	hdr->id = MSG_XTRACT_ID(msg_hdr);
 	hdr->protocol_id = MSG_XTRACT_PROT_ID(msg_hdr);
+	hdr->type = MSG_XTRACT_TYPE(msg_hdr);
 }
 
 /**
@@ -134,6 +152,27 @@ struct scmi_msg {
  *	buffer for the rx path as we use for the tx path.
  * @done: command message transmit completion event
  * @async_done: pointer to delayed response message received event completion
+ * @pending: True for xfers added to @pending_xfers hashtable
+ * @node: An hlist_node reference used to store this xfer, alternatively, on
+ *	  the free list @free_xfers or in the @pending_xfers hashtable
+ * @users: A refcount to track the active users for this xfer.
+ *	   This is meant to protect against the possibility that, when a command
+ *	   transaction times out concurrently with the reception of a valid
+ *	   response message, the xfer could be finally put on the TX path, and
+ *	   so vanish, while on the RX path scmi_rx_callback() is still
+ *	   processing it: in such a case this refcounting will ensure that, even
+ *	   though the timed-out transaction will anyway cause the command
+ *	   request to be reported as failed by time-out, the underlying xfer
+ *	   cannot be discarded and possibly reused until the last one user on
+ *	   the RX path has released it.
+ * @busy: An atomic flag to ensure exclusive write access to this xfer
+ * @state: The current state of this transfer, with states transitions deemed
+ *	   valid being:
+ *	    - SCMI_XFER_SENT_OK -> SCMI_XFER_RESP_OK [ -> SCMI_XFER_DRESP_OK ]
+ *	    - SCMI_XFER_SENT_OK -> SCMI_XFER_DRESP_OK
+ *	      (Missing synchronous response is assumed OK and ignored)
+ * @lock: A spinlock to protect state and busy fields.
+ * @priv: A pointer for transport private usage.
  */
 struct scmi_xfer {
 	int transfer_id;
@@ -142,7 +181,35 @@ struct scmi_xfer {
 	struct scmi_msg rx;
 	struct completion done;
 	struct completion *async_done;
+	bool pending;
+	struct hlist_node node;
+	refcount_t users;
+#define SCMI_XFER_FREE		0
+#define SCMI_XFER_BUSY		1
+	atomic_t busy;
+#define SCMI_XFER_SENT_OK	0
+#define SCMI_XFER_RESP_OK	1
+#define SCMI_XFER_DRESP_OK	2
+	int state;
+	/* A lock to protect state and busy fields */
+	spinlock_t lock;
+	void *priv;
 };
+
+/*
+ * An helper macro to lookup an xfer from the @pending_xfers hashtable
+ * using the message sequence number token as a key.
+ */
+#define XFER_FIND(__ht, __k)					\
+({								\
+	typeof(__k) k_ = __k;					\
+	struct scmi_xfer *xfer_ = NULL;				\
+								\
+	hash_for_each_possible((__ht), xfer_, node, k_)		\
+		if (xfer_->hdr.seq == k_)			\
+			break;					\
+	xfer_;							\
+})
 
 struct scmi_xfer_ops;
 
@@ -283,9 +350,13 @@ struct scmi_chan_info {
 /**
  * struct scmi_transport_ops - Structure representing a SCMI transport ops
  *
+ * @link_supplier: Optional callback to add link to a supplier device
  * @chan_available: Callback to check if channel is available or not
  * @chan_setup: Callback to allocate and setup a channel
  * @chan_free: Callback to free a channel
+ * @get_max_msg: Optional callback to provide max_msg dynamically
+ *		 Returns the maximum number of messages for the channel type
+ *		 (tx or rx) that can be pending simultaneously in the system
  * @send_message: Callback to send a message
  * @mark_txdone: Callback to mark tx as done
  * @fetch_response: Callback to fetch response
@@ -294,10 +365,12 @@ struct scmi_chan_info {
  * @poll_done: Callback to poll transfer status
  */
 struct scmi_transport_ops {
+	int (*link_supplier)(struct device *dev);
 	bool (*chan_available)(struct device *dev, int idx);
 	int (*chan_setup)(struct scmi_chan_info *cinfo, struct device *dev,
 			  bool tx);
 	int (*chan_free)(int id, void *p, void *data);
+	unsigned int (*get_max_msg)(struct scmi_chan_info *base_cinfo);
 	int (*send_message)(struct scmi_chan_info *cinfo,
 			    struct scmi_xfer *xfer);
 	void (*mark_txdone)(struct scmi_chan_info *cinfo, int ret);
@@ -317,25 +390,39 @@ struct scmi_device *scmi_child_dev_find(struct device *parent,
 /**
  * struct scmi_desc - Description of SoC integration
  *
+ * @transport_init: An optional function that a transport can provide to
+ *		    initialize some transport-specific setup during SCMI core
+ *		    initialization, so ahead of SCMI core probing.
+ * @transport_exit: An optional function that a transport can provide to
+ *		    de-initialize some transport-specific setup during SCMI core
+ *		    de-initialization, so after SCMI core removal.
  * @ops: Pointer to the transport specific ops structure
  * @max_rx_timeout_ms: Timeout for communication with SoC (in Milliseconds)
- * @max_msg: Maximum number of messages that can be pending
- *	simultaneously in the system
+ * @max_msg: Maximum number of messages for a channel type (tx or rx) that can
+ *	be pending simultaneously in the system. May be overridden by the
+ *	get_max_msg op.
  * @max_msg_size: Maximum size of data per message that can be handled.
  */
 struct scmi_desc {
+	int (*transport_init)(void);
+	void (*transport_exit)(void);
 	const struct scmi_transport_ops *ops;
 	int max_rx_timeout_ms;
 	int max_msg;
 	int max_msg_size;
 };
 
+#ifdef CONFIG_ARM_SCMI_TRANSPORT_MAILBOX
 extern const struct scmi_desc scmi_mailbox_desc;
-#ifdef CONFIG_HAVE_ARM_SMCCC_DISCOVERY
+#endif
+#ifdef CONFIG_ARM_SCMI_TRANSPORT_SMC
 extern const struct scmi_desc scmi_smc_desc;
 #endif
+#ifdef CONFIG_ARM_SCMI_TRANSPORT_VIRTIO
+extern const struct scmi_desc scmi_virtio_desc;
+#endif
 
-void scmi_rx_callback(struct scmi_chan_info *cinfo, u32 msg_hdr);
+void scmi_rx_callback(struct scmi_chan_info *cinfo, u32 msg_hdr, void *priv);
 void scmi_free_channel(struct scmi_chan_info *cinfo, struct idr *idr, int id);
 
 /* shmem related declarations */
@@ -352,8 +439,22 @@ void shmem_clear_channel(struct scmi_shared_mem __iomem *shmem);
 bool shmem_poll_done(struct scmi_shared_mem __iomem *shmem,
 		     struct scmi_xfer *xfer);
 
+/* declarations for message passing transports */
+struct scmi_msg_payld;
+
+/* Maximum overhead of message w.r.t. struct scmi_desc.max_msg_size */
+#define SCMI_MSG_MAX_PROT_OVERHEAD (2 * sizeof(__le32))
+
+size_t msg_response_size(struct scmi_xfer *xfer);
+size_t msg_command_size(struct scmi_xfer *xfer);
+void msg_tx_prepare(struct scmi_msg_payld *msg, struct scmi_xfer *xfer);
+u32 msg_read_header(struct scmi_msg_payld *msg);
+void msg_fetch_response(struct scmi_msg_payld *msg, size_t len,
+			struct scmi_xfer *xfer);
+void msg_fetch_notification(struct scmi_msg_payld *msg, size_t len,
+			    size_t max_len, struct scmi_xfer *xfer);
+
 void scmi_notification_instance_data_set(const struct scmi_handle *handle,
 					 void *priv);
 void *scmi_notification_instance_data_get(const struct scmi_handle *handle);
-
 #endif /* _SCMI_COMMON_H */

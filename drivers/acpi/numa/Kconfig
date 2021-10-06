@@ -2,7 +2,7 @@
 config ACPI_NUMA
 	bool "NUMA support"
 	depends on NUMA
-	depends on (X86 || IA64 || ARM64)
+	depends on (X86 || IA64 || ARM64 || LOONGARCH)
 	default y if IA64 || ARM64
 
 config ACPI_HMAT

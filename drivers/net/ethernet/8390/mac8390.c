@@ -428,13 +428,12 @@ out:
 	return err;
 }
 
-static int mac8390_device_remove(struct nubus_board *board)
+static void mac8390_device_remove(struct nubus_board *board)
 {
 	struct net_device *dev = nubus_get_drvdata(board);
 
 	unregister_netdev(dev);
 	free_netdev(dev);
-	return 0;
 }
 
 static struct nubus_driver mac8390_driver = {

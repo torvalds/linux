@@ -365,10 +365,6 @@ void arch_teardown_msi_irqs(struct pci_dev *pdev)
 	for_each_pci_msi_entry(msi, pdev) {
 		if (!msi->irq)
 			continue;
-		if (msi->msi_attrib.is_msix)
-			__pci_msix_desc_mask_irq(msi, 1);
-		else
-			__pci_msi_desc_mask_irq(msi, 1, 1);
 		irq_set_msi_desc(msi->irq, NULL);
 		irq_free_desc(msi->irq);
 		msi->msg.address_lo = 0;

@@ -97,16 +97,6 @@ enum {
 	HT_DATA_SC_20_LOWER_OF_40MHZ = 2,
 };
 
-/* 2007/11/15 MH Define different RF type. */
-enum {
-	RF_1T2R = 0,
-	RF_2T4R = 1,
-	RF_2T2R = 2,
-	RF_1T1R = 3,
-	RF_2T2R_GREEN = 4,
-	RF_MAX_TYPE = 5,
-};
-
 u32 rtw_ch2freq(u32 ch);
 
 #endif /* _RTL8711_RF_H_ */

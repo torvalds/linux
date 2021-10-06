@@ -537,3 +537,7 @@
 		opp-suspend;
 	};
 };
+
+&pruss1_mdio {
+	status = "disabled";
+};

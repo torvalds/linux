@@ -569,13 +569,18 @@ static void notify_thresholds(__u64 msr_val)
 		platform_thermal_notify(msr_val);
 }
 
+void __weak notify_hwp_interrupt(void)
+{
+	wrmsrl_safe(MSR_HWP_STATUS, 0);
+}
+
 /* Thermal transition interrupt handler */
 void intel_thermal_interrupt(void)
 {
 	__u64 msr_val;
 
 	if (static_cpu_has(X86_FEATURE_HWP))
-		wrmsrl_safe(MSR_HWP_STATUS, 0);
+		notify_hwp_interrupt();
 
 	rdmsrl(MSR_IA32_THERM_STATUS, msr_val);
 

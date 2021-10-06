@@ -187,7 +187,7 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 	host_cmd = (struct host_cmd_ds_command *) (cmd_node->cmd_skb->data);
 
 	/* Sanity test */
-	if (host_cmd == NULL || host_cmd->size == 0) {
+	if (host_cmd->size == 0) {
 		mwifiex_dbg(adapter, ERROR,
 			    "DNLD_CMD: host_cmd is null\t"
 			    "or cmd size is 0, not sending\n");

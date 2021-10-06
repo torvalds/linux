@@ -23,6 +23,7 @@ config NFP
 	depends on TLS && TLS_DEVICE || TLS_DEVICE=n
 	select NET_DEVLINK
 	select CRC32
+	select DIMLIB
 	help
 	  This driver supports the Netronome(R) NFP4000/NFP6000 based
 	  cards working as a advanced Ethernet NIC.  It works with both

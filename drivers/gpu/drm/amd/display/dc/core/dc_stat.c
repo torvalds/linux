@@ -62,3 +62,27 @@ void dc_stat_get_dmub_notification(const struct dc *dc, struct dmub_notification
 	status = dmub_srv_stat_get_notification(dmub, notify);
 	ASSERT(status == DMUB_STATUS_OK);
 }
+
+/**
+ *****************************************************************************
+ *  Function: dc_stat_get_dmub_dataout
+ *
+ *  @brief
+ *		Calls dmub layer to retrieve dmub gpint dataout
+ *
+ *  @param
+ *		[in] dc: dc structure
+ *		[in] dataout: dmub gpint dataout
+ *
+ *  @return
+ *     None
+ *****************************************************************************
+ */
+void dc_stat_get_dmub_dataout(const struct dc *dc, uint32_t *dataout)
+{
+	struct dmub_srv *dmub = dc->ctx->dmub_srv->dmub;
+	enum dmub_status status;
+
+	status = dmub_srv_get_gpint_dataout(dmub, dataout);
+	ASSERT(status == DMUB_STATUS_OK);
+}

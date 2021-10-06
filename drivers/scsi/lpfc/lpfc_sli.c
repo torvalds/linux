@@ -1439,7 +1439,7 @@ out:
 	memset((char *)iocbq + start_clean, 0, sizeof(*iocbq) - start_clean);
 	iocbq->sli4_lxritag = NO_XRI;
 	iocbq->sli4_xritag = NO_XRI;
-	iocbq->iocb_flag &= ~(LPFC_IO_NVME | LPFC_IO_NVMET |
+	iocbq->iocb_flag &= ~(LPFC_IO_NVME | LPFC_IO_NVMET | LPFC_IO_CMF |
 			      LPFC_IO_NVME_LS);
 	list_add_tail(&iocbq->list, &phba->lpfc_iocb_list);
 }
@@ -1766,6 +1766,254 @@ lpfc_sli_ringtx_get(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 
 	list_remove_head((&pring->txq), cmd_iocb, struct lpfc_iocbq, list);
 	return cmd_iocb;
+}
+
+/**
+ * lpfc_cmf_sync_cmpl - Process a CMF_SYNC_WQE cmpl
+ * @phba: Pointer to HBA context object.
+ * @cmdiocb: Pointer to driver command iocb object.
+ * @cmf_cmpl: Pointer to completed WCQE.
+ *
+ * This routine will inform the driver of any BW adjustments we need
+ * to make. These changes will be picked up during the next CMF
+ * timer interrupt. In addition, any BW changes will be logged
+ * with LOG_CGN_MGMT.
+ **/
+static void
+lpfc_cmf_sync_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
+		   struct lpfc_wcqe_complete *cmf_cmpl)
+{
+	union lpfc_wqe128 *wqe;
+	uint32_t status, info;
+	uint64_t bw, bwdif, slop;
+	uint64_t pcent, bwpcent;
+	int asig, afpin, sigcnt, fpincnt;
+	int wsigmax, wfpinmax, cg, tdp;
+	char *s;
+
+	/* First check for error */
+	status = bf_get(lpfc_wcqe_c_status, cmf_cmpl);
+	if (status) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+				"6211 CMF_SYNC_WQE Error "
+				"req_tag x%x status x%x hwstatus x%x "
+				"tdatap x%x parm x%x\n",
+				bf_get(lpfc_wcqe_c_request_tag, cmf_cmpl),
+				bf_get(lpfc_wcqe_c_status, cmf_cmpl),
+				bf_get(lpfc_wcqe_c_hw_status, cmf_cmpl),
+				cmf_cmpl->total_data_placed,
+				cmf_cmpl->parameter);
+		goto out;
+	}
+
+	/* Gather congestion information on a successful cmpl */
+	info = cmf_cmpl->parameter;
+	phba->cmf_active_info = info;
+
+	/* See if firmware info count is valid or has changed */
+	if (info > LPFC_MAX_CMF_INFO || phba->cmf_info_per_interval == info)
+		info = 0;
+	else
+		phba->cmf_info_per_interval = info;
+
+	tdp = bf_get(lpfc_wcqe_c_cmf_bw, cmf_cmpl);
+	cg = bf_get(lpfc_wcqe_c_cmf_cg, cmf_cmpl);
+
+	/* Get BW requirement from firmware */
+	bw = (uint64_t)tdp * LPFC_CMF_BLK_SIZE;
+	if (!bw) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+				"6212 CMF_SYNC_WQE x%x: NULL bw\n",
+				bf_get(lpfc_wcqe_c_request_tag, cmf_cmpl));
+		goto out;
+	}
+
+	/* Gather information needed for logging if a BW change is required */
+	wqe = &cmdiocb->wqe;
+	asig = bf_get(cmf_sync_asig, &wqe->cmf_sync);
+	afpin = bf_get(cmf_sync_afpin, &wqe->cmf_sync);
+	fpincnt = bf_get(cmf_sync_wfpincnt, &wqe->cmf_sync);
+	sigcnt = bf_get(cmf_sync_wsigcnt, &wqe->cmf_sync);
+	if (phba->cmf_max_bytes_per_interval != bw ||
+	    (asig || afpin || sigcnt || fpincnt)) {
+		/* Are we increasing or decreasing BW */
+		if (phba->cmf_max_bytes_per_interval <  bw) {
+			bwdif = bw - phba->cmf_max_bytes_per_interval;
+			s = "Increase";
+		} else {
+			bwdif = phba->cmf_max_bytes_per_interval - bw;
+			s = "Decrease";
+		}
+
+		/* What is the change percentage */
+		slop = div_u64(phba->cmf_link_byte_count, 200); /*For rounding*/
+		pcent = div64_u64(bwdif * 100 + slop,
+				  phba->cmf_link_byte_count);
+		bwpcent = div64_u64(bw * 100 + slop,
+				    phba->cmf_link_byte_count);
+		if (asig) {
+			lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+					"6237 BW Threshold %lld%% (%lld): "
+					"%lld%% %s: Signal Alarm: cg:%d "
+					"Info:%u\n",
+					bwpcent, bw, pcent, s, cg,
+					phba->cmf_active_info);
+		} else if (afpin) {
+			lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+					"6238 BW Threshold %lld%% (%lld): "
+					"%lld%% %s: FPIN Alarm: cg:%d "
+					"Info:%u\n",
+					bwpcent, bw, pcent, s, cg,
+					phba->cmf_active_info);
+		} else if (sigcnt) {
+			wsigmax = bf_get(cmf_sync_wsigmax, &wqe->cmf_sync);
+			lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+					"6239 BW Threshold %lld%% (%lld): "
+					"%lld%% %s: Signal Warning: "
+					"Cnt %d Max %d: cg:%d Info:%u\n",
+					bwpcent, bw, pcent, s, sigcnt,
+					wsigmax, cg, phba->cmf_active_info);
+		} else if (fpincnt) {
+			wfpinmax = bf_get(cmf_sync_wfpinmax, &wqe->cmf_sync);
+			lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+					"6240 BW Threshold %lld%% (%lld): "
+					"%lld%% %s: FPIN Warning: "
+					"Cnt %d Max %d: cg:%d Info:%u\n",
+					bwpcent, bw, pcent, s, fpincnt,
+					wfpinmax, cg, phba->cmf_active_info);
+		} else {
+			lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+					"6241 BW Threshold %lld%% (%lld): "
+					"CMF %lld%% %s: cg:%d Info:%u\n",
+					bwpcent, bw, pcent, s, cg,
+					phba->cmf_active_info);
+		}
+	} else if (info) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+				"6246 Info Threshold %u\n", info);
+	}
+
+	/* Save BW change to be picked up during next timer interrupt */
+	phba->cmf_last_sync_bw = bw;
+out:
+	lpfc_sli_release_iocbq(phba, cmdiocb);
+}
+
+/**
+ * lpfc_issue_cmf_sync_wqe - Issue a CMF_SYNC_WQE
+ * @phba: Pointer to HBA context object.
+ * @ms:   ms to set in WQE interval, 0 means use init op
+ * @total: Total rcv bytes for this interval
+ *
+ * This routine is called every CMF timer interrupt. Its purpose is
+ * to issue a CMF_SYNC_WQE to the firmware to inform it of any events
+ * that may indicate we have congestion (FPINs or Signals). Upon
+ * completion, the firmware will indicate any BW restrictions the
+ * driver may need to take.
+ **/
+int
+lpfc_issue_cmf_sync_wqe(struct lpfc_hba *phba, u32 ms, u64 total)
+{
+	union lpfc_wqe128 *wqe;
+	struct lpfc_iocbq *sync_buf;
+	unsigned long iflags;
+	u32 ret_val;
+	u32 atot, wtot, max;
+
+	/* First address any alarm / warning activity */
+	atot = atomic_xchg(&phba->cgn_sync_alarm_cnt, 0);
+	wtot = atomic_xchg(&phba->cgn_sync_warn_cnt, 0);
+
+	/* ONLY Managed mode will send the CMF_SYNC_WQE to the HBA */
+	if (phba->cmf_active_mode != LPFC_CFG_MANAGED ||
+	    phba->link_state == LPFC_LINK_DOWN)
+		return 0;
+
+	spin_lock_irqsave(&phba->hbalock, iflags);
+	sync_buf = __lpfc_sli_get_iocbq(phba);
+	if (!sync_buf) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_CGN_MGMT,
+				"6213 No available WQEs for CMF_SYNC_WQE\n");
+		ret_val = ENOMEM;
+		goto out_unlock;
+	}
+
+	wqe = &sync_buf->wqe;
+
+	/* WQEs are reused.  Clear stale data and set key fields to zero */
+	memset(wqe, 0, sizeof(*wqe));
+
+	/* If this is the very first CMF_SYNC_WQE, issue an init operation */
+	if (!ms) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+				"6441 CMF Init %d - CMF_SYNC_WQE\n",
+				phba->fc_eventTag);
+		bf_set(cmf_sync_op, &wqe->cmf_sync, 1); /* 1=init */
+		bf_set(cmf_sync_interval, &wqe->cmf_sync, LPFC_CMF_INTERVAL);
+		goto initpath;
+	}
+
+	bf_set(cmf_sync_op, &wqe->cmf_sync, 0); /* 0=recalc */
+	bf_set(cmf_sync_interval, &wqe->cmf_sync, ms);
+
+	/* Check for alarms / warnings */
+	if (atot) {
+		if (phba->cgn_reg_signal == EDC_CG_SIG_WARN_ALARM) {
+			/* We hit an Signal alarm condition */
+			bf_set(cmf_sync_asig, &wqe->cmf_sync, 1);
+		} else {
+			/* We hit a FPIN alarm condition */
+			bf_set(cmf_sync_afpin, &wqe->cmf_sync, 1);
+		}
+	} else if (wtot) {
+		if (phba->cgn_reg_signal == EDC_CG_SIG_WARN_ONLY ||
+		    phba->cgn_reg_signal == EDC_CG_SIG_WARN_ALARM) {
+			/* We hit an Signal warning condition */
+			max = LPFC_SEC_TO_MSEC / lpfc_fabric_cgn_frequency *
+				lpfc_acqe_cgn_frequency;
+			bf_set(cmf_sync_wsigmax, &wqe->cmf_sync, max);
+			bf_set(cmf_sync_wsigcnt, &wqe->cmf_sync, wtot);
+		} else {
+			/* We hit a FPIN warning condition */
+			bf_set(cmf_sync_wfpinmax, &wqe->cmf_sync, 1);
+			bf_set(cmf_sync_wfpincnt, &wqe->cmf_sync, 1);
+		}
+	}
+
+	/* Update total read blocks during previous timer interval */
+	wqe->cmf_sync.read_bytes = (u32)(total / LPFC_CMF_BLK_SIZE);
+
+initpath:
+	bf_set(cmf_sync_ver, &wqe->cmf_sync, LPFC_CMF_SYNC_VER);
+	wqe->cmf_sync.event_tag = phba->fc_eventTag;
+	bf_set(cmf_sync_cmnd, &wqe->cmf_sync, CMD_CMF_SYNC_WQE);
+
+	/* Setup reqtag to match the wqe completion. */
+	bf_set(cmf_sync_reqtag, &wqe->cmf_sync, sync_buf->iotag);
+
+	bf_set(cmf_sync_qosd, &wqe->cmf_sync, 1);
+
+	bf_set(cmf_sync_cmd_type, &wqe->cmf_sync, CMF_SYNC_COMMAND);
+	bf_set(cmf_sync_wqec, &wqe->cmf_sync, 1);
+	bf_set(cmf_sync_cqid, &wqe->cmf_sync, LPFC_WQE_CQ_ID_DEFAULT);
+
+	sync_buf->vport = phba->pport;
+	sync_buf->wqe_cmpl = lpfc_cmf_sync_cmpl;
+	sync_buf->iocb_cmpl = NULL;
+	sync_buf->context1 = NULL;
+	sync_buf->context2 = NULL;
+	sync_buf->context3 = NULL;
+	sync_buf->sli4_xritag = NO_XRI;
+
+	sync_buf->iocb_flag |= LPFC_IO_CMF;
+	ret_val = lpfc_sli4_issue_wqe(phba, &phba->sli4_hba.hdwq[0], sync_buf);
+	if (ret_val)
+		lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+				"6214 Cannot issue CMF_SYNC_WQE: x%x\n",
+				ret_val);
+out_unlock:
+	spin_unlock_irqrestore(&phba->hbalock, iflags);
+	return ret_val;
 }
 
 /**
@@ -4467,6 +4715,7 @@ lpfc_sli_brdready_s4(struct lpfc_hba *phba, uint32_t mask)
 	} else
 		phba->sli4_hba.intr_enable = 0;
 
+	phba->hba_flag &= ~HBA_SETUP;
 	return retval;
 }
 
@@ -4787,6 +5036,7 @@ lpfc_sli4_brdreset(struct lpfc_hba *phba)
 	phba->link_events = 0;
 	phba->pport->fc_myDID = 0;
 	phba->pport->fc_prevDID = 0;
+	phba->hba_flag &= ~HBA_SETUP;
 
 	spin_lock_irq(&phba->hbalock);
 	psli->sli_flag &= ~(LPFC_PROCESS_LA);
@@ -5674,16 +5924,20 @@ lpfc_sli4_get_ctl_attr(struct lpfc_hba *phba)
 		bf_get(lpfc_cntl_attr_lnk_type, cntl_attr);
 	phba->sli4_hba.lnk_info.lnk_no =
 		bf_get(lpfc_cntl_attr_lnk_numb, cntl_attr);
+	phba->sli4_hba.flash_id = bf_get(lpfc_cntl_attr_flash_id, cntl_attr);
+	phba->sli4_hba.asic_rev = bf_get(lpfc_cntl_attr_asic_rev, cntl_attr);
 
 	memset(phba->BIOSVersion, 0, sizeof(phba->BIOSVersion));
 	strlcat(phba->BIOSVersion, (char *)cntl_attr->bios_ver_str,
 		sizeof(phba->BIOSVersion));
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
-			"3086 lnk_type:%d, lnk_numb:%d, bios_ver:%s\n",
+			"3086 lnk_type:%d, lnk_numb:%d, bios_ver:%s, "
+			"flash_id: x%02x, asic_rev: x%02x\n",
 			phba->sli4_hba.lnk_info.lnk_tp,
 			phba->sli4_hba.lnk_info.lnk_no,
-			phba->BIOSVersion);
+			phba->BIOSVersion, phba->sli4_hba.flash_id,
+			phba->sli4_hba.asic_rev);
 out_free_mboxq:
 	if (bf_get(lpfc_mqe_command, &mboxq->u.mqe) == MBX_SLI4_CONFIG)
 		lpfc_sli4_mbox_cmd_free(phba, mboxq);
@@ -6413,6 +6667,7 @@ lpfc_set_features(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox,
 		  uint32_t feature)
 {
 	uint32_t len;
+	u32 sig_freq = 0;
 
 	len = sizeof(struct lpfc_mbx_set_feature) -
 		sizeof(struct lpfc_sli4_cfg_mhdr);
@@ -6435,6 +6690,35 @@ lpfc_set_features(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox,
 		mbox->u.mqe.un.set_feature.feature = LPFC_SET_MDS_DIAGS;
 		mbox->u.mqe.un.set_feature.param_len = 8;
 		break;
+	case LPFC_SET_CGN_SIGNAL:
+		if (phba->cmf_active_mode == LPFC_CFG_OFF)
+			sig_freq = 0;
+		else
+			sig_freq = phba->cgn_sig_freq;
+
+		if (phba->cgn_reg_signal == EDC_CG_SIG_WARN_ALARM) {
+			bf_set(lpfc_mbx_set_feature_CGN_alarm_freq,
+			       &mbox->u.mqe.un.set_feature, sig_freq);
+			bf_set(lpfc_mbx_set_feature_CGN_warn_freq,
+			       &mbox->u.mqe.un.set_feature, sig_freq);
+		}
+
+		if (phba->cgn_reg_signal == EDC_CG_SIG_WARN_ONLY)
+			bf_set(lpfc_mbx_set_feature_CGN_warn_freq,
+			       &mbox->u.mqe.un.set_feature, sig_freq);
+
+		if (phba->cmf_active_mode == LPFC_CFG_OFF ||
+		    phba->cgn_reg_signal == EDC_CG_SIG_NOTSUPPORTED)
+			sig_freq = 0;
+		else
+			sig_freq = lpfc_acqe_cgn_frequency;
+
+		bf_set(lpfc_mbx_set_feature_CGN_acqe_freq,
+		       &mbox->u.mqe.un.set_feature, sig_freq);
+
+		mbox->u.mqe.un.set_feature.feature = LPFC_SET_CGN_SIGNAL;
+		mbox->u.mqe.un.set_feature.param_len = 12;
+		break;
 	case LPFC_SET_DUAL_DUMP:
 		bf_set(lpfc_mbx_set_feature_dd,
 		       &mbox->u.mqe.un.set_feature, LPFC_ENABLE_DUAL_DUMP);
@@ -6443,8 +6727,22 @@ lpfc_set_features(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox,
 		mbox->u.mqe.un.set_feature.feature = LPFC_SET_DUAL_DUMP;
 		mbox->u.mqe.un.set_feature.param_len = 4;
 		break;
+	case LPFC_SET_ENABLE_MI:
+		mbox->u.mqe.un.set_feature.feature = LPFC_SET_ENABLE_MI;
+		mbox->u.mqe.un.set_feature.param_len = 4;
+		bf_set(lpfc_mbx_set_feature_milunq, &mbox->u.mqe.un.set_feature,
+		       phba->pport->cfg_lun_queue_depth);
+		bf_set(lpfc_mbx_set_feature_mi, &mbox->u.mqe.un.set_feature,
+		       phba->sli4_hba.pc_sli4_params.mi_ver);
+		break;
+	case LPFC_SET_ENABLE_CMF:
+		bf_set(lpfc_mbx_set_feature_dd, &mbox->u.mqe.un.set_feature, 1);
+		mbox->u.mqe.un.set_feature.feature = LPFC_SET_ENABLE_CMF;
+		mbox->u.mqe.un.set_feature.param_len = 4;
+		bf_set(lpfc_mbx_set_feature_cmf,
+		       &mbox->u.mqe.un.set_feature, 1);
+		break;
 	}
-
 	return;
 }
 
@@ -7365,7 +7663,7 @@ lpfc_set_host_data(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
 	mbox->u.mqe.un.set_host_data.param_id = LPFC_SET_HOST_OS_DRIVER_VERSION;
 	mbox->u.mqe.un.set_host_data.param_len =
 					LPFC_HOST_OS_DRIVER_VERSION_SIZE;
-	snprintf(mbox->u.mqe.un.set_host_data.data,
+	snprintf(mbox->u.mqe.un.set_host_data.un.data,
 		 LPFC_HOST_OS_DRIVER_VERSION_SIZE,
 		 "Linux %s v"LPFC_DRIVER_VERSION,
 		 (phba->hba_flag & HBA_FCOE_MODE) ? "FCoE" : "FC");
@@ -7433,6 +7731,91 @@ lpfc_post_rq_buffer(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 	return 1;
 }
 
+static void
+lpfc_mbx_cmpl_cgn_set_ftrs(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
+{
+	struct lpfc_vport *vport = pmb->vport;
+	union lpfc_sli4_cfg_shdr *shdr;
+	u32 shdr_status, shdr_add_status;
+	u32 sig, acqe;
+
+	/* Two outcomes. (1) Set featurs was successul and EDC negotiation
+	 * is done. (2) Mailbox failed and send FPIN support only.
+	 */
+	shdr = (union lpfc_sli4_cfg_shdr *)
+		&pmb->u.mqe.un.sli4_config.header.cfg_shdr;
+	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
+	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
+	if (shdr_status || shdr_add_status || pmb->u.mb.mbxStatus) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT | LOG_CGN_MGMT,
+				"2516 CGN SET_FEATURE mbox failed with "
+				"status x%x add_status x%x, mbx status x%x "
+				"Reset Congestion to FPINs only\n",
+				shdr_status, shdr_add_status,
+				pmb->u.mb.mbxStatus);
+		/* If there is a mbox error, move on to RDF */
+		phba->cgn_reg_signal = EDC_CG_SIG_NOTSUPPORTED;
+		phba->cgn_reg_fpin = LPFC_CGN_FPIN_WARN | LPFC_CGN_FPIN_ALARM;
+		goto out;
+	}
+
+	/* Zero out Congestion Signal ACQE counter */
+	phba->cgn_acqe_cnt = 0;
+	atomic64_set(&phba->cgn_acqe_stat.warn, 0);
+	atomic64_set(&phba->cgn_acqe_stat.alarm, 0);
+
+	acqe = bf_get(lpfc_mbx_set_feature_CGN_acqe_freq,
+		      &pmb->u.mqe.un.set_feature);
+	sig = bf_get(lpfc_mbx_set_feature_CGN_warn_freq,
+		     &pmb->u.mqe.un.set_feature);
+	lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+			"4620 SET_FEATURES Success: Freq: %ds %dms "
+			" Reg: x%x x%x\n", acqe, sig,
+			phba->cgn_reg_signal, phba->cgn_reg_fpin);
+out:
+	mempool_free(pmb, phba->mbox_mem_pool);
+
+	/* Register for FPIN events from the fabric now that the
+	 * EDC common_set_features has completed.
+	 */
+	lpfc_issue_els_rdf(vport, 0);
+}
+
+int
+lpfc_config_cgn_signal(struct lpfc_hba *phba)
+{
+	LPFC_MBOXQ_t *mboxq;
+	u32 rc;
+
+	mboxq = (LPFC_MBOXQ_t *)mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mboxq)
+		goto out_rdf;
+
+	lpfc_set_features(phba, mboxq, LPFC_SET_CGN_SIGNAL);
+	mboxq->vport = phba->pport;
+	mboxq->mbox_cmpl = lpfc_mbx_cmpl_cgn_set_ftrs;
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+			"4621 SET_FEATURES: FREQ sig x%x acqe x%x: "
+			"Reg: x%x x%x\n",
+			phba->cgn_sig_freq, lpfc_acqe_cgn_frequency,
+			phba->cgn_reg_signal, phba->cgn_reg_fpin);
+
+	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_NOWAIT);
+	if (rc == MBX_NOT_FINISHED)
+		goto out;
+	return 0;
+
+out:
+	mempool_free(mboxq, phba->mbox_mem_pool);
+out_rdf:
+	/* If there is a mbox error, move on to RDF */
+	phba->cgn_reg_fpin = LPFC_CGN_FPIN_WARN | LPFC_CGN_FPIN_ALARM;
+	phba->cgn_reg_signal = EDC_CG_SIG_NOTSUPPORTED;
+	lpfc_issue_els_rdf(phba->pport, 0);
+	return -EIO;
+}
+
 /**
  * lpfc_init_idle_stat_hb - Initialize idle_stat tracking
  * @phba: pointer to lpfc hba data structure.
@@ -7464,7 +7847,8 @@ static void lpfc_init_idle_stat_hb(struct lpfc_hba *phba)
 		idle_stat->prev_idle = get_cpu_idle_time(i, &wall, 1);
 		idle_stat->prev_wall = wall;
 
-		if (phba->nvmet_support)
+		if (phba->nvmet_support ||
+		    phba->cmf_active_mode != LPFC_CFG_OFF)
 			cq->poll_mode = LPFC_QUEUE_WORK;
 		else
 			cq->poll_mode = LPFC_IRQ_POLL;
@@ -7493,6 +7877,258 @@ static void lpfc_sli4_dip(struct lpfc_hba *phba)
 					"2904 Firmware Dump Image Present"
 					" on Adapter");
 	}
+}
+
+/**
+ * lpfc_cmf_setup - Initialize idle_stat tracking
+ * @phba: Pointer to HBA context object.
+ *
+ * This is called from HBA setup during driver load or when the HBA
+ * comes online. this does all the initialization to support CMF and MI.
+ **/
+static int
+lpfc_cmf_setup(struct lpfc_hba *phba)
+{
+	LPFC_MBOXQ_t *mboxq;
+	struct lpfc_mqe *mqe;
+	struct lpfc_dmabuf *mp;
+	struct lpfc_pc_sli4_params *sli4_params;
+	struct lpfc_sli4_parameters *mbx_sli4_parameters;
+	int length;
+	int rc, cmf, mi_ver;
+
+	mboxq = (LPFC_MBOXQ_t *)mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mboxq)
+		return -ENOMEM;
+	mqe = &mboxq->u.mqe;
+
+	/* Read the port's SLI4 Config Parameters */
+	length = (sizeof(struct lpfc_mbx_get_sli4_parameters) -
+		  sizeof(struct lpfc_sli4_cfg_mhdr));
+	lpfc_sli4_config(phba, mboxq, LPFC_MBOX_SUBSYSTEM_COMMON,
+			 LPFC_MBOX_OPCODE_GET_SLI4_PARAMETERS,
+			 length, LPFC_SLI4_MBX_EMBED);
+
+	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
+	if (unlikely(rc)) {
+		mempool_free(mboxq, phba->mbox_mem_pool);
+		return rc;
+	}
+
+	/* Gather info on CMF and MI support */
+	sli4_params = &phba->sli4_hba.pc_sli4_params;
+	mbx_sli4_parameters = &mqe->un.get_sli4_parameters.sli4_parameters;
+	sli4_params->mi_ver = bf_get(cfg_mi_ver, mbx_sli4_parameters);
+	sli4_params->cmf = bf_get(cfg_cmf, mbx_sli4_parameters);
+
+	/* Are we forcing MI off via module parameter? */
+	if (!phba->cfg_enable_mi)
+		sli4_params->mi_ver = 0;
+
+	/* Always try to enable MI feature if we can */
+	if (sli4_params->mi_ver) {
+		lpfc_set_features(phba, mboxq, LPFC_SET_ENABLE_MI);
+		rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
+		mi_ver = bf_get(lpfc_mbx_set_feature_mi,
+				 &mboxq->u.mqe.un.set_feature);
+
+		if (rc == MBX_SUCCESS) {
+			if (mi_ver) {
+				lpfc_printf_log(phba,
+						KERN_WARNING, LOG_CGN_MGMT,
+						"6215 MI is enabled\n");
+				sli4_params->mi_ver = mi_ver;
+			} else {
+				lpfc_printf_log(phba,
+						KERN_WARNING, LOG_CGN_MGMT,
+						"6338 MI is disabled\n");
+				sli4_params->mi_ver = 0;
+			}
+		} else {
+			/* mi_ver is already set from GET_SLI4_PARAMETERS */
+			lpfc_printf_log(phba, KERN_INFO,
+					LOG_CGN_MGMT | LOG_INIT,
+					"6245 Enable MI Mailbox x%x (x%x/x%x) "
+					"failed, rc:x%x mi:x%x\n",
+					bf_get(lpfc_mqe_command, &mboxq->u.mqe),
+					lpfc_sli_config_mbox_subsys_get
+						(phba, mboxq),
+					lpfc_sli_config_mbox_opcode_get
+						(phba, mboxq),
+					rc, sli4_params->mi_ver);
+		}
+	} else {
+		lpfc_printf_log(phba, KERN_WARNING, LOG_CGN_MGMT,
+				"6217 MI is disabled\n");
+	}
+
+	/* Ensure FDMI is enabled for MI if enable_mi is set */
+	if (sli4_params->mi_ver)
+		phba->cfg_fdmi_on = LPFC_FDMI_SUPPORT;
+
+	/* Always try to enable CMF feature if we can */
+	if (sli4_params->cmf) {
+		lpfc_set_features(phba, mboxq, LPFC_SET_ENABLE_CMF);
+		rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
+		cmf = bf_get(lpfc_mbx_set_feature_cmf,
+			     &mboxq->u.mqe.un.set_feature);
+		if (rc == MBX_SUCCESS && cmf) {
+			lpfc_printf_log(phba, KERN_WARNING, LOG_CGN_MGMT,
+					"6218 CMF is enabled: mode %d\n",
+					phba->cmf_active_mode);
+		} else {
+			lpfc_printf_log(phba, KERN_WARNING,
+					LOG_CGN_MGMT | LOG_INIT,
+					"6219 Enable CMF Mailbox x%x (x%x/x%x) "
+					"failed, rc:x%x dd:x%x\n",
+					bf_get(lpfc_mqe_command, &mboxq->u.mqe),
+					lpfc_sli_config_mbox_subsys_get
+						(phba, mboxq),
+					lpfc_sli_config_mbox_opcode_get
+						(phba, mboxq),
+					rc, cmf);
+			sli4_params->cmf = 0;
+			phba->cmf_active_mode = LPFC_CFG_OFF;
+			goto no_cmf;
+		}
+
+		/* Allocate Congestion Information Buffer */
+		if (!phba->cgn_i) {
+			mp = kmalloc(sizeof(*mp), GFP_KERNEL);
+			if (mp)
+				mp->virt = dma_alloc_coherent
+						(&phba->pcidev->dev,
+						sizeof(struct lpfc_cgn_info),
+						&mp->phys, GFP_KERNEL);
+			if (!mp || !mp->virt) {
+				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+						"2640 Failed to alloc memory "
+						"for Congestion Info\n");
+				kfree(mp);
+				sli4_params->cmf = 0;
+				phba->cmf_active_mode = LPFC_CFG_OFF;
+				goto no_cmf;
+			}
+			phba->cgn_i = mp;
+
+			/* initialize congestion buffer info */
+			lpfc_init_congestion_buf(phba);
+			lpfc_init_congestion_stat(phba);
+		}
+
+		rc = lpfc_sli4_cgn_params_read(phba);
+		if (rc < 0) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_CGN_MGMT | LOG_INIT,
+					"6242 Error reading Cgn Params (%d)\n",
+					rc);
+			/* Ensure CGN Mode is off */
+			sli4_params->cmf = 0;
+		} else if (!rc) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_CGN_MGMT | LOG_INIT,
+					"6243 CGN Event empty object.\n");
+			/* Ensure CGN Mode is off */
+			sli4_params->cmf = 0;
+		}
+	} else {
+no_cmf:
+		lpfc_printf_log(phba, KERN_WARNING, LOG_CGN_MGMT,
+				"6220 CMF is disabled\n");
+	}
+
+	/* Only register congestion buffer with firmware if BOTH
+	 * CMF and E2E are enabled.
+	 */
+	if (sli4_params->cmf && sli4_params->mi_ver) {
+		rc = lpfc_reg_congestion_buf(phba);
+		if (rc) {
+			dma_free_coherent(&phba->pcidev->dev,
+					  sizeof(struct lpfc_cgn_info),
+					  phba->cgn_i->virt, phba->cgn_i->phys);
+			kfree(phba->cgn_i);
+			phba->cgn_i = NULL;
+			/* Ensure CGN Mode is off */
+			phba->cmf_active_mode = LPFC_CFG_OFF;
+			return 0;
+		}
+	}
+	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+			"6470 Setup MI version %d CMF %d mode %d\n",
+			sli4_params->mi_ver, sli4_params->cmf,
+			phba->cmf_active_mode);
+
+	mempool_free(mboxq, phba->mbox_mem_pool);
+
+	/* Initialize atomic counters */
+	atomic_set(&phba->cgn_fabric_warn_cnt, 0);
+	atomic_set(&phba->cgn_fabric_alarm_cnt, 0);
+	atomic_set(&phba->cgn_sync_alarm_cnt, 0);
+	atomic_set(&phba->cgn_sync_warn_cnt, 0);
+	atomic_set(&phba->cgn_driver_evt_cnt, 0);
+	atomic_set(&phba->cgn_latency_evt_cnt, 0);
+	atomic64_set(&phba->cgn_latency_evt, 0);
+
+	phba->cmf_interval_rate = LPFC_CMF_INTERVAL;
+
+	/* Allocate RX Monitor Buffer */
+	if (!phba->rxtable) {
+		phba->rxtable = kmalloc_array(LPFC_MAX_RXMONITOR_ENTRY,
+					      sizeof(struct rxtable_entry),
+					      GFP_KERNEL);
+		if (!phba->rxtable) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"2644 Failed to alloc memory "
+					"for RX Monitor Buffer\n");
+			return -ENOMEM;
+		}
+	}
+	atomic_set(&phba->rxtable_idx_head, 0);
+	atomic_set(&phba->rxtable_idx_tail, 0);
+	return 0;
+}
+
+static int
+lpfc_set_host_tm(struct lpfc_hba *phba)
+{
+	LPFC_MBOXQ_t *mboxq;
+	uint32_t len, rc;
+	struct timespec64 cur_time;
+	struct tm broken;
+	uint32_t month, day, year;
+	uint32_t hour, minute, second;
+	struct lpfc_mbx_set_host_date_time *tm;
+
+	mboxq = (LPFC_MBOXQ_t *)mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mboxq)
+		return -ENOMEM;
+
+	len = sizeof(struct lpfc_mbx_set_host_data) -
+		sizeof(struct lpfc_sli4_cfg_mhdr);
+	lpfc_sli4_config(phba, mboxq, LPFC_MBOX_SUBSYSTEM_COMMON,
+			 LPFC_MBOX_OPCODE_SET_HOST_DATA, len,
+			 LPFC_SLI4_MBX_EMBED);
+
+	mboxq->u.mqe.un.set_host_data.param_id = LPFC_SET_HOST_DATE_TIME;
+	mboxq->u.mqe.un.set_host_data.param_len =
+			sizeof(struct lpfc_mbx_set_host_date_time);
+	tm = &mboxq->u.mqe.un.set_host_data.un.tm;
+	ktime_get_real_ts64(&cur_time);
+	time64_to_tm(cur_time.tv_sec, 0, &broken);
+	month = broken.tm_mon + 1;
+	day = broken.tm_mday;
+	year = broken.tm_year - 100;
+	hour = broken.tm_hour;
+	minute = broken.tm_min;
+	second = broken.tm_sec;
+	bf_set(lpfc_mbx_set_host_month, tm, month);
+	bf_set(lpfc_mbx_set_host_day, tm, day);
+	bf_set(lpfc_mbx_set_host_year, tm, year);
+	bf_set(lpfc_mbx_set_host_hour, tm, hour);
+	bf_set(lpfc_mbx_set_host_min, tm, minute);
+	bf_set(lpfc_mbx_set_host_sec, tm, second);
+
+	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
+	mempool_free(mboxq, phba->mbox_mem_pool);
+	return rc;
 }
 
 /**
@@ -7583,6 +8219,10 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 		kfree(vpd);
 		goto out_free_mbox;
 	}
+
+	rc = lpfc_set_host_tm(phba);
+	lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_INIT,
+			"6468 Set host date / time: Status x%x:\n", rc);
 
 	/*
 	 * Continue initialization with default values even if driver failed
@@ -8111,6 +8751,9 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	/* Indicate device interrupt mode */
 	phba->sli4_hba.intr_enable = 1;
 
+	/* Setup CMF after HBA is initialized */
+	lpfc_cmf_setup(phba);
+
 	if (!(phba->hba_flag & HBA_FCOE_MODE) &&
 	    (phba->hba_flag & LINK_DISABLED)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
@@ -8132,7 +8775,10 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 		}
 	}
 	mempool_free(mboxq, phba->mbox_mem_pool);
+
+	phba->hba_flag |= HBA_SETUP;
 	return rc;
+
 out_io_buff_free:
 	/* Free allocated IO Buffers */
 	lpfc_io_free(phba);
@@ -8790,8 +9436,11 @@ static int
 lpfc_sli4_async_mbox_block(struct lpfc_hba *phba)
 {
 	struct lpfc_sli *psli = &phba->sli;
+	LPFC_MBOXQ_t *mboxq;
 	int rc = 0;
 	unsigned long timeout = 0;
+	u32 sli_flag;
+	u8 cmd, subsys, opcode;
 
 	/* Mark the asynchronous mailbox command posting as blocked */
 	spin_lock_irq(&phba->hbalock);
@@ -8809,12 +9458,37 @@ lpfc_sli4_async_mbox_block(struct lpfc_hba *phba)
 	if (timeout)
 		lpfc_sli4_process_missed_mbox_completions(phba);
 
-	/* Wait for the outstnading mailbox command to complete */
+	/* Wait for the outstanding mailbox command to complete */
 	while (phba->sli.mbox_active) {
 		/* Check active mailbox complete status every 2ms */
 		msleep(2);
 		if (time_after(jiffies, timeout)) {
-			/* Timeout, marked the outstanding cmd not complete */
+			/* Timeout, mark the outstanding cmd not complete */
+
+			/* Sanity check sli.mbox_active has not completed or
+			 * cancelled from another context during last 2ms sleep,
+			 * so take hbalock to be sure before logging.
+			 */
+			spin_lock_irq(&phba->hbalock);
+			if (phba->sli.mbox_active) {
+				mboxq = phba->sli.mbox_active;
+				cmd = mboxq->u.mb.mbxCommand;
+				subsys = lpfc_sli_config_mbox_subsys_get(phba,
+									 mboxq);
+				opcode = lpfc_sli_config_mbox_opcode_get(phba,
+									 mboxq);
+				sli_flag = psli->sli_flag;
+				spin_unlock_irq(&phba->hbalock);
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+						"2352 Mailbox command x%x "
+						"(x%x/x%x) sli_flag x%x could "
+						"not complete\n",
+						cmd, subsys, opcode,
+						sli_flag);
+			} else {
+				spin_unlock_irq(&phba->hbalock);
+			}
+
 			rc = 1;
 			break;
 		}
@@ -9763,6 +10437,7 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 			if (pcmd && (*pcmd == ELS_CMD_FLOGI ||
 				*pcmd == ELS_CMD_SCR ||
 				*pcmd == ELS_CMD_RDF ||
+				*pcmd == ELS_CMD_EDC ||
 				*pcmd == ELS_CMD_RSCN_XMT ||
 				*pcmd == ELS_CMD_FDISC ||
 				*pcmd == ELS_CMD_LOGO ||
@@ -10097,8 +10772,6 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		bf_set(wqe_ebde_cnt, &wqe->xmit_els_rsp.wqe_com, 0);
 		bf_set(wqe_rsp_temp_rpi, &wqe->xmit_els_rsp,
 		       phba->sli4_hba.rpi_ids[ndlp->nlp_rpi]);
-		pcmd = (uint32_t *) (((struct lpfc_dmabuf *)
-					iocbq->context2)->virt);
 		if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
 				bf_set(els_rsp64_sp, &wqe->xmit_els_rsp, 1);
 				bf_set(els_rsp64_sid, &wqe->xmit_els_rsp,
@@ -11619,6 +12292,7 @@ void
 lpfc_ignore_els_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		     struct lpfc_iocbq *rspiocb)
 {
+	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *) cmdiocb->context1;
 	IOCB_t *irsp = &rspiocb->iocb;
 
 	/* ELS cmd tag <ulpIoTag> completes */
@@ -11627,11 +12301,16 @@ lpfc_ignore_els_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			"x%x x%x x%x\n",
 			irsp->ulpIoTag, irsp->ulpStatus,
 			irsp->un.ulpWord[4], irsp->ulpTimeout);
-	lpfc_nlp_put((struct lpfc_nodelist *)cmdiocb->context1);
+	/*
+	 * Deref the ndlp after free_iocb. sli_release_iocb will access the ndlp
+	 * if exchange is busy.
+	 */
 	if (cmdiocb->iocb.ulpCommand == CMD_GEN_REQUEST64_CR)
 		lpfc_ct_free_iocb(phba, cmdiocb);
 	else
 		lpfc_els_free_iocb(phba, cmdiocb);
+
+	lpfc_nlp_put(ndlp);
 }
 
 /**
@@ -14626,8 +15305,12 @@ static void lpfc_sli4_sched_cq_work(struct lpfc_hba *phba,
 
 	switch (cq->poll_mode) {
 	case LPFC_IRQ_POLL:
-		irq_poll_sched(&cq->iop);
-		break;
+		/* CGN mgmt is mutually exclusive from softirq processing */
+		if (phba->cmf_active_mode == LPFC_CFG_OFF) {
+			irq_poll_sched(&cq->iop);
+			break;
+		}
+		fallthrough;
 	case LPFC_QUEUE_WORK:
 	default:
 		if (is_kdump_kernel())
@@ -20021,6 +20704,91 @@ out:
 }
 
 /**
+ * lpfc_log_fw_write_cmpl - logs firmware write completion status
+ * @phba: pointer to lpfc hba data structure
+ * @shdr_status: wr_object rsp's status field
+ * @shdr_add_status: wr_object rsp's add_status field
+ * @shdr_add_status_2: wr_object rsp's add_status_2 field
+ * @shdr_change_status: wr_object rsp's change_status field
+ * @shdr_csf: wr_object rsp's csf bit
+ *
+ * This routine is intended to be called after a firmware write completes.
+ * It will log next action items to be performed by the user to instantiate
+ * the newly downloaded firmware or reason for incompatibility.
+ **/
+static void
+lpfc_log_fw_write_cmpl(struct lpfc_hba *phba, u32 shdr_status,
+		       u32 shdr_add_status, u32 shdr_add_status_2,
+		       u32 shdr_change_status, u32 shdr_csf)
+{
+	lpfc_printf_log(phba, KERN_INFO, LOG_MBOX | LOG_SLI,
+			"4198 %s: flash_id x%02x, asic_rev x%02x, "
+			"status x%02x, add_status x%02x, add_status_2 x%02x, "
+			"change_status x%02x, csf %01x\n", __func__,
+			phba->sli4_hba.flash_id, phba->sli4_hba.asic_rev,
+			shdr_status, shdr_add_status, shdr_add_status_2,
+			shdr_change_status, shdr_csf);
+
+	if (shdr_add_status == LPFC_ADD_STATUS_INCOMPAT_OBJ) {
+		switch (shdr_add_status_2) {
+		case LPFC_ADD_STATUS_2_INCOMPAT_FLASH:
+			lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX | LOG_SLI,
+					"4199 Firmware write failed: "
+					"image incompatible with flash x%02x\n",
+					phba->sli4_hba.flash_id);
+			break;
+		case LPFC_ADD_STATUS_2_INCORRECT_ASIC:
+			lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX | LOG_SLI,
+					"4200 Firmware write failed: "
+					"image incompatible with ASIC "
+					"architecture x%02x\n",
+					phba->sli4_hba.asic_rev);
+			break;
+		default:
+			lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX | LOG_SLI,
+					"4210 Firmware write failed: "
+					"add_status_2 x%02x\n",
+					shdr_add_status_2);
+			break;
+		}
+	} else if (!shdr_status && !shdr_add_status) {
+		if (shdr_change_status == LPFC_CHANGE_STATUS_FW_RESET ||
+		    shdr_change_status == LPFC_CHANGE_STATUS_PORT_MIGRATION) {
+			if (shdr_csf)
+				shdr_change_status =
+						   LPFC_CHANGE_STATUS_PCI_RESET;
+		}
+
+		switch (shdr_change_status) {
+		case (LPFC_CHANGE_STATUS_PHYS_DEV_RESET):
+			lpfc_printf_log(phba, KERN_INFO, LOG_MBOX | LOG_SLI,
+					"3198 Firmware write complete: System "
+					"reboot required to instantiate\n");
+			break;
+		case (LPFC_CHANGE_STATUS_FW_RESET):
+			lpfc_printf_log(phba, KERN_INFO, LOG_MBOX | LOG_SLI,
+					"3199 Firmware write complete: "
+					"Firmware reset required to "
+					"instantiate\n");
+			break;
+		case (LPFC_CHANGE_STATUS_PORT_MIGRATION):
+			lpfc_printf_log(phba, KERN_INFO, LOG_MBOX | LOG_SLI,
+					"3200 Firmware write complete: Port "
+					"Migration or PCI Reset required to "
+					"instantiate\n");
+			break;
+		case (LPFC_CHANGE_STATUS_PCI_RESET):
+			lpfc_printf_log(phba, KERN_INFO, LOG_MBOX | LOG_SLI,
+					"3201 Firmware write complete: PCI "
+					"Reset required to instantiate\n");
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+/**
  * lpfc_wr_object - write an object to the firmware
  * @phba: HBA structure that indicates port to create a queue on.
  * @dmabuf_list: list of dmabufs to write to the port.
@@ -20046,7 +20814,8 @@ lpfc_wr_object(struct lpfc_hba *phba, struct list_head *dmabuf_list,
 	struct lpfc_mbx_wr_object *wr_object;
 	LPFC_MBOXQ_t *mbox;
 	int rc = 0, i = 0;
-	uint32_t shdr_status, shdr_add_status, shdr_change_status, shdr_csf;
+	uint32_t shdr_status, shdr_add_status, shdr_add_status_2;
+	uint32_t shdr_change_status = 0, shdr_csf = 0;
 	uint32_t mbox_tmo;
 	struct lpfc_dmabuf *dmabuf;
 	uint32_t written = 0;
@@ -20100,58 +20869,36 @@ lpfc_wr_object(struct lpfc_hba *phba, struct list_head *dmabuf_list,
 			     &wr_object->header.cfg_shdr.response);
 	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status,
 				 &wr_object->header.cfg_shdr.response);
+	shdr_add_status_2 = bf_get(lpfc_mbox_hdr_add_status_2,
+				   &wr_object->header.cfg_shdr.response);
 	if (check_change_status) {
 		shdr_change_status = bf_get(lpfc_wr_object_change_status,
 					    &wr_object->u.response);
-
-		if (shdr_change_status == LPFC_CHANGE_STATUS_FW_RESET ||
-		    shdr_change_status == LPFC_CHANGE_STATUS_PORT_MIGRATION) {
-			shdr_csf = bf_get(lpfc_wr_object_csf,
-					  &wr_object->u.response);
-			if (shdr_csf)
-				shdr_change_status =
-						   LPFC_CHANGE_STATUS_PCI_RESET;
-		}
-
-		switch (shdr_change_status) {
-		case (LPFC_CHANGE_STATUS_PHYS_DEV_RESET):
-			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-					"3198 Firmware write complete: System "
-					"reboot required to instantiate\n");
-			break;
-		case (LPFC_CHANGE_STATUS_FW_RESET):
-			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-					"3199 Firmware write complete: Firmware"
-					" reset required to instantiate\n");
-			break;
-		case (LPFC_CHANGE_STATUS_PORT_MIGRATION):
-			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-					"3200 Firmware write complete: Port "
-					"Migration or PCI Reset required to "
-					"instantiate\n");
-			break;
-		case (LPFC_CHANGE_STATUS_PCI_RESET):
-			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-					"3201 Firmware write complete: PCI "
-					"Reset required to instantiate\n");
-			break;
-		default:
-			break;
-		}
+		shdr_csf = bf_get(lpfc_wr_object_csf,
+				  &wr_object->u.response);
 	}
+
 	if (!phba->sli4_hba.intr_enable)
 		mempool_free(mbox, phba->mbox_mem_pool);
 	else if (rc != MBX_TIMEOUT)
 		mempool_free(mbox, phba->mbox_mem_pool);
-	if (shdr_status || shdr_add_status || rc) {
+	if (shdr_status || shdr_add_status || shdr_add_status_2 || rc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3025 Write Object mailbox failed with "
-				"status x%x add_status x%x, mbx status x%x\n",
-				shdr_status, shdr_add_status, rc);
+				"status x%x add_status x%x, add_status_2 x%x, "
+				"mbx status x%x\n",
+				shdr_status, shdr_add_status, shdr_add_status_2,
+				rc);
 		rc = -ENXIO;
 		*offset = shdr_add_status;
-	} else
+	} else {
 		*offset += wr_object->u.response.actual_write_length;
+	}
+
+	if (rc || check_change_status)
+		lpfc_log_fw_write_cmpl(phba, shdr_status, shdr_add_status,
+				       shdr_add_status_2, shdr_change_status,
+				       shdr_csf);
 	return rc;
 }
 
@@ -20543,8 +21290,7 @@ lpfc_sli4_issue_wqe(struct lpfc_hba *phba, struct lpfc_sli4_hdw_queue *qp,
 	}
 
 	/* NVME_FCREQ and NVME_ABTS requests */
-	if (pwqe->iocb_flag & LPFC_IO_NVME ||
-	    pwqe->iocb_flag & LPFC_IO_FCP) {
+	if (pwqe->iocb_flag & (LPFC_IO_NVME | LPFC_IO_FCP | LPFC_IO_CMF)) {
 		/* Get the IO distribution (hba_wqidx) for WQ assignment. */
 		wq = qp->io_wq;
 		pring = wq->pring;
@@ -21320,6 +22066,116 @@ struct lpfc_io_buf *lpfc_get_io_buf(struct lpfc_hba *phba,
 	}
 
 	return lpfc_cmd;
+}
+
+/**
+ * lpfc_read_object - Retrieve object data from HBA
+ * @phba: The HBA for which this call is being executed.
+ * @rdobject: Pathname of object data we want to read.
+ * @datap: Pointer to where data will be copied to.
+ * @datasz: size of data area
+ *
+ * This routine is limited to object sizes of LPFC_BPL_SIZE (1024) or less.
+ * The data will be truncated if datasz is not large enough.
+ * Version 1 is not supported with Embedded mbox cmd, so we must use version 0.
+ * Returns the actual bytes read from the object.
+ */
+int
+lpfc_read_object(struct lpfc_hba *phba, char *rdobject, uint32_t *datap,
+		 uint32_t datasz)
+{
+	struct lpfc_mbx_read_object *read_object;
+	LPFC_MBOXQ_t *mbox;
+	int rc, length, eof, j, byte_cnt = 0;
+	uint32_t shdr_status, shdr_add_status;
+	union lpfc_sli4_cfg_shdr *shdr;
+	struct lpfc_dmabuf *pcmd;
+
+	/* sanity check on queue memory */
+	if (!datap)
+		return -ENODEV;
+
+	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mbox)
+		return -ENOMEM;
+	length = (sizeof(struct lpfc_mbx_read_object) -
+		  sizeof(struct lpfc_sli4_cfg_mhdr));
+	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_COMMON,
+			 LPFC_MBOX_OPCODE_READ_OBJECT,
+			 length, LPFC_SLI4_MBX_EMBED);
+	read_object = &mbox->u.mqe.un.read_object;
+	shdr = (union lpfc_sli4_cfg_shdr *)&read_object->header.cfg_shdr;
+
+	bf_set(lpfc_mbox_hdr_version, &shdr->request, LPFC_Q_CREATE_VERSION_0);
+	bf_set(lpfc_mbx_rd_object_rlen, &read_object->u.request, datasz);
+	read_object->u.request.rd_object_offset = 0;
+	read_object->u.request.rd_object_cnt = 1;
+
+	memset((void *)read_object->u.request.rd_object_name, 0,
+	       LPFC_OBJ_NAME_SZ);
+	sprintf((uint8_t *)read_object->u.request.rd_object_name, rdobject);
+	for (j = 0; j < strlen(rdobject); j++)
+		read_object->u.request.rd_object_name[j] =
+			cpu_to_le32(read_object->u.request.rd_object_name[j]);
+
+	pcmd = kmalloc(sizeof(*pcmd), GFP_KERNEL);
+	if (pcmd)
+		pcmd->virt = lpfc_mbuf_alloc(phba, MEM_PRI, &pcmd->phys);
+	if (!pcmd || !pcmd->virt) {
+		kfree(pcmd);
+		mempool_free(mbox, phba->mbox_mem_pool);
+		return -ENOMEM;
+	}
+	memset((void *)pcmd->virt, 0, LPFC_BPL_SIZE);
+	read_object->u.request.rd_object_hbuf[0].pa_lo =
+		putPaddrLow(pcmd->phys);
+	read_object->u.request.rd_object_hbuf[0].pa_hi =
+		putPaddrHigh(pcmd->phys);
+	read_object->u.request.rd_object_hbuf[0].length = LPFC_BPL_SIZE;
+
+	mbox->vport = phba->pport;
+	mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+	mbox->ctx_buf = NULL;
+	mbox->ctx_ndlp = NULL;
+
+	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
+	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
+	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
+
+	if (shdr_status == STATUS_FAILED &&
+	    shdr_add_status == ADD_STATUS_INVALID_OBJECT_NAME) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT | LOG_CGN_MGMT,
+				"4674 No port cfg file in FW.\n");
+		byte_cnt = -ENOENT;
+	} else if (shdr_status || shdr_add_status || rc) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT | LOG_CGN_MGMT,
+				"2625 READ_OBJECT mailbox failed with "
+				"status x%x add_status x%x, mbx status x%x\n",
+				shdr_status, shdr_add_status, rc);
+		byte_cnt = -ENXIO;
+	} else {
+		/* Success */
+		length = read_object->u.response.rd_object_actual_rlen;
+		eof = bf_get(lpfc_mbx_rd_object_eof, &read_object->u.response);
+		lpfc_printf_log(phba, KERN_INFO, LOG_INIT | LOG_CGN_MGMT,
+				"2626 READ_OBJECT Success len %d:%d, EOF %d\n",
+				length, datasz, eof);
+
+		/* Detect the port config file exists but is empty */
+		if (!length && eof) {
+			byte_cnt = 0;
+			goto exit;
+		}
+
+		byte_cnt = length;
+		lpfc_sli_pcimem_bcopy(pcmd->virt, datap, byte_cnt);
+	}
+
+ exit:
+	lpfc_mbuf_free(phba, pcmd->virt, pcmd->phys);
+	kfree(pcmd);
+	mempool_free(mbox, phba->mbox_mem_pool);
+	return byte_cnt;
 }
 
 /**

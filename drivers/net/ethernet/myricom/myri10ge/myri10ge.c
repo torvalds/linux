@@ -850,9 +850,9 @@ static int myri10ge_dma_test(struct myri10ge_priv *mgp, int test_type)
 	dmatest_page = alloc_page(GFP_KERNEL);
 	if (!dmatest_page)
 		return -ENOMEM;
-	dmatest_bus = pci_map_page(mgp->pdev, dmatest_page, 0, PAGE_SIZE,
-				   DMA_BIDIRECTIONAL);
-	if (unlikely(pci_dma_mapping_error(mgp->pdev, dmatest_bus))) {
+	dmatest_bus = dma_map_page(&mgp->pdev->dev, dmatest_page, 0,
+				   PAGE_SIZE, DMA_BIDIRECTIONAL);
+	if (unlikely(dma_mapping_error(&mgp->pdev->dev, dmatest_bus))) {
 		__free_page(dmatest_page);
 		return -ENOMEM;
 	}
@@ -899,7 +899,8 @@ static int myri10ge_dma_test(struct myri10ge_priv *mgp, int test_type)
 	    (cmd.data0 & 0xffff);
 
 abort:
-	pci_unmap_page(mgp->pdev, dmatest_bus, PAGE_SIZE, DMA_BIDIRECTIONAL);
+	dma_unmap_page(&mgp->pdev->dev, dmatest_bus, PAGE_SIZE,
+		       DMA_BIDIRECTIONAL);
 	put_page(dmatest_page);
 
 	if (status != 0 && test_type != MXGEFW_CMD_UNALIGNED_TEST)
@@ -1205,10 +1206,10 @@ myri10ge_alloc_rx_pages(struct myri10ge_priv *mgp, struct myri10ge_rx_buf *rx,
 				return;
 			}
 
-			bus = pci_map_page(mgp->pdev, page, 0,
+			bus = dma_map_page(&mgp->pdev->dev, page, 0,
 					   MYRI10GE_ALLOC_SIZE,
-					   PCI_DMA_FROMDEVICE);
-			if (unlikely(pci_dma_mapping_error(mgp->pdev, bus))) {
+					   DMA_FROM_DEVICE);
+			if (unlikely(dma_mapping_error(&mgp->pdev->dev, bus))) {
 				__free_pages(page, MYRI10GE_ALLOC_ORDER);
 				if (rx->fill_cnt - rx->cnt < 16)
 					rx->watchdog_needed = 1;
@@ -1256,9 +1257,9 @@ myri10ge_unmap_rx_page(struct pci_dev *pdev,
 	/* unmap the recvd page if we're the only or last user of it */
 	if (bytes >= MYRI10GE_ALLOC_SIZE / 2 ||
 	    (info->page_offset + 2 * bytes) > MYRI10GE_ALLOC_SIZE) {
-		pci_unmap_page(pdev, (dma_unmap_addr(info, bus)
-				      & ~(MYRI10GE_ALLOC_SIZE - 1)),
-			       MYRI10GE_ALLOC_SIZE, PCI_DMA_FROMDEVICE);
+		dma_unmap_page(&pdev->dev, (dma_unmap_addr(info, bus)
+					    & ~(MYRI10GE_ALLOC_SIZE - 1)),
+			       MYRI10GE_ALLOC_SIZE, DMA_FROM_DEVICE);
 	}
 }
 
@@ -1398,16 +1399,16 @@ myri10ge_tx_done(struct myri10ge_slice_state *ss, int mcp_index)
 			ss->stats.tx_packets++;
 			dev_consume_skb_irq(skb);
 			if (len)
-				pci_unmap_single(pdev,
+				dma_unmap_single(&pdev->dev,
 						 dma_unmap_addr(&tx->info[idx],
 								bus), len,
-						 PCI_DMA_TODEVICE);
+						 DMA_TO_DEVICE);
 		} else {
 			if (len)
-				pci_unmap_page(pdev,
+				dma_unmap_page(&pdev->dev,
 					       dma_unmap_addr(&tx->info[idx],
 							      bus), len,
-					       PCI_DMA_TODEVICE);
+					       DMA_TO_DEVICE);
 		}
 	}
 
@@ -1651,8 +1652,10 @@ myri10ge_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *info)
 	strlcpy(info->bus_info, pci_name(mgp->pdev), sizeof(info->bus_info));
 }
 
-static int
-myri10ge_get_coalesce(struct net_device *netdev, struct ethtool_coalesce *coal)
+static int myri10ge_get_coalesce(struct net_device *netdev,
+				 struct ethtool_coalesce *coal,
+				 struct kernel_ethtool_coalesce *kernel_coal,
+				 struct netlink_ext_ack *extack)
 {
 	struct myri10ge_priv *mgp = netdev_priv(netdev);
 
@@ -1660,8 +1663,10 @@ myri10ge_get_coalesce(struct net_device *netdev, struct ethtool_coalesce *coal)
 	return 0;
 }
 
-static int
-myri10ge_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *coal)
+static int myri10ge_set_coalesce(struct net_device *netdev,
+				 struct ethtool_coalesce *coal,
+				 struct kernel_ethtool_coalesce *kernel_coal,
+				 struct netlink_ext_ack *extack)
 {
 	struct myri10ge_priv *mgp = netdev_priv(netdev);
 
@@ -2110,16 +2115,16 @@ static void myri10ge_free_rings(struct myri10ge_slice_state *ss)
 			ss->stats.tx_dropped++;
 			dev_kfree_skb_any(skb);
 			if (len)
-				pci_unmap_single(mgp->pdev,
+				dma_unmap_single(&mgp->pdev->dev,
 						 dma_unmap_addr(&tx->info[idx],
 								bus), len,
-						 PCI_DMA_TODEVICE);
+						 DMA_TO_DEVICE);
 		} else {
 			if (len)
-				pci_unmap_page(mgp->pdev,
+				dma_unmap_page(&mgp->pdev->dev,
 					       dma_unmap_addr(&tx->info[idx],
 							      bus), len,
-					       PCI_DMA_TODEVICE);
+					       DMA_TO_DEVICE);
 		}
 	}
 	kfree(ss->rx_big.info);
@@ -2584,15 +2589,15 @@ static void myri10ge_unmap_tx_dma(struct myri10ge_priv *mgp,
 		len = dma_unmap_len(&tx->info[idx], len);
 		if (len) {
 			if (tx->info[idx].skb != NULL)
-				pci_unmap_single(mgp->pdev,
+				dma_unmap_single(&mgp->pdev->dev,
 						 dma_unmap_addr(&tx->info[idx],
 								bus), len,
-						 PCI_DMA_TODEVICE);
+						 DMA_TO_DEVICE);
 			else
-				pci_unmap_page(mgp->pdev,
+				dma_unmap_page(&mgp->pdev->dev,
 					       dma_unmap_addr(&tx->info[idx],
 							      bus), len,
-					       PCI_DMA_TODEVICE);
+					       DMA_TO_DEVICE);
 			dma_unmap_len_set(&tx->info[idx], len, 0);
 			tx->info[idx].skb = NULL;
 		}
@@ -2715,8 +2720,8 @@ again:
 
 	/* map the skb for DMA */
 	len = skb_headlen(skb);
-	bus = pci_map_single(mgp->pdev, skb->data, len, PCI_DMA_TODEVICE);
-	if (unlikely(pci_dma_mapping_error(mgp->pdev, bus)))
+	bus = dma_map_single(&mgp->pdev->dev, skb->data, len, DMA_TO_DEVICE);
+	if (unlikely(dma_mapping_error(&mgp->pdev->dev, bus)))
 		goto drop;
 
 	idx = tx->req & tx->mask;
@@ -2824,7 +2829,7 @@ again:
 		len = skb_frag_size(frag);
 		bus = skb_frag_dma_map(&mgp->pdev->dev, frag, 0, len,
 				       DMA_TO_DEVICE);
-		if (unlikely(pci_dma_mapping_error(mgp->pdev, bus))) {
+		if (unlikely(dma_mapping_error(&mgp->pdev->dev, bus))) {
 			myri10ge_unmap_tx_dma(mgp, tx, idx);
 			goto drop;
 		}
@@ -3776,19 +3781,17 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	myri10ge_mask_surprise_down(pdev);
 	pci_set_master(pdev);
 	dac_enabled = 1;
-	status = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
+	status = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (status != 0) {
 		dac_enabled = 0;
 		dev_err(&pdev->dev,
-			"64-bit pci address mask was refused, "
-			"trying 32-bit\n");
-		status = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+			"64-bit pci address mask was refused, trying 32-bit\n");
+		status = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 	}
 	if (status != 0) {
 		dev_err(&pdev->dev, "Error %d setting DMA mask\n", status);
 		goto abort_with_enabled;
 	}
-	(void)pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
 	mgp->cmd = dma_alloc_coherent(&pdev->dev, sizeof(*mgp->cmd),
 				      &mgp->cmd_bus, GFP_KERNEL);
 	if (!mgp->cmd) {

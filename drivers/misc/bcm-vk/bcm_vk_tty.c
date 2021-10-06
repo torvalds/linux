@@ -249,7 +249,7 @@ int bcm_vk_tty_init(struct bcm_vk *vk, char *name)
 	tty_drv->name = kstrdup(name, GFP_KERNEL);
 	if (!tty_drv->name) {
 		err = -ENOMEM;
-		goto err_put_tty_driver;
+		goto err_tty_driver_kref_put;
 	}
 	tty_drv->type = TTY_DRIVER_TYPE_SERIAL;
 	tty_drv->subtype = SERIAL_TYPE_NORMAL;
@@ -295,8 +295,8 @@ err_kfree_tty_name:
 	kfree(tty_drv->name);
 	tty_drv->name = NULL;
 
-err_put_tty_driver:
-	put_tty_driver(tty_drv);
+err_tty_driver_kref_put:
+	tty_driver_kref_put(tty_drv);
 
 	return err;
 }
@@ -317,7 +317,7 @@ void bcm_vk_tty_exit(struct bcm_vk *vk)
 	kfree(vk->tty_drv->name);
 	vk->tty_drv->name = NULL;
 
-	put_tty_driver(vk->tty_drv);
+	tty_driver_kref_put(vk->tty_drv);
 }
 
 void bcm_vk_tty_terminate_tty_user(struct bcm_vk *vk)

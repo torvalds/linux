@@ -434,7 +434,7 @@ EXPORT_SYMBOL(drm_property_add_enum);
 /**
  * drm_property_destroy - destroy a drm property
  * @dev: drm device
- * @property: property to destry
+ * @property: property to destroy
  *
  * This function frees a property including any attached resources like
  * enumeration values.

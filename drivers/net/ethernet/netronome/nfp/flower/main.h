@@ -413,20 +413,73 @@ int nfp_flower_setup_tc(struct nfp_app *app, struct net_device *netdev,
 int nfp_flower_merge_offloaded_flows(struct nfp_app *app,
 				     struct nfp_fl_payload *sub_flow1,
 				     struct nfp_fl_payload *sub_flow2);
+void
+nfp_flower_compile_meta(struct nfp_flower_meta_tci *ext,
+			struct nfp_flower_meta_tci *msk, u8 key_type);
+void
+nfp_flower_compile_tci(struct nfp_flower_meta_tci *ext,
+		       struct nfp_flower_meta_tci *msk,
+		       struct flow_rule *rule);
+void
+nfp_flower_compile_ext_meta(struct nfp_flower_ext_meta *frame, u32 key_ext);
+int
+nfp_flower_compile_port(struct nfp_flower_in_port *frame, u32 cmsg_port,
+			bool mask_version, enum nfp_flower_tun_type tun_type,
+			struct netlink_ext_ack *extack);
+void
+nfp_flower_compile_mac(struct nfp_flower_mac_mpls *ext,
+		       struct nfp_flower_mac_mpls *msk,
+		       struct flow_rule *rule);
+int
+nfp_flower_compile_mpls(struct nfp_flower_mac_mpls *ext,
+			struct nfp_flower_mac_mpls *msk,
+			struct flow_rule *rule,
+			struct netlink_ext_ack *extack);
+void
+nfp_flower_compile_tport(struct nfp_flower_tp_ports *ext,
+			 struct nfp_flower_tp_ports *msk,
+			 struct flow_rule *rule);
+void
+nfp_flower_compile_vlan(struct nfp_flower_vlan *ext,
+			struct nfp_flower_vlan *msk,
+			struct flow_rule *rule);
+void
+nfp_flower_compile_ipv4(struct nfp_flower_ipv4 *ext,
+			struct nfp_flower_ipv4 *msk, struct flow_rule *rule);
+void
+nfp_flower_compile_ipv6(struct nfp_flower_ipv6 *ext,
+			struct nfp_flower_ipv6 *msk, struct flow_rule *rule);
+void
+nfp_flower_compile_geneve_opt(u8 *ext, u8 *msk, struct flow_rule *rule);
+void
+nfp_flower_compile_ipv4_gre_tun(struct nfp_flower_ipv4_gre_tun *ext,
+				struct nfp_flower_ipv4_gre_tun *msk,
+				struct flow_rule *rule);
+void
+nfp_flower_compile_ipv4_udp_tun(struct nfp_flower_ipv4_udp_tun *ext,
+				struct nfp_flower_ipv4_udp_tun *msk,
+				struct flow_rule *rule);
+void
+nfp_flower_compile_ipv6_udp_tun(struct nfp_flower_ipv6_udp_tun *ext,
+				struct nfp_flower_ipv6_udp_tun *msk,
+				struct flow_rule *rule);
+void
+nfp_flower_compile_ipv6_gre_tun(struct nfp_flower_ipv6_gre_tun *ext,
+				struct nfp_flower_ipv6_gre_tun *msk,
+				struct flow_rule *rule);
 int nfp_flower_compile_flow_match(struct nfp_app *app,
-				  struct flow_cls_offload *flow,
+				  struct flow_rule *rule,
 				  struct nfp_fl_key_ls *key_ls,
 				  struct net_device *netdev,
 				  struct nfp_fl_payload *nfp_flow,
 				  enum nfp_flower_tun_type tun_type,
 				  struct netlink_ext_ack *extack);
 int nfp_flower_compile_action(struct nfp_app *app,
-			      struct flow_cls_offload *flow,
+			      struct flow_rule *rule,
 			      struct net_device *netdev,
 			      struct nfp_fl_payload *nfp_flow,
 			      struct netlink_ext_ack *extack);
-int nfp_compile_flow_metadata(struct nfp_app *app,
-			      struct flow_cls_offload *flow,
+int nfp_compile_flow_metadata(struct nfp_app *app, u32 cookie,
 			      struct nfp_fl_payload *nfp_flow,
 			      struct net_device *netdev,
 			      struct netlink_ext_ack *extack);
@@ -498,4 +551,22 @@ int nfp_flower_xmit_pre_tun_flow(struct nfp_app *app,
 				 struct nfp_fl_payload *flow);
 int nfp_flower_xmit_pre_tun_del_flow(struct nfp_app *app,
 				     struct nfp_fl_payload *flow);
+
+struct nfp_fl_payload *
+nfp_flower_allocate_new(struct nfp_fl_key_ls *key_layer);
+int nfp_flower_calculate_key_layers(struct nfp_app *app,
+				    struct net_device *netdev,
+				    struct nfp_fl_key_ls *ret_key_ls,
+				    struct flow_rule *flow,
+				    enum nfp_flower_tun_type *tun_type,
+				    struct netlink_ext_ack *extack);
+void
+nfp_flower_del_linked_merge_flows(struct nfp_app *app,
+				  struct nfp_fl_payload *sub_flow);
+int
+nfp_flower_xmit_flow(struct nfp_app *app, struct nfp_fl_payload *nfp_flow,
+		     u8 mtype);
+void
+nfp_flower_update_merge_stats(struct nfp_app *app,
+			      struct nfp_fl_payload *sub_flow);
 #endif

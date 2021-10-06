@@ -929,11 +929,8 @@ static int smbb_charger_probe(struct platform_device *pdev)
 		int irq;
 
 		irq = platform_get_irq_byname(pdev, smbb_charger_irqs[i].name);
-		if (irq < 0) {
-			dev_err(&pdev->dev, "failed to get irq '%s'\n",
-				smbb_charger_irqs[i].name);
+		if (irq < 0)
 			return irq;
-		}
 
 		smbb_charger_irqs[i].handler(irq, chg);
 

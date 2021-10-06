@@ -336,7 +336,7 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 	replace = -1;
 
 	/* No CPU hotplug when we change MTRR entries */
-	get_online_cpus();
+	cpus_read_lock();
 
 	/* Search for existing MTRR  */
 	mutex_lock(&mtrr_mutex);
@@ -398,7 +398,7 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 	error = i;
  out:
 	mutex_unlock(&mtrr_mutex);
-	put_online_cpus();
+	cpus_read_unlock();
 	return error;
 }
 
@@ -485,7 +485,7 @@ int mtrr_del_page(int reg, unsigned long base, unsigned long size)
 
 	max = num_var_ranges;
 	/* No CPU hotplug when we change MTRR entries */
-	get_online_cpus();
+	cpus_read_lock();
 	mutex_lock(&mtrr_mutex);
 	if (reg < 0) {
 		/*  Search for existing MTRR  */
@@ -520,7 +520,7 @@ int mtrr_del_page(int reg, unsigned long base, unsigned long size)
 	error = reg;
  out:
 	mutex_unlock(&mtrr_mutex);
-	put_online_cpus();
+	cpus_read_unlock();
 	return error;
 }
 

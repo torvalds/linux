@@ -29,7 +29,6 @@
 
 #include <drm/drm_device.h>
 #include <drm/drm_file.h>
-#include <drm/drm_irq.h>
 #include <drm/via_drm.h>
 
 #include "via_drv.h"
@@ -86,7 +85,7 @@ int via_final_context(struct drm_device *dev, int context)
 	/* Last context, perform cleanup */
 	if (list_is_singular(&dev->ctxlist)) {
 		DRM_DEBUG("Last Context\n");
-		drm_irq_uninstall(dev);
+		drm_legacy_irq_uninstall(dev);
 		via_cleanup_futex(dev_priv);
 		via_do_cleanup_map(dev);
 	}

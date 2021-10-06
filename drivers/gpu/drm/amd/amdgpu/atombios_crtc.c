@@ -851,7 +851,7 @@ void amdgpu_atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode
 	pll->reference_div = amdgpu_crtc->pll_reference_div;
 	pll->post_div = amdgpu_crtc->pll_post_div;
 
-	amdgpu_pll_compute(pll, amdgpu_crtc->adjusted_clock, &pll_clock,
+	amdgpu_pll_compute(adev, pll, amdgpu_crtc->adjusted_clock, &pll_clock,
 			    &fb_div, &frac_fb_div, &ref_div, &post_div);
 
 	amdgpu_atombios_crtc_program_ss(adev, ATOM_DISABLE, amdgpu_crtc->pll_id,

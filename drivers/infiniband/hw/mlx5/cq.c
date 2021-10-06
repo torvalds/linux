@@ -945,7 +945,6 @@ int mlx5_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	u32 *cqb = NULL;
 	void *cqc;
 	int cqe_size;
-	unsigned int irqn;
 	int eqn;
 	int err;
 
@@ -984,7 +983,7 @@ int mlx5_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		INIT_WORK(&cq->notify_work, notify_soft_wc_handler);
 	}
 
-	err = mlx5_vector2eqn(dev->mdev, vector, &eqn, &irqn);
+	err = mlx5_vector2eqn(dev->mdev, vector, &eqn);
 	if (err)
 		goto err_cqb;
 
@@ -997,7 +996,7 @@ int mlx5_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 				  MLX5_IB_CQ_PR_FLAGS_CQE_128_PAD));
 	MLX5_SET(cqc, cqc, log_cq_size, ilog2(entries));
 	MLX5_SET(cqc, cqc, uar_page, index);
-	MLX5_SET(cqc, cqc, c_eqn, eqn);
+	MLX5_SET(cqc, cqc, c_eqn_or_apu_element, eqn);
 	MLX5_SET64(cqc, cqc, dbr_addr, cq->db.dma);
 	if (cq->create_flags & IB_UVERBS_CQ_FLAGS_IGNORE_OVERRUN)
 		MLX5_SET(cqc, cqc, oi, 1);
@@ -1007,7 +1006,6 @@ int mlx5_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		goto err_cqb;
 
 	mlx5_ib_dbg(dev, "cqn 0x%x\n", cq->mcq.cqn);
-	cq->mcq.irqn = irqn;
 	if (udata)
 		cq->mcq.tasklet_ctx.comp = mlx5_ib_cq_comp;
 	else

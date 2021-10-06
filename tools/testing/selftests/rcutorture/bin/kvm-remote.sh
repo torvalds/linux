@@ -124,10 +124,12 @@ awk < "$rundir"/scenarios -v dest="$T/bin" -v rundir="$rundir" '
 	n = $1;
 	sub(/\./, "", n);
 	fn = dest "/kvm-remote-" n ".sh"
+	print "kvm-remote-noreap.sh " rundir " &" > fn;
 	scenarios = "";
 	for (i = 2; i <= NF; i++)
 		scenarios = scenarios " " $i;
-	print "kvm-test-1-run-batch.sh" scenarios > fn;
+	print "kvm-test-1-run-batch.sh" scenarios >> fn;
+	print "sync" >> fn;
 	print "rm " rundir "/remote.run" >> fn;
 }'
 chmod +x $T/bin/kvm-remote-*.sh
@@ -172,11 +174,20 @@ checkremotefile () {
 	do
 		ssh $1 "test -f \"$2\""
 		ret=$?
-		if test "$ret" -ne 255
+		if test "$ret" -eq 255
 		then
+			echo " ---" ssh failure to $1 checking for file $2, retry after $sleeptime seconds. `date`
+		elif test "$ret" -eq 0
+		then
+			return 0
+		elif test "$ret" -eq 1
+		then
+			echo " ---" File \"$2\" not found: ssh $1 test -f \"$2\"
+			return 1
+		else
+			echo " ---" Exit code $ret: ssh $1 test -f \"$2\", retry after $sleeptime seconds. `date`
 			return $ret
 		fi
-		echo " ---" ssh failure to $1 checking for file $2, retry after $sleeptime seconds. `date`
 		sleep $sleeptime
 	done
 }
@@ -242,7 +253,8 @@ do
 	do
 		sleep 30
 	done
-	( cd "$oldrun"; ssh $i "cd $rundir; tar -czf - kvm-remote-*.sh.out */console.log */kvm-test-1-run*.sh.out */qemu_pid */qemu-retval; rm -rf $T > /dev/null 2>&1" | tar -xzf - )
+	echo " ---" Collecting results from $i `date`
+	( cd "$oldrun"; ssh $i "cd $rundir; tar -czf - kvm-remote-*.sh.out */console.log */kvm-test-1-run*.sh.out */qemu[_-]pid */qemu-retval */qemu-affinity; rm -rf $T > /dev/null 2>&1" | tar -xzf - )
 done
 
 ( kvm-end-run-stats.sh "$oldrun" "$starttime"; echo $? > $T/exitcode ) | tee -a "$oldrun/remote-log"

@@ -166,11 +166,8 @@ static inline void virtblk_request_done(struct request *req)
 {
 	struct virtblk_req *vbr = blk_mq_rq_to_pdu(req);
 
-	if (req->rq_flags & RQF_SPECIAL_PAYLOAD) {
-		kfree(page_address(req->special_vec.bv_page) +
-		      req->special_vec.bv_offset);
-	}
-
+	if (req->rq_flags & RQF_SPECIAL_PAYLOAD)
+		kfree(bvec_virt(&req->special_vec));
 	blk_mq_end_request(req, virtblk_result(vbr));
 }
 
@@ -692,6 +689,28 @@ static const struct blk_mq_ops virtio_mq_ops = {
 static unsigned int virtblk_queue_depth;
 module_param_named(queue_depth, virtblk_queue_depth, uint, 0444);
 
+static int virtblk_validate(struct virtio_device *vdev)
+{
+	u32 blk_size;
+
+	if (!vdev->config->get) {
+		dev_err(&vdev->dev, "%s failure: config access disabled\n",
+			__func__);
+		return -EINVAL;
+	}
+
+	if (!virtio_has_feature(vdev, VIRTIO_BLK_F_BLK_SIZE))
+		return 0;
+
+	blk_size = virtio_cread32(vdev,
+			offsetof(struct virtio_blk_config, blk_size));
+
+	if (blk_size < SECTOR_SIZE || blk_size > PAGE_SIZE)
+		__virtio_clear_bit(vdev, VIRTIO_BLK_F_BLK_SIZE);
+
+	return 0;
+}
+
 static int virtblk_probe(struct virtio_device *vdev)
 {
 	struct virtio_blk *vblk;
@@ -702,12 +721,6 @@ static int virtblk_probe(struct virtio_device *vdev)
 	u16 min_io_size;
 	u8 physical_block_exp, alignment_offset;
 	unsigned int queue_depth;
-
-	if (!vdev->config->get) {
-		dev_err(&vdev->dev, "%s failure: config access disabled\n",
-			__func__);
-		return -EINVAL;
-	}
 
 	err = ida_simple_get(&vd_index_ida, 0, minor_to_index(1 << MINORBITS),
 			     GFP_KERNEL);
@@ -749,7 +762,7 @@ static int virtblk_probe(struct virtio_device *vdev)
 		goto out_free_vblk;
 
 	/* Default queue sizing is to fill the ring. */
-	if (likely(!virtblk_queue_depth)) {
+	if (!virtblk_queue_depth) {
 		queue_depth = vblk->vqs[0].vq->num_free;
 		/* ... but without indirect descs, we use 2 descs per req */
 		if (!virtio_has_feature(vdev, VIRTIO_RING_F_INDIRECT_DESC))
@@ -823,6 +836,14 @@ static int virtblk_probe(struct virtio_device *vdev)
 	else
 		blk_size = queue_logical_block_size(q);
 
+	if (blk_size < SECTOR_SIZE || blk_size > PAGE_SIZE) {
+		dev_err(&vdev->dev,
+			"block size is changed unexpectedly, now is %u\n",
+			blk_size);
+		err = -EINVAL;
+		goto out_cleanup_disk;
+	}
+
 	/* Use topology information if available */
 	err = virtio_cread_feature(vdev, VIRTIO_BLK_F_TOPOLOGY,
 				   struct virtio_blk_config, physical_block_exp,
@@ -878,9 +899,14 @@ static int virtblk_probe(struct virtio_device *vdev)
 	virtblk_update_capacity(vblk, false);
 	virtio_device_ready(vdev);
 
-	device_add_disk(&vdev->dev, vblk->disk, virtblk_attr_groups);
+	err = device_add_disk(&vdev->dev, vblk->disk, virtblk_attr_groups);
+	if (err)
+		goto out_cleanup_disk;
+
 	return 0;
 
+out_cleanup_disk:
+	blk_cleanup_disk(vblk->disk);
 out_free_tags:
 	blk_mq_free_tag_set(&vblk->tag_set);
 out_free_vq:
@@ -983,6 +1009,7 @@ static struct virtio_driver virtio_blk = {
 	.driver.name			= KBUILD_MODNAME,
 	.driver.owner			= THIS_MODULE,
 	.id_table			= id_table,
+	.validate			= virtblk_validate,
 	.probe				= virtblk_probe,
 	.remove				= virtblk_remove,
 	.config_changed			= virtblk_config_changed,

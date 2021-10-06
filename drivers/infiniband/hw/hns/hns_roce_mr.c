@@ -352,7 +352,9 @@ struct ib_mr *hns_roce_rereg_user_mr(struct ib_mr *ibmr, int flags, u64 start,
 free_cmd_mbox:
 	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
 
-	return ERR_PTR(ret);
+	if (ret)
+		return ERR_PTR(ret);
+	return NULL;
 }
 
 int hns_roce_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)

@@ -91,6 +91,7 @@ int tm_vmx_unavail_test()
 	pthread_t *thread;
 
 	SKIP_IF(!have_htm());
+	SKIP_IF(htm_is_synthetic());
 
 	passed = 1;
 

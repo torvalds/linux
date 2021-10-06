@@ -445,9 +445,9 @@ extern signed int rtw_set_key(struct adapter *adapter, struct security_priv *pse
 extern signed int rtw_set_auth(struct adapter *adapter, struct security_priv *psecuritypriv);
 
 static inline u8 *get_bssid(struct mlme_priv *pmlmepriv)
-{	/* if sta_mode:pmlmepriv->cur_network.network.MacAddress => bssid */
-	/*  if adhoc_mode:pmlmepriv->cur_network.network.MacAddress => ibss mac address */
-	return pmlmepriv->cur_network.network.MacAddress;
+{	/* if sta_mode:pmlmepriv->cur_network.network.mac_address => bssid */
+	/*  if adhoc_mode:pmlmepriv->cur_network.network.mac_address => ibss mac address */
+	return pmlmepriv->cur_network.network.mac_address;
 }
 
 static inline signed int check_fwstate(struct mlme_priv *pmlmepriv, signed int state)

@@ -1882,105 +1882,63 @@ static irqreturn_t snd_echo_interrupt(int irq, void *dev_id)
 	Module construction / destruction
 ******************************************************************************/
 
-static int snd_echo_free(struct echoaudio *chip)
+static void snd_echo_free(struct snd_card *card)
 {
+	struct echoaudio *chip = card->private_data;
+
 	if (chip->comm_page)
 		rest_in_peace(chip);
 
 	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);
 
-	if (chip->comm_page)
-		snd_dma_free_pages(&chip->commpage_dma_buf);
-
-	iounmap(chip->dsp_registers);
-	release_and_free_resource(chip->iores);
-	pci_disable_device(chip->pci);
-
 	/* release chip data */
 	free_firmware_cache(chip);
-	kfree(chip);
-	return 0;
 }
-
-
-
-static int snd_echo_dev_free(struct snd_device *device)
-{
-	struct echoaudio *chip = device->device_data;
-
-	return snd_echo_free(chip);
-}
-
-
 
 /* <--snd_echo_probe() */
 static int snd_echo_create(struct snd_card *card,
-			   struct pci_dev *pci,
-			   struct echoaudio **rchip)
+			   struct pci_dev *pci)
 {
-	struct echoaudio *chip;
+	struct echoaudio *chip = card->private_data;
 	int err;
 	size_t sz;
-	static const struct snd_device_ops ops = {
-		.dev_free = snd_echo_dev_free,
-	};
-
-	*rchip = NULL;
 
 	pci_write_config_byte(pci, PCI_LATENCY_TIMER, 0xC0);
 
-	err = pci_enable_device(pci);
+	err = pcim_enable_device(pci);
 	if (err < 0)
 		return err;
 	pci_set_master(pci);
 
 	/* Allocate chip if needed */
-	if (!*rchip) {
-		chip = kzalloc(sizeof(*chip), GFP_KERNEL);
-		if (!chip) {
-			pci_disable_device(pci);
-			return -ENOMEM;
-		}
-		dev_dbg(card->dev, "chip=%p\n", chip);
-		spin_lock_init(&chip->lock);
-		chip->card = card;
-		chip->pci = pci;
-		chip->irq = -1;
-		chip->opencount = 0;
-		mutex_init(&chip->mode_mutex);
-		chip->can_set_rate = 1;
-	} else {
-		/* If this was called from the resume function, chip is
-		 * already allocated and it contains current card settings.
-		 */
-		chip = *rchip;
-	}
+	spin_lock_init(&chip->lock);
+	chip->card = card;
+	chip->pci = pci;
+	chip->irq = -1;
+	chip->opencount = 0;
+	mutex_init(&chip->mode_mutex);
+	chip->can_set_rate = 1;
 
 	/* PCI resource allocation */
+	err = pci_request_regions(pci, ECHOCARD_NAME);
+	if (err < 0)
+		return err;
+
 	chip->dsp_registers_phys = pci_resource_start(pci, 0);
 	sz = pci_resource_len(pci, 0);
 	if (sz > PAGE_SIZE)
 		sz = PAGE_SIZE;		/* We map only the required part */
 
-	chip->iores = request_mem_region(chip->dsp_registers_phys, sz,
-					 ECHOCARD_NAME);
-	if (!chip->iores) {
-		dev_err(chip->card->dev, "cannot get memory region\n");
-		snd_echo_free(chip);
-		return -EBUSY;
-	}
-	chip->dsp_registers = ioremap(chip->dsp_registers_phys, sz);
+	chip->dsp_registers = devm_ioremap(&pci->dev, chip->dsp_registers_phys, sz);
 	if (!chip->dsp_registers) {
 		dev_err(chip->card->dev, "ioremap failed\n");
-		snd_echo_free(chip);
 		return -ENOMEM;
 	}
 
 	if (request_irq(pci->irq, snd_echo_interrupt, IRQF_SHARED,
 			KBUILD_MODNAME, chip)) {
 		dev_err(chip->card->dev, "cannot grab irq\n");
-		snd_echo_free(chip);
 		return -EBUSY;
 	}
 	chip->irq = pci->irq;
@@ -1988,38 +1946,28 @@ static int snd_echo_create(struct snd_card *card,
 	dev_dbg(card->dev, "pci=%p irq=%d subdev=%04x Init hardware...\n",
 		chip->pci, chip->irq, chip->pci->subsystem_device);
 
+	card->private_free = snd_echo_free;
+
 	/* Create the DSP comm page - this is the area of memory used for most
 	of the communication with the DSP, which accesses it via bus mastering */
-	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &chip->pci->dev,
-				sizeof(struct comm_page),
-				&chip->commpage_dma_buf) < 0) {
-		dev_err(chip->card->dev, "cannot allocate the comm page\n");
-		snd_echo_free(chip);
+	chip->commpage_dma_buf =
+		snd_devm_alloc_pages(&pci->dev, SNDRV_DMA_TYPE_DEV,
+				     sizeof(struct comm_page));
+	if (!chip->commpage_dma_buf)
 		return -ENOMEM;
-	}
-	chip->comm_page_phys = chip->commpage_dma_buf.addr;
-	chip->comm_page = (struct comm_page *)chip->commpage_dma_buf.area;
+	chip->comm_page_phys = chip->commpage_dma_buf->addr;
+	chip->comm_page = (struct comm_page *)chip->commpage_dma_buf->area;
 
 	err = init_hw(chip, chip->pci->device, chip->pci->subsystem_device);
 	if (err >= 0)
 		err = set_mixer_defaults(chip);
 	if (err < 0) {
 		dev_err(card->dev, "init_hw err=%d\n", err);
-		snd_echo_free(chip);
 		return err;
 	}
 
-	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
-	if (err < 0) {
-		snd_echo_free(chip);
-		return err;
-	}
-	*rchip = chip;
-	/* Init done ! */
 	return 0;
 }
-
-
 
 /* constructor */
 static int snd_echo_probe(struct pci_dev *pci,
@@ -2040,17 +1988,15 @@ static int snd_echo_probe(struct pci_dev *pci,
 	}
 
 	i = 0;
-	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
-			   0, &card);
+	err = snd_devm_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+				sizeof(*chip), &card);
 	if (err < 0)
 		return err;
+	chip = card->private_data;
 
-	chip = NULL;	/* Tells snd_echo_create to allocate chip */
-	err = snd_echo_create(card, pci, &chip);
-	if (err < 0) {
-		snd_card_free(card);
+	err = snd_echo_create(card, pci);
+	if (err < 0)
 		return err;
-	}
 
 	strcpy(card->driver, "Echo_" ECHOCARD_NAME);
 	strcpy(card->shortname, chip->card_name);
@@ -2066,7 +2012,6 @@ static int snd_echo_probe(struct pci_dev *pci,
 	err = snd_echo_new_pcm(chip);
 	if (err < 0) {
 		dev_err(chip->card->dev, "new pcm error %d\n", err);
-		snd_card_free(card);
 		return err;
 	}
 
@@ -2075,7 +2020,6 @@ static int snd_echo_probe(struct pci_dev *pci,
 		err = snd_echo_midi_create(card, chip);
 		if (err < 0) {
 			dev_err(chip->card->dev, "new midi error %d\n", err);
-			snd_card_free(card);
 			return err;
 		}
 	}
@@ -2085,64 +2029,64 @@ static int snd_echo_probe(struct pci_dev *pci,
 	snd_echo_vmixer.count = num_pipes_out(chip) * num_busses_out(chip);
 	err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_vmixer, chip));
 	if (err < 0)
-		goto ctl_error;
+		return err;
 #ifdef ECHOCARD_HAS_LINE_OUT_GAIN
 	err = snd_ctl_add(chip->card,
 			  snd_ctl_new1(&snd_echo_line_output_gain, chip));
 	if (err < 0)
-		goto ctl_error;
+		return err;
 #endif
 #else /* ECHOCARD_HAS_VMIXER */
 	err = snd_ctl_add(chip->card,
 			  snd_ctl_new1(&snd_echo_pcm_output_gain, chip));
 	if (err < 0)
-		goto ctl_error;
+		return err;
 #endif /* ECHOCARD_HAS_VMIXER */
 
 #ifdef ECHOCARD_HAS_INPUT_GAIN
 	err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_line_input_gain, chip));
 	if (err < 0)
-		goto ctl_error;
+		return err;
 #endif
 
 #ifdef ECHOCARD_HAS_INPUT_NOMINAL_LEVEL
 	if (!chip->hasnt_input_nominal_level) {
 		err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_intput_nominal_level, chip));
 		if (err < 0)
-			goto ctl_error;
+			return err;
 	}
 #endif
 
 #ifdef ECHOCARD_HAS_OUTPUT_NOMINAL_LEVEL
 	err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_output_nominal_level, chip));
 	if (err < 0)
-		goto ctl_error;
+		return err;
 #endif
 
 	err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_vumeters_switch, chip));
 	if (err < 0)
-		goto ctl_error;
+		return err;
 
 	err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_vumeters, chip));
 	if (err < 0)
-		goto ctl_error;
+		return err;
 
 #ifdef ECHOCARD_HAS_MONITOR
 	snd_echo_monitor_mixer.count = num_busses_in(chip) * num_busses_out(chip);
 	err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_monitor_mixer, chip));
 	if (err < 0)
-		goto ctl_error;
+		return err;
 #endif
 
 #ifdef ECHOCARD_HAS_DIGITAL_IN_AUTOMUTE
 	err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_automute_switch, chip));
 	if (err < 0)
-		goto ctl_error;
+		return err;
 #endif
 
 	err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_channels_info, chip));
 	if (err < 0)
-		goto ctl_error;
+		return err;
 
 #ifdef ECHOCARD_HAS_DIGITAL_MODE_SWITCH
 	/* Creates a list of available digital modes */
@@ -2153,7 +2097,7 @@ static int snd_echo_probe(struct pci_dev *pci,
 
 	err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_digital_mode_switch, chip));
 	if (err < 0)
-		goto ctl_error;
+		return err;
 #endif /* ECHOCARD_HAS_DIGITAL_MODE_SWITCH */
 
 #ifdef ECHOCARD_HAS_EXTERNAL_CLOCK
@@ -2167,37 +2111,32 @@ static int snd_echo_probe(struct pci_dev *pci,
 		chip->clock_src_ctl = snd_ctl_new1(&snd_echo_clock_source_switch, chip);
 		err = snd_ctl_add(chip->card, chip->clock_src_ctl);
 		if (err < 0)
-			goto ctl_error;
+			return err;
 	}
 #endif /* ECHOCARD_HAS_EXTERNAL_CLOCK */
 
 #ifdef ECHOCARD_HAS_DIGITAL_IO
 	err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_spdif_mode_switch, chip));
 	if (err < 0)
-		goto ctl_error;
+		return err;
 #endif
 
 #ifdef ECHOCARD_HAS_PHANTOM_POWER
 	if (chip->has_phantom_power) {
 		err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_phantom_power_switch, chip));
 		if (err < 0)
-			goto ctl_error;
+			return err;
 	}
 #endif
 
 	err = snd_card_register(card);
 	if (err < 0)
-		goto ctl_error;
+		return err;
 	dev_info(card->dev, "Card registered: %s\n", card->longname);
 
 	pci_set_drvdata(pci, chip);
 	dev++;
 	return 0;
-
-ctl_error:
-	dev_err(card->dev, "new control error %d\n", err);
-	snd_card_free(card);
-	return err;
 }
 
 
@@ -2299,18 +2238,6 @@ static SIMPLE_DEV_PM_OPS(snd_echo_pm, snd_echo_suspend, snd_echo_resume);
 #define SND_ECHO_PM_OPS	NULL
 #endif /* CONFIG_PM_SLEEP */
 
-
-static void snd_echo_remove(struct pci_dev *pci)
-{
-	struct echoaudio *chip;
-
-	chip = pci_get_drvdata(pci);
-	if (chip)
-		snd_card_free(chip->card);
-}
-
-
-
 /******************************************************************************
 	Everything starts and ends here
 ******************************************************************************/
@@ -2320,7 +2247,6 @@ static struct pci_driver echo_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_echo_ids,
 	.probe = snd_echo_probe,
-	.remove = snd_echo_remove,
 	.driver = {
 		.pm = SND_ECHO_PM_OPS,
 	},

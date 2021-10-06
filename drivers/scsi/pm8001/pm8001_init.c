@@ -233,7 +233,7 @@ static irqreturn_t pm8001_interrupt_handler_msix(int irq, void *opaque)
 /**
  * pm8001_interrupt_handler_intx - main INTx interrupt handler.
  * @irq: interrupt number
- * @dev_id: sas_ha structure. The HBA is retrieved from sas_has structure.
+ * @dev_id: sas_ha structure. The HBA is retrieved from sas_ha structure.
  */
 
 static irqreturn_t pm8001_interrupt_handler_intx(int irq, void *dev_id)
@@ -439,9 +439,9 @@ err_out:
 }
 
 /**
- * pm8001_ioremap - remap the pci high physical address to kernal virtual
+ * pm8001_ioremap - remap the pci high physical address to kernel virtual
  * address so that we can access them.
- * @pm8001_ha:our hba structure.
+ * @pm8001_ha: our hba structure.
  */
 static int pm8001_ioremap(struct pm8001_hba_info *pm8001_ha)
 {
@@ -652,7 +652,7 @@ static void  pm8001_post_sas_ha_init(struct Scsi_Host *shost,
  * pm8001_init_sas_add - initialize sas address
  * @pm8001_ha: our ha struct.
  *
- * Currently we just set the fixed SAS address to our HBA,for manufacture,
+ * Currently we just set the fixed SAS address to our HBA, for manufacture,
  * it should read from the EEPROM
  */
 static void pm8001_init_sas_add(struct pm8001_hba_info *pm8001_ha)
@@ -790,7 +790,7 @@ struct pm8001_mpi3_phy_pg_trx_config {
 };
 
 /**
- * pm8001_get_internal_phy_settings : Retrieves the internal PHY settings
+ * pm8001_get_internal_phy_settings - Retrieves the internal PHY settings
  * @pm8001_ha : our adapter
  * @phycfg : PHY config page to populate
  */
@@ -810,7 +810,7 @@ void pm8001_get_internal_phy_settings(struct pm8001_hba_info *pm8001_ha,
 }
 
 /**
- * pm8001_get_external_phy_settings : Retrieves the external PHY settings
+ * pm8001_get_external_phy_settings - Retrieves the external PHY settings
  * @pm8001_ha : our adapter
  * @phycfg : PHY config page to populate
  */
@@ -830,7 +830,7 @@ void pm8001_get_external_phy_settings(struct pm8001_hba_info *pm8001_ha,
 }
 
 /**
- * pm8001_get_phy_mask : Retrieves the mask that denotes if a PHY is int/ext
+ * pm8001_get_phy_mask - Retrieves the mask that denotes if a PHY is int/ext
  * @pm8001_ha : our adapter
  * @phymask : The PHY mask
  */
@@ -868,7 +868,7 @@ void pm8001_get_phy_mask(struct pm8001_hba_info *pm8001_ha, int *phymask)
 }
 
 /**
- * pm8001_set_phy_settings_ven_117c_12G() : Configure ATTO 12Gb PHY settings
+ * pm8001_set_phy_settings_ven_117c_12G() - Configure ATTO 12Gb PHY settings
  * @pm8001_ha : our adapter
  */
 static
@@ -903,7 +903,7 @@ int pm8001_set_phy_settings_ven_117c_12G(struct pm8001_hba_info *pm8001_ha)
 }
 
 /**
- * pm8001_configure_phy_settings : Configures PHY settings based on vendor ID.
+ * pm8001_configure_phy_settings - Configures PHY settings based on vendor ID.
  * @pm8001_ha : our hba.
  */
 static int pm8001_configure_phy_settings(struct pm8001_hba_info *pm8001_ha)
@@ -1053,8 +1053,8 @@ intx:
  * @ent: pci device id
  *
  * This function is the main initialization function, when register a new
- * pci driver it is invoked, all struct an hardware initilization should be done
- * here, also, register interrupt
+ * pci driver it is invoked, all struct and hardware initialization should be
+ * done here, also, register interrupt.
  */
 static int pm8001_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *ent)
@@ -1172,10 +1172,11 @@ err_out_enable:
 	return rc;
 }
 
-/*
+/**
  * pm8001_init_ccb_tag - allocate memory to CCB and tag.
  * @pm8001_ha: our hba card information.
  * @shost: scsi host which has been allocated outside.
+ * @pdev: pci device.
  */
 static int
 pm8001_init_ccb_tag(struct pm8001_hba_info *pm8001_ha, struct Scsi_Host *shost,
@@ -1270,7 +1271,7 @@ static void pm8001_pci_remove(struct pci_dev *pdev)
  * pm8001_pci_suspend - power management suspend main entry point
  * @dev: Device struct
  *
- * Returns 0 success, anything else error.
+ * Return: 0 on success, anything else on error.
  */
 static int __maybe_unused pm8001_pci_suspend(struct device *dev)
 {
@@ -1315,7 +1316,7 @@ static int __maybe_unused pm8001_pci_suspend(struct device *dev)
  * pm8001_pci_resume - power management resume main entry point
  * @dev: Device struct
  *
- * Returns 0 success, anything else error.
+ * Return: 0 on success, anything else on error.
  */
 static int __maybe_unused pm8001_pci_resume(struct device *dev)
 {

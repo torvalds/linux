@@ -521,11 +521,11 @@ static void torture_shuffle_tasks(void)
 	struct shuffle_task *stp;
 
 	cpumask_setall(shuffle_tmp_mask);
-	get_online_cpus();
+	cpus_read_lock();
 
 	/* No point in shuffling if there is only one online CPU (ex: UP) */
 	if (num_online_cpus() == 1) {
-		put_online_cpus();
+		cpus_read_unlock();
 		return;
 	}
 
@@ -541,7 +541,7 @@ static void torture_shuffle_tasks(void)
 		set_cpus_allowed_ptr(stp->st_t, shuffle_tmp_mask);
 	mutex_unlock(&shuffle_task_mutex);
 
-	put_online_cpus();
+	cpus_read_unlock();
 }
 
 /* Shuffle tasks across CPUs, with the intent of allowing each CPU in the

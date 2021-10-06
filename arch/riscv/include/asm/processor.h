@@ -37,6 +37,14 @@ struct thread_struct {
 	unsigned long bad_cause;
 };
 
+/* Whitelist the fstate from the task_struct for hardened usercopy */
+static inline void arch_thread_struct_whitelist(unsigned long *offset,
+						unsigned long *size)
+{
+	*offset = offsetof(struct thread_struct, fstate);
+	*size = sizeof_field(struct thread_struct, fstate);
+}
+
 #define INIT_THREAD {					\
 	.sp = sizeof(init_stack) + (long)&init_stack,	\
 }

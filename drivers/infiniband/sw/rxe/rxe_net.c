@@ -259,6 +259,7 @@ static void prepare_ipv4_hdr(struct dst_entry *dst, struct sk_buff *skb,
 
 	iph->version	=	IPVERSION;
 	iph->ihl	=	sizeof(struct iphdr) >> 2;
+	iph->tot_len	=	htons(skb->len);
 	iph->frag_off	=	df;
 	iph->protocol	=	proto;
 	iph->tos	=	tos;
@@ -343,7 +344,7 @@ static int prepare6(struct rxe_pkt_info *pkt, struct sk_buff *skb)
 	return 0;
 }
 
-int rxe_prepare(struct rxe_pkt_info *pkt, struct sk_buff *skb, u32 *crc)
+int rxe_prepare(struct rxe_pkt_info *pkt, struct sk_buff *skb)
 {
 	int err = 0;
 
@@ -351,8 +352,6 @@ int rxe_prepare(struct rxe_pkt_info *pkt, struct sk_buff *skb, u32 *crc)
 		err = prepare4(pkt, skb);
 	else if (skb->protocol == htons(ETH_P_IPV6))
 		err = prepare6(pkt, skb);
-
-	*crc = rxe_icrc_hdr(pkt, skb);
 
 	if (ether_addr_equal(skb->dev->dev_addr, rxe_get_av(pkt)->dmac))
 		pkt->mask |= RXE_LOOPBACK_MASK;
@@ -373,7 +372,7 @@ static void rxe_skb_tx_dtor(struct sk_buff *skb)
 	rxe_drop_ref(qp);
 }
 
-int rxe_send(struct rxe_pkt_info *pkt, struct sk_buff *skb)
+static int rxe_send(struct sk_buff *skb, struct rxe_pkt_info *pkt)
 {
 	int err;
 
@@ -406,19 +405,64 @@ int rxe_send(struct rxe_pkt_info *pkt, struct sk_buff *skb)
 /* fix up a send packet to match the packets
  * received from UDP before looping them back
  */
-void rxe_loopback(struct sk_buff *skb)
+static int rxe_loopback(struct sk_buff *skb, struct rxe_pkt_info *pkt)
 {
-	struct rxe_pkt_info *pkt = SKB_TO_PKT(skb);
+	memcpy(SKB_TO_PKT(skb), pkt, sizeof(*pkt));
 
 	if (skb->protocol == htons(ETH_P_IP))
 		skb_pull(skb, sizeof(struct iphdr));
 	else
 		skb_pull(skb, sizeof(struct ipv6hdr));
 
-	if (WARN_ON(!ib_device_try_get(&pkt->rxe->ib_dev)))
+	if (WARN_ON(!ib_device_try_get(&pkt->rxe->ib_dev))) {
 		kfree_skb(skb);
+		return -EIO;
+	}
+
+	rxe_rcv(skb);
+
+	return 0;
+}
+
+int rxe_xmit_packet(struct rxe_qp *qp, struct rxe_pkt_info *pkt,
+		    struct sk_buff *skb)
+{
+	int err;
+	int is_request = pkt->mask & RXE_REQ_MASK;
+	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
+
+	if ((is_request && (qp->req.state != QP_STATE_READY)) ||
+	    (!is_request && (qp->resp.state != QP_STATE_READY))) {
+		pr_info("Packet dropped. QP is not in ready state\n");
+		goto drop;
+	}
+
+	rxe_icrc_generate(skb, pkt);
+
+	if (pkt->mask & RXE_LOOPBACK_MASK)
+		err = rxe_loopback(skb, pkt);
 	else
-		rxe_rcv(skb);
+		err = rxe_send(skb, pkt);
+	if (err) {
+		rxe->xmit_errors++;
+		rxe_counter_inc(rxe, RXE_CNT_SEND_ERR);
+		return err;
+	}
+
+	if ((qp_type(qp) != IB_QPT_RC) &&
+	    (pkt->mask & RXE_END_MASK)) {
+		pkt->wqe->state = wqe_state_done;
+		rxe_run_task(&qp->comp.task, 1);
+	}
+
+	rxe_counter_inc(rxe, RXE_CNT_SENT_PKTS);
+	goto done;
+
+drop:
+	kfree_skb(skb);
+	err = 0;
+done:
+	return err;
 }
 
 struct sk_buff *rxe_init_packet(struct rxe_dev *rxe, struct rxe_av *av,

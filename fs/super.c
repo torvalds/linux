@@ -1203,7 +1203,7 @@ static int set_bdev_super(struct super_block *s, void *data)
 {
 	s->s_bdev = data;
 	s->s_dev = s->s_bdev->bd_dev;
-	s->s_bdi = bdi_get(s->s_bdev->bd_bdi);
+	s->s_bdi = bdi_get(s->s_bdev->bd_disk->bdi);
 
 	if (blk_queue_stable_writes(s->s_bdev->bd_disk->queue))
 		s->s_iflags |= SB_I_STABLE_WRITES;

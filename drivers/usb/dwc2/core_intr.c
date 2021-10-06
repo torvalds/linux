@@ -556,7 +556,8 @@ static void dwc2_handle_usb_suspend_intr(struct dwc2_hsotg *hsotg)
 				 * If neither hibernation nor partial power down are supported,
 				 * clock gating is used to save power.
 				 */
-				dwc2_gadget_enter_clock_gating(hsotg);
+				if (!hsotg->params.no_clock_gating)
+					dwc2_gadget_enter_clock_gating(hsotg);
 			}
 
 			/*

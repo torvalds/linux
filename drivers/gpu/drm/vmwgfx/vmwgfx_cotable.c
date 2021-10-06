@@ -607,8 +607,7 @@ struct vmw_resource *vmw_cotable_alloc(struct vmw_private *dev_priv,
 	if (num_entries < co_info[type].min_initial_entries) {
 		vcotbl->res.backup_size = co_info[type].min_initial_entries *
 			co_info[type].size;
-		vcotbl->res.backup_size =
-			(vcotbl->res.backup_size + PAGE_SIZE - 1) & PAGE_MASK;
+		vcotbl->res.backup_size = PFN_ALIGN(vcotbl->res.backup_size);
 	}
 
 	vcotbl->scrubbed = true;

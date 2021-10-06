@@ -1293,7 +1293,7 @@ static const struct net_device_ops atl2_netdev_ops = {
 	.ndo_change_mtu		= atl2_change_mtu,
 	.ndo_fix_features	= atl2_fix_features,
 	.ndo_set_features	= atl2_set_features,
-	.ndo_do_ioctl		= atl2_ioctl,
+	.ndo_eth_ioctl		= atl2_ioctl,
 	.ndo_tx_timeout		= atl2_tx_timeout,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= atl2_poll_controller,

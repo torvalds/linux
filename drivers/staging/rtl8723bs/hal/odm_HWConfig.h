@@ -9,23 +9,6 @@
 #ifndef __HALHWOUTSRC_H__
 #define __HALHWOUTSRC_H__
 
-
-/*--------------------------Define -------------------------------------------*/
-/* define READ_NEXT_PAIR(v1, v2, i) do { i += 2; v1 = Array[i]; v2 = Array[i+1]; } while (0) */
-#define AGC_DIFF_CONFIG_MP(ic, band) (ODM_ReadAndConfig_MP_##ic##_AGC_TAB_DIFF(pDM_Odm, Array_MP_##ic##_AGC_TAB_DIFF_##band, \
-	sizeof(Array_MP_##ic##_AGC_TAB_DIFF_##band)/sizeof(u32)))
-#define AGC_DIFF_CONFIG_TC(ic, band) (ODM_ReadAndConfig_TC_##ic##_AGC_TAB_DIFF(pDM_Odm, Array_TC_##ic##_AGC_TAB_DIFF_##band, \
-	sizeof(Array_TC_##ic##_AGC_TAB_DIFF_##band)/sizeof(u32)))
-
-#define AGC_DIFF_CONFIG(ic, band)\
-	do {\
-		if (pDM_Odm->bIsMPChip)\
-			AGC_DIFF_CONFIG_MP(ic, band);\
-		else\
-			AGC_DIFF_CONFIG_TC(ic, band);\
-	} while (0)
-
-
 /*  */
 /*  structure and define */
 /*  */
@@ -76,19 +59,15 @@ struct phy_status_rpt_8192cd_t {
 #endif
 };
 
-void ODM_PhyStatusQuery(
-	struct dm_odm_t *pDM_Odm,
-	struct odm_phy_info *pPhyInfo,
-	u8 *pPhyStatus,
-	struct odm_packet_info *pPktinfo
-);
+void odm_phy_status_query(struct dm_odm_t *dm_odm, struct odm_phy_info *phy_info,
+			  u8 *phy_status, struct odm_packet_info *pkt_info);
 
 enum hal_status ODM_ConfigRFWithTxPwrTrackHeaderFile(struct dm_odm_t *pDM_Odm);
 
 enum hal_status ODM_ConfigRFWithHeaderFile(
 	struct dm_odm_t *pDM_Odm,
 	enum ODM_RF_Config_Type ConfigType,
-	enum odm_rf_radio_path_e eRFPath
+	enum rf_path eRFPath
 );
 
 enum hal_status ODM_ConfigBBWithHeaderFile(
@@ -102,6 +81,6 @@ enum hal_status ODM_ConfigFWWithHeaderFile(
 	u32 *pSize
 );
 
-s32 odm_SignalScaleMapping(struct dm_odm_t *pDM_Odm, s32 CurrSig);
+s32 odm_signal_scale_mapping(struct dm_odm_t *pDM_Odm, s32 CurrSig);
 
 #endif

@@ -419,8 +419,10 @@ int ksz_switch_register(struct ksz_device *dev,
 				if (of_property_read_u32(port, "reg",
 							 &port_num))
 					continue;
-				if (!(dev->port_mask & BIT(port_num)))
+				if (!(dev->port_mask & BIT(port_num))) {
+					of_node_put(port);
 					return -EINVAL;
+				}
 				of_get_phy_mode(port,
 						&dev->ports[port_num].interface);
 			}

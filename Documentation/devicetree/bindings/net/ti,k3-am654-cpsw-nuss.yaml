@@ -53,10 +53,10 @@ properties:
   "#size-cells": true
 
   compatible:
-    oneOf:
-      - const: ti,am654-cpsw-nuss
-      - const: ti,j721e-cpsw-nuss
-      - const: ti,am642-cpsw-nuss
+    enum:
+      - ti,am654-cpsw-nuss
+      - ti,j721e-cpsw-nuss
+      - ti,am642-cpsw-nuss
 
   reg:
     maxItems: 1

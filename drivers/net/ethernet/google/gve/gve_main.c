@@ -1469,7 +1469,7 @@ static int gve_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = pci_enable_device(pdev);
 	if (err)
-		return -ENXIO;
+		return err;
 
 	err = pci_request_regions(pdev, "gvnic-cfg");
 	if (err)
@@ -1477,16 +1477,9 @@ static int gve_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_master(pdev);
 
-	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (err) {
 		dev_err(&pdev->dev, "Failed to set dma mask: err=%d\n", err);
-		goto abort_with_pci_region;
-	}
-
-	err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
-	if (err) {
-		dev_err(&pdev->dev,
-			"Failed to set consistent dma mask: err=%d\n", err);
 		goto abort_with_pci_region;
 	}
 
@@ -1512,6 +1505,7 @@ static int gve_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev = alloc_etherdev_mqs(sizeof(*priv), max_tx_queues, max_rx_queues);
 	if (!dev) {
 		dev_err(&pdev->dev, "could not allocate netdev\n");
+		err = -ENOMEM;
 		goto abort_with_db_bar;
 	}
 	SET_NETDEV_DEV(dev, &pdev->dev);
@@ -1565,13 +1559,16 @@ static int gve_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = register_netdev(dev);
 	if (err)
-		goto abort_with_wq;
+		goto abort_with_gve_init;
 
 	dev_info(&pdev->dev, "GVE version %s\n", gve_version_str);
 	dev_info(&pdev->dev, "GVE queue format %d\n", (int)priv->queue_format);
 	gve_clear_probe_in_progress(priv);
 	queue_work(priv->gve_wq, &priv->service_task);
 	return 0;
+
+abort_with_gve_init:
+	gve_teardown_priv_resources(priv);
 
 abort_with_wq:
 	destroy_workqueue(priv->gve_wq);
@@ -1590,7 +1587,7 @@ abort_with_pci_region:
 
 abort_with_enabled:
 	pci_disable_device(pdev);
-	return -ENXIO;
+	return err;
 }
 
 static void gve_remove(struct pci_dev *pdev)

@@ -31,8 +31,6 @@ static irqreturn_t prq_event_thread(int irq, void *d);
 static void intel_svm_drain_prq(struct device *dev, u32 pasid);
 #define to_intel_svm_dev(handle) container_of(handle, struct intel_svm_dev, sva)
 
-#define PRQ_ORDER 0
-
 static DEFINE_XARRAY_ALLOC(pasid_private_array);
 static int pasid_private_add(ioasid_t pasid, void *priv)
 {
@@ -516,9 +514,6 @@ static void load_pasid(struct mm_struct *mm, u32 pasid)
 {
 	mutex_lock(&mm->context.lock);
 
-	/* Synchronize with READ_ONCE in update_pasid(). */
-	smp_store_release(&mm->pasid, pasid);
-
 	/* Update PASID MSR on all CPUs running the mm's tasks. */
 	on_each_cpu_mask(mm_cpumask(mm), _load_pasid, NULL, true);
 
@@ -675,7 +670,6 @@ static int intel_svm_unbind_mm(struct device *dev, u32 pasid)
 			kfree_rcu(sdev, rcu);
 
 			if (list_empty(&svm->devs)) {
-				intel_svm_free_pasid(mm);
 				if (svm->notifier.ops) {
 					mmu_notifier_unregister(&svm->notifier, mm);
 					/* Clear mm's pasid. */
@@ -690,6 +684,8 @@ static int intel_svm_unbind_mm(struct device *dev, u32 pasid)
 				kfree(svm);
 			}
 		}
+		/* Drop a PASID reference and free it if no reference. */
+		intel_svm_free_pasid(mm);
 	}
 out:
 	return ret;
@@ -723,8 +719,6 @@ struct page_req_dsc {
 	};
 	u64 priv_data[2];
 };
-
-#define PRQ_RING_MASK	((0x1000 << PRQ_ORDER) - 0x20)
 
 static bool is_canonical_address(u64 addr)
 {
@@ -795,7 +789,19 @@ prq_retry:
 		goto prq_retry;
 	}
 
+	/*
+	 * A work in IO page fault workqueue may try to lock pasid_mutex now.
+	 * Holding pasid_mutex while waiting in iopf_queue_flush_dev() for
+	 * all works in the workqueue to finish may cause deadlock.
+	 *
+	 * It's unnecessary to hold pasid_mutex in iopf_queue_flush_dev().
+	 * Unlock it to allow the works to be handled while waiting for
+	 * them to finish.
+	 */
+	lockdep_assert_held(&pasid_mutex);
+	mutex_unlock(&pasid_mutex);
 	iopf_queue_flush_dev(dev);
+	mutex_lock(&pasid_mutex);
 
 	/*
 	 * Perform steps described in VT-d spec CH7.10 to drain page

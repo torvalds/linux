@@ -170,6 +170,11 @@ static const struct iio_info dmard10_info = {
 	.read_raw	= dmard10_read_raw,
 };
 
+static void dmard10_shutdown_cleanup(void *client)
+{
+	dmard10_shutdown(client);
+}
+
 static int dmard10_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -194,7 +199,6 @@ static int dmard10_probe(struct i2c_client *client,
 
 	data = iio_priv(indio_dev);
 	data->client = client;
-	i2c_set_clientdata(client, indio_dev);
 
 	indio_dev->info = &dmard10_info;
 	indio_dev->name = "dmard10";
@@ -206,22 +210,12 @@ static int dmard10_probe(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
-	ret = iio_device_register(indio_dev);
-	if (ret < 0) {
-		dev_err(&client->dev, "device_register failed\n");
-		dmard10_shutdown(client);
-	}
+	ret = devm_add_action_or_reset(&client->dev, dmard10_shutdown_cleanup,
+				       client);
+	if (ret)
+		return ret;
 
-	return ret;
-}
-
-static int dmard10_remove(struct i2c_client *client)
-{
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-
-	iio_device_unregister(indio_dev);
-
-	return dmard10_shutdown(client);
+	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -250,7 +244,6 @@ static struct i2c_driver dmard10_driver = {
 		.pm = &dmard10_pm_ops,
 	},
 	.probe		= dmard10_probe,
-	.remove		= dmard10_remove,
 	.id_table	= dmard10_i2c_id,
 };
 

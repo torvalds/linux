@@ -205,23 +205,23 @@ void kfd_smi_event_update_gpu_reset(struct kfd_dev *dev, bool post_reset)
 }
 
 void kfd_smi_event_update_thermal_throttling(struct kfd_dev *dev,
-					     uint32_t throttle_bitmask)
+					     uint64_t throttle_bitmask)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)dev->kgd;
 	/*
 	 * ThermalThrottle msg = throttle_bitmask(8):
 	 * 			 thermal_interrupt_count(16):
-	 * 1 byte event + 1 byte space + 8 byte throttle_bitmask +
+	 * 1 byte event + 1 byte space + 16 byte throttle_bitmask +
 	 * 1 byte : + 16 byte thermal_interupt_counter + 1 byte \n +
-	 * 1 byte \0 = 29
+	 * 1 byte \0 = 37
 	 */
-	char fifo_in[29];
+	char fifo_in[37];
 	int len;
 
 	if (list_empty(&dev->smi_clients))
 		return;
 
-	len = snprintf(fifo_in, sizeof(fifo_in), "%x %x:%llx\n",
+	len = snprintf(fifo_in, sizeof(fifo_in), "%x %llx:%llx\n",
 		       KFD_SMI_EVENT_THERMAL_THROTTLE, throttle_bitmask,
 		       atomic64_read(&adev->smu.throttle_int_counter));
 

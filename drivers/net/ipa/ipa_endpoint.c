@@ -21,7 +21,7 @@
 #include "ipa_modem.h"
 #include "ipa_table.h"
 #include "ipa_gsi.h"
-#include "ipa_clock.h"
+#include "ipa_power.h"
 
 #define atomic_dec_not_zero(v)	atomic_add_unless((v), -1, 0)
 
@@ -250,17 +250,18 @@ ipa_endpoint_init_ctrl(struct ipa_endpoint *endpoint, bool suspend_delay)
 
 	/* Suspend is not supported for IPA v4.0+.  Delay doesn't work
 	 * correctly on IPA v4.2.
-	 *
-	 * if (endpoint->toward_ipa)
-	 * 	assert(ipa->version != IPA_VERSION_4.2);
-	 * else
-	 *	assert(ipa->version < IPA_VERSION_4_0);
 	 */
+	if (endpoint->toward_ipa)
+		WARN_ON(ipa->version == IPA_VERSION_4_2);
+	else
+		WARN_ON(ipa->version >= IPA_VERSION_4_0);
+
 	mask = endpoint->toward_ipa ? ENDP_DELAY_FMASK : ENDP_SUSPEND_FMASK;
 
 	val = ioread32(ipa->reg_virt + offset);
-	/* Don't bother if it's already in the requested state */
 	state = !!(val & mask);
+
+	/* Don't bother if it's already in the requested state */
 	if (suspend_delay != state) {
 		val ^= mask;
 		iowrite32(val, ipa->reg_virt + offset);
@@ -273,7 +274,7 @@ ipa_endpoint_init_ctrl(struct ipa_endpoint *endpoint, bool suspend_delay)
 static void
 ipa_endpoint_program_delay(struct ipa_endpoint *endpoint, bool enable)
 {
-	/* assert(endpoint->toward_ipa); */
+	WARN_ON(!endpoint->toward_ipa);
 
 	/* Delay mode doesn't work properly for IPA v4.2 */
 	if (endpoint->ipa->version != IPA_VERSION_4_2)
@@ -287,7 +288,8 @@ static bool ipa_endpoint_aggr_active(struct ipa_endpoint *endpoint)
 	u32 offset;
 	u32 val;
 
-	/* assert(mask & ipa->available); */
+	WARN_ON(!(mask & ipa->available));
+
 	offset = ipa_reg_state_aggr_active_offset(ipa->version);
 	val = ioread32(ipa->reg_virt + offset);
 
@@ -299,7 +301,8 @@ static void ipa_endpoint_force_close(struct ipa_endpoint *endpoint)
 	u32 mask = BIT(endpoint->endpoint_id);
 	struct ipa *ipa = endpoint->ipa;
 
-	/* assert(mask & ipa->available); */
+	WARN_ON(!(mask & ipa->available));
+
 	iowrite32(mask, ipa->reg_virt + IPA_REG_AGGR_FORCE_CLOSE_OFFSET);
 }
 
@@ -338,7 +341,7 @@ ipa_endpoint_program_suspend(struct ipa_endpoint *endpoint, bool enable)
 	if (endpoint->ipa->version >= IPA_VERSION_4_0)
 		return enable;	/* For IPA v4.0+, no change made */
 
-	/* assert(!endpoint->toward_ipa); */
+	WARN_ON(endpoint->toward_ipa);
 
 	suspended = ipa_endpoint_init_ctrl(endpoint, enable);
 
@@ -807,7 +810,7 @@ static u32 hol_block_timer_val(struct ipa *ipa, u32 microseconds)
 		return hol_block_timer_qtime_val(ipa, microseconds);
 
 	/* Use 64 bit arithmetic to avoid overflow... */
-	rate = ipa_clock_rate(ipa);
+	rate = ipa_core_clock_rate(ipa);
 	ticks = DIV_ROUND_CLOSEST(microseconds * rate, 128 * USEC_PER_SEC);
 	/* ...but we still need to fit into a 32-bit register */
 	WARN_ON(ticks > U32_MAX);
@@ -1156,7 +1159,8 @@ static bool ipa_endpoint_skb_build(struct ipa_endpoint *endpoint,
 	if (!endpoint->netdev)
 		return false;
 
-	/* assert(len <= SKB_WITH_OVERHEAD(IPA_RX_BUFFER_SIZE-NET_SKB_PAD)); */
+	WARN_ON(len > SKB_WITH_OVERHEAD(IPA_RX_BUFFER_SIZE - NET_SKB_PAD));
+
 	skb = build_skb(page_address(page), IPA_RX_BUFFER_SIZE);
 	if (skb) {
 		/* Reserve the headroom and account for the data */
@@ -1583,7 +1587,6 @@ void ipa_endpoint_suspend_one(struct ipa_endpoint *endpoint)
 {
 	struct device *dev = &endpoint->ipa->pdev->dev;
 	struct gsi *gsi = &endpoint->ipa->gsi;
-	bool stop_channel;
 	int ret;
 
 	if (!(endpoint->ipa->enabled & BIT(endpoint->endpoint_id)))
@@ -1594,11 +1597,7 @@ void ipa_endpoint_suspend_one(struct ipa_endpoint *endpoint)
 		(void)ipa_endpoint_program_suspend(endpoint, true);
 	}
 
-	/* Starting with IPA v4.0, endpoints are suspended by stopping the
-	 * underlying GSI channel rather than using endpoint suspend mode.
-	 */
-	stop_channel = endpoint->ipa->version >= IPA_VERSION_4_0;
-	ret = gsi_channel_suspend(gsi, endpoint->channel_id, stop_channel);
+	ret = gsi_channel_suspend(gsi, endpoint->channel_id);
 	if (ret)
 		dev_err(dev, "error %d suspending channel %u\n", ret,
 			endpoint->channel_id);
@@ -1608,7 +1607,6 @@ void ipa_endpoint_resume_one(struct ipa_endpoint *endpoint)
 {
 	struct device *dev = &endpoint->ipa->pdev->dev;
 	struct gsi *gsi = &endpoint->ipa->gsi;
-	bool start_channel;
 	int ret;
 
 	if (!(endpoint->ipa->enabled & BIT(endpoint->endpoint_id)))
@@ -1617,11 +1615,7 @@ void ipa_endpoint_resume_one(struct ipa_endpoint *endpoint)
 	if (!endpoint->toward_ipa)
 		(void)ipa_endpoint_program_suspend(endpoint, false);
 
-	/* Starting with IPA v4.0, the underlying GSI channel must be
-	 * restarted for resume.
-	 */
-	start_channel = endpoint->ipa->version >= IPA_VERSION_4_0;
-	ret = gsi_channel_resume(gsi, endpoint->channel_id, start_channel);
+	ret = gsi_channel_resume(gsi, endpoint->channel_id);
 	if (ret)
 		dev_err(dev, "error %d resuming channel %u\n", ret,
 			endpoint->channel_id);

@@ -10,7 +10,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/timer.h>
 #include <linux/delay.h>
 #include <linux/gfp.h>
 #include <linux/io.h>
@@ -304,12 +303,22 @@ static inline int qdio_siga_sync(struct qdio_q *q, unsigned int output,
 	return (cc) ? -EIO : 0;
 }
 
+static inline int qdio_sync_input_queue(struct qdio_q *q)
+{
+	return qdio_siga_sync(q, 0, q->mask);
+}
+
+static inline int qdio_sync_output_queue(struct qdio_q *q)
+{
+	return qdio_siga_sync(q, q->mask, 0);
+}
+
 static inline int qdio_siga_sync_q(struct qdio_q *q)
 {
 	if (q->is_input_q)
-		return qdio_siga_sync(q, 0, q->mask);
+		return qdio_sync_input_queue(q);
 	else
-		return qdio_siga_sync(q, q->mask, 0);
+		return qdio_sync_output_queue(q);
 }
 
 static int qdio_siga_output(struct qdio_q *q, unsigned int count,
@@ -373,22 +382,10 @@ static inline int qdio_siga_input(struct qdio_q *q)
 	return (cc) ? -EIO : 0;
 }
 
-#define qdio_siga_sync_out(q) qdio_siga_sync(q, ~0U, 0)
-#define qdio_siga_sync_all(q) qdio_siga_sync(q, ~0U, ~0U)
-
-static inline void qdio_sync_queues(struct qdio_q *q)
-{
-	/* PCI capable outbound queues will also be scanned so sync them too */
-	if (pci_out_supported(q->irq_ptr))
-		qdio_siga_sync_all(q);
-	else
-		qdio_siga_sync_q(q);
-}
-
 int debug_get_buf_state(struct qdio_q *q, unsigned int bufnr,
 			unsigned char *state)
 {
-	if (need_siga_sync(q))
+	if (qdio_need_siga_sync(q->irq_ptr))
 		qdio_siga_sync_q(q);
 	return get_buf_state(q, bufnr, state, 0);
 }
@@ -455,10 +452,9 @@ static int get_inbound_buffer_frontier(struct qdio_q *q, unsigned int start,
 	if (!count)
 		return 0;
 
-	/*
-	 * No siga sync here, as a PCI or we after a thin interrupt
-	 * already sync'ed the queues.
-	 */
+	if (qdio_need_siga_sync(q->irq_ptr))
+		qdio_sync_input_queue(q);
+
 	count = get_buf_states(q, start, &state, count, 1);
 	if (!count)
 		return 0;
@@ -510,8 +506,8 @@ static inline int qdio_inbound_q_done(struct qdio_q *q, unsigned int start)
 	if (!atomic_read(&q->nr_buf_used))
 		return 1;
 
-	if (need_siga_sync(q))
-		qdio_siga_sync_q(q);
+	if (qdio_need_siga_sync(q->irq_ptr))
+		qdio_sync_input_queue(q);
 	get_buf_state(q, start, &state, 0);
 
 	if (state == SLSB_P_INPUT_PRIMED || state == SLSB_P_INPUT_ERROR)
@@ -519,15 +515,6 @@ static inline int qdio_inbound_q_done(struct qdio_q *q, unsigned int start)
 		return 0;
 
 	return 1;
-}
-
-static inline int qdio_tasklet_schedule(struct qdio_q *q)
-{
-	if (likely(q->irq_ptr->state == QDIO_IRQ_STATE_ACTIVE)) {
-		tasklet_schedule(&q->u.out.tasklet);
-		return 0;
-	}
-	return -EPERM;
 }
 
 static int get_outbound_buffer_frontier(struct qdio_q *q, unsigned int start,
@@ -538,16 +525,12 @@ static int get_outbound_buffer_frontier(struct qdio_q *q, unsigned int start,
 
 	q->timestamp = get_tod_clock_fast();
 
-	if (need_siga_sync(q))
-		if (((queue_type(q) != QDIO_IQDIO_QFMT) &&
-		    !pci_out_supported(q->irq_ptr)) ||
-		    (queue_type(q) == QDIO_IQDIO_QFMT &&
-		    multicast_outbound(q)))
-			qdio_siga_sync_q(q);
-
 	count = atomic_read(&q->nr_buf_used);
 	if (!count)
 		return 0;
+
+	if (qdio_need_siga_sync(q->irq_ptr))
+		qdio_sync_output_queue(q);
 
 	count = get_buf_states(q, start, &state, count, 0);
 	if (!count)
@@ -595,19 +578,13 @@ static int get_outbound_buffer_frontier(struct qdio_q *q, unsigned int start,
 	}
 }
 
-/* all buffers processed? */
-static inline int qdio_outbound_q_done(struct qdio_q *q)
-{
-	return atomic_read(&q->nr_buf_used) == 0;
-}
-
 static int qdio_kick_outbound_q(struct qdio_q *q, unsigned int count,
 				unsigned long aob)
 {
 	int retries = 0, cc;
 	unsigned int busy_bit;
 
-	if (!need_siga_out(q))
+	if (!qdio_need_siga_out(q->irq_ptr))
 		return 0;
 
 	DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "siga-w:%1d", q->nr);
@@ -644,75 +621,6 @@ retry:
 	return cc;
 }
 
-void qdio_outbound_tasklet(struct tasklet_struct *t)
-{
-	struct qdio_output_q *out_q = from_tasklet(out_q, t, tasklet);
-	struct qdio_q *q = container_of(out_q, struct qdio_q, u.out);
-	unsigned int start = q->first_to_check;
-	unsigned int error = 0;
-	int count;
-
-	qperf_inc(q, tasklet_outbound);
-	WARN_ON_ONCE(atomic_read(&q->nr_buf_used) < 0);
-
-	count = get_outbound_buffer_frontier(q, start, &error);
-	if (count) {
-		q->first_to_check = add_buf(start, count);
-
-		if (q->irq_ptr->state == QDIO_IRQ_STATE_ACTIVE) {
-			qperf_inc(q, outbound_handler);
-			DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "koh: s:%02x c:%02x",
-				      start, count);
-
-			q->handler(q->irq_ptr->cdev, error, q->nr, start,
-				   count, q->irq_ptr->int_parm);
-		}
-	}
-
-	if (queue_type(q) == QDIO_ZFCP_QFMT && !pci_out_supported(q->irq_ptr) &&
-	    !qdio_outbound_q_done(q))
-		goto sched;
-
-	if (q->u.out.pci_out_enabled)
-		return;
-
-	/*
-	 * Now we know that queue type is either qeth without pci enabled
-	 * or HiperSockets. Make sure buffer switch from PRIMED to EMPTY
-	 * is noticed and outbound_handler is called after some time.
-	 */
-	if (qdio_outbound_q_done(q))
-		del_timer_sync(&q->u.out.timer);
-	else
-		if (!timer_pending(&q->u.out.timer) &&
-		    likely(q->irq_ptr->state == QDIO_IRQ_STATE_ACTIVE))
-			mod_timer(&q->u.out.timer, jiffies + 10 * HZ);
-	return;
-
-sched:
-	qdio_tasklet_schedule(q);
-}
-
-void qdio_outbound_timer(struct timer_list *t)
-{
-	struct qdio_q *q = from_timer(q, t, u.out.timer);
-
-	qdio_tasklet_schedule(q);
-}
-
-static inline void qdio_check_outbound_pci_queues(struct qdio_irq *irq)
-{
-	struct qdio_q *out;
-	int i;
-
-	if (!pci_out_supported(irq) || !irq->scan_threshold)
-		return;
-
-	for_each_output_queue(irq, out, i)
-		if (!qdio_outbound_q_done(out))
-			qdio_tasklet_schedule(out);
-}
-
 static inline void qdio_set_state(struct qdio_irq *irq_ptr,
 				  enum qdio_irq_states state)
 {
@@ -734,25 +642,11 @@ static void qdio_irq_check_sense(struct qdio_irq *irq_ptr, struct irb *irb)
 /* PCI interrupt handler */
 static void qdio_int_handler_pci(struct qdio_irq *irq_ptr)
 {
-	int i;
-	struct qdio_q *q;
-
 	if (unlikely(irq_ptr->state != QDIO_IRQ_STATE_ACTIVE))
 		return;
 
 	qdio_deliver_irq(irq_ptr);
 	irq_ptr->last_data_irq_time = S390_lowcore.int_clock;
-
-	if (!pci_out_supported(irq_ptr) || !irq_ptr->scan_threshold)
-		return;
-
-	for_each_output_queue(irq_ptr, q, i) {
-		if (qdio_outbound_q_done(q))
-			continue;
-		if (need_siga_sync(q) && need_siga_sync_out_after_pci(q))
-			qdio_siga_sync_q(q);
-		qdio_tasklet_schedule(q);
-	}
 }
 
 static void qdio_handle_activate_check(struct qdio_irq *irq_ptr,
@@ -879,15 +773,34 @@ int qdio_get_ssqd_desc(struct ccw_device *cdev,
 }
 EXPORT_SYMBOL_GPL(qdio_get_ssqd_desc);
 
-static void qdio_shutdown_queues(struct qdio_irq *irq_ptr)
+static int qdio_cancel_ccw(struct qdio_irq *irq, int how)
 {
-	struct qdio_q *q;
-	int i;
+	struct ccw_device *cdev = irq->cdev;
+	long timeout;
+	int rc;
 
-	for_each_output_queue(irq_ptr, q, i) {
-		del_timer_sync(&q->u.out.timer);
-		tasklet_kill(&q->u.out.tasklet);
+	spin_lock_irq(get_ccwdev_lock(cdev));
+	qdio_set_state(irq, QDIO_IRQ_STATE_CLEANUP);
+	if (how & QDIO_FLAG_CLEANUP_USING_CLEAR)
+		rc = ccw_device_clear(cdev, QDIO_DOING_CLEANUP);
+	else
+		/* default behaviour is halt */
+		rc = ccw_device_halt(cdev, QDIO_DOING_CLEANUP);
+	spin_unlock_irq(get_ccwdev_lock(cdev));
+	if (rc) {
+		DBF_ERROR("%4x SHUTD ERR", irq->schid.sch_no);
+		DBF_ERROR("rc:%4d", rc);
+		return rc;
 	}
+
+	timeout = wait_event_interruptible_timeout(cdev->private->wait_q,
+						   irq->state == QDIO_IRQ_STATE_INACTIVE ||
+						   irq->state == QDIO_IRQ_STATE_ERR,
+						   10 * HZ);
+	if (timeout <= 0)
+		rc = (timeout == -ERESTARTSYS) ? -EINTR : -ETIME;
+
+	return rc;
 }
 
 /**
@@ -919,35 +832,13 @@ int qdio_shutdown(struct ccw_device *cdev, int how)
 	}
 
 	/*
-	 * Indicate that the device is going down. Scheduling the queue
-	 * tasklets is forbidden from here on.
+	 * Indicate that the device is going down.
 	 */
 	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_STOPPED);
 
-	qdio_shutdown_queues(irq_ptr);
 	qdio_shutdown_debug_entries(irq_ptr);
 
-	/* cleanup subchannel */
-	spin_lock_irq(get_ccwdev_lock(cdev));
-	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_CLEANUP);
-	if (how & QDIO_FLAG_CLEANUP_USING_CLEAR)
-		rc = ccw_device_clear(cdev, QDIO_DOING_CLEANUP);
-	else
-		/* default behaviour is halt */
-		rc = ccw_device_halt(cdev, QDIO_DOING_CLEANUP);
-	spin_unlock_irq(get_ccwdev_lock(cdev));
-	if (rc) {
-		DBF_ERROR("%4x SHUTD ERR", irq_ptr->schid.sch_no);
-		DBF_ERROR("rc:%4d", rc);
-		goto no_cleanup;
-	}
-
-	wait_event_interruptible_timeout(cdev->private->wait_q,
-		irq_ptr->state == QDIO_IRQ_STATE_INACTIVE ||
-		irq_ptr->state == QDIO_IRQ_STATE_ERR,
-		10 * HZ);
-
-no_cleanup:
+	rc = qdio_cancel_ccw(irq_ptr, how);
 	qdio_shutdown_thinint(irq_ptr);
 	qdio_shutdown_irq(irq_ptr);
 
@@ -1061,8 +952,6 @@ static void qdio_trace_init_data(struct qdio_irq *irq,
 	DBF_DEV_EVENT(DBF_ERR, irq, "qfmt:%1u", data->q_format);
 	DBF_DEV_EVENT(DBF_ERR, irq, "qpff%4x", data->qib_param_field_format);
 	DBF_DEV_HEX(irq, &data->qib_param_field, sizeof(void *), DBF_ERR);
-	DBF_DEV_HEX(irq, &data->input_slib_elements, sizeof(void *), DBF_ERR);
-	DBF_DEV_HEX(irq, &data->output_slib_elements, sizeof(void *), DBF_ERR);
 	DBF_DEV_EVENT(DBF_ERR, irq, "niq:%1u noq:%1u", data->no_input_qs,
 		      data->no_output_qs);
 	DBF_DEV_HEX(irq, &data->input_handler, sizeof(void *), DBF_ERR);
@@ -1083,6 +972,7 @@ int qdio_establish(struct ccw_device *cdev,
 {
 	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
 	struct subchannel_id schid;
+	long timeout;
 	int rc;
 
 	ccw_device_get_schid(cdev, &schid);
@@ -1111,17 +1001,14 @@ int qdio_establish(struct ccw_device *cdev,
 	qdio_setup_irq(irq_ptr, init_data);
 
 	rc = qdio_establish_thinint(irq_ptr);
-	if (rc) {
-		qdio_shutdown_irq(irq_ptr);
-		mutex_unlock(&irq_ptr->setup_mutex);
-		return rc;
-	}
+	if (rc)
+		goto err_thinint;
 
 	/* establish q */
 	irq_ptr->ccw.cmd_code = irq_ptr->equeue.cmd;
 	irq_ptr->ccw.flags = CCW_FLAG_SLI;
 	irq_ptr->ccw.count = irq_ptr->equeue.count;
-	irq_ptr->ccw.cda = (u32)((addr_t)irq_ptr->qdr);
+	irq_ptr->ccw.cda = (u32) virt_to_phys(irq_ptr->qdr);
 
 	spin_lock_irq(get_ccwdev_lock(cdev));
 	ccw_device_set_options_mask(cdev, 0);
@@ -1131,20 +1018,20 @@ int qdio_establish(struct ccw_device *cdev,
 	if (rc) {
 		DBF_ERROR("%4x est IO ERR", irq_ptr->schid.sch_no);
 		DBF_ERROR("rc:%4x", rc);
-		qdio_shutdown_thinint(irq_ptr);
-		qdio_shutdown_irq(irq_ptr);
-		mutex_unlock(&irq_ptr->setup_mutex);
-		return rc;
+		goto err_ccw_start;
 	}
 
-	wait_event_interruptible_timeout(cdev->private->wait_q,
-		irq_ptr->state == QDIO_IRQ_STATE_ESTABLISHED ||
-		irq_ptr->state == QDIO_IRQ_STATE_ERR, HZ);
+	timeout = wait_event_interruptible_timeout(cdev->private->wait_q,
+						   irq_ptr->state == QDIO_IRQ_STATE_ESTABLISHED ||
+						   irq_ptr->state == QDIO_IRQ_STATE_ERR, HZ);
+	if (timeout <= 0) {
+		rc = (timeout == -ERESTARTSYS) ? -EINTR : -ETIME;
+		goto err_ccw_timeout;
+	}
 
 	if (irq_ptr->state != QDIO_IRQ_STATE_ESTABLISHED) {
-		mutex_unlock(&irq_ptr->setup_mutex);
-		qdio_shutdown(cdev, QDIO_FLAG_CLEANUP_USING_CLEAR);
-		return -EIO;
+		rc = -EIO;
+		goto err_ccw_error;
 	}
 
 	qdio_setup_ssqd_info(irq_ptr);
@@ -1156,6 +1043,17 @@ int qdio_establish(struct ccw_device *cdev,
 	qdio_print_subchannel_info(irq_ptr);
 	qdio_setup_debug_entries(irq_ptr);
 	return 0;
+
+err_ccw_timeout:
+	qdio_cancel_ccw(irq_ptr, QDIO_FLAG_CLEANUP_USING_CLEAR);
+err_ccw_error:
+err_ccw_start:
+	qdio_shutdown_thinint(irq_ptr);
+err_thinint:
+	qdio_shutdown_irq(irq_ptr);
+	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_INACTIVE);
+	mutex_unlock(&irq_ptr->setup_mutex);
+	return rc;
 }
 EXPORT_SYMBOL_GPL(qdio_establish);
 
@@ -1219,12 +1117,10 @@ EXPORT_SYMBOL_GPL(qdio_activate);
 /**
  * handle_inbound - reset processed input buffers
  * @q: queue containing the buffers
- * @callflags: flags
  * @bufnr: first buffer to process
  * @count: how many buffers are emptied
  */
-static int handle_inbound(struct qdio_q *q, unsigned int callflags,
-			  int bufnr, int count)
+static int handle_inbound(struct qdio_q *q, int bufnr, int count)
 {
 	int overlap;
 
@@ -1241,7 +1137,7 @@ static int handle_inbound(struct qdio_q *q, unsigned int callflags,
 	count = set_buf_states(q, bufnr, SLSB_CU_INPUT_EMPTY, count);
 	atomic_add(count, &q->nr_buf_used);
 
-	if (need_siga_in(q))
+	if (qdio_need_siga_in(q->irq_ptr))
 		return qdio_siga_input(q);
 
 	return 0;
@@ -1250,16 +1146,13 @@ static int handle_inbound(struct qdio_q *q, unsigned int callflags,
 /**
  * handle_outbound - process filled outbound buffers
  * @q: queue containing the buffers
- * @callflags: flags
  * @bufnr: first buffer to process
  * @count: how many buffers are filled
  * @aob: asynchronous operation block
  */
-static int handle_outbound(struct qdio_q *q, unsigned int callflags,
-			   unsigned int bufnr, unsigned int count,
+static int handle_outbound(struct qdio_q *q, unsigned int bufnr, unsigned int count,
 			   struct qaob *aob)
 {
-	const unsigned int scan_threshold = q->irq_ptr->scan_threshold;
 	unsigned char state = 0;
 	int used, rc = 0;
 
@@ -1271,19 +1164,13 @@ static int handle_outbound(struct qdio_q *q, unsigned int callflags,
 	if (used == QDIO_MAX_BUFFERS_PER_Q)
 		qperf_inc(q, outbound_queue_full);
 
-	if (callflags & QDIO_FLAG_PCI_OUT) {
-		q->u.out.pci_out_enabled = 1;
-		qperf_inc(q, pci_request_int);
-	} else
-		q->u.out.pci_out_enabled = 0;
-
 	if (queue_type(q) == QDIO_IQDIO_QFMT) {
 		unsigned long phys_aob = aob ? virt_to_phys(aob) : 0;
 
 		WARN_ON_ONCE(!IS_ALIGNED(phys_aob, 256));
 		rc = qdio_kick_outbound_q(q, count, phys_aob);
-	} else if (need_siga_sync(q)) {
-		rc = qdio_siga_sync_q(q);
+	} else if (qdio_need_siga_sync(q->irq_ptr)) {
+		rc = qdio_sync_output_queue(q);
 	} else if (count < QDIO_MAX_BUFFERS_PER_Q &&
 		   get_buf_state(q, prev_buf(bufnr), &state, 0) > 0 &&
 		   state == SLSB_CU_OUTPUT_PRIMED) {
@@ -1293,18 +1180,6 @@ static int handle_outbound(struct qdio_q *q, unsigned int callflags,
 		rc = qdio_kick_outbound_q(q, count, 0);
 	}
 
-	/* Let drivers implement their own completion scanning: */
-	if (!scan_threshold)
-		return rc;
-
-	/* in case of SIGA errors we must process the error immediately */
-	if (used >= scan_threshold || rc)
-		qdio_tasklet_schedule(q);
-	else
-		/* free the SBALs in case of no further traffic */
-		if (!timer_pending(&q->u.out.timer) &&
-		    likely(q->irq_ptr->state == QDIO_IRQ_STATE_ACTIVE))
-			mod_timer(&q->u.out.timer, jiffies + HZ);
 	return rc;
 }
 
@@ -1336,11 +1211,9 @@ int do_QDIO(struct ccw_device *cdev, unsigned int callflags,
 	if (!count)
 		return 0;
 	if (callflags & QDIO_FLAG_SYNC_INPUT)
-		return handle_inbound(irq_ptr->input_qs[q_nr],
-				      callflags, bufnr, count);
+		return handle_inbound(irq_ptr->input_qs[q_nr], bufnr, count);
 	else if (callflags & QDIO_FLAG_SYNC_OUTPUT)
-		return handle_outbound(irq_ptr->output_qs[q_nr],
-				       callflags, bufnr, count, aob);
+		return handle_outbound(irq_ptr->output_qs[q_nr], bufnr, count, aob);
 	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(do_QDIO);
@@ -1420,51 +1293,9 @@ int qdio_inspect_queue(struct ccw_device *cdev, unsigned int nr, bool is_input,
 		return -ENODEV;
 	q = is_input ? irq_ptr->input_qs[nr] : irq_ptr->output_qs[nr];
 
-	if (need_siga_sync(q))
-		qdio_siga_sync_q(q);
-
 	return __qdio_inspect_queue(q, bufnr, error);
 }
 EXPORT_SYMBOL_GPL(qdio_inspect_queue);
-
-/**
- * qdio_get_next_buffers - process input buffers
- * @cdev: associated ccw_device for the qdio subchannel
- * @nr: input queue number
- * @bufnr: first filled buffer number
- * @error: buffers are in error state
- *
- * Return codes
- *   < 0 - error
- *   = 0 - no new buffers found
- *   > 0 - number of processed buffers
- */
-int qdio_get_next_buffers(struct ccw_device *cdev, int nr, int *bufnr,
-			  int *error)
-{
-	struct qdio_q *q;
-	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
-
-	if (!irq_ptr)
-		return -ENODEV;
-	q = irq_ptr->input_qs[nr];
-
-	/*
-	 * Cannot rely on automatic sync after interrupt since queues may
-	 * also be examined without interrupt.
-	 */
-	if (need_siga_sync(q))
-		qdio_sync_queues(q);
-
-	qdio_check_outbound_pci_queues(irq_ptr);
-
-	/* Note: upper-layer MUST stop processing immediately here ... */
-	if (unlikely(q->irq_ptr->state != QDIO_IRQ_STATE_ACTIVE))
-		return -EIO;
-
-	return __qdio_inspect_queue(q, bufnr, error);
-}
-EXPORT_SYMBOL(qdio_get_next_buffers);
 
 /**
  * qdio_stop_irq - disable interrupt processing for the device

@@ -15,7 +15,6 @@ struct nvkm_vma {
 	u8   refd:3; /* Current page type (index, or NONE for unreferenced). */
 	bool used:1; /* Region allocated. */
 	bool part:1; /* Region was split from an allocated region by map(). */
-	bool user:1; /* Region user-allocated. */
 	bool busy:1; /* Region busy (for temporarily preventing user access). */
 	bool mapped:1; /* Region contains valid pages. */
 	struct nvkm_memory *memory; /* Memory currently mapped into VMA. */

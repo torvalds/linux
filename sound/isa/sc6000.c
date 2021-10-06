@@ -529,6 +529,14 @@ static int snd_sc6000_match(struct device *devptr, unsigned int dev)
 	return 1;
 }
 
+static void snd_sc6000_free(struct snd_card *card)
+{
+	char __iomem *vport = (char __force __iomem *)card->private_data;
+
+	if (vport)
+		sc6000_setup_board(vport, 0);
+}
+
 static int snd_sc6000_probe(struct device *devptr, unsigned int dev)
 {
 	static const int possible_irqs[] = { 5, 7, 9, 10, 11, -1 };
@@ -539,22 +547,19 @@ static int snd_sc6000_probe(struct device *devptr, unsigned int dev)
 	struct snd_card *card;
 	struct snd_wss *chip;
 	struct snd_opl3 *opl3;
-	char __iomem **vport;
+	char __iomem *vport;
 	char __iomem *vmss_port;
 
-
-	err = snd_card_new(devptr, index[dev], id[dev], THIS_MODULE,
-			   sizeof(vport), &card);
+	err = snd_devm_card_new(devptr, index[dev], id[dev], THIS_MODULE,
+				0, &card);
 	if (err < 0)
 		return err;
 
-	vport = card->private_data;
 	if (xirq == SNDRV_AUTO_IRQ) {
 		xirq = snd_legacy_find_free_irq(possible_irqs);
 		if (xirq < 0) {
 			snd_printk(KERN_ERR PFX "unable to find a free IRQ\n");
-			err = -EBUSY;
-			goto err_exit;
+			return -EBUSY;
 		}
 	}
 
@@ -562,68 +567,65 @@ static int snd_sc6000_probe(struct device *devptr, unsigned int dev)
 		xdma = snd_legacy_find_free_dma(possible_dmas);
 		if (xdma < 0) {
 			snd_printk(KERN_ERR PFX "unable to find a free DMA\n");
-			err = -EBUSY;
-			goto err_exit;
+			return -EBUSY;
 		}
 	}
 
-	if (!request_region(port[dev], 0x10, DRV_NAME)) {
+	if (!devm_request_region(devptr, port[dev], 0x10, DRV_NAME)) {
 		snd_printk(KERN_ERR PFX
 			   "I/O port region is already in use.\n");
-		err = -EBUSY;
-		goto err_exit;
+		return -EBUSY;
 	}
-	*vport = devm_ioport_map(devptr, port[dev], 0x10);
-	if (*vport == NULL) {
+	vport = devm_ioport_map(devptr, port[dev], 0x10);
+	if (!vport) {
 		snd_printk(KERN_ERR PFX
 			   "I/O port cannot be iomapped.\n");
-		err = -EBUSY;
-		goto err_unmap1;
+		return -EBUSY;
 	}
+	card->private_data = (void __force *)vport;
 
 	/* to make it marked as used */
-	if (!request_region(mss_port[dev], 4, DRV_NAME)) {
+	if (!devm_request_region(devptr, mss_port[dev], 4, DRV_NAME)) {
 		snd_printk(KERN_ERR PFX
 			   "SC-6000 port I/O port region is already in use.\n");
-		err = -EBUSY;
-		goto err_unmap1;
+		return -EBUSY;
 	}
 	vmss_port = devm_ioport_map(devptr, mss_port[dev], 4);
 	if (!vmss_port) {
 		snd_printk(KERN_ERR PFX
 			   "MSS port I/O cannot be iomapped.\n");
-		err = -EBUSY;
-		goto err_unmap2;
+		return -EBUSY;
 	}
 
 	snd_printd("Initializing BASE[0x%lx] IRQ[%d] DMA[%d] MIRQ[%d]\n",
 		   port[dev], xirq, xdma,
 		   mpu_irq[dev] == SNDRV_AUTO_IRQ ? 0 : mpu_irq[dev]);
 
-	err = sc6000_init_board(*vport, vmss_port, dev);
+	err = sc6000_init_board(vport, vmss_port, dev);
 	if (err < 0)
-		goto err_unmap2;
+		return err;
+	card->private_free = snd_sc6000_free;
 
 	err = snd_wss_create(card, mss_port[dev] + 4,  -1, xirq, xdma, -1,
 			     WSS_HW_DETECT, 0, &chip);
 	if (err < 0)
-		goto err_unmap2;
+		return err;
 
 	err = snd_wss_pcm(chip, 0);
 	if (err < 0) {
 		snd_printk(KERN_ERR PFX
 			   "error creating new WSS PCM device\n");
-		goto err_unmap2;
+		return err;
 	}
 	err = snd_wss_mixer(chip);
 	if (err < 0) {
 		snd_printk(KERN_ERR PFX "error creating new WSS mixer\n");
-		goto err_unmap2;
+		return err;
 	}
 	err = snd_sc6000_mixer(chip);
 	if (err < 0) {
 		snd_printk(KERN_ERR PFX "the mixer rewrite failed\n");
-		goto err_unmap2;
+		return err;
 	}
 	if (snd_opl3_create(card,
 			    0x388, 0x388 + 2,
@@ -633,7 +635,7 @@ static int snd_sc6000_probe(struct device *devptr, unsigned int dev)
 	} else {
 		err = snd_opl3_hwdep_new(opl3, 0, 1, NULL);
 		if (err < 0)
-			goto err_unmap2;
+			return err;
 	}
 
 	if (mpu_port[dev] != SNDRV_AUTO_PORT) {
@@ -654,39 +656,15 @@ static int snd_sc6000_probe(struct device *devptr, unsigned int dev)
 
 	err = snd_card_register(card);
 	if (err < 0)
-		goto err_unmap2;
+		return err;
 
 	dev_set_drvdata(devptr, card);
 	return 0;
-
-err_unmap2:
-	sc6000_setup_board(*vport, 0);
-	release_region(mss_port[dev], 4);
-err_unmap1:
-	release_region(port[dev], 0x10);
-err_exit:
-	snd_card_free(card);
-	return err;
-}
-
-static void snd_sc6000_remove(struct device *devptr, unsigned int dev)
-{
-	struct snd_card *card = dev_get_drvdata(devptr);
-	char __iomem **vport = card->private_data;
-
-	if (sc6000_setup_board(*vport, 0) < 0)
-		snd_printk(KERN_WARNING "sc6000_setup_board failed on exit!\n");
-
-	release_region(port[dev], 0x10);
-	release_region(mss_port[dev], 4);
-
-	snd_card_free(card);
 }
 
 static struct isa_driver snd_sc6000_driver = {
 	.match		= snd_sc6000_match,
 	.probe		= snd_sc6000_probe,
-	.remove		= snd_sc6000_remove,
 	/* FIXME: suspend/resume */
 	.driver		= {
 		.name	= DRV_NAME,

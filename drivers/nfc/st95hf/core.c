@@ -16,7 +16,6 @@
 #include <linux/nfc.h>
 #include <linux/of_gpio.h>
 #include <linux/of.h>
-#include <linux/of_irq.h>
 #include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/wait.h>
@@ -1037,7 +1036,7 @@ static void st95hf_abort_cmd(struct nfc_digital_dev *ddev)
 {
 }
 
-static struct nfc_digital_ops st95hf_nfc_digital_ops = {
+static const struct nfc_digital_ops st95hf_nfc_digital_ops = {
 	.in_configure_hw = st95hf_in_configure_hw,
 	.in_send_cmd = st95hf_in_send_cmd,
 

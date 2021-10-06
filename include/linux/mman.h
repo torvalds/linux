@@ -32,7 +32,8 @@
  * The historical set of flags that all mmap implementations implicitly
  * support when a ->mmap_validate() op is not provided in file_operations.
  *
- * MAP_EXECUTABLE is completely ignored throughout the kernel.
+ * MAP_EXECUTABLE and MAP_DENYWRITE are completely ignored throughout the
+ * kernel.
  */
 #define LEGACY_MAP_MASK (MAP_SHARED \
 		| MAP_PRIVATE \
@@ -153,7 +154,6 @@ static inline unsigned long
 calc_vm_flag_bits(unsigned long flags)
 {
 	return _calc_vm_trans(flags, MAP_GROWSDOWN,  VM_GROWSDOWN ) |
-	       _calc_vm_trans(flags, MAP_DENYWRITE,  VM_DENYWRITE ) |
 	       _calc_vm_trans(flags, MAP_LOCKED,     VM_LOCKED    ) |
 	       _calc_vm_trans(flags, MAP_SYNC,	     VM_SYNC      ) |
 	       arch_calc_vm_flag_bits(flags);

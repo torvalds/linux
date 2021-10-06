@@ -865,7 +865,8 @@ struct mlx5_ifc_qos_cap_bits {
 	u8         nic_bw_share[0x1];
 	u8         nic_rate_limit[0x1];
 	u8         packet_pacing_uid[0x1];
-	u8         reserved_at_c[0x14];
+	u8         log_esw_max_sched_depth[0x4];
+	u8         reserved_at_10[0x10];
 
 	u8         reserved_at_20[0xb];
 	u8         log_max_qos_nic_queue_group[0x5];
@@ -921,7 +922,8 @@ struct mlx5_ifc_per_protocol_networking_offload_caps_bits {
 	u8         scatter_fcs[0x1];
 	u8         enhanced_multi_pkt_send_wqe[0x1];
 	u8         tunnel_lso_const_out_ip_id[0x1];
-	u8         reserved_at_1c[0x2];
+	u8         tunnel_lro_gre[0x1];
+	u8         tunnel_lro_vxlan[0x1];
 	u8         tunnel_stateless_gre[0x1];
 	u8         tunnel_stateless_vxlan[0x1];
 
@@ -1651,7 +1653,13 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         max_geneve_tlv_option_data_len[0x5];
 	u8         reserved_at_570[0x10];
 
-	u8         reserved_at_580[0x33];
+	u8	   reserved_at_580[0xb];
+	u8	   log_max_dci_stream_channels[0x5];
+	u8	   reserved_at_590[0x3];
+	u8	   log_max_dci_errored_streams[0x5];
+	u8	   reserved_at_598[0x8];
+
+	u8         reserved_at_5a0[0x13];
 	u8         log_max_dek[0x5];
 	u8         reserved_at_5b8[0x4];
 	u8         mini_cqe_resp_stride_index[0x1];
@@ -3020,10 +3028,12 @@ struct mlx5_ifc_qpc_bits {
 	u8         reserved_at_3c0[0x8];
 	u8         next_send_psn[0x18];
 
-	u8         reserved_at_3e0[0x8];
+	u8         reserved_at_3e0[0x3];
+	u8	   log_num_dci_stream_channels[0x5];
 	u8         cqn_snd[0x18];
 
-	u8         reserved_at_400[0x8];
+	u8         reserved_at_400[0x3];
+	u8	   log_num_dci_errored_streams[0x5];
 	u8         deth_sqpn[0x18];
 
 	u8         reserved_at_420[0x20];
@@ -3911,7 +3921,7 @@ struct mlx5_ifc_cqc_bits {
 	u8         status[0x4];
 	u8         reserved_at_4[0x2];
 	u8         dbr_umem_valid[0x1];
-	u8         apu_thread_cq[0x1];
+	u8         apu_cq[0x1];
 	u8         cqe_sz[0x3];
 	u8         cc[0x1];
 	u8         reserved_at_c[0x1];
@@ -3937,8 +3947,7 @@ struct mlx5_ifc_cqc_bits {
 	u8         cq_period[0xc];
 	u8         cq_max_count[0x10];
 
-	u8         reserved_at_a0[0x18];
-	u8         c_eqn[0x8];
+	u8         c_eqn_or_apu_element[0x20];
 
 	u8         reserved_at_c0[0x3];
 	u8         log_page_size[0x5];

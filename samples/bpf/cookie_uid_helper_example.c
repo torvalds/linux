@@ -167,7 +167,7 @@ static void prog_load(void)
 static void prog_attach_iptables(char *file)
 {
 	int ret;
-	char rules[100];
+	char rules[256];
 
 	if (bpf_obj_pin(prog_fd, file))
 		error(1, errno, "bpf_obj_pin");
@@ -175,8 +175,13 @@ static void prog_attach_iptables(char *file)
 		printf("file path too long: %s\n", file);
 		exit(1);
 	}
-	sprintf(rules, "iptables -A OUTPUT -m bpf --object-pinned %s -j ACCEPT",
-		file);
+	ret = snprintf(rules, sizeof(rules),
+		       "iptables -A OUTPUT -m bpf --object-pinned %s -j ACCEPT",
+		       file);
+	if (ret < 0 || ret >= sizeof(rules)) {
+		printf("error constructing iptables command\n");
+		exit(1);
+	}
 	ret = system(rules);
 	if (ret < 0) {
 		printf("iptables rule update failed: %d/n", WEXITSTATUS(ret));

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Device Tree Source for the Draak board
+ * Device Tree Source for the Draak board with R-Car D3
  *
  * Copyright (C) 2016-2018 Renesas Electronics Corp.
  * Copyright (C) 2017 Glider bvba
@@ -9,6 +9,7 @@
 /dts-v1/;
 #include "r8a77995.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "Renesas Draak board based on r8a77995";
@@ -17,6 +18,16 @@
 	aliases {
 		serial0 = &scif2;
 		ethernet0 = &avb;
+	};
+
+	audio_clkout: audio-clkout {
+		/*
+		 * This is same as <&rcar_sound 0>
+		 * but needed to avoid cs2000/rcar_sound probe dead-lock
+		 */
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <12288000>;
 	};
 
 	backlight: backlight {
@@ -64,6 +75,42 @@
 			hdmi_con_out: endpoint {
 				remote-endpoint = <&adv7511_out>;
 			};
+		};
+	};
+
+	keys {
+		compatible = "gpio-keys";
+
+		pinctrl-0 = <&keys_pins>;
+		pinctrl-names = "default";
+
+		key-1 {
+			gpios = <&gpio4 12 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_1>;
+			label = "SW56-1";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+		key-2 {
+			gpios = <&gpio4 13 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_2>;
+			label = "SW56-2";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+		key-3 {
+			gpios = <&gpio4 14 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_3>;
+			label = "SW56-3";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+		key-4 {
+			gpios = <&gpio4 15 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_4>;
+			label = "SW56-4";
+			wakeup-source;
+			debounce-interval = <20>;
 		};
 	};
 
@@ -124,6 +171,14 @@
 		regulator-always-on;
 	};
 
+	sound_card: sound {
+		compatible = "audio-graph-card";
+
+		dais = <&rsnd_port0	/* ak4613 */
+			/* HDMI is not yet supported */
+		>;
+	};
+
 	vga {
 		compatible = "vga-connector";
 
@@ -161,6 +216,25 @@
 		#clock-cells = <0>;
 		clock-frequency = <74250000>;
 	};
+
+	x19_clk: x19 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <24576000>;
+	};
+};
+
+&audio_clk_b {
+	/*
+	 * X11 is connected to VI4_FIELD/SCIF_CLK/AUDIO_CLKB,
+	 * and R-Car Sound uses AUDIO_CLKB.
+	 * Note is that schematic indicates VI4_FIELD conection only
+	 * not AUDIO_CLKB at SoC page.
+	 * And this VI4_FIELD/SCIF_CLK/AUDIO_CLKB is connected to SW60.
+	 * SW60 should be 1-2.
+	 */
+
+	clock-frequency = <22579200>;
 };
 
 &avb {
@@ -236,6 +310,28 @@
 	pinctrl-names = "default";
 	status = "okay";
 
+	ak4613: codec@10 {
+		compatible = "asahi-kasei,ak4613";
+		#sound-dai-cells = <0>;
+		reg = <0x10>;
+		clocks = <&rcar_sound 0>; /* audio_clkout */
+
+		asahi-kasei,in1-single-end;
+		asahi-kasei,in2-single-end;
+		asahi-kasei,out1-single-end;
+		asahi-kasei,out2-single-end;
+		asahi-kasei,out3-single-end;
+		asahi-kasei,out4-single-end;
+		asahi-kasei,out5-single-end;
+		asahi-kasei,out6-single-end;
+
+		port {
+			ak4613_endpoint: endpoint {
+				remote-endpoint = <&rsnd_for_ak4613>;
+			};
+		};
+	};
+
 	composite-in@20 {
 		compatible = "adi,adv7180cp";
 		reg = <0x20>;
@@ -276,10 +372,6 @@
 		reg-names = "main", "edid", "cec", "packet";
 		interrupt-parent = <&gpio1>;
 		interrupts = <28 IRQ_TYPE_LEVEL_LOW>;
-
-		/* Depends on LVDS */
-		max-clock = <135000000>;
-		min-vrefresh = <50>;
 
 		adi,input-depth = <8>;
 		adi,input-colorspace = "rgb";
@@ -340,6 +432,17 @@
 				};
 			};
 		};
+	};
+
+	cs2000: clk-multiplier@4f {
+		#clock-cells = <0>;
+		compatible = "cirrus,cs2000-cp";
+		reg = <0x4f>;
+		clocks = <&audio_clkout>, <&x19_clk>; /* audio_clkout_1, x19 */
+		clock-names = "clk_in", "ref_clk";
+
+		assigned-clocks = <&cs2000>;
+		assigned-clock-rates = <24576000>; /* 1/1 divide */
 	};
 
 	eeprom@50 {
@@ -422,6 +525,11 @@
 		function = "i2c1";
 	};
 
+	keys_pins: keys {
+		pins = "GP_4_12", "GP_4_13", "GP_4_14", "GP_4_15";
+		bias-pull-up;
+	};
+
 	pwm0_pins: pwm0 {
 		groups = "pwm0_c";
 		function = "pwm0";
@@ -449,6 +557,17 @@
 		power-source = <1800>;
 	};
 
+	sound_pins: sound {
+		groups = "ssi34_ctrl", "ssi3_data", "ssi4_data_a";
+		function = "ssi";
+	};
+
+	sound_clk_pins: sound-clk {
+		groups = "audio_clk_a", "audio_clk_b",
+			 "audio_clkout", "audio_clkout1";
+		function = "audio_clk";
+	};
+
 	usb0_pins: usb0 {
 		groups = "usb0";
 		function = "usb0";
@@ -472,6 +591,42 @@
 	pinctrl-names = "default";
 
 	status = "okay";
+};
+
+&rcar_sound {
+	pinctrl-0 = <&sound_pins>, <&sound_clk_pins>;
+	pinctrl-names = "default";
+
+	/* Single DAI */
+	#sound-dai-cells = <0>;
+
+	/* audio_clkout0/1 */
+	#clock-cells = <1>;
+	clock-frequency = <12288000 11289600>;
+
+	status = "okay";
+
+	clocks = <&cpg CPG_MOD 1005>,
+		 <&cpg CPG_MOD 1011>, <&cpg CPG_MOD 1012>,
+		 <&cpg CPG_MOD 1025>, <&cpg CPG_MOD 1026>,
+		 <&cpg CPG_MOD 1020>, <&cpg CPG_MOD 1021>,
+		 <&cpg CPG_MOD 1020>, <&cpg CPG_MOD 1021>,
+		 <&cpg CPG_MOD 1019>, <&cpg CPG_MOD 1018>,
+		 <&cs2000>, <&audio_clk_b>,
+		 <&cpg CPG_CORE R8A77995_CLK_ZA2>;
+
+	ports {
+		rsnd_port0: port {
+			rsnd_for_ak4613: endpoint {
+				remote-endpoint = <&ak4613_endpoint>;
+				dai-format = "left_j";
+				bitclock-master = <&rsnd_for_ak4613>;
+				frame-master = <&rsnd_for_ak4613>;
+				playback = <&ssi3>, <&src5>, <&dvc0>;
+				capture  = <&ssi4>, <&src6>, <&dvc1>;
+			};
+		};
+	};
 };
 
 &rwdt {
@@ -500,6 +655,10 @@
 	no-sdio;
 	non-removable;
 	status = "okay";
+};
+
+&ssi4 {
+	shared-pin;
 };
 
 &usb2_phy0 {

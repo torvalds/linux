@@ -164,12 +164,12 @@ static bool mlx5_sf_is_active(const struct mlx5_sf *sf)
 	return sf->hw_state == MLX5_VHCA_STATE_ACTIVE || sf->hw_state == MLX5_VHCA_STATE_IN_USE;
 }
 
-int mlx5_devlink_sf_port_fn_state_get(struct devlink *devlink, struct devlink_port *dl_port,
+int mlx5_devlink_sf_port_fn_state_get(struct devlink_port *dl_port,
 				      enum devlink_port_fn_state *state,
 				      enum devlink_port_fn_opstate *opstate,
 				      struct netlink_ext_ack *extack)
 {
-	struct mlx5_core_dev *dev = devlink_priv(devlink);
+	struct mlx5_core_dev *dev = devlink_priv(dl_port->devlink);
 	struct mlx5_sf_table *table;
 	struct mlx5_sf *sf;
 	int err = 0;
@@ -248,11 +248,11 @@ out:
 	return err;
 }
 
-int mlx5_devlink_sf_port_fn_state_set(struct devlink *devlink, struct devlink_port *dl_port,
+int mlx5_devlink_sf_port_fn_state_set(struct devlink_port *dl_port,
 				      enum devlink_port_fn_state state,
 				      struct netlink_ext_ack *extack)
 {
-	struct mlx5_core_dev *dev = devlink_priv(devlink);
+	struct mlx5_core_dev *dev = devlink_priv(dl_port->devlink);
 	struct mlx5_sf_table *table;
 	struct mlx5_sf *sf;
 	int err;
@@ -476,7 +476,7 @@ static void mlx5_sf_table_disable(struct mlx5_sf_table *table)
 		return;
 
 	/* Balances with refcount_set; drop the reference so that new user cmd cannot start
-	 * and new vhca event handler cannnot run.
+	 * and new vhca event handler cannot run.
 	 */
 	mlx5_sf_table_put(table);
 	wait_for_completion(&table->disable_complete);

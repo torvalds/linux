@@ -653,6 +653,8 @@
 
 /* Page 0x25 Audio Port Registers */
 #define CS42L42_SP_RX_CH_SEL		(CS42L42_PAGE_25 + 0x01)
+#define CS42L42_SP_RX_CHB_SEL_SHIFT	2
+#define CS42L42_SP_RX_CHB_SEL_MASK	(3 << CS42L42_SP_RX_CHB_SEL_SHIFT)
 
 #define CS42L42_SP_RX_ISOC_CTL		(CS42L42_PAGE_25 + 0x02)
 #define CS42L42_SP_RX_RSYNC_SHIFT	6
@@ -775,6 +777,7 @@ struct  cs42l42_private {
 	struct gpio_desc *reset_gpio;
 	struct completion pdn_done;
 	struct snd_soc_jack *jack;
+	int pll_config;
 	int bclk;
 	u32 sclk;
 	u32 srate;

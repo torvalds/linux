@@ -95,6 +95,17 @@ config IMX_WEIM
 	  The WEIM(Wireless External Interface Module) works like a bus.
 	  You can attach many different devices on it, such as NOR, onenand.
 
+config INTEL_IXP4XX_EB
+	bool "Intel IXP4xx expansion bus interface driver"
+	depends on HAS_IOMEM
+	depends on ARCH_IXP4XX || COMPILE_TEST
+	default ARCH_IXP4XX
+	select MFD_SYSCON
+	help
+	  Driver for the Intel IXP4xx expansion bus interface. The driver is
+	  needed to set up various chip select configuration parameters before
+	  devices on the expansion bus can be discovered.
+
 config MIPS_CDMM
 	bool "MIPS Common Device Memory Map (CDMM) Driver"
 	depends on CPU_MIPSR2 || CPU_MIPSR5

@@ -615,6 +615,8 @@ unsigned int snd_hda_codec_eapd_power_filter(struct hda_codec *codec,
 					     hda_nid_t nid,
 					     unsigned int power_state);
 
+void snd_hda_codec_shutdown(struct hda_codec *codec);
+
 /*
  * AMP control callbacks
  */

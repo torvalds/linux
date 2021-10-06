@@ -1,0 +1,137 @@
+[
+	{
+	    "id": "ce7d",
+	    "name": "Add mq Qdisc to multi-queue device (4 queues)",
+	    "category": [
+            "qdisc",
+            "mq"
+	    ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+	    "setup": [
+            "echo \"1 1 4\" > /sys/bus/netdevsim/new_device"
+	    ],
+	    "cmdUnderTest": "$TC qdisc add dev $ETH root handle 1: mq",
+	    "expExitCode": "0",
+	    "verifyCmd": "$TC qdisc show dev $ETH",
+	    "matchPattern": "qdisc pfifo_fast 0: parent 1:[1-4] bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1",
+	    "matchCount": "4",
+	    "teardown": [
+		    "echo \"1\" > /sys/bus/netdevsim/del_device"
+	    ]
+	},
+	{
+	    "id": "2f82",
+	    "name": "Add mq Qdisc to multi-queue device (256 queues)",
+	    "category": [
+            "qdisc",
+            "mq"
+	    ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+	    "setup": [
+            "echo \"1 1 256\" > /sys/bus/netdevsim/new_device"
+	    ],
+	    "cmdUnderTest": "$TC qdisc add dev $ETH root handle 1: mq",
+	    "expExitCode": "0",
+	    "verifyCmd": "$TC qdisc show dev $ETH",
+	    "matchPattern": "qdisc pfifo_fast 0: parent 1:[1-9,a-f][0-9,a-f]{0,2} bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1",
+	    "matchCount": "256",
+	    "teardown": [
+		    "echo \"1\" > /sys/bus/netdevsim/del_device"
+	    ]
+	},
+	{
+	    "id": "c525",
+	    "name": "Add duplicate mq Qdisc",
+	    "category": [
+            "qdisc",
+            "mq"
+	    ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+	    "setup": [
+            "echo \"1 1 4\" > /sys/bus/netdevsim/new_device",
+            "$TC qdisc add dev $ETH root handle 1: mq"
+	    ],
+	    "cmdUnderTest": "$TC qdisc add dev $ETH root handle 1: mq",
+	    "expExitCode": "2",
+	    "verifyCmd": "$TC qdisc show dev $ETH",
+	    "matchPattern": "qdisc pfifo_fast 0: parent 1:[1-4] bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1",
+	    "matchCount": "4",
+	    "teardown": [
+		    "echo \"1\" > /sys/bus/netdevsim/del_device"
+	    ]
+	},
+	{
+	    "id": "128a",
+	    "name": "Delete nonexistent mq Qdisc",
+	    "category": [
+            "qdisc",
+            "mq"
+	    ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+	    "setup": [
+            "echo \"1 1 4\" > /sys/bus/netdevsim/new_device"
+	    ],
+	    "cmdUnderTest": "$TC qdisc del dev $ETH root handle 1: mq",
+	    "expExitCode": "2",
+	    "verifyCmd": "$TC qdisc show dev $ETH",
+	    "matchPattern": "qdisc pfifo_fast 0: parent 1:[1-4] bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1",
+	    "matchCount": "0",
+	    "teardown": [
+		    "echo \"1\" > /sys/bus/netdevsim/del_device"
+	    ]
+	},
+	{
+	    "id": "03a9",
+	    "name": "Delete mq Qdisc twice",
+	    "category": [
+            "qdisc",
+            "mq"
+	    ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+	    "setup": [
+            "echo \"1 1 4\" > /sys/bus/netdevsim/new_device",
+            "$TC qdisc add dev $ETH root handle 1: mq",
+            "$TC qdisc del dev $ETH root handle 1: mq"
+	    ],
+	    "cmdUnderTest": "$TC qdisc del dev $ETH root handle 1: mq",
+	    "expExitCode": "2",
+	    "verifyCmd": "$TC qdisc show dev $ETH",
+	    "matchPattern": "qdisc pfifo_fast 0: parent 1:[1-4] bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1",
+	    "matchCount": "0",
+	    "teardown": [
+		    "echo \"1\" > /sys/bus/netdevsim/del_device"
+	    ]
+	},
+    {
+	    "id": "be0f",
+	    "name": "Add mq Qdisc to single-queue device",
+	    "category": [
+            "qdisc",
+            "mq"
+	    ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+	    "setup": [
+            "echo \"1 1\" > /sys/bus/netdevsim/new_device"
+	    ],
+	    "cmdUnderTest": "$TC qdisc add dev $ETH root handle 1: mq",
+	    "expExitCode": "2",
+	    "verifyCmd": "$TC qdisc show dev $ETH",
+	    "matchPattern": "qdisc pfifo_fast 0: parent 1:[1-4] bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1",
+	    "matchCount": "0",
+	    "teardown": [
+		    "echo \"1\" > /sys/bus/netdevsim/del_device"
+	    ]
+	}
+]

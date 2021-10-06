@@ -9,6 +9,8 @@ config MIPS
 	select ARCH_HAS_KCOV
 	select ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE if !EVA
 	select ARCH_HAS_PTE_SPECIAL if !(32BIT && CPU_HAS_RIXI)
+	select ARCH_HAS_STRNCPY_FROM_USER
+	select ARCH_HAS_STRNLEN_USER
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
 	select ARCH_HAS_UBSAN_SANITIZE_ALL
 	select ARCH_HAS_GCOV_PROFILE_ALL
@@ -71,7 +73,6 @@ config MIPS
 	select HAVE_FUNCTION_TRACER
 	select HAVE_GCC_PLUGINS
 	select HAVE_GENERIC_VDSO
-	select HAVE_IDE
 	select HAVE_IOREMAP_PROT
 	select HAVE_IRQ_EXIT_ON_IRQ_STACK
 	select HAVE_IRQ_TIME_ACCOUNTING
@@ -97,6 +98,7 @@ config MIPS
 	select PCI_MSI_ARCH_FALLBACKS if PCI_MSI
 	select RTC_LIB
 	select SYSCTL_EXCEPTION_TRACE
+	select TRACE_IRQFLAGS_SUPPORT
 	select VIRT_TO_BUS
 	select ARCH_HAS_ELFCORE_COMPAT
 
@@ -512,35 +514,6 @@ config MACH_LOONGSON64
 	  GS264/GS464/GS464E/GS464V microarchitecture (except old Loongson-2E
 	  and Loongson-2F which will be removed), developed by the Institute
 	  of Computing Technology (ICT), Chinese Academy of Sciences (CAS).
-
-config MACH_PISTACHIO
-	bool "IMG Pistachio SoC based boards"
-	select BOOT_ELF32
-	select BOOT_RAW
-	select CEVT_R4K
-	select CLKSRC_MIPS_GIC
-	select COMMON_CLK
-	select CSRC_R4K
-	select DMA_NONCOHERENT
-	select GPIOLIB
-	select IRQ_MIPS_CPU
-	select MFD_SYSCON
-	select MIPS_CPU_SCACHE
-	select MIPS_GIC
-	select PINCTRL
-	select REGULATOR
-	select SYS_HAS_CPU_MIPS32_R2
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-	select SYS_SUPPORTS_MIPS_CPS
-	select SYS_SUPPORTS_MULTITHREADING
-	select SYS_SUPPORTS_RELOCATABLE
-	select SYS_SUPPORTS_ZBOOT
-	select SYS_HAS_EARLY_PRINTK
-	select USE_GENERIC_EARLY_PRINTK_8250
-	select USE_OF
-	help
-	  This enables support for the IMG Pistachio SoC platform.
 
 config MIPS_MALTA
 	bool "MIPS Malta board"
@@ -1088,7 +1061,6 @@ source "arch/mips/ingenic/Kconfig"
 source "arch/mips/jazz/Kconfig"
 source "arch/mips/lantiq/Kconfig"
 source "arch/mips/pic32/Kconfig"
-source "arch/mips/pistachio/Kconfig"
 source "arch/mips/ralink/Kconfig"
 source "arch/mips/sgi-ip27/Kconfig"
 source "arch/mips/sibyte/Kconfig"

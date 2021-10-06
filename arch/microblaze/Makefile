@@ -50,16 +50,11 @@ KBUILD_CFLAGS += -ffixed-r31 $(CPUFLAGS-y) $(CPUFLAGS-1) $(CPUFLAGS-2)
 
 head-y := arch/microblaze/kernel/head.o
 libs-y += arch/microblaze/lib/
-core-y += arch/microblaze/kernel/
-core-y += arch/microblaze/mm/
-core-$(CONFIG_PCI) += arch/microblaze/pci/
 
 boot := arch/microblaze/boot
 
 # Are we making a simpleImage.<boardname> target? If so, crack out the boardname
 DTB:=$(subst simpleImage.,,$(filter simpleImage.%, $(MAKECMDGOALS)))
-
-core-y	+= $(boot)/dts/
 
 export DTB
 

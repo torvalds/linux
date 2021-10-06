@@ -11,9 +11,9 @@
 #include "nouveau_vga.h"
 
 static unsigned int
-nouveau_vga_set_decode(void *priv, bool state)
+nouveau_vga_set_decode(struct pci_dev *pdev, bool state)
 {
-	struct nouveau_drm *drm = nouveau_drm(priv);
+	struct nouveau_drm *drm = nouveau_drm(pci_get_drvdata(pdev));
 	struct nvif_object *device = &drm->client.device.object;
 
 	if (drm->client.device.info.family == NV_DEVICE_INFO_V0_CURIE &&
@@ -94,7 +94,7 @@ nouveau_vga_init(struct nouveau_drm *drm)
 		return;
 	pdev = to_pci_dev(dev->dev);
 
-	vga_client_register(pdev, dev, NULL, nouveau_vga_set_decode);
+	vga_client_register(pdev, nouveau_vga_set_decode);
 
 	/* don't register Thunderbolt eGPU with vga_switcheroo */
 	if (pci_is_thunderbolt_attached(pdev))
@@ -118,7 +118,7 @@ nouveau_vga_fini(struct nouveau_drm *drm)
 		return;
 	pdev = to_pci_dev(dev->dev);
 
-	vga_client_register(pdev, NULL, NULL, NULL);
+	vga_client_unregister(pdev);
 
 	if (pci_is_thunderbolt_attached(pdev))
 		return;

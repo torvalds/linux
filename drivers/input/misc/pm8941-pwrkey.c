@@ -284,7 +284,7 @@ static int pm8941_pwrkey_probe(struct platform_device *pdev)
 	}
 
 	if (pwrkey->data->supports_ps_hold_poff_config) {
-		pwrkey->reboot_notifier.notifier_call = pm8941_reboot_notify,
+		pwrkey->reboot_notifier.notifier_call = pm8941_reboot_notify;
 		error = register_reboot_notifier(&pwrkey->reboot_notifier);
 		if (error) {
 			dev_err(&pdev->dev, "failed to register reboot notifier: %d\n",

@@ -653,12 +653,8 @@ static void lp_gpio_irq_handler(struct irq_desc *desc)
 		/* Only interrupts that are enabled */
 		pending = ioread32(reg) & ioread32(ena);
 
-		for_each_set_bit(pin, &pending, 32) {
-			unsigned int irq;
-
-			irq = irq_find_mapping(lg->chip.irq.domain, base + pin);
-			generic_handle_irq(irq);
-		}
+		for_each_set_bit(pin, &pending, 32)
+			generic_handle_domain_irq(lg->chip.irq.domain, base + pin);
 	}
 	chip->irq_eoi(data);
 }

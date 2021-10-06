@@ -84,6 +84,9 @@ cache_strategy=%s      Select a strategy for cached decompression from now on:
                                    It still does in-place I/O decompression
                                    for the rest compressed physical clusters.
 		       ==========  =============================================
+dax={always,never}     Use direct access (no page cache).  See
+                       Documentation/filesystems/dax.rst.
+dax                    A legacy option which is an alias for ``dax=always``.
 ===================    =========================================================
 
 On-disk details
@@ -153,13 +156,14 @@ may not. All metadatas can be now observed in two different spaces (views):
 
     Xattrs, extents, data inline are followed by the corresponding inode with
     proper alignment, and they could be optional for different data mappings.
-    _currently_ total 4 valid data mappings are supported:
+    _currently_ total 5 data layouts are supported:
 
     ==  ====================================================================
      0  flat file data without data inline (no extent);
      1  fixed-sized output data compression (with non-compacted indexes);
      2  flat file data with tail packing data inline (no extent);
-     3  fixed-sized output data compression (with compacted indexes, v5.3+).
+     3  fixed-sized output data compression (with compacted indexes, v5.3+);
+     4  chunk-based file (v5.15+).
     ==  ====================================================================
 
     The size of the optional xattrs is indicated by i_xattr_count in inode
@@ -209,6 +213,17 @@ algorithm (could refer to the related source code).
 Note that apart from the offset of the first filename, nameoff0 also indicates
 the total number of directory entries in this block since it is no need to
 introduce another on-disk field at all.
+
+Chunk-based file
+----------------
+In order to support chunk-based data deduplication, a new inode data layout has
+been supported since Linux v5.15: Files are split in equal-sized data chunks
+with ``extents`` area of the inode metadata indicating how to get the chunk
+data: these can be simply as a 4-byte block address array or in the 8-byte
+chunk index form (see struct erofs_inode_chunk_index in erofs_fs.h for more
+details.)
+
+By the way, chunk-based files are all uncompressed for now.
 
 Data compression
 ----------------

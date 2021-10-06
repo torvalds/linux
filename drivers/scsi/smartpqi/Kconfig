@@ -1,7 +1,7 @@
 #
 # Kernel configuration file for the SMARTPQI
 #
-# Copyright (c) 2019-2020 Microchip Technology Inc. and its subsidiaries
+# Copyright (c) 2019-2021 Microchip Technology Inc. and its subsidiaries
 # Copyright (c) 2017-2018 Microsemi Corporation
 # Copyright (c) 2016 Microsemi Corporation
 # Copyright (c) 2016 PMC-Sierra, Inc.
@@ -38,14 +38,14 @@
 # HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
 
 config SCSI_SMARTPQI
-	tristate "Microsemi PQI Driver"
+	tristate "Microchip PQI Driver"
 	depends on PCI && SCSI && !S390
 	select SCSI_SAS_ATTRS
 	select RAID_ATTRS
 	help
-	This driver supports Microsemi PQI controllers.
+	This driver supports Microchip PQI controllers.
 
-	<http://www.microsemi.com>
+	<http://www.microchip.com>
 
 	To compile this driver as a module, choose M here: the
 	module will be called smartpqi.

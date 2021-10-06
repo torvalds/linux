@@ -16,7 +16,7 @@
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_transport_sas.h>
 #include <scsi/sas_ata.h>
-#include "../scsi_sas_internal.h"
+#include "scsi_sas_internal.h"
 
 /* ---------- Basic task processing for discovery purposes ---------- */
 
@@ -461,7 +461,7 @@ static void sas_discover_domain(struct work_struct *work)
 		break;
 #else
 		pr_notice("ATA device seen but CONFIG_SCSI_SAS_ATA=N so cannot attach\n");
-		/* Fall through */
+		fallthrough;
 #endif
 		/* Fall through - only for the #else condition above. */
 	default:

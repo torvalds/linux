@@ -33,8 +33,11 @@ properties:
 
   backlight: true
 
+  spi-cpha: true
+
+  spi-cpol: true
+
   spi-max-frequency:
-    $ref: /schemas/types.yaml#/definitions/uint32
     description: inherited as a SPI client node, the datasheet specifies
       maximum 300 ns minimum cycle which gives around 3 MHz max frequency
     maximum: 3000000
@@ -44,6 +47,9 @@ properties:
 required:
   - compatible
   - reg
+  - spi-cpha
+  - spi-cpol
+  - port
 
 additionalProperties: false
 
@@ -52,15 +58,23 @@ examples:
     #include <dt-bindings/gpio/gpio.h>
 
     spi {
+      compatible = "spi-gpio";
+      sck-gpios = <&gpio 0 GPIO_ACTIVE_HIGH>;
+      miso-gpios = <&gpio 1 GPIO_ACTIVE_HIGH>;
+      mosi-gpios = <&gpio 2 GPIO_ACTIVE_HIGH>;
+      cs-gpios = <&gpio 3 GPIO_ACTIVE_HIGH>;
+      num-chipselects = <1>;
       #address-cells = <1>;
       #size-cells = <0>;
       panel@0 {
         compatible = "samsung,lms397kf04";
         spi-max-frequency = <3000000>;
+        spi-cpha;
+        spi-cpol;
         reg = <0>;
         vci-supply = <&lcd_3v0_reg>;
         vccio-supply = <&lcd_1v8_reg>;
-        reset-gpios = <&gpio 1 GPIO_ACTIVE_LOW>;
+        reset-gpios = <&gpio 4 GPIO_ACTIVE_LOW>;
         backlight = <&ktd259>;
 
         port {

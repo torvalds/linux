@@ -2426,7 +2426,7 @@ create_sd_buf(umode_t mode, bool set_owner, unsigned int *len)
 	memcpy(aclptr, &acl, sizeof(struct cifs_acl));
 
 	buf->ccontext.DataLength = cpu_to_le32(ptr - (__u8 *)&buf->sd);
-	*len = ptr - (__u8 *)buf;
+	*len = roundup(ptr - (__u8 *)buf, 8);
 
 	return buf;
 }

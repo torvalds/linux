@@ -104,8 +104,17 @@ properties:
           maximum: 32
     maxItems: 1
 
+  power-domains:
+    description:
+      Power domain provider node and an args specifier containing
+      the can device id value.
+    maxItems: 1
+
   can-transceiver:
     $ref: can-transceiver.yaml#
+
+  phys:
+    maxItems: 1
 
 required:
   - compatible

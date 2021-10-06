@@ -329,16 +329,16 @@ if (defined($ENV{'KBUILD_VERBOSE'})) {
 	$verbose = "$ENV{'KBUILD_VERBOSE'}";
 }
 
-if (defined($ENV{'KDOC_WERROR'})) {
-	$Werror = "$ENV{'KDOC_WERROR'}";
-}
-
 if (defined($ENV{'KCFLAGS'})) {
 	my $kcflags = "$ENV{'KCFLAGS'}";
 
 	if ($kcflags =~ /Werror/) {
 		$Werror = 1;
 	}
+}
+
+if (defined($ENV{'KDOC_WERROR'})) {
+	$Werror = "$ENV{'KDOC_WERROR'}";
 }
 
 # Generated docbook code is inserted in a template at a point where

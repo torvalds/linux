@@ -7,6 +7,8 @@ config UML
 	default y
 	select ARCH_EPHEMERAL_INODES
 	select ARCH_HAS_KCOV
+	select ARCH_HAS_STRNCPY_FROM_USER
+	select ARCH_HAS_STRNLEN_USER
 	select ARCH_NO_PREEMPT
 	select HAVE_ARCH_AUDITSYSCALL
 	select HAVE_ARCH_SECCOMP_FILTER
@@ -20,7 +22,9 @@ config UML
 	select GENERIC_CPU_DEVICES
 	select HAVE_GCC_PLUGINS
 	select SET_FS
+	select TRACE_IRQFLAGS_SUPPORT
 	select TTY # Needed for line.c
+	select HAVE_ARCH_VMAP_STACK
 
 config MMU
 	bool
@@ -49,10 +53,6 @@ config ISA
 
 config SBUS
 	bool
-
-config TRACE_IRQFLAGS_SUPPORT
-	bool
-	default y
 
 config LOCKDEP_SUPPORT
 	bool

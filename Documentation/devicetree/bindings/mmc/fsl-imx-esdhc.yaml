@@ -29,6 +29,7 @@ properties:
           - fsl,imx53-esdhc
           - fsl,imx6q-usdhc
           - fsl,imx6sl-usdhc
+          - fsl,imx6sll-usdhc
           - fsl,imx6sx-usdhc
           - fsl,imx6ull-usdhc
           - fsl,imx7d-usdhc
@@ -115,12 +116,17 @@ properties:
       - const: per
 
   pinctrl-names:
-    minItems: 1
-    items:
-      - const: default
-      - const: state_100mhz
-      - const: state_200mhz
-      - const: sleep
+    oneOf:
+      - minItems: 3
+        items:
+          - const: default
+          - const: state_100mhz
+          - const: state_200mhz
+          - const: sleep
+      - minItems: 1
+        items:
+          - const: default
+          - const: sleep
 
 required:
   - compatible

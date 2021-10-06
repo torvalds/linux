@@ -210,14 +210,14 @@ static int dsa_master_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		break;
 	}
 
-	if (dev->netdev_ops->ndo_do_ioctl)
-		err = dev->netdev_ops->ndo_do_ioctl(dev, ifr, cmd);
+	if (dev->netdev_ops->ndo_eth_ioctl)
+		err = dev->netdev_ops->ndo_eth_ioctl(dev, ifr, cmd);
 
 	return err;
 }
 
 static const struct dsa_netdevice_ops dsa_netdev_ops = {
-	.ndo_do_ioctl = dsa_master_ioctl,
+	.ndo_eth_ioctl = dsa_master_ioctl,
 };
 
 static int dsa_master_ethtool_setup(struct net_device *dev)

@@ -96,9 +96,6 @@ config HAVE_FAST_GUP
 	depends on MMU
 	bool
 
-config HOLES_IN_ZONE
-	bool
-
 # Don't discard allocated memory used to track "memory" and "reserved" memblocks
 # after early boot, so it can still be used to test for validity of memory.
 # Also, memblocks are updated with memory hot(un)plug.
@@ -742,10 +739,18 @@ config DEFERRED_STRUCT_PAGE_INIT
 	  lifetime of the system until these kthreads finish the
 	  initialisation.
 
+config PAGE_IDLE_FLAG
+	bool
+	select PAGE_EXTENSION if !64BIT
+	help
+	  This adds PG_idle and PG_young flags to 'struct page'.  PTE Accessed
+	  bit writers can set the state of the bit in the flags so that PTE
+	  Accessed bit readers may avoid disturbance.
+
 config IDLE_PAGE_TRACKING
 	bool "Enable idle page tracking"
 	depends on SYSFS && MMU
-	select PAGE_EXTENSION if !64BIT
+	select PAGE_IDLE_FLAG
 	help
 	  This feature allows to estimate the amount of user pages that have
 	  not been touched during a given period of time. This information can
@@ -888,5 +893,7 @@ config IO_MAPPING
 
 config SECRETMEM
 	def_bool ARCH_HAS_SET_DIRECT_MAP && !EMBEDDED
+
+source "mm/damon/Kconfig"
 
 endmenu

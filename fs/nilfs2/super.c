@@ -1053,7 +1053,7 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_time_gran = 1;
 	sb->s_max_links = NILFS_LINK_MAX;
 
-	sb->s_bdi = bdi_get(sb->s_bdev->bd_bdi);
+	sb->s_bdi = bdi_get(sb->s_bdev->bd_disk->bdi);
 
 	err = load_nilfs(nilfs, sb);
 	if (err)

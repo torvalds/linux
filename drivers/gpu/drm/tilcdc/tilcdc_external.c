@@ -93,10 +93,8 @@ int tilcdc_attach_bridge(struct drm_device *ddev, struct drm_bridge *bridge)
 	priv->external_encoder->possible_crtcs = BIT(0);
 
 	ret = drm_bridge_attach(priv->external_encoder, bridge, NULL, 0);
-	if (ret) {
-		dev_err(ddev->dev, "drm_bridge_attach() failed %d\n", ret);
+	if (ret)
 		return ret;
-	}
 
 	tilcdc_crtc_set_panel_info(priv->crtc, &panel_info_default);
 

@@ -113,25 +113,25 @@ int rxe_mr_init_user(struct rxe_pd *pd, u64 start, u64 length, u64 iova,
 	int			num_buf;
 	void			*vaddr;
 	int err;
+	int i;
 
 	umem = ib_umem_get(pd->ibpd.device, start, length, access);
 	if (IS_ERR(umem)) {
-		pr_warn("err %d from rxe_umem_get\n",
-			(int)PTR_ERR(umem));
+		pr_warn("%s: Unable to pin memory region err = %d\n",
+			__func__, (int)PTR_ERR(umem));
 		err = PTR_ERR(umem);
-		goto err1;
+		goto err_out;
 	}
 
-	mr->umem = umem;
 	num_buf = ib_umem_num_pages(umem);
 
 	rxe_mr_init(access, mr);
 
 	err = rxe_mr_alloc(mr, num_buf);
 	if (err) {
-		pr_warn("err %d from rxe_mr_alloc\n", err);
-		ib_umem_release(umem);
-		goto err1;
+		pr_warn("%s: Unable to allocate memory for map\n",
+				__func__);
+		goto err_release_umem;
 	}
 
 	mr->page_shift = PAGE_SHIFT;
@@ -142,7 +142,7 @@ int rxe_mr_init_user(struct rxe_pd *pd, u64 start, u64 length, u64 iova,
 	if (length > 0) {
 		buf = map[0]->buf;
 
-		for_each_sg_page(umem->sg_head.sgl, &sg_iter, umem->nmap, 0) {
+		for_each_sgtable_page (&umem->sgt_append.sgt, &sg_iter, 0) {
 			if (num_buf >= RXE_BUF_PER_MAP) {
 				map++;
 				buf = map[0]->buf;
@@ -151,10 +151,10 @@ int rxe_mr_init_user(struct rxe_pd *pd, u64 start, u64 length, u64 iova,
 
 			vaddr = page_address(sg_page_iter_page(&sg_iter));
 			if (!vaddr) {
-				pr_warn("null vaddr\n");
-				ib_umem_release(umem);
+				pr_warn("%s: Unable to get virtual address\n",
+						__func__);
 				err = -ENOMEM;
-				goto err1;
+				goto err_cleanup_map;
 			}
 
 			buf->addr = (uintptr_t)vaddr;
@@ -177,7 +177,13 @@ int rxe_mr_init_user(struct rxe_pd *pd, u64 start, u64 length, u64 iova,
 
 	return 0;
 
-err1:
+err_cleanup_map:
+	for (i = 0; i < mr->num_map; i++)
+		kfree(mr->map[i]);
+	kfree(mr->map);
+err_release_umem:
+	ib_umem_release(umem);
+err_out:
 	return err;
 }
 
@@ -279,11 +285,10 @@ out:
 }
 
 /* copy data from a range (vaddr, vaddr+length-1) to or from
- * a mr object starting at iova. Compute incremental value of
- * crc32 if crcp is not zero. caller must hold a reference to mr
+ * a mr object starting at iova.
  */
 int rxe_mr_copy(struct rxe_mr *mr, u64 iova, void *addr, int length,
-		enum rxe_mr_copy_dir dir, u32 *crcp)
+		enum rxe_mr_copy_dir dir)
 {
 	int			err;
 	int			bytes;
@@ -293,7 +298,6 @@ int rxe_mr_copy(struct rxe_mr *mr, u64 iova, void *addr, int length,
 	int			m;
 	int			i;
 	size_t			offset;
-	u32			crc = crcp ? (*crcp) : 0;
 
 	if (length == 0)
 		return 0;
@@ -306,10 +310,6 @@ int rxe_mr_copy(struct rxe_mr *mr, u64 iova, void *addr, int length,
 		dest = (dir == RXE_TO_MR_OBJ) ? ((void *)(uintptr_t)iova) : addr;
 
 		memcpy(dest, src, length);
-
-		if (crcp)
-			*crcp = rxe_crc32(to_rdev(mr->ibmr.device), *crcp, dest,
-					  length);
 
 		return 0;
 	}
@@ -341,10 +341,6 @@ int rxe_mr_copy(struct rxe_mr *mr, u64 iova, void *addr, int length,
 
 		memcpy(dest, src, bytes);
 
-		if (crcp)
-			crc = rxe_crc32(to_rdev(mr->ibmr.device), crc, dest,
-					bytes);
-
 		length	-= bytes;
 		addr	+= bytes;
 
@@ -358,9 +354,6 @@ int rxe_mr_copy(struct rxe_mr *mr, u64 iova, void *addr, int length,
 			buf = map[0]->buf;
 		}
 	}
-
-	if (crcp)
-		*crcp = crc;
 
 	return 0;
 
@@ -377,8 +370,7 @@ int copy_data(
 	struct rxe_dma_info	*dma,
 	void			*addr,
 	int			length,
-	enum rxe_mr_copy_dir	dir,
-	u32			*crcp)
+	enum rxe_mr_copy_dir	dir)
 {
 	int			bytes;
 	struct rxe_sge		*sge	= &dma->sge[dma->cur_sge];
@@ -439,7 +431,7 @@ int copy_data(
 		if (bytes > 0) {
 			iova = sge->addr + offset;
 
-			err = rxe_mr_copy(mr, iova, addr, bytes, dir, crcp);
+			err = rxe_mr_copy(mr, iova, addr, bytes, dir);
 			if (err)
 				goto err2;
 

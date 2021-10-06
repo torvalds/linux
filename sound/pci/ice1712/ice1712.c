@@ -2432,31 +2432,18 @@ static int snd_ice1712_build_controls(struct snd_ice1712 *ice)
 			   snd_ctl_new1(&snd_ice1712_mixer_pro_peak, ice));
 }
 
-static int snd_ice1712_free(struct snd_ice1712 *ice)
+static void snd_ice1712_free(struct snd_card *card)
 {
-	if (!ice->port)
-		goto __hw_end;
+	struct snd_ice1712 *ice = card->private_data;
+
+	if (ice->card_info && ice->card_info->chip_exit)
+		ice->card_info->chip_exit(ice);
+
 	/* mask all interrupts */
 	outb(ICE1712_MULTI_CAPTURE | ICE1712_MULTI_PLAYBACK, ICEMT(ice, IRQ));
 	outb(0xff, ICEREG(ice, IRQMASK));
-	/* --- */
-__hw_end:
-	if (ice->irq >= 0)
-		free_irq(ice->irq, ice);
 
-	if (ice->port)
-		pci_release_regions(ice->pci);
 	snd_ice1712_akm4xxx_free(ice);
-	pci_disable_device(ice->pci);
-	kfree(ice->spec);
-	kfree(ice);
-	return 0;
-}
-
-static int snd_ice1712_dev_free(struct snd_device *device)
-{
-	struct snd_ice1712 *ice = device->device_data;
-	return snd_ice1712_free(ice);
 }
 
 static int snd_ice1712_create(struct snd_card *card,
@@ -2464,34 +2451,22 @@ static int snd_ice1712_create(struct snd_card *card,
 			      const char *modelname,
 			      int omni,
 			      int cs8427_timeout,
-			      int dxr_enable,
-			      struct snd_ice1712 **r_ice1712)
+			      int dxr_enable)
 {
-	struct snd_ice1712 *ice;
+	struct snd_ice1712 *ice = card->private_data;
 	int err;
-	static const struct snd_device_ops ops = {
-		.dev_free =	snd_ice1712_dev_free,
-	};
-
-	*r_ice1712 = NULL;
 
 	/* enable PCI device */
-	err = pci_enable_device(pci);
+	err = pcim_enable_device(pci);
 	if (err < 0)
 		return err;
 	/* check, if we can restrict PCI DMA transfers to 28 bits */
 	if (dma_set_mask_and_coherent(&pci->dev, DMA_BIT_MASK(28))) {
 		dev_err(card->dev,
 			"architecture does not support 28bit PCI busmaster DMA\n");
-		pci_disable_device(pci);
 		return -ENXIO;
 	}
 
-	ice = kzalloc(sizeof(*ice), GFP_KERNEL);
-	if (ice == NULL) {
-		pci_disable_device(pci);
-		return -ENOMEM;
-	}
 	ice->omni = omni ? 1 : 0;
 	if (cs8427_timeout < 1)
 		cs8427_timeout = 1;
@@ -2523,45 +2498,29 @@ static int snd_ice1712_create(struct snd_card *card,
 	pci_write_config_word(ice->pci, 0x42, 0x0006);
 	snd_ice1712_proc_init(ice);
 
-	card->private_data = ice;
-
 	err = pci_request_regions(pci, "ICE1712");
-	if (err < 0) {
-		kfree(ice);
-		pci_disable_device(pci);
+	if (err < 0)
 		return err;
-	}
 	ice->port = pci_resource_start(pci, 0);
 	ice->ddma_port = pci_resource_start(pci, 1);
 	ice->dmapath_port = pci_resource_start(pci, 2);
 	ice->profi_port = pci_resource_start(pci, 3);
 
-	if (request_irq(pci->irq, snd_ice1712_interrupt, IRQF_SHARED,
-			KBUILD_MODNAME, ice)) {
+	if (devm_request_irq(&pci->dev, pci->irq, snd_ice1712_interrupt,
+			     IRQF_SHARED, KBUILD_MODNAME, ice)) {
 		dev_err(card->dev, "unable to grab IRQ %d\n", pci->irq);
-		snd_ice1712_free(ice);
 		return -EIO;
 	}
 
 	ice->irq = pci->irq;
 	card->sync_irq = ice->irq;
+	card->private_free = snd_ice1712_free;
 
-	if (snd_ice1712_read_eeprom(ice, modelname) < 0) {
-		snd_ice1712_free(ice);
+	if (snd_ice1712_read_eeprom(ice, modelname) < 0)
 		return -EIO;
-	}
-	if (snd_ice1712_chip_init(ice) < 0) {
-		snd_ice1712_free(ice);
+	if (snd_ice1712_chip_init(ice) < 0)
 		return -EIO;
-	}
 
-	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, ice, &ops);
-	if (err < 0) {
-		snd_ice1712_free(ice);
-		return err;
-	}
-
-	*r_ice1712 = ice;
 	return 0;
 }
 
@@ -2591,34 +2550,31 @@ static int snd_ice1712_probe(struct pci_dev *pci,
 	}
 
 	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
-			   0, &card);
+			   sizeof(*ice), &card);
 	if (err < 0)
 		return err;
+	ice = card->private_data;
 
 	strcpy(card->driver, "ICE1712");
 	strcpy(card->shortname, "ICEnsemble ICE1712");
 
 	err = snd_ice1712_create(card, pci, model[dev], omni[dev],
-		cs8427_timeout[dev], dxr_enable[dev], &ice);
-	if (err < 0) {
-		snd_card_free(card);
+				 cs8427_timeout[dev], dxr_enable[dev]);
+	if (err < 0)
 		return err;
-	}
 
 	for (tbl = card_tables; *tbl; tbl++) {
 		for (c = *tbl; c->subvendor; c++) {
 			if (c->subvendor == ice->eeprom.subvendor) {
-				ice->card_info = c;
 				strcpy(card->shortname, c->name);
 				if (c->driver) /* specific driver? */
 					strcpy(card->driver, c->driver);
 				if (c->chip_init) {
 					err = c->chip_init(ice);
-					if (err < 0) {
-						snd_card_free(card);
+					if (err < 0)
 						return err;
-					}
 				}
+				ice->card_info = c;
 				goto __found;
 			}
 		}
@@ -2627,45 +2583,33 @@ static int snd_ice1712_probe(struct pci_dev *pci,
  __found:
 
 	err = snd_ice1712_pcm_profi(ice, pcm_dev++);
-	if (err < 0) {
-		snd_card_free(card);
+	if (err < 0)
 		return err;
-	}
 
 	if (ice_has_con_ac97(ice)) {
 		err = snd_ice1712_pcm(ice, pcm_dev++);
-		if (err < 0) {
-			snd_card_free(card);
+		if (err < 0)
 			return err;
-		}
 	}
 
 	err = snd_ice1712_ac97_mixer(ice);
-	if (err < 0) {
-		snd_card_free(card);
+	if (err < 0)
 		return err;
-	}
 
 	err = snd_ice1712_build_controls(ice);
-	if (err < 0) {
-		snd_card_free(card);
+	if (err < 0)
 		return err;
-	}
 
 	if (c->build_controls) {
 		err = c->build_controls(ice);
-		if (err < 0) {
-			snd_card_free(card);
+		if (err < 0)
 			return err;
-		}
 	}
 
 	if (ice_has_con_ac97(ice)) {
 		err = snd_ice1712_pcm_ds(ice, pcm_dev++);
-		if (err < 0) {
-			snd_card_free(card);
+		if (err < 0)
 			return err;
-		}
 	}
 
 	if (!c->no_mpu401) {
@@ -2674,10 +2618,8 @@ static int snd_ice1712_probe(struct pci_dev *pci,
 			c->mpu401_1_info_flags |
 			MPU401_INFO_INTEGRATED | MPU401_INFO_IRQ_HOOK,
 			-1, &ice->rmidi[0]);
-		if (err < 0) {
-			snd_card_free(card);
+		if (err < 0)
 			return err;
-		}
 		if (c->mpu401_1_name)
 			/*  Preferred name available in card_info */
 			snprintf(ice->rmidi[0]->name,
@@ -2692,10 +2634,8 @@ static int snd_ice1712_probe(struct pci_dev *pci,
 				MPU401_INFO_INTEGRATED | MPU401_INFO_IRQ_HOOK,
 				-1, &ice->rmidi[1]);
 
-			if (err < 0) {
-				snd_card_free(card);
+			if (err < 0)
 				return err;
-			}
 			if (c->mpu401_2_name)
 				/*  Preferred name available in card_info */
 				snprintf(ice->rmidi[1]->name,
@@ -2711,23 +2651,11 @@ static int snd_ice1712_probe(struct pci_dev *pci,
 		card->shortname, ice->port, ice->irq);
 
 	err = snd_card_register(card);
-	if (err < 0) {
-		snd_card_free(card);
+	if (err < 0)
 		return err;
-	}
 	pci_set_drvdata(pci, card);
 	dev++;
 	return 0;
-}
-
-static void snd_ice1712_remove(struct pci_dev *pci)
-{
-	struct snd_card *card = pci_get_drvdata(pci);
-	struct snd_ice1712 *ice = card->private_data;
-
-	if (ice->card_info && ice->card_info->chip_exit)
-		ice->card_info->chip_exit(ice);
-	snd_card_free(card);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -2810,7 +2738,6 @@ static struct pci_driver ice1712_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_ice1712_ids,
 	.probe = snd_ice1712_probe,
-	.remove = snd_ice1712_remove,
 	.driver = {
 		.pm = SND_VT1712_PM_OPS,
 	},

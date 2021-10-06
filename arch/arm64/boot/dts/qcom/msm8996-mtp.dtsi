@@ -20,3 +20,11 @@
 		};
 	};
 };
+
+&hdmi {
+	status = "okay";
+};
+
+&hdmi_phy {
+	status = "okay";
+};

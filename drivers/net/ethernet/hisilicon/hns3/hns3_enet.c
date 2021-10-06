@@ -63,7 +63,7 @@ MODULE_PARM_DESC(tx_sgl, "Minimum number of frags when using dma_map_sg() to opt
 
 #define HNS3_SGL_SIZE(nfrag)	(sizeof(struct scatterlist) * (nfrag) +	\
 				 sizeof(struct sg_table))
-#define HNS3_MAX_SGL_SIZE	ALIGN(HNS3_SGL_SIZE(HNS3_MAX_TSO_BD_NUM),\
+#define HNS3_MAX_SGL_SIZE	ALIGN(HNS3_SGL_SIZE(HNS3_MAX_TSO_BD_NUM), \
 				      dma_get_cache_alignment())
 
 #define DEFAULT_MSG_LEVEL (NETIF_MSG_PROBE | NETIF_MSG_LINK | \
@@ -100,7 +100,7 @@ static const struct pci_device_id hns3_pci_tbl[] = {
 	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_RDMA_DCB_PFC_VF),
 	 HNAE3_DEV_SUPPORT_ROCE_DCB_BITS},
 	/* required last entry */
-	{0, }
+	{0,}
 };
 MODULE_DEVICE_TABLE(pci, hns3_pci_tbl);
 
@@ -971,8 +971,7 @@ static u32 hns3_tx_spare_space(struct hns3_enet_ring *ring)
 	/* The free tx buffer is divided into two part, so pick the
 	 * larger one.
 	 */
-	return (ntc > (tx_spare->len - ntu) ? ntc :
-			(tx_spare->len - ntu)) - 1;
+	return max(ntc, tx_spare->len - ntu) - 1;
 }
 
 static void hns3_tx_spare_update(struct hns3_enet_ring *ring)
@@ -2852,7 +2851,7 @@ static const struct net_device_ops hns3_nic_netdev_ops = {
 	.ndo_start_xmit		= hns3_nic_net_xmit,
 	.ndo_tx_timeout		= hns3_nic_net_timeout,
 	.ndo_set_mac_address	= hns3_nic_net_set_mac_address,
-	.ndo_do_ioctl		= hns3_nic_do_ioctl,
+	.ndo_eth_ioctl		= hns3_nic_do_ioctl,
 	.ndo_change_mtu		= hns3_nic_change_mtu,
 	.ndo_set_features	= hns3_nic_set_features,
 	.ndo_features_check	= hns3_features_check,
@@ -3127,11 +3126,6 @@ static void hns3_set_default_feature(struct net_device *netdev)
 
 	netdev->priv_flags |= IFF_UNICAST_FLT;
 
-	netdev->hw_enc_features |= NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_GSO |
-		NETIF_F_GRO | NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GSO_GRE |
-		NETIF_F_GSO_GRE_CSUM | NETIF_F_GSO_UDP_TUNNEL |
-		NETIF_F_SCTP_CRC | NETIF_F_TSO_MANGLEID | NETIF_F_FRAGLIST;
-
 	netdev->gso_partial_features |= NETIF_F_GSO_GRE_CSUM;
 
 	netdev->features |= NETIF_F_HW_VLAN_CTAG_FILTER |
@@ -3141,62 +3135,37 @@ static void hns3_set_default_feature(struct net_device *netdev)
 		NETIF_F_GSO_GRE_CSUM | NETIF_F_GSO_UDP_TUNNEL |
 		NETIF_F_SCTP_CRC | NETIF_F_FRAGLIST;
 
-	netdev->vlan_features |= NETIF_F_RXCSUM |
-		NETIF_F_SG | NETIF_F_GSO | NETIF_F_GRO |
-		NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GSO_GRE |
-		NETIF_F_GSO_GRE_CSUM | NETIF_F_GSO_UDP_TUNNEL |
-		NETIF_F_SCTP_CRC | NETIF_F_FRAGLIST;
-
-	netdev->hw_features |= NETIF_F_HW_VLAN_CTAG_TX |
-		NETIF_F_HW_VLAN_CTAG_RX |
-		NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_GSO |
-		NETIF_F_GRO | NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GSO_GRE |
-		NETIF_F_GSO_GRE_CSUM | NETIF_F_GSO_UDP_TUNNEL |
-		NETIF_F_SCTP_CRC | NETIF_F_FRAGLIST;
-
 	if (ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2) {
-		netdev->hw_features |= NETIF_F_GRO_HW;
 		netdev->features |= NETIF_F_GRO_HW;
 
-		if (!(h->flags & HNAE3_SUPPORT_VF)) {
-			netdev->hw_features |= NETIF_F_NTUPLE;
+		if (!(h->flags & HNAE3_SUPPORT_VF))
 			netdev->features |= NETIF_F_NTUPLE;
-		}
 	}
 
-	if (test_bit(HNAE3_DEV_SUPPORT_UDP_GSO_B, ae_dev->caps)) {
-		netdev->hw_features |= NETIF_F_GSO_UDP_L4;
+	if (test_bit(HNAE3_DEV_SUPPORT_UDP_GSO_B, ae_dev->caps))
 		netdev->features |= NETIF_F_GSO_UDP_L4;
-		netdev->vlan_features |= NETIF_F_GSO_UDP_L4;
-		netdev->hw_enc_features |= NETIF_F_GSO_UDP_L4;
-	}
 
-	if (test_bit(HNAE3_DEV_SUPPORT_HW_TX_CSUM_B, ae_dev->caps)) {
-		netdev->hw_features |= NETIF_F_HW_CSUM;
+	if (test_bit(HNAE3_DEV_SUPPORT_HW_TX_CSUM_B, ae_dev->caps))
 		netdev->features |= NETIF_F_HW_CSUM;
-		netdev->vlan_features |= NETIF_F_HW_CSUM;
-		netdev->hw_enc_features |= NETIF_F_HW_CSUM;
-	} else {
-		netdev->hw_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
+	else
 		netdev->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
-		netdev->vlan_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
-		netdev->hw_enc_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
-	}
 
-	if (test_bit(HNAE3_DEV_SUPPORT_UDP_TUNNEL_CSUM_B, ae_dev->caps)) {
-		netdev->hw_features |= NETIF_F_GSO_UDP_TUNNEL_CSUM;
+	if (test_bit(HNAE3_DEV_SUPPORT_UDP_TUNNEL_CSUM_B, ae_dev->caps))
 		netdev->features |= NETIF_F_GSO_UDP_TUNNEL_CSUM;
-		netdev->vlan_features |= NETIF_F_GSO_UDP_TUNNEL_CSUM;
-		netdev->hw_enc_features |= NETIF_F_GSO_UDP_TUNNEL_CSUM;
-	}
 
-	if (test_bit(HNAE3_DEV_SUPPORT_FD_FORWARD_TC_B, ae_dev->caps)) {
-		netdev->hw_features |= NETIF_F_HW_TC;
+	if (test_bit(HNAE3_DEV_SUPPORT_FD_FORWARD_TC_B, ae_dev->caps))
 		netdev->features |= NETIF_F_HW_TC;
-	}
 
-	if (test_bit(HNAE3_DEV_SUPPORT_VLAN_FLTR_MDF_B, ae_dev->caps))
-		netdev->hw_features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+	netdev->hw_features |= netdev->features;
+	if (!test_bit(HNAE3_DEV_SUPPORT_VLAN_FLTR_MDF_B, ae_dev->caps))
+		netdev->hw_features &= ~NETIF_F_HW_VLAN_CTAG_FILTER;
+
+	netdev->vlan_features |= netdev->features &
+		~(NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_HW_VLAN_CTAG_TX |
+		  NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_GRO_HW | NETIF_F_NTUPLE |
+		  NETIF_F_HW_TC);
+
+	netdev->hw_enc_features |= netdev->vlan_features | NETIF_F_TSO_MANGLEID;
 }
 
 static int hns3_alloc_buffer(struct hns3_enet_ring *ring,
@@ -3204,6 +3173,21 @@ static int hns3_alloc_buffer(struct hns3_enet_ring *ring,
 {
 	unsigned int order = hns3_page_order(ring);
 	struct page *p;
+
+	if (ring->page_pool) {
+		p = page_pool_dev_alloc_frag(ring->page_pool,
+					     &cb->page_offset,
+					     hns3_buf_size(ring));
+		if (unlikely(!p))
+			return -ENOMEM;
+
+		cb->priv = p;
+		cb->buf = page_address(p);
+		cb->dma = page_pool_get_dma_addr(p);
+		cb->type = DESC_TYPE_PP_FRAG;
+		cb->reuse_flag = 0;
+		return 0;
+	}
 
 	p = dev_alloc_pages(order);
 	if (!p)
@@ -3227,8 +3211,13 @@ static void hns3_free_buffer(struct hns3_enet_ring *ring,
 	if (cb->type & (DESC_TYPE_SKB | DESC_TYPE_BOUNCE_HEAD |
 			DESC_TYPE_BOUNCE_ALL | DESC_TYPE_SGL_SKB))
 		napi_consume_skb(cb->priv, budget);
-	else if (!HNAE3_IS_TX_RING(ring) && cb->pagecnt_bias)
-		__page_frag_cache_drain(cb->priv, cb->pagecnt_bias);
+	else if (!HNAE3_IS_TX_RING(ring)) {
+		if (cb->type & DESC_TYPE_PAGE && cb->pagecnt_bias)
+			__page_frag_cache_drain(cb->priv, cb->pagecnt_bias);
+		else if (cb->type & DESC_TYPE_PP_FRAG)
+			page_pool_put_full_page(ring->page_pool, cb->priv,
+						false);
+	}
 	memset(cb, 0, sizeof(*cb));
 }
 
@@ -3315,7 +3304,7 @@ static int hns3_alloc_and_map_buffer(struct hns3_enet_ring *ring,
 	int ret;
 
 	ret = hns3_alloc_buffer(ring, cb);
-	if (ret)
+	if (ret || ring->page_pool)
 		goto out;
 
 	ret = hns3_map_buffer(ring, cb);
@@ -3337,7 +3326,8 @@ static int hns3_alloc_and_attach_buffer(struct hns3_enet_ring *ring, int i)
 	if (ret)
 		return ret;
 
-	ring->desc[i].addr = cpu_to_le64(ring->desc_cb[i].dma);
+	ring->desc[i].addr = cpu_to_le64(ring->desc_cb[i].dma +
+					 ring->desc_cb[i].page_offset);
 
 	return 0;
 }
@@ -3367,7 +3357,8 @@ static void hns3_replace_buffer(struct hns3_enet_ring *ring, int i,
 {
 	hns3_unmap_buffer(ring, &ring->desc_cb[i]);
 	ring->desc_cb[i] = *res_cb;
-	ring->desc[i].addr = cpu_to_le64(ring->desc_cb[i].dma);
+	ring->desc[i].addr = cpu_to_le64(ring->desc_cb[i].dma +
+					 ring->desc_cb[i].page_offset);
 	ring->desc[i].rx.bd_base_info = 0;
 }
 
@@ -3538,6 +3529,12 @@ static void hns3_nic_reuse_page(struct sk_buff *skb, int i,
 	u32 truesize = hns3_buf_size(ring);
 	u32 frag_size = size - pull_len;
 	bool reused;
+
+	if (ring->page_pool) {
+		skb_add_rx_frag(skb, i, desc_cb->priv, frag_offset,
+				frag_size, truesize);
+		return;
+	}
 
 	/* Avoid re-using remote or pfmem page */
 	if (unlikely(!dev_page_is_reusable(desc_cb->priv)))
@@ -3856,6 +3853,9 @@ static int hns3_alloc_skb(struct hns3_enet_ring *ring, unsigned int length,
 		/* We can reuse buffer as-is, just make sure it is reusable */
 		if (dev_page_is_reusable(desc_cb->priv))
 			desc_cb->reuse_flag = 1;
+		else if (desc_cb->type & DESC_TYPE_PP_FRAG)
+			page_pool_put_full_page(ring->page_pool, desc_cb->priv,
+						false);
 		else /* This page cannot be reused so discard it */
 			__page_frag_cache_drain(desc_cb->priv,
 						desc_cb->pagecnt_bias);
@@ -3863,6 +3863,10 @@ static int hns3_alloc_skb(struct hns3_enet_ring *ring, unsigned int length,
 		hns3_rx_ring_move_fw(ring);
 		return 0;
 	}
+
+	if (ring->page_pool)
+		skb_mark_for_recycle(skb);
+
 	u64_stats_update_begin(&ring->syncp);
 	ring->stats.seg_pkt_cnt++;
 	u64_stats_update_end(&ring->syncp);
@@ -3901,6 +3905,10 @@ static int hns3_add_frag(struct hns3_enet_ring *ring)
 					    "alloc rx fraglist skb fail\n");
 				return -ENXIO;
 			}
+
+			if (ring->page_pool)
+				skb_mark_for_recycle(new_skb);
+
 			ring->frag_num = 0;
 
 			if (ring->tail_skb) {
@@ -4434,9 +4442,7 @@ static void hns3_tx_dim_work(struct work_struct *work)
 static void hns3_nic_init_dim(struct hns3_enet_tqp_vector *tqp_vector)
 {
 	INIT_WORK(&tqp_vector->rx_group.dim.work, hns3_rx_dim_work);
-	tqp_vector->rx_group.dim.mode = DIM_CQ_PERIOD_MODE_START_FROM_EQE;
 	INIT_WORK(&tqp_vector->tx_group.dim.work, hns3_tx_dim_work);
-	tqp_vector->tx_group.dim.mode = DIM_CQ_PERIOD_MODE_START_FROM_EQE;
 }
 
 static int hns3_nic_init_vector_data(struct hns3_nic_priv *priv)
@@ -4705,6 +4711,29 @@ static void hns3_put_ring_config(struct hns3_nic_priv *priv)
 	priv->ring = NULL;
 }
 
+static void hns3_alloc_page_pool(struct hns3_enet_ring *ring)
+{
+	struct page_pool_params pp_params = {
+		.flags = PP_FLAG_DMA_MAP | PP_FLAG_PAGE_FRAG |
+				PP_FLAG_DMA_SYNC_DEV,
+		.order = hns3_page_order(ring),
+		.pool_size = ring->desc_num * hns3_buf_size(ring) /
+				(PAGE_SIZE << hns3_page_order(ring)),
+		.nid = dev_to_node(ring_to_dev(ring)),
+		.dev = ring_to_dev(ring),
+		.dma_dir = DMA_FROM_DEVICE,
+		.offset = 0,
+		.max_len = PAGE_SIZE << hns3_page_order(ring),
+	};
+
+	ring->page_pool = page_pool_create(&pp_params);
+	if (IS_ERR(ring->page_pool)) {
+		dev_warn(ring_to_dev(ring), "page pool creation failed: %ld\n",
+			 PTR_ERR(ring->page_pool));
+		ring->page_pool = NULL;
+	}
+}
+
 static int hns3_alloc_ring_memory(struct hns3_enet_ring *ring)
 {
 	int ret;
@@ -4724,6 +4753,8 @@ static int hns3_alloc_ring_memory(struct hns3_enet_ring *ring)
 		goto out_with_desc_cb;
 
 	if (!HNAE3_IS_TX_RING(ring)) {
+		hns3_alloc_page_pool(ring);
+
 		ret = hns3_alloc_ring_buffers(ring);
 		if (ret)
 			goto out_with_desc;
@@ -4763,6 +4794,11 @@ void hns3_fini_ring(struct hns3_enet_ring *ring)
 			   get_order(tx_spare->len));
 		devm_kfree(ring_to_dev(ring), tx_spare);
 		ring->tx_spare = NULL;
+	}
+
+	if (!HNAE3_IS_TX_RING(ring) && ring->page_pool) {
+		page_pool_destroy(ring->page_pool);
+		ring->page_pool = NULL;
 	}
 }
 
@@ -4954,6 +4990,66 @@ static void hns3_info_show(struct hns3_nic_priv *priv)
 	dev_info(priv->dev, "Max mtu size: %u\n", priv->netdev->max_mtu);
 }
 
+static void hns3_set_cq_period_mode(struct hns3_nic_priv *priv,
+				    enum dim_cq_period_mode mode, bool is_tx)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(priv->ae_handle->pdev);
+	struct hnae3_handle *handle = priv->ae_handle;
+	int i;
+
+	if (is_tx) {
+		priv->tx_cqe_mode = mode;
+
+		for (i = 0; i < priv->vector_num; i++)
+			priv->tqp_vector[i].tx_group.dim.mode = mode;
+	} else {
+		priv->rx_cqe_mode = mode;
+
+		for (i = 0; i < priv->vector_num; i++)
+			priv->tqp_vector[i].rx_group.dim.mode = mode;
+	}
+
+	/* only device version above V3(include V3), GL can switch CQ/EQ
+	 * period mode.
+	 */
+	if (ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V3) {
+		u32 new_mode;
+		u64 reg;
+
+		new_mode = (mode == DIM_CQ_PERIOD_MODE_START_FROM_CQE) ?
+			HNS3_CQ_MODE_CQE : HNS3_CQ_MODE_EQE;
+		reg = is_tx ? HNS3_GL1_CQ_MODE_REG : HNS3_GL0_CQ_MODE_REG;
+
+		writel(new_mode, handle->kinfo.io_base + reg);
+	}
+}
+
+void hns3_cq_period_mode_init(struct hns3_nic_priv *priv,
+			      enum dim_cq_period_mode tx_mode,
+			      enum dim_cq_period_mode rx_mode)
+{
+	hns3_set_cq_period_mode(priv, tx_mode, true);
+	hns3_set_cq_period_mode(priv, rx_mode, false);
+}
+
+static void hns3_state_init(struct hnae3_handle *handle)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
+	struct net_device *netdev = handle->kinfo.netdev;
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
+
+	set_bit(HNS3_NIC_STATE_INITED, &priv->state);
+
+	if (ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V3)
+		set_bit(HNAE3_PFLAG_LIMIT_PROMISC, &handle->supported_pflags);
+
+	if (test_bit(HNAE3_DEV_SUPPORT_HW_TX_CSUM_B, ae_dev->caps))
+		set_bit(HNS3_NIC_STATE_HW_TX_CSUM_ENABLE, &priv->state);
+
+	if (hnae3_ae_dev_rxd_adv_layout_supported(ae_dev))
+		set_bit(HNS3_NIC_STATE_RXD_ADV_LAYOUT_ENABLE, &priv->state);
+}
+
 static int hns3_client_init(struct hnae3_handle *handle)
 {
 	struct pci_dev *pdev = handle->pdev;
@@ -5021,6 +5117,9 @@ static int hns3_client_init(struct hnae3_handle *handle)
 		goto out_init_ring;
 	}
 
+	hns3_cq_period_mode_init(priv, DIM_CQ_PERIOD_MODE_START_FROM_EQE,
+				 DIM_CQ_PERIOD_MODE_START_FROM_EQE);
+
 	ret = hns3_init_phy(netdev);
 	if (ret)
 		goto out_init_phy;
@@ -5054,16 +5153,7 @@ static int hns3_client_init(struct hnae3_handle *handle)
 
 	netdev->max_mtu = HNS3_MAX_MTU(ae_dev->dev_specs.max_frm_size);
 
-	if (test_bit(HNAE3_DEV_SUPPORT_HW_TX_CSUM_B, ae_dev->caps))
-		set_bit(HNS3_NIC_STATE_HW_TX_CSUM_ENABLE, &priv->state);
-
-	if (hnae3_ae_dev_rxd_adv_layout_supported(ae_dev))
-		set_bit(HNS3_NIC_STATE_RXD_ADV_LAYOUT_ENABLE, &priv->state);
-
-	set_bit(HNS3_NIC_STATE_INITED, &priv->state);
-
-	if (ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V3)
-		set_bit(HNAE3_PFLAG_LIMIT_PROMISC, &handle->supported_pflags);
+	hns3_state_init(handle);
 
 	ret = register_netdev(netdev);
 	if (ret) {
@@ -5352,6 +5442,8 @@ static int hns3_reset_notify_init_enet(struct hnae3_handle *handle)
 	ret = hns3_init_all_ring(priv);
 	if (ret)
 		goto err_uninit_vector;
+
+	hns3_cq_period_mode_init(priv, priv->tx_cqe_mode, priv->rx_cqe_mode);
 
 	/* the device can work without cpu rmap, only aRFS needs it */
 	ret = hns3_set_rx_cpu_rmap(netdev);

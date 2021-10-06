@@ -6,6 +6,7 @@
 
 #define VDSO_HAS_CLOCK_GETRES 1
 
+#include <asm/syscall.h>
 #include <asm/timex.h>
 #include <asm/unistd.h>
 #include <linux/compiler.h>
@@ -35,35 +36,20 @@ static inline u64 __arch_get_hw_counter(s32 clock_mode, const struct vdso_data *
 static __always_inline
 long clock_gettime_fallback(clockid_t clkid, struct __kernel_timespec *ts)
 {
-	register unsigned long r1 __asm__("r1") = __NR_clock_gettime;
-	register unsigned long r2 __asm__("r2") = (unsigned long)clkid;
-	register void *r3 __asm__("r3") = ts;
-
-	asm ("svc 0\n" : "+d" (r2) : "d" (r1), "d" (r3) : "cc", "memory");
-	return r2;
+	return syscall2(__NR_clock_gettime, (long)clkid, (long)ts);
 }
 
 static __always_inline
 long gettimeofday_fallback(register struct __kernel_old_timeval *tv,
 			   register struct timezone *tz)
 {
-	register unsigned long r1 __asm__("r1") = __NR_gettimeofday;
-	register unsigned long r2 __asm__("r2") = (unsigned long)tv;
-	register void *r3 __asm__("r3") = tz;
-
-	asm ("svc 0\n" : "+d" (r2) : "d" (r1), "d" (r3) : "cc", "memory");
-	return r2;
+	return syscall2(__NR_gettimeofday, (long)tv, (long)tz);
 }
 
 static __always_inline
 long clock_getres_fallback(clockid_t clkid, struct __kernel_timespec *ts)
 {
-	register unsigned long r1 __asm__("r1") = __NR_clock_getres;
-	register unsigned long r2 __asm__("r2") = (unsigned long)clkid;
-	register void *r3 __asm__("r3") = ts;
-
-	asm ("svc 0\n" : "+d" (r2) : "d" (r1), "d" (r3) : "cc", "memory");
-	return r2;
+	return syscall2(__NR_clock_getres, (long)clkid, (long)ts);
 }
 
 #ifdef CONFIG_TIME_NS

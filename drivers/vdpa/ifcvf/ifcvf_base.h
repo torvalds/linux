@@ -22,17 +22,8 @@
 #define N3000_DEVICE_ID		0x1041
 #define N3000_SUBSYS_DEVICE_ID	0x001A
 
-#define IFCVF_NET_SUPPORTED_FEATURES \
-		((1ULL << VIRTIO_NET_F_MAC)			| \
-		 (1ULL << VIRTIO_F_ANY_LAYOUT)			| \
-		 (1ULL << VIRTIO_F_VERSION_1)			| \
-		 (1ULL << VIRTIO_NET_F_STATUS)			| \
-		 (1ULL << VIRTIO_F_ORDER_PLATFORM)		| \
-		 (1ULL << VIRTIO_F_ACCESS_PLATFORM)		| \
-		 (1ULL << VIRTIO_NET_F_MRG_RXBUF))
-
-/* Only one queue pair for now. */
-#define IFCVF_MAX_QUEUE_PAIRS	1
+/* Max 8 data queue pairs(16 queues) and one control vq for now. */
+#define IFCVF_MAX_QUEUES	17
 
 #define IFCVF_QUEUE_ALIGNMENT	PAGE_SIZE
 #define IFCVF_QUEUE_MAX		32768
@@ -50,8 +41,6 @@
 
 #define ifcvf_private_to_vf(adapter) \
 	(&((struct ifcvf_adapter *)adapter)->vf)
-
-#define IFCVF_MAX_INTR (IFCVF_MAX_QUEUE_PAIRS * 2 + 1)
 
 struct vring_info {
 	u64 desc;
@@ -83,7 +72,7 @@ struct ifcvf_hw {
 	u32 dev_type;
 	struct virtio_pci_common_cfg __iomem *common_cfg;
 	void __iomem *net_cfg;
-	struct vring_info vring[IFCVF_MAX_QUEUE_PAIRS * 2];
+	struct vring_info vring[IFCVF_MAX_QUEUES];
 	void __iomem * const *base;
 	char config_msix_name[256];
 	struct vdpa_callback config_cb;
@@ -103,7 +92,13 @@ struct ifcvf_vring_lm_cfg {
 
 struct ifcvf_lm_cfg {
 	u8 reserved[IFCVF_LM_RING_STATE_OFFSET];
-	struct ifcvf_vring_lm_cfg vring_lm_cfg[IFCVF_MAX_QUEUE_PAIRS];
+	struct ifcvf_vring_lm_cfg vring_lm_cfg[IFCVF_MAX_QUEUES];
+};
+
+struct ifcvf_vdpa_mgmt_dev {
+	struct vdpa_mgmt_dev mdev;
+	struct ifcvf_adapter *adapter;
+	struct pci_dev *pdev;
 };
 
 int ifcvf_init_hw(struct ifcvf_hw *hw, struct pci_dev *dev);

@@ -484,8 +484,6 @@ void software_node_unregister_node_group(const struct software_node **node_group
 int software_node_register(const struct software_node *node);
 void software_node_unregister(const struct software_node *node);
 
-int software_node_notify(struct device *dev, unsigned long action);
-
 struct fwnode_handle *
 fwnode_create_software_node(const struct property_entry *properties,
 			    const struct fwnode_handle *parent);

@@ -1147,7 +1147,9 @@ static int set_dbqtimer_tickval(struct net_device *dev,
 }
 
 static int set_coalesce(struct net_device *dev,
-			struct ethtool_coalesce *coalesce)
+			struct ethtool_coalesce *coalesce,
+			struct kernel_ethtool_coalesce *kernel_coal,
+			struct netlink_ext_ack *extack)
 {
 	int ret;
 
@@ -1163,7 +1165,9 @@ static int set_coalesce(struct net_device *dev,
 				    coalesce->tx_coalesce_usecs);
 }
 
-static int get_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
+static int get_coalesce(struct net_device *dev, struct ethtool_coalesce *c,
+			struct kernel_ethtool_coalesce *kernel_coal,
+			struct netlink_ext_ack *extack)
 {
 	const struct port_info *pi = netdev_priv(dev);
 	const struct adapter *adap = pi->adapter;

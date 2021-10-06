@@ -1330,7 +1330,9 @@ static inline u16 socket_type_to_security_class(int family, int type, int protoc
 			return SECCLASS_SMC_SOCKET;
 		case PF_XDP:
 			return SECCLASS_XDP_SOCKET;
-#if PF_MAX > 45
+		case PF_MCTP:
+			return SECCLASS_MCTP_SOCKET;
+#if PF_MAX > 46
 #error New address family defined, please update this function.
 #endif
 		}
@@ -3325,6 +3327,8 @@ static int selinux_inode_setxattr(struct user_namespace *mnt_userns,
 			}
 			ab = audit_log_start(audit_context(),
 					     GFP_ATOMIC, AUDIT_SELINUX_ERR);
+			if (!ab)
+				return rc;
 			audit_log_format(ab, "op=setxattr invalid_context=");
 			audit_log_n_untrustedstring(ab, value, audit_size);
 			audit_log_end(ab);
@@ -6552,6 +6556,8 @@ static int selinux_setprocattr(const char *name, void *value, size_t size)
 				ab = audit_log_start(audit_context(),
 						     GFP_ATOMIC,
 						     AUDIT_SELINUX_ERR);
+				if (!ab)
+					return error;
 				audit_log_format(ab, "op=fscreate invalid_context=");
 				audit_log_n_untrustedstring(ab, value, audit_size);
 				audit_log_end(ab);

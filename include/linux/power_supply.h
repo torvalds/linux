@@ -352,6 +352,7 @@ struct power_supply_resistance_temp_table {
  */
 
 struct power_supply_battery_info {
+	unsigned int technology;	    /* from the enum above */
 	int energy_full_design_uwh;	    /* microWatt-hours */
 	int charge_full_design_uah;	    /* microAmp-hours */
 	int voltage_min_design_uv;	    /* microVolts */

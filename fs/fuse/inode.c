@@ -85,7 +85,6 @@ static struct inode *fuse_alloc_inode(struct super_block *sb)
 	fi->orig_ino = 0;
 	fi->state = 0;
 	mutex_init(&fi->mutex);
-	init_rwsem(&fi->i_mmap_sem);
 	spin_lock_init(&fi->lock);
 	fi->forget = fuse_alloc_forget();
 	if (!fi->forget)
@@ -138,12 +137,12 @@ static void fuse_evict_inode(struct inode *inode)
 	}
 }
 
-static int fuse_reconfigure(struct fs_context *fc)
+static int fuse_reconfigure(struct fs_context *fsc)
 {
-	struct super_block *sb = fc->root->d_sb;
+	struct super_block *sb = fsc->root->d_sb;
 
 	sync_filesystem(sb);
-	if (fc->sb_flags & SB_MANDLOCK)
+	if (fsc->sb_flags & SB_MANDLOCK)
 		return -EINVAL;
 
 	return 0;
@@ -506,6 +505,57 @@ static int fuse_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return err;
 }
 
+static struct fuse_sync_bucket *fuse_sync_bucket_alloc(void)
+{
+	struct fuse_sync_bucket *bucket;
+
+	bucket = kzalloc(sizeof(*bucket), GFP_KERNEL | __GFP_NOFAIL);
+	if (bucket) {
+		init_waitqueue_head(&bucket->waitq);
+		/* Initial active count */
+		atomic_set(&bucket->count, 1);
+	}
+	return bucket;
+}
+
+static void fuse_sync_fs_writes(struct fuse_conn *fc)
+{
+	struct fuse_sync_bucket *bucket, *new_bucket;
+	int count;
+
+	new_bucket = fuse_sync_bucket_alloc();
+	spin_lock(&fc->lock);
+	bucket = rcu_dereference_protected(fc->curr_bucket, 1);
+	count = atomic_read(&bucket->count);
+	WARN_ON(count < 1);
+	/* No outstanding writes? */
+	if (count == 1) {
+		spin_unlock(&fc->lock);
+		kfree(new_bucket);
+		return;
+	}
+
+	/*
+	 * Completion of new bucket depends on completion of this bucket, so add
+	 * one more count.
+	 */
+	atomic_inc(&new_bucket->count);
+	rcu_assign_pointer(fc->curr_bucket, new_bucket);
+	spin_unlock(&fc->lock);
+	/*
+	 * Drop initial active count.  At this point if all writes in this and
+	 * ancestor buckets complete, the count will go to zero and this task
+	 * will be woken up.
+	 */
+	atomic_dec(&bucket->count);
+
+	wait_event(bucket->waitq, atomic_read(&bucket->count) == 0);
+
+	/* Drop temp count on descendant bucket */
+	fuse_sync_bucket_dec(new_bucket);
+	kfree_rcu(bucket, rcu);
+}
+
 static int fuse_sync_fs(struct super_block *sb, int wait)
 {
 	struct fuse_mount *fm = get_fuse_mount_super(sb);
@@ -527,6 +577,8 @@ static int fuse_sync_fs(struct super_block *sb, int wait)
 
 	if (!fc->sync_fs)
 		return 0;
+
+	fuse_sync_fs_writes(fc);
 
 	memset(&inarg, 0, sizeof(inarg));
 	args.in_numargs = 1;
@@ -573,38 +625,38 @@ static const struct fs_parameter_spec fuse_fs_parameters[] = {
 	{}
 };
 
-static int fuse_parse_param(struct fs_context *fc, struct fs_parameter *param)
+static int fuse_parse_param(struct fs_context *fsc, struct fs_parameter *param)
 {
 	struct fs_parse_result result;
-	struct fuse_fs_context *ctx = fc->fs_private;
+	struct fuse_fs_context *ctx = fsc->fs_private;
 	int opt;
 
-	if (fc->purpose == FS_CONTEXT_FOR_RECONFIGURE) {
+	if (fsc->purpose == FS_CONTEXT_FOR_RECONFIGURE) {
 		/*
 		 * Ignore options coming from mount(MS_REMOUNT) for backward
 		 * compatibility.
 		 */
-		if (fc->oldapi)
+		if (fsc->oldapi)
 			return 0;
 
-		return invalfc(fc, "No changes allowed in reconfigure");
+		return invalfc(fsc, "No changes allowed in reconfigure");
 	}
 
-	opt = fs_parse(fc, fuse_fs_parameters, param, &result);
+	opt = fs_parse(fsc, fuse_fs_parameters, param, &result);
 	if (opt < 0)
 		return opt;
 
 	switch (opt) {
 	case OPT_SOURCE:
-		if (fc->source)
-			return invalfc(fc, "Multiple sources specified");
-		fc->source = param->string;
+		if (fsc->source)
+			return invalfc(fsc, "Multiple sources specified");
+		fsc->source = param->string;
 		param->string = NULL;
 		break;
 
 	case OPT_SUBTYPE:
 		if (ctx->subtype)
-			return invalfc(fc, "Multiple subtypes specified");
+			return invalfc(fsc, "Multiple subtypes specified");
 		ctx->subtype = param->string;
 		param->string = NULL;
 		return 0;
@@ -616,22 +668,22 @@ static int fuse_parse_param(struct fs_context *fc, struct fs_parameter *param)
 
 	case OPT_ROOTMODE:
 		if (!fuse_valid_type(result.uint_32))
-			return invalfc(fc, "Invalid rootmode");
+			return invalfc(fsc, "Invalid rootmode");
 		ctx->rootmode = result.uint_32;
 		ctx->rootmode_present = true;
 		break;
 
 	case OPT_USER_ID:
-		ctx->user_id = make_kuid(fc->user_ns, result.uint_32);
+		ctx->user_id = make_kuid(fsc->user_ns, result.uint_32);
 		if (!uid_valid(ctx->user_id))
-			return invalfc(fc, "Invalid user_id");
+			return invalfc(fsc, "Invalid user_id");
 		ctx->user_id_present = true;
 		break;
 
 	case OPT_GROUP_ID:
-		ctx->group_id = make_kgid(fc->user_ns, result.uint_32);
+		ctx->group_id = make_kgid(fsc->user_ns, result.uint_32);
 		if (!gid_valid(ctx->group_id))
-			return invalfc(fc, "Invalid group_id");
+			return invalfc(fsc, "Invalid group_id");
 		ctx->group_id_present = true;
 		break;
 
@@ -649,7 +701,7 @@ static int fuse_parse_param(struct fs_context *fc, struct fs_parameter *param)
 
 	case OPT_BLKSIZE:
 		if (!ctx->is_bdev)
-			return invalfc(fc, "blksize only supported for fuseblk");
+			return invalfc(fsc, "blksize only supported for fuseblk");
 		ctx->blksize = result.uint_32;
 		break;
 
@@ -660,9 +712,9 @@ static int fuse_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	return 0;
 }
 
-static void fuse_free_fc(struct fs_context *fc)
+static void fuse_free_fsc(struct fs_context *fsc)
 {
-	struct fuse_fs_context *ctx = fc->fs_private;
+	struct fuse_fs_context *ctx = fsc->fs_private;
 
 	if (ctx) {
 		kfree(ctx->subtype);
@@ -763,6 +815,7 @@ void fuse_conn_put(struct fuse_conn *fc)
 {
 	if (refcount_dec_and_test(&fc->count)) {
 		struct fuse_iqueue *fiq = &fc->iq;
+		struct fuse_sync_bucket *bucket;
 
 		if (IS_ENABLED(CONFIG_FUSE_DAX))
 			fuse_dax_conn_free(fc);
@@ -770,6 +823,11 @@ void fuse_conn_put(struct fuse_conn *fc)
 			fiq->ops->release(fiq);
 		put_pid_ns(fc->pid_ns);
 		put_user_ns(fc->user_ns);
+		bucket = rcu_dereference_protected(fc->curr_bucket, 1);
+		if (bucket) {
+			WARN_ON(atomic_read(&bucket->count) != 1);
+			kfree(bucket);
+		}
 		fc->release(fc);
 	}
 }
@@ -1418,6 +1476,7 @@ int fuse_fill_super_common(struct super_block *sb, struct fuse_fs_context *ctx)
 	if (sb->s_flags & SB_MANDLOCK)
 		goto err;
 
+	rcu_assign_pointer(fc->curr_bucket, fuse_sync_bucket_alloc());
 	fuse_sb_defaults(sb);
 
 	if (ctx->is_bdev) {
@@ -1509,34 +1568,33 @@ EXPORT_SYMBOL_GPL(fuse_fill_super_common);
 static int fuse_fill_super(struct super_block *sb, struct fs_context *fsc)
 {
 	struct fuse_fs_context *ctx = fsc->fs_private;
-	struct file *file;
 	int err;
 	struct fuse_conn *fc;
 	struct fuse_mount *fm;
 
-	err = -EINVAL;
-	file = fget(ctx->fd);
-	if (!file)
-		goto err;
+	if (!ctx->file || !ctx->rootmode_present ||
+	    !ctx->user_id_present || !ctx->group_id_present)
+		return -EINVAL;
 
 	/*
 	 * Require mount to happen from the same user namespace which
 	 * opened /dev/fuse to prevent potential attacks.
 	 */
-	if ((file->f_op != &fuse_dev_operations) ||
-	    (file->f_cred->user_ns != sb->s_user_ns))
-		goto err_fput;
-	ctx->fudptr = &file->private_data;
+	err = -EINVAL;
+	if ((ctx->file->f_op != &fuse_dev_operations) ||
+	    (ctx->file->f_cred->user_ns != sb->s_user_ns))
+		goto err;
+	ctx->fudptr = &ctx->file->private_data;
 
 	fc = kmalloc(sizeof(*fc), GFP_KERNEL);
 	err = -ENOMEM;
 	if (!fc)
-		goto err_fput;
+		goto err;
 
 	fm = kzalloc(sizeof(*fm), GFP_KERNEL);
 	if (!fm) {
 		kfree(fc);
-		goto err_fput;
+		goto err;
 	}
 
 	fuse_conn_init(fc, fm, sb->s_user_ns, &fuse_dev_fiq_ops, NULL);
@@ -1547,12 +1605,8 @@ static int fuse_fill_super(struct super_block *sb, struct fs_context *fsc)
 	err = fuse_fill_super_common(sb, ctx);
 	if (err)
 		goto err_put_conn;
-	/*
-	 * atomic_dec_and_test() in fput() provides the necessary
-	 * memory barrier for file->private_data to be visible on all
-	 * CPUs after this
-	 */
-	fput(file);
+	/* file->private_data shall be visible on all CPUs after this */
+	smp_mb();
 	fuse_send_init(get_fuse_mount_super(sb));
 	return 0;
 
@@ -1560,30 +1614,68 @@ static int fuse_fill_super(struct super_block *sb, struct fs_context *fsc)
 	fuse_conn_put(fc);
 	kfree(fm);
 	sb->s_fs_info = NULL;
- err_fput:
-	fput(file);
  err:
 	return err;
 }
 
-static int fuse_get_tree(struct fs_context *fc)
+/*
+ * This is the path where user supplied an already initialized fuse dev.  In
+ * this case never create a new super if the old one is gone.
+ */
+static int fuse_set_no_super(struct super_block *sb, struct fs_context *fsc)
 {
-	struct fuse_fs_context *ctx = fc->fs_private;
+	return -ENOTCONN;
+}
 
-	if (!ctx->fd_present || !ctx->rootmode_present ||
-	    !ctx->user_id_present || !ctx->group_id_present)
+static int fuse_test_super(struct super_block *sb, struct fs_context *fsc)
+{
+
+	return fsc->sget_key == get_fuse_conn_super(sb);
+}
+
+static int fuse_get_tree(struct fs_context *fsc)
+{
+	struct fuse_fs_context *ctx = fsc->fs_private;
+	struct fuse_dev *fud;
+	struct super_block *sb;
+	int err;
+
+	if (ctx->fd_present)
+		ctx->file = fget(ctx->fd);
+
+	if (IS_ENABLED(CONFIG_BLOCK) && ctx->is_bdev) {
+		err = get_tree_bdev(fsc, fuse_fill_super);
+		goto out_fput;
+	}
+	/*
+	 * While block dev mount can be initialized with a dummy device fd
+	 * (found by device name), normal fuse mounts can't
+	 */
+	if (!ctx->file)
 		return -EINVAL;
 
-#ifdef CONFIG_BLOCK
-	if (ctx->is_bdev)
-		return get_tree_bdev(fc, fuse_fill_super);
-#endif
-
-	return get_tree_nodev(fc, fuse_fill_super);
+	/*
+	 * Allow creating a fuse mount with an already initialized fuse
+	 * connection
+	 */
+	fud = READ_ONCE(ctx->file->private_data);
+	if (ctx->file->f_op == &fuse_dev_operations && fud) {
+		fsc->sget_key = fud->fc;
+		sb = sget_fc(fsc, fuse_test_super, fuse_set_no_super);
+		err = PTR_ERR_OR_ZERO(sb);
+		if (!IS_ERR(sb))
+			fsc->root = dget(sb->s_root);
+	} else {
+		err = get_tree_nodev(fsc, fuse_fill_super);
+	}
+out_fput:
+	if (ctx->file)
+		fput(ctx->file);
+	return err;
 }
 
 static const struct fs_context_operations fuse_context_ops = {
-	.free		= fuse_free_fc,
+	.free		= fuse_free_fsc,
 	.parse_param	= fuse_parse_param,
 	.reconfigure	= fuse_reconfigure,
 	.get_tree	= fuse_get_tree,
@@ -1592,7 +1684,7 @@ static const struct fs_context_operations fuse_context_ops = {
 /*
  * Set up the filesystem mount context.
  */
-static int fuse_init_fs_context(struct fs_context *fc)
+static int fuse_init_fs_context(struct fs_context *fsc)
 {
 	struct fuse_fs_context *ctx;
 
@@ -1605,14 +1697,14 @@ static int fuse_init_fs_context(struct fs_context *fc)
 	ctx->legacy_opts_show = true;
 
 #ifdef CONFIG_BLOCK
-	if (fc->fs_type == &fuseblk_fs_type) {
+	if (fsc->fs_type == &fuseblk_fs_type) {
 		ctx->is_bdev = true;
 		ctx->destroy = true;
 	}
 #endif
 
-	fc->fs_private = ctx;
-	fc->ops = &fuse_context_ops;
+	fsc->fs_private = ctx;
+	fsc->ops = &fuse_context_ops;
 	return 0;
 }
 

@@ -1193,69 +1193,43 @@ static inline int snd_sonicvibes_create_gameport(struct sonicvibes *sonic) { ret
 static inline void snd_sonicvibes_free_gameport(struct sonicvibes *sonic) { }
 #endif
 
-static int snd_sonicvibes_free(struct sonicvibes *sonic)
+static void snd_sonicvibes_free(struct snd_card *card)
 {
+	struct sonicvibes *sonic = card->private_data;
+
 	snd_sonicvibes_free_gameport(sonic);
 	pci_write_config_dword(sonic->pci, 0x40, sonic->dmaa_port);
 	pci_write_config_dword(sonic->pci, 0x48, sonic->dmac_port);
-	if (sonic->irq >= 0)
-		free_irq(sonic->irq, sonic);
-	release_and_free_resource(sonic->res_dmaa);
-	release_and_free_resource(sonic->res_dmac);
-	pci_release_regions(sonic->pci);
-	pci_disable_device(sonic->pci);
-	kfree(sonic);
-	return 0;
-}
-
-static int snd_sonicvibes_dev_free(struct snd_device *device)
-{
-	struct sonicvibes *sonic = device->device_data;
-	return snd_sonicvibes_free(sonic);
 }
 
 static int snd_sonicvibes_create(struct snd_card *card,
 				 struct pci_dev *pci,
 				 int reverb,
-				 int mge,
-				 struct sonicvibes **rsonic)
+				 int mge)
 {
-	struct sonicvibes *sonic;
+	struct sonicvibes *sonic = card->private_data;
 	unsigned int dmaa, dmac;
 	int err;
-	static const struct snd_device_ops ops = {
-		.dev_free =	snd_sonicvibes_dev_free,
-	};
 
-	*rsonic = NULL;
 	/* enable PCI device */
-	err = pci_enable_device(pci);
+	err = pcim_enable_device(pci);
 	if (err < 0)
 		return err;
 	/* check, if we can restrict PCI DMA transfers to 24 bits */
 	if (dma_set_mask_and_coherent(&pci->dev, DMA_BIT_MASK(24))) {
 		dev_err(card->dev,
 			"architecture does not support 24bit PCI busmaster DMA\n");
-		pci_disable_device(pci);
                 return -ENXIO;
         }
 
-	sonic = kzalloc(sizeof(*sonic), GFP_KERNEL);
-	if (sonic == NULL) {
-		pci_disable_device(pci);
-		return -ENOMEM;
-	}
 	spin_lock_init(&sonic->reg_lock);
 	sonic->card = card;
 	sonic->pci = pci;
 	sonic->irq = -1;
 
 	err = pci_request_regions(pci, "S3 SonicVibes");
-	if (err < 0) {
-		kfree(sonic);
-		pci_disable_device(pci);
+	if (err < 0)
 		return err;
-	}
 
 	sonic->sb_port = pci_resource_start(pci, 0);
 	sonic->enh_port = pci_resource_start(pci, 1);
@@ -1263,14 +1237,14 @@ static int snd_sonicvibes_create(struct snd_card *card,
 	sonic->midi_port = pci_resource_start(pci, 3);
 	sonic->game_port = pci_resource_start(pci, 4);
 
-	if (request_irq(pci->irq, snd_sonicvibes_interrupt, IRQF_SHARED,
-			KBUILD_MODNAME, sonic)) {
+	if (devm_request_irq(&pci->dev, pci->irq, snd_sonicvibes_interrupt,
+			     IRQF_SHARED, KBUILD_MODNAME, sonic)) {
 		dev_err(card->dev, "unable to grab IRQ %d\n", pci->irq);
-		snd_sonicvibes_free(sonic);
 		return -EBUSY;
 	}
 	sonic->irq = pci->irq;
 	card->sync_irq = sonic->irq;
+	card->private_free = snd_sonicvibes_free;
 
 	pci_read_config_dword(pci, 0x40, &dmaa);
 	pci_read_config_dword(pci, 0x48, &dmac);
@@ -1294,17 +1268,17 @@ static int snd_sonicvibes_create(struct snd_card *card,
 	pci_write_config_dword(pci, 0x40, dmaa);
 	pci_write_config_dword(pci, 0x48, dmac);
 
-	sonic->res_dmaa = request_region(dmaa, 0x10, "S3 SonicVibes DDMA-A");
+	sonic->res_dmaa = devm_request_region(&pci->dev, dmaa, 0x10,
+					      "S3 SonicVibes DDMA-A");
 	if (!sonic->res_dmaa) {
-		snd_sonicvibes_free(sonic);
 		dev_err(card->dev,
 			"unable to grab DDMA-A port at 0x%x-0x%x\n",
 			dmaa, dmaa + 0x10 - 1);
 		return -EBUSY;
 	}
-	sonic->res_dmac = request_region(dmac, 0x10, "S3 SonicVibes DDMA-C");
+	sonic->res_dmac = devm_request_region(&pci->dev, dmac, 0x10,
+					      "S3 SonicVibes DDMA-C");
 	if (!sonic->res_dmac) {
-		snd_sonicvibes_free(sonic);
 		dev_err(card->dev,
 			"unable to grab DDMA-C port at 0x%x-0x%x\n",
 			dmac, dmac + 0x10 - 1);
@@ -1365,15 +1339,7 @@ static int snd_sonicvibes_create(struct snd_card *card,
 #endif
 	sonic->revision = snd_sonicvibes_in(sonic, SV_IREG_REVISION);
 
-	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, sonic, &ops);
-	if (err < 0) {
-		snd_sonicvibes_free(sonic);
-		return err;
-	}
-
 	snd_sonicvibes_proc_init(sonic);
-
-	*rsonic = sonic;
 	return 0;
 }
 
@@ -1429,7 +1395,7 @@ static int snd_sonic_probe(struct pci_dev *pci,
 	struct sonicvibes *sonic;
 	struct snd_rawmidi *midi_uart;
 	struct snd_opl3 *opl3;
-	int idx, err;
+	int err;
 
 	if (dev >= SNDRV_CARDS)
 		return -ENODEV;
@@ -1438,25 +1404,16 @@ static int snd_sonic_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
  
-	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
-			   0, &card);
+	err = snd_devm_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+				sizeof(*sonic), &card);
 	if (err < 0)
 		return err;
-	for (idx = 0; idx < 5; idx++) {
-		if (pci_resource_start(pci, idx) == 0 ||
-		    !(pci_resource_flags(pci, idx) & IORESOURCE_IO)) {
-			snd_card_free(card);
-			return -ENODEV;
-		}
-	}
+	sonic = card->private_data;
 	err = snd_sonicvibes_create(card, pci,
 				    reverb[dev] ? 1 : 0,
-				    mge[dev] ? 1 : 0,
-				    &sonic);
-	if (err < 0) {
-		snd_card_free(card);
+				    mge[dev] ? 1 : 0);
+	if (err < 0)
 		return err;
-	}
 
 	strcpy(card->driver, "SonicVibes");
 	strcpy(card->shortname, "S3 SonicVibes");
@@ -1467,65 +1424,45 @@ static int snd_sonic_probe(struct pci_dev *pci,
 		sonic->irq);
 
 	err = snd_sonicvibes_pcm(sonic, 0);
-	if (err < 0) {
-		snd_card_free(card);
+	if (err < 0)
 		return err;
-	}
 	err = snd_sonicvibes_mixer(sonic);
-	if (err < 0) {
-		snd_card_free(card);
+	if (err < 0)
 		return err;
-	}
 	err = snd_mpu401_uart_new(card, 0, MPU401_HW_SONICVIBES,
 				  sonic->midi_port,
 				  MPU401_INFO_INTEGRATED |
 				  MPU401_INFO_IRQ_HOOK,
 				  -1, &midi_uart);
-	if (err < 0) {
-		snd_card_free(card);
+	if (err < 0)
 		return err;
-	}
 	snd_sonicvibes_midi(sonic, midi_uart);
 	err = snd_opl3_create(card, sonic->synth_port,
 			      sonic->synth_port + 2,
 			      OPL3_HW_OPL3_SV, 1, &opl3);
-	if (err < 0) {
-		snd_card_free(card);
+	if (err < 0)
 		return err;
-	}
 	err = snd_opl3_hwdep_new(opl3, 0, 1, NULL);
-	if (err < 0) {
-		snd_card_free(card);
+	if (err < 0)
 		return err;
-	}
 
 	err = snd_sonicvibes_create_gameport(sonic);
-	if (err < 0) {
-		snd_card_free(card);
+	if (err < 0)
 		return err;
-	}
 
 	err = snd_card_register(card);
-	if (err < 0) {
-		snd_card_free(card);
+	if (err < 0)
 		return err;
-	}
 	
 	pci_set_drvdata(pci, card);
 	dev++;
 	return 0;
 }
 
-static void snd_sonic_remove(struct pci_dev *pci)
-{
-	snd_card_free(pci_get_drvdata(pci));
-}
-
 static struct pci_driver sonicvibes_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_sonic_ids,
 	.probe = snd_sonic_probe,
-	.remove = snd_sonic_remove,
 };
 
 module_pci_driver(sonicvibes_driver);

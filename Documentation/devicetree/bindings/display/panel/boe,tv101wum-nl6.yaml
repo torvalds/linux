@@ -70,7 +70,6 @@ examples:
             avee-supply = <&ppvarp_lcd>;
             pp1800-supply = <&pp1800_lcd>;
             backlight = <&backlight_lcd0>;
-            status = "okay";
             port {
                 panel_in: endpoint {
                     remote-endpoint = <&dsi_out>;

@@ -140,7 +140,7 @@ config DELL_SMBIOS_SMM
 config DELL_SMO8800
 	tristate "Dell Latitude freefall driver (ACPI SMO88XX)"
 	default m
-	depends on ACPI
+	depends on ACPI || COMPILE_TEST
 	help
 	  Say Y here if you want to support SMO88XX freefall devices
 	  on Dell Latitude laptops.

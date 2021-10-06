@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <asm/uv.h>
+#include <asm/boot_data.h>
 #include <asm/facility.h>
 #include <asm/sections.h>
+
+#include "boot.h"
+#include "uv.h"
 
 /* will be used in arch/s390/kernel/uv.c */
 #ifdef CONFIG_PROTECTED_VIRTUALIZATION_GUEST
@@ -47,26 +51,34 @@ void uv_query_info(void)
 }
 
 #if IS_ENABLED(CONFIG_KVM)
-static bool has_uv_sec_stor_limit(void)
-{
-	/*
-	 * keep these conditions in line with setup_uv()
-	 */
-	if (!is_prot_virt_host())
-		return false;
-
-	if (is_prot_virt_guest())
-		return false;
-
-	if (!test_facility(158))
-		return false;
-
-	return !!uv_info.max_sec_stor_addr;
-}
-
 void adjust_to_uv_max(unsigned long *vmax)
 {
-	if (has_uv_sec_stor_limit())
+	if (is_prot_virt_host() && uv_info.max_sec_stor_addr)
 		*vmax = min_t(unsigned long, *vmax, uv_info.max_sec_stor_addr);
+}
+
+static int is_prot_virt_host_capable(void)
+{
+	/* disable if no prot_virt=1 given on command-line */
+	if (!is_prot_virt_host())
+		return 0;
+	/* disable if protected guest virtualization is enabled */
+	if (is_prot_virt_guest())
+		return 0;
+	/* disable if no hardware support */
+	if (!test_facility(158))
+		return 0;
+	/* disable if kdump */
+	if (oldmem_data.start)
+		return 0;
+	/* disable if stand-alone dump */
+	if (ipl_block_valid && is_ipl_block_dump())
+		return 0;
+	return 1;
+}
+
+void sanitize_prot_virt_host(void)
+{
+	prot_virt_host = is_prot_virt_host_capable();
 }
 #endif

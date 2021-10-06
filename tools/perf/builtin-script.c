@@ -2212,7 +2212,7 @@ static int process_sample_event(struct perf_tool *tool,
 	if (filter_cpu(sample))
 		goto out_put;
 
-	if (machine__resolve(machine, &al, sample) < 0) {
+	if (!al.thread && machine__resolve(machine, &al, sample) < 0) {
 		pr_err("problem processing %d event, skipping it.\n",
 		       event->header.type);
 		ret = -1;
@@ -2493,6 +2493,17 @@ process_lost_event(struct perf_tool *tool,
 }
 
 static int
+process_throttle_event(struct perf_tool *tool __maybe_unused,
+		       union perf_event *event,
+		       struct perf_sample *sample,
+		       struct machine *machine)
+{
+	if (scripting_ops && scripting_ops->process_throttle)
+		scripting_ops->process_throttle(event, sample, machine);
+	return 0;
+}
+
+static int
 process_finished_round_event(struct perf_tool *tool __maybe_unused,
 			     union perf_event *event,
 			     struct ordered_events *oe __maybe_unused)
@@ -2599,6 +2610,12 @@ static void perf_script__exit_per_event_dump_stats(struct perf_script *script)
 		evsel_script__delete(es);
 		evsel->priv = NULL;
 	}
+}
+
+static void perf_script__exit(struct perf_script *script)
+{
+	perf_thread_map__put(script->threads);
+	perf_cpu_map__put(script->cpus);
 }
 
 static int __cmd_script(struct perf_script *script)
@@ -3288,7 +3305,7 @@ int find_scripts(char **scripts_array, char **scripts_path_array, int num,
 	char *temp;
 	int i = 0;
 
-	session = perf_session__new(&data, false, NULL);
+	session = perf_session__new(&data, NULL);
 	if (IS_ERR(session))
 		return PTR_ERR(session);
 
@@ -3646,6 +3663,8 @@ int cmd_script(int argc, const char **argv)
 			.stat_config	 = process_stat_config_event,
 			.thread_map	 = process_thread_map_event,
 			.cpu_map	 = process_cpu_map_event,
+			.throttle	 = process_throttle_event,
+			.unthrottle	 = process_throttle_event,
 			.ordered_events	 = true,
 			.ordering_requires_timestamps = true,
 		},
@@ -4001,7 +4020,7 @@ script_found:
 		use_browser = 0;
 	}
 
-	session = perf_session__new(&data, false, &script.tool);
+	session = perf_session__new(&data, &script.tool);
 	if (IS_ERR(session))
 		return PTR_ERR(session);
 
@@ -4143,8 +4162,10 @@ out_delete:
 		zfree(&script.ptime_range);
 	}
 
+	zstd_fini(&(session->zstd_data));
 	evlist__free_stats(session->evlist);
 	perf_session__delete(session);
+	perf_script__exit(&script);
 
 	if (script_started)
 		cleanup_scripting();

@@ -411,7 +411,7 @@ ping_ipv6()
 ip nexthop ls >/dev/null 2>&1
 if [ $? -ne 0 ]; then
 	echo "Nexthop objects not supported; skipping tests"
-	exit 0
+	exit $ksft_skip
 fi
 
 trap cleanup EXIT

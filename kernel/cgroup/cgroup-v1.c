@@ -50,6 +50,8 @@ bool cgroup1_ssid_disabled(int ssid)
  * cgroup_attach_task_all - attach task 'tsk' to all cgroups of task 'from'
  * @from: attach to all cgroups of a given task
  * @tsk: the task to be attached
+ *
+ * Return: %0 on success or a negative errno code on failure
  */
 int cgroup_attach_task_all(struct task_struct *from, struct task_struct *tsk)
 {
@@ -80,7 +82,7 @@ int cgroup_attach_task_all(struct task_struct *from, struct task_struct *tsk)
 EXPORT_SYMBOL_GPL(cgroup_attach_task_all);
 
 /**
- * cgroup_trasnsfer_tasks - move tasks from one cgroup to another
+ * cgroup_transfer_tasks - move tasks from one cgroup to another
  * @to: cgroup to which the tasks will be moved
  * @from: cgroup in which the tasks currently reside
  *
@@ -89,6 +91,8 @@ EXPORT_SYMBOL_GPL(cgroup_attach_task_all);
  * is guaranteed to be either visible in the source cgroup after the
  * parent's migration is complete or put into the target cgroup.  No task
  * can slip out of migration through forking.
+ *
+ * Return: %0 on success or a negative errno code on failure
  */
 int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from)
 {
@@ -682,6 +686,8 @@ int proc_cgroupstats_show(struct seq_file *m, void *v)
  *
  * Build and fill cgroupstats so that taskstats can export it to user
  * space.
+ *
+ * Return: %0 on success or a negative errno code on failure
  */
 int cgroupstats_build(struct cgroupstats *stats, struct dentry *dentry)
 {
@@ -911,13 +917,11 @@ int cgroup1_parse_param(struct fs_context *fc, struct fs_parameter *param)
 
 	opt = fs_parse(fc, cgroup1_fs_parameters, param, &result);
 	if (opt == -ENOPARAM) {
-		if (strcmp(param->key, "source") == 0) {
-			if (fc->source)
-				return invalf(fc, "Multiple sources not supported");
-			fc->source = param->string;
-			param->string = NULL;
-			return 0;
-		}
+		int ret;
+
+		ret = vfs_parse_fs_param_source(fc, param);
+		if (ret != -ENOPARAM)
+			return ret;
 		for_each_subsys(ss, i) {
 			if (strcmp(param->key, ss->legacy_name))
 				continue;
@@ -1223,9 +1227,7 @@ int cgroup1_get_tree(struct fs_context *fc)
 		ret = cgroup_do_get_tree(fc);
 
 	if (!ret && percpu_ref_is_dying(&ctx->root->cgrp.self.refcnt)) {
-		struct super_block *sb = fc->root->d_sb;
-		dput(fc->root);
-		deactivate_locked_super(sb);
+		fc_drop_locked(fc);
 		ret = 1;
 	}
 

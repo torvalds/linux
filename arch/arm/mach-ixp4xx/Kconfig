@@ -17,39 +17,6 @@ config MACH_IXP4XX_OF
 	help
 	  Say 'Y' here to support Device Tree-based IXP4xx platforms.
 
-config MACH_NSLU2
-	bool
-	prompt "Linksys NSLU2"
-	depends on IXP4XX_PCI_LEGACY
-	help
-	  Say 'Y' here if you want your kernel to support Linksys's
-	  NSLU2 NAS device. For more information on this platform,
-	  see http://www.nslu2-linux.org
-
-config MACH_AVILA
-	bool "Avila"
-	depends on IXP4XX_PCI_LEGACY
-	help
-	  Say 'Y' here if you want your kernel to support the Gateworks
-	  Avila Network Platform. For more information on this platform,
-	  see <file:Documentation/arm/ixp4xx.rst>.
-
-config MACH_LOFT
-    bool "Loft"
-    depends on MACH_AVILA
-    help
-	  Say 'Y' here if you want your kernel to support the Giant
-	  Shoulder Inc Loft board (a minor variation on the standard
-	  Gateworks Avila Network Platform).
-
-config ARCH_ADI_COYOTE
-	bool "Coyote"
-	depends on IXP4XX_PCI_LEGACY
-	help
-	  Say 'Y' here if you want your kernel to support the ADI 
-	  Engineering Coyote Gateway Reference Platform. For more
-	  information on this platform, see <file:Documentation/arm/ixp4xx.rst>.
-
 config MACH_GATEWAY7001
 	bool "Gateway 7001"
 	depends on IXP4XX_PCI_LEGACY
@@ -58,59 +25,12 @@ config MACH_GATEWAY7001
 	  7001 Access Point. For more information on this platform,
 	  see http://openwrt.org
 
-config MACH_WG302V2
-	bool "Netgear WG302 v2 / WAG302 v2"
-	depends on IXP4XX_PCI_LEGACY
-	help
-	  Say 'Y' here if you want your kernel to support Netgear's
-	  WG302 v2 or WAG302 v2 Access Points. For more information
-	  on this platform, see http://openwrt.org
-
-config ARCH_IXDP425
-	bool "IXDP425"
-	depends on IXP4XX_PCI_LEGACY
-	help
-	  Say 'Y' here if you want your kernel to support Intel's 
-	  IXDP425 Development Platform (Also known as Richfield).  
-	  For more information on this platform, see <file:Documentation/arm/ixp4xx.rst>.
-
-config MACH_IXDPG425
-	bool "IXDPG425"
-	depends on IXP4XX_PCI_LEGACY
-	help
-	  Say 'Y' here if you want your kernel to support Intel's
-	  IXDPG425 Development Platform (Also known as Montajade).
-	  For more information on this platform, see <file:Documentation/arm/ixp4xx.rst>.
-
-config MACH_IXDP465
-	bool "IXDP465"
-	help
-	  Say 'Y' here if you want your kernel to support Intel's
-	  IXDP465 Development Platform (Also known as BMP).
-	  For more information on this platform, see <file:Documentation/arm/ixp4xx.rst>.
-
 config MACH_GORAMO_MLR
 	bool "GORAMO Multi Link Router"
+	depends on IXP4XX_PCI_LEGACY
 	help
 	  Say 'Y' here if you want your kernel to support GORAMO
 	  MultiLink router.
-
-config MACH_KIXRP435
-	bool "KIXRP435"
-	help
-	  Say 'Y' here if you want your kernel to support Intel's
-	  KIXRP435 Reference Platform.
-	  For more information on this platform, see <file:Documentation/arm/ixp4xx.rst>.
-
-#
-# IXCDP1100 is the exact same HW as IXDP425, but with a different machine 
-# number from the bootloader due to marketing monkeys, so we just enable it 
-# by default if IXDP425 is enabled.
-#
-config ARCH_IXCDP1100
-	bool 
-	depends on ARCH_IXDP425
-	default y
 
 config ARCH_PRPMC1100
 	bool "PrPMC1100"
@@ -118,46 +38,6 @@ config ARCH_PRPMC1100
 	  Say 'Y' here if you want your kernel to support the Motorola
 	  PrPCM1100 Processor Mezanine Module. For more information on
 	  this platform, see <file:Documentation/arm/ixp4xx.rst>.
-
-config MACH_NAS100D
-	bool
-	prompt "NAS100D"
-	depends on IXP4XX_PCI_LEGACY
-	help
-	  Say 'Y' here if you want your kernel to support Iomega's
-	  NAS 100d device. For more information on this platform,
-	  see http://www.nslu2-linux.org/wiki/NAS100d/HomePage
-
-config MACH_DSMG600
-	bool
-	prompt "D-Link DSM-G600 RevA"
-	depends on IXP4XX_PCI_LEGACY
-	help
-	  Say 'Y' here if you want your kernel to support D-Link's
-	  DSM-G600 RevA device. For more information on this platform,
-	  see http://www.nslu2-linux.org/wiki/DSMG600/HomePage
-
-config	ARCH_IXDP4XX
-	bool
-	depends on ARCH_IXDP425 || MACH_IXDP465 || MACH_KIXRP435
-	default y
-
-config MACH_FSG
-	bool
-	prompt "Freecom FSG-3"
-	depends on IXP4XX_PCI_LEGACY
-	help
-	  Say 'Y' here if you want your kernel to support Freecom's
-	  FSG-3 device. For more information on this platform,
-	  see http://www.nslu2-linux.org/wiki/FSG3/HomePage
-
-config MACH_ARCOM_VULCAN
-	bool
-	prompt "Arcom/Eurotech Vulcan"
-	depends on IXP4XX_PCI_LEGACY
-	help
-	  Say 'Y' here if you want your kernel to support Arcom's
-	  Vulcan board.
 
 #
 # Certain registers and IRQs are only enabled if supporting IXP465 CPUs
@@ -171,43 +51,6 @@ config CPU_IXP43X
 	bool
 	depends on MACH_KIXRP435
 	default y
-
-config MACH_GTWX5715
-	bool "Gemtek WX5715 (Linksys WRV54G)"
-	depends on ARCH_IXP4XX
-	depends on IXP4XX_PCI_LEGACY
-	help
-		This board is currently inside the Linksys WRV54G Gateways.
-
-		IXP425 - 266mhz
-		32mb SDRAM
-		8mb Flash
-		miniPCI slot 0 does not have a card connector soldered to the board
-		miniPCI slot 1 has an ISL3880 802.11g card (Prism54)
-		npe0 is connected to a Kendin KS8995M Switch (4 ports)
-		npe1 is the "wan" port
-		"Console" UART is available on J11 as console
-		"High Speed" UART is n/c (as far as I can tell)
-		20 Pin ARM/Xscale JTAG interface on J2
-
-config MACH_DEVIXP
-	bool "Omicron DEVIXP"
-	help
-	  Say 'Y' here if you want your kernel to support the DEVIXP
-	  board from OMICRON electronics GmbH.
-
-config MACH_MICCPT
-	bool "Omicron MICCPT"
-	depends on IXP4XX_PCI_LEGACY
-	help
-	  Say 'Y' here if you want your kernel to support the MICCPT
-	  board from OMICRON electronics GmbH.
-
-config MACH_MIC256
-	bool "Omicron MIC256"
-	help
-	  Say 'Y' here if you want your kernel to support the MIC256
-	  board from OMICRON electronics GmbH.
 
 comment "IXP4xx Options"
 

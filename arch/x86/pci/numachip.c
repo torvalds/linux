@@ -12,6 +12,7 @@
 
 #include <linux/pci.h>
 #include <asm/pci_x86.h>
+#include <asm/numachip/numachip.h>
 
 static u8 limit __read_mostly;
 

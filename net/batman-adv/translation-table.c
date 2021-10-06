@@ -247,6 +247,9 @@ static void batadv_tt_local_entry_release(struct kref *ref)
 static void
 batadv_tt_local_entry_put(struct batadv_tt_local_entry *tt_local_entry)
 {
+	if (!tt_local_entry)
+		return;
+
 	kref_put(&tt_local_entry->common.refcount,
 		 batadv_tt_local_entry_release);
 }
@@ -270,7 +273,7 @@ static void batadv_tt_global_entry_free_rcu(struct rcu_head *rcu)
  *  queue for free after rcu grace period
  * @ref: kref pointer of the nc_node
  */
-static void batadv_tt_global_entry_release(struct kref *ref)
+void batadv_tt_global_entry_release(struct kref *ref)
 {
 	struct batadv_tt_global_entry *tt_global_entry;
 
@@ -280,17 +283,6 @@ static void batadv_tt_global_entry_release(struct kref *ref)
 	batadv_tt_global_del_orig_list(tt_global_entry);
 
 	call_rcu(&tt_global_entry->common.rcu, batadv_tt_global_entry_free_rcu);
-}
-
-/**
- * batadv_tt_global_entry_put() - decrement the tt_global_entry refcounter and
- *  possibly release it
- * @tt_global_entry: tt_global_entry to be free'd
- */
-void batadv_tt_global_entry_put(struct batadv_tt_global_entry *tt_global_entry)
-{
-	kref_put(&tt_global_entry->common.refcount,
-		 batadv_tt_global_entry_release);
 }
 
 /**
@@ -452,6 +444,9 @@ static void batadv_tt_orig_list_entry_release(struct kref *ref)
 static void
 batadv_tt_orig_list_entry_put(struct batadv_tt_orig_list_entry *orig_entry)
 {
+	if (!orig_entry)
+		return;
+
 	kref_put(&orig_entry->refcount, batadv_tt_orig_list_entry_release);
 }
 
@@ -818,14 +813,10 @@ check_roaming:
 
 	ret = true;
 out:
-	if (in_hardif)
-		batadv_hardif_put(in_hardif);
-	if (in_dev)
-		dev_put(in_dev);
-	if (tt_local)
-		batadv_tt_local_entry_put(tt_local);
-	if (tt_global)
-		batadv_tt_global_entry_put(tt_global);
+	batadv_hardif_put(in_hardif);
+	dev_put(in_dev);
+	batadv_tt_local_entry_put(tt_local);
+	batadv_tt_global_entry_put(tt_global);
 	return ret;
 }
 
@@ -1215,10 +1206,8 @@ int batadv_tt_local_dump(struct sk_buff *msg, struct netlink_callback *cb)
 	ret = msg->len;
 
  out:
-	if (primary_if)
-		batadv_hardif_put(primary_if);
-	if (soft_iface)
-		dev_put(soft_iface);
+	batadv_hardif_put(primary_if);
+	dev_put(soft_iface);
 
 	cb->args[0] = bucket;
 	cb->args[1] = idx;
@@ -1305,8 +1294,7 @@ u16 batadv_tt_local_remove(struct batadv_priv *bat_priv, const u8 *addr,
 	batadv_tt_local_entry_put(tt_removed_entry);
 
 out:
-	if (tt_local_entry)
-		batadv_tt_local_entry_put(tt_local_entry);
+	batadv_tt_local_entry_put(tt_local_entry);
 
 	return curr_flags;
 }
@@ -1576,8 +1564,7 @@ batadv_tt_global_orig_entry_add(struct batadv_tt_global_entry *tt_global,
 sync_flags:
 	batadv_tt_global_sync_flags(tt_global);
 out:
-	if (orig_entry)
-		batadv_tt_orig_list_entry_put(orig_entry);
+	batadv_tt_orig_list_entry_put(orig_entry);
 
 	spin_unlock_bh(&tt_global->list_lock);
 }
@@ -1750,10 +1737,8 @@ out_remove:
 		tt_global_entry->common.flags &= ~BATADV_TT_CLIENT_ROAM;
 
 out:
-	if (tt_global_entry)
-		batadv_tt_global_entry_put(tt_global_entry);
-	if (tt_local_entry)
-		batadv_tt_local_entry_put(tt_local_entry);
+	batadv_tt_global_entry_put(tt_global_entry);
+	batadv_tt_local_entry_put(tt_local_entry);
 	return ret;
 }
 
@@ -1789,15 +1774,13 @@ batadv_transtable_best_orig(struct batadv_priv *bat_priv,
 		}
 
 		/* release the refcount for the "old" best */
-		if (best_router)
-			batadv_neigh_node_put(best_router);
+		batadv_neigh_node_put(best_router);
 
 		best_entry = orig_entry;
 		best_router = router;
 	}
 
-	if (best_router)
-		batadv_neigh_node_put(best_router);
+	batadv_neigh_node_put(best_router);
 
 	return best_entry;
 }
@@ -2003,10 +1986,8 @@ int batadv_tt_global_dump(struct sk_buff *msg, struct netlink_callback *cb)
 	ret = msg->len;
 
  out:
-	if (primary_if)
-		batadv_hardif_put(primary_if);
-	if (soft_iface)
-		dev_put(soft_iface);
+	batadv_hardif_put(primary_if);
+	dev_put(soft_iface);
 
 	cb->args[0] = bucket;
 	cb->args[1] = idx;
@@ -2196,10 +2177,8 @@ static void batadv_tt_global_del(struct batadv_priv *bat_priv,
 	}
 
 out:
-	if (tt_global_entry)
-		batadv_tt_global_entry_put(tt_global_entry);
-	if (local_entry)
-		batadv_tt_local_entry_put(local_entry);
+	batadv_tt_global_entry_put(tt_global_entry);
+	batadv_tt_local_entry_put(local_entry);
 }
 
 /**
@@ -2426,10 +2405,8 @@ struct batadv_orig_node *batadv_transtable_search(struct batadv_priv *bat_priv,
 	rcu_read_unlock();
 
 out:
-	if (tt_global_entry)
-		batadv_tt_global_entry_put(tt_global_entry);
-	if (tt_local_entry)
-		batadv_tt_local_entry_put(tt_local_entry);
+	batadv_tt_global_entry_put(tt_global_entry);
+	batadv_tt_local_entry_put(tt_local_entry);
 
 	return orig_node;
 }
@@ -2606,6 +2583,9 @@ static void batadv_tt_req_node_release(struct kref *ref)
  */
 static void batadv_tt_req_node_put(struct batadv_tt_req_node *tt_req_node)
 {
+	if (!tt_req_node)
+		return;
+
 	kref_put(&tt_req_node->refcount, batadv_tt_req_node_release);
 }
 
@@ -2987,8 +2967,7 @@ static bool batadv_send_tt_request(struct batadv_priv *bat_priv,
 	ret = true;
 
 out:
-	if (primary_if)
-		batadv_hardif_put(primary_if);
+	batadv_hardif_put(primary_if);
 
 	if (ret && tt_req_node) {
 		spin_lock_bh(&bat_priv->tt.req_list_lock);
@@ -2999,8 +2978,7 @@ out:
 		spin_unlock_bh(&bat_priv->tt.req_list_lock);
 	}
 
-	if (tt_req_node)
-		batadv_tt_req_node_put(tt_req_node);
+	batadv_tt_req_node_put(tt_req_node);
 
 	kfree(tvlv_tt_data);
 	return ret;
@@ -3131,10 +3109,8 @@ unlock:
 	spin_unlock_bh(&req_dst_orig_node->tt_buff_lock);
 
 out:
-	if (res_dst_orig_node)
-		batadv_orig_node_put(res_dst_orig_node);
-	if (req_dst_orig_node)
-		batadv_orig_node_put(req_dst_orig_node);
+	batadv_orig_node_put(res_dst_orig_node);
+	batadv_orig_node_put(req_dst_orig_node);
 	kfree(tvlv_tt_data);
 	return ret;
 }
@@ -3248,10 +3224,8 @@ unlock:
 	spin_unlock_bh(&bat_priv->tt.last_changeset_lock);
 out:
 	spin_unlock_bh(&bat_priv->tt.commit_lock);
-	if (orig_node)
-		batadv_orig_node_put(orig_node);
-	if (primary_if)
-		batadv_hardif_put(primary_if);
+	batadv_orig_node_put(orig_node);
+	batadv_hardif_put(primary_if);
 	kfree(tvlv_tt_data);
 	/* The packet was for this host, so it doesn't need to be re-routed */
 	return true;
@@ -3336,8 +3310,7 @@ static void batadv_tt_fill_gtable(struct batadv_priv *bat_priv,
 	atomic_set(&orig_node->last_ttvn, ttvn);
 
 out:
-	if (orig_node)
-		batadv_orig_node_put(orig_node);
+	batadv_orig_node_put(orig_node);
 }
 
 static void batadv_tt_update_changes(struct batadv_priv *bat_priv,
@@ -3378,8 +3351,7 @@ bool batadv_is_my_client(struct batadv_priv *bat_priv, const u8 *addr,
 		goto out;
 	ret = true;
 out:
-	if (tt_local_entry)
-		batadv_tt_local_entry_put(tt_local_entry);
+	batadv_tt_local_entry_put(tt_local_entry);
 	return ret;
 }
 
@@ -3442,8 +3414,7 @@ static void batadv_handle_tt_response(struct batadv_priv *bat_priv,
 
 	spin_unlock_bh(&bat_priv->tt.req_list_lock);
 out:
-	if (orig_node)
-		batadv_orig_node_put(orig_node);
+	batadv_orig_node_put(orig_node);
 }
 
 static void batadv_tt_roam_list_free(struct batadv_priv *bat_priv)
@@ -3574,8 +3545,7 @@ static void batadv_send_roam_adv(struct batadv_priv *bat_priv, u8 *client,
 				 &tvlv_roam, sizeof(tvlv_roam));
 
 out:
-	if (primary_if)
-		batadv_hardif_put(primary_if);
+	batadv_hardif_put(primary_if);
 }
 
 static void batadv_tt_purge(struct work_struct *work)
@@ -4170,8 +4140,7 @@ static int batadv_roam_tvlv_unicast_handler_v1(struct batadv_priv *bat_priv,
 			     atomic_read(&orig_node->last_ttvn) + 1);
 
 out:
-	if (orig_node)
-		batadv_orig_node_put(orig_node);
+	batadv_orig_node_put(orig_node);
 	return NET_RX_SUCCESS;
 }
 

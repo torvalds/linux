@@ -426,7 +426,7 @@ done:
 }
 
 /**
- * drm_noop - DRM no-op ioctl implemntation
+ * drm_noop - DRM no-op ioctl implementation
  * @dev: DRM device for the ioctl
  * @data: data pointer for the ioctl
  * @file_priv: DRM file for the ioctl call
@@ -446,7 +446,7 @@ int drm_noop(struct drm_device *dev, void *data,
 EXPORT_SYMBOL(drm_noop);
 
 /**
- * drm_invalid_op - DRM invalid ioctl implemntation
+ * drm_invalid_op - DRM invalid ioctl implementation
  * @dev: DRM device for the ioctl
  * @data: data pointer for the ioctl
  * @file_priv: DRM file for the ioctl call
@@ -833,6 +833,9 @@ long drm_ioctl(struct file *filp,
 
 	if (drm_dev_is_unplugged(dev))
 		return -ENODEV;
+
+       if (DRM_IOCTL_TYPE(cmd) != DRM_IOCTL_BASE)
+               return -ENOTTY;
 
 	is_driver_ioctl = nr >= DRM_COMMAND_BASE && nr < DRM_COMMAND_END;
 

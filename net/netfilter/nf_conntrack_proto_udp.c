@@ -271,7 +271,6 @@ void nf_conntrack_udp_init_net(struct net *net)
 
 #if IS_ENABLED(CONFIG_NF_FLOW_TABLE)
 	un->offload_timeout = 30 * HZ;
-	un->offload_pickup = 30 * HZ;
 #endif
 }
 

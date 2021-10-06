@@ -96,7 +96,7 @@ opt_err:
 static ssize_t iunit_dbglvl_show(struct device_driver *drv, char *buf)
 {
 	iunit_debug.dbglvl = dbg_level;
-	return sprintf(buf, "dtrace level:%u\n", iunit_debug.dbglvl);
+	return sysfs_emit(buf, "dtrace level:%u\n", iunit_debug.dbglvl);
 }
 
 static ssize_t iunit_dbglvl_store(struct device_driver *drv, const char *buf,
@@ -115,7 +115,7 @@ static ssize_t iunit_dbglvl_store(struct device_driver *drv, const char *buf,
 static ssize_t iunit_dbgfun_show(struct device_driver *drv, char *buf)
 {
 	iunit_debug.dbgfun = atomisp_get_css_dbgfunc();
-	return sprintf(buf, "dbgfun opt:%u\n", iunit_debug.dbgfun);
+	return sysfs_emit(buf, "dbgfun opt:%u\n", iunit_debug.dbgfun);
 }
 
 static ssize_t iunit_dbgfun_store(struct device_driver *drv, const char *buf,
@@ -139,7 +139,7 @@ static ssize_t iunit_dbgfun_store(struct device_driver *drv, const char *buf,
 
 static ssize_t iunit_dbgopt_show(struct device_driver *drv, char *buf)
 {
-	return sprintf(buf, "option:0x%x\n", iunit_debug.dbgopt);
+	return sysfs_emit(buf, "option:0x%x\n", iunit_debug.dbgopt);
 }
 
 static ssize_t iunit_dbgopt_store(struct device_driver *drv, const char *buf,

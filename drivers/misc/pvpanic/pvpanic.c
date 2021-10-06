@@ -85,6 +85,8 @@ int devm_pvpanic_probe(struct device *dev, struct pvpanic_instance *pi)
 	list_add(&pi->list, &pvpanic_list);
 	spin_unlock(&pvpanic_lock);
 
+	dev_set_drvdata(dev, pi);
+
 	return devm_add_action_or_reset(dev, pvpanic_remove, pi);
 }
 EXPORT_SYMBOL_GPL(devm_pvpanic_probe);

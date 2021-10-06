@@ -27,6 +27,7 @@
 #include <linux/virtio_config.h>
 #include <linux/virtio_ring.h>
 #include <linux/time-internal.h>
+#include <linux/virtio-uml.h>
 #include <shared/as-layout.h>
 #include <irq_kern.h>
 #include <init.h>
@@ -1139,7 +1140,7 @@ static int virtio_uml_probe(struct platform_device *pdev)
 		rc = os_connect_socket(pdata->socket_path);
 	} while (rc == -EINTR);
 	if (rc < 0)
-		return rc;
+		goto error_free;
 	vu_dev->sock = rc;
 
 	spin_lock_init(&vu_dev->sock_lock);
@@ -1160,6 +1161,8 @@ static int virtio_uml_probe(struct platform_device *pdev)
 
 error_init:
 	os_close_file(vu_dev->sock);
+error_free:
+	kfree(vu_dev);
 	return rc;
 }
 

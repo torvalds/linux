@@ -881,6 +881,7 @@ nfserrno (int errno)
 		{ nfserr_serverfault, -ENFILE },
 		{ nfserr_io, -EUCLEAN },
 		{ nfserr_perm, -ENOKEY },
+		{ nfserr_no_grace, -ENOGRACE},
 	};
 	int	i;
 

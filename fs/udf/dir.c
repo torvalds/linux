@@ -35,7 +35,6 @@
 #include "udf_i.h"
 #include "udf_sb.h"
 
-
 static int udf_readdir(struct file *file, struct dir_context *ctx)
 {
 	struct inode *dir = file_inode(file);
@@ -135,7 +134,7 @@ static int udf_readdir(struct file *file, struct dir_context *ctx)
 		lfi = cfi.lengthFileIdent;
 
 		if (fibh.sbh == fibh.ebh) {
-			nameptr = fi->fileIdent + liu;
+			nameptr = udf_get_fi_ident(fi);
 		} else {
 			int poffset;	/* Unpaded ending offset */
 
@@ -153,7 +152,7 @@ static int udf_readdir(struct file *file, struct dir_context *ctx)
 					}
 				}
 				nameptr = copy_name;
-				memcpy(nameptr, fi->fileIdent + liu,
+				memcpy(nameptr, udf_get_fi_ident(fi),
 				       lfi - poffset);
 				memcpy(nameptr + lfi - poffset,
 				       fibh.ebh->b_data, poffset);

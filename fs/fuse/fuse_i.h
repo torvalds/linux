@@ -149,13 +149,6 @@ struct fuse_inode {
 	/** Lock to protect write related fields */
 	spinlock_t lock;
 
-	/**
-	 * Can't take inode lock in fault path (leads to circular dependency).
-	 * Introduce another semaphore which can be taken in fault path and
-	 * then other filesystem paths can take this to block faults.
-	 */
-	struct rw_semaphore i_mmap_sem;
-
 #ifdef CONFIG_FUSE_DAX
 	/*
 	 * Dax specific inode data
@@ -489,6 +482,7 @@ struct fuse_dev {
 
 struct fuse_fs_context {
 	int fd;
+	struct file *file;
 	unsigned int rootmode;
 	kuid_t user_id;
 	kgid_t group_id;
@@ -513,6 +507,13 @@ struct fuse_fs_context {
 
 	/* fuse_dev pointer to fill in, should contain NULL on entry */
 	void **fudptr;
+};
+
+struct fuse_sync_bucket {
+	/* count is a possible scalability bottleneck */
+	atomic_t count;
+	wait_queue_head_t waitq;
+	struct rcu_head rcu;
 };
 
 /**
@@ -807,6 +808,9 @@ struct fuse_conn {
 
 	/** List of filesystems using this connection */
 	struct list_head mounts;
+
+	/* New writepages go into this bucket */
+	struct fuse_sync_bucket __rcu *curr_bucket;
 };
 
 /*
@@ -908,6 +912,15 @@ static inline void fuse_page_descs_length_init(struct fuse_page_desc *descs,
 
 	for (i = index; i < index + nr_pages; i++)
 		descs[i].length = PAGE_SIZE - descs[i].offset;
+}
+
+static inline void fuse_sync_bucket_dec(struct fuse_sync_bucket *bucket)
+{
+	/* Need RCU protection to prevent use after free after the decrement */
+	rcu_read_lock();
+	if (atomic_dec_and_test(&bucket->count))
+		wake_up(&bucket->waitq);
+	rcu_read_unlock();
 }
 
 /** Device operations */
@@ -1216,7 +1229,7 @@ extern const struct xattr_handler *fuse_acl_xattr_handlers[];
 extern const struct xattr_handler *fuse_no_acl_xattr_handlers[];
 
 struct posix_acl;
-struct posix_acl *fuse_get_acl(struct inode *inode, int type);
+struct posix_acl *fuse_get_acl(struct inode *inode, int type, bool rcu);
 int fuse_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
 		 struct posix_acl *acl, int type);
 

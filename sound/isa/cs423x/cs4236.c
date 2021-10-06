@@ -76,7 +76,6 @@ static int pnp_registered;
 
 struct snd_card_cs4236 {
 	struct snd_wss *chip;
-	struct resource *res_sb_port;
 #ifdef CONFIG_PNP
 	struct pnp_dev *wss;
 	struct pnp_dev *ctrl;
@@ -309,24 +308,16 @@ static int snd_card_cs423x_pnpc(int dev, struct snd_card_cs4236 *acard,
 #define is_isapnp_selected(dev)		0
 #endif
 
-static void snd_card_cs4236_free(struct snd_card *card)
-{
-	struct snd_card_cs4236 *acard = card->private_data;
-
-	release_and_free_resource(acard->res_sb_port);
-}
-
 static int snd_cs423x_card_new(struct device *pdev, int dev,
 			       struct snd_card **cardp)
 {
 	struct snd_card *card;
 	int err;
 
-	err = snd_card_new(pdev, index[dev], id[dev], THIS_MODULE,
-			   sizeof(struct snd_card_cs4236), &card);
+	err = snd_devm_card_new(pdev, index[dev], id[dev], THIS_MODULE,
+				sizeof(struct snd_card_cs4236), &card);
 	if (err < 0)
 		return err;
-	card->private_free = snd_card_cs4236_free;
 	*cardp = card;
 	return 0;
 }
@@ -340,8 +331,8 @@ static int snd_cs423x_probe(struct snd_card *card, int dev)
 
 	acard = card->private_data;
 	if (sb_port[dev] > 0 && sb_port[dev] != SNDRV_AUTO_PORT) {
-		acard->res_sb_port = request_region(sb_port[dev], 16, IDENT " SB");
-		if (!acard->res_sb_port) {
+		if (!devm_request_region(card->dev, sb_port[dev], 16,
+					 IDENT " SB")) {
 			printk(KERN_ERR IDENT ": unable to register SB port at 0x%lx\n", sb_port[dev]);
 			return -EBUSY;
 		}
@@ -448,19 +439,10 @@ static int snd_cs423x_isa_probe(struct device *pdev,
 	if (err < 0)
 		return err;
 	err = snd_cs423x_probe(card, dev);
-	if (err < 0) {
-		snd_card_free(card);
+	if (err < 0)
 		return err;
-	}
-
 	dev_set_drvdata(pdev, card);
 	return 0;
-}
-
-static void snd_cs423x_isa_remove(struct device *pdev,
-				 unsigned int dev)
-{
-	snd_card_free(dev_get_drvdata(pdev));
 }
 
 #ifdef CONFIG_PM
@@ -495,7 +477,6 @@ static int snd_cs423x_isa_resume(struct device *dev, unsigned int n)
 static struct isa_driver cs423x_isa_driver = {
 	.match		= snd_cs423x_isa_match,
 	.probe		= snd_cs423x_isa_probe,
-	.remove		= snd_cs423x_isa_remove,
 #ifdef CONFIG_PM
 	.suspend	= snd_cs423x_isa_suspend,
 	.resume		= snd_cs423x_isa_resume,
@@ -539,22 +520,14 @@ static int snd_cs423x_pnpbios_detect(struct pnp_dev *pdev,
 	err = snd_card_cs423x_pnp(dev, card->private_data, pdev, cdev);
 	if (err < 0) {
 		printk(KERN_ERR "PnP BIOS detection failed for " IDENT "\n");
-		snd_card_free(card);
 		return err;
 	}
 	err = snd_cs423x_probe(card, dev);
-	if (err < 0) {
-		snd_card_free(card);
+	if (err < 0)
 		return err;
-	}
 	pnp_set_drvdata(pdev, card);
 	dev++;
 	return 0;
-}
-
-static void snd_cs423x_pnp_remove(struct pnp_dev *pdev)
-{
-	snd_card_free(pnp_get_drvdata(pdev));
 }
 
 #ifdef CONFIG_PM
@@ -573,7 +546,6 @@ static struct pnp_driver cs423x_pnp_driver = {
 	.name = "cs423x-pnpbios",
 	.id_table = snd_cs423x_pnpbiosids,
 	.probe = snd_cs423x_pnpbios_detect,
-	.remove = snd_cs423x_pnp_remove,
 #ifdef CONFIG_PM
 	.suspend	= snd_cs423x_pnp_suspend,
 	.resume		= snd_cs423x_pnp_resume,
@@ -601,23 +573,14 @@ static int snd_cs423x_pnpc_detect(struct pnp_card_link *pcard,
 	if (res < 0) {
 		printk(KERN_ERR "isapnp detection failed and probing for " IDENT
 		       " is not supported\n");
-		snd_card_free(card);
 		return res;
 	}
 	res = snd_cs423x_probe(card, dev);
-	if (res < 0) {
-		snd_card_free(card);
+	if (res < 0)
 		return res;
-	}
 	pnp_set_card_drvdata(pcard, card);
 	dev++;
 	return 0;
-}
-
-static void snd_cs423x_pnpc_remove(struct pnp_card_link *pcard)
-{
-	snd_card_free(pnp_get_card_drvdata(pcard));
-	pnp_set_card_drvdata(pcard, NULL);
 }
 
 #ifdef CONFIG_PM
@@ -637,7 +600,6 @@ static struct pnp_card_driver cs423x_pnpc_driver = {
 	.name = CS423X_ISAPNP_DRIVER,
 	.id_table = snd_cs423x_pnpids,
 	.probe = snd_cs423x_pnpc_detect,
-	.remove = snd_cs423x_pnpc_remove,
 #ifdef CONFIG_PM
 	.suspend	= snd_cs423x_pnpc_suspend,
 	.resume		= snd_cs423x_pnpc_resume,

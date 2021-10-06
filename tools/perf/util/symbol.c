@@ -1581,10 +1581,6 @@ int dso__load_bfd_symbols(struct dso *dso, const char *debugfile)
 	if (bfd_get_flavour(abfd) == bfd_target_elf_flavour)
 		goto out_close;
 
-	section = bfd_get_section_by_name(abfd, ".text");
-	if (section)
-		dso->text_offset = section->vma - section->filepos;
-
 	symbols_size = bfd_get_symtab_upper_bound(abfd);
 	if (symbols_size == 0) {
 		bfd_close(abfd);
@@ -1601,6 +1597,22 @@ int dso__load_bfd_symbols(struct dso *dso, const char *debugfile)
 	symbols_count = bfd_canonicalize_symtab(abfd, symbols);
 	if (symbols_count < 0)
 		goto out_free;
+
+	section = bfd_get_section_by_name(abfd, ".text");
+	if (section) {
+		for (i = 0; i < symbols_count; ++i) {
+			if (!strcmp(bfd_asymbol_name(symbols[i]), "__ImageBase") ||
+			    !strcmp(bfd_asymbol_name(symbols[i]), "__image_base__"))
+				break;
+		}
+		if (i < symbols_count) {
+			/* PE symbols can only have 4 bytes, so use .text high bits */
+			dso->text_offset = section->vma - (u32)section->vma;
+			dso->text_offset += (u32)bfd_asymbol_value(symbols[i]);
+		} else {
+			dso->text_offset = section->vma - section->filepos;
+		}
+	}
 
 	qsort(symbols, symbols_count, sizeof(asymbol *), bfd_symbols__cmpvalue);
 

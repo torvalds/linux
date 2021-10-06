@@ -234,7 +234,7 @@ out_free:
 	return ret;
 }
 
-static int vfio_ccw_sch_remove(struct subchannel *sch)
+static void vfio_ccw_sch_remove(struct subchannel *sch)
 {
 	struct vfio_ccw_private *private = dev_get_drvdata(&sch->dev);
 	struct vfio_ccw_crw *crw, *temp;
@@ -257,7 +257,6 @@ static int vfio_ccw_sch_remove(struct subchannel *sch)
 	VFIO_CCW_MSG_EVENT(4, "unbound from subchannel %x.%x.%04x\n",
 			   sch->schid.cssid, sch->schid.ssid,
 			   sch->schid.sch_no);
-	return 0;
 }
 
 static void vfio_ccw_sch_shutdown(struct subchannel *sch)

@@ -307,7 +307,8 @@
 	#size-cells = <0>;
 
 	bus-width = <4>;
-	max-frequency = <60000000>;
+	cap-sd-highspeed;
+	max-frequency = <100000000>;
 
 	non-removable;
 	disable-wp;

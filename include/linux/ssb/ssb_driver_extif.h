@@ -197,7 +197,7 @@ struct ssb_extif {
 
 static inline bool ssb_extif_available(struct ssb_extif *extif)
 {
-	return 0;
+	return false;
 }
 
 static inline

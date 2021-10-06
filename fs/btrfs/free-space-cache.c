@@ -344,19 +344,13 @@ fail:
 
 static void readahead_cache(struct inode *inode)
 {
-	struct file_ra_state *ra;
+	struct file_ra_state ra;
 	unsigned long last_index;
 
-	ra = kzalloc(sizeof(*ra), GFP_NOFS);
-	if (!ra)
-		return;
-
-	file_ra_state_init(ra, inode->i_mapping);
+	file_ra_state_init(&ra, inode->i_mapping);
 	last_index = (i_size_read(inode) - 1) >> PAGE_SHIFT;
 
-	page_cache_sync_readahead(inode->i_mapping, ra, NULL, 0, last_index);
-
-	kfree(ra);
+	page_cache_sync_readahead(inode->i_mapping, &ra, NULL, 0, last_index);
 }
 
 static int io_ctl_init(struct btrfs_io_ctl *io_ctl, struct inode *inode,
@@ -2544,6 +2538,7 @@ static int __btrfs_add_free_space_zoned(struct btrfs_block_group *block_group,
 	struct btrfs_free_space_ctl *ctl = block_group->free_space_ctl;
 	u64 offset = bytenr - block_group->start;
 	u64 to_free, to_unusable;
+	const int bg_reclaim_threshold = READ_ONCE(fs_info->bg_reclaim_threshold);
 
 	spin_lock(&ctl->tree_lock);
 	if (!used)
@@ -2573,9 +2568,9 @@ static int __btrfs_add_free_space_zoned(struct btrfs_block_group *block_group,
 	/* All the region is now unusable. Mark it as unused and reclaim */
 	if (block_group->zone_unusable == block_group->length) {
 		btrfs_mark_bg_unused(block_group);
-	} else if (block_group->zone_unusable >=
-		   div_factor_fine(block_group->length,
-				   fs_info->bg_reclaim_threshold)) {
+	} else if (bg_reclaim_threshold &&
+		   block_group->zone_unusable >=
+		   div_factor_fine(block_group->length, bg_reclaim_threshold)) {
 		btrfs_mark_bg_to_reclaim(block_group);
 	}
 
@@ -2652,8 +2647,11 @@ int btrfs_remove_free_space(struct btrfs_block_group *block_group,
 		 * btrfs_pin_extent_for_log_replay() when replaying the log.
 		 * Advance the pointer not to overwrite the tree-log nodes.
 		 */
-		if (block_group->alloc_offset < offset + bytes)
-			block_group->alloc_offset = offset + bytes;
+		if (block_group->start + block_group->alloc_offset <
+		    offset + bytes) {
+			block_group->alloc_offset =
+				offset + bytes - block_group->start;
+		}
 		return 0;
 	}
 

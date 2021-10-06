@@ -105,11 +105,11 @@
 				label = "rootfs";
 				reg = <0x0600000 0x700000>;
 				};
-			spare1@D00000 {
+			spare1@d00000 {
 				label = "spare1";
 				reg = <0x0D00000 0x200000>;
 				};
-			spare2@0F00000 {
+			spare2@f00000 {
 				label = "spare2";
 				reg = <0x0F00000 0x200000>;
 				};

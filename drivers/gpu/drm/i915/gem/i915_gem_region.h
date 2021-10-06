@@ -19,6 +19,7 @@ void i915_gem_object_release_memory_region(struct drm_i915_gem_object *obj);
 struct drm_i915_gem_object *
 i915_gem_object_create_region(struct intel_memory_region *mem,
 			      resource_size_t size,
+			      resource_size_t page_size,
 			      unsigned int flags);
 
 #endif

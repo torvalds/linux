@@ -75,7 +75,8 @@ static void mmc_host_classdev_release(struct device *dev)
 {
 	struct mmc_host *host = cls_dev_to_mmc_host(dev);
 	wakeup_source_unregister(host->ws);
-	ida_simple_remove(&mmc_host_ida, host->index);
+	if (of_alias_get_id(host->parent->of_node, "mmc") < 0)
+		ida_simple_remove(&mmc_host_ida, host->index);
 	kfree(host);
 }
 
@@ -95,6 +96,10 @@ void mmc_unregister_host_class(void)
 	class_unregister(&mmc_host_class);
 }
 
+/**
+ * mmc_retune_enable() - enter a transfer mode that requires retuning
+ * @host: host which should retune now
+ */
 void mmc_retune_enable(struct mmc_host *host)
 {
 	host->can_retune = 1;
@@ -126,13 +131,18 @@ void mmc_retune_unpause(struct mmc_host *host)
 }
 EXPORT_SYMBOL(mmc_retune_unpause);
 
+/**
+ * mmc_retune_disable() - exit a transfer mode that requires retuning
+ * @host: host which should not retune anymore
+ *
+ * It is not meant for temporarily preventing retuning!
+ */
 void mmc_retune_disable(struct mmc_host *host)
 {
 	mmc_retune_unpause(host);
 	host->can_retune = 0;
 	del_timer_sync(&host->retune_timer);
-	host->retune_now = 0;
-	host->need_retune = 0;
+	mmc_retune_clear(host);
 }
 
 void mmc_retune_timer_stop(struct mmc_host *host)
@@ -502,7 +512,7 @@ static int mmc_first_nonreserved_index(void)
  */
 struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 {
-	int err;
+	int index;
 	struct mmc_host *host;
 	int alias_id, min_idx, max_idx;
 
@@ -515,20 +525,19 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 
 	alias_id = of_alias_get_id(dev->of_node, "mmc");
 	if (alias_id >= 0) {
-		min_idx = alias_id;
-		max_idx = alias_id + 1;
+		index = alias_id;
 	} else {
 		min_idx = mmc_first_nonreserved_index();
 		max_idx = 0;
+
+		index = ida_simple_get(&mmc_host_ida, min_idx, max_idx, GFP_KERNEL);
+		if (index < 0) {
+			kfree(host);
+			return NULL;
+		}
 	}
 
-	err = ida_simple_get(&mmc_host_ida, min_idx, max_idx, GFP_KERNEL);
-	if (err < 0) {
-		kfree(host);
-		return NULL;
-	}
-
-	host->index = err;
+	host->index = index;
 
 	dev_set_name(&host->class_dev, "mmc%d", host->index);
 	host->ws = wakeup_source_register(NULL, dev_name(&host->class_dev));

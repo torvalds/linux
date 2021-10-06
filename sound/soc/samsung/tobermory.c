@@ -105,7 +105,7 @@ static int tobermory_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops tobermory_ops = {
+static const struct snd_soc_ops tobermory_ops = {
 	.hw_params = tobermory_hw_params,
 };
 

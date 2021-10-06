@@ -973,7 +973,7 @@ static int gb_tty_init(void)
 	return 0;
 
 fail_put_gb_tty:
-	put_tty_driver(gb_tty_driver);
+	tty_driver_kref_put(gb_tty_driver);
 fail_unregister_dev:
 	return retval;
 }
@@ -981,7 +981,7 @@ fail_unregister_dev:
 static void gb_tty_exit(void)
 {
 	tty_unregister_driver(gb_tty_driver);
-	put_tty_driver(gb_tty_driver);
+	tty_driver_kref_put(gb_tty_driver);
 	idr_destroy(&tty_minors);
 }
 

@@ -67,6 +67,9 @@
 
 /* Filtering Registers */
 #define IGC_ETQF(_n)		(0x05CB0 + (4 * (_n))) /* EType Queue Fltr */
+#define IGC_FHFT(_n)		(0x09000 + (256 * (_n))) /* Flexible Host Filter */
+#define IGC_FHFT_EXT(_n)	(0x09A00 + (256 * (_n))) /* Flexible Host Filter Extended */
+#define IGC_FHFTSL		0x05804 /* Flex Filter indirect table select */
 
 /* ETQF register bit definitions */
 #define IGC_ETQF_FILTER_ENABLE	BIT(26)
@@ -74,6 +77,19 @@
 #define IGC_ETQF_QUEUE_SHIFT	16
 #define IGC_ETQF_QUEUE_MASK	0x00070000
 #define IGC_ETQF_ETYPE_MASK	0x0000FFFF
+
+/* FHFT register bit definitions */
+#define IGC_FHFT_LENGTH_MASK	GENMASK(7, 0)
+#define IGC_FHFT_QUEUE_SHIFT	8
+#define IGC_FHFT_QUEUE_MASK	GENMASK(10, 8)
+#define IGC_FHFT_PRIO_SHIFT	16
+#define IGC_FHFT_PRIO_MASK	GENMASK(18, 16)
+#define IGC_FHFT_IMM_INT	BIT(24)
+#define IGC_FHFT_DROP		BIT(25)
+
+/* FHFTSL register bit definitions */
+#define IGC_FHFTSL_FTSL_SHIFT	0
+#define IGC_FHFTSL_FTSL_MASK	GENMASK(1, 0)
 
 /* Redirection Table - RW Array */
 #define IGC_RETA(_i)		(0x05C00 + ((_i) * 4))
@@ -220,6 +236,9 @@
 #define IGC_ENDQT(_n)		(0x3334 + 0x4 * (_n))
 #define IGC_DTXMXPKTSZ		0x355C
 
+#define IGC_TQAVCC(_n)		(0x3004 + ((_n) * 0x40))
+#define IGC_TQAVHC(_n)		(0x300C + ((_n) * 0x40))
+
 /* System Time Registers */
 #define IGC_SYSTIML	0x0B600  /* System time register Low - RO */
 #define IGC_SYSTIMH	0x0B604  /* System time register High - RO */
@@ -228,6 +247,29 @@
 
 #define IGC_TXSTMPL	0x0B618  /* Tx timestamp value Low - RO */
 #define IGC_TXSTMPH	0x0B61C  /* Tx timestamp value High - RO */
+
+#define IGC_TIMADJ	0x0B60C  /* Time Adjustment Offset Register */
+
+/* PCIe Registers */
+#define IGC_PTM_CTRL		0x12540  /* PTM Control */
+#define IGC_PTM_STAT		0x12544  /* PTM Status */
+#define IGC_PTM_CYCLE_CTRL	0x1254C  /* PTM Cycle Control */
+
+/* PTM Time registers */
+#define IGC_PTM_T1_TIM0_L	0x12558  /* T1 on Timer 0 Low */
+#define IGC_PTM_T1_TIM0_H	0x1255C  /* T1 on Timer 0 High */
+
+#define IGC_PTM_CURR_T2_L	0x1258C  /* Current T2 Low */
+#define IGC_PTM_CURR_T2_H	0x12590  /* Current T2 High */
+#define IGC_PTM_PREV_T2_L	0x12584  /* Previous T2 Low */
+#define IGC_PTM_PREV_T2_H	0x12588  /* Previous T2 High */
+#define IGC_PTM_PREV_T4M1	0x12578  /* T4 Minus T1 on previous PTM Cycle */
+#define IGC_PTM_CURR_T4M1	0x1257C  /* T4 Minus T1 on this PTM Cycle */
+#define IGC_PTM_PREV_T3M2	0x12580  /* T3 Minus T2 on previous PTM Cycle */
+#define IGC_PTM_TDELAY		0x12594  /* PTM PCIe Link Delay */
+
+#define IGC_PCIE_DIG_DELAY	0x12550  /* PCIe Digital Delay */
+#define IGC_PCIE_PHY_DELAY	0x12554  /* PCIe PHY Delay */
 
 /* Management registers */
 #define IGC_MANC	0x05820  /* Management Control - RW */
@@ -240,6 +282,7 @@
 #define IGC_WUFC	0x05808  /* Wakeup Filter Control - RW */
 #define IGC_WUS		0x05810  /* Wakeup Status - R/W1C */
 #define IGC_WUPL	0x05900  /* Wakeup Packet Length - RW */
+#define IGC_WUFC_EXT	0x0580C  /* Wakeup Filter Control Register Extended - RW */
 
 /* Wake Up packet memory */
 #define IGC_WUPM_REG(_i)	(0x05A00 + ((_i) * 4))

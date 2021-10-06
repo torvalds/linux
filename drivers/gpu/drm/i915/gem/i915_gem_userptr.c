@@ -67,11 +67,11 @@ static bool i915_gem_userptr_invalidate(struct mmu_interval_notifier *mni,
 	if (!mmu_notifier_range_blockable(range))
 		return false;
 
-	spin_lock(&i915->mm.notifier_lock);
+	write_lock(&i915->mm.notifier_lock);
 
 	mmu_interval_set_seq(mni, cur_seq);
 
-	spin_unlock(&i915->mm.notifier_lock);
+	write_unlock(&i915->mm.notifier_lock);
 
 	/*
 	 * We don't wait when the process is exiting. This is valid
@@ -107,16 +107,15 @@ i915_gem_userptr_init__mmu_notifier(struct drm_i915_gem_object *obj)
 
 static void i915_gem_object_userptr_drop_ref(struct drm_i915_gem_object *obj)
 {
-	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	struct page **pvec = NULL;
 
-	spin_lock(&i915->mm.notifier_lock);
+	assert_object_held_shared(obj);
+
 	if (!--obj->userptr.page_ref) {
 		pvec = obj->userptr.pvec;
 		obj->userptr.pvec = NULL;
 	}
 	GEM_BUG_ON(obj->userptr.page_ref < 0);
-	spin_unlock(&i915->mm.notifier_lock);
 
 	if (pvec) {
 		const unsigned long num_pages = obj->base.size >> PAGE_SHIFT;
@@ -128,12 +127,10 @@ static void i915_gem_object_userptr_drop_ref(struct drm_i915_gem_object *obj)
 
 static int i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
 {
-	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	const unsigned long num_pages = obj->base.size >> PAGE_SHIFT;
 	unsigned int max_segment = i915_sg_segment_size();
 	struct sg_table *st;
 	unsigned int sg_page_sizes;
-	struct scatterlist *sg;
 	struct page **pvec;
 	int ret;
 
@@ -141,25 +138,20 @@ static int i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
 	if (!st)
 		return -ENOMEM;
 
-	spin_lock(&i915->mm.notifier_lock);
-	if (GEM_WARN_ON(!obj->userptr.page_ref)) {
-		spin_unlock(&i915->mm.notifier_lock);
-		ret = -EFAULT;
+	if (!obj->userptr.page_ref) {
+		ret = -EAGAIN;
 		goto err_free;
 	}
 
 	obj->userptr.page_ref++;
 	pvec = obj->userptr.pvec;
-	spin_unlock(&i915->mm.notifier_lock);
 
 alloc_table:
-	sg = __sg_alloc_table_from_pages(st, pvec, num_pages, 0,
-					 num_pages << PAGE_SHIFT, max_segment,
-					 NULL, 0, GFP_KERNEL);
-	if (IS_ERR(sg)) {
-		ret = PTR_ERR(sg);
+	ret = sg_alloc_table_from_pages_segment(st, pvec, num_pages, 0,
+						num_pages << PAGE_SHIFT,
+						max_segment, GFP_KERNEL);
+	if (ret)
 		goto err;
-	}
 
 	ret = i915_gem_gtt_prepare_pages(obj, st);
 	if (ret) {
@@ -241,7 +233,7 @@ i915_gem_userptr_put_pages(struct drm_i915_gem_object *obj,
 	i915_gem_object_userptr_drop_ref(obj);
 }
 
-static int i915_gem_object_userptr_unbind(struct drm_i915_gem_object *obj, bool get_pages)
+static int i915_gem_object_userptr_unbind(struct drm_i915_gem_object *obj)
 {
 	struct sg_table *pages;
 	int err;
@@ -259,15 +251,11 @@ static int i915_gem_object_userptr_unbind(struct drm_i915_gem_object *obj, bool 
 	if (!IS_ERR_OR_NULL(pages))
 		i915_gem_userptr_put_pages(obj, pages);
 
-	if (get_pages)
-		err = ____i915_gem_object_get_pages(obj);
-
 	return err;
 }
 
 int i915_gem_object_userptr_submit_init(struct drm_i915_gem_object *obj)
 {
-	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	const unsigned long num_pages = obj->base.size >> PAGE_SHIFT;
 	struct page **pvec;
 	unsigned int gup_flags = 0;
@@ -277,38 +265,21 @@ int i915_gem_object_userptr_submit_init(struct drm_i915_gem_object *obj)
 	if (obj->userptr.notifier.mm != current->mm)
 		return -EFAULT;
 
+	notifier_seq = mmu_interval_read_begin(&obj->userptr.notifier);
+
 	ret = i915_gem_object_lock_interruptible(obj, NULL);
 	if (ret)
 		return ret;
 
-	/* optimistically try to preserve current pages while unlocked */
-	if (i915_gem_object_has_pages(obj) &&
-	    !mmu_interval_check_retry(&obj->userptr.notifier,
-				      obj->userptr.notifier_seq)) {
-		spin_lock(&i915->mm.notifier_lock);
-		if (obj->userptr.pvec &&
-		    !mmu_interval_read_retry(&obj->userptr.notifier,
-					     obj->userptr.notifier_seq)) {
-			obj->userptr.page_ref++;
-
-			/* We can keep using the current binding, this is the fastpath */
-			ret = 1;
-		}
-		spin_unlock(&i915->mm.notifier_lock);
-	}
-
-	if (!ret) {
-		/* Make sure userptr is unbound for next attempt, so we don't use stale pages. */
-		ret = i915_gem_object_userptr_unbind(obj, false);
-	}
-	i915_gem_object_unlock(obj);
-	if (ret < 0)
-		return ret;
-
-	if (ret > 0)
+	if (notifier_seq == obj->userptr.notifier_seq && obj->userptr.pvec) {
+		i915_gem_object_unlock(obj);
 		return 0;
+	}
 
-	notifier_seq = mmu_interval_read_begin(&obj->userptr.notifier);
+	ret = i915_gem_object_userptr_unbind(obj);
+	i915_gem_object_unlock(obj);
+	if (ret)
+		return ret;
 
 	pvec = kvmalloc_array(num_pages, sizeof(struct page *), GFP_KERNEL);
 	if (!pvec)
@@ -329,7 +300,9 @@ int i915_gem_object_userptr_submit_init(struct drm_i915_gem_object *obj)
 	}
 	ret = 0;
 
-	spin_lock(&i915->mm.notifier_lock);
+	ret = i915_gem_object_lock_interruptible(obj, NULL);
+	if (ret)
+		goto out;
 
 	if (mmu_interval_read_retry(&obj->userptr.notifier,
 		!obj->userptr.page_ref ? notifier_seq :
@@ -341,12 +314,14 @@ int i915_gem_object_userptr_submit_init(struct drm_i915_gem_object *obj)
 	if (!obj->userptr.page_ref++) {
 		obj->userptr.pvec = pvec;
 		obj->userptr.notifier_seq = notifier_seq;
-
 		pvec = NULL;
+		ret = ____i915_gem_object_get_pages(obj);
 	}
 
+	obj->userptr.page_ref--;
+
 out_unlock:
-	spin_unlock(&i915->mm.notifier_lock);
+	i915_gem_object_unlock(obj);
 
 out:
 	if (pvec) {
@@ -367,11 +342,6 @@ int i915_gem_object_userptr_submit_done(struct drm_i915_gem_object *obj)
 	}
 
 	return 0;
-}
-
-void i915_gem_object_userptr_submit_fini(struct drm_i915_gem_object *obj)
-{
-	i915_gem_object_userptr_drop_ref(obj);
 }
 
 int i915_gem_object_userptr_validate(struct drm_i915_gem_object *obj)
@@ -396,7 +366,6 @@ int i915_gem_object_userptr_validate(struct drm_i915_gem_object *obj)
 		i915_gem_object_unlock(obj);
 	}
 
-	i915_gem_object_userptr_submit_fini(obj);
 	return err;
 }
 
@@ -449,6 +418,34 @@ static const struct drm_i915_gem_object_ops i915_gem_userptr_ops = {
 };
 
 #endif
+
+static int
+probe_range(struct mm_struct *mm, unsigned long addr, unsigned long len)
+{
+	const unsigned long end = addr + len;
+	struct vm_area_struct *vma;
+	int ret = -EFAULT;
+
+	mmap_read_lock(mm);
+	for (vma = find_vma(mm, addr); vma; vma = vma->vm_next) {
+		/* Check for holes, note that we also update the addr below */
+		if (vma->vm_start > addr)
+			break;
+
+		if (vma->vm_flags & (VM_PFNMAP | VM_MIXEDMAP))
+			break;
+
+		if (vma->vm_end >= end) {
+			ret = 0;
+			break;
+		}
+
+		addr = vma->vm_end;
+	}
+	mmap_read_unlock(mm);
+
+	return ret;
+}
 
 /*
  * Creates a new mm object that wraps some normal memory from the process
@@ -505,7 +502,8 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 	}
 
 	if (args->flags & ~(I915_USERPTR_READ_ONLY |
-			    I915_USERPTR_UNSYNCHRONIZED))
+			    I915_USERPTR_UNSYNCHRONIZED |
+			    I915_USERPTR_PROBE))
 		return -EINVAL;
 
 	if (i915_gem_object_size_2big(args->user_size))
@@ -532,14 +530,24 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 			return -ENODEV;
 	}
 
+	if (args->flags & I915_USERPTR_PROBE) {
+		/*
+		 * Check that the range pointed to represents real struct
+		 * pages and not iomappings (at this moment in time!)
+		 */
+		ret = probe_range(current->mm, args->user_ptr, args->user_size);
+		if (ret)
+			return ret;
+	}
+
 #ifdef CONFIG_MMU_NOTIFIER
 	obj = i915_gem_object_alloc();
 	if (obj == NULL)
 		return -ENOMEM;
 
 	drm_gem_private_object_init(dev, &obj->base, args->user_size);
-	i915_gem_object_init(obj, &i915_gem_userptr_ops, &lock_class,
-			     I915_BO_ALLOC_STRUCT_PAGE);
+	i915_gem_object_init(obj, &i915_gem_userptr_ops, &lock_class, 0);
+	obj->mem_flags = I915_BO_FLAG_STRUCT_PAGE;
 	obj->read_domains = I915_GEM_DOMAIN_CPU;
 	obj->write_domain = I915_GEM_DOMAIN_CPU;
 	i915_gem_object_set_cache_coherency(obj, I915_CACHE_LLC);
@@ -572,7 +580,7 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 int i915_gem_init_userptr(struct drm_i915_private *dev_priv)
 {
 #ifdef CONFIG_MMU_NOTIFIER
-	spin_lock_init(&dev_priv->mm.notifier_lock);
+	rwlock_init(&dev_priv->mm.notifier_lock);
 #endif
 
 	return 0;

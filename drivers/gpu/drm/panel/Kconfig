@@ -82,6 +82,7 @@ config DRM_PANEL_SIMPLE
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on PM
 	select VIDEOMODE_HELPERS
+	select DRM_DP_AUX_BUS
 	help
 	  DRM panel driver for dumb panels that need at most a regulator and
 	  a GPIO to be powered up. Optionally a backlight can be attached so
@@ -124,6 +125,18 @@ config DRM_PANEL_ILITEK_IL9322
 	  Say Y here if you want to enable support for Ilitek IL9322
 	  QVGA (320x240) RGB, YUV and ITU-T BT.656 panels.
 
+config DRM_PANEL_ILITEK_ILI9341
+	tristate "Ilitek ILI9341 240x320 QVGA panels"
+	depends on OF && SPI
+	depends on DRM_KMS_HELPER
+	depends on DRM_KMS_CMA_HELPER
+	depends on BACKLIGHT_CLASS_DEVICE
+	select DRM_MIPI_DBI
+	help
+	  Say Y here if you want to enable support for Ilitek IL9341
+	  QVGA (240x320) RGB panels. support serial & parallel rgb
+	  interface.
+
 config DRM_PANEL_ILITEK_ILI9881C
 	tristate "Ilitek ILI9881C-based panels"
 	depends on OF
@@ -132,6 +145,15 @@ config DRM_PANEL_ILITEK_ILI9881C
 	help
 	  Say Y if you want to enable support for panels based on the
 	  Ilitek ILI9881c controller.
+
+config DRM_PANEL_INNOLUX_EJ030NA
+        tristate "Innolux EJ030NA 320x480 LCD panel"
+        depends on OF && SPI
+        select REGMAP_SPI
+        help
+          Say Y here to enable support for the Innolux/Chimei EJ030NA
+          320x480 3.0" panel as found in the RS97 V2.1, RG300(non-ips)
+          and LDK handheld gaming consoles.
 
 config DRM_PANEL_INNOLUX_P079ZCA
 	tristate "Innolux P079ZCA panel"
@@ -343,6 +365,27 @@ config DRM_PANEL_RONBO_RB070D30
 	  Say Y here if you want to enable support for Ronbo Electronics
 	  RB070D30 1024x600 DSI panel.
 
+config DRM_PANEL_SAMSUNG_ATNA33XC20
+	tristate "Samsung ATNA33XC20 eDP panel"
+	depends on OF
+	depends on BACKLIGHT_CLASS_DEVICE
+	depends on PM
+	select DRM_DP_AUX_BUS
+	help
+	  DRM panel driver for the Samsung ATNA33XC20 panel. This panel can't
+	  be handled by the DRM_PANEL_SIMPLE driver because its power
+	  sequencing is non-standard.
+
+config DRM_PANEL_SAMSUNG_DB7430
+	tristate "Samsung DB7430-based DPI panels"
+	depends on OF && SPI && GPIOLIB
+	depends on BACKLIGHT_CLASS_DEVICE
+	select DRM_MIPI_DBI
+	help
+	  Say Y here if you want to enable support for the Samsung
+	  DB7430 DPI display controller used in such devices as the
+	  LMS397KF04 480x800 DPI panel.
+
 config DRM_PANEL_SAMSUNG_S6D16D0
 	tristate "Samsung S6D16D0 DSI video mode panel"
 	depends on OF
@@ -377,6 +420,7 @@ config DRM_PANEL_SAMSUNG_S6E63M0_SPI
 	depends on SPI
 	depends on DRM_PANEL_SAMSUNG_S6E63M0
 	default DRM_PANEL_SAMSUNG_S6E63M0
+	select DRM_MIPI_DBI
 	help
 	  Say Y here if you want to be able to access the Samsung
 	  S6E63M0 panel using SPI.
@@ -552,6 +596,16 @@ config DRM_PANEL_VISIONOX_RM69299
 	help
 	  Say Y here if you want to enable support for Visionox
 	  RM69299  DSI Video Mode panel.
+
+config DRM_PANEL_WIDECHIPS_WS2401
+	tristate "Widechips WS2401 DPI panel driver"
+	depends on SPI && GPIOLIB
+	depends on BACKLIGHT_CLASS_DEVICE
+	select DRM_MIPI_DBI
+	help
+	  Say Y here if you want to enable support for the Widechips WS2401 DPI
+	  480x800 display controller used in panels such as Samsung LMS380KF01.
+	  This display is used in the Samsung Galaxy Ace 2 GT-I8160 (Codina).
 
 config DRM_PANEL_XINPENG_XPP055C272
 	tristate "Xinpeng XPP055C272 panel driver"

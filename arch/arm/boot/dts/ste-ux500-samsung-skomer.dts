@@ -230,6 +230,8 @@
 			non-removable;
 			cap-mmc-highspeed;
 			mmc-ddr-1_8v;
+			no-sdio;
+			no-sd;
 			vmmc-supply = <&ldo_3v3_reg>;
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&mc2_a_1_default>;

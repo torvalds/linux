@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <linux/of_net.h>
 #include <linux/netdevice.h>
+#include <linux/phylink.h>
 #include <linux/of_mdio.h>
 #include <linux/of_platform.h>
 #include <linux/mfd/syscon.h>
@@ -945,13 +946,9 @@ static int mscc_ocelot_init_ports(struct platform_device *pdev,
 	for_each_available_child_of_node(ports, portnp) {
 		struct ocelot_port_private *priv;
 		struct ocelot_port *ocelot_port;
-		struct device_node *phy_node;
 		struct devlink_port *dlp;
-		phy_interface_t phy_mode;
-		struct phy_device *phy;
 		struct regmap *target;
 		struct resource *res;
-		struct phy *serdes;
 		char res_name[8];
 
 		if (of_property_read_u32(portnp, "reg", &reg))
@@ -975,77 +972,26 @@ static int mscc_ocelot_init_ports(struct platform_device *pdev,
 			goto out_teardown;
 		}
 
-		phy_node = of_parse_phandle(portnp, "phy-handle", 0);
-		if (!phy_node)
-			continue;
-
-		phy = of_phy_find_device(phy_node);
-		of_node_put(phy_node);
-		if (!phy)
-			continue;
-
 		err = ocelot_port_devlink_init(ocelot, port,
 					       DEVLINK_PORT_FLAVOUR_PHYSICAL);
 		if (err) {
 			of_node_put(portnp);
 			goto out_teardown;
 		}
-		devlink_ports_registered |= BIT(port);
 
-		err = ocelot_probe_port(ocelot, port, target, phy);
+		err = ocelot_probe_port(ocelot, port, target, portnp);
 		if (err) {
-			of_node_put(portnp);
-			goto out_teardown;
+			ocelot_port_devlink_teardown(ocelot, port);
+			continue;
 		}
+
+		devlink_ports_registered |= BIT(port);
 
 		ocelot_port = ocelot->ports[port];
 		priv = container_of(ocelot_port, struct ocelot_port_private,
 				    port);
 		dlp = &ocelot->devlink_ports[port];
 		devlink_port_type_eth_set(dlp, priv->dev);
-
-		of_get_phy_mode(portnp, &phy_mode);
-
-		ocelot_port->phy_mode = phy_mode;
-
-		switch (ocelot_port->phy_mode) {
-		case PHY_INTERFACE_MODE_NA:
-			continue;
-		case PHY_INTERFACE_MODE_SGMII:
-			break;
-		case PHY_INTERFACE_MODE_QSGMII:
-			/* Ensure clock signals and speed is set on all
-			 * QSGMII links
-			 */
-			ocelot_port_writel(ocelot_port,
-					   DEV_CLOCK_CFG_LINK_SPEED
-					   (OCELOT_SPEED_1000),
-					   DEV_CLOCK_CFG);
-			break;
-		default:
-			dev_err(ocelot->dev,
-				"invalid phy mode for port%d, (Q)SGMII only\n",
-				port);
-			of_node_put(portnp);
-			err = -EINVAL;
-			goto out_teardown;
-		}
-
-		serdes = devm_of_phy_get(ocelot->dev, portnp, NULL);
-		if (IS_ERR(serdes)) {
-			err = PTR_ERR(serdes);
-			if (err == -EPROBE_DEFER)
-				dev_dbg(ocelot->dev, "deferring probe\n");
-			else
-				dev_err(ocelot->dev,
-					"missing SerDes phys for port%d\n",
-					port);
-
-			of_node_put(portnp);
-			goto out_teardown;
-		}
-
-		priv->serdes = serdes;
 	}
 
 	/* Initialize unused devlink ports at the end */
@@ -1103,7 +1049,8 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 	if (!np && !pdev->dev.platform_data)
 		return -ENODEV;
 
-	devlink = devlink_alloc(&ocelot_devlink_ops, sizeof(*ocelot));
+	devlink =
+		devlink_alloc(&ocelot_devlink_ops, sizeof(*ocelot), &pdev->dev);
 	if (!devlink)
 		return -ENOMEM;
 
@@ -1187,7 +1134,7 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 	if (err)
 		goto out_put_ports;
 
-	err = devlink_register(devlink, ocelot->dev);
+	err = devlink_register(devlink);
 	if (err)
 		goto out_ocelot_deinit;
 

@@ -892,3 +892,7 @@
 		};
 	};
 };
+
+&pruss1_mdio {
+	status = "disabled";
+};

@@ -267,6 +267,7 @@ void lkdtm_ARRAY_BOUNDS(void)
 	kfree(not_checked);
 	kfree(checked);
 	pr_err("FAIL: survived array bounds overflow!\n");
+	pr_expected_config(CONFIG_UBSAN_BOUNDS);
 }
 
 void lkdtm_CORRUPT_LIST_ADD(void)
@@ -505,54 +506,4 @@ noinline void lkdtm_CORRUPT_PAC(void)
 #else
 	pr_err("XFAIL: this test is arm64-only\n");
 #endif
-}
-
-void lkdtm_FORTIFY_OBJECT(void)
-{
-	struct target {
-		char a[10];
-	} target[2] = {};
-	int result;
-
-	/*
-	 * Using volatile prevents the compiler from determining the value of
-	 * 'size' at compile time. Without that, we would get a compile error
-	 * rather than a runtime error.
-	 */
-	volatile int size = 11;
-
-	pr_info("trying to read past the end of a struct\n");
-
-	result = memcmp(&target[0], &target[1], size);
-
-	/* Print result to prevent the code from being eliminated */
-	pr_err("FAIL: fortify did not catch an object overread!\n"
-	       "\"%d\" was the memcmp result.\n", result);
-}
-
-void lkdtm_FORTIFY_SUBOBJECT(void)
-{
-	struct target {
-		char a[10];
-		char b[10];
-	} target;
-	char *src;
-
-	src = kmalloc(20, GFP_KERNEL);
-	strscpy(src, "over ten bytes", 20);
-
-	pr_info("trying to strcpy past the end of a member of a struct\n");
-
-	/*
-	 * strncpy(target.a, src, 20); will hit a compile error because the
-	 * compiler knows at build time that target.a < 20 bytes. Use strcpy()
-	 * to force a runtime error.
-	 */
-	strcpy(target.a, src);
-
-	/* Use target.a to prevent the code from being eliminated */
-	pr_err("FAIL: fortify did not catch an sub-object overrun!\n"
-	       "\"%s\" was copied.\n", target.a);
-
-	kfree(src);
 }

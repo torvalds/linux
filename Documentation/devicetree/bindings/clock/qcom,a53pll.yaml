@@ -18,6 +18,7 @@ properties:
     enum:
       - qcom,ipq6018-a53pll
       - qcom,msm8916-a53pll
+      - qcom,msm8939-a53pll
 
   reg:
     maxItems: 1
@@ -32,6 +33,8 @@ properties:
   clock-names:
     items:
       - const: xo
+
+  operating-points-v2: true
 
 required:
   - compatible

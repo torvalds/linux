@@ -1,6 +1,6 @@
 cat <<EOF
 /**
- * ${arch}${atomic}_sub_and_test - subtract value from variable and test result
+ * arch_${atomic}_sub_and_test - subtract value from variable and test result
  * @i: integer value to subtract
  * @v: pointer of type ${atomic}_t
  *
@@ -9,8 +9,8 @@ cat <<EOF
  * other cases.
  */
 static __always_inline bool
-${arch}${atomic}_sub_and_test(${int} i, ${atomic}_t *v)
+arch_${atomic}_sub_and_test(${int} i, ${atomic}_t *v)
 {
-	return ${arch}${atomic}_sub_return(i, v) == 0;
+	return arch_${atomic}_sub_return(i, v) == 0;
 }
 EOF

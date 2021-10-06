@@ -47,12 +47,14 @@
 #define MII_INTSRC_LINK_FAIL		BIT(10)
 #define MII_INTSRC_LINK_UP		BIT(9)
 #define MII_INTSRC_MASK			(MII_INTSRC_LINK_FAIL | MII_INTSRC_LINK_UP)
-#define MII_INTSRC_TEMP_ERR		BIT(1)
 #define MII_INTSRC_UV_ERR		BIT(3)
+#define MII_INTSRC_TEMP_ERR		BIT(1)
 
 #define MII_INTEN			22
 #define MII_INTEN_LINK_FAIL		BIT(10)
 #define MII_INTEN_LINK_UP		BIT(9)
+#define MII_INTEN_UV_ERR		BIT(3)
+#define MII_INTEN_TEMP_ERR		BIT(1)
 
 #define MII_COMMSTAT			23
 #define MII_COMMSTAT_LINK_UP		BIT(15)
@@ -607,7 +609,8 @@ static int tja11xx_config_intr(struct phy_device *phydev)
 		if (err)
 			return err;
 
-		value = MII_INTEN_LINK_FAIL | MII_INTEN_LINK_UP;
+		value = MII_INTEN_LINK_FAIL | MII_INTEN_LINK_UP |
+			MII_INTEN_UV_ERR | MII_INTEN_TEMP_ERR;
 		err = phy_write(phydev, MII_INTEN, value);
 	} else {
 		err = phy_write(phydev, MII_INTEN, value);
@@ -622,6 +625,7 @@ static int tja11xx_config_intr(struct phy_device *phydev)
 
 static irqreturn_t tja11xx_handle_interrupt(struct phy_device *phydev)
 {
+	struct device *dev = &phydev->mdio.dev;
 	int irq_status;
 
 	irq_status = phy_read(phydev, MII_INTSRC);
@@ -629,6 +633,11 @@ static irqreturn_t tja11xx_handle_interrupt(struct phy_device *phydev)
 		phy_error(phydev);
 		return IRQ_NONE;
 	}
+
+	if (irq_status & MII_INTSRC_TEMP_ERR)
+		dev_warn(dev, "Overtemperature error detected (temp > 155C°).\n");
+	if (irq_status & MII_INTSRC_UV_ERR)
+		dev_warn(dev, "Undervoltage error detected.\n");
 
 	if (!(irq_status & MII_INTSRC_MASK))
 		return IRQ_NONE;

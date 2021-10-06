@@ -3,6 +3,7 @@
  * Copyright (C) 2001 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  */
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdarg.h>

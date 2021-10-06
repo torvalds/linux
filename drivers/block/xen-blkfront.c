@@ -80,6 +80,7 @@ enum blkif_state {
 	BLKIF_STATE_DISCONNECTED,
 	BLKIF_STATE_CONNECTED,
 	BLKIF_STATE_SUSPENDED,
+	BLKIF_STATE_ERROR,
 };
 
 struct grant {
@@ -89,6 +90,7 @@ struct grant {
 };
 
 enum blk_req_status {
+	REQ_PROCESSING,
 	REQ_WAITING,
 	REQ_DONE,
 	REQ_ERROR,
@@ -502,34 +504,21 @@ static int blkif_getgeo(struct block_device *bd, struct hd_geometry *hg)
 static int blkif_ioctl(struct block_device *bdev, fmode_t mode,
 		       unsigned command, unsigned long argument)
 {
-	struct blkfront_info *info = bdev->bd_disk->private_data;
 	int i;
-
-	dev_dbg(&info->xbdev->dev, "command: 0x%x, argument: 0x%lx\n",
-		command, (long)argument);
 
 	switch (command) {
 	case CDROMMULTISESSION:
-		dev_dbg(&info->xbdev->dev, "FIXME: support multisession CDs later\n");
 		for (i = 0; i < sizeof(struct cdrom_multisession); i++)
 			if (put_user(0, (char __user *)(argument + i)))
 				return -EFAULT;
 		return 0;
-
-	case CDROM_GET_CAPABILITY: {
-		struct gendisk *gd = info->gd;
-		if (gd->flags & GENHD_FL_CD)
+	case CDROM_GET_CAPABILITY:
+		if (bdev->bd_disk->flags & GENHD_FL_CD)
 			return 0;
 		return -EINVAL;
-	}
-
 	default:
-		/*printk(KERN_ALERT "ioctl %08x not supported by Xen blkdev\n",
-		  command);*/
-		return -EINVAL; /* same return as native Linux */
+		return -EINVAL;
 	}
-
-	return 0;
 }
 
 static unsigned long blkif_ring_get_request(struct blkfront_ring_info *rinfo,
@@ -543,10 +532,10 @@ static unsigned long blkif_ring_get_request(struct blkfront_ring_info *rinfo,
 
 	id = get_id_from_freelist(rinfo);
 	rinfo->shadow[id].request = req;
-	rinfo->shadow[id].status = REQ_WAITING;
+	rinfo->shadow[id].status = REQ_PROCESSING;
 	rinfo->shadow[id].associated_id = NO_ASSOCIATED_ID;
 
-	(*ring_req)->u.rw.id = id;
+	rinfo->shadow[id].req.u.rw.id = id;
 
 	return id;
 }
@@ -554,11 +543,12 @@ static unsigned long blkif_ring_get_request(struct blkfront_ring_info *rinfo,
 static int blkif_queue_discard_req(struct request *req, struct blkfront_ring_info *rinfo)
 {
 	struct blkfront_info *info = rinfo->dev_info;
-	struct blkif_request *ring_req;
+	struct blkif_request *ring_req, *final_ring_req;
 	unsigned long id;
 
 	/* Fill out a communications ring structure. */
-	id = blkif_ring_get_request(rinfo, req, &ring_req);
+	id = blkif_ring_get_request(rinfo, req, &final_ring_req);
+	ring_req = &rinfo->shadow[id].req;
 
 	ring_req->operation = BLKIF_OP_DISCARD;
 	ring_req->u.discard.nr_sectors = blk_rq_sectors(req);
@@ -569,8 +559,9 @@ static int blkif_queue_discard_req(struct request *req, struct blkfront_ring_inf
 	else
 		ring_req->u.discard.flag = 0;
 
-	/* Keep a private copy so we can reissue requests when recovering. */
-	rinfo->shadow[id].req = *ring_req;
+	/* Copy the request to the ring page. */
+	*final_ring_req = *ring_req;
+	rinfo->shadow[id].status = REQ_WAITING;
 
 	return 0;
 }
@@ -703,6 +694,7 @@ static int blkif_queue_rw_req(struct request *req, struct blkfront_ring_info *ri
 {
 	struct blkfront_info *info = rinfo->dev_info;
 	struct blkif_request *ring_req, *extra_ring_req = NULL;
+	struct blkif_request *final_ring_req, *final_extra_ring_req = NULL;
 	unsigned long id, extra_id = NO_ASSOCIATED_ID;
 	bool require_extra_req = false;
 	int i;
@@ -747,7 +739,8 @@ static int blkif_queue_rw_req(struct request *req, struct blkfront_ring_info *ri
 	}
 
 	/* Fill out a communications ring structure. */
-	id = blkif_ring_get_request(rinfo, req, &ring_req);
+	id = blkif_ring_get_request(rinfo, req, &final_ring_req);
+	ring_req = &rinfo->shadow[id].req;
 
 	num_sg = blk_rq_map_sg(req->q, req, rinfo->shadow[id].sg);
 	num_grant = 0;
@@ -798,7 +791,9 @@ static int blkif_queue_rw_req(struct request *req, struct blkfront_ring_info *ri
 		ring_req->u.rw.nr_segments = num_grant;
 		if (unlikely(require_extra_req)) {
 			extra_id = blkif_ring_get_request(rinfo, req,
-							  &extra_ring_req);
+							  &final_extra_ring_req);
+			extra_ring_req = &rinfo->shadow[extra_id].req;
+
 			/*
 			 * Only the first request contains the scatter-gather
 			 * list.
@@ -840,10 +835,13 @@ static int blkif_queue_rw_req(struct request *req, struct blkfront_ring_info *ri
 	if (setup.segments)
 		kunmap_atomic(setup.segments);
 
-	/* Keep a private copy so we can reissue requests when recovering. */
-	rinfo->shadow[id].req = *ring_req;
-	if (unlikely(require_extra_req))
-		rinfo->shadow[extra_id].req = *extra_ring_req;
+	/* Copy request(s) to the ring page. */
+	*final_ring_req = *ring_req;
+	rinfo->shadow[id].status = REQ_WAITING;
+	if (unlikely(require_extra_req)) {
+		*final_extra_ring_req = *extra_ring_req;
+		rinfo->shadow[extra_id].status = REQ_WAITING;
+	}
 
 	if (new_persistent_gnts)
 		gnttab_free_grant_references(setup.gref_head);
@@ -1105,7 +1103,6 @@ static int xlvbd_alloc_gendisk(blkif_sector_t capacity,
 	err = xlbd_reserve_minors(minor, nr_minors);
 	if (err)
 		return err;
-	err = -ENODEV;
 
 	memset(&info->tag_set, 0, sizeof(info->tag_set));
 	info->tag_set.ops = &blkfront_mq_ops;
@@ -1175,36 +1172,6 @@ out_free_tag_set:
 out_release_minors:
 	xlbd_release_minors(minor, nr_minors);
 	return err;
-}
-
-static void xlvbd_release_gendisk(struct blkfront_info *info)
-{
-	unsigned int minor, nr_minors, i;
-	struct blkfront_ring_info *rinfo;
-
-	if (info->rq == NULL)
-		return;
-
-	/* No more blkif_request(). */
-	blk_mq_stop_hw_queues(info->rq);
-
-	for_each_rinfo(info, rinfo, i) {
-		/* No more gnttab callback work. */
-		gnttab_cancel_free_callback(&rinfo->callback);
-
-		/* Flush gnttab callback work. Must be done with no locks held. */
-		flush_work(&rinfo->work);
-	}
-
-	del_gendisk(info->gd);
-
-	minor = info->gd->first_minor;
-	nr_minors = info->gd->minors;
-	xlbd_release_minors(minor, nr_minors);
-
-	blk_cleanup_disk(info->gd);
-	info->gd = NULL;
-	blk_mq_free_tag_set(&info->tag_set);
 }
 
 /* Already hold rinfo->ring_lock. */
@@ -1397,8 +1364,8 @@ static enum blk_req_status blkif_rsp_to_req_status(int rsp)
 static int blkif_get_final_status(enum blk_req_status s1,
 				  enum blk_req_status s2)
 {
-	BUG_ON(s1 == REQ_WAITING);
-	BUG_ON(s2 == REQ_WAITING);
+	BUG_ON(s1 < REQ_DONE);
+	BUG_ON(s2 < REQ_DONE);
 
 	if (s1 == REQ_ERROR || s2 == REQ_ERROR)
 		return BLKIF_RSP_ERROR;
@@ -1431,7 +1398,7 @@ static bool blkif_completion(unsigned long *id,
 		s->status = blkif_rsp_to_req_status(bret->status);
 
 		/* Wait the second response if not yet here. */
-		if (s2->status == REQ_WAITING)
+		if (s2->status < REQ_DONE)
 			return false;
 
 		bret->status = blkif_get_final_status(s->status,
@@ -1539,7 +1506,7 @@ static bool blkif_completion(unsigned long *id,
 static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 {
 	struct request *req;
-	struct blkif_response *bret;
+	struct blkif_response bret;
 	RING_IDX i, rp;
 	unsigned long flags;
 	struct blkfront_ring_info *rinfo = (struct blkfront_ring_info *)dev_id;
@@ -1550,54 +1517,76 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 
 	spin_lock_irqsave(&rinfo->ring_lock, flags);
  again:
-	rp = rinfo->ring.sring->rsp_prod;
-	rmb(); /* Ensure we see queued responses up to 'rp'. */
+	rp = READ_ONCE(rinfo->ring.sring->rsp_prod);
+	virt_rmb(); /* Ensure we see queued responses up to 'rp'. */
+	if (RING_RESPONSE_PROD_OVERFLOW(&rinfo->ring, rp)) {
+		pr_alert("%s: illegal number of responses %u\n",
+			 info->gd->disk_name, rp - rinfo->ring.rsp_cons);
+		goto err;
+	}
 
 	for (i = rinfo->ring.rsp_cons; i != rp; i++) {
 		unsigned long id;
+		unsigned int op;
 
-		bret = RING_GET_RESPONSE(&rinfo->ring, i);
-		id   = bret->id;
+		RING_COPY_RESPONSE(&rinfo->ring, i, &bret);
+		id = bret.id;
+
 		/*
 		 * The backend has messed up and given us an id that we would
 		 * never have given to it (we stamp it up to BLK_RING_SIZE -
 		 * look in get_id_from_freelist.
 		 */
 		if (id >= BLK_RING_SIZE(info)) {
-			WARN(1, "%s: response to %s has incorrect id (%ld)\n",
-			     info->gd->disk_name, op_name(bret->operation), id);
-			/* We can't safely get the 'struct request' as
-			 * the id is busted. */
-			continue;
+			pr_alert("%s: response has incorrect id (%ld)\n",
+				 info->gd->disk_name, id);
+			goto err;
 		}
+		if (rinfo->shadow[id].status != REQ_WAITING) {
+			pr_alert("%s: response references no pending request\n",
+				 info->gd->disk_name);
+			goto err;
+		}
+
+		rinfo->shadow[id].status = REQ_PROCESSING;
 		req  = rinfo->shadow[id].request;
 
-		if (bret->operation != BLKIF_OP_DISCARD) {
+		op = rinfo->shadow[id].req.operation;
+		if (op == BLKIF_OP_INDIRECT)
+			op = rinfo->shadow[id].req.u.indirect.indirect_op;
+		if (bret.operation != op) {
+			pr_alert("%s: response has wrong operation (%u instead of %u)\n",
+				 info->gd->disk_name, bret.operation, op);
+			goto err;
+		}
+
+		if (bret.operation != BLKIF_OP_DISCARD) {
 			/*
 			 * We may need to wait for an extra response if the
 			 * I/O request is split in 2
 			 */
-			if (!blkif_completion(&id, rinfo, bret))
+			if (!blkif_completion(&id, rinfo, &bret))
 				continue;
 		}
 
 		if (add_id_to_freelist(rinfo, id)) {
 			WARN(1, "%s: response to %s (id %ld) couldn't be recycled!\n",
-			     info->gd->disk_name, op_name(bret->operation), id);
+			     info->gd->disk_name, op_name(bret.operation), id);
 			continue;
 		}
 
-		if (bret->status == BLKIF_RSP_OKAY)
+		if (bret.status == BLKIF_RSP_OKAY)
 			blkif_req(req)->error = BLK_STS_OK;
 		else
 			blkif_req(req)->error = BLK_STS_IOERR;
 
-		switch (bret->operation) {
+		switch (bret.operation) {
 		case BLKIF_OP_DISCARD:
-			if (unlikely(bret->status == BLKIF_RSP_EOPNOTSUPP)) {
+			if (unlikely(bret.status == BLKIF_RSP_EOPNOTSUPP)) {
 				struct request_queue *rq = info->rq;
-				printk(KERN_WARNING "blkfront: %s: %s op failed\n",
-					   info->gd->disk_name, op_name(bret->operation));
+
+				pr_warn_ratelimited("blkfront: %s: %s op failed\n",
+					   info->gd->disk_name, op_name(bret.operation));
 				blkif_req(req)->error = BLK_STS_NOTSUPP;
 				info->feature_discard = 0;
 				info->feature_secdiscard = 0;
@@ -1607,15 +1596,15 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 			break;
 		case BLKIF_OP_FLUSH_DISKCACHE:
 		case BLKIF_OP_WRITE_BARRIER:
-			if (unlikely(bret->status == BLKIF_RSP_EOPNOTSUPP)) {
-				printk(KERN_WARNING "blkfront: %s: %s op failed\n",
-				       info->gd->disk_name, op_name(bret->operation));
+			if (unlikely(bret.status == BLKIF_RSP_EOPNOTSUPP)) {
+				pr_warn_ratelimited("blkfront: %s: %s op failed\n",
+				       info->gd->disk_name, op_name(bret.operation));
 				blkif_req(req)->error = BLK_STS_NOTSUPP;
 			}
-			if (unlikely(bret->status == BLKIF_RSP_ERROR &&
+			if (unlikely(bret.status == BLKIF_RSP_ERROR &&
 				     rinfo->shadow[id].req.u.rw.nr_segments == 0)) {
-				printk(KERN_WARNING "blkfront: %s: empty %s op failed\n",
-				       info->gd->disk_name, op_name(bret->operation));
+				pr_warn_ratelimited("blkfront: %s: empty %s op failed\n",
+				       info->gd->disk_name, op_name(bret.operation));
 				blkif_req(req)->error = BLK_STS_NOTSUPP;
 			}
 			if (unlikely(blkif_req(req)->error)) {
@@ -1628,9 +1617,10 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 			fallthrough;
 		case BLKIF_OP_READ:
 		case BLKIF_OP_WRITE:
-			if (unlikely(bret->status != BLKIF_RSP_OKAY))
-				dev_dbg(&info->xbdev->dev, "Bad return from blkdev data "
-					"request: %x\n", bret->status);
+			if (unlikely(bret.status != BLKIF_RSP_OKAY))
+				dev_dbg_ratelimited(&info->xbdev->dev,
+					"Bad return from blkdev data request: %#x\n",
+					bret.status);
 
 			break;
 		default:
@@ -1655,6 +1645,14 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 
 	spin_unlock_irqrestore(&rinfo->ring_lock, flags);
 
+	return IRQ_HANDLED;
+
+ err:
+	info->connected = BLKIF_STATE_ERROR;
+
+	spin_unlock_irqrestore(&rinfo->ring_lock, flags);
+
+	pr_alert("%s disabled for further use\n", info->gd->disk_name);
 	return IRQ_HANDLED;
 }
 
@@ -1754,12 +1752,6 @@ abort_transaction:
 		xenbus_dev_fatal(info->xbdev, err, "%s", message);
 
 	return err;
-}
-
-static void free_info(struct blkfront_info *info)
-{
-	list_del(&info->info_list);
-	kfree(info);
 }
 
 /* Common code used when first setting up, and when resuming. */
@@ -1880,13 +1872,6 @@ again:
 		xenbus_dev_fatal(dev, err, "%s", message);
  destroy_blkring:
 	blkif_free(info, 0);
-
-	mutex_lock(&blkfront_mutex);
-	free_info(info);
-	mutex_unlock(&blkfront_mutex);
-
-	dev_set_drvdata(&dev->dev, NULL);
-
 	return err;
 }
 
@@ -2126,38 +2111,26 @@ static int blkfront_resume(struct xenbus_device *dev)
 static void blkfront_closing(struct blkfront_info *info)
 {
 	struct xenbus_device *xbdev = info->xbdev;
-	struct block_device *bdev = NULL;
+	struct blkfront_ring_info *rinfo;
+	unsigned int i;
 
-	mutex_lock(&info->mutex);
-
-	if (xbdev->state == XenbusStateClosing) {
-		mutex_unlock(&info->mutex);
+	if (xbdev->state == XenbusStateClosing)
 		return;
+
+	/* No more blkif_request(). */
+	blk_mq_stop_hw_queues(info->rq);
+	blk_set_queue_dying(info->rq);
+	set_capacity(info->gd, 0);
+
+	for_each_rinfo(info, rinfo, i) {
+		/* No more gnttab callback work. */
+		gnttab_cancel_free_callback(&rinfo->callback);
+
+		/* Flush gnttab callback work. Must be done with no locks held. */
+		flush_work(&rinfo->work);
 	}
 
-	if (info->gd)
-		bdev = bdgrab(info->gd->part0);
-
-	mutex_unlock(&info->mutex);
-
-	if (!bdev) {
-		xenbus_frontend_closed(xbdev);
-		return;
-	}
-
-	mutex_lock(&bdev->bd_disk->open_mutex);
-
-	if (bdev->bd_openers) {
-		xenbus_dev_error(xbdev, -EBUSY,
-				 "Device in use; refusing to close");
-		xenbus_switch_state(xbdev, XenbusStateClosing);
-	} else {
-		xlvbd_release_gendisk(info);
-		xenbus_frontend_closed(xbdev);
-	}
-
-	mutex_unlock(&bdev->bd_disk->open_mutex);
-	bdput(bdev);
+	xenbus_frontend_closed(xbdev);
 }
 
 static void blkfront_setup_discard(struct blkfront_info *info)
@@ -2472,8 +2445,7 @@ static void blkback_changed(struct xenbus_device *dev,
 			break;
 		fallthrough;
 	case XenbusStateClosing:
-		if (info)
-			blkfront_closing(info);
+		blkfront_closing(info);
 		break;
 	}
 }
@@ -2481,56 +2453,21 @@ static void blkback_changed(struct xenbus_device *dev,
 static int blkfront_remove(struct xenbus_device *xbdev)
 {
 	struct blkfront_info *info = dev_get_drvdata(&xbdev->dev);
-	struct block_device *bdev = NULL;
-	struct gendisk *disk;
 
 	dev_dbg(&xbdev->dev, "%s removed", xbdev->nodename);
 
-	if (!info)
-		return 0;
+	del_gendisk(info->gd);
+
+	mutex_lock(&blkfront_mutex);
+	list_del(&info->info_list);
+	mutex_unlock(&blkfront_mutex);
 
 	blkif_free(info, 0);
+	xlbd_release_minors(info->gd->first_minor, info->gd->minors);
+	blk_cleanup_disk(info->gd);
+	blk_mq_free_tag_set(&info->tag_set);
 
-	mutex_lock(&info->mutex);
-
-	disk = info->gd;
-	if (disk)
-		bdev = bdgrab(disk->part0);
-
-	info->xbdev = NULL;
-	mutex_unlock(&info->mutex);
-
-	if (!bdev) {
-		mutex_lock(&blkfront_mutex);
-		free_info(info);
-		mutex_unlock(&blkfront_mutex);
-		return 0;
-	}
-
-	/*
-	 * The xbdev was removed before we reached the Closed
-	 * state. See if it's safe to remove the disk. If the bdev
-	 * isn't closed yet, we let release take care of it.
-	 */
-
-	mutex_lock(&disk->open_mutex);
-	info = disk->private_data;
-
-	dev_warn(disk_to_dev(disk),
-		 "%s was hot-unplugged, %d stale handles\n",
-		 xbdev->nodename, bdev->bd_openers);
-
-	if (info && !bdev->bd_openers) {
-		xlvbd_release_gendisk(info);
-		disk->private_data = NULL;
-		mutex_lock(&blkfront_mutex);
-		free_info(info);
-		mutex_unlock(&blkfront_mutex);
-	}
-
-	mutex_unlock(&disk->open_mutex);
-	bdput(bdev);
-
+	kfree(info);
 	return 0;
 }
 
@@ -2541,77 +2478,9 @@ static int blkfront_is_ready(struct xenbus_device *dev)
 	return info->is_ready && info->xbdev;
 }
 
-static int blkif_open(struct block_device *bdev, fmode_t mode)
-{
-	struct gendisk *disk = bdev->bd_disk;
-	struct blkfront_info *info;
-	int err = 0;
-
-	mutex_lock(&blkfront_mutex);
-
-	info = disk->private_data;
-	if (!info) {
-		/* xbdev gone */
-		err = -ERESTARTSYS;
-		goto out;
-	}
-
-	mutex_lock(&info->mutex);
-
-	if (!info->gd)
-		/* xbdev is closed */
-		err = -ERESTARTSYS;
-
-	mutex_unlock(&info->mutex);
-
-out:
-	mutex_unlock(&blkfront_mutex);
-	return err;
-}
-
-static void blkif_release(struct gendisk *disk, fmode_t mode)
-{
-	struct blkfront_info *info = disk->private_data;
-	struct xenbus_device *xbdev;
-
-	mutex_lock(&blkfront_mutex);
-	if (disk->part0->bd_openers)
-		goto out_mutex;
-
-	/*
-	 * Check if we have been instructed to close. We will have
-	 * deferred this request, because the bdev was still open.
-	 */
-
-	mutex_lock(&info->mutex);
-	xbdev = info->xbdev;
-
-	if (xbdev && xbdev->state == XenbusStateClosing) {
-		/* pending switch to state closed */
-		dev_info(disk_to_dev(disk), "releasing disk\n");
-		xlvbd_release_gendisk(info);
-		xenbus_frontend_closed(info->xbdev);
- 	}
-
-	mutex_unlock(&info->mutex);
-
-	if (!xbdev) {
-		/* sudden device removal */
-		dev_info(disk_to_dev(disk), "releasing disk\n");
-		xlvbd_release_gendisk(info);
-		disk->private_data = NULL;
-		free_info(info);
-	}
-
-out_mutex:
-	mutex_unlock(&blkfront_mutex);
-}
-
 static const struct block_device_operations xlvbd_block_fops =
 {
 	.owner = THIS_MODULE,
-	.open = blkif_open,
-	.release = blkif_release,
 	.getgeo = blkif_getgeo,
 	.ioctl = blkif_ioctl,
 	.compat_ioctl = blkdev_compat_ptr_ioctl,

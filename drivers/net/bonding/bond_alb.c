@@ -17,7 +17,6 @@
 #include <linux/if_bonding.h>
 #include <linux/if_vlan.h>
 #include <linux/in.h>
-#include <net/ipx.h>
 #include <net/arp.h>
 #include <net/ipv6.h>
 #include <asm/byteorder.h>
@@ -1351,8 +1350,6 @@ struct slave *bond_xmit_tlb_slave_get(struct bonding *bond,
 	if (!is_multicast_ether_addr(eth_data->h_dest)) {
 		switch (skb->protocol) {
 		case htons(ETH_P_IP):
-		case htons(ETH_P_IPX):
-		    /* In case of IPX, it will falback to L2 hash */
 		case htons(ETH_P_IPV6):
 			hash_index = bond_xmit_hash(bond, skb);
 			if (bond->params.tlb_dynamic_lb) {
@@ -1452,35 +1449,6 @@ struct slave *bond_xmit_alb_slave_get(struct bonding *bond,
 
 		hash_start = (char *)&ip6hdr->daddr;
 		hash_size = sizeof(ip6hdr->daddr);
-		break;
-	}
-	case ETH_P_IPX: {
-		const struct ipxhdr *ipxhdr;
-
-		if (pskb_network_may_pull(skb, sizeof(*ipxhdr))) {
-			do_tx_balance = false;
-			break;
-		}
-		ipxhdr = (struct ipxhdr *)skb_network_header(skb);
-
-		if (ipxhdr->ipx_checksum != IPX_NO_CHECKSUM) {
-			/* something is wrong with this packet */
-			do_tx_balance = false;
-			break;
-		}
-
-		if (ipxhdr->ipx_type != IPX_TYPE_NCP) {
-			/* The only protocol worth balancing in
-			 * this family since it has an "ARP" like
-			 * mechanism
-			 */
-			do_tx_balance = false;
-			break;
-		}
-
-		eth_data = eth_hdr(skb);
-		hash_start = (char *)eth_data->h_dest;
-		hash_size = ETH_ALEN;
 		break;
 	}
 	case ETH_P_ARP:

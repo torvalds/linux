@@ -127,6 +127,7 @@ static int rt1015p_platform_probe(struct platform_device *pdev)
 #ifdef CONFIG_OF
 static const struct of_device_id rt1015p_device_id[] = {
 	{ .compatible = "realtek,rt1015p" },
+	{ .compatible = "realtek,rt1019p" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, rt1015p_device_id);
@@ -135,6 +136,7 @@ MODULE_DEVICE_TABLE(of, rt1015p_device_id);
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id rt1015p_acpi_match[] = {
 	{ "RTL1015", 0},
+	{ "RTL1019", 0},
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, rt1015p_acpi_match);

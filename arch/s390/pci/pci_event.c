@@ -84,7 +84,10 @@ static void zpci_event_hard_deconfigured(struct zpci_dev *zdev, u32 fh)
 	/* Even though the device is already gone we still
 	 * need to free zPCI resources as part of the disable.
 	 */
-	zpci_disable_device(zdev);
+	if (zdev->dma_table)
+		zpci_dma_exit_device(zdev);
+	if (zdev_enabled(zdev))
+		zpci_disable_device(zdev);
 	zdev->state = ZPCI_FN_STATE_STANDBY;
 }
 

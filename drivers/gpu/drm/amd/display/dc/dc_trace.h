@@ -37,3 +37,6 @@
 
 #define TRACE_DCN_CLOCK_STATE(dcn_clocks) \
 	trace_amdgpu_dm_dc_clocks_state(dcn_clocks)
+
+#define TRACE_DCN_FPU(begin, function, line, ref_count) \
+	trace_dcn_fpu(begin, function, line, ref_count)

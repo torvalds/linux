@@ -12,8 +12,6 @@
 
 #define RAW_VALID_HOOKS ((1 << NF_INET_PRE_ROUTING) | (1 << NF_INET_LOCAL_OUT))
 
-static int __net_init iptable_raw_table_init(struct net *net);
-
 static bool raw_before_defrag __read_mostly;
 MODULE_PARM_DESC(raw_before_defrag, "Enable raw table before defrag");
 module_param(raw_before_defrag, bool, 0000);
@@ -24,7 +22,6 @@ static const struct xt_table packet_raw = {
 	.me = THIS_MODULE,
 	.af = NFPROTO_IPV4,
 	.priority = NF_IP_PRI_RAW,
-	.table_init = iptable_raw_table_init,
 };
 
 static const struct xt_table packet_raw_before_defrag = {
@@ -33,7 +30,6 @@ static const struct xt_table packet_raw_before_defrag = {
 	.me = THIS_MODULE,
 	.af = NFPROTO_IPV4,
 	.priority = NF_IP_PRI_RAW_BEFORE_DEFRAG,
-	.table_init = iptable_raw_table_init,
 };
 
 /* The work comes in here from netfilter.c. */
@@ -89,20 +85,22 @@ static int __init iptable_raw_init(void)
 		pr_info("Enabling raw table before defrag\n");
 	}
 
+	ret = xt_register_template(table,
+				   iptable_raw_table_init);
+	if (ret < 0)
+		return ret;
+
 	rawtable_ops = xt_hook_ops_alloc(table, iptable_raw_hook);
-	if (IS_ERR(rawtable_ops))
+	if (IS_ERR(rawtable_ops)) {
+		xt_unregister_template(table);
 		return PTR_ERR(rawtable_ops);
+	}
 
 	ret = register_pernet_subsys(&iptable_raw_net_ops);
 	if (ret < 0) {
+		xt_unregister_template(table);
 		kfree(rawtable_ops);
 		return ret;
-	}
-
-	ret = iptable_raw_table_init(&init_net);
-	if (ret) {
-		unregister_pernet_subsys(&iptable_raw_net_ops);
-		kfree(rawtable_ops);
 	}
 
 	return ret;
@@ -112,6 +110,7 @@ static void __exit iptable_raw_fini(void)
 {
 	unregister_pernet_subsys(&iptable_raw_net_ops);
 	kfree(rawtable_ops);
+	xt_unregister_template(&packet_raw);
 }
 
 module_init(iptable_raw_init);

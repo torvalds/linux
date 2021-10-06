@@ -23,6 +23,7 @@
 #include "intel.h"
 
 #define INTEL_MASTER_SUSPEND_DELAY_MS	3000
+#define INTEL_MASTER_RESET_ITERATIONS	10
 
 /*
  * debug/config flags for the Intel SoundWire Master.
@@ -39,80 +40,6 @@
 static int md_flags;
 module_param_named(sdw_md_flags, md_flags, int, 0444);
 MODULE_PARM_DESC(sdw_md_flags, "SoundWire Intel Master device flags (0x0 all off)");
-
-/* Intel SHIM Registers Definition */
-#define SDW_SHIM_LCAP			0x0
-#define SDW_SHIM_LCTL			0x4
-#define SDW_SHIM_IPPTR			0x8
-#define SDW_SHIM_SYNC			0xC
-
-#define SDW_SHIM_CTLSCAP(x)		(0x010 + 0x60 * (x))
-#define SDW_SHIM_CTLS0CM(x)		(0x012 + 0x60 * (x))
-#define SDW_SHIM_CTLS1CM(x)		(0x014 + 0x60 * (x))
-#define SDW_SHIM_CTLS2CM(x)		(0x016 + 0x60 * (x))
-#define SDW_SHIM_CTLS3CM(x)		(0x018 + 0x60 * (x))
-#define SDW_SHIM_PCMSCAP(x)		(0x020 + 0x60 * (x))
-
-#define SDW_SHIM_PCMSYCHM(x, y)		(0x022 + (0x60 * (x)) + (0x2 * (y)))
-#define SDW_SHIM_PCMSYCHC(x, y)		(0x042 + (0x60 * (x)) + (0x2 * (y)))
-#define SDW_SHIM_PDMSCAP(x)		(0x062 + 0x60 * (x))
-#define SDW_SHIM_IOCTL(x)		(0x06C + 0x60 * (x))
-#define SDW_SHIM_CTMCTL(x)		(0x06E + 0x60 * (x))
-
-#define SDW_SHIM_WAKEEN			0x190
-#define SDW_SHIM_WAKESTS		0x192
-
-#define SDW_SHIM_LCTL_SPA		BIT(0)
-#define SDW_SHIM_LCTL_SPA_MASK		GENMASK(3, 0)
-#define SDW_SHIM_LCTL_CPA		BIT(8)
-#define SDW_SHIM_LCTL_CPA_MASK		GENMASK(11, 8)
-
-#define SDW_SHIM_SYNC_SYNCPRD_VAL_24	(24000 / SDW_CADENCE_GSYNC_KHZ - 1)
-#define SDW_SHIM_SYNC_SYNCPRD_VAL_38_4	(38400 / SDW_CADENCE_GSYNC_KHZ - 1)
-#define SDW_SHIM_SYNC_SYNCPRD		GENMASK(14, 0)
-#define SDW_SHIM_SYNC_SYNCCPU		BIT(15)
-#define SDW_SHIM_SYNC_CMDSYNC_MASK	GENMASK(19, 16)
-#define SDW_SHIM_SYNC_CMDSYNC		BIT(16)
-#define SDW_SHIM_SYNC_SYNCGO		BIT(24)
-
-#define SDW_SHIM_PCMSCAP_ISS		GENMASK(3, 0)
-#define SDW_SHIM_PCMSCAP_OSS		GENMASK(7, 4)
-#define SDW_SHIM_PCMSCAP_BSS		GENMASK(12, 8)
-
-#define SDW_SHIM_PCMSYCM_LCHN		GENMASK(3, 0)
-#define SDW_SHIM_PCMSYCM_HCHN		GENMASK(7, 4)
-#define SDW_SHIM_PCMSYCM_STREAM		GENMASK(13, 8)
-#define SDW_SHIM_PCMSYCM_DIR		BIT(15)
-
-#define SDW_SHIM_PDMSCAP_ISS		GENMASK(3, 0)
-#define SDW_SHIM_PDMSCAP_OSS		GENMASK(7, 4)
-#define SDW_SHIM_PDMSCAP_BSS		GENMASK(12, 8)
-#define SDW_SHIM_PDMSCAP_CPSS		GENMASK(15, 13)
-
-#define SDW_SHIM_IOCTL_MIF		BIT(0)
-#define SDW_SHIM_IOCTL_CO		BIT(1)
-#define SDW_SHIM_IOCTL_COE		BIT(2)
-#define SDW_SHIM_IOCTL_DO		BIT(3)
-#define SDW_SHIM_IOCTL_DOE		BIT(4)
-#define SDW_SHIM_IOCTL_BKE		BIT(5)
-#define SDW_SHIM_IOCTL_WPDD		BIT(6)
-#define SDW_SHIM_IOCTL_CIBD		BIT(8)
-#define SDW_SHIM_IOCTL_DIBD		BIT(9)
-
-#define SDW_SHIM_CTMCTL_DACTQE		BIT(0)
-#define SDW_SHIM_CTMCTL_DODS		BIT(1)
-#define SDW_SHIM_CTMCTL_DOAIS		GENMASK(4, 3)
-
-#define SDW_SHIM_WAKEEN_ENABLE		BIT(0)
-#define SDW_SHIM_WAKESTS_STATUS		BIT(0)
-
-/* Intel ALH Register definitions */
-#define SDW_ALH_STRMZCFG(x)		(0x000 + (0x4 * (x)))
-#define SDW_ALH_NUM_STREAMS		64
-
-#define SDW_ALH_STRMZCFG_DMAT_VAL	0x3
-#define SDW_ALH_STRMZCFG_DMAT		GENMASK(7, 0)
-#define SDW_ALH_STRMZCFG_CHN		GENMASK(19, 16)
 
 enum intel_pdi_type {
 	INTEL_PDI_IN = 0,
@@ -537,11 +464,13 @@ static int intel_link_power_down(struct sdw_intel *sdw)
 
 	mutex_lock(sdw->link_res->shim_lock);
 
-	intel_shim_master_ip_to_glue(sdw);
-
 	if (!(*shim_mask & BIT(link_id)))
 		dev_err(sdw->cdns.dev,
 			"%s: Unbalanced power-up/down calls\n", __func__);
+
+	sdw->cdns.link_up = false;
+
+	intel_shim_master_ip_to_glue(sdw);
 
 	*shim_mask &= ~BIT(link_id);
 
@@ -559,18 +488,19 @@ static int intel_link_power_down(struct sdw_intel *sdw)
 		link_control &=  spa_mask;
 
 		ret = intel_clear_bit(shim, SDW_SHIM_LCTL, link_control, cpa_mask);
+		if (ret < 0) {
+			dev_err(sdw->cdns.dev, "%s: could not power down link\n", __func__);
+
+			/*
+			 * we leave the sdw->cdns.link_up flag as false since we've disabled
+			 * the link at this point and cannot handle interrupts any longer.
+			 */
+		}
 	}
 
 	mutex_unlock(sdw->link_res->shim_lock);
 
-	if (ret < 0) {
-		dev_err(sdw->cdns.dev, "%s: could not power down link\n", __func__);
-
-		return ret;
-	}
-
-	sdw->cdns.link_up = false;
-	return 0;
+	return ret;
 }
 
 static void intel_shim_sync_arm(struct sdw_intel *sdw)
@@ -1467,6 +1397,8 @@ int intel_link_startup(struct auxiliary_device *auxdev)
 			goto err_interrupt;
 		}
 	}
+	sdw_cdns_check_self_clearing_bits(cdns, __func__,
+					  true, INTEL_MASTER_RESET_ITERATIONS);
 
 	/* Register DAIs */
 	ret = intel_register_dai(sdw);
@@ -1519,6 +1451,7 @@ int intel_link_startup(struct auxiliary_device *auxdev)
 	if (!(link_flags & SDW_INTEL_MASTER_DISABLE_PM_RUNTIME_IDLE))
 		pm_runtime_idle(dev);
 
+	sdw->startup_done = true;
 	return 0;
 
 err_interrupt:
@@ -1558,8 +1491,9 @@ int intel_link_process_wakeen_event(struct auxiliary_device *auxdev)
 	sdw = dev_get_drvdata(dev);
 	bus = &sdw->cdns.bus;
 
-	if (bus->prop.hw_disabled) {
-		dev_dbg(dev, "SoundWire master %d is disabled, ignoring\n", bus->link_id);
+	if (bus->prop.hw_disabled || !sdw->startup_done) {
+		dev_dbg(dev, "SoundWire master %d is disabled or not-started, ignoring\n",
+			bus->link_id);
 		return 0;
 	}
 
@@ -1588,6 +1522,87 @@ int intel_link_process_wakeen_event(struct auxiliary_device *auxdev)
  * PM calls
  */
 
+static int intel_resume_child_device(struct device *dev, void *data)
+{
+	int ret;
+	struct sdw_slave *slave = dev_to_sdw_dev(dev);
+
+	if (!slave->probed) {
+		dev_dbg(dev, "%s: skipping device, no probed driver\n", __func__);
+		return 0;
+	}
+	if (!slave->dev_num_sticky) {
+		dev_dbg(dev, "%s: skipping device, never detected on bus\n", __func__);
+		return 0;
+	}
+
+	ret = pm_request_resume(dev);
+	if (ret < 0)
+		dev_err(dev, "%s: pm_request_resume failed: %d\n", __func__, ret);
+
+	return ret;
+}
+
+static int __maybe_unused intel_pm_prepare(struct device *dev)
+{
+	struct sdw_cdns *cdns = dev_get_drvdata(dev);
+	struct sdw_intel *sdw = cdns_to_intel(cdns);
+	struct sdw_bus *bus = &cdns->bus;
+	u32 clock_stop_quirks;
+	int ret = 0;
+
+	if (bus->prop.hw_disabled || !sdw->startup_done) {
+		dev_dbg(dev, "SoundWire master %d is disabled or not-started, ignoring\n",
+			bus->link_id);
+		return 0;
+	}
+
+	clock_stop_quirks = sdw->link_res->clock_stop_quirks;
+
+	if (pm_runtime_suspended(dev) &&
+	    pm_runtime_suspended(dev->parent) &&
+	    ((clock_stop_quirks & SDW_INTEL_CLK_STOP_BUS_RESET) ||
+	     !clock_stop_quirks)) {
+		/*
+		 * if we've enabled clock stop, and the parent is suspended, the SHIM registers
+		 * are not accessible and the shim wake cannot be disabled.
+		 * The only solution is to resume the entire bus to full power
+		 */
+
+		/*
+		 * If any operation in this block fails, we keep going since we don't want
+		 * to prevent system suspend from happening and errors should be recoverable
+		 * on resume.
+		 */
+
+		/*
+		 * first resume the device for this link. This will also by construction
+		 * resume the PCI parent device.
+		 */
+		ret = pm_request_resume(dev);
+		if (ret < 0) {
+			dev_err(dev, "%s: pm_request_resume failed: %d\n", __func__, ret);
+			return 0;
+		}
+
+		/*
+		 * Continue resuming the entire bus (parent + child devices) to exit
+		 * the clock stop mode. If there are no devices connected on this link
+		 * this is a no-op.
+		 * The resume to full power could have been implemented with a .prepare
+		 * step in SoundWire codec drivers. This would however require a lot
+		 * of code to handle an Intel-specific corner case. It is simpler in
+		 * practice to add a loop at the link level.
+		 */
+		ret = device_for_each_child(bus->dev, NULL, intel_resume_child_device);
+
+		if (ret < 0)
+			dev_err(dev, "%s: intel_resume_child_device failed: %d\n", __func__, ret);
+	}
+
+	return 0;
+}
+
 static int __maybe_unused intel_suspend(struct device *dev)
 {
 	struct sdw_cdns *cdns = dev_get_drvdata(dev);
@@ -1596,8 +1611,8 @@ static int __maybe_unused intel_suspend(struct device *dev)
 	u32 clock_stop_quirks;
 	int ret;
 
-	if (bus->prop.hw_disabled) {
-		dev_dbg(dev, "SoundWire master %d is disabled, ignoring\n",
+	if (bus->prop.hw_disabled || !sdw->startup_done) {
+		dev_dbg(dev, "SoundWire master %d is disabled or not-started, ignoring\n",
 			bus->link_id);
 		return 0;
 	}
@@ -1607,19 +1622,18 @@ static int __maybe_unused intel_suspend(struct device *dev)
 
 		clock_stop_quirks = sdw->link_res->clock_stop_quirks;
 
-		if ((clock_stop_quirks & SDW_INTEL_CLK_STOP_BUS_RESET ||
-		     !clock_stop_quirks) &&
-		    !pm_runtime_suspended(dev->parent)) {
+		if ((clock_stop_quirks & SDW_INTEL_CLK_STOP_BUS_RESET) ||
+		    !clock_stop_quirks) {
 
-			/*
-			 * if we've enabled clock stop, and the parent
-			 * is still active, disable shim wake. The
-			 * SHIM registers are not accessible if the
-			 * parent is already pm_runtime suspended so
-			 * it's too late to change that configuration
-			 */
-
-			intel_shim_wake(sdw, false);
+			if (pm_runtime_suspended(dev->parent)) {
+				/*
+				 * paranoia check: this should not happen with the .prepare
+				 * resume to full power
+				 */
+				dev_err(dev, "%s: invalid config: parent is suspended\n", __func__);
+			} else {
+				intel_shim_wake(sdw, false);
+			}
 		}
 
 		return 0;
@@ -1650,8 +1664,8 @@ static int __maybe_unused intel_suspend_runtime(struct device *dev)
 	u32 clock_stop_quirks;
 	int ret;
 
-	if (bus->prop.hw_disabled) {
-		dev_dbg(dev, "SoundWire master %d is disabled, ignoring\n",
+	if (bus->prop.hw_disabled || !sdw->startup_done) {
+		dev_dbg(dev, "SoundWire master %d is disabled or not-started, ignoring\n",
 			bus->link_id);
 		return 0;
 	}
@@ -1715,8 +1729,8 @@ static int __maybe_unused intel_resume(struct device *dev)
 	bool multi_link;
 	int ret;
 
-	if (bus->prop.hw_disabled) {
-		dev_dbg(dev, "SoundWire master %d is disabled, ignoring\n",
+	if (bus->prop.hw_disabled || !sdw->startup_done) {
+		dev_dbg(dev, "SoundWire master %d is disabled or not-started, ignoring\n",
 			bus->link_id);
 		return 0;
 	}
@@ -1783,6 +1797,8 @@ static int __maybe_unused intel_resume(struct device *dev)
 			return ret;
 		}
 	}
+	sdw_cdns_check_self_clearing_bits(cdns, __func__,
+					  true, INTEL_MASTER_RESET_ITERATIONS);
 
 	/*
 	 * after system resume, the pm_runtime suspend() may kick in
@@ -1811,8 +1827,8 @@ static int __maybe_unused intel_resume_runtime(struct device *dev)
 	int status;
 	int ret;
 
-	if (bus->prop.hw_disabled) {
-		dev_dbg(dev, "SoundWire master %d is disabled, ignoring\n",
+	if (bus->prop.hw_disabled || !sdw->startup_done) {
+		dev_dbg(dev, "SoundWire master %d is disabled or not-started, ignoring\n",
 			bus->link_id);
 		return 0;
 	}
@@ -1867,6 +1883,9 @@ static int __maybe_unused intel_resume_runtime(struct device *dev)
 				return ret;
 			}
 		}
+		sdw_cdns_check_self_clearing_bits(cdns, "intel_resume_runtime TEARDOWN",
+						  true, INTEL_MASTER_RESET_ITERATIONS);
+
 	} else if (clock_stop_quirks & SDW_INTEL_CLK_STOP_BUS_RESET) {
 		ret = intel_init(sdw);
 		if (ret) {
@@ -1940,6 +1959,9 @@ static int __maybe_unused intel_resume_runtime(struct device *dev)
 				}
 			}
 		}
+		sdw_cdns_check_self_clearing_bits(cdns, "intel_resume_runtime BUS_RESET",
+						  true, INTEL_MASTER_RESET_ITERATIONS);
+
 	} else if (!clock_stop_quirks) {
 
 		clock_stop0 = sdw_cdns_is_clock_stop(&sdw->cdns);
@@ -1963,6 +1985,9 @@ static int __maybe_unused intel_resume_runtime(struct device *dev)
 			dev_err(dev, "unable to resume master during resume\n");
 			return ret;
 		}
+
+		sdw_cdns_check_self_clearing_bits(cdns, "intel_resume_runtime no_quirks",
+						  true, INTEL_MASTER_RESET_ITERATIONS);
 	} else {
 		dev_err(dev, "%s clock_stop_quirks %x unsupported\n",
 			__func__, clock_stop_quirks);
@@ -1973,6 +1998,7 @@ static int __maybe_unused intel_resume_runtime(struct device *dev)
 }
 
 static const struct dev_pm_ops intel_pm = {
+	.prepare = intel_pm_prepare,
 	SET_SYSTEM_SLEEP_PM_OPS(intel_suspend, intel_resume)
 	SET_RUNTIME_PM_OPS(intel_suspend_runtime, intel_resume_runtime, NULL)
 };

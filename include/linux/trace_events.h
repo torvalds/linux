@@ -310,8 +310,10 @@ enum {
 	TRACE_EVENT_FL_NO_SET_FILTER_BIT,
 	TRACE_EVENT_FL_IGNORE_ENABLE_BIT,
 	TRACE_EVENT_FL_TRACEPOINT_BIT,
+	TRACE_EVENT_FL_DYNAMIC_BIT,
 	TRACE_EVENT_FL_KPROBE_BIT,
 	TRACE_EVENT_FL_UPROBE_BIT,
+	TRACE_EVENT_FL_EPROBE_BIT,
 };
 
 /*
@@ -321,8 +323,10 @@ enum {
  *  NO_SET_FILTER - Set when filter has error and is to be ignored
  *  IGNORE_ENABLE - For trace internal events, do not enable with debugfs file
  *  TRACEPOINT    - Event is a tracepoint
+ *  DYNAMIC       - Event is a dynamic event (created at run time)
  *  KPROBE        - Event is a kprobe
  *  UPROBE        - Event is a uprobe
+ *  EPROBE        - Event is an event probe
  */
 enum {
 	TRACE_EVENT_FL_FILTERED		= (1 << TRACE_EVENT_FL_FILTERED_BIT),
@@ -330,8 +334,10 @@ enum {
 	TRACE_EVENT_FL_NO_SET_FILTER	= (1 << TRACE_EVENT_FL_NO_SET_FILTER_BIT),
 	TRACE_EVENT_FL_IGNORE_ENABLE	= (1 << TRACE_EVENT_FL_IGNORE_ENABLE_BIT),
 	TRACE_EVENT_FL_TRACEPOINT	= (1 << TRACE_EVENT_FL_TRACEPOINT_BIT),
+	TRACE_EVENT_FL_DYNAMIC		= (1 << TRACE_EVENT_FL_DYNAMIC_BIT),
 	TRACE_EVENT_FL_KPROBE		= (1 << TRACE_EVENT_FL_KPROBE_BIT),
 	TRACE_EVENT_FL_UPROBE		= (1 << TRACE_EVENT_FL_UPROBE_BIT),
+	TRACE_EVENT_FL_EPROBE		= (1 << TRACE_EVENT_FL_EPROBE_BIT),
 };
 
 #define TRACE_EVENT_FL_UKPROBE (TRACE_EVENT_FL_KPROBE | TRACE_EVENT_FL_UPROBE)
@@ -347,7 +353,14 @@ struct trace_event_call {
 	struct trace_event	event;
 	char			*print_fmt;
 	struct event_filter	*filter;
-	void			*mod;
+	/*
+	 * Static events can disappear with modules,
+	 * where as dynamic ones need their own ref count.
+	 */
+	union {
+		void				*module;
+		atomic_t			refcnt;
+	};
 	void			*data;
 
 	/* See the TRACE_EVENT_FL_* flags above */
@@ -362,6 +375,42 @@ struct trace_event_call {
 			     struct perf_event *);
 #endif
 };
+
+#ifdef CONFIG_DYNAMIC_EVENTS
+bool trace_event_dyn_try_get_ref(struct trace_event_call *call);
+void trace_event_dyn_put_ref(struct trace_event_call *call);
+bool trace_event_dyn_busy(struct trace_event_call *call);
+#else
+static inline bool trace_event_dyn_try_get_ref(struct trace_event_call *call)
+{
+	/* Without DYNAMIC_EVENTS configured, nothing should be calling this */
+	return false;
+}
+static inline void trace_event_dyn_put_ref(struct trace_event_call *call)
+{
+}
+static inline bool trace_event_dyn_busy(struct trace_event_call *call)
+{
+	/* Nothing should call this without DYNAIMIC_EVENTS configured. */
+	return true;
+}
+#endif
+
+static inline bool trace_event_try_get_ref(struct trace_event_call *call)
+{
+	if (call->flags & TRACE_EVENT_FL_DYNAMIC)
+		return trace_event_dyn_try_get_ref(call);
+	else
+		return try_module_get(call->module);
+}
+
+static inline void trace_event_put_ref(struct trace_event_call *call)
+{
+	if (call->flags & TRACE_EVENT_FL_DYNAMIC)
+		trace_event_dyn_put_ref(call);
+	else
+		module_put(call->module);
+}
 
 #ifdef CONFIG_PERF_EVENTS
 static inline bool bpf_prog_array_valid(struct trace_event_call *call)
@@ -634,6 +683,7 @@ enum event_trigger_type {
 	ETT_EVENT_ENABLE	= (1 << 3),
 	ETT_EVENT_HIST		= (1 << 4),
 	ETT_HIST_ENABLE		= (1 << 5),
+	ETT_EVENT_EPROBE	= (1 << 6),
 };
 
 extern int filter_match_preds(struct event_filter *filter, void *rec);
@@ -675,7 +725,7 @@ trace_trigger_soft_disabled(struct trace_event_file *file)
 
 #ifdef CONFIG_BPF_EVENTS
 unsigned int trace_call_bpf(struct trace_event_call *call, void *ctx);
-int perf_event_attach_bpf_prog(struct perf_event *event, struct bpf_prog *prog);
+int perf_event_attach_bpf_prog(struct perf_event *event, struct bpf_prog *prog, u64 bpf_cookie);
 void perf_event_detach_bpf_prog(struct perf_event *event);
 int perf_event_query_prog_array(struct perf_event *event, void __user *info);
 int bpf_probe_register(struct bpf_raw_event_map *btp, struct bpf_prog *prog);
@@ -692,7 +742,7 @@ static inline unsigned int trace_call_bpf(struct trace_event_call *call, void *c
 }
 
 static inline int
-perf_event_attach_bpf_prog(struct perf_event *event, struct bpf_prog *prog)
+perf_event_attach_bpf_prog(struct perf_event *event, struct bpf_prog *prog, u64 bpf_cookie)
 {
 	return -EOPNOTSUPP;
 }
@@ -802,6 +852,9 @@ extern int  ftrace_profile_set_filter(struct perf_event *event, int event_id,
 extern void ftrace_profile_free_filter(struct perf_event *event);
 void perf_trace_buf_update(void *record, u16 type);
 void *perf_trace_buf_alloc(int size, struct pt_regs **regs, int *rctxp);
+
+int perf_event_set_bpf_prog(struct perf_event *event, struct bpf_prog *prog, u64 bpf_cookie);
+void perf_event_free_bpf_prog(struct perf_event *event);
 
 void bpf_trace_run1(struct bpf_prog *prog, u64 arg1);
 void bpf_trace_run2(struct bpf_prog *prog, u64 arg1, u64 arg2);

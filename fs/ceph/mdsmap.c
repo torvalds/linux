@@ -122,6 +122,7 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end, bool msgr2)
 	int err;
 	u8 mdsmap_v;
 	u16 mdsmap_ev;
+	u32 target;
 
 	m = kzalloc(sizeof(*m), GFP_NOFS);
 	if (!m)
@@ -260,9 +261,14 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end, bool msgr2)
 						       sizeof(u32), GFP_NOFS);
 			if (!info->export_targets)
 				goto nomem;
-			for (j = 0; j < num_export_targets; j++)
-				info->export_targets[j] =
-				       ceph_decode_32(&pexport_targets);
+			for (j = 0; j < num_export_targets; j++) {
+				target = ceph_decode_32(&pexport_targets);
+				if (target >= m->possible_max_rank) {
+					err = -EIO;
+					goto corrupt;
+				}
+				info->export_targets[j] = target;
+			}
 		} else {
 			info->export_targets = NULL;
 		}
@@ -394,9 +400,11 @@ void ceph_mdsmap_destroy(struct ceph_mdsmap *m)
 {
 	int i;
 
-	for (i = 0; i < m->possible_max_rank; i++)
-		kfree(m->m_info[i].export_targets);
-	kfree(m->m_info);
+	if (m->m_info) {
+		for (i = 0; i < m->possible_max_rank; i++)
+			kfree(m->m_info[i].export_targets);
+		kfree(m->m_info);
+	}
 	kfree(m->m_data_pg_pools);
 	kfree(m);
 }

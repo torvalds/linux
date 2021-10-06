@@ -26,14 +26,9 @@
  **************************************************************************/
 
 #include "vmwgfx_drv.h"
+#include "vmwgfx_devcaps.h"
 #include <drm/vmwgfx_drm.h>
 #include "vmwgfx_kms.h"
-#include "device_include/svga3d_caps.h"
-
-struct svga_3d_compat_cap {
-	SVGA3dCapsRecordHeader header;
-	SVGA3dCapPair pairs[SVGA3D_DEVCAP_MAX];
-};
 
 int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv)
@@ -63,7 +58,7 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 		param->value = vmw_fifo_caps(dev_priv);
 		break;
 	case DRM_VMW_PARAM_MAX_FB_SIZE:
-		param->value = dev_priv->prim_bb_mem;
+		param->value = dev_priv->max_primary_mem;
 		break;
 	case DRM_VMW_PARAM_FIFO_HW_VERSION:
 	{
@@ -88,16 +83,7 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 			param->value = dev_priv->memory_size;
 		break;
 	case DRM_VMW_PARAM_3D_CAPS_SIZE:
-		if ((dev_priv->capabilities & SVGA_CAP_GBOBJECTS) &&
-		    vmw_fp->gb_aware)
-			param->value = SVGA3D_DEVCAP_MAX * sizeof(uint32_t);
-		else if (dev_priv->capabilities & SVGA_CAP_GBOBJECTS)
-			param->value = sizeof(struct svga_3d_compat_cap) +
-				sizeof(uint32_t);
-		else
-			param->value = (SVGA_FIFO_3D_CAPS_LAST -
-					SVGA_FIFO_3D_CAPS + 1) *
-				sizeof(uint32_t);
+		param->value = vmw_devcaps_size(dev_priv, vmw_fp->gb_aware);
 		break;
 	case DRM_VMW_PARAM_MAX_MOB_MEMORY:
 		vmw_fp->gb_aware = true;
@@ -126,55 +112,6 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
-static u32 vmw_mask_legacy_multisample(unsigned int cap, u32 fmt_value)
-{
-	/*
-	 * A version of user-space exists which use MULTISAMPLE_MASKABLESAMPLES
-	 * to check the sample count supported by virtual device. Since there
-	 * never was support for multisample count for backing MOB return 0.
-	 *
-	 * MULTISAMPLE_MASKABLESAMPLES devcap is marked as deprecated by virtual
-	 * device.
-	 */
-	if (cap == SVGA3D_DEVCAP_DEAD5)
-		return 0;
-
-	return fmt_value;
-}
-
-static int vmw_fill_compat_cap(struct vmw_private *dev_priv, void *bounce,
-			       size_t size)
-{
-	struct svga_3d_compat_cap *compat_cap =
-		(struct svga_3d_compat_cap *) bounce;
-	unsigned int i;
-	size_t pair_offset = offsetof(struct svga_3d_compat_cap, pairs);
-	unsigned int max_size;
-
-	if (size < pair_offset)
-		return -EINVAL;
-
-	max_size = (size - pair_offset) / sizeof(SVGA3dCapPair);
-
-	if (max_size > SVGA3D_DEVCAP_MAX)
-		max_size = SVGA3D_DEVCAP_MAX;
-
-	compat_cap->header.length =
-		(pair_offset + max_size * sizeof(SVGA3dCapPair)) / sizeof(u32);
-	compat_cap->header.type = SVGA3DCAPS_RECORD_DEVCAPS;
-
-	spin_lock(&dev_priv->cap_lock);
-	for (i = 0; i < max_size; ++i) {
-		vmw_write(dev_priv, SVGA_REG_DEV_CAP, i);
-		compat_cap->pairs[i][0] = i;
-		compat_cap->pairs[i][1] = vmw_mask_legacy_multisample
-			(i, vmw_read(dev_priv, SVGA_REG_DEV_CAP));
-	}
-	spin_unlock(&dev_priv->cap_lock);
-
-	return 0;
-}
-
 
 int vmw_get_cap_3d_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv)
@@ -183,11 +120,9 @@ int vmw_get_cap_3d_ioctl(struct drm_device *dev, void *data,
 		(struct drm_vmw_get_3d_cap_arg *) data;
 	struct vmw_private *dev_priv = vmw_priv(dev);
 	uint32_t size;
-	u32 *fifo_mem;
 	void __user *buffer = (void __user *)((unsigned long)(arg->buffer));
-	void *bounce;
+	void *bounce = NULL;
 	int ret;
-	bool gb_objects = !!(dev_priv->capabilities & SVGA_CAP_GBOBJECTS);
 	struct vmw_fpriv *vmw_fp = vmw_fpriv(file_priv);
 
 	if (unlikely(arg->pad64 != 0 || arg->max_size == 0)) {
@@ -195,13 +130,11 @@ int vmw_get_cap_3d_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	if (gb_objects && vmw_fp->gb_aware)
-		size = SVGA3D_DEVCAP_MAX * sizeof(uint32_t);
-	else if (gb_objects)
-		size = sizeof(struct svga_3d_compat_cap) + sizeof(uint32_t);
-	else
-		size = (SVGA_FIFO_3D_CAPS_LAST - SVGA_FIFO_3D_CAPS + 1) *
-			sizeof(uint32_t);
+	size = vmw_devcaps_size(dev_priv, vmw_fp->gb_aware);
+	if (unlikely(size == 0)) {
+		DRM_ERROR("Failed to figure out the devcaps size (no 3D).\n");
+		return -ENOMEM;
+	}
 
 	if (arg->max_size < size)
 		size = arg->max_size;
@@ -212,29 +145,9 @@ int vmw_get_cap_3d_ioctl(struct drm_device *dev, void *data,
 		return -ENOMEM;
 	}
 
-	if (gb_objects && vmw_fp->gb_aware) {
-		int i, num;
-		uint32_t *bounce32 = (uint32_t *) bounce;
-
-		num = size / sizeof(uint32_t);
-		if (num > SVGA3D_DEVCAP_MAX)
-			num = SVGA3D_DEVCAP_MAX;
-
-		spin_lock(&dev_priv->cap_lock);
-		for (i = 0; i < num; ++i) {
-			vmw_write(dev_priv, SVGA_REG_DEV_CAP, i);
-			*bounce32++ = vmw_mask_legacy_multisample
-				(i, vmw_read(dev_priv, SVGA_REG_DEV_CAP));
-		}
-		spin_unlock(&dev_priv->cap_lock);
-	} else if (gb_objects) {
-		ret = vmw_fill_compat_cap(dev_priv, bounce, size);
-		if (unlikely(ret != 0))
-			goto out_err;
-	} else {
-		fifo_mem = dev_priv->fifo_mem;
-		memcpy(bounce, &fifo_mem[SVGA_FIFO_3D_CAPS], size);
-	}
+	ret = vmw_devcaps_copy(dev_priv, vmw_fp->gb_aware, bounce, size);
+	if (unlikely (ret != 0))
+		goto out_err;
 
 	ret = copy_to_user(buffer, bounce, size);
 	if (ret)

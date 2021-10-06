@@ -31,6 +31,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/hdmi.h>
 #include <linux/component.h>
+#include <linux/iopoll.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
@@ -1649,17 +1650,36 @@ nv50_sor_update(struct nouveau_encoder *nv_encoder, u8 head,
 	core->func->sor->ctrl(core, nv_encoder->or, nv_encoder->ctrl, asyh);
 }
 
+/* TODO: Should we extend this to PWM-only backlights?
+ * As well, should we add a DRM helper for waiting for the backlight to acknowledge
+ * the panel backlight has been shut off? Intel doesn't seem to do this, and uses a
+ * fixed time delay from the vbios…
+ */
 static void
 nv50_sor_atomic_disable(struct drm_encoder *encoder, struct drm_atomic_state *state)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(nv_encoder->crtc);
 	struct nouveau_connector *nv_connector = nv50_outp_get_old_connector(state, nv_encoder);
+#ifdef CONFIG_DRM_NOUVEAU_BACKLIGHT
+	struct nouveau_drm *drm = nouveau_drm(nv_encoder->base.base.dev);
+	struct nouveau_backlight *backlight = nv_connector->backlight;
+#endif
 	struct drm_dp_aux *aux = &nv_connector->aux;
+	int ret;
 	u8 pwr;
 
+#ifdef CONFIG_DRM_NOUVEAU_BACKLIGHT
+	if (backlight && backlight->uses_dpcd) {
+		ret = drm_edp_backlight_disable(aux, &backlight->edp_info);
+		if (ret < 0)
+			NV_ERROR(drm, "Failed to disable backlight on [CONNECTOR:%d:%s]: %d\n",
+				 nv_connector->base.base.id, nv_connector->base.name, ret);
+	}
+#endif
+
 	if (nv_encoder->dcb->type == DCB_OUTPUT_DP) {
-		int ret = drm_dp_dpcd_readb(aux, DP_SET_POWER, &pwr);
+		ret = drm_dp_dpcd_readb(aux, DP_SET_POWER, &pwr);
 
 		if (ret == 0) {
 			pwr &= ~DP_SET_POWER_MASK;
@@ -1696,6 +1716,9 @@ nv50_sor_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *sta
 	struct drm_device *dev = encoder->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_connector *nv_connector;
+#ifdef CONFIG_DRM_NOUVEAU_BACKLIGHT
+	struct nouveau_backlight *backlight;
+#endif
 	struct nvbios *bios = &drm->vbios;
 	bool hda = false;
 	u8 proto = NV507D_SOR_SET_CONTROL_PROTOCOL_CUSTOM;
@@ -1770,6 +1793,14 @@ nv50_sor_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *sta
 			proto = NV887D_SOR_SET_CONTROL_PROTOCOL_DP_B;
 
 		nv50_audio_enable(encoder, nv_crtc, nv_connector, state, mode);
+
+#ifdef CONFIG_DRM_NOUVEAU_BACKLIGHT
+		backlight = nv_connector->backlight;
+		if (backlight && backlight->uses_dpcd)
+			drm_edp_backlight_enable(&nv_connector->aux, &backlight->edp_info,
+						 (u16)backlight->dev->props.brightness);
+#endif
+
 		break;
 	default:
 		BUG();
@@ -2237,6 +2268,33 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 		interlock[NV50_DISP_INTERLOCK_CORE] = 0;
 	}
 
+	/* Finish updating head(s)...
+	 *
+	 * NVD is rather picky about both where window assignments can change,
+	 * *and* about certain core and window channel states matching.
+	 *
+	 * The EFI GOP driver on newer GPUs configures window channels with a
+	 * different output format to what we do, and the core channel update
+	 * in the assign_windows case above would result in a state mismatch.
+	 *
+	 * Delay some of the head update until after that point to workaround
+	 * the issue.  This only affects the initial modeset.
+	 *
+	 * TODO: handle this better when adding flexible window mapping
+	 */
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+		struct nv50_head_atom *asyh = nv50_head_atom(new_crtc_state);
+		struct nv50_head *head = nv50_head(crtc);
+
+		NV_ATOMIC(drm, "%s: set %04x (clr %04x)\n", crtc->name,
+			  asyh->set.mask, asyh->clr.mask);
+
+		if (asyh->set.mask) {
+			nv50_head_flush_set_wndw(head, asyh);
+			interlock[NV50_DISP_INTERLOCK_CORE] = 1;
+		}
+	}
+
 	/* Update plane(s). */
 	for_each_new_plane_in_state(state, plane, new_plane_state, i) {
 		struct nv50_wndw_atom *asyw = nv50_wndw_atom(new_plane_state);
@@ -2295,6 +2353,7 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 	nv50_crc_atomic_start_reporting(state);
 	if (!flushed)
 		nv50_crc_atomic_release_notifier_contexts(state);
+
 	drm_atomic_helper_commit_hw_done(state);
 	drm_atomic_helper_cleanup_planes(dev, state);
 	drm_atomic_helper_commit_cleanup_done(state);

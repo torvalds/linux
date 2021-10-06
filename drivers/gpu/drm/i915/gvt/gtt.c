@@ -1055,7 +1055,7 @@ static bool vgpu_ips_enabled(struct intel_vgpu *vgpu)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->gt->i915;
 
-	if (GRAPHICS_VER(dev_priv) == 9 || GRAPHICS_VER(dev_priv) == 10) {
+	if (GRAPHICS_VER(dev_priv) == 9) {
 		u32 ips = vgpu_vreg_t(vgpu, GEN8_GAMW_ECO_DEV_RW_IA) &
 			GAMW_ECO_ENABLE_64K_IPS_FIELD;
 

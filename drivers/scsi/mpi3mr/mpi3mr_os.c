@@ -50,7 +50,7 @@ static u16 mpi3mr_host_tag_for_scmd(struct mpi3mr_ioc *mrioc,
 	u32 unique_tag;
 	u16 host_tag, hw_queue;
 
-	unique_tag = blk_mq_unique_tag(scmd->request);
+	unique_tag = blk_mq_unique_tag(scsi_cmd_to_rq(scmd));
 
 	hw_queue = blk_mq_unique_tag_to_hwq(unique_tag);
 	if (hw_queue >= mrioc->num_op_reply_q)
@@ -1963,7 +1963,6 @@ static void mpi3mr_setup_eedp(struct mpi3mr_ioc *mrioc,
 {
 	u16 eedp_flags = 0;
 	unsigned char prot_op = scsi_get_prot_op(scmd);
-	unsigned char prot_type = scsi_get_prot_type(scmd);
 
 	switch (prot_op) {
 	case SCSI_PROT_NORMAL:
@@ -1983,60 +1982,42 @@ static void mpi3mr_setup_eedp(struct mpi3mr_ioc *mrioc,
 		scsiio_req->msg_flags |= MPI3_SCSIIO_MSGFLAGS_METASGL_VALID;
 		break;
 	case SCSI_PROT_READ_PASS:
-		eedp_flags = MPI3_EEDPFLAGS_EEDP_OP_CHECK |
-		    MPI3_EEDPFLAGS_CHK_REF_TAG | MPI3_EEDPFLAGS_CHK_APP_TAG |
-		    MPI3_EEDPFLAGS_CHK_GUARD;
+		eedp_flags = MPI3_EEDPFLAGS_EEDP_OP_CHECK;
 		scsiio_req->msg_flags |= MPI3_SCSIIO_MSGFLAGS_METASGL_VALID;
 		break;
 	case SCSI_PROT_WRITE_PASS:
-		if (scsi_host_get_guard(scmd->device->host)
-		    & SHOST_DIX_GUARD_IP) {
-			eedp_flags = MPI3_EEDPFLAGS_EEDP_OP_CHECK_REGEN |
-			    MPI3_EEDPFLAGS_CHK_APP_TAG |
-			    MPI3_EEDPFLAGS_CHK_GUARD |
-			    MPI3_EEDPFLAGS_INCR_PRI_REF_TAG;
+		if (scmd->prot_flags & SCSI_PROT_IP_CHECKSUM) {
+			eedp_flags = MPI3_EEDPFLAGS_EEDP_OP_CHECK_REGEN;
 			scsiio_req->sgl[0].eedp.application_tag_translation_mask =
 			    0xffff;
-		} else {
-			eedp_flags = MPI3_EEDPFLAGS_EEDP_OP_CHECK |
-			    MPI3_EEDPFLAGS_CHK_REF_TAG |
-			    MPI3_EEDPFLAGS_CHK_APP_TAG |
-			    MPI3_EEDPFLAGS_CHK_GUARD;
-		}
+		} else
+			eedp_flags = MPI3_EEDPFLAGS_EEDP_OP_CHECK;
+
 		scsiio_req->msg_flags |= MPI3_SCSIIO_MSGFLAGS_METASGL_VALID;
 		break;
 	default:
 		return;
 	}
 
-	if (scsi_host_get_guard(scmd->device->host) & SHOST_DIX_GUARD_IP)
+	if (scmd->prot_flags & SCSI_PROT_GUARD_CHECK)
+		eedp_flags |= MPI3_EEDPFLAGS_CHK_GUARD;
+
+	if (scmd->prot_flags & SCSI_PROT_IP_CHECKSUM)
 		eedp_flags |= MPI3_EEDPFLAGS_HOST_GUARD_IP_CHKSUM;
 
-	switch (prot_type) {
-	case SCSI_PROT_DIF_TYPE0:
-		eedp_flags |= MPI3_EEDPFLAGS_INCR_PRI_REF_TAG;
+	if (scmd->prot_flags & SCSI_PROT_REF_CHECK) {
+		eedp_flags |= MPI3_EEDPFLAGS_CHK_REF_TAG |
+			MPI3_EEDPFLAGS_INCR_PRI_REF_TAG;
 		scsiio_req->cdb.eedp32.primary_reference_tag =
-		    cpu_to_be32(t10_pi_ref_tag(scmd->request));
-		break;
-	case SCSI_PROT_DIF_TYPE1:
-	case SCSI_PROT_DIF_TYPE2:
-		eedp_flags |= MPI3_EEDPFLAGS_INCR_PRI_REF_TAG |
-		    MPI3_EEDPFLAGS_ESC_MODE_APPTAG_DISABLE |
-		    MPI3_EEDPFLAGS_CHK_GUARD;
-		scsiio_req->cdb.eedp32.primary_reference_tag =
-		    cpu_to_be32(t10_pi_ref_tag(scmd->request));
-		break;
-	case SCSI_PROT_DIF_TYPE3:
-		eedp_flags |= MPI3_EEDPFLAGS_CHK_GUARD |
-		    MPI3_EEDPFLAGS_ESC_MODE_APPTAG_DISABLE;
-		break;
-
-	default:
-		scsiio_req->msg_flags &= ~(MPI3_SCSIIO_MSGFLAGS_METASGL_VALID);
-		return;
+			cpu_to_be32(scsi_prot_ref_tag(scmd));
 	}
 
-	switch (scmd->device->sector_size) {
+	if (scmd->prot_flags & SCSI_PROT_REF_INCREMENT)
+		eedp_flags |= MPI3_EEDPFLAGS_INCR_PRI_REF_TAG;
+
+	eedp_flags |= MPI3_EEDPFLAGS_ESC_MODE_APPTAG_DISABLE;
+
+	switch (scsi_prot_interval(scmd)) {
 	case 512:
 		scsiio_req->sgl[0].eedp.user_data_size = MPI3_EEDP_UDS_512;
 		break;
@@ -3451,7 +3432,7 @@ static int mpi3mr_qcmd(struct Scsi_Host *shost,
 	u16 dev_handle;
 	u16 host_tag;
 	u32 scsiio_flags = 0;
-	struct request *rq = scmd->request;
+	struct request *rq = scsi_cmd_to_rq(scmd);
 	int iprio_class;
 
 	sdev_priv_data = scmd->device->hostdata;
@@ -3795,7 +3776,7 @@ mpi3mr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	mrioc->is_driver_loading = 1;
-	if (mpi3mr_init_ioc(mrioc, 0)) {
+	if (mpi3mr_init_ioc(mrioc, MPI3MR_IT_INIT)) {
 		ioc_err(mrioc, "failure at %s:%d/%s()!\n",
 		    __FILE__, __LINE__, __func__);
 		retval = -ENODEV;
@@ -3818,7 +3799,7 @@ mpi3mr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return retval;
 
 addhost_failed:
-	mpi3mr_cleanup_ioc(mrioc, 0);
+	mpi3mr_cleanup_ioc(mrioc, MPI3MR_COMPLETE_CLEANUP);
 out_iocinit_failed:
 	destroy_workqueue(mrioc->fwevt_worker_thread);
 out_fwevtthread_failed:
@@ -3870,7 +3851,7 @@ static void mpi3mr_remove(struct pci_dev *pdev)
 		mpi3mr_tgtdev_del_from_list(mrioc, tgtdev);
 		mpi3mr_tgtdev_put(tgtdev);
 	}
-	mpi3mr_cleanup_ioc(mrioc, 0);
+	mpi3mr_cleanup_ioc(mrioc, MPI3MR_COMPLETE_CLEANUP);
 
 	spin_lock(&mrioc_list_lock);
 	list_del(&mrioc->list);
@@ -3910,7 +3891,7 @@ static void mpi3mr_shutdown(struct pci_dev *pdev)
 	spin_unlock_irqrestore(&mrioc->fwevt_lock, flags);
 	if (wq)
 		destroy_workqueue(wq);
-	mpi3mr_cleanup_ioc(mrioc, 0);
+	mpi3mr_cleanup_ioc(mrioc, MPI3MR_COMPLETE_CLEANUP);
 }
 
 #ifdef CONFIG_PM
@@ -3940,7 +3921,7 @@ static int mpi3mr_suspend(struct pci_dev *pdev, pm_message_t state)
 	mpi3mr_cleanup_fwevt_list(mrioc);
 	scsi_block_requests(shost);
 	mpi3mr_stop_watchdog(mrioc);
-	mpi3mr_cleanup_ioc(mrioc, 1);
+	mpi3mr_cleanup_ioc(mrioc, MPI3MR_SUSPEND);
 
 	device_state = pci_choose_state(pdev, state);
 	ioc_info(mrioc, "pdev=0x%p, slot=%s, entering operating state [D%d]\n",
@@ -3988,7 +3969,8 @@ static int mpi3mr_resume(struct pci_dev *pdev)
 	}
 
 	mrioc->stop_drv_processing = 0;
-	mpi3mr_init_ioc(mrioc, 1);
+	mpi3mr_memset_buffers(mrioc);
+	mpi3mr_init_ioc(mrioc, MPI3MR_IT_RESUME);
 	scsi_unblock_requests(shost);
 	mpi3mr_start_watchdog(mrioc);
 

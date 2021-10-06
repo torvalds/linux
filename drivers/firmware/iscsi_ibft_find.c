@@ -31,8 +31,8 @@
 /*
  * Physical location of iSCSI Boot Format Table.
  */
-struct acpi_table_ibft *ibft_addr;
-EXPORT_SYMBOL_GPL(ibft_addr);
+phys_addr_t ibft_phys_addr;
+EXPORT_SYMBOL_GPL(ibft_phys_addr);
 
 static const struct {
 	char *sign;
@@ -47,12 +47,23 @@ static const struct {
 #define VGA_MEM 0xA0000 /* VGA buffer */
 #define VGA_SIZE 0x20000 /* 128kB */
 
-static int __init find_ibft_in_mem(void)
+/*
+ * Routine used to find and reserve the iSCSI Boot Format Table
+ */
+void __init reserve_ibft_region(void)
 {
 	unsigned long pos;
 	unsigned int len = 0;
 	void *virt;
 	int i;
+
+	ibft_phys_addr = 0;
+
+	/* iBFT 1.03 section 1.4.3.1 mandates that UEFI machines will
+	 * only use ACPI for this
+	 */
+	if (efi_enabled(EFI_BOOT))
+		return;
 
 	for (pos = IBFT_START; pos < IBFT_END; pos += 16) {
 		/* The table can't be inside the VGA BIOS reserved space,
@@ -70,35 +81,12 @@ static int __init find_ibft_in_mem(void)
 				/* if the length of the table extends past 1M,
 				 * the table cannot be valid. */
 				if (pos + len <= (IBFT_END-1)) {
-					ibft_addr = (struct acpi_table_ibft *)virt;
-					pr_info("iBFT found at 0x%lx.\n", pos);
-					goto done;
+					ibft_phys_addr = pos;
+					memblock_reserve(ibft_phys_addr, PAGE_ALIGN(len));
+					pr_info("iBFT found at %pa.\n", &ibft_phys_addr);
+					return;
 				}
 			}
 		}
 	}
-done:
-	return len;
-}
-/*
- * Routine used to find the iSCSI Boot Format Table. The logical
- * kernel address is set in the ibft_addr global variable.
- */
-unsigned long __init find_ibft_region(unsigned long *sizep)
-{
-	ibft_addr = NULL;
-
-	/* iBFT 1.03 section 1.4.3.1 mandates that UEFI machines will
-	 * only use ACPI for this */
-
-	if (!efi_enabled(EFI_BOOT))
-		find_ibft_in_mem();
-
-	if (ibft_addr) {
-		*sizep = PAGE_ALIGN(ibft_addr->header.length);
-		return (u64)virt_to_phys(ibft_addr);
-	}
-
-	*sizep = 0;
-	return 0;
 }

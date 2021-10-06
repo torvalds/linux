@@ -99,7 +99,6 @@ static irqreturn_t fsl_error_int_handler(int irq, void *data)
 	struct mpic *mpic = (struct mpic *) data;
 	u32 eisr, eimr;
 	int errint;
-	unsigned int cascade_irq;
 
 	eisr = mpic_fsl_err_read(mpic->err_regs, MPIC_ERR_INT_EISR);
 	eimr = mpic_fsl_err_read(mpic->err_regs, MPIC_ERR_INT_EIMR);
@@ -108,13 +107,11 @@ static irqreturn_t fsl_error_int_handler(int irq, void *data)
 		return IRQ_NONE;
 
 	while (eisr) {
+		int ret;
 		errint = __builtin_clz(eisr);
-		cascade_irq = irq_linear_revmap(mpic->irqhost,
-				 mpic->err_int_vecs[errint]);
-		WARN_ON(!cascade_irq);
-		if (cascade_irq) {
-			generic_handle_irq(cascade_irq);
-		} else {
+		ret = generic_handle_domain_irq(mpic->irqhost,
+						mpic->err_int_vecs[errint]);
+		if (WARN_ON(ret)) {
 			eimr |=  1 << (31 - errint);
 			mpic_fsl_err_write(mpic->err_regs, eimr);
 		}

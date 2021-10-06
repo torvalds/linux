@@ -115,12 +115,6 @@ struct sja1105_info {
 	const struct sja1105_dynamic_table_ops *dyn_ops;
 	const struct sja1105_table_ops *static_ops;
 	const struct sja1105_regs *regs;
-	/* Both E/T and P/Q/R/S have quirks when it comes to popping the S-Tag
-	 * from double-tagged frames. E/T will pop it only when it's equal to
-	 * TPID from the General Parameters Table, while P/Q/R/S will only
-	 * pop it when it's equal to TPID2.
-	 */
-	u16 qinq_tpid;
 	bool can_limit_mcast_flood;
 	int (*reset_cmd)(struct dsa_switch *ds);
 	int (*setup_rgmii_delay)(const void *ctx, int port);
@@ -226,28 +220,13 @@ struct sja1105_flow_block {
 	int num_virtual_links;
 };
 
-struct sja1105_bridge_vlan {
-	struct list_head list;
-	int port;
-	u16 vid;
-	bool pvid;
-	bool untagged;
-};
-
-enum sja1105_vlan_state {
-	SJA1105_VLAN_UNAWARE,
-	SJA1105_VLAN_BEST_EFFORT,
-	SJA1105_VLAN_FILTERING_FULL,
-};
-
 struct sja1105_private {
 	struct sja1105_static_config static_config;
 	bool rgmii_rx_delay[SJA1105_MAX_NUM_PORTS];
 	bool rgmii_tx_delay[SJA1105_MAX_NUM_PORTS];
 	phy_interface_t phy_mode[SJA1105_MAX_NUM_PORTS];
 	bool fixed_link[SJA1105_MAX_NUM_PORTS];
-	bool best_effort_vlan_filtering;
-	unsigned long learn_ena;
+	bool vlan_aware;
 	unsigned long ucast_egress_floods;
 	unsigned long bcast_egress_floods;
 	const struct sja1105_info *info;
@@ -255,16 +234,14 @@ struct sja1105_private {
 	struct gpio_desc *reset_gpio;
 	struct spi_device *spidev;
 	struct dsa_switch *ds;
-	struct list_head dsa_8021q_vlans;
-	struct list_head bridge_vlans;
+	u16 bridge_pvid[SJA1105_MAX_NUM_PORTS];
+	u16 tag_8021q_pvid[SJA1105_MAX_NUM_PORTS];
 	struct sja1105_flow_block flow_block;
 	struct sja1105_port ports[SJA1105_MAX_NUM_PORTS];
 	/* Serializes transmission of management frames so that
 	 * the switch doesn't confuse them with one another.
 	 */
 	struct mutex mgmt_lock;
-	struct dsa_8021q_context *dsa_8021q_ctx;
-	enum sja1105_vlan_state vlan_state;
 	struct devlink_region **regions;
 	struct sja1105_cbs_entry *cbs;
 	struct mii_bus *mdio_base_t1;
@@ -311,10 +288,6 @@ int sja1110_pcs_mdio_write(struct mii_bus *bus, int phy, int reg, u16 val);
 /* From sja1105_devlink.c */
 int sja1105_devlink_setup(struct dsa_switch *ds);
 void sja1105_devlink_teardown(struct dsa_switch *ds);
-int sja1105_devlink_param_get(struct dsa_switch *ds, u32 id,
-			      struct devlink_param_gset_ctx *ctx);
-int sja1105_devlink_param_set(struct dsa_switch *ds, u32 id,
-			      struct devlink_param_gset_ctx *ctx);
 int sja1105_devlink_info_get(struct dsa_switch *ds,
 			     struct devlink_info_req *req,
 			     struct netlink_ext_ack *extack);

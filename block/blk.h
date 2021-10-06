@@ -44,11 +44,7 @@ static inline void __blk_get_queue(struct request_queue *q)
 	kobject_get(&q->kobj);
 }
 
-static inline bool
-is_flush_rq(struct request *req, struct blk_mq_hw_ctx *hctx)
-{
-	return hctx->fq->flush_rq == req;
-}
+bool is_flush_rq(struct request *req);
 
 struct blk_flush_queue *blk_alloc_flush_queue(int node, int cmd_size,
 					      gfp_t flags);
@@ -132,7 +128,7 @@ static inline bool integrity_req_gap_front_merge(struct request *req,
 				bip_next->bip_vec[0].bv_offset);
 }
 
-void blk_integrity_add(struct gendisk *);
+int blk_integrity_add(struct gendisk *disk);
 void blk_integrity_del(struct gendisk *);
 #else /* CONFIG_BLK_DEV_INTEGRITY */
 static inline bool blk_integrity_merge_rq(struct request_queue *rq,
@@ -166,8 +162,9 @@ static inline bool bio_integrity_endio(struct bio *bio)
 static inline void bio_integrity_free(struct bio *bio)
 {
 }
-static inline void blk_integrity_add(struct gendisk *disk)
+static inline int blk_integrity_add(struct gendisk *disk)
 {
+	return 0;
 }
 static inline void blk_integrity_del(struct gendisk *disk)
 {
@@ -293,11 +290,13 @@ int create_task_io_context(struct task_struct *task, gfp_t gfp_mask, int node);
 extern int blk_throtl_init(struct request_queue *q);
 extern void blk_throtl_exit(struct request_queue *q);
 extern void blk_throtl_register_queue(struct request_queue *q);
+extern void blk_throtl_charge_bio_split(struct bio *bio);
 bool blk_throtl_bio(struct bio *bio);
 #else /* CONFIG_BLK_DEV_THROTTLING */
 static inline int blk_throtl_init(struct request_queue *q) { return 0; }
 static inline void blk_throtl_exit(struct request_queue *q) { }
 static inline void blk_throtl_register_queue(struct request_queue *q) { }
+static inline void blk_throtl_charge_bio_split(struct bio *bio) { }
 static inline bool blk_throtl_bio(struct bio *bio) { return false; }
 #endif /* CONFIG_BLK_DEV_THROTTLING */
 #ifdef CONFIG_BLK_DEV_THROTTLING_LOW
@@ -344,15 +343,14 @@ static inline void blk_queue_clear_zone_settings(struct request_queue *q) {}
 
 int blk_alloc_ext_minor(void);
 void blk_free_ext_minor(unsigned int minor);
-char *disk_name(struct gendisk *hd, int partno, char *buf);
 #define ADDPART_FLAG_NONE	0
 #define ADDPART_FLAG_RAID	1
 #define ADDPART_FLAG_WHOLEDISK	2
-int bdev_add_partition(struct block_device *bdev, int partno,
-		sector_t start, sector_t length);
-int bdev_del_partition(struct block_device *bdev, int partno);
-int bdev_resize_partition(struct block_device *bdev, int partno,
-		sector_t start, sector_t length);
+int bdev_add_partition(struct gendisk *disk, int partno, sector_t start,
+		sector_t length);
+int bdev_del_partition(struct gendisk *disk, int partno);
+int bdev_resize_partition(struct gendisk *disk, int partno, sector_t start,
+		sector_t length);
 
 int bio_add_hw_page(struct request_queue *q, struct bio *bio,
 		struct page *page, unsigned int len, unsigned int offset,
@@ -360,12 +358,21 @@ int bio_add_hw_page(struct request_queue *q, struct bio *bio,
 
 struct request_queue *blk_alloc_queue(int node_id);
 
-void disk_alloc_events(struct gendisk *disk);
+int disk_alloc_events(struct gendisk *disk);
 void disk_add_events(struct gendisk *disk);
 void disk_del_events(struct gendisk *disk);
 void disk_release_events(struct gendisk *disk);
 extern struct device_attribute dev_attr_events;
 extern struct device_attribute dev_attr_events_async;
 extern struct device_attribute dev_attr_events_poll_msecs;
+
+static inline void bio_clear_hipri(struct bio *bio)
+{
+	/* can't support alloc cache if we turn off polling */
+	bio_clear_flag(bio, BIO_PERCPU_CACHE);
+	bio->bi_opf &= ~REQ_HIPRI;
+}
+
+extern const struct address_space_operations def_blk_aops;
 
 #endif /* BLK_INTERNAL_H */

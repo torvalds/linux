@@ -14,8 +14,6 @@
 #include "vmx_ops.h"
 #include "cpuid.h"
 
-extern const u32 vmx_msr_index[];
-
 #define MSR_TYPE_R	1
 #define MSR_TYPE_W	2
 #define MSR_TYPE_RW	3
@@ -229,7 +227,7 @@ struct nested_vmx {
 struct vcpu_vmx {
 	struct kvm_vcpu       vcpu;
 	u8                    fail;
-	u8		      msr_bitmap_mode;
+	u8		      x2apic_msr_bitmap_mode;
 
 	/*
 	 * If true, host state has been stored in vmx->loaded_vmcs for
@@ -264,8 +262,6 @@ struct vcpu_vmx {
 
 	u64		      spec_ctrl;
 	u32		      msr_ia32_umwait_control;
-
-	u32 secondary_exec_control;
 
 	/*
 	 * loaded_vmcs points to the VMCS currently used in this vcpu. For a
@@ -373,12 +369,11 @@ void vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4);
 void set_cr4_guest_host_mask(struct vcpu_vmx *vmx);
 void ept_save_pdptrs(struct kvm_vcpu *vcpu);
 void vmx_get_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg);
-void vmx_set_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg);
+void __vmx_set_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg);
 u64 construct_eptp(struct kvm_vcpu *vcpu, hpa_t root_hpa, int root_level);
 
 bool vmx_guest_inject_ac(struct kvm_vcpu *vcpu);
 void vmx_update_exception_bitmap(struct kvm_vcpu *vcpu);
-void vmx_update_msr_bitmap(struct kvm_vcpu *vcpu);
 bool vmx_nmi_blocked(struct kvm_vcpu *vcpu);
 bool vmx_interrupt_blocked(struct kvm_vcpu *vcpu);
 bool vmx_get_nmi_mask(struct kvm_vcpu *vcpu);
@@ -421,9 +416,13 @@ static inline void lname##_controls_set(struct vcpu_vmx *vmx, u32 val)	    \
 		vmx->loaded_vmcs->controls_shadow.lname = val;		    \
 	}								    \
 }									    \
+static inline u32 __##lname##_controls_get(struct loaded_vmcs *vmcs)	    \
+{									    \
+	return vmcs->controls_shadow.lname;				    \
+}									    \
 static inline u32 lname##_controls_get(struct vcpu_vmx *vmx)		    \
 {									    \
-	return vmx->loaded_vmcs->controls_shadow.lname;			    \
+	return __##lname##_controls_get(vmx->loaded_vmcs);		    \
 }									    \
 static inline void lname##_controls_setbit(struct vcpu_vmx *vmx, u32 val)   \
 {									    \
@@ -452,31 +451,6 @@ static inline void vmx_register_cache_reset(struct kvm_vcpu *vcpu)
 				  | (1 << VCPU_EXREG_EXIT_INFO_2));
 	vcpu->arch.regs_dirty = 0;
 }
-
-static inline u32 vmx_vmentry_ctrl(void)
-{
-	u32 vmentry_ctrl = vmcs_config.vmentry_ctrl;
-	if (vmx_pt_mode_is_system())
-		vmentry_ctrl &= ~(VM_ENTRY_PT_CONCEAL_PIP |
-				  VM_ENTRY_LOAD_IA32_RTIT_CTL);
-	/* Loading of EFER and PERF_GLOBAL_CTRL are toggled dynamically */
-	return vmentry_ctrl &
-		~(VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL | VM_ENTRY_LOAD_IA32_EFER);
-}
-
-static inline u32 vmx_vmexit_ctrl(void)
-{
-	u32 vmexit_ctrl = vmcs_config.vmexit_ctrl;
-	if (vmx_pt_mode_is_system())
-		vmexit_ctrl &= ~(VM_EXIT_PT_CONCEAL_PIP |
-				 VM_EXIT_CLEAR_IA32_RTIT_CTL);
-	/* Loading of EFER and PERF_GLOBAL_CTRL are toggled dynamically */
-	return vmexit_ctrl &
-		~(VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL | VM_EXIT_LOAD_IA32_EFER);
-}
-
-u32 vmx_exec_control(struct vcpu_vmx *vmx);
-u32 vmx_pin_based_exec_ctrl(struct vcpu_vmx *vmx);
 
 static inline struct kvm_vmx *to_kvm_vmx(struct kvm *kvm)
 {
@@ -524,7 +498,7 @@ static inline struct vmcs *alloc_vmcs(bool shadow)
 
 static inline bool vmx_has_waitpkg(struct vcpu_vmx *vmx)
 {
-	return vmx->secondary_exec_control &
+	return secondary_exec_controls_get(vmx) &
 		SECONDARY_EXEC_ENABLE_USR_WAIT_PAUSE;
 }
 

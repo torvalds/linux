@@ -1673,6 +1673,8 @@ static int compute_sid_handle_invalid_context(
 	if (context_struct_to_string(policydb, newcontext, &n, &nlen))
 		goto out;
 	ab = audit_log_start(audit_context(), GFP_ATOMIC, AUDIT_SELINUX_ERR);
+	if (!ab)
+		goto out;
 	audit_log_format(ab,
 			 "op=security_compute_sid invalid_context=");
 	/* no need to record the NUL with untrusted strings */

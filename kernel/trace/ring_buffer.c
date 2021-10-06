@@ -2111,7 +2111,7 @@ int ring_buffer_resize(struct trace_buffer *buffer, unsigned long size,
 			}
 		}
 
-		get_online_cpus();
+		cpus_read_lock();
 		/*
 		 * Fire off all the required work handlers
 		 * We can't schedule on offline CPUs, but it's not necessary
@@ -2143,7 +2143,7 @@ int ring_buffer_resize(struct trace_buffer *buffer, unsigned long size,
 			cpu_buffer->nr_pages_to_update = 0;
 		}
 
-		put_online_cpus();
+		cpus_read_unlock();
 	} else {
 		cpu_buffer = buffer->buffers[cpu_id];
 
@@ -2171,7 +2171,7 @@ int ring_buffer_resize(struct trace_buffer *buffer, unsigned long size,
 			goto out_err;
 		}
 
-		get_online_cpus();
+		cpus_read_lock();
 
 		/* Can't run something on an offline CPU. */
 		if (!cpu_online(cpu_id))
@@ -2183,7 +2183,7 @@ int ring_buffer_resize(struct trace_buffer *buffer, unsigned long size,
 		}
 
 		cpu_buffer->nr_pages_to_update = 0;
-		put_online_cpus();
+		cpus_read_unlock();
 	}
 
  out:
@@ -3880,10 +3880,30 @@ static bool rb_per_cpu_empty(struct ring_buffer_per_cpu *cpu_buffer)
 	if (unlikely(!head))
 		return true;
 
-	return reader->read == rb_page_commit(reader) &&
-		(commit == reader ||
-		 (commit == head &&
-		  head->read == rb_page_commit(commit)));
+	/* Reader should exhaust content in reader page */
+	if (reader->read != rb_page_commit(reader))
+		return false;
+
+	/*
+	 * If writers are committing on the reader page, knowing all
+	 * committed content has been read, the ring buffer is empty.
+	 */
+	if (commit == reader)
+		return true;
+
+	/*
+	 * If writers are committing on a page other than reader page
+	 * and head page, there should always be content to read.
+	 */
+	if (commit != head)
+		return false;
+
+	/*
+	 * Writers are committing on the head page, we just need
+	 * to care about there're committed data, and the reader will
+	 * swap reader page with head page when it is to read data.
+	 */
+	return rb_page_commit(commit) == 0;
 }
 
 /**

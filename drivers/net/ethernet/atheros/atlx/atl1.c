@@ -2885,7 +2885,7 @@ static const struct net_device_ops atl1_netdev_ops = {
 	.ndo_change_mtu		= atl1_change_mtu,
 	.ndo_fix_features	= atlx_fix_features,
 	.ndo_set_features	= atlx_set_features,
-	.ndo_do_ioctl		= atlx_ioctl,
+	.ndo_eth_ioctl		= atlx_ioctl,
 	.ndo_tx_timeout		= atlx_tx_timeout,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= atl1_poll_controller,

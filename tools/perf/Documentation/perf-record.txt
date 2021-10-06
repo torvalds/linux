@@ -9,7 +9,7 @@ SYNOPSIS
 --------
 [verse]
 'perf record' [-e <EVENT> | --event=EVENT] [-a] <command>
-'perf record' [-e <EVENT> | --event=EVENT] [-a] -- <command> [<options>]
+'perf record' [-e <EVENT> | --event=EVENT] [-a] \-- <command> [<options>]
 
 DESCRIPTION
 -----------

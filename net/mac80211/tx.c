@@ -1147,6 +1147,29 @@ static bool ieee80211_tx_prep_agg(struct ieee80211_tx_data *tx,
 	return queued;
 }
 
+static void
+ieee80211_aggr_check(struct ieee80211_sub_if_data *sdata,
+		     struct sta_info *sta,
+		     struct sk_buff *skb)
+{
+	struct rate_control_ref *ref = sdata->local->rate_ctrl;
+	u16 tid;
+
+	if (!ref || !(ref->ops->capa & RATE_CTRL_CAPA_AMPDU_TRIGGER))
+		return;
+
+	if (!sta || !sta->sta.ht_cap.ht_supported ||
+	    !sta->sta.wme || skb_get_queue_mapping(skb) == IEEE80211_AC_VO ||
+	    skb->protocol == sdata->control_port_protocol)
+		return;
+
+	tid = skb->priority & IEEE80211_QOS_CTL_TID_MASK;
+	if (likely(sta->ampdu_mlme.tid_tx[tid]))
+		return;
+
+	ieee80211_start_tx_ba_session(&sta->sta, tid, 0);
+}
+
 /*
  * initialises @tx
  * pass %NULL for the station if unknown, a valid pointer if known
@@ -1160,6 +1183,7 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_hdr *hdr;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	bool aggr_check = false;
 	int tid;
 
 	memset(tx, 0, sizeof(*tx));
@@ -1188,8 +1212,10 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 		} else if (tx->sdata->control_port_protocol == tx->skb->protocol) {
 			tx->sta = sta_info_get_bss(sdata, hdr->addr1);
 		}
-		if (!tx->sta && !is_multicast_ether_addr(hdr->addr1))
+		if (!tx->sta && !is_multicast_ether_addr(hdr->addr1)) {
 			tx->sta = sta_info_get(sdata, hdr->addr1);
+			aggr_check = true;
+		}
 	}
 
 	if (tx->sta && ieee80211_is_data_qos(hdr->frame_control) &&
@@ -1199,8 +1225,12 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 		struct tid_ampdu_tx *tid_tx;
 
 		tid = ieee80211_get_tid(hdr);
-
 		tid_tx = rcu_dereference(tx->sta->ampdu_mlme.tid_tx[tid]);
+		if (!tid_tx && aggr_check) {
+			ieee80211_aggr_check(sdata, tx->sta, skb);
+			tid_tx = rcu_dereference(tx->sta->ampdu_mlme.tid_tx[tid]);
+		}
+
 		if (tid_tx) {
 			bool queued;
 
@@ -3212,7 +3242,9 @@ static bool ieee80211_amsdu_prepare_head(struct ieee80211_sub_if_data *sdata,
 	if (info->control.flags & IEEE80211_TX_CTRL_AMSDU)
 		return true;
 
-	if (!ieee80211_amsdu_realloc_pad(local, skb, sizeof(*amsdu_hdr)))
+	if (!ieee80211_amsdu_realloc_pad(local, skb,
+					 sizeof(*amsdu_hdr) +
+					 local->hw.extra_tx_headroom))
 		return false;
 
 	data = skb_push(skb, sizeof(*amsdu_hdr));
@@ -4120,29 +4152,6 @@ void ieee80211_txq_schedule_start(struct ieee80211_hw *hw, u8 ac)
 }
 EXPORT_SYMBOL(ieee80211_txq_schedule_start);
 
-static void
-ieee80211_aggr_check(struct ieee80211_sub_if_data *sdata,
-		     struct sta_info *sta,
-		     struct sk_buff *skb)
-{
-	struct rate_control_ref *ref = sdata->local->rate_ctrl;
-	u16 tid;
-
-	if (!ref || !(ref->ops->capa & RATE_CTRL_CAPA_AMPDU_TRIGGER))
-		return;
-
-	if (!sta || !sta->sta.ht_cap.ht_supported ||
-	    !sta->sta.wme || skb_get_queue_mapping(skb) == IEEE80211_AC_VO ||
-	    skb->protocol == sdata->control_port_protocol)
-		return;
-
-	tid = skb->priority & IEEE80211_QOS_CTL_TID_MASK;
-	if (likely(sta->ampdu_mlme.tid_tx[tid]))
-		return;
-
-	ieee80211_start_tx_ba_session(&sta->sta, tid, 0);
-}
-
 void __ieee80211_subif_start_xmit(struct sk_buff *skb,
 				  struct net_device *dev,
 				  u32 info_flags,
@@ -4775,11 +4784,11 @@ static int ieee80211_beacon_add_tim(struct ieee80211_sub_if_data *sdata,
 static void ieee80211_set_beacon_cntdwn(struct ieee80211_sub_if_data *sdata,
 					struct beacon_data *beacon)
 {
+	u8 *beacon_data, count, max_count = 1;
 	struct probe_resp *resp;
-	u8 *beacon_data;
 	size_t beacon_data_len;
+	u16 *bcn_offsets;
 	int i;
-	u8 count = beacon->cntdwn_current_counter;
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_AP:
@@ -4799,21 +4808,27 @@ static void ieee80211_set_beacon_cntdwn(struct ieee80211_sub_if_data *sdata,
 	}
 
 	rcu_read_lock();
-	for (i = 0; i < IEEE80211_MAX_CNTDWN_COUNTERS_NUM; ++i) {
-		resp = rcu_dereference(sdata->u.ap.probe_resp);
+	resp = rcu_dereference(sdata->u.ap.probe_resp);
 
-		if (beacon->cntdwn_counter_offsets[i]) {
-			if (WARN_ON_ONCE(beacon->cntdwn_counter_offsets[i] >=
-					 beacon_data_len)) {
+	bcn_offsets = beacon->cntdwn_counter_offsets;
+	count = beacon->cntdwn_current_counter;
+	if (sdata->vif.csa_active)
+		max_count = IEEE80211_MAX_CNTDWN_COUNTERS_NUM;
+
+	for (i = 0; i < max_count; ++i) {
+		if (bcn_offsets[i]) {
+			if (WARN_ON_ONCE(bcn_offsets[i] >= beacon_data_len)) {
 				rcu_read_unlock();
 				return;
 			}
-
-			beacon_data[beacon->cntdwn_counter_offsets[i]] = count;
+			beacon_data[bcn_offsets[i]] = count;
 		}
 
-		if (sdata->vif.type == NL80211_IFTYPE_AP && resp)
-			resp->data[resp->cntdwn_counter_offsets[i]] = count;
+		if (sdata->vif.type == NL80211_IFTYPE_AP && resp) {
+			u16 *resp_offsets = resp->cntdwn_counter_offsets;
+
+			resp->data[resp_offsets[i]] = count;
+		}
 	}
 	rcu_read_unlock();
 }
@@ -5023,6 +5038,7 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 			if (offs) {
 				offs->tim_offset = beacon->head_len;
 				offs->tim_length = skb->len - beacon->head_len;
+				offs->cntdwn_counter_offs[0] = beacon->cntdwn_counter_offsets[0];
 
 				/* for AP the csa offsets are from tail */
 				csa_off_base = skb->len;

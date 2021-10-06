@@ -164,9 +164,8 @@ struct mmc_request {
 	int			tag;
 
 #ifdef CONFIG_MMC_CRYPTO
-	bool			crypto_enabled;
+	const struct bio_crypt_ctx *crypto_ctx;
 	int			crypto_key_slot;
-	u32			data_unit_num;
 #endif
 };
 

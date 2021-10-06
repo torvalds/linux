@@ -10,7 +10,7 @@ Documentation/devicetree/bindings/memory-controllers/omap-gpmc.txt
 Required properties:
 - bank-width: 		Width of NOR flash in bytes. GPMC supports 8-bit and
 			16-bit devices and so must be either 1 or 2 bytes.
-- compatible:		Documentation/devicetree/bindings/mtd/mtd-physmap.txt
+- compatible:		Documentation/devicetree/bindings/mtd/mtd-physmap.yaml
 - gpmc,cs-on-ns:		Chip-select assertion time
 - gpmc,cs-rd-off-ns:	Chip-select de-assertion time for reads
 - gpmc,cs-wr-off-ns:	Chip-select de-assertion time for writes
@@ -21,7 +21,7 @@ Required properties:
 - gpmc,access-ns:	Start cycle to first data capture (read access)
 - gpmc,rd-cycle-ns:	Total read cycle time
 - gpmc,wr-cycle-ns:	Total write cycle time
-- linux,mtd-name:	Documentation/devicetree/bindings/mtd/mtd-physmap.txt
+- linux,mtd-name:	Documentation/devicetree/bindings/mtd/mtd-physmap.yaml
 - reg:			Chip-select, base address (relative to chip-select)
 			and size of NOR flash. Note that base address will be
 			typically 0 as this is the start of the chip-select.

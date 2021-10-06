@@ -23,7 +23,6 @@
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_cma_helper.h>
-#include <drm/drm_irq.h>
 #include <drm/drm_modeset_helper.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
@@ -51,64 +50,12 @@ static const struct regmap_config fsl_dcu_regmap_config = {
 	.volatile_reg = fsl_dcu_drm_is_volatile_reg,
 };
 
-static void fsl_dcu_irq_uninstall(struct drm_device *dev)
+static void fsl_dcu_irq_reset(struct drm_device *dev)
 {
 	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
 
 	regmap_write(fsl_dev->regmap, DCU_INT_STATUS, ~0);
 	regmap_write(fsl_dev->regmap, DCU_INT_MASK, ~0);
-}
-
-static int fsl_dcu_load(struct drm_device *dev, unsigned long flags)
-{
-	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
-	int ret;
-
-	ret = fsl_dcu_drm_modeset_init(fsl_dev);
-	if (ret < 0) {
-		dev_err(dev->dev, "failed to initialize mode setting\n");
-		return ret;
-	}
-
-	ret = drm_vblank_init(dev, dev->mode_config.num_crtc);
-	if (ret < 0) {
-		dev_err(dev->dev, "failed to initialize vblank\n");
-		goto done;
-	}
-
-	ret = drm_irq_install(dev, fsl_dev->irq);
-	if (ret < 0) {
-		dev_err(dev->dev, "failed to install IRQ handler\n");
-		goto done;
-	}
-
-	if (legacyfb_depth != 16 && legacyfb_depth != 24 &&
-	    legacyfb_depth != 32) {
-		dev_warn(dev->dev,
-			"Invalid legacyfb_depth.  Defaulting to 24bpp\n");
-		legacyfb_depth = 24;
-	}
-
-	return 0;
-done:
-	drm_kms_helper_poll_fini(dev);
-
-	drm_mode_config_cleanup(dev);
-	drm_irq_uninstall(dev);
-	dev->dev_private = NULL;
-
-	return ret;
-}
-
-static void fsl_dcu_unload(struct drm_device *dev)
-{
-	drm_atomic_helper_shutdown(dev);
-	drm_kms_helper_poll_fini(dev);
-
-	drm_mode_config_cleanup(dev);
-	drm_irq_uninstall(dev);
-
-	dev->dev_private = NULL;
 }
 
 static irqreturn_t fsl_dcu_drm_irq(int irq, void *arg)
@@ -132,15 +79,82 @@ static irqreturn_t fsl_dcu_drm_irq(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
+static int fsl_dcu_irq_install(struct drm_device *dev, unsigned int irq)
+{
+	if (irq == IRQ_NOTCONNECTED)
+		return -ENOTCONN;
+
+	fsl_dcu_irq_reset(dev);
+
+	return request_irq(irq, fsl_dcu_drm_irq, 0, dev->driver->name, dev);
+}
+
+static void fsl_dcu_irq_uninstall(struct drm_device *dev)
+{
+	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
+
+	fsl_dcu_irq_reset(dev);
+	free_irq(fsl_dev->irq, dev);
+}
+
+static int fsl_dcu_load(struct drm_device *dev, unsigned long flags)
+{
+	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
+	int ret;
+
+	ret = fsl_dcu_drm_modeset_init(fsl_dev);
+	if (ret < 0) {
+		dev_err(dev->dev, "failed to initialize mode setting\n");
+		return ret;
+	}
+
+	ret = drm_vblank_init(dev, dev->mode_config.num_crtc);
+	if (ret < 0) {
+		dev_err(dev->dev, "failed to initialize vblank\n");
+		goto done_vblank;
+	}
+
+	ret = fsl_dcu_irq_install(dev, fsl_dev->irq);
+	if (ret < 0) {
+		dev_err(dev->dev, "failed to install IRQ handler\n");
+		goto done_irq;
+	}
+
+	if (legacyfb_depth != 16 && legacyfb_depth != 24 &&
+	    legacyfb_depth != 32) {
+		dev_warn(dev->dev,
+			"Invalid legacyfb_depth.  Defaulting to 24bpp\n");
+		legacyfb_depth = 24;
+	}
+
+	return 0;
+done_irq:
+	drm_kms_helper_poll_fini(dev);
+
+	drm_mode_config_cleanup(dev);
+done_vblank:
+	dev->dev_private = NULL;
+
+	return ret;
+}
+
+static void fsl_dcu_unload(struct drm_device *dev)
+{
+	drm_atomic_helper_shutdown(dev);
+	drm_kms_helper_poll_fini(dev);
+
+	drm_mode_config_cleanup(dev);
+	fsl_dcu_irq_uninstall(dev);
+
+	dev->dev_private = NULL;
+}
+
 DEFINE_DRM_GEM_CMA_FOPS(fsl_dcu_drm_fops);
 
 static const struct drm_driver fsl_dcu_drm_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.load			= fsl_dcu_load,
 	.unload			= fsl_dcu_unload,
-	.irq_handler		= fsl_dcu_drm_irq,
-	.irq_preinstall		= fsl_dcu_irq_uninstall,
-	.irq_uninstall		= fsl_dcu_irq_uninstall,
 	DRM_GEM_CMA_DRIVER_OPS,
 	.fops			= &fsl_dcu_drm_fops,
 	.name			= "fsl-dcu-drm",

@@ -6,15 +6,13 @@
 # Author: Felix Guo <felixguoxiuping@gmail.com>
 # Author: Brendan Higgins <brendanhiggins@google.com>
 
-from __future__ import annotations
 import importlib.util
 import logging
 import subprocess
 import os
 import shutil
 import signal
-from typing import Iterator
-from typing import Optional
+from typing import Iterator, Optional, Tuple
 
 from contextlib import ExitStack
 
@@ -208,7 +206,7 @@ def get_source_tree_ops(arch: str, cross_compile: Optional[str]) -> LinuxSourceT
 		raise ConfigError(arch + ' is not a valid arch')
 
 def get_source_tree_ops_from_qemu_config(config_path: str,
-					 cross_compile: Optional[str]) -> tuple[
+					 cross_compile: Optional[str]) -> Tuple[
 							 str, LinuxSourceTreeOperations]:
 	# The module name/path has very little to do with where the actual file
 	# exists (I learned this through experimentation and could not find it

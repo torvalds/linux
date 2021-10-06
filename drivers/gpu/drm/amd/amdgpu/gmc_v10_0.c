@@ -93,6 +93,7 @@ static int gmc_v10_0_process_interrupt(struct amdgpu_device *adev,
 				       struct amdgpu_iv_entry *entry)
 {
 	bool retry_fault = !!(entry->src_data[1] & 0x80);
+	bool write_fault = !!(entry->src_data[1] & 0x20);
 	struct amdgpu_vmhub *hub = &adev->vmhub[entry->vmid_src];
 	struct amdgpu_task_info task_info;
 	uint32_t status = 0;
@@ -121,7 +122,7 @@ static int gmc_v10_0_process_interrupt(struct amdgpu_device *adev,
 		/* Try to handle the recoverable page faults by filling page
 		 * tables
 		 */
-		if (amdgpu_vm_handle_fault(adev, entry->pasid, addr))
+		if (amdgpu_vm_handle_fault(adev, entry->pasid, addr, write_fault))
 			return 1;
 	}
 
@@ -810,6 +811,7 @@ static int gmc_v10_0_mc_init(struct amdgpu_device *adev)
 		case CHIP_DIMGREY_CAVEFISH:
 		case CHIP_BEIGE_GOBY:
 		case CHIP_YELLOW_CARP:
+		case CHIP_CYAN_SKILLFISH:
 		default:
 			adev->gmc.gart_size = 512ULL << 20;
 			break;
@@ -879,6 +881,7 @@ static int gmc_v10_0_sw_init(void *handle)
 	case CHIP_DIMGREY_CAVEFISH:
 	case CHIP_BEIGE_GOBY:
 	case CHIP_YELLOW_CARP:
+	case CHIP_CYAN_SKILLFISH:
 		adev->num_vmhubs = 2;
 		/*
 		 * To fulfill 4-level page support,
@@ -996,6 +999,7 @@ static void gmc_v10_0_init_golden_registers(struct amdgpu_device *adev)
 	case CHIP_DIMGREY_CAVEFISH:
 	case CHIP_BEIGE_GOBY:
 	case CHIP_YELLOW_CARP:
+	case CHIP_CYAN_SKILLFISH:
 		break;
 	default:
 		break;

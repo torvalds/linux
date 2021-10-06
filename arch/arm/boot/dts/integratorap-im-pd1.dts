@@ -29,7 +29,7 @@
 		compatible = "arm,im-pd1-syscon", "syscon";
 		reg = <0x00000000 0x1000>;
 
-		vco1: clock@00 {
+		vco1: vco1-clock {
 			compatible = "arm,impd1-vco1";
 			#clock-cells = <0>;
 			lock-offset = <0x08>;
@@ -38,7 +38,7 @@
 			clock-output-names = "IM-PD1-VCO1";
 		};
 
-		vco2: clock@04 {
+		vco2: vco2-clock {
 			compatible = "arm,impd1-vco2";
 			#clock-cells = <0>;
 			lock-offset = <0x08>;

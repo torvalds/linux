@@ -242,7 +242,7 @@ xfs_bmap_get_bp(
 	for (i = 0; i < XFS_BTREE_MAXLEVELS; i++) {
 		if (!cur->bc_bufs[i])
 			break;
-		if (XFS_BUF_ADDR(cur->bc_bufs[i]) == bno)
+		if (xfs_buf_daddr(cur->bc_bufs[i]) == bno)
 			return cur->bc_bufs[i];
 	}
 
@@ -251,7 +251,7 @@ xfs_bmap_get_bp(
 		struct xfs_buf_log_item	*bip = (struct xfs_buf_log_item *)lip;
 
 		if (bip->bli_item.li_type == XFS_LI_BUF &&
-		    XFS_BUF_ADDR(bip->bli_buf) == bno)
+		    xfs_buf_daddr(bip->bli_buf) == bno)
 			return bip->bli_buf;
 	}
 
@@ -739,7 +739,7 @@ xfs_bmap_extents_to_btree(
 	 */
 	abp->b_ops = &xfs_bmbt_buf_ops;
 	ablock = XFS_BUF_TO_BLOCK(abp);
-	xfs_btree_init_block_int(mp, ablock, abp->b_bn,
+	xfs_btree_init_block_int(mp, ablock, xfs_buf_daddr(abp),
 				XFS_BTNUM_BMAP, 0, 0, ip->i_ino,
 				XFS_BTREE_LONG_PTRS);
 
@@ -1047,7 +1047,7 @@ xfs_bmap_set_attrforkoff(
 		ip->i_forkoff = xfs_attr_shortform_bytesfit(ip, size);
 		if (!ip->i_forkoff)
 			ip->i_forkoff = default_size;
-		else if ((ip->i_mount->m_flags & XFS_MOUNT_ATTR2) && version)
+		else if (xfs_has_attr2(ip->i_mount) && version)
 			*version = 2;
 		break;
 	default:
@@ -1115,17 +1115,17 @@ xfs_bmap_add_attrfork(
 		xfs_trans_log_inode(tp, ip, logflags);
 	if (error)
 		goto trans_cancel;
-	if (!xfs_sb_version_hasattr(&mp->m_sb) ||
-	   (!xfs_sb_version_hasattr2(&mp->m_sb) && version == 2)) {
+	if (!xfs_has_attr(mp) ||
+	   (!xfs_has_attr2(mp) && version == 2)) {
 		bool log_sb = false;
 
 		spin_lock(&mp->m_sb_lock);
-		if (!xfs_sb_version_hasattr(&mp->m_sb)) {
-			xfs_sb_version_addattr(&mp->m_sb);
+		if (!xfs_has_attr(mp)) {
+			xfs_add_attr(mp);
 			log_sb = true;
 		}
-		if (!xfs_sb_version_hasattr2(&mp->m_sb) && version == 2) {
-			xfs_sb_version_addattr2(&mp->m_sb);
+		if (!xfs_has_attr2(mp) && version == 2) {
+			xfs_add_attr2(mp);
 			log_sb = true;
 		}
 		spin_unlock(&mp->m_sb_lock);
@@ -3422,7 +3422,7 @@ xfs_bmap_compute_alignments(
 	int			stripe_align = 0;
 
 	/* stripe alignment for allocation is determined by mount parameters */
-	if (mp->m_swidth && (mp->m_flags & XFS_MOUNT_SWALLOC))
+	if (mp->m_swidth && xfs_has_swalloc(mp))
 		stripe_align = mp->m_swidth;
 	else if (mp->m_dalign)
 		stripe_align = mp->m_dalign;
@@ -3938,7 +3938,7 @@ xfs_bmapi_read(
 	    XFS_TEST_ERROR(false, mp, XFS_ERRTAG_BMAPIFORMAT))
 		return -EFSCORRUPTED;
 
-	if (XFS_FORCED_SHUTDOWN(mp))
+	if (xfs_is_shutdown(mp))
 		return -EIO;
 
 	XFS_STATS_INC(mp, xs_blk_mapr);
@@ -4420,7 +4420,7 @@ xfs_bmapi_write(
 		return -EFSCORRUPTED;
 	}
 
-	if (XFS_FORCED_SHUTDOWN(mp))
+	if (xfs_is_shutdown(mp))
 		return -EIO;
 
 	XFS_STATS_INC(mp, xs_blk_mapw);
@@ -4703,7 +4703,7 @@ xfs_bmapi_remap(
 		return -EFSCORRUPTED;
 	}
 
-	if (XFS_FORCED_SHUTDOWN(mp))
+	if (xfs_is_shutdown(mp))
 		return -EIO;
 
 	error = xfs_iread_extents(tp, ip, whichfork);
@@ -5361,7 +5361,7 @@ __xfs_bunmapi(
 	ifp = XFS_IFORK_PTR(ip, whichfork);
 	if (XFS_IS_CORRUPT(mp, !xfs_ifork_has_extents(ifp)))
 		return -EFSCORRUPTED;
-	if (XFS_FORCED_SHUTDOWN(mp))
+	if (xfs_is_shutdown(mp))
 		return -EIO;
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
@@ -5852,7 +5852,7 @@ xfs_bmap_collapse_extents(
 		return -EFSCORRUPTED;
 	}
 
-	if (XFS_FORCED_SHUTDOWN(mp))
+	if (xfs_is_shutdown(mp))
 		return -EIO;
 
 	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL | XFS_ILOCK_EXCL));
@@ -5930,7 +5930,7 @@ xfs_bmap_can_insert_extents(
 
 	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL));
 
-	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
+	if (xfs_is_shutdown(ip->i_mount))
 		return -EIO;
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
@@ -5967,7 +5967,7 @@ xfs_bmap_insert_extents(
 		return -EFSCORRUPTED;
 	}
 
-	if (XFS_FORCED_SHUTDOWN(mp))
+	if (xfs_is_shutdown(mp))
 		return -EIO;
 
 	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL | XFS_ILOCK_EXCL));
@@ -6070,7 +6070,7 @@ xfs_bmap_split_extent(
 		return -EFSCORRUPTED;
 	}
 
-	if (XFS_FORCED_SHUTDOWN(mp))
+	if (xfs_is_shutdown(mp))
 		return -EIO;
 
 	/* Read in all the extents */

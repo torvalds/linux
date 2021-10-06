@@ -1796,7 +1796,7 @@ static const u8 ov7660_60HZ[][4] = {
 	{}
 };
 
-static const u8 ov7660_NoFliker[][4] = {
+static const u8 ov7660_NoFlicker[][4] = {
 	{0x00, 0x13, 0x87, 0xaa},
 	{}
 };
@@ -3319,8 +3319,8 @@ static void sethvflip(struct gspca_dev *gspca_dev, bool hflip, bool vflip)
 static void setlightfreq(struct gspca_dev *gspca_dev, s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	static const u8 (*ov7660_freq_tb[3])[4] =
-		{ov7660_NoFliker, ov7660_50HZ, ov7660_60HZ};
+	static const u8 (*ov7660_freq_tb[3])[4] = {
+		ov7660_NoFlicker, ov7660_50HZ, ov7660_60HZ};
 
 	if (sd->sensor != SENSOR_OV7660)
 		return;

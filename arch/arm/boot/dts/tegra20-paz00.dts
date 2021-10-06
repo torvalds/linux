@@ -503,6 +503,10 @@
 		adt7461: temperature-sensor@4c {
 			compatible = "adi,adt7461";
 			reg = <0x4c>;
+
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(N, 6) IRQ_TYPE_EDGE_FALLING>;
+
 			#thermal-sensor-cells = <1>;
 		};
 	};

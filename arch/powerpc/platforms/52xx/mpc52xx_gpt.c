@@ -190,14 +190,11 @@ static struct irq_chip mpc52xx_gpt_irq_chip = {
 static void mpc52xx_gpt_irq_cascade(struct irq_desc *desc)
 {
 	struct mpc52xx_gpt_priv *gpt = irq_desc_get_handler_data(desc);
-	int sub_virq;
 	u32 status;
 
 	status = in_be32(&gpt->regs->status) & MPC52xx_GPT_STATUS_IRQMASK;
-	if (status) {
-		sub_virq = irq_linear_revmap(gpt->irqhost, 0);
-		generic_handle_irq(sub_virq);
-	}
+	if (status)
+		generic_handle_domain_irq(gpt->irqhost, 0);
 }
 
 static int mpc52xx_gpt_irq_map(struct irq_domain *h, unsigned int virq,

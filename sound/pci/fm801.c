@@ -1028,22 +1028,6 @@ FM801_SINGLE(SNDRV_CTL_NAME_IEC958("Raw Data ",CAPTURE,SWITCH), FM801_I2S_MODE, 
 FM801_SINGLE(SNDRV_CTL_NAME_IEC958("",PLAYBACK,SWITCH), FM801_GEN_CTRL, 2, 1, 0),
 };
 
-static void snd_fm801_mixer_free_ac97_bus(struct snd_ac97_bus *bus)
-{
-	struct fm801 *chip = bus->private_data;
-	chip->ac97_bus = NULL;
-}
-
-static void snd_fm801_mixer_free_ac97(struct snd_ac97 *ac97)
-{
-	struct fm801 *chip = ac97->private_data;
-	if (ac97->num == 0) {
-		chip->ac97 = NULL;
-	} else {
-		chip->ac97_sec = NULL;
-	}
-}
-
 static int snd_fm801_mixer(struct fm801 *chip)
 {
 	struct snd_ac97_template ac97;
@@ -1057,11 +1041,9 @@ static int snd_fm801_mixer(struct fm801 *chip)
 	err = snd_ac97_bus(chip->card, 0, &ops, chip, &chip->ac97_bus);
 	if (err < 0)
 		return err;
-	chip->ac97_bus->private_free = snd_fm801_mixer_free_ac97_bus;
 
 	memset(&ac97, 0, sizeof(ac97));
 	ac97.private_data = chip;
-	ac97.private_free = snd_fm801_mixer_free_ac97;
 	err = snd_ac97_mixer(chip->ac97_bus, &ac97, &chip->ac97);
 	if (err < 0)
 		return err;
@@ -1177,55 +1159,35 @@ static void snd_fm801_chip_init(struct fm801 *chip)
 		     FM801_IRQ_PLAYBACK | FM801_IRQ_CAPTURE | FM801_IRQ_MPU);
 }
 
-static int snd_fm801_free(struct fm801 *chip)
+static void snd_fm801_free(struct snd_card *card)
 {
+	struct fm801 *chip = card->private_data;
 	unsigned short cmdw;
-
-	if (chip->irq < 0)
-		goto __end_hw;
 
 	/* interrupt setup - mask everything */
 	cmdw = fm801_readw(chip, IRQ_MASK);
 	cmdw |= 0x00c3;
 	fm801_writew(chip, IRQ_MASK, cmdw);
 
-	devm_free_irq(chip->dev, chip->irq, chip);
-
-      __end_hw:
 #ifdef CONFIG_SND_FM801_TEA575X_BOOL
 	if (!(chip->tea575x_tuner & TUNER_DISABLED)) {
 		snd_tea575x_exit(&chip->tea);
 		v4l2_device_unregister(&chip->v4l2_dev);
 	}
 #endif
-	return 0;
-}
-
-static int snd_fm801_dev_free(struct snd_device *device)
-{
-	struct fm801 *chip = device->device_data;
-	return snd_fm801_free(chip);
 }
 
 static int snd_fm801_create(struct snd_card *card,
 			    struct pci_dev *pci,
 			    int tea575x_tuner,
-			    int radio_nr,
-			    struct fm801 **rchip)
+			    int radio_nr)
 {
-	struct fm801 *chip;
+	struct fm801 *chip = card->private_data;
 	int err;
-	static const struct snd_device_ops ops = {
-		.dev_free =	snd_fm801_dev_free,
-	};
 
-	*rchip = NULL;
 	err = pcim_enable_device(pci);
 	if (err < 0)
 		return err;
-	chip = devm_kzalloc(&pci->dev, sizeof(*chip), GFP_KERNEL);
-	if (chip == NULL)
-		return -ENOMEM;
 	spin_lock_init(&chip->reg_lock);
 	chip->card = card;
 	chip->dev = &pci->dev;
@@ -1253,7 +1215,6 @@ static int snd_fm801_create(struct snd_card *card,
 		if (devm_request_irq(&pci->dev, pci->irq, snd_fm801_interrupt,
 				IRQF_SHARED, KBUILD_MODNAME, chip)) {
 			dev_err(card->dev, "unable to grab IRQ %d\n", pci->irq);
-			snd_fm801_free(chip);
 			return -EBUSY;
 		}
 		chip->irq = pci->irq;
@@ -1261,20 +1222,13 @@ static int snd_fm801_create(struct snd_card *card,
 		pci_set_master(pci);
 	}
 
+	card->private_free = snd_fm801_free;
 	snd_fm801_chip_init(chip);
-
-	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
-	if (err < 0) {
-		snd_fm801_free(chip);
-		return err;
-	}
 
 #ifdef CONFIG_SND_FM801_TEA575X_BOOL
 	err = v4l2_device_register(&pci->dev, &chip->v4l2_dev);
-	if (err < 0) {
-		snd_fm801_free(chip);
+	if (err < 0)
 		return err;
-	}
 	chip->tea.v4l2_dev = &chip->v4l2_dev;
 	chip->tea.radio_nr = radio_nr;
 	chip->tea.private_data = chip;
@@ -1284,7 +1238,6 @@ static int snd_fm801_create(struct snd_card *card,
 	    (chip->tea575x_tuner & TUNER_TYPE_MASK) < 4) {
 		if (snd_tea575x_init(&chip->tea, THIS_MODULE)) {
 			dev_err(card->dev, "TEA575x radio not found\n");
-			snd_fm801_free(chip);
 			return -ENODEV;
 		}
 	} else if ((chip->tea575x_tuner & TUNER_TYPE_MASK) == 0) {
@@ -1312,8 +1265,6 @@ static int snd_fm801_create(struct snd_card *card,
 			sizeof(chip->tea.card));
 	}
 #endif
-
-	*rchip = chip;
 	return 0;
 }
 
@@ -1333,16 +1284,14 @@ static int snd_card_fm801_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 
-	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
-			   0, &card);
+	err = snd_devm_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+				sizeof(*chip), &card);
 	if (err < 0)
 		return err;
-	err = snd_fm801_create(card, pci, tea575x_tuner[dev], radio_nr[dev], &chip);
-	if (err < 0) {
-		snd_card_free(card);
+	chip = card->private_data;
+	err = snd_fm801_create(card, pci, tea575x_tuner[dev], radio_nr[dev]);
+	if (err < 0)
 		return err;
-	}
-	card->private_data = chip;
 
 	strcpy(card->driver, "FM801");
 	strcpy(card->shortname, "ForteMedia FM801-");
@@ -1354,51 +1303,34 @@ static int snd_card_fm801_probe(struct pci_dev *pci,
 		goto __fm801_tuner_only;
 
 	err = snd_fm801_pcm(chip, 0);
-	if (err < 0) {
-		snd_card_free(card);
+	if (err < 0)
 		return err;
-	}
 	err = snd_fm801_mixer(chip);
-	if (err < 0) {
-		snd_card_free(card);
+	if (err < 0)
 		return err;
-	}
 	err = snd_mpu401_uart_new(card, 0, MPU401_HW_FM801,
 				  chip->port + FM801_MPU401_DATA,
 				  MPU401_INFO_INTEGRATED |
 				  MPU401_INFO_IRQ_HOOK,
 				  -1, &chip->rmidi);
-	if (err < 0) {
-		snd_card_free(card);
+	if (err < 0)
 		return err;
-	}
 	err = snd_opl3_create(card, chip->port + FM801_OPL3_BANK0,
 			      chip->port + FM801_OPL3_BANK1,
 			      OPL3_HW_OPL3_FM801, 1, &opl3);
-	if (err < 0) {
-		snd_card_free(card);
+	if (err < 0)
 		return err;
-	}
 	err = snd_opl3_hwdep_new(opl3, 0, 1, NULL);
-	if (err < 0) {
-		snd_card_free(card);
+	if (err < 0)
 		return err;
-	}
 
       __fm801_tuner_only:
 	err = snd_card_register(card);
-	if (err < 0) {
-		snd_card_free(card);
+	if (err < 0)
 		return err;
-	}
 	pci_set_drvdata(pci, card);
 	dev++;
 	return 0;
-}
-
-static void snd_card_fm801_remove(struct pci_dev *pci)
-{
-	snd_card_free(pci_get_drvdata(pci));
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1468,7 +1400,6 @@ static struct pci_driver fm801_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_fm801_ids,
 	.probe = snd_card_fm801_probe,
-	.remove = snd_card_fm801_remove,
 	.driver = {
 		.pm = SND_FM801_PM_OPS,
 	},

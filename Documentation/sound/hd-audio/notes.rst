@@ -215,6 +215,17 @@ There are a few special model option values:
 * when ``generic`` is passed, the codec-specific parser is skipped and
   only the generic parser is used.
 
+A new style for the model option that was introduced since 5.15 kernel
+is to pass the PCI or codec SSID in the form of ``model=XXXX:YYYY``
+where XXXX and YYYY are the sub-vendor and sub-device IDs in hex
+numbers, respectively.  This is a kind of aliasing to another device;
+when this form is given, the driver will refer to that SSID as a
+reference to the quirk table.  It'd be useful especially when the
+target quirk isn't listed in the model table.  For example, passing
+model=103c:8862 will apply the quirk for HP ProBook 445 G8 (which
+isn't found in the model table as of writing) as long as the device is
+handled equivalently by the same driver.
+
 
 Speaker and Headphone Output
 ----------------------------

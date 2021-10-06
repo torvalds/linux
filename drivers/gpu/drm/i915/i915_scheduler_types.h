@@ -91,4 +91,115 @@ struct i915_dependency {
 				&(rq__)->sched.signalers_list, \
 				signal_link)
 
+/**
+ * struct i915_sched_engine - scheduler engine
+ *
+ * A schedule engine represents a submission queue with different priority
+ * bands. It contains all the common state (relative to the backend) to queue,
+ * track, and submit a request.
+ *
+ * This object at the moment is quite i915 specific but will transition into a
+ * container for the drm_gpu_scheduler plus a few other variables once the i915
+ * is integrated with the DRM scheduler.
+ */
+struct i915_sched_engine {
+	/**
+	 * @ref: reference count of schedule engine object
+	 */
+	struct kref ref;
+
+	/**
+	 * @lock: protects requests in priority lists, requests, hold and
+	 * tasklet while running
+	 */
+	spinlock_t lock;
+
+	/**
+	 * @requests: list of requests inflight on this schedule engine
+	 */
+	struct list_head requests;
+
+	/**
+	 * @hold: list of ready requests, but on hold
+	 */
+	struct list_head hold;
+
+	/**
+	 * @tasklet: softirq tasklet for submission
+	 */
+	struct tasklet_struct tasklet;
+
+	/**
+	 * @default_priolist: priority list for I915_PRIORITY_NORMAL
+	 */
+	struct i915_priolist default_priolist;
+
+	/**
+	 * @queue_priority_hint: Highest pending priority.
+	 *
+	 * When we add requests into the queue, or adjust the priority of
+	 * executing requests, we compute the maximum priority of those
+	 * pending requests. We can then use this value to determine if
+	 * we need to preempt the executing requests to service the queue.
+	 * However, since the we may have recorded the priority of an inflight
+	 * request we wanted to preempt but since completed, at the time of
+	 * dequeuing the priority hint may no longer may match the highest
+	 * available request priority.
+	 */
+	int queue_priority_hint;
+
+	/**
+	 * @queue: queue of requests, in priority lists
+	 */
+	struct rb_root_cached queue;
+
+	/**
+	 * @no_priolist: priority lists disabled
+	 */
+	bool no_priolist;
+
+	/**
+	 * @private_data: private data of the submission backend
+	 */
+	void *private_data;
+
+	/**
+	 * @destroy: destroy schedule engine / cleanup in backend
+	 */
+	void	(*destroy)(struct kref *kref);
+
+	/**
+	 * @disabled: check if backend has disabled submission
+	 */
+	bool	(*disabled)(struct i915_sched_engine *sched_engine);
+
+	/**
+	 * @kick_backend: kick backend after a request's priority has changed
+	 */
+	void	(*kick_backend)(const struct i915_request *rq,
+				int prio);
+
+	/**
+	 * @bump_inflight_request_prio: update priority of an inflight request
+	 */
+	void	(*bump_inflight_request_prio)(struct i915_request *rq,
+					      int prio);
+
+	/**
+	 * @retire_inflight_request_prio: indicate request is retired to
+	 * priority tracking
+	 */
+	void	(*retire_inflight_request_prio)(struct i915_request *rq);
+
+	/**
+	 * @schedule: adjust priority of request
+	 *
+	 * Call when the priority on a request has changed and it and its
+	 * dependencies may need rescheduling. Note the request itself may
+	 * not be ready to run!
+	 */
+	void	(*schedule)(struct i915_request *request,
+			    const struct i915_sched_attr *attr);
+};
+
 #endif /* _I915_SCHEDULER_TYPES_H_ */

@@ -739,7 +739,7 @@ static void mlx4_cleanup_qp_zones(struct mlx4_dev *dev)
 		int i;
 
 		for (i = 0;
-		     i < sizeof(qp_table->zones_uids)/sizeof(qp_table->zones_uids[0]);
+		     i < ARRAY_SIZE(qp_table->zones_uids);
 		     i++) {
 			struct mlx4_bitmap *bitmap =
 				mlx4_zone_get_bitmap(qp_table->zones,
@@ -917,7 +917,7 @@ int mlx4_qp_to_ready(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 {
 	int err;
 	int i;
-	enum mlx4_qp_state states[] = {
+	static const enum mlx4_qp_state states[] = {
 		MLX4_QP_STATE_RST,
 		MLX4_QP_STATE_INIT,
 		MLX4_QP_STATE_RTR,

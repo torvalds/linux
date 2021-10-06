@@ -231,26 +231,32 @@ int ext4_expand_extra_isize(struct inode *inode,
  * Wrapper functions with which ext4 calls into JBD.
  */
 int __ext4_journal_get_write_access(const char *where, unsigned int line,
-				    handle_t *handle, struct buffer_head *bh);
+				    handle_t *handle, struct super_block *sb,
+				    struct buffer_head *bh,
+				    enum ext4_journal_trigger_type trigger_type);
 
 int __ext4_forget(const char *where, unsigned int line, handle_t *handle,
 		  int is_metadata, struct inode *inode,
 		  struct buffer_head *bh, ext4_fsblk_t blocknr);
 
 int __ext4_journal_get_create_access(const char *where, unsigned int line,
-				handle_t *handle, struct buffer_head *bh);
+				handle_t *handle, struct super_block *sb,
+				struct buffer_head *bh,
+				enum ext4_journal_trigger_type trigger_type);
 
 int __ext4_handle_dirty_metadata(const char *where, unsigned int line,
 				 handle_t *handle, struct inode *inode,
 				 struct buffer_head *bh);
 
-#define ext4_journal_get_write_access(handle, bh) \
-	__ext4_journal_get_write_access(__func__, __LINE__, (handle), (bh))
+#define ext4_journal_get_write_access(handle, sb, bh, trigger_type) \
+	__ext4_journal_get_write_access(__func__, __LINE__, (handle), (sb), \
+					(bh), (trigger_type))
 #define ext4_forget(handle, is_metadata, inode, bh, block_nr) \
 	__ext4_forget(__func__, __LINE__, (handle), (is_metadata), (inode), \
 		      (bh), (block_nr))
-#define ext4_journal_get_create_access(handle, bh) \
-	__ext4_journal_get_create_access(__func__, __LINE__, (handle), (bh))
+#define ext4_journal_get_create_access(handle, sb, bh, trigger_type) \
+	__ext4_journal_get_create_access(__func__, __LINE__, (handle), (sb), \
+					 (bh), (trigger_type))
 #define ext4_handle_dirty_metadata(handle, inode, bh) \
 	__ext4_handle_dirty_metadata(__func__, __LINE__, (handle), (inode), \
 				     (bh))

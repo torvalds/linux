@@ -1313,7 +1313,7 @@ static int __live_parallel_engine1(void *arg)
 		i915_request_add(rq);
 
 		err = 0;
-		if (i915_request_wait(rq, 0, HZ / 5) < 0)
+		if (i915_request_wait(rq, 0, HZ) < 0)
 			err = -ETIME;
 		i915_request_put(rq);
 		if (err)
@@ -1419,7 +1419,7 @@ static int __live_parallel_spin(void *arg)
 	}
 	igt_spinner_end(&spin);
 
-	if (err == 0 && i915_request_wait(rq, 0, HZ / 5) < 0)
+	if (err == 0 && i915_request_wait(rq, 0, HZ) < 0)
 		err = -EIO;
 	i915_request_put(rq);
 

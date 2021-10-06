@@ -724,6 +724,12 @@ static int tb_init_port(struct tb_port *port)
 	int res;
 	int cap;
 
+	INIT_LIST_HEAD(&port->list);
+
+	/* Control adapter does not have configuration space */
+	if (!port->port)
+		return 0;
+
 	res = tb_port_read(port, &port->config, TB_CFG_PORT, 0, 8);
 	if (res) {
 		if (res == -ENODEV) {
@@ -736,7 +742,7 @@ static int tb_init_port(struct tb_port *port)
 	}
 
 	/* Port 0 is the switch itself and has no PHY. */
-	if (port->config.type == TB_TYPE_PORT && port->port != 0) {
+	if (port->config.type == TB_TYPE_PORT) {
 		cap = tb_port_find_cap(port, TB_PORT_CAP_PHY);
 
 		if (cap > 0)
@@ -762,7 +768,7 @@ static int tb_init_port(struct tb_port *port)
 		if (!port->ctl_credits)
 			port->ctl_credits = 2;
 
-	} else if (port->port != 0) {
+	} else {
 		cap = tb_port_find_cap(port, TB_PORT_CAP_ADAP);
 		if (cap > 0)
 			port->cap_adap = cap;
@@ -773,10 +779,7 @@ static int tb_init_port(struct tb_port *port)
 		ADP_CS_4_TOTAL_BUFFERS_SHIFT;
 
 	tb_dump_port(port->sw->tb, port);
-
-	INIT_LIST_HEAD(&port->list);
 	return 0;
-
 }
 
 static int tb_port_alloc_hopid(struct tb_port *port, bool in, int min_hopid,
@@ -1498,6 +1501,7 @@ static ssize_t authorized_show(struct device *dev,
 
 static int disapprove_switch(struct device *dev, void *not_used)
 {
+	char *envp[] = { "AUTHORIZED=0", NULL };
 	struct tb_switch *sw;
 
 	sw = tb_to_switch(dev);
@@ -1514,7 +1518,7 @@ static int disapprove_switch(struct device *dev, void *not_used)
 			return ret;
 
 		sw->authorized = 0;
-		kobject_uevent(&sw->dev.kobj, KOBJ_CHANGE);
+		kobject_uevent_env(&sw->dev.kobj, KOBJ_CHANGE, envp);
 	}
 
 	return 0;
@@ -1522,7 +1526,9 @@ static int disapprove_switch(struct device *dev, void *not_used)
 
 static int tb_switch_set_authorized(struct tb_switch *sw, unsigned int val)
 {
+	char envp_string[13];
 	int ret = -EINVAL;
+	char *envp[] = { envp_string, NULL };
 
 	if (!mutex_trylock(&sw->tb->lock))
 		return restart_syscall();
@@ -1559,8 +1565,12 @@ static int tb_switch_set_authorized(struct tb_switch *sw, unsigned int val)
 
 	if (!ret) {
 		sw->authorized = val;
-		/* Notify status change to the userspace */
-		kobject_uevent(&sw->dev.kobj, KOBJ_CHANGE);
+		/*
+		 * Notify status change to the userspace, informing the new
+		 * value of /sys/bus/thunderbolt/devices/.../authorized.
+		 */
+		sprintf(envp_string, "AUTHORIZED=%u", sw->authorized);
+		kobject_uevent_env(&sw->dev.kobj, KOBJ_CHANGE, envp);
 	}
 
 unlock:
@@ -1875,18 +1885,6 @@ static struct attribute *switch_attrs[] = {
 	NULL,
 };
 
-static bool has_port(const struct tb_switch *sw, enum tb_port_type type)
-{
-	const struct tb_port *port;
-
-	tb_switch_for_each_port(sw, port) {
-		if (!port->disabled && port->config.type == type)
-			return true;
-	}
-
-	return false;
-}
-
 static umode_t switch_attr_is_visible(struct kobject *kobj,
 				      struct attribute *attr, int n)
 {
@@ -1895,8 +1893,7 @@ static umode_t switch_attr_is_visible(struct kobject *kobj,
 
 	if (attr == &dev_attr_authorized.attr) {
 		if (sw->tb->security_level == TB_SECURITY_NOPCIE ||
-		    sw->tb->security_level == TB_SECURITY_DPONLY ||
-		    !has_port(sw, TB_TYPE_PCIE_UP))
+		    sw->tb->security_level == TB_SECURITY_DPONLY)
 			return 0;
 	} else if (attr == &dev_attr_device.attr) {
 		if (!sw->device)
@@ -2456,7 +2453,7 @@ static void tb_switch_default_link_ports(struct tb_switch *sw)
 {
 	int i;
 
-	for (i = 1; i <= sw->config.max_port_number; i += 2) {
+	for (i = 1; i <= sw->config.max_port_number; i++) {
 		struct tb_port *port = &sw->ports[i];
 		struct tb_port *subordinate;
 

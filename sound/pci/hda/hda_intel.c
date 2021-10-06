@@ -1367,18 +1367,11 @@ static void azx_free(struct azx *chip)
 
 	if (bus->irq >= 0)
 		free_irq(bus->irq, (void*)chip);
-	if (chip->msi)
-		pci_disable_msi(chip->pci);
-	iounmap(bus->remap_addr);
 
 	azx_free_stream_pages(chip);
 	azx_free_streams(chip);
 	snd_hdac_bus_exit(bus);
 
-	if (chip->region_requested)
-		pci_release_regions(chip->pci);
-
-	pci_disable_device(chip->pci);
 #ifdef CONFIG_SND_HDA_PATCH_LOADER
 	release_firmware(chip->fw);
 #endif
@@ -1767,15 +1760,13 @@ static int azx_create(struct snd_card *card, struct pci_dev *pci,
 
 	*rchip = NULL;
 
-	err = pci_enable_device(pci);
+	err = pcim_enable_device(pci);
 	if (err < 0)
 		return err;
 
 	hda = devm_kzalloc(&pci->dev, sizeof(*hda), GFP_KERNEL);
-	if (!hda) {
-		pci_disable_device(pci);
+	if (!hda)
 		return -ENOMEM;
-	}
 
 	chip = &hda->chip;
 	mutex_init(&chip->open_mutex);
@@ -1811,14 +1802,12 @@ static int azx_create(struct snd_card *card, struct pci_dev *pci,
 		chip->bdl_pos_adj = bdl_pos_adj[dev];
 
 	err = azx_bus_init(chip, model[dev]);
-	if (err < 0) {
-		pci_disable_device(pci);
+	if (err < 0)
 		return err;
-	}
 
 	/* use the non-cached pages in non-snoop mode */
 	if (!azx_snoop(chip))
-		azx_bus(chip)->dma_type = SNDRV_DMA_TYPE_DEV_UC;
+		azx_bus(chip)->dma_type = SNDRV_DMA_TYPE_DEV_WC;
 
 	if (chip->driver_type == AZX_DRIVER_NVIDIA) {
 		dev_dbg(chip->card->dev, "Enable delay in RIRB handling\n");
@@ -1860,17 +1849,12 @@ static int azx_first_init(struct azx *chip)
 	}
 #endif
 
-	err = pci_request_regions(pci, "ICH HD audio");
+	err = pcim_iomap_regions(pci, 1 << 0, "ICH HD audio");
 	if (err < 0)
 		return err;
-	chip->region_requested = 1;
 
 	bus->addr = pci_resource_start(pci, 0);
-	bus->remap_addr = pci_ioremap_bar(pci, 0);
-	if (bus->remap_addr == NULL) {
-		dev_err(card->dev, "ioremap error\n");
-		return -ENXIO;
-	}
+	bus->remap_addr = pcim_iomap_table(pci)[0];
 
 	if (chip->driver_type == AZX_DRIVER_SKL)
 		snd_hdac_bus_parse_capabilities(bus);
@@ -2053,17 +2037,6 @@ static int disable_msi_reset_irq(struct azx *chip)
 	return 0;
 }
 
-static void pcm_mmap_prepare(struct snd_pcm_substream *substream,
-			     struct vm_area_struct *area)
-{
-#ifdef CONFIG_X86
-	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
-	struct azx *chip = apcm->chip;
-	if (chip->uc_buffer)
-		area->vm_page_prot = pgprot_writecombine(area->vm_page_prot);
-#endif
-}
-
 /* Denylist for skipping the whole probe:
  * some HD-audio PCI entries are exposed without any codecs, and such devices
  * should be ignored from the beginning.
@@ -2077,7 +2050,6 @@ static const struct pci_device_id driver_denylist[] = {
 
 static const struct hda_controller_ops pci_hda_ops = {
 	.disable_msi_reset_irq = disable_msi_reset_irq,
-	.pcm_mmap_prepare = pcm_mmap_prepare,
 	.position_check = azx_position_check,
 };
 

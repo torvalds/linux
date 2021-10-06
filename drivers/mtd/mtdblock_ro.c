@@ -46,6 +46,10 @@ static void mtdblock_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	dev->tr = tr;
 	dev->readonly = 1;
 
+	if (mtd_type_is_nand(mtd))
+		pr_warn("%s: MTD device '%s' is NAND, please consider using UBI block devices instead.\n",
+			tr->name, mtd->name);
+
 	if (add_mtd_blktrans_dev(dev))
 		kfree(dev);
 }

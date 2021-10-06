@@ -89,14 +89,21 @@ for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
     pg_set $dev "burst $BURST"
 done
 
+# Run if user hits control-c
+function print_result() {
+    # Print results
+    for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
+        dev=${DEV}@${thread}
+        echo "Device: $dev"
+        cat /proc/net/pktgen/$dev | grep -A2 "Result:"
+    done
+}
+# trap keyboard interrupt (Ctrl-C)
+trap true SIGINT
+
 # start_run
 echo "Running... ctrl^C to stop" >&2
 pg_ctrl "start"
 echo "Done" >&2
 
-# Print results
-for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
-    dev=${DEV}@${thread}
-    echo "Device: $dev"
-    cat /proc/net/pktgen/$dev | grep -A2 "Result:"
-done
+print_result

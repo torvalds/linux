@@ -446,7 +446,7 @@ static ssize_t arcfb_write(struct fb_info *info, const char __user *buf,
 	/* modded from epson 1355 */
 
 	unsigned long p;
-	int err=-EINVAL;
+	int err;
 	unsigned int fbmemlength,x,y,w,h, bitppos, startpos, endpos, bitcount;
 	struct arcfb_par *par;
 	unsigned int xres;

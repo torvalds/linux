@@ -99,6 +99,11 @@ int dpsw_reset(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token);
 #define DPSW_IRQ_EVENT_LINK_CHANGED	0x0001
 
 /**
+ * DPSW_IRQ_EVENT_ENDPOINT_CHANGED - Indicates a change in endpoint
+ */
+#define DPSW_IRQ_EVENT_ENDPOINT_CHANGED	0x0002
+
+/**
  * struct dpsw_irq_cfg - IRQ configuration
  * @addr:	Address that must be written to signal a message-based interrupt
  * @val:	Value to write into irq_addr address
@@ -752,4 +757,35 @@ int dpsw_acl_add_entry(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
 
 int dpsw_acl_remove_entry(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
 			  u16 acl_id, const struct dpsw_acl_entry_cfg *cfg);
+
+/**
+ * enum dpsw_reflection_filter - Filter type for frames to be reflected
+ * @DPSW_REFLECTION_FILTER_INGRESS_ALL: Reflect all frames
+ * @DPSW_REFLECTION_FILTER_INGRESS_VLAN: Reflect only frames that belong to
+ *	the particular VLAN defined by vid parameter
+ *
+ */
+enum dpsw_reflection_filter {
+	DPSW_REFLECTION_FILTER_INGRESS_ALL = 0,
+	DPSW_REFLECTION_FILTER_INGRESS_VLAN = 1
+};
+
+/**
+ * struct dpsw_reflection_cfg - Structure representing the mirroring config
+ * @filter: Filter type for frames to be mirrored
+ * @vlan_id: VLAN ID to mirror; valid only when the type is DPSW_INGRESS_VLAN
+ */
+struct dpsw_reflection_cfg {
+	enum dpsw_reflection_filter filter;
+	u16 vlan_id;
+};
+
+int dpsw_set_reflection_if(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			   u16 if_id);
+
+int dpsw_if_add_reflection(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			   u16 if_id, const struct dpsw_reflection_cfg *cfg);
+
+int dpsw_if_remove_reflection(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			      u16 if_id, const struct dpsw_reflection_cfg *cfg);
 #endif /* __FSL_DPSW_H */

@@ -122,7 +122,8 @@ static const struct serial8250_config uart_config[] = {
 		.name		= "16C950/954",
 		.fifo_size	= 128,
 		.tx_loadsz	= 128,
-		.fcr		= UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_10,
+		.fcr		= UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_01,
+		.rxtrig_bytes	= {16, 32, 112, 120},
 		/* UART_CAP_EFR breaks billionon CF bluetooth card. */
 		.flags		= UART_CAP_FIFO | UART_CAP_SLEEP,
 	},
@@ -311,7 +312,11 @@ static const struct serial8250_config uart_config[] = {
 /* Uart divisor latch read */
 static int default_serial_dl_read(struct uart_8250_port *up)
 {
-	return serial_in(up, UART_DLL) | serial_in(up, UART_DLM) << 8;
+	/* Assign these in pieces to truncate any bits above 7.  */
+	unsigned char dll = serial_in(up, UART_DLL);
+	unsigned char dlm = serial_in(up, UART_DLM);
+
+	return dll | dlm << 8;
 }
 
 /* Uart divisor latch write */
@@ -1297,9 +1302,11 @@ static void autoconfig(struct uart_8250_port *up)
 	serial_out(up, UART_LCR, 0);
 
 	serial_out(up, UART_FCR, UART_FCR_ENABLE_FIFO);
-	scratch = serial_in(up, UART_IIR) >> 6;
 
-	switch (scratch) {
+	/* Assign this as it is to truncate any bits above 7.  */
+	scratch = serial_in(up, UART_IIR);
+
+	switch (scratch >> 6) {
 	case 0:
 		autoconfig_8250(up);
 		break;
@@ -1893,11 +1900,12 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 	unsigned char status;
 	struct uart_8250_port *up = up_to_u8250p(port);
 	bool skip_rx = false;
+	unsigned long flags;
 
 	if (iir & UART_IIR_NO_INT)
 		return 0;
 
-	spin_lock(&port->lock);
+	spin_lock_irqsave(&port->lock, flags);
 
 	status = serial_port_in(port, UART_LSR);
 
@@ -1923,7 +1931,7 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 		(up->ier & UART_IER_THRI))
 		serial8250_tx_chars(up);
 
-	uart_unlock_and_check_sysrq(port);
+	uart_unlock_and_check_sysrq_irqrestore(port, flags);
 
 	return 1;
 }

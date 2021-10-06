@@ -50,10 +50,10 @@ static void cherryview_sseu_device_status(struct intel_gt *gt,
 #undef SS_MAX
 }
 
-static void gen10_sseu_device_status(struct intel_gt *gt,
+static void gen11_sseu_device_status(struct intel_gt *gt,
 				     struct sseu_dev_info *sseu)
 {
-#define SS_MAX 6
+#define SS_MAX 8
 	struct intel_uncore *uncore = gt->uncore;
 	const struct intel_gt_info *info = &gt->info;
 	u32 s_reg[SS_MAX], eu_reg[2 * SS_MAX], eu_mask[2];
@@ -267,8 +267,8 @@ int intel_sseu_status(struct seq_file *m, struct intel_gt *gt)
 			bdw_sseu_device_status(gt, &sseu);
 		else if (GRAPHICS_VER(i915) == 9)
 			gen9_sseu_device_status(gt, &sseu);
-		else if (GRAPHICS_VER(i915) >= 10)
-			gen10_sseu_device_status(gt, &sseu);
+		else if (GRAPHICS_VER(i915) >= 11)
+			gen11_sseu_device_status(gt, &sseu);
 	}
 
 	i915_print_sseu_info(m, false, HAS_POOLED_EU(i915), &sseu);

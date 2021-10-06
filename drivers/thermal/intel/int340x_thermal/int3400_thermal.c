@@ -108,9 +108,12 @@ static struct attribute *imok_attr[] = {
 	NULL
 };
 
+static const struct attribute_group imok_attribute_group = {
+	.attrs = imok_attr,
+};
+
 static const struct attribute_group data_attribute_group = {
 	.bin_attrs = data_attributes,
-	.attrs = imok_attr,
 };
 
 static ssize_t available_uuids_show(struct device *dev,
@@ -522,6 +525,12 @@ static int int3400_thermal_probe(struct platform_device *pdev)
 	if (result)
 		goto free_rel_misc;
 
+	if (acpi_has_method(priv->adev->handle, "IMOK")) {
+		result = sysfs_create_group(&pdev->dev.kobj, &imok_attribute_group);
+		if (result)
+			goto free_imok;
+	}
+
 	if (priv->data_vault) {
 		result = sysfs_create_group(&pdev->dev.kobj,
 					    &data_attribute_group);
@@ -545,6 +554,8 @@ free_sysfs:
 	}
 free_uuid:
 	sysfs_remove_group(&pdev->dev.kobj, &uuid_attribute_group);
+free_imok:
+	sysfs_remove_group(&pdev->dev.kobj, &imok_attribute_group);
 free_rel_misc:
 	if (!priv->rel_misc_dev_res)
 		acpi_thermal_rel_misc_device_remove(priv->adev->handle);
@@ -573,6 +584,7 @@ static int int3400_thermal_remove(struct platform_device *pdev)
 	if (priv->data_vault)
 		sysfs_remove_group(&pdev->dev.kobj, &data_attribute_group);
 	sysfs_remove_group(&pdev->dev.kobj, &uuid_attribute_group);
+	sysfs_remove_group(&pdev->dev.kobj, &imok_attribute_group);
 	thermal_zone_device_unregister(priv->thermal);
 	kfree(priv->data_vault);
 	kfree(priv->trts);

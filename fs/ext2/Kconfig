@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config EXT2_FS
 	tristate "Second extended fs support"
+	select FS_IOMAP
 	help
 	  Ext2 is a standard Linux file system for hard disks.
 
