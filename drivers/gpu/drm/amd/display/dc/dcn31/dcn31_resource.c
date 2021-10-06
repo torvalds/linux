@@ -2460,6 +2460,8 @@ static bool dcn31_resource_construct(
 
 	dc->cap_funcs = cap_funcs;
 
+	dc->dcn_ip->max_num_dpp = dcn3_1_ip.max_num_dpp;
+
 	DC_FP_END();
 
 	return true;

@@ -34,6 +34,8 @@ union defer_reg_writes {
 		bool disable_blnd_lut:1;
 		bool disable_3dlut:1;
 		bool disable_shaper:1;
+		bool disable_gamcor:1;
+		bool disable_dscl:1;
 	} bits;
 	uint32_t raw;
 };
