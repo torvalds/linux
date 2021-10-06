@@ -34,15 +34,15 @@ struct icl_ddi_buf_trans {
 };
 
 struct icl_mg_phy_ddi_buf_trans {
-	u32 cri_txdeemph_override_11_6;
-	u32 cri_txdeemph_override_5_0;
-	u32 cri_txdeemph_override_17_12;
+	u8 cri_txdeemph_override_11_6;
+	u8 cri_txdeemph_override_5_0;
+	u8 cri_txdeemph_override_17_12;
 };
 
 struct tgl_dkl_phy_ddi_buf_trans {
-	u32 vswing;
-	u32 preshoot;
-	u32 de_emphasis;
+	u8 vswing;
+	u8 preshoot;
+	u8 de_emphasis;
 };
 
 struct dg2_snps_phy_buf_trans {
