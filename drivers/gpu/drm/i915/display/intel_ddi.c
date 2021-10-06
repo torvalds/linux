@@ -1059,7 +1059,7 @@ static void icl_ddi_combo_vswing_program(struct intel_encoder *encoder,
 	}
 
 	/* Set PORT_TX_DW5 */
-	val = intel_de_read(dev_priv, ICL_PORT_TX_DW5_LN0(phy));
+	val = intel_de_read(dev_priv, ICL_PORT_TX_DW5_LN(0, phy));
 	val &= ~(SCALING_MODE_SEL_MASK | RTERM_SELECT_MASK |
 		  TAP2_DISABLE | TAP3_DISABLE);
 	val |= SCALING_MODE_SEL(0x2);
@@ -1068,7 +1068,7 @@ static void icl_ddi_combo_vswing_program(struct intel_encoder *encoder,
 	intel_de_write(dev_priv, ICL_PORT_TX_DW5_GRP(phy), val);
 
 	/* Program PORT_TX_DW2 */
-	val = intel_de_read(dev_priv, ICL_PORT_TX_DW2_LN0(phy));
+	val = intel_de_read(dev_priv, ICL_PORT_TX_DW2_LN(0, phy));
 	val &= ~(SWING_SEL_LOWER_MASK | SWING_SEL_UPPER_MASK |
 		 RCOMP_SCALAR_MASK);
 	val |= SWING_SEL_UPPER(trans->entries[level].icl.dw2_swing_sel);
@@ -1090,7 +1090,7 @@ static void icl_ddi_combo_vswing_program(struct intel_encoder *encoder,
 	}
 
 	/* Program PORT_TX_DW7 */
-	val = intel_de_read(dev_priv, ICL_PORT_TX_DW7_LN0(phy));
+	val = intel_de_read(dev_priv, ICL_PORT_TX_DW7_LN(0, phy));
 	val &= ~N_SCALAR_MASK;
 	val |= N_SCALAR(trans->entries[level].icl.dw7_n_scalar);
 	intel_de_write(dev_priv, ICL_PORT_TX_DW7_GRP(phy), val);
@@ -1109,7 +1109,7 @@ static void icl_combo_phy_set_signal_levels(struct intel_encoder *encoder,
 	 * set PORT_PCS_DW1 cmnkeeper_enable to 1b,
 	 * else clear to 0b.
 	 */
-	val = intel_de_read(dev_priv, ICL_PORT_PCS_DW1_LN0(phy));
+	val = intel_de_read(dev_priv, ICL_PORT_PCS_DW1_LN(0, phy));
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
 		val &= ~COMMON_KEEPER_EN;
 	else
@@ -1118,7 +1118,7 @@ static void icl_combo_phy_set_signal_levels(struct intel_encoder *encoder,
 
 	/* 2. Program loadgen select */
 	/*
-	 * Program PORT_TX_DW4_LN depending on Bit rate and used lanes
+	 * Program PORT_TX_DW4 depending on Bit rate and used lanes
 	 * <= 6 GHz and 4 lanes (LN0=0, LN1=1, LN2=1, LN3=1)
 	 * <= 6 GHz and 1,2 lanes (LN0=0, LN1=1, LN2=1, LN3=0)
 	 * > 6 GHz (LN0=0, LN1=0, LN2=0, LN3=0)
@@ -1136,7 +1136,7 @@ static void icl_combo_phy_set_signal_levels(struct intel_encoder *encoder,
 	intel_de_write(dev_priv, ICL_PORT_CL_DW5(phy), val);
 
 	/* 4. Clear training enable to change swing values */
-	val = intel_de_read(dev_priv, ICL_PORT_TX_DW5_LN0(phy));
+	val = intel_de_read(dev_priv, ICL_PORT_TX_DW5_LN(0, phy));
 	val &= ~TX_TRAINING_EN;
 	intel_de_write(dev_priv, ICL_PORT_TX_DW5_GRP(phy), val);
 
@@ -1144,7 +1144,7 @@ static void icl_combo_phy_set_signal_levels(struct intel_encoder *encoder,
 	icl_ddi_combo_vswing_program(encoder, crtc_state);
 
 	/* 6. Set training enable to trigger update */
-	val = intel_de_read(dev_priv, ICL_PORT_TX_DW5_LN0(phy));
+	val = intel_de_read(dev_priv, ICL_PORT_TX_DW5_LN(0, phy));
 	val |= TX_TRAINING_EN;
 	intel_de_write(dev_priv, ICL_PORT_TX_DW5_GRP(phy), val);
 }
