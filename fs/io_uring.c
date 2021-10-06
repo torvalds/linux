@@ -9367,7 +9367,6 @@ static __cold void io_ring_exit_work(struct work_struct *work)
 		ret = task_work_add(node->task, &exit.task_work, TWA_SIGNAL);
 		if (WARN_ON_ONCE(ret))
 			continue;
-		wake_up_process(node->task);
 
 		mutex_unlock(&ctx->uring_lock);
 		wait_for_completion(&exit.completion);
