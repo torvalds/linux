@@ -204,6 +204,7 @@ extern void gfs2_holder_reinit(unsigned int state, u16 flags,
 extern void gfs2_holder_uninit(struct gfs2_holder *gh);
 extern int gfs2_glock_nq(struct gfs2_holder *gh);
 extern int gfs2_glock_poll(struct gfs2_holder *gh);
+extern int gfs2_instantiate(struct gfs2_holder *gh);
 extern int gfs2_glock_wait(struct gfs2_holder *gh);
 extern int gfs2_glock_async_wait(unsigned int num_gh, struct gfs2_holder *ghs);
 extern void gfs2_glock_dq(struct gfs2_holder *gh);

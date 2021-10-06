@@ -357,6 +357,7 @@ static void inode_go_inval(struct gfs2_glock *gl, int flags)
 		truncate_inode_pages(mapping, 0);
 		if (ip) {
 			set_bit(GIF_INVALID, &ip->i_flags);
+			set_bit(GLF_INSTANTIATE_NEEDED, &gl->gl_flags);
 			forget_all_cached_acls(&ip->i_inode);
 			security_inode_invalidate_secctx(&ip->i_inode);
 			gfs2_dir_hash_inval(ip);
@@ -495,13 +496,13 @@ static int inode_go_instantiate(struct gfs2_holder *gh)
 	struct gfs2_inode *ip = gl->gl_object;
 	int error = 0;
 
-	if (!ip)
-		return 0;
+	if (!ip) /* no inode to populate - read it in later */
+		goto out;
 
 	if (test_bit(GIF_INVALID, &ip->i_flags)) {
 		error = gfs2_inode_refresh(ip);
 		if (error)
-			return error;
+			goto out;
 	}
 
 	if (gh->gh_state != LM_ST_DEFERRED)
@@ -515,9 +516,10 @@ static int inode_go_instantiate(struct gfs2_holder *gh)
 			list_add(&ip->i_trunc_list, &sdp->sd_trunc_list);
 		spin_unlock(&sdp->sd_trunc_lock);
 		wake_up(&sdp->sd_quota_wait);
-		return 1;
+		error = 1;
 	}
 
+out:
 	return error;
 }
 

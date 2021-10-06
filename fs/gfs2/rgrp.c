@@ -1238,8 +1238,7 @@ static int gfs2_rgrp_bh_get(struct gfs2_rgrpd *rgd)
 		rgd->rd_rgl->rl_unlinked = cpu_to_be32(count_unlinked(rgd));
 		gfs2_rgrp_ondisk2lvb(rgd->rd_rgl,
 				     rgd->rd_bits[0].bi_bh->b_data);
-	}
-	else if (sdp->sd_args.ar_rgrplvb) {
+	} else if (sdp->sd_args.ar_rgrplvb) {
 		if (!gfs2_rgrp_lvb_valid(rgd)){
 			gfs2_consist_rgrpd(rgd);
 			error = -EIO;
@@ -1257,11 +1256,10 @@ fail:
 		bi->bi_bh = NULL;
 		gfs2_assert_warn(sdp, !bi->bi_clone);
 	}
-
 	return error;
 }
 
-static int update_rgrp_lvb(struct gfs2_rgrpd *rgd)
+static int update_rgrp_lvb(struct gfs2_rgrpd *rgd, struct gfs2_holder *gh)
 {
 	u32 rl_flags;
 
@@ -1269,7 +1267,7 @@ static int update_rgrp_lvb(struct gfs2_rgrpd *rgd)
 		return 0;
 
 	if (cpu_to_be32(GFS2_MAGIC) != rgd->rd_rgl->rl_magic)
-		return gfs2_rgrp_bh_get(rgd);
+		return gfs2_instantiate(gh);
 
 	rl_flags = be32_to_cpu(rgd->rd_rgl->rl_flags);
 	rl_flags &= ~GFS2_RDF_MASK;
@@ -1312,6 +1310,7 @@ void gfs2_rgrp_brelse(struct gfs2_rgrpd *rgd)
 			bi->bi_bh = NULL;
 		}
 	}
+	set_bit(GLF_INSTANTIATE_NEEDED, &rgd->rd_gl->gl_flags);
 }
 
 int gfs2_rgrp_send_discards(struct gfs2_sbd *sdp, u64 offset,
@@ -2110,7 +2109,8 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, struct gfs2_alloc_parms *ap)
 			    gfs2_rgrp_congested(rs->rs_rgd, loops))
 				goto skip_rgrp;
 			if (sdp->sd_args.ar_rgrplvb) {
-				error = update_rgrp_lvb(rs->rs_rgd);
+				error = update_rgrp_lvb(rs->rs_rgd,
+							&ip->i_rgd_gh);
 				if (unlikely(error)) {
 					rgrp_unlock_local(rs->rs_rgd);
 					gfs2_glock_dq_uninit(&ip->i_rgd_gh);
@@ -2125,8 +2125,11 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, struct gfs2_alloc_parms *ap)
 		    (loops == 0 && target > rs->rs_rgd->rd_extfail_pt))
 			goto skip_rgrp;
 
-		if (sdp->sd_args.ar_rgrplvb)
-			gfs2_rgrp_bh_get(rs->rs_rgd);
+		if (sdp->sd_args.ar_rgrplvb) {
+			error = gfs2_instantiate(&ip->i_rgd_gh);
+			if (error)
+				goto skip_rgrp;
+		}
 
 		/* Get a reservation if we don't already have one */
 		if (!gfs2_rs_active(rs))
@@ -2762,8 +2765,6 @@ void gfs2_rlist_free(struct gfs2_rgrp_list *rlist)
 
 void rgrp_lock_local(struct gfs2_rgrpd *rgd)
 {
-	GLOCK_BUG_ON(rgd->rd_gl, !gfs2_glock_is_held_excl(rgd->rd_gl) &&
-		     !test_bit(SDF_NORECOVERY, &rgd->rd_sbd->sd_flags));
 	mutex_lock(&rgd->rd_mutex);
 }
 

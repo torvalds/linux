@@ -479,12 +479,42 @@ find_first_strong_holder(struct gfs2_glock *gl)
  * Returns: 0 if instantiate was successful, 2 if type specific operation is
  * underway, or error.
  */
-static int gfs2_instantiate(struct gfs2_holder *gh)
+int gfs2_instantiate(struct gfs2_holder *gh)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
 	const struct gfs2_glock_operations *glops = gl->gl_ops;
+	int ret;
 
-	return glops->go_instantiate(gh);
+again:
+	if (!test_bit(GLF_INSTANTIATE_NEEDED, &gl->gl_flags))
+		return 0;
+
+	/*
+	 * Since we unlock the lockref lock, we set a flag to indicate
+	 * instantiate is in progress.
+	 */
+	if (test_bit(GLF_INSTANTIATE_IN_PROG, &gl->gl_flags)) {
+		wait_on_bit(&gl->gl_flags, GLF_INSTANTIATE_IN_PROG,
+			    TASK_UNINTERRUPTIBLE);
+		/*
+		 * Here we just waited for a different instantiate to finish.
+		 * But that may not have been successful, as when a process
+		 * locks an inode glock _before_ it has an actual inode to
+		 * instantiate into. So we check again. This process might
+		 * have an inode to instantiate, so might be successful.
+		 */
+		goto again;
+	}
+
+	set_bit(GLF_INSTANTIATE_IN_PROG, &gl->gl_flags);
+
+	ret = glops->go_instantiate(gh);
+	if (!ret)
+		clear_bit(GLF_INSTANTIATE_NEEDED, &gl->gl_flags);
+	clear_bit(GLF_INSTANTIATE_IN_PROG, &gl->gl_flags);
+	smp_mb__after_atomic();
+	wake_up_bit(&gl->gl_flags, GLF_INSTANTIATE_IN_PROG);
+	return ret;
 }
 
 /**
@@ -526,7 +556,7 @@ restart:
 			incompat_holders_demoted = true;
 			first_gh = gh;
 		}
-		if (gh->gh_list.prev == &gl->gl_holders &&
+		if (test_bit(GLF_INSTANTIATE_NEEDED, &gl->gl_flags) &&
 		    !(gh->gh_flags & GL_SKIP) && gl->gl_ops->go_instantiate) {
 			lock_released = true;
 			spin_unlock(&gl->gl_lockref.lock);
@@ -1162,7 +1192,7 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 
 	atomic_inc(&sdp->sd_glock_disposal);
 	gl->gl_node.next = NULL;
-	gl->gl_flags = 0;
+	gl->gl_flags = glops->go_instantiate ? BIT(GLF_INSTANTIATE_NEEDED) : 0;
 	gl->gl_name = name;
 	lockdep_set_subclass(&gl->gl_lockref.lock, glops->go_subclass);
 	gl->gl_lockref.count = 1;
@@ -2326,6 +2356,10 @@ static const char *gflags2str(char *buf, const struct gfs2_glock *gl)
 		*p++ = 'P';
 	if (test_bit(GLF_FREEING, gflags))
 		*p++ = 'x';
+	if (test_bit(GLF_INSTANTIATE_NEEDED, gflags))
+		*p++ = 'n';
+	if (test_bit(GLF_INSTANTIATE_IN_PROG, gflags))
+		*p++ = 'N';
 	*p = 0;
 	return buf;
 }
