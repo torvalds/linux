@@ -92,7 +92,7 @@ static int st1232_ts_wait_ready(struct st1232_ts_data *ts)
 	unsigned int retries;
 	int error;
 
-	for (retries = 10; retries; retries--) {
+	for (retries = 100; retries; retries--) {
 		error = st1232_ts_read_data(ts, REG_STATUS, 1);
 		if (!error) {
 			switch (ts->read_buf[0]) {
