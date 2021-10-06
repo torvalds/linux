@@ -363,7 +363,7 @@ static int mana_hwc_create_cq(struct hw_channel_context *hwc, u16 q_depth,
 	}
 	hwc_cq->gdma_cq = cq;
 
-	comp_buf = kcalloc(q_depth, sizeof(struct gdma_comp), GFP_KERNEL);
+	comp_buf = kcalloc(q_depth, sizeof(*comp_buf), GFP_KERNEL);
 	if (!comp_buf) {
 		err = -ENOMEM;
 		goto out;
@@ -580,7 +580,7 @@ static int mana_hwc_test_channel(struct hw_channel_context *hwc, u16 q_depth,
 			return err;
 	}
 
-	ctx = kzalloc(q_depth * sizeof(struct hwc_caller_ctx), GFP_KERNEL);
+	ctx = kcalloc(q_depth, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
