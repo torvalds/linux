@@ -1654,7 +1654,7 @@ int qed_ll2_establish_connection(void *cxt, u8 connection_handle)
 
 	DP_VERBOSE(p_hwfn,
 		   QED_MSG_LL2,
-		   "Establishing ll2 queue. PF %d ctx_bsaed=%d abs qid=%d stats_id=%d\n",
+		   "Establishing ll2 queue. PF %d ctx_based=%d abs qid=%d stats_id=%d\n",
 		   p_hwfn->rel_pf_id,
 		   p_ll2_conn->input.rx_conn_type, qid, stats_id);
 
