@@ -1018,8 +1018,6 @@ static void intel_load_plane_csc_black(struct intel_plane *intel_plane)
 	enum plane_id plane = intel_plane->id;
 	u16 postoff = 0;
 
-	drm_dbg_kms(&dev_priv->drm, "plane color CTM to black  %s:%d\n",
-		    intel_plane->base.name, plane);
 	intel_de_write_fw(dev_priv, PLANE_CSC_COEFF(pipe, plane, 0), 0);
 	intel_de_write_fw(dev_priv, PLANE_CSC_COEFF(pipe, plane, 1), 0);
 
