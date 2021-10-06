@@ -40,15 +40,15 @@ struct icl_mg_phy_ddi_buf_trans {
 };
 
 struct tgl_dkl_phy_ddi_buf_trans {
-	u32 dkl_vswing_control;
-	u32 dkl_preshoot_control;
-	u32 dkl_de_emphasis_control;
+	u32 vswing;
+	u32 preshoot;
+	u32 de_emphasis;
 };
 
 struct dg2_snps_phy_buf_trans {
-	u8 snps_vswing;
-	u8 snps_pre_cursor;
-	u8 snps_post_cursor;
+	u8 vswing;
+	u8 pre_cursor;
+	u8 post_cursor;
 };
 
 union intel_ddi_buf_trans_entry {

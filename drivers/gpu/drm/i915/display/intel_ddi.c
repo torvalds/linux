@@ -1285,9 +1285,9 @@ static void tgl_dkl_phy_set_signal_levels(struct intel_encoder *encoder,
 	dpcnt_mask = (DKL_TX_PRESHOOT_COEFF_MASK |
 		      DKL_TX_DE_EMPAHSIS_COEFF_MASK |
 		      DKL_TX_VSWING_CONTROL_MASK);
-	dpcnt_val = DKL_TX_VSWING_CONTROL(trans->entries[level].dkl.dkl_vswing_control);
-	dpcnt_val |= DKL_TX_DE_EMPHASIS_COEFF(trans->entries[level].dkl.dkl_de_emphasis_control);
-	dpcnt_val |= DKL_TX_PRESHOOT_COEFF(trans->entries[level].dkl.dkl_preshoot_control);
+	dpcnt_val = DKL_TX_VSWING_CONTROL(trans->entries[level].dkl.vswing);
+	dpcnt_val |= DKL_TX_DE_EMPHASIS_COEFF(trans->entries[level].dkl.de_emphasis);
+	dpcnt_val |= DKL_TX_PRESHOOT_COEFF(trans->entries[level].dkl.preshoot);
 
 	for (ln = 0; ln < 2; ln++) {
 		intel_de_write(dev_priv, HIP_INDEX_REG(tc_port),
