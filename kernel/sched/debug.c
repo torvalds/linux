@@ -463,7 +463,8 @@ static void print_cfs_group_stats(struct seq_file *m, int cpu, struct task_group
 	PN(se->sum_exec_runtime);
 
 	if (schedstat_enabled()) {
-               struct sched_statistics *stats =  __schedstats_from_se(se);
+		struct sched_statistics *stats;
+		stats = __schedstats_from_se(se);
 
 		PN_SCHEDSTAT(wait_start);
 		PN_SCHEDSTAT(sleep_start);
