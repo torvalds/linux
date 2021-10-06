@@ -4511,7 +4511,7 @@ static void do_test_file(unsigned int test_num)
 	if (CHECK(err, "obj: %d", err))
 		return;
 
-	prog = bpf_program__next(NULL, obj);
+	prog = bpf_object__next_program(obj, NULL);
 	if (CHECK(!prog, "Cannot find bpf_prog")) {
 		err = -1;
 		goto done;

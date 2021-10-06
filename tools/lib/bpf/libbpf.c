@@ -7835,6 +7835,12 @@ __bpf_program__iter(const struct bpf_program *p, const struct bpf_object *obj,
 struct bpf_program *
 bpf_program__next(struct bpf_program *prev, const struct bpf_object *obj)
 {
+	return bpf_object__next_program(obj, prev);
+}
+
+struct bpf_program *
+bpf_object__next_program(const struct bpf_object *obj, struct bpf_program *prev)
+{
 	struct bpf_program *prog = prev;
 
 	do {
@@ -7846,6 +7852,12 @@ bpf_program__next(struct bpf_program *prev, const struct bpf_object *obj)
 
 struct bpf_program *
 bpf_program__prev(struct bpf_program *next, const struct bpf_object *obj)
+{
+	return bpf_object__prev_program(obj, next);
+}
+
+struct bpf_program *
+bpf_object__prev_program(const struct bpf_object *obj, struct bpf_program *next)
 {
 	struct bpf_program *prog = next;
 
@@ -8779,6 +8791,12 @@ __bpf_map__iter(const struct bpf_map *m, const struct bpf_object *obj, int i)
 struct bpf_map *
 bpf_map__next(const struct bpf_map *prev, const struct bpf_object *obj)
 {
+	return bpf_object__next_map(obj, prev);
+}
+
+struct bpf_map *
+bpf_object__next_map(const struct bpf_object *obj, const struct bpf_map *prev)
+{
 	if (prev == NULL)
 		return obj->maps;
 
@@ -8787,6 +8805,12 @@ bpf_map__next(const struct bpf_map *prev, const struct bpf_object *obj)
 
 struct bpf_map *
 bpf_map__prev(const struct bpf_map *next, const struct bpf_object *obj)
+{
+	return bpf_object__prev_map(obj, next);
+}
+
+struct bpf_map *
+bpf_object__prev_map(const struct bpf_object *obj, const struct bpf_map *next)
 {
 	if (next == NULL) {
 		if (!obj->nr_maps)
