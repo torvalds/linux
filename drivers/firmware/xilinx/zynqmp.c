@@ -1434,7 +1434,10 @@ static int zynqmp_firmware_probe(struct platform_device *pdev)
 		return ret;
 
 	/* Check PM API version number */
-	zynqmp_pm_get_api_version(&pm_api_version);
+	ret = zynqmp_pm_get_api_version(&pm_api_version);
+	if (ret)
+		return ret;
+
 	if (pm_api_version < ZYNQMP_PM_VERSION) {
 		panic("%s Platform Management API version error. Expected: v%d.%d - Found: v%d.%d\n",
 		      __func__,
