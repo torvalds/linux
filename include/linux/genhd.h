@@ -221,6 +221,11 @@ static inline int get_disk_ro(struct gendisk *disk)
 		test_bit(GD_READ_ONLY, &disk->state);
 }
 
+static inline int bdev_read_only(struct block_device *bdev)
+{
+	return bdev->bd_read_only || get_disk_ro(bdev->bd_disk);
+}
+
 extern void disk_block_events(struct gendisk *disk);
 extern void disk_unblock_events(struct gendisk *disk);
 extern void disk_flush_events(struct gendisk *disk, unsigned int mask);

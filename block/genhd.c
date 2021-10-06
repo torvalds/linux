@@ -1389,12 +1389,6 @@ void set_disk_ro(struct gendisk *disk, bool read_only)
 }
 EXPORT_SYMBOL(set_disk_ro);
 
-int bdev_read_only(struct block_device *bdev)
-{
-	return bdev->bd_read_only || get_disk_ro(bdev->bd_disk);
-}
-EXPORT_SYMBOL(bdev_read_only);
-
 void inc_diskseq(struct gendisk *disk)
 {
 	disk->diskseq = atomic64_inc_return(&diskseq);
