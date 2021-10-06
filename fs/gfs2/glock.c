@@ -472,6 +472,21 @@ find_first_strong_holder(struct gfs2_glock *gl)
 	return NULL;
 }
 
+/*
+ * gfs2_instantiate - Call the glops instantiate function
+ * @gl: The glock
+ *
+ * Returns: 0 if instantiate was successful, 2 if type specific operation is
+ * underway, or error.
+ */
+static int gfs2_instantiate(struct gfs2_holder *gh)
+{
+	struct gfs2_glock *gl = gh->gh_gl;
+	const struct gfs2_glock_operations *glops = gl->gl_ops;
+
+	return glops->go_instantiate(gh);
+}
+
 /**
  * do_promote - promote as many requests as possible on the current queue
  * @gl: The glock
@@ -484,7 +499,6 @@ static int do_promote(struct gfs2_glock *gl)
 __releases(&gl->gl_lockref.lock)
 __acquires(&gl->gl_lockref.lock)
 {
-	const struct gfs2_glock_operations *glops = gl->gl_ops;
 	struct gfs2_holder *gh, *tmp, *first_gh;
 	bool incompat_holders_demoted = false;
 	bool lock_released;
@@ -513,10 +527,10 @@ restart:
 			first_gh = gh;
 		}
 		if (gh->gh_list.prev == &gl->gl_holders &&
-		    !(gh->gh_flags & GL_SKIP) && glops->go_instantiate) {
+		    !(gh->gh_flags & GL_SKIP) && gl->gl_ops->go_instantiate) {
 			lock_released = true;
 			spin_unlock(&gl->gl_lockref.lock);
-			ret = glops->go_instantiate(gh);
+			ret = gfs2_instantiate(gh);
 			spin_lock(&gl->gl_lockref.lock);
 			if (ret) {
 				if (ret == 1)
