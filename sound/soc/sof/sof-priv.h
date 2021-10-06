@@ -562,6 +562,19 @@ static inline void sof_oops(struct snd_sof_dev *sdev, void *oops)
 extern const struct dsp_arch_ops sof_xtensa_arch_ops;
 
 /*
+ * Firmware state tracking
+ */
+static inline void sof_set_fw_state(struct snd_sof_dev *sdev,
+				    enum snd_sof_fw_state new_state)
+{
+	if (sdev->fw_state == new_state)
+		return;
+
+	dev_dbg(sdev->dev, "fw_state change: %d -> %d\n", sdev->fw_state, new_state);
+	sdev->fw_state = new_state;
+}
+
+/*
  * Utilities
  */
 void sof_io_write(struct snd_sof_dev *sdev, void __iomem *addr, u32 value);

@@ -147,7 +147,7 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 		return ret;
 	}
 
-	sdev->fw_state = SOF_FW_BOOT_PREPARE;
+	sof_set_fw_state(sdev, SOF_FW_BOOT_PREPARE);
 
 	/* check machine info */
 	ret = sof_machine_check(sdev);
@@ -189,7 +189,7 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 		goto fw_load_err;
 	}
 
-	sdev->fw_state = SOF_FW_BOOT_IN_PROGRESS;
+	sof_set_fw_state(sdev, SOF_FW_BOOT_IN_PROGRESS);
 
 	/*
 	 * Boot the firmware. The FW boot status will be modified
@@ -265,7 +265,7 @@ dsp_err:
 	snd_sof_remove(sdev);
 
 	/* all resources freed, update state to match */
-	sdev->fw_state = SOF_FW_BOOT_NOT_STARTED;
+	sof_set_fw_state(sdev, SOF_FW_BOOT_NOT_STARTED);
 	sdev->first_boot = true;
 
 	return ret;
@@ -300,7 +300,7 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 
 	sdev->pdata = plat_data;
 	sdev->first_boot = true;
-	sdev->fw_state = SOF_FW_BOOT_NOT_STARTED;
+	sof_set_fw_state(sdev, SOF_FW_BOOT_NOT_STARTED);
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_PROBES)
 	sdev->extractor_stream_tag = SOF_PROBE_INVALID_NODE_ID;
 #endif
