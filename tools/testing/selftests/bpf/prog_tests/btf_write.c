@@ -4,18 +4,14 @@
 #include <bpf/btf.h>
 #include "btf_helpers.h"
 
-void test_btf_write() {
+static void gen_btf(struct btf *btf)
+{
 	const struct btf_var_secinfo *vi;
 	const struct btf_type *t;
 	const struct btf_member *m;
 	const struct btf_enum *v;
 	const struct btf_param *p;
-	struct btf *btf;
 	int id, err, str_off;
-
-	btf = btf__new_empty();
-	if (!ASSERT_OK_PTR(btf, "new_empty"))
-		return;
 
 	str_off = btf__find_str(btf, "int");
 	ASSERT_EQ(str_off, -ENOENT, "int_str_missing_off");
@@ -301,6 +297,53 @@ void test_btf_write() {
 	ASSERT_EQ(btf_tag(t)->component_idx, 1, "tag_component_idx");
 	ASSERT_STREQ(btf_type_raw_dump(btf, 19),
 		     "[19] TAG 'tag2' type_id=14 component_idx=1", "raw_dump");
+}
+
+static void test_btf_add()
+{
+	struct btf *btf;
+
+	btf = btf__new_empty();
+	if (!ASSERT_OK_PTR(btf, "new_empty"))
+		return;
+
+	gen_btf(btf);
+
+	VALIDATE_RAW_BTF(
+		btf,
+		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
+		"[2] PTR '(anon)' type_id=1",
+		"[3] CONST '(anon)' type_id=5",
+		"[4] VOLATILE '(anon)' type_id=3",
+		"[5] RESTRICT '(anon)' type_id=4",
+		"[6] ARRAY '(anon)' type_id=2 index_type_id=1 nr_elems=10",
+		"[7] STRUCT 's1' size=8 vlen=2\n"
+		"\t'f1' type_id=1 bits_offset=0\n"
+		"\t'f2' type_id=1 bits_offset=32 bitfield_size=16",
+		"[8] UNION 'u1' size=8 vlen=1\n"
+		"\t'f1' type_id=1 bits_offset=0 bitfield_size=16",
+		"[9] ENUM 'e1' size=4 vlen=2\n"
+		"\t'v1' val=1\n"
+		"\t'v2' val=2",
+		"[10] FWD 'struct_fwd' fwd_kind=struct",
+		"[11] FWD 'union_fwd' fwd_kind=union",
+		"[12] ENUM 'enum_fwd' size=4 vlen=0",
+		"[13] TYPEDEF 'typedef1' type_id=1",
+		"[14] FUNC 'func1' type_id=15 linkage=global",
+		"[15] FUNC_PROTO '(anon)' ret_type_id=1 vlen=2\n"
+		"\t'p1' type_id=1\n"
+		"\t'p2' type_id=2",
+		"[16] VAR 'var1' type_id=1, linkage=global-alloc",
+		"[17] DATASEC 'datasec1' size=12 vlen=1\n"
+		"\ttype_id=1 offset=4 size=8",
+		"[18] TAG 'tag1' type_id=16 component_idx=-1",
+		"[19] TAG 'tag2' type_id=14 component_idx=1");
 
 	btf__free(btf);
+}
+
+void test_btf_write()
+{
+	if (test__start_subtest("btf_add"))
+		test_btf_add();
 }
