@@ -76,17 +76,3 @@ config EROFS_FS_ZIP
 
 	  If you don't want to enable compression feature, say N.
 
-config EROFS_FS_CLUSTER_PAGE_LIMIT
-	int "EROFS Cluster Pages Hard Limit"
-	depends on EROFS_FS_ZIP
-	range 1 256
-	default "1"
-	help
-	  Indicates maximum # of pages of a compressed
-	  physical cluster.
-
-	  For example, if files in a image were compressed
-	  into 8k-unit, hard limit should not be configured
-	  less than 2. Otherwise, the image will be refused
-	  to mount on this kernel.
-

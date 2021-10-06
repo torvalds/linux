@@ -1784,6 +1784,8 @@
   platform_get_resource
   platform_get_resource_byname
   platform_irq_count
+  platform_msi_domain_alloc_irqs
+  platform_msi_domain_free_irqs
   pm_clk_add
   pm_clk_create
   pm_clk_destroy
@@ -1958,6 +1960,7 @@
   register_kretprobe
   register_memory_notifier
   register_module_notifier
+  register_qdisc
   register_netdev
   register_netdevice
   register_netdevice_notifier
@@ -2086,8 +2089,10 @@
   rproc_remove_subdev
   rproc_report_crash
   rproc_shutdown
+  rtc_ktime_to_tm
   __rtc_register_device
   rtc_time64_to_tm
+  rtc_tm_to_ktime
   rtc_tm_to_time64
   rtc_update_irq
   rt_mutex_lock
@@ -2810,6 +2815,7 @@
   unregister_oom_notifier
   unregister_pernet_device
   unregister_pm_notifier
+  unregister_qdisc
   unregister_reboot_notifier
   unregister_restart_handler
   unregister_rpmsg_driver
@@ -2983,6 +2989,8 @@
   vprintk
   vscnprintf
   vsnprintf
+  vsock_addr_init
+  vsock_remove_sock
   vunmap
   vzalloc
   wait_for_completion

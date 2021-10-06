@@ -2411,10 +2411,12 @@ static int __dwc3_gadget_start(struct dwc3 *dwc);
 static int dwc3_gadget_pullup(struct usb_gadget *g, int is_on)
 {
 	struct dwc3		*dwc = gadget_to_dwc(g);
+	struct dwc3_vendor	*vdwc = container_of(dwc, struct dwc3_vendor, dwc);
 	unsigned long		flags;
 	int			ret;
 
 	is_on = !!is_on;
+	vdwc->softconnect = is_on;
 
 	/*
 	 * Per databook, when we want to stop the gadget, if a control transfer
@@ -4366,9 +4368,10 @@ int dwc3_gadget_suspend(struct dwc3 *dwc)
 
 int dwc3_gadget_resume(struct dwc3 *dwc)
 {
+	struct dwc3_vendor	*vdwc = container_of(dwc, struct dwc3_vendor, dwc);
 	int			ret;
 
-	if (!dwc->gadget_driver)
+	if (!dwc->gadget_driver || !vdwc->softconnect)
 		return 0;
 
 	ret = __dwc3_gadget_start(dwc);

@@ -122,6 +122,136 @@ static bool check_layout_compatibility(struct super_block *sb,
 	return true;
 }
 
+#ifdef CONFIG_EROFS_FS_ZIP
+/* read variable-sized metadata, offset will be aligned by 4-byte */
+static void *erofs_read_metadata(struct super_block *sb, struct page **pagep,
+				 erofs_off_t *offset, int *lengthp)
+{
+	struct page *page = *pagep;
+	u8 *buffer, *ptr;
+	int len, i, cnt;
+	erofs_blk_t blk;
+
+	*offset = round_up(*offset, 4);
+	blk = erofs_blknr(*offset);
+
+	if (!page || page->index != blk) {
+		if (page) {
+			unlock_page(page);
+			put_page(page);
+		}
+		page = erofs_get_meta_page(sb, blk);
+		if (IS_ERR(page))
+			goto err_nullpage;
+	}
+
+	ptr = kmap(page);
+	len = le16_to_cpu(*(__le16 *)&ptr[erofs_blkoff(*offset)]);
+	if (!len)
+		len = U16_MAX + 1;
+	buffer = kmalloc(len, GFP_KERNEL);
+	if (!buffer) {
+		buffer = ERR_PTR(-ENOMEM);
+		goto out;
+	}
+	*offset += sizeof(__le16);
+	*lengthp = len;
+
+	for (i = 0; i < len; i += cnt) {
+		cnt = min(EROFS_BLKSIZ - (int)erofs_blkoff(*offset), len - i);
+		blk = erofs_blknr(*offset);
+
+		if (!page || page->index != blk) {
+			if (page) {
+				kunmap(page);
+				unlock_page(page);
+				put_page(page);
+			}
+			page = erofs_get_meta_page(sb, blk);
+			if (IS_ERR(page)) {
+				kfree(buffer);
+				goto err_nullpage;
+			}
+			ptr = kmap(page);
+		}
+		memcpy(buffer + i, ptr + erofs_blkoff(*offset), cnt);
+		*offset += cnt;
+	}
+out:
+	kunmap(page);
+	*pagep = page;
+	return buffer;
+err_nullpage:
+	*pagep = NULL;
+	return page;
+}
+
+static int erofs_load_compr_cfgs(struct super_block *sb,
+				 struct erofs_super_block *dsb)
+{
+	struct erofs_sb_info *sbi;
+	struct page *page;
+	unsigned int algs, alg;
+	erofs_off_t offset;
+	int size, ret;
+
+	sbi = EROFS_SB(sb);
+	sbi->available_compr_algs = le16_to_cpu(dsb->u1.available_compr_algs);
+
+	if (sbi->available_compr_algs & ~Z_EROFS_ALL_COMPR_ALGS) {
+		erofs_err(sb, "try to load compressed fs with unsupported algorithms %x",
+			  sbi->available_compr_algs & ~Z_EROFS_ALL_COMPR_ALGS);
+		return -EINVAL;
+	}
+
+	offset = EROFS_SUPER_OFFSET + sbi->sb_size;
+	page = NULL;
+	alg = 0;
+	ret = 0;
+
+	for (algs = sbi->available_compr_algs; algs; algs >>= 1, ++alg) {
+		void *data;
+
+		if (!(algs & 1))
+			continue;
+
+		data = erofs_read_metadata(sb, &page, &offset, &size);
+		if (IS_ERR(data)) {
+			ret = PTR_ERR(data);
+			goto err;
+		}
+
+		switch (alg) {
+		case Z_EROFS_COMPRESSION_LZ4:
+			ret = z_erofs_load_lz4_config(sb, dsb, data, size);
+			break;
+		default:
+			DBG_BUGON(1);
+			ret = -EFAULT;
+		}
+		kfree(data);
+		if (ret)
+			goto err;
+	}
+err:
+	if (page) {
+		unlock_page(page);
+		put_page(page);
+	}
+	return ret;
+}
+#else
+static int erofs_load_compr_cfgs(struct super_block *sb,
+				 struct erofs_super_block *dsb)
+{
+	if (dsb->u1.available_compr_algs) {
+		erofs_err(sb, "try to load compressed fs when compression is disabled");
+		return -EINVAL;
+	}
+	return 0;
+}
+#endif
+
 static int erofs_read_superblock(struct super_block *sb)
 {
 	struct erofs_sb_info *sbi;
@@ -149,7 +279,7 @@ static int erofs_read_superblock(struct super_block *sb)
 	}
 
 	sbi->feature_compat = le32_to_cpu(dsb->feature_compat);
-	if (sbi->feature_compat & EROFS_FEATURE_COMPAT_SB_CHKSUM) {
+	if (erofs_sb_has_sb_chksum(sbi)) {
 		ret = erofs_superblock_csum_verify(sb, data);
 		if (ret)
 			goto out;
@@ -167,6 +297,12 @@ static int erofs_read_superblock(struct super_block *sb)
 	if (!check_layout_compatibility(sb, dsb))
 		goto out;
 
+	sbi->sb_size = 128 + dsb->sb_extslots * EROFS_SB_EXTSLOT_SIZE;
+	if (sbi->sb_size > EROFS_BLKSIZ) {
+		erofs_err(sb, "invalid sb_extslots %u (more than a fs block)",
+			  sbi->sb_size);
+		goto out;
+	}
 	sbi->blocks = le32_to_cpu(dsb->blocks);
 	sbi->meta_blkaddr = le32_to_cpu(dsb->meta_blkaddr);
 #ifdef CONFIG_EROFS_FS_XATTR
@@ -190,7 +326,10 @@ static int erofs_read_superblock(struct super_block *sb)
 	}
 
 	/* parse on-disk compression configurations */
-	ret = z_erofs_load_lz4_config(sb, dsb);
+	if (erofs_sb_has_compr_cfgs(sbi))
+		ret = erofs_load_compr_cfgs(sb, dsb);
+	else
+		ret = z_erofs_load_lz4_config(sb, dsb, NULL, 0);
 out:
 	kunmap(page);
 	put_page(page);
@@ -517,6 +656,7 @@ static int __init erofs_module_init(void)
 	if (err)
 		goto shrinker_err;
 
+	erofs_pcpubuf_init();
 	err = z_erofs_init_zip_subsystem();
 	if (err)
 		goto zip_err;
@@ -546,6 +686,7 @@ static void __exit erofs_module_exit(void)
 	/* Ensure all RCU free inodes are safe before cache is destroyed. */
 	rcu_barrier();
 	kmem_cache_destroy(erofs_inode_cachep);
+	erofs_pcpubuf_exit();
 }
 
 /* get filesystem statistics */
