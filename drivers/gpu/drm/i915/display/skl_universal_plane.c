@@ -985,6 +985,9 @@ static u32 glk_plane_color_ctl(const struct intel_crtc_state *crtc_state,
 			plane_color_ctl |= PLANE_COLOR_YUV_RANGE_CORRECTION_DISABLE;
 	}
 
+	if (plane_state->force_black)
+		plane_color_ctl |= PLANE_COLOR_PLANE_CSC_ENABLE;
+
 	return plane_color_ctl;
 }
 
@@ -1090,7 +1093,18 @@ skl_program_plane(struct intel_plane *plane,
 			aux_dist |= skl_plane_stride(plane_state, aux_plane);
 	}
 
+	plane_surf = intel_plane_ggtt_offset(plane_state) + surf_addr;
+	if (plane_state->decrypt)
+		plane_surf |= PLANE_SURF_DECRYPT;
+
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+
+	/*
+	 * FIXME: pxp session invalidation can hit any time even at time of commit
+	 * or after the commit, display content will be garbage.
+	 */
+	if (plane_state->force_black)
+		intel_load_plane_csc_black(plane);
 
 	intel_de_write_fw(dev_priv, PLANE_STRIDE(pipe, plane_id), stride);
 	intel_de_write_fw(dev_priv, PLANE_POS(pipe, plane_id),
@@ -1146,22 +1160,6 @@ skl_program_plane(struct intel_plane *plane,
 	 * the control register just before the surface register.
 	 */
 	intel_de_write_fw(dev_priv, PLANE_CTL(pipe, plane_id), plane_ctl);
-	plane_surf = intel_plane_ggtt_offset(plane_state) + surf_addr;
-	plane_color_ctl = intel_de_read_fw(dev_priv, PLANE_COLOR_CTL(pipe, plane_id));
-
-	/*
-	 * FIXME: pxp session invalidation can hit any time even at time of commit
-	 * or after the commit, display content will be garbage.
-	 */
-	if (plane_state->decrypt) {
-		plane_surf |= PLANE_SURF_DECRYPT;
-	} else if (plane_state->force_black) {
-		intel_load_plane_csc_black(plane);
-		plane_color_ctl |= PLANE_COLOR_PLANE_CSC_ENABLE;
-	}
-
-	intel_de_write_fw(dev_priv, PLANE_COLOR_CTL(pipe, plane_id),
-			  plane_color_ctl);
 	intel_de_write_fw(dev_priv, PLANE_SURF(pipe, plane_id), plane_surf);
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
