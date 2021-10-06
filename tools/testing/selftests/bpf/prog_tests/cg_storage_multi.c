@@ -363,7 +363,7 @@ close_bpf_object:
 	cg_storage_multi_shared__destroy(obj);
 }
 
-void test_cg_storage_multi(void)
+void serial_test_cg_storage_multi(void)
 {
 	int parent_cgroup_fd = -1, child_cgroup_fd = -1;
 

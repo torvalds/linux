@@ -6,7 +6,7 @@
 /* Demonstrate that bpf_snprintf_btf succeeds and that various data types
  * are formatted correctly.
  */
-void test_snprintf_btf(void)
+void serial_test_snprintf_btf(void)
 {
 	struct netif_receive_skb *skel;
 	struct netif_receive_skb__bss *bss;

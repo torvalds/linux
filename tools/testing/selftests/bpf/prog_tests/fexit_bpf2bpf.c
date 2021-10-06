@@ -380,7 +380,8 @@ static void test_func_map_prog_compatibility(void)
 				     "./test_attach_probe.o");
 }
 
-void test_fexit_bpf2bpf(void)
+/* NOTE: affect other tests, must run in serial mode */
+void serial_test_fexit_bpf2bpf(void)
 {
 	if (test__start_subtest("target_no_callees"))
 		test_target_no_callees();

@@ -179,7 +179,7 @@ done:
 	free_fds(est_fds, nr_est);
 }
 
-void test_bpf_iter_setsockopt(void)
+void serial_test_bpf_iter_setsockopt(void)
 {
 	struct bpf_iter_setsockopt *iter_skel = NULL;
 	struct bpf_cubic *cubic_skel = NULL;
