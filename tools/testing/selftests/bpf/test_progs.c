@@ -50,6 +50,7 @@ struct prog_test_def {
 	const char *test_name;
 	int test_num;
 	void (*run_test)(void);
+	void (*run_serial_test)(void);
 	bool force_log;
 	int error_cnt;
 	int skip_cnt;
@@ -457,14 +458,17 @@ static int load_bpf_testmod(void)
 }
 
 /* extern declarations for test funcs */
-#define DEFINE_TEST(name) extern void test_##name(void);
+#define DEFINE_TEST(name)				\
+	extern void test_##name(void) __weak;		\
+	extern void serial_test_##name(void) __weak;
 #include <prog_tests/tests.h>
 #undef DEFINE_TEST
 
 static struct prog_test_def prog_test_defs[] = {
-#define DEFINE_TEST(name) {		\
-	.test_name = #name,		\
-	.run_test = &test_##name,	\
+#define DEFINE_TEST(name) {			\
+	.test_name = #name,			\
+	.run_test = &test_##name,		\
+	.run_serial_test = &serial_test_##name,	\
 },
 #include <prog_tests/tests.h>
 #undef DEFINE_TEST
@@ -907,7 +911,10 @@ static void run_one_test(int test_num)
 
 	env.test = test;
 
-	test->run_test();
+	if (test->run_test)
+		test->run_test();
+	else if (test->run_serial_test)
+		test->run_serial_test();
 
 	/* ensure last sub-test is finalized properly */
 	if (test->subtest_name)
@@ -957,7 +964,7 @@ static void *dispatch_thread(void *ctx)
 			pthread_mutex_unlock(&current_test_lock);
 		}
 
-		if (!test->should_run)
+		if (!test->should_run || test->run_serial_test)
 			continue;
 
 		/* run test through worker */
@@ -1135,6 +1142,40 @@ static int server_main(void)
 	free(dispatcher_threads);
 	free(env.worker_current_test);
 	free(data);
+
+	/* run serial tests */
+	save_netns();
+
+	for (int i = 0; i < prog_test_cnt; i++) {
+		struct prog_test_def *test = &prog_test_defs[i];
+		struct test_result *result = &test_results[i];
+
+		if (!test->should_run || !test->run_serial_test)
+			continue;
+
+		stdio_hijack();
+
+		run_one_test(i);
+
+		stdio_restore();
+		if (env.log_buf) {
+			result->log_cnt = env.log_cnt;
+			result->log_buf = strdup(env.log_buf);
+
+			free(env.log_buf);
+			env.log_buf = NULL;
+			env.log_cnt = 0;
+		}
+		restore_netns();
+
+		fprintf(stdout, "#%d %s:%s\n",
+			test->test_num, test->test_name,
+			test->error_cnt ? "FAIL" : (test->skip_cnt ? "SKIP" : "OK"));
+
+		result->error_cnt = test->error_cnt;
+		result->skip_cnt = test->skip_cnt;
+		result->sub_succ_cnt = test->sub_succ_cnt;
+	}
 
 	/* generate summary */
 	fflush(stderr);
@@ -1333,6 +1374,13 @@ int main(int argc, char **argv)
 			test->should_run = true;
 		else
 			test->should_run = false;
+
+		if ((test->run_test == NULL && test->run_serial_test == NULL) ||
+		    (test->run_test != NULL && test->run_serial_test != NULL)) {
+			fprintf(stderr, "Test %d:%s must have either test_%s() or serial_test_%sl() defined.\n",
+				test->test_num, test->test_name, test->test_name, test->test_name);
+			exit(EXIT_ERR_SETUP_INFRA);
+		}
 	}
 
 	/* ignore workers if we are just listing */
