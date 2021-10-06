@@ -159,14 +159,6 @@ enum irdma_cm_event_type {
 	IRDMA_CM_EVENT_ABORTED,
 };
 
-struct irdma_bth { /* Base Trasnport Header */
-	u8 opcode;
-	u8 flags;
-	__be16 pkey;
-	__be32 qpn;
-	__be32 apsn;
-};
-
 struct ietf_mpa_v1 {
 	u8 key[IETF_MPA_KEY_SIZE];
 	u8 flags;
