@@ -617,3 +617,23 @@ int device_get_mac_address(struct device *dev, char *addr)
 	return fwnode_get_mac_address(dev_fwnode(dev), addr);
 }
 EXPORT_SYMBOL(device_get_mac_address);
+
+/**
+ * device_get_ethdev_address - Set netdev's MAC address from a given device
+ * @dev:	Pointer to the device
+ * @netdev:	Pointer to netdev to write the address to
+ *
+ * Wrapper around device_get_mac_address() which writes the address
+ * directly to netdev->dev_addr.
+ */
+int device_get_ethdev_address(struct device *dev, struct net_device *netdev)
+{
+	u8 addr[ETH_ALEN];
+	int ret;
+
+	ret = device_get_mac_address(dev, addr);
+	if (!ret)
+		eth_hw_addr_set(netdev, addr);
+	return ret;
+}
+EXPORT_SYMBOL(device_get_ethdev_address);
