@@ -3896,6 +3896,14 @@ static void update_psp_stream_config(struct pipe_ctx *pipe_ctx, bool dpms_off)
 			link_enc = pipe_ctx->stream->link->link_enc;
 			config.dio_output_type = pipe_ctx->stream->link->ep_type;
 			config.dio_output_idx = link_enc->transmitter - TRANSMITTER_UNIPHY_A;
+			if (pipe_ctx->stream->link->ep_type == DISPLAY_ENDPOINT_PHY)
+				link_enc = pipe_ctx->stream->link->link_enc;
+			else if (pipe_ctx->stream->link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA)
+				if (pipe_ctx->stream->link->dc->res_pool->funcs->link_encs_assign) {
+					link_enc = link_enc_cfg_get_link_enc_used_by_stream(
+							pipe_ctx->stream->ctx->dc,
+							pipe_ctx->stream);
+			}
 			// Initialize PHY ID with ABCDE - 01234 mapping except when it is B0
 			config.phy_idx = link_enc->transmitter - TRANSMITTER_UNIPHY_A;
 
@@ -3905,14 +3913,21 @@ static void update_psp_stream_config(struct pipe_ctx *pipe_ctx, bool dpms_off)
 					link_enc_assign = state->res_ctx.link_enc_cfg_ctx.link_enc_assignments[i];
 				}
 			}
-
-			if (pipe_ctx->stream->ctx->dc->enable_c20_dtm_b0)
+			// Add flag to guard new A0 DIG mapping
+			if (pipe_ctx->stream->ctx->dc->enable_c20_dtm_b0 == true) {
 				config.dig_be = link_enc_assign.eng_id;
+				config.dio_output_type = pipe_ctx->stream->link->ep_type;
+				config.dio_output_idx = link_enc->transmitter - TRANSMITTER_UNIPHY_A;
+			} else {
+				config.dio_output_type = 0;
+				config.dio_output_idx = 0;
+			}
 
-			// Add RegKey to guard B0 implementation
-			if (pipe_ctx->stream->ctx->dc->enable_c20_dtm_b0 && link_enc->ctx->asic_id.hw_internal_rev == YELLOW_CARP_B0) {
+			// Add flag to guard B0 implementation
+			if (pipe_ctx->stream->ctx->dc->enable_c20_dtm_b0 == true &&
+					link_enc->ctx->asic_id.hw_internal_rev == YELLOW_CARP_B0) {
 				if (pipe_ctx->stream->link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) {
-					link_enc = pipe_ctx->stream->link->link_enc;
+					link_enc = link_enc_assign.stream->link_enc;
 
 					// enum ID 1-4 maps to DPIA PHY ID 0-3
 					config.phy_idx = link_enc_assign.ep_id.link_id.enum_id - ENUM_ID_1;
