@@ -66,4 +66,4 @@ $(DEFAULT_BPFTOOL): $(BPFOBJ) | $(BPFTOOL_OUTPUT)
 		    OUTPUT=$(BPFTOOL_OUTPUT)/				       \
 		    LIBBPF_OUTPUT=$(LIBBPF_OUTPUT)/			       \
 		    LIBBPF_DESTDIR=$(LIBBPF_DESTDIR)/			       \
-		    prefix= DESTDIR=$(abs_out)/ install
+		    prefix= DESTDIR=$(abs_out)/ install-bin
