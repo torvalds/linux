@@ -1720,7 +1720,7 @@ out:
 	}
 
 	cmnd->result = (((host_status) << 16) | scsi_status);
-	cmnd->scsi_done(cmnd);
+	scsi_done(cmnd);
 
 	/* Wake up waiting threads */
 	csio_scsi_cmnd(req) = NULL;
@@ -1748,7 +1748,7 @@ csio_scsi_cbfn(struct csio_hw *hw, struct csio_ioreq *req)
 		}
 
 		cmnd->result = (((host_status) << 16) | scsi_status);
-		cmnd->scsi_done(cmnd);
+		scsi_done(cmnd);
 		csio_scsi_cmnd(req) = NULL;
 		CSIO_INC_STATS(csio_hw_to_scsim(hw), n_tot_success);
 	} else {
@@ -1876,7 +1876,7 @@ err:
 	return rv;
 
 err_done:
-	cmnd->scsi_done(cmnd);
+	scsi_done(cmnd);
 	return 0;
 }
 
@@ -1979,7 +1979,7 @@ inval_scmnd:
 		spin_unlock_irq(&hw->lock);
 
 		cmnd->result = (DID_ERROR << 16);
-		cmnd->scsi_done(cmnd);
+		scsi_done(cmnd);
 
 		return FAILED;
 	}
