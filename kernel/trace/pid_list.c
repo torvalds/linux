@@ -333,8 +333,8 @@ static void pid_list_refill_irq(struct irq_work *iwork)
 {
 	struct trace_pid_list *pid_list = container_of(iwork, struct trace_pid_list,
 						       refill_irqwork);
-	union upper_chunk *upper;
-	union lower_chunk *lower;
+	union upper_chunk *upper = NULL;
+	union lower_chunk *lower = NULL;
 	union upper_chunk **upper_next = &upper;
 	union lower_chunk **lower_next = &lower;
 	int upper_count;
