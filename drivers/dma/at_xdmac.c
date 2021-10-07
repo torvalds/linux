@@ -2231,7 +2231,7 @@ static struct platform_driver at_xdmac_driver = {
 	.driver = {
 		.name		= "at_xdmac",
 		.of_match_table	= of_match_ptr(atmel_xdmac_dt_ids),
-		.pm		= &atmel_xdmac_dev_pm_ops,
+		.pm		= pm_ptr(&atmel_xdmac_dev_pm_ops),
 	}
 };
 
