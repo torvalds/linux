@@ -769,7 +769,7 @@ void rtw_ips_dev_unload(struct adapter *padapter)
 {
 	DBG_88E("====> %s...\n", __func__);
 
-	rtw_hal_set_hwreg(padapter, HW_VAR_FIFO_CLEARN_UP, NULL);
+	SetHwReg8188EU(padapter, HW_VAR_FIFO_CLEARN_UP, NULL);
 
 	if (padapter->intf_stop)
 		padapter->intf_stop(padapter);

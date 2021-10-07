@@ -845,7 +845,7 @@ static void Hal_EfuseReadEFuse88E(struct adapter *Adapter,
 		pbuf[i] = efuseTbl[_offset + i];
 
 	/*  5. Calculate Efuse utilization. */
-	rtw_hal_set_hwreg(Adapter, HW_VAR_EFUSE_BYTES, (u8 *)&eFuse_Addr);
+	SetHwReg8188EU(Adapter, HW_VAR_EFUSE_BYTES, (u8 *)&eFuse_Addr);
 
 exit:
 	kfree(efuseTbl);
@@ -1131,7 +1131,7 @@ static u16 hal_EfuseGetCurrentSize_8188e(struct adapter *pAdapter, bool bPseudoT
 	if (bPseudoTest)
 		fakeEfuseUsedBytes = efuse_addr;
 	else
-		rtw_hal_set_hwreg(pAdapter, HW_VAR_EFUSE_BYTES, (u8 *)&efuse_addr);
+		SetHwReg8188EU(pAdapter, HW_VAR_EFUSE_BYTES, (u8 *)&efuse_addr);
 
 	return efuse_addr;
 }

@@ -593,7 +593,7 @@ void rtl8188e_set_FwJoinBssReport_cmd(struct adapter *adapt, u8 mstatus)
 		haldata->RegFwHwTxQCtrl &= (~BIT(6));
 
 		/*  Clear beacon valid check bit. */
-		rtw_hal_set_hwreg(adapt, HW_VAR_BCN_VALID, NULL);
+		SetHwReg8188EU(adapt, HW_VAR_BCN_VALID, NULL);
 		DLBcnCount = 0;
 		poll = 0;
 		do {
@@ -638,7 +638,7 @@ void rtl8188e_set_FwJoinBssReport_cmd(struct adapter *adapt, u8 mstatus)
 
 		/*  Update RSVD page location H2C to Fw. */
 		if (bcn_valid) {
-			rtw_hal_set_hwreg(adapt, HW_VAR_BCN_VALID, NULL);
+			SetHwReg8188EU(adapt, HW_VAR_BCN_VALID, NULL);
 			DBG_88E("Set RSVD page location to Fw.\n");
 		}
 
