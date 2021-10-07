@@ -1572,7 +1572,7 @@ static int enc28j60_probe(struct spi_device *spi)
 		goto error_irq;
 	}
 
-	if (device_get_mac_address(&spi->dev, macaddr, sizeof(macaddr)))
+	if (!device_get_mac_address(&spi->dev, macaddr, sizeof(macaddr)))
 		eth_hw_addr_set(dev, macaddr);
 	else
 		eth_hw_addr_random(dev);

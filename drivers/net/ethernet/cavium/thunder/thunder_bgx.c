@@ -1387,10 +1387,10 @@ static int acpi_get_mac_address(struct device *dev, struct acpi_device *adev,
 				u8 *dst)
 {
 	u8 mac[ETH_ALEN];
-	u8 *addr;
+	int ret;
 
-	addr = fwnode_get_mac_address(acpi_fwnode_handle(adev), mac, ETH_ALEN);
-	if (!addr) {
+	ret = fwnode_get_mac_address(acpi_fwnode_handle(adev), mac, ETH_ALEN);
+	if (ret) {
 		dev_err(dev, "MAC address invalid: %pM\n", mac);
 		return -EINVAL;
 	}

@@ -560,15 +560,21 @@ int nvmem_get_mac_address(struct device *dev, void *addrbuf)
 }
 EXPORT_SYMBOL(nvmem_get_mac_address);
 
-static void *fwnode_get_mac_addr(struct fwnode_handle *fwnode,
-				 const char *name, char *addr,
-				 int alen)
+static int fwnode_get_mac_addr(struct fwnode_handle *fwnode,
+			       const char *name, char *addr, int alen)
 {
-	int ret = fwnode_property_read_u8_array(fwnode, name, addr, alen);
+	int ret;
 
-	if (ret == 0 && alen == ETH_ALEN && is_valid_ether_addr(addr))
-		return addr;
-	return NULL;
+	if (alen != ETH_ALEN)
+		return -EINVAL;
+
+	ret = fwnode_property_read_u8_array(fwnode, name, addr, alen);
+	if (ret)
+		return ret;
+
+	if (!is_valid_ether_addr(addr))
+		return -EINVAL;
+	return 0;
 }
 
 /**
@@ -594,19 +600,14 @@ static void *fwnode_get_mac_addr(struct fwnode_handle *fwnode,
  * In this case, the real MAC is in 'local-mac-address', and 'mac-address'
  * exists but is all zeros.
  */
-void *fwnode_get_mac_address(struct fwnode_handle *fwnode, char *addr, int alen)
+int fwnode_get_mac_address(struct fwnode_handle *fwnode, char *addr, int alen)
 {
-	char *res;
+	if (!fwnode_get_mac_addr(fwnode, "mac-address", addr, alen) ||
+	    !fwnode_get_mac_addr(fwnode, "local-mac-address", addr, alen) ||
+	    !fwnode_get_mac_addr(fwnode, "address", addr, alen))
+		return 0;
 
-	res = fwnode_get_mac_addr(fwnode, "mac-address", addr, alen);
-	if (res)
-		return res;
-
-	res = fwnode_get_mac_addr(fwnode, "local-mac-address", addr, alen);
-	if (res)
-		return res;
-
-	return fwnode_get_mac_addr(fwnode, "address", addr, alen);
+	return -ENOENT;
 }
 EXPORT_SYMBOL(fwnode_get_mac_address);
 
@@ -616,7 +617,7 @@ EXPORT_SYMBOL(fwnode_get_mac_address);
  * @addr:	Address of buffer to store the MAC in
  * @alen:	Length of the buffer pointed to by addr, should be ETH_ALEN
  */
-void *device_get_mac_address(struct device *dev, char *addr, int alen)
+int device_get_mac_address(struct device *dev, char *addr, int alen)
 {
 	return fwnode_get_mac_address(dev_fwnode(dev), addr, alen);
 }

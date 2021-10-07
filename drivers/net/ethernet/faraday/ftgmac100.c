@@ -182,10 +182,8 @@ static void ftgmac100_initial_mac(struct ftgmac100 *priv)
 	u8 mac[ETH_ALEN];
 	unsigned int m;
 	unsigned int l;
-	void *addr;
 
-	addr = device_get_mac_address(priv->dev, mac, ETH_ALEN);
-	if (addr) {
+	if (!device_get_mac_address(priv->dev, mac, ETH_ALEN)) {
 		eth_hw_addr_set(priv->netdev, mac);
 		dev_info(priv->dev, "Read MAC address %pM from device tree\n",
 			 mac);
