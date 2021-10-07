@@ -13,9 +13,10 @@ import tempfile, shutil # Handling test_tmpdir
 
 import itertools
 import json
+import os
 import signal
 import subprocess
-import os
+from typing import Iterable
 
 import kunit_config
 import kunit_parser
@@ -330,6 +331,45 @@ class KUnitParserTest(unittest.TestCase):
 				kunit_parser.TestStatus.SUCCESS,
 				result.status)
 			self.assertEqual('kunit-resource-test', result.test.subtests[0].name)
+
+def line_stream_from_strs(strs: Iterable[str]) -> kunit_parser.LineStream:
+	return kunit_parser.LineStream(enumerate(strs, start=1))
+
+class LineStreamTest(unittest.TestCase):
+
+	def test_basic(self):
+		stream = line_stream_from_strs(['hello', 'world'])
+
+		self.assertTrue(stream, msg='Should be more input')
+		self.assertEqual(stream.line_number(), 1)
+		self.assertEqual(stream.peek(), 'hello')
+		self.assertEqual(stream.pop(), 'hello')
+
+		self.assertTrue(stream, msg='Should be more input')
+		self.assertEqual(stream.line_number(), 2)
+		self.assertEqual(stream.peek(), 'world')
+		self.assertEqual(stream.pop(), 'world')
+
+		self.assertFalse(stream, msg='Should be no more input')
+		with self.assertRaisesRegex(ValueError, 'LineStream: going past EOF'):
+			stream.pop()
+
+	def test_is_lazy(self):
+		called_times = 0
+		def generator():
+			nonlocal called_times
+			for i in range(1,5):
+				called_times += 1
+				yield called_times, str(called_times)
+
+		stream = kunit_parser.LineStream(generator())
+		self.assertEqual(called_times, 0)
+
+		self.assertEqual(stream.pop(), '1')
+		self.assertEqual(called_times, 1)
+
+		self.assertEqual(stream.pop(), '2')
+		self.assertEqual(called_times, 2)
 
 class LinuxSourceTreeTest(unittest.TestCase):
 

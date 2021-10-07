@@ -168,42 +168,51 @@ class TestCounts:
 class LineStream:
 	"""
 	A class to represent the lines of kernel output.
-	Provides a peek()/pop() interface over an iterator of
+	Provides a lazy peek()/pop() interface over an iterator of
 	(line#, text).
 	"""
 	_lines: Iterator[Tuple[int, str]]
 	_next: Tuple[int, str]
+	_need_next: bool
 	_done: bool
 
 	def __init__(self, lines: Iterator[Tuple[int, str]]):
 		"""Creates a new LineStream that wraps the given iterator."""
 		self._lines = lines
 		self._done = False
+		self._need_next = True
 		self._next = (0, '')
-		self._get_next()
 
 	def _get_next(self) -> None:
-		"""Advances the LineSteam to the next line."""
+		"""Advances the LineSteam to the next line, if necessary."""
+		if not self._need_next:
+			return
 		try:
 			self._next = next(self._lines)
 		except StopIteration:
 			self._done = True
+		finally:
+			self._need_next = False
 
 	def peek(self) -> str:
 		"""Returns the current line, without advancing the LineStream.
 		"""
+		self._get_next()
 		return self._next[1]
 
 	def pop(self) -> str:
 		"""Returns the current line and advances the LineStream to
 		the next line.
 		"""
-		n = self._next
-		self._get_next()
-		return n[1]
+		s = self.peek()
+		if self._done:
+			raise ValueError(f'LineStream: going past EOF, last line was {s}')
+		self._need_next = True
+		return s
 
 	def __bool__(self) -> bool:
 		"""Returns True if stream has more lines."""
+		self._get_next()
 		return not self._done
 
 	# Only used by kunit_tool_test.py.
@@ -216,6 +225,7 @@ class LineStream:
 
 	def line_number(self) -> int:
 		"""Returns the line number of the current line."""
+		self._get_next()
 		return self._next[0]
 
 # Parsing helper methods:
