@@ -443,10 +443,7 @@ struct svc_version {
 	/* Need xprt with congestion control */
 	bool			vs_need_cong_ctrl;
 
-	/* Override dispatch function (e.g. when caching replies).
-	 * A return value of 0 means drop the request. 
-	 * vs_dispatch == NULL means use default dispatcher.
-	 */
+	/* Dispatch function */
 	int			(*vs_dispatch)(struct svc_rqst *, __be32 *);
 };
 

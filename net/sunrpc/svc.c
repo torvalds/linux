@@ -1186,45 +1186,6 @@ void svc_printk(struct svc_rqst *rqstp, const char *fmt, ...)
 static __printf(2,3) void svc_printk(struct svc_rqst *rqstp, const char *fmt, ...) {}
 #endif
 
-static int
-svc_generic_dispatch(struct svc_rqst *rqstp, __be32 *statp)
-{
-	struct kvec *argv = &rqstp->rq_arg.head[0];
-	struct kvec *resv = &rqstp->rq_res.head[0];
-	const struct svc_procedure *procp = rqstp->rq_procinfo;
-
-	/*
-	 * Decode arguments
-	 * XXX: why do we ignore the return value?
-	 */
-	if (procp->pc_decode &&
-	    !procp->pc_decode(rqstp, argv->iov_base)) {
-		*statp = rpc_garbage_args;
-		return 1;
-	}
-
-	*statp = procp->pc_func(rqstp);
-
-	if (*statp == rpc_drop_reply ||
-	    test_bit(RQ_DROPME, &rqstp->rq_flags))
-		return 0;
-
-	if (rqstp->rq_auth_stat != rpc_auth_ok)
-		return 1;
-
-	if (*statp != rpc_success)
-		return 1;
-
-	/* Encode reply */
-	if (procp->pc_encode &&
-	    !procp->pc_encode(rqstp, resv->iov_base + resv->iov_len)) {
-		dprintk("svc: failed to encode reply\n");
-		/* serv->sv_stats->rpcsystemerr++; */
-		*statp = rpc_system_err;
-	}
-	return 1;
-}
-
 __be32
 svc_generic_init_request(struct svc_rqst *rqstp,
 		const struct svc_program *progp,
@@ -1392,16 +1353,8 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 		svc_reserve_auth(rqstp, procp->pc_xdrressize<<2);
 
 	/* Call the function that processes the request. */
-	if (!process.dispatch) {
-		if (!svc_generic_dispatch(rqstp, statp))
-			goto release_dropit;
-		if (*statp == rpc_garbage_args)
-			goto err_garbage;
-	} else {
-		dprintk("svc: calling dispatcher\n");
-		if (!process.dispatch(rqstp, statp))
-			goto release_dropit; /* Release reply info */
-	}
+	if (!process.dispatch(rqstp, statp))
+		goto release_dropit;
 
 	if (rqstp->rq_auth_stat != rpc_auth_ok)
 		goto err_release_bad_auth;
