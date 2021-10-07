@@ -2733,7 +2733,7 @@ EXPORT_SYMBOL_GPL(pn533_finalize_setup);
 struct pn533 *pn53x_common_init(u32 device_type,
 				enum pn533_protocol_type protocol_type,
 				void *phy,
-				struct pn533_phy_ops *phy_ops,
+				const struct pn533_phy_ops *phy_ops,
 				struct pn533_frame_ops *fops,
 				struct device *dev)
 {
