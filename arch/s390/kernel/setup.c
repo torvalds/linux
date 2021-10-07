@@ -719,7 +719,7 @@ static void __init reserve_initrd(void)
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (!initrd_data.start || !initrd_data.size)
 		return;
-	initrd_start = initrd_data.start;
+	initrd_start = (unsigned long)__va(initrd_data.start);
 	initrd_end = initrd_start + initrd_data.size;
 	memblock_reserve(initrd_data.start, initrd_data.size);
 #endif
