@@ -42,7 +42,7 @@
 			/* Yes, all four strings *have to* be defined or things won't work. */
 			qcom,enabled-strings = <0 1 2 3>;
 			qcom,cabc;
-			qcom,eternal-pfet;
+			qcom,external-pfet;
 			status = "disabled";
 		};
 	};
