@@ -2,6 +2,7 @@
 #ifndef _INTEL_RINGBUFFER_H_
 #define _INTEL_RINGBUFFER_H_
 
+#include <asm/cacheflush.h>
 #include <drm/drm_util.h>
 
 #include <linux/hashtable.h>
