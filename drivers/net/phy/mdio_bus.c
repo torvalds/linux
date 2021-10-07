@@ -971,7 +971,13 @@ EXPORT_SYMBOL_GPL(mdiobus_modify_changed);
  */
 static int mdio_bus_match(struct device *dev, struct device_driver *drv)
 {
+	struct mdio_driver *mdiodrv = to_mdio_driver(drv);
 	struct mdio_device *mdio = to_mdio_device(dev);
+
+	/* Both the driver and device must type-match */
+	if (!(mdiodrv->mdiodrv.flags & MDIO_DEVICE_IS_PHY) !=
+	    !(mdio->flags & MDIO_DEVICE_FLAG_PHY))
+		return 0;
 
 	if (of_driver_match_device(dev, drv))
 		return 1;
