@@ -3033,41 +3033,6 @@ int spi_controller_resume(struct spi_controller *ctlr)
 }
 EXPORT_SYMBOL_GPL(spi_controller_resume);
 
-static int __spi_controller_match(struct device *dev, const void *data)
-{
-	struct spi_controller *ctlr;
-	const u16 *bus_num = data;
-
-	ctlr = container_of(dev, struct spi_controller, dev);
-	return ctlr->bus_num == *bus_num;
-}
-
-/**
- * spi_busnum_to_master - look up master associated with bus_num
- * @bus_num: the master's bus number
- * Context: can sleep
- *
- * This call may be used with devices that are registered after
- * arch init time.  It returns a refcounted pointer to the relevant
- * spi_controller (which the caller must release), or NULL if there is
- * no such master registered.
- *
- * Return: the SPI master structure on success, else NULL.
- */
-struct spi_controller *spi_busnum_to_master(u16 bus_num)
-{
-	struct device		*dev;
-	struct spi_controller	*ctlr = NULL;
-
-	dev = class_find_device(&spi_master_class, NULL, &bus_num,
-				__spi_controller_match);
-	if (dev)
-		ctlr = container_of(dev, struct spi_controller, dev);
-	/* reference got in class_find_device */
-	return ctlr;
-}
-EXPORT_SYMBOL_GPL(spi_busnum_to_master);
-
 /*-------------------------------------------------------------------------*/
 
 /* Core methods for SPI resource management */
