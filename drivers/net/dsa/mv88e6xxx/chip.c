@@ -12,6 +12,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/delay.h>
+#include <linux/dsa/mv88e6xxx.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/if_bridge.h>
@@ -1681,13 +1682,17 @@ static int mv88e6xxx_port_commit_pvid(struct mv88e6xxx_chip *chip, int port)
 {
 	struct dsa_port *dp = dsa_to_port(chip->ds, port);
 	struct mv88e6xxx_port *p = &chip->ports[port];
+	u16 pvid = MV88E6XXX_VID_STANDALONE;
 	bool drop_untagged = false;
-	u16 pvid = 0;
 	int err;
 
-	if (dp->bridge_dev && br_vlan_enabled(dp->bridge_dev)) {
-		pvid = p->bridge_pvid.vid;
-		drop_untagged = !p->bridge_pvid.valid;
+	if (dp->bridge_dev) {
+		if (br_vlan_enabled(dp->bridge_dev)) {
+			pvid = p->bridge_pvid.vid;
+			drop_untagged = !p->bridge_pvid.valid;
+		} else {
+			pvid = MV88E6XXX_VID_BRIDGED;
+		}
 	}
 
 	err = mv88e6xxx_port_set_pvid(chip, port, pvid);
@@ -1754,11 +1759,15 @@ static int mv88e6xxx_port_db_load_purge(struct mv88e6xxx_chip *chip, int port,
 	u16 fid;
 	int err;
 
-	/* Null VLAN ID corresponds to the port private database */
+	/* Ports have two private address databases: one for when the port is
+	 * standalone and one for when the port is under a bridge and the
+	 * 802.1Q mode is disabled. When the port is standalone, DSA wants its
+	 * address database to remain 100% empty, so we never load an ATU entry
+	 * into a standalone port's database. Therefore, translate the null
+	 * VLAN ID into the port's database used for VLAN-unaware bridging.
+	 */
 	if (vid == 0) {
-		err = mv88e6xxx_port_get_fid(chip, port, &fid);
-		if (err)
-			return err;
+		fid = MV88E6XXX_FID_BRIDGED;
 	} else {
 		err = mv88e6xxx_vtu_get(chip, vid, &vlan);
 		if (err)
@@ -2434,7 +2443,16 @@ static int mv88e6xxx_port_bridge_join(struct dsa_switch *ds, int port,
 	int err;
 
 	mv88e6xxx_reg_lock(chip);
+
 	err = mv88e6xxx_bridge_map(chip, br);
+	if (err)
+		goto unlock;
+
+	err = mv88e6xxx_port_commit_pvid(chip, port);
+	if (err)
+		goto unlock;
+
+unlock:
 	mv88e6xxx_reg_unlock(chip);
 
 	return err;
@@ -2444,11 +2462,20 @@ static void mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port,
 					struct net_device *br)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
+	int err;
 
 	mv88e6xxx_reg_lock(chip);
+
 	if (mv88e6xxx_bridge_map(chip, br) ||
 	    mv88e6xxx_port_vlan_map(chip, port))
 		dev_err(ds->dev, "failed to remap in-chip Port VLAN\n");
+
+	err = mv88e6xxx_port_commit_pvid(chip, port);
+	if (err)
+		dev_err(ds->dev,
+			"port %d failed to restore standalone pvid: %pe\n",
+			port, ERR_PTR(err));
+
 	mv88e6xxx_reg_unlock(chip);
 }
 
@@ -2894,6 +2921,20 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	if (err)
 		return err;
 
+	/* Associate MV88E6XXX_VID_BRIDGED with MV88E6XXX_FID_BRIDGED in the
+	 * ATU by virtue of the fact that mv88e6xxx_atu_new() will pick it as
+	 * the first free FID after MV88E6XXX_FID_STANDALONE. This will be used
+	 * as the private PVID on ports under a VLAN-unaware bridge.
+	 * Shared (DSA and CPU) ports must also be members of it, to translate
+	 * the VID from the DSA tag into MV88E6XXX_FID_BRIDGED, instead of
+	 * relying on their port default FID.
+	 */
+	err = mv88e6xxx_port_vlan_join(chip, port, MV88E6XXX_VID_BRIDGED,
+				       MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_UNTAGGED,
+				       false);
+	if (err)
+		return err;
+
 	if (chip->info->ops->port_set_jumbo_size) {
 		err = chip->info->ops->port_set_jumbo_size(chip, port, 10218);
 		if (err)
@@ -2966,7 +3007,7 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	 * database, and allow bidirectional communication between the
 	 * CPU and DSA port(s), and the other ports.
 	 */
-	err = mv88e6xxx_port_set_fid(chip, port, 0);
+	err = mv88e6xxx_port_set_fid(chip, port, MV88E6XXX_FID_STANDALONE);
 	if (err)
 		return err;
 
@@ -3156,6 +3197,10 @@ static int mv88e6xxx_setup(struct dsa_switch *ds)
 		}
 	}
 
+	err = mv88e6xxx_vtu_setup(chip);
+	if (err)
+		goto unlock;
+
 	/* Setup Switch Port Registers */
 	for (i = 0; i < mv88e6xxx_num_ports(chip); i++) {
 		if (dsa_is_unused_port(ds, i))
@@ -3182,10 +3227,6 @@ static int mv88e6xxx_setup(struct dsa_switch *ds)
 		goto unlock;
 
 	err = mv88e6xxx_phy_setup(chip);
-	if (err)
-		goto unlock;
-
-	err = mv88e6xxx_vtu_setup(chip);
 	if (err)
 		goto unlock;
 

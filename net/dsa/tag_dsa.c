@@ -45,6 +45,7 @@
  *   6    6       2        2      4    2       N
  */
 
+#include <linux/dsa/mv88e6xxx.h>
 #include <linux/etherdevice.h>
 #include <linux/list.h>
 #include <linux/slab.h>
@@ -164,16 +165,21 @@ static struct sk_buff *dsa_xmit_ll(struct sk_buff *skb, struct net_device *dev,
 			dsa_header[2] &= ~0x10;
 		}
 	} else {
+		struct net_device *br = dp->bridge_dev;
+		u16 vid;
+
+		vid = br ? MV88E6XXX_VID_BRIDGED : MV88E6XXX_VID_STANDALONE;
+
 		skb_push(skb, DSA_HLEN + extra);
 		dsa_alloc_etype_header(skb, DSA_HLEN + extra);
 
-		/* Construct untagged DSA tag. */
+		/* Construct DSA header from untagged frame. */
 		dsa_header = dsa_etype_header_pos_tx(skb) + extra;
 
 		dsa_header[0] = (cmd << 6) | tag_dev;
 		dsa_header[1] = tag_port << 3;
-		dsa_header[2] = 0;
-		dsa_header[3] = 0;
+		dsa_header[2] = vid >> 8;
+		dsa_header[3] = vid & 0xff;
 	}
 
 	return skb;
