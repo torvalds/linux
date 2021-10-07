@@ -210,6 +210,7 @@
 		FILE_READ_ATTRIBUTES | FILE_WRITE_ATTRIBUTES)
 
 #define SMB1_PROTO_NUMBER		cpu_to_le32(0x424d53ff)
+#define SMB_COM_NEGOTIATE		0x72
 
 #define SMB1_CLIENT_GUID_SIZE		(16)
 struct smb_hdr {

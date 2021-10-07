@@ -3071,7 +3071,7 @@ static void mv88e6xxx_teardown(struct dsa_switch *ds)
 {
 	mv88e6xxx_teardown_devlink_params(ds);
 	dsa_devlink_resources_unregister(ds);
-	mv88e6xxx_teardown_devlink_regions(ds);
+	mv88e6xxx_teardown_devlink_regions_global(ds);
 }
 
 static int mv88e6xxx_setup(struct dsa_switch *ds)
@@ -3215,7 +3215,7 @@ unlock:
 	if (err)
 		goto out_resources;
 
-	err = mv88e6xxx_setup_devlink_regions(ds);
+	err = mv88e6xxx_setup_devlink_regions_global(ds);
 	if (err)
 		goto out_params;
 
@@ -3227,6 +3227,16 @@ out_resources:
 	dsa_devlink_resources_unregister(ds);
 
 	return err;
+}
+
+static int mv88e6xxx_port_setup(struct dsa_switch *ds, int port)
+{
+	return mv88e6xxx_setup_devlink_regions_port(ds, port);
+}
+
+static void mv88e6xxx_port_teardown(struct dsa_switch *ds, int port)
+{
+	mv88e6xxx_teardown_devlink_regions_port(ds, port);
 }
 
 /* prod_id for switch families which do not have a PHY model number */
@@ -6116,6 +6126,8 @@ static const struct dsa_switch_ops mv88e6xxx_switch_ops = {
 	.change_tag_protocol	= mv88e6xxx_change_tag_protocol,
 	.setup			= mv88e6xxx_setup,
 	.teardown		= mv88e6xxx_teardown,
+	.port_setup		= mv88e6xxx_port_setup,
+	.port_teardown		= mv88e6xxx_port_teardown,
 	.phylink_validate	= mv88e6xxx_validate,
 	.phylink_mac_link_state	= mv88e6xxx_serdes_pcs_get_state,
 	.phylink_mac_config	= mv88e6xxx_mac_config,
@@ -6389,7 +6401,12 @@ out:
 static void mv88e6xxx_remove(struct mdio_device *mdiodev)
 {
 	struct dsa_switch *ds = dev_get_drvdata(&mdiodev->dev);
-	struct mv88e6xxx_chip *chip = ds->priv;
+	struct mv88e6xxx_chip *chip;
+
+	if (!ds)
+		return;
+
+	chip = ds->priv;
 
 	if (chip->info->ptp_support) {
 		mv88e6xxx_hwtstamp_free(chip);
@@ -6410,6 +6427,20 @@ static void mv88e6xxx_remove(struct mdio_device *mdiodev)
 		mv88e6xxx_g1_irq_free(chip);
 	else
 		mv88e6xxx_irq_poll_free(chip);
+
+	dev_set_drvdata(&mdiodev->dev, NULL);
+}
+
+static void mv88e6xxx_shutdown(struct mdio_device *mdiodev)
+{
+	struct dsa_switch *ds = dev_get_drvdata(&mdiodev->dev);
+
+	if (!ds)
+		return;
+
+	dsa_switch_shutdown(ds);
+
+	dev_set_drvdata(&mdiodev->dev, NULL);
 }
 
 static const struct of_device_id mv88e6xxx_of_match[] = {
@@ -6433,6 +6464,7 @@ MODULE_DEVICE_TABLE(of, mv88e6xxx_of_match);
 static struct mdio_driver mv88e6xxx_driver = {
 	.probe	= mv88e6xxx_probe,
 	.remove = mv88e6xxx_remove,
+	.shutdown = mv88e6xxx_shutdown,
 	.mdiodrv.driver = {
 		.name = "mv88e6085",
 		.of_match_table = mv88e6xxx_of_match,
