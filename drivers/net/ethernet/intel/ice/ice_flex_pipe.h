@@ -118,6 +118,5 @@ void ice_free_seg(struct ice_hw *hw);
 void ice_fill_blk_tbls(struct ice_hw *hw);
 void ice_clear_hw_tbls(struct ice_hw *hw);
 void ice_free_hw_tbls(struct ice_hw *hw);
-int
-ice_rem_prof(struct ice_hw *hw, enum ice_block blk, u64 id);
+int ice_rem_prof(struct ice_hw *hw, enum ice_block blk, u64 id);
 #endif /* _ICE_FLEX_PIPE_H_ */

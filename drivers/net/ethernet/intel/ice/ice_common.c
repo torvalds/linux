@@ -183,8 +183,8 @@ ice_aq_get_phy_caps(struct ice_port_info *pi, bool qual_mods, u8 report_mode,
 	struct ice_aqc_get_phy_caps *cmd;
 	u16 pcaps_size = sizeof(*pcaps);
 	struct ice_aq_desc desc;
-	int status;
 	struct ice_hw *hw;
+	int status;
 
 	cmd = &desc.params.get_phy;
 
@@ -428,9 +428,9 @@ ice_aq_get_link_info(struct ice_port_info *pi, bool ena_lse,
 	struct ice_fc_info *hw_fc_info;
 	bool tx_pause, rx_pause;
 	struct ice_aq_desc desc;
-	int status;
 	struct ice_hw *hw;
 	u16 cmd_flags;
+	int status;
 
 	if (!pi)
 		return -EINVAL;
@@ -668,8 +668,8 @@ static void ice_cleanup_fltr_mgmt_struct(struct ice_hw *hw)
 static int ice_get_fw_log_cfg(struct ice_hw *hw)
 {
 	struct ice_aq_desc desc;
-	int status;
 	__le16 *config;
+	int status;
 	u16 size;
 
 	size = sizeof(*config) * ICE_AQC_FW_LOG_ID_MAX;
@@ -740,12 +740,12 @@ static int ice_get_fw_log_cfg(struct ice_hw *hw)
 static int ice_cfg_fw_log(struct ice_hw *hw, bool enable)
 {
 	struct ice_aqc_fw_logging *cmd;
-	int status = 0;
 	u16 i, chgs = 0, len = 0;
 	struct ice_aq_desc desc;
 	__le16 *data = NULL;
 	u8 actv_evnts = 0;
 	void *buf = NULL;
+	int status = 0;
 
 	if (!hw->fw_log.cq_en && !hw->fw_log.uart_en)
 		return 0;
@@ -906,9 +906,9 @@ static void ice_get_itr_intrl_gran(struct ice_hw *hw)
 int ice_init_hw(struct ice_hw *hw)
 {
 	struct ice_aqc_get_phy_caps_data *pcaps;
-	int status;
 	u16 mac_buf_len;
 	void *mac_buf;
+	int status;
 
 	/* Set MAC type based on DeviceID */
 	status = ice_set_mac_type(hw);
@@ -1457,11 +1457,11 @@ ice_sq_send_cmd_retry(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 		      struct ice_sq_cd *cd)
 {
 	struct ice_aq_desc desc_cpy;
-	int status;
 	bool is_cmd_for_retry;
 	u8 *buf_cpy = NULL;
 	u8 idx = 0;
 	u16 opcode;
+	int status;
 
 	opcode = le16_to_cpu(desc->opcode);
 	is_cmd_for_retry = ice_should_retry_sq_send_cmd(opcode);
@@ -1820,16 +1820,15 @@ ice_acquire_res_exit:
  */
 void ice_release_res(struct ice_hw *hw, enum ice_aq_res_ids res)
 {
-	int status;
 	u32 total_delay = 0;
+	int status;
 
 	status = ice_aq_release_res(hw, res, 0, NULL);
 
 	/* there are some rare cases when trying to release the resource
 	 * results in an admin queue timeout, so handle them correctly
 	 */
-	while ((status == -EIO) &&
-	       (total_delay < hw->adminq.sq_cmd_timeout)) {
+	while ((status == -EIO) && (total_delay < hw->adminq.sq_cmd_timeout)) {
 		mdelay(1);
 		status = ice_aq_release_res(hw, res, 0, NULL);
 		total_delay++;
@@ -1884,8 +1883,8 @@ int
 ice_alloc_hw_res(struct ice_hw *hw, u16 type, u16 num, bool btm, u16 *res)
 {
 	struct ice_aqc_alloc_free_res_elem *buf;
-	int status;
 	u16 buf_len;
+	int status;
 
 	buf_len = struct_size(buf, elem, num);
 	buf = kzalloc(buf_len, GFP_KERNEL);
@@ -1921,8 +1920,8 @@ ice_alloc_res_exit:
 int ice_free_hw_res(struct ice_hw *hw, u16 type, u16 num, u16 *res)
 {
 	struct ice_aqc_alloc_free_res_elem *buf;
-	int status;
 	u16 buf_len;
+	int status;
 
 	buf_len = struct_size(buf, elem, num);
 	buf = kzalloc(buf_len, GFP_KERNEL);
@@ -2518,9 +2517,9 @@ ice_aq_list_caps(struct ice_hw *hw, void *buf, u16 buf_size, u32 *cap_count,
 int
 ice_discover_dev_caps(struct ice_hw *hw, struct ice_hw_dev_caps *dev_caps)
 {
-	int status;
 	u32 cap_count = 0;
 	void *cbuf;
+	int status;
 
 	cbuf = kzalloc(ICE_AQ_MAX_BUF_LEN, GFP_KERNEL);
 	if (!cbuf)
@@ -2552,9 +2551,9 @@ ice_discover_dev_caps(struct ice_hw *hw, struct ice_hw_dev_caps *dev_caps)
 static int
 ice_discover_func_caps(struct ice_hw *hw, struct ice_hw_func_caps *func_caps)
 {
-	int status;
 	u32 cap_count = 0;
 	void *cbuf;
+	int status;
 
 	cbuf = kzalloc(ICE_AQ_MAX_BUF_LEN, GFP_KERNEL);
 	if (!cbuf)
@@ -3120,8 +3119,8 @@ ice_set_fc(struct ice_port_info *pi, u8 *aq_failures, bool ena_auto_link_update)
 {
 	struct ice_aqc_set_phy_cfg_data cfg = { 0 };
 	struct ice_aqc_get_phy_caps_data *pcaps;
-	int status;
 	struct ice_hw *hw;
+	int status;
 
 	if (!pi || !aq_failures)
 		return -EINVAL;
@@ -3261,8 +3260,8 @@ ice_cfg_phy_fec(struct ice_port_info *pi, struct ice_aqc_set_phy_cfg_data *cfg,
 		enum ice_fec_mode fec)
 {
 	struct ice_aqc_get_phy_caps_data *pcaps;
-	int status;
 	struct ice_hw *hw;
+	int status;
 
 	if (!pi || !cfg)
 		return -EINVAL;
@@ -3652,9 +3651,9 @@ ice_aq_set_rss_lut(struct ice_hw *hw, struct ice_aq_get_set_rss_lut_params *set_
  *
  * get (0x0B04) or set (0x0B02) the RSS key per VSI
  */
-static int __ice_aq_get_set_rss_key(struct ice_hw *hw, u16 vsi_id,
-				    struct ice_aqc_get_set_rss_keys *key,
-				    bool set)
+static int
+__ice_aq_get_set_rss_key(struct ice_hw *hw, u16 vsi_id,
+			 struct ice_aqc_get_set_rss_keys *key, bool set)
 {
 	struct ice_aqc_get_set_rss_key *cmd_resp;
 	u16 key_size = sizeof(*key);
@@ -3793,8 +3792,8 @@ ice_aq_dis_lan_txq(struct ice_hw *hw, u8 num_qgrps,
 	struct ice_aqc_dis_txq_item *item;
 	struct ice_aqc_dis_txqs *cmd;
 	struct ice_aq_desc desc;
-	int status;
 	u16 i, sz = 0;
+	int status;
 
 	cmd = &desc.params.dis_txqs;
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_dis_txqs);
@@ -4189,8 +4188,8 @@ ice_ena_vsi_txq(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u16 q_handle,
 	struct ice_aqc_txsched_elem_data node = { 0 };
 	struct ice_sched_node *parent;
 	struct ice_q_ctx *q_ctx;
-	int status;
 	struct ice_hw *hw;
+	int status;
 
 	if (!pi || pi->port_state != ICE_SCHED_PORT_STATE_READY)
 		return -EIO;
@@ -4292,9 +4291,9 @@ ice_dis_vsi_txq(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u8 num_queues,
 		enum ice_disq_rst_src rst_src, u16 vmvf_num,
 		struct ice_sq_cd *cd)
 {
-	int status = -ENOENT;
 	struct ice_aqc_dis_txq_item *qg_list;
 	struct ice_q_ctx *q_ctx;
+	int status = -ENOENT;
 	struct ice_hw *hw;
 	u16 i, buf_size;
 
@@ -4446,9 +4445,9 @@ ice_ena_vsi_rdma_qset(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
 	struct ice_aqc_txsched_elem_data node = { 0 };
 	struct ice_aqc_add_rdma_qset_data *buf;
 	struct ice_sched_node *parent;
-	int status;
 	struct ice_hw *hw;
 	u16 i, buf_size;
+	int status;
 	int ret;
 
 	if (!pi || pi->port_state != ICE_SCHED_PORT_STATE_READY)
@@ -4523,8 +4522,8 @@ ice_dis_vsi_rdma_qset(struct ice_port_info *pi, u16 count, u32 *qset_teid,
 		      u16 *q_id)
 {
 	struct ice_aqc_dis_txq_item *qg_list;
-	int status = 0;
 	struct ice_hw *hw;
+	int status = 0;
 	u16 qg_size;
 	int i;
 

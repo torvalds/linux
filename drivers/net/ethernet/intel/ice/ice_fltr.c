@@ -109,8 +109,7 @@ ice_fltr_set_vsi_promisc(struct ice_hw *hw, u16 vsi_handle, u8 promisc_mask,
  * @vsi: pointer to VSI struct
  * @list: list of filters
  */
-int
-ice_fltr_add_mac_list(struct ice_vsi *vsi, struct list_head *list)
+int ice_fltr_add_mac_list(struct ice_vsi *vsi, struct list_head *list)
 {
 	return ice_add_mac(&vsi->back->hw, list);
 }
@@ -120,8 +119,7 @@ ice_fltr_add_mac_list(struct ice_vsi *vsi, struct list_head *list)
  * @vsi: pointer to VSI struct
  * @list: list of filters
  */
-int
-ice_fltr_remove_mac_list(struct ice_vsi *vsi, struct list_head *list)
+int ice_fltr_remove_mac_list(struct ice_vsi *vsi, struct list_head *list)
 {
 	return ice_remove_mac(&vsi->back->hw, list);
 }
@@ -131,8 +129,7 @@ ice_fltr_remove_mac_list(struct ice_vsi *vsi, struct list_head *list)
  * @vsi: pointer to VSI struct
  * @list: list of filters
  */
-static int
-ice_fltr_add_vlan_list(struct ice_vsi *vsi, struct list_head *list)
+static int ice_fltr_add_vlan_list(struct ice_vsi *vsi, struct list_head *list)
 {
 	return ice_add_vlan(&vsi->back->hw, list);
 }
@@ -153,8 +150,7 @@ ice_fltr_remove_vlan_list(struct ice_vsi *vsi, struct list_head *list)
  * @vsi: pointer to VSI struct
  * @list: list of filters
  */
-static int
-ice_fltr_add_eth_list(struct ice_vsi *vsi, struct list_head *list)
+static int ice_fltr_add_eth_list(struct ice_vsi *vsi, struct list_head *list)
 {
 	return ice_add_eth_mac(&vsi->back->hw, list);
 }
@@ -164,8 +160,7 @@ ice_fltr_add_eth_list(struct ice_vsi *vsi, struct list_head *list)
  * @vsi: pointer to VSI struct
  * @list: list of filters
  */
-static int
-ice_fltr_remove_eth_list(struct ice_vsi *vsi, struct list_head *list)
+static int ice_fltr_remove_eth_list(struct ice_vsi *vsi, struct list_head *list)
 {
 	return ice_remove_eth_mac(&vsi->back->hw, list);
 }
@@ -270,8 +265,8 @@ ice_fltr_prepare_mac(struct ice_vsi *vsi, const u8 *mac,
 		     enum ice_sw_fwd_act_type action,
 		     int (*mac_action)(struct ice_vsi *, struct list_head *))
 {
-	int result;
 	LIST_HEAD(tmp_list);
+	int result;
 
 	if (ice_fltr_add_mac_to_list(vsi, &tmp_list, mac, action)) {
 		ice_fltr_free_list(ice_pf_to_dev(vsi->back), &tmp_list);
@@ -297,8 +292,8 @@ ice_fltr_prepare_mac_and_broadcast(struct ice_vsi *vsi, const u8 *mac,
 				   (struct ice_vsi *, struct list_head *))
 {
 	u8 broadcast[ETH_ALEN];
-	int result;
 	LIST_HEAD(tmp_list);
+	int result;
 
 	eth_broadcast_addr(broadcast);
 	if (ice_fltr_add_mac_to_list(vsi, &tmp_list, mac, action) ||
@@ -324,8 +319,8 @@ ice_fltr_prepare_vlan(struct ice_vsi *vsi, u16 vlan_id,
 		      enum ice_sw_fwd_act_type action,
 		      int (*vlan_action)(struct ice_vsi *, struct list_head *))
 {
-	int result;
 	LIST_HEAD(tmp_list);
+	int result;
 
 	if (ice_fltr_add_vlan_to_list(vsi, &tmp_list, vlan_id, action))
 		return -ENOMEM;
@@ -348,8 +343,8 @@ ice_fltr_prepare_eth(struct ice_vsi *vsi, u16 ethertype, u16 flag,
 		     enum ice_sw_fwd_act_type action,
 		     int (*eth_action)(struct ice_vsi *, struct list_head *))
 {
-	int result;
 	LIST_HEAD(tmp_list);
+	int result;
 
 	if (ice_fltr_add_eth_to_list(vsi, &tmp_list, ethertype, flag, action))
 		return -ENOMEM;
@@ -466,8 +461,8 @@ ice_fltr_update_rule_flags(struct ice_hw *hw, u16 rule_id, u16 recipe_id,
 			   u32 act, u16 type, u16 src, u32 new_flags)
 {
 	struct ice_aqc_sw_rules_elem *s_rule;
-	int err;
 	u32 flags_mask;
+	int err;
 
 	s_rule = kzalloc(ICE_SW_RULE_RX_TX_NO_HDR_SIZE, GFP_KERNEL);
 	if (!s_rule)

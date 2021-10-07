@@ -295,8 +295,7 @@ ice_cfg_cq_regs(struct ice_hw *hw, struct ice_ctl_q_ring *ring, u16 num_entries)
  *
  * Configure base address and length registers for the transmit queue
  */
-static int
-ice_cfg_sq_regs(struct ice_hw *hw, struct ice_ctl_q_info *cq)
+static int ice_cfg_sq_regs(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 {
 	return ice_cfg_cq_regs(hw, &cq->sq, cq->num_sq_entries);
 }
@@ -308,8 +307,7 @@ ice_cfg_sq_regs(struct ice_hw *hw, struct ice_ctl_q_info *cq)
  *
  * Configure base address and length registers for the receive (event queue)
  */
-static int
-ice_cfg_rq_regs(struct ice_hw *hw, struct ice_ctl_q_info *cq)
+static int ice_cfg_rq_regs(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 {
 	int status;
 
@@ -474,8 +472,7 @@ init_ctrlq_exit:
  *
  * The main shutdown routine for the Control Transmit Queue
  */
-static int
-ice_shutdown_sq(struct ice_hw *hw, struct ice_ctl_q_info *cq)
+static int ice_shutdown_sq(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 {
 	int ret_code = 0;
 
@@ -541,8 +538,7 @@ static bool ice_aq_ver_check(struct ice_hw *hw)
  *
  * The main shutdown routine for the Control Receive Queue
  */
-static int
-ice_shutdown_rq(struct ice_hw *hw, struct ice_ctl_q_info *cq)
+static int ice_shutdown_rq(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 {
 	int ret_code = 0;
 
@@ -753,8 +749,8 @@ void ice_shutdown_all_ctrlq(struct ice_hw *hw)
  */
 int ice_init_all_ctrlq(struct ice_hw *hw)
 {
-	int status;
 	u32 retry = 0;
+	int status;
 
 	/* Init FW admin queue */
 	do {
@@ -970,9 +966,9 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 	struct ice_dma_mem *dma_buf = NULL;
 	struct ice_aq_desc *desc_on_ring;
 	bool cmd_completed = false;
-	int status = 0;
 	struct ice_sq_cd *details;
 	u32 total_delay = 0;
+	int status = 0;
 	u16 retval = 0;
 	u32 val = 0;
 
@@ -1160,9 +1156,9 @@ ice_clean_rq_elem(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 {
 	u16 ntc = cq->rq.next_to_clean;
 	enum ice_aq_err rq_last_status;
-	int ret_code = 0;
 	struct ice_aq_desc *desc;
 	struct ice_dma_mem *bi;
+	int ret_code = 0;
 	u16 desc_idx;
 	u16 datalen;
 	u16 flags;

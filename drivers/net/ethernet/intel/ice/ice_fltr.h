@@ -26,13 +26,11 @@ ice_fltr_add_mac(struct ice_vsi *vsi, const u8 *mac,
 int
 ice_fltr_add_mac_and_broadcast(struct ice_vsi *vsi, const u8 *mac,
 			       enum ice_sw_fwd_act_type action);
-int
-ice_fltr_add_mac_list(struct ice_vsi *vsi, struct list_head *list);
+int ice_fltr_add_mac_list(struct ice_vsi *vsi, struct list_head *list);
 int
 ice_fltr_remove_mac(struct ice_vsi *vsi, const u8 *mac,
 		    enum ice_sw_fwd_act_type action);
-int
-ice_fltr_remove_mac_list(struct ice_vsi *vsi, struct list_head *list);
+int ice_fltr_remove_mac_list(struct ice_vsi *vsi, struct list_head *list);
 
 int
 ice_fltr_add_vlan(struct ice_vsi *vsi, u16 vid,

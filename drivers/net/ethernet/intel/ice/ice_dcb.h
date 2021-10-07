@@ -152,8 +152,7 @@ ice_query_port_ets(struct ice_port_info *pi,
 int
 ice_aq_stop_lldp(struct ice_hw *hw, bool shutdown_lldp_agent, bool persist,
 		 struct ice_sq_cd *cd);
-int
-ice_aq_start_lldp(struct ice_hw *hw, bool persist, struct ice_sq_cd *cd);
+int ice_aq_start_lldp(struct ice_hw *hw, bool persist, struct ice_sq_cd *cd);
 int
 ice_aq_start_stop_dcbx(struct ice_hw *hw, bool start_dcbx_agent,
 		       bool *dcbx_agent_status, struct ice_sq_cd *cd);

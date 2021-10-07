@@ -120,6 +120,5 @@ int ice_cfg_rl_burst_size(struct ice_hw *hw, u32 bytes);
 void ice_sched_replay_agg_vsi_preinit(struct ice_hw *hw);
 void ice_sched_replay_agg(struct ice_hw *hw);
 int ice_replay_vsi_agg(struct ice_hw *hw, u16 vsi_handle);
-int
-ice_sched_replay_q_bw(struct ice_port_info *pi, struct ice_q_ctx *q_ctx);
+int ice_sched_replay_q_bw(struct ice_port_info *pi, struct ice_q_ctx *q_ctx);
 #endif /* _ICE_SCHED_H_ */

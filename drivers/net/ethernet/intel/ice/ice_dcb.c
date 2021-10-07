@@ -116,8 +116,7 @@ ice_aq_stop_lldp(struct ice_hw *hw, bool shutdown_lldp_agent, bool persist,
  *
  * Start the embedded LLDP Agent on all ports. (0x0A06)
  */
-int
-ice_aq_start_lldp(struct ice_hw *hw, bool persist, struct ice_sq_cd *cd)
+int ice_aq_start_lldp(struct ice_hw *hw, bool persist, struct ice_sq_cd *cd)
 {
 	struct ice_aqc_lldp_start *cmd;
 	struct ice_aq_desc desc;
@@ -597,12 +596,11 @@ ice_parse_org_tlv(struct ice_lldp_org_tlv *tlv, struct ice_dcbx_cfg *dcbcfg)
  *
  * Parse DCB configuration from the LLDPDU
  */
-static int
-ice_lldp_to_dcb_cfg(u8 *lldpmib, struct ice_dcbx_cfg *dcbcfg)
+static int ice_lldp_to_dcb_cfg(u8 *lldpmib, struct ice_dcbx_cfg *dcbcfg)
 {
 	struct ice_lldp_org_tlv *tlv;
-	int ret = 0;
 	u16 offset = 0;
+	int ret = 0;
 	u16 typelen;
 	u16 type;
 	u16 len;
@@ -652,8 +650,8 @@ int
 ice_aq_get_dcb_cfg(struct ice_hw *hw, u8 mib_type, u8 bridgetype,
 		   struct ice_dcbx_cfg *dcbcfg)
 {
-	int ret;
 	u8 *lldpmib;
+	int ret;
 
 	/* Allocate the LLDPDU */
 	lldpmib = devm_kzalloc(ice_hw_to_dev(hw), ICE_LLDPDU_SIZE, GFP_KERNEL);
@@ -691,9 +689,9 @@ ice_aq_start_stop_dcbx(struct ice_hw *hw, bool start_dcbx_agent,
 		       bool *dcbx_agent_status, struct ice_sq_cd *cd)
 {
 	struct ice_aqc_lldp_stop_start_specific_agent *cmd;
-	int status;
 	struct ice_aq_desc desc;
 	u16 opcode;
+	int status;
 
 	cmd = &desc.params.lldp_agent_ctrl;
 
@@ -902,8 +900,7 @@ ice_cee_to_dcb_cfg(struct ice_aqc_get_cee_dcb_cfg_resp *cee_cfg,
  *
  * Get IEEE or CEE mode DCB configuration from the Firmware
  */
-static int
-ice_get_ieee_or_cee_dcb_cfg(struct ice_port_info *pi, u8 dcbx_mode)
+static int ice_get_ieee_or_cee_dcb_cfg(struct ice_port_info *pi, u8 dcbx_mode)
 {
 	struct ice_dcbx_cfg *dcbx_cfg = NULL;
 	int ret;
@@ -1472,9 +1469,9 @@ int ice_set_dcb_cfg(struct ice_port_info *pi)
 {
 	u8 mib_type, *lldpmib = NULL;
 	struct ice_dcbx_cfg *dcbcfg;
-	int ret;
 	struct ice_hw *hw;
 	u16 miblen;
+	int ret;
 
 	if (!pi)
 		return -EINVAL;
@@ -1542,8 +1539,8 @@ ice_update_port_tc_tree_cfg(struct ice_port_info *pi,
 {
 	struct ice_sched_node *node, *tc_node;
 	struct ice_aqc_txsched_elem_data elem;
-	int status = 0;
 	u32 teid1, teid2;
+	int status = 0;
 	u8 i, j;
 
 	if (!pi)

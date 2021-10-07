@@ -40,8 +40,8 @@ ice_send_package_data(struct pldmfw *context, const u8 *data, u16 length)
 	struct device *dev = context->dev;
 	struct ice_pf *pf = priv->pf;
 	struct ice_hw *hw = &pf->hw;
-	int status;
 	u8 *package_data;
+	int status;
 
 	dev_dbg(dev, "Sending PLDM record package data to firmware\n");
 
@@ -55,8 +55,7 @@ ice_send_package_data(struct pldmfw *context, const u8 *data, u16 length)
 
 	if (status) {
 		dev_err(dev, "Failed to send record package data to firmware, err %d aq_err %s\n",
-			status,
-			ice_aq_str(hw->adminq.sq_last_status));
+			status, ice_aq_str(hw->adminq.sq_last_status));
 		NL_SET_ERR_MSG_MOD(extack, "Failed to record package data to firmware");
 		return -EIO;
 	}
@@ -203,8 +202,8 @@ ice_send_component_table(struct pldmfw *context, struct pldmfw_component *compon
 	struct device *dev = context->dev;
 	struct ice_pf *pf = priv->pf;
 	struct ice_hw *hw = &pf->hw;
-	int status;
 	size_t length;
+	int status;
 
 	switch (component->identifier) {
 	case NVM_COMP_ID_OROM:
@@ -241,8 +240,7 @@ ice_send_component_table(struct pldmfw *context, struct pldmfw_component *compon
 
 	if (status) {
 		dev_err(dev, "Failed to transfer component table to firmware, err %d aq_err %s\n",
-			status,
-			ice_aq_str(hw->adminq.sq_last_status));
+			status, ice_aq_str(hw->adminq.sq_last_status));
 		NL_SET_ERR_MSG_MOD(extack, "Failed to transfer component table to firmware");
 		return -EIO;
 	}
@@ -277,8 +275,8 @@ ice_write_one_nvm_block(struct ice_pf *pf, u16 module, u32 offset,
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_rq_event_info event;
 	struct ice_hw *hw = &pf->hw;
-	int status;
 	u32 completion_offset;
+	int status;
 	int err;
 
 	memset(&event, 0, sizeof(event));
@@ -524,8 +522,8 @@ static int ice_switch_flash_banks(struct ice_pf *pf, u8 activate_flags,
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_rq_event_info event;
 	struct ice_hw *hw = &pf->hw;
-	int status;
 	u16 completion_retval;
+	int status;
 	int err;
 
 	memset(&event, 0, sizeof(event));
@@ -533,8 +531,7 @@ static int ice_switch_flash_banks(struct ice_pf *pf, u8 activate_flags,
 	status = ice_nvm_write_activate(hw, activate_flags);
 	if (status) {
 		dev_err(dev, "Failed to switch active flash banks, err %d aq_err %s\n",
-			status,
-			ice_aq_str(hw->adminq.sq_last_status));
+			status, ice_aq_str(hw->adminq.sq_last_status));
 		NL_SET_ERR_MSG_MOD(extack, "Failed to switch active flash banks");
 		return -EIO;
 	}
@@ -695,8 +692,7 @@ int ice_flash_pldm_image(struct ice_pf *pf, const struct firmware *fw,
 	status = ice_acquire_nvm(hw, ICE_RES_WRITE);
 	if (status) {
 		dev_err(dev, "Failed to acquire device flash lock, err %d aq_err %s\n",
-			status,
-			ice_aq_str(hw->adminq.sq_last_status));
+			status, ice_aq_str(hw->adminq.sq_last_status));
 		NL_SET_ERR_MSG_MOD(extack, "Failed to acquire device flash lock");
 		return -EIO;
 	}
@@ -736,8 +732,8 @@ int ice_check_for_pending_update(struct ice_pf *pf, const char *component,
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_hw_dev_caps *dev_caps;
 	struct ice_hw *hw = &pf->hw;
-	int status;
 	u8 pending = 0;
+	int status;
 	int err;
 
 	dev_caps = kzalloc(sizeof(*dev_caps), GFP_KERNEL);

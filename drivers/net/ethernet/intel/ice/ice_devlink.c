@@ -762,9 +762,9 @@ static int ice_devlink_nvm_snapshot(struct devlink *devlink,
 	struct ice_pf *pf = devlink_priv(devlink);
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_hw *hw = &pf->hw;
-	int status;
 	void *nvm_data;
 	u32 nvm_size;
+	int status;
 
 	nvm_size = hw->flash.flash_size;
 	nvm_data = vzalloc(nvm_size);
@@ -819,8 +819,8 @@ ice_devlink_devcaps_snapshot(struct devlink *devlink,
 	struct ice_pf *pf = devlink_priv(devlink);
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_hw *hw = &pf->hw;
-	int status;
 	void *devcaps;
+	int status;
 
 	devcaps = vzalloc(ICE_AQ_MAX_BUF_LEN);
 	if (!devcaps)

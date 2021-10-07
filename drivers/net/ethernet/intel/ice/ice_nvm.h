@@ -12,8 +12,7 @@ struct ice_orom_civd_info {
 	__le16 combo_name[32];	/* Unicode string representing the Combo Image version */
 } __packed;
 
-int
-ice_acquire_nvm(struct ice_hw *hw, enum ice_aq_res_access_type access);
+int ice_acquire_nvm(struct ice_hw *hw, enum ice_aq_res_access_type access);
 void ice_release_nvm(struct ice_hw *hw);
 int
 ice_read_flat_nvm(struct ice_hw *hw, u32 offset, u32 *length, u8 *data,
@@ -21,14 +20,11 @@ ice_read_flat_nvm(struct ice_hw *hw, u32 offset, u32 *length, u8 *data,
 int
 ice_get_pfa_module_tlv(struct ice_hw *hw, u16 *module_tlv, u16 *module_tlv_len,
 		       u16 module_type);
-int
-ice_get_inactive_orom_ver(struct ice_hw *hw, struct ice_orom_info *orom);
-int
-ice_get_inactive_nvm_ver(struct ice_hw *hw, struct ice_nvm_info *nvm);
+int ice_get_inactive_orom_ver(struct ice_hw *hw, struct ice_orom_info *orom);
+int ice_get_inactive_nvm_ver(struct ice_hw *hw, struct ice_nvm_info *nvm);
 int
 ice_get_inactive_netlist_ver(struct ice_hw *hw, struct ice_netlist_info *netlist);
-int
-ice_read_pba_string(struct ice_hw *hw, u8 *pba_num, u32 pba_num_size);
+int ice_read_pba_string(struct ice_hw *hw, u8 *pba_num, u32 pba_num_size);
 int ice_init_nvm(struct ice_hw *hw);
 int ice_read_sr_word(struct ice_hw *hw, u16 offset, u16 *data);
 int

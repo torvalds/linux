@@ -330,24 +330,19 @@ ice_add_adv_rule(struct ice_hw *hw, struct ice_adv_lkup_elem *lkups,
 		 u16 lkups_cnt, struct ice_adv_rule_info *rinfo,
 		 struct ice_rule_query_data *added_entry);
 int ice_update_sw_rule_bridge_mode(struct ice_hw *hw);
+int ice_add_vlan(struct ice_hw *hw, struct list_head *m_list);
+int ice_remove_vlan(struct ice_hw *hw, struct list_head *v_list);
 int ice_add_mac(struct ice_hw *hw, struct list_head *m_lst);
 int ice_remove_mac(struct ice_hw *hw, struct list_head *m_lst);
-int
-ice_add_eth_mac(struct ice_hw *hw, struct list_head *em_list);
-int
-ice_remove_eth_mac(struct ice_hw *hw, struct list_head *em_list);
-int
-ice_cfg_rdma_fltr(struct ice_hw *hw, u16 vsi_handle, bool enable);
 bool ice_mac_fltr_exist(struct ice_hw *hw, u8 *mac, u16 vsi_handle);
 bool ice_vlan_fltr_exist(struct ice_hw *hw, u16 vlan_id, u16 vsi_handle);
+int ice_add_eth_mac(struct ice_hw *hw, struct list_head *em_list);
+int ice_remove_eth_mac(struct ice_hw *hw, struct list_head *em_list);
+int ice_cfg_rdma_fltr(struct ice_hw *hw, u16 vsi_handle, bool enable);
 void ice_remove_vsi_fltr(struct ice_hw *hw, u16 vsi_handle);
-int
-ice_add_vlan(struct ice_hw *hw, struct list_head *m_list);
-int ice_remove_vlan(struct ice_hw *hw, struct list_head *v_list);
 
 /* Promisc/defport setup for VSIs */
-int
-ice_cfg_dflt_vsi(struct ice_hw *hw, u16 vsi_handle, bool set, u8 direction);
+int ice_cfg_dflt_vsi(struct ice_hw *hw, u16 vsi_handle, bool set, u8 direction);
 int
 ice_set_vsi_promisc(struct ice_hw *hw, u16 vsi_handle, u8 promisc_mask,
 		    u16 vid);
@@ -358,8 +353,7 @@ int
 ice_set_vlan_vsi_promisc(struct ice_hw *hw, u16 vsi_handle, u8 promisc_mask,
 			 bool rm_vlan_promisc);
 
-int
-ice_rem_adv_rule_for_vsi(struct ice_hw *hw, u16 vsi_handle);
+int ice_rem_adv_rule_for_vsi(struct ice_hw *hw, u16 vsi_handle);
 int
 ice_rem_adv_rule_by_id(struct ice_hw *hw,
 		       struct ice_rule_query_data *remove_entry);

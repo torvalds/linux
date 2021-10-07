@@ -270,9 +270,9 @@ ice_get_eeprom(struct net_device *netdev, struct ethtool_eeprom *eeprom,
 	struct ice_vsi *vsi = np->vsi;
 	struct ice_pf *pf = vsi->back;
 	struct ice_hw *hw = &pf->hw;
-	int status;
 	struct device *dev;
 	int ret = 0;
+	int status;
 	u8 *buf;
 
 	dev = ice_pf_to_dev(pf);
@@ -288,8 +288,7 @@ ice_get_eeprom(struct net_device *netdev, struct ethtool_eeprom *eeprom,
 	status = ice_acquire_nvm(hw, ICE_RES_READ);
 	if (status) {
 		dev_err(dev, "ice_acquire_nvm failed, err %d aq_err %s\n",
-			status,
-			ice_aq_str(hw->adminq.sq_last_status));
+			status, ice_aq_str(hw->adminq.sq_last_status));
 		ret = -EIO;
 		goto out;
 	}
@@ -298,8 +297,7 @@ ice_get_eeprom(struct net_device *netdev, struct ethtool_eeprom *eeprom,
 				   false);
 	if (status) {
 		dev_err(dev, "ice_read_flat_nvm failed, err %d aq_err %s\n",
-			status,
-			ice_aq_str(hw->adminq.sq_last_status));
+			status, ice_aq_str(hw->adminq.sq_last_status));
 		ret = -EIO;
 		goto release;
 	}
@@ -342,8 +340,8 @@ static bool ice_active_vfs(struct ice_pf *pf)
 static u64 ice_link_test(struct net_device *netdev)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
-	int status;
 	bool link_up = false;
+	int status;
 
 	netdev_info(netdev, "link test\n");
 	status = ice_get_link_status(np->vsi->port_info, &link_up);
@@ -1052,8 +1050,8 @@ ice_get_fecparam(struct net_device *netdev, struct ethtool_fecparam *fecparam)
 	struct ice_link_status *link_info;
 	struct ice_vsi *vsi = np->vsi;
 	struct ice_port_info *pi;
-	int status;
 	int err = 0;
+	int status;
 
 	pi = vsi->port_info;
 
@@ -1232,8 +1230,8 @@ static int ice_set_priv_flags(struct net_device *netdev, u32 flags)
 			pf->dcbx_cap &= ~DCB_CAP_DCBX_LLD_MANAGED;
 			pf->dcbx_cap |= DCB_CAP_DCBX_HOST;
 		} else {
-			int status;
 			bool dcbx_agent_status;
+			int status;
 
 			if (ice_get_pfc_mode(pf) == ICE_QOS_MODE_DSCP) {
 				clear_bit(ICE_FLAG_FW_LLDP_AGENT, pf->flags);
@@ -1938,8 +1936,8 @@ ice_get_link_ksettings(struct net_device *netdev,
 	struct ice_aqc_get_phy_caps_data *caps;
 	struct ice_link_status *hw_link_info;
 	struct ice_vsi *vsi = np->vsi;
-	int status;
 	int err = 0;
+	int status;
 
 	ethtool_link_ksettings_zero_link_mode(ks, supported);
 	ethtool_link_ksettings_zero_link_mode(ks, advertising);
@@ -2210,11 +2208,11 @@ ice_set_link_ksettings(struct net_device *netdev,
 	struct ice_pf *pf = np->vsi->back;
 	struct ice_port_info *pi;
 	u8 autoneg_changed = 0;
-	int status;
 	u64 phy_type_high = 0;
 	u64 phy_type_low = 0;
 	int err = 0;
 	bool linkup;
+	int status;
 
 	pi = np->vsi->port_info;
 
@@ -2522,9 +2520,9 @@ static int
 ice_set_rss_hash_opt(struct ice_vsi *vsi, struct ethtool_rxnfc *nfc)
 {
 	struct ice_pf *pf = vsi->back;
-	int status;
 	struct device *dev;
 	u64 hashed_flds;
+	int status;
 	u32 hdrs;
 
 	dev = ice_pf_to_dev(pf);
@@ -3003,10 +3001,10 @@ ice_set_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *pause)
 	struct ice_vsi *vsi = np->vsi;
 	struct ice_hw *hw = &pf->hw;
 	struct ice_port_info *pi;
-	int status;
 	u8 aq_failures;
 	bool link_up;
 	int err = 0;
+	int status;
 	u32 is_an;
 
 	pi = vsi->port_info;
@@ -3077,18 +3075,15 @@ ice_set_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *pause)
 
 	if (aq_failures & ICE_SET_FC_AQ_FAIL_GET) {
 		netdev_info(netdev, "Set fc failed on the get_phy_capabilities call with err %d aq_err %s\n",
-			    status,
-			    ice_aq_str(hw->adminq.sq_last_status));
+			    status, ice_aq_str(hw->adminq.sq_last_status));
 		err = -EAGAIN;
 	} else if (aq_failures & ICE_SET_FC_AQ_FAIL_SET) {
 		netdev_info(netdev, "Set fc failed on the set_phy_config call with err %d aq_err %s\n",
-			    status,
-			    ice_aq_str(hw->adminq.sq_last_status));
+			    status, ice_aq_str(hw->adminq.sq_last_status));
 		err = -EAGAIN;
 	} else if (aq_failures & ICE_SET_FC_AQ_FAIL_UPDATE) {
 		netdev_info(netdev, "Set fc failed on the get_link_info call with err %d aq_err %s\n",
-			    status,
-			    ice_aq_str(hw->adminq.sq_last_status));
+			    status, ice_aq_str(hw->adminq.sq_last_status));
 		err = -EAGAIN;
 	}
 
@@ -3928,11 +3923,11 @@ ice_get_module_info(struct net_device *netdev,
 	struct ice_vsi *vsi = np->vsi;
 	struct ice_pf *pf = vsi->back;
 	struct ice_hw *hw = &pf->hw;
-	int status;
 	u8 sff8472_comp = 0;
 	u8 sff8472_swap = 0;
 	u8 sff8636_rev = 0;
 	u8 value = 0;
+	int status;
 
 	status = ice_aq_sff_eeprom(hw, 0, ICE_I2C_EEPROM_DEV_ADDR, 0x00, 0x00,
 				   0, &value, 1, 0, NULL);
@@ -4005,11 +4000,11 @@ ice_get_module_eeprom(struct net_device *netdev,
 	struct ice_vsi *vsi = np->vsi;
 	struct ice_pf *pf = vsi->back;
 	struct ice_hw *hw = &pf->hw;
-	int status;
 	bool is_sfp = false;
 	unsigned int i, j;
 	u16 offset = 0;
 	u8 page = 0;
+	int status;
 
 	if (!ee || !ee->len || !data)
 		return -EINVAL;

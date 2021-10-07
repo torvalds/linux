@@ -560,13 +560,13 @@ ice_vc_fdir_write_flow_prof(struct ice_vf *vf, enum ice_fltr_ptype flow,
 	struct ice_flow_seg_info *old_seg;
 	struct ice_flow_prof *prof = NULL;
 	struct ice_fd_hw_prof *vf_prof;
-	int status;
 	struct device *dev;
 	struct ice_pf *pf;
 	struct ice_hw *hw;
 	u64 entry1_h = 0;
 	u64 entry2_h = 0;
 	u64 prof_id;
+	int status;
 	int ret;
 
 	pf = vf->pf;
@@ -1199,10 +1199,10 @@ static int ice_vc_fdir_write_fltr(struct ice_vf *vf,
 	struct ice_fdir_fltr *input = &conf->input;
 	struct ice_vsi *vsi, *ctrl_vsi;
 	struct ice_fltr_desc desc;
-	int status;
 	struct device *dev;
 	struct ice_pf *pf;
 	struct ice_hw *hw;
+	int status;
 	int ret;
 	u8 *pkt;
 
