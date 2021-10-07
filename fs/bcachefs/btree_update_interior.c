@@ -1945,8 +1945,15 @@ int bch2_btree_node_update_key(struct btree_trans *trans, struct btree_iter *ite
 {
 	struct bch_fs *c = trans->c;
 	struct btree *new_hash = NULL;
+	struct btree_path *path = iter->path;
 	struct closure cl;
 	int ret = 0;
+
+	if (!btree_node_intent_locked(path, b->c.level) &&
+	    !bch2_btree_path_upgrade(trans, path, b->c.level + 1)) {
+		btree_trans_restart(trans);
+		return -EINTR;
+	}
 
 	closure_init_stack(&cl);
 
@@ -1966,8 +1973,10 @@ int bch2_btree_node_update_key(struct btree_trans *trans, struct btree_iter *ite
 		new_hash = bch2_btree_node_mem_alloc(c);
 	}
 
+	path->intent_ref++;
 	ret = __bch2_btree_node_update_key(trans, iter, b, new_hash,
 					   new_key, skip_triggers);
+	--path->intent_ref;
 
 	if (new_hash) {
 		mutex_lock(&c->btree_cache.lock);
