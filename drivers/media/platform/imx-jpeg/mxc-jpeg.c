@@ -49,6 +49,7 @@
 #include <linux/slab.h>
 #include <linux/irqreturn.h>
 #include <linux/interrupt.h>
+#include <linux/pm_runtime.h>
 #include <linux/pm_domain.h>
 #include <linux/string.h>
 
@@ -1074,9 +1075,16 @@ static int mxc_jpeg_start_streaming(struct vb2_queue *q, unsigned int count)
 {
 	struct mxc_jpeg_ctx *ctx = vb2_get_drv_priv(q);
 	struct mxc_jpeg_q_data *q_data = mxc_jpeg_get_q_data(ctx, q->type);
+	int ret;
 
 	dev_dbg(ctx->mxc_jpeg->dev, "Start streaming ctx=%p", ctx);
 	q_data->sequence = 0;
+
+	ret = pm_runtime_resume_and_get(ctx->mxc_jpeg->dev);
+	if (ret < 0) {
+		dev_err(ctx->mxc_jpeg->dev, "Failed to power up jpeg\n");
+		return ret;
+	}
 
 	return 0;
 }
@@ -1095,9 +1103,10 @@ static void mxc_jpeg_stop_streaming(struct vb2_queue *q)
 		else
 			vbuf = v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
 		if (!vbuf)
-			return;
+			break;
 		v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_ERROR);
 	}
+	pm_runtime_put_sync(&ctx->mxc_jpeg->pdev->dev);
 }
 
 static int mxc_jpeg_valid_comp_id(struct device *dev,
@@ -1957,8 +1966,7 @@ static int mxc_jpeg_attach_pm_domains(struct mxc_jpeg_dev *jpeg)
 
 		jpeg->pd_link[i] = device_link_add(dev, jpeg->pd_dev[i],
 						   DL_FLAG_STATELESS |
-						   DL_FLAG_PM_RUNTIME |
-						   DL_FLAG_RPM_ACTIVE);
+						   DL_FLAG_PM_RUNTIME);
 		if (!jpeg->pd_link[i]) {
 			ret = -EINVAL;
 			goto fail;
@@ -2022,6 +2030,19 @@ static int mxc_jpeg_probe(struct platform_device *pdev)
 	jpeg->pdev = pdev;
 	jpeg->dev = dev;
 	jpeg->mode = mode;
+
+	/* Get clocks */
+	jpeg->clk_ipg = devm_clk_get(dev, "ipg");
+	if (IS_ERR(jpeg->clk_ipg)) {
+		dev_err(dev, "failed to get clock: ipg\n");
+		goto err_clk;
+	}
+
+	jpeg->clk_per = devm_clk_get(dev, "per");
+	if (IS_ERR(jpeg->clk_per)) {
+		dev_err(dev, "failed to get clock: per\n");
+		goto err_clk;
+	}
 
 	ret = mxc_jpeg_attach_pm_domains(jpeg);
 	if (ret < 0) {
@@ -2091,6 +2112,7 @@ static int mxc_jpeg_probe(struct platform_device *pdev)
 			  jpeg->dec_vdev->minor);
 
 	platform_set_drvdata(pdev, jpeg);
+	pm_runtime_enable(dev);
 
 	return 0;
 
@@ -2107,8 +2129,51 @@ err_register:
 	mxc_jpeg_detach_pm_domains(jpeg);
 
 err_irq:
+err_clk:
 	return ret;
 }
+
+#ifdef CONFIG_PM
+static int mxc_jpeg_runtime_resume(struct device *dev)
+{
+	struct mxc_jpeg_dev *jpeg = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_prepare_enable(jpeg->clk_ipg);
+	if (ret < 0) {
+		dev_err(dev, "failed to enable clock: ipg\n");
+		goto err_ipg;
+	}
+
+	ret = clk_prepare_enable(jpeg->clk_per);
+	if (ret < 0) {
+		dev_err(dev, "failed to enable clock: per\n");
+		goto err_per;
+	}
+
+	return 0;
+
+err_per:
+	clk_disable_unprepare(jpeg->clk_ipg);
+err_ipg:
+	return ret;
+}
+
+static int mxc_jpeg_runtime_suspend(struct device *dev)
+{
+	struct mxc_jpeg_dev *jpeg = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(jpeg->clk_ipg);
+	clk_disable_unprepare(jpeg->clk_per);
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops	mxc_jpeg_pm_ops = {
+	SET_RUNTIME_PM_OPS(mxc_jpeg_runtime_suspend,
+			   mxc_jpeg_runtime_resume, NULL)
+};
 
 static int mxc_jpeg_remove(struct platform_device *pdev)
 {
@@ -2118,6 +2183,7 @@ static int mxc_jpeg_remove(struct platform_device *pdev)
 	for (slot = 0; slot < MXC_MAX_SLOTS; slot++)
 		mxc_jpeg_free_slot_data(jpeg, slot);
 
+	pm_runtime_disable(&pdev->dev);
 	video_unregister_device(jpeg->dec_vdev);
 	v4l2_m2m_release(jpeg->m2m_dev);
 	v4l2_device_unregister(&jpeg->v4l2_dev);
@@ -2134,6 +2200,7 @@ static struct platform_driver mxc_jpeg_driver = {
 	.driver = {
 		.name = "mxc-jpeg",
 		.of_match_table = mxc_jpeg_match,
+		.pm = &mxc_jpeg_pm_ops,
 	},
 };
 module_platform_driver(mxc_jpeg_driver);
