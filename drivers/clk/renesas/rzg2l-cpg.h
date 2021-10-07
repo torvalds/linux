@@ -11,8 +11,14 @@
 
 #define CPG_PL2_DDIV		(0x204)
 #define CPG_PL3A_DDIV		(0x208)
+#define CPG_CLKSTATUS		(0x280)
 #define CPG_PL3_SSEL		(0x408)
 #define CPG_PL6_ETH_SSEL	(0x418)
+
+#define CPG_CLKSTATUS_SELSDHI0_STS	BIT(28)
+#define CPG_CLKSTATUS_SELSDHI1_STS	BIT(29)
+
+#define CPG_SDHI_CLK_SWITCH_STATUS_TIMEOUT_US	20000
 
 /* n = 0/1/2 for PLL1/4/6 */
 #define CPG_SAMPLL_CLK1(n)	(0x04 + (16 * n))
@@ -67,6 +73,9 @@ enum clk_types {
 
 	/* Clock with clock source selector */
 	CLK_TYPE_MUX,
+
+	/* Clock with SD clock source selector */
+	CLK_TYPE_SD_MUX,
 };
 
 #define DEF_TYPE(_name, _id, _type...) \
@@ -87,6 +96,9 @@ enum clk_types {
 	DEF_TYPE(_name, _id, CLK_TYPE_MUX, .conf = _conf, \
 		 .parent_names = _parent_names, .num_parents = _num_parents, \
 		 .flag = _flag, .mux_flags = _mux_flags)
+#define DEF_SD_MUX(_name, _id, _conf, _parent_names, _num_parents) \
+	DEF_TYPE(_name, _id, CLK_TYPE_SD_MUX, .conf = _conf, \
+		 .parent_names = _parent_names, .num_parents = _num_parents)
 
 /**
  * struct rzg2l_mod_clk - Module Clocks definitions
