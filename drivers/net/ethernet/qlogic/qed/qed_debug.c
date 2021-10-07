@@ -1315,7 +1315,6 @@ static u32 qed_dump_common_global_params(struct qed_hwfn *p_hwfn,
 					 u8 num_specific_global_params)
 {
 	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
-	char sw_platform_str[MAX_SW_PLTAFORM_STR_SIZE];
 	u32 offset = 0;
 	u8 num_params;
 
@@ -1341,8 +1340,6 @@ static u32 qed_dump_common_global_params(struct qed_hwfn *p_hwfn,
 				     dump,
 				     "platform",
 				     s_hw_type_defs[dev_data->hw_type].name);
-	offset += qed_dump_str_param(dump_buf + offset,
-				     dump, "sw-platform", sw_platform_str);
 	offset += qed_dump_num_param(dump_buf + offset,
 				     dump, "pci-func", p_hwfn->abs_pf_id);
 	offset += qed_dump_num_param(dump_buf + offset,
