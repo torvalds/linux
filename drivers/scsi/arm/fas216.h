@@ -310,6 +310,16 @@ typedef struct {
 	unsigned long		magic_end;
 } FAS216_Info;
 
+/* driver-private data per SCSI command. */
+struct fas216_cmd_priv {
+	void (*scsi_done)(struct scsi_cmnd *cmd);
+};
+
+static inline struct fas216_cmd_priv *fas216_cmd_priv(struct scsi_cmnd *cmd)
+{
+	return scsi_cmd_priv(cmd);
+}
+
 /* Function: int fas216_init (struct Scsi_Host *instance)
  * Purpose : initialise FAS/NCR/AMD SCSI structures.
  * Params  : instance - a driver-specific filled-out structure
