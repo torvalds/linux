@@ -409,7 +409,7 @@ static bool mpi3mr_flush_scmd(struct request *rq,
 		scsi_dma_unmap(scmd);
 		scmd->result = DID_RESET << 16;
 		scsi_print_command(scmd);
-		scmd->scsi_done(scmd);
+		scsi_done(scmd);
 		mrioc->flush_io_count++;
 	}
 
@@ -2312,7 +2312,7 @@ out_success:
 	}
 	mpi3mr_clear_scmd_priv(mrioc, scmd);
 	scsi_dma_unmap(scmd);
-	scmd->scsi_done(scmd);
+	scsi_done(scmd);
 out:
 	if (sense_buf)
 		mpi3mr_repost_sense_buf(mrioc,
@@ -3322,7 +3322,7 @@ static bool mpi3mr_check_return_unmap(struct mpi3mr_ioc *mrioc,
 		    __func__);
 		scsi_print_command(scmd);
 		scmd->result = DID_OK << 16;
-		scmd->scsi_done(scmd);
+		scsi_done(scmd);
 		return true;
 	}
 
@@ -3334,7 +3334,7 @@ static bool mpi3mr_check_return_unmap(struct mpi3mr_ioc *mrioc,
 		scmd->result = SAM_STAT_CHECK_CONDITION;
 		scsi_build_sense_buffer(0, scmd->sense_buffer, ILLEGAL_REQUEST,
 		    0x1A, 0);
-		scmd->scsi_done(scmd);
+		scsi_done(scmd);
 		return true;
 	}
 	if (param_len != scsi_bufflen(scmd)) {
@@ -3345,7 +3345,7 @@ static bool mpi3mr_check_return_unmap(struct mpi3mr_ioc *mrioc,
 		scmd->result = SAM_STAT_CHECK_CONDITION;
 		scsi_build_sense_buffer(0, scmd->sense_buffer, ILLEGAL_REQUEST,
 		    0x1A, 0);
-		scmd->scsi_done(scmd);
+		scsi_done(scmd);
 		return true;
 	}
 	buf = kzalloc(scsi_bufflen(scmd), GFP_ATOMIC);
@@ -3354,7 +3354,7 @@ static bool mpi3mr_check_return_unmap(struct mpi3mr_ioc *mrioc,
 		scmd->result = SAM_STAT_CHECK_CONDITION;
 		scsi_build_sense_buffer(0, scmd->sense_buffer, ILLEGAL_REQUEST,
 		    0x55, 0x03);
-		scmd->scsi_done(scmd);
+		scsi_done(scmd);
 		return true;
 	}
 	scsi_sg_copy_to_buffer(scmd, buf, scsi_bufflen(scmd));
@@ -3368,7 +3368,7 @@ static bool mpi3mr_check_return_unmap(struct mpi3mr_ioc *mrioc,
 		scmd->result = SAM_STAT_CHECK_CONDITION;
 		scsi_build_sense_buffer(0, scmd->sense_buffer, ILLEGAL_REQUEST,
 		    0x26, 0);
-		scmd->scsi_done(scmd);
+		scsi_done(scmd);
 		kfree(buf);
 		return true;
 	}
@@ -3438,14 +3438,14 @@ static int mpi3mr_qcmd(struct Scsi_Host *shost,
 	sdev_priv_data = scmd->device->hostdata;
 	if (!sdev_priv_data || !sdev_priv_data->tgt_priv_data) {
 		scmd->result = DID_NO_CONNECT << 16;
-		scmd->scsi_done(scmd);
+		scsi_done(scmd);
 		goto out;
 	}
 
 	if (mrioc->stop_drv_processing &&
 	    !(mpi3mr_allow_scmd_to_fw(scmd))) {
 		scmd->result = DID_NO_CONNECT << 16;
-		scmd->scsi_done(scmd);
+		scsi_done(scmd);
 		goto out;
 	}
 
@@ -3459,19 +3459,19 @@ static int mpi3mr_qcmd(struct Scsi_Host *shost,
 	dev_handle = stgt_priv_data->dev_handle;
 	if (dev_handle == MPI3MR_INVALID_DEV_HANDLE) {
 		scmd->result = DID_NO_CONNECT << 16;
-		scmd->scsi_done(scmd);
+		scsi_done(scmd);
 		goto out;
 	}
 	if (stgt_priv_data->dev_removed) {
 		scmd->result = DID_NO_CONNECT << 16;
-		scmd->scsi_done(scmd);
+		scsi_done(scmd);
 		goto out;
 	}
 
 	if (atomic_read(&stgt_priv_data->block_io)) {
 		if (mrioc->stop_drv_processing) {
 			scmd->result = DID_NO_CONNECT << 16;
-			scmd->scsi_done(scmd);
+			scsi_done(scmd);
 			goto out;
 		}
 		retval = SCSI_MLQUEUE_DEVICE_BUSY;
@@ -3486,7 +3486,7 @@ static int mpi3mr_qcmd(struct Scsi_Host *shost,
 	host_tag = mpi3mr_host_tag_for_scmd(mrioc, scmd);
 	if (host_tag == MPI3MR_HOSTTAG_INVALID) {
 		scmd->result = DID_ERROR << 16;
-		scmd->scsi_done(scmd);
+		scsi_done(scmd);
 		goto out;
 	}
 
