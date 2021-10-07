@@ -817,6 +817,92 @@ int spi_register_board_info(struct spi_board_info const *info, unsigned n)
 
 /*-------------------------------------------------------------------------*/
 
+/* Core methods for SPI resource management */
+
+/**
+ * spi_res_alloc - allocate a spi resource that is life-cycle managed
+ *                 during the processing of a spi_message while using
+ *                 spi_transfer_one
+ * @spi:     the spi device for which we allocate memory
+ * @release: the release code to execute for this resource
+ * @size:    size to alloc and return
+ * @gfp:     GFP allocation flags
+ *
+ * Return: the pointer to the allocated data
+ *
+ * This may get enhanced in the future to allocate from a memory pool
+ * of the @spi_device or @spi_controller to avoid repeated allocations.
+ */
+void *spi_res_alloc(struct spi_device *spi,
+		    spi_res_release_t release,
+		    size_t size, gfp_t gfp)
+{
+	struct spi_res *sres;
+
+	sres = kzalloc(sizeof(*sres) + size, gfp);
+	if (!sres)
+		return NULL;
+
+	INIT_LIST_HEAD(&sres->entry);
+	sres->release = release;
+
+	return sres->data;
+}
+EXPORT_SYMBOL_GPL(spi_res_alloc);
+
+/**
+ * spi_res_free - free an spi resource
+ * @res: pointer to the custom data of a resource
+ *
+ */
+void spi_res_free(void *res)
+{
+	struct spi_res *sres = container_of(res, struct spi_res, data);
+
+	if (!res)
+		return;
+
+	WARN_ON(!list_empty(&sres->entry));
+	kfree(sres);
+}
+EXPORT_SYMBOL_GPL(spi_res_free);
+
+/**
+ * spi_res_add - add a spi_res to the spi_message
+ * @message: the spi message
+ * @res:     the spi_resource
+ */
+void spi_res_add(struct spi_message *message, void *res)
+{
+	struct spi_res *sres = container_of(res, struct spi_res, data);
+
+	WARN_ON(!list_empty(&sres->entry));
+	list_add_tail(&sres->entry, &message->resources);
+}
+EXPORT_SYMBOL_GPL(spi_res_add);
+
+/**
+ * spi_res_release - release all spi resources for this message
+ * @ctlr:  the @spi_controller
+ * @message: the @spi_message
+ */
+void spi_res_release(struct spi_controller *ctlr, struct spi_message *message)
+{
+	struct spi_res *res, *tmp;
+
+	list_for_each_entry_safe_reverse(res, tmp, &message->resources, entry) {
+		if (res->release)
+			res->release(ctlr, message, res->data);
+
+		list_del(&res->entry);
+
+		kfree(res);
+	}
+}
+EXPORT_SYMBOL_GPL(spi_res_release);
+
+/*-------------------------------------------------------------------------*/
+
 static void spi_set_cs(struct spi_device *spi, bool enable, bool force)
 {
 	bool activate = enable;
@@ -3032,92 +3118,6 @@ int spi_controller_resume(struct spi_controller *ctlr)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(spi_controller_resume);
-
-/*-------------------------------------------------------------------------*/
-
-/* Core methods for SPI resource management */
-
-/**
- * spi_res_alloc - allocate a spi resource that is life-cycle managed
- *                 during the processing of a spi_message while using
- *                 spi_transfer_one
- * @spi:     the spi device for which we allocate memory
- * @release: the release code to execute for this resource
- * @size:    size to alloc and return
- * @gfp:     GFP allocation flags
- *
- * Return: the pointer to the allocated data
- *
- * This may get enhanced in the future to allocate from a memory pool
- * of the @spi_device or @spi_controller to avoid repeated allocations.
- */
-void *spi_res_alloc(struct spi_device *spi,
-		    spi_res_release_t release,
-		    size_t size, gfp_t gfp)
-{
-	struct spi_res *sres;
-
-	sres = kzalloc(sizeof(*sres) + size, gfp);
-	if (!sres)
-		return NULL;
-
-	INIT_LIST_HEAD(&sres->entry);
-	sres->release = release;
-
-	return sres->data;
-}
-EXPORT_SYMBOL_GPL(spi_res_alloc);
-
-/**
- * spi_res_free - free an spi resource
- * @res: pointer to the custom data of a resource
- *
- */
-void spi_res_free(void *res)
-{
-	struct spi_res *sres = container_of(res, struct spi_res, data);
-
-	if (!res)
-		return;
-
-	WARN_ON(!list_empty(&sres->entry));
-	kfree(sres);
-}
-EXPORT_SYMBOL_GPL(spi_res_free);
-
-/**
- * spi_res_add - add a spi_res to the spi_message
- * @message: the spi message
- * @res:     the spi_resource
- */
-void spi_res_add(struct spi_message *message, void *res)
-{
-	struct spi_res *sres = container_of(res, struct spi_res, data);
-
-	WARN_ON(!list_empty(&sres->entry));
-	list_add_tail(&sres->entry, &message->resources);
-}
-EXPORT_SYMBOL_GPL(spi_res_add);
-
-/**
- * spi_res_release - release all spi resources for this message
- * @ctlr:  the @spi_controller
- * @message: the @spi_message
- */
-void spi_res_release(struct spi_controller *ctlr, struct spi_message *message)
-{
-	struct spi_res *res, *tmp;
-
-	list_for_each_entry_safe_reverse(res, tmp, &message->resources, entry) {
-		if (res->release)
-			res->release(ctlr, message, res->data);
-
-		list_del(&res->entry);
-
-		kfree(res);
-	}
-}
-EXPORT_SYMBOL_GPL(spi_res_release);
 
 /*-------------------------------------------------------------------------*/
 
