@@ -1981,7 +1981,6 @@ static int netsec_probe(struct platform_device *pdev)
 	struct netsec_priv *priv;
 	u32 hw_ver, phy_addr = 0;
 	struct net_device *ndev;
-	u8 macbuf[ETH_ALEN];
 	int ret;
 
 	mmio_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -2034,12 +2033,8 @@ static int netsec_probe(struct platform_device *pdev)
 		goto free_ndev;
 	}
 
-	ret = device_get_mac_address(&pdev->dev, macbuf);
-	if (!ret)
-		eth_hw_addr_set(ndev, macbuf);
-
-	if (priv->eeprom_base &&
-	    (ret || !is_valid_ether_addr(ndev->dev_addr))) {
+	ret = device_get_ethdev_address(&pdev->dev, ndev);
+	if (ret && priv->eeprom_base) {
 		void __iomem *macp = priv->eeprom_base +
 					NETSEC_EEPROM_MAC_ADDRESS;
 
