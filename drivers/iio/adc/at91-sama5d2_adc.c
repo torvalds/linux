@@ -1894,8 +1894,8 @@ static int at91_adc_buffer_and_trigger_init(struct device *dev,
 		fifo_attrs = NULL;
 
 	ret = devm_iio_triggered_buffer_setup_ext(&indio->dev, indio,
-		&iio_pollfunc_store_time,
-		&at91_adc_trigger_handler, &at91_buffer_setup_ops, fifo_attrs);
+		&iio_pollfunc_store_time, &at91_adc_trigger_handler,
+		IIO_BUFFER_DIRECTION_IN, &at91_buffer_setup_ops, fifo_attrs);
 	if (ret < 0) {
 		dev_err(dev, "couldn't initialize the buffer.\n");
 		return ret;
