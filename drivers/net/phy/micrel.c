@@ -1003,6 +1003,26 @@ static int ksz9131_config_rgmii_delay(struct phy_device *phydev)
 			      txcdll_val);
 }
 
+/* Silicon Errata DS80000693B
+ *
+ * When LEDs are configured in Individual Mode, LED1 is ON in a no-link
+ * condition. Workaround is to set register 0x1e, bit 9, this way LED1 behaves
+ * according to the datasheet (off if there is no link).
+ */
+static int ksz9131_led_errata(struct phy_device *phydev)
+{
+	int reg;
+
+	reg = phy_read_mmd(phydev, 2, 0);
+	if (reg < 0)
+		return reg;
+
+	if (!(reg & BIT(4)))
+		return 0;
+
+	return phy_set_bits(phydev, 0x1e, BIT(9));
+}
+
 static int ksz9131_config_init(struct phy_device *phydev)
 {
 	struct device_node *of_node;
@@ -1055,6 +1075,10 @@ static int ksz9131_config_init(struct phy_device *phydev)
 	ret = ksz9131_of_load_skew_values(phydev, of_node,
 					  MII_KSZ9031RN_TX_DATA_PAD_SKEW, 4,
 					  tx_data_skews, 4);
+	if (ret < 0)
+		return ret;
+
+	ret = ksz9131_led_errata(phydev);
 	if (ret < 0)
 		return ret;
 
