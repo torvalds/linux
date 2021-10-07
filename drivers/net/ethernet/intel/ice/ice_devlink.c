@@ -44,8 +44,8 @@ static void ice_info_pba(struct ice_pf *pf, struct ice_info_ctx *ctx)
 	status = ice_read_pba_string(hw, (u8 *)ctx->buf, sizeof(ctx->buf));
 	if (status)
 		/* We failed to locate the PBA, so just skip this entry */
-		dev_dbg(ice_pf_to_dev(pf), "Failed to read Product Board Assembly string, status %s\n",
-			ice_stat_str(status));
+		dev_dbg(ice_pf_to_dev(pf), "Failed to read Product Board Assembly string, status %d\n",
+			status);
 }
 
 static void ice_info_fw_mgmt(struct ice_pf *pf, struct ice_info_ctx *ctx)
@@ -268,8 +268,8 @@ static int ice_devlink_info_get(struct devlink *devlink,
 	/* discover capabilities first */
 	status = ice_discover_dev_caps(hw, &ctx->dev_caps);
 	if (status) {
-		dev_dbg(dev, "Failed to discover device capabilities, status %s aq_err %s\n",
-			ice_stat_str(status), ice_aq_str(hw->adminq.sq_last_status));
+		dev_dbg(dev, "Failed to discover device capabilities, status %d aq_err %s\n",
+			status, ice_aq_str(hw->adminq.sq_last_status));
 		NL_SET_ERR_MSG_MOD(extack, "Unable to discover device capabilities");
 		err = -EIO;
 		goto out_free_ctx;
@@ -278,8 +278,8 @@ static int ice_devlink_info_get(struct devlink *devlink,
 	if (ctx->dev_caps.common_cap.nvm_update_pending_orom) {
 		status = ice_get_inactive_orom_ver(hw, &ctx->pending_orom);
 		if (status) {
-			dev_dbg(dev, "Unable to read inactive Option ROM version data, status %s aq_err %s\n",
-				ice_stat_str(status), ice_aq_str(hw->adminq.sq_last_status));
+			dev_dbg(dev, "Unable to read inactive Option ROM version data, status %d aq_err %s\n",
+				status, ice_aq_str(hw->adminq.sq_last_status));
 
 			/* disable display of pending Option ROM */
 			ctx->dev_caps.common_cap.nvm_update_pending_orom = false;
@@ -289,8 +289,8 @@ static int ice_devlink_info_get(struct devlink *devlink,
 	if (ctx->dev_caps.common_cap.nvm_update_pending_nvm) {
 		status = ice_get_inactive_nvm_ver(hw, &ctx->pending_nvm);
 		if (status) {
-			dev_dbg(dev, "Unable to read inactive NVM version data, status %s aq_err %s\n",
-				ice_stat_str(status), ice_aq_str(hw->adminq.sq_last_status));
+			dev_dbg(dev, "Unable to read inactive NVM version data, status %d aq_err %s\n",
+				status, ice_aq_str(hw->adminq.sq_last_status));
 
 			/* disable display of pending Option ROM */
 			ctx->dev_caps.common_cap.nvm_update_pending_nvm = false;
@@ -300,8 +300,8 @@ static int ice_devlink_info_get(struct devlink *devlink,
 	if (ctx->dev_caps.common_cap.nvm_update_pending_netlist) {
 		status = ice_get_inactive_netlist_ver(hw, &ctx->pending_netlist);
 		if (status) {
-			dev_dbg(dev, "Unable to read inactive Netlist version data, status %s aq_err %s\n",
-				ice_stat_str(status), ice_aq_str(hw->adminq.sq_last_status));
+			dev_dbg(dev, "Unable to read inactive Netlist version data, status %d aq_err %s\n",
+				status, ice_aq_str(hw->adminq.sq_last_status));
 
 			/* disable display of pending Option ROM */
 			ctx->dev_caps.common_cap.nvm_update_pending_netlist = false;

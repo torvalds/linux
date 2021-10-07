@@ -305,8 +305,8 @@ void ice_vsi_delete(struct ice_vsi *vsi)
 
 	status = ice_free_vsi(&pf->hw, vsi->idx, ctxt, false, NULL);
 	if (status)
-		dev_err(ice_pf_to_dev(pf), "Failed to delete VSI %i in FW - error: %s\n",
-			vsi->vsi_num, ice_stat_str(status));
+		dev_err(ice_pf_to_dev(pf), "Failed to delete VSI %i in FW - error: %d\n",
+			vsi->vsi_num, status);
 
 	kfree(ctxt);
 }
@@ -716,8 +716,8 @@ static void ice_vsi_clean_rss_flow_fld(struct ice_vsi *vsi)
 
 	status = ice_rem_vsi_rss_cfg(&pf->hw, vsi->idx);
 	if (status)
-		dev_dbg(ice_pf_to_dev(pf), "ice_rem_vsi_rss_cfg failed for vsi = %d, error = %s\n",
-			vsi->vsi_num, ice_stat_str(status));
+		dev_dbg(ice_pf_to_dev(pf), "ice_rem_vsi_rss_cfg failed for vsi = %d, error = %d\n",
+			vsi->vsi_num, status);
 }
 
 /**
@@ -1557,8 +1557,8 @@ static void ice_vsi_set_vf_rss_flow_fld(struct ice_vsi *vsi)
 
 	status = ice_add_avf_rss_cfg(&pf->hw, vsi->idx, ICE_DEFAULT_RSS_HENA);
 	if (status)
-		dev_dbg(dev, "ice_add_avf_rss_cfg failed for vsi = %d, error = %s\n",
-			vsi->vsi_num, ice_stat_str(status));
+		dev_dbg(dev, "ice_add_avf_rss_cfg failed for vsi = %d, error = %d\n",
+			vsi->vsi_num, status);
 }
 
 /**
@@ -1590,57 +1590,57 @@ static void ice_vsi_set_rss_flow_fld(struct ice_vsi *vsi)
 	status = ice_add_rss_cfg(hw, vsi_handle, ICE_FLOW_HASH_IPV4,
 				 ICE_FLOW_SEG_HDR_IPV4);
 	if (status)
-		dev_dbg(dev, "ice_add_rss_cfg failed for ipv4 flow, vsi = %d, error = %s\n",
-			vsi_num, ice_stat_str(status));
+		dev_dbg(dev, "ice_add_rss_cfg failed for ipv4 flow, vsi = %d, error = %d\n",
+			vsi_num, status);
 
 	/* configure RSS for IPv6 with input set IPv6 src/dst */
 	status = ice_add_rss_cfg(hw, vsi_handle, ICE_FLOW_HASH_IPV6,
 				 ICE_FLOW_SEG_HDR_IPV6);
 	if (status)
-		dev_dbg(dev, "ice_add_rss_cfg failed for ipv6 flow, vsi = %d, error = %s\n",
-			vsi_num, ice_stat_str(status));
+		dev_dbg(dev, "ice_add_rss_cfg failed for ipv6 flow, vsi = %d, error = %d\n",
+			vsi_num, status);
 
 	/* configure RSS for tcp4 with input set IP src/dst, TCP src/dst */
 	status = ice_add_rss_cfg(hw, vsi_handle, ICE_HASH_TCP_IPV4,
 				 ICE_FLOW_SEG_HDR_TCP | ICE_FLOW_SEG_HDR_IPV4);
 	if (status)
-		dev_dbg(dev, "ice_add_rss_cfg failed for tcp4 flow, vsi = %d, error = %s\n",
-			vsi_num, ice_stat_str(status));
+		dev_dbg(dev, "ice_add_rss_cfg failed for tcp4 flow, vsi = %d, error = %d\n",
+			vsi_num, status);
 
 	/* configure RSS for udp4 with input set IP src/dst, UDP src/dst */
 	status = ice_add_rss_cfg(hw, vsi_handle, ICE_HASH_UDP_IPV4,
 				 ICE_FLOW_SEG_HDR_UDP | ICE_FLOW_SEG_HDR_IPV4);
 	if (status)
-		dev_dbg(dev, "ice_add_rss_cfg failed for udp4 flow, vsi = %d, error = %s\n",
-			vsi_num, ice_stat_str(status));
+		dev_dbg(dev, "ice_add_rss_cfg failed for udp4 flow, vsi = %d, error = %d\n",
+			vsi_num, status);
 
 	/* configure RSS for sctp4 with input set IP src/dst */
 	status = ice_add_rss_cfg(hw, vsi_handle, ICE_FLOW_HASH_IPV4,
 				 ICE_FLOW_SEG_HDR_SCTP | ICE_FLOW_SEG_HDR_IPV4);
 	if (status)
-		dev_dbg(dev, "ice_add_rss_cfg failed for sctp4 flow, vsi = %d, error = %s\n",
-			vsi_num, ice_stat_str(status));
+		dev_dbg(dev, "ice_add_rss_cfg failed for sctp4 flow, vsi = %d, error = %d\n",
+			vsi_num, status);
 
 	/* configure RSS for tcp6 with input set IPv6 src/dst, TCP src/dst */
 	status = ice_add_rss_cfg(hw, vsi_handle, ICE_HASH_TCP_IPV6,
 				 ICE_FLOW_SEG_HDR_TCP | ICE_FLOW_SEG_HDR_IPV6);
 	if (status)
-		dev_dbg(dev, "ice_add_rss_cfg failed for tcp6 flow, vsi = %d, error = %s\n",
-			vsi_num, ice_stat_str(status));
+		dev_dbg(dev, "ice_add_rss_cfg failed for tcp6 flow, vsi = %d, error = %d\n",
+			vsi_num, status);
 
 	/* configure RSS for udp6 with input set IPv6 src/dst, UDP src/dst */
 	status = ice_add_rss_cfg(hw, vsi_handle, ICE_HASH_UDP_IPV6,
 				 ICE_FLOW_SEG_HDR_UDP | ICE_FLOW_SEG_HDR_IPV6);
 	if (status)
-		dev_dbg(dev, "ice_add_rss_cfg failed for udp6 flow, vsi = %d, error = %s\n",
-			vsi_num, ice_stat_str(status));
+		dev_dbg(dev, "ice_add_rss_cfg failed for udp6 flow, vsi = %d, error = %d\n",
+			vsi_num, status);
 
 	/* configure RSS for sctp6 with input set IPv6 src/dst */
 	status = ice_add_rss_cfg(hw, vsi_handle, ICE_FLOW_HASH_IPV6,
 				 ICE_FLOW_SEG_HDR_SCTP | ICE_FLOW_SEG_HDR_IPV6);
 	if (status)
-		dev_dbg(dev, "ice_add_rss_cfg failed for sctp6 flow, vsi = %d, error = %s\n",
-			vsi_num, ice_stat_str(status));
+		dev_dbg(dev, "ice_add_rss_cfg failed for sctp6 flow, vsi = %d, error = %d\n",
+			vsi_num, status);
 }
 
 /**
@@ -1759,11 +1759,11 @@ int ice_vsi_kill_vlan(struct ice_vsi *vsi, u16 vid)
 	if (!status) {
 		vsi->num_vlan--;
 	} else if (status == ICE_ERR_DOES_NOT_EXIST) {
-		dev_dbg(dev, "Failed to remove VLAN %d on VSI %i, it does not exist, status: %s\n",
-			vid, vsi->vsi_num, ice_stat_str(status));
+		dev_dbg(dev, "Failed to remove VLAN %d on VSI %i, it does not exist, error: %d\n",
+			vid, vsi->vsi_num, status);
 	} else {
-		dev_err(dev, "Error removing VLAN %d on vsi %i error: %s\n",
-			vid, vsi->vsi_num, ice_stat_str(status));
+		dev_err(dev, "Error removing VLAN %d on vsi %i error: %d\n",
+			vid, vsi->vsi_num, status);
 		err = -EIO;
 	}
 
@@ -2126,8 +2126,8 @@ int ice_vsi_manage_vlan_insertion(struct ice_vsi *vsi)
 
 	status = ice_update_vsi(hw, vsi->idx, ctxt, NULL);
 	if (status) {
-		dev_err(ice_pf_to_dev(vsi->back), "update VSI for VLAN insert failed, err %s aq_err %s\n",
-			ice_stat_str(status),
+		dev_err(ice_pf_to_dev(vsi->back), "update VSI for VLAN insert failed, err %d aq_err %s\n",
+			status,
 			ice_aq_str(hw->adminq.sq_last_status));
 		ret = -EIO;
 		goto out;
@@ -2179,8 +2179,8 @@ int ice_vsi_manage_vlan_stripping(struct ice_vsi *vsi, bool ena)
 
 	status = ice_update_vsi(hw, vsi->idx, ctxt, NULL);
 	if (status) {
-		dev_err(ice_pf_to_dev(vsi->back), "update VSI for VLAN strip failed, ena = %d err %s aq_err %s\n",
-			ena, ice_stat_str(status),
+		dev_err(ice_pf_to_dev(vsi->back), "update VSI for VLAN strip failed, ena = %d err %d aq_err %s\n",
+			ena, status,
 			ice_aq_str(hw->adminq.sq_last_status));
 		ret = -EIO;
 		goto out;
@@ -2324,9 +2324,9 @@ int ice_cfg_vlan_pruning(struct ice_vsi *vsi, bool ena)
 
 	status = ice_update_vsi(&pf->hw, vsi->idx, ctxt, NULL);
 	if (status) {
-		netdev_err(vsi->netdev, "%sabling VLAN pruning on VSI handle: %d, VSI HW ID: %d failed, err = %s, aq_err = %s\n",
+		netdev_err(vsi->netdev, "%sabling VLAN pruning on VSI handle: %d, VSI HW ID: %d failed, err = %d, aq_err = %s\n",
 			   ena ? "En" : "Dis", vsi->idx, vsi->vsi_num,
-			   ice_stat_str(status),
+			   status,
 			   ice_aq_str(pf->hw.adminq.sq_last_status));
 		goto err_out;
 	}
@@ -2428,9 +2428,9 @@ void ice_cfg_sw_lldp(struct ice_vsi *vsi, bool tx, bool create)
 	}
 
 	if (status)
-		dev_dbg(dev, "Fail %s %s LLDP rule on VSI %i error: %s\n",
+		dev_dbg(dev, "Fail %s %s LLDP rule on VSI %i error: %d\n",
 			create ? "adding" : "removing", tx ? "TX" : "RX",
-			vsi->vsi_num, ice_stat_str(status));
+			vsi->vsi_num, status);
 }
 
 /**
@@ -2728,8 +2728,8 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 	status = ice_cfg_vsi_lan(vsi->port_info, vsi->idx, vsi->tc_cfg.ena_tc,
 				 max_txqs);
 	if (status) {
-		dev_err(dev, "VSI %d failed lan queue config, error %s\n",
-			vsi->vsi_num, ice_stat_str(status));
+		dev_err(dev, "VSI %d failed lan queue config, error %d\n",
+			vsi->vsi_num, status);
 		goto unroll_clear_rings;
 	}
 
@@ -3427,8 +3427,8 @@ int ice_vsi_rebuild(struct ice_vsi *vsi, bool init_vsi)
 					 vsi->tc_cfg.ena_tc, max_txqs);
 
 	if (status) {
-		dev_err(ice_pf_to_dev(pf), "VSI %d failed lan queue config, error %s\n",
-			vsi->vsi_num, ice_stat_str(status));
+		dev_err(ice_pf_to_dev(pf), "VSI %d failed lan queue config, error %d\n",
+			vsi->vsi_num, status);
 		if (init_vsi) {
 			ret = -EIO;
 			goto err_vectors;
@@ -3721,8 +3721,8 @@ int ice_vsi_cfg_tc(struct ice_vsi *vsi, u8 ena_tc)
 					 vsi->tc_cfg.ena_tc, max_txqs);
 
 	if (status) {
-		dev_err(dev, "VSI %d failed TC config, error %s\n",
-			vsi->vsi_num, ice_stat_str(status));
+		dev_err(dev, "VSI %d failed TC config, error %d\n",
+			vsi->vsi_num, status);
 		ret = -EIO;
 		goto out;
 	}
@@ -3873,8 +3873,8 @@ int ice_set_dflt_vsi(struct ice_sw *sw, struct ice_vsi *vsi)
 
 	status = ice_cfg_dflt_vsi(&vsi->back->hw, vsi->idx, true, ICE_FLTR_RX);
 	if (status) {
-		dev_err(dev, "Failed to set VSI %d as the default forwarding VSI, error %s\n",
-			vsi->vsi_num, ice_stat_str(status));
+		dev_err(dev, "Failed to set VSI %d as the default forwarding VSI, error %d\n",
+			vsi->vsi_num, status);
 		return -EIO;
 	}
 
@@ -3912,8 +3912,8 @@ int ice_clear_dflt_vsi(struct ice_sw *sw)
 	status = ice_cfg_dflt_vsi(&dflt_vsi->back->hw, dflt_vsi->idx, false,
 				  ICE_FLTR_RX);
 	if (status) {
-		dev_err(dev, "Failed to clear the default forwarding VSI %d, error %s\n",
-			dflt_vsi->vsi_num, ice_stat_str(status));
+		dev_err(dev, "Failed to clear the default forwarding VSI %d, error %d\n",
+			dflt_vsi->vsi_num, status);
 		return -EIO;
 	}
 
@@ -4121,12 +4121,12 @@ int ice_set_link(struct ice_vsi *vsi, bool ena)
 	 */
 	if (status == ICE_ERR_AQ_ERROR) {
 		if (hw->adminq.sq_last_status == ICE_AQ_RC_EMODE)
-			dev_warn(dev, "can't set link to %s, err %s aq_err %s. not fatal, continuing\n",
-				 (ena ? "ON" : "OFF"), ice_stat_str(status),
+			dev_warn(dev, "can't set link to %s, err %d aq_err %s. not fatal, continuing\n",
+				 (ena ? "ON" : "OFF"), status,
 				 ice_aq_str(hw->adminq.sq_last_status));
 	} else if (status) {
-		dev_err(dev, "can't set link to %s, err %s aq_err %s\n",
-			(ena ? "ON" : "OFF"), ice_stat_str(status),
+		dev_err(dev, "can't set link to %s, err %d aq_err %s\n",
+			(ena ? "ON" : "OFF"), status,
 			ice_aq_str(hw->adminq.sq_last_status));
 		return -EIO;
 	}

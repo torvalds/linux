@@ -2242,8 +2242,8 @@ int ice_udp_tunnel_set_port(struct net_device *netdev, unsigned int table,
 
 	status = ice_create_tunnel(&pf->hw, index, tnl_type, ntohs(ti->port));
 	if (status) {
-		netdev_err(netdev, "Error adding UDP tunnel - %s\n",
-			   ice_stat_str(status));
+		netdev_err(netdev, "Error adding UDP tunnel - %d\n",
+			   status);
 		return -EIO;
 	}
 
@@ -2265,8 +2265,8 @@ int ice_udp_tunnel_unset_port(struct net_device *netdev, unsigned int table,
 	status = ice_destroy_tunnel(&pf->hw, ti->hw_priv, tnl_type,
 				    ntohs(ti->port));
 	if (status) {
-		netdev_err(netdev, "Error removing UDP tunnel - %s\n",
-			   ice_stat_str(status));
+		netdev_err(netdev, "Error removing UDP tunnel - %d\n",
+			   status);
 		return -EIO;
 	}
 

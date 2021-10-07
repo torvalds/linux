@@ -679,8 +679,8 @@ static int ice_vsi_manage_pvid(struct ice_vsi *vsi, u16 pvid_info, bool enable)
 
 	status = ice_update_vsi(hw, vsi->idx, ctxt, NULL);
 	if (status) {
-		dev_info(ice_hw_to_dev(hw), "update VSI for port VLAN failed, err %s aq_err %s\n",
-			 ice_stat_str(status),
+		dev_info(ice_hw_to_dev(hw), "update VSI for port VLAN failed, err %d aq_err %s\n",
+			 status,
 			 ice_aq_str(hw->adminq.sq_last_status));
 		ret = -EIO;
 		goto out;
@@ -860,8 +860,8 @@ static int ice_vf_rebuild_host_mac_cfg(struct ice_vf *vf)
 	eth_broadcast_addr(broadcast);
 	status = ice_fltr_add_mac(vsi, broadcast, ICE_FWD_TO_VSI);
 	if (status) {
-		dev_err(dev, "failed to add broadcast MAC filter for VF %u, error %s\n",
-			vf->vf_id, ice_stat_str(status));
+		dev_err(dev, "failed to add broadcast MAC filter for VF %u, error %d\n",
+			vf->vf_id, status);
 		return ice_status_to_errno(status);
 	}
 
@@ -871,9 +871,9 @@ static int ice_vf_rebuild_host_mac_cfg(struct ice_vf *vf)
 		status = ice_fltr_add_mac(vsi, vf->hw_lan_addr.addr,
 					  ICE_FWD_TO_VSI);
 		if (status) {
-			dev_err(dev, "failed to add default unicast MAC filter %pM for VF %u, error %s\n",
+			dev_err(dev, "failed to add default unicast MAC filter %pM for VF %u, error %d\n",
 				&vf->hw_lan_addr.addr[0], vf->vf_id,
-				ice_stat_str(status));
+				status);
 			return ice_status_to_errno(status);
 		}
 		vf->num_mac++;
@@ -1239,8 +1239,8 @@ ice_vf_set_vsi_promisc(struct ice_vf *vf, struct ice_vsi *vsi, u8 promisc_m)
 		status = ice_fltr_set_vsi_promisc(hw, vsi->idx, promisc_m, 0);
 
 	if (status && status != ICE_ERR_ALREADY_EXISTS) {
-		dev_err(ice_pf_to_dev(vsi->back), "enable Tx/Rx filter promiscuous mode on VF-%u failed, error: %s\n",
-			vf->vf_id, ice_stat_str(status));
+		dev_err(ice_pf_to_dev(vsi->back), "enable Tx/Rx filter promiscuous mode on VF-%u failed, error: %d\n",
+			vf->vf_id, status);
 		return ice_status_to_errno(status);
 	}
 
@@ -1262,8 +1262,8 @@ ice_vf_clear_vsi_promisc(struct ice_vf *vf, struct ice_vsi *vsi, u8 promisc_m)
 		status = ice_fltr_clear_vsi_promisc(hw, vsi->idx, promisc_m, 0);
 
 	if (status && status != ICE_ERR_DOES_NOT_EXIST) {
-		dev_err(ice_pf_to_dev(vsi->back), "disable Tx/Rx filter promiscuous mode on VF-%u failed, error: %s\n",
-			vf->vf_id, ice_stat_str(status));
+		dev_err(ice_pf_to_dev(vsi->back), "disable Tx/Rx filter promiscuous mode on VF-%u failed, error: %d\n",
+			vf->vf_id, status);
 		return ice_status_to_errno(status);
 	}
 
@@ -1756,8 +1756,8 @@ static int ice_init_vf_vsi_res(struct ice_vf *vf)
 	eth_broadcast_addr(broadcast);
 	status = ice_fltr_add_mac(vsi, broadcast, ICE_FWD_TO_VSI);
 	if (status) {
-		dev_err(dev, "Failed to add broadcast MAC filter for VF %d, status %s\n",
-			vf->vf_id, ice_stat_str(status));
+		dev_err(dev, "Failed to add broadcast MAC filter for VF %d, error %d\n",
+			vf->vf_id, status);
 		err = ice_status_to_errno(status);
 		goto release_vsi;
 	}
@@ -2194,8 +2194,8 @@ ice_vc_send_msg_to_vf(struct ice_vf *vf, u32 v_opcode,
 	aq_ret = ice_aq_send_msg_to_vf(&pf->hw, vf->vf_id, v_opcode, v_retval,
 				       msg, msglen, NULL);
 	if (aq_ret && pf->hw.mailboxq.sq_last_status != ICE_AQ_RC_ENOSYS) {
-		dev_info(dev, "Unable to send the message to VF %d ret %s aq_err %s\n",
-			 vf->vf_id, ice_stat_str(aq_ret),
+		dev_info(dev, "Unable to send the message to VF %d ret %d aq_err %s\n",
+			 vf->vf_id, aq_ret,
 			 ice_aq_str(pf->hw.mailboxq.sq_last_status));
 		return -EIO;
 	}
@@ -2702,8 +2702,8 @@ static int ice_vc_handle_rss_cfg(struct ice_vf *vf, u8 *msg, bool add)
 
 		status = ice_update_vsi(hw, vsi->idx, ctx, NULL);
 		if (status) {
-			dev_err(dev, "update VSI for RSS failed, err %s aq_err %s\n",
-				ice_stat_str(status),
+			dev_err(dev, "update VSI for RSS failed, err %d aq_err %s\n",
+				status,
 				ice_aq_str(hw->adminq.sq_last_status));
 			v_ret = VIRTCHNL_STATUS_ERR_PARAM;
 		} else {
@@ -2740,8 +2740,8 @@ static int ice_vc_handle_rss_cfg(struct ice_vf *vf, u8 *msg, bool add)
 			 */
 			if (status && status != ICE_ERR_DOES_NOT_EXIST) {
 				v_ret = VIRTCHNL_STATUS_ERR_PARAM;
-				dev_err(dev, "ice_rem_rss_cfg failed for VF ID:%d, error:%s\n",
-					vf->vf_id, ice_stat_str(status));
+				dev_err(dev, "ice_rem_rss_cfg failed for VF ID:%d, error:%d\n",
+					vf->vf_id, status);
 			}
 		}
 	}
@@ -2951,9 +2951,9 @@ int ice_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool ena)
 
 	status = ice_update_vsi(&pf->hw, vf_vsi->idx, ctx, NULL);
 	if (status) {
-		dev_err(dev, "Failed to %sable spoofchk on VF %d VSI %d\n error %s\n",
+		dev_err(dev, "Failed to %sable spoofchk on VF %d VSI %d\n error %d\n",
 			ena ? "en" : "dis", vf->vf_id, vf_vsi->vsi_num,
-			ice_stat_str(status));
+			status);
 		ret = -EIO;
 		goto out;
 	}
@@ -3810,8 +3810,8 @@ ice_vc_add_mac_addr(struct ice_vf *vf, struct ice_vsi *vsi,
 		 */
 		ret = -EEXIST;
 	} else if (status) {
-		dev_err(dev, "Failed to add MAC %pM for VF %d\n, error %s\n",
-			mac_addr, vf->vf_id, ice_stat_str(status));
+		dev_err(dev, "Failed to add MAC %pM for VF %d\n, error %d\n",
+			mac_addr, vf->vf_id, status);
 		return -EIO;
 	} else {
 		vf->num_mac++;
@@ -3901,8 +3901,8 @@ ice_vc_del_mac_addr(struct ice_vf *vf, struct ice_vsi *vsi,
 			vf->vf_id);
 		return -ENOENT;
 	} else if (status) {
-		dev_err(dev, "Failed to delete MAC %pM for VF %d, error %s\n",
-			mac_addr, vf->vf_id, ice_stat_str(status));
+		dev_err(dev, "Failed to delete MAC %pM for VF %d, error %d\n",
+			mac_addr, vf->vf_id, status);
 		return -EIO;
 	}
 

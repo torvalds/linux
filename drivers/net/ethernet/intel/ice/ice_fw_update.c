@@ -54,8 +54,8 @@ ice_send_package_data(struct pldmfw *context, const u8 *data, u16 length)
 	kfree(package_data);
 
 	if (status) {
-		dev_err(dev, "Failed to send record package data to firmware, err %s aq_err %s\n",
-			ice_stat_str(status),
+		dev_err(dev, "Failed to send record package data to firmware, err %d aq_err %s\n",
+			status,
 			ice_aq_str(hw->adminq.sq_last_status));
 		NL_SET_ERR_MSG_MOD(extack, "Failed to record package data to firmware");
 		return -EIO;
@@ -240,8 +240,8 @@ ice_send_component_table(struct pldmfw *context, struct pldmfw_component *compon
 	kfree(comp_tbl);
 
 	if (status) {
-		dev_err(dev, "Failed to transfer component table to firmware, err %s aq_err %s\n",
-			ice_stat_str(status),
+		dev_err(dev, "Failed to transfer component table to firmware, err %d aq_err %s\n",
+			status,
 			ice_aq_str(hw->adminq.sq_last_status));
 		NL_SET_ERR_MSG_MOD(extack, "Failed to transfer component table to firmware");
 		return -EIO;
@@ -289,8 +289,8 @@ ice_write_one_nvm_block(struct ice_pf *pf, u16 module, u32 offset,
 	status = ice_aq_update_nvm(hw, module, offset, block_size, block,
 				   last_cmd, 0, NULL);
 	if (status) {
-		dev_err(dev, "Failed to flash module 0x%02x with block of size %u at offset %u, err %s aq_err %s\n",
-			module, block_size, offset, ice_stat_str(status),
+		dev_err(dev, "Failed to flash module 0x%02x with block of size %u at offset %u, err %d aq_err %s\n",
+			module, block_size, offset, status,
 			ice_aq_str(hw->adminq.sq_last_status));
 		NL_SET_ERR_MSG_MOD(extack, "Failed to program flash module");
 		return -EIO;
@@ -458,8 +458,8 @@ ice_erase_nvm_module(struct ice_pf *pf, u16 module, const char *component,
 
 	status = ice_aq_erase_nvm(hw, module, NULL);
 	if (status) {
-		dev_err(dev, "Failed to erase %s (module 0x%02x), err %s aq_err %s\n",
-			component, module, ice_stat_str(status),
+		dev_err(dev, "Failed to erase %s (module 0x%02x), err %d aq_err %s\n",
+			component, module, status,
 			ice_aq_str(hw->adminq.sq_last_status));
 		NL_SET_ERR_MSG_MOD(extack, "Failed to erase flash module");
 		err = -EIO;
@@ -532,8 +532,8 @@ static int ice_switch_flash_banks(struct ice_pf *pf, u8 activate_flags,
 
 	status = ice_nvm_write_activate(hw, activate_flags);
 	if (status) {
-		dev_err(dev, "Failed to switch active flash banks, err %s aq_err %s\n",
-			ice_stat_str(status),
+		dev_err(dev, "Failed to switch active flash banks, err %d aq_err %s\n",
+			status,
 			ice_aq_str(hw->adminq.sq_last_status));
 		NL_SET_ERR_MSG_MOD(extack, "Failed to switch active flash banks");
 		return -EIO;
@@ -694,8 +694,8 @@ int ice_flash_pldm_image(struct ice_pf *pf, const struct firmware *fw,
 
 	status = ice_acquire_nvm(hw, ICE_RES_WRITE);
 	if (status) {
-		dev_err(dev, "Failed to acquire device flash lock, err %s aq_err %s\n",
-			ice_stat_str(status),
+		dev_err(dev, "Failed to acquire device flash lock, err %d aq_err %s\n",
+			status,
 			ice_aq_str(hw->adminq.sq_last_status));
 		NL_SET_ERR_MSG_MOD(extack, "Failed to acquire device flash lock");
 		return -EIO;
@@ -800,8 +800,8 @@ int ice_check_for_pending_update(struct ice_pf *pf, const char *component,
 
 	status = ice_acquire_nvm(hw, ICE_RES_WRITE);
 	if (status) {
-		dev_err(dev, "Failed to acquire device flash lock, err %s aq_err %s\n",
-			ice_stat_str(status),
+		dev_err(dev, "Failed to acquire device flash lock, err %d aq_err %s\n",
+			status,
 			ice_aq_str(hw->adminq.sq_last_status));
 		NL_SET_ERR_MSG_MOD(extack, "Failed to acquire device flash lock");
 		return -EIO;

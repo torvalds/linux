@@ -287,8 +287,8 @@ ice_get_eeprom(struct net_device *netdev, struct ethtool_eeprom *eeprom,
 
 	status = ice_acquire_nvm(hw, ICE_RES_READ);
 	if (status) {
-		dev_err(dev, "ice_acquire_nvm failed, err %s aq_err %s\n",
-			ice_stat_str(status),
+		dev_err(dev, "ice_acquire_nvm failed, err %d aq_err %s\n",
+			status,
 			ice_aq_str(hw->adminq.sq_last_status));
 		ret = -EIO;
 		goto out;
@@ -297,8 +297,8 @@ ice_get_eeprom(struct net_device *netdev, struct ethtool_eeprom *eeprom,
 	status = ice_read_flat_nvm(hw, eeprom->offset, &eeprom->len, buf,
 				   false);
 	if (status) {
-		dev_err(dev, "ice_read_flat_nvm failed, err %s aq_err %s\n",
-			ice_stat_str(status),
+		dev_err(dev, "ice_read_flat_nvm failed, err %d aq_err %s\n",
+			status,
 			ice_aq_str(hw->adminq.sq_last_status));
 		ret = -EIO;
 		goto release;
@@ -348,8 +348,8 @@ static u64 ice_link_test(struct net_device *netdev)
 	netdev_info(netdev, "link test\n");
 	status = ice_get_link_status(np->vsi->port_info, &link_up);
 	if (status) {
-		netdev_err(netdev, "link query error, status = %s\n",
-			   ice_stat_str(status));
+		netdev_err(netdev, "link query error, status = %d\n",
+			   status);
 		return 1;
 	}
 
@@ -2550,8 +2550,8 @@ ice_set_rss_hash_opt(struct ice_vsi *vsi, struct ethtool_rxnfc *nfc)
 
 	status = ice_add_rss_cfg(&pf->hw, vsi->idx, hashed_flds, hdrs);
 	if (status) {
-		dev_dbg(dev, "ice_add_rss_cfg failed, vsi num = %d, error = %s\n",
-			vsi->vsi_num, ice_stat_str(status));
+		dev_dbg(dev, "ice_add_rss_cfg failed, vsi num = %d, error = %d\n",
+			vsi->vsi_num, status);
 		return -EINVAL;
 	}
 
@@ -3076,18 +3076,18 @@ ice_set_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *pause)
 	status = ice_set_fc(pi, &aq_failures, link_up);
 
 	if (aq_failures & ICE_SET_FC_AQ_FAIL_GET) {
-		netdev_info(netdev, "Set fc failed on the get_phy_capabilities call with err %s aq_err %s\n",
-			    ice_stat_str(status),
+		netdev_info(netdev, "Set fc failed on the get_phy_capabilities call with err %d aq_err %s\n",
+			    status,
 			    ice_aq_str(hw->adminq.sq_last_status));
 		err = -EAGAIN;
 	} else if (aq_failures & ICE_SET_FC_AQ_FAIL_SET) {
-		netdev_info(netdev, "Set fc failed on the set_phy_config call with err %s aq_err %s\n",
-			    ice_stat_str(status),
+		netdev_info(netdev, "Set fc failed on the set_phy_config call with err %d aq_err %s\n",
+			    status,
 			    ice_aq_str(hw->adminq.sq_last_status));
 		err = -EAGAIN;
 	} else if (aq_failures & ICE_SET_FC_AQ_FAIL_UPDATE) {
-		netdev_info(netdev, "Set fc failed on the get_link_info call with err %s aq_err %s\n",
-			    ice_stat_str(status),
+		netdev_info(netdev, "Set fc failed on the get_link_info call with err %d aq_err %s\n",
+			    status,
 			    ice_aq_str(hw->adminq.sq_last_status));
 		err = -EAGAIN;
 	}
