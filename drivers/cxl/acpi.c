@@ -288,7 +288,7 @@ static int add_host_bridge_uport(struct device *match, void *arg)
 	dport = find_dport_by_dev(root_port, match);
 	if (!dport) {
 		dev_dbg(host, "host bridge expected and not found\n");
-		return -ENODEV;
+		return 0;
 	}
 
 	port = devm_cxl_add_port(host, match, dport->component_reg_phys,
@@ -377,9 +377,11 @@ static int add_host_bridge_dport(struct device *match, void *arg)
 	}
 
 	chbs = cxl_acpi_match_chbs(host, uid);
-	if (IS_ERR(chbs))
-		dev_dbg(host, "No CHBS found for Host Bridge: %s\n",
-			dev_name(match));
+	if (IS_ERR(chbs)) {
+		dev_warn(host, "No CHBS found for Host Bridge: %s\n",
+			 dev_name(match));
+		return 0;
+	}
 
 	rc = cxl_add_dport(root_port, match, uid, get_chbcr(chbs));
 	if (rc) {
