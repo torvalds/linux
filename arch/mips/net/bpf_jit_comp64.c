@@ -131,19 +131,25 @@ static void emit_mov_i64(struct jit_context *ctx, u8 dst, u64 imm64)
 		emit(ctx, ori, dst, dst, (u16)imm64 & 0xffff);
 	} else {
 		u8 acc = MIPS_R_ZERO;
+		int shift = 0;
 		int k;
 
 		for (k = 0; k < 4; k++) {
 			u16 half = imm64 >> (48 - 16 * k);
 
 			if (acc == dst)
-				emit(ctx, dsll, dst, dst, 16);
+				shift += 16;
 
 			if (half) {
+				if (shift)
+					emit(ctx, dsll_safe, dst, dst, shift);
 				emit(ctx, ori, dst, acc, half);
 				acc = dst;
+				shift = 0;
 			}
 		}
+		if (shift)
+			emit(ctx, dsll_safe, dst, dst, shift);
 	}
 	clobber_reg(ctx, dst);
 }
