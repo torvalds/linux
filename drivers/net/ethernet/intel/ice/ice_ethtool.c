@@ -288,7 +288,6 @@ ice_get_eeprom(struct net_device *netdev, struct ethtool_eeprom *eeprom,
 	if (ret) {
 		dev_err(dev, "ice_acquire_nvm failed, err %d aq_err %s\n",
 			ret, ice_aq_str(hw->adminq.sq_last_status));
-		ret = -EIO;
 		goto out;
 	}
 
@@ -297,7 +296,6 @@ ice_get_eeprom(struct net_device *netdev, struct ethtool_eeprom *eeprom,
 	if (ret) {
 		dev_err(dev, "ice_read_flat_nvm failed, err %d aq_err %s\n",
 			ret, ice_aq_str(hw->adminq.sq_last_status));
-		ret = -EIO;
 		goto release;
 	}
 
@@ -1077,10 +1075,8 @@ ice_get_fecparam(struct net_device *netdev, struct ethtool_fecparam *fecparam)
 
 	err = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP_MEDIA,
 				  caps, NULL);
-	if (err) {
-		err = -EAGAIN;
+	if (err)
 		goto done;
-	}
 
 	/* Set supported/configured FEC modes based on PHY capability */
 	if (caps->caps & ICE_AQC_PHY_EN_AUTO_FEC)
@@ -1987,10 +1983,8 @@ ice_get_link_ksettings(struct net_device *netdev,
 
 	err = ice_aq_get_phy_caps(vsi->port_info, false,
 				  ICE_AQC_REPORT_ACTIVE_CFG, caps, NULL);
-	if (err) {
-		err = -EIO;
+	if (err)
 		goto done;
-	}
 
 	/* Set the advertised flow control based on the PHY capability */
 	if ((caps->caps & ICE_AQC_PHY_EN_TX_LINK_PAUSE) &&
@@ -2024,10 +2018,8 @@ ice_get_link_ksettings(struct net_device *netdev,
 
 	err = ice_aq_get_phy_caps(vsi->port_info, false,
 				  ICE_AQC_REPORT_TOPO_CAP_MEDIA, caps, NULL);
-	if (err) {
-		err = -EIO;
+	if (err)
 		goto done;
-	}
 
 	/* Set supported FEC modes based on PHY capability */
 	ethtool_link_ksettings_add_link_mode(ks, supported, FEC_NONE);
@@ -2233,10 +2225,8 @@ ice_set_link_ksettings(struct net_device *netdev,
 	else
 		err = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP_MEDIA,
 					  phy_caps, NULL);
-	if (err) {
-		err = -EIO;
+	if (err)
 		goto done;
-	}
 
 	/* save autoneg out of ksettings */
 	autoneg = copy_ks.base.autoneg;
@@ -2303,10 +2293,8 @@ ice_set_link_ksettings(struct net_device *netdev,
 	/* Call to get the current link speed */
 	pi->phy.get_link_info = true;
 	err = ice_get_link_status(pi, &linkup);
-	if (err) {
-		err = -EIO;
+	if (err)
 		goto done;
-	}
 
 	curr_link_speed = pi->phy.link_info.link_speed;
 	adv_link_speed = ice_ksettings_find_adv_link_speed(ks);
@@ -2378,7 +2366,6 @@ ice_set_link_ksettings(struct net_device *netdev,
 	err = ice_aq_set_phy_cfg(&pf->hw, pi, &config, NULL);
 	if (err) {
 		netdev_info(netdev, "Set phy config failed,\n");
-		err = -EIO;
 		goto done;
 	}
 
@@ -2546,7 +2533,7 @@ ice_set_rss_hash_opt(struct ice_vsi *vsi, struct ethtool_rxnfc *nfc)
 	if (status) {
 		dev_dbg(dev, "ice_add_rss_cfg failed, vsi num = %d, error = %d\n",
 			vsi->vsi_num, status);
-		return -EINVAL;
+		return status;
 	}
 
 	return 0;
@@ -3030,7 +3017,7 @@ ice_set_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *pause)
 				  NULL);
 	if (err) {
 		kfree(pcaps);
-		return -EIO;
+		return err;
 	}
 
 	is_an = ice_is_phy_caps_an_enabled(pcaps) ? AUTONEG_ENABLE :
@@ -3927,7 +3914,7 @@ ice_get_module_info(struct net_device *netdev,
 	status = ice_aq_sff_eeprom(hw, 0, ICE_I2C_EEPROM_DEV_ADDR, 0x00, 0x00,
 				   0, &value, 1, 0, NULL);
 	if (status)
-		return -EIO;
+		return status;
 
 	switch (value) {
 	case ICE_MODULE_TYPE_SFP:
@@ -3935,12 +3922,12 @@ ice_get_module_info(struct net_device *netdev,
 					   ICE_MODULE_SFF_8472_COMP, 0x00, 0,
 					   &sff8472_comp, 1, 0, NULL);
 		if (status)
-			return -EIO;
+			return status;
 		status = ice_aq_sff_eeprom(hw, 0, ICE_I2C_EEPROM_DEV_ADDR,
 					   ICE_MODULE_SFF_8472_SWAP, 0x00, 0,
 					   &sff8472_swap, 1, 0, NULL);
 		if (status)
-			return -EIO;
+			return status;
 
 		if (sff8472_swap & ICE_MODULE_SFF_ADDR_MODE) {
 			modinfo->type = ETH_MODULE_SFF_8079;
@@ -3960,7 +3947,7 @@ ice_get_module_info(struct net_device *netdev,
 					   ICE_MODULE_REVISION_ADDR, 0x00, 0,
 					   &sff8636_rev, 1, 0, NULL);
 		if (status)
-			return -EIO;
+			return status;
 		/* Check revision compliance */
 		if (sff8636_rev > 0x02) {
 			/* Module is SFF-8636 compliant */
@@ -4007,7 +3994,7 @@ ice_get_module_eeprom(struct net_device *netdev,
 	status = ice_aq_sff_eeprom(hw, 0, addr, offset, page, 0, value, 1, 0,
 				   NULL);
 	if (status)
-		return -EIO;
+		return status;
 
 	if (value[0] == ICE_MODULE_TYPE_SFP)
 		is_sfp = true;

@@ -270,7 +270,6 @@ static int ice_devlink_info_get(struct devlink *devlink,
 		dev_dbg(dev, "Failed to discover device capabilities, status %d aq_err %s\n",
 			err, ice_aq_str(hw->adminq.sq_last_status));
 		NL_SET_ERR_MSG_MOD(extack, "Unable to discover device capabilities");
-		err = -EIO;
 		goto out_free_ctx;
 	}
 
@@ -776,7 +775,7 @@ static int ice_devlink_nvm_snapshot(struct devlink *devlink,
 			status, hw->adminq.sq_last_status);
 		NL_SET_ERR_MSG_MOD(extack, "Failed to acquire NVM semaphore");
 		vfree(nvm_data);
-		return -EIO;
+		return status;
 	}
 
 	status = ice_read_flat_nvm(hw, 0, &nvm_size, nvm_data, false);
@@ -786,7 +785,7 @@ static int ice_devlink_nvm_snapshot(struct devlink *devlink,
 		NL_SET_ERR_MSG_MOD(extack, "Failed to read NVM contents");
 		ice_release_nvm(hw);
 		vfree(nvm_data);
-		return -EIO;
+		return status;
 	}
 
 	ice_release_nvm(hw);
@@ -832,7 +831,7 @@ ice_devlink_devcaps_snapshot(struct devlink *devlink,
 			status, hw->adminq.sq_last_status);
 		NL_SET_ERR_MSG_MOD(extack, "Failed to read device capabilities");
 		vfree(devcaps);
-		return -EIO;
+		return status;
 	}
 
 	*data = (u8 *)devcaps;

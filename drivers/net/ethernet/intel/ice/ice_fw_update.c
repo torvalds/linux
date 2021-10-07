@@ -690,7 +690,7 @@ int ice_flash_pldm_image(struct ice_pf *pf, const struct firmware *fw,
 		dev_err(dev, "Failed to acquire device flash lock, err %d aq_err %s\n",
 			err, ice_aq_str(hw->adminq.sq_last_status));
 		NL_SET_ERR_MSG_MOD(extack, "Failed to acquire device flash lock");
-		return -EIO;
+		return err;
 	}
 
 	err = pldmfw_flash_image(&priv.context, fw);
@@ -744,7 +744,7 @@ int ice_check_for_pending_update(struct ice_pf *pf, const char *component,
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack, "Unable to read device capabilities");
 		kfree(dev_caps);
-		return -EIO;
+		return err;
 	}
 
 	if (dev_caps->common_cap.nvm_update_pending_nvm) {
@@ -794,7 +794,7 @@ int ice_check_for_pending_update(struct ice_pf *pf, const char *component,
 		dev_err(dev, "Failed to acquire device flash lock, err %d aq_err %s\n",
 			err, ice_aq_str(hw->adminq.sq_last_status));
 		NL_SET_ERR_MSG_MOD(extack, "Failed to acquire device flash lock");
-		return -EIO;
+		return err;
 	}
 
 	pending |= ICE_AQC_NVM_REVERT_LAST_ACTIV;

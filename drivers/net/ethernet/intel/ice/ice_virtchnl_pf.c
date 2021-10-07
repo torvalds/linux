@@ -680,7 +680,6 @@ static int ice_vsi_manage_pvid(struct ice_vsi *vsi, u16 pvid_info, bool enable)
 	if (ret) {
 		dev_info(ice_hw_to_dev(hw), "update VSI for port VLAN failed, err %d aq_err %s\n",
 			 ret, ice_aq_str(hw->adminq.sq_last_status));
-		ret = -EIO;
 		goto out;
 	}
 
@@ -2945,7 +2944,6 @@ int ice_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool ena)
 	if (ret) {
 		dev_err(dev, "Failed to %sable spoofchk on VF %d VSI %d\n error %d\n",
 			ena ? "en" : "dis", vf->vf_id, vf_vsi->vsi_num, ret);
-		ret = -EIO;
 		goto out;
 	}
 
@@ -3801,7 +3799,7 @@ ice_vc_add_mac_addr(struct ice_vf *vf, struct ice_vsi *vsi,
 	} else if (ret) {
 		dev_err(dev, "Failed to add MAC %pM for VF %d\n, error %d\n",
 			mac_addr, vf->vf_id, ret);
-		return -EIO;
+		return ret;
 	} else {
 		vf->num_mac++;
 	}

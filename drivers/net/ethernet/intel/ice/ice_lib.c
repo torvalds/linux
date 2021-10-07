@@ -1764,7 +1764,6 @@ int ice_vsi_kill_vlan(struct ice_vsi *vsi, u16 vid)
 	} else {
 		dev_err(dev, "Error removing VLAN %d on vsi %i error: %d\n",
 			vid, vsi->vsi_num, err);
-		err = -EIO;
 	}
 
 	return err;
@@ -2127,7 +2126,6 @@ int ice_vsi_manage_vlan_insertion(struct ice_vsi *vsi)
 	if (ret) {
 		dev_err(ice_pf_to_dev(vsi->back), "update VSI for VLAN insert failed, err %d aq_err %s\n",
 			ret, ice_aq_str(hw->adminq.sq_last_status));
-		ret = -EIO;
 		goto out;
 	}
 
@@ -2178,7 +2176,6 @@ int ice_vsi_manage_vlan_stripping(struct ice_vsi *vsi, bool ena)
 	if (ret) {
 		dev_err(ice_pf_to_dev(vsi->back), "update VSI for VLAN strip failed, ena = %d err %d aq_err %s\n",
 			ena, ret, ice_aq_str(hw->adminq.sq_last_status));
-		ret = -EIO;
 		goto out;
 	}
 
@@ -3700,7 +3697,6 @@ int ice_vsi_cfg_tc(struct ice_vsi *vsi, u8 ena_tc)
 	ret = ice_update_vsi(&pf->hw, vsi->idx, ctx, NULL);
 	if (ret) {
 		dev_info(dev, "Failed VSI Update\n");
-		ret = -EIO;
 		goto out;
 	}
 
@@ -3714,7 +3710,6 @@ int ice_vsi_cfg_tc(struct ice_vsi *vsi, u8 ena_tc)
 	if (ret) {
 		dev_err(dev, "VSI %d failed TC config, error %d\n",
 			vsi->vsi_num, ret);
-		ret = -EIO;
 		goto out;
 	}
 	ice_vsi_update_q_map(vsi, ctx);
@@ -3833,7 +3828,7 @@ int ice_set_dflt_vsi(struct ice_sw *sw, struct ice_vsi *vsi)
 	if (status) {
 		dev_err(dev, "Failed to set VSI %d as the default forwarding VSI, error %d\n",
 			vsi->vsi_num, status);
-		return -EIO;
+		return status;
 	}
 
 	sw->dflt_vsi = vsi;
@@ -3972,7 +3967,7 @@ int ice_set_min_bw_limit(struct ice_vsi *vsi, u64 min_tx_rate)
 			dev_err(dev, "failed to set min Tx rate(%llu Kbps) for %s %d\n",
 				min_tx_rate, ice_vsi_type_str(vsi->type),
 				vsi->idx);
-			return -EIO;
+			return status;
 		}
 
 		dev_dbg(dev, "set min Tx rate(%llu Kbps) for %s\n",
@@ -3984,7 +3979,7 @@ int ice_set_min_bw_limit(struct ice_vsi *vsi, u64 min_tx_rate)
 		if (status) {
 			dev_err(dev, "failed to clear min Tx rate configuration for %s %d\n",
 				ice_vsi_type_str(vsi->type), vsi->idx);
-			return -EIO;
+			return status;
 		}
 
 		dev_dbg(dev, "cleared min Tx rate configuration for %s %d\n",
@@ -4033,7 +4028,7 @@ int ice_set_max_bw_limit(struct ice_vsi *vsi, u64 max_tx_rate)
 			dev_err(dev, "failed setting max Tx rate(%llu Kbps) for %s %d\n",
 				max_tx_rate, ice_vsi_type_str(vsi->type),
 				vsi->idx);
-			return -EIO;
+			return status;
 		}
 
 		dev_dbg(dev, "set max Tx rate(%llu Kbps) for %s %d\n",
@@ -4045,7 +4040,7 @@ int ice_set_max_bw_limit(struct ice_vsi *vsi, u64 max_tx_rate)
 		if (status) {
 			dev_err(dev, "failed clearing max Tx rate configuration for %s %d\n",
 				ice_vsi_type_str(vsi->type), vsi->idx);
-			return -EIO;
+			return status;
 		}
 
 		dev_dbg(dev, "cleared max Tx rate configuration for %s %d\n",
@@ -4086,7 +4081,7 @@ int ice_set_link(struct ice_vsi *vsi, bool ena)
 		dev_err(dev, "can't set link to %s, err %d aq_err %s\n",
 			(ena ? "ON" : "OFF"), status,
 			ice_aq_str(hw->adminq.sq_last_status));
-		return -EIO;
+		return status;
 	}
 
 	return 0;
