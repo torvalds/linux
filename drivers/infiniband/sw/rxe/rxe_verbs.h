@@ -46,7 +46,6 @@ struct rxe_pd {
 struct rxe_ah {
 	struct ib_ah		ibah;
 	struct rxe_pool_entry	pelem;
-	struct rxe_pd		*pd;
 	struct rxe_av		av;
 	bool			is_user;
 	int			ah_num;
@@ -466,6 +465,11 @@ static inline struct rxe_mr *to_rmr(struct ib_mr *mr)
 static inline struct rxe_mw *to_rmw(struct ib_mw *mw)
 {
 	return mw ? container_of(mw, struct rxe_mw, ibmw) : NULL;
+}
+
+static inline struct rxe_pd *rxe_ah_pd(struct rxe_ah *ah)
+{
+	return to_rpd(ah->ibah.pd);
 }
 
 static inline struct rxe_pd *mr_pd(struct rxe_mr *mr)
