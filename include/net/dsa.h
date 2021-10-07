@@ -585,8 +585,16 @@ struct dsa_switch_ops {
 	int	(*change_tag_protocol)(struct dsa_switch *ds, int port,
 				       enum dsa_tag_protocol proto);
 
+	/* Optional switch-wide initialization and destruction methods */
 	int	(*setup)(struct dsa_switch *ds);
 	void	(*teardown)(struct dsa_switch *ds);
+
+	/* Per-port initialization and destruction methods. Mandatory if the
+	 * driver registers devlink port regions, optional otherwise.
+	 */
+	int	(*port_setup)(struct dsa_switch *ds, int port);
+	void	(*port_teardown)(struct dsa_switch *ds, int port);
+
 	u32	(*get_phy_flags)(struct dsa_switch *ds, int port);
 
 	/*
@@ -1046,6 +1054,7 @@ static inline int dsa_ndo_eth_ioctl(struct net_device *dev, struct ifreq *ifr,
 
 void dsa_unregister_switch(struct dsa_switch *ds);
 int dsa_register_switch(struct dsa_switch *ds);
+void dsa_switch_shutdown(struct dsa_switch *ds);
 struct dsa_switch *dsa_switch_find(int tree_index, int sw_index);
 #ifdef CONFIG_PM_SLEEP
 int dsa_switch_suspend(struct dsa_switch *ds);

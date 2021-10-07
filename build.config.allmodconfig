@@ -1,13 +1,10 @@
 DEFCONFIG=allmodconfig
 
-HERMETIC_TOOLCHAIN=0
-
 POST_DEFCONFIG_CMDS="update_config"
 function update_config() {
     ${KERNEL_DIR}/scripts/config --file ${OUT_DIR}/.config \
          -d TEST_KMOD  \
          -e UNWINDER_FRAME_POINTER \
-         -d BLK_DEV_NBD \
 	 -d INFINIBAND_QIB \
 
     (cd ${OUT_DIR} && \

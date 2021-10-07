@@ -1480,7 +1480,7 @@ struct task_struct {
 	int				mce_count;
 #endif
 	ANDROID_VENDOR_DATA_ARRAY(1, 64);
-	ANDROID_OEM_DATA_ARRAY(1, 2);
+	ANDROID_OEM_DATA_ARRAY(1, 6);
 
 #ifdef CONFIG_KRETPROBES
 	struct llist_head               kretprobe_instances;
@@ -1728,7 +1728,7 @@ extern struct pid *cad_pid;
 #define tsk_used_math(p)			((p)->flags & PF_USED_MATH)
 #define used_math()				tsk_used_math(current)
 
-static inline bool is_percpu_thread(void)
+static __always_inline bool is_percpu_thread(void)
 {
 #ifdef CONFIG_SMP
 	return (current->flags & PF_NO_SETAFFINITY) &&

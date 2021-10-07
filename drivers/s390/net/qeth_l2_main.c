@@ -2307,7 +2307,6 @@ static void qeth_l2_remove_device(struct ccwgroup_device *gdev)
 	if (gdev->state == CCWGROUP_ONLINE)
 		qeth_set_offline(card, card->discipline, false);
 
-	cancel_work_sync(&card->close_dev_work);
 	if (card->dev->reg_state == NETREG_REGISTERED) {
 		priv = netdev_priv(card->dev);
 		if (priv->brport_features & BR_LEARNING_SYNC) {

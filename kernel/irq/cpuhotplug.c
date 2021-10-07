@@ -42,7 +42,7 @@ static inline bool irq_needs_fixup(struct irq_data *d)
 		 * If this happens then there was a missed IRQ fixup at some
 		 * point. Warn about it and enforce fixup.
 		 */
-		pr_debug("Eff. affinity %*pbl of IRQ %u contains only offline CPUs after offlining CPU %u\n",
+		pr_warn("Eff. affinity %*pbl of IRQ %u contains only offline CPUs after offlining CPU %u\n",
 			cpumask_pr_args(m), d->irq, cpu);
 		return true;
 	}

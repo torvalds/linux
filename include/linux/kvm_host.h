@@ -608,7 +608,6 @@ struct kvm {
 	unsigned long mmu_notifier_range_start;
 	unsigned long mmu_notifier_range_end;
 #endif
-	long tlbs_dirty;
 	struct list_head devices;
 	u64 manual_dirty_log_protect;
 	struct dentry *debugfs_dentry;
@@ -719,11 +718,6 @@ static inline struct kvm_vcpu *kvm_get_vcpu_by_id(struct kvm *kvm, int id)
 		if (vcpu->vcpu_id == id)
 			return vcpu;
 	return NULL;
-}
-
-static inline int kvm_vcpu_get_idx(struct kvm_vcpu *vcpu)
-{
-	return vcpu->vcpu_idx;
 }
 
 #define kvm_for_each_memslot(memslot, slots)				\

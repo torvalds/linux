@@ -4120,7 +4120,10 @@ static inline int task_fits_capacity(struct task_struct *p, long capacity)
 
 static inline void update_misfit_status(struct task_struct *p, struct rq *rq)
 {
-	if (!static_branch_unlikely(&sched_asym_cpucapacity))
+	bool need_update = true;
+
+	trace_android_rvh_update_misfit_status(p, rq, &need_update);
+	if (!static_branch_unlikely(&sched_asym_cpucapacity) || !need_update)
 		return;
 
 	if (!p || p->nr_cpus_allowed == 1) {
@@ -4224,6 +4227,7 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 
 	/* ensure we never gain time by being placed backwards. */
 	se->vruntime = max_vruntime(se->vruntime, vruntime);
+	trace_android_rvh_place_entity(cfs_rq, se, initial, vruntime);
 }
 
 static void check_enqueue_throttle(struct cfs_rq *cfs_rq);
@@ -4447,9 +4451,13 @@ check_preempt_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 	unsigned long ideal_runtime, delta_exec;
 	struct sched_entity *se;
 	s64 delta;
+	bool skip_preempt = false;
 
 	ideal_runtime = sched_slice(cfs_rq, curr);
 	delta_exec = curr->sum_exec_runtime - curr->prev_sum_exec_runtime;
+	trace_android_rvh_check_preempt_tick(current, &ideal_runtime, &skip_preempt);
+	if (skip_preempt)
+		return;
 	if (delta_exec > ideal_runtime) {
 		resched_curr(rq_of(cfs_rq));
 		/*
@@ -4939,8 +4947,12 @@ void unthrottle_cfs_rq(struct cfs_rq *cfs_rq)
 	/* update hierarchical throttle state */
 	walk_tg_tree_from(cfs_rq->tg, tg_nop, tg_unthrottle_up, (void *)rq);
 
-	if (!cfs_rq->load.weight)
+	/* Nothing to run but something to decay (on_list)? Complete the branch */
+	if (!cfs_rq->load.weight) {
+		if (cfs_rq->on_list)
+			goto unthrottle_throttle;
 		return;
+	}
 
 	task_delta = cfs_rq->h_nr_running;
 	idle_task_delta = cfs_rq->idle_h_nr_running;
@@ -7200,8 +7212,12 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int wake_
 	int scale = cfs_rq->nr_running >= sched_nr_latency;
 	int next_buddy_marked = 0;
 	int cse_is_idle, pse_is_idle;
+	bool ignore = false;
 
 	if (unlikely(se == pse))
+		return;
+	trace_android_rvh_check_preempt_wakeup_ignore(curr, &ignore);
+	if (ignore)
 		return;
 
 	/*
@@ -7329,6 +7345,7 @@ pick_next_task_fair(struct rq *rq, struct task_struct *prev, struct rq_flags *rf
 	struct sched_entity *se;
 	struct task_struct *p;
 	int new_tasks;
+	bool repick = false;
 
 again:
 	if (!sched_fair_runnable(rq))
@@ -7382,6 +7399,7 @@ again:
 	} while (cfs_rq);
 
 	p = task_of(se);
+	trace_android_rvh_replace_next_task_fair(rq, &p, &se, &repick, false);
 
 	/*
 	 * Since we haven't yet done put_prev_entity and if the selected task
@@ -7414,6 +7432,10 @@ simple:
 #endif
 	if (prev)
 		put_prev_task(rq, prev);
+
+	trace_android_rvh_replace_next_task_fair(rq, &p, &se, &repick, true);
+	if (repick)
+		goto done;
 
 	do {
 		se = pick_next_entity(cfs_rq, NULL);
@@ -8485,6 +8507,7 @@ static void update_cpu_capacity(struct sched_domain *sd, int cpu)
 	if (!capacity)
 		capacity = 1;
 
+	trace_android_rvh_update_cpu_capacity(cpu, &capacity);
 	cpu_rq(cpu)->cpu_capacity = capacity;
 	trace_sched_cpu_capacity_tp(cpu_rq(cpu));
 
