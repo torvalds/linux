@@ -2,8 +2,6 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
 
-int _version SEC("version") = 1;
-
 SEC("sk_skb1")
 int bpf_prog1(struct __sk_buff *skb)
 {

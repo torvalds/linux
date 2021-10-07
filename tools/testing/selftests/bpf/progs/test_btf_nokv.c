@@ -3,8 +3,6 @@
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 
-int _version SEC("version") = 1;
-
 struct ipv_counts {
 	unsigned int v4;
 	unsigned int v6;

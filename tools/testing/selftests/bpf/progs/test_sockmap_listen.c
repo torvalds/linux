@@ -116,5 +116,4 @@ int prog_reuseport(struct sk_reuseport_md *reuse)
 	return verdict;
 }
 
-int _version SEC("version") = 1;
 char _license[] SEC("license") = "GPL";

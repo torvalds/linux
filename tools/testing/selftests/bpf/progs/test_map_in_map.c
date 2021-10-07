@@ -47,5 +47,4 @@ int xdp_mimtest0(struct xdp_md *ctx)
 	return XDP_PASS;
 }
 
-int _version SEC("version") = 1;
 char _license[] SEC("license") = "GPL";
