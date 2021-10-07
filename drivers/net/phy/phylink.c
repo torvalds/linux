@@ -2596,7 +2596,6 @@ int phylink_mii_c22_pcs_set_advertisement(struct mdio_device *pcs,
 {
 	struct mii_bus *bus = pcs->bus;
 	int addr = pcs->addr;
-	int val, ret;
 	u16 adv;
 
 	switch (interface) {
@@ -2610,32 +2609,12 @@ int phylink_mii_c22_pcs_set_advertisement(struct mdio_device *pcs,
 				      advertising))
 			adv |= ADVERTISE_1000XPSE_ASYM;
 
-		val = mdiobus_read(bus, addr, MII_ADVERTISE);
-		if (val < 0)
-			return val;
-
-		if (val == adv)
-			return 0;
-
-		ret = mdiobus_write(bus, addr, MII_ADVERTISE, adv);
-		if (ret < 0)
-			return ret;
-
-		return 1;
+		return mdiobus_modify_changed(bus, addr, MII_ADVERTISE,
+					      0xffff, adv);
 
 	case PHY_INTERFACE_MODE_SGMII:
-		val = mdiobus_read(bus, addr, MII_ADVERTISE);
-		if (val < 0)
-			return val;
-
-		if (val == 0x0001)
-			return 0;
-
-		ret = mdiobus_write(bus, addr, MII_ADVERTISE, 0x0001);
-		if (ret < 0)
-			return ret;
-
-		return 1;
+		return mdiobus_modify_changed(bus, addr, MII_ADVERTISE,
+					      0xffff, 0x0001);
 
 	default:
 		/* Nothing to do for other modes */
