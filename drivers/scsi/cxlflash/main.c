@@ -171,7 +171,7 @@ static void cmd_complete(struct afu_cmd *cmd)
 
 		dev_dbg_ratelimited(dev, "%s:scp=%p result=%08x ioasc=%08x\n",
 				    __func__, scp, scp->result, cmd->sa.ioasc);
-		scp->scsi_done(scp);
+		scsi_done(scp);
 	} else if (cmd->cmd_tmf) {
 		spin_lock_irqsave(&cfg->tmf_slock, lock_flags);
 		cfg->tmf_active = false;
@@ -205,7 +205,7 @@ static void flush_pending_cmds(struct hwq *hwq)
 		if (cmd->scp) {
 			scp = cmd->scp;
 			scp->result = (DID_IMM_RETRY << 16);
-			scp->scsi_done(scp);
+			scsi_done(scp);
 		} else {
 			cmd->cmd_aborted = true;
 
@@ -601,7 +601,7 @@ static int cxlflash_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scp)
 	case STATE_FAILTERM:
 		dev_dbg_ratelimited(dev, "%s: device has failed\n", __func__);
 		scp->result = (DID_NO_CONNECT << 16);
-		scp->scsi_done(scp);
+		scsi_done(scp);
 		rc = 0;
 		goto out;
 	default:
