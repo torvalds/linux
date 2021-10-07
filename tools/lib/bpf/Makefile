@@ -241,15 +241,24 @@ install_lib: all_cmd
 		$(call do_install_mkdir,$(libdir_SQ)); \
 		cp -fpR $(LIB_FILE) $(DESTDIR)$(libdir_SQ)
 
-INSTALL_HEADERS = bpf.h libbpf.h btf.h libbpf_common.h libbpf_legacy.h xsk.h \
-		  bpf_helpers.h $(BPF_GENERATED) bpf_tracing.h		     \
-		  bpf_endian.h bpf_core_read.h skel_internal.h		     \
-		  libbpf_version.h
+SRC_HDRS := bpf.h libbpf.h btf.h libbpf_common.h libbpf_legacy.h xsk.h	     \
+	    bpf_helpers.h bpf_tracing.h bpf_endian.h bpf_core_read.h	     \
+	    skel_internal.h libbpf_version.h
+GEN_HDRS := $(BPF_GENERATED)
 
-install_headers: $(BPF_GENERATED)
-	$(call QUIET_INSTALL, headers)					     \
-		$(foreach hdr,$(INSTALL_HEADERS),			     \
-			$(call do_install,$(hdr),$(prefix)/include/bpf,644);)
+INSTALL_PFX := $(DESTDIR)$(prefix)/include/bpf
+INSTALL_SRC_HDRS := $(addprefix $(INSTALL_PFX)/, $(SRC_HDRS))
+INSTALL_GEN_HDRS := $(addprefix $(INSTALL_PFX)/, $(notdir $(GEN_HDRS)))
+
+$(INSTALL_SRC_HDRS): $(INSTALL_PFX)/%.h: %.h
+	$(call QUIET_INSTALL, $@) \
+		$(call do_install,$<,$(prefix)/include/bpf,644)
+
+$(INSTALL_GEN_HDRS): $(INSTALL_PFX)/%.h: $(OUTPUT)%.h
+	$(call QUIET_INSTALL, $@) \
+		$(call do_install,$<,$(prefix)/include/bpf,644)
+
+install_headers: $(BPF_GENERATED) $(INSTALL_SRC_HDRS) $(INSTALL_GEN_HDRS)
 
 install_pkgconfig: $(PC_FILE)
 	$(call QUIET_INSTALL, $(PC_FILE)) \
