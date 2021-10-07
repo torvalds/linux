@@ -51,7 +51,8 @@ static int __bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags
 			     BTREE_ITER_PREFETCH|
 			     BTREE_ITER_ALL_SNAPSHOTS);
 
-	while ((k = bch2_btree_iter_peek(&iter)).k &&
+	while ((bch2_trans_begin(&trans),
+		(k = bch2_btree_iter_peek(&iter)).k) &&
 	       !(ret = bkey_err(k))) {
 		if (!bch2_bkey_has_device(k, dev_idx)) {
 			bch2_btree_iter_advance(&iter);
@@ -71,8 +72,6 @@ static int __bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags
 		 * KEY_TYPE_error key, or just a discard if it was a cached extent)
 		 */
 		bch2_extent_normalize(c, bkey_i_to_s(sk.k));
-
-		bch2_btree_iter_set_pos(&iter, bkey_start_pos(&sk.k->k));
 
 		ret   = bch2_btree_iter_traverse(&iter) ?:
 			bch2_trans_update(&trans, &iter, sk.k,
@@ -125,12 +124,14 @@ static int bch2_dev_metadata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 	closure_init_stack(&cl);
 
 	for (id = 0; id < BTREE_ID_NR; id++) {
-		for_each_btree_node(&trans, iter, id, POS_MIN,
-				    BTREE_ITER_PREFETCH, b) {
-retry:
+		bch2_trans_node_iter_init(&trans, &iter, id, POS_MIN, 0, 0,
+					  BTREE_ITER_PREFETCH);
+
+		while (bch2_trans_begin(&trans),
+		       (b = bch2_btree_iter_peek_node(&iter))) {
 			if (!bch2_bkey_has_device(bkey_i_to_s_c(&b->key),
 						  dev_idx))
-				continue;
+				goto next;
 
 			bch2_bkey_buf_copy(&k, c, &b->key);
 
@@ -143,14 +144,16 @@ retry:
 
 			ret = bch2_btree_node_update_key(&trans, &iter, b, k.k, false);
 			if (ret == -EINTR) {
-				b = bch2_btree_iter_peek_node(&iter);
 				ret = 0;
-				goto retry;
+				continue;
 			}
+
 			if (ret) {
 				bch_err(c, "Error updating btree node key: %i", ret);
 				break;
 			}
+next:
+			bch2_btree_iter_next_node(&iter);
 		}
 		bch2_trans_iter_exit(&trans, &iter);
 
