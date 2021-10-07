@@ -60,6 +60,7 @@
 #include "devlink.h"
 #include "fw_reset.h"
 #include "lib/mlx5.h"
+#include "lib/tout.h"
 #include "fpga/core.h"
 #include "fpga/ipsec.h"
 #include "accel/ipsec.h"
@@ -176,11 +177,6 @@ static struct mlx5_profile profile[] = {
 	},
 };
 
-#define FW_INIT_TIMEOUT_MILI		2000
-#define FW_INIT_WAIT_MS			2
-#define FW_PRE_INIT_TIMEOUT_MILI	120000
-#define FW_INIT_WARN_MESSAGE_INTERVAL	20000
-
 static int fw_initializing(struct mlx5_core_dev *dev)
 {
 	return ioread32be(&dev->iseg->initializing) >> 31;
@@ -193,8 +189,6 @@ static int wait_fw_init(struct mlx5_core_dev *dev, u32 max_wait_mili,
 	unsigned long end = jiffies + msecs_to_jiffies(max_wait_mili);
 	int err = 0;
 
-	BUILD_BUG_ON(FW_PRE_INIT_TIMEOUT_MILI < FW_INIT_WARN_MESSAGE_INTERVAL);
-
 	while (fw_initializing(dev)) {
 		if (time_after(jiffies, end)) {
 			err = -EBUSY;
@@ -205,7 +199,7 @@ static int wait_fw_init(struct mlx5_core_dev *dev, u32 max_wait_mili,
 				       jiffies_to_msecs(end - warn) / 1000);
 			warn = jiffies + msecs_to_jiffies(warn_time_mili);
 		}
-		msleep(FW_INIT_WAIT_MS);
+		msleep(mlx5_tout_ms(dev, FW_PRE_INIT_WAIT));
 	}
 
 	return err;
@@ -975,25 +969,34 @@ static int mlx5_function_setup(struct mlx5_core_dev *dev, bool boot)
 	if (mlx5_core_is_pf(dev))
 		pcie_print_link_status(dev->pdev);
 
+	err = mlx5_tout_init(dev);
+	if (err) {
+		mlx5_core_err(dev, "Failed initializing timeouts, aborting\n");
+		return err;
+	}
+
 	/* wait for firmware to accept initialization segments configurations
 	 */
-	err = wait_fw_init(dev, FW_PRE_INIT_TIMEOUT_MILI, FW_INIT_WARN_MESSAGE_INTERVAL);
+	err = wait_fw_init(dev, mlx5_tout_ms(dev, FW_PRE_INIT_TIMEOUT),
+			   mlx5_tout_ms(dev, FW_PRE_INIT_WARN_MESSAGE_INTERVAL));
 	if (err) {
-		mlx5_core_err(dev, "Firmware over %d MS in pre-initializing state, aborting\n",
-			      FW_PRE_INIT_TIMEOUT_MILI);
-		return err;
+		mlx5_core_err(dev, "Firmware over %llu MS in pre-initializing state, aborting\n",
+			      mlx5_tout_ms(dev, FW_PRE_INIT_TIMEOUT));
+		goto err_tout_cleanup;
 	}
 
 	err = mlx5_cmd_init(dev);
 	if (err) {
 		mlx5_core_err(dev, "Failed initializing command interface, aborting\n");
-		return err;
+		goto err_tout_cleanup;
 	}
 
-	err = wait_fw_init(dev, FW_INIT_TIMEOUT_MILI, 0);
+	mlx5_tout_query_iseg(dev);
+
+	err = wait_fw_init(dev, mlx5_tout_ms(dev, FW_INIT), 0);
 	if (err) {
-		mlx5_core_err(dev, "Firmware over %d MS in initializing state, aborting\n",
-			      FW_INIT_TIMEOUT_MILI);
+		mlx5_core_err(dev, "Firmware over %llu MS in initializing state, aborting\n",
+			      mlx5_tout_ms(dev, FW_INIT));
 		goto err_cmd_cleanup;
 	}
 
@@ -1062,6 +1065,8 @@ err_disable_hca:
 err_cmd_cleanup:
 	mlx5_cmd_set_state(dev, MLX5_CMDIF_STATE_DOWN);
 	mlx5_cmd_cleanup(dev);
+err_tout_cleanup:
+	mlx5_tout_cleanup(dev);
 
 	return err;
 }
@@ -1080,6 +1085,7 @@ static int mlx5_function_teardown(struct mlx5_core_dev *dev, bool boot)
 	mlx5_core_disable_hca(dev, 0);
 	mlx5_cmd_set_state(dev, MLX5_CMDIF_STATE_DOWN);
 	mlx5_cmd_cleanup(dev);
+	mlx5_tout_cleanup(dev);
 
 	return 0;
 }
