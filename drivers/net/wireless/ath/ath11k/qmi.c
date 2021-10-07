@@ -2135,7 +2135,6 @@ static int ath11k_qmi_load_bdf_qmi(struct ath11k_base *ab)
 
 	ath11k_dbg(ab, ATH11K_DBG_QMI, "qmi bdf_type %d\n", bdf_type);
 
-	fw_size = bd.len;
 	fw_size = min_t(u32, ab->hw_params.fw.board_size, bd.len);
 
 	ret = ath11k_qmi_load_file_target_mem(ab, bd.data, fw_size, bdf_type);
