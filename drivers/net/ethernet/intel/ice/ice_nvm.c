@@ -27,7 +27,7 @@ ice_aq_read_nvm(struct ice_hw *hw, u16 module_typeid, u32 offset, u16 length,
 	cmd = &desc.params.nvm;
 
 	if (offset > ICE_AQC_NVM_MAX_OFFSET)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_nvm_read);
 
@@ -74,7 +74,7 @@ ice_read_flat_nvm(struct ice_hw *hw, u32 offset, u32 *length, u8 *data,
 	/* Verify the length of the read if this is for the Shadow RAM */
 	if (read_shadow_ram && ((offset + inlen) > (hw->flash.sr_words * 2u))) {
 		ice_debug(hw, ICE_DBG_NVM, "NVM error: requested offset is beyond Shadow RAM limit\n");
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 	}
 
 	do {
@@ -131,7 +131,7 @@ ice_aq_update_nvm(struct ice_hw *hw, u16 module_typeid, u32 offset,
 
 	/* In offset the highest byte must be zeroed. */
 	if (offset & 0xFF000000)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_nvm_write);
 
@@ -329,7 +329,7 @@ ice_read_flash_module(struct ice_hw *hw, enum ice_bank_select bank, u16 module,
 	if (!start) {
 		ice_debug(hw, ICE_DBG_NVM, "Unable to calculate flash bank offset for module 0x%04x\n",
 			  module);
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 	}
 
 	status = ice_acquire_nvm(hw, ICE_RES_READ);
@@ -482,7 +482,7 @@ ice_get_pfa_module_tlv(struct ice_hw *hw, u16 *module_tlv, u16 *module_tlv_len,
 				*module_tlv_len = tlv_len;
 				return 0;
 			}
-			return ICE_ERR_INVAL_SIZE;
+			return -EINVAL;
 		}
 		/* Check next TLV, i.e. current TLV pointer + length + 2 words
 		 * (for current TLV's type and length)
@@ -490,7 +490,7 @@ ice_get_pfa_module_tlv(struct ice_hw *hw, u16 *module_tlv, u16 *module_tlv_len,
 		next_tlv = next_tlv + tlv_len + 2;
 	}
 	/* Module does not exist */
-	return ICE_ERR_DOES_NOT_EXIST;
+	return -ENOENT;
 }
 
 /**
@@ -525,7 +525,7 @@ ice_read_pba_string(struct ice_hw *hw, u8 *pba_num, u32 pba_num_size)
 
 	if (pba_tlv_len < pba_size) {
 		ice_debug(hw, ICE_DBG_INIT, "Invalid PBA Block TLV size.\n");
-		return ICE_ERR_INVAL_SIZE;
+		return -EINVAL;
 	}
 
 	/* Subtract one to get PBA word count (PBA Size word is included in
@@ -534,7 +534,7 @@ ice_read_pba_string(struct ice_hw *hw, u8 *pba_num, u32 pba_num_size)
 	pba_size--;
 	if (pba_num_size < (((u32)pba_size * 2) + 1)) {
 		ice_debug(hw, ICE_DBG_INIT, "Buffer too small for PBA data.\n");
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 	}
 
 	for (i = 0; i < pba_size; i++) {
@@ -650,14 +650,14 @@ ice_get_orom_civd_data(struct ice_hw *hw, enum ice_bank_select bank,
 		if (sum) {
 			ice_debug(hw, ICE_DBG_NVM, "Found CIVD data with invalid checksum of %u\n",
 				  sum);
-			return ICE_ERR_NVM;
+			return -EIO;
 		}
 
 		*civd = tmp;
 		return 0;
 	}
 
-	return ICE_ERR_NVM;
+	return -EIO;
 }
 
 /**
@@ -730,7 +730,7 @@ ice_get_netlist_info(struct ice_hw *hw, enum ice_bank_select bank,
 	if (module_id != ICE_NETLIST_LINK_TOPO_MOD_ID) {
 		ice_debug(hw, ICE_DBG_NVM, "Expected netlist module_id ID of 0x%04x, but got 0x%04x\n",
 			  ICE_NETLIST_LINK_TOPO_MOD_ID, module_id);
-		return ICE_ERR_NVM;
+		return -EIO;
 	}
 
 	status = ice_read_netlist_module(hw, bank, ICE_LINK_TOPO_MODULE_LEN, &length);
@@ -741,7 +741,7 @@ ice_get_netlist_info(struct ice_hw *hw, enum ice_bank_select bank,
 	if (length < ICE_NETLIST_ID_BLK_SIZE) {
 		ice_debug(hw, ICE_DBG_NVM, "Netlist Link Topology module too small. Expected at least %u words, but got %u words.\n",
 			  ICE_NETLIST_ID_BLK_SIZE, length);
-		return ICE_ERR_NVM;
+		return -EIO;
 	}
 
 	status = ice_read_netlist_module(hw, bank, ICE_LINK_TOPO_NODE_COUNT, &node_count);
@@ -751,7 +751,7 @@ ice_get_netlist_info(struct ice_hw *hw, enum ice_bank_select bank,
 
 	id_blk = kcalloc(ICE_NETLIST_ID_BLK_SIZE, sizeof(*id_blk), GFP_KERNEL);
 	if (!id_blk)
-		return ICE_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	/* Read out the entire Netlist ID Block at once. */
 	status = ice_read_flash_module(hw, bank, ICE_SR_NETLIST_BANK_PTR,
@@ -819,7 +819,7 @@ static int ice_discover_flash_size(struct ice_hw *hw)
 		u8 data;
 
 		status = ice_read_flat_nvm(hw, offset, &len, &data, false);
-		if (status == ICE_ERR_AQ_ERROR &&
+		if (status == -EIO &&
 		    hw->adminq.sq_last_status == ICE_AQ_RC_EINVAL) {
 			ice_debug(hw, ICE_DBG_NVM, "%s: New upper bound of %u bytes\n",
 				  __func__, offset);
@@ -933,7 +933,7 @@ ice_determine_active_flash_banks(struct ice_hw *hw)
 	/* Check that the control word indicates validity */
 	if ((ctrl_word & ICE_SR_CTRL_WORD_1_M) >> ICE_SR_CTRL_WORD_1_S != ICE_SR_CTRL_WORD_VALID) {
 		ice_debug(hw, ICE_DBG_NVM, "Shadow RAM control word is invalid\n");
-		return ICE_ERR_CFG;
+		return -EIO;
 	}
 
 	if (!(ctrl_word & ICE_SR_CTRL_WORD_NVM_BANK))
@@ -1021,7 +1021,7 @@ int ice_init_nvm(struct ice_hw *hw)
 		/* Blank programming mode */
 		flash->blank_nvm_mode = true;
 		ice_debug(hw, ICE_DBG_NVM, "NVM init error: unsupported blank mode.\n");
-		return ICE_ERR_NVM_BLANK_MODE;
+		return -EIO;
 	}
 
 	status = ice_discover_flash_size(hw);
@@ -1080,7 +1080,7 @@ int ice_nvm_validate_checksum(struct ice_hw *hw)
 
 	if (!status)
 		if (le16_to_cpu(cmd->checksum) != ICE_AQC_NVM_CHECKSUM_CORRECT)
-			status = ICE_ERR_NVM_CHECKSUM;
+			status = -EIO;
 
 	return status;
 }
@@ -1144,7 +1144,7 @@ ice_nvm_set_pkg_data(struct ice_hw *hw, bool del_pkg_data_flag, u8 *data,
 	struct ice_aq_desc desc;
 
 	if (length != 0 && !data)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	cmd = &desc.params.pkg_data;
 
@@ -1183,7 +1183,7 @@ ice_nvm_pass_component_tbl(struct ice_hw *hw, u8 *data, u16 length,
 	int status;
 
 	if (!data || !comp_response || !comp_response_code)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	cmd = &desc.params.pass_comp_tbl;
 

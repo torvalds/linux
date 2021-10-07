@@ -1758,7 +1758,7 @@ int ice_vsi_kill_vlan(struct ice_vsi *vsi, u16 vid)
 	status = ice_fltr_remove_vlan(vsi, vid, ICE_FWD_TO_VSI);
 	if (!status) {
 		vsi->num_vlan--;
-	} else if (status == ICE_ERR_DOES_NOT_EXIST) {
+	} else if (status == -ENOENT) {
 		dev_dbg(dev, "Failed to remove VLAN %d on VSI %i, it does not exist, error: %d\n",
 			vid, vsi->vsi_num, status);
 	} else {
@@ -3036,7 +3036,7 @@ void ice_napi_del(struct ice_vsi *vsi)
  */
 int ice_vsi_release(struct ice_vsi *vsi)
 {
-	enum ice_status err;
+	int err;
 	struct ice_pf *pf;
 
 	if (!vsi->back)
@@ -3776,39 +3776,6 @@ void ice_update_rx_ring_stats(struct ice_rx_ring *rx_ring, u64 pkts, u64 bytes)
 }
 
 /**
- * ice_status_to_errno - convert from enum ice_status to Linux errno
- * @err: ice_status value to convert
- */
-int ice_status_to_errno(enum ice_status err)
-{
-	switch (err) {
-	case ICE_SUCCESS:
-		return 0;
-	case ICE_ERR_DOES_NOT_EXIST:
-		return -ENOENT;
-	case ICE_ERR_OUT_OF_RANGE:
-	case ICE_ERR_AQ_ERROR:
-	case ICE_ERR_AQ_TIMEOUT:
-	case ICE_ERR_AQ_EMPTY:
-	case ICE_ERR_AQ_FW_CRITICAL:
-		return -EIO;
-	case ICE_ERR_PARAM:
-	case ICE_ERR_INVAL_SIZE:
-		return -EINVAL;
-	case ICE_ERR_NO_MEMORY:
-		return -ENOMEM;
-	case ICE_ERR_MAX_LIMIT:
-		return -EAGAIN;
-	case ICE_ERR_RESET_ONGOING:
-		return -EBUSY;
-	case ICE_ERR_AQ_FULL:
-		return -ENOSPC;
-	default:
-		return -EINVAL;
-	}
-}
-
-/**
  * ice_is_dflt_vsi_in_use - check if the default forwarding VSI is being used
  * @sw: switch to check if its default forwarding VSI is free
  *
@@ -4119,7 +4086,7 @@ int ice_set_link(struct ice_vsi *vsi, bool ena)
 	 * a success code. Return an error if FW returns an error code other
 	 * than ICE_AQ_RC_EMODE
 	 */
-	if (status == ICE_ERR_AQ_ERROR) {
+	if (status == -EIO) {
 		if (hw->adminq.sq_last_status == ICE_AQ_RC_EMODE)
 			dev_warn(dev, "can't set link to %s, err %d aq_err %s. not fatal, continuing\n",
 				 (ena ? "ON" : "OFF"), status,

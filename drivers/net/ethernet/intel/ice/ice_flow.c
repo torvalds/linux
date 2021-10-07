@@ -634,12 +634,12 @@ ice_flow_val_hdrs(struct ice_flow_seg_info *segs, u8 segs_cnt)
 		/* Multiple L3 headers */
 		if (segs[i].hdrs & ICE_FLOW_SEG_HDRS_L3_MASK &&
 		    !is_power_of_2(segs[i].hdrs & ICE_FLOW_SEG_HDRS_L3_MASK))
-			return ICE_ERR_PARAM;
+			return -EINVAL;
 
 		/* Multiple L4 headers */
 		if (segs[i].hdrs & ICE_FLOW_SEG_HDRS_L4_MASK &&
 		    !is_power_of_2(segs[i].hdrs & ICE_FLOW_SEG_HDRS_L4_MASK))
-			return ICE_ERR_PARAM;
+			return -EINVAL;
 	}
 
 	return 0;
@@ -1035,7 +1035,7 @@ ice_flow_xtract_fld(struct ice_hw *hw, struct ice_flow_prof_params *params,
 		prot_id = ICE_PROT_GRE_OF;
 		break;
 	default:
-		return ICE_ERR_NOT_IMPL;
+		return -EOPNOTSUPP;
 	}
 
 	/* Each extraction sequence entry is a word in size, and extracts a
@@ -1073,7 +1073,7 @@ ice_flow_xtract_fld(struct ice_hw *hw, struct ice_flow_prof_params *params,
 			 * does not exceed the block's capability
 			 */
 			if (params->es_cnt >= fv_words)
-				return ICE_ERR_MAX_LIMIT;
+				return -ENOSPC;
 
 			/* some blocks require a reversed field vector layout */
 			if (hw->blk[params->blk].es.reverse)
@@ -1112,12 +1112,12 @@ ice_flow_xtract_raws(struct ice_hw *hw, struct ice_flow_prof_params *params,
 
 	if (params->prof->segs[seg].raws_cnt >
 	    ARRAY_SIZE(params->prof->segs[seg].raws))
-		return ICE_ERR_MAX_LIMIT;
+		return -ENOSPC;
 
 	/* Offsets within the segment headers are not supported */
 	hdrs_sz = ice_flow_calc_seg_sz(params, seg);
 	if (!hdrs_sz)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	fv_words = hw->blk[params->blk].es.fvw;
 
@@ -1150,7 +1150,7 @@ ice_flow_xtract_raws(struct ice_hw *hw, struct ice_flow_prof_params *params,
 			 */
 			if (params->es_cnt >= hw->blk[params->blk].es.count ||
 			    params->es_cnt >= ICE_MAX_FV_WORDS)
-				return ICE_ERR_MAX_LIMIT;
+				return -ENOSPC;
 
 			/* some blocks require a reversed field vector layout */
 			if (hw->blk[params->blk].es.reverse)
@@ -1229,7 +1229,7 @@ ice_flow_proc_segs(struct ice_hw *hw, struct ice_flow_prof_params *params)
 		status = 0;
 		break;
 	default:
-		return ICE_ERR_NOT_IMPL;
+		return -EOPNOTSUPP;
 	}
 
 	return status;
@@ -1334,7 +1334,7 @@ ice_flow_rem_entry_sync(struct ice_hw *hw, enum ice_block __always_unused blk,
 			struct ice_flow_entry *entry)
 {
 	if (!entry)
-		return ICE_ERR_BAD_PTR;
+		return -EINVAL;
 
 	list_del(&entry->l_entry);
 
@@ -1366,16 +1366,16 @@ ice_flow_add_prof_sync(struct ice_hw *hw, enum ice_block blk,
 	u8 i;
 
 	if (!prof)
-		return ICE_ERR_BAD_PTR;
+		return -EINVAL;
 
 	params = kzalloc(sizeof(*params), GFP_KERNEL);
 	if (!params)
-		return ICE_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	params->prof = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*params->prof),
 				    GFP_KERNEL);
 	if (!params->prof) {
-		status = ICE_ERR_NO_MEMORY;
+		status = -ENOMEM;
 		goto free_params;
 	}
 
@@ -1544,13 +1544,13 @@ ice_flow_add_prof(struct ice_hw *hw, enum ice_block blk, enum ice_flow_dir dir,
 	int status;
 
 	if (segs_cnt > ICE_FLOW_SEG_MAX)
-		return ICE_ERR_MAX_LIMIT;
+		return -ENOSPC;
 
 	if (!segs_cnt)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	if (!segs)
-		return ICE_ERR_BAD_PTR;
+		return -EINVAL;
 
 	status = ice_flow_val_hdrs(segs, segs_cnt);
 	if (status)
@@ -1584,7 +1584,7 @@ ice_flow_rem_prof(struct ice_hw *hw, enum ice_block blk, u64 prof_id)
 
 	prof = ice_flow_find_prof_id(hw, blk, prof_id);
 	if (!prof) {
-		status = ICE_ERR_DOES_NOT_EXIST;
+		status = -ENOENT;
 		goto out;
 	}
 
@@ -1619,23 +1619,23 @@ ice_flow_add_entry(struct ice_hw *hw, enum ice_block blk, u64 prof_id,
 
 	/* No flow entry data is expected for RSS */
 	if (!entry_h || (!data && blk != ICE_BLK_RSS))
-		return ICE_ERR_BAD_PTR;
+		return -EINVAL;
 
 	if (!ice_is_vsi_valid(hw, vsi_handle))
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	mutex_lock(&hw->fl_profs_locks[blk]);
 
 	prof = ice_flow_find_prof_id(hw, blk, prof_id);
 	if (!prof) {
-		status = ICE_ERR_DOES_NOT_EXIST;
+		status = -ENOENT;
 	} else {
 		/* Allocate memory for the entry being added and associate
 		 * the VSI to the found flow profile
 		 */
 		e = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*e), GFP_KERNEL);
 		if (!e)
-			status = ICE_ERR_NO_MEMORY;
+			status = -ENOMEM;
 		else
 			status = ice_flow_assoc_prof(hw, blk, prof, vsi_handle);
 	}
@@ -1654,7 +1654,7 @@ ice_flow_add_entry(struct ice_hw *hw, enum ice_block blk, u64 prof_id,
 	case ICE_BLK_RSS:
 		break;
 	default:
-		status = ICE_ERR_NOT_IMPL;
+		status = -EOPNOTSUPP;
 		goto out;
 	}
 
@@ -1688,7 +1688,7 @@ int ice_flow_rem_entry(struct ice_hw *hw, enum ice_block blk,
 	int status = 0;
 
 	if (entry_h == ICE_FLOW_ENTRY_HANDLE_INVAL)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	entry = ICE_FLOW_ENTRY_PTR(entry_h);
 
@@ -1853,15 +1853,15 @@ ice_flow_set_rss_seg_info(struct ice_flow_seg_info *segs, u64 hash_fields,
 
 	if (segs->hdrs & ~ICE_FLOW_RSS_SEG_HDR_VAL_MASKS &
 	    ~ICE_FLOW_RSS_HDRS_INNER_MASK & ~ICE_FLOW_SEG_HDR_IPV_OTHER)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	val = (u64)(segs->hdrs & ICE_FLOW_RSS_SEG_HDR_L3_MASKS);
 	if (val && !is_power_of_2(val))
-		return ICE_ERR_CFG;
+		return -EIO;
 
 	val = (u64)(segs->hdrs & ICE_FLOW_RSS_SEG_HDR_L4_MASKS);
 	if (val && !is_power_of_2(val))
-		return ICE_ERR_CFG;
+		return -EIO;
 
 	return 0;
 }
@@ -1906,7 +1906,7 @@ int ice_rem_vsi_rss_cfg(struct ice_hw *hw, u16 vsi_handle)
 	int status = 0;
 
 	if (!ice_is_vsi_valid(hw, vsi_handle))
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	if (list_empty(&hw->fl_profs[blk]))
 		return 0;
@@ -1981,7 +1981,7 @@ ice_add_rss_list(struct ice_hw *hw, u16 vsi_handle, struct ice_flow_prof *prof)
 	rss_cfg = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*rss_cfg),
 			       GFP_KERNEL);
 	if (!rss_cfg)
-		return ICE_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	rss_cfg->hashed_flds = prof->segs[prof->segs_cnt - 1].match;
 	rss_cfg->packet_hdr = prof->segs[prof->segs_cnt - 1].hdrs;
@@ -2032,11 +2032,11 @@ ice_add_rss_cfg_sync(struct ice_hw *hw, u16 vsi_handle, u64 hashed_flds,
 	int status;
 
 	if (!segs_cnt || segs_cnt > ICE_FLOW_SEG_MAX)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	segs = kcalloc(segs_cnt, sizeof(*segs), GFP_KERNEL);
 	if (!segs)
-		return ICE_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	/* Construct the packet segment info from the hashed fields */
 	status = ice_flow_set_rss_seg_info(&segs[segs_cnt - 1], hashed_flds,
@@ -2136,7 +2136,7 @@ ice_add_rss_cfg(struct ice_hw *hw, u16 vsi_handle, u64 hashed_flds,
 
 	if (hashed_flds == ICE_HASH_INVALID ||
 	    !ice_is_vsi_valid(hw, vsi_handle))
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	mutex_lock(&hw->rss_locks);
 	status = ice_add_rss_cfg_sync(hw, vsi_handle, hashed_flds, addl_hdrs,
@@ -2170,7 +2170,7 @@ ice_rem_rss_cfg_sync(struct ice_hw *hw, u16 vsi_handle, u64 hashed_flds,
 
 	segs = kcalloc(segs_cnt, sizeof(*segs), GFP_KERNEL);
 	if (!segs)
-		return ICE_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	/* Construct the packet segment info from the hashed fields */
 	status = ice_flow_set_rss_seg_info(&segs[segs_cnt - 1], hashed_flds,
@@ -2182,7 +2182,7 @@ ice_rem_rss_cfg_sync(struct ice_hw *hw, u16 vsi_handle, u64 hashed_flds,
 					vsi_handle,
 					ICE_FLOW_FIND_PROF_CHK_FLDS);
 	if (!prof) {
-		status = ICE_ERR_DOES_NOT_EXIST;
+		status = -ENOENT;
 		goto out;
 	}
 
@@ -2224,7 +2224,7 @@ ice_rem_rss_cfg(struct ice_hw *hw, u16 vsi_handle, u64 hashed_flds,
 
 	if (hashed_flds == ICE_HASH_INVALID ||
 	    !ice_is_vsi_valid(hw, vsi_handle))
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	mutex_lock(&hw->rss_locks);
 	status = ice_rem_rss_cfg_sync(hw, vsi_handle, hashed_flds, addl_hdrs,
@@ -2287,12 +2287,12 @@ ice_add_avf_rss_cfg(struct ice_hw *hw, u16 vsi_handle, u64 avf_hash)
 
 	if (avf_hash == ICE_AVF_FLOW_FIELD_INVALID ||
 	    !ice_is_vsi_valid(hw, vsi_handle))
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	/* Make sure no unsupported bits are specified */
 	if (avf_hash & ~(ICE_FLOW_AVF_RSS_ALL_IPV4_MASKS |
 			 ICE_FLOW_AVF_RSS_ALL_IPV6_MASKS))
-		return ICE_ERR_CFG;
+		return -EIO;
 
 	hash_flds = avf_hash;
 
@@ -2352,7 +2352,7 @@ ice_add_avf_rss_cfg(struct ice_hw *hw, u16 vsi_handle, u64 avf_hash)
 		}
 
 		if (rss_hash == ICE_HASH_INVALID)
-			return ICE_ERR_OUT_OF_RANGE;
+			return -EIO;
 
 		status = ice_add_rss_cfg(hw, vsi_handle, rss_hash,
 					 ICE_FLOW_SEG_HDR_NONE);
@@ -2374,7 +2374,7 @@ int ice_replay_rss_cfg(struct ice_hw *hw, u16 vsi_handle)
 	struct ice_rss_cfg *r;
 
 	if (!ice_is_vsi_valid(hw, vsi_handle))
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	mutex_lock(&hw->rss_locks);
 	list_for_each_entry(r, &hw->rss_list_head, l_entry) {

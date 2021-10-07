@@ -2,7 +2,6 @@
 /* Copyright (c) 2018, Intel Corporation. */
 
 #include "ice_common.h"
-#include "ice_lib.h"
 #include "ice_sched.h"
 #include "ice_adminq_cmd.h"
 #include "ice_flow.h"
@@ -19,7 +18,7 @@
 static int ice_set_mac_type(struct ice_hw *hw)
 {
 	if (hw->vendor_id != PCI_VENDOR_ID_INTEL)
-		return ICE_ERR_DEVICE_NOT_SUPPORTED;
+		return -ENODEV;
 
 	switch (hw->device_id) {
 	case ICE_DEV_ID_E810C_BACKPLANE:
@@ -137,7 +136,7 @@ ice_aq_manage_mac_read(struct ice_hw *hw, void *buf, u16 buf_size,
 	cmd = &desc.params.mac_read;
 
 	if (buf_size < sizeof(*resp))
-		return ICE_ERR_BUF_TOO_SHORT;
+		return -EINVAL;
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_manage_mac_read);
 
@@ -150,7 +149,7 @@ ice_aq_manage_mac_read(struct ice_hw *hw, void *buf, u16 buf_size,
 
 	if (!(flags & ICE_AQC_MAN_MAC_LAN_ADDR_VALID)) {
 		ice_debug(hw, ICE_DBG_LAN, "got invalid MAC address\n");
-		return ICE_ERR_CFG;
+		return -EIO;
 	}
 
 	/* A single port can report up to two (LAN and WoL) addresses */
@@ -190,12 +189,12 @@ ice_aq_get_phy_caps(struct ice_port_info *pi, bool qual_mods, u8 report_mode,
 	cmd = &desc.params.get_phy;
 
 	if (!pcaps || (report_mode & ~ICE_AQC_REPORT_MODE_M) || !pi)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 	hw = pi->hw;
 
 	if (report_mode == ICE_AQC_REPORT_DFLT_CFG &&
 	    !ice_fw_supports_report_dflt_cfg(hw))
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_get_phy_caps);
 
@@ -434,7 +433,7 @@ ice_aq_get_link_info(struct ice_port_info *pi, bool ena_lse,
 	u16 cmd_flags;
 
 	if (!pi)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 	hw = pi->hw;
 	li_old = &pi->phy.link_info_old;
 	hw_media_type = &pi->phy.media_type;
@@ -565,7 +564,7 @@ ice_aq_set_mac_cfg(struct ice_hw *hw, u16 max_frame_size, struct ice_sq_cd *cd)
 	cmd = &desc.params.set_mac_cfg;
 
 	if (max_frame_size == 0)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_set_mac_cfg);
 
@@ -590,7 +589,7 @@ static int ice_init_fltr_mgmt_struct(struct ice_hw *hw)
 	sw = hw->switch_info;
 
 	if (!sw)
-		return ICE_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	INIT_LIST_HEAD(&sw->vsi_list_map_head);
 	sw->prof_res_bm_init = 0;
@@ -676,7 +675,7 @@ static int ice_get_fw_log_cfg(struct ice_hw *hw)
 	size = sizeof(*config) * ICE_AQC_FW_LOG_ID_MAX;
 	config = devm_kzalloc(ice_hw_to_dev(hw), size, GFP_KERNEL);
 	if (!config)
-		return ICE_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_fw_logging_info);
 
@@ -790,7 +789,7 @@ static int ice_cfg_fw_log(struct ice_hw *hw, bool enable)
 						    sizeof(*data),
 						    GFP_KERNEL);
 				if (!data)
-					return ICE_ERR_NO_MEMORY;
+					return -ENOMEM;
 			}
 
 			val = i << ICE_AQC_FW_LOG_ID_S;
@@ -956,7 +955,7 @@ int ice_init_hw(struct ice_hw *hw)
 	hw->port_info = devm_kzalloc(ice_hw_to_dev(hw),
 				     sizeof(*hw->port_info), GFP_KERNEL);
 	if (!hw->port_info) {
-		status = ICE_ERR_NO_MEMORY;
+		status = -ENOMEM;
 		goto err_unroll_cqinit;
 	}
 
@@ -985,7 +984,7 @@ int ice_init_hw(struct ice_hw *hw)
 
 	pcaps = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*pcaps), GFP_KERNEL);
 	if (!pcaps) {
-		status = ICE_ERR_NO_MEMORY;
+		status = -ENOMEM;
 		goto err_unroll_sched;
 	}
 
@@ -1006,7 +1005,7 @@ int ice_init_hw(struct ice_hw *hw)
 	/* need a valid SW entry point to build a Tx tree */
 	if (!hw->sw_entry_point_layer) {
 		ice_debug(hw, ICE_DBG_SCHED, "invalid sw entry point\n");
-		status = ICE_ERR_CFG;
+		status = -EIO;
 		goto err_unroll_sched;
 	}
 	INIT_LIST_HEAD(&hw->agg_list);
@@ -1026,7 +1025,7 @@ int ice_init_hw(struct ice_hw *hw)
 	mac_buf_len = 2 * sizeof(struct ice_aqc_manage_mac_read_resp);
 
 	if (!mac_buf) {
-		status = ICE_ERR_NO_MEMORY;
+		status = -ENOMEM;
 		goto err_unroll_fltr_mgmt_struct;
 	}
 
@@ -1116,7 +1115,7 @@ int ice_check_reset(struct ice_hw *hw)
 
 	if (cnt == grst_timeout) {
 		ice_debug(hw, ICE_DBG_INIT, "Global reset polling failed to complete.\n");
-		return ICE_ERR_RESET_FAILED;
+		return -EIO;
 	}
 
 #define ICE_RESET_DONE_MASK	(GLNVM_ULD_PCIER_DONE_M |\
@@ -1143,7 +1142,7 @@ int ice_check_reset(struct ice_hw *hw)
 	if (cnt == ICE_PF_RESET_WAIT_COUNT) {
 		ice_debug(hw, ICE_DBG_INIT, "Wait for Reset Done timed out. GLNVM_ULD = 0x%x\n",
 			  reg);
-		return ICE_ERR_RESET_FAILED;
+		return -EIO;
 	}
 
 	return 0;
@@ -1169,7 +1168,7 @@ static int ice_pf_reset(struct ice_hw *hw)
 	    (rd32(hw, GLNVM_ULD) & ICE_RESET_DONE_MASK) ^ ICE_RESET_DONE_MASK) {
 		/* poll on global reset currently in progress until done */
 		if (ice_check_reset(hw))
-			return ICE_ERR_RESET_FAILED;
+			return -EIO;
 
 		return 0;
 	}
@@ -1194,7 +1193,7 @@ static int ice_pf_reset(struct ice_hw *hw)
 
 	if (cnt == ICE_PF_RESET_WAIT_COUNT) {
 		ice_debug(hw, ICE_DBG_INIT, "PF reset polling failed to complete.\n");
-		return ICE_ERR_RESET_FAILED;
+		return -EIO;
 	}
 
 	return 0;
@@ -1228,7 +1227,7 @@ int ice_reset(struct ice_hw *hw, enum ice_reset_req req)
 		val = GLGEN_RTRIG_GLOBR_M;
 		break;
 	default:
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 	}
 
 	val |= rd32(hw, GLGEN_RTRIG);
@@ -1253,10 +1252,10 @@ ice_copy_rxq_ctx_to_hw(struct ice_hw *hw, u8 *ice_rxq_ctx, u32 rxq_index)
 	u8 i;
 
 	if (!ice_rxq_ctx)
-		return ICE_ERR_BAD_PTR;
+		return -EINVAL;
 
 	if (rxq_index > QRX_CTRL_MAX_INDEX)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	/* Copy each dword separately to HW */
 	for (i = 0; i < ICE_RXQ_CTX_SIZE_DWORDS; i++) {
@@ -1313,7 +1312,7 @@ ice_write_rxq_ctx(struct ice_hw *hw, struct ice_rlan_ctx *rlan_ctx,
 	u8 ctx_buf[ICE_RXQ_CTX_SZ] = { 0 };
 
 	if (!rlan_ctx)
-		return ICE_ERR_BAD_PTR;
+		return -EINVAL;
 
 	rlan_ctx->prefena = 1;
 
@@ -1369,9 +1368,8 @@ static int
 ice_sbq_send_cmd(struct ice_hw *hw, struct ice_sbq_cmd_desc *desc,
 		 void *buf, u16 buf_size, struct ice_sq_cd *cd)
 {
-	return ice_status_to_errno(ice_sq_send_cmd(hw, ice_get_sbq(hw),
-						   (struct ice_aq_desc *)desc,
-						   buf, buf_size, cd));
+	return ice_sq_send_cmd(hw, ice_get_sbq(hw),
+			       (struct ice_aq_desc *)desc, buf, buf_size, cd);
 }
 
 /**
@@ -1473,7 +1471,7 @@ ice_sq_send_cmd_retry(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 		if (buf) {
 			buf_cpy = kzalloc(buf_size, GFP_KERNEL);
 			if (!buf_cpy)
-				return ICE_ERR_NO_MEMORY;
+				return -ENOMEM;
 		}
 
 		memcpy(&desc_cpy, desc, sizeof(desc_cpy));
@@ -1601,7 +1599,7 @@ ice_aq_send_driver_ver(struct ice_hw *hw, struct ice_driver_ver *dv,
 	cmd = &desc.params.driver_ver;
 
 	if (!dv)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_driver_ver);
 
@@ -1654,12 +1652,12 @@ int ice_aq_q_shutdown(struct ice_hw *hw, bool unloading)
  * Requests common resource using the admin queue commands (0x0008).
  * When attempting to acquire the Global Config Lock, the driver can
  * learn of three states:
- *  1) ICE_SUCCESS -        acquired lock, and can perform download package
- *  2) ICE_ERR_AQ_ERROR -   did not get lock, driver should fail to load
- *  3) ICE_ERR_AQ_NO_WORK - did not get lock, but another driver has
- *                          successfully downloaded the package; the driver does
- *                          not have to download the package and can continue
- *                          loading
+ *  1) 0 -         acquired lock, and can perform download package
+ *  2) -EIO -      did not get lock, driver should fail to load
+ *  3) -EALREADY - did not get lock, but another driver has
+ *                 successfully downloaded the package; the driver does
+ *                 not have to download the package and can continue
+ *                 loading
  *
  * Note that if the caller is in an acquire lock, perform action, release lock
  * phase of operation, it is possible that the FW may detect a timeout and issue
@@ -1707,15 +1705,15 @@ ice_aq_req_res(struct ice_hw *hw, enum ice_aq_res_ids res,
 		} else if (le16_to_cpu(cmd_resp->status) ==
 			   ICE_AQ_RES_GLBL_IN_PROG) {
 			*timeout = le32_to_cpu(cmd_resp->timeout);
-			return ICE_ERR_AQ_ERROR;
+			return -EIO;
 		} else if (le16_to_cpu(cmd_resp->status) ==
 			   ICE_AQ_RES_GLBL_DONE) {
-			return ICE_ERR_AQ_NO_WORK;
+			return -EALREADY;
 		}
 
 		/* invalid FW response, force a timeout immediately */
 		*timeout = 0;
-		return ICE_ERR_AQ_ERROR;
+		return -EIO;
 	}
 
 	/* If the resource is held by some other driver, the command completes
@@ -1774,12 +1772,12 @@ ice_acquire_res(struct ice_hw *hw, enum ice_aq_res_ids res,
 
 	status = ice_aq_req_res(hw, res, access, 0, &time_left, NULL);
 
-	/* A return code of ICE_ERR_AQ_NO_WORK means that another driver has
+	/* A return code of -EALREADY means that another driver has
 	 * previously acquired the resource and performed any necessary updates;
 	 * in this case the caller does not obtain the resource and has no
 	 * further work to do.
 	 */
-	if (status == ICE_ERR_AQ_NO_WORK)
+	if (status == -EALREADY)
 		goto ice_acquire_res_exit;
 
 	if (status)
@@ -1792,7 +1790,7 @@ ice_acquire_res(struct ice_hw *hw, enum ice_aq_res_ids res,
 		timeout = (timeout > delay) ? timeout - delay : 0;
 		status = ice_aq_req_res(hw, res, access, 0, &time_left, NULL);
 
-		if (status == ICE_ERR_AQ_NO_WORK)
+		if (status == -EALREADY)
 			/* lock free, but no work to do */
 			break;
 
@@ -1800,15 +1798,15 @@ ice_acquire_res(struct ice_hw *hw, enum ice_aq_res_ids res,
 			/* lock acquired */
 			break;
 	}
-	if (status && status != ICE_ERR_AQ_NO_WORK)
+	if (status && status != -EALREADY)
 		ice_debug(hw, ICE_DBG_RES, "resource acquire timed out.\n");
 
 ice_acquire_res_exit:
-	if (status == ICE_ERR_AQ_NO_WORK) {
+	if (status == -EALREADY) {
 		if (access == ICE_RES_WRITE)
 			ice_debug(hw, ICE_DBG_RES, "resource indicates no work to do.\n");
 		else
-			ice_debug(hw, ICE_DBG_RES, "Warning: ICE_ERR_AQ_NO_WORK not expected\n");
+			ice_debug(hw, ICE_DBG_RES, "Warning: -EALREADY not expected\n");
 	}
 	return status;
 }
@@ -1830,7 +1828,7 @@ void ice_release_res(struct ice_hw *hw, enum ice_aq_res_ids res)
 	/* there are some rare cases when trying to release the resource
 	 * results in an admin queue timeout, so handle them correctly
 	 */
-	while ((status == ICE_ERR_AQ_TIMEOUT) &&
+	while ((status == -EIO) &&
 	       (total_delay < hw->adminq.sq_cmd_timeout)) {
 		mdelay(1);
 		status = ice_aq_release_res(hw, res, 0, NULL);
@@ -1860,10 +1858,10 @@ ice_aq_alloc_free_res(struct ice_hw *hw, u16 num_entries,
 	cmd = &desc.params.sw_res_ctrl;
 
 	if (!buf)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	if (buf_size < flex_array_size(buf, elem, num_entries))
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	ice_fill_dflt_direct_cmd_desc(&desc, opc);
 
@@ -1892,7 +1890,7 @@ ice_alloc_hw_res(struct ice_hw *hw, u16 type, u16 num, bool btm, u16 *res)
 	buf_len = struct_size(buf, elem, num);
 	buf = kzalloc(buf_len, GFP_KERNEL);
 	if (!buf)
-		return ICE_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	/* Prepare buffer to allocate resource. */
 	buf->num_elems = cpu_to_le16(num);
@@ -1929,7 +1927,7 @@ int ice_free_hw_res(struct ice_hw *hw, u16 type, u16 num, u16 *res)
 	buf_len = struct_size(buf, elem, num);
 	buf = kzalloc(buf_len, GFP_KERNEL);
 	if (!buf)
-		return ICE_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	/* Prepare buffer to free resource. */
 	buf->num_elems = cpu_to_le16(num);
@@ -2498,7 +2496,7 @@ ice_aq_list_caps(struct ice_hw *hw, void *buf, u16 buf_size, u32 *cap_count,
 
 	if (opc != ice_aqc_opc_list_func_caps &&
 	    opc != ice_aqc_opc_list_dev_caps)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	ice_fill_dflt_direct_cmd_desc(&desc, opc);
 	status = ice_aq_send_cmd(hw, &desc, buf, buf_size, cd);
@@ -2526,7 +2524,7 @@ ice_discover_dev_caps(struct ice_hw *hw, struct ice_hw_dev_caps *dev_caps)
 
 	cbuf = kzalloc(ICE_AQ_MAX_BUF_LEN, GFP_KERNEL);
 	if (!cbuf)
-		return ICE_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	/* Although the driver doesn't know the number of capabilities the
 	 * device will return, we can simply send a 4KB buffer, the maximum
@@ -2560,7 +2558,7 @@ ice_discover_func_caps(struct ice_hw *hw, struct ice_hw_func_caps *func_caps)
 
 	cbuf = kzalloc(ICE_AQ_MAX_BUF_LEN, GFP_KERNEL);
 	if (!cbuf)
-		return ICE_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	/* Although the driver doesn't know the number of capabilities the
 	 * device will return, we can simply send a 4KB buffer, the maximum
@@ -2911,7 +2909,7 @@ ice_aq_set_phy_cfg(struct ice_hw *hw, struct ice_port_info *pi,
 	int status;
 
 	if (!cfg)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	/* Ensure that only valid bits of cfg->caps can be turned on. */
 	if (cfg->caps & ~ICE_AQ_PHY_ENA_VALID_MASK) {
@@ -2958,7 +2956,7 @@ int ice_update_link_info(struct ice_port_info *pi)
 	int status;
 
 	if (!pi)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	li = &pi->phy.link_info;
 
@@ -2974,7 +2972,7 @@ int ice_update_link_info(struct ice_port_info *pi)
 		pcaps = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*pcaps),
 				     GFP_KERNEL);
 		if (!pcaps)
-			return ICE_ERR_NO_MEMORY;
+			return -ENOMEM;
 
 		status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP_MEDIA,
 					     pcaps, NULL);
@@ -3078,7 +3076,7 @@ ice_cfg_phy_fc(struct ice_port_info *pi, struct ice_aqc_set_phy_cfg_data *cfg,
 	u8 pause_mask = 0x0;
 
 	if (!pi || !cfg)
-		return ICE_ERR_BAD_PTR;
+		return -EINVAL;
 
 	switch (req_mode) {
 	case ICE_FC_FULL:
@@ -3126,14 +3124,14 @@ ice_set_fc(struct ice_port_info *pi, u8 *aq_failures, bool ena_auto_link_update)
 	struct ice_hw *hw;
 
 	if (!pi || !aq_failures)
-		return ICE_ERR_BAD_PTR;
+		return -EINVAL;
 
 	*aq_failures = 0;
 	hw = pi->hw;
 
 	pcaps = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*pcaps), GFP_KERNEL);
 	if (!pcaps)
-		return ICE_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	/* Get the current PHY config */
 	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_ACTIVE_CFG,
@@ -3267,13 +3265,13 @@ ice_cfg_phy_fec(struct ice_port_info *pi, struct ice_aqc_set_phy_cfg_data *cfg,
 	struct ice_hw *hw;
 
 	if (!pi || !cfg)
-		return ICE_ERR_BAD_PTR;
+		return -EINVAL;
 
 	hw = pi->hw;
 
 	pcaps = kzalloc(sizeof(*pcaps), GFP_KERNEL);
 	if (!pcaps)
-		return ICE_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	status = ice_aq_get_phy_caps(pi, false,
 				     (ice_fw_supports_report_dflt_cfg(hw) ?
@@ -3313,7 +3311,7 @@ ice_cfg_phy_fec(struct ice_port_info *pi, struct ice_aqc_set_phy_cfg_data *cfg,
 		cfg->link_fec_opt |= pcaps->link_fec_options;
 		break;
 	default:
-		status = ICE_ERR_PARAM;
+		status = -EINVAL;
 		break;
 	}
 
@@ -3350,7 +3348,7 @@ int ice_get_link_status(struct ice_port_info *pi, bool *link_up)
 	int status = 0;
 
 	if (!pi || !link_up)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	phy_info = &pi->phy;
 
@@ -3498,7 +3496,7 @@ ice_aq_sff_eeprom(struct ice_hw *hw, u16 lport, u8 bus_addr,
 	int status;
 
 	if (!data || (mem_addr & 0xff00))
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_sff_eeprom);
 	cmd = &desc.params.read_write_sff_param;
@@ -3537,13 +3535,13 @@ __ice_aq_get_set_rss_lut(struct ice_hw *hw, struct ice_aq_get_set_rss_lut_params
 	u8 *lut;
 
 	if (!params)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	vsi_handle = params->vsi_handle;
 	lut = params->lut;
 
 	if (!ice_is_vsi_valid(hw, vsi_handle) || !lut)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	lut_size = params->lut_size;
 	lut_type = params->lut_type;
@@ -3572,7 +3570,7 @@ __ice_aq_get_set_rss_lut(struct ice_hw *hw, struct ice_aq_get_set_rss_lut_params
 			  ICE_AQC_GSET_RSS_LUT_TABLE_TYPE_M);
 		break;
 	default:
-		status = ICE_ERR_PARAM;
+		status = -EINVAL;
 		goto ice_aq_get_set_rss_lut_exit;
 	}
 
@@ -3607,7 +3605,7 @@ __ice_aq_get_set_rss_lut(struct ice_hw *hw, struct ice_aq_get_set_rss_lut_params
 		}
 		fallthrough;
 	default:
-		status = ICE_ERR_PARAM;
+		status = -EINVAL;
 		goto ice_aq_get_set_rss_lut_exit;
 	}
 
@@ -3692,7 +3690,7 @@ ice_aq_get_rss_key(struct ice_hw *hw, u16 vsi_handle,
 		   struct ice_aqc_get_set_rss_keys *key)
 {
 	if (!ice_is_vsi_valid(hw, vsi_handle) || !key)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	return __ice_aq_get_set_rss_key(hw, ice_get_hw_vsi_num(hw, vsi_handle),
 					key, false);
@@ -3711,7 +3709,7 @@ ice_aq_set_rss_key(struct ice_hw *hw, u16 vsi_handle,
 		   struct ice_aqc_get_set_rss_keys *keys)
 {
 	if (!ice_is_vsi_valid(hw, vsi_handle) || !keys)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	return __ice_aq_get_set_rss_key(hw, ice_get_hw_vsi_num(hw, vsi_handle),
 					keys, true);
@@ -3753,10 +3751,10 @@ ice_aq_add_lan_txq(struct ice_hw *hw, u8 num_qgrps,
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_add_txqs);
 
 	if (!qg_list)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	if (num_qgrps > ICE_LAN_TXQ_MAX_QGRPS)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	for (i = 0, list = qg_list; i < num_qgrps; i++) {
 		sum_size += struct_size(list, txqs, list->num_txqs);
@@ -3765,7 +3763,7 @@ ice_aq_add_lan_txq(struct ice_hw *hw, u8 num_qgrps,
 	}
 
 	if (buf_size != sum_size)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
 
@@ -3803,10 +3801,10 @@ ice_aq_dis_lan_txq(struct ice_hw *hw, u8 num_qgrps,
 
 	/* qg_list can be NULL only in VM/VF reset flow */
 	if (!qg_list && !rst_src)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	if (num_qgrps > ICE_LAN_TXQ_MAX_QGRPS)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	cmd->num_entries = num_qgrps;
 
@@ -3855,7 +3853,7 @@ ice_aq_dis_lan_txq(struct ice_hw *hw, u8 num_qgrps,
 	}
 
 	if (buf_size != sz)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 do_aq:
 	status = ice_aq_send_cmd(hw, &desc, qg_list, buf_size, cd);
@@ -3913,8 +3911,7 @@ ice_aq_add_rdma_qsets(struct ice_hw *hw, u8 num_qset_grps,
 
 	cmd->num_qset_grps = num_qset_grps;
 
-	return ice_status_to_errno(ice_aq_send_cmd(hw, &desc, qset_list,
-						   buf_size, cd));
+	return ice_aq_send_cmd(hw, &desc, qset_list, buf_size, cd);
 }
 
 /* End of FW Admin Queue command wrappers */
@@ -4140,7 +4137,7 @@ ice_set_ctx(struct ice_hw *hw, u8 *src_ctx, u8 *dest_ctx,
 			ice_write_qword(src_ctx, dest_ctx, &ce_info[f]);
 			break;
 		default:
-			return ICE_ERR_INVAL_SIZE;
+			return -EINVAL;
 		}
 	}
 
@@ -4196,15 +4193,15 @@ ice_ena_vsi_txq(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u16 q_handle,
 	struct ice_hw *hw;
 
 	if (!pi || pi->port_state != ICE_SCHED_PORT_STATE_READY)
-		return ICE_ERR_CFG;
+		return -EIO;
 
 	if (num_qgrps > 1 || buf->num_txqs > 1)
-		return ICE_ERR_MAX_LIMIT;
+		return -ENOSPC;
 
 	hw = pi->hw;
 
 	if (!ice_is_vsi_valid(hw, vsi_handle))
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	mutex_lock(&pi->sched_lock);
 
@@ -4212,7 +4209,7 @@ ice_ena_vsi_txq(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u16 q_handle,
 	if (!q_ctx) {
 		ice_debug(hw, ICE_DBG_SCHED, "Enaq: invalid queue handle %d\n",
 			  q_handle);
-		status = ICE_ERR_PARAM;
+		status = -EINVAL;
 		goto ena_txq_exit;
 	}
 
@@ -4220,7 +4217,7 @@ ice_ena_vsi_txq(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u16 q_handle,
 	parent = ice_sched_get_free_qparent(pi, vsi_handle, tc,
 					    ICE_SCHED_NODE_OWNER_LAN);
 	if (!parent) {
-		status = ICE_ERR_PARAM;
+		status = -EINVAL;
 		goto ena_txq_exit;
 	}
 
@@ -4295,14 +4292,14 @@ ice_dis_vsi_txq(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u8 num_queues,
 		enum ice_disq_rst_src rst_src, u16 vmvf_num,
 		struct ice_sq_cd *cd)
 {
-	int status = ICE_ERR_DOES_NOT_EXIST;
+	int status = -ENOENT;
 	struct ice_aqc_dis_txq_item *qg_list;
 	struct ice_q_ctx *q_ctx;
 	struct ice_hw *hw;
 	u16 i, buf_size;
 
 	if (!pi || pi->port_state != ICE_SCHED_PORT_STATE_READY)
-		return ICE_ERR_CFG;
+		return -EIO;
 
 	hw = pi->hw;
 
@@ -4314,13 +4311,13 @@ ice_dis_vsi_txq(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u8 num_queues,
 		if (rst_src)
 			return ice_aq_dis_lan_txq(hw, 0, NULL, 0, rst_src,
 						  vmvf_num, NULL);
-		return ICE_ERR_CFG;
+		return -EIO;
 	}
 
 	buf_size = struct_size(qg_list, q_id, 1);
 	qg_list = kzalloc(buf_size, GFP_KERNEL);
 	if (!qg_list)
-		return ICE_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	mutex_lock(&pi->sched_lock);
 
@@ -4375,10 +4372,10 @@ ice_cfg_vsi_qs(struct ice_port_info *pi, u16 vsi_handle, u8 tc_bitmap,
 	u8 i;
 
 	if (!pi || pi->port_state != ICE_SCHED_PORT_STATE_READY)
-		return ICE_ERR_CFG;
+		return -EIO;
 
 	if (!ice_is_vsi_valid(pi->hw, vsi_handle))
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	mutex_lock(&pi->sched_lock);
 
@@ -4427,9 +4424,8 @@ int
 ice_cfg_vsi_rdma(struct ice_port_info *pi, u16 vsi_handle, u16 tc_bitmap,
 		 u16 *max_rdmaqs)
 {
-	return ice_status_to_errno(ice_cfg_vsi_qs(pi, vsi_handle, tc_bitmap,
-						  max_rdmaqs,
-						  ICE_SCHED_NODE_OWNER_RDMA));
+	return ice_cfg_vsi_qs(pi, vsi_handle, tc_bitmap, max_rdmaqs,
+			      ICE_SCHED_NODE_OWNER_RDMA);
 }
 
 /**
@@ -4504,7 +4500,7 @@ ice_ena_vsi_rdma_qset(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
 		status = ice_sched_add_node(pi, hw->num_tx_sched_layers - 1,
 					    &node);
 		if (status) {
-			ret = ice_status_to_errno(status);
+			ret = status;
 			break;
 		}
 		qset_teid[i] = le32_to_cpu(node.node_teid);
@@ -4567,7 +4563,7 @@ ice_dis_vsi_rdma_qset(struct ice_port_info *pi, u16 count, u32 *qset_teid,
 
 	mutex_unlock(&pi->sched_lock);
 	kfree(qg_list);
-	return ice_status_to_errno(status);
+	return status;
 }
 
 /**
@@ -4608,7 +4604,7 @@ int ice_replay_vsi(struct ice_hw *hw, u16 vsi_handle)
 	int status;
 
 	if (!ice_is_vsi_valid(hw, vsi_handle))
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	/* Replay pre-initialization if there is any */
 	if (vsi_handle == ICE_MAIN_VSI_HANDLE) {
@@ -4774,7 +4770,7 @@ ice_aq_set_driver_param(struct ice_hw *hw, enum ice_aqc_driver_params idx,
 	cmd->param_indx = idx;
 	cmd->param_val = cpu_to_le32(value);
 
-	return ice_status_to_errno(ice_aq_send_cmd(hw, &desc, NULL, 0, cd));
+	return ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
 }
 
 /**
@@ -4809,7 +4805,7 @@ ice_aq_get_driver_param(struct ice_hw *hw, enum ice_aqc_driver_params idx,
 
 	status = ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
 	if (status)
-		return ice_status_to_errno(status);
+		return status;
 
 	*value = le32_to_cpu(cmd->param_val);
 
@@ -4839,7 +4835,7 @@ ice_aq_set_gpio(struct ice_hw *hw, u16 gpio_ctrl_handle, u8 pin_idx, bool value,
 	cmd->gpio_num = pin_idx;
 	cmd->gpio_val = value ? 1 : 0;
 
-	return ice_status_to_errno(ice_aq_send_cmd(hw, &desc, NULL, 0, cd));
+	return ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
 }
 
 /**
@@ -4868,7 +4864,7 @@ ice_aq_get_gpio(struct ice_hw *hw, u16 gpio_ctrl_handle, u8 pin_idx,
 
 	status = ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
 	if (status)
-		return ice_status_to_errno(status);
+		return status;
 
 	*value = !!cmd->gpio_val;
 	return 0;
@@ -5003,7 +4999,7 @@ ice_aq_set_lldp_mib(struct ice_hw *hw, u8 mib_type, void *buf, u16 buf_size,
 	cmd = &desc.params.lldp_set_mib;
 
 	if (buf_size == 0 || !buf)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_lldp_set_local_mib);
 

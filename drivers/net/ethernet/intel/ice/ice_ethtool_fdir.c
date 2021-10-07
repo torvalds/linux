@@ -584,19 +584,19 @@ ice_fdir_set_hw_fltr_rule(struct ice_pf *pf, struct ice_flow_seg_info *seg,
 	status = ice_flow_add_prof(hw, ICE_BLK_FD, ICE_FLOW_RX, prof_id, seg,
 				   TNL_SEG_CNT(tun), &prof);
 	if (status)
-		return ice_status_to_errno(status);
+		return status;
 	status = ice_flow_add_entry(hw, ICE_BLK_FD, prof_id, main_vsi->idx,
 				    main_vsi->idx, ICE_FLOW_PRIO_NORMAL,
 				    seg, &entry1_h);
 	if (status) {
-		err = ice_status_to_errno(status);
+		err = status;
 		goto err_prof;
 	}
 	status = ice_flow_add_entry(hw, ICE_BLK_FD, prof_id, main_vsi->idx,
 				    ctrl_vsi->idx, ICE_FLOW_PRIO_NORMAL,
 				    seg, &entry2_h);
 	if (status) {
-		err = ice_status_to_errno(status);
+		err = status;
 		goto err_entry;
 	}
 
@@ -1211,7 +1211,7 @@ ice_fdir_write_fltr(struct ice_pf *pf, struct ice_fdir_fltr *input, bool add,
 	ice_fdir_get_prgm_desc(hw, input, &desc, add);
 	status = ice_fdir_get_gen_prgm_pkt(hw, input, pkt, false, is_tun);
 	if (status) {
-		err = ice_status_to_errno(status);
+		err = status;
 		goto err_free_all;
 	}
 	err = ice_prgm_fdir_fltr(ctrl_vsi, &desc, pkt);
@@ -1226,7 +1226,7 @@ ice_fdir_write_fltr(struct ice_pf *pf, struct ice_fdir_fltr *input, bool add,
 		status = ice_fdir_get_gen_prgm_pkt(hw, input, frag_pkt, true,
 						   is_tun);
 		if (status) {
-			err = ice_status_to_errno(status);
+			err = status;
 			goto err_frag;
 		}
 		err = ice_prgm_fdir_fltr(ctrl_vsi, &desc, frag_pkt);

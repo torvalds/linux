@@ -605,7 +605,7 @@ ice_vc_fdir_write_flow_prof(struct ice_vf *vf, enum ice_fltr_ptype flow,
 
 	status = ice_flow_add_prof(hw, ICE_BLK_FD, ICE_FLOW_RX, prof_id, seg,
 				   tun + 1, &prof);
-	ret = ice_status_to_errno(status);
+	ret = status;
 	if (ret) {
 		dev_dbg(dev, "Could not add VSI flow 0x%x for VF %d\n",
 			flow, vf->vf_id);
@@ -615,7 +615,7 @@ ice_vc_fdir_write_flow_prof(struct ice_vf *vf, enum ice_fltr_ptype flow,
 	status = ice_flow_add_entry(hw, ICE_BLK_FD, prof_id, vf_vsi->idx,
 				    vf_vsi->idx, ICE_FLOW_PRIO_NORMAL,
 				    seg, &entry1_h);
-	ret = ice_status_to_errno(status);
+	ret = status;
 	if (ret) {
 		dev_dbg(dev, "Could not add flow 0x%x VSI entry for VF %d\n",
 			flow, vf->vf_id);
@@ -625,7 +625,7 @@ ice_vc_fdir_write_flow_prof(struct ice_vf *vf, enum ice_fltr_ptype flow,
 	status = ice_flow_add_entry(hw, ICE_BLK_FD, prof_id, vf_vsi->idx,
 				    ctrl_vsi->idx, ICE_FLOW_PRIO_NORMAL,
 				    seg, &entry2_h);
-	ret = ice_status_to_errno(status);
+	ret = status;
 	if (ret) {
 		dev_dbg(dev,
 			"Could not add flow 0x%x Ctrl VSI entry for VF %d\n",
@@ -1230,7 +1230,7 @@ static int ice_vc_fdir_write_fltr(struct ice_vf *vf,
 
 	ice_fdir_get_prgm_desc(hw, input, &desc, add);
 	status = ice_fdir_get_gen_prgm_pkt(hw, input, pkt, false, is_tun);
-	ret = ice_status_to_errno(status);
+	ret = status;
 	if (ret) {
 		dev_dbg(dev, "Gen training pkt for VF %d ptype %d failed\n",
 			vf->vf_id, input->flow_type);

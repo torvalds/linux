@@ -670,7 +670,7 @@ int ice_flash_pldm_image(struct ice_pf *pf, const struct firmware *fw,
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_hw *hw = &pf->hw;
 	struct ice_fwu_priv priv;
-	enum ice_status status;
+	int status;
 	int err;
 
 	switch (preservation) {

@@ -275,7 +275,7 @@ ice_fltr_prepare_mac(struct ice_vsi *vsi, const u8 *mac,
 
 	if (ice_fltr_add_mac_to_list(vsi, &tmp_list, mac, action)) {
 		ice_fltr_free_list(ice_pf_to_dev(vsi->back), &tmp_list);
-		return ICE_ERR_NO_MEMORY;
+		return -ENOMEM;
 	}
 
 	result = mac_action(vsi, &tmp_list);
@@ -304,7 +304,7 @@ ice_fltr_prepare_mac_and_broadcast(struct ice_vsi *vsi, const u8 *mac,
 	if (ice_fltr_add_mac_to_list(vsi, &tmp_list, mac, action) ||
 	    ice_fltr_add_mac_to_list(vsi, &tmp_list, broadcast, action)) {
 		ice_fltr_free_list(ice_pf_to_dev(vsi->back), &tmp_list);
-		return ICE_ERR_NO_MEMORY;
+		return -ENOMEM;
 	}
 
 	result = mac_action(vsi, &tmp_list);
@@ -328,7 +328,7 @@ ice_fltr_prepare_vlan(struct ice_vsi *vsi, u16 vlan_id,
 	LIST_HEAD(tmp_list);
 
 	if (ice_fltr_add_vlan_to_list(vsi, &tmp_list, vlan_id, action))
-		return ICE_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	result = vlan_action(vsi, &tmp_list);
 	ice_fltr_free_list(ice_pf_to_dev(vsi->back), &tmp_list);
@@ -352,7 +352,7 @@ ice_fltr_prepare_eth(struct ice_vsi *vsi, u16 ethertype, u16 flag,
 	LIST_HEAD(tmp_list);
 
 	if (ice_fltr_add_eth_to_list(vsi, &tmp_list, ethertype, flag, action))
-		return ICE_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	result = eth_action(vsi, &tmp_list);
 	ice_fltr_free_list(ice_pf_to_dev(vsi->back), &tmp_list);
@@ -471,7 +471,7 @@ ice_fltr_update_rule_flags(struct ice_hw *hw, u16 rule_id, u16 recipe_id,
 
 	s_rule = kzalloc(ICE_SW_RULE_RX_TX_NO_HDR_SIZE, GFP_KERNEL);
 	if (!s_rule)
-		return ICE_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	flags_mask = ICE_SINGLE_ACT_LB_ENABLE | ICE_SINGLE_ACT_LAN_ENABLE;
 	act &= ~flags_mask;

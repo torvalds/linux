@@ -862,7 +862,7 @@ static int ice_vf_rebuild_host_mac_cfg(struct ice_vf *vf)
 	if (status) {
 		dev_err(dev, "failed to add broadcast MAC filter for VF %u, error %d\n",
 			vf->vf_id, status);
-		return ice_status_to_errno(status);
+		return status;
 	}
 
 	vf->num_mac++;
@@ -874,7 +874,7 @@ static int ice_vf_rebuild_host_mac_cfg(struct ice_vf *vf)
 			dev_err(dev, "failed to add default unicast MAC filter %pM for VF %u, error %d\n",
 				&vf->hw_lan_addr.addr[0], vf->vf_id,
 				status);
-			return ice_status_to_errno(status);
+			return status;
 		}
 		vf->num_mac++;
 
@@ -1238,10 +1238,10 @@ ice_vf_set_vsi_promisc(struct ice_vf *vf, struct ice_vsi *vsi, u8 promisc_m)
 	else
 		status = ice_fltr_set_vsi_promisc(hw, vsi->idx, promisc_m, 0);
 
-	if (status && status != ICE_ERR_ALREADY_EXISTS) {
+	if (status && status != -EEXIST) {
 		dev_err(ice_pf_to_dev(vsi->back), "enable Tx/Rx filter promiscuous mode on VF-%u failed, error: %d\n",
 			vf->vf_id, status);
-		return ice_status_to_errno(status);
+		return status;
 	}
 
 	return 0;
@@ -1261,10 +1261,10 @@ ice_vf_clear_vsi_promisc(struct ice_vf *vf, struct ice_vsi *vsi, u8 promisc_m)
 	else
 		status = ice_fltr_clear_vsi_promisc(hw, vsi->idx, promisc_m, 0);
 
-	if (status && status != ICE_ERR_DOES_NOT_EXIST) {
+	if (status && status != -ENOENT) {
 		dev_err(ice_pf_to_dev(vsi->back), "disable Tx/Rx filter promiscuous mode on VF-%u failed, error: %d\n",
 			vf->vf_id, status);
-		return ice_status_to_errno(status);
+		return status;
 	}
 
 	return 0;
@@ -1758,7 +1758,7 @@ static int ice_init_vf_vsi_res(struct ice_vf *vf)
 	if (status) {
 		dev_err(dev, "Failed to add broadcast MAC filter for VF %d, error %d\n",
 			vf->vf_id, status);
-		err = ice_status_to_errno(status);
+		err = status;
 		goto release_vsi;
 	}
 
@@ -2026,7 +2026,7 @@ int ice_sriov_configure(struct pci_dev *pdev, int num_vfs)
 
 	status = ice_mbx_init_snapshot(&pf->hw, num_vfs);
 	if (status)
-		return ice_status_to_errno(status);
+		return status;
 
 	err = ice_pci_sriov_ena(pf, num_vfs);
 	if (err) {
@@ -2733,12 +2733,12 @@ static int ice_vc_handle_rss_cfg(struct ice_vf *vf, u8 *msg, bool add)
 
 			status = ice_rem_rss_cfg(hw, vsi->idx, hash_flds,
 						 addl_hdrs);
-			/* We just ignore ICE_ERR_DOES_NOT_EXIST, because
+			/* We just ignore -ENOENT, because
 			 * if two configurations share the same profile remove
 			 * one of them actually removes both, since the
 			 * profile is deleted.
 			 */
-			if (status && status != ICE_ERR_DOES_NOT_EXIST) {
+			if (status && status != -ENOENT) {
 				v_ret = VIRTCHNL_STATUS_ERR_PARAM;
 				dev_err(dev, "ice_rem_rss_cfg failed for VF ID:%d, error:%d\n",
 					vf->vf_id, status);
@@ -3802,7 +3802,7 @@ ice_vc_add_mac_addr(struct ice_vf *vf, struct ice_vsi *vsi,
 	}
 
 	status = ice_fltr_add_mac(vsi, mac_addr, ICE_FWD_TO_VSI);
-	if (status == ICE_ERR_ALREADY_EXISTS) {
+	if (status == -EEXIST) {
 		dev_dbg(dev, "MAC %pM already exists for VF %d\n", mac_addr,
 			vf->vf_id);
 		/* don't return since we might need to update
@@ -3896,7 +3896,7 @@ ice_vc_del_mac_addr(struct ice_vf *vf, struct ice_vsi *vsi,
 		return 0;
 
 	status = ice_fltr_remove_mac(vsi, mac_addr, ICE_FWD_TO_VSI);
-	if (status == ICE_ERR_DOES_NOT_EXIST) {
+	if (status == -ENOENT) {
 		dev_err(dev, "MAC %pM does not exist for VF %d\n", mac_addr,
 			vf->vf_id);
 		return -ENOENT;

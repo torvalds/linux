@@ -333,7 +333,7 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 	if (status) {
 		netdev_err(netdev, "Failed to delete MAC filters\n");
 		/* if we failed because of alloc failures, just bail */
-		if (status == ICE_ERR_NO_MEMORY) {
+		if (status == -ENOMEM) {
 			err = -ENOMEM;
 			goto out;
 		}
@@ -346,7 +346,7 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 	 * 'if' condition and report it as error. Instead continue processing
 	 * rest of the function.
 	 */
-	if (status && status != ICE_ERR_ALREADY_EXISTS) {
+	if (status && status != -EEXIST) {
 		netdev_err(netdev, "Failed to add MAC filters\n");
 		/* If there is no more space for new umac filters, VSI
 		 * should go into promiscuous mode. There should be some
@@ -1424,7 +1424,7 @@ static int __ice_clean_ctrlq(struct ice_pf *pf, enum ice_ctl_q q_type)
 		u16 opcode;
 
 		ret = ice_clean_rq_elem(hw, cq, &event, &pending);
-		if (ret == ICE_ERR_AQ_NO_WORK)
+		if (ret == -EALREADY)
 			break;
 		if (ret) {
 			dev_err(dev, "%s Receive Queue event error %d\n", qtype,
@@ -4218,7 +4218,7 @@ static void ice_verify_cacheline_size(struct ice_pf *pf)
  * ice_send_version - update firmware with driver version
  * @pf: PF struct
  *
- * Returns ICE_SUCCESS on success, else error code
+ * Returns 0 on success, else error code
  */
 static int ice_send_version(struct ice_pf *pf)
 {
@@ -5394,14 +5394,14 @@ static int ice_set_mac_address(struct net_device *netdev, void *pi)
 
 	/* Clean up old MAC filter. Not an error if old filter doesn't exist */
 	status = ice_fltr_remove_mac(vsi, old_mac, ICE_FWD_TO_VSI);
-	if (status && status != ICE_ERR_DOES_NOT_EXIST) {
+	if (status && status != -ENOENT) {
 		err = -EADDRNOTAVAIL;
 		goto err_update_filters;
 	}
 
 	/* Add filter for new MAC. If filter exists, return success */
 	status = ice_fltr_add_mac(vsi, mac, ICE_FWD_TO_VSI);
-	if (status == ICE_ERR_ALREADY_EXISTS)
+	if (status == -EEXIST)
 		/* Although this MAC filter is already present in hardware it's
 		 * possible in some cases (e.g. bonding) that dev_addr was
 		 * modified outside of the driver and needs to be restored back

@@ -953,13 +953,13 @@ ice_vsi_stop_tx_ring(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
 				 rel_vmvf_num, NULL);
 
 	/* if the disable queue command was exercised during an
-	 * active reset flow, ICE_ERR_RESET_ONGOING is returned.
+	 * active reset flow, -EBUSY is returned.
 	 * This is not an error as the reset operation disables
 	 * queues at the hardware level anyway.
 	 */
-	if (status == ICE_ERR_RESET_ONGOING) {
+	if (status == -EBUSY) {
 		dev_dbg(ice_pf_to_dev(vsi->back), "Reset in progress. LAN Tx queues already disabled\n");
-	} else if (status == ICE_ERR_DOES_NOT_EXIST) {
+	} else if (status == -ENOENT) {
 		dev_dbg(ice_pf_to_dev(vsi->back), "LAN Tx queues do not exist, nothing to disable\n");
 	} else if (status) {
 		dev_dbg(ice_pf_to_dev(vsi->back), "Failed to disable LAN Tx queues, error: %d\n",

@@ -2,7 +2,6 @@
 /* Copyright (c) 2019, Intel Corporation. */
 
 #include "ice_common.h"
-#include "ice_lib.h"
 #include "ice_sched.h"
 #include "ice_dcb.h"
 
@@ -31,7 +30,7 @@ ice_aq_get_lldp_mib(struct ice_hw *hw, u8 bridge_type, u8 mib_type, void *buf,
 	cmd = &desc.params.lldp_get_mib;
 
 	if (buf_size == 0 || !buf)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_lldp_get_mib);
 
@@ -609,7 +608,7 @@ ice_lldp_to_dcb_cfg(u8 *lldpmib, struct ice_dcbx_cfg *dcbcfg)
 	u16 len;
 
 	if (!lldpmib || !dcbcfg)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	/* set to the start of LLDPDU */
 	lldpmib += ETH_HLEN;
@@ -659,7 +658,7 @@ ice_aq_get_dcb_cfg(struct ice_hw *hw, u8 mib_type, u8 bridgetype,
 	/* Allocate the LLDPDU */
 	lldpmib = devm_kzalloc(ice_hw_to_dev(hw), ICE_LLDPDU_SIZE, GFP_KERNEL);
 	if (!lldpmib)
-		return ICE_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	ret = ice_aq_get_lldp_mib(hw, bridgetype, mib_type, (void *)lldpmib,
 				  ICE_LLDPDU_SIZE, NULL, NULL, NULL);
@@ -684,7 +683,7 @@ ice_aq_get_dcb_cfg(struct ice_hw *hw, u8 mib_type, u8 bridgetype,
  * @cd: pointer to command details structure or NULL
  *
  * Start/Stop the embedded dcbx Agent. In case that this wrapper function
- * returns ICE_SUCCESS, caller will need to check if FW returns back the same
+ * returns 0, caller will need to check if FW returns back the same
  * value as stated in dcbx_agent_status, and react accordingly. (0x0A09)
  */
 int
@@ -762,7 +761,7 @@ int ice_aq_set_pfc_mode(struct ice_hw *hw, u8 pfc_mode, struct ice_sq_cd *cd)
 
 	status = ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
 	if (status)
-		return ice_status_to_errno(status);
+		return status;
 
 	/* FW will write the PFC mode set back into cmd->pfc_mode, but if DCB is
 	 * disabled, FW will write back 0 to cmd->pfc_mode. After the AQ has
@@ -910,7 +909,7 @@ ice_get_ieee_or_cee_dcb_cfg(struct ice_port_info *pi, u8 dcbx_mode)
 	int ret;
 
 	if (!pi)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	if (dcbx_mode == ICE_DCBX_MODE_IEEE)
 		dcbx_cfg = &pi->qos_cfg.local_dcbx_cfg;
@@ -950,7 +949,7 @@ int ice_get_dcb_cfg(struct ice_port_info *pi)
 	int ret;
 
 	if (!pi)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	ret = ice_aq_get_cee_dcb_cfg(pi->hw, &cee_cfg, NULL);
 	if (!ret) {
@@ -980,7 +979,7 @@ int ice_init_dcb(struct ice_hw *hw, bool enable_mib_change)
 	int ret = 0;
 
 	if (!hw->func_caps.common_cap.dcb)
-		return ICE_ERR_NOT_SUPPORTED;
+		return -EOPNOTSUPP;
 
 	qos_cfg->is_sw_lldp = true;
 
@@ -996,7 +995,7 @@ int ice_init_dcb(struct ice_hw *hw, bool enable_mib_change)
 			return ret;
 		qos_cfg->is_sw_lldp = false;
 	} else if (qos_cfg->dcbx_status == ICE_DCBX_STATUS_DIS) {
-		return ICE_ERR_NOT_READY;
+		return -EBUSY;
 	}
 
 	/* Configure the LLDP MIB change event */
@@ -1022,13 +1021,13 @@ int ice_cfg_lldp_mib_change(struct ice_hw *hw, bool ena_mib)
 	int ret;
 
 	if (!hw->func_caps.common_cap.dcb)
-		return ICE_ERR_NOT_SUPPORTED;
+		return -EOPNOTSUPP;
 
 	/* Get DCBX status */
 	qos_cfg->dcbx_status = ice_get_dcbx_status(hw);
 
 	if (qos_cfg->dcbx_status == ICE_DCBX_STATUS_DIS)
-		return ICE_ERR_NOT_READY;
+		return -EBUSY;
 
 	ret = ice_aq_cfg_lldp_mib_change(hw, ena_mib, NULL);
 	if (!ret)
@@ -1478,7 +1477,7 @@ int ice_set_dcb_cfg(struct ice_port_info *pi)
 	u16 miblen;
 
 	if (!pi)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	hw = pi->hw;
 
@@ -1487,7 +1486,7 @@ int ice_set_dcb_cfg(struct ice_port_info *pi)
 	/* Allocate the LLDPDU */
 	lldpmib = devm_kzalloc(ice_hw_to_dev(hw), ICE_LLDPDU_SIZE, GFP_KERNEL);
 	if (!lldpmib)
-		return ICE_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	mib_type = SET_LOCAL_MIB_TYPE_LOCAL_MIB;
 	if (dcbcfg->app_mode == ICE_DCBX_APPS_NON_WILLING)
@@ -1521,7 +1520,7 @@ ice_aq_query_port_ets(struct ice_port_info *pi,
 	int status;
 
 	if (!pi)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 	cmd = &desc.params.port_ets;
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_query_port_ets);
 	cmd->port_teid = pi->root->info.node_teid;
@@ -1548,7 +1547,7 @@ ice_update_port_tc_tree_cfg(struct ice_port_info *pi,
 	u8 i, j;
 
 	if (!pi)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 	/* suspend the missing TC nodes */
 	for (i = 0; i < pi->root->num_children; i++) {
 		teid1 = le32_to_cpu(pi->root->children[i]->info.node_teid);

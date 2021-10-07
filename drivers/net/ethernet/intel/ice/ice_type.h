@@ -7,7 +7,6 @@
 #define ICE_BYTES_PER_WORD	2
 #define ICE_BYTES_PER_DWORD	4
 
-#include "ice_status.h"
 #include "ice_hw_autogen.h"
 #include "ice_osdep.h"
 #include "ice_controlq.h"
