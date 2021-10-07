@@ -246,7 +246,7 @@ s32 LPS_RF_ON_check(struct adapter *padapter, u32 delay_ms)
 
 	start_time = jiffies;
 	while (1) {
-		rtw_hal_get_hwreg(padapter, HW_VAR_FWLPS_RF_ON, &bAwake);
+		GetHwReg8188EU(padapter, HW_VAR_FWLPS_RF_ON, &bAwake);
 		if (bAwake)
 			break;
 
