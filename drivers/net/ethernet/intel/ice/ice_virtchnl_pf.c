@@ -653,8 +653,7 @@ static int ice_vsi_manage_pvid(struct ice_vsi *vsi, u16 pvid_info, bool enable)
 	struct ice_hw *hw = &vsi->back->hw;
 	struct ice_aqc_vsi_props *info;
 	struct ice_vsi_ctx *ctxt;
-	int ret = 0;
-	int status;
+	int ret;
 
 	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
 	if (!ctxt)
@@ -677,10 +676,10 @@ static int ice_vsi_manage_pvid(struct ice_vsi *vsi, u16 pvid_info, bool enable)
 	info->valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_VLAN_VALID |
 					   ICE_AQ_VSI_PROP_SW_VALID);
 
-	status = ice_update_vsi(hw, vsi->idx, ctxt, NULL);
-	if (status) {
+	ret = ice_update_vsi(hw, vsi->idx, ctxt, NULL);
+	if (ret) {
 		dev_info(ice_hw_to_dev(hw), "update VSI for port VLAN failed, err %d aq_err %s\n",
-			 status, ice_aq_str(hw->adminq.sq_last_status));
+			 ret, ice_aq_str(hw->adminq.sq_last_status));
 		ret = -EIO;
 		goto out;
 	}
@@ -1735,7 +1734,6 @@ static int ice_init_vf_vsi_res(struct ice_vf *vf)
 	u8 broadcast[ETH_ALEN];
 	struct ice_vsi *vsi;
 	struct device *dev;
-	int status;
 	int err;
 
 	vf->first_vector_idx = ice_calc_vf_first_vector_idx(pf, vf);
@@ -1753,11 +1751,10 @@ static int ice_init_vf_vsi_res(struct ice_vf *vf)
 	}
 
 	eth_broadcast_addr(broadcast);
-	status = ice_fltr_add_mac(vsi, broadcast, ICE_FWD_TO_VSI);
-	if (status) {
+	err = ice_fltr_add_mac(vsi, broadcast, ICE_FWD_TO_VSI);
+	if (err) {
 		dev_err(dev, "Failed to add broadcast MAC filter for VF %d, error %d\n",
-			vf->vf_id, status);
-		err = status;
+			vf->vf_id, err);
 		goto release_vsi;
 	}
 
@@ -2003,7 +2000,6 @@ int ice_sriov_configure(struct pci_dev *pdev, int num_vfs)
 {
 	struct ice_pf *pf = pci_get_drvdata(pdev);
 	struct device *dev = ice_pf_to_dev(pf);
-	int status;
 	int err;
 
 	err = ice_check_sriov_allowed(pf);
@@ -2023,9 +2019,9 @@ int ice_sriov_configure(struct pci_dev *pdev, int num_vfs)
 		return -EBUSY;
 	}
 
-	status = ice_mbx_init_snapshot(&pf->hw, num_vfs);
-	if (status)
-		return status;
+	err = ice_mbx_init_snapshot(&pf->hw, num_vfs);
+	if (err)
+		return err;
 
 	err = ice_pci_sriov_ena(pf, num_vfs);
 	if (err) {
@@ -2898,7 +2894,6 @@ int ice_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool ena)
 	struct ice_vsi *vf_vsi;
 	struct device *dev;
 	struct ice_vf *vf;
-	int status;
 	int ret;
 
 	dev = ice_pf_to_dev(pf);
@@ -2946,11 +2941,10 @@ int ice_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool ena)
 			   ICE_AQ_VSI_SEC_TX_PRUNE_ENA_S));
 	}
 
-	status = ice_update_vsi(&pf->hw, vf_vsi->idx, ctx, NULL);
-	if (status) {
+	ret = ice_update_vsi(&pf->hw, vf_vsi->idx, ctx, NULL);
+	if (ret) {
 		dev_err(dev, "Failed to %sable spoofchk on VF %d VSI %d\n error %d\n",
-			ena ? "en" : "dis", vf->vf_id, vf_vsi->vsi_num,
-			status);
+			ena ? "en" : "dis", vf->vf_id, vf_vsi->vsi_num, ret);
 		ret = -EIO;
 		goto out;
 	}
@@ -3786,8 +3780,7 @@ ice_vc_add_mac_addr(struct ice_vf *vf, struct ice_vsi *vsi,
 {
 	struct device *dev = ice_pf_to_dev(vf->pf);
 	u8 *mac_addr = vc_ether_addr->addr;
-	int ret = 0;
-	int status;
+	int ret;
 
 	/* device MAC already added */
 	if (ether_addr_equal(mac_addr, vf->dev_lan_addr.addr))
@@ -3798,17 +3791,16 @@ ice_vc_add_mac_addr(struct ice_vf *vf, struct ice_vsi *vsi,
 		return -EPERM;
 	}
 
-	status = ice_fltr_add_mac(vsi, mac_addr, ICE_FWD_TO_VSI);
-	if (status == -EEXIST) {
+	ret = ice_fltr_add_mac(vsi, mac_addr, ICE_FWD_TO_VSI);
+	if (ret == -EEXIST) {
 		dev_dbg(dev, "MAC %pM already exists for VF %d\n", mac_addr,
 			vf->vf_id);
 		/* don't return since we might need to update
 		 * the primary MAC in ice_vfhw_mac_add() below
 		 */
-		ret = -EEXIST;
-	} else if (status) {
+	} else if (ret) {
 		dev_err(dev, "Failed to add MAC %pM for VF %d\n, error %d\n",
-			mac_addr, vf->vf_id, status);
+			mac_addr, vf->vf_id, ret);
 		return -EIO;
 	} else {
 		vf->num_mac++;

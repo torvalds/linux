@@ -4447,7 +4447,6 @@ ice_ena_vsi_rdma_qset(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
 	struct ice_sched_node *parent;
 	struct ice_hw *hw;
 	u16 i, buf_size;
-	int status;
 	int ret;
 
 	if (!pi || pi->port_state != ICE_SCHED_PORT_STATE_READY)
@@ -4496,12 +4495,10 @@ ice_ena_vsi_rdma_qset(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
 	node.data.elem_type = ICE_AQC_ELEM_TYPE_LEAF;
 	for (i = 0; i < num_qsets; i++) {
 		node.node_teid = buf->rdma_qsets[i].qset_teid;
-		status = ice_sched_add_node(pi, hw->num_tx_sched_layers - 1,
-					    &node);
-		if (status) {
-			ret = status;
+		ret = ice_sched_add_node(pi, hw->num_tx_sched_layers - 1,
+					 &node);
+		if (ret)
 			break;
-		}
 		qset_teid[i] = le32_to_cpu(node.node_teid);
 	}
 rdma_error_exit:

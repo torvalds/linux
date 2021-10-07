@@ -566,7 +566,6 @@ ice_vc_fdir_write_flow_prof(struct ice_vf *vf, enum ice_fltr_ptype flow,
 	u64 entry1_h = 0;
 	u64 entry2_h = 0;
 	u64 prof_id;
-	int status;
 	int ret;
 
 	pf = vf->pf;
@@ -603,29 +602,26 @@ ice_vc_fdir_write_flow_prof(struct ice_vf *vf, enum ice_fltr_ptype flow,
 	prof_id = ICE_FLOW_PROF_FD(vf_vsi->vsi_num, flow,
 				   tun ? ICE_FLTR_PTYPE_MAX : 0);
 
-	status = ice_flow_add_prof(hw, ICE_BLK_FD, ICE_FLOW_RX, prof_id, seg,
-				   tun + 1, &prof);
-	ret = status;
+	ret = ice_flow_add_prof(hw, ICE_BLK_FD, ICE_FLOW_RX, prof_id, seg,
+				tun + 1, &prof);
 	if (ret) {
 		dev_dbg(dev, "Could not add VSI flow 0x%x for VF %d\n",
 			flow, vf->vf_id);
 		goto err_exit;
 	}
 
-	status = ice_flow_add_entry(hw, ICE_BLK_FD, prof_id, vf_vsi->idx,
-				    vf_vsi->idx, ICE_FLOW_PRIO_NORMAL,
-				    seg, &entry1_h);
-	ret = status;
+	ret = ice_flow_add_entry(hw, ICE_BLK_FD, prof_id, vf_vsi->idx,
+				 vf_vsi->idx, ICE_FLOW_PRIO_NORMAL,
+				 seg, &entry1_h);
 	if (ret) {
 		dev_dbg(dev, "Could not add flow 0x%x VSI entry for VF %d\n",
 			flow, vf->vf_id);
 		goto err_prof;
 	}
 
-	status = ice_flow_add_entry(hw, ICE_BLK_FD, prof_id, vf_vsi->idx,
-				    ctrl_vsi->idx, ICE_FLOW_PRIO_NORMAL,
-				    seg, &entry2_h);
-	ret = status;
+	ret = ice_flow_add_entry(hw, ICE_BLK_FD, prof_id, vf_vsi->idx,
+				 ctrl_vsi->idx, ICE_FLOW_PRIO_NORMAL,
+				 seg, &entry2_h);
 	if (ret) {
 		dev_dbg(dev,
 			"Could not add flow 0x%x Ctrl VSI entry for VF %d\n",
@@ -1202,7 +1198,6 @@ static int ice_vc_fdir_write_fltr(struct ice_vf *vf,
 	struct device *dev;
 	struct ice_pf *pf;
 	struct ice_hw *hw;
-	int status;
 	int ret;
 	u8 *pkt;
 
@@ -1229,8 +1224,7 @@ static int ice_vc_fdir_write_fltr(struct ice_vf *vf,
 		return -ENOMEM;
 
 	ice_fdir_get_prgm_desc(hw, input, &desc, add);
-	status = ice_fdir_get_gen_prgm_pkt(hw, input, pkt, false, is_tun);
-	ret = status;
+	ret = ice_fdir_get_gen_prgm_pkt(hw, input, pkt, false, is_tun);
 	if (ret) {
 		dev_dbg(dev, "Gen training pkt for VF %d ptype %d failed\n",
 			vf->vf_id, input->flow_type);
