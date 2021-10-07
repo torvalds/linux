@@ -39,6 +39,11 @@ properties:
     description:
       List of strings, labeling the mux controller states.
 
+  settle-time-us:
+    default: 0
+    description:
+      Time required for analog signals to settle after muxing.
+
 required:
   - compatible
   - io-channels
