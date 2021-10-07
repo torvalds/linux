@@ -934,7 +934,7 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 	unsigned int *refcnts;
 	unsigned int i, j, k;
 
-	pr_info("Checking %s\n", drvname);
+	pr_info("sh_pfc: Checking %s\n", drvname);
 	sh_pfc_num_regs = 0;
 	sh_pfc_num_enums = 0;
 
@@ -1081,7 +1081,7 @@ static void __init sh_pfc_check_driver(const struct platform_driver *pdrv)
 	if (!sh_pfc_enums)
 		goto free_regs;
 
-	pr_warn("Checking builtin pinmux tables\n");
+	pr_warn("sh_pfc: Checking builtin pinmux tables\n");
 
 	for (i = 0; pdrv->id_table[i].name[0]; i++)
 		sh_pfc_check_info((void *)pdrv->id_table[i].driver_data);
@@ -1091,7 +1091,7 @@ static void __init sh_pfc_check_driver(const struct platform_driver *pdrv)
 		sh_pfc_check_info(pdrv->driver.of_match_table[i].data);
 #endif
 
-	pr_warn("Detected %u errors and %u warnings\n", sh_pfc_errors,
+	pr_warn("sh_pfc: Detected %u errors and %u warnings\n", sh_pfc_errors,
 		sh_pfc_warnings);
 
 	kfree(sh_pfc_enums);
