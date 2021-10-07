@@ -11,7 +11,14 @@
 
 struct iio_buffer;
 
+enum iio_buffer_direction {
+	IIO_BUFFER_DIRECTION_IN,
+	IIO_BUFFER_DIRECTION_OUT,
+};
+
 int iio_push_to_buffers(struct iio_dev *indio_dev, const void *data);
+
+int iio_pop_from_buffer(struct iio_buffer *buffer, void *data);
 
 /**
  * iio_push_to_buffers_with_timestamp() - push data and timestamp to buffers

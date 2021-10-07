@@ -120,6 +120,9 @@ static ssize_t iio_buffer_read(struct file *filp, char __user *buf,
 	if (!rb || !rb->access->read)
 		return -EINVAL;
 
+	if (rb->direction != IIO_BUFFER_DIRECTION_IN)
+		return -EPERM;
+
 	datum_size = rb->bytes_per_datum;
 
 	/*
@@ -161,6 +164,65 @@ static ssize_t iio_buffer_read(struct file *filp, char __user *buf,
 	return ret;
 }
 
+static size_t iio_buffer_space_available(struct iio_buffer *buf)
+{
+	if (buf->access->space_available)
+		return buf->access->space_available(buf);
+
+	return SIZE_MAX;
+}
+
+static ssize_t iio_buffer_write(struct file *filp, const char __user *buf,
+				size_t n, loff_t *f_ps)
+{
+	struct iio_dev_buffer_pair *ib = filp->private_data;
+	struct iio_buffer *rb = ib->buffer;
+	struct iio_dev *indio_dev = ib->indio_dev;
+	DEFINE_WAIT_FUNC(wait, woken_wake_function);
+	int ret;
+	size_t written;
+
+	if (!indio_dev->info)
+		return -ENODEV;
+
+	if (!rb || !rb->access->write)
+		return -EINVAL;
+
+	if (rb->direction != IIO_BUFFER_DIRECTION_OUT)
+		return -EPERM;
+
+	written = 0;
+	add_wait_queue(&rb->pollq, &wait);
+	do {
+		if (indio_dev->info == NULL)
+			return -ENODEV;
+
+		if (!iio_buffer_space_available(rb)) {
+			if (signal_pending(current)) {
+				ret = -ERESTARTSYS;
+				break;
+			}
+
+			wait_woken(&wait, TASK_INTERRUPTIBLE,
+					MAX_SCHEDULE_TIMEOUT);
+			continue;
+		}
+
+		ret = rb->access->write(rb, n - written, buf + written);
+		if (ret == 0 && (filp->f_flags & O_NONBLOCK))
+			ret = -EAGAIN;
+
+		if (ret > 0) {
+			written += ret;
+			if (written != n && !(filp->f_flags & O_NONBLOCK))
+				continue;
+		}
+	} while (ret == 0);
+	remove_wait_queue(&rb->pollq, &wait);
+
+	return ret < 0 ? ret : n;
+}
+
 /**
  * iio_buffer_poll() - poll the buffer to find out if it has data
  * @filp:	File structure pointer for device access
@@ -181,8 +243,18 @@ static __poll_t iio_buffer_poll(struct file *filp,
 		return 0;
 
 	poll_wait(filp, &rb->pollq, wait);
-	if (iio_buffer_ready(indio_dev, rb, rb->watermark, 0))
-		return EPOLLIN | EPOLLRDNORM;
+
+	switch (rb->direction) {
+	case IIO_BUFFER_DIRECTION_IN:
+		if (iio_buffer_ready(indio_dev, rb, rb->watermark, 0))
+			return EPOLLIN | EPOLLRDNORM;
+		break;
+	case IIO_BUFFER_DIRECTION_OUT:
+		if (iio_buffer_space_available(rb))
+			return EPOLLOUT | EPOLLWRNORM;
+		break;
+	}
+
 	return 0;
 }
 
@@ -197,6 +269,19 @@ ssize_t iio_buffer_read_wrapper(struct file *filp, char __user *buf,
 		return -EBUSY;
 
 	return iio_buffer_read(filp, buf, n, f_ps);
+}
+
+ssize_t iio_buffer_write_wrapper(struct file *filp, const char __user *buf,
+				 size_t n, loff_t *f_ps)
+{
+	struct iio_dev_buffer_pair *ib = filp->private_data;
+	struct iio_buffer *rb = ib->buffer;
+
+	/* check if buffer was opened through new API */
+	if (test_bit(IIO_BUSY_BIT_POS, &rb->flags))
+		return -EBUSY;
+
+	return iio_buffer_write(filp, buf, n, f_ps);
 }
 
 __poll_t iio_buffer_poll_wrapper(struct file *filp,
@@ -230,6 +315,15 @@ void iio_buffer_wakeup_poll(struct iio_dev *indio_dev)
 		wake_up(&buffer->pollq);
 	}
 }
+
+int iio_pop_from_buffer(struct iio_buffer *buffer, void *data)
+{
+	if (!buffer || !buffer->access || !buffer->access->remove_from)
+		return -EINVAL;
+
+	return buffer->access->remove_from(buffer, data);
+}
+EXPORT_SYMBOL_GPL(iio_pop_from_buffer);
 
 void iio_buffer_init(struct iio_buffer *buffer)
 {
@@ -1156,6 +1250,10 @@ int iio_update_buffers(struct iio_dev *indio_dev,
 	if (insert_buffer == remove_buffer)
 		return 0;
 
+	if (insert_buffer &&
+	    (insert_buffer->direction == IIO_BUFFER_DIRECTION_OUT))
+		return -EINVAL;
+
 	mutex_lock(&iio_dev_opaque->info_exist_lock);
 	mutex_lock(&indio_dev->mlock);
 
@@ -1277,6 +1375,22 @@ static ssize_t iio_dma_show_data_available(struct device *dev,
 	return sysfs_emit(buf, "%zu\n", iio_buffer_data_available(buffer));
 }
 
+static ssize_t direction_show(struct device *dev,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	struct iio_buffer *buffer = to_iio_dev_attr(attr)->buffer;
+
+	switch (buffer->direction) {
+	case IIO_BUFFER_DIRECTION_IN:
+		return sprintf(buf, "in\n");
+	case IIO_BUFFER_DIRECTION_OUT:
+		return sprintf(buf, "out\n");
+	default:
+		return -EINVAL;
+	}
+}
+
 static DEVICE_ATTR(length, S_IRUGO | S_IWUSR, iio_buffer_read_length,
 		   iio_buffer_write_length);
 static struct device_attribute dev_attr_length_ro = __ATTR(length,
@@ -1289,12 +1403,20 @@ static struct device_attribute dev_attr_watermark_ro = __ATTR(watermark,
 	S_IRUGO, iio_buffer_show_watermark, NULL);
 static DEVICE_ATTR(data_available, S_IRUGO,
 		iio_dma_show_data_available, NULL);
+static DEVICE_ATTR_RO(direction);
 
+/*
+ * When adding new attributes here, put the at the end, at least until
+ * the code that handles the length/length_ro & watermark/watermark_ro
+ * assignments gets cleaned up. Otherwise these can create some weird
+ * duplicate attributes errors under some setups.
+ */
 static struct attribute *iio_buffer_attrs[] = {
 	&dev_attr_length.attr,
 	&dev_attr_enable.attr,
 	&dev_attr_watermark.attr,
 	&dev_attr_data_available.attr,
+	&dev_attr_direction.attr,
 };
 
 #define to_dev_attr(_attr) container_of(_attr, struct device_attribute, attr)
@@ -1397,6 +1519,7 @@ static const struct file_operations iio_buffer_chrdev_fileops = {
 	.owner = THIS_MODULE,
 	.llseek = noop_llseek,
 	.read = iio_buffer_read,
+	.write = iio_buffer_write,
 	.poll = iio_buffer_poll,
 	.release = iio_buffer_chrdev_release,
 };
