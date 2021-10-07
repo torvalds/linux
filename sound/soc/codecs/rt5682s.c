@@ -790,6 +790,7 @@ static int rt5682s_headset_detect(struct snd_soc_component *component, int jack_
 		snd_soc_component_update_bits(component, RT5682S_HP_CHARGE_PUMP_2,
 			RT5682S_OSW_L_MASK | RT5682S_OSW_R_MASK,
 			RT5682S_OSW_L_EN | RT5682S_OSW_R_EN);
+		usleep_range(35000, 40000);
 	} else {
 		rt5682s_sar_power_mode(component, SAR_PWR_OFF, 1);
 		rt5682s_disable_push_button_irq(component);
@@ -829,6 +830,7 @@ static void rt5682s_jack_detect_handler(struct work_struct *work)
 	while (!rt5682s->component->card->instantiated)
 		usleep_range(10000, 15000);
 
+	mutex_lock(&rt5682s->jdet_mutex);
 	mutex_lock(&rt5682s->calibrate_mutex);
 
 	val = snd_soc_component_read(rt5682s->component, RT5682S_AJD1_CTRL)
@@ -896,6 +898,7 @@ static void rt5682s_jack_detect_handler(struct work_struct *work)
 		cancel_delayed_work_sync(&rt5682s->jd_check_work);
 
 	mutex_unlock(&rt5682s->calibrate_mutex);
+	mutex_unlock(&rt5682s->jdet_mutex);
 }
 
 static void rt5682s_jd_check_handler(struct work_struct *work)
@@ -1318,34 +1321,41 @@ static int rt5682s_hp_amp_event(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct rt5682s_priv *rt5682s = snd_soc_component_get_drvdata(component);
 
 	switch (event) {
-	case SND_SOC_DAPM_PRE_PMU:
+	case SND_SOC_DAPM_POST_PMU:
 		snd_soc_component_update_bits(component, RT5682S_DEPOP_1,
 			RT5682S_OUT_HP_L_EN | RT5682S_OUT_HP_R_EN,
 			RT5682S_OUT_HP_L_EN | RT5682S_OUT_HP_R_EN);
+		usleep_range(15000, 20000);
 		snd_soc_component_update_bits(component, RT5682S_DEPOP_1,
 			RT5682S_LDO_PUMP_EN | RT5682S_PUMP_EN |
 			RT5682S_CAPLESS_L_EN | RT5682S_CAPLESS_R_EN,
 			RT5682S_LDO_PUMP_EN | RT5682S_PUMP_EN |
 			RT5682S_CAPLESS_L_EN | RT5682S_CAPLESS_R_EN);
-		break;
-
-	case SND_SOC_DAPM_POST_PMU:
-		usleep_range(30000, 35000);
 		snd_soc_component_write(component, RT5682S_BIAS_CUR_CTRL_11, 0x6666);
 		snd_soc_component_write(component, RT5682S_BIAS_CUR_CTRL_12, 0xa82a);
+
+		mutex_lock(&rt5682s->jdet_mutex);
+
 		snd_soc_component_update_bits(component, RT5682S_HP_CTRL_2,
 			RT5682S_HPO_L_PATH_MASK | RT5682S_HPO_R_PATH_MASK |
 			RT5682S_HPO_SEL_IP_EN_SW, RT5682S_HPO_L_PATH_EN |
 			RT5682S_HPO_R_PATH_EN | RT5682S_HPO_IP_EN_GATING);
-		snd_soc_component_write(component, RT5682S_HP_AMP_DET_CTL_1, 0x3050);
+		usleep_range(5000, 10000);
+		snd_soc_component_update_bits(component, RT5682S_HP_AMP_DET_CTL_1,
+			RT5682S_CP_SW_SIZE_MASK, RT5682S_CP_SW_SIZE_L | RT5682S_CP_SW_SIZE_S);
+
+		mutex_unlock(&rt5682s->jdet_mutex);
 		break;
 
 	case SND_SOC_DAPM_POST_PMD:
 		snd_soc_component_update_bits(component, RT5682S_HP_CTRL_2,
 			RT5682S_HPO_L_PATH_MASK | RT5682S_HPO_R_PATH_MASK |
 			RT5682S_HPO_SEL_IP_EN_SW, 0);
+		snd_soc_component_update_bits(component, RT5682S_HP_AMP_DET_CTL_1,
+			RT5682S_CP_SW_SIZE_MASK, RT5682S_CP_SW_SIZE_M);
 		snd_soc_component_update_bits(component, RT5682S_DEPOP_1,
 			RT5682S_LDO_PUMP_EN | RT5682S_PUMP_EN |
 			RT5682S_CAPLESS_L_EN | RT5682S_CAPLESS_R_EN, 0);
@@ -1734,7 +1744,7 @@ static const struct snd_soc_dapm_widget rt5682s_dapm_widgets[] = {
 
 	/* HPO */
 	SND_SOC_DAPM_PGA_S("HP Amp", 1, SND_SOC_NOPM, 0, 0, rt5682s_hp_amp_event,
-		SND_SOC_DAPM_POST_PMD | SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
+		SND_SOC_DAPM_POST_PMD | SND_SOC_DAPM_POST_PMU),
 
 	/* CLK DET */
 	SND_SOC_DAPM_SUPPLY("CLKDET SYS", RT5682S_CLK_DET,
@@ -3061,6 +3071,7 @@ static int rt5682s_i2c_probe(struct i2c_client *i2c,
 
 	mutex_init(&rt5682s->calibrate_mutex);
 	mutex_init(&rt5682s->sar_mutex);
+	mutex_init(&rt5682s->jdet_mutex);
 	rt5682s_calibrate(rt5682s);
 
 	regmap_update_bits(rt5682s->regmap, RT5682S_MICBIAS_2,
@@ -3072,6 +3083,8 @@ static int rt5682s_i2c_probe(struct i2c_client *i2c,
 		RT5682S_HP_SIG_SRC_MASK, RT5682S_HP_SIG_SRC_1BIT_CTL);
 	regmap_update_bits(rt5682s->regmap, RT5682S_HP_CHARGE_PUMP_2,
 		RT5682S_PM_HP_MASK, RT5682S_PM_HP_HV);
+	regmap_update_bits(rt5682s->regmap, RT5682S_HP_AMP_DET_CTL_1,
+		RT5682S_CP_SW_SIZE_MASK, RT5682S_CP_SW_SIZE_M);
 
 	/* DMIC data pin */
 	switch (rt5682s->pdata.dmic1_data_pin) {

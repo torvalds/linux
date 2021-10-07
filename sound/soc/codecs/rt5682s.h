@@ -1366,6 +1366,11 @@
 #define RT5682S_SAR_SOUR_BTN			(0x3f)
 #define RT5682S_SAR_SOUR_TYPE			(0x0)
 
+/* Headphone Amp Detection Control 1 (0x3b00) */
+#define RT5682S_CP_SW_SIZE_MASK			(0x7 << 4)
+#define RT5682S_CP_SW_SIZE_L			(0x4 << 4)
+#define RT5682S_CP_SW_SIZE_M			(0x2 << 4)
+#define RT5682S_CP_SW_SIZE_S			(0x1 << 4)
 
 #define RT5682S_STEREO_RATES SNDRV_PCM_RATE_8000_192000
 #define RT5682S_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
@@ -1441,6 +1446,7 @@ struct rt5682s_priv {
 	struct delayed_work jd_check_work;
 	struct mutex calibrate_mutex;
 	struct mutex sar_mutex;
+	struct mutex jdet_mutex;
 
 #ifdef CONFIG_COMMON_CLK
 	struct clk_hw dai_clks_hw[RT5682S_DAI_NUM_CLKS];
