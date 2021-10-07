@@ -3,6 +3,7 @@
  * Copyright © 2019 Intel Corporation
  */
 
+#include <asm/tsc.h>
 #include <linux/cpufreq.h>
 
 #include "i915_drv.h"
