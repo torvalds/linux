@@ -178,7 +178,7 @@ static void nsp_scsi_done(struct scsi_cmnd *SCpnt)
 
 	data->CurrentSC = NULL;
 
-	SCpnt->scsi_done(SCpnt);
+	scsi_done(SCpnt);
 }
 
 static int nsp_queuecommand_lck(struct scsi_cmnd *SCpnt,
@@ -196,8 +196,6 @@ static int nsp_queuecommand_lck(struct scsi_cmnd *SCpnt,
 		SCpnt, target, SCpnt->device->lun, scsi_sglist(SCpnt),
 		scsi_bufflen(SCpnt), scsi_sg_count(SCpnt));
 	//nsp_dbg(NSP_DEBUG_QUEUECOMMAND, "before CurrentSC=0x%p", data->CurrentSC);
-
-	SCpnt->scsi_done	= done;
 
 	if (data->CurrentSC != NULL) {
 		nsp_msg(KERN_DEBUG, "CurrentSC!=NULL this can't be happen");
