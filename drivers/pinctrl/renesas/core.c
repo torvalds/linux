@@ -919,7 +919,8 @@ static void __init sh_pfc_check_bias_reg(const struct sh_pfc_soc_info *info,
 		if (bias->pins[i] != SH_PFC_PIN_NONE)
 			bits |= BIT(i);
 
-	sh_pfc_check_reg(info->name, bias->puen, bits);
+	if (bias->puen)
+		sh_pfc_check_reg(info->name, bias->puen, bits);
 	if (bias->pud)
 		sh_pfc_check_reg(info->name, bias->pud, bits);
 	for (i = 0; i < ARRAY_SIZE(bias->pins); i++)
@@ -928,6 +929,7 @@ static void __init sh_pfc_check_bias_reg(const struct sh_pfc_soc_info *info,
 
 static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 {
+	const struct pinmux_bias_reg *bias_regs = info->bias_regs;
 	const char *drvname = info->name;
 	unsigned int *refcnts;
 	unsigned int i, j, k;
@@ -1024,8 +1026,8 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 		sh_pfc_check_drive_reg(info, &info->drive_regs[i]);
 
 	/* Check bias registers */
-	for (i = 0; info->bias_regs && info->bias_regs[i].puen; i++)
-		sh_pfc_check_bias_reg(info, &info->bias_regs[i]);
+	for (i = 0; bias_regs && (bias_regs[i].puen || bias_regs[i].pud); i++)
+		sh_pfc_check_bias_reg(info, &bias_regs[i]);
 
 	/* Check ioctrl registers */
 	for (i = 0; info->ioctrl_regs && info->ioctrl_regs[i].reg; i++)
