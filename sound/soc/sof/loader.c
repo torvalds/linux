@@ -791,6 +791,10 @@ int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 
 	init_waitqueue_head(&sdev->boot_wait);
 
+	/* (re-)enable dsp dump */
+	sdev->dbg_dump_printed = false;
+	sdev->ipc_dump_printed = false;
+
 	/* create read-only fw_version debugfs to store boot version info */
 	if (sdev->first_boot) {
 		ret = snd_sof_debugfs_buf_item(sdev, &sdev->fw_version,
@@ -815,7 +819,8 @@ int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 	/* boot the firmware on the DSP */
 	ret = snd_sof_dsp_run(sdev);
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: failed to reset DSP\n");
+		dev_err(sdev->dev, "error: failed to start DSP\n");
+		snd_sof_dsp_dbg_dump(sdev, SOF_DBG_DUMP_MBOX | SOF_DBG_DUMP_PCI);
 		return ret;
 	}
 
@@ -831,8 +836,8 @@ int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 	if (ret == 0) {
 		dev_err(sdev->dev, "error: firmware boot failure\n");
 		snd_sof_dsp_dbg_dump(sdev, SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_MBOX |
-			SOF_DBG_DUMP_TEXT | SOF_DBG_DUMP_PCI | SOF_DBG_DUMP_FORCE_ERR_LEVEL);
-		sdev->fw_state = SOF_FW_BOOT_FAILED;
+				     SOF_DBG_DUMP_TEXT | SOF_DBG_DUMP_PCI);
+		sof_set_fw_state(sdev, SOF_FW_BOOT_FAILED);
 		return -EIO;
 	}
 
