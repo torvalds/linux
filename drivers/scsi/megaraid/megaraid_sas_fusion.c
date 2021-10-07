@@ -3493,7 +3493,7 @@ megasas_complete_r1_command(struct megasas_instance *instance,
 		megasas_return_cmd_fusion(instance, cmd);
 		scsi_dma_unmap(scmd_local);
 		megasas_sdev_busy_dec(instance, scmd_local);
-		scmd_local->scsi_done(scmd_local);
+		scsi_done(scmd_local);
 	}
 }
 
@@ -3634,7 +3634,7 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex,
 				megasas_return_cmd_fusion(instance, cmd_fusion);
 				scsi_dma_unmap(scmd_local);
 				megasas_sdev_busy_dec(instance, scmd_local);
-				scmd_local->scsi_done(scmd_local);
+				scsi_done(scmd_local);
 			} else	/* Optimal VD - R1 FP command completion. */
 				megasas_complete_r1_command(instance, cmd_fusion);
 			break;
@@ -5013,7 +5013,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 					atomic_dec(&instance->ldio_outstanding);
 				megasas_return_cmd_fusion(instance, cmd_fusion);
 				scsi_dma_unmap(scmd_local);
-				scmd_local->scsi_done(scmd_local);
+				scsi_done(scmd_local);
 			}
 		}
 
