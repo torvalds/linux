@@ -319,7 +319,7 @@ static netdev_tx_t enetc_start_xmit(struct sk_buff *skb,
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
 	struct enetc_bdr *tx_ring;
-	int count;
+	int count, err;
 
 	/* Queue one-step Sync packet if already locked */
 	if (skb->cb[0] & ENETC_F_TX_ONESTEP_SYNC_TSTAMP) {
@@ -340,6 +340,12 @@ static netdev_tx_t enetc_start_xmit(struct sk_buff *skb,
 	if (enetc_bd_unused(tx_ring) < ENETC_TXBDS_NEEDED(count)) {
 		netif_stop_subqueue(ndev, tx_ring->index);
 		return NETDEV_TX_BUSY;
+	}
+
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		err = skb_checksum_help(skb);
+		if (err)
+			goto drop_packet_err;
 	}
 
 	enetc_lock_mdio();
