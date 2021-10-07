@@ -315,7 +315,7 @@ static inline void set_xmm(int n, unsigned long val)
 #define GET_XMM(__xmm)							\
 ({									\
 	unsigned long __val;						\
-	asm volatile("movq %%"#__xmm", %0" : "=r"(__val) : : #__xmm);	\
+	asm volatile("movq %%"#__xmm", %0" : "=r"(__val));		\
 	__val;								\
 })
 
