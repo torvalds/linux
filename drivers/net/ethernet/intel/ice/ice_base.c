@@ -759,7 +759,7 @@ ice_vsi_cfg_txq(struct ice_vsi *vsi, struct ice_tx_ring *ring,
 	struct ice_channel *ch = ring->ch;
 	struct ice_pf *pf = vsi->back;
 	struct ice_hw *hw = &pf->hw;
-	enum ice_status status;
+	int status;
 	u16 pf_q;
 	u8 tc;
 
@@ -929,7 +929,7 @@ ice_vsi_stop_tx_ring(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
 	struct ice_pf *pf = vsi->back;
 	struct ice_q_vector *q_vector;
 	struct ice_hw *hw = &pf->hw;
-	enum ice_status status;
+	int status;
 	u32 val;
 
 	/* clear cause_ena bit for disabled queues */

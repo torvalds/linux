@@ -530,7 +530,7 @@ ice_fdir_set_hw_fltr_rule(struct ice_pf *pf, struct ice_flow_seg_info *seg,
 	struct ice_flow_prof *prof = NULL;
 	struct ice_fd_hw_prof *hw_prof;
 	struct ice_hw *hw = &pf->hw;
-	enum ice_status status;
+	int status;
 	u64 entry1_h = 0;
 	u64 entry2_h = 0;
 	u64 prof_id;
@@ -1190,7 +1190,7 @@ ice_fdir_write_fltr(struct ice_pf *pf, struct ice_fdir_fltr *input, bool add,
 	struct ice_hw *hw = &pf->hw;
 	struct ice_fltr_desc desc;
 	struct ice_vsi *ctrl_vsi;
-	enum ice_status status;
+	int status;
 	u8 *pkt, *frag_pkt;
 	bool has_frag;
 	int err;

@@ -201,16 +201,16 @@ struct ice_fdir_base_pkt {
 	const u8 *tun_pkt;
 };
 
-enum ice_status ice_alloc_fd_res_cntr(struct ice_hw *hw, u16 *cntr_id);
-enum ice_status ice_free_fd_res_cntr(struct ice_hw *hw, u16 cntr_id);
-enum ice_status
+int ice_alloc_fd_res_cntr(struct ice_hw *hw, u16 *cntr_id);
+int ice_free_fd_res_cntr(struct ice_hw *hw, u16 cntr_id);
+int
 ice_alloc_fd_guar_item(struct ice_hw *hw, u16 *cntr_id, u16 num_fltr);
-enum ice_status
+int
 ice_alloc_fd_shrd_item(struct ice_hw *hw, u16 *cntr_id, u16 num_fltr);
 void
 ice_fdir_get_prgm_desc(struct ice_hw *hw, struct ice_fdir_fltr *input,
 		       struct ice_fltr_desc *fdesc, bool add);
-enum ice_status
+int
 ice_fdir_get_gen_prgm_pkt(struct ice_hw *hw, struct ice_fdir_fltr *input,
 			  u8 *pkt, bool frag, bool tun);
 int ice_get_fdir_cnt_all(struct ice_hw *hw);

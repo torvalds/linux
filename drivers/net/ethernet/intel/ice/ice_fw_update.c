@@ -40,7 +40,7 @@ ice_send_package_data(struct pldmfw *context, const u8 *data, u16 length)
 	struct device *dev = context->dev;
 	struct ice_pf *pf = priv->pf;
 	struct ice_hw *hw = &pf->hw;
-	enum ice_status status;
+	int status;
 	u8 *package_data;
 
 	dev_dbg(dev, "Sending PLDM record package data to firmware\n");
@@ -203,7 +203,7 @@ ice_send_component_table(struct pldmfw *context, struct pldmfw_component *compon
 	struct device *dev = context->dev;
 	struct ice_pf *pf = priv->pf;
 	struct ice_hw *hw = &pf->hw;
-	enum ice_status status;
+	int status;
 	size_t length;
 
 	switch (component->identifier) {
@@ -277,7 +277,7 @@ ice_write_one_nvm_block(struct ice_pf *pf, u16 module, u32 offset,
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_rq_event_info event;
 	struct ice_hw *hw = &pf->hw;
-	enum ice_status status;
+	int status;
 	u32 completion_offset;
 	int err;
 
@@ -445,7 +445,7 @@ ice_erase_nvm_module(struct ice_pf *pf, u16 module, const char *component,
 	struct ice_rq_event_info event;
 	struct ice_hw *hw = &pf->hw;
 	struct devlink *devlink;
-	enum ice_status status;
+	int status;
 	int err;
 
 	dev_dbg(dev, "Beginning erase of flash component '%s', module 0x%02x\n", component, module);
@@ -524,7 +524,7 @@ static int ice_switch_flash_banks(struct ice_pf *pf, u8 activate_flags,
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_rq_event_info event;
 	struct ice_hw *hw = &pf->hw;
-	enum ice_status status;
+	int status;
 	u16 completion_retval;
 	int err;
 
@@ -736,7 +736,7 @@ int ice_check_for_pending_update(struct ice_pf *pf, const char *component,
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_hw_dev_caps *dev_caps;
 	struct ice_hw *hw = &pf->hw;
-	enum ice_status status;
+	int status;
 	u8 pending = 0;
 	int err;
 

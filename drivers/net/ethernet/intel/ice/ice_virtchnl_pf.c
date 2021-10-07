@@ -653,7 +653,7 @@ static int ice_vsi_manage_pvid(struct ice_vsi *vsi, u16 pvid_info, bool enable)
 	struct ice_hw *hw = &vsi->back->hw;
 	struct ice_aqc_vsi_props *info;
 	struct ice_vsi_ctx *ctxt;
-	enum ice_status status;
+	int status;
 	int ret = 0;
 
 	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
@@ -851,7 +851,7 @@ static int ice_vf_rebuild_host_mac_cfg(struct ice_vf *vf)
 {
 	struct device *dev = ice_pf_to_dev(vf->pf);
 	struct ice_vsi *vsi = ice_get_vf_vsi(vf);
-	enum ice_status status;
+	int status;
 	u8 broadcast[ETH_ALEN];
 
 	if (ice_is_eswitch_mode_switchdev(vf->pf))
@@ -1228,7 +1228,7 @@ static int
 ice_vf_set_vsi_promisc(struct ice_vf *vf, struct ice_vsi *vsi, u8 promisc_m)
 {
 	struct ice_hw *hw = &vsi->back->hw;
-	enum ice_status status;
+	int status;
 
 	if (vf->port_vlan_info)
 		status = ice_fltr_set_vsi_promisc(hw, vsi->idx, promisc_m,
@@ -1251,7 +1251,7 @@ static int
 ice_vf_clear_vsi_promisc(struct ice_vf *vf, struct ice_vsi *vsi, u8 promisc_m)
 {
 	struct ice_hw *hw = &vsi->back->hw;
-	enum ice_status status;
+	int status;
 
 	if (vf->port_vlan_info)
 		status = ice_fltr_clear_vsi_promisc(hw, vsi->idx, promisc_m,
@@ -1303,7 +1303,7 @@ static void ice_vf_pre_vsi_rebuild(struct ice_vf *vf)
 static void ice_vf_rebuild_aggregator_node_cfg(struct ice_vsi *vsi)
 {
 	struct ice_pf *pf = vsi->back;
-	enum ice_status status;
+	int status;
 	struct device *dev;
 
 	if (!vsi->agg_node)
@@ -1734,7 +1734,7 @@ static int ice_init_vf_vsi_res(struct ice_vf *vf)
 {
 	struct ice_pf *pf = vf->pf;
 	u8 broadcast[ETH_ALEN];
-	enum ice_status status;
+	int status;
 	struct ice_vsi *vsi;
 	struct device *dev;
 	int err;
@@ -2004,7 +2004,7 @@ int ice_sriov_configure(struct pci_dev *pdev, int num_vfs)
 {
 	struct ice_pf *pf = pci_get_drvdata(pdev);
 	struct device *dev = ice_pf_to_dev(pf);
-	enum ice_status status;
+	int status;
 	int err;
 
 	err = ice_check_sriov_allowed(pf);
@@ -2160,7 +2160,7 @@ int
 ice_vc_send_msg_to_vf(struct ice_vf *vf, u32 v_opcode,
 		      enum virtchnl_status_code v_retval, u8 *msg, u16 msglen)
 {
-	enum ice_status aq_ret;
+	int aq_ret;
 	struct device *dev;
 	struct ice_pf *pf;
 
@@ -2672,7 +2672,7 @@ static int ice_vc_handle_rss_cfg(struct ice_vf *vf, u8 *msg, bool add)
 
 	if (rss_cfg->rss_algorithm == VIRTCHNL_RSS_ALG_R_ASYMMETRIC) {
 		struct ice_vsi_ctx *ctx;
-		enum ice_status status;
+		int status;
 		u8 lut_type, hash_type;
 
 		lut_type = ICE_AQ_VSI_Q_OPT_RSS_LUT_VSI;
@@ -2729,7 +2729,7 @@ static int ice_vc_handle_rss_cfg(struct ice_vf *vf, u8 *msg, bool add)
 					vsi->vsi_num, v_ret);
 			}
 		} else {
-			enum ice_status status;
+			int status;
 
 			status = ice_rem_rss_cfg(hw, vsi->idx, hash_flds,
 						 addl_hdrs);
@@ -2899,7 +2899,7 @@ int ice_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool ena)
 	struct ice_pf *pf = np->vsi->back;
 	struct ice_vsi_ctx *ctx;
 	struct ice_vsi *vf_vsi;
-	enum ice_status status;
+	int status;
 	struct device *dev;
 	struct ice_vf *vf;
 	int ret;
@@ -3789,7 +3789,7 @@ ice_vc_add_mac_addr(struct ice_vf *vf, struct ice_vsi *vsi,
 {
 	struct device *dev = ice_pf_to_dev(vf->pf);
 	u8 *mac_addr = vc_ether_addr->addr;
-	enum ice_status status;
+	int status;
 	int ret = 0;
 
 	/* device MAC already added */
@@ -3889,7 +3889,7 @@ ice_vc_del_mac_addr(struct ice_vf *vf, struct ice_vsi *vsi,
 {
 	struct device *dev = ice_pf_to_dev(vf->pf);
 	u8 *mac_addr = vc_ether_addr->addr;
-	enum ice_status status;
+	int status;
 
 	if (!ice_can_vf_change_mac(vf) &&
 	    ether_addr_equal(vf->dev_lan_addr.addr, mac_addr))
@@ -5265,7 +5265,7 @@ ice_is_malicious_vf(struct ice_pf *pf, struct ice_rq_event_info *event,
 	s16 vf_id = le16_to_cpu(event->desc.retval);
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_mbx_data mbxdata;
-	enum ice_status status;
+	int status;
 	bool malvf = false;
 	struct ice_vf *vf;
 
