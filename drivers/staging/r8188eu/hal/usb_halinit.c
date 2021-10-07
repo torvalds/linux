@@ -938,7 +938,7 @@ static void CardDisableRTL8188EU(struct adapter *Adapter)
 	Adapter->bFWReady = false;
 }
 
-static u32 rtl8188eu_hal_deinit(struct adapter *Adapter)
+u32 rtl8188eu_hal_deinit(struct adapter *Adapter)
 {
 
 	DBG_88E("==> %s\n", __func__);
@@ -2093,12 +2093,8 @@ void rtl8188eu_init_default_value(struct adapter *adapt)
 
 void rtl8188eu_set_hal_ops(struct adapter *adapt)
 {
-	struct hal_ops	*halfunc = &adapt->HalFunc;
-
 	adapt->HalData = kzalloc(sizeof(struct hal_data_8188e), GFP_KERNEL);
 	if (!adapt->HalData)
 		DBG_88E("cant not alloc memory for HAL DATA\n");
 	adapt->hal_data_sz = sizeof(struct hal_data_8188e);
-
-	halfunc->hal_deinit = &rtl8188eu_hal_deinit;
 }
