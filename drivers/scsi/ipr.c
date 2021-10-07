@@ -866,7 +866,7 @@ static void __ipr_scsi_eh_done(struct ipr_cmnd *ipr_cmd)
 	scsi_cmd->result |= (DID_ERROR << 16);
 
 	scsi_dma_unmap(ipr_cmd->scsi_cmd);
-	scsi_cmd->scsi_done(scsi_cmd);
+	scsi_done(scsi_cmd);
 	if (ipr_cmd->eh_comp)
 		complete(ipr_cmd->eh_comp);
 	list_add_tail(&ipr_cmd->queue, &ipr_cmd->hrrq->hrrq_free_q);
@@ -6065,7 +6065,7 @@ static void __ipr_erp_done(struct ipr_cmnd *ipr_cmd)
 		res->in_erp = 0;
 	}
 	scsi_dma_unmap(ipr_cmd->scsi_cmd);
-	scsi_cmd->scsi_done(scsi_cmd);
+	scsi_done(scsi_cmd);
 	if (ipr_cmd->eh_comp)
 		complete(ipr_cmd->eh_comp);
 	list_add_tail(&ipr_cmd->queue, &ipr_cmd->hrrq->hrrq_free_q);
@@ -6502,7 +6502,7 @@ static void ipr_erp_start(struct ipr_ioa_cfg *ioa_cfg,
 	}
 
 	scsi_dma_unmap(ipr_cmd->scsi_cmd);
-	scsi_cmd->scsi_done(scsi_cmd);
+	scsi_done(scsi_cmd);
 	if (ipr_cmd->eh_comp)
 		complete(ipr_cmd->eh_comp);
 	list_add_tail(&ipr_cmd->queue, &ipr_cmd->hrrq->hrrq_free_q);
@@ -6531,7 +6531,7 @@ static void ipr_scsi_done(struct ipr_cmnd *ipr_cmd)
 		scsi_dma_unmap(scsi_cmd);
 
 		spin_lock_irqsave(ipr_cmd->hrrq->lock, lock_flags);
-		scsi_cmd->scsi_done(scsi_cmd);
+		scsi_done(scsi_cmd);
 		if (ipr_cmd->eh_comp)
 			complete(ipr_cmd->eh_comp);
 		list_add_tail(&ipr_cmd->queue, &ipr_cmd->hrrq->hrrq_free_q);
@@ -6685,7 +6685,7 @@ err_nodev:
 	spin_lock_irqsave(hrrq->lock, hrrq_flags);
 	memset(scsi_cmd->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
 	scsi_cmd->result = (DID_NO_CONNECT << 16);
-	scsi_cmd->scsi_done(scsi_cmd);
+	scsi_done(scsi_cmd);
 	spin_unlock_irqrestore(hrrq->lock, hrrq_flags);
 	return 0;
 }
