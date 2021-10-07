@@ -1440,7 +1440,6 @@ megaraid_queue_command_lck(struct scsi_cmnd *scp, void (*done)(struct scsi_cmnd 
 	int		if_busy;
 
 	adapter		= SCP2ADAPTER(scp);
-	scp->scsi_done	= done;
 	scp->result	= 0;
 
 	/*
@@ -2358,7 +2357,7 @@ megaraid_mbox_dpc(unsigned long devp)
 		megaraid_dealloc_scb(adapter, scb);
 
 		// send the scsi packet back to kernel
-		scp->scsi_done(scp);
+		scsi_done(scp);
 	}
 
 	return;
@@ -2416,7 +2415,7 @@ megaraid_abort_handler(struct scsi_cmnd *scp)
 				scb->sno, scb->dev_channel, scb->dev_target));
 
 			scp->result = (DID_ABORT << 16);
-			scp->scsi_done(scp);
+			scsi_done(scp);
 
 			megaraid_dealloc_scb(adapter, scb);
 
@@ -2446,7 +2445,7 @@ megaraid_abort_handler(struct scsi_cmnd *scp)
 				scb->dev_channel, scb->dev_target));
 
 			scp->result = (DID_ABORT << 16);
-			scp->scsi_done(scp);
+			scsi_done(scp);
 
 			megaraid_dealloc_scb(adapter, scb);
 
@@ -2566,7 +2565,7 @@ megaraid_reset_handler(struct scsi_cmnd *scp)
 			}
 
 			scb->scp->result = (DID_RESET << 16);
-			scb->scp->scsi_done(scb->scp);
+			scsi_done(scb->scp);
 
 			megaraid_dealloc_scb(adapter, scb);
 		}
