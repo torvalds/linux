@@ -2034,7 +2034,7 @@ static int netsec_probe(struct platform_device *pdev)
 		goto free_ndev;
 	}
 
-	ret = device_get_mac_address(&pdev->dev, macbuf, sizeof(macbuf));
+	ret = device_get_mac_address(&pdev->dev, macbuf);
 	if (!ret)
 		eth_hw_addr_set(ndev, macbuf);
 
