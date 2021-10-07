@@ -8,6 +8,7 @@
 #include "intel_ddi_buf_trans.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
+#include "intel_dp.h"
 
 /* HDMI/DVI modes ignore everything but the last 2 items. So we share
  * them for both DP and FDI transports, allowing those ports to
@@ -1611,7 +1612,8 @@ dg2_get_snps_buf_trans(struct intel_encoder *encoder,
 		       const struct intel_crtc_state *crtc_state,
 		       int *n_entries)
 {
-	if (crtc_state->port_clock > 1000000)
+	if (intel_crtc_has_dp_encoder(crtc_state) &&
+	    intel_dp_is_uhbr(crtc_state))
 		return intel_get_buf_trans(&dg2_snps_trans_uhbr, n_entries);
 	else
 		return intel_get_buf_trans(&dg2_snps_trans, n_entries);
