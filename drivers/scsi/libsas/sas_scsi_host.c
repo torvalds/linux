@@ -125,7 +125,7 @@ static void sas_scsi_task_done(struct sas_task *task)
 	}
 
 	sas_end_task(sc, task);
-	sc->scsi_done(sc);
+	scsi_done(sc);
 }
 
 static struct sas_task *sas_create_task(struct scsi_cmnd *cmd,
@@ -198,7 +198,7 @@ out_free_task:
 	else
 		cmd->result = DID_ERROR << 16;
 out_done:
-	cmd->scsi_done(cmd);
+	scsi_done(cmd);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(sas_queuecommand);
