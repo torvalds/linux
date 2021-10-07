@@ -2624,7 +2624,7 @@ static void blogic_process_ccbs(struct blogic_adapter *adapter)
 					command->reset_chain;
 				command->reset_chain = NULL;
 				command->result = DID_RESET << 16;
-				command->scsi_done(command);
+				scsi_done(command);
 				command = nxt_cmd;
 			}
 #endif
@@ -2641,7 +2641,7 @@ static void blogic_process_ccbs(struct blogic_adapter *adapter)
 					blogic_dealloc_ccb(ccb, 1);
 					adapter->active_cmds[tgt_id]--;
 					command->result = DID_RESET << 16;
-					command->scsi_done(command);
+					scsi_done(command);
 				}
 			adapter->bdr_pend[tgt_id] = NULL;
 		} else {
@@ -2713,7 +2713,7 @@ static void blogic_process_ccbs(struct blogic_adapter *adapter)
 			/*
 			   Call the SCSI Command Completion Routine.
 			 */
-			command->scsi_done(command);
+			scsi_done(command);
 		}
 	}
 	adapter->processing_ccbs = false;
@@ -3038,7 +3038,6 @@ static int blogic_qcmd_lck(struct scsi_cmnd *command,
 		return SCSI_MLQUEUE_HOST_BUSY;
 	}
 	ccb->sensedata = sense_buf;
-	command->scsi_done = comp_cb;
 	if (blogic_multimaster_type(adapter)) {
 		/*
 		   Place the CCB in an Outgoing Mailbox. The higher levels
@@ -3060,7 +3059,7 @@ static int blogic_qcmd_lck(struct scsi_cmnd *command,
 				blogic_warn("Still unable to write Outgoing Mailbox - Host Adapter Dead?\n", adapter);
 				blogic_dealloc_ccb(ccb, 1);
 				command->result = DID_ERROR << 16;
-				command->scsi_done(command);
+				scsi_done(command);
 			}
 		}
 	} else {
