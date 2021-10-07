@@ -649,14 +649,14 @@ mptfc_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *SCpnt)
 
 	if (!vdevice || !vdevice->vtarget) {
 		SCpnt->result = DID_NO_CONNECT << 16;
-		SCpnt->scsi_done(SCpnt);
+		scsi_done(SCpnt);
 		return 0;
 	}
 
 	err = fc_remote_port_chkready(rport);
 	if (unlikely(err)) {
 		SCpnt->result = err;
-		SCpnt->scsi_done(SCpnt);
+		scsi_done(SCpnt);
 		return 0;
 	}
 
@@ -664,7 +664,7 @@ mptfc_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *SCpnt)
 	ri = *((struct mptfc_rport_info **)rport->dd_data);
 	if (unlikely(!ri)) {
 		SCpnt->result = DID_IMM_RETRY << 16;
-		SCpnt->scsi_done(SCpnt);
+		scsi_done(SCpnt);
 		return 0;
 	}
 

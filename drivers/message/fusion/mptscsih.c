@@ -1009,7 +1009,7 @@ out:
 	/* Unmap the DMA buffers, if any. */
 	scsi_dma_unmap(sc);
 
-	sc->scsi_done(sc);		/* Issue the command callback */
+	scsi_done(sc);			/* Issue the command callback */
 
 	/* Free Chain buffers */
 	mptscsih_freeChainBuffers(ioc, req_idx);
@@ -1054,7 +1054,7 @@ mptscsih_flush_running_cmds(MPT_SCSI_HOST *hd)
 		dtmprintk(ioc, sdev_printk(KERN_INFO, sc->device, MYIOC_s_FMT
 		    "completing cmds: fw_channel %d, fw_id %d, sc=%p, mf = %p, "
 		    "idx=%x\n", ioc->name, channel, id, sc, mf, ii));
-		sc->scsi_done(sc);
+		scsi_done(sc);
 	}
 }
 EXPORT_SYMBOL(mptscsih_flush_running_cmds);
@@ -1118,7 +1118,7 @@ mptscsih_search_running_cmds(MPT_SCSI_HOST *hd, VirtDevice *vdevice)
 			   "fw_id %d, sc=%p, mf = %p, idx=%x\n", ioc->name,
 			   vdevice->vtarget->channel, vdevice->vtarget->id,
 			   sc, mf, ii));
-			sc->scsi_done(sc);
+			scsi_done(sc);
 			spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
 		}
 	}
@@ -1693,7 +1693,7 @@ mptscsih_abort(struct scsi_cmnd * SCpnt)
 	 */
 	if ((hd = shost_priv(SCpnt->device->host)) == NULL) {
 		SCpnt->result = DID_RESET << 16;
-		SCpnt->scsi_done(SCpnt);
+		scsi_done(SCpnt);
 		printk(KERN_ERR MYNAM ": task abort: "
 		    "can't locate host! (sc=%p)\n", SCpnt);
 		return FAILED;
@@ -1710,7 +1710,7 @@ mptscsih_abort(struct scsi_cmnd * SCpnt)
 		    "task abort: device has been deleted (sc=%p)\n",
 		    ioc->name, SCpnt));
 		SCpnt->result = DID_NO_CONNECT << 16;
-		SCpnt->scsi_done(SCpnt);
+		scsi_done(SCpnt);
 		retval = SUCCESS;
 		goto out;
 	}
