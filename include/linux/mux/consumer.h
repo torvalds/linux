@@ -16,10 +16,25 @@ struct device;
 struct mux_control;
 
 unsigned int mux_control_states(struct mux_control *mux);
-int __must_check mux_control_select(struct mux_control *mux,
-				    unsigned int state);
-int __must_check mux_control_try_select(struct mux_control *mux,
-					unsigned int state);
+int __must_check mux_control_select_delay(struct mux_control *mux,
+					  unsigned int state,
+					  unsigned int delay_us);
+int __must_check mux_control_try_select_delay(struct mux_control *mux,
+					      unsigned int state,
+					      unsigned int delay_us);
+
+static inline int __must_check mux_control_select(struct mux_control *mux,
+						  unsigned int state)
+{
+	return mux_control_select_delay(mux, state, 0);
+}
+
+static inline int __must_check mux_control_try_select(struct mux_control *mux,
+						      unsigned int state)
+{
+	return mux_control_try_select_delay(mux, state, 0);
+}
+
 int mux_control_deselect(struct mux_control *mux);
 
 struct mux_control *mux_control_get(struct device *dev, const char *mux_name);
