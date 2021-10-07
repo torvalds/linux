@@ -140,6 +140,9 @@ static void intel_dp_set_sink_rates(struct intel_dp *intel_dp)
 		return;
 	}
 
+	/*
+	 * Sink rates for 8b/10b.
+	 */
 	max_rate = drm_dp_bw_code_to_link_rate(intel_dp->dpcd[DP_MAX_LINK_RATE]);
 	max_lttpr_rate = drm_dp_lttpr_max_link_rate(intel_dp->lttpr_common_caps);
 	if (max_lttpr_rate)
@@ -162,6 +165,21 @@ static void intel_dp_set_sink_rates(struct intel_dp *intel_dp)
 
 		drm_dp_dpcd_readb(&intel_dp->aux,
 				  DP_128B132B_SUPPORTED_LINK_RATES, &uhbr_rates);
+
+		if (drm_dp_lttpr_count(intel_dp->lttpr_common_caps)) {
+			/* We have a repeater */
+			if (intel_dp->lttpr_common_caps[0] >= 0x20 &&
+			    intel_dp->lttpr_common_caps[DP_MAIN_LINK_CHANNEL_CODING_PHY_REPEATER -
+							DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV] &
+			    DP_PHY_REPEATER_128B132B_SUPPORTED) {
+				/* Repeater supports 128b/132b, valid UHBR rates */
+				uhbr_rates &= intel_dp->lttpr_common_caps[DP_PHY_REPEATER_128B132B_RATES -
+									  DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
+			} else {
+				/* Does not support 128b/132b */
+				uhbr_rates = 0;
+			}
+		}
 
 		if (uhbr_rates & DP_UHBR10)
 			intel_dp->sink_rates[i++] = 1000000;
