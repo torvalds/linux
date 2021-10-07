@@ -883,9 +883,11 @@ static int bch2_move_btree(struct bch_fs *c,
 	     id++) {
 		stats->btree_id = id;
 
-		for_each_btree_node(&trans, iter, id,
-				    id == start_btree_id ? start_pos : POS_MIN,
-				    BTREE_ITER_PREFETCH, b) {
+		bch2_trans_node_iter_init(&trans, &iter, id, POS_MIN, 0, 0,
+					  BTREE_ITER_PREFETCH);
+
+		while (bch2_trans_begin(&trans),
+		       (b = bch2_btree_iter_peek_node(&iter))) {
 			if (kthread && kthread_should_stop())
 				break;
 
@@ -911,6 +913,7 @@ static int bch2_move_btree(struct bch_fs *c,
 					b->data->keys.seq, 0) ?: ret;
 next:
 			bch2_trans_cond_resched(&trans);
+			bch2_btree_iter_next_node(&iter);
 		}
 		bch2_trans_iter_exit(&trans, &iter);
 
