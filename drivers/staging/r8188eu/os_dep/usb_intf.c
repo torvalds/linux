@@ -388,8 +388,8 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	SET_NETDEV_DEV(pnetdev, dvobj_to_dev(dvobj));
 	padapter = rtw_netdev_priv(pnetdev);
 
-	/* step 2. hook HalFunc, allocate HalData */
-	rtl8188eu_set_hal_ops(padapter);
+	/* step 2. allocate HalData */
+	rtl8188eu_alloc_haldata(padapter);
 
 	padapter->intf_start = &usb_intf_start;
 	padapter->intf_stop = &usb_intf_stop;

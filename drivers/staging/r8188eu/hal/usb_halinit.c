@@ -2091,7 +2091,7 @@ void rtl8188eu_init_default_value(struct adapter *adapt)
 		haldata->odmpriv.RFCalibrateInfo.ThermalValue_HP[i] = 0;
 }
 
-void rtl8188eu_set_hal_ops(struct adapter *adapt)
+void rtl8188eu_alloc_haldata(struct adapter *adapt)
 {
 	adapt->HalData = kzalloc(sizeof(struct hal_data_8188e), GFP_KERNEL);
 	if (!adapt->HalData)
