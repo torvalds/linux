@@ -65,6 +65,14 @@
 	status = "okay";
 };
 
+&nvme_pwren {
+	pins = "gpio19";
+};
+
+&nvme_3v3_regulator {
+	gpio = <&tlmm 19 GPIO_ACTIVE_HIGH>;
+};
+
 &pmk8350_vadc {
 	pmr735a_die_temp {
 		reg = <PMR735A_ADC7_DIE_TEMP>;

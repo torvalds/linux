@@ -31,6 +31,18 @@
 			linux,can-disable;
 		};
 	};
+
+	nvme_3v3_regulator: nvme-3v3-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "VLDO_3V3";
+
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		enable-active-high;
+		pinctrl-names = "default";
+		pinctrl-0 = <&nvme_pwren>;
+	};
 };
 
 /*
@@ -272,6 +284,23 @@
 	modem-init;
 };
 
+&pcie1 {
+	status = "okay";
+	perst-gpio = <&tlmm 2 GPIO_ACTIVE_LOW>;
+
+	vddpe-3v3-supply = <&nvme_3v3_regulator>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie1_reset_n>, <&pcie1_wake_n>;
+};
+
+&pcie1_phy {
+	status = "okay";
+
+	vdda-phy-supply = <&vreg_l10c_0p8>;
+	vdda-pll-supply = <&vreg_l6b_1p2>;
+};
+
 &pmk8350_vadc {
 	pmk8350_die_temp {
 		reg = <PMK8350_ADC7_DIE_TEMP>;
@@ -462,6 +491,27 @@
 };
 
 &tlmm {
+	nvme_pwren: nvme-pwren {
+		function = "gpio";
+	};
+
+	pcie1_reset_n: pcie1-reset-n {
+		pins = "gpio2";
+		function = "gpio";
+
+		drive-strength = <16>;
+		output-low;
+		bias-disable;
+	};
+
+	pcie1_wake_n: pcie1-wake-n {
+		pins = "gpio3";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-pull-up;
+	};
+
 	qup_uart7_sleep_cts: qup-uart7-sleep-cts {
 		pins = "gpio28";
 		function = "gpio";
