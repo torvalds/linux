@@ -369,5 +369,5 @@
 		"EventName": "MT_DIAG_CYCLES_TWO_THR_ACTIVE",
 		"BriefDescription": "Cycle count with two threads active",
 		"PublicDescription": "Cycle count with two threads active"
-	},
+	}
 ]
