@@ -419,7 +419,13 @@ ath11k_dbg_sta_open_htt_peer_stats(struct inode *inode, struct file *file)
 	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
 	struct ath11k *ar = arsta->arvif->ar;
 	struct debug_htt_stats_req *stats_req;
+	int type = ar->debug.htt_stats.type;
 	int ret;
+
+	if ((type != ATH11K_DBG_HTT_EXT_STATS_PEER_INFO &&
+	     type != ATH11K_DBG_HTT_EXT_STATS_PEER_CTRL_PATH_TXRX_STATS) ||
+	    type == ATH11K_DBG_HTT_EXT_STATS_RESET)
+		return -EPERM;
 
 	stats_req = vzalloc(sizeof(*stats_req) + ATH11K_HTT_STATS_BUF_SIZE);
 	if (!stats_req)
@@ -427,7 +433,7 @@ ath11k_dbg_sta_open_htt_peer_stats(struct inode *inode, struct file *file)
 
 	mutex_lock(&ar->conf_mutex);
 	ar->debug.htt_stats.stats_req = stats_req;
-	stats_req->type = ATH11K_DBG_HTT_EXT_STATS_PEER_INFO;
+	stats_req->type = type;
 	memcpy(stats_req->peer_addr, sta->addr, ETH_ALEN);
 	ret = ath11k_debugfs_htt_stats_req(ar);
 	mutex_unlock(&ar->conf_mutex);

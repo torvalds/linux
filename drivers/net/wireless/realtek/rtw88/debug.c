@@ -12,6 +12,7 @@
 #include "phy.h"
 #include "reg.h"
 #include "ps.h"
+#include "regd.h"
 
 #ifdef CONFIG_RTW88_DEBUGFS
 
@@ -587,7 +588,7 @@ static int rtw_debugfs_get_tx_pwr_tbl(struct seq_file *m, void *v)
 	struct rtw_power_params pwr_param = {0};
 	u8 bw = hal->current_band_width;
 	u8 ch = hal->current_channel;
-	u8 regd = rtwdev->regd.txpwr_regd;
+	u8 regd = rtw_regd_get(rtwdev);
 
 	seq_printf(m, "regulatory: %s\n", rtw_get_regd_string(regd));
 	seq_printf(m, "%-4s %-10s %-3s%6s %-4s %4s (%-4s %-4s) %-4s\n",
@@ -828,6 +829,38 @@ static int rtw_debugfs_get_coex_enable(struct seq_file *m, void *v)
 	return 0;
 }
 
+static ssize_t rtw_debugfs_set_edcca_enable(struct file *filp,
+					    const char __user *buffer,
+					    size_t count, loff_t *loff)
+{
+	struct seq_file *seqpriv = (struct seq_file *)filp->private_data;
+	struct rtw_debugfs_priv *debugfs_priv = seqpriv->private;
+	struct rtw_dev *rtwdev = debugfs_priv->rtwdev;
+	bool input;
+	int err;
+
+	err = kstrtobool_from_user(buffer, count, &input);
+	if (err)
+		return err;
+
+	rtw_edcca_enabled = input;
+	rtw_phy_adaptivity_set_mode(rtwdev);
+
+	return count;
+}
+
+static int rtw_debugfs_get_edcca_enable(struct seq_file *m, void *v)
+{
+	struct rtw_debugfs_priv *debugfs_priv = m->private;
+	struct rtw_dev *rtwdev = debugfs_priv->rtwdev;
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
+
+	seq_printf(m, "EDCCA %s: EDCCA mode %d\n",
+		   rtw_edcca_enabled ? "enabled" : "disabled",
+		   dm_info->edcca_mode);
+	return 0;
+}
+
 static ssize_t rtw_debugfs_set_fw_crash(struct file *filp,
 					const char __user *buffer,
 					size_t count, loff_t *loff)
@@ -853,6 +886,7 @@ static ssize_t rtw_debugfs_set_fw_crash(struct file *filp,
 
 	mutex_lock(&rtwdev->mutex);
 	rtw_leave_lps_deep(rtwdev);
+	set_bit(RTW_FLAG_RESTART_TRIGGERING, rtwdev->flags);
 	rtw_write8(rtwdev, REG_HRCV_MSG, 1);
 	mutex_unlock(&rtwdev->mutex);
 
@@ -864,7 +898,9 @@ static int rtw_debugfs_get_fw_crash(struct seq_file *m, void *v)
 	struct rtw_debugfs_priv *debugfs_priv = m->private;
 	struct rtw_dev *rtwdev = debugfs_priv->rtwdev;
 
-	seq_printf(m, "%d\n", test_bit(RTW_FLAG_RESTARTING, rtwdev->flags));
+	seq_printf(m, "%d\n",
+		   test_bit(RTW_FLAG_RESTART_TRIGGERING, rtwdev->flags) ||
+		   test_bit(RTW_FLAG_RESTARTING, rtwdev->flags));
 	return 0;
 }
 
@@ -1048,6 +1084,11 @@ static struct rtw_debugfs_priv rtw_debug_priv_coex_info = {
 	.cb_read = rtw_debugfs_get_coex_info,
 };
 
+static struct rtw_debugfs_priv rtw_debug_priv_edcca_enable = {
+	.cb_write = rtw_debugfs_set_edcca_enable,
+	.cb_read = rtw_debugfs_get_edcca_enable,
+};
+
 static struct rtw_debugfs_priv rtw_debug_priv_fw_crash = {
 	.cb_write = rtw_debugfs_set_fw_crash,
 	.cb_read = rtw_debugfs_get_fw_crash,
@@ -1131,6 +1172,7 @@ void rtw_debugfs_init(struct rtw_dev *rtwdev)
 	}
 	rtw_debugfs_add_r(rf_dump);
 	rtw_debugfs_add_r(tx_pwr_tbl);
+	rtw_debugfs_add_rw(edcca_enable);
 	rtw_debugfs_add_rw(fw_crash);
 	rtw_debugfs_add_rw(dm_cap);
 }

@@ -11,22 +11,20 @@
 #define ATH11K_SPECTRAL_EVENT_TIMEOUT_MS	1
 
 #define ATH11K_SPECTRAL_DWORD_SIZE		4
-/* HW bug, expected BIN size is 2 bytes but HW report as 4 bytes */
-#define ATH11K_SPECTRAL_BIN_SIZE		4
-#define ATH11K_SPECTRAL_ATH11K_MIN_BINS		64
-#define ATH11K_SPECTRAL_ATH11K_MIN_IB_BINS	32
-#define ATH11K_SPECTRAL_ATH11K_MAX_IB_BINS	256
+#define ATH11K_SPECTRAL_MIN_BINS		32
+#define ATH11K_SPECTRAL_MIN_IB_BINS		(ATH11K_SPECTRAL_MIN_BINS >> 1)
+#define ATH11K_SPECTRAL_MAX_IB_BINS(x)	((x)->hw_params.spectral.max_fft_bins >> 1)
 
 #define ATH11K_SPECTRAL_SCAN_COUNT_MAX		4095
 
 /* Max channel computed by sum of 2g and 5g band channels */
 #define ATH11K_SPECTRAL_TOTAL_CHANNEL		41
 #define ATH11K_SPECTRAL_SAMPLES_PER_CHANNEL	70
-#define ATH11K_SPECTRAL_PER_SAMPLE_SIZE		(sizeof(struct fft_sample_ath11k) + \
-						 ATH11K_SPECTRAL_ATH11K_MAX_IB_BINS)
+#define ATH11K_SPECTRAL_PER_SAMPLE_SIZE(x)	(sizeof(struct fft_sample_ath11k) + \
+						 ATH11K_SPECTRAL_MAX_IB_BINS(x))
 #define ATH11K_SPECTRAL_TOTAL_SAMPLE		(ATH11K_SPECTRAL_TOTAL_CHANNEL * \
 						 ATH11K_SPECTRAL_SAMPLES_PER_CHANNEL)
-#define ATH11K_SPECTRAL_SUB_BUFF_SIZE		ATH11K_SPECTRAL_PER_SAMPLE_SIZE
+#define ATH11K_SPECTRAL_SUB_BUFF_SIZE(x)	ATH11K_SPECTRAL_PER_SAMPLE_SIZE(x)
 #define ATH11K_SPECTRAL_NUM_SUB_BUF		ATH11K_SPECTRAL_TOTAL_SAMPLE
 
 #define ATH11K_SPECTRAL_20MHZ			20
@@ -444,8 +442,8 @@ static ssize_t ath11k_write_file_spectral_bins(struct file *file,
 	if (kstrtoul(buf, 0, &val))
 		return -EINVAL;
 
-	if (val < ATH11K_SPECTRAL_ATH11K_MIN_BINS ||
-	    val > SPECTRAL_ATH11K_MAX_NUM_BINS)
+	if (val < ATH11K_SPECTRAL_MIN_BINS ||
+	    val > ar->ab->hw_params.spectral.max_fft_bins)
 		return -EINVAL;
 
 	if (!is_power_of_2(val))
@@ -581,12 +579,12 @@ int ath11k_spectral_process_fft(struct ath11k *ar,
 	struct spectral_tlv *tlv;
 	int tlv_len, bin_len, num_bins;
 	u16 length, freq;
-	u8 chan_width_mhz;
+	u8 chan_width_mhz, bin_sz;
 	int ret;
 
 	lockdep_assert_held(&ar->spectral.lock);
 
-	if (!ab->hw_params.spectral_fft_sz) {
+	if (!ab->hw_params.spectral.fft_sz) {
 		ath11k_warn(ab, "invalid bin size type for hw rev %d\n",
 			    ab->hw_rev);
 		return -EINVAL;
@@ -596,7 +594,7 @@ int ath11k_spectral_process_fft(struct ath11k *ar,
 	tlv_len = FIELD_GET(SPECTRAL_TLV_HDR_LEN, __le32_to_cpu(tlv->header));
 	/* convert Dword into bytes */
 	tlv_len *= ATH11K_SPECTRAL_DWORD_SIZE;
-	bin_len = tlv_len - (sizeof(*fft_report) - sizeof(*tlv));
+	bin_len = tlv_len - ab->hw_params.spectral.fft_hdr_len;
 
 	if (data_len < (bin_len + sizeof(*fft_report))) {
 		ath11k_warn(ab, "mismatch in expected bin len %d and data len %d\n",
@@ -604,12 +602,13 @@ int ath11k_spectral_process_fft(struct ath11k *ar,
 		return -EINVAL;
 	}
 
-	num_bins = bin_len / ATH11K_SPECTRAL_BIN_SIZE;
+	bin_sz = ab->hw_params.spectral.fft_sz + ab->hw_params.spectral.fft_pad_sz;
+	num_bins = bin_len / bin_sz;
 	/* Only In-band bins are useful to user for visualize */
 	num_bins >>= 1;
 
-	if (num_bins < ATH11K_SPECTRAL_ATH11K_MIN_IB_BINS ||
-	    num_bins > ATH11K_SPECTRAL_ATH11K_MAX_IB_BINS ||
+	if (num_bins < ATH11K_SPECTRAL_MIN_IB_BINS ||
+	    num_bins > ATH11K_SPECTRAL_MAX_IB_BINS(ab) ||
 	    !is_power_of_2(num_bins)) {
 		ath11k_warn(ab, "Invalid num of bins %d\n", num_bins);
 		return -EINVAL;
@@ -654,7 +653,7 @@ int ath11k_spectral_process_fft(struct ath11k *ar,
 	fft_sample->freq2 = __cpu_to_be16(freq);
 
 	ath11k_spectral_parse_fft(fft_sample->data, fft_report->bins, num_bins,
-				  ab->hw_params.spectral_fft_sz);
+				  ab->hw_params.spectral.fft_sz);
 
 	fft_sample->max_exp = ath11k_spectral_get_max_exp(fft_sample->max_index,
 							  search.peak_mag,
@@ -690,7 +689,7 @@ static int ath11k_spectral_process_data(struct ath11k *ar,
 		goto unlock;
 	}
 
-	sample_sz = sizeof(*fft_sample) + ATH11K_SPECTRAL_ATH11K_MAX_IB_BINS;
+	sample_sz = sizeof(*fft_sample) + ATH11K_SPECTRAL_MAX_IB_BINS(ab);
 	fft_sample = kmalloc(sample_sz, GFP_ATOMIC);
 	if (!fft_sample) {
 		ret = -ENOBUFS;
@@ -738,7 +737,8 @@ static int ath11k_spectral_process_data(struct ath11k *ar,
 			 * is 4 DWORD size (16 bytes).
 			 * Need to remove this workaround once HW bug fixed
 			 */
-			tlv_len = sizeof(*summary) - sizeof(*tlv);
+			tlv_len = sizeof(*summary) - sizeof(*tlv) +
+				  ab->hw_params.spectral.summary_pad_sz;
 
 			if (tlv_len < (sizeof(*summary) - sizeof(*tlv))) {
 				ath11k_warn(ab, "failed to parse spectral summary at bytes %d tlv_len:%d\n",
@@ -901,7 +901,7 @@ static inline int ath11k_spectral_debug_register(struct ath11k *ar)
 
 	ar->spectral.rfs_scan = relay_open("spectral_scan",
 					   ar->debug.debugfs_pdev,
-					   ATH11K_SPECTRAL_SUB_BUFF_SIZE,
+					   ATH11K_SPECTRAL_SUB_BUFF_SIZE(ar->ab),
 					   ATH11K_SPECTRAL_NUM_SUB_BUF,
 					   &rfs_scan_cb, NULL);
 	if (!ar->spectral.rfs_scan) {
@@ -962,7 +962,7 @@ int ath11k_spectral_init(struct ath11k_base *ab)
 		      ab->wmi_ab.svc_map))
 		return 0;
 
-	if (!ab->hw_params.spectral_fft_sz)
+	if (!ab->hw_params.spectral.fft_sz)
 		return 0;
 
 	for (i = 0; i < ab->num_radios; i++) {

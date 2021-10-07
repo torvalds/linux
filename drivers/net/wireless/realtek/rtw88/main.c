@@ -23,6 +23,14 @@ EXPORT_SYMBOL(rtw_disable_lps_deep_mode);
 bool rtw_bf_support = true;
 unsigned int rtw_debug_mask;
 EXPORT_SYMBOL(rtw_debug_mask);
+/* EDCCA is enabled during normal behavior. For debugging purpose in
+ * a noisy environment, it can be disabled via edcca debugfs. Because
+ * all rtw88 devices will probably be affected if environment is noisy,
+ * rtw_edcca_enabled is just declared by driver instead of by device.
+ * So, turning it off will take effect for all rtw88 devices before
+ * there is a tough reason to maintain rtw_edcca_enabled by device.
+ */
+bool rtw_edcca_enabled = true;
 
 module_param_named(disable_lps_deep, rtw_disable_lps_deep_mode, bool, 0644);
 module_param_named(support_bf, rtw_bf_support, bool, 0644);
@@ -556,6 +564,7 @@ static void __fw_recovery_work(struct rtw_dev *rtwdev)
 	int ret = 0;
 
 	set_bit(RTW_FLAG_RESTARTING, rtwdev->flags);
+	clear_bit(RTW_FLAG_RESTART_TRIGGERING, rtwdev->flags);
 
 	ret = rtw_fwcd_prep(rtwdev);
 	if (ret)
@@ -1964,7 +1973,11 @@ int rtw_register_hw(struct rtw_dev *rtwdev, struct ieee80211_hw *hw)
 	rtw_set_supported_band(hw, rtwdev->chip);
 	SET_IEEE80211_PERM_ADDR(hw, rtwdev->efuse.addr);
 
-	rtw_regd_init(rtwdev, rtw_regd_notifier);
+	ret = rtw_regd_init(rtwdev);
+	if (ret) {
+		rtw_err(rtwdev, "failed to init regd\n");
+		return ret;
+	}
 
 	ret = ieee80211_register_hw(hw);
 	if (ret) {
@@ -1972,8 +1985,11 @@ int rtw_register_hw(struct rtw_dev *rtwdev, struct ieee80211_hw *hw)
 		return ret;
 	}
 
-	if (regulatory_hint(hw->wiphy, rtwdev->regd.alpha2))
-		rtw_err(rtwdev, "regulatory_hint fail\n");
+	ret = rtw_regd_hint(rtwdev);
+	if (ret) {
+		rtw_err(rtwdev, "failed to hint regd\n");
+		return ret;
+	}
 
 	rtw_debugfs_init(rtwdev);
 

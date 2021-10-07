@@ -251,6 +251,7 @@ int ath11k_peer_create(struct ath11k *ar, struct ath11k_vif *arvif,
 		       struct ieee80211_sta *sta, struct peer_create_params *param)
 {
 	struct ath11k_peer *peer;
+	struct ath11k_sta *arsta;
 	int ret;
 
 	lockdep_assert_held(&ar->conf_mutex);
@@ -318,6 +319,16 @@ int ath11k_peer_create(struct ath11k *ar, struct ath11k_vif *arvif,
 
 	peer->sec_type = HAL_ENCRYPT_TYPE_OPEN;
 	peer->sec_type_grp = HAL_ENCRYPT_TYPE_OPEN;
+
+	if (sta) {
+		arsta = (struct ath11k_sta *)sta->drv_priv;
+		arsta->tcl_metadata |= FIELD_PREP(HTT_TCL_META_DATA_TYPE, 0) |
+				       FIELD_PREP(HTT_TCL_META_DATA_PEER_ID,
+						  peer->peer_id);
+
+		/* set HTT extension valid bit to 0 by default */
+		arsta->tcl_metadata &= ~HTT_TCL_META_DATA_VALID_HTT;
+	}
 
 	ar->num_peers++;
 
