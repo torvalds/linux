@@ -210,7 +210,10 @@ static inline unsigned long walt_map_util_freq(unsigned long util,
 
 	if (util >= wg_policy->tunables->target_load_thresh &&
 	    cpu_util_rt(cpu_rq(cpu)) < (cap >> 2))
-		return (fmax + (fmax >> shift)) * util / cap;
+		return max(
+			(fmax + (fmax >> shift)) * util,
+			(fmax + (fmax >> 2)) * wg_policy->tunables->target_load_thresh
+			)/cap;
 	return (fmax + (fmax >> 2)) * util / cap;
 }
 
