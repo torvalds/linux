@@ -1080,6 +1080,13 @@ static int setup_hw_info(struct snd_pcm_runtime *runtime, struct snd_usb_substre
 	if (err < 0)
 		return err;
 
+	list_for_each_entry(fp, &subs->fmt_list, list) {
+		if (fp->implicit_fb) {
+			runtime->hw.info |= SNDRV_PCM_INFO_JOINT_DUPLEX;
+			break;
+		}
+	}
+
 	return 0;
 }
 
