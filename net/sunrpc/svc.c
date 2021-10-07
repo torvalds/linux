@@ -1252,7 +1252,7 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 	__be32			*statp;
 	u32			prog, vers;
 	__be32			rpc_stat;
-	int			auth_res;
+	int			auth_res, rc;
 	__be32			*reply_statp;
 
 	rpc_stat = rpc_success;
@@ -1353,19 +1353,17 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 		svc_reserve_auth(rqstp, procp->pc_xdrressize<<2);
 
 	/* Call the function that processes the request. */
-	if (!process.dispatch(rqstp, statp))
-		goto release_dropit;
-
+	rc = process.dispatch(rqstp, statp);
+	if (procp->pc_release)
+		procp->pc_release(rqstp);
+	if (!rc)
+		goto dropit;
 	if (rqstp->rq_auth_stat != rpc_auth_ok)
-		goto err_release_bad_auth;
+		goto err_bad_auth;
 
 	/* Check RPC status result */
 	if (*statp != rpc_success)
 		resv->iov_len = ((void*)statp)  - resv->iov_base + 4;
-
-	/* Release reply info */
-	if (procp->pc_release)
-		procp->pc_release(rqstp);
 
 	if (procp->pc_encode == NULL)
 		goto dropit;
@@ -1375,9 +1373,6 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 		goto close_xprt;
 	return 1;		/* Caller can now send it */
 
-release_dropit:
-	if (procp->pc_release)
-		procp->pc_release(rqstp);
  dropit:
 	svc_authorise(rqstp);	/* doesn't hurt to call this twice */
 	dprintk("svc: svc_process dropit\n");
@@ -1404,9 +1399,6 @@ err_bad_rpc:
 	svc_putnl(resv, 2);
 	goto sendit;
 
-err_release_bad_auth:
-	if (procp->pc_release)
-		procp->pc_release(rqstp);
 err_bad_auth:
 	dprintk("svc: authentication failed (%d)\n",
 		be32_to_cpu(rqstp->rq_auth_stat));
