@@ -98,7 +98,7 @@ its behaviour.
 
 If the patch fixes a logged bug entry, refer to that bug entry by
 number and URL.  If the patch follows from a mailing list discussion,
-give a URL to the mailing list archive; use the https://lkml.kernel.org/
+give a URL to the mailing list archive; use the https://lore.kernel.org/
 redirector with a ``Message-Id``, to ensure that the links cannot become
 stale.
 
@@ -750,7 +750,7 @@ the bug report.  However, for a multi-patch series, it is generally
 best to avoid using In-Reply-To: to link to older versions of the
 series.  This way multiple versions of the patch don't become an
 unmanageable forest of references in email clients.  If a link is
-helpful, you can use the https://lkml.kernel.org/ redirector (e.g., in
+helpful, you can use the https://lore.kernel.org/ redirector (e.g., in
 the cover email text) to link to an earlier version of the patch series.
 
 

@@ -371,9 +371,9 @@ following tag ordering scheme:
  - Link: ``https://link/to/information``
 
    For referring to an email on LKML or other kernel mailing lists,
-   please use the lkml.kernel.org redirector URL::
+   please use the lore.kernel.org redirector URL::
 
-     https://lkml.kernel.org/r/email-message@id
+     https://lore.kernel.org/r/email-message@id
 
    The kernel.org redirector is considered a stable URL, unlike other email
    archives.
