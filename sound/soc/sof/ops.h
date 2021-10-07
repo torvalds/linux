@@ -312,6 +312,21 @@ static inline int snd_sof_dsp_block_write(struct snd_sof_dev *sdev,
 	return sof_ops(sdev)->block_write(sdev, blk_type, offset, src, bytes);
 }
 
+/* mailbox IO */
+static inline void snd_sof_dsp_mailbox_read(struct snd_sof_dev *sdev,
+					    u32 offset, void *dest, size_t bytes)
+{
+	if (sof_ops(sdev)->mailbox_read)
+		sof_ops(sdev)->mailbox_read(sdev, offset, dest, bytes);
+}
+
+static inline void snd_sof_dsp_mailbox_write(struct snd_sof_dev *sdev,
+					     u32 offset, void *src, size_t bytes)
+{
+	if (sof_ops(sdev)->mailbox_write)
+		sof_ops(sdev)->mailbox_write(sdev, offset, src, bytes);
+}
+
 /* ipc */
 static inline int snd_sof_dsp_send_msg(struct snd_sof_dev *sdev,
 				       struct snd_sof_ipc_msg *msg)

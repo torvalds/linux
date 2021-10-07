@@ -154,6 +154,14 @@ struct snd_sof_dsp_ops {
 			   enum snd_sof_fw_blk_type type, u32 offset,
 			   void *src, size_t size); /* mandatory */
 
+	/* Mailbox IO */
+	void (*mailbox_read)(struct snd_sof_dev *sof_dev,
+			     u32 offset, void *dest,
+			     size_t size); /* optional */
+	void (*mailbox_write)(struct snd_sof_dev *sof_dev,
+			      u32 offset, void *src,
+			      size_t size); /* optional */
+
 	/* doorbell */
 	irqreturn_t (*irq_handler)(int irq, void *context); /* optional */
 	irqreturn_t (*irq_thread)(int irq, void *context); /* optional */
@@ -592,17 +600,17 @@ int sof_block_read(struct snd_sof_dev *sdev, enum snd_sof_fw_blk_type blk_type,
 
 int sof_fw_ready(struct snd_sof_dev *sdev, u32 msg_id);
 
-int intel_ipc_msg_data(struct snd_sof_dev *sdev,
+int sof_ipc_msg_data(struct snd_sof_dev *sdev,
+		     struct snd_pcm_substream *substream,
+		     void *p, size_t sz);
+int sof_ipc_pcm_params(struct snd_sof_dev *sdev,
 		       struct snd_pcm_substream *substream,
-		       void *p, size_t sz);
-int intel_ipc_pcm_params(struct snd_sof_dev *sdev,
-			 struct snd_pcm_substream *substream,
-			 const struct sof_ipc_pcm_params_reply *reply);
+		       const struct sof_ipc_pcm_params_reply *reply);
 
-int intel_pcm_open(struct snd_sof_dev *sdev,
-		   struct snd_pcm_substream *substream);
-int intel_pcm_close(struct snd_sof_dev *sdev,
-		    struct snd_pcm_substream *substream);
+int sof_stream_pcm_open(struct snd_sof_dev *sdev,
+			struct snd_pcm_substream *substream);
+int sof_stream_pcm_close(struct snd_sof_dev *sdev,
+			 struct snd_pcm_substream *substream);
 
 int sof_machine_check(struct snd_sof_dev *sdev);
 #endif

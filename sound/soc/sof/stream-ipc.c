@@ -7,7 +7,7 @@
 //
 // Authors: Guennadi Liakhovetski <guennadi.liakhovetski@linux.intel.com>
 
-/* Intel-specific SOF IPC code */
+/* Generic SOF IPC code */
 
 #include <linux/device.h>
 #include <linux/export.h>
@@ -17,39 +17,39 @@
 #include <sound/pcm.h>
 #include <sound/sof/stream.h>
 
-#include "../ops.h"
-#include "../sof-priv.h"
+#include "ops.h"
+#include "sof-priv.h"
 
-struct intel_stream {
+struct sof_stream {
 	size_t posn_offset;
 };
 
-/* Mailbox-based Intel IPC implementation */
-int intel_ipc_msg_data(struct snd_sof_dev *sdev,
-		       struct snd_pcm_substream *substream,
-		       void *p, size_t sz)
+/* Mailbox-based Generic IPC implementation */
+int sof_ipc_msg_data(struct snd_sof_dev *sdev,
+		     struct snd_pcm_substream *substream,
+		     void *p, size_t sz)
 {
 	if (!substream || !sdev->stream_box.size) {
-		sof_mailbox_read(sdev, sdev->dsp_box.offset, p, sz);
+		snd_sof_dsp_mailbox_read(sdev, sdev->dsp_box.offset, p, sz);
 	} else {
-		struct intel_stream *stream = substream->runtime->private_data;
+		struct sof_stream *stream = substream->runtime->private_data;
 
 		/* The stream might already be closed */
 		if (!stream)
 			return -ESTRPIPE;
 
-		sof_mailbox_read(sdev, stream->posn_offset, p, sz);
+		snd_sof_dsp_mailbox_read(sdev, stream->posn_offset, p, sz);
 	}
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(intel_ipc_msg_data, SND_SOC_SOF_INTEL_HIFI_EP_IPC);
+EXPORT_SYMBOL(sof_ipc_msg_data);
 
-int intel_ipc_pcm_params(struct snd_sof_dev *sdev,
-			 struct snd_pcm_substream *substream,
-			 const struct sof_ipc_pcm_params_reply *reply)
+int sof_ipc_pcm_params(struct snd_sof_dev *sdev,
+		       struct snd_pcm_substream *substream,
+		       const struct sof_ipc_pcm_params_reply *reply)
 {
-	struct intel_stream *stream = substream->runtime->private_data;
+	struct sof_stream *stream = substream->runtime->private_data;
 	size_t posn_offset = reply->posn_offset;
 
 	/* check if offset is overflow or it is not aligned */
@@ -64,12 +64,12 @@ int intel_ipc_pcm_params(struct snd_sof_dev *sdev,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(intel_ipc_pcm_params, SND_SOC_SOF_INTEL_HIFI_EP_IPC);
+EXPORT_SYMBOL(sof_ipc_pcm_params);
 
-int intel_pcm_open(struct snd_sof_dev *sdev,
-		   struct snd_pcm_substream *substream)
+int sof_stream_pcm_open(struct snd_sof_dev *sdev,
+			struct snd_pcm_substream *substream)
 {
-	struct intel_stream *stream = kmalloc(sizeof(*stream), GFP_KERNEL);
+	struct sof_stream *stream = kmalloc(sizeof(*stream), GFP_KERNEL);
 
 	if (!stream)
 		return -ENOMEM;
@@ -86,18 +86,18 @@ int intel_pcm_open(struct snd_sof_dev *sdev,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(intel_pcm_open, SND_SOC_SOF_INTEL_HIFI_EP_IPC);
+EXPORT_SYMBOL(sof_stream_pcm_open);
 
-int intel_pcm_close(struct snd_sof_dev *sdev,
-		    struct snd_pcm_substream *substream)
+int sof_stream_pcm_close(struct snd_sof_dev *sdev,
+			 struct snd_pcm_substream *substream)
 {
-	struct intel_stream *stream = substream->runtime->private_data;
+	struct sof_stream *stream = substream->runtime->private_data;
 
 	substream->runtime->private_data = NULL;
 	kfree(stream);
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(intel_pcm_close, SND_SOC_SOF_INTEL_HIFI_EP_IPC);
+EXPORT_SYMBOL(sof_stream_pcm_close);
 
 MODULE_LICENSE("Dual BSD/GPL");

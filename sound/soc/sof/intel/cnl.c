@@ -247,6 +247,10 @@ const struct snd_sof_dsp_ops sof_cnl_ops = {
 	.block_read	= sof_block_read,
 	.block_write	= sof_block_write,
 
+	/* Mailbox IO */
+	.mailbox_read	= sof_mailbox_read,
+	.mailbox_write	= sof_mailbox_write,
+
 	/* doorbell */
 	.irq_thread	= cnl_ipc_irq_thread,
 
