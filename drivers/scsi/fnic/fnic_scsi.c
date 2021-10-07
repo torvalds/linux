@@ -420,8 +420,9 @@ static inline int fnic_queue_wq_copy_desc(struct fnic *fnic,
  * Routine to send a scsi cdb
  * Called with host_lock held and interrupts disabled.
  */
-static int fnic_queuecommand_lck(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
+static int fnic_queuecommand_lck(struct scsi_cmnd *sc)
 {
+	void (*done)(struct scsi_cmnd *) = scsi_done;
 	const int tag = scsi_cmd_to_rq(sc)->tag;
 	struct fc_lport *lp = shost_priv(sc->device->host);
 	struct fc_rport *rport;

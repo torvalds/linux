@@ -537,8 +537,7 @@ SYM53C500_info(struct Scsi_Host *SChost)
 	return (info_msg);
 }
 
-static int 
-SYM53C500_queue_lck(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
+static int SYM53C500_queue_lck(struct scsi_cmnd *SCpnt)
 {
 	int i;
 	int port_base = SCpnt->device->host->io_port;

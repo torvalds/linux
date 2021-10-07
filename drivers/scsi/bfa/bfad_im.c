@@ -1199,9 +1199,9 @@ bfad_im_itnim_work_handler(struct work_struct *work)
 /*
  * Scsi_Host template entry, queue a SCSI command to the BFAD.
  */
-static int
-bfad_im_queuecommand_lck(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
+static int bfad_im_queuecommand_lck(struct scsi_cmnd *cmnd)
 {
+	void (*done)(struct scsi_cmnd *) = scsi_done;
 	struct bfad_im_port_s *im_port =
 		(struct bfad_im_port_s *) cmnd->device->host->hostdata[0];
 	struct bfad_s         *bfad = im_port->bfad;

@@ -200,8 +200,7 @@ static int ps3rom_write_request(struct ps3_storage_device *dev,
 	return 0;
 }
 
-static int ps3rom_queuecommand_lck(struct scsi_cmnd *cmd,
-			       void (*done)(struct scsi_cmnd *))
+static int ps3rom_queuecommand_lck(struct scsi_cmnd *cmd)
 {
 	struct ps3rom_private *priv = shost_priv(cmd->device->host);
 	struct ps3_storage_device *dev = priv->dev;

@@ -911,7 +911,7 @@ static int inia100_build_scb(struct orc_host * host, struct orc_scb * scb, struc
  *	queue the command down to the controller
  */
 
-static int inia100_queue_lck(struct scsi_cmnd * cmd, void (*done) (struct scsi_cmnd *))
+static int inia100_queue_lck(struct scsi_cmnd *cmd)
 {
 	struct orc_scb *scb;
 	struct orc_host *host;		/* Point to Host adapter control block */

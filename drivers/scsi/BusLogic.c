@@ -2866,9 +2866,9 @@ static int blogic_hostreset(struct scsi_cmnd *SCpnt)
   Outgoing Mailbox for execution by the associated Host Adapter.
 */
 
-static int blogic_qcmd_lck(struct scsi_cmnd *command,
-		void (*comp_cb) (struct scsi_cmnd *))
+static int blogic_qcmd_lck(struct scsi_cmnd *command)
 {
+	void (*comp_cb)(struct scsi_cmnd *) = scsi_done;
 	struct blogic_adapter *adapter =
 		(struct blogic_adapter *) command->device->host->hostdata;
 	struct blogic_tgt_flags *tgt_flags =

@@ -446,10 +446,9 @@ static u32 dma_data_dir_linux_to_spar(enum dma_data_direction d)
  * Return: 0 if successfully queued to the Service Partition, otherwise
  *	   error code
  */
-static int visorhba_queue_command_lck(struct scsi_cmnd *scsicmd,
-				      void (*visorhba_cmnd_done)
-					   (struct scsi_cmnd *))
+static int visorhba_queue_command_lck(struct scsi_cmnd *scsicmd)
 {
+	void (*visorhba_cmnd_done)(struct scsi_cmnd *) = scsi_done;
 	struct uiscmdrsp *cmdrsp;
 	struct scsi_device *scsidev = scsicmd->device;
 	int insert_location;

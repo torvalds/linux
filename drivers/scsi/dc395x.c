@@ -960,8 +960,9 @@ static void build_srb(struct scsi_cmnd *cmd, struct DeviceCtlBlk *dcb,
  *        and is expected to be held on return.
  *
  **/
-static int dc395x_queue_command_lck(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
+static int dc395x_queue_command_lck(struct scsi_cmnd *cmd)
 {
+	void (*done)(struct scsi_cmnd *) = scsi_done;
 	struct DeviceCtlBlk *dcb;
 	struct ScsiReqBlk *srb;
 	struct AdapterCtlBlk *acb =

@@ -975,10 +975,8 @@ static int aha152x_internal_queue(struct scsi_cmnd *SCpnt,
  *  queue a command
  *
  */
-static int aha152x_queue_lck(struct scsi_cmnd *SCpnt,
-			     void (*done)(struct scsi_cmnd *))
+static int aha152x_queue_lck(struct scsi_cmnd *SCpnt)
 {
-	WARN_ON_ONCE(done != scsi_done);
 	return aha152x_internal_queue(SCpnt, NULL, 0);
 }
 

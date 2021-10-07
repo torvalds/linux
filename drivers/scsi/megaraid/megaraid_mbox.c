@@ -1432,9 +1432,9 @@ mbox_post_cmd(adapter_t *adapter, scb_t *scb)
  *
  * Queue entry point for mailbox based controllers.
  */
-static int
-megaraid_queue_command_lck(struct scsi_cmnd *scp, void (*done)(struct scsi_cmnd *))
+static int megaraid_queue_command_lck(struct scsi_cmnd *scp)
 {
+	void (*done)(struct scsi_cmnd *) = scsi_done;
 	adapter_t	*adapter;
 	scb_t		*scb;
 	int		if_busy;

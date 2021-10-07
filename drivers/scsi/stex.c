@@ -590,9 +590,9 @@ stex_slave_config(struct scsi_device *sdev)
 	return 0;
 }
 
-static int
-stex_queuecommand_lck(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
+static int stex_queuecommand_lck(struct scsi_cmnd *cmd)
 {
+	void (*done)(struct scsi_cmnd *) = scsi_done;
 	struct st_hba *hba;
 	struct Scsi_Host *host;
 	unsigned int id, lun;

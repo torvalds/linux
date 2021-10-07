@@ -362,9 +362,7 @@ calc_sync_msg(unsigned int period, unsigned int offset, unsigned int fast,
 	msg[1] = offset;
 }
 
-static int
-wd33c93_queuecommand_lck(struct scsi_cmnd *cmd,
-		void (*done)(struct scsi_cmnd *))
+static int wd33c93_queuecommand_lck(struct scsi_cmnd *cmd)
 {
 	struct WD33C93_hostdata *hostdata;
 	struct scsi_cmnd *tmp;

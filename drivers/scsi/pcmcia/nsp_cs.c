@@ -181,8 +181,7 @@ static void nsp_scsi_done(struct scsi_cmnd *SCpnt)
 	scsi_done(SCpnt);
 }
 
-static int nsp_queuecommand_lck(struct scsi_cmnd *SCpnt,
-			    void (*done)(struct scsi_cmnd *))
+static int nsp_queuecommand_lck(struct scsi_cmnd *SCpnt)
 {
 #ifdef NSP_DEBUG
 	/*unsigned int host_id = SCpnt->device->host->this_id;*/
