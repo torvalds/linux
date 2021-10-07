@@ -195,7 +195,7 @@ static char *pqi_raid_level_to_string(u8 raid_level)
 static inline void pqi_scsi_done(struct scsi_cmnd *scmd)
 {
 	pqi_prep_for_scsi_done(scmd);
-	scmd->scsi_done(scmd);
+	scsi_done(scmd);
 }
 
 static inline void pqi_disable_write_same(struct scsi_device *sdev)
