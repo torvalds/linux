@@ -1021,8 +1021,6 @@ static int qlogicpti_queuecommand_lck(struct scsi_cmnd *Cmnd, void (*done)(struc
 	u_int out_ptr;
 	int in_ptr;
 
-	Cmnd->scsi_done = done;
-
 	in_ptr = qpti->req_in_ptr;
 	cmd = (struct Command_Entry *) &qpti->req_cpu[in_ptr];
 	out_ptr = sbus_readw(qpti->qregs + MBOX4);
@@ -1214,7 +1212,7 @@ static irqreturn_t qpti_intr(int irq, void *dev_id)
 			struct scsi_cmnd *next;
 
 			next = (struct scsi_cmnd *) dq->host_scribble;
-			dq->scsi_done(dq);
+			scsi_done(dq);
 			dq = next;
 		} while (dq != NULL);
 	}
