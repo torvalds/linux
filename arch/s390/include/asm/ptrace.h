@@ -76,8 +76,7 @@ enum {
  * The pt_regs struct defines the way the registers are stored on
  * the stack during a system call.
  */
-struct pt_regs 
-{
+struct pt_regs {
 	union {
 		user_pt_regs user_regs;
 		struct {
