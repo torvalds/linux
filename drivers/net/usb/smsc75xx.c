@@ -758,8 +758,7 @@ static int smsc75xx_ioctl(struct net_device *netdev, struct ifreq *rq, int cmd)
 static void smsc75xx_init_mac_address(struct usbnet *dev)
 {
 	/* maybe the boot loader passed the MAC address in devicetree */
-	if (!eth_platform_get_mac_address(&dev->udev->dev,
-			dev->net->dev_addr)) {
+	if (!platform_get_ethdev_address(&dev->udev->dev, dev->net)) {
 		if (is_valid_ether_addr(dev->net->dev_addr)) {
 			/* device tree values are valid so use them */
 			netif_dbg(dev, ifup, dev->net, "MAC address read from the device tree\n");
