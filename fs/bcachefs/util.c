@@ -893,8 +893,13 @@ void eytzinger0_find_test(void)
  */
 u64 *bch2_acc_percpu_u64s(u64 __percpu *p, unsigned nr)
 {
-	u64 *ret = this_cpu_ptr(p);
+	u64 *ret;
 	int cpu;
+
+	/* access to pcpu vars has to be blocked by other locking */
+	preempt_disable();
+	ret = this_cpu_ptr(p);
+	preempt_enable();
 
 	for_each_possible_cpu(cpu) {
 		u64 *i = per_cpu_ptr(p, cpu);
