@@ -941,7 +941,7 @@ int arc_emac_probe(struct net_device *ndev, int interface)
 	}
 
 	/* Get MAC address from device tree */
-	err = of_get_mac_address(dev->of_node, ndev->dev_addr);
+	err = of_get_ethdev_address(dev->of_node, ndev);
 	if (err)
 		eth_hw_addr_random(ndev);
 
