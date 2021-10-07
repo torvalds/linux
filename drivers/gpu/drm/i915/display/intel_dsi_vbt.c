@@ -31,7 +31,6 @@
 #include <linux/pinctrl/machine.h>
 #include <linux/slab.h>
 
-#include <asm/intel-mid.h>
 #include <asm/unaligned.h>
 
 #include <drm/drm_crtc.h>
