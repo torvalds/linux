@@ -634,7 +634,7 @@ NCR_700_scsi_done(struct NCR_700_Host_Parameters *hostdata,
 
 		SCp->host_scribble = NULL;
 		SCp->result = result;
-		SCp->scsi_done(SCp);
+		scsi_done(SCp);
 	} else {
 		printk(KERN_ERR "53c700: SCSI DONE HAS NULL SCp\n");
 	}
@@ -1571,7 +1571,7 @@ NCR_700_intr(int irq, void *dev_id)
 				 * deadlock on the
 				 * hostdata->state_lock */
 				SCp->result = DID_RESET << 16;
-				SCp->scsi_done(SCp);
+				scsi_done(SCp);
 			}
 			mdelay(25);
 			NCR_700_chip_setup(host);
@@ -1792,7 +1792,6 @@ NCR_700_queuecommand_lck(struct scsi_cmnd *SCp, void (*done)(struct scsi_cmnd *)
 
 	slot->cmnd = SCp;
 
-	SCp->scsi_done = done;
 	SCp->host_scribble = (unsigned char *)slot;
 	SCp->SCp.ptr = NULL;
 	SCp->SCp.buffer = NULL;
