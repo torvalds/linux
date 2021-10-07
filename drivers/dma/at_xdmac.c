@@ -1950,8 +1950,7 @@ static void at_xdmac_axi_config(struct platform_device *pdev)
 	}
 }
 
-#ifdef CONFIG_PM
-static int atmel_xdmac_prepare(struct device *dev)
+static int __maybe_unused atmel_xdmac_prepare(struct device *dev)
 {
 	struct at_xdmac		*atxdmac = dev_get_drvdata(dev);
 	struct dma_chan		*chan, *_chan;
@@ -1965,12 +1964,8 @@ static int atmel_xdmac_prepare(struct device *dev)
 	}
 	return 0;
 }
-#else
-#	define atmel_xdmac_prepare NULL
-#endif
 
-#ifdef CONFIG_PM_SLEEP
-static int atmel_xdmac_suspend(struct device *dev)
+static int __maybe_unused atmel_xdmac_suspend(struct device *dev)
 {
 	struct at_xdmac		*atxdmac = dev_get_drvdata(dev);
 	struct dma_chan		*chan, *_chan;
@@ -1994,7 +1989,7 @@ static int atmel_xdmac_suspend(struct device *dev)
 	return 0;
 }
 
-static int atmel_xdmac_resume(struct device *dev)
+static int __maybe_unused atmel_xdmac_resume(struct device *dev)
 {
 	struct at_xdmac		*atxdmac = dev_get_drvdata(dev);
 	struct at_xdmac_chan	*atchan;
@@ -2032,7 +2027,6 @@ static int atmel_xdmac_resume(struct device *dev)
 	}
 	return 0;
 }
-#endif /* CONFIG_PM_SLEEP */
 
 static int at_xdmac_probe(struct platform_device *pdev)
 {
