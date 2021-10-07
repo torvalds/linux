@@ -774,7 +774,7 @@ static enum link_training_result dpia_training_eq_phase(struct dc_link *link,
 		struct link_training_settings *lt_settings,
 		uint32_t hop)
 {
-	enum link_training_result result = LINK_TRAINING_EQ_FAIL_EQ;
+	enum link_training_result result;
 
 	if (link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT)
 		result = dpia_training_eq_non_transparent(link, lt_settings, hop);
