@@ -1875,13 +1875,14 @@ bch2_btree_iter_traverse(struct btree_iter *iter)
 
 struct btree *bch2_btree_iter_peek_node(struct btree_iter *iter)
 {
+	struct btree_trans *trans = iter->trans;
 	struct btree *b = NULL;
 	int ret;
 
 	EBUG_ON(iter->path->cached);
 	bch2_btree_iter_verify(iter);
 
-	ret = bch2_btree_path_traverse(iter->trans, iter->path, iter->flags);
+	ret = bch2_btree_path_traverse(trans, iter->path, iter->flags);
 	if (ret)
 		goto out;
 
@@ -1893,7 +1894,11 @@ struct btree *bch2_btree_iter_peek_node(struct btree_iter *iter)
 
 	bkey_init(&iter->k);
 	iter->k.p = iter->pos = b->key.k.p;
+
+	iter->path = btree_path_set_pos(trans, iter->path, b->key.k.p,
+					iter->flags & BTREE_ITER_INTENT);
 	iter->path->should_be_locked = true;
+	BUG_ON(iter->path->uptodate);
 out:
 	bch2_btree_iter_verify_entry_exit(iter);
 	bch2_btree_iter_verify(iter);
@@ -1958,7 +1963,11 @@ struct btree *bch2_btree_iter_next_node(struct btree_iter *iter)
 
 	bkey_init(&iter->k);
 	iter->k.p = iter->pos = b->key.k.p;
+
+	iter->path = btree_path_set_pos(trans, iter->path, b->key.k.p,
+					iter->flags & BTREE_ITER_INTENT);
 	iter->path->should_be_locked = true;
+	BUG_ON(iter->path->uptodate);
 out:
 	bch2_btree_iter_verify_entry_exit(iter);
 	bch2_btree_iter_verify(iter);
