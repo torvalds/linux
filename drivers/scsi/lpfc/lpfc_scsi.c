@@ -564,7 +564,7 @@ lpfc_sli4_io_xri_aborted(struct lpfc_hba *phba,
 				 * scsi_done upcall.
 				 */
 				if (cmd)
-					cmd->scsi_done(cmd);
+					scsi_done(cmd);
 
 				/*
 				 * We expect there is an abort thread waiting
@@ -4501,7 +4501,7 @@ lpfc_fcp_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 		goto out;
 
 	/* The sdev is not guaranteed to be valid post scsi_done upcall. */
-	cmd->scsi_done(cmd);
+	scsi_done(cmd);
 
 	/*
 	 * If there is an abort thread waiting for command completion
@@ -4770,7 +4770,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 #endif
 
 	/* The sdev is not guaranteed to be valid post scsi_done upcall. */
-	cmd->scsi_done(cmd);
+	scsi_done(cmd);
 
 	/*
 	 * If there is an abort thread waiting for command completion
@@ -5842,7 +5842,7 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 			     shost);
 
  out_fail_command:
-	cmnd->scsi_done(cmnd);
+	scsi_done(cmnd);
 	return 0;
 }
 
