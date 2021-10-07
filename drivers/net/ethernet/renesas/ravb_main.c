@@ -132,7 +132,7 @@ static void ravb_read_mac_address(struct device_node *np,
 {
 	int ret;
 
-	ret = of_get_mac_address(np, ndev->dev_addr);
+	ret = of_get_ethdev_address(np, ndev);
 	if (ret) {
 		u32 mahr = ravb_read(ndev, MAHR);
 		u32 malr = ravb_read(ndev, MALR);
