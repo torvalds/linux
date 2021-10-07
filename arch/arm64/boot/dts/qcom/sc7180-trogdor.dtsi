@@ -273,7 +273,6 @@
 			"Headphone Jack", "HPOL",
 			"Headphone Jack", "HPOR";
 
-		#sound-dai-cells = <0>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -301,11 +300,11 @@
 			};
 		};
 
-		dai-link@2 {
+		dai-link@5 {
 			link-name = "MultiMedia2";
-			reg = <2>;
+			reg = <LPASS_DP_RX>;
 			cpu {
-				sound-dai = <&lpass_cpu 2>;
+				sound-dai = <&lpass_cpu LPASS_DP_RX>;
 			};
 
 			codec {
@@ -782,7 +781,7 @@ hp_i2c: &i2c9 {
 		qcom,playback-sd-lines = <0>;
 	};
 
-	hdmi-primary@0 {
+	hdmi@5 {
 		reg = <LPASS_DP_RX>;
 	};
 };

@@ -1276,6 +1276,7 @@ F:	drivers/input/mouse/bcm5974.c
 
 APPLE DART IOMMU DRIVER
 M:	Sven Peter <sven@svenpeter.dev>
+R:	Alyssa Rosenzweig <alyssa@rosenzweig.io>
 L:	iommu@lists.linux-foundation.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/iommu/apple,dart.yaml
@@ -1712,6 +1713,8 @@ F:	drivers/*/*alpine*
 
 ARM/APPLE MACHINE SUPPORT
 M:	Hector Martin <marcan@marcan.st>
+M:	Sven Peter <sven@svenpeter.dev>
+R:	Alyssa Rosenzweig <alyssa@rosenzweig.io>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 W:	https://asahilinux.org
@@ -2237,6 +2240,7 @@ F:	arch/arm/mach-pxa/mioa701.c
 
 ARM/MStar/Sigmastar Armv7 SoC support
 M:	Daniel Palmer <daniel@thingy.jp>
+M:	Romain Perier <romain.perier@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 W:	http://linux-chenxing.org/
@@ -2713,6 +2717,7 @@ F:	drivers/power/reset/keystone-reset.c
 
 ARM/TEXAS INSTRUMENTS K3 ARCHITECTURE
 M:	Nishanth Menon <nm@ti.com>
+M:	Vignesh Raghavendra <vigneshr@ti.com>
 M:	Tero Kristo <kristo@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Supported
