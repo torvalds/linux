@@ -18,6 +18,63 @@
 
 #define ICE_PKG_CNT 4
 
+enum ice_ddp_state {
+	/* Indicates that this call to ice_init_pkg
+	 * successfully loaded the requested DDP package
+	 */
+	ICE_DDP_PKG_SUCCESS			= 0,
+
+	/* Generic error for already loaded errors, it is mapped later to
+	 * the more specific one (one of the next 3)
+	 */
+	ICE_DDP_PKG_ALREADY_LOADED			= -1,
+
+	/* Indicates that a DDP package of the same version has already been
+	 * loaded onto the device by a previous call or by another PF
+	 */
+	ICE_DDP_PKG_SAME_VERSION_ALREADY_LOADED		= -2,
+
+	/* The device has a DDP package that is not supported by the driver */
+	ICE_DDP_PKG_ALREADY_LOADED_NOT_SUPPORTED	= -3,
+
+	/* The device has a compatible package
+	 * (but different from the request) already loaded
+	 */
+	ICE_DDP_PKG_COMPATIBLE_ALREADY_LOADED		= -4,
+
+	/* The firmware loaded on the device is not compatible with
+	 * the DDP package loaded
+	 */
+	ICE_DDP_PKG_FW_MISMATCH				= -5,
+
+	/* The DDP package file is invalid */
+	ICE_DDP_PKG_INVALID_FILE			= -6,
+
+	/* The version of the DDP package provided is higher than
+	 * the driver supports
+	 */
+	ICE_DDP_PKG_FILE_VERSION_TOO_HIGH		= -7,
+
+	/* The version of the DDP package provided is lower than the
+	 * driver supports
+	 */
+	ICE_DDP_PKG_FILE_VERSION_TOO_LOW		= -8,
+
+	/* The signature of the DDP package file provided is invalid */
+	ICE_DDP_PKG_FILE_SIGNATURE_INVALID		= -9,
+
+	/* The DDP package file security revision is too low and not
+	 * supported by firmware
+	 */
+	ICE_DDP_PKG_FILE_REVISION_TOO_LOW		= -10,
+
+	/* An error occurred in firmware while loading the DDP package */
+	ICE_DDP_PKG_LOAD_ERROR				= -11,
+
+	/* Other errors */
+	ICE_DDP_PKG_ERR					= -12
+};
+
 enum ice_status
 ice_acquire_change_lock(struct ice_hw *hw, enum ice_aq_res_access_type access);
 void ice_release_change_lock(struct ice_hw *hw);
@@ -52,9 +109,10 @@ enum ice_status
 ice_add_prof_id_flow(struct ice_hw *hw, enum ice_block blk, u16 vsi, u64 hdl);
 enum ice_status
 ice_rem_prof_id_flow(struct ice_hw *hw, enum ice_block blk, u16 vsi, u64 hdl);
-enum ice_status ice_init_pkg(struct ice_hw *hw, u8 *buff, u32 len);
-enum ice_status
+enum ice_ddp_state ice_init_pkg(struct ice_hw *hw, u8 *buff, u32 len);
+enum ice_ddp_state
 ice_copy_and_init_pkg(struct ice_hw *hw, const u8 *buf, u32 len);
+bool ice_is_init_pkg_successful(enum ice_ddp_state state);
 enum ice_status ice_init_hw_tbls(struct ice_hw *hw);
 void ice_free_seg(struct ice_hw *hw);
 void ice_fill_blk_tbls(struct ice_hw *hw);

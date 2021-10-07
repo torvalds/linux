@@ -993,6 +993,22 @@ ice_update_pkg(struct ice_hw *hw, struct ice_buf *bufs, u32 count)
 	return status;
 }
 
+static enum ice_ddp_state ice_map_aq_err_to_ddp_state(enum ice_aq_err aq_err)
+{
+	switch (aq_err) {
+	case ICE_AQ_RC_ENOSEC:
+	case ICE_AQ_RC_EBADSIG:
+		return ICE_DDP_PKG_FILE_SIGNATURE_INVALID;
+	case ICE_AQ_RC_ESVN:
+		return ICE_DDP_PKG_FILE_REVISION_TOO_LOW;
+	case ICE_AQ_RC_EBADMAN:
+	case ICE_AQ_RC_EBADBUF:
+		return ICE_DDP_PKG_LOAD_ERROR;
+	default:
+		return ICE_DDP_PKG_ERR;
+	}
+}
+
 /**
  * ice_dwnld_cfg_bufs
  * @hw: pointer to the hardware structure
@@ -1003,15 +1019,17 @@ ice_update_pkg(struct ice_hw *hw, struct ice_buf *bufs, u32 count)
  * to the firmware. Metadata buffers are skipped, and the first metadata buffer
  * found indicates that the rest of the buffers are all metadata buffers.
  */
-static enum ice_status
+static enum ice_ddp_state
 ice_dwnld_cfg_bufs(struct ice_hw *hw, struct ice_buf *bufs, u32 count)
 {
+	enum ice_ddp_state state = ICE_DDP_PKG_SUCCESS;
 	enum ice_status status;
 	struct ice_buf_hdr *bh;
+	enum ice_aq_err err;
 	u32 offset, info, i;
 
 	if (!bufs || !count)
-		return ICE_ERR_PARAM;
+		return ICE_DDP_PKG_ERR;
 
 	/* If the first buffer's first section has its metadata bit set
 	 * then there are no buffers to be downloaded, and the operation is
@@ -1019,20 +1037,13 @@ ice_dwnld_cfg_bufs(struct ice_hw *hw, struct ice_buf *bufs, u32 count)
 	 */
 	bh = (struct ice_buf_hdr *)bufs;
 	if (le32_to_cpu(bh->section_entry[0].type) & ICE_METADATA_BUF)
-		return 0;
-
-	/* reset pkg_dwnld_status in case this function is called in the
-	 * reset/rebuild flow
-	 */
-	hw->pkg_dwnld_status = ICE_AQ_RC_OK;
+		return ICE_DDP_PKG_SUCCESS;
 
 	status = ice_acquire_global_cfg_lock(hw, ICE_RES_WRITE);
 	if (status) {
 		if (status == ICE_ERR_AQ_NO_WORK)
-			hw->pkg_dwnld_status = ICE_AQ_RC_EEXIST;
-		else
-			hw->pkg_dwnld_status = hw->adminq.sq_last_status;
-		return status;
+			return ICE_DDP_PKG_ALREADY_LOADED;
+		return ice_map_aq_err_to_ddp_state(hw->adminq.sq_last_status);
 	}
 
 	for (i = 0; i < count; i++) {
@@ -1058,11 +1069,11 @@ ice_dwnld_cfg_bufs(struct ice_hw *hw, struct ice_buf *bufs, u32 count)
 					     &offset, &info, NULL);
 
 		/* Save AQ status from download package */
-		hw->pkg_dwnld_status = hw->adminq.sq_last_status;
 		if (status) {
 			ice_debug(hw, ICE_DBG_PKG, "Pkg download failed: err %d off %d inf %d\n",
 				  status, offset, info);
-
+			err = hw->adminq.sq_last_status;
+			state = ice_map_aq_err_to_ddp_state(err);
 			break;
 		}
 
@@ -1072,7 +1083,7 @@ ice_dwnld_cfg_bufs(struct ice_hw *hw, struct ice_buf *bufs, u32 count)
 
 	ice_release_global_cfg_lock(hw);
 
-	return status;
+	return state;
 }
 
 /**
@@ -1103,7 +1114,7 @@ ice_aq_get_pkg_info_list(struct ice_hw *hw,
  *
  * Handles the download of a complete package.
  */
-static enum ice_status
+static enum ice_ddp_state
 ice_download_pkg(struct ice_hw *hw, struct ice_seg *ice_seg)
 {
 	struct ice_buf_table *ice_buf_tbl;
@@ -1134,13 +1145,13 @@ ice_download_pkg(struct ice_hw *hw, struct ice_seg *ice_seg)
  *
  * Saves off the package details into the HW structure.
  */
-static enum ice_status
+static enum ice_ddp_state
 ice_init_pkg_info(struct ice_hw *hw, struct ice_pkg_hdr *pkg_hdr)
 {
 	struct ice_generic_seg_hdr *seg_hdr;
 
 	if (!pkg_hdr)
-		return ICE_ERR_PARAM;
+		return ICE_DDP_PKG_ERR;
 
 	seg_hdr = ice_find_seg_in_pkg(hw, SEGMENT_TYPE_ICE, pkg_hdr);
 	if (seg_hdr) {
@@ -1154,7 +1165,7 @@ ice_init_pkg_info(struct ice_hw *hw, struct ice_pkg_hdr *pkg_hdr)
 					    ICE_SID_METADATA);
 		if (!meta) {
 			ice_debug(hw, ICE_DBG_INIT, "Did not find ice metadata section in package\n");
-			return ICE_ERR_CFG;
+			return ICE_DDP_PKG_INVALID_FILE;
 		}
 
 		hw->pkg_ver = meta->ver;
@@ -1176,10 +1187,10 @@ ice_init_pkg_info(struct ice_hw *hw, struct ice_pkg_hdr *pkg_hdr)
 			  seg_hdr->seg_id);
 	} else {
 		ice_debug(hw, ICE_DBG_INIT, "Did not find ice segment in driver package\n");
-		return ICE_ERR_CFG;
+		return ICE_DDP_PKG_INVALID_FILE;
 	}
 
-	return 0;
+	return ICE_DDP_PKG_SUCCESS;
 }
 
 /**
@@ -1188,21 +1199,22 @@ ice_init_pkg_info(struct ice_hw *hw, struct ice_pkg_hdr *pkg_hdr)
  *
  * Store details of the package currently loaded in HW into the HW structure.
  */
-static enum ice_status ice_get_pkg_info(struct ice_hw *hw)
+static enum ice_ddp_state ice_get_pkg_info(struct ice_hw *hw)
 {
+	enum ice_ddp_state state = ICE_DDP_PKG_SUCCESS;
 	struct ice_aqc_get_pkg_info_resp *pkg_info;
-	enum ice_status status;
 	u16 size;
 	u32 i;
 
 	size = struct_size(pkg_info, pkg_info, ICE_PKG_CNT);
 	pkg_info = kzalloc(size, GFP_KERNEL);
 	if (!pkg_info)
-		return ICE_ERR_NO_MEMORY;
+		return ICE_DDP_PKG_ERR;
 
-	status = ice_aq_get_pkg_info_list(hw, pkg_info, size, NULL);
-	if (status)
+	if (ice_aq_get_pkg_info_list(hw, pkg_info, size, NULL)) {
+		state = ICE_DDP_PKG_ERR;
 		goto init_pkg_free_alloc;
+	}
 
 	for (i = 0; i < le32_to_cpu(pkg_info->count); i++) {
 #define ICE_PKG_FLAG_COUNT	4
@@ -1237,7 +1249,7 @@ static enum ice_status ice_get_pkg_info(struct ice_hw *hw)
 init_pkg_free_alloc:
 	kfree(pkg_info);
 
-	return status;
+	return state;
 }
 
 /**
@@ -1248,28 +1260,28 @@ init_pkg_free_alloc:
  * Verifies various attributes of the package file, including length, format
  * version, and the requirement of at least one segment.
  */
-static enum ice_status ice_verify_pkg(struct ice_pkg_hdr *pkg, u32 len)
+static enum ice_ddp_state ice_verify_pkg(struct ice_pkg_hdr *pkg, u32 len)
 {
 	u32 seg_count;
 	u32 i;
 
 	if (len < struct_size(pkg, seg_offset, 1))
-		return ICE_ERR_BUF_TOO_SHORT;
+		return ICE_DDP_PKG_INVALID_FILE;
 
 	if (pkg->pkg_format_ver.major != ICE_PKG_FMT_VER_MAJ ||
 	    pkg->pkg_format_ver.minor != ICE_PKG_FMT_VER_MNR ||
 	    pkg->pkg_format_ver.update != ICE_PKG_FMT_VER_UPD ||
 	    pkg->pkg_format_ver.draft != ICE_PKG_FMT_VER_DFT)
-		return ICE_ERR_CFG;
+		return ICE_DDP_PKG_INVALID_FILE;
 
 	/* pkg must have at least one segment */
 	seg_count = le32_to_cpu(pkg->seg_count);
 	if (seg_count < 1)
-		return ICE_ERR_CFG;
+		return ICE_DDP_PKG_INVALID_FILE;
 
 	/* make sure segment array fits in package length */
 	if (len < struct_size(pkg, seg_offset, seg_count))
-		return ICE_ERR_BUF_TOO_SHORT;
+		return ICE_DDP_PKG_INVALID_FILE;
 
 	/* all segments must fit within length */
 	for (i = 0; i < seg_count; i++) {
@@ -1278,16 +1290,16 @@ static enum ice_status ice_verify_pkg(struct ice_pkg_hdr *pkg, u32 len)
 
 		/* segment header must fit */
 		if (len < off + sizeof(*seg))
-			return ICE_ERR_BUF_TOO_SHORT;
+			return ICE_DDP_PKG_INVALID_FILE;
 
 		seg = (struct ice_generic_seg_hdr *)((u8 *)pkg + off);
 
 		/* segment body must fit */
 		if (len < off + le32_to_cpu(seg->seg_size))
-			return ICE_ERR_BUF_TOO_SHORT;
+			return ICE_DDP_PKG_INVALID_FILE;
 	}
 
-	return 0;
+	return ICE_DDP_PKG_SUCCESS;
 }
 
 /**
@@ -1331,13 +1343,18 @@ static void ice_init_pkg_regs(struct ice_hw *hw)
  * version must match our ICE_PKG_SUPP_VER_MAJ and ICE_PKG_SUPP_VER_MNR
  * definitions.
  */
-static enum ice_status ice_chk_pkg_version(struct ice_pkg_ver *pkg_ver)
+static enum ice_ddp_state ice_chk_pkg_version(struct ice_pkg_ver *pkg_ver)
 {
-	if (pkg_ver->major != ICE_PKG_SUPP_VER_MAJ ||
-	    pkg_ver->minor != ICE_PKG_SUPP_VER_MNR)
-		return ICE_ERR_NOT_SUPPORTED;
+	if (pkg_ver->major > ICE_PKG_SUPP_VER_MAJ ||
+	    (pkg_ver->major == ICE_PKG_SUPP_VER_MAJ &&
+	     pkg_ver->minor > ICE_PKG_SUPP_VER_MNR))
+		return ICE_DDP_PKG_FILE_VERSION_TOO_HIGH;
+	else if (pkg_ver->major < ICE_PKG_SUPP_VER_MAJ ||
+		 (pkg_ver->major == ICE_PKG_SUPP_VER_MAJ &&
+		  pkg_ver->minor < ICE_PKG_SUPP_VER_MNR))
+		return ICE_DDP_PKG_FILE_VERSION_TOO_LOW;
 
-	return 0;
+	return ICE_DDP_PKG_SUCCESS;
 }
 
 /**
@@ -1348,20 +1365,20 @@ static enum ice_status ice_chk_pkg_version(struct ice_pkg_ver *pkg_ver)
  *
  * This function checks the package version compatibility with driver and NVM
  */
-static enum ice_status
+static enum ice_ddp_state
 ice_chk_pkg_compat(struct ice_hw *hw, struct ice_pkg_hdr *ospkg,
 		   struct ice_seg **seg)
 {
 	struct ice_aqc_get_pkg_info_resp *pkg;
-	enum ice_status status;
+	enum ice_ddp_state state;
 	u16 size;
 	u32 i;
 
 	/* Check package version compatibility */
-	status = ice_chk_pkg_version(&hw->pkg_ver);
-	if (status) {
+	state = ice_chk_pkg_version(&hw->pkg_ver);
+	if (state) {
 		ice_debug(hw, ICE_DBG_INIT, "Package version check failed.\n");
-		return status;
+		return state;
 	}
 
 	/* find ICE segment in given package */
@@ -1369,18 +1386,19 @@ ice_chk_pkg_compat(struct ice_hw *hw, struct ice_pkg_hdr *ospkg,
 						     ospkg);
 	if (!*seg) {
 		ice_debug(hw, ICE_DBG_INIT, "no ice segment in package.\n");
-		return ICE_ERR_CFG;
+		return ICE_DDP_PKG_INVALID_FILE;
 	}
 
 	/* Check if FW is compatible with the OS package */
 	size = struct_size(pkg, pkg_info, ICE_PKG_CNT);
 	pkg = kzalloc(size, GFP_KERNEL);
 	if (!pkg)
-		return ICE_ERR_NO_MEMORY;
+		return ICE_DDP_PKG_ERR;
 
-	status = ice_aq_get_pkg_info_list(hw, pkg, size, NULL);
-	if (status)
+	if (ice_aq_get_pkg_info_list(hw, pkg, size, NULL)) {
+		state = ICE_DDP_PKG_LOAD_ERROR;
 		goto fw_ddp_compat_free_alloc;
+	}
 
 	for (i = 0; i < le32_to_cpu(pkg->count); i++) {
 		/* loop till we find the NVM package */
@@ -1390,7 +1408,7 @@ ice_chk_pkg_compat(struct ice_hw *hw, struct ice_pkg_hdr *ospkg,
 			pkg->pkg_info[i].ver.major ||
 		    (*seg)->hdr.seg_format_ver.minor >
 			pkg->pkg_info[i].ver.minor) {
-			status = ICE_ERR_FW_DDP_MISMATCH;
+			state = ICE_DDP_PKG_FW_MISMATCH;
 			ice_debug(hw, ICE_DBG_INIT, "OS package is not compatible with NVM.\n");
 		}
 		/* done processing NVM package so break */
@@ -1398,7 +1416,7 @@ ice_chk_pkg_compat(struct ice_hw *hw, struct ice_pkg_hdr *ospkg,
 	}
 fw_ddp_compat_free_alloc:
 	kfree(pkg);
-	return status;
+	return state;
 }
 
 /**
@@ -1482,6 +1500,34 @@ static enum ice_status ice_get_prof_index_max(struct ice_hw *hw)
 }
 
 /**
+ * ice_get_ddp_pkg_state - get DDP pkg state after download
+ * @hw: pointer to the HW struct
+ * @already_loaded: indicates if pkg was already loaded onto the device
+ */
+static enum ice_ddp_state
+ice_get_ddp_pkg_state(struct ice_hw *hw, bool already_loaded)
+{
+	if (hw->pkg_ver.major == hw->active_pkg_ver.major &&
+	    hw->pkg_ver.minor == hw->active_pkg_ver.minor &&
+	    hw->pkg_ver.update == hw->active_pkg_ver.update &&
+	    hw->pkg_ver.draft == hw->active_pkg_ver.draft &&
+	    !memcmp(hw->pkg_name, hw->active_pkg_name, sizeof(hw->pkg_name))) {
+		if (already_loaded)
+			return ICE_DDP_PKG_SAME_VERSION_ALREADY_LOADED;
+		else
+			return ICE_DDP_PKG_SUCCESS;
+	} else if (hw->active_pkg_ver.major != ICE_PKG_SUPP_VER_MAJ ||
+		   hw->active_pkg_ver.minor != ICE_PKG_SUPP_VER_MNR) {
+		return ICE_DDP_PKG_ALREADY_LOADED_NOT_SUPPORTED;
+	} else if (hw->active_pkg_ver.major == ICE_PKG_SUPP_VER_MAJ &&
+		   hw->active_pkg_ver.minor == ICE_PKG_SUPP_VER_MNR) {
+		return ICE_DDP_PKG_COMPATIBLE_ALREADY_LOADED;
+	} else {
+		return ICE_DDP_PKG_ERR;
+	}
+}
+
+/**
  * ice_init_pkg - initialize/download package
  * @hw: pointer to the hardware structure
  * @buf: pointer to the package buffer
@@ -1506,53 +1552,54 @@ static enum ice_status ice_get_prof_index_max(struct ice_hw *hw)
  * ice_copy_and_init_pkg() instead of directly calling ice_init_pkg() in this
  * case.
  */
-enum ice_status ice_init_pkg(struct ice_hw *hw, u8 *buf, u32 len)
+enum ice_ddp_state ice_init_pkg(struct ice_hw *hw, u8 *buf, u32 len)
 {
+	bool already_loaded = false;
+	enum ice_ddp_state state;
 	struct ice_pkg_hdr *pkg;
-	enum ice_status status;
 	struct ice_seg *seg;
 
 	if (!buf || !len)
-		return ICE_ERR_PARAM;
+		return ICE_DDP_PKG_ERR;
 
 	pkg = (struct ice_pkg_hdr *)buf;
-	status = ice_verify_pkg(pkg, len);
-	if (status) {
+	state = ice_verify_pkg(pkg, len);
+	if (state) {
 		ice_debug(hw, ICE_DBG_INIT, "failed to verify pkg (err: %d)\n",
-			  status);
-		return status;
+			  state);
+		return state;
 	}
 
 	/* initialize package info */
-	status = ice_init_pkg_info(hw, pkg);
-	if (status)
-		return status;
+	state = ice_init_pkg_info(hw, pkg);
+	if (state)
+		return state;
 
 	/* before downloading the package, check package version for
 	 * compatibility with driver
 	 */
-	status = ice_chk_pkg_compat(hw, pkg, &seg);
-	if (status)
-		return status;
+	state = ice_chk_pkg_compat(hw, pkg, &seg);
+	if (state)
+		return state;
 
 	/* initialize package hints and then download package */
 	ice_init_pkg_hints(hw, seg);
-	status = ice_download_pkg(hw, seg);
-	if (status == ICE_ERR_AQ_NO_WORK) {
+	state = ice_download_pkg(hw, seg);
+	if (state == ICE_DDP_PKG_ALREADY_LOADED) {
 		ice_debug(hw, ICE_DBG_INIT, "package previously loaded - no work.\n");
-		status = 0;
+		already_loaded = true;
 	}
 
 	/* Get information on the package currently loaded in HW, then make sure
 	 * the driver is compatible with this version.
 	 */
-	if (!status) {
-		status = ice_get_pkg_info(hw);
-		if (!status)
-			status = ice_chk_pkg_version(&hw->active_pkg_ver);
+	if (!state || state == ICE_DDP_PKG_ALREADY_LOADED) {
+		state = ice_get_pkg_info(hw);
+		if (!state)
+			state = ice_get_ddp_pkg_state(hw, already_loaded);
 	}
 
-	if (!status) {
+	if (ice_is_init_pkg_successful(state)) {
 		hw->seg = seg;
 		/* on successful package download update other required
 		 * registers to support the package and fill HW tables
@@ -1564,10 +1611,10 @@ enum ice_status ice_init_pkg(struct ice_hw *hw, u8 *buf, u32 len)
 		ice_get_prof_index_max(hw);
 	} else {
 		ice_debug(hw, ICE_DBG_INIT, "package load failed, %d\n",
-			  status);
+			  state);
 	}
 
-	return status;
+	return state;
 }
 
 /**
@@ -1593,18 +1640,19 @@ enum ice_status ice_init_pkg(struct ice_hw *hw, u8 *buf, u32 len)
  * package buffer, as the new copy will be managed by this function and
  * related routines.
  */
-enum ice_status ice_copy_and_init_pkg(struct ice_hw *hw, const u8 *buf, u32 len)
+enum ice_ddp_state
+ice_copy_and_init_pkg(struct ice_hw *hw, const u8 *buf, u32 len)
 {
-	enum ice_status status;
+	enum ice_ddp_state state;
 	u8 *buf_copy;
 
 	if (!buf || !len)
-		return ICE_ERR_PARAM;
+		return ICE_DDP_PKG_ERR;
 
 	buf_copy = devm_kmemdup(ice_hw_to_dev(hw), buf, len, GFP_KERNEL);
 
-	status = ice_init_pkg(hw, buf_copy, len);
-	if (status) {
+	state = ice_init_pkg(hw, buf_copy, len);
+	if (!ice_is_init_pkg_successful(state)) {
 		/* Free the copy, since we failed to initialize the package */
 		devm_kfree(ice_hw_to_dev(hw), buf_copy);
 	} else {
@@ -1613,7 +1661,23 @@ enum ice_status ice_copy_and_init_pkg(struct ice_hw *hw, const u8 *buf, u32 len)
 		hw->pkg_size = len;
 	}
 
-	return status;
+	return state;
+}
+
+/**
+ * ice_is_init_pkg_successful - check if DDP init was successful
+ * @state: state of the DDP pkg after download
+ */
+bool ice_is_init_pkg_successful(enum ice_ddp_state state)
+{
+	switch (state) {
+	case ICE_DDP_PKG_SUCCESS:
+	case ICE_DDP_PKG_SAME_VERSION_ALREADY_LOADED:
+	case ICE_DDP_PKG_COMPATIBLE_ALREADY_LOADED:
+		return true;
+	default:
+		return false;
+	}
 }
 
 /**

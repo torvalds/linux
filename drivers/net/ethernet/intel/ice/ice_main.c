@@ -4082,109 +4082,80 @@ static void ice_set_safe_mode_vlan_cfg(struct ice_pf *pf)
 /**
  * ice_log_pkg_init - log result of DDP package load
  * @hw: pointer to hardware info
- * @status: status of package load
+ * @state: state of package load
  */
-static void
-ice_log_pkg_init(struct ice_hw *hw, enum ice_status *status)
+static void ice_log_pkg_init(struct ice_hw *hw, enum ice_ddp_state state)
 {
-	struct ice_pf *pf = (struct ice_pf *)hw->back;
-	struct device *dev = ice_pf_to_dev(pf);
+	struct ice_pf *pf = hw->back;
+	struct device *dev;
 
-	switch (*status) {
-	case ICE_SUCCESS:
-		/* The package download AdminQ command returned success because
-		 * this download succeeded or ICE_ERR_AQ_NO_WORK since there is
-		 * already a package loaded on the device.
-		 */
-		if (hw->pkg_ver.major == hw->active_pkg_ver.major &&
-		    hw->pkg_ver.minor == hw->active_pkg_ver.minor &&
-		    hw->pkg_ver.update == hw->active_pkg_ver.update &&
-		    hw->pkg_ver.draft == hw->active_pkg_ver.draft &&
-		    !memcmp(hw->pkg_name, hw->active_pkg_name,
-			    sizeof(hw->pkg_name))) {
-			if (hw->pkg_dwnld_status == ICE_AQ_RC_EEXIST)
-				dev_info(dev, "DDP package already present on device: %s version %d.%d.%d.%d\n",
-					 hw->active_pkg_name,
-					 hw->active_pkg_ver.major,
-					 hw->active_pkg_ver.minor,
-					 hw->active_pkg_ver.update,
-					 hw->active_pkg_ver.draft);
-			else
-				dev_info(dev, "The DDP package was successfully loaded: %s version %d.%d.%d.%d\n",
-					 hw->active_pkg_name,
-					 hw->active_pkg_ver.major,
-					 hw->active_pkg_ver.minor,
-					 hw->active_pkg_ver.update,
-					 hw->active_pkg_ver.draft);
-		} else if (hw->active_pkg_ver.major != ICE_PKG_SUPP_VER_MAJ ||
-			   hw->active_pkg_ver.minor != ICE_PKG_SUPP_VER_MNR) {
-			dev_err(dev, "The device has a DDP package that is not supported by the driver.  The device has package '%s' version %d.%d.x.x.  The driver requires version %d.%d.x.x.  Entering Safe Mode.\n",
-				hw->active_pkg_name,
-				hw->active_pkg_ver.major,
-				hw->active_pkg_ver.minor,
-				ICE_PKG_SUPP_VER_MAJ, ICE_PKG_SUPP_VER_MNR);
-			*status = ICE_ERR_NOT_SUPPORTED;
-		} else if (hw->active_pkg_ver.major == ICE_PKG_SUPP_VER_MAJ &&
-			   hw->active_pkg_ver.minor == ICE_PKG_SUPP_VER_MNR) {
-			dev_info(dev, "The driver could not load the DDP package file because a compatible DDP package is already present on the device.  The device has package '%s' version %d.%d.%d.%d.  The package file found by the driver: '%s' version %d.%d.%d.%d.\n",
-				 hw->active_pkg_name,
-				 hw->active_pkg_ver.major,
-				 hw->active_pkg_ver.minor,
-				 hw->active_pkg_ver.update,
-				 hw->active_pkg_ver.draft,
-				 hw->pkg_name,
-				 hw->pkg_ver.major,
-				 hw->pkg_ver.minor,
-				 hw->pkg_ver.update,
-				 hw->pkg_ver.draft);
-		} else {
-			dev_err(dev, "An unknown error occurred when loading the DDP package, please reboot the system.  If the problem persists, update the NVM.  Entering Safe Mode.\n");
-			*status = ICE_ERR_NOT_SUPPORTED;
-		}
+	dev = ice_pf_to_dev(pf);
+
+	switch (state) {
+	case ICE_DDP_PKG_SUCCESS:
+		dev_info(dev, "The DDP package was successfully loaded: %s version %d.%d.%d.%d\n",
+			 hw->active_pkg_name,
+			 hw->active_pkg_ver.major,
+			 hw->active_pkg_ver.minor,
+			 hw->active_pkg_ver.update,
+			 hw->active_pkg_ver.draft);
 		break;
-	case ICE_ERR_FW_DDP_MISMATCH:
+	case ICE_DDP_PKG_SAME_VERSION_ALREADY_LOADED:
+		dev_info(dev, "DDP package already present on device: %s version %d.%d.%d.%d\n",
+			 hw->active_pkg_name,
+			 hw->active_pkg_ver.major,
+			 hw->active_pkg_ver.minor,
+			 hw->active_pkg_ver.update,
+			 hw->active_pkg_ver.draft);
+		break;
+	case ICE_DDP_PKG_ALREADY_LOADED_NOT_SUPPORTED:
+		dev_err(dev, "The device has a DDP package that is not supported by the driver.  The device has package '%s' version %d.%d.x.x.  The driver requires version %d.%d.x.x.  Entering Safe Mode.\n",
+			hw->active_pkg_name,
+			hw->active_pkg_ver.major,
+			hw->active_pkg_ver.minor,
+			ICE_PKG_SUPP_VER_MAJ, ICE_PKG_SUPP_VER_MNR);
+		break;
+	case ICE_DDP_PKG_COMPATIBLE_ALREADY_LOADED:
+		dev_info(dev, "The driver could not load the DDP package file because a compatible DDP package is already present on the device.  The device has package '%s' version %d.%d.%d.%d.  The package file found by the driver: '%s' version %d.%d.%d.%d.\n",
+			 hw->active_pkg_name,
+			 hw->active_pkg_ver.major,
+			 hw->active_pkg_ver.minor,
+			 hw->active_pkg_ver.update,
+			 hw->active_pkg_ver.draft,
+			 hw->pkg_name,
+			 hw->pkg_ver.major,
+			 hw->pkg_ver.minor,
+			 hw->pkg_ver.update,
+			 hw->pkg_ver.draft);
+		break;
+	case ICE_DDP_PKG_FW_MISMATCH:
 		dev_err(dev, "The firmware loaded on the device is not compatible with the DDP package.  Please update the device's NVM.  Entering safe mode.\n");
 		break;
-	case ICE_ERR_BUF_TOO_SHORT:
-	case ICE_ERR_CFG:
+	case ICE_DDP_PKG_INVALID_FILE:
 		dev_err(dev, "The DDP package file is invalid. Entering Safe Mode.\n");
 		break;
-	case ICE_ERR_NOT_SUPPORTED:
-		/* Package File version not supported */
-		if (hw->pkg_ver.major > ICE_PKG_SUPP_VER_MAJ ||
-		    (hw->pkg_ver.major == ICE_PKG_SUPP_VER_MAJ &&
-		     hw->pkg_ver.minor > ICE_PKG_SUPP_VER_MNR))
-			dev_err(dev, "The DDP package file version is higher than the driver supports.  Please use an updated driver.  Entering Safe Mode.\n");
-		else if (hw->pkg_ver.major < ICE_PKG_SUPP_VER_MAJ ||
-			 (hw->pkg_ver.major == ICE_PKG_SUPP_VER_MAJ &&
-			  hw->pkg_ver.minor < ICE_PKG_SUPP_VER_MNR))
-			dev_err(dev, "The DDP package file version is lower than the driver supports.  The driver requires version %d.%d.x.x.  Please use an updated DDP Package file.  Entering Safe Mode.\n",
-				ICE_PKG_SUPP_VER_MAJ, ICE_PKG_SUPP_VER_MNR);
+	case ICE_DDP_PKG_FILE_VERSION_TOO_HIGH:
+		dev_err(dev, "The DDP package file version is higher than the driver supports.  Please use an updated driver.  Entering Safe Mode.\n");
 		break;
-	case ICE_ERR_AQ_ERROR:
-		switch (hw->pkg_dwnld_status) {
-		case ICE_AQ_RC_ENOSEC:
-		case ICE_AQ_RC_EBADSIG:
-			dev_err(dev, "The DDP package could not be loaded because its signature is not valid.  Please use a valid DDP Package.  Entering Safe Mode.\n");
-			return;
-		case ICE_AQ_RC_ESVN:
-			dev_err(dev, "The DDP Package could not be loaded because its security revision is too low.  Please use an updated DDP Package.  Entering Safe Mode.\n");
-			return;
-		case ICE_AQ_RC_EBADMAN:
-		case ICE_AQ_RC_EBADBUF:
-			dev_err(dev, "An error occurred on the device while loading the DDP package.  The device will be reset.\n");
+	case ICE_DDP_PKG_FILE_VERSION_TOO_LOW:
+		dev_err(dev, "The DDP package file version is lower than the driver supports.  The driver requires version %d.%d.x.x.  Please use an updated DDP Package file.  Entering Safe Mode.\n",
+			ICE_PKG_SUPP_VER_MAJ, ICE_PKG_SUPP_VER_MNR);
+		break;
+	case ICE_DDP_PKG_FILE_SIGNATURE_INVALID:
+		dev_err(dev, "The DDP package could not be loaded because its signature is not valid.  Please use a valid DDP Package.  Entering Safe Mode.\n");
+		break;
+	case ICE_DDP_PKG_FILE_REVISION_TOO_LOW:
+		dev_err(dev, "The DDP Package could not be loaded because its security revision is too low.  Please use an updated DDP Package.  Entering Safe Mode.\n");
+		break;
+	case ICE_DDP_PKG_LOAD_ERROR:
+		dev_err(dev, "An error occurred on the device while loading the DDP package.  The device will be reset.\n");
 			/* poll for reset to complete */
 			if (ice_check_reset(hw))
 				dev_err(dev, "Error resetting device. Please reload the driver\n");
-			return;
-		default:
-			break;
-		}
-		fallthrough;
-	default:
-		dev_err(dev, "An unknown error (%d) occurred when loading the DDP package.  Entering Safe Mode.\n",
-			*status);
 		break;
+	case ICE_DDP_PKG_ERR:
+	default:
+		dev_err(dev, "An unknown error occurred when loading the DDP package.  Entering Safe Mode.\n");
 	}
 }
 
@@ -4199,24 +4170,24 @@ ice_log_pkg_init(struct ice_hw *hw, enum ice_status *status)
 static void
 ice_load_pkg(const struct firmware *firmware, struct ice_pf *pf)
 {
-	enum ice_status status = ICE_ERR_PARAM;
+	enum ice_ddp_state state = ICE_DDP_PKG_ERR;
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_hw *hw = &pf->hw;
 
 	/* Load DDP Package */
 	if (firmware && !hw->pkg_copy) {
-		status = ice_copy_and_init_pkg(hw, firmware->data,
-					       firmware->size);
-		ice_log_pkg_init(hw, &status);
+		state = ice_copy_and_init_pkg(hw, firmware->data,
+					      firmware->size);
+		ice_log_pkg_init(hw, state);
 	} else if (!firmware && hw->pkg_copy) {
 		/* Reload package during rebuild after CORER/GLOBR reset */
-		status = ice_init_pkg(hw, hw->pkg_copy, hw->pkg_size);
-		ice_log_pkg_init(hw, &status);
+		state = ice_init_pkg(hw, hw->pkg_copy, hw->pkg_size);
+		ice_log_pkg_init(hw, state);
 	} else {
 		dev_err(dev, "The DDP package file failed to load. Entering Safe Mode.\n");
 	}
 
-	if (status) {
+	if (!ice_is_init_pkg_successful(state)) {
 		/* Safe Mode */
 		clear_bit(ICE_FLAG_ADV_FEATURES, pf->flags);
 		return;
@@ -4539,7 +4510,6 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 	 * true
 	 */
 	if (ice_is_safe_mode(pf)) {
-		dev_err(dev, "Package download failed. Advanced features disabled - Device now in Safe Mode\n");
 		/* we already got function/device capabilities but these don't
 		 * reflect what the driver needs to do in safe mode. Instead of
 		 * adding conditional logic everywhere to ignore these
