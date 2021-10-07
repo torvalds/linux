@@ -24,6 +24,7 @@
 
 #include <stdlib.h>
 #include "jsmn.h"
+#define JSMN_STRICT
 
 /*
  * Allocates a fresh unused token from the token pool.
