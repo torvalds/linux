@@ -51,6 +51,9 @@ properties:
   dma-names:
     const: audio-rx
 
+  power-domains:
+    maxItems: 1
+
 required:
   - compatible
   - reg
