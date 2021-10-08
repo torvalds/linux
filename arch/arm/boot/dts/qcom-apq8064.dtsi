@@ -689,6 +689,7 @@
 						     <27 IRQ_TYPE_NONE>;
 					gpio-controller;
 					#gpio-cells = <2>;
+					gpio-ranges = <&pm8821_mpps 0 0 4>;
 				};
 			};
 		};
@@ -726,6 +727,7 @@
 					reg = <0x50>;
 					gpio-controller;
 					#gpio-cells = <2>;
+					gpio-ranges = <&pm8921_mpps 0 0 12>;
 					interrupts =
 					<128 IRQ_TYPE_NONE>,
 					<129 IRQ_TYPE_NONE>,
