@@ -2575,6 +2575,7 @@ static struct gdsc venus_core0_gdsc = {
 	},
 	.parent = &venus_gdsc.pd,
 	.pwrsts = PWRSTS_OFF_ON,
+	.flags = HW_CTRL,
 };
 
 static struct gdsc mdss_gdsc = {
