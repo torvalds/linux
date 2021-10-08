@@ -103,6 +103,7 @@
 #define MSPI_MASTER_BIT			BIT(7)
 
 #define MSPI_NUM_CDRAM				16
+#define MSPI_CDRAM_OUTP				BIT(8)
 #define MSPI_CDRAM_CONT_BIT			BIT(7)
 #define MSPI_CDRAM_BITSE_BIT			BIT(6)
 #define MSPI_CDRAM_DT_BIT			BIT(5)
@@ -122,6 +123,8 @@
 #define MSPI_SPCR3_DAM_8BYTE			0
 #define MSPI_SPCR3_DAM_16BYTE			(BIT(2) | BIT(4))
 #define MSPI_SPCR3_DAM_32BYTE			(BIT(3) | BIT(5))
+#define MSPI_SPCR3_HALFDUPLEX			BIT(6)
+#define MSPI_SPCR3_HDOUTTYPE			BIT(7)
 #define MSPI_SPCR3_DATA_REG_SZ			BIT(8)
 #define MSPI_SPCR3_CPHARX			BIT(9)
 
@@ -613,6 +616,9 @@ static void bcm_qspi_hw_set_parms(struct bcm_qspi *qspi,
 		/* enable fastbr */
 		spcr |=	MSPI_SPCR3_FASTBR;
 
+		if (xp->mode & SPI_3WIRE)
+			spcr |= MSPI_SPCR3_HALFDUPLEX |  MSPI_SPCR3_HDOUTTYPE;
+
 		if (bcm_qspi_has_sysclk_108(qspi)) {
 			/* SYSCLK_108 */
 			spcr |= MSPI_SPCR3_SYSCLKSEL_108;
@@ -939,6 +945,10 @@ static int write_to_hw(struct bcm_qspi *qspi, struct spi_device *spi)
 
 		mspi_cdram |= ((tp.trans->bits_per_word <= 8) ? 0 :
 			       MSPI_CDRAM_BITSE_BIT);
+
+		/* set 3wrire halfduplex mode data from master to slave */
+		if ((spi->mode & SPI_3WIRE) && tp.trans->tx_buf)
+			mspi_cdram |= MSPI_CDRAM_OUTP;
 
 		if (has_bspi(qspi))
 			mspi_cdram &= ~1;
@@ -1480,7 +1490,8 @@ int bcm_qspi_probe(struct platform_device *pdev,
 	qspi->master = master;
 
 	master->bus_num = -1;
-	master->mode_bits = SPI_CPHA | SPI_CPOL | SPI_RX_DUAL | SPI_RX_QUAD;
+	master->mode_bits = SPI_CPHA | SPI_CPOL | SPI_RX_DUAL | SPI_RX_QUAD |
+				SPI_3WIRE;
 	master->setup = bcm_qspi_setup;
 	master->transfer_one = bcm_qspi_transfer_one;
 	master->mem_ops = &bcm_qspi_mem_ops;
