@@ -848,8 +848,6 @@ static int rockchip_i2s_io_multiplex(struct snd_pcm_substream *substream,
 				to_ch_num(val), usable_chs);
 			return -EINVAL;
 		}
-
-		rockchip_i2s_ch_to_io(val, false);
 	}
 
 	val <<= i2s_tdm->soc_data->grf_shift;
