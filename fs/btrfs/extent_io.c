@@ -2673,7 +2673,6 @@ int btrfs_repair_one_sector(struct inode *inode,
 	}
 
 	bio_add_page(repair_bio, page, failrec->len, pgoff);
-	repair_bbio->logical = failrec->start;
 	repair_bbio->iter = repair_bio->bi_iter;
 
 	btrfs_debug(btrfs_sb(inode->i_sb),

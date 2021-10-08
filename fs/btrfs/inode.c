@@ -8089,10 +8089,11 @@ static blk_status_t submit_dio_repair_bio(struct inode *inode, struct bio *bio,
 	return ret;
 }
 
-static blk_status_t btrfs_check_read_dio_bio(struct inode *inode,
+static blk_status_t btrfs_check_read_dio_bio(struct btrfs_dio_private *dip,
 					     struct btrfs_bio *bbio,
 					     const bool uptodate)
 {
+	struct inode *inode = dip->inode;
 	struct btrfs_fs_info *fs_info = BTRFS_I(inode)->root->fs_info;
 	const u32 sectorsize = fs_info->sectorsize;
 	struct extent_io_tree *failure_tree = &BTRFS_I(inode)->io_failure_tree;
@@ -8100,7 +8101,8 @@ static blk_status_t btrfs_check_read_dio_bio(struct inode *inode,
 	const bool csum = !(BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM);
 	struct bio_vec bvec;
 	struct bvec_iter iter;
-	u64 start = bbio->logical;
+	const u64 orig_file_offset = dip->file_offset;
+	u64 start = orig_file_offset;
 	u32 bio_offset = 0;
 	blk_status_t err = BLK_STS_OK;
 
@@ -8122,10 +8124,10 @@ static blk_status_t btrfs_check_read_dio_bio(struct inode *inode,
 			} else {
 				int ret;
 
-				ASSERT((start - bbio->logical) < UINT_MAX);
+				ASSERT((start - orig_file_offset) < UINT_MAX);
 				ret = btrfs_repair_one_sector(inode,
 						&bbio->bio,
-						start - bbio->logical,
+						start - orig_file_offset,
 						bvec.bv_page, pgoff,
 						start, bbio->mirror_num,
 						submit_dio_repair_bio);
@@ -8168,10 +8170,8 @@ static void btrfs_end_dio_bio(struct bio *bio)
 			   bio->bi_opf, bio->bi_iter.bi_sector,
 			   bio->bi_iter.bi_size, err);
 
-	if (bio_op(bio) == REQ_OP_READ) {
-		err = btrfs_check_read_dio_bio(dip->inode,
-					       btrfs_bio(bio), !err);
-	}
+	if (bio_op(bio) == REQ_OP_READ)
+		err = btrfs_check_read_dio_bio(dip, btrfs_bio(bio), !err);
 
 	if (err)
 		dip->dio_bio->bi_status = err;
@@ -8337,7 +8337,6 @@ static blk_qc_t btrfs_submit_direct(const struct iomap_iter *iter,
 		bio = btrfs_bio_clone_partial(dio_bio, clone_offset, clone_len);
 		bio->bi_private = dip;
 		bio->bi_end_io = btrfs_end_dio_bio;
-		btrfs_bio(bio)->logical = file_offset;
 
 		if (bio_op(bio) == REQ_OP_ZONE_APPEND) {
 			status = extract_ordered_extent(BTRFS_I(inode), bio,

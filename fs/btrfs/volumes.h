@@ -313,7 +313,6 @@ struct btrfs_bio {
 
 	/* @device is for stripe IO submission. */
 	struct btrfs_device *device;
-	u64 logical;
 	u8 *csum;
 	u8 csum_inline[BTRFS_BIO_INLINE_CSUM_SIZE];
 	struct bvec_iter iter;
