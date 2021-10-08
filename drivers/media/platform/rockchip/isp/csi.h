@@ -61,7 +61,6 @@ struct sink_info {
  * sink: csi link enable flags
  * mipi_di: Data Identifier (vc[7:6],dt[5:0])
  * tx_first: flags for dmatx first Y_STATE irq
- * memory: compact or big/little endian byte order for tx/rx
  */
 struct rkisp_csi_device {
 	struct rkisp_device *ispdev;
@@ -73,7 +72,6 @@ struct rkisp_csi_device {
 	u32 irq_cnt;
 	u8 mipi_di[CSI_PAD_MAX - 1];
 	u8 tx_first[HDR_DMA_MAX];
-	u8 memory;
 };
 
 int rkisp_register_csi_subdev(struct rkisp_device *dev,

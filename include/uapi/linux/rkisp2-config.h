@@ -12,11 +12,10 @@
 
 #define RKISP_API_VERSION		KERNEL_VERSION(1, 6, 2)
 
+/****************ISP SUBDEV IOCTL*****************************/
+
 #define RKISP_CMD_TRIGGER_READ_BACK \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 0, struct isp2x_csi_trigger)
-
-#define RKISP_CMD_CSI_MEMORY_MODE \
-	_IOW('V', BASE_VIDIOC_PRIVATE + 1, int)
 
 #define RKISP_CMD_GET_SHARED_BUF \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 2, struct rkisp_thunderboot_resmem)
@@ -35,6 +34,16 @@
 
 #define RKISP_CMD_GET_FBCBUF_FD \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 7, struct isp2x_buf_idxfd)
+
+/****************ISP VIDEO IOCTL******************************/
+
+#define RKISP_CMD_GET_CSI_MEMORY_MODE \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 100, int)
+
+#define RKISP_CMD_SET_CSI_MEMORY_MODE \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 101, int)
+
+/*************************************************************/
 
 #define ISP2X_ID_DPCC			(0)
 #define ISP2X_ID_BLS			(1)
@@ -231,11 +240,25 @@ struct isp2x_csi_trigger {
 	enum isp2x_trigger_mode mode;
 } __attribute__ ((packed));
 
-enum isp2x_csi_memory {
+/* isp csi dmatx/dmarx memory mode
+ * 0: raw12/raw10/raw8 8bit memory compact
+ * 1: raw12/raw10 16bit memory one pixel
+ *    big endian for rv1126/rv1109
+ *    |15|14|13|12|11|10| 9| 8| 7| 6| 5| 4| 3| 2| 1| 0|
+ *    | 3| 2| 1| 0| -| -| -| -|11|10| 9| 8| 7| 6| 5| 4|
+ *    little align for rk356x
+ *    |15|14|13|12|11|10| 9| 8| 7| 6| 5| 4| 3| 2| 1| 0|
+ *    | -| -| -| -|11|10| 9| 8| 7| 6| 5| 4| 3| 2| 1| 0|
+ * 2: raw12/raw10 16bit memory one pixel
+ *    big align for rv1126/rv1109/rk356x
+ *    |15|14|13|12|11|10| 9| 8| 7| 6| 5| 4| 3| 2| 1| 0|
+ *    |11|10| 9| 8| 7| 6| 5| 4| 3| 2| 1| 0| -| -| -| -|
+ */
+enum isp_csi_memory {
 	CSI_MEM_COMPACT = 0,
-	CSI_MEM_BYTE_BE,
-	CSI_MEM_BYTE_LE,
-	CSI_MEM_MAX,
+	CSI_MEM_WORD_BIG_END = 1,
+	CSI_MEM_WORD_LITTLE_ALIGN = 1,
+	CSI_MEM_WORD_BIG_ALIGN = 2,
 };
 
 struct isp2x_ispgain_buf {

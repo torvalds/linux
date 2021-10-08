@@ -503,7 +503,7 @@ static int dmatx3_config_mi(struct rkisp_stream *stream)
 	vc = csi->sink[CSI_SRC_CH4 - 1].index;
 	raw_wr_ctrl(stream,
 		SW_CSI_RAW_WR_CH_EN(vc) |
-		csi->memory |
+		stream->memory |
 		SW_CSI_RAW_WR_EN_ORG);
 	stream->u.dmatx.is_config = true;
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
@@ -548,7 +548,7 @@ static int dmatx2_config_mi(struct rkisp_stream *stream)
 		mi_raw_length(stream);
 		vc = csi->sink[CSI_SRC_CH3 - 1].index;
 		val = SW_CSI_RAW_WR_CH_EN(vc);
-		val |= csi->memory;
+		val |= stream->memory;
 		if (dev->hdr.op_mode != HDR_NORMAL)
 			val |= SW_CSI_RAW_WR_EN_ORG;
 		raw_wr_ctrl(stream, val);
@@ -591,7 +591,7 @@ static int dmatx0_config_mi(struct rkisp_stream *stream)
 		mi_raw_length(stream);
 		vc = csi->sink[CSI_SRC_CH1 - 1].index;
 		val = SW_CSI_RAW_WR_CH_EN(vc);
-		val |= csi->memory;
+		val |= stream->memory;
 		if (dev->hdr.op_mode != HDR_NORMAL)
 			val |= SW_CSI_RAW_WR_EN_ORG;
 		raw_wr_ctrl(stream, val);
