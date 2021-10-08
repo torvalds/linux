@@ -186,25 +186,16 @@ static int dw_edma_pcie_probe(struct pci_dev *pdev,
 	pci_set_master(pdev);
 
 	/* DMA configuration */
-	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (!err) {
-		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
-		if (err) {
-			pci_err(pdev, "consistent DMA mask 64 set failed\n");
-			return err;
-		}
+		pci_err(pdev, "DMA mask 64 set failed\n");
+		return err;
 	} else {
 		pci_err(pdev, "DMA mask 64 set failed\n");
 
-		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (err) {
 			pci_err(pdev, "DMA mask 32 set failed\n");
-			return err;
-		}
-
-		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
-		if (err) {
-			pci_err(pdev, "consistent DMA mask 32 set failed\n");
 			return err;
 		}
 	}
