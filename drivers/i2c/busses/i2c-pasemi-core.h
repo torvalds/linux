@@ -12,8 +12,6 @@ struct pasemi_smbus {
 	struct device		*dev;
 	struct i2c_adapter	 adapter;
 	void __iomem		*ioaddr;
-	unsigned long		 base;
-	int			 size;
 	unsigned int		 clk_div;
 };
 

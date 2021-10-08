@@ -41,8 +41,7 @@
 
 static inline void reg_write(struct pasemi_smbus *smbus, int reg, int val)
 {
-	dev_dbg(smbus->dev, "smbus write reg %lx val %08x\n",
-		smbus->base + reg, val);
+	dev_dbg(smbus->dev, "smbus write reg %x val %08x\n", reg, val);
 	iowrite32(val, smbus->ioaddr + reg);
 }
 
@@ -50,8 +49,7 @@ static inline int reg_read(struct pasemi_smbus *smbus, int reg)
 {
 	int ret;
 	ret = ioread32(smbus->ioaddr + reg);
-	dev_dbg(smbus->dev, "smbus read reg %lx val %08x\n",
-		smbus->base + reg, ret);
+	dev_dbg(smbus->dev, "smbus read reg %x val %08x\n", reg, ret);
 	return ret;
 }
 
@@ -339,7 +337,7 @@ int pasemi_i2c_common_probe(struct pasemi_smbus *smbus)
 
 	pasemi_reset(smbus);
 
-	error = i2c_add_adapter(&smbus->adapter);
+	error = devm_i2c_add_adapter(smbus->dev, &smbus->adapter);
 	if (error)
 		return error;
 
