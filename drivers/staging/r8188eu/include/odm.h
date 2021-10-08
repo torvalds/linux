@@ -4,18 +4,6 @@
 #ifndef	__HALDMOUTSRC_H__
 #define __HALDMOUTSRC_H__
 
-/*  */
-/* 3 PSD Handler */
-/* 3============================================================ */
-
-/*  LPS define */
-#define DM_DIG_FA_TH0_LPS		4 /*  4 in lps */
-#define DM_DIG_FA_TH1_LPS		15 /*  15 lps */
-#define DM_DIG_FA_TH2_LPS		30 /*  30 lps */
-#define RSSI_OFFSET_DIG			0x05;
-
-/*  structure and define */
-
 /*  Add for AP/ADSLpseudo DM structuer requirement. */
 /*  We need to remove to other position??? */
 struct rtl8192cd_priv {
@@ -969,8 +957,6 @@ u32 ConvertTo_dB(u32 Value);
 
 u32 GetPSDData(struct odm_dm_struct *pDM_Odm, unsigned int point,
 	       u8 initial_gain_psd);
-
-void odm_DIGbyRSSI_LPS(struct odm_dm_struct *pDM_Odm);
 
 u32 ODM_Get_Rate_Bitmap(struct odm_dm_struct *pDM_Odm, u32 macid,
 			u32 ra_mask, u8 rssi_level);

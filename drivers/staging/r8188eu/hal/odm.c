@@ -186,17 +186,7 @@ void ODM_DMWatchdog(struct odm_dm_struct *pDM_Odm)
 	odm_FalseAlarmCounterStatistics(pDM_Odm);
 	odm_RSSIMonitorCheck(pDM_Odm);
 
-	/* For CE Platform(SPRD or Tablet) */
-	/* 8723A or 8189ES platform */
-	/* NeilChen--2012--08--24-- */
-	/* Fix Leave LPS issue */
-	if ((pDM_Odm->Adapter->pwrctrlpriv.pwr_mode != PS_MODE_ACTIVE) &&/*  in LPS mode */
-	    ((pDM_Odm->SupportICType & (ODM_RTL8723A)) ||
-	    (pDM_Odm->SupportICType & (ODM_RTL8188E) &&
-	    ((pDM_Odm->SupportInterface  == ODM_ITRF_SDIO)))))
-		odm_DIGbyRSSI_LPS(pDM_Odm);
-	else
-		odm_DIG(pDM_Odm);
+	odm_DIG(pDM_Odm);
 	odm_CCKPacketDetectionThresh(pDM_Odm);
 
 	if (*pDM_Odm->pbPowerSaving)
@@ -451,53 +441,6 @@ void ODM_Write_DIG(struct odm_dm_struct *pDM_Odm, u8 CurrentIGI)
 		ODM_SetBBReg(pDM_Odm, ODM_REG_IGI_A_11N, ODM_BIT_IGI_11N, CurrentIGI);
 		pDM_DigTable->CurIGValue = CurrentIGI;
 	}
-}
-
-/* Need LPS mode for CE platform --2012--08--24--- */
-/* 8723AS/8189ES */
-void odm_DIGbyRSSI_LPS(struct odm_dm_struct *pDM_Odm)
-{
-	struct adapter *pAdapter = pDM_Odm->Adapter;
-	struct false_alarm_stats *pFalseAlmCnt = &pDM_Odm->FalseAlmCnt;
-
-	u8 RSSI_Lower = DM_DIG_MIN_NIC;   /* 0x1E or 0x1C */
-	u8 bFwCurrentInPSMode = false;
-	u8 CurrentIGI = pDM_Odm->RSSI_Min;
-
-	if (!(pDM_Odm->SupportICType & (ODM_RTL8723A | ODM_RTL8188E)))
-		return;
-
-	CurrentIGI = CurrentIGI + RSSI_OFFSET_DIG;
-	bFwCurrentInPSMode = pAdapter->pwrctrlpriv.bFwCurrentInPSMode;
-
-	/*  Using FW PS mode to make IGI */
-	if (bFwCurrentInPSMode) {
-		/* Adjust by  FA in LPS MODE */
-		if (pFalseAlmCnt->Cnt_all > DM_DIG_FA_TH2_LPS)
-			CurrentIGI = CurrentIGI + 2;
-		else if (pFalseAlmCnt->Cnt_all > DM_DIG_FA_TH1_LPS)
-			CurrentIGI = CurrentIGI + 1;
-		else if (pFalseAlmCnt->Cnt_all < DM_DIG_FA_TH0_LPS)
-			CurrentIGI = CurrentIGI - 1;
-	} else {
-		CurrentIGI = RSSI_Lower;
-	}
-
-	/* Lower bound checking */
-
-	/* RSSI Lower bound check */
-	if ((pDM_Odm->RSSI_Min - 10) > DM_DIG_MIN_NIC)
-		RSSI_Lower = (pDM_Odm->RSSI_Min - 10);
-	else
-		RSSI_Lower = DM_DIG_MIN_NIC;
-
-	/* Upper and Lower Bound checking */
-	if (CurrentIGI > DM_DIG_MAX_NIC)
-		CurrentIGI = DM_DIG_MAX_NIC;
-	else if (CurrentIGI < RSSI_Lower)
-		CurrentIGI = RSSI_Lower;
-
-	ODM_Write_DIG(pDM_Odm, CurrentIGI);/* ODM_Write_DIG(pDM_Odm, pDM_DigTable->CurIGValue); */
 }
 
 void odm_DIGInit(struct odm_dm_struct *pDM_Odm)
