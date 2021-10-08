@@ -306,7 +306,7 @@ void amdgpu_device_mm_access(struct amdgpu_device *adev, loff_t pos,
 	uint64_t last;
 	int idx;
 
-	if (!drm_dev_enter(&adev->ddev, &idx))
+	if (!drm_dev_enter(adev_to_drm(adev), &idx))
 		return;
 
 	BUG_ON(!IS_ALIGNED(pos, 4) || !IS_ALIGNED(size, 4));

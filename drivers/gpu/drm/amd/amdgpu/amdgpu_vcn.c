@@ -325,7 +325,7 @@ int amdgpu_vcn_suspend(struct amdgpu_device *adev)
 		if (!adev->vcn.inst[i].saved_bo)
 			return -ENOMEM;
 
-		if (drm_dev_enter(&adev->ddev, &idx)) {
+		if (drm_dev_enter(adev_to_drm(adev), &idx)) {
 			memcpy_fromio(adev->vcn.inst[i].saved_bo, ptr, size);
 			drm_dev_exit(idx);
 		}
@@ -349,7 +349,7 @@ int amdgpu_vcn_resume(struct amdgpu_device *adev)
 		ptr = adev->vcn.inst[i].cpu_addr;
 
 		if (adev->vcn.inst[i].saved_bo != NULL) {
-			if (drm_dev_enter(&adev->ddev, &idx)) {
+			if (drm_dev_enter(adev_to_drm(adev), &idx)) {
 				memcpy_toio(ptr, adev->vcn.inst[i].saved_bo, size);
 				drm_dev_exit(idx);
 			}
@@ -362,7 +362,7 @@ int amdgpu_vcn_resume(struct amdgpu_device *adev)
 			hdr = (const struct common_firmware_header *)adev->vcn.fw->data;
 			if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
 				offset = le32_to_cpu(hdr->ucode_array_offset_bytes);
-				if (drm_dev_enter(&adev->ddev, &idx)) {
+				if (drm_dev_enter(adev_to_drm(adev), &idx)) {
 					memcpy_toio(adev->vcn.inst[i].cpu_addr, adev->vcn.fw->data + offset,
 						    le32_to_cpu(hdr->ucode_size_bytes));
 					drm_dev_exit(idx);

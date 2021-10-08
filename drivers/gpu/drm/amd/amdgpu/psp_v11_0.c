@@ -698,7 +698,7 @@ static int psp_v11_0_memory_training(struct psp_context *psp, uint32_t ops)
 			return -ENOMEM;
 		}
 
-		if (drm_dev_enter(&adev->ddev, &idx)) {
+		if (drm_dev_enter(adev_to_drm(adev), &idx)) {
 			memcpy_fromio(buf, adev->mman.aper_base_kaddr, sz);
 			ret = psp_v11_0_memory_training_send_msg(psp, PSP_BL__DRAM_LONG_TRAIN);
 			if (ret) {

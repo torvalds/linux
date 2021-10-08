@@ -440,7 +440,7 @@ psp_cmd_submit_buf(struct psp_context *psp,
 	if (psp->adev->no_hw_access)
 		return 0;
 
-	if (!drm_dev_enter(&psp->adev->ddev, &idx))
+	if (!drm_dev_enter(adev_to_drm(psp->adev), &idx))
 		return 0;
 
 	memset(psp->cmd_buf_mem, 0, PSP_CMD_BUFFER_SIZE);
@@ -3272,7 +3272,7 @@ void psp_copy_fw(struct psp_context *psp, uint8_t *start_addr, uint32_t bin_size
 {
 	int idx;
 
-	if (!drm_dev_enter(&psp->adev->ddev, &idx))
+	if (!drm_dev_enter(adev_to_drm(psp->adev), &idx))
 		return;
 
 	memset(psp->fw_pri_buf, 0, PSP_1_MEG);

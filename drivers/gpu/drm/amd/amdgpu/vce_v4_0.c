@@ -565,7 +565,7 @@ static int vce_v4_0_suspend(void *handle)
 	if (adev->vce.vcpu_bo == NULL)
 		return 0;
 
-	if (drm_dev_enter(&adev->ddev, &idx)) {
+	if (drm_dev_enter(adev_to_drm(adev), &idx)) {
 		if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
 			unsigned size = amdgpu_bo_size(adev->vce.vcpu_bo);
 			void *ptr = adev->vce.cpu_addr;
@@ -615,7 +615,7 @@ static int vce_v4_0_resume(void *handle)
 
 	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
 
-		if (drm_dev_enter(&adev->ddev, &idx)) {
+		if (drm_dev_enter(adev_to_drm(adev), &idx)) {
 			unsigned size = amdgpu_bo_size(adev->vce.vcpu_bo);
 			void *ptr = adev->vce.cpu_addr;
 

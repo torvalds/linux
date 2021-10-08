@@ -198,7 +198,7 @@ static int vcn_v2_0_sw_fini(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	volatile struct amdgpu_fw_shared *fw_shared = adev->vcn.inst->fw_shared_cpu_addr;
 
-	if (drm_dev_enter(&adev->ddev, &idx)) {
+	if (drm_dev_enter(adev_to_drm(adev), &idx)) {
 		fw_shared->present_flag_0 = 0;
 		drm_dev_exit(idx);
 	}
