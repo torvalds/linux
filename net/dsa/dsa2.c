@@ -170,7 +170,7 @@ void dsa_bridge_num_put(const struct net_device *bridge_dev, int bridge_num)
 	/* Check if the bridge is still in use, otherwise it is time
 	 * to clean it up so we can reuse this bridge_num later.
 	 */
-	if (!dsa_bridge_num_find(bridge_dev))
+	if (dsa_bridge_num_find(bridge_dev) < 0)
 		clear_bit(bridge_num, &dsa_fwd_offloading_bridges);
 }
 
