@@ -104,6 +104,8 @@ Discovery family
 
                 Not supported by the Linux kernel.
 
+  Homepage:
+        https://web.archive.org/web/20110924171043/http://www.marvell.com/embedded-processors/discovery-innovation/
   Core:
 	Feroceon 88fr571-vd ARMv5 compatible
 
@@ -120,6 +122,7 @@ EBU Armada family
         - 88F6707
         - 88F6W11
 
+    - Product infos:   https://web.archive.org/web/20141002083258/http://www.marvell.com/embedded-processors/armada-370/
     - Product Brief:   https://web.archive.org/web/20121115063038/http://www.marvell.com/embedded-processors/armada-300/assets/Marvell_ARMADA_370_SoC.pdf
     - Hardware Spec:   https://web.archive.org/web/20140617183747/http://www.marvell.com/embedded-processors/armada-300/assets/ARMADA370-datasheet.pdf
     - Functional Spec: https://web.archive.org/web/20140617183701/http://www.marvell.com/embedded-processors/armada-300/assets/ARMADA370-FunctionalSpec-datasheet.pdf
@@ -130,6 +133,7 @@ EBU Armada family
   Armada 375 Flavors:
 	- 88F6720
 
+    - Product infos: https://web.archive.org/web/20140108032402/http://www.marvell.com/embedded-processors/armada-375/
     - Product Brief: https://web.archive.org/web/20131216023516/http://www.marvell.com/embedded-processors/armada-300/assets/ARMADA_375_SoC-01_product_brief.pdf
 
   Core:
@@ -169,6 +173,9 @@ EBU Armada family
 
     NOTE:
 	not to be confused with the non-SMP 78xx0 SoCs
+
+    Product infos:
+        https://web.archive.org/web/20150101215721/http://www.marvell.com/embedded-processors/armada-xp/
 
     Product Brief:
 	https://web.archive.org/web/20121021173528/http://www.marvell.com/embedded-processors/armada-xp/assets/Marvell-ArmadaXP-SoC-product%20brief.pdf
