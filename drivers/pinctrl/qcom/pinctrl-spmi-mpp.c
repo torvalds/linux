@@ -103,7 +103,6 @@
 /**
  * struct pmic_mpp_pad - keep current MPP settings
  * @base: Address base in SPMI device.
- * @irq: IRQ number which this MPP generate.
  * @is_enabled: Set to false when MPP should be put in high Z state.
  * @out_value: Cached pin output value.
  * @output_enabled: Set to true if MPP output logic is enabled.
@@ -121,7 +120,6 @@
  */
 struct pmic_mpp_pad {
 	u16		base;
-	int		irq;
 	bool		is_enabled;
 	bool		out_value;
 	bool		output_enabled;
@@ -143,6 +141,7 @@ struct pmic_mpp_state {
 	struct regmap	*map;
 	struct pinctrl_dev *ctrl;
 	struct gpio_chip chip;
+	struct irq_chip irq;
 };
 
 static const struct pinconf_generic_params pmic_mpp_bindings[] = {
@@ -622,16 +621,6 @@ static int pmic_mpp_of_xlate(struct gpio_chip *chip,
 	return gpio_desc->args[0] - PMIC_MPP_PHYSICAL_OFFSET;
 }
 
-static int pmic_mpp_to_irq(struct gpio_chip *chip, unsigned pin)
-{
-	struct pmic_mpp_state *state = gpiochip_get_data(chip);
-	struct pmic_mpp_pad *pad;
-
-	pad = state->ctrl->desc->pins[pin].drv_data;
-
-	return pad->irq;
-}
-
 static void pmic_mpp_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 {
 	struct pmic_mpp_state *state = gpiochip_get_data(chip);
@@ -651,7 +640,6 @@ static const struct gpio_chip pmic_mpp_gpio_template = {
 	.request		= gpiochip_generic_request,
 	.free			= gpiochip_generic_free,
 	.of_xlate		= pmic_mpp_of_xlate,
-	.to_irq			= pmic_mpp_to_irq,
 	.dbg_show		= pmic_mpp_dbg_show,
 };
 
@@ -796,13 +784,53 @@ static int pmic_mpp_populate(struct pmic_mpp_state *state,
 	return 0;
 }
 
+static int pmic_mpp_domain_translate(struct irq_domain *domain,
+				      struct irq_fwspec *fwspec,
+				      unsigned long *hwirq,
+				      unsigned int *type)
+{
+	struct pmic_mpp_state *state = container_of(domain->host_data,
+						     struct pmic_mpp_state,
+						     chip);
+
+	if (fwspec->param_count != 2 ||
+	    fwspec->param[0] < 1 || fwspec->param[0] > state->chip.ngpio)
+		return -EINVAL;
+
+	*hwirq = fwspec->param[0] - PMIC_MPP_PHYSICAL_OFFSET;
+	*type = fwspec->param[1];
+
+	return 0;
+}
+
+static unsigned int pmic_mpp_child_offset_to_irq(struct gpio_chip *chip,
+						  unsigned int offset)
+{
+	return offset + PMIC_MPP_PHYSICAL_OFFSET;
+}
+
+static int pmic_mpp_child_to_parent_hwirq(struct gpio_chip *chip,
+					   unsigned int child_hwirq,
+					   unsigned int child_type,
+					   unsigned int *parent_hwirq,
+					   unsigned int *parent_type)
+{
+	*parent_hwirq = child_hwirq + 0xc0;
+	*parent_type = child_type;
+
+	return 0;
+}
+
 static int pmic_mpp_probe(struct platform_device *pdev)
 {
+	struct irq_domain *parent_domain;
+	struct device_node *parent_node;
 	struct device *dev = &pdev->dev;
 	struct pinctrl_pin_desc *pindesc;
 	struct pinctrl_desc *pctrldesc;
 	struct pmic_mpp_pad *pad, *pads;
 	struct pmic_mpp_state *state;
+	struct gpio_irq_chip *girq;
 	int ret, npins, i;
 	u32 reg;
 
@@ -857,10 +885,6 @@ static int pmic_mpp_probe(struct platform_device *pdev)
 		pindesc->number = i;
 		pindesc->name = pmic_mpp_groups[i];
 
-		pad->irq = platform_get_irq(pdev, i);
-		if (pad->irq < 0)
-			return pad->irq;
-
 		pad->base = reg + i * PMIC_MPP_ADDRESS_RANGE;
 
 		ret = pmic_mpp_populate(state, pad);
@@ -879,6 +903,34 @@ static int pmic_mpp_probe(struct platform_device *pdev)
 	state->ctrl = devm_pinctrl_register(dev, pctrldesc, state);
 	if (IS_ERR(state->ctrl))
 		return PTR_ERR(state->ctrl);
+
+	parent_node = of_irq_find_parent(state->dev->of_node);
+	if (!parent_node)
+		return -ENXIO;
+
+	parent_domain = irq_find_host(parent_node);
+	of_node_put(parent_node);
+	if (!parent_domain)
+		return -ENXIO;
+
+	state->irq.name = "spmi-mpp",
+	state->irq.irq_ack = irq_chip_ack_parent,
+	state->irq.irq_mask = irq_chip_mask_parent,
+	state->irq.irq_unmask = irq_chip_unmask_parent,
+	state->irq.irq_set_type = irq_chip_set_type_parent,
+	state->irq.irq_set_wake = irq_chip_set_wake_parent,
+	state->irq.flags = IRQCHIP_MASK_ON_SUSPEND,
+
+	girq = &state->chip.irq;
+	girq->chip = &state->irq;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_level_irq;
+	girq->fwnode = of_node_to_fwnode(state->dev->of_node);
+	girq->parent_domain = parent_domain;
+	girq->child_to_parent_hwirq = pmic_mpp_child_to_parent_hwirq;
+	girq->populate_parent_alloc_arg = gpiochip_populate_parent_fwspec_fourcell;
+	girq->child_offset_to_irq = pmic_mpp_child_offset_to_irq;
+	girq->child_irq_domain_ops.translate = pmic_mpp_domain_translate;
 
 	ret = gpiochip_add_data(&state->chip, state);
 	if (ret) {
