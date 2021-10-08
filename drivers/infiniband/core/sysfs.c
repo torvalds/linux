@@ -895,7 +895,7 @@ alloc_hw_stats_device(struct ib_device *ibdev)
 	stats = ibdev->ops.alloc_hw_device_stats(ibdev);
 	if (!stats)
 		return ERR_PTR(-ENOMEM);
-	if (!stats->names || stats->num_counters <= 0)
+	if (!stats->descs || stats->num_counters <= 0)
 		goto err_free_stats;
 
 	/*
@@ -957,7 +957,7 @@ int ib_setup_device_attrs(struct ib_device *ibdev)
 	for (i = 0; i < data->stats->num_counters; i++) {
 		attr = &data->attrs[i];
 		sysfs_attr_init(&attr->attr.attr);
-		attr->attr.attr.name = data->stats->names[i];
+		attr->attr.attr.name = data->stats->descs[i].name;
 		attr->attr.attr.mode = 0444;
 		attr->attr.show = hw_stat_device_show;
 		attr->show = show_hw_stats;
@@ -994,7 +994,7 @@ alloc_hw_stats_port(struct ib_port *port, struct attribute_group *group)
 	stats = ibdev->ops.alloc_hw_port_stats(port->ibdev, port->port_num);
 	if (!stats)
 		return ERR_PTR(-ENOMEM);
-	if (!stats->names || stats->num_counters <= 0)
+	if (!stats->descs || stats->num_counters <= 0)
 		goto err_free_stats;
 
 	/*
@@ -1047,7 +1047,7 @@ static int setup_hw_port_stats(struct ib_port *port,
 	for (i = 0; i < data->stats->num_counters; i++) {
 		attr = &data->attrs[i];
 		sysfs_attr_init(&attr->attr.attr);
-		attr->attr.attr.name = data->stats->names[i];
+		attr->attr.attr.name = data->stats->descs[i].name;
 		attr->attr.attr.mode = 0444;
 		attr->attr.show = hw_stat_port_show;
 		attr->show = show_hw_stats;

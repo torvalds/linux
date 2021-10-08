@@ -798,7 +798,7 @@ struct mlx5_ib_resources {
 };
 
 struct mlx5_ib_counters {
-	const char **names;
+	struct rdma_stat_desc *descs;
 	size_t *offsets;
 	u32 num_q_counters;
 	u32 num_cong_counters;

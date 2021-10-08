@@ -167,7 +167,7 @@ mlx5_ib_alloc_hw_device_stats(struct ib_device *ibdev)
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
 	const struct mlx5_ib_counters *cnts = &dev->port[0].cnts;
 
-	return rdma_alloc_hw_stats_struct(cnts->names,
+	return rdma_alloc_hw_stats_struct(cnts->descs,
 					  cnts->num_q_counters +
 						  cnts->num_cong_counters +
 						  cnts->num_ext_ppcnt_counters,
@@ -180,7 +180,7 @@ mlx5_ib_alloc_hw_port_stats(struct ib_device *ibdev, u32 port_num)
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
 	const struct mlx5_ib_counters *cnts = &dev->port[port_num - 1].cnts;
 
-	return rdma_alloc_hw_stats_struct(cnts->names,
+	return rdma_alloc_hw_stats_struct(cnts->descs,
 					  cnts->num_q_counters +
 						  cnts->num_cong_counters +
 						  cnts->num_ext_ppcnt_counters,
@@ -302,7 +302,7 @@ mlx5_ib_counter_alloc_stats(struct rdma_counter *counter)
 	const struct mlx5_ib_counters *cnts =
 		get_counters(dev, counter->port - 1);
 
-	return rdma_alloc_hw_stats_struct(cnts->names,
+	return rdma_alloc_hw_stats_struct(cnts->descs,
 					  cnts->num_q_counters +
 					  cnts->num_cong_counters +
 					  cnts->num_ext_ppcnt_counters,
@@ -371,57 +371,55 @@ static int mlx5_ib_counter_unbind_qp(struct ib_qp *qp)
 	return mlx5_ib_qp_set_counter(qp, NULL);
 }
 
-
 static void mlx5_ib_fill_counters(struct mlx5_ib_dev *dev,
-				  const char **names,
-				  size_t *offsets)
+				  struct rdma_stat_desc *descs, size_t *offsets)
 {
 	int i;
 	int j = 0;
 
 	for (i = 0; i < ARRAY_SIZE(basic_q_cnts); i++, j++) {
-		names[j] = basic_q_cnts[i].name;
+		descs[j].name = basic_q_cnts[i].name;
 		offsets[j] = basic_q_cnts[i].offset;
 	}
 
 	if (MLX5_CAP_GEN(dev->mdev, out_of_seq_cnt)) {
 		for (i = 0; i < ARRAY_SIZE(out_of_seq_q_cnts); i++, j++) {
-			names[j] = out_of_seq_q_cnts[i].name;
+			descs[j].name = out_of_seq_q_cnts[i].name;
 			offsets[j] = out_of_seq_q_cnts[i].offset;
 		}
 	}
 
 	if (MLX5_CAP_GEN(dev->mdev, retransmission_q_counters)) {
 		for (i = 0; i < ARRAY_SIZE(retrans_q_cnts); i++, j++) {
-			names[j] = retrans_q_cnts[i].name;
+			descs[j].name = retrans_q_cnts[i].name;
 			offsets[j] = retrans_q_cnts[i].offset;
 		}
 	}
 
 	if (MLX5_CAP_GEN(dev->mdev, enhanced_error_q_counters)) {
 		for (i = 0; i < ARRAY_SIZE(extended_err_cnts); i++, j++) {
-			names[j] = extended_err_cnts[i].name;
+			descs[j].name = extended_err_cnts[i].name;
 			offsets[j] = extended_err_cnts[i].offset;
 		}
 	}
 
 	if (MLX5_CAP_GEN(dev->mdev, roce_accl)) {
 		for (i = 0; i < ARRAY_SIZE(roce_accl_cnts); i++, j++) {
-			names[j] = roce_accl_cnts[i].name;
+			descs[j].name = roce_accl_cnts[i].name;
 			offsets[j] = roce_accl_cnts[i].offset;
 		}
 	}
 
 	if (MLX5_CAP_GEN(dev->mdev, cc_query_allowed)) {
 		for (i = 0; i < ARRAY_SIZE(cong_cnts); i++, j++) {
-			names[j] = cong_cnts[i].name;
+			descs[j].name = cong_cnts[i].name;
 			offsets[j] = cong_cnts[i].offset;
 		}
 	}
 
 	if (MLX5_CAP_PCAM_FEATURE(dev->mdev, rx_icrc_encapsulated_counter)) {
 		for (i = 0; i < ARRAY_SIZE(ext_ppcnt_cnts); i++, j++) {
-			names[j] = ext_ppcnt_cnts[i].name;
+			descs[j].name = ext_ppcnt_cnts[i].name;
 			offsets[j] = ext_ppcnt_cnts[i].offset;
 		}
 	}
@@ -457,20 +455,21 @@ static int __mlx5_ib_alloc_counters(struct mlx5_ib_dev *dev,
 		cnts->num_ext_ppcnt_counters = ARRAY_SIZE(ext_ppcnt_cnts);
 		num_counters += ARRAY_SIZE(ext_ppcnt_cnts);
 	}
-	cnts->names = kcalloc(num_counters, sizeof(*cnts->names), GFP_KERNEL);
-	if (!cnts->names)
+	cnts->descs = kcalloc(num_counters,
+			      sizeof(struct rdma_stat_desc), GFP_KERNEL);
+	if (!cnts->descs)
 		return -ENOMEM;
 
 	cnts->offsets = kcalloc(num_counters,
 				sizeof(*cnts->offsets), GFP_KERNEL);
 	if (!cnts->offsets)
-		goto err_names;
+		goto err;
 
 	return 0;
 
-err_names:
-	kfree(cnts->names);
-	cnts->names = NULL;
+err:
+	kfree(cnts->descs);
+	cnts->descs = NULL;
 	return -ENOMEM;
 }
 
@@ -491,7 +490,7 @@ static void mlx5_ib_dealloc_counters(struct mlx5_ib_dev *dev)
 				 dev->port[i].cnts.set_id);
 			mlx5_cmd_exec_in(dev->mdev, dealloc_q_counter, in);
 		}
-		kfree(dev->port[i].cnts.names);
+		kfree(dev->port[i].cnts.descs);
 		kfree(dev->port[i].cnts.offsets);
 	}
 }
@@ -514,7 +513,7 @@ static int mlx5_ib_alloc_counters(struct mlx5_ib_dev *dev)
 		if (err)
 			goto err_alloc;
 
-		mlx5_ib_fill_counters(dev, dev->port[i].cnts.names,
+		mlx5_ib_fill_counters(dev, dev->port[i].cnts.descs,
 				      dev->port[i].cnts.offsets);
 
 		MLX5_SET(alloc_q_counter_in, in, uid,

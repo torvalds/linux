@@ -546,6 +546,14 @@ enum ib_port_speed {
 };
 
 /**
+ * struct rdma_stat_desc
+ * @name - The name of the counter
+ */
+struct rdma_stat_desc {
+	const char *name;
+};
+
+/**
  * struct rdma_hw_stats
  * @lock - Mutex to protect parallel write access to lifespan and values
  *    of counters, which are 64bits and not guaranteeed to be written
@@ -555,8 +563,8 @@ enum ib_port_speed {
  *   should be before being updated again.  Stored in jiffies, defaults
  *   to 10 milliseconds, drivers can override the default be specifying
  *   their own value during their allocation routine.
- * @name - Array of pointers to static names used for the counters in
- *   directory.
+ * @descs - Array of pointers to static descriptors used for the counters
+ *   in directory.
  * @num_counters - How many hardware counters there are.  If name is
  *   shorter than this number, a kernel oops will result.  Driver authors
  *   are encouraged to leave BUILD_BUG_ON(ARRAY_SIZE(@name) < num_counters)
@@ -568,7 +576,7 @@ struct rdma_hw_stats {
 	struct mutex	lock; /* Protect lifespan and values[] */
 	unsigned long	timestamp;
 	unsigned long	lifespan;
-	const char * const *names;
+	const struct rdma_stat_desc *descs;
 	int		num_counters;
 	u64		value[];
 };
@@ -577,12 +585,12 @@ struct rdma_hw_stats {
 /**
  * rdma_alloc_hw_stats_struct - Helper function to allocate dynamic struct
  *   for drivers.
- * @names - Array of static const char *
+ * @descs - Array of static descriptors
  * @num_counters - How many elements in array
  * @lifespan - How many milliseconds between updates
  */
 static inline struct rdma_hw_stats *rdma_alloc_hw_stats_struct(
-		const char * const *names, int num_counters,
+		const struct rdma_stat_desc *descs, int num_counters,
 		unsigned long lifespan)
 {
 	struct rdma_hw_stats *stats;
@@ -591,7 +599,8 @@ static inline struct rdma_hw_stats *rdma_alloc_hw_stats_struct(
 			GFP_KERNEL);
 	if (!stats)
 		return NULL;
-	stats->names = names;
+
+	stats->descs = descs;
 	stats->num_counters = num_counters;
 	stats->lifespan = msecs_to_jiffies(lifespan);
 

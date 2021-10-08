@@ -969,7 +969,8 @@ static int fill_stat_counter_hwcounters(struct sk_buff *msg,
 		return -EMSGSIZE;
 
 	for (i = 0; i < st->num_counters; i++)
-		if (rdma_nl_stat_hwcounter_entry(msg, st->names[i], st->value[i]))
+		if (rdma_nl_stat_hwcounter_entry(msg, st->descs[i].name,
+						 st->value[i]))
 			goto err;
 
 	nla_nest_end(msg, table_attr);
@@ -2105,7 +2106,8 @@ static int stat_get_doit_default_counter(struct sk_buff *skb,
 	for (i = 0; i < num_cnts; i++) {
 		v = stats->value[i] +
 			rdma_counter_get_hwstat_value(device, port, i);
-		if (rdma_nl_stat_hwcounter_entry(msg, stats->names[i], v)) {
+		if (rdma_nl_stat_hwcounter_entry(msg,
+						 stats->descs[i].name, v)) {
 			ret = -EMSGSIZE;
 			goto err_table;
 		}

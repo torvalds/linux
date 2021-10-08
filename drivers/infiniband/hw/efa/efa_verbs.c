@@ -60,13 +60,14 @@ struct efa_user_mmap_entry {
 	op(EFA_RDMA_READ_RESP_BYTES, "rdma_read_resp_bytes") \
 
 #define EFA_STATS_ENUM(ename, name) ename,
-#define EFA_STATS_STR(ename, name) [ename] = name,
+#define EFA_STATS_STR(ename, nam) \
+	[ename].name = nam,
 
 enum efa_hw_device_stats {
 	EFA_DEFINE_DEVICE_STATS(EFA_STATS_ENUM)
 };
 
-static const char *const efa_device_stats_names[] = {
+static const struct rdma_stat_desc efa_device_stats_descs[] = {
 	EFA_DEFINE_DEVICE_STATS(EFA_STATS_STR)
 };
 
@@ -74,7 +75,7 @@ enum efa_hw_port_stats {
 	EFA_DEFINE_PORT_STATS(EFA_STATS_ENUM)
 };
 
-static const char *const efa_port_stats_names[] = {
+static const struct rdma_stat_desc efa_port_stats_descs[] = {
 	EFA_DEFINE_PORT_STATS(EFA_STATS_STR)
 };
 
@@ -1959,15 +1960,15 @@ int efa_destroy_ah(struct ib_ah *ibah, u32 flags)
 struct rdma_hw_stats *efa_alloc_hw_port_stats(struct ib_device *ibdev,
 					      u32 port_num)
 {
-	return rdma_alloc_hw_stats_struct(efa_port_stats_names,
-					  ARRAY_SIZE(efa_port_stats_names),
+	return rdma_alloc_hw_stats_struct(efa_port_stats_descs,
+					  ARRAY_SIZE(efa_port_stats_descs),
 					  RDMA_HW_STATS_DEFAULT_LIFESPAN);
 }
 
 struct rdma_hw_stats *efa_alloc_hw_device_stats(struct ib_device *ibdev)
 {
-	return rdma_alloc_hw_stats_struct(efa_device_stats_names,
-					  ARRAY_SIZE(efa_device_stats_names),
+	return rdma_alloc_hw_stats_struct(efa_device_stats_descs,
+					  ARRAY_SIZE(efa_device_stats_descs),
 					  RDMA_HW_STATS_DEFAULT_LIFESPAN);
 }
 
@@ -1992,7 +1993,7 @@ static int efa_fill_device_stats(struct efa_dev *dev,
 	stats->value[EFA_CREATE_AH_ERR] = atomic64_read(&s->create_ah_err);
 	stats->value[EFA_MMAP_ERR] = atomic64_read(&s->mmap_err);
 
-	return ARRAY_SIZE(efa_device_stats_names);
+	return ARRAY_SIZE(efa_device_stats_descs);
 }
 
 static int efa_fill_port_stats(struct efa_dev *dev, struct rdma_hw_stats *stats,
@@ -2041,7 +2042,7 @@ static int efa_fill_port_stats(struct efa_dev *dev, struct rdma_hw_stats *stats,
 	stats->value[EFA_RDMA_READ_WR_ERR] = rrs->read_wr_err;
 	stats->value[EFA_RDMA_READ_RESP_BYTES] = rrs->read_resp_bytes;
 
-	return ARRAY_SIZE(efa_port_stats_names);
+	return ARRAY_SIZE(efa_port_stats_descs);
 }
 
 int efa_get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
