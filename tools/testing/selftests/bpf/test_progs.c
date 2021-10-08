@@ -747,7 +747,7 @@ int trigger_module_test_read(int read_sz)
 {
 	int fd, err;
 
-	fd = open("/sys/kernel/bpf_testmod", O_RDONLY);
+	fd = open(BPF_TESTMOD_TEST_FILE, O_RDONLY);
 	err = -errno;
 	if (!ASSERT_GE(fd, 0, "testmod_file_open"))
 		return err;
@@ -769,7 +769,7 @@ int trigger_module_test_write(int write_sz)
 	memset(buf, 'a', write_sz);
 	buf[write_sz-1] = '\0';
 
-	fd = open("/sys/kernel/bpf_testmod", O_WRONLY);
+	fd = open(BPF_TESTMOD_TEST_FILE, O_WRONLY);
 	err = -errno;
 	if (!ASSERT_GE(fd, 0, "testmod_file_open")) {
 		free(buf);
