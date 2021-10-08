@@ -415,6 +415,19 @@
 		spi-rx-bus-width = <2>;
 		m25p,fast-read;
 		label = "pnor";
+		partitions@a0000000 {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			pnor-primary@0 {
+				label = "pnor-primary";
+				reg = <0x0000000 0x2000000>;
+			};
+			pnor-scratch@2000000 {
+				label = "pnor-scratch";
+				reg = <0x2000000 0x2000000>;
+			};
+		};
 	};
 	spi-nor@1 {
 		compatible = "jedec,spi-nor";
@@ -424,6 +437,20 @@
 		spi-max-frequency = <50000000>;
 		spi-rx-bus-width = <2>;
 		m25p,fast-read;
+		label = "pnor-2";
+		partitions@a0000000 {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			pnor-primary@0 {
+				label = "pnor-2-primary";
+				reg = <0x0000000 0x2000000>;
+			};
+			pnor-scratch@2000000 {
+				label = "pnor-2-scratch";
+				reg = <0x2000000 0x2000000>;
+			};
+		};
 	};
 };
 
