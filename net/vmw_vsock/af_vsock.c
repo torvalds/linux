@@ -1614,13 +1614,18 @@ static int vsock_connectible_setsockopt(struct socket *sock,
 		vsock_update_buffer_size(vsk, transport, vsk->buffer_size);
 		break;
 
-	case SO_VM_SOCKETS_CONNECT_TIMEOUT: {
-		struct __kernel_old_timeval tv;
-		COPY_IN(tv);
+	case SO_VM_SOCKETS_CONNECT_TIMEOUT_NEW:
+	case SO_VM_SOCKETS_CONNECT_TIMEOUT_OLD: {
+		struct __kernel_sock_timeval tv;
+
+		err = sock_copy_user_timeval(&tv, optval, optlen,
+					     optname == SO_VM_SOCKETS_CONNECT_TIMEOUT_OLD);
+		if (err)
+			break;
 		if (tv.tv_sec >= 0 && tv.tv_usec < USEC_PER_SEC &&
 		    tv.tv_sec < (MAX_SCHEDULE_TIMEOUT / HZ - 1)) {
 			vsk->connect_timeout = tv.tv_sec * HZ +
-			    DIV_ROUND_UP(tv.tv_usec, (1000000 / HZ));
+				DIV_ROUND_UP((unsigned long)tv.tv_usec, (USEC_PER_SEC / HZ));
 			if (vsk->connect_timeout == 0)
 				vsk->connect_timeout =
 				    VSOCK_DEFAULT_CONNECT_TIMEOUT;
@@ -1653,7 +1658,9 @@ static int vsock_connectible_getsockopt(struct socket *sock,
 
 	union {
 		u64 val64;
+		struct old_timeval32 tm32;
 		struct __kernel_old_timeval tm;
+		struct  __kernel_sock_timeval stm;
 	} v;
 
 	int lv = sizeof(v.val64);
@@ -1680,12 +1687,10 @@ static int vsock_connectible_getsockopt(struct socket *sock,
 		v.val64 = vsk->buffer_min_size;
 		break;
 
-	case SO_VM_SOCKETS_CONNECT_TIMEOUT:
-		lv = sizeof(v.tm);
-		v.tm.tv_sec = vsk->connect_timeout / HZ;
-		v.tm.tv_usec =
-		    (vsk->connect_timeout -
-		     v.tm.tv_sec * HZ) * (1000000 / HZ);
+	case SO_VM_SOCKETS_CONNECT_TIMEOUT_NEW:
+	case SO_VM_SOCKETS_CONNECT_TIMEOUT_OLD:
+		lv = sock_get_timeout(vsk->connect_timeout, &v,
+				      optname == SO_VM_SOCKETS_CONNECT_TIMEOUT_OLD);
 		break;
 
 	default:

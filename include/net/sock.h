@@ -2836,4 +2836,8 @@ void sock_set_sndtimeo(struct sock *sk, s64 secs);
 
 int sock_bind_add(struct sock *sk, struct sockaddr *addr, int addr_len);
 
+int sock_get_timeout(long timeo, void *optval, bool old_timeval);
+int sock_copy_user_timeval(struct __kernel_sock_timeval *tv,
+			   sockptr_t optval, int optlen, bool old_timeval);
+
 #endif	/* _SOCK_H */

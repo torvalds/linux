@@ -350,7 +350,7 @@ void sk_error_report(struct sock *sk)
 }
 EXPORT_SYMBOL(sk_error_report);
 
-static int sock_get_timeout(long timeo, void *optval, bool old_timeval)
+int sock_get_timeout(long timeo, void *optval, bool old_timeval)
 {
 	struct __kernel_sock_timeval tv;
 
@@ -379,12 +379,11 @@ static int sock_get_timeout(long timeo, void *optval, bool old_timeval)
 	*(struct __kernel_sock_timeval *)optval = tv;
 	return sizeof(tv);
 }
+EXPORT_SYMBOL(sock_get_timeout);
 
-static int sock_set_timeout(long *timeo_p, sockptr_t optval, int optlen,
-			    bool old_timeval)
+int sock_copy_user_timeval(struct __kernel_sock_timeval *tv,
+			   sockptr_t optval, int optlen, bool old_timeval)
 {
-	struct __kernel_sock_timeval tv;
-
 	if (old_timeval && in_compat_syscall() && !COMPAT_USE_64BIT_TIME) {
 		struct old_timeval32 tv32;
 
@@ -393,8 +392,8 @@ static int sock_set_timeout(long *timeo_p, sockptr_t optval, int optlen,
 
 		if (copy_from_sockptr(&tv32, optval, sizeof(tv32)))
 			return -EFAULT;
-		tv.tv_sec = tv32.tv_sec;
-		tv.tv_usec = tv32.tv_usec;
+		tv->tv_sec = tv32.tv_sec;
+		tv->tv_usec = tv32.tv_usec;
 	} else if (old_timeval) {
 		struct __kernel_old_timeval old_tv;
 
@@ -402,14 +401,28 @@ static int sock_set_timeout(long *timeo_p, sockptr_t optval, int optlen,
 			return -EINVAL;
 		if (copy_from_sockptr(&old_tv, optval, sizeof(old_tv)))
 			return -EFAULT;
-		tv.tv_sec = old_tv.tv_sec;
-		tv.tv_usec = old_tv.tv_usec;
+		tv->tv_sec = old_tv.tv_sec;
+		tv->tv_usec = old_tv.tv_usec;
 	} else {
-		if (optlen < sizeof(tv))
+		if (optlen < sizeof(*tv))
 			return -EINVAL;
-		if (copy_from_sockptr(&tv, optval, sizeof(tv)))
+		if (copy_from_sockptr(tv, optval, sizeof(*tv)))
 			return -EFAULT;
 	}
+
+	return 0;
+}
+EXPORT_SYMBOL(sock_copy_user_timeval);
+
+static int sock_set_timeout(long *timeo_p, sockptr_t optval, int optlen,
+			    bool old_timeval)
+{
+	struct __kernel_sock_timeval tv;
+	int err = sock_copy_user_timeval(&tv, optval, optlen, old_timeval);
+
+	if (err)
+		return err;
+
 	if (tv.tv_usec < 0 || tv.tv_usec >= USEC_PER_SEC)
 		return -EDOM;
 
