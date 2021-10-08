@@ -61,6 +61,12 @@ static inline int reg_read(struct pasemi_smbus *smbus, int reg)
 #define TXFIFO_WR(smbus, reg)	reg_write((smbus), REG_MTXFIFO, (reg))
 #define RXFIFO_RD(smbus)	reg_read((smbus), REG_MRXFIFO)
 
+static void pasemi_reset(struct pasemi_smbus *smbus)
+{
+	reg_write(smbus, REG_CTL, (CTL_MTR | CTL_MRR |
+		  (CLK_100K_DIV & CTL_CLK_M)));
+}
+
 static void pasemi_smb_clear(struct pasemi_smbus *smbus)
 {
 	unsigned int status;
@@ -135,8 +141,7 @@ static int pasemi_i2c_xfer_msg(struct i2c_adapter *adapter,
 	return 0;
 
  reset_out:
-	reg_write(smbus, REG_CTL, (CTL_MTR | CTL_MRR |
-		  (CLK_100K_DIV & CTL_CLK_M)));
+	pasemi_reset(smbus);
 	return err;
 }
 
@@ -302,8 +307,7 @@ static int pasemi_smb_xfer(struct i2c_adapter *adapter,
 	return 0;
 
  reset_out:
-	reg_write(smbus, REG_CTL, (CTL_MTR | CTL_MRR |
-		  (CLK_100K_DIV & CTL_CLK_M)));
+	pasemi_reset(smbus);
 	return err;
 }
 
@@ -335,8 +339,7 @@ int pasemi_i2c_common_probe(struct pasemi_smbus *smbus)
 	/* set up the sysfs linkage to our parent device */
 	smbus->adapter.dev.parent = smbus->dev;
 
-	reg_write(smbus, REG_CTL, (CTL_MTR | CTL_MRR |
-		  (CLK_100K_DIV & CTL_CLK_M)));
+	pasemi_reset(smbus);
 
 	error = i2c_add_adapter(&smbus->adapter);
 	if (error)
