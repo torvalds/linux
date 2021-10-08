@@ -15,15 +15,7 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 
-static struct pci_driver pasemi_smb_driver;
-
-struct pasemi_smbus {
-	struct device           *dev;
-	struct i2c_adapter	 adapter;
-	void __iomem		*ioaddr;
-	unsigned long		 base;
-	int			 size;
-};
+#include "i2c-pasemi-core.h"
 
 /* Register offsets */
 #define REG_MTXFIFO	0x00
@@ -329,7 +321,7 @@ static const struct i2c_algorithm smbus_algorithm = {
 	.functionality	= pasemi_smb_func,
 };
 
-static int pasemi_i2c_common_probe(struct pasemi_smbus *smbus)
+int pasemi_i2c_common_probe(struct pasemi_smbus *smbus)
 {
 	int error;
 
@@ -352,79 +344,3 @@ static int pasemi_i2c_common_probe(struct pasemi_smbus *smbus)
 
 	return 0;
 }
-
-static int pasemi_smb_probe(struct pci_dev *dev,
-				      const struct pci_device_id *id)
-{
-	struct pasemi_smbus *smbus;
-	int error;
-
-	if (!(pci_resource_flags(dev, 0) & IORESOURCE_IO))
-		return -ENODEV;
-
-	smbus = kzalloc(sizeof(struct pasemi_smbus), GFP_KERNEL);
-	if (!smbus)
-		return -ENOMEM;
-
-	smbus->dev = &dev->dev;
-	smbus->base = pci_resource_start(dev, 0);
-	smbus->size = pci_resource_len(dev, 0);
-
-	if (!request_region(smbus->base, smbus->size,
-			    pasemi_smb_driver.name)) {
-		error = -EBUSY;
-		goto out_kfree;
-	}
-
-	smbus->ioaddr = pci_iomap(dev, 0, 0);
-	if (!smbus->ioaddr) {
-		error = -EBUSY;
-		goto out_release_region;
-	}
-
-	int error = pasemi_i2c_common_probe(smbus);
-	if (error)
-		goto out_ioport_unmap;
-
-	pci_set_drvdata(dev, smbus);
-
-	return 0;
-
- out_ioport_unmap:
-	pci_iounmap(dev, smbus->ioaddr);
- out_release_region:
-	release_region(smbus->base, smbus->size);
- out_kfree:
-	kfree(smbus);
-	return error;
-}
-
-static void pasemi_smb_remove(struct pci_dev *dev)
-{
-	struct pasemi_smbus *smbus = pci_get_drvdata(dev);
-
-	i2c_del_adapter(&smbus->adapter);
-	pci_iounmap(dev, smbus->ioaddr);
-	release_region(smbus->base, smbus->size);
-	kfree(smbus);
-}
-
-static const struct pci_device_id pasemi_smb_ids[] = {
-	{ PCI_DEVICE(0x1959, 0xa003) },
-	{ 0, }
-};
-
-MODULE_DEVICE_TABLE(pci, pasemi_smb_ids);
-
-static struct pci_driver pasemi_smb_driver = {
-	.name		= "i2c-pasemi",
-	.id_table	= pasemi_smb_ids,
-	.probe		= pasemi_smb_probe,
-	.remove		= pasemi_smb_remove,
-};
-
-module_pci_driver(pasemi_smb_driver);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR ("Olof Johansson <olof@lixom.net>");
-MODULE_DESCRIPTION("PA Semi PWRficient SMBus driver");
