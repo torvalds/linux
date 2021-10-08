@@ -31,7 +31,6 @@
 #include "dc_link_dp.h"
 #include "dpcd_defs.h"
 #include "link_hwss.h"
-#include "inc/link_dpcd.h"
 #include "dm_helpers.h"
 #include "dmub/inc/dmub_cmd.h"
 #include "inc/link_dpcd.h"
