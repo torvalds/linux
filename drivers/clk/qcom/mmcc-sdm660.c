@@ -2560,6 +2560,8 @@ static struct clk_branch video_subcore0_clk = {
 
 static struct gdsc venus_gdsc = {
 	.gdscr = 0x1024,
+	.cxcs = (unsigned int[]){ 0x1028, 0x1034, 0x1048 },
+	.cxc_count = 3,
 	.pd = {
 		.name = "venus",
 	},
