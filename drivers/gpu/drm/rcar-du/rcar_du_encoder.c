@@ -86,17 +86,25 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 	}
 
 	/*
-	 * Create and initialize the encoder. On Gen3 skip the LVDS1 output if
+	 * Create and initialize the encoder. On Gen3, skip the LVDS1 output if
 	 * the LVDS1 encoder is used as a companion for LVDS0 in dual-link
-	 * mode.
+	 * mode, or any LVDS output if it isn't connected. The latter may happen
+	 * on D3 or E3 as the LVDS encoders are needed to provide the pixel
+	 * clock to the DU, even when the LVDS outputs are not used.
 	 */
-	if (rcdu->info->gen >= 3 && output == RCAR_DU_OUTPUT_LVDS1) {
-		if (rcar_lvds_dual_link(bridge))
+	if (rcdu->info->gen >= 3) {
+		if (output == RCAR_DU_OUTPUT_LVDS1 &&
+		    rcar_lvds_dual_link(bridge))
+			return -ENOLINK;
+
+		if ((output == RCAR_DU_OUTPUT_LVDS0 ||
+		     output == RCAR_DU_OUTPUT_LVDS1) &&
+		    !rcar_lvds_is_connected(bridge))
 			return -ENOLINK;
 	}
 
-	dev_dbg(rcdu->dev, "initializing encoder %pOF for output %u\n",
-		enc_node, output);
+	dev_dbg(rcdu->dev, "initializing encoder %pOF for output %s\n",
+		enc_node, rcar_du_output_name(output));
 
 	renc = drmm_encoder_alloc(&rcdu->ddev, struct rcar_du_encoder, base,
 				  &rcar_du_encoder_funcs, DRM_MODE_ENCODER_NONE,
@@ -110,8 +118,9 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 	ret = drm_bridge_attach(&renc->base, bridge, NULL,
 				DRM_BRIDGE_ATTACH_NO_CONNECTOR);
 	if (ret) {
-		dev_err(rcdu->dev, "failed to attach bridge for output %u\n",
-			output);
+		dev_err(rcdu->dev,
+			"failed to attach bridge %pOF for output %s (%d)\n",
+			bridge->of_node, rcar_du_output_name(output), ret);
 		return ret;
 	}
 
@@ -119,7 +128,8 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 	connector = drm_bridge_connector_init(&rcdu->ddev, &renc->base);
 	if (IS_ERR(connector)) {
 		dev_err(rcdu->dev,
-			"failed to created connector for output %u\n", output);
+			"failed to created connector for output %s (%ld)\n",
+			rcar_du_output_name(output), PTR_ERR(connector));
 		return PTR_ERR(connector);
 	}
 

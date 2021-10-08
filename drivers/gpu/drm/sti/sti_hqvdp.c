@@ -927,12 +927,12 @@ static void sti_hqvdp_start_xp70(struct sti_hqvdp *hqvdp)
 
 	header = (struct fw_header *)firmware->data;
 	if (firmware->size < sizeof(*header)) {
-		DRM_ERROR("Invalid firmware size (%d)\n", firmware->size);
+		DRM_ERROR("Invalid firmware size (%zu)\n", firmware->size);
 		goto out;
 	}
 	if ((sizeof(*header) + header->rd_size + header->wr_size +
 		header->pmem_size + header->dmem_size) != firmware->size) {
-		DRM_ERROR("Invalid fmw structure (%d+%d+%d+%d+%d != %d)\n",
+		DRM_ERROR("Invalid fmw structure (%zu+%d+%d+%d+%d != %zu)\n",
 			  sizeof(*header), header->rd_size, header->wr_size,
 			  header->pmem_size, header->dmem_size,
 			  firmware->size);
