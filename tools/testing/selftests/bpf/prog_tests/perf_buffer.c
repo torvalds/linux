@@ -43,7 +43,7 @@ int trigger_on_cpu(int cpu)
 	return 0;
 }
 
-void test_perf_buffer(void)
+void serial_test_perf_buffer(void)
 {
 	int err, on_len, nr_on_cpus = 0, nr_cpus, i;
 	struct perf_buffer_opts pb_opts = {};

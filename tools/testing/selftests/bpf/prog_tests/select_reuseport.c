@@ -858,7 +858,7 @@ out:
 	cleanup();
 }
 
-void test_select_reuseport(void)
+void serial_test_select_reuseport(void)
 {
 	saved_tcp_fo = read_int_sysctl(TCP_FO_SYSCTL);
 	if (saved_tcp_fo < 0)

@@ -73,7 +73,7 @@ static void close_perf_events(void)
 	free(pfd_array);
 }
 
-void test_get_branch_snapshot(void)
+void serial_test_get_branch_snapshot(void)
 {
 	struct get_branch_snapshot *skel = NULL;
 	int err;
