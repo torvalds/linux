@@ -10273,8 +10273,7 @@ static int tg3_reset_hw(struct tg3 *tp, bool reset_phy)
 
 	if (tg3_asic_rev(tp) == ASIC_REV_5705 &&
 	    tg3_chip_rev_id(tp) != CHIPREV_ID_5705_A0) {
-		if (tg3_flag(tp, TSO_CAPABLE) &&
-		    tg3_asic_rev(tp) == ASIC_REV_5705) {
+		if (tg3_flag(tp, TSO_CAPABLE)) {
 			rdmac_mode |= RDMAC_MODE_FIFO_SIZE_128;
 		} else if (!(tr32(TG3PCI_PCISTATE) & PCISTATE_BUS_SPEED_HIGH) &&
 			   !tg3_flag(tp, IS_5788)) {
