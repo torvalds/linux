@@ -116,12 +116,16 @@ cleanup()
 	forwarding_restore
 }
 
-ecn_payload_get()
+ipip_payload_get()
 {
+	local flags=$1; shift
+	local key=$1; shift
+
 	p=$(:
-		)"0"$(		              : GRE flags
+		)"$flags"$(		      : GRE flags
 	        )"0:00:"$(                    : Reserved + version
 		)"08:00:"$(		      : ETH protocol type
+		)"$key"$( 		      : Key
 		)"4"$(	                      : IP version
 		)"5:"$(                       : IHL
 		)"00:"$(                      : IP TOS
@@ -135,6 +139,11 @@ ecn_payload_get()
 		)"C0:00:02:01:"$(             : IP daddr : 192.0.2.1
 		)
 	echo $p
+}
+
+ecn_payload_get()
+{
+	echo $(ipip_payload_get "0")
 }
 
 ecn_decap_test()
@@ -169,31 +178,6 @@ ecn_decap_test()
 
 	kill $mz_pid && wait $mz_pid &> /dev/null
 	tc filter del dev $swp1 egress protocol ip pref 1 handle 101 flower
-}
-
-ipip_payload_get()
-{
-	local flags=$1; shift
-	local key=$1; shift
-
-	p=$(:
-		)"$flags"$(		      : GRE flags
-	        )"0:00:"$(                    : Reserved + version
-		)"08:00:"$(		      : ETH protocol type
-		)"$key"$( 		      : Key
-		)"4"$(	                      : IP version
-		)"5:"$(                       : IHL
-		)"00:"$(                      : IP TOS
-		)"00:14:"$(                   : IP total length
-		)"00:00:"$(                   : IP identification
-		)"20:00:"$(                   : IP flags + frag off
-		)"30:"$(                      : IP TTL
-		)"01:"$(                      : IP proto
-		)"E7:E6:"$(    	              : IP header csum
-		)"C0:00:01:01:"$(             : IP saddr : 192.0.1.1
-		)"C0:00:02:01:"$(             : IP daddr : 192.0.2.1
-		)
-	echo $p
 }
 
 no_matching_tunnel_test()
