@@ -16,6 +16,10 @@ DECLARE_HOOK(android_vh_arch_set_freq_scale,
 		 unsigned long max, unsigned long *scale),
 	TP_ARGS(cpus, freq, max, scale));
 
+DECLARE_HOOK(android_vh_update_topology_flags_workfn,
+	TP_PROTO(void *unused),
+	TP_ARGS(unused));
+
 #endif /* _TRACE_HOOK_TOPOLOGY_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>
