@@ -889,8 +889,7 @@ static int __init ima_init_arch_policy(void)
 /**
  * ima_init_policy - initialize the default measure rules.
  *
- * ima_rules points to either the ima_default_rules or the
- * the new ima_policy_rules.
+ * ima_rules points to either the ima_default_rules or the new ima_policy_rules.
  */
 void __init ima_init_policy(void)
 {
