@@ -223,7 +223,8 @@ decap_error_test()
 	no_matching_tunnel_test "Decap error: Source IP check failed" \
 		192.0.2.68 "0"
 	no_matching_tunnel_test \
-		"Decap error: Key exists but was not expected" $sip "2" ":E9:"
+		"Decap error: Key exists but was not expected" $sip "2" \
+		"00:00:00:E9:"
 
 	# Destroy the tunnel and create new one with key
 	__addr_add_del g1 del 192.0.2.65/32
@@ -235,7 +236,8 @@ decap_error_test()
 	no_matching_tunnel_test \
 		"Decap error: Key does not exist but was expected" $sip "0"
 	no_matching_tunnel_test \
-		"Decap error: Packet has a wrong key field" $sip "2" "E8:"
+		"Decap error: Packet has a wrong key field" $sip "2" \
+		"00:00:00:E8:"
 }
 
 trap cleanup EXIT
