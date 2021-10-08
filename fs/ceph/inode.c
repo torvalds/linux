@@ -2103,12 +2103,14 @@ int __ceph_setattr(struct inode *inode, struct iattr *attr)
 		loff_t isize = i_size_read(inode);
 
 		dout("setattr %p size %lld -> %lld\n", inode, isize, attr->ia_size);
-		if ((issued & CEPH_CAP_FILE_EXCL) && attr->ia_size > isize) {
-			i_size_write(inode, attr->ia_size);
-			inode->i_blocks = calc_inode_blocks(attr->ia_size);
-			ci->i_reported_size = attr->ia_size;
-			dirtied |= CEPH_CAP_FILE_EXCL;
-			ia_valid |= ATTR_MTIME;
+		if ((issued & CEPH_CAP_FILE_EXCL) && attr->ia_size >= isize) {
+			if (attr->ia_size > isize) {
+				i_size_write(inode, attr->ia_size);
+				inode->i_blocks = calc_inode_blocks(attr->ia_size);
+				ci->i_reported_size = attr->ia_size;
+				dirtied |= CEPH_CAP_FILE_EXCL;
+				ia_valid |= ATTR_MTIME;
+			}
 		} else if ((issued & CEPH_CAP_FILE_SHARED) == 0 ||
 			   attr->ia_size != isize) {
 			req->r_args.setattr.size = cpu_to_le64(attr->ia_size);
