@@ -207,6 +207,12 @@ void blk_mq_put_tag(struct blk_mq_tags *tags, struct blk_mq_ctx *ctx,
 	}
 }
 
+void blk_mq_put_tags(struct blk_mq_tags *tags, int *tag_array, int nr_tags)
+{
+	sbitmap_queue_clear_batch(&tags->bitmap_tags, tags->nr_reserved_tags,
+					tag_array, nr_tags);
+}
+
 struct bt_iter_data {
 	struct blk_mq_hw_ctx *hctx;
 	busy_iter_fn *fn;

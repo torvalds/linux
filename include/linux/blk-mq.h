@@ -728,6 +728,35 @@ static inline void blk_mq_set_request_complete(struct request *rq)
 void blk_mq_start_request(struct request *rq);
 void blk_mq_end_request(struct request *rq, blk_status_t error);
 void __blk_mq_end_request(struct request *rq, blk_status_t error);
+void blk_mq_end_request_batch(struct io_comp_batch *ib);
+
+/*
+ * Only need start/end time stamping if we have iostat or
+ * blk stats enabled, or using an IO scheduler.
+ */
+static inline bool blk_mq_need_time_stamp(struct request *rq)
+{
+	return (rq->rq_flags & (RQF_IO_STAT | RQF_STATS | RQF_ELV));
+}
+
+/*
+ * Batched completions only work when there is no I/O error and no special
+ * ->end_io handler.
+ */
+static inline bool blk_mq_add_to_batch(struct request *req,
+				       struct io_comp_batch *iob, int ioerror,
+				       void (*complete)(struct io_comp_batch *))
+{
+	if (!iob || (req->rq_flags & RQF_ELV) || req->end_io || ioerror)
+		return false;
+	if (!iob->complete)
+		iob->complete = complete;
+	else if (iob->complete != complete)
+		return false;
+	iob->need_ts |= blk_mq_need_time_stamp(req);
+	rq_list_add(&iob->req_list, req);
+	return true;
+}
 
 void blk_mq_requeue_request(struct request *rq, bool kick_requeue_list);
 void blk_mq_kick_requeue_list(struct request_queue *q);

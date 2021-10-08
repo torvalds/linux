@@ -300,15 +300,6 @@ void blk_mq_wake_waiters(struct request_queue *q)
 			blk_mq_tag_wakeup_all(hctx->tags, true);
 }
 
-/*
- * Only need start/end time stamping if we have iostat or
- * blk stats enabled, or using an IO scheduler.
- */
-static inline bool blk_mq_need_time_stamp(struct request *rq)
-{
-	return (rq->rq_flags & (RQF_IO_STAT | RQF_STATS | RQF_ELV));
-}
-
 static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 		unsigned int tag, u64 alloc_time_ns)
 {
@@ -768,19 +759,21 @@ bool blk_update_request(struct request *req, blk_status_t error,
 }
 EXPORT_SYMBOL_GPL(blk_update_request);
 
+static inline void __blk_mq_end_request_acct(struct request *rq, u64 now)
+{
+	if (rq->rq_flags & RQF_STATS) {
+		blk_mq_poll_stats_start(rq->q);
+		blk_stat_add(rq, now);
+	}
+
+	blk_mq_sched_completed_request(rq, now);
+	blk_account_io_done(rq, now);
+}
+
 inline void __blk_mq_end_request(struct request *rq, blk_status_t error)
 {
-	if (blk_mq_need_time_stamp(rq)) {
-		u64 now = ktime_get_ns();
-
-		if (rq->rq_flags & RQF_STATS) {
-			blk_mq_poll_stats_start(rq->q);
-			blk_stat_add(rq, now);
-		}
-
-		blk_mq_sched_completed_request(rq, now);
-		blk_account_io_done(rq, now);
-	}
+	if (blk_mq_need_time_stamp(rq))
+		__blk_mq_end_request_acct(rq, ktime_get_ns());
 
 	if (rq->end_io) {
 		rq_qos_done(rq->q, rq);
@@ -798,6 +791,57 @@ void blk_mq_end_request(struct request *rq, blk_status_t error)
 	__blk_mq_end_request(rq, error);
 }
 EXPORT_SYMBOL(blk_mq_end_request);
+
+#define TAG_COMP_BATCH		32
+
+static inline void blk_mq_flush_tag_batch(struct blk_mq_hw_ctx *hctx,
+					  int *tag_array, int nr_tags)
+{
+	struct request_queue *q = hctx->queue;
+
+	blk_mq_put_tags(hctx->tags, tag_array, nr_tags);
+	percpu_ref_put_many(&q->q_usage_counter, nr_tags);
+}
+
+void blk_mq_end_request_batch(struct io_comp_batch *iob)
+{
+	int tags[TAG_COMP_BATCH], nr_tags = 0;
+	struct blk_mq_hw_ctx *last_hctx = NULL;
+	struct request *rq;
+	u64 now = 0;
+
+	if (iob->need_ts)
+		now = ktime_get_ns();
+
+	while ((rq = rq_list_pop(&iob->req_list)) != NULL) {
+		prefetch(rq->bio);
+		prefetch(rq->rq_next);
+
+		blk_update_request(rq, BLK_STS_OK, blk_rq_bytes(rq));
+		if (iob->need_ts)
+			__blk_mq_end_request_acct(rq, now);
+
+		WRITE_ONCE(rq->state, MQ_RQ_IDLE);
+		if (!refcount_dec_and_test(&rq->ref))
+			continue;
+
+		blk_crypto_free_request(rq);
+		blk_pm_mark_last_busy(rq);
+		rq_qos_done(rq->q, rq);
+
+		if (nr_tags == TAG_COMP_BATCH ||
+		    (last_hctx && last_hctx != rq->mq_hctx)) {
+			blk_mq_flush_tag_batch(last_hctx, tags, nr_tags);
+			nr_tags = 0;
+		}
+		tags[nr_tags++] = rq->tag;
+		last_hctx = rq->mq_hctx;
+	}
+
+	if (nr_tags)
+		blk_mq_flush_tag_batch(last_hctx, tags, nr_tags);
+}
+EXPORT_SYMBOL_GPL(blk_mq_end_request_batch);
 
 static void blk_complete_reqs(struct llist_head *list)
 {
