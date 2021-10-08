@@ -63,4 +63,6 @@ int rdma_counter_get_mode(struct ib_device *dev, u32 port,
 			  enum rdma_nl_counter_mode *mode,
 			  enum rdma_nl_counter_mask *mask);
 
+int rdma_counter_modify(struct ib_device *dev, u32 port,
+			unsigned int index, bool enable);
 #endif /* _RDMA_COUNTER_H_ */
