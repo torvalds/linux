@@ -333,10 +333,14 @@ static void dma_resv_iter_restart_unlocked(struct dma_resv_iter *cursor)
 {
 	cursor->seq = read_seqcount_begin(&cursor->obj->seq);
 	cursor->index = -1;
-	if (cursor->all_fences)
+	cursor->shared_count = 0;
+	if (cursor->all_fences) {
 		cursor->fences = dma_resv_shared_list(cursor->obj);
-	else
+		if (cursor->fences)
+			cursor->shared_count = cursor->fences->shared_count;
+	} else {
 		cursor->fences = NULL;
+	}
 	cursor->is_restarted = true;
 }
 
@@ -363,7 +367,7 @@ static void dma_resv_iter_walk_unlocked(struct dma_resv_iter *cursor)
 				continue;
 
 		} else if (!cursor->fences ||
-			   cursor->index >= cursor->fences->shared_count) {
+			   cursor->index >= cursor->shared_count) {
 			cursor->fence = NULL;
 			break;
 
@@ -499,10 +503,8 @@ int dma_resv_copy_fences(struct dma_resv *dst, struct dma_resv *src)
 			dma_resv_list_free(list);
 			dma_fence_put(excl);
 
-			if (cursor.fences) {
-				unsigned int cnt = cursor.fences->shared_count;
-
-				list = dma_resv_list_alloc(cnt);
+			if (cursor.shared_count) {
+				list = dma_resv_list_alloc(cursor.shared_count);
 				if (!list) {
 					dma_resv_iter_end(&cursor);
 					return -ENOMEM;
@@ -573,7 +575,7 @@ int dma_resv_get_fences(struct dma_resv *obj, struct dma_fence **fence_excl,
 			if (fence_excl)
 				dma_fence_put(*fence_excl);
 
-			count = cursor.fences ? cursor.fences->shared_count : 0;
+			count = cursor.shared_count;
 			count += fence_excl ? 0 : 1;
 
 			/* Eventually re-allocate the array */

@@ -170,8 +170,11 @@ struct dma_resv_iter {
 	/** @index: index into the shared fences */
 	unsigned int index;
 
-	/** @fences: the shared fences */
+	/** @fences: the shared fences; private, *MUST* not dereference  */
 	struct dma_resv_list *fences;
+
+	/** @shared_count: number of shared fences */
+	unsigned int shared_count;
 
 	/** @is_restarted: true if this is the first returned fence */
 	bool is_restarted;
