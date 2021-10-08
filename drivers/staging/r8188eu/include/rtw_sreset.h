@@ -21,10 +21,6 @@ struct sreset_priv {
 #define	USB_VEN_REQ_CMD_FAIL	BIT(0)
 #define	USB_READ_PORT_FAIL		BIT(1)
 #define	USB_WRITE_PORT_FAIL		BIT(2)
-#define	WIFI_MAC_TXDMA_ERROR	BIT(3)
-#define   WIFI_TX_HANG				BIT(4)
-#define	WIFI_RX_HANG				BIT(5)
-#define		WIFI_IF_NOT_EXIST			BIT(6)
 
 void sreset_init_value(struct adapter *padapter);
 void sreset_reset_value(struct adapter *padapter);
