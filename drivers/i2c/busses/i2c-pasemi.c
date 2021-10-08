@@ -20,6 +20,7 @@ static struct pci_driver pasemi_smb_driver;
 struct pasemi_smbus {
 	struct pci_dev		*dev;
 	struct i2c_adapter	 adapter;
+	void __iomem		*ioaddr;
 	unsigned long		 base;
 	int			 size;
 };
@@ -53,13 +54,13 @@ static inline void reg_write(struct pasemi_smbus *smbus, int reg, int val)
 {
 	dev_dbg(&smbus->dev->dev, "smbus write reg %lx val %08x\n",
 		smbus->base + reg, val);
-	outl(val, smbus->base + reg);
+	iowrite32(val, smbus->ioaddr + reg);
 }
 
 static inline int reg_read(struct pasemi_smbus *smbus, int reg)
 {
 	int ret;
-	ret = inl(smbus->base + reg);
+	ret = ioread32(smbus->ioaddr + reg);
 	dev_dbg(&smbus->dev->dev, "smbus read reg %lx val %08x\n",
 		smbus->base + reg, ret);
 	return ret;
@@ -351,6 +352,12 @@ static int pasemi_smb_probe(struct pci_dev *dev,
 		goto out_kfree;
 	}
 
+	smbus->ioaddr = pci_iomap(dev, 0, 0);
+	if (!smbus->ioaddr) {
+		error = -EBUSY;
+		goto out_release_region;
+	}
+
 	smbus->adapter.owner = THIS_MODULE;
 	snprintf(smbus->adapter.name, sizeof(smbus->adapter.name),
 		 "PA Semi SMBus adapter at 0x%lx", smbus->base);
@@ -366,12 +373,14 @@ static int pasemi_smb_probe(struct pci_dev *dev,
 
 	error = i2c_add_adapter(&smbus->adapter);
 	if (error)
-		goto out_release_region;
+		goto out_ioport_unmap;
 
 	pci_set_drvdata(dev, smbus);
 
 	return 0;
 
+ out_ioport_unmap:
+	pci_iounmap(dev, smbus->ioaddr);
  out_release_region:
 	release_region(smbus->base, smbus->size);
  out_kfree:
@@ -384,6 +393,7 @@ static void pasemi_smb_remove(struct pci_dev *dev)
 	struct pasemi_smbus *smbus = pci_get_drvdata(dev);
 
 	i2c_del_adapter(&smbus->adapter);
+	pci_iounmap(dev, smbus->ioaddr);
 	release_region(smbus->base, smbus->size);
 	kfree(smbus);
 }
