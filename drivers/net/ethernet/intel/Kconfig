@@ -313,6 +313,20 @@ config ICE
 	  To compile this driver as a module, choose M here. The module
 	  will be called ice.
 
+config ICE_SWITCHDEV
+	bool "Switchdev Support"
+	default y
+	depends on ICE && NET_SWITCHDEV
+	help
+	  Switchdev support provides internal SRIOV packet steering and switching.
+
+	  To enable it on running kernel use devlink tool:
+	  #devlink dev eswitch set pci/0000:XX:XX.X mode switchdev
+
+	  Say Y here if you want to use Switchdev in the driver.
+
+	  If unsure, say N.
+
 config FM10K
 	tristate "Intel(R) FM10000 Ethernet Switch Host Interface Support"
 	default n
