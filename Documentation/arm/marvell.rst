@@ -130,6 +130,25 @@ EBU Armada family
   Core:
 	Sheeva ARMv7 compatible PJ4B
 
+  Armada XP Flavors:
+        - MV78230
+        - MV78260
+        - MV78460
+
+    NOTE:
+	not to be confused with the non-SMP 78xx0 SoCs
+
+    - Product infos:   https://web.archive.org/web/20150101215721/http://www.marvell.com/embedded-processors/armada-xp/
+    - Product Brief:   https://web.archive.org/web/20121021173528/http://www.marvell.com/embedded-processors/armada-xp/assets/Marvell-ArmadaXP-SoC-product%20brief.pdf
+    - Functional Spec: https://web.archive.org/web/20180829171131/http://www.marvell.com/embedded-processors/armada-xp/assets/ARMADA-XP-Functional-SpecDatasheet.pdf
+    - Hardware Specs:
+        - https://web.archive.org/web/20141127013651/http://www.marvell.com/embedded-processors/armada-xp/assets/HW_MV78230_OS.PDF
+        - https://web.archive.org/web/20141222000224/http://www.marvell.com/embedded-processors/armada-xp/assets/HW_MV78260_OS.PDF
+        - https://web.archive.org/web/20141222000230/http://www.marvell.com/embedded-processors/armada-xp/assets/HW_MV78460_OS.PDF
+
+  Core:
+	Sheeva ARMv7 compatible Dual-core or Quad-core PJ4B-MP
+
   Armada 375 Flavors:
 	- 88F6720
 
@@ -165,32 +184,6 @@ EBU Armada family
 
   Core:
 	ARM Cortex-A9
-
-  Armada XP Flavors:
-        - MV78230
-        - MV78260
-        - MV78460
-
-    NOTE:
-	not to be confused with the non-SMP 78xx0 SoCs
-
-    Product infos:
-        https://web.archive.org/web/20150101215721/http://www.marvell.com/embedded-processors/armada-xp/
-
-    Product Brief:
-	https://web.archive.org/web/20121021173528/http://www.marvell.com/embedded-processors/armada-xp/assets/Marvell-ArmadaXP-SoC-product%20brief.pdf
-
-    Functional Spec:
-	https://web.archive.org/web/20180829171131/http://www.marvell.com/embedded-processors/armada-xp/assets/ARMADA-XP-Functional-SpecDatasheet.pdf
-
-    - Hardware Specs:
-
-        - https://web.archive.org/web/20141127013651/http://www.marvell.com/embedded-processors/armada-xp/assets/HW_MV78230_OS.PDF
-        - https://web.archive.org/web/20141222000224/http://www.marvell.com/embedded-processors/armada-xp/assets/HW_MV78260_OS.PDF
-        - https://web.archive.org/web/20141222000230/http://www.marvell.com/embedded-processors/armada-xp/assets/HW_MV78460_OS.PDF
-
-  Core:
-	Sheeva ARMv7 compatible Dual-core or Quad-core PJ4B-MP
 
   Linux kernel mach directory:
 	arch/arm/mach-mvebu
