@@ -356,7 +356,12 @@ static inline bool btrfs_inode_in_log(struct btrfs_inode *inode, u64 generation)
 
 struct btrfs_dio_private {
 	struct inode *inode;
-	u64 logical_offset;
+
+	/*
+	 * Since DIO can use anonymous page, we cannot use page_offset() to
+	 * grab the file offset, thus need a dedicated member for file offset.
+	 */
+	u64 file_offset;
 	u64 disk_bytenr;
 	/* Used for bio::bi_size */
 	u32 bytes;

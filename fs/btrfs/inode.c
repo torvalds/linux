@@ -8055,13 +8055,13 @@ static void btrfs_dio_private_put(struct btrfs_dio_private *dip)
 
 	if (btrfs_op(dip->dio_bio) == BTRFS_MAP_WRITE) {
 		__endio_write_update_ordered(BTRFS_I(dip->inode),
-					     dip->logical_offset,
+					     dip->file_offset,
 					     dip->bytes,
 					     !dip->dio_bio->bi_status);
 	} else {
 		unlock_extent(&BTRFS_I(dip->inode)->io_tree,
-			      dip->logical_offset,
-			      dip->logical_offset + dip->bytes - 1);
+			      dip->file_offset,
+			      dip->file_offset + dip->bytes - 1);
 	}
 
 	bio_endio(dip->dio_bio);
@@ -8176,7 +8176,7 @@ static void btrfs_end_dio_bio(struct bio *bio)
 	if (err)
 		dip->dio_bio->bi_status = err;
 
-	btrfs_record_physical_zoned(dip->inode, dip->logical_offset, bio);
+	btrfs_record_physical_zoned(dip->inode, dip->file_offset, bio);
 
 	bio_put(bio);
 	btrfs_dio_private_put(dip);
@@ -8218,7 +8218,7 @@ static inline blk_status_t btrfs_submit_dio_bio(struct bio *bio,
 	} else {
 		u64 csum_offset;
 
-		csum_offset = file_offset - dip->logical_offset;
+		csum_offset = file_offset - dip->file_offset;
 		csum_offset >>= fs_info->sectorsize_bits;
 		csum_offset *= fs_info->csum_size;
 		btrfs_bio(bio)->csum = dip->csums + csum_offset;
@@ -8256,7 +8256,7 @@ static struct btrfs_dio_private *btrfs_create_dio_private(struct bio *dio_bio,
 		return NULL;
 
 	dip->inode = inode;
-	dip->logical_offset = file_offset;
+	dip->file_offset = file_offset;
 	dip->bytes = dio_bio->bi_iter.bi_size;
 	dip->disk_bytenr = dio_bio->bi_iter.bi_sector << 9;
 	dip->dio_bio = dio_bio;
