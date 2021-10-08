@@ -269,7 +269,7 @@ static int pci_dev_str_match_path(struct pci_dev *dev, const char *path,
 				  const char **endptr)
 {
 	int ret;
-	int seg, bus, slot, func;
+	unsigned int seg, bus, slot, func;
 	char *wpath, *p;
 	char end;
 
