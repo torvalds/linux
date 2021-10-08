@@ -193,6 +193,7 @@ static enum dpia_set_config_ts convert_trng_ptn_to_trng_stg(enum dc_dp_training_
 		ts = DPIA_TS_TPS4;
 		break;
 	default:
+		ts = DPIA_TS_DPRX_DONE;
 		ASSERT(false); /* TPS not supported by helper function. */
 		break;
 	}
