@@ -578,7 +578,7 @@ static int br2684_regvcc(struct atm_vcc *atmvcc, void __user * arg)
 	if (list_empty(&brdev->brvccs) && !brdev->mac_was_set) {
 		unsigned char *esi = atmvcc->dev->esi;
 		if (esi[0] | esi[1] | esi[2] | esi[3] | esi[4] | esi[5])
-			memcpy(net_dev->dev_addr, esi, net_dev->addr_len);
+			dev_addr_set(net_dev, esi);
 		else
 			net_dev->dev_addr[2] = 1;
 	}

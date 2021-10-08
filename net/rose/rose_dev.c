@@ -69,7 +69,7 @@ static int rose_set_mac_address(struct net_device *dev, void *addr)
 		rose_del_loopback_node((rose_address *)dev->dev_addr);
 	}
 
-	memcpy(dev->dev_addr, sa->sa_data, dev->addr_len);
+	dev_addr_set(dev, sa->sa_data);
 
 	return 0;
 }

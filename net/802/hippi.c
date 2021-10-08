@@ -121,7 +121,7 @@ int hippi_mac_addr(struct net_device *dev, void *p)
 	struct sockaddr *addr = p;
 	if (netif_running(dev))
 		return -EBUSY;
-	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+	dev_addr_set(dev, addr->sa_data);
 	return 0;
 }
 EXPORT_SYMBOL(hippi_mac_addr);
