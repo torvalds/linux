@@ -482,6 +482,8 @@ struct queue_properties {
 			    (q).queue_percent > 0 &&	\
 			    !(q).is_evicted)
 
+struct mqd_update_info;
+
 /**
  * struct queue
  *

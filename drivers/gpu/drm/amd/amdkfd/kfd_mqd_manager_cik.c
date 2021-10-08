@@ -135,7 +135,7 @@ static void init_mqd(struct mqd_manager *mm, void **mqd,
 	*mqd = m;
 	if (gart_addr)
 		*gart_addr = addr;
-	mm->update_mqd(mm, m, q);
+	mm->update_mqd(mm, m, q, NULL);
 }
 
 static void init_mqd_sdma(struct mqd_manager *mm, void **mqd,
@@ -152,7 +152,7 @@ static void init_mqd_sdma(struct mqd_manager *mm, void **mqd,
 	if (gart_addr)
 		*gart_addr = mqd_mem_obj->gpu_addr;
 
-	mm->update_mqd(mm, m, q);
+	mm->update_mqd(mm, m, q, NULL);
 }
 
 static void free_mqd(struct mqd_manager *mm, void *mqd,
@@ -185,7 +185,8 @@ static int load_mqd_sdma(struct mqd_manager *mm, void *mqd,
 }
 
 static void __update_mqd(struct mqd_manager *mm, void *mqd,
-			struct queue_properties *q, unsigned int atc_bit)
+			struct queue_properties *q, struct mqd_update_info *minfo,
+			unsigned int atc_bit)
 {
 	struct cik_mqd *m;
 
@@ -221,9 +222,10 @@ static void __update_mqd(struct mqd_manager *mm, void *mqd,
 }
 
 static void update_mqd(struct mqd_manager *mm, void *mqd,
-			struct queue_properties *q)
+			struct queue_properties *q,
+			struct mqd_update_info *minfo)
 {
-	__update_mqd(mm, mqd, q, 1);
+	__update_mqd(mm, mqd, q, minfo, 1);
 }
 
 static uint32_t read_doorbell_id(void *mqd)
@@ -234,13 +236,15 @@ static uint32_t read_doorbell_id(void *mqd)
 }
 
 static void update_mqd_hawaii(struct mqd_manager *mm, void *mqd,
-			struct queue_properties *q)
+			struct queue_properties *q,
+			struct mqd_update_info *minfo)
 {
-	__update_mqd(mm, mqd, q, 0);
+	__update_mqd(mm, mqd, q, minfo, 0);
 }
 
 static void update_mqd_sdma(struct mqd_manager *mm, void *mqd,
-				struct queue_properties *q)
+			struct queue_properties *q,
+			struct mqd_update_info *minfo)
 {
 	struct cik_sdma_rlc_registers *m;
 
@@ -318,7 +322,8 @@ static void init_mqd_hiq(struct mqd_manager *mm, void **mqd,
 }
 
 static void update_mqd_hiq(struct mqd_manager *mm, void *mqd,
-				struct queue_properties *q)
+			struct queue_properties *q,
+			struct mqd_update_info *minfo)
 {
 	struct cik_mqd *m;
 

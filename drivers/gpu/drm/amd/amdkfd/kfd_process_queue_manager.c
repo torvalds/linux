@@ -121,7 +121,7 @@ int pqm_set_gws(struct process_queue_manager *pqm, unsigned int qid,
 	pdd->qpd.num_gws = gws ? amdgpu_amdkfd_get_num_gws(dev->kgd) : 0;
 
 	return pqn->q->device->dqm->ops.update_queue(pqn->q->device->dqm,
-							pqn->q);
+							pqn->q, NULL);
 }
 
 void kfd_process_dequeue_from_all_devices(struct kfd_process *p)
@@ -429,7 +429,7 @@ int pqm_update_queue(struct process_queue_manager *pqm, unsigned int qid,
 	pqn->q->properties.priority = p->priority;
 
 	retval = pqn->q->device->dqm->ops.update_queue(pqn->q->device->dqm,
-							pqn->q);
+							pqn->q, NULL);
 	if (retval != 0)
 		return retval;
 
@@ -457,7 +457,7 @@ int pqm_set_cu_mask(struct process_queue_manager *pqm, unsigned int qid,
 	pqn->q->properties.cu_mask = p->cu_mask;
 
 	retval = pqn->q->device->dqm->ops.update_queue(pqn->q->device->dqm,
-							pqn->q);
+							pqn->q, NULL);
 	if (retval != 0)
 		return retval;
 
