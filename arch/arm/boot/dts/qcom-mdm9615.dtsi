@@ -300,7 +300,7 @@
 					pull-up;
 				};
 
-				pmicmpp: mpp@50 {
+				pmicmpp: mpps@50 {
 					compatible = "qcom,pm8018-mpp", "qcom,ssbi-mpp";
 					interrupt-parent = <&pmicintc>;
 					interrupts = <24 IRQ_TYPE_NONE>,
@@ -312,6 +312,7 @@
 					reg = <0x50>;
 					gpio-controller;
 					#gpio-cells = <2>;
+					gpio-ranges = <&pmicmpp 0 0 6>;
 				};
 
 				rtc@11d {
