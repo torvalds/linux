@@ -2686,7 +2686,19 @@ static int ufshcd_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 
 	switch (hba->ufshcd_state) {
 	case UFSHCD_STATE_OPERATIONAL:
+		break;
 	case UFSHCD_STATE_EH_SCHEDULED_NON_FATAL:
+		/*
+		 * SCSI error handler can call ->queuecommand() while UFS error
+		 * handler is in progress. Error interrupts could change the
+		 * state from UFSHCD_STATE_RESET to
+		 * UFSHCD_STATE_EH_SCHEDULED_NON_FATAL. Prevent requests
+		 * being issued in that case.
+		 */
+		if (ufshcd_eh_in_progress(hba)) {
+			err = SCSI_MLQUEUE_HOST_BUSY;
+			goto out;
+		}
 		break;
 	case UFSHCD_STATE_EH_SCHEDULED_FATAL:
 		/*
