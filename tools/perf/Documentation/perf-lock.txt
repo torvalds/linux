@@ -44,7 +44,7 @@ COMMON OPTIONS
 
 -f::
 --force::
-	Don't complan, do it.
+	Don't complain, do it.
 
 REPORT OPTIONS
 --------------

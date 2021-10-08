@@ -126,7 +126,7 @@ int ksmbd_vfs_link(struct ksmbd_work *work,
 int ksmbd_vfs_getattr(struct path *path, struct kstat *stat);
 int ksmbd_vfs_fp_rename(struct ksmbd_work *work, struct ksmbd_file *fp,
 			char *newname);
-int ksmbd_vfs_truncate(struct ksmbd_work *work, const char *name,
+int ksmbd_vfs_truncate(struct ksmbd_work *work,
 		       struct ksmbd_file *fp, loff_t size);
 struct srv_copychunk;
 int ksmbd_vfs_copy_file_ranges(struct ksmbd_work *work,
@@ -152,8 +152,13 @@ int ksmbd_vfs_xattr_stream_name(char *stream_name, char **xattr_stream_name,
 				size_t *xattr_stream_name_size, int s_type);
 int ksmbd_vfs_remove_xattr(struct user_namespace *user_ns,
 			   struct dentry *dentry, char *attr_name);
-int ksmbd_vfs_kern_path(char *name, unsigned int flags, struct path *path,
+int ksmbd_vfs_kern_path(struct ksmbd_work *work,
+			char *name, unsigned int flags, struct path *path,
 			bool caseless);
+struct dentry *ksmbd_vfs_kern_path_create(struct ksmbd_work *work,
+					  const char *name,
+					  unsigned int flags,
+					  struct path *path);
 int ksmbd_vfs_empty_dir(struct ksmbd_file *fp);
 void ksmbd_vfs_set_fadvise(struct file *filp, __le32 option);
 int ksmbd_vfs_zero_data(struct ksmbd_work *work, struct ksmbd_file *fp,

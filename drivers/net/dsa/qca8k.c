@@ -1880,10 +1880,27 @@ qca8k_sw_remove(struct mdio_device *mdiodev)
 	struct qca8k_priv *priv = dev_get_drvdata(&mdiodev->dev);
 	int i;
 
+	if (!priv)
+		return;
+
 	for (i = 0; i < QCA8K_NUM_PORTS; i++)
 		qca8k_port_set_status(priv, i, 0);
 
 	dsa_unregister_switch(priv->ds);
+
+	dev_set_drvdata(&mdiodev->dev, NULL);
+}
+
+static void qca8k_sw_shutdown(struct mdio_device *mdiodev)
+{
+	struct qca8k_priv *priv = dev_get_drvdata(&mdiodev->dev);
+
+	if (!priv)
+		return;
+
+	dsa_switch_shutdown(priv->ds);
+
+	dev_set_drvdata(&mdiodev->dev, NULL);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1940,6 +1957,7 @@ static const struct of_device_id qca8k_of_match[] = {
 static struct mdio_driver qca8kmdio_driver = {
 	.probe  = qca8k_sw_probe,
 	.remove = qca8k_sw_remove,
+	.shutdown = qca8k_sw_shutdown,
 	.mdiodrv.driver = {
 		.name = "qca8k",
 		.of_match_table = qca8k_of_match,

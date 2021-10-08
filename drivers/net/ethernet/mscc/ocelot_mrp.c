@@ -2,7 +2,7 @@
 /* Microsemi Ocelot Switch driver
  *
  * Copyright (c) 2017, 2019 Microsemi Corporation
- * Copyright 2020-2021 NXP Semiconductors
+ * Copyright 2020-2021 NXP
  */
 
 #include <linux/if_bridge.h>

@@ -1292,8 +1292,10 @@ int ionic_lif_addr_add(struct ionic_lif *lif, const u8 *addr)
 	if (err && err != -EEXIST) {
 		/* set the state back to NEW so we can try again later */
 		f = ionic_rx_filter_by_addr(lif, addr);
-		if (f && f->state == IONIC_FILTER_STATE_SYNCED)
+		if (f && f->state == IONIC_FILTER_STATE_SYNCED) {
 			f->state = IONIC_FILTER_STATE_NEW;
+			set_bit(IONIC_LIF_F_FILTER_SYNC_NEEDED, lif->state);
+		}
 
 		spin_unlock_bh(&lif->rx_filters.lock);
 
