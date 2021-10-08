@@ -755,7 +755,7 @@ static void ib_port_release(struct kobject *kobj)
 	for (i = 0; i != ARRAY_SIZE(port->groups); i++)
 		kfree(port->groups[i].attrs);
 	if (port->hw_stats_data)
-		kfree(port->hw_stats_data->stats);
+		rdma_free_hw_stats_struct(port->hw_stats_data->stats);
 	kfree(port->hw_stats_data);
 	kfree(port);
 }
@@ -919,14 +919,14 @@ alloc_hw_stats_device(struct ib_device *ibdev)
 err_free_data:
 	kfree(data);
 err_free_stats:
-	kfree(stats);
+	rdma_free_hw_stats_struct(stats);
 	return ERR_PTR(-ENOMEM);
 }
 
 void ib_device_release_hw_stats(struct hw_stats_device_data *data)
 {
 	kfree(data->group.attrs);
-	kfree(data->stats);
+	rdma_free_hw_stats_struct(data->stats);
 	kfree(data);
 }
 
@@ -1018,7 +1018,7 @@ alloc_hw_stats_port(struct ib_port *port, struct attribute_group *group)
 err_free_data:
 	kfree(data);
 err_free_stats:
-	kfree(stats);
+	rdma_free_hw_stats_struct(stats);
 	return ERR_PTR(-ENOMEM);
 }
 

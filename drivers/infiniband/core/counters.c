@@ -165,7 +165,7 @@ static struct rdma_counter *alloc_and_bind(struct ib_device *dev, u32 port,
 	return counter;
 
 err_mode:
-	kfree(counter->stats);
+	rdma_free_hw_stats_struct(counter->stats);
 err_stats:
 	rdma_restrack_put(&counter->res);
 	kfree(counter);
@@ -186,7 +186,7 @@ static void rdma_counter_free(struct rdma_counter *counter)
 	mutex_unlock(&port_counter->lock);
 
 	rdma_restrack_del(&counter->res);
-	kfree(counter->stats);
+	rdma_free_hw_stats_struct(counter->stats);
 	kfree(counter);
 }
 
@@ -618,7 +618,7 @@ void rdma_counter_init(struct ib_device *dev)
 fail:
 	for (i = port; i >= rdma_start_port(dev); i--) {
 		port_counter = &dev->port_data[port].port_counter;
-		kfree(port_counter->hstats);
+		rdma_free_hw_stats_struct(port_counter->hstats);
 		port_counter->hstats = NULL;
 		mutex_destroy(&port_counter->lock);
 	}
@@ -631,7 +631,7 @@ void rdma_counter_release(struct ib_device *dev)
 
 	rdma_for_each_port(dev, port) {
 		port_counter = &dev->port_data[port].port_counter;
-		kfree(port_counter->hstats);
+		rdma_free_hw_stats_struct(port_counter->hstats);
 		mutex_destroy(&port_counter->lock);
 	}
 }
