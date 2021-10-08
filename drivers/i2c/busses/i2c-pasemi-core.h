@@ -14,6 +14,7 @@ struct pasemi_smbus {
 	void __iomem		*ioaddr;
 	unsigned long		 base;
 	int			 size;
+	unsigned int		 clk_div;
 };
 
 int pasemi_i2c_common_probe(struct pasemi_smbus *smbus);

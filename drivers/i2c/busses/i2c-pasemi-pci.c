@@ -17,6 +17,9 @@
 
 #include "i2c-pasemi-core.h"
 
+#define CLK_100K_DIV	84
+#define CLK_400K_DIV	21
+
 static struct pci_driver pasemi_smb_pci_driver;
 
 static int pasemi_smb_pci_probe(struct pci_dev *dev,
@@ -35,6 +38,7 @@ static int pasemi_smb_pci_probe(struct pci_dev *dev,
 	smbus->dev = &dev->dev;
 	smbus->base = pci_resource_start(dev, 0);
 	smbus->size = pci_resource_len(dev, 0);
+	smbus->clk_div = CLK_100K_DIV;
 
 	if (!request_region(smbus->base, smbus->size,
 			    pasemi_smb_pci_driver.name)) {
