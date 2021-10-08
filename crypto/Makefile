@@ -237,6 +237,7 @@ fips140-objs		:= fips140-module.o fips140-selftests.o crypto-fips.a
 obj-m			+= fips140.o
 
 CFLAGS_fips140-module.o += $(FIPS140_CFLAGS)
+CFLAGS_fips140-selftests.o += $(FIPS140_CFLAGS)
 
 hostprogs-always-y := fips140_gen_hmac
 HOSTLDLIBS_fips140_gen_hmac := -lcrypto -lelf
