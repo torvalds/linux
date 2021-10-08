@@ -1345,7 +1345,7 @@ rtl8366rb_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
 	default:
 		dev_err(smi->dev, "unknown bridge state requested\n");
 		return;
-	};
+	}
 
 	/* Set the same status for the port on all the FIDs */
 	for (i = 0; i < RTL8366RB_NUM_FIDS; i++) {
