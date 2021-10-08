@@ -524,6 +524,26 @@ int eth_platform_get_mac_address(struct device *dev, u8 *mac_addr)
 EXPORT_SYMBOL(eth_platform_get_mac_address);
 
 /**
+ * platform_get_ethdev_address - Set netdev's MAC address from a given device
+ * @dev:	Pointer to the device
+ * @netdev:	Pointer to netdev to write the address to
+ *
+ * Wrapper around eth_platform_get_mac_address() which writes the address
+ * directly to netdev->dev_addr.
+ */
+int platform_get_ethdev_address(struct device *dev, struct net_device *netdev)
+{
+	u8 addr[ETH_ALEN] __aligned(2);
+	int ret;
+
+	ret = eth_platform_get_mac_address(dev, addr);
+	if (!ret)
+		eth_hw_addr_set(netdev, addr);
+	return ret;
+}
+EXPORT_SYMBOL(platform_get_ethdev_address);
+
+/**
  * nvmem_get_mac_address - Obtain the MAC address from an nvmem cell named
  * 'mac-address' associated with given device.
  *
@@ -558,7 +578,6 @@ int nvmem_get_mac_address(struct device *dev, void *addrbuf)
 
 	return 0;
 }
-EXPORT_SYMBOL(nvmem_get_mac_address);
 
 static int fwnode_get_mac_addr(struct fwnode_handle *fwnode,
 			       const char *name, char *addr)

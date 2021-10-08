@@ -1544,7 +1544,7 @@ static int mtk_star_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = eth_platform_get_mac_address(dev, ndev->dev_addr);
+	ret = platform_get_ethdev_address(dev, ndev);
 	if (ret || !is_valid_ether_addr(ndev->dev_addr))
 		eth_hw_addr_random(ndev);
 

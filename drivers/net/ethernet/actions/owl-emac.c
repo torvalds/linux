@@ -1385,7 +1385,7 @@ static void owl_emac_get_mac_addr(struct net_device *netdev)
 	struct device *dev = netdev->dev.parent;
 	int ret;
 
-	ret = eth_platform_get_mac_address(dev, netdev->dev_addr);
+	ret = platform_get_ethdev_address(dev, netdev);
 	if (!ret && is_valid_ether_addr(netdev->dev_addr))
 		return;
 
