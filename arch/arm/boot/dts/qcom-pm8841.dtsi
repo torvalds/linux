@@ -15,6 +15,7 @@
 			reg = <0xa000>;
 			gpio-controller;
 			#gpio-cells = <2>;
+			gpio-ranges = <&pm8841_mpps 0 0 4>;
 			interrupts = <4 0xa0 0 IRQ_TYPE_NONE>,
 				     <4 0xa1 0 IRQ_TYPE_NONE>,
 				     <4 0xa2 0 IRQ_TYPE_NONE>,
