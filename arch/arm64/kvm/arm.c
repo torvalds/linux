@@ -1579,23 +1579,31 @@ static void cpu_set_hyp_vector(void)
 		kvm_call_hyp_nvhe(__pkvm_cpu_set_vector, data->slot);
 }
 
-static void cpu_hyp_reinit(void)
+static void cpu_hyp_init_context(void)
 {
 	kvm_init_host_cpu_context(&this_cpu_ptr_hyp_sym(kvm_host_data)->host_ctxt);
 
-	cpu_hyp_reset();
+	if (!is_kernel_in_hyp_mode())
+		cpu_init_hyp_mode();
+}
+
+static void cpu_hyp_init_features(void)
+{
+	cpu_set_hyp_vector();
+	kvm_arm_init_debug();
 
 	if (is_kernel_in_hyp_mode())
 		kvm_timer_init_vhe();
-	else
-		cpu_init_hyp_mode();
-
-	cpu_set_hyp_vector();
-
-	kvm_arm_init_debug();
 
 	if (vgic_present)
 		kvm_vgic_init_cpu_hardware();
+}
+
+static void cpu_hyp_reinit(void)
+{
+	cpu_hyp_reset();
+	cpu_hyp_init_context();
+	cpu_hyp_init_features();
 }
 
 static void _kvm_arch_hardware_enable(void *discard)
@@ -1788,10 +1796,17 @@ static int do_pkvm_init(u32 hyp_va_bits)
 	int ret;
 
 	preempt_disable();
-	hyp_install_host_vector();
+	cpu_hyp_init_context();
 	ret = kvm_call_hyp_nvhe(__pkvm_init, hyp_mem_base, hyp_mem_size,
 				num_possible_cpus(), kern_hyp_va(per_cpu_base),
 				hyp_va_bits);
+	cpu_hyp_init_features();
+
+	/*
+	 * The stub hypercalls are now disabled, so set our local flag to
+	 * prevent a later re-init attempt in kvm_arch_hardware_enable().
+	 */
+	__this_cpu_write(kvm_arm_hardware_enabled, 1);
 	preempt_enable();
 
 	return ret;
