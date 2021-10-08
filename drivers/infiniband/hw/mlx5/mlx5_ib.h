@@ -821,6 +821,7 @@ struct mlx5_ib_counters {
 	u32 num_ext_ppcnt_counters;
 	u32 num_op_counters;
 	u16 set_id;
+	struct mlx5_ib_op_fc opfcs[MLX5_IB_OPCOUNTER_MAX];
 };
 
 int mlx5_ib_fs_add_op_fc(struct mlx5_ib_dev *dev, u32 port_num,

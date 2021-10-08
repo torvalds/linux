@@ -553,10 +553,12 @@ enum ib_stat_flag {
  * struct rdma_stat_desc
  * @name - The name of the counter
  * @flags - Flags of the counter; For example, IB_STAT_FLAG_OPTIONAL
+ * @priv - Driver private information; Core code should not use
  */
 struct rdma_stat_desc {
 	const char *name;
 	unsigned int flags;
+	const void *priv;
 };
 
 /**
