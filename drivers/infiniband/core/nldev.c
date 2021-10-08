@@ -1945,6 +1945,50 @@ err_fill:
 	return ret;
 }
 
+static int nldev_stat_set_counter_dynamic_doit(struct nlattr *tb[],
+					       struct ib_device *device,
+					       u32 port)
+{
+	struct rdma_hw_stats *stats;
+	int rem, i, index, ret = 0;
+	struct nlattr *entry_attr;
+	unsigned long *target;
+
+	stats = ib_get_hw_stats_port(device, port);
+	if (!stats)
+		return -EINVAL;
+
+	target = kcalloc(BITS_TO_LONGS(stats->num_counters),
+			 sizeof(*stats->is_disabled), GFP_KERNEL);
+	if (!target)
+		return -ENOMEM;
+
+	nla_for_each_nested(entry_attr, tb[RDMA_NLDEV_ATTR_STAT_HWCOUNTERS],
+			    rem) {
+		index = nla_get_u32(entry_attr);
+		if ((index >= stats->num_counters) ||
+		    !(stats->descs[index].flags & IB_STAT_FLAG_OPTIONAL)) {
+			ret = -EINVAL;
+			goto out;
+		}
+
+		set_bit(index, target);
+	}
+
+	for (i = 0; i < stats->num_counters; i++) {
+		if (!(stats->descs[i].flags & IB_STAT_FLAG_OPTIONAL))
+			continue;
+
+		ret = rdma_counter_modify(device, port, i, test_bit(i, target));
+		if (ret)
+			goto out;
+	}
+
+out:
+	kfree(target);
+	return ret;
+}
+
 static int nldev_stat_set_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 			       struct netlink_ext_ack *extack)
 {
@@ -1971,7 +2015,8 @@ static int nldev_stat_set_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 		goto err_put_device;
 	}
 
-	if (!tb[RDMA_NLDEV_ATTR_STAT_MODE]) {
+	if (!tb[RDMA_NLDEV_ATTR_STAT_MODE] &&
+	    !tb[RDMA_NLDEV_ATTR_STAT_HWCOUNTERS]) {
 		ret = -EINVAL;
 		goto err_put_device;
 	}
@@ -1991,9 +2036,17 @@ static int nldev_stat_set_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 		goto err_free_msg;
 	}
 
-	ret = nldev_stat_set_mode_doit(msg, extack, tb, device, port);
-	if (ret)
-		goto err_free_msg;
+	if (tb[RDMA_NLDEV_ATTR_STAT_MODE]) {
+		ret = nldev_stat_set_mode_doit(msg, extack, tb, device, port);
+		if (ret)
+			goto err_free_msg;
+	}
+
+	if (tb[RDMA_NLDEV_ATTR_STAT_HWCOUNTERS]) {
+		ret = nldev_stat_set_counter_dynamic_doit(tb, device, port);
+		if (ret)
+			goto err_free_msg;
+	}
 
 	nlmsg_end(msg, nlh);
 	ib_device_put(device);
