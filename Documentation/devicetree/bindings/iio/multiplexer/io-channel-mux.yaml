@@ -44,6 +44,9 @@ properties:
     description:
       Time required for analog signals to settle after muxing.
 
+  "#io-channel-cells":
+    const: 1
+
 required:
   - compatible
   - io-channels
