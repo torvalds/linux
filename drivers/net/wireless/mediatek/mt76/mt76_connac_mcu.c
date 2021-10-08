@@ -1588,8 +1588,10 @@ int mt76_connac_mcu_sched_scan_req(struct mt76_phy *phy,
 		get_random_mask_addr(addr, sreq->mac_addr,
 				     sreq->mac_addr_mask);
 	}
-	if (is_mt7921(phy->dev))
+	if (is_mt7921(phy->dev)) {
 		req->mt7921.bss_idx = mvif->idx;
+		req->mt7921.delay = cpu_to_le32(sreq->delay);
+	}
 
 	req->ssids_num = sreq->n_ssids;
 	for (i = 0; i < req->ssids_num; i++) {
