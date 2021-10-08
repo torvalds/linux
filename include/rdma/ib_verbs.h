@@ -565,6 +565,8 @@ struct rdma_stat_desc {
  *   their own value during their allocation routine.
  * @descs - Array of pointers to static descriptors used for the counters
  *   in directory.
+ * @is_disabled - A bitmap to indicate each counter is currently disabled
+ *   or not.
  * @num_counters - How many hardware counters there are.  If name is
  *   shorter than this number, a kernel oops will result.  Driver authors
  *   are encouraged to leave BUILD_BUG_ON(ARRAY_SIZE(@name) < num_counters)
@@ -577,6 +579,7 @@ struct rdma_hw_stats {
 	unsigned long	timestamp;
 	unsigned long	lifespan;
 	const struct rdma_stat_desc *descs;
+	unsigned long	*is_disabled;
 	int		num_counters;
 	u64		value[];
 };

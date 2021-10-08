@@ -2994,11 +2994,20 @@ struct rdma_hw_stats *rdma_alloc_hw_stats_struct(
 	if (!stats)
 		return NULL;
 
+	stats->is_disabled = kcalloc(BITS_TO_LONGS(num_counters),
+				     sizeof(*stats->is_disabled), GFP_KERNEL);
+	if (!stats->is_disabled)
+		goto err;
+
 	stats->descs = descs;
 	stats->num_counters = num_counters;
 	stats->lifespan = msecs_to_jiffies(lifespan);
 
 	return stats;
+
+err:
+	kfree(stats);
+	return NULL;
 }
 EXPORT_SYMBOL(rdma_alloc_hw_stats_struct);
 
@@ -3008,6 +3017,10 @@ EXPORT_SYMBOL(rdma_alloc_hw_stats_struct);
  */
 void rdma_free_hw_stats_struct(struct rdma_hw_stats *stats)
 {
+	if (!stats)
+		return;
+
+	kfree(stats->is_disabled);
 	kfree(stats);
 }
 EXPORT_SYMBOL(rdma_free_hw_stats_struct);
