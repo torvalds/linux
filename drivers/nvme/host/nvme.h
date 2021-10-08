@@ -638,6 +638,20 @@ static inline bool nvme_is_aen_req(u16 qid, __u16 command_id)
 }
 
 void nvme_complete_rq(struct request *req);
+void nvme_complete_batch_req(struct request *req);
+
+static __always_inline void nvme_complete_batch(struct io_comp_batch *iob,
+						void (*fn)(struct request *rq))
+{
+	struct request *req;
+
+	rq_list_for_each(&iob->req_list, req) {
+		fn(req);
+		nvme_complete_batch_req(req);
+	}
+	blk_mq_end_request_batch(iob);
+}
+
 blk_status_t nvme_host_path_error(struct request *req);
 bool nvme_cancel_request(struct request *req, void *data, bool reserved);
 void nvme_cancel_tagset(struct nvme_ctrl *ctrl);
