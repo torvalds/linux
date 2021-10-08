@@ -38,7 +38,6 @@ properties:
       The fixed baud rate that the device was configured for.
 
   xlnx,data-bits:
-    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [5, 6, 7, 8]
     description:
       The fixed number of data bits that the device was configured for.
