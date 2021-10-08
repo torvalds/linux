@@ -42,6 +42,12 @@ static int pasemi_smb_pci_probe(struct pci_dev *dev,
 	size = pci_resource_len(dev, 0);
 	smbus->clk_div = CLK_100K_DIV;
 
+	/*
+	 * The original PASemi PCI controllers don't have a register for
+	 * their HW revision.
+	 */
+	smbus->hw_rev = PASEMI_HW_REV_PCI;
+
 	if (!devm_request_region(&dev->dev, base, size,
 			    pasemi_smb_pci_driver.name))
 		return -EBUSY;

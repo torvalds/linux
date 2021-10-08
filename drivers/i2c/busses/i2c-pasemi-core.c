@@ -22,6 +22,7 @@
 #define REG_MRXFIFO	0x04
 #define REG_SMSTA	0x14
 #define REG_CTL		0x1c
+#define REG_REV		0x28
 
 /* Register defs */
 #define MTXFIFO_READ	0x00000400
@@ -37,6 +38,7 @@
 
 #define CTL_MRR		0x00000400
 #define CTL_MTR		0x00000200
+#define CTL_EN		0x00000800
 #define CTL_CLK_M	0x000000ff
 
 static inline void reg_write(struct pasemi_smbus *smbus, int reg, int val)
@@ -59,6 +61,9 @@ static inline int reg_read(struct pasemi_smbus *smbus, int reg)
 static void pasemi_reset(struct pasemi_smbus *smbus)
 {
 	u32 val = (CTL_MTR | CTL_MRR | (smbus->clk_div & CTL_CLK_M));
+
+	if (smbus->hw_rev >= 6)
+		val |= CTL_EN;
 
 	reg_write(smbus, REG_CTL, val);
 }
@@ -334,6 +339,9 @@ int pasemi_i2c_common_probe(struct pasemi_smbus *smbus)
 
 	/* set up the sysfs linkage to our parent device */
 	smbus->adapter.dev.parent = smbus->dev;
+
+	if (smbus->hw_rev != PASEMI_HW_REV_PCI)
+		smbus->hw_rev = reg_read(smbus, REG_REV);
 
 	pasemi_reset(smbus);
 
