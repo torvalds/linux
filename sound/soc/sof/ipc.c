@@ -919,6 +919,22 @@ int snd_sof_ipc_valid(struct snd_sof_dev *sdev)
 }
 EXPORT_SYMBOL(snd_sof_ipc_valid);
 
+int sof_ipc_init_msg_memory(struct snd_sof_dev *sdev)
+{
+	struct snd_sof_ipc_msg *msg;
+
+	msg = &sdev->ipc->msg;
+	msg->msg_data = devm_kzalloc(sdev->dev, SOF_IPC_MSG_MAX_SIZE, GFP_KERNEL);
+	if (!msg->msg_data)
+		return -ENOMEM;
+
+	msg->reply_data = devm_kzalloc(sdev->dev, SOF_IPC_MSG_MAX_SIZE, GFP_KERNEL);
+	if (!msg->reply_data)
+		return -ENOMEM;
+
+	return 0;
+}
+
 struct snd_sof_ipc *snd_sof_ipc_init(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_ipc *ipc;
@@ -934,17 +950,6 @@ struct snd_sof_ipc *snd_sof_ipc_init(struct snd_sof_dev *sdev)
 
 	/* indicate that we aren't sending a message ATM */
 	msg->ipc_complete = true;
-
-	/* pre-allocate message data */
-	msg->msg_data = devm_kzalloc(sdev->dev, SOF_IPC_MSG_MAX_SIZE,
-				     GFP_KERNEL);
-	if (!msg->msg_data)
-		return NULL;
-
-	msg->reply_data = devm_kzalloc(sdev->dev, SOF_IPC_MSG_MAX_SIZE,
-				       GFP_KERNEL);
-	if (!msg->reply_data)
-		return NULL;
 
 	init_waitqueue_head(&msg->waitq);
 

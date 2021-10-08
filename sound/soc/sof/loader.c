@@ -13,6 +13,7 @@
 #include <linux/firmware.h>
 #include <sound/sof.h>
 #include <sound/sof/ext_manifest.h>
+#include "sof-priv.h"
 #include "ops.h"
 
 static int get_ext_windows(struct snd_sof_dev *sdev,
@@ -517,7 +518,7 @@ int sof_fw_ready(struct snd_sof_dev *sdev, u32 msg_id)
 
 	sof_get_windows(sdev);
 
-	return 0;
+	return sof_ipc_init_msg_memory(sdev);
 }
 EXPORT_SYMBOL(sof_fw_ready);
 
