@@ -329,6 +329,30 @@ static const struct i2c_algorithm smbus_algorithm = {
 	.functionality	= pasemi_smb_func,
 };
 
+static int pasemi_i2c_common_probe(struct pasemi_smbus *smbus)
+{
+	int error;
+
+	smbus->adapter.owner = THIS_MODULE;
+	snprintf(smbus->adapter.name, sizeof(smbus->adapter.name),
+		 "PA Semi SMBus adapter (%s)", dev_name(smbus->dev));
+	smbus->adapter.class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
+	smbus->adapter.algo = &smbus_algorithm;
+	smbus->adapter.algo_data = smbus;
+
+	/* set up the sysfs linkage to our parent device */
+	smbus->adapter.dev.parent = smbus->dev;
+
+	reg_write(smbus, REG_CTL, (CTL_MTR | CTL_MRR |
+		  (CLK_100K_DIV & CTL_CLK_M)));
+
+	error = i2c_add_adapter(&smbus->adapter);
+	if (error)
+		return error;
+
+	return 0;
+}
+
 static int pasemi_smb_probe(struct pci_dev *dev,
 				      const struct pci_device_id *id)
 {
@@ -358,20 +382,7 @@ static int pasemi_smb_probe(struct pci_dev *dev,
 		goto out_release_region;
 	}
 
-	smbus->adapter.owner = THIS_MODULE;
-	snprintf(smbus->adapter.name, sizeof(smbus->adapter.name),
-		 "PA Semi SMBus adapter (%s)", dev_name(smbus->dev));
-	smbus->adapter.class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
-	smbus->adapter.algo = &smbus_algorithm;
-	smbus->adapter.algo_data = smbus;
-
-	/* set up the sysfs linkage to our parent device */
-	smbus->adapter.dev.parent = smbus->dev;
-
-	reg_write(smbus, REG_CTL, (CTL_MTR | CTL_MRR |
-		  (CLK_100K_DIV & CTL_CLK_M)));
-
-	error = i2c_add_adapter(&smbus->adapter);
+	int error = pasemi_i2c_common_probe(smbus);
 	if (error)
 		goto out_ioport_unmap;
 
