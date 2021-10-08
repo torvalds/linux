@@ -9165,14 +9165,11 @@ int dev_get_port_parent_id(struct net_device *dev,
 	}
 
 	err = devlink_compat_switch_id_get(dev, ppid);
-	if (!err || err != -EOPNOTSUPP)
+	if (!recurse || err != -EOPNOTSUPP)
 		return err;
 
-	if (!recurse)
-		return -EOPNOTSUPP;
-
 	netdev_for_each_lower_dev(dev, lower_dev, iter) {
-		err = dev_get_port_parent_id(lower_dev, ppid, recurse);
+		err = dev_get_port_parent_id(lower_dev, ppid, true);
 		if (err)
 			break;
 		if (!first.id_len)
