@@ -534,17 +534,26 @@ struct dce_aux *dce110_aux_engine_construct(struct aux_engine_dce110 *aux_engine
 static enum i2caux_transaction_action i2caux_action_from_payload(struct aux_payload *payload)
 {
 	if (payload->i2c_over_aux) {
+		if (payload->write_status_update) {
+			if (payload->mot)
+				return I2CAUX_TRANSACTION_ACTION_I2C_STATUS_REQUEST_MOT;
+			else
+				return I2CAUX_TRANSACTION_ACTION_I2C_STATUS_REQUEST;
+		}
 		if (payload->write) {
 			if (payload->mot)
 				return I2CAUX_TRANSACTION_ACTION_I2C_WRITE_MOT;
-			return I2CAUX_TRANSACTION_ACTION_I2C_WRITE;
+			else
+				return I2CAUX_TRANSACTION_ACTION_I2C_WRITE;
 		}
 		if (payload->mot)
 			return I2CAUX_TRANSACTION_ACTION_I2C_READ_MOT;
+
 		return I2CAUX_TRANSACTION_ACTION_I2C_READ;
 	}
 	if (payload->write)
 		return I2CAUX_TRANSACTION_ACTION_DP_WRITE;
+
 	return I2CAUX_TRANSACTION_ACTION_DP_READ;
 }
 
@@ -698,7 +707,8 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 		aux_defer_retries = 0,
 		aux_i2c_defer_retries = 0,
 		aux_timeout_retries = 0,
-		aux_invalid_reply_retries = 0;
+		aux_invalid_reply_retries = 0,
+		aux_ack_m_retries = 0;
 
 	if (ddc_pin) {
 		aux_engine = ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en];
@@ -758,9 +768,27 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 									aux_defer_retries,
 									AUX_MAX_RETRIES);
 						goto fail;
-					} else {
+					} else 
 						udelay(300);
+				} else if (payload->write && ret > 0) {
+					/* sink requested more time to complete the write via AUX_ACKM */
+					if (++aux_ack_m_retries >= AUX_MAX_RETRIES) {
+						DC_TRACE_LEVEL_MESSAGE(DAL_TRACE_LEVEL_ERROR,
+								LOG_FLAG_Error_I2cAux,
+								"dce_aux_transfer_with_retries: FAILURE: aux_ack_m_retries=%d >= AUX_MAX_RETRIES=%d",
+								aux_ack_m_retries,
+								AUX_MAX_RETRIES);
+						goto fail;
 					}
+
+					/* retry reading the write status until complete
+					 * NOTE: payload is modified here
+					 */
+					payload->write = false;
+					payload->write_status_update = true;
+					payload->length = 0;
+					udelay(300);
+
 				} else
 					return true;
 			break;

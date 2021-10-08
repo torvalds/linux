@@ -64,6 +64,8 @@ static ssize_t dm_dp_aux_transfer(struct drm_dp_aux *aux,
 	payload.i2c_over_aux = (msg->request & DP_AUX_NATIVE_WRITE) == 0;
 	payload.write = (msg->request & DP_AUX_I2C_READ) == 0;
 	payload.mot = (msg->request & DP_AUX_I2C_MOT) != 0;
+	payload.write_status_update =
+			(msg->request & DP_AUX_I2C_WRITE_STATUS_UPDATE) != 0;
 	payload.defer_delay = 0;
 
 	result = dc_link_aux_transfer_raw(TO_DM_AUX(aux)->ddc_service, &payload,
