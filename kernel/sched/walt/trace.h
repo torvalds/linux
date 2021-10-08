@@ -815,7 +815,7 @@ TRACE_EVENT(walt_nohz_balance_kick,
 		__entry->nr_cfs_running	= rq->cfs.h_nr_running;
 	),
 
-	TP_printk("cpu=%d nr_running=%u nr_cfs_running=%u\n",
+	TP_printk("cpu=%d nr_running=%u nr_cfs_running=%u",
 			__entry->cpu, __entry->nr_running,
 			__entry->nr_cfs_running)
 );
@@ -852,7 +852,7 @@ TRACE_EVENT(walt_newidle_balance,
 		__entry->overload	= cpu_rq(this_cpu)->rd->overload;
 	),
 
-	TP_printk("cpu=%d busy_cpu=%d pulled=%d nr_running=%u rt_nr_running=%u nr_iowait=%d help_min_cap=%d avg_idle=%llu enough_idle=%d overload=%d\n",
+	TP_printk("cpu=%d busy_cpu=%d pulled=%d nr_running=%u rt_nr_running=%u nr_iowait=%d help_min_cap=%d avg_idle=%llu enough_idle=%d overload=%d",
 			__entry->cpu, __entry->busy_cpu, __entry->pulled,
 			__entry->nr_running, __entry->rt_nr_running,
 			__entry->nr_iowait, __entry->help_min_cap,
