@@ -1052,8 +1052,8 @@ EXPORT_SYMBOL_GPL(dma_buf_move_notify);
  *
  *   Interfaces::
  *
- *      void \*dma_buf_vmap(struct dma_buf \*dmabuf)
- *      void dma_buf_vunmap(struct dma_buf \*dmabuf, void \*vaddr)
+ *      void \*dma_buf_vmap(struct dma_buf \*dmabuf, struct dma_buf_map \*map)
+ *      void dma_buf_vunmap(struct dma_buf \*dmabuf, struct dma_buf_map \*map)
  *
  *   The vmap call can fail if there is no vmap support in the exporter, or if
  *   it runs out of vmalloc space. Note that the dma-buf layer keeps a reference
