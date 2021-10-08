@@ -2,7 +2,7 @@
 #!/bin/bash
 
 # Handles creation and destruction of IP-in-IP or GRE tunnels over the given
-# topology.
+# topology. Supports both flat and hierarchical models.
 #
 # Flat Model:
 # Overlay and underlay share the same VRF.
@@ -62,6 +62,91 @@
 # |                 $h2 +          |
 # |    203.0.113.1/24              |
 # |    2001:db8:2::1/64            |
+# +--------------------------------+
+#
+# Hierarchical model:
+# The tunnel is bound to a device in a different VRF
+#
+# +--------------------------------+
+# | H1                             |
+# |                     $h1 +      |
+# |        198.51.100.1/24  |      |
+# |        2001:db8:1::1/64 |      |
+# +-------------------------|------+
+#                           |
+# +-------------------------|-------------------+
+# | SW1                     |                   |
+# | +-----------------------|-----------------+ |
+# | |                  $ol1 +                 | |
+# | |      198.51.100.2/24                    | |
+# | |      2001:db8:1::2/64                   | |
+# | |                                         | |
+# | |              + g1a (ip6gre)             | |
+# | |                loc=2001:db8:3::1        | |
+# | |                rem=2001:db8:3::2        | |
+# | |                tos=inherit              | |
+# | |                    ^                    | |
+# | |   VRF v$ol1        |                    | |
+# | +--------------------|--------------------+ |
+# |                      |                      |
+# | +--------------------|--------------------+ |
+# | |   VRF v$ul1        |                    | |
+# | |                    |                    | |
+# | |                    v                    | |
+# | |             dummy1 +                    | |
+# | |       2001:db8:3::1/64                  | |
+# | |         .-----------'                   | |
+# | |         |                               | |
+# | |         v                               | |
+# | |         + $ul1.111 (vlan)               | |
+# | |         | 2001:db8:10::1/64             | |
+# | |         \                               | |
+# | |          \__________                    | |
+# | |                     |                   | |
+# | |                     + $ul1              | |
+# | +---------------------|-------------------+ |
+# +-----------------------|---------------------+
+#                         |
+# +-----------------------|---------------------+
+# | SW2                   |                     |
+# | +---------------------|-------------------+ |
+# | |                     + $ul2              | |
+# | |                _____|                   | |
+# | |               /                         | |
+# | |              /                          | |
+# | |              | $ul2.111 (vlan)          | |
+# | |              + 2001:db8:10::2/64        | |
+# | |              ^                          | |
+# | |              |                          | |
+# | |              '------.                   | |
+# | |              dummy2 +                   | |
+# | |              2001:db8:3::2/64           | |
+# | |                     ^                   | |
+# | |                     |                   | |
+# | |                     |                   | |
+# | | VRF v$ul2           |                   | |
+# | +---------------------|-------------------+ |
+# |                       |                     |
+# | +---------------------|-------------------+ |
+# | | VRF v$ol2           |                   | |
+# | |                     |                   | |
+# | |                     v                   | |
+# | |        g2a (ip6gre) +                   | |
+# | |        loc=2001:db8:3::2                | |
+# | |        rem=2001:db8:3::1                | |
+# | |        tos=inherit                      | |
+# | |                                         | |
+# | |                $ol2 +                   | |
+# | |    203.0.113.2/24   |                   | |
+# | |    2001:db8:2::2/64 |                   | |
+# | +---------------------|-------------------+ |
+# +-----------------------|---------------------+
+#                         |
+# +-----------------------|--------+
+# | H2                    |        |
+# |                   $h2 +        |
+# |      203.0.113.1/24            |
+# |      2001:db8:2::1/64          |
 # +--------------------------------+
 
 source lib.sh
@@ -169,6 +254,89 @@ sw2_flat_destroy()
 
 	vlan_destroy $ul2 111
 	__simple_if_fini $ul2
+	simple_if_fini $ol2 203.0.113.2/24 2001:db8:2::2/64
+}
+
+sw1_hierarchical_create()
+{
+	local ol1=$1; shift
+	local ul1=$1; shift
+
+	simple_if_init $ol1 198.51.100.2/24 2001:db8:1::2/64
+	simple_if_init $ul1
+	ip link add name dummy1 type dummy
+	__simple_if_init dummy1 v$ul1 2001:db8:3::1/64
+
+	vlan_create $ul1 111 v$ul1 2001:db8:10::1/64
+	tunnel_create g1a ip6gre 2001:db8:3::1 2001:db8:3::2 tos inherit \
+		ttl inherit dev dummy1 "$@"
+	ip link set dev g1a master v$ol1
+
+	ip -6 route add vrf v$ul1 2001:db8:3::2/128 via 2001:db8:10::2
+	ip route add vrf v$ol1 203.0.113.0/24 dev g1a
+	ip -6 route add vrf v$ol1 2001:db8:2::/64 dev g1a
+}
+
+sw1_hierarchical_destroy()
+{
+	local ol1=$1; shift
+	local ul1=$1; shift
+
+	ip -6 route del vrf v$ol1 2001:db8:2::/64
+	ip route del vrf v$ol1 203.0.113.0/24
+	ip -6 route del vrf v$ul1 2001:db8:3::2/128
+
+	tunnel_destroy g1a
+	vlan_destroy $ul1 111
+
+	__simple_if_fini dummy1 2001:db8:3::1/64
+	ip link del dev dummy1
+
+	simple_if_fini $ul1
+	simple_if_fini $ol1 198.51.100.2/24 2001:db8:1::2/64
+}
+
+sw2_hierarchical_create()
+{
+	local ol2=$1; shift
+	local ul2=$1; shift
+
+	simple_if_init $ol2 203.0.113.2/24 2001:db8:2::2/64
+	simple_if_init $ul2
+
+	ip link add name dummy2 type dummy
+	__simple_if_init dummy2 v$ul2 2001:db8:3::2/64
+
+	vlan_create $ul2 111 v$ul2 2001:db8:10::2/64
+	tunnel_create g2a ip6gre 2001:db8:3::2 2001:db8:3::1 tos inherit \
+		ttl inherit dev dummy2 "$@"
+	ip link set dev g2a master v$ol2
+
+	# Replace neighbor to avoid 1 dropped packet due to "unresolved neigh"
+	ip neigh replace dev $ol2 203.0.113.1 lladdr $(mac_get $h2)
+	ip -6 neigh replace dev $ol2 2001:db8:2::1 lladdr $(mac_get $h2)
+
+	ip -6 route add vrf v$ul2 2001:db8:3::1/128 via 2001:db8:10::1
+	ip route add vrf v$ol2 198.51.100.0/24 dev g2a
+	ip -6 route add vrf v$ol2 2001:db8:1::/64 dev g2a
+}
+
+sw2_hierarchical_destroy()
+{
+	local ol2=$1; shift
+	local ul2=$1; shift
+
+	ip -6 route del vrf v$ol2 2001:db8:2::/64
+	ip route del vrf v$ol2 198.51.100.0/24
+	ip -6 route del vrf v$ul2 2001:db8:3::1/128
+
+	tunnel_destroy g2a
+	vlan_destroy $ul2 111
+
+	__simple_if_fini dummy2 2001:db8:3::2/64
+	ip link del dev dummy2
+
+	simple_if_fini $ul2
 	simple_if_fini $ol2 203.0.113.2/24 2001:db8:2::2/64
 }
 
