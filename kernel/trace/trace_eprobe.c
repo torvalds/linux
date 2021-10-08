@@ -632,6 +632,13 @@ static int disable_eprobe(struct trace_eprobe *ep,
 
 	trace_event_trigger_enable_disable(file, 0);
 	update_cond_flag(file);
+
+	/* Make sure nothing is using the edata or trigger */
+	tracepoint_synchronize_unregister();
+
+	kfree(edata);
+	kfree(trigger);
+
 	return 0;
 }
 
