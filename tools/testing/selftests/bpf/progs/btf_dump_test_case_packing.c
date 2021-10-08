@@ -29,7 +29,7 @@ struct non_packed_fields {
 struct nested_packed {
 	char: 4;
 	int a: 4;
-	long int b;
+	long b;
 	struct {
 		char c;
 		int d;
@@ -44,7 +44,7 @@ union union_is_never_packed {
 
 union union_does_not_need_packing {
 	struct {
-		long int a;
+		long a;
 		int b;
 	} __attribute__((packed));
 	int c;
