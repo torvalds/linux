@@ -86,6 +86,21 @@ static int __blk_mq_get_tag(struct blk_mq_alloc_data *data,
 		return __sbitmap_queue_get(bt);
 }
 
+unsigned long blk_mq_get_tags(struct blk_mq_alloc_data *data, int nr_tags,
+			      unsigned int *offset)
+{
+	struct blk_mq_tags *tags = blk_mq_tags_from_data(data);
+	struct sbitmap_queue *bt = &tags->bitmap_tags;
+	unsigned long ret;
+
+	if (data->shallow_depth ||data->flags & BLK_MQ_REQ_RESERVED ||
+	    data->hctx->flags & BLK_MQ_F_TAG_QUEUE_SHARED)
+		return 0;
+	ret = __sbitmap_queue_get_batch(bt, nr_tags, offset);
+	*offset += tags->nr_reserved_tags;
+	return ret;
+}
+
 unsigned int blk_mq_get_tag(struct blk_mq_alloc_data *data)
 {
 	struct blk_mq_tags *tags = blk_mq_tags_from_data(data);
