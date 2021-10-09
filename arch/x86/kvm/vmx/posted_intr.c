@@ -189,7 +189,7 @@ int pi_pre_block(struct kvm_vcpu *vcpu)
 			   new.control) != old.control);
 
 	/* We should not block the vCPU if an interrupt is posted for it.  */
-	if (pi_test_on(pi_desc) == 1)
+	if (pi_test_on(pi_desc))
 		__pi_post_block(vcpu);
 
 	local_irq_enable();
@@ -220,7 +220,7 @@ void pi_wakeup_handler(void)
 			blocked_vcpu_list) {
 		struct pi_desc *pi_desc = vcpu_to_pi_desc(vcpu);
 
-		if (pi_test_on(pi_desc) == 1)
+		if (pi_test_on(pi_desc))
 			kvm_vcpu_kick(vcpu);
 	}
 	spin_unlock(&per_cpu(blocked_vcpu_on_cpu_lock, cpu));
