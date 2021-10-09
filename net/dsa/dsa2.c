@@ -811,7 +811,9 @@ static int dsa_switch_setup_tag_protocol(struct dsa_switch *ds)
 		if (!dsa_is_cpu_port(ds, port))
 			continue;
 
+		rtnl_lock();
 		err = ds->ops->change_tag_protocol(ds, port, tag_ops->proto);
+		rtnl_unlock();
 		if (err) {
 			dev_err(ds->dev, "Unable to use tag protocol \"%s\": %pe\n",
 				tag_ops->name, ERR_PTR(err));
