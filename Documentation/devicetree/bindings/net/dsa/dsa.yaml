@@ -73,7 +73,7 @@ patternProperties:
           dsa-tag-protocol:
             description:
               Instead of the default, the switch will use this tag protocol if
-              possible. Useful when a device supports multiple protcols and
+              possible. Useful when a device supports multiple protocols and
               the default is incompatible with the Ethernet device.
             enum:
               - dsa
