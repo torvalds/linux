@@ -558,6 +558,7 @@ void flush_cache_mm(struct mm_struct *mm)
 		return;
 	}
 
+	preempt_disable();
 	if (mm->context == mfsp(3)) {
 		for (vma = mm->mmap; vma; vma = vma->vm_next) {
 			flush_user_dcache_range_asm(vma->vm_start, vma->vm_end);
@@ -565,6 +566,7 @@ void flush_cache_mm(struct mm_struct *mm)
 				flush_user_icache_range_asm(vma->vm_start, vma->vm_end);
 			flush_tlb_range(vma, vma->vm_start, vma->vm_end);
 		}
+		preempt_enable();
 		return;
 	}
 
@@ -589,6 +591,7 @@ void flush_cache_mm(struct mm_struct *mm)
 			}
 		}
 	}
+	preempt_enable();
 }
 
 void flush_cache_range(struct vm_area_struct *vma,
@@ -605,11 +608,13 @@ void flush_cache_range(struct vm_area_struct *vma,
 		return;
 	}
 
+	preempt_disable();
 	if (vma->vm_mm->context == mfsp(3)) {
 		flush_user_dcache_range_asm(start, end);
 		if (vma->vm_flags & VM_EXEC)
 			flush_user_icache_range_asm(start, end);
 		flush_tlb_range(vma, start, end);
+		preempt_enable();
 		return;
 	}
 
@@ -629,6 +634,7 @@ void flush_cache_range(struct vm_area_struct *vma,
 			}
 		}
 	}
+	preempt_enable();
 }
 
 void
