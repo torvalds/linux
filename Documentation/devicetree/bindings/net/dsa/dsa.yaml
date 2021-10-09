@@ -78,6 +78,9 @@ patternProperties:
             enum:
               - dsa
               - edsa
+              - ocelot
+              - ocelot-8021q
+              - seville
 
           phy-handle: true
 
