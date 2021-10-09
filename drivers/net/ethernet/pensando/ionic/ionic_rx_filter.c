@@ -413,7 +413,8 @@ int ionic_lif_addr_add(struct ionic_lif *lif, const u8 *addr)
 	return ionic_lif_filter_add(lif, &ac);
 }
 
-int ionic_lif_addr_del(struct ionic_lif *lif, const u8 *addr)
+static int ionic_lif_filter_del(struct ionic_lif *lif,
+				struct ionic_rx_filter_add_cmd *ac)
 {
 	struct ionic_admin_ctx ctx = {
 		.work = COMPLETION_INITIALIZER_ONSTACK(ctx.work),
@@ -427,23 +428,26 @@ int ionic_lif_addr_del(struct ionic_lif *lif, const u8 *addr)
 	int err;
 
 	spin_lock_bh(&lif->rx_filters.lock);
-	f = ionic_rx_filter_by_addr(lif, addr);
+	f = ionic_rx_filter_find(lif, ac);
 	if (!f) {
 		spin_unlock_bh(&lif->rx_filters.lock);
 		return -ENOENT;
 	}
 
-	netdev_dbg(lif->netdev, "rx_filter del ADDR %pM (id %d)\n",
-		   addr, f->filter_id);
+	switch (le16_to_cpu(ac->match)) {
+	case IONIC_RX_FILTER_MATCH_MAC:
+		netdev_dbg(lif->netdev, "%s: rx_filter del ADDR %pM id %d\n",
+			   __func__, ac->mac.addr, f->filter_id);
+		if (is_multicast_ether_addr(ac->mac.addr) && lif->nmcast)
+			lif->nmcast--;
+		else if (!is_multicast_ether_addr(ac->mac.addr) && lif->nucast)
+			lif->nucast--;
+		break;
+	}
 
 	state = f->state;
 	ctx.cmd.rx_filter_del.filter_id = cpu_to_le32(f->filter_id);
 	ionic_rx_filter_free(lif, f);
-
-	if (is_multicast_ether_addr(addr) && lif->nmcast)
-		lif->nmcast--;
-	else if (!is_multicast_ether_addr(addr) && lif->nucast)
-		lif->nucast--;
 
 	spin_unlock_bh(&lif->rx_filters.lock);
 
@@ -454,6 +458,17 @@ int ionic_lif_addr_del(struct ionic_lif *lif, const u8 *addr)
 	}
 
 	return 0;
+}
+
+int ionic_lif_addr_del(struct ionic_lif *lif, const u8 *addr)
+{
+	struct ionic_rx_filter_add_cmd ac = {
+		.match = cpu_to_le16(IONIC_RX_FILTER_MATCH_MAC),
+	};
+
+	memcpy(&ac.mac.addr, addr, ETH_ALEN);
+
+	return ionic_lif_filter_del(lif, &ac);
 }
 
 struct sync_item {
@@ -510,7 +525,7 @@ loop_out:
 	 * they can clear room for some new filters
 	 */
 	list_for_each_entry_safe(sync_item, spos, &sync_del_list, list) {
-		(void)ionic_lif_addr_del(lif, sync_item->f.cmd.mac.addr);
+		(void)ionic_lif_filter_del(lif, &sync_item->f.cmd);
 
 		list_del(&sync_item->list);
 		devm_kfree(dev, sync_item);
