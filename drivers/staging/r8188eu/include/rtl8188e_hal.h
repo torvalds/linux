@@ -19,29 +19,10 @@
 
 #include "odm_precomp.h"
 
-/*  Fw Array */
-#define Rtl8188E_FwImageArray		Rtl8188EFwImgArray
-#define Rtl8188E_FWImgArrayLength	Rtl8188EFWImgArrayLength
-
-#define RTL8188E_FW_UMC_IMG			"rtl8188E\\rtl8188efw.bin"
-#define RTL8188E_PHY_REG			"rtl8188E\\PHY_REG_1T.txt"
-#define RTL8188E_PHY_RADIO_A			"rtl8188E\\radio_a_1T.txt"
-#define RTL8188E_PHY_RADIO_B			"rtl8188E\\radio_b_1T.txt"
-#define RTL8188E_AGC_TAB			"rtl8188E\\AGC_TAB_1T.txt"
-#define RTL8188E_PHY_MACREG			"rtl8188E\\MAC_REG.txt"
-#define RTL8188E_PHY_REG_PG			"rtl8188E\\PHY_REG_PG.txt"
-#define RTL8188E_PHY_REG_MP			"rtl8188E\\PHY_REG_MP.txt"
-
 /* 		RTL8188E Power Configuration CMDs for USB/SDIO interfaces */
 #define Rtl8188E_NIC_PWR_ON_FLOW		rtl8188E_power_on_flow
-#define Rtl8188E_NIC_RF_OFF_FLOW		rtl8188E_radio_off_flow
 #define Rtl8188E_NIC_DISABLE_FLOW		rtl8188E_card_disable_flow
-#define Rtl8188E_NIC_ENABLE_FLOW		rtl8188E_card_enable_flow
-#define Rtl8188E_NIC_SUSPEND_FLOW		rtl8188E_suspend_flow
-#define Rtl8188E_NIC_RESUME_FLOW		rtl8188E_resume_flow
-#define Rtl8188E_NIC_PDN_FLOW			rtl8188E_hwpdn_flow
 #define Rtl8188E_NIC_LPS_ENTER_FLOW		rtl8188E_enter_lps_flow
-#define Rtl8188E_NIC_LPS_LEAVE_FLOW		rtl8188E_leave_lps_flow
 
 #define DRVINFO_SZ	4 /*  unit is 8bytes */
 #define PageNum_128(_Len)	(u32)(((_Len)>>7) + ((_Len) & 0x7F ? 1 : 0))
@@ -49,7 +30,6 @@
 /*  download firmware related data structure */
 #define FW_8188E_SIZE			0x4000 /* 16384,16k */
 #define FW_8188E_START_ADDRESS		0x1000
-#define FW_8188E_END_ADDRESS		0x1FFF /* 0x5FFF */
 
 #define MAX_PAGE_SIZE			4096	/*  @ page : 4k bytes */
 
@@ -108,11 +88,6 @@ enum usb_rx_agg_mode {
       0x2400 /* 9k for 88E nornal chip , MaxRxBuff=10k-max(TxReportSize(64*8),
 	      * WOLPattern(16*24)) */
 
-#define MAX_TX_REPORT_BUFFER_SIZE		0x0400 /*  1k */
-
-/*  BK, BE, VI, VO, HCCA, MANAGEMENT, COMMAND, HIGH, BEACON. */
-#define MAX_TX_QUEUE			9
-
 #define TX_SELE_HQ			BIT(0)		/*  High Queue */
 #define TX_SELE_LQ			BIT(1)		/*  Low Queue */
 #define TX_SELE_NQ			BIT(2)		/*  Normal Queue */
@@ -134,11 +109,6 @@ enum usb_rx_agg_mode {
 #define WMM_NORMAL_TX_PAGE_BOUNDARY_88E			\
 	(WMM_NORMAL_TX_TOTAL_PAGE_NUMBER + 1) /* 0xA9 */
 
-/* 	Chip specific */
-#define CHIP_BONDING_IDENTIFIER(_value)	(((_value)>>22)&0x3)
-#define CHIP_BONDING_92C_1T2R	0x1
-#define CHIP_BONDING_88C_USB_MCARD	0x2
-#define CHIP_BONDING_88C_USB_HP	0x1
 #include "HalVerDef.h"
 #include "hal_com.h"
 
@@ -168,29 +138,11 @@ struct txpowerinfo24g {
 };
 
 #define EFUSE_REAL_CONTENT_LEN		512
-#define EFUSE_MAX_SECTION		16
-#define EFUSE_IC_ID_OFFSET		506 /* For some inferior IC purpose*/
 #define AVAILABLE_EFUSE_ADDR(addr)	(addr < EFUSE_REAL_CONTENT_LEN)
-/*  To prevent out of boundary programming case, */
-/*  leave 1byte and program full section */
-/*  9bytes + 1byt + 5bytes and pre 1byte. */
-/*  For worst case: */
-/*  | 1byte|----8bytes----|1byte|--5bytes--| */
-/*  |         |            Reserved(14bytes)	      | */
-
-/*  PG data exclude header, dummy 6 bytes frome CP test and reserved 1byte. */
-#define EFUSE_OOB_PROTECT_BYTES			15
-
-#define		HWSET_MAX_SIZE_88E		512
 
 #define		EFUSE_REAL_CONTENT_LEN_88E	256
 #define		EFUSE_MAP_LEN_88E		512
-#define EFUSE_MAP_LEN			EFUSE_MAP_LEN_88E
 #define		EFUSE_MAX_SECTION_88E		64
-#define		EFUSE_MAX_WORD_UNIT_88E		4
-#define		EFUSE_IC_ID_OFFSET_88E		506
-#define		AVAILABLE_EFUSE_ADDR_88E(addr)			\
-	(addr < EFUSE_REAL_CONTENT_LEN_88E)
 /*  To prevent out of boundary programming case, leave 1byte and program
  *  full section */
 /*  9bytes + 1byt + 5bytes and pre 1byte. */
@@ -198,12 +150,6 @@ struct txpowerinfo24g {
 /*  | 2byte|----8bytes----|1byte|--7bytes--| 92D */
 /*  PG data exclude header, dummy 7 bytes frome CP test and reserved 1byte. */
 #define		EFUSE_OOB_PROTECT_BYTES_88E	18
-#define		EFUSE_PROTECT_BYTES_BANK_88E	16
-
-/* 			EFUSE for BT definition */
-#define EFUSE_BT_REAL_CONTENT_LEN	1536	/*  512*3 */
-#define EFUSE_BT_MAP_LEN		1024	/*  1k bytes */
-#define EFUSE_BT_MAX_SECTION		128	/*  1024/8 */
 
 #define EFUSE_PROTECT_BYTES_BANK	16
 
@@ -367,7 +313,6 @@ struct hal_data_8188e {
 
 #define GET_HAL_DATA(__pAdapter)				\
 	((struct hal_data_8188e *)((__pAdapter)->HalData))
-#define GET_RF_TYPE(priv)		(GET_HAL_DATA(priv)->rf_type)
 
 /*  rtl8188e_hal_init.c */
 s32 rtl8188e_FirmwareDownload(struct adapter *padapter);
