@@ -357,7 +357,7 @@ static int ionic_lif_filter_add(struct ionic_lif *lif,
 	}
 
 	if (err != -ENOSPC)
-		err = ionic_adminq_post_wait(lif, &ctx);
+		err = ionic_adminq_post_wait_nomsg(lif, &ctx);
 
 	spin_lock_bh(&lif->rx_filters.lock);
 
@@ -380,6 +380,19 @@ static int ionic_lif_filter_add(struct ionic_lif *lif,
 			if (le16_to_cpu(ctx.cmd.rx_filter_add.match) == IONIC_RX_FILTER_MATCH_VLAN)
 				lif->max_vlans = lif->nvlans;
 			return 0;
+		}
+
+		ionic_adminq_netdev_err_print(lif, ctx.cmd.cmd.opcode,
+					      ctx.comp.comp.status, err);
+		switch (le16_to_cpu(ctx.cmd.rx_filter_add.match)) {
+		case IONIC_RX_FILTER_MATCH_VLAN:
+			netdev_info(lif->netdev, "rx_filter add failed: VLAN %d\n",
+				    ctx.cmd.rx_filter_add.vlan.vlan);
+			break;
+		case IONIC_RX_FILTER_MATCH_MAC:
+			netdev_info(lif->netdev, "rx_filter add failed: ADDR %pM\n",
+				    ctx.cmd.rx_filter_add.mac.addr);
+			break;
 		}
 
 		return err;
