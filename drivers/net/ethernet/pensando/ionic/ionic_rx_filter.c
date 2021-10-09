@@ -239,6 +239,21 @@ struct ionic_rx_filter *ionic_rx_filter_rxsteer(struct ionic_lif *lif)
 	return NULL;
 }
 
+static struct ionic_rx_filter *ionic_rx_filter_find(struct ionic_lif *lif,
+						    struct ionic_rx_filter_add_cmd *ac)
+{
+	switch (le16_to_cpu(ac->match)) {
+	case IONIC_RX_FILTER_MATCH_VLAN:
+		return ionic_rx_filter_by_vlan(lif, le16_to_cpu(ac->vlan.vlan));
+	case IONIC_RX_FILTER_MATCH_MAC:
+		return ionic_rx_filter_by_addr(lif, ac->mac.addr);
+	default:
+		netdev_err(lif->netdev, "unsupported filter match %d",
+			   le16_to_cpu(ac->match));
+		return NULL;
+	}
+}
+
 int ionic_lif_list_addr(struct ionic_lif *lif, const u8 *addr, bool mode)
 {
 	struct ionic_rx_filter *f;
@@ -304,7 +319,7 @@ int ionic_lif_addr_add(struct ionic_lif *lif, const u8 *addr)
 	memcpy(ctx.cmd.rx_filter_add.mac.addr, addr, ETH_ALEN);
 
 	spin_lock_bh(&lif->rx_filters.lock);
-	f = ionic_rx_filter_by_addr(lif, addr);
+	f = ionic_rx_filter_find(lif, &ctx.cmd.rx_filter_add);
 	if (f) {
 		/* don't bother if we already have it and it is sync'd */
 		if (f->state == IONIC_FILTER_STATE_SYNCED) {
@@ -336,7 +351,7 @@ int ionic_lif_addr_add(struct ionic_lif *lif, const u8 *addr)
 	spin_lock_bh(&lif->rx_filters.lock);
 	if (err && err != -EEXIST) {
 		/* set the state back to NEW so we can try again later */
-		f = ionic_rx_filter_by_addr(lif, addr);
+		f = ionic_rx_filter_find(lif, &ctx.cmd.rx_filter_add);
 		if (f && f->state == IONIC_FILTER_STATE_SYNCED) {
 			f->state = IONIC_FILTER_STATE_NEW;
 			set_bit(IONIC_LIF_F_FILTER_SYNC_NEEDED, lif->state);
@@ -355,7 +370,7 @@ int ionic_lif_addr_add(struct ionic_lif *lif, const u8 *addr)
 	else
 		lif->nucast++;
 
-	f = ionic_rx_filter_by_addr(lif, addr);
+	f = ionic_rx_filter_find(lif, &ctx.cmd.rx_filter_add);
 	if (f && f->state == IONIC_FILTER_STATE_OLD) {
 		/* Someone requested a delete while we were adding
 		 * so update the filter info with the results from the add
