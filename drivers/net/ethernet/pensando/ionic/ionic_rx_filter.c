@@ -301,22 +301,19 @@ int ionic_lif_list_addr(struct ionic_lif *lif, const u8 *addr, bool mode)
 	return 0;
 }
 
-int ionic_lif_addr_add(struct ionic_lif *lif, const u8 *addr)
+static int ionic_lif_filter_add(struct ionic_lif *lif,
+				struct ionic_rx_filter_add_cmd *ac)
 {
 	struct ionic_admin_ctx ctx = {
 		.work = COMPLETION_INITIALIZER_ONSTACK(ctx.work),
-		.cmd.rx_filter_add = {
-			.opcode = IONIC_CMD_RX_FILTER_ADD,
-			.lif_index = cpu_to_le16(lif->index),
-			.match = cpu_to_le16(IONIC_RX_FILTER_MATCH_MAC),
-		},
 	};
-	int nfilters = le32_to_cpu(lif->identity->eth.max_ucast_filters);
-	bool mc = is_multicast_ether_addr(addr);
 	struct ionic_rx_filter *f;
+	int nfilters;
 	int err = 0;
 
-	memcpy(ctx.cmd.rx_filter_add.mac.addr, addr, ETH_ALEN);
+	ctx.cmd.rx_filter_add = *ac;
+	ctx.cmd.rx_filter_add.opcode = IONIC_CMD_RX_FILTER_ADD,
+	ctx.cmd.rx_filter_add.lif_index = cpu_to_le16(lif->index),
 
 	spin_lock_bh(&lif->rx_filters.lock);
 	f = ionic_rx_filter_find(lif, &ctx.cmd.rx_filter_add);
@@ -338,37 +335,53 @@ int ionic_lif_addr_add(struct ionic_lif *lif, const u8 *addr)
 	if (err)
 		return err;
 
-	netdev_dbg(lif->netdev, "rx_filter add ADDR %pM\n", addr);
-
 	/* Don't bother with the write to FW if we know there's no room,
 	 * we can try again on the next sync attempt.
 	 */
-	if ((lif->nucast + lif->nmcast) >= nfilters)
-		err = -ENOSPC;
-	else
+	switch (le16_to_cpu(ctx.cmd.rx_filter_add.match)) {
+	case IONIC_RX_FILTER_MATCH_MAC:
+		netdev_dbg(lif->netdev, "%s: rx_filter add ADDR %pM\n",
+			   __func__, ctx.cmd.rx_filter_add.mac.addr);
+		nfilters = le32_to_cpu(lif->identity->eth.max_ucast_filters);
+		if ((lif->nucast + lif->nmcast) >= nfilters)
+			err = -ENOSPC;
+		break;
+	}
+
+	if (err != -ENOSPC)
 		err = ionic_adminq_post_wait(lif, &ctx);
 
 	spin_lock_bh(&lif->rx_filters.lock);
+
 	if (err && err != -EEXIST) {
 		/* set the state back to NEW so we can try again later */
 		f = ionic_rx_filter_find(lif, &ctx.cmd.rx_filter_add);
 		if (f && f->state == IONIC_FILTER_STATE_SYNCED) {
 			f->state = IONIC_FILTER_STATE_NEW;
-			set_bit(IONIC_LIF_F_FILTER_SYNC_NEEDED, lif->state);
+
+			/* If -ENOSPC we won't waste time trying to sync again
+			 * until there is a delete that might make room
+			 */
+			if (err != -ENOSPC)
+				set_bit(IONIC_LIF_F_FILTER_SYNC_NEEDED, lif->state);
 		}
 
 		spin_unlock_bh(&lif->rx_filters.lock);
 
 		if (err == -ENOSPC)
 			return 0;
-		else
-			return err;
+
+		return err;
 	}
 
-	if (mc)
-		lif->nmcast++;
-	else
-		lif->nucast++;
+	switch (le16_to_cpu(ctx.cmd.rx_filter_add.match)) {
+	case IONIC_RX_FILTER_MATCH_MAC:
+		if (is_multicast_ether_addr(ctx.cmd.rx_filter_add.mac.addr))
+			lif->nmcast++;
+		else
+			lif->nucast++;
+		break;
+	}
 
 	f = ionic_rx_filter_find(lif, &ctx.cmd.rx_filter_add);
 	if (f && f->state == IONIC_FILTER_STATE_OLD) {
@@ -387,6 +400,17 @@ int ionic_lif_addr_add(struct ionic_lif *lif, const u8 *addr)
 	spin_unlock_bh(&lif->rx_filters.lock);
 
 	return err;
+}
+
+int ionic_lif_addr_add(struct ionic_lif *lif, const u8 *addr)
+{
+	struct ionic_rx_filter_add_cmd ac = {
+		.match = cpu_to_le16(IONIC_RX_FILTER_MATCH_MAC),
+	};
+
+	memcpy(&ac.mac.addr, addr, ETH_ALEN);
+
+	return ionic_lif_filter_add(lif, &ac);
 }
 
 int ionic_lif_addr_del(struct ionic_lif *lif, const u8 *addr)
@@ -493,7 +517,7 @@ loop_out:
 	}
 
 	list_for_each_entry_safe(sync_item, spos, &sync_add_list, list) {
-		(void)ionic_lif_addr_add(lif, sync_item->f.cmd.mac.addr);
+		(void)ionic_lif_filter_add(lif, &sync_item->f.cmd);
 
 		list_del(&sync_item->list);
 		devm_kfree(dev, sync_item);
