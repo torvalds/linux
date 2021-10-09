@@ -1838,7 +1838,9 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 		channel->vc = stream->vc;
 	else
 		channel->vc = channel->id;
-
+	v4l2_dbg(3, rkcif_debug, &dev->v4l2_dev,
+		 "%s: channel width %d, height %d, virtual_width %d, vc %d\n", __func__,
+		 channel->width, channel->height, channel->virtual_width, channel->vc);
 	return 0;
 }
 
@@ -1953,7 +1955,10 @@ static int rkcif_csi_channel_set(struct rkcif_stream *stream,
 		else
 			val &= ~LVDS_COMPACT;
 	}
-
+	if (stream->is_high_align)
+		val |= CSI_ENABLE_MIPI_HIGH_ALIGN;
+	else
+		val &= ~CSI_ENABLE_MIPI_HIGH_ALIGN;
 	rkcif_write_register(dev, get_reg_index_of_id_ctrl0(channel->id), val);
 
 	return 0;
@@ -2956,12 +2961,21 @@ static int rkcif_stream_start(struct rkcif_stream *stream)
 	      | stream->cif_fmt_in->dvp_fmt_val
 	      | xfer_mode | yc_swap | multi_id_en
 	      | multi_id_sel | multi_id_mode | bt1120_edge_mode;
+
+	if (stream->is_high_align)
+		val |= CIF_HIGH_ALIGN;
+	else
+		val &= ~CIF_HIGH_ALIGN;
 	rkcif_write_register(dev, CIF_REG_DVP_FOR, val);
 
 	val = stream->pixm.width;
 	if (stream->cif_fmt_in->fmt_type == CIF_FMT_TYPE_RAW) {
 		fmt = find_output_fmt(stream, stream->pixm.pixelformat);
-		val = stream->pixm.width * rkcif_cal_raw_vir_line_ratio(stream, fmt);
+		if (fmt->fmt_type == CIF_FMT_TYPE_RAW &&
+		    fmt->csi_fmt_val == CSI_WRDDR_TYPE_RAW8)
+			val = ALIGN(stream->pixm.width * fmt->raw_bpp / 8, 256);
+		else
+			val = stream->pixm.width * rkcif_cal_raw_vir_line_ratio(stream, fmt);
 	}
 	rkcif_write_register(dev, CIF_REG_DVP_VIR_LINE_WIDTH, val);
 	rkcif_write_register(dev, CIF_REG_DVP_SET_SIZE,
@@ -3421,10 +3435,19 @@ void rkcif_stream_init(struct rkcif_device *dev, u32 id)
 	stream->crop_dyn_en = false;
 	stream->crop_mask = 0x0;
 
-	if (dev->chip_id >= CHIP_RV1126_CIF)
-		stream->is_compact = true;
-	else
-		stream->is_compact = false;
+	if (dev->inf_id == RKCIF_DVP) {
+		if (dev->chip_id <= CHIP_RK3568_CIF)
+			stream->is_compact = false;
+		else
+			stream->is_compact = true;
+	} else {
+		if (dev->chip_id >= CHIP_RV1126_CIF)
+			stream->is_compact = true;
+		else
+			stream->is_compact = false;
+	}
+
+	stream->is_high_align = false;
 
 	if (dev->chip_id == CHIP_RV1126_CIF ||
 	    dev->chip_id == CHIP_RV1126_CIF_LITE)
@@ -3853,42 +3876,53 @@ err:
 	return -EINVAL;
 }
 
-static int rkcif_g_ctrl(struct file *file, void *fh,
-			   struct v4l2_control *ctrl)
-{
-	struct rkcif_stream *stream = video_drvdata(file);
-
-	switch (ctrl->id) {
-	case V4L2_CID_CIF_DATA_COMPACT:
-		if (stream->is_compact)
-			ctrl->value = CSI_MEM_COMPACT;
-		else
-			ctrl->value = CSI_MEM_BYTE_LE;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int rkcif_s_ctrl(struct file *file, void *fh,
-			   struct v4l2_control *ctrl)
+static long rkcif_ioctl_default(struct file *file, void *fh,
+				    bool valid_prio, unsigned int cmd, void *arg)
 {
 	struct rkcif_stream *stream = video_drvdata(file);
 	struct rkcif_device *dev = stream->cifdev;
+	const struct cif_input_fmt *in_fmt;
+	struct v4l2_rect rect;
+	int vc = 0;
 
-	if (stream->state == RKCIF_STATE_STREAMING) {
-		v4l2_err(&dev->v4l2_dev, "set failed, the stream is streaming\n");
-		return -EBUSY;
-	}
-
-	switch (ctrl->id) {
-	case V4L2_CID_CIF_DATA_COMPACT:
-		if (ctrl->value == CSI_LVDS_MEM_COMPACT)
+	switch (cmd) {
+	case RKCIF_CMD_GET_CSI_MEMORY_MODE:
+		if (stream->is_compact) {
+			*(int *)arg = CSI_LVDS_MEM_COMPACT;
+		} else {
+			if (stream->is_high_align)
+				*(int *)arg = CSI_LVDS_MEM_WORD_HIGH_ALIGN;
+			else
+				*(int *)arg = CSI_LVDS_MEM_WORD_LOW_ALIGN;
+		}
+		break;
+	case RKCIF_CMD_SET_CSI_MEMORY_MODE:
+		if (dev->terminal_sensor.sd) {
+			in_fmt = get_input_fmt(dev->terminal_sensor.sd, &rect, 0, &vc);
+			if (in_fmt == NULL) {
+				v4l2_err(&dev->v4l2_dev, "can't get sensor input format\n");
+				return -EINVAL;
+			}
+		} else {
+			v4l2_err(&dev->v4l2_dev, "can't get sensor device\n");
+			return -EINVAL;
+		}
+		if (*(int *)arg == CSI_LVDS_MEM_COMPACT) {
+			if (((dev->inf_id == RKCIF_DVP && dev->chip_id <= CHIP_RK3568_CIF) ||
+			    (dev->inf_id == RKCIF_MIPI_LVDS && dev->chip_id < CHIP_RV1126_CIF)) &&
+			    in_fmt->csi_fmt_val != CSI_WRDDR_TYPE_RAW8) {
+				v4l2_err(&dev->v4l2_dev, "device not support compact\n");
+				return -EINVAL;
+			}
 			stream->is_compact = true;
-		else
+			stream->is_high_align = false;
+		} else if (*(int *)arg == CSI_LVDS_MEM_WORD_HIGH_ALIGN) {
 			stream->is_compact = false;
+			stream->is_high_align = true;
+		} else {
+			stream->is_compact = false;
+			stream->is_high_align = false;
+		}
 		break;
 	default:
 		return -EINVAL;
@@ -3917,8 +3951,7 @@ static const struct v4l2_ioctl_ops rkcif_v4l2_ioctl_ops = {
 	.vidioc_g_selection = rkcif_g_selection,
 	.vidioc_enum_frameintervals = rkcif_enum_frameintervals,
 	.vidioc_enum_framesizes = rkcif_enum_framesizes,
-	.vidioc_g_ctrl = rkcif_g_ctrl,
-	.vidioc_s_ctrl = rkcif_s_ctrl,
+	.vidioc_default = rkcif_ioctl_default,
 };
 
 static void rkcif_unregister_stream_vdev(struct rkcif_stream *stream)

@@ -152,6 +152,64 @@ static ssize_t rkcif_store_dummybuf_mode(struct device *dev,
 	return len;
 }
 
+/* show the compact mode of each stream in stream index order,
+ * 1 for compact, 0 for 16bit
+ */
+static ssize_t rkcif_show_memory_mode(struct device *dev,
+					      struct device_attribute *attr,
+					      char *buf)
+{
+	struct rkcif_device *cif_dev = (struct rkcif_device *)dev_get_drvdata(dev);
+	int ret;
+
+	ret = snprintf(buf, PAGE_SIZE,
+		       "stream[0~3] %d %d %d %d, 0(low align) 1(high align) 2(compact)\n",
+		       cif_dev->stream[0].is_compact ? 2 : (cif_dev->stream[0].is_high_align ? 1 : 0),
+		       cif_dev->stream[1].is_compact ? 2 : (cif_dev->stream[1].is_high_align ? 1 : 0),
+		       cif_dev->stream[2].is_compact ? 2 : (cif_dev->stream[2].is_high_align ? 1 : 0),
+		       cif_dev->stream[3].is_compact ? 2 : (cif_dev->stream[3].is_high_align ? 1 : 0));
+	return ret;
+}
+
+static ssize_t rkcif_store_memory_mode(struct device *dev,
+					       struct device_attribute *attr,
+					       const char *buf, size_t len)
+{
+	struct rkcif_device *cif_dev = (struct rkcif_device *)dev_get_drvdata(dev);
+	int i, index;
+	char val[4];
+
+	if (buf) {
+		index = 0;
+		for (i = 0; i < len; i++) {
+			if (buf[i] == ' ') {
+				continue;
+			} else if (buf[i] == '\0') {
+				break;
+			} else {
+				val[index] = buf[i];
+				index++;
+				if (index == 4)
+					break;
+			}
+		}
+
+		for (i = 0; i < index; i++) {
+			if (cif_dev->stream[i].is_compact) {
+				dev_info(cif_dev->dev, "stream[%d] set memory align fail, is compact mode\n",
+					 i);
+				continue;
+			}
+			if (val[i] - '0' == 0)
+				cif_dev->stream[i].is_high_align = false;
+			else
+				cif_dev->stream[i].is_high_align = true;
+		}
+	}
+
+	return len;
+}
+
 static DEVICE_ATTR(compact_test, S_IWUSR | S_IRUSR,
 		   rkcif_show_compact_mode, rkcif_store_compact_mode);
 
@@ -161,11 +219,15 @@ static DEVICE_ATTR(wait_line, S_IWUSR | S_IRUSR,
 static DEVICE_ATTR(is_use_dummybuf, S_IWUSR | S_IRUSR,
 		   rkcif_show_dummybuf_mode, rkcif_store_dummybuf_mode);
 
+static DEVICE_ATTR(is_high_align, S_IWUSR | S_IRUSR,
+		   rkcif_show_memory_mode, rkcif_store_memory_mode);
+
 
 static struct attribute *dev_attrs[] = {
 	&dev_attr_compact_test.attr,
 	&dev_attr_wait_line.attr,
 	&dev_attr_is_use_dummybuf.attr,
+	&dev_attr_is_high_align.attr,
 	NULL,
 };
 
