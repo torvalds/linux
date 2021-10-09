@@ -966,10 +966,16 @@ static void dw_mipi_dsi_bridge_enable(struct drm_bridge *bridge)
 {
 	struct dw_mipi_dsi *dsi = bridge_to_dsi(bridge);
 
-	/* Switch to video mode for panel-bridge enable & panel enable */
-	dw_mipi_dsi_set_mode(dsi, MIPI_DSI_MODE_VIDEO);
-	if (dsi->slave)
-		dw_mipi_dsi_set_mode(dsi->slave, MIPI_DSI_MODE_VIDEO);
+	/* Switch to video/cmd mode for panel-bridge enable & panel enable */
+	if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO) {
+		dw_mipi_dsi_set_mode(dsi, MIPI_DSI_MODE_VIDEO);
+		if (dsi->slave)
+			dw_mipi_dsi_set_mode(dsi->slave, MIPI_DSI_MODE_VIDEO);
+	} else {
+		dw_mipi_dsi_set_mode(dsi, 0);
+		if (dsi->slave)
+			dw_mipi_dsi_set_mode(dsi->slave, 0);
+	}
 }
 
 static enum drm_mode_status
