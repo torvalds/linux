@@ -9,6 +9,7 @@
  */
 
 #include "include/af_unix.h"
+#include "include/af_inet.h"
 #include "include/apparmor.h"
 #include "include/audit.h"
 #include "include/cred.h"
@@ -133,12 +134,12 @@ void audit_net_cb(struct audit_buffer *ab, void *va)
 	audit_log_format(ab, " protocol=%d", ad->net.protocol);
 
 	if (ad->request & NET_PERMS_MASK) {
-		audit_log_format(ab, " requested_mask=");
+		audit_log_format(ab, " requested=");
 		aa_audit_perm_mask(ab, ad->request, NULL, 0,
 				   net_mask_names, NET_PERMS_MASK);
 
 		if (ad->denied & NET_PERMS_MASK) {
-			audit_log_format(ab, " denied_mask=");
+			audit_log_format(ab, " denied=");
 			aa_audit_perm_mask(ab, ad->denied, NULL, 0,
 					   net_mask_names, NET_PERMS_MASK);
 		}
@@ -282,10 +283,8 @@ int aa_af_perm(const struct cred *subj_cred, struct aa_label *label,
 					   type, protocol));
 }
 
-static int aa_label_sk_perm(const struct cred *subj_cred,
-			    struct aa_label *label,
-			    const char *op, u32 request,
-			    struct sock *sk)
+int aa_label_sk_perm(const struct cred *subj_cred, struct aa_label *label,
+		     const char *op, u32 request, const struct sock *sk)
 {
 	struct aa_sk_ctx *ctx = aa_sock(sk);
 	int error = 0;
@@ -305,7 +304,7 @@ static int aa_label_sk_perm(const struct cred *subj_cred,
 	return error;
 }
 
-int aa_sk_perm(const char *op, u32 request, struct sock *sk)
+int aa_sk_perm(const char *op, u32 request, const struct sock *sk)
 {
 	struct aa_label *label;
 	bool needput;
@@ -334,8 +333,13 @@ int aa_sock_file_perm(const struct cred *subj_cred, struct aa_label *label,
 	if (!sock || !sock->sk)
 		return 0;
 
-	if (sock->sk->sk_family == PF_UNIX)
+	switch (sock->sk->sk_family) {
+	case PF_UNIX:
 		return aa_unix_file_perm(subj_cred, label, op, request, file);
+	case PF_INET:
+	case PF_INET6:
+		return aa_inet_file_perm(subj_cred, label, op, request, sock);
+	}
 	return aa_label_sk_perm(subj_cred, label, op, request, sock->sk);
 }
 
