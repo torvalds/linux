@@ -176,7 +176,8 @@ amdgpu-y += \
 	jpeg_v1_0.o \
 	jpeg_v2_0.o \
 	jpeg_v2_5.o \
-	jpeg_v3_0.o
+	jpeg_v3_0.o \
+	jpeg_v4_0.o
 
 # add ATHUB block
 amdgpu-y += \
