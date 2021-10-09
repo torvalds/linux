@@ -1180,8 +1180,7 @@ blk_status_t blk_insert_cloned_request(struct request_queue *q, struct request *
 	if (blk_crypto_insert_cloned_request(rq))
 		return BLK_STS_IOERR;
 
-	if (blk_queue_io_stat(q))
-		blk_account_io_start(rq);
+	blk_account_io_start(rq);
 
 	/*
 	 * Since we have a scheduler attached on the top device,
@@ -1260,30 +1259,19 @@ static void blk_account_io_completion(struct request *req, unsigned int bytes)
 	}
 }
 
-void blk_account_io_done(struct request *req, u64 now)
+void __blk_account_io_done(struct request *req, u64 now)
 {
-	/*
-	 * Account IO completion.  flush_rq isn't accounted as a
-	 * normal IO on queueing nor completion.  Accounting the
-	 * containing request is enough.
-	 */
-	if (req->part && blk_do_io_stat(req) &&
-	    !(req->rq_flags & RQF_FLUSH_SEQ)) {
-		const int sgrp = op_stat_group(req_op(req));
+	const int sgrp = op_stat_group(req_op(req));
 
-		part_stat_lock();
-		update_io_ticks(req->part, jiffies, true);
-		part_stat_inc(req->part, ios[sgrp]);
-		part_stat_add(req->part, nsecs[sgrp], now - req->start_time_ns);
-		part_stat_unlock();
-	}
+	part_stat_lock();
+	update_io_ticks(req->part, jiffies, true);
+	part_stat_inc(req->part, ios[sgrp]);
+	part_stat_add(req->part, nsecs[sgrp], now - req->start_time_ns);
+	part_stat_unlock();
 }
 
-void blk_account_io_start(struct request *rq)
+void __blk_account_io_start(struct request *rq)
 {
-	if (!blk_do_io_stat(rq))
-		return;
-
 	/* passthrough requests can hold bios that do not have ->bi_bdev set */
 	if (rq->bio && rq->bio->bi_bdev)
 		rq->part = rq->bio->bi_bdev;

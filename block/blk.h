@@ -221,8 +221,8 @@ bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 bool blk_bio_list_merge(struct request_queue *q, struct list_head *list,
 			struct bio *bio, unsigned int nr_segs);
 
-void blk_account_io_start(struct request *req);
-void blk_account_io_done(struct request *req, u64 now);
+void __blk_account_io_start(struct request *req);
+void __blk_account_io_done(struct request *req, u64 now);
 
 /*
  * Plug flush limits
@@ -286,7 +286,25 @@ int blk_dev_init(void);
  */
 static inline bool blk_do_io_stat(struct request *rq)
 {
-	return rq->rq_disk && (rq->rq_flags & RQF_IO_STAT);
+	return (rq->rq_flags & RQF_IO_STAT) && rq->rq_disk;
+}
+
+static inline void blk_account_io_done(struct request *req, u64 now)
+{
+	/*
+	 * Account IO completion.  flush_rq isn't accounted as a
+	 * normal IO on queueing nor completion.  Accounting the
+	 * containing request is enough.
+	 */
+	if (blk_do_io_stat(req) && req->part &&
+	    !(req->rq_flags & RQF_FLUSH_SEQ))
+		__blk_account_io_done(req, now);
+}
+
+static inline void blk_account_io_start(struct request *req)
+{
+	if (blk_do_io_stat(req))
+		__blk_account_io_start(req);
 }
 
 static inline void req_set_nomerge(struct request_queue *q, struct request *req)
