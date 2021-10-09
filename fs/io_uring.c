@@ -360,6 +360,7 @@ struct io_ring_ctx {
 		 * uring_lock, and updated through io_uring_register(2)
 		 */
 		struct io_rsrc_node	*rsrc_node;
+		int			rsrc_cached_refs;
 		struct io_file_table	file_table;
 		unsigned		nr_user_files;
 		unsigned		nr_user_bufs;
@@ -1174,12 +1175,52 @@ static inline void io_req_set_refcount(struct io_kiocb *req)
 	__io_req_set_refcount(req, 1);
 }
 
+#define IO_RSRC_REF_BATCH	100
+
+static inline void io_req_put_rsrc_locked(struct io_kiocb *req,
+					  struct io_ring_ctx *ctx)
+	__must_hold(&ctx->uring_lock)
+{
+	struct percpu_ref *ref = req->fixed_rsrc_refs;
+
+	if (ref) {
+		if (ref == &ctx->rsrc_node->refs)
+			ctx->rsrc_cached_refs++;
+		else
+			percpu_ref_put(ref);
+	}
+}
+
+static inline void io_req_put_rsrc(struct io_kiocb *req, struct io_ring_ctx *ctx)
+{
+	if (req->fixed_rsrc_refs)
+		percpu_ref_put(req->fixed_rsrc_refs);
+}
+
+static __cold void io_rsrc_refs_drop(struct io_ring_ctx *ctx)
+	__must_hold(&ctx->uring_lock)
+{
+	if (ctx->rsrc_cached_refs) {
+		percpu_ref_put_many(&ctx->rsrc_node->refs, ctx->rsrc_cached_refs);
+		ctx->rsrc_cached_refs = 0;
+	}
+}
+
+static void io_rsrc_refs_refill(struct io_ring_ctx *ctx)
+	__must_hold(&ctx->uring_lock)
+{
+	ctx->rsrc_cached_refs += IO_RSRC_REF_BATCH;
+	percpu_ref_get_many(&ctx->rsrc_node->refs, IO_RSRC_REF_BATCH);
+}
+
 static inline void io_req_set_rsrc_node(struct io_kiocb *req,
 					struct io_ring_ctx *ctx)
 {
 	if (!req->fixed_rsrc_refs) {
 		req->fixed_rsrc_refs = &ctx->rsrc_node->refs;
-		percpu_ref_get(req->fixed_rsrc_refs);
+		ctx->rsrc_cached_refs--;
+		if (unlikely(ctx->rsrc_cached_refs < 0))
+			io_rsrc_refs_refill(ctx);
 	}
 }
 
@@ -1800,6 +1841,7 @@ static void io_req_complete_post(struct io_kiocb *req, s32 res,
 				req->link = NULL;
 			}
 		}
+		io_req_put_rsrc(req, ctx);
 		io_dismantle_req(req);
 		io_put_task(req->task, 1);
 		wq_list_add_head(&req->comp_list, &ctx->locked_free_list);
@@ -1956,14 +1998,13 @@ static inline void io_dismantle_req(struct io_kiocb *req)
 		io_clean_op(req);
 	if (!(flags & REQ_F_FIXED_FILE))
 		io_put_file(req->file);
-	if (req->fixed_rsrc_refs)
-		percpu_ref_put(req->fixed_rsrc_refs);
 }
 
 static __cold void __io_free_req(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 
+	io_req_put_rsrc(req, ctx);
 	io_dismantle_req(req);
 	io_put_task(req->task, 1);
 
@@ -2271,6 +2312,7 @@ static void io_free_batch_list(struct io_ring_ctx *ctx,
 				continue;
 		}
 
+		io_req_put_rsrc_locked(req, ctx);
 		io_queue_next(req);
 		io_dismantle_req(req);
 
@@ -7630,9 +7672,12 @@ static struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx)
 
 static void io_rsrc_node_switch(struct io_ring_ctx *ctx,
 				struct io_rsrc_data *data_to_kill)
+	__must_hold(&ctx->uring_lock)
 {
 	WARN_ON_ONCE(!ctx->rsrc_backup_node);
 	WARN_ON_ONCE(data_to_kill && !ctx->rsrc_node);
+
+	io_rsrc_refs_drop(ctx);
 
 	if (data_to_kill) {
 		struct io_rsrc_node *rsrc_node = ctx->rsrc_node;
@@ -9187,6 +9232,7 @@ static __cold void io_ring_ctx_free(struct io_ring_ctx *ctx)
 		ctx->mm_account = NULL;
 	}
 
+	io_rsrc_refs_drop(ctx);
 	/* __io_rsrc_put_work() may need uring_lock to progress, wait w/o it */
 	io_wait_rsrc_data(ctx->buf_data);
 	io_wait_rsrc_data(ctx->file_data);
