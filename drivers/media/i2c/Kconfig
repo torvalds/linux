@@ -386,6 +386,13 @@ config VIDEO_NVP6324
 	  To compile this driver as a module, choose M here: the
 	  module will be called jaguar1_drv.
 
+config VIDEO_OTP_EEPROM
+	tristate "sensor otp from eeprom support"
+	depends on VIDEO_V4L2 && I2C
+	select V4L2_FWNODE
+	help
+	  This driver supports OTP load from eeprom.
+
 config VIDEO_SAA7110
 	tristate "Philips SAA7110 video decoder"
 	depends on VIDEO_V4L2 && I2C
