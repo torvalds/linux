@@ -30,6 +30,7 @@
 #include <linux/ratelimit.h>
 #include <linux/uaccess.h>
 #include <linux/kdebug.h>
+#include <linux/kfence.h>
 
 #include <asm/assembly.h>
 #include <asm/io.h>
@@ -786,6 +787,10 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 	    {
 		/* Clean up and return if in exception table. */
 		if (fixup_exception(regs))
+			return;
+		/* Clean up and return if handled by kfence. */
+		if (kfence_handle_page_fault(fault_address,
+			parisc_acctyp(code, regs->iir) == VM_WRITE, regs))
 			return;
 		pdc_chassis_send_status(PDC_CHASSIS_DIRECT_PANIC);
 		parisc_terminate("Kernel Fault", regs, code, fault_address);
