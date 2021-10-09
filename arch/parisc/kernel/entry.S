@@ -974,8 +974,8 @@ intr_do_preempt:
 
 	/* current_thread_info()->preempt_count */
 	mfctl	%cr30, %r1
-	LDREG	TI_PRE_COUNT(%r1), %r19
-	cmpib,COND(<>)	0, %r19, intr_restore	/* if preempt_count > 0 */
+	ldw	TI_PRE_COUNT(%r1), %r19
+	cmpib,<>	0, %r19, intr_restore	/* if preempt_count > 0 */
 	nop				/* prev insn branched backwards */
 
 	/* check if we interrupted a critical path */
