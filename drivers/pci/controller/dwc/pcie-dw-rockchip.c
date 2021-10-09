@@ -957,6 +957,7 @@ static int rk_pcie_add_ep(struct rk_pcie *rk_pcie)
 		return ret;
 	}
 
+	rk_pcie->pci->atu_base = rk_pcie->pci->dbi_base + DEFAULT_DBI_ATU_OFFSET;
 	rk_pcie->pci->iatu_unroll_enabled = rk_pcie_iatu_unroll_enabled(rk_pcie->pci);
 
 	ret = rk_pcie_ep_atu_init(rk_pcie);
