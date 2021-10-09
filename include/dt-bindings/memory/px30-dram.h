@@ -129,4 +129,12 @@
 #define PHY_DDR4_LPDDR3_2_RON_RTT_21ohm	(30)
 #define PHY_DDR4_LPDDR3_2_RON_RTT_20ohm	(31)
 
+#define LP4_VDDQ_2_5			(0)
+#define LP4_VDDQ_3			(1)
+
+#define LP4X_VDDQ_0_6			(0)
+#define LP4X_VDDQ_0_5			(1)
+
+#define IGNORE_THIS			(0)
+
 #endif /*_DT_BINDINGS_DRAM_ROCKCHIP_PX30_H*/
