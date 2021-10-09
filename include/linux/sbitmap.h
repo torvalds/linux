@@ -427,6 +427,19 @@ void sbitmap_queue_resize(struct sbitmap_queue *sbq, unsigned int depth);
 int __sbitmap_queue_get(struct sbitmap_queue *sbq);
 
 /**
+ * __sbitmap_queue_get_batch() - Try to allocate a batch of free bits
+ * @sbq: Bitmap queue to allocate from.
+ * @nr_tags: number of tags requested
+ * @offset: offset to add to returned bits
+ *
+ * Return: Mask of allocated tags, 0 if none are found. Each tag allocated is
+ * a bit in the mask returned, and the caller must add @offset to the value to
+ * get the absolute tag value.
+ */
+unsigned long __sbitmap_queue_get_batch(struct sbitmap_queue *sbq, int nr_tags,
+					unsigned int *offset);
+
+/**
  * __sbitmap_queue_get_shallow() - Try to allocate a free bit from a &struct
  * sbitmap_queue, limiting the depth used from each word, with preemption
  * already disabled.

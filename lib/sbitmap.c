@@ -489,6 +489,57 @@ int __sbitmap_queue_get(struct sbitmap_queue *sbq)
 }
 EXPORT_SYMBOL_GPL(__sbitmap_queue_get);
 
+unsigned long __sbitmap_queue_get_batch(struct sbitmap_queue *sbq, int nr_tags,
+					unsigned int *offset)
+{
+	struct sbitmap *sb = &sbq->sb;
+	unsigned int hint, depth;
+	unsigned long index, nr;
+	int i;
+
+	if (unlikely(sb->round_robin))
+		return 0;
+
+	depth = READ_ONCE(sb->depth);
+	hint = update_alloc_hint_before_get(sb, depth);
+
+	index = SB_NR_TO_INDEX(sb, hint);
+
+	for (i = 0; i < sb->map_nr; i++) {
+		struct sbitmap_word *map = &sb->map[index];
+		unsigned long get_mask;
+
+		sbitmap_deferred_clear(map);
+		if (map->word == (1UL << (map->depth - 1)) - 1)
+			continue;
+
+		nr = find_first_zero_bit(&map->word, map->depth);
+		if (nr + nr_tags <= map->depth) {
+			atomic_long_t *ptr = (atomic_long_t *) &map->word;
+			int map_tags = min_t(int, nr_tags, map->depth);
+			unsigned long val, ret;
+
+			get_mask = ((1UL << map_tags) - 1) << nr;
+			do {
+				val = READ_ONCE(map->word);
+				ret = atomic_long_cmpxchg(ptr, val, get_mask | val);
+			} while (ret != val);
+			get_mask = (get_mask & ~ret) >> nr;
+			if (get_mask) {
+				*offset = nr + (index << sb->shift);
+				update_alloc_hint_after_get(sb, depth, hint,
+							*offset + map_tags - 1);
+				return get_mask;
+			}
+		}
+		/* Jump to next index. */
+		if (++index >= sb->map_nr)
+			index = 0;
+	}
+
+	return 0;
+}
+
 int __sbitmap_queue_get_shallow(struct sbitmap_queue *sbq,
 				unsigned int shallow_depth)
 {
