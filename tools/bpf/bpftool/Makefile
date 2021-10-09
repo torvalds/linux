@@ -198,7 +198,10 @@ $(BOOTSTRAP_OUTPUT)disasm.o: $(srctree)/kernel/bpf/disasm.c
 $(OUTPUT)disasm.o: $(srctree)/kernel/bpf/disasm.c
 	$(QUIET_CC)$(CC) $(CFLAGS) -c -MMD -o $@ $<
 
-$(OUTPUT)feature.o: | zdep
+$(OUTPUT)feature.o:
+ifneq ($(feature-zlib), 1)
+	$(error "No zlib found")
+endif
 
 $(BPFTOOL_BOOTSTRAP): $(BOOTSTRAP_OBJS) $(LIBBPF_BOOTSTRAP)
 	$(QUIET_LINK)$(HOSTCC) $(CFLAGS) $(LDFLAGS) -o $@ $(BOOTSTRAP_OBJS) \
@@ -254,10 +257,7 @@ doc-uninstall:
 
 FORCE:
 
-zdep:
-	@if [ "$(feature-zlib)" != "1" ]; then echo "No zlib found"; exit 1 ; fi
-
 .SECONDARY:
-.PHONY: all FORCE clean install-bin install uninstall zdep
+.PHONY: all FORCE clean install-bin install uninstall
 .PHONY: doc doc-clean doc-install doc-uninstall
 .DEFAULT_GOAL := all
