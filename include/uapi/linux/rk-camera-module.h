@@ -16,7 +16,7 @@
 #define RKMODULE_EXTEND_LINE		24
 
 #define RKMODULE_NAME_LEN		32
-#define RKMODULE_LSCDATA_LEN		441
+#define RKMODULE_LSCDATA_LEN		289
 
 #define RKMODULE_MAX_VC_CH		4
 
@@ -164,6 +164,10 @@ struct rkmodule_lsc_inf {
 	__u16 lsc_b[RKMODULE_LSCDATA_LEN];
 	__u16 lsc_gr[RKMODULE_LSCDATA_LEN];
 	__u16 lsc_gb[RKMODULE_LSCDATA_LEN];
+
+	__u16 width;
+	__u16 height;
+	__u16 table_size;
 } __attribute__ ((packed));
 
 /**
