@@ -1174,10 +1174,9 @@ static inline void io_req_set_refcount(struct io_kiocb *req)
 	__io_req_set_refcount(req, 1);
 }
 
-static inline void io_req_set_rsrc_node(struct io_kiocb *req)
+static inline void io_req_set_rsrc_node(struct io_kiocb *req,
+					struct io_ring_ctx *ctx)
 {
-	struct io_ring_ctx *ctx = req->ctx;
-
 	if (!req->fixed_rsrc_refs) {
 		req->fixed_rsrc_refs = &ctx->rsrc_node->refs;
 		percpu_ref_get(req->fixed_rsrc_refs);
@@ -2828,7 +2827,7 @@ static int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	if (req->opcode == IORING_OP_READ_FIXED ||
 	    req->opcode == IORING_OP_WRITE_FIXED) {
 		req->imu = NULL;
-		io_req_set_rsrc_node(req);
+		io_req_set_rsrc_node(req, ctx);
 	}
 
 	req->rw.addr = READ_ONCE(sqe->addr);
@@ -6757,7 +6756,7 @@ static inline struct file *io_file_get_fixed(struct io_ring_ctx *ctx,
 	file_ptr &= ~FFS_MASK;
 	/* mask in overlapping REQ_F and FFS bits */
 	req->flags |= (file_ptr << REQ_F_NOWAIT_READ_BIT);
-	io_req_set_rsrc_node(req);
+	io_req_set_rsrc_node(req, ctx);
 	return file;
 }
 
