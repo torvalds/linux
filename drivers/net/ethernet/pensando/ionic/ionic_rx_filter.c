@@ -337,8 +337,16 @@ static int ionic_lif_filter_add(struct ionic_lif *lif,
 
 	/* Don't bother with the write to FW if we know there's no room,
 	 * we can try again on the next sync attempt.
+	 * Since the FW doesn't have a way to tell us the vlan limit,
+	 * we start max_vlans at 0 until we hit the ENOSPC error.
 	 */
 	switch (le16_to_cpu(ctx.cmd.rx_filter_add.match)) {
+	case IONIC_RX_FILTER_MATCH_VLAN:
+		netdev_dbg(lif->netdev, "%s: rx_filter add VLAN %d\n",
+			   __func__, ctx.cmd.rx_filter_add.vlan.vlan);
+		if (lif->max_vlans && lif->nvlans >= lif->max_vlans)
+			err = -ENOSPC;
+		break;
 	case IONIC_RX_FILTER_MATCH_MAC:
 		netdev_dbg(lif->netdev, "%s: rx_filter add ADDR %pM\n",
 			   __func__, ctx.cmd.rx_filter_add.mac.addr);
@@ -368,13 +376,19 @@ static int ionic_lif_filter_add(struct ionic_lif *lif,
 
 		spin_unlock_bh(&lif->rx_filters.lock);
 
-		if (err == -ENOSPC)
+		if (err == -ENOSPC) {
+			if (le16_to_cpu(ctx.cmd.rx_filter_add.match) == IONIC_RX_FILTER_MATCH_VLAN)
+				lif->max_vlans = lif->nvlans;
 			return 0;
+		}
 
 		return err;
 	}
 
 	switch (le16_to_cpu(ctx.cmd.rx_filter_add.match)) {
+	case IONIC_RX_FILTER_MATCH_VLAN:
+		lif->nvlans++;
+		break;
 	case IONIC_RX_FILTER_MATCH_MAC:
 		if (is_multicast_ether_addr(ctx.cmd.rx_filter_add.mac.addr))
 			lif->nmcast++;
@@ -413,6 +427,16 @@ int ionic_lif_addr_add(struct ionic_lif *lif, const u8 *addr)
 	return ionic_lif_filter_add(lif, &ac);
 }
 
+int ionic_lif_vlan_add(struct ionic_lif *lif, const u16 vid)
+{
+	struct ionic_rx_filter_add_cmd ac = {
+		.match = cpu_to_le16(IONIC_RX_FILTER_MATCH_VLAN),
+		.vlan.vlan = cpu_to_le16(vid),
+	};
+
+	return ionic_lif_filter_add(lif, &ac);
+}
+
 static int ionic_lif_filter_del(struct ionic_lif *lif,
 				struct ionic_rx_filter_add_cmd *ac)
 {
@@ -435,6 +459,11 @@ static int ionic_lif_filter_del(struct ionic_lif *lif,
 	}
 
 	switch (le16_to_cpu(ac->match)) {
+	case IONIC_RX_FILTER_MATCH_VLAN:
+		netdev_dbg(lif->netdev, "%s: rx_filter del VLAN %d id %d\n",
+			   __func__, ac->vlan.vlan, f->filter_id);
+		lif->nvlans--;
+		break;
 	case IONIC_RX_FILTER_MATCH_MAC:
 		netdev_dbg(lif->netdev, "%s: rx_filter del ADDR %pM id %d\n",
 			   __func__, ac->mac.addr, f->filter_id);
@@ -467,6 +496,16 @@ int ionic_lif_addr_del(struct ionic_lif *lif, const u8 *addr)
 	};
 
 	memcpy(&ac.mac.addr, addr, ETH_ALEN);
+
+	return ionic_lif_filter_del(lif, &ac);
+}
+
+int ionic_lif_vlan_del(struct ionic_lif *lif, const u16 vid)
+{
+	struct ionic_rx_filter_add_cmd ac = {
+		.match = cpu_to_le16(IONIC_RX_FILTER_MATCH_VLAN),
+		.vlan.vlan = cpu_to_le16(vid),
+	};
 
 	return ionic_lif_filter_del(lif, &ac);
 }
