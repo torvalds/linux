@@ -1328,6 +1328,9 @@ static int qca83xx_config_init(struct phy_device *phydev)
 		at803x_debug_reg_mask(phydev, AT803X_DEBUG_REG_0,
 				      QCA8327_DEBUG_MANU_CTRL_EN, 0);
 
+	/* Following original QCA sourcecode set port to prefer master */
+	phy_set_bits(phydev, MII_CTRL1000, CTL1000_PREFER_MASTER);
+
 	return 0;
 }
 
