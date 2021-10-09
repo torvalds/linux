@@ -645,7 +645,7 @@ static bool gss_check_seq_num(const struct svc_rqst *rqstp, struct rsc *rsci,
 		}
 		__set_bit(seq_num % GSS_SEQ_WIN, sd->sd_win);
 		goto ok;
-	} else if (seq_num <= sd->sd_max - GSS_SEQ_WIN) {
+	} else if (seq_num + GSS_SEQ_WIN <= sd->sd_max) {
 		goto toolow;
 	}
 	if (__test_and_set_bit(seq_num % GSS_SEQ_WIN, sd->sd_win))
