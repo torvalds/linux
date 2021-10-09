@@ -1283,14 +1283,11 @@ void ionic_lif_rx_mode(struct ionic_lif *lif)
 	 *       to see if we can disable NIC PROMISC
 	 */
 	nfilters = le32_to_cpu(lif->identity->eth.max_ucast_filters);
+
 	if ((lif->nucast + lif->nmcast) >= nfilters) {
 		rx_mode |= IONIC_RX_MODE_F_PROMISC;
 		rx_mode |= IONIC_RX_MODE_F_ALLMULTI;
-		lif->uc_overflow = true;
-		lif->mc_overflow = true;
-	} else if (lif->uc_overflow) {
-		lif->uc_overflow = false;
-		lif->mc_overflow = false;
+	} else {
 		if (!(nd_flags & IFF_PROMISC))
 			rx_mode &= ~IONIC_RX_MODE_F_PROMISC;
 		if (!(nd_flags & IFF_ALLMULTI))

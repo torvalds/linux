@@ -189,8 +189,6 @@ struct ionic_lif {
 	u16 rx_mode;
 	u64 hw_features;
 	bool registered;
-	bool mc_overflow;
-	bool uc_overflow;
 	u16 lif_type;
 	unsigned int nmcast;
 	unsigned int nucast;
