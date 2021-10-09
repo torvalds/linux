@@ -681,7 +681,7 @@ void kvm_vcpu_wfi(struct kvm_vcpu *vcpu)
 	vgic_v4_put(vcpu, true);
 	preempt_enable();
 
-	kvm_vcpu_block(vcpu);
+	kvm_vcpu_halt(vcpu);
 	kvm_clear_request(KVM_REQ_UNHALT, vcpu);
 
 	preempt_disable();
