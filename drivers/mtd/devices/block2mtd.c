@@ -31,6 +31,9 @@
 #include <linux/slab.h>
 #include <linux/major.h>
 
+/* Maximum number of comma-separated items in the 'block2mtd=' parameter */
+#define BLOCK2MTD_PARAM_MAX_COUNT 2
+
 /* Info for the block device */
 struct block2mtd_dev {
 	struct list_head list;
@@ -381,7 +384,7 @@ static int block2mtd_setup2(const char *val)
 	/* 80 for device, 12 for erase size, 80 for name, 8 for timeout */
 	char buf[80 + 12 + 80 + 8];
 	char *str = buf;
-	char *token[2];
+	char *token[BLOCK2MTD_PARAM_MAX_COUNT];
 	char *name;
 	size_t erase_size = PAGE_SIZE;
 	unsigned long timeout = MTD_DEFAULT_TIMEOUT;
@@ -395,7 +398,7 @@ static int block2mtd_setup2(const char *val)
 	strcpy(str, val);
 	kill_final_newline(str);
 
-	for (i = 0; i < 2; i++)
+	for (i = 0; i < BLOCK2MTD_PARAM_MAX_COUNT; i++)
 		token[i] = strsep(&str, ",");
 
 	if (str) {
