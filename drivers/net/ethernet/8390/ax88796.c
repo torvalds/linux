@@ -748,11 +748,13 @@ static int ax_init_dev(struct net_device *dev)
 
 	/* load the mac-address from the device */
 	if (ax->plat->flags & AXFLG_MAC_FROMDEV) {
+		u8 addr[ETH_ALEN];
+
 		ei_outb(E8390_NODMA + E8390_PAGE1 + E8390_STOP,
 			ei_local->mem + E8390_CMD); /* 0x61 */
 		for (i = 0; i < ETH_ALEN; i++)
-			dev->dev_addr[i] =
-				ei_inb(ioaddr + EN1_PHYS_SHIFT(i));
+			addr[i] = ei_inb(ioaddr + EN1_PHYS_SHIFT(i));
+		eth_hw_addr_set(dev, addr);
 	}
 
 	if ((ax->plat->flags & AXFLG_MAC_FROMPLATFORM) &&
