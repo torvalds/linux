@@ -46,10 +46,10 @@
 
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0xd146258f
+#define DMUB_FW_VERSION_GIT_HASH 0xdd808d7b
 #define DMUB_FW_VERSION_MAJOR 0
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 88
+#define DMUB_FW_VERSION_REVISION 89
 #define DMUB_FW_VERSION_TEST 0
 #define DMUB_FW_VERSION_VBIOS 0
 #define DMUB_FW_VERSION_HOTFIX 0
@@ -371,7 +371,10 @@ union dmub_fw_boot_options {
 		uint32_t enable_dpia: 1; /**< 1 if DPIA should be enabled */
 		uint32_t invalid_vbios_data: 1; /**< 1 if VBIOS data table is invalid */
 		uint32_t reserved_unreleased2: 1; /**< reserved for an unreleased feature */
-		uint32_t reserved : 22; /**< reserved */
+		uint32_t root_clock_gating: 1; /**< 1 if all root clock gating is enabled */
+		uint32_t diag_env: 1; /* 1 if diagnostic environment */
+
+		uint32_t reserved : 19; /**< reserved */
 	} bits; /**< boot bits */
 	uint32_t all; /**< 32-bit access to bits */
 };
