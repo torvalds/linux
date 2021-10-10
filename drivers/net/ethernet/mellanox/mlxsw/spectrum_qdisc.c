@@ -1482,8 +1482,10 @@ static int mlxsw_sp_qevent_span_configure(struct mlxsw_sp *mlxsw_sp,
 					  const struct mlxsw_sp_span_agent_parms *agent_parms,
 					  int *p_span_id)
 {
+	enum mlxsw_sp_span_trigger span_trigger = qevent_binding->span_trigger;
 	struct mlxsw_sp_port *mlxsw_sp_port = qevent_binding->mlxsw_sp_port;
 	struct mlxsw_sp_span_trigger_parms trigger_parms = {};
+	bool ingress;
 	int span_id;
 	int err;
 
@@ -1491,18 +1493,19 @@ static int mlxsw_sp_qevent_span_configure(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		return err;
 
-	err = mlxsw_sp_span_analyzed_port_get(mlxsw_sp_port, true);
+	ingress = mlxsw_sp_span_trigger_is_ingress(span_trigger);
+	err = mlxsw_sp_span_analyzed_port_get(mlxsw_sp_port, ingress);
 	if (err)
 		goto err_analyzed_port_get;
 
 	trigger_parms.span_id = span_id;
 	trigger_parms.probability_rate = 1;
-	err = mlxsw_sp_span_agent_bind(mlxsw_sp, qevent_binding->span_trigger, mlxsw_sp_port,
+	err = mlxsw_sp_span_agent_bind(mlxsw_sp, span_trigger, mlxsw_sp_port,
 				       &trigger_parms);
 	if (err)
 		goto err_agent_bind;
 
-	err = mlxsw_sp_span_trigger_enable(mlxsw_sp_port, qevent_binding->span_trigger,
+	err = mlxsw_sp_span_trigger_enable(mlxsw_sp_port, span_trigger,
 					   qevent_binding->tclass_num);
 	if (err)
 		goto err_trigger_enable;
@@ -1511,10 +1514,10 @@ static int mlxsw_sp_qevent_span_configure(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 
 err_trigger_enable:
-	mlxsw_sp_span_agent_unbind(mlxsw_sp, qevent_binding->span_trigger, mlxsw_sp_port,
+	mlxsw_sp_span_agent_unbind(mlxsw_sp, span_trigger, mlxsw_sp_port,
 				   &trigger_parms);
 err_agent_bind:
-	mlxsw_sp_span_analyzed_port_put(mlxsw_sp_port, true);
+	mlxsw_sp_span_analyzed_port_put(mlxsw_sp_port, ingress);
 err_analyzed_port_get:
 	mlxsw_sp_span_agent_put(mlxsw_sp, span_id);
 	return err;
@@ -1524,16 +1527,20 @@ static void mlxsw_sp_qevent_span_deconfigure(struct mlxsw_sp *mlxsw_sp,
 					     struct mlxsw_sp_qevent_binding *qevent_binding,
 					     int span_id)
 {
+	enum mlxsw_sp_span_trigger span_trigger = qevent_binding->span_trigger;
 	struct mlxsw_sp_port *mlxsw_sp_port = qevent_binding->mlxsw_sp_port;
 	struct mlxsw_sp_span_trigger_parms trigger_parms = {
 		.span_id = span_id,
 	};
+	bool ingress;
 
-	mlxsw_sp_span_trigger_disable(mlxsw_sp_port, qevent_binding->span_trigger,
+	ingress = mlxsw_sp_span_trigger_is_ingress(span_trigger);
+
+	mlxsw_sp_span_trigger_disable(mlxsw_sp_port, span_trigger,
 				      qevent_binding->tclass_num);
-	mlxsw_sp_span_agent_unbind(mlxsw_sp, qevent_binding->span_trigger, mlxsw_sp_port,
+	mlxsw_sp_span_agent_unbind(mlxsw_sp, span_trigger, mlxsw_sp_port,
 				   &trigger_parms);
-	mlxsw_sp_span_analyzed_port_put(mlxsw_sp_port, true);
+	mlxsw_sp_span_analyzed_port_put(mlxsw_sp_port, ingress);
 	mlxsw_sp_span_agent_put(mlxsw_sp, span_id);
 }
 
