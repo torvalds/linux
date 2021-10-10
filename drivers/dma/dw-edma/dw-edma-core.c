@@ -249,7 +249,6 @@ static int dw_edma_device_terminate_all(struct dma_chan *dchan)
 {
 	struct dw_edma_chan *chan = dchan2dw_edma_chan(dchan);
 	int err = 0;
-	LIST_HEAD(head);
 
 	if (!chan->configured) {
 		/* Do nothing */
