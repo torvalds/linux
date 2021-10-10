@@ -17,13 +17,8 @@
 #endif
 
 struct z_erofs_decompressor {
-	/*
-	 * if destpages have sparsed pages, fill them with bounce pages.
-	 * it also check whether destpages indicate continuous physical memory.
-	 */
-	int (*prepare_destpages)(struct z_erofs_decompress_req *rq,
-				 struct list_head *pagepool);
-	int (*decompress)(struct z_erofs_decompress_req *rq, u8 *out);
+	int (*decompress)(struct z_erofs_decompress_req *rq,
+			  struct list_head *pagepool);
 	char *name;
 };
 
@@ -63,8 +58,12 @@ int z_erofs_load_lz4_config(struct super_block *sb,
 	return erofs_pcpubuf_growsize(sbi->lz4.max_pclusterblks);
 }
 
-static int z_erofs_lz4_prepare_destpages(struct z_erofs_decompress_req *rq,
-					 struct list_head *pagepool)
+/*
+ * Fill all gaps with bounce pages if it's a sparse page list. Also check if
+ * all physical pages are consecutive, which can be seen for moderate CR.
+ */
+static int z_erofs_lz4_prepare_dstpages(struct z_erofs_decompress_req *rq,
+					struct list_head *pagepool)
 {
 	const unsigned int nr =
 		PAGE_ALIGN(rq->pageofs_out + rq->outputsize) >> PAGE_SHIFT;
@@ -119,7 +118,7 @@ static int z_erofs_lz4_prepare_destpages(struct z_erofs_decompress_req *rq,
 	return kaddr ? 1 : 0;
 }
 
-static void *z_erofs_handle_inplace_io(struct z_erofs_decompress_req *rq,
+static void *z_erofs_lz4_handle_inplace_io(struct z_erofs_decompress_req *rq,
 			void *inpage, unsigned int *inputmargin, int *maptype,
 			bool support_0padding)
 {
@@ -189,7 +188,8 @@ docopy:
 	return src;
 }
 
-static int z_erofs_lz4_decompress(struct z_erofs_decompress_req *rq, u8 *out)
+static int z_erofs_lz4_decompress_mem(struct z_erofs_decompress_req *rq,
+				      u8 *out)
 {
 	unsigned int inputmargin;
 	u8 *headpage, *src;
@@ -216,8 +216,8 @@ static int z_erofs_lz4_decompress(struct z_erofs_decompress_req *rq, u8 *out)
 	}
 
 	rq->inputsize -= inputmargin;
-	src = z_erofs_handle_inplace_io(rq, headpage, &inputmargin, &maptype,
-					support_0padding);
+	src = z_erofs_lz4_handle_inplace_io(rq, headpage, &inputmargin,
+					    &maptype, support_0padding);
 	if (IS_ERR(src))
 		return PTR_ERR(src);
 
@@ -259,23 +259,11 @@ static int z_erofs_lz4_decompress(struct z_erofs_decompress_req *rq, u8 *out)
 	return ret;
 }
 
-static struct z_erofs_decompressor decompressors[] = {
-	[Z_EROFS_COMPRESSION_SHIFTED] = {
-		.name = "shifted"
-	},
-	[Z_EROFS_COMPRESSION_LZ4] = {
-		.prepare_destpages = z_erofs_lz4_prepare_destpages,
-		.decompress = z_erofs_lz4_decompress,
-		.name = "lz4"
-	},
-};
-
-static int z_erofs_decompress_generic(struct z_erofs_decompress_req *rq,
-				      struct list_head *pagepool)
+static int z_erofs_lz4_decompress(struct z_erofs_decompress_req *rq,
+				  struct list_head *pagepool)
 {
 	const unsigned int nrpages_out =
 		PAGE_ALIGN(rq->pageofs_out + rq->outputsize) >> PAGE_SHIFT;
-	const struct z_erofs_decompressor *alg = decompressors + rq->alg;
 	unsigned int dst_maptype;
 	void *dst;
 	int ret;
@@ -289,7 +277,7 @@ static int z_erofs_decompress_generic(struct z_erofs_decompress_req *rq,
 	}
 
 	/* general decoding path which can be used for all cases */
-	ret = alg->prepare_destpages(rq, pagepool);
+	ret = z_erofs_lz4_prepare_dstpages(rq, pagepool);
 	if (ret < 0)
 		return ret;
 	if (ret) {
@@ -304,7 +292,7 @@ static int z_erofs_decompress_generic(struct z_erofs_decompress_req *rq,
 	dst_maptype = 2;
 
 dstmap_out:
-	ret = alg->decompress(rq, dst + rq->pageofs_out);
+	ret = z_erofs_lz4_decompress_mem(rq, dst + rq->pageofs_out);
 
 	if (!dst_maptype)
 		kunmap_atomic(dst);
@@ -313,7 +301,7 @@ dstmap_out:
 	return ret;
 }
 
-static int z_erofs_shifted_transform(const struct z_erofs_decompress_req *rq,
+static int z_erofs_shifted_transform(struct z_erofs_decompress_req *rq,
 				     struct list_head *pagepool)
 {
 	const unsigned int nrpages_out =
@@ -352,10 +340,19 @@ static int z_erofs_shifted_transform(const struct z_erofs_decompress_req *rq,
 	return 0;
 }
 
+static struct z_erofs_decompressor decompressors[] = {
+	[Z_EROFS_COMPRESSION_SHIFTED] = {
+		.decompress = z_erofs_shifted_transform,
+		.name = "shifted"
+	},
+	[Z_EROFS_COMPRESSION_LZ4] = {
+		.decompress = z_erofs_lz4_decompress,
+		.name = "lz4"
+	},
+};
+
 int z_erofs_decompress(struct z_erofs_decompress_req *rq,
 		       struct list_head *pagepool)
 {
-	if (rq->alg == Z_EROFS_COMPRESSION_SHIFTED)
-		return z_erofs_shifted_transform(rq, pagepool);
-	return z_erofs_decompress_generic(rq, pagepool);
+	return decompressors[rq->alg].decompress(rq, pagepool);
 }
