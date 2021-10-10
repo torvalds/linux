@@ -7,10 +7,13 @@
 #include <linux/dma-buf.h>
 #include <linux/highmem.h>
 #include <linux/dma-resv.h>
+#include <linux/module.h>
 
 #include "i915_drv.h"
 #include "i915_gem_object.h"
 #include "i915_scatterlist.h"
+
+MODULE_IMPORT_NS(DMA_BUF);
 
 I915_SELFTEST_DECLARE(static bool force_different_devices;)
 

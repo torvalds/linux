@@ -13,6 +13,8 @@
 #include <linux/slab.h>
 #include <linux/pci-p2pdma.h>
 
+MODULE_IMPORT_NS(DMA_BUF);
+
 #define HL_MMU_DEBUG	0
 
 /* use small pages for supporting non-pow2 (32M/40M/48M) DRAM phys page sizes */

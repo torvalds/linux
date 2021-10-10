@@ -6,8 +6,11 @@
 #include <linux/dma-buf.h>
 #include <linux/dma-resv.h>
 #include <linux/dma-mapping.h>
+#include <linux/module.h>
 
 #include "uverbs.h"
+
+MODULE_IMPORT_NS(DMA_BUF);
 
 int ib_umem_dmabuf_map_pages(struct ib_umem_dmabuf *umem_dmabuf)
 {
