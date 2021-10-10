@@ -237,9 +237,6 @@ void ODM_CmnInfoInit(struct odm_dm_struct *pDM_Odm, enum odm_common_info_def Cmn
 	case	ODM_CMNINFO_BOARD_TYPE:
 		pDM_Odm->BoardType = (u8)Value;
 		break;
-	case	ODM_CMNINFO_EXT_LNA:
-		pDM_Odm->ExtLNA = (u8)Value;
-		break;
 	/* To remove the compiler warning, must add an empty default statement to handle the other values. */
 	default:
 		/* do nothing */
@@ -494,7 +491,7 @@ void odm_DIG(struct odm_dm_struct *pDM_Odm)
 
 	/* 1 Boundary Decision */
 	if ((pDM_Odm->SupportICType & (ODM_RTL8192C | ODM_RTL8723A)) &&
-	    ((pDM_Odm->BoardType == ODM_BOARD_HIGHPWR) || pDM_Odm->ExtLNA)) {
+	    (pDM_Odm->BoardType == ODM_BOARD_HIGHPWR)) {
 		if (pDM_Odm->SupportPlatform & (ODM_AP | ODM_ADSL)) {
 			dm_dig_max = DM_DIG_MAX_AP_HP;
 			dm_dig_min = DM_DIG_MIN_AP_HP;
@@ -728,8 +725,6 @@ void odm_CCKPacketDetectionThresh(struct odm_dm_struct *pDM_Odm)
 	struct false_alarm_stats *FalseAlmCnt = &pDM_Odm->FalseAlmCnt;
 
 	if (!(pDM_Odm->SupportAbility & (ODM_BB_CCK_PD | ODM_BB_FA_CNT)))
-		return;
-	if (pDM_Odm->ExtLNA)
 		return;
 	if (pDM_Odm->bLinked) {
 		if (pDM_Odm->RSSI_Min > 25) {
