@@ -2024,6 +2024,16 @@ int mlxsw_sp_setup_tc_block_qevent_early_drop(struct mlxsw_sp_port *mlxsw_sp_por
 					      action_mask);
 }
 
+int mlxsw_sp_setup_tc_block_qevent_mark(struct mlxsw_sp_port *mlxsw_sp_port,
+					struct flow_block_offload *f)
+{
+	unsigned int action_mask = BIT(MLXSW_SP_MALL_ACTION_TYPE_MIRROR);
+
+	return mlxsw_sp_setup_tc_block_qevent(mlxsw_sp_port, f,
+					      MLXSW_SP_SPAN_TRIGGER_ECN,
+					      action_mask);
+}
+
 int mlxsw_sp_tc_qdisc_init(struct mlxsw_sp_port *mlxsw_sp_port)
 {
 	struct mlxsw_sp_qdisc_state *qdisc_state;
