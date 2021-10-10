@@ -427,7 +427,7 @@ void CARDbRadioPowerOff(struct vnt_private *priv)
 
 	MACvRegBitsOff(priv->port_offset, MAC_REG_HOSTCR, HOSTCR_RXON);
 
-	bb_set_deep_sleep(priv, priv->byLocalID);
+	bb_set_deep_sleep(priv, priv->local_id);
 
 	priv->bRadioOff = true;
 	pr_debug("chester power off\n");

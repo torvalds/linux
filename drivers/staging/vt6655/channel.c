@@ -193,7 +193,7 @@ bool set_channel(struct vnt_private *priv, struct ieee80211_channel *ch)
 
 	bb_software_reset(priv);
 
-	if (priv->byLocalID > REV_ID_VT3253_B1) {
+	if (priv->local_id > REV_ID_VT3253_B1) {
 		unsigned long flags;
 
 		spin_lock_irqsave(&priv->lock, flags);

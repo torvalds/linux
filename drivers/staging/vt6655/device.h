@@ -154,7 +154,7 @@ struct vnt_private {
 	u32                         rx_bytes;
 
 	/* Version control */
-	unsigned char byLocalID;
+	unsigned char local_id;
 	unsigned char byRFType;
 
 	unsigned char byMaxPwrLevel;

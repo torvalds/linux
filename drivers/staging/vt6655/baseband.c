@@ -1994,7 +1994,7 @@ bool bb_vt3253_init(struct vnt_private *priv)
 	int        ii;
 	void __iomem *iobase = priv->port_offset;
 	unsigned char by_rf_type = priv->byRFType;
-	unsigned char by_local_id = priv->byLocalID;
+	unsigned char by_local_id = priv->local_id;
 
 	if (by_rf_type == RF_RFMD2959) {
 		if (by_local_id <= REV_ID_VT3253_A1) {

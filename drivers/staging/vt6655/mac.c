@@ -763,14 +763,14 @@ bool MACbPSWakeup(struct vnt_private *priv)
 void MACvSetKeyEntry(struct vnt_private *priv, unsigned short wKeyCtl,
 		     unsigned int uEntryIdx, unsigned int uKeyIdx,
 		     unsigned char *pbyAddr, u32 *pdwKey,
-		     unsigned char byLocalID)
+		     unsigned char local_id)
 {
 	void __iomem *io_base = priv->port_offset;
 	unsigned short offset;
 	u32 data;
 	int     ii;
 
-	if (byLocalID <= 1)
+	if (local_id <= 1)
 		return;
 
 	offset = MISCFIFO_KEYETRY0;

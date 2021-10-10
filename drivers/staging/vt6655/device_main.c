@@ -219,7 +219,7 @@ static void device_init_registers(struct vnt_private *priv)
 	MACvInitialize(priv);
 
 	/* Get Local ID */
-	VNSvInPortB(priv->port_offset + MAC_REG_LOCALID, &priv->byLocalID);
+	VNSvInPortB(priv->port_offset + MAC_REG_LOCALID, &priv->local_id);
 
 	spin_lock_irqsave(&priv->lock, flags);
 
@@ -331,7 +331,7 @@ static void device_init_registers(struct vnt_private *priv)
 					   (unsigned char)(ii + EEP_OFS_OFDMA_PWR_dBm));
 	}
 
-	if (priv->byLocalID > REV_ID_VT3253_B1) {
+	if (priv->local_id > REV_ID_VT3253_B1) {
 		MACvSelectPage1(priv->port_offset);
 
 		VNSvOutPortB(priv->port_offset + MAC_REG_MSRCTL + 1,
@@ -398,7 +398,7 @@ static void device_init_registers(struct vnt_private *priv)
 	/* reset Rx pointer */
 	CARDvSafeResetTx(priv);
 
-	if (priv->byLocalID <= REV_ID_VT3253_A1)
+	if (priv->local_id <= REV_ID_VT3253_A1)
 		MACvRegBitsOn(priv->port_offset, MAC_REG_RCR, RCR_WPAERR);
 
 	/* Turn On Rx DMA */
