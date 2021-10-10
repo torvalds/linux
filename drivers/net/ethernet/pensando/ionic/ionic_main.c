@@ -212,24 +212,28 @@ static void ionic_adminq_flush(struct ionic_lif *lif)
 	spin_unlock_irqrestore(&lif->adminq_lock, irqflags);
 }
 
+void ionic_adminq_netdev_err_print(struct ionic_lif *lif, u8 opcode,
+				   u8 status, int err)
+{
+	netdev_err(lif->netdev, "%s (%d) failed: %s (%d)\n",
+		   ionic_opcode_to_str(opcode), opcode,
+		   ionic_error_to_str(status), err);
+}
+
 static int ionic_adminq_check_err(struct ionic_lif *lif,
 				  struct ionic_admin_ctx *ctx,
-				  bool timeout)
+				  const bool timeout,
+				  const bool do_msg)
 {
-	struct net_device *netdev = lif->netdev;
-	const char *opcode_str;
-	const char *status_str;
 	int err = 0;
 
 	if (ctx->comp.comp.status || timeout) {
-		opcode_str = ionic_opcode_to_str(ctx->cmd.cmd.opcode);
-		status_str = ionic_error_to_str(ctx->comp.comp.status);
 		err = timeout ? -ETIMEDOUT :
 				ionic_error_to_errno(ctx->comp.comp.status);
 
-		netdev_err(netdev, "%s (%d) failed: %s (%d)\n",
-			   opcode_str, ctx->cmd.cmd.opcode,
-			   timeout ? "TIMEOUT" : status_str, err);
+		if (do_msg)
+			ionic_adminq_netdev_err_print(lif, ctx->cmd.cmd.opcode,
+						      ctx->comp.comp.status, err);
 
 		if (timeout)
 			ionic_adminq_flush(lif);
@@ -298,7 +302,8 @@ err_out:
 	return err;
 }
 
-int ionic_adminq_wait(struct ionic_lif *lif, struct ionic_admin_ctx *ctx, int err)
+int ionic_adminq_wait(struct ionic_lif *lif, struct ionic_admin_ctx *ctx,
+		      const int err, const bool do_msg)
 {
 	struct net_device *netdev = lif->netdev;
 	unsigned long time_limit;
@@ -310,7 +315,7 @@ int ionic_adminq_wait(struct ionic_lif *lif, struct ionic_admin_ctx *ctx, int er
 	name = ionic_opcode_to_str(ctx->cmd.cmd.opcode);
 
 	if (err) {
-		if (!test_bit(IONIC_LIF_F_FW_RESET, lif->state))
+		if (do_msg && !test_bit(IONIC_LIF_F_FW_RESET, lif->state))
 			netdev_err(netdev, "Posting of %s (%d) failed: %d\n",
 				   name, ctx->cmd.cmd.opcode, err);
 		return err;
@@ -328,8 +333,9 @@ int ionic_adminq_wait(struct ionic_lif *lif, struct ionic_admin_ctx *ctx, int er
 
 		/* interrupt the wait if FW stopped */
 		if (test_bit(IONIC_LIF_F_FW_RESET, lif->state)) {
-			netdev_err(netdev, "%s (%d) interrupted, FW in reset\n",
-				   name, ctx->cmd.cmd.opcode);
+			if (do_msg)
+				netdev_err(netdev, "%s (%d) interrupted, FW in reset\n",
+					   name, ctx->cmd.cmd.opcode);
 			return -ENXIO;
 		}
 
@@ -339,7 +345,9 @@ int ionic_adminq_wait(struct ionic_lif *lif, struct ionic_admin_ctx *ctx, int er
 	dev_dbg(lif->ionic->dev, "%s: elapsed %d msecs\n",
 		__func__, jiffies_to_msecs(time_done - time_start));
 
-	return ionic_adminq_check_err(lif, ctx, time_after_eq(time_done, time_limit));
+	return ionic_adminq_check_err(lif, ctx,
+				      time_after_eq(time_done, time_limit),
+				      do_msg);
 }
 
 int ionic_adminq_post_wait(struct ionic_lif *lif, struct ionic_admin_ctx *ctx)
@@ -348,7 +356,16 @@ int ionic_adminq_post_wait(struct ionic_lif *lif, struct ionic_admin_ctx *ctx)
 
 	err = ionic_adminq_post(lif, ctx);
 
-	return ionic_adminq_wait(lif, ctx, err);
+	return ionic_adminq_wait(lif, ctx, err, true);
+}
+
+int ionic_adminq_post_wait_nomsg(struct ionic_lif *lif, struct ionic_admin_ctx *ctx)
+{
+	int err;
+
+	err = ionic_adminq_post(lif, ctx);
+
+	return ionic_adminq_wait(lif, ctx, err, false);
 }
 
 static void ionic_dev_cmd_clean(struct ionic *ionic)
