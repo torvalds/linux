@@ -57,6 +57,7 @@ properties:
               - samsung,exynos4-sysreg
               - samsung,exynos5-sysreg
               - samsung,exynos5433-sysreg
+              - samsung,exynosautov9-sysreg
 
           - const: syscon
 
