@@ -544,6 +544,53 @@ do_mc_backlog_test()
 	log_test "TC $((vlan - 10)): Qdisc reports MC backlog"
 }
 
+do_mark_test()
+{
+	local vlan=$1; shift
+	local limit=$1; shift
+	local subtest=$1; shift
+	local fetch_counter=$1; shift
+	local should_fail=$1; shift
+	local base
+
+	RET=0
+
+	start_tcp_traffic $h1.$vlan $(ipaddr 1 $vlan) $(ipaddr 3 $vlan) \
+			  $h3_mac tos=0x01
+
+	# Create a bit of a backlog and observe no mirroring due to marks.
+	qevent_rule_install_$subtest
+
+	build_backlog $vlan $((2 * limit / 3)) tcp tos=0x01 >/dev/null
+
+	base=$($fetch_counter)
+	count=$(busywait 1100 until_counter_is ">= $((base + 1))" \
+		$fetch_counter)
+	check_fail $? "Spurious packets ($base -> $count) observed without buffer pressure"
+
+	# Above limit, everything should be mirrored, we should see lots of
+	# packets.
+	build_backlog $vlan $((3 * limit / 2)) tcp tos=0x01 >/dev/null
+	busywait_for_counter 1100 +10000 \
+		 $fetch_counter > /dev/null
+	check_err_fail "$should_fail" $? "ECN-marked packets $subtest'd"
+
+	# When the rule is uninstalled, there should be no mirroring.
+	qevent_rule_uninstall_$subtest
+	busywait_for_counter 1100 +10 \
+		 $fetch_counter > /dev/null
+	check_fail $? "Spurious packets observed after uninstall"
+
+	if ((should_fail)); then
+		log_test "TC $((vlan - 10)): marked packets not $subtest'd"
+	else
+		log_test "TC $((vlan - 10)): marked packets $subtest'd"
+	fi
+
+	stop_traffic
+	sleep 1
+}
+
 do_drop_test()
 {
 	local vlan=$1; shift
@@ -626,6 +673,22 @@ do_drop_mirror_test()
 	tc filter del dev $h2 ingress pref 1 handle 101 flower
 }
 
+do_mark_mirror_test()
+{
+	local vlan=$1; shift
+	local limit=$1; shift
+
+	tc filter add dev $h2 ingress pref 1 handle 101 prot ip \
+	   flower skip_sw ip_proto tcp \
+	   action drop
+
+	do_mark_test "$vlan" "$limit" mirror \
+		     qevent_counter_fetch_mirror \
+		     $(: should_fail=)0
+
+	tc filter del dev $h2 ingress pref 1 handle 101 flower
+}
+
 qevent_rule_install_trap()
 {
 	tc filter add block 10 pref 1234 handle 102 matchall skip_sw \
@@ -652,4 +715,15 @@ do_drop_trap_test()
 
 	do_drop_test "$vlan" "$limit" "$trap_name" trap \
 		     "qevent_counter_fetch_trap $trap_name"
+}
+
+qevent_rule_install_trap_fwd()
+{
+	tc filter add block 10 pref 1234 handle 102 matchall skip_sw \
+	   action trap_fwd hw_stats disabled
+}
+
+qevent_rule_uninstall_trap_fwd()
+{
+	tc filter del block 10 pref 1234 handle 102 matchall
 }
