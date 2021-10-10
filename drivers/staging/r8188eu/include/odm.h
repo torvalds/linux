@@ -273,7 +273,6 @@ enum odm_common_info_def {
 	ODM_CMNINFO_EXT_TRSW,
 	ODM_CMNINFO_BINHCT_TEST,
 	ODM_CMNINFO_BWIFI_TEST,
-	ODM_CMNINFO_SMART_CONCURRENT,
 	/* HOOK BEFORE REG INIT-----------  */
 
 	/*  Dynamic value: */
@@ -660,7 +659,6 @@ struct odm_dm_struct {
 	bool	bInHctTest;
 	bool	bWIFITest;
 
-	bool	bDualMacSmartConcurrent;
 	u32	BK_SupportAbility;
 	u8	AntDivType;
 /* HOOK BEFORE REG INIT----------- */
