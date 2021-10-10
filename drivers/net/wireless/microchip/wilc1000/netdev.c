@@ -880,7 +880,6 @@ void wilc_netdev_cleanup(struct wilc *wilc)
 	srcu_read_unlock(&wilc->srcu, srcu_idx);
 
 	wilc_wfi_deinit_mon_interface(wilc, false);
-	flush_workqueue(wilc->hif_workqueue);
 	destroy_workqueue(wilc->hif_workqueue);
 
 	while (ifc_cnt < WILC_NUM_CONCURRENT_IFC) {
