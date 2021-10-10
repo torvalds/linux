@@ -271,7 +271,6 @@ enum odm_common_info_def {
 	ODM_CMNINFO_EXT_LNA,		/* true */
 	ODM_CMNINFO_EXT_PA,
 	ODM_CMNINFO_EXT_TRSW,
-	ODM_CMNINFO_BINHCT_TEST,
 	/* HOOK BEFORE REG INIT-----------  */
 
 	/*  Dynamic value: */
@@ -655,7 +654,6 @@ struct odm_dm_struct {
 	u8	ExtPA;
 	/*  with external TRSW  NO/Yes = 0/1 */
 	u8	ExtTRSW;
-	bool	bInHctTest;
 
 	u32	BK_SupportAbility;
 	u8	AntDivType;
