@@ -67,11 +67,9 @@
 		ti,enable-gpios = <&gpio5 12 GPIO_ACTIVE_LOW>,
 				  <&gpio5 11 GPIO_ACTIVE_LOW>;
 		vin-supply = <&reg_3v3>;
-		vin-voltage-override = <3100000>;
 		autosuspend-delay = <30000>;
 		irq-status-read-quirk;
 		en2-rf-quirk;
-		t5t-rmb-extra-byte-quirk;
 		status = "okay";
 	};
 };
