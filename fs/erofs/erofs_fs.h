@@ -264,10 +264,11 @@ struct erofs_inode_chunk_index {
 
 /* available compression algorithm types (for h_algorithmtype) */
 enum {
-	Z_EROFS_COMPRESSION_LZ4	= 0,
+	Z_EROFS_COMPRESSION_LZ4		= 0,
+	Z_EROFS_COMPRESSION_LZMA	= 1,
 	Z_EROFS_COMPRESSION_MAX
 };
-#define Z_EROFS_ALL_COMPR_ALGS		(1 << (Z_EROFS_COMPRESSION_MAX - 1))
+#define Z_EROFS_ALL_COMPR_ALGS		((1 << Z_EROFS_COMPRESSION_MAX) - 1)
 
 /* 14 bytes (+ length field = 16 bytes) */
 struct z_erofs_lz4_cfgs {
@@ -275,6 +276,15 @@ struct z_erofs_lz4_cfgs {
 	__le16 max_pclusterblks;
 	u8 reserved[10];
 } __packed;
+
+/* 14 bytes (+ length field = 16 bytes) */
+struct z_erofs_lzma_cfgs {
+	__le32 dict_size;
+	__le16 format;
+	u8 reserved[8];
+} __packed;
+
+#define Z_EROFS_LZMA_MAX_DICT_SIZE	(8 * Z_EROFS_PCLUSTER_MAX_SIZE)
 
 /*
  * bit 0 : COMPACTED_2B indexes (0 - off; 1 - on)

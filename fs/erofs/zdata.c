@@ -1404,8 +1404,8 @@ static void z_erofs_pcluster_readmore(struct z_erofs_decompress_frontend *f,
 
 	if (backmost) {
 		map->m_la = end;
-		/* TODO: pass in EROFS_GET_BLOCKS_READMORE for LZMA later */
-		err = z_erofs_map_blocks_iter(inode, map, 0);
+		err = z_erofs_map_blocks_iter(inode, map,
+					      EROFS_GET_BLOCKS_READMORE);
 		if (err)
 			return;
 

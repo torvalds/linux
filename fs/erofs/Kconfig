@@ -82,3 +82,19 @@ config EROFS_FS_ZIP
 	  Enable fixed-sized output compression for EROFS.
 
 	  If you don't want to enable compression feature, say N.
+
+config EROFS_FS_ZIP_LZMA
+	bool "EROFS LZMA compressed data support"
+	depends on EROFS_FS_ZIP
+	select XZ_DEC
+	select XZ_DEC_MICROLZMA
+	help
+	  Saying Y here includes support for reading EROFS file systems
+	  containing LZMA compressed data, specifically called microLZMA. it
+	  gives better compression ratios than the LZ4 algorithm, at the
+	  expense of more CPU overhead.
+
+	  LZMA support is an experimental feature for now and so most file
+	  systems will be readable without selecting this option.
+
+	  If unsure, say N.

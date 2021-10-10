@@ -16,12 +16,6 @@
 #define LZ4_DECOMPRESS_INPLACE_MARGIN(srcsize)  (((srcsize) >> 8) + 32)
 #endif
 
-struct z_erofs_decompressor {
-	int (*decompress)(struct z_erofs_decompress_req *rq,
-			  struct list_head *pagepool);
-	char *name;
-};
-
 int z_erofs_load_lz4_config(struct super_block *sb,
 			    struct erofs_super_block *dsb,
 			    struct z_erofs_lz4_cfgs *lz4, int size)
@@ -349,6 +343,12 @@ static struct z_erofs_decompressor decompressors[] = {
 		.decompress = z_erofs_lz4_decompress,
 		.name = "lz4"
 	},
+#ifdef CONFIG_EROFS_FS_ZIP_LZMA
+	[Z_EROFS_COMPRESSION_LZMA] = {
+		.decompress = z_erofs_lzma_decompress,
+		.name = "lzma"
+	},
+#endif
 };
 
 int z_erofs_decompress(struct z_erofs_decompress_req *rq,
