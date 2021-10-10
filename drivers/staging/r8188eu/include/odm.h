@@ -272,7 +272,6 @@ enum odm_common_info_def {
 	ODM_CMNINFO_EXT_PA,
 	ODM_CMNINFO_EXT_TRSW,
 	ODM_CMNINFO_BINHCT_TEST,
-	ODM_CMNINFO_BWIFI_TEST,
 	/* HOOK BEFORE REG INIT-----------  */
 
 	/*  Dynamic value: */
@@ -657,7 +656,6 @@ struct odm_dm_struct {
 	/*  with external TRSW  NO/Yes = 0/1 */
 	u8	ExtTRSW;
 	bool	bInHctTest;
-	bool	bWIFITest;
 
 	u32	BK_SupportAbility;
 	u8	AntDivType;
