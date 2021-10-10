@@ -36,7 +36,7 @@
 #include <linux/fb.h>
 #include <linux/ivtvfb.h>
 
-#ifdef CONFIG_X86_64
+#if defined(CONFIG_X86_64) && !defined(CONFIG_UML)
 #include <asm/memtype.h>
 #endif
 
@@ -1157,7 +1157,7 @@ static int ivtvfb_init_card(struct ivtv *itv)
 {
 	int rc;
 
-#ifdef CONFIG_X86_64
+#if defined(CONFIG_X86_64) && !defined(CONFIG_UML)
 	if (pat_enabled()) {
 		if (ivtvfb_force_pat) {
 			pr_info("PAT is enabled. Write-combined framebuffer caching will be disabled.\n");
