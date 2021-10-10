@@ -551,10 +551,8 @@ do_drop_test()
 	local trigger=$1; shift
 	local subtest=$1; shift
 	local fetch_counter=$1; shift
-	local backlog
 	local base
 	local now
-	local pct
 
 	RET=0
 
