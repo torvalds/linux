@@ -350,11 +350,12 @@ static void cedrus_h265_setup(struct cedrus_ctx *ctx,
 		ctx->codec.h265.mv_col_buf_size = num_buffers *
 			ctx->codec.h265.mv_col_buf_unit_size;
 
+		/* Buffer is never accessed by CPU, so we can skip kernel mapping. */
 		ctx->codec.h265.mv_col_buf =
-			dma_alloc_coherent(dev->dev,
-					   ctx->codec.h265.mv_col_buf_size,
-					   &ctx->codec.h265.mv_col_buf_addr,
-					   GFP_KERNEL);
+			dma_alloc_attrs(dev->dev,
+					ctx->codec.h265.mv_col_buf_size,
+					&ctx->codec.h265.mv_col_buf_addr,
+					GFP_KERNEL, DMA_ATTR_NO_KERNEL_MAPPING);
 		if (!ctx->codec.h265.mv_col_buf) {
 			ctx->codec.h265.mv_col_buf_size = 0;
 			// TODO: Abort the process here.
@@ -667,10 +668,11 @@ static int cedrus_h265_start(struct cedrus_ctx *ctx)
 	/* The buffer size is calculated at setup time. */
 	ctx->codec.h265.mv_col_buf_size = 0;
 
+	/* Buffer is never accessed by CPU, so we can skip kernel mapping. */
 	ctx->codec.h265.neighbor_info_buf =
-		dma_alloc_coherent(dev->dev, CEDRUS_H265_NEIGHBOR_INFO_BUF_SIZE,
-				   &ctx->codec.h265.neighbor_info_buf_addr,
-				   GFP_KERNEL);
+		dma_alloc_attrs(dev->dev, CEDRUS_H265_NEIGHBOR_INFO_BUF_SIZE,
+				&ctx->codec.h265.neighbor_info_buf_addr,
+				GFP_KERNEL, DMA_ATTR_NO_KERNEL_MAPPING);
 	if (!ctx->codec.h265.neighbor_info_buf)
 		return -ENOMEM;
 
@@ -682,16 +684,18 @@ static void cedrus_h265_stop(struct cedrus_ctx *ctx)
 	struct cedrus_dev *dev = ctx->dev;
 
 	if (ctx->codec.h265.mv_col_buf_size > 0) {
-		dma_free_coherent(dev->dev, ctx->codec.h265.mv_col_buf_size,
-				  ctx->codec.h265.mv_col_buf,
-				  ctx->codec.h265.mv_col_buf_addr);
+		dma_free_attrs(dev->dev, ctx->codec.h265.mv_col_buf_size,
+			       ctx->codec.h265.mv_col_buf,
+			       ctx->codec.h265.mv_col_buf_addr,
+			       DMA_ATTR_NO_KERNEL_MAPPING);
 
 		ctx->codec.h265.mv_col_buf_size = 0;
 	}
 
-	dma_free_coherent(dev->dev, CEDRUS_H265_NEIGHBOR_INFO_BUF_SIZE,
-			  ctx->codec.h265.neighbor_info_buf,
-			  ctx->codec.h265.neighbor_info_buf_addr);
+	dma_free_attrs(dev->dev, CEDRUS_H265_NEIGHBOR_INFO_BUF_SIZE,
+		       ctx->codec.h265.neighbor_info_buf,
+		       ctx->codec.h265.neighbor_info_buf_addr,
+		       DMA_ATTR_NO_KERNEL_MAPPING);
 }
 
 static void cedrus_h265_trigger(struct cedrus_ctx *ctx)
