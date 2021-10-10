@@ -561,6 +561,7 @@ struct mcp251xfd_ecc {
 
 struct mcp251xfd_regs_status {
 	u32 intf;
+	u32 rxif;
 };
 
 enum mcp251xfd_model {

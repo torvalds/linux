@@ -220,6 +220,24 @@ int mcp251xfd_ring_init(struct mcp251xfd_priv *priv)
 	mcp251xfd_ring_init_rx(priv, &base, &fifo_nr);
 	mcp251xfd_ring_init_tx(priv, &base, &fifo_nr);
 
+	/* mcp251xfd_handle_rxif() will iterate over all RX rings.
+	 * Rings with their corresponding bit set in
+	 * priv->regs_status.rxif are read out.
+	 *
+	 * If the chip is configured for only 1 RX-FIFO, and if there
+	 * is an RX interrupt pending (RXIF in INT register is set),
+	 * it must be the 1st RX-FIFO.
+	 *
+	 * We mark the RXIF of the 1st FIFO as pending here, so that
+	 * we can skip the read of the RXIF register in
+	 * mcp251xfd_read_regs_status() for the 1 RX-FIFO only case.
+	 *
+	 * If we use more than 1 RX-FIFO, this value gets overwritten
+	 * in mcp251xfd_read_regs_status(), so set it unconditionally
+	 * here.
+	 */
+	priv->regs_status.rxif = BIT(priv->rx[0]->fifo_nr);
+
 	netdev_dbg(priv->ndev,
 		   "FIFO setup: TEF:         0x%03x: %2d*%zu bytes = %4zu bytes\n",
 		   mcp251xfd_get_tef_obj_addr(0),

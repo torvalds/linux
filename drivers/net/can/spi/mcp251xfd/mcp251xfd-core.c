@@ -1384,6 +1384,20 @@ static int mcp251xfd_handle_spicrcif(struct mcp251xfd_priv *priv)
 	return 0;
 }
 
+static int mcp251xfd_read_regs_status(struct mcp251xfd_priv *priv)
+{
+	const int val_bytes = regmap_get_val_bytes(priv->map_reg);
+	size_t len;
+
+	if (priv->rx_ring_num == 1)
+		len = sizeof(priv->regs_status.intf);
+	else
+		len = sizeof(priv->regs_status);
+
+	return regmap_bulk_read(priv->map_reg, MCP251XFD_REG_INT,
+				&priv->regs_status, len / val_bytes);
+}
+
 #define mcp251xfd_handle(priv, irq, ...) \
 ({ \
 	struct mcp251xfd_priv *_priv = (priv); \
@@ -1400,7 +1414,6 @@ static int mcp251xfd_handle_spicrcif(struct mcp251xfd_priv *priv)
 static irqreturn_t mcp251xfd_irq(int irq, void *dev_id)
 {
 	struct mcp251xfd_priv *priv = dev_id;
-	const int val_bytes = regmap_get_val_bytes(priv->map_reg);
 	irqreturn_t handled = IRQ_NONE;
 	int err;
 
@@ -1412,21 +1425,28 @@ static irqreturn_t mcp251xfd_irq(int irq, void *dev_id)
 			if (!rx_pending)
 				break;
 
+			/* Assume 1st RX-FIFO pending, if other FIFOs
+			 * are pending the main IRQ handler will take
+			 * care.
+			 */
+			priv->regs_status.rxif = BIT(priv->rx[0]->fifo_nr);
 			err = mcp251xfd_handle(priv, rxif);
 			if (err)
 				goto out_fail;
 
 			handled = IRQ_HANDLED;
-		} while (1);
+
+			/* We don't know which RX-FIFO is pending, but only
+			 * handle the 1st RX-FIFO. Leave loop here if we have
+			 * more than 1 RX-FIFO to avoid starvation.
+			 */
+		} while (priv->rx_ring_num == 1);
 
 	do {
 		u32 intf_pending, intf_pending_clearable;
 		bool set_normal_mode = false;
 
-		err = regmap_bulk_read(priv->map_reg, MCP251XFD_REG_INT,
-				       &priv->regs_status,
-				       sizeof(priv->regs_status) /
-				       val_bytes);
+		err = mcp251xfd_read_regs_status(priv);
 		if (err)
 			goto out_fail;
 

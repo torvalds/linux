@@ -19,7 +19,7 @@
 static inline int
 mcp251xfd_rx_head_get_from_chip(const struct mcp251xfd_priv *priv,
 				const struct mcp251xfd_rx_ring *ring,
-				u8 *rx_head)
+				u8 *rx_head, bool *fifo_empty)
 {
 	u32 fifo_sta;
 	int err;
@@ -30,6 +30,7 @@ mcp251xfd_rx_head_get_from_chip(const struct mcp251xfd_priv *priv,
 		return err;
 
 	*rx_head = FIELD_GET(MCP251XFD_REG_FIFOSTA_FIFOCI_MASK, fifo_sta);
+	*fifo_empty = !(fifo_sta & MCP251XFD_REG_FIFOSTA_TFNRFNIF);
 
 	return 0;
 }
@@ -84,10 +85,12 @@ mcp251xfd_rx_ring_update(const struct mcp251xfd_priv *priv,
 {
 	u32 new_head;
 	u8 chip_rx_head;
+	bool fifo_empty;
 	int err;
 
-	err = mcp251xfd_rx_head_get_from_chip(priv, ring, &chip_rx_head);
-	if (err)
+	err = mcp251xfd_rx_head_get_from_chip(priv, ring, &chip_rx_head,
+					      &fifo_empty);
+	if (err || fifo_empty)
 		return err;
 
 	/* chip_rx_head, is the next RX-Object filled by the HW.
@@ -251,6 +254,9 @@ int mcp251xfd_handle_rxif(struct mcp251xfd_priv *priv)
 	int err, n;
 
 	mcp251xfd_for_each_rx_ring(priv, ring, n) {
+		if (!(priv->regs_status.rxif & BIT(ring->fifo_nr)))
+			continue;
+
 		err = mcp251xfd_handle_rxif_ring(priv, ring);
 		if (err)
 			return err;
