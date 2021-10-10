@@ -2480,7 +2480,6 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 	return 0;
 
 err_thread:
-	flush_workqueue(priv->mfunc.master.comm_wq);
 	destroy_workqueue(priv->mfunc.master.comm_wq);
 err_slaves:
 	while (i--) {
@@ -2587,7 +2586,6 @@ void mlx4_multi_func_cleanup(struct mlx4_dev *dev)
 	int i, port;
 
 	if (mlx4_is_master(dev)) {
-		flush_workqueue(priv->mfunc.master.comm_wq);
 		destroy_workqueue(priv->mfunc.master.comm_wq);
 		for (i = 0; i < dev->num_slaves; i++) {
 			for (port = 1; port <= MLX4_MAX_PORTS; port++)

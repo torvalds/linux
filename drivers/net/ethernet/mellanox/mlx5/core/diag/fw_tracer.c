@@ -1069,7 +1069,6 @@ void mlx5_fw_tracer_destroy(struct mlx5_fw_tracer *tracer)
 	mlx5_fw_tracer_clean_saved_traces_array(tracer);
 	mlx5_fw_tracer_free_strings_db(tracer);
 	mlx5_fw_tracer_destroy_log_buf(tracer);
-	flush_workqueue(tracer->work_queue);
 	destroy_workqueue(tracer->work_queue);
 	kvfree(tracer);
 }

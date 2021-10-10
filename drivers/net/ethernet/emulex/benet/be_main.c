@@ -4621,7 +4621,6 @@ static void be_destroy_err_recovery_workq(void)
 	if (!be_err_recovery_workq)
 		return;
 
-	flush_workqueue(be_err_recovery_workq);
 	destroy_workqueue(be_err_recovery_workq);
 	be_err_recovery_workq = NULL;
 }
