@@ -1583,9 +1583,11 @@ static void mlxsw_sp_qevent_trap_deconfigure(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_qevent_span_deconfigure(mlxsw_sp, qevent_binding, mall_entry->trap.span_id);
 }
 
-static int mlxsw_sp_qevent_entry_configure(struct mlxsw_sp *mlxsw_sp,
-					   struct mlxsw_sp_mall_entry *mall_entry,
-					   struct mlxsw_sp_qevent_binding *qevent_binding)
+static int
+mlxsw_sp_qevent_entry_configure(struct mlxsw_sp *mlxsw_sp,
+				struct mlxsw_sp_mall_entry *mall_entry,
+				struct mlxsw_sp_qevent_binding *qevent_binding,
+				struct netlink_ext_ack *extack)
 {
 	switch (mall_entry->type) {
 	case MLXSW_SP_MALL_ACTION_TYPE_MIRROR:
@@ -1614,15 +1616,17 @@ static void mlxsw_sp_qevent_entry_deconfigure(struct mlxsw_sp *mlxsw_sp,
 	}
 }
 
-static int mlxsw_sp_qevent_binding_configure(struct mlxsw_sp_qevent_block *qevent_block,
-					     struct mlxsw_sp_qevent_binding *qevent_binding)
+static int
+mlxsw_sp_qevent_binding_configure(struct mlxsw_sp_qevent_block *qevent_block,
+				  struct mlxsw_sp_qevent_binding *qevent_binding,
+				  struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp_mall_entry *mall_entry;
 	int err;
 
 	list_for_each_entry(mall_entry, &qevent_block->mall_entry_list, list) {
 		err = mlxsw_sp_qevent_entry_configure(qevent_block->mlxsw_sp, mall_entry,
-						      qevent_binding);
+						      qevent_binding, extack);
 		if (err)
 			goto err_entry_configure;
 	}
@@ -1646,13 +1650,17 @@ static void mlxsw_sp_qevent_binding_deconfigure(struct mlxsw_sp_qevent_block *qe
 						  qevent_binding);
 }
 
-static int mlxsw_sp_qevent_block_configure(struct mlxsw_sp_qevent_block *qevent_block)
+static int
+mlxsw_sp_qevent_block_configure(struct mlxsw_sp_qevent_block *qevent_block,
+				struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp_qevent_binding *qevent_binding;
 	int err;
 
 	list_for_each_entry(qevent_binding, &qevent_block->binding_list, list) {
-		err = mlxsw_sp_qevent_binding_configure(qevent_block, qevent_binding);
+		err = mlxsw_sp_qevent_binding_configure(qevent_block,
+							qevent_binding,
+							extack);
 		if (err)
 			goto err_binding_configure;
 	}
@@ -1737,7 +1745,7 @@ static int mlxsw_sp_qevent_mall_replace(struct mlxsw_sp *mlxsw_sp,
 
 	list_add_tail(&mall_entry->list, &qevent_block->mall_entry_list);
 
-	err = mlxsw_sp_qevent_block_configure(qevent_block);
+	err = mlxsw_sp_qevent_block_configure(qevent_block, f->common.extack);
 	if (err)
 		goto err_block_configure;
 
@@ -1911,7 +1919,8 @@ static int mlxsw_sp_setup_tc_block_qevent_bind(struct mlxsw_sp_port *mlxsw_sp_po
 		goto err_binding_create;
 	}
 
-	err = mlxsw_sp_qevent_binding_configure(qevent_block, qevent_binding);
+	err = mlxsw_sp_qevent_binding_configure(qevent_block, qevent_binding,
+						f->extack);
 	if (err)
 		goto err_binding_configure;
 
