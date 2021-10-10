@@ -61,10 +61,8 @@ static void msm_hdmi_destroy(struct hdmi *hdmi)
 	 * at this point, hpd has been disabled,
 	 * after flush workq, it's safe to deinit hdcp
 	 */
-	if (hdmi->workq) {
-		flush_workqueue(hdmi->workq);
+	if (hdmi->workq)
 		destroy_workqueue(hdmi->workq);
-	}
 	msm_hdmi_hdcp_destroy(hdmi);
 
 	if (hdmi->phy_dev) {

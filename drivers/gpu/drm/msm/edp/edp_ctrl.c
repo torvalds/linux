@@ -1190,7 +1190,6 @@ void msm_edp_ctrl_destroy(struct edp_ctrl *ctrl)
 		return;
 
 	if (ctrl->workqueue) {
-		flush_workqueue(ctrl->workqueue);
 		destroy_workqueue(ctrl->workqueue);
 		ctrl->workqueue = NULL;
 	}
