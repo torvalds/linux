@@ -1370,12 +1370,12 @@ int mlx5e_tc_add_flow_mod_hdr(struct mlx5e_priv *priv,
 static int
 set_encap_dests(struct mlx5e_priv *priv,
 		struct mlx5e_tc_flow *flow,
+		struct mlx5_flow_attr *attr,
 		struct netlink_ext_ack *extack,
 		bool *encap_valid,
 		bool *vf_tun)
 {
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
-	struct mlx5_flow_attr *attr = flow->attr;
 	struct mlx5_esw_flow_attr *esw_attr;
 	struct net_device *encap_dev = NULL;
 	struct mlx5e_rep_priv *rpriv;
@@ -1402,7 +1402,7 @@ set_encap_dests(struct mlx5e_priv *priv,
 			err = -ENODEV;
 			goto out;
 		}
-		err = mlx5e_attach_encap(priv, flow, out_dev, out_index,
+		err = mlx5e_attach_encap(priv, flow, attr, out_dev, out_index,
 					 extack, &encap_dev, encap_valid);
 		dev_put(out_dev);
 		if (err)
@@ -1432,9 +1432,9 @@ out:
 static void
 clean_encap_dests(struct mlx5e_priv *priv,
 		  struct mlx5e_tc_flow *flow,
+		  struct mlx5_flow_attr *attr,
 		  bool *vf_tun)
 {
-	struct mlx5_flow_attr *attr = flow->attr;
 	struct mlx5_esw_flow_attr *esw_attr;
 	int out_index;
 
@@ -1450,7 +1450,7 @@ clean_encap_dests(struct mlx5e_priv *priv,
 		    !esw_attr->dest_int_port)
 			*vf_tun = true;
 
-		mlx5e_detach_encap(priv, flow, out_index);
+		mlx5e_detach_encap(priv, flow, attr, out_index);
 		kfree(attr->parse_attr->tun_info[out_index]);
 	}
 }
@@ -1555,7 +1555,7 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 		esw_attr->int_port = int_port;
 	}
 
-	err = set_encap_dests(priv, flow, extack, &encap_valid, &vf_tun);
+	err = set_encap_dests(priv, flow, attr, extack, &encap_valid, &vf_tun);
 	if (err)
 		goto err_out;
 
@@ -1651,7 +1651,7 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 	if (flow->decap_route)
 		mlx5e_detach_decap_route(priv, flow);
 
-	clean_encap_dests(priv, flow, &vf_tun);
+	clean_encap_dests(priv, flow, attr, &vf_tun);
 
 	mlx5_tc_ct_match_del(get_ct_priv(priv), &flow->attr->ct_attr);
 
