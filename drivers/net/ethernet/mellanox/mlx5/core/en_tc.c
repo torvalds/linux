@@ -1039,6 +1039,21 @@ err_ft_get:
 }
 
 static int
+alloc_flow_attr_counter(struct mlx5_core_dev *counter_dev,
+			struct mlx5_flow_attr *attr)
+
+{
+	struct mlx5_fc *counter;
+
+	counter = mlx5_fc_create(counter_dev, true);
+	if (IS_ERR(counter))
+		return PTR_ERR(counter);
+
+	attr->counter = counter;
+	return 0;
+}
+
+static int
 mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 		      struct mlx5e_tc_flow *flow,
 		      struct netlink_ext_ack *extack)
@@ -1046,7 +1061,6 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 	struct mlx5_flow_attr *attr = flow->attr;
 	struct mlx5_core_dev *dev = priv->mdev;
-	struct mlx5_fc *counter;
 	int err;
 
 	parse_attr = attr->parse_attr;
@@ -1058,11 +1072,9 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 	}
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
-		counter = mlx5_fc_create(dev, true);
-		if (IS_ERR(counter))
-			return PTR_ERR(counter);
-
-		attr->counter = counter;
+		err = alloc_flow_attr_counter(dev, attr);
+		if (err)
+			return err;
 	}
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR) {
@@ -1465,7 +1477,6 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	struct mlx5_flow_attr *attr = flow->attr;
 	struct mlx5_esw_flow_attr *esw_attr;
 	bool vf_tun, encap_valid;
-	struct mlx5_fc *counter;
 	u32 max_prio, max_chain;
 	int err = 0;
 
@@ -1577,13 +1588,9 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	}
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
-		counter = mlx5_fc_create(esw_attr->counter_dev, true);
-		if (IS_ERR(counter)) {
-			err = PTR_ERR(counter);
+		err = alloc_flow_attr_counter(esw_attr->counter_dev, attr);
+		if (err)
 			goto err_out;
-		}
-
-		attr->counter = counter;
 	}
 
 	/* we get here if one of the following takes place:
