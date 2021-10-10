@@ -269,7 +269,6 @@ enum odm_common_info_def {
 	ODM_CMNINFO_RF_TYPE,		/* RF_PATH_E or ODM_RF_TYPE_E? */
 	ODM_CMNINFO_BOARD_TYPE,		/* ODM_BOARD_TYPE_E */
 	ODM_CMNINFO_EXT_LNA,		/* true */
-	ODM_CMNINFO_EXT_PA,
 	/* HOOK BEFORE REG INIT-----------  */
 
 	/*  Dynamic value: */
@@ -649,8 +648,6 @@ struct odm_dm_struct {
 	u8	BoardType;
 	/*  with external LNA  NO/Yes = 0/1 */
 	u8	ExtLNA;
-	/*  with external PA  NO/Yes = 0/1 */
-	u8	ExtPA;
 
 	u32	BK_SupportAbility;
 	u8	AntDivType;
