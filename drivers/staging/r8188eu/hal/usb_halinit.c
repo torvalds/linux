@@ -599,24 +599,6 @@ static void _InitAntenna_Selection(struct adapter *Adapter)
 	DBG_88E("%s,Cur_ant:(%x)%s\n", __func__, haldata->CurAntenna, (haldata->CurAntenna == Antenna_A) ? "Antenna_A" : "Antenna_B");
 }
 
-enum rt_rf_power_state RfOnOffDetect(struct adapter *adapt)
-{
-	u8 val8;
-	enum rt_rf_power_state rfpowerstate = rf_off;
-
-	if (adapt->pwrctrlpriv.bHWPowerdown) {
-		val8 = rtw_read8(adapt, REG_HSISR);
-		DBG_88E("pwrdown, 0x5c(BIT(7))=%02x\n", val8);
-		rfpowerstate = (val8 & BIT(7)) ? rf_off : rf_on;
-	} else { /*  rf on/off */
-		rtw_write8(adapt, REG_MAC_PINMUX_CFG, rtw_read8(adapt, REG_MAC_PINMUX_CFG) & ~(BIT(3)));
-		val8 = rtw_read8(adapt, REG_GPIO_IO_SEL);
-		DBG_88E("GPIO_IN=%02x\n", val8);
-		rfpowerstate = (val8 & BIT(3)) ? rf_on : rf_off;
-	}
-	return rfpowerstate;
-}	/*  HalDetectPwrDownMode */
-
 u32 rtl8188eu_hal_init(struct adapter *Adapter)
 {
 	u8 value8 = 0;
