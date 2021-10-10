@@ -266,7 +266,6 @@ enum odm_common_info_def {
 	ODM_CMNINFO_INTERFACE,		/* ODM_INTERFACE_E */
 	ODM_CMNINFO_MP_TEST_CHIP,
 	ODM_CMNINFO_IC_TYPE,		/* ODM_IC_TYPE_E */
-	ODM_CMNINFO_CUT_VER,		/* ODM_CUT_VERSION_E */
 	ODM_CMNINFO_RF_TYPE,		/* RF_PATH_E or ODM_RF_TYPE_E? */
 	ODM_CMNINFO_BOARD_TYPE,		/* ODM_BOARD_TYPE_E */
 	ODM_CMNINFO_EXT_LNA,		/* true */
@@ -370,17 +369,6 @@ enum odm_ic_type {
 	ODM_RTL8188E	=	BIT(4),
 	ODM_RTL8812	=	BIT(5),
 	ODM_RTL8821	=	BIT(6),
-};
-
-/* ODM_CMNINFO_CUT_VER */
-enum odm_cut_version {
-	ODM_CUT_A	=	1,
-	ODM_CUT_B	=	2,
-	ODM_CUT_C	=	3,
-	ODM_CUT_D	=	4,
-	ODM_CUT_E	=	5,
-	ODM_CUT_F	=	6,
-	ODM_CUT_TEST	=	7,
 };
 
 /*  ODM_CMNINFO_RF_TYPE */
@@ -659,8 +647,6 @@ struct odm_dm_struct {
 	/*  ODM composite or independent. Bit oriented/ 92C+92D+ .... or any
 	 *  other type = 1/2/3/... */
 	u32	SupportICType;
-	/*  Cut Version TestChip/A-cut/B-cut... = 0/1/2/3/... */
-	u8	CutVersion;
 	/*  RF Type 4T4R/3T3R/2T2R/1T2R/1T1R/... */
 	u8	RFType;
 	/*  Board Type Normal/HighPower/MiniCard/SLIM/Combo/. = 0/1/2/3/4/. */
