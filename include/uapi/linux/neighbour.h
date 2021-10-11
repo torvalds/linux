@@ -31,6 +31,7 @@ enum {
 	NDA_PROTOCOL,  /* Originator of entry */
 	NDA_NH_ID,
 	NDA_FDB_EXT_ATTRS,
+	NDA_FLAGS_EXT,
 	__NDA_MAX
 };
 

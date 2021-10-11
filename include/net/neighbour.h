@@ -144,11 +144,11 @@ struct neighbour {
 	struct timer_list	timer;
 	unsigned long		used;
 	atomic_t		probes;
-	__u8			flags;
-	__u8			nud_state;
-	__u8			type;
-	__u8			dead;
+	u8			nud_state;
+	u8			type;
+	u8			dead;
 	u8			protocol;
+	u32			flags;
 	seqlock_t		ha_lock;
 	unsigned char		ha[ALIGN(MAX_ADDR_LEN, sizeof(unsigned long))] __aligned(8);
 	struct hh_cache		hh;
@@ -172,7 +172,7 @@ struct pneigh_entry {
 	struct pneigh_entry	*next;
 	possible_net_t		net;
 	struct net_device	*dev;
-	u8			flags;
+	u32			flags;
 	u8			protocol;
 	u8			key[];
 };
@@ -257,6 +257,10 @@ static inline void *neighbour_priv(const struct neighbour *n)
 #define NEIGH_UPDATE_F_EXT_LEARNED		0x20000000
 #define NEIGH_UPDATE_F_ISROUTER			0x40000000
 #define NEIGH_UPDATE_F_ADMIN			0x80000000
+
+/* In-kernel representation for NDA_FLAGS_EXT flags: */
+#define NTF_OLD_MASK		0xff
+#define NTF_EXT_SHIFT		8
 
 extern const struct nla_policy nda_policy[];
 
