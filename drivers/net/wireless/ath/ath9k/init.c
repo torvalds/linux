@@ -610,8 +610,8 @@ static int ath9k_nvmem_request_eeprom(struct ath_softc *sc)
 	/* devres manages the calibration values release on shutdown */
 	ah->nvmem_blob = (u16 *)devm_kmemdup(sc->dev, buf, len, GFP_KERNEL);
 	kfree(buf);
-	if (IS_ERR(ah->nvmem_blob))
-		return PTR_ERR(ah->nvmem_blob);
+	if (!ah->nvmem_blob)
+		return -ENOMEM;
 
 	ah->nvmem_blob_len = len;
 	ah->ah_flags &= ~AH_USE_EEPROM;
