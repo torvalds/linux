@@ -974,6 +974,10 @@ mt76_check_ccmp_pn(struct sk_buff *skb)
 	if (!wcid || !wcid->rx_check_pn)
 		return 0;
 
+	security_idx = status->qos_ctl & IEEE80211_QOS_CTL_TID_MASK;
+	if (status->flag & RX_FLAG_8023)
+		goto skip_hdr_check;
+
 	hdr = mt76_skb_get_hdr(skb);
 	if (!(status->flag & RX_FLAG_IV_STRIPPED)) {
 		/*
@@ -994,9 +998,8 @@ mt76_check_ccmp_pn(struct sk_buff *skb)
 	if (ieee80211_is_mgmt(hdr->frame_control) &&
 	    !ieee80211_has_tods(hdr->frame_control))
 		security_idx = IEEE80211_NUM_TIDS;
-	else
-		security_idx = status->qos_ctl & IEEE80211_QOS_CTL_TID_MASK;
 
+skip_hdr_check:
 	BUILD_BUG_ON(sizeof(status->iv) != sizeof(wcid->rx_key_pn[0]));
 	ret = memcmp(status->iv, wcid->rx_key_pn[security_idx],
 		     sizeof(status->iv));
