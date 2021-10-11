@@ -4149,13 +4149,19 @@ struct mlx5_ifc_health_buffer_bits {
 
 	u8         assert_callra[0x20];
 
-	u8         reserved_at_140[0x40];
+	u8         reserved_at_140[0x20];
+
+	u8         time[0x20];
 
 	u8         fw_version[0x20];
 
 	u8         hw_id[0x20];
 
-	u8         reserved_at_1c0[0x20];
+	u8         rfr[0x1];
+	u8         reserved_at_1c1[0x3];
+	u8         valid[0x1];
+	u8         severity[0x3];
+	u8         reserved_at_1c8[0x18];
 
 	u8         irisc_index[0x8];
 	u8         synd[0x8];

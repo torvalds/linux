@@ -36,6 +36,7 @@
 #include <linux/vmalloc.h>
 #include <linux/hardirq.h>
 #include <linux/mlx5/driver.h>
+#include <linux/kern_levels.h>
 #include "mlx5_core.h"
 #include "lib/eq.h"
 #include "lib/mlx5.h"
@@ -74,6 +75,11 @@ enum  {
 	MLX5_SENSOR_FW_SYND_RFR		= 5,
 };
 
+enum {
+	MLX5_SEVERITY_MASK		= 0x7,
+	MLX5_SEVERITY_VALID_MASK	= 0x8,
+};
+
 u8 mlx5_get_nic_state(struct mlx5_core_dev *dev)
 {
 	return (ioread32be(&dev->iseg->cmdq_addr_l_sz) >> 8) & 7;
@@ -98,12 +104,19 @@ static bool sensor_pci_not_working(struct mlx5_core_dev *dev)
 	return (ioread32be(&h->fw_ver) == 0xffffffff);
 }
 
+static int mlx5_health_get_rfr(u8 rfr_severity)
+{
+	return rfr_severity >> MLX5_RFR_BIT_OFFSET;
+}
+
 static bool sensor_fw_synd_rfr(struct mlx5_core_dev *dev)
 {
 	struct mlx5_core_health *health = &dev->priv.health;
 	struct health_buffer __iomem *h = health->health;
-	u32 rfr = ioread32be(&h->rfr) >> MLX5_RFR_OFFSET;
 	u8 synd = ioread8(&h->synd);
+	u8 rfr;
+
+	rfr = mlx5_health_get_rfr(ioread8(&h->rfr_severity));
 
 	if (rfr && synd)
 		mlx5_core_dbg(dev, "FW requests reset, synd: %d\n", synd);
@@ -366,17 +379,51 @@ static const char *hsynd_str(u8 synd)
 	}
 }
 
+static const char *mlx5_loglevel_str(int level)
+{
+	switch (level) {
+	case LOGLEVEL_EMERG:
+		return "EMERGENCY";
+	case LOGLEVEL_ALERT:
+		return "ALERT";
+	case LOGLEVEL_CRIT:
+		return "CRITICAL";
+	case LOGLEVEL_ERR:
+		return "ERROR";
+	case LOGLEVEL_WARNING:
+		return "WARNING";
+	case LOGLEVEL_NOTICE:
+		return "NOTICE";
+	case LOGLEVEL_INFO:
+		return "INFO";
+	case LOGLEVEL_DEBUG:
+		return "DEBUG";
+	}
+	return "Unknown log level";
+}
+
+static int mlx5_health_get_severity(u8 rfr_severity)
+{
+	return rfr_severity & MLX5_SEVERITY_VALID_MASK ?
+	       rfr_severity & MLX5_SEVERITY_MASK : LOGLEVEL_ERR;
+}
+
 static void print_health_info(struct mlx5_core_dev *dev)
 {
 	struct mlx5_core_health *health = &dev->priv.health;
 	struct health_buffer __iomem *h = health->health;
-	char fw_str[18];
-	u32 fw;
+	u8 rfr_severity;
+	int severity;
 	int i;
 
 	/* If the syndrome is 0, the device is OK and no need to print buffer */
 	if (!ioread8(&h->synd))
 		return;
+
+	rfr_severity = ioread8(&h->rfr_severity);
+	severity  = mlx5_health_get_severity(rfr_severity);
+	mlx5_core_err(dev, "Health issue observed, %s, severity(%d) %s:\n",
+		      hsynd_str(ioread8(&h->synd)), severity, mlx5_loglevel_str(severity));
 
 	for (i = 0; i < ARRAY_SIZE(h->assert_var); i++)
 		mlx5_core_err(dev, "assert_var[%d] 0x%08x\n", i,
@@ -386,15 +433,16 @@ static void print_health_info(struct mlx5_core_dev *dev)
 		      ioread32be(&h->assert_exit_ptr));
 	mlx5_core_err(dev, "assert_callra 0x%08x\n",
 		      ioread32be(&h->assert_callra));
-	sprintf(fw_str, "%d.%d.%d", fw_rev_maj(dev), fw_rev_min(dev), fw_rev_sub(dev));
-	mlx5_core_err(dev, "fw_ver %s\n", fw_str);
+	mlx5_core_err(dev, "fw_ver %d.%d.%d", fw_rev_maj(dev), fw_rev_min(dev), fw_rev_sub(dev));
+	mlx5_core_err(dev, "time %u\n", ioread32be(&h->time));
 	mlx5_core_err(dev, "hw_id 0x%08x\n", ioread32be(&h->hw_id));
+	mlx5_core_err(dev, "rfr %d\n", mlx5_health_get_rfr(rfr_severity));
+	mlx5_core_err(dev, "severity %d (%s)\n", severity, mlx5_loglevel_str(severity));
 	mlx5_core_err(dev, "irisc_index %d\n", ioread8(&h->irisc_index));
 	mlx5_core_err(dev, "synd 0x%x: %s\n", ioread8(&h->synd),
 		      hsynd_str(ioread8(&h->synd)));
 	mlx5_core_err(dev, "ext_synd 0x%04x\n", ioread16be(&h->ext_synd));
-	fw = ioread32be(&h->fw_ver);
-	mlx5_core_err(dev, "raw fw_ver 0x%08x\n", fw);
+	mlx5_core_err(dev, "raw fw_ver 0x%08x\n", ioread32be(&h->fw_ver));
 }
 
 static int
@@ -443,6 +491,7 @@ mlx5_fw_reporter_heath_buffer_data_put(struct mlx5_core_dev *dev,
 {
 	struct mlx5_core_health *health = &dev->priv.health;
 	struct health_buffer __iomem *h = health->health;
+	u8 rfr_severity;
 	int err;
 	int i;
 
@@ -475,7 +524,17 @@ mlx5_fw_reporter_heath_buffer_data_put(struct mlx5_core_dev *dev,
 					ioread32be(&h->assert_callra));
 	if (err)
 		return err;
+	err = devlink_fmsg_u32_pair_put(fmsg, "time", ioread32be(&h->time));
+	if (err)
+		return err;
 	err = devlink_fmsg_u32_pair_put(fmsg, "hw_id", ioread32be(&h->hw_id));
+	if (err)
+		return err;
+	rfr_severity = ioread8(&h->rfr_severity);
+	err = devlink_fmsg_u8_pair_put(fmsg, "rfr", mlx5_health_get_rfr(rfr_severity));
+	if (err)
+		return err;
+	err = devlink_fmsg_u8_pair_put(fmsg, "severity", mlx5_health_get_severity(rfr_severity));
 	if (err)
 		return err;
 	err = devlink_fmsg_u8_pair_put(fmsg, "irisc_index",
