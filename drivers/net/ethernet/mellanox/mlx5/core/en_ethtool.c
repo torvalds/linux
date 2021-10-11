@@ -1900,6 +1900,11 @@ int mlx5e_modify_rx_cqe_compression_locked(struct mlx5e_priv *priv, bool new_val
 		return -EINVAL;
 	}
 
+	if (priv->channels.params.packet_merge.type == MLX5E_PACKET_MERGE_SHAMPO) {
+		netdev_warn(priv->netdev, "Can't set CQE compression with HW-GRO, disable it first.\n");
+		return -EINVAL;
+	}
+
 	new_params = priv->channels.params;
 	MLX5E_SET_PFLAG(&new_params, MLX5E_PFLAG_RX_CQE_COMPRESS, new_val);
 	if (rx_filter)
