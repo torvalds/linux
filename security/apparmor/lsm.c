@@ -1763,32 +1763,16 @@ static unsigned int apparmor_ip_postroute(void *priv,
 
 }
 
-static unsigned int apparmor_ipv4_postroute(void *priv,
-					    struct sk_buff *skb,
-					    const struct nf_hook_state *state)
-{
-	return apparmor_ip_postroute(priv, skb, state);
-}
-
-#if IS_ENABLED(CONFIG_IPV6)
-static unsigned int apparmor_ipv6_postroute(void *priv,
-					    struct sk_buff *skb,
-					    const struct nf_hook_state *state)
-{
-	return apparmor_ip_postroute(priv, skb, state);
-}
-#endif
-
 static const struct nf_hook_ops apparmor_nf_ops[] = {
 	{
-		.hook =         apparmor_ipv4_postroute,
+		.hook =         apparmor_ip_postroute,
 		.pf =           NFPROTO_IPV4,
 		.hooknum =      NF_INET_POST_ROUTING,
 		.priority =     NF_IP_PRI_SELINUX_FIRST,
 	},
 #if IS_ENABLED(CONFIG_IPV6)
 	{
-		.hook =         apparmor_ipv6_postroute,
+		.hook =         apparmor_ip_postroute,
 		.pf =           NFPROTO_IPV6,
 		.hooknum =      NF_INET_POST_ROUTING,
 		.priority =     NF_IP6_PRI_SELINUX_FIRST,
