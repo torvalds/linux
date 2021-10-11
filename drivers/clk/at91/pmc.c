@@ -148,8 +148,9 @@ static struct syscore_ops pmc_syscore_ops = {
 	.resume = at91_pmc_resume,
 };
 
-static const struct of_device_id sama5d2_pmc_dt_ids[] = {
+static const struct of_device_id pmc_dt_ids[] = {
 	{ .compatible = "atmel,sama5d2-pmc" },
+	{ .compatible = "microchip,sama7g5-pmc", },
 	{ /* sentinel */ }
 };
 
@@ -157,7 +158,7 @@ static int __init pmc_register_ops(void)
 {
 	struct device_node *np;
 
-	np = of_find_matching_node(NULL, sama5d2_pmc_dt_ids);
+	np = of_find_matching_node(NULL, pmc_dt_ids);
 	if (!np)
 		return -ENODEV;
 
