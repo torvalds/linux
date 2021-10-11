@@ -471,7 +471,7 @@ xfs_dquot_alloc(
 	 * Offset of dquot in the (fixed sized) dquot chunk.
 	 */
 	dqp->q_bufoffset = (id % mp->m_quotainfo->qi_dqperchunk) *
-			sizeof(xfs_dqblk_t);
+			sizeof(struct xfs_dqblk);
 
 	/*
 	 * Because we want to use a counting completion, complete

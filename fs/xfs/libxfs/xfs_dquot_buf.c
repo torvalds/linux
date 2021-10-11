@@ -22,7 +22,7 @@ xfs_calc_dquots_per_chunk(
 	unsigned int		nbblks)	/* basic block units */
 {
 	ASSERT(nbblks > 0);
-	return BBTOB(nbblks) / sizeof(xfs_dqblk_t);
+	return BBTOB(nbblks) / sizeof(struct xfs_dqblk);
 }
 
 /*
@@ -127,7 +127,7 @@ xfs_dqblk_repair(
 	 * Typically, a repair is only requested by quotacheck.
 	 */
 	ASSERT(id != -1);
-	memset(dqb, 0, sizeof(xfs_dqblk_t));
+	memset(dqb, 0, sizeof(struct xfs_dqblk));
 
 	dqb->dd_diskdq.d_magic = cpu_to_be16(XFS_DQUOT_MAGIC);
 	dqb->dd_diskdq.d_version = XFS_DQUOT_VERSION;

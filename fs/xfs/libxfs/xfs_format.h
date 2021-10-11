@@ -1215,7 +1215,7 @@ struct xfs_disk_dquot {
  * This is what goes on disk. This is separated from the xfs_disk_dquot because
  * carrying the unnecessary padding would be a waste of memory.
  */
-typedef struct xfs_dqblk {
+struct xfs_dqblk {
 	struct xfs_disk_dquot	dd_diskdq; /* portion living incore as well */
 	char			dd_fill[4];/* filling for posterity */
 
@@ -1225,7 +1225,7 @@ typedef struct xfs_dqblk {
 	__be32		  dd_crc;	/* checksum */
 	__be64		  dd_lsn;	/* last modification in log */
 	uuid_t		  dd_uuid;	/* location information */
-} xfs_dqblk_t;
+};
 
 #define XFS_DQUOT_CRC_OFF	offsetof(struct xfs_dqblk, dd_crc)
 
