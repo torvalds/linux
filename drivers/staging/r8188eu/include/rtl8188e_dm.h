@@ -26,7 +26,6 @@ struct	dm_priv {
 	int	EntryMinUndecoratedSmoothedPWDB;
 	int	EntryMaxUndecoratedSmoothedPWDB;
 	int	MinUndecoratedPWDBForDM;
-	int	LastMinUndecoratedPWDBForDM;
 };
 
 void rtl8188e_init_dm_priv(struct adapter *adapt);
