@@ -441,7 +441,7 @@ static long bch2_ioctl_subvolume_destroy(struct bch_fs *c, struct file *filp,
 
 	dir = path.dentry->d_parent->d_inode;
 
-	ret = __bch2_unlink(dir, path.dentry, 1);
+	ret = __bch2_unlink(dir, path.dentry, true);
 	if (!ret) {
 		fsnotify_rmdir(dir, path.dentry);
 		d_delete(path.dentry);

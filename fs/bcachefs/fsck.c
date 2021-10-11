@@ -256,7 +256,7 @@ retry:
 
 	/* Subvolume root? */
 	if (inode_u.bi_subvol) {
-		ret = bch2_subvolume_delete(trans, inode_u.bi_subvol, -1);
+		ret = bch2_subvolume_delete(trans, inode_u.bi_subvol);
 		if (ret)
 			goto err;
 	}
@@ -992,12 +992,28 @@ static int check_subvols(struct bch_fs *c)
 	struct btree_trans trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
+	struct bkey_s_c_subvolume subvol;
 	int ret;
 
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
 	for_each_btree_key(&trans, iter, BTREE_ID_subvolumes, POS_MIN,
 			   0, k, ret) {
+		if (k.k->type != KEY_TYPE_subvolume)
+			continue;
+
+		subvol = bkey_s_c_to_subvolume(k);
+
+		if (BCH_SUBVOLUME_UNLINKED(subvol.v)) {
+			ret = __bch2_trans_do(&trans,  NULL, NULL,
+					      BTREE_INSERT_LAZY_RW,
+					bch2_subvolume_delete(&trans, iter.pos.offset));
+			if (ret) {
+				bch_err(c, "error deleting subvolume %llu: %i",
+					iter.pos.offset, ret);
+				break;
+			}
+		}
 	}
 	bch2_trans_iter_exit(&trans, &iter);
 

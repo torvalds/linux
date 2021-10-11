@@ -4,6 +4,7 @@
 #include "btree_key_cache.h"
 #include "btree_update.h"
 #include "error.h"
+#include "fs.h"
 #include "subvolume.h"
 
 /* Snapshot tree: */
@@ -541,13 +542,6 @@ err:
 	return ret;
 }
 
-/* List of snapshot IDs that are being deleted: */
-struct snapshot_id_list {
-	u32		nr;
-	u32		size;
-	u32		*d;
-};
-
 static bool snapshot_list_has_id(struct snapshot_id_list *s, u32 id)
 {
 	unsigned i;
@@ -819,9 +813,11 @@ int bch2_subvolume_get_snapshot(struct btree_trans *trans, u32 subvol,
 	return ret;
 }
 
-/* XXX: mark snapshot id for deletion, walk btree and delete: */
-int bch2_subvolume_delete(struct btree_trans *trans, u32 subvolid,
-			  int deleting_snapshot)
+/*
+ * Delete subvolume, mark snapshot ID as deleted, queue up snapshot
+ * deletion/cleanup:
+ */
+int bch2_subvolume_delete(struct btree_trans *trans, u32 subvolid)
 {
 	struct btree_iter iter;
 	struct bkey_s_c k;
@@ -849,12 +845,6 @@ int bch2_subvolume_delete(struct btree_trans *trans, u32 subvolid,
 	subvol = bkey_s_c_to_subvolume(k);
 	snapid = le32_to_cpu(subvol.v->snapshot);
 
-	if (deleting_snapshot >= 0 &&
-	    deleting_snapshot != BCH_SUBVOLUME_SNAP(subvol.v)) {
-		ret = -ENOENT;
-		goto err;
-	}
-
 	delete = bch2_trans_kmalloc(trans, sizeof(*delete));
 	ret = PTR_ERR_OR_ZERO(delete);
 	if (ret)
@@ -875,6 +865,163 @@ int bch2_subvolume_delete(struct btree_trans *trans, u32 subvolid,
 
 	h->fn = bch2_delete_dead_snapshots_hook;
 	bch2_trans_commit_hook(trans, h);
+err:
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
+static void bch2_evict_subvolume_inodes(struct bch_fs *c,
+				 struct snapshot_id_list *s)
+{
+	struct super_block *sb = c->vfs_sb;
+	struct inode *inode;
+
+	spin_lock(&sb->s_inode_list_lock);
+	list_for_each_entry(inode, &sb->s_inodes, i_sb_list) {
+		if (!snapshot_list_has_id(s, to_bch_ei(inode)->ei_subvol) ||
+		    (inode->i_state & I_FREEING))
+			continue;
+
+		d_mark_dontcache(inode);
+		d_prune_aliases(inode);
+	}
+	spin_unlock(&sb->s_inode_list_lock);
+again:
+	cond_resched();
+	spin_lock(&sb->s_inode_list_lock);
+	list_for_each_entry(inode, &sb->s_inodes, i_sb_list) {
+		if (!snapshot_list_has_id(s, to_bch_ei(inode)->ei_subvol) ||
+		    (inode->i_state & I_FREEING))
+			continue;
+
+		if (!(inode->i_state & I_DONTCACHE)) {
+			d_mark_dontcache(inode);
+			d_prune_aliases(inode);
+		}
+
+		spin_lock(&inode->i_lock);
+		if (snapshot_list_has_id(s, to_bch_ei(inode)->ei_subvol) &&
+		    !(inode->i_state & I_FREEING)) {
+			wait_queue_head_t *wq = bit_waitqueue(&inode->i_state, __I_NEW);
+			DEFINE_WAIT_BIT(wait, &inode->i_state, __I_NEW);
+			prepare_to_wait(wq, &wait.wq_entry, TASK_UNINTERRUPTIBLE);
+			spin_unlock(&inode->i_lock);
+			spin_unlock(&sb->s_inode_list_lock);
+			schedule();
+			finish_wait(wq, &wait.wq_entry);
+			goto again;
+		}
+
+		spin_unlock(&inode->i_lock);
+	}
+	spin_unlock(&sb->s_inode_list_lock);
+}
+
+void bch2_subvolume_wait_for_pagecache_and_delete(struct work_struct *work)
+{
+	struct bch_fs *c = container_of(work, struct bch_fs,
+				snapshot_wait_for_pagecache_and_delete_work);
+	struct snapshot_id_list s;
+	u32 *id;
+	int ret = 0;
+
+	while (!ret) {
+		mutex_lock(&c->snapshots_unlinked_lock);
+		s = c->snapshots_unlinked;
+		memset(&c->snapshots_unlinked, 0, sizeof(c->snapshots_unlinked));
+		mutex_unlock(&c->snapshots_unlinked_lock);
+
+		if (!s.nr)
+			break;
+
+		bch2_evict_subvolume_inodes(c, &s);
+
+		for (id = s.d; id < s.d + s.nr; id++) {
+			ret = bch2_trans_do(c, NULL, NULL, BTREE_INSERT_NOFAIL,
+				      bch2_subvolume_delete(&trans, *id));
+			if (ret) {
+				bch_err(c, "error %i deleting subvolume %u", ret, *id);
+				break;
+			}
+		}
+
+		kfree(s.d);
+	}
+
+	percpu_ref_put(&c->writes);
+}
+
+struct subvolume_unlink_hook {
+	struct btree_trans_commit_hook	h;
+	u32				subvol;
+};
+
+int bch2_subvolume_wait_for_pagecache_and_delete_hook(struct btree_trans *trans,
+						      struct btree_trans_commit_hook *_h)
+{
+	struct subvolume_unlink_hook *h = container_of(_h, struct subvolume_unlink_hook, h);
+	struct bch_fs *c = trans->c;
+	int ret = 0;
+
+	mutex_lock(&c->snapshots_unlinked_lock);
+	if (!snapshot_list_has_id(&c->snapshots_unlinked, h->subvol))
+		ret = snapshot_id_add(&c->snapshots_unlinked, h->subvol);
+	mutex_unlock(&c->snapshots_unlinked_lock);
+
+	if (ret)
+		return ret;
+
+	if (unlikely(!percpu_ref_tryget(&c->writes)))
+		return -EROFS;
+
+	if (!queue_work(system_long_wq, &c->snapshot_wait_for_pagecache_and_delete_work))
+		percpu_ref_put(&c->writes);
+	return 0;
+}
+
+int bch2_subvolume_unlink(struct btree_trans *trans, u32 subvolid)
+{
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	struct bkey_i_subvolume *n;
+	struct subvolume_unlink_hook *h;
+	int ret = 0;
+
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_subvolumes,
+			     POS(0, subvolid),
+			     BTREE_ITER_CACHED|
+			     BTREE_ITER_INTENT);
+	k = bch2_btree_iter_peek_slot(&iter);
+	ret = bkey_err(k);
+	if (ret)
+		goto err;
+
+	if (k.k->type != KEY_TYPE_subvolume) {
+		bch2_fs_inconsistent(trans->c, "missing subvolume %u", subvolid);
+		ret = -EIO;
+		goto err;
+	}
+
+	n = bch2_trans_kmalloc(trans, sizeof(*n));
+	ret = PTR_ERR_OR_ZERO(n);
+	if (ret)
+		goto err;
+
+	bkey_reassemble(&n->k_i, k);
+	SET_BCH_SUBVOLUME_UNLINKED(&n->v, true);
+
+	ret = bch2_trans_update(trans, &iter, &n->k_i, 0);
+	if (ret)
+		goto err;
+
+	h = bch2_trans_kmalloc(trans, sizeof(*h));
+	ret = PTR_ERR_OR_ZERO(h);
+	if (ret)
+		goto err;
+
+	h->h.fn		= bch2_subvolume_wait_for_pagecache_and_delete_hook;
+	h->subvol	= subvolid;
+	bch2_trans_commit_hook(trans, &h->h);
 err:
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
@@ -977,5 +1124,8 @@ err:
 int bch2_fs_subvolumes_init(struct bch_fs *c)
 {
 	INIT_WORK(&c->snapshot_delete_work, bch2_delete_dead_snapshots_work);
+	INIT_WORK(&c->snapshot_wait_for_pagecache_and_delete_work,
+		  bch2_subvolume_wait_for_pagecache_and_delete);
+	mutex_init(&c->snapshots_unlinked_lock);
 	return 0;
 }

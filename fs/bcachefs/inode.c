@@ -709,11 +709,7 @@ retry:
 	bch2_inode_unpack(bkey_s_c_to_inode(k), &inode_u);
 
 	/* Subvolume root? */
-	if (inode_u.bi_subvol) {
-		ret = bch2_subvolume_delete(&trans, inode_u.bi_subvol, -1);
-		if (ret)
-			goto err;
-	}
+	BUG_ON(inode_u.bi_subvol);
 
 	bkey_inode_generation_init(&delete.k_i);
 	delete.k.p = iter.pos;

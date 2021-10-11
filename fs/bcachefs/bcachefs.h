@@ -353,6 +353,7 @@ enum bch_time_stats {
 #include "quota_types.h"
 #include "rebalance_types.h"
 #include "replicas_types.h"
+#include "subvolume_types.h"
 #include "super_types.h"
 
 /* Number of nodes btree coalesce will try to coalesce at once */
@@ -657,6 +658,9 @@ struct bch_fs {
 	struct bch_snapshot_table __rcu *snapshot_table;
 	struct mutex		snapshot_table_lock;
 	struct work_struct	snapshot_delete_work;
+	struct work_struct	snapshot_wait_for_pagecache_and_delete_work;
+	struct snapshot_id_list	snapshots_unlinked;
+	struct mutex		snapshots_unlinked_lock;
 
 	/* BTREE CACHE */
 	struct bio_set		btree_bio;

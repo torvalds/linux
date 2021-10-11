@@ -490,7 +490,7 @@ static int bch2_link(struct dentry *old_dentry, struct inode *vdir,
 }
 
 int __bch2_unlink(struct inode *vdir, struct dentry *dentry,
-		  int deleting_snapshot)
+		  bool deleting_snapshot)
 {
 	struct bch_fs *c = vdir->i_sb->s_fs_info;
 	struct bch_inode_info *dir = to_bch_ei(vdir);
@@ -527,7 +527,7 @@ int __bch2_unlink(struct inode *vdir, struct dentry *dentry,
 
 static int bch2_unlink(struct inode *vdir, struct dentry *dentry)
 {
-	return __bch2_unlink(vdir, dentry, -1);
+	return __bch2_unlink(vdir, dentry, false);
 }
 
 static int bch2_symlink(struct mnt_idmap *idmap,
@@ -1292,6 +1292,12 @@ static int bch2_vfs_write_inode(struct inode *vinode,
 	return ret;
 }
 
+static int bch2_drop_inode(struct inode *vinode)
+{
+
+	return generic_drop_inode(vinode);
+}
+
 static void bch2_evict_inode(struct inode *vinode)
 {
 	struct bch_fs *c = vinode->i_sb->s_fs_info;
@@ -1496,6 +1502,7 @@ static const struct super_operations bch_super_operations = {
 	.alloc_inode	= bch2_alloc_inode,
 	.destroy_inode	= bch2_destroy_inode,
 	.write_inode	= bch2_vfs_write_inode,
+	.drop_inode	= bch2_drop_inode,
 	.evict_inode	= bch2_evict_inode,
 	.sync_fs	= bch2_sync_fs,
 	.statfs		= bch2_statfs,
