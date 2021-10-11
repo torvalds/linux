@@ -543,6 +543,8 @@ The CR-space dump uses vsc interface which is valid even if the FW command
 interface is not functional, which is the case in most FW fatal errors.
 The recover function runs recover flow which reloads the driver and triggers fw
 reset if needed.
+On firmware error, the health buffer is dumped into the dmesg. The log
+level is derived from the error's severity (given in health buffer).
 
 User commands examples:
 

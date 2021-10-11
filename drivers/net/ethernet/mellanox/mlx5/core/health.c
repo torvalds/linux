@@ -422,27 +422,26 @@ static void print_health_info(struct mlx5_core_dev *dev)
 
 	rfr_severity = ioread8(&h->rfr_severity);
 	severity  = mlx5_health_get_severity(rfr_severity);
-	mlx5_core_err(dev, "Health issue observed, %s, severity(%d) %s:\n",
-		      hsynd_str(ioread8(&h->synd)), severity, mlx5_loglevel_str(severity));
+	mlx5_log(dev, severity, "Health issue observed, %s, severity(%d) %s:\n",
+		 hsynd_str(ioread8(&h->synd)), severity, mlx5_loglevel_str(severity));
 
 	for (i = 0; i < ARRAY_SIZE(h->assert_var); i++)
-		mlx5_core_err(dev, "assert_var[%d] 0x%08x\n", i,
-			      ioread32be(h->assert_var + i));
+		mlx5_log(dev, severity, "assert_var[%d] 0x%08x\n", i,
+			 ioread32be(h->assert_var + i));
 
-	mlx5_core_err(dev, "assert_exit_ptr 0x%08x\n",
-		      ioread32be(&h->assert_exit_ptr));
-	mlx5_core_err(dev, "assert_callra 0x%08x\n",
-		      ioread32be(&h->assert_callra));
-	mlx5_core_err(dev, "fw_ver %d.%d.%d", fw_rev_maj(dev), fw_rev_min(dev), fw_rev_sub(dev));
-	mlx5_core_err(dev, "time %u\n", ioread32be(&h->time));
-	mlx5_core_err(dev, "hw_id 0x%08x\n", ioread32be(&h->hw_id));
-	mlx5_core_err(dev, "rfr %d\n", mlx5_health_get_rfr(rfr_severity));
-	mlx5_core_err(dev, "severity %d (%s)\n", severity, mlx5_loglevel_str(severity));
-	mlx5_core_err(dev, "irisc_index %d\n", ioread8(&h->irisc_index));
-	mlx5_core_err(dev, "synd 0x%x: %s\n", ioread8(&h->synd),
-		      hsynd_str(ioread8(&h->synd)));
-	mlx5_core_err(dev, "ext_synd 0x%04x\n", ioread16be(&h->ext_synd));
-	mlx5_core_err(dev, "raw fw_ver 0x%08x\n", ioread32be(&h->fw_ver));
+	mlx5_log(dev, severity, "assert_exit_ptr 0x%08x\n", ioread32be(&h->assert_exit_ptr));
+	mlx5_log(dev, severity, "assert_callra 0x%08x\n", ioread32be(&h->assert_callra));
+	mlx5_log(dev, severity, "fw_ver %d.%d.%d", fw_rev_maj(dev), fw_rev_min(dev),
+		 fw_rev_sub(dev));
+	mlx5_log(dev, severity, "time %u\n", ioread32be(&h->time));
+	mlx5_log(dev, severity, "hw_id 0x%08x\n", ioread32be(&h->hw_id));
+	mlx5_log(dev, severity, "rfr %d\n", mlx5_health_get_rfr(rfr_severity));
+	mlx5_log(dev, severity, "severity %d (%s)\n", severity, mlx5_loglevel_str(severity));
+	mlx5_log(dev, severity, "irisc_index %d\n", ioread8(&h->irisc_index));
+	mlx5_log(dev, severity, "synd 0x%x: %s\n", ioread8(&h->synd),
+		 hsynd_str(ioread8(&h->synd)));
+	mlx5_log(dev, severity, "ext_synd 0x%04x\n", ioread16be(&h->ext_synd));
+	mlx5_log(dev, severity, "raw fw_ver 0x%08x\n", ioread32be(&h->fw_ver));
 }
 
 static int
