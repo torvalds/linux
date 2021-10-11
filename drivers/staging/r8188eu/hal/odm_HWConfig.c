@@ -179,17 +179,6 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 			RSSI = odm_QueryRxPwrPercentage(rx_pwr[i]);
 			total_rssi += RSSI;
 
-			/* Modification for ext-LNA board */
-			if (dm_odm->BoardType == ODM_BOARD_HIGHPWR) {
-				if ((pPhyStaRpt->path_agc[i].trsw) == 1)
-					RSSI = (RSSI > 94) ? 100 : (RSSI + 6);
-				else
-					RSSI = (RSSI <= 16) ? (RSSI >> 3) : (RSSI - 16);
-
-				if ((RSSI <= 34) && (RSSI >= 4))
-					RSSI -= 4;
-			}
-
 			pPhyInfo->RxMIMOSignalStrength[i] = (u8)RSSI;
 
 			/* Get Rx snr value in DB */

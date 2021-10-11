@@ -266,7 +266,6 @@ enum odm_common_info_def {
 	ODM_CMNINFO_INTERFACE,		/* ODM_INTERFACE_E */
 	ODM_CMNINFO_MP_TEST_CHIP,
 	ODM_CMNINFO_RF_TYPE,		/* RF_PATH_E or ODM_RF_TYPE_E? */
-	ODM_CMNINFO_BOARD_TYPE,		/* ODM_BOARD_TYPE_E */
 	/* HOOK BEFORE REG INIT-----------  */
 
 	/*  Dynamic value: */
@@ -435,15 +434,6 @@ enum odm_security {
 enum odm_bw {
 	ODM_BW20M		= 0,
 	ODM_BW40M		= 1,
-};
-
-/*  ODM_CMNINFO_BOARD_TYPE */
-enum odm_board_type {
-	ODM_BOARD_NORMAL	= 0,
-	ODM_BOARD_HIGHPWR	= 1,
-	ODM_BOARD_MINICARD	= 2,
-	ODM_BOARD_SLIM		= 3,
-	ODM_BOARD_COMBO		= 4,
 };
 
 /*  ODM_CMNINFO_ONE_PATH_CCA */
@@ -628,8 +618,6 @@ struct odm_dm_struct {
 	u8	SupportInterface;
 	/*  RF Type 4T4R/3T3R/2T2R/1T2R/1T1R/... */
 	u8	RFType;
-	/*  Board Type Normal/HighPower/MiniCard/SLIM/Combo/. = 0/1/2/3/4/. */
-	u8	BoardType;
 
 	u32	BK_SupportAbility;
 	u8	AntDivType;
