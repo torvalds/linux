@@ -8461,28 +8461,27 @@ int libbpf_find_vmlinux_btf_id(const char *name,
 
 static int libbpf_find_prog_btf_id(const char *name, __u32 attach_prog_fd)
 {
-	struct bpf_prog_info_linear *info_linear;
-	struct bpf_prog_info *info;
+	struct bpf_prog_info info = {};
+	__u32 info_len = sizeof(info);
 	struct btf *btf;
 	int err;
 
-	info_linear = bpf_program__get_prog_info_linear(attach_prog_fd, 0);
-	err = libbpf_get_error(info_linear);
+	err = bpf_obj_get_info_by_fd(attach_prog_fd, &info, &info_len);
 	if (err) {
-		pr_warn("failed get_prog_info_linear for FD %d\n",
-			attach_prog_fd);
+		pr_warn("failed bpf_obj_get_info_by_fd for FD %d: %d\n",
+			attach_prog_fd, err);
 		return err;
 	}
 
 	err = -EINVAL;
-	info = &info_linear->info;
-	if (!info->btf_id) {
+	if (!info.btf_id) {
 		pr_warn("The target program doesn't have BTF\n");
 		goto out;
 	}
-	btf = btf__load_from_kernel_by_id(info->btf_id);
-	if (libbpf_get_error(btf)) {
-		pr_warn("Failed to get BTF of the program\n");
+	btf = btf__load_from_kernel_by_id(info.btf_id);
+	err = libbpf_get_error(btf);
+	if (err) {
+		pr_warn("Failed to get BTF %d of the program: %d\n", info.btf_id, err);
 		goto out;
 	}
 	err = btf__find_by_name_kind(btf, name, BTF_KIND_FUNC);
@@ -8492,7 +8491,6 @@ static int libbpf_find_prog_btf_id(const char *name, __u32 attach_prog_fd)
 		goto out;
 	}
 out:
-	free(info_linear);
 	return err;
 }
 
