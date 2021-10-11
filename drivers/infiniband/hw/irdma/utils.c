@@ -768,17 +768,6 @@ struct ib_qp *irdma_get_qp(struct ib_device *device, int qpn)
 }
 
 /**
- * irdma_get_hw_addr - return hw addr
- * @par: points to shared dev
- */
-u8 __iomem *irdma_get_hw_addr(void *par)
-{
-	struct irdma_sc_dev *dev = par;
-
-	return dev->hw->hw_addr;
-}
-
-/**
  * irdma_remove_cqp_head - return head entry and remove
  * @dev: device
  */
