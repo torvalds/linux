@@ -186,8 +186,8 @@ static int clk_master_div_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (ret)
 		goto unlock;
 
-	tmp = mckr & master->layout->mask;
-	tmp = (tmp >> MASTER_DIV_SHIFT) & MASTER_DIV_MASK;
+	mckr &= master->layout->mask;
+	tmp = (mckr >> MASTER_DIV_SHIFT) & MASTER_DIV_MASK;
 	if (tmp == div)
 		goto unlock;
 
@@ -384,6 +384,7 @@ static unsigned long clk_master_pres_recalc_rate(struct clk_hw *hw,
 	regmap_read(master->regmap, master->layout->offset, &val);
 	spin_unlock_irqrestore(master->lock, flags);
 
+	val &= master->layout->mask;
 	pres = (val >> master->layout->pres_shift) & MASTER_PRES_MASK;
 	if (pres == 3 && characteristics->have_div3_pres)
 		pres = 3;
@@ -402,6 +403,8 @@ static u8 clk_master_pres_get_parent(struct clk_hw *hw)
 	spin_lock_irqsave(master->lock, flags);
 	regmap_read(master->regmap, master->layout->offset, &mckr);
 	spin_unlock_irqrestore(master->lock, flags);
+
+	mckr &= master->layout->mask;
 
 	return mckr & AT91_PMC_CSS;
 }
