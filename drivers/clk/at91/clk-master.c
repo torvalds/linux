@@ -680,6 +680,8 @@ static void clk_sama7g5_master_set(struct clk_master *master,
 	unsigned long flags;
 	unsigned int val, cparent;
 	unsigned int enable = status ? AT91_PMC_MCR_V2_EN : 0;
+	unsigned int parent = master->parent << PMC_MCR_CSS_SHIFT;
+	unsigned int div = master->div << MASTER_DIV_SHIFT;
 
 	spin_lock_irqsave(master->lock, flags);
 
@@ -689,9 +691,7 @@ static void clk_sama7g5_master_set(struct clk_master *master,
 	regmap_update_bits(master->regmap, AT91_PMC_MCR_V2,
 			   enable | AT91_PMC_MCR_V2_CSS | AT91_PMC_MCR_V2_DIV |
 			   AT91_PMC_MCR_V2_CMD | AT91_PMC_MCR_V2_ID_MSK,
-			   enable | (master->parent << PMC_MCR_CSS_SHIFT) |
-			   (master->div << MASTER_DIV_SHIFT) |
-			   AT91_PMC_MCR_V2_CMD |
+			   enable | parent | div | AT91_PMC_MCR_V2_CMD |
 			   AT91_PMC_MCR_V2_ID(master->id));
 
 	cparent = (val & AT91_PMC_MCR_V2_CSS) >> PMC_MCR_CSS_SHIFT;
