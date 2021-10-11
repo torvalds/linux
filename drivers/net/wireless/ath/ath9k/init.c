@@ -1094,6 +1094,8 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc,
 		ARRAY_SIZE(ath9k_tpt_blink));
 #endif
 
+	wiphy_read_of_freq_limits(hw->wiphy);
+
 	/* Register with mac80211 */
 	error = ieee80211_register_hw(hw);
 	if (error)
