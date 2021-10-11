@@ -1095,7 +1095,7 @@ static int snd_usb_pcm_open(struct snd_pcm_substream *substream)
 	/* need an explicit sync to catch applptr update in low-latency mode */
 	if (direction == SNDRV_PCM_STREAM_PLAYBACK &&
 	    as->chip->lowlatency)
-		runtime->hw.info |= SNDRV_PCM_INFO_EXPLICIT_SYNC;
+		runtime->hw.info |= SNDRV_PCM_INFO_SYNC_APPLPTR;
 	runtime->private_data = subs;
 	subs->pcm_substream = substream;
 	/* runtime PM is also done there */
