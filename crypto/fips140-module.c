@@ -571,6 +571,7 @@ fips140_init(void)
 	const u32 *initcall;
 
 	pr_info("loading module\n");
+	fips140_init_thread = current;
 
 	unregister_existing_fips140_algos();
 
@@ -592,19 +593,6 @@ fips140_init(void)
 		}
 	}
 
-	if (!update_live_fips140_algos())
-		goto panic;
-
-	if (!update_fips140_library_routines())
-		goto panic;
-
-	/*
-	 * Wait until all tasks have at least been scheduled once and preempted
-	 * voluntarily. This ensures that none of the superseded algorithms that
-	 * were already in use will still be live.
-	 */
-	synchronize_rcu_tasks();
-
 	if (!fips140_run_selftests())
 		goto panic;
 
@@ -622,6 +610,21 @@ fips140_init(void)
 		goto panic;
 	}
 	pr_info("integrity check passed\n");
+
+	complete_all(&fips140_tests_done);
+
+	if (!update_live_fips140_algos())
+		goto panic;
+
+	if (!update_fips140_library_routines())
+		goto panic;
+
+	/*
+	 * Wait until all tasks have at least been scheduled once and preempted
+	 * voluntarily. This ensures that none of the superseded algorithms that
+	 * were already in use will still be live.
+	 */
+	synchronize_rcu_tasks();
 
 	pr_info("module successfully loaded\n");
 	return 0;
