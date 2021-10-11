@@ -172,8 +172,6 @@ void ODM_DMInit(struct odm_dm_struct *pDM_Odm)
 	    (pDM_Odm->AntDivType == CGCS_RX_HW_ANTDIV) ||
 	    (pDM_Odm->AntDivType == CG_TRX_SMART_ANTDIV))
 		odm_InitHybridAntDiv(pDM_Odm);
-	else if (pDM_Odm->AntDivType == CGCS_RX_SW_ANTDIV)
-		odm_SwAntDivInit(pDM_Odm);
 }
 
 /*  2011/09/20 MH This is the entry pointer for all team to execute HW out source DM. */
@@ -1127,10 +1125,6 @@ void odm_TXPowerTrackingCheckAP(struct odm_dm_struct *pDM_Odm)
 /* 3============================================================ */
 /* 3 SW Antenna Diversity */
 /* 3============================================================ */
-void odm_SwAntDivInit(struct odm_dm_struct *pDM_Odm)
-{
-}
-
 void ODM_SwAntDivChkPerPktRssi(struct odm_dm_struct *pDM_Odm, u8 StationID, struct odm_phy_status_info *pPhyInfo)
 {
 }
