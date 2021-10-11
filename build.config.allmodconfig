@@ -8,12 +8,6 @@ function update_config() {
          -d TEST_KMOD  \
          -d CPU_BIG_ENDIAN \
          -d DYNAMIC_FTRACE \
-         -d DEBUG_SPINLOCK \
-         -d DEBUG_LOCK_ALLOC \
-         -d LOCK_STAT \
-         -d DEBUG_WW_MUTEX_SLOWPATH \
-         -d DEBUG_LOCK_ALLOC \
-         -d PROVE_LOCKING \
          -e UNWINDER_FRAME_POINTER \
 
     (cd ${OUT_DIR} && \
