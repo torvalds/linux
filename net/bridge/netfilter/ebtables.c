@@ -189,10 +189,10 @@ ebt_get_target_c(const struct ebt_entry *e)
 }
 
 /* Do some firewalling */
-unsigned int ebt_do_table(struct sk_buff *skb,
-			  const struct nf_hook_state *state,
-			  struct ebt_table *table)
+unsigned int ebt_do_table(void *priv, struct sk_buff *skb,
+			  const struct nf_hook_state *state)
 {
+	struct ebt_table *table = priv;
 	unsigned int hook = state->hook;
 	int i, nentries;
 	struct ebt_entry *point;
