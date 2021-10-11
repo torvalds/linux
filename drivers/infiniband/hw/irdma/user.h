@@ -283,9 +283,7 @@ enum irdma_status_code irdma_uk_inline_rdma_write(struct irdma_qp_uk *qp,
 enum irdma_status_code irdma_uk_inline_send(struct irdma_qp_uk *qp,
 					    struct irdma_post_sq_info *info,
 					    bool post_sq);
-enum irdma_status_code irdma_uk_mw_bind(struct irdma_qp_uk *qp,
-					struct irdma_post_sq_info *info,
-					bool post_sq);
+
 enum irdma_status_code irdma_uk_post_nop(struct irdma_qp_uk *qp, u64 wr_id,
 					 bool signaled, bool post_sq);
 enum irdma_status_code irdma_uk_post_receive(struct irdma_qp_uk *qp,

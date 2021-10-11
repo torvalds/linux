@@ -867,63 +867,6 @@ irdma_uk_stag_local_invalidate(struct irdma_qp_uk *qp,
 }
 
 /**
- * irdma_uk_mw_bind - bind Memory Window
- * @qp: hw qp ptr
- * @info: post sq information
- * @post_sq: flag to post sq
- */
-enum irdma_status_code irdma_uk_mw_bind(struct irdma_qp_uk *qp,
-					struct irdma_post_sq_info *info,
-					bool post_sq)
-{
-	__le64 *wqe;
-	struct irdma_bind_window *op_info;
-	u64 hdr;
-	u32 wqe_idx;
-	bool local_fence = false;
-
-	info->push_wqe = qp->push_db ? true : false;
-	op_info = &info->op.bind_window;
-	local_fence |= info->local_fence;
-
-	wqe = irdma_qp_get_next_send_wqe(qp, &wqe_idx, IRDMA_QP_WQE_MIN_QUANTA,
-					 0, info);
-	if (!wqe)
-		return IRDMA_ERR_QP_TOOMANY_WRS_POSTED;
-
-	irdma_clr_wqes(qp, wqe_idx);
-
-	qp->wqe_ops.iw_set_mw_bind_wqe(wqe, op_info);
-
-	hdr = FIELD_PREP(IRDMAQPSQ_OPCODE, IRDMA_OP_TYPE_BIND_MW) |
-	      FIELD_PREP(IRDMAQPSQ_STAGRIGHTS,
-			 ((op_info->ena_reads << 2) | (op_info->ena_writes << 3))) |
-	      FIELD_PREP(IRDMAQPSQ_VABASEDTO,
-			 (op_info->addressing_type == IRDMA_ADDR_TYPE_VA_BASED ? 1 : 0)) |
-	      FIELD_PREP(IRDMAQPSQ_MEMWINDOWTYPE,
-			 (op_info->mem_window_type_1 ? 1 : 0)) |
-	      FIELD_PREP(IRDMAQPSQ_PUSHWQE, info->push_wqe) |
-	      FIELD_PREP(IRDMAQPSQ_READFENCE, info->read_fence) |
-	      FIELD_PREP(IRDMAQPSQ_LOCALFENCE, local_fence) |
-	      FIELD_PREP(IRDMAQPSQ_SIGCOMPL, info->signaled) |
-	      FIELD_PREP(IRDMAQPSQ_VALID, qp->swqe_polarity);
-
-	dma_wmb(); /* make sure WQE is populated before valid bit is set */
-
-	set_64bit_val(wqe, 24, hdr);
-
-	if (info->push_wqe) {
-		irdma_qp_push_wqe(qp, wqe, IRDMA_QP_WQE_MIN_QUANTA, wqe_idx,
-				  post_sq);
-	} else {
-		if (post_sq)
-			irdma_uk_qp_post_wr(qp);
-	}
-
-	return 0;
-}
-
-/**
  * irdma_uk_post_receive - post receive wqe
  * @qp: hw qp ptr
  * @info: post rq information
