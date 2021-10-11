@@ -378,14 +378,14 @@ mt7915_xmit_queues_show(struct seq_file *file, void *data)
 	};
 	int i;
 
+	seq_puts(file, "     queue | hw-queued |      head |      tail |\n");
 	for (i = 0; i < ARRAY_SIZE(queue_map); i++) {
 		struct mt76_queue *q = queue_map[i].q;
 
 		if (!q)
 			continue;
 
-		seq_printf(file,
-			   "%s:	queued=%d head=%d tail=%d\n",
+		seq_printf(file, "   %s | %9d | %9d | %9d |\n",
 			   queue_map[i].queue, q->queued, q->head,
 			   q->tail);
 	}
