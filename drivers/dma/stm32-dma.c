@@ -497,6 +497,7 @@ static int stm32_dma_terminate_all(struct dma_chan *c)
 	spin_lock_irqsave(&chan->vchan.lock, flags);
 
 	if (chan->desc) {
+		dma_cookie_complete(&chan->desc->vdesc.tx);
 		vchan_terminate_vdesc(&chan->desc->vdesc);
 		if (chan->busy)
 			stm32_dma_stop(chan);
