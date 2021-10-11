@@ -13,6 +13,8 @@
 #include <linux/regmap.h>
 #include <linux/spinlock.h>
 
+#include <dt-bindings/clock/at91.h>
+
 extern spinlock_t pmc_pcr_lock;
 
 struct pmc_data {
@@ -96,6 +98,20 @@ struct clk_pcr_layout {
 	u32 div_mask;
 	u32 gckcss_mask;
 	u32 pid_mask;
+};
+
+/**
+ * struct at91_clk_pms - Power management state for AT91 clock
+ * @rate: clock rate
+ * @parent_rate: clock parent rate
+ * @status: clock status (enabled or disabled)
+ * @parent: clock parent index
+ */
+struct at91_clk_pms {
+	unsigned long rate;
+	unsigned long parent_rate;
+	unsigned int status;
+	unsigned int parent;
 };
 
 #define field_get(_mask, _reg) (((_reg) & (_mask)) >> (ffs(_mask) - 1))
@@ -247,13 +263,5 @@ at91_clk_register_utmi(struct regmap *regmap_pmc, struct regmap *regmap_sfr,
 struct clk_hw * __init
 at91_clk_sama7g5_register_utmi(struct regmap *regmap, const char *name,
 			       const char *parent_name);
-
-#ifdef CONFIG_PM
-void pmc_register_id(u8 id);
-void pmc_register_pck(u8 pck);
-#else
-static inline void pmc_register_id(u8 id) {}
-static inline void pmc_register_pck(u8 pck) {}
-#endif
 
 #endif /* __PMC_H_ */
