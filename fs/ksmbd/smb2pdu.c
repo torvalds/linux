@@ -449,6 +449,12 @@ bool is_chained_smb2_message(struct ksmbd_work *work)
 			return false;
 		}
 
+		if ((u64)get_rfc1002_len(work->response_buf) + MAX_CIFS_SMALL_BUFFER_SIZE >
+		    work->response_sz) {
+			pr_err("next response offset exceeds response buffer size\n");
+			return false;
+		}
+
 		ksmbd_debug(SMB, "got SMB2 chained command\n");
 		init_chained_smb2_rsp(work);
 		return true;
