@@ -2,7 +2,7 @@
  *
  * mcp251xfd - Microchip MCP251xFD Family CAN controller driver
  *
- * Copyright (c) 2019, 2020 Pengutronix,
+ * Copyright (c) 2019, 2020, 2021 Pengutronix,
  *               Marc Kleine-Budde <kernel@pengutronix.de>
  * Copyright (c) 2019 Martin Sperl <kernel@martin.sperl.org>
  */
@@ -410,6 +410,15 @@ static_assert(MCP251XFD_TIMESTAMP_WORK_DELAY_SEC <
 #define MCP251XFD_SANITIZE_SPI 1
 #define MCP251XFD_SANITIZE_CAN 1
 
+/* FIFO and Ring */
+#define MCP251XFD_FIFO_TEF_NUM 1U
+#define MCP251XFD_FIFO_RX_NUM_MAX 1U
+#define MCP251XFD_FIFO_TX_NUM 1U
+
+static_assert(MCP251XFD_FIFO_TEF_NUM == 1U);
+static_assert(MCP251XFD_FIFO_TEF_NUM == MCP251XFD_FIFO_TX_NUM);
+static_assert(MCP251XFD_FIFO_RX_NUM_MAX <= 4U);
+
 /* Silence TX MAB overflow warnings */
 #define MCP251XFD_QUIRK_MAB_NO_WARN BIT(0)
 /* Use CRC to access registers */
@@ -596,9 +605,9 @@ struct mcp251xfd_priv {
 	u32 spi_max_speed_hz_fast;
 	u32 spi_max_speed_hz_slow;
 
-	struct mcp251xfd_tef_ring tef[1];
-	struct mcp251xfd_rx_ring *rx[1];
-	struct mcp251xfd_tx_ring tx[1];
+	struct mcp251xfd_tef_ring tef[MCP251XFD_FIFO_TEF_NUM];
+	struct mcp251xfd_rx_ring *rx[MCP251XFD_FIFO_RX_NUM_MAX];
+	struct mcp251xfd_tx_ring tx[MCP251XFD_FIFO_TX_NUM];
 
 	u8 rx_ring_num;
 
