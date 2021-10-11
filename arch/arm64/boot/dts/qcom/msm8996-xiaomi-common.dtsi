@@ -185,12 +185,12 @@
 &blsp2_i2c2 {
 	status = "okay";
 	label = "NFC_I2C";
+	clock-frequency = <400000>;
 
 	nfc: pn548@28 {
 		compatible = "nxp,nxp-nci-i2c";
 
 		reg = <0x28>;
-		clock-frequency = <400000>;
 
 		interrupt-parent = <&tlmm>;
 		interrupts = <9 IRQ_TYPE_LEVEL_HIGH>;
