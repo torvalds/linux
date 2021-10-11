@@ -222,22 +222,34 @@
   down_write
   driver_unregister
   drm_add_edid_modes
+  drm_atomic_get_crtc_state
+  drm_atomic_get_new_connector_for_encoder
+  drm_atomic_helper_bridge_destroy_state
+  drm_atomic_helper_bridge_duplicate_state
+  drm_atomic_helper_bridge_reset
   drm_atomic_helper_connector_destroy_state
   drm_atomic_helper_connector_duplicate_state
   drm_atomic_helper_connector_reset
+  drm_bridge_add
+  drm_bridge_attach
+  drm_bridge_remove
   drm_compat_ioctl
   drm_connector_attach_encoder
   drm_connector_cleanup
   drm_connector_init
+  drm_connector_init_with_ddc
   drm_connector_update_edid_property
   __drm_dbg
   drm_detect_hdmi_monitor
+  drm_detect_monitor_audio
   drm_dev_alloc
   drm_dev_dbg
+  drm_dev_printk
   drm_dev_put
   drm_dev_register
   drm_dev_unregister
   drm_display_info_set_bus_formats
+  drm_dp_bw_code_to_link_rate
   __drm_err
   drm_gem_dumb_map_offset
   drm_gem_handle_create
@@ -252,17 +264,24 @@
   drm_gem_vm_close
   drm_get_edid
   drm_hdmi_avi_infoframe_from_display_mode
+  drm_hdmi_vendor_infoframe_from_display_mode
   drm_helper_hpd_irq_event
   drm_helper_probe_single_connector_modes
   drm_ioctl
+  drm_match_cea_mode
   drm_mode_copy
   drm_mode_create
   drm_mode_duplicate
   drm_mode_probed_add
   drm_mode_set_name
   drm_mode_vrefresh
+  drm_object_attach_property
+  drm_of_find_panel_or_bridge
   drm_open
   drm_panel_disable
+  drm_panel_enable
+  drm_panel_get_modes
+  drm_panel_prepare
   drm_panel_unprepare
   drm_poll
   drm_prime_gem_destroy
@@ -456,6 +475,8 @@
   of_get_parent
   of_get_property
   of_get_regulator_init_data
+  of_graph_get_remote_node
+  of_graph_parse_endpoint
   of_iomap
   of_irq_get_byname
   of_machine_is_compatible
@@ -481,6 +502,7 @@
   param_ops_uint
   __per_cpu_offset
   pfn_valid
+  phy_configure
   phy_exit
   phy_init
   phy_power_off
@@ -738,6 +760,15 @@
 # required by aes-ce-ccm.ko
   ce_aes_expandkey
 
+# required by analogix_dp.ko
+  drm_dp_aux_register
+  drm_dp_aux_unregister
+  drm_dp_dpcd_read
+  drm_dp_dpcd_write
+  drm_dp_start_crc
+  drm_dp_stop_crc
+  irq_modify_status
+
 # required by ch.ko
   param_array_ops
   scsi_device_lookup
@@ -833,6 +864,66 @@
   power_supply_put_battery_info
   regmap_raw_read
   regmap_raw_write
+
+# required by dw-hdmi-cec.ko
+  cec_allocate_adapter
+  cec_delete_adapter
+  cec_notifier_cec_adap_register
+  cec_notifier_cec_adap_unregister
+  cec_received_msg_ts
+  cec_register_adapter
+  cec_transmit_attempt_done_ts
+  cec_unregister_adapter
+  devm_remove_action
+
+# required by dw-hdmi-hdcp.ko
+  device_create_file
+  device_remove_file
+  kstrtobool
+  misc_deregister
+  misc_register
+  sha1_init
+  sha1_transform
+
+# required by dw-hdmi.ko
+  bcmp
+  cancel_delayed_work
+  cec_fill_conn_info_from_drm
+  cec_notifier_conn_register
+  cec_notifier_conn_unregister
+  cec_notifier_set_phys_addr
+  cec_notifier_set_phys_addr_from_edid
+  cec_queue_pin_hpd_event
+  drm_bridge_hpd_notify
+  drm_connector_attach_max_bpc_property
+  drm_default_rgb_quant_range
+  drm_hdmi_avi_infoframe_quant_range
+  drm_hdmi_infoframe_set_hdr_metadata
+  drm_mode_is_420_also
+  drm_mode_is_420_only
+  drm_property_replace_global_blob
+  drm_scdc_read
+  drm_scdc_set_high_tmds_clock_ratio
+  drm_scdc_set_scrambling
+  drm_scdc_write
+  extcon_set_property_capability
+  hdmi_drm_infoframe_pack
+  hdmi_vendor_infoframe_pack
+  mod_delayed_work_on
+  of_get_i2c_adapter_by_node
+
+# required by dw-mipi-dsi.ko
+  debugfs_attr_read
+  debugfs_attr_write
+  drm_panel_bridge_add_typed
+  drm_panel_bridge_connector
+  drm_panel_bridge_remove
+  mipi_dsi_create_packet
+  mipi_dsi_host_register
+  mipi_dsi_host_unregister
+  of_drm_find_bridge
+  simple_attr_open
+  simple_attr_release
 
 # required by dw_mmc-rockchip.ko
   clk_get_phase
@@ -1243,9 +1334,6 @@
   strcasecmp
   usb_add_phy
 
-# required by phy-rockchip-mipi-rx.ko
-  of_graph_get_remote_node
-
 # required by phy-rockchip-usb.ko
   __of_reset_control_get
 
@@ -1453,7 +1541,6 @@
   drm_add_modes_noedid
   drm_atomic_commit
   drm_atomic_get_connector_state
-  drm_atomic_get_crtc_state
   drm_atomic_get_plane_state
   drm_atomic_helper_check
   drm_atomic_helper_check_plane_state
@@ -1485,8 +1572,6 @@
   drm_atomic_set_mode_for_crtc
   drm_atomic_state_alloc
   __drm_atomic_state_free
-  drm_bridge_attach
-  drm_connector_init_with_ddc
   drm_connector_list_iter_begin
   drm_connector_list_iter_end
   drm_connector_list_iter_next
@@ -1503,10 +1588,7 @@
   drm_crtc_vblank_on
   drm_crtc_vblank_put
   drm_debugfs_create_files
-  drm_detect_monitor_audio
-  drm_dev_printk
   drm_do_get_edid
-  drm_dp_bw_code_to_link_rate
   drm_dp_channel_eq_ok
   drm_encoder_cleanup
   drm_encoder_init
@@ -1537,13 +1619,11 @@
   drm_gem_unmap_dma_buf
   drm_get_format_info
   drm_get_format_name
-  drm_hdmi_vendor_infoframe_from_display_mode
   drm_helper_mode_fill_fb_struct
   drm_kms_helper_hotplug_event
   drm_kms_helper_poll_enable
   drm_kms_helper_poll_fini
   drm_kms_helper_poll_init
-  drm_match_cea_mode
   drm_mm_init
   drm_mm_insert_node_in_range
   drmm_mode_config_init
@@ -1557,6 +1637,7 @@
   drm_mode_create_tv_properties
   drm_mode_crtc_set_gamma_size
   drm_mode_debug_printmodeline
+  drm_mode_is_420
   drm_mode_object_get
   drm_mode_object_put
   drm_mode_prune_invalid
@@ -1567,13 +1648,8 @@
   drm_mode_validate_driver
   drm_mode_validate_size
   drm_mode_validate_ycbcr420
-  drm_object_attach_property
   drm_of_crtc_port_mask
   drm_of_encoder_active_endpoint
-  drm_of_find_panel_or_bridge
-  drm_panel_enable
-  drm_panel_get_modes
-  drm_panel_prepare
   drm_plane_cleanup
   drm_plane_create_alpha_property
   drm_plane_create_blend_mode_property
@@ -1581,9 +1657,12 @@
   drm_plane_create_zpos_property
   drm_prime_get_contiguous_size
   __drm_printfn_seq_file
+  drm_property_create
   drm_property_create_bitmask
+  drm_property_create_enum
   drm_property_create_object
   drm_property_create_range
+  drm_property_destroy
   __drm_puts_seq_file
   drm_send_event_locked
   drm_simple_encoder_init
@@ -1604,6 +1683,7 @@
   of_graph_get_port_by_id
   of_graph_get_remote_port
   of_graph_get_remote_port_parent
+  phy_mipi_dphy_get_default_config
   platform_find_device_by_driver
   __platform_register_drivers
   platform_unregister_drivers
@@ -1681,12 +1761,9 @@
   irq_stat
 
 # required by sii902x.ko
-  drm_bridge_add
-  drm_bridge_remove
   drm_display_mode_to_videomode
   hdmi_audio_infoframe_pack
   hdmi_avi_infoframe_pack
-  of_graph_parse_endpoint
   of_property_read_variable_u8_array
 
 # required by snd-soc-cx2072x.ko
