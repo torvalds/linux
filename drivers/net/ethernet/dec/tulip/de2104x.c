@@ -1823,7 +1823,7 @@ static void de21041_get_srom_info(struct de_private *de)
 #endif
 
 	/* store MAC address */
-	eth_hw_addr_set(de->dev, &ee_data[i + sa_offset]);
+	eth_hw_addr_set(de->dev, &ee_data[sa_offset]);
 
 	/* get offset of controller 0 info leaf.  ignore 2nd byte. */
 	ofs = ee_data[SROMC0InfoLeaf];

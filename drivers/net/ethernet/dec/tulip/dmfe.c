@@ -476,7 +476,7 @@ static int dmfe_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	/* Set Node address */
-	eth_hw_addr_set(dev, &db->srom[20 + i]);
+	eth_hw_addr_set(dev, &db->srom[20]);
 
 	err = register_netdev (dev);
 	if (err)
