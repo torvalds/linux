@@ -72,7 +72,9 @@
   completion_done
   __const_udelay
   __cpufreq_driver_target
+  cpufreq_generic_suspend
   cpufreq_register_governor
+  cpufreq_register_notifier
   cpufreq_unregister_governor
   cpu_have_feature
   __cpuhp_remove_state
@@ -178,6 +180,7 @@
   dev_pm_opp_find_freq_ceil
   dev_pm_opp_get_opp_count
   dev_pm_opp_get_voltage
+  dev_pm_opp_of_get_sharing_cpus
   dev_pm_opp_put
   dev_pm_opp_remove
   devres_add
@@ -297,6 +300,7 @@
   gen_pool_create
   gen_pool_destroy
   gen_pool_free_owner
+  get_cpu_device
   get_device
   gic_nonsecure_priorities
   gpiochip_add_pin_range
@@ -462,6 +466,7 @@
   of_parse_phandle
   of_phy_simple_xlate
   of_property_count_elems_of_size
+  of_property_match_string
   of_property_read_string
   of_property_read_string_helper
   of_property_read_u32_index
@@ -788,7 +793,6 @@
   cpufreq_freq_attr_scaling_boost_freqs
   cpufreq_generic_frequency_table_verify
   cpufreq_generic_get
-  cpufreq_generic_suspend
   cpufreq_register_driver
   cpufreq_unregister_driver
   dev_pm_opp_free_cpufreq_table
@@ -798,13 +802,11 @@
   dev_pm_opp_init_cpufreq_table
   dev_pm_opp_of_cpumask_add_table
   dev_pm_opp_of_cpumask_remove_table
-  dev_pm_opp_of_get_sharing_cpus
   dev_pm_opp_of_register_em
   dev_pm_opp_put_regulators
   dev_pm_opp_set_rate
   dev_pm_opp_set_regulators
   dev_pm_opp_set_sharing_cpus
-  get_cpu_device
   policy_has_boost_freq
 
 # required by cpufreq_ondemand.ko
@@ -1344,6 +1346,10 @@
   sync_file_create
   vmf_insert_mixed
 
+# required by rockchip-cpufreq.ko
+  dev_pm_opp_put_prop_name
+  dev_pm_opp_register_set_opp_helper
+
 # required by rockchip-iommu.ko
   bus_set_iommu
   get_zeroed_page
@@ -1373,7 +1379,6 @@
   phy_drivers_unregister
 
 # required by rockchip_bus.ko
-  cpufreq_register_notifier
   cpu_topology
 
 # required by rockchip_dmc.ko
@@ -1599,7 +1604,6 @@
   of_graph_get_port_by_id
   of_graph_get_remote_port
   of_graph_get_remote_port_parent
-  of_property_match_string
   platform_find_device_by_driver
   __platform_register_drivers
   platform_unregister_drivers
