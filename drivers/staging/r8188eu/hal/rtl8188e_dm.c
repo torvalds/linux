@@ -143,10 +143,6 @@ void rtl8188e_init_dm_priv(struct adapter *Adapter)
 	Init_ODM_ComInfo_88E(Adapter);
 }
 
-void rtl8188e_deinit_dm_priv(struct adapter *Adapter)
-{
-}
-
 /*  Add new function to reset the state of antenna diversity before link. */
 /*  Compare RSSI for deciding antenna */
 void AntDivCompare8188E(struct adapter *Adapter, struct wlan_bssid_ex *dst, struct wlan_bssid_ex *src)
