@@ -113,42 +113,25 @@ void rtl8188e_InitHalDm(struct adapter *Adapter)
 
 void rtl8188e_HalDmWatchDog(struct adapter *Adapter)
 {
-	bool fw_cur_in_ps = false;
-	bool fw_ps_awake = true;
-	u8 hw_init_completed = false;
+	u8 hw_init_completed = Adapter->hw_init_completed;
 	struct hal_data_8188e *hal_data = GET_HAL_DATA(Adapter);
-
-
-	hw_init_completed = Adapter->hw_init_completed;
+	struct mlme_priv *pmlmepriv = &Adapter->mlmepriv;
+	u8 bLinked = false;
 
 	if (!hw_init_completed)
 		return;
 
-	fw_cur_in_ps = Adapter->pwrctrlpriv.bFwCurrentInPSMode;
-	GetHwReg8188EU(Adapter, HW_VAR_FWLPS_RF_ON, (u8 *)(&fw_ps_awake));
-
-	/*  Fw is under p2p powersaving mode, driver should stop dynamic mechanism. */
-	/*  modifed by thomas. 2011.06.11. */
-	if (Adapter->wdinfo.p2p_ps_mode)
-		fw_ps_awake = false;
-
-	/* ODM */
-	if (hw_init_completed) {
-		struct mlme_priv *pmlmepriv = &Adapter->mlmepriv;
-		u8 bLinked = false;
-
-		if ((check_fwstate(pmlmepriv, WIFI_AP_STATE)) ||
-		    (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE | WIFI_ADHOC_MASTER_STATE))) {
-			if (Adapter->stapriv.asoc_sta_count > 2)
-				bLinked = true;
-		} else {/* Station mode */
-			if (check_fwstate(pmlmepriv, _FW_LINKED))
-				bLinked = true;
-		}
-
-		ODM_CmnInfoUpdate(&hal_data->odmpriv, ODM_CMNINFO_LINK, bLinked);
-		ODM_DMWatchdog(&hal_data->odmpriv);
+	if ((check_fwstate(pmlmepriv, WIFI_AP_STATE)) ||
+	    (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE | WIFI_ADHOC_MASTER_STATE))) {
+		if (Adapter->stapriv.asoc_sta_count > 2)
+			bLinked = true;
+	} else {/* Station mode */
+		if (check_fwstate(pmlmepriv, _FW_LINKED))
+			bLinked = true;
 	}
+
+	ODM_CmnInfoUpdate(&hal_data->odmpriv, ODM_CMNINFO_LINK, bLinked);
+	ODM_DMWatchdog(&hal_data->odmpriv);
 }
 
 void rtl8188e_init_dm_priv(struct adapter *Adapter)
