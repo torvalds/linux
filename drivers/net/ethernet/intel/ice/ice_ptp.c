@@ -1571,6 +1571,9 @@ err_kworker:
  */
 void ice_ptp_release(struct ice_pf *pf)
 {
+	if (!test_bit(ICE_FLAG_PTP, pf->flags))
+		return;
+
 	/* Disable timestamping for both Tx and Rx */
 	ice_ptp_cfg_timestamp(pf, false);
 
