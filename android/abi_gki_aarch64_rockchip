@@ -1241,6 +1241,25 @@
   blocking_notifier_chain_register
   blocking_notifier_chain_unregister
 
+# required by rknpu.ko
+  dma_buf_mmap
+  dma_fence_context_alloc
+  dma_fence_init
+  dma_fence_release
+  dma_fence_signal
+  drm_gem_create_mmap_offset
+  drm_gem_dumb_destroy
+  drm_gem_handle_delete
+  drm_gem_prime_export
+  drm_gem_prime_import_dev
+  drm_gem_vm_open
+  fd_install
+  get_unused_fd_flags
+  of_dma_configure_id
+  set_user_nice
+  sync_file_create
+  vmf_insert_mixed
+
 # required by rockchip-iommu.ko
   bus_set_iommu
   device_link_add
