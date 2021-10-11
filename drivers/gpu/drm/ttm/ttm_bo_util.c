@@ -103,7 +103,7 @@ void ttm_move_memcpy(struct ttm_buffer_object *bo,
 
 	/* Don't move nonexistent data. Clear destination instead. */
 	if (src_ops->maps_tt && (!ttm || !ttm_tt_is_populated(ttm))) {
-		if (ttm && !(ttm->page_flags & TTM_PAGE_FLAG_ZERO_ALLOC))
+		if (ttm && !(ttm->page_flags & TTM_TT_FLAG_ZERO_ALLOC))
 			return;
 
 		for (i = 0; i < num_pages; ++i) {
@@ -150,7 +150,7 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 	struct ttm_kmap_iter *dst_iter, *src_iter;
 	int ret = 0;
 
-	if (ttm && ((ttm->page_flags & TTM_PAGE_FLAG_SWAPPED) ||
+	if (ttm && ((ttm->page_flags & TTM_TT_FLAG_SWAPPED) ||
 		    dst_man->use_tt)) {
 		ret = ttm_tt_populate(bdev, ttm, ctx);
 		if (ret)

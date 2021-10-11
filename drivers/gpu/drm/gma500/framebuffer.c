@@ -81,7 +81,7 @@ static vm_fault_t psbfb_vm_fault(struct vm_fault *vmf)
 	struct vm_area_struct *vma = vmf->vma;
 	struct drm_framebuffer *fb = vma->vm_private_data;
 	struct drm_device *dev = fb->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct gtt_range *gtt = to_gtt_range(fb->obj[0]);
 	int page_num;
 	int i;
@@ -261,7 +261,7 @@ static int psbfb_create(struct drm_fb_helper *fb_helper,
 				struct drm_fb_helper_surface_size *sizes)
 {
 	struct drm_device *dev = fb_helper->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	struct fb_info *info;
 	struct drm_framebuffer *fb;
@@ -374,7 +374,7 @@ static int psbfb_probe(struct drm_fb_helper *fb_helper,
 				struct drm_fb_helper_surface_size *sizes)
 {
 	struct drm_device *dev = fb_helper->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	unsigned int fb_size;
 	int bytespp;
 
@@ -422,7 +422,7 @@ static int psb_fbdev_destroy(struct drm_device *dev,
 int psb_fbdev_init(struct drm_device *dev)
 {
 	struct drm_fb_helper *fb_helper;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	int ret;
 
 	fb_helper = kzalloc(sizeof(*fb_helper), GFP_KERNEL);
@@ -457,7 +457,7 @@ free:
 
 static void psb_fbdev_fini(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 
 	if (!dev_priv->fb_helper)
 		return;
@@ -474,7 +474,7 @@ static const struct drm_mode_config_funcs psb_mode_funcs = {
 
 static void psb_setup_outputs(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct drm_connector *connector;
 
 	drm_mode_create_scaling_mode_property(dev);
@@ -533,7 +533,7 @@ static void psb_setup_outputs(struct drm_device *dev)
 
 void psb_modeset_init(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct psb_intel_mode_device *mode_dev = &dev_priv->mode_dev;
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	int i;
@@ -566,7 +566,7 @@ void psb_modeset_init(struct drm_device *dev)
 
 void psb_modeset_cleanup(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	if (dev_priv->modeset) {
 		drm_kms_helper_poll_fini(dev);
 		psb_fbdev_fini(dev);

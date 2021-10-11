@@ -545,14 +545,14 @@ static int radeon_ttm_tt_populate(struct ttm_device *bdev,
 {
 	struct radeon_device *rdev = radeon_get_rdev(bdev);
 	struct radeon_ttm_tt *gtt = radeon_ttm_tt_to_gtt(rdev, ttm);
-	bool slave = !!(ttm->page_flags & TTM_PAGE_FLAG_SG);
+	bool slave = !!(ttm->page_flags & TTM_TT_FLAG_EXTERNAL);
 
 	if (gtt && gtt->userptr) {
 		ttm->sg = kzalloc(sizeof(struct sg_table), GFP_KERNEL);
 		if (!ttm->sg)
 			return -ENOMEM;
 
-		ttm->page_flags |= TTM_PAGE_FLAG_SG;
+		ttm->page_flags |= TTM_TT_FLAG_EXTERNAL;
 		return 0;
 	}
 
@@ -569,13 +569,13 @@ static void radeon_ttm_tt_unpopulate(struct ttm_device *bdev, struct ttm_tt *ttm
 {
 	struct radeon_device *rdev = radeon_get_rdev(bdev);
 	struct radeon_ttm_tt *gtt = radeon_ttm_tt_to_gtt(rdev, ttm);
-	bool slave = !!(ttm->page_flags & TTM_PAGE_FLAG_SG);
+	bool slave = !!(ttm->page_flags & TTM_TT_FLAG_EXTERNAL);
 
 	radeon_ttm_tt_unbind(bdev, ttm);
 
 	if (gtt && gtt->userptr) {
 		kfree(ttm->sg);
-		ttm->page_flags &= ~TTM_PAGE_FLAG_SG;
+		ttm->page_flags &= ~TTM_TT_FLAG_EXTERNAL;
 		return;
 	}
 

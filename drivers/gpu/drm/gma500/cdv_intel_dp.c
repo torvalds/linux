@@ -515,7 +515,7 @@ cdv_intel_dp_mode_valid(struct drm_connector *connector,
 	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	int max_link_clock = cdv_intel_dp_link_clock(cdv_intel_dp_max_link_bw(encoder));
 	int max_lanes = cdv_intel_dp_max_lane_count(encoder);
-	struct drm_psb_private *dev_priv = connector->dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(connector->dev);
 
 	if (is_edp(encoder) && intel_dp->panel_fixed_mode) {
 		if (mode->hdisplay > intel_dp->panel_fixed_mode->hdisplay)
@@ -896,7 +896,7 @@ static bool
 cdv_intel_dp_mode_fixup(struct drm_encoder *encoder, const struct drm_display_mode *mode,
 		    struct drm_display_mode *adjusted_mode)
 {
-	struct drm_psb_private *dev_priv = encoder->dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(encoder->dev);
 	struct gma_encoder *intel_encoder = to_gma_encoder(encoder);
 	struct cdv_intel_dp *intel_dp = intel_encoder->dev_priv;
 	int lane_count, clock;
@@ -988,7 +988,7 @@ cdv_intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 		 struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct drm_encoder *encoder;
 	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
@@ -1744,7 +1744,7 @@ static int cdv_intel_dp_get_modes(struct drm_connector *connector)
 
 	if (is_edp(intel_encoder)) {
 		struct drm_device *dev = connector->dev;
-		struct drm_psb_private *dev_priv = dev->dev_private;
+		struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 
 		cdv_intel_edp_panel_vdd_off(intel_encoder);
 		if (ret) {
@@ -1809,7 +1809,7 @@ cdv_intel_dp_set_property(struct drm_connector *connector,
 		      struct drm_property *property,
 		      uint64_t val)
 {
-	struct drm_psb_private *dev_priv = connector->dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(connector->dev);
 	struct gma_encoder *encoder = gma_attached_encoder(connector);
 	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	int ret;
@@ -1908,7 +1908,7 @@ static void cdv_intel_dp_add_properties(struct drm_connector *connector)
 /* check the VBT to see whether the eDP is on DP-D port */
 static bool cdv_intel_dpc_is_edp(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct child_device_config *p_child;
 	int i;
 
