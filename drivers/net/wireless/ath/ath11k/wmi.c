@@ -2371,6 +2371,8 @@ int ath11k_wmi_send_scan_chan_list_cmd(struct ath11k *ar,
 				chan_info->info |= WMI_CHAN_INFO_QUARTER_RATE;
 			if (tchan_info->psc_channel)
 				chan_info->info |= WMI_CHAN_INFO_PSC;
+			if (tchan_info->dfs_set)
+				chan_info->info |= WMI_CHAN_INFO_DFS;
 
 			chan_info->info |= FIELD_PREP(WMI_CHAN_INFO_MODE,
 						      tchan_info->phy_mode);
