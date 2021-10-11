@@ -1939,11 +1939,8 @@ static	void	ncr_start_next_ccb (struct ncb *np, struct lcb * lp, int maxn);
 static	void	ncr_put_start_queue(struct ncb *np, struct ccb *cp);
 
 static void insert_into_waiting_list(struct ncb *np, struct scsi_cmnd *cmd);
-static struct scsi_cmnd *retrieve_from_waiting_list(int to_remove, struct ncb *np, struct scsi_cmnd *cmd);
 static void process_waiting_list(struct ncb *np, int sts);
 
-#define remove_from_waiting_list(np, cmd) \
-		retrieve_from_waiting_list(1, (np), (cmd))
 #define requeue_waiting_list(np) process_waiting_list((np), DID_OK)
 #define reset_waiting_list(np) process_waiting_list((np), DID_RESET)
 
@@ -7995,26 +7992,6 @@ static void insert_into_waiting_list(struct ncb *np, struct scsi_cmnd *cmd)
 			wcmd = (struct scsi_cmnd *) wcmd->next_wcmd;
 		wcmd->next_wcmd = (char *) cmd;
 	}
-}
-
-static struct scsi_cmnd *retrieve_from_waiting_list(int to_remove, struct ncb *np, struct scsi_cmnd *cmd)
-{
-	struct scsi_cmnd **pcmd = &np->waiting_list;
-
-	while (*pcmd) {
-		if (cmd == *pcmd) {
-			if (to_remove) {
-				*pcmd = (struct scsi_cmnd *) cmd->next_wcmd;
-				cmd->next_wcmd = NULL;
-			}
-#ifdef DEBUG_WAITING_LIST
-	printk("%s: cmd %lx retrieved from waiting list\n", ncr_name(np), (u_long) cmd);
-#endif
-			return cmd;
-		}
-		pcmd = (struct scsi_cmnd **) &(*pcmd)->next_wcmd;
-	}
-	return NULL;
 }
 
 static void process_waiting_list(struct ncb *np, int sts)
