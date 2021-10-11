@@ -128,23 +128,28 @@
 			no-map;
 		};
 
-		wlan_msa_mem: memory@8c400000 {
-			reg = <0 0x8c400000 0 0x100000>;
+		ipa_fw_mem: memory@8c400000 {
+			reg = <0 0x8c400000 0 0x10000>;
 			no-map;
 		};
 
-		gpu_mem: memory@8c515000 {
-			reg = <0 0x8c515000 0 0x2000>;
+		ipa_gsi_mem: memory@8c410000 {
+			reg = <0 0x8c410000 0 0x5000>;
 			no-map;
 		};
 
-		ipa_fw_mem: memory@8c517000 {
-			reg = <0 0x8c517000 0 0x5a000>;
+		gpu_mem: memory@8c415000 {
+			reg = <0 0x8c415000 0 0x2000>;
 			no-map;
 		};
 
-		adsp_mem: memory@8c600000 {
-			reg = <0 0x8c600000 0 0x1a00000>;
+		adsp_mem: memory@8c500000 {
+			reg = <0 0x8c500000 0 0x1a00000>;
+			no-map;
+		};
+
+		wlan_msa_mem: memory@8df00000 {
+			reg = <0 0x8df00000 0 0x100000>;
 			no-map;
 		};
 

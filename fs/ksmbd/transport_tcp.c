@@ -215,7 +215,7 @@ out_error:
  * ksmbd_kthread_fn() - listen to new SMB connections and callback server
  * @p:		arguments to forker thread
  *
- * Return:	Returns a task_struct or ERR_PTR
+ * Return:	0 on success, error number otherwise
  */
 static int ksmbd_kthread_fn(void *p)
 {
@@ -387,7 +387,7 @@ static void tcp_destroy_socket(struct socket *ksmbd_socket)
 /**
  * create_socket - create socket for ksmbd/0
  *
- * Return:	Returns a task_struct or ERR_PTR
+ * Return:	0 on success, error number otherwise
  */
 static int create_socket(struct interface *iface)
 {
