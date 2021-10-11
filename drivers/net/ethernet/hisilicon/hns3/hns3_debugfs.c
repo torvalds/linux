@@ -336,6 +336,13 @@ static struct hns3_dbg_cmd_info hns3_dbg_cmd[] = {
 		.buf_len = HNS3_DBG_READ_LEN,
 		.init = hns3_dbg_common_file_init,
 	},
+	{
+		.name = "page_pool_info",
+		.cmd = HNAE3_DBG_CMD_PAGE_POOL_INFO,
+		.dentry = HNS3_DBG_DENTRY_COMMON,
+		.buf_len = HNS3_DBG_READ_LEN,
+		.init = hns3_dbg_common_file_init,
+	},
 };
 
 static struct hns3_dbg_cap_info hns3_dbg_cap[] = {
@@ -941,6 +948,69 @@ static int hns3_dbg_dev_info(struct hnae3_handle *h, char *buf, int len)
 	return 0;
 }
 
+static const struct hns3_dbg_item page_pool_info_items[] = {
+	{ "QUEUE_ID", 2 },
+	{ "ALLOCATE_CNT", 2 },
+	{ "FREE_CNT", 6 },
+	{ "POOL_SIZE(PAGE_NUM)", 2 },
+	{ "ORDER", 2 },
+	{ "NUMA_ID", 2 },
+	{ "MAX_LEN", 2 },
+};
+
+static void hns3_dump_page_pool_info(struct hns3_enet_ring *ring,
+				     char **result, u32 index)
+{
+	u32 j = 0;
+
+	sprintf(result[j++], "%u", index);
+	sprintf(result[j++], "%u", ring->page_pool->pages_state_hold_cnt);
+	sprintf(result[j++], "%u",
+		atomic_read(&ring->page_pool->pages_state_release_cnt));
+	sprintf(result[j++], "%u", ring->page_pool->p.pool_size);
+	sprintf(result[j++], "%u", ring->page_pool->p.order);
+	sprintf(result[j++], "%d", ring->page_pool->p.nid);
+	sprintf(result[j++], "%uK", ring->page_pool->p.max_len / 1024);
+}
+
+static int
+hns3_dbg_page_pool_info(struct hnae3_handle *h, char *buf, int len)
+{
+	char data_str[ARRAY_SIZE(page_pool_info_items)][HNS3_DBG_DATA_STR_LEN];
+	char *result[ARRAY_SIZE(page_pool_info_items)];
+	struct hns3_nic_priv *priv = h->priv;
+	char content[HNS3_DBG_INFO_LEN];
+	struct hns3_enet_ring *ring;
+	int pos = 0;
+	u32 i;
+
+	if (!priv->ring) {
+		dev_err(&h->pdev->dev, "priv->ring is NULL\n");
+		return -EFAULT;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(page_pool_info_items); i++)
+		result[i] = &data_str[i][0];
+
+	hns3_dbg_fill_content(content, sizeof(content), page_pool_info_items,
+			      NULL, ARRAY_SIZE(page_pool_info_items));
+	pos += scnprintf(buf + pos, len - pos, "%s", content);
+	for (i = 0; i < h->kinfo.num_tqps; i++) {
+		if (!test_bit(HNS3_NIC_STATE_INITED, &priv->state) ||
+		    test_bit(HNS3_NIC_STATE_RESETTING, &priv->state))
+			return -EPERM;
+		ring = &priv->ring[(u32)(i + h->kinfo.num_tqps)];
+		hns3_dump_page_pool_info(ring, result, i);
+		hns3_dbg_fill_content(content, sizeof(content),
+				      page_pool_info_items,
+				      (const char **)result,
+				      ARRAY_SIZE(page_pool_info_items));
+		pos += scnprintf(buf + pos, len - pos, "%s", content);
+	}
+
+	return 0;
+}
+
 static int hns3_dbg_get_cmd_index(struct hns3_dbg_data *dbg_data, u32 *index)
 {
 	u32 i;
@@ -981,6 +1051,10 @@ static const struct hns3_dbg_func hns3_dbg_cmd_func[] = {
 	{
 		.cmd = HNAE3_DBG_CMD_TX_QUEUE_INFO,
 		.dbg_dump = hns3_dbg_tx_queue_info,
+	},
+	{
+		.cmd = HNAE3_DBG_CMD_PAGE_POOL_INFO,
+		.dbg_dump = hns3_dbg_page_pool_info,
 	},
 };
 
