@@ -236,9 +236,6 @@ int init_smb2_neg_rsp(struct ksmbd_work *work)
 
 	if (conn->need_neg == false)
 		return -EINVAL;
-	if (!(conn->dialect >= SMB20_PROT_ID &&
-	      conn->dialect <= SMB311_PROT_ID))
-		return -EINVAL;
 
 	rsp_hdr = work->response_buf;
 
@@ -1166,13 +1163,6 @@ int smb2_handle_negotiate(struct ksmbd_work *work)
 	case SMB21_PROT_ID:
 		init_smb2_1_server(conn);
 		break;
-	case SMB20_PROT_ID:
-		rc = init_smb2_0_server(conn);
-		if (rc) {
-			rsp->hdr.Status = STATUS_NOT_SUPPORTED;
-			goto err_out;
-		}
-		break;
 	case SMB2X_PROT_ID:
 	case BAD_PROT_ID:
 	default:
@@ -1191,11 +1181,9 @@ int smb2_handle_negotiate(struct ksmbd_work *work)
 	rsp->MaxReadSize = cpu_to_le32(conn->vals->max_read_size);
 	rsp->MaxWriteSize = cpu_to_le32(conn->vals->max_write_size);
 
-	if (conn->dialect > SMB20_PROT_ID) {
-		memcpy(conn->ClientGUID, req->ClientGUID,
-		       SMB2_CLIENT_GUID_SIZE);
-		conn->cli_sec_mode = le16_to_cpu(req->SecurityMode);
-	}
+	memcpy(conn->ClientGUID, req->ClientGUID,
+			SMB2_CLIENT_GUID_SIZE);
+	conn->cli_sec_mode = le16_to_cpu(req->SecurityMode);
 
 	rsp->StructureSize = cpu_to_le16(65);
 	rsp->DialectRevision = cpu_to_le16(conn->dialect);
@@ -1537,11 +1525,9 @@ binding_session:
 		}
 	}
 
-	if (conn->dialect > SMB20_PROT_ID) {
-		if (!ksmbd_conn_lookup_dialect(conn)) {
-			pr_err("fail to verify the dialect\n");
-			return -ENOENT;
-		}
+	if (!ksmbd_conn_lookup_dialect(conn)) {
+		pr_err("fail to verify the dialect\n");
+		return -ENOENT;
 	}
 	return 0;
 }
@@ -1623,11 +1609,9 @@ static int krb5_authenticate(struct ksmbd_work *work)
 		}
 	}
 
-	if (conn->dialect > SMB20_PROT_ID) {
-		if (!ksmbd_conn_lookup_dialect(conn)) {
-			pr_err("fail to verify the dialect\n");
-			return -ENOENT;
-		}
+	if (!ksmbd_conn_lookup_dialect(conn)) {
+		pr_err("fail to verify the dialect\n");
+		return -ENOENT;
 	}
 	return 0;
 }
@@ -5499,7 +5483,6 @@ static int set_file_basic_info(struct ksmbd_file *fp,
 			       struct ksmbd_share_config *share)
 {
 	struct iattr attrs;
-	struct timespec64 ctime;
 	struct file *filp;
 	struct inode *inode;
 	struct user_namespace *user_ns;
@@ -5521,13 +5504,11 @@ static int set_file_basic_info(struct ksmbd_file *fp,
 		attrs.ia_valid |= (ATTR_ATIME | ATTR_ATIME_SET);
 	}
 
-	if (file_info->ChangeTime) {
+	attrs.ia_valid |= ATTR_CTIME;
+	if (file_info->ChangeTime)
 		attrs.ia_ctime = ksmbd_NTtimeToUnix(file_info->ChangeTime);
-		ctime = attrs.ia_ctime;
-		attrs.ia_valid |= ATTR_CTIME;
-	} else {
-		ctime = inode->i_ctime;
-	}
+	else
+		attrs.ia_ctime = inode->i_ctime;
 
 	if (file_info->LastWriteTime) {
 		attrs.ia_mtime = ksmbd_NTtimeToUnix(file_info->LastWriteTime);
@@ -5573,11 +5554,9 @@ static int set_file_basic_info(struct ksmbd_file *fp,
 			return -EACCES;
 
 		inode_lock(inode);
+		inode->i_ctime = attrs.ia_ctime;
+		attrs.ia_valid &= ~ATTR_CTIME;
 		rc = notify_change(user_ns, dentry, &attrs, NULL);
-		if (!rc) {
-			inode->i_ctime = ctime;
-			mark_inode_dirty(inode);
-		}
 		inode_unlock(inode);
 	}
 	return rc;
@@ -8411,20 +8390,18 @@ int smb3_decrypt_req(struct ksmbd_work *work)
 	struct smb2_hdr *hdr;
 	unsigned int pdu_length = get_rfc1002_len(buf);
 	struct kvec iov[2];
-	unsigned int buf_data_size = pdu_length + 4 -
+	int buf_data_size = pdu_length + 4 -
 		sizeof(struct smb2_transform_hdr);
 	struct smb2_transform_hdr *tr_hdr = (struct smb2_transform_hdr *)buf;
 	int rc = 0;
 
-	if (pdu_length + 4 <
-	    sizeof(struct smb2_transform_hdr) + sizeof(struct smb2_hdr)) {
+	if (buf_data_size < sizeof(struct smb2_hdr)) {
 		pr_err("Transform message is too small (%u)\n",
 		       pdu_length);
 		return -ECONNABORTED;
 	}
 
-	if (pdu_length + 4 <
-	    le32_to_cpu(tr_hdr->OriginalMessageSize) + sizeof(struct smb2_transform_hdr)) {
+	if (buf_data_size < le32_to_cpu(tr_hdr->OriginalMessageSize)) {
 		pr_err("Transform message is broken\n");
 		return -ECONNABORTED;
 	}
