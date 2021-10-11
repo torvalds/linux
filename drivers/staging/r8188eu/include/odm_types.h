@@ -4,13 +4,7 @@
 #ifndef __ODM_TYPES_H__
 #define __ODM_TYPES_H__
 
-/*  */
-/*  Define Different SW team support */
-/*  */
-#define	ODM_AP			0x01	 /* BIT(0) */
-#define	ODM_ADSL		0x02	/* BIT(1) */
 #define	ODM_CE			0x04	/* BIT(2) */
-#define	ODM_MP			0x08	/* BIT(3) */
 
 enum HAL_STATUS {
 	HAL_STATUS_SUCCESS,

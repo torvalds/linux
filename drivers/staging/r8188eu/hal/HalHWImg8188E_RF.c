@@ -144,7 +144,6 @@ enum HAL_STATUS ODM_ReadAndConfig_RadioA_1T_8188E(struct odm_dm_struct *pDM_Odm)
 
 	u32     hex         = 0;
 	u32     i           = 0;
-	u8     platform    = pDM_Odm->SupportPlatform;
 	u8     interfaceValue   = pDM_Odm->SupportInterface;
 	u32     ArrayLen    = sizeof(Array_RadioA_1T_8188E) / sizeof(u32);
 	u32    *Array       = Array_RadioA_1T_8188E;
@@ -155,7 +154,7 @@ enum HAL_STATUS ODM_ReadAndConfig_RadioA_1T_8188E(struct odm_dm_struct *pDM_Odm)
 	enum HAL_STATUS rst = HAL_STATUS_SUCCESS;
 
 	hex += interfaceValue << 8;
-	hex += platform << 16;
+	hex += ODM_CE << 16;
 	hex += 0xFF000000;
 	biol = rtw_IOL_applied(Adapter);
 

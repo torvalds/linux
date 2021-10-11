@@ -176,7 +176,6 @@ enum HAL_STATUS ODM_ReadAndConfig_AGC_TAB_1T_8188E(struct odm_dm_struct *dm_odm)
 {
 	u32     hex         = 0;
 	u32     i           = 0;
-	u8     platform    = dm_odm->SupportPlatform;
 	u8     interfaceValue   = dm_odm->SupportInterface;
 	u32     arraylen    = sizeof(array_agc_tab_1t_8188e) / sizeof(u32);
 	u32    *array       = array_agc_tab_1t_8188e;
@@ -187,7 +186,7 @@ enum HAL_STATUS ODM_ReadAndConfig_AGC_TAB_1T_8188E(struct odm_dm_struct *dm_odm)
 	enum HAL_STATUS rst = HAL_STATUS_SUCCESS;
 
 	hex += interfaceValue << 8;
-	hex += platform << 16;
+	hex += ODM_CE << 16;
 	hex += 0xFF000000;
 	biol = rtw_IOL_applied(adapter);
 
@@ -454,7 +453,6 @@ enum HAL_STATUS ODM_ReadAndConfig_PHY_REG_1T_8188E(struct odm_dm_struct *dm_odm)
 {
 	u32     hex         = 0;
 	u32     i           = 0;
-	u8     platform    = dm_odm->SupportPlatform;
 	u8     interfaceValue   = dm_odm->SupportInterface;
 	u32     arraylen    = sizeof(array_phy_reg_1t_8188e) / sizeof(u32);
 	u32    *array       = array_phy_reg_1t_8188e;
@@ -464,7 +462,7 @@ enum HAL_STATUS ODM_ReadAndConfig_PHY_REG_1T_8188E(struct odm_dm_struct *dm_odm)
 	u8 bndy_cnt = 1;
 	enum HAL_STATUS rst = HAL_STATUS_SUCCESS;
 	hex += interfaceValue << 8;
-	hex += platform << 16;
+	hex += ODM_CE << 16;
 	hex += 0xFF000000;
 	biol = rtw_IOL_applied(adapter);
 
@@ -661,13 +659,12 @@ void ODM_ReadAndConfig_PHY_REG_PG_8188E(struct odm_dm_struct *dm_odm)
 {
 	u32  hex;
 	u32  i           = 0;
-	u8  platform    = dm_odm->SupportPlatform;
 	u8  interfaceValue   = dm_odm->SupportInterface;
 	u32  arraylen    = sizeof(array_phy_reg_pg_8188e) / sizeof(u32);
 	u32 *array       = array_phy_reg_pg_8188e;
 
 	hex = interfaceValue << 8;
-	hex += (platform << 16) + 0xFF000000;
+	hex += (ODM_CE << 16) + 0xFF000000;
 
 	for (i = 0; i < arraylen; i += 3) {
 		u32 v1 = array[i];

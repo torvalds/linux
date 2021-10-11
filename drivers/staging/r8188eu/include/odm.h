@@ -261,7 +261,6 @@ enum odm_common_info_def {
 	/*  Fixed value: */
 
 	/* HOOK BEFORE REG INIT----------- */
-	ODM_CMNINFO_PLATFORM = 0,
 	ODM_CMNINFO_ABILITY,		/* ODM_ABILITY_E */
 	ODM_CMNINFO_INTERFACE,		/* ODM_INTERFACE_E */
 	ODM_CMNINFO_MP_TEST_CHIP,
@@ -610,8 +609,6 @@ struct odm_dm_struct {
 /* 1  COMMON INFORMATION */
 	/*  Init Value */
 /* HOOK BEFORE REG INIT----------- */
-	/*  ODM Platform info AP/ADSL/CE/MP = 1/2/3/4 */
-	u8	SupportPlatform;
 	/*  ODM Support Ability DIG/RATR/TX_PWR_TRACK/ �K�K = 1/2/3/�K */
 	u32	SupportAbility;
 	/*  ODM PCIE/USB/SDIO/GSPI = 0/1/2/3 */

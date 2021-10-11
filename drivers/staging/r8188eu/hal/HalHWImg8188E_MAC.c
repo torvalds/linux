@@ -133,7 +133,6 @@ enum HAL_STATUS ODM_ReadAndConfig_MAC_REG_8188E(struct odm_dm_struct *dm_odm)
 
 	u32     hex         = 0;
 	u32     i;
-	u8     platform    = dm_odm->SupportPlatform;
 	u8     interface_val   = dm_odm->SupportInterface;
 	u32     array_len    = sizeof(array_MAC_REG_8188E) / sizeof(u32);
 	u32    *array       = array_MAC_REG_8188E;
@@ -144,7 +143,7 @@ enum HAL_STATUS ODM_ReadAndConfig_MAC_REG_8188E(struct odm_dm_struct *dm_odm)
 	u8 bndy_cnt = 1;
 	enum HAL_STATUS rst = HAL_STATUS_SUCCESS;
 	hex += interface_val << 8;
-	hex += platform << 16;
+	hex += ODM_CE << 16;
 	hex += 0xFF000000;
 
 	biol = rtw_IOL_applied(adapt);

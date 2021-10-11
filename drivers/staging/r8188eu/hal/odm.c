@@ -214,9 +214,6 @@ void ODM_CmnInfoInit(struct odm_dm_struct *pDM_Odm, enum odm_common_info_def Cmn
 	case	ODM_CMNINFO_ABILITY:
 		pDM_Odm->SupportAbility = (u32)Value;
 		break;
-	case	ODM_CMNINFO_PLATFORM:
-		pDM_Odm->SupportPlatform = (u8)Value;
-		break;
 	case	ODM_CMNINFO_INTERFACE:
 		pDM_Odm->SupportInterface = (u8)Value;
 		break;
@@ -460,15 +457,10 @@ void odm_DIG(struct odm_dm_struct *pDM_Odm)
 	FirstDisConnect = (!pDM_Odm->bLinked) && (pDM_DigTable->bMediaConnect_0);
 
 	/* 1 Boundary Decision */
-	if (pDM_Odm->SupportPlatform & (ODM_AP | ODM_ADSL)) {
-		dm_dig_max = DM_DIG_MAX_AP;
-		dm_dig_min = DM_DIG_MIN_AP;
-		DIG_MaxOfMin = dm_dig_max;
-	} else {
-		dm_dig_max = DM_DIG_MAX_NIC;
-		dm_dig_min = DM_DIG_MIN_NIC;
-		DIG_MaxOfMin = DM_DIG_MAX_AP;
-	}
+	dm_dig_max = DM_DIG_MAX_NIC;
+	dm_dig_min = DM_DIG_MIN_NIC;
+	DIG_MaxOfMin = DM_DIG_MAX_AP;
+
 	if (pDM_Odm->bLinked) {
 		/* 2 8723A Series, offset need to be 10 */
 		/* 2 Modify DIG upper bound */
@@ -845,35 +837,11 @@ u32 ODM_Get_Rate_Bitmap(struct odm_dm_struct *pDM_Odm, u32 macid, u32 ra_mask, u
  *---------------------------------------------------------------------------*/
 void odm_RefreshRateAdaptiveMask(struct odm_dm_struct *pDM_Odm)
 {
-	if (!(pDM_Odm->SupportAbility & ODM_BB_RA_MASK))
-		return;
-	/*  */
-	/*  2011/09/29 MH In HW integration first stage, we provide 4 different handle to operate */
-	/*  at the same time. In the stage2/3, we need to prive universal interface and merge all */
-	/*  HW dynamic mechanism. */
-	/*  */
-	switch	(pDM_Odm->SupportPlatform) {
-	case	ODM_MP:
-		odm_RefreshRateAdaptiveMaskMP(pDM_Odm);
-		break;
-	case	ODM_CE:
-		odm_RefreshRateAdaptiveMaskCE(pDM_Odm);
-		break;
-	case	ODM_AP:
-	case	ODM_ADSL:
-		odm_RefreshRateAdaptiveMaskAPADSL(pDM_Odm);
-		break;
-	}
-}
-
-void odm_RefreshRateAdaptiveMaskMP(struct odm_dm_struct *pDM_Odm)
-{
-}
-
-void odm_RefreshRateAdaptiveMaskCE(struct odm_dm_struct *pDM_Odm)
-{
 	u8 i;
 	struct adapter *pAdapter = pDM_Odm->Adapter;
+
+	if (!(pDM_Odm->SupportAbility & ODM_BB_RA_MASK))
+		return;
 
 	if (pAdapter->bDriverStopped)
 		return;
@@ -888,10 +856,6 @@ void odm_RefreshRateAdaptiveMaskCE(struct odm_dm_struct *pDM_Odm)
 				rtw_hal_update_ra_mask(pAdapter, i, pstat->rssi_level);
 		}
 	}
-}
-
-void odm_RefreshRateAdaptiveMaskAPADSL(struct odm_dm_struct *pDM_Odm)
-{
 }
 
 /*  Return Value: bool */
@@ -941,37 +905,6 @@ bool ODM_RAStateCheck(struct odm_dm_struct *pDM_Odm, s32 RSSI, bool bForceUpdate
 /* 3 RSSI Monitor */
 /* 3============================================================ */
 
-void odm_RSSIMonitorCheck(struct odm_dm_struct *pDM_Odm)
-{
-	if (!(pDM_Odm->SupportAbility & ODM_BB_RSSI_MONITOR))
-		return;
-
-	/*  */
-	/*  2011/09/29 MH In HW integration first stage, we provide 4 different handle to operate */
-	/*  at the same time. In the stage2/3, we need to prive universal interface and merge all */
-	/*  HW dynamic mechanism. */
-	/*  */
-	switch	(pDM_Odm->SupportPlatform) {
-	case	ODM_MP:
-		odm_RSSIMonitorCheckMP(pDM_Odm);
-		break;
-	case	ODM_CE:
-		odm_RSSIMonitorCheckCE(pDM_Odm);
-		break;
-	case	ODM_AP:
-		odm_RSSIMonitorCheckAP(pDM_Odm);
-		break;
-	case	ODM_ADSL:
-		/* odm_DIGAP(pDM_Odm); */
-		break;
-	}
-
-}	/*  odm_RSSIMonitorCheck */
-
-void odm_RSSIMonitorCheckMP(struct odm_dm_struct *pDM_Odm)
-{
-}
-
 static void FindMinimumRSSI(struct adapter *pAdapter)
 {
 	struct hal_data_8188e	*pHalData = GET_HAL_DATA(pAdapter);
@@ -986,7 +919,7 @@ static void FindMinimumRSSI(struct adapter *pAdapter)
 	pdmpriv->MinUndecoratedPWDBForDM = pdmpriv->EntryMinUndecoratedSmoothedPWDB;
 }
 
-void odm_RSSIMonitorCheckCE(struct odm_dm_struct *pDM_Odm)
+void odm_RSSIMonitorCheck(struct odm_dm_struct *pDM_Odm)
 {
 	struct adapter *Adapter = pDM_Odm->Adapter;
 	struct hal_data_8188e	*pHalData = GET_HAL_DATA(Adapter);
@@ -997,6 +930,9 @@ void odm_RSSIMonitorCheckCE(struct odm_dm_struct *pDM_Odm)
 	u32 PWDB_rssi[NUM_STA] = {0};/* 0~15]:MACID, [16~31]:PWDB_rssi */
 	struct sta_info *psta;
 	u8 bcast_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+
+	if (!(pDM_Odm->SupportAbility & ODM_BB_RSSI_MONITOR))
+		return;
 
 	if (!check_fwstate(&Adapter->mlmepriv, _FW_LINKED))
 		return;
@@ -1042,10 +978,6 @@ void odm_RSSIMonitorCheckCE(struct odm_dm_struct *pDM_Odm)
 	ODM_CmnInfoUpdate(&pHalData->odmpriv, ODM_CMNINFO_RSSI_MIN, pdmpriv->MinUndecoratedPWDBForDM);
 }
 
-void odm_RSSIMonitorCheckAP(struct odm_dm_struct *pDM_Odm)
-{
-}
-
 /* 3============================================================ */
 /* 3 Tx Power Tracking */
 /* 3============================================================ */
@@ -1067,26 +999,6 @@ void odm_TXPowerTrackingThermalMeterInit(struct odm_dm_struct *pDM_Odm)
 
 void ODM_TXPowerTrackingCheck(struct odm_dm_struct *pDM_Odm)
 {
-	/*  2011/09/29 MH In HW integration first stage, we provide 4 different handle to operate */
-	/*  at the same time. In the stage2/3, we need to prive universal interface and merge all */
-	/*  HW dynamic mechanism. */
-	switch	(pDM_Odm->SupportPlatform) {
-	case	ODM_MP:
-		odm_TXPowerTrackingCheckMP(pDM_Odm);
-		break;
-	case	ODM_CE:
-		odm_TXPowerTrackingCheckCE(pDM_Odm);
-		break;
-	case	ODM_AP:
-		odm_TXPowerTrackingCheckAP(pDM_Odm);
-		break;
-	case	ODM_ADSL:
-		break;
-	}
-}
-
-void odm_TXPowerTrackingCheckCE(struct odm_dm_struct *pDM_Odm)
-{
 	struct adapter *Adapter = pDM_Odm->Adapter;
 
 	if (!(pDM_Odm->SupportAbility & ODM_RF_TX_PWR_TRACK))
@@ -1101,14 +1013,6 @@ void odm_TXPowerTrackingCheckCE(struct odm_dm_struct *pDM_Odm)
 		odm_TXPowerTrackingCallback_ThermalMeter_8188E(Adapter);
 		pDM_Odm->RFCalibrateInfo.TM_Trigger = 0;
 	}
-}
-
-void odm_TXPowerTrackingCheckMP(struct odm_dm_struct *pDM_Odm)
-{
-}
-
-void odm_TXPowerTrackingCheckAP(struct odm_dm_struct *pDM_Odm)
-{
 }
 
 /* antenna mapping info */
@@ -1191,26 +1095,6 @@ void ODM_EdcaTurboInit(struct odm_dm_struct *pDM_Odm)
 
 void odm_EdcaTurboCheck(struct odm_dm_struct *pDM_Odm)
 {
-	/*  2011/09/29 MH In HW integration first stage, we provide 4 different handle to operate */
-	/*  at the same time. In the stage2/3, we need to prive universal interface and merge all */
-	/*  HW dynamic mechanism. */
-	if (!(pDM_Odm->SupportAbility & ODM_MAC_EDCA_TURBO))
-		return;
-
-	switch	(pDM_Odm->SupportPlatform) {
-	case	ODM_MP:
-		break;
-	case	ODM_CE:
-		odm_EdcaTurboCheckCE(pDM_Odm);
-		break;
-	case	ODM_AP:
-	case	ODM_ADSL:
-		break;
-	}
-}	/*  odm_CheckEdcaTurbo */
-
-void odm_EdcaTurboCheckCE(struct odm_dm_struct *pDM_Odm)
-{
 	struct adapter *Adapter = pDM_Odm->Adapter;
 	u32	trafficIndex;
 	u32	edca_param;
@@ -1223,6 +1107,9 @@ void odm_EdcaTurboCheckCE(struct odm_dm_struct *pDM_Odm)
 	struct registry_priv	*pregpriv = &Adapter->registrypriv;
 	struct mlme_ext_priv	*pmlmeext = &Adapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
+
+	if (!(pDM_Odm->SupportAbility & ODM_MAC_EDCA_TURBO))
+		return;
 
 	if (pregpriv->wifi_spec == 1)
 		goto dm_CheckEdcaTurbo_EXIT;
