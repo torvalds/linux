@@ -1003,7 +1003,7 @@ static void __init sama7g5_pmc_setup(struct device_node *np)
 
 	hw = at91_clk_register_master_div(regmap, "mck0", "cpuck",
 					  &mck0_layout, &mck0_characteristics,
-					  &pmc_mck0_lock, 0);
+					  &pmc_mck0_lock, CLK_GET_RATE_NOCACHE, 5);
 	if (IS_ERR(hw))
 		goto err_free;
 

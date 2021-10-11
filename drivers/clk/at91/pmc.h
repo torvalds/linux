@@ -182,7 +182,7 @@ at91_clk_register_master_div(struct regmap *regmap, const char *name,
 			     const char *parent_names,
 			     const struct clk_master_layout *layout,
 			     const struct clk_master_characteristics *characteristics,
-			     spinlock_t *lock, u32 flags);
+			     spinlock_t *lock, u32 flags, u32 safe_div);
 
 struct clk_hw * __init
 at91_clk_sama7g5_register_master(struct regmap *regmap,
