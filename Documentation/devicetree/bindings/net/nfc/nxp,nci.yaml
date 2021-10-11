@@ -12,7 +12,11 @@ maintainers:
 
 properties:
   compatible:
-    const: nxp,nxp-nci-i2c
+    oneOf:
+      - const: nxp,nxp-nci-i2c
+      - items:
+          - const: nxp,pn547
+          - const: nxp,nxp-nci-i2c
 
   enable-gpios:
     description: Output GPIO pin used for enabling/disabling the controller
