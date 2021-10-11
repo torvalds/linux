@@ -127,6 +127,8 @@ static const struct clk_pll_characteristics pll_characteristics = {
  * @t:		clock type
  * @f:		clock flags
  * @eid:	export index in sama7g5->chws[] array
+ * @safe_div:	intermediate divider need to be set on PRE_RATE_CHANGE
+ *		notification
  */
 static const struct {
 	const char *n;
@@ -136,6 +138,7 @@ static const struct {
 	unsigned long f;
 	u8 t;
 	u8 eid;
+	u8 safe_div;
 } sama7g5_plls[][PLL_ID_MAX] = {
 	[PLL_ID_CPU] = {
 		{ .n = "cpupll_fracck",
@@ -156,7 +159,12 @@ static const struct {
 		  .t = PLL_TYPE_DIV,
 		   /* This feeds CPU. It should not be disabled. */
 		  .f = CLK_IS_CRITICAL | CLK_SET_RATE_PARENT,
-		  .eid = PMC_CPUPLL, },
+		  .eid = PMC_CPUPLL,
+		  /*
+		   * Safe div=15 should be safe even for switching b/w 1GHz and
+		   * 90MHz (frac pll might go up to 1.2GHz).
+		   */
+		  .safe_div = 15, },
 	},
 
 	[PLL_ID_SYS] = {
@@ -967,7 +975,8 @@ static void __init sama7g5_pmc_setup(struct device_node *np)
 					sama7g5_plls[i][j].p, i,
 					sama7g5_plls[i][j].c,
 					sama7g5_plls[i][j].l,
-					sama7g5_plls[i][j].f);
+					sama7g5_plls[i][j].f,
+					sama7g5_plls[i][j].safe_div);
 				break;
 
 			default:
