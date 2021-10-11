@@ -254,6 +254,8 @@ static void odm_Process_RSSIForDM(struct odm_dm_struct *dm_odm,
 	u32 OFDM_pkt = 0;
 	u32 Weighting = 0;
 	struct sta_info *pEntry;
+	u8 antsel_tr_mux;
+	struct fast_ant_train *pDM_FatTable = &dm_odm->DM_FatTable;
 
 	if (pPktinfo->StationID == 0xFF)
 		return;
@@ -266,28 +268,24 @@ static void odm_Process_RSSIForDM(struct odm_dm_struct *dm_odm,
 	isCCKrate = ((pPktinfo->Rate >= DESC92C_RATE1M) && (pPktinfo->Rate <= DESC92C_RATE11M)) ? true : false;
 
 	/* Smart Antenna Debug Message------------------  */
-	if (dm_odm->SupportICType == ODM_RTL8188E) {
-		u8 antsel_tr_mux;
-		struct fast_ant_train *pDM_FatTable = &dm_odm->DM_FatTable;
-
-		if (dm_odm->AntDivType == CG_TRX_SMART_ANTDIV) {
-			if (pDM_FatTable->FAT_State == FAT_TRAINING_STATE) {
-				if (pPktinfo->bPacketToSelf) {
-					antsel_tr_mux = (pDM_FatTable->antsel_rx_keep_2 << 2) |
-							(pDM_FatTable->antsel_rx_keep_1 << 1) |
-							pDM_FatTable->antsel_rx_keep_0;
-					pDM_FatTable->antSumRSSI[antsel_tr_mux] += pPhyInfo->RxPWDBAll;
-					pDM_FatTable->antRSSIcnt[antsel_tr_mux]++;
-				}
-			}
-		} else if ((dm_odm->AntDivType == CG_TRX_HW_ANTDIV) || (dm_odm->AntDivType == CGCS_RX_HW_ANTDIV)) {
-			if (pPktinfo->bPacketToSelf || pPktinfo->bPacketBeacon) {
+	if (dm_odm->AntDivType == CG_TRX_SMART_ANTDIV) {
+		if (pDM_FatTable->FAT_State == FAT_TRAINING_STATE) {
+			if (pPktinfo->bPacketToSelf) {
 				antsel_tr_mux = (pDM_FatTable->antsel_rx_keep_2 << 2) |
-						(pDM_FatTable->antsel_rx_keep_1 << 1) | pDM_FatTable->antsel_rx_keep_0;
-				ODM_AntselStatistics_88E(dm_odm, antsel_tr_mux, pPktinfo->StationID, pPhyInfo->RxPWDBAll);
+						(pDM_FatTable->antsel_rx_keep_1 << 1) |
+						pDM_FatTable->antsel_rx_keep_0;
+				pDM_FatTable->antSumRSSI[antsel_tr_mux] += pPhyInfo->RxPWDBAll;
+				pDM_FatTable->antRSSIcnt[antsel_tr_mux]++;
 			}
 		}
+	} else if ((dm_odm->AntDivType == CG_TRX_HW_ANTDIV) || (dm_odm->AntDivType == CGCS_RX_HW_ANTDIV)) {
+		if (pPktinfo->bPacketToSelf || pPktinfo->bPacketBeacon) {
+			antsel_tr_mux = (pDM_FatTable->antsel_rx_keep_2 << 2) |
+					(pDM_FatTable->antsel_rx_keep_1 << 1) | pDM_FatTable->antsel_rx_keep_0;
+			ODM_AntselStatistics_88E(dm_odm, antsel_tr_mux, pPktinfo->StationID, pPhyInfo->RxPWDBAll);
+		}
 	}
+
 	/* Smart Antenna Debug Message------------------ */
 
 	UndecoratedSmoothedCCK =  pEntry->rssi_stat.UndecoratedSmoothedCCK;
@@ -410,10 +408,8 @@ enum HAL_STATUS ODM_ConfigRFWithHeaderFile(struct odm_dm_struct *dm_odm,
 					   enum rf_radio_path content,
 					   enum rf_radio_path rfpath)
 {
-	if (dm_odm->SupportICType == ODM_RTL8188E) {
-		if (rfpath == RF_PATH_A)
-			READ_AND_CONFIG(8188E, _RadioA_1T_);
-	}
+	if (rfpath == RF_PATH_A)
+		READ_AND_CONFIG(8188E, _RadioA_1T_);
 
 	return HAL_STATUS_SUCCESS;
 }
@@ -421,22 +417,20 @@ enum HAL_STATUS ODM_ConfigRFWithHeaderFile(struct odm_dm_struct *dm_odm,
 enum HAL_STATUS ODM_ConfigBBWithHeaderFile(struct odm_dm_struct *dm_odm,
 					   enum odm_bb_config_type config_tp)
 {
-	if (dm_odm->SupportICType == ODM_RTL8188E) {
-		if (config_tp == CONFIG_BB_PHY_REG) {
-			READ_AND_CONFIG(8188E, _PHY_REG_1T_);
-		} else if (config_tp == CONFIG_BB_AGC_TAB) {
-			READ_AND_CONFIG(8188E, _AGC_TAB_1T_);
-		} else if (config_tp == CONFIG_BB_PHY_REG_PG) {
-			READ_AND_CONFIG(8188E, _PHY_REG_PG_);
-		}
+	if (config_tp == CONFIG_BB_PHY_REG) {
+		READ_AND_CONFIG(8188E, _PHY_REG_1T_);
+	} else if (config_tp == CONFIG_BB_AGC_TAB) {
+		READ_AND_CONFIG(8188E, _AGC_TAB_1T_);
+	} else if (config_tp == CONFIG_BB_PHY_REG_PG) {
+		READ_AND_CONFIG(8188E, _PHY_REG_PG_);
 	}
+
 	return HAL_STATUS_SUCCESS;
 }
 
 enum HAL_STATUS ODM_ConfigMACWithHeaderFile(struct odm_dm_struct *dm_odm)
 {
 	u8 result = HAL_STATUS_SUCCESS;
-	if (dm_odm->SupportICType == ODM_RTL8188E)
-		result = READ_AND_CONFIG(8188E, _MAC_REG_);
+	result = READ_AND_CONFIG(8188E, _MAC_REG_);
 	return result;
 }

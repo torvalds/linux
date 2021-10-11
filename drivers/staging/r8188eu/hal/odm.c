@@ -225,9 +225,6 @@ void ODM_CmnInfoInit(struct odm_dm_struct *pDM_Odm, enum odm_common_info_def Cmn
 	case	ODM_CMNINFO_MP_TEST_CHIP:
 		pDM_Odm->bIsMPChip = (u8)Value;
 		break;
-	case	ODM_CMNINFO_IC_TYPE:
-		pDM_Odm->SupportICType = Value;
-		break;
 	case	ODM_CMNINFO_RF_TYPE:
 		pDM_Odm->RFType = (u8)Value;
 		break;
@@ -377,10 +374,6 @@ void odm_CommonInfoSelfInit(struct odm_dm_struct *pDM_Odm)
 {
 	pDM_Odm->bCckHighPower = (bool)ODM_GetBBReg(pDM_Odm, 0x824, BIT(9));
 	pDM_Odm->RFPathRxEnable = (u8)ODM_GetBBReg(pDM_Odm, 0xc04, 0x0F);
-	if (pDM_Odm->SupportICType & (ODM_RTL8192C | ODM_RTL8192D))
-		pDM_Odm->AntDivType = CG_TRX_HW_ANTDIV;
-	if (pDM_Odm->SupportICType & (ODM_RTL8723A))
-		pDM_Odm->AntDivType = CGCS_RX_SW_ANTDIV;
 }
 
 void odm_CommonInfoSelfUpdate(struct odm_dm_struct *pDM_Odm)
@@ -467,86 +460,43 @@ void odm_DIG(struct odm_dm_struct *pDM_Odm)
 	if (!pDM_Odm->bDMInitialGainEnable)
 		return;
 
-	if (pDM_Odm->SupportICType == ODM_RTL8192D) {
-		if (*pDM_Odm->pMacPhyMode == ODM_DMSP) {
-			if (*pDM_Odm->pbMasterOfDMSP) {
-				DIG_Dynamic_MIN = pDM_DigTable->DIG_Dynamic_MIN_0;
-				FirstConnect = (pDM_Odm->bLinked) && (!pDM_DigTable->bMediaConnect_0);
-				FirstDisConnect = (!pDM_Odm->bLinked) && (pDM_DigTable->bMediaConnect_0);
-			} else {
-				DIG_Dynamic_MIN = pDM_DigTable->DIG_Dynamic_MIN_1;
-				FirstConnect = (pDM_Odm->bLinked) && (!pDM_DigTable->bMediaConnect_1);
-				FirstDisConnect = (!pDM_Odm->bLinked) && (pDM_DigTable->bMediaConnect_1);
-			}
-		} else {
-			DIG_Dynamic_MIN = pDM_DigTable->DIG_Dynamic_MIN_1;
-			FirstConnect = (pDM_Odm->bLinked) && (!pDM_DigTable->bMediaConnect_1);
-			FirstDisConnect = (!pDM_Odm->bLinked) && (pDM_DigTable->bMediaConnect_1);
-		}
-	} else {
-		DIG_Dynamic_MIN = pDM_DigTable->DIG_Dynamic_MIN_0;
-		FirstConnect = (pDM_Odm->bLinked) && (!pDM_DigTable->bMediaConnect_0);
-		FirstDisConnect = (!pDM_Odm->bLinked) && (pDM_DigTable->bMediaConnect_0);
-	}
+	DIG_Dynamic_MIN = pDM_DigTable->DIG_Dynamic_MIN_0;
+	FirstConnect = (pDM_Odm->bLinked) && (!pDM_DigTable->bMediaConnect_0);
+	FirstDisConnect = (!pDM_Odm->bLinked) && (pDM_DigTable->bMediaConnect_0);
 
 	/* 1 Boundary Decision */
-	if ((pDM_Odm->SupportICType & (ODM_RTL8192C | ODM_RTL8723A)) &&
-	    (pDM_Odm->BoardType == ODM_BOARD_HIGHPWR)) {
-		if (pDM_Odm->SupportPlatform & (ODM_AP | ODM_ADSL)) {
-			dm_dig_max = DM_DIG_MAX_AP_HP;
-			dm_dig_min = DM_DIG_MIN_AP_HP;
-		} else {
-			dm_dig_max = DM_DIG_MAX_NIC_HP;
-			dm_dig_min = DM_DIG_MIN_NIC_HP;
-		}
-		DIG_MaxOfMin = DM_DIG_MAX_AP_HP;
+	if (pDM_Odm->SupportPlatform & (ODM_AP | ODM_ADSL)) {
+		dm_dig_max = DM_DIG_MAX_AP;
+		dm_dig_min = DM_DIG_MIN_AP;
+		DIG_MaxOfMin = dm_dig_max;
 	} else {
-		if (pDM_Odm->SupportPlatform & (ODM_AP | ODM_ADSL)) {
-			dm_dig_max = DM_DIG_MAX_AP;
-			dm_dig_min = DM_DIG_MIN_AP;
-			DIG_MaxOfMin = dm_dig_max;
-		} else {
-			dm_dig_max = DM_DIG_MAX_NIC;
-			dm_dig_min = DM_DIG_MIN_NIC;
-			DIG_MaxOfMin = DM_DIG_MAX_AP;
-		}
+		dm_dig_max = DM_DIG_MAX_NIC;
+		dm_dig_min = DM_DIG_MIN_NIC;
+		DIG_MaxOfMin = DM_DIG_MAX_AP;
 	}
 	if (pDM_Odm->bLinked) {
-	      /* 2 8723A Series, offset need to be 10 */
-		if (pDM_Odm->SupportICType == (ODM_RTL8723A)) {
-			/* 2 Upper Bound */
-			if ((pDM_Odm->RSSI_Min + 10) > DM_DIG_MAX_NIC)
-				pDM_DigTable->rx_gain_range_max = DM_DIG_MAX_NIC;
-			else if ((pDM_Odm->RSSI_Min + 10) < DM_DIG_MIN_NIC)
-				pDM_DigTable->rx_gain_range_max = DM_DIG_MIN_NIC;
-			else
-				pDM_DigTable->rx_gain_range_max = pDM_Odm->RSSI_Min + 10;
-			/* 2 If BT is Concurrent, need to set Lower Bound */
-			DIG_Dynamic_MIN = DM_DIG_MIN_NIC;
-		} else {
-			/* 2 Modify DIG upper bound */
-			if ((pDM_Odm->RSSI_Min + 20) > dm_dig_max)
-				pDM_DigTable->rx_gain_range_max = dm_dig_max;
-			else if ((pDM_Odm->RSSI_Min + 20) < dm_dig_min)
-				pDM_DigTable->rx_gain_range_max = dm_dig_min;
-			else
-				pDM_DigTable->rx_gain_range_max = pDM_Odm->RSSI_Min + 20;
-			/* 2 Modify DIG lower bound */
-			if (pDM_Odm->bOneEntryOnly) {
-				if (pDM_Odm->RSSI_Min < dm_dig_min)
-					DIG_Dynamic_MIN = dm_dig_min;
-				else if (pDM_Odm->RSSI_Min > DIG_MaxOfMin)
-					DIG_Dynamic_MIN = DIG_MaxOfMin;
-				else
-					DIG_Dynamic_MIN = pDM_Odm->RSSI_Min;
-			} else if ((pDM_Odm->SupportICType == ODM_RTL8188E) &&
-				   (pDM_Odm->SupportAbility & ODM_BB_ANT_DIV)) {
-				/* 1 Lower Bound for 88E AntDiv */
-				if (pDM_Odm->AntDivType == CG_TRX_HW_ANTDIV)
-					DIG_Dynamic_MIN = (u8)pDM_DigTable->AntDiv_RSSI_max;
-			} else {
+		/* 2 8723A Series, offset need to be 10 */
+		/* 2 Modify DIG upper bound */
+		if ((pDM_Odm->RSSI_Min + 20) > dm_dig_max)
+			pDM_DigTable->rx_gain_range_max = dm_dig_max;
+		else if ((pDM_Odm->RSSI_Min + 20) < dm_dig_min)
+			pDM_DigTable->rx_gain_range_max = dm_dig_min;
+		else
+			pDM_DigTable->rx_gain_range_max = pDM_Odm->RSSI_Min + 20;
+		/* 2 Modify DIG lower bound */
+		if (pDM_Odm->bOneEntryOnly) {
+			if (pDM_Odm->RSSI_Min < dm_dig_min)
 				DIG_Dynamic_MIN = dm_dig_min;
-			}
+			else if (pDM_Odm->RSSI_Min > DIG_MaxOfMin)
+				DIG_Dynamic_MIN = DIG_MaxOfMin;
+			else
+				DIG_Dynamic_MIN = pDM_Odm->RSSI_Min;
+		} else if (pDM_Odm->SupportAbility & ODM_BB_ANT_DIV) {
+			/* 1 Lower Bound for 88E AntDiv */
+			if (pDM_Odm->AntDivType == CG_TRX_HW_ANTDIV)
+				DIG_Dynamic_MIN = (u8)pDM_DigTable->AntDiv_RSSI_max;
+		} else {
+			DIG_Dynamic_MIN = dm_dig_min;
 		}
 	} else {
 		pDM_DigTable->rx_gain_range_max = dm_dig_max;
@@ -594,21 +544,12 @@ void odm_DIG(struct odm_dm_struct *pDM_Odm)
 		if (FirstConnect) {
 			CurrentIGI = pDM_Odm->RSSI_Min;
 		} else {
-			if (pDM_Odm->SupportICType == ODM_RTL8192D) {
-				if (pFalseAlmCnt->Cnt_all > DM_DIG_FA_TH2_92D)
-					CurrentIGI = CurrentIGI + 2;/* pDM_DigTable->CurIGValue = pDM_DigTable->PreIGValue+2; */
-				else if (pFalseAlmCnt->Cnt_all > DM_DIG_FA_TH1_92D)
-					CurrentIGI = CurrentIGI + 1; /* pDM_DigTable->CurIGValue = pDM_DigTable->PreIGValue+1; */
-				else if (pFalseAlmCnt->Cnt_all < DM_DIG_FA_TH0_92D)
-					CurrentIGI = CurrentIGI - 1;/* pDM_DigTable->CurIGValue =pDM_DigTable->PreIGValue-1; */
-			} else {
-				if (pFalseAlmCnt->Cnt_all > DM_DIG_FA_TH2)
-						CurrentIGI = CurrentIGI + 4;/* pDM_DigTable->CurIGValue = pDM_DigTable->PreIGValue+2; */
-				else if (pFalseAlmCnt->Cnt_all > DM_DIG_FA_TH1)
-						CurrentIGI = CurrentIGI + 2;/* pDM_DigTable->CurIGValue = pDM_DigTable->PreIGValue+1; */
-				else if (pFalseAlmCnt->Cnt_all < DM_DIG_FA_TH0)
-						CurrentIGI = CurrentIGI - 2;/* pDM_DigTable->CurIGValue =pDM_DigTable->PreIGValue-1; */
-			}
+			if (pFalseAlmCnt->Cnt_all > DM_DIG_FA_TH2)
+					CurrentIGI = CurrentIGI + 4;/* pDM_DigTable->CurIGValue = pDM_DigTable->PreIGValue+2; */
+			else if (pFalseAlmCnt->Cnt_all > DM_DIG_FA_TH1)
+					CurrentIGI = CurrentIGI + 2;/* pDM_DigTable->CurIGValue = pDM_DigTable->PreIGValue+1; */
+			else if (pFalseAlmCnt->Cnt_all < DM_DIG_FA_TH0)
+					CurrentIGI = CurrentIGI - 2;/* pDM_DigTable->CurIGValue =pDM_DigTable->PreIGValue-1; */
 		}
 	} else {
 		if (FirstDisConnect) {
@@ -668,11 +609,9 @@ void odm_FalseAlarmCounterStatistics(struct odm_dm_struct *pDM_Odm)
 				     FalseAlmCnt->Cnt_Crc8_fail + FalseAlmCnt->Cnt_Mcs_fail +
 				     FalseAlmCnt->Cnt_Fast_Fsync + FalseAlmCnt->Cnt_SB_Search_fail;
 
-	if (pDM_Odm->SupportICType == ODM_RTL8188E) {
-		ret_value = ODM_GetBBReg(pDM_Odm, ODM_REG_SC_CNT_11N, bMaskDWord);
-		FalseAlmCnt->Cnt_BW_LSC = (ret_value & 0xffff);
-		FalseAlmCnt->Cnt_BW_USC = ((ret_value & 0xffff0000) >> 16);
-	}
+	ret_value = ODM_GetBBReg(pDM_Odm, ODM_REG_SC_CNT_11N, bMaskDWord);
+	FalseAlmCnt->Cnt_BW_LSC = (ret_value & 0xffff);
+	FalseAlmCnt->Cnt_BW_USC = ((ret_value & 0xffff0000) >> 16);
 
 	/* hold cck counter */
 	ODM_SetBBReg(pDM_Odm, ODM_REG_CCK_FA_RST_11N, BIT(12), 1);
@@ -695,24 +634,6 @@ void odm_FalseAlarmCounterStatistics(struct odm_dm_struct *pDM_Odm)
 				FalseAlmCnt->Cnt_Cck_fail);
 
 	FalseAlmCnt->Cnt_CCA_all = FalseAlmCnt->Cnt_OFDM_CCA + FalseAlmCnt->Cnt_CCK_CCA;
-
-	if (pDM_Odm->SupportICType >= ODM_RTL8723A) {
-		/* reset false alarm counter registers */
-		ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_RSTC_11N, BIT(31), 1);
-		ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_RSTC_11N, BIT(31), 0);
-		ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_RSTD_11N, BIT(27), 1);
-		ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_RSTD_11N, BIT(27), 0);
-		/* update ofdm counter */
-		ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_HOLDC_11N, BIT(31), 0); /* update page C counter */
-		ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_RSTD_11N, BIT(31), 0); /* update page D counter */
-
-		/* reset CCK CCA counter */
-		ODM_SetBBReg(pDM_Odm, ODM_REG_CCK_FA_RST_11N, BIT(13) | BIT(12), 0);
-		ODM_SetBBReg(pDM_Odm, ODM_REG_CCK_FA_RST_11N, BIT(13) | BIT(12), 2);
-		/* reset CCK FA counter */
-		ODM_SetBBReg(pDM_Odm, ODM_REG_CCK_FA_RST_11N, BIT(15) | BIT(14), 0);
-		ODM_SetBBReg(pDM_Odm, ODM_REG_CCK_FA_RST_11N, BIT(15) | BIT(14), 2);
-	}
 }
 
 /* 3============================================================ */
@@ -807,10 +728,6 @@ void ODM_RF_Saving(struct odm_dm_struct *pDM_Odm, u8 bForceInNormal)
 
 	if (pDM_PSTable->pre_rf_state != pDM_PSTable->cur_rf_state) {
 		if (pDM_PSTable->cur_rf_state == RF_Save) {
-			/*  <tynli_note> 8723 RSSI report will be wrong. Set 0x874[5]=1 when enter BB power saving mode. */
-			/*  Suggested by SD3 Yu-Nan. 2011.01.20. */
-			if (pDM_Odm->SupportICType == ODM_RTL8723A)
-				ODM_SetBBReg(pDM_Odm, 0x874, BIT(5), 0x1); /* Reg874[5]=1b'1 */
 			ODM_SetBBReg(pDM_Odm, 0x874, 0x1C0000, 0x2); /* Reg874[20:18]=3'b010 */
 			ODM_SetBBReg(pDM_Odm, 0xc70, BIT(3), 0); /* RegC70[3]=1'b0 */
 			ODM_SetBBReg(pDM_Odm, 0x85c, 0xFF000000, 0x63); /* Reg85C[31:24]=0x63 */
@@ -824,9 +741,6 @@ void ODM_RF_Saving(struct odm_dm_struct *pDM_Odm, u8 bForceInNormal)
 			ODM_SetBBReg(pDM_Odm, 0x85c, 0xFF000000, pDM_PSTable->reg_85c);
 			ODM_SetBBReg(pDM_Odm, 0xa74, 0xF000, pDM_PSTable->reg_a74);
 			ODM_SetBBReg(pDM_Odm, 0x818, BIT(28), 0x0);
-
-			if (pDM_Odm->SupportICType == ODM_RTL8723A)
-				ODM_SetBBReg(pDM_Odm, 0x874, BIT(5), 0x0); /* Reg874[5]=1b'0 */
 		}
 		pDM_PSTable->pre_rf_state = pDM_PSTable->cur_rf_state;
 	}
@@ -1242,10 +1156,7 @@ void odm_InitHybridAntDiv(struct odm_dm_struct *pDM_Odm)
 	if (!(pDM_Odm->SupportAbility & ODM_BB_ANT_DIV))
 		return;
 
-	if (pDM_Odm->SupportICType & (ODM_RTL8192C | ODM_RTL8192D))
-		;
-	else if (pDM_Odm->SupportICType == ODM_RTL8188E)
-		ODM_AntennaDiversityInit_88E(pDM_Odm);
+	ODM_AntennaDiversityInit_88E(pDM_Odm);
 }
 
 void ODM_AntselStatistics_88C(struct odm_dm_struct *pDM_Odm, u8 MacId, u32 PWDBAll, bool isCCKrate)
@@ -1274,8 +1185,7 @@ void odm_HwAntDiv(struct odm_dm_struct *pDM_Odm)
 	if (!(pDM_Odm->SupportAbility & ODM_BB_ANT_DIV))
 		return;
 
-	if (pDM_Odm->SupportICType == ODM_RTL8188E)
-		ODM_AntennaDiversity_88E(pDM_Odm);
+	ODM_AntennaDiversity_88E(pDM_Odm);
 }
 
 /* EDCA Turbo */

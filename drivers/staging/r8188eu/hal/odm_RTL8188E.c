@@ -129,9 +129,6 @@ static void odm_FastAntTrainingInit(struct odm_dm_struct *dm_odm)
 
 void ODM_AntennaDiversityInit_88E(struct odm_dm_struct *dm_odm)
 {
-	if (dm_odm->SupportICType != ODM_RTL8188E)
-		return;
-
 	if (dm_odm->AntDivType == CGCS_RX_HW_ANTDIV)
 		odm_RX_HWAntDivInit(dm_odm);
 	else if (dm_odm->AntDivType == CG_TRX_HW_ANTDIV)
@@ -270,7 +267,7 @@ static void odm_HWAntDiv(struct odm_dm_struct *dm_odm)
 void ODM_AntennaDiversity_88E(struct odm_dm_struct *dm_odm)
 {
 	struct fast_ant_train *dm_fat_tbl = &dm_odm->DM_FatTable;
-	if ((dm_odm->SupportICType != ODM_RTL8188E) || (!(dm_odm->SupportAbility & ODM_BB_ANT_DIV)))
+	if (!(dm_odm->SupportAbility & ODM_BB_ANT_DIV))
 		return;
 	if (!dm_odm->bLinked) {
 		if (dm_fat_tbl->bBecomeLinked) {
