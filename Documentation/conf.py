@@ -353,6 +353,9 @@ latex_elements = {
         \\setsansfont{DejaVu Sans}
         \\setromanfont{DejaVu Serif}
         \\setmonofont{DejaVu Sans Mono}
+        % Adjust \\headheight for fancyhdr
+        \\addtolength{\\headheight}{1.6pt}
+        \\addtolength{\\topmargin}{-1.6pt}
      ''',
 }
 
