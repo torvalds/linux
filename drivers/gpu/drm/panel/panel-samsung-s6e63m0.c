@@ -749,13 +749,11 @@ int s6e63m0_probe(struct device *dev, void *trsp,
 }
 EXPORT_SYMBOL_GPL(s6e63m0_probe);
 
-int s6e63m0_remove(struct device *dev)
+void s6e63m0_remove(struct device *dev)
 {
 	struct s6e63m0 *ctx = dev_get_drvdata(dev);
 
 	drm_panel_remove(&ctx->panel);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(s6e63m0_remove);
 
