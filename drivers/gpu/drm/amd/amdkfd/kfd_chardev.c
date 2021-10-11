@@ -1011,11 +1011,6 @@ static int kfd_ioctl_create_event(struct file *filp, struct kfd_process *p,
 		void *mem, *kern_addr;
 		uint64_t size;
 
-		if (p->signal_page) {
-			pr_err("Event page is already set\n");
-			return -EINVAL;
-		}
-
 		kfd = kfd_device_by_id(GET_GPU_ID(args->event_page_offset));
 		if (!kfd) {
 			pr_err("Getting device by id failed in %s\n", __func__);
@@ -1023,6 +1018,13 @@ static int kfd_ioctl_create_event(struct file *filp, struct kfd_process *p,
 		}
 
 		mutex_lock(&p->mutex);
+
+		if (p->signal_page) {
+			pr_err("Event page is already set\n");
+			err = -EINVAL;
+			goto out_unlock;
+		}
+
 		pdd = kfd_bind_process_to_device(kfd, p);
 		if (IS_ERR(pdd)) {
 			err = PTR_ERR(pdd);
@@ -1037,20 +1039,24 @@ static int kfd_ioctl_create_event(struct file *filp, struct kfd_process *p,
 			err = -EINVAL;
 			goto out_unlock;
 		}
-		mutex_unlock(&p->mutex);
 
 		err = amdgpu_amdkfd_gpuvm_map_gtt_bo_to_kernel(kfd->kgd,
 						mem, &kern_addr, &size);
 		if (err) {
 			pr_err("Failed to map event page to kernel\n");
-			return err;
+			goto out_unlock;
 		}
 
 		err = kfd_event_page_set(p, kern_addr, size);
 		if (err) {
 			pr_err("Failed to set event page\n");
-			return err;
+			amdgpu_amdkfd_gpuvm_unmap_gtt_bo_from_kernel(kfd->kgd, mem);
+			goto out_unlock;
 		}
+
+		p->signal_handle = args->event_page_offset;
+
+		mutex_unlock(&p->mutex);
 	}
 
 	err = kfd_event_create(filp, p, args->event_type,
@@ -1368,6 +1374,15 @@ static int kfd_ioctl_free_memory_of_gpu(struct file *filep,
 		return -EINVAL;
 
 	mutex_lock(&p->mutex);
+	/*
+	 * Safeguard to prevent user space from freeing signal BO.
+	 * It will be freed at process termination.
+	 */
+	if (p->signal_handle && (p->signal_handle == args->handle)) {
+		pr_err("Free signal BO is not allowed\n");
+		ret = -EPERM;
+		goto err_unlock;
+	}
 
 	pdd = kfd_get_process_device_data(dev, p);
 	if (!pdd) {
