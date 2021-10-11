@@ -30,6 +30,7 @@
 #define HAP_CFG_V1				0x1
 #define HAP_CFG_V2				0x2
 #define HAP_CFG_V3				0x3
+#define HAP_CFG_V4				0x4
 
 #define HAP_CFG_STATUS_DATA_MSB_REG		0x09
 /* STATUS_DATA_MSB definitions while MOD_STATUS_SEL is 0 */
@@ -184,6 +185,7 @@
 #define HAP_PTN_V1				0x1
 #define HAP_PTN_V2				0x2
 #define HAP_PTN_V3				0x3
+#define HAP_PTN_V4				0x4
 
 /* status register definition for HAPTICS_PATTERN module */
 #define HAP_PTN_FIFO_READY_STS_REG		0x08
@@ -339,6 +341,7 @@ enum custom_effect_param {
 enum haptics_hw_type {
 	HAP520 = 0x2,  /* PM8350B */
 	HAP520_MV = 0x3,  /* PM5100 */
+	HAP525_HV = 0x4,  /* PMIC for kalama */
 };
 
 enum wa_flags {
@@ -2374,6 +2377,7 @@ static int haptics_config_wa(struct haptics_chip *chip)
 		chip->wa_flags |= TOGGLE_CAL_RC_CLK | SW_CTRL_HBST;
 		break;
 	case HAP520_MV:
+	case HAP525_HV:
 		break;
 	default:
 		dev_err(chip->dev, "HW type %d does not match\n",
@@ -3661,6 +3665,9 @@ static int haptics_get_revision(struct haptics_chip *chip)
 	} else if ((chip->cfg_revision == HAP_CFG_V3) &&
 			(chip->ptn_revision == HAP_PTN_V3)) {
 		chip->hw_type = HAP520_MV;
+	} else if ((chip->cfg_revision == HAP_CFG_V4) &&
+			(chip->ptn_revision == HAP_PTN_V4)) {
+		chip->hw_type = HAP525_HV;
 	} else {
 		dev_err(chip->dev, "haptics revision is not supported\n");
 		return -EOPNOTSUPP;
