@@ -147,7 +147,10 @@ bool dp_is_interlane_aligned(union lane_align_status_updated align_status);
 
 bool dp_is_max_vs_reached(
 	const struct link_training_settings *lt_settings);
-
+void dp_hw_to_dpcd_lane_settings(
+	const struct link_training_settings *lt_settings,
+	const struct dc_lane_settings hw_lane_settings[LANE_COUNT_DP_MAX],
+	union dpcd_training_lane dpcd_lane_settings[LANE_COUNT_DP_MAX]);
 void dp_update_drive_settings(
 	struct link_training_settings *dest,
 	struct link_training_settings src);

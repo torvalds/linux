@@ -107,7 +107,7 @@ force_update_wptr_for_self_int(struct amdgpu_device *adev,
 {
 	u32 ih_cntl, ih_rb_cntl;
 
-	if (adev->asic_type < CHIP_SIENNA_CICHLID)
+	if (adev->ip_versions[OSSSYS_HWIP][0] < IP_VERSION(5, 0, 3))
 		return;
 
 	ih_cntl = RREG32_SOC15(OSSSYS, 0, mmIH_CNTL2);
@@ -332,13 +332,10 @@ static int navi10_ih_irq_init(struct amdgpu_device *adev)
 
 	if (unlikely(adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT)) {
 		if (ih[0]->use_bus_addr) {
-			switch (adev->asic_type) {
-			case CHIP_SIENNA_CICHLID:
-			case CHIP_NAVY_FLOUNDER:
-			case CHIP_VANGOGH:
-			case CHIP_DIMGREY_CAVEFISH:
-			case CHIP_BEIGE_GOBY:
-			case CHIP_YELLOW_CARP:
+			switch (adev->ip_versions[OSSSYS_HWIP][0]) {
+			case IP_VERSION(5, 0, 3):
+			case IP_VERSION(5, 2, 0):
+			case IP_VERSION(5, 2, 1):
 				ih_chicken = RREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN_Sienna_Cichlid);
 				ih_chicken = REG_SET_FIELD(ih_chicken,
 						IH_CHICKEN, MC_SPACE_GPA_ENABLE, 1);

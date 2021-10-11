@@ -27,7 +27,6 @@
 #include <linux/pci.h>
 #include <linux/uaccess.h>
 #include <linux/pm_runtime.h>
-#include <linux/poll.h>
 
 #include "amdgpu.h"
 #include "amdgpu_pm.h"
@@ -38,85 +37,7 @@
 #include "amdgpu_fw_attestation.h"
 #include "amdgpu_umr.h"
 
-int amdgpu_debugfs_wait_dump(struct amdgpu_device *adev)
-{
 #if defined(CONFIG_DEBUG_FS)
-	unsigned long timeout = 600 * HZ;
-	int ret;
-
-	wake_up_interruptible(&adev->autodump.gpu_hang);
-
-	ret = wait_for_completion_interruptible_timeout(&adev->autodump.dumping, timeout);
-	if (ret == 0) {
-		pr_err("autodump: timeout, move on to gpu recovery\n");
-		return -ETIMEDOUT;
-	}
-#endif
-	return 0;
-}
-
-#if defined(CONFIG_DEBUG_FS)
-
-static int amdgpu_debugfs_autodump_open(struct inode *inode, struct file *file)
-{
-	struct amdgpu_device *adev = inode->i_private;
-	int ret;
-
-	file->private_data = adev;
-
-	ret = down_read_killable(&adev->reset_sem);
-	if (ret)
-		return ret;
-
-	if (adev->autodump.dumping.done) {
-		reinit_completion(&adev->autodump.dumping);
-		ret = 0;
-	} else {
-		ret = -EBUSY;
-	}
-
-	up_read(&adev->reset_sem);
-
-	return ret;
-}
-
-static int amdgpu_debugfs_autodump_release(struct inode *inode, struct file *file)
-{
-	struct amdgpu_device *adev = file->private_data;
-
-	complete_all(&adev->autodump.dumping);
-	return 0;
-}
-
-static unsigned int amdgpu_debugfs_autodump_poll(struct file *file, struct poll_table_struct *poll_table)
-{
-	struct amdgpu_device *adev = file->private_data;
-
-	poll_wait(file, &adev->autodump.gpu_hang, poll_table);
-
-	if (amdgpu_in_reset(adev))
-		return POLLIN | POLLRDNORM | POLLWRNORM;
-
-	return 0;
-}
-
-static const struct file_operations autodump_debug_fops = {
-	.owner = THIS_MODULE,
-	.open = amdgpu_debugfs_autodump_open,
-	.poll = amdgpu_debugfs_autodump_poll,
-	.release = amdgpu_debugfs_autodump_release,
-};
-
-static void amdgpu_debugfs_autodump_init(struct amdgpu_device *adev)
-{
-	init_completion(&adev->autodump.dumping);
-	complete_all(&adev->autodump.dumping);
-	init_waitqueue_head(&adev->autodump.gpu_hang);
-
-	debugfs_create_file("amdgpu_autodump", 0600,
-		adev_to_drm(adev)->primary->debugfs_root,
-		adev, &autodump_debug_fops);
-}
 
 /**
  * amdgpu_debugfs_process_reg_op - Handle MMIO register reads/writes
@@ -1407,7 +1328,7 @@ static int amdgpu_debugfs_evict_vram(void *data, u64 *val)
 		return r;
 	}
 
-	*val = amdgpu_bo_evict_vram(adev);
+	*val = amdgpu_ttm_evict_resources(adev, TTM_PL_VRAM);
 
 	pm_runtime_mark_last_busy(dev->dev);
 	pm_runtime_put_autosuspend(dev->dev);
@@ -1420,17 +1341,15 @@ static int amdgpu_debugfs_evict_gtt(void *data, u64 *val)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)data;
 	struct drm_device *dev = adev_to_drm(adev);
-	struct ttm_resource_manager *man;
 	int r;
 
 	r = pm_runtime_get_sync(dev->dev);
 	if (r < 0) {
-		pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
+		pm_runtime_put_autosuspend(dev->dev);
 		return r;
 	}
 
-	man = ttm_manager_type(&adev->mman.bdev, TTM_PL_TT);
-	*val = ttm_resource_manager_evict_all(&adev->mman.bdev, man);
+	*val = amdgpu_ttm_evict_resources(adev, TTM_PL_TT);
 
 	pm_runtime_mark_last_busy(dev->dev);
 	pm_runtime_put_autosuspend(dev->dev);
@@ -1696,6 +1615,9 @@ int amdgpu_debugfs_init(struct amdgpu_device *adev)
 	struct dentry *ent;
 	int r, i;
 
+	if (!debugfs_initialized())
+		return 0;
+
 	ent = debugfs_create_file("amdgpu_preempt_ib", 0600, root, adev,
 				  &fops_ib_preempt);
 	if (IS_ERR(ent)) {
@@ -1738,7 +1660,6 @@ int amdgpu_debugfs_init(struct amdgpu_device *adev)
 	}
 
 	amdgpu_ras_debugfs_create_all(adev);
-	amdgpu_debugfs_autodump_init(adev);
 	amdgpu_rap_debugfs_init(adev);
 	amdgpu_securedisplay_debugfs_init(adev);
 	amdgpu_fw_attestation_debugfs_init(adev);
@@ -1756,6 +1677,11 @@ int amdgpu_debugfs_init(struct amdgpu_device *adev)
 	adev->debugfs_vbios_blob.size = adev->bios_size;
 	debugfs_create_blob("amdgpu_vbios", 0444, root,
 			    &adev->debugfs_vbios_blob);
+
+	adev->debugfs_discovery_blob.data = adev->mman.discovery_bin;
+	adev->debugfs_discovery_blob.size = adev->mman.discovery_tmr_size;
+	debugfs_create_blob("amdgpu_discovery", 0444, root,
+			    &adev->debugfs_discovery_blob);
 
 	return 0;
 }

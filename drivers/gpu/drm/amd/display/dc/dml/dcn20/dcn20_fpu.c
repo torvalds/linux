@@ -26,7 +26,7 @@
 
 #include "resource.h"
 
-#include "dcn2x.h"
+#include "dcn20_fpu.h"
 
 /**
  * DOC: DCN2x FPU manipulation Overview

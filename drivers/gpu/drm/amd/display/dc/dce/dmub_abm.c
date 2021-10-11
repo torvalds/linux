@@ -203,12 +203,33 @@ static bool dmub_abm_init_config(struct abm *abm,
 	return true;
 }
 
+static bool dmub_abm_set_pause(struct abm *abm, bool pause, unsigned int panel_inst, unsigned int stream_inst)
+{
+	union dmub_rb_cmd cmd;
+	struct dc_context *dc = abm->ctx;
+	uint8_t panel_mask = 0x01 << panel_inst;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.abm_pause.header.type = DMUB_CMD__ABM;
+	cmd.abm_pause.header.sub_type = DMUB_CMD__ABM_PAUSE;
+	cmd.abm_pause.abm_pause_data.enable = pause;
+	cmd.abm_pause.abm_pause_data.panel_mask = panel_mask;
+	cmd.abm_set_level.header.payload_bytes = sizeof(struct dmub_cmd_abm_pause_data);
+
+	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd);
+	dc_dmub_srv_cmd_execute(dc->dmub_srv);
+	dc_dmub_srv_wait_idle(dc->dmub_srv);
+
+	return true;
+}
+
 static const struct abm_funcs abm_funcs = {
 	.abm_init = dmub_abm_init,
 	.set_abm_level = dmub_abm_set_level,
 	.get_current_backlight = dmub_abm_get_current_backlight,
 	.get_target_backlight = dmub_abm_get_target_backlight,
 	.init_abm_config = dmub_abm_init_config,
+	.set_abm_pause = dmub_abm_set_pause,
 };
 
 static void dmub_abm_construct(

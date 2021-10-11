@@ -252,4 +252,7 @@ void dcn31_link_encoder_disable_output(
 bool dcn31_link_encoder_is_in_alt_mode(
 	struct link_encoder *enc);
 
+void dcn31_link_encoder_get_max_link_cap(struct link_encoder *enc,
+	struct dc_link_settings *link_settings);
+
 #endif /* __DC_LINK_ENCODER__DCN31_H__ */

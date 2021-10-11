@@ -454,7 +454,7 @@ int amdgpu_uvd_suspend(struct amdgpu_device *adev)
 		if (!adev->uvd.inst[j].saved_bo)
 			return -ENOMEM;
 
-		if (drm_dev_enter(&adev->ddev, &idx)) {
+		if (drm_dev_enter(adev_to_drm(adev), &idx)) {
 			/* re-write 0 since err_event_athub will corrupt VCPU buffer */
 			if (in_ras_intr)
 				memset(adev->uvd.inst[j].saved_bo, 0, size);
@@ -487,7 +487,7 @@ int amdgpu_uvd_resume(struct amdgpu_device *adev)
 		ptr = adev->uvd.inst[i].cpu_addr;
 
 		if (adev->uvd.inst[i].saved_bo != NULL) {
-			if (drm_dev_enter(&adev->ddev, &idx)) {
+			if (drm_dev_enter(adev_to_drm(adev), &idx)) {
 				memcpy_toio(ptr, adev->uvd.inst[i].saved_bo, size);
 				drm_dev_exit(idx);
 			}
@@ -500,7 +500,7 @@ int amdgpu_uvd_resume(struct amdgpu_device *adev)
 			hdr = (const struct common_firmware_header *)adev->uvd.fw->data;
 			if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
 				offset = le32_to_cpu(hdr->ucode_array_offset_bytes);
-				if (drm_dev_enter(&adev->ddev, &idx)) {
+				if (drm_dev_enter(adev_to_drm(adev), &idx)) {
 					memcpy_toio(adev->uvd.inst[i].cpu_addr, adev->uvd.fw->data + offset,
 						    le32_to_cpu(hdr->ucode_size_bytes));
 					drm_dev_exit(idx);

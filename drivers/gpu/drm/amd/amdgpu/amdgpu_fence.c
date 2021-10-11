@@ -550,7 +550,7 @@ void amdgpu_fence_driver_hw_fini(struct amdgpu_device *adev)
 			drm_sched_stop(&ring->sched, NULL);
 
 		/* You can't wait for HW to signal if it's gone */
-		if (!drm_dev_is_unplugged(&adev->ddev))
+		if (!drm_dev_is_unplugged(adev_to_drm(adev)))
 			r = amdgpu_fence_wait_empty(ring);
 		else
 			r = -ENODEV;

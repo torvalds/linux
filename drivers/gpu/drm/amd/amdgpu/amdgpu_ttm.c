@@ -2036,6 +2036,36 @@ error_free:
 	return r;
 }
 
+/**
+ * amdgpu_ttm_evict_resources - evict memory buffers
+ * @adev: amdgpu device object
+ * @mem_type: evicted BO's memory type
+ *
+ * Evicts all @mem_type buffers on the lru list of the memory type.
+ *
+ * Returns:
+ * 0 for success or a negative error code on failure.
+ */
+int amdgpu_ttm_evict_resources(struct amdgpu_device *adev, int mem_type)
+{
+	struct ttm_resource_manager *man;
+
+	switch (mem_type) {
+	case TTM_PL_VRAM:
+	case TTM_PL_TT:
+	case AMDGPU_PL_GWS:
+	case AMDGPU_PL_GDS:
+	case AMDGPU_PL_OA:
+		man = ttm_manager_type(&adev->mman.bdev, mem_type);
+		break;
+	default:
+		DRM_ERROR("Trying to evict invalid memory type\n");
+		return -EINVAL;
+	}
+
+	return ttm_resource_manager_evict_all(&adev->mman.bdev, man);
+}
+
 #if defined(CONFIG_DEBUG_FS)
 
 static int amdgpu_mm_vram_table_show(struct seq_file *m, void *unused)
