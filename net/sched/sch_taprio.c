@@ -1641,6 +1641,10 @@ static void taprio_destroy(struct Qdisc *sch)
 	list_del(&q->taprio_list);
 	spin_unlock(&taprio_list_lock);
 
+	/* Note that taprio_reset() might not be called if an error
+	 * happens in qdisc_create(), after taprio_init() has been called.
+	 */
+	hrtimer_cancel(&q->advance_timer);
 
 	taprio_disable_offload(dev, q, NULL);
 
