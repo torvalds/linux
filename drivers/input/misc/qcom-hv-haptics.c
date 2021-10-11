@@ -343,6 +343,7 @@ enum haptics_hw_type {
 
 enum wa_flags {
 	TOGGLE_CAL_RC_CLK = BIT(0),
+	SW_CTRL_HBST = BIT(1),
 };
 
 static const char * const src_str[] = {
@@ -1137,6 +1138,9 @@ static int haptics_boost_vreg_enable(struct haptics_chip *chip, bool en)
 	if (is_haptics_external_powered(chip))
 		return 0;
 
+	if (!(chip->wa_flags & SW_CTRL_HBST))
+		return 0;
+
 	if (chip->hap_cfg_nvmem == NULL) {
 		dev_dbg(chip->dev, "nvmem device for hap_cfg is not defined\n");
 		return 0;
@@ -1206,6 +1210,9 @@ static int haptics_wait_hboost_ready(struct haptics_chip *chip)
 	u8 val;
 
 	if (is_haptics_external_powered(chip))
+		return 0;
+
+	if (!(chip->wa_flags & SW_CTRL_HBST))
 		return 0;
 	/*
 	 * Wait ~20ms until hBoost is ready, otherwise
@@ -2364,7 +2371,7 @@ static int haptics_config_wa(struct haptics_chip *chip)
 {
 	switch (chip->hw_type) {
 	case HAP520:
-		chip->wa_flags |= TOGGLE_CAL_RC_CLK;
+		chip->wa_flags |= TOGGLE_CAL_RC_CLK | SW_CTRL_HBST;
 		break;
 	case HAP520_MV:
 		break;
