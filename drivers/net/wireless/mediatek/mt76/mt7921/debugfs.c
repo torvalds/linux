@@ -417,7 +417,7 @@ int mt7921_init_debugfs(struct mt7921_dev *dev)
 {
 	struct dentry *dir;
 
-	dir = mt76_register_debugfs_fops(&dev->mt76, &fops_regval);
+	dir = mt76_register_debugfs_fops(&dev->mphy, &fops_regval);
 	if (!dir)
 		return -ENOMEM;
 
