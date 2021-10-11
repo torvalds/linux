@@ -1273,12 +1273,6 @@ static int set_id_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
 	return __set_id_reg(vcpu, rd, uaddr, raz);
 }
 
-static int get_raz_id_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
-			  const struct kvm_one_reg *reg, void __user *uaddr)
-{
-	return __get_id_reg(vcpu, rd, uaddr, true);
-}
-
 static int set_raz_id_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
 			  const struct kvm_one_reg *reg, void __user *uaddr)
 {
@@ -1402,7 +1396,7 @@ static unsigned int mte_visibility(const struct kvm_vcpu *vcpu,
 #define ID_UNALLOCATED(crm, op2) {			\
 	Op0(3), Op1(0), CRn(0), CRm(crm), Op2(op2),	\
 	.access = access_raz_id_reg,			\
-	.get_user = get_raz_id_reg,			\
+	.get_user = get_raz_reg,			\
 	.set_user = set_raz_id_reg,			\
 }
 
@@ -1414,7 +1408,7 @@ static unsigned int mte_visibility(const struct kvm_vcpu *vcpu,
 #define ID_HIDDEN(name) {			\
 	SYS_DESC(SYS_##name),			\
 	.access = access_raz_id_reg,		\
-	.get_user = get_raz_id_reg,		\
+	.get_user = get_raz_reg,		\
 	.set_user = set_raz_id_reg,		\
 }
 
