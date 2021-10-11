@@ -64,6 +64,7 @@
 #include "ice_xsk.h"
 #include "ice_arfs.h"
 #include "ice_repr.h"
+#include "ice_eswitch.h"
 #include "ice_lag.h"
 
 #define ICE_BAR0		0
@@ -400,6 +401,7 @@ enum ice_pf_flags {
 	ICE_FLAG_PTP,			/* PTP is enabled by software */
 	ICE_FLAG_AUX_ENA,
 	ICE_FLAG_ADV_FEATURES,
+	ICE_FLAG_CLS_FLOWER,
 	ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA,
 	ICE_FLAG_TOTAL_PORT_SHUTDOWN_ENA,
 	ICE_FLAG_NO_MEDIA,
@@ -511,6 +513,8 @@ struct ice_pf {
 	struct auxiliary_device *adev;
 	int aux_idx;
 	u32 sw_int_count;
+
+	struct hlist_head tc_flower_fltr_list;
 
 	__le64 nvm_phy_type_lo; /* NVM PHY type low */
 	__le64 nvm_phy_type_hi; /* NVM PHY type high */

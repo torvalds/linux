@@ -454,6 +454,133 @@ static u32 ice_fltr_build_action(u16 vsi_id)
 }
 
 /**
+ * ice_fltr_find_adv_entry - find advanced rule
+ * @rules: list of rules
+ * @rule_id: id of wanted rule
+ */
+static struct ice_adv_fltr_mgmt_list_entry *
+ice_fltr_find_adv_entry(struct list_head *rules, u16 rule_id)
+{
+	struct ice_adv_fltr_mgmt_list_entry *entry;
+
+	list_for_each_entry(entry, rules, list_entry) {
+		if (entry->rule_info.fltr_rule_id == rule_id)
+			return entry;
+	}
+
+	return NULL;
+}
+
+/**
+ * ice_fltr_update_adv_rule_flags - update flags on advanced rule
+ * @vsi: pointer to VSI
+ * @recipe_id: id of recipe
+ * @entry: advanced rule entry
+ * @new_flags: flags to update
+ */
+static enum ice_status
+ice_fltr_update_adv_rule_flags(struct ice_vsi *vsi, u16 recipe_id,
+			       struct ice_adv_fltr_mgmt_list_entry *entry,
+			       u32 new_flags)
+{
+	struct ice_adv_rule_info *info = &entry->rule_info;
+	struct ice_sw_act_ctrl *act = &info->sw_act;
+	u32 action;
+
+	if (act->fltr_act != ICE_FWD_TO_VSI)
+		return ICE_ERR_NOT_SUPPORTED;
+
+	action = ice_fltr_build_action(act->fwd_id.hw_vsi_id);
+
+	return ice_fltr_update_rule_flags(&vsi->back->hw, info->fltr_rule_id,
+					  recipe_id, action, info->sw_act.flag,
+					  act->src, new_flags);
+}
+
+/**
+ * ice_fltr_find_regular_entry - find regular rule
+ * @rules: list of rules
+ * @rule_id: id of wanted rule
+ */
+static struct ice_fltr_mgmt_list_entry *
+ice_fltr_find_regular_entry(struct list_head *rules, u16 rule_id)
+{
+	struct ice_fltr_mgmt_list_entry *entry;
+
+	list_for_each_entry(entry, rules, list_entry) {
+		if (entry->fltr_info.fltr_rule_id == rule_id)
+			return entry;
+	}
+
+	return NULL;
+}
+
+/**
+ * ice_fltr_update_regular_rule - update flags on regular rule
+ * @vsi: pointer to VSI
+ * @recipe_id: id of recipe
+ * @entry: regular rule entry
+ * @new_flags: flags to update
+ */
+static enum ice_status
+ice_fltr_update_regular_rule(struct ice_vsi *vsi, u16 recipe_id,
+			     struct ice_fltr_mgmt_list_entry *entry,
+			     u32 new_flags)
+{
+	struct ice_fltr_info *info = &entry->fltr_info;
+	u32 action;
+
+	if (info->fltr_act != ICE_FWD_TO_VSI)
+		return ICE_ERR_NOT_SUPPORTED;
+
+	action = ice_fltr_build_action(info->fwd_id.hw_vsi_id);
+
+	return ice_fltr_update_rule_flags(&vsi->back->hw, info->fltr_rule_id,
+					  recipe_id, action, info->flag,
+					  info->src, new_flags);
+}
+
+/**
+ * ice_fltr_update_flags - update flags on rule
+ * @vsi: pointer to VSI
+ * @rule_id: id of rule
+ * @recipe_id: id of recipe
+ * @new_flags: flags to update
+ *
+ * Function updates flags on regular and advance rule.
+ *
+ * Flags should be a combination of ICE_SINGLE_ACT_LB_ENABLE and
+ * ICE_SINGLE_ACT_LAN_ENABLE.
+ */
+enum ice_status
+ice_fltr_update_flags(struct ice_vsi *vsi, u16 rule_id, u16 recipe_id,
+		      u32 new_flags)
+{
+	struct ice_adv_fltr_mgmt_list_entry *adv_entry;
+	struct ice_fltr_mgmt_list_entry *regular_entry;
+	struct ice_hw *hw = &vsi->back->hw;
+	struct ice_sw_recipe *recp_list;
+	struct list_head *fltr_rules;
+
+	recp_list = &hw->switch_info->recp_list[recipe_id];
+	if (!recp_list)
+		return ICE_ERR_DOES_NOT_EXIST;
+
+	fltr_rules = &recp_list->filt_rules;
+	regular_entry = ice_fltr_find_regular_entry(fltr_rules, rule_id);
+	if (regular_entry)
+		return ice_fltr_update_regular_rule(vsi, recipe_id,
+						    regular_entry, new_flags);
+
+	adv_entry = ice_fltr_find_adv_entry(fltr_rules, rule_id);
+	if (adv_entry)
+		return ice_fltr_update_adv_rule_flags(vsi, recipe_id,
+						      adv_entry, new_flags);
+
+	return ICE_ERR_DOES_NOT_EXIST;
+}
+
+/**
  * ice_fltr_update_flags_dflt_rule - update flags on default rule
  * @vsi: pointer to VSI
  * @rule_id: id of rule
