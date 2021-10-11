@@ -34,6 +34,17 @@ config IMX_REMOTEPROC
 
 	  It's safe to say N here.
 
+config IMX_DSP_REMOTEPROC
+	tristate "i.MX DSP remoteproc support"
+	depends on ARCH_MXC
+	depends on HAVE_ARM_SMCCC
+	select MAILBOX
+	help
+	  Say y here to support iMX's DSP remote processors via the remote
+	  processor framework.
+
+	  It's safe to say N here.
+
 config INGENIC_VPU_RPROC
 	tristate "Ingenic JZ47xx VPU remoteproc support"
 	depends on MIPS || COMPILE_TEST
