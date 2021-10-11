@@ -213,9 +213,7 @@ static void pll_14nm_dec_frac_calc(struct dsi_pll_14nm *pll, struct dsi_pll_conf
 	DBG("vco_clk_rate=%lld ref_clk_rate=%lld", vco_clk_rate, fref);
 
 	dec_start_multiple = div_u64(vco_clk_rate * multiplier, fref);
-	div_u64_rem(dec_start_multiple, multiplier, &div_frac_start);
-
-	dec_start = div_u64(dec_start_multiple, multiplier);
+	dec_start = div_u64_rem(dec_start_multiple, multiplier, &div_frac_start);
 
 	pconf->dec_start = (u32)dec_start;
 	pconf->div_frac_start = div_frac_start;
