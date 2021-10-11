@@ -32,13 +32,6 @@ static const struct xt_table security_table = {
 	.priority	= NF_IP6_PRI_SECURITY,
 };
 
-static unsigned int
-ip6table_security_hook(void *priv, struct sk_buff *skb,
-		       const struct nf_hook_state *state)
-{
-	return ip6t_do_table(skb, state, priv);
-}
-
 static struct nf_hook_ops *sectbl_ops __read_mostly;
 
 static int ip6table_security_table_init(struct net *net)
@@ -77,7 +70,7 @@ static int __init ip6table_security_init(void)
 	if (ret < 0)
 		return ret;
 
-	sectbl_ops = xt_hook_ops_alloc(&security_table, ip6table_security_hook);
+	sectbl_ops = xt_hook_ops_alloc(&security_table, ip6t_do_table);
 	if (IS_ERR(sectbl_ops)) {
 		xt_unregister_template(&security_table);
 		return PTR_ERR(sectbl_ops);
