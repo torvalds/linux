@@ -139,7 +139,7 @@ imx8m_blk_ctrl_xlate(struct of_phandle_args *args, void *data)
 	unsigned int index = args->args[0];
 
 	if (args->args_count != 1 ||
-	    index > onecell_data->num_domains)
+	    index >= onecell_data->num_domains)
 		return ERR_PTR(-EINVAL);
 
 	return onecell_data->domains[index];
