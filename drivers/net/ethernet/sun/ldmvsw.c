@@ -238,7 +238,7 @@ static struct net_device *vsw_alloc_netdev(u8 hwaddr[],
 	dev->needed_tailroom = 8;
 
 	eth_hw_addr_set(dev, hwaddr);
-	ether_addr_copy(dev->perm_addr, dev->dev_addr)
+	ether_addr_copy(dev->perm_addr, dev->dev_addr);
 
 	sprintf(dev->name, "vif%d.%d", (int)handle, (int)port_id);
 
