@@ -1311,12 +1311,11 @@ static int rt1011_r0_load_info(struct snd_kcontrol *kcontrol,
 	.put = rt1011_r0_load_mode_put \
 }
 
-static const char * const rt1011_i2s_ref[] = {
+static const char * const rt1011_i2s_ref_texts[] = {
 	"None", "Left Channel", "Right Channel"
 };
 
-static SOC_ENUM_SINGLE_DECL(rt1011_i2s_ref_enum, 0, 0,
-	rt1011_i2s_ref);
+static SOC_ENUM_SINGLE_EXT_DECL(rt1011_i2s_ref_enum, rt1011_i2s_ref_texts);
 
 static int rt1011_i2s_ref_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
@@ -1325,7 +1324,7 @@ static int rt1011_i2s_ref_put(struct snd_kcontrol *kcontrol,
 		snd_soc_kcontrol_component(kcontrol);
 	struct rt1011_priv *rt1011 =
 		snd_soc_component_get_drvdata(component);
-	int i2s_ref_ch = ucontrol->value.integer.value[0];
+	int i2s_ref_ch = ucontrol->value.enumerated.item[0];
 
 	switch (i2s_ref_ch) {
 	case RT1011_I2S_REF_LEFT_CH:
@@ -1344,7 +1343,7 @@ static int rt1011_i2s_ref_put(struct snd_kcontrol *kcontrol,
 		dev_info(component->dev, "I2S Reference: Do nothing\n");
 	}
 
-	rt1011->i2s_ref = ucontrol->value.integer.value[0];
+	rt1011->i2s_ref = ucontrol->value.enumerated.item[0];
 
 	return 0;
 }
@@ -1357,7 +1356,7 @@ static int rt1011_i2s_ref_get(struct snd_kcontrol *kcontrol,
 	struct rt1011_priv *rt1011 =
 		snd_soc_component_get_drvdata(component);
 
-	ucontrol->value.integer.value[0] = rt1011->i2s_ref;
+	ucontrol->value.enumerated.item[0] = rt1011->i2s_ref;
 
 	return 0;
 }
