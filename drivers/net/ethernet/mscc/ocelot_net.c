@@ -1625,7 +1625,7 @@ static int ocelot_port_phylink_create(struct ocelot *ocelot, int port,
 	if (phy_mode == PHY_INTERFACE_MODE_QSGMII)
 		ocelot_port_rmwl(ocelot_port, 0,
 				 DEV_CLOCK_CFG_MAC_TX_RST |
-				 DEV_CLOCK_CFG_MAC_TX_RST,
+				 DEV_CLOCK_CFG_MAC_RX_RST,
 				 DEV_CLOCK_CFG);
 
 	ocelot_port->phy_mode = phy_mode;

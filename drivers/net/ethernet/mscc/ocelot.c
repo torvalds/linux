@@ -472,9 +472,9 @@ void ocelot_phylink_mac_link_down(struct ocelot *ocelot, int port,
 	    !(quirks & OCELOT_QUIRK_QSGMII_PORTS_MUST_BE_UP))
 		ocelot_port_rmwl(ocelot_port,
 				 DEV_CLOCK_CFG_MAC_TX_RST |
-				 DEV_CLOCK_CFG_MAC_TX_RST,
+				 DEV_CLOCK_CFG_MAC_RX_RST,
 				 DEV_CLOCK_CFG_MAC_TX_RST |
-				 DEV_CLOCK_CFG_MAC_TX_RST,
+				 DEV_CLOCK_CFG_MAC_RX_RST,
 				 DEV_CLOCK_CFG);
 }
 EXPORT_SYMBOL_GPL(ocelot_phylink_mac_link_down);
