@@ -705,18 +705,35 @@ static int ni_try_remove_attr_list(struct ntfs_inode *ni)
 			continue;
 
 		mi = ni_find_mi(ni, ino_get(&le->ref));
+		if (!mi) {
+			/* Should never happened, 'cause already checked. */
+			goto bad;
+		}
 
 		attr = mi_find_attr(mi, NULL, le->type, le_name(le),
 				    le->name_len, &le->id);
+		if (!attr) {
+			/* Should never happened, 'cause already checked. */
+			goto bad;
+		}
 		asize = le32_to_cpu(attr->size);
 
 		/* Insert into primary record. */
 		attr_ins = mi_insert_attr(&ni->mi, le->type, le_name(le),
 					  le->name_len, asize,
 					  le16_to_cpu(attr->name_off));
-		id = attr_ins->id;
+		if (!attr_ins) {
+			/*
+			 * Internal error.
+			 * Either no space in primary record (already checked).
+			 * Either tried to insert another
+			 * non indexed attribute (logic error).
+			 */
+			goto bad;
+		}
 
 		/* Copy all except id. */
+		id = attr_ins->id;
 		memcpy(attr_ins, attr, asize);
 		attr_ins->id = id;
 
@@ -732,6 +749,10 @@ static int ni_try_remove_attr_list(struct ntfs_inode *ni)
 	ni->attr_list.dirty = false;
 
 	return 0;
+bad:
+	ntfs_inode_err(&ni->vfs_inode, "Internal error");
+	make_bad_inode(&ni->vfs_inode);
+	return -EINVAL;
 }
 
 /*
