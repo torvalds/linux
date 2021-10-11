@@ -8,10 +8,6 @@
 #include "../include/drv_types.h"
 #include "../include/rtl8188e_hal.h"
 
-static void dm_CheckStatistics(struct adapter *Adapter)
-{
-}
-
 /*  Initialize GPIO setting registers */
 static void dm_InitGPIOSetting(struct adapter *Adapter)
 {
@@ -135,13 +131,6 @@ void rtl8188e_HalDmWatchDog(struct adapter *Adapter)
 	/*  modifed by thomas. 2011.06.11. */
 	if (Adapter->wdinfo.p2p_ps_mode)
 		fw_ps_awake = false;
-
-	if (hw_init_completed && ((!fw_cur_in_ps) && fw_ps_awake)) {
-		/*  Calculate Tx/Rx statistics. */
-		dm_CheckStatistics(Adapter);
-
-
-	}
 
 	/* ODM */
 	if (hw_init_completed) {
