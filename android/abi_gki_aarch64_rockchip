@@ -1782,6 +1782,75 @@
   v4l2_async_notifier_add_subdev
   v4l2_async_notifier_unregister
 
+# required by video_rkisp.ko
+  iommu_get_domain_for_dev
+  __kfifo_out
+  kmalloc_order_trace
+  media_device_cleanup
+  media_device_init
+  __media_device_register
+  media_device_unregister
+  media_graph_walk_cleanup
+  media_graph_walk_init
+  media_graph_walk_next
+  media_graph_walk_start
+  media_pipeline_start
+  media_pipeline_stop
+  __memcpy_fromio
+  __memcpy_toio
+  of_property_read_u64
+  param_ops_string
+  param_ops_ullong
+  PDE_DATA
+  proc_create_data
+  remove_proc_entry
+  v4l2_async_notifier_register
+  v4l2_ctrl_g_ctrl_int64
+  v4l2_device_register
+  v4l2_device_register_subdev
+  __v4l2_device_register_subdev_nodes
+  v4l2_device_unregister
+  v4l2_device_unregister_subdev
+  v4l2_event_queue
+  v4l2_event_subdev_unsubscribe
+  v4l2_event_subscribe
+  v4l2_event_unsubscribe
+  v4l2_fh_open
+  v4l2_pipeline_link_notify
+  v4l2_pipeline_pm_get
+  v4l2_pipeline_pm_put
+  v4l2_subdev_link_validate
+  v4l2_type_names
+  vb2_buffer_done
+  vb2_dma_contig_memops
+  vb2_fop_mmap
+  vb2_fop_poll
+  vb2_fop_release
+  vb2_ioctl_create_bufs
+  vb2_ioctl_dqbuf
+  vb2_ioctl_expbuf
+  vb2_ioctl_prepare_buf
+  vb2_ioctl_qbuf
+  vb2_ioctl_querybuf
+  vb2_ioctl_reqbufs
+  vb2_ioctl_streamoff
+  vb2_ioctl_streamon
+  vb2_ops_wait_finish
+  vb2_ops_wait_prepare
+  vb2_plane_cookie
+  vb2_plane_vaddr
+  vb2_queue_init
+  vb2_queue_release
+  vb2_vmalloc_memops
+  video_devdata
+  video_device_release_empty
+  video_ioctl2
+  __video_register_device
+  video_unregister_device
+
+# required by videobuf2-dma-sg.ko
+  split_page
+
 # required by zram.ko
   __alloc_percpu
   bio_endio
