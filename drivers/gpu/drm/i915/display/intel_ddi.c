@@ -1338,13 +1338,20 @@ static int translate_signal_level(struct intel_dp *intel_dp,
 	return 0;
 }
 
-static int intel_ddi_dp_level(struct intel_dp *intel_dp, int lane)
+static int intel_ddi_dp_level(struct intel_dp *intel_dp,
+			      const struct intel_crtc_state *crtc_state,
+			      int lane)
 {
 	u8 train_set = intel_dp->train_set[lane];
-	u8 signal_levels = train_set & (DP_TRAIN_VOLTAGE_SWING_MASK |
-					DP_TRAIN_PRE_EMPHASIS_MASK);
 
-	return translate_signal_level(intel_dp, signal_levels);
+	if (intel_dp_is_uhbr(crtc_state)) {
+		return train_set & DP_TX_FFE_PRESET_VALUE_MASK;
+	} else {
+		u8 signal_levels = train_set & (DP_TRAIN_VOLTAGE_SWING_MASK |
+						DP_TRAIN_PRE_EMPHASIS_MASK);
+
+		return translate_signal_level(intel_dp, signal_levels);
+	}
 }
 
 int intel_ddi_level(struct intel_encoder *encoder,
@@ -1362,7 +1369,8 @@ int intel_ddi_level(struct intel_encoder *encoder,
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
 		level = intel_ddi_hdmi_level(encoder, trans);
 	else
-		level = intel_ddi_dp_level(enc_to_intel_dp(encoder), lane);
+		level = intel_ddi_dp_level(enc_to_intel_dp(encoder), crtc_state,
+					   lane);
 
 	if (drm_WARN_ON_ONCE(&i915->drm, level >= n_entries))
 		level = n_entries - 1;
