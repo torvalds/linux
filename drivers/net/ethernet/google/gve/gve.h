@@ -825,11 +825,10 @@ __be32 gve_tx_load_event_counter(struct gve_priv *priv,
 				 struct gve_tx_ring *tx);
 /* rx handling */
 void gve_rx_write_doorbell(struct gve_priv *priv, struct gve_rx_ring *rx);
-bool gve_rx_poll(struct gve_notify_block *block, int budget);
+int gve_rx_poll(struct gve_notify_block *block, int budget);
+bool gve_rx_work_pending(struct gve_rx_ring *rx);
 int gve_rx_alloc_rings(struct gve_priv *priv);
 void gve_rx_free_rings_gqi(struct gve_priv *priv);
-bool gve_clean_rx_done(struct gve_rx_ring *rx, int budget,
-		       netdev_features_t feat);
 /* Reset */
 void gve_schedule_reset(struct gve_priv *priv);
 int gve_reset(struct gve_priv *priv, bool attempt_teardown);

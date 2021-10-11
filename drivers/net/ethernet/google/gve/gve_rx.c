@@ -456,7 +456,7 @@ static bool gve_rx(struct gve_rx_ring *rx, struct gve_rx_desc *rx_desc,
 	return true;
 }
 
-static bool gve_rx_work_pending(struct gve_rx_ring *rx)
+bool gve_rx_work_pending(struct gve_rx_ring *rx)
 {
 	struct gve_rx_desc *desc;
 	__be16 flags_seq;
@@ -524,8 +524,8 @@ static bool gve_rx_refill_buffers(struct gve_priv *priv, struct gve_rx_ring *rx)
 	return true;
 }
 
-bool gve_clean_rx_done(struct gve_rx_ring *rx, int budget,
-		       netdev_features_t feat)
+static int gve_clean_rx_done(struct gve_rx_ring *rx, int budget,
+			     netdev_features_t feat)
 {
 	struct gve_priv *priv = rx->gve;
 	u32 work_done = 0, packets = 0;
@@ -559,13 +559,15 @@ bool gve_clean_rx_done(struct gve_rx_ring *rx, int budget,
 	}
 
 	if (!work_done && rx->fill_cnt - cnt > rx->db_threshold)
-		return false;
+		return 0;
 
-	u64_stats_update_begin(&rx->statss);
-	rx->rpackets += packets;
-	rx->rbytes += bytes;
-	u64_stats_update_end(&rx->statss);
-	rx->cnt = cnt;
+	if (work_done) {
+		u64_stats_update_begin(&rx->statss);
+		rx->rpackets += packets;
+		rx->rbytes += bytes;
+		u64_stats_update_end(&rx->statss);
+		rx->cnt = cnt;
+	}
 
 	/* restock ring slots */
 	if (!rx->data.raw_addressing) {
@@ -576,26 +578,26 @@ bool gve_clean_rx_done(struct gve_rx_ring *rx, int budget,
 		 * falls below a threshold.
 		 */
 		if (!gve_rx_refill_buffers(priv, rx))
-			return false;
+			return 0;
 
 		/* If we were not able to completely refill buffers, we'll want
 		 * to schedule this queue for work again to refill buffers.
 		 */
 		if (rx->fill_cnt - cnt <= rx->db_threshold) {
 			gve_rx_write_doorbell(priv, rx);
-			return true;
+			return budget;
 		}
 	}
 
 	gve_rx_write_doorbell(priv, rx);
-	return gve_rx_work_pending(rx);
+	return work_done;
 }
 
-bool gve_rx_poll(struct gve_notify_block *block, int budget)
+int gve_rx_poll(struct gve_notify_block *block, int budget)
 {
 	struct gve_rx_ring *rx = block->rx;
 	netdev_features_t feat;
-	bool repoll = false;
+	int work_done = 0;
 
 	feat = block->napi.dev->features;
 
@@ -604,8 +606,7 @@ bool gve_rx_poll(struct gve_notify_block *block, int budget)
 		budget = INT_MAX;
 
 	if (budget > 0)
-		repoll |= gve_clean_rx_done(rx, budget, feat);
-	else
-		repoll |= gve_rx_work_pending(rx);
-	return repoll;
+		work_done = gve_clean_rx_done(rx, budget, feat);
+
+	return work_done;
 }

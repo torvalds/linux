@@ -192,34 +192,40 @@ static int gve_napi_poll(struct napi_struct *napi, int budget)
 	__be32 __iomem *irq_doorbell;
 	bool reschedule = false;
 	struct gve_priv *priv;
+	int work_done = 0;
 
 	block = container_of(napi, struct gve_notify_block, napi);
 	priv = block->priv;
 
 	if (block->tx)
 		reschedule |= gve_tx_poll(block, budget);
-	if (block->rx)
-		reschedule |= gve_rx_poll(block, budget);
+	if (block->rx) {
+		work_done = gve_rx_poll(block, budget);
+		reschedule |= work_done == budget;
+	}
 
 	if (reschedule)
 		return budget;
 
-	napi_complete(napi);
-	irq_doorbell = gve_irq_doorbell(priv, block);
-	iowrite32be(GVE_IRQ_ACK | GVE_IRQ_EVENT, irq_doorbell);
+       /* Complete processing - don't unmask irq if busy polling is enabled */
+	if (likely(napi_complete_done(napi, work_done))) {
+		irq_doorbell = gve_irq_doorbell(priv, block);
+		iowrite32be(GVE_IRQ_ACK | GVE_IRQ_EVENT, irq_doorbell);
 
-	/* Double check we have no extra work.
-	 * Ensure unmask synchronizes with checking for work.
-	 */
-	mb();
-	if (block->tx)
-		reschedule |= gve_tx_poll(block, -1);
-	if (block->rx)
-		reschedule |= gve_rx_poll(block, -1);
-	if (reschedule && napi_reschedule(napi))
-		iowrite32be(GVE_IRQ_MASK, irq_doorbell);
+		/* Double check we have no extra work.
+		 * Ensure unmask synchronizes with checking for work.
+		 */
+		mb();
 
-	return 0;
+		if (block->tx)
+			reschedule |= gve_tx_poll(block, -1);
+		if (block->rx)
+			reschedule |= gve_rx_work_pending(block->rx);
+
+		if (reschedule && napi_reschedule(napi))
+			iowrite32be(GVE_IRQ_MASK, irq_doorbell);
+	}
+	return work_done;
 }
 
 static int gve_napi_poll_dqo(struct napi_struct *napi, int budget)
