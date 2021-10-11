@@ -1222,7 +1222,7 @@ static void neigh_update_hhs(struct neighbour *neigh)
 				lladdr instead of overriding it
 				if it is different.
 	NEIGH_UPDATE_F_ADMIN	means that the change is administrative.
-
+	NEIGH_UPDATE_F_USE	means that the entry is user triggered.
 	NEIGH_UPDATE_F_OVERRIDE_ISROUTER allows to override existing
 				NTF_ROUTER flag.
 	NEIGH_UPDATE_F_ISROUTER	indicates if the neighbour is known as
@@ -1260,6 +1260,12 @@ static int __neigh_update(struct neighbour *neigh, const u8 *lladdr,
 		goto out;
 
 	ext_learn_change = neigh_update_ext_learned(neigh, flags, &notify);
+	if (flags & NEIGH_UPDATE_F_USE) {
+		new = old & ~NUD_PERMANENT;
+		neigh->nud_state = new;
+		err = 0;
+		goto out;
+	}
 
 	if (!(new & NUD_VALID)) {
 		neigh_del_timer(neigh);
@@ -1971,22 +1977,20 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	if (protocol)
 		neigh->protocol = protocol;
-
 	if (ndm->ndm_flags & NTF_EXT_LEARNED)
 		flags |= NEIGH_UPDATE_F_EXT_LEARNED;
-
 	if (ndm->ndm_flags & NTF_ROUTER)
 		flags |= NEIGH_UPDATE_F_ISROUTER;
+	if (ndm->ndm_flags & NTF_USE)
+		flags |= NEIGH_UPDATE_F_USE;
 
-	if (ndm->ndm_flags & NTF_USE) {
+	err = __neigh_update(neigh, lladdr, ndm->ndm_state, flags,
+			     NETLINK_CB(skb).portid, extack);
+	if (!err && ndm->ndm_flags & NTF_USE) {
 		neigh_event_send(neigh, NULL);
 		err = 0;
-	} else
-		err = __neigh_update(neigh, lladdr, ndm->ndm_state, flags,
-				     NETLINK_CB(skb).portid, extack);
-
+	}
 	neigh_release(neigh);
-
 out:
 	return err;
 }
