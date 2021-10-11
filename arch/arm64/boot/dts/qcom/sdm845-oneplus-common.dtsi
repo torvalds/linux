@@ -92,7 +92,6 @@
 			console-size = <0x40000>;
 			ftrace-size = <0x40000>;
 			pmsg-size = <0x200000>;
-			devinfo-size = <0x1000>;
 			ecc-size = <16>;
 		};
 	};
