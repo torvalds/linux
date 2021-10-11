@@ -187,3 +187,6 @@
 
 #required by mi_gamekey.ko module
   gpio_request_array
+
+#extend_reclaim.ko
+  try_to_free_mem_cgroup_pages
