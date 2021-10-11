@@ -40,9 +40,12 @@
 
 #include "i915_drv.h"
 #include "intel_atomic.h"
+#include "intel_backlight.h"
 #include "intel_connector.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
+#include "intel_dpll.h"
+#include "intel_fdi.h"
 #include "intel_gmbus.h"
 #include "intel_lvds.h"
 #include "intel_panel.h"
@@ -323,7 +326,7 @@ static void intel_enable_lvds(struct intel_atomic_state *state,
 		drm_err(&dev_priv->drm,
 			"timed out waiting for panel to power on\n");
 
-	intel_panel_enable_backlight(pipe_config, conn_state);
+	intel_backlight_enable(pipe_config, conn_state);
 }
 
 static void intel_disable_lvds(struct intel_atomic_state *state,
@@ -351,7 +354,7 @@ static void gmch_disable_lvds(struct intel_atomic_state *state,
 			      const struct drm_connector_state *old_conn_state)
 
 {
-	intel_panel_disable_backlight(old_conn_state);
+	intel_backlight_disable(old_conn_state);
 
 	intel_disable_lvds(state, encoder, old_crtc_state, old_conn_state);
 }
@@ -361,7 +364,7 @@ static void pch_disable_lvds(struct intel_atomic_state *state,
 			     const struct intel_crtc_state *old_crtc_state,
 			     const struct drm_connector_state *old_conn_state)
 {
-	intel_panel_disable_backlight(old_conn_state);
+	intel_backlight_disable(old_conn_state);
 }
 
 static void pch_post_disable_lvds(struct intel_atomic_state *state,
@@ -388,13 +391,15 @@ intel_lvds_mode_valid(struct drm_connector *connector,
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct drm_display_mode *fixed_mode = intel_connector->panel.fixed_mode;
 	int max_pixclk = to_i915(connector->dev)->max_dotclk_freq;
+	enum drm_mode_status status;
 
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return MODE_NO_DBLESCAN;
-	if (mode->hdisplay > fixed_mode->hdisplay)
-		return MODE_PANEL;
-	if (mode->vdisplay > fixed_mode->vdisplay)
-		return MODE_PANEL;
+
+	status = intel_panel_mode_valid(intel_connector, mode);
+	if (status != MODE_OK)
+		return status;
+
 	if (fixed_mode->clock > max_pixclk)
 		return MODE_CLOCK_HIGH;
 
@@ -441,8 +446,9 @@ static int intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 	 * with the panel scaling set up to source from the H/VDisplay
 	 * of the original mode.
 	 */
-	intel_fixed_panel_mode(intel_connector->panel.fixed_mode,
-			       adjusted_mode);
+	ret = intel_panel_compute_config(intel_connector, adjusted_mode);
+	if (ret)
+		return ret;
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return -EINVAL;
@@ -450,10 +456,7 @@ static int intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 	if (HAS_PCH_SPLIT(dev_priv))
 		pipe_config->has_pch_encoder = true;
 
-	if (HAS_GMCH(dev_priv))
-		ret = intel_gmch_panel_fitting(pipe_config, conn_state);
-	else
-		ret = intel_pch_panel_fitting(pipe_config, conn_state);
+	ret = intel_panel_fitting(pipe_config, conn_state);
 	if (ret)
 		return ret;
 
@@ -906,7 +909,7 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	}
 	intel_encoder->get_hw_state = intel_lvds_get_hw_state;
 	intel_encoder->get_config = intel_lvds_get_config;
-	intel_encoder->update_pipe = intel_panel_update_backlight;
+	intel_encoder->update_pipe = intel_backlight_update;
 	intel_encoder->shutdown = intel_lvds_shutdown;
 	intel_connector->get_hw_state = intel_connector_get_hw_state;
 
@@ -999,7 +1002,7 @@ out:
 	mutex_unlock(&dev->mode_config.mutex);
 
 	intel_panel_init(&intel_connector->panel, fixed_mode, downclock_mode);
-	intel_panel_setup_backlight(connector, INVALID_PIPE);
+	intel_backlight_setup(intel_connector, INVALID_PIPE);
 
 	lvds_encoder->is_dual_link = compute_is_dual_link_lvds(lvds_encoder);
 	drm_dbg_kms(&dev_priv->drm, "detected %s-link lvds configuration\n",

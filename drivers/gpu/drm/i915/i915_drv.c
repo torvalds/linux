@@ -97,7 +97,7 @@ static int i915_get_bridge_dev(struct drm_i915_private *dev_priv)
 		pci_get_domain_bus_and_slot(domain, 0, PCI_DEVFN(0, 0));
 	if (!dev_priv->bridge_dev) {
 		drm_err(&dev_priv->drm, "bridge device not found\n");
-		return -1;
+		return -EIO;
 	}
 	return 0;
 }
@@ -409,8 +409,9 @@ static int i915_driver_mmio_probe(struct drm_i915_private *dev_priv)
 	if (i915_inject_probe_failure(dev_priv))
 		return -ENODEV;
 
-	if (i915_get_bridge_dev(dev_priv))
-		return -EIO;
+	ret = i915_get_bridge_dev(dev_priv);
+	if (ret < 0)
+		return ret;
 
 	ret = intel_uncore_init_mmio(&dev_priv->uncore);
 	if (ret < 0)
