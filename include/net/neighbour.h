@@ -155,6 +155,7 @@ struct neighbour {
 	int			(*output)(struct neighbour *, struct sk_buff *);
 	const struct neigh_ops	*ops;
 	struct list_head	gc_list;
+	struct list_head	managed_list;
 	struct rcu_head		rcu;
 	struct net_device	*dev;
 	u8			primary_key[0];
@@ -216,11 +217,13 @@ struct neigh_table {
 	int			gc_thresh3;
 	unsigned long		last_flush;
 	struct delayed_work	gc_work;
+	struct delayed_work	managed_work;
 	struct timer_list 	proxy_timer;
 	struct sk_buff_head	proxy_queue;
 	atomic_t		entries;
 	atomic_t		gc_entries;
 	struct list_head	gc_list;
+	struct list_head	managed_list;
 	rwlock_t		lock;
 	unsigned long		last_rand;
 	struct neigh_statistics	__percpu *stats;
@@ -250,17 +253,21 @@ static inline void *neighbour_priv(const struct neighbour *n)
 }
 
 /* flags for neigh_update() */
-#define NEIGH_UPDATE_F_OVERRIDE			0x00000001
-#define NEIGH_UPDATE_F_WEAK_OVERRIDE		0x00000002
-#define NEIGH_UPDATE_F_OVERRIDE_ISROUTER	0x00000004
-#define NEIGH_UPDATE_F_USE			0x10000000
-#define NEIGH_UPDATE_F_EXT_LEARNED		0x20000000
-#define NEIGH_UPDATE_F_ISROUTER			0x40000000
-#define NEIGH_UPDATE_F_ADMIN			0x80000000
+#define NEIGH_UPDATE_F_OVERRIDE			BIT(0)
+#define NEIGH_UPDATE_F_WEAK_OVERRIDE		BIT(1)
+#define NEIGH_UPDATE_F_OVERRIDE_ISROUTER	BIT(2)
+#define NEIGH_UPDATE_F_USE			BIT(3)
+#define NEIGH_UPDATE_F_MANAGED			BIT(4)
+#define NEIGH_UPDATE_F_EXT_LEARNED		BIT(5)
+#define NEIGH_UPDATE_F_ISROUTER			BIT(6)
+#define NEIGH_UPDATE_F_ADMIN			BIT(7)
 
 /* In-kernel representation for NDA_FLAGS_EXT flags: */
 #define NTF_OLD_MASK		0xff
 #define NTF_EXT_SHIFT		8
+#define NTF_EXT_MASK		(NTF_EXT_MANAGED)
+
+#define NTF_MANAGED		(NTF_EXT_MANAGED << NTF_EXT_SHIFT)
 
 extern const struct nla_policy nda_policy[];
 

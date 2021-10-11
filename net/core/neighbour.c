@@ -122,6 +122,8 @@ static void neigh_mark_dead(struct neighbour *n)
 		list_del_init(&n->gc_list);
 		atomic_dec(&n->tbl->gc_entries);
 	}
+	if (!list_empty(&n->managed_list))
+		list_del_init(&n->managed_list);
 }
 
 static void neigh_update_gc_list(struct neighbour *n)
@@ -130,7 +132,6 @@ static void neigh_update_gc_list(struct neighbour *n)
 
 	write_lock_bh(&n->tbl->lock);
 	write_lock(&n->lock);
-
 	if (n->dead)
 		goto out;
 
@@ -149,32 +150,59 @@ static void neigh_update_gc_list(struct neighbour *n)
 		list_add_tail(&n->gc_list, &n->tbl->gc_list);
 		atomic_inc(&n->tbl->gc_entries);
 	}
-
 out:
 	write_unlock(&n->lock);
 	write_unlock_bh(&n->tbl->lock);
 }
 
-static bool neigh_update_ext_learned(struct neighbour *neigh, u32 flags,
-				     int *notify)
+static void neigh_update_managed_list(struct neighbour *n)
 {
-	bool rc = false;
-	u32 ndm_flags;
+	bool on_managed_list, add_to_managed;
+
+	write_lock_bh(&n->tbl->lock);
+	write_lock(&n->lock);
+	if (n->dead)
+		goto out;
+
+	add_to_managed = n->flags & NTF_MANAGED;
+	on_managed_list = !list_empty(&n->managed_list);
+
+	if (!add_to_managed && on_managed_list)
+		list_del_init(&n->managed_list);
+	else if (add_to_managed && !on_managed_list)
+		list_add_tail(&n->managed_list, &n->tbl->managed_list);
+out:
+	write_unlock(&n->lock);
+	write_unlock_bh(&n->tbl->lock);
+}
+
+static void neigh_update_flags(struct neighbour *neigh, u32 flags, int *notify,
+			       bool *gc_update, bool *managed_update)
+{
+	u32 ndm_flags, old_flags = neigh->flags;
 
 	if (!(flags & NEIGH_UPDATE_F_ADMIN))
-		return rc;
+		return;
 
-	ndm_flags = (flags & NEIGH_UPDATE_F_EXT_LEARNED) ? NTF_EXT_LEARNED : 0;
-	if ((neigh->flags ^ ndm_flags) & NTF_EXT_LEARNED) {
+	ndm_flags  = (flags & NEIGH_UPDATE_F_EXT_LEARNED) ? NTF_EXT_LEARNED : 0;
+	ndm_flags |= (flags & NEIGH_UPDATE_F_MANAGED) ? NTF_MANAGED : 0;
+
+	if ((old_flags ^ ndm_flags) & NTF_EXT_LEARNED) {
 		if (ndm_flags & NTF_EXT_LEARNED)
 			neigh->flags |= NTF_EXT_LEARNED;
 		else
 			neigh->flags &= ~NTF_EXT_LEARNED;
-		rc = true;
 		*notify = 1;
+		*gc_update = true;
 	}
-
-	return rc;
+	if ((old_flags ^ ndm_flags) & NTF_MANAGED) {
+		if (ndm_flags & NTF_MANAGED)
+			neigh->flags |= NTF_MANAGED;
+		else
+			neigh->flags &= ~NTF_MANAGED;
+		*notify = 1;
+		*managed_update = true;
+	}
 }
 
 static bool neigh_del(struct neighbour *n, struct neighbour __rcu **np,
@@ -422,6 +450,7 @@ do_alloc:
 	refcount_set(&n->refcnt, 1);
 	n->dead		  = 1;
 	INIT_LIST_HEAD(&n->gc_list);
+	INIT_LIST_HEAD(&n->managed_list);
 
 	atomic_inc(&tbl->entries);
 out:
@@ -650,7 +679,8 @@ ___neigh_create(struct neigh_table *tbl, const void *pkey,
 	n->dead = 0;
 	if (!exempt_from_gc)
 		list_add_tail(&n->gc_list, &n->tbl->gc_list);
-
+	if (n->flags & NTF_MANAGED)
+		list_add_tail(&n->managed_list, &n->tbl->managed_list);
 	if (want_ref)
 		neigh_hold(n);
 	rcu_assign_pointer(n->next,
@@ -1205,8 +1235,6 @@ static void neigh_update_hhs(struct neighbour *neigh)
 	}
 }
 
-
-
 /* Generic update routine.
    -- lladdr is new lladdr or NULL, if it is not supplied.
    -- new    is new state.
@@ -1218,6 +1246,7 @@ static void neigh_update_hhs(struct neighbour *neigh)
 				if it is different.
 	NEIGH_UPDATE_F_ADMIN	means that the change is administrative.
 	NEIGH_UPDATE_F_USE	means that the entry is user triggered.
+	NEIGH_UPDATE_F_MANAGED	means that the entry will be auto-refreshed.
 	NEIGH_UPDATE_F_OVERRIDE_ISROUTER allows to override existing
 				NTF_ROUTER flag.
 	NEIGH_UPDATE_F_ISROUTER	indicates if the neighbour is known as
@@ -1225,17 +1254,15 @@ static void neigh_update_hhs(struct neighbour *neigh)
 
    Caller MUST hold reference count on the entry.
  */
-
 static int __neigh_update(struct neighbour *neigh, const u8 *lladdr,
 			  u8 new, u32 flags, u32 nlmsg_pid,
 			  struct netlink_ext_ack *extack)
 {
-	bool ext_learn_change = false;
-	u8 old;
-	int err;
-	int notify = 0;
-	struct net_device *dev;
+	bool gc_update = false, managed_update = false;
 	int update_isrouter = 0;
+	struct net_device *dev;
+	int err, notify = 0;
+	u8 old;
 
 	trace_neigh_update(neigh, lladdr, new, flags, nlmsg_pid);
 
@@ -1254,8 +1281,8 @@ static int __neigh_update(struct neighbour *neigh, const u8 *lladdr,
 	    (old & (NUD_NOARP | NUD_PERMANENT)))
 		goto out;
 
-	ext_learn_change = neigh_update_ext_learned(neigh, flags, &notify);
-	if (flags & NEIGH_UPDATE_F_USE) {
+	neigh_update_flags(neigh, flags, &notify, &gc_update, &managed_update);
+	if (flags & (NEIGH_UPDATE_F_USE | NEIGH_UPDATE_F_MANAGED)) {
 		new = old & ~NUD_PERMANENT;
 		neigh->nud_state = new;
 		err = 0;
@@ -1405,15 +1432,13 @@ out:
 	if (update_isrouter)
 		neigh_update_is_router(neigh, flags, &notify);
 	write_unlock_bh(&neigh->lock);
-
-	if (((new ^ old) & NUD_PERMANENT) || ext_learn_change)
+	if (((new ^ old) & NUD_PERMANENT) || gc_update)
 		neigh_update_gc_list(neigh);
-
+	if (managed_update)
+		neigh_update_managed_list(neigh);
 	if (notify)
 		neigh_update_notify(neigh, nlmsg_pid);
-
 	trace_neigh_update_done(neigh, err);
-
 	return err;
 }
 
@@ -1538,6 +1563,20 @@ int neigh_direct_output(struct neighbour *neigh, struct sk_buff *skb)
 	return dev_queue_xmit(skb);
 }
 EXPORT_SYMBOL(neigh_direct_output);
+
+static void neigh_managed_work(struct work_struct *work)
+{
+	struct neigh_table *tbl = container_of(work, struct neigh_table,
+					       managed_work.work);
+	struct neighbour *neigh;
+
+	write_lock_bh(&tbl->lock);
+	list_for_each_entry(neigh, &tbl->managed_list, managed_list)
+		neigh_event_send(neigh, NULL);
+	queue_delayed_work(system_power_efficient_wq, &tbl->managed_work,
+			   NEIGH_VAR(&tbl->parms, DELAY_PROBE_TIME));
+	write_unlock_bh(&tbl->lock);
+}
 
 static void neigh_proxy_process(struct timer_list *t)
 {
@@ -1685,6 +1724,8 @@ void neigh_table_init(int index, struct neigh_table *tbl)
 
 	INIT_LIST_HEAD(&tbl->parms_list);
 	INIT_LIST_HEAD(&tbl->gc_list);
+	INIT_LIST_HEAD(&tbl->managed_list);
+
 	list_add(&tbl->parms.list, &tbl->parms_list);
 	write_pnet(&tbl->parms.net, &init_net);
 	refcount_set(&tbl->parms.refcnt, 1);
@@ -1716,9 +1757,13 @@ void neigh_table_init(int index, struct neigh_table *tbl)
 		WARN_ON(tbl->entry_size % NEIGH_PRIV_ALIGN);
 
 	rwlock_init(&tbl->lock);
+
 	INIT_DEFERRABLE_WORK(&tbl->gc_work, neigh_periodic_work);
 	queue_delayed_work(system_power_efficient_wq, &tbl->gc_work,
 			tbl->parms.reachable_time);
+	INIT_DEFERRABLE_WORK(&tbl->managed_work, neigh_managed_work);
+	queue_delayed_work(system_power_efficient_wq, &tbl->managed_work, 0);
+
 	timer_setup(&tbl->proxy_timer, neigh_proxy_process, 0);
 	skb_queue_head_init_class(&tbl->proxy_queue,
 			&neigh_table_proxy_queue_class);
@@ -1891,7 +1936,7 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (tb[NDA_FLAGS_EXT]) {
 		u32 ext = nla_get_u32(tb[NDA_FLAGS_EXT]);
 
-		if (ext & ~0) {
+		if (ext & ~NTF_EXT_MASK) {
 			NL_SET_ERR_MSG(extack, "Invalid extended flags");
 			goto out;
 		}
@@ -1927,6 +1972,11 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (ndm_flags & NTF_PROXY) {
 		struct pneigh_entry *pn;
 
+		if (ndm_flags & NTF_MANAGED) {
+			NL_SET_ERR_MSG(extack, "Invalid NTF_* flag combination");
+			goto out;
+		}
+
 		err = -ENOBUFS;
 		pn = pneigh_lookup(tbl, net, dst, dev, 1);
 		if (pn) {
@@ -1960,7 +2010,8 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 		exempt_from_gc = ndm->ndm_state & NUD_PERMANENT ||
 				 ndm_flags & NTF_EXT_LEARNED;
 		neigh = ___neigh_create(tbl, dst, dev,
-					ndm_flags & NTF_EXT_LEARNED,
+					ndm_flags &
+					(NTF_EXT_LEARNED | NTF_MANAGED),
 					exempt_from_gc, true);
 		if (IS_ERR(neigh)) {
 			err = PTR_ERR(neigh);
@@ -1984,12 +2035,14 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 		flags |= NEIGH_UPDATE_F_EXT_LEARNED;
 	if (ndm_flags & NTF_ROUTER)
 		flags |= NEIGH_UPDATE_F_ISROUTER;
+	if (ndm_flags & NTF_MANAGED)
+		flags |= NEIGH_UPDATE_F_MANAGED;
 	if (ndm_flags & NTF_USE)
 		flags |= NEIGH_UPDATE_F_USE;
 
 	err = __neigh_update(neigh, lladdr, ndm->ndm_state, flags,
 			     NETLINK_CB(skb).portid, extack);
-	if (!err && ndm_flags & NTF_USE) {
+	if (!err && ndm_flags & (NTF_USE | NTF_MANAGED)) {
 		neigh_event_send(neigh, NULL);
 		err = 0;
 	}
