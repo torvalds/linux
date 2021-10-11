@@ -302,7 +302,7 @@ static void gve_rx_flip_buff(struct gve_rx_slot_page_info *page_info, __be64 *sl
 
 static bool gve_rx_can_flip_buffers(struct net_device *netdev)
 {
-	return PAGE_SIZE == 4096
+	return PAGE_SIZE >= 4096
 		? netdev->mtu + GVE_RX_PAD + ETH_HLEN <= PAGE_SIZE / 2 : false;
 }
 
