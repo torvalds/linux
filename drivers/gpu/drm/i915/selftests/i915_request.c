@@ -2805,7 +2805,7 @@ static int p_sync0(void *arg)
 		i915_request_add(rq);
 
 		err = 0;
-		if (i915_request_wait(rq, 0, HZ / 5) < 0)
+		if (i915_request_wait(rq, 0, HZ) < 0)
 			err = -ETIME;
 		i915_request_put(rq);
 		if (err)
@@ -2876,7 +2876,7 @@ static int p_sync1(void *arg)
 		i915_request_add(rq);
 
 		err = 0;
-		if (prev && i915_request_wait(prev, 0, HZ / 5) < 0)
+		if (prev && i915_request_wait(prev, 0, HZ) < 0)
 			err = -ETIME;
 		i915_request_put(prev);
 		prev = rq;
