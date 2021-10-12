@@ -197,10 +197,12 @@ static struct device_attribute twa_host_stats_attr = {
 };
 
 /* Host attributes initializer */
-static struct device_attribute *twa_host_attrs[] = {
-	&twa_host_stats_attr,
+static struct attribute *twa_host_attrs[] = {
+	&twa_host_stats_attr.attr,
 	NULL,
 };
+
+ATTRIBUTE_GROUPS(twa_host);
 
 /* File operations struct for character device */
 static const struct file_operations twa_fops = {
@@ -1988,7 +1990,7 @@ static struct scsi_host_template driver_template = {
 	.sg_tablesize		= TW_APACHE_MAX_SGL_LENGTH,
 	.max_sectors		= TW_MAX_SECTORS,
 	.cmd_per_lun		= TW_MAX_CMDS_PER_LUN,
-	.shost_attrs		= twa_host_attrs,
+	.shost_groups		= twa_host_groups,
 	.emulated		= 1,
 	.no_write_same		= 1,
 };
