@@ -975,7 +975,6 @@ static struct mlx5_ib_mr *alloc_cacheable_mr(struct ib_pd *pd,
 
 	mr->ibmr.pd = pd;
 	mr->umem = umem;
-	mr->mmkey.pd = to_mpd(pd)->pdn;
 	mr->page_shift = order_base_2(page_size);
 	set_mr_fields(dev, mr, umem->length, access_flags, iova);
 
@@ -1708,7 +1707,6 @@ static int umr_rereg_pd_access(struct mlx5_ib_mr *mr, struct ib_pd *pd,
 		return err;
 
 	mr->access_flags = access_flags;
-	mr->mmkey.pd = to_mpd(pd)->pdn;
 	return 0;
 }
 
@@ -1753,7 +1751,6 @@ static int umr_rereg_pas(struct mlx5_ib_mr *mr, struct ib_pd *pd,
 
 	if (flags & IB_MR_REREG_PD) {
 		mr->ibmr.pd = pd;
-		mr->mmkey.pd = to_mpd(pd)->pdn;
 		upd_flags |= MLX5_IB_UPD_XLT_PD;
 	}
 	if (flags & IB_MR_REREG_ACCESS) {
