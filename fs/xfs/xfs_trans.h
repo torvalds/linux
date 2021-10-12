@@ -237,7 +237,7 @@ void		xfs_trans_buf_set_type(struct xfs_trans *, struct xfs_buf *,
 void		xfs_trans_buf_copy_type(struct xfs_buf *dst_bp,
 					struct xfs_buf *src_bp);
 
-extern struct kmem_cache	*xfs_trans_zone;
+extern struct kmem_cache	*xfs_trans_cache;
 
 static inline struct xfs_log_item *
 xfs_trans_item_relog(

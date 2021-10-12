@@ -27,7 +27,7 @@
 #include "xfs_ag_resv.h"
 #include "xfs_bmap.h"
 
-extern struct kmem_cache	*xfs_bmap_free_item_zone;
+extern struct kmem_cache	*xfs_bmap_free_item_cache;
 
 struct workqueue_struct *xfs_alloc_wq;
 
@@ -2459,10 +2459,10 @@ xfs_defer_agfl_block(
 	struct xfs_mount		*mp = tp->t_mountp;
 	struct xfs_extent_free_item	*new;		/* new element */
 
-	ASSERT(xfs_bmap_free_item_zone != NULL);
+	ASSERT(xfs_bmap_free_item_cache != NULL);
 	ASSERT(oinfo != NULL);
 
-	new = kmem_cache_alloc(xfs_bmap_free_item_zone,
+	new = kmem_cache_alloc(xfs_bmap_free_item_cache,
 			       GFP_KERNEL | __GFP_NOFAIL);
 	new->xefi_startblock = XFS_AGB_TO_FSB(mp, agno, agbno);
 	new->xefi_blockcount = 1;

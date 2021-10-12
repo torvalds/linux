@@ -68,7 +68,7 @@ struct xfs_rud_log_item {
 	struct xfs_rud_log_format	rud_format;
 };
 
-extern struct kmem_cache	*xfs_rui_zone;
-extern struct kmem_cache	*xfs_rud_zone;
+extern struct kmem_cache	*xfs_rui_cache;
+extern struct kmem_cache	*xfs_rud_cache;
 
 #endif	/* __XFS_RMAP_ITEM_H__ */

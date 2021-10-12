@@ -26,7 +26,7 @@
 #include "xfs_types.h"
 #include "xfs_errortag.h"
 
-struct kmem_cache *xfs_ifork_zone;
+struct kmem_cache *xfs_ifork_cache;
 
 void
 xfs_init_local_fork(
@@ -284,7 +284,7 @@ xfs_ifork_alloc(
 {
 	struct xfs_ifork	*ifp;
 
-	ifp = kmem_cache_zalloc(xfs_ifork_zone, GFP_NOFS | __GFP_NOFAIL);
+	ifp = kmem_cache_zalloc(xfs_ifork_cache, GFP_NOFS | __GFP_NOFAIL);
 	ifp->if_format = format;
 	ifp->if_nextents = nextents;
 	return ifp;
@@ -325,7 +325,7 @@ xfs_iformat_attr_fork(
 	}
 
 	if (error) {
-		kmem_cache_free(xfs_ifork_zone, ip->i_afp);
+		kmem_cache_free(xfs_ifork_cache, ip->i_afp);
 		ip->i_afp = NULL;
 	}
 	return error;
@@ -676,7 +676,7 @@ xfs_ifork_init_cow(
 	if (ip->i_cowfp)
 		return;
 
-	ip->i_cowfp = kmem_cache_zalloc(xfs_ifork_zone,
+	ip->i_cowfp = kmem_cache_zalloc(xfs_ifork_cache,
 				       GFP_NOFS | __GFP_NOFAIL);
 	ip->i_cowfp->if_format = XFS_DINODE_FMT_EXTENTS;
 }

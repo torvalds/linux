@@ -68,7 +68,7 @@ struct xfs_cud_log_item {
 	struct xfs_cud_log_format	cud_format;
 };
 
-extern struct kmem_cache	*xfs_cui_zone;
-extern struct kmem_cache	*xfs_cud_zone;
+extern struct kmem_cache	*xfs_cui_cache;
+extern struct kmem_cache	*xfs_cud_cache;
 
 #endif	/* __XFS_REFCOUNT_ITEM_H__ */

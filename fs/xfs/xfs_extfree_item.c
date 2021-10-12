@@ -25,8 +25,8 @@
 #include "xfs_log_priv.h"
 #include "xfs_log_recover.h"
 
-struct kmem_cache	*xfs_efi_zone;
-struct kmem_cache	*xfs_efd_zone;
+struct kmem_cache	*xfs_efi_cache;
+struct kmem_cache	*xfs_efd_cache;
 
 static const struct xfs_item_ops xfs_efi_item_ops;
 
@@ -43,7 +43,7 @@ xfs_efi_item_free(
 	if (efip->efi_format.efi_nextents > XFS_EFI_MAX_FAST_EXTENTS)
 		kmem_free(efip);
 	else
-		kmem_cache_free(xfs_efi_zone, efip);
+		kmem_cache_free(xfs_efi_cache, efip);
 }
 
 /*
@@ -161,7 +161,7 @@ xfs_efi_init(
 			((nextents - 1) * sizeof(xfs_extent_t)));
 		efip = kmem_zalloc(size, 0);
 	} else {
-		efip = kmem_cache_zalloc(xfs_efi_zone,
+		efip = kmem_cache_zalloc(xfs_efi_cache,
 					 GFP_KERNEL | __GFP_NOFAIL);
 	}
 
@@ -241,7 +241,7 @@ xfs_efd_item_free(struct xfs_efd_log_item *efdp)
 	if (efdp->efd_format.efd_nextents > XFS_EFD_MAX_FAST_EXTENTS)
 		kmem_free(efdp);
 	else
-		kmem_cache_free(xfs_efd_zone, efdp);
+		kmem_cache_free(xfs_efd_cache, efdp);
 }
 
 /*
@@ -333,7 +333,7 @@ xfs_trans_get_efd(
 				(nextents - 1) * sizeof(struct xfs_extent),
 				0);
 	} else {
-		efdp = kmem_cache_zalloc(xfs_efd_zone,
+		efdp = kmem_cache_zalloc(xfs_efd_cache,
 					GFP_KERNEL | __GFP_NOFAIL);
 	}
 
@@ -482,7 +482,7 @@ xfs_extent_free_finish_item(
 			free->xefi_startblock,
 			free->xefi_blockcount,
 			&free->xefi_oinfo, free->xefi_skip_discard);
-	kmem_cache_free(xfs_bmap_free_item_zone, free);
+	kmem_cache_free(xfs_bmap_free_item_cache, free);
 	return error;
 }
 
@@ -502,7 +502,7 @@ xfs_extent_free_cancel_item(
 	struct xfs_extent_free_item	*free;
 
 	free = container_of(item, struct xfs_extent_free_item, xefi_list);
-	kmem_cache_free(xfs_bmap_free_item_zone, free);
+	kmem_cache_free(xfs_bmap_free_item_cache, free);
 }
 
 const struct xfs_defer_op_type xfs_extent_free_defer_type = {
@@ -564,7 +564,7 @@ xfs_agfl_free_finish_item(
 	extp->ext_len = free->xefi_blockcount;
 	efdp->efd_next_extent++;
 
-	kmem_cache_free(xfs_bmap_free_item_zone, free);
+	kmem_cache_free(xfs_bmap_free_item_cache, free);
 	return error;
 }
 

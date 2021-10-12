@@ -21,8 +21,8 @@
 #include "xfs_log_priv.h"
 #include "xfs_log_recover.h"
 
-struct kmem_cache	*xfs_rui_zone;
-struct kmem_cache	*xfs_rud_zone;
+struct kmem_cache	*xfs_rui_cache;
+struct kmem_cache	*xfs_rud_cache;
 
 static const struct xfs_item_ops xfs_rui_item_ops;
 
@@ -38,7 +38,7 @@ xfs_rui_item_free(
 	if (ruip->rui_format.rui_nextents > XFS_RUI_MAX_FAST_EXTENTS)
 		kmem_free(ruip);
 	else
-		kmem_cache_free(xfs_rui_zone, ruip);
+		kmem_cache_free(xfs_rui_cache, ruip);
 }
 
 /*
@@ -141,7 +141,7 @@ xfs_rui_init(
 	if (nextents > XFS_RUI_MAX_FAST_EXTENTS)
 		ruip = kmem_zalloc(xfs_rui_log_item_sizeof(nextents), 0);
 	else
-		ruip = kmem_cache_zalloc(xfs_rui_zone,
+		ruip = kmem_cache_zalloc(xfs_rui_cache,
 					 GFP_KERNEL | __GFP_NOFAIL);
 
 	xfs_log_item_init(mp, &ruip->rui_item, XFS_LI_RUI, &xfs_rui_item_ops);
@@ -227,7 +227,7 @@ xfs_rud_item_release(
 	struct xfs_rud_log_item	*rudp = RUD_ITEM(lip);
 
 	xfs_rui_release(rudp->rud_ruip);
-	kmem_cache_free(xfs_rud_zone, rudp);
+	kmem_cache_free(xfs_rud_cache, rudp);
 }
 
 static const struct xfs_item_ops xfs_rud_item_ops = {
@@ -244,7 +244,7 @@ xfs_trans_get_rud(
 {
 	struct xfs_rud_log_item		*rudp;
 
-	rudp = kmem_cache_zalloc(xfs_rud_zone, GFP_KERNEL | __GFP_NOFAIL);
+	rudp = kmem_cache_zalloc(xfs_rud_cache, GFP_KERNEL | __GFP_NOFAIL);
 	xfs_log_item_init(tp->t_mountp, &rudp->rud_item, XFS_LI_RUD,
 			  &xfs_rud_item_ops);
 	rudp->rud_ruip = ruip;

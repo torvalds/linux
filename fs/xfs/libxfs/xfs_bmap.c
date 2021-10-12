@@ -38,7 +38,7 @@
 #include "xfs_iomap.h"
 
 
-struct kmem_cache		*xfs_bmap_free_item_zone;
+struct kmem_cache		*xfs_bmap_free_item_cache;
 
 /*
  * Miscellaneous helper functions
@@ -555,9 +555,9 @@ __xfs_bmap_add_free(
 	ASSERT(len < mp->m_sb.sb_agblocks);
 	ASSERT(agbno + len <= mp->m_sb.sb_agblocks);
 #endif
-	ASSERT(xfs_bmap_free_item_zone != NULL);
+	ASSERT(xfs_bmap_free_item_cache != NULL);
 
-	new = kmem_cache_alloc(xfs_bmap_free_item_zone,
+	new = kmem_cache_alloc(xfs_bmap_free_item_cache,
 			       GFP_KERNEL | __GFP_NOFAIL);
 	new->xefi_startblock = bno;
 	new->xefi_blockcount = (xfs_extlen_t)len;

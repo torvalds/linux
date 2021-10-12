@@ -65,7 +65,7 @@ struct xfs_bud_log_item {
 	struct xfs_bud_log_format	bud_format;
 };
 
-extern struct kmem_cache	*xfs_bui_zone;
-extern struct kmem_cache	*xfs_bud_zone;
+extern struct kmem_cache	*xfs_bui_cache;
+extern struct kmem_cache	*xfs_bud_cache;
 
 #endif	/* __XFS_BMAP_ITEM_H__ */
