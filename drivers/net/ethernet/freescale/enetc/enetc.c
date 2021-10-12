@@ -7,6 +7,7 @@
 #include <linux/udp.h>
 #include <linux/vmalloc.h>
 #include <linux/ptp_classify.h>
+#include <net/ip6_checksum.h>
 #include <net/pkt_sched.h>
 #include <net/tso.h>
 
