@@ -599,12 +599,12 @@ static pci_ers_result_t pcifront_common_process(int cmd,
 		cmd, bus, devfn);
 
 	pcidev = pci_get_domain_bus_and_slot(domain, bus, devfn);
-	if (!pcidev || !pcidev->driver) {
+	if (!pcidev || !pcidev->dev.driver) {
 		dev_err(&pdev->xdev->dev, "device or AER driver is NULL\n");
 		pci_dev_put(pcidev);
 		return PCI_ERS_RESULT_NONE;
 	}
-	pdrv = pcidev->driver;
+	pdrv = to_pci_driver(pcidev->dev.driver);
 
 	if (pdrv->err_handler && pdrv->err_handler->error_detected) {
 		pci_dbg(pcidev, "trying to call AER service\n");
