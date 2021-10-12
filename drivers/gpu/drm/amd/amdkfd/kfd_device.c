@@ -825,6 +825,7 @@ struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd, bool vf)
 		return NULL;
 
 	kfd->kgd = kgd;
+	kfd->adev = adev;
 	kfd->device_info = device_info;
 	kfd->pdev = pdev;
 	kfd->init_complete = false;

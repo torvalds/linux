@@ -33,6 +33,7 @@
 #include <linux/dma-fence.h>
 
 struct pci_dev;
+struct amdgpu_device;
 
 #define KGD_MAX_QUEUES 128
 
