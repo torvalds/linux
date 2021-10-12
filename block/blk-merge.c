@@ -318,8 +318,7 @@ split:
 	 * iopoll in direct IO routine. Given performance gain of iopoll for
 	 * big IO can be trival, disable iopoll when split needed.
 	 */
-	bio_clear_hipri(bio);
-
+	bio_clear_polled(bio);
 	return bio_split(bio, sectors, GFP_NOIO, bs);
 }
 

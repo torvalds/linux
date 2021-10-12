@@ -842,7 +842,7 @@ static noinline_for_stack bool submit_bio_checks(struct bio *bio)
 	}
 
 	if (!test_bit(QUEUE_FLAG_POLL, &q->queue_flags))
-		bio_clear_hipri(bio);
+		bio_clear_polled(bio);
 
 	switch (bio_op(bio)) {
 	case REQ_OP_DISCARD:
