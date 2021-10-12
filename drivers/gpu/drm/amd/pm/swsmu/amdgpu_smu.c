@@ -455,6 +455,10 @@ static int smu_get_power_num_states(void *handle,
 
 bool is_support_sw_smu(struct amdgpu_device *adev)
 {
+	/* vega20 is 11.0.2, but it's supported via the powerplay code */
+	if (adev->asic_type == CHIP_VEGA20)
+		return false;
+
 	if (adev->ip_versions[MP1_HWIP][0] >= IP_VERSION(11, 0, 0))
 		return true;
 
