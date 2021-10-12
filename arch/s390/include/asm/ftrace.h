@@ -59,6 +59,18 @@ static __always_inline void ftrace_instruction_pointer_set(struct ftrace_regs *f
 }
 
 /*
+ * When an ftrace registered caller is tracing a function that is
+ * also set by a register_ftrace_direct() call, it needs to be
+ * differentiated in the ftrace_caller trampoline. To do this,
+ * place the direct caller in the ORIG_GPR2 part of pt_regs. This
+ * tells the ftrace_caller that there's a direct caller.
+ */
+static inline void arch_ftrace_set_direct_caller(struct pt_regs *regs, unsigned long addr)
+{
+	regs->orig_gpr2 = addr;
+}
+
+/*
  * Even though the system call numbers are identical for s390/s390x a
  * different system call table is used for compat tasks. This may lead
  * to e.g. incorrect or missing trace event sysfs files.
