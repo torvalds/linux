@@ -46,6 +46,7 @@
 #include "i915_drv.h"
 #include "intel_display_types.h"
 #include "intel_fb.h"
+#include "intel_fb_pin.h"
 #include "intel_fbdev.h"
 #include "intel_frontbuffer.h"
 
