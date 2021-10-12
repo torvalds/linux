@@ -9,6 +9,7 @@
  *   that on egress
  */
 #include <linux/dsa/8021q.h>
+#include <linux/dsa/ocelot.h>
 #include <soc/mscc/ocelot.h>
 #include <soc/mscc/ocelot_ptp.h>
 #include "dsa_priv.h"

@@ -601,23 +601,6 @@ static int ocelot_port_add_txtstamp_skb(struct ocelot *ocelot, int port,
 	return 0;
 }
 
-u32 ocelot_ptp_rew_op(struct sk_buff *skb)
-{
-	struct sk_buff *clone = OCELOT_SKB_CB(skb)->clone;
-	u8 ptp_cmd = OCELOT_SKB_CB(skb)->ptp_cmd;
-	u32 rew_op = 0;
-
-	if (ptp_cmd == IFH_REW_OP_TWO_STEP_PTP && clone) {
-		rew_op = ptp_cmd;
-		rew_op |= OCELOT_SKB_CB(clone)->ts_id << 3;
-	} else if (ptp_cmd == IFH_REW_OP_ORIGIN_PTP) {
-		rew_op = ptp_cmd;
-	}
-
-	return rew_op;
-}
-EXPORT_SYMBOL(ocelot_ptp_rew_op);
-
 static bool ocelot_ptp_is_onestep_sync(struct sk_buff *skb,
 				       unsigned int ptp_class)
 {

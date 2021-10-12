@@ -6,6 +6,26 @@
 #define _NET_DSA_TAG_OCELOT_H
 
 #include <linux/packing.h>
+#include <linux/skbuff.h>
+
+struct ocelot_skb_cb {
+	struct sk_buff *clone;
+	unsigned int ptp_class; /* valid only for clones */
+	u8 ptp_cmd;
+	u8 ts_id;
+};
+
+#define OCELOT_SKB_CB(skb) \
+	((struct ocelot_skb_cb *)((skb)->cb))
+
+#define IFH_TAG_TYPE_C			0
+#define IFH_TAG_TYPE_S			1
+
+#define IFH_REW_OP_NOOP			0x0
+#define IFH_REW_OP_DSCP			0x1
+#define IFH_REW_OP_ONE_STEP_PTP		0x2
+#define IFH_REW_OP_TWO_STEP_PTP		0x3
+#define IFH_REW_OP_ORIGIN_PTP		0x5
 
 #define OCELOT_TAG_LEN			16
 #define OCELOT_SHORT_PREFIX_LEN		4
@@ -213,6 +233,23 @@ static inline void ocelot_ifh_set_tag_type(void *injection, u64 tag_type)
 static inline void ocelot_ifh_set_vid(void *injection, u64 vid)
 {
 	packing(injection, &vid, 11, 0, OCELOT_TAG_LEN, PACK, 0);
+}
+
+/* Determine the PTP REW_OP to use for injecting the given skb */
+static inline u32 ocelot_ptp_rew_op(struct sk_buff *skb)
+{
+	struct sk_buff *clone = OCELOT_SKB_CB(skb)->clone;
+	u8 ptp_cmd = OCELOT_SKB_CB(skb)->ptp_cmd;
+	u32 rew_op = 0;
+
+	if (ptp_cmd == IFH_REW_OP_TWO_STEP_PTP && clone) {
+		rew_op = ptp_cmd;
+		rew_op |= OCELOT_SKB_CB(clone)->ts_id << 3;
+	} else if (ptp_cmd == IFH_REW_OP_ORIGIN_PTP) {
+		rew_op = ptp_cmd;
+	}
+
+	return rew_op;
 }
 
 #endif
