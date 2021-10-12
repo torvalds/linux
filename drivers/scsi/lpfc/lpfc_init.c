@@ -4574,7 +4574,7 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 			/* Template for all vports this physical port creates */
 			memcpy(&phba->vport_template, &lpfc_template,
 			       sizeof(*template));
-			phba->vport_template.shost_attrs = lpfc_vport_attrs;
+			phba->vport_template.shost_groups = lpfc_vport_groups;
 			phba->vport_template.eh_bus_reset_handler = NULL;
 			phba->vport_template.eh_host_reset_handler = NULL;
 			phba->vport_template.vendor_id = 0;
