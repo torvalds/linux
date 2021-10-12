@@ -12383,34 +12383,32 @@ static int complete_sev_es_emulated_ins(struct kvm_vcpu *vcpu)
 }
 
 static int kvm_sev_es_outs(struct kvm_vcpu *vcpu, unsigned int size,
-			   unsigned int port, void *data,  unsigned int count)
+			   unsigned int port, unsigned int count)
 {
-	int ret;
+	int ret = emulator_pio_out(vcpu, size, port,
+				   vcpu->arch.sev_pio_data, count);
 
-	ret = emulator_pio_out_emulated(vcpu->arch.emulate_ctxt, size, port,
-					data, count);
-	if (ret)
+	if (ret) {
+		/* Emulation done by the kernel.  */
 		return ret;
+	}
 
 	vcpu->arch.pio.count = 0;
-
 	return 0;
 }
 
 static int kvm_sev_es_ins(struct kvm_vcpu *vcpu, unsigned int size,
-			  unsigned int port, void *data, unsigned int count)
+			  unsigned int port, unsigned int count)
 {
-	int ret;
+	int ret = emulator_pio_in(vcpu, size, port,
+				  vcpu->arch.sev_pio_data, count);
 
-	ret = emulator_pio_in_emulated(vcpu->arch.emulate_ctxt, size, port,
-				       data, count);
 	if (ret) {
-		vcpu->arch.pio.count = 0;
-	} else {
-		vcpu->arch.sev_pio_data = data;
-		vcpu->arch.complete_userspace_io = complete_sev_es_emulated_ins;
+		/* Emulation done by the kernel.  */
+		return ret;
 	}
 
+	vcpu->arch.complete_userspace_io = complete_sev_es_emulated_ins;
 	return 0;
 }
 
@@ -12418,8 +12416,9 @@ int kvm_sev_es_string_io(struct kvm_vcpu *vcpu, unsigned int size,
 			 unsigned int port, void *data,  unsigned int count,
 			 int in)
 {
-	return in ? kvm_sev_es_ins(vcpu, size, port, data, count)
-		  : kvm_sev_es_outs(vcpu, size, port, data, count);
+	vcpu->arch.sev_pio_data = data;
+	return in ? kvm_sev_es_ins(vcpu, size, port, count)
+		  : kvm_sev_es_outs(vcpu, size, port, count);
 }
 EXPORT_SYMBOL_GPL(kvm_sev_es_string_io);
 
