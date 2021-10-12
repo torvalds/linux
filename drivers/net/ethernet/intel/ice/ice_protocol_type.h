@@ -37,8 +37,17 @@ enum ice_protocol_type {
 	ICE_TCP_IL,
 	ICE_UDP_OF,
 	ICE_UDP_ILOS,
+	ICE_VXLAN,
+	ICE_GENEVE,
+	ICE_VXLAN_GPE,
 	ICE_SCTP_IL,
 	ICE_PROTOCOL_LAST
+};
+
+enum ice_sw_tunnel_type {
+	ICE_NON_TUN = 0,
+	ICE_SW_TUN_VXLAN,
+	ICE_SW_TUN_GENEVE,
 };
 
 /* Decoders for ice_prot_id:
@@ -152,6 +161,12 @@ struct ice_l4_hdr {
 	__be16 check;
 };
 
+struct ice_udp_tnl_hdr {
+	__be16 field;
+	__be16 proto_type;
+	__be32 vni;     /* only use lower 24-bits */
+};
+
 union ice_prot_hdr {
 	struct ice_ether_hdr eth_hdr;
 	struct ice_ethtype_hdr ethertype;
@@ -160,6 +175,7 @@ union ice_prot_hdr {
 	struct ice_ipv6_hdr ipv6_hdr;
 	struct ice_l4_hdr l4_hdr;
 	struct ice_sctp_hdr sctp_hdr;
+	struct ice_udp_tnl_hdr tnl_hdr;
 };
 
 /* This is mapping table entry that maps every word within a given protocol

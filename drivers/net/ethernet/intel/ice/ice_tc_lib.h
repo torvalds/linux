@@ -23,6 +23,8 @@
 #define ICE_TC_FLWR_FIELD_ENC_DST_MAC		BIT(16)
 #define ICE_TC_FLWR_FIELD_ETH_TYPE_ID		BIT(17)
 
+#define ICE_TC_FLOWER_MASK_32   0xFFFFFFFF
+
 struct ice_indr_block_priv {
 	struct net_device *netdev;
 	struct ice_netdev_priv *np;
@@ -118,6 +120,7 @@ struct ice_tc_flower_fltr {
 	struct ice_vsi *src_vsi;
 	__be32 tenant_id;
 	u32 flags;
+	u8 tunnel_type;
 	struct ice_tc_flower_action	action;
 
 	/* cache ptr which is used wherever needed to communicate netlink
@@ -154,5 +157,6 @@ ice_add_cls_flower(struct net_device *netdev, struct ice_vsi *vsi,
 int
 ice_del_cls_flower(struct ice_vsi *vsi, struct flow_cls_offload *cls_flower);
 void ice_replay_tc_fltrs(struct ice_pf *pf);
+bool ice_is_tunnel_supported(struct net_device *dev);
 
 #endif /* _ICE_TC_LIB_H_ */
