@@ -102,6 +102,8 @@ ice_proto_type_from_tunnel(enum ice_tunnel_type type)
 		return ICE_VXLAN;
 	case TNL_GENEVE:
 		return ICE_GENEVE;
+	case TNL_GRETAP:
+		return ICE_NVGRE;
 	default:
 		return 0;
 	}
@@ -115,6 +117,8 @@ ice_sw_type_from_tunnel(enum ice_tunnel_type type)
 		return ICE_SW_TUN_VXLAN;
 	case TNL_GENEVE:
 		return ICE_SW_TUN_GENEVE;
+	case TNL_GRETAP:
+		return ICE_SW_TUN_NVGRE;
 	default:
 		return ICE_NON_TUN;
 	}
@@ -131,10 +135,22 @@ ice_tc_fill_tunnel_outer(u32 flags, struct ice_tc_flower_fltr *fltr,
 		u32 tenant_id;
 
 		list[i].type = ice_proto_type_from_tunnel(fltr->tunnel_type);
-		tenant_id = be32_to_cpu(fltr->tenant_id) << 8;
-		list[i].h_u.tnl_hdr.vni = cpu_to_be32(tenant_id);
-		memcpy(&list[i].m_u.tnl_hdr.vni, "\xff\xff\xff\x00", 4);
-		i++;
+		switch (fltr->tunnel_type) {
+		case TNL_VXLAN:
+		case TNL_GENEVE:
+			tenant_id = be32_to_cpu(fltr->tenant_id) << 8;
+			list[i].h_u.tnl_hdr.vni = cpu_to_be32(tenant_id);
+			memcpy(&list[i].m_u.tnl_hdr.vni, "\xff\xff\xff\x00", 4);
+			i++;
+			break;
+		case TNL_GRETAP:
+			list[i].h_u.nvgre_hdr.tni_flow = fltr->tenant_id;
+			memcpy(&list[i].m_u.nvgre_hdr.tni_flow, "\xff\xff\xff\xff", 4);
+			i++;
+			break;
+		default:
+			break;
+		}
 	}
 
 	if (flags & (ICE_TC_FLWR_FIELD_ENC_SRC_IPV4 |
@@ -332,6 +348,9 @@ static int ice_tc_tun_get_type(struct net_device *tunnel_dev)
 		return TNL_VXLAN;
 	if (netif_is_geneve(tunnel_dev))
 		return TNL_GENEVE;
+	if (netif_is_gretap(tunnel_dev) ||
+	    netif_is_ip6gretap(tunnel_dev))
+		return TNL_GRETAP;
 	return TNL_LAST;
 }
 
@@ -810,6 +829,7 @@ ice_parse_cls_flower(struct net_device *filter_dev, struct ice_vsi *vsi,
 	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
 	u16 n_proto_mask = 0, n_proto_key = 0, addr_type = 0;
 	struct flow_dissector *dissector;
+	struct net_device *tunnel_dev;
 
 	dissector = rule->match.dissector;
 
@@ -831,17 +851,11 @@ ice_parse_cls_flower(struct net_device *filter_dev, struct ice_vsi *vsi,
 		return -EOPNOTSUPP;
 	}
 
-	if ((flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) ||
-	     flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS) ||
-	     flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_KEYID) ||
-	     flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_PORTS))) {
+	tunnel_dev = ice_get_tunnel_device(filter_dev, rule);
+	if (tunnel_dev) {
 		int err;
 
-		filter_dev = ice_get_tunnel_device(filter_dev, rule);
-		if (!filter_dev) {
-			NL_SET_ERR_MSG_MOD(fltr->extack, "Tunnel device not found");
-			return -EOPNOTSUPP;
-		}
+		filter_dev = tunnel_dev;
 
 		err = ice_parse_tunnel_attr(filter_dev, rule, fltr);
 		if (err) {
@@ -853,6 +867,13 @@ ice_parse_cls_flower(struct net_device *filter_dev, struct ice_vsi *vsi,
 		 * header were already set by ice_parse_tunnel_attr
 		 */
 		headers = &fltr->inner_headers;
+	} else if (dissector->used_keys &
+		  (BIT(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) |
+		   BIT(FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS) |
+		   BIT(FLOW_DISSECTOR_KEY_ENC_KEYID) |
+		   BIT(FLOW_DISSECTOR_KEY_ENC_PORTS))) {
+		NL_SET_ERR_MSG_MOD(fltr->extack, "Tunnel key used, but device isn't a tunnel");
+		return -EOPNOTSUPP;
 	} else {
 		fltr->tunnel_type = TNL_LAST;
 	}

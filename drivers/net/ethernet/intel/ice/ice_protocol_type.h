@@ -39,6 +39,7 @@ enum ice_protocol_type {
 	ICE_UDP_ILOS,
 	ICE_VXLAN,
 	ICE_GENEVE,
+	ICE_NVGRE,
 	ICE_VXLAN_GPE,
 	ICE_SCTP_IL,
 	ICE_PROTOCOL_LAST
@@ -48,7 +49,8 @@ enum ice_sw_tunnel_type {
 	ICE_NON_TUN = 0,
 	ICE_SW_TUN_VXLAN,
 	ICE_SW_TUN_GENEVE,
-	ICE_ALL_TUNNELS /* All tunnel types */
+	ICE_SW_TUN_NVGRE,
+	ICE_ALL_TUNNELS /* All tunnel types including NVGRE */
 };
 
 /* Decoders for ice_prot_id:
@@ -97,6 +99,7 @@ enum ice_prot_id {
 #define ICE_IPV6_IL_HW		41
 #define ICE_TCP_IL_HW		49
 #define ICE_UDP_ILOS_HW		53
+#define ICE_GRE_OF_HW		64
 
 #define ICE_UDP_OF_HW	52 /* UDP Tunnels */
 #define ICE_META_DATA_ID_HW 255 /* this is used for tunnel type */
@@ -176,6 +179,12 @@ struct ice_udp_tnl_hdr {
 	__be32 vni;     /* only use lower 24-bits */
 };
 
+struct ice_nvgre_hdr {
+	__be16 flags;
+	__be16 protocol;
+	__be32 tni_flow;
+};
+
 union ice_prot_hdr {
 	struct ice_ether_hdr eth_hdr;
 	struct ice_ethtype_hdr ethertype;
@@ -185,6 +194,7 @@ union ice_prot_hdr {
 	struct ice_l4_hdr l4_hdr;
 	struct ice_sctp_hdr sctp_hdr;
 	struct ice_udp_tnl_hdr tnl_hdr;
+	struct ice_nvgre_hdr nvgre_hdr;
 };
 
 /* This is mapping table entry that maps every word within a given protocol

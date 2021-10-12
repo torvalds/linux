@@ -1580,6 +1580,10 @@ ice_get_sw_prof_type(struct ice_hw *hw, struct ice_fv *fv)
 		if (fv->ew[i].prot_id == (u8)ICE_PROT_UDP_OF &&
 		    fv->ew[i].off == ICE_VNI_OFFSET)
 			return ICE_PROF_TUN_UDP;
+
+		/* GRE tunnel will have GRE protocol */
+		if (fv->ew[i].prot_id == (u8)ICE_PROT_GRE_OF)
+			return ICE_PROF_TUN_GRE;
 	}
 
 	return ICE_PROF_NON_TUN;
