@@ -5,8 +5,6 @@
  * Copyright 2020 STMicroelectronics Inc.
  *
  * Mario Tesi <mario.tesi@st.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/kernel.h>
