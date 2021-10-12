@@ -743,7 +743,6 @@ uint qla25xx_fdmi_port_speed_currently(struct qla_hw_data *);
  */
 struct device_attribute;
 extern struct device_attribute *qla2x00_host_attrs[];
-extern struct device_attribute *qla2x00_host_attrs_dm[];
 struct fc_function_template;
 extern struct fc_function_template qla2xxx_transport_functions;
 extern struct fc_function_template qla2xxx_transport_vport_functions;
