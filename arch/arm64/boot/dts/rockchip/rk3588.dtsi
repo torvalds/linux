@@ -7,6 +7,8 @@
 
 / {
 	aliases {
+		dp0 = &dp0;
+		dp1 = &dp1;
 		edp0 = &edp0;
 		edp1 = &edp1;
 		ethernet0 = &gmac0;
@@ -189,6 +191,17 @@
 		resets = <&cru SRST_M_SPDIFRX2>;
 		reset-names = "spdifrx-m";
 		#sound-dai-cells = <0>;
+		status = "disabled";
+	};
+
+	dp1: dp@fde60000 {
+		compatible = "rockchip,rk3588-dp";
+		reg = <0x0 0xfde60000 0x0 0x4000>;
+		interrupts = <GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru PCLK_DP1>;
+		resets = <&cru SRST_DP1>;
+		phys = <&usbdp_phy1_dp>;
+		power-domains = <&power RK3588_PD_VO0>;
 		status = "disabled";
 	};
 
