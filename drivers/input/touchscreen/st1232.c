@@ -389,6 +389,7 @@ static struct i2c_driver st1232_ts_driver = {
 	.driver = {
 		.name	= ST1232_TS_NAME,
 		.of_match_table = st1232_ts_dt_ids,
+		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
 		.pm	= &st1232_ts_pm_ops,
 	},
 };
