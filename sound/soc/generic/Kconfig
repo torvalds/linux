@@ -18,6 +18,14 @@ config SND_AUDIO_GRAPH_CARD
 	  with OF-graph DT bindings.
 	  It also support DPCM of multi CPU single Codec ststem.
 
+config SND_AUDIO_GRAPH_CARD2
+	tristate "ASoC Audio Graph sound card2 support"
+	depends on OF
+	select SND_SIMPLE_CARD_UTILS
+	help
+	  This option enables generic simple sound card2 support
+	  with OF-graph DT bindings.
+
 config SND_TEST_COMPONENT
 	tristate "ASoC Test component sound support"
 	depends on OF
