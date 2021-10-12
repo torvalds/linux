@@ -204,6 +204,7 @@ enum ravb_reg {
 	TLFRCR	= 0x0758,
 	RFCR	= 0x0760,
 	MAFCR	= 0x0778,
+	CSR0    = 0x0800,	/* RZ/G2L only */
 };
 
 
@@ -962,6 +963,11 @@ enum RAVB_QUEUE {
 enum CXR31_BIT {
 	CXR31_SEL_LINK0	= 0x00000001,
 	CXR31_SEL_LINK1	= 0x00000008,
+};
+
+enum CSR0_BIT {
+	CSR0_TPE	= 0x00000010,
+	CSR0_RPE	= 0x00000020,
 };
 
 #define DBAT_ENTRY_NUM	22

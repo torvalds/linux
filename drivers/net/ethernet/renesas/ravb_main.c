@@ -519,10 +519,10 @@ static void ravb_emac_init_gbeth(struct net_device *ndev)
 	/* Receive frame limit set register */
 	ravb_write(ndev, GBETH_RX_BUFF_MAX + ETH_FCS_LEN, RFLR);
 
-	/* PAUSE prohibition */
+	/* EMAC Mode: PAUSE prohibition; Duplex; TX; RX; CRC Pass Through */
 	ravb_write(ndev, ECMR_ZPF | ((priv->duplex > 0) ? ECMR_DM : 0) |
 			 ECMR_TE | ECMR_RE | ECMR_RCPT |
-			 ECMR_TXF | ECMR_RXF | ECMR_PRM, ECMR);
+			 ECMR_TXF | ECMR_RXF, ECMR);
 
 	ravb_set_rate_gbeth(ndev);
 
@@ -534,6 +534,7 @@ static void ravb_emac_init_gbeth(struct net_device *ndev)
 
 	/* E-MAC status register clear */
 	ravb_write(ndev, ECSR_ICD | ECSR_LCHNG | ECSR_PFRI, ECSR);
+	ravb_write(ndev, CSR0_TPE | CSR0_RPE, CSR0);
 
 	/* E-MAC interrupt enable register */
 	ravb_write(ndev, ECSIPR_ICDIP, ECSIPR);
