@@ -5256,7 +5256,7 @@ enum dbg_status qed_dbg_grc_config(struct qed_hwfn *p_hwfn,
 	 */
 	qed_dbg_grc_init_params(p_hwfn);
 
-	if (grc_param >= MAX_DBG_GRC_PARAMS || grc_param < 0)
+	if (grc_param >= MAX_DBG_GRC_PARAMS)
 		return DBG_STATUS_INVALID_ARGS;
 	if (val < s_grc_param_defs[grc_param].min ||
 	    val > s_grc_param_defs[grc_param].max)
