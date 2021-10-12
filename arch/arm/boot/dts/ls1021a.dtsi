@@ -9,7 +9,6 @@
 / {
 	#address-cells = <2>;
 	#size-cells = <2>;
-	compatible = "fsl,ls1021a";
 	interrupt-parent = <&gic>;
 
 	aliases {
