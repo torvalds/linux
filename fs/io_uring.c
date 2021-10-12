@@ -2266,9 +2266,10 @@ static void io_free_batch_list(struct io_ring_ctx *ctx,
 		struct io_kiocb *req = container_of(node, struct io_kiocb,
 						    comp_list);
 
-		if (!req_ref_put_and_test(req)) {
+		if (unlikely(req->flags & REQ_F_REFCOUNT)) {
 			node = req->comp_list.next;
-			continue;
+			if (!req_ref_put_and_test(req))
+				continue;
 		}
 
 		io_queue_next(req);
