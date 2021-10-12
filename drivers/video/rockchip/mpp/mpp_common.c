@@ -733,17 +733,25 @@ static void mpp_task_try_run(struct kthread_work *work_s)
 
 done:
 	mutex_lock(&queue->session_lock);
-	if (queue->detach_count) {
-		struct mpp_session *session = NULL, *n;
+	while (queue->detach_count) {
+		struct mpp_session *session = NULL;
 
-		mpp_dbg_session("%s detach count %d\n", dev_name(mpp->dev),
-				queue->detach_count);
-
-		list_for_each_entry_safe(session, n, &queue->session_detach,
-					 session_link) {
-			if (!mpp_session_deinit(session))
-				queue->detach_count--;
+		session = list_first_entry_or_null(&queue->session_detach, struct mpp_session,
+				session_link);
+		if (session) {
+			list_del_init(&session->session_link);
+			queue->detach_count--;
 		}
+
+		mutex_unlock(&queue->session_lock);
+
+		if (session) {
+			mpp_dbg_session("%s detach count %d\n", dev_name(mpp->dev),
+					queue->detach_count);
+			mpp_session_deinit(session);
+		}
+
+		mutex_lock(&queue->session_lock);
 	}
 	mutex_unlock(&queue->session_lock);
 }
