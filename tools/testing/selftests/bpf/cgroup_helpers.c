@@ -11,7 +11,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <ftw.h>
-#include <unistd.h>
 
 #include "cgroup_helpers.h"
 
