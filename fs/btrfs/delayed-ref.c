@@ -922,7 +922,7 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 
 	if (test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags) &&
 	    is_fstree(generic_ref->real_root) &&
-	    is_fstree(generic_ref->tree_ref.root) &&
+	    is_fstree(generic_ref->tree_ref.owning_root) &&
 	    !generic_ref->skip_qgroup) {
 		record = kzalloc(sizeof(*record), GFP_NOFS);
 		if (!record) {
@@ -938,14 +938,15 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 		ref_type = BTRFS_TREE_BLOCK_REF_KEY;
 
 	init_delayed_ref_common(fs_info, &ref->node, bytenr, num_bytes,
-				generic_ref->tree_ref.root, action, ref_type);
-	ref->root = generic_ref->tree_ref.root;
+				generic_ref->tree_ref.owning_root, action,
+				ref_type);
+	ref->root = generic_ref->tree_ref.owning_root;
 	ref->parent = parent;
 	ref->level = level;
 
 	init_delayed_ref_head(head_ref, record, bytenr, num_bytes,
-			      generic_ref->tree_ref.root, 0, action, false,
-			      is_system);
+			      generic_ref->tree_ref.owning_root, 0, action,
+			      false, is_system);
 	head_ref->extent_op = extent_op;
 
 	delayed_refs = &trans->transaction->delayed_refs;
@@ -997,7 +998,7 @@ int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
 	u64 bytenr = generic_ref->bytenr;
 	u64 num_bytes = generic_ref->len;
 	u64 parent = generic_ref->parent;
-	u64 ref_root = generic_ref->data_ref.ref_root;
+	u64 ref_root = generic_ref->data_ref.owning_root;
 	u64 owner = generic_ref->data_ref.ino;
 	u64 offset = generic_ref->data_ref.offset;
 	u8 ref_type;

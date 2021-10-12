@@ -186,8 +186,8 @@ enum btrfs_ref_type {
 struct btrfs_data_ref {
 	/* For EXTENT_DATA_REF */
 
-	/* Root which refers to this data extent */
-	u64 ref_root;
+	/* Original root this data extent belongs to */
+	u64 owning_root;
 
 	/* Inode which refers to this data extent */
 	u64 ino;
@@ -210,11 +210,11 @@ struct btrfs_tree_ref {
 	int level;
 
 	/*
-	 * Root which refers to this tree block.
+	 * Root which owns this tree block.
 	 *
 	 * For TREE_BLOCK_REF (skinny metadata, either inline or keyed)
 	 */
-	u64 root;
+	u64 owning_root;
 
 	/* For non-skinny metadata, no special member needed */
 };
@@ -277,7 +277,7 @@ static inline void btrfs_init_tree_ref(struct btrfs_ref *generic_ref,
 	if (!generic_ref->real_root)
 		generic_ref->real_root = root;
 	generic_ref->tree_ref.level = level;
-	generic_ref->tree_ref.root = root;
+	generic_ref->tree_ref.owning_root = root;
 	generic_ref->type = BTRFS_REF_METADATA;
 }
 
@@ -287,7 +287,7 @@ static inline void btrfs_init_data_ref(struct btrfs_ref *generic_ref,
 	/* If @real_root not set, use @root as fallback */
 	if (!generic_ref->real_root)
 		generic_ref->real_root = ref_root;
-	generic_ref->data_ref.ref_root = ref_root;
+	generic_ref->data_ref.owning_root = ref_root;
 	generic_ref->data_ref.ino = ino;
 	generic_ref->data_ref.offset = offset;
 	generic_ref->type = BTRFS_REF_DATA;
