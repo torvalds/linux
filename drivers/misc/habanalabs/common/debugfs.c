@@ -15,18 +15,24 @@
 #define MMU_ADDR_BUF_SIZE	40
 #define MMU_ASID_BUF_SIZE	10
 #define MMU_KBUF_SIZE		(MMU_ADDR_BUF_SIZE + MMU_ASID_BUF_SIZE)
+#define I2C_MAX_TRANSACTION_LEN	8
 
 static struct dentry *hl_debug_root;
 
 static int hl_debugfs_i2c_read(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
-				u8 i2c_reg, long *val)
+				u8 i2c_reg, u8 i2c_len, u64 *val)
 {
 	struct cpucp_packet pkt;
-	u64 result;
 	int rc;
 
 	if (!hl_device_operational(hdev, NULL))
 		return -EBUSY;
+
+	if (i2c_len > I2C_MAX_TRANSACTION_LEN) {
+		dev_err(hdev->dev, "I2C transaction length %u, exceeds maximum of %u\n",
+				i2c_len, I2C_MAX_TRANSACTION_LEN);
+		return -EINVAL;
+	}
 
 	memset(&pkt, 0, sizeof(pkt));
 
@@ -35,12 +41,10 @@ static int hl_debugfs_i2c_read(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
 	pkt.i2c_bus = i2c_bus;
 	pkt.i2c_addr = i2c_addr;
 	pkt.i2c_reg = i2c_reg;
+	pkt.i2c_len = i2c_len;
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
-						0, &result);
-
-	*val = (long) result;
-
+						0, val);
 	if (rc)
 		dev_err(hdev->dev, "Failed to read from I2C, error %d\n", rc);
 
@@ -48,13 +52,19 @@ static int hl_debugfs_i2c_read(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
 }
 
 static int hl_debugfs_i2c_write(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
-				u8 i2c_reg, u32 val)
+				u8 i2c_reg, u8 i2c_len, u64 val)
 {
 	struct cpucp_packet pkt;
 	int rc;
 
 	if (!hl_device_operational(hdev, NULL))
 		return -EBUSY;
+
+	if (i2c_len > I2C_MAX_TRANSACTION_LEN) {
+		dev_err(hdev->dev, "I2C transaction length %u, exceeds maximum of %u\n",
+				i2c_len, I2C_MAX_TRANSACTION_LEN);
+		return -EINVAL;
+	}
 
 	memset(&pkt, 0, sizeof(pkt));
 
@@ -63,6 +73,7 @@ static int hl_debugfs_i2c_write(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
 	pkt.i2c_bus = i2c_bus;
 	pkt.i2c_addr = i2c_addr;
 	pkt.i2c_reg = i2c_reg;
+	pkt.i2c_len = i2c_len;
 	pkt.value = cpu_to_le64(val);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
@@ -899,22 +910,22 @@ static ssize_t hl_i2c_data_read(struct file *f, char __user *buf,
 	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
 	struct hl_device *hdev = entry->hdev;
 	char tmp_buf[32];
-	long val;
+	u64 val;
 	ssize_t rc;
 
 	if (*ppos)
 		return 0;
 
 	rc = hl_debugfs_i2c_read(hdev, entry->i2c_bus, entry->i2c_addr,
-			entry->i2c_reg, &val);
+			entry->i2c_reg, entry->i2c_len, &val);
 	if (rc) {
 		dev_err(hdev->dev,
-			"Failed to read from I2C bus %d, addr %d, reg %d\n",
-			entry->i2c_bus, entry->i2c_addr, entry->i2c_reg);
+			"Failed to read from I2C bus %d, addr %d, reg %d, len %d\n",
+			entry->i2c_bus, entry->i2c_addr, entry->i2c_reg, entry->i2c_len);
 		return rc;
 	}
 
-	sprintf(tmp_buf, "0x%02lx\n", val);
+	sprintf(tmp_buf, "%#02llx\n", val);
 	rc = simple_read_from_buffer(buf, count, ppos, tmp_buf,
 			strlen(tmp_buf));
 
@@ -926,19 +937,19 @@ static ssize_t hl_i2c_data_write(struct file *f, const char __user *buf,
 {
 	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
 	struct hl_device *hdev = entry->hdev;
-	u32 value;
+	u64 value;
 	ssize_t rc;
 
-	rc = kstrtouint_from_user(buf, count, 16, &value);
+	rc = kstrtou64_from_user(buf, count, 16, &value);
 	if (rc)
 		return rc;
 
 	rc = hl_debugfs_i2c_write(hdev, entry->i2c_bus, entry->i2c_addr,
-			entry->i2c_reg, value);
+			entry->i2c_reg, entry->i2c_len, value);
 	if (rc) {
 		dev_err(hdev->dev,
-			"Failed to write 0x%02x to I2C bus %d, addr %d, reg %d\n",
-			value, entry->i2c_bus, entry->i2c_addr, entry->i2c_reg);
+			"Failed to write %#02llx to I2C bus %d, addr %d, reg %d, len %d\n",
+			value, entry->i2c_bus, entry->i2c_addr, entry->i2c_reg, entry->i2c_len);
 		return rc;
 	}
 
@@ -1420,6 +1431,11 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 				0644,
 				dev_entry->root,
 				&dev_entry->i2c_reg);
+
+	debugfs_create_u8("i2c_len",
+				0644,
+				dev_entry->root,
+				&dev_entry->i2c_len);
 
 	debugfs_create_file("i2c_data",
 				0644,

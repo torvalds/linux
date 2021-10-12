@@ -493,7 +493,14 @@ struct cpucp_packet {
 			__u8 i2c_bus;
 			__u8 i2c_addr;
 			__u8 i2c_reg;
-			__u8 pad; /* unused */
+			/*
+			 * In legacy implemetations, i2c_len was not present,
+			 * was unused and just added as pad.
+			 * So if i2c_len is 0, it is treated as legacy
+			 * and r/w 1 Byte, else if i2c_len is specified,
+			 * its treated as new multibyte r/w support.
+			 */
+			__u8 i2c_len;
 		};
 
 		struct {/* For PLL info fetch */

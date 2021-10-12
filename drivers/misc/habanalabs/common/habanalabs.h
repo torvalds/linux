@@ -1889,6 +1889,7 @@ struct hl_debugfs_entry {
  * @i2c_bus: generic u8 debugfs file for bus value to use in i2c_data_read.
  * @i2c_addr: generic u8 debugfs file for address value to use in i2c_data_read.
  * @i2c_reg: generic u8 debugfs file for register value to use in i2c_data_read.
+ * @i2c_len: generic u8 debugfs file for length value to use in i2c_data_read.
  */
 struct hl_dbg_device_entry {
 	struct dentry			*root;
@@ -1917,6 +1918,7 @@ struct hl_dbg_device_entry {
 	u8				i2c_bus;
 	u8				i2c_addr;
 	u8				i2c_reg;
+	u8				i2c_len;
 };
 
 /**
