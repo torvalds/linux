@@ -208,6 +208,9 @@ static inline void bio_issue_init(struct bio_issue *issue,
 			((u64)size << BIO_ISSUE_SIZE_SHIFT));
 }
 
+typedef unsigned int blk_qc_t;
+#define BLK_QC_T_NONE		-1U
+
 /*
  * main unit of I/O for the block layer and lower layers (ie drivers and
  * stacking drivers)
@@ -227,8 +230,8 @@ struct bio {
 
 	struct bvec_iter	bi_iter;
 
+	blk_qc_t		bi_cookie;
 	bio_end_io_t		*bi_end_io;
-
 	void			*bi_private;
 #ifdef CONFIG_BLK_CGROUP
 	/*
@@ -384,7 +387,7 @@ enum req_flag_bits {
 	/* command specific flags for REQ_OP_WRITE_ZEROES: */
 	__REQ_NOUNMAP,		/* do not free blocks when zeroing */
 
-	__REQ_POLLED,		/* caller polls for completion using blk_poll */
+	__REQ_POLLED,		/* caller polls for completion using bio_poll */
 
 	/* for driver use */
 	__REQ_DRV,
@@ -494,11 +497,6 @@ static inline int op_stat_group(unsigned int op)
 		return STAT_DISCARD;
 	return op_is_write(op);
 }
-
-typedef unsigned int blk_qc_t;
-#define BLK_QC_T_NONE		-1U
-#define BLK_QC_T_SHIFT		16
-#define BLK_QC_T_INTERNAL	(1U << 31)
 
 struct blk_rq_stat {
 	u64 mean;

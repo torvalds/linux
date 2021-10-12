@@ -190,7 +190,7 @@ static blk_status_t pmem_do_write(struct pmem_device *pmem,
 	return rc;
 }
 
-static blk_qc_t pmem_submit_bio(struct bio *bio)
+static void pmem_submit_bio(struct bio *bio)
 {
 	int ret = 0;
 	blk_status_t rc = 0;
@@ -229,7 +229,6 @@ static blk_qc_t pmem_submit_bio(struct bio *bio)
 		bio->bi_status = errno_to_blk_status(ret);
 
 	bio_endio(bio);
-	return BLK_QC_T_NONE;
 }
 
 static int pmem_rw_page(struct block_device *bdev, sector_t sector,

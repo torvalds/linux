@@ -1598,22 +1598,18 @@ static void __zram_make_request(struct zram *zram, struct bio *bio)
 /*
  * Handler function for all zram I/O requests.
  */
-static blk_qc_t zram_submit_bio(struct bio *bio)
+static void zram_submit_bio(struct bio *bio)
 {
 	struct zram *zram = bio->bi_bdev->bd_disk->private_data;
 
 	if (!valid_io_request(zram, bio->bi_iter.bi_sector,
 					bio->bi_iter.bi_size)) {
 		atomic64_inc(&zram->stats.invalid_io);
-		goto error;
+		bio_io_error(bio);
+		return;
 	}
 
 	__zram_make_request(zram, bio);
-	return BLK_QC_T_NONE;
-
-error:
-	bio_io_error(bio);
-	return BLK_QC_T_NONE;
 }
 
 static void zram_slot_free_notify(struct block_device *bdev,

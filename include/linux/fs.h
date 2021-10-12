@@ -334,11 +334,7 @@ struct kiocb {
 	int			ki_flags;
 	u16			ki_hint;
 	u16			ki_ioprio; /* See linux/ioprio.h */
-	union {
-		unsigned int		ki_cookie; /* for ->iopoll */
-		struct wait_page_queue	*ki_waitq; /* for async buffered IO */
-	};
-
+	struct wait_page_queue	*ki_waitq; /* for async buffered IO */
 	randomized_struct_fields_end
 };
 

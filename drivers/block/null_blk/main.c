@@ -1422,7 +1422,7 @@ static struct nullb_queue *nullb_to_queue(struct nullb *nullb)
 	return &nullb->queues[index];
 }
 
-static blk_qc_t null_submit_bio(struct bio *bio)
+static void null_submit_bio(struct bio *bio)
 {
 	sector_t sector = bio->bi_iter.bi_sector;
 	sector_t nr_sectors = bio_sectors(bio);
@@ -1434,7 +1434,6 @@ static blk_qc_t null_submit_bio(struct bio *bio)
 	cmd->bio = bio;
 
 	null_handle_cmd(cmd, sector, nr_sectors, bio_op(bio));
-	return BLK_QC_T_NONE;
 }
 
 static bool should_timeout_request(struct request *rq)
