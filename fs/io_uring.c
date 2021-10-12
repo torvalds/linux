@@ -2738,19 +2738,12 @@ static void io_iopoll_req_issued(struct io_kiocb *req)
 		ctx->poll_multi_queue = false;
 	} else if (!ctx->poll_multi_queue) {
 		struct io_kiocb *list_req;
-		unsigned int queue_num0, queue_num1;
 
 		list_req = list_first_entry(&ctx->iopoll_list, struct io_kiocb,
 						inflight_entry);
 
-		if (list_req->file != req->file) {
+		if (list_req->file != req->file)
 			ctx->poll_multi_queue = true;
-		} else {
-			queue_num0 = blk_qc_t_to_queue_num(list_req->rw.kiocb.ki_cookie);
-			queue_num1 = blk_qc_t_to_queue_num(req->rw.kiocb.ki_cookie);
-			if (queue_num0 != queue_num1)
-				ctx->poll_multi_queue = true;
-		}
 	}
 
 	/*
