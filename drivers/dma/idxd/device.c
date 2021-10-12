@@ -801,7 +801,7 @@ static int idxd_groups_config_write(struct idxd_device *idxd)
 	struct device *dev = &idxd->pdev->dev;
 
 	/* Setup bandwidth token limit */
-	if (idxd->token_limit) {
+	if (idxd->hw.gen_cap.config_en && idxd->token_limit) {
 		reg.bits = ioread32(idxd->reg_base + IDXD_GENCFG_OFFSET);
 		reg.token_limit = idxd->token_limit;
 		iowrite32(reg.bits, idxd->reg_base + IDXD_GENCFG_OFFSET);
