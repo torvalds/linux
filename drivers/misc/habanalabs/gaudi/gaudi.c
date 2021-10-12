@@ -6430,6 +6430,7 @@ static int gaudi_debugfs_read_dma(struct hl_device *hdev, u64 addr, u32 size,
 {
 	u32 dma_core_sts0, err_cause, cfg1, size_left, pos, size_to_dma;
 	struct gaudi_device *gaudi = hdev->asic_specific;
+	u32 qm_glbl_sts0, qm_cgm_sts;
 	u64 dma_offset, qm_offset;
 	dma_addr_t dma_addr;
 	void *kernel_addr;
@@ -6454,14 +6455,20 @@ static int gaudi_debugfs_read_dma(struct hl_device *hdev, u64 addr, u32 size,
 	dma_offset = dma_id * DMA_CORE_OFFSET;
 	qm_offset = dma_id * DMA_QMAN_OFFSET;
 	dma_core_sts0 = RREG32(mmDMA0_CORE_STS0 + dma_offset);
-	is_eng_idle = IS_DMA_IDLE(dma_core_sts0);
+	qm_glbl_sts0 = RREG32(mmDMA0_QM_GLBL_STS0 + qm_offset);
+	qm_cgm_sts = RREG32(mmDMA0_QM_CGM_STS + qm_offset);
+	is_eng_idle = IS_QM_IDLE(qm_glbl_sts0, qm_cgm_sts) &&
+		      IS_DMA_IDLE(dma_core_sts0);
 
 	if (!is_eng_idle) {
 		dma_id = gaudi_dma_assignment[GAUDI_PCI_DMA_2];
 		dma_offset = dma_id * DMA_CORE_OFFSET;
 		qm_offset = dma_id * DMA_QMAN_OFFSET;
 		dma_core_sts0 = RREG32(mmDMA0_CORE_STS0 + dma_offset);
-		is_eng_idle = IS_DMA_IDLE(dma_core_sts0);
+		qm_glbl_sts0 = RREG32(mmDMA0_QM_GLBL_STS0 + qm_offset);
+		qm_cgm_sts = RREG32(mmDMA0_QM_CGM_STS + qm_offset);
+		is_eng_idle = IS_QM_IDLE(qm_glbl_sts0, qm_cgm_sts) &&
+			      IS_DMA_IDLE(dma_core_sts0);
 
 		if (!is_eng_idle) {
 			dev_err_ratelimited(hdev->dev,
