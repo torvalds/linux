@@ -97,14 +97,14 @@ static const struct fs_parameter_spec virtio_fs_parameters[] = {
 	{}
 };
 
-static int virtio_fs_parse_param(struct fs_context *fc,
+static int virtio_fs_parse_param(struct fs_context *fsc,
 				 struct fs_parameter *param)
 {
 	struct fs_parse_result result;
-	struct fuse_fs_context *ctx = fc->fs_private;
+	struct fuse_fs_context *ctx = fsc->fs_private;
 	int opt;
 
-	opt = fs_parse(fc, virtio_fs_parameters, param, &result);
+	opt = fs_parse(fsc, virtio_fs_parameters, param, &result);
 	if (opt < 0)
 		return opt;
 
@@ -119,9 +119,9 @@ static int virtio_fs_parse_param(struct fs_context *fc,
 	return 0;
 }
 
-static void virtio_fs_free_fc(struct fs_context *fc)
+static void virtio_fs_free_fsc(struct fs_context *fsc)
 {
-	struct fuse_fs_context *ctx = fc->fs_private;
+	struct fuse_fs_context *ctx = fsc->fs_private;
 
 	kfree(ctx);
 }
@@ -1488,7 +1488,7 @@ out_err:
 }
 
 static const struct fs_context_operations virtio_fs_context_ops = {
-	.free		= virtio_fs_free_fc,
+	.free		= virtio_fs_free_fsc,
 	.parse_param	= virtio_fs_parse_param,
 	.get_tree	= virtio_fs_get_tree,
 };

@@ -315,7 +315,7 @@ static phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t size,
  * Return:
  * Found address on success, 0 on failure.
  */
-phys_addr_t __init_memblock memblock_find_in_range(phys_addr_t start,
+static phys_addr_t __init_memblock memblock_find_in_range(phys_addr_t start,
 					phys_addr_t end, phys_addr_t size,
 					phys_addr_t align)
 {
@@ -472,7 +472,7 @@ static int __init_memblock memblock_double_array(struct memblock_type *type,
 		kfree(old_array);
 	else if (old_array != memblock_memory_init_regions &&
 		 old_array != memblock_reserved_init_regions)
-		memblock_free(__pa(old_array), old_alloc_size);
+		memblock_free_ptr(old_array, old_alloc_size);
 
 	/*
 	 * Reserve the new array if that comes from the memblock.  Otherwise, we
@@ -665,6 +665,11 @@ repeat:
 int __init_memblock memblock_add_node(phys_addr_t base, phys_addr_t size,
 				       int nid)
 {
+	phys_addr_t end = base + size - 1;
+
+	memblock_dbg("%s: [%pa-%pa] nid=%d %pS\n", __func__,
+		     &base, &end, nid, (void *)_RET_IP_);
+
 	return memblock_add_range(&memblock.memory, base, size, nid, 0);
 }
 
@@ -788,6 +793,20 @@ int __init_memblock memblock_remove(phys_addr_t base, phys_addr_t size)
 		     &base, &end, (void *)_RET_IP_);
 
 	return memblock_remove_range(&memblock.memory, base, size);
+}
+
+/**
+ * memblock_free_ptr - free boot memory allocation
+ * @ptr: starting address of the  boot memory allocation
+ * @size: size of the boot memory block in bytes
+ *
+ * Free boot memory block previously allocated by memblock_alloc_xx() API.
+ * The freeing memory will not be released to the buddy allocator.
+ */
+void __init_memblock memblock_free_ptr(void *ptr, size_t size)
+{
+	if (ptr)
+		memblock_free(__pa(ptr), size);
 }
 
 /**
@@ -1491,18 +1510,12 @@ void * __init memblock_alloc_exact_nid_raw(
 			phys_addr_t min_addr, phys_addr_t max_addr,
 			int nid)
 {
-	void *ptr;
-
 	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=%pa max_addr=%pa %pS\n",
 		     __func__, (u64)size, (u64)align, nid, &min_addr,
 		     &max_addr, (void *)_RET_IP_);
 
-	ptr = memblock_alloc_internal(size, align,
-					   min_addr, max_addr, nid, true);
-	if (ptr && size > 0)
-		page_init_poison(ptr, size);
-
-	return ptr;
+	return memblock_alloc_internal(size, align, min_addr, max_addr, nid,
+				       true);
 }
 
 /**
@@ -1529,18 +1542,12 @@ void * __init memblock_alloc_try_nid_raw(
 			phys_addr_t min_addr, phys_addr_t max_addr,
 			int nid)
 {
-	void *ptr;
-
 	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=%pa max_addr=%pa %pS\n",
 		     __func__, (u64)size, (u64)align, nid, &min_addr,
 		     &max_addr, (void *)_RET_IP_);
 
-	ptr = memblock_alloc_internal(size, align,
-					   min_addr, max_addr, nid, false);
-	if (ptr && size > 0)
-		page_init_poison(ptr, size);
-
-	return ptr;
+	return memblock_alloc_internal(size, align, min_addr, max_addr, nid,
+				       false);
 }
 
 /**
@@ -1679,6 +1686,11 @@ void __init memblock_cap_memory_range(phys_addr_t base, phys_addr_t size)
 
 	if (!size)
 		return;
+
+	if (memblock.memory.cnt <= 1) {
+		pr_warn("%s: No memory registered yet\n", __func__);
+		return;
+	}
 
 	ret = memblock_isolate_range(&memblock.memory, base, size,
 						&start_rgn, &end_rgn);

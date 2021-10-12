@@ -26,6 +26,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/debugfs.h>
+#include <linux/utsname.h>
 
 #define DEFAULT_COUNT 10
 
@@ -210,6 +211,8 @@ module_param(cpoint_count, int, 0644);
 MODULE_PARM_DESC(cpoint_count, " Crash Point Count, number of times the "\
 				"crash point is to be hit to trigger action");
 
+/* For test debug reporting. */
+char *lkdtm_kernel_info;
 
 /* Return the crashtype number or NULL if the name is invalid */
 static const struct crashtype *find_crashtype(const char *name)
@@ -490,6 +493,11 @@ static int __init lkdtm_module_init(void)
 	crash_count = cpoint_count;
 #endif
 
+	/* Common initialization. */
+	lkdtm_kernel_info = kasprintf(GFP_KERNEL, "kernel (%s %s)",
+				      init_uts_ns.name.release,
+				      init_uts_ns.name.machine);
+
 	/* Handle test-specific initialization. */
 	lkdtm_bugs_init(&recur_count);
 	lkdtm_perms_init();
@@ -537,6 +545,8 @@ static void __exit lkdtm_module_exit(void)
 
 	if (lkdtm_kprobe != NULL)
 		unregister_kprobe(lkdtm_kprobe);
+
+	kfree(lkdtm_kernel_info);
 
 	pr_info("Crash point unregistered\n");
 }

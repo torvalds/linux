@@ -564,9 +564,9 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 	}
 
 	if (p->info.has_inen) {
-		pm_runtime_get_sync(p->dev);
+		pm_runtime_get_sync(dev);
 		gpio_rcar_enable_inputs(p);
-		pm_runtime_put(p->dev);
+		pm_runtime_put(dev);
 	}
 
 	dev_info(dev, "driving %d GPIOs\n", npins);

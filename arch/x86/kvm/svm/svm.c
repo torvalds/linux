@@ -46,8 +46,6 @@
 #include "kvm_onhyperv.h"
 #include "svm_onhyperv.h"
 
-#define __ex(x) __kvm_handle_fault_on_reboot(x)
-
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
 
@@ -261,7 +259,7 @@ u32 svm_msrpm_offset(u32 msr)
 static int get_max_npt_level(void)
 {
 #ifdef CONFIG_X86_64
-	return PT64_ROOT_4LEVEL;
+	return pgtable_l5_enabled() ? PT64_ROOT_5LEVEL : PT64_ROOT_4LEVEL;
 #else
 	return PT32E_ROOT_LEVEL;
 #endif
@@ -459,11 +457,6 @@ static int has_svm(void)
 
 	if (sev_active()) {
 		pr_info("KVM is unsupported when running as an SEV guest\n");
-		return 0;
-	}
-
-	if (pgtable_l5_enabled()) {
-		pr_info("KVM doesn't yet support 5-level paging on AMD SVM\n");
 		return 0;
 	}
 
@@ -1015,7 +1008,9 @@ static __init int svm_hardware_setup(void)
 	if (!boot_cpu_has(X86_FEATURE_NPT))
 		npt_enabled = false;
 
-	kvm_configure_mmu(npt_enabled, get_max_npt_level(), PG_LEVEL_1G);
+	/* Force VM NPT level equal to the host's max NPT level */
+	kvm_configure_mmu(npt_enabled, get_max_npt_level(),
+			  get_max_npt_level(), PG_LEVEL_1G);
 	pr_info("kvm: Nested Paging %sabled\n", npt_enabled ? "en" : "dis");
 
 	/* Note, SEV setup consumes npt_enabled. */
@@ -1161,8 +1156,6 @@ static void init_vmcb(struct kvm_vcpu *vcpu)
 	struct vmcb_control_area *control = &svm->vmcb->control;
 	struct vmcb_save_area *save = &svm->vmcb->save;
 
-	vcpu->arch.hflags = 0;
-
 	svm_set_intercept(svm, INTERCEPT_CR0_READ);
 	svm_set_intercept(svm, INTERCEPT_CR3_READ);
 	svm_set_intercept(svm, INTERCEPT_CR4_READ);
@@ -1241,28 +1234,13 @@ static void init_vmcb(struct kvm_vcpu *vcpu)
 		SVM_SELECTOR_S_MASK | SVM_SELECTOR_CODE_MASK;
 	save->cs.limit = 0xffff;
 
+	save->gdtr.base = 0;
 	save->gdtr.limit = 0xffff;
+	save->idtr.base = 0;
 	save->idtr.limit = 0xffff;
 
 	init_sys_seg(&save->ldtr, SEG_TYPE_LDT);
 	init_sys_seg(&save->tr, SEG_TYPE_BUSY_TSS16);
-
-	svm_set_cr4(vcpu, 0);
-	svm_set_efer(vcpu, 0);
-	save->dr6 = 0xffff0ff0;
-	kvm_set_rflags(vcpu, X86_EFLAGS_FIXED);
-	save->rip = 0x0000fff0;
-	vcpu->arch.regs[VCPU_REGS_RIP] = save->rip;
-
-	/*
-	 * svm_set_cr0() sets PG and WP and clears NW and CD on save->cr0.
-	 * It also updates the guest-visible cr0 value.
-	 */
-	svm_set_cr0(vcpu, X86_CR0_NW | X86_CR0_CD | X86_CR0_ET);
-	kvm_mmu_reset_context(vcpu);
-
-	save->cr4 = X86_CR4_PAE;
-	/* rdx = ?? */
 
 	if (npt_enabled) {
 		/* Setup VMCB for Nested Paging */
@@ -1273,14 +1251,12 @@ static void init_vmcb(struct kvm_vcpu *vcpu)
 		svm_clr_intercept(svm, INTERCEPT_CR3_WRITE);
 		save->g_pat = vcpu->arch.pat;
 		save->cr3 = 0;
-		save->cr4 = 0;
 	}
 	svm->current_vmcb->asid_generation = 0;
 	svm->asid = 0;
 
 	svm->nested.vmcb12_gpa = INVALID_GPA;
 	svm->nested.last_vmcb12_gpa = INVALID_GPA;
-	vcpu->arch.hflags = 0;
 
 	if (!kvm_pause_in_guest(vcpu->kvm)) {
 		control->pause_filter_count = pause_filter_count;
@@ -1330,25 +1306,11 @@ static void init_vmcb(struct kvm_vcpu *vcpu)
 static void svm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
-	u32 dummy;
-	u32 eax = 1;
 
 	svm->spec_ctrl = 0;
 	svm->virt_spec_ctrl = 0;
 
-	if (!init_event) {
-		vcpu->arch.apic_base = APIC_DEFAULT_PHYS_BASE |
-				       MSR_IA32_APICBASE_ENABLE;
-		if (kvm_vcpu_is_reset_bsp(vcpu))
-			vcpu->arch.apic_base |= MSR_IA32_APICBASE_BSP;
-	}
 	init_vmcb(vcpu);
-
-	kvm_cpuid(vcpu, &eax, &dummy, &dummy, &dummy, false);
-	kvm_rdx_write(vcpu, eax);
-
-	if (kvm_vcpu_apicv_active(vcpu) && !init_event)
-		avic_update_vapic_bar(svm, APIC_DEFAULT_PHYS_BASE);
 }
 
 void svm_switch_vmcb(struct vcpu_svm *svm, struct kvm_vmcb_info *target_vmcb)
@@ -1513,12 +1475,15 @@ static void svm_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		sd->current_vmcb = svm->vmcb;
 		indirect_branch_prediction_barrier();
 	}
-	avic_vcpu_load(vcpu, cpu);
+	if (kvm_vcpu_apicv_active(vcpu))
+		avic_vcpu_load(vcpu, cpu);
 }
 
 static void svm_vcpu_put(struct kvm_vcpu *vcpu)
 {
-	avic_vcpu_put(vcpu);
+	if (kvm_vcpu_apicv_active(vcpu))
+		avic_vcpu_put(vcpu);
+
 	svm_prepare_host_switch(vcpu);
 
 	++vcpu->stat.host_state_reload;
@@ -1560,7 +1525,7 @@ static void svm_cache_reg(struct kvm_vcpu *vcpu, enum kvm_reg reg)
 		load_pdptrs(vcpu, vcpu->arch.walk_mmu, kvm_read_cr3(vcpu));
 		break;
 	default:
-		WARN_ON_ONCE(1);
+		KVM_BUG_ON(1, vcpu->kvm);
 	}
 }
 
@@ -1601,6 +1566,8 @@ static void svm_clear_vintr(struct vcpu_svm *svm)
 
 		svm->vmcb->control.int_ctl |= svm->nested.ctl.int_ctl &
 			V_IRQ_INJECTION_BITS_MASK;
+
+		svm->vmcb->control.int_vector = svm->nested.ctl.int_vector;
 	}
 
 	vmcb_mark_dirty(svm->vmcb, VMCB_INTR);
@@ -2078,11 +2045,15 @@ static int shutdown_interception(struct kvm_vcpu *vcpu)
 		return -EINVAL;
 
 	/*
-	 * VMCB is undefined after a SHUTDOWN intercept
-	 * so reinitialize it.
+	 * VMCB is undefined after a SHUTDOWN intercept.  INIT the vCPU to put
+	 * the VMCB in a known good state.  Unfortuately, KVM doesn't have
+	 * KVM_MP_STATE_SHUTDOWN and can't add it without potentially breaking
+	 * userspace.  At a platform view, INIT is acceptable behavior as
+	 * there exist bare metal platforms that automatically INIT the CPU
+	 * in response to shutdown.
 	 */
 	clear_page(svm->vmcb);
-	init_vmcb(vcpu);
+	kvm_vcpu_reset(vcpu, true);
 
 	kvm_run->exit_reason = KVM_EXIT_SHUTDOWN;
 	return 0;
@@ -2251,6 +2222,10 @@ static int gp_interception(struct kvm_vcpu *vcpu)
 
 	/* Both #GP cases have zero error_code */
 	if (error_code)
+		goto reinject;
+
+	/* All SVM instructions expect page aligned RAX */
+	if (svm->vmcb->save.rax & ~PAGE_MASK)
 		goto reinject;
 
 	/* Decode the instruction for usage later */
@@ -2993,10 +2968,6 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 		svm->msr_decfg = data;
 		break;
 	}
-	case MSR_IA32_APICBASE:
-		if (kvm_vcpu_apicv_active(vcpu))
-			avic_update_vapic_bar(to_svm(vcpu), data);
-		fallthrough;
 	default:
 		return kvm_set_msr_common(vcpu, msr);
 	}
@@ -3021,7 +2992,7 @@ static int interrupt_window_interception(struct kvm_vcpu *vcpu)
 	 * In this case AVIC was temporarily disabled for
 	 * requesting the IRQ window and we have to re-enable it.
 	 */
-	svm_toggle_avic_for_irq_window(vcpu, true);
+	kvm_request_apicv_update(vcpu->kvm, true, APICV_INHIBIT_REASON_IRQWIN);
 
 	++vcpu->stat.irq_window_exits;
 	return 1;
@@ -3269,12 +3240,14 @@ static void dump_vmcb(struct kvm_vcpu *vcpu)
 	       "excp_to:", save->last_excp_to);
 }
 
+static bool svm_check_exit_valid(struct kvm_vcpu *vcpu, u64 exit_code)
+{
+	return (exit_code < ARRAY_SIZE(svm_exit_handlers) &&
+		svm_exit_handlers[exit_code]);
+}
+
 static int svm_handle_invalid_exit(struct kvm_vcpu *vcpu, u64 exit_code)
 {
-	if (exit_code < ARRAY_SIZE(svm_exit_handlers) &&
-	    svm_exit_handlers[exit_code])
-		return 0;
-
 	vcpu_unimpl(vcpu, "svm: unexpected exit reason 0x%llx\n", exit_code);
 	dump_vmcb(vcpu);
 	vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
@@ -3282,14 +3255,13 @@ static int svm_handle_invalid_exit(struct kvm_vcpu *vcpu, u64 exit_code)
 	vcpu->run->internal.ndata = 2;
 	vcpu->run->internal.data[0] = exit_code;
 	vcpu->run->internal.data[1] = vcpu->arch.last_vmentry_cpu;
-
-	return -EINVAL;
+	return 0;
 }
 
 int svm_invoke_exit_handler(struct kvm_vcpu *vcpu, u64 exit_code)
 {
-	if (svm_handle_invalid_exit(vcpu, exit_code))
-		return 0;
+	if (!svm_check_exit_valid(vcpu, exit_code))
+		return svm_handle_invalid_exit(vcpu, exit_code);
 
 #ifdef CONFIG_RETPOLINE
 	if (exit_code == SVM_EXIT_MSR)
@@ -3573,7 +3545,7 @@ static void svm_enable_irq_window(struct kvm_vcpu *vcpu)
 		 * via AVIC. In such case, we need to temporarily disable AVIC,
 		 * and fallback to injecting IRQ via V_IRQ.
 		 */
-		svm_toggle_avic_for_irq_window(vcpu, false);
+		kvm_request_apicv_update(vcpu->kvm, false, APICV_INHIBIT_REASON_IRQWIN);
 		svm_set_vintr(svm);
 	}
 }
@@ -3807,6 +3779,8 @@ static __no_kcsan fastpath_t svm_vcpu_run(struct kvm_vcpu *vcpu)
 	}
 
 	pre_svm_run(vcpu);
+
+	WARN_ON_ONCE(kvm_apicv_activated(vcpu->kvm) != kvm_vcpu_apicv_active(vcpu));
 
 	sync_lapic_to_cr8(vcpu);
 
@@ -4317,43 +4291,44 @@ static int svm_enter_smm(struct kvm_vcpu *vcpu, char *smstate)
 	struct kvm_host_map map_save;
 	int ret;
 
-	if (is_guest_mode(vcpu)) {
-		/* FED8h - SVM Guest */
-		put_smstate(u64, smstate, 0x7ed8, 1);
-		/* FEE0h - SVM Guest VMCB Physical Address */
-		put_smstate(u64, smstate, 0x7ee0, svm->nested.vmcb12_gpa);
+	if (!is_guest_mode(vcpu))
+		return 0;
 
-		svm->vmcb->save.rax = vcpu->arch.regs[VCPU_REGS_RAX];
-		svm->vmcb->save.rsp = vcpu->arch.regs[VCPU_REGS_RSP];
-		svm->vmcb->save.rip = vcpu->arch.regs[VCPU_REGS_RIP];
+	/* FED8h - SVM Guest */
+	put_smstate(u64, smstate, 0x7ed8, 1);
+	/* FEE0h - SVM Guest VMCB Physical Address */
+	put_smstate(u64, smstate, 0x7ee0, svm->nested.vmcb12_gpa);
 
-		ret = nested_svm_vmexit(svm);
-		if (ret)
-			return ret;
+	svm->vmcb->save.rax = vcpu->arch.regs[VCPU_REGS_RAX];
+	svm->vmcb->save.rsp = vcpu->arch.regs[VCPU_REGS_RSP];
+	svm->vmcb->save.rip = vcpu->arch.regs[VCPU_REGS_RIP];
 
-		/*
-		 * KVM uses VMCB01 to store L1 host state while L2 runs but
-		 * VMCB01 is going to be used during SMM and thus the state will
-		 * be lost. Temporary save non-VMLOAD/VMSAVE state to the host save
-		 * area pointed to by MSR_VM_HSAVE_PA. APM guarantees that the
-		 * format of the area is identical to guest save area offsetted
-		 * by 0x400 (matches the offset of 'struct vmcb_save_area'
-		 * within 'struct vmcb'). Note: HSAVE area may also be used by
-		 * L1 hypervisor to save additional host context (e.g. KVM does
-		 * that, see svm_prepare_guest_switch()) which must be
-		 * preserved.
-		 */
-		if (kvm_vcpu_map(vcpu, gpa_to_gfn(svm->nested.hsave_msr),
-				 &map_save) == -EINVAL)
-			return 1;
+	ret = nested_svm_vmexit(svm);
+	if (ret)
+		return ret;
 
-		BUILD_BUG_ON(offsetof(struct vmcb, save) != 0x400);
+	/*
+	 * KVM uses VMCB01 to store L1 host state while L2 runs but
+	 * VMCB01 is going to be used during SMM and thus the state will
+	 * be lost. Temporary save non-VMLOAD/VMSAVE state to the host save
+	 * area pointed to by MSR_VM_HSAVE_PA. APM guarantees that the
+	 * format of the area is identical to guest save area offsetted
+	 * by 0x400 (matches the offset of 'struct vmcb_save_area'
+	 * within 'struct vmcb'). Note: HSAVE area may also be used by
+	 * L1 hypervisor to save additional host context (e.g. KVM does
+	 * that, see svm_prepare_guest_switch()) which must be
+	 * preserved.
+	 */
+	if (kvm_vcpu_map(vcpu, gpa_to_gfn(svm->nested.hsave_msr),
+			 &map_save) == -EINVAL)
+		return 1;
 
-		svm_copy_vmrun_state(map_save.hva + 0x400,
-				     &svm->vmcb01.ptr->save);
+	BUILD_BUG_ON(offsetof(struct vmcb, save) != 0x400);
 
-		kvm_vcpu_unmap(vcpu, &map_save, true);
-	}
+	svm_copy_vmrun_state(map_save.hva + 0x400,
+			     &svm->vmcb01.ptr->save);
+
+	kvm_vcpu_unmap(vcpu, &map_save, true);
 	return 0;
 }
 
@@ -4361,50 +4336,54 @@ static int svm_leave_smm(struct kvm_vcpu *vcpu, const char *smstate)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct kvm_host_map map, map_save;
-	int ret = 0;
+	u64 saved_efer, vmcb12_gpa;
+	struct vmcb *vmcb12;
+	int ret;
 
-	if (guest_cpuid_has(vcpu, X86_FEATURE_LM)) {
-		u64 saved_efer = GET_SMSTATE(u64, smstate, 0x7ed0);
-		u64 guest = GET_SMSTATE(u64, smstate, 0x7ed8);
-		u64 vmcb12_gpa = GET_SMSTATE(u64, smstate, 0x7ee0);
-		struct vmcb *vmcb12;
+	if (!guest_cpuid_has(vcpu, X86_FEATURE_LM))
+		return 0;
 
-		if (guest) {
-			if (!guest_cpuid_has(vcpu, X86_FEATURE_SVM))
-				return 1;
+	/* Non-zero if SMI arrived while vCPU was in guest mode. */
+	if (!GET_SMSTATE(u64, smstate, 0x7ed8))
+		return 0;
 
-			if (!(saved_efer & EFER_SVME))
-				return 1;
+	if (!guest_cpuid_has(vcpu, X86_FEATURE_SVM))
+		return 1;
 
-			if (kvm_vcpu_map(vcpu,
-					 gpa_to_gfn(vmcb12_gpa), &map) == -EINVAL)
-				return 1;
+	saved_efer = GET_SMSTATE(u64, smstate, 0x7ed0);
+	if (!(saved_efer & EFER_SVME))
+		return 1;
 
-			if (svm_allocate_nested(svm))
-				return 1;
+	vmcb12_gpa = GET_SMSTATE(u64, smstate, 0x7ee0);
+	if (kvm_vcpu_map(vcpu, gpa_to_gfn(vmcb12_gpa), &map) == -EINVAL)
+		return 1;
 
-			vmcb12 = map.hva;
+	ret = 1;
+	if (kvm_vcpu_map(vcpu, gpa_to_gfn(svm->nested.hsave_msr), &map_save) == -EINVAL)
+		goto unmap_map;
 
-			nested_load_control_from_vmcb12(svm, &vmcb12->control);
+	if (svm_allocate_nested(svm))
+		goto unmap_save;
 
-			ret = enter_svm_guest_mode(vcpu, vmcb12_gpa, vmcb12);
-			kvm_vcpu_unmap(vcpu, &map, true);
+	/*
+	 * Restore L1 host state from L1 HSAVE area as VMCB01 was
+	 * used during SMM (see svm_enter_smm())
+	 */
 
-			/*
-			 * Restore L1 host state from L1 HSAVE area as VMCB01 was
-			 * used during SMM (see svm_enter_smm())
-			 */
-			if (kvm_vcpu_map(vcpu, gpa_to_gfn(svm->nested.hsave_msr),
-					 &map_save) == -EINVAL)
-				return 1;
+	svm_copy_vmrun_state(&svm->vmcb01.ptr->save, map_save.hva + 0x400);
 
-			svm_copy_vmrun_state(&svm->vmcb01.ptr->save,
-					     map_save.hva + 0x400);
+	/*
+	 * Enter the nested guest now
+	 */
 
-			kvm_vcpu_unmap(vcpu, &map_save, true);
-		}
-	}
+	vmcb12 = map.hva;
+	nested_load_control_from_vmcb12(svm, &vmcb12->control);
+	ret = enter_svm_guest_mode(vcpu, vmcb12_gpa, vmcb12, false);
 
+unmap_save:
+	kvm_vcpu_unmap(vcpu, &map_save, true);
+unmap_map:
+	kvm_vcpu_unmap(vcpu, &map, true);
 	return ret;
 }
 
@@ -4610,7 +4589,6 @@ static struct kvm_x86_ops svm_x86_ops __initdata = {
 	.set_virtual_apic_mode = svm_set_virtual_apic_mode,
 	.refresh_apicv_exec_ctrl = svm_refresh_apicv_exec_ctrl,
 	.check_apicv_inhibit_reasons = svm_check_apicv_inhibit_reasons,
-	.pre_update_apicv_exec_ctrl = svm_pre_update_apicv_exec_ctrl,
 	.load_eoi_exitmap = svm_load_eoi_exitmap,
 	.hwapic_irr_update = svm_hwapic_irr_update,
 	.hwapic_isr_update = svm_hwapic_isr_update,

@@ -62,7 +62,7 @@ static void octeon_flash_map_copy_to(struct map_info *map, unsigned long to,
 	up(&octeon_bootbus_sem);
 }
 
-/**
+/*
  * Module/ driver initialization.
  *
  * Returns Zero on success

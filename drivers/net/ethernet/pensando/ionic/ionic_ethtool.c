@@ -582,7 +582,10 @@ static int ionic_set_ringparam(struct net_device *netdev,
 
 	qparam.ntxq_descs = ring->tx_pending;
 	qparam.nrxq_descs = ring->rx_pending;
+
+	mutex_lock(&lif->queue_lock);
 	err = ionic_reconfigure_queues(lif, &qparam);
+	mutex_unlock(&lif->queue_lock);
 	if (err)
 		netdev_info(netdev, "Ring reconfiguration failed, changes canceled: %d\n", err);
 
@@ -679,7 +682,9 @@ static int ionic_set_channels(struct net_device *netdev,
 		return 0;
 	}
 
+	mutex_lock(&lif->queue_lock);
 	err = ionic_reconfigure_queues(lif, &qparam);
+	mutex_unlock(&lif->queue_lock);
 	if (err)
 		netdev_info(netdev, "Queue reconfiguration failed, changes canceled: %d\n", err);
 

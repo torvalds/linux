@@ -8,6 +8,7 @@
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/file.h>
+#include <linux/fileattr.h>
 #include <linux/splice.h>
 #include <linux/xattr.h>
 #include <linux/security.h>
@@ -62,7 +63,7 @@ int ovl_copy_xattr(struct super_block *sb, struct dentry *old,
 		return list_size;
 	}
 
-	buf = kzalloc(list_size, GFP_KERNEL);
+	buf = kvzalloc(list_size, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
@@ -105,11 +106,12 @@ retry:
 		if (size > value_size) {
 			void *new;
 
-			new = krealloc(value, size, GFP_KERNEL);
+			new = kvmalloc(size, GFP_KERNEL);
 			if (!new) {
 				error = -ENOMEM;
 				break;
 			}
+			kvfree(value);
 			value = new;
 			value_size = size;
 			goto retry;
@@ -124,10 +126,48 @@ retry:
 			error = 0;
 		}
 	}
-	kfree(value);
+	kvfree(value);
 out:
-	kfree(buf);
+	kvfree(buf);
 	return error;
+}
+
+static int ovl_copy_fileattr(struct inode *inode, struct path *old,
+			     struct path *new)
+{
+	struct fileattr oldfa = { .flags_valid = true };
+	struct fileattr newfa = { .flags_valid = true };
+	int err;
+
+	err = ovl_real_fileattr_get(old, &oldfa);
+	if (err)
+		return err;
+
+	err = ovl_real_fileattr_get(new, &newfa);
+	if (err)
+		return err;
+
+	/*
+	 * We cannot set immutable and append-only flags on upper inode,
+	 * because we would not be able to link upper inode to upper dir
+	 * not set overlay private xattr on upper inode.
+	 * Store these flags in overlay.protattr xattr instead.
+	 */
+	if (oldfa.flags & OVL_PROT_FS_FLAGS_MASK) {
+		err = ovl_set_protattr(inode, new->dentry, &oldfa);
+		if (err)
+			return err;
+	}
+
+	BUILD_BUG_ON(OVL_COPY_FS_FLAGS_MASK & ~FS_COMMON_FL);
+	newfa.flags &= ~OVL_COPY_FS_FLAGS_MASK;
+	newfa.flags |= (oldfa.flags & OVL_COPY_FS_FLAGS_MASK);
+
+	BUILD_BUG_ON(OVL_COPY_FSX_FLAGS_MASK & ~FS_XFLAG_COMMON);
+	newfa.fsx_xflags &= ~OVL_COPY_FSX_FLAGS_MASK;
+	newfa.fsx_xflags |= (oldfa.fsx_xflags & OVL_COPY_FSX_FLAGS_MASK);
+
+	return ovl_real_fileattr_set(new, &newfa);
 }
 
 static int ovl_copy_up_data(struct ovl_fs *ofs, struct path *old,
@@ -331,8 +371,8 @@ out_err:
 	return ERR_PTR(err);
 }
 
-int ovl_set_origin(struct ovl_fs *ofs, struct dentry *dentry,
-		   struct dentry *lower, struct dentry *upper)
+int ovl_set_origin(struct ovl_fs *ofs, struct dentry *lower,
+		   struct dentry *upper)
 {
 	const struct ovl_fh *fh = NULL;
 	int err;
@@ -351,7 +391,7 @@ int ovl_set_origin(struct ovl_fs *ofs, struct dentry *dentry,
 	/*
 	 * Do not fail when upper doesn't support xattrs.
 	 */
-	err = ovl_check_setxattr(dentry, upper, OVL_XATTR_ORIGIN, fh->buf,
+	err = ovl_check_setxattr(ofs, upper, OVL_XATTR_ORIGIN, fh->buf,
 				 fh ? fh->fb.len : 0, 0);
 	kfree(fh);
 
@@ -493,20 +533,21 @@ static int ovl_link_up(struct ovl_copy_up_ctx *c)
 static int ovl_copy_up_inode(struct ovl_copy_up_ctx *c, struct dentry *temp)
 {
 	struct ovl_fs *ofs = OVL_FS(c->dentry->d_sb);
+	struct inode *inode = d_inode(c->dentry);
+	struct path upperpath, datapath;
 	int err;
+
+	ovl_path_upper(c->dentry, &upperpath);
+	if (WARN_ON(upperpath.dentry != NULL))
+		return -EIO;
+
+	upperpath.dentry = temp;
 
 	/*
 	 * Copy up data first and then xattrs. Writing data after
 	 * xattrs will remove security.capability xattr automatically.
 	 */
 	if (S_ISREG(c->stat.mode) && !c->metacopy) {
-		struct path upperpath, datapath;
-
-		ovl_path_upper(c->dentry, &upperpath);
-		if (WARN_ON(upperpath.dentry != NULL))
-			return -EIO;
-		upperpath.dentry = temp;
-
 		ovl_path_lowerdata(c->dentry, &datapath);
 		err = ovl_copy_up_data(ofs, &datapath, &upperpath,
 				       c->stat.size);
@@ -518,6 +559,16 @@ static int ovl_copy_up_inode(struct ovl_copy_up_ctx *c, struct dentry *temp)
 	if (err)
 		return err;
 
+	if (inode->i_flags & OVL_COPY_I_FLAGS_MASK) {
+		/*
+		 * Copy the fileattr inode flags that are the source of already
+		 * copied i_flags
+		 */
+		err = ovl_copy_fileattr(inode, &c->lowerpath, &upperpath);
+		if (err)
+			return err;
+	}
+
 	/*
 	 * Store identifier of lower inode in upper inode xattr to
 	 * allow lookup of the copy up origin inode.
@@ -526,13 +577,13 @@ static int ovl_copy_up_inode(struct ovl_copy_up_ctx *c, struct dentry *temp)
 	 * hard link.
 	 */
 	if (c->origin) {
-		err = ovl_set_origin(ofs, c->dentry, c->lowerpath.dentry, temp);
+		err = ovl_set_origin(ofs, c->lowerpath.dentry, temp);
 		if (err)
 			return err;
 	}
 
 	if (c->metacopy) {
-		err = ovl_check_setxattr(c->dentry, temp, OVL_XATTR_METACOPY,
+		err = ovl_check_setxattr(ofs, temp, OVL_XATTR_METACOPY,
 					 NULL, 0, -EOPNOTSUPP);
 		if (err)
 			return err;

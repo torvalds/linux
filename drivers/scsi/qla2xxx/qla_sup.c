@@ -2936,7 +2936,6 @@ qla28xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 		liter += dburst - 1;
 		faddr += dburst - 1;
 		dwptr += dburst - 1;
-		continue;
 	}
 
 write_protect:

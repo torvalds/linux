@@ -286,10 +286,9 @@ static int read_sections(struct elf *elf)
 				return -1;
 			}
 		}
-		sec->len = sec->sh.sh_size;
 
 		if (sec->sh.sh_flags & SHF_EXECINSTR)
-			elf->text_size += sec->len;
+			elf->text_size += sec->sh.sh_size;
 
 		list_add_tail(&sec->list, &elf->sections);
 		elf_hash_add(section, &sec->hash, sec->idx);
@@ -734,8 +733,8 @@ static int elf_add_string(struct elf *elf, struct section *strtab, char *str)
 	data->d_size = strlen(str) + 1;
 	data->d_align = 1;
 
-	len = strtab->len;
-	strtab->len += data->d_size;
+	len = strtab->sh.sh_size;
+	strtab->sh.sh_size += data->d_size;
 	strtab->changed = true;
 
 	return len;
@@ -790,9 +789,9 @@ struct symbol *elf_create_undef_symbol(struct elf *elf, const char *name)
 	data->d_align = 1;
 	data->d_type = ELF_T_SYM;
 
-	sym->idx = symtab->len / sizeof(sym->sym);
+	sym->idx = symtab->sh.sh_size / sizeof(sym->sym);
 
-	symtab->len += data->d_size;
+	symtab->sh.sh_size += data->d_size;
 	symtab->changed = true;
 
 	symtab_shndx = find_section_by_name(elf, ".symtab_shndx");
@@ -814,7 +813,7 @@ struct symbol *elf_create_undef_symbol(struct elf *elf, const char *name)
 		data->d_align = 4;
 		data->d_type = ELF_T_WORD;
 
-		symtab_shndx->len += 4;
+		symtab_shndx->sh.sh_size += 4;
 		symtab_shndx->changed = true;
 	}
 
@@ -855,7 +854,6 @@ struct section *elf_create_section(struct elf *elf, const char *name,
 	}
 
 	sec->idx = elf_ndxscn(s);
-	sec->len = size;
 	sec->changed = true;
 
 	sec->data = elf_newdata(s);

@@ -314,8 +314,6 @@ int hl_cb_create(struct hl_device *hdev, struct hl_cb_mgr *mgr,
 
 	spin_lock(&mgr->cb_lock);
 	rc = idr_alloc(&mgr->cb_handles, cb, 1, 0, GFP_ATOMIC);
-	if (rc < 0)
-		rc = idr_alloc(&mgr->cb_handles, cb, 1, 0, GFP_KERNEL);
 	spin_unlock(&mgr->cb_lock);
 
 	if (rc < 0) {
@@ -552,7 +550,7 @@ int hl_cb_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma)
 
 	vma->vm_private_data = cb;
 
-	rc = hdev->asic_funcs->cb_mmap(hdev, vma, cb->kernel_address,
+	rc = hdev->asic_funcs->mmap(hdev, vma, cb->kernel_address,
 					cb->bus_address, cb->size);
 	if (rc) {
 		spin_lock(&cb->lock);

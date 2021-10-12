@@ -94,6 +94,92 @@ compose_synth() { # event_name branch
 	xbc_get_val $2 | while read field; do echo -n "$field; "; done
 }
 
+print_hist_array() { # prefix key
+	__sep="="
+	if xbc_has_key ${1}.${2}; then
+		echo -n ":$2"
+		xbc_get_val ${1}.${2} | while read field; do
+			echo -n "$__sep$field"; __sep=","
+		done
+	fi
+}
+
+print_hist_action_array() { # prefix key
+	__sep="("
+	echo -n ".$2"
+	xbc_get_val ${1}.${2} | while read field; do
+		echo -n "$__sep$field"; __sep=","
+	done
+	echo -n ")"
+}
+
+print_hist_one_action() { # prefix handler param
+	echo -n ":${2}("`xbc_get_val ${1}.${3}`")"
+	if xbc_has_key "${1}.trace"; then
+		print_hist_action_array ${1} "trace"
+	elif xbc_has_key "${1}.save"; then
+		print_hist_action_array ${1} "save"
+	elif xbc_has_key "${1}.snapshot"; then
+		echo -n ".snapshot()"
+	fi
+}
+
+print_hist_actions() { # prefix handler param
+	for __hdr in `xbc_subkeys ${1}.${2} 1 ".[0-9]"`; do
+		print_hist_one_action ${1}.${2}.$__hdr ${2} ${3}
+	done
+	if xbc_has_key ${1}.${2}.${3} ; then
+		print_hist_one_action ${1}.${2} ${2} ${3}
+	fi
+}
+
+print_hist_var() { # prefix varname
+	echo -n ":${2}="`xbc_get_val ${1}.var.${2} | tr -d [:space:]`
+}
+
+print_one_histogram() { # prefix
+	echo -n "hist"
+	print_hist_array $1 "keys"
+	print_hist_array $1 "values"
+	print_hist_array $1 "sort"
+	if xbc_has_key "${1}.size"; then
+		echo -n ":size="`xbc_get_val ${1}.size`
+	fi
+	if xbc_has_key "${1}.name"; then
+		echo -n ":name="`xbc_get_val ${1}.name`
+	fi
+	for __var in `xbc_subkeys "${1}.var" 1`; do
+		print_hist_var ${1} ${__var}
+	done
+	if xbc_has_key "${1}.pause"; then
+		echo -n ":pause"
+	elif xbc_has_key "${1}.continue"; then
+		echo -n ":continue"
+	elif xbc_has_key "${1}.clear"; then
+		echo -n ":clear"
+	fi
+	print_hist_actions ${1} "onmax" "var"
+	print_hist_actions ${1} "onchange" "var"
+	print_hist_actions ${1} "onmatch" "event"
+
+	if xbc_has_key "${1}.filter"; then
+		echo -n " if "`xbc_get_val ${1}.filter`
+	fi
+}
+
+setup_one_histogram() { # prefix trigger-file
+	run_cmd "echo '`print_one_histogram ${1}`' >> ${2}"
+}
+
+setup_histograms() { # prefix trigger-file
+	for __hist in `xbc_subkeys ${1} 1 ".[0-9]"`; do
+		setup_one_histogram ${1}.$__hist ${2}
+	done
+	if xbc_has_key ${1}.keys; then
+		setup_one_histogram ${1} ${2}
+	fi
+}
+
 setup_event() { # prefix group event [instance]
 	branch=$1.$2.$3
 	if [ "$4" ]; then
@@ -101,6 +187,12 @@ setup_event() { # prefix group event [instance]
 	else
 		eventdir="$TRACEFS/events/$2/$3"
 	fi
+	# group enable
+	if [ "$3" = "enable" ]; then
+		run_cmd "echo 1 > ${eventdir}"
+		return
+	fi
+
 	case $2 in
 	kprobes)
 		xbc_get_val ${branch}.probes | while read line; do
@@ -115,6 +207,8 @@ setup_event() { # prefix group event [instance]
 	set_value_of ${branch}.filter ${eventdir}/filter
 	set_array_of ${branch}.actions ${eventdir}/trigger
 
+	setup_histograms ${branch}.hist ${eventdir}/trigger
+
 	if xbc_has_key ${branch}.enable; then
 		run_cmd "echo 1 > ${eventdir}/enable"
 	fi
@@ -126,6 +220,13 @@ setup_events() { # prefix("ftrace" or "ftrace.instance.INSTANCE") [instance]
 		for grpev in `xbc_subkeys ${1}.event 2`; do
 			setup_event $prefix ${grpev%.*} ${grpev#*.} $2
 		done
+	fi
+	if xbc_has_branch ${1}.event.enable; then
+		if [ "$2" ]; then
+			run_cmd "echo 1 > $TRACEFS/instances/$2/events/enable"
+		else
+			run_cmd "echo 1 > $TRACEFS/events/enable"
+		fi
 	fi
 }
 

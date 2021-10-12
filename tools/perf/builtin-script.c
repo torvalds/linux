@@ -368,16 +368,6 @@ static inline int output_type(unsigned int type)
 	return OUTPUT_TYPE_OTHER;
 }
 
-static inline unsigned int attr_type(unsigned int type)
-{
-	switch (type) {
-	case OUTPUT_TYPE_SYNTH:
-		return PERF_TYPE_SYNTH;
-	default:
-		return type;
-	}
-}
-
 static bool output_set_by_user(void)
 {
 	int j;
@@ -556,6 +546,18 @@ static void set_print_ip_opts(struct perf_event_attr *attr)
 		output[type].print_ip_opts |= EVSEL__PRINT_SRCLINE;
 }
 
+static struct evsel *find_first_output_type(struct evlist *evlist,
+					    unsigned int type)
+{
+	struct evsel *evsel;
+
+	evlist__for_each_entry(evlist, evsel) {
+		if (output_type(evsel->core.attr.type) == (int)type)
+			return evsel;
+	}
+	return NULL;
+}
+
 /*
  * verify all user requested events exist and the samples
  * have the expected data
@@ -567,7 +569,7 @@ static int perf_session__check_output_opt(struct perf_session *session)
 	struct evsel *evsel;
 
 	for (j = 0; j < OUTPUT_TYPE_MAX; ++j) {
-		evsel = perf_session__find_first_evtype(session, attr_type(j));
+		evsel = find_first_output_type(session->evlist, j);
 
 		/*
 		 * even if fields is set to 0 (ie., show nothing) event must
@@ -2212,7 +2214,7 @@ static int process_sample_event(struct perf_tool *tool,
 	if (filter_cpu(sample))
 		goto out_put;
 
-	if (machine__resolve(machine, &al, sample) < 0) {
+	if (!al.thread && machine__resolve(machine, &al, sample) < 0) {
 		pr_err("problem processing %d event, skipping it.\n",
 		       event->header.type);
 		ret = -1;
@@ -2490,6 +2492,17 @@ process_lost_event(struct perf_tool *tool,
 {
 	return print_event(tool, event, sample, machine, sample->pid,
 			   sample->tid);
+}
+
+static int
+process_throttle_event(struct perf_tool *tool __maybe_unused,
+		       union perf_event *event,
+		       struct perf_sample *sample,
+		       struct machine *machine)
+{
+	if (scripting_ops && scripting_ops->process_throttle)
+		scripting_ops->process_throttle(event, sample, machine);
+	return 0;
 }
 
 static int
@@ -3294,7 +3307,7 @@ int find_scripts(char **scripts_array, char **scripts_path_array, int num,
 	char *temp;
 	int i = 0;
 
-	session = perf_session__new(&data, false, NULL);
+	session = perf_session__new(&data, NULL);
 	if (IS_ERR(session))
 		return PTR_ERR(session);
 
@@ -3652,6 +3665,8 @@ int cmd_script(int argc, const char **argv)
 			.stat_config	 = process_stat_config_event,
 			.thread_map	 = process_thread_map_event,
 			.cpu_map	 = process_cpu_map_event,
+			.throttle	 = process_throttle_event,
+			.unthrottle	 = process_throttle_event,
 			.ordered_events	 = true,
 			.ordering_requires_timestamps = true,
 		},
@@ -4007,7 +4022,7 @@ script_found:
 		use_browser = 0;
 	}
 
-	session = perf_session__new(&data, false, &script.tool);
+	session = perf_session__new(&data, &script.tool);
 	if (IS_ERR(session))
 		return PTR_ERR(session);
 

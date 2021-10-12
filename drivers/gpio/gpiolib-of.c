@@ -122,7 +122,7 @@ static struct gpio_desc *of_xlate_and_get_gpiod_flags(struct gpio_chip *chip,
 bool of_gpio_need_valid_mask(const struct gpio_chip *gc)
 {
 	int size;
-	struct device_node *np = gc->of_node;
+	const struct device_node *np = gc->of_node;
 
 	size = of_property_count_u32_elems(np,  "gpio-reserved-ranges");
 	if (size > 0 && size % 2 == 0)
@@ -130,7 +130,7 @@ bool of_gpio_need_valid_mask(const struct gpio_chip *gc)
 	return false;
 }
 
-static void of_gpio_flags_quirks(struct device_node *np,
+static void of_gpio_flags_quirks(const struct device_node *np,
 				 const char *propname,
 				 enum of_gpio_flags *flags,
 				 int index)
@@ -236,7 +236,7 @@ static void of_gpio_flags_quirks(struct device_node *np,
  * value on the error condition. If @flags is not NULL the function also fills
  * in flags for the GPIO.
  */
-static struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
+static struct gpio_desc *of_get_named_gpiod_flags(const struct device_node *np,
 		     const char *propname, int index, enum of_gpio_flags *flags)
 {
 	struct of_phandle_args gpiospec;
@@ -275,7 +275,7 @@ out:
 	return desc;
 }
 
-int of_get_named_gpio_flags(struct device_node *np, const char *list_name,
+int of_get_named_gpio_flags(const struct device_node *np, const char *list_name,
 			    int index, enum of_gpio_flags *flags)
 {
 	struct gpio_desc *desc;
@@ -303,7 +303,7 @@ EXPORT_SYMBOL_GPL(of_get_named_gpio_flags);
  *
  * In case of error an ERR_PTR() is returned.
  */
-struct gpio_desc *gpiod_get_from_of_node(struct device_node *node,
+struct gpio_desc *gpiod_get_from_of_node(const struct device_node *node,
 					 const char *propname, int index,
 					 enum gpiod_flags dflags,
 					 const char *label)
@@ -373,7 +373,7 @@ static struct gpio_desc *of_find_spi_gpio(struct device *dev, const char *con_id
 					  enum of_gpio_flags *of_flags)
 {
 	char prop_name[32]; /* 32 is max size of property name */
-	struct device_node *np = dev->of_node;
+	const struct device_node *np = dev->of_node;
 	struct gpio_desc *desc;
 
 	/*
@@ -404,7 +404,7 @@ static struct gpio_desc *of_find_spi_cs_gpio(struct device *dev,
 					     unsigned int idx,
 					     unsigned long *flags)
 {
-	struct device_node *np = dev->of_node;
+	const struct device_node *np = dev->of_node;
 
 	if (!IS_ENABLED(CONFIG_SPI_MASTER))
 		return ERR_PTR(-ENOENT);
@@ -440,7 +440,7 @@ static struct gpio_desc *of_find_regulator_gpio(struct device *dev, const char *
 		"wlf,ldo1ena", /* WM8994 */
 		"wlf,ldo2ena", /* WM8994 */
 	};
-	struct device_node *np = dev->of_node;
+	const struct device_node *np = dev->of_node;
 	struct gpio_desc *desc;
 	int i;
 

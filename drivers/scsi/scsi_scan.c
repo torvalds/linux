@@ -267,6 +267,8 @@ static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
 	 */
 	sdev->borken = 1;
 
+	sdev->sg_reserved_size = INT_MAX;
+
 	q = blk_mq_init_queue(&sdev->host->tag_set);
 	if (IS_ERR(q)) {
 		/* release fn is set up in scsi_sysfs_device_initialise, so
@@ -973,6 +975,9 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 
 	if (*bflags & BLIST_UNMAP_LIMIT_WS)
 		sdev->unmap_limit_for_ws = 1;
+
+	if (*bflags & BLIST_IGN_MEDIA_CHANGE)
+		sdev->ignore_media_change = 1;
 
 	sdev->eh_timeout = SCSI_DEFAULT_EH_TIMEOUT;
 

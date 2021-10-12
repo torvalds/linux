@@ -84,9 +84,9 @@ unevaluatedProperties: false
 if:
   properties:
     compatible:
-      oneOf:
-        - const: ti,omap2-mcspi
-        - const: ti,omap4-mcspi
+      enum:
+        - ti,omap2-mcspi
+        - ti,omap4-mcspi
 
 then:
   properties:

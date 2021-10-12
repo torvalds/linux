@@ -1292,8 +1292,10 @@ int ionic_lif_addr_add(struct ionic_lif *lif, const u8 *addr)
 	if (err && err != -EEXIST) {
 		/* set the state back to NEW so we can try again later */
 		f = ionic_rx_filter_by_addr(lif, addr);
-		if (f && f->state == IONIC_FILTER_STATE_SYNCED)
+		if (f && f->state == IONIC_FILTER_STATE_SYNCED) {
 			f->state = IONIC_FILTER_STATE_NEW;
+			set_bit(IONIC_LIF_F_FILTER_SYNC_NEEDED, lif->state);
+		}
 
 		spin_unlock_bh(&lif->rx_filters.lock);
 
@@ -1715,7 +1717,6 @@ static int ionic_set_mac_address(struct net_device *netdev, void *sa)
 static void ionic_stop_queues_reconfig(struct ionic_lif *lif)
 {
 	/* Stop and clean the queues before reconfiguration */
-	mutex_lock(&lif->queue_lock);
 	netif_device_detach(lif->netdev);
 	ionic_stop_queues(lif);
 	ionic_txrx_deinit(lif);
@@ -1734,8 +1735,7 @@ static int ionic_start_queues_reconfig(struct ionic_lif *lif)
 	 * DOWN and UP to try to reset and clear the issue.
 	 */
 	err = ionic_txrx_init(lif);
-	mutex_unlock(&lif->queue_lock);
-	ionic_link_status_check_request(lif, CAN_SLEEP);
+	ionic_link_status_check_request(lif, CAN_NOT_SLEEP);
 	netif_device_attach(lif->netdev);
 
 	return err;
@@ -1765,9 +1765,13 @@ static int ionic_change_mtu(struct net_device *netdev, int new_mtu)
 		return 0;
 	}
 
+	mutex_lock(&lif->queue_lock);
 	ionic_stop_queues_reconfig(lif);
 	netdev->mtu = new_mtu;
-	return ionic_start_queues_reconfig(lif);
+	err = ionic_start_queues_reconfig(lif);
+	mutex_unlock(&lif->queue_lock);
+
+	return err;
 }
 
 static void ionic_tx_timeout_work(struct work_struct *ws)
@@ -1783,8 +1787,10 @@ static void ionic_tx_timeout_work(struct work_struct *ws)
 	if (!netif_running(lif->netdev))
 		return;
 
+	mutex_lock(&lif->queue_lock);
 	ionic_stop_queues_reconfig(lif);
 	ionic_start_queues_reconfig(lif);
+	mutex_unlock(&lif->queue_lock);
 }
 
 static void ionic_tx_timeout(struct net_device *netdev, unsigned int txqueue)

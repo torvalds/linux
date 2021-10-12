@@ -1677,8 +1677,6 @@ static void br_multicast_update_querier(struct net_bridge_mcast *brmctx,
 					int ifindex,
 					struct br_ip *saddr)
 {
-	lockdep_assert_held_once(&brmctx->br->multicast_lock);
-
 	write_seqcount_begin(&querier->seq);
 	querier->port_ifidx = ifindex;
 	memcpy(&querier->addr, saddr, sizeof(*saddr));
@@ -3867,13 +3865,13 @@ void br_multicast_ctx_init(struct net_bridge *br,
 
 	brmctx->ip4_other_query.delay_time = 0;
 	brmctx->ip4_querier.port_ifidx = 0;
-	seqcount_init(&brmctx->ip4_querier.seq);
+	seqcount_spinlock_init(&brmctx->ip4_querier.seq, &br->multicast_lock);
 	brmctx->multicast_igmp_version = 2;
 #if IS_ENABLED(CONFIG_IPV6)
 	brmctx->multicast_mld_version = 1;
 	brmctx->ip6_other_query.delay_time = 0;
 	brmctx->ip6_querier.port_ifidx = 0;
-	seqcount_init(&brmctx->ip6_querier.seq);
+	seqcount_spinlock_init(&brmctx->ip6_querier.seq, &br->multicast_lock);
 #endif
 
 	timer_setup(&brmctx->ip4_mc_router_timer,
@@ -4255,7 +4253,7 @@ int br_multicast_set_port_router(struct net_bridge_mcast_port *pmctx,
 	bool del = false;
 
 	brmctx = br_multicast_port_ctx_get_global(pmctx);
-	spin_lock(&brmctx->br->multicast_lock);
+	spin_lock_bh(&brmctx->br->multicast_lock);
 	if (pmctx->multicast_router == val) {
 		/* Refresh the temp router port timer */
 		if (pmctx->multicast_router == MDB_RTR_TYPE_TEMP) {
@@ -4305,7 +4303,7 @@ int br_multicast_set_port_router(struct net_bridge_mcast_port *pmctx,
 	}
 	err = 0;
 unlock:
-	spin_unlock(&brmctx->br->multicast_lock);
+	spin_unlock_bh(&brmctx->br->multicast_lock);
 
 	return err;
 }

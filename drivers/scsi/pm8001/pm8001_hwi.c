@@ -1323,7 +1323,7 @@ int pm8001_mpi_build_cmd(struct pm8001_hba_info *pm8001_ha,
 	void *pMessage;
 	unsigned long flags;
 	int q_index = circularQ - pm8001_ha->inbnd_q_tbl;
-	int rv = -1;
+	int rv;
 
 	WARN_ON(q_index >= PM8001_MAX_INB_NUM);
 	spin_lock_irqsave(&circularQ->iq_lock, flags);

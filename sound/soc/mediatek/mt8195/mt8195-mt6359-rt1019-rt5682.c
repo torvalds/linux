@@ -424,8 +424,8 @@ static int mt8195_hdmi_codec_init(struct snd_soc_pcm_runtime *rtd)
 	return snd_soc_component_set_jack(cmpnt_codec, &priv->hdmi_jack, NULL);
 }
 
-static int mt8195_hdmitx_dptx_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
-					      struct snd_pcm_hw_params *params)
+static int mt8195_dptx_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
+				       struct snd_pcm_hw_params *params)
 
 {
 	/* fix BE i2s format to 32bit, clean param mask first */
@@ -902,7 +902,7 @@ static struct snd_soc_dai_link mt8195_mt6359_rt1019_rt5682_dai_links[] = {
 		.no_pcm = 1,
 		.dpcm_playback = 1,
 		.ops = &mt8195_dptx_ops,
-		.be_hw_params_fixup = mt8195_hdmitx_dptx_hw_params_fixup,
+		.be_hw_params_fixup = mt8195_dptx_hw_params_fixup,
 		SND_SOC_DAILINK_REG(DPTX_BE),
 	},
 	[DAI_LINK_ETDM1_IN_BE] = {
@@ -953,7 +953,6 @@ static struct snd_soc_dai_link mt8195_mt6359_rt1019_rt5682_dai_links[] = {
 			SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_CBS_CFS,
 		.dpcm_playback = 1,
-		.be_hw_params_fixup = mt8195_hdmitx_dptx_hw_params_fixup,
 		SND_SOC_DAILINK_REG(ETDM3_OUT_BE),
 	},
 	[DAI_LINK_PCM1_BE] = {
@@ -1018,13 +1017,12 @@ static int mt8195_mt6359_rt1019_rt5682_dev_probe(struct platform_device *pdev)
 				of_parse_phandle(pdev->dev.of_node,
 						 "mediatek,dptx-codec", 0);
 			if (!dai_link->codecs->of_node) {
-				dev_err(&pdev->dev, "Property 'dptx-codec' missing or invalid\n");
-				return -EINVAL;
+				dev_dbg(&pdev->dev, "No property 'dptx-codec'\n");
+			} else {
+				dai_link->codecs->name = NULL;
+				dai_link->codecs->dai_name = "i2s-hifi";
+				dai_link->init = mt8195_dptx_codec_init;
 			}
-
-			dai_link->codecs->name = NULL;
-			dai_link->codecs->dai_name = "i2s-hifi";
-			dai_link->init = mt8195_dptx_codec_init;
 		}
 
 		if (strcmp(dai_link->name, "ETDM3_OUT_BE") == 0) {
@@ -1032,13 +1030,12 @@ static int mt8195_mt6359_rt1019_rt5682_dev_probe(struct platform_device *pdev)
 				of_parse_phandle(pdev->dev.of_node,
 						 "mediatek,hdmi-codec", 0);
 			if (!dai_link->codecs->of_node) {
-				dev_err(&pdev->dev, "Property 'hdmi-codec' missing or invalid\n");
-				return -EINVAL;
+				dev_dbg(&pdev->dev, "No property 'hdmi-codec'\n");
+			} else {
+				dai_link->codecs->name = NULL;
+				dai_link->codecs->dai_name = "i2s-hifi";
+				dai_link->init = mt8195_hdmi_codec_init;
 			}
-
-			dai_link->codecs->name = NULL;
-			dai_link->codecs->dai_name = "i2s-hifi";
-			dai_link->init = mt8195_hdmi_codec_init;
 		}
 	}
 

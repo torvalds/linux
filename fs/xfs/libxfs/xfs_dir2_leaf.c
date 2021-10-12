@@ -37,7 +37,7 @@ xfs_dir2_leaf_hdr_from_disk(
 	struct xfs_dir3_icleaf_hdr	*to,
 	struct xfs_dir2_leaf		*from)
 {
-	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+	if (xfs_has_crc(mp)) {
 		struct xfs_dir3_leaf *from3 = (struct xfs_dir3_leaf *)from;
 
 		to->forw = be32_to_cpu(from3->hdr.info.hdr.forw);
@@ -68,7 +68,7 @@ xfs_dir2_leaf_hdr_to_disk(
 	struct xfs_dir2_leaf		*to,
 	struct xfs_dir3_icleaf_hdr	*from)
 {
-	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+	if (xfs_has_crc(mp)) {
 		struct xfs_dir3_leaf *to3 = (struct xfs_dir3_leaf *)to;
 
 		ASSERT(from->magic == XFS_DIR3_LEAF1_MAGIC ||
@@ -108,7 +108,7 @@ xfs_dir3_leaf1_check(
 
 	if (leafhdr.magic == XFS_DIR3_LEAF1_MAGIC) {
 		struct xfs_dir3_leaf_hdr *leaf3 = bp->b_addr;
-		if (be64_to_cpu(leaf3->info.blkno) != bp->b_bn)
+		if (be64_to_cpu(leaf3->info.blkno) != xfs_buf_daddr(bp))
 			return __this_address;
 	} else if (leafhdr.magic != XFS_DIR2_LEAF1_MAGIC)
 		return __this_address;
@@ -209,7 +209,7 @@ xfs_dir3_leaf_read_verify(
 	struct xfs_mount	*mp = bp->b_mount;
 	xfs_failaddr_t		fa;
 
-	if (xfs_sb_version_hascrc(&mp->m_sb) &&
+	if (xfs_has_crc(mp) &&
 	     !xfs_buf_verify_cksum(bp, XFS_DIR3_LEAF_CRC_OFF))
 		xfs_verifier_error(bp, -EFSBADCRC, __this_address);
 	else {
@@ -234,7 +234,7 @@ xfs_dir3_leaf_write_verify(
 		return;
 	}
 
-	if (!xfs_sb_version_hascrc(&mp->m_sb))
+	if (!xfs_has_crc(mp))
 		return;
 
 	if (bip)
@@ -308,7 +308,7 @@ xfs_dir3_leaf_init(
 
 	ASSERT(type == XFS_DIR2_LEAF1_MAGIC || type == XFS_DIR2_LEAFN_MAGIC);
 
-	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+	if (xfs_has_crc(mp)) {
 		struct xfs_dir3_leaf_hdr *leaf3 = bp->b_addr;
 
 		memset(leaf3, 0, sizeof(*leaf3));
@@ -316,7 +316,7 @@ xfs_dir3_leaf_init(
 		leaf3->info.hdr.magic = (type == XFS_DIR2_LEAF1_MAGIC)
 					 ? cpu_to_be16(XFS_DIR3_LEAF1_MAGIC)
 					 : cpu_to_be16(XFS_DIR3_LEAFN_MAGIC);
-		leaf3->info.blkno = cpu_to_be64(bp->b_bn);
+		leaf3->info.blkno = cpu_to_be64(xfs_buf_daddr(bp));
 		leaf3->info.owner = cpu_to_be64(owner);
 		uuid_copy(&leaf3->info.uuid, &mp->m_sb.sb_meta_uuid);
 	} else {

@@ -185,6 +185,7 @@ static const struct ib_device_ops pvrdma_dev_ops = {
 	INIT_RDMA_OBJ_SIZE(ib_ah, pvrdma_ah, ibah),
 	INIT_RDMA_OBJ_SIZE(ib_cq, pvrdma_cq, ibcq),
 	INIT_RDMA_OBJ_SIZE(ib_pd, pvrdma_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_qp, pvrdma_qp, ibqp),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, pvrdma_ucontext, ibucontext),
 };
 
@@ -810,18 +811,10 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 	}
 
 	/* Enable 64-Bit DMA */
-	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(64)) == 0) {
-		ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
+	if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64)) != 0) {
+		ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 		if (ret != 0) {
-			dev_err(&pdev->dev,
-				"pci_set_consistent_dma_mask failed\n");
-			goto err_free_resource;
-		}
-	} else {
-		ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
-		if (ret != 0) {
-			dev_err(&pdev->dev,
-				"pci_set_dma_mask failed\n");
+			dev_err(&pdev->dev, "dma_set_mask failed\n");
 			goto err_free_resource;
 		}
 	}

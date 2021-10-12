@@ -231,6 +231,7 @@ static int iwl_pnvm_get_from_fs(struct iwl_trans *trans, u8 **data, size_t *len)
 {
 	const struct firmware *pnvm;
 	char pnvm_name[MAX_PNVM_NAME];
+	size_t new_len;
 	int ret;
 
 	iwl_pnvm_get_fs_name(trans, pnvm_name, sizeof(pnvm_name));
@@ -242,11 +243,14 @@ static int iwl_pnvm_get_from_fs(struct iwl_trans *trans, u8 **data, size_t *len)
 		return ret;
 	}
 
+	new_len = pnvm->size;
 	*data = kmemdup(pnvm->data, pnvm->size, GFP_KERNEL);
+	release_firmware(pnvm);
+
 	if (!*data)
 		return -ENOMEM;
 
-	*len = pnvm->size;
+	*len = new_len;
 
 	return 0;
 }

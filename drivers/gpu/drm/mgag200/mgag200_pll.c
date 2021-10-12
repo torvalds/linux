@@ -124,6 +124,7 @@ static int mgag200_pixpll_compute_g200se_00(struct mgag200_pll *pixpll, long clo
 	unsigned int computed;
 
 	m = n = p = s = 0;
+	delta = 0xffffffff;
 	permitteddelta = clock * 5 / 1000;
 
 	for (testp = 8; testp > 0; testp /= 2) {

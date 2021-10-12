@@ -170,6 +170,149 @@ qla24xx_process_abts(struct scsi_qla_host *vha, struct purex_item *pkt)
 }
 
 /**
+ * __qla_consume_iocb - this routine is used to tell fw driver has processed
+ *   or consumed the head IOCB along with the continuation IOCB's from the
+ *   provided respond queue.
+ * @vha: host adapter pointer
+ * @pkt: pointer to current packet.  On return, this pointer shall move
+ *       to the next packet.
+ * @rsp: respond queue pointer.
+ *
+ * it is assumed pkt is the head iocb, not the continuation iocbk
+ */
+void __qla_consume_iocb(struct scsi_qla_host *vha,
+	void **pkt, struct rsp_que **rsp)
+{
+	struct rsp_que *rsp_q = *rsp;
+	response_t *new_pkt;
+	uint16_t entry_count_remaining;
+	struct purex_entry_24xx *purex = *pkt;
+
+	entry_count_remaining = purex->entry_count;
+	while (entry_count_remaining > 0) {
+		new_pkt = rsp_q->ring_ptr;
+		*pkt = new_pkt;
+
+		rsp_q->ring_index++;
+		if (rsp_q->ring_index == rsp_q->length) {
+			rsp_q->ring_index = 0;
+			rsp_q->ring_ptr = rsp_q->ring;
+		} else {
+			rsp_q->ring_ptr++;
+		}
+
+		new_pkt->signature = RESPONSE_PROCESSED;
+		/* flush signature */
+		wmb();
+		--entry_count_remaining;
+	}
+}
+
+/**
+ * __qla_copy_purex_to_buffer - extract ELS payload from Purex IOCB
+ *    and save to provided buffer
+ * @vha: host adapter pointer
+ * @pkt: pointer Purex IOCB
+ * @rsp: respond queue
+ * @buf: extracted ELS payload copy here
+ * @buf_len: buffer length
+ */
+int __qla_copy_purex_to_buffer(struct scsi_qla_host *vha,
+	void **pkt, struct rsp_que **rsp, u8 *buf, u32 buf_len)
+{
+	struct purex_entry_24xx *purex = *pkt;
+	struct rsp_que *rsp_q = *rsp;
+	sts_cont_entry_t *new_pkt;
+	uint16_t no_bytes = 0, total_bytes = 0, pending_bytes = 0;
+	uint16_t buffer_copy_offset = 0;
+	uint16_t entry_count_remaining;
+	u16 tpad;
+
+	entry_count_remaining = purex->entry_count;
+	total_bytes = (le16_to_cpu(purex->frame_size) & 0x0FFF)
+		- PURX_ELS_HEADER_SIZE;
+
+	/*
+	 * end of payload may not end in 4bytes boundary.  Need to
+	 * round up / pad for room to swap, before saving data
+	 */
+	tpad = roundup(total_bytes, 4);
+
+	if (buf_len < tpad) {
+		ql_dbg(ql_dbg_async, vha, 0x5084,
+		    "%s buffer is too small %d < %d\n",
+		    __func__, buf_len, tpad);
+		__qla_consume_iocb(vha, pkt, rsp);
+		return -EIO;
+	}
+
+	pending_bytes = total_bytes = tpad;
+	no_bytes = (pending_bytes > sizeof(purex->els_frame_payload))  ?
+	    sizeof(purex->els_frame_payload) : pending_bytes;
+
+	memcpy(buf, &purex->els_frame_payload[0], no_bytes);
+	buffer_copy_offset += no_bytes;
+	pending_bytes -= no_bytes;
+	--entry_count_remaining;
+
+	((response_t *)purex)->signature = RESPONSE_PROCESSED;
+	/* flush signature */
+	wmb();
+
+	do {
+		while ((total_bytes > 0) && (entry_count_remaining > 0)) {
+			new_pkt = (sts_cont_entry_t *)rsp_q->ring_ptr;
+			*pkt = new_pkt;
+
+			if (new_pkt->entry_type != STATUS_CONT_TYPE) {
+				ql_log(ql_log_warn, vha, 0x507a,
+				    "Unexpected IOCB type, partial data 0x%x\n",
+				    buffer_copy_offset);
+				break;
+			}
+
+			rsp_q->ring_index++;
+			if (rsp_q->ring_index == rsp_q->length) {
+				rsp_q->ring_index = 0;
+				rsp_q->ring_ptr = rsp_q->ring;
+			} else {
+				rsp_q->ring_ptr++;
+			}
+			no_bytes = (pending_bytes > sizeof(new_pkt->data)) ?
+			    sizeof(new_pkt->data) : pending_bytes;
+			if ((buffer_copy_offset + no_bytes) <= total_bytes) {
+				memcpy((buf + buffer_copy_offset), new_pkt->data,
+				    no_bytes);
+				buffer_copy_offset += no_bytes;
+				pending_bytes -= no_bytes;
+				--entry_count_remaining;
+			} else {
+				ql_log(ql_log_warn, vha, 0x5044,
+				    "Attempt to copy more that we got, optimizing..%x\n",
+				    buffer_copy_offset);
+				memcpy((buf + buffer_copy_offset), new_pkt->data,
+				    total_bytes - buffer_copy_offset);
+			}
+
+			((response_t *)new_pkt)->signature = RESPONSE_PROCESSED;
+			/* flush signature */
+			wmb();
+		}
+
+		if (pending_bytes != 0 || entry_count_remaining != 0) {
+			ql_log(ql_log_fatal, vha, 0x508b,
+			    "Dropping partial Data, underrun bytes = 0x%x, entry cnts 0x%x\n",
+			    total_bytes, entry_count_remaining);
+			return -EIO;
+		}
+	} while (entry_count_remaining > 0);
+
+	be32_to_cpu_array((u32 *)buf, (__be32 *)buf, total_bytes >> 2);
+
+	return 0;
+}
+
+/**
  * qla2100_intr_handler() - Process interrupts for the ISP2100 and ISP2200.
  * @irq: interrupt number
  * @dev_id: SCSI driver HA context
@@ -505,7 +648,7 @@ const char *
 qla2x00_get_link_speed_str(struct qla_hw_data *ha, uint16_t speed)
 {
 	static const char *const link_speeds[] = {
-		"1", "2", "?", "4", "8", "16", "32", "10"
+		"1", "2", "?", "4", "8", "16", "32", "64", "10"
 	};
 #define	QLA_LAST_SPEED (ARRAY_SIZE(link_speeds) - 1)
 
@@ -1727,6 +1870,9 @@ qla2x00_get_sp_from_handle(scsi_qla_host_t *vha, const char *func,
 	srb_t *sp;
 	uint16_t index;
 
+	if (pkt->handle == QLA_SKIP_HANDLE)
+		return NULL;
+
 	index = LSW(pkt->handle);
 	if (index >= req->num_outstanding_cmds) {
 		ql_log(ql_log_warn, vha, 0x5031,
@@ -1971,7 +2117,7 @@ qla2x00_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 }
 
 static void
-qla24xx_els_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
+qla24xx_els_ct_entry(scsi_qla_host_t *v, struct req_que *req,
     struct sts_entry_24xx *pkt, int iocb_type)
 {
 	struct els_sts_entry_24xx *ese = (struct els_sts_entry_24xx *)pkt;
@@ -1982,18 +2128,58 @@ qla24xx_els_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 	struct fc_bsg_reply *bsg_reply;
 	uint16_t comp_status;
 	uint32_t fw_status[3];
-	int res;
+	int res, logit = 1;
 	struct srb_iocb *els;
+	uint n;
+	scsi_qla_host_t *vha;
+	struct els_sts_entry_24xx *e = (struct els_sts_entry_24xx *)pkt;
 
-	sp = qla2x00_get_sp_from_handle(vha, func, req, pkt);
+	sp = qla2x00_get_sp_from_handle(v, func, req, pkt);
 	if (!sp)
 		return;
+	bsg_job = sp->u.bsg_job;
+	vha = sp->vha;
 
 	type = NULL;
+
+	comp_status = fw_status[0] = le16_to_cpu(pkt->comp_status);
+	fw_status[1] = le32_to_cpu(((struct els_sts_entry_24xx *)pkt)->error_subcode_1);
+	fw_status[2] = le32_to_cpu(((struct els_sts_entry_24xx *)pkt)->error_subcode_2);
+
 	switch (sp->type) {
 	case SRB_ELS_CMD_RPT:
 	case SRB_ELS_CMD_HST:
+		type = "rpt hst";
+		break;
+	case SRB_ELS_CMD_HST_NOLOGIN:
 		type = "els";
+		{
+			struct els_entry_24xx *els = (void *)pkt;
+			struct qla_bsg_auth_els_request *p =
+				(struct qla_bsg_auth_els_request *)bsg_job->request;
+
+			ql_dbg(ql_dbg_user, vha, 0x700f,
+			     "%s %s. portid=%02x%02x%02x status %x xchg %x bsg ptr %p\n",
+			     __func__, sc_to_str(p->e.sub_cmd),
+			     e->d_id[2], e->d_id[1], e->d_id[0],
+			     comp_status, p->e.extra_rx_xchg_address, bsg_job);
+
+			if (!(le16_to_cpu(els->control_flags) & ECF_PAYLOAD_DESCR_MASK)) {
+				if (sp->remap.remapped) {
+					n = sg_copy_from_buffer(bsg_job->reply_payload.sg_list,
+						bsg_job->reply_payload.sg_cnt,
+						sp->remap.rsp.buf,
+						sp->remap.rsp.len);
+					ql_dbg(ql_dbg_user + ql_dbg_verbose, vha, 0x700e,
+					   "%s: SG copied %x of %x\n",
+					   __func__, n, sp->remap.rsp.len);
+				} else {
+					ql_dbg(ql_dbg_user, vha, 0x700f,
+					   "%s: NOT REMAPPED (error)...!!!\n",
+					   __func__);
+				}
+			}
+		}
 		break;
 	case SRB_CT_CMD:
 		type = "ct pass-through";
@@ -2023,10 +2209,6 @@ qla24xx_els_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 		return;
 	}
 
-	comp_status = fw_status[0] = le16_to_cpu(pkt->comp_status);
-	fw_status[1] = le32_to_cpu(ese->error_subcode_1);
-	fw_status[2] = le32_to_cpu(ese->error_subcode_2);
-
 	if (iocb_type == ELS_IOCB_TYPE) {
 		els = &sp->u.iocb_cmd;
 		els->u.els_plogi.fw_status[0] = cpu_to_le32(fw_status[0]);
@@ -2040,15 +2222,53 @@ qla24xx_els_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 				res =  DID_OK << 16;
 				els->u.els_plogi.len = cpu_to_le16(le32_to_cpu(
 					ese->total_byte_count));
+
+				if (sp->remap.remapped &&
+				    ((u8 *)sp->remap.rsp.buf)[0] == ELS_LS_ACC) {
+					ql_dbg(ql_dbg_user, vha, 0x503f,
+					    "%s IOCB Done LS_ACC %02x%02x%02x -> %02x%02x%02x",
+					    __func__, e->s_id[0], e->s_id[2], e->s_id[1],
+					    e->d_id[2], e->d_id[1], e->d_id[0]);
+					logit = 0;
+				}
+
+			} else if (comp_status == CS_PORT_LOGGED_OUT) {
+				els->u.els_plogi.len = 0;
+				res = DID_IMM_RETRY << 16;
+				qlt_schedule_sess_for_deletion(sp->fcport);
 			} else {
 				els->u.els_plogi.len = 0;
 				res = DID_ERROR << 16;
 			}
+
+			if (logit) {
+				if (sp->remap.remapped &&
+				    ((u8 *)sp->remap.rsp.buf)[0] == ELS_LS_RJT) {
+					ql_dbg(ql_dbg_user, vha, 0x503f,
+					    "%s IOCB Done LS_RJT hdl=%x comp_status=0x%x\n",
+					    type, sp->handle, comp_status);
+
+					ql_dbg(ql_dbg_user, vha, 0x503f,
+					    "subcode 1=0x%x subcode 2=0x%x bytes=0x%x %02x%02x%02x -> %02x%02x%02x\n",
+					    fw_status[1], fw_status[2],
+					    le32_to_cpu(((struct els_sts_entry_24xx *)
+						pkt)->total_byte_count),
+					    e->s_id[0], e->s_id[2], e->s_id[1],
+					    e->d_id[2], e->d_id[1], e->d_id[0]);
+				} else {
+					ql_log(ql_log_info, vha, 0x503f,
+					    "%s IOCB Done hdl=%x comp_status=0x%x\n",
+					    type, sp->handle, comp_status);
+					ql_log(ql_log_info, vha, 0x503f,
+					    "subcode 1=0x%x subcode 2=0x%x bytes=0x%x %02x%02x%02x -> %02x%02x%02x\n",
+					    fw_status[1], fw_status[2],
+					    le32_to_cpu(((struct els_sts_entry_24xx *)
+						pkt)->total_byte_count),
+					    e->s_id[0], e->s_id[2], e->s_id[1],
+					    e->d_id[2], e->d_id[1], e->d_id[0]);
+				}
+			}
 		}
-		ql_dbg(ql_dbg_disc, vha, 0x503f,
-		    "ELS IOCB Done -%s hdl=%x comp_status=0x%x error subcode 1=0x%x error subcode 2=0x%x total_byte=0x%x\n",
-		    type, sp->handle, comp_status, fw_status[1], fw_status[2],
-		    le32_to_cpu(ese->total_byte_count));
 		goto els_ct_done;
 	}
 
@@ -2107,6 +2327,7 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 	struct srb_iocb *lio;
 	uint16_t *data;
 	uint32_t iop[2];
+	int logit = 1;
 
 	sp = qla2x00_get_sp_from_handle(vha, func, req, logio);
 	if (!sp)
@@ -2153,6 +2374,10 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 		if (sp->type != SRB_LOGIN_CMD)
 			goto logio_done;
 
+		lio->u.logio.iop[1] = le32_to_cpu(logio->io_parameter[5]);
+		if (le32_to_cpu(logio->io_parameter[5]) & LIO_COMM_FEAT_FCSP)
+			fcport->flags |= FCF_FCSP_DEVICE;
+
 		iop[0] = le32_to_cpu(logio->io_parameter[0]);
 		if (iop[0] & BIT_4) {
 			fcport->port_type = FCT_TARGET;
@@ -2180,9 +2405,11 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 	case LSC_SCODE_PORTID_USED:
 		data[0] = MBS_PORT_ID_USED;
 		data[1] = LSW(iop[1]);
+		logit = 0;
 		break;
 	case LSC_SCODE_NPORT_USED:
 		data[0] = MBS_LOOP_ID_USED;
+		logit = 0;
 		break;
 	case LSC_SCODE_CMD_FAILED:
 		if (iop[1] == 0x0606) {
@@ -2215,12 +2442,20 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 		break;
 	}
 
-	ql_log(ql_log_warn, sp->vha, 0x5037,
-	       "Async-%s failed: handle=%x pid=%06x wwpn=%8phC comp_status=%x iop0=%x iop1=%x\n",
-	       type, sp->handle, fcport->d_id.b24, fcport->port_name,
-	       le16_to_cpu(logio->comp_status),
-	       le32_to_cpu(logio->io_parameter[0]),
-	       le32_to_cpu(logio->io_parameter[1]));
+	if (logit)
+		ql_log(ql_log_warn, sp->vha, 0x5037, "Async-%s failed: "
+		       "handle=%x pid=%06x wwpn=%8phC comp_status=%x iop0=%x iop1=%x\n",
+		       type, sp->handle, fcport->d_id.b24, fcport->port_name,
+		       le16_to_cpu(logio->comp_status),
+		       le32_to_cpu(logio->io_parameter[0]),
+		       le32_to_cpu(logio->io_parameter[1]));
+	else
+		ql_dbg(ql_dbg_disc, sp->vha, 0x5037, "Async-%s failed: "
+		       "handle=%x pid=%06x wwpn=%8phC comp_status=%x iop0=%x iop1=%x\n",
+		       type, sp->handle, fcport->d_id.b24, fcport->port_name,
+		       le16_to_cpu(logio->comp_status),
+		       le32_to_cpu(logio->io_parameter[0]),
+		       le32_to_cpu(logio->io_parameter[1]));
 
 logio_done:
 	sp->done(sp, 0);
@@ -2399,7 +2634,7 @@ static void qla24xx_nvme_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 	}
 
 	if (unlikely(logit))
-		ql_log(ql_log_warn, fcport->vha, 0x5060,
+		ql_log(ql_dbg_io, fcport->vha, 0x5060,
 		   "NVME-%s ERR Handling - hdl=%x status(%x) tr_len:%x resid=%x  ox_id=%x\n",
 		   sp->name, sp->handle, comp_status,
 		   fd->transferred_length, le32_to_cpu(sts->residual_len),
@@ -2417,6 +2652,15 @@ static void qla24xx_nvme_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 	case CS_PORT_UNAVAILABLE:
 	case CS_PORT_LOGGED_OUT:
 		fcport->nvme_flag |= NVME_FLAG_RESETTING;
+		if (atomic_read(&fcport->state) == FCS_ONLINE) {
+			ql_dbg(ql_dbg_disc, fcport->vha, 0x3021,
+			       "Port to be marked lost on fcport=%06x, current "
+			       "port state= %s comp_status %x.\n",
+			       fcport->d_id.b24, port_state_str[FCS_ONLINE],
+			       comp_status);
+
+			qlt_schedule_sess_for_deletion(fcport);
+		}
 		fallthrough;
 	case CS_ABORTED:
 	case CS_PORT_BUSY:
@@ -2969,9 +3213,10 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 		return;
 	}
 
+	/* Fast path completion. */
+	qla_chk_edif_rx_sa_delete_pending(vha, sp, sts24);
 	sp->qpair->cmd_completion_cnt++;
 
-	/* Fast path completion. */
 	if (comp_status == CS_COMPLETE && scsi_status == 0) {
 		qla2x00_process_completed_request(vha, req, handle);
 
@@ -3246,7 +3491,7 @@ check_scsi_status:
 
 out:
 	if (logit)
-		ql_log(ql_log_warn, fcport->vha, 0x3022,
+		ql_log(ql_dbg_io, fcport->vha, 0x3022,
 		       "FCP command status: 0x%x-0x%x (0x%x) nexus=%ld:%d:%llu portid=%02x%02x%02x oxid=0x%x cdb=%10phN len=0x%x rsp_info=0x%x resid=0x%x fw_resid=0x%x sp=%p cp=%p.\n",
 		       comp_status, scsi_status, res, vha->host_no,
 		       cp->device->id, cp->device->lun, fcport->d_id.b.domain,
@@ -3366,6 +3611,7 @@ qla2x00_error_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, sts_entry_t *pkt)
 		}
 		break;
 
+	case SA_UPDATE_IOCB_TYPE:
 	case ABTS_RESP_24XX:
 	case CTIO_TYPE7:
 	case CTIO_CRC2:
@@ -3450,6 +3696,63 @@ void qla24xx_nvme_ls4_iocb(struct scsi_qla_host *vha,
 
 	comp_status = le16_to_cpu(pkt->status);
 	sp->done(sp, comp_status);
+}
+
+/**
+ * qla_chk_cont_iocb_avail - check for all continuation iocbs are available
+ *   before iocb processing can start.
+ * @vha: host adapter pointer
+ * @rsp: respond queue
+ * @pkt: head iocb describing how many continuation iocb
+ * Return: 0 all iocbs has arrived, xx- all iocbs have not arrived.
+ */
+static int qla_chk_cont_iocb_avail(struct scsi_qla_host *vha,
+	struct rsp_que *rsp, response_t *pkt)
+{
+	int start_pkt_ring_index, end_pkt_ring_index, n_ring_index;
+	response_t *end_pkt;
+	int rc = 0;
+	u32 rsp_q_in;
+
+	if (pkt->entry_count == 1)
+		return rc;
+
+	/* ring_index was pre-increment. set it back to current pkt */
+	if (rsp->ring_index == 0)
+		start_pkt_ring_index = rsp->length - 1;
+	else
+		start_pkt_ring_index = rsp->ring_index - 1;
+
+	if ((start_pkt_ring_index + pkt->entry_count) >= rsp->length)
+		end_pkt_ring_index = start_pkt_ring_index + pkt->entry_count -
+			rsp->length - 1;
+	else
+		end_pkt_ring_index = start_pkt_ring_index + pkt->entry_count - 1;
+
+	end_pkt = rsp->ring + end_pkt_ring_index;
+
+	/*  next pkt = end_pkt + 1 */
+	n_ring_index = end_pkt_ring_index + 1;
+	if (n_ring_index >= rsp->length)
+		n_ring_index = 0;
+
+	rsp_q_in = rsp->qpair->use_shadow_reg ? *rsp->in_ptr :
+		rd_reg_dword(rsp->rsp_q_in);
+
+	/* rsp_q_in is either wrapped or pointing beyond endpkt */
+	if ((rsp_q_in < start_pkt_ring_index && rsp_q_in < n_ring_index) ||
+			rsp_q_in >= n_ring_index)
+		/* all IOCBs arrived. */
+		rc = 0;
+	else
+		rc = -EIO;
+
+	ql_dbg(ql_dbg_init + ql_dbg_verbose, vha, 0x5091,
+	    "%s - ring %p pkt %p end pkt %p entry count %#x rsp_q_in %d rc %d\n",
+	    __func__, rsp->ring, pkt, end_pkt, pkt->entry_count,
+	    rsp_q_in, rc);
+
+	return rc;
 }
 
 /**
@@ -3592,12 +3895,26 @@ process_err:
 						 qla27xx_process_purex_fpin);
 				break;
 
+			case ELS_AUTH_ELS:
+				if (qla_chk_cont_iocb_avail(vha, rsp, (response_t *)pkt)) {
+					ql_dbg(ql_dbg_init, vha, 0x5091,
+					    "Defer processing ELS opcode %#x...\n",
+					    purex_entry->els_frame_payload[3]);
+					return;
+				}
+				qla24xx_auth_els(vha, (void **)&pkt, &rsp);
+				break;
 			default:
 				ql_log(ql_log_warn, vha, 0x509c,
 				       "Discarding ELS Request opcode 0x%x\n",
 				       purex_entry->els_frame_payload[3]);
 			}
 			break;
+		case SA_UPDATE_IOCB_TYPE:
+			qla28xx_sa_update_iocb_entry(vha, rsp->req,
+				(struct sa_update_28xx *)pkt);
+			break;
+
 		default:
 			/* Type Not Supported. */
 			ql_dbg(ql_dbg_async, vha, 0x5042,
@@ -4201,6 +4518,8 @@ skip_msi:
 		ql_dbg(ql_dbg_init, vha, 0x0125,
 		    "INTa mode: Enabled.\n");
 		ha->flags.mr_intr_valid = 1;
+		/* Set max_qpair to 0, as MSI-X and MSI in not enabled */
+		ha->max_qpairs = 0;
 	}
 
 clear_risc_ints:

@@ -795,8 +795,6 @@ struct mlx5_ib_resources {
 	struct ib_srq	*s0;
 	struct ib_srq	*s1;
 	struct mlx5_ib_port_resources ports[2];
-	/* Protects changes to the port resources */
-	struct mutex	mutex;
 };
 
 struct mlx5_ib_counters {
@@ -1221,9 +1219,8 @@ int mlx5_ib_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 			  const struct ib_recv_wr **bad_wr);
 int mlx5_ib_enable_lb(struct mlx5_ib_dev *dev, bool td, bool qp);
 void mlx5_ib_disable_lb(struct mlx5_ib_dev *dev, bool td, bool qp);
-struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
-				struct ib_qp_init_attr *init_attr,
-				struct ib_udata *udata);
+int mlx5_ib_create_qp(struct ib_qp *qp, struct ib_qp_init_attr *init_attr,
+		      struct ib_udata *udata);
 int mlx5_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		      int attr_mask, struct ib_udata *udata);
 int mlx5_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr, int qp_attr_mask,

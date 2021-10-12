@@ -227,9 +227,6 @@ static inline int __get_user_fn(void *x, const void __user *ptr, unsigned long s
 	__get_user(x, ptr);					\
 })
 
-unsigned long __must_check
-raw_copy_in_user(void __user *to, const void __user *from, unsigned long n);
-
 /*
  * Copy a null terminated string from userspace.
  */

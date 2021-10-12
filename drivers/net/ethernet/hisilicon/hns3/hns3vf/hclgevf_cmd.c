@@ -342,7 +342,7 @@ static void hclgevf_set_default_capability(struct hclgevf_dev *hdev)
 	set_bit(HNAE3_DEV_SUPPORT_FEC_B, ae_dev->caps);
 }
 
-const struct hclgevf_caps_bit_map hclgevf_cmd_caps_bit_map0[] = {
+static const struct hclgevf_caps_bit_map hclgevf_cmd_caps_bit_map0[] = {
 	{HCLGEVF_CAP_UDP_GSO_B, HNAE3_DEV_SUPPORT_UDP_GSO_B},
 	{HCLGEVF_CAP_INT_QL_B, HNAE3_DEV_SUPPORT_INT_QL_B},
 	{HCLGEVF_CAP_TQP_TXRX_INDEP_B, HNAE3_DEV_SUPPORT_TQP_TXRX_INDEP_B},

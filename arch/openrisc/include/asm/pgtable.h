@@ -12,7 +12,7 @@
  * et al.
  */
 
-/* or32 pgtable.h - macros and functions to manipulate page tables
+/* or1k pgtable.h - macros and functions to manipulate page tables
  *
  * Based on:
  * include/asm-cris/pgtable.h
@@ -29,14 +29,14 @@
 
 /*
  * The Linux memory management assumes a three-level page table setup. On
- * or32, we use that, but "fold" the mid level into the top-level page
+ * or1k, we use that, but "fold" the mid level into the top-level page
  * table. Since the MMU TLB is software loaded through an interrupt, it
  * supports any page table structure, so we could have used a three-level
  * setup, but for the amounts of memory we normally use, a two-level is
  * probably more efficient.
  *
  * This file contains the functions and defines necessary to modify and use
- * the or32 page table tree.
+ * the or1k page table tree.
  */
 
 extern void paging_init(void);

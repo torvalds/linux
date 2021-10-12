@@ -21,6 +21,7 @@
 int test_fork(void)
 {
 	SKIP_IF(!have_htm());
+	SKIP_IF(htm_is_synthetic());
 
 	asm __volatile__(
 		"tbegin.;"

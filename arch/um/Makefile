@@ -41,8 +41,8 @@ endif
 
 HOST_DIR := arch/$(HEADER_ARCH)
 
-include $(ARCH_DIR)/Makefile-skas
-include $(HOST_DIR)/Makefile.um
+include $(srctree)/$(ARCH_DIR)/Makefile-skas
+include $(srctree)/$(HOST_DIR)/Makefile.um
 
 core-y += $(HOST_DIR)/um/
 
@@ -76,7 +76,7 @@ USER_CFLAGS = $(patsubst $(KERNEL_DEFINES),,$(patsubst -I%,,$(KBUILD_CFLAGS))) \
 		-idirafter $(objtree)/include -D__KERNEL__ -D__UM_HOST__
 
 #This will adjust *FLAGS accordingly to the platform.
-include $(ARCH_DIR)/Makefile-os-$(OS)
+include $(srctree)/$(ARCH_DIR)/Makefile-os-$(OS)
 
 KBUILD_CPPFLAGS += -I$(srctree)/$(HOST_DIR)/include \
 		   -I$(srctree)/$(HOST_DIR)/include/uapi \

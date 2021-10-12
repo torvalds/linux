@@ -3092,19 +3092,22 @@ static void add_addr(struct inet6_dev *idev, const struct in6_addr *addr,
 	}
 }
 
-#if IS_ENABLED(CONFIG_IPV6_SIT)
-static void sit_add_v4_addrs(struct inet6_dev *idev)
+#if IS_ENABLED(CONFIG_IPV6_SIT) || IS_ENABLED(CONFIG_NET_IPGRE) || IS_ENABLED(CONFIG_IPV6_GRE)
+static void add_v4_addrs(struct inet6_dev *idev)
 {
 	struct in6_addr addr;
 	struct net_device *dev;
 	struct net *net = dev_net(idev->dev);
-	int scope, plen;
+	int scope, plen, offset = 0;
 	u32 pflags = 0;
 
 	ASSERT_RTNL();
 
 	memset(&addr, 0, sizeof(struct in6_addr));
-	memcpy(&addr.s6_addr32[3], idev->dev->dev_addr, 4);
+	/* in case of IP6GRE the dev_addr is an IPv6 and therefore we use only the last 4 bytes */
+	if (idev->dev->addr_len == sizeof(struct in6_addr))
+		offset = sizeof(struct in6_addr) - 4;
+	memcpy(&addr.s6_addr32[3], idev->dev->dev_addr + offset, 4);
 
 	if (idev->dev->flags&IFF_POINTOPOINT) {
 		addr.s6_addr32[0] = htonl(0xfe800000);
@@ -3342,8 +3345,6 @@ static void addrconf_dev_config(struct net_device *dev)
 	    (dev->type != ARPHRD_IEEE1394) &&
 	    (dev->type != ARPHRD_TUNNEL6) &&
 	    (dev->type != ARPHRD_6LOWPAN) &&
-	    (dev->type != ARPHRD_IP6GRE) &&
-	    (dev->type != ARPHRD_IPGRE) &&
 	    (dev->type != ARPHRD_TUNNEL) &&
 	    (dev->type != ARPHRD_NONE) &&
 	    (dev->type != ARPHRD_RAWIP)) {
@@ -3391,14 +3392,14 @@ static void addrconf_sit_config(struct net_device *dev)
 		return;
 	}
 
-	sit_add_v4_addrs(idev);
+	add_v4_addrs(idev);
 
 	if (dev->flags&IFF_POINTOPOINT)
 		addrconf_add_mroute(dev);
 }
 #endif
 
-#if IS_ENABLED(CONFIG_NET_IPGRE)
+#if IS_ENABLED(CONFIG_NET_IPGRE) || IS_ENABLED(CONFIG_IPV6_GRE)
 static void addrconf_gre_config(struct net_device *dev)
 {
 	struct inet6_dev *idev;
@@ -3411,7 +3412,13 @@ static void addrconf_gre_config(struct net_device *dev)
 		return;
 	}
 
-	addrconf_addr_gen(idev, true);
+	if (dev->type == ARPHRD_ETHER) {
+		addrconf_addr_gen(idev, true);
+		return;
+	}
+
+	add_v4_addrs(idev);
+
 	if (dev->flags & IFF_POINTOPOINT)
 		addrconf_add_mroute(dev);
 }
@@ -3587,7 +3594,8 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 			addrconf_sit_config(dev);
 			break;
 #endif
-#if IS_ENABLED(CONFIG_NET_IPGRE)
+#if IS_ENABLED(CONFIG_NET_IPGRE) || IS_ENABLED(CONFIG_IPV6_GRE)
+		case ARPHRD_IP6GRE:
 		case ARPHRD_IPGRE:
 			addrconf_gre_config(dev);
 			break;

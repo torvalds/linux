@@ -485,7 +485,6 @@ static struct platform_driver mtk_pinctrl_driver = {
 	.probe = mtk_pinctrl_probe,
 	.driver = {
 		.name = "mediatek-mt8365-pinctrl",
-		.owner = THIS_MODULE,
 		.of_match_table = mt8365_pctrl_match,
 		.pm = &mtk_eint_pm_ops,
 	},

@@ -35,6 +35,9 @@ __param(int, test_repeat_count, 1,
 __param(int, test_loop_count, 1000000,
 	"Set test loop counter");
 
+__param(int, nr_pages, 0,
+	"Set number of pages for fix_size_alloc_test(default: 1)");
+
 __param(int, run_test_mask, INT_MAX,
 	"Set tests specified in the mask.\n\n"
 		"\t\tid: 1,    name: fix_size_alloc_test\n"
@@ -262,7 +265,7 @@ static int fix_size_alloc_test(void)
 	int i;
 
 	for (i = 0; i < test_loop_count; i++) {
-		ptr = vmalloc(3 * PAGE_SIZE);
+		ptr = vmalloc((nr_pages > 0 ? nr_pages:1) * PAGE_SIZE);
 
 		if (!ptr)
 			return -1;

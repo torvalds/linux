@@ -2,8 +2,11 @@
 
 .. include:: ../disclaimer-zh_CN.rst
 
-:Original: :doc:`../../../mips/ingenic-tcu`
-:Translator: Yanteng Si <siyanteng@loongson.cn>
+:Original: Documentation/mips/ingenic-tcu.rst
+
+:翻译:
+
+ 司延腾 Yanteng Si <siyanteng@loongson.cn>
 
 .. _cn_ingenic-tcu:
 

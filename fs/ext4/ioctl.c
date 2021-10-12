@@ -1154,7 +1154,9 @@ resizefs_out:
 				err = PTR_ERR(handle);
 				goto pwsalt_err_exit;
 			}
-			err = ext4_journal_get_write_access(handle, sbi->s_sbh);
+			err = ext4_journal_get_write_access(handle, sb,
+							    sbi->s_sbh,
+							    EXT4_JTR_NONE);
 			if (err)
 				goto pwsalt_err_journal;
 			lock_buffer(sbi->s_sbh);

@@ -792,9 +792,8 @@ void mlx4_ib_free_srq_wqe(struct mlx4_ib_srq *srq, int wqe_index);
 int mlx4_ib_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 			  const struct ib_recv_wr **bad_wr);
 
-struct ib_qp *mlx4_ib_create_qp(struct ib_pd *pd,
-				struct ib_qp_init_attr *init_attr,
-				struct ib_udata *udata);
+int mlx4_ib_create_qp(struct ib_qp *qp, struct ib_qp_init_attr *init_attr,
+		      struct ib_udata *udata);
 int mlx4_ib_destroy_qp(struct ib_qp *qp, struct ib_udata *udata);
 void mlx4_ib_drain_sq(struct ib_qp *qp);
 void mlx4_ib_drain_rq(struct ib_qp *qp);

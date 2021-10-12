@@ -136,7 +136,7 @@ xlog_recover_dquot_commit_pass2(
 	 * If the dquot has an LSN in it, recover the dquot only if it's less
 	 * than the lsn of the transaction we are replaying.
 	 */
-	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+	if (xfs_has_crc(mp)) {
 		struct xfs_dqblk *dqb = (struct xfs_dqblk *)ddq;
 		xfs_lsn_t	lsn = be64_to_cpu(dqb->dd_lsn);
 
@@ -146,7 +146,7 @@ xlog_recover_dquot_commit_pass2(
 	}
 
 	memcpy(ddq, recddq, item->ri_buf[1].i_len);
-	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+	if (xfs_has_crc(mp)) {
 		xfs_update_cksum((char *)ddq, sizeof(struct xfs_dqblk),
 				 XFS_DQUOT_CRC_OFF);
 	}

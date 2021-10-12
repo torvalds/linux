@@ -153,6 +153,7 @@ static int tm_signal_context_chk()
 	pid_t pid = getpid();
 
 	SKIP_IF(!have_htm());
+	SKIP_IF(htm_is_synthetic());
 
 	act.sa_sigaction = signal_usr1;
 	sigemptyset(&act.sa_mask);

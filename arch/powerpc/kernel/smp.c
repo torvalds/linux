@@ -78,6 +78,7 @@ struct task_struct *secondary_current;
 bool has_big_cores;
 bool coregroup_enabled;
 bool thread_group_shares_l2;
+bool thread_group_shares_l3;
 
 DEFINE_PER_CPU(cpumask_var_t, cpu_sibling_map);
 DEFINE_PER_CPU(cpumask_var_t, cpu_smallcore_map);
@@ -101,7 +102,7 @@ enum {
 
 #define MAX_THREAD_LIST_SIZE	8
 #define THREAD_GROUP_SHARE_L1   1
-#define THREAD_GROUP_SHARE_L2   2
+#define THREAD_GROUP_SHARE_L2_L3 2
 struct thread_groups {
 	unsigned int property;
 	unsigned int nr_groups;
@@ -122,14 +123,20 @@ static struct thread_groups_list tgl[NR_CPUS] __initdata;
  * On big-cores system, thread_group_l1_cache_map for each CPU corresponds to
  * the set its siblings that share the L1-cache.
  */
-static DEFINE_PER_CPU(cpumask_var_t, thread_group_l1_cache_map);
+DEFINE_PER_CPU(cpumask_var_t, thread_group_l1_cache_map);
 
 /*
  * On some big-cores system, thread_group_l2_cache_map for each CPU
  * corresponds to the set its siblings within the core that share the
  * L2-cache.
  */
-static DEFINE_PER_CPU(cpumask_var_t, thread_group_l2_cache_map);
+DEFINE_PER_CPU(cpumask_var_t, thread_group_l2_cache_map);
+
+/*
+ * On P10, thread_group_l3_cache_map for each CPU is equal to the
+ * thread_group_l2_cache_map
+ */
+DEFINE_PER_CPU(cpumask_var_t, thread_group_l3_cache_map);
 
 /* SMP operations for this machine */
 struct smp_ops_t *smp_ops;
@@ -889,33 +896,10 @@ out:
 	return tg;
 }
 
-static int __init init_thread_group_cache_map(int cpu, int cache_property)
-
+static int update_mask_from_threadgroup(cpumask_var_t *mask, struct thread_groups *tg, int cpu, int cpu_group_start)
 {
 	int first_thread = cpu_first_thread_sibling(cpu);
-	int i, cpu_group_start = -1, err = 0;
-	struct thread_groups *tg = NULL;
-	cpumask_var_t *mask = NULL;
-
-	if (cache_property != THREAD_GROUP_SHARE_L1 &&
-	    cache_property != THREAD_GROUP_SHARE_L2)
-		return -EINVAL;
-
-	tg = get_thread_groups(cpu, cache_property, &err);
-	if (!tg)
-		return err;
-
-	cpu_group_start = get_cpu_thread_group_start(cpu, tg);
-
-	if (unlikely(cpu_group_start == -1)) {
-		WARN_ON_ONCE(1);
-		return -ENODATA;
-	}
-
-	if (cache_property == THREAD_GROUP_SHARE_L1)
-		mask = &per_cpu(thread_group_l1_cache_map, cpu);
-	else if (cache_property == THREAD_GROUP_SHARE_L2)
-		mask = &per_cpu(thread_group_l2_cache_map, cpu);
+	int i;
 
 	zalloc_cpumask_var_node(mask, GFP_KERNEL, cpu_to_node(cpu));
 
@@ -930,6 +914,44 @@ static int __init init_thread_group_cache_map(int cpu, int cache_property)
 		if (i_group_start == cpu_group_start)
 			cpumask_set_cpu(i, *mask);
 	}
+
+	return 0;
+}
+
+static int __init init_thread_group_cache_map(int cpu, int cache_property)
+
+{
+	int cpu_group_start = -1, err = 0;
+	struct thread_groups *tg = NULL;
+	cpumask_var_t *mask = NULL;
+
+	if (cache_property != THREAD_GROUP_SHARE_L1 &&
+	    cache_property != THREAD_GROUP_SHARE_L2_L3)
+		return -EINVAL;
+
+	tg = get_thread_groups(cpu, cache_property, &err);
+
+	if (!tg)
+		return err;
+
+	cpu_group_start = get_cpu_thread_group_start(cpu, tg);
+
+	if (unlikely(cpu_group_start == -1)) {
+		WARN_ON_ONCE(1);
+		return -ENODATA;
+	}
+
+	if (cache_property == THREAD_GROUP_SHARE_L1) {
+		mask = &per_cpu(thread_group_l1_cache_map, cpu);
+		update_mask_from_threadgroup(mask, tg, cpu, cpu_group_start);
+	}
+	else if (cache_property == THREAD_GROUP_SHARE_L2_L3) {
+		mask = &per_cpu(thread_group_l2_cache_map, cpu);
+		update_mask_from_threadgroup(mask, tg, cpu, cpu_group_start);
+		mask = &per_cpu(thread_group_l3_cache_map, cpu);
+		update_mask_from_threadgroup(mask, tg, cpu, cpu_group_start);
+	}
+
 
 	return 0;
 }
@@ -1020,14 +1042,16 @@ static int __init init_big_cores(void)
 	has_big_cores = true;
 
 	for_each_possible_cpu(cpu) {
-		int err = init_thread_group_cache_map(cpu, THREAD_GROUP_SHARE_L2);
+		int err = init_thread_group_cache_map(cpu, THREAD_GROUP_SHARE_L2_L3);
 
 		if (err)
 			return err;
 	}
 
 	thread_group_shares_l2 = true;
-	pr_debug("L2 cache only shared by the threads in the small core\n");
+	thread_group_shares_l3 = true;
+	pr_debug("L2/L3 cache only shared by the threads in the small core\n");
+
 	return 0;
 }
 
@@ -1085,7 +1109,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	}
 
 	if (cpu_to_chip_id(boot_cpuid) != -1) {
-		int idx = num_possible_cpus() / threads_per_core;
+		int idx = DIV_ROUND_UP(num_possible_cpus(), threads_per_core);
 
 		/*
 		 * All threads of a core will all belong to the same core,
@@ -1376,7 +1400,7 @@ static bool update_mask_by_l2(int cpu, cpumask_var_t *mask)
 	l2_cache = cpu_to_l2cache(cpu);
 	if (!l2_cache || !*mask) {
 		/* Assume only core siblings share cache with this CPU */
-		for_each_cpu(i, submask_fn(cpu))
+		for_each_cpu(i, cpu_sibling_mask(cpu))
 			set_cpus_related(cpu, i, cpu_l2_cache_mask);
 
 		return false;
@@ -1417,6 +1441,8 @@ static void remove_cpu_from_masks(int cpu)
 {
 	struct cpumask *(*mask_fn)(int) = cpu_sibling_mask;
 	int i;
+
+	unmap_cpu_from_node(cpu);
 
 	if (shared_caches)
 		mask_fn = cpu_l2_cache_mask;
@@ -1502,7 +1528,9 @@ static void add_cpu_to_masks(int cpu)
 	 * This CPU will not be in the online mask yet so we need to manually
 	 * add it to it's own thread sibling mask.
 	 */
+	map_cpu_to_node(cpu, cpu_to_node(cpu));
 	cpumask_set_cpu(cpu, cpu_sibling_mask(cpu));
+	cpumask_set_cpu(cpu, cpu_core_mask(cpu));
 
 	for (i = first_thread; i < first_thread + threads_per_core; i++)
 		if (cpu_online(i))
@@ -1520,11 +1548,6 @@ static void add_cpu_to_masks(int cpu)
 	if (chip_id_lookup_table && ret)
 		chip_id = cpu_to_chip_id(cpu);
 
-	if (chip_id == -1) {
-		cpumask_copy(per_cpu(cpu_core_map, cpu), cpu_cpu_mask(cpu));
-		goto out;
-	}
-
 	if (shared_caches)
 		submask_fn = cpu_l2_cache_mask;
 
@@ -1533,6 +1556,10 @@ static void add_cpu_to_masks(int cpu)
 
 	/* Skip all CPUs already part of current CPU core mask */
 	cpumask_andnot(mask, cpu_online_mask, cpu_core_mask(cpu));
+
+	/* If chip_id is -1; limit the cpu_core_mask to within DIE*/
+	if (chip_id == -1)
+		cpumask_and(mask, mask, cpu_cpu_mask(cpu));
 
 	for_each_cpu(i, mask) {
 		if (chip_id == cpu_to_chip_id(i)) {
@@ -1543,7 +1570,6 @@ static void add_cpu_to_masks(int cpu)
 		}
 	}
 
-out:
 	free_cpumask_var(mask);
 }
 

@@ -1376,15 +1376,17 @@ static inline void __downgrade_write(struct rw_semaphore *sem)
 
 #include "rwbase_rt.c"
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-void __rwsem_init(struct rw_semaphore *sem, const char *name,
+void __init_rwsem(struct rw_semaphore *sem, const char *name,
 		  struct lock_class_key *key)
 {
+	init_rwbase_rt(&(sem)->rwbase);
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
 	debug_check_no_locks_freed((void *)sem, sizeof(*sem));
 	lockdep_init_map_wait(&sem->dep_map, name, key, 0, LD_WAIT_SLEEP);
-}
-EXPORT_SYMBOL(__rwsem_init);
 #endif
+}
+EXPORT_SYMBOL(__init_rwsem);
 
 static inline void __down_read(struct rw_semaphore *sem)
 {

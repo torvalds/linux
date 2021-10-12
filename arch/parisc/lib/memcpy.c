@@ -38,14 +38,6 @@ unsigned long raw_copy_from_user(void *dst, const void __user *src,
 }
 EXPORT_SYMBOL(raw_copy_from_user);
 
-unsigned long raw_copy_in_user(void __user *dst, const void __user *src, unsigned long len)
-{
-	mtsp(get_user_space(), 1);
-	mtsp(get_user_space(), 2);
-	return pa_memcpy((void __force *)dst, (void __force *)src, len);
-}
-
-
 void * memcpy(void * dst,const void *src, size_t count)
 {
 	mtsp(get_kernel_space(), 1);
@@ -54,7 +46,6 @@ void * memcpy(void * dst,const void *src, size_t count)
 	return dst;
 }
 
-EXPORT_SYMBOL(raw_copy_in_user);
 EXPORT_SYMBOL(memcpy);
 
 bool copy_from_kernel_nofault_allowed(const void *unsafe_src, size_t size)

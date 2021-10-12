@@ -383,8 +383,8 @@ static int clp_find_pci(struct clp_req_rsp_list_pci *rrb, u32 fid,
 		rc = clp_list_pci_req(rrb, &resume_token, &nentries);
 		if (rc)
 			return rc;
+		fh_list = rrb->response.fh_list;
 		for (i = 0; i < nentries; i++) {
-			fh_list = rrb->response.fh_list;
 			if (fh_list[i].fid == fid) {
 				*entry = fh_list[i];
 				return 0;
@@ -449,14 +449,17 @@ int clp_get_state(u32 fid, enum zpci_state *state)
 	struct clp_fh_list_entry entry;
 	int rc;
 
-	*state = ZPCI_FN_STATE_RESERVED;
 	rrb = clp_alloc_block(GFP_ATOMIC);
 	if (!rrb)
 		return -ENOMEM;
 
 	rc = clp_find_pci(rrb, fid, &entry);
-	if (!rc)
+	if (!rc) {
 		*state = entry.config_state;
+	} else if (rc == -ENODEV) {
+		*state = ZPCI_FN_STATE_RESERVED;
+		rc = 0;
+	}
 
 	clp_free_block(rrb);
 	return rc;

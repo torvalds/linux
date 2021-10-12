@@ -406,10 +406,10 @@ setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs)
 	err |= copy_to_user(&sf->mask, sigmask_to_save(), sizeof(sigset_t));
 
 	if (!wsaved) {
-		err |= copy_in_user((u64 __user *)sf,
-				    (u64 __user *)(regs->u_regs[UREG_FP] +
-						   STACK_BIAS),
-				    sizeof(struct reg_window));
+		err |= raw_copy_in_user((u64 __user *)sf,
+					(u64 __user *)(regs->u_regs[UREG_FP] +
+					   STACK_BIAS),
+					sizeof(struct reg_window));
 	} else {
 		struct reg_window *rp;
 

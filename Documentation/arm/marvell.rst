@@ -140,6 +140,7 @@ EBU Armada family
 	- 88F6821 Armada 382
 	- 88F6W21 Armada 383
 	- 88F6820 Armada 385
+	- 88F6825
 	- 88F6828 Armada 388
 
     - Product infos:   https://web.archive.org/web/20181006144616/http://www.marvell.com/embedded-processors/armada-38x/

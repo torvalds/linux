@@ -42,7 +42,7 @@ static int __cmd_evlist(const char *file_name, struct perf_attr_details *details
 	};
 	bool has_tracepoint = false;
 
-	session = perf_session__new(&data, 0, &tool);
+	session = perf_session__new(&data, &tool);
 	if (IS_ERR(session))
 		return PTR_ERR(session);
 

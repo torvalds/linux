@@ -69,6 +69,7 @@ config SUPERH
 	select RTC_LIB
 	select SET_FS
 	select SPARSE_IRQ
+	select TRACE_IRQFLAGS_SUPPORT
 	help
 	  The SuperH is a RISC processor targeted for use in embedded systems
 	  and consumer electronics; it was also used in the Sega Dreamcast

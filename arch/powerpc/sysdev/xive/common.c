@@ -21,7 +21,6 @@
 #include <linux/msi.h>
 #include <linux/vmalloc.h>
 
-#include <asm/debugfs.h>
 #include <asm/prom.h>
 #include <asm/io.h>
 #include <asm/smp.h>
@@ -313,11 +312,10 @@ void xmon_xive_get_irq_all(void)
 	struct irq_desc *desc;
 
 	for_each_irq_desc(i, desc) {
-		struct irq_data *d = irq_desc_get_irq_data(desc);
-		unsigned int hwirq = (unsigned int)irqd_to_hwirq(d);
+		struct irq_data *d = irq_domain_get_irq_data(xive_irq_domain, i);
 
-		if (d->domain == xive_irq_domain)
-			xmon_xive_get_irq_config(hwirq, d);
+		if (d)
+			xmon_xive_get_irq_config(irqd_to_hwirq(d), d);
 	}
 }
 
@@ -617,16 +615,6 @@ static unsigned int xive_irq_startup(struct irq_data *d)
 	pr_devel("xive_irq_startup: irq %d [0x%x] data @%p\n",
 		 d->irq, hw_irq, d);
 
-#ifdef CONFIG_PCI_MSI
-	/*
-	 * The generic MSI code returns with the interrupt disabled on the
-	 * card, using the MSI mask bits. Firmware doesn't appear to unmask
-	 * at that level, so we do it here by hand.
-	 */
-	if (irq_data_get_msi_desc(d))
-		pci_msi_unmask_irq(d);
-#endif
-
 	/* Pick a target */
 	target = xive_pick_irq_target(d, irq_data_get_affinity_mask(d));
 	if (target == XIVE_INVALID_TARGET) {
@@ -714,15 +702,11 @@ static int xive_irq_set_affinity(struct irq_data *d,
 	u32 target, old_target;
 	int rc = 0;
 
-	pr_devel("xive_irq_set_affinity: irq %d\n", d->irq);
+	pr_debug("%s: irq %d/%x\n", __func__, d->irq, hw_irq);
 
 	/* Is this valid ? */
 	if (cpumask_any_and(cpumask, cpu_online_mask) >= nr_cpu_ids)
 		return -EINVAL;
-
-	/* Don't do anything if the interrupt isn't started */
-	if (!irqd_is_started(d))
-		return IRQ_SET_MASK_OK;
 
 	/*
 	 * If existing target is already in the new mask, and is
@@ -759,7 +743,7 @@ static int xive_irq_set_affinity(struct irq_data *d,
 		return rc;
 	}
 
-	pr_devel("  target: 0x%x\n", target);
+	pr_debug("  target: 0x%x\n", target);
 	xd->target = target;
 
 	/* Give up previous target */
@@ -990,6 +974,8 @@ EXPORT_SYMBOL_GPL(is_xive_irq);
 
 void xive_cleanup_irq_data(struct xive_irq_data *xd)
 {
+	pr_debug("%s for HW %x\n", __func__, xd->hw_irq);
+
 	if (xd->eoi_mmio) {
 		iounmap(xd->eoi_mmio);
 		if (xd->eoi_mmio == xd->trig_mmio)
@@ -1031,7 +1017,7 @@ static int xive_irq_alloc_data(unsigned int virq, irq_hw_number_t hw)
 	return 0;
 }
 
-static void xive_irq_free_data(unsigned int virq)
+void xive_irq_free_data(unsigned int virq)
 {
 	struct xive_irq_data *xd = irq_get_handler_data(virq);
 
@@ -1041,6 +1027,7 @@ static void xive_irq_free_data(unsigned int virq)
 	xive_cleanup_irq_data(xd);
 	kfree(xd);
 }
+EXPORT_SYMBOL_GPL(xive_irq_free_data);
 
 #ifdef CONFIG_SMP
 
@@ -1179,7 +1166,7 @@ static int xive_request_ipi(unsigned int cpu)
 		return 0;
 
 	ret = request_irq(xid->irq, xive_muxed_ipi_action,
-			  IRQF_PERCPU | IRQF_NO_THREAD,
+			  IRQF_NO_DEBUG | IRQF_PERCPU | IRQF_NO_THREAD,
 			  xid->name, NULL);
 
 	WARN(ret < 0, "Failed to request IPI %d: %d\n", xid->irq, ret);
@@ -1379,7 +1366,71 @@ static void xive_irq_domain_debug_show(struct seq_file *m, struct irq_domain *d,
 }
 #endif
 
+#ifdef	CONFIG_IRQ_DOMAIN_HIERARCHY
+static int xive_irq_domain_translate(struct irq_domain *d,
+				     struct irq_fwspec *fwspec,
+				     unsigned long *hwirq,
+				     unsigned int *type)
+{
+	return xive_irq_domain_xlate(d, to_of_node(fwspec->fwnode),
+				     fwspec->param, fwspec->param_count,
+				     hwirq, type);
+}
+
+static int xive_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
+				 unsigned int nr_irqs, void *arg)
+{
+	struct irq_fwspec *fwspec = arg;
+	irq_hw_number_t hwirq;
+	unsigned int type = IRQ_TYPE_NONE;
+	int i, rc;
+
+	rc = xive_irq_domain_translate(domain, fwspec, &hwirq, &type);
+	if (rc)
+		return rc;
+
+	pr_debug("%s %d/%lx #%d\n", __func__, virq, hwirq, nr_irqs);
+
+	for (i = 0; i < nr_irqs; i++) {
+		/* TODO: call xive_irq_domain_map() */
+
+		/*
+		 * Mark interrupts as edge sensitive by default so that resend
+		 * actually works. Will fix that up below if needed.
+		 */
+		irq_clear_status_flags(virq, IRQ_LEVEL);
+
+		/* allocates and sets handler data */
+		rc = xive_irq_alloc_data(virq + i, hwirq + i);
+		if (rc)
+			return rc;
+
+		irq_domain_set_hwirq_and_chip(domain, virq + i, hwirq + i,
+					      &xive_irq_chip, domain->host_data);
+		irq_set_handler(virq + i, handle_fasteoi_irq);
+	}
+
+	return 0;
+}
+
+static void xive_irq_domain_free(struct irq_domain *domain,
+				 unsigned int virq, unsigned int nr_irqs)
+{
+	int i;
+
+	pr_debug("%s %d #%d\n", __func__, virq, nr_irqs);
+
+	for (i = 0; i < nr_irqs; i++)
+		xive_irq_free_data(virq + i);
+}
+#endif
+
 static const struct irq_domain_ops xive_irq_domain_ops = {
+#ifdef	CONFIG_IRQ_DOMAIN_HIERARCHY
+	.alloc	= xive_irq_domain_alloc,
+	.free	= xive_irq_domain_free,
+	.translate = xive_irq_domain_translate,
+#endif
 	.match = xive_irq_domain_match,
 	.map = xive_irq_domain_map,
 	.unmap = xive_irq_domain_unmap,
@@ -1717,9 +1768,9 @@ static int xive_core_debug_show(struct seq_file *m, void *private)
 		xive_debug_show_cpu(m, cpu);
 
 	for_each_irq_desc(i, desc) {
-		struct irq_data *d = irq_desc_get_irq_data(desc);
+		struct irq_data *d = irq_domain_get_irq_data(xive_irq_domain, i);
 
-		if (d->domain == xive_irq_domain)
+		if (d)
 			xive_debug_show_irq(m, d);
 	}
 	return 0;
@@ -1729,7 +1780,7 @@ DEFINE_SHOW_ATTRIBUTE(xive_core_debug);
 int xive_core_debug_init(void)
 {
 	if (xive_enabled())
-		debugfs_create_file("xive", 0400, powerpc_debugfs_root,
+		debugfs_create_file("xive", 0400, arch_debugfs_dir,
 				    NULL, &xive_core_debug_fops);
 	return 0;
 }

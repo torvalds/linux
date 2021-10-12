@@ -183,7 +183,7 @@ static void rtrs_srv_reg_mr_done(struct ib_cq *cq, struct ib_wc *wc)
 	struct rtrs_sess *s = con->c.sess;
 	struct rtrs_srv_sess *sess = to_srv_sess(s);
 
-	if (unlikely(wc->status != IB_WC_SUCCESS)) {
+	if (wc->status != IB_WC_SUCCESS) {
 		rtrs_err(s, "REG MR failed: %s\n",
 			  ib_wc_status_msg(wc->status));
 		close_sess(sess);
@@ -201,7 +201,6 @@ static int rdma_write_sg(struct rtrs_srv_op *id)
 	struct rtrs_srv_sess *sess = to_srv_sess(s);
 	dma_addr_t dma_addr = sess->dma_addr[id->msg_id];
 	struct rtrs_srv_mr *srv_mr;
-	struct rtrs_srv *srv = sess->srv;
 	struct ib_send_wr inv_wr;
 	struct ib_rdma_wr imm_wr;
 	struct ib_rdma_wr *wr = NULL;
@@ -216,7 +215,7 @@ static int rdma_write_sg(struct rtrs_srv_op *id)
 
 	sg_cnt = le16_to_cpu(id->rd_msg->sg_cnt);
 	need_inval = le16_to_cpu(id->rd_msg->flags) & RTRS_MSG_NEED_INVAL_F;
-	if (unlikely(sg_cnt != 1))
+	if (sg_cnt != 1)
 		return -EINVAL;
 
 	offset = 0;
@@ -229,7 +228,7 @@ static int rdma_write_sg(struct rtrs_srv_op *id)
 	/* WR will fail with length error
 	 * if this is 0
 	 */
-	if (unlikely(plist->length == 0)) {
+	if (plist->length == 0) {
 		rtrs_err(s, "Invalid RDMA-Write sg list length 0\n");
 		return -EINVAL;
 	}
@@ -269,7 +268,7 @@ static int rdma_write_sg(struct rtrs_srv_op *id)
 	 * From time to time we have to post signaled sends,
 	 * or send queue will fill up and only QP reset can help.
 	 */
-	flags = (atomic_inc_return(&id->con->wr_cnt) % srv->queue_depth) ?
+	flags = (atomic_inc_return(&id->con->c.wr_cnt) % s->signal_interval) ?
 		0 : IB_SEND_SIGNALED;
 
 	if (need_inval) {
@@ -322,7 +321,7 @@ static int rdma_write_sg(struct rtrs_srv_op *id)
 				      offset, DMA_BIDIRECTIONAL);
 
 	err = ib_post_send(id->con->c.qp, &id->tx_wr.wr, NULL);
-	if (unlikely(err))
+	if (err)
 		rtrs_err(s,
 			  "Posting RDMA-Write-Request to QP failed, err: %d\n",
 			  err);
@@ -347,7 +346,6 @@ static int send_io_resp_imm(struct rtrs_srv_con *con, struct rtrs_srv_op *id,
 	struct ib_send_wr inv_wr, *wr = NULL;
 	struct ib_rdma_wr imm_wr;
 	struct ib_reg_wr rwr;
-	struct rtrs_srv *srv = sess->srv;
 	struct rtrs_srv_mr *srv_mr;
 	bool need_inval = false;
 	enum ib_send_flags flags;
@@ -363,7 +361,7 @@ static int send_io_resp_imm(struct rtrs_srv_con *con, struct rtrs_srv_op *id,
 		sg_cnt = le16_to_cpu(rd_msg->sg_cnt);
 
 		if (need_inval) {
-			if (likely(sg_cnt)) {
+			if (sg_cnt) {
 				inv_wr.wr_cqe   = &io_comp_cqe;
 				inv_wr.sg_list = NULL;
 				inv_wr.num_sge = 0;
@@ -396,7 +394,7 @@ static int send_io_resp_imm(struct rtrs_srv_con *con, struct rtrs_srv_op *id,
 	 * From time to time we have to post signalled sends,
 	 * or send queue will fill up and only QP reset can help.
 	 */
-	flags = (atomic_inc_return(&con->wr_cnt) % srv->queue_depth) ?
+	flags = (atomic_inc_return(&con->c.wr_cnt) % s->signal_interval) ?
 		0 : IB_SEND_SIGNALED;
 	imm = rtrs_to_io_rsp_imm(id->msg_id, errno, need_inval);
 	imm_wr.wr.next = NULL;
@@ -439,7 +437,7 @@ static int send_io_resp_imm(struct rtrs_srv_con *con, struct rtrs_srv_op *id,
 	imm_wr.wr.ex.imm_data = cpu_to_be32(imm);
 
 	err = ib_post_send(id->con->c.qp, wr, NULL);
-	if (unlikely(err))
+	if (err)
 		rtrs_err_rl(s, "Posting RDMA-Reply to QP failed, err: %d\n",
 			     err);
 
@@ -496,7 +494,7 @@ bool rtrs_srv_resp_rdma(struct rtrs_srv_op *id, int status)
 
 	id->status = status;
 
-	if (unlikely(sess->state != RTRS_SRV_CONNECTED)) {
+	if (sess->state != RTRS_SRV_CONNECTED) {
 		rtrs_err_rl(s,
 			    "Sending I/O response failed,  session %s is disconnected, sess state %s\n",
 			    kobject_name(&sess->kobj),
@@ -508,12 +506,11 @@ bool rtrs_srv_resp_rdma(struct rtrs_srv_op *id, int status)
 
 		ib_update_fast_reg_key(mr->mr, ib_inc_rkey(mr->mr->rkey));
 	}
-	if (unlikely(atomic_sub_return(1,
-				       &con->sq_wr_avail) < 0)) {
+	if (atomic_sub_return(1, &con->c.sq_wr_avail) < 0) {
 		rtrs_err(s, "IB send queue full: sess=%s cid=%d\n",
 			 kobject_name(&sess->kobj),
 			 con->c.cid);
-		atomic_add(1, &con->sq_wr_avail);
+		atomic_add(1, &con->c.sq_wr_avail);
 		spin_lock(&con->rsp_wr_wait_lock);
 		list_add_tail(&id->wait_list, &con->rsp_wr_wait_list);
 		spin_unlock(&con->rsp_wr_wait_lock);
@@ -525,7 +522,7 @@ bool rtrs_srv_resp_rdma(struct rtrs_srv_op *id, int status)
 	else
 		err = rdma_write_sg(id);
 
-	if (unlikely(err)) {
+	if (err) {
 		rtrs_err_rl(s, "IO response failed: %d: sess=%s\n", err,
 			    kobject_name(&sess->kobj));
 		close_sess(sess);
@@ -712,7 +709,7 @@ static void rtrs_srv_info_rsp_done(struct ib_cq *cq, struct ib_wc *wc)
 	iu = container_of(wc->wr_cqe, struct rtrs_iu, cqe);
 	rtrs_iu_free(iu, sess->s.dev->ib_dev, 1);
 
-	if (unlikely(wc->status != IB_WC_SUCCESS)) {
+	if (wc->status != IB_WC_SUCCESS) {
 		rtrs_err(s, "Sess info response send failed: %s\n",
 			  ib_wc_status_msg(wc->status));
 		close_sess(sess);
@@ -801,7 +798,7 @@ static int process_info_req(struct rtrs_srv_con *con,
 	size_t tx_sz;
 
 	err = post_recv_sess(sess);
-	if (unlikely(err)) {
+	if (err) {
 		rtrs_err(s, "post_recv_sess(), err: %d\n", err);
 		return err;
 	}
@@ -814,14 +811,14 @@ static int process_info_req(struct rtrs_srv_con *con,
 	strscpy(sess->s.sessname, msg->sessname, sizeof(sess->s.sessname));
 
 	rwr = kcalloc(sess->mrs_num, sizeof(*rwr), GFP_KERNEL);
-	if (unlikely(!rwr))
+	if (!rwr)
 		return -ENOMEM;
 
 	tx_sz  = sizeof(*rsp);
 	tx_sz += sizeof(rsp->desc[0]) * sess->mrs_num;
 	tx_iu = rtrs_iu_alloc(1, tx_sz, GFP_KERNEL, sess->s.dev->ib_dev,
 			       DMA_TO_DEVICE, rtrs_srv_info_rsp_done);
-	if (unlikely(!tx_iu)) {
+	if (!tx_iu) {
 		err = -ENOMEM;
 		goto rwr_free;
 	}
@@ -853,7 +850,7 @@ static int process_info_req(struct rtrs_srv_con *con,
 	}
 
 	err = rtrs_srv_create_sess_files(sess);
-	if (unlikely(err))
+	if (err)
 		goto iu_free;
 	kobject_get(&sess->kobj);
 	get_device(&sess->srv->dev);
@@ -873,7 +870,7 @@ static int process_info_req(struct rtrs_srv_con *con,
 
 	/* Send info response */
 	err = rtrs_iu_post_send(&con->c, tx_iu, tx_sz, reg_wr);
-	if (unlikely(err)) {
+	if (err) {
 		rtrs_err(s, "rtrs_iu_post_send(), err: %d\n", err);
 iu_free:
 		rtrs_iu_free(tx_iu, sess->s.dev->ib_dev, 1);
@@ -896,14 +893,14 @@ static void rtrs_srv_info_req_done(struct ib_cq *cq, struct ib_wc *wc)
 	WARN_ON(con->c.cid);
 
 	iu = container_of(wc->wr_cqe, struct rtrs_iu, cqe);
-	if (unlikely(wc->status != IB_WC_SUCCESS)) {
+	if (wc->status != IB_WC_SUCCESS) {
 		rtrs_err(s, "Sess info request receive failed: %s\n",
 			  ib_wc_status_msg(wc->status));
 		goto close;
 	}
 	WARN_ON(wc->opcode != IB_WC_RECV);
 
-	if (unlikely(wc->byte_len < sizeof(*msg))) {
+	if (wc->byte_len < sizeof(*msg)) {
 		rtrs_err(s, "Sess info request is malformed: size %d\n",
 			  wc->byte_len);
 		goto close;
@@ -911,13 +908,13 @@ static void rtrs_srv_info_req_done(struct ib_cq *cq, struct ib_wc *wc)
 	ib_dma_sync_single_for_cpu(sess->s.dev->ib_dev, iu->dma_addr,
 				   iu->size, DMA_FROM_DEVICE);
 	msg = iu->buf;
-	if (unlikely(le16_to_cpu(msg->type) != RTRS_MSG_INFO_REQ)) {
+	if (le16_to_cpu(msg->type) != RTRS_MSG_INFO_REQ) {
 		rtrs_err(s, "Sess info request is malformed: type %d\n",
 			  le16_to_cpu(msg->type));
 		goto close;
 	}
 	err = process_info_req(con, msg);
-	if (unlikely(err))
+	if (err)
 		goto close;
 
 out:
@@ -938,11 +935,11 @@ static int post_recv_info_req(struct rtrs_srv_con *con)
 	rx_iu = rtrs_iu_alloc(1, sizeof(struct rtrs_msg_info_req),
 			       GFP_KERNEL, sess->s.dev->ib_dev,
 			       DMA_FROM_DEVICE, rtrs_srv_info_req_done);
-	if (unlikely(!rx_iu))
+	if (!rx_iu)
 		return -ENOMEM;
 	/* Prepare for getting info response */
 	err = rtrs_iu_post_recv(&con->c, rx_iu);
-	if (unlikely(err)) {
+	if (err) {
 		rtrs_err(s, "rtrs_iu_post_recv(), err: %d\n", err);
 		rtrs_iu_free(rx_iu, sess->s.dev->ib_dev, 1);
 		return err;
@@ -957,7 +954,7 @@ static int post_recv_io(struct rtrs_srv_con *con, size_t q_size)
 
 	for (i = 0; i < q_size; i++) {
 		err = rtrs_post_recv_empty(&con->c, &io_comp_cqe);
-		if (unlikely(err))
+		if (err)
 			return err;
 	}
 
@@ -978,7 +975,7 @@ static int post_recv_sess(struct rtrs_srv_sess *sess)
 			q_size = srv->queue_depth;
 
 		err = post_recv_io(to_srv_con(sess->s.con[cid]), q_size);
-		if (unlikely(err)) {
+		if (err) {
 			rtrs_err(s, "post_recv_io(), err: %d\n", err);
 			return err;
 		}
@@ -1001,13 +998,13 @@ static void process_read(struct rtrs_srv_con *con,
 	void *data;
 	int ret;
 
-	if (unlikely(sess->state != RTRS_SRV_CONNECTED)) {
+	if (sess->state != RTRS_SRV_CONNECTED) {
 		rtrs_err_rl(s,
 			     "Processing read request failed,  session is disconnected, sess state %s\n",
 			     rtrs_srv_state_str(sess->state));
 		return;
 	}
-	if (unlikely(msg->sg_cnt != 1 && msg->sg_cnt != 0)) {
+	if (msg->sg_cnt != 1 && msg->sg_cnt != 0) {
 		rtrs_err_rl(s,
 			    "Processing read request failed, invalid message\n");
 		return;
@@ -1025,7 +1022,7 @@ static void process_read(struct rtrs_srv_con *con,
 	ret = ctx->ops.rdma_ev(srv->priv, id, READ, data, data_len,
 			   data + data_len, usr_len);
 
-	if (unlikely(ret)) {
+	if (ret) {
 		rtrs_err_rl(s,
 			     "Processing read request failed, user module cb reported for msg_id %d, err: %d\n",
 			     buf_id, ret);
@@ -1059,7 +1056,7 @@ static void process_write(struct rtrs_srv_con *con,
 	void *data;
 	int ret;
 
-	if (unlikely(sess->state != RTRS_SRV_CONNECTED)) {
+	if (sess->state != RTRS_SRV_CONNECTED) {
 		rtrs_err_rl(s,
 			     "Processing write request failed,  session is disconnected, sess state %s\n",
 			     rtrs_srv_state_str(sess->state));
@@ -1076,8 +1073,8 @@ static void process_write(struct rtrs_srv_con *con,
 	data_len = off - usr_len;
 	data = page_address(srv->chunks[buf_id]);
 	ret = ctx->ops.rdma_ev(srv->priv, id, WRITE, data, data_len,
-			   data + data_len, usr_len);
-	if (unlikely(ret)) {
+			       data + data_len, usr_len);
+	if (ret) {
 		rtrs_err_rl(s,
 			     "Processing write request failed, user module callback reports err: %d\n",
 			     ret);
@@ -1141,7 +1138,7 @@ static void rtrs_srv_inv_rkey_done(struct ib_cq *cq, struct ib_wc *wc)
 	u32 msg_id, off;
 	void *data;
 
-	if (unlikely(wc->status != IB_WC_SUCCESS)) {
+	if (wc->status != IB_WC_SUCCESS) {
 		rtrs_err(s, "Failed IB_WR_LOCAL_INV: %s\n",
 			  ib_wc_status_msg(wc->status));
 		close_sess(sess);
@@ -1198,7 +1195,7 @@ static void rtrs_srv_rdma_done(struct ib_cq *cq, struct ib_wc *wc)
 	u32 imm_type, imm_payload;
 	int err;
 
-	if (unlikely(wc->status != IB_WC_SUCCESS)) {
+	if (wc->status != IB_WC_SUCCESS) {
 		if (wc->status != IB_WC_WR_FLUSH_ERR) {
 			rtrs_err(s,
 				  "%s (wr_cqe: %p, type: %d, vendor_err: 0x%x, len: %u)\n",
@@ -1218,21 +1215,20 @@ static void rtrs_srv_rdma_done(struct ib_cq *cq, struct ib_wc *wc)
 		if (WARN_ON(wc->wr_cqe != &io_comp_cqe))
 			return;
 		err = rtrs_post_recv_empty(&con->c, &io_comp_cqe);
-		if (unlikely(err)) {
+		if (err) {
 			rtrs_err(s, "rtrs_post_recv(), err: %d\n", err);
 			close_sess(sess);
 			break;
 		}
 		rtrs_from_imm(be32_to_cpu(wc->ex.imm_data),
 			       &imm_type, &imm_payload);
-		if (likely(imm_type == RTRS_IO_REQ_IMM)) {
+		if (imm_type == RTRS_IO_REQ_IMM) {
 			u32 msg_id, off;
 			void *data;
 
 			msg_id = imm_payload >> sess->mem_bits;
 			off = imm_payload & ((1 << sess->mem_bits) - 1);
-			if (unlikely(msg_id >= srv->queue_depth ||
-				     off >= max_chunk_size)) {
+			if (msg_id >= srv->queue_depth || off >= max_chunk_size) {
 				rtrs_err(s, "Wrong msg_id %u, off %u\n",
 					  msg_id, off);
 				close_sess(sess);
@@ -1244,7 +1240,7 @@ static void rtrs_srv_rdma_done(struct ib_cq *cq, struct ib_wc *wc)
 				mr->msg_off = off;
 				mr->msg_id = msg_id;
 				err = rtrs_srv_inv_rkey(con, mr);
-				if (unlikely(err)) {
+				if (err) {
 					rtrs_err(s, "rtrs_post_recv(), err: %d\n",
 						  err);
 					close_sess(sess);
@@ -1268,10 +1264,11 @@ static void rtrs_srv_rdma_done(struct ib_cq *cq, struct ib_wc *wc)
 	case IB_WC_SEND:
 		/*
 		 * post_send() RDMA write completions of IO reqs (read/write)
+		 * and hb.
 		 */
-		atomic_add(srv->queue_depth, &con->sq_wr_avail);
+		atomic_add(s->signal_interval, &con->c.sq_wr_avail);
 
-		if (unlikely(!list_empty_careful(&con->rsp_wr_wait_list)))
+		if (!list_empty_careful(&con->rsp_wr_wait_list))
 			rtrs_rdma_process_wr_wait_list(con);
 
 		break;
@@ -1648,7 +1645,7 @@ static int create_con(struct rtrs_srv_sess *sess,
 	con->c.cm_id = cm_id;
 	con->c.sess = &sess->s;
 	con->c.cid = cid;
-	atomic_set(&con->wr_cnt, 1);
+	atomic_set(&con->c.wr_cnt, 1);
 	wr_limit = sess->s.dev->ib_dev->attrs.max_qp_wr;
 
 	if (con->c.cid == 0) {
@@ -1659,6 +1656,8 @@ static int create_con(struct rtrs_srv_sess *sess,
 		max_send_wr = min_t(int, wr_limit,
 				    SERVICE_CON_QUEUE_DEPTH * 2 + 2);
 		max_recv_wr = max_send_wr;
+		s->signal_interval = min_not_zero(srv->queue_depth,
+						  (size_t)SERVICE_CON_QUEUE_DEPTH);
 	} else {
 		/* when always_invlaidate enalbed, we need linv+rinv+mr+imm */
 		if (always_invalidate)
@@ -1679,7 +1678,7 @@ static int create_con(struct rtrs_srv_sess *sess,
 		 */
 	}
 	cq_num = max_send_wr + max_recv_wr;
-	atomic_set(&con->sq_wr_avail, max_send_wr);
+	atomic_set(&con->c.sq_wr_avail, max_send_wr);
 	cq_vector = rtrs_srv_get_next_cq_vector(sess);
 
 	/* TODO: SOFTIRQ can be faster, but be careful with softirq context */
@@ -1894,7 +1893,7 @@ static int rtrs_rdma_connect(struct rdma_cm_id *cm_id,
 	err = create_con(sess, cm_id, cid);
 	if (err) {
 		rtrs_err((&sess->s), "create_con(), error %d\n", err);
-		(void)rtrs_rdma_do_reject(cm_id, err);
+		rtrs_rdma_do_reject(cm_id, err);
 		/*
 		 * Since session has other connections we follow normal way
 		 * through workqueue, but still return an error to tell cma.c
@@ -1905,7 +1904,7 @@ static int rtrs_rdma_connect(struct rdma_cm_id *cm_id,
 	err = rtrs_rdma_do_accept(sess, cm_id);
 	if (err) {
 		rtrs_err((&sess->s), "rtrs_rdma_do_accept(), error %d\n", err);
-		(void)rtrs_rdma_do_reject(cm_id, err);
+		rtrs_rdma_do_reject(cm_id, err);
 		/*
 		 * Since current connection was successfully added to the
 		 * session we follow normal way through workqueue to close the

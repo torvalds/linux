@@ -385,7 +385,7 @@ static int seg6_output_core(struct net *net, struct sock *sk,
 	struct dst_entry *orig_dst = skb_dst(skb);
 	struct dst_entry *dst = NULL;
 	struct seg6_lwt *slwt;
-	int err = -EINVAL;
+	int err;
 
 	err = seg6_do_srh(skb);
 	if (unlikely(err))

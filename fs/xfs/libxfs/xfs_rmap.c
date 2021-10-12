@@ -179,8 +179,8 @@ done:
 /* Convert an internal btree record to an rmap record. */
 int
 xfs_rmap_btrec_to_irec(
-	union xfs_btree_rec	*rec,
-	struct xfs_rmap_irec	*irec)
+	const union xfs_btree_rec	*rec,
+	struct xfs_rmap_irec		*irec)
 {
 	irec->rm_startblock = be32_to_cpu(rec->rmap.rm_startblock);
 	irec->rm_blockcount = be32_to_cpu(rec->rmap.rm_blockcount);
@@ -255,9 +255,9 @@ struct xfs_find_left_neighbor_info {
 /* For each rmap given, figure out if it matches the key we want. */
 STATIC int
 xfs_rmap_find_left_neighbor_helper(
-	struct xfs_btree_cur	*cur,
-	struct xfs_rmap_irec	*rec,
-	void			*priv)
+	struct xfs_btree_cur		*cur,
+	const struct xfs_rmap_irec	*rec,
+	void				*priv)
 {
 	struct xfs_find_left_neighbor_info	*info = priv;
 
@@ -331,9 +331,9 @@ xfs_rmap_find_left_neighbor(
 /* For each rmap given, figure out if it matches the key we want. */
 STATIC int
 xfs_rmap_lookup_le_range_helper(
-	struct xfs_btree_cur	*cur,
-	struct xfs_rmap_irec	*rec,
-	void			*priv)
+	struct xfs_btree_cur		*cur,
+	const struct xfs_rmap_irec	*rec,
+	void				*priv)
 {
 	struct xfs_find_left_neighbor_info	*info = priv;
 
@@ -705,7 +705,7 @@ xfs_rmap_free(
 	struct xfs_btree_cur		*cur;
 	int				error;
 
-	if (!xfs_sb_version_hasrmapbt(&mp->m_sb))
+	if (!xfs_has_rmapbt(mp))
 		return 0;
 
 	cur = xfs_rmapbt_init_cursor(mp, tp, agbp, pag);
@@ -959,7 +959,7 @@ xfs_rmap_alloc(
 	struct xfs_btree_cur		*cur;
 	int				error;
 
-	if (!xfs_sb_version_hasrmapbt(&mp->m_sb))
+	if (!xfs_has_rmapbt(mp))
 		return 0;
 
 	cur = xfs_rmapbt_init_cursor(mp, tp, agbp, pag);
@@ -2278,9 +2278,9 @@ struct xfs_rmap_query_range_info {
 /* Format btree record and pass to our callback. */
 STATIC int
 xfs_rmap_query_range_helper(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_rec	*rec,
-	void			*priv)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_rec	*rec,
+	void				*priv)
 {
 	struct xfs_rmap_query_range_info	*query = priv;
 	struct xfs_rmap_irec			irec;
@@ -2296,8 +2296,8 @@ xfs_rmap_query_range_helper(
 int
 xfs_rmap_query_range(
 	struct xfs_btree_cur			*cur,
-	struct xfs_rmap_irec			*low_rec,
-	struct xfs_rmap_irec			*high_rec,
+	const struct xfs_rmap_irec		*low_rec,
+	const struct xfs_rmap_irec		*high_rec,
 	xfs_rmap_query_range_fn			fn,
 	void					*priv)
 {
@@ -2459,7 +2459,7 @@ xfs_rmap_update_is_needed(
 	struct xfs_mount	*mp,
 	int			whichfork)
 {
-	return xfs_sb_version_hasrmapbt(&mp->m_sb) && whichfork != XFS_COW_FORK;
+	return xfs_has_rmapbt(mp) && whichfork != XFS_COW_FORK;
 }
 
 /*
@@ -2707,7 +2707,7 @@ struct xfs_rmap_key_state {
 STATIC int
 xfs_rmap_has_other_keys_helper(
 	struct xfs_btree_cur		*cur,
-	struct xfs_rmap_irec		*rec,
+	const struct xfs_rmap_irec	*rec,
 	void				*priv)
 {
 	struct xfs_rmap_key_state	*rks = priv;

@@ -644,15 +644,12 @@ void mptcp_pm_nl_addr_send_ack(struct mptcp_sock *msk)
 	subflow = list_first_entry_or_null(&msk->conn_list, typeof(*subflow), node);
 	if (subflow) {
 		struct sock *ssk = mptcp_subflow_tcp_sock(subflow);
-		bool slow;
 
 		spin_unlock_bh(&msk->pm.lock);
 		pr_debug("send ack for %s",
 			 mptcp_pm_should_add_signal(msk) ? "add_addr" : "rm_addr");
 
-		slow = lock_sock_fast(ssk);
-		tcp_send_ack(ssk);
-		unlock_sock_fast(ssk, slow);
+		mptcp_subflow_send_ack(ssk);
 		spin_lock_bh(&msk->pm.lock);
 	}
 }
@@ -669,7 +666,6 @@ int mptcp_pm_nl_mp_prio_send_ack(struct mptcp_sock *msk,
 		struct sock *ssk = mptcp_subflow_tcp_sock(subflow);
 		struct sock *sk = (struct sock *)msk;
 		struct mptcp_addr_info local;
-		bool slow;
 
 		local_address((struct sock_common *)ssk, &local);
 		if (!addresses_equal(&local, addr, addr->port))
@@ -682,9 +678,7 @@ int mptcp_pm_nl_mp_prio_send_ack(struct mptcp_sock *msk,
 
 		spin_unlock_bh(&msk->pm.lock);
 		pr_debug("send ack for mp_prio");
-		slow = lock_sock_fast(ssk);
-		tcp_send_ack(ssk);
-		unlock_sock_fast(ssk, slow);
+		mptcp_subflow_send_ack(ssk);
 		spin_lock_bh(&msk->pm.lock);
 
 		return 0;
@@ -1724,9 +1718,7 @@ static int mptcp_nl_cmd_set_flags(struct sk_buff *skb, struct genl_info *info)
 
 	list_for_each_entry(entry, &pernet->local_addr_list, list) {
 		if (addresses_equal(&entry->addr, &addr.addr, true)) {
-			ret = mptcp_nl_addr_backup(net, &entry->addr, bkup);
-			if (ret)
-				return ret;
+			mptcp_nl_addr_backup(net, &entry->addr, bkup);
 
 			if (bkup)
 				entry->flags |= MPTCP_PM_ADDR_FLAG_BACKUP;

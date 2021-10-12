@@ -213,7 +213,6 @@ static inline int ap_fetch_qci_info(struct ap_config_info *info)
  * ap_init_qci_info(): Allocate and query qci config info.
  * Does also update the static variables ap_max_domain_id
  * and ap_max_adapter_id if this info is available.
-
  */
 static void __init ap_init_qci_info(void)
 {
@@ -439,6 +438,7 @@ static enum hrtimer_restart ap_poll_timeout(struct hrtimer *unused)
 /**
  * ap_interrupt_handler() - Schedule ap_tasklet on interrupt
  * @airq: pointer to adapter interrupt descriptor
+ * @floating: ignored
  */
 static void ap_interrupt_handler(struct airq_struct *airq, bool floating)
 {
@@ -1786,6 +1786,7 @@ static inline void ap_scan_adapter(int ap)
 /**
  * ap_scan_bus(): Scan the AP bus for new devices
  * Runs periodically, workqueue timer (ap_config_time)
+ * @unused: Unused pointer.
  */
 static void ap_scan_bus(struct work_struct *unused)
 {

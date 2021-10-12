@@ -103,18 +103,19 @@ static void check_credit_distribution(void)
 }
 
 /**
- * Configure bucket size and credits for a device. 'size' is the size of
- * the buckets for the device. This size is distributed among all the CPUs
- * so that all of them can send messages to the device.
- *
- * The device is also given 'cpu_credits' to send messages to the CPUs
- *
+ * setup_fmn_cc -  Configure bucket size and credits for a device.
  * @dev_info: FMN information structure for each devices
  * @start_stn_id: Starting station id of dev_info
  * @end_stn_id: End station id of dev_info
  * @num_buckets: Total number of buckets for den_info
  * @cpu_credits: Allowed credits to cpu for each devices pointing by dev_info
  * @size: Size of the each buckets in the device station
+ *
+ * 'size' is the size of the buckets for the device. This size is
+ * distributed among all the CPUs
+ * so that all of them can send messages to the device.
+ *
+ * The device is also given 'cpu_credits' to send messages to the CPUs
  */
 static void setup_fmn_cc(struct xlr_fmn_info *dev_info, int start_stn_id,
 		int end_stn_id, int num_buckets, int cpu_credits, int size)
@@ -174,6 +175,8 @@ static void setup_cpu_fmninfo(struct xlr_fmn_info *cpu, int num_core)
 }
 
 /**
+ * xlr_board_info_setup - Setup FMN details
+ *
  * Setup the FMN details for each devices according to the device available
  * in each variant of XLR/XLS processor
  */
