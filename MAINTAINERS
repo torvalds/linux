@@ -9307,7 +9307,7 @@ S:	Maintained
 F:	drivers/platform/x86/intel/atomisp2/led.c
 
 INTEL BIOS SAR INT1092 DRIVER
-M:	Shravan S <s.shravan@intel.com>
+M:	Shravan Sudhakar <s.shravan@intel.com>
 M:	Intel Corporation <linuxwwan@intel.com>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
