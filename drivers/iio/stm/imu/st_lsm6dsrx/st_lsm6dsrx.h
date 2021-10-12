@@ -105,7 +105,7 @@
 
 #define ST_LSM6DSRX_FSM_STATUS_A_MAINPAGE	0x36
 #define ST_LSM6DSRX_FSM_STATUS_B_MAINPAGE	0x37
-#define ST_LSM6DSRX_MLC_STATUS_MAINPAGE 	0x38
+#define ST_LSM6DSRX_MLC_STATUS_MAINPAGE		0x38
 
 #define ST_LSM6DSRX_REG_FIFO_STATUS1_ADDR	0x3a
 #define ST_LSM6DSRX_REG_TIMESTAMP0_ADDR		0x40
@@ -126,7 +126,7 @@
 /* shub registers */
 #define ST_LSM6DSRX_REG_MASTER_CONFIG_ADDR	0x14
 #define ST_LSM6DSRX_REG_WRITE_ONCE_MASK		BIT(6)
-#define ST_LSM6DSRX_REG_SHUB_PU_EN_MASK      	BIT(3)
+#define ST_LSM6DSRX_REG_SHUB_PU_EN_MASK		BIT(3)
 #define ST_LSM6DSRX_REG_MASTER_ON_MASK		BIT(2)
 
 #define ST_LSM6DSRX_REG_SLV0_ADDR		0x15
@@ -442,30 +442,30 @@ static const enum st_lsm6dsrx_sensor_id st_lsm6dsrx_fsm_sensor_list[] = {
 	 [15] = ST_LSM6DSRX_ID_FSM_15,
 };
 
-#define ST_LSM6DSRX_ID_ALL_FSM_MLC BIT(ST_LSM6DSRX_ID_MLC_0)  | \
-				   BIT(ST_LSM6DSRX_ID_MLC_1)  | \
-				   BIT(ST_LSM6DSRX_ID_MLC_2)  | \
-				   BIT(ST_LSM6DSRX_ID_MLC_3)  | \
-				   BIT(ST_LSM6DSRX_ID_MLC_4)  | \
-				   BIT(ST_LSM6DSRX_ID_MLC_5)  | \
-				   BIT(ST_LSM6DSRX_ID_MLC_6)  | \
-				   BIT(ST_LSM6DSRX_ID_MLC_7)  | \
-				   BIT(ST_LSM6DSRX_ID_FSM_0)  | \
-				   BIT(ST_LSM6DSRX_ID_FSM_1)  | \
-				   BIT(ST_LSM6DSRX_ID_FSM_2)  | \
-				   BIT(ST_LSM6DSRX_ID_FSM_3)  | \
-				   BIT(ST_LSM6DSRX_ID_FSM_4)  | \
-				   BIT(ST_LSM6DSRX_ID_FSM_5)  | \
-				   BIT(ST_LSM6DSRX_ID_FSM_6)  | \
-				   BIT(ST_LSM6DSRX_ID_FSM_7)  | \
-				   BIT(ST_LSM6DSRX_ID_FSM_8)  | \
-				   BIT(ST_LSM6DSRX_ID_FSM_9)  | \
-				   BIT(ST_LSM6DSRX_ID_FSM_10) | \
-				   BIT(ST_LSM6DSRX_ID_FSM_11) | \
-				   BIT(ST_LSM6DSRX_ID_FSM_12) | \
-				   BIT(ST_LSM6DSRX_ID_FSM_13) | \
-				   BIT(ST_LSM6DSRX_ID_FSM_14) | \
-				   BIT(ST_LSM6DSRX_ID_FSM_15)
+#define ST_LSM6DSRX_ID_ALL_FSM_MLC (BIT(ST_LSM6DSRX_ID_MLC_0)  | \
+				    BIT(ST_LSM6DSRX_ID_MLC_1)  | \
+				    BIT(ST_LSM6DSRX_ID_MLC_2)  | \
+				    BIT(ST_LSM6DSRX_ID_MLC_3)  | \
+				    BIT(ST_LSM6DSRX_ID_MLC_4)  | \
+				    BIT(ST_LSM6DSRX_ID_MLC_5)  | \
+				    BIT(ST_LSM6DSRX_ID_MLC_6)  | \
+				    BIT(ST_LSM6DSRX_ID_MLC_7)  | \
+				    BIT(ST_LSM6DSRX_ID_FSM_0)  | \
+				    BIT(ST_LSM6DSRX_ID_FSM_1)  | \
+				    BIT(ST_LSM6DSRX_ID_FSM_2)  | \
+				    BIT(ST_LSM6DSRX_ID_FSM_3)  | \
+				    BIT(ST_LSM6DSRX_ID_FSM_4)  | \
+				    BIT(ST_LSM6DSRX_ID_FSM_5)  | \
+				    BIT(ST_LSM6DSRX_ID_FSM_6)  | \
+				    BIT(ST_LSM6DSRX_ID_FSM_7)  | \
+				    BIT(ST_LSM6DSRX_ID_FSM_8)  | \
+				    BIT(ST_LSM6DSRX_ID_FSM_9)  | \
+				    BIT(ST_LSM6DSRX_ID_FSM_10) | \
+				    BIT(ST_LSM6DSRX_ID_FSM_11) | \
+				    BIT(ST_LSM6DSRX_ID_FSM_12) | \
+				    BIT(ST_LSM6DSRX_ID_FSM_13) | \
+				    BIT(ST_LSM6DSRX_ID_FSM_14) | \
+				    BIT(ST_LSM6DSRX_ID_FSM_15))
 
 /*
  * HW devices that can wakeup the target

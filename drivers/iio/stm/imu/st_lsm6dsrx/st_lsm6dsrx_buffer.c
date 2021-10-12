@@ -50,7 +50,7 @@ static inline s64 st_lsm6dsrx_ewma(s64 old, s64 new, int weight)
 
 	diff = new - old;
 	incr = div_s64((ST_LSM6DSRX_EWMA_DIV - weight) * diff,
-		        ST_LSM6DSRX_EWMA_DIV);
+			ST_LSM6DSRX_EWMA_DIV);
 
 	return old + incr;
 }
@@ -197,9 +197,8 @@ static int st_lsm6dsrx_read_fifo(struct st_lsm6dsrx_hw *hw)
 	u32 val;
 
 	/* return if FIFO is already disabled */
-	if (hw->fifo_mode == ST_LSM6DSRX_FIFO_BYPASS) {
+	if (hw->fifo_mode == ST_LSM6DSRX_FIFO_BYPASS)
 		return 0;
-	}
 
 	ts_irq = hw->ts - hw->delta_ts;
 
@@ -251,7 +250,7 @@ static int st_lsm6dsrx_read_fifo(struct st_lsm6dsrx_hw *hw)
 				sensor = iio_priv(iio_dev);
 
 				/* Skip samples if not ready */
-				drdymask =(s16)le16_to_cpu(get_unaligned_le16(ptr));
+				drdymask = (s16)le16_to_cpu(get_unaligned_le16(ptr));
 				if (unlikely(drdymask >=
 				    ST_LSM6DSRX_SAMPLE_DISCHARD)) {
 					continue;
@@ -532,7 +531,8 @@ int st_lsm6dsrx_buffers_setup(struct st_lsm6dsrx_hw *hw)
 		return -EINVAL;
 	}
 
-	err = regmap_update_bits(hw->regmap, ST_LSM6DSRX_REG_CTRL3_C_ADDR,
+	err = regmap_update_bits(hw->regmap,
+				 ST_LSM6DSRX_REG_CTRL3_C_ADDR,
 				 ST_LSM6DSRX_REG_H_LACTIVE_MASK,
 				 FIELD_PREP(ST_LSM6DSRX_REG_H_LACTIVE_MASK,
 				 irq_active_low));
@@ -540,7 +540,8 @@ int st_lsm6dsrx_buffers_setup(struct st_lsm6dsrx_hw *hw)
 		return err;
 
 	if (np && of_property_read_bool(np, "drive-open-drain")) {
-		err = regmap_update_bits(hw->regmap, ST_LSM6DSRX_REG_CTRL3_C_ADDR,
+		err = regmap_update_bits(hw->regmap,
+					 ST_LSM6DSRX_REG_CTRL3_C_ADDR,
 					 ST_LSM6DSRX_REG_CTRL3_C_ADDR,
 					 FIELD_PREP(ST_LSM6DSRX_REG_PP_OD_MASK, 1));
 		if (err < 0)
@@ -573,7 +574,8 @@ int st_lsm6dsrx_buffers_setup(struct st_lsm6dsrx_hw *hw)
 		hw->iio_devs[i]->setup_ops = &st_lsm6dsrx_fifo_ops;
 	}
 
-	return regmap_update_bits(hw->regmap, ST_LSM6DSRX_REG_FIFO_CTRL4_ADDR,
+	return regmap_update_bits(hw->regmap,
+				  ST_LSM6DSRX_REG_FIFO_CTRL4_ADDR,
 				  ST_LSM6DSRX_REG_DEC_TS_MASK,
 				  FIELD_PREP(ST_LSM6DSRX_REG_DEC_TS_MASK, 1));
 }

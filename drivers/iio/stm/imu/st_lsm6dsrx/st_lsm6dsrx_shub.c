@@ -293,7 +293,7 @@ static const struct st_lsm6dsrx_ext_dev_settings st_lsm6dsrx_ext_dev_table[] = {
 /**
  * Wait write trigger [SHUB]
  *
- * In write on external deivce register, each operation is triggered
+ * In write on external device register, each operation is triggered
  * by accel/gyro data ready, this means that wait time depends on ODR
  * plus i2c time
  * NOTE: Be sure to enable Acc or Gyro before this operation

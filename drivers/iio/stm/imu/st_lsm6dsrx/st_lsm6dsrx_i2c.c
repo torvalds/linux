@@ -21,7 +21,7 @@ static const struct regmap_config st_lsm6dsrx_i2c_regmap_config = {
 };
 
 static int st_lsm6dsrx_i2c_probe(struct i2c_client *client,
- 				 const struct i2c_device_id *id)
+				 const struct i2c_device_id *id)
 {
 	struct regmap *regmap;
 
