@@ -1291,8 +1291,12 @@ static void felix_txtstamp(struct dsa_switch *ds, int port,
 	if (!ocelot->ptp)
 		return;
 
-	if (ocelot_port_txtstamp_request(ocelot, port, skb, &clone))
+	if (ocelot_port_txtstamp_request(ocelot, port, skb, &clone)) {
+		dev_err_ratelimited(ds->dev,
+				    "port %d delivering skb without TX timestamp\n",
+				    port);
 		return;
+	}
 
 	if (clone)
 		OCELOT_SKB_CB(skb)->clone = clone;

@@ -14,6 +14,7 @@
 #include <soc/mscc/ocelot.h>
 
 #define OCELOT_MAX_PTP_ID		63
+#define OCELOT_PTP_FIFO_SIZE		128
 
 #define PTP_PIN_CFG_RSZ			0x20
 #define PTP_PIN_TOD_SEC_MSB_RSZ		PTP_PIN_CFG_RSZ
