@@ -1078,7 +1078,7 @@ EXPORT_SYMBOL(submit_bio);
  * Note: the caller must either be the context that submitted @bio, or
  * be in a RCU critical section to prevent freeing of @bio.
  */
-int bio_poll(struct bio *bio, unsigned int flags)
+int bio_poll(struct bio *bio, struct io_comp_batch *iob, unsigned int flags)
 {
 	struct request_queue *q = bio->bi_bdev->bd_disk->queue;
 	blk_qc_t cookie = READ_ONCE(bio->bi_cookie);
@@ -1096,7 +1096,7 @@ int bio_poll(struct bio *bio, unsigned int flags)
 	if (WARN_ON_ONCE(!queue_is_mq(q)))
 		ret = 0;	/* not yet implemented, should not happen */
 	else
-		ret = blk_mq_poll(q, cookie, flags);
+		ret = blk_mq_poll(q, cookie, iob, flags);
 	blk_queue_exit(q);
 	return ret;
 }
@@ -1106,7 +1106,8 @@ EXPORT_SYMBOL_GPL(bio_poll);
  * Helper to implement file_operations.iopoll.  Requires the bio to be stored
  * in iocb->private, and cleared before freeing the bio.
  */
-int iocb_bio_iopoll(struct kiocb *kiocb, unsigned int flags)
+int iocb_bio_iopoll(struct kiocb *kiocb, struct io_comp_batch *iob,
+		    unsigned int flags)
 {
 	struct bio *bio;
 	int ret = 0;
@@ -1134,7 +1135,7 @@ int iocb_bio_iopoll(struct kiocb *kiocb, unsigned int flags)
 	rcu_read_lock();
 	bio = READ_ONCE(kiocb->private);
 	if (bio && bio->bi_bdev)
-		ret = bio_poll(bio, flags);
+		ret = bio_poll(bio, iob, flags);
 	rcu_read_unlock();
 
 	return ret;

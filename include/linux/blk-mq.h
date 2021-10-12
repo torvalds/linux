@@ -532,7 +532,7 @@ struct blk_mq_ops {
 	/**
 	 * @poll: Called to poll for completion of a specific tag.
 	 */
-	int (*poll)(struct blk_mq_hw_ctx *);
+	int (*poll)(struct blk_mq_hw_ctx *, struct io_comp_batch *);
 
 	/**
 	 * @complete: Mark the request as complete.

@@ -2483,7 +2483,7 @@ static int io_do_iopoll(struct io_ring_ctx *ctx, unsigned int *nr_events,
 		if (!list_empty(&done))
 			break;
 
-		ret = kiocb->ki_filp->f_op->iopoll(kiocb, poll_flags);
+		ret = kiocb->ki_filp->f_op->iopoll(kiocb, NULL, poll_flags);
 		if (unlikely(ret < 0))
 			return ret;
 		else if (ret)

@@ -630,7 +630,7 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 				break;
 
 			if (!dio->submit.poll_bio ||
-			    !bio_poll(dio->submit.poll_bio, 0))
+			    !bio_poll(dio->submit.poll_bio, NULL, 0))
 				blk_io_schedule();
 		}
 		__set_current_state(TASK_RUNNING);
