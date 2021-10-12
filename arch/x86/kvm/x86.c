@@ -12370,7 +12370,7 @@ EXPORT_SYMBOL_GPL(kvm_sev_es_mmio_read);
 
 static int complete_sev_es_emulated_ins(struct kvm_vcpu *vcpu)
 {
-	memcpy(vcpu->arch.guest_ins_data, vcpu->arch.pio_data,
+	memcpy(vcpu->arch.sev_pio_data, vcpu->arch.pio_data,
 	       vcpu->arch.pio.count * vcpu->arch.pio.size);
 	vcpu->arch.pio.count = 0;
 
@@ -12402,7 +12402,7 @@ static int kvm_sev_es_ins(struct kvm_vcpu *vcpu, unsigned int size,
 	if (ret) {
 		vcpu->arch.pio.count = 0;
 	} else {
-		vcpu->arch.guest_ins_data = data;
+		vcpu->arch.sev_pio_data = data;
 		vcpu->arch.complete_userspace_io = complete_sev_es_emulated_ins;
 	}
 
