@@ -697,6 +697,7 @@ struct ocelot_policer {
 
 struct ocelot_skb_cb {
 	struct sk_buff *clone;
+	unsigned int ptp_class; /* valid only for clones */
 	u8 ptp_cmd;
 	u8 ts_id;
 };
