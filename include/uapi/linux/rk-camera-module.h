@@ -20,6 +20,9 @@
 
 #define RKMODULE_MAX_VC_CH		4
 
+#define RKMODULE_PADF_GAINMAP_LEN	1024
+#define RKMODULE_PDAF_DCCMAP_LEN	256
+
 #define RKMODULE_CAMERA_MODULE_INDEX	"rockchip,camera-module-index"
 #define RKMODULE_CAMERA_MODULE_FACING	"rockchip,camera-module-facing"
 #define RKMODULE_CAMERA_MODULE_NAME	"rockchip,camera-module-name"
@@ -183,6 +186,23 @@ struct rkmodule_af_inf {
 } __attribute__ ((packed));
 
 /**
+ * struct rkmodule_pdaf_inf - module pdaf information
+ *
+ */
+struct rkmodule_pdaf_inf {
+	__u32 flag;
+
+	__u32 gainmap_width;
+	__u32 gainmap_height;
+	__u32 dccmap_width;
+	__u32 dccmap_height;
+	__u32 dcc_mode;
+	__u32 dcc_dir;
+	__u16 gainmap[RKMODULE_PADF_GAINMAP_LEN];
+	__u16 dccmap[RKMODULE_PDAF_DCCMAP_LEN];
+} __attribute__ ((packed));
+
+/**
  * struct rkmodule_inf - module information
  *
  */
@@ -192,6 +212,7 @@ struct rkmodule_inf {
 	struct rkmodule_awb_inf awb;
 	struct rkmodule_lsc_inf lsc;
 	struct rkmodule_af_inf af;
+	struct rkmodule_pdaf_inf pdaf;
 } __attribute__ ((packed));
 
 /**
