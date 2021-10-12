@@ -483,15 +483,6 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 	dev_set_name(&shost->shost_dev, "host%d", shost->host_no);
 	shost->shost_dev.groups = shost->shost_dev_attr_groups;
 	shost->shost_dev_attr_groups[j++] = &scsi_shost_attr_group;
-	if (sht->shost_attrs) {
-		shost->lld_attr_group = (struct attribute_group){
-			.attrs = scsi_convert_dev_attrs(&shost->shost_gendev,
-							sht->shost_attrs)
-		};
-		if (shost->lld_attr_group.attrs)
-			shost->shost_dev_attr_groups[j++] =
-				&shost->lld_attr_group;
-	}
 	if (sht->shost_groups) {
 		for (i = 0; sht->shost_groups[i] &&
 			     j < ARRAY_SIZE(shost->shost_dev_attr_groups);

@@ -474,16 +474,6 @@ struct scsi_host_template {
 #define SCSI_DEFAULT_HOST_BLOCKED	7
 
 	/*
-	 * Pointer to the sysfs class properties for this host, NULL terminated.
-	 */
-	struct device_attribute **shost_attrs;
-
-	/*
-	 * Pointer to the SCSI device properties for this host, NULL terminated.
-	 */
-	struct device_attribute **sdev_attrs;
-
-	/*
 	 * Pointer to the SCSI host sysfs attribute groups, NULL terminated.
 	 */
 	const struct attribute_group **shost_groups;
@@ -700,7 +690,6 @@ struct Scsi_Host {
 
 	/* ldm bits */
 	struct device		shost_gendev, shost_dev;
-	struct attribute_group	lld_attr_group;
 	/*
 	 * The array size 3 provides space for one attribute group defined by
 	 * the SCSI core, one attribute group defined by the SCSI LLD and one

@@ -225,7 +225,6 @@ struct scsi_device {
 
 	struct device		sdev_gendev,
 				sdev_dev;
-	struct attribute_group	lld_attr_group;
 	/*
 	 * The array size 6 provides space for one attribute group for the
 	 * SCSI core, four attribute groups defined by SCSI LLDs and one

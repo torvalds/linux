@@ -1563,26 +1563,6 @@ int scsi_sysfs_add_host(struct Scsi_Host *shost)
 	return 0;
 }
 
-/*
- * Convert an array of struct device_attribute pointers into an array of
- * struct attribute pointers.
- */
-struct attribute **scsi_convert_dev_attrs(struct device *dev,
-					  struct device_attribute **dev_attr)
-{
-	struct attribute **attrs;
-	int i;
-
-	for (i = 0; dev_attr[i]; i++)
-		;
-	attrs = devm_kzalloc(dev, (i + 1) * sizeof(*attrs), GFP_KERNEL);
-	if (!attrs)
-		return NULL;
-	for (i = 0; dev_attr[i]; i++)
-		attrs[i] = &dev_attr[i]->attr;
-	return attrs;
-}
-
 static struct device_type scsi_dev_type = {
 	.name =		"scsi_device",
 	.release =	scsi_device_dev_release,
@@ -1604,14 +1584,6 @@ void scsi_sysfs_device_initialize(struct scsi_device *sdev)
 	dev_set_name(&sdev->sdev_gendev, "%d:%d:%d:%llu",
 		     sdev->host->host_no, sdev->channel, sdev->id, sdev->lun);
 	sdev->gendev_attr_groups[j++] = &scsi_sdev_attr_group;
-	if (hostt->sdev_attrs) {
-		sdev->lld_attr_group = (struct attribute_group){
-			.attrs = scsi_convert_dev_attrs(&sdev->sdev_gendev,
-							hostt->sdev_attrs)
-		};
-		if (sdev->lld_attr_group.attrs)
-			sdev->gendev_attr_groups[j++] = &sdev->lld_attr_group;
-	}
 	if (hostt->sdev_groups) {
 		for (i = 0; hostt->sdev_groups[i] &&
 			     j < ARRAY_SIZE(sdev->gendev_attr_groups);
