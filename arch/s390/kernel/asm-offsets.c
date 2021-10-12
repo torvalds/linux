@@ -45,6 +45,7 @@ int main(void)
 	OFFSET(__SF_SIE_SAVEAREA, stack_frame, empty1[2]);
 	OFFSET(__SF_SIE_REASON, stack_frame, empty1[3]);
 	OFFSET(__SF_SIE_FLAGS, stack_frame, empty1[4]);
+	DEFINE(STACK_FRAME_OVERHEAD, sizeof(struct stack_frame));
 	BLANK();
 	/* idle data offsets */
 	OFFSET(__CLOCK_IDLE_ENTER, s390_idle_data, clock_idle_enter);
