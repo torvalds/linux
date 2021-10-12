@@ -2382,47 +2382,48 @@ static int hl_cs_poll_fences(struct multi_cs_data *mcs_data)
 			break;
 		}
 
-		/*
-		 * It is possible to get an old sequence numbers from user
-		 * which related to already completed CSs and their fences
-		 * already gone. In this case, no need to consider its QID for
-		 * mcs completion.
-		 */
-		if (fence)
+		switch (status) {
+		case CS_WAIT_STATUS_BUSY:
+			/* CS did not finished, keep waiting on its QID*/
 			mcs_data->stream_master_qid_map |=
 					fence->stream_master_qid_map;
+			break;
+		case CS_WAIT_STATUS_COMPLETED:
+			/*
+			 * Using mcs_handling_done to avoid possibility of mcs_data
+			 * returns to user indicating CS completed before it finished
+			 * all of its mcs handling, to avoid race the next time the
+			 * user waits for mcs.
+			 */
+			if (!fence->mcs_handling_done)
+				break;
 
-		/*
-		 * Using mcs_handling_done to avoid possibility of mcs_data
-		 * returns to user indicating CS completed before it finished
-		 * all of its mcs handling, to avoid race the next time the
-		 * user waits for mcs.
-		 */
-		if (status == CS_WAIT_STATUS_BUSY ||
-				(fence && !fence->mcs_handling_done))
-			continue;
-
-		mcs_data->completion_bitmap |= BIT(i);
-
-		/*
-		 * best effort to extract timestamp. few notes:
-		 * - if even single fence is gone we cannot extract timestamp
-		 *   (as fence not exist anymore)
-		 * - for all completed CSs we take the earliest timestamp.
-		 *   for this we have to validate that:
-		 *       1. given timestamp was indeed set
-		 *       2. the timestamp is earliest of all timestamps so far
-		 */
-
-		if (status == CS_WAIT_STATUS_GONE) {
+			mcs_data->completion_bitmap |= BIT(i);
+			/*
+			 * For all completed CSs we take the earliest timestamp.
+			 * For this we have to validate that the timestamp is
+			 * earliest of all timestamps so far.
+			 */
+			if (mcs_data->update_ts &&
+					(ktime_compare(fence->timestamp, first_cs_time) < 0))
+				first_cs_time = fence->timestamp;
+			break;
+		case CS_WAIT_STATUS_GONE:
 			mcs_data->update_ts = false;
 			mcs_data->gone_cs = true;
-		} else if (mcs_data->update_ts &&
-			(ktime_compare(fence->timestamp,
-						ktime_set(0, 0)) > 0) &&
-			(ktime_compare(fence->timestamp, first_cs_time) < 0)) {
-			first_cs_time = fence->timestamp;
+			/*
+			 * It is possible to get an old sequence numbers from user
+			 * which related to already completed CSs and their fences
+			 * already gone. In this case, CS set as completed but
+			 * no need to consider its QID for mcs completion.
+			 */
+			mcs_data->completion_bitmap |= BIT(i);
+			break;
+		default:
+			dev_err(hdev->dev, "Invalid fence status\n");
+			return -EINVAL;
 		}
+
 	}
 
 	hl_fences_put(mcs_data->fence_arr, arr_len);
