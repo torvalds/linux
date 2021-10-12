@@ -585,10 +585,6 @@ void intel_unpin_fb_vma(struct i915_vma *vma, unsigned long flags);
 struct drm_framebuffer *
 intel_framebuffer_create(struct drm_i915_gem_object *obj,
 			 struct drm_mode_fb_cmd2 *mode_cmd);
-int intel_prepare_plane_fb(struct drm_plane *plane,
-			   struct drm_plane_state *new_state);
-void intel_cleanup_plane_fb(struct drm_plane *plane,
-			    struct drm_plane_state *old_state);
 
 void assert_pch_transcoder_disabled(struct drm_i915_private *dev_priv,
 				    enum pipe pipe);
