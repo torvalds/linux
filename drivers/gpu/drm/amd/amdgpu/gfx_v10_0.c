@@ -8238,8 +8238,9 @@ static int gfx_v10_0_update_gfx_clock_gating(struct amdgpu_device *adev,
 		/* ===  CGCG + CGLS === */
 		gfx_v10_0_update_coarse_grain_clock_gating(adev, enable);
 
-		if ((adev->ip_versions[GC_HWIP][0] >= IP_VERSION(10, 1, 10)) &&
-		     (adev->ip_versions[GC_HWIP][0] <= IP_VERSION(10, 1, 2)))
+		if ((adev->ip_versions[GC_HWIP][0] == IP_VERSION(10, 1, 10)) ||
+		    (adev->ip_versions[GC_HWIP][0] == IP_VERSION(10, 1, 1)) ||
+		    (adev->ip_versions[GC_HWIP][0] == IP_VERSION(10, 1, 2)))
 			gfx_v10_0_apply_medium_grain_clock_gating_workaround(adev);
 	} else {
 		/* CGCG/CGLS should be disabled before MGCG/MGLS
