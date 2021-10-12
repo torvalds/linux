@@ -759,6 +759,34 @@ int asoc_graph_card_probe(struct snd_soc_card *card)
 }
 EXPORT_SYMBOL_GPL(asoc_graph_card_probe);
 
+int asoc_graph_is_ports0(struct device_node *np)
+{
+	struct device_node *port, *ports, *ports0, *top;
+	int ret;
+
+	/* np is "endpoint" or "port" */
+	if (of_node_name_eq(np, "endpoint")) {
+		port = of_get_parent(np);
+	} else {
+		port = np;
+		of_node_get(port);
+	}
+
+	ports	= of_get_parent(port);
+	top	= of_get_parent(ports);
+	ports0	= of_get_child_by_name(top, "ports");
+
+	ret = ports0 == ports;
+
+	of_node_put(port);
+	of_node_put(ports);
+	of_node_put(ports0);
+	of_node_put(top);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(asoc_graph_is_ports0);
+
 /* Module information */
 MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");
 MODULE_DESCRIPTION("ALSA SoC Simple Card Utils");
