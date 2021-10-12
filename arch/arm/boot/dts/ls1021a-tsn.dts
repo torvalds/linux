@@ -137,7 +137,6 @@
 	/* 3 axis accelerometer */
 	accelerometer@1e {
 		compatible = "fsl,fxls8471";
-		position = <0>;
 		reg = <0x1e>;
 	};
 
