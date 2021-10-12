@@ -46,6 +46,9 @@ properties:
           - socionext,uniphier-ld20-peri-clock
           - socionext,uniphier-pxs3-peri-clock
           - socionext,uniphier-nx1-peri-clock
+      - description: SoC-glue clock
+        enum:
+          - socionext,uniphier-pro4-sg-clock
 
   "#clock-cells":
     const: 1
