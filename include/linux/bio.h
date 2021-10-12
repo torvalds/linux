@@ -6,7 +6,6 @@
 #define __LINUX_BIO_H
 
 #include <linux/mempool.h>
-#include <linux/ioprio.h>
 /* struct bio, bio_vec and BIO_* flags are defined in blk_types.h */
 #include <linux/blk_types.h>
 #include <linux/uio.h>
