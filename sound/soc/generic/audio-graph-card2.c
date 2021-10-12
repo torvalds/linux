@@ -176,17 +176,54 @@ links indicates connection part of CPU side (= A).
 	};
  };
 
+ ************************************
+	Codec to Codec
+ ************************************
+
+ +--+
+ |  |<-- Codec0 <- IN
+ |  |--> Codec1 -> OUT
+ +--+
+
+ sound {
+	compatible = "audio-graph-card2";
+
+	routing = "OUT" ,"DAI1 Playback",
+		  "DAI0 Capture", "IN";
+
+	links = <&c2c>;
+
+	codec2codec {
+		ports {
+			rate = <48000>;
+		c2c:	port@0 { c2cf_ep: endpoint { remote-endpoint = <&codec0_ep>; }; };
+			port@1 { c2cb_ep: endpoint { remote-endpoint = <&codec1_ep>; }; };
+	};
+ };
+
+ Codec {
+	ports {
+		port@0 {
+			bitclock-master;
+			frame-master;
+			 codec0_ep: endpoint { remote-endpoint = <&c2cf_ep>; }; };
+		port@1 { codec1_ep: endpoint { remote-endpoint = <&c2cb_ep>; }; };
+	};
+ };
+
 */
 
 enum graph_type {
 	GRAPH_NORMAL,
 	GRAPH_DPCM,
+	GRAPH_C2C,
 
 	GRAPH_MULTI,	/* don't use ! Use this only in __graph_get_type() */
 };
 
 #define GRAPH_NODENAME_MULTI	"multi"
 #define GRAPH_NODENAME_DPCM	"dpcm"
+#define GRAPH_NODENAME_C2C	"codec2codec"
 
 #define port_to_endpoint(port) of_get_child_by_name(port, "endpoint")
 
@@ -212,6 +249,9 @@ static enum graph_type __graph_get_type(struct device_node *lnk)
 	if (of_node_name_eq(np, GRAPH_NODENAME_DPCM))
 		return GRAPH_DPCM;
 
+	if (of_node_name_eq(np, GRAPH_NODENAME_C2C))
+		return GRAPH_C2C;
+
 	return GRAPH_NORMAL;
 }
 
@@ -235,6 +275,9 @@ static enum graph_type graph_get_type(struct asoc_simple_priv *priv,
 				str = "DPCM Front-End";
 			else
 				str = "DPCM Back-End";
+			break;
+		case GRAPH_C2C:
+			str = "Codec2Codec";
 			break;
 		default:
 			break;
@@ -493,6 +536,13 @@ static int __graph_parse_node(struct asoc_simple_priv *priv,
 			else
 				asoc_simple_set_dailink_name(dev, dai_link, "be.%pOFP.%s%s",
 						codecs->of_node, codecs->dai_name, codec_multi);
+			break;
+		case GRAPH_C2C:
+			/* run is_cpu only. see audio_graph2_link_c2c() */
+			if (is_cpu)
+				asoc_simple_set_dailink_name(dev, dai_link, "c2c.%s%s-%s%s",
+							     cpus->dai_name,   cpu_multi,
+							     codecs->dai_name, codec_multi);
 			break;
 		default:
 			break;
@@ -792,6 +842,91 @@ err:
 }
 EXPORT_SYMBOL_GPL(audio_graph2_link_dpcm);
 
+int audio_graph2_link_c2c(struct asoc_simple_priv *priv,
+			  struct device_node *lnk,
+			  struct link_info *li)
+{
+	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, li->link);
+	struct simple_dai_props *dai_props = simple_priv_to_props(priv, li->link);
+	struct snd_soc_pcm_stream *c2c_conf = dai_props->c2c_conf;
+	struct device_node *port0, *port1, *ports;
+	struct device_node *codec0_port, *codec1_port;
+	struct device_node *ep0, *ep1;
+	u32 val;
+	int ret = -EINVAL;
+
+	/*
+	 * codec2codec {
+	 *	ports {
+	 *		rate = <48000>;
+	 * =>	lnk:	port@0 { c2c0_ep: { ... = codec0_ep; }; };
+	 *		port@1 { c2c1_ep: { ... = codec1_ep; }; };
+	 *	};
+	 * };
+	 *
+	 * Codec {
+	 *	ports {
+	 *		port@0 { codec0_ep: ... }; };
+	 *		port@1 { codec1_ep: ... }; };
+	 *	};
+	 * };
+	 */
+	of_node_get(lnk);
+	port0 = lnk;
+	ports = of_get_parent(port0);
+	port1 = of_get_next_child(ports, lnk);
+
+	if (!of_get_property(ports, "rate", &val)) {
+		struct device *dev = simple_priv_to_dev(priv);
+
+		dev_err(dev, "Codec2Codec needs rate settings\n");
+		goto err1;
+	}
+
+	c2c_conf->formats	= SNDRV_PCM_FMTBIT_S32_LE; /* update ME */
+	c2c_conf->rate_min	=
+	c2c_conf->rate_max	= val;
+	c2c_conf->channels_min	=
+	c2c_conf->channels_max	= 2; /* update ME */
+	dai_link->params	= c2c_conf;
+
+	ep0 = port_to_endpoint(port0);
+	ep1 = port_to_endpoint(port1);
+
+	codec0_port = of_graph_get_remote_port(ep0);
+	codec1_port = of_graph_get_remote_port(ep1);
+
+	/*
+	 * call Codec first.
+	 * see
+	 *	__graph_parse_node() :: DAI Naming
+	 */
+	ret = graph_parse_node(priv, GRAPH_C2C, codec1_port, li, 0);
+	if (ret < 0)
+		goto err2;
+
+	/*
+	 * call CPU, and set DAI Name
+	 */
+	ret = graph_parse_node(priv, GRAPH_C2C, codec0_port, li, 1);
+	if (ret < 0)
+		goto err2;
+
+	graph_link_init(priv, codec0_port, li, 1);
+err2:
+	of_node_put(ep0);
+	of_node_put(ep1);
+	of_node_put(codec0_port);
+	of_node_put(codec1_port);
+err1:
+	of_node_put(ports);
+	of_node_put(port0);
+	of_node_put(port1);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(audio_graph2_link_c2c);
+
 static int graph_link(struct asoc_simple_priv *priv,
 		      struct graph2_custom_hooks *hooks,
 		      enum graph_type gtype,
@@ -814,6 +949,12 @@ static int graph_link(struct asoc_simple_priv *priv,
 			func = hooks->custom_dpcm;
 		else
 			func = audio_graph2_link_dpcm;
+		break;
+	case GRAPH_C2C:
+		if (hooks && hooks->custom_c2c)
+			func = hooks->custom_c2c;
+		else
+			func = audio_graph2_link_c2c;
 		break;
 	default:
 		break;
@@ -916,6 +1057,43 @@ static int graph_count_dpcm(struct asoc_simple_priv *priv,
 	return 0;
 }
 
+static int graph_count_c2c(struct asoc_simple_priv *priv,
+			   struct device_node *lnk,
+			   struct link_info *li)
+{
+	struct device_node *ports = of_get_parent(lnk);
+	struct device_node *port0 = lnk;
+	struct device_node *port1 = of_get_next_child(ports, lnk);
+	struct device_node *ep0 = port_to_endpoint(port0);
+	struct device_node *ep1 = port_to_endpoint(port1);
+	struct device_node *codec0 = of_graph_get_remote_port(ep0);
+	struct device_node *codec1 = of_graph_get_remote_port(ep1);
+
+	of_node_get(lnk);
+
+	/*
+	 * codec2codec {
+	 *	ports {
+	 * =>	lnk:	port@0 { endpoint { ... }; };
+	 *		port@1 { endpoint { ... }; };
+	 *	};
+	 * };
+	 */
+	li->num[li->link].cpus		=
+	li->num[li->link].platforms	= graph_counter(codec0);
+	li->num[li->link].codecs	= graph_counter(codec1);
+	li->num[li->link].c2c		= 1;
+
+	of_node_put(ports);
+	of_node_put(port1);
+	of_node_put(ep0);
+	of_node_put(ep1);
+	of_node_put(codec0);
+	of_node_put(codec1);
+
+	return 0;
+}
+
 static int graph_count(struct asoc_simple_priv *priv,
 		       struct graph2_custom_hooks *hooks,
 		       enum graph_type gtype,
@@ -937,6 +1115,9 @@ static int graph_count(struct asoc_simple_priv *priv,
 		break;
 	case GRAPH_DPCM:
 		func = graph_count_dpcm;
+		break;
+	case GRAPH_C2C:
+		func = graph_count_c2c;
 		break;
 	default:
 		break;
