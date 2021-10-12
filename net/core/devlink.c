@@ -11381,6 +11381,24 @@ free_msg:
 	nlmsg_free(msg);
 }
 
+static struct devlink_port *netdev_to_devlink_port(struct net_device *dev)
+{
+	if (!dev->netdev_ops->ndo_get_devlink_port)
+		return NULL;
+
+	return dev->netdev_ops->ndo_get_devlink_port(dev);
+}
+
+static struct devlink *netdev_to_devlink(struct net_device *dev)
+{
+	struct devlink_port *devlink_port = netdev_to_devlink_port(dev);
+
+	if (!devlink_port)
+		return NULL;
+
+	return devlink_port->devlink;
+}
+
 void devlink_compat_running_version(struct net_device *dev,
 				    char *buf, size_t len)
 {
