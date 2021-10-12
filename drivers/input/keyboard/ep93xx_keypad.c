@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/soc/cirrus/ep93xx.h>
 #include <linux/platform_data/keypad-ep93xx.h>
+#include <linux/pm_wakeirq.h>
 
 /*
  * Keypad Interface Register offsets
@@ -191,9 +192,6 @@ static int __maybe_unused ep93xx_keypad_suspend(struct device *dev)
 
 	mutex_unlock(&input_dev->mutex);
 
-	if (device_may_wakeup(&pdev->dev))
-		enable_irq_wake(keypad->irq);
-
 	return 0;
 }
 
@@ -202,9 +200,6 @@ static int __maybe_unused ep93xx_keypad_resume(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct ep93xx_keypad *keypad = platform_get_drvdata(pdev);
 	struct input_dev *input_dev = keypad->input_dev;
-
-	if (device_may_wakeup(&pdev->dev))
-		disable_irq_wake(keypad->irq);
 
 	mutex_lock(&input_dev->mutex);
 
@@ -316,7 +311,11 @@ static int ep93xx_keypad_probe(struct platform_device *pdev)
 		goto failed_free_irq;
 
 	platform_set_drvdata(pdev, keypad);
+
 	device_init_wakeup(&pdev->dev, 1);
+	err = dev_pm_set_wake_irq(&pdev->dev, keypad->irq);
+	if (err)
+		dev_warn(&pdev->dev, "failed to set up wakeup irq: %d\n", err);
 
 	return 0;
 
@@ -341,6 +340,8 @@ static int ep93xx_keypad_remove(struct platform_device *pdev)
 {
 	struct ep93xx_keypad *keypad = platform_get_drvdata(pdev);
 	struct resource *res;
+
+	dev_pm_clear_wake_irq(&pdev->dev);
 
 	free_irq(keypad->irq, keypad);
 
