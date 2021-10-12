@@ -152,6 +152,22 @@ static const struct nla_policy devlink_function_nl_policy[DEVLINK_PORT_FUNCTION_
 static DEFINE_XARRAY_FLAGS(devlinks, XA_FLAGS_ALLOC);
 #define DEVLINK_REGISTERED XA_MARK_1
 
+/* devlink instances are open to the access from the user space after
+ * devlink_register() call. Such logical barrier allows us to have certain
+ * expectations related to locking.
+ *
+ * Before *_register() - we are in initialization stage and no parallel
+ * access possible to the devlink instance. All drivers perform that phase
+ * by implicitly holding device_lock.
+ *
+ * After *_register() - users and driver can access devlink instance at
+ * the same time.
+ */
+#define ASSERT_DEVLINK_REGISTERED(d)                                           \
+	WARN_ON_ONCE(!xa_get_mark(&devlinks, (d)->index, DEVLINK_REGISTERED))
+#define ASSERT_DEVLINK_NOT_REGISTERED(d)                                       \
+	WARN_ON_ONCE(xa_get_mark(&devlinks, (d)->index, DEVLINK_REGISTERED))
+
 /* devlink_mutex
  *
  * An overall lock guarding every operation coming from userspace.
@@ -9113,6 +9129,10 @@ static void devlink_notify_unregister(struct devlink *devlink)
  */
 void devlink_register(struct devlink *devlink)
 {
+	ASSERT_DEVLINK_NOT_REGISTERED(devlink);
+	/* Make sure that we are in .probe() routine */
+	device_lock_assert(devlink->dev);
+
 	mutex_lock(&devlink_mutex);
 	xa_set_mark(&devlinks, devlink->index, DEVLINK_REGISTERED);
 	devlink_notify_register(devlink);
@@ -9127,6 +9147,10 @@ EXPORT_SYMBOL_GPL(devlink_register);
  */
 void devlink_unregister(struct devlink *devlink)
 {
+	ASSERT_DEVLINK_REGISTERED(devlink);
+	/* Make sure that we are in .remove() routine */
+	device_lock_assert(devlink->dev);
+
 	devlink_put(devlink);
 	wait_for_completion(&devlink->comp);
 
@@ -9181,6 +9205,8 @@ EXPORT_SYMBOL_GPL(devlink_reload_disable);
  */
 void devlink_free(struct devlink *devlink)
 {
+	ASSERT_DEVLINK_NOT_REGISTERED(devlink);
+
 	mutex_destroy(&devlink->reporters_lock);
 	mutex_destroy(&devlink->lock);
 	WARN_ON(!list_empty(&devlink->trap_policer_list));
