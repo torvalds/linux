@@ -628,6 +628,7 @@ enum mlx5_mkey_type {
 struct mlx5_ib_mkey {
 	u32 key;
 	enum mlx5_mkey_type type;
+	unsigned int ndescs;
 	struct wait_queue_head wait;
 	refcount_t usecount;
 };
@@ -672,7 +673,6 @@ struct mlx5_ib_mr {
 			void *descs_alloc;
 			dma_addr_t desc_map;
 			int max_descs;
-			int ndescs;
 			int desc_size;
 			int access_mode;
 
@@ -727,12 +727,6 @@ static inline bool is_dmabuf_mr(struct mlx5_ib_mr *mr)
 struct mlx5_ib_mw {
 	struct ib_mw		ibmw;
 	struct mlx5_ib_mkey	mmkey;
-	int			ndescs;
-};
-
-struct mlx5_ib_devx_mr {
-	struct mlx5_ib_mkey	mmkey;
-	int			ndescs;
 };
 
 struct mlx5_ib_umr_context {

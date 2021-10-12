@@ -2264,9 +2264,9 @@ int mlx5_ib_alloc_mw(struct ib_mw *ibmw, struct ib_udata *udata)
 	struct mlx5_ib_dev *dev = to_mdev(ibmw->device);
 	int inlen = MLX5_ST_SZ_BYTES(create_mkey_in);
 	struct mlx5_ib_mw *mw = to_mmw(ibmw);
+	unsigned int ndescs;
 	u32 *in = NULL;
 	void *mkc;
-	int ndescs;
 	int err;
 	struct mlx5_ib_alloc_mw req = {};
 	struct {
@@ -2311,7 +2311,7 @@ int mlx5_ib_alloc_mw(struct ib_mw *ibmw, struct ib_udata *udata)
 
 	mw->mmkey.type = MLX5_MKEY_MW;
 	ibmw->rkey = mw->mmkey.key;
-	mw->ndescs = ndescs;
+	mw->mmkey.ndescs = ndescs;
 
 	resp.response_length =
 		min(offsetofend(typeof(resp), response_length), udata->outlen);
@@ -2407,7 +2407,7 @@ mlx5_ib_map_pa_mr_sg_pi(struct ib_mr *ibmr, struct scatterlist *data_sg,
 	mr->meta_length = 0;
 	if (data_sg_nents == 1) {
 		n++;
-		mr->ndescs = 1;
+		mr->mmkey.ndescs = 1;
 		if (data_sg_offset)
 			sg_offset = *data_sg_offset;
 		mr->data_length = sg_dma_len(data_sg) - sg_offset;
@@ -2460,7 +2460,7 @@ mlx5_ib_sg_to_klms(struct mlx5_ib_mr *mr,
 	if (sg_offset_p)
 		*sg_offset_p = sg_offset;
 
-	mr->ndescs = i;
+	mr->mmkey.ndescs = i;
 	mr->data_length = mr->ibmr.length;
 
 	if (meta_sg_nents) {
@@ -2493,11 +2493,11 @@ static int mlx5_set_page(struct ib_mr *ibmr, u64 addr)
 	struct mlx5_ib_mr *mr = to_mmr(ibmr);
 	__be64 *descs;
 
-	if (unlikely(mr->ndescs == mr->max_descs))
+	if (unlikely(mr->mmkey.ndescs == mr->max_descs))
 		return -ENOMEM;
 
 	descs = mr->descs;
-	descs[mr->ndescs++] = cpu_to_be64(addr | MLX5_EN_RD | MLX5_EN_WR);
+	descs[mr->mmkey.ndescs++] = cpu_to_be64(addr | MLX5_EN_RD | MLX5_EN_WR);
 
 	return 0;
 }
@@ -2507,11 +2507,11 @@ static int mlx5_set_page_pi(struct ib_mr *ibmr, u64 addr)
 	struct mlx5_ib_mr *mr = to_mmr(ibmr);
 	__be64 *descs;
 
-	if (unlikely(mr->ndescs + mr->meta_ndescs == mr->max_descs))
+	if (unlikely(mr->mmkey.ndescs + mr->meta_ndescs == mr->max_descs))
 		return -ENOMEM;
 
 	descs = mr->descs;
-	descs[mr->ndescs + mr->meta_ndescs++] =
+	descs[mr->mmkey.ndescs + mr->meta_ndescs++] =
 		cpu_to_be64(addr | MLX5_EN_RD | MLX5_EN_WR);
 
 	return 0;
@@ -2527,7 +2527,7 @@ mlx5_ib_map_mtt_mr_sg_pi(struct ib_mr *ibmr, struct scatterlist *data_sg,
 	struct mlx5_ib_mr *pi_mr = mr->mtt_mr;
 	int n;
 
-	pi_mr->ndescs = 0;
+	pi_mr->mmkey.ndescs = 0;
 	pi_mr->meta_ndescs = 0;
 	pi_mr->meta_length = 0;
 
@@ -2561,7 +2561,7 @@ mlx5_ib_map_mtt_mr_sg_pi(struct ib_mr *ibmr, struct scatterlist *data_sg,
 		 * metadata offset at the first metadata page
 		 */
 		pi_mr->pi_iova = (iova & page_mask) +
-				 pi_mr->ndescs * ibmr->page_size +
+				 pi_mr->mmkey.ndescs * ibmr->page_size +
 				 (pi_mr->ibmr.iova & ~page_mask);
 		/*
 		 * In order to use one MTT MR for data and metadata, we register
@@ -2592,7 +2592,7 @@ mlx5_ib_map_klm_mr_sg_pi(struct ib_mr *ibmr, struct scatterlist *data_sg,
 	struct mlx5_ib_mr *pi_mr = mr->klm_mr;
 	int n;
 
-	pi_mr->ndescs = 0;
+	pi_mr->mmkey.ndescs = 0;
 	pi_mr->meta_ndescs = 0;
 	pi_mr->meta_length = 0;
 
@@ -2627,7 +2627,7 @@ int mlx5_ib_map_mr_sg_pi(struct ib_mr *ibmr, struct scatterlist *data_sg,
 
 	WARN_ON(ibmr->type != IB_MR_TYPE_INTEGRITY);
 
-	mr->ndescs = 0;
+	mr->mmkey.ndescs = 0;
 	mr->data_length = 0;
 	mr->data_iova = 0;
 	mr->meta_ndescs = 0;
@@ -2683,7 +2683,7 @@ int mlx5_ib_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
 	struct mlx5_ib_mr *mr = to_mmr(ibmr);
 	int n;
 
-	mr->ndescs = 0;
+	mr->mmkey.ndescs = 0;
 
 	ib_dma_sync_single_for_cpu(ibmr->device, mr->desc_map,
 				   mr->desc_size * mr->max_descs,
