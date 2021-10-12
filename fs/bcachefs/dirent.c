@@ -64,6 +64,15 @@ static bool dirent_cmp_bkey(struct bkey_s_c _l, struct bkey_s_c _r)
 	return l_len - r_len ?: memcmp(l.v->d_name, r.v->d_name, l_len);
 }
 
+static bool dirent_is_visible(subvol_inum inum, struct bkey_s_c k)
+{
+	struct bkey_s_c_dirent d = bkey_s_c_to_dirent(k);
+
+	if (d.v->d_type == DT_SUBVOL)
+		return le32_to_cpu(d.v->d_parent_subvol) == inum.subvol;
+	return true;
+}
+
 const struct bch_hash_desc bch2_dirent_hash_desc = {
 	.btree_id	= BTREE_ID_dirents,
 	.key_type	= KEY_TYPE_dirent,
@@ -71,6 +80,7 @@ const struct bch_hash_desc bch2_dirent_hash_desc = {
 	.hash_bkey	= dirent_hash_bkey,
 	.cmp_key	= dirent_cmp_key,
 	.cmp_bkey	= dirent_cmp_bkey,
+	.is_visible	= dirent_is_visible,
 };
 
 const char *bch2_dirent_invalid(const struct bch_fs *c, struct bkey_s_c k)
@@ -114,14 +124,18 @@ void bch2_dirent_to_text(struct printbuf *out, struct bch_fs *c,
 
 	bch_scnmemcpy(out, d.v->d_name,
 		      bch2_dirent_name_bytes(d));
-	pr_buf(out, " -> %llu type %s", d.v->d_inum,
+	pr_buf(out, " -> %llu type %s",
+	       d.v->d_type != DT_SUBVOL
+	       ? le64_to_cpu(d.v->d_inum)
+	       : le32_to_cpu(d.v->d_child_subvol),
 	       d.v->d_type < BCH_DT_MAX
 	       ? bch2_d_types[d.v->d_type]
 	       : "(bad d_type)");
 }
 
 static struct bkey_i_dirent *dirent_create_key(struct btree_trans *trans,
-				u8 type, const struct qstr *name, u64 dst)
+				subvol_inum dir, u8 type,
+				const struct qstr *name, u64 dst)
 {
 	struct bkey_i_dirent *dirent;
 	unsigned u64s = BKEY_U64s + dirent_val_u64s(name->len);
@@ -137,7 +151,14 @@ static struct bkey_i_dirent *dirent_create_key(struct btree_trans *trans,
 
 	bkey_dirent_init(&dirent->k_i);
 	dirent->k.u64s = u64s;
-	dirent->v.d_inum = cpu_to_le64(dst);
+
+	if (type != DT_SUBVOL) {
+		dirent->v.d_inum = cpu_to_le64(dst);
+	} else {
+		dirent->v.d_parent_subvol = cpu_to_le32(dir.subvol);
+		dirent->v.d_child_subvol = cpu_to_le32(dst);
+	}
+
 	dirent->v.d_type = type;
 
 	memcpy(dirent->v.d_name, name->name, name->len);
@@ -159,7 +180,7 @@ int bch2_dirent_create(struct btree_trans *trans, subvol_inum dir,
 	struct bkey_i_dirent *dirent;
 	int ret;
 
-	dirent = dirent_create_key(trans, type, name, dst_inum);
+	dirent = dirent_create_key(trans, dir, type, name, dst_inum);
 	ret = PTR_ERR_OR_ZERO(dirent);
 	if (ret)
 		return ret;
@@ -178,41 +199,26 @@ static void dirent_copy_target(struct bkey_i_dirent *dst,
 	dst->v.d_type = src.v->d_type;
 }
 
-int __bch2_dirent_read_target(struct btree_trans *trans,
-			      struct bkey_s_c_dirent d,
-			      u32 *subvol, u32 *snapshot, u64 *inum,
-			      bool is_fsck)
+static int bch2_dirent_read_target(struct btree_trans *trans, subvol_inum dir,
+				   struct bkey_s_c_dirent d, subvol_inum *target)
 {
 	struct bch_subvolume s;
 	int ret = 0;
 
-	*subvol		= 0;
-	*snapshot	= d.k->p.snapshot;
+	if (d.v->d_type == DT_SUBVOL &&
+	    d.v->d_parent_subvol != dir.subvol)
+		return 1;
 
 	if (likely(d.v->d_type != DT_SUBVOL)) {
-		*inum = le64_to_cpu(d.v->d_inum);
+		target->subvol	= dir.subvol;
+		target->inum	= le64_to_cpu(d.v->d_inum);
 	} else {
-		*subvol = le64_to_cpu(d.v->d_inum);
+		target->subvol	= le32_to_cpu(d.v->d_child_subvol);
 
-		ret = bch2_subvolume_get(trans, *subvol, !is_fsck, BTREE_ITER_CACHED, &s);
+		ret = bch2_subvolume_get(trans, target->subvol, true, BTREE_ITER_CACHED, &s);
 
-		*snapshot	= le32_to_cpu(s.snapshot);
-		*inum		= le64_to_cpu(s.inode);
+		target->inum	= le64_to_cpu(s.inode);
 	}
-
-	return ret;
-}
-
-static int bch2_dirent_read_target(struct btree_trans *trans, subvol_inum dir,
-				   struct bkey_s_c_dirent d, subvol_inum *target)
-{
-	u32 snapshot;
-	int ret = 0;
-
-	ret = __bch2_dirent_read_target(trans, d, &target->subvol, &snapshot,
-					&target->inum, false);
-	if (!target->subvol)
-		target->subvol = dir.subvol;
 
 	return ret;
 }
@@ -230,6 +236,7 @@ int bch2_dirent_rename(struct btree_trans *trans,
 	struct bkey_i_dirent *new_src = NULL, *new_dst = NULL;
 	struct bpos dst_pos =
 		POS(dst_dir.inum, bch2_dirent_hash(dst_hash, dst_name));
+	unsigned src_type = 0, dst_type = 0, src_update_flags = 0;
 	int ret = 0;
 
 	if (src_dir.subvol != dst_dir.subvol)
@@ -237,36 +244,6 @@ int bch2_dirent_rename(struct btree_trans *trans,
 
 	memset(src_inum, 0, sizeof(*src_inum));
 	memset(dst_inum, 0, sizeof(*dst_inum));
-
-	/*
-	 * Lookup dst:
-	 *
-	 * Note that in BCH_RENAME mode, we're _not_ checking if
-	 * the target already exists - we're relying on the VFS
-	 * to do that check for us for correctness:
-	 */
-	ret = mode == BCH_RENAME
-		? bch2_hash_hole(trans, &dst_iter, bch2_dirent_hash_desc,
-				 dst_hash, dst_dir, dst_name)
-		: bch2_hash_lookup(trans, &dst_iter, bch2_dirent_hash_desc,
-				   dst_hash, dst_dir, dst_name,
-				   BTREE_ITER_INTENT);
-	if (ret)
-		goto out;
-
-	old_dst = bch2_btree_iter_peek_slot(&dst_iter);
-	ret = bkey_err(old_dst);
-	if (ret)
-		goto out;
-
-	if (mode != BCH_RENAME) {
-		ret = bch2_dirent_read_target(trans, dst_dir,
-				bkey_s_c_to_dirent(old_dst), dst_inum);
-		if (ret)
-			goto out;
-	}
-	if (mode != BCH_RENAME_EXCHANGE)
-		*src_offset = dst_iter.pos.offset;
 
 	/* Lookup src: */
 	ret = bch2_hash_lookup(trans, &src_iter, bch2_dirent_hash_desc,
@@ -285,8 +262,51 @@ int bch2_dirent_rename(struct btree_trans *trans,
 	if (ret)
 		goto out;
 
+	src_type = bkey_s_c_to_dirent(old_src).v->d_type;
+
+	if (src_type == DT_SUBVOL && mode == BCH_RENAME_EXCHANGE)
+		return -EOPNOTSUPP;
+
+
+	/* Lookup dst: */
+	if (mode == BCH_RENAME) {
+		/*
+		 * Note that we're _not_ checking if the target already exists -
+		 * we're relying on the VFS to do that check for us for
+		 * correctness:
+		 */
+		ret = bch2_hash_hole(trans, &dst_iter, bch2_dirent_hash_desc,
+				     dst_hash, dst_dir, dst_name);
+		if (ret)
+			goto out;
+	} else {
+		ret = bch2_hash_lookup(trans, &dst_iter, bch2_dirent_hash_desc,
+				       dst_hash, dst_dir, dst_name,
+				       BTREE_ITER_INTENT);
+		if (ret)
+			goto out;
+
+		old_dst = bch2_btree_iter_peek_slot(&dst_iter);
+		ret = bkey_err(old_dst);
+		if (ret)
+			goto out;
+
+		ret = bch2_dirent_read_target(trans, dst_dir,
+				bkey_s_c_to_dirent(old_dst), dst_inum);
+		if (ret)
+			goto out;
+
+		dst_type = bkey_s_c_to_dirent(old_dst).v->d_type;
+
+		if (dst_type == DT_SUBVOL)
+			return -EOPNOTSUPP;
+	}
+
+	if (mode != BCH_RENAME_EXCHANGE)
+		*src_offset = dst_iter.pos.offset;
+
 	/* Create new dst key: */
-	new_dst = dirent_create_key(trans, 0, dst_name, 0);
+	new_dst = dirent_create_key(trans, dst_dir, 0, dst_name, 0);
 	ret = PTR_ERR_OR_ZERO(new_dst);
 	if (ret)
 		goto out;
@@ -296,7 +316,7 @@ int bch2_dirent_rename(struct btree_trans *trans,
 
 	/* Create new src key: */
 	if (mode == BCH_RENAME_EXCHANGE) {
-		new_src = dirent_create_key(trans, 0, src_name, 0);
+		new_src = dirent_create_key(trans, src_dir, 0, src_name, 0);
 		ret = PTR_ERR_OR_ZERO(new_src);
 		if (ret)
 			goto out;
@@ -326,10 +346,9 @@ int bch2_dirent_rename(struct btree_trans *trans,
 				 * If we're not overwriting, we can just insert
 				 * new_dst at the src position:
 				 */
-				new_dst->k.p = src_iter.pos;
-				bch2_trans_update(trans, &src_iter,
-						  &new_dst->k_i, 0);
-				goto out_set_offset;
+				new_src = new_dst;
+				new_src->k.p = src_iter.pos;
+				goto out_set_src;
 			} else {
 				/* If we're overwriting, we can't insert new_dst
 				 * at a different slot because it has to
@@ -350,9 +369,25 @@ int bch2_dirent_rename(struct btree_trans *trans,
 		}
 	}
 
-	bch2_trans_update(trans, &src_iter, &new_src->k_i, 0);
 	bch2_trans_update(trans, &dst_iter, &new_dst->k_i, 0);
-out_set_offset:
+out_set_src:
+
+	/*
+	 * If we're deleting a subvolume, we need to really delete the dirent,
+	 * not just emit a whiteout in the current snapshot:
+	 */
+	if (src_type == DT_SUBVOL) {
+		bch2_btree_iter_set_snapshot(&src_iter, old_src.k->p.snapshot);
+		ret = bch2_btree_iter_traverse(&src_iter);
+		if (ret)
+			goto out;
+
+		new_src->k.p = src_iter.pos;
+		src_update_flags |= BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE;
+	}
+
+	bch2_trans_update(trans, &src_iter, &new_src->k_i, src_update_flags);
+
 	if (mode == BCH_RENAME_EXCHANGE)
 		*src_offset = new_src->k.p.offset;
 	*dst_offset = new_dst->k.p.offset;
@@ -393,6 +428,8 @@ int __bch2_dirent_lookup_trans(struct btree_trans *trans,
 	d = bkey_s_c_to_dirent(k);
 
 	ret = bch2_dirent_read_target(trans, dir, d, inum);
+	if (ret > 0)
+		ret = -ENOENT;
 	if (ret)
 		bch2_trans_iter_exit(trans, iter);
 
@@ -453,6 +490,7 @@ int bch2_readdir(struct bch_fs *c, subvol_inum inum, struct dir_context *ctx)
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bkey_s_c_dirent dirent;
+	subvol_inum target;
 	u32 snapshot;
 	int ret;
 
@@ -474,6 +512,12 @@ retry:
 
 		dirent = bkey_s_c_to_dirent(k);
 
+		ret = bch2_dirent_read_target(&trans, inum, dirent, &target);
+		if (ret < 0)
+			break;
+		if (ret)
+			continue;
+
 		/*
 		 * XXX: dir_emit() can fault and block, while we're holding
 		 * locks
@@ -481,7 +525,7 @@ retry:
 		ctx->pos = dirent.k->p.offset;
 		if (!dir_emit(ctx, dirent.v->d_name,
 			      bch2_dirent_name_bytes(dirent),
-			      le64_to_cpu(dirent.v->d_inum),
+			      target.inum,
 			      vfs_d_type(dirent.v->d_type)))
 			break;
 		ctx->pos = dirent.k->p.offset + 1;

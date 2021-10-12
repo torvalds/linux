@@ -793,7 +793,13 @@ struct bch_dirent {
 	struct bch_val		v;
 
 	/* Target inode number: */
+	union {
 	__le64			d_inum;
+	struct {		/* DT_SUBVOL */
+	__le32			d_child_subvol;
+	__le32			d_parent_subvol;
+	};
+	};
 
 	/*
 	 * Copy of mode bits 12-15 from the target inode - so userspace can get
@@ -1268,7 +1274,8 @@ enum bcachefs_metadata_version {
 	bcachefs_metadata_version_btree_ptr_sectors_written = 14,
 	bcachefs_metadata_version_snapshot_2		= 15,
 	bcachefs_metadata_version_reflink_p_fix		= 16,
-	bcachefs_metadata_version_max			= 17,
+	bcachefs_metadata_version_subvol_dirent		= 17,
+	bcachefs_metadata_version_max			= 18,
 };
 
 #define bcachefs_metadata_version_current	(bcachefs_metadata_version_max - 1)

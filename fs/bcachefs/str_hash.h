@@ -138,7 +138,14 @@ struct bch_hash_desc {
 	u64		(*hash_bkey)(const struct bch_hash_info *, struct bkey_s_c);
 	bool		(*cmp_key)(struct bkey_s_c, const void *);
 	bool		(*cmp_bkey)(struct bkey_s_c, struct bkey_s_c);
+	bool		(*is_visible)(subvol_inum inum, struct bkey_s_c);
 };
+
+static inline bool is_visible_key(struct bch_hash_desc desc, subvol_inum inum, struct bkey_s_c k)
+{
+	return k.k->type == desc.key_type &&
+		(!desc.is_visible || desc.is_visible(inum, k));
+}
 
 static __always_inline int
 bch2_hash_lookup(struct btree_trans *trans,
@@ -162,7 +169,7 @@ bch2_hash_lookup(struct btree_trans *trans,
 		if (iter->pos.inode != inum.inum)
 			break;
 
-		if (k.k->type == desc.key_type) {
+		if (is_visible_key(desc, inum, k)) {
 			if (!desc.cmp_key(k, key))
 				return 0;
 		} else if (k.k->type == KEY_TYPE_hash_whiteout) {
@@ -198,7 +205,7 @@ bch2_hash_hole(struct btree_trans *trans,
 		if (iter->pos.inode != inum.inum)
 			break;
 
-		if (k.k->type != desc.key_type)
+		if (!is_visible_key(desc, inum, k))
 			return 0;
 	}
 	bch2_trans_iter_exit(trans, iter);
@@ -261,7 +268,7 @@ int bch2_hash_set(struct btree_trans *trans,
 		if (iter.pos.inode != inum.inum)
 			break;
 
-		if (k.k->type == desc.key_type) {
+		if (is_visible_key(desc, inum, k)) {
 			if (!desc.cmp_bkey(k, bkey_i_to_s_c(insert)))
 				goto found;
 
