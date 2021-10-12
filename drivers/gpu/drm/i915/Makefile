@@ -225,6 +225,7 @@ i915-y += \
 	display/intel_hotplug.o \
 	display/intel_lpe_audio.o \
 	display/intel_overlay.o \
+	display/intel_plane_initial.o \
 	display/intel_psr.o \
 	display/intel_quirks.o \
 	display/intel_sprite.o \

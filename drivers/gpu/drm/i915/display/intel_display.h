@@ -625,6 +625,8 @@ void intel_plane_unpin_fb(struct intel_plane_state *old_plane_state);
 struct intel_encoder *
 intel_get_crtc_new_encoder(const struct intel_atomic_state *state,
 			   const struct intel_crtc_state *crtc_state);
+void intel_plane_disable_noatomic(struct intel_crtc *crtc,
+				  struct intel_plane *plane);
 
 void intel_display_driver_register(struct drm_i915_private *i915);
 void intel_display_driver_unregister(struct drm_i915_private *i915);
