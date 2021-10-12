@@ -69,18 +69,95 @@
 	port {	codec_ep: endpoint { remote-endpoint = <&cpu_ep>; }; };
  };
 
+ ************************************
+	Multi-CPU/Codec
+ ************************************
+
+It has connection part (= X) and list part (= y).
+links indicates connection part of CPU side (= A).
+
+	    +-+   (A)	     +-+
+ CPU1 --(y) | | <-(X)--(X)-> | | (y)-- Codec1
+ CPU2 --(y) | |		     | | (y)-- Codec2
+	    +-+		     +-+
+
+	sound {
+		compatible = "audio-graph-card2";
+
+(A)		links = <&mcpu>;
+
+		multi {
+			ports@0 {
+(X) (A)			mcpu:	port@0 { mcpu0_ep: endpoint { remote-endpoint = <&mcodec0_ep>; }; };
+(y)				port@1 { mcpu1_ep: endpoint { remote-endpoint = <&cpu1_ep>; }; };
+(y)				port@1 { mcpu2_ep: endpoint { remote-endpoint = <&cpu2_ep>; }; };
+			};
+			ports@1 {
+(X)				port@0 { mcodec0_ep: endpoint { remote-endpoint = <&mcpu0_ep>; }; };
+(y)				port@0 { mcodec1_ep: endpoint { remote-endpoint = <&codec1_ep>; }; };
+(y)				port@1 { mcodec2_ep: endpoint { remote-endpoint = <&codec2_ep>; }; };
+			};
+		};
+	};
+
+ CPU {
+	ports {
+		bitclock-master;
+		frame-master;
+		port@0 { cpu1_ep: endpoint { remote-endpoint = <&mcpu1_ep>; }; };
+		port@1 { cpu2_ep: endpoint { remote-endpoint = <&mcpu2_ep>; }; };
+	};
+ };
+
+ Codec {
+	ports {
+		port@0 { codec1_ep: endpoint { remote-endpoint = <&mcodec1_ep>; }; };
+		port@1 { codec2_ep: endpoint { remote-endpoint = <&mcodec2_ep>; }; };
+	};
+ };
+
 */
 
 enum graph_type {
 	GRAPH_NORMAL,
+
+	GRAPH_MULTI,	/* don't use ! Use this only in __graph_get_type() */
 };
 
+#define GRAPH_NODENAME_MULTI	"multi"
+
 #define port_to_endpoint(port) of_get_child_by_name(port, "endpoint")
+
+static enum graph_type __graph_get_type(struct device_node *lnk)
+{
+	struct device_node *np;
+
+	/*
+	 * target {
+	 *	ports {
+	 * =>		lnk:	port@0 { ... };
+	 *			port@1 { ... };
+	 *	};
+	 * };
+	 */
+	np = of_get_parent(lnk);
+	if (of_node_name_eq(np, "ports"))
+		np = of_get_parent(np);
+
+	if (of_node_name_eq(np, GRAPH_NODENAME_MULTI))
+		return GRAPH_MULTI;
+
+	return GRAPH_NORMAL;
+}
 
 static enum graph_type graph_get_type(struct asoc_simple_priv *priv,
 				      struct device_node *lnk)
 {
-	enum graph_type type = GRAPH_NORMAL;
+	enum graph_type type = __graph_get_type(lnk);
+
+	/* GRAPH_MULTI here means GRAPH_NORMAL */
+	if (type == GRAPH_MULTI)
+		type = GRAPH_NORMAL;
 
 #ifdef DEBUG
 	{
@@ -91,6 +168,49 @@ static enum graph_type graph_get_type(struct asoc_simple_priv *priv,
 	}
 #endif
 	return type;
+}
+
+static int graph_lnk_is_multi(struct device_node *lnk)
+{
+	return __graph_get_type(lnk) == GRAPH_MULTI;
+}
+
+static struct device_node *graph_get_next_multi_ep(struct device_node **port)
+{
+	struct device_node *ports = of_get_parent(*port);
+	struct device_node *ep = NULL;
+	struct device_node *rep = NULL;
+
+	/*
+	 * multi {
+	 *	ports {
+	 * =>	lnk:	port@0 { ... };
+	 *		port@1 { ep { ... = rep0 } };
+	 *		port@2 { ep { ... = rep1 } };
+	 *		...
+	 *	};
+	 * };
+	 *
+	 * xxx {
+	 *	port@0 { rep0 };
+	 *	port@1 { rep1 };
+	 * };
+	 */
+	do {
+		*port = of_get_next_child(ports, *port);
+		if (!*port)
+			break;
+	} while (!of_node_name_eq(*port, "port"));
+
+	if (*port) {
+		ep  = port_to_endpoint(*port);
+		rep = of_graph_get_remote_endpoint(ep);
+	}
+
+	of_node_put(ep);
+	of_node_put(ports);
+
+	return rep;
 }
 
 static const struct snd_soc_ops graph_ops = {
@@ -258,13 +378,21 @@ static int __graph_parse_node(struct asoc_simple_priv *priv,
 	if (!dai_link->name) {
 		struct snd_soc_dai_link_component *cpus = dlc;
 		struct snd_soc_dai_link_component *codecs = asoc_link_to_codec(dai_link, idx);
+		char *cpu_multi   = "";
+		char *codec_multi = "";
+
+		if (dai_link->num_cpus > 1)
+			cpu_multi = "_multi";
+		if (dai_link->num_codecs > 1)
+			codec_multi = "_multi";
 
 		switch (gtype) {
 		case GRAPH_NORMAL:
 			/* run is_cpu only. see audio_graph2_link_normal() */
 			if (is_cpu)
-				asoc_simple_set_dailink_name(dev, dai_link, "%s-%s",
-							     cpus->dai_name, codecs->dai_name);
+				asoc_simple_set_dailink_name(dev, dai_link, "%s%s-%s%s",
+							       cpus->dai_name,   cpu_multi,
+							     codecs->dai_name, codec_multi);
 			break;
 		default:
 			break;
@@ -287,10 +415,33 @@ static int graph_parse_node(struct asoc_simple_priv *priv,
 			    struct device_node *port,
 			    struct link_info *li, int is_cpu)
 {
-	struct device_node *ep = port_to_endpoint(port);
+	struct device_node *ep;
+	int ret = 0;
 
-	/* Need Multi support later */
-	return __graph_parse_node(priv, gtype, ep, li, is_cpu, 0);
+	if (graph_lnk_is_multi(port)) {
+		int idx;
+
+		of_node_get(port);
+
+		for (idx = 0;; idx++) {
+			ep = graph_get_next_multi_ep(&port);
+			if (!ep)
+				break;
+
+			ret = __graph_parse_node(priv, gtype, ep,
+						 li, is_cpu, idx);
+			of_node_put(ep);
+			if (ret < 0)
+				break;
+		}
+	} else {
+		/* Single CPU / Codec */
+		ep = port_to_endpoint(port);
+		ret = __graph_parse_node(priv, gtype, ep, li, is_cpu, 0);
+		of_node_put(ep);
+	}
+
+	return ret;
 }
 
 static void graph_parse_daifmt(struct device_node *node,
@@ -354,8 +505,14 @@ static void graph_link_init(struct asoc_simple_priv *priv,
 	unsigned int daifmt = 0, daiclk = 0;
 	unsigned int bit_frame = 0;
 
-	/* Need Multi support later */
-	ep = port_to_endpoint(port);
+	if (graph_lnk_is_multi(port)) {
+		of_node_get(port);
+		ep = graph_get_next_multi_ep(&port);
+		port = of_get_parent(ep);
+	} else {
+		ep = port_to_endpoint(port);
+	}
+
 	ports = of_get_parent(port);
 
 	/*
@@ -462,8 +619,27 @@ err:
 
 static int graph_counter(struct device_node *lnk)
 {
-	/* Need Multi support later */
-	return 1;
+	/*
+	 * Multi CPU / Codec
+	 *
+	 * multi {
+	 *	ports {
+	 * =>		lnk:	port@0 { ... };
+	 *			port@1 { ... };
+	 *			port@2 { ... };
+	 *			...
+	 *	};
+	 * };
+	 *
+	 * ignore first lnk part
+	 */
+	if (graph_lnk_is_multi(lnk))
+		return of_graph_get_endpoint_count(of_get_parent(lnk)) - 1;
+	/*
+	 * Single CPU / Codec
+	 */
+	else
+		return 1;
 }
 
 static int graph_count_normal(struct asoc_simple_priv *priv,
