@@ -1074,6 +1074,33 @@ static int felix_init_structs(struct felix *felix, int num_phys_ports)
 	return 0;
 }
 
+static void ocelot_port_purge_txtstamp_skb(struct ocelot *ocelot, int port,
+					   struct sk_buff *skb)
+{
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
+	struct sk_buff *clone = OCELOT_SKB_CB(skb)->clone;
+	struct sk_buff *skb_match = NULL, *skb_tmp;
+	unsigned long flags;
+
+	if (!clone)
+		return;
+
+	spin_lock_irqsave(&ocelot_port->tx_skbs.lock, flags);
+
+	skb_queue_walk_safe(&ocelot_port->tx_skbs, skb, skb_tmp) {
+		if (skb != clone)
+			continue;
+		__skb_unlink(skb, &ocelot_port->tx_skbs);
+		skb_match = skb;
+		break;
+	}
+
+	spin_unlock_irqrestore(&ocelot_port->tx_skbs.lock, flags);
+
+	WARN_ONCE(!skb_match,
+		  "Could not find skb clone in TX timestamping list\n");
+}
+
 #define work_to_xmit_work(w) \
 		container_of((w), struct felix_deferred_xmit_work, work)
 
@@ -1097,6 +1124,7 @@ static void felix_port_deferred_xmit(struct kthread_work *work)
 	if (!retries) {
 		dev_err(ocelot->dev, "port %d failed to inject skb\n",
 			port);
+		ocelot_port_purge_txtstamp_skb(ocelot, port, skb);
 		kfree_skb(skb);
 		return;
 	}
