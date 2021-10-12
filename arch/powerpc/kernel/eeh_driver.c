@@ -104,13 +104,13 @@ static bool eeh_edev_actionable(struct eeh_dev *edev)
  */
 static inline struct pci_driver *eeh_pcid_get(struct pci_dev *pdev)
 {
-	if (!pdev || !pdev->driver)
+	if (!pdev || !pdev->dev.driver)
 		return NULL;
 
-	if (!try_module_get(pdev->driver->driver.owner))
+	if (!try_module_get(pdev->dev.driver->owner))
 		return NULL;
 
-	return pdev->driver;
+	return to_pci_driver(pdev->dev.driver);
 }
 
 /**
@@ -122,10 +122,10 @@ static inline struct pci_driver *eeh_pcid_get(struct pci_dev *pdev)
  */
 static inline void eeh_pcid_put(struct pci_dev *pdev)
 {
-	if (!pdev || !pdev->driver)
+	if (!pdev || !pdev->dev.driver)
 		return;
 
-	module_put(pdev->driver->driver.owner);
+	module_put(pdev->dev.driver->owner);
 }
 
 /**
