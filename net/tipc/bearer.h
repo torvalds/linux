@@ -117,7 +117,7 @@ struct tipc_media {
 			char *msg);
 	int (*raw2addr)(struct tipc_bearer *b,
 			struct tipc_media_addr *addr,
-			char *raw);
+			const char *raw);
 	u32 priority;
 	u32 tolerance;
 	u32 min_win;
