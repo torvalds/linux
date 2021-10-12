@@ -234,11 +234,11 @@ struct xfs_btree_cur
 	struct xfs_trans	*bc_tp;	/* transaction we're in, if any */
 	struct xfs_mount	*bc_mp;	/* file system mount struct */
 	const struct xfs_btree_ops *bc_ops;
-	uint			bc_flags; /* btree features - below */
+	unsigned int		bc_flags; /* btree features - below */
+	xfs_btnum_t		bc_btnum; /* identifies which btree type */
 	union xfs_btree_irec	bc_rec;	/* current insert/search record value */
-	uint8_t		bc_nlevels;	/* number of levels in the tree */
-	xfs_btnum_t	bc_btnum;	/* identifies which btree type */
-	int		bc_statoff;	/* offset of btre stats array */
+	uint8_t			bc_nlevels; /* number of levels in the tree */
+	int			bc_statoff; /* offset of btree stats array */
 
 	/*
 	 * Short btree pointers need an agno to be able to turn the pointers
