@@ -1035,6 +1035,8 @@ static int mlxsw_sp_setup_tc_block(struct mlxsw_sp_port *mlxsw_sp_port,
 		return mlxsw_sp_setup_tc_block_clsact(mlxsw_sp_port, f, false);
 	case FLOW_BLOCK_BINDER_TYPE_RED_EARLY_DROP:
 		return mlxsw_sp_setup_tc_block_qevent_early_drop(mlxsw_sp_port, f);
+	case FLOW_BLOCK_BINDER_TYPE_RED_MARK:
+		return mlxsw_sp_setup_tc_block_qevent_mark(mlxsw_sp_port, f);
 	default:
 		return -EOPNOTSUPP;
 	}
