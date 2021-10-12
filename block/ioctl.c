@@ -588,7 +588,6 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 		return -ENOTTY;
 	return bdev->bd_disk->fops->ioctl(bdev, mode, cmd, arg);
 }
-EXPORT_SYMBOL_GPL(blkdev_ioctl); /* for /dev/raw */
 
 #ifdef CONFIG_COMPAT
 
