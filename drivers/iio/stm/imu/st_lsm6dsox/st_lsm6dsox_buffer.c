@@ -605,7 +605,7 @@ int st_lsm6dsox_buffers_setup(struct st_lsm6dsox_hw *hw)
 	if (np && of_property_read_bool(np, "drive-open-drain")) {
 		err = regmap_update_bits(hw->regmap,
 					 ST_LSM6DSOX_REG_CTRL3_C_ADDR,
-					 ST_LSM6DSOX_REG_CTRL3_C_ADDR,
+					 ST_LSM6DSOX_REG_PP_OD_MASK,
 					 FIELD_PREP(ST_LSM6DSOX_REG_PP_OD_MASK, 1));
 		if (err < 0)
 			return err;
