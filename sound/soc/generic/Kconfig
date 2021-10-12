@@ -26,6 +26,12 @@ config SND_AUDIO_GRAPH_CARD2
 	  This option enables generic simple sound card2 support
 	  with OF-graph DT bindings.
 
+config SND_AUDIO_GRAPH_CARD2_CUSTOM_SAMPLE
+	tristate "ASoC Audio Graph Card2 base custom sample support"
+	depends on SND_AUDIO_GRAPH_CARD2
+	help
+	  This option enables Audio Graph Card2 base custom sample
+
 config SND_TEST_COMPONENT
 	tristate "ASoC Test component sound support"
 	depends on OF
