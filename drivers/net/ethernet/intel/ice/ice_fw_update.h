@@ -6,7 +6,7 @@
 
 int ice_flash_pldm_image(struct ice_pf *pf, const struct firmware *fw,
 			 u8 preservation, struct netlink_ext_ack *extack);
-int ice_check_for_pending_update(struct ice_pf *pf, const char *component,
-				 struct netlink_ext_ack *extack);
+int ice_cancel_pending_update(struct ice_pf *pf, const char *component,
+			      struct netlink_ext_ack *extack);
 
 #endif

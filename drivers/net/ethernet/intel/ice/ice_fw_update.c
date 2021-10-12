@@ -642,87 +642,18 @@ static const struct pldmfw_ops ice_fwu_ops = {
 };
 
 /**
- * ice_flash_pldm_image - Write a PLDM-formatted firmware image to the device
- * @pf: private device driver structure
- * @fw: firmware object pointing to the relevant firmware file
- * @preservation: preservation level to request from firmware
- * @extack: netlink extended ACK structure
- *
- * Parse the data for a given firmware file, verifying that it is a valid PLDM
- * formatted image that matches this device.
- *
- * Extract the device record Package Data and Component Tables and send them
- * to the firmware. Extract and write the flash data for each of the three
- * main flash components, "fw.mgmt", "fw.undi", and "fw.netlist". Notify
- * firmware once the data is written to the inactive banks.
- *
- * Returns: zero on success or a negative error code on failure.
- */
-int ice_flash_pldm_image(struct ice_pf *pf, const struct firmware *fw,
-			 u8 preservation, struct netlink_ext_ack *extack)
-{
-	struct device *dev = ice_pf_to_dev(pf);
-	struct ice_hw *hw = &pf->hw;
-	struct ice_fwu_priv priv;
-	int err;
-
-	switch (preservation) {
-	case ICE_AQC_NVM_PRESERVE_ALL:
-	case ICE_AQC_NVM_PRESERVE_SELECTED:
-	case ICE_AQC_NVM_NO_PRESERVATION:
-	case ICE_AQC_NVM_FACTORY_DEFAULT:
-		break;
-	default:
-		WARN(1, "Unexpected preservation level request %u", preservation);
-		return -EINVAL;
-	}
-
-	memset(&priv, 0, sizeof(priv));
-
-	priv.context.ops = &ice_fwu_ops;
-	priv.context.dev = dev;
-	priv.extack = extack;
-	priv.pf = pf;
-	priv.activate_flags = preservation;
-
-	err = ice_acquire_nvm(hw, ICE_RES_WRITE);
-	if (err) {
-		dev_err(dev, "Failed to acquire device flash lock, err %d aq_err %s\n",
-			err, ice_aq_str(hw->adminq.sq_last_status));
-		NL_SET_ERR_MSG_MOD(extack, "Failed to acquire device flash lock");
-		return err;
-	}
-
-	err = pldmfw_flash_image(&priv.context, fw);
-	if (err == -ENOENT) {
-		dev_err(dev, "Firmware image has no record matching this device\n");
-		NL_SET_ERR_MSG_MOD(extack, "Firmware image has no record matching this device");
-	} else if (err) {
-		/* Do not set a generic extended ACK message here. A more
-		 * specific message may already have been set by one of our
-		 * ops.
-		 */
-		dev_err(dev, "Failed to flash PLDM image, err %d", err);
-	}
-
-	ice_release_nvm(hw);
-
-	return err;
-}
-
-/**
- * ice_check_for_pending_update - Check for a pending flash update
+ * ice_cancel_pending_update - Cancel any pending update for a component
  * @pf: the PF driver structure
  * @component: if not NULL, the name of the component being updated
  * @extack: Netlink extended ACK structure
  *
- * Check whether the device already has a pending flash update. If such an
- * update is found, cancel it so that the requested update may proceed.
+ * Cancel any pending update for the specified component. If component is
+ * NULL, all device updates will be canceled.
  *
  * Returns: zero on success, or a negative error code on failure.
  */
-int ice_check_for_pending_update(struct ice_pf *pf, const char *component,
-				 struct netlink_ext_ack *extack)
+int ice_cancel_pending_update(struct ice_pf *pf, const char *component,
+			      struct netlink_ext_ack *extack)
 {
 	struct devlink *devlink = priv_to_devlink(pf);
 	struct device *dev = ice_pf_to_dev(pf);
@@ -799,6 +730,75 @@ int ice_check_for_pending_update(struct ice_pf *pf, const char *component,
 
 	pending |= ICE_AQC_NVM_REVERT_LAST_ACTIV;
 	err = ice_switch_flash_banks(pf, pending, extack);
+
+	ice_release_nvm(hw);
+
+	return err;
+}
+
+/**
+ * ice_flash_pldm_image - Write a PLDM-formatted firmware image to the device
+ * @pf: private device driver structure
+ * @fw: firmware object pointing to the relevant firmware file
+ * @preservation: preservation level to request from firmware
+ * @extack: netlink extended ACK structure
+ *
+ * Parse the data for a given firmware file, verifying that it is a valid PLDM
+ * formatted image that matches this device.
+ *
+ * Extract the device record Package Data and Component Tables and send them
+ * to the firmware. Extract and write the flash data for each of the three
+ * main flash components, "fw.mgmt", "fw.undi", and "fw.netlist". Notify
+ * firmware once the data is written to the inactive banks.
+ *
+ * Returns: zero on success or a negative error code on failure.
+ */
+int ice_flash_pldm_image(struct ice_pf *pf, const struct firmware *fw,
+			 u8 preservation, struct netlink_ext_ack *extack)
+{
+	struct device *dev = ice_pf_to_dev(pf);
+	struct ice_hw *hw = &pf->hw;
+	struct ice_fwu_priv priv;
+	int err;
+
+	switch (preservation) {
+	case ICE_AQC_NVM_PRESERVE_ALL:
+	case ICE_AQC_NVM_PRESERVE_SELECTED:
+	case ICE_AQC_NVM_NO_PRESERVATION:
+	case ICE_AQC_NVM_FACTORY_DEFAULT:
+		break;
+	default:
+		WARN(1, "Unexpected preservation level request %u", preservation);
+		return -EINVAL;
+	}
+
+	memset(&priv, 0, sizeof(priv));
+
+	priv.context.ops = &ice_fwu_ops;
+	priv.context.dev = dev;
+	priv.extack = extack;
+	priv.pf = pf;
+	priv.activate_flags = preservation;
+
+	err = ice_acquire_nvm(hw, ICE_RES_WRITE);
+	if (err) {
+		dev_err(dev, "Failed to acquire device flash lock, err %d aq_err %s\n",
+			err, ice_aq_str(hw->adminq.sq_last_status));
+		NL_SET_ERR_MSG_MOD(extack, "Failed to acquire device flash lock");
+		return err;
+	}
+
+	err = pldmfw_flash_image(&priv.context, fw);
+	if (err == -ENOENT) {
+		dev_err(dev, "Firmware image has no record matching this device\n");
+		NL_SET_ERR_MSG_MOD(extack, "Firmware image has no record matching this device");
+	} else if (err) {
+		/* Do not set a generic extended ACK message here. A more
+		 * specific message may already have been set by one of our
+		 * ops.
+		 */
+		dev_err(dev, "Failed to flash PLDM image, err %d", err);
+	}
 
 	ice_release_nvm(hw);
 
