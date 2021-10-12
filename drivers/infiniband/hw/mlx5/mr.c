@@ -88,9 +88,8 @@ static void set_mkc_access_pd_addr_fields(void *mkc, int acc, u64 start_addr,
 	MLX5_SET64(mkc, mkc, start_addr, start_addr);
 }
 
-static void
-assign_mkey_variant(struct mlx5_ib_dev *dev, struct mlx5_core_mkey *mkey,
-		    u32 *in)
+static void assign_mkey_variant(struct mlx5_ib_dev *dev,
+				struct mlx5_ib_mkey *mkey, u32 *in)
 {
 	u8 key = atomic_inc_return(&dev->mkey_var);
 	void *mkc;
@@ -100,9 +99,8 @@ assign_mkey_variant(struct mlx5_ib_dev *dev, struct mlx5_core_mkey *mkey,
 	mkey->key = key;
 }
 
-static int
-mlx5_ib_create_mkey(struct mlx5_ib_dev *dev, struct mlx5_core_mkey *mkey,
-		    u32 *in, int inlen)
+static int mlx5_ib_create_mkey(struct mlx5_ib_dev *dev,
+			       struct mlx5_ib_mkey *mkey, u32 *in, int inlen)
 {
 	int ret;
 
@@ -116,7 +114,7 @@ mlx5_ib_create_mkey(struct mlx5_ib_dev *dev, struct mlx5_core_mkey *mkey,
 
 static int
 mlx5_ib_create_mkey_cb(struct mlx5_ib_dev *dev,
-		       struct mlx5_core_mkey *mkey,
+		       struct mlx5_ib_mkey *mkey,
 		       struct mlx5_async_ctx *async_ctx,
 		       u32 *in, int inlen, u32 *out, int outlen,
 		       struct mlx5_async_work *context)

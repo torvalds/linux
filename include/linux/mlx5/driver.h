@@ -357,19 +357,6 @@ struct mlx5_core_sig_ctx {
 	u32			sigerr_count;
 };
 
-enum {
-	MLX5_MKEY_MR = 1,
-	MLX5_MKEY_MW,
-	MLX5_MKEY_INDIRECT_DEVX,
-};
-
-struct mlx5_core_mkey {
-	u32			key;
-	u32			type;
-	struct wait_queue_head wait;
-	refcount_t usecount;
-};
-
 #define MLX5_24BIT_MASK		((1 << 24) - 1)
 
 enum mlx5_res_type {
