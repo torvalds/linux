@@ -122,4 +122,7 @@ void xfs_defer_ops_capture_free(struct xfs_mount *mp,
 		struct xfs_defer_capture *d);
 void xfs_defer_resources_rele(struct xfs_defer_resources *dres);
 
+int __init xfs_defer_init_item_caches(void);
+void xfs_defer_destroy_item_caches(void);
+
 #endif /* __XFS_DEFER_H__ */

@@ -37,7 +37,7 @@
 #include "xfs_icache.h"
 #include "xfs_iomap.h"
 
-
+struct kmem_cache		*xfs_bmap_intent_cache;
 struct kmem_cache		*xfs_bmap_free_item_cache;
 
 /*
@@ -6190,7 +6190,7 @@ __xfs_bmap_add(
 			bmap->br_blockcount,
 			bmap->br_state);
 
-	bi = kmem_alloc(sizeof(struct xfs_bmap_intent), KM_NOFS);
+	bi = kmem_cache_alloc(xfs_bmap_intent_cache, GFP_NOFS | __GFP_NOFAIL);
 	INIT_LIST_HEAD(&bi->bi_list);
 	bi->bi_type = type;
 	bi->bi_owner = ip;
@@ -6300,4 +6300,21 @@ xfs_bmap_validate_extent(
 	if (irec->br_state != XFS_EXT_NORM && whichfork != XFS_DATA_FORK)
 		return __this_address;
 	return NULL;
+}
+
+int __init
+xfs_bmap_intent_init_cache(void)
+{
+	xfs_bmap_intent_cache = kmem_cache_create("xfs_bmap_intent",
+			sizeof(struct xfs_bmap_intent),
+			0, 0, NULL);
+
+	return xfs_bmap_intent_cache != NULL ? 0 : -ENOMEM;
+}
+
+void
+xfs_bmap_intent_destroy_cache(void)
+{
+	kmem_cache_destroy(xfs_bmap_intent_cache);
+	xfs_bmap_intent_cache = NULL;
 }

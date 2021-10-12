@@ -215,4 +215,9 @@ extern const struct xfs_owner_info XFS_RMAP_OINFO_INODES;
 extern const struct xfs_owner_info XFS_RMAP_OINFO_REFC;
 extern const struct xfs_owner_info XFS_RMAP_OINFO_COW;
 
+extern struct kmem_cache	*xfs_rmap_intent_cache;
+
+int __init xfs_rmap_intent_init_cache(void);
+void xfs_rmap_intent_destroy_cache(void);
+
 #endif	/* __XFS_RMAP_H__ */
