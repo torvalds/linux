@@ -1746,9 +1746,6 @@ static struct iio_dev *st_lsm6dsox_alloc_iiodev(struct st_lsm6dsox_hw *hw,
 	sensor->decimator = 0;
 	sensor->dec_counter = 0;
 
-	/* Set default FS to each sensor */
-	sensor->gain = st_lsm6dsox_fs_table[id].fs_avl[0].gain;
-
 	switch (id) {
 	case ST_LSM6DSOX_ID_ACC:
 		iio_dev->channels = st_lsm6dsox_acc_channels;
@@ -1758,6 +1755,7 @@ static struct iio_dev *st_lsm6dsox_alloc_iiodev(struct st_lsm6dsox_hw *hw,
 		iio_dev->available_scan_masks =
 					st_lsm6dsox_available_scan_masks;
 		sensor->max_watermark = ST_LSM6DSOX_MAX_FIFO_DEPTH;
+		sensor->gain = st_lsm6dsox_fs_table[id].fs_avl[0].gain;
 		sensor->offset = 0;
 		sensor->pm = ST_LSM6DSOX_HP_MODE;
 		sensor->odr = st_lsm6dsox_odr_table[id].odr_avl[1].hz;
@@ -1773,6 +1771,7 @@ static struct iio_dev *st_lsm6dsox_alloc_iiodev(struct st_lsm6dsox_hw *hw,
 		iio_dev->available_scan_masks =
 					st_lsm6dsox_available_scan_masks;
 		sensor->max_watermark = ST_LSM6DSOX_MAX_FIFO_DEPTH;
+		sensor->gain = st_lsm6dsox_fs_table[id].fs_avl[0].gain;
 		sensor->offset = 0;
 		sensor->pm = ST_LSM6DSOX_HP_MODE;
 		sensor->odr = st_lsm6dsox_odr_table[id].odr_avl[1].hz;
@@ -1788,6 +1787,7 @@ static struct iio_dev *st_lsm6dsox_alloc_iiodev(struct st_lsm6dsox_hw *hw,
 		iio_dev->available_scan_masks =
 					st_lsm6dsox_temp_available_scan_masks;
 		sensor->max_watermark = ST_LSM6DSOX_MAX_FIFO_DEPTH;
+		sensor->gain = st_lsm6dsox_fs_table[id].fs_avl[0].gain;
 		sensor->offset = ST_LSM6DSOX_TEMP_OFFSET;
 		sensor->pm = ST_LSM6DSOX_NO_MODE;
 		sensor->odr = st_lsm6dsox_odr_table[id].odr_avl[1].hz;
