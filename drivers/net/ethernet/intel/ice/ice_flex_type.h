@@ -614,6 +614,8 @@ struct ice_chs_chg {
 
 enum ice_prof_type {
 	ICE_PROF_NON_TUN = 0x1,
+	ICE_PROF_TUN_UDP = 0x2,
+	ICE_PROF_TUN_ALL = 0x6,
 	ICE_PROF_ALL = 0xFF,
 };
 #endif /* _ICE_FLEX_TYPE_H_ */

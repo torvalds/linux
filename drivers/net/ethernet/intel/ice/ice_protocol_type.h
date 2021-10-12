@@ -48,6 +48,7 @@ enum ice_sw_tunnel_type {
 	ICE_NON_TUN = 0,
 	ICE_SW_TUN_VXLAN,
 	ICE_SW_TUN_GENEVE,
+	ICE_ALL_TUNNELS /* All tunnel types */
 };
 
 /* Decoders for ice_prot_id:
@@ -83,6 +84,8 @@ enum ice_prot_id {
 	ICE_PROT_INVALID	= 255  /* when offset == ICE_FV_OFFSET_INVAL */
 };
 
+#define ICE_VNI_OFFSET		12 /* offset of VNI from ICE_PROT_UDP_OF */
+
 #define ICE_MAC_OFOS_HW		1
 #define ICE_MAC_IL_HW		4
 #define ICE_ETYPE_OL_HW		9
@@ -96,6 +99,12 @@ enum ice_prot_id {
 #define ICE_UDP_ILOS_HW		53
 
 #define ICE_UDP_OF_HW	52 /* UDP Tunnels */
+#define ICE_META_DATA_ID_HW 255 /* this is used for tunnel type */
+
+#define ICE_MDID_SIZE 2
+#define ICE_TUN_FLAG_MDID 21
+#define ICE_TUN_FLAG_MDID_OFF (ICE_MDID_SIZE * ICE_TUN_FLAG_MDID)
+#define ICE_TUN_FLAG_MASK 0xFF
 
 #define ICE_TUN_FLAG_FV_IND 2
 
