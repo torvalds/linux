@@ -11,14 +11,6 @@
 #include <linux/blk_types.h>
 #include <linux/uio.h>
 
-#define BIO_DEBUG
-
-#ifdef BIO_DEBUG
-#define BIO_BUG_ON	BUG_ON
-#else
-#define BIO_BUG_ON
-#endif
-
 #define BIO_MAX_VECS		256U
 
 static inline unsigned int bio_max_segs(unsigned int nr_segs)

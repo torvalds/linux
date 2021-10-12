@@ -156,7 +156,7 @@ out:
 
 void bvec_free(mempool_t *pool, struct bio_vec *bv, unsigned short nr_vecs)
 {
-	BIO_BUG_ON(nr_vecs > BIO_MAX_VECS);
+	BUG_ON(nr_vecs > BIO_MAX_VECS);
 
 	if (nr_vecs == BIO_MAX_VECS)
 		mempool_free(bv, pool);
@@ -677,7 +677,7 @@ static void bio_alloc_cache_destroy(struct bio_set *bs)
 void bio_put(struct bio *bio)
 {
 	if (unlikely(bio_flagged(bio, BIO_REFFED))) {
-		BIO_BUG_ON(!atomic_read(&bio->__bi_cnt));
+		BUG_ON(!atomic_read(&bio->__bi_cnt));
 		if (!atomic_dec_and_test(&bio->__bi_cnt))
 			return;
 	}
