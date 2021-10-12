@@ -266,12 +266,12 @@ static void felix_8021q_cpu_port_deinit(struct ocelot *ocelot, int port)
  */
 static int felix_setup_mmio_filtering(struct felix *felix)
 {
-	unsigned long user_ports = 0, cpu_ports = 0;
+	unsigned long user_ports = dsa_user_ports(felix->ds);
 	struct ocelot_vcap_filter *redirect_rule;
 	struct ocelot_vcap_filter *tagging_rule;
 	struct ocelot *ocelot = &felix->ocelot;
 	struct dsa_switch *ds = felix->ds;
-	int port, ret;
+	int cpu = -1, port, ret;
 
 	tagging_rule = kzalloc(sizeof(struct ocelot_vcap_filter), GFP_KERNEL);
 	if (!tagging_rule)
@@ -284,11 +284,14 @@ static int felix_setup_mmio_filtering(struct felix *felix)
 	}
 
 	for (port = 0; port < ocelot->num_phys_ports; port++) {
-		if (dsa_is_user_port(ds, port))
-			user_ports |= BIT(port);
-		if (dsa_is_cpu_port(ds, port))
-			cpu_ports |= BIT(port);
+		if (dsa_is_cpu_port(ds, port)) {
+			cpu = port;
+			break;
+		}
 	}
+
+	if (cpu < 0)
+		return -EINVAL;
 
 	tagging_rule->key_type = OCELOT_VCAP_KEY_ETYPE;
 	*(__be16 *)tagging_rule->key.etype.etype.value = htons(ETH_P_1588);
@@ -325,7 +328,7 @@ static int felix_setup_mmio_filtering(struct felix *felix)
 		 * the CPU port module
 		 */
 		redirect_rule->action.mask_mode = OCELOT_MASK_MODE_REDIRECT;
-		redirect_rule->action.port_mask = cpu_ports;
+		redirect_rule->action.port_mask = BIT(cpu);
 	} else {
 		/* Trap PTP packets only to the CPU port module (which is
 		 * redirected to the NPI port)
@@ -1235,6 +1238,7 @@ static int felix_setup(struct dsa_switch *ds)
 		 * there's no real point in checking for errors.
 		 */
 		felix_set_tag_protocol(ds, port, felix->tag_proto);
+		break;
 	}
 
 	ds->mtu_enforcement_ingress = true;
@@ -1275,6 +1279,7 @@ static void felix_teardown(struct dsa_switch *ds)
 			continue;
 
 		felix_del_tag_protocol(ds, port, felix->tag_proto);
+		break;
 	}
 
 	for (port = 0; port < ocelot->num_phys_ports; port++) {
