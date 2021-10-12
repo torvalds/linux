@@ -682,8 +682,11 @@ static int st_lsm6dsrx_read_oneshot(struct st_lsm6dsrx_sensor *sensor,
 		if (err < 0)
 			return err;
 
-		/* Use big delay for data valid because of drdy mask enabled */
-		delay = 10000000 / (sensor->odr + sensor->uodr);
+		/*
+		 * - use big delay for data valid because of drdy mask enabled
+		 * - uodr is neglected in this operation
+		 */
+		delay = 10000000 / sensor->odr;
 		usleep_range(delay, 2 * delay);
 
 		err = st_lsm6dsrx_read_locked(hw, addr,
