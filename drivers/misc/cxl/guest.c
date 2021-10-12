@@ -27,7 +27,7 @@ static void pci_error_handlers(struct cxl_afu *afu,
 		return;
 
 	list_for_each_entry(afu_dev, &afu->phb->bus->devices, bus_list) {
-		afu_drv = afu_dev->driver;
+		afu_drv = to_pci_driver(afu_dev->dev.driver);
 		if (!afu_drv)
 			continue;
 

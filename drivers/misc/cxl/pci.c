@@ -1807,7 +1807,7 @@ static pci_ers_result_t cxl_vphb_error_detected(struct cxl_afu *afu,
 		return result;
 
 	list_for_each_entry(afu_dev, &afu->phb->bus->devices, bus_list) {
-		afu_drv = afu_dev->driver;
+		afu_drv = to_pci_driver(afu_dev->dev.driver);
 		if (!afu_drv)
 			continue;
 
@@ -2034,7 +2034,7 @@ static pci_ers_result_t cxl_pci_slot_reset(struct pci_dev *pdev)
 			 * shouldn't start new work until we call
 			 * their resume function.
 			 */
-			afu_drv = afu_dev->driver;
+			afu_drv = to_pci_driver(afu_dev->dev.driver);
 			if (!afu_drv)
 				continue;
 
@@ -2083,7 +2083,7 @@ static void cxl_pci_resume(struct pci_dev *pdev)
 			continue;
 
 		list_for_each_entry(afu_dev, &afu->phb->bus->devices, bus_list) {
-			afu_drv = afu_dev->driver;
+			afu_drv = to_pci_driver(afu_dev->dev.driver);
 			if (!afu_drv)
 				continue;
 
