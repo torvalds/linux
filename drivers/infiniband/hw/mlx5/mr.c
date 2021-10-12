@@ -975,7 +975,6 @@ static struct mlx5_ib_mr *alloc_cacheable_mr(struct ib_pd *pd,
 
 	mr->ibmr.pd = pd;
 	mr->umem = umem;
-	mr->mmkey.size = umem->length;
 	mr->mmkey.pd = to_mpd(pd)->pdn;
 	mr->page_shift = order_base_2(page_size);
 	set_mr_fields(dev, mr, umem->length, access_flags, iova);
@@ -1087,7 +1086,7 @@ static void *mlx5_ib_create_xlt_wr(struct mlx5_ib_mr *mr,
 	wr->wr.opcode = MLX5_IB_WR_UMR;
 	wr->pd = mr->ibmr.pd;
 	wr->mkey = mr->mmkey.key;
-	wr->length = mr->mmkey.size;
+	wr->length = mr->ibmr.length;
 	wr->virt_addr = mr->ibmr.iova;
 	wr->access_flags = mr->access_flags;
 	wr->page_shift = mr->page_shift;
@@ -1764,7 +1763,7 @@ static int umr_rereg_pas(struct mlx5_ib_mr *mr, struct ib_pd *pd,
 
 	mr->ibmr.length = new_umem->length;
 	mr->ibmr.iova = iova;
-	mr->mmkey.size = new_umem->length;
+	mr->ibmr.length = new_umem->length;
 	mr->page_shift = order_base_2(page_size);
 	mr->umem = new_umem;
 	err = mlx5_ib_update_mr_pas(mr, upd_flags);
