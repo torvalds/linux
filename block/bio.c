@@ -808,6 +808,44 @@ static inline bool page_is_mergeable(const struct bio_vec *bv,
 	return (bv->bv_page + bv_end / PAGE_SIZE) == (page + off / PAGE_SIZE);
 }
 
+/**
+ * __bio_try_merge_page - try appending data to an existing bvec.
+ * @bio: destination bio
+ * @page: start page to add
+ * @len: length of the data to add
+ * @off: offset of the data relative to @page
+ * @same_page: return if the segment has been merged inside the same page
+ *
+ * Try to add the data at @page + @off to the last bvec of @bio.  This is a
+ * useful optimisation for file systems with a block size smaller than the
+ * page size.
+ *
+ * Warn if (@len, @off) crosses pages in case that @same_page is true.
+ *
+ * Return %true on success or %false on failure.
+ */
+static bool __bio_try_merge_page(struct bio *bio, struct page *page,
+		unsigned int len, unsigned int off, bool *same_page)
+{
+	if (WARN_ON_ONCE(bio_flagged(bio, BIO_CLONED)))
+		return false;
+
+	if (bio->bi_vcnt > 0) {
+		struct bio_vec *bv = &bio->bi_io_vec[bio->bi_vcnt - 1];
+
+		if (page_is_mergeable(bv, page, len, off, same_page)) {
+			if (bio->bi_iter.bi_size > UINT_MAX - len) {
+				*same_page = false;
+				return false;
+			}
+			bv->bv_len += len;
+			bio->bi_iter.bi_size += len;
+			return true;
+		}
+	}
+	return false;
+}
+
 /*
  * Try to merge a page into a segment, while obeying the hardware segment
  * size limit.  This is not for normal read/write bios, but for passthrough
@@ -938,45 +976,6 @@ int bio_add_zone_append_page(struct bio *bio, struct page *page,
 			       queue_max_zone_append_sectors(q), &same_page);
 }
 EXPORT_SYMBOL_GPL(bio_add_zone_append_page);
-
-/**
- * __bio_try_merge_page - try appending data to an existing bvec.
- * @bio: destination bio
- * @page: start page to add
- * @len: length of the data to add
- * @off: offset of the data relative to @page
- * @same_page: return if the segment has been merged inside the same page
- *
- * Try to add the data at @page + @off to the last bvec of @bio.  This is a
- * useful optimisation for file systems with a block size smaller than the
- * page size.
- *
- * Warn if (@len, @off) crosses pages in case that @same_page is true.
- *
- * Return %true on success or %false on failure.
- */
-bool __bio_try_merge_page(struct bio *bio, struct page *page,
-		unsigned int len, unsigned int off, bool *same_page)
-{
-	if (WARN_ON_ONCE(bio_flagged(bio, BIO_CLONED)))
-		return false;
-
-	if (bio->bi_vcnt > 0) {
-		struct bio_vec *bv = &bio->bi_io_vec[bio->bi_vcnt - 1];
-
-		if (page_is_mergeable(bv, page, len, off, same_page)) {
-			if (bio->bi_iter.bi_size > UINT_MAX - len) {
-				*same_page = false;
-				return false;
-			}
-			bv->bv_len += len;
-			bio->bi_iter.bi_size += len;
-			return true;
-		}
-	}
-	return false;
-}
-EXPORT_SYMBOL_GPL(__bio_try_merge_page);
 
 /**
  * __bio_add_page - add page(s) to a bio in a new segment
