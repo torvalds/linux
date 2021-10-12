@@ -288,7 +288,7 @@ xfs_bmbt_free_block(
 	struct xfs_owner_info	oinfo;
 
 	xfs_rmap_ino_bmbt_owner(&oinfo, ip->i_ino, cur->bc_ino.whichfork);
-	xfs_bmap_add_free(cur->bc_tp, fsbno, 1, &oinfo);
+	xfs_free_extent_later(cur->bc_tp, fsbno, 1, &oinfo);
 	ip->i_nblocks--;
 
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);

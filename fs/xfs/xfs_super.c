@@ -1963,15 +1963,9 @@ xfs_init_caches(void)
 	if (!xfs_log_ticket_cache)
 		goto out;
 
-	xfs_bmap_free_item_cache = kmem_cache_create("xfs_bmap_free_item",
-					sizeof(struct xfs_extent_free_item),
-					0, 0, NULL);
-	if (!xfs_bmap_free_item_cache)
-		goto out_destroy_log_ticket_cache;
-
 	error = xfs_btree_init_cur_caches();
 	if (error)
-		goto out_destroy_bmap_free_item_cache;
+		goto out_destroy_log_ticket_cache;
 
 	error = xfs_defer_init_item_caches();
 	if (error)
@@ -2115,8 +2109,6 @@ xfs_init_caches(void)
 	xfs_defer_destroy_item_caches();
  out_destroy_btree_cur_cache:
 	xfs_btree_destroy_cur_caches();
- out_destroy_bmap_free_item_cache:
-	kmem_cache_destroy(xfs_bmap_free_item_cache);
  out_destroy_log_ticket_cache:
 	kmem_cache_destroy(xfs_log_ticket_cache);
  out:
@@ -2148,7 +2140,6 @@ xfs_destroy_caches(void)
 	kmem_cache_destroy(xfs_da_state_cache);
 	xfs_defer_destroy_item_caches();
 	xfs_btree_destroy_cur_caches();
-	kmem_cache_destroy(xfs_bmap_free_item_cache);
 	kmem_cache_destroy(xfs_log_ticket_cache);
 }
 
