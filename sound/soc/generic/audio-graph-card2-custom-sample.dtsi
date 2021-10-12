@@ -53,6 +53,20 @@
 	 *			   +-@-> codec6
 	 *			   |
 	 *			   +---> codec7
+	 *
+	 * [Codec2Codec-Multi]
+	 *
+	 * --NOTE--
+	 * Multi connect N:M is not supported by ASoC.
+	 *
+	 *				+-+
+	 *			   +-@->| |-> codec8
+	 *			   |	| |-> codec9
+	 *			   |	+-+
+	 *			   |	+-+
+	 *			   +--->| |-> codec10
+	 *				| |-> codec11
+	 *				+-+
 	 */
 	audio-graph-card2-custom-sample {
 		/*
@@ -80,13 +94,19 @@
 			  "DAI6 Capture",	"TC DAI5 Capture",
 			/* for [Codec2Codec] */
 			  "TC OUT",		"TC DAI7 Playback",
-			  "TC DAI6 Capture",	"TC IN";
+			  "TC DAI6 Capture",	"TC IN",
+			/* for [Codec2Codec-Multi] */
+			  "TC OUT",		"TC DAI10 Playback",
+			  "TC DAI8 Capture",	"TC IN",
+			  "TC OUT",		"TC DAI11 Playback",
+			  "TC DAI9 Capture",	"TC IN";
 
 		links = <&cpu0			/* normal: cpu side only */
 			 &mcpu0			/* multi:  cpu side only */
 			 &fe00 &fe01 &be0	/* dpcm:   both FE / BE  */
 			 &fe10 &fe11 &be1	/* dpcm-m: both FE / BE  */
 			 &c2c			/* c2c:    cpu side only */
+			 &c2c_m			/* c2c:    cpu side only */
 		>;
 
 		multi {
@@ -104,6 +124,16 @@
 				port@0 { mbe_ep:  endpoint { remote-endpoint = <&be10_ep>;  }; };
 				port@1 { mbe1_ep: endpoint { remote-endpoint = <&codec4_ep>; }; };
 				port@2 { mbe2_ep: endpoint { remote-endpoint = <&codec5_ep>; }; };
+			};
+			ports@3 {
+				port@0 { mc2c0_ep:  endpoint { remote-endpoint = <&c2cmf_ep>;  }; };
+				port@1 { mc2c00_ep: endpoint { remote-endpoint = <&codec8_ep>; }; };
+				port@2 { mc2c01_ep: endpoint { remote-endpoint = <&codec9_ep>; }; };
+			};
+			ports@4 {
+				port@0 { mc2c1_ep:  endpoint { remote-endpoint = <&c2cmb_ep>;  }; };
+				port@1 { mc2c10_ep: endpoint { remote-endpoint = <&codec10_ep>; }; };
+				port@2 { mc2c11_ep: endpoint { remote-endpoint = <&codec11_ep>; }; };
 			};
 		};
 
@@ -127,6 +157,11 @@
 				rate = <48000>;
 			c2c:	port@0 { c2cf_ep: endpoint { remote-endpoint = <&codec6_ep>; }; };
 				port@1 { c2cb_ep: endpoint { remote-endpoint = <&codec7_ep>; }; };
+			};
+			ports@1 {
+				rate = <48000>;
+			c2c_m:	port@0 { c2cmf_ep: endpoint { remote-endpoint = <&mc2c0_ep>; }; };
+				port@1 { c2cmb_ep: endpoint { remote-endpoint = <&mc2c1_ep>; }; };
 			};
 		};
 	};
@@ -181,6 +216,12 @@
 				  frame-master;
 				  codec6_ep:  endpoint { remote-endpoint = <&c2cf_ep>; }; };
 			port@7  { codec7_ep:  endpoint { remote-endpoint = <&c2cb_ep>; }; };
+			port@8  { bitclock-master;
+				  frame-master;
+				  codec8_ep:  endpoint { remote-endpoint = <&mc2c00_ep>; }; };
+			port@9  { codec9_ep:  endpoint { remote-endpoint = <&mc2c01_ep>; }; };
+			port@10 { codec10_ep: endpoint { remote-endpoint = <&mc2c10_ep>; }; };
+			port@11 { codec11_ep: endpoint { remote-endpoint = <&mc2c11_ep>; }; };
 		};
 	};
 };
