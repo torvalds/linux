@@ -77,7 +77,7 @@ config IPMI_SSIF
 
 config IPMI_IPMB
 	tristate 'IPMI IPMB interface'
-	depends on I2C_SLAVE
+	depends on I2C && I2C_SLAVE
 	help
 	  Provides a driver for a system running right on the IPMB bus.
 	  It supports normal system interface messages to a BMC on the IPMB
