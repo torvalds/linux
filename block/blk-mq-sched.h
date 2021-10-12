@@ -37,6 +37,11 @@ static inline void blk_mq_sched_restart(struct blk_mq_hw_ctx *hctx)
 		__blk_mq_sched_restart(hctx);
 }
 
+static inline bool bio_mergeable(struct bio *bio)
+{
+	return !(bio->bi_opf & REQ_NOMERGE_FLAGS);
+}
+
 static inline bool
 blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio,
 		unsigned int nr_segs)

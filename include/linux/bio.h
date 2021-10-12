@@ -69,14 +69,6 @@ static inline bool bio_no_advance_iter(const struct bio *bio)
 	       bio_op(bio) == REQ_OP_WRITE_ZEROES;
 }
 
-static inline bool bio_mergeable(struct bio *bio)
-{
-	if (bio->bi_opf & REQ_NOMERGE_FLAGS)
-		return false;
-
-	return true;
-}
-
 static inline unsigned int bio_cur_bytes(struct bio *bio)
 {
 	if (bio_has_data(bio))
