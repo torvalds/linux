@@ -288,6 +288,8 @@ const struct uniphier_clk_data uniphier_pxs3_sys_clk_data[] = {
 	UNIPHIER_CLK_GATE("sata0", 28, NULL, 0x210c, 7),
 	UNIPHIER_CLK_GATE("sata1", 29, NULL, 0x210c, 8),
 	UNIPHIER_CLK_GATE("sata-phy", 30, NULL, 0x210c, 21),
+	UNIPHIER_LD11_SYS_CLK_AIO(40),
+	UNIPHIER_LD11_SYS_CLK_EXIV(42),
 	/* CPU gears */
 	UNIPHIER_CLK_DIV4("cpll", 2, 3, 4, 8),
 	UNIPHIER_CLK_DIV4("spll", 2, 3, 4, 8),
