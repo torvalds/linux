@@ -44,9 +44,11 @@ struct ipmi_ipmb_dev {
 
 	bool ready;
 
-	u8 bmcaddr;
-
 	u8 curr_seq;
+
+	u8 bmcaddr;
+	u32 retry_time_ms;
+	u32 max_retries;
 
 	struct ipmi_smi_msg *next_msg;
 	struct ipmi_smi_msg *working_msg;
@@ -333,7 +335,7 @@ retry:
 
 		/* A command was sent, wait for its response. */
 		ret = down_timeout(&iidev->got_rsp,
-				   msecs_to_jiffies(retry_time_ms));
+				   msecs_to_jiffies(iidev->retry_time_ms));
 
 		/*
 		 * Grab the message if we can.  If the handler hasn't
@@ -353,7 +355,7 @@ retry:
 			 * the semaphore.
 			 */
 			down(&iidev->got_rsp);
-		} else if (msg && ++retries <= max_retries) {
+		} else if (msg && ++retries <= iidev->max_retries) {
 			spin_lock_irqsave(&iidev->lock, flags);
 			iidev->working_msg = msg;
 			spin_unlock_irqrestore(&iidev->lock, flags);
@@ -437,6 +439,7 @@ static int ipmi_ipmb_remove(struct i2c_client *client)
 static int ipmi_ipmb_probe(struct i2c_client *client,
 			   const struct i2c_device_id *id)
 {
+	struct device *dev = &client->dev;
 	struct ipmi_ipmb_dev *iidev;
 	int rv;
 
@@ -444,7 +447,22 @@ static int ipmi_ipmb_probe(struct i2c_client *client,
 	if (!iidev)
 		return -ENOMEM;
 
-	iidev->bmcaddr = bmcaddr;
+	if (of_property_read_u8(dev->of_node, "bmcaddr", &iidev->bmcaddr) != 0)
+		iidev->bmcaddr = bmcaddr;
+	if (iidev->bmcaddr == 0 || iidev->bmcaddr & 1) {
+		/* Can't have the write bit set. */
+		dev_notice(&client->dev,
+			   "Invalid bmc address value %2.2x\n", iidev->bmcaddr);
+		return -EINVAL;
+	}
+
+	if (of_property_read_u32(dev->of_node, "retry-time",
+				 &iidev->retry_time_ms) != 0)
+		iidev->retry_time_ms = retry_time_ms;
+
+	if (of_property_read_u32(dev->of_node, "max-retries",
+				 &iidev->max_retries) != 0)
+		iidev->max_retries = max_retries;
 
 	i2c_set_clientdata(client, iidev);
 	client->flags |= I2C_CLIENT_SLAVE;
@@ -488,6 +506,16 @@ out_err:
 	return rv;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id of_ipmi_ipmb_match[] = {
+	{ .type = "ipmi", .compatible = DEVICE_NAME },
+	{},
+};
+MODULE_DEVICE_TABLE(of, of_ipmi_ipmb_match);
+#else
+#define of_ipmi_ipmb_match NULL
+#endif
+
 static const struct i2c_device_id ipmi_ipmb_id[] = {
 	{ DEVICE_NAME, 0 },
 	{},
@@ -498,6 +526,7 @@ static struct i2c_driver ipmi_ipmb_driver = {
 	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name = DEVICE_NAME,
+		.of_match_table = of_ipmi_ipmb_match,
 	},
 	.probe		= ipmi_ipmb_probe,
 	.remove		= ipmi_ipmb_remove,
