@@ -68,10 +68,19 @@ static DEVICE_ATTR(snic_state, S_IRUGO, snic_show_state, NULL);
 static DEVICE_ATTR(drv_version, S_IRUGO, snic_show_drv_version, NULL);
 static DEVICE_ATTR(link_state, S_IRUGO, snic_show_link_state, NULL);
 
-struct device_attribute *snic_attrs[] = {
-	&dev_attr_snic_sym_name,
-	&dev_attr_snic_state,
-	&dev_attr_drv_version,
-	&dev_attr_link_state,
+static struct attribute *snic_host_attrs[] = {
+	&dev_attr_snic_sym_name.attr,
+	&dev_attr_snic_state.attr,
+	&dev_attr_drv_version.attr,
+	&dev_attr_link_state.attr,
 	NULL,
+};
+
+static const struct attribute_group snic_host_attr_group = {
+	.attrs = snic_host_attrs
+};
+
+const struct attribute_group *snic_host_groups[] = {
+	&snic_host_attr_group,
+	NULL
 };
