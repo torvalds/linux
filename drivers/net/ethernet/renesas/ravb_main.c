@@ -588,7 +588,7 @@ static int ravb_dmac_init_gbeth(struct net_device *ndev)
 	/* Descriptor format */
 	ravb_ring_format(ndev, RAVB_BE);
 
-	/* Set AVB RX */
+	/* Set DMAC RX */
 	ravb_write(ndev, 0x60000000, RCR);
 
 	/* Set Max Frame Length (RTC) */
