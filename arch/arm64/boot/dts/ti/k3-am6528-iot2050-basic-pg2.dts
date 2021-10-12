@@ -6,7 +6,7 @@
  *   Le Jin <le.jin@siemens.com>
  *   Jan Kiszka <jan.kiszka@siemens.com>
  *
- * AM6528-based (dual-core) IOT2050 Basic variant, Product Generation 1
+ * AM6528-based (dual-core) IOT2050 Basic variant, Product Generation 2
  * 1 GB RAM, no eMMC, main_uart0 on connector X30
  *
  * Product homepage:
@@ -16,9 +16,9 @@
 /dts-v1/;
 
 #include "k3-am6528-iot2050-basic-common.dtsi"
-#include "k3-am65-iot2050-common-pg1.dtsi"
+#include "k3-am65-iot2050-common-pg2.dtsi"
 
 / {
-	compatible = "siemens,iot2050-basic", "ti,am654";
-	model = "SIMATIC IOT2050 Basic";
+	compatible = "siemens,iot2050-basic-pg2", "ti,am654";
+	model = "SIMATIC IOT2050 Basic PG2";
 };

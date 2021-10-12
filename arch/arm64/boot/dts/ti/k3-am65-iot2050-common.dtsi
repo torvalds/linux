@@ -4,12 +4,10 @@
  *
  * Authors:
  *   Le Jin <le.jin@siemens.com>
- *   Jan Kiszka <jan.kiszk@siemens.com>
+ *   Jan Kiszka <jan.kiszka@siemens.com>
  *
- * Common bits of the IOT2050 Basic and Advanced variants
+ * Common bits of the IOT2050 Basic and Advanced variants, PG1 and PG2
  */
-
-/dts-v1/;
 
 #include "k3-am654.dtsi"
 #include <dt-bindings/phy/phy.h>
@@ -17,6 +15,8 @@
 / {
 	aliases {
 		spi0 = &mcu_spi0;
+		mmc0 = &sdhci1;
+		mmc1 = &sdhci0;
 	};
 
 	chosen {
@@ -555,7 +555,6 @@
 	pinctrl-0 = <&main_mmc1_pins_default>;
 	ti,driver-strength-ohm = <50>;
 	disable-wp;
-	no-1-8-v;
 };
 
 &usb0 {
@@ -629,10 +628,6 @@
 	};
 };
 
-&serdes0 {
-	status = "disabled";
-};
-
 &pcie0_rc {
 	status = "disabled";
 };
@@ -656,11 +651,21 @@
 };
 
 &mailbox0_cluster0 {
-	status = "disabled";
+	interrupts = <436>;
+
+	mbox_mcu_r5fss0_core0: mbox-mcu-r5fss0-core0 {
+		ti,mbox-tx = <1 0 0>;
+		ti,mbox-rx = <0 0 0>;
+	};
 };
 
 &mailbox0_cluster1 {
-	status = "disabled";
+	interrupts = <432>;
+
+	mbox_mcu_r5fss0_core1: mbox-mcu-r5fss0-core1 {
+		ti,mbox-tx = <1 0 0>;
+		ti,mbox-rx = <0 0 0>;
+	};
 };
 
 &mailbox0_cluster2 {
@@ -701,6 +706,18 @@
 
 &mailbox0_cluster11 {
 	status = "disabled";
+};
+
+&mcu_r5fss0_core0 {
+	memory-region = <&mcu_r5fss0_core0_dma_memory_region>,
+			<&mcu_r5fss0_core0_memory_region>;
+	mboxes = <&mailbox0_cluster0 &mbox_mcu_r5fss0_core0>;
+};
+
+&mcu_r5fss0_core1 {
+	memory-region = <&mcu_r5fss0_core1_dma_memory_region>,
+			<&mcu_r5fss0_core1_memory_region>;
+	mboxes = <&mailbox0_cluster1 &mbox_mcu_r5fss0_core1>;
 };
 
 &icssg0_mdio {
