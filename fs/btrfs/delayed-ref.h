@@ -231,17 +231,10 @@ struct btrfs_ref {
 	 */
 	bool skip_qgroup;
 
-	/*
-	 * Optional. For which root is this modification.
-	 * Mostly used for qgroup optimization.
-	 *
-	 * When unset, data/tree ref init code will populate it.
-	 * In certain cases, we're modifying reference for a different root.
-	 * E.g. COW fs tree blocks for balance.
-	 * In that case, tree_ref::root will be fs tree, but we're doing this
-	 * for reloc tree, then we should set @real_root to reloc tree.
-	 */
+#ifdef CONFIG_BTRFS_FS_REF_VERIFY
+	/* Through which root is this modification. */
 	u64 real_root;
+#endif
 	u64 bytenr;
 	u64 len;
 
@@ -273,9 +266,10 @@ static inline void btrfs_init_generic_ref(struct btrfs_ref *generic_ref,
 static inline void btrfs_init_tree_ref(struct btrfs_ref *generic_ref,
 				int level, u64 root, u64 mod_root, bool skip_qgroup)
 {
+#ifdef CONFIG_BTRFS_FS_REF_VERIFY
 	/* If @real_root not set, use @root as fallback */
-	if (!generic_ref->real_root)
-		generic_ref->real_root = root;
+	generic_ref->real_root = mod_root ?: root;
+#endif
 	generic_ref->tree_ref.level = level;
 	generic_ref->tree_ref.owning_root = root;
 	generic_ref->type = BTRFS_REF_METADATA;
@@ -291,9 +285,10 @@ static inline void btrfs_init_data_ref(struct btrfs_ref *generic_ref,
 				u64 ref_root, u64 ino, u64 offset, u64 mod_root,
 				bool skip_qgroup)
 {
+#ifdef CONFIG_BTRFS_FS_REF_VERIFY
 	/* If @real_root not set, use @root as fallback */
-	if (!generic_ref->real_root)
-		generic_ref->real_root = ref_root;
+	generic_ref->real_root = mod_root ?: ref_root;
+#endif
 	generic_ref->data_ref.owning_root = ref_root;
 	generic_ref->data_ref.ino = ino;
 	generic_ref->data_ref.offset = offset;
