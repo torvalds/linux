@@ -5,6 +5,7 @@
 #ifndef _NET_DSA_TAG_OCELOT_H
 #define _NET_DSA_TAG_OCELOT_H
 
+#include <linux/kthread.h>
 #include <linux/packing.h>
 #include <linux/skbuff.h>
 
@@ -159,6 +160,17 @@ struct ocelot_skb_cb {
  *   7:  0 |                          VID                          |
  *         +------+------+------+------+------+------+------+------+
  */
+
+struct felix_deferred_xmit_work {
+	struct dsa_port *dp;
+	struct sk_buff *skb;
+	struct kthread_work work;
+};
+
+struct felix_port {
+	void (*xmit_work_fn)(struct kthread_work *work);
+	struct kthread_worker *xmit_worker;
+};
 
 static inline void ocelot_xfh_get_rew_val(void *extraction, u64 *rew_val)
 {
