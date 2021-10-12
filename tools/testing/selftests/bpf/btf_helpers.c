@@ -24,12 +24,12 @@ static const char * const btf_kind_str_mapping[] = {
 	[BTF_KIND_VAR]		= "VAR",
 	[BTF_KIND_DATASEC]	= "DATASEC",
 	[BTF_KIND_FLOAT]	= "FLOAT",
-	[BTF_KIND_TAG]		= "TAG",
+	[BTF_KIND_DECL_TAG]	= "DECL_TAG",
 };
 
 static const char *btf_kind_str(__u16 kind)
 {
-	if (kind > BTF_KIND_TAG)
+	if (kind > BTF_KIND_DECL_TAG)
 		return "UNKNOWN";
 	return btf_kind_str_mapping[kind];
 }
@@ -178,9 +178,9 @@ int fprintf_btf_type_raw(FILE *out, const struct btf *btf, __u32 id)
 	case BTF_KIND_FLOAT:
 		fprintf(out, " size=%u", t->size);
 		break;
-	case BTF_KIND_TAG:
+	case BTF_KIND_DECL_TAG:
 		fprintf(out, " type_id=%u component_idx=%d",
-			t->type, btf_tag(t)->component_idx);
+			t->type, btf_decl_tag(t)->component_idx);
 		break;
 	default:
 		break;

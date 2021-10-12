@@ -236,7 +236,7 @@ LIBBPF_API int btf__add_datasec_var_info(struct btf *btf, int var_type_id,
 					 __u32 offset, __u32 byte_sz);
 
 /* tag construction API */
-LIBBPF_API int btf__add_tag(struct btf *btf, const char *value, int ref_type_id,
+LIBBPF_API int btf__add_decl_tag(struct btf *btf, const char *value, int ref_type_id,
 			    int component_idx);
 
 struct btf_dedup_opts {
@@ -426,9 +426,9 @@ static inline bool btf_is_float(const struct btf_type *t)
 	return btf_kind(t) == BTF_KIND_FLOAT;
 }
 
-static inline bool btf_is_tag(const struct btf_type *t)
+static inline bool btf_is_decl_tag(const struct btf_type *t)
 {
-	return btf_kind(t) == BTF_KIND_TAG;
+	return btf_kind(t) == BTF_KIND_DECL_TAG;
 }
 
 static inline __u8 btf_int_encoding(const struct btf_type *t)
@@ -499,10 +499,10 @@ btf_var_secinfos(const struct btf_type *t)
 	return (struct btf_var_secinfo *)(t + 1);
 }
 
-struct btf_tag;
-static inline struct btf_tag *btf_tag(const struct btf_type *t)
+struct btf_decl_tag;
+static inline struct btf_decl_tag *btf_decl_tag(const struct btf_type *t)
 {
-	return (struct btf_tag *)(t + 1);
+	return (struct btf_decl_tag *)(t + 1);
 }
 
 #ifdef __cplusplus

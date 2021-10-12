@@ -309,8 +309,8 @@ static int btf_type_size(const struct btf_type *t)
 		return base_size + sizeof(struct btf_var);
 	case BTF_KIND_DATASEC:
 		return base_size + vlen * sizeof(struct btf_var_secinfo);
-	case BTF_KIND_TAG:
-		return base_size + sizeof(struct btf_tag);
+	case BTF_KIND_DECL_TAG:
+		return base_size + sizeof(struct btf_decl_tag);
 	default:
 		pr_debug("Unsupported BTF_KIND:%u\n", btf_kind(t));
 		return -EINVAL;
@@ -383,8 +383,8 @@ static int btf_bswap_type_rest(struct btf_type *t)
 			v->size = bswap_32(v->size);
 		}
 		return 0;
-	case BTF_KIND_TAG:
-		btf_tag(t)->component_idx = bswap_32(btf_tag(t)->component_idx);
+	case BTF_KIND_DECL_TAG:
+		btf_decl_tag(t)->component_idx = bswap_32(btf_decl_tag(t)->component_idx);
 		return 0;
 	default:
 		pr_debug("Unsupported BTF_KIND:%u\n", btf_kind(t));
@@ -596,7 +596,7 @@ __s64 btf__resolve_size(const struct btf *btf, __u32 type_id)
 		case BTF_KIND_CONST:
 		case BTF_KIND_RESTRICT:
 		case BTF_KIND_VAR:
-		case BTF_KIND_TAG:
+		case BTF_KIND_DECL_TAG:
 			type_id = t->type;
 			break;
 		case BTF_KIND_ARRAY:
@@ -2569,7 +2569,7 @@ int btf__add_datasec_var_info(struct btf *btf, int var_type_id, __u32 offset, __
 }
 
 /*
- * Append new BTF_KIND_TAG type with:
+ * Append new BTF_KIND_DECL_TAG type with:
  *   - *value* - non-empty/non-NULL string;
  *   - *ref_type_id* - referenced type ID, it might not exist yet;
  *   - *component_idx* - -1 for tagging reference type, otherwise struct/union
@@ -2578,7 +2578,7 @@ int btf__add_datasec_var_info(struct btf *btf, int var_type_id, __u32 offset, __
  *   - >0, type ID of newly added BTF type;
  *   - <0, on error.
  */
-int btf__add_tag(struct btf *btf, const char *value, int ref_type_id,
+int btf__add_decl_tag(struct btf *btf, const char *value, int ref_type_id,
 		 int component_idx)
 {
 	struct btf_type *t;
@@ -2593,7 +2593,7 @@ int btf__add_tag(struct btf *btf, const char *value, int ref_type_id,
 	if (btf_ensure_modifiable(btf))
 		return libbpf_err(-ENOMEM);
 
-	sz = sizeof(struct btf_type) + sizeof(struct btf_tag);
+	sz = sizeof(struct btf_type) + sizeof(struct btf_decl_tag);
 	t = btf_add_type_mem(btf, sz);
 	if (!t)
 		return libbpf_err(-ENOMEM);
@@ -2603,9 +2603,9 @@ int btf__add_tag(struct btf *btf, const char *value, int ref_type_id,
 		return value_off;
 
 	t->name_off = value_off;
-	t->info = btf_type_info(BTF_KIND_TAG, 0, false);
+	t->info = btf_type_info(BTF_KIND_DECL_TAG, 0, false);
 	t->type = ref_type_id;
-	btf_tag(t)->component_idx = component_idx;
+	btf_decl_tag(t)->component_idx = component_idx;
 
 	return btf_commit_type(btf, sz);
 }
@@ -3427,7 +3427,7 @@ static bool btf_equal_common(struct btf_type *t1, struct btf_type *t2)
 }
 
 /* Calculate type signature hash of INT or TAG. */
-static long btf_hash_int_tag(struct btf_type *t)
+static long btf_hash_int_decl_tag(struct btf_type *t)
 {
 	__u32 info = *(__u32 *)(t + 1);
 	long h;
@@ -3705,8 +3705,8 @@ static int btf_dedup_prep(struct btf_dedup *d)
 			h = btf_hash_common(t);
 			break;
 		case BTF_KIND_INT:
-		case BTF_KIND_TAG:
-			h = btf_hash_int_tag(t);
+		case BTF_KIND_DECL_TAG:
+			h = btf_hash_int_decl_tag(t);
 			break;
 		case BTF_KIND_ENUM:
 			h = btf_hash_enum(t);
@@ -3761,11 +3761,11 @@ static int btf_dedup_prim_type(struct btf_dedup *d, __u32 type_id)
 	case BTF_KIND_FUNC_PROTO:
 	case BTF_KIND_VAR:
 	case BTF_KIND_DATASEC:
-	case BTF_KIND_TAG:
+	case BTF_KIND_DECL_TAG:
 		return 0;
 
 	case BTF_KIND_INT:
-		h = btf_hash_int_tag(t);
+		h = btf_hash_int_decl_tag(t);
 		for_each_dedup_cand(d, hash_entry, h) {
 			cand_id = (__u32)(long)hash_entry->value;
 			cand = btf_type_by_id(d->btf, cand_id);
@@ -4382,13 +4382,13 @@ static int btf_dedup_ref_type(struct btf_dedup *d, __u32 type_id)
 		}
 		break;
 
-	case BTF_KIND_TAG:
+	case BTF_KIND_DECL_TAG:
 		ref_type_id = btf_dedup_ref_type(d, t->type);
 		if (ref_type_id < 0)
 			return ref_type_id;
 		t->type = ref_type_id;
 
-		h = btf_hash_int_tag(t);
+		h = btf_hash_int_decl_tag(t);
 		for_each_dedup_cand(d, hash_entry, h) {
 			cand_id = (__u32)(long)hash_entry->value;
 			cand = btf_type_by_id(d->btf, cand_id);
@@ -4671,7 +4671,7 @@ int btf_type_visit_type_ids(struct btf_type *t, type_id_visit_fn visit, void *ct
 	case BTF_KIND_TYPEDEF:
 	case BTF_KIND_FUNC:
 	case BTF_KIND_VAR:
-	case BTF_KIND_TAG:
+	case BTF_KIND_DECL_TAG:
 		return visit(&t->type, ctx);
 
 	case BTF_KIND_ARRAY: {

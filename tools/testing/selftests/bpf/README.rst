@@ -204,7 +204,7 @@ __ https://reviews.llvm.org/D93563
 btf_tag test and Clang version
 ==============================
 
-The btf_tag selftest require LLVM support to recognize the btf_tag attribute.
+The btf_tag selftest require LLVM support to recognize the btf_decl_tag attribute.
 It was introduced in `Clang 14`__.
 
 Without it, the btf_tag selftest will be skipped and you will observe:
@@ -213,7 +213,7 @@ Without it, the btf_tag selftest will be skipped and you will observe:
 
   #<test_num> btf_tag:SKIP
 
-__ https://reviews.llvm.org/D106614
+__ https://reviews.llvm.org/D111588
 
 Clang dependencies for static linking tests
 ===========================================
