@@ -851,7 +851,7 @@ unsigned int intel_remapped_info_size(const struct intel_remapped_info *rem_info
 	return size;
 }
 
-static bool intel_plane_uses_fence(const struct intel_plane_state *plane_state)
+bool intel_plane_uses_fence(const struct intel_plane_state *plane_state)
 {
 	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);

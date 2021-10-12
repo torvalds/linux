@@ -615,6 +615,7 @@ void ilk_pfit_disable(const struct intel_crtc_state *old_crtc_state);
 int bdw_get_pipemisc_bpp(struct intel_crtc *crtc);
 unsigned int intel_plane_fence_y_offset(const struct intel_plane_state *plane_state);
 
+bool intel_plane_uses_fence(const struct intel_plane_state *plane_state);
 bool
 intel_format_info_is_yuv_semiplanar(const struct drm_format_info *info,
 				    u64 modifier);
