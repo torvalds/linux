@@ -924,10 +924,10 @@ static void dsa_switch_teardown(struct dsa_switch *ds)
 		ds->slave_mii_bus = NULL;
 	}
 
-	dsa_switch_unregister_notifier(ds);
-
 	if (ds->ops->teardown)
 		ds->ops->teardown(ds);
+
+	dsa_switch_unregister_notifier(ds);
 
 	if (ds->devlink) {
 		list_for_each_entry(dp, &ds->dst->ports, list)
