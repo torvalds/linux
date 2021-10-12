@@ -104,8 +104,14 @@ static int
 mlx5_ib_create_mkey(struct mlx5_ib_dev *dev, struct mlx5_core_mkey *mkey,
 		    u32 *in, int inlen)
 {
+	int ret;
+
 	assign_mkey_variant(dev, mkey, in);
-	return mlx5_core_create_mkey(dev->mdev, mkey, in, inlen);
+	ret = mlx5_core_create_mkey(dev->mdev, &mkey->key, in, inlen);
+	if (!ret)
+		init_waitqueue_head(&mkey->wait);
+
+	return ret;
 }
 
 static int
@@ -133,7 +139,7 @@ static int destroy_mkey(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 {
 	WARN_ON(xa_load(&dev->odp_mkeys, mlx5_base_mkey(mr->mmkey.key)));
 
-	return mlx5_core_destroy_mkey(dev->mdev, &mr->mmkey);
+	return mlx5_core_destroy_mkey(dev->mdev, mr->mmkey.key);
 }
 
 static void create_mkey_callback(int status, struct mlx5_async_work *context)
@@ -260,10 +266,11 @@ static struct mlx5_ib_mr *create_cache_mr(struct mlx5_cache_ent *ent)
 		goto free_in;
 	}
 
-	err = mlx5_core_create_mkey(ent->dev->mdev, &mr->mmkey, in, inlen);
+	err = mlx5_core_create_mkey(ent->dev->mdev, &mr->mmkey.key, in, inlen);
 	if (err)
 		goto free_mr;
 
+	init_waitqueue_head(&mr->mmkey.wait);
 	mr->mmkey.type = MLX5_MKEY_MR;
 	WRITE_ONCE(ent->dev->cache.last_add, jiffies);
 	spin_lock_irq(&ent->lock);
@@ -290,7 +297,7 @@ static void remove_cache_mr_locked(struct mlx5_cache_ent *ent)
 	ent->available_mrs--;
 	ent->total_mrs--;
 	spin_unlock_irq(&ent->lock);
-	mlx5_core_destroy_mkey(ent->dev->mdev, &mr->mmkey);
+	mlx5_core_destroy_mkey(ent->dev->mdev, mr->mmkey.key);
 	kfree(mr);
 	spin_lock_irq(&ent->lock);
 }
@@ -658,7 +665,7 @@ static void clean_keys(struct mlx5_ib_dev *dev, int c)
 		ent->available_mrs--;
 		ent->total_mrs--;
 		spin_unlock_irq(&ent->lock);
-		mlx5_core_destroy_mkey(dev->mdev, &mr->mmkey);
+		mlx5_core_destroy_mkey(dev->mdev, mr->mmkey.key);
 	}
 
 	list_for_each_entry_safe(mr, tmp_mr, &del_list, list) {
@@ -2326,7 +2333,7 @@ int mlx5_ib_alloc_mw(struct ib_mw *ibmw, struct ib_udata *udata)
 	return 0;
 
 free_mkey:
-	mlx5_core_destroy_mkey(dev->mdev, &mw->mmkey);
+	mlx5_core_destroy_mkey(dev->mdev, mw->mmkey.key);
 free:
 	kfree(in);
 	return err;
@@ -2345,7 +2352,7 @@ int mlx5_ib_dealloc_mw(struct ib_mw *mw)
 		 */
 		mlx5r_deref_wait_odp_mkey(&mmw->mmkey);
 
-	return mlx5_core_destroy_mkey(dev->mdev, &mmw->mmkey);
+	return mlx5_core_destroy_mkey(dev->mdev, mmw->mmkey.key);
 }
 
 int mlx5_ib_check_mr_status(struct ib_mr *ibmr, u32 check_mask,
