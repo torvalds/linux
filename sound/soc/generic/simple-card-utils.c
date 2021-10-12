@@ -619,7 +619,8 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 	struct asoc_simple_dai *dais;
 	struct snd_soc_dai_link_component *dlcs;
 	struct snd_soc_codec_conf *cconf = NULL;
-	int i, dai_num = 0, dlc_num = 0, cnf_num = 0;
+	struct snd_soc_pcm_stream *c2c_conf = NULL;
+	int i, dai_num = 0, dlc_num = 0, cnf_num = 0, c2c_num = 0;
 
 	dai_props = devm_kcalloc(dev, li->link, sizeof(*dai_props), GFP_KERNEL);
 	dai_link  = devm_kcalloc(dev, li->link, sizeof(*dai_link),  GFP_KERNEL);
@@ -638,6 +639,8 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 
 		if (!li->num[i].cpus)
 			cnf_num += li->num[i].codecs;
+
+		c2c_num += li->num[i].c2c;
 	}
 
 	dais = devm_kcalloc(dev, dai_num, sizeof(*dais), GFP_KERNEL);
@@ -648,6 +651,12 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 	if (cnf_num) {
 		cconf = devm_kcalloc(dev, cnf_num, sizeof(*cconf), GFP_KERNEL);
 		if (!cconf)
+			return -ENOMEM;
+	}
+
+	if (c2c_num) {
+		c2c_conf = devm_kcalloc(dev, c2c_num, sizeof(*c2c_conf), GFP_KERNEL);
+		if (!c2c_conf)
 			return -ENOMEM;
 	}
 
@@ -664,6 +673,7 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 	priv->dais		= dais;
 	priv->dlcs		= dlcs;
 	priv->codec_conf	= cconf;
+	priv->c2c_conf		= c2c_conf;
 
 	card->dai_link		= priv->dai_link;
 	card->num_links		= li->link;
@@ -681,6 +691,12 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 
 			dlcs += li->num[i].cpus;
 			dais += li->num[i].cpus;
+
+			if (li->num[i].c2c) {
+				/* Codec2Codec */
+				dai_props[i].c2c_conf = c2c_conf;
+				c2c_conf += li->num[i].c2c;
+			}
 		} else {
 			/* DPCM Be's CPU = dummy */
 			dai_props[i].cpus	=
