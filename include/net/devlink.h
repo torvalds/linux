@@ -21,45 +21,7 @@
 #include <linux/xarray.h>
 #include <linux/firmware.h>
 
-#define DEVLINK_RELOAD_STATS_ARRAY_SIZE \
-	(__DEVLINK_RELOAD_LIMIT_MAX * __DEVLINK_RELOAD_ACTION_MAX)
-
-struct devlink_dev_stats {
-	u32 reload_stats[DEVLINK_RELOAD_STATS_ARRAY_SIZE];
-	u32 remote_reload_stats[DEVLINK_RELOAD_STATS_ARRAY_SIZE];
-};
-
-struct devlink_ops;
-
-struct devlink {
-	u32 index;
-	struct list_head port_list;
-	struct list_head rate_list;
-	struct list_head sb_list;
-	struct list_head dpipe_table_list;
-	struct list_head resource_list;
-	struct list_head param_list;
-	struct list_head region_list;
-	struct list_head reporter_list;
-	struct mutex reporters_lock; /* protects reporter_list */
-	struct devlink_dpipe_headers *dpipe_headers;
-	struct list_head trap_list;
-	struct list_head trap_group_list;
-	struct list_head trap_policer_list;
-	const struct devlink_ops *ops;
-	struct xarray snapshot_ids;
-	struct devlink_dev_stats stats;
-	struct device *dev;
-	possible_net_t _net;
-	struct mutex lock; /* Serializes access to devlink instance specific objects such as
-			    * port, sb, dpipe, resource, params, region, traps and more.
-			    */
-	u8 reload_failed:1,
-	   reload_enabled:1;
-	refcount_t refcount;
-	struct completion comp;
-	char priv[0] __aligned(NETDEV_ALIGN);
-};
+struct devlink;
 
 struct devlink_port_phys_attrs {
 	u32 port_number; /* Same value as "split group".
@@ -1224,6 +1186,11 @@ enum devlink_trap_group_generic_id {
 		.min_burst = _min_burst,				      \
 	}
 
+enum {
+	/* device supports reload operations */
+	DEVLINK_F_RELOAD = 1UL << 0,
+};
+
 struct devlink_ops {
 	/**
 	 * @supported_flash_update_params:
@@ -1520,34 +1487,9 @@ struct devlink_ops {
 				    struct netlink_ext_ack *extack);
 };
 
-static inline void *devlink_priv(struct devlink *devlink)
-{
-	BUG_ON(!devlink);
-	return &devlink->priv;
-}
-
-static inline struct devlink *priv_to_devlink(void *priv)
-{
-	BUG_ON(!priv);
-	return container_of(priv, struct devlink, priv);
-}
-
-static inline struct devlink_port *
-netdev_to_devlink_port(struct net_device *dev)
-{
-	if (dev->netdev_ops->ndo_get_devlink_port)
-		return dev->netdev_ops->ndo_get_devlink_port(dev);
-	return NULL;
-}
-
-static inline struct devlink *netdev_to_devlink(struct net_device *dev)
-{
-	struct devlink_port *devlink_port = netdev_to_devlink_port(dev);
-
-	if (devlink_port)
-		return devlink_port->devlink;
-	return NULL;
-}
+void *devlink_priv(struct devlink *devlink);
+struct devlink *priv_to_devlink(void *priv);
+struct device *devlink_to_dev(const struct devlink *devlink);
 
 struct ib_device;
 
@@ -1566,10 +1508,9 @@ static inline struct devlink *devlink_alloc(const struct devlink_ops *ops,
 {
 	return devlink_alloc_ns(ops, priv_size, &init_net, dev);
 }
+void devlink_set_features(struct devlink *devlink, u64 features);
 void devlink_register(struct devlink *devlink);
 void devlink_unregister(struct devlink *devlink);
-void devlink_reload_enable(struct devlink *devlink);
-void devlink_reload_disable(struct devlink *devlink);
 void devlink_free(struct devlink *devlink);
 int devlink_port_register(struct devlink *devlink,
 			  struct devlink_port *devlink_port,
