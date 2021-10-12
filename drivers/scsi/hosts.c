@@ -376,7 +376,7 @@ static struct device_type scsi_host_type = {
 struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 {
 	struct Scsi_Host *shost;
-	int index;
+	int index, i, j = 0;
 
 	shost = kzalloc(sizeof(struct Scsi_Host) + privsize, GFP_KERNEL);
 	if (!shost)
@@ -481,7 +481,26 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 	shost->shost_dev.parent = &shost->shost_gendev;
 	shost->shost_dev.class = &shost_class;
 	dev_set_name(&shost->shost_dev, "host%d", shost->host_no);
-	shost->shost_dev.groups = scsi_sysfs_shost_attr_groups;
+	shost->shost_dev.groups = shost->shost_dev_attr_groups;
+	shost->shost_dev_attr_groups[j++] = &scsi_shost_attr_group;
+	if (sht->shost_attrs) {
+		shost->lld_attr_group = (struct attribute_group){
+			.attrs = scsi_convert_dev_attrs(&shost->shost_gendev,
+							sht->shost_attrs)
+		};
+		if (shost->lld_attr_group.attrs)
+			shost->shost_dev_attr_groups[j++] =
+				&shost->lld_attr_group;
+	}
+	if (sht->shost_groups) {
+		for (i = 0; sht->shost_groups[i] &&
+			     j < ARRAY_SIZE(shost->shost_dev_attr_groups);
+		     i++, j++) {
+			shost->shost_dev_attr_groups[j] =
+				sht->shost_groups[i];
+		}
+	}
+	WARN_ON_ONCE(j >= ARRAY_SIZE(shost->shost_dev_attr_groups));
 
 	shost->ehandler = kthread_run(scsi_error_handler, shost,
 			"scsi_eh_%d", shost->host_no);
