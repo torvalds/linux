@@ -258,11 +258,15 @@ void __xfs_free_extent_later(struct xfs_trans *tp, xfs_fsblock_t bno,
  */
 struct xfs_extent_free_item {
 	struct list_head	xefi_list;
+	uint64_t		xefi_owner;
 	xfs_fsblock_t		xefi_startblock;/* starting fs block number */
 	xfs_extlen_t		xefi_blockcount;/* number of blocks in extent */
-	bool			xefi_skip_discard;
-	struct xfs_owner_info	xefi_oinfo;	/* extent owner */
+	unsigned int		xefi_flags;
 };
+
+#define XFS_EFI_SKIP_DISCARD	(1U << 0) /* don't issue discard */
+#define XFS_EFI_ATTR_FORK	(1U << 1) /* freeing attr fork block */
+#define XFS_EFI_BMBT_BLOCK	(1U << 2) /* freeing bmap btree block */
 
 static inline void
 xfs_free_extent_later(

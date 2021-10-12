@@ -2462,12 +2462,11 @@ xfs_defer_agfl_block(
 	ASSERT(xfs_extfree_item_cache != NULL);
 	ASSERT(oinfo != NULL);
 
-	new = kmem_cache_alloc(xfs_extfree_item_cache,
+	new = kmem_cache_zalloc(xfs_extfree_item_cache,
 			       GFP_KERNEL | __GFP_NOFAIL);
 	new->xefi_startblock = XFS_AGB_TO_FSB(mp, agno, agbno);
 	new->xefi_blockcount = 1;
-	new->xefi_oinfo = *oinfo;
-	new->xefi_skip_discard = false;
+	new->xefi_owner = oinfo->oi_owner;
 
 	trace_xfs_agfl_free_defer(mp, agno, 0, agbno, 1);
 
@@ -2505,15 +2504,23 @@ __xfs_free_extent_later(
 #endif
 	ASSERT(xfs_extfree_item_cache != NULL);
 
-	new = kmem_cache_alloc(xfs_extfree_item_cache,
+	new = kmem_cache_zalloc(xfs_extfree_item_cache,
 			       GFP_KERNEL | __GFP_NOFAIL);
 	new->xefi_startblock = bno;
 	new->xefi_blockcount = (xfs_extlen_t)len;
-	if (oinfo)
-		new->xefi_oinfo = *oinfo;
-	else
-		new->xefi_oinfo = XFS_RMAP_OINFO_SKIP_UPDATE;
-	new->xefi_skip_discard = skip_discard;
+	if (skip_discard)
+		new->xefi_flags |= XFS_EFI_SKIP_DISCARD;
+	if (oinfo) {
+		ASSERT(oinfo->oi_offset == 0);
+
+		if (oinfo->oi_flags & XFS_OWNER_INFO_ATTR_FORK)
+			new->xefi_flags |= XFS_EFI_ATTR_FORK;
+		if (oinfo->oi_flags & XFS_OWNER_INFO_BMBT_BLOCK)
+			new->xefi_flags |= XFS_EFI_BMBT_BLOCK;
+		new->xefi_owner = oinfo->oi_owner;
+	} else {
+		new->xefi_owner = XFS_RMAP_OWN_NULL;
+	}
 	trace_xfs_bmap_free_defer(tp->t_mountp,
 			XFS_FSB_TO_AGNO(tp->t_mountp, bno), 0,
 			XFS_FSB_TO_AGBNO(tp->t_mountp, bno), len);
