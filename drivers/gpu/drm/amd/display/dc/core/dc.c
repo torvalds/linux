@@ -3118,8 +3118,13 @@ void dc_commit_updates_for_stream(struct dc *dc,
 			if (new_pipe->plane_state && new_pipe->plane_state != old_pipe->plane_state)
 				new_pipe->plane_state->force_full_update = true;
 		}
-	} else if (update_type == UPDATE_TYPE_FAST) {
-		/* Previous frame finished and HW is ready for optimization. */
+	} else if (update_type == UPDATE_TYPE_FAST && dc_ctx->dce_version >= DCE_VERSION_MAX) {
+		/*
+		 * Previous frame finished and HW is ready for optimization.
+		 *
+		 * Only relevant for DCN behavior where we can guarantee the optimization
+		 * is safe to apply - retain the legacy behavior for DCE.
+		 */
 		dc_post_update_surfaces_to_stream(dc);
 	}
 
@@ -3176,6 +3181,12 @@ void dc_commit_updates_for_stream(struct dc *dc,
 			if (pipe_ctx->plane_state && pipe_ctx->stream == stream)
 				pipe_ctx->plane_state->force_full_update = false;
 		}
+	}
+
+	/* Legacy optimization path for DCE. */
+	if (update_type >= UPDATE_TYPE_FULL && dc_ctx->dce_version < DCE_VERSION_MAX) {
+		dc_post_update_surfaces_to_stream(dc);
+		TRACE_DCE_CLOCK_STATE(&context->bw_ctx.bw.dce);
 	}
 
 	return;
