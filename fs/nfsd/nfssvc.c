@@ -1067,10 +1067,10 @@ out_encode_err:
  * @xdr: XDR stream positioned at arguments to decode
  *
  * Return values:
- *   %0: Arguments were not valid
- *   %1: Decoding was successful
+ *   %false: Arguments were not valid
+ *   %true: Decoding was successful
  */
-int nfssvc_decode_voidarg(struct svc_rqst *rqstp, struct xdr_stream *xdr)
+bool nfssvc_decode_voidarg(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	return 1;
 }

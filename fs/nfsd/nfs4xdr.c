@@ -2322,7 +2322,7 @@ nfsd4_opnum_in_range(struct nfsd4_compoundargs *argp, struct nfsd4_op *op)
 	return true;
 }
 
-static int
+static bool
 nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 {
 	struct nfsd4_op *op;
@@ -2335,25 +2335,25 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 	int i;
 
 	if (xdr_stream_decode_u32(argp->xdr, &argp->taglen) < 0)
-		return 0;
+		return false;
 	max_reply += XDR_UNIT;
 	argp->tag = NULL;
 	if (unlikely(argp->taglen)) {
 		if (argp->taglen > NFSD4_MAX_TAGLEN)
-			return 0;
+			return false;
 		p = xdr_inline_decode(argp->xdr, argp->taglen);
 		if (!p)
-			return 0;
+			return false;
 		argp->tag = svcxdr_savemem(argp, p, argp->taglen);
 		if (!argp->tag)
-			return 0;
+			return false;
 		max_reply += xdr_align_size(argp->taglen);
 	}
 
 	if (xdr_stream_decode_u32(argp->xdr, &argp->minorversion) < 0)
-		return 0;
+		return false;
 	if (xdr_stream_decode_u32(argp->xdr, &argp->opcnt) < 0)
-		return 0;
+		return false;
 
 	/*
 	 * NFS4ERR_RESOURCE is a more helpful error than GARBAGE_ARGS
@@ -2361,14 +2361,14 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 	 * nfsd4_proc can handle this is an NFS-level error.
 	 */
 	if (argp->opcnt > NFSD_MAX_OPS_PER_COMPOUND)
-		return 1;
+		return true;
 
 	if (argp->opcnt > ARRAY_SIZE(argp->iops)) {
 		argp->ops = kzalloc(argp->opcnt * sizeof(*argp->ops), GFP_KERNEL);
 		if (!argp->ops) {
 			argp->ops = argp->iops;
 			dprintk("nfsd: couldn't allocate room for COMPOUND\n");
-			return 0;
+			return false;
 		}
 	}
 
@@ -2380,7 +2380,7 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 		op->replay = NULL;
 
 		if (xdr_stream_decode_u32(argp->xdr, &op->opnum) < 0)
-			return 0;
+			return false;
 		if (nfsd4_opnum_in_range(argp, op)) {
 			op->status = nfsd4_dec_ops[op->opnum](argp, &op->u);
 			if (op->status != nfs_ok)
@@ -2427,7 +2427,7 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 	if (readcount > 1 || max_reply > PAGE_SIZE - auth_slack)
 		clear_bit(RQ_SPLICE_OK, &argp->rqstp->rq_flags);
 
-	return 1;
+	return true;
 }
 
 static __be32 *encode_change(__be32 *p, struct kstat *stat, struct inode *inode,
@@ -5411,7 +5411,7 @@ void nfsd4_release_compoundargs(struct svc_rqst *rqstp)
 	}
 }
 
-int
+bool
 nfs4svc_decode_compoundargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd4_compoundargs *args = rqstp->rq_argp;

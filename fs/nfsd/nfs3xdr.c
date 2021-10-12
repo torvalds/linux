@@ -556,7 +556,7 @@ void fill_post_wcc(struct svc_fh *fhp)
  * XDR decode functions
  */
 
-int
+bool
 nfs3svc_decode_fhandleargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd_fhandle *args = rqstp->rq_argp;
@@ -564,7 +564,7 @@ nfs3svc_decode_fhandleargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 	return svcxdr_decode_nfs_fh3(xdr, &args->fh);
 }
 
-int
+bool
 nfs3svc_decode_sattrargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd3_sattrargs *args = rqstp->rq_argp;
@@ -574,7 +574,7 @@ nfs3svc_decode_sattrargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 		svcxdr_decode_sattrguard3(xdr, args);
 }
 
-int
+bool
 nfs3svc_decode_diropargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd3_diropargs *args = rqstp->rq_argp;
@@ -582,75 +582,75 @@ nfs3svc_decode_diropargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 	return svcxdr_decode_diropargs3(xdr, &args->fh, &args->name, &args->len);
 }
 
-int
+bool
 nfs3svc_decode_accessargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd3_accessargs *args = rqstp->rq_argp;
 
 	if (!svcxdr_decode_nfs_fh3(xdr, &args->fh))
-		return 0;
+		return false;
 	if (xdr_stream_decode_u32(xdr, &args->access) < 0)
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
-int
+bool
 nfs3svc_decode_readargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd3_readargs *args = rqstp->rq_argp;
 
 	if (!svcxdr_decode_nfs_fh3(xdr, &args->fh))
-		return 0;
+		return false;
 	if (xdr_stream_decode_u64(xdr, &args->offset) < 0)
-		return 0;
+		return false;
 	if (xdr_stream_decode_u32(xdr, &args->count) < 0)
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
-int
+bool
 nfs3svc_decode_writeargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd3_writeargs *args = rqstp->rq_argp;
 	u32 max_blocksize = svc_max_payload(rqstp);
 
 	if (!svcxdr_decode_nfs_fh3(xdr, &args->fh))
-		return 0;
+		return false;
 	if (xdr_stream_decode_u64(xdr, &args->offset) < 0)
-		return 0;
+		return false;
 	if (xdr_stream_decode_u32(xdr, &args->count) < 0)
-		return 0;
+		return false;
 	if (xdr_stream_decode_u32(xdr, &args->stable) < 0)
-		return 0;
+		return false;
 
 	/* opaque data */
 	if (xdr_stream_decode_u32(xdr, &args->len) < 0)
-		return 0;
+		return false;
 
 	/* request sanity */
 	if (args->count != args->len)
-		return 0;
+		return false;
 	if (args->count > max_blocksize) {
 		args->count = max_blocksize;
 		args->len = max_blocksize;
 	}
 	if (!xdr_stream_subsegment(xdr, &args->payload, args->count))
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
-int
+bool
 nfs3svc_decode_createargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd3_createargs *args = rqstp->rq_argp;
 
 	if (!svcxdr_decode_diropargs3(xdr, &args->fh, &args->name, &args->len))
-		return 0;
+		return false;
 	if (xdr_stream_decode_u32(xdr, &args->createmode) < 0)
-		return 0;
+		return false;
 	switch (args->createmode) {
 	case NFS3_CREATE_UNCHECKED:
 	case NFS3_CREATE_GUARDED:
@@ -658,15 +658,15 @@ nfs3svc_decode_createargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 	case NFS3_CREATE_EXCLUSIVE:
 		args->verf = xdr_inline_decode(xdr, NFS3_CREATEVERFSIZE);
 		if (!args->verf)
-			return 0;
+			return false;
 		break;
 	default:
-		return 0;
+		return false;
 	}
-	return 1;
+	return true;
 }
 
-int
+bool
 nfs3svc_decode_mkdirargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd3_createargs *args = rqstp->rq_argp;
@@ -676,7 +676,7 @@ nfs3svc_decode_mkdirargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 		svcxdr_decode_sattr3(rqstp, xdr, &args->attrs);
 }
 
-int
+bool
 nfs3svc_decode_symlinkargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd3_symlinkargs *args = rqstp->rq_argp;
@@ -685,33 +685,33 @@ nfs3svc_decode_symlinkargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 	size_t remaining;
 
 	if (!svcxdr_decode_diropargs3(xdr, &args->ffh, &args->fname, &args->flen))
-		return 0;
+		return false;
 	if (!svcxdr_decode_sattr3(rqstp, xdr, &args->attrs))
-		return 0;
+		return false;
 	if (xdr_stream_decode_u32(xdr, &args->tlen) < 0)
-		return 0;
+		return false;
 
 	/* request sanity */
 	remaining = head->iov_len + rqstp->rq_arg.page_len + tail->iov_len;
 	remaining -= xdr_stream_pos(xdr);
 	if (remaining < xdr_align_size(args->tlen))
-		return 0;
+		return false;
 
 	args->first.iov_base = xdr->p;
 	args->first.iov_len = head->iov_len - xdr_stream_pos(xdr);
 
-	return 1;
+	return true;
 }
 
-int
+bool
 nfs3svc_decode_mknodargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd3_mknodargs *args = rqstp->rq_argp;
 
 	if (!svcxdr_decode_diropargs3(xdr, &args->fh, &args->name, &args->len))
-		return 0;
+		return false;
 	if (xdr_stream_decode_u32(xdr, &args->ftype) < 0)
-		return 0;
+		return false;
 	switch (args->ftype) {
 	case NF3CHR:
 	case NF3BLK:
@@ -725,13 +725,13 @@ nfs3svc_decode_mknodargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 		/* Valid XDR but illegal file types */
 		break;
 	default:
-		return 0;
+		return false;
 	}
 
-	return 1;
+	return true;
 }
 
-int
+bool
 nfs3svc_decode_renameargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd3_renameargs *args = rqstp->rq_argp;
@@ -742,7 +742,7 @@ nfs3svc_decode_renameargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 					 &args->tname, &args->tlen);
 }
 
-int
+bool
 nfs3svc_decode_linkargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd3_linkargs *args = rqstp->rq_argp;
@@ -752,59 +752,59 @@ nfs3svc_decode_linkargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 					 &args->tname, &args->tlen);
 }
 
-int
+bool
 nfs3svc_decode_readdirargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd3_readdirargs *args = rqstp->rq_argp;
 
 	if (!svcxdr_decode_nfs_fh3(xdr, &args->fh))
-		return 0;
+		return false;
 	if (xdr_stream_decode_u64(xdr, &args->cookie) < 0)
-		return 0;
+		return false;
 	args->verf = xdr_inline_decode(xdr, NFS3_COOKIEVERFSIZE);
 	if (!args->verf)
-		return 0;
+		return false;
 	if (xdr_stream_decode_u32(xdr, &args->count) < 0)
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
-int
+bool
 nfs3svc_decode_readdirplusargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd3_readdirargs *args = rqstp->rq_argp;
 	u32 dircount;
 
 	if (!svcxdr_decode_nfs_fh3(xdr, &args->fh))
-		return 0;
+		return false;
 	if (xdr_stream_decode_u64(xdr, &args->cookie) < 0)
-		return 0;
+		return false;
 	args->verf = xdr_inline_decode(xdr, NFS3_COOKIEVERFSIZE);
 	if (!args->verf)
-		return 0;
+		return false;
 	/* dircount is ignored */
 	if (xdr_stream_decode_u32(xdr, &dircount) < 0)
-		return 0;
+		return false;
 	if (xdr_stream_decode_u32(xdr, &args->count) < 0)
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
-int
+bool
 nfs3svc_decode_commitargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd3_commitargs *args = rqstp->rq_argp;
 
 	if (!svcxdr_decode_nfs_fh3(xdr, &args->fh))
-		return 0;
+		return false;
 	if (xdr_stream_decode_u64(xdr, &args->offset) < 0)
-		return 0;
+		return false;
 	if (xdr_stream_decode_u32(xdr, &args->count) < 0)
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
 /*

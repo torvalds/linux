@@ -145,103 +145,103 @@ svcxdr_encode_testrply(struct xdr_stream *xdr, const struct nlm_res *resp)
  * Decode Call arguments
  */
 
-int
+bool
 nlmsvc_decode_void(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
-	return 1;
+	return true;
 }
 
-int
+bool
 nlmsvc_decode_testargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nlm_args *argp = rqstp->rq_argp;
 	u32 exclusive;
 
 	if (!svcxdr_decode_cookie(xdr, &argp->cookie))
-		return 0;
+		return false;
 	if (xdr_stream_decode_bool(xdr, &exclusive) < 0)
-		return 0;
+		return false;
 	if (!svcxdr_decode_lock(xdr, &argp->lock))
-		return 0;
+		return false;
 	if (exclusive)
 		argp->lock.fl.fl_type = F_WRLCK;
 
-	return 1;
+	return true;
 }
 
-int
+bool
 nlmsvc_decode_lockargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nlm_args *argp = rqstp->rq_argp;
 	u32 exclusive;
 
 	if (!svcxdr_decode_cookie(xdr, &argp->cookie))
-		return 0;
+		return false;
 	if (xdr_stream_decode_bool(xdr, &argp->block) < 0)
-		return 0;
+		return false;
 	if (xdr_stream_decode_bool(xdr, &exclusive) < 0)
-		return 0;
+		return false;
 	if (!svcxdr_decode_lock(xdr, &argp->lock))
-		return 0;
+		return false;
 	if (exclusive)
 		argp->lock.fl.fl_type = F_WRLCK;
 	if (xdr_stream_decode_bool(xdr, &argp->reclaim) < 0)
-		return 0;
+		return false;
 	if (xdr_stream_decode_u32(xdr, &argp->state) < 0)
-		return 0;
+		return false;
 	argp->monitor = 1;		/* monitor client by default */
 
-	return 1;
+	return true;
 }
 
-int
+bool
 nlmsvc_decode_cancargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nlm_args *argp = rqstp->rq_argp;
 	u32 exclusive;
 
 	if (!svcxdr_decode_cookie(xdr, &argp->cookie))
-		return 0;
+		return false;
 	if (xdr_stream_decode_bool(xdr, &argp->block) < 0)
-		return 0;
+		return false;
 	if (xdr_stream_decode_bool(xdr, &exclusive) < 0)
-		return 0;
+		return false;
 	if (!svcxdr_decode_lock(xdr, &argp->lock))
-		return 0;
+		return false;
 	if (exclusive)
 		argp->lock.fl.fl_type = F_WRLCK;
 
-	return 1;
+	return true;
 }
 
-int
+bool
 nlmsvc_decode_unlockargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nlm_args *argp = rqstp->rq_argp;
 
 	if (!svcxdr_decode_cookie(xdr, &argp->cookie))
-		return 0;
+		return false;
 	if (!svcxdr_decode_lock(xdr, &argp->lock))
-		return 0;
+		return false;
 	argp->lock.fl.fl_type = F_UNLCK;
 
-	return 1;
+	return true;
 }
 
-int
+bool
 nlmsvc_decode_res(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nlm_res *resp = rqstp->rq_argp;
 
 	if (!svcxdr_decode_cookie(xdr, &resp->cookie))
-		return 0;
+		return false;
 	if (!svcxdr_decode_stats(xdr, &resp->status))
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
-int
+bool
 nlmsvc_decode_reboot(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nlm_reboot *argp = rqstp->rq_argp;
@@ -249,25 +249,25 @@ nlmsvc_decode_reboot(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 	u32 len;
 
 	if (xdr_stream_decode_u32(xdr, &len) < 0)
-		return 0;
+		return false;
 	if (len > SM_MAXSTRLEN)
-		return 0;
+		return false;
 	p = xdr_inline_decode(xdr, len);
 	if (!p)
-		return 0;
+		return false;
 	argp->len = len;
 	argp->mon = (char *)p;
 	if (xdr_stream_decode_u32(xdr, &argp->state) < 0)
-		return 0;
+		return false;
 	p = xdr_inline_decode(xdr, SM_PRIV_SIZE);
 	if (!p)
-		return 0;
+		return false;
 	memcpy(&argp->priv.data, p, sizeof(argp->priv.data));
 
-	return 1;
+	return true;
 }
 
-int
+bool
 nlmsvc_decode_shareargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nlm_args *argp = rqstp->rq_argp;
@@ -278,34 +278,34 @@ nlmsvc_decode_shareargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 	lock->svid = ~(u32)0;
 
 	if (!svcxdr_decode_cookie(xdr, &argp->cookie))
-		return 0;
+		return false;
 	if (!svcxdr_decode_string(xdr, &lock->caller, &lock->len))
-		return 0;
+		return false;
 	if (!svcxdr_decode_fhandle(xdr, &lock->fh))
-		return 0;
+		return false;
 	if (!svcxdr_decode_owner(xdr, &lock->oh))
-		return 0;
+		return false;
 	/* XXX: Range checks are missing in the original code */
 	if (xdr_stream_decode_u32(xdr, &argp->fsm_mode) < 0)
-		return 0;
+		return false;
 	if (xdr_stream_decode_u32(xdr, &argp->fsm_access) < 0)
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
-int
+bool
 nlmsvc_decode_notify(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nlm_args *argp = rqstp->rq_argp;
 	struct nlm_lock	*lock = &argp->lock;
 
 	if (!svcxdr_decode_string(xdr, &lock->caller, &lock->len))
-		return 0;
+		return false;
 	if (xdr_stream_decode_u32(xdr, &argp->state) < 0)
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
 

@@ -141,16 +141,16 @@ union nfsd_xdrstore {
 #define NFS2_SVC_XDRSIZE	sizeof(union nfsd_xdrstore)
 
 
-int nfssvc_decode_fhandleargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-int nfssvc_decode_sattrargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-int nfssvc_decode_diropargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-int nfssvc_decode_readargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-int nfssvc_decode_writeargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-int nfssvc_decode_createargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-int nfssvc_decode_renameargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-int nfssvc_decode_linkargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-int nfssvc_decode_symlinkargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-int nfssvc_decode_readdirargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool nfssvc_decode_fhandleargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool nfssvc_decode_sattrargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool nfssvc_decode_diropargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool nfssvc_decode_readargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool nfssvc_decode_writeargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool nfssvc_decode_createargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool nfssvc_decode_renameargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool nfssvc_decode_linkargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool nfssvc_decode_symlinkargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool nfssvc_decode_readdirargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 
 int nfssvc_encode_statres(struct svc_rqst *, __be32 *);
 int nfssvc_encode_attrstatres(struct svc_rqst *, __be32 *);

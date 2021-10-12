@@ -272,7 +272,7 @@ svcxdr_encode_fattr(struct svc_rqst *rqstp, struct xdr_stream *xdr,
  * XDR decode functions
  */
 
-int
+bool
 nfssvc_decode_fhandleargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd_fhandle *args = rqstp->rq_argp;
@@ -280,7 +280,7 @@ nfssvc_decode_fhandleargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 	return svcxdr_decode_fhandle(xdr, &args->fh);
 }
 
-int
+bool
 nfssvc_decode_sattrargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd_sattrargs *args = rqstp->rq_argp;
@@ -289,7 +289,7 @@ nfssvc_decode_sattrargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 		svcxdr_decode_sattr(rqstp, xdr, &args->attrs);
 }
 
-int
+bool
 nfssvc_decode_diropargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd_diropargs *args = rqstp->rq_argp;
@@ -297,54 +297,54 @@ nfssvc_decode_diropargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 	return svcxdr_decode_diropargs(xdr, &args->fh, &args->name, &args->len);
 }
 
-int
+bool
 nfssvc_decode_readargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd_readargs *args = rqstp->rq_argp;
 	u32 totalcount;
 
 	if (!svcxdr_decode_fhandle(xdr, &args->fh))
-		return 0;
+		return false;
 	if (xdr_stream_decode_u32(xdr, &args->offset) < 0)
-		return 0;
+		return false;
 	if (xdr_stream_decode_u32(xdr, &args->count) < 0)
-		return 0;
+		return false;
 	/* totalcount is ignored */
 	if (xdr_stream_decode_u32(xdr, &totalcount) < 0)
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
-int
+bool
 nfssvc_decode_writeargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd_writeargs *args = rqstp->rq_argp;
 	u32 beginoffset, totalcount;
 
 	if (!svcxdr_decode_fhandle(xdr, &args->fh))
-		return 0;
+		return false;
 	/* beginoffset is ignored */
 	if (xdr_stream_decode_u32(xdr, &beginoffset) < 0)
-		return 0;
+		return false;
 	if (xdr_stream_decode_u32(xdr, &args->offset) < 0)
-		return 0;
+		return false;
 	/* totalcount is ignored */
 	if (xdr_stream_decode_u32(xdr, &totalcount) < 0)
-		return 0;
+		return false;
 
 	/* opaque data */
 	if (xdr_stream_decode_u32(xdr, &args->len) < 0)
-		return 0;
+		return false;
 	if (args->len > NFSSVC_MAXBLKSIZE_V2)
-		return 0;
+		return false;
 	if (!xdr_stream_subsegment(xdr, &args->payload, args->len))
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
-int
+bool
 nfssvc_decode_createargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd_createargs *args = rqstp->rq_argp;
@@ -354,7 +354,7 @@ nfssvc_decode_createargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 		svcxdr_decode_sattr(rqstp, xdr, &args->attrs);
 }
 
-int
+bool
 nfssvc_decode_renameargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd_renameargs *args = rqstp->rq_argp;
@@ -365,7 +365,7 @@ nfssvc_decode_renameargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 					&args->tname, &args->tlen);
 }
 
-int
+bool
 nfssvc_decode_linkargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd_linkargs *args = rqstp->rq_argp;
@@ -375,39 +375,39 @@ nfssvc_decode_linkargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 					&args->tname, &args->tlen);
 }
 
-int
+bool
 nfssvc_decode_symlinkargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd_symlinkargs *args = rqstp->rq_argp;
 	struct kvec *head = rqstp->rq_arg.head;
 
 	if (!svcxdr_decode_diropargs(xdr, &args->ffh, &args->fname, &args->flen))
-		return 0;
+		return false;
 	if (xdr_stream_decode_u32(xdr, &args->tlen) < 0)
-		return 0;
+		return false;
 	if (args->tlen == 0)
-		return 0;
+		return false;
 
 	args->first.iov_len = head->iov_len - xdr_stream_pos(xdr);
 	args->first.iov_base = xdr_inline_decode(xdr, args->tlen);
 	if (!args->first.iov_base)
-		return 0;
+		return false;
 	return svcxdr_decode_sattr(rqstp, xdr, &args->attrs);
 }
 
-int
+bool
 nfssvc_decode_readdirargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd_readdirargs *args = rqstp->rq_argp;
 
 	if (!svcxdr_decode_fhandle(xdr, &args->fh))
-		return 0;
+		return false;
 	if (xdr_stream_decode_u32(xdr, &args->cookie) < 0)
-		return 0;
+		return false;
 	if (xdr_stream_decode_u32(xdr, &args->count) < 0)
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
 /*

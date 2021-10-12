@@ -127,38 +127,38 @@ out:
  * XDR decode functions
  */
 
-static int
+static bool
 nfs3svc_decode_getaclargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd3_getaclargs *args = rqstp->rq_argp;
 
 	if (!svcxdr_decode_nfs_fh3(xdr, &args->fh))
-		return 0;
+		return false;
 	if (xdr_stream_decode_u32(xdr, &args->mask) < 0)
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
-static int
+static bool
 nfs3svc_decode_setaclargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd3_setaclargs *argp = rqstp->rq_argp;
 
 	if (!svcxdr_decode_nfs_fh3(xdr, &argp->fh))
-		return 0;
+		return false;
 	if (xdr_stream_decode_u32(xdr, &argp->mask) < 0)
-		return 0;
+		return false;
 	if (argp->mask & ~NFS_ACL_MASK)
-		return 0;
+		return false;
 	if (!nfs_stream_decode_acl(xdr, NULL, (argp->mask & NFS_ACL) ?
 				   &argp->acl_access : NULL))
-		return 0;
+		return false;
 	if (!nfs_stream_decode_acl(xdr, NULL, (argp->mask & NFS_DFACL) ?
 				   &argp->acl_default : NULL))
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
 /*
