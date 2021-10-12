@@ -175,8 +175,7 @@ static void ep93xx_keypad_close(struct input_dev *pdev)
 }
 
 
-#ifdef CONFIG_PM_SLEEP
-static int ep93xx_keypad_suspend(struct device *dev)
+static int __maybe_unused ep93xx_keypad_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct ep93xx_keypad *keypad = platform_get_drvdata(pdev);
@@ -197,7 +196,7 @@ static int ep93xx_keypad_suspend(struct device *dev)
 	return 0;
 }
 
-static int ep93xx_keypad_resume(struct device *dev)
+static int __maybe_unused ep93xx_keypad_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct ep93xx_keypad *keypad = platform_get_drvdata(pdev);
@@ -220,7 +219,6 @@ static int ep93xx_keypad_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(ep93xx_keypad_pm_ops,
 			 ep93xx_keypad_suspend, ep93xx_keypad_resume);
