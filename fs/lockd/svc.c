@@ -780,11 +780,10 @@ module_exit(exit_nlm);
 static int nlmsvc_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 {
 	const struct svc_procedure *procp = rqstp->rq_procinfo;
-	struct kvec *argv = rqstp->rq_arg.head;
 	struct kvec *resv = rqstp->rq_res.head;
 
 	svcxdr_init_decode(rqstp);
-	if (!procp->pc_decode(rqstp, argv->iov_base))
+	if (!procp->pc_decode(rqstp, &rqstp->rq_arg_stream))
 		goto out_decode_err;
 
 	*statp = procp->pc_func(rqstp);

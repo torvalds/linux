@@ -273,18 +273,16 @@ svcxdr_encode_fattr(struct svc_rqst *rqstp, struct xdr_stream *xdr,
  */
 
 int
-nfssvc_decode_fhandleargs(struct svc_rqst *rqstp, __be32 *p)
+nfssvc_decode_fhandleargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
-	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct nfsd_fhandle *args = rqstp->rq_argp;
 
 	return svcxdr_decode_fhandle(xdr, &args->fh);
 }
 
 int
-nfssvc_decode_sattrargs(struct svc_rqst *rqstp, __be32 *p)
+nfssvc_decode_sattrargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
-	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct nfsd_sattrargs *args = rqstp->rq_argp;
 
 	return svcxdr_decode_fhandle(xdr, &args->fh) &&
@@ -292,18 +290,16 @@ nfssvc_decode_sattrargs(struct svc_rqst *rqstp, __be32 *p)
 }
 
 int
-nfssvc_decode_diropargs(struct svc_rqst *rqstp, __be32 *p)
+nfssvc_decode_diropargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
-	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct nfsd_diropargs *args = rqstp->rq_argp;
 
 	return svcxdr_decode_diropargs(xdr, &args->fh, &args->name, &args->len);
 }
 
 int
-nfssvc_decode_readargs(struct svc_rqst *rqstp, __be32 *p)
+nfssvc_decode_readargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
-	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct nfsd_readargs *args = rqstp->rq_argp;
 	u32 totalcount;
 
@@ -321,9 +317,8 @@ nfssvc_decode_readargs(struct svc_rqst *rqstp, __be32 *p)
 }
 
 int
-nfssvc_decode_writeargs(struct svc_rqst *rqstp, __be32 *p)
+nfssvc_decode_writeargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
-	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct nfsd_writeargs *args = rqstp->rq_argp;
 	u32 beginoffset, totalcount;
 
@@ -350,9 +345,8 @@ nfssvc_decode_writeargs(struct svc_rqst *rqstp, __be32 *p)
 }
 
 int
-nfssvc_decode_createargs(struct svc_rqst *rqstp, __be32 *p)
+nfssvc_decode_createargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
-	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct nfsd_createargs *args = rqstp->rq_argp;
 
 	return svcxdr_decode_diropargs(xdr, &args->fh,
@@ -361,9 +355,8 @@ nfssvc_decode_createargs(struct svc_rqst *rqstp, __be32 *p)
 }
 
 int
-nfssvc_decode_renameargs(struct svc_rqst *rqstp, __be32 *p)
+nfssvc_decode_renameargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
-	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct nfsd_renameargs *args = rqstp->rq_argp;
 
 	return svcxdr_decode_diropargs(xdr, &args->ffh,
@@ -373,9 +366,8 @@ nfssvc_decode_renameargs(struct svc_rqst *rqstp, __be32 *p)
 }
 
 int
-nfssvc_decode_linkargs(struct svc_rqst *rqstp, __be32 *p)
+nfssvc_decode_linkargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
-	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct nfsd_linkargs *args = rqstp->rq_argp;
 
 	return svcxdr_decode_fhandle(xdr, &args->ffh) &&
@@ -384,9 +376,8 @@ nfssvc_decode_linkargs(struct svc_rqst *rqstp, __be32 *p)
 }
 
 int
-nfssvc_decode_symlinkargs(struct svc_rqst *rqstp, __be32 *p)
+nfssvc_decode_symlinkargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
-	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct nfsd_symlinkargs *args = rqstp->rq_argp;
 	struct kvec *head = rqstp->rq_arg.head;
 
@@ -405,9 +396,8 @@ nfssvc_decode_symlinkargs(struct svc_rqst *rqstp, __be32 *p)
 }
 
 int
-nfssvc_decode_readdirargs(struct svc_rqst *rqstp, __be32 *p)
+nfssvc_decode_readdirargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
-	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct nfsd_readdirargs *args = rqstp->rq_argp;
 
 	if (!svcxdr_decode_fhandle(xdr, &args->fh))

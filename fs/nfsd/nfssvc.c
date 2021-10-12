@@ -1004,7 +1004,6 @@ out:
 int nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 {
 	const struct svc_procedure *proc = rqstp->rq_procinfo;
-	struct kvec *argv = &rqstp->rq_arg.head[0];
 	struct kvec *resv = &rqstp->rq_res.head[0];
 	__be32 *p;
 
@@ -1015,7 +1014,7 @@ int nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 	rqstp->rq_cachetype = proc->pc_cachetype;
 
 	svcxdr_init_decode(rqstp);
-	if (!proc->pc_decode(rqstp, argv->iov_base))
+	if (!proc->pc_decode(rqstp, &rqstp->rq_arg_stream))
 		goto out_decode_err;
 
 	switch (nfsd_cache_lookup(rqstp)) {
@@ -1065,13 +1064,13 @@ out_encode_err:
 /**
  * nfssvc_decode_voidarg - Decode void arguments
  * @rqstp: Server RPC transaction context
- * @p: buffer containing arguments to decode
+ * @xdr: XDR stream positioned at arguments to decode
  *
  * Return values:
  *   %0: Arguments were not valid
  *   %1: Decoding was successful
  */
-int nfssvc_decode_voidarg(struct svc_rqst *rqstp, __be32 *p)
+int nfssvc_decode_voidarg(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	return 1;
 }

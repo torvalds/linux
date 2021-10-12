@@ -5412,14 +5412,14 @@ void nfsd4_release_compoundargs(struct svc_rqst *rqstp)
 }
 
 int
-nfs4svc_decode_compoundargs(struct svc_rqst *rqstp, __be32 *p)
+nfs4svc_decode_compoundargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd4_compoundargs *args = rqstp->rq_argp;
 
 	/* svcxdr_tmp_alloc */
 	args->to_free = NULL;
 
-	args->xdr = &rqstp->rq_arg_stream;
+	args->xdr = xdr;
 	args->ops = args->iops;
 	args->rqstp = rqstp;
 
