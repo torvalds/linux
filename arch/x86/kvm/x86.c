@@ -6935,11 +6935,12 @@ static int __emulator_pio_in(struct kvm_vcpu *vcpu, int size,
 	return emulator_pio_in_out(vcpu, size, port, count, true);
 }
 
-static void complete_emulator_pio_in(struct kvm_vcpu *vcpu, int size,
-				    unsigned short port, void *val)
+static void complete_emulator_pio_in(struct kvm_vcpu *vcpu, void *val)
 {
-	memcpy(val, vcpu->arch.pio_data, size * vcpu->arch.pio.count);
-	trace_kvm_pio(KVM_PIO_IN, port, size, vcpu->arch.pio.count, vcpu->arch.pio_data);
+	int size = vcpu->arch.pio.size;
+	unsigned count = vcpu->arch.pio.count;
+	memcpy(val, vcpu->arch.pio_data, size * count);
+	trace_kvm_pio(KVM_PIO_IN, vcpu->arch.pio.port, size, count, vcpu->arch.pio_data);
 	vcpu->arch.pio.count = 0;
 }
 
@@ -6957,7 +6958,7 @@ static int emulator_pio_in(struct kvm_vcpu *vcpu, int size,
 	}
 
 	WARN_ON(count != vcpu->arch.pio.count);
-	complete_emulator_pio_in(vcpu, size, port, val);
+	complete_emulator_pio_in(vcpu, val);
 	return 1;
 }
 
