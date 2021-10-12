@@ -405,6 +405,10 @@ static inline void bio_clear_hipri(struct bio *bio)
 	bio->bi_opf &= ~REQ_HIPRI;
 }
 
+int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
+		unsigned long arg);
+long compat_blkdev_ioctl(struct file *file, unsigned cmd, unsigned long arg);
+
 extern const struct address_space_operations def_blk_aops;
 
 #endif /* BLK_INTERNAL_H */

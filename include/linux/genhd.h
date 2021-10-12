@@ -281,10 +281,6 @@ bool bdev_check_media_change(struct block_device *bdev);
 int __invalidate_device(struct block_device *bdev, bool kill_dirty);
 void set_capacity(struct gendisk *disk, sector_t size);
 
-/* for drivers/char/raw.c: */
-int blkdev_ioctl(struct block_device *, fmode_t, unsigned, unsigned long);
-long compat_blkdev_ioctl(struct file *, unsigned, unsigned long);
-
 #ifdef CONFIG_BLOCK_HOLDER_DEPRECATED
 int bd_link_disk_holder(struct block_device *bdev, struct gendisk *disk);
 void bd_unlink_disk_holder(struct block_device *bdev, struct gendisk *disk);
