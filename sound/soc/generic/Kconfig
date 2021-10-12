@@ -17,3 +17,9 @@ config SND_AUDIO_GRAPH_CARD
 	  This option enables generic simple sound card support
 	  with OF-graph DT bindings.
 	  It also support DPCM of multi CPU single Codec ststem.
+
+config SND_TEST_COMPONENT
+	tristate "ASoC Test component sound support"
+	depends on OF
+	help
+	  This option enables test component sound driver support.
