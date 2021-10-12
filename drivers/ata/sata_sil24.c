@@ -379,7 +379,7 @@ static struct scsi_host_template sil24_sht = {
 	.sg_tablesize		= SIL24_MAX_SGE,
 	.dma_boundary		= ATA_DMA_BOUNDARY,
 	.tag_alloc_policy	= BLK_TAG_ALLOC_FIFO,
-	.sdev_attrs		= ata_ncq_sdev_attrs,
+	.sdev_groups		= ata_ncq_sdev_groups,
 	.change_queue_depth	= ata_scsi_change_queue_depth,
 	.slave_configure	= ata_scsi_slave_config
 };
