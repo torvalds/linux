@@ -618,15 +618,11 @@ u32 ocelot_ptp_rew_op(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(ocelot_ptp_rew_op);
 
-static bool ocelot_ptp_is_onestep_sync(struct sk_buff *skb)
+static bool ocelot_ptp_is_onestep_sync(struct sk_buff *skb,
+				       unsigned int ptp_class)
 {
 	struct ptp_header *hdr;
-	unsigned int ptp_class;
 	u8 msgtype, twostep;
-
-	ptp_class = ptp_classify_raw(skb);
-	if (ptp_class == PTP_CLASS_NONE)
-		return false;
 
 	hdr = ptp_parse_header(skb, ptp_class);
 	if (!hdr)
@@ -647,11 +643,20 @@ int ocelot_port_txtstamp_request(struct ocelot *ocelot, int port,
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	u8 ptp_cmd = ocelot_port->ptp_cmd;
+	unsigned int ptp_class;
 	int err;
+
+	/* Don't do anything if PTP timestamping not enabled */
+	if (!ptp_cmd)
+		return 0;
+
+	ptp_class = ptp_classify_raw(skb);
+	if (ptp_class == PTP_CLASS_NONE)
+		return -EINVAL;
 
 	/* Store ptp_cmd in OCELOT_SKB_CB(skb)->ptp_cmd */
 	if (ptp_cmd == IFH_REW_OP_ORIGIN_PTP) {
-		if (ocelot_ptp_is_onestep_sync(skb)) {
+		if (ocelot_ptp_is_onestep_sync(skb, ptp_class)) {
 			OCELOT_SKB_CB(skb)->ptp_cmd = ptp_cmd;
 			return 0;
 		}
