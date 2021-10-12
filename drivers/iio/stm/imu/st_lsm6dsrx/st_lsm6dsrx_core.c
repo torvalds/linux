@@ -1569,6 +1569,8 @@ static struct iio_dev *st_lsm6dsrx_alloc_iiodev(struct st_lsm6dsrx_hw *hw,
 		sensor->pm = ST_LSM6DSRX_HP_MODE;
 		sensor->odr = st_lsm6dsrx_odr_table[id].odr_avl[1].hz;
 		sensor->uodr = st_lsm6dsrx_odr_table[id].odr_avl[1].uhz;
+		sensor->min_st = ST_LSM6DSRX_SELFTEST_ACCEL_MIN;
+		sensor->max_st = ST_LSM6DSRX_SELFTEST_ACCEL_MAX;
 		break;
 	case ST_LSM6DSRX_ID_GYRO:
 		iio_dev->channels = st_lsm6dsrx_gyro_channels;
@@ -1582,6 +1584,8 @@ static struct iio_dev *st_lsm6dsrx_alloc_iiodev(struct st_lsm6dsrx_hw *hw,
 		sensor->pm = ST_LSM6DSRX_HP_MODE;
 		sensor->odr = st_lsm6dsrx_odr_table[id].odr_avl[1].hz;
 		sensor->uodr = st_lsm6dsrx_odr_table[id].odr_avl[1].uhz;
+		sensor->min_st = ST_LSM6DSRX_SELFTEST_GYRO_MIN;
+		sensor->max_st = ST_LSM6DSRX_SELFTEST_GYRO_MAX;
 		break;
 	case ST_LSM6DSRX_ID_TEMP:
 		iio_dev->channels = st_lsm6dsrx_temp_channels;
