@@ -3588,17 +3588,19 @@ static struct bin_attribute ibmvfc_trace_attr = {
 };
 #endif
 
-static struct device_attribute *ibmvfc_attrs[] = {
-	&dev_attr_partition_name,
-	&dev_attr_device_name,
-	&dev_attr_port_loc_code,
-	&dev_attr_drc_name,
-	&dev_attr_npiv_version,
-	&dev_attr_capabilities,
-	&dev_attr_log_level,
-	&dev_attr_nr_scsi_channels,
+static struct attribute *ibmvfc_host_attrs[] = {
+	&dev_attr_partition_name.attr,
+	&dev_attr_device_name.attr,
+	&dev_attr_port_loc_code.attr,
+	&dev_attr_drc_name.attr,
+	&dev_attr_npiv_version.attr,
+	&dev_attr_capabilities.attr,
+	&dev_attr_log_level.attr,
+	&dev_attr_nr_scsi_channels.attr,
 	NULL
 };
+
+ATTRIBUTE_GROUPS(ibmvfc_host);
 
 static struct scsi_host_template driver_template = {
 	.module = THIS_MODULE,
@@ -3620,7 +3622,7 @@ static struct scsi_host_template driver_template = {
 	.this_id = -1,
 	.sg_tablesize = SG_ALL,
 	.max_sectors = IBMVFC_MAX_SECTORS,
-	.shost_attrs = ibmvfc_attrs,
+	.shost_groups = ibmvfc_host_groups,
 	.track_queue_depth = 1,
 	.host_tagset = 1,
 };
