@@ -27,33 +27,47 @@ config IIO_ST_LSM6DSOX_SPI
 
 config IIO_ST_LSM6DSOX_I3C
 	tristate
-	select REGMAP_I3C
 	depends on IIO_ST_LSM6DSOX
+	select REGMAP_I3C
 
 config IIO_ST_LSM6DSOX_MLC
 	bool "Enable machine learning core"
 	depends on IIO_ST_LSM6DSOX
 	help
-	  Enable loading MLC binary internal for hw machine learning core
+	  Enable support to loading MLC binary for internal hw machine learning
+	  core. The configuration code is loaded via the firmware support upload
+	  the file st_lsm6dsox_mlc.bin in / etc / firmware
+
+	  The binary configuration code must be generated using the ST UNICO tool
+	  application
 
 config IIO_ST_LSM6DSOX_MLC_PRELOAD
 	bool "Preload some examples on MLC/FSM core"
 	depends on IIO_ST_LSM6DSOX_MLC
 	help
-	  Preload some examples on machine learning core and finite state machine
-	  The examples code are hardcoded in to the driver.
+	  Select yes if you want to preload some examples on machine learning core
+	  and finite state machine.
+
+	  The examples code is a 6D position recognition and is hardcoded in the
+	  driver in the mlcdata structure.
 
 config IIO_ST_LSM6DSOX_MAY_WAKEUP
 	bool "Enable wake-up irq"
 	depends on IIO_ST_LSM6DSOX
 	help
-	  Enable wake-up irq on interrupt line
+	  Select yes if you want to enable wake-up feature embedded into the driver.
+	  Enabling this option the driver can wake-up the application processor by
+	  using the irq line.
+
+	  By default during suspend mode all enabled sensors are set in power down
+	  mode to reduce the power consumption.
 
 config IIO_ST_LSM6DSOX_EN_REGULATOR
 	bool "Enable support to voltage regulator"
 	depends on IIO_ST_LSM6DSOX
 	help
-	  Enable support to voltage regulator to power up/down the sensor
+	  Select yes if you want to enable support to voltage regulator to power up/down
+	  the sensor.
 	  Add the vdd-supply and vddio-supply entries into device tree to
 	  automatically manage the sensor power supply.
 

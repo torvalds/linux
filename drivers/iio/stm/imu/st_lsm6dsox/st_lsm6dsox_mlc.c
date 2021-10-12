@@ -532,15 +532,15 @@ static ssize_t st_lsm6dsox_mlc_odr(struct device *dev,
 	return scnprintf(buf, PAGE_SIZE, "%d\n", hw->mlc_config->requested_odr);
 }
 
-static IIO_DEVICE_ATTR(mlc_info, S_IRUGO,
+static IIO_DEVICE_ATTR(mlc_info, 0444,
 		       st_lsm6dsox_mlc_info, NULL, 0);
-static IIO_DEVICE_ATTR(mlc_flush, S_IWUSR,
+static IIO_DEVICE_ATTR(mlc_flush, 0200,
 		       NULL, st_lsm6dsox_mlc_flush, 0);
-static IIO_DEVICE_ATTR(mlc_version, S_IRUGO,
+static IIO_DEVICE_ATTR(mlc_version, 0444,
 		       st_lsm6dsox_mlc_get_version, NULL, 0);
-static IIO_DEVICE_ATTR(load_mlc, S_IWUSR,
+static IIO_DEVICE_ATTR(load_mlc, 0200,
 		       NULL, st_lsm6dsox_mlc_upload_firmware, 0);
-static IIO_DEVICE_ATTR(mlc_odr, S_IRUGO,
+static IIO_DEVICE_ATTR(mlc_odr, 0444,
 		       st_lsm6dsox_mlc_odr, NULL, 0);
 
 static struct attribute *st_lsm6dsox_mlc_event_attributes[] = {
@@ -572,7 +572,7 @@ static ssize_t st_lsm6dsox_mlc_x_odr(struct device *dev,
 			 sensor->odr, sensor->uodr);
 }
 
-static IIO_DEVICE_ATTR(mlc_x_odr, S_IRUGO,
+static IIO_DEVICE_ATTR(mlc_x_odr, 0444,
 		       st_lsm6dsox_mlc_x_odr, NULL, 0);
 
 static struct attribute *st_lsm6dsox_mlc_x_event_attributes[] = {
@@ -635,7 +635,8 @@ struct iio_dev *st_lsm6dsox_mlc_alloc_iio_dev(struct st_lsm6dsox_hw *hw,
 		iio_dev->channels = channels;
 		iio_dev->num_channels = ARRAY_SIZE(st_lsm6dsox_mlc_channels);
 		iio_dev->info = &st_lsm6dsox_mlc_event_info;
-		scnprintf(sensor->name, sizeof(sensor->name), ST_LSM6DSOX_DEV_NAME "_mlc");
+		scnprintf(sensor->name, sizeof(sensor->name),
+			  ST_LSM6DSOX_DEV_NAME "_mlc");
 		break;
 	}
 	case ST_LSM6DSOX_ID_MLC_0:
@@ -663,7 +664,8 @@ struct iio_dev *st_lsm6dsox_mlc_alloc_iio_dev(struct st_lsm6dsox_hw *hw,
 		iio_dev->num_channels = ARRAY_SIZE(st_lsm6dsox_mlc_x_ch);
 		iio_dev->info = &st_lsm6dsox_mlc_x_event_info;
 		scnprintf(sensor->name, sizeof(sensor->name),
-			  ST_LSM6DSOX_DEV_NAME "_mlc_%d", id - ST_LSM6DSOX_ID_MLC_0);
+			  ST_LSM6DSOX_DEV_NAME "_mlc_%d",
+			  id - ST_LSM6DSOX_ID_MLC_0);
 		sensor->outreg_addr = ST_LSM6DSOX_REG_MLC0_SRC_ADDR +
 				id - ST_LSM6DSOX_ID_MLC_0;
 		sensor->status = ST_LSM6DSOX_MLC_ENABLED;
@@ -705,7 +707,8 @@ struct iio_dev *st_lsm6dsox_mlc_alloc_iio_dev(struct st_lsm6dsox_hw *hw,
 		iio_dev->num_channels = ARRAY_SIZE(st_lsm6dsox_fsm_x_ch);
 		iio_dev->info = &st_lsm6dsox_mlc_x_event_info;
 		scnprintf(sensor->name, sizeof(sensor->name),
-			  ST_LSM6DSOX_DEV_NAME "_fsm_%d", id - ST_LSM6DSOX_ID_FSM_0);
+			  ST_LSM6DSOX_DEV_NAME "_fsm_%d",
+			  id - ST_LSM6DSOX_ID_FSM_0);
 		sensor->outreg_addr = ST_LSM6DSOX_FSM_OUTS1_ADDR +
 				id - ST_LSM6DSOX_ID_FSM_0;
 		sensor->status = ST_LSM6DSOX_FSM_ENABLED;

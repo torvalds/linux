@@ -94,7 +94,7 @@ int st_lsm6dsox_embfunc_sensor_set_enable(struct st_lsm6dsox_sensor *sensor,
  * @return  < 0 if error, 0 otherwise
  */
 int st_lsm6dsox_step_counter_set_enable(struct st_lsm6dsox_sensor *sensor,
-				        bool enable)
+					bool enable)
 {
 	struct st_lsm6dsox_hw *hw = sensor->hw;
 	int err;
