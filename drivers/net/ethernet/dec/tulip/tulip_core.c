@@ -1605,7 +1605,7 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (sum == 0  || sum == 6*0xff) {
 #if defined(CONFIG_SPARC)
 		struct device_node *dp = pci_device_to_OF_node(pdev);
-		const unsigned char *addr;
+		const unsigned char *addr2;
 		int len;
 #endif
 		eeprom_missing = 1;
@@ -1614,9 +1614,9 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		addr[i] = last_phys_addr[i] + 1;
 		eth_hw_addr_set(dev, addr);
 #if defined(CONFIG_SPARC)
-		addr = of_get_property(dp, "local-mac-address", &len);
-		if (addr && len == ETH_ALEN)
-			eth_hw_addr_set(dev, addr);
+		addr2 = of_get_property(dp, "local-mac-address", &len);
+		if (addr2 && len == ETH_ALEN)
+			eth_hw_addr_set(dev, addr2);
 #endif
 #if defined(__i386__) || defined(__x86_64__)	/* Patch up x86 BIOS bug. */
 		if (last_irq)
