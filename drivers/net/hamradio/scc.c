@@ -1563,9 +1563,6 @@ static void scc_net_setup(struct net_device *dev)
 	dev->netdev_ops	     = &scc_netdev_ops;
 	dev->header_ops      = &ax25_header_ops;
 
-	memcpy(dev->broadcast, &ax25_bcast,  AX25_ADDR_LEN);
-	memcpy(dev->dev_addr,  &ax25_defaddr, AX25_ADDR_LEN);
- 
 	dev->flags      = 0;
 
 	dev->type = ARPHRD_AX25;
@@ -1573,6 +1570,8 @@ static void scc_net_setup(struct net_device *dev)
 	dev->mtu = AX25_DEF_PACLEN;
 	dev->addr_len = AX25_ADDR_LEN;
 
+	memcpy(dev->broadcast, &ax25_bcast,  AX25_ADDR_LEN);
+	dev_addr_set(dev, (u8 *)&ax25_defaddr);
 }
 
 /* ----> open network device <---- */

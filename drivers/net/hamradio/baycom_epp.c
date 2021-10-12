@@ -1159,7 +1159,7 @@ static void baycom_probe(struct net_device *dev)
 	dev->mtu = AX25_DEF_PACLEN;        /* eth_mtu is the default */
 	dev->addr_len = AX25_ADDR_LEN;     /* sizeof an ax.25 address */
 	memcpy(dev->broadcast, &ax25_bcast, AX25_ADDR_LEN);
-	memcpy(dev->dev_addr, &null_ax25_address, AX25_ADDR_LEN);
+	dev_addr_set(dev, (u8 *)&null_ax25_address);
 	dev->tx_queue_len = 16;
 
 	/* New style flags */

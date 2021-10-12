@@ -457,9 +457,6 @@ static void bpq_setup(struct net_device *dev)
 	dev->netdev_ops	     = &bpq_netdev_ops;
 	dev->needs_free_netdev = true;
 
-	memcpy(dev->broadcast, &ax25_bcast, AX25_ADDR_LEN);
-	memcpy(dev->dev_addr,  &ax25_defaddr, AX25_ADDR_LEN);
-
 	dev->flags      = 0;
 	dev->features	= NETIF_F_LLTX;	/* Allow recursion */
 
@@ -472,6 +469,8 @@ static void bpq_setup(struct net_device *dev)
 	dev->mtu             = AX25_DEF_PACLEN;
 	dev->addr_len        = AX25_ADDR_LEN;
 
+	memcpy(dev->broadcast, &ax25_bcast, AX25_ADDR_LEN);
+	dev_addr_set(dev, (u8 *)&ax25_defaddr);
 }
 
 /*
