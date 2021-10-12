@@ -73,6 +73,15 @@ static int __bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags
 		 */
 		bch2_extent_normalize(c, bkey_i_to_s(sk.k));
 
+		/*
+		 * Since we're not inserting through an extent iterator
+		 * (BTREE_ITER_ALL_SNAPSHOTS iterators aren't extent iterators),
+		 * we aren't using the extent overwrite path to delete, we're
+		 * just using the normal key deletion path:
+		 */
+		if (bkey_deleted(&sk.k->k))
+			sk.k->k.size = 0;
+
 		ret   = bch2_btree_iter_traverse(&iter) ?:
 			bch2_trans_update(&trans, &iter, sk.k,
 					  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) ?:
