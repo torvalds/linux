@@ -16,7 +16,7 @@
 #ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
 static void do_gma_backlight_set(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	backlight_update_status(dev_priv->backlight_device);
 }
 #endif
@@ -24,7 +24,7 @@ static void do_gma_backlight_set(struct drm_device *dev)
 void gma_backlight_enable(struct drm_device *dev)
 {
 #ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	dev_priv->backlight_enabled = true;
 	if (dev_priv->backlight_device) {
 		dev_priv->backlight_device->props.brightness = dev_priv->backlight_level;
@@ -36,7 +36,7 @@ void gma_backlight_enable(struct drm_device *dev)
 void gma_backlight_disable(struct drm_device *dev)
 {
 #ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	dev_priv->backlight_enabled = false;
 	if (dev_priv->backlight_device) {
 		dev_priv->backlight_device->props.brightness = 0;
@@ -48,7 +48,7 @@ void gma_backlight_disable(struct drm_device *dev)
 void gma_backlight_set(struct drm_device *dev, int v)
 {
 #ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	dev_priv->backlight_level = v;
 	if (dev_priv->backlight_device && dev_priv->backlight_enabled) {
 		dev_priv->backlight_device->props.brightness = v;
@@ -60,7 +60,7 @@ void gma_backlight_set(struct drm_device *dev, int v)
 int gma_backlight_init(struct drm_device *dev)
 {
 #ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	dev_priv->backlight_enabled = true;
 	return dev_priv->ops->backlight_init(dev);
 #else
@@ -71,7 +71,7 @@ int gma_backlight_init(struct drm_device *dev)
 void gma_backlight_exit(struct drm_device *dev)
 {
 #ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	if (dev_priv->backlight_device) {
 		dev_priv->backlight_device->props.brightness = 0;
 		backlight_update_status(dev_priv->backlight_device);

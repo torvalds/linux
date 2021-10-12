@@ -93,35 +93,35 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 
 	DRM_DEBUG("\n");
 
-	switch (adev->asic_type) {
-	case CHIP_VEGA20:
+	switch (adev->ip_versions[MP0_HWIP][0]) {
+	case IP_VERSION(11, 0, 2):
 		chip_name = "vega20";
 		break;
-	case CHIP_NAVI10:
+	case IP_VERSION(11, 0, 0):
 		chip_name = "navi10";
 		break;
-	case CHIP_NAVI14:
+	case IP_VERSION(11, 0, 5):
 		chip_name = "navi14";
 		break;
-	case CHIP_NAVI12:
+	case IP_VERSION(11, 0, 9):
 		chip_name = "navi12";
 		break;
-	case CHIP_ARCTURUS:
+	case IP_VERSION(11, 0, 4):
 		chip_name = "arcturus";
 		break;
-	case CHIP_SIENNA_CICHLID:
+	case IP_VERSION(11, 0, 7):
 		chip_name = "sienna_cichlid";
 		break;
-	case CHIP_NAVY_FLOUNDER:
+	case IP_VERSION(11, 0, 11):
 		chip_name = "navy_flounder";
 		break;
-	case CHIP_VANGOGH:
+	case IP_VERSION(11, 5, 0):
 		chip_name = "vangogh";
 		break;
-	case CHIP_DIMGREY_CAVEFISH:
+	case IP_VERSION(11, 0, 12):
 		chip_name = "dimgrey_cavefish";
 		break;
-	case CHIP_BEIGE_GOBY:
+	case IP_VERSION(11, 0, 13):
 		chip_name = "beige_goby";
 		break;
 	default:
@@ -129,9 +129,9 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 	}
 
 
-	switch (adev->asic_type) {
-	case CHIP_VEGA20:
-	case CHIP_ARCTURUS:
+	switch (adev->ip_versions[MP0_HWIP][0]) {
+	case IP_VERSION(11, 0, 2):
+	case IP_VERSION(11, 0, 4):
 		err = psp_init_sos_microcode(psp, chip_name);
 		if (err)
 			return err;
@@ -151,20 +151,26 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 				goto out2;
 
 			ta_hdr = (const struct ta_firmware_header_v1_0 *)adev->psp.ta_fw->data;
-			adev->psp.xgmi.feature_version = le32_to_cpu(ta_hdr->xgmi.fw_version);
-			adev->psp.xgmi.size_bytes = le32_to_cpu(ta_hdr->xgmi.size_bytes);
-			adev->psp.xgmi.start_addr = (uint8_t *)ta_hdr +
+			adev->psp.xgmi_context.context.bin_desc.feature_version =
+				le32_to_cpu(ta_hdr->xgmi.fw_version);
+			adev->psp.xgmi_context.context.bin_desc.size_bytes =
+				le32_to_cpu(ta_hdr->xgmi.size_bytes);
+			adev->psp.xgmi_context.context.bin_desc.start_addr =
+				(uint8_t *)ta_hdr +
 				le32_to_cpu(ta_hdr->header.ucode_array_offset_bytes);
 			adev->psp.ta_fw_version = le32_to_cpu(ta_hdr->header.ucode_version);
-			adev->psp.ras.feature_version = le32_to_cpu(ta_hdr->ras.fw_version);
-			adev->psp.ras.size_bytes = le32_to_cpu(ta_hdr->ras.size_bytes);
-			adev->psp.ras.start_addr = (uint8_t *)adev->psp.xgmi.start_addr +
+			adev->psp.ras_context.context.bin_desc.feature_version =
+				le32_to_cpu(ta_hdr->ras.fw_version);
+			adev->psp.ras_context.context.bin_desc.size_bytes =
+				le32_to_cpu(ta_hdr->ras.size_bytes);
+			adev->psp.ras_context.context.bin_desc.start_addr =
+				(uint8_t *)adev->psp.xgmi_context.context.bin_desc.start_addr +
 				le32_to_cpu(ta_hdr->ras.offset_bytes);
 		}
 		break;
-	case CHIP_NAVI10:
-	case CHIP_NAVI14:
-	case CHIP_NAVI12:
+	case IP_VERSION(11, 0, 0):
+	case IP_VERSION(11, 0, 5):
+	case IP_VERSION(11, 0, 9):
 		err = psp_init_sos_microcode(psp, chip_name);
 		if (err)
 			return err;
@@ -186,22 +192,31 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 				goto out2;
 
 			ta_hdr = (const struct ta_firmware_header_v1_0 *)adev->psp.ta_fw->data;
-			adev->psp.hdcp.feature_version = le32_to_cpu(ta_hdr->hdcp.fw_version);
-			adev->psp.hdcp.size_bytes = le32_to_cpu(ta_hdr->hdcp.size_bytes);
-			adev->psp.hdcp.start_addr = (uint8_t *)ta_hdr +
-				le32_to_cpu(ta_hdr->header.ucode_array_offset_bytes);
+			adev->psp.hdcp_context.context.bin_desc.feature_version =
+				le32_to_cpu(ta_hdr->hdcp.fw_version);
+			adev->psp.hdcp_context.context.bin_desc.size_bytes =
+				le32_to_cpu(ta_hdr->hdcp.size_bytes);
+			adev->psp.hdcp_context.context.bin_desc.start_addr =
+				(uint8_t *)ta_hdr +
+				le32_to_cpu(
+					ta_hdr->header.ucode_array_offset_bytes);
 
 			adev->psp.ta_fw_version = le32_to_cpu(ta_hdr->header.ucode_version);
 
-			adev->psp.dtm.feature_version = le32_to_cpu(ta_hdr->dtm.fw_version);
-			adev->psp.dtm.size_bytes = le32_to_cpu(ta_hdr->dtm.size_bytes);
-			adev->psp.dtm.start_addr = (uint8_t *)adev->psp.hdcp.start_addr +
+			adev->psp.dtm_context.context.bin_desc.feature_version =
+				le32_to_cpu(ta_hdr->dtm.fw_version);
+			adev->psp.dtm_context.context.bin_desc.size_bytes =
+				le32_to_cpu(ta_hdr->dtm.size_bytes);
+			adev->psp.dtm_context.context.bin_desc.start_addr =
+				(uint8_t *)adev->psp.hdcp_context.context
+					.bin_desc.start_addr +
 				le32_to_cpu(ta_hdr->dtm.offset_bytes);
 		}
 		break;
-	case CHIP_SIENNA_CICHLID:
-	case CHIP_NAVY_FLOUNDER:
-	case CHIP_DIMGREY_CAVEFISH:
+	case IP_VERSION(11, 0, 7):
+	case IP_VERSION(11, 0, 11):
+	case IP_VERSION(11, 0, 12):
+	case IP_VERSION(11, 0, 13):
 		err = psp_init_sos_microcode(psp, chip_name);
 		if (err)
 			return err;
@@ -209,15 +224,7 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 		if (err)
 			return err;
 		break;
-	case CHIP_BEIGE_GOBY:
-		err = psp_init_sos_microcode(psp, chip_name);
-		if (err)
-			return err;
-		err = psp_init_ta_microcode(psp, chip_name);
-		if (err)
-			return err;
-		break;
-	case CHIP_VANGOGH:
+	case IP_VERSION(11, 5, 0):
 		err = psp_init_asd_microcode(psp, chip_name);
 		if (err)
 			return err;
@@ -691,7 +698,7 @@ static int psp_v11_0_memory_training(struct psp_context *psp, uint32_t ops)
 			return -ENOMEM;
 		}
 
-		if (drm_dev_enter(&adev->ddev, &idx)) {
+		if (drm_dev_enter(adev_to_drm(adev), &idx)) {
 			memcpy_fromio(buf, adev->mman.aper_base_kaddr, sz);
 			ret = psp_v11_0_memory_training_send_msg(psp, PSP_BL__DRAM_LONG_TRAIN);
 			if (ret) {

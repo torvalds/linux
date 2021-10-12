@@ -1139,8 +1139,6 @@ void i915_gem_driver_release(struct drm_i915_private *dev_priv)
 {
 	intel_gt_driver_release(&dev_priv->gt);
 
-	intel_wa_list_free(&dev_priv->gt_wa_list);
-
 	intel_uc_cleanup_firmwares(&dev_priv->gt.uc);
 
 	i915_gem_drain_freed_objects(dev_priv);

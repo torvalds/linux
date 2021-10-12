@@ -9,6 +9,31 @@
 #define WW_RT
 #include "rtmutex.c"
 
+int ww_mutex_trylock(struct ww_mutex *lock, struct ww_acquire_ctx *ww_ctx)
+{
+	struct rt_mutex *rtm = &lock->base;
+
+	if (!ww_ctx)
+		return rt_mutex_trylock(rtm);
+
+	/*
+	 * Reset the wounded flag after a kill. No other process can
+	 * race and wound us here, since they can't have a valid owner
+	 * pointer if we don't have any locks held.
+	 */
+	if (ww_ctx->acquired == 0)
+		ww_ctx->wounded = 0;
+
+	if (__rt_mutex_trylock(&rtm->rtmutex)) {
+		ww_mutex_set_context_fastpath(lock, ww_ctx);
+		mutex_acquire_nest(&rtm->dep_map, 0, 1, ww_ctx->dep_map, _RET_IP_);
+		return 1;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(ww_mutex_trylock);
+
 static int __sched
 __ww_rt_mutex_lock(struct ww_mutex *lock, struct ww_acquire_ctx *ww_ctx,
 		   unsigned int state, unsigned long ip)

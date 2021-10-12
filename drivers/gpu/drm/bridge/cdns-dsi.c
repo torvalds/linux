@@ -1171,7 +1171,6 @@ static int cdns_dsi_drm_probe(struct platform_device *pdev)
 {
 	struct cdns_dsi *dsi;
 	struct cdns_dsi_input *input;
-	struct resource *res;
 	int ret, irq;
 	u32 val;
 
@@ -1183,8 +1182,7 @@ static int cdns_dsi_drm_probe(struct platform_device *pdev)
 
 	input = &dsi->input;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dsi->regs = devm_ioremap_resource(&pdev->dev, res);
+	dsi->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dsi->regs))
 		return PTR_ERR(dsi->regs);
 

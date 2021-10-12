@@ -25,6 +25,7 @@
 #include <linux/sched/mm.h>
 
 #include "display/intel_frontbuffer.h"
+#include "pxp/intel_pxp.h"
 #include "i915_drv.h"
 #include "i915_gem_clflush.h"
 #include "i915_gem_context.h"
@@ -87,6 +88,22 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 	mutex_init(&obj->mm.get_page.lock);
 	INIT_RADIX_TREE(&obj->mm.get_dma_page.radix, GFP_KERNEL | __GFP_NOWARN);
 	mutex_init(&obj->mm.get_dma_page.lock);
+}
+
+/**
+ * i915_gem_object_fini - Clean up a GEM object initialization
+ * @obj: The gem object to cleanup
+ *
+ * This function cleans up gem object fields that are set up by
+ * drm_gem_private_object_init() and i915_gem_object_init().
+ * It's primarily intended as a helper for backends that need to
+ * clean up the gem object in separate steps.
+ */
+void __i915_gem_object_fini(struct drm_i915_gem_object *obj)
+{
+	mutex_destroy(&obj->mm.get_page.lock);
+	mutex_destroy(&obj->mm.get_dma_page.lock);
+	dma_resv_fini(&obj->base._resv);
 }
 
 /**
@@ -174,7 +191,6 @@ void __i915_gem_free_object_rcu(struct rcu_head *head)
 		container_of(head, typeof(*obj), rcu);
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 
-	dma_resv_fini(&obj->base._resv);
 	i915_gem_object_free(obj);
 
 	GEM_BUG_ON(!atomic_read(&i915->mm.free_count));
@@ -204,10 +220,17 @@ static void __i915_gem_object_free_mmaps(struct drm_i915_gem_object *obj)
 	}
 }
 
-void __i915_gem_free_object(struct drm_i915_gem_object *obj)
+/**
+ * __i915_gem_object_pages_fini - Clean up pages use of a gem object
+ * @obj: The gem object to clean up
+ *
+ * This function cleans up usage of the object mm.pages member. It
+ * is intended for backends that need to clean up a gem object in
+ * separate steps and needs to be called when the object is idle before
+ * the object's backing memory is freed.
+ */
+void __i915_gem_object_pages_fini(struct drm_i915_gem_object *obj)
 {
-	trace_i915_gem_object_destroy(obj);
-
 	if (!list_empty(&obj->vma.list)) {
 		struct i915_vma *vma;
 
@@ -233,11 +256,17 @@ void __i915_gem_free_object(struct drm_i915_gem_object *obj)
 
 	__i915_gem_object_free_mmaps(obj);
 
-	GEM_BUG_ON(!list_empty(&obj->lut_list));
-
 	atomic_set(&obj->mm.pages_pin_count, 0);
 	__i915_gem_object_put_pages(obj);
 	GEM_BUG_ON(i915_gem_object_has_pages(obj));
+}
+
+void __i915_gem_free_object(struct drm_i915_gem_object *obj)
+{
+	trace_i915_gem_object_destroy(obj);
+
+	GEM_BUG_ON(!list_empty(&obj->lut_list));
+
 	bitmap_free(obj->bit_17);
 
 	if (obj->base.import_attach)
@@ -253,6 +282,8 @@ void __i915_gem_free_object(struct drm_i915_gem_object *obj)
 
 	if (obj->shares_resv_from)
 		i915_vm_resv_put(obj->shares_resv_from);
+
+	__i915_gem_object_fini(obj);
 }
 
 static void __i915_gem_free_objects(struct drm_i915_private *i915,
@@ -266,6 +297,7 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 			obj->ops->delayed_free(obj);
 			continue;
 		}
+		__i915_gem_object_pages_fini(obj);
 		__i915_gem_free_object(obj);
 
 		/* But keep the pointer alive for RCU-protected lookups */

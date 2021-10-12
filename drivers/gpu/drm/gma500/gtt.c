@@ -53,7 +53,7 @@ static inline uint32_t psb_gtt_mask_pte(uint32_t pfn, int type)
  */
 static u32 __iomem *psb_gtt_entry(struct drm_device *dev, struct gtt_range *r)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	unsigned long offset;
 
 	offset = r->resource.start - dev_priv->gtt_mem->start;
@@ -118,7 +118,7 @@ static int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r,
  */
 static void psb_gtt_remove(struct drm_device *dev, struct gtt_range *r)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	u32 __iomem *gtt_slot;
 	u32 pte;
 	int i;
@@ -188,7 +188,7 @@ int psb_gtt_pin(struct gtt_range *gt)
 {
 	int ret = 0;
 	struct drm_device *dev = gt->gem.dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	u32 gpu_base = dev_priv->gtt.gatt_start;
 
 	mutex_lock(&dev_priv->gtt_mutex);
@@ -226,7 +226,7 @@ out:
 void psb_gtt_unpin(struct gtt_range *gt)
 {
 	struct drm_device *dev = gt->gem.dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	u32 gpu_base = dev_priv->gtt.gatt_start;
 
 	mutex_lock(&dev_priv->gtt_mutex);
@@ -266,7 +266,7 @@ void psb_gtt_unpin(struct gtt_range *gt)
 struct gtt_range *psb_gtt_alloc_range(struct drm_device *dev, int len,
 				      const char *name, int backed, u32 align)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct gtt_range *gt;
 	struct resource *r = dev_priv->gtt_mem;
 	int ret;
@@ -322,13 +322,13 @@ void psb_gtt_free_range(struct drm_device *dev, struct gtt_range *gt)
 
 static void psb_gtt_alloc(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	init_rwsem(&dev_priv->gtt.sem);
 }
 
 void psb_gtt_takedown(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 
 	if (dev_priv->gtt_map) {
@@ -347,7 +347,7 @@ void psb_gtt_takedown(struct drm_device *dev)
 
 int psb_gtt_init(struct drm_device *dev, int resume)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	unsigned gtt_pages;
 	unsigned long stolen_size, vram_stolen_size;
@@ -496,7 +496,7 @@ out_err:
 
 int psb_gtt_restore(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct resource *r = dev_priv->gtt_mem->child;
 	struct gtt_range *range;
 	unsigned int restored = 0, total = 0, size = 0;

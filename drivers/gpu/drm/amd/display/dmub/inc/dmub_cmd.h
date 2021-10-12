@@ -46,10 +46,10 @@
 
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0x7383caadc
+#define DMUB_FW_VERSION_GIT_HASH 0xf0c64c97
 #define DMUB_FW_VERSION_MAJOR 0
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 79
+#define DMUB_FW_VERSION_REVISION 87
 #define DMUB_FW_VERSION_TEST 0
 #define DMUB_FW_VERSION_VBIOS 0
 #define DMUB_FW_VERSION_HOTFIX 0
@@ -368,10 +368,10 @@ union dmub_fw_boot_options {
 		uint32_t disable_clk_gate: 1; /**< 1 if clock gating should be disabled */
 		uint32_t skip_phy_init_panel_sequence: 1; /**< 1 to skip panel init seq */
 		uint32_t z10_disable: 1; /**< 1 to disable z10 */
-		uint32_t reserved2: 1; /**< reserved for an unreleased feature */
-		uint32_t reserved_unreleased1: 1; /**< reserved for an unreleased feature */
+		uint32_t enable_dpia: 1; /**< 1 if DPIA should be enabled */
 		uint32_t invalid_vbios_data: 1; /**< 1 if VBIOS data table is invalid */
-		uint32_t reserved : 23; /**< reserved */
+		uint32_t reserved_unreleased2: 1; /**< reserved for an unreleased feature */
+		uint32_t reserved : 22; /**< reserved */
 	} bits; /**< boot bits */
 	uint32_t all; /**< 32-bit access to bits */
 };
@@ -653,6 +653,10 @@ enum dmub_cmd_type {
 	 */
 	DMUB_CMD__PANEL_CNTL = 74,
 	/**
+	 * Command type used for interfacing with DPIA.
+	 */
+	DMUB_CMD__DPIA = 77,
+	/**
 	 * Command type used for EDID CEA parsing
 	 */
 	DMUB_CMD__EDID_CEA = 79,
@@ -674,6 +678,20 @@ enum dmub_out_cmd_type {
 	 * Command type used for DP AUX Reply data notification
 	 */
 	DMUB_OUT_CMD__DP_AUX_REPLY = 1,
+	/**
+	 * Command type used for DP HPD event notification
+	 */
+	DMUB_OUT_CMD__DP_HPD_NOTIFY = 2,
+	/**
+	 * Command type used for SET_CONFIG Reply notification
+	 */
+	DMUB_OUT_CMD__SET_CONFIG_REPLY = 3,
+};
+
+/* DMUB_CMD__DPIA command sub-types. */
+enum dmub_cmd_dpia_type {
+	DMUB_CMD__DPIA_DIG1_DPIA_CONTROL = 0,
+	DMUB_CMD__DPIA_SET_CONFIG_ACCESS = 1,
 };
 
 #pragma pack(push, 1)
@@ -973,7 +991,7 @@ struct dmub_dig_transmitter_control_data_v1_7 {
 	uint8_t hpdsel; /**< =1: HPD1, =2: HPD2, ..., =6: HPD6, =0: HPD is not assigned */
 	uint8_t digfe_sel; /**< DIG front-end selection, bit0 means DIG0 FE is enabled */
 	uint8_t connobj_id; /**< Connector Object Id defined in ObjectId.h */
-	uint8_t reserved0; /**< For future use */
+	uint8_t HPO_instance; /**< HPO instance (0: inst0, 1: inst1) */
 	uint8_t reserved1; /**< For future use */
 	uint8_t reserved2[3]; /**< For future use */
 	uint32_t reserved3[11]; /**< For future use */
@@ -993,6 +1011,59 @@ union dmub_cmd_dig1_transmitter_control_data {
 struct dmub_rb_cmd_dig1_transmitter_control {
 	struct dmub_cmd_header header; /**< header */
 	union dmub_cmd_dig1_transmitter_control_data transmitter_control; /**< payload */
+};
+
+/**
+ * DPIA tunnel command parameters.
+ */
+struct dmub_cmd_dig_dpia_control_data {
+	uint8_t enc_id;         /** 0 = ENGINE_ID_DIGA, ... */
+	uint8_t action;         /** ATOM_TRANSMITER_ACTION_DISABLE/ENABLE/SETUP_VSEMPH */
+	union {
+		uint8_t digmode;    /** enum atom_encode_mode_def */
+		uint8_t dplaneset;  /** DP voltage swing and pre-emphasis value */
+	} mode_laneset;
+	uint8_t lanenum;        /** Lane number 1, 2, 4, 8 */
+	uint32_t symclk_10khz;  /** Symbol Clock in 10Khz */
+	uint8_t hpdsel;         /** =0: HPD is not assigned */
+	uint8_t digfe_sel;      /** DIG stream( front-end ) selection, bit0 - DIG0 FE */
+	uint8_t dpia_id;        /** Index of DPIA */
+	uint8_t fec_rdy : 1;
+	uint8_t reserved : 7;
+	uint32_t reserved1;
+};
+
+/**
+ * DMUB command for DPIA tunnel control.
+ */
+struct dmub_rb_cmd_dig1_dpia_control {
+	struct dmub_cmd_header header;
+	struct dmub_cmd_dig_dpia_control_data dpia_control;
+};
+
+/**
+ * SET_CONFIG Command Payload
+ */
+struct set_config_cmd_payload {
+	uint8_t msg_type; /* set config message type */
+	uint8_t msg_data; /* set config message data */
+};
+
+/**
+ * Data passed from driver to FW in a DMUB_CMD__DPIA_SET_CONFIG_ACCESS command.
+ */
+struct dmub_cmd_set_config_control_data {
+	struct set_config_cmd_payload cmd_pkt;
+	uint8_t instance; /* DPIA instance */
+	uint8_t immed_status; /* Immediate status returned in case of error */
+};
+
+/**
+ * DMUB command structure for SET_CONFIG command.
+ */
+struct dmub_rb_cmd_set_config_access {
+	struct dmub_cmd_header header; /* header */
+	struct dmub_cmd_set_config_control_data set_config_control; /* set config data */
 };
 
 /**
@@ -1240,6 +1311,33 @@ struct dmub_rb_cmd_dp_hpd_notify {
 	 * Data passed to driver from FW in a DMUB_OUT_CMD__DP_HPD_NOTIFY command.
 	 */
 	struct dp_hpd_data hpd_data;
+};
+
+/**
+ * Definition of a SET_CONFIG reply from DPOA.
+ */
+enum set_config_status {
+	SET_CONFIG_PENDING = 0,
+	SET_CONFIG_ACK_RECEIVED,
+	SET_CONFIG_RX_TIMEOUT,
+	SET_CONFIG_UNKNOWN_ERROR,
+};
+
+/**
+ * Definition of a set_config reply
+ */
+struct set_config_reply_control_data {
+	uint8_t instance; /* DPIA Instance */
+	uint8_t status; /* Set Config reply */
+	uint16_t pad; /* Alignment */
+};
+
+/**
+ * Definition of a DMUB_OUT_CMD__SET_CONFIG_REPLY command.
+ */
+struct dmub_rb_cmd_dp_set_config_reply {
+	struct dmub_cmd_header header;
+	struct set_config_reply_control_data set_config_reply_control;
 };
 
 /*
@@ -1730,6 +1828,11 @@ enum dmub_cmd_abm_type {
 	 * Enable/disable fractional duty cycle for backlight PWM.
 	 */
 	DMUB_CMD__ABM_SET_PWM_FRAC	= 5,
+
+	/**
+	 * unregister vertical interrupt after steady state is reached
+	 */
+	DMUB_CMD__ABM_PAUSE	= 6,
 };
 
 /**
@@ -2086,6 +2189,50 @@ struct dmub_rb_cmd_abm_init_config {
 };
 
 /**
+ * Data passed from driver to FW in a DMUB_CMD__ABM_PAUSE command.
+ */
+
+struct dmub_cmd_abm_pause_data {
+
+	/**
+	 * Panel Control HW instance mask.
+	 * Bit 0 is Panel Control HW instance 0.
+	 * Bit 1 is Panel Control HW instance 1.
+	 */
+	uint8_t panel_mask;
+
+	/**
+	 * OTG hw instance
+	 */
+	uint8_t otg_inst;
+
+	/**
+	 * Enable or disable ABM pause
+	 */
+	uint8_t enable;
+
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad[1];
+};
+
+/**
+ * Definition of a DMUB_CMD__ABM_PAUSE command.
+ */
+struct dmub_rb_cmd_abm_pause {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+
+	/**
+	 * Data passed from driver to FW in a DMUB_CMD__ABM_PAUSE command.
+	 */
+	struct dmub_cmd_abm_pause_data abm_pause_data;
+};
+
+/**
  * Data passed from driver to FW in a DMUB_CMD__QUERY_FEATURE_CAPS command.
  */
 struct dmub_cmd_query_feature_caps_data {
@@ -2364,6 +2511,11 @@ union dmub_rb_cmd {
 	struct dmub_rb_cmd_abm_init_config abm_init_config;
 
 	/**
+	 * Definition of a DMUB_CMD__ABM_PAUSE command.
+	 */
+	struct dmub_rb_cmd_abm_pause abm_pause;
+
+	/**
 	 * Definition of a DMUB_CMD__DP_AUX_ACCESS command.
 	 */
 	struct dmub_rb_cmd_dp_aux_access dp_aux_access;
@@ -2382,6 +2534,14 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__VBIOS_LVTMA_CONTROL command.
 	 */
 	struct dmub_rb_cmd_lvtma_control lvtma_control;
+	/**
+	 * Definition of a DMUB_CMD__DPIA_DIG1_CONTROL command.
+	 */
+	struct dmub_rb_cmd_dig1_dpia_control dig1_dpia_control;
+	/**
+	 * Definition of a DMUB_CMD__DPIA_SET_CONFIG_ACCESS command.
+	 */
+	struct dmub_rb_cmd_set_config_access set_config_access;
 	/**
 	 * Definition of a DMUB_CMD__EDID_CEA command.
 	 */
@@ -2404,6 +2564,10 @@ union dmub_rb_out_cmd {
 	 * HPD notify command.
 	 */
 	struct dmub_rb_cmd_dp_hpd_notify dp_hpd_notify;
+	/**
+	 * SET_CONFIG reply command.
+	 */
+	struct dmub_rb_cmd_dp_set_config_reply set_config_reply;
 };
 #pragma pack(pop)
 
@@ -2484,14 +2648,16 @@ static inline bool dmub_rb_full(struct dmub_rb *rb)
 static inline bool dmub_rb_push_front(struct dmub_rb *rb,
 				      const union dmub_rb_cmd *cmd)
 {
-	uint8_t *dst = (uint8_t *)(rb->base_address) + rb->wrpt;
-	const uint8_t *src = (const uint8_t *)cmd;
+	uint64_t volatile *dst = (uint64_t volatile *)(rb->base_address) + rb->wrpt / sizeof(uint64_t);
+	const uint64_t *src = (const uint64_t *)cmd;
+	uint8_t i;
 
 	if (dmub_rb_full(rb))
 		return false;
 
 	// copying data
-	dmub_memcpy(dst, src, DMUB_RB_CMD_SIZE);
+	for (i = 0; i < DMUB_RB_CMD_SIZE / sizeof(uint64_t); i++)
+		*dst++ = *src++;
 
 	rb->wrpt += DMUB_RB_CMD_SIZE;
 
@@ -2600,14 +2766,16 @@ static inline bool dmub_rb_peek_offset(struct dmub_rb *rb,
 static inline bool dmub_rb_out_front(struct dmub_rb *rb,
 				 union dmub_rb_out_cmd *cmd)
 {
-	const uint8_t *src = (const uint8_t *)(rb->base_address) + rb->rptr;
-	uint8_t *dst = (uint8_t *)cmd;
+	const uint64_t volatile *src = (const uint64_t volatile *)(rb->base_address) + rb->rptr / sizeof(uint64_t);
+	uint64_t *dst = (uint64_t *)cmd;
+	uint8_t i;
 
 	if (dmub_rb_empty(rb))
 		return false;
 
 	// copying data
-	dmub_memcpy(dst, src, DMUB_RB_CMD_SIZE);
+	for (i = 0; i < DMUB_RB_CMD_SIZE / sizeof(uint64_t); i++)
+		*dst++ = *src++;
 
 	return true;
 }
@@ -2642,14 +2810,17 @@ static inline bool dmub_rb_pop_front(struct dmub_rb *rb)
  */
 static inline void dmub_rb_flush_pending(const struct dmub_rb *rb)
 {
-	uint8_t buf[DMUB_RB_CMD_SIZE];
 	uint32_t rptr = rb->rptr;
 	uint32_t wptr = rb->wrpt;
 
 	while (rptr != wptr) {
-		const uint8_t *data = (const uint8_t *)rb->base_address + rptr;
+		uint64_t volatile *data = (uint64_t volatile *)rb->base_address + rptr / sizeof(uint64_t);
+		//uint64_t volatile *p = (uint64_t volatile *)data;
+		uint64_t temp;
+		uint8_t i;
 
-		dmub_memcpy(buf, data, DMUB_RB_CMD_SIZE);
+		for (i = 0; i < DMUB_RB_CMD_SIZE / sizeof(uint64_t); i++)
+			temp = *data++;
 
 		rptr += DMUB_RB_CMD_SIZE;
 		if (rptr >= rb->capacity)
