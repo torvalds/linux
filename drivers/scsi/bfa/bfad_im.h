@@ -174,8 +174,8 @@ extern struct fc_function_template bfad_im_vport_fc_function_template;
 extern struct scsi_transport_template *bfad_im_scsi_transport_template;
 extern struct scsi_transport_template *bfad_im_scsi_vport_transport_template;
 
-extern struct device_attribute *bfad_im_host_attrs[];
-extern struct device_attribute *bfad_im_vport_attrs[];
+extern const struct attribute_group *bfad_im_host_groups[];
+extern const struct attribute_group *bfad_im_vport_groups[];
 
 irqreturn_t bfad_intx(int irq, void *dev_id);
 
