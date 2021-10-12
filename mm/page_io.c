@@ -428,7 +428,7 @@ int swap_readpage(struct page *page, bool synchronous)
 		if (!READ_ONCE(bio->bi_private))
 			break;
 
-		if (!blk_poll(disk->queue, qc, true))
+		if (!blk_poll(disk->queue, qc, 0))
 			blk_io_schedule();
 	}
 	__set_current_state(TASK_RUNNING);

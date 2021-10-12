@@ -49,13 +49,13 @@ struct iomap_dio {
 	};
 };
 
-int iomap_dio_iopoll(struct kiocb *kiocb, bool spin)
+int iomap_dio_iopoll(struct kiocb *kiocb, unsigned int flags)
 {
 	struct request_queue *q = READ_ONCE(kiocb->private);
 
 	if (!q)
 		return 0;
-	return blk_poll(q, READ_ONCE(kiocb->ki_cookie), spin);
+	return blk_poll(q, READ_ONCE(kiocb->ki_cookie), flags);
 }
 EXPORT_SYMBOL_GPL(iomap_dio_iopoll);
 
@@ -642,7 +642,7 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 			if (!(iocb->ki_flags & IOCB_HIPRI) ||
 			    !dio->submit.last_queue ||
 			    !blk_poll(dio->submit.last_queue,
-					 dio->submit.cookie, true))
+					 dio->submit.cookie, 0))
 				blk_io_schedule();
 		}
 		__set_current_state(TASK_RUNNING);

@@ -108,7 +108,7 @@ static ssize_t __blkdev_direct_IO_simple(struct kiocb *iocb,
 		if (!READ_ONCE(bio.bi_private))
 			break;
 		if (!(iocb->ki_flags & IOCB_HIPRI) ||
-		    !blk_poll(bdev_get_queue(bdev), qc, true))
+		    !blk_poll(bdev_get_queue(bdev), qc, 0))
 			blk_io_schedule();
 	}
 	__set_current_state(TASK_RUNNING);
@@ -141,12 +141,12 @@ struct blkdev_dio {
 
 static struct bio_set blkdev_dio_pool;
 
-static int blkdev_iopoll(struct kiocb *kiocb, bool wait)
+static int blkdev_iopoll(struct kiocb *kiocb, unsigned int flags)
 {
 	struct block_device *bdev = I_BDEV(kiocb->ki_filp->f_mapping->host);
 	struct request_queue *q = bdev_get_queue(bdev);
 
-	return blk_poll(q, READ_ONCE(kiocb->ki_cookie), wait);
+	return blk_poll(q, READ_ONCE(kiocb->ki_cookie), flags);
 }
 
 static void blkdev_bio_end_io(struct bio *bio)
@@ -297,7 +297,7 @@ static ssize_t __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 		if (!READ_ONCE(dio->waiter))
 			break;
 
-		if (!do_poll || !blk_poll(bdev_get_queue(bdev), qc, true))
+		if (!do_poll || !blk_poll(bdev_get_queue(bdev), qc, 0))
 			blk_io_schedule();
 	}
 	__set_current_state(TASK_RUNNING);

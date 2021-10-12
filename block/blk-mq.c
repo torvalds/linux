@@ -4052,7 +4052,7 @@ static bool blk_mq_poll_hybrid(struct request_queue *q, blk_qc_t qc)
 }
 
 static int blk_mq_poll_classic(struct request_queue *q, blk_qc_t cookie,
-		bool spin)
+		unsigned int flags)
 {
 	struct blk_mq_hw_ctx *hctx = blk_qc_to_hctx(q, cookie);
 	long state = get_current_state();
@@ -4075,7 +4075,7 @@ static int blk_mq_poll_classic(struct request_queue *q, blk_qc_t cookie,
 		if (task_is_running(current))
 			return 1;
 
-		if (ret < 0 || !spin)
+		if (ret < 0 || (flags & BLK_POLL_ONESHOT))
 			break;
 		cpu_relax();
 	} while (!need_resched());
@@ -4088,15 +4088,13 @@ static int blk_mq_poll_classic(struct request_queue *q, blk_qc_t cookie,
  * blk_poll - poll for IO completions
  * @q:  the queue
  * @cookie: cookie passed back at IO submission time
- * @spin: whether to spin for completions
+ * @flags: BLK_POLL_* flags that control the behavior
  *
  * Description:
  *    Poll for completions on the passed in queue. Returns number of
- *    completed entries found. If @spin is true, then blk_poll will continue
- *    looping until at least one completion is found, unless the task is
- *    otherwise marked running (or we need to reschedule).
+ *    completed entries found.
  */
-int blk_poll(struct request_queue *q, blk_qc_t cookie, bool spin)
+int blk_poll(struct request_queue *q, blk_qc_t cookie, unsigned int flags)
 {
 	if (cookie == BLK_QC_T_NONE ||
 	    !test_bit(QUEUE_FLAG_POLL, &q->queue_flags))
@@ -4105,12 +4103,11 @@ int blk_poll(struct request_queue *q, blk_qc_t cookie, bool spin)
 	if (current->plug)
 		blk_flush_plug_list(current->plug, false);
 
-	/* If specified not to spin, we also should not sleep. */
-	if (spin && q->poll_nsec != BLK_MQ_POLL_CLASSIC) {
+	if (q->poll_nsec != BLK_MQ_POLL_CLASSIC) {
 		if (blk_mq_poll_hybrid(q, cookie))
 			return 1;
 	}
-	return blk_mq_poll_classic(q, cookie, spin);
+	return blk_mq_poll_classic(q, cookie, flags);
 }
 EXPORT_SYMBOL_GPL(blk_poll);
 
