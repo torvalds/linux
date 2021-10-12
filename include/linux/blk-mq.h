@@ -927,7 +927,11 @@ static inline unsigned int blk_rq_bytes(const struct request *rq)
 
 static inline int blk_rq_cur_bytes(const struct request *rq)
 {
-	return rq->bio ? bio_cur_bytes(rq->bio) : 0;
+	if (!rq->bio)
+		return 0;
+	if (!bio_has_data(rq->bio))	/* dataless requests such as discard */
+		return rq->bio->bi_iter.bi_size;
+	return bio_iovec(rq->bio).bv_len;
 }
 
 unsigned int blk_rq_err_bytes(const struct request *rq);
