@@ -364,7 +364,9 @@ struct rtc_device *devm_rtc_allocate_device(struct device *dev)
 
 	rtc->id = id;
 	rtc->dev.parent = dev;
-	dev_set_name(&rtc->dev, "rtc%d", id);
+	err = dev_set_name(&rtc->dev, "rtc%d", id);
+	if (err)
+		return ERR_PTR(err);
 
 	err = devm_add_action_or_reset(dev, devm_rtc_release_device, rtc);
 	if (err)
