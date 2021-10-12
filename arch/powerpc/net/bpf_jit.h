@@ -31,7 +31,7 @@
 			pr_err_ratelimited("Branch offset 0x%lx (@%u) out of range\n", offset, ctx->idx);			\
 			return -ERANGE;					      \
 		}							      \
-		EMIT(PPC_INST_BRANCH | (offset & 0x03fffffc));		      \
+		EMIT(PPC_RAW_BRANCH(offset));				      \
 	} while (0)
 
 /* blr; (unconditional 'branch' with link) to absolute address */
