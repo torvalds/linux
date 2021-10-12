@@ -1077,6 +1077,13 @@ int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control,
 		if (res)
 			DRM_ERROR("RAS table incorrect checksum or error:%d\n",
 				  res);
+
+		/* Warn if we are at 90% of the threshold or above
+		 */
+		if (10 * control->ras_num_recs >= 9 * ras->bad_page_cnt_threshold)
+			dev_warn(adev->dev, "RAS records:%u exceeds 90%% of threshold:%d",
+					control->ras_num_recs,
+					ras->bad_page_cnt_threshold);
 	} else if (hdr->header == RAS_TABLE_HDR_BAD &&
 		   amdgpu_bad_page_threshold != 0) {
 		res = __verify_ras_table_checksum(control);
