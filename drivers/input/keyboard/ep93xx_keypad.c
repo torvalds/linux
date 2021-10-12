@@ -17,6 +17,7 @@
  * flag.
  */
 
+#include <linux/bits.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
@@ -35,28 +36,28 @@
 #define KEY_REG			0x08	/* Key Value Capture register */
 
 /* Key Scan Initialization Register bit defines */
-#define KEY_INIT_DBNC_MASK	(0x00ff0000)
-#define KEY_INIT_DBNC_SHIFT	(16)
-#define KEY_INIT_DIS3KY		(1<<15)
-#define KEY_INIT_DIAG		(1<<14)
-#define KEY_INIT_BACK		(1<<13)
-#define KEY_INIT_T2		(1<<12)
-#define KEY_INIT_PRSCL_MASK	(0x000003ff)
-#define KEY_INIT_PRSCL_SHIFT	(0)
+#define KEY_INIT_DBNC_MASK	GENMASK(23, 16)
+#define KEY_INIT_DBNC_SHIFT	16
+#define KEY_INIT_DIS3KY		BIT(15)
+#define KEY_INIT_DIAG		BIT(14)
+#define KEY_INIT_BACK		BIT(13)
+#define KEY_INIT_T2		BIT(12)
+#define KEY_INIT_PRSCL_MASK	GENMASK(9, 0)
+#define KEY_INIT_PRSCL_SHIFT	0
 
 /* Key Scan Diagnostic Register bit defines */
-#define KEY_DIAG_MASK		(0x0000003f)
-#define KEY_DIAG_SHIFT		(0)
+#define KEY_DIAG_MASK		GENMASK(5, 0)
+#define KEY_DIAG_SHIFT		0
 
 /* Key Value Capture Register bit defines */
-#define KEY_REG_K		(1<<15)
-#define KEY_REG_INT		(1<<14)
-#define KEY_REG_2KEYS		(1<<13)
-#define KEY_REG_1KEY		(1<<12)
-#define KEY_REG_KEY2_MASK	(0x00000fc0)
-#define KEY_REG_KEY2_SHIFT	(6)
-#define KEY_REG_KEY1_MASK	(0x0000003f)
-#define KEY_REG_KEY1_SHIFT	(0)
+#define KEY_REG_K		BIT(15)
+#define KEY_REG_INT		BIT(14)
+#define KEY_REG_2KEYS		BIT(13)
+#define KEY_REG_1KEY		BIT(12)
+#define KEY_REG_KEY2_MASK	GENMASK(11, 6)
+#define KEY_REG_KEY2_SHIFT	6
+#define KEY_REG_KEY1_MASK	GENMASK(5, 0)
+#define KEY_REG_KEY1_SHIFT	0
 
 #define EP93XX_MATRIX_SIZE	(EP93XX_MATRIX_ROWS * EP93XX_MATRIX_COLS)
 
