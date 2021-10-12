@@ -36,8 +36,7 @@ union gen_cap_reg {
 		u64 max_batch_shift:4;
 		u64 max_ims_mult:6;
 		u64 config_en:1;
-		u64 max_descs_per_engine:8;
-		u64 rsvd3:24;
+		u64 rsvd3:32;
 	};
 	u64 bits;
 } __packed;
