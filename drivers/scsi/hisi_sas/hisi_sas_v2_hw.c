@@ -3531,10 +3531,12 @@ static void wait_cmds_complete_timeout_v2_hw(struct hisi_hba *hisi_hba,
 
 }
 
-static struct device_attribute *host_attrs_v2_hw[] = {
-	&dev_attr_phy_event_threshold,
+static struct attribute *host_v2_hw_attrs[] = {
+	&dev_attr_phy_event_threshold.attr,
 	NULL
 };
+
+ATTRIBUTE_GROUPS(host_v2_hw);
 
 static int map_queues_v2_hw(struct Scsi_Host *shost)
 {
@@ -3579,7 +3581,7 @@ static struct scsi_host_template sht_v2_hw = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl		= sas_ioctl,
 #endif
-	.shost_attrs		= host_attrs_v2_hw,
+	.shost_groups		= host_v2_hw_groups,
 	.host_reset		= hisi_sas_host_reset,
 	.map_queues		= map_queues_v2_hw,
 	.host_tagset		= 1,

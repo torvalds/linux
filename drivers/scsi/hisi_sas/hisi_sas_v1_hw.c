@@ -1742,10 +1742,12 @@ static int hisi_sas_v1_init(struct hisi_hba *hisi_hba)
 	return 0;
 }
 
-static struct device_attribute *host_attrs_v1_hw[] = {
-	&dev_attr_phy_event_threshold,
+static struct attribute *host_v1_hw_attrs[] = {
+	&dev_attr_phy_event_threshold.attr,
 	NULL
 };
+
+ATTRIBUTE_GROUPS(host_v1_hw);
 
 static struct scsi_host_template sht_v1_hw = {
 	.name			= DRV_NAME,
@@ -1770,7 +1772,7 @@ static struct scsi_host_template sht_v1_hw = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl		= sas_ioctl,
 #endif
-	.shost_attrs		= host_attrs_v1_hw,
+	.shost_groups		= host_v1_hw_groups,
 	.host_reset             = hisi_sas_host_reset,
 };
 
