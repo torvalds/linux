@@ -2216,10 +2216,6 @@ blk_qc_t blk_mq_submit_bio(struct bio *bio)
 	struct request_queue *q = bio->bi_bdev->bd_disk->queue;
 	const int is_sync = op_is_sync(bio->bi_opf);
 	const int is_flush_fua = op_is_flush(bio->bi_opf);
-	struct blk_mq_alloc_data data = {
-		.q		= q,
-		.nr_tags	= 1,
-	};
 	struct request *rq;
 	struct blk_plug *plug;
 	struct request *same_queue_rq = NULL;
@@ -2250,9 +2246,13 @@ blk_qc_t blk_mq_submit_bio(struct bio *bio)
 		rq = plug->cached_rq;
 		plug->cached_rq = rq->rq_next;
 		INIT_LIST_HEAD(&rq->queuelist);
-		data.hctx = rq->mq_hctx;
 	} else {
-		data.cmd_flags = bio->bi_opf;
+		struct blk_mq_alloc_data data = {
+			.q		= q,
+			.nr_tags	= 1,
+			.cmd_flags	= bio->bi_opf,
+		};
+
 		if (plug) {
 			data.nr_tags = plug->nr_ios;
 			plug->nr_ios = 1;
@@ -2271,7 +2271,7 @@ blk_qc_t blk_mq_submit_bio(struct bio *bio)
 
 	rq_qos_track(q, rq, bio);
 
-	cookie = request_to_qc_t(data.hctx, rq);
+	cookie = request_to_qc_t(rq->mq_hctx, rq);
 
 	blk_mq_bio_to_request(rq, bio, nr_segs);
 
@@ -2286,7 +2286,7 @@ blk_qc_t blk_mq_submit_bio(struct bio *bio)
 	if (unlikely(is_flush_fua)) {
 		/* Bypass scheduler for flush requests */
 		blk_insert_flush(rq);
-		blk_mq_run_hw_queue(data.hctx, true);
+		blk_mq_run_hw_queue(rq->mq_hctx, true);
 	} else if (plug && (q->nr_hw_queues == 1 ||
 		   blk_mq_is_shared_tags(rq->mq_hctx->flags) ||
 		   q->mq_ops->commit_rqs || !blk_queue_nonrot(q))) {
@@ -2333,18 +2333,17 @@ blk_qc_t blk_mq_submit_bio(struct bio *bio)
 		trace_block_plug(q);
 
 		if (same_queue_rq) {
-			data.hctx = same_queue_rq->mq_hctx;
 			trace_block_unplug(q, 1, true);
-			blk_mq_try_issue_directly(data.hctx, same_queue_rq,
-					&cookie);
+			blk_mq_try_issue_directly(same_queue_rq->mq_hctx,
+						  same_queue_rq, &cookie);
 		}
 	} else if ((q->nr_hw_queues > 1 && is_sync) ||
-			!data.hctx->dispatch_busy) {
+		   !rq->mq_hctx->dispatch_busy) {
 		/*
 		 * There is no scheduler and we can try to send directly
 		 * to the hardware.
 		 */
-		blk_mq_try_issue_directly(data.hctx, rq, &cookie);
+		blk_mq_try_issue_directly(rq->mq_hctx, rq, &cookie);
 	} else {
 		/* Default case. */
 		blk_mq_sched_insert_request(rq, false, true, true);
