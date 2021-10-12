@@ -11460,6 +11460,30 @@ cleanup_bios:
 	return ret;
 }
 
+static void
+intel_crtc_initial_plane_config(struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_initial_plane_config plane_config = {};
+
+	/*
+	 * Note that reserving the BIOS fb up front prevents us
+	 * from stuffing other stolen allocations like the ring
+	 * on top.  This prevents some ugliness at boot time, and
+	 * can even allow for smooth boot transitions if the BIOS
+	 * fb is large enough for the active pipe configuration.
+	 */
+	dev_priv->display->get_initial_plane_config(crtc, &plane_config);
+
+	/*
+	 * If the fb is shared between multiple heads, we'll
+	 * just get the first one.
+	 */
+	intel_find_initial_plane_obj(crtc, &plane_config);
+
+	plane_config_fini(&plane_config);
+}
+
 /* part #2: call after irq install, but before gem init */
 int intel_modeset_init_nogem(struct drm_i915_private *i915)
 {
@@ -11521,27 +11545,9 @@ int intel_modeset_init_nogem(struct drm_i915_private *i915)
 	drm_modeset_unlock_all(dev);
 
 	for_each_intel_crtc(dev, crtc) {
-		struct intel_initial_plane_config plane_config = {};
-
 		if (!to_intel_crtc_state(crtc->base.state)->uapi.active)
 			continue;
-
-		/*
-		 * Note that reserving the BIOS fb up front prevents us
-		 * from stuffing other stolen allocations like the ring
-		 * on top.  This prevents some ugliness at boot time, and
-		 * can even allow for smooth boot transitions if the BIOS
-		 * fb is large enough for the active pipe configuration.
-		 */
-		i915->display->get_initial_plane_config(crtc, &plane_config);
-
-		/*
-		 * If the fb is shared between multiple heads, we'll
-		 * just get the first one.
-		 */
-		intel_find_initial_plane_obj(crtc, &plane_config);
-
-		plane_config_fini(&plane_config);
+		intel_crtc_initial_plane_config(crtc);
 	}
 
 	/*
