@@ -739,16 +739,20 @@ void ice_devlink_destroy_vf_port(struct ice_vf *vf)
 }
 
 /**
- * ice_devlink_nvm_snapshot - Capture a snapshot of the Shadow RAM contents
+ * ice_devlink_nvm_snapshot - Capture a snapshot of the NVM flash contents
  * @devlink: the devlink instance
  * @ops: the devlink region being snapshotted
  * @extack: extended ACK response structure
  * @data: on exit points to snapshot data buffer
  *
  * This function is called in response to the DEVLINK_CMD_REGION_TRIGGER for
- * the shadow-ram devlink region. It captures a snapshot of the shadow ram
- * contents. This snapshot can later be viewed via the devlink-region
- * interface.
+ * the nvm-flash devlink region. It captures a snapshot of the full NVM flash
+ * contents, including both banks of flash. This snapshot can later be viewed
+ * via the devlink-region interface.
+ *
+ * It captures the flash using the FLASH_ONLY bit set when reading via
+ * firmware, so it does not read the current Shadow RAM contents. For that,
+ * use the shadow-ram region.
  *
  * @returns zero on success, and updates the data pointer. Returns a non-zero
  * error code on failure.
@@ -791,6 +795,66 @@ static int ice_devlink_nvm_snapshot(struct devlink *devlink,
 	ice_release_nvm(hw);
 
 	*data = nvm_data;
+
+	return 0;
+}
+
+/**
+ * ice_devlink_sram_snapshot - Capture a snapshot of the Shadow RAM contents
+ * @devlink: the devlink instance
+ * @ops: the devlink region being snapshotted
+ * @extack: extended ACK response structure
+ * @data: on exit points to snapshot data buffer
+ *
+ * This function is called in response to the DEVLINK_CMD_REGION_TRIGGER for
+ * the shadow-ram devlink region. It captures a snapshot of the shadow ram
+ * contents. This snapshot can later be viewed via the devlink-region
+ * interface.
+ *
+ * @returns zero on success, and updates the data pointer. Returns a non-zero
+ * error code on failure.
+ */
+static int
+ice_devlink_sram_snapshot(struct devlink *devlink,
+			  const struct devlink_region_ops __always_unused *ops,
+			  struct netlink_ext_ack *extack, u8 **data)
+{
+	struct ice_pf *pf = devlink_priv(devlink);
+	struct device *dev = ice_pf_to_dev(pf);
+	struct ice_hw *hw = &pf->hw;
+	u8 *sram_data;
+	u32 sram_size;
+	int err;
+
+	sram_size = hw->flash.sr_words * 2u;
+	sram_data = vzalloc(sram_size);
+	if (!sram_data)
+		return -ENOMEM;
+
+	err = ice_acquire_nvm(hw, ICE_RES_READ);
+	if (err) {
+		dev_dbg(dev, "ice_acquire_nvm failed, err %d aq_err %d\n",
+			err, hw->adminq.sq_last_status);
+		NL_SET_ERR_MSG_MOD(extack, "Failed to acquire NVM semaphore");
+		vfree(sram_data);
+		return err;
+	}
+
+	/* Read from the Shadow RAM, rather than directly from NVM */
+	err = ice_read_flat_nvm(hw, 0, &sram_size, sram_data, true);
+	if (err) {
+		dev_dbg(dev, "ice_read_flat_nvm failed after reading %u bytes, err %d aq_err %d\n",
+			sram_size, err, hw->adminq.sq_last_status);
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Failed to read Shadow RAM contents");
+		ice_release_nvm(hw);
+		vfree(sram_data);
+		return err;
+	}
+
+	ice_release_nvm(hw);
+
+	*data = sram_data;
 
 	return 0;
 }
@@ -845,6 +909,12 @@ static const struct devlink_region_ops ice_nvm_region_ops = {
 	.snapshot = ice_devlink_nvm_snapshot,
 };
 
+static const struct devlink_region_ops ice_sram_region_ops = {
+	.name = "shadow-ram",
+	.destructor = vfree,
+	.snapshot = ice_devlink_sram_snapshot,
+};
+
 static const struct devlink_region_ops ice_devcaps_region_ops = {
 	.name = "device-caps",
 	.destructor = vfree,
@@ -862,7 +932,7 @@ void ice_devlink_init_regions(struct ice_pf *pf)
 {
 	struct devlink *devlink = priv_to_devlink(pf);
 	struct device *dev = ice_pf_to_dev(pf);
-	u64 nvm_size;
+	u64 nvm_size, sram_size;
 
 	nvm_size = pf->hw.flash.flash_size;
 	pf->nvm_region = devlink_region_create(devlink, &ice_nvm_region_ops, 1,
@@ -871,6 +941,15 @@ void ice_devlink_init_regions(struct ice_pf *pf)
 		dev_err(dev, "failed to create NVM devlink region, err %ld\n",
 			PTR_ERR(pf->nvm_region));
 		pf->nvm_region = NULL;
+	}
+
+	sram_size = pf->hw.flash.sr_words * 2u;
+	pf->sram_region = devlink_region_create(devlink, &ice_sram_region_ops,
+						1, sram_size);
+	if (IS_ERR(pf->sram_region)) {
+		dev_err(dev, "failed to create shadow-ram devlink region, err %ld\n",
+			PTR_ERR(pf->sram_region));
+		pf->sram_region = NULL;
 	}
 
 	pf->devcaps_region = devlink_region_create(devlink,
@@ -893,6 +972,10 @@ void ice_devlink_destroy_regions(struct ice_pf *pf)
 {
 	if (pf->nvm_region)
 		devlink_region_destroy(pf->nvm_region);
+
+	if (pf->sram_region)
+		devlink_region_destroy(pf->sram_region);
+
 	if (pf->devcaps_region)
 		devlink_region_destroy(pf->devcaps_region);
 }

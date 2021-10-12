@@ -503,6 +503,7 @@ struct ice_pf {
 	struct pci_dev *pdev;
 
 	struct devlink_region *nvm_region;
+	struct devlink_region *sram_region;
 	struct devlink_region *devcaps_region;
 
 	/* devlink port data */
