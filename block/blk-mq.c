@@ -354,7 +354,7 @@ static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 	return rq;
 }
 
-static struct request *__blk_mq_alloc_request(struct blk_mq_alloc_data *data)
+static struct request *__blk_mq_alloc_requests(struct blk_mq_alloc_data *data)
 {
 	struct request_queue *q = data->q;
 	struct elevator_queue *e = q->elevator;
@@ -395,36 +395,36 @@ retry:
 	 */
 	do {
 		tag = blk_mq_get_tag(data);
-		if (tag != BLK_MQ_NO_TAG) {
-			rq = blk_mq_rq_ctx_init(data, tag, alloc_time_ns);
-			if (!--data->nr_tags)
-				return rq;
-			if (e || data->hctx->flags & BLK_MQ_F_TAG_QUEUE_SHARED)
-				return rq;
-			rq->rq_next = *data->cached_rq;
-			*data->cached_rq = rq;
-			data->flags |= BLK_MQ_REQ_NOWAIT;
-			continue;
+		if (tag == BLK_MQ_NO_TAG) {
+			if (data->flags & BLK_MQ_REQ_NOWAIT)
+				break;
+			/*
+			 * Give up the CPU and sleep for a random short time to
+			 * ensure that thread using a realtime scheduling class
+			 * are migrated off the CPU, and thus off the hctx that
+			 * is going away.
+			 */
+			msleep(3);
+			goto retry;
 		}
-		if (data->flags & BLK_MQ_REQ_NOWAIT)
-			break;
 
-		/*
-		 * Give up the CPU and sleep for a random short time to ensure
-		 * that thread using a realtime scheduling class are migrated
-		 * off the CPU, and thus off the hctx that is going away.
-		 */
-		msleep(3);
-		goto retry;
+		rq = blk_mq_rq_ctx_init(data, tag, alloc_time_ns);
+		if (!--data->nr_tags || e ||
+		    (data->hctx->flags & BLK_MQ_F_TAG_QUEUE_SHARED))
+			return rq;
+
+		/* link into the cached list */
+		rq->rq_next = *data->cached_rq;
+		*data->cached_rq = rq;
+		data->flags |= BLK_MQ_REQ_NOWAIT;
 	} while (1);
 
-	if (data->cached_rq) {
-		rq = *data->cached_rq;
-		*data->cached_rq = rq->rq_next;
-		return rq;
-	}
+	if (!data->cached_rq)
+		return NULL;
 
-	return NULL;
+	rq = *data->cached_rq;
+	*data->cached_rq = rq->rq_next;
+	return rq;
 }
 
 struct request *blk_mq_alloc_request(struct request_queue *q, unsigned int op,
@@ -443,7 +443,7 @@ struct request *blk_mq_alloc_request(struct request_queue *q, unsigned int op,
 	if (ret)
 		return ERR_PTR(ret);
 
-	rq = __blk_mq_alloc_request(&data);
+	rq = __blk_mq_alloc_requests(&data);
 	if (!rq)
 		goto out_queue_exit;
 	rq->__data_len = 0;
@@ -2258,7 +2258,7 @@ blk_qc_t blk_mq_submit_bio(struct bio *bio)
 			plug->nr_ios = 1;
 			data.cached_rq = &plug->cached_rq;
 		}
-		rq = __blk_mq_alloc_request(&data);
+		rq = __blk_mq_alloc_requests(&data);
 		if (unlikely(!rq)) {
 			rq_qos_cleanup(q, bio);
 			if (bio->bi_opf & REQ_NOWAIT)
