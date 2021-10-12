@@ -1245,7 +1245,12 @@ static inline int mlx5_core_native_port_num(struct mlx5_core_dev *dev)
 
 static inline int mlx5_get_dev_index(struct mlx5_core_dev *dev)
 {
-	return PCI_FUNC(dev->pdev->devfn);
+	int idx = MLX5_CAP_GEN(dev, native_port_num);
+
+	if (idx >= 1 && idx <= MLX5_MAX_PORTS)
+		return idx - 1;
+	else
+		return PCI_FUNC(dev->pdev->devfn);
 }
 
 enum {
