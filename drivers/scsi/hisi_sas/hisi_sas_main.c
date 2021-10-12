@@ -756,6 +756,20 @@ static int hisi_sas_init_device(struct domain_device *device)
 	return rc;
 }
 
+int hisi_sas_slave_alloc(struct scsi_device *sdev)
+{
+	struct domain_device *ddev;
+	int rc;
+
+	rc = sas_slave_alloc(sdev);
+	if (rc)
+		return rc;
+	ddev = sdev_to_domain_dev(sdev);
+
+	return hisi_sas_init_device(ddev);
+}
+EXPORT_SYMBOL_GPL(hisi_sas_slave_alloc);
+
 static int hisi_sas_dev_found(struct domain_device *device)
 {
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
@@ -802,9 +816,6 @@ static int hisi_sas_dev_found(struct domain_device *device)
 	dev_info(dev, "dev[%d:%x] found\n",
 		sas_dev->device_id, sas_dev->dev_type);
 
-	rc = hisi_sas_init_device(device);
-	if (rc)
-		goto err_out;
 	sas_dev->dev_status = HISI_SAS_DEV_NORMAL;
 	return 0;
 
