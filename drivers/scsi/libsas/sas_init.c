@@ -254,7 +254,7 @@ static int transport_sas_phy_reset(struct sas_phy *phy, int hard_reset)
 	}
 }
 
-static int sas_phy_enable(struct sas_phy *phy, int enable)
+int sas_phy_enable(struct sas_phy *phy, int enable)
 {
 	int ret;
 	enum phy_func cmd;
@@ -286,6 +286,7 @@ static int sas_phy_enable(struct sas_phy *phy, int enable)
 	}
 	return ret;
 }
+EXPORT_SYMBOL_GPL(sas_phy_enable);
 
 int sas_phy_reset(struct sas_phy *phy, int hard_reset)
 {
