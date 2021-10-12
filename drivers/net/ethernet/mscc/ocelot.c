@@ -579,7 +579,9 @@ static void ocelot_port_add_txtstamp_skb(struct ocelot *ocelot, int port,
 	skb_shinfo(clone)->tx_flags |= SKBTX_IN_PROGRESS;
 	/* Store timestamp ID in OCELOT_SKB_CB(clone)->ts_id */
 	OCELOT_SKB_CB(clone)->ts_id = ocelot_port->ts_id;
-	ocelot_port->ts_id = (ocelot_port->ts_id + 1) % 4;
+	ocelot_port->ts_id++;
+	if (ocelot_port->ts_id == OCELOT_MAX_PTP_ID)
+		ocelot_port->ts_id = 0;
 	skb_queue_tail(&ocelot_port->tx_skbs, clone);
 
 	spin_unlock(&ocelot_port->ts_id_lock);
