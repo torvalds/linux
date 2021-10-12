@@ -24,6 +24,12 @@
 	 *
 	 * [Normal]
 	 *	cpu0 <-@-----------------> codec0
+	 *
+	 * [Multi-CPU/Codec]
+	 *		+-+		+-+
+	 *	cpu1 <--| |<-@--------->| |-> codec1
+	 *	cpu2 <--| |		| |-> codec2
+	 *		+-+		+-+
 	 */
 	audio-graph-card2-custom-sample {
 		/*
@@ -34,7 +40,21 @@
 		compatible = "audio-graph-card2-custom-sample";
 
 		links = <&cpu0			/* normal: cpu side only */
+			 &mcpu0			/* multi:  cpu side only */
 		>;
+
+		multi {
+			ports@0 {
+			mcpu0:	port@0 { mcpu0_ep: endpoint { remote-endpoint = <&mcodec0_ep>; }; };
+				port@1 { mcpu1_ep: endpoint { remote-endpoint = <&cpu1_ep>;    }; };
+				port@2 { mcpu2_ep: endpoint { remote-endpoint = <&cpu2_ep>;    }; };
+			};
+			ports@1 {
+				port@0 { mcodec0_ep: endpoint { remote-endpoint = <&mcpu0_ep>;  }; };
+				port@1 { mcodec1_ep: endpoint { remote-endpoint = <&codec1_ep>; }; };
+				port@2 { mcodec2_ep: endpoint { remote-endpoint = <&codec2_ep>; }; };
+			};
+		};
 	};
 
 	test_cpu {
@@ -51,6 +71,8 @@
 			bitclock-master;
 			frame-master;
 			cpu0: port@0 { cpu0_ep: endpoint { remote-endpoint = <&codec0_ep>; }; };
+			      port@1 { cpu1_ep: endpoint { remote-endpoint = <&mcpu1_ep>; }; };
+			      port@2 { cpu2_ep: endpoint { remote-endpoint = <&mcpu2_ep>; }; };
 		};
 	};
 
@@ -66,6 +88,8 @@
 		compatible = "test-codec";
 		ports {
 			port@0  { codec0_ep:  endpoint { remote-endpoint = <&cpu0_ep>; }; };
+			port@1  { codec1_ep:  endpoint { remote-endpoint = <&mcodec1_ep>; }; };
+			port@2  { codec2_ep:  endpoint { remote-endpoint = <&mcodec2_ep>; }; };
 		};
 	};
 };
