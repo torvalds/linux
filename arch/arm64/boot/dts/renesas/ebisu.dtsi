@@ -423,37 +423,39 @@
 		compatible = "adi,adv7482";
 		reg = <0x70>;
 
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		interrupt-parent = <&gpio0>;
 		interrupt-names = "intrq1", "intrq2";
 		interrupts = <7 IRQ_TYPE_LEVEL_LOW>,
 			     <17 IRQ_TYPE_LEVEL_LOW>;
 
-		port@7 {
-			reg = <7>;
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
 
-			adv7482_ain7: endpoint {
-				remote-endpoint = <&cvbs_con>;
+			port@7 {
+				reg = <7>;
+
+				adv7482_ain7: endpoint {
+					remote-endpoint = <&cvbs_con>;
+				};
 			};
-		};
 
-		port@8 {
-			reg = <8>;
+			port@8 {
+				reg = <8>;
 
-			adv7482_hdmi: endpoint {
-				remote-endpoint = <&hdmi_in_con>;
+				adv7482_hdmi: endpoint {
+					remote-endpoint = <&hdmi_in_con>;
+				};
 			};
-		};
 
-		port@a {
-			reg = <10>;
+			port@a {
+				reg = <10>;
 
-			adv7482_txa: endpoint {
-				clock-lanes = <0>;
-				data-lanes = <1 2>;
-				remote-endpoint = <&csi40_in>;
+				adv7482_txa: endpoint {
+					clock-lanes = <0>;
+					data-lanes = <1 2>;
+					remote-endpoint = <&csi40_in>;
+				};
 			};
 		};
 	};
