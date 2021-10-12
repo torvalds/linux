@@ -727,6 +727,8 @@ struct mlx5e_channel {
 	DECLARE_BITMAP(state, MLX5E_CHANNEL_NUM_STATES);
 	int                        ix;
 	int                        cpu;
+	/* Sync between icosq recovery and XSK enable/disable. */
+	struct mutex               icosq_recovery_lock;
 };
 
 struct mlx5e_ptp;

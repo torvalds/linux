@@ -59,6 +59,7 @@ static void mlx5e_reset_icosq_cc_pc(struct mlx5e_icosq *icosq)
 
 static int mlx5e_rx_reporter_err_icosq_cqe_recover(void *ctx)
 {
+	struct mlx5e_rq *xskrq = NULL;
 	struct mlx5_core_dev *mdev;
 	struct mlx5e_icosq *icosq;
 	struct net_device *dev;
@@ -67,7 +68,13 @@ static int mlx5e_rx_reporter_err_icosq_cqe_recover(void *ctx)
 	int err;
 
 	icosq = ctx;
+
+	mutex_lock(&icosq->channel->icosq_recovery_lock);
+
+	/* mlx5e_close_rq cancels this work before RQ and ICOSQ are killed. */
 	rq = &icosq->channel->rq;
+	if (test_bit(MLX5E_RQ_STATE_ENABLED, &icosq->channel->xskrq.state))
+		xskrq = &icosq->channel->xskrq;
 	mdev = icosq->channel->mdev;
 	dev = icosq->channel->netdev;
 	err = mlx5_core_query_sq_state(mdev, icosq->sqn, &state);
@@ -81,6 +88,9 @@ static int mlx5e_rx_reporter_err_icosq_cqe_recover(void *ctx)
 		goto out;
 
 	mlx5e_deactivate_rq(rq);
+	if (xskrq)
+		mlx5e_deactivate_rq(xskrq);
+
 	err = mlx5e_wait_for_icosq_flush(icosq);
 	if (err)
 		goto out;
@@ -94,15 +104,28 @@ static int mlx5e_rx_reporter_err_icosq_cqe_recover(void *ctx)
 		goto out;
 
 	mlx5e_reset_icosq_cc_pc(icosq);
+
 	mlx5e_free_rx_in_progress_descs(rq);
+	if (xskrq)
+		mlx5e_free_rx_in_progress_descs(xskrq);
+
 	clear_bit(MLX5E_SQ_STATE_RECOVERING, &icosq->state);
 	mlx5e_activate_icosq(icosq);
-	mlx5e_activate_rq(rq);
 
+	mlx5e_activate_rq(rq);
 	rq->stats->recover++;
+
+	if (xskrq) {
+		mlx5e_activate_rq(xskrq);
+		xskrq->stats->recover++;
+	}
+
+	mutex_unlock(&icosq->channel->icosq_recovery_lock);
+
 	return 0;
 out:
 	clear_bit(MLX5E_SQ_STATE_RECOVERING, &icosq->state);
+	mutex_unlock(&icosq->channel->icosq_recovery_lock);
 	return err;
 }
 
@@ -701,6 +724,16 @@ void mlx5e_reporter_icosq_cqe_err(struct mlx5e_icosq *icosq)
 	snprintf(err_str, sizeof(err_str), "ERR CQE on ICOSQ: 0x%x", icosq->sqn);
 
 	mlx5e_health_report(priv, priv->rx_reporter, err_str, &err_ctx);
+}
+
+void mlx5e_reporter_icosq_suspend_recovery(struct mlx5e_channel *c)
+{
+	mutex_lock(&c->icosq_recovery_lock);
+}
+
+void mlx5e_reporter_icosq_resume_recovery(struct mlx5e_channel *c)
+{
+	mutex_unlock(&c->icosq_recovery_lock);
 }
 
 static const struct devlink_health_reporter_ops mlx5_rx_reporter_ops = {
