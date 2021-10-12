@@ -34,6 +34,7 @@
 #include <linux/if_bridge.h>
 #include <linux/ctype.h>
 #include <linux/bpf.h>
+#include <linux/btf.h>
 #include <linux/auxiliary_bus.h>
 #include <linux/avf/virtchnl.h>
 #include <linux/cpu_rmap.h>
@@ -610,6 +611,13 @@ struct ice_pf {
 struct ice_netdev_priv {
 	struct ice_vsi *vsi;
 	struct ice_repr *repr;
+	/* indirect block callbacks on registered higher level devices
+	 * (e.g. tunnel devices)
+	 *
+	 * tc_indr_block_cb_priv_list is used to look up indirect callback
+	 * private data
+	 */
+	struct list_head tc_indr_block_priv_list;
 };
 
 /**

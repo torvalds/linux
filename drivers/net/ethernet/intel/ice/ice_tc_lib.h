@@ -23,6 +23,12 @@
 #define ICE_TC_FLWR_FIELD_ENC_DST_MAC		BIT(16)
 #define ICE_TC_FLWR_FIELD_ETH_TYPE_ID		BIT(17)
 
+struct ice_indr_block_priv {
+	struct net_device *netdev;
+	struct ice_netdev_priv *np;
+	struct list_head list;
+};
+
 struct ice_tc_flower_action {
 	u32 tc_class;
 	enum ice_sw_fwd_act_type fltr_act;
