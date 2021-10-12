@@ -107,7 +107,7 @@ static struct scsi_host_template pm8001_sht = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl		= sas_ioctl,
 #endif
-	.shost_attrs		= pm8001_host_attrs,
+	.shost_groups		= pm8001_host_groups,
 	.track_queue_depth	= 1,
 };
 

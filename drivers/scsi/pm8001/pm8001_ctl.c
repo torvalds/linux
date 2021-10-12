@@ -1002,34 +1002,42 @@ static ssize_t ctl_iop1_count_show(struct device *cdev,
 }
 static DEVICE_ATTR_RO(ctl_iop1_count);
 
-struct device_attribute *pm8001_host_attrs[] = {
-	&dev_attr_interface_rev,
-	&dev_attr_controller_fatal_error,
-	&dev_attr_fw_version,
-	&dev_attr_update_fw,
-	&dev_attr_aap_log,
-	&dev_attr_iop_log,
-	&dev_attr_fatal_log,
-	&dev_attr_non_fatal_log,
-	&dev_attr_non_fatal_count,
-	&dev_attr_gsm_log,
-	&dev_attr_max_out_io,
-	&dev_attr_max_devices,
-	&dev_attr_max_sg_list,
-	&dev_attr_sas_spec_support,
-	&dev_attr_logging_level,
-	&dev_attr_event_log_size,
-	&dev_attr_host_sas_address,
-	&dev_attr_bios_version,
-	&dev_attr_ib_log,
-	&dev_attr_ob_log,
-	&dev_attr_ila_version,
-	&dev_attr_inc_fw_ver,
-	&dev_attr_ctl_mpi_state,
-	&dev_attr_ctl_hmi_error,
-	&dev_attr_ctl_raae_count,
-	&dev_attr_ctl_iop0_count,
-	&dev_attr_ctl_iop1_count,
+static struct attribute *pm8001_host_attrs[] = {
+	&dev_attr_interface_rev.attr,
+	&dev_attr_controller_fatal_error.attr,
+	&dev_attr_fw_version.attr,
+	&dev_attr_update_fw.attr,
+	&dev_attr_aap_log.attr,
+	&dev_attr_iop_log.attr,
+	&dev_attr_fatal_log.attr,
+	&dev_attr_non_fatal_log.attr,
+	&dev_attr_non_fatal_count.attr,
+	&dev_attr_gsm_log.attr,
+	&dev_attr_max_out_io.attr,
+	&dev_attr_max_devices.attr,
+	&dev_attr_max_sg_list.attr,
+	&dev_attr_sas_spec_support.attr,
+	&dev_attr_logging_level.attr,
+	&dev_attr_event_log_size.attr,
+	&dev_attr_host_sas_address.attr,
+	&dev_attr_bios_version.attr,
+	&dev_attr_ib_log.attr,
+	&dev_attr_ob_log.attr,
+	&dev_attr_ila_version.attr,
+	&dev_attr_inc_fw_ver.attr,
+	&dev_attr_ctl_mpi_state.attr,
+	&dev_attr_ctl_hmi_error.attr,
+	&dev_attr_ctl_raae_count.attr,
+	&dev_attr_ctl_iop0_count.attr,
+	&dev_attr_ctl_iop1_count.attr,
 	NULL,
 };
 
+static const struct attribute_group pm8001_host_attr_group = {
+	.attrs = pm8001_host_attrs
+};
+
+const struct attribute_group *pm8001_host_groups[] = {
+	&pm8001_host_attr_group,
+	NULL
+};
