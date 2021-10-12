@@ -32,8 +32,8 @@ enum xfs_refcount_intent_type {
 struct xfs_refcount_intent {
 	struct list_head			ri_list;
 	enum xfs_refcount_intent_type		ri_type;
-	xfs_fsblock_t				ri_startblock;
 	xfs_extlen_t				ri_blockcount;
+	xfs_fsblock_t				ri_startblock;
 };
 
 void xfs_refcount_increase_extent(struct xfs_trans *tp,

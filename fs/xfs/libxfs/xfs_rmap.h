@@ -159,8 +159,8 @@ enum xfs_rmap_intent_type {
 struct xfs_rmap_intent {
 	struct list_head			ri_list;
 	enum xfs_rmap_intent_type		ri_type;
-	uint64_t				ri_owner;
 	int					ri_whichfork;
+	uint64_t				ri_owner;
 	struct xfs_bmbt_irec			ri_bmap;
 };
 
