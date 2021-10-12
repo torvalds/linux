@@ -364,7 +364,6 @@ enum {
 };
 
 struct mlx5_core_mkey {
-	u64			iova;
 	u64			size;
 	u32			key;
 	u32			pd;
