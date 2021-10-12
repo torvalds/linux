@@ -946,16 +946,9 @@ static enum data_cmd rereplicate_pred(struct bch_fs *c, void *arg,
 				      struct data_opts *data_opts)
 {
 	unsigned nr_good = bch2_bkey_durability(c, k);
-	unsigned replicas = 0;
-
-	switch (k.k->type) {
-	case KEY_TYPE_btree_ptr:
-		replicas = c->opts.metadata_replicas;
-		break;
-	case KEY_TYPE_extent:
-		replicas = io_opts->data_replicas;
-		break;
-	}
+	unsigned replicas = bkey_is_btree_ptr(k.k)
+		? c->opts.metadata_replicas
+		: io_opts->data_replicas;
 
 	if (!nr_good || nr_good >= replicas)
 		return DATA_SKIP;
