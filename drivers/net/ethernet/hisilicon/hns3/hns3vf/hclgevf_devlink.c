@@ -123,15 +123,12 @@ int hclgevf_devlink_init(struct hclgevf_dev *hdev)
 
 	devlink_set_features(devlink, DEVLINK_F_RELOAD);
 	devlink_register(devlink);
-	devlink_reload_enable(devlink);
 	return 0;
 }
 
 void hclgevf_devlink_uninit(struct hclgevf_dev *hdev)
 {
 	struct devlink *devlink = hdev->devlink;
-
-	devlink_reload_disable(devlink);
 
 	devlink_unregister(devlink);
 
