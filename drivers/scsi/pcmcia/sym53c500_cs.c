@@ -650,10 +650,12 @@ static struct device_attribute SYM53C500_pio_attr = {
 	.store = SYM53C500_store_pio,
 };
 
-static struct device_attribute *SYM53C500_shost_attrs[] = {
-	&SYM53C500_pio_attr,
+static struct attribute *SYM53C500_shost_attrs[] = {
+	&SYM53C500_pio_attr.attr,
 	NULL,
 };
+
+ATTRIBUTE_GROUPS(SYM53C500_shost);
 
 /*
 *  scsi_host_template initializer
@@ -669,7 +671,7 @@ static struct scsi_host_template sym53c500_driver_template = {
      .can_queue			= 1,
      .this_id			= 7,
      .sg_tablesize		= 32,
-     .shost_attrs		= SYM53C500_shost_attrs
+     .shost_groups		= SYM53C500_shost_groups
 };
 
 static int SYM53C500_config_check(struct pcmcia_device *p_dev, void *priv_data)
