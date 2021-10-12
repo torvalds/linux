@@ -1119,6 +1119,17 @@
 		status = "disabled";
 	};
 
+	dp0: dp@fde50000 {
+		compatible = "rockchip,rk3588-dp";
+		reg = <0x0 0xfde50000 0x0 0x4000>;
+		interrupts = <GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru PCLK_DP0>;
+		resets = <&cru SRST_DP0>;
+		phys = <&usbdp_phy0_dp>;
+		power-domains = <&power RK3588_PD_VO0>;
+		status = "disabled";
+	};
+
 	edp0: edp@fdec0000 {
 		compatible = "rockchip,rk3588-edp";
 		reg = <0x0 0xfdec0000 0x0 0x1000>;
