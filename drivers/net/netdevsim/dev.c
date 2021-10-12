@@ -1511,6 +1511,7 @@ int nsim_dev_probe(struct nsim_bus_dev *nsim_bus_dev)
 		goto err_psample_exit;
 
 	nsim_dev->esw_mode = DEVLINK_ESWITCH_MODE_LEGACY;
+	devlink_set_features(devlink, DEVLINK_F_RELOAD);
 	devlink_register(devlink);
 	devlink_reload_enable(devlink);
 	return 0;

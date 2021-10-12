@@ -813,6 +813,7 @@ int mlx5_devlink_register(struct devlink *devlink)
 	if (err)
 		goto traps_reg_err;
 
+	devlink_set_features(devlink, DEVLINK_F_RELOAD);
 	return 0;
 
 traps_reg_err:
