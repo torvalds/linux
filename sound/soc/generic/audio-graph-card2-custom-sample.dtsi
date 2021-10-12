@@ -48,6 +48,11 @@
 	 *	cpu5 <-@--*  *--@-> | | -> codec4
 	 *	cpu6 <-@--*  *	    | | -> codec5
 	 *		  ****	    +-+
+	 *
+	 * [Codec2Codec]
+	 *			   +-@-> codec6
+	 *			   |
+	 *			   +---> codec7
 	 */
 	audio-graph-card2-custom-sample {
 		/*
@@ -72,12 +77,16 @@
 			  "DAI5 Capture",	"TC DAI4 Capture",
 			  "DAI5 Capture",	"TC DAI5 Capture",
 			  "DAI6 Capture",	"TC DAI4 Capture",
-			  "DAI6 Capture",	"TC DAI5 Capture";
+			  "DAI6 Capture",	"TC DAI5 Capture",
+			/* for [Codec2Codec] */
+			  "TC OUT",		"TC DAI7 Playback",
+			  "TC DAI6 Capture",	"TC IN";
 
 		links = <&cpu0			/* normal: cpu side only */
 			 &mcpu0			/* multi:  cpu side only */
 			 &fe00 &fe01 &be0	/* dpcm:   both FE / BE  */
 			 &fe10 &fe11 &be1	/* dpcm-m: both FE / BE  */
+			 &c2c			/* c2c:    cpu side only */
 		>;
 
 		multi {
@@ -110,6 +119,14 @@
 			ports@1 {
 			be0:	port@0 { be00_ep: endpoint { remote-endpoint = <&codec3_ep>; }; };
 			be1:	port@1 { be10_ep: endpoint { remote-endpoint = <&mbe_ep>; }; };
+			};
+		};
+
+		codec2codec {
+			ports@0 {
+				rate = <48000>;
+			c2c:	port@0 { c2cf_ep: endpoint { remote-endpoint = <&codec6_ep>; }; };
+				port@1 { c2cb_ep: endpoint { remote-endpoint = <&codec7_ep>; }; };
 			};
 		};
 	};
@@ -160,6 +177,10 @@
 			port@3  { codec3_ep:  endpoint { remote-endpoint = <&be00_ep>; }; };
 			port@4  { codec4_ep:  endpoint { remote-endpoint = <&mbe1_ep>; }; };
 			port@5  { codec5_ep:  endpoint { remote-endpoint = <&mbe2_ep>; }; };
+			port@6  { bitclock-master;
+				  frame-master;
+				  codec6_ep:  endpoint { remote-endpoint = <&c2cf_ep>; }; };
+			port@7  { codec7_ep:  endpoint { remote-endpoint = <&c2cb_ep>; }; };
 		};
 	};
 };
