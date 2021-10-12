@@ -1477,6 +1477,24 @@ static int pci_save_pcie_state(struct pci_dev *dev)
 	return 0;
 }
 
+void pci_bridge_reconfigure_ltr(struct pci_dev *dev)
+{
+#ifdef CONFIG_PCIEASPM
+	struct pci_dev *bridge;
+	u32 ctl;
+
+	bridge = pci_upstream_bridge(dev);
+	if (bridge && bridge->ltr_path) {
+		pcie_capability_read_dword(bridge, PCI_EXP_DEVCTL2, &ctl);
+		if (!(ctl & PCI_EXP_DEVCTL2_LTR_EN)) {
+			pci_dbg(bridge, "re-enabling LTR\n");
+			pcie_capability_set_word(bridge, PCI_EXP_DEVCTL2,
+						 PCI_EXP_DEVCTL2_LTR_EN);
+		}
+	}
+#endif
+}
+
 static void pci_restore_pcie_state(struct pci_dev *dev)
 {
 	int i = 0;
@@ -1486,6 +1504,13 @@ static void pci_restore_pcie_state(struct pci_dev *dev)
 	save_state = pci_find_saved_cap(dev, PCI_CAP_ID_EXP);
 	if (!save_state)
 		return;
+
+	/*
+	 * Downstream ports reset the LTR enable bit when link goes down.
+	 * Check and re-configure the bit here before restoring device.
+	 * PCIe r5.0, sec 7.5.3.16.
+	 */
+	pci_bridge_reconfigure_ltr(dev);
 
 	cap = (u16 *)&save_state->cap.data[0];
 	pcie_capability_write_word(dev, PCI_EXP_DEVCTL, cap[i++]);
