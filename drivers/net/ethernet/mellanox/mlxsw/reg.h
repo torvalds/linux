@@ -5398,6 +5398,12 @@ MLXSW_ITEM64(reg, ppcnt, tc_no_buffer_discard_uc,
 MLXSW_ITEM64(reg, ppcnt, wred_discard,
 	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x00, 0, 64);
 
+/* reg_ppcnt_ecn_marked_tc
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, ecn_marked_tc,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x08, 0, 64);
+
 static inline void mlxsw_reg_ppcnt_pack(char *payload, u8 local_port,
 					enum mlxsw_reg_ppcnt_grp grp,
 					u8 prio_tc)
