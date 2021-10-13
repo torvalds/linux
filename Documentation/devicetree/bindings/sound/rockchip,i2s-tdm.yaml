@@ -112,7 +112,7 @@ properties:
       rockchip,i2s-rx-route = <3> would mean sdi3 is receiving from data0.
     maxItems: 4
     items:
-      - enum: [0, 1, 2, 3]
+      enum: [0, 1, 2, 3]
 
   rockchip,i2s-tx-route:
     $ref: /schemas/types.yaml#/definitions/uint32-array
@@ -122,7 +122,7 @@ properties:
       rockchip,i2s-tx-route = <3> would mean sdo3 is sending to data0.
     maxItems: 4
     items:
-      - enum: [0, 1, 2, 3]
+      enum: [0, 1, 2, 3]
 
   rockchip,io-multiplex:
     description:
