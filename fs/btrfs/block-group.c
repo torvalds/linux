@@ -3429,7 +3429,7 @@ static int do_chunk_alloc(struct btrfs_trans_handle *trans, u64 flags)
 	/*
 	 * Normally we are not expected to fail with -ENOSPC here, since we have
 	 * previously reserved space in the system space_info and allocated one
-	 * new system chunk if necessary. However there are two exceptions:
+	 * new system chunk if necessary. However there are three exceptions:
 	 *
 	 * 1) We may have enough free space in the system space_info but all the
 	 *    existing system block groups have a profile which can not be used
@@ -3455,7 +3455,14 @@ static int do_chunk_alloc(struct btrfs_trans_handle *trans, u64 flags)
 	 *    with enough free space got turned into RO mode by a running scrub,
 	 *    and in this case we have to allocate a new one and retry. We only
 	 *    need do this allocate and retry once, since we have a transaction
-	 *    handle and scrub uses the commit root to search for block groups.
+	 *    handle and scrub uses the commit root to search for block groups;
+	 *
+	 * 3) We had one system block group with enough free space when we called
+	 *    check_system_chunk(), but after that, right before we tried to
+	 *    allocate the last extent buffer we needed, a discard operation came
+	 *    in and it temporarily removed the last free space entry from the
+	 *    block group (discard removes a free space entry, discards it, and
+	 *    then adds back the entry to the block group cache).
 	 */
 	if (ret == -ENOSPC) {
 		const u64 sys_flags = btrfs_system_alloc_profile(trans->fs_info);
@@ -3539,7 +3546,15 @@ out:
  *    properly, either intentionally or as a bug. One example where this is
  *    done intentionally is fsync, as it does not reserve any transaction units
  *    and ends up allocating a variable number of metadata extents for log
- *    tree extent buffers.
+ *    tree extent buffers;
+ *
+ * 4) The task has reserved enough transaction units / metadata space, but right
+ *    before it tries to allocate the last extent buffer it needs, a discard
+ *    operation comes in and, temporarily, removes the last free space entry from
+ *    the only metadata block group that had free space (discard starts by
+ *    removing a free space entry from a block group, then does the discard
+ *    operation and, once it's done, it adds back the free space entry to the
+ *    block group).
  *
  * We also need this 2 phases setup when adding a device to a filesystem with
  * a seed device - we must create new metadata and system chunks without adding
