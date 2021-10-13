@@ -78,8 +78,8 @@ int xfpregs_get(struct task_struct *target, const struct user_regset *regset,
 	sync_fpstate(fpu);
 
 	if (!use_xsave()) {
-		return membuf_write(&to, &fpu->state.fxsave,
-				    sizeof(fpu->state.fxsave));
+		return membuf_write(&to, &fpu->fpstate->regs.fxsave,
+				    sizeof(fpu->fpstate->regs.fxsave));
 	}
 
 	copy_xstate_to_uabi_buf(to, target, XSTATE_COPY_FX);
@@ -114,15 +114,15 @@ int xfpregs_set(struct task_struct *target, const struct user_regset *regset,
 	fpu_force_restore(fpu);
 
 	/* Copy the state  */
-	memcpy(&fpu->state.fxsave, &newstate, sizeof(newstate));
+	memcpy(&fpu->fpstate->regs.fxsave, &newstate, sizeof(newstate));
 
 	/* Clear xmm8..15 */
-	BUILD_BUG_ON(sizeof(fpu->state.fxsave.xmm_space) != 16 * 16);
-	memset(&fpu->state.fxsave.xmm_space[8], 0, 8 * 16);
+	BUILD_BUG_ON(sizeof(fpu->__fpstate.regs.fxsave.xmm_space) != 16 * 16);
+	memset(&fpu->fpstate->regs.fxsave.xmm_space[8], 0, 8 * 16);
 
 	/* Mark FP and SSE as in use when XSAVE is enabled */
 	if (use_xsave())
-		fpu->state.xsave.header.xfeatures |= XFEATURE_MASK_FPSSE;
+		fpu->fpstate->regs.xsave.header.xfeatures |= XFEATURE_MASK_FPSSE;
 
 	return 0;
 }
@@ -168,7 +168,8 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
 	}
 
 	fpu_force_restore(fpu);
-	ret = copy_uabi_from_kernel_to_xstate(&fpu->state.xsave, kbuf ?: tmpbuf);
+	ret = copy_uabi_from_kernel_to_xstate(&fpu->fpstate->regs.xsave,
+					      kbuf ?: tmpbuf);
 
 out:
 	vfree(tmpbuf);
@@ -287,7 +288,7 @@ static void __convert_from_fxsr(struct user_i387_ia32_struct *env,
 void
 convert_from_fxsr(struct user_i387_ia32_struct *env, struct task_struct *tsk)
 {
-	__convert_from_fxsr(env, tsk, &tsk->thread.fpu.state.fxsave);
+	__convert_from_fxsr(env, tsk, &tsk->thread.fpu.fpstate->regs.fxsave);
 }
 
 void convert_to_fxsr(struct fxregs_state *fxsave,
@@ -330,7 +331,7 @@ int fpregs_get(struct task_struct *target, const struct user_regset *regset,
 		return fpregs_soft_get(target, regset, to);
 
 	if (!cpu_feature_enabled(X86_FEATURE_FXSR)) {
-		return membuf_write(&to, &fpu->state.fsave,
+		return membuf_write(&to, &fpu->fpstate->regs.fsave,
 				    sizeof(struct fregs_state));
 	}
 
@@ -341,7 +342,7 @@ int fpregs_get(struct task_struct *target, const struct user_regset *regset,
 		copy_xstate_to_uabi_buf(mb, target, XSTATE_COPY_FP);
 		fx = &fxsave;
 	} else {
-		fx = &fpu->state.fxsave;
+		fx = &fpu->fpstate->regs.fxsave;
 	}
 
 	__convert_from_fxsr(&env, target, fx);
@@ -370,16 +371,16 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 	fpu_force_restore(fpu);
 
 	if (cpu_feature_enabled(X86_FEATURE_FXSR))
-		convert_to_fxsr(&fpu->state.fxsave, &env);
+		convert_to_fxsr(&fpu->fpstate->regs.fxsave, &env);
 	else
-		memcpy(&fpu->state.fsave, &env, sizeof(env));
+		memcpy(&fpu->fpstate->regs.fsave, &env, sizeof(env));
 
 	/*
 	 * Update the header bit in the xsave header, indicating the
 	 * presence of FP.
 	 */
 	if (cpu_feature_enabled(X86_FEATURE_XSAVE))
-		fpu->state.xsave.header.xfeatures |= XFEATURE_MASK_FP;
+		fpu->fpstate->regs.xsave.header.xfeatures |= XFEATURE_MASK_FP;
 
 	return 0;
 }
