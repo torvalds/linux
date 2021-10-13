@@ -1940,6 +1940,9 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 			NL_SET_ERR_MSG(extack, "Invalid extended flags");
 			goto out;
 		}
+		BUILD_BUG_ON(sizeof(neigh->flags) * BITS_PER_BYTE <
+			     (sizeof(ndm->ndm_flags) * BITS_PER_BYTE +
+			      hweight32(NTF_EXT_MASK)));
 		ndm_flags |= (ext << NTF_EXT_SHIFT);
 	}
 	if (ndm->ndm_ifindex) {
