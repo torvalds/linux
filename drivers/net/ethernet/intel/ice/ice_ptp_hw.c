@@ -1706,6 +1706,86 @@ ice_calc_fixed_tx_offset_e822(struct ice_hw *hw, enum ice_ptp_link_spd link_spd)
 }
 
 /**
+ * ice_phy_cfg_tx_offset_e822 - Configure total Tx timestamp offset
+ * @hw: pointer to the HW struct
+ * @port: the PHY port to configure
+ *
+ * Program the P_REG_TOTAL_TX_OFFSET register with the total number of TUs to
+ * adjust Tx timestamps by. This is calculated by combining some known static
+ * latency along with the Vernier offset computations done by hardware.
+ *
+ * This function must be called only after the offset registers are valid,
+ * i.e. after the Vernier calibration wait has passed, to ensure that the PHY
+ * has measured the offset.
+ *
+ * To avoid overflow, when calculating the offset based on the known static
+ * latency values, we use measurements in 1/100th of a nanosecond, and divide
+ * the TUs per second up front. This avoids overflow while allowing
+ * calculation of the adjustment using integer arithmetic.
+ */
+static int ice_phy_cfg_tx_offset_e822(struct ice_hw *hw, u8 port)
+{
+	enum ice_ptp_link_spd link_spd;
+	enum ice_ptp_fec_mode fec_mode;
+	u64 total_offset, val;
+	int err;
+
+	err = ice_phy_get_speed_and_fec_e822(hw, port, &link_spd, &fec_mode);
+	if (err)
+		return err;
+
+	total_offset = ice_calc_fixed_tx_offset_e822(hw, link_spd);
+
+	/* Read the first Vernier offset from the PHY register and add it to
+	 * the total offset.
+	 */
+	if (link_spd == ICE_PTP_LNK_SPD_1G ||
+	    link_spd == ICE_PTP_LNK_SPD_10G ||
+	    link_spd == ICE_PTP_LNK_SPD_25G ||
+	    link_spd == ICE_PTP_LNK_SPD_25G_RS ||
+	    link_spd == ICE_PTP_LNK_SPD_40G ||
+	    link_spd == ICE_PTP_LNK_SPD_50G) {
+		err = ice_read_64b_phy_reg_e822(hw, port,
+						P_REG_PAR_PCS_TX_OFFSET_L,
+						&val);
+		if (err)
+			return err;
+
+		total_offset += val;
+	}
+
+	/* For Tx, we only need to use the second Vernier offset for
+	 * multi-lane link speeds with RS-FEC. The lanes will always be
+	 * aligned.
+	 */
+	if (link_spd == ICE_PTP_LNK_SPD_50G_RS ||
+	    link_spd == ICE_PTP_LNK_SPD_100G_RS) {
+		err = ice_read_64b_phy_reg_e822(hw, port,
+						P_REG_PAR_TX_TIME_L,
+						&val);
+		if (err)
+			return err;
+
+		total_offset += val;
+	}
+
+	/* Now that the total offset has been calculated, program it to the
+	 * PHY and indicate that the Tx offset is ready. After this,
+	 * timestamps will be enabled.
+	 */
+	err = ice_write_64b_phy_reg_e822(hw, port, P_REG_TOTAL_TX_OFFSET_L,
+					 total_offset);
+	if (err)
+		return err;
+
+	err = ice_write_phy_reg_e822(hw, port, P_REG_TX_OR, 1);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+/**
  * ice_phy_cfg_fixed_tx_offset_e822 - Configure Tx offset for bypass mode
  * @hw: pointer to the HW struct
  * @port: the PHY port to configure
@@ -1747,6 +1827,164 @@ ice_phy_cfg_fixed_tx_offset_e822(struct ice_hw *hw, u8 port)
 }
 
 /**
+ * ice_phy_calc_pmd_adj_e822 - Calculate PMD adjustment for Rx
+ * @hw: pointer to the HW struct
+ * @port: the PHY port to adjust for
+ * @link_spd: the current link speed of the PHY
+ * @fec_mode: the current FEC mode of the PHY
+ * @pmd_adj: on return, the amount to adjust the Rx total offset by
+ *
+ * Calculates the adjustment to Rx timestamps due to PMD alignment in the PHY.
+ * This varies by link speed and FEC mode. The value calculated accounts for
+ * various delays caused when receiving a packet.
+ */
+static int
+ice_phy_calc_pmd_adj_e822(struct ice_hw *hw, u8 port,
+			  enum ice_ptp_link_spd link_spd,
+			  enum ice_ptp_fec_mode fec_mode, u64 *pmd_adj)
+{
+	u64 cur_freq, clk_incval, tu_per_sec, mult, adj;
+	u8 pmd_align;
+	u32 val;
+	int err;
+
+	err = ice_read_phy_reg_e822(hw, port, P_REG_PMD_ALIGNMENT, &val);
+	if (err) {
+		ice_debug(hw, ICE_DBG_PTP, "Failed to read PMD alignment, err %d\n",
+			  err);
+		return err;
+	}
+
+	pmd_align = (u8)val;
+
+	cur_freq = ice_e822_pll_freq(ice_e822_time_ref(hw));
+	clk_incval = ice_ptp_read_src_incval(hw);
+
+	/* Calculate TUs per second */
+	tu_per_sec = cur_freq * clk_incval;
+
+	/* The PMD alignment adjustment measurement depends on the link speed,
+	 * and whether FEC is enabled. For each link speed, the alignment
+	 * adjustment is calculated by dividing a value by the length of
+	 * a Time Unit in nanoseconds.
+	 *
+	 * 1G: align == 4 ? 10 * 0.8 : (align + 6 % 10) * 0.8
+	 * 10G: align == 65 ? 0 : (align * 0.1 * 32/33)
+	 * 10G w/FEC: align * 0.1 * 32/33
+	 * 25G: align == 65 ? 0 : (align * 0.4 * 32/33)
+	 * 25G w/FEC: align * 0.4 * 32/33
+	 * 40G: align == 65 ? 0 : (align * 0.1 * 32/33)
+	 * 40G w/FEC: align * 0.1 * 32/33
+	 * 50G: align == 65 ? 0 : (align * 0.4 * 32/33)
+	 * 50G w/FEC: align * 0.8 * 32/33
+	 *
+	 * For RS-FEC, if align is < 17 then we must also add 1.6 * 32/33.
+	 *
+	 * To allow for calculating this value using integer arithmetic, we
+	 * instead start with the number of TUs per second, (inverse of the
+	 * length of a Time Unit in nanoseconds), multiply by a value based
+	 * on the PMD alignment register, and then divide by the right value
+	 * calculated based on the table above. To avoid integer overflow this
+	 * division is broken up into a step of dividing by 125 first.
+	 */
+	if (link_spd == ICE_PTP_LNK_SPD_1G) {
+		if (pmd_align == 4)
+			mult = 10;
+		else
+			mult = (pmd_align + 6) % 10;
+	} else if (link_spd == ICE_PTP_LNK_SPD_10G ||
+		   link_spd == ICE_PTP_LNK_SPD_25G ||
+		   link_spd == ICE_PTP_LNK_SPD_40G ||
+		   link_spd == ICE_PTP_LNK_SPD_50G) {
+		/* If Clause 74 FEC, always calculate PMD adjust */
+		if (pmd_align != 65 || fec_mode == ICE_PTP_FEC_MODE_CLAUSE74)
+			mult = pmd_align;
+		else
+			mult = 0;
+	} else if (link_spd == ICE_PTP_LNK_SPD_25G_RS ||
+		   link_spd == ICE_PTP_LNK_SPD_50G_RS ||
+		   link_spd == ICE_PTP_LNK_SPD_100G_RS) {
+		if (pmd_align < 17)
+			mult = pmd_align + 40;
+		else
+			mult = pmd_align;
+	} else {
+		ice_debug(hw, ICE_DBG_PTP, "Unknown link speed %d, skipping PMD adjustment\n",
+			  link_spd);
+		mult = 0;
+	}
+
+	/* In some cases, there's no need to adjust for the PMD alignment */
+	if (!mult) {
+		*pmd_adj = 0;
+		return 0;
+	}
+
+	/* Calculate the adjustment by multiplying TUs per second by the
+	 * appropriate multiplier and divisor. To avoid overflow, we first
+	 * divide by 125, and then handle remaining divisor based on the link
+	 * speed pmd_adj_divisor value.
+	 */
+	adj = div_u64(tu_per_sec, 125);
+	adj *= mult;
+	adj = div_u64(adj, e822_vernier[link_spd].pmd_adj_divisor);
+
+	/* Finally, for 25G-RS and 50G-RS, a further adjustment for the Rx
+	 * cycle count is necessary.
+	 */
+	if (link_spd == ICE_PTP_LNK_SPD_25G_RS) {
+		u64 cycle_adj;
+		u8 rx_cycle;
+
+		err = ice_read_phy_reg_e822(hw, port, P_REG_RX_40_TO_160_CNT,
+					    &val);
+		if (err) {
+			ice_debug(hw, ICE_DBG_PTP, "Failed to read 25G-RS Rx cycle count, err %d\n",
+				  err);
+			return err;
+		}
+
+		rx_cycle = val & P_REG_RX_40_TO_160_CNT_RXCYC_M;
+		if (rx_cycle) {
+			mult = (4 - rx_cycle) * 40;
+
+			cycle_adj = div_u64(tu_per_sec, 125);
+			cycle_adj *= mult;
+			cycle_adj = div_u64(cycle_adj, e822_vernier[link_spd].pmd_adj_divisor);
+
+			adj += cycle_adj;
+		}
+	} else if (link_spd == ICE_PTP_LNK_SPD_50G_RS) {
+		u64 cycle_adj;
+		u8 rx_cycle;
+
+		err = ice_read_phy_reg_e822(hw, port, P_REG_RX_80_TO_160_CNT,
+					    &val);
+		if (err) {
+			ice_debug(hw, ICE_DBG_PTP, "Failed to read 50G-RS Rx cycle count, err %d\n",
+				  err);
+			return err;
+		}
+
+		rx_cycle = val & P_REG_RX_80_TO_160_CNT_RXCYC_M;
+		if (rx_cycle) {
+			mult = rx_cycle * 40;
+
+			cycle_adj = div_u64(tu_per_sec, 125);
+			cycle_adj *= mult;
+			cycle_adj = div_u64(cycle_adj, e822_vernier[link_spd].pmd_adj_divisor);
+
+			adj += cycle_adj;
+		}
+	}
+
+	/* Return the calculated adjustment */
+	*pmd_adj = adj;
+
+	return 0;
+}
+
+/**
  * ice_calc_fixed_rx_offset_e822 - Calculated the fixed Rx offset for a port
  * @hw: pointer to HW struct
  * @link_spd: The Link speed to calculate for
@@ -1775,6 +2013,94 @@ ice_calc_fixed_rx_offset_e822(struct ice_hw *hw, enum ice_ptp_link_spd link_spd)
 	fixed_offset = div_u64(fixed_offset, 10000000);
 
 	return fixed_offset;
+}
+
+/**
+ * ice_phy_cfg_rx_offset_e822 - Configure total Rx timestamp offset
+ * @hw: pointer to the HW struct
+ * @port: the PHY port to configure
+ *
+ * Program the P_REG_TOTAL_RX_OFFSET register with the number of Time Units to
+ * adjust Rx timestamps by. This combines calculations from the Vernier offset
+ * measurements taken in hardware with some data about known fixed delay as
+ * well as adjusting for multi-lane alignment delay.
+ *
+ * This function must be called only after the offset registers are valid,
+ * i.e. after the Vernier calibration wait has passed, to ensure that the PHY
+ * has measured the offset.
+ *
+ * To avoid overflow, when calculating the offset based on the known static
+ * latency values, we use measurements in 1/100th of a nanosecond, and divide
+ * the TUs per second up front. This avoids overflow while allowing
+ * calculation of the adjustment using integer arithmetic.
+ */
+static int ice_phy_cfg_rx_offset_e822(struct ice_hw *hw, u8 port)
+{
+	enum ice_ptp_link_spd link_spd;
+	enum ice_ptp_fec_mode fec_mode;
+	u64 total_offset, pmd, val;
+	int err;
+
+	err = ice_phy_get_speed_and_fec_e822(hw, port, &link_spd, &fec_mode);
+	if (err)
+		return err;
+
+	total_offset = ice_calc_fixed_rx_offset_e822(hw, link_spd);
+
+	/* Read the first Vernier offset from the PHY register and add it to
+	 * the total offset.
+	 */
+	err = ice_read_64b_phy_reg_e822(hw, port,
+					P_REG_PAR_PCS_RX_OFFSET_L,
+					&val);
+	if (err)
+		return err;
+
+	total_offset += val;
+
+	/* For Rx, all multi-lane link speeds include a second Vernier
+	 * calibration, because the lanes might not be aligned.
+	 */
+	if (link_spd == ICE_PTP_LNK_SPD_40G ||
+	    link_spd == ICE_PTP_LNK_SPD_50G ||
+	    link_spd == ICE_PTP_LNK_SPD_50G_RS ||
+	    link_spd == ICE_PTP_LNK_SPD_100G_RS) {
+		err = ice_read_64b_phy_reg_e822(hw, port,
+						P_REG_PAR_RX_TIME_L,
+						&val);
+		if (err)
+			return err;
+
+		total_offset += val;
+	}
+
+	/* In addition, Rx must account for the PMD alignment */
+	err = ice_phy_calc_pmd_adj_e822(hw, port, link_spd, fec_mode, &pmd);
+	if (err)
+		return err;
+
+	/* For RS-FEC, this adjustment adds delay, but for other modes, it
+	 * subtracts delay.
+	 */
+	if (fec_mode == ICE_PTP_FEC_MODE_RS_FEC)
+		total_offset += pmd;
+	else
+		total_offset -= pmd;
+
+	/* Now that the total offset has been calculated, program it to the
+	 * PHY and indicate that the Rx offset is ready. After this,
+	 * timestamps will be enabled.
+	 */
+	err = ice_write_64b_phy_reg_e822(hw, port, P_REG_TOTAL_RX_OFFSET_L,
+					 total_offset);
+	if (err)
+		return err;
+
+	err = ice_write_phy_reg_e822(hw, port, P_REG_RX_OR, 1);
+	if (err)
+		return err;
+
+	return 0;
 }
 
 /**
@@ -2106,6 +2432,91 @@ ice_start_phy_timer_e822(struct ice_hw *hw, u8 port, bool bypass)
 	}
 
 	ice_debug(hw, ICE_DBG_PTP, "Enabled clock on PHY port %u\n", port);
+
+	return 0;
+}
+
+/**
+ * ice_phy_exit_bypass_e822 - Exit bypass mode, after vernier calculations
+ * @hw: pointer to the HW struct
+ * @port: the PHY port to configure
+ *
+ * After hardware finishes vernier calculations for the Tx and Rx offset, this
+ * function can be used to exit bypass mode by updating the total Tx and Rx
+ * offsets, and then disabling bypass. This will enable hardware to include
+ * the more precise offset calibrations, increasing precision of the generated
+ * timestamps.
+ *
+ * This cannot be done until hardware has measured the offsets, which requires
+ * waiting until at least one packet has been sent and received by the device.
+ */
+int ice_phy_exit_bypass_e822(struct ice_hw *hw, u8 port)
+{
+	int err;
+	u32 val;
+
+	err = ice_read_phy_reg_e822(hw, port, P_REG_TX_OV_STATUS, &val);
+	if (err) {
+		ice_debug(hw, ICE_DBG_PTP, "Failed to read TX_OV_STATUS for port %u, err %d\n",
+			  port, err);
+		return err;
+	}
+
+	if (!(val & P_REG_TX_OV_STATUS_OV_M)) {
+		ice_debug(hw, ICE_DBG_PTP, "Tx offset is not yet valid for port %u\n",
+			  port);
+		return -EBUSY;
+	}
+
+	err = ice_read_phy_reg_e822(hw, port, P_REG_RX_OV_STATUS, &val);
+	if (err) {
+		ice_debug(hw, ICE_DBG_PTP, "Failed to read RX_OV_STATUS for port %u, err %d\n",
+			  port, err);
+		return err;
+	}
+
+	if (!(val & P_REG_TX_OV_STATUS_OV_M)) {
+		ice_debug(hw, ICE_DBG_PTP, "Rx offset is not yet valid for port %u\n",
+			  port);
+		return -EBUSY;
+	}
+
+	err = ice_phy_cfg_tx_offset_e822(hw, port);
+	if (err) {
+		ice_debug(hw, ICE_DBG_PTP, "Failed to program total Tx offset for port %u, err %d\n",
+			  port, err);
+		return err;
+	}
+
+	err = ice_phy_cfg_rx_offset_e822(hw, port);
+	if (err) {
+		ice_debug(hw, ICE_DBG_PTP, "Failed to program total Rx offset for port %u, err %d\n",
+			  port, err);
+		return err;
+	}
+
+	/* Exit bypass mode now that the offset has been updated */
+	err = ice_read_phy_reg_e822(hw, port, P_REG_PS, &val);
+	if (err) {
+		ice_debug(hw, ICE_DBG_PTP, "Failed to read P_REG_PS for port %u, err %d\n",
+			  port, err);
+		return err;
+	}
+
+	if (!(val & P_REG_PS_BYPASS_MODE_M))
+		ice_debug(hw, ICE_DBG_PTP, "Port %u not in bypass mode\n",
+			  port);
+
+	val &= ~P_REG_PS_BYPASS_MODE_M;
+	err = ice_write_phy_reg_e822(hw, port, P_REG_PS, val);
+	if (err) {
+		ice_debug(hw, ICE_DBG_PTP, "Failed to disable bypass for port %u, err %d\n",
+			  port, err);
+		return err;
+	}
+
+	dev_info(ice_hw_to_dev(hw), "Exiting bypass mode on PHY port %u\n",
+		 port);
 
 	return 0;
 }

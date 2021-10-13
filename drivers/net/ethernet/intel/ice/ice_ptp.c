@@ -721,6 +721,192 @@ static void ice_ptp_reset_ts_memory_quad(struct ice_pf *pf, int quad)
 }
 
 /**
+ * ice_ptp_check_tx_fifo - Check whether Tx FIFO is in an OK state
+ * @port: PTP port for which Tx FIFO is checked
+ */
+static int ice_ptp_check_tx_fifo(struct ice_ptp_port *port)
+{
+	int quad = port->port_num / ICE_PORTS_PER_QUAD;
+	int offs = port->port_num % ICE_PORTS_PER_QUAD;
+	struct ice_pf *pf;
+	struct ice_hw *hw;
+	u32 val, phy_sts;
+	int err;
+
+	pf = ptp_port_to_pf(port);
+	hw = &pf->hw;
+
+	if (port->tx_fifo_busy_cnt == FIFO_OK)
+		return 0;
+
+	/* need to read FIFO state */
+	if (offs == 0 || offs == 1)
+		err = ice_read_quad_reg_e822(hw, quad, Q_REG_FIFO01_STATUS,
+					     &val);
+	else
+		err = ice_read_quad_reg_e822(hw, quad, Q_REG_FIFO23_STATUS,
+					     &val);
+
+	if (err) {
+		dev_err(ice_pf_to_dev(pf), "PTP failed to check port %d Tx FIFO, err %d\n",
+			port->port_num, err);
+		return err;
+	}
+
+	if (offs & 0x1)
+		phy_sts = (val & Q_REG_FIFO13_M) >> Q_REG_FIFO13_S;
+	else
+		phy_sts = (val & Q_REG_FIFO02_M) >> Q_REG_FIFO02_S;
+
+	if (phy_sts & FIFO_EMPTY) {
+		port->tx_fifo_busy_cnt = FIFO_OK;
+		return 0;
+	}
+
+	port->tx_fifo_busy_cnt++;
+
+	dev_dbg(ice_pf_to_dev(pf), "Try %d, port %d FIFO not empty\n",
+		port->tx_fifo_busy_cnt, port->port_num);
+
+	if (port->tx_fifo_busy_cnt == ICE_PTP_FIFO_NUM_CHECKS) {
+		dev_dbg(ice_pf_to_dev(pf),
+			"Port %d Tx FIFO still not empty; resetting quad %d\n",
+			port->port_num, quad);
+		ice_ptp_reset_ts_memory_quad(pf, quad);
+		port->tx_fifo_busy_cnt = FIFO_OK;
+		return 0;
+	}
+
+	return -EAGAIN;
+}
+
+/**
+ * ice_ptp_check_tx_offset_valid - Check if the Tx PHY offset is valid
+ * @port: the PTP port to check
+ *
+ * Checks whether the Tx offset for the PHY associated with this port is
+ * valid. Returns 0 if the offset is valid, and a non-zero error code if it is
+ * not.
+ */
+static int ice_ptp_check_tx_offset_valid(struct ice_ptp_port *port)
+{
+	struct ice_pf *pf = ptp_port_to_pf(port);
+	struct device *dev = ice_pf_to_dev(pf);
+	struct ice_hw *hw = &pf->hw;
+	u32 val;
+	int err;
+
+	err = ice_ptp_check_tx_fifo(port);
+	if (err)
+		return err;
+
+	err = ice_read_phy_reg_e822(hw, port->port_num, P_REG_TX_OV_STATUS,
+				    &val);
+	if (err) {
+		dev_err(dev, "Failed to read TX_OV_STATUS for port %d, err %d\n",
+			port->port_num, err);
+		return -EAGAIN;
+	}
+
+	if (!(val & P_REG_TX_OV_STATUS_OV_M))
+		return -EAGAIN;
+
+	return 0;
+}
+
+/**
+ * ice_ptp_check_rx_offset_valid - Check if the Rx PHY offset is valid
+ * @port: the PTP port to check
+ *
+ * Checks whether the Rx offset for the PHY associated with this port is
+ * valid. Returns 0 if the offset is valid, and a non-zero error code if it is
+ * not.
+ */
+static int ice_ptp_check_rx_offset_valid(struct ice_ptp_port *port)
+{
+	struct ice_pf *pf = ptp_port_to_pf(port);
+	struct device *dev = ice_pf_to_dev(pf);
+	struct ice_hw *hw = &pf->hw;
+	int err;
+	u32 val;
+
+	err = ice_read_phy_reg_e822(hw, port->port_num, P_REG_RX_OV_STATUS,
+				    &val);
+	if (err) {
+		dev_err(dev, "Failed to read RX_OV_STATUS for port %d, err %d\n",
+			port->port_num, err);
+		return err;
+	}
+
+	if (!(val & P_REG_RX_OV_STATUS_OV_M))
+		return -EAGAIN;
+
+	return 0;
+}
+
+/**
+ * ice_ptp_check_offset_valid - Check port offset valid bit
+ * @port: Port for which offset valid bit is checked
+ *
+ * Returns 0 if both Tx and Rx offset are valid, and -EAGAIN if one of the
+ * offset is not ready.
+ */
+static int ice_ptp_check_offset_valid(struct ice_ptp_port *port)
+{
+	int tx_err, rx_err;
+
+	/* always check both Tx and Rx offset validity */
+	tx_err = ice_ptp_check_tx_offset_valid(port);
+	rx_err = ice_ptp_check_rx_offset_valid(port);
+
+	if (tx_err || rx_err)
+		return -EAGAIN;
+
+	return 0;
+}
+
+/**
+ * ice_ptp_wait_for_offset_valid - Check for valid Tx and Rx offsets
+ * @work: Pointer to the kthread_work structure for this task
+ *
+ * Check whether both the Tx and Rx offsets are valid for enabling the vernier
+ * calibration.
+ *
+ * Once we have valid offsets from hardware, update the total Tx and Rx
+ * offsets, and exit bypass mode. This enables more precise timestamps using
+ * the extra data measured during the vernier calibration process.
+ */
+static void ice_ptp_wait_for_offset_valid(struct kthread_work *work)
+{
+	struct ice_ptp_port *port;
+	int err;
+	struct device *dev;
+	struct ice_pf *pf;
+	struct ice_hw *hw;
+
+	port = container_of(work, struct ice_ptp_port, ov_work.work);
+	pf = ptp_port_to_pf(port);
+	hw = &pf->hw;
+	dev = ice_pf_to_dev(pf);
+
+	if (ice_ptp_check_offset_valid(port)) {
+		/* Offsets not ready yet, try again later */
+		kthread_queue_delayed_work(pf->ptp.kworker,
+					   &port->ov_work,
+					   msecs_to_jiffies(100));
+		return;
+	}
+
+	/* Offsets are valid, so it is safe to exit bypass mode */
+	err = ice_phy_exit_bypass_e822(hw, port->port_num);
+	if (err) {
+		dev_warn(dev, "Failed to exit bypass mode for PHY port %u, err %d\n",
+			 port->port_num, err);
+		return;
+	}
+}
+
+/**
  * ice_ptp_port_phy_stop - Stop timestamping for a PHY port
  * @ptp_port: PTP port to stop
  */
@@ -736,6 +922,8 @@ ice_ptp_port_phy_stop(struct ice_ptp_port *ptp_port)
 		return 0;
 
 	mutex_lock(&ptp_port->ps_lock);
+
+	kthread_cancel_delayed_work_sync(&ptp_port->ov_work);
 
 	err = ice_stop_phy_timer_e822(hw, port, true);
 	if (err)
@@ -771,8 +959,11 @@ ice_ptp_port_phy_restart(struct ice_ptp_port *ptp_port)
 
 	mutex_lock(&ptp_port->ps_lock);
 
+	kthread_cancel_delayed_work_sync(&ptp_port->ov_work);
+
 	/* temporarily disable Tx timestamps while calibrating PHY offset */
 	ptp_port->tx.calibrating = true;
+	ptp_port->tx_fifo_busy_cnt = 0;
 
 	/* Start the PHY timer in bypass mode */
 	err = ice_start_phy_timer_e822(hw, port, true);
@@ -781,6 +972,8 @@ ice_ptp_port_phy_restart(struct ice_ptp_port *ptp_port)
 
 	/* Enable Tx timestamps right away */
 	ptp_port->tx.calibrating = false;
+
+	kthread_queue_delayed_work(pf->ptp.kworker, &ptp_port->ov_work, 0);
 
 out_unlock:
 	if (err)
@@ -2083,11 +2276,14 @@ reset_ts:
 
 pfr:
 	/* Init Tx structures */
-	if (ice_is_e810(&pf->hw))
+	if (ice_is_e810(&pf->hw)) {
 		err = ice_ptp_init_tx_e810(pf, &ptp->port.tx);
-	else
+	} else {
+		kthread_init_delayed_work(&ptp->port.ov_work,
+					  ice_ptp_wait_for_offset_valid);
 		err = ice_ptp_init_tx_e822(pf, &ptp->port.tx,
 					   ptp->port.port_num);
+	}
 	if (err)
 		goto err;
 
@@ -2246,6 +2442,8 @@ static int ice_ptp_init_port(struct ice_pf *pf, struct ice_ptp_port *ptp_port)
 	if (ice_is_e810(&pf->hw))
 		return ice_ptp_init_tx_e810(pf, &ptp_port->tx);
 
+	kthread_init_delayed_work(&ptp_port->ov_work,
+				  ice_ptp_wait_for_offset_valid);
 	return ice_ptp_init_tx_e822(pf, &ptp_port->tx, ptp_port->port_num);
 }
 
