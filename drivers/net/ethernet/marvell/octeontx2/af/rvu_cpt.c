@@ -795,6 +795,58 @@ int rvu_mbox_handler_cpt_rxc_time_cfg(struct rvu *rvu,
 	return 0;
 }
 
+int rvu_mbox_handler_cpt_ctx_cache_sync(struct rvu *rvu, struct msg_req *req,
+					struct msg_rsp *rsp)
+{
+	return rvu_cpt_ctx_flush(rvu, req->hdr.pcifunc);
+}
+
+static void cpt_rxc_teardown(struct rvu *rvu, int blkaddr)
+{
+	struct cpt_rxc_time_cfg_req req;
+	int timeout = 2000;
+	u64 reg;
+
+	if (is_rvu_otx2(rvu))
+		return;
+
+	/* Set time limit to minimum values, so that rxc entries will be
+	 * flushed out quickly.
+	 */
+	req.step = 1;
+	req.zombie_thres = 1;
+	req.zombie_limit = 1;
+	req.active_thres = 1;
+	req.active_limit = 1;
+
+	cpt_rxc_time_cfg(rvu, &req, blkaddr);
+
+	do {
+		reg = rvu_read64(rvu, blkaddr, CPT_AF_RXC_ACTIVE_STS);
+		udelay(1);
+		if (FIELD_GET(RXC_ACTIVE_COUNT, reg))
+			timeout--;
+		else
+			break;
+	} while (timeout);
+
+	if (timeout == 0)
+		dev_warn(rvu->dev, "Poll for RXC active count hits hard loop counter\n");
+
+	timeout = 2000;
+	do {
+		reg = rvu_read64(rvu, blkaddr, CPT_AF_RXC_ZOMBIE_STS);
+		udelay(1);
+		if (FIELD_GET(RXC_ZOMBIE_COUNT, reg))
+			timeout--;
+		else
+			break;
+	} while (timeout);
+
+	if (timeout == 0)
+		dev_warn(rvu->dev, "Poll for RXC zombie count hits hard loop counter\n");
+}
+
 #define INPROG_INFLIGHT(reg)    ((reg) & 0x1FF)
 #define INPROG_GRB_PARTIAL(reg) ((reg) & BIT_ULL(31))
 #define INPROG_GRB(reg)         (((reg) >> 32) & 0xFF)
@@ -863,6 +915,9 @@ int rvu_cpt_lf_teardown(struct rvu *rvu, u16 pcifunc, int blkaddr, int lf, int s
 {
 	u64 reg;
 
+	if (is_cpt_pf(rvu, pcifunc) || is_cpt_vf(rvu, pcifunc))
+		cpt_rxc_teardown(rvu, blkaddr);
+
 	/* Enable BAR2 ALIAS for this pcifunc. */
 	reg = BIT_ULL(16) | pcifunc;
 	rvu_write64(rvu, blkaddr, CPT_AF_BAR2_SEL, reg);
@@ -875,6 +930,157 @@ int rvu_cpt_lf_teardown(struct rvu *rvu, u16 pcifunc, int blkaddr, int lf, int s
 	rvu_write64(rvu, blkaddr, CPT_AF_BAR2_ALIASX(slot, CPT_LF_INPROG), reg);
 
 	rvu_write64(rvu, blkaddr, CPT_AF_BAR2_SEL, 0);
+
+	return 0;
+}
+
+#define CPT_RES_LEN    16
+#define CPT_SE_IE_EGRP 1ULL
+
+static int cpt_inline_inb_lf_cmd_send(struct rvu *rvu, int blkaddr,
+				      int nix_blkaddr)
+{
+	int cpt_pf_num = get_cpt_pf_num(rvu);
+	struct cpt_inst_lmtst_req *req;
+	dma_addr_t res_daddr;
+	int timeout = 3000;
+	u8 cpt_idx;
+	u64 *inst;
+	u16 *res;
+	int rc;
+
+	res = kzalloc(CPT_RES_LEN, GFP_KERNEL);
+	if (!res)
+		return -ENOMEM;
+
+	res_daddr = dma_map_single(rvu->dev, res, CPT_RES_LEN,
+				   DMA_BIDIRECTIONAL);
+	if (dma_mapping_error(rvu->dev, res_daddr)) {
+		dev_err(rvu->dev, "DMA mapping failed for CPT result\n");
+		rc = -EFAULT;
+		goto res_free;
+	}
+	*res = 0xFFFF;
+
+	/* Send mbox message to CPT PF */
+	req = (struct cpt_inst_lmtst_req *)
+	       otx2_mbox_alloc_msg_rsp(&rvu->afpf_wq_info.mbox_up,
+				       cpt_pf_num, sizeof(*req),
+				       sizeof(struct msg_rsp));
+	if (!req) {
+		rc = -ENOMEM;
+		goto res_daddr_unmap;
+	}
+	req->hdr.sig = OTX2_MBOX_REQ_SIG;
+	req->hdr.id = MBOX_MSG_CPT_INST_LMTST;
+
+	inst = req->inst;
+	/* Prepare CPT_INST_S */
+	inst[0] = 0;
+	inst[1] = res_daddr;
+	/* AF PF FUNC */
+	inst[2] = 0;
+	/* Set QORD */
+	inst[3] = 1;
+	inst[4] = 0;
+	inst[5] = 0;
+	inst[6] = 0;
+	/* Set EGRP */
+	inst[7] = CPT_SE_IE_EGRP << 61;
+
+	/* Subtract 1 from the NIX-CPT credit count to preserve
+	 * credit counts.
+	 */
+	cpt_idx = (blkaddr == BLKADDR_CPT0) ? 0 : 1;
+	rvu_write64(rvu, nix_blkaddr, NIX_AF_RX_CPTX_CREDIT(cpt_idx),
+		    BIT_ULL(22) - 1);
+
+	otx2_mbox_msg_send(&rvu->afpf_wq_info.mbox_up, cpt_pf_num);
+	rc = otx2_mbox_wait_for_rsp(&rvu->afpf_wq_info.mbox_up, cpt_pf_num);
+	if (rc)
+		dev_warn(rvu->dev, "notification to pf %d failed\n",
+			 cpt_pf_num);
+	/* Wait for CPT instruction to be completed */
+	do {
+		mdelay(1);
+		if (*res == 0xFFFF)
+			timeout--;
+		else
+			break;
+	} while (timeout);
+
+	if (timeout == 0)
+		dev_warn(rvu->dev, "Poll for result hits hard loop counter\n");
+
+res_daddr_unmap:
+	dma_unmap_single(rvu->dev, res_daddr, CPT_RES_LEN, DMA_BIDIRECTIONAL);
+res_free:
+	kfree(res);
+
+	return 0;
+}
+
+#define CTX_CAM_PF_FUNC   GENMASK_ULL(61, 46)
+#define CTX_CAM_CPTR      GENMASK_ULL(45, 0)
+
+int rvu_cpt_ctx_flush(struct rvu *rvu, u16 pcifunc)
+{
+	int nix_blkaddr, blkaddr;
+	u16 max_ctx_entries, i;
+	int slot = 0, num_lfs;
+	u64 reg, cam_data;
+	int rc;
+
+	nix_blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, pcifunc);
+	if (nix_blkaddr < 0)
+		return -EINVAL;
+
+	if (is_rvu_otx2(rvu))
+		return 0;
+
+	blkaddr = (nix_blkaddr == BLKADDR_NIX1) ? BLKADDR_CPT1 : BLKADDR_CPT0;
+
+	/* Submit CPT_INST_S to track when all packets have been
+	 * flushed through for the NIX PF FUNC in inline inbound case.
+	 */
+	rc = cpt_inline_inb_lf_cmd_send(rvu, blkaddr, nix_blkaddr);
+	if (rc)
+		return rc;
+
+	/* Wait for rxc entries to be flushed out */
+	cpt_rxc_teardown(rvu, blkaddr);
+
+	reg = rvu_read64(rvu, blkaddr, CPT_AF_CONSTANTS0);
+	max_ctx_entries = (reg >> 48) & 0xFFF;
+
+	mutex_lock(&rvu->rsrc_lock);
+
+	num_lfs = rvu_get_rsrc_mapcount(rvu_get_pfvf(rvu, pcifunc),
+					blkaddr);
+	if (num_lfs == 0) {
+		dev_warn(rvu->dev, "CPT LF is not configured\n");
+		goto unlock;
+	}
+
+	/* Enable BAR2 ALIAS for this pcifunc. */
+	reg = BIT_ULL(16) | pcifunc;
+	rvu_write64(rvu, blkaddr, CPT_AF_BAR2_SEL, reg);
+
+	for (i = 0; i < max_ctx_entries; i++) {
+		cam_data = rvu_read64(rvu, blkaddr, CPT_AF_CTX_CAM_DATA(i));
+
+		if ((FIELD_GET(CTX_CAM_PF_FUNC, cam_data) == pcifunc) &&
+		    FIELD_GET(CTX_CAM_CPTR, cam_data)) {
+			reg = BIT_ULL(46) | FIELD_GET(CTX_CAM_CPTR, cam_data);
+			rvu_write64(rvu, blkaddr,
+				    CPT_AF_BAR2_ALIASX(slot, CPT_LF_CTX_FLUSH),
+				    reg);
+		}
+	}
+	rvu_write64(rvu, blkaddr, CPT_AF_BAR2_SEL, 0);
+
+unlock:
+	mutex_unlock(&rvu->rsrc_lock);
 
 	return 0;
 }

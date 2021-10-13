@@ -817,6 +817,7 @@ int rvu_cpt_register_interrupts(struct rvu *rvu);
 void rvu_cpt_unregister_interrupts(struct rvu *rvu);
 int rvu_cpt_lf_teardown(struct rvu *rvu, u16 pcifunc, int blkaddr, int lf,
 			int slot);
+int rvu_cpt_ctx_flush(struct rvu *rvu, u16 pcifunc);
 
 /* CN10K RVU */
 int rvu_set_channels_base(struct rvu *rvu);
