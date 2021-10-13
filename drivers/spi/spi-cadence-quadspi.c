@@ -947,7 +947,7 @@ failrd:
 	writel(CQSPI_REG_INDIRECTWR_CANCEL_MASK,
 	       reg_base + CQSPI_REG_INDIRECTRD);
 
-	dma_unmap_single(dev, dma_addr, bytes_to_dma, DMA_DEV_TO_MEM);
+	dma_unmap_single(dev, dma_addr, bytes_to_dma, DMA_FROM_DEVICE);
 
 	reg = readl(cqspi->iobase + CQSPI_REG_CONFIG);
 	reg &= ~CQSPI_REG_CONFIG_DMA_MASK;
