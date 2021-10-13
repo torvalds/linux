@@ -720,6 +720,7 @@ static void __init fpu__init_disable_system_xstate(void)
 	xfeatures_mask_all = 0;
 	cr4_clear_bits(X86_CR4_OSXSAVE);
 	setup_clear_cpu_cap(X86_FEATURE_XSAVE);
+	fpstate_reset(&current->thread.fpu);
 }
 
 /*
@@ -791,6 +792,8 @@ void __init fpu__init_system_xstate(void)
 	err = init_xstate_size();
 	if (err)
 		goto out_disable;
+
+	fpstate_reset(&current->thread.fpu);
 
 	/*
 	 * Update info used for ptrace frames; use standard-format size and no

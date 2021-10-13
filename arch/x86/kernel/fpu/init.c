@@ -212,6 +212,14 @@ static void __init fpu__init_system_xstate_size_legacy(void)
 	}
 
 	fpu_user_xstate_size = fpu_kernel_xstate_size;
+	fpstate_reset(&current->thread.fpu);
+}
+
+static void __init fpu__init_init_fpstate(void)
+{
+	/* Bring init_fpstate size and features up to date */
+	init_fpstate.size		= fpu_kernel_xstate_size;
+	init_fpstate.xfeatures		= xfeatures_mask_all;
 }
 
 /*
@@ -233,4 +241,5 @@ void __init fpu__init_system(struct cpuinfo_x86 *c)
 	fpu__init_system_xstate_size_legacy();
 	fpu__init_system_xstate();
 	fpu__init_task_struct_size();
+	fpu__init_init_fpstate();
 }
