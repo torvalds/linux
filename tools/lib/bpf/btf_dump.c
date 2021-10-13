@@ -1670,9 +1670,10 @@ static int btf_dump_int_data(struct btf_dump *d,
 {
 	__u8 encoding = btf_int_encoding(t);
 	bool sign = encoding & BTF_INT_SIGNED;
+	char buf[16] __aligned(16);
 	int sz = t->size;
 
-	if (sz == 0) {
+	if (sz == 0 || sz > sizeof(buf)) {
 		pr_warn("unexpected size %d for id [%u]\n", sz, type_id);
 		return -EINVAL;
 	}
@@ -1680,8 +1681,10 @@ static int btf_dump_int_data(struct btf_dump *d,
 	/* handle packed int data - accesses of integers not aligned on
 	 * int boundaries can cause problems on some platforms.
 	 */
-	if (!ptr_is_aligned(data, sz))
-		return btf_dump_bitfield_data(d, t, data, 0, 0);
+	if (!ptr_is_aligned(data, sz)) {
+		memcpy(buf, data, sz);
+		data = buf;
+	}
 
 	switch (sz) {
 	case 16: {
