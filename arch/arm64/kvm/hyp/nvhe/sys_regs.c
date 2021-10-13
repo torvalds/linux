@@ -452,10 +452,6 @@ static const struct sys_reg_desc pvm_sys_reg_descs[] = {
 	HOST_HANDLED(SYS_CNTP_CVAL_EL0),
 
 	/* Performance Monitoring Registers are restricted. */
-
-	HOST_HANDLED(SYS_DACR32_EL2),
-	HOST_HANDLED(SYS_IFSR32_EL2),
-	HOST_HANDLED(SYS_FPEXC32_EL2),
 };
 
 /*
