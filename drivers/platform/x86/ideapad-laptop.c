@@ -1555,17 +1555,13 @@ static void ideapad_check_features(struct ideapad_private *priv)
 
 static int ideapad_acpi_add(struct platform_device *pdev)
 {
+	struct acpi_device *adev = ACPI_COMPANION(&pdev->dev);
 	struct ideapad_private *priv;
-	struct acpi_device *adev;
 	acpi_status status;
 	unsigned long cfg;
 	int err, i;
 
-	err = acpi_bus_get_device(ACPI_HANDLE(&pdev->dev), &adev);
-	if (err)
-		return -ENODEV;
-
-	if (eval_int(adev->handle, "_CFG", &cfg))
+	if (!adev || eval_int(adev->handle, "_CFG", &cfg))
 		return -ENODEV;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
