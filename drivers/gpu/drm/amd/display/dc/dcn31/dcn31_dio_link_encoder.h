@@ -69,6 +69,7 @@
 	SRI(RDPCSTX_PHY_CNTL4, RDPCSTX, id), \
 	SRI(RDPCSTX_PHY_CNTL5, RDPCSTX, id), \
 	SRI(RDPCSTX_PHY_CNTL6, RDPCSTX, id), \
+	SRI(RDPCSPIPE_PHY_CNTL6, RDPCSPIPE, id), \
 	SRI(RDPCSTX_PHY_CNTL7, RDPCSTX, id), \
 	SRI(RDPCSTX_PHY_CNTL8, RDPCSTX, id), \
 	SRI(RDPCSTX_PHY_CNTL9, RDPCSTX, id), \
@@ -115,7 +116,9 @@
 	LE_SF(RDPCSTX0_RDPCSTX_PHY_CNTL6, RDPCS_PHY_DP_TX2_MPLL_EN, mask_sh),\
 	LE_SF(RDPCSTX0_RDPCSTX_PHY_CNTL6, RDPCS_PHY_DP_TX3_MPLL_EN, mask_sh),\
 	LE_SF(RDPCSTX0_RDPCSTX_PHY_CNTL6, RDPCS_PHY_DPALT_DP4, mask_sh),\
-	LE_SF(RDPCSTX0_RDPCSTX_PHY_CNTL6, RDPCS_PHY_DPALT_DISABLE, mask_sh),\
+	LE_SF(RDPCSPIPE0_RDPCSPIPE_PHY_CNTL6, RDPCS_PHY_DPALT_DP4, mask_sh),\
+	LE_SF(RDPCSPIPE0_RDPCSPIPE_PHY_CNTL6, RDPCS_PHY_DPALT_DISABLE, mask_sh),\
+	LE_SF(RDPCSPIPE0_RDPCSPIPE_PHY_CNTL6, RDPCS_PHY_DPALT_DISABLE_ACK, mask_sh),\
 	LE_SF(RDPCSTX0_RDPCSTX_PHY_CNTL7, RDPCS_PHY_DP_MPLLB_FRACN_QUOT, mask_sh),\
 	LE_SF(RDPCSTX0_RDPCSTX_PHY_CNTL7, RDPCS_PHY_DP_MPLLB_FRACN_DEN, mask_sh),\
 	LE_SF(RDPCSTX0_RDPCSTX_PHY_CNTL8, RDPCS_PHY_DP_MPLLB_SSC_PEAK, mask_sh),\
@@ -242,5 +245,14 @@ void dcn31_link_encoder_enable_dp_mst_output(
 void dcn31_link_encoder_disable_output(
 	struct link_encoder *enc,
 	enum signal_type signal);
+
+/*
+ * Check whether USB-C DP Alt mode is disabled
+ */
+bool dcn31_link_encoder_is_in_alt_mode(
+	struct link_encoder *enc);
+
+void dcn31_link_encoder_get_max_link_cap(struct link_encoder *enc,
+	struct dc_link_settings *link_settings);
 
 #endif /* __DC_LINK_ENCODER__DCN31_H__ */

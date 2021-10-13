@@ -11932,5 +11932,32 @@
 #define ixDPCSSYS_CR4_RAWLANEX_DIG_PCS_XF_RX_OVRD_OUT_2                                                0xe0c7
 #define ixDPCSSYS_CR4_RAWLANEX_DIG_PCS_XF_TX_OVRD_IN_2                                                 0xe0c8
 
+//RDPCSPIPE0_RDPCSPIPE_PHY_CNTL6
+#define RDPCSPIPE0_RDPCSPIPE_PHY_CNTL6__RDPCS_PHY_DPALT_DP4__SHIFT                                            0x10
+#define RDPCSPIPE0_RDPCSPIPE_PHY_CNTL6__RDPCS_PHY_DPALT_DISABLE__SHIFT                                        0x11
+#define RDPCSPIPE0_RDPCSPIPE_PHY_CNTL6__RDPCS_PHY_DPALT_DISABLE_ACK__SHIFT                                    0x12
+#define RDPCSPIPE0_RDPCSPIPE_PHY_CNTL6__RDPCS_PHY_DPALT_DP4_MASK                                              0x00010000L
+#define RDPCSPIPE0_RDPCSPIPE_PHY_CNTL6__RDPCS_PHY_DPALT_DISABLE_MASK                                          0x00020000L
+#define RDPCSPIPE0_RDPCSPIPE_PHY_CNTL6__RDPCS_PHY_DPALT_DISABLE_ACK_MASK                                      0x00040000L
+
+//RDPCSPIPE1_RDPCSPIPE_PHY_CNTL6
+#define RDPCSPIPE1_RDPCSPIPE_PHY_CNTL6__RDPCS_PHY_DPALT_DP4__SHIFT                                            0x10
+#define RDPCSPIPE1_RDPCSPIPE_PHY_CNTL6__RDPCS_PHY_DPALT_DISABLE__SHIFT                                        0x11
+#define RDPCSPIPE1_RDPCSPIPE_PHY_CNTL6__RDPCS_PHY_DPALT_DISABLE_ACK__SHIFT                                    0x12
+#define RDPCSPIPE1_RDPCSPIPE_PHY_CNTL6__RDPCS_PHY_DPALT_DP4_MASK                                              0x00010000L
+#define RDPCSPIPE1_RDPCSPIPE_PHY_CNTL6__RDPCS_PHY_DPALT_DISABLE_MASK                                          0x00020000L
+#define RDPCSPIPE1_RDPCSPIPE_PHY_CNTL6__RDPCS_PHY_DPALT_DISABLE_ACK_MASK                                      0x00040000L
+
+//[Note] Hack. RDPCSPIPE only has 2 instances.
+#define regRDPCSPIPE0_RDPCSPIPE_PHY_CNTL6                                                              0x2d73
+#define regRDPCSPIPE0_RDPCSPIPE_PHY_CNTL6_BASE_IDX                                                     2
+#define regRDPCSPIPE1_RDPCSPIPE_PHY_CNTL6                                                              0x2e4b
+#define regRDPCSPIPE1_RDPCSPIPE_PHY_CNTL6_BASE_IDX                                                     2
+#define regRDPCSPIPE2_RDPCSPIPE_PHY_CNTL6                                                              0x2d73
+#define regRDPCSPIPE2_RDPCSPIPE_PHY_CNTL6_BASE_IDX                                                     2
+#define regRDPCSPIPE3_RDPCSPIPE_PHY_CNTL6                                                              0x2e4b
+#define regRDPCSPIPE3_RDPCSPIPE_PHY_CNTL6_BASE_IDX                                                     2
+#define regRDPCSPIPE4_RDPCSPIPE_PHY_CNTL6                                                              0x2d73
+#define regRDPCSPIPE4_RDPCSPIPE_PHY_CNTL6_BASE_IDX                                                     2
 
 #endif

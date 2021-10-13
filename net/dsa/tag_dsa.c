@@ -210,7 +210,7 @@ static struct sk_buff *dsa_rcv_ll(struct sk_buff *skb, struct net_device *dev,
 	cmd = dsa_header[0] >> 6;
 	switch (cmd) {
 	case DSA_CMD_FORWARD:
-		trunk = !!(dsa_header[1] & 7);
+		trunk = !!(dsa_header[1] & 4);
 		break;
 
 	case DSA_CMD_TO_CPU:
