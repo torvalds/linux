@@ -9629,7 +9629,7 @@ F:	include/uapi/linux/isst_if.h
 F:	tools/power/x86/intel-speed-select/
 
 INTEL STRATIX10 FIRMWARE DRIVERS
-M:	Richard Gong <richard.gong@linux.intel.com>
+M:	Dinh Nguyen <dinguyen@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	Documentation/ABI/testing/sysfs-devices-platform-stratix10-rsu
