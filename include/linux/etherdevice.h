@@ -234,8 +234,6 @@ static inline void eth_random_addr(u8 *addr)
 	addr[0] |= 0x02;	/* set local assignment bit (IEEE802) */
 }
 
-#define random_ether_addr(addr) eth_random_addr(addr)
-
 /**
  * eth_broadcast_addr - Assign broadcast address
  * @addr: Pointer to a six-byte array containing the Ethernet address
