@@ -29,7 +29,7 @@ static ssize_t show_rotate_type(struct device *dev,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct omapfb_info *ofbi = FB2OFB(fbi);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", ofbi->rotation_type);
+	return sysfs_emit(buf, "%d\n", ofbi->rotation_type);
 }
 
 static ssize_t store_rotate_type(struct device *dev,
@@ -83,7 +83,7 @@ static ssize_t show_mirror(struct device *dev,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct omapfb_info *ofbi = FB2OFB(fbi);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", ofbi->mirror);
+	return sysfs_emit(buf, "%d\n", ofbi->mirror);
 }
 
 static ssize_t store_mirror(struct device *dev,
@@ -415,7 +415,7 @@ static ssize_t show_size(struct device *dev,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct omapfb_info *ofbi = FB2OFB(fbi);
 
-	return snprintf(buf, PAGE_SIZE, "%lu\n", ofbi->region->size);
+	return sysfs_emit(buf, "%lu\n", ofbi->region->size);
 }
 
 static ssize_t store_size(struct device *dev, struct device_attribute *attr,
@@ -492,7 +492,7 @@ static ssize_t show_phys(struct device *dev,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct omapfb_info *ofbi = FB2OFB(fbi);
 
-	return snprintf(buf, PAGE_SIZE, "%0x\n", ofbi->region->paddr);
+	return sysfs_emit(buf, "%0x\n", ofbi->region->paddr);
 }
 
 static ssize_t show_virt(struct device *dev,
@@ -501,7 +501,7 @@ static ssize_t show_virt(struct device *dev,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct omapfb_info *ofbi = FB2OFB(fbi);
 
-	return snprintf(buf, PAGE_SIZE, "%p\n", ofbi->region->vaddr);
+	return sysfs_emit(buf, "%p\n", ofbi->region->vaddr);
 }
 
 static ssize_t show_upd_mode(struct device *dev,
@@ -516,7 +516,7 @@ static ssize_t show_upd_mode(struct device *dev,
 	if (r)
 		return r;
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", (unsigned)mode);
+	return sysfs_emit(buf, "%u\n", (unsigned int)mode);
 }
 
 static ssize_t store_upd_mode(struct device *dev, struct device_attribute *attr,
