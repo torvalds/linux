@@ -165,7 +165,7 @@ static void __init fpu__init_task_struct_size(void)
 	 * Subtract off the static size of the register state.
 	 * It potentially has a bunch of padding.
 	 */
-	task_size -= sizeof(((struct task_struct *)0)->thread.fpu.state);
+	task_size -= sizeof(current->thread.fpu.__fpstate.regs);
 
 	/*
 	 * Add back the dynamically-calculated register state
@@ -180,9 +180,13 @@ static void __init fpu__init_task_struct_size(void)
 	 * you hit a compile error here, check the structure to
 	 * see if something got added to the end.
 	 */
-	CHECK_MEMBER_AT_END_OF(struct fpu, state);
+	CHECK_MEMBER_AT_END_OF(struct fpu, __fpstate);
 	CHECK_MEMBER_AT_END_OF(struct thread_struct, fpu);
 	CHECK_MEMBER_AT_END_OF(struct task_struct, thread);
+
+	BUILD_BUG_ON(sizeof(struct fpstate) != sizeof(union fpregs_state));
+	BUILD_BUG_ON(offsetof(struct thread_struct, fpu.state) !=
+		     offsetof(struct thread_struct, fpu.__fpstate));
 
 	arch_task_struct_size = task_size;
 }
@@ -220,6 +224,7 @@ static void __init fpu__init_system_xstate_size_legacy(void)
  */
 void __init fpu__init_system(struct cpuinfo_x86 *c)
 {
+	fpstate_reset(&current->thread.fpu);
 	fpu__init_system_early_generic(c);
 
 	/*

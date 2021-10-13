@@ -309,6 +309,13 @@ union fpregs_state {
 	u8 __padding[PAGE_SIZE];
 };
 
+struct fpstate {
+	/* @regs: The register state union for all supported formats */
+	union fpregs_state		regs;
+
+	/* @regs is dynamically sized! Don't add anything after @regs! */
+} __aligned(64);
+
 /*
  * Highest level per task FPU state data structure that
  * contains the FPU register state plus various FPU
@@ -337,6 +344,14 @@ struct fpu {
 	unsigned long			avx512_timestamp;
 
 	/*
+	 * @fpstate:
+	 *
+	 * Pointer to the active struct fpstate. Initialized to
+	 * point at @__fpstate below.
+	 */
+	struct fpstate			*fpstate;
+
+	/*
 	 * @state:
 	 *
 	 * In-memory copy of all FPU registers that we save/restore
@@ -345,7 +360,10 @@ struct fpu {
 	 * copy. If the task context-switches away then they get
 	 * saved here and represent the FPU state.
 	 */
-	union fpregs_state		state;
+	union {
+		struct fpstate			__fpstate;
+		union fpregs_state		state;
+	};
 	/*
 	 * WARNING: 'state' is dynamically-sized.  Do not put
 	 * anything after it here.

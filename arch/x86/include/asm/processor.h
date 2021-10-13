@@ -537,11 +537,11 @@ struct thread_struct {
 	 */
 };
 
-/* Whitelist the FPU state from the task_struct for hardened usercopy. */
+/* Whitelist the FPU register state from the task_struct for hardened usercopy. */
 static inline void arch_thread_struct_whitelist(unsigned long *offset,
 						unsigned long *size)
 {
-	*offset = offsetof(struct thread_struct, fpu.state);
+	*offset = offsetof(struct thread_struct, fpu.__fpstate.regs);
 	*size = fpu_kernel_xstate_size;
 }
 

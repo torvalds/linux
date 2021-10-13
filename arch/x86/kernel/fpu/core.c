@@ -337,10 +337,17 @@ void fpstate_init_user(union fpregs_state *state)
 		fpstate_init_fstate(&state->fsave);
 }
 
+void fpstate_reset(struct fpu *fpu)
+{
+	/* Set the fpstate pointer to the default fpstate */
+	fpu->fpstate = &fpu->__fpstate;
+}
+
 #if IS_ENABLED(CONFIG_KVM)
 void fpu_init_fpstate_user(struct fpu *fpu)
 {
-	fpstate_init_user(&fpu->state);
+	fpstate_reset(fpu);
+	fpstate_init_user(&fpu->fpstate->regs);
 }
 EXPORT_SYMBOL_GPL(fpu_init_fpstate_user);
 #endif
@@ -353,6 +360,8 @@ int fpu_clone(struct task_struct *dst)
 
 	/* The new task's FPU state cannot be valid in the hardware. */
 	dst_fpu->last_cpu = -1;
+
+	fpstate_reset(dst_fpu);
 
 	if (!cpu_feature_enabled(X86_FEATURE_FPU))
 		return 0;
