@@ -6,8 +6,7 @@
 
 #include <linux/kvm_host.h>
 #include <linux/mm.h>
-#include <asm/kvm_fixed_config.h>
-#include <nvhe/sys_regs.h>
+#include <nvhe/fixed_config.h>
 #include <nvhe/trap_handler.h>
 
 /*

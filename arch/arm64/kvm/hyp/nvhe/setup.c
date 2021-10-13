@@ -10,11 +10,11 @@
 #include <asm/kvm_pgtable.h>
 
 #include <nvhe/early_alloc.h>
+#include <nvhe/fixed_config.h>
 #include <nvhe/gfp.h>
 #include <nvhe/memory.h>
 #include <nvhe/mem_protect.h>
 #include <nvhe/mm.h>
-#include <nvhe/sys_regs.h>
 #include <nvhe/trap_handler.h>
 
 struct hyp_pool hpool;
