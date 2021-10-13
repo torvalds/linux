@@ -222,7 +222,7 @@ int fpu_copy_kvm_uabi_to_fpstate(struct fpu *fpu, const void *buf, u64 xcr0,
 	if (ustate->xsave.header.xfeatures & ~xcr0)
 		return -EINVAL;
 
-	ret = copy_uabi_from_kernel_to_xstate(&kstate->regs.xsave, ustate);
+	ret = copy_uabi_from_kernel_to_xstate(kstate, ustate);
 	if (ret)
 		return ret;
 
