@@ -17,7 +17,7 @@
 #include <linux/fs.h>
 #include "blk.h"
 
-static struct inode *bdev_file_inode(struct file *file)
+static inline struct inode *bdev_file_inode(struct file *file)
 {
 	return file->f_mapping->host;
 }
@@ -54,8 +54,7 @@ static void blkdev_bio_end_io_simple(struct bio *bio)
 static ssize_t __blkdev_direct_IO_simple(struct kiocb *iocb,
 		struct iov_iter *iter, unsigned int nr_pages)
 {
-	struct file *file = iocb->ki_filp;
-	struct block_device *bdev = I_BDEV(bdev_file_inode(file));
+	struct block_device *bdev = iocb->ki_filp->private_data;
 	struct bio_vec inline_vecs[DIO_INLINE_BIO_VECS], *vecs;
 	loff_t pos = iocb->ki_pos;
 	bool should_dirty = false;
@@ -183,9 +182,7 @@ static void blkdev_bio_end_io(struct bio *bio)
 static ssize_t __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 		unsigned int nr_pages)
 {
-	struct file *file = iocb->ki_filp;
-	struct inode *inode = bdev_file_inode(file);
-	struct block_device *bdev = I_BDEV(inode);
+	struct block_device *bdev = iocb->ki_filp->private_data;
 	struct blk_plug plug;
 	struct blkdev_dio *dio;
 	struct bio *bio;
@@ -389,8 +386,7 @@ static loff_t blkdev_llseek(struct file *file, loff_t offset, int whence)
 static int blkdev_fsync(struct file *filp, loff_t start, loff_t end,
 		int datasync)
 {
-	struct inode *bd_inode = bdev_file_inode(filp);
-	struct block_device *bdev = I_BDEV(bd_inode);
+	struct block_device *bdev = filp->private_data;
 	int error;
 
 	error = file_write_and_wait_range(filp, start, end);
@@ -432,6 +428,8 @@ static int blkdev_open(struct inode *inode, struct file *filp)
 	bdev = blkdev_get_by_dev(inode->i_rdev, filp->f_mode, filp);
 	if (IS_ERR(bdev))
 		return PTR_ERR(bdev);
+
+	filp->private_data = bdev;
 	filp->f_mapping = bdev->bd_inode->i_mapping;
 	filp->f_wb_err = filemap_sample_wb_err(filp->f_mapping);
 	return 0;
@@ -439,7 +437,7 @@ static int blkdev_open(struct inode *inode, struct file *filp)
 
 static int blkdev_close(struct inode *inode, struct file *filp)
 {
-	struct block_device *bdev = I_BDEV(bdev_file_inode(filp));
+	struct block_device *bdev = filp->private_data;
 
 	blkdev_put(bdev, filp->f_mode);
 	return 0;
@@ -454,14 +452,14 @@ static int blkdev_close(struct inode *inode, struct file *filp)
  */
 static ssize_t blkdev_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
-	struct file *file = iocb->ki_filp;
-	struct inode *bd_inode = bdev_file_inode(file);
+	struct block_device *bdev = iocb->ki_filp->private_data;
+	struct inode *bd_inode = bdev->bd_inode;
 	loff_t size = i_size_read(bd_inode);
 	struct blk_plug plug;
 	size_t shorted = 0;
 	ssize_t ret;
 
-	if (bdev_read_only(I_BDEV(bd_inode)))
+	if (bdev_read_only(bdev))
 		return -EPERM;
 
 	if (IS_SWAPFILE(bd_inode) && !is_hibernate_resume_dev(bd_inode->i_rdev))
@@ -493,9 +491,8 @@ static ssize_t blkdev_write_iter(struct kiocb *iocb, struct iov_iter *from)
 
 static ssize_t blkdev_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
-	struct file *file = iocb->ki_filp;
-	struct inode *bd_inode = bdev_file_inode(file);
-	loff_t size = i_size_read(bd_inode);
+	struct block_device *bdev = iocb->ki_filp->private_data;
+	loff_t size = i_size_read(bdev->bd_inode);
 	loff_t pos = iocb->ki_pos;
 	size_t shorted = 0;
 	ssize_t ret;
