@@ -479,6 +479,18 @@ static struct clk *pcf85063_clkout_register_clk(struct pcf85063 *pcf85063)
 	struct clk *clk;
 	struct clk_init_data init;
 	struct device_node *node = pcf85063->rtc->dev.parent->of_node;
+	struct device_node *fixed_clock;
+
+	fixed_clock = of_get_child_by_name(node, "clock");
+	if (fixed_clock) {
+		/*
+		 * skip registering square wave clock when a fixed
+		 * clock has been registered. The fixed clock is
+		 * registered automatically when being referenced.
+		 */
+		of_node_put(fixed_clock);
+		return NULL;
+	}
 
 	init.name = "pcf85063-clkout";
 	init.ops = &pcf85063_clkout_ops;
