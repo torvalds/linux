@@ -1020,6 +1020,12 @@ static int mlx5_function_setup(struct mlx5_core_dev *dev, bool boot)
 		goto err_disable_hca;
 	}
 
+	err = mlx5_tout_query_dtor(dev);
+	if (err) {
+		mlx5_core_err(dev, "failed to read dtor\n");
+		goto reclaim_boot_pages;
+	}
+
 	err = set_hca_ctrl(dev);
 	if (err) {
 		mlx5_core_err(dev, "set_hca_ctrl failed\n");
