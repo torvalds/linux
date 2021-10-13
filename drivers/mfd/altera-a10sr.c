@@ -14,6 +14,7 @@
 #include <linux/mfd/altera-a10sr.h>
 #include <linux/mfd/core.h>
 #include <linux/init.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/spi/spi.h>
 
