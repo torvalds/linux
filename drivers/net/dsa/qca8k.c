@@ -932,6 +932,41 @@ static int qca8k_find_cpu_port(struct dsa_switch *ds)
 }
 
 static int
+qca8k_setup_of_pws_reg(struct qca8k_priv *priv)
+{
+	struct device_node *node = priv->dev->of_node;
+	u32 val = 0;
+	int ret;
+
+	/* QCA8327 require to set to the correct mode.
+	 * His bigger brother QCA8328 have the 172 pin layout.
+	 * Should be applied by default but we set this just to make sure.
+	 */
+	if (priv->switch_id == QCA8K_ID_QCA8327) {
+		ret = qca8k_rmw(priv, QCA8K_REG_PWS, QCA8327_PWS_PACKAGE148_EN,
+				QCA8327_PWS_PACKAGE148_EN);
+		if (ret)
+			return ret;
+	}
+
+	if (of_property_read_bool(node, "qca,ignore-power-on-sel"))
+		val |= QCA8K_PWS_POWER_ON_SEL;
+
+	if (of_property_read_bool(node, "qca,led-open-drain")) {
+		if (!(val & QCA8K_PWS_POWER_ON_SEL)) {
+			dev_err(priv->dev, "qca,led-open-drain require qca,ignore-power-on-sel to be set.");
+			return -EINVAL;
+		}
+
+		val |= QCA8K_PWS_LED_OPEN_EN_CSR;
+	}
+
+	return qca8k_rmw(priv, QCA8K_REG_PWS,
+			QCA8K_PWS_LED_OPEN_EN_CSR | QCA8K_PWS_POWER_ON_SEL,
+			val);
+}
+
+static int
 qca8k_parse_port_config(struct qca8k_priv *priv)
 {
 	int port, cpu_port_index = 0, ret;
@@ -1050,6 +1085,10 @@ qca8k_setup(struct dsa_switch *ds)
 		dev_warn(priv->dev, "regmap initialization failed");
 
 	ret = qca8k_setup_mdio_bus(priv);
+	if (ret)
+		return ret;
+
+	ret = qca8k_setup_of_pws_reg(priv);
 	if (ret)
 		return ret;
 
