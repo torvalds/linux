@@ -702,13 +702,12 @@ static struct iommu_group *apple_dart_device_group(struct device *dev)
 	if (!group)
 		goto out;
 
-	group_master_cfg = kzalloc(sizeof(*group_master_cfg), GFP_KERNEL);
+	group_master_cfg = kmemdup(cfg, sizeof(*group_master_cfg), GFP_KERNEL);
 	if (!group_master_cfg) {
 		iommu_group_put(group);
 		goto out;
 	}
 
-	memcpy(group_master_cfg, cfg, sizeof(*group_master_cfg));
 	iommu_group_set_iommudata(group, group_master_cfg,
 		apple_dart_release_group);
 
