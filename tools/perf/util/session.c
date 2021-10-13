@@ -2264,33 +2264,21 @@ reader__mmap(struct reader *rd, struct perf_session *session)
 }
 
 static int
-reader__process_events(struct reader *rd, struct perf_session *session,
-		       struct ui_progress *prog)
+reader__read_event(struct reader *rd, struct perf_session *session,
+		   struct ui_progress *prog)
 {
 	u64 size;
 	int err = 0;
 	union perf_event *event;
 	s64 skip;
 
-	err = reader__init(rd, &session->one_mmap);
-	if (err)
-		goto out;
-
-	session->active_decomp = &rd->decomp_data;
-
-remap:
-	err = reader__mmap(rd, session);
-	if (err)
-		goto out;
-
-more:
 	event = fetch_mmaped_event(rd->head, rd->mmap_size, rd->mmap_cur,
 				   session->header.needs_swap);
 	if (IS_ERR(event))
 		return PTR_ERR(event);
 
 	if (!event)
-		goto remap;
+		return 1;
 
 	size = event->header.size;
 
@@ -2316,6 +2304,34 @@ more:
 		goto out;
 
 	ui_progress__update(prog, size);
+
+out:
+	return err;
+}
+
+static int
+reader__process_events(struct reader *rd, struct perf_session *session,
+		       struct ui_progress *prog)
+{
+	int err;
+
+	err = reader__init(rd, &session->one_mmap);
+	if (err)
+		goto out;
+
+	session->active_decomp = &rd->decomp_data;
+
+remap:
+	err = reader__mmap(rd, session);
+	if (err)
+		goto out;
+
+more:
+	err = reader__read_event(rd, session, prog);
+	if (err < 0)
+		goto out;
+	else if (err == 1)
+		goto remap;
 
 	if (session_done())
 		goto out;
