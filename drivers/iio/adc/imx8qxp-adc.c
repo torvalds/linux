@@ -416,7 +416,7 @@ static int imx8qxp_adc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int imx8qxp_adc_runtime_suspend(struct device *dev)
+static __maybe_unused int imx8qxp_adc_runtime_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct imx8qxp_adc *adc = iio_priv(indio_dev);
@@ -430,7 +430,7 @@ static int imx8qxp_adc_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int imx8qxp_adc_runtime_resume(struct device *dev)
+static __maybe_unused int imx8qxp_adc_runtime_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct imx8qxp_adc *adc = iio_priv(indio_dev);
