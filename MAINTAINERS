@@ -11823,7 +11823,9 @@ F:	drivers/mmc/host/mtk-sd.c
 MEDIATEK MT76 WIRELESS LAN DRIVER
 M:	Felix Fietkau <nbd@nbd.name>
 M:	Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>
-R:	Ryder Lee <ryder.lee@mediatek.com>
+M:	Ryder Lee <ryder.lee@mediatek.com>
+R:	Shayne Chen <shayne.chen@mediatek.com>
+R:	Sean Wang <sean.wang@mediatek.com>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
 F:	drivers/net/wireless/mediatek/mt76/
