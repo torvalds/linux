@@ -2314,6 +2314,12 @@ out:
 	return err;
 }
 
+static inline bool
+reader__eof(struct reader *rd)
+{
+	return (rd->file_pos >= rd->data_size + rd->data_offset);
+}
+
 static int
 reader__process_events(struct reader *rd, struct perf_session *session,
 		       struct ui_progress *prog)
@@ -2341,7 +2347,7 @@ more:
 	if (session_done())
 		goto out;
 
-	if (rd->file_pos < rd->data_size + rd->data_offset)
+	if (!reader__eof(rd))
 		goto more;
 
 out:
