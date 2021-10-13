@@ -865,6 +865,7 @@ static int axp288_charger_probe(struct platform_device *pdev)
 	if (!info)
 		return -ENOMEM;
 
+	mutex_init(&info->lock);
 	info->pdev = pdev;
 	info->regmap = axp20x->regmap;
 	info->regmap_irqc = axp20x->regmap_irqc;
