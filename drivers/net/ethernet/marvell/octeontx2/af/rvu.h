@@ -101,6 +101,7 @@ struct rvu_block {
 	u64  msixcfg_reg;
 	u64  lfreset_reg;
 	unsigned char name[NAME_SIZE];
+	struct rvu *rvu;
 };
 
 struct nix_mcast {
@@ -812,6 +813,8 @@ bool is_mcam_entry_enabled(struct rvu *rvu, struct npc_mcam *mcam, int blkaddr,
 			   int index);
 
 /* CPT APIs */
+int rvu_cpt_register_interrupts(struct rvu *rvu);
+void rvu_cpt_unregister_interrupts(struct rvu *rvu);
 int rvu_cpt_lf_teardown(struct rvu *rvu, u16 pcifunc, int lf, int slot);
 
 /* CN10K RVU */
