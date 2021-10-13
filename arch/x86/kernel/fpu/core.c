@@ -405,6 +405,16 @@ int fpu_clone(struct task_struct *dst)
 }
 
 /*
+ * Whitelist the FPU register state embedded into task_struct for hardened
+ * usercopy.
+ */
+void fpu_thread_struct_whitelist(unsigned long *offset, unsigned long *size)
+{
+	*offset = offsetof(struct thread_struct, fpu.__fpstate.regs);
+	*size = fpu_kernel_xstate_size;
+}
+
+/*
  * Drops current FPU state: deactivates the fpregs and
  * the fpstate. NOTE: it still leaves previous contents
  * in the fpregs in the eager-FPU case.
