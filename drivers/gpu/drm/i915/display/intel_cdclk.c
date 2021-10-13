@@ -30,6 +30,7 @@
 #include "intel_display_types.h"
 #include "intel_psr.h"
 #include "intel_sideband.h"
+#include "vlv_sideband.h"
 
 /**
  * DOC: CDCLK / RAWCLK

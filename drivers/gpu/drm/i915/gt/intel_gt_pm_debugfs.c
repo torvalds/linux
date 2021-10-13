@@ -18,6 +18,7 @@
 #include "intel_runtime_pm.h"
 #include "intel_sideband.h"
 #include "intel_uncore.h"
+#include "vlv_sideband.h"
 
 static int fw_domains_show(struct seq_file *m, void *data)
 {

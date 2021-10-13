@@ -20,7 +20,6 @@
 #include "intel_hdmi.h"
 #include "intel_pm.h"
 #include "intel_psr.h"
-#include "intel_sideband.h"
 #include "intel_sprite.h"
 
 static inline struct drm_i915_private *node_to_i915(struct drm_info_node *node)

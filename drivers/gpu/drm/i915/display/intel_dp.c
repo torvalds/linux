@@ -66,7 +66,6 @@
 #include "intel_panel.h"
 #include "intel_pps.h"
 #include "intel_psr.h"
-#include "intel_sideband.h"
 #include "intel_tc.h"
 #include "intel_vdsc.h"
 #include "intel_vrr.h"

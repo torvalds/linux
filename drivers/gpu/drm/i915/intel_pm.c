@@ -49,6 +49,7 @@
 #include "i915_trace.h"
 #include "intel_pm.h"
 #include "intel_sideband.h"
+#include "vlv_sideband.h"
 #include "../../../platform/x86/intel_ips.h"
 
 /* Stores plane specific WM parameters */

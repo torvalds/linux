@@ -18,7 +18,7 @@
 #include "intel_hdmi.h"
 #include "intel_hotplug.h"
 #include "intel_pps.h"
-#include "intel_sideband.h"
+#include "vlv_sideband.h"
 
 struct dp_link_dpll {
 	int clock;
