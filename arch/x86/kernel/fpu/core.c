@@ -166,13 +166,12 @@ void fpu_swap_kvm_fpu(struct fpu *save, struct fpu *rstor, u64 restore_mask)
 	fpregs_lock();
 
 	if (save) {
-		if (test_thread_flag(TIF_NEED_FPU_LOAD)) {
-			memcpy(&save->fpstate->regs,
-			       &current->thread.fpu.fpstate->regs,
-			       fpu_kernel_xstate_size);
-		} else {
+		struct fpstate *fpcur = current->thread.fpu.fpstate;
+
+		if (test_thread_flag(TIF_NEED_FPU_LOAD))
+			memcpy(&save->fpstate->regs, &fpcur->regs, fpcur->size);
+		else
 			save_fpregs_to_fpstate(save);
-		}
 	}
 
 	if (rstor) {
@@ -398,7 +397,7 @@ int fpu_clone(struct task_struct *dst)
 	fpregs_lock();
 	if (test_thread_flag(TIF_NEED_FPU_LOAD)) {
 		memcpy(&dst_fpu->fpstate->regs, &src_fpu->fpstate->regs,
-		       fpu_kernel_xstate_size);
+		       dst_fpu->fpstate->size);
 	} else {
 		save_fpregs_to_fpstate(dst_fpu);
 	}

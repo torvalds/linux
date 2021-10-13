@@ -313,15 +313,13 @@ retry:
 static bool __fpu_restore_sig(void __user *buf, void __user *buf_fx,
 			      bool ia32_fxstate)
 {
-	int state_size = fpu_kernel_xstate_size;
 	struct task_struct *tsk = current;
 	struct fpu *fpu = &tsk->thread.fpu;
 	struct user_i387_ia32_struct env;
+	bool success, fx_only = false;
 	union fpregs_state *fpregs;
+	unsigned int state_size;
 	u64 user_xfeatures = 0;
-	bool fx_only = false;
-	bool success;
-
 
 	if (use_xsave()) {
 		struct _fpx_sw_bytes fx_sw_user;
@@ -334,6 +332,7 @@ static bool __fpu_restore_sig(void __user *buf, void __user *buf_fx,
 		user_xfeatures = fx_sw_user.xfeatures;
 	} else {
 		user_xfeatures = XFEATURE_MASK_FPSSE;
+		state_size = fpu->fpstate->size;
 	}
 
 	if (likely(!ia32_fxstate)) {
