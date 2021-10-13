@@ -133,7 +133,7 @@ static inline void llc_sap_put(struct llc_sap *sap)
 struct llc_sap *llc_sap_find(unsigned char sap_value);
 
 int llc_build_and_send_ui_pkt(struct llc_sap *sap, struct sk_buff *skb,
-			      unsigned char *dmac, unsigned char dsap);
+			      const unsigned char *dmac, unsigned char dsap);
 
 void llc_sap_handler(struct llc_sap *sap, struct sk_buff *skb);
 void llc_conn_handler(struct llc_sap *sap, struct sk_buff *skb);
