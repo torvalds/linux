@@ -15,7 +15,7 @@ static inline void xstate_init_xcomp_bv(struct xregs_state *xsave, u64 mask)
 		xsave->header.xcomp_bv = mask | XCOMP_BV_COMPACTED_FORMAT;
 }
 
-extern void __copy_xstate_to_uabi_buf(struct membuf to, struct xregs_state *xsave,
+extern void __copy_xstate_to_uabi_buf(struct membuf to, struct fpstate *fpstate,
 				      u32 pkru_val, enum xstate_copy_mode copy_mode);
 
 extern void fpu__init_cpu_xstate(void);

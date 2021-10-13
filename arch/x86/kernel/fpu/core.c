@@ -187,15 +187,15 @@ EXPORT_SYMBOL_GPL(fpu_swap_kvm_fpu);
 void fpu_copy_fpstate_to_kvm_uabi(struct fpu *fpu, void *buf,
 			       unsigned int size, u32 pkru)
 {
-	union fpregs_state *kstate = &fpu->fpstate->regs;
+	struct fpstate *kstate = fpu->fpstate;
 	union fpregs_state *ustate = buf;
 	struct membuf mb = { .p = buf, .left = size };
 
 	if (cpu_feature_enabled(X86_FEATURE_XSAVE)) {
-		__copy_xstate_to_uabi_buf(mb, &kstate->xsave, pkru,
-					  XSTATE_COPY_XSAVE);
+		__copy_xstate_to_uabi_buf(mb, kstate, pkru, XSTATE_COPY_XSAVE);
 	} else {
-		memcpy(&ustate->fxsave, &kstate->fxsave, sizeof(ustate->fxsave));
+		memcpy(&ustate->fxsave, &kstate->regs.fxsave,
+		       sizeof(ustate->fxsave));
 		/* Make it restorable on a XSAVE enabled host */
 		ustate->xsave.header.xfeatures = XFEATURE_MASK_FPSSE;
 	}
