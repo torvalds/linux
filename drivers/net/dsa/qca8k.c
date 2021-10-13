@@ -889,68 +889,6 @@ qca8k_setup_mdio_bus(struct qca8k_priv *priv)
 }
 
 static int
-qca8k_setup_of_rgmii_delay(struct qca8k_priv *priv)
-{
-	struct device_node *port_dn;
-	phy_interface_t mode;
-	struct dsa_port *dp;
-	u32 val;
-
-	/* CPU port is already checked */
-	dp = dsa_to_port(priv->ds, 0);
-
-	port_dn = dp->dn;
-
-	/* Check if port 0 is set to the correct type */
-	of_get_phy_mode(port_dn, &mode);
-	if (mode != PHY_INTERFACE_MODE_RGMII_ID &&
-	    mode != PHY_INTERFACE_MODE_RGMII_RXID &&
-	    mode != PHY_INTERFACE_MODE_RGMII_TXID) {
-		return 0;
-	}
-
-	switch (mode) {
-	case PHY_INTERFACE_MODE_RGMII_ID:
-	case PHY_INTERFACE_MODE_RGMII_RXID:
-		if (of_property_read_u32(port_dn, "rx-internal-delay-ps", &val))
-			val = 2;
-		else
-			/* Switch regs accept value in ns, convert ps to ns */
-			val = val / 1000;
-
-		if (val > QCA8K_MAX_DELAY) {
-			dev_err(priv->dev, "rgmii rx delay is limited to a max value of 3ns, setting to the max value");
-			val = 3;
-		}
-
-		priv->rgmii_rx_delay = val;
-		/* Stop here if we need to check only for rx delay */
-		if (mode != PHY_INTERFACE_MODE_RGMII_ID)
-			break;
-
-		fallthrough;
-	case PHY_INTERFACE_MODE_RGMII_TXID:
-		if (of_property_read_u32(port_dn, "tx-internal-delay-ps", &val))
-			val = 1;
-		else
-			/* Switch regs accept value in ns, convert ps to ns */
-			val = val / 1000;
-
-		if (val > QCA8K_MAX_DELAY) {
-			dev_err(priv->dev, "rgmii tx delay is limited to a max value of 3ns, setting to the max value");
-			val = 3;
-		}
-
-		priv->rgmii_tx_delay = val;
-		break;
-	default:
-		return 0;
-	}
-
-	return 0;
-}
-
-static int
 qca8k_setup_mac_pwr_sel(struct qca8k_priv *priv)
 {
 	u32 mask = 0;
@@ -996,19 +934,21 @@ static int qca8k_find_cpu_port(struct dsa_switch *ds)
 static int
 qca8k_parse_port_config(struct qca8k_priv *priv)
 {
+	int port, cpu_port_index = 0, ret;
 	struct device_node *port_dn;
 	phy_interface_t mode;
 	struct dsa_port *dp;
-	int port, ret;
+	u32 delay;
 
 	/* We have 2 CPU port. Check them */
-	for (port = 0; port < QCA8K_NUM_PORTS; port++) {
+	for (port = 0; port < QCA8K_NUM_PORTS && cpu_port_index < QCA8K_NUM_CPU_PORTS; port++) {
 		/* Skip every other port */
 		if (port != 0 && port != 6)
 			continue;
 
 		dp = dsa_to_port(priv->ds, port);
 		port_dn = dp->dn;
+		cpu_port_index++;
 
 		if (!of_device_is_available(port_dn))
 			continue;
@@ -1017,12 +957,54 @@ qca8k_parse_port_config(struct qca8k_priv *priv)
 		if (ret)
 			continue;
 
-		if (mode == PHY_INTERFACE_MODE_SGMII) {
+		switch (mode) {
+		case PHY_INTERFACE_MODE_RGMII:
+		case PHY_INTERFACE_MODE_RGMII_ID:
+		case PHY_INTERFACE_MODE_RGMII_TXID:
+		case PHY_INTERFACE_MODE_RGMII_RXID:
+			delay = 0;
+
+			if (!of_property_read_u32(port_dn, "tx-internal-delay-ps", &delay))
+				/* Switch regs accept value in ns, convert ps to ns */
+				delay = delay / 1000;
+			else if (mode == PHY_INTERFACE_MODE_RGMII_ID ||
+				 mode == PHY_INTERFACE_MODE_RGMII_TXID)
+				delay = 1;
+
+			if (delay > QCA8K_MAX_DELAY) {
+				dev_err(priv->dev, "rgmii tx delay is limited to a max value of 3ns, setting to the max value");
+				delay = 3;
+			}
+
+			priv->rgmii_tx_delay[cpu_port_index] = delay;
+
+			delay = 0;
+
+			if (!of_property_read_u32(port_dn, "rx-internal-delay-ps", &delay))
+				/* Switch regs accept value in ns, convert ps to ns */
+				delay = delay / 1000;
+			else if (mode == PHY_INTERFACE_MODE_RGMII_ID ||
+				 mode == PHY_INTERFACE_MODE_RGMII_RXID)
+				delay = 2;
+
+			if (delay > QCA8K_MAX_DELAY) {
+				dev_err(priv->dev, "rgmii rx delay is limited to a max value of 3ns, setting to the max value");
+				delay = 3;
+			}
+
+			priv->rgmii_rx_delay[cpu_port_index] = delay;
+
+			break;
+		case PHY_INTERFACE_MODE_SGMII:
 			if (of_property_read_bool(port_dn, "qca,sgmii-txclk-falling-edge"))
 				priv->sgmii_tx_clk_falling_edge = true;
 
 			if (of_property_read_bool(port_dn, "qca,sgmii-rxclk-falling-edge"))
 				priv->sgmii_rx_clk_falling_edge = true;
+
+			break;
+		default:
+			continue;
 		}
 	}
 
@@ -1056,10 +1038,6 @@ qca8k_setup(struct dsa_switch *ds)
 		dev_warn(priv->dev, "regmap initialization failed");
 
 	ret = qca8k_setup_mdio_bus(priv);
-	if (ret)
-		return ret;
-
-	ret = qca8k_setup_of_rgmii_delay(priv);
 	if (ret)
 		return ret;
 
@@ -1229,8 +1207,8 @@ qca8k_phylink_mac_config(struct dsa_switch *ds, int port, unsigned int mode,
 			 const struct phylink_link_state *state)
 {
 	struct qca8k_priv *priv = ds->priv;
-	u32 reg, val;
-	int ret;
+	int cpu_port_index, ret;
+	u32 reg, val, delay;
 
 	switch (port) {
 	case 0: /* 1st CPU port */
@@ -1242,6 +1220,7 @@ qca8k_phylink_mac_config(struct dsa_switch *ds, int port, unsigned int mode,
 			return;
 
 		reg = QCA8K_REG_PORT0_PAD_CTRL;
+		cpu_port_index = QCA8K_CPU_PORT0;
 		break;
 	case 1:
 	case 2:
@@ -1260,6 +1239,7 @@ qca8k_phylink_mac_config(struct dsa_switch *ds, int port, unsigned int mode,
 			return;
 
 		reg = QCA8K_REG_PORT6_PAD_CTRL;
+		cpu_port_index = QCA8K_CPU_PORT6;
 		break;
 	default:
 		dev_err(ds->dev, "%s: unsupported port: %i\n", __func__, port);
@@ -1274,23 +1254,40 @@ qca8k_phylink_mac_config(struct dsa_switch *ds, int port, unsigned int mode,
 
 	switch (state->interface) {
 	case PHY_INTERFACE_MODE_RGMII:
-		/* RGMII mode means no delay so don't enable the delay */
-		qca8k_write(priv, reg, QCA8K_PORT_PAD_RGMII_EN);
-		break;
 	case PHY_INTERFACE_MODE_RGMII_ID:
 	case PHY_INTERFACE_MODE_RGMII_TXID:
 	case PHY_INTERFACE_MODE_RGMII_RXID:
-		/* RGMII_ID needs internal delay. This is enabled through
-		 * PORT5_PAD_CTRL for all ports, rather than individual port
-		 * registers
+		val = QCA8K_PORT_PAD_RGMII_EN;
+
+		/* Delay can be declared in 3 different way.
+		 * Mode to rgmii and internal-delay standard binding defined
+		 * rgmii-id or rgmii-tx/rx phy mode set.
+		 * The parse logic set a delay different than 0 only when one
+		 * of the 3 different way is used. In all other case delay is
+		 * not enabled. With ID or TX/RXID delay is enabled and set
+		 * to the default and recommended value.
 		 */
-		qca8k_write(priv, reg,
-			    QCA8K_PORT_PAD_RGMII_EN |
-			    QCA8K_PORT_PAD_RGMII_TX_DELAY(priv->rgmii_tx_delay) |
-			    QCA8K_PORT_PAD_RGMII_RX_DELAY(priv->rgmii_rx_delay) |
-			    QCA8K_PORT_PAD_RGMII_TX_DELAY_EN |
-			    QCA8K_PORT_PAD_RGMII_RX_DELAY_EN);
-		/* QCA8337 requires to set rgmii rx delay */
+		if (priv->rgmii_tx_delay[cpu_port_index]) {
+			delay = priv->rgmii_tx_delay[cpu_port_index];
+
+			val |= QCA8K_PORT_PAD_RGMII_TX_DELAY(delay) |
+			       QCA8K_PORT_PAD_RGMII_TX_DELAY_EN;
+		}
+
+		if (priv->rgmii_rx_delay[cpu_port_index]) {
+			delay = priv->rgmii_rx_delay[cpu_port_index];
+
+			val |= QCA8K_PORT_PAD_RGMII_RX_DELAY(delay) |
+			       QCA8K_PORT_PAD_RGMII_RX_DELAY_EN;
+		}
+
+		/* Set RGMII delay based on the selected values */
+		qca8k_write(priv, reg, val);
+
+		/* QCA8337 requires to set rgmii rx delay for all ports.
+		 * This is enabled through PORT5_PAD_CTRL for all ports,
+		 * rather than individual port registers.
+		 */
 		if (priv->switch_id == QCA8K_ID_QCA8337)
 			qca8k_write(priv, QCA8K_REG_PORT5_PAD_CTRL,
 				    QCA8K_PORT_PAD_RGMII_RX_DELAY_EN);

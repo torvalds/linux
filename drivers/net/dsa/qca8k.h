@@ -13,6 +13,7 @@
 #include <linux/gpio.h>
 
 #define QCA8K_NUM_PORTS					7
+#define QCA8K_NUM_CPU_PORTS				2
 #define QCA8K_MAX_MTU					9000
 
 #define PHY_ID_QCA8327					0x004dd034
@@ -255,13 +256,18 @@ struct qca8k_match_data {
 	u8 id;
 };
 
+enum {
+	QCA8K_CPU_PORT0,
+	QCA8K_CPU_PORT6,
+};
+
 struct qca8k_priv {
 	u8 switch_id;
 	u8 switch_revision;
-	u8 rgmii_tx_delay;
-	u8 rgmii_rx_delay;
 	bool sgmii_rx_clk_falling_edge;
 	bool sgmii_tx_clk_falling_edge;
+	u8 rgmii_rx_delay[QCA8K_NUM_CPU_PORTS]; /* 0: CPU port0, 1: CPU port6 */
+	u8 rgmii_tx_delay[QCA8K_NUM_CPU_PORTS]; /* 0: CPU port0, 1: CPU port6 */
 	bool legacy_phy_port_mapping;
 	struct regmap *regmap;
 	struct mii_bus *bus;
