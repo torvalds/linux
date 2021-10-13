@@ -2263,12 +2263,17 @@ reader__mmap(struct reader *rd, struct perf_session *session)
 	return 0;
 }
 
+enum {
+	READER_OK,
+	READER_NODATA,
+};
+
 static int
 reader__read_event(struct reader *rd, struct perf_session *session,
 		   struct ui_progress *prog)
 {
 	u64 size;
-	int err = 0;
+	int err = READER_OK;
 	union perf_event *event;
 	s64 skip;
 
@@ -2278,7 +2283,7 @@ reader__read_event(struct reader *rd, struct perf_session *session,
 		return PTR_ERR(event);
 
 	if (!event)
-		return 1;
+		return READER_NODATA;
 
 	size = event->header.size;
 
@@ -2330,7 +2335,7 @@ more:
 	err = reader__read_event(rd, session, prog);
 	if (err < 0)
 		goto out;
-	else if (err == 1)
+	else if (err == READER_NODATA)
 		goto remap;
 
 	if (session_done())
