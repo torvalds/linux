@@ -8,9 +8,14 @@
 #ifndef _PHY_ROCKCHIP_CSI2_DPHY_COMMON_H_
 #define _PHY_ROCKCHIP_CSI2_DPHY_COMMON_H_
 
+#define PHY_MAX 16
+#define MAX_DEV_NAME_LEN 32
+
 /* add new chip id in tail by time order */
 enum csi2_dphy_chip_id {
 	CHIP_ID_RK3568 = 0x0,
+	CHIP_ID_RK3588 = 0x1,
+	CHIP_ID_RK3588_DCPHY = 0x2,
 };
 
 enum csi2_dphy_rx_pads {
@@ -47,6 +52,10 @@ struct csi2_sensor {
 
 struct csi2_dphy_hw;
 
+struct dphy_drv_data {
+	const char dev_name[MAX_DEV_NAME_LEN];
+};
+
 struct csi2_dphy {
 	struct device *dev;
 	struct list_head list;
@@ -61,17 +70,20 @@ struct csi2_dphy {
 	int phy_index;
 	bool is_streaming;
 	enum csi2_dphy_lane_mode lane_mode;
+	const struct dphy_drv_data *drv_data;
 };
 
 struct dphy_hw_drv_data {
-	const struct	clk_bulk_data *clks;
-	int num_clks;
 	const struct hsfreq_range *hsfreq_ranges;
 	int num_hsfreq_ranges;
+	const struct hsfreq_range *hsfreq_ranges_cphy;
+	int num_hsfreq_ranges_cphy;
 	const struct grf_reg *grf_regs;
 	const struct txrx_reg *txrx_regs;
 	const struct csi2dphy_reg *csi2dphy_regs;
 	void (*individual_init)(struct csi2_dphy_hw *hw);
+	int (*stream_on)(struct csi2_dphy *dphy, struct v4l2_subdev *sd);
+	int (*stream_off)(struct csi2_dphy *dphy, struct v4l2_subdev *sd);
 	enum csi2_dphy_chip_id chip_id;
 };
 
@@ -83,7 +95,8 @@ struct csi2_dphy_hw {
 	const struct csi2dphy_reg *csi2dphy_regs;
 	const struct dphy_hw_drv_data *drv_data;
 	void __iomem *hw_base_addr;
-	struct clk_bulk_data	*clks;
+	struct clk_bulk_data	*clks_bulk;
+	struct reset_control	*rsts_bulk;
 	struct csi2_dphy *dphy_dev[MAX_NUM_CSI2_DPHY];
 	struct v4l2_subdev sd;
 	struct mutex mutex; /* lock for updating protection */
