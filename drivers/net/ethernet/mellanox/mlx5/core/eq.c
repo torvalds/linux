@@ -647,7 +647,7 @@ static int create_async_eqs(struct mlx5_core_dev *dev)
 
 	param = (struct mlx5_eq_param) {
 		.irq_index = MLX5_IRQ_EQ_CTRL,
-		.nent = MLX5_NUM_ASYNC_EQE,
+		.nent = mlx5_devlink_res_size(dev, MLX5_DL_RES_ASYNC_EQ),
 	};
 
 	gather_async_events_mask(dev, param.mask);

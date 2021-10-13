@@ -57,6 +57,10 @@ Resources
    * - ``comp_eq_size``
      - Control the size of I/O completion EQs.
        * The default value is 1024, and the range is between 64 and 4096.
+   * - ``event_eq_size``
+     - Control the size of the asynchronous control events EQ.
+       * The default value is 4096, and the range is between 64 and 4096.
+
 
 Info versions
 =============

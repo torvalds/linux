@@ -8,6 +8,7 @@
 
 enum mlx5_devlink_resource_id {
 	MLX5_DL_RES_COMP_EQ = 1,
+	MLX5_DL_RES_ASYNC_EQ,
 
 	__MLX5_ID_RES_MAX,
 	MLX5_ID_RES_MAX = __MLX5_ID_RES_MAX - 1,
