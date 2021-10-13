@@ -1779,9 +1779,30 @@ out_err:
 		conn->mechToken = NULL;
 	}
 
-	if (rc < 0 && sess) {
-		ksmbd_session_destroy(sess);
-		work->sess = NULL;
+	if (rc < 0) {
+		/*
+		 * SecurityBufferOffset should be set to zero
+		 * in session setup error response.
+		 */
+		rsp->SecurityBufferOffset = 0;
+
+		if (sess) {
+			bool try_delay = false;
+
+			/*
+			 * To avoid dictionary attacks (repeated session setups rapidly sent) to
+			 * connect to server, ksmbd make a delay of a 5 seconds on session setup
+			 * failure to make it harder to send enough random connection requests
+			 * to break into a server.
+			 */
+			if (sess->user && sess->user->flags & KSMBD_USER_FLAG_DELAY_SESSION)
+				try_delay = true;
+
+			ksmbd_session_destroy(sess);
+			work->sess = NULL;
+			if (try_delay)
+				ssleep(5);
+		}
 	}
 
 	return rc;

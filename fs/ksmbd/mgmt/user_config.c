@@ -55,7 +55,7 @@ struct ksmbd_user *ksmbd_alloc_user(struct ksmbd_login_response *resp)
 
 void ksmbd_free_user(struct ksmbd_user *user)
 {
-	ksmbd_ipc_logout_request(user->name);
+	ksmbd_ipc_logout_request(user->name, user->flags);
 	kfree(user->name);
 	kfree(user->passkey);
 	kfree(user);

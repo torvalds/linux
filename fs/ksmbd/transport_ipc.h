@@ -25,7 +25,7 @@ ksmbd_ipc_tree_connect_request(struct ksmbd_session *sess,
 			       struct sockaddr *peer_addr);
 int ksmbd_ipc_tree_disconnect_request(unsigned long long session_id,
 				      unsigned long long connect_id);
-int ksmbd_ipc_logout_request(const char *account);
+int ksmbd_ipc_logout_request(const char *account, int flags);
 struct ksmbd_share_config_response *
 ksmbd_ipc_share_config_request(const char *name);
 struct ksmbd_spnego_authen_response *
