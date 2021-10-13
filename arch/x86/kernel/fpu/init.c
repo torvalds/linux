@@ -184,10 +184,6 @@ static void __init fpu__init_task_struct_size(void)
 	CHECK_MEMBER_AT_END_OF(struct thread_struct, fpu);
 	CHECK_MEMBER_AT_END_OF(struct task_struct, thread);
 
-	BUILD_BUG_ON(sizeof(struct fpstate) != sizeof(union fpregs_state));
-	BUILD_BUG_ON(offsetof(struct thread_struct, fpu.state) !=
-		     offsetof(struct thread_struct, fpu.__fpstate));
-
 	arch_task_struct_size = task_size;
 }
 
