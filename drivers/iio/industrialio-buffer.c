@@ -1624,7 +1624,7 @@ int iio_buffers_alloc_sysfs_and_mask(struct iio_dev *indio_dev)
 		buffer = iio_dev_opaque->attached_buffers[i];
 		ret = __iio_buffer_alloc_sysfs_and_mask(buffer, indio_dev, i);
 		if (ret) {
-			unwind_idx = i;
+			unwind_idx = i - 1;
 			goto error_unwind_sysfs_and_mask;
 		}
 	}
