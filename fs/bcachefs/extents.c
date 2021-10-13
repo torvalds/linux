@@ -479,7 +479,7 @@ restart_narrow_pointers:
 
 	bkey_for_each_ptr_decode(&k->k, ptrs, p, i)
 		if (can_narrow_crc(p.crc, n)) {
-			bch2_bkey_drop_ptr(bkey_i_to_s(k), &i->ptr);
+			__bch2_bkey_drop_ptr(bkey_i_to_s(k), &i->ptr);
 			p.ptr.offset += p.crc.offset;
 			p.crc = n;
 			bch2_extent_ptr_decoded_append(k, &p);
@@ -784,41 +784,85 @@ static union bch_extent_entry *extent_entry_prev(struct bkey_ptrs ptrs,
 	return i;
 }
 
-union bch_extent_entry *bch2_bkey_drop_ptr(struct bkey_s k,
-					   struct bch_extent_ptr *ptr)
+static void extent_entry_drop(struct bkey_s k, union bch_extent_entry *entry)
+{
+	union bch_extent_entry *next = extent_entry_next(entry);
+
+	/* stripes have ptrs, but their layout doesn't work with this code */
+	BUG_ON(k.k->type == KEY_TYPE_stripe);
+
+	memmove_u64s_down(entry, next,
+			  (u64 *) bkey_val_end(k) - (u64 *) next);
+	k.k->u64s -= (u64 *) next - (u64 *) entry;
+}
+
+/*
+ * Returns pointer to the next entry after the one being dropped:
+ */
+union bch_extent_entry *__bch2_bkey_drop_ptr(struct bkey_s k,
+					     struct bch_extent_ptr *ptr)
 {
 	struct bkey_ptrs ptrs = bch2_bkey_ptrs(k);
-	union bch_extent_entry *dst, *src, *prev;
+	union bch_extent_entry *entry = to_entry(ptr), *next;
+	union bch_extent_entry *ret = entry;
 	bool drop_crc = true;
 
 	EBUG_ON(ptr < &ptrs.start->ptr ||
 		ptr >= &ptrs.end->ptr);
 	EBUG_ON(ptr->type != 1 << BCH_EXTENT_ENTRY_ptr);
 
-	src = extent_entry_next(to_entry(ptr));
-	if (src != ptrs.end &&
-	    !extent_entry_is_crc(src))
-		drop_crc = false;
-
-	dst = to_entry(ptr);
-	while ((prev = extent_entry_prev(ptrs, dst))) {
-		if (extent_entry_is_ptr(prev))
+	for (next = extent_entry_next(entry);
+	     next != ptrs.end;
+	     next = extent_entry_next(next)) {
+		if (extent_entry_is_crc(next)) {
 			break;
-
-		if (extent_entry_is_crc(prev)) {
-			if (drop_crc)
-				dst = prev;
+		} else if (extent_entry_is_ptr(next)) {
+			drop_crc = false;
 			break;
 		}
-
-		dst = prev;
 	}
 
-	memmove_u64s_down(dst, src,
-			  (u64 *) ptrs.end - (u64 *) src);
-	k.k->u64s -= (u64 *) src - (u64 *) dst;
+	extent_entry_drop(k, entry);
 
-	return dst;
+	while ((entry = extent_entry_prev(ptrs, entry))) {
+		if (extent_entry_is_ptr(entry))
+			break;
+
+		if ((extent_entry_is_crc(entry) && drop_crc) ||
+		    extent_entry_is_stripe_ptr(entry)) {
+			ret = (void *) ret - extent_entry_bytes(entry);
+			extent_entry_drop(k, entry);
+		}
+	}
+
+	return ret;
+}
+
+union bch_extent_entry *bch2_bkey_drop_ptr(struct bkey_s k,
+					   struct bch_extent_ptr *ptr)
+{
+	bool have_dirty = bch2_bkey_dirty_devs(k.s_c).nr;
+	union bch_extent_entry *ret =
+		__bch2_bkey_drop_ptr(k, ptr);
+
+	/*
+	 * If we deleted all the dirty pointers and there's still cached
+	 * pointers, we could set the cached pointers to dirty if they're not
+	 * stale - but to do that correctly we'd need to grab an open_bucket
+	 * reference so that we don't race with bucket reuse:
+	 */
+	if (have_dirty &&
+	    !bch2_bkey_dirty_devs(k.s_c).nr) {
+		k.k->type = KEY_TYPE_error;
+		set_bkey_val_u64s(k.k, 0);
+		ret = NULL;
+	} else if (!bch2_bkey_nr_ptrs(k.s_c)) {
+		k.k->type = KEY_TYPE_deleted;
+		set_bkey_val_u64s(k.k, 0);
+		ret = NULL;
+	}
+
+	return ret;
 }
 
 void bch2_bkey_drop_device(struct bkey_s k, unsigned dev)
@@ -887,10 +931,6 @@ bool bch2_extent_normalize(struct bch_fs *c, struct bkey_s k)
 	bch2_bkey_drop_ptrs(k, ptr,
 		ptr->cached &&
 		ptr_stale(bch_dev_bkey_exists(c, ptr->dev), ptr));
-
-	/* will only happen if all pointers were cached: */
-	if (!bch2_bkey_nr_ptrs(k.s_c))
-		k.k->type = KEY_TYPE_deleted;
 
 	return bkey_deleted(k.k);
 }

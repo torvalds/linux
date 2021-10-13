@@ -1767,7 +1767,6 @@ static int bch2_gc_btree_gens(struct bch_fs *c, enum btree_id btree_id)
 			bch2_bkey_buf_reassemble(&sk, c, k);
 			bch2_extent_normalize(c, bkey_i_to_s(sk.k));
 
-
 			commit_err =
 				bch2_trans_update(&trans, &iter, sk.k, 0) ?:
 				bch2_trans_commit(&trans, NULL, NULL,

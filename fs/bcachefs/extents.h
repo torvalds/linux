@@ -78,12 +78,12 @@ static inline size_t extent_entry_u64s(const union bch_extent_entry *entry)
 
 static inline bool extent_entry_is_ptr(const union bch_extent_entry *e)
 {
-	switch (extent_entry_type(e)) {
-	case BCH_EXTENT_ENTRY_ptr:
-		return true;
-	default:
-		return false;
-	}
+	return extent_entry_type(e) == BCH_EXTENT_ENTRY_ptr;
+}
+
+static inline bool extent_entry_is_stripe_ptr(const union bch_extent_entry *e)
+{
+	return extent_entry_type(e) == BCH_EXTENT_ENTRY_stripe_ptr;
 }
 
 static inline bool extent_entry_is_crc(const union bch_extent_entry *e)
@@ -578,6 +578,8 @@ void bch2_bkey_extent_entry_drop(struct bkey_i *, union bch_extent_entry *);
 void bch2_bkey_append_ptr(struct bkey_i *, struct bch_extent_ptr);
 void bch2_extent_ptr_decoded_append(struct bkey_i *,
 				    struct extent_ptr_decoded *);
+union bch_extent_entry *__bch2_bkey_drop_ptr(struct bkey_s,
+					     struct bch_extent_ptr *);
 union bch_extent_entry *bch2_bkey_drop_ptr(struct bkey_s,
 					   struct bch_extent_ptr *);
 

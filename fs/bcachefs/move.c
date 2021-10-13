@@ -195,7 +195,7 @@ int bch2_migrate_index_update(struct bch_write_op *op)
 				extent_for_each_ptr(extent_i_to_s(new), new_ptr)
 					new_ptr->cached = true;
 
-			bch2_bkey_drop_ptr(bkey_i_to_s(insert), old_ptr);
+			__bch2_bkey_drop_ptr(bkey_i_to_s(insert), old_ptr);
 		}
 
 		extent_for_each_ptr_decode(extent_i_to_s(new), p, entry) {
