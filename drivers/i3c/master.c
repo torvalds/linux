@@ -2177,7 +2177,7 @@ static int of_populate_i3c_bus(struct i3c_master_controller *master)
 	struct device *dev = &master->dev;
 	struct device_node *i3cbus_np = dev->of_node;
 	struct device_node *node;
-	int ret;
+	int ret, i;
 	u32 val;
 
 	if (!i3cbus_np)
@@ -2186,6 +2186,14 @@ static int of_populate_i3c_bus(struct i3c_master_controller *master)
 	if (of_get_property(i3cbus_np, "jdec-spd", NULL)) {
 		master->jdec_spd = 1;
 	}
+
+	/* For SPD bus, undo unnecessary address reservations. */
+	if (master->jdec_spd) {
+		for (i = 0; i < 7; i++)
+			i3c_bus_set_addr_slot_status(&master->bus, I3C_BROADCAST_ADDR ^ BIT(i),
+						     I3C_ADDR_SLOT_FREE);
+	}
+
 	for_each_available_child_of_node(i3cbus_np, node) {
 		ret = of_i3c_master_add_dev(master, node);
 		if (ret) {
