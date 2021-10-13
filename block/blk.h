@@ -266,7 +266,32 @@ ssize_t part_timeout_show(struct device *, struct device_attribute *, char *);
 ssize_t part_timeout_store(struct device *, struct device_attribute *,
 				const char *, size_t);
 
-void __blk_queue_split(struct bio **bio, unsigned int *nr_segs);
+static inline bool blk_may_split(struct request_queue *q, struct bio *bio)
+{
+	switch (bio_op(bio)) {
+	case REQ_OP_DISCARD:
+	case REQ_OP_SECURE_ERASE:
+	case REQ_OP_WRITE_ZEROES:
+	case REQ_OP_WRITE_SAME:
+		return true; /* non-trivial splitting decisions */
+	default:
+		break;
+	}
+
+	/*
+	 * All drivers must accept single-segments bios that are <= PAGE_SIZE.
+	 * This is a quick and dirty check that relies on the fact that
+	 * bi_io_vec[0] is always valid if a bio has data.  The check might
+	 * lead to occasional false negatives when bios are cloned, but compared
+	 * to the performance impact of cloned bios themselves the loop below
+	 * doesn't matter anyway.
+	 */
+	return q->limits.chunk_sectors || bio->bi_vcnt != 1 ||
+		bio->bi_io_vec->bv_len + bio->bi_io_vec->bv_offset > PAGE_SIZE;
+}
+
+void __blk_queue_split(struct request_queue *q, struct bio **bio,
+			unsigned int *nr_segs);
 int ll_back_merge_fn(struct request *req, struct bio *bio,
 		unsigned int nr_segs);
 bool blk_attempt_req_merge(struct request_queue *q, struct request *rq,

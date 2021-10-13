@@ -324,6 +324,7 @@ split:
 
 /**
  * __blk_queue_split - split a bio and submit the second half
+ * @q:       [in] request_queue new bio is being queued at
  * @bio:     [in, out] bio to be split
  * @nr_segs: [out] number of segments in the first bio
  *
@@ -334,9 +335,9 @@ split:
  * of the caller to ensure that q->bio_split is only released after processing
  * of the split bio has finished.
  */
-void __blk_queue_split(struct bio **bio, unsigned int *nr_segs)
+void __blk_queue_split(struct request_queue *q, struct bio **bio,
+		       unsigned int *nr_segs)
 {
-	struct request_queue *q = (*bio)->bi_bdev->bd_disk->queue;
 	struct bio *split = NULL;
 
 	switch (bio_op(*bio)) {
@@ -353,21 +354,6 @@ void __blk_queue_split(struct bio **bio, unsigned int *nr_segs)
 				nr_segs);
 		break;
 	default:
-		/*
-		 * All drivers must accept single-segments bios that are <=
-		 * PAGE_SIZE.  This is a quick and dirty check that relies on
-		 * the fact that bi_io_vec[0] is always valid if a bio has data.
-		 * The check might lead to occasional false negatives when bios
-		 * are cloned, but compared to the performance impact of cloned
-		 * bios themselves the loop below doesn't matter anyway.
-		 */
-		if (!q->limits.chunk_sectors &&
-		    (*bio)->bi_vcnt == 1 &&
-		    ((*bio)->bi_io_vec[0].bv_len +
-		     (*bio)->bi_io_vec[0].bv_offset) <= PAGE_SIZE) {
-			*nr_segs = 1;
-			break;
-		}
 		split = blk_bio_segment_split(q, *bio, &q->bio_split, nr_segs);
 		break;
 	}
@@ -397,9 +383,11 @@ void __blk_queue_split(struct bio **bio, unsigned int *nr_segs)
  */
 void blk_queue_split(struct bio **bio)
 {
+	struct request_queue *q = (*bio)->bi_bdev->bd_disk->queue;
 	unsigned int nr_segs;
 
-	__blk_queue_split(bio, &nr_segs);
+	if (blk_may_split(q, *bio))
+		__blk_queue_split(q, bio, &nr_segs);
 }
 EXPORT_SYMBOL(blk_queue_split);
 

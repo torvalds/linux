@@ -2259,11 +2259,12 @@ void blk_mq_submit_bio(struct bio *bio)
 	struct request *rq;
 	struct blk_plug *plug;
 	struct request *same_queue_rq = NULL;
-	unsigned int nr_segs;
+	unsigned int nr_segs = 1;
 	blk_status_t ret;
 
 	blk_queue_bounce(q, &bio);
-	__blk_queue_split(&bio, &nr_segs);
+	if (blk_may_split(q, bio))
+		__blk_queue_split(q, &bio, &nr_segs);
 
 	if (!bio_integrity_prep(bio))
 		goto queue_exit;
