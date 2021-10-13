@@ -17,7 +17,6 @@
 
 static int mi_frame_end(struct rkisp_stream *stream);
 static void rkisp_buf_queue(struct vb2_buffer *vb);
-static int rkisp_create_dummy_buf(struct rkisp_stream *stream);
 
 static const struct capture_fmt dmatx_fmts[] = {
 	/* raw */
@@ -1068,8 +1067,10 @@ static int mi_frame_end(struct rkisp_stream *stream)
 		if (stream->id == RKISP_STREAM_MP || stream->id == RKISP_STREAM_SP)
 			stream->dbg.delay = ns - dev->isp_sdev.frm_timestamp;
 
-		if (is_rdbk_stream(stream) &&
-		    dev->dmarx_dev.trigger == T_MANUAL) {
+		if (!stream->streaming) {
+			vb2_buffer_done(vb2_buf, VB2_BUF_STATE_ERROR);
+		} else if (is_rdbk_stream(stream) &&
+			   dev->dmarx_dev.trigger == T_MANUAL) {
 			if (stream->id == RKISP_STREAM_DMATX0) {
 				if (cap->rdbk_buf[RDBK_L]) {
 					v4l2_err(&dev->v4l2_dev,
@@ -1216,28 +1217,7 @@ static int rkisp_start(struct rkisp_stream *stream)
 {
 	void __iomem *base = stream->ispdev->base_addr;
 	struct rkisp_device *dev = stream->ispdev;
-	bool is_update = false;
 	int ret;
-
-	/*
-	 * MP/SP/MPFBC/DMATX need mi_cfg_upd to update shadow reg
-	 * MP/SP/MPFBC will update each other when frame end, but
-	 * MPFBC will limit MP/SP function: resize need to close,
-	 * output yuv format only 422 and 420 than two-plane mode,
-	 * and 422 or 420 is limit to MPFBC output format,
-	 * default 422. MPFBC need start before MP/SP.
-	 * DMATX will not update MP/SP/MPFBC, so it need update
-	 * togeter with other.
-	 */
-	if (stream->id == RKISP_STREAM_MP ||
-	    stream->id == RKISP_STREAM_SP) {
-		is_update = (stream->id == RKISP_STREAM_MP) ?
-			!dev->cap_dev.stream[RKISP_STREAM_SP].streaming :
-			!dev->cap_dev.stream[RKISP_STREAM_MP].streaming;
-	}
-
-	if (stream->id == RKISP_STREAM_SP && stream->out_isp_fmt.fmt_type == FMT_FBCGAIN)
-		is_update = false;
 
 	/* only MP support HDR mode, SP want to with HDR need
 	 * to start after MP.
@@ -1252,22 +1232,6 @@ static int rkisp_start(struct rkisp_stream *stream)
 		return ret;
 
 	stream->ops->enable_mi(stream);
-	/* It's safe to config ACTIVE and SHADOW regs for the
-	 * first stream. While when the second is starting, do NOT
-	 * force_cfg_update() because it also update the first one.
-	 *
-	 * The latter case would drop one more buf(that is 2) since
-	 * there's not buf in shadow when the second FE received. This's
-	 * also required because the second FE maybe corrupt especially
-	 * when run at 120fps.
-	 */
-	if (is_update && !dev->br_dev.en) {
-		rkisp_stats_first_ddr_config(&dev->stats_vdev);
-		rkisp_config_dmatx_valid_buf(dev);
-		force_cfg_update(dev);
-		mi_frame_end(stream);
-		hdr_update_dmatx_buf(dev);
-	}
 	stream->streaming = true;
 
 	return 0;
@@ -1317,7 +1281,7 @@ static int rkisp_queue_setup(struct vb2_queue *queue,
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev, "%s count %d, size %d\n",
 		 v4l2_type_names[queue->type], *num_buffers, sizes[0]);
 
-	return rkisp_create_dummy_buf(stream);
+	return 0;
 }
 
 /*
@@ -1451,12 +1415,14 @@ static void rkisp_stop_streaming(struct vb2_queue *queue)
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
 	int ret;
 
+	mutex_lock(&dev->hw_dev->dev_lock);
+
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
 		 "%s %d\n", __func__, stream->id);
 
 	if (stream->id != RKISP_STREAM_SP || stream->out_isp_fmt.fmt_type != FMT_FBCGAIN) {
 		if (!stream->streaming)
-			return;
+			goto end;
 		rkisp_stream_stop(stream);
 	}
 
@@ -1481,6 +1447,8 @@ static void rkisp_stop_streaming(struct vb2_queue *queue)
 	rkisp_destroy_dummy_buf(stream);
 	atomic_dec(&dev->cap_dev.refcnt);
 	stream->start_stream = false;
+end:
+	mutex_unlock(&dev->hw_dev->dev_lock);
 }
 
 static int rkisp_stream_start(struct rkisp_stream *stream)
@@ -1530,12 +1498,16 @@ rkisp_start_streaming(struct vb2_queue *queue, unsigned int count)
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
 	int ret = -1;
 
+	mutex_lock(&dev->hw_dev->dev_lock);
+
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
 		 "%s %d\n", __func__, stream->id);
 
 	if (stream->id != RKISP_STREAM_SP || stream->out_isp_fmt.fmt_type != FMT_FBCGAIN) {
-		if (WARN_ON(stream->streaming))
+		if (WARN_ON(stream->streaming)) {
+			mutex_unlock(&dev->hw_dev->dev_lock);
 			return -EBUSY;
+		}
 	}
 
 	memset(&stream->dbg, 0, sizeof(stream->dbg));
@@ -1571,6 +1543,10 @@ rkisp_start_streaming(struct vb2_queue *queue, unsigned int count)
 		stream->u.sp.field_rec = RKISP_FIELD_INVAL;
 	}
 
+	ret = rkisp_create_dummy_buf(stream);
+	if (ret < 0)
+		goto buffer_done;
+
 	/* enable clocks/power-domains */
 	ret = dev->pipe.open(&dev->pipe, &node->vdev.entity, true);
 	if (ret < 0) {
@@ -1604,6 +1580,8 @@ rkisp_start_streaming(struct vb2_queue *queue, unsigned int count)
 	}
 
 	stream->start_stream = true;
+
+	mutex_unlock(&dev->hw_dev->dev_lock);
 	return 0;
 
 pipe_stream_off:
@@ -1618,6 +1596,7 @@ buffer_done:
 	destroy_buf_queue(stream, VB2_BUF_STATE_QUEUED);
 	atomic_dec(&dev->cap_dev.refcnt);
 	stream->streaming = false;
+	mutex_unlock(&dev->hw_dev->dev_lock);
 	return ret;
 }
 
@@ -1642,7 +1621,7 @@ static int rkisp_init_vb2_queue(struct vb2_queue *q,
 	q->buf_struct_size = sizeof(struct rkisp_buffer);
 	q->min_buffers_needed = CIF_ISP_REQ_BUFS_MIN;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-	q->lock = &stream->ispdev->apilock;
+	q->lock = &stream->apilock;
 	q->dev = stream->ispdev->hw_dev->dev;
 	q->allow_cache_hints = 1;
 	q->bidirectional = 1;

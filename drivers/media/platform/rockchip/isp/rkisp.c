@@ -1420,7 +1420,7 @@ static void rkisp_start_3a_run(struct rkisp_device *dev)
 	struct v4l2_event ev = {
 		.type = CIFISP_V4L2_EVENT_STREAM_START,
 	};
-	int ret;
+	int ret = 1000;
 
 	if (!rkisp_is_need_3a(dev) || dev->isp_ver == ISP_V20 ||
 	    !params_vdev->is_subs_evt)
@@ -1432,13 +1432,13 @@ static void rkisp_start_3a_run(struct rkisp_device *dev)
 	 */
 	ret = wait_event_timeout(dev->sync_onoff,
 			params_vdev->streamon && !params_vdev->first_params,
-			msecs_to_jiffies(1000));
+			msecs_to_jiffies(ret));
 	if (!ret)
 		v4l2_warn(&dev->v4l2_dev,
 			  "waiting on params stream on event timeout\n");
 	else
 		v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
-			 "Waiting for 3A on use %d ms\n", 1000 - ret);
+			 "Waiting for 3A on use %d ms\n", 1000 - jiffies_to_msecs(ret));
 }
 
 static void rkisp_stop_3a_run(struct rkisp_device *dev)
@@ -1448,7 +1448,7 @@ static void rkisp_stop_3a_run(struct rkisp_device *dev)
 	struct v4l2_event ev = {
 		.type = CIFISP_V4L2_EVENT_STREAM_STOP,
 	};
-	int ret;
+	int ret = 1000;
 
 	if (!rkisp_is_need_3a(dev) || dev->isp_ver == ISP_V20 ||
 	    !params_vdev->is_subs_evt)
@@ -1456,13 +1456,13 @@ static void rkisp_stop_3a_run(struct rkisp_device *dev)
 
 	v4l2_event_queue(vdev, &ev);
 	ret = wait_event_timeout(dev->sync_onoff, !params_vdev->streamon,
-				 msecs_to_jiffies(1000));
+				 msecs_to_jiffies(ret));
 	if (!ret)
 		v4l2_warn(&dev->v4l2_dev,
 			  "waiting on params stream off event timeout\n");
 	else
 		v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
-			 "Waiting for 3A off use %d ms\n", 1000 - ret);
+			 "Waiting for 3A off use %d ms\n", 1000 - jiffies_to_msecs(ret));
 }
 
 /* Mess register operations to stop isp */
@@ -2216,6 +2216,33 @@ static void rkisp_isp_read_add_fifo_data(struct rkisp_device *dev)
 		 dev->emd_data_fifo[idx].frame_id);
 }
 
+static void rkisp_global_update_mi(struct rkisp_device *dev)
+{
+	struct rkisp_stream *stream;
+	int i;
+
+	if (dev->hw_dev->is_mi_update)
+		return;
+
+	rkisp_stats_first_ddr_config(&dev->stats_vdev);
+	rkisp_config_dmatx_valid_buf(dev);
+
+	force_cfg_update(dev);
+
+	hdr_update_dmatx_buf(dev);
+	if (dev->br_dev.en && dev->isp_ver == ISP_V20) {
+		stream = &dev->cap_dev.stream[RKISP_STREAM_SP];
+		rkisp_update_spstream_buf(stream);
+	}
+	if (dev->hw_dev->is_single) {
+		for (i = 0; i < RKISP_MAX_STREAM; i++) {
+			stream = &dev->cap_dev.stream[i];
+			if (stream->streaming && !stream->next_buf)
+				stream->ops->frame_end(stream);
+		}
+	}
+}
+
 static int rkisp_isp_sd_s_stream(struct v4l2_subdev *sd, int on)
 {
 	struct rkisp_device *isp_dev = sd_to_isp_dev(sd);
@@ -2226,22 +2253,19 @@ static int rkisp_isp_sd_s_stream(struct v4l2_subdev *sd, int on)
 			isp_dev->irq_ends_mask == (ISP_FRAME_END | ISP_FRAME_IN) &&
 			(!IS_HDR_RDBK(isp_dev->rd_mode) ||
 			 isp_dev->isp_state & ISP_STOP), msecs_to_jiffies(5));
-		mutex_lock(&isp_dev->hw_dev->dev_lock);
 		rkisp_isp_stop(isp_dev);
 		atomic_dec(&isp_dev->hw_dev->refcnt);
-		mutex_unlock(&isp_dev->hw_dev->dev_lock);
 		rkisp_params_stream_stop(&isp_dev->params_vdev);
 		return 0;
 	}
 
 	rkisp_start_3a_run(isp_dev);
 	memset(&isp_dev->isp_sdev.dbg, 0, sizeof(isp_dev->isp_sdev.dbg));
-	mutex_lock(&isp_dev->hw_dev->dev_lock);
 	atomic_inc(&isp_dev->hw_dev->refcnt);
 	atomic_set(&isp_dev->isp_sdev.frm_sync_seq, 0);
+	rkisp_global_update_mi(isp_dev);
 	rkisp_config_cif(isp_dev);
 	rkisp_isp_start(isp_dev);
-	mutex_unlock(&isp_dev->hw_dev->dev_lock);
 	rkisp_rdbk_trigger_event(isp_dev, T_CMD_QUEUE, NULL);
 	return 0;
 }

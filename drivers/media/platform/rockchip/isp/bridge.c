@@ -1051,14 +1051,7 @@ static int bridge_start(struct rkisp_bridge_device *dev)
 	dev->ops->config(dev);
 	rkisp_start_spstream(sp_stream);
 
-	if (!dev->ispdev->hw_dev->is_mi_update) {
-		rkisp_config_dmatx_valid_buf(dev->ispdev);
-		force_cfg_update(dev->ispdev);
-		rkisp_update_spstream_buf(sp_stream);
-		hdr_update_dmatx_buf(dev->ispdev);
-	}
 	dev->ispdev->skip_frame = 0;
-	rkisp_stats_first_ddr_config(&dev->ispdev->stats_vdev);
 	dev->en = true;
 
 	ispdev->cap_dev.is_done_early = false;
@@ -1272,11 +1265,13 @@ static int bridge_s_rx_buffer(struct v4l2_subdev *sd,
 static int bridge_s_stream(struct v4l2_subdev *sd, int on)
 {
 	struct rkisp_bridge_device *dev = v4l2_get_subdevdata(sd);
+	struct rkisp_hw_dev *hw = dev->ispdev->hw_dev;
 	int ret = 0;
 
 	v4l2_dbg(1, rkisp_debug, sd,
 		 "%s %d\n", __func__, on);
 
+	mutex_lock(&hw->dev_lock);
 	if (on) {
 		memset(&dev->dbg, 0, sizeof(dev->dbg));
 		atomic_inc(&dev->ispdev->cap_dev.refcnt);
@@ -1286,6 +1281,7 @@ static int bridge_s_stream(struct v4l2_subdev *sd, int on)
 			ret = bridge_stop_stream(sd);
 		atomic_dec(&dev->ispdev->cap_dev.refcnt);
 	}
+	mutex_unlock(&hw->dev_lock);
 
 	return ret;
 }

@@ -124,7 +124,9 @@ void hdr_destroy_buf(struct rkisp_device *dev)
 	if (atomic_read(&dev->cap_dev.refcnt) > 1 ||
 	    !dev->active_sensor ||
 	    (dev->active_sensor &&
-	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2_DPHY))
+	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2_DPHY) ||
+	    (dev->isp_inp & INP_CIF) ||
+	    (dev->isp_ver != ISP_V20 && dev->isp_ver != ISP_V21))
 		return;
 
 	atomic_set(&dev->hdr.refcnt, 0);
@@ -156,7 +158,8 @@ int hdr_update_dmatx_buf(struct rkisp_device *dev)
 	if (!dev->active_sensor ||
 	    (dev->active_sensor &&
 	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2_DPHY) ||
-	    (dev->isp_inp & INP_CIF))
+	    (dev->isp_inp & INP_CIF) ||
+	    (dev->isp_ver != ISP_V20 && dev->isp_ver != ISP_V21))
 		return 0;
 
 	for (i = RKISP_STREAM_DMATX0; i <= RKISP_STREAM_DMATX2; i++) {
@@ -223,7 +226,8 @@ int hdr_config_dmatx(struct rkisp_device *dev)
 	    !dev->active_sensor ||
 	    (dev->active_sensor &&
 	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2_DPHY) ||
-	    (dev->isp_inp & INP_CIF))
+	    (dev->isp_inp & INP_CIF) ||
+	    (dev->isp_ver != ISP_V20 && dev->isp_ver != ISP_V21))
 		return 0;
 
 	rkisp_create_hdr_buf(dev);
@@ -291,7 +295,8 @@ void hdr_stop_dmatx(struct rkisp_device *dev)
 	    !dev->active_sensor ||
 	    (dev->active_sensor &&
 	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2_DPHY) ||
-	    (dev->isp_inp & INP_CIF))
+	    (dev->isp_inp & INP_CIF) ||
+	    (dev->isp_ver != ISP_V20 && dev->isp_ver != ISP_V21))
 		return;
 
 	if (dev->hdr.op_mode == HDR_FRAMEX2_DDR ||
@@ -343,7 +348,12 @@ void rkisp_config_dmatx_valid_buf(struct rkisp_device *dev)
 	struct rkisp_device *isp;
 	u32 i, j;
 
-	if (!hw->dummy_buf.mem_priv)
+	if (!hw->dummy_buf.mem_priv ||
+	    !dev->active_sensor ||
+	    (dev->active_sensor &&
+	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2_DPHY) ||
+	    (dev->isp_inp & INP_CIF) ||
+	    (dev->isp_ver != ISP_V20 && dev->isp_ver != ISP_V21))
 		return;
 	/* dmatx buf update by mi force or oneself frame end,
 	 * for async dmatx enable need to update to valid buf first.
