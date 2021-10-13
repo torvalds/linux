@@ -896,15 +896,13 @@ struct adxl34x *adxl34x_probe(struct device *dev, int irq,
 }
 EXPORT_SYMBOL_GPL(adxl34x_probe);
 
-int adxl34x_remove(struct adxl34x *ac)
+void adxl34x_remove(struct adxl34x *ac)
 {
 	sysfs_remove_group(&ac->dev->kobj, &adxl34x_attr_group);
 	free_irq(ac->irq, ac);
 	input_unregister_device(ac->input);
 	dev_dbg(ac->dev, "unregistered accelerometer\n");
 	kfree(ac);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(adxl34x_remove);
 
