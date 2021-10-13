@@ -6906,7 +6906,7 @@ static int kernel_pio(struct kvm_vcpu *vcpu, void *pd)
 }
 
 static int emulator_pio_in_out(struct kvm_vcpu *vcpu, int size,
-			       unsigned short port, void *val,
+			       unsigned short port,
 			       unsigned int count, bool in)
 {
 	vcpu->arch.pio.port = port;
@@ -6927,26 +6927,38 @@ static int emulator_pio_in_out(struct kvm_vcpu *vcpu, int size,
 	return 0;
 }
 
+static int __emulator_pio_in(struct kvm_vcpu *vcpu, int size,
+			     unsigned short port, unsigned int count)
+{
+	WARN_ON(vcpu->arch.pio.count);
+	memset(vcpu->arch.pio_data, 0, size * count);
+	return emulator_pio_in_out(vcpu, size, port, count, true);
+}
+
+static void complete_emulator_pio_in(struct kvm_vcpu *vcpu, int size,
+				    unsigned short port, void *val)
+{
+	memcpy(val, vcpu->arch.pio_data, size * vcpu->arch.pio.count);
+	trace_kvm_pio(KVM_PIO_IN, port, size, vcpu->arch.pio.count, vcpu->arch.pio_data);
+	vcpu->arch.pio.count = 0;
+}
+
 static int emulator_pio_in(struct kvm_vcpu *vcpu, int size,
 			   unsigned short port, void *val, unsigned int count)
 {
-	int ret;
+	if (vcpu->arch.pio.count) {
+		/* Complete previous iteration.  */
+	} else {
+		int r = __emulator_pio_in(vcpu, size, port, count);
+		if (!r)
+			return r;
 
-	if (vcpu->arch.pio.count)
-		goto data_avail;
-
-	memset(vcpu->arch.pio_data, 0, size * count);
-
-	ret = emulator_pio_in_out(vcpu, size, port, val, count, true);
-	if (ret) {
-data_avail:
-		memcpy(val, vcpu->arch.pio_data, size * count);
-		trace_kvm_pio(KVM_PIO_IN, port, size, count, vcpu->arch.pio_data);
-		vcpu->arch.pio.count = 0;
-		return 1;
+		/* Results already available, fall through.  */
 	}
 
-	return 0;
+	WARN_ON(count != vcpu->arch.pio.count);
+	complete_emulator_pio_in(vcpu, size, port, val);
+	return 1;
 }
 
 static int emulator_pio_in_emulated(struct x86_emulate_ctxt *ctxt,
@@ -6965,12 +6977,11 @@ static int emulator_pio_out(struct kvm_vcpu *vcpu, int size,
 
 	memcpy(vcpu->arch.pio_data, val, size * count);
 	trace_kvm_pio(KVM_PIO_OUT, port, size, count, vcpu->arch.pio_data);
-	ret = emulator_pio_in_out(vcpu, size, port, (void *)val, count, false);
+	ret = emulator_pio_in_out(vcpu, size, port, count, false);
 	if (ret)
                 vcpu->arch.pio.count = 0;
 
         return ret;
-
 }
 
 static int emulator_pio_out_emulated(struct x86_emulate_ctxt *ctxt,
