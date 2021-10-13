@@ -523,8 +523,8 @@ static inline int tcmu_get_empty_block(struct tcmu_dev *udev,
 	rcu_read_unlock();
 
 	for (i = cnt; i < page_cnt; i++) {
-		/* try to get new page from the mm */
-		page = alloc_page(GFP_NOIO);
+		/* try to get new zeroed page from the mm */
+		page = alloc_page(GFP_NOIO | __GFP_ZERO);
 		if (!page)
 			break;
 
