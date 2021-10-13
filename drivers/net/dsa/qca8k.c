@@ -1002,6 +1002,18 @@ qca8k_parse_port_config(struct qca8k_priv *priv)
 			if (of_property_read_bool(port_dn, "qca,sgmii-rxclk-falling-edge"))
 				priv->sgmii_rx_clk_falling_edge = true;
 
+			if (of_property_read_bool(port_dn, "qca,sgmii-enable-pll")) {
+				priv->sgmii_enable_pll = true;
+
+				if (priv->switch_id == QCA8K_ID_QCA8327) {
+					dev_err(priv->dev, "SGMII PLL should NOT be enabled for qca8327. Aborting enabling");
+					priv->sgmii_enable_pll = false;
+				}
+
+				if (priv->switch_revision < 2)
+					dev_warn(priv->dev, "SGMII PLL should NOT be enabled for qca8337 with revision 2 or more.");
+			}
+
 			break;
 		default:
 			continue;
@@ -1312,8 +1324,11 @@ qca8k_phylink_mac_config(struct dsa_switch *ds, int port, unsigned int mode,
 		if (ret)
 			return;
 
-		val |= QCA8K_SGMII_EN_PLL | QCA8K_SGMII_EN_RX |
-			QCA8K_SGMII_EN_TX | QCA8K_SGMII_EN_SD;
+		val |= QCA8K_SGMII_EN_SD;
+
+		if (priv->sgmii_enable_pll)
+			val |= QCA8K_SGMII_EN_PLL | QCA8K_SGMII_EN_RX |
+			       QCA8K_SGMII_EN_TX;
 
 		if (dsa_is_cpu_port(ds, port)) {
 			/* CPU port, we're talking to the CPU MAC, be a PHY */
