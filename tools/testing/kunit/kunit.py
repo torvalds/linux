@@ -16,7 +16,7 @@ assert sys.version_info >= (3, 7), "Python version is too old"
 
 from collections import namedtuple
 from enum import Enum, auto
-from typing import Iterable
+from typing import Iterable, Sequence
 
 import kunit_config
 import kunit_json
@@ -186,6 +186,26 @@ def run_tests(linux: kunit_kernel.LinuxSourceTree,
 				exec_result.elapsed_time))
 	return parse_result
 
+# Problem:
+# $ kunit.py run --json
+# works as one would expect and prints the parsed test results as JSON.
+# $ kunit.py run --json suite_name
+# would *not* pass suite_name as the filter_glob and print as json.
+# argparse will consider it to be another way of writing
+# $ kunit.py run --json=suite_name
+# i.e. it would run all tests, and dump the json to a `suite_name` file.
+# So we hackily automatically rewrite --json => --json=stdout
+pseudo_bool_flag_defaults = {
+		'--json': 'stdout',
+		'--raw_output': 'kunit',
+}
+def massage_argv(argv: Sequence[str]) -> Sequence[str]:
+	def massage_arg(arg: str) -> str:
+		if arg not in pseudo_bool_flag_defaults:
+			return arg
+		return  f'{arg}={pseudo_bool_flag_defaults[arg]}'
+	return list(map(massage_arg, argv))
+
 def add_common_opts(parser) -> None:
 	parser.add_argument('--build_dir',
 			    help='As in the make command, it specifies the build '
@@ -303,7 +323,7 @@ def main(argv, linux=None):
 				  help='Specifies the file to read results from.',
 				  type=str, nargs='?', metavar='input_file')
 
-	cli_args = parser.parse_args(argv)
+	cli_args = parser.parse_args(massage_argv(argv))
 
 	if get_kernel_root_path():
 		os.chdir(get_kernel_root_path())
