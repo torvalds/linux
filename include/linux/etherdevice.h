@@ -269,8 +269,11 @@ static inline void eth_zero_addr(u8 *addr)
  */
 static inline void eth_hw_addr_random(struct net_device *dev)
 {
+	u8 addr[ETH_ALEN];
+
+	eth_random_addr(addr);
+	__dev_addr_set(dev, addr, ETH_ALEN);
 	dev->addr_assign_type = NET_ADDR_RANDOM;
-	eth_random_addr(dev->dev_addr);
 }
 
 /**
