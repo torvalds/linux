@@ -512,6 +512,7 @@ int drm_gem_cma_mmap(struct drm_gem_cma_object *cma_obj, struct vm_area_struct *
 	 */
 	vma->vm_pgoff -= drm_vma_node_start(&obj->vma_node);
 	vma->vm_flags &= ~VM_PFNMAP;
+	vma->vm_flags |= VM_DONTEXPAND;
 
 	if (cma_obj->map_noncoherent) {
 		vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
