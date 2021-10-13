@@ -238,7 +238,7 @@ cleanup:
 }
 
 
-static int nvdec_runtime_resume(struct device *dev)
+static __maybe_unused int nvdec_runtime_resume(struct device *dev)
 {
 	struct nvdec *nvdec = dev_get_drvdata(dev);
 	int err;
@@ -264,7 +264,7 @@ disable:
 	return err;
 }
 
-static int nvdec_runtime_suspend(struct device *dev)
+static __maybe_unused int nvdec_runtime_suspend(struct device *dev)
 {
 	struct nvdec *nvdec = dev_get_drvdata(dev);
 
