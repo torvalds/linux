@@ -92,6 +92,26 @@ struct ice_vernier_info_e822 {
 	u32 rx_fixed_delay;
 };
 
+/**
+ * struct ice_cgu_pll_params_e822
+ * @refclk_pre_div: Reference clock pre-divisor
+ * @feedback_div: Feedback divisor
+ * @frac_n_div: Fractional divisor
+ * @post_pll_div: Post PLL divisor
+ *
+ * Clock Generation Unit parameters used to program the PLL based on the
+ * selected TIME_REF frequency.
+ */
+struct ice_cgu_pll_params_e822 {
+	u32 refclk_pre_div;
+	u32 feedback_div;
+	u32 frac_n_div;
+	u32 post_pll_div;
+};
+
+extern const struct
+ice_cgu_pll_params_e822 e822_cgu_params[NUM_ICE_TIME_REF_FREQ];
+
 /* Table of constants related to possible TIME_REF sources */
 extern const struct ice_time_ref_info_e822 e822_time_ref[NUM_ICE_TIME_REF_FREQ];
 

@@ -81,6 +81,80 @@ const struct ice_time_ref_info_e822 e822_time_ref[NUM_ICE_TIME_REF_FREQ] = {
 	},
 };
 
+const struct ice_cgu_pll_params_e822 e822_cgu_params[NUM_ICE_TIME_REF_FREQ] = {
+	/* ICE_TIME_REF_FREQ_25_000 -> 25 MHz */
+	{
+		/* refclk_pre_div */
+		1,
+		/* feedback_div */
+		197,
+		/* frac_n_div */
+		2621440,
+		/* post_pll_div */
+		6,
+	},
+
+	/* ICE_TIME_REF_FREQ_122_880 -> 122.88 MHz */
+	{
+		/* refclk_pre_div */
+		5,
+		/* feedback_div */
+		223,
+		/* frac_n_div */
+		524288,
+		/* post_pll_div */
+		7,
+	},
+
+	/* ICE_TIME_REF_FREQ_125_000 -> 125 MHz */
+	{
+		/* refclk_pre_div */
+		5,
+		/* feedback_div */
+		223,
+		/* frac_n_div */
+		524288,
+		/* post_pll_div */
+		7,
+	},
+
+	/* ICE_TIME_REF_FREQ_153_600 -> 153.6 MHz */
+	{
+		/* refclk_pre_div */
+		5,
+		/* feedback_div */
+		159,
+		/* frac_n_div */
+		1572864,
+		/* post_pll_div */
+		6,
+	},
+
+	/* ICE_TIME_REF_FREQ_156_250 -> 156.25 MHz */
+	{
+		/* refclk_pre_div */
+		5,
+		/* feedback_div */
+		159,
+		/* frac_n_div */
+		1572864,
+		/* post_pll_div */
+		6,
+	},
+
+	/* ICE_TIME_REF_FREQ_245_760 -> 245.76 MHz */
+	{
+		/* refclk_pre_div */
+		10,
+		/* feedback_div */
+		223,
+		/* frac_n_div */
+		524288,
+		/* post_pll_div */
+		7,
+	},
+};
+
 /* struct ice_vernier_info_e822
  *
  * E822 hardware calibrates the delay of the timestamp indication from the
