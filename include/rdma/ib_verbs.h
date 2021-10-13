@@ -4097,8 +4097,13 @@ static inline int ib_dma_map_sgtable_attrs(struct ib_device *dev,
 					   enum dma_data_direction direction,
 					   unsigned long dma_attrs)
 {
+	int nents;
+
 	if (ib_uses_virt_dma(dev)) {
-		ib_dma_virt_map_sg(dev, sgt->sgl, sgt->orig_nents);
+		nents = ib_dma_virt_map_sg(dev, sgt->sgl, sgt->orig_nents);
+		if (!nents)
+			return -EIO;
+		sgt->nents = nents;
 		return 0;
 	}
 	return dma_map_sgtable(dev->dma_device, sgt, direction, dma_attrs);
