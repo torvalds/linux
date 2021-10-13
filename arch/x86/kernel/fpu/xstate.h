@@ -21,6 +21,8 @@ extern void __copy_xstate_to_uabi_buf(struct membuf to, struct xregs_state *xsav
 extern void fpu__init_cpu_xstate(void);
 extern void fpu__init_system_xstate(void);
 
+extern void *get_xsave_addr(struct xregs_state *xsave, int xfeature_nr);
+
 /* XSAVE/XRSTOR wrapper functions */
 
 #ifdef CONFIG_X86_64
