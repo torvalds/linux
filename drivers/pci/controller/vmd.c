@@ -18,8 +18,6 @@
 #include <linux/rcupdate.h>
 
 #include <asm/irqdomain.h>
-#include <asm/device.h>
-#include <asm/msi.h>
 
 #define VMD_CFGBAR	0
 #define VMD_MEMBAR1	2
