@@ -243,7 +243,7 @@ static int __restore_fpregs_from_user(void __user *buf, u64 xrestore,
 			ret = fxrstor_from_user_sigframe(buf);
 
 		if (!ret && unlikely(init_bv))
-			os_xrstor(&init_fpstate.xsave, init_bv);
+			os_xrstor(&init_fpstate.regs.xsave, init_bv);
 		return ret;
 	} else if (use_fxsr()) {
 		return fxrstor_from_user_sigframe(buf);

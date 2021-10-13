@@ -2,7 +2,7 @@
 #ifndef __X86_KERNEL_FPU_INTERNAL_H
 #define __X86_KERNEL_FPU_INTERNAL_H
 
-extern union fpregs_state init_fpstate;
+extern struct fpstate init_fpstate;
 
 /* CPU feature check wrappers */
 static __always_inline __pure bool use_xsave(void)
@@ -25,7 +25,7 @@ static __always_inline __pure bool use_fxsr(void)
 extern void fpu__init_prepare_fx_sw_frame(void);
 
 /* Used in init.c */
-extern void fpstate_init_user(union fpregs_state *state);
+extern void fpstate_init_user(struct fpstate *fpstate);
 extern void fpstate_reset(struct fpu *fpu);
 
 #endif

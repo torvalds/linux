@@ -29,7 +29,7 @@
  * Represents the initial FPU state. It's mostly (but not completely) zeroes,
  * depending on the FPU hardware format:
  */
-union fpregs_state init_fpstate __ro_after_init;
+struct fpstate init_fpstate __ro_after_init;
 
 /*
  * Track whether the kernel is using the FPU state
@@ -157,7 +157,7 @@ void restore_fpregs_from_fpstate(union fpregs_state *fpstate, u64 mask)
 
 void fpu_reset_from_exception_fixup(void)
 {
-	restore_fpregs_from_fpstate(&init_fpstate, xfeatures_mask_fpstate());
+	restore_fpregs_from_fpstate(&init_fpstate.regs, xfeatures_mask_fpstate());
 }
 
 #if IS_ENABLED(CONFIG_KVM)
@@ -297,24 +297,24 @@ static inline unsigned int init_fpstate_copy_size(void)
 		return fpu_kernel_xstate_size;
 
 	/* XSAVE(S) just needs the legacy and the xstate header part */
-	return sizeof(init_fpstate.xsave);
+	return sizeof(init_fpstate.regs.xsave);
 }
 
-static inline void fpstate_init_fxstate(struct fxregs_state *fx)
+static inline void fpstate_init_fxstate(struct fpstate *fpstate)
 {
-	fx->cwd = 0x37f;
-	fx->mxcsr = MXCSR_DEFAULT;
+	fpstate->regs.fxsave.cwd = 0x37f;
+	fpstate->regs.fxsave.mxcsr = MXCSR_DEFAULT;
 }
 
 /*
  * Legacy x87 fpstate state init:
  */
-static inline void fpstate_init_fstate(struct fregs_state *fp)
+static inline void fpstate_init_fstate(struct fpstate *fpstate)
 {
-	fp->cwd = 0xffff037fu;
-	fp->swd = 0xffff0000u;
-	fp->twd = 0xffffffffu;
-	fp->fos = 0xffff0000u;
+	fpstate->regs.fsave.cwd = 0xffff037fu;
+	fpstate->regs.fsave.swd = 0xffff0000u;
+	fpstate->regs.fsave.twd = 0xffffffffu;
+	fpstate->regs.fsave.fos = 0xffff0000u;
 }
 
 /*
@@ -322,19 +322,19 @@ static inline void fpstate_init_fstate(struct fregs_state *fp)
  * 1) Early boot to setup init_fpstate for non XSAVE systems
  * 2) fpu_init_fpstate_user() which is invoked from KVM
  */
-void fpstate_init_user(union fpregs_state *state)
+void fpstate_init_user(struct fpstate *fpstate)
 {
 	if (!cpu_feature_enabled(X86_FEATURE_FPU)) {
-		fpstate_init_soft(&state->soft);
+		fpstate_init_soft(&fpstate->regs.soft);
 		return;
 	}
 
-	xstate_init_xcomp_bv(&state->xsave, xfeatures_mask_uabi());
+	xstate_init_xcomp_bv(&fpstate->regs.xsave, xfeatures_mask_uabi());
 
 	if (cpu_feature_enabled(X86_FEATURE_FXSR))
-		fpstate_init_fxstate(&state->fxsave);
+		fpstate_init_fxstate(fpstate);
 	else
-		fpstate_init_fstate(&state->fsave);
+		fpstate_init_fstate(fpstate);
 }
 
 void fpstate_reset(struct fpu *fpu)
@@ -347,7 +347,7 @@ void fpstate_reset(struct fpu *fpu)
 void fpu_init_fpstate_user(struct fpu *fpu)
 {
 	fpstate_reset(fpu);
-	fpstate_init_user(&fpu->fpstate->regs);
+	fpstate_init_user(fpu->fpstate);
 }
 EXPORT_SYMBOL_GPL(fpu_init_fpstate_user);
 #endif
@@ -378,7 +378,7 @@ int fpu_clone(struct task_struct *dst)
 	 */
 	if (dst->flags & (PF_KTHREAD | PF_IO_WORKER)) {
 		/* Clear out the minimal state */
-		memcpy(&dst_fpu->state, &init_fpstate,
+		memcpy(&dst_fpu->state, &init_fpstate.regs,
 		       init_fpstate_copy_size());
 		return 0;
 	}
@@ -435,11 +435,11 @@ void fpu__drop(struct fpu *fpu)
 static inline void restore_fpregs_from_init_fpstate(u64 features_mask)
 {
 	if (use_xsave())
-		os_xrstor(&init_fpstate.xsave, features_mask);
+		os_xrstor(&init_fpstate.regs.xsave, features_mask);
 	else if (use_fxsr())
-		fxrstor(&init_fpstate.fxsave);
+		fxrstor(&init_fpstate.regs.fxsave);
 	else
-		frstor(&init_fpstate.fsave);
+		frstor(&init_fpstate.regs.fsave);
 
 	pkru_write_default();
 }
@@ -466,7 +466,7 @@ static void fpu_reset_fpstate(void)
 	 * user space as PKRU is eagerly written in switch_to() and
 	 * flush_thread().
 	 */
-	memcpy(&fpu->state, &init_fpstate, init_fpstate_copy_size());
+	memcpy(&fpu->state, &init_fpstate.regs, init_fpstate_copy_size());
 	set_thread_flag(TIF_NEED_FPU_LOAD);
 	fpregs_unlock();
 }

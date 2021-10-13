@@ -408,12 +408,12 @@ static void __init setup_init_fpu_buf(void)
 	setup_xstate_features();
 	print_xstate_features();
 
-	xstate_init_xcomp_bv(&init_fpstate.xsave, xfeatures_mask_all);
+	xstate_init_xcomp_bv(&init_fpstate.regs.xsave, xfeatures_mask_all);
 
 	/*
 	 * Init all the features state with header.xfeatures being 0x0
 	 */
-	os_xrstor_booting(&init_fpstate.xsave);
+	os_xrstor_booting(&init_fpstate.regs.xsave);
 
 	/*
 	 * All components are now in init state. Read the state back so
@@ -431,7 +431,7 @@ static void __init setup_init_fpu_buf(void)
 	 * state is all zeroes or if not to add the necessary handling
 	 * here.
 	 */
-	fxsave(&init_fpstate.fxsave);
+	fxsave(&init_fpstate.regs.fxsave);
 }
 
 static int xfeature_uncompacted_offset(int xfeature_nr)
@@ -672,11 +672,11 @@ static unsigned int __init get_xsave_size(void)
  */
 static bool __init is_supported_xstate_size(unsigned int test_xstate_size)
 {
-	if (test_xstate_size <= sizeof(union fpregs_state))
+	if (test_xstate_size <= sizeof(init_fpstate.regs))
 		return true;
 
 	pr_warn("x86/fpu: xstate buffer too small (%zu < %d), disabling xsave\n",
-			sizeof(union fpregs_state), test_xstate_size);
+			sizeof(init_fpstate.regs), test_xstate_size);
 	return false;
 }
 
@@ -981,7 +981,7 @@ void __copy_xstate_to_uabi_buf(struct membuf to, struct xregs_state *xsave,
 			       u32 pkru_val, enum xstate_copy_mode copy_mode)
 {
 	const unsigned int off_mxcsr = offsetof(struct fxregs_state, mxcsr);
-	struct xregs_state *xinit = &init_fpstate.xsave;
+	struct xregs_state *xinit = &init_fpstate.regs.xsave;
 	struct xstate_header header;
 	unsigned int zerofrom;
 	u64 mask;
