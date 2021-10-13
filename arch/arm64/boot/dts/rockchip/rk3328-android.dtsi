@@ -23,6 +23,11 @@
 
 	firmware {
 		firmware_android: android {};
+
+		optee: optee {
+			compatible = "linaro,optee-tz";
+			method = "smc";
+		};
 	};
 
 	reserved-memory {

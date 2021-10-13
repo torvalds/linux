@@ -29,6 +29,13 @@
 		status = "okay";
 	};
 
+	firmware {
+		optee: optee {
+			compatible = "linaro,optee-tz";
+			method = "smc";
+		};
+	};
+
 	debug: debug@fd904000 {
 		compatible = "rockchip,debug";
 		reg = <0x0 0xfd904000 0x0 0x1000>,
