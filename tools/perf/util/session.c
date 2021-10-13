@@ -44,7 +44,7 @@ static int perf_session__process_compressed_event(struct perf_session *session,
 	size_t decomp_size, src_size;
 	u64 decomp_last_rem = 0;
 	size_t mmap_len, decomp_len = session->header.env.comp_mmap_len;
-	struct decomp *decomp, *decomp_last = session->decomp_last;
+	struct decomp *decomp, *decomp_last = session->active_decomp->decomp_last;
 
 	if (decomp_last) {
 		decomp_last_rem = decomp_last->size - decomp_last->head;
@@ -71,7 +71,7 @@ static int perf_session__process_compressed_event(struct perf_session *session,
 	src = (void *)event + sizeof(struct perf_record_compressed);
 	src_size = event->pack.header.size - sizeof(struct perf_record_compressed);
 
-	decomp_size = zstd_decompress_stream(&(session->zstd_data), src, src_size,
+	decomp_size = zstd_decompress_stream(session->active_decomp->zstd_decomp, src, src_size,
 				&(decomp->data[decomp_last_rem]), decomp_len - decomp_last_rem);
 	if (!decomp_size) {
 		munmap(decomp, mmap_len);
@@ -81,13 +81,12 @@ static int perf_session__process_compressed_event(struct perf_session *session,
 
 	decomp->size += decomp_size;
 
-	if (session->decomp == NULL) {
-		session->decomp = decomp;
-		session->decomp_last = decomp;
-	} else {
-		session->decomp_last->next = decomp;
-		session->decomp_last = decomp;
-	}
+	if (session->active_decomp->decomp == NULL)
+		session->active_decomp->decomp = decomp;
+	else
+		session->active_decomp->decomp_last->next = decomp;
+
+	session->active_decomp->decomp_last = decomp;
 
 	pr_debug("decomp (B): %zd to %zd\n", src_size, decomp_size);
 
@@ -197,6 +196,8 @@ struct perf_session *__perf_session__new(struct perf_data *data,
 
 	session->repipe = repipe;
 	session->tool   = tool;
+	session->decomp_data.zstd_decomp = &session->zstd_data;
+	session->active_decomp = &session->decomp_data;
 	INIT_LIST_HEAD(&session->auxtrace_index);
 	machines__init(&session->machines);
 	ordered_events__init(&session->ordered_events,
@@ -276,11 +277,11 @@ static void perf_session__delete_threads(struct perf_session *session)
 	machine__delete_threads(&session->machines.host);
 }
 
-static void perf_session__release_decomp_events(struct perf_session *session)
+static void perf_decomp__release_events(struct decomp *next)
 {
-	struct decomp *next, *decomp;
+	struct decomp *decomp;
 	size_t mmap_len;
-	next = session->decomp;
+
 	do {
 		decomp = next;
 		if (decomp == NULL)
@@ -299,7 +300,7 @@ void perf_session__delete(struct perf_session *session)
 	auxtrace_index__free(&session->auxtrace_index);
 	perf_session__destroy_kernel_maps(session);
 	perf_session__delete_threads(session);
-	perf_session__release_decomp_events(session);
+	perf_decomp__release_events(session->decomp_data.decomp);
 	perf_env__exit(&session->header.env);
 	machines__exit(&session->machines);
 	if (session->data) {
@@ -2122,7 +2123,7 @@ static int __perf_session__process_decomp_events(struct perf_session *session)
 {
 	s64 skip;
 	u64 size, file_pos = 0;
-	struct decomp *decomp = session->decomp_last;
+	struct decomp *decomp = session->active_decomp->decomp_last;
 
 	if (!decomp)
 		return 0;
@@ -2183,6 +2184,8 @@ struct reader {
 	u64		 file_pos;
 	u64		 file_offset;
 	u64		 head;
+	struct zstd_data   zstd_data;
+	struct decomp_data decomp_data;
 };
 
 static int
@@ -2211,6 +2214,11 @@ reader__process_events(struct reader *rd, struct perf_session *session,
 	}
 
 	memset(mmaps, 0, sizeof(rd->mmaps));
+
+	if (zstd_init(&rd->zstd_data, 0))
+		return -1;
+	rd->decomp_data.zstd_decomp = &rd->zstd_data;
+	session->active_decomp = &rd->decomp_data;
 
 	mmap_prot  = PROT_READ;
 	mmap_flags = MAP_SHARED;
@@ -2287,6 +2295,7 @@ more:
 		goto more;
 
 out:
+	session->active_decomp = &session->decomp_data;
 	return err;
 }
 
@@ -2339,6 +2348,8 @@ out_err:
 	 */
 	ordered_events__reinit(&session->ordered_events);
 	auxtrace__free_events(session);
+	perf_decomp__release_events(rd.decomp_data.decomp);
+	zstd_fini(&rd.zstd_data);
 	session->one_mmap = false;
 	return err;
 }
