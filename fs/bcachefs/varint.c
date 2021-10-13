@@ -5,6 +5,10 @@
 #include <linux/string.h>
 #include <asm/unaligned.h>
 
+#ifdef CONFIG_VALGRIND
+#include <valgrind/memcheck.h>
+#endif
+
 #include "varint.h"
 
 /**
@@ -96,6 +100,9 @@ int bch2_varint_encode_fast(u8 *out, u64 v)
  */
 int bch2_varint_decode_fast(const u8 *in, const u8 *end, u64 *out)
 {
+#ifdef CONFIG_VALGRIND
+	VALGRIND_MAKE_MEM_DEFINED(in, 8);
+#endif
 	u64 v = get_unaligned_le64(in);
 	unsigned bytes = ffz(*in) + 1;
 
