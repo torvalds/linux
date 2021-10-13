@@ -2189,28 +2189,23 @@ struct reader {
 };
 
 static int
-reader__process_events(struct reader *rd, struct perf_session *session,
-		       struct ui_progress *prog)
+reader__init(struct reader *rd, bool *one_mmap)
 {
 	u64 data_size = rd->data_size;
-	u64 page_offset, size;
-	int err = 0, mmap_prot, mmap_flags;
-	char *buf, **mmaps = rd->mmaps;
-	union perf_event *event;
-	s64 skip;
+	u64 page_offset;
+	char **mmaps = rd->mmaps;
 
 	page_offset = page_size * (rd->data_offset / page_size);
 	rd->file_offset = page_offset;
 	rd->head = rd->data_offset - page_offset;
-
-	ui_progress__init_size(prog, data_size, "Processing events...");
 
 	data_size += rd->data_offset;
 
 	rd->mmap_size = MMAP_SIZE;
 	if (rd->mmap_size > data_size) {
 		rd->mmap_size = data_size;
-		session->one_mmap = true;
+		if (one_mmap)
+			*one_mmap = true;
 	}
 
 	memset(mmaps, 0, sizeof(rd->mmaps));
@@ -2218,6 +2213,31 @@ reader__process_events(struct reader *rd, struct perf_session *session,
 	if (zstd_init(&rd->zstd_data, 0))
 		return -1;
 	rd->decomp_data.zstd_decomp = &rd->zstd_data;
+
+	return 0;
+}
+
+static void
+reader__release_decomp(struct reader *rd)
+{
+	perf_decomp__release_events(rd->decomp_data.decomp);
+	zstd_fini(&rd->zstd_data);
+}
+
+static int
+reader__process_events(struct reader *rd, struct perf_session *session,
+		       struct ui_progress *prog)
+{
+	u64 page_offset, size;
+	int err = 0, mmap_prot, mmap_flags;
+	char *buf, **mmaps = rd->mmaps;
+	union perf_event *event;
+	s64 skip;
+
+	err = reader__init(rd, &session->one_mmap);
+	if (err)
+		goto out;
+
 	session->active_decomp = &rd->decomp_data;
 
 	mmap_prot  = PROT_READ;
@@ -2291,7 +2311,7 @@ more:
 	if (session_done())
 		goto out;
 
-	if (rd->file_pos < data_size)
+	if (rd->file_pos < rd->data_size + rd->data_offset)
 		goto more;
 
 out:
@@ -2348,8 +2368,7 @@ out_err:
 	 */
 	ordered_events__reinit(&session->ordered_events);
 	auxtrace__free_events(session);
-	perf_decomp__release_events(rd.decomp_data.decomp);
-	zstd_fini(&rd.zstd_data);
+	reader__release_decomp(&rd);
 	session->one_mmap = false;
 	return err;
 }
