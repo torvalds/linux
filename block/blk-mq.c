@@ -579,19 +579,17 @@ void blk_mq_free_plug_rqs(struct blk_plug *plug)
 
 inline void __blk_mq_end_request(struct request *rq, blk_status_t error)
 {
-	u64 now = 0;
+	if (blk_mq_need_time_stamp(rq)) {
+		u64 now = ktime_get_ns();
 
-	if (blk_mq_need_time_stamp(rq))
-		now = ktime_get_ns();
+		if (rq->rq_flags & RQF_STATS) {
+			blk_mq_poll_stats_start(rq->q);
+			blk_stat_add(rq, now);
+		}
 
-	if (rq->rq_flags & RQF_STATS) {
-		blk_mq_poll_stats_start(rq->q);
-		blk_stat_add(rq, now);
+		blk_mq_sched_completed_request(rq, now);
+		blk_account_io_done(rq, now);
 	}
-
-	blk_mq_sched_completed_request(rq, now);
-
-	blk_account_io_done(rq, now);
 
 	if (rq->end_io) {
 		rq_qos_done(rq->q, rq);
