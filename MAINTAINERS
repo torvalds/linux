@@ -15883,6 +15883,12 @@ L:	linux-wireless@vger.kernel.org
 S:	Maintained
 F:	drivers/net/wireless/realtek/rtw88/
 
+REALTEK WIRELESS DRIVER (rtw89)
+M:	Ping-Ke Shih <pkshih@realtek.com>
+L:	linux-wireless@vger.kernel.org
+S:	Maintained
+F:	drivers/net/wireless/realtek/rtw89/
+
 REDPINE WIRELESS DRIVER
 M:	Amitkumar Karwar <amitkarwar@gmail.com>
 M:	Siva Rebbagondla <siva8118@gmail.com>
