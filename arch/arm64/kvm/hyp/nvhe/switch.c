@@ -160,18 +160,6 @@ static void __pmu_switch_to_host(struct kvm_cpu_context *host_ctxt)
 }
 
 /**
- * Handler for protected VM restricted exceptions.
- *
- * Inject an undefined exception into the guest and return true to indicate that
- * the hypervisor has handled the exit, and control should go back to the guest.
- */
-static bool kvm_handle_pvm_restricted(struct kvm_vcpu *vcpu, u64 *exit_code)
-{
-	inject_undef64(vcpu);
-	return true;
-}
-
-/**
  * Handler for protected VM MSR, MRS or System instruction execution in AArch64.
  *
  * Returns true if the hypervisor has handled the exit, and control should go

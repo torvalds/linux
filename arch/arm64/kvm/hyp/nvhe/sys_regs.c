@@ -30,7 +30,7 @@ u64 id_aa64mmfr2_el1_sys_val;
  * Inject an unknown/undefined exception to an AArch64 guest while most of its
  * sysregs are live.
  */
-void inject_undef64(struct kvm_vcpu *vcpu)
+static void inject_undef64(struct kvm_vcpu *vcpu)
 {
 	u32 esr = (ESR_ELx_EC_UNKNOWN << ESR_ELx_EC_SHIFT);
 
@@ -471,5 +471,17 @@ bool kvm_handle_pvm_sysreg(struct kvm_vcpu *vcpu, u64 *exit_code)
 	if (!params.is_write)
 		vcpu_set_reg(vcpu, Rt, params.regval);
 
+	return true;
+}
+
+/**
+ * Handler for protected VM restricted exceptions.
+ *
+ * Inject an undefined exception into the guest and return true to indicate that
+ * the hypervisor has handled the exit, and control should go back to the guest.
+ */
+bool kvm_handle_pvm_restricted(struct kvm_vcpu *vcpu, u64 *exit_code)
+{
+	inject_undef64(vcpu);
 	return true;
 }
