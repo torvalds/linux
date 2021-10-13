@@ -45,7 +45,8 @@ static inline struct nvdec *to_nvdec(struct tegra_drm_client *client)
 	return container_of(client, struct nvdec, client);
 }
 
-static void nvdec_writel(struct nvdec *nvdec, u32 value, unsigned int offset)
+static inline void nvdec_writel(struct nvdec *nvdec, u32 value,
+				unsigned int offset)
 {
 	writel(value, nvdec->regs + offset);
 }
