@@ -316,7 +316,7 @@ xfs_allocbt_verify(
 	if (pag && pag->pagf_init) {
 		if (level >= pag->pagf_levels[btnum])
 			return __this_address;
-	} else if (level >= mp->m_ag_maxlevels)
+	} else if (level >= mp->m_alloc_maxlevels)
 		return __this_address;
 
 	return xfs_btree_sblock_verify(bp, mp->m_alloc_mxr[level != 0]);
@@ -477,7 +477,7 @@ xfs_allocbt_init_common(
 
 	ASSERT(btnum == XFS_BTNUM_BNO || btnum == XFS_BTNUM_CNT);
 
-	cur = xfs_btree_alloc_cursor(mp, tp, btnum, mp->m_ag_maxlevels);
+	cur = xfs_btree_alloc_cursor(mp, tp, btnum, mp->m_alloc_maxlevels);
 	cur->bc_ag.abt.active = false;
 
 	if (btnum == XFS_BTNUM_CNT) {

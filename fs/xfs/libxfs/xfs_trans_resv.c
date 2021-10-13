@@ -70,7 +70,7 @@ xfs_allocfree_log_count(
 {
 	uint		blocks;
 
-	blocks = num_ops * 2 * (2 * mp->m_ag_maxlevels - 1);
+	blocks = num_ops * 2 * (2 * mp->m_alloc_maxlevels - 1);
 	if (xfs_has_rmapbt(mp))
 		blocks += num_ops * (2 * mp->m_rmap_maxlevels - 1);
 	if (xfs_has_reflink(mp))

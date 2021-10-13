@@ -2190,13 +2190,13 @@ xfs_free_ag_extent(
  */
 
 /*
- * Compute and fill in value of m_ag_maxlevels.
+ * Compute and fill in value of m_alloc_maxlevels.
  */
 void
 xfs_alloc_compute_maxlevels(
 	xfs_mount_t	*mp)	/* file system mount structure */
 {
-	mp->m_ag_maxlevels = xfs_btree_compute_maxlevels(mp->m_alloc_mnr,
+	mp->m_alloc_maxlevels = xfs_btree_compute_maxlevels(mp->m_alloc_mnr,
 			(mp->m_sb.sb_agblocks + 1) / 2);
 }
 
@@ -2255,14 +2255,14 @@ xfs_alloc_min_freelist(
 	const uint8_t		*levels = pag ? pag->pagf_levels : fake_levels;
 	unsigned int		min_free;
 
-	ASSERT(mp->m_ag_maxlevels > 0);
+	ASSERT(mp->m_alloc_maxlevels > 0);
 
 	/* space needed by-bno freespace btree */
 	min_free = min_t(unsigned int, levels[XFS_BTNUM_BNOi] + 1,
-				       mp->m_ag_maxlevels);
+				       mp->m_alloc_maxlevels);
 	/* space needed by-size freespace btree */
 	min_free += min_t(unsigned int, levels[XFS_BTNUM_CNTi] + 1,
-				       mp->m_ag_maxlevels);
+				       mp->m_alloc_maxlevels);
 	/* space needed reverse mapping used space btree */
 	if (xfs_has_rmapbt(mp))
 		min_free += min_t(unsigned int, levels[XFS_BTNUM_RMAPi] + 1,
@@ -2903,13 +2903,16 @@ xfs_agf_verify(
 
 	if (be32_to_cpu(agf->agf_levels[XFS_BTNUM_BNO]) < 1 ||
 	    be32_to_cpu(agf->agf_levels[XFS_BTNUM_CNT]) < 1 ||
-	    be32_to_cpu(agf->agf_levels[XFS_BTNUM_BNO]) > mp->m_ag_maxlevels ||
-	    be32_to_cpu(agf->agf_levels[XFS_BTNUM_CNT]) > mp->m_ag_maxlevels)
+	    be32_to_cpu(agf->agf_levels[XFS_BTNUM_BNO]) >
+						mp->m_alloc_maxlevels ||
+	    be32_to_cpu(agf->agf_levels[XFS_BTNUM_CNT]) >
+						mp->m_alloc_maxlevels)
 		return __this_address;
 
 	if (xfs_has_rmapbt(mp) &&
 	    (be32_to_cpu(agf->agf_levels[XFS_BTNUM_RMAP]) < 1 ||
-	     be32_to_cpu(agf->agf_levels[XFS_BTNUM_RMAP]) > mp->m_rmap_maxlevels))
+	     be32_to_cpu(agf->agf_levels[XFS_BTNUM_RMAP]) >
+						mp->m_rmap_maxlevels))
 		return __this_address;
 
 	if (xfs_has_rmapbt(mp) &&

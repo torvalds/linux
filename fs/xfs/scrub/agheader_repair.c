@@ -339,12 +339,12 @@ xrep_agf(
 		[XREP_AGF_BNOBT] = {
 			.rmap_owner = XFS_RMAP_OWN_AG,
 			.buf_ops = &xfs_bnobt_buf_ops,
-			.maxlevels = sc->mp->m_ag_maxlevels,
+			.maxlevels = sc->mp->m_alloc_maxlevels,
 		},
 		[XREP_AGF_CNTBT] = {
 			.rmap_owner = XFS_RMAP_OWN_AG,
 			.buf_ops = &xfs_cntbt_buf_ops,
-			.maxlevels = sc->mp->m_ag_maxlevels,
+			.maxlevels = sc->mp->m_alloc_maxlevels,
 		},
 		[XREP_AGF_RMAPBT] = {
 			.rmap_owner = XFS_RMAP_OWN_AG,

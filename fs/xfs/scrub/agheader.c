@@ -555,11 +555,11 @@ xchk_agf(
 		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
 
 	level = be32_to_cpu(agf->agf_levels[XFS_BTNUM_BNO]);
-	if (level <= 0 || level > mp->m_ag_maxlevels)
+	if (level <= 0 || level > mp->m_alloc_maxlevels)
 		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
 
 	level = be32_to_cpu(agf->agf_levels[XFS_BTNUM_CNT]);
-	if (level <= 0 || level > mp->m_ag_maxlevels)
+	if (level <= 0 || level > mp->m_alloc_maxlevels)
 		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
 
 	if (xfs_has_rmapbt(mp)) {
