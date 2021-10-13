@@ -978,6 +978,42 @@ qca8k_setup_mac_pwr_sel(struct qca8k_priv *priv)
 }
 
 static int
+qca8k_parse_port_config(struct qca8k_priv *priv)
+{
+	struct device_node *port_dn;
+	phy_interface_t mode;
+	struct dsa_port *dp;
+	int port, ret;
+
+	/* We have 2 CPU port. Check them */
+	for (port = 0; port < QCA8K_NUM_PORTS; port++) {
+		/* Skip every other port */
+		if (port != 0 && port != 6)
+			continue;
+
+		dp = dsa_to_port(priv->ds, port);
+		port_dn = dp->dn;
+
+		if (!of_device_is_available(port_dn))
+			continue;
+
+		ret = of_get_phy_mode(port_dn, &mode);
+		if (ret)
+			continue;
+
+		if (mode == PHY_INTERFACE_MODE_SGMII) {
+			if (of_property_read_bool(port_dn, "qca,sgmii-txclk-falling-edge"))
+				priv->sgmii_tx_clk_falling_edge = true;
+
+			if (of_property_read_bool(port_dn, "qca,sgmii-rxclk-falling-edge"))
+				priv->sgmii_rx_clk_falling_edge = true;
+		}
+	}
+
+	return 0;
+}
+
+static int
 qca8k_setup(struct dsa_switch *ds)
 {
 	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
@@ -989,6 +1025,11 @@ qca8k_setup(struct dsa_switch *ds)
 		dev_err(priv->dev, "port 0 is not the CPU port");
 		return -EINVAL;
 	}
+
+	/* Parse CPU port config to be later used in phy_link mac_config */
+	ret = qca8k_parse_port_config(priv);
+	if (ret)
+		return ret;
 
 	mutex_init(&priv->reg_mutex);
 
@@ -1274,6 +1315,28 @@ qca8k_phylink_mac_config(struct dsa_switch *ds, int port, unsigned int mode,
 		}
 
 		qca8k_write(priv, QCA8K_REG_SGMII_CTRL, val);
+
+		/* For qca8327/qca8328/qca8334/qca8338 sgmii is unique and
+		 * falling edge is set writing in the PORT0 PAD reg
+		 */
+		if (priv->switch_id == QCA8K_ID_QCA8327 ||
+		    priv->switch_id == QCA8K_ID_QCA8337)
+			reg = QCA8K_REG_PORT0_PAD_CTRL;
+
+		val = 0;
+
+		/* SGMII Clock phase configuration */
+		if (priv->sgmii_rx_clk_falling_edge)
+			val |= QCA8K_PORT0_PAD_SGMII_RXCLK_FALLING_EDGE;
+
+		if (priv->sgmii_tx_clk_falling_edge)
+			val |= QCA8K_PORT0_PAD_SGMII_TXCLK_FALLING_EDGE;
+
+		if (val)
+			ret = qca8k_rmw(priv, reg,
+					QCA8K_PORT0_PAD_SGMII_RXCLK_FALLING_EDGE |
+					QCA8K_PORT0_PAD_SGMII_TXCLK_FALLING_EDGE,
+					val);
 		break;
 	default:
 		dev_err(ds->dev, "xMII mode %s not supported for port %d\n",
