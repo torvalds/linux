@@ -654,12 +654,6 @@ enum {
 	RT1011_AIFS
 };
 
-enum {
-	RT1011_I2S_REF_NONE,
-	RT1011_I2S_REF_LEFT_CH,
-	RT1011_I2S_REF_RIGHT_CH,
-};
-
 /* BiQual & DRC related settings */
 #define RT1011_BQ_DRC_NUM 128
 struct rt1011_bq_drc_params {
@@ -698,7 +692,6 @@ struct rt1011_priv {
 	unsigned int r0_reg, cali_done;
 	unsigned int r0_calib, temperature_calib;
 	int recv_spk_mode;
-	unsigned int i2s_ref;
 };
 
 #endif		/* end of _RT1011_H_ */
