@@ -258,6 +258,7 @@ static int sis900_get_mac_addr(struct pci_dev *pci_dev,
 {
 	struct sis900_private *sis_priv = netdev_priv(net_dev);
 	void __iomem *ioaddr = sis_priv->ioaddr;
+	u16 addr[ETH_ALEN / 2];
 	u16 signature;
 	int i;
 
@@ -271,7 +272,8 @@ static int sis900_get_mac_addr(struct pci_dev *pci_dev,
 
 	/* get MAC address from EEPROM */
 	for (i = 0; i < 3; i++)
-	        ((u16 *)(net_dev->dev_addr))[i] = read_eeprom(ioaddr, i+EEPROMMACAddr);
+	        addr[i] = read_eeprom(ioaddr, i+EEPROMMACAddr);
+	eth_hw_addr_set(net_dev, (u8 *)addr);
 
 	return 1;
 }
@@ -331,6 +333,7 @@ static int sis635_get_mac_addr(struct pci_dev *pci_dev,
 {
 	struct sis900_private *sis_priv = netdev_priv(net_dev);
 	void __iomem *ioaddr = sis_priv->ioaddr;
+	u16 addr[ETH_ALEN / 2];
 	u32 rfcrSave;
 	u32 i;
 
@@ -345,8 +348,9 @@ static int sis635_get_mac_addr(struct pci_dev *pci_dev,
 	/* load MAC addr to filter data register */
 	for (i = 0 ; i < 3 ; i++) {
 		sw32(rfcr, (i << RFADDR_shift));
-		*( ((u16 *)net_dev->dev_addr) + i) = sr16(rfdr);
+		addr[i] = sr16(rfdr);
 	}
+	eth_hw_addr_set(net_dev, (u8 *)addr);
 
 	/* enable packet filtering */
 	sw32(rfcr, rfcrSave | RFEN);
@@ -375,17 +379,18 @@ static int sis96x_get_mac_addr(struct pci_dev *pci_dev,
 {
 	struct sis900_private *sis_priv = netdev_priv(net_dev);
 	void __iomem *ioaddr = sis_priv->ioaddr;
+	u16 addr[ETH_ALEN / 2];
 	int wait, rc = 0;
 
 	sw32(mear, EEREQ);
 	for (wait = 0; wait < 2000; wait++) {
 		if (sr32(mear) & EEGNT) {
-			u16 *mac = (u16 *)net_dev->dev_addr;
 			int i;
 
 			/* get MAC address from EEPROM */
 			for (i = 0; i < 3; i++)
-			        mac[i] = read_eeprom(ioaddr, i + EEPROMMACAddr);
+			        addr[i] = read_eeprom(ioaddr, i + EEPROMMACAddr);
+			 eth_hw_addr_set(net_dev, (u8 *)addr);
 
 			rc = 1;
 			break;
