@@ -702,10 +702,11 @@ struct nfsd4_compoundres {
 	struct xdr_stream		*xdr;
 	struct svc_rqst *		rqstp;
 
+	__be32				*statusp;
 	u32				taglen;
 	char *				tag;
 	u32				opcnt;
-	__be32 *			tagp; /* tag, opcount encode location */
+
 	struct nfsd4_compound_state	cstate;
 };
 

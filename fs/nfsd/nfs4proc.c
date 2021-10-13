@@ -2461,11 +2461,11 @@ nfsd4_proc_compound(struct svc_rqst *rqstp)
 	__be32		status;
 
 	resp->xdr = &rqstp->rq_res_stream;
+	resp->statusp = resp->xdr->p;
 
 	/* reserve space for: NFS status code */
 	xdr_reserve_space(resp->xdr, XDR_UNIT);
 
-	resp->tagp = resp->xdr->p;
 	/* reserve space for: taglen, tag, and opcnt */
 	xdr_reserve_space(resp->xdr, XDR_UNIT * 2 + args->taglen);
 	resp->taglen = args->taglen;
