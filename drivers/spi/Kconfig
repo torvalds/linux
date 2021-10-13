@@ -642,6 +642,7 @@ config SPI_ROCKCHIP
 
 config SPI_ROCKCHIP_SFC
 	tristate "Rockchip Serial Flash Controller (SFC)"
+	imply ROCKCHIP_MTD_VENDOR_STORAGE
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	depends on HAS_IOMEM && HAS_DMA
 	help
