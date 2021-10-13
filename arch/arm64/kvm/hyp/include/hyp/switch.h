@@ -282,14 +282,6 @@ static inline bool handle_tx2_tvm(struct kvm_vcpu *vcpu)
 
 static inline bool esr_is_ptrauth_trap(u32 esr)
 {
-	u32 ec = ESR_ELx_EC(esr);
-
-	if (ec == ESR_ELx_EC_PAC)
-		return true;
-
-	if (ec != ESR_ELx_EC_SYS64)
-		return false;
-
 	switch (esr_sys64_to_sysreg(esr)) {
 	case SYS_APIAKEYLO_EL1:
 	case SYS_APIAKEYHI_EL1:
@@ -323,8 +315,7 @@ static bool kvm_hyp_handle_ptrauth(struct kvm_vcpu *vcpu, u64 *exit_code)
 	struct kvm_cpu_context *ctxt;
 	u64 val;
 
-	if (!vcpu_has_ptrauth(vcpu) ||
-	    !esr_is_ptrauth_trap(kvm_vcpu_get_esr(vcpu)))
+	if (!vcpu_has_ptrauth(vcpu))
 		return false;
 
 	ctxt = this_cpu_ptr(&kvm_hyp_ctxt);
@@ -352,6 +343,9 @@ static bool kvm_hyp_handle_sysreg(struct kvm_vcpu *vcpu, u64 *exit_code)
 	if (static_branch_unlikely(&vgic_v3_cpuif_trap) &&
 	    __vgic_v3_perform_cpuif_access(vcpu) == 1)
 		return true;
+
+	if (esr_is_ptrauth_trap(kvm_vcpu_get_esr(vcpu)))
+		return kvm_hyp_handle_ptrauth(vcpu, exit_code);
 
 	return false;
 }
