@@ -911,6 +911,7 @@ struct mlx5dr_table_rx_tx {
 	struct mlx5dr_ste_htbl *s_anchor;
 	struct mlx5dr_domain_rx_tx *nic_dmn;
 	u64 default_icm_addr;
+	struct list_head nic_matcher_list;
 };
 
 struct mlx5dr_table {
@@ -938,6 +939,9 @@ struct mlx5dr_matcher_rx_tx {
 	u8 num_of_builders_arr[DR_RULE_IPV_MAX][DR_RULE_IPV_MAX];
 	u64 default_icm_addr;
 	struct mlx5dr_table_rx_tx *nic_tbl;
+	u32 prio;
+	struct list_head list_node;
+	u32 rules;
 };
 
 struct mlx5dr_matcher {
@@ -1118,6 +1122,11 @@ static inline void mlx5dr_domain_unlock(struct mlx5dr_domain *dmn)
 	mlx5dr_domain_nic_unlock(&dmn->info.tx);
 	mlx5dr_domain_nic_unlock(&dmn->info.rx);
 }
+
+int mlx5dr_matcher_add_to_tbl_nic(struct mlx5dr_domain *dmn,
+				  struct mlx5dr_matcher_rx_tx *nic_matcher);
+int mlx5dr_matcher_remove_from_tbl_nic(struct mlx5dr_domain *dmn,
+				       struct mlx5dr_matcher_rx_tx *nic_matcher);
 
 int mlx5dr_matcher_select_builders(struct mlx5dr_matcher *matcher,
 				   struct mlx5dr_matcher_rx_tx *nic_matcher,
