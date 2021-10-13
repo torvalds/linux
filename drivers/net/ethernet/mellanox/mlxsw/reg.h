@@ -5371,7 +5371,7 @@ MLXSW_ITEM64(reg, ppcnt, tx_pause_duration,
 MLXSW_ITEM64(reg, ppcnt, tx_pause_transition,
 	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x70, 0, 64);
 
-/* Ethernet Per Traffic Group Counters */
+/* Ethernet Per Traffic Class Counters */
 
 /* reg_ppcnt_tc_transmit_queue
  * Contains the transmit queue depth in cells of traffic class
