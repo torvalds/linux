@@ -4801,8 +4801,6 @@ struct netdev_nested_priv {
 bool netdev_has_upper_dev(struct net_device *dev, struct net_device *upper_dev);
 struct net_device *netdev_upper_get_next_dev_rcu(struct net_device *dev,
 						     struct list_head **iter);
-struct net_device *netdev_all_upper_get_next_dev_rcu(struct net_device *dev,
-						     struct list_head **iter);
 
 #ifdef CONFIG_LOCKDEP
 static LIST_HEAD(net_unlink_list);
