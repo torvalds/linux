@@ -106,6 +106,12 @@ properties:
 
   dr_mode: true
 
+  otg-rev: true
+
+  hnp-disable: true
+
+  srp-disable: true
+
   usb-role-switch: true
 
   g-rx-fifo-size:
