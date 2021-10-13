@@ -134,6 +134,7 @@ enum {
 	MLX5_REG_MCIA		 = 0x9014,
 	MLX5_REG_MFRL		 = 0x9028,
 	MLX5_REG_MLCR		 = 0x902b,
+	MLX5_REG_MRTC		 = 0x902d,
 	MLX5_REG_MTRC_CAP	 = 0x9040,
 	MLX5_REG_MTRC_CONF	 = 0x9041,
 	MLX5_REG_MTRC_STDB	 = 0x9042,
@@ -440,6 +441,7 @@ struct mlx5_core_health {
 	struct work_struct		report_work;
 	struct devlink_health_reporter *fw_reporter;
 	struct devlink_health_reporter *fw_fatal_reporter;
+	struct delayed_work		update_fw_log_ts_work;
 };
 
 struct mlx5_qp_table {

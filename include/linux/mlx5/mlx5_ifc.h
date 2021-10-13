@@ -10358,6 +10358,17 @@ struct mlx5_ifc_pddr_reg_bits {
 	union mlx5_ifc_pddr_reg_page_data_auto_bits page_data;
 };
 
+struct mlx5_ifc_mrtc_reg_bits {
+	u8         time_synced[0x1];
+	u8         reserved_at_1[0x1f];
+
+	u8         reserved_at_20[0x20];
+
+	u8         time_h[0x20];
+
+	u8         time_l[0x20];
+};
+
 union mlx5_ifc_ports_control_registers_document_bits {
 	struct mlx5_ifc_bufferx_reg_bits bufferx_reg;
 	struct mlx5_ifc_eth_2819_cntrs_grp_data_layout_bits eth_2819_cntrs_grp_data_layout;
@@ -10419,6 +10430,7 @@ union mlx5_ifc_ports_control_registers_document_bits {
 	struct mlx5_ifc_mirc_reg_bits mirc_reg;
 	struct mlx5_ifc_mfrl_reg_bits mfrl_reg;
 	struct mlx5_ifc_mtutc_reg_bits mtutc_reg;
+	struct mlx5_ifc_mrtc_reg_bits mrtc_reg;
 	u8         reserved_at_0[0x60e0];
 };
 

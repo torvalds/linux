@@ -752,6 +752,31 @@ void mlx5_trigger_health_work(struct mlx5_core_dev *dev)
 	spin_unlock_irqrestore(&health->wq_lock, flags);
 }
 
+#define MLX5_MSEC_PER_HOUR (MSEC_PER_SEC * 60 * 60)
+static void mlx5_health_log_ts_update(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	u32 out[MLX5_ST_SZ_DW(mrtc_reg)] = {};
+	u32 in[MLX5_ST_SZ_DW(mrtc_reg)] = {};
+	struct mlx5_core_health *health;
+	struct mlx5_core_dev *dev;
+	struct mlx5_priv *priv;
+	u64 now_us;
+
+	health = container_of(dwork, struct mlx5_core_health, update_fw_log_ts_work);
+	priv = container_of(health, struct mlx5_priv, health);
+	dev = container_of(priv, struct mlx5_core_dev, priv);
+
+	now_us =  ktime_to_us(ktime_get_real());
+
+	MLX5_SET(mrtc_reg, in, time_h, now_us >> 32);
+	MLX5_SET(mrtc_reg, in, time_l, now_us & 0xFFFFFFFF);
+	mlx5_core_access_reg(dev, in, sizeof(in), out, sizeof(out), MLX5_REG_MRTC, 0, 1);
+
+	queue_delayed_work(health->wq, &health->update_fw_log_ts_work,
+			   msecs_to_jiffies(MLX5_MSEC_PER_HOUR));
+}
+
 static void poll_health(struct timer_list *t)
 {
 	struct mlx5_core_dev *dev = from_timer(dev, t, priv.health.timer);
@@ -834,6 +859,7 @@ void mlx5_drain_health_wq(struct mlx5_core_dev *dev)
 	spin_lock_irqsave(&health->wq_lock, flags);
 	set_bit(MLX5_DROP_NEW_HEALTH_WORK, &health->flags);
 	spin_unlock_irqrestore(&health->wq_lock, flags);
+	cancel_delayed_work_sync(&health->update_fw_log_ts_work);
 	cancel_work_sync(&health->report_work);
 	cancel_work_sync(&health->fatal_report_work);
 }
@@ -849,6 +875,7 @@ void mlx5_health_cleanup(struct mlx5_core_dev *dev)
 {
 	struct mlx5_core_health *health = &dev->priv.health;
 
+	cancel_delayed_work_sync(&health->update_fw_log_ts_work);
 	destroy_workqueue(health->wq);
 	mlx5_fw_reporters_destroy(dev);
 }
@@ -874,6 +901,9 @@ int mlx5_health_init(struct mlx5_core_dev *dev)
 	spin_lock_init(&health->wq_lock);
 	INIT_WORK(&health->fatal_report_work, mlx5_fw_fatal_reporter_err_work);
 	INIT_WORK(&health->report_work, mlx5_fw_reporter_err_work);
+	INIT_DELAYED_WORK(&health->update_fw_log_ts_work, mlx5_health_log_ts_update);
+	if (mlx5_core_is_pf(dev))
+		queue_delayed_work(health->wq, &health->update_fw_log_ts_work, 0);
 
 	return 0;
 
