@@ -32,10 +32,10 @@ bool	nlm4svc_decode_reboot(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool	nlm4svc_decode_shareargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool	nlm4svc_decode_notify(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 
-int	nlm4svc_encode_testres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-int	nlm4svc_encode_res(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-int	nlm4svc_encode_void(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-int	nlm4svc_encode_shareres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool	nlm4svc_encode_testres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool	nlm4svc_encode_res(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool	nlm4svc_encode_void(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool	nlm4svc_encode_shareres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 
 extern const struct rpc_version nlm_version4;
 

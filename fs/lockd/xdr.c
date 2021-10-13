@@ -313,13 +313,13 @@ nlmsvc_decode_notify(struct svc_rqst *rqstp, struct xdr_stream *xdr)
  * Encode Reply results
  */
 
-int
+bool
 nlmsvc_encode_void(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
-	return 1;
+	return true;
 }
 
-int
+bool
 nlmsvc_encode_testres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nlm_res *resp = rqstp->rq_resp;
@@ -328,7 +328,7 @@ nlmsvc_encode_testres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 		svcxdr_encode_testrply(xdr, resp);
 }
 
-int
+bool
 nlmsvc_encode_res(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nlm_res *resp = rqstp->rq_resp;
@@ -337,18 +337,18 @@ nlmsvc_encode_res(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 		svcxdr_encode_stats(xdr, resp->status);
 }
 
-int
+bool
 nlmsvc_encode_shareres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nlm_res *resp = rqstp->rq_resp;
 
 	if (!svcxdr_encode_cookie(xdr, &resp->cookie))
-		return 0;
+		return false;
 	if (!svcxdr_encode_stats(xdr, resp->status))
-		return 0;
+		return false;
 	/* sequence */
 	if (xdr_stream_encode_u32(xdr, 0) < 0)
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }

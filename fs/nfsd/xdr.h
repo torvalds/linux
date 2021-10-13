@@ -152,13 +152,13 @@ bool nfssvc_decode_linkargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfssvc_decode_symlinkargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfssvc_decode_readdirargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 
-int nfssvc_encode_statres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-int nfssvc_encode_attrstatres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-int nfssvc_encode_diropres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-int nfssvc_encode_readlinkres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-int nfssvc_encode_readres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-int nfssvc_encode_statfsres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-int nfssvc_encode_readdirres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool nfssvc_encode_statres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool nfssvc_encode_attrstatres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool nfssvc_encode_diropres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool nfssvc_encode_readlinkres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool nfssvc_encode_readres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool nfssvc_encode_statfsres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool nfssvc_encode_readdirres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 
 void nfssvc_encode_nfscookie(struct nfsd_readdirres *resp, u32 offset);
 int nfssvc_encode_entry(void *data, const char *name, int namlen,
