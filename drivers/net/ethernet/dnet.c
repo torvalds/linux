@@ -93,7 +93,7 @@ static void dnet_get_hwaddr(struct dnet *bp)
 	*((__be16 *)(addr + 4)) = cpu_to_be16(tmp);
 
 	if (is_valid_ether_addr(addr))
-		memcpy(bp->dev->dev_addr, addr, sizeof(addr));
+		eth_hw_addr_set(bp->dev, addr);
 }
 
 static int dnet_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
