@@ -3160,7 +3160,7 @@ int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans)
 }
 
 int btrfs_update_block_group(struct btrfs_trans_handle *trans,
-			     u64 bytenr, u64 num_bytes, int alloc)
+			     u64 bytenr, u64 num_bytes, bool alloc)
 {
 	struct btrfs_fs_info *info = trans->fs_info;
 	struct btrfs_block_group *cache = NULL;
