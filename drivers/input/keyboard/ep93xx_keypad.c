@@ -219,6 +219,13 @@ static int __maybe_unused ep93xx_keypad_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(ep93xx_keypad_pm_ops,
 			 ep93xx_keypad_suspend, ep93xx_keypad_resume);
 
+static void ep93xx_keypad_release_gpio_action(void *_pdev)
+{
+	struct platform_device *pdev = _pdev;
+
+	ep93xx_keypad_release_gpio(pdev);
+}
+
 static int ep93xx_keypad_probe(struct platform_device *pdev)
 {
 	struct ep93xx_keypad *keypad;
@@ -227,61 +234,46 @@ static int ep93xx_keypad_probe(struct platform_device *pdev)
 	struct resource *res;
 	int err;
 
-	keypad = kzalloc(sizeof(struct ep93xx_keypad), GFP_KERNEL);
+	keypad = devm_kzalloc(&pdev->dev, sizeof(*keypad), GFP_KERNEL);
 	if (!keypad)
 		return -ENOMEM;
 
 	keypad->pdata = dev_get_platdata(&pdev->dev);
-	if (!keypad->pdata) {
-		err = -EINVAL;
-		goto failed_free;
-	}
+	if (!keypad->pdata)
+		return -EINVAL;
 
 	keymap_data = keypad->pdata->keymap_data;
-	if (!keymap_data) {
-		err = -EINVAL;
-		goto failed_free;
-	}
+	if (!keymap_data)
+		return -EINVAL;
 
 	keypad->irq = platform_get_irq(pdev, 0);
-	if (keypad->irq < 0) {
-		err = keypad->irq;
-		goto failed_free;
-	}
+	if (keypad->irq < 0)
+		return keypad->irq;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		err = -ENXIO;
-		goto failed_free;
-	}
+	if (!res)
+		return -ENXIO;
 
-	res = request_mem_region(res->start, resource_size(res), pdev->name);
-	if (!res) {
-		err = -EBUSY;
-		goto failed_free;
-	}
-
-	keypad->mmio_base = ioremap(res->start, resource_size(res));
-	if (keypad->mmio_base == NULL) {
-		err = -ENXIO;
-		goto failed_free_mem;
-	}
+	keypad->mmio_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(keypad->mmio_base))
+		return PTR_ERR(keypad->mmio_base);
 
 	err = ep93xx_keypad_acquire_gpio(pdev);
 	if (err)
-		goto failed_free_io;
+		return err;
 
-	keypad->clk = clk_get(&pdev->dev, NULL);
-	if (IS_ERR(keypad->clk)) {
-		err = PTR_ERR(keypad->clk);
-		goto failed_free_gpio;
-	}
+	err = devm_add_action_or_reset(&pdev->dev,
+				       ep93xx_keypad_release_gpio_action, pdev);
+	if (err)
+		return err;
 
-	input_dev = input_allocate_device();
-	if (!input_dev) {
-		err = -ENOMEM;
-		goto failed_put_clk;
-	}
+	keypad->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(keypad->clk))
+		return PTR_ERR(keypad->clk);
+
+	input_dev = devm_input_allocate_device(&pdev->dev);
+	if (!input_dev)
+		return -ENOMEM;
 
 	keypad->input_dev = input_dev;
 
@@ -289,26 +281,26 @@ static int ep93xx_keypad_probe(struct platform_device *pdev)
 	input_dev->id.bustype = BUS_HOST;
 	input_dev->open = ep93xx_keypad_open;
 	input_dev->close = ep93xx_keypad_close;
-	input_dev->dev.parent = &pdev->dev;
 
 	err = matrix_keypad_build_keymap(keymap_data, NULL,
 					 EP93XX_MATRIX_ROWS, EP93XX_MATRIX_COLS,
 					 keypad->keycodes, input_dev);
 	if (err)
-		goto failed_free_dev;
+		return err;
 
 	if (keypad->pdata->flags & EP93XX_KEYPAD_AUTOREPEAT)
 		__set_bit(EV_REP, input_dev->evbit);
 	input_set_drvdata(input_dev, keypad);
 
-	err = request_irq(keypad->irq, ep93xx_keypad_irq_handler,
-			  0, pdev->name, keypad);
+	err = devm_request_irq(&pdev->dev, keypad->irq,
+			       ep93xx_keypad_irq_handler,
+			       0, pdev->name, keypad);
 	if (err)
-		goto failed_free_dev;
+		return err;
 
 	err = input_register_device(input_dev);
 	if (err)
-		goto failed_free_irq;
+		return err;
 
 	platform_set_drvdata(pdev, keypad);
 
@@ -318,47 +310,11 @@ static int ep93xx_keypad_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "failed to set up wakeup irq: %d\n", err);
 
 	return 0;
-
-failed_free_irq:
-	free_irq(keypad->irq, keypad);
-failed_free_dev:
-	input_free_device(input_dev);
-failed_put_clk:
-	clk_put(keypad->clk);
-failed_free_gpio:
-	ep93xx_keypad_release_gpio(pdev);
-failed_free_io:
-	iounmap(keypad->mmio_base);
-failed_free_mem:
-	release_mem_region(res->start, resource_size(res));
-failed_free:
-	kfree(keypad);
-	return err;
 }
 
 static int ep93xx_keypad_remove(struct platform_device *pdev)
 {
-	struct ep93xx_keypad *keypad = platform_get_drvdata(pdev);
-	struct resource *res;
-
 	dev_pm_clear_wake_irq(&pdev->dev);
-
-	free_irq(keypad->irq, keypad);
-
-	if (keypad->enabled)
-		clk_disable(keypad->clk);
-	clk_put(keypad->clk);
-
-	input_unregister_device(keypad->input_dev);
-
-	ep93xx_keypad_release_gpio(pdev);
-
-	iounmap(keypad->mmio_base);
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(res->start, resource_size(res));
-
-	kfree(keypad);
 
 	return 0;
 }
