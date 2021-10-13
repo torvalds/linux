@@ -397,7 +397,7 @@ static bool kvm_hyp_handle_dabt_low(struct kvm_vcpu *vcpu, u64 *exit_code)
 
 typedef bool (*exit_handler_fn)(struct kvm_vcpu *, u64 *);
 
-static const exit_handler_fn *kvm_get_exit_handler_array(struct kvm *kvm);
+static const exit_handler_fn *kvm_get_exit_handler_array(struct kvm_vcpu *vcpu);
 
 /*
  * Allow the hypervisor to handle the exit with an exit handler if it has one.
@@ -407,7 +407,7 @@ static const exit_handler_fn *kvm_get_exit_handler_array(struct kvm *kvm);
  */
 static inline bool kvm_hyp_handle_exit(struct kvm_vcpu *vcpu, u64 *exit_code)
 {
-	const exit_handler_fn *handlers = kvm_get_exit_handler_array(kern_hyp_va(vcpu->kvm));
+	const exit_handler_fn *handlers = kvm_get_exit_handler_array(vcpu);
 	exit_handler_fn fn;
 
 	fn = handlers[kvm_vcpu_trap_get_class(vcpu)];

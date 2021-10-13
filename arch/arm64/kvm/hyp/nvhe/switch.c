@@ -211,9 +211,9 @@ static const exit_handler_fn pvm_exit_handlers[] = {
 	[ESR_ELx_EC_PAC]		= kvm_hyp_handle_ptrauth,
 };
 
-static const exit_handler_fn *kvm_get_exit_handler_array(struct kvm *kvm)
+static const exit_handler_fn *kvm_get_exit_handler_array(struct kvm_vcpu *vcpu)
 {
-	if (unlikely(kvm_vm_is_protected(kvm)))
+	if (unlikely(kvm_vm_is_protected(kern_hyp_va(vcpu->kvm))))
 		return pvm_exit_handlers;
 
 	return hyp_exit_handlers;
