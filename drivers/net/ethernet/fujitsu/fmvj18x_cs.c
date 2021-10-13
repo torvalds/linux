@@ -468,8 +468,7 @@ static int fmvj18x_config(struct pcmcia_device *link)
 		    goto failed;
 	    }
 	    /* Read MACID from CIS */
-	    for (i = 0; i < 6; i++)
-		    dev->dev_addr[i] = buf[i + 5];
+	    eth_hw_addr_set(dev, &buf[5]);
 	    kfree(buf);
 	} else {
 	    if (pcmcia_get_mac_from_cis(link, dev))
@@ -499,9 +498,7 @@ static int fmvj18x_config(struct pcmcia_device *link)
 	    pr_notice("unable to read hardware net address\n");
 	    goto failed;
 	}
-	for (i = 0 ; i < 6; i++) {
-	    dev->dev_addr[i] = buggybuf[i];
-	}
+	eth_hw_addr_set(dev, buggybuf);
 	card_name = "FMV-J182";
 	break;
     case MBH10302:

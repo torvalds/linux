@@ -3739,7 +3739,6 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct net_device *netdev;
 	struct myri10ge_priv *mgp;
 	struct device *dev = &pdev->dev;
-	int i;
 	int status = -ENXIO;
 	int dac_enabled;
 	unsigned hdr_offset, ss_offset;
@@ -3829,8 +3828,7 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (status)
 		goto abort_with_ioremap;
 
-	for (i = 0; i < ETH_ALEN; i++)
-		netdev->dev_addr[i] = mgp->mac_addr[i];
+	eth_hw_addr_set(netdev, mgp->mac_addr);
 
 	myri10ge_select_firmware(mgp);
 

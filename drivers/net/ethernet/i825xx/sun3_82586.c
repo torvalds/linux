@@ -339,14 +339,13 @@ static const struct net_device_ops sun3_82586_netdev_ops = {
 
 static int __init sun3_82586_probe1(struct net_device *dev,int ioaddr)
 {
-	int i, size, retval;
+	int size, retval;
 
 	if (!request_region(ioaddr, SUN3_82586_TOTAL_SIZE, DRV_NAME))
 		return -EBUSY;
 
 	/* copy in the ethernet address from the prom */
-	for(i = 0; i < 6 ; i++)
-	     dev->dev_addr[i] = idprom->id_ethaddr[i];
+	eth_hw_addr_set(dev, idprom->id_ethaddr);
 
 	printk("%s: SUN3 Intel 82586 found at %lx, ",dev->name,dev->base_addr);
 
