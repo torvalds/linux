@@ -256,7 +256,8 @@ static bool handle_aarch32_guest(struct kvm_vcpu *vcpu, u64 *exit_code)
 		 * protected VMs.
 		 */
 		vcpu->arch.target = -1;
-		*exit_code = ARM_EXCEPTION_IL;
+		*exit_code &= BIT(ARM_EXIT_WITH_SERROR_BIT);
+		*exit_code |= ARM_EXCEPTION_IL;
 		return false;
 	}
 
