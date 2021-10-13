@@ -30,7 +30,6 @@
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel";
 		stdout-path = "serial0:115200n8";
 	};
 
