@@ -258,7 +258,20 @@ static inline void blk_mq_put_driver_tag(struct request *rq)
 	__blk_mq_put_driver_tag(rq->mq_hctx, rq);
 }
 
-bool blk_mq_get_driver_tag(struct request *rq);
+bool __blk_mq_get_driver_tag(struct blk_mq_hw_ctx *hctx, struct request *rq);
+
+static inline bool blk_mq_get_driver_tag(struct request *rq)
+{
+	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
+
+	if (rq->tag != BLK_MQ_NO_TAG &&
+	    !(hctx->flags & BLK_MQ_F_TAG_QUEUE_SHARED)) {
+		hctx->tags->rqs[rq->tag] = rq;
+		return true;
+	}
+
+	return __blk_mq_get_driver_tag(hctx, rq);
+}
 
 static inline void blk_mq_clear_mq_map(struct blk_mq_queue_map *qmap)
 {
