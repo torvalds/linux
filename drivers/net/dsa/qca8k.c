@@ -1004,6 +1004,7 @@ qca8k_parse_port_config(struct qca8k_priv *priv)
 		case PHY_INTERFACE_MODE_RGMII_ID:
 		case PHY_INTERFACE_MODE_RGMII_TXID:
 		case PHY_INTERFACE_MODE_RGMII_RXID:
+		case PHY_INTERFACE_MODE_SGMII:
 			delay = 0;
 
 			if (!of_property_read_u32(port_dn, "tx-internal-delay-ps", &delay))
@@ -1036,8 +1037,13 @@ qca8k_parse_port_config(struct qca8k_priv *priv)
 
 			priv->rgmii_rx_delay[cpu_port_index] = delay;
 
-			break;
-		case PHY_INTERFACE_MODE_SGMII:
+			/* Skip sgmii parsing for rgmii* mode */
+			if (mode == PHY_INTERFACE_MODE_RGMII ||
+			    mode == PHY_INTERFACE_MODE_RGMII_ID ||
+			    mode == PHY_INTERFACE_MODE_RGMII_TXID ||
+			    mode == PHY_INTERFACE_MODE_RGMII_RXID)
+				break;
+
 			if (of_property_read_bool(port_dn, "qca,sgmii-txclk-falling-edge"))
 				priv->sgmii_tx_clk_falling_edge = true;
 
@@ -1261,12 +1267,53 @@ qca8k_setup(struct dsa_switch *ds)
 }
 
 static void
+qca8k_mac_config_setup_internal_delay(struct qca8k_priv *priv, int cpu_port_index,
+				      u32 reg)
+{
+	u32 delay, val = 0;
+	int ret;
+
+	/* Delay can be declared in 3 different way.
+	 * Mode to rgmii and internal-delay standard binding defined
+	 * rgmii-id or rgmii-tx/rx phy mode set.
+	 * The parse logic set a delay different than 0 only when one
+	 * of the 3 different way is used. In all other case delay is
+	 * not enabled. With ID or TX/RXID delay is enabled and set
+	 * to the default and recommended value.
+	 */
+	if (priv->rgmii_tx_delay[cpu_port_index]) {
+		delay = priv->rgmii_tx_delay[cpu_port_index];
+
+		val |= QCA8K_PORT_PAD_RGMII_TX_DELAY(delay) |
+			QCA8K_PORT_PAD_RGMII_TX_DELAY_EN;
+	}
+
+	if (priv->rgmii_rx_delay[cpu_port_index]) {
+		delay = priv->rgmii_rx_delay[cpu_port_index];
+
+		val |= QCA8K_PORT_PAD_RGMII_RX_DELAY(delay) |
+			QCA8K_PORT_PAD_RGMII_RX_DELAY_EN;
+	}
+
+	/* Set RGMII delay based on the selected values */
+	ret = qca8k_rmw(priv, reg,
+			QCA8K_PORT_PAD_RGMII_TX_DELAY_MASK |
+			QCA8K_PORT_PAD_RGMII_RX_DELAY_MASK |
+			QCA8K_PORT_PAD_RGMII_TX_DELAY_EN |
+			QCA8K_PORT_PAD_RGMII_RX_DELAY_EN,
+			val);
+	if (ret)
+		dev_err(priv->dev, "Failed to set internal delay for CPU port%d",
+			cpu_port_index == QCA8K_CPU_PORT0 ? 0 : 6);
+}
+
+static void
 qca8k_phylink_mac_config(struct dsa_switch *ds, int port, unsigned int mode,
 			 const struct phylink_link_state *state)
 {
 	struct qca8k_priv *priv = ds->priv;
 	int cpu_port_index, ret;
-	u32 reg, val, delay;
+	u32 reg, val;
 
 	switch (port) {
 	case 0: /* 1st CPU port */
@@ -1315,32 +1362,10 @@ qca8k_phylink_mac_config(struct dsa_switch *ds, int port, unsigned int mode,
 	case PHY_INTERFACE_MODE_RGMII_ID:
 	case PHY_INTERFACE_MODE_RGMII_TXID:
 	case PHY_INTERFACE_MODE_RGMII_RXID:
-		val = QCA8K_PORT_PAD_RGMII_EN;
+		qca8k_write(priv, reg, QCA8K_PORT_PAD_RGMII_EN);
 
-		/* Delay can be declared in 3 different way.
-		 * Mode to rgmii and internal-delay standard binding defined
-		 * rgmii-id or rgmii-tx/rx phy mode set.
-		 * The parse logic set a delay different than 0 only when one
-		 * of the 3 different way is used. In all other case delay is
-		 * not enabled. With ID or TX/RXID delay is enabled and set
-		 * to the default and recommended value.
-		 */
-		if (priv->rgmii_tx_delay[cpu_port_index]) {
-			delay = priv->rgmii_tx_delay[cpu_port_index];
-
-			val |= QCA8K_PORT_PAD_RGMII_TX_DELAY(delay) |
-			       QCA8K_PORT_PAD_RGMII_TX_DELAY_EN;
-		}
-
-		if (priv->rgmii_rx_delay[cpu_port_index]) {
-			delay = priv->rgmii_rx_delay[cpu_port_index];
-
-			val |= QCA8K_PORT_PAD_RGMII_RX_DELAY(delay) |
-			       QCA8K_PORT_PAD_RGMII_RX_DELAY_EN;
-		}
-
-		/* Set RGMII delay based on the selected values */
-		qca8k_write(priv, reg, val);
+		/* Configure rgmii delay */
+		qca8k_mac_config_setup_internal_delay(priv, cpu_port_index, reg);
 
 		/* QCA8337 requires to set rgmii rx delay for all ports.
 		 * This is enabled through PORT5_PAD_CTRL for all ports,
@@ -1411,6 +1436,13 @@ qca8k_phylink_mac_config(struct dsa_switch *ds, int port, unsigned int mode,
 					QCA8K_PORT0_PAD_SGMII_RXCLK_FALLING_EDGE |
 					QCA8K_PORT0_PAD_SGMII_TXCLK_FALLING_EDGE,
 					val);
+
+		/* From original code is reported port instability as SGMII also
+		 * require delay set. Apply advised values here or take them from DT.
+		 */
+		if (state->interface == PHY_INTERFACE_MODE_SGMII)
+			qca8k_mac_config_setup_internal_delay(priv, cpu_port_index, reg);
+
 		break;
 	default:
 		dev_err(ds->dev, "xMII mode %s not supported for port %d\n",
