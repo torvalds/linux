@@ -17,8 +17,7 @@
 
 #include "mt76.h"
 
-static int
-mt76s_alloc_rx_queue(struct mt76_dev *dev, enum mt76_rxq_id qid)
+int mt76s_alloc_rx_queue(struct mt76_dev *dev, enum mt76_rxq_id qid)
 {
 	struct mt76_queue *q = &dev->q_rx[qid];
 
@@ -35,6 +34,7 @@ mt76s_alloc_rx_queue(struct mt76_dev *dev, enum mt76_rxq_id qid)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mt76s_alloc_rx_queue);
 
 static struct mt76_queue *mt76s_alloc_tx_queue(struct mt76_dev *dev)
 {
@@ -56,7 +56,7 @@ static struct mt76_queue *mt76s_alloc_tx_queue(struct mt76_dev *dev)
 	return q;
 }
 
-static int mt76s_alloc_tx(struct mt76_dev *dev)
+int mt76s_alloc_tx(struct mt76_dev *dev)
 {
 	struct mt76_queue *q;
 	int i;
@@ -79,18 +79,7 @@ static int mt76s_alloc_tx(struct mt76_dev *dev)
 
 	return 0;
 }
-
-int mt76s_alloc_queues(struct mt76_dev *dev)
-{
-	int err;
-
-	err = mt76s_alloc_rx_queue(dev, MT_RXQ_MAIN);
-	if (err < 0)
-		return err;
-
-	return mt76s_alloc_tx(dev);
-}
-EXPORT_SYMBOL_GPL(mt76s_alloc_queues);
+EXPORT_SYMBOL_GPL(mt76s_alloc_tx);
 
 static struct mt76_queue_entry *
 mt76s_get_next_rx_entry(struct mt76_queue *q)

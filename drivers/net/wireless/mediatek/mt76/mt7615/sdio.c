@@ -367,7 +367,11 @@ static int mt7663s_probe(struct sdio_func *func,
 		}
 	}
 
-	ret = mt76s_alloc_queues(&dev->mt76);
+	ret = mt76s_alloc_rx_queue(mdev, MT_RXQ_MAIN);
+	if (ret)
+		goto error;
+
+	ret = mt76s_alloc_tx(mdev);
 	if (ret)
 		goto error;
 
