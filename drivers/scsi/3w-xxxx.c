@@ -2252,7 +2252,7 @@ static int tw_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 {
 	struct Scsi_Host *host = NULL;
 	TW_Device_Extension *tw_dev;
-	int retval = -ENODEV;
+	int retval;
 
 	retval = pci_enable_device(pdev);
 	if (retval) {
