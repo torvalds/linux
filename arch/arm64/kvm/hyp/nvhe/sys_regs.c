@@ -248,6 +248,16 @@ static u64 read_id_reg(const struct kvm_vcpu *vcpu,
 	return pvm_read_id_reg(vcpu, reg_to_encoding(r));
 }
 
+/* Handler to RAZ/WI sysregs */
+static bool pvm_access_raz_wi(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
+			      const struct sys_reg_desc *r)
+{
+	if (!p->is_write)
+		p->regval = 0;
+
+	return true;
+}
+
 /*
  * Accessor for AArch32 feature id registers.
  *
@@ -270,9 +280,7 @@ static bool pvm_access_id_aarch32(struct kvm_vcpu *vcpu,
 	BUILD_BUG_ON(FIELD_GET(ARM64_FEATURE_MASK(ID_AA64PFR0_EL1),
 		     PVM_ID_AA64PFR0_RESTRICT_UNSIGNED) > ID_AA64PFR0_ELx_64BIT_ONLY);
 
-	/* Use 0 for architecturally "unknown" values. */
-	p->regval = 0;
-	return true;
+	return pvm_access_raz_wi(vcpu, p, r);
 }
 
 /*
@@ -300,6 +308,9 @@ static bool pvm_access_id_aarch64(struct kvm_vcpu *vcpu,
 
 /* Mark the specified system register as an AArch64 feature id register. */
 #define AARCH64(REG) { SYS_DESC(REG), .access = pvm_access_id_aarch64 }
+
+/* Mark the specified system register as Read-As-Zero/Write-Ignored */
+#define RAZ_WI(REG) { SYS_DESC(REG), .access = pvm_access_raz_wi }
 
 /* Mark the specified system register as not being handled in hyp. */
 #define HOST_HANDLED(REG) { SYS_DESC(REG), .access = NULL }
@@ -388,14 +399,14 @@ static const struct sys_reg_desc pvm_sys_reg_descs[] = {
 	HOST_HANDLED(SYS_AFSR1_EL1),
 	HOST_HANDLED(SYS_ESR_EL1),
 
-	HOST_HANDLED(SYS_ERRIDR_EL1),
-	HOST_HANDLED(SYS_ERRSELR_EL1),
-	HOST_HANDLED(SYS_ERXFR_EL1),
-	HOST_HANDLED(SYS_ERXCTLR_EL1),
-	HOST_HANDLED(SYS_ERXSTATUS_EL1),
-	HOST_HANDLED(SYS_ERXADDR_EL1),
-	HOST_HANDLED(SYS_ERXMISC0_EL1),
-	HOST_HANDLED(SYS_ERXMISC1_EL1),
+	RAZ_WI(SYS_ERRIDR_EL1),
+	RAZ_WI(SYS_ERRSELR_EL1),
+	RAZ_WI(SYS_ERXFR_EL1),
+	RAZ_WI(SYS_ERXCTLR_EL1),
+	RAZ_WI(SYS_ERXSTATUS_EL1),
+	RAZ_WI(SYS_ERXADDR_EL1),
+	RAZ_WI(SYS_ERXMISC0_EL1),
+	RAZ_WI(SYS_ERXMISC1_EL1),
 
 	HOST_HANDLED(SYS_TFSR_EL1),
 	HOST_HANDLED(SYS_TFSRE0_EL1),
