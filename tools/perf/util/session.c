@@ -2225,20 +2225,10 @@ reader__release_decomp(struct reader *rd)
 }
 
 static int
-reader__process_events(struct reader *rd, struct perf_session *session,
-		       struct ui_progress *prog)
+reader__mmap(struct reader *rd, struct perf_session *session)
 {
-	u64 page_offset, size;
-	int err = 0, mmap_prot, mmap_flags;
+	int mmap_prot, mmap_flags;
 	char *buf, **mmaps = rd->mmaps;
-	union perf_event *event;
-	s64 skip;
-
-	err = reader__init(rd, &session->one_mmap);
-	if (err)
-		goto out;
-
-	session->active_decomp = &rd->decomp_data;
 
 	mmap_prot  = PROT_READ;
 	mmap_flags = MAP_SHARED;
@@ -2249,13 +2239,12 @@ reader__process_events(struct reader *rd, struct perf_session *session,
 		mmap_prot  |= PROT_WRITE;
 		mmap_flags = MAP_PRIVATE;
 	}
-remap:
+
 	buf = mmap(NULL, rd->mmap_size, mmap_prot, mmap_flags, rd->fd,
 		   rd->file_offset);
 	if (buf == MAP_FAILED) {
 		pr_err("failed to mmap file\n");
-		err = -errno;
-		goto out;
+		return -errno;
 	}
 	mmaps[rd->mmap_idx] = rd->mmap_cur = buf;
 	rd->mmap_idx = (rd->mmap_idx + 1) & (ARRAY_SIZE(rd->mmaps) - 1);
@@ -2264,6 +2253,30 @@ remap:
 		session->one_mmap_addr = buf;
 		session->one_mmap_offset = rd->file_offset;
 	}
+
+	return 0;
+}
+
+static int
+reader__process_events(struct reader *rd, struct perf_session *session,
+		       struct ui_progress *prog)
+{
+	u64 page_offset, size;
+	int err = 0;
+	char **mmaps = rd->mmaps;
+	union perf_event *event;
+	s64 skip;
+
+	err = reader__init(rd, &session->one_mmap);
+	if (err)
+		goto out;
+
+	session->active_decomp = &rd->decomp_data;
+
+remap:
+	err = reader__mmap(rd, session);
+	if (err)
+		goto out;
 
 more:
 	event = fetch_mmaped_event(rd->head, rd->mmap_size, rd->mmap_cur,
