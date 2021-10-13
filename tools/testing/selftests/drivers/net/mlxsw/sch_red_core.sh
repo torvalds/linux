@@ -331,6 +331,14 @@ get_nmarked()
 	ethtool_stats_get $swp3 ecn_marked
 }
 
+get_qdisc_nmarked()
+{
+	local vlan=$1; shift
+
+	busywait_for_counter 1100 +1 \
+		qdisc_stats_get $swp3 $(get_qdisc_handle $vlan) .marked
+}
+
 get_qdisc_npackets()
 {
 	local vlan=$1; shift
@@ -384,14 +392,15 @@ build_backlog()
 
 check_marking()
 {
+	local get_nmarked=$1; shift
 	local vlan=$1; shift
 	local cond=$1; shift
 
 	local npackets_0=$(get_qdisc_npackets $vlan)
-	local nmarked_0=$(get_nmarked $vlan)
+	local nmarked_0=$($get_nmarked $vlan)
 	sleep 5
 	local npackets_1=$(get_qdisc_npackets $vlan)
-	local nmarked_1=$(get_nmarked $vlan)
+	local nmarked_1=$($get_nmarked $vlan)
 
 	local nmarked_d=$((nmarked_1 - nmarked_0))
 	local npackets_d=$((npackets_1 - npackets_0))
@@ -404,6 +413,7 @@ check_marking()
 ecn_test_common()
 {
 	local name=$1; shift
+	local get_nmarked=$1; shift
 	local vlan=$1; shift
 	local limit=$1; shift
 	local backlog
@@ -416,7 +426,7 @@ ecn_test_common()
 	RET=0
 	backlog=$(build_backlog $vlan $((2 * limit / 3)) udp)
 	check_err $? "Could not build the requested backlog"
-	pct=$(check_marking $vlan "== 0")
+	pct=$(check_marking "$get_nmarked" $vlan "== 0")
 	check_err $? "backlog $backlog / $limit Got $pct% marked packets, expected == 0."
 	log_test "TC $((vlan - 10)): $name backlog < limit"
 
@@ -426,22 +436,23 @@ ecn_test_common()
 	RET=0
 	backlog=$(build_backlog $vlan $((3 * limit / 2)) tcp tos=0x01)
 	check_err $? "Could not build the requested backlog"
-	pct=$(check_marking $vlan ">= 95")
+	pct=$(check_marking "$get_nmarked" $vlan ">= 95")
 	check_err $? "backlog $backlog / $limit Got $pct% marked packets, expected >= 95."
 	log_test "TC $((vlan - 10)): $name backlog > limit"
 }
 
-do_ecn_test()
+__do_ecn_test()
 {
+	local get_nmarked=$1; shift
 	local vlan=$1; shift
 	local limit=$1; shift
-	local name=ECN
+	local name=${1-ECN}; shift
 
 	start_tcp_traffic $h1.$vlan $(ipaddr 1 $vlan) $(ipaddr 3 $vlan) \
 			  $h3_mac tos=0x01
 	sleep 1
 
-	ecn_test_common "$name" $vlan $limit
+	ecn_test_common "$name" "$get_nmarked" $vlan $limit
 
 	# Up there we saw that UDP gets accepted when backlog is below the
 	# limit. Now that it is above, it should all get dropped, and backlog
@@ -455,6 +466,26 @@ do_ecn_test()
 	sleep 1
 }
 
+do_ecn_test()
+{
+	local vlan=$1; shift
+	local limit=$1; shift
+
+	__do_ecn_test get_nmarked "$vlan" "$limit"
+}
+
+do_ecn_test_perband()
+{
+	local vlan=$1; shift
+	local limit=$1; shift
+
+	# Per-band ECN counters are not supported on Spectrum-1 and Spectrum-2.
+	[[ "$DEVLINK_VIDDID" == "15b3:cb84" ||
+	   "$DEVLINK_VIDDID" == "15b3:cf6c" ]] && return
+
+	__do_ecn_test get_qdisc_nmarked "$vlan" "$limit" "per-band ECN"
+}
+
 do_ecn_nodrop_test()
 {
 	local vlan=$1; shift
@@ -465,7 +496,7 @@ do_ecn_nodrop_test()
 			  $h3_mac tos=0x01
 	sleep 1
 
-	ecn_test_common "$name" $vlan $limit
+	ecn_test_common "$name" get_nmarked $vlan $limit
 
 	# Up there we saw that UDP gets accepted when backlog is below the
 	# limit. Now that it is above, in nodrop mode, make sure it goes to
@@ -495,7 +526,7 @@ do_red_test()
 	RET=0
 	backlog=$(build_backlog $vlan $((2 * limit / 3)) tcp tos=0x01)
 	check_err $? "Could not build the requested backlog"
-	pct=$(check_marking $vlan "== 0")
+	pct=$(check_marking get_nmarked $vlan "== 0")
 	check_err $? "backlog $backlog / $limit Got $pct% marked packets, expected == 0."
 	log_test "TC $((vlan - 10)): RED backlog < limit"
 
@@ -503,7 +534,7 @@ do_red_test()
 	RET=0
 	backlog=$(build_backlog $vlan $((3 * limit / 2)) tcp tos=0x01)
 	check_fail $? "Traffic went into backlog instead of being early-dropped"
-	pct=$(check_marking $vlan "== 0")
+	pct=$(check_marking get_nmarked $vlan "== 0")
 	check_err $? "backlog $backlog / $limit Got $pct% marked packets, expected == 0."
 	local diff=$((limit - backlog))
 	pct=$((100 * diff / limit))
