@@ -206,7 +206,7 @@ int qcom_elf_dump(struct list_head *segs, struct device *dev, unsigned char clas
 		}
 
 		offset += segment->size;
-		phdr++;
+		phdr += sizeof_elf_phdr(class);
 	}
 
 	return qcom_devcd_dump(dev, data, data_size, GFP_KERNEL);
