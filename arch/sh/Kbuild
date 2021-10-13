@@ -2,3 +2,6 @@
 obj-y				+= kernel/ mm/ boards/
 obj-$(CONFIG_SH_FPU_EMU)	+= math-emu/
 obj-$(CONFIG_USE_BUILTIN_DTB)	+= boot/dts/
+
+# for cleaning
+subdir- += boot

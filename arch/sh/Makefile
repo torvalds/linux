@@ -198,9 +198,6 @@ compressed: zImage
 archprepare:
 	$(Q)$(MAKE) $(build)=arch/sh/tools include/generated/machtypes.h
 
-archclean:
-	$(Q)$(MAKE) $(clean)=$(boot)
-
 archheaders:
 	$(Q)$(MAKE) $(build)=arch/sh/kernel/syscalls all
 

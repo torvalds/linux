@@ -8,8 +8,7 @@
 # Copyright (C) 2002, 2003, 2004  Maciej W. Rozycki
 #
 # This file is included by the global makefile so that you can add your own
-# architecture-specific flags and dependencies. Remember to do have actions
-# for "archclean" cleaning up for this architecture.
+# architecture-specific flags and dependencies.
 #
 
 archscripts: scripts_basic
@@ -425,11 +424,6 @@ ifdef CONFIG_SYS_SUPPORTS_ZBOOT
 endif
 	$(Q)install -D -m 644 .config $(INSTALL_PATH)/config-$(KERNELRELEASE)
 	$(Q)install -D -m 644 System.map $(INSTALL_PATH)/System.map-$(KERNELRELEASE)
-
-archclean:
-	$(Q)$(MAKE) $(clean)=arch/mips/boot
-	$(Q)$(MAKE) $(clean)=arch/mips/boot/compressed
-	$(Q)$(MAKE) $(clean)=arch/mips/boot/tools
 
 archheaders:
 	$(Q)$(MAKE) $(build)=arch/mips/kernel/syscalls all

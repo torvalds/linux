@@ -1,7 +1,5 @@
 # This file is included by the global makefile so that you can add your own
-# architecture-specific flags and dependencies. Remember to do have actions
-# for "archclean" and "archdep" for cleaning up and making dependencies for
-# this architecture.
+# architecture-specific flags and dependencies.
 #
 # This file is subject to the terms and conditions of the GNU General Public
 # License.  See the file "COPYING" in the main directory of this archive
@@ -410,9 +408,6 @@ PHONY += install
 install:
 	sh -x $(srctree)/$(boot)/install.sh "$(KERNELRELEASE)" vmlinux \
 	System.map "$(INSTALL_PATH)"
-
-archclean:
-	$(Q)$(MAKE) $(clean)=$(boot)
 
 ifeq ($(KBUILD_EXTMOD),)
 # We need to generate vdso-offsets.h before compiling certain files in kernel/.

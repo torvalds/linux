@@ -64,9 +64,6 @@ prepare: vdso_prepare
 vdso_prepare: prepare0
 	$(Q)$(MAKE) $(build)=arch/nds32/kernel/vdso include/generated/vdso-offsets.h
 
-archclean:
-	$(Q)$(MAKE) $(clean)=$(boot)
-
 define archhelp
   echo  '  Image         - kernel image (arch/$(ARCH)/boot/Image)'
 endef
