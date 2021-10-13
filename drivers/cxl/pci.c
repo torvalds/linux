@@ -306,17 +306,18 @@ static int cxl_pci_setup_mailbox(struct cxl_mem *cxlm)
 	return 0;
 }
 
-static void __iomem *cxl_pci_map_regblock(struct cxl_mem *cxlm,
-					  u8 bar, u64 offset)
+static void __iomem *cxl_pci_map_regblock(struct pci_dev *pdev,
+					  struct cxl_register_map *map)
 {
 	void __iomem *addr;
-	struct device *dev = cxlm->dev;
-	struct pci_dev *pdev = to_pci_dev(dev);
+	int bar = map->barno;
+	struct device *dev = &pdev->dev;
+	resource_size_t offset = map->block_offset;
 
 	/* Basic sanity check that BAR is big enough */
 	if (pci_resource_len(pdev, bar) < offset) {
-		dev_err(dev, "BAR%d: %pr: too small (offset: %#llx)\n", bar,
-			&pdev->resource[bar], (unsigned long long)offset);
+		dev_err(dev, "BAR%d: %pr: too small (offset: %pa)\n", bar,
+			&pdev->resource[bar], &offset);
 		return NULL;
 	}
 
@@ -326,15 +327,15 @@ static void __iomem *cxl_pci_map_regblock(struct cxl_mem *cxlm,
 		return addr;
 	}
 
-	dev_dbg(dev, "Mapped CXL Memory Device resource bar %u @ %#llx\n",
-		bar, offset);
+	dev_dbg(dev, "Mapped CXL Memory Device resource bar %u @ %pa\n",
+		bar, &offset);
 
 	return addr;
 }
 
-static void cxl_pci_unmap_regblock(struct cxl_mem *cxlm, void __iomem *base)
+static void cxl_pci_unmap_regblock(struct pci_dev *pdev, void __iomem *base)
 {
-	pci_iounmap(to_pci_dev(cxlm->dev), base);
+	pci_iounmap(pdev, base);
 }
 
 static int cxl_pci_dvsec(struct pci_dev *pdev, int dvsec)
@@ -360,12 +361,12 @@ static int cxl_pci_dvsec(struct pci_dev *pdev, int dvsec)
 	return 0;
 }
 
-static int cxl_probe_regs(struct cxl_mem *cxlm, void __iomem *base,
+static int cxl_probe_regs(struct pci_dev *pdev, void __iomem *base,
 			  struct cxl_register_map *map)
 {
 	struct cxl_component_reg_map *comp_map;
 	struct cxl_device_reg_map *dev_map;
-	struct device *dev = cxlm->dev;
+	struct device *dev = &pdev->dev;
 
 	switch (map->reg_type) {
 	case CXL_REGLOC_RBI_COMPONENT:
@@ -420,12 +421,13 @@ static int cxl_map_regs(struct cxl_mem *cxlm, struct cxl_register_map *map)
 	return 0;
 }
 
-static void cxl_decode_register_block(u32 reg_lo, u32 reg_hi,
-				      u8 *bar, u64 *offset, u8 *reg_type)
+static void cxl_decode_regblock(u32 reg_lo, u32 reg_hi,
+				struct cxl_register_map *map)
 {
-	*offset = ((u64)reg_hi << 32) | (reg_lo & CXL_REGLOC_ADDR_MASK);
-	*bar = FIELD_GET(CXL_REGLOC_BIR_MASK, reg_lo);
-	*reg_type = FIELD_GET(CXL_REGLOC_RBI_MASK, reg_lo);
+	map->block_offset =
+		((u64)reg_hi << 32) | (reg_lo & CXL_REGLOC_ADDR_MASK);
+	map->barno = FIELD_GET(CXL_REGLOC_BIR_MASK, reg_lo);
+	map->reg_type = FIELD_GET(CXL_REGLOC_RBI_MASK, reg_lo);
 }
 
 /**
@@ -462,34 +464,23 @@ static int cxl_pci_setup_regs(struct cxl_mem *cxlm)
 
 	for (i = 0, n_maps = 0; i < regblocks; i++, regloc += 8) {
 		u32 reg_lo, reg_hi;
-		u8 reg_type;
-		u64 offset;
-		u8 bar;
 
 		pci_read_config_dword(pdev, regloc, &reg_lo);
 		pci_read_config_dword(pdev, regloc + 4, &reg_hi);
 
-		cxl_decode_register_block(reg_lo, reg_hi, &bar, &offset,
-					  &reg_type);
+		map = &maps[n_maps];
+		cxl_decode_regblock(reg_lo, reg_hi, map);
 
 		/* Ignore unknown register block types */
-		if (reg_type > CXL_REGLOC_RBI_MEMDEV)
+		if (map->reg_type > CXL_REGLOC_RBI_MEMDEV)
 			continue;
 
-		base = cxl_pci_map_regblock(cxlm, bar, offset);
+		base = cxl_pci_map_regblock(pdev, map);
 		if (!base)
 			return -ENOMEM;
 
-		map = &maps[n_maps];
-		map->barno = bar;
-		map->block_offset = offset;
-		map->reg_type = reg_type;
-
-		ret = cxl_probe_regs(cxlm, base + offset, map);
-
-		/* Always unmap the regblock regardless of probe success */
-		cxl_pci_unmap_regblock(cxlm, base);
-
+		ret = cxl_probe_regs(pdev, base + map->block_offset, map);
+		cxl_pci_unmap_regblock(pdev, base);
 		if (ret)
 			return ret;
 
