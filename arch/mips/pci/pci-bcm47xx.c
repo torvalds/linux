@@ -41,8 +41,7 @@ static int bcm47xx_pcibios_plat_dev_init_ssb(struct pci_dev *dev)
 
 	res = ssb_pcibios_plat_dev_init(dev);
 	if (res < 0) {
-		printk(KERN_ALERT "PCI: Failed to init device %s\n",
-		       pci_name(dev));
+		pci_alert(dev, "PCI: Failed to init device\n");
 		return res;
 	}
 
@@ -52,8 +51,7 @@ static int bcm47xx_pcibios_plat_dev_init_ssb(struct pci_dev *dev)
 
 	/* IRQ-0 and IRQ-1 are software interrupts. */
 	if (res < 2) {
-		printk(KERN_ALERT "PCI: Failed to map IRQ of device %s\n",
-		       pci_name(dev));
+		pci_alert(dev, "PCI: Failed to map IRQ of device\n");
 		return res;
 	}
 
@@ -69,8 +67,7 @@ static int bcm47xx_pcibios_plat_dev_init_bcma(struct pci_dev *dev)
 
 	res = bcma_core_pci_plat_dev_init(dev);
 	if (res < 0) {
-		printk(KERN_ALERT "PCI: Failed to init device %s\n",
-		       pci_name(dev));
+		pci_alert(dev, "PCI: Failed to init device\n");
 		return res;
 	}
 
@@ -78,8 +75,7 @@ static int bcm47xx_pcibios_plat_dev_init_bcma(struct pci_dev *dev)
 
 	/* IRQ-0 and IRQ-1 are software interrupts. */
 	if (res < 2) {
-		printk(KERN_ALERT "PCI: Failed to map IRQ of device %s\n",
-		       pci_name(dev));
+		pci_alert(dev, "PCI: Failed to map IRQ of device\n");
 		return res;
 	}
 
