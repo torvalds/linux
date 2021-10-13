@@ -426,7 +426,7 @@ static void __init dev_setup(struct net_device *dev)
 	dev->addr_len = AX25_ADDR_LEN;
 	dev->tx_queue_len = 64;
 	memcpy(dev->broadcast, &ax25_bcast, AX25_ADDR_LEN);
-	memcpy(dev->dev_addr, &ax25_defaddr, AX25_ADDR_LEN);
+	dev_addr_set(dev, (u8 *)&ax25_defaddr);
 }
 
 static const struct net_device_ops scc_netdev_ops = {
