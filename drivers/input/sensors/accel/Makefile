@@ -17,6 +17,7 @@ obj-$(CONFIG_MPU6500_ACC)	+= mpu6500_acc.o
 obj-$(CONFIG_LSM330_ACC)	+= lsm330_acc.o
 obj-$(CONFIG_BMA2XX_ACC)	+= bma2xx.o
 obj-$(CONFIG_STK8BAXX_ACC)	+= stk8baxx.o
+obj-$(CONFIG_GS_DA215S)		+= da215s/
 obj-$(CONFIG_GS_DA223)		+= da223.o
 obj-$(CONFIG_ICM2060X_ACC)	+= icm2060x_acc.o
 da223-y	:= da223_cust.o da223_core.o
