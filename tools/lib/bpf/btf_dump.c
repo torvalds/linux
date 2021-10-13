@@ -1562,29 +1562,28 @@ static int btf_dump_get_bitfield_value(struct btf_dump *d,
 				       __u64 *value)
 {
 	__u16 left_shift_bits, right_shift_bits;
-	__u8 nr_copy_bits, nr_copy_bytes;
 	const __u8 *bytes = data;
-	int sz = t->size;
+	__u8 nr_copy_bits;
 	__u64 num = 0;
 	int i;
 
 	/* Maximum supported bitfield size is 64 bits */
-	if (sz > 8) {
-		pr_warn("unexpected bitfield size %d\n", sz);
+	if (t->size > 8) {
+		pr_warn("unexpected bitfield size %d\n", t->size);
 		return -EINVAL;
 	}
 
 	/* Bitfield value retrieval is done in two steps; first relevant bytes are
 	 * stored in num, then we left/right shift num to eliminate irrelevant bits.
 	 */
-	nr_copy_bits = bit_sz + bits_offset;
-	nr_copy_bytes = t->size;
 #if __BYTE_ORDER == __LITTLE_ENDIAN
-	for (i = nr_copy_bytes - 1; i >= 0; i--)
+	for (i = t->size - 1; i >= 0; i--)
 		num = num * 256 + bytes[i];
+	nr_copy_bits = bit_sz + bits_offset;
 #elif __BYTE_ORDER == __BIG_ENDIAN
-	for (i = 0; i < nr_copy_bytes; i++)
+	for (i = 0; i < t->size; i++)
 		num = num * 256 + bytes[i];
+	nr_copy_bits = t->size * 8 - bits_offset;
 #else
 # error "Unrecognized __BYTE_ORDER__"
 #endif
