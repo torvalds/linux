@@ -1094,7 +1094,7 @@ out:
 void copy_xstate_to_uabi_buf(struct membuf to, struct task_struct *tsk,
 			     enum xstate_copy_mode copy_mode)
 {
-	__copy_xstate_to_uabi_buf(to, &tsk->thread.fpu.state.xsave,
+	__copy_xstate_to_uabi_buf(to, &tsk->thread.fpu.fpstate->regs.xsave,
 				  tsk->thread.pkru, copy_mode);
 }
 
