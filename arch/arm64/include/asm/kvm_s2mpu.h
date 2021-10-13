@@ -54,6 +54,9 @@
 /* For use with hi_lo_readq_relaxed(). */
 #define REG_NS_FAULT_PA_HIGH_LOW(vid)		REG_NS_FAULT_PA_LOW(vid)
 
+/* Mask used for extracting VID from FAULT_* register offset. */
+#define REG_NS_FAULT_VID_MASK			GENMASK(7, 5)
+
 #define VERSION_MAJOR_ARCH_VER_MASK		GENMASK(31, 28)
 #define VERSION_MINOR_ARCH_VER_MASK		GENMASK(27, 24)
 #define VERSION_REV_ARCH_VER_MASK		GENMASK(23, 16)

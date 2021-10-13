@@ -323,6 +323,71 @@ static bool s2mpu_host_smc_handler(struct kvm_cpu_context *host_ctxt)
 	return true;  /* SMC handled */
 }
 
+static struct s2mpu *find_s2mpu_by_addr(phys_addr_t addr)
+{
+	struct s2mpu *dev;
+
+	for_each_s2mpu(dev) {
+		if (dev->pa <= addr && addr < (dev->pa + S2MPU_MMIO_SIZE))
+			return dev;
+	}
+	return NULL;
+}
+
+static u32 host_mmio_reg_access_mask(size_t off, bool is_write)
+{
+	const u32 no_access  = 0;
+	const u32 read_write = (u32)(-1);
+	const u32 read_only  = is_write ? no_access  : read_write;
+	const u32 write_only = is_write ? read_write : no_access;
+	u32 masked_off;
+
+	/* IRQ handler can clear interrupts. */
+	if (off == REG_NS_INTERRUPT_CLEAR)
+		return write_only & ALL_VIDS_BITMAP;
+
+	/* IRQ handler can read bitmap of pending interrupts. */
+	if (off == REG_NS_FAULT_STATUS)
+		return read_only & ALL_VIDS_BITMAP;
+
+	/* IRQ handler can read fault information. */
+	masked_off = off & ~REG_NS_FAULT_VID_MASK;
+	if ((masked_off == REG_NS_FAULT_PA_LOW(0)) ||
+	    (masked_off == REG_NS_FAULT_PA_HIGH(0)) ||
+	    (masked_off == REG_NS_FAULT_INFO(0)))
+		return read_only;
+
+	return no_access;
+}
+
+static bool s2mpu_host_mmio_dabt_handler(struct kvm_cpu_context *host_ctxt,
+					 phys_addr_t fault_pa, unsigned int len,
+					 bool is_write, int rd)
+{
+	struct s2mpu *dev;
+	size_t off;
+	u32 mask;
+
+	/* Only handle MMIO access with u32 size and alignment. */
+	if ((len != sizeof(u32)) || (fault_pa & (sizeof(u32) - 1)))
+		return false;
+
+	dev = find_s2mpu_by_addr(fault_pa);
+	if (!dev || !is_powered_on(dev))
+		return false;
+
+	off = fault_pa - dev->pa;
+	mask = host_mmio_reg_access_mask(off, is_write);
+	if (!mask)
+		return false;
+
+	if (is_write)
+		writel_relaxed(cpu_reg(host_ctxt, rd) & mask, dev->va + off);
+	else
+		cpu_reg(host_ctxt, rd) = readl_relaxed(dev->va + off) & mask;
+	return true;
+}
+
 static int s2mpu_init(void)
 {
 	struct s2mpu *dev;
@@ -365,5 +430,6 @@ static int s2mpu_init(void)
 const struct kvm_iommu_ops kvm_s2mpu_ops = (struct kvm_iommu_ops){
 	.init = s2mpu_init,
 	.host_smc_handler = s2mpu_host_smc_handler,
+	.host_mmio_dabt_handler = s2mpu_host_mmio_dabt_handler,
 	.host_stage2_set_owner = s2mpu_host_stage2_set_owner,
 };
