@@ -4,6 +4,8 @@
  * Author: Fuad Tabba <tabba@google.com>
  */
 
+#include <linux/irqchip/arm-gic-v3.h>
+
 #include <asm/kvm_asm.h>
 #include <asm/kvm_fixed_config.h>
 #include <asm/kvm_mmu.h>
@@ -303,6 +305,17 @@ static bool pvm_access_id_aarch64(struct kvm_vcpu *vcpu,
 	return true;
 }
 
+static bool pvm_gic_read_sre(struct kvm_vcpu *vcpu,
+			     struct sys_reg_params *p,
+			     const struct sys_reg_desc *r)
+{
+	/* pVMs only support GICv3. 'nuf said. */
+	if (!p->is_write)
+		p->regval = ICC_SRE_EL1_DIB | ICC_SRE_EL1_DFB | ICC_SRE_EL1_SRE;
+
+	return true;
+}
+
 /* Mark the specified system register as an AArch32 feature id register. */
 #define AARCH32(REG) { SYS_DESC(REG), .access = pvm_access_id_aarch32 }
 
@@ -386,7 +399,10 @@ static const struct sys_reg_desc pvm_sys_reg_descs[] = {
 
 	/* Limited Ordering Regions Registers are restricted. */
 
-	/* GIC CPU Interface registers are restricted. */
+	HOST_HANDLED(SYS_ICC_SGI1R_EL1),
+	HOST_HANDLED(SYS_ICC_ASGI1R_EL1),
+	HOST_HANDLED(SYS_ICC_SGI0R_EL1),
+	{ SYS_DESC(SYS_ICC_SRE_EL1), .access = pvm_gic_read_sre, },
 
 	HOST_HANDLED(SYS_CCSIDR_EL1),
 	HOST_HANDLED(SYS_CLIDR_EL1),
