@@ -8,6 +8,7 @@
 #include <linux/kvm_host.h>
 #include <linux/list.h>
 #include <linux/of_platform.h>
+#include <linux/sort.h>
 
 #include <asm/kvm_mmu.h>
 #include <asm/kvm_s2mpu.h>
@@ -279,6 +280,13 @@ static void free_s2mpu_array(struct s2mpu *array)
 	free_pages((unsigned long)array, order);
 }
 
+static int cmp_s2mpu(const void *p1, const void *p2)
+{
+	const struct s2mpu *a = p1, *b = p2;
+
+	return (a->pa > b->pa) - (a->pa < b->pa);
+}
+
 static int create_s2mpu_array(struct s2mpu **array)
 {
 	struct s2mpu_list_entry *entry, *tmp;
@@ -296,6 +304,9 @@ static int create_s2mpu_array(struct s2mpu **array)
 		devm_kfree(entry->dev, entry);
 	}
 	WARN_ON(i != kvm_hyp_nr_s2mpus);
+
+	/* Searching through the list assumes that it is sorted. */
+	sort(*array, kvm_hyp_nr_s2mpus, sizeof(struct s2mpu), cmp_s2mpu, NULL);
 
 	kvm_hyp_s2mpus = kern_hyp_va(*array);
 	return 0;
