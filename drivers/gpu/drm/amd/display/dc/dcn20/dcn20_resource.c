@@ -3660,9 +3660,6 @@ static enum dml_project get_dml_project_version(uint32_t hw_internal_rev)
 	return DML_PROJECT_NAVI10v2;
 }
 
-#define fixed16_to_double(x) (((double) x) / ((double) (1 << 16)))
-#define fixed16_to_double_to_cpu(x) fixed16_to_double(le32_to_cpu(x))
-
 static bool init_soc_bounding_box(struct dc *dc,
 				  struct dcn20_resource_pool *pool)
 {

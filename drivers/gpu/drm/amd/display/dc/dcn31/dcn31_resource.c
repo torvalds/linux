@@ -101,8 +101,6 @@
 #include "link_enc_cfg.h"
 
 #define DC_LOGGER_INIT(logger)
-#define fixed16_to_double(x) (((double) x) / ((double) (1 << 16)))
-#define fixed16_to_double_to_cpu(x) fixed16_to_double(le32_to_cpu(x))
 
 #define DCN3_1_DEFAULT_DET_SIZE 384
 
