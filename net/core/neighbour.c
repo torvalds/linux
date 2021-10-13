@@ -1999,15 +1999,20 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	neigh = neigh_lookup(tbl, dst, dev);
 	if (neigh == NULL) {
-		bool exempt_from_gc;
+		bool ndm_permanent  = ndm->ndm_state & NUD_PERMANENT;
+		bool exempt_from_gc = ndm_permanent ||
+				      ndm_flags & NTF_EXT_LEARNED;
 
 		if (!(nlh->nlmsg_flags & NLM_F_CREATE)) {
 			err = -ENOENT;
 			goto out;
 		}
+		if (ndm_permanent && (ndm_flags & NTF_MANAGED)) {
+			NL_SET_ERR_MSG(extack, "Invalid NTF_* flag for permanent entry");
+			err = -EINVAL;
+			goto out;
+		}
 
-		exempt_from_gc = ndm->ndm_state & NUD_PERMANENT ||
-				 ndm_flags & NTF_EXT_LEARNED;
 		neigh = ___neigh_create(tbl, dst, dev,
 					ndm_flags &
 					(NTF_EXT_LEARNED | NTF_MANAGED),
