@@ -38,6 +38,7 @@ struct nvmem_device {
 	unsigned int		nkeepout;
 	nvmem_reg_read_t	reg_read;
 	nvmem_reg_write_t	reg_write;
+	nvmem_cell_post_process_t cell_post_process;
 	struct gpio_desc	*wp_gpio;
 	void *priv;
 };
@@ -796,6 +797,7 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 	nvmem->type = config->type;
 	nvmem->reg_read = config->reg_read;
 	nvmem->reg_write = config->reg_write;
+	nvmem->cell_post_process = config->cell_post_process;
 	nvmem->keepout = config->keepout;
 	nvmem->nkeepout = config->nkeepout;
 	if (config->of_node)
@@ -1439,6 +1441,13 @@ static int __nvmem_cell_read(struct nvmem_device *nvmem,
 	/* shift bits in-place */
 	if (cell->bit_offset || cell->nbits)
 		nvmem_shift_read_buffer_in_place(cell, buf);
+
+	if (nvmem->cell_post_process) {
+		rc = nvmem->cell_post_process(nvmem->priv, id,
+					      cell->offset, buf, cell->bytes);
+		if (rc)
+			return rc;
+	}
 
 	if (len)
 		*len = cell->bytes;
