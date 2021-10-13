@@ -605,9 +605,6 @@
 #define PHY_1000T_CTRL		0x09 /* 1000Base-T Control Reg */
 #define PHY_1000T_STATUS	0x0A /* 1000Base-T Status Reg */
 
-/* Bit definitions for valid PHY IDs. I = Integrated E = External */
-#define I225_I_PHY_ID		0x67C9DC00
-
 /* MDI Control */
 #define IGC_MDIC_DATA_MASK	0x0000FFFF
 #define IGC_MDIC_REG_MASK	0x001F0000
