@@ -2192,13 +2192,9 @@ static int
 reader__init(struct reader *rd, bool *one_mmap)
 {
 	u64 data_size = rd->data_size;
-	u64 page_offset;
 	char **mmaps = rd->mmaps;
 
-	page_offset = page_size * (rd->data_offset / page_size);
-	rd->file_offset = page_offset;
-	rd->head = rd->data_offset - page_offset;
-
+	rd->head = rd->data_offset;
 	data_size += rd->data_offset;
 
 	rd->mmap_size = MMAP_SIZE;
@@ -2229,6 +2225,7 @@ reader__mmap(struct reader *rd, struct perf_session *session)
 {
 	int mmap_prot, mmap_flags;
 	char *buf, **mmaps = rd->mmaps;
+	u64 page_offset;
 
 	mmap_prot  = PROT_READ;
 	mmap_flags = MAP_SHARED;
@@ -2239,6 +2236,15 @@ reader__mmap(struct reader *rd, struct perf_session *session)
 		mmap_prot  |= PROT_WRITE;
 		mmap_flags = MAP_PRIVATE;
 	}
+
+	if (mmaps[rd->mmap_idx]) {
+		munmap(mmaps[rd->mmap_idx], rd->mmap_size);
+		mmaps[rd->mmap_idx] = NULL;
+	}
+
+	page_offset = page_size * (rd->head / page_size);
+	rd->file_offset += page_offset;
+	rd->head -= page_offset;
 
 	buf = mmap(NULL, rd->mmap_size, mmap_prot, mmap_flags, rd->fd,
 		   rd->file_offset);
@@ -2261,9 +2267,8 @@ static int
 reader__process_events(struct reader *rd, struct perf_session *session,
 		       struct ui_progress *prog)
 {
-	u64 page_offset, size;
+	u64 size;
 	int err = 0;
-	char **mmaps = rd->mmaps;
 	union perf_event *event;
 	s64 skip;
 
@@ -2284,17 +2289,8 @@ more:
 	if (IS_ERR(event))
 		return PTR_ERR(event);
 
-	if (!event) {
-		if (mmaps[rd->mmap_idx]) {
-			munmap(mmaps[rd->mmap_idx], rd->mmap_size);
-			mmaps[rd->mmap_idx] = NULL;
-		}
-
-		page_offset = page_size * (rd->head / page_size);
-		rd->file_offset += page_offset;
-		rd->head -= page_offset;
+	if (!event)
 		goto remap;
-	}
 
 	size = event->header.size;
 
