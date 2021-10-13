@@ -129,7 +129,7 @@ void save_fpregs_to_fpstate(struct fpu *fpu)
 	frstor(&fpu->state.fsave);
 }
 
-void restore_fpregs_from_fpstate(union fpregs_state *fpstate, u64 mask)
+void restore_fpregs_from_fpstate(struct fpstate *fpstate, u64 mask)
 {
 	/*
 	 * AMD K7/K8 and later CPUs up to Zen don't save/restore
@@ -146,18 +146,18 @@ void restore_fpregs_from_fpstate(union fpregs_state *fpstate, u64 mask)
 	}
 
 	if (use_xsave()) {
-		os_xrstor(&fpstate->xsave, mask);
+		os_xrstor(&fpstate->regs.xsave, mask);
 	} else {
 		if (use_fxsr())
-			fxrstor(&fpstate->fxsave);
+			fxrstor(&fpstate->regs.fxsave);
 		else
-			frstor(&fpstate->fsave);
+			frstor(&fpstate->regs.fsave);
 	}
 }
 
 void fpu_reset_from_exception_fixup(void)
 {
-	restore_fpregs_from_fpstate(&init_fpstate.regs, xfeatures_mask_fpstate());
+	restore_fpregs_from_fpstate(&init_fpstate, xfeatures_mask_fpstate());
 }
 
 #if IS_ENABLED(CONFIG_KVM)
@@ -176,7 +176,7 @@ void fpu_swap_kvm_fpu(struct fpu *save, struct fpu *rstor, u64 restore_mask)
 
 	if (rstor) {
 		restore_mask &= xfeatures_mask_fpstate();
-		restore_fpregs_from_fpstate(&rstor->state, restore_mask);
+		restore_fpregs_from_fpstate(rstor->fpstate, restore_mask);
 	}
 
 	fpregs_mark_activate();

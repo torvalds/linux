@@ -40,7 +40,7 @@ extern bool copy_fpstate_to_sigframe(void __user *buf, void __user *fp, int size
 extern void fpu__clear_user_states(struct fpu *fpu);
 extern bool fpu__restore_sig(void __user *buf, int ia32_frame);
 
-extern void restore_fpregs_from_fpstate(union fpregs_state *fpstate, u64 mask);
+extern void restore_fpregs_from_fpstate(struct fpstate *fpstate, u64 mask);
 
 extern bool copy_fpstate_to_sigframe(void __user *buf, void __user *fp, int size);
 

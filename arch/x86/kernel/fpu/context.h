@@ -74,7 +74,7 @@ static inline void fpregs_restore_userregs(void)
 		 */
 		mask = xfeatures_mask_restore_user() |
 			xfeatures_mask_supervisor();
-		restore_fpregs_from_fpstate(&fpu->state, mask);
+		restore_fpregs_from_fpstate(fpu->fpstate, mask);
 
 		fpregs_activate(fpu);
 		fpu->last_cpu = cpu;
