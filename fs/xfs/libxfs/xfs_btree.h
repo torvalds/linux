@@ -487,8 +487,10 @@ xfs_failaddr_t xfs_btree_lblock_v5hdr_verify(struct xfs_buf *bp,
 xfs_failaddr_t xfs_btree_lblock_verify(struct xfs_buf *bp,
 		unsigned int max_recs);
 
-uint xfs_btree_compute_maxlevels(uint *limits, unsigned long len);
-unsigned long long xfs_btree_calc_size(uint *limits, unsigned long long len);
+unsigned int xfs_btree_compute_maxlevels(const unsigned int *limits,
+		unsigned long long records);
+unsigned long long xfs_btree_calc_size(const unsigned int *limits,
+		unsigned long long records);
 
 /*
  * Return codes for the query range iterator function are 0 to continue

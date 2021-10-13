@@ -4514,21 +4514,43 @@ xfs_btree_sblock_verify(
 }
 
 /*
- * Calculate the number of btree levels needed to store a given number of
- * records in a short-format btree.
+ * For the given limits on leaf and keyptr records per block, calculate the
+ * height of the tree needed to index the number of leaf records.
  */
-uint
+unsigned int
 xfs_btree_compute_maxlevels(
-	uint			*limits,
-	unsigned long		len)
+	const unsigned int	*limits,
+	unsigned long long	records)
 {
-	uint			level;
-	unsigned long		maxblocks;
+	unsigned long long	level_blocks = howmany_64(records, limits[0]);
+	unsigned int		height = 1;
 
-	maxblocks = (len + limits[0] - 1) / limits[0];
-	for (level = 1; maxblocks > 1; level++)
-		maxblocks = (maxblocks + limits[1] - 1) / limits[1];
-	return level;
+	while (level_blocks > 1) {
+		level_blocks = howmany_64(level_blocks, limits[1]);
+		height++;
+	}
+
+	return height;
+}
+
+/*
+ * For the given limits on leaf and keyptr records per block, calculate the
+ * number of blocks needed to index the given number of leaf records.
+ */
+unsigned long long
+xfs_btree_calc_size(
+	const unsigned int	*limits,
+	unsigned long long	records)
+{
+	unsigned long long	level_blocks = howmany_64(records, limits[0]);
+	unsigned long long	blocks = level_blocks;
+
+	while (level_blocks > 1) {
+		level_blocks = howmany_64(level_blocks, limits[1]);
+		blocks += level_blocks;
+	}
+
+	return blocks;
 }
 
 /*
@@ -4820,29 +4842,6 @@ xfs_btree_query_all(
 	memset(&high_key, 0xFF, sizeof(high_key));
 
 	return xfs_btree_simple_query_range(cur, &low_key, &high_key, fn, priv);
-}
-
-/*
- * Calculate the number of blocks needed to store a given number of records
- * in a short-format (per-AG metadata) btree.
- */
-unsigned long long
-xfs_btree_calc_size(
-	uint			*limits,
-	unsigned long long	len)
-{
-	int			level;
-	int			maxrecs;
-	unsigned long long	rval;
-
-	maxrecs = limits[0];
-	for (level = 0, rval = 0; len > 1; level++) {
-		len += maxrecs - 1;
-		do_div(len, maxrecs);
-		maxrecs = limits[1];
-		rval += len;
-	}
-	return rval;
 }
 
 static int
