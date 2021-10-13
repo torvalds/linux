@@ -3045,7 +3045,7 @@ mpi3mr_print_ioc_info(struct mpi3mr_ioc *mrioc)
 	for (i = 0; i < ARRAY_SIZE(mpi3mr_protocols); i++) {
 		if (mrioc->facts.protocol_flags &
 		    mpi3mr_protocols[i].protocol) {
-			bytes_written += snprintf(protocol + bytes_written,
+			bytes_written += scnprintf(protocol + bytes_written,
 				    sizeof(protocol) - bytes_written, "%s%s",
 				    bytes_written ? "," : "",
 				    mpi3mr_protocols[i].name);
@@ -3056,7 +3056,7 @@ mpi3mr_print_ioc_info(struct mpi3mr_ioc *mrioc)
 	for (i = 0; i < ARRAY_SIZE(mpi3mr_capabilities); i++) {
 		if (mrioc->facts.protocol_flags &
 		    mpi3mr_capabilities[i].capability) {
-			bytes_written += snprintf(capabilities + bytes_written,
+			bytes_written += scnprintf(capabilities + bytes_written,
 				    sizeof(capabilities) - bytes_written, "%s%s",
 				    bytes_written ? "," : "",
 				    mpi3mr_capabilities[i].name);
