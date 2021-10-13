@@ -19,5 +19,6 @@ obj-$(CONFIG_BMA2XX_ACC)	+= bma2xx.o
 obj-$(CONFIG_STK8BAXX_ACC)	+= stk8baxx.o
 obj-$(CONFIG_GS_DA215S)		+= da215s/
 obj-$(CONFIG_GS_DA223)		+= da223.o
+obj-$(CONFIG_GS_DA228E)		+= da228e/
 obj-$(CONFIG_ICM2060X_ACC)	+= icm2060x_acc.o
 da223-y	:= da223_cust.o da223_core.o
