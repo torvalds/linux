@@ -179,7 +179,7 @@ static void remove_common(struct virtio_device *vdev)
 	vi->data_avail = 0;
 	vi->data_idx = 0;
 	complete(&vi->have_data);
-	vdev->config->reset(vdev);
+	virtio_reset_device(vdev);
 	if (vi->hwrng_register_done)
 		hwrng_unregister(&vi->hwrng);
 	vdev->config->del_vqs(vdev);
