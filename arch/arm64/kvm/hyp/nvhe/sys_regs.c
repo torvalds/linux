@@ -82,7 +82,7 @@ static u64 get_restricted_features_unsigned(u64 sys_reg_val,
  * based on allowed features, system features, and KVM support.
  */
 
-u64 get_pvm_id_aa64pfr0(const struct kvm_vcpu *vcpu)
+static u64 get_pvm_id_aa64pfr0(const struct kvm_vcpu *vcpu)
 {
 	const struct kvm *kvm = (const struct kvm *)kern_hyp_va(vcpu->kvm);
 	u64 set_mask = 0;
@@ -103,7 +103,7 @@ u64 get_pvm_id_aa64pfr0(const struct kvm_vcpu *vcpu)
 	return (id_aa64pfr0_el1_sys_val & allow_mask) | set_mask;
 }
 
-u64 get_pvm_id_aa64pfr1(const struct kvm_vcpu *vcpu)
+static u64 get_pvm_id_aa64pfr1(const struct kvm_vcpu *vcpu)
 {
 	const struct kvm *kvm = (const struct kvm *)kern_hyp_va(vcpu->kvm);
 	u64 allow_mask = PVM_ID_AA64PFR1_ALLOW;
@@ -114,7 +114,7 @@ u64 get_pvm_id_aa64pfr1(const struct kvm_vcpu *vcpu)
 	return id_aa64pfr1_el1_sys_val & allow_mask;
 }
 
-u64 get_pvm_id_aa64zfr0(const struct kvm_vcpu *vcpu)
+static u64 get_pvm_id_aa64zfr0(const struct kvm_vcpu *vcpu)
 {
 	/*
 	 * No support for Scalable Vectors, therefore, hyp has no sanitized
@@ -124,7 +124,7 @@ u64 get_pvm_id_aa64zfr0(const struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-u64 get_pvm_id_aa64dfr0(const struct kvm_vcpu *vcpu)
+static u64 get_pvm_id_aa64dfr0(const struct kvm_vcpu *vcpu)
 {
 	/*
 	 * No support for debug, including breakpoints, and watchpoints,
@@ -134,7 +134,7 @@ u64 get_pvm_id_aa64dfr0(const struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-u64 get_pvm_id_aa64dfr1(const struct kvm_vcpu *vcpu)
+static u64 get_pvm_id_aa64dfr1(const struct kvm_vcpu *vcpu)
 {
 	/*
 	 * No support for debug, therefore, hyp has no sanitized copy of the
@@ -144,7 +144,7 @@ u64 get_pvm_id_aa64dfr1(const struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-u64 get_pvm_id_aa64afr0(const struct kvm_vcpu *vcpu)
+static u64 get_pvm_id_aa64afr0(const struct kvm_vcpu *vcpu)
 {
 	/*
 	 * No support for implementation defined features, therefore, hyp has no
@@ -154,7 +154,7 @@ u64 get_pvm_id_aa64afr0(const struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-u64 get_pvm_id_aa64afr1(const struct kvm_vcpu *vcpu)
+static u64 get_pvm_id_aa64afr1(const struct kvm_vcpu *vcpu)
 {
 	/*
 	 * No support for implementation defined features, therefore, hyp has no
@@ -164,12 +164,12 @@ u64 get_pvm_id_aa64afr1(const struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-u64 get_pvm_id_aa64isar0(const struct kvm_vcpu *vcpu)
+static u64 get_pvm_id_aa64isar0(const struct kvm_vcpu *vcpu)
 {
 	return id_aa64isar0_el1_sys_val & PVM_ID_AA64ISAR0_ALLOW;
 }
 
-u64 get_pvm_id_aa64isar1(const struct kvm_vcpu *vcpu)
+static u64 get_pvm_id_aa64isar1(const struct kvm_vcpu *vcpu)
 {
 	u64 allow_mask = PVM_ID_AA64ISAR1_ALLOW;
 
@@ -182,7 +182,7 @@ u64 get_pvm_id_aa64isar1(const struct kvm_vcpu *vcpu)
 	return id_aa64isar1_el1_sys_val & allow_mask;
 }
 
-u64 get_pvm_id_aa64mmfr0(const struct kvm_vcpu *vcpu)
+static u64 get_pvm_id_aa64mmfr0(const struct kvm_vcpu *vcpu)
 {
 	u64 set_mask;
 
@@ -192,22 +192,19 @@ u64 get_pvm_id_aa64mmfr0(const struct kvm_vcpu *vcpu)
 	return (id_aa64mmfr0_el1_sys_val & PVM_ID_AA64MMFR0_ALLOW) | set_mask;
 }
 
-u64 get_pvm_id_aa64mmfr1(const struct kvm_vcpu *vcpu)
+static u64 get_pvm_id_aa64mmfr1(const struct kvm_vcpu *vcpu)
 {
 	return id_aa64mmfr1_el1_sys_val & PVM_ID_AA64MMFR1_ALLOW;
 }
 
-u64 get_pvm_id_aa64mmfr2(const struct kvm_vcpu *vcpu)
+static u64 get_pvm_id_aa64mmfr2(const struct kvm_vcpu *vcpu)
 {
 	return id_aa64mmfr2_el1_sys_val & PVM_ID_AA64MMFR2_ALLOW;
 }
 
-/* Read a sanitized cpufeature ID register by its sys_reg_desc. */
-static u64 read_id_reg(const struct kvm_vcpu *vcpu,
-		       struct sys_reg_desc const *r)
+/* Read a sanitized cpufeature ID register by its encoding */
+u64 pvm_read_id_reg(const struct kvm_vcpu *vcpu, u32 id)
 {
-	u32 id = reg_to_encoding(r);
-
 	switch (id) {
 	case SYS_ID_AA64PFR0_EL1:
 		return get_pvm_id_aa64pfr0(vcpu);
@@ -243,6 +240,12 @@ static u64 read_id_reg(const struct kvm_vcpu *vcpu,
 	}
 
 	return 0;
+}
+
+static u64 read_id_reg(const struct kvm_vcpu *vcpu,
+		       struct sys_reg_desc const *r)
+{
+	return pvm_read_id_reg(vcpu, reg_to_encoding(r));
 }
 
 /*

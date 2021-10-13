@@ -15,7 +15,7 @@
  */
 static void pvm_init_traps_aa64pfr0(struct kvm_vcpu *vcpu)
 {
-	const u64 feature_ids = get_pvm_id_aa64pfr0(vcpu);
+	const u64 feature_ids = pvm_read_id_reg(vcpu, SYS_ID_AA64PFR0_EL1);
 	u64 hcr_set = HCR_RW;
 	u64 hcr_clear = 0;
 	u64 cptr_set = 0;
@@ -62,7 +62,7 @@ static void pvm_init_traps_aa64pfr0(struct kvm_vcpu *vcpu)
  */
 static void pvm_init_traps_aa64pfr1(struct kvm_vcpu *vcpu)
 {
-	const u64 feature_ids = get_pvm_id_aa64pfr1(vcpu);
+	const u64 feature_ids = pvm_read_id_reg(vcpu, SYS_ID_AA64PFR1_EL1);
 	u64 hcr_set = 0;
 	u64 hcr_clear = 0;
 
@@ -81,7 +81,7 @@ static void pvm_init_traps_aa64pfr1(struct kvm_vcpu *vcpu)
  */
 static void pvm_init_traps_aa64dfr0(struct kvm_vcpu *vcpu)
 {
-	const u64 feature_ids = get_pvm_id_aa64dfr0(vcpu);
+	const u64 feature_ids = pvm_read_id_reg(vcpu, SYS_ID_AA64DFR0_EL1);
 	u64 mdcr_set = 0;
 	u64 mdcr_clear = 0;
 	u64 cptr_set = 0;
@@ -125,7 +125,7 @@ static void pvm_init_traps_aa64dfr0(struct kvm_vcpu *vcpu)
  */
 static void pvm_init_traps_aa64mmfr0(struct kvm_vcpu *vcpu)
 {
-	const u64 feature_ids = get_pvm_id_aa64mmfr0(vcpu);
+	const u64 feature_ids = pvm_read_id_reg(vcpu, SYS_ID_AA64MMFR0_EL1);
 	u64 mdcr_set = 0;
 
 	/* Trap Debug Communications Channel registers */
@@ -140,7 +140,7 @@ static void pvm_init_traps_aa64mmfr0(struct kvm_vcpu *vcpu)
  */
 static void pvm_init_traps_aa64mmfr1(struct kvm_vcpu *vcpu)
 {
-	const u64 feature_ids = get_pvm_id_aa64mmfr1(vcpu);
+	const u64 feature_ids = pvm_read_id_reg(vcpu, SYS_ID_AA64MMFR1_EL1);
 	u64 hcr_set = 0;
 
 	/* Trap LOR */
