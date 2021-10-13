@@ -1223,7 +1223,7 @@ int rvt_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init_attr,
 	spin_lock(&rdi->n_qps_lock);
 	if (rdi->n_qps_allocated == rdi->dparms.props.max_qp) {
 		spin_unlock(&rdi->n_qps_lock);
-		ret = ENOMEM;
+		ret = -ENOMEM;
 		goto bail_ip;
 	}
 
