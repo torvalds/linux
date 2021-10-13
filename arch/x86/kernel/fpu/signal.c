@@ -349,7 +349,6 @@ static bool __fpu_restore_sig(void __user *buf, void __user *buf_fx,
 	if (__copy_from_user(&env, buf, sizeof(env)))
 		return false;
 
-	fpregs = &fpu->fpstate->regs;
 	/*
 	 * By setting TIF_NEED_FPU_LOAD it is ensured that our xstate is
 	 * not modified on context switch and that the xstate is considered
@@ -367,13 +366,14 @@ static bool __fpu_restore_sig(void __user *buf, void __user *buf_fx,
 		 * the right place in memory. It's ia32 mode. Shrug.
 		 */
 		if (xfeatures_mask_supervisor())
-			os_xsave(&fpregs->xsave);
+			os_xsave(fpu->fpstate);
 		set_thread_flag(TIF_NEED_FPU_LOAD);
 	}
 	__fpu_invalidate_fpregs_state(fpu);
 	__cpu_invalidate_fpregs_state();
 	fpregs_unlock();
 
+	fpregs = &fpu->fpstate->regs;
 	if (use_xsave() && !fx_only) {
 		if (copy_sigframe_from_user_to_xstate(&fpregs->xsave, buf_fx))
 			return false;

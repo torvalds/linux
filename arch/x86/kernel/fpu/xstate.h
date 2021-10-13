@@ -101,16 +101,16 @@ extern void *get_xsave_addr(struct xregs_state *xsave, int xfeature_nr);
  * Uses either XSAVE or XSAVEOPT or XSAVES depending on the CPU features
  * and command line options. The choice is permanent until the next reboot.
  */
-static inline void os_xsave(struct xregs_state *xstate)
+static inline void os_xsave(struct fpstate *fpstate)
 {
-	u64 mask = xfeatures_mask_all;
+	u64 mask = fpstate->xfeatures;
 	u32 lmask = mask;
 	u32 hmask = mask >> 32;
 	int err;
 
 	WARN_ON_FPU(!alternatives_patched);
 
-	XSTATE_XSAVE(xstate, lmask, hmask, err);
+	XSTATE_XSAVE(&fpstate->regs.xsave, lmask, hmask, err);
 
 	/* We should never fault when copying to a kernel buffer: */
 	WARN_ON_FPU(err);
