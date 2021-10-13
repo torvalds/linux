@@ -415,18 +415,16 @@ nfssvc_decode_readdirargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
  */
 
 int
-nfssvc_encode_statres(struct svc_rqst *rqstp, __be32 *p)
+nfssvc_encode_statres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
-	struct xdr_stream *xdr = &rqstp->rq_res_stream;
 	struct nfsd_stat *resp = rqstp->rq_resp;
 
 	return svcxdr_encode_stat(xdr, resp->status);
 }
 
 int
-nfssvc_encode_attrstatres(struct svc_rqst *rqstp, __be32 *p)
+nfssvc_encode_attrstatres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
-	struct xdr_stream *xdr = &rqstp->rq_res_stream;
 	struct nfsd_attrstat *resp = rqstp->rq_resp;
 
 	if (!svcxdr_encode_stat(xdr, resp->status))
@@ -442,9 +440,8 @@ nfssvc_encode_attrstatres(struct svc_rqst *rqstp, __be32 *p)
 }
 
 int
-nfssvc_encode_diropres(struct svc_rqst *rqstp, __be32 *p)
+nfssvc_encode_diropres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
-	struct xdr_stream *xdr = &rqstp->rq_res_stream;
 	struct nfsd_diropres *resp = rqstp->rq_resp;
 
 	if (!svcxdr_encode_stat(xdr, resp->status))
@@ -462,9 +459,8 @@ nfssvc_encode_diropres(struct svc_rqst *rqstp, __be32 *p)
 }
 
 int
-nfssvc_encode_readlinkres(struct svc_rqst *rqstp, __be32 *p)
+nfssvc_encode_readlinkres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
-	struct xdr_stream *xdr = &rqstp->rq_res_stream;
 	struct nfsd_readlinkres *resp = rqstp->rq_resp;
 	struct kvec *head = rqstp->rq_res.head;
 
@@ -484,9 +480,8 @@ nfssvc_encode_readlinkres(struct svc_rqst *rqstp, __be32 *p)
 }
 
 int
-nfssvc_encode_readres(struct svc_rqst *rqstp, __be32 *p)
+nfssvc_encode_readres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
-	struct xdr_stream *xdr = &rqstp->rq_res_stream;
 	struct nfsd_readres *resp = rqstp->rq_resp;
 	struct kvec *head = rqstp->rq_res.head;
 
@@ -509,9 +504,8 @@ nfssvc_encode_readres(struct svc_rqst *rqstp, __be32 *p)
 }
 
 int
-nfssvc_encode_readdirres(struct svc_rqst *rqstp, __be32 *p)
+nfssvc_encode_readdirres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
-	struct xdr_stream *xdr = &rqstp->rq_res_stream;
 	struct nfsd_readdirres *resp = rqstp->rq_resp;
 	struct xdr_buf *dirlist = &resp->dirlist;
 
@@ -532,11 +526,11 @@ nfssvc_encode_readdirres(struct svc_rqst *rqstp, __be32 *p)
 }
 
 int
-nfssvc_encode_statfsres(struct svc_rqst *rqstp, __be32 *p)
+nfssvc_encode_statfsres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
-	struct xdr_stream *xdr = &rqstp->rq_res_stream;
 	struct nfsd_statfsres *resp = rqstp->rq_resp;
 	struct kstatfs	*stat = &resp->stats;
+	__be32 *p;
 
 	if (!svcxdr_encode_stat(xdr, resp->status))
 		return 0;

@@ -5427,10 +5427,11 @@ nfs4svc_decode_compoundargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 }
 
 int
-nfs4svc_encode_compoundres(struct svc_rqst *rqstp, __be32 *p)
+nfs4svc_encode_compoundres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd4_compoundres *resp = rqstp->rq_resp;
-	struct xdr_buf *buf = resp->xdr->buf;
+	struct xdr_buf *buf = xdr->buf;
+	__be32 *p;
 
 	WARN_ON_ONCE(buf->len != buf->head[0].iov_len + buf->page_len +
 				 buf->tail[0].iov_len);
@@ -5443,7 +5444,7 @@ nfs4svc_encode_compoundres(struct svc_rqst *rqstp, __be32 *p)
 
 	*p++ = resp->cstate.status;
 
-	rqstp->rq_next_page = resp->xdr->page_ptr + 1;
+	rqstp->rq_next_page = xdr->page_ptr + 1;
 
 	*p++ = htonl(resp->taglen);
 	memcpy(p, resp->tag, resp->taglen);
