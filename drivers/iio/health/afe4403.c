@@ -589,10 +589,8 @@ static int afe4403_remove(struct spi_device *spi)
 		iio_trigger_unregister(afe->trig);
 
 	ret = regulator_disable(afe->regulator);
-	if (ret) {
-		dev_err(afe->dev, "Unable to disable regulator\n");
-		return ret;
-	}
+	if (ret)
+		dev_warn(afe->dev, "Unable to disable regulator\n");
 
 	return 0;
 }
