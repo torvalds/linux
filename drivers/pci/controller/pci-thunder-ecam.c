@@ -17,7 +17,7 @@ static void set_val(u32 v, int where, int size, u32 *val)
 {
 	int shift = (where & 3) * 8;
 
-	pr_debug("set_val %04x: %08x\n", (unsigned)(where & ~3), v);
+	pr_debug("set_val %04x: %08x\n", (unsigned int)(where & ~3), v);
 	v >>= shift;
 	if (size == 1)
 		v &= 0xff;
@@ -187,7 +187,7 @@ static int thunder_ecam_config_read(struct pci_bus *bus, unsigned int devfn,
 
 	pr_debug("%04x:%04x - Fix pass#: %08x, where: %03x, devfn: %03x\n",
 		 vendor_device & 0xffff, vendor_device >> 16, class_rev,
-		 (unsigned) where, devfn);
+		 (unsigned int)where, devfn);
 
 	/* Check for non type-00 header */
 	if (cfg_type == 0) {
