@@ -191,7 +191,6 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_RT715_SDCA_SDW
 	imply SND_SOC_RT1308_SDW
 	imply SND_SOC_RT1316_SDW
-	imply SND_SOC_RT9120
 	imply SND_SOC_SDW_MOCKUP
 	imply SND_SOC_SGTL5000
 	imply SND_SOC_SI476X
@@ -1307,15 +1306,6 @@ config SND_SOC_RT715_SDCA_SDW
 	depends on SOUNDWIRE
 	select REGMAP_SOUNDWIRE
 	select REGMAP_SOUNDWIRE_MBQ
-
-config SND_SOC_RT9120
-	tristate "Richtek RT9120 Stereo Class-D Amplifier"
-	depends on I2C
-	select REGMAP_I2C
-	select GPIOLIB
-	help
-	  Enable support for Richtek RT9120 20W, stereo, inductor-less,
-	  high-efficiency Class-D audio amplifier.
 
 config SND_SOC_SDW_MOCKUP
 	tristate "SoundWire mockup codec"
