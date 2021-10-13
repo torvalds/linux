@@ -820,6 +820,28 @@ void mhi_pm_st_worker(struct work_struct *work)
 	}
 }
 
+static bool mhi_in_rddm(struct mhi_controller *mhi_cntrl)
+{
+	struct device *dev = &mhi_cntrl->mhi_dev->dev;
+
+	if (mhi_cntrl->rddm_image && mhi_get_exec_env(mhi_cntrl) == MHI_EE_RDDM
+	    && mhi_is_active(mhi_cntrl)) {
+		mhi_cntrl->ee = MHI_EE_RDDM;
+
+		MHI_ERR(dev, "RDDM event occurred!\n");
+
+		/* notify critical clients with early notifications */
+		mhi_report_error(mhi_cntrl);
+
+		mhi_cntrl->status_cb(mhi_cntrl, MHI_CB_EE_RDDM);
+		wake_up_all(&mhi_cntrl->state_event);
+
+		return true;
+	}
+
+	return false;
+}
+
 int mhi_pm_suspend(struct mhi_controller *mhi_cntrl)
 {
 	struct mhi_chan *itr, *tmp;
@@ -935,6 +957,9 @@ static int __mhi_pm_resume(struct mhi_controller *mhi_cntrl, bool force)
 	if (mhi_get_mhi_state(mhi_cntrl) != MHI_STATE_M3)
 		panic("mhi_pm_state != M3");
 
+	if (mhi_in_rddm(mhi_cntrl))
+		return 0;
+
 	/* Notify clients about exiting LPM */
 	list_for_each_entry_safe(itr, tmp, &mhi_cntrl->lpm_chans, node) {
 		mutex_lock(&itr->mutex);
@@ -965,6 +990,8 @@ static int __mhi_pm_resume(struct mhi_controller *mhi_cntrl, bool force)
 				 msecs_to_jiffies(mhi_cntrl->timeout_ms));
 
 	if (!ret || MHI_PM_IN_ERROR_STATE(mhi_cntrl->pm_state)) {
+		if (mhi_in_rddm(mhi_cntrl))
+			return 0;
 		dev_err(dev,
 			"Did not enter M0 state, MHI state: %s, PM state: %s\n",
 			mhi_state_str(mhi_cntrl->dev_state),
