@@ -540,8 +540,10 @@ static int ddebug_exec_queries(char *query, const char *modname)
 		}
 		i++;
 	}
-	vpr_info("processed %d queries, with %d matches, %d errs\n",
-		 i, nfound, errs);
+
+	if (i)
+		vpr_info("processed %d queries, with %d matches, %d errs\n",
+			 i, nfound, errs);
 
 	if (exitcode)
 		return exitcode;
