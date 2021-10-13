@@ -1019,7 +1019,7 @@ qca8k_parse_port_config(struct qca8k_priv *priv)
 				delay = 3;
 			}
 
-			priv->rgmii_tx_delay[cpu_port_index] = delay;
+			priv->ports_config.rgmii_tx_delay[cpu_port_index] = delay;
 
 			delay = 0;
 
@@ -1035,7 +1035,7 @@ qca8k_parse_port_config(struct qca8k_priv *priv)
 				delay = 3;
 			}
 
-			priv->rgmii_rx_delay[cpu_port_index] = delay;
+			priv->ports_config.rgmii_rx_delay[cpu_port_index] = delay;
 
 			/* Skip sgmii parsing for rgmii* mode */
 			if (mode == PHY_INTERFACE_MODE_RGMII ||
@@ -1045,17 +1045,17 @@ qca8k_parse_port_config(struct qca8k_priv *priv)
 				break;
 
 			if (of_property_read_bool(port_dn, "qca,sgmii-txclk-falling-edge"))
-				priv->sgmii_tx_clk_falling_edge = true;
+				priv->ports_config.sgmii_tx_clk_falling_edge = true;
 
 			if (of_property_read_bool(port_dn, "qca,sgmii-rxclk-falling-edge"))
-				priv->sgmii_rx_clk_falling_edge = true;
+				priv->ports_config.sgmii_rx_clk_falling_edge = true;
 
 			if (of_property_read_bool(port_dn, "qca,sgmii-enable-pll")) {
-				priv->sgmii_enable_pll = true;
+				priv->ports_config.sgmii_enable_pll = true;
 
 				if (priv->switch_id == QCA8K_ID_QCA8327) {
 					dev_err(priv->dev, "SGMII PLL should NOT be enabled for qca8327. Aborting enabling");
-					priv->sgmii_enable_pll = false;
+					priv->ports_config.sgmii_enable_pll = false;
 				}
 
 				if (priv->switch_revision < 2)
@@ -1281,15 +1281,15 @@ qca8k_mac_config_setup_internal_delay(struct qca8k_priv *priv, int cpu_port_inde
 	 * not enabled. With ID or TX/RXID delay is enabled and set
 	 * to the default and recommended value.
 	 */
-	if (priv->rgmii_tx_delay[cpu_port_index]) {
-		delay = priv->rgmii_tx_delay[cpu_port_index];
+	if (priv->ports_config.rgmii_tx_delay[cpu_port_index]) {
+		delay = priv->ports_config.rgmii_tx_delay[cpu_port_index];
 
 		val |= QCA8K_PORT_PAD_RGMII_TX_DELAY(delay) |
 			QCA8K_PORT_PAD_RGMII_TX_DELAY_EN;
 	}
 
-	if (priv->rgmii_rx_delay[cpu_port_index]) {
-		delay = priv->rgmii_rx_delay[cpu_port_index];
+	if (priv->ports_config.rgmii_rx_delay[cpu_port_index]) {
+		delay = priv->ports_config.rgmii_rx_delay[cpu_port_index];
 
 		val |= QCA8K_PORT_PAD_RGMII_RX_DELAY(delay) |
 			QCA8K_PORT_PAD_RGMII_RX_DELAY_EN;
@@ -1397,7 +1397,7 @@ qca8k_phylink_mac_config(struct dsa_switch *ds, int port, unsigned int mode,
 
 		val |= QCA8K_SGMII_EN_SD;
 
-		if (priv->sgmii_enable_pll)
+		if (priv->ports_config.sgmii_enable_pll)
 			val |= QCA8K_SGMII_EN_PLL | QCA8K_SGMII_EN_RX |
 			       QCA8K_SGMII_EN_TX;
 
@@ -1425,10 +1425,10 @@ qca8k_phylink_mac_config(struct dsa_switch *ds, int port, unsigned int mode,
 		val = 0;
 
 		/* SGMII Clock phase configuration */
-		if (priv->sgmii_rx_clk_falling_edge)
+		if (priv->ports_config.sgmii_rx_clk_falling_edge)
 			val |= QCA8K_PORT0_PAD_SGMII_RXCLK_FALLING_EDGE;
 
-		if (priv->sgmii_tx_clk_falling_edge)
+		if (priv->ports_config.sgmii_tx_clk_falling_edge)
 			val |= QCA8K_PORT0_PAD_SGMII_TXCLK_FALLING_EDGE;
 
 		if (val)

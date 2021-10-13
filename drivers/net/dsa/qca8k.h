@@ -270,15 +270,19 @@ enum {
 	QCA8K_CPU_PORT6,
 };
 
-struct qca8k_priv {
-	u8 switch_id;
-	u8 switch_revision;
+struct qca8k_ports_config {
 	bool sgmii_rx_clk_falling_edge;
 	bool sgmii_tx_clk_falling_edge;
 	bool sgmii_enable_pll;
 	u8 rgmii_rx_delay[QCA8K_NUM_CPU_PORTS]; /* 0: CPU port0, 1: CPU port6 */
 	u8 rgmii_tx_delay[QCA8K_NUM_CPU_PORTS]; /* 0: CPU port0, 1: CPU port6 */
+};
+
+struct qca8k_priv {
+	u8 switch_id;
+	u8 switch_revision;
 	bool legacy_phy_port_mapping;
+	struct qca8k_ports_config ports_config;
 	struct regmap *regmap;
 	struct mii_bus *bus;
 	struct ar8xxx_port_status port_sts[QCA8K_NUM_PORTS];
