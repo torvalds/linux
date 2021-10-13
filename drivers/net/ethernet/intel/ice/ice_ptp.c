@@ -6,6 +6,8 @@
 
 #define E810_OUT_PROP_DELAY_NS 1
 
+#define UNKNOWN_INCVAL_E822 0x100000000ULL
+
 static const struct ptp_pin_desc ice_pin_desc_e810t[] = {
 	/* name    idx   func         chan */
 	{ "GNSS",  GNSS, PTP_PF_EXTTS, 0, { 0, } },
@@ -689,7 +691,200 @@ static int ice_ptp_write_adj(struct ice_pf *pf, s32 adj)
  */
 static u64 ice_base_incval(struct ice_pf *pf)
 {
-	return ICE_PTP_NOMINAL_INCVAL_E810;
+	struct ice_hw *hw = &pf->hw;
+	u64 incval;
+
+	if (ice_is_e810(hw))
+		incval = ICE_PTP_NOMINAL_INCVAL_E810;
+	else if (ice_e822_time_ref(hw) < NUM_ICE_TIME_REF_FREQ)
+		incval = ice_e822_nominal_incval(ice_e822_time_ref(hw));
+	else
+		incval = UNKNOWN_INCVAL_E822;
+
+	dev_dbg(ice_pf_to_dev(pf), "PTP: using base increment value of 0x%016llx\n",
+		incval);
+
+	return incval;
+}
+
+/**
+ * ice_ptp_reset_ts_memory_quad - Reset timestamp memory for one quad
+ * @pf: The PF private data structure
+ * @quad: The quad (0-4)
+ */
+static void ice_ptp_reset_ts_memory_quad(struct ice_pf *pf, int quad)
+{
+	struct ice_hw *hw = &pf->hw;
+
+	ice_write_quad_reg_e822(hw, quad, Q_REG_TS_CTRL, Q_REG_TS_CTRL_M);
+	ice_write_quad_reg_e822(hw, quad, Q_REG_TS_CTRL, ~(u32)Q_REG_TS_CTRL_M);
+}
+
+/**
+ * ice_ptp_port_phy_stop - Stop timestamping for a PHY port
+ * @ptp_port: PTP port to stop
+ */
+static int
+ice_ptp_port_phy_stop(struct ice_ptp_port *ptp_port)
+{
+	struct ice_pf *pf = ptp_port_to_pf(ptp_port);
+	u8 port = ptp_port->port_num;
+	struct ice_hw *hw = &pf->hw;
+	int err;
+
+	if (ice_is_e810(hw))
+		return 0;
+
+	mutex_lock(&ptp_port->ps_lock);
+
+	err = ice_stop_phy_timer_e822(hw, port, true);
+	if (err)
+		dev_err(ice_pf_to_dev(pf), "PTP failed to set PHY port %d down, err %d\n",
+			port, err);
+
+	mutex_unlock(&ptp_port->ps_lock);
+
+	return err;
+}
+
+/**
+ * ice_ptp_port_phy_restart - (Re)start and calibrate PHY timestamping
+ * @ptp_port: PTP port for which the PHY start is set
+ *
+ * Start the PHY timestamping block, and initiate Vernier timestamping
+ * calibration. If timestamping cannot be calibrated (such as if link is down)
+ * then disable the timestamping block instead.
+ */
+static int
+ice_ptp_port_phy_restart(struct ice_ptp_port *ptp_port)
+{
+	struct ice_pf *pf = ptp_port_to_pf(ptp_port);
+	u8 port = ptp_port->port_num;
+	struct ice_hw *hw = &pf->hw;
+	int err;
+
+	if (ice_is_e810(hw))
+		return 0;
+
+	if (!ptp_port->link_up)
+		return ice_ptp_port_phy_stop(ptp_port);
+
+	mutex_lock(&ptp_port->ps_lock);
+
+	/* temporarily disable Tx timestamps while calibrating PHY offset */
+	ptp_port->tx.calibrating = true;
+
+	/* Start the PHY timer in bypass mode */
+	err = ice_start_phy_timer_e822(hw, port, true);
+	if (err)
+		goto out_unlock;
+
+	/* Enable Tx timestamps right away */
+	ptp_port->tx.calibrating = false;
+
+out_unlock:
+	if (err)
+		dev_err(ice_pf_to_dev(pf), "PTP failed to set PHY port %d up, err %d\n",
+			port, err);
+
+	mutex_unlock(&ptp_port->ps_lock);
+
+	return err;
+}
+
+/**
+ * ice_ptp_link_change - Set or clear port registers for timestamping
+ * @pf: Board private structure
+ * @port: Port for which the PHY start is set
+ * @linkup: Link is up or down
+ */
+int ice_ptp_link_change(struct ice_pf *pf, u8 port, bool linkup)
+{
+	struct ice_ptp_port *ptp_port;
+
+	if (!test_bit(ICE_FLAG_PTP_SUPPORTED, pf->flags))
+		return 0;
+
+	if (port >= ICE_NUM_EXTERNAL_PORTS)
+		return -EINVAL;
+
+	ptp_port = &pf->ptp.port;
+	if (ptp_port->port_num != port)
+		return -EINVAL;
+
+	/* Update cached link err for this port immediately */
+	ptp_port->link_up = linkup;
+
+	if (!test_bit(ICE_FLAG_PTP, pf->flags))
+		/* PTP is not setup */
+		return -EAGAIN;
+
+	return ice_ptp_port_phy_restart(ptp_port);
+}
+
+/**
+ * ice_ptp_reset_ts_memory - Reset timestamp memory for all quads
+ * @pf: The PF private data structure
+ */
+static void ice_ptp_reset_ts_memory(struct ice_pf *pf)
+{
+	int quad;
+
+	quad = pf->hw.port_info->lport / ICE_PORTS_PER_QUAD;
+	ice_ptp_reset_ts_memory_quad(pf, quad);
+}
+
+/**
+ * ice_ptp_tx_ena_intr - Enable or disable the Tx timestamp interrupt
+ * @pf: PF private structure
+ * @ena: bool value to enable or disable interrupt
+ * @threshold: Minimum number of packets at which intr is triggered
+ *
+ * Utility function to enable or disable Tx timestamp interrupt and threshold
+ */
+static int ice_ptp_tx_ena_intr(struct ice_pf *pf, bool ena, u32 threshold)
+{
+	struct ice_hw *hw = &pf->hw;
+	int err = 0;
+	int quad;
+	u32 val;
+
+	ice_ptp_reset_ts_memory(pf);
+
+	for (quad = 0; quad < ICE_MAX_QUAD; quad++) {
+		err = ice_read_quad_reg_e822(hw, quad, Q_REG_TX_MEM_GBL_CFG,
+					     &val);
+		if (err)
+			break;
+
+		if (ena) {
+			val |= Q_REG_TX_MEM_GBL_CFG_INTR_ENA_M;
+			val &= ~Q_REG_TX_MEM_GBL_CFG_INTR_THR_M;
+			val |= ((threshold << Q_REG_TX_MEM_GBL_CFG_INTR_THR_S) &
+				Q_REG_TX_MEM_GBL_CFG_INTR_THR_M);
+		} else {
+			val &= ~Q_REG_TX_MEM_GBL_CFG_INTR_ENA_M;
+		}
+
+		err = ice_write_quad_reg_e822(hw, quad, Q_REG_TX_MEM_GBL_CFG,
+					      val);
+		if (err)
+			break;
+	}
+
+	if (err)
+		dev_err(ice_pf_to_dev(pf), "PTP failed in intr ena, err %d\n",
+			err);
+	return err;
+}
+
+/**
+ * ice_ptp_reset_phy_timestamping - Reset PHY timestamping block
+ * @pf: Board private structure
+ */
+static void ice_ptp_reset_phy_timestamping(struct ice_pf *pf)
+{
+	ice_ptp_port_phy_restart(&pf->ptp.port);
 }
 
 /**
@@ -916,7 +1111,10 @@ static int ice_ptp_cfg_clkout(struct ice_pf *pf, unsigned int chan,
 		start_time = div64_u64(current_time + NSEC_PER_SEC - 1,
 				       NSEC_PER_SEC) * NSEC_PER_SEC + phase;
 
-	start_time -= E810_OUT_PROP_DELAY_NS;
+	if (ice_is_e810(hw))
+		start_time -= E810_OUT_PROP_DELAY_NS;
+	else
+		start_time -= ice_e822_pps_delay(ice_e822_time_ref(hw));
 
 	/* 2. Write TARGET time */
 	wr32(hw, GLTSYN_TGT_L(chan, tmr_idx), lower_32_bits(start_time));
@@ -1099,6 +1297,12 @@ ice_ptp_settime64(struct ptp_clock_info *info, const struct timespec64 *ts)
 	struct ice_hw *hw = &pf->hw;
 	int err;
 
+	/* For Vernier mode, we need to recalibrate after new settime
+	 * Start with disabling timestamp block
+	 */
+	if (pf->ptp.port.link_up)
+		ice_ptp_port_phy_stop(&pf->ptp.port);
+
 	if (!ice_ptp_lock(hw)) {
 		err = -EBUSY;
 		goto exit;
@@ -1115,6 +1319,10 @@ ice_ptp_settime64(struct ptp_clock_info *info, const struct timespec64 *ts)
 
 	/* Reenable periodic outputs */
 	ice_ptp_enable_all_clkout(pf);
+
+	/* Recalibrate and re-enable timestamp block */
+	if (pf->ptp.port.link_up)
+		ice_ptp_port_phy_restart(&pf->ptp.port);
 exit:
 	if (err) {
 		dev_err(ice_pf_to_dev(pf), "PTP failed to set time %d\n", err);
@@ -1447,7 +1655,8 @@ static void ice_ptp_set_caps(struct ice_pf *pf)
 	info->gettimex64 = ice_ptp_gettimex64;
 	info->settime64 = ice_ptp_settime64;
 
-	ice_ptp_set_funcs_e810(pf, info);
+	if (ice_is_e810(&pf->hw))
+		ice_ptp_set_funcs_e810(pf, info);
 }
 
 /**
@@ -1594,7 +1803,7 @@ s8 ice_ptp_request_ts(struct ice_ptp_tx *tx, struct sk_buff *skb)
 	u8 idx;
 
 	/* Check if this tracker is initialized */
-	if (!tx->init)
+	if (!tx->init || tx->calibrating)
 		return -1;
 
 	spin_lock(&tx->lock);
@@ -1717,6 +1926,27 @@ ice_ptp_release_tx_tracker(struct ice_pf *pf, struct ice_ptp_tx *tx)
 }
 
 /**
+ * ice_ptp_init_tx_e822 - Initialize tracking for Tx timestamps
+ * @pf: Board private structure
+ * @tx: the Tx tracking structure to initialize
+ * @port: the port this structure tracks
+ *
+ * Initialize the Tx timestamp tracker for this port. For generic MAC devices,
+ * the timestamp block is shared for all ports in the same quad. To avoid
+ * ports using the same timestamp index, logically break the block of
+ * registers into chunks based on the port number.
+ */
+static int
+ice_ptp_init_tx_e822(struct ice_pf *pf, struct ice_ptp_tx *tx, u8 port)
+{
+	tx->quad = port / ICE_PORTS_PER_QUAD;
+	tx->quad_offset = tx->quad * INDEX_PER_PORT;
+	tx->len = INDEX_PER_PORT;
+
+	return ice_ptp_alloc_tx_tracker(tx);
+}
+
+/**
  * ice_ptp_init_tx_e810 - Initialize tracking for Tx timestamps
  * @pf: Board private structure
  * @tx: the Tx tracking structure to initialize
@@ -1795,14 +2025,14 @@ void ice_ptp_reset(struct ice_pf *pf)
 	struct ice_ptp *ptp = &pf->ptp;
 	struct ice_hw *hw = &pf->hw;
 	struct timespec64 ts;
+	int err, itr = 1;
 	u64 time_diff;
-	int err = 1;
 
 	if (test_bit(ICE_PFR_REQ, pf->state))
 		goto pfr;
 
 	if (!hw->func_caps.ts_func_info.src_tmr_owned)
-		goto pfr;
+		goto reset_ts;
 
 	err = ice_ptp_init_phc(hw);
 	if (err)
@@ -1840,10 +2070,24 @@ void ice_ptp_reset(struct ice_pf *pf)
 	/* Release the global hardware lock */
 	ice_ptp_unlock(hw);
 
+	if (!ice_is_e810(hw)) {
+		/* Enable quad interrupts */
+		err = ice_ptp_tx_ena_intr(pf, true, itr);
+		if (err)
+			goto err;
+	}
+
+reset_ts:
+	/* Restart the PHY timestamping block */
+	ice_ptp_reset_phy_timestamping(pf);
+
 pfr:
 	/* Init Tx structures */
 	if (ice_is_e810(&pf->hw))
 		err = ice_ptp_init_tx_e810(pf, &ptp->port.tx);
+	else
+		err = ice_ptp_init_tx_e822(pf, &ptp->port.tx,
+					   ptp->port.port_num);
 	if (err)
 		goto err;
 
@@ -1905,7 +2149,7 @@ static int ice_ptp_init_owner(struct ice_pf *pf)
 {
 	struct ice_hw *hw = &pf->hw;
 	struct timespec64 ts;
-	int err;
+	int err, itr = 1;
 
 	err = ice_ptp_init_phc(hw);
 	if (err) {
@@ -1937,6 +2181,13 @@ static int ice_ptp_init_owner(struct ice_pf *pf)
 
 	/* Release the global hardware lock */
 	ice_ptp_unlock(hw);
+
+	if (!ice_is_e810(hw)) {
+		/* Enable quad interrupts */
+		err = ice_ptp_tx_ena_intr(pf, true, itr);
+		if (err)
+			goto err_exit;
+	}
 
 	/* Ensure we have a clock device */
 	err = ice_ptp_create_clock(pf);
@@ -1984,6 +2235,21 @@ static int ice_ptp_init_work(struct ice_pf *pf, struct ice_ptp *ptp)
 }
 
 /**
+ * ice_ptp_init_port - Initialize PTP port structure
+ * @pf: Board private structure
+ * @ptp_port: PTP port structure
+ */
+static int ice_ptp_init_port(struct ice_pf *pf, struct ice_ptp_port *ptp_port)
+{
+	mutex_init(&ptp_port->ps_lock);
+
+	if (ice_is_e810(&pf->hw))
+		return ice_ptp_init_tx_e810(pf, &ptp_port->tx);
+
+	return ice_ptp_init_tx_e822(pf, &ptp_port->tx, ptp_port->port_num);
+}
+
+/**
  * ice_ptp_init - Initialize PTP hardware clock support
  * @pf: Board private structure
  *
@@ -2001,10 +2267,6 @@ void ice_ptp_init(struct ice_pf *pf)
 	struct ice_hw *hw = &pf->hw;
 	int err;
 
-	/* PTP is currently only supported on E810 devices */
-	if (!ice_is_e810(hw))
-		return;
-
 	/* If this function owns the clock hardware, it must allocate and
 	 * configure the PTP clock device to represent it.
 	 */
@@ -2014,9 +2276,13 @@ void ice_ptp_init(struct ice_pf *pf)
 			goto err;
 	}
 
-	err = ice_ptp_init_tx_e810(pf, &pf->ptp.port.tx);
+	ptp->port.port_num = hw->pf_id;
+	err = ice_ptp_init_port(pf, &ptp->port);
 	if (err)
 		goto err;
+
+	/* Start the PHY timestamping block */
+	ice_ptp_reset_phy_timestamping(pf);
 
 	set_bit(ICE_FLAG_PTP, pf->flags);
 	err = ice_ptp_init_work(pf, ptp);
@@ -2057,6 +2323,8 @@ void ice_ptp_release(struct ice_pf *pf)
 
 	kthread_cancel_delayed_work_sync(&pf->ptp.work);
 
+	ice_ptp_port_phy_stop(&pf->ptp.port);
+	mutex_destroy(&pf->ptp.port.ps_lock);
 	if (pf->ptp.kworker) {
 		kthread_destroy_worker(pf->ptp.kworker);
 		pf->ptp.kworker = NULL;
