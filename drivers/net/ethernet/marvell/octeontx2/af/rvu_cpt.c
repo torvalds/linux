@@ -377,9 +377,13 @@ int rvu_mbox_handler_cpt_lf_alloc(struct rvu *rvu,
 
 		rvu_write64(rvu, blkaddr, CPT_AF_LFX_CTL(cptlf), val);
 
-		/* Set CPT LF NIX_PF_FUNC and SSO_PF_FUNC */
-		val = (u64)req->nix_pf_func << 48 |
-		      (u64)req->sso_pf_func << 32;
+		/* Set CPT LF NIX_PF_FUNC and SSO_PF_FUNC. EXE_LDWB is set
+		 * on reset.
+		 */
+		val = rvu_read64(rvu, blkaddr, CPT_AF_LFX_CTL2(cptlf));
+		val &= ~(GENMASK_ULL(63, 48) | GENMASK_ULL(47, 32));
+		val |= ((u64)req->nix_pf_func << 48 |
+			(u64)req->sso_pf_func << 32);
 		rvu_write64(rvu, blkaddr, CPT_AF_LFX_CTL2(cptlf), val);
 	}
 
@@ -389,7 +393,7 @@ int rvu_mbox_handler_cpt_lf_alloc(struct rvu *rvu,
 static int cpt_lf_free(struct rvu *rvu, struct msg_req *req, int blkaddr)
 {
 	u16 pcifunc = req->hdr.pcifunc;
-	int num_lfs, cptlf, slot;
+	int num_lfs, cptlf, slot, err;
 	struct rvu_block *block;
 
 	block = &rvu->hw->block[blkaddr];
@@ -403,10 +407,15 @@ static int cpt_lf_free(struct rvu *rvu, struct msg_req *req, int blkaddr)
 		if (cptlf < 0)
 			return CPT_AF_ERR_LF_INVALID;
 
-		/* Reset CPT LF group and priority */
-		rvu_write64(rvu, blkaddr, CPT_AF_LFX_CTL(cptlf), 0x0);
-		/* Reset CPT LF NIX_PF_FUNC and SSO_PF_FUNC */
-		rvu_write64(rvu, blkaddr, CPT_AF_LFX_CTL2(cptlf), 0x0);
+		/* Perform teardown */
+		rvu_cpt_lf_teardown(rvu, pcifunc, blkaddr, cptlf, slot);
+
+		/* Reset LF */
+		err = rvu_lf_reset(rvu, block, cptlf);
+		if (err) {
+			dev_err(rvu->dev, "Failed to reset blkaddr %d LF%d\n",
+				block->addr, cptlf);
+		}
 	}
 
 	return 0;
@@ -850,14 +859,9 @@ static void cpt_lf_disable_iqueue(struct rvu *rvu, int blkaddr, int slot)
 		dev_warn(rvu->dev, "CPT FLR hits hard loop counter\n");
 }
 
-int rvu_cpt_lf_teardown(struct rvu *rvu, u16 pcifunc, int lf, int slot)
+int rvu_cpt_lf_teardown(struct rvu *rvu, u16 pcifunc, int blkaddr, int lf, int slot)
 {
-	int blkaddr;
 	u64 reg;
-
-	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_CPT, pcifunc);
-	if (blkaddr != BLKADDR_CPT0 && blkaddr != BLKADDR_CPT1)
-		return -EINVAL;
 
 	/* Enable BAR2 ALIAS for this pcifunc. */
 	reg = BIT_ULL(16) | pcifunc;
