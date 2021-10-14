@@ -2,7 +2,6 @@
 /* Copyright 2019 NXP
  */
 #include <linux/dsa/ocelot.h>
-#include <soc/mscc/ocelot.h>
 #include "dsa_priv.h"
 
 /* If the port is under a VLAN-aware bridge, remove the VLAN header from the

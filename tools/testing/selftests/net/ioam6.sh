@@ -536,10 +536,25 @@ out_bits()
   do
     ip -netns ioam-node-alpha route change db01::/64 encap ioam6 mode $mode \
            trace prealloc type ${bit2type[$i]} ns 123 size ${bit2size[$i]} \
-           dev veth0
+           dev veth0 &>/dev/null
 
-    run_test "out_bit$i" "${desc/<n>/$i} ($1 mode)" ioam-node-alpha \
+    local cmd_res=$?
+    local descr="${desc/<n>/$i}"
+
+    if [[ $i -ge 12 && $i -le 21 ]]
+    then
+      if [ $cmd_res != 0 ]
+      then
+        npassed=$((npassed+1))
+        log_test_passed "$descr"
+      else
+        nfailed=$((nfailed+1))
+        log_test_failed "$descr"
+      fi
+    else
+	run_test "out_bit$i" "$descr ($1 mode)" ioam-node-alpha \
            ioam-node-beta db01::2 db01::1 veth0 ${bit2type[$i]} 123
+    fi
   done
 
   [ "$1" = "encap" ] && ip -netns ioam-node-beta link set ip6tnl0 down
@@ -632,7 +647,7 @@ in_bits()
   [ "$1" = "encap" ] && mode="$1 tundst db01::1" || mode="$1"
   [ "$1" = "encap" ] && ip -netns ioam-node-beta link set ip6tnl0 up
 
-  for i in {0..22}
+  for i in {0..11} {22..22}
   do
     ip -netns ioam-node-alpha route change db01::/64 encap ioam6 mode $mode \
            trace prealloc type ${bit2type[$i]} ns 123 size ${bit2size[$i]} \

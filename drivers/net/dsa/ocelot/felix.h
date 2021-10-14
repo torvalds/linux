@@ -62,6 +62,7 @@ struct felix {
 	resource_size_t			switch_base;
 	resource_size_t			imdio_base;
 	enum dsa_tag_protocol		tag_proto;
+	struct kthread_worker		*xmit_worker;
 };
 
 struct net_device *felix_port_to_netdev(struct ocelot *ocelot, int port);
