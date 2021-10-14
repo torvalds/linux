@@ -527,7 +527,7 @@ static void __init __xstate_dump_leaves(void)
  * that our software representation matches what the CPU
  * tells us about the state's size.
  */
-static void __init check_xstate_against_struct(int nr)
+static bool __init check_xstate_against_struct(int nr)
 {
 	/*
 	 * Ask the CPU for the size of the state.
@@ -557,7 +557,9 @@ static void __init check_xstate_against_struct(int nr)
 	    ((nr >= XFEATURE_RSRVD_COMP_11) && (nr <= XFEATURE_LBR))) {
 		WARN_ONCE(1, "no structure for xstate: %d\n", nr);
 		XSTATE_WARN_ON(1);
+		return false;
 	}
+	return true;
 }
 
 /*
@@ -569,38 +571,44 @@ static void __init check_xstate_against_struct(int nr)
  * covered by these checks. Only the size of the buffer for task->fpu
  * is checked here.
  */
-static void __init do_extra_xstate_size_checks(void)
+static bool __init paranoid_xstate_size_valid(unsigned int kernel_size)
 {
-	int paranoid_xstate_size = FXSAVE_SIZE + XSAVE_HDR_SIZE;
+	bool compacted = cpu_feature_enabled(X86_FEATURE_XSAVES);
+	unsigned int size = FXSAVE_SIZE + XSAVE_HDR_SIZE;
 	int i;
 
 	for_each_extended_xfeature(i, xfeatures_mask_all) {
-		check_xstate_against_struct(i);
+		if (!check_xstate_against_struct(i))
+			return false;
 		/*
 		 * Supervisor state components can be managed only by
 		 * XSAVES.
 		 */
-		if (!cpu_feature_enabled(X86_FEATURE_XSAVES))
-			XSTATE_WARN_ON(xfeature_is_supervisor(i));
+		if (!compacted && xfeature_is_supervisor(i)) {
+			XSTATE_WARN_ON(1);
+			return false;
+		}
 
 		/* Align from the end of the previous feature */
 		if (xfeature_is_aligned(i))
-			paranoid_xstate_size = ALIGN(paranoid_xstate_size, 64);
+			size = ALIGN(size, 64);
 		/*
-		 * The offset of a given state in the non-compacted
-		 * format is given to us in a CPUID leaf.  We check
-		 * them for being ordered (increasing offsets) in
-		 * setup_xstate_features(). XSAVES uses compacted format.
+		 * In compacted format the enabled features are packed,
+		 * i.e. disabled features do not occupy space.
+		 *
+		 * In non-compacted format the offsets are fixed and
+		 * disabled states still occupy space in the memory buffer.
 		 */
-		if (!cpu_feature_enabled(X86_FEATURE_XSAVES))
-			paranoid_xstate_size = xfeature_uncompacted_offset(i);
+		if (!compacted)
+			size = xfeature_uncompacted_offset(i);
 		/*
-		 * The compacted-format offset always depends on where
-		 * the previous state ended.
+		 * Add the feature size even for non-compacted format
+		 * to make the end result correct
 		 */
-		paranoid_xstate_size += xfeature_size(i);
+		size += xfeature_size(i);
 	}
-	XSTATE_WARN_ON(paranoid_xstate_size != fpu_kernel_xstate_size);
+	XSTATE_WARN_ON(size != kernel_size);
+	return size == kernel_size;
 }
 
 /*
@@ -653,7 +661,7 @@ static unsigned int __init get_xsaves_size_no_independent(void)
 	return size;
 }
 
-static unsigned int __init get_xsave_size(void)
+static unsigned int __init get_xsave_size_user(void)
 {
 	unsigned int eax, ebx, ecx, edx;
 	/*
@@ -684,31 +692,33 @@ static bool __init is_supported_xstate_size(unsigned int test_xstate_size)
 static int __init init_xstate_size(void)
 {
 	/* Recompute the context size for enabled features: */
-	unsigned int possible_xstate_size;
-	unsigned int xsave_size;
+	unsigned int user_size, kernel_size;
 
-	xsave_size = get_xsave_size();
+	/* Uncompacted user space size */
+	user_size = get_xsave_size_user();
 
-	if (boot_cpu_has(X86_FEATURE_XSAVES))
-		possible_xstate_size = get_xsaves_size_no_independent();
+	/*
+	 * XSAVES kernel size includes supervisor states and
+	 * uses compacted format.
+	 *
+	 * XSAVE does not support supervisor states so
+	 * kernel and user size is identical.
+	 */
+	if (cpu_feature_enabled(X86_FEATURE_XSAVES))
+		kernel_size = get_xsaves_size_no_independent();
 	else
-		possible_xstate_size = xsave_size;
+		kernel_size = user_size;
 
-	/* Ensure we have the space to store all enabled: */
-	if (!is_supported_xstate_size(possible_xstate_size))
+	/* Ensure we have the space to store all enabled features. */
+	if (!is_supported_xstate_size(kernel_size))
 		return -EINVAL;
 
-	/*
-	 * The size is OK, we are definitely going to use xsave,
-	 * make it known to the world that we need more space.
-	 */
-	fpu_kernel_xstate_size = possible_xstate_size;
-	do_extra_xstate_size_checks();
+	if (!paranoid_xstate_size_valid(kernel_size))
+		return -EINVAL;
 
-	/*
-	 * User space is always in standard format.
-	 */
-	fpu_user_xstate_size = xsave_size;
+	fpu_kernel_xstate_size = kernel_size;
+	fpu_user_xstate_size = user_size;
+
 	return 0;
 }
 
