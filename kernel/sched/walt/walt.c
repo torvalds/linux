@@ -184,7 +184,7 @@ void walt_task_dump(struct task_struct *p)
 	bool is_32bit_thread = is_compat_thread(task_thread_info(p));
 
 	printk_deferred("Task: %.16s-%d\n", p->comm, p->pid);
-	SCHED_PRINT(p->state);
+	SCHED_PRINT(READ_ONCE(p->__state));
 	SCHED_PRINT(p->cpu);
 	SCHED_PRINT(p->policy);
 	SCHED_PRINT(p->prio);
@@ -580,7 +580,7 @@ static inline u64 freq_policy_load(struct rq *rq)
 		load = wrq->prev_runnable_sum +
 					wrq->grp_time.prev_runnable_sum;
 
-	if (cpu_ksoftirqd && cpu_ksoftirqd->state == TASK_RUNNING)
+	if (cpu_ksoftirqd && READ_ONCE(cpu_ksoftirqd->__state) == TASK_RUNNING)
 		load = max_t(u64, load, task_load(cpu_ksoftirqd));
 
 	tt_load = top_task_load(rq);
@@ -967,10 +967,10 @@ static void fixup_busy_time(struct task_struct *p, int new_cpu)
 	struct walt_rq *src_wrq = (struct walt_rq *) src_rq->android_vendor_data1;
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 
-	if (!p->on_rq && p->state != TASK_WAKING)
+	if (!p->on_rq && READ_ONCE(p->__state) != TASK_WAKING)
 		return;
 
-	pstate = p->state;
+	pstate = READ_ONCE(p->__state);
 
 	if (pstate == TASK_WAKING)
 		double_rq_lock(src_rq, dest_rq);
@@ -2181,7 +2181,7 @@ static void walt_update_task_ravg(struct task_struct *p, struct rq *rq, int even
 	update_task_demand(p, rq, event, wallclock);
 	update_cpu_busy_time(p, rq, event, wallclock, irqtime);
 	update_task_pred_demand(rq, p, event);
-	if (event == PUT_PREV_TASK && p->state)
+	if (event == PUT_PREV_TASK && READ_ONCE(p->__state))
 		wts->iowaited = p->in_iowait;
 
 	trace_sched_update_task_ravg(p, rq, event, wallclock, irqtime,

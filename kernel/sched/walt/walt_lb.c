@@ -58,7 +58,7 @@ static int walt_lb_active_migration(void *data)
 	BUG_ON(busiest_rq == target_rq);
 
 	if (task_on_rq_queued(push_task) &&
-			push_task->state == TASK_RUNNING &&
+			READ_ONCE(push_task->__state) == TASK_RUNNING &&
 			task_cpu(push_task) == busiest_cpu &&
 			cpu_active(target_cpu) &&
 			cpumask_test_cpu(target_cpu, push_task->cpus_ptr)) {
@@ -506,7 +506,7 @@ void walt_lb_tick(struct rq *rq)
 	if (!rq->misfit_task_load)
 		return;
 
-	if (p->state != TASK_RUNNING || p->nr_cpus_allowed == 1)
+	if (READ_ONCE(p->__state) != TASK_RUNNING || p->nr_cpus_allowed == 1)
 		return;
 
 	raw_spin_lock_irqsave(&walt_lb_migration_lock, flags);

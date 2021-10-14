@@ -116,7 +116,7 @@ static unsigned long cpu_util_without(int cpu, struct task_struct *p)
 	 * utilization from cpu utilization. Instead just use
 	 * cpu_util for this case.
 	 */
-	if (likely(p->state == TASK_WAKING))
+	if (likely(READ_ONCE(p->__state) == TASK_WAKING))
 		return cpu_util(cpu);
 
 	/* Task has no contribution or is new */
@@ -835,7 +835,7 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 		goto unlock;
 	}
 
-	if (p->state == TASK_WAKING)
+	if (READ_ONCE(p->__state) == TASK_WAKING)
 		delta = task_util(p);
 
 	if (cpumask_test_cpu(prev_cpu, &p->cpus_mask) && !__cpu_overutilized(prev_cpu, delta)) {
@@ -1172,7 +1172,7 @@ void walt_cfs_dequeue_task(struct rq *rq, struct task_struct *p)
 	 * be preserved when task is enq/deq while it is on
 	 * runqueue.
 	 */
-	if (p->state != TASK_RUNNING)
+	if (READ_ONCE(p->__state) != TASK_RUNNING)
 		wts->total_exec = 0;
 }
 
