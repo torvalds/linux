@@ -157,8 +157,6 @@ struct sdhci_pci_slot {
 	struct sdhci_pci_chip	*chip;
 	struct sdhci_host	*host;
 
-	int			rst_n_gpio;
-
 	int			cd_idx;
 	bool			cd_override_level;
 
