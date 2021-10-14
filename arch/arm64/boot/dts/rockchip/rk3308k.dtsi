@@ -18,6 +18,11 @@
 	rockchip,high-temp-max-volt = <1125000>;
 };
 
+&rk3308bs_cpu0_opp_table {
+	rockchip,high-temp = <55000>;
+	rockchip,high-temp-max-volt = <1125000>;
+};
+
 &rockchip_suspend {
 	rockchip,sleep-mode-config = <
 		(0
