@@ -2997,8 +2997,11 @@ eb_composite_fence_create(struct i915_execbuffer *eb, int out_fence_fd)
 	if (!fences)
 		return ERR_PTR(-ENOMEM);
 
-	for_each_batch_create_order(eb, i)
+	for_each_batch_create_order(eb, i) {
 		fences[i] = &eb->requests[i]->fence;
+		__set_bit(I915_FENCE_FLAG_COMPOSITE,
+			  &eb->requests[i]->fence.flags);
+	}
 
 	fence_array = dma_fence_array_create(eb->num_batches,
 					     fences,
