@@ -148,6 +148,13 @@
 		clock-output-names = "clk125mhz";
 	};
 
+	clk150mhz: clk150mhz {
+		compatible = "fixed-clock";
+		clock-frequency = <150000000>;
+		#clock-cells = <0>;
+		clock-output-names = "clk150mhz";
+	};
+
 	clk300mhz: clk300mhz {
 		compatible = "fixed-clock";
 		clock-frequency = <300000000>;
