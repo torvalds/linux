@@ -827,7 +827,7 @@ static int netdev_open(struct net_device *dev)
 		return -EAGAIN;
 
 	for (i = 0; i < 3; i++)
-		iowrite16(((unsigned short*)dev->dev_addr)[i],
+		iowrite16(((const unsigned short *)dev->dev_addr)[i],
 				ioaddr + PAR0 + i*2);
 
 	init_ring(dev);

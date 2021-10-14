@@ -404,7 +404,7 @@ static const struct ethtool_ops smsc9420_ethtool_ops = {
 static void smsc9420_set_mac_address(struct net_device *dev)
 {
 	struct smsc9420_pdata *pd = netdev_priv(dev);
-	u8 *dev_addr = dev->dev_addr;
+	const u8 *dev_addr = dev->dev_addr;
 	u32 mac_high16 = (dev_addr[5] << 8) | dev_addr[4];
 	u32 mac_low32 = (dev_addr[3] << 24) | (dev_addr[2] << 16) |
 	    (dev_addr[1] << 8) | dev_addr[0];

@@ -1271,7 +1271,7 @@ struct set_address_info {
 	unsigned int ioaddr;
 };
 
-static void set_address(struct set_address_info *sa_info, char *addr)
+static void set_address(struct set_address_info *sa_info, const char *addr)
 {
 	unsigned int ioaddr = sa_info->ioaddr;
 	int i;

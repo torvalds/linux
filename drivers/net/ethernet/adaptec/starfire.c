@@ -955,7 +955,7 @@ static int netdev_open(struct net_device *dev)
 	writew(0, ioaddr + PerfFilterTable + 4);
 	writew(0, ioaddr + PerfFilterTable + 8);
 	for (i = 1; i < 16; i++) {
-		__be16 *eaddrs = (__be16 *)dev->dev_addr;
+		const __be16 *eaddrs = (const __be16 *)dev->dev_addr;
 		void __iomem *setup_frm = ioaddr + PerfFilterTable + i * 16;
 		writew(be16_to_cpu(eaddrs[2]), setup_frm); setup_frm += 4;
 		writew(be16_to_cpu(eaddrs[1]), setup_frm); setup_frm += 4;
@@ -1787,14 +1787,14 @@ static void set_rx_mode(struct net_device *dev)
 	} else if (netdev_mc_count(dev) <= 14) {
 		/* Use the 16 element perfect filter, skip first two entries. */
 		void __iomem *filter_addr = ioaddr + PerfFilterTable + 2 * 16;
-		__be16 *eaddrs;
+		const __be16 *eaddrs;
 		netdev_for_each_mc_addr(ha, dev) {
 			eaddrs = (__be16 *) ha->addr;
 			writew(be16_to_cpu(eaddrs[2]), filter_addr); filter_addr += 4;
 			writew(be16_to_cpu(eaddrs[1]), filter_addr); filter_addr += 4;
 			writew(be16_to_cpu(eaddrs[0]), filter_addr); filter_addr += 8;
 		}
-		eaddrs = (__be16 *)dev->dev_addr;
+		eaddrs = (const __be16 *)dev->dev_addr;
 		i = netdev_mc_count(dev) + 2;
 		while (i++ < 16) {
 			writew(be16_to_cpu(eaddrs[0]), filter_addr); filter_addr += 4;
@@ -1805,7 +1805,7 @@ static void set_rx_mode(struct net_device *dev)
 	} else {
 		/* Must use a multicast hash table. */
 		void __iomem *filter_addr;
-		__be16 *eaddrs;
+		const __be16 *eaddrs;
 		__le16 mc_filter[32] __attribute__ ((aligned(sizeof(long))));	/* Multicast hash filter */
 
 		memset(mc_filter, 0, sizeof(mc_filter));
@@ -1819,7 +1819,7 @@ static void set_rx_mode(struct net_device *dev)
 		}
 		/* Clear the perfect filter list, skip first two entries. */
 		filter_addr = ioaddr + PerfFilterTable + 2 * 16;
-		eaddrs = (__be16 *)dev->dev_addr;
+		eaddrs = (const __be16 *)dev->dev_addr;
 		for (i = 2; i < 16; i++) {
 			writew(be16_to_cpu(eaddrs[0]), filter_addr); filter_addr += 4;
 			writew(be16_to_cpu(eaddrs[1]), filter_addr); filter_addr += 4;

@@ -308,7 +308,7 @@ bmac_init_registers(struct net_device *dev)
 {
 	struct bmac_data *bp = netdev_priv(dev);
 	volatile unsigned short regValue;
-	unsigned short *pWord16;
+	const unsigned short *pWord16;
 	int i;
 
 	/* XXDEBUG(("bmac: enter init_registers\n")); */
@@ -371,7 +371,7 @@ bmac_init_registers(struct net_device *dev)
 	bmwrite(dev, BHASH1, bp->hash_table_mask[2]); 	/* bits 47 - 32 */
 	bmwrite(dev, BHASH0, bp->hash_table_mask[3]); 	/* bits 63 - 48 */
 
-	pWord16 = (unsigned short *)dev->dev_addr;
+	pWord16 = (const unsigned short *)dev->dev_addr;
 	bmwrite(dev, MADD0, *pWord16++);
 	bmwrite(dev, MADD1, *pWord16++);
 	bmwrite(dev, MADD2, *pWord16);
@@ -522,7 +522,7 @@ static int bmac_set_address(struct net_device *dev, void *addr)
 {
 	struct bmac_data *bp = netdev_priv(dev);
 	unsigned char *p = addr;
-	unsigned short *pWord16;
+	const unsigned short *pWord16;
 	unsigned long flags;
 	int i;
 
@@ -533,7 +533,7 @@ static int bmac_set_address(struct net_device *dev, void *addr)
 		dev->dev_addr[i] = p[i];
 	}
 	/* load up the hardware address */
-	pWord16  = (unsigned short *)dev->dev_addr;
+	pWord16  = (const unsigned short *)dev->dev_addr;
 	bmwrite(dev, MADD0, *pWord16++);
 	bmwrite(dev, MADD1, *pWord16++);
 	bmwrite(dev, MADD2, *pWord16);
