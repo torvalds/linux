@@ -477,7 +477,7 @@ static int add_va_block_locked(struct hl_device *hdev,
 		struct list_head *va_list, u64 start, u64 end)
 {
 	struct hl_vm_va_block *va_block, *res = NULL;
-	u64 size = end - start;
+	u64 size = end - start + 1;
 
 	print_va_list_locked(hdev, va_list);
 
@@ -644,7 +644,7 @@ static u64 get_va_block(struct hl_device *hdev,
 				continue;
 		}
 
-		valid_size = va_block->end - valid_start;
+		valid_size = va_block->end - valid_start + 1;
 		if (valid_size < size)
 			continue;
 
@@ -707,7 +707,7 @@ static u64 get_va_block(struct hl_device *hdev,
 
 	if (new_va_block->size > size) {
 		new_va_block->start += size;
-		new_va_block->size = new_va_block->end - new_va_block->start;
+		new_va_block->size = new_va_block->end - new_va_block->start + 1;
 	} else {
 		list_del(&new_va_block->node);
 		kfree(new_va_block);
@@ -2388,8 +2388,14 @@ static int va_range_init(struct hl_device *hdev, struct hl_va_range *va_range,
 			start += PAGE_SIZE;
 		}
 
-		if (end & (PAGE_SIZE - 1))
-			end &= PAGE_MASK;
+		/*
+		 * The end of the range is inclusive, hence we need to align it
+		 * to the end of the last full page in the range. For example if
+		 * end = 0x3ff5 with page size 0x1000, we need to align it to
+		 * 0x2fff. The remainig 0xff5 bytes do not form a full page.
+		 */
+		if ((end + 1) & (PAGE_SIZE - 1))
+			end = ((end + 1) & PAGE_MASK) - 1;
 	}
 
 	if (start >= end) {
@@ -2564,14 +2570,14 @@ int hl_vm_ctx_init(struct hl_ctx *ctx)
 		return 0;
 
 	dram_range_start = prop->dmmu.start_addr;
-	dram_range_end = prop->dmmu.end_addr;
+	dram_range_end = prop->dmmu.end_addr - 1;
 	dram_page_size = prop->dram_page_size ?
 				prop->dram_page_size : prop->dmmu.page_size;
 	host_range_start = prop->pmmu.start_addr;
-	host_range_end = prop->pmmu.end_addr;
+	host_range_end = prop->pmmu.end_addr - 1;
 	host_page_size = prop->pmmu.page_size;
 	host_huge_range_start = prop->pmmu_huge.start_addr;
-	host_huge_range_end = prop->pmmu_huge.end_addr;
+	host_huge_range_end = prop->pmmu_huge.end_addr - 1;
 	host_huge_page_size = prop->pmmu_huge.page_size;
 
 	return vm_ctx_init_with_ranges(ctx, host_range_start, host_range_end,

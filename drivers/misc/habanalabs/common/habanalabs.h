@@ -2757,21 +2757,9 @@ static inline bool hl_mem_area_inside_range(u64 address, u64 size,
 static inline bool hl_mem_area_crosses_range(u64 address, u32 size,
 				u64 range_start_address, u64 range_end_address)
 {
-	u64 end_address = address + size;
+	u64 end_address = address + size - 1;
 
-	if ((address >= range_start_address) &&
-			(address < range_end_address))
-		return true;
-
-	if ((end_address >= range_start_address) &&
-			(end_address < range_end_address))
-		return true;
-
-	if ((address < range_start_address) &&
-			(end_address >= range_end_address))
-		return true;
-
-	return false;
+	return ((address <= range_end_address) && (range_start_address <= end_address));
 }
 
 int hl_device_open(struct inode *inode, struct file *filp);

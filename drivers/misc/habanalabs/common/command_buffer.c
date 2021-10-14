@@ -57,7 +57,7 @@ static int cb_map_mem(struct hl_ctx *ctx, struct hl_cb *cb)
 		}
 
 		va_block->start = virt_addr;
-		va_block->end = virt_addr + page_size;
+		va_block->end = virt_addr + page_size - 1;
 		va_block->size = page_size;
 		list_add_tail(&va_block->node, &cb->va_block_list);
 	}
