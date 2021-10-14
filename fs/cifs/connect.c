@@ -794,7 +794,6 @@ static void clean_demultiplex_info(struct TCP_Server_Info *server)
 		 */
 	}
 
-	kfree(server->hostname);
 	kfree(server);
 
 	length = atomic_dec_return(&tcpSesAllocCount);
@@ -1235,6 +1234,9 @@ static int match_server(struct TCP_Server_Info *server, struct smb3_fs_context *
 	if (!net_eq(cifs_net_ns(server), current->nsproxy->net_ns))
 		return 0;
 
+	if (strcasecmp(server->hostname, ctx->server_hostname))
+		return 0;
+
 	if (!match_address(server, addr,
 			   (struct sockaddr *)&ctx->srcaddr))
 		return 0;
@@ -1336,6 +1338,7 @@ cifs_put_tcp_session(struct TCP_Server_Info *server, int from_reconnect)
 	kfree(server->session_key.response);
 	server->session_key.response = NULL;
 	server->session_key.len = 0;
+	kfree(server->hostname);
 
 	task = xchg(&server->tsk, NULL);
 	if (task)
@@ -1361,14 +1364,15 @@ cifs_get_tcp_session(struct smb3_fs_context *ctx)
 		goto out_err;
 	}
 
+	tcp_ses->hostname = kstrdup(ctx->server_hostname, GFP_KERNEL);
+	if (!tcp_ses->hostname) {
+		rc = -ENOMEM;
+		goto out_err;
+	}
+
 	tcp_ses->ops = ctx->ops;
 	tcp_ses->vals = ctx->vals;
 	cifs_set_net_ns(tcp_ses, get_net(current->nsproxy->net_ns));
-	tcp_ses->hostname = extract_hostname(ctx->UNC);
-	if (IS_ERR(tcp_ses->hostname)) {
-		rc = PTR_ERR(tcp_ses->hostname);
-		goto out_err_crypto_release;
-	}
 
 	tcp_ses->conn_id = atomic_inc_return(&tcpSesNextId);
 	tcp_ses->noblockcnt = ctx->rootfs;
@@ -1497,8 +1501,7 @@ out_err_crypto_release:
 
 out_err:
 	if (tcp_ses) {
-		if (!IS_ERR(tcp_ses->hostname))
-			kfree(tcp_ses->hostname);
+		kfree(tcp_ses->hostname);
 		if (tcp_ses->ssocket)
 			sock_release(tcp_ses->ssocket);
 		kfree(tcp_ses);
