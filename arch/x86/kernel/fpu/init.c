@@ -199,17 +199,12 @@ static void __init fpu__init_system_xstate_size_legacy(void)
 	 * Note that xstate sizes might be overwritten later during
 	 * fpu__init_system_xstate().
 	 */
-
-	if (!boot_cpu_has(X86_FEATURE_FPU)) {
+	if (!cpu_feature_enabled(X86_FEATURE_FPU))
 		fpu_kernel_xstate_size = sizeof(struct swregs_state);
-	} else {
-		if (boot_cpu_has(X86_FEATURE_FXSR))
-			fpu_kernel_xstate_size =
-				sizeof(struct fxregs_state);
-		else
-			fpu_kernel_xstate_size =
-				sizeof(struct fregs_state);
-	}
+	else if (cpu_feature_enabled(X86_FEATURE_FXSR))
+		fpu_kernel_xstate_size = sizeof(struct fxregs_state);
+	else
+		fpu_kernel_xstate_size = sizeof(struct fregs_state);
 
 	fpu_user_xstate_size = fpu_kernel_xstate_size;
 	fpstate_reset(&current->thread.fpu);
