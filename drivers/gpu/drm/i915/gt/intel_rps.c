@@ -11,8 +11,8 @@
 #include "intel_gt_clock_utils.h"
 #include "intel_gt_irq.h"
 #include "intel_gt_pm_irq.h"
+#include "intel_pcode.h"
 #include "intel_rps.h"
-#include "intel_sideband.h"
 #include "vlv_sideband.h"
 #include "../../../platform/x86/intel_ips.h"
 

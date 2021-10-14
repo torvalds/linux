@@ -47,8 +47,8 @@
 #include "i915_fixed.h"
 #include "i915_irq.h"
 #include "i915_trace.h"
+#include "intel_pcode.h"
 #include "intel_pm.h"
-#include "intel_sideband.h"
 #include "vlv_sideband.h"
 #include "../../../platform/x86/intel_ips.h"
 

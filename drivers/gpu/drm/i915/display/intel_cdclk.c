@@ -28,8 +28,8 @@
 #include "intel_cdclk.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
+#include "intel_pcode.h"
 #include "intel_psr.h"
-#include "intel_sideband.h"
 #include "vlv_sideband.h"
 
 /**

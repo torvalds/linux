@@ -5,7 +5,7 @@
 
 #include "i915_drv.h"
 #include "intel_dram.h"
-#include "intel_sideband.h"
+#include "intel_pcode.h"
 
 struct dram_dimm_info {
 	u16 size;
