@@ -248,6 +248,16 @@ struct intel_context {
 		 * context
 		 */
 		struct i915_request *last_rq;
+		/**
+		 * @fence_context: fence context composite fence when doing
+		 * parallel submission
+		 */
+		u64 fence_context;
+		/**
+		 * @seqno: seqno for composite fence when doing parallel
+		 * submission
+		 */
+		u32 seqno;
 		/** @number_children: number of children if parent */
 		u8 number_children;
 		/** @child_index: index into child_list if child */
