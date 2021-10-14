@@ -157,6 +157,8 @@ static struct ap_queue_status ap_sm_recv(struct ap_queue *aq)
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 		aq->queue_count = max_t(int, 0, aq->queue_count - 1);
+		if (!status.queue_empty && !aq->queue_count)
+			aq->queue_count++;
 		if (aq->queue_count > 0)
 			mod_timer(&aq->timeout,
 				  jiffies + aq->request_timeout);
