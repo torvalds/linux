@@ -689,6 +689,28 @@ struct pdc_hpmc_pim_20 { /* PDC_PIM */
 	unsigned long long fr[32];
 };
 
+struct pdc_toc_pim_11 {
+	unsigned int gr[32];
+	unsigned int cr[32];
+	unsigned int sr[8];
+	unsigned int iasq_back;
+	unsigned int iaoq_back;
+	unsigned int check_type;
+	unsigned int hversion;
+	unsigned int cpu_state;
+};
+
+struct pdc_toc_pim_20 {
+	unsigned long long gr[32];
+	unsigned long long cr[32];
+	unsigned long long sr[8];
+	unsigned long long iasq_back;
+	unsigned long long iaoq_back;
+	unsigned int check_type;
+	unsigned int hversion;
+	unsigned int cpu_state;
+};
+
 #endif /* !defined(__ASSEMBLY__) */
 
 #endif /* _UAPI_PARISC_PDC_H */
