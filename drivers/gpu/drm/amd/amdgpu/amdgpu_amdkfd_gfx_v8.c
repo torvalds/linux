@@ -73,14 +73,12 @@ static void release_queue(struct amdgpu_device *adev)
 	unlock_srbm(adev);
 }
 
-static void kgd_program_sh_mem_settings(struct kgd_dev *kgd, uint32_t vmid,
+static void kgd_program_sh_mem_settings(struct amdgpu_device *adev, uint32_t vmid,
 					uint32_t sh_mem_config,
 					uint32_t sh_mem_ape1_base,
 					uint32_t sh_mem_ape1_limit,
 					uint32_t sh_mem_bases)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
-
 	lock_srbm(adev, 0, 0, 0, vmid);
 
 	WREG32(mmSH_MEM_CONFIG, sh_mem_config);
@@ -91,11 +89,9 @@ static void kgd_program_sh_mem_settings(struct kgd_dev *kgd, uint32_t vmid,
 	unlock_srbm(adev);
 }
 
-static int kgd_set_pasid_vmid_mapping(struct kgd_dev *kgd, u32 pasid,
+static int kgd_set_pasid_vmid_mapping(struct amdgpu_device *adev, u32 pasid,
 					unsigned int vmid)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
-
 	/*
 	 * We have to assume that there is no outstanding mapping.
 	 * The ATC_VMID_PASID_MAPPING_UPDATE_STATUS bit could be 0 because
@@ -118,9 +114,8 @@ static int kgd_set_pasid_vmid_mapping(struct kgd_dev *kgd, u32 pasid,
 	return 0;
 }
 
-static int kgd_init_interrupts(struct kgd_dev *kgd, uint32_t pipe_id)
+static int kgd_init_interrupts(struct amdgpu_device *adev, uint32_t pipe_id)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	uint32_t mec;
 	uint32_t pipe;
 
@@ -537,11 +532,10 @@ static int kgd_hqd_sdma_destroy(struct amdgpu_device *adev, void *mqd,
 	return 0;
 }
 
-static bool get_atc_vmid_pasid_mapping_info(struct kgd_dev *kgd,
+static bool get_atc_vmid_pasid_mapping_info(struct amdgpu_device *adev,
 					uint8_t vmid, uint16_t *p_pasid)
 {
 	uint32_t value;
-	struct amdgpu_device *adev = (struct amdgpu_device *) kgd;
 
 	value = RREG32(mmATC_VMID0_PASID_MAPPING + vmid);
 	*p_pasid = value & ATC_VMID0_PASID_MAPPING__PASID_MASK;
@@ -549,12 +543,12 @@ static bool get_atc_vmid_pasid_mapping_info(struct kgd_dev *kgd,
 	return !!(value & ATC_VMID0_PASID_MAPPING__VALID_MASK);
 }
 
-static int kgd_address_watch_disable(struct kgd_dev *kgd)
+static int kgd_address_watch_disable(struct amdgpu_device *adev)
 {
 	return 0;
 }
 
-static int kgd_address_watch_execute(struct kgd_dev *kgd,
+static int kgd_address_watch_execute(struct amdgpu_device *adev,
 					unsigned int watch_point_id,
 					uint32_t cntl_val,
 					uint32_t addr_hi,
@@ -563,11 +557,10 @@ static int kgd_address_watch_execute(struct kgd_dev *kgd,
 	return 0;
 }
 
-static int kgd_wave_control_execute(struct kgd_dev *kgd,
+static int kgd_wave_control_execute(struct amdgpu_device *adev,
 					uint32_t gfx_index_val,
 					uint32_t sq_cmd)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	uint32_t data = 0;
 
 	mutex_lock(&adev->grbm_idx_mutex);
@@ -588,28 +581,24 @@ static int kgd_wave_control_execute(struct kgd_dev *kgd,
 	return 0;
 }
 
-static uint32_t kgd_address_watch_get_offset(struct kgd_dev *kgd,
+static uint32_t kgd_address_watch_get_offset(struct amdgpu_device *adev,
 					unsigned int watch_point_id,
 					unsigned int reg_offset)
 {
 	return 0;
 }
 
-static void set_scratch_backing_va(struct kgd_dev *kgd,
+static void set_scratch_backing_va(struct amdgpu_device *adev,
 					uint64_t va, uint32_t vmid)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *) kgd;
-
 	lock_srbm(adev, 0, 0, 0, vmid);
 	WREG32(mmSH_HIDDEN_PRIVATE_BASE_VMID, va);
 	unlock_srbm(adev);
 }
 
-static void set_vm_context_page_table_base(struct kgd_dev *kgd, uint32_t vmid,
-		uint64_t page_table_base)
+static void set_vm_context_page_table_base(struct amdgpu_device *adev,
+		uint32_t vmid, uint64_t page_table_base)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
-
 	if (!amdgpu_amdkfd_is_kfd_vmid(adev, vmid)) {
 		pr_err("trying to set page table base for wrong VMID\n");
 		return;

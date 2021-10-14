@@ -50,8 +50,8 @@ static bool cik_event_interrupt_isr(struct kfd_dev *dev,
 		*patched_flag = true;
 		*tmp_ihre = *ihre;
 
-		vmid = f2g->read_vmid_from_vmfault_reg(dev->kgd);
-		ret = f2g->get_atc_vmid_pasid_mapping_info(dev->kgd, vmid, &pasid);
+		vmid = f2g->read_vmid_from_vmfault_reg(dev->adev);
+		ret = f2g->get_atc_vmid_pasid_mapping_info(dev->adev, vmid, &pasid);
 
 		tmp_ihre->ring_id &= 0x000000ff;
 		tmp_ihre->ring_id |= vmid << 8;

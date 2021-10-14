@@ -1137,7 +1137,7 @@ static int kfd_ioctl_set_scratch_backing_va(struct file *filep,
 	if (dev->dqm->sched_policy == KFD_SCHED_POLICY_NO_HWS &&
 	    pdd->qpd.vmid != 0 && dev->kfd2kgd->set_scratch_backing_va)
 		dev->kfd2kgd->set_scratch_backing_va(
-			dev->kgd, args->va_addr, pdd->qpd.vmid);
+			dev->adev, args->va_addr, pdd->qpd.vmid);
 
 	return 0;
 

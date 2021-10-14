@@ -130,7 +130,7 @@ void program_sh_mem_settings(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd)
 {
 	return dqm->dev->kfd2kgd->program_sh_mem_settings(
-						dqm->dev->kgd, qpd->vmid,
+						dqm->dev->adev, qpd->vmid,
 						qpd->sh_mem_config,
 						qpd->sh_mem_ape1_base,
 						qpd->sh_mem_ape1_limit,
@@ -216,7 +216,7 @@ static void program_trap_handler_settings(struct device_queue_manager *dqm,
 {
 	if (dqm->dev->kfd2kgd->program_trap_handler_settings)
 		dqm->dev->kfd2kgd->program_trap_handler_settings(
-						dqm->dev->kgd, qpd->vmid,
+						dqm->dev->adev, qpd->vmid,
 						qpd->tba_addr, qpd->tma_addr);
 }
 
@@ -257,14 +257,14 @@ static int allocate_vmid(struct device_queue_manager *dqm,
 	/* qpd->page_table_base is set earlier when register_process()
 	 * is called, i.e. when the first queue is created.
 	 */
-	dqm->dev->kfd2kgd->set_vm_context_page_table_base(dqm->dev->kgd,
+	dqm->dev->kfd2kgd->set_vm_context_page_table_base(dqm->dev->adev,
 			qpd->vmid,
 			qpd->page_table_base);
 	/* invalidate the VM context after pasid and vmid mapping is set up */
 	kfd_flush_tlb(qpd_to_pdd(qpd), TLB_FLUSH_LEGACY);
 
 	if (dqm->dev->kfd2kgd->set_scratch_backing_va)
-		dqm->dev->kfd2kgd->set_scratch_backing_va(dqm->dev->kgd,
+		dqm->dev->kfd2kgd->set_scratch_backing_va(dqm->dev->adev,
 				qpd->sh_hidden_private_base, qpd->vmid);
 
 	return 0;
@@ -776,7 +776,7 @@ static int restore_process_queues_nocpsch(struct device_queue_manager *dqm,
 
 	if (!list_empty(&qpd->queues_list)) {
 		dqm->dev->kfd2kgd->set_vm_context_page_table_base(
-				dqm->dev->kgd,
+				dqm->dev->adev,
 				qpd->vmid,
 				qpd->page_table_base);
 		kfd_flush_tlb(pdd, TLB_FLUSH_LEGACY);
@@ -954,7 +954,7 @@ set_pasid_vmid_mapping(struct device_queue_manager *dqm, u32 pasid,
 			unsigned int vmid)
 {
 	return dqm->dev->kfd2kgd->set_pasid_vmid_mapping(
-						dqm->dev->kgd, pasid, vmid);
+						dqm->dev->adev, pasid, vmid);
 }
 
 static void init_interrupts(struct device_queue_manager *dqm)
@@ -963,7 +963,7 @@ static void init_interrupts(struct device_queue_manager *dqm)
 
 	for (i = 0 ; i < get_pipes_per_mec(dqm) ; i++)
 		if (is_pipe_enabled(dqm, 0, i))
-			dqm->dev->kfd2kgd->init_interrupts(dqm->dev->kgd, i);
+			dqm->dev->kfd2kgd->init_interrupts(dqm->dev->adev, i);
 }
 
 static int initialize_nocpsch(struct device_queue_manager *dqm)

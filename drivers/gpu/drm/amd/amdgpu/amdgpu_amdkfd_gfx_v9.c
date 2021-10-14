@@ -87,14 +87,12 @@ static void release_queue(struct amdgpu_device *adev)
 	unlock_srbm(adev);
 }
 
-void kgd_gfx_v9_program_sh_mem_settings(struct kgd_dev *kgd, uint32_t vmid,
+void kgd_gfx_v9_program_sh_mem_settings(struct amdgpu_device *adev, uint32_t vmid,
 					uint32_t sh_mem_config,
 					uint32_t sh_mem_ape1_base,
 					uint32_t sh_mem_ape1_limit,
 					uint32_t sh_mem_bases)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
-
 	lock_srbm(adev, 0, 0, 0, vmid);
 
 	WREG32_RLC(SOC15_REG_OFFSET(GC, 0, mmSH_MEM_CONFIG), sh_mem_config);
@@ -104,11 +102,9 @@ void kgd_gfx_v9_program_sh_mem_settings(struct kgd_dev *kgd, uint32_t vmid,
 	unlock_srbm(adev);
 }
 
-int kgd_gfx_v9_set_pasid_vmid_mapping(struct kgd_dev *kgd, u32 pasid,
+int kgd_gfx_v9_set_pasid_vmid_mapping(struct amdgpu_device *adev, u32 pasid,
 					unsigned int vmid)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
-
 	/*
 	 * We have to assume that there is no outstanding mapping.
 	 * The ATC_VMID_PASID_MAPPING_UPDATE_STATUS bit could be 0 because
@@ -165,9 +161,8 @@ int kgd_gfx_v9_set_pasid_vmid_mapping(struct kgd_dev *kgd, u32 pasid,
  * but still works
  */
 
-int kgd_gfx_v9_init_interrupts(struct kgd_dev *kgd, uint32_t pipe_id)
+int kgd_gfx_v9_init_interrupts(struct amdgpu_device *adev, uint32_t pipe_id)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	uint32_t mec;
 	uint32_t pipe;
 
@@ -620,11 +615,10 @@ static int kgd_hqd_sdma_destroy(struct amdgpu_device *adev, void *mqd,
 	return 0;
 }
 
-bool kgd_gfx_v9_get_atc_vmid_pasid_mapping_info(struct kgd_dev *kgd,
+bool kgd_gfx_v9_get_atc_vmid_pasid_mapping_info(struct amdgpu_device *adev,
 					uint8_t vmid, uint16_t *p_pasid)
 {
 	uint32_t value;
-	struct amdgpu_device *adev = (struct amdgpu_device *) kgd;
 
 	value = RREG32(SOC15_REG_OFFSET(ATHUB, 0, mmATC_VMID0_PASID_MAPPING)
 		     + vmid);
@@ -633,12 +627,12 @@ bool kgd_gfx_v9_get_atc_vmid_pasid_mapping_info(struct kgd_dev *kgd,
 	return !!(value & ATC_VMID0_PASID_MAPPING__VALID_MASK);
 }
 
-int kgd_gfx_v9_address_watch_disable(struct kgd_dev *kgd)
+int kgd_gfx_v9_address_watch_disable(struct amdgpu_device *adev)
 {
 	return 0;
 }
 
-int kgd_gfx_v9_address_watch_execute(struct kgd_dev *kgd,
+int kgd_gfx_v9_address_watch_execute(struct amdgpu_device *adev,
 					unsigned int watch_point_id,
 					uint32_t cntl_val,
 					uint32_t addr_hi,
@@ -647,11 +641,10 @@ int kgd_gfx_v9_address_watch_execute(struct kgd_dev *kgd,
 	return 0;
 }
 
-int kgd_gfx_v9_wave_control_execute(struct kgd_dev *kgd,
+int kgd_gfx_v9_wave_control_execute(struct amdgpu_device *adev,
 					uint32_t gfx_index_val,
 					uint32_t sq_cmd)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	uint32_t data = 0;
 
 	mutex_lock(&adev->grbm_idx_mutex);
@@ -672,18 +665,16 @@ int kgd_gfx_v9_wave_control_execute(struct kgd_dev *kgd,
 	return 0;
 }
 
-uint32_t kgd_gfx_v9_address_watch_get_offset(struct kgd_dev *kgd,
+uint32_t kgd_gfx_v9_address_watch_get_offset(struct amdgpu_device *adev,
 					unsigned int watch_point_id,
 					unsigned int reg_offset)
 {
 	return 0;
 }
 
-void kgd_gfx_v9_set_vm_context_page_table_base(struct kgd_dev *kgd,
+void kgd_gfx_v9_set_vm_context_page_table_base(struct amdgpu_device *adev,
 			uint32_t vmid, uint64_t page_table_base)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
-
 	if (!amdgpu_amdkfd_is_kfd_vmid(adev, vmid)) {
 		pr_err("trying to set page table base for wrong VMID %u\n",
 		       vmid);
@@ -790,7 +781,7 @@ static void get_wave_count(struct amdgpu_device *adev, int queue_idx,
  *
  *  Reading registers referenced above involves programming GRBM appropriately
  */
-void kgd_gfx_v9_get_cu_occupancy(struct kgd_dev *kgd, int pasid,
+void kgd_gfx_v9_get_cu_occupancy(struct amdgpu_device *adev, int pasid,
 		int *pasid_wave_cnt, int *max_waves_per_cu)
 {
 	int qidx;
@@ -804,10 +795,8 @@ void kgd_gfx_v9_get_cu_occupancy(struct kgd_dev *kgd, int pasid,
 	int pasid_tmp;
 	int max_queue_cnt;
 	int vmid_wave_cnt = 0;
-	struct amdgpu_device *adev;
 	DECLARE_BITMAP(cp_queue_bitmap, KGD_MAX_QUEUES);
 
-	adev = get_amdgpu_device(kgd);
 	lock_spi_csq_mutexes(adev);
 	soc15_grbm_select(adev, 1, 0, 0, 0);
 
@@ -868,11 +857,9 @@ void kgd_gfx_v9_get_cu_occupancy(struct kgd_dev *kgd, int pasid,
 				adev->gfx.cu_info.max_waves_per_simd;
 }
 
-void kgd_gfx_v9_program_trap_handler_settings(struct kgd_dev *kgd,
+void kgd_gfx_v9_program_trap_handler_settings(struct amdgpu_device *adev,
                         uint32_t vmid, uint64_t tba_addr, uint64_t tma_addr)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
-
 	lock_srbm(adev, 0, 0, 0, vmid);
 
 	/*

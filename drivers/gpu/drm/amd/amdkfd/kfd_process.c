@@ -288,7 +288,7 @@ static int kfd_get_cu_occupancy(struct attribute *attr, char *buffer)
 	/* Collect wave count from device if it supports */
 	wave_cnt = 0;
 	max_waves_per_cu = 0;
-	dev->kfd2kgd->get_cu_occupancy(dev->kgd, proc->pasid, &wave_cnt,
+	dev->kfd2kgd->get_cu_occupancy(dev->adev, proc->pasid, &wave_cnt,
 			&max_waves_per_cu);
 
 	/* Translate wave count to number of compute units */
