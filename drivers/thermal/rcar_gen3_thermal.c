@@ -34,6 +34,10 @@
 #define REG_GEN3_THCODE1	0x50
 #define REG_GEN3_THCODE2	0x54
 #define REG_GEN3_THCODE3	0x58
+#define REG_GEN3_PTAT1		0x5c
+#define REG_GEN3_PTAT2		0x60
+#define REG_GEN3_PTAT3		0x64
+#define REG_GEN3_THSCP		0x68
 
 /* IRQ{STR,MSK,EN} bits */
 #define IRQ_TEMP1		BIT(0)
@@ -54,6 +58,9 @@
 /* THCTR bits */
 #define THCTR_PONM	BIT(6)
 #define THCTR_THSST	BIT(0)
+
+/* THSCP bits */
+#define THSCP_COR_PARA_VLD	(BIT(15) | BIT(14))
 
 #define CTEMP_MASK	0xFFF
 
@@ -245,6 +252,64 @@ static const struct soc_device_attribute r8a7795es1[] = {
 	{ /* sentinel */ }
 };
 
+static bool rcar_gen3_thermal_read_fuses(struct rcar_gen3_thermal_priv *priv)
+{
+	unsigned int i;
+	u32 thscp;
+
+	/* If fuses are not set, fallback to pseudo values. */
+	thscp = rcar_gen3_thermal_read(priv->tscs[0], REG_GEN3_THSCP);
+	if ((thscp & THSCP_COR_PARA_VLD) != THSCP_COR_PARA_VLD) {
+		/* Default THCODE values in case FUSEs are not set. */
+		static const int thcodes[TSC_MAX_NUM][3] = {
+			{ 3397, 2800, 2221 },
+			{ 3393, 2795, 2216 },
+			{ 3389, 2805, 2237 },
+			{ 3415, 2694, 2195 },
+			{ 3356, 2724, 2244 },
+		};
+
+		priv->ptat[0] = 2631;
+		priv->ptat[1] = 1509;
+		priv->ptat[2] = 435;
+
+		for (i = 0; i < priv->num_tscs; i++) {
+			struct rcar_gen3_thermal_tsc *tsc = priv->tscs[i];
+
+			tsc->thcode[0] = thcodes[i][0];
+			tsc->thcode[1] = thcodes[i][1];
+			tsc->thcode[2] = thcodes[i][2];
+		}
+
+		return false;
+	}
+
+	/*
+	 * Set the pseudo calibration points with fused values.
+	 * PTAT is shared between all TSCs but only fused for the first
+	 * TSC while THCODEs are fused for each TSC.
+	 */
+	priv->ptat[0] = rcar_gen3_thermal_read(priv->tscs[0], REG_GEN3_PTAT1) &
+		GEN3_FUSE_MASK;
+	priv->ptat[1] = rcar_gen3_thermal_read(priv->tscs[0], REG_GEN3_PTAT2) &
+		GEN3_FUSE_MASK;
+	priv->ptat[2] = rcar_gen3_thermal_read(priv->tscs[0], REG_GEN3_PTAT3) &
+		GEN3_FUSE_MASK;
+
+	for (i = 0; i < priv->num_tscs; i++) {
+		struct rcar_gen3_thermal_tsc *tsc = priv->tscs[i];
+
+		tsc->thcode[0] = rcar_gen3_thermal_read(tsc, REG_GEN3_THCODE1) &
+			GEN3_FUSE_MASK;
+		tsc->thcode[1] = rcar_gen3_thermal_read(tsc, REG_GEN3_THCODE2) &
+			GEN3_FUSE_MASK;
+		tsc->thcode[2] = rcar_gen3_thermal_read(tsc, REG_GEN3_THCODE3) &
+			GEN3_FUSE_MASK;
+	}
+
+	return true;
+}
+
 static void rcar_gen3_thermal_init_r8a7795es1(struct rcar_gen3_thermal_tsc *tsc)
 {
 	rcar_gen3_thermal_write(tsc, REG_GEN3_CTSR,  CTSR_THBGR);
@@ -393,16 +458,6 @@ static int rcar_gen3_thermal_probe(struct platform_device *pdev)
 	unsigned int i;
 	int ret;
 
-	/* Default THCODE values in case FUSEs are not set. */
-	/* TODO: Read values from hardware on supported platforms */
-	static const int thcodes[TSC_MAX_NUM][3] = {
-		{ 3397, 2800, 2221 },
-		{ 3393, 2795, 2216 },
-		{ 3389, 2805, 2237 },
-		{ 3415, 2694, 2195 },
-		{ 3356, 2724, 2244 },
-	};
-
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
@@ -410,10 +465,6 @@ static int rcar_gen3_thermal_probe(struct platform_device *pdev)
 	priv->thermal_init = rcar_gen3_thermal_init;
 	if (soc_device_match(r8a7795es1))
 		priv->thermal_init = rcar_gen3_thermal_init_r8a7795es1;
-
-	priv->ptat[0] = 2631;
-	priv->ptat[1] = 1509;
-	priv->ptat[2] = 435;
 
 	platform_set_drvdata(pdev, priv);
 
@@ -442,11 +493,16 @@ static int rcar_gen3_thermal_probe(struct platform_device *pdev)
 			goto error_unregister;
 		}
 
-		tsc->thcode[0] = thcodes[i][0];
-		tsc->thcode[1] = thcodes[i][1];
-		tsc->thcode[2] = thcodes[i][2];
-
 		priv->tscs[i] = tsc;
+	}
+
+	priv->num_tscs = i;
+
+	if (!rcar_gen3_thermal_read_fuses(priv))
+		dev_info(dev, "No calibration values fused, fallback to driver values\n");
+
+	for (i = 0; i < priv->num_tscs; i++) {
+		struct rcar_gen3_thermal_tsc *tsc = priv->tscs[i];
 
 		zone = devm_thermal_zone_of_sensor_register(dev, i, tsc,
 							    &rcar_gen3_tz_of_ops);
@@ -475,8 +531,6 @@ static int rcar_gen3_thermal_probe(struct platform_device *pdev)
 
 		dev_info(dev, "TSC%u: Loaded %d trip points\n", i, ret);
 	}
-
-	priv->num_tscs = i;
 
 	if (!priv->num_tscs) {
 		ret = -ENODEV;
