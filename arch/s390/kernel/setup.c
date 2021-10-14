@@ -606,7 +606,7 @@ static void __init setup_resources(void)
 
 static void __init setup_memory_end(void)
 {
-	memblock_remove(ident_map_size, ULONG_MAX);
+	memblock_remove(ident_map_size, PHYS_ADDR_MAX - ident_map_size);
 	max_pfn = max_low_pfn = PFN_DOWN(ident_map_size);
 	pr_notice("The maximum memory size is %luMB\n", ident_map_size >> 20);
 }
@@ -777,7 +777,6 @@ static void __init memblock_add_mem_detect_info(void)
 	}
 	memblock_set_bottom_up(false);
 	memblock_set_node(0, ULONG_MAX, &memblock.memory, 0);
-	memblock_dump_all();
 }
 
 /*
@@ -999,13 +998,13 @@ void __init setup_arch(char **cmdline_p)
 	memblock_add_mem_detect_info();
 
 	free_mem_detect_info();
+	setup_memory_end();
+	memblock_dump_all();
+	setup_memory();
 
 	relocate_amode31_section();
 	setup_cr();
-
 	setup_uv();
-	setup_memory_end();
-	setup_memory();
 	dma_contiguous_reserve(ident_map_size);
 	vmcp_cma_reserve();
 	if (MACHINE_HAS_EDAT2)
