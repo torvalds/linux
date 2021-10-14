@@ -15,6 +15,7 @@
 #include <linux/pm_opp.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/qcom-cpufreq-hw.h>
 
 #define LUT_MAX_ENTRIES			40U
 #define LUT_SRC				GENMASK(31, 30)
@@ -28,6 +29,17 @@
 
 #define HZ_PER_KHZ			1000
 
+#define CYCLE_CNTR_OFFSET(c, m, acc_count)		\
+				(acc_count ? ((c - cpumask_first(m) + 1) * 4) : 0)
+
+struct cpufreq_counter {
+	u64 total_cycle_counter;
+	u32 prev_cycle_counter;
+	spinlock_t lock;
+};
+
+static struct cpufreq_counter qcom_cpufreq_counter[NR_CPUS];
+
 struct qcom_cpufreq_soc_data {
 	u32 reg_enable;
 	u32 reg_domain_state;
@@ -37,7 +49,9 @@ struct qcom_cpufreq_soc_data {
 	u32 reg_intr_clr;
 	u32 reg_current_vote;
 	u32 reg_perf_state;
+	u32 reg_cycle_cntr;
 	u8 lut_row_size;
+	bool accumulative_counter;
 };
 
 struct qcom_cpufreq_data {
@@ -102,6 +116,49 @@ static int qcom_cpufreq_update_opp(struct device *cpu_dev,
 
 	return dev_pm_opp_enable(cpu_dev, freq_hz);
 }
+
+u64 qcom_cpufreq_get_cpu_cycle_counter(int cpu)
+{
+	const struct qcom_cpufreq_soc_data *soc_data;
+	struct cpufreq_counter *cpu_counter;
+	struct qcom_cpufreq_data *data;
+	struct cpufreq_policy *policy;
+	u64 cycle_counter_ret;
+	unsigned long flags;
+	u16 offset;
+	u32 val;
+
+	policy = cpufreq_cpu_get_raw(cpu);
+	if (!policy)
+		return 0;
+
+	data = policy->driver_data;
+	soc_data = data->soc_data;
+
+	cpu_counter = &qcom_cpufreq_counter[cpu];
+	spin_lock_irqsave(&cpu_counter->lock, flags);
+
+	offset = CYCLE_CNTR_OFFSET(cpu, policy->related_cpus,
+					soc_data->accumulative_counter);
+	val = readl_relaxed(data->base +
+					soc_data->reg_cycle_cntr + offset);
+
+	if (val < cpu_counter->prev_cycle_counter) {
+		/* Handle counter overflow */
+		cpu_counter->total_cycle_counter += UINT_MAX -
+			cpu_counter->prev_cycle_counter + val;
+		cpu_counter->prev_cycle_counter = val;
+	} else {
+		cpu_counter->total_cycle_counter += val -
+			cpu_counter->prev_cycle_counter;
+		cpu_counter->prev_cycle_counter = val;
+	}
+	cycle_counter_ret = cpu_counter->total_cycle_counter;
+	spin_unlock_irqrestore(&cpu_counter->lock, flags);
+
+	return cycle_counter_ret;
+}
+EXPORT_SYMBOL(qcom_cpufreq_get_cpu_cycle_counter);
 
 static int qcom_cpufreq_hw_target_index(struct cpufreq_policy *policy,
 					unsigned int index)
@@ -377,7 +434,9 @@ static const struct qcom_cpufreq_soc_data qcom_soc_data = {
 	.reg_volt_lut = 0x114,
 	.reg_current_vote = 0x704,
 	.reg_perf_state = 0x920,
+	.reg_cycle_cntr = 0x9c0,
 	.lut_row_size = 32,
+	.accumulative_counter = true,
 };
 
 static const struct qcom_cpufreq_soc_data epss_soc_data = {
@@ -388,7 +447,9 @@ static const struct qcom_cpufreq_soc_data epss_soc_data = {
 	.reg_volt_lut = 0x200,
 	.reg_intr_clr = 0x308,
 	.reg_perf_state = 0x320,
+	.reg_cycle_cntr = 0x3c4,
 	.lut_row_size = 4,
+	.accumulative_counter = false,
 };
 
 static const struct of_device_id qcom_cpufreq_hw_match[] = {
