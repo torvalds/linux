@@ -13,9 +13,10 @@
 #include <sound/soc.h>
 #include <linux/bitops.h>
 
-#define soc_component_ret(dai, ret) _soc_component_ret(dai, __func__, ret)
+#define soc_component_ret(dai, ret) _soc_component_ret(dai, __func__, ret, -1)
+#define soc_component_ret_reg_rw(dai, ret, reg) _soc_component_ret(dai, __func__, ret, reg)
 static inline int _soc_component_ret(struct snd_soc_component *component,
-				     const char *func, int ret)
+				     const char *func, int ret, int reg)
 {
 	/* Positive/Zero values are not errors */
 	if (ret >= 0)
@@ -27,9 +28,14 @@ static inline int _soc_component_ret(struct snd_soc_component *component,
 	case -ENOTSUPP:
 		break;
 	default:
-		dev_err(component->dev,
-			"ASoC: error at %s on %s: %d\n",
-			func, component->name, ret);
+		if (reg == -1)
+			dev_err(component->dev,
+				"ASoC: error at %s on %s: %d\n",
+				func, component->name, ret);
+		else
+			dev_err(component->dev,
+				"ASoC: error at %s on %s for register: [0x%08x] %d\n",
+				func, component->name, reg, ret);
 	}
 
 	return ret;
@@ -687,7 +693,7 @@ static unsigned int soc_component_read_no_lock(
 		ret = -EIO;
 
 	if (ret < 0)
-		return soc_component_ret(component, ret);
+		return soc_component_ret_reg_rw(component, ret, reg);
 
 	return val;
 }
@@ -723,7 +729,7 @@ static int soc_component_write_no_lock(
 	else if (component->driver->write)
 		ret = component->driver->write(component, reg, val);
 
-	return soc_component_ret(component, ret);
+	return soc_component_ret_reg_rw(component, ret, reg);
 }
 
 /**
@@ -765,7 +771,7 @@ static int snd_soc_component_update_bits_legacy(
 
 	mutex_unlock(&component->io_mutex);
 
-	return soc_component_ret(component, ret);
+	return soc_component_ret_reg_rw(component, ret, reg);
 }
 
 /**
@@ -793,7 +799,7 @@ int snd_soc_component_update_bits(struct snd_soc_component *component,
 							   mask, val, &change);
 
 	if (ret < 0)
-		return soc_component_ret(component, ret);
+		return soc_component_ret_reg_rw(component, ret, reg);
 	return change;
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_update_bits);
@@ -829,7 +835,7 @@ int snd_soc_component_update_bits_async(struct snd_soc_component *component,
 							   mask, val, &change);
 
 	if (ret < 0)
-		return soc_component_ret(component, ret);
+		return soc_component_ret_reg_rw(component, ret, reg);
 	return change;
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_update_bits_async);
