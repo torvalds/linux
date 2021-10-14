@@ -197,12 +197,6 @@ static const struct clk_parent_data gcc_parent_data_0[] = {
 	{ .hw = &gcc_gpll0_out_even.clkr.hw },
 };
 
-static const struct clk_parent_data gcc_parent_data_0_ao[] = {
-	{ .fw_name = "bi_tcxo_ao" },
-	{ .hw = &gcc_gpll0.clkr.hw },
-	{ .hw = &gcc_gpll0_out_even.clkr.hw },
-};
-
 static const struct parent_map gcc_parent_map_1[] = {
 	{ P_BI_TCXO, 0 },
 	{ P_GCC_GPLL0_OUT_MAIN, 1 },
