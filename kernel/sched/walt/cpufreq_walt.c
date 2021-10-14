@@ -723,7 +723,7 @@ static void waltgov_policy_free(struct waltgov_policy *wg_policy)
 static int waltgov_kthread_create(struct waltgov_policy *wg_policy)
 {
 	struct task_struct *thread;
-	struct sched_param param = { .sched_priority = MAX_USER_RT_PRIO / 2 };
+	struct sched_param param = { .sched_priority = MAX_RT_PRIO / 2 };
 	struct cpufreq_policy *policy = wg_policy->policy;
 	int ret;
 
