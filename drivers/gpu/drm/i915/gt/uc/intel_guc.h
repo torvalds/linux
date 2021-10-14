@@ -90,6 +90,17 @@ struct intel_guc {
 		 * refs
 		 */
 		struct list_head guc_id_list;
+		/**
+		 * @destroyed_contexts: list of contexts waiting to be destroyed
+		 * (deregistered with the GuC)
+		 */
+		struct list_head destroyed_contexts;
+		/**
+		 * @destroyed_worker: worker to deregister contexts, need as we
+		 * need to take a GT PM reference and can't from destroy
+		 * function as it might be in an atomic context (no sleeping)
+		 */
+		struct work_struct destroyed_worker;
 	} submission_state;
 
 	/**

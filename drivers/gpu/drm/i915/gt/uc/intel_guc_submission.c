@@ -90,8 +90,8 @@
  * used for all of GuC submission but that could change in the future.
  *
  * guc->submission_state.lock
- * Protects guc_id allocation for the given GuC, i.e. only one context can be
- * doing guc_id allocation operations at a time for each GuC in the system.
+ * Global lock for GuC submission state. Protects guc_ids and destroyed contexts
+ * list.
  *
  * ce->guc_state.lock
  * Protects everything under ce->guc_state. Ensures that a context is in the
@@ -719,6 +719,7 @@ static void scrub_guc_desc_for_outstanding_g2h(struct intel_guc *guc)
 			if (deregister)
 				guc_signal_context_fence(ce);
 			if (destroyed) {
+				intel_gt_pm_put_async(guc_to_gt(guc));
 				release_guc_id(guc, ce);
 				__guc_context_destroy(ce);
 			}
@@ -797,6 +798,8 @@ static void guc_flush_submissions(struct intel_guc *guc)
 	spin_unlock_irqrestore(&sched_engine->lock, flags);
 }
 
+static void guc_flush_destroyed_contexts(struct intel_guc *guc);
+
 void intel_guc_submission_reset_prepare(struct intel_guc *guc)
 {
 	int i;
@@ -815,6 +818,7 @@ void intel_guc_submission_reset_prepare(struct intel_guc *guc)
 	spin_unlock_irq(&guc_to_gt(guc)->irq_lock);
 
 	guc_flush_submissions(guc);
+	guc_flush_destroyed_contexts(guc);
 
 	/*
 	 * Handle any outstanding G2Hs before reset. Call IRQ handler directly
@@ -1126,6 +1130,8 @@ void intel_guc_submission_reset_finish(struct intel_guc *guc)
 	intel_gt_unpark_heartbeats(guc_to_gt(guc));
 }
 
+static void destroyed_worker_func(struct work_struct *w);
+
 /*
  * Set up the memory resources to be shared with the GuC (via the GGTT)
  * at firmware loading time.
@@ -1151,6 +1157,9 @@ int intel_guc_submission_init(struct intel_guc *guc)
 	spin_lock_init(&guc->submission_state.lock);
 	INIT_LIST_HEAD(&guc->submission_state.guc_id_list);
 	ida_init(&guc->submission_state.guc_ids);
+	INIT_LIST_HEAD(&guc->submission_state.destroyed_contexts);
+	INIT_WORK(&guc->submission_state.destroyed_worker,
+		  destroyed_worker_func);
 
 	return 0;
 }
@@ -1160,6 +1169,7 @@ void intel_guc_submission_fini(struct intel_guc *guc)
 	if (!guc->lrc_desc_pool)
 		return;
 
+	guc_flush_destroyed_contexts(guc);
 	guc_lrc_desc_pool_destroy(guc);
 	i915_sched_engine_put(guc->sched_engine);
 }
@@ -1859,10 +1869,29 @@ unpin:
 static inline void guc_lrc_desc_unpin(struct intel_context *ce)
 {
 	struct intel_guc *guc = ce_to_guc(ce);
+	struct intel_gt *gt = guc_to_gt(guc);
+	unsigned long flags;
+	bool disabled;
 
+	GEM_BUG_ON(!intel_gt_pm_is_awake(gt));
 	GEM_BUG_ON(!lrc_desc_registered(guc, ce->guc_id.id));
 	GEM_BUG_ON(ce != __get_context(guc, ce->guc_id.id));
 	GEM_BUG_ON(context_enabled(ce));
+
+	/* Seal race with Reset */
+	spin_lock_irqsave(&ce->guc_state.lock, flags);
+	disabled = submission_disabled(guc);
+	if (likely(!disabled)) {
+		__intel_gt_pm_get(gt);
+		set_context_destroyed(ce);
+		clr_context_registered(ce);
+	}
+	spin_unlock_irqrestore(&ce->guc_state.lock, flags);
+	if (unlikely(disabled)) {
+		release_guc_id(guc, ce);
+		__guc_context_destroy(ce);
+		return;
+	}
 
 	deregister_context(ce, ce->guc_id.id);
 }
@@ -1891,78 +1920,86 @@ static void __guc_context_destroy(struct intel_context *ce)
 	}
 }
 
+static void guc_flush_destroyed_contexts(struct intel_guc *guc)
+{
+	struct intel_context *ce, *cn;
+	unsigned long flags;
+
+	GEM_BUG_ON(!submission_disabled(guc) &&
+		   guc_submission_initialized(guc));
+
+	spin_lock_irqsave(&guc->submission_state.lock, flags);
+	list_for_each_entry_safe(ce, cn,
+				 &guc->submission_state.destroyed_contexts,
+				 destroyed_link) {
+		list_del_init(&ce->destroyed_link);
+		__release_guc_id(guc, ce);
+		__guc_context_destroy(ce);
+	}
+	spin_unlock_irqrestore(&guc->submission_state.lock, flags);
+}
+
+static void deregister_destroyed_contexts(struct intel_guc *guc)
+{
+	struct intel_context *ce, *cn;
+	unsigned long flags;
+
+	spin_lock_irqsave(&guc->submission_state.lock, flags);
+	list_for_each_entry_safe(ce, cn,
+				 &guc->submission_state.destroyed_contexts,
+				 destroyed_link) {
+		list_del_init(&ce->destroyed_link);
+		guc_lrc_desc_unpin(ce);
+	}
+	spin_unlock_irqrestore(&guc->submission_state.lock, flags);
+}
+
+static void destroyed_worker_func(struct work_struct *w)
+{
+	struct intel_guc *guc = container_of(w, struct intel_guc,
+					     submission_state.destroyed_worker);
+	struct intel_gt *gt = guc_to_gt(guc);
+	int tmp;
+
+	with_intel_gt_pm(gt, tmp)
+		deregister_destroyed_contexts(guc);
+}
+
 static void guc_context_destroy(struct kref *kref)
 {
 	struct intel_context *ce = container_of(kref, typeof(*ce), ref);
-	struct intel_runtime_pm *runtime_pm = ce->engine->uncore->rpm;
 	struct intel_guc *guc = ce_to_guc(ce);
-	intel_wakeref_t wakeref;
 	unsigned long flags;
-	bool disabled;
+	bool destroy;
 
 	/*
 	 * If the guc_id is invalid this context has been stolen and we can free
 	 * it immediately. Also can be freed immediately if the context is not
 	 * registered with the GuC or the GuC is in the middle of a reset.
 	 */
-	if (context_guc_id_invalid(ce)) {
-		__guc_context_destroy(ce);
-		return;
-	} else if (submission_disabled(guc) ||
-		   !lrc_desc_registered(guc, ce->guc_id.id)) {
-		release_guc_id(guc, ce);
-		__guc_context_destroy(ce);
-		return;
-	}
-
-	/*
-	 * We have to acquire the context spinlock and check guc_id again, if it
-	 * is valid it hasn't been stolen and needs to be deregistered. We
-	 * delete this context from the list of unpinned guc_id available to
-	 * steal to seal a race with guc_lrc_desc_pin(). When the G2H CTB
-	 * returns indicating this context has been deregistered the guc_id is
-	 * returned to the pool of available guc_id.
-	 */
 	spin_lock_irqsave(&guc->submission_state.lock, flags);
-	if (context_guc_id_invalid(ce)) {
-		spin_unlock_irqrestore(&guc->submission_state.lock, flags);
-		__guc_context_destroy(ce);
-		return;
+	destroy = submission_disabled(guc) || context_guc_id_invalid(ce) ||
+		!lrc_desc_registered(guc, ce->guc_id.id);
+	if (likely(!destroy)) {
+		if (!list_empty(&ce->guc_id.link))
+			list_del_init(&ce->guc_id.link);
+		list_add_tail(&ce->destroyed_link,
+			      &guc->submission_state.destroyed_contexts);
+	} else {
+		__release_guc_id(guc, ce);
 	}
-
-	if (!list_empty(&ce->guc_id.link))
-		list_del_init(&ce->guc_id.link);
 	spin_unlock_irqrestore(&guc->submission_state.lock, flags);
-
-	/* Seal race with Reset */
-	spin_lock_irqsave(&ce->guc_state.lock, flags);
-	disabled = submission_disabled(guc);
-	if (likely(!disabled)) {
-		set_context_destroyed(ce);
-		clr_context_registered(ce);
-	}
-	spin_unlock_irqrestore(&ce->guc_state.lock, flags);
-	if (unlikely(disabled)) {
-		release_guc_id(guc, ce);
+	if (unlikely(destroy)) {
 		__guc_context_destroy(ce);
 		return;
 	}
 
 	/*
-	 * We defer GuC context deregistration until the context is destroyed
-	 * in order to save on CTBs. With this optimization ideally we only need
-	 * 1 CTB to register the context during the first pin and 1 CTB to
-	 * deregister the context when the context is destroyed. Without this
-	 * optimization, a CTB would be needed every pin & unpin.
-	 *
-	 * XXX: Need to acqiure the runtime wakeref as this can be triggered
-	 * from context_free_worker when runtime wakeref is not held.
-	 * guc_lrc_desc_unpin requires the runtime as a GuC register is written
-	 * in H2G CTB to deregister the context. A future patch may defer this
-	 * H2G CTB if the runtime wakeref is zero.
+	 * We use a worker to issue the H2G to deregister the context as we can
+	 * take the GT PM for the first time which isn't allowed from an atomic
+	 * context.
 	 */
-	with_intel_runtime_pm(runtime_pm, wakeref)
-		guc_lrc_desc_unpin(ce);
+	queue_work(system_unbound_wq, &guc->submission_state.destroyed_worker);
 }
 
 static int guc_context_alloc(struct intel_context *ce)
@@ -2798,6 +2835,7 @@ int intel_guc_deregister_done_process_msg(struct intel_guc *guc,
 		intel_context_put(ce);
 	} else if (context_destroyed(ce)) {
 		/* Context has been destroyed */
+		intel_gt_pm_put_async(guc_to_gt(guc));
 		release_guc_id(guc, ce);
 		__guc_context_destroy(ce);
 	}
