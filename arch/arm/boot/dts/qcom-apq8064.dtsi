@@ -1424,9 +1424,9 @@
 			clocks = <&mmcc HDMI_APP_CLK>,
 				 <&mmcc HDMI_M_AHB_CLK>,
 				 <&mmcc HDMI_S_AHB_CLK>;
-			clock-names = "core_clk",
-				      "master_iface_clk",
-				      "slave_iface_clk";
+			clock-names = "core",
+				      "master_iface",
+				      "slave_iface";
 
 			phys = <&hdmi_phy>;
 			phy-names = "hdmi-phy";
@@ -1457,7 +1457,7 @@
 				    "hdmi_pll";
 
 			clocks = <&mmcc HDMI_S_AHB_CLK>;
-			clock-names = "slave_iface_clk";
+			clock-names = "slave_iface";
 			#phy-cells = <0>;
 		};
 
