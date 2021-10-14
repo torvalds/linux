@@ -240,6 +240,8 @@ int __intel_context_do_pin_ww(struct intel_context *ce,
 	if (err)
 		goto err_post_unpin;
 
+	intel_engine_pm_might_get(ce->engine);
+
 	if (unlikely(intel_context_is_closed(ce))) {
 		err = -ENOENT;
 		goto err_unlock;

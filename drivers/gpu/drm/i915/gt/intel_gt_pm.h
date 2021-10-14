@@ -31,6 +31,11 @@ static inline bool intel_gt_pm_get_if_awake(struct intel_gt *gt)
 	return intel_wakeref_get_if_active(&gt->wakeref);
 }
 
+static inline void intel_gt_pm_might_get(struct intel_gt *gt)
+{
+	intel_wakeref_might_get(&gt->wakeref);
+}
+
 static inline void intel_gt_pm_put(struct intel_gt *gt)
 {
 	intel_wakeref_put(&gt->wakeref);
@@ -39,6 +44,11 @@ static inline void intel_gt_pm_put(struct intel_gt *gt)
 static inline void intel_gt_pm_put_async(struct intel_gt *gt)
 {
 	intel_wakeref_put_async(&gt->wakeref);
+}
+
+static inline void intel_gt_pm_might_put(struct intel_gt *gt)
+{
+	intel_wakeref_might_put(&gt->wakeref);
 }
 
 #define with_intel_gt_pm(gt, tmp) \
