@@ -36,7 +36,11 @@ static int st_lsm6dso32x_spi_probe(struct spi_device *spi)
 
 static int st_lsm6dso32x_spi_remove(struct spi_device *spi)
 {
+#ifdef CONFIG_IIO_ST_LSM6DSO32X_MLC
 	return st_lsm6dso32x_mlc_remove(&spi->dev);
+#else /* CONFIG_IIO_ST_LSM6DSO32X_MLC */
+	return 0;
+#endif /* CONFIG_IIO_ST_LSM6DSO32X_MLC */
 }
 
 static const struct of_device_id st_lsm6dso32x_spi_of_match[] = {

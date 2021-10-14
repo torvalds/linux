@@ -7,6 +7,7 @@
  * Tesi Mario <mario.tesi@st.com>
  */
 
+#ifdef CONFIG_IIO_ST_LSM6DSO32X_MLC
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -859,4 +860,4 @@ int st_lsm6dso32x_mlc_init_preload(struct st_lsm6dso32x_hw *hw)
 
 	return 0;
 }
-
+#endif /* CONFIG_IIO_ST_LSM6DSO32X_MLC */

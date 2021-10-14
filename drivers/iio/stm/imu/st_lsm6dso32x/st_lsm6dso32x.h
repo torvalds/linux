@@ -255,13 +255,13 @@ enum st_lsm6dso32x_pm_t {
 	ST_LSM6DSO32X_NO_MODE,
 };
 
-#ifdef CONFIG_IIO_ST_LSM6DSO32X_MLC
 enum st_lsm6dso32x_fsm_mlc_enable_id {
 	ST_LSM6DSO32X_MLC_FSM_DISABLED = 0,
 	ST_LSM6DSO32X_MLC_ENABLED = BIT(0),
 	ST_LSM6DSO32X_FSM_ENABLED = BIT(1),
 };
 
+#ifdef CONFIG_IIO_ST_LSM6DSO32X_MLC
 /**
  * struct mlc_config_t -
  * @mlc_int_addr: interrupt register address.
@@ -456,6 +456,7 @@ static const enum st_lsm6dso32x_sensor_id st_lsm6dso32x_main_sensor_list[] = {
 	 [6] = ST_LSM6DSO32X_ID_TILT,
 };
 
+#ifdef CONFIG_IIO_ST_LSM6DSO32X_MLC
 static const enum st_lsm6dso32x_sensor_id st_lsm6dso32x_mlc_sensor_list[] = {
 	 [0] = ST_LSM6DSO32X_ID_MLC_0,
 	 [1] = ST_LSM6DSO32X_ID_MLC_1,
@@ -510,6 +511,7 @@ static const enum st_lsm6dso32x_sensor_id st_lsm6dso32x_fsm_sensor_list[] = {
 				      BIT(ST_LSM6DSO32X_ID_FSM_13) | \
 				      BIT(ST_LSM6DSO32X_ID_FSM_14) | \
 				      BIT(ST_LSM6DSO32X_ID_FSM_15))
+#endif /* CONFIG_IIO_ST_LSM6DSO32X_MLC */
 
 /*
  * HW devices that can wakeup the target
