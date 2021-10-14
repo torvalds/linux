@@ -44,6 +44,8 @@ void intel_context_free(struct intel_context *ce);
 int intel_context_reconfigure_sseu(struct intel_context *ce,
 				   const struct intel_sseu sseu);
 
+#define PARENT_SCRATCH_SIZE	PAGE_SIZE
+
 static inline bool intel_context_is_child(struct intel_context *ce)
 {
 	return !!ce->parallel.parent;

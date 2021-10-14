@@ -239,6 +239,18 @@ struct intel_context {
 		struct intel_context *parent;
 		/** @number_children: number of children if parent */
 		u8 number_children;
+		/** @guc: GuC specific members for parallel submission */
+		struct {
+			/** @wqi_head: head pointer in work queue */
+			u16 wqi_head;
+			/** @wqi_tail: tail pointer in work queue */
+			u16 wqi_tail;
+			/**
+			 * @parent_page: page in context state (ce->state) used
+			 * by parent for work queue, process descriptor
+			 */
+			u8 parent_page;
+		} guc;
 	} parallel;
 
 #ifdef CONFIG_DRM_I915_SELFTEST
