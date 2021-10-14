@@ -638,14 +638,6 @@ static struct notifier_block kdump_mem_nb = {
 #endif
 
 /*
- * Make sure that the area above identity mapping is protected
- */
-static void __init reserve_above_ident_map(void)
-{
-	memblock_reserve(ident_map_size, ULONG_MAX);
-}
-
-/*
  * Reserve memory for kdump kernel to be loaded with kexec
  */
 static void __init reserve_crashkernel(void)
@@ -999,11 +991,11 @@ void __init setup_arch(char **cmdline_p)
 	setup_control_program_code();
 
 	/* Do some memory reservations *before* memory is added to memblock */
-	reserve_above_ident_map();
 	reserve_kernel();
 	reserve_initrd();
 	reserve_certificate_list();
 	reserve_mem_detect_info();
+	memblock_set_current_limit(ident_map_size);
 	memblock_allow_resize();
 
 	/* Get information about *all* installed memory */
