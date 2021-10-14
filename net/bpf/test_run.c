@@ -42,12 +42,16 @@ static int bpf_test_run(struct bpf_prog *prog, void *ctx, u32 repeat,
 	migrate_disable();
 	time_start = ktime_get_ns();
 	for (i = 0; i < repeat; i++) {
-		bpf_cgroup_storage_set(storage);
+		ret = bpf_cgroup_storage_set(storage);
+		if (ret)
+			break;
 
 		if (xdp)
 			*retval = bpf_prog_run_xdp(prog, ctx);
 		else
 			*retval = BPF_PROG_RUN(prog, ctx);
+
+		bpf_cgroup_storage_unset();
 
 		if (signal_pending(current)) {
 			ret = -EINTR;
@@ -627,6 +631,9 @@ int bpf_prog_test_run_xdp(struct bpf_prog *prog, const union bpf_attr *kattr,
 	void *data;
 	int ret;
 
+	if (prog->expected_attach_type == BPF_XDP_DEVMAP ||
+	    prog->expected_attach_type == BPF_XDP_CPUMAP)
+		return -EINVAL;
 	if (kattr->test.ctx_in || kattr->test.ctx_out)
 		return -EINVAL;
 

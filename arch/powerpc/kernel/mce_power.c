@@ -475,12 +475,11 @@ static int mce_find_instr_ea_and_phys(struct pt_regs *regs, uint64_t *addr,
 	return -1;
 }
 
-static int mce_handle_ierror(struct pt_regs *regs,
+static int mce_handle_ierror(struct pt_regs *regs, unsigned long srr1,
 		const struct mce_ierror_table table[],
 		struct mce_error_info *mce_err, uint64_t *addr,
 		uint64_t *phys_addr)
 {
-	uint64_t srr1 = regs->msr;
 	int handled = 0;
 	int i;
 
@@ -683,19 +682,19 @@ static long mce_handle_ue_error(struct pt_regs *regs,
 }
 
 static long mce_handle_error(struct pt_regs *regs,
+		unsigned long srr1,
 		const struct mce_derror_table dtable[],
 		const struct mce_ierror_table itable[])
 {
 	struct mce_error_info mce_err = { 0 };
 	uint64_t addr, phys_addr = ULONG_MAX;
-	uint64_t srr1 = regs->msr;
 	long handled;
 
 	if (SRR1_MC_LOADSTORE(srr1))
 		handled = mce_handle_derror(regs, dtable, &mce_err, &addr,
 				&phys_addr);
 	else
-		handled = mce_handle_ierror(regs, itable, &mce_err, &addr,
+		handled = mce_handle_ierror(regs, srr1, itable, &mce_err, &addr,
 				&phys_addr);
 
 	if (!handled && mce_err.error_type == MCE_ERROR_TYPE_UE)
@@ -711,16 +710,20 @@ long __machine_check_early_realmode_p7(struct pt_regs *regs)
 	/* P7 DD1 leaves top bits of DSISR undefined */
 	regs->dsisr &= 0x0000ffff;
 
-	return mce_handle_error(regs, mce_p7_derror_table, mce_p7_ierror_table);
+	return mce_handle_error(regs, regs->msr,
+			mce_p7_derror_table, mce_p7_ierror_table);
 }
 
 long __machine_check_early_realmode_p8(struct pt_regs *regs)
 {
-	return mce_handle_error(regs, mce_p8_derror_table, mce_p8_ierror_table);
+	return mce_handle_error(regs, regs->msr,
+			mce_p8_derror_table, mce_p8_ierror_table);
 }
 
 long __machine_check_early_realmode_p9(struct pt_regs *regs)
 {
+	unsigned long srr1 = regs->msr;
+
 	/*
 	 * On POWER9 DD2.1 and below, it's possible to get a machine check
 	 * caused by a paste instruction where only DSISR bit 25 is set. This
@@ -734,10 +737,39 @@ long __machine_check_early_realmode_p9(struct pt_regs *regs)
 	if (SRR1_MC_LOADSTORE(regs->msr) && regs->dsisr == 0x02000000)
 		return 1;
 
-	return mce_handle_error(regs, mce_p9_derror_table, mce_p9_ierror_table);
+	/*
+	 * Async machine check due to bad real address from store or foreign
+	 * link time out comes with the load/store bit (PPC bit 42) set in
+	 * SRR1, but the cause comes in SRR1 not DSISR. Clear bit 42 so we're
+	 * directed to the ierror table so it will find the cause (which
+	 * describes it correctly as a store error).
+	 */
+	if (SRR1_MC_LOADSTORE(srr1) &&
+			((srr1 & 0x081c0000) == 0x08140000 ||
+			 (srr1 & 0x081c0000) == 0x08180000)) {
+		srr1 &= ~PPC_BIT(42);
+	}
+
+	return mce_handle_error(regs, srr1,
+			mce_p9_derror_table, mce_p9_ierror_table);
 }
 
 long __machine_check_early_realmode_p10(struct pt_regs *regs)
 {
-	return mce_handle_error(regs, mce_p10_derror_table, mce_p10_ierror_table);
+	unsigned long srr1 = regs->msr;
+
+	/*
+	 * Async machine check due to bad real address from store comes with
+	 * the load/store bit (PPC bit 42) set in SRR1, but the cause comes in
+	 * SRR1 not DSISR. Clear bit 42 so we're directed to the ierror table
+	 * so it will find the cause (which describes it correctly as a store
+	 * error).
+	 */
+	if (SRR1_MC_LOADSTORE(srr1) &&
+			(srr1 & 0x081c0000) == 0x08140000) {
+		srr1 &= ~PPC_BIT(42);
+	}
+
+	return mce_handle_error(regs, srr1,
+			mce_p10_derror_table, mce_p10_ierror_table);
 }

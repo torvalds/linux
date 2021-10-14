@@ -268,6 +268,7 @@ int xfrm_dev_state_add(struct net *net, struct xfrm_state *x,
 		xso->num_exthdrs = 0;
 		xso->flags = 0;
 		xso->dev = NULL;
+		xso->real_dev = NULL;
 		dev_put(dev);
 
 		if (err != -EOPNOTSUPP)

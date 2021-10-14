@@ -542,7 +542,7 @@ virtual_memmap_init(u64 start, u64 end, void *arg)
 }
 
 void __meminit
-memmap_init (unsigned long size, int nid, unsigned long zone,
+arch_memmap_init (unsigned long size, int nid, unsigned long zone,
 	     unsigned long start_pfn)
 {
 	if (!vmem_map) {
@@ -560,6 +560,10 @@ memmap_init (unsigned long size, int nid, unsigned long zone,
 
 		efi_memmap_walk(virtual_memmap_init, &args);
 	}
+}
+
+void __init memmap_init(void)
+{
 }
 
 int

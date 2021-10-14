@@ -176,9 +176,9 @@ static int jz4740_wdt_probe(struct platform_device *pdev)
 	watchdog_set_drvdata(jz4740_wdt, drvdata);
 
 	drvdata->map = device_node_to_regmap(dev->parent->of_node);
-	if (!drvdata->map) {
+	if (IS_ERR(drvdata->map)) {
 		dev_err(dev, "regmap not found\n");
-		return -EINVAL;
+		return PTR_ERR(drvdata->map);
 	}
 
 	return devm_watchdog_register_device(dev, &drvdata->wdt);

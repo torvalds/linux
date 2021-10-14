@@ -690,8 +690,11 @@
   hci_unregister_dev
 
 # required by ledtrig-audio.ko
+  led_set_brightness_nosleep
   led_trigger_event
+  led_trigger_register
   led_trigger_register_simple
+  led_trigger_unregister
   led_trigger_unregister_simple
 
 # required by lzo-rle.ko
@@ -1359,6 +1362,7 @@
   pci_request_selected_regions
   pci_vfs_assigned
   synchronize_irq
+  virtio_break_device
   virtio_device_freeze
   virtio_device_restore
 

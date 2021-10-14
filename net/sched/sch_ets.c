@@ -660,6 +660,13 @@ static int ets_qdisc_change(struct Qdisc *sch, struct nlattr *opt,
 	sch_tree_lock(sch);
 
 	q->nbands = nbands;
+	for (i = nstrict; i < q->nstrict; i++) {
+		INIT_LIST_HEAD(&q->classes[i].alist);
+		if (q->classes[i].qdisc->q.qlen) {
+			list_add_tail(&q->classes[i].alist, &q->active);
+			q->classes[i].deficit = quanta[i];
+		}
+	}
 	q->nstrict = nstrict;
 	memcpy(q->prio2band, priomap, sizeof(priomap));
 

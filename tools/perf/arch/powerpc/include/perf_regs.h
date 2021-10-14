@@ -73,7 +73,7 @@ static const char *reg_names[] = {
 	[PERF_REG_POWERPC_SIER3] = "sier3",
 };
 
-static inline const char *perf_reg_name(int id)
+static inline const char *__perf_reg_name(int id)
 {
 	return reg_names[id];
 }

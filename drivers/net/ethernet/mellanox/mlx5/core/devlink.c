@@ -376,6 +376,48 @@ static void mlx5_devlink_set_params_init_values(struct devlink *devlink)
 #endif
 }
 
+#define MLX5_TRAP_DROP(_id, _group_id)					\
+	DEVLINK_TRAP_GENERIC(DROP, DROP, _id,				\
+			     DEVLINK_TRAP_GROUP_GENERIC_ID_##_group_id, \
+			     DEVLINK_TRAP_METADATA_TYPE_F_IN_PORT)
+
+static const struct devlink_trap mlx5_traps_arr[] = {
+	MLX5_TRAP_DROP(INGRESS_VLAN_FILTER, L2_DROPS),
+};
+
+static const struct devlink_trap_group mlx5_trap_groups_arr[] = {
+	DEVLINK_TRAP_GROUP_GENERIC(L2_DROPS, 0),
+};
+
+static int mlx5_devlink_traps_register(struct devlink *devlink)
+{
+	struct mlx5_core_dev *core_dev = devlink_priv(devlink);
+	int err;
+
+	err = devlink_trap_groups_register(devlink, mlx5_trap_groups_arr,
+					   ARRAY_SIZE(mlx5_trap_groups_arr));
+	if (err)
+		return err;
+
+	err = devlink_traps_register(devlink, mlx5_traps_arr, ARRAY_SIZE(mlx5_traps_arr),
+				     &core_dev->priv);
+	if (err)
+		goto err_trap_group;
+	return 0;
+
+err_trap_group:
+	devlink_trap_groups_unregister(devlink, mlx5_trap_groups_arr,
+				       ARRAY_SIZE(mlx5_trap_groups_arr));
+	return err;
+}
+
+static void mlx5_devlink_traps_unregister(struct devlink *devlink)
+{
+	devlink_traps_unregister(devlink, mlx5_traps_arr, ARRAY_SIZE(mlx5_traps_arr));
+	devlink_trap_groups_unregister(devlink, mlx5_trap_groups_arr,
+				       ARRAY_SIZE(mlx5_trap_groups_arr));
+}
+
 int mlx5_devlink_register(struct devlink *devlink, struct device *dev)
 {
 	int err;
@@ -390,8 +432,16 @@ int mlx5_devlink_register(struct devlink *devlink, struct device *dev)
 		goto params_reg_err;
 	mlx5_devlink_set_params_init_values(devlink);
 	devlink_params_publish(devlink);
+
+	err = mlx5_devlink_traps_register(devlink);
+	if (err)
+		goto traps_reg_err;
+
 	return 0;
 
+traps_reg_err:
+	devlink_params_unregister(devlink, mlx5_devlink_params,
+				  ARRAY_SIZE(mlx5_devlink_params));
 params_reg_err:
 	devlink_unregister(devlink);
 	return err;
@@ -399,6 +449,8 @@ params_reg_err:
 
 void mlx5_devlink_unregister(struct devlink *devlink)
 {
+	mlx5_devlink_traps_unregister(devlink);
+	devlink_params_unpublish(devlink);
 	devlink_params_unregister(devlink, mlx5_devlink_params,
 				  ARRAY_SIZE(mlx5_devlink_params));
 	devlink_unregister(devlink);

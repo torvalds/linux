@@ -69,7 +69,10 @@
 #define VC5_FEEDBACK_FRAC_DIV(n)		(0x19 + (n))
 #define VC5_RC_CONTROL0				0x1e
 #define VC5_RC_CONTROL1				0x1f
-/* Register 0x20 is factory reserved */
+
+/* These registers are named "Unused Factory Reserved Registers" */
+#define VC5_RESERVED_X0(idx)		(0x20 + ((idx) * 0x10))
+#define VC5_RESERVED_X0_BYPASS_SYNC	BIT(7) /* bypass_sync<idx> bit */
 
 /* Output divider control for divider 1,2,3,4 */
 #define VC5_OUT_DIV_CONTROL(idx)	(0x21 + ((idx) * 0x10))
@@ -87,7 +90,6 @@
 #define VC5_OUT_DIV_SKEW_INT(idx, n)	(0x2b + ((idx) * 0x10) + (n))
 #define VC5_OUT_DIV_INT(idx, n)		(0x2d + ((idx) * 0x10) + (n))
 #define VC5_OUT_DIV_SKEW_FRAC(idx)	(0x2f + ((idx) * 0x10))
-/* Registers 0x30, 0x40, 0x50 are factory reserved */
 
 /* Clock control register for clock 1,2 */
 #define VC5_CLK_OUTPUT_CFG(idx, n)	(0x60 + ((idx) * 0x2) + (n))
@@ -140,6 +142,8 @@
 #define VC5_HAS_INTERNAL_XTAL	BIT(0)
 /* chip has PFD requency doubler */
 #define VC5_HAS_PFD_FREQ_DBL	BIT(1)
+/* chip has bits to disable FOD sync */
+#define VC5_HAS_BYPASS_SYNC_BIT	BIT(2)
 
 /* Supported IDT VC5 models. */
 enum vc5_model {
@@ -580,6 +584,23 @@ static int vc5_clk_out_prepare(struct clk_hw *hw)
 			VC5_OUT_DIV_CONTROL_EN_FOD;
 	unsigned int src;
 	int ret;
+
+	/*
+	 * When enabling a FOD, all currently enabled FODs are briefly
+	 * stopped in order to synchronize all of them. This causes a clock
+	 * disruption to any unrelated chips that might be already using
+	 * other clock outputs. Bypass the sync feature to avoid the issue,
+	 * which is possible on the VersaClock 6E family via reserved
+	 * registers.
+	 */
+	if (vc5->chip_info->flags & VC5_HAS_BYPASS_SYNC_BIT) {
+		ret = regmap_update_bits(vc5->regmap,
+					 VC5_RESERVED_X0(hwdata->num),
+					 VC5_RESERVED_X0_BYPASS_SYNC,
+					 VC5_RESERVED_X0_BYPASS_SYNC);
+		if (ret)
+			return ret;
+	}
 
 	/*
 	 * If the input mux is disabled, enable it first and
@@ -1102,7 +1123,7 @@ static const struct vc5_chip_info idt_5p49v6965_info = {
 	.model = IDT_VC6_5P49V6965,
 	.clk_fod_cnt = 4,
 	.clk_out_cnt = 5,
-	.flags = 0,
+	.flags = VC5_HAS_BYPASS_SYNC_BIT,
 };
 
 static const struct i2c_device_id vc5_id[] = {
