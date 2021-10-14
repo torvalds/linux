@@ -928,11 +928,6 @@ walt_select_task_rq_fair(void *unused, struct task_struct *p, int prev_cpu,
 		*target_cpu = prev_cpu;
 }
 
-static inline struct task_struct *task_of(struct sched_entity *se)
-{
-	return container_of(se, struct task_struct, se);
-}
-
 static void walt_place_entity(void *unused, struct sched_entity *se, u64 *vruntime)
 {
 	if (unlikely(walt_disabled))
