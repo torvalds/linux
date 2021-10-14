@@ -570,9 +570,6 @@ set_proto_ctx_engines_parallel_submit(struct i915_user_extension __user *base,
 	struct intel_engine_cs **siblings = NULL;
 	intel_engine_mask_t prev_mask;
 
-	/* Disabling for now */
-	return -ENODEV;
-
 	/* FIXME: This is NIY for execlists */
 	if (!(intel_uc_uses_guc_submission(&i915->gt.uc)))
 		return -ENODEV;
