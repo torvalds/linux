@@ -86,19 +86,6 @@
 #define XFEATURE_MASK_FPSTATE	(XFEATURE_MASK_USER_RESTORE | \
 				 XFEATURE_MASK_SUPERVISOR_SUPPORTED)
 
-static inline u64 xfeatures_mask_supervisor(void)
-{
-	return fpu_kernel_cfg.max_features & XFEATURE_MASK_SUPERVISOR_SUPPORTED;
-}
-
-static inline u64 xfeatures_mask_independent(void)
-{
-	if (!boot_cpu_has(X86_FEATURE_ARCH_LBR))
-		return XFEATURE_MASK_INDEPENDENT & ~XFEATURE_MASK_LBR;
-
-	return XFEATURE_MASK_INDEPENDENT;
-}
-
 extern u64 xstate_fx_sw_bytes[USER_XSTATE_FX_SW_WORDS];
 
 extern void __init update_regset_xstate_info(unsigned int size,
