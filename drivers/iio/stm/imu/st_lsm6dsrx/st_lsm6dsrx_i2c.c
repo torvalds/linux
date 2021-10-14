@@ -37,7 +37,11 @@ static int st_lsm6dsrx_i2c_probe(struct i2c_client *client,
 
 static int st_lsm6dsrx_i2c_remove(struct i2c_client *client)
 {
+#ifdef CONFIG_IIO_ST_LSM6DSRX_MLC
 	return st_lsm6dsrx_mlc_remove(&client->dev);
+#else /* CONFIG_IIO_ST_LSM6DSRX_MLC */
+	return 0;
+#endif /* CONFIG_IIO_ST_LSM6DSRX_MLC */
 }
 
 static const struct of_device_id st_lsm6dsrx_i2c_of_match[] = {

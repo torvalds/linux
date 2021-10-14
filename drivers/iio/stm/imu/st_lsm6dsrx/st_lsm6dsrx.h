@@ -229,13 +229,13 @@ enum st_lsm6dsrx_pm_t {
 	ST_LSM6DSRX_NO_MODE,
 };
 
-#ifdef CONFIG_IIO_ST_LSM6DSRX_MLC
 enum st_lsm6dsrx_fsm_mlc_enable_id {
 	ST_LSM6DSRX_MLC_FSM_DISABLED = 0,
 	ST_LSM6DSRX_MLC_ENABLED = BIT(0),
 	ST_LSM6DSRX_FSM_ENABLED = BIT(1),
 };
 
+#ifdef CONFIG_IIO_ST_LSM6DSRX_MLC
 /**
  * struct mlc_config_t -
  * @mlc_int_addr: interrupt register address.
@@ -412,6 +412,7 @@ enum st_lsm6dsrx_sensor_id {
 	ST_LSM6DSRX_ID_MAX,
 };
 
+#ifdef CONFIG_IIO_ST_LSM6DSRX_MLC
 static const enum st_lsm6dsrx_sensor_id st_lsm6dsrx_mlc_sensor_list[] = {
 	 [0] = ST_LSM6DSRX_ID_MLC_0,
 	 [1] = ST_LSM6DSRX_ID_MLC_1,
@@ -473,6 +474,10 @@ static const enum st_lsm6dsrx_sensor_id st_lsm6dsrx_fsm_sensor_list[] = {
 #define ST_LSM6DSRX_WAKE_UP_SENSORS (BIT(ST_LSM6DSRX_ID_GYRO) | \
 				     BIT(ST_LSM6DSRX_ID_ACC)  | \
 				     ST_LSM6DSRX_ID_ALL_FSM_MLC)
+#else /* CONFIG_IIO_ST_LSM6DSRX_MLC */
+#define ST_LSM6DSRX_WAKE_UP_SENSORS (BIT(ST_LSM6DSRX_ID_GYRO) | \
+		                     BIT(ST_LSM6DSRX_ID_ACC))
+#endif /* CONFIG_IIO_ST_LSM6DSRX_MLC */
 
 /* this is the minimal ODR for wake-up sensors and dependencies */
 #define ST_LSM6DSRX_MIN_ODR_IN_WAKEUP	26
