@@ -34,6 +34,7 @@ enum chips { tmp421, tmp422, tmp423, tmp441, tmp442 };
 #define TMP421_STATUS_REG			0x08
 #define TMP421_CONFIG_REG_1			0x09
 #define TMP421_CONVERSION_RATE_REG		0x0B
+#define TMP421_N_FACTOR_REG_1			0x21
 #define TMP421_MANUFACTURER_ID_REG		0xFE
 #define TMP421_DEVICE_ID_REG			0xFF
 
@@ -310,6 +311,7 @@ static int tmp421_probe_child_from_dt(struct i2c_client *client,
 {
 	struct device *dev = &client->dev;
 	u32 i;
+	s32 val;
 	int err;
 
 	err = of_property_read_u32(child, "reg", &i);
@@ -328,6 +330,22 @@ static int tmp421_probe_child_from_dt(struct i2c_client *client,
 		data->temp_config[i] |= HWMON_T_LABEL;
 
 	data->channel[i].enabled = of_device_is_available(child);
+
+	err = of_property_read_s32(child, "ti,n-factor", &val);
+	if (!err) {
+		if (i == 0) {
+			dev_err(dev, "n-factor can't be set for internal channel\n");
+			return -EINVAL;
+		}
+
+		if (val > 127 || val < -128) {
+			dev_err(dev, "n-factor for channel %d invalid (%d)\n",
+				i, val);
+			return -EINVAL;
+		}
+		i2c_smbus_write_byte_data(client, TMP421_N_FACTOR_REG_1 + i - 1,
+					  val);
+	}
 
 	return 0;
 }
