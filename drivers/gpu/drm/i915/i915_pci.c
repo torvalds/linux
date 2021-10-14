@@ -146,6 +146,12 @@
 		   .degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING | \
 					DRM_COLOR_LUT_EQUAL_CHANNELS, \
 	}
+#define ICL_COLORS \
+	.color = { .degamma_lut_size = 33, .gamma_lut_size = 262145, \
+		   .degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING | \
+					DRM_COLOR_LUT_EQUAL_CHANNELS, \
+		   .gamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
+	}
 
 /* Keep in gen based order, and chronological order within a gen */
 
@@ -812,7 +818,7 @@ static const struct intel_device_info cml_gt2_info = {
 		[TRANSCODER_DSI_1] = TRANSCODER_DSI1_OFFSET, \
 	}, \
 	GEN(11), \
-	.color = { .degamma_lut_size = 33, .gamma_lut_size = 262145 }, \
+	ICL_COLORS, \
 	.dbuf.size = 2048, \
 	.dbuf.slice_mask = BIT(DBUF_S1) | BIT(DBUF_S2), \
 	.display.has_dsc = 1, \
