@@ -31,10 +31,10 @@ int kvm_arch_ptp_init(void)
 
 	ret = kvm_hypercall2(KVM_HC_CLOCK_PAIRING, clock_pair_gpa,
 			     KVM_CLOCK_PAIRING_WALLCLOCK);
-	if (ret == -KVM_ENOSYS || ret == -KVM_EOPNOTSUPP)
+	if (ret == -KVM_ENOSYS)
 		return -ENODEV;
 
-	return 0;
+	return ret;
 }
 
 int kvm_arch_ptp_get_clock(struct timespec64 *ts)
