@@ -1695,7 +1695,7 @@ void bch2_dump_trans_paths_updates(struct btree_trans *trans)
 	struct btree_path *path;
 	struct btree_insert_entry *i;
 	unsigned idx;
-	char buf[300];
+	char buf1[300], buf2[300];
 
 	btree_trans_sort_paths(trans);
 
@@ -1704,7 +1704,7 @@ void bch2_dump_trans_paths_updates(struct btree_trans *trans)
 		       path->idx, path->ref, path->intent_ref,
 		       path->preserve ? " preserve" : "",
 		       bch2_btree_ids[path->btree_id],
-		       (bch2_bpos_to_text(&PBUF(buf), path->pos), buf),
+		       (bch2_bpos_to_text(&PBUF(buf1), path->pos), buf1),
 #ifdef CONFIG_BCACHEFS_DEBUG
 		       (void *) path->ip_allocated
 #else
@@ -1712,11 +1712,16 @@ void bch2_dump_trans_paths_updates(struct btree_trans *trans)
 #endif
 		       );
 
-	trans_for_each_update(trans, i)
-		printk(KERN_ERR "update: btree %s %s %pS\n",
+	trans_for_each_update(trans, i) {
+		struct bkey u;
+		struct bkey_s_c old = bch2_btree_path_peek_slot(i->path, &u);
+
+		printk(KERN_ERR "update: btree %s %pS\n  old %s\n  new %s",
 		       bch2_btree_ids[i->btree_id],
-		       (bch2_bkey_val_to_text(&PBUF(buf), trans->c, bkey_i_to_s_c(i->k)), buf),
-		       (void *) i->ip_allocated);
+		       (void *) i->ip_allocated,
+		       (bch2_bkey_val_to_text(&PBUF(buf1), trans->c, old), buf1),
+		       (bch2_bkey_val_to_text(&PBUF(buf2), trans->c, bkey_i_to_s_c(i->k)), buf2));
+	}
 }
 
 static struct btree_path *btree_path_alloc(struct btree_trans *trans,
