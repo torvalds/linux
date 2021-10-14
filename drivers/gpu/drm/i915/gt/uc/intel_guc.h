@@ -82,9 +82,13 @@ struct intel_guc {
 		 */
 		spinlock_t lock;
 		/**
-		 * @guc_ids: used to allocate new guc_ids
+		 * @guc_ids: used to allocate new guc_ids, single-lrc
 		 */
 		struct ida guc_ids;
+		/**
+		 * @guc_ids_bitmap: used to allocate new guc_ids, multi-lrc
+		 */
+		unsigned long *guc_ids_bitmap;
 		/**
 		 * @guc_id_list: list of intel_context with valid guc_ids but no
 		 * refs
