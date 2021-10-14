@@ -2932,32 +2932,24 @@ static snd_pcm_sframes_t snd_pcm_forward(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-static int snd_pcm_hwsync(struct snd_pcm_substream *substream)
-{
-	int err;
-
-	snd_pcm_stream_lock_irq(substream);
-	err = do_pcm_hwsync(substream);
-	snd_pcm_stream_unlock_irq(substream);
-	return err;
-}
-		
 static int snd_pcm_delay(struct snd_pcm_substream *substream,
 			 snd_pcm_sframes_t *delay)
 {
 	int err;
-	snd_pcm_sframes_t n = 0;
 
 	snd_pcm_stream_lock_irq(substream);
 	err = do_pcm_hwsync(substream);
-	if (!err)
-		n = snd_pcm_calc_delay(substream);
+	if (delay && !err)
+		*delay = snd_pcm_calc_delay(substream);
 	snd_pcm_stream_unlock_irq(substream);
-	if (!err)
-		*delay = n;
 	return err;
 }
 		
+static inline int snd_pcm_hwsync(struct snd_pcm_substream *substream)
+{
+	return snd_pcm_delay(substream, NULL);
+}
+
 static int snd_pcm_sync_ptr(struct snd_pcm_substream *substream,
 			    struct snd_pcm_sync_ptr __user *_sync_ptr)
 {
@@ -3275,7 +3267,7 @@ static int snd_pcm_common_ioctl(struct file *file,
 		return snd_pcm_hwsync(substream);
 	case SNDRV_PCM_IOCTL_DELAY:
 	{
-		snd_pcm_sframes_t delay;
+		snd_pcm_sframes_t delay = 0;
 		snd_pcm_sframes_t __user *res = arg;
 		int err;
 
