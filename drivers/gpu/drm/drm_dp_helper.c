@@ -270,35 +270,25 @@ EXPORT_SYMBOL(drm_dp_read_channel_eq_delay);
 void drm_dp_link_train_clock_recovery_delay(const struct drm_dp_aux *aux,
 					    const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 {
-	unsigned long rd_interval = dpcd[DP_TRAINING_AUX_RD_INTERVAL] &
-					 DP_TRAINING_AUX_RD_MASK;
+	u8 rd_interval = dpcd[DP_TRAINING_AUX_RD_INTERVAL] &
+		DP_TRAINING_AUX_RD_MASK;
+	int delay_us;
 
-	if (rd_interval > 4)
-		drm_dbg_kms(aux->drm_dev, "%s: AUX interval %lu, out of range (max 4)\n",
-			    aux->name, rd_interval);
-
-	if (rd_interval == 0 || dpcd[DP_DPCD_REV] >= DP_DPCD_REV_14)
-		rd_interval = 100;
+	if (dpcd[DP_DPCD_REV] >= DP_DPCD_REV_14)
+		delay_us = 100;
 	else
-		rd_interval *= 4 * USEC_PER_MSEC;
+		delay_us = __8b10b_clock_recovery_delay_us(aux, rd_interval);
 
-	usleep_range(rd_interval, rd_interval * 2);
+	usleep_range(delay_us, delay_us * 2);
 }
 EXPORT_SYMBOL(drm_dp_link_train_clock_recovery_delay);
 
 static void __drm_dp_link_train_channel_eq_delay(const struct drm_dp_aux *aux,
-						 unsigned long rd_interval)
+						 u8 rd_interval)
 {
-	if (rd_interval > 4)
-		drm_dbg_kms(aux->drm_dev, "%s: AUX interval %lu, out of range (max 4)\n",
-			    aux->name, rd_interval);
+	int delay_us = __8b10b_channel_eq_delay_us(aux, rd_interval);
 
-	if (rd_interval == 0)
-		rd_interval = 400;
-	else
-		rd_interval *= 4 * USEC_PER_MSEC;
-
-	usleep_range(rd_interval, rd_interval * 2);
+	usleep_range(delay_us, delay_us * 2);
 }
 
 void drm_dp_link_train_channel_eq_delay(const struct drm_dp_aux *aux,
