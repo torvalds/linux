@@ -17,8 +17,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 #include <linux/device.h>
-#include <linux/mmc/host.h>
-#include <linux/mmc/mmc.h>
 #include <linux/scatterlist.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
@@ -26,10 +24,12 @@
 #include <linux/pm_runtime.h>
 #include <linux/pm_qos.h>
 #include <linux/debugfs.h>
-#include <linux/mmc/slot-gpio.h>
-#include <linux/mmc/sdhci-pci-data.h>
 #include <linux/acpi.h>
 #include <linux/dmi.h>
+
+#include <linux/mmc/host.h>
+#include <linux/mmc/mmc.h>
+#include <linux/mmc/slot-gpio.h>
 
 #ifdef CONFIG_X86
 #include <asm/iosf_mbi.h>
@@ -2131,22 +2131,6 @@ static struct sdhci_pci_slot *sdhci_pci_probe_slot(
 	slot->cd_gpio = -EINVAL;
 	slot->cd_idx = -1;
 
-	/* Retrieve platform data if there is any */
-	if (*sdhci_pci_get_data)
-		slot->data = sdhci_pci_get_data(pdev, slotno);
-
-	if (slot->data) {
-		if (slot->data->setup) {
-			ret = slot->data->setup(slot->data);
-			if (ret) {
-				dev_err(&pdev->dev, "platform setup failed\n");
-				goto free;
-			}
-		}
-		slot->rst_n_gpio = slot->data->rst_n_gpio;
-		slot->cd_gpio = slot->data->cd_gpio;
-	}
-
 	host->hw_name = "PCI";
 	host->ops = chip->fixes && chip->fixes->ops ?
 		    chip->fixes->ops :
@@ -2233,10 +2217,6 @@ remove:
 		chip->fixes->remove_slot(slot, 0);
 
 cleanup:
-	if (slot->data && slot->data->cleanup)
-		slot->data->cleanup(slot->data);
-
-free:
 	sdhci_free_host(host);
 
 	return ERR_PTR(ret);
@@ -2258,9 +2238,6 @@ static void sdhci_pci_remove_slot(struct sdhci_pci_slot *slot)
 
 	if (slot->chip->fixes && slot->chip->fixes->remove_slot)
 		slot->chip->fixes->remove_slot(slot, dead);
-
-	if (slot->data && slot->data->cleanup)
-		slot->data->cleanup(slot->data);
 
 	sdhci_free_host(slot->host);
 }
