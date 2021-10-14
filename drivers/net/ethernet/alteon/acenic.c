@@ -2712,7 +2712,7 @@ static int ace_set_mac_addr(struct net_device *dev, void *p)
 	struct ace_private *ap = netdev_priv(dev);
 	struct ace_regs __iomem *regs = ap->regs;
 	struct sockaddr *addr=p;
-	u8 *da;
+	const u8 *da;
 	struct cmd cmd;
 
 	if(netif_running(dev))
@@ -2720,7 +2720,7 @@ static int ace_set_mac_addr(struct net_device *dev, void *p)
 
 	eth_hw_addr_set(dev, addr->sa_data);
 
-	da = (u8 *)dev->dev_addr;
+	da = (const u8 *)dev->dev_addr;
 
 	writel(da[0] << 8 | da[1], &regs->MacAddrHi);
 	writel((da[2] << 24) | (da[3] << 16) | (da[4] << 8) | da[5],

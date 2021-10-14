@@ -427,7 +427,7 @@ static void hisi_femac_free_skb_rings(struct hisi_femac_priv *priv)
 }
 
 static int hisi_femac_set_hw_mac_addr(struct hisi_femac_priv *priv,
-				      unsigned char *mac)
+				      const unsigned char *mac)
 {
 	u32 reg;
 

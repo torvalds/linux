@@ -419,7 +419,7 @@ struct netdata_local {
 /*
  * MAC support functions
  */
-static void __lpc_set_mac(struct netdata_local *pldat, u8 *mac)
+static void __lpc_set_mac(struct netdata_local *pldat, const u8 *mac)
 {
 	u32 tmp;
 

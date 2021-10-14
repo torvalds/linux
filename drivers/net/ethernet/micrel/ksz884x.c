@@ -4033,7 +4033,7 @@ static void hw_set_add_addr(struct ksz_hw *hw)
 	}
 }
 
-static int hw_add_addr(struct ksz_hw *hw, u8 *mac_addr)
+static int hw_add_addr(struct ksz_hw *hw, const u8 *mac_addr)
 {
 	int i;
 	int j = ADDITIONAL_ENTRIES;
@@ -4054,7 +4054,7 @@ static int hw_add_addr(struct ksz_hw *hw, u8 *mac_addr)
 	return -1;
 }
 
-static int hw_del_addr(struct ksz_hw *hw, u8 *mac_addr)
+static int hw_del_addr(struct ksz_hw *hw, const u8 *mac_addr)
 {
 	int i;
 

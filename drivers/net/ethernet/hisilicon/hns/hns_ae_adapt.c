@@ -206,7 +206,7 @@ static void hns_ae_fini_queue(struct hnae_queue *q)
 		hns_rcb_reset_ring_hw(q);
 }
 
-static int hns_ae_set_mac_address(struct hnae_handle *handle, void *p)
+static int hns_ae_set_mac_address(struct hnae_handle *handle, const void *p)
 {
 	int ret;
 	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);

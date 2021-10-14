@@ -132,7 +132,8 @@ static int mcs7830_hif_get_mac_address(struct usbnet *dev, unsigned char *addr)
 	return 0;
 }
 
-static int mcs7830_hif_set_mac_address(struct usbnet *dev, unsigned char *addr)
+static int mcs7830_hif_set_mac_address(struct usbnet *dev,
+				       const unsigned char *addr)
 {
 	int ret = mcs7830_set_reg(dev, HIF_REG_ETHERNET_ADDR, ETH_ALEN, addr);
 

@@ -802,8 +802,8 @@ static int ethoc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 static void ethoc_do_set_mac_address(struct net_device *dev)
 {
+	const unsigned char *mac = dev->dev_addr;
 	struct ethoc *priv = netdev_priv(dev);
-	unsigned char *mac = dev->dev_addr;
 
 	ethoc_write(priv, MAC_ADDR0, (mac[2] << 24) | (mac[3] << 16) |
 				     (mac[4] <<  8) | (mac[5] <<  0));

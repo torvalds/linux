@@ -1623,8 +1623,8 @@ static void mvneta_set_ucast_addr(struct mvneta_port *pp, u8 last_nibble,
 }
 
 /* Set mac address */
-static void mvneta_mac_addr_set(struct mvneta_port *pp, unsigned char *addr,
-				int queue)
+static void mvneta_mac_addr_set(struct mvneta_port *pp,
+				const unsigned char *addr, int queue)
 {
 	unsigned int mac_h;
 	unsigned int mac_l;

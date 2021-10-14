@@ -331,7 +331,7 @@ struct qed_eth_ops {
 	int (*configure_arfs_searcher)(struct qed_dev *cdev,
 				       enum qed_filter_config_mode mode);
 	int (*get_coalesce)(struct qed_dev *cdev, u16 *coal, void *handle);
-	int (*req_bulletin_update_mac)(struct qed_dev *cdev, u8 *mac);
+	int (*req_bulletin_update_mac)(struct qed_dev *cdev, const u8 *mac);
 };
 
 const struct qed_eth_ops *qed_get_eth_ops(void);

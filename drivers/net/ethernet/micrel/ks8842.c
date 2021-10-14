@@ -380,7 +380,7 @@ static void ks8842_read_mac_addr(struct ks8842_adapter *adapter, u8 *dest)
 	}
 }
 
-static void ks8842_write_mac_addr(struct ks8842_adapter *adapter, u8 *mac)
+static void ks8842_write_mac_addr(struct ks8842_adapter *adapter, const u8 *mac)
 {
 	unsigned long flags;
 	unsigned i;

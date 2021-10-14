@@ -272,7 +272,7 @@ void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm, u16 num_popped)
 	iowrite32(val, adapter->db + DB_CQ_OFFSET);
 }
 
-static int be_dev_mac_add(struct be_adapter *adapter, u8 *mac)
+static int be_dev_mac_add(struct be_adapter *adapter, const u8 *mac)
 {
 	int i;
 

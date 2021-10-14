@@ -1722,7 +1722,7 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		err = -ENODEV;
 		goto out;
 	}
-	memcpy(dev->dev_addr, mac->mac_addr, sizeof(mac->mac_addr));
+	eth_hw_addr_set(dev, mac->mac_addr);
 
 	ret = mac_to_intf(mac);
 	if (ret < 0) {

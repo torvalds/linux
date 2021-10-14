@@ -239,7 +239,7 @@ void dwmac_dma_flush_tx_fifo(void __iomem *ioaddr)
 	do {} while ((readl(ioaddr + DMA_CONTROL) & DMA_CONTROL_FTF));
 }
 
-void stmmac_set_mac_addr(void __iomem *ioaddr, u8 addr[6],
+void stmmac_set_mac_addr(void __iomem *ioaddr, const u8 addr[6],
 			 unsigned int high, unsigned int low)
 {
 	unsigned long data;

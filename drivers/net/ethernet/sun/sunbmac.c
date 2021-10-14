@@ -623,7 +623,7 @@ static int bigmac_init_hw(struct bigmac *bp, bool non_blocking)
 	void __iomem *cregs        = bp->creg;
 	void __iomem *bregs        = bp->bregs;
 	__u32 bblk_dvma = (__u32)bp->bblock_dvma;
-	unsigned char *e = &bp->dev->dev_addr[0];
+	const unsigned char *e = &bp->dev->dev_addr[0];
 
 	/* Latch current counters into statistics. */
 	bigmac_get_counters(bp, bregs);
@@ -1076,7 +1076,6 @@ static int bigmac_ether_init(struct platform_device *op,
 	struct net_device *dev;
 	u8 bsizes, bsizes_more;
 	struct bigmac *bp;
-	int i;
 
 	/* Get a new device struct for this interface. */
 	dev = alloc_etherdev(sizeof(struct bigmac));
@@ -1086,8 +1085,7 @@ static int bigmac_ether_init(struct platform_device *op,
 	if (version_printed++ == 0)
 		printk(KERN_INFO "%s", version);
 
-	for (i = 0; i < 6; i++)
-		dev->dev_addr[i] = idprom->id_ethaddr[i];
+	eth_hw_addr_set(dev, idprom->id_ethaddr);
 
 	/* Setup softc, with backpointers to QEC and BigMAC SBUS device structs. */
 	bp = netdev_priv(dev);

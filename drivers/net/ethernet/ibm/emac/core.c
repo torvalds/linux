@@ -2975,7 +2975,7 @@ static int emac_init_config(struct emac_instance *dev)
 	}
 
 	/* Read MAC-address */
-	err = of_get_mac_address(np, dev->ndev->dev_addr);
+	err = of_get_ethdev_address(np, dev->ndev);
 	if (err) {
 		if (err != -EPROBE_DEFER)
 			dev_err(&dev->ofdev->dev, "Can't get valid [local-]mac-address from OF !\n");

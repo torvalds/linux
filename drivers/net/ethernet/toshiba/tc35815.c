@@ -1859,7 +1859,8 @@ static struct net_device_stats *tc35815_get_stats(struct net_device *dev)
 	return &dev->stats;
 }
 
-static void tc35815_set_cam_entry(struct net_device *dev, int index, unsigned char *addr)
+static void tc35815_set_cam_entry(struct net_device *dev, int index,
+				  const unsigned char *addr)
 {
 	struct tc35815_local *lp = netdev_priv(dev);
 	struct tc35815_regs __iomem *tr =
