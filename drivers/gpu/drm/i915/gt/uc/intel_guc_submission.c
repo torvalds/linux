@@ -324,6 +324,12 @@ static inline void decr_context_committed_requests(struct intel_context *ce)
 	GEM_BUG_ON(ce->guc_state.number_committed_requests < 0);
 }
 
+static struct intel_context *
+request_to_scheduling_context(struct i915_request *rq)
+{
+	return intel_context_to_parent(rq->context);
+}
+
 static inline bool context_guc_id_invalid(struct intel_context *ce)
 {
 	return ce->guc_id.id == GUC_INVALID_LRC_ID;
@@ -1711,6 +1717,7 @@ static void __guc_context_sched_disable(struct intel_guc *guc,
 
 	GEM_BUG_ON(guc_id == GUC_INVALID_LRC_ID);
 
+	GEM_BUG_ON(intel_context_is_child(ce));
 	trace_intel_context_sched_disable(ce);
 
 	guc_submission_send_busy_loop(guc, action, ARRAY_SIZE(action),
@@ -1935,6 +1942,8 @@ static void guc_context_sched_disable(struct intel_context *ce)
 	struct intel_runtime_pm *runtime_pm = &ce->engine->gt->i915->runtime_pm;
 	intel_wakeref_t wakeref;
 	u16 guc_id;
+
+	GEM_BUG_ON(intel_context_is_child(ce));
 
 	spin_lock_irqsave(&ce->guc_state.lock, flags);
 
@@ -2304,6 +2313,8 @@ static void guc_signal_context_fence(struct intel_context *ce)
 {
 	unsigned long flags;
 
+	GEM_BUG_ON(intel_context_is_child(ce));
+
 	spin_lock_irqsave(&ce->guc_state.lock, flags);
 	clr_context_wait_for_deregister_to_register(ce);
 	__guc_signal_context_fence(ce);
@@ -2334,7 +2345,7 @@ static void guc_context_init(struct intel_context *ce)
 
 static int guc_request_alloc(struct i915_request *rq)
 {
-	struct intel_context *ce = rq->context;
+	struct intel_context *ce = request_to_scheduling_context(rq);
 	struct intel_guc *guc = ce_to_guc(ce);
 	unsigned long flags;
 	int ret;
