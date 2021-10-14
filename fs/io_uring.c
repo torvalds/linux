@@ -695,9 +695,9 @@ struct io_async_msghdr {
 };
 
 struct io_rw_state {
-	struct iovec			fast_iov[UIO_FASTIOV];
 	struct iov_iter			iter;
 	struct iov_iter_state		iter_state;
+	struct iovec			fast_iov[UIO_FASTIOV];
 };
 
 struct io_async_rw {
@@ -3297,8 +3297,7 @@ static inline bool io_alloc_async_data(struct io_kiocb *req)
 }
 
 static int io_setup_async_rw(struct io_kiocb *req, const struct iovec *iovec,
-			     const struct iovec *fast_iov,
-			     struct iov_iter *iter, bool force)
+			     struct io_rw_state *s, bool force)
 {
 	if (!force && !io_op_defs[req->opcode].needs_async_setup)
 		return 0;
@@ -3310,7 +3309,7 @@ static int io_setup_async_rw(struct io_kiocb *req, const struct iovec *iovec,
 			return -ENOMEM;
 		}
 
-		io_req_map_rw(req, iovec, fast_iov, iter);
+		io_req_map_rw(req, iovec, s->fast_iov, &s->iter);
 		iorw = req->async_data;
 		/* we've copied and mapped the iter, ensure state is saved */
 		iov_iter_save_state(&iorw->s.iter, &iorw->s.iter_state);
@@ -3432,33 +3431,33 @@ static bool need_read_all(struct io_kiocb *req)
 
 static int io_read(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct iovec inline_vecs[UIO_FASTIOV], *iovec = inline_vecs;
+	struct io_rw_state __s, *s;
+	struct iovec *iovec;
 	struct kiocb *kiocb = &req->rw.kiocb;
-	struct iov_iter __iter, *iter = &__iter;
 	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
-	struct iov_iter_state __state, *state;
 	struct io_async_rw *rw;
 	ssize_t ret, ret2;
 
 	if (req_has_async_data(req)) {
 		rw = req->async_data;
-		iter = &rw->s.iter;
-		state = &rw->s.iter_state;
+		s = &rw->s;
 		/*
 		 * We come here from an earlier attempt, restore our state to
 		 * match in case it doesn't. It's cheap enough that we don't
 		 * need to make this conditional.
 		 */
-		iov_iter_restore(iter, state);
+		iov_iter_restore(&s->iter, &s->iter_state);
 		iovec = NULL;
 	} else {
-		ret = io_import_iovec(READ, req, &iovec, iter, !force_nonblock);
+		s = &__s;
+		iovec = s->fast_iov;
+		ret = io_import_iovec(READ, req, &iovec, &s->iter, !force_nonblock);
 		if (ret < 0)
 			return ret;
-		state = &__state;
-		iov_iter_save_state(iter, state);
+
+		iov_iter_save_state(&s->iter, &s->iter_state);
 	}
-	req->result = iov_iter_count(iter);
+	req->result = iov_iter_count(&s->iter);
 
 	/* Ensure we clear previously set non-block flag */
 	if (!force_nonblock)
@@ -3468,7 +3467,7 @@ static int io_read(struct io_kiocb *req, unsigned int issue_flags)
 
 	/* If the file doesn't support async, just async punt */
 	if (force_nonblock && !io_file_supports_nowait(req, READ)) {
-		ret = io_setup_async_rw(req, iovec, inline_vecs, iter, true);
+		ret = io_setup_async_rw(req, iovec, s, true);
 		return ret ?: -EAGAIN;
 	}
 
@@ -3478,7 +3477,7 @@ static int io_read(struct io_kiocb *req, unsigned int issue_flags)
 		return ret;
 	}
 
-	ret = io_iter_do_read(req, iter);
+	ret = io_iter_do_read(req, &s->iter);
 
 	if (ret == -EAGAIN || (req->flags & REQ_F_REISSUE)) {
 		req->flags &= ~REQ_F_REISSUE;
@@ -3502,22 +3501,19 @@ static int io_read(struct io_kiocb *req, unsigned int issue_flags)
 	 * untouched in case of error. Restore it and we'll advance it
 	 * manually if we need to.
 	 */
-	iov_iter_restore(iter, state);
+	iov_iter_restore(&s->iter, &s->iter_state);
 
-	ret2 = io_setup_async_rw(req, iovec, inline_vecs, iter, true);
+	ret2 = io_setup_async_rw(req, iovec, s, true);
 	if (ret2)
 		return ret2;
 
 	iovec = NULL;
 	rw = req->async_data;
+	s = &rw->s;
 	/*
 	 * Now use our persistent iterator and state, if we aren't already.
 	 * We've restored and mapped the iter to match.
 	 */
-	if (iter != &rw->s.iter) {
-		iter = &rw->s.iter;
-		state = &rw->s.iter_state;
-	}
 
 	do {
 		/*
@@ -3525,11 +3521,11 @@ static int io_read(struct io_kiocb *req, unsigned int issue_flags)
 		 * above or inside this loop. Advance the iter by the bytes
 		 * that were consumed.
 		 */
-		iov_iter_advance(iter, ret);
-		if (!iov_iter_count(iter))
+		iov_iter_advance(&s->iter, ret);
+		if (!iov_iter_count(&s->iter))
 			break;
 		rw->bytes_done += ret;
-		iov_iter_save_state(iter, state);
+		iov_iter_save_state(&s->iter, &s->iter_state);
 
 		/* if we can retry, do so with the callbacks armed */
 		if (!io_rw_should_retry(req)) {
@@ -3543,12 +3539,12 @@ static int io_read(struct io_kiocb *req, unsigned int issue_flags)
 		 * desired page gets unlocked. We can also get a partial read
 		 * here, and if we do, then just retry at the new offset.
 		 */
-		ret = io_iter_do_read(req, iter);
+		ret = io_iter_do_read(req, &s->iter);
 		if (ret == -EIOCBQUEUED)
 			return 0;
 		/* we got some bytes, but not all. retry. */
 		kiocb->ki_flags &= ~IOCB_WAITQ;
-		iov_iter_restore(iter, state);
+		iov_iter_restore(&s->iter, &s->iter_state);
 	} while (ret > 0);
 done:
 	kiocb_done(kiocb, ret, issue_flags);
@@ -3568,28 +3564,27 @@ static int io_write_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 static int io_write(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct iovec inline_vecs[UIO_FASTIOV], *iovec = inline_vecs;
-	struct kiocb *kiocb = &req->rw.kiocb;
-	struct iov_iter __iter, *iter = &__iter;
-	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
-	struct iov_iter_state __state, *state;
+	struct io_rw_state __s, *s;
 	struct io_async_rw *rw;
+	struct iovec *iovec;
+	struct kiocb *kiocb = &req->rw.kiocb;
+	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
 	ssize_t ret, ret2;
 
 	if (req_has_async_data(req)) {
 		rw = req->async_data;
-		iter = &rw->s.iter;
-		state = &rw->s.iter_state;
-		iov_iter_restore(iter, state);
+		s = &rw->s;
+		iov_iter_restore(&s->iter, &s->iter_state);
 		iovec = NULL;
 	} else {
-		ret = io_import_iovec(WRITE, req, &iovec, iter, !force_nonblock);
+		s = &__s;
+		iovec = s->fast_iov;
+		ret = io_import_iovec(WRITE, req, &iovec, &s->iter, !force_nonblock);
 		if (ret < 0)
 			return ret;
-		state = &__state;
-		iov_iter_save_state(iter, state);
+		iov_iter_save_state(&s->iter, &s->iter_state);
 	}
-	req->result = iov_iter_count(iter);
+	req->result = iov_iter_count(&s->iter);
 
 	/* Ensure we clear previously set non-block flag */
 	if (!force_nonblock)
@@ -3625,9 +3620,9 @@ static int io_write(struct io_kiocb *req, unsigned int issue_flags)
 	kiocb->ki_flags |= IOCB_WRITE;
 
 	if (req->file->f_op->write_iter)
-		ret2 = call_write_iter(req->file, kiocb, iter);
+		ret2 = call_write_iter(req->file, kiocb, &s->iter);
 	else if (req->file->f_op->write)
-		ret2 = loop_rw_iter(WRITE, req, iter);
+		ret2 = loop_rw_iter(WRITE, req, &s->iter);
 	else
 		ret2 = -EINVAL;
 
@@ -3653,8 +3648,8 @@ done:
 		kiocb_done(kiocb, ret2, issue_flags);
 	} else {
 copy_iov:
-		iov_iter_restore(iter, state);
-		ret = io_setup_async_rw(req, iovec, inline_vecs, iter, false);
+		iov_iter_restore(&s->iter, &s->iter_state);
+		ret = io_setup_async_rw(req, iovec, s, false);
 		return ret ?: -EAGAIN;
 	}
 out_free:
