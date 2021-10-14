@@ -616,24 +616,6 @@ static int intel_select_drive_strength(struct mmc_card *card,
 	return intel_host->drv_strength;
 }
 
-static int sdhci_get_cd_nogpio(struct mmc_host *mmc)
-{
-	struct sdhci_host *host = mmc_priv(mmc);
-	unsigned long flags;
-	int ret = 0;
-
-	spin_lock_irqsave(&host->lock, flags);
-
-	if (host->flags & SDHCI_DEVICE_DEAD)
-		goto out;
-
-	ret = !!(sdhci_readl(host, SDHCI_PRESENT_STATE) & SDHCI_CARD_PRESENT);
-out:
-	spin_unlock_irqrestore(&host->lock, flags);
-
-	return ret;
-}
-
 static int bxt_get_cd(struct mmc_host *mmc)
 {
 	int gpio_cd = mmc_gpio_get_cd(mmc);

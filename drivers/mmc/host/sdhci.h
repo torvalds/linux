@@ -775,6 +775,7 @@ void sdhci_set_power_and_bus_voltage(struct sdhci_host *host,
 				     unsigned short vdd);
 void sdhci_set_power_noreg(struct sdhci_host *host, unsigned char mode,
 			   unsigned short vdd);
+int sdhci_get_cd_nogpio(struct mmc_host *mmc);
 void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq);
 int sdhci_request_atomic(struct mmc_host *mmc, struct mmc_request *mrq);
 void sdhci_set_bus_width(struct sdhci_host *host, int width);

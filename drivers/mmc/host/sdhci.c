@@ -2425,6 +2425,25 @@ static int sdhci_get_cd(struct mmc_host *mmc)
 	return !!(sdhci_readl(host, SDHCI_PRESENT_STATE) & SDHCI_CARD_PRESENT);
 }
 
+int sdhci_get_cd_nogpio(struct mmc_host *mmc)
+{
+	struct sdhci_host *host = mmc_priv(mmc);
+	unsigned long flags;
+	int ret = 0;
+
+	spin_lock_irqsave(&host->lock, flags);
+
+	if (host->flags & SDHCI_DEVICE_DEAD)
+		goto out;
+
+	ret = !!(sdhci_readl(host, SDHCI_PRESENT_STATE) & SDHCI_CARD_PRESENT);
+out:
+	spin_unlock_irqrestore(&host->lock, flags);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(sdhci_get_cd_nogpio);
+
 static int sdhci_check_ro(struct sdhci_host *host)
 {
 	unsigned long flags;
