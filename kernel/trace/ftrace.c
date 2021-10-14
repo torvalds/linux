@@ -5561,8 +5561,12 @@ EXPORT_SYMBOL_GPL(unregister_ftrace_direct_multi);
  */
 int modify_ftrace_direct_multi(struct ftrace_ops *ops, unsigned long addr)
 {
-	struct ftrace_hash *hash = ops->func_hash->filter_hash;
+	struct ftrace_hash *hash;
 	struct ftrace_func_entry *entry, *iter;
+	static struct ftrace_ops tmp_ops = {
+		.func		= ftrace_stub,
+		.flags		= FTRACE_OPS_FL_STUB,
+	};
 	int i, size;
 	int err;
 
@@ -5572,21 +5576,22 @@ int modify_ftrace_direct_multi(struct ftrace_ops *ops, unsigned long addr)
 		return -EINVAL;
 
 	mutex_lock(&direct_mutex);
-	mutex_lock(&ftrace_lock);
+
+	/* Enable the tmp_ops to have the same functions as the direct ops */
+	ftrace_ops_init(&tmp_ops);
+	tmp_ops.func_hash = ops->func_hash;
+
+	err = register_ftrace_function(&tmp_ops);
+	if (err)
+		goto out_direct;
 
 	/*
-	 * Shutdown the ops, change 'direct' pointer for each
-	 * ops entry in direct_functions hash and startup the
-	 * ops back again.
-	 *
-	 * Note there is no callback called for @ops object after
-	 * this ftrace_shutdown call until ftrace_startup is called
-	 * later on.
+	 * Now the ftrace_ops_list_func() is called to do the direct callers.
+	 * We can safely change the direct functions attached to each entry.
 	 */
-	err = ftrace_shutdown(ops, 0);
-	if (err)
-		goto out_unlock;
+	mutex_lock(&ftrace_lock);
 
+	hash = ops->func_hash->filter_hash;
 	size = 1 << hash->size_bits;
 	for (i = 0; i < size; i++) {
 		hlist_for_each_entry(iter, &hash->buckets[i], hlist) {
@@ -5597,10 +5602,11 @@ int modify_ftrace_direct_multi(struct ftrace_ops *ops, unsigned long addr)
 		}
 	}
 
-	err = ftrace_startup(ops, 0);
+	/* Removing the tmp_ops will add the updated direct callers to the functions */
+	unregister_ftrace_function(&tmp_ops);
 
- out_unlock:
 	mutex_unlock(&ftrace_lock);
+ out_direct:
 	mutex_unlock(&direct_mutex);
 	return err;
 }
