@@ -78,30 +78,17 @@
 				      XFEATURE_MASK_INDEPENDENT | \
 				      XFEATURE_MASK_SUPERVISOR_UNSUPPORTED)
 
+/*
+ * The feature mask required to restore FPU state:
+ * - All user states which are not eagerly switched in switch_to()/exec()
+ * - The suporvisor states
+ */
+#define XFEATURE_MASK_FPSTATE	(XFEATURE_MASK_USER_RESTORE | \
+				 XFEATURE_MASK_SUPERVISOR_SUPPORTED)
+
 static inline u64 xfeatures_mask_supervisor(void)
 {
 	return fpu_kernel_cfg.max_features & XFEATURE_MASK_SUPERVISOR_SUPPORTED;
-}
-
-/*
- * The xfeatures which are restored by the kernel when returning to user
- * mode. This is not necessarily the same as xfeatures_mask_uabi() as the
- * kernel does not manage all XCR0 enabled features via xsave/xrstor as
- * some of them have to be switched eagerly on context switch and exec().
- */
-static inline u64 xfeatures_mask_restore_user(void)
-{
-	return fpu_kernel_cfg.max_features & XFEATURE_MASK_USER_RESTORE;
-}
-
-/*
- * Like xfeatures_mask_restore_user() but additionally restors the
- * supported supervisor states.
- */
-static inline u64 xfeatures_mask_fpstate(void)
-{
-	return fpu_kernel_cfg.max_features & \
-		(XFEATURE_MASK_USER_RESTORE | XFEATURE_MASK_SUPERVISOR_SUPPORTED);
 }
 
 static inline u64 xfeatures_mask_independent(void)

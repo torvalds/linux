@@ -344,7 +344,7 @@ static void __init print_xstate_offset_size(void)
  */
 static __init void os_xrstor_booting(struct xregs_state *xstate)
 {
-	u64 mask = xfeatures_mask_fpstate();
+	u64 mask = fpu_kernel_cfg.max_features & XFEATURE_MASK_FPSTATE;
 	u32 lmask = mask;
 	u32 hmask = mask >> 32;
 	int err;

@@ -150,6 +150,17 @@ void restore_fpregs_from_fpstate(struct fpstate *fpstate, u64 mask)
 	}
 
 	if (use_xsave()) {
+		/*
+		 * Restoring state always needs to modify all features
+		 * which are in @mask even if the current task cannot use
+		 * extended features.
+		 *
+		 * So fpstate->xfeatures cannot be used here, because then
+		 * a feature for which the task has no permission but was
+		 * used by the previous task would not go into init state.
+		 */
+		mask = fpu_kernel_cfg.max_features & mask;
+
 		os_xrstor(&fpstate->regs.xsave, mask);
 	} else {
 		if (use_fxsr())
@@ -161,7 +172,7 @@ void restore_fpregs_from_fpstate(struct fpstate *fpstate, u64 mask)
 
 void fpu_reset_from_exception_fixup(void)
 {
-	restore_fpregs_from_fpstate(&init_fpstate, xfeatures_mask_fpstate());
+	restore_fpregs_from_fpstate(&init_fpstate, XFEATURE_MASK_FPSTATE);
 }
 
 #if IS_ENABLED(CONFIG_KVM)
@@ -179,7 +190,7 @@ void fpu_swap_kvm_fpu(struct fpu *save, struct fpu *rstor, u64 restore_mask)
 	}
 
 	if (rstor) {
-		restore_mask &= xfeatures_mask_fpstate();
+		restore_mask &= XFEATURE_MASK_FPSTATE;
 		restore_fpregs_from_fpstate(rstor->fpstate, restore_mask);
 	}
 
@@ -518,7 +529,7 @@ void fpu__clear_user_states(struct fpu *fpu)
 	}
 
 	/* Reset user states in registers. */
-	restore_fpregs_from_init_fpstate(xfeatures_mask_restore_user());
+	restore_fpregs_from_init_fpstate(XFEATURE_MASK_USER_RESTORE);
 
 	/*
 	 * Now all FPU registers have their desired values.  Inform the FPU
