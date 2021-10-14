@@ -1,7 +1,7 @@
 # Toshiba Electronic Devices & Storage Corporation TC956X PCIe Ethernet Host Driver
-Release Date: 29 Sep 2021
+Release Date: 14 Oct 2021
 
-Release Version: V_01-00-15 : Limited-tested version
+Release Version: V_01-00-16 : Limited-tested version
 
 TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
@@ -151,6 +151,17 @@ Default Configuraton:
 	(b) Rx valn offload (vlan stripping) is disabled.
 	(c) Tx vlan offload is enabled.
 
+10. Please use the below command to insert the kernel module for passing pause frames to application except pause frames from PHY:
+
+	#insmod tc956x_pcie_eth.ko tc956x_port0_filter_phy_pause_frames=x tc956x_port1_filter_phy_pause_frames=x
+
+	argument info:
+		tc956x_port0_filter_phy_pause_frames: For PORT0
+		tc956x_port1_filter_phy_pause_frames: For PORT1
+		x = [0: DISABLE (default), 1: ENABLE]
+
+	If invalid values are passed as kernel module parameter, the default value will be selected.
+
 # Release Versions:
 
 ## TC956X_Host_Driver_20210326_V_01-00:
@@ -232,4 +243,9 @@ Default Configuraton:
 
 ## TC956X_Host_Driver_20210929_V_01-00-15:
 
-1. Added check for Device presence before changing PCIe ports speed. 
+1. Added check for Device presence before changing PCIe ports speed.
+
+## TC956X_Host_Driver_20211014_V_01-00-16:
+
+1. Configuring pause frame control using kernel module parameter also forwarding only Link partner pause frames to Application and filtering PHY pause frames using FRP.
+2. Returning error on disabling Receive Flow Control via ethtool for speed other than 10G in XFI mode.

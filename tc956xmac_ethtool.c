@@ -36,6 +36,8 @@
  *  VERSION     : 01-00-01
  *  15 Jul 2021 : 1. USXGMII/XFI/SGMII/RGMII interface supported without module parameter
  *  VERSION     : 01-00-02
+ *  14 Oct 2021 : 1. Returning error on disabling Receive Flow Control via ethtool for speed other than 10G in XFI mode.
+ *  VERSION     : 01-00-16
  */
 
 #include <linux/etherdevice.h>
@@ -961,6 +963,11 @@ tc956xmac_set_pauseparam(struct net_device *netdev,
 	struct rgmii_adv adv_lp;
 	u32 tx_cnt = priv->plat->tx_queues_to_use;
 	struct phy_device *phy = netdev->phydev;
+
+	if ((priv->plat->port_interface == ENABLE_XFI_INTERFACE) && (priv->speed != SPEED_10000) && (!(pause->rx_pause))) {
+		KPRINT_ERR("RX Flow ctrl shouldn't be disabled for 10G lower speed in XFI Interface\n");
+		return -EOPNOTSUPP;
+	}
 
 	if (priv->hw->pcs &&
 	    !tc956xmac_pcs_get_adv_lp(priv, priv->ioaddr, &adv_lp)) {

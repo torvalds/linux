@@ -47,6 +47,9 @@
  *  VERSION     : 01-00-13
  *  23 Sep 2021 : 1. Filtering All pause frames by default
  *  VERSION     : 01-00-14
+ *  14 Oct 2021 : 1. Configuring pause frame control using kernel module parameter also forwarding
+ *  		  only Link partner pause frames to Application and filtering PHY pause frames using FRP
+ *  VERSION     : 01-00-16
  */
 
 #include <linux/bitrev.h>
@@ -55,6 +58,9 @@
 #include "tc956xmac.h"
 #include "tc956xmac_ptp.h"
 #include "dwxgmac2.h"
+
+extern unsigned int tc956x_port0_filter_phy_pause_frames;
+extern unsigned int tc956x_port1_filter_phy_pause_frames;
 
 static void tc956x_set_mac_addr(struct tc956xmac_priv *priv, struct mac_device_info *hw,
 				const u8 *mac, int index, int vf);
@@ -947,6 +953,12 @@ static void dwxgmac2_set_filter(struct tc956xmac_priv *priv, struct mac_device_i
 	value &= ~(XGMAC_FILTER_PR | XGMAC_FILTER_HMC | XGMAC_FILTER_PM |
 		   XGMAC_FILTER_RA);
 	value |= XGMAC_FILTER_HPF;
+	/* Configuring to Pass all pause frames to application, PHY pause frames will be filtered by FRP */
+	if ((tc956x_port0_filter_phy_pause_frames == ENABLE && priv->port_num == RM_PF0_ID) ||
+	   (tc956x_port1_filter_phy_pause_frames == ENABLE && priv->port_num == RM_PF1_ID)) {
+		/* setting pcf to 0b10 i.e. pass pause frames of address filter fail to Application */
+		value |= 0x80;
+	}
 	writel(value, ioaddr + XGMAC_PACKET_FILTER);
 	if (dev->flags & IFF_PROMISC) {
 		value |= XGMAC_FILTER_PR;

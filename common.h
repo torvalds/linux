@@ -46,6 +46,8 @@
  *  VERSION     : 01-00-11
  *  23 Sep 2021 : 1. Enabling MSI MASK for MAC EVENT Interrupt to process RBU status and update to ethtool statistics
  *  VERSION     : 01-00-14
+ *  14 Oct 2021 : 1. Moving common Macros to common header file 
+ *  VERSION     : 01-00-16
  */
 
 #ifndef __COMMON_H__
@@ -73,6 +75,9 @@
 #define DMA_OFFLOAD_ENABLE
 
 #define TC956X_PCIE_LINK_STATE_LATENCY_CTRL
+
+#define DISABLE		0
+#define ENABLE		1
 
 /* Synopsys Core versions */
 #define DWMAC_CORE_3_40		0x34

@@ -65,6 +65,10 @@
  *  29 Sep 2021 : 1. Version update
 		: 2. Added check for Device presence before changing PCIe ports speed.
  *  VERSION     : 01-00-15
+ *  14 Oct 2021 : 1. Version update
+		: 2. Configuring pause frame control using kernel module parameter also forwarding
+ *  		  only Link partner pause frames to Application and filtering PHY pause frames using FRP
+ *  VERSION     : 01-00-16
  */
 
 #include <linux/clk-provider.h>
@@ -94,7 +98,10 @@ static unsigned int tc956x_speed = 3;
 static unsigned int tc956x_port0_interface = ENABLE_XFI_INTERFACE;
 static unsigned int tc956x_port1_interface = ENABLE_SGMII_INTERFACE;
 
-static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 1, 5};
+unsigned int tc956x_port0_filter_phy_pause_frames = DISABLE;
+unsigned int tc956x_port1_filter_phy_pause_frames = DISABLE;
+
+static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 1, 6};
 
 /*
  * This struct is used to associate PCI Function of MAC controller on a board,
@@ -124,6 +131,16 @@ static struct tc956xmac_rx_parser_entry snps_rxp_entries[] = {
 		.match_data = 0x00000000, .match_en = 0x00000000, .af = 1, .rf = 0, .im = 0, .nc = 0, .res1 = 0, .frame_offset = 0, .res2 = 0, .ok_index = 0, .res3 = 0, .dma_ch_no = 1, .res4 = 0,
 	},
 #endif
+};
+
+static struct tc956xmac_rx_parser_entry snps_rxp_entries_filter_phy_pause_frames[] = {
+/* 0th entry */{.match_data = 0x00000888, .match_en = 0x0000FFFF, .af = 0, .rf = 0, .im = 0, .nc = 1, .res1 = 0, .frame_offset = 3, .res2 = 0, .ok_index = 3, .res3 = 0, .dma_ch_no = 1, .res4 = 0,},
+/* Checking SA Address 00:01:02:03:04:05 AQR PHYs SA Address as Ether type Match*/
+/* 1st entry */{.match_data = 0x01000000, .match_en = 0xFFFF0000, .af = 0, .rf = 0, .im = 0, .nc = 1, .res1 = 0, .frame_offset = 1, .res2 = 0, .ok_index = 3, .res3 = 0, .dma_ch_no = 1, .res4 = 0,},
+/* 2nd entry */{.match_data = 0x05040302, .match_en = 0xFFFFFFFF, .af = 0, .rf = 1, .im = 0, .nc = 0, .res1 = 0, .frame_offset = 2, .res2 = 0, .ok_index = 0, .res3 = 0, .dma_ch_no = 1, .res4 = 0,},
+/* Route all other packets to DMA channel-0 */
+/* 3rd entry */{.match_data = 0x00000000, .match_en = 0x00000000, .af = 1, .rf = 0, .im = 0, .nc = 0, .res1 = 0, .frame_offset = 0, .res2 = 0, .ok_index = 0, .res3 = 0, .dma_ch_no = 1, .res4 = 0,},
+/* 4th entry */{.match_data = 0x00000000, .match_en = 0x00000000, .af = 1, .rf = 0, .im = 0, .nc = 0, .res1 = 0, .frame_offset = 0, .res2 = 0, .ok_index = 0, .res3 = 0, .dma_ch_no = 1, .res4 = 0,},
 };
 
 #ifdef DMA_OFFLOAD_ENABLE
@@ -742,6 +759,16 @@ static void xgmac_default_data(struct plat_tc956xmacenet_data *plat)
 	memcpy(plat->rxp_cfg.entries, snps_rxp_entries,
 			ARRAY_SIZE(snps_rxp_entries) *
 			sizeof(struct tc956xmac_rx_parser_entry));
+
+	/* Over writing the Default FRP table with FRP Table for Filtering PHY pause frames */
+	if ((tc956x_port0_filter_phy_pause_frames == ENABLE && plat->port_num == RM_PF0_ID) ||
+	   (tc956x_port1_filter_phy_pause_frames == ENABLE && plat->port_num == RM_PF1_ID)) {
+		plat->rxp_cfg.nve = ARRAY_SIZE(snps_rxp_entries_filter_phy_pause_frames);
+		plat->rxp_cfg.npe = ARRAY_SIZE(snps_rxp_entries_filter_phy_pause_frames);
+		memcpy(plat->rxp_cfg.entries, snps_rxp_entries_filter_phy_pause_frames,
+				ARRAY_SIZE(snps_rxp_entries_filter_phy_pause_frames) *
+				sizeof(struct tc956xmac_rx_parser_entry));
+	}
 
 }
 
@@ -2866,6 +2893,16 @@ module_param(tc956x_port1_interface, uint, 0444);
 MODULE_PARM_DESC(tc956x_port1_interface,
 		 "PORT1 interface mode TC956X - default is 3,\
 		 [0: USXGMII(not supported), 1: XFI(not supported), 2: RGMII, 3: SGMII]");
+
+module_param(tc956x_port0_filter_phy_pause_frames, uint, 0444);
+MODULE_PARM_DESC(tc956x_port0_filter_phy_pause_frames,
+		 "Filter PHY pause frames alone and pass Link partner pause frames to application in PORT0 - default is 0,\
+		 [0: DISABLE, 1: ENABLE]");
+
+module_param(tc956x_port1_filter_phy_pause_frames, uint, 0444);
+MODULE_PARM_DESC(tc956x_port1_filter_phy_pause_frames,
+		 "Filter PHY pause frames alone and pass Link partner pause frames to application in PORT1 - default is 0,\
+		 [0: DISABLE, 1: ENABLE]");
 
 MODULE_DESCRIPTION("TC956X PCI Express Ethernet Network Driver");
 MODULE_AUTHOR("Toshiba Electronic Devices & Storage Corporation");

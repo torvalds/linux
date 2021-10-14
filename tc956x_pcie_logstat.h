@@ -28,6 +28,8 @@
  *
  *  15 Mar 2021 : Base lined
  *  VERSION     : 01-00
+ *  14 Oct 2021 : 1. Moving common Macros to common header file 
+ *  VERSION     : 01-00-16
  */
 
 #ifndef __TC956X_PCIE_LOGSTAT_H__
@@ -117,7 +119,6 @@
 #define LANE3_SHIFT						(3U)
 
 #define MAX_STOP_CNT						(0xFFU)
-#define ENABLE							(1U)
 #define MAX_FIFO_POINTER					(31U)
 
 /* ===================================
