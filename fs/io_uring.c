@@ -3155,9 +3155,10 @@ static ssize_t io_iov_buffer_select(struct io_kiocb *req, struct iovec *iov,
 	return __io_iov_buffer_select(req, iov, issue_flags);
 }
 
-static int io_import_iovec(int rw, struct io_kiocb *req, struct iovec **iovec,
-			   struct iov_iter *iter, unsigned int issue_flags)
+static int __io_import_iovec(int rw, struct io_kiocb *req, struct iovec **iovec,
+			     struct io_rw_state *s, unsigned int issue_flags)
 {
+	struct iov_iter *iter = &s->iter;
 	void __user *buf = u64_to_user_ptr(req->rw.addr);
 	size_t sqe_len = req->rw.len;
 	u8 opcode = req->opcode;
@@ -3180,10 +3181,12 @@ static int io_import_iovec(int rw, struct io_kiocb *req, struct iovec **iovec,
 			req->rw.len = sqe_len;
 		}
 
-		ret = import_single_range(rw, buf, sqe_len, *iovec, iter);
+		ret = import_single_range(rw, buf, sqe_len, s->fast_iov, iter);
 		*iovec = NULL;
 		return ret;
 	}
+
+	*iovec = s->fast_iov;
 
 	if (req->flags & REQ_F_BUFFER_SELECT) {
 		ret = io_iov_buffer_select(req, *iovec, issue_flags);
@@ -3195,6 +3198,19 @@ static int io_import_iovec(int rw, struct io_kiocb *req, struct iovec **iovec,
 
 	return __import_iovec(rw, buf, sqe_len, UIO_FASTIOV, iovec, iter,
 			      req->ctx->compat);
+}
+
+static inline int io_import_iovec(int rw, struct io_kiocb *req,
+				  struct iovec **iovec, struct io_rw_state *s,
+				  unsigned int issue_flags)
+{
+	int ret;
+
+	ret = __io_import_iovec(rw, req, iovec, s, issue_flags);
+	if (unlikely(ret < 0))
+		return ret;
+	iov_iter_save_state(&s->iter, &s->iter_state);
+	return ret;
 }
 
 static inline loff_t *io_kiocb_ppos(struct kiocb *kiocb)
@@ -3322,11 +3338,11 @@ static int io_setup_async_rw(struct io_kiocb *req, const struct iovec *iovec,
 static inline int io_rw_prep_async(struct io_kiocb *req, int rw)
 {
 	struct io_async_rw *iorw = req->async_data;
-	struct iovec *iov = iorw->s.fast_iov;
+	struct iovec *iov;
 	int ret;
 
 	/* submission path, ->uring_lock should already be taken */
-	ret = io_import_iovec(rw, req, &iov, &iorw->s.iter, IO_URING_F_NONBLOCK);
+	ret = io_import_iovec(rw, req, &iov, &iorw->s, IO_URING_F_NONBLOCK);
 	if (unlikely(ret < 0))
 		return ret;
 
@@ -3334,7 +3350,6 @@ static inline int io_rw_prep_async(struct io_kiocb *req, int rw)
 	iorw->free_iovec = iov;
 	if (iov)
 		req->flags |= REQ_F_NEED_CLEANUP;
-	iov_iter_save_state(&iorw->s.iter, &iorw->s.iter_state);
 	return 0;
 }
 
@@ -3453,12 +3468,9 @@ static int io_read(struct io_kiocb *req, unsigned int issue_flags)
 		iovec = NULL;
 	} else {
 		s = &__s;
-		iovec = s->fast_iov;
-		ret = io_import_iovec(READ, req, &iovec, &s->iter, issue_flags);
-		if (ret < 0)
+		ret = io_import_iovec(READ, req, &iovec, s, issue_flags);
+		if (unlikely(ret < 0))
 			return ret;
-
-		iov_iter_save_state(&s->iter, &s->iter_state);
 	}
 	req->result = iov_iter_count(&s->iter);
 
@@ -3581,11 +3593,9 @@ static int io_write(struct io_kiocb *req, unsigned int issue_flags)
 		iovec = NULL;
 	} else {
 		s = &__s;
-		iovec = s->fast_iov;
-		ret = io_import_iovec(WRITE, req, &iovec, &s->iter, issue_flags);
-		if (ret < 0)
+		ret = io_import_iovec(WRITE, req, &iovec, s, issue_flags);
+		if (unlikely(ret < 0))
 			return ret;
-		iov_iter_save_state(&s->iter, &s->iter_state);
 	}
 	req->result = iov_iter_count(&s->iter);
 
