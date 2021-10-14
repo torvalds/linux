@@ -947,6 +947,17 @@ config REGULATOR_RK808
 	  through regulator interface. The device supports multiple DCDC/LDO
 	  outputs which can be controlled by i2c communication.
 
+config REGULATOR_RK860X
+	tristate "Rockchip RK860X Regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver supports Rockchip RK860X Digitally Programmable
+	  Buck Regulator. The RK860X is a step-down switching voltage
+	  regulator that delivers a digitally programmable output from an
+	  input voltage supply of 2.5V to 5.5V. The output voltage is
+	  programmed through an I2C interface.
+
 config REGULATOR_RN5T618
 	tristate "Ricoh RN5T567/618 voltage regulators"
 	depends on MFD_RN5T618
