@@ -472,10 +472,11 @@ int blk_queue_enter(struct request_queue *q, blk_mq_req_flags_t flags)
 
 static inline int bio_queue_enter(struct bio *bio)
 {
-	struct gendisk *disk = bio->bi_bdev->bd_disk;
-	struct request_queue *q = disk->queue;
+	struct request_queue *q = bdev_get_queue(bio->bi_bdev);
 
 	while (!blk_try_enter_queue(q, false)) {
+		struct gendisk *disk = bio->bi_bdev->bd_disk;
+
 		if (bio->bi_opf & REQ_NOWAIT) {
 			if (test_bit(GD_DEAD, &disk->state))
 				goto dead;
@@ -800,7 +801,7 @@ static inline blk_status_t blk_check_zone_append(struct request_queue *q,
 static noinline_for_stack bool submit_bio_checks(struct bio *bio)
 {
 	struct block_device *bdev = bio->bi_bdev;
-	struct request_queue *q = bdev->bd_disk->queue;
+	struct request_queue *q = bdev_get_queue(bdev);
 	blk_status_t status = BLK_STS_IOERR;
 	struct blk_plug *plug;
 
@@ -962,7 +963,7 @@ static void __submit_bio_noacct(struct bio *bio)
 	current->bio_list = bio_list_on_stack;
 
 	do {
-		struct request_queue *q = bio->bi_bdev->bd_disk->queue;
+		struct request_queue *q = bdev_get_queue(bio->bi_bdev);
 		struct bio_list lower, same;
 
 		/*
@@ -980,7 +981,7 @@ static void __submit_bio_noacct(struct bio *bio)
 		bio_list_init(&lower);
 		bio_list_init(&same);
 		while ((bio = bio_list_pop(&bio_list_on_stack[0])) != NULL)
-			if (q == bio->bi_bdev->bd_disk->queue)
+			if (q == bdev_get_queue(bio->bi_bdev))
 				bio_list_add(&same, bio);
 			else
 				bio_list_add(&lower, bio);
@@ -1062,7 +1063,7 @@ void submit_bio(struct bio *bio)
 
 		if (unlikely(bio_op(bio) == REQ_OP_WRITE_SAME))
 			count = queue_logical_block_size(
-					bio->bi_bdev->bd_disk->queue) >> 9;
+					bdev_get_queue(bio->bi_bdev)) >> 9;
 		else
 			count = bio_sectors(bio);
 
