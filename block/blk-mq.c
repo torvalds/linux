@@ -2253,7 +2253,7 @@ static inline unsigned short blk_plug_max_rq_count(struct blk_plug *plug)
  */
 void blk_mq_submit_bio(struct bio *bio)
 {
-	struct request_queue *q = bio->bi_bdev->bd_disk->queue;
+	struct request_queue *q = bdev_get_queue(bio->bi_bdev);
 	const int is_sync = op_is_sync(bio->bi_opf);
 	const int is_flush_fua = op_is_flush(bio->bi_opf);
 	struct request *rq;
