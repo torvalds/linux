@@ -349,8 +349,8 @@ void fpstate_reset(struct fpu *fpu)
 	/* Initialize sizes and feature masks */
 	fpu->fpstate->size		= fpu_kernel_cfg.default_size;
 	fpu->fpstate->user_size		= fpu_user_cfg.default_size;
-	fpu->fpstate->xfeatures		= xfeatures_mask_all;
-	fpu->fpstate->user_xfeatures	= xfeatures_mask_uabi();
+	fpu->fpstate->xfeatures		= fpu_kernel_cfg.default_features;
+	fpu->fpstate->user_xfeatures	= fpu_user_cfg.default_features;
 }
 
 #if IS_ENABLED(CONFIG_KVM)

@@ -78,11 +78,9 @@
 				      XFEATURE_MASK_INDEPENDENT | \
 				      XFEATURE_MASK_SUPERVISOR_UNSUPPORTED)
 
-extern u64 xfeatures_mask_all;
-
 static inline u64 xfeatures_mask_supervisor(void)
 {
-	return xfeatures_mask_all & XFEATURE_MASK_SUPERVISOR_SUPPORTED;
+	return fpu_kernel_cfg.max_features & XFEATURE_MASK_SUPERVISOR_SUPPORTED;
 }
 
 /*
@@ -91,7 +89,7 @@ static inline u64 xfeatures_mask_supervisor(void)
  */
 static inline u64 xfeatures_mask_uabi(void)
 {
-	return xfeatures_mask_all & XFEATURE_MASK_USER_SUPPORTED;
+	return fpu_kernel_cfg.max_features & XFEATURE_MASK_USER_SUPPORTED;
 }
 
 /*
@@ -102,7 +100,7 @@ static inline u64 xfeatures_mask_uabi(void)
  */
 static inline u64 xfeatures_mask_restore_user(void)
 {
-	return xfeatures_mask_all & XFEATURE_MASK_USER_RESTORE;
+	return fpu_kernel_cfg.max_features & XFEATURE_MASK_USER_RESTORE;
 }
 
 /*
@@ -111,7 +109,7 @@ static inline u64 xfeatures_mask_restore_user(void)
  */
 static inline u64 xfeatures_mask_fpstate(void)
 {
-	return xfeatures_mask_all & \
+	return fpu_kernel_cfg.max_features & \
 		(XFEATURE_MASK_USER_RESTORE | XFEATURE_MASK_SUPERVISOR_SUPPORTED);
 }
 

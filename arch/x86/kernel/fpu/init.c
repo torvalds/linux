@@ -211,7 +211,7 @@ static void __init fpu__init_init_fpstate(void)
 {
 	/* Bring init_fpstate size and features up to date */
 	init_fpstate.size		= fpu_kernel_cfg.max_size;
-	init_fpstate.xfeatures		= xfeatures_mask_all;
+	init_fpstate.xfeatures		= fpu_kernel_cfg.max_features;
 }
 
 /*
