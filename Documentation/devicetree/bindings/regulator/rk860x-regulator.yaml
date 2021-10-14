@@ -1,0 +1,77 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/rk860x-regulator.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Rockchip Rk860x voltage regulator
+
+maintainers:
+  - Elaine Zhang <zhangqing@rock-chips.com>
+
+description: |
+  Rockchip RK860X Digitally Programmable Buck Regulator.
+  The RK860X is a step-down switching voltage regulator that
+  delivers a digitally programmable output from an input voltage supply
+  of 2.5V to 5.5V. The output voltage is programmed through an I2C interface.
+
+allOf:
+  - $ref: regulator.yaml#
+
+properties:
+  $nodename:
+    pattern: "^rk860[0-3]@[0-9a-f]"
+  compatible:
+    const: rockchip,rk860x
+
+  reg:
+    maxItems: 1
+
+  vin-supply:
+    description: Input supply phandle
+
+  vsel:
+    minItems: 1
+    maxItems: 1
+    description: |
+      GPIO pin used for DVS voltage selection or used to control enable status of regulator.
+
+  rockchip,suspend-voltage-selector:
+    maxItems: 1
+    description: |
+      The polarity of vsel pin.
+
+  limit-microvolt:
+    description: |
+      The limit of voltage setting.
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        vdd_cpu: rk8600@40{
+            compatible = "rockchip,rk860x";
+            reg = <0x40>;
+            vin-supply = <&vcc5v0_sys>;
+            regulator-compatible = "rk860x-reg";
+            regulator-name = "vdd_cpu";
+            regulator-min-microvolt = <712500>;
+            regulator-max-microvolt = <1390000>;
+            regulator-init-microvolt = <900000>;
+            regulator-ramp-delay = <2300>;
+            rockchip,suspend-voltage-selector = <1>;
+            regulator-boot-on;
+            regulator-always-on;
+            regulator-state-mem {
+                regulator-off-in-suspend;
+            };
+        };
+    };
