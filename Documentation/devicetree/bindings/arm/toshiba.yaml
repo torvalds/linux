@@ -18,6 +18,7 @@ properties:
         items:
           - enum:
               - toshiba,tmpv7708-rm-mbrc  # TMPV7708 RM main board
+              - toshiba,tmpv7708-visrobo-vrb  # TMPV7708 VisROBO VRB board
           - const: toshiba,tmpv7708
 
 additionalProperties: true
