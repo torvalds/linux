@@ -46,6 +46,15 @@ struct intel_guc {
 	 * submitted until the stalled request is processed.
 	 */
 	struct i915_request *stalled_request;
+	/**
+	 * @submission_stall_reason: reason why submission is stalled
+	 */
+	enum {
+		STALL_NONE,
+		STALL_REGISTER_CONTEXT,
+		STALL_MOVE_LRC_TAIL,
+		STALL_ADD_REQUEST,
+	} submission_stall_reason;
 
 	/* intel_guc_recv interrupt related state */
 	/** @irq_lock: protects GuC irq state */
@@ -366,5 +375,7 @@ void intel_guc_submission_reset_finish(struct intel_guc *guc);
 void intel_guc_submission_cancel_requests(struct intel_guc *guc);
 
 void intel_guc_load_status(struct intel_guc *guc, struct drm_printer *p);
+
+void intel_guc_write_barrier(struct intel_guc *guc);
 
 #endif

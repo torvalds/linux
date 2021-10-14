@@ -756,3 +756,32 @@ void intel_guc_load_status(struct intel_guc *guc, struct drm_printer *p)
 		}
 	}
 }
+
+void intel_guc_write_barrier(struct intel_guc *guc)
+{
+	struct intel_gt *gt = guc_to_gt(guc);
+
+	if (i915_gem_object_is_lmem(guc->ct.vma->obj)) {
+		/*
+		 * Ensure intel_uncore_write_fw can be used rather than
+		 * intel_uncore_write.
+		 */
+		GEM_BUG_ON(guc->send_regs.fw_domains);
+
+		/*
+		 * This register is used by the i915 and GuC for MMIO based
+		 * communication. Once we are in this code CTBs are the only
+		 * method the i915 uses to communicate with the GuC so it is
+		 * safe to write to this register (a value of 0 is NOP for MMIO
+		 * communication). If we ever start mixing CTBs and MMIOs a new
+		 * register will have to be chosen. This function is also used
+		 * to enforce ordering of a work queue item write and an update
+		 * to the process descriptor. When a work queue is being used,
+		 * CTBs are also the only mechanism of communication.
+		 */
+		intel_uncore_write_fw(gt->uncore, GEN11_SOFT_SCRATCH(0), 0);
+	} else {
+		/* wmb() sufficient for a barrier if in smem */
+		wmb();
+	}
+}
