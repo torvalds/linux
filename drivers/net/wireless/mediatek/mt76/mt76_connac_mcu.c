@@ -706,7 +706,7 @@ mt76_connac_get_phy_mode_v2(struct mt76_phy *mphy, struct ieee80211_vif *vif,
 		if (ht_cap->ht_supported)
 			mode |= PHY_TYPE_BIT_HT;
 
-		if (he_cap->has_he)
+		if (he_cap && he_cap->has_he)
 			mode |= PHY_TYPE_BIT_HE;
 	} else if (band == NL80211_BAND_5GHZ || band == NL80211_BAND_6GHZ) {
 		mode |= PHY_TYPE_BIT_OFDM;
@@ -717,7 +717,7 @@ mt76_connac_get_phy_mode_v2(struct mt76_phy *mphy, struct ieee80211_vif *vif,
 		if (vht_cap->vht_supported)
 			mode |= PHY_TYPE_BIT_VHT;
 
-		if (he_cap->has_he)
+		if (he_cap && he_cap->has_he)
 			mode |= PHY_TYPE_BIT_HE;
 	}
 
