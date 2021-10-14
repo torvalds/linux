@@ -25,6 +25,10 @@
 #define CREATE_TRACE_POINTS
 #include <asm/trace/fpu.h>
 
+/* The FPU state configuration data for kernel and user space */
+struct fpu_state_config	fpu_kernel_cfg __ro_after_init;
+struct fpu_state_config fpu_user_cfg __ro_after_init;
+
 /*
  * Represents the initial FPU state. It's mostly (but not completely) zeroes,
  * depending on the FPU hardware format:
