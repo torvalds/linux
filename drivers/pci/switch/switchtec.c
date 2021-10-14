@@ -45,6 +45,7 @@ enum mrpc_state {
 	MRPC_QUEUED,
 	MRPC_RUNNING,
 	MRPC_DONE,
+	MRPC_IO_ERROR,
 };
 
 struct switchtec_user {
@@ -65,6 +66,19 @@ struct switchtec_user {
 	unsigned char data[SWITCHTEC_MRPC_PAYLOAD_SIZE];
 	int event_cnt;
 };
+
+/*
+ * The MMIO reads to the device_id register should always return the device ID
+ * of the device, otherwise the firmware is probably stuck or unreachable
+ * due to a firmware reset which clears PCI state including the BARs and Memory
+ * Space Enable bits.
+ */
+static int is_firmware_running(struct switchtec_dev *stdev)
+{
+	u32 device = ioread32(&stdev->mmio_sys_info->device_id);
+
+	return stdev->pdev->device == device;
+}
 
 static struct switchtec_user *stuser_create(struct switchtec_dev *stdev)
 {
@@ -113,6 +127,7 @@ static void stuser_set_state(struct switchtec_user *stuser,
 		[MRPC_QUEUED] = "QUEUED",
 		[MRPC_RUNNING] = "RUNNING",
 		[MRPC_DONE] = "DONE",
+		[MRPC_IO_ERROR] = "IO_ERROR",
 	};
 
 	stuser->state = state;
@@ -184,9 +199,26 @@ static int mrpc_queue_cmd(struct switchtec_user *stuser)
 	return 0;
 }
 
+static void mrpc_cleanup_cmd(struct switchtec_dev *stdev)
+{
+	/* requires the mrpc_mutex to already be held when called */
+
+	struct switchtec_user *stuser = list_entry(stdev->mrpc_queue.next,
+						   struct switchtec_user, list);
+
+	stuser->cmd_done = true;
+	wake_up_interruptible(&stuser->cmd_comp);
+	list_del_init(&stuser->list);
+	stuser_put(stuser);
+	stdev->mrpc_busy = 0;
+
+	mrpc_cmd_submit(stdev);
+}
+
 static void mrpc_complete_cmd(struct switchtec_dev *stdev)
 {
 	/* requires the mrpc_mutex to already be held when called */
+
 	struct switchtec_user *stuser;
 
 	if (list_empty(&stdev->mrpc_queue))
@@ -223,13 +255,7 @@ static void mrpc_complete_cmd(struct switchtec_dev *stdev)
 		memcpy_fromio(stuser->data, &stdev->mmio_mrpc->output_data,
 			      stuser->read_len);
 out:
-	stuser->cmd_done = true;
-	wake_up_interruptible(&stuser->cmd_comp);
-	list_del_init(&stuser->list);
-	stuser_put(stuser);
-	stdev->mrpc_busy = 0;
-
-	mrpc_cmd_submit(stdev);
+	mrpc_cleanup_cmd(stdev);
 }
 
 static void mrpc_event_work(struct work_struct *work)
@@ -246,6 +272,23 @@ static void mrpc_event_work(struct work_struct *work)
 	mutex_unlock(&stdev->mrpc_mutex);
 }
 
+static void mrpc_error_complete_cmd(struct switchtec_dev *stdev)
+{
+	/* requires the mrpc_mutex to already be held when called */
+
+	struct switchtec_user *stuser;
+
+	if (list_empty(&stdev->mrpc_queue))
+		return;
+
+	stuser = list_entry(stdev->mrpc_queue.next,
+			    struct switchtec_user, list);
+
+	stuser_set_state(stuser, MRPC_IO_ERROR);
+
+	mrpc_cleanup_cmd(stdev);
+}
+
 static void mrpc_timeout_work(struct work_struct *work)
 {
 	struct switchtec_dev *stdev;
@@ -256,6 +299,11 @@ static void mrpc_timeout_work(struct work_struct *work)
 	dev_dbg(&stdev->dev, "%s\n", __func__);
 
 	mutex_lock(&stdev->mrpc_mutex);
+
+	if (!is_firmware_running(stdev)) {
+		mrpc_error_complete_cmd(stdev);
+		goto out;
+	}
 
 	if (stdev->dma_mrpc)
 		status = stdev->dma_mrpc->status;
@@ -543,6 +591,11 @@ static ssize_t switchtec_dev_read(struct file *filp, char __user *data,
 	rc = lock_mutex_and_test_alive(stdev);
 	if (rc)
 		return rc;
+
+	if (stuser->state == MRPC_IO_ERROR) {
+		mutex_unlock(&stdev->mrpc_mutex);
+		return -EIO;
+	}
 
 	if (stuser->state != MRPC_DONE) {
 		mutex_unlock(&stdev->mrpc_mutex);
