@@ -1,5 +1,6 @@
 [abi_symbol_list]
 # commonly used symbols
+  add_timer
   add_uevent_var
   aes_encrypt
   alloc_chrdev_region
@@ -42,6 +43,7 @@
   __check_object_size
   __class_create
   class_destroy
+  class_for_each_device
   clk_bulk_disable
   clk_bulk_enable
   clk_bulk_prepare
@@ -128,6 +130,7 @@
   devm_gpiod_get_index
   devm_gpiod_get_index_optional
   devm_gpiod_get_optional
+  devm_gpio_request
   devm_input_allocate_device
   devm_ioremap
   devm_ioremap_resource
@@ -146,6 +149,7 @@
   devm_platform_ioremap_resource_byname
   devm_power_supply_register
   devm_pwm_get
+  devm_regmap_field_alloc
   __devm_regmap_init_i2c
   __devm_regmap_init_mmio_clk
   devm_regulator_bulk_get
@@ -194,7 +198,9 @@
   enable_irq
   extcon_get_edev_by_phandle
   extcon_get_state
+  extcon_register_notifier
   extcon_set_state_sync
+  extcon_unregister_notifier
   failure_tracking
   find_next_bit
   find_next_zero_bit
@@ -216,13 +222,17 @@
   gpiochip_generic_request
   gpiochip_get_data
   gpiod_cansleep
+  gpiod_direction_input
   gpiod_direction_output
   gpiod_get_optional
+  gpiod_get_raw_value
   gpiod_get_value
   gpiod_get_value_cansleep
   gpiod_set_consumer_name
   gpiod_set_value
   gpiod_set_value_cansleep
+  gpiod_to_irq
+  gpio_to_desc
   handle_simple_irq
   hid_debug
   hid_hw_close
@@ -270,8 +280,10 @@
   irq_set_chained_handler_and_data
   irq_set_chip_and_handler_name
   irq_set_chip_data
+  irq_set_irq_type
   irq_set_irq_wake
   jiffies
+  jiffies_to_msecs
   kasan_flag_enabled
   kasprintf
   kernel_neon_begin
@@ -287,6 +299,7 @@
   kstrtoull
   ktime_get
   ktime_get_mono_fast_ns
+  ktime_get_with_offset
   kvfree
   kvmalloc_node
   led_classdev_register_ext
@@ -318,6 +331,7 @@
   mutex_unlock
   no_llseek
   nr_cpu_ids
+  ns_to_timespec64
   nvmem_cell_put
   nvmem_cell_read
   of_address_to_resource
@@ -334,6 +348,7 @@
   of_find_node_by_name
   of_find_property
   of_get_child_by_name
+  of_get_named_gpio_flags
   of_get_next_available_child
   of_get_next_child
   of_get_parent
@@ -389,7 +404,9 @@
   __pm_runtime_suspend
   __pm_runtime_use_autosuspend
   __pm_stay_awake
+  pm_wakeup_ws_event
   power_supply_changed
+  power_supply_class
   power_supply_get_drvdata
   preempt_schedule
   preempt_schedule_notrace
@@ -423,6 +440,9 @@
   register_reboot_notifier
   regmap_bulk_read
   regmap_bulk_write
+  regmap_field_read
+  regmap_field_update_bits_base
+  regmap_irq_get_virq
   regmap_read
   regmap_update_bits_base
   regmap_write
@@ -447,6 +467,10 @@
   reset_control_assert
   reset_control_deassert
   revalidate_disk_size
+  rtc_class_open
+  rtc_read_time
+  rtc_tm_to_time64
+  rtc_valid_tm
   scatterwalk_map_and_copy
   schedule
   schedule_timeout
@@ -752,7 +776,6 @@
   usb_wakeup_enabled_descendants
 
 # required by fan53555.ko
-  gpiod_get_raw_value
   gpiod_set_raw_value
 
 # required by ghash-ce.ko
@@ -860,7 +883,6 @@
 
 # required by leds-gpio.ko
   devm_gpio_request_one
-  gpio_to_desc
 
 # required by ledtrig-heartbeat.ko
   atomic_notifier_chain_unregister
@@ -916,7 +938,6 @@
   ida_free
   init_srcu_struct
   kobject_uevent_env
-  ktime_get_with_offset
   list_sort
   memchr_inv
   param_ops_byte
@@ -1197,6 +1218,11 @@
   regmap_add_irq_chip
   regmap_del_irq_chip
   regmap_irq_get_domain
+
+# required by rk818_battery.ko
+  blocking_notifier_call_chain
+  blocking_notifier_chain_register
+  blocking_notifier_chain_unregister
 
 # required by rockchip-iommu.ko
   bus_set_iommu
@@ -1493,7 +1519,6 @@
   iommu_set_fault_handler
   iommu_unmap
   memblock_free
-  ns_to_timespec64
   of_graph_get_next_endpoint
   of_graph_get_port_by_id
   of_graph_get_remote_port
@@ -1520,7 +1545,6 @@
   devm_rtc_allocate_device
   __rtc_register_device
   rtc_time64_to_tm
-  rtc_tm_to_time64
   rtc_update_irq
 
 # required by sdhci-of-arasan.ko
@@ -1556,7 +1580,6 @@
   fasync_helper
   get_sg_io_hdr
   import_iovec
-  jiffies_to_msecs
   kill_fasync
   __module_get
   nonseekable_open
@@ -1645,7 +1668,6 @@
   devm_get_clk_from_child
   devm_kasprintf
   devm_kvasprintf
-  of_get_named_gpio_flags
   snd_soc_card_jack_new
   snd_soc_dai_set_sysclk
   snd_soc_dai_set_tdm_slot
