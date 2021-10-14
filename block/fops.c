@@ -123,6 +123,12 @@ out:
 	return ret;
 }
 
+enum {
+	DIO_MULTI_BIO		= 1,
+	DIO_SHOULD_DIRTY	= 2,
+	DIO_IS_SYNC		= 4,
+};
+
 struct blkdev_dio {
 	union {
 		struct kiocb		*iocb;
@@ -130,9 +136,7 @@ struct blkdev_dio {
 	};
 	size_t			size;
 	atomic_t		ref;
-	bool			multi_bio : 1;
-	bool			should_dirty : 1;
-	bool			is_sync : 1;
+	unsigned int		flags;
 	struct bio		bio;
 };
 
@@ -141,13 +145,13 @@ static struct bio_set blkdev_dio_pool;
 static void blkdev_bio_end_io(struct bio *bio)
 {
 	struct blkdev_dio *dio = bio->bi_private;
-	bool should_dirty = dio->should_dirty;
+	bool should_dirty = dio->flags & DIO_SHOULD_DIRTY;
 
 	if (bio->bi_status && !dio->bio.bi_status)
 		dio->bio.bi_status = bio->bi_status;
 
-	if (!dio->multi_bio || atomic_dec_and_test(&dio->ref)) {
-		if (!dio->is_sync) {
+	if (!(dio->flags & DIO_MULTI_BIO) || atomic_dec_and_test(&dio->ref)) {
+		if (!(dio->flags & DIO_IS_SYNC)) {
 			struct kiocb *iocb = dio->iocb;
 			ssize_t ret;
 
@@ -161,7 +165,7 @@ static void blkdev_bio_end_io(struct bio *bio)
 			}
 
 			dio->iocb->ki_complete(iocb, ret, 0);
-			if (dio->multi_bio)
+			if (dio->flags & DIO_MULTI_BIO)
 				bio_put(&dio->bio);
 		} else {
 			struct task_struct *waiter = dio->waiter;
@@ -198,17 +202,19 @@ static ssize_t __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 	bio = bio_alloc_kiocb(iocb, nr_pages, &blkdev_dio_pool);
 
 	dio = container_of(bio, struct blkdev_dio, bio);
-	dio->is_sync = is_sync = is_sync_kiocb(iocb);
-	if (dio->is_sync) {
+	is_sync = is_sync_kiocb(iocb);
+	if (is_sync) {
+		dio->flags = DIO_IS_SYNC;
 		dio->waiter = current;
 		bio_get(bio);
 	} else {
+		dio->flags = 0;
 		dio->iocb = iocb;
 	}
 
 	dio->size = 0;
-	dio->multi_bio = false;
-	dio->should_dirty = is_read && iter_is_iovec(iter);
+	if (is_read && iter_is_iovec(iter))
+		dio->flags |= DIO_SHOULD_DIRTY;
 
 	/*
 	 * Don't plug for HIPRI/polled IO, as those should go straight
@@ -234,7 +240,7 @@ static ssize_t __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 
 		if (is_read) {
 			bio->bi_opf = REQ_OP_READ;
-			if (dio->should_dirty)
+			if (dio->flags & DIO_SHOULD_DIRTY)
 				bio_set_pages_dirty(bio);
 		} else {
 			bio->bi_opf = dio_bio_write_op(iocb);
@@ -255,7 +261,7 @@ static ssize_t __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 				WRITE_ONCE(iocb->private, bio);
 			break;
 		}
-		if (!dio->multi_bio) {
+		if (!(dio->flags & DIO_MULTI_BIO)) {
 			/*
 			 * AIO needs an extra reference to ensure the dio
 			 * structure which is embedded into the first bio
@@ -263,7 +269,7 @@ static ssize_t __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 			 */
 			if (!is_sync)
 				bio_get(bio);
-			dio->multi_bio = true;
+			dio->flags |= DIO_MULTI_BIO;
 			atomic_set(&dio->ref, 2);
 			do_poll = false;
 		} else {
