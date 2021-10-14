@@ -1133,7 +1133,7 @@ static int ioctl_pff_to_port(struct switchtec_dev *stdev,
 			break;
 		}
 
-		reg = ioread32(&pcfg->vep_pff_inst_id);
+		reg = ioread32(&pcfg->vep_pff_inst_id) & 0xFF;
 		if (reg == p.pff) {
 			p.port = SWITCHTEC_IOCTL_PFF_VEP;
 			break;
@@ -1179,7 +1179,7 @@ static int ioctl_port_to_pff(struct switchtec_dev *stdev,
 		p.pff = ioread32(&pcfg->usp_pff_inst_id);
 		break;
 	case SWITCHTEC_IOCTL_PFF_VEP:
-		p.pff = ioread32(&pcfg->vep_pff_inst_id);
+		p.pff = ioread32(&pcfg->vep_pff_inst_id) & 0xFF;
 		break;
 	default:
 		if (p.port > ARRAY_SIZE(pcfg->dsp_pff_inst_id))
@@ -1553,7 +1553,7 @@ static void init_pff(struct switchtec_dev *stdev)
 	if (reg < stdev->pff_csr_count)
 		stdev->pff_local[reg] = 1;
 
-	reg = ioread32(&pcfg->vep_pff_inst_id);
+	reg = ioread32(&pcfg->vep_pff_inst_id) & 0xFF;
 	if (reg < stdev->pff_csr_count)
 		stdev->pff_local[reg] = 1;
 
