@@ -235,6 +235,8 @@ static int vm_show(struct seq_file *s, void *data)
 	struct hl_vm_hash_node *hnode;
 	struct hl_userptr *userptr;
 	struct hl_vm_phys_pg_pack *phys_pg_pack = NULL;
+	struct hl_va_range *va_range;
+	struct hl_vm_va_block *va_block;
 	enum vm_type *vm_type;
 	bool once = true;
 	u64 j;
@@ -313,6 +315,29 @@ static int vm_show(struct seq_file *s, void *data)
 	}
 
 	spin_unlock(&dev_entry->ctx_mem_hash_spinlock);
+
+	mutex_lock(&dev_entry->hdev->fpriv_list_lock);
+	ctx = dev_entry->hdev->compute_ctx;
+	if (ctx)
+		hl_ctx_get(dev_entry->hdev, ctx);
+	mutex_unlock(&dev_entry->hdev->fpriv_list_lock);
+	if (ctx) {
+		seq_puts(s, "\nVA ranges:\n\n");
+		for (i = HL_VA_RANGE_TYPE_HOST ; i < HL_VA_RANGE_TYPE_MAX ; ++i) {
+			va_range = ctx->va_range[i];
+			seq_printf(s, "   va_range %d\n", i);
+			seq_puts(s, "---------------------\n");
+			mutex_lock(&va_range->lock);
+			list_for_each_entry(va_block, &va_range->list, node) {
+				seq_printf(s, "%#16llx - %#16llx (%#llx)\n",
+					   va_block->start, va_block->end,
+					   va_block->size);
+			}
+			mutex_unlock(&va_range->lock);
+			seq_puts(s, "\n");
+		}
+		hl_ctx_put(ctx);
+	}
 
 	if (!once)
 		seq_puts(s, "\n");
