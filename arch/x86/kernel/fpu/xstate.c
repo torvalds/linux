@@ -770,7 +770,7 @@ void __init fpu__init_system_xstate(unsigned int legacy_size)
 	cpuid_count(XSTATE_CPUID, 1, &eax, &ebx, &ecx, &edx);
 	fpu_kernel_cfg.max_features |= ecx + ((u64)edx << 32);
 
-	if ((xfeatures_mask_uabi() & XFEATURE_MASK_FPSSE) != XFEATURE_MASK_FPSSE) {
+	if ((fpu_kernel_cfg.max_features & XFEATURE_MASK_FPSSE) != XFEATURE_MASK_FPSSE) {
 		/*
 		 * This indicates that something really unexpected happened
 		 * with the enumeration.  Disable XSAVE and try to continue
@@ -815,7 +815,7 @@ void __init fpu__init_system_xstate(unsigned int legacy_size)
 	 * supervisor xstates:
 	 */
 	update_regset_xstate_info(fpu_user_cfg.max_size,
-				  xfeatures_mask_uabi());
+				  fpu_user_cfg.max_features);
 
 	fpu__init_prepare_fx_sw_frame();
 	setup_init_fpu_buf();
@@ -853,7 +853,7 @@ void fpu__resume_cpu(void)
 	 * Restore XCR0 on xsave capable CPUs:
 	 */
 	if (cpu_feature_enabled(X86_FEATURE_XSAVE))
-		xsetbv(XCR_XFEATURE_ENABLED_MASK, xfeatures_mask_uabi());
+		xsetbv(XCR_XFEATURE_ENABLED_MASK, fpu_user_cfg.max_features);
 
 	/*
 	 * Restore IA32_XSS. The same CPUID bit enumerates support

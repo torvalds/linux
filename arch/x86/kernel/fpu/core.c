@@ -237,7 +237,7 @@ int fpu_copy_kvm_uabi_to_fpstate(struct fpu *fpu, const void *buf, u64 xcr0,
 	}
 
 	/* Ensure that XCOMP_BV is set up for XSAVES */
-	xstate_init_xcomp_bv(&kstate->regs.xsave, xfeatures_mask_uabi());
+	xstate_init_xcomp_bv(&kstate->regs.xsave, kstate->xfeatures);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(fpu_copy_kvm_uabi_to_fpstate);
@@ -333,7 +333,7 @@ void fpstate_init_user(struct fpstate *fpstate)
 		return;
 	}
 
-	xstate_init_xcomp_bv(&fpstate->regs.xsave, xfeatures_mask_uabi());
+	xstate_init_xcomp_bv(&fpstate->regs.xsave, fpstate->xfeatures);
 
 	if (cpu_feature_enabled(X86_FEATURE_FXSR))
 		fpstate_init_fxstate(fpstate);

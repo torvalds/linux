@@ -84,15 +84,6 @@ static inline u64 xfeatures_mask_supervisor(void)
 }
 
 /*
- * The xfeatures which are enabled in XCR0 and expected to be in ptrace
- * buffers and signal frames.
- */
-static inline u64 xfeatures_mask_uabi(void)
-{
-	return fpu_kernel_cfg.max_features & XFEATURE_MASK_USER_SUPPORTED;
-}
-
-/*
  * The xfeatures which are restored by the kernel when returning to user
  * mode. This is not necessarily the same as xfeatures_mask_uabi() as the
  * kernel does not manage all XCR0 enabled features via xsave/xrstor as
