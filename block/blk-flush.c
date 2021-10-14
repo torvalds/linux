@@ -229,7 +229,7 @@ static void flush_end_io(struct request *flush_rq, blk_status_t error)
 	/* release the tag's ownership to the req cloned from */
 	spin_lock_irqsave(&fq->mq_flush_lock, flags);
 
-	if (!refcount_dec_and_test(&flush_rq->ref)) {
+	if (!req_ref_put_and_test(flush_rq)) {
 		fq->rq_status = error;
 		spin_unlock_irqrestore(&fq->mq_flush_lock, flags);
 		return;
@@ -349,7 +349,7 @@ static void blk_kick_flush(struct request_queue *q, struct blk_flush_queue *fq,
 	 * and READ flush_rq->end_io
 	 */
 	smp_wmb();
-	refcount_set(&flush_rq->ref, 1);
+	req_ref_set(flush_rq, 1);
 
 	blk_flush_queue_rq(flush_rq, false);
 }

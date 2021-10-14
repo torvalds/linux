@@ -394,7 +394,7 @@ static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 	INIT_LIST_HEAD(&rq->queuelist);
 	/* tag was already set */
 	WRITE_ONCE(rq->deadline, 0);
-	refcount_set(&rq->ref, 1);
+	req_ref_set(rq, 1);
 
 	if (rq->rq_flags & RQF_ELV) {
 		struct elevator_queue *e = data->q->elevator;
@@ -642,7 +642,7 @@ void blk_mq_free_request(struct request *rq)
 	rq_qos_done(q, rq);
 
 	WRITE_ONCE(rq->state, MQ_RQ_IDLE);
-	if (refcount_dec_and_test(&rq->ref))
+	if (req_ref_put_and_test(rq))
 		__blk_mq_free_request(rq);
 }
 EXPORT_SYMBOL_GPL(blk_mq_free_request);
@@ -938,7 +938,7 @@ void blk_mq_end_request_batch(struct io_comp_batch *iob)
 		rq_qos_done(rq->q, rq);
 
 		WRITE_ONCE(rq->state, MQ_RQ_IDLE);
-		if (!refcount_dec_and_test(&rq->ref))
+		if (!req_ref_put_and_test(rq))
 			continue;
 
 		blk_crypto_free_request(rq);
@@ -1401,7 +1401,7 @@ void blk_mq_put_rq_ref(struct request *rq)
 {
 	if (is_flush_rq(rq))
 		rq->end_io(rq, 0);
-	else if (refcount_dec_and_test(&rq->ref))
+	else if (req_ref_put_and_test(rq))
 		__blk_mq_free_request(rq);
 }
 
@@ -3049,7 +3049,7 @@ static void blk_mq_clear_rq_mapping(struct blk_mq_tags *drv_tags,
 			unsigned long rq_addr = (unsigned long)rq;
 
 			if (rq_addr >= start && rq_addr < end) {
-				WARN_ON_ONCE(refcount_read(&rq->ref) != 0);
+				WARN_ON_ONCE(req_ref_read(rq) != 0);
 				cmpxchg(&drv_tags->rqs[i], rq, NULL);
 			}
 		}
@@ -3383,7 +3383,7 @@ static void blk_mq_clear_flush_rq_mapping(struct blk_mq_tags *tags,
 	if (!tags)
 		return;
 
-	WARN_ON_ONCE(refcount_read(&flush_rq->ref) != 0);
+	WARN_ON_ONCE(req_ref_read(flush_rq) != 0);
 
 	for (i = 0; i < queue_depth; i++)
 		cmpxchg(&tags->rqs[i], flush_rq, NULL);

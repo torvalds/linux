@@ -461,4 +461,35 @@ static inline bool should_fail_request(struct block_device *part,
 }
 #endif /* CONFIG_FAIL_MAKE_REQUEST */
 
+/*
+ * Optimized request reference counting. Ideally we'd make timeouts be more
+ * clever, as that's the only reason we need references at all... But until
+ * this happens, this is faster than using refcount_t. Also see:
+ *
+ * abc54d634334 ("io_uring: switch to atomic_t for io_kiocb reference count")
+ */
+#define req_ref_zero_or_close_to_overflow(req)	\
+	((unsigned int) atomic_read(&(req->ref)) + 127u <= 127u)
+
+static inline bool req_ref_inc_not_zero(struct request *req)
+{
+	return atomic_inc_not_zero(&req->ref);
+}
+
+static inline bool req_ref_put_and_test(struct request *req)
+{
+	WARN_ON_ONCE(req_ref_zero_or_close_to_overflow(req));
+	return atomic_dec_and_test(&req->ref);
+}
+
+static inline void req_ref_set(struct request *req, int value)
+{
+	atomic_set(&req->ref, value);
+}
+
+static inline int req_ref_read(struct request *req)
+{
+	return atomic_read(&req->ref);
+}
+
 #endif /* BLK_INTERNAL_H */

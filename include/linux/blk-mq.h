@@ -139,7 +139,7 @@ struct request {
 	unsigned short ioprio;
 
 	enum mq_rq_state state;
-	refcount_t ref;
+	atomic_t ref;
 
 	unsigned long deadline;
 
