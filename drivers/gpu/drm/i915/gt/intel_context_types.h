@@ -250,6 +250,8 @@ struct intel_context {
 		struct i915_request *last_rq;
 		/** @number_children: number of children if parent */
 		u8 number_children;
+		/** @child_index: index into child_list if child */
+		u8 child_index;
 		/** @guc: GuC specific members for parallel submission */
 		struct {
 			/** @wqi_head: head pointer in work queue */
