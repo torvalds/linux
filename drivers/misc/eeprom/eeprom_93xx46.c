@@ -421,7 +421,7 @@ static const struct spi_device_id eeprom_93xx46_spi_ids[] = {
 	  .driver_data = (kernel_ulong_t)&microchip_93lc46b_data, },
 	{}
 };
-MODULE_DEVICE_TABLE(of, eeprom_93xx46_of_table);
+MODULE_DEVICE_TABLE(spi, eeprom_93xx46_spi_ids);
 
 static int eeprom_93xx46_probe_dt(struct spi_device *spi)
 {
