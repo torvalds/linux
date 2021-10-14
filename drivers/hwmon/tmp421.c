@@ -414,6 +414,9 @@ static int tmp421_probe_from_dt(struct i2c_client *client, struct tmp421_data *d
 	int err;
 
 	for_each_child_of_node(np, child) {
+		if (strcmp(child->name, "channel"))
+			continue;
+
 		err = tmp421_probe_child_from_dt(client, child, data);
 		if (err)
 			return err;
