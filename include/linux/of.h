@@ -185,7 +185,7 @@ static inline bool of_node_is_root(const struct device_node *node)
 	return node && (node->parent == NULL);
 }
 
-static inline int of_node_check_flag(struct device_node *n, unsigned long flag)
+static inline int of_node_check_flag(const struct device_node *n, unsigned long flag)
 {
 	return test_bit(flag, &n->_flags);
 }
