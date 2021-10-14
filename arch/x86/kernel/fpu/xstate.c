@@ -78,13 +78,6 @@ static unsigned int xstate_supervisor_only_offsets[XFEATURE_MAX] __ro_after_init
 	{ [ 0 ... XFEATURE_MAX - 1] = -1};
 
 /*
- * The XSAVE area of kernel can be in standard or compacted format;
- * it is always in standard format for user mode. This is the user
- * mode standard format size used for signal and ptrace frames.
- */
-unsigned int fpu_user_xstate_size __ro_after_init;
-
-/*
  * Return whether the system supports a given xfeature.
  *
  * Also return the name of the (most advanced) feature that the caller requested:
@@ -716,8 +709,11 @@ static int __init init_xstate_size(void)
 	if (!paranoid_xstate_size_valid(kernel_size))
 		return -EINVAL;
 
-	fpu_kernel_xstate_size = kernel_size;
-	fpu_user_xstate_size = user_size;
+	/* Keep it the same for now */
+	fpu_kernel_cfg.max_size = kernel_size;
+	fpu_kernel_cfg.default_size = kernel_size;
+	fpu_user_cfg.max_size = user_size;
+	fpu_user_cfg.default_size = user_size;
 
 	return 0;
 }
@@ -726,11 +722,18 @@ static int __init init_xstate_size(void)
  * We enabled the XSAVE hardware, but something went wrong and
  * we can not use it.  Disable it.
  */
-static void __init fpu__init_disable_system_xstate(void)
+static void __init fpu__init_disable_system_xstate(unsigned int legacy_size)
 {
 	xfeatures_mask_all = 0;
 	cr4_clear_bits(X86_CR4_OSXSAVE);
 	setup_clear_cpu_cap(X86_FEATURE_XSAVE);
+
+	/* Restore the legacy size.*/
+	fpu_kernel_cfg.max_size = legacy_size;
+	fpu_kernel_cfg.default_size = legacy_size;
+	fpu_user_cfg.max_size = legacy_size;
+	fpu_user_cfg.default_size = legacy_size;
+
 	fpstate_reset(&current->thread.fpu);
 }
 
@@ -738,7 +741,7 @@ static void __init fpu__init_disable_system_xstate(void)
  * Enable and initialize the xsave feature.
  * Called once per system bootup.
  */
-void __init fpu__init_system_xstate(void)
+void __init fpu__init_system_xstate(unsigned int legacy_size)
 {
 	unsigned int eax, ebx, ecx, edx;
 	u64 xfeatures;
@@ -810,7 +813,8 @@ void __init fpu__init_system_xstate(void)
 	 * Update info used for ptrace frames; use standard-format size and no
 	 * supervisor xstates:
 	 */
-	update_regset_xstate_info(fpu_user_xstate_size, xfeatures_mask_uabi());
+	update_regset_xstate_info(fpu_user_cfg.max_size,
+				  xfeatures_mask_uabi());
 
 	fpu__init_prepare_fx_sw_frame();
 	setup_init_fpu_buf();
@@ -830,13 +834,13 @@ void __init fpu__init_system_xstate(void)
 	print_xstate_offset_size();
 	pr_info("x86/fpu: Enabled xstate features 0x%llx, context size is %d bytes, using '%s' format.\n",
 		xfeatures_mask_all,
-		fpu_kernel_xstate_size,
+		fpu_kernel_cfg.max_size,
 		boot_cpu_has(X86_FEATURE_XSAVES) ? "compacted" : "standard");
 	return;
 
 out_disable:
 	/* something went wrong, try to boot without any XSAVE support */
-	fpu__init_disable_system_xstate();
+	fpu__init_disable_system_xstate(legacy_size);
 }
 
 /*

@@ -31,7 +31,7 @@ extern int copy_sigframe_from_user_to_xstate(struct fpstate *fpstate, const void
 
 
 extern void fpu__init_cpu_xstate(void);
-extern void fpu__init_system_xstate(void);
+extern void fpu__init_system_xstate(unsigned int legacy_size);
 
 extern void *get_xsave_addr(struct xregs_state *xsave, int xfeature_nr);
 

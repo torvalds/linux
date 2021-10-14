@@ -298,7 +298,7 @@ void fpu_sync_fpstate(struct fpu *fpu)
 static inline unsigned int init_fpstate_copy_size(void)
 {
 	if (!use_xsave())
-		return fpu_kernel_xstate_size;
+		return fpu_kernel_cfg.default_size;
 
 	/* XSAVE(S) just needs the legacy and the xstate header part */
 	return sizeof(init_fpstate.regs.xsave);
@@ -347,8 +347,8 @@ void fpstate_reset(struct fpu *fpu)
 	fpu->fpstate = &fpu->__fpstate;
 
 	/* Initialize sizes and feature masks */
-	fpu->fpstate->size		= fpu_kernel_xstate_size;
-	fpu->fpstate->user_size		= fpu_user_xstate_size;
+	fpu->fpstate->size		= fpu_kernel_cfg.default_size;
+	fpu->fpstate->user_size		= fpu_user_cfg.default_size;
 	fpu->fpstate->xfeatures		= xfeatures_mask_all;
 	fpu->fpstate->user_xfeatures	= xfeatures_mask_uabi();
 }
@@ -420,7 +420,7 @@ int fpu_clone(struct task_struct *dst)
 void fpu_thread_struct_whitelist(unsigned long *offset, unsigned long *size)
 {
 	*offset = offsetof(struct thread_struct, fpu.__fpstate.regs);
-	*size = fpu_kernel_xstate_size;
+	*size = fpu_kernel_cfg.default_size;
 }
 
 /*

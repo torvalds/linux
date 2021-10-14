@@ -503,7 +503,7 @@ fpu__alloc_mathframe(unsigned long sp, int ia32_frame,
 
 unsigned long __init fpu__get_fpstate_size(void)
 {
-	unsigned long ret = fpu_user_xstate_size;
+	unsigned long ret = fpu_user_cfg.max_size;
 
 	if (use_xsave())
 		ret += FP_XSTATE_MAGIC2_SIZE;
@@ -531,12 +531,12 @@ unsigned long __init fpu__get_fpstate_size(void)
  */
 void __init fpu__init_prepare_fx_sw_frame(void)
 {
-	int size = fpu_user_xstate_size + FP_XSTATE_MAGIC2_SIZE;
+	int size = fpu_user_cfg.default_size + FP_XSTATE_MAGIC2_SIZE;
 
 	fx_sw_reserved.magic1 = FP_XSTATE_MAGIC1;
 	fx_sw_reserved.extended_size = size;
 	fx_sw_reserved.xfeatures = xfeatures_mask_uabi();
-	fx_sw_reserved.xstate_size = fpu_user_xstate_size;
+	fx_sw_reserved.xstate_size = fpu_user_cfg.default_size;
 
 	if (IS_ENABLED(CONFIG_IA32_EMULATION) ||
 	    IS_ENABLED(CONFIG_X86_32)) {
