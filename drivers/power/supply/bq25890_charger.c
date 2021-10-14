@@ -788,13 +788,13 @@ static int bq25890_get_chip_version(struct bq25890_device *bq)
 
 	id = bq25890_field_read(bq, F_PN);
 	if (id < 0) {
-		dev_err(bq->dev, "Cannot read chip ID.\n");
+		dev_err(bq->dev, "Cannot read chip ID: %d\n", id);
 		return id;
 	}
 
 	rev = bq25890_field_read(bq, F_DEV_REV);
 	if (rev < 0) {
-		dev_err(bq->dev, "Cannot read chip revision.\n");
+		dev_err(bq->dev, "Cannot read chip revision: %d\n", rev);
 		return rev;
 	}
 
@@ -837,10 +837,9 @@ static int bq25890_irq_probe(struct bq25890_device *bq)
 	struct gpio_desc *irq;
 
 	irq = devm_gpiod_get(bq->dev, BQ25890_IRQ_PIN, GPIOD_IN);
-	if (IS_ERR(irq)) {
-		dev_err(bq->dev, "Could not probe irq pin.\n");
-		return PTR_ERR(irq);
-	}
+	if (IS_ERR(irq))
+		return dev_err_probe(bq->dev, PTR_ERR(irq),
+				     "Could not probe irq pin.\n");
 
 	return gpiod_to_irq(irq);
 }
@@ -929,34 +928,33 @@ static int bq25890_probe(struct i2c_client *client,
 	mutex_init(&bq->lock);
 
 	bq->rmap = devm_regmap_init_i2c(client, &bq25890_regmap_config);
-	if (IS_ERR(bq->rmap)) {
-		dev_err(dev, "failed to allocate register map\n");
-		return PTR_ERR(bq->rmap);
-	}
+	if (IS_ERR(bq->rmap))
+		return dev_err_probe(dev, PTR_ERR(bq->rmap),
+				     "failed to allocate register map\n");
 
 	for (i = 0; i < ARRAY_SIZE(bq25890_reg_fields); i++) {
 		const struct reg_field *reg_fields = bq25890_reg_fields;
 
 		bq->rmap_fields[i] = devm_regmap_field_alloc(dev, bq->rmap,
 							     reg_fields[i]);
-		if (IS_ERR(bq->rmap_fields[i])) {
-			dev_err(dev, "cannot allocate regmap field\n");
-			return PTR_ERR(bq->rmap_fields[i]);
-		}
+		if (IS_ERR(bq->rmap_fields[i]))
+			return dev_err_probe(dev, PTR_ERR(bq->rmap_fields[i]),
+					     "cannot allocate regmap field\n");
 	}
 
 	i2c_set_clientdata(client, bq);
 
 	ret = bq25890_get_chip_version(bq);
 	if (ret) {
-		dev_err(dev, "Cannot read chip ID or unknown chip.\n");
+		dev_err(dev, "Cannot read chip ID or unknown chip: %d\n", ret);
 		return ret;
 	}
 
 	if (!dev->platform_data) {
 		ret = bq25890_fw_probe(bq);
 		if (ret < 0) {
-			dev_err(dev, "Cannot read device properties.\n");
+			dev_err(dev, "Cannot read device properties: %d\n",
+				ret);
 			return ret;
 		}
 	} else {
@@ -965,7 +963,7 @@ static int bq25890_probe(struct i2c_client *client,
 
 	ret = bq25890_hw_init(bq);
 	if (ret < 0) {
-		dev_err(dev, "Cannot initialize the chip.\n");
+		dev_err(dev, "Cannot initialize the chip: %d\n", ret);
 		return ret;
 	}
 
@@ -994,7 +992,7 @@ static int bq25890_probe(struct i2c_client *client,
 
 	ret = bq25890_power_supply_init(bq);
 	if (ret < 0) {
-		dev_err(dev, "Failed to register power supply\n");
+		dev_err_probe(dev, ret, "Failed to register power supply.\n");
 		goto irq_fail;
 	}
 
