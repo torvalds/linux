@@ -19,8 +19,8 @@
 unsigned int vced_count, vcei_count;
 
 /*
- *  * No lock; only written during early bootup by CPU 0.
- *   */
+ * No lock; only written during early bootup by CPU 0.
+ */
 static RAW_NOTIFIER_HEAD(proc_cpuinfo_chain);
 
 int __ref register_proc_cpuinfo_notifier(struct notifier_block *nb)
@@ -39,7 +39,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	unsigned long n = (unsigned long) v - 1;
 	unsigned int version = cpu_data[n].processor_id;
 	unsigned int fp_vers = cpu_data[n].fpu_id;
-	char fmt [64];
+	char fmt[64];
 	int i;
 
 #ifdef CONFIG_SMP
@@ -78,12 +78,12 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		seq_printf(m, "count: %d, address/irw mask: [",
 		      cpu_data[n].watch_reg_count);
 		for (i = 0; i < cpu_data[n].watch_reg_count; i++)
-			seq_printf(m, "%s0x%04x", i ? ", " : "" ,
+			seq_printf(m, "%s0x%04x", i ? ", " : "",
 				cpu_data[n].watch_reg_masks[i]);
 		seq_printf(m, "]\n");
 	}
 
-	seq_printf(m, "isa\t\t\t:"); 
+	seq_printf(m, "isa\t\t\t:");
 	if (cpu_has_mips_1)
 		seq_printf(m, " mips1");
 	if (cpu_has_mips_2)
@@ -113,25 +113,44 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "\n");
 
 	seq_printf(m, "ASEs implemented\t:");
-	if (cpu_has_mips16)	seq_printf(m, "%s", " mips16");
-	if (cpu_has_mips16e2)	seq_printf(m, "%s", " mips16e2");
-	if (cpu_has_mdmx)	seq_printf(m, "%s", " mdmx");
-	if (cpu_has_mips3d)	seq_printf(m, "%s", " mips3d");
-	if (cpu_has_smartmips)	seq_printf(m, "%s", " smartmips");
-	if (cpu_has_dsp)	seq_printf(m, "%s", " dsp");
-	if (cpu_has_dsp2)	seq_printf(m, "%s", " dsp2");
-	if (cpu_has_dsp3)	seq_printf(m, "%s", " dsp3");
-	if (cpu_has_mipsmt)	seq_printf(m, "%s", " mt");
-	if (cpu_has_mmips)	seq_printf(m, "%s", " micromips");
-	if (cpu_has_vz)		seq_printf(m, "%s", " vz");
-	if (cpu_has_msa)	seq_printf(m, "%s", " msa");
-	if (cpu_has_eva)	seq_printf(m, "%s", " eva");
-	if (cpu_has_htw)	seq_printf(m, "%s", " htw");
-	if (cpu_has_xpa)	seq_printf(m, "%s", " xpa");
-	if (cpu_has_loongson_mmi)	seq_printf(m, "%s", " loongson-mmi");
-	if (cpu_has_loongson_cam)	seq_printf(m, "%s", " loongson-cam");
-	if (cpu_has_loongson_ext)	seq_printf(m, "%s", " loongson-ext");
-	if (cpu_has_loongson_ext2)	seq_printf(m, "%s", " loongson-ext2");
+	if (cpu_has_mips16)
+		seq_printf(m, "%s", " mips16");
+	if (cpu_has_mips16e2)
+		seq_printf(m, "%s", " mips16e2");
+	if (cpu_has_mdmx)
+		seq_printf(m, "%s", " mdmx");
+	if (cpu_has_mips3d)
+		seq_printf(m, "%s", " mips3d");
+	if (cpu_has_smartmips)
+		seq_printf(m, "%s", " smartmips");
+	if (cpu_has_dsp)
+		seq_printf(m, "%s", " dsp");
+	if (cpu_has_dsp2)
+		seq_printf(m, "%s", " dsp2");
+	if (cpu_has_dsp3)
+		seq_printf(m, "%s", " dsp3");
+	if (cpu_has_mipsmt)
+		seq_printf(m, "%s", " mt");
+	if (cpu_has_mmips)
+		seq_printf(m, "%s", " micromips");
+	if (cpu_has_vz)
+		seq_printf(m, "%s", " vz");
+	if (cpu_has_msa)
+		seq_printf(m, "%s", " msa");
+	if (cpu_has_eva)
+		seq_printf(m, "%s", " eva");
+	if (cpu_has_htw)
+		seq_printf(m, "%s", " htw");
+	if (cpu_has_xpa)
+		seq_printf(m, "%s", " xpa");
+	if (cpu_has_loongson_mmi)
+		seq_printf(m, "%s", " loongson-mmi");
+	if (cpu_has_loongson_cam)
+		seq_printf(m, "%s", " loongson-cam");
+	if (cpu_has_loongson_ext)
+		seq_printf(m, "%s", " loongson-ext");
+	if (cpu_has_loongson_ext2)
+		seq_printf(m, "%s", " loongson-ext2");
 	seq_printf(m, "\n");
 
 	if (cpu_has_mmips) {
