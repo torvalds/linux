@@ -842,7 +842,7 @@ static void __ceph_umount_begin(struct ceph_fs_client *fsc)
  * ceph_umount_begin - initiate forced umount.  Tear down the
  * mount, skipping steps that may hang while waiting for server(s).
  */
-static void ceph_umount_begin(struct super_block *sb)
+void ceph_umount_begin(struct super_block *sb)
 {
 	struct ceph_fs_client *fsc = ceph_sb_to_client(sb);
 

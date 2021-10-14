@@ -4983,7 +4983,8 @@ void ceph_mdsc_handle_fsmap(struct ceph_mds_client *mdsc, struct ceph_msg *msg)
 	return;
 
 bad:
-	pr_err("error decoding fsmap\n");
+	pr_err("error decoding fsmap %d. Shutting down mount.\n", err);
+	ceph_umount_begin(mdsc->fsc->sb);
 err_out:
 	mutex_lock(&mdsc->mutex);
 	mdsc->mdsmap_err = err;
@@ -5050,7 +5051,8 @@ void ceph_mdsc_handle_mdsmap(struct ceph_mds_client *mdsc, struct ceph_msg *msg)
 bad_unlock:
 	mutex_unlock(&mdsc->mutex);
 bad:
-	pr_err("error decoding mdsmap %d\n", err);
+	pr_err("error decoding mdsmap %d. Shutting down mount.\n", err);
+	ceph_umount_begin(mdsc->fsc->sb);
 	return;
 }
 
