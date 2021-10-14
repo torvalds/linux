@@ -16,6 +16,7 @@
 #include <linux/reset.h>
 #include <media/videobuf2-dma-contig.h>
 #include <media/videobuf2-dma-sg.h>
+#include <soc/rockchip/rockchip_iommu.h>
 
 #include "common.h"
 #include "dev.h"
@@ -40,10 +41,6 @@ struct irqs_data {
 
 void rkispp_soft_reset(struct rkispp_hw_dev *hw)
 {
-	struct iommu_domain *domain = iommu_get_domain_for_dev(hw->dev);
-
-	if (domain)
-		iommu_detach_device(domain, hw->dev);
 	writel(GLB_SOFT_RST_ALL, hw->base_addr + RKISPP_CTRL_RESET);
 	udelay(10);
 	if (hw->reset) {
@@ -52,8 +49,12 @@ void rkispp_soft_reset(struct rkispp_hw_dev *hw)
 		reset_control_deassert(hw->reset);
 		udelay(20);
 	}
-	if (domain)
-		iommu_attach_device(domain, hw->dev);
+
+	/* refresh iommu after reset */
+	if (hw->is_mmu) {
+		rockchip_iommu_disable(hw->dev);
+		rockchip_iommu_enable(hw->dev);
+	}
 
 	writel(SW_SCL_BYPASS, hw->base_addr + RKISPP_SCL0_CTRL);
 	writel(SW_SCL_BYPASS, hw->base_addr + RKISPP_SCL1_CTRL);
