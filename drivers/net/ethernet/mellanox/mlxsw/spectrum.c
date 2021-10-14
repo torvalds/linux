@@ -824,12 +824,16 @@ mlxsw_sp_port_get_hw_xstats(struct net_device *dev,
 
 	for (i = 0; i < TC_MAX_QUEUE; i++) {
 		err = mlxsw_sp_port_get_stats_raw(dev,
-						  MLXSW_REG_PPCNT_TC_CONG_TC,
+						  MLXSW_REG_PPCNT_TC_CONG_CNT,
 						  i, ppcnt_pl);
-		if (!err)
-			xstats->wred_drop[i] =
-				mlxsw_reg_ppcnt_wred_discard_get(ppcnt_pl);
+		if (err)
+			goto tc_cnt;
 
+		xstats->wred_drop[i] =
+			mlxsw_reg_ppcnt_wred_discard_get(ppcnt_pl);
+		xstats->tc_ecn[i] = mlxsw_reg_ppcnt_ecn_marked_tc_get(ppcnt_pl);
+
+tc_cnt:
 		err = mlxsw_sp_port_get_stats_raw(dev, MLXSW_REG_PPCNT_TC_CNT,
 						  i, ppcnt_pl);
 		if (err)
