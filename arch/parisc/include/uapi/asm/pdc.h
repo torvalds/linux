@@ -398,8 +398,10 @@ struct zeropage {
 	/* int	(*vec_rendz)(void); */
 	unsigned int vec_rendz;
 	int	vec_pow_fail_flen;
-	int	vec_pad[10];		
-	
+	int	vec_pad0[3];
+	unsigned int vec_toc_hi;
+	int	vec_pad1[6];
+
 	/* [0x040] reserved processor dependent */
 	int	pad0[112];
 
