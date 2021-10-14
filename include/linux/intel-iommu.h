@@ -705,9 +705,9 @@ static inline bool dma_pte_superpage(struct dma_pte *pte)
 	return (pte->val & DMA_PTE_LARGE_PAGE);
 }
 
-static inline int first_pte_in_page(struct dma_pte *pte)
+static inline bool first_pte_in_page(struct dma_pte *pte)
 {
-	return !((unsigned long)pte & ~VTD_PAGE_MASK);
+	return IS_ALIGNED((unsigned long)pte, VTD_PAGE_SIZE);
 }
 
 extern struct dmar_drhd_unit * dmar_find_matched_drhd_unit(struct pci_dev *dev);
