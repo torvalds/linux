@@ -38,6 +38,7 @@ struct block_device {
 	u8			bd_partno;
 	spinlock_t		bd_size_lock; /* for bd_inode->i_size updates */
 	struct gendisk *	bd_disk;
+	struct request_queue *	bd_queue;
 
 	/* The counter of freeze processes */
 	int			bd_fsfreeze_count;

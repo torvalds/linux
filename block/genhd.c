@@ -1267,6 +1267,9 @@ struct gendisk *__alloc_disk_node(struct request_queue *q, int node_id,
 	if (!disk->bdi)
 		goto out_free_disk;
 
+	/* bdev_alloc() might need the queue, set before the first call */
+	disk->queue = q;
+
 	disk->part0 = bdev_alloc(disk, 0);
 	if (!disk->part0)
 		goto out_free_bdi;
@@ -1282,7 +1285,6 @@ struct gendisk *__alloc_disk_node(struct request_queue *q, int node_id,
 	disk_to_dev(disk)->type = &disk_type;
 	device_initialize(disk_to_dev(disk));
 	inc_diskseq(disk);
-	disk->queue = q;
 	q->disk = disk;
 	lockdep_init_map(&disk->lockdep_map, "(bio completion)", lkclass, 0);
 #ifdef CONFIG_BLOCK_HOLDER_DEPRECATED
