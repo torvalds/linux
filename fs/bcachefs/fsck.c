@@ -2174,7 +2174,7 @@ static int fix_reflink_p_key(struct btree_trans *trans, struct btree_iter *iter)
 
 	p = bkey_s_c_to_reflink_p(k);
 
-	if (!p.v->v2)
+	if (!p.v->front_pad && !p.v->back_pad)
 		return 0;
 
 	u = bch2_trans_kmalloc(trans, sizeof(*u));
@@ -2183,7 +2183,8 @@ static int fix_reflink_p_key(struct btree_trans *trans, struct btree_iter *iter)
 		return ret;
 
 	bkey_reassemble(&u->k_i, k);
-	u->v.v2 = 0;
+	u->v.front_pad	= 0;
+	u->v.back_pad	= 0;
 
 	return bch2_trans_update(trans, iter, &u->k_i, 0);
 }

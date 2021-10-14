@@ -917,15 +917,24 @@ struct bch_stripe {
 struct bch_reflink_p {
 	struct bch_val		v;
 	__le64			idx;
-	__le64			v2;
-};
+	/*
+	 * A reflink pointer might point to an indirect extent which is then
+	 * later split (by copygc or rebalance). If we only pointed to part of
+	 * the original indirect extent, and then one of the fragments is
+	 * outside the range we point to, we'd leak a refcount: so when creating
+	 * reflink pointers, we need to store pad values to remember the full
+	 * range we were taking a reference on.
+	 */
+	__le32			front_pad;
+	__le32			back_pad;
+} __attribute__((packed, aligned(8)));
 
 struct bch_reflink_v {
 	struct bch_val		v;
 	__le64			refcount;
 	union bch_extent_entry	start[0];
 	__u64			_data[0];
-};
+} __attribute__((packed, aligned(8)));
 
 struct bch_indirect_inline_data {
 	struct bch_val		v;
