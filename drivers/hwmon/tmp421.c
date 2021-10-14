@@ -33,6 +33,9 @@ enum chips { tmp421, tmp422, tmp423, tmp441, tmp442 };
 /* The TMP421 registers */
 #define TMP421_STATUS_REG			0x08
 #define TMP421_CONFIG_REG_1			0x09
+#define TMP421_CONFIG_REG_2			0x0A
+#define TMP421_CONFIG_REG_REN(x)		(BIT(3 + (x)))
+#define TMP421_CONFIG_REG_REN_MASK		GENMASK(6, 3)
 #define TMP421_CONVERSION_RATE_REG		0x0B
 #define TMP421_N_FACTOR_REG_1			0x21
 #define TMP421_MANUFACTURER_ID_REG		0xFE
@@ -162,6 +165,34 @@ exit:
 	return 0;
 }
 
+static int tmp421_enable_channels(struct tmp421_data *data)
+{
+	int err;
+	struct i2c_client *client = data->client;
+	struct device *dev = &client->dev;
+	int old = i2c_smbus_read_byte_data(client, TMP421_CONFIG_REG_2);
+	int new, i;
+
+	if (old < 0) {
+		dev_err(dev, "error reading register, can't disable channels\n");
+		return old;
+	}
+
+	new = old & ~TMP421_CONFIG_REG_REN_MASK;
+	for (i = 0; i < data->channels; i++)
+		if (data->channel[i].enabled)
+			new |= TMP421_CONFIG_REG_REN(i);
+
+	if (new == old)
+		return 0;
+
+	err = i2c_smbus_write_byte_data(client, TMP421_CONFIG_REG_2, new);
+	if (err < 0)
+		dev_err(dev, "error writing register, can't disable channels\n");
+
+	return err;
+}
+
 static int tmp421_read(struct device *dev, enum hwmon_sensor_types type,
 		       u32 attr, int channel, long *val)
 {
@@ -217,9 +248,10 @@ static umode_t tmp421_is_visible(const void *data, enum hwmon_sensor_types type,
 	}
 }
 
-static int tmp421_init_client(struct i2c_client *client)
+static int tmp421_init_client(struct tmp421_data *data)
 {
 	int config, config_orig;
+	struct i2c_client *client = data->client;
 
 	/* Set the conversion rate to 2 Hz */
 	i2c_smbus_write_byte_data(client, TMP421_CONVERSION_RATE_REG, 0x05);
@@ -240,7 +272,7 @@ static int tmp421_init_client(struct i2c_client *client)
 		i2c_smbus_write_byte_data(client, TMP421_CONFIG_REG_1, config);
 	}
 
-	return 0;
+	return tmp421_enable_channels(data);
 }
 
 static int tmp421_detect(struct i2c_client *client,
@@ -391,16 +423,16 @@ static int tmp421_probe(struct i2c_client *client)
 		data->channels = i2c_match_id(tmp421_id, client)->driver_data;
 	data->client = client;
 
-	err = tmp421_init_client(client);
-	if (err)
-		return err;
-
 	for (i = 0; i < data->channels; i++) {
 		data->temp_config[i] = HWMON_T_INPUT | HWMON_T_FAULT;
 		data->channel[i].enabled = true;
 	}
 
 	err = tmp421_probe_from_dt(client, data);
+	if (err)
+		return err;
+
+	err = tmp421_init_client(data);
 	if (err)
 		return err;
 
