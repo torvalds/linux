@@ -2640,7 +2640,7 @@ static bool __io_complete_rw_common(struct io_kiocb *req, long res)
 {
 	if (req->rw.kiocb.ki_flags & IOCB_WRITE)
 		kiocb_end_write(req);
-	if (res != req->result) {
+	if (unlikely(res != req->result)) {
 		if ((res == -EAGAIN || res == -EOPNOTSUPP) &&
 		    io_rw_should_reissue(req)) {
 			req->flags |= REQ_F_REISSUE;
@@ -2695,9 +2695,9 @@ static void io_complete_rw_iopoll(struct kiocb *kiocb, long res, long res2)
 			req->flags |= REQ_F_REISSUE;
 			return;
 		}
+		req->result = res;
 	}
 
-	req->result = res;
 	/* order with io_iopoll_complete() checking ->iopoll_completed */
 	smp_store_release(&req->iopoll_completed, 1);
 }
