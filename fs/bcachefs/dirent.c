@@ -183,6 +183,7 @@ int __bch2_dirent_read_target(struct btree_trans *trans,
 			      u32 *subvol, u32 *snapshot, u64 *inum,
 			      bool is_fsck)
 {
+	struct bch_subvolume s;
 	int ret = 0;
 
 	*subvol		= 0;
@@ -191,9 +192,6 @@ int __bch2_dirent_read_target(struct btree_trans *trans,
 	if (likely(d.v->d_type != DT_SUBVOL)) {
 		*inum = le64_to_cpu(d.v->d_inum);
 	} else {
-		struct bch_subvolume s;
-		int ret;
-
 		*subvol = le64_to_cpu(d.v->d_inum);
 
 		ret = bch2_subvolume_get(trans, *subvol, !is_fsck, BTREE_ITER_CACHED, &s);
