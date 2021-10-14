@@ -51,30 +51,6 @@
 	extrd,u \spc,(64 - (SPACEID_SHIFT)),32,\prot
 	.endm
 #endif
-
-	/* Switch to virtual mapping, trashing only %r1 */
-	.macro  virt_map
-	/* pcxt_ssm_bug */
-	rsm	PSW_SM_I, %r0	/* barrier for "Relied upon Translation */
-	mtsp	%r0, %sr4
-	mtsp	%r0, %sr5
-	mtsp	%r0, %sr6
-	tovirt_r1 %r29
-	load32	KERNEL_PSW, %r1
-
-	rsm     PSW_SM_QUIET,%r0	/* second "heavy weight" ctl op */
-	mtctl	%r0, %cr17	/* Clear IIASQ tail */
-	mtctl	%r0, %cr17	/* Clear IIASQ head */
-	mtctl	%r1, %ipsw
-	load32	4f, %r1
-	mtctl	%r1, %cr18	/* Set IIAOQ tail */
-	ldo	4(%r1), %r1
-	mtctl	%r1, %cr18	/* Set IIAOQ head */
-	rfir
-	nop
-4:
-	.endm
-
 	/*
 	 * The "get_stack" macros are responsible for determining the
 	 * kernel stack value.
