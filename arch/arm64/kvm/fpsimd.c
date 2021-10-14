@@ -43,17 +43,6 @@ int kvm_arch_vcpu_run_map_fp(struct kvm_vcpu *vcpu)
 	if (ret)
 		goto error;
 
-	if (vcpu->arch.sve_state) {
-		void *sve_end;
-
-		sve_end = vcpu->arch.sve_state + vcpu_sve_state_size(vcpu);
-
-		ret = create_hyp_mappings(vcpu->arch.sve_state, sve_end,
-					  PAGE_HYP);
-		if (ret)
-			goto error;
-	}
-
 	vcpu->arch.host_thread_info = kern_hyp_va(ti);
 	vcpu->arch.host_fpsimd_state = kern_hyp_va(fpsimd);
 error:
