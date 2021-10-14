@@ -1078,6 +1078,7 @@ static void disk_release(struct device *dev)
 	struct gendisk *disk = dev_to_disk(dev);
 
 	might_sleep();
+	WARN_ON_ONCE(disk_live(disk));
 
 	disk_release_events(disk);
 	kfree(disk->random);
