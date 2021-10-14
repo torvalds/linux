@@ -171,7 +171,7 @@ static const struct clk_ops imx8m_clk_composite_mux_ops = {
 	.determine_rate = imx8m_clk_composite_mux_determine_rate,
 };
 
-struct clk_hw *imx8m_clk_hw_composite_flags(const char *name,
+struct clk_hw *__imx8m_clk_hw_composite(const char *name,
 					const char * const *parent_names,
 					int num_parents, void __iomem *reg,
 					u32 composite_flags,
@@ -246,4 +246,4 @@ fail:
 	kfree(mux);
 	return ERR_CAST(hw);
 }
-EXPORT_SYMBOL_GPL(imx8m_clk_hw_composite_flags);
+EXPORT_SYMBOL_GPL(__imx8m_clk_hw_composite);
