@@ -89,6 +89,7 @@ MODULE_DEVICE_TABLE(of, tmp421_of_match);
 
 struct tmp421_channel {
 	const char *label;
+	bool enabled;
 	s16 temp;
 };
 
@@ -169,6 +170,9 @@ static int tmp421_read(struct device *dev, enum hwmon_sensor_types type,
 	ret = tmp421_update_device(tmp421);
 	if (ret)
 		return ret;
+
+	if (!tmp421->channel[channel].enabled)
+		return -ENODATA;
 
 	switch (attr) {
 	case hwmon_temp_input:
@@ -323,6 +327,8 @@ static int tmp421_probe_child_from_dt(struct i2c_client *client,
 	if (data->channel[i].label)
 		data->temp_config[i] |= HWMON_T_LABEL;
 
+	data->channel[i].enabled = of_device_is_available(child);
+
 	return 0;
 }
 
@@ -371,8 +377,10 @@ static int tmp421_probe(struct i2c_client *client)
 	if (err)
 		return err;
 
-	for (i = 0; i < data->channels; i++)
+	for (i = 0; i < data->channels; i++) {
 		data->temp_config[i] = HWMON_T_INPUT | HWMON_T_FAULT;
+		data->channel[i].enabled = true;
+	}
 
 	err = tmp421_probe_from_dt(client, data);
 	if (err)
