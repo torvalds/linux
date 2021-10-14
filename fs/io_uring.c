@@ -3433,7 +3433,7 @@ static bool io_rw_should_retry(struct io_kiocb *req)
 
 static inline int io_iter_do_read(struct io_kiocb *req, struct iov_iter *iter)
 {
-	if (req->file->f_op->read_iter)
+	if (likely(req->file->f_op->read_iter))
 		return call_read_iter(req->file, &req->rw.kiocb, iter);
 	else if (req->file->f_op->read)
 		return loop_rw_iter(READ, req, iter);
@@ -3449,14 +3449,18 @@ static bool need_read_all(struct io_kiocb *req)
 
 static int io_read(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct io_rw_state __s, *s;
+	struct io_rw_state __s, *s = &__s;
 	struct iovec *iovec;
 	struct kiocb *kiocb = &req->rw.kiocb;
 	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
 	struct io_async_rw *rw;
 	ssize_t ret, ret2;
 
-	if (req_has_async_data(req)) {
+	if (!req_has_async_data(req)) {
+		ret = io_import_iovec(READ, req, &iovec, s, issue_flags);
+		if (unlikely(ret < 0))
+			return ret;
+	} else {
 		rw = req->async_data;
 		s = &rw->s;
 		/*
@@ -3466,24 +3470,19 @@ static int io_read(struct io_kiocb *req, unsigned int issue_flags)
 		 */
 		iov_iter_restore(&s->iter, &s->iter_state);
 		iovec = NULL;
-	} else {
-		s = &__s;
-		ret = io_import_iovec(READ, req, &iovec, s, issue_flags);
-		if (unlikely(ret < 0))
-			return ret;
 	}
 	req->result = iov_iter_count(&s->iter);
 
-	/* Ensure we clear previously set non-block flag */
-	if (!force_nonblock)
-		kiocb->ki_flags &= ~IOCB_NOWAIT;
-	else
+	if (force_nonblock) {
+		/* If the file doesn't support async, just async punt */
+		if (unlikely(!io_file_supports_nowait(req, READ))) {
+			ret = io_setup_async_rw(req, iovec, s, true);
+			return ret ?: -EAGAIN;
+		}
 		kiocb->ki_flags |= IOCB_NOWAIT;
-
-	/* If the file doesn't support async, just async punt */
-	if (force_nonblock && !io_file_supports_nowait(req, READ)) {
-		ret = io_setup_async_rw(req, iovec, s, true);
-		return ret ?: -EAGAIN;
+	} else {
+		/* Ensure we clear previously set non-block flag */
+		kiocb->ki_flags &= ~IOCB_NOWAIT;
 	}
 
 	ret = rw_verify_area(READ, req->file, io_kiocb_ppos(kiocb), req->result);
@@ -3579,40 +3578,40 @@ static int io_write_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 static int io_write(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct io_rw_state __s, *s;
-	struct io_async_rw *rw;
+	struct io_rw_state __s, *s = &__s;
 	struct iovec *iovec;
 	struct kiocb *kiocb = &req->rw.kiocb;
 	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
 	ssize_t ret, ret2;
 
-	if (req_has_async_data(req)) {
-		rw = req->async_data;
-		s = &rw->s;
-		iov_iter_restore(&s->iter, &s->iter_state);
-		iovec = NULL;
-	} else {
-		s = &__s;
+	if (!req_has_async_data(req)) {
 		ret = io_import_iovec(WRITE, req, &iovec, s, issue_flags);
 		if (unlikely(ret < 0))
 			return ret;
+	} else {
+		struct io_async_rw *rw = req->async_data;
+
+		s = &rw->s;
+		iov_iter_restore(&s->iter, &s->iter_state);
+		iovec = NULL;
 	}
 	req->result = iov_iter_count(&s->iter);
 
-	/* Ensure we clear previously set non-block flag */
-	if (!force_nonblock)
-		kiocb->ki_flags &= ~IOCB_NOWAIT;
-	else
+	if (force_nonblock) {
+		/* If the file doesn't support async, just async punt */
+		if (unlikely(!io_file_supports_nowait(req, WRITE)))
+			goto copy_iov;
+
+		/* file path doesn't support NOWAIT for non-direct_IO */
+		if (force_nonblock && !(kiocb->ki_flags & IOCB_DIRECT) &&
+		    (req->flags & REQ_F_ISREG))
+			goto copy_iov;
+
 		kiocb->ki_flags |= IOCB_NOWAIT;
-
-	/* If the file doesn't support async, just async punt */
-	if (force_nonblock && !io_file_supports_nowait(req, WRITE))
-		goto copy_iov;
-
-	/* file path doesn't support NOWAIT for non-direct_IO */
-	if (force_nonblock && !(kiocb->ki_flags & IOCB_DIRECT) &&
-	    (req->flags & REQ_F_ISREG))
-		goto copy_iov;
+	} else {
+		/* Ensure we clear previously set non-block flag */
+		kiocb->ki_flags &= ~IOCB_NOWAIT;
+	}
 
 	ret = rw_verify_area(WRITE, req->file, io_kiocb_ppos(kiocb), req->result);
 	if (unlikely(ret))
