@@ -129,5 +129,6 @@ void ice_vsi_ctx_set_allow_override(struct ice_vsi_ctx *ctx);
 void ice_vsi_ctx_clear_allow_override(struct ice_vsi_ctx *ctx);
 
 bool ice_is_feature_supported(struct ice_pf *pf, enum ice_feature f);
+void ice_clear_feature_support(struct ice_pf *pf, enum ice_feature f);
 void ice_init_feature_support(struct ice_pf *pf);
 #endif /* !_ICE_LIB_H_ */

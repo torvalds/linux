@@ -3650,6 +3650,19 @@ static void ice_set_feature_support(struct ice_pf *pf, enum ice_feature f)
 }
 
 /**
+ * ice_clear_feature_support
+ * @pf: pointer to the struct ice_pf instance
+ * @f: feature enum to clear
+ */
+void ice_clear_feature_support(struct ice_pf *pf, enum ice_feature f)
+{
+	if (f < 0 || f >= ICE_F_MAX)
+		return;
+
+	clear_bit(f, pf->features);
+}
+
+/**
  * ice_init_feature_support
  * @pf: pointer to the struct ice_pf instance
  *
@@ -3662,6 +3675,8 @@ void ice_init_feature_support(struct ice_pf *pf)
 	case ICE_DEV_ID_E810C_QSFP:
 	case ICE_DEV_ID_E810C_SFP:
 		ice_set_feature_support(pf, ICE_F_DSCP);
+		if (ice_is_e810t(&pf->hw))
+			ice_set_feature_support(pf, ICE_F_SMA_CTRL);
 		break;
 	default:
 		break;
