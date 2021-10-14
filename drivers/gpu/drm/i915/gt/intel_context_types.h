@@ -237,6 +237,12 @@ struct intel_context {
 		};
 		/** @parent: pointer to parent if child */
 		struct intel_context *parent;
+		/**
+		 * @last_rq: last request submitted on a parallel context, used
+		 * to insert submit fences between requests in the parallel
+		 * context
+		 */
+		struct i915_request *last_rq;
 		/** @number_children: number of children if parent */
 		u8 number_children;
 		/** @guc: GuC specific members for parallel submission */
