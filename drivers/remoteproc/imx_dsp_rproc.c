@@ -1107,7 +1107,7 @@ out:
 	release_firmware(fw);
 }
 
-static int imx_dsp_suspend(struct device *dev)
+static __maybe_unused int imx_dsp_suspend(struct device *dev)
 {
 	struct rproc *rproc = dev_get_drvdata(dev);
 	struct imx_dsp_rproc *priv = rproc->priv;
@@ -1142,7 +1142,7 @@ out:
 	return pm_runtime_force_suspend(dev);
 }
 
-static int imx_dsp_resume(struct device *dev)
+static __maybe_unused int imx_dsp_resume(struct device *dev)
 {
 	struct rproc *rproc = dev_get_drvdata(dev);
 	int ret = 0;
