@@ -80,78 +80,78 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		for (i = 0; i < cpu_data[n].watch_reg_count; i++)
 			seq_printf(m, "%s0x%04x", i ? ", " : "",
 				cpu_data[n].watch_reg_masks[i]);
-		seq_printf(m, "]\n");
+		seq_puts(m, "]\n");
 	}
 
-	seq_printf(m, "isa\t\t\t:");
+	seq_puts(m, "isa\t\t\t:");
 	if (cpu_has_mips_1)
-		seq_printf(m, " mips1");
+		seq_puts(m, " mips1");
 	if (cpu_has_mips_2)
-		seq_printf(m, "%s", " mips2");
+		seq_puts(m, " mips2");
 	if (cpu_has_mips_3)
-		seq_printf(m, "%s", " mips3");
+		seq_puts(m, " mips3");
 	if (cpu_has_mips_4)
-		seq_printf(m, "%s", " mips4");
+		seq_puts(m, " mips4");
 	if (cpu_has_mips_5)
-		seq_printf(m, "%s", " mips5");
+		seq_puts(m, " mips5");
 	if (cpu_has_mips32r1)
-		seq_printf(m, "%s", " mips32r1");
+		seq_puts(m, " mips32r1");
 	if (cpu_has_mips32r2)
-		seq_printf(m, "%s", " mips32r2");
+		seq_puts(m, " mips32r2");
 	if (cpu_has_mips32r5)
-		seq_printf(m, "%s", " mips32r5");
+		seq_puts(m, " mips32r5");
 	if (cpu_has_mips32r6)
-		seq_printf(m, "%s", " mips32r6");
+		seq_puts(m, " mips32r6");
 	if (cpu_has_mips64r1)
-		seq_printf(m, "%s", " mips64r1");
+		seq_puts(m, " mips64r1");
 	if (cpu_has_mips64r2)
-		seq_printf(m, "%s", " mips64r2");
+		seq_puts(m, " mips64r2");
 	if (cpu_has_mips64r5)
-		seq_printf(m, "%s", " mips64r5");
+		seq_puts(m, " mips64r5");
 	if (cpu_has_mips64r6)
-		seq_printf(m, "%s", " mips64r6");
-	seq_printf(m, "\n");
+		seq_puts(m, " mips64r6");
+	seq_puts(m, "\n");
 
-	seq_printf(m, "ASEs implemented\t:");
+	seq_puts(m, "ASEs implemented\t:");
 	if (cpu_has_mips16)
-		seq_printf(m, "%s", " mips16");
+		seq_puts(m, " mips16");
 	if (cpu_has_mips16e2)
-		seq_printf(m, "%s", " mips16e2");
+		seq_puts(m, " mips16e2");
 	if (cpu_has_mdmx)
-		seq_printf(m, "%s", " mdmx");
+		seq_puts(m, " mdmx");
 	if (cpu_has_mips3d)
-		seq_printf(m, "%s", " mips3d");
+		seq_puts(m, " mips3d");
 	if (cpu_has_smartmips)
-		seq_printf(m, "%s", " smartmips");
+		seq_puts(m, " smartmips");
 	if (cpu_has_dsp)
-		seq_printf(m, "%s", " dsp");
+		seq_puts(m, " dsp");
 	if (cpu_has_dsp2)
-		seq_printf(m, "%s", " dsp2");
+		seq_puts(m, " dsp2");
 	if (cpu_has_dsp3)
-		seq_printf(m, "%s", " dsp3");
+		seq_puts(m, " dsp3");
 	if (cpu_has_mipsmt)
-		seq_printf(m, "%s", " mt");
+		seq_puts(m, " mt");
 	if (cpu_has_mmips)
-		seq_printf(m, "%s", " micromips");
+		seq_puts(m, " micromips");
 	if (cpu_has_vz)
-		seq_printf(m, "%s", " vz");
+		seq_puts(m, " vz");
 	if (cpu_has_msa)
-		seq_printf(m, "%s", " msa");
+		seq_puts(m, " msa");
 	if (cpu_has_eva)
-		seq_printf(m, "%s", " eva");
+		seq_puts(m, " eva");
 	if (cpu_has_htw)
-		seq_printf(m, "%s", " htw");
+		seq_puts(m, " htw");
 	if (cpu_has_xpa)
-		seq_printf(m, "%s", " xpa");
+		seq_puts(m, " xpa");
 	if (cpu_has_loongson_mmi)
-		seq_printf(m, "%s", " loongson-mmi");
+		seq_puts(m, " loongson-mmi");
 	if (cpu_has_loongson_cam)
-		seq_printf(m, "%s", " loongson-cam");
+		seq_puts(m, " loongson-cam");
 	if (cpu_has_loongson_ext)
-		seq_printf(m, "%s", " loongson-ext");
+		seq_puts(m, " loongson-ext");
 	if (cpu_has_loongson_ext2)
-		seq_printf(m, "%s", " loongson-ext2");
-	seq_printf(m, "\n");
+		seq_puts(m, " loongson-ext2");
+	seq_puts(m, "\n");
 
 	if (cpu_has_mmips) {
 		seq_printf(m, "micromips kernel\t: %s\n",
@@ -182,7 +182,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	raw_notifier_call_chain(&proc_cpuinfo_chain, 0,
 				&proc_cpuinfo_notifier_args);
 
-	seq_printf(m, "\n");
+	seq_puts(m, "\n");
 
 	return 0;
 }
