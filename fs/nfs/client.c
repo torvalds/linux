@@ -865,6 +865,30 @@ int nfs_probe_fsinfo(struct nfs_server *server, struct nfs_fh *mntfh, struct nfs
 EXPORT_SYMBOL_GPL(nfs_probe_fsinfo);
 
 /*
+ * Grab the destination's particulars, including lease expiry time.
+ *
+ * Returns zero if probe succeeded and retrieved FSID matches the FSID
+ * we have cached.
+ */
+int nfs_probe_server(struct nfs_server *server, struct nfs_fh *mntfh)
+{
+	struct nfs_fattr *fattr;
+	int error;
+
+	fattr = nfs_alloc_fattr();
+	if (fattr == NULL)
+		return -ENOMEM;
+
+	/* Sanity: the probe won't work if the destination server
+	 * does not recognize the migrated FH. */
+	error = nfs_probe_fsinfo(server, mntfh, fattr);
+
+	nfs_free_fattr(fattr);
+	return error;
+}
+EXPORT_SYMBOL_GPL(nfs_probe_server);
+
+/*
  * Copy useful information when duplicating a server record
  */
 void nfs_server_copy_userdata(struct nfs_server *target, struct nfs_server *source)
