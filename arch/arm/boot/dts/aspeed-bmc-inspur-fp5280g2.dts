@@ -246,7 +246,7 @@
 		label = "bmc";
 		m25p,fast-read;
 		spi-max-frequency = <50000000>;
-#include "openbmc-flash-layout.dtsi"
+#include "openbmc-flash-layout-64.dtsi"
 	};
 };
 
