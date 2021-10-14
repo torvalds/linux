@@ -373,7 +373,7 @@ static int get_ctl_value_v2(struct usb_mixer_elem_info *cval, int request,
 
 	if (ret < 0) {
 error:
-		usb_audio_err(chip,
+		usb_audio_dbg(chip,
 			"cannot get ctl value: req = %#x, wValue = %#x, wIndex = %#x, type = %d\n",
 			request, validx, idx, cval->val_type);
 		return ret;
