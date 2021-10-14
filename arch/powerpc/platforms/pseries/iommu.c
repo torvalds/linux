@@ -929,8 +929,10 @@ static void find_existing_ddw_windows_named(const char *name)
 		}
 
 		window = ddw_list_new_entry(pdn, dma64);
-		if (!window)
+		if (!window) {
+			of_node_put(pdn);
 			break;
+		}
 
 		spin_lock(&dma_win_list_lock);
 		list_add(&window->list, &dma_win_list);
