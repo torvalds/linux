@@ -75,21 +75,47 @@ mlx5e_tc_post_act_destroy(struct mlx5e_post_act *post_act)
 	kfree(post_act);
 }
 
+int
+mlx5e_tc_post_act_offload(struct mlx5e_post_act *post_act,
+			  struct mlx5e_post_act_handle *handle)
+{
+	struct mlx5_flow_spec *spec;
+	int err;
+
+	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	if (!spec)
+		return -ENOMEM;
+
+	/* Post action rule matches on fte_id and executes original rule's tc rule action */
+	mlx5e_tc_match_to_reg_match(spec, FTEID_TO_REG, handle->id, MLX5_POST_ACTION_MASK);
+
+	handle->rule = mlx5_tc_rule_insert(post_act->priv, spec, handle->attr);
+	if (IS_ERR(handle->rule)) {
+		err = PTR_ERR(handle->rule);
+		netdev_warn(post_act->priv->netdev, "Failed to add post action rule");
+		goto err_rule;
+	}
+
+	kvfree(spec);
+	return 0;
+
+err_rule:
+	kvfree(spec);
+	return err;
+}
+
 struct mlx5e_post_act_handle *
 mlx5e_tc_post_act_add(struct mlx5e_post_act *post_act, struct mlx5_flow_attr *attr)
 {
 	u32 attr_sz = ns_to_attr_sz(post_act->ns_type);
-	struct mlx5e_post_act_handle *handle = NULL;
-	struct mlx5_flow_attr *post_attr = NULL;
-	struct mlx5_flow_spec *spec = NULL;
+	struct mlx5e_post_act_handle *handle;
+	struct mlx5_flow_attr *post_attr;
 	int err;
 
 	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	post_attr = mlx5_alloc_flow_attr(post_act->ns_type);
-	if (!handle || !spec || !post_attr) {
+	if (!handle || !post_attr) {
 		kfree(post_attr);
-		kvfree(spec);
 		kfree(handle);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -113,36 +139,35 @@ mlx5e_tc_post_act_add(struct mlx5e_post_act *post_act, struct mlx5_flow_attr *at
 	if (err)
 		goto err_xarray;
 
-	/* Post action rule matches on fte_id and executes original rule's
-	 * tc rule action
-	 */
-	mlx5e_tc_match_to_reg_match(spec, FTEID_TO_REG,
-				    handle->id, MLX5_POST_ACTION_MASK);
-
-	handle->rule = mlx5_tc_rule_insert(post_act->priv, spec, post_attr);
-	if (IS_ERR(handle->rule)) {
-		err = PTR_ERR(handle->rule);
-		netdev_warn(post_act->priv->netdev, "Failed to add post action rule");
-		goto err_rule;
-	}
 	handle->attr = post_attr;
+	err = mlx5e_tc_post_act_offload(post_act, handle);
+	if (err)
+		goto err_rule;
 
-	kvfree(spec);
+
 	return handle;
 
 err_rule:
 	xa_erase(&post_act->ids, handle->id);
 err_xarray:
 	kfree(post_attr);
-	kvfree(spec);
 	kfree(handle);
 	return ERR_PTR(err);
 }
 
 void
-mlx5e_tc_post_act_del(struct mlx5e_post_act *post_act, struct mlx5e_post_act_handle *handle)
+mlx5e_tc_post_act_unoffload(struct mlx5e_post_act *post_act,
+			    struct mlx5e_post_act_handle *handle)
 {
 	mlx5_tc_rule_delete(post_act->priv, handle->rule, handle->attr);
+	handle->rule = NULL;
+}
+
+void
+mlx5e_tc_post_act_del(struct mlx5e_post_act *post_act, struct mlx5e_post_act_handle *handle)
+{
+	if (!IS_ERR_OR_NULL(handle->rule))
+		mlx5e_tc_post_act_unoffload(post_act, handle);
 	xa_erase(&post_act->ids, handle->id);
 	kfree(handle->attr);
 	kfree(handle);
