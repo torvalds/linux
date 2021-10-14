@@ -31,9 +31,10 @@ MODULE_PARM_DESC(debug_csi2, "Debug level (0-1)");
  * the 4 virtual channel output pads
  */
 #define CSI2_SINK_PAD			0
-#define CSI2_NUM_SINK_PADS		1
-#define CSI2_NUM_SRC_PADS		4
+#define CSI2_NUM_SINK_PADS		4
+#define CSI2_NUM_SRC_PADS		8
 #define CSI2_NUM_PADS			5
+#define CSI2_NUM_PADS_MAX		9
 #define CSI2_NUM_PADS_SINGLE_LINK	2
 #define MAX_CSI2_SENSORS		2
 
@@ -60,6 +61,7 @@ enum rkcsi2_chip_id {
 	CHIP_RK3288_CSI2,
 	CHIP_RV1126_CSI2,
 	CHIP_RK3568_CSI2,
+	CHIP_RK3588_CSI2,
 };
 
 enum csi2_pads {
@@ -103,7 +105,7 @@ struct csi2_err_stats {
 struct csi2_dev {
 	struct device		*dev;
 	struct v4l2_subdev	sd;
-	struct media_pad	pad[CSI2_NUM_PADS];
+	struct media_pad	pad[CSI2_NUM_PADS_MAX];
 	struct clk_bulk_data	*clks_bulk;
 	int			clks_num;
 	struct reset_control	*rsts_bulk;
@@ -277,25 +279,36 @@ static void csi2_disable(struct csi2_dev *csi2)
 	write_csihost_reg(base, CSIHOST_MSK2, 0xffffffff);
 }
 
+static int csi2_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
+			      struct v4l2_mbus_config *mbus);
+
 static void csi2_enable(struct csi2_dev *csi2,
 			enum host_type_t host_type)
 {
 	void __iomem *base = csi2->base;
 	int lanes = csi2->bus.num_data_lanes;
+	struct v4l2_mbus_config mbus;
+	u32 val = 0;
+
+	csi2_g_mbus_config(&csi2->sd, 0, &mbus);
+	if (mbus.type == V4L2_MBUS_CSI2_DPHY)
+		val = SW_CPHY_EN(0);
+	else if (mbus.type == V4L2_MBUS_CSI2_CPHY)
+		val = SW_CPHY_EN(1);
 
 	write_csihost_reg(base, CSIHOST_N_LANES, lanes - 1);
 
 	if (host_type == RK_DSI_RXHOST) {
-		write_csihost_reg(base, CSIHOST_CONTROL,
-				  SW_CPHY_EN(0) | SW_DSI_EN(1) |
-				  SW_DATATYPE_FS(0x01) | SW_DATATYPE_FE(0x11) |
-				  SW_DATATYPE_LS(0x21) | SW_DATATYPE_LE(0x31));
+		val |= SW_DSI_EN(1) | SW_DATATYPE_FS(0x01) |
+		       SW_DATATYPE_FE(0x11) | SW_DATATYPE_LS(0x21) |
+		       SW_DATATYPE_LE(0x31);
+		write_csihost_reg(base, CSIHOST_CONTROL, val);
 		/* Disable some error interrupt when HOST work on DSI RX mode */
 		write_csihost_reg(base, CSIHOST_MSK1, 0xe00000f0);
 		write_csihost_reg(base, CSIHOST_MSK2, 0xff00);
 	} else {
-		write_csihost_reg(base, CSIHOST_CONTROL,
-				  SW_CPHY_EN(0) | SW_DSI_EN(0));
+		val |= SW_DSI_EN(0);
+		write_csihost_reg(base, CSIHOST_CONTROL, val);
 		write_csihost_reg(base, CSIHOST_MSK1, 0);
 		write_csihost_reg(base, CSIHOST_MSK2, 0xf000);
 	}
@@ -889,6 +902,11 @@ static const struct csi2_match_data rk3568_csi2_match_data = {
 	.num_pads = CSI2_NUM_PADS,
 };
 
+static const struct csi2_match_data rk3588_csi2_match_data = {
+	.chip_id = CHIP_RK3588_CSI2,
+	.num_pads = CSI2_NUM_PADS_MAX,
+};
+
 static const struct of_device_id csi2_dt_ids[] = {
 	{
 		.compatible = "rockchip,rk1808-mipi-csi2",
@@ -905,6 +923,10 @@ static const struct of_device_id csi2_dt_ids[] = {
 	{
 		.compatible = "rockchip,rv1126-mipi-csi2",
 		.data = &rv1126_csi2_match_data,
+	},
+	{
+		.compatible = "rockchip,rk3588-mipi-csi2",
+		.data = &rk3588_csi2_match_data,
 	},
 	{ /* sentinel */ }
 };

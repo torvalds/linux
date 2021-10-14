@@ -19,7 +19,7 @@
 #include "regs.h"
 #include "version.h"
 
-#define RKCIF_DEV_MAX		2
+#define RKCIF_DEV_MAX		7
 #define RKCIF_HW_DRIVER_NAME	"rkcifhw"
 #define RKCIF_MAX_BUS_CLK	8
 #define RKCIF_MAX_RESET		15
@@ -47,6 +47,7 @@ enum rkcif_chip_id {
 	CHIP_RV1126_CIF,
 	CHIP_RV1126_CIF_LITE,
 	CHIP_RK3568_CIF,
+	CHIP_RK3588_CIF,
 };
 
 struct rkcif_hw_match_data {
@@ -72,17 +73,19 @@ struct rkcif_hw {
 	struct regmap			*grf;
 	struct clk			*clks[RKCIF_MAX_BUS_CLK];
 	int				clk_size;
-	bool				iommu_en;
 	struct iommu_domain		*domain;
 	struct reset_control		*cif_rst[RKCIF_MAX_RESET];
 	int				chip_id;
 	const struct cif_reg		*cif_regs;
+	const struct vb2_mem_ops	*mem_ops;
+	bool				iommu_en;
 	bool				can_be_reset;
+	bool				is_dma_sg_ops;
+	bool				is_dma_contig;
+	struct rkcif_device		*cif_dev[RKCIF_DEV_MAX];
+	int				dev_num;
 
-	struct rkcif_device *cif_dev[RKCIF_DEV_MAX];
-	int dev_num;
-
-	atomic_t power_cnt;
+	atomic_t			power_cnt;
 	const struct rkcif_hw_match_data *match_data;
 	struct mutex			dev_lock;
 };

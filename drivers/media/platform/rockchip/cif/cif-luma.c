@@ -289,7 +289,7 @@ static void rkcif_luma_readout_task(unsigned long data)
 
 void rkcif_luma_isr(struct rkcif_luma_vdev *luma_vdev, int mipi_id, u32 frame_id)
 {
-	u8 hdr_mode = luma_vdev->cifdev->hdr.mode;
+	u8 hdr_mode = luma_vdev->cifdev->hdr.hdr_mode;
 	enum rkcif_luma_frm_mode frm_mode;
 	bool send_task;
 	u32 i, value;

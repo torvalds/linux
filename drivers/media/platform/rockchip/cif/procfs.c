@@ -272,7 +272,8 @@ static void rkcif_show_format(struct rkcif_device *dev, struct seq_file *f)
 				   mbus_flags & V4L2_MBUS_VSYNC_ACTIVE_HIGH ? "high active" : "low active");
 		} else {
 			seq_printf(f, "\tinterface:%s\n",
-				   sensor->mbus.type == V4L2_MBUS_CSI2_DPHY ? "mipi csi2" :
+				   sensor->mbus.type == V4L2_MBUS_CSI2_DPHY ? "mipi csi2 dphy" :
+				   sensor->mbus.type == V4L2_MBUS_CSI2_CPHY ? "mipi csi2 cphy" :
 				   sensor->mbus.type == V4L2_MBUS_CCP2 ? "lvds" : "unknown");
 			seq_printf(f, "\tlanes:%d\n", sensor->lanes);
 			seq_puts(f, "\tvc channel:");
@@ -288,8 +289,8 @@ static void rkcif_show_format(struct rkcif_device *dev, struct seq_file *f)
 		}
 
 		seq_printf(f, "\thdr mode: %s\n",
-			   dev->hdr.mode == NO_HDR ? "normal" :
-			   dev->hdr.mode == HDR_X2 ? "hdr_x2" : "hdr_x3");
+			   dev->hdr.hdr_mode == NO_HDR ? "normal" :
+			   dev->hdr.hdr_mode == HDR_X2 ? "hdr_x2" : "hdr_x3");
 
 		seq_printf(f, "\tformat:%s/%ux%u@%d\n",
 			   rkcif_pixelcode_to_string(stream->cif_fmt_in->mbus_code),
@@ -318,7 +319,7 @@ static void rkcif_show_format(struct rkcif_device *dev, struct seq_file *f)
 		if (dev->inf_id == RKCIF_MIPI_LVDS) {
 			time_val = div_u64(stream->readout.early_time, 1000000);
 			seq_printf(f, "\tearly:%u ms\n", time_val);
-			if (dev->hdr.mode == NO_HDR) {
+			if (dev->hdr.hdr_mode == NO_HDR) {
 				time_val = div_u64(stream->readout.readout_time, 1000000);
 				seq_printf(f, "\treadout:%u ms\n", time_val);
 			} else {
@@ -341,10 +342,12 @@ static void rkcif_show_format(struct rkcif_device *dev, struct seq_file *f)
 			seq_printf(f, "\t\t\tdvp pix err:%llu\n", dev->irq_stats.dvp_pix_err_cnt);
 			seq_printf(f, "\t\t\tdvp line err:%llu\n", dev->irq_stats.dvp_line_err_cnt);
 			seq_printf(f, "\t\t\tdvp over flow:%llu\n", dev->irq_stats.dvp_overflow_cnt);
+			seq_printf(f, "\t\t\tdvp bandwidth lack:%llu\n", dev->irq_stats.dvp_bwidth_lack_cnt);
+			seq_printf(f, "\t\t\tdvp size err:%llu\n", dev->irq_stats.dvp_size_err_cnt);
 		} else {
 			seq_printf(f, "\t\t\tcsi over flow:%llu\n", dev->irq_stats.csi_overflow_cnt);
 			seq_printf(f, "\t\t\tcsi bandwidth lack:%llu\n", dev->irq_stats.csi_bwidth_lack_cnt);
-
+			seq_printf(f, "\t\t\tcsi size err:%llu\n", dev->irq_stats.csi_size_err_cnt);
 		}
 		seq_printf(f, "\t\t\tall err count:%llu\n", dev->irq_stats.all_err_cnt);
 		seq_printf(f, "\t\t\tframe dma end:%llu\n", dev->irq_stats.all_frm_end_cnt);
