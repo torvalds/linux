@@ -199,80 +199,29 @@ static inline int reconn_setup_dfs_targets(struct cifs_sb_info *cifs_sb,
 }
 #endif
 
-/*
- * cifs tcp session reconnection
+/**
+ * Mark all sessions and tcons for reconnect.
  *
- * mark tcp session as reconnecting so temporarily locked
- * mark all smb sessions as reconnecting for tcp session
- * reconnect tcp session
- * wake up waiters on reconnection? - (not needed currently)
+ * @server needs to be previously set to CifsNeedReconnect.
  */
-int
-cifs_reconnect(struct TCP_Server_Info *server)
+static void cifs_mark_tcp_ses_conns_for_reconnect(struct TCP_Server_Info *server)
 {
-	int rc = 0;
 	struct list_head *tmp, *tmp2;
 	struct cifs_ses *ses;
 	struct cifs_tcon *tcon;
 	struct mid_q_entry *mid_entry;
 	struct list_head retry_list;
-#ifdef CONFIG_CIFS_DFS_UPCALL
-	struct super_block *sb = NULL;
-	struct cifs_sb_info *cifs_sb = NULL;
-	struct dfs_cache_tgt_list tgt_list = DFS_CACHE_TGT_LIST_INIT(tgt_list);
-	struct dfs_cache_tgt_iterator *tgt_it = NULL;
-#endif
 
-	spin_lock(&GlobalMid_Lock);
-	server->nr_targets = 1;
-#ifdef CONFIG_CIFS_DFS_UPCALL
-	spin_unlock(&GlobalMid_Lock);
-	sb = cifs_get_tcp_super(server);
-	if (IS_ERR(sb)) {
-		rc = PTR_ERR(sb);
-		cifs_dbg(FYI, "%s: will not do DFS failover: rc = %d\n",
-			 __func__, rc);
-		sb = NULL;
-	} else {
-		cifs_sb = CIFS_SB(sb);
-		rc = reconn_setup_dfs_targets(cifs_sb, &tgt_list);
-		if (rc) {
-			cifs_sb = NULL;
-			if (rc != -EOPNOTSUPP) {
-				cifs_server_dbg(VFS, "%s: no target servers for DFS failover\n",
-						__func__);
-			}
-		} else {
-			server->nr_targets = dfs_cache_get_nr_tgts(&tgt_list);
-		}
-	}
-	cifs_dbg(FYI, "%s: will retry %d target(s)\n", __func__,
-		 server->nr_targets);
-	spin_lock(&GlobalMid_Lock);
-#endif
-	if (server->tcpStatus == CifsExiting) {
-		/* the demux thread will exit normally
-		next time through the loop */
-		spin_unlock(&GlobalMid_Lock);
-#ifdef CONFIG_CIFS_DFS_UPCALL
-		dfs_cache_free_tgts(&tgt_list);
-		cifs_put_tcp_super(sb);
-#endif
-		wake_up(&server->response_q);
-		return rc;
-	} else
-		server->tcpStatus = CifsNeedReconnect;
-	spin_unlock(&GlobalMid_Lock);
 	server->maxBuf = 0;
 	server->max_read = 0;
 
 	cifs_dbg(FYI, "Mark tcp session as need reconnect\n");
 	trace_smb3_reconnect(server->CurrentMid, server->conn_id, server->hostname);
-
-	/* before reconnecting the tcp session, mark the smb session (uid)
-		and the tid bad so they are not used until reconnected */
-	cifs_dbg(FYI, "%s: marking sessions and tcons for reconnect\n",
-		 __func__);
+	/*
+	 * before reconnecting the tcp session, mark the smb session (uid) and the tid bad so they
+	 * are not used until reconnected.
+	 */
+	cifs_dbg(FYI, "%s: marking sessions and tcons for reconnect\n", __func__);
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each(tmp, &server->smb_ses_list) {
 		ses = list_entry(tmp, struct cifs_ses, smb_ses_list);
@@ -290,11 +239,11 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	cifs_dbg(FYI, "%s: tearing down socket\n", __func__);
 	mutex_lock(&server->srv_mutex);
 	if (server->ssocket) {
-		cifs_dbg(FYI, "State: 0x%x Flags: 0x%lx\n",
-			 server->ssocket->state, server->ssocket->flags);
+		cifs_dbg(FYI, "State: 0x%x Flags: 0x%lx\n", server->ssocket->state,
+			 server->ssocket->flags);
 		kernel_sock_shutdown(server->ssocket, SHUT_WR);
-		cifs_dbg(FYI, "Post shutdown state: 0x%x Flags: 0x%lx\n",
-			 server->ssocket->state, server->ssocket->flags);
+		cifs_dbg(FYI, "Post shutdown state: 0x%x Flags: 0x%lx\n", server->ssocket->state,
+			 server->ssocket->flags);
 		sock_release(server->ssocket);
 		server->ssocket = NULL;
 	}
@@ -333,6 +282,68 @@ cifs_reconnect(struct TCP_Server_Info *server)
 		smbd_destroy(server);
 		mutex_unlock(&server->srv_mutex);
 	}
+}
+
+/*
+ * cifs tcp session reconnection
+ *
+ * mark tcp session as reconnecting so temporarily locked
+ * mark all smb sessions as reconnecting for tcp session
+ * reconnect tcp session
+ * wake up waiters on reconnection? - (not needed currently)
+ */
+int
+cifs_reconnect(struct TCP_Server_Info *server)
+{
+	int rc = 0;
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	struct super_block *sb = NULL;
+	struct cifs_sb_info *cifs_sb = NULL;
+	struct dfs_cache_tgt_list tgt_list = DFS_CACHE_TGT_LIST_INIT(tgt_list);
+	struct dfs_cache_tgt_iterator *tgt_it = NULL;
+#endif
+
+	spin_lock(&GlobalMid_Lock);
+	server->nr_targets = 1;
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	spin_unlock(&GlobalMid_Lock);
+	sb = cifs_get_tcp_super(server);
+	if (IS_ERR(sb)) {
+		rc = PTR_ERR(sb);
+		cifs_dbg(FYI, "%s: will not do DFS failover: rc = %d\n",
+			 __func__, rc);
+		sb = NULL;
+	} else {
+		cifs_sb = CIFS_SB(sb);
+		rc = reconn_setup_dfs_targets(cifs_sb, &tgt_list);
+		if (rc) {
+			cifs_sb = NULL;
+			if (rc != -EOPNOTSUPP) {
+				cifs_server_dbg(VFS, "%s: no target servers for DFS failover\n",
+						__func__);
+			}
+		} else {
+			server->nr_targets = dfs_cache_get_nr_tgts(&tgt_list);
+		}
+	}
+	cifs_dbg(FYI, "%s: will retry %d target(s)\n", __func__,
+		 server->nr_targets);
+	spin_lock(&GlobalMid_Lock);
+#endif
+	if (server->tcpStatus == CifsExiting) {
+		/* the demux thread will exit normally next time through the loop */
+		spin_unlock(&GlobalMid_Lock);
+#ifdef CONFIG_CIFS_DFS_UPCALL
+		dfs_cache_free_tgts(&tgt_list);
+		cifs_put_tcp_super(sb);
+#endif
+		wake_up(&server->response_q);
+		return rc;
+	} else
+		server->tcpStatus = CifsNeedReconnect;
+	spin_unlock(&GlobalMid_Lock);
+
+	cifs_mark_tcp_ses_conns_for_reconnect(server);
 
 	do {
 		try_to_freeze();
