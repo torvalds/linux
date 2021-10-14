@@ -1596,6 +1596,8 @@ j1939_session *j1939_xtp_rx_rts_session_new(struct j1939_priv *priv,
 			abort = J1939_XTP_ABORT_FAULT;
 		else if (len > priv->tp_max_packet_size)
 			abort = J1939_XTP_ABORT_RESOURCE;
+		else if (len < J1939_MIN_TP_PACKET_SIZE)
+			abort = J1939_XTP_ABORT_FAULT;
 	}
 
 	if (abort != J1939_XTP_NO_ABORT) {
