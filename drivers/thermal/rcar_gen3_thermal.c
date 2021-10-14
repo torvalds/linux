@@ -62,15 +62,6 @@
 
 #define TSC_MAX_NUM	5
 
-/* default THCODE values if FUSEs are missing */
-static const int thcodes[TSC_MAX_NUM][3] = {
-	{ 3397, 2800, 2221 },
-	{ 3393, 2795, 2216 },
-	{ 3389, 2805, 2237 },
-	{ 3415, 2694, 2195 },
-	{ 3356, 2724, 2244 },
-};
-
 /* Structure for thermal temperature calculation */
 struct equation_coefs {
 	int a1;
@@ -84,13 +75,14 @@ struct rcar_gen3_thermal_tsc {
 	struct thermal_zone_device *zone;
 	struct equation_coefs coef;
 	int tj_t;
-	unsigned int id; /* thermal channel id */
+	int thcode[3];
 };
 
 struct rcar_gen3_thermal_priv {
 	struct rcar_gen3_thermal_tsc *tscs[TSC_MAX_NUM];
 	unsigned int num_tscs;
 	void (*thermal_init)(struct rcar_gen3_thermal_tsc *tsc);
+	int ptat[3];
 };
 
 static inline u32 rcar_gen3_thermal_read(struct rcar_gen3_thermal_tsc *tsc,
@@ -133,8 +125,8 @@ static inline void rcar_gen3_thermal_write(struct rcar_gen3_thermal_tsc *tsc,
 /* no idea where these constants come from */
 #define TJ_3 -41
 
-static void rcar_gen3_thermal_calc_coefs(struct rcar_gen3_thermal_tsc *tsc,
-					 int *ptat, const int *thcode,
+static void rcar_gen3_thermal_calc_coefs(struct rcar_gen3_thermal_priv *priv,
+					 struct rcar_gen3_thermal_tsc *tsc,
 					 int ths_tj_1)
 {
 	/* TODO: Find documentation and document constant calculation formula */
@@ -143,16 +135,16 @@ static void rcar_gen3_thermal_calc_coefs(struct rcar_gen3_thermal_tsc *tsc,
 	 * Division is not scaled in BSP and if scaled it might overflow
 	 * the dividend (4095 * 4095 << 14 > INT_MAX) so keep it unscaled
 	 */
-	tsc->tj_t = (FIXPT_INT((ptat[1] - ptat[2]) * (ths_tj_1 - TJ_3))
-		     / (ptat[0] - ptat[2])) + FIXPT_INT(TJ_3);
+	tsc->tj_t = (FIXPT_INT((priv->ptat[1] - priv->ptat[2]) * (ths_tj_1 - TJ_3))
+		     / (priv->ptat[0] - priv->ptat[2])) + FIXPT_INT(TJ_3);
 
-	tsc->coef.a1 = FIXPT_DIV(FIXPT_INT(thcode[1] - thcode[2]),
+	tsc->coef.a1 = FIXPT_DIV(FIXPT_INT(tsc->thcode[1] - tsc->thcode[2]),
 				 tsc->tj_t - FIXPT_INT(TJ_3));
-	tsc->coef.b1 = FIXPT_INT(thcode[2]) - tsc->coef.a1 * TJ_3;
+	tsc->coef.b1 = FIXPT_INT(tsc->thcode[2]) - tsc->coef.a1 * TJ_3;
 
-	tsc->coef.a2 = FIXPT_DIV(FIXPT_INT(thcode[1] - thcode[0]),
+	tsc->coef.a2 = FIXPT_DIV(FIXPT_INT(tsc->thcode[1] - tsc->thcode[0]),
 				 tsc->tj_t - FIXPT_INT(ths_tj_1));
-	tsc->coef.b2 = FIXPT_INT(thcode[0]) - tsc->coef.a2 * ths_tj_1;
+	tsc->coef.b2 = FIXPT_INT(tsc->thcode[0]) - tsc->coef.a2 * ths_tj_1;
 }
 
 static int rcar_gen3_thermal_round(int temp)
@@ -174,7 +166,7 @@ static int rcar_gen3_thermal_get_temp(void *devdata, int *temp)
 	/* Read register and convert to mili Celsius */
 	reg = rcar_gen3_thermal_read(tsc, REG_GEN3_TEMP) & CTEMP_MASK;
 
-	if (reg <= thcodes[tsc->id][1])
+	if (reg <= tsc->thcode[1])
 		val = FIXPT_DIV(FIXPT_INT(reg) - tsc->coef.b1,
 				tsc->coef.a1);
 	else
@@ -401,9 +393,15 @@ static int rcar_gen3_thermal_probe(struct platform_device *pdev)
 	unsigned int i;
 	int ret;
 
-	/* default values if FUSEs are missing */
+	/* Default THCODE values in case FUSEs are not set. */
 	/* TODO: Read values from hardware on supported platforms */
-	int ptat[3] = { 2631, 1509, 435 };
+	static const int thcodes[TSC_MAX_NUM][3] = {
+		{ 3397, 2800, 2221 },
+		{ 3393, 2795, 2216 },
+		{ 3389, 2805, 2237 },
+		{ 3415, 2694, 2195 },
+		{ 3356, 2724, 2244 },
+	};
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -412,6 +410,10 @@ static int rcar_gen3_thermal_probe(struct platform_device *pdev)
 	priv->thermal_init = rcar_gen3_thermal_init;
 	if (soc_device_match(r8a7795es1))
 		priv->thermal_init = rcar_gen3_thermal_init_r8a7795es1;
+
+	priv->ptat[0] = 2631;
+	priv->ptat[1] = 1509;
+	priv->ptat[2] = 435;
 
 	platform_set_drvdata(pdev, priv);
 
@@ -439,7 +441,10 @@ static int rcar_gen3_thermal_probe(struct platform_device *pdev)
 			ret = PTR_ERR(tsc->base);
 			goto error_unregister;
 		}
-		tsc->id = i;
+
+		tsc->thcode[0] = thcodes[i][0];
+		tsc->thcode[1] = thcodes[i][1];
+		tsc->thcode[2] = thcodes[i][2];
 
 		priv->tscs[i] = tsc;
 
@@ -453,7 +458,7 @@ static int rcar_gen3_thermal_probe(struct platform_device *pdev)
 		tsc->zone = zone;
 
 		priv->thermal_init(tsc);
-		rcar_gen3_thermal_calc_coefs(tsc, ptat, thcodes[i], *ths_tj_1);
+		rcar_gen3_thermal_calc_coefs(priv, tsc, *ths_tj_1);
 
 		tsc->zone->tzp->no_hwmon = false;
 		ret = thermal_add_hwmon_sysfs(tsc->zone);
