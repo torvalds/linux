@@ -206,10 +206,9 @@ static inline int reconn_setup_dfs_targets(struct cifs_sb_info *cifs_sb,
  */
 static void cifs_mark_tcp_ses_conns_for_reconnect(struct TCP_Server_Info *server)
 {
-	struct list_head *tmp, *tmp2;
 	struct cifs_ses *ses;
 	struct cifs_tcon *tcon;
-	struct mid_q_entry *mid_entry;
+	struct mid_q_entry *mid, *nmid;
 	struct list_head retry_list;
 
 	server->maxBuf = 0;
@@ -223,13 +222,10 @@ static void cifs_mark_tcp_ses_conns_for_reconnect(struct TCP_Server_Info *server
 	 */
 	cifs_dbg(FYI, "%s: marking sessions and tcons for reconnect\n", __func__);
 	spin_lock(&cifs_tcp_ses_lock);
-	list_for_each(tmp, &server->smb_ses_list) {
-		ses = list_entry(tmp, struct cifs_ses, smb_ses_list);
+	list_for_each_entry(ses, &server->smb_ses_list, smb_ses_list) {
 		ses->need_reconnect = true;
-		list_for_each(tmp2, &ses->tcon_list) {
-			tcon = list_entry(tmp2, struct cifs_tcon, tcon_list);
+		list_for_each_entry(tcon, &ses->tcon_list, tcon_list)
 			tcon->need_reconnect = true;
-		}
 		if (ses->tcon_ipc)
 			ses->tcon_ipc->need_reconnect = true;
 	}
@@ -258,23 +254,21 @@ static void cifs_mark_tcp_ses_conns_for_reconnect(struct TCP_Server_Info *server
 	INIT_LIST_HEAD(&retry_list);
 	cifs_dbg(FYI, "%s: moving mids to private list\n", __func__);
 	spin_lock(&GlobalMid_Lock);
-	list_for_each_safe(tmp, tmp2, &server->pending_mid_q) {
-		mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
-		kref_get(&mid_entry->refcount);
-		if (mid_entry->mid_state == MID_REQUEST_SUBMITTED)
-			mid_entry->mid_state = MID_RETRY_NEEDED;
-		list_move(&mid_entry->qhead, &retry_list);
-		mid_entry->mid_flags |= MID_DELETED;
+	list_for_each_entry_safe(mid, nmid, &server->pending_mid_q, qhead) {
+		kref_get(&mid->refcount);
+		if (mid->mid_state == MID_REQUEST_SUBMITTED)
+			mid->mid_state = MID_RETRY_NEEDED;
+		list_move(&mid->qhead, &retry_list);
+		mid->mid_flags |= MID_DELETED;
 	}
 	spin_unlock(&GlobalMid_Lock);
 	mutex_unlock(&server->srv_mutex);
 
 	cifs_dbg(FYI, "%s: issuing mid callbacks\n", __func__);
-	list_for_each_safe(tmp, tmp2, &retry_list) {
-		mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
-		list_del_init(&mid_entry->qhead);
-		mid_entry->callback(mid_entry);
-		cifs_mid_q_entry_release(mid_entry);
+	list_for_each_entry_safe(mid, nmid, &retry_list, qhead) {
+		list_del_init(&mid->qhead);
+		mid->callback(mid);
+		cifs_mid_q_entry_release(mid);
 	}
 
 	if (cifs_rdma_enabled(server)) {
