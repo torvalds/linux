@@ -2668,17 +2668,17 @@ int snd_soc_tplg_component_load(struct snd_soc_component *comp,
 	/*
 	 * check if we have sane parameters:
 	 * comp - needs to exist to keep and reference data while parsing
-	 * comp->dev - used for resource management and prints
 	 * comp->card - used for setting card related parameters
+	 * comp->card->dev - used for resource management and prints
 	 * fw - we need it, as it is the very thing we parse
 	 */
-	if (!comp || !comp->dev || !comp->card || !fw)
+	if (!comp || !comp->card || !comp->card->dev || !fw)
 		return -EINVAL;
 
 	/* setup parsing context */
 	memset(&tplg, 0, sizeof(tplg));
 	tplg.fw = fw;
-	tplg.dev = comp->dev;
+	tplg.dev = comp->card->dev;
 	tplg.comp = comp;
 	if (ops) {
 		tplg.ops = ops;
