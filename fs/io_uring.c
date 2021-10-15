@@ -3159,9 +3159,9 @@ static int __io_import_iovec(int rw, struct io_kiocb *req, struct iovec **iovec,
 			     struct io_rw_state *s, unsigned int issue_flags)
 {
 	struct iov_iter *iter = &s->iter;
-	void __user *buf = u64_to_user_ptr(req->rw.addr);
-	size_t sqe_len = req->rw.len;
 	u8 opcode = req->opcode;
+	void __user *buf;
+	size_t sqe_len;
 	ssize_t ret;
 
 	if (opcode == IORING_OP_READ_FIXED || opcode == IORING_OP_WRITE_FIXED) {
@@ -3170,8 +3170,11 @@ static int __io_import_iovec(int rw, struct io_kiocb *req, struct iovec **iovec,
 	}
 
 	/* buffer index only valid with fixed read/write, or buffer select  */
-	if (req->buf_index && !(req->flags & REQ_F_BUFFER_SELECT))
+	if (unlikely(req->buf_index && !(req->flags & REQ_F_BUFFER_SELECT)))
 		return -EINVAL;
+
+	buf = u64_to_user_ptr(req->rw.addr);
+	sqe_len = req->rw.len;
 
 	if (opcode == IORING_OP_READ || opcode == IORING_OP_WRITE) {
 		if (req->flags & REQ_F_BUFFER_SELECT) {
