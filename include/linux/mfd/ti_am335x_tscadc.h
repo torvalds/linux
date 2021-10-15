@@ -41,7 +41,7 @@
 /* Step Enable */
 #define STEPENB_MASK		(0x1FFFF << 0)
 #define STEPENB(val)		((val) << 0)
-#define ENB(val)			(1 << (val))
+#define ENB(val)		(1 << (val))
 #define STPENB_STEPENB		STEPENB(0x1FFFF)
 #define STPENB_STEPENB_TC	STEPENB(0x1FFF)
 
@@ -122,15 +122,15 @@
 #define CNTRLREG_TSCENB		BIT(7)
 
 /* FIFO READ Register */
-#define FIFOREAD_DATA_MASK (0xfff << 0)
-#define FIFOREAD_CHNLID_MASK (0xf << 16)
+#define FIFOREAD_DATA_MASK	(0xfff << 0)
+#define FIFOREAD_CHNLID_MASK	(0xf << 16)
 
 /* DMA ENABLE/CLEAR Register */
 #define DMA_FIFO0		BIT(0)
 #define DMA_FIFO1		BIT(1)
 
 /* Sequencer Status */
-#define SEQ_STATUS BIT(5)
+#define SEQ_STATUS		BIT(5)
 #define CHARGE_STEP		0x11
 
 #define ADC_CLK			3000000
@@ -150,7 +150,7 @@
  *
  * max processing time: 266431 * 308ns = 83ms(approx)
  */
-#define IDLE_TIMEOUT 83 /* milliseconds */
+#define IDLE_TIMEOUT		83 /* milliseconds */
 
 #define TSCADC_CELLS		2
 
