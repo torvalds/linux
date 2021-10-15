@@ -1040,13 +1040,20 @@ err_mem:
 		aspeed_video_free_buf(video, &video->srcs[0]);
 }
 
-static void aspeed_video_init_regs(struct aspeed_video *video)
+static void aspeed_video_update_regs(struct aspeed_video *video)
 {
 	u32 comp_ctrl = VE_COMP_CTRL_RSVD |
 		FIELD_PREP(VE_COMP_CTRL_DCT_LUM, video->jpeg_quality) |
 		FIELD_PREP(VE_COMP_CTRL_DCT_CHR, video->jpeg_quality | 0x10);
-	u32 ctrl = VE_CTRL_AUTO_OR_CURSOR;
+	u32 ctrl = 0;
 	u32 seq_ctrl = video->jpeg_mode;
+
+	v4l2_dbg(1, debug, &video->v4l2_dev, "framerate(%d)\n",
+		 video->frame_rate);
+	v4l2_dbg(1, debug, &video->v4l2_dev, "subsample(%s)\n",
+		 video->yuv420 ? "420" : "444");
+	v4l2_dbg(1, debug, &video->v4l2_dev, "compression quality(%d)\n",
+		 video->jpeg_quality);
 
 	if (video->frame_rate)
 		ctrl |= FIELD_PREP(VE_CTRL_FRC, video->frame_rate);
@@ -1054,6 +1061,21 @@ static void aspeed_video_init_regs(struct aspeed_video *video)
 	if (video->yuv420)
 		seq_ctrl |= VE_SEQ_CTRL_YUV420;
 
+	if (video->jpeg.virt)
+		aspeed_video_update_jpeg_table(video->jpeg.virt, video->yuv420);
+
+	/* Set control registers */
+	aspeed_video_update(video, VE_SEQ_CTRL,
+			    video->jpeg_mode | VE_SEQ_CTRL_YUV420,
+			    seq_ctrl);
+	aspeed_video_update(video, VE_CTRL, VE_CTRL_FRC, ctrl);
+	aspeed_video_update(video, VE_COMP_CTRL,
+			    VE_COMP_CTRL_DCT_LUM | VE_COMP_CTRL_DCT_CHR,
+			    comp_ctrl);
+}
+
+static void aspeed_video_init_regs(struct aspeed_video *video)
+{
 	/* Unlock VE registers */
 	aspeed_video_write(video, VE_PROTECTION_KEY, VE_PROTECTION_KEY_UNLOCK);
 
@@ -1068,9 +1090,8 @@ static void aspeed_video_init_regs(struct aspeed_video *video)
 	aspeed_video_write(video, VE_JPEG_ADDR, video->jpeg.dma);
 
 	/* Set control registers */
-	aspeed_video_write(video, VE_SEQ_CTRL, seq_ctrl);
-	aspeed_video_write(video, VE_CTRL, ctrl);
-	aspeed_video_write(video, VE_COMP_CTRL, comp_ctrl);
+	aspeed_video_write(video, VE_CTRL, VE_CTRL_AUTO_OR_CURSOR);
+	aspeed_video_write(video, VE_COMP_CTRL, VE_COMP_CTRL_RSVD);
 
 	/* Don't downscale */
 	aspeed_video_write(video, VE_SCALING_FACTOR, 0x10001000);
@@ -1404,27 +1425,6 @@ static const struct v4l2_ioctl_ops aspeed_video_ioctl_ops = {
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };
 
-static void aspeed_video_update_jpeg_quality(struct aspeed_video *video)
-{
-	u32 comp_ctrl = FIELD_PREP(VE_COMP_CTRL_DCT_LUM, video->jpeg_quality) |
-		FIELD_PREP(VE_COMP_CTRL_DCT_CHR, video->jpeg_quality | 0x10);
-
-	aspeed_video_update(video, VE_COMP_CTRL,
-			    VE_COMP_CTRL_DCT_LUM | VE_COMP_CTRL_DCT_CHR,
-			    comp_ctrl);
-}
-
-static void aspeed_video_update_subsampling(struct aspeed_video *video)
-{
-	if (video->jpeg.virt)
-		aspeed_video_update_jpeg_table(video->jpeg.virt, video->yuv420);
-
-	if (video->yuv420)
-		aspeed_video_update(video, VE_SEQ_CTRL, 0, VE_SEQ_CTRL_YUV420);
-	else
-		aspeed_video_update(video, VE_SEQ_CTRL, VE_SEQ_CTRL_YUV420, 0);
-}
-
 static int aspeed_video_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct aspeed_video *video = container_of(ctrl->handler,
@@ -1434,16 +1434,13 @@ static int aspeed_video_set_ctrl(struct v4l2_ctrl *ctrl)
 	switch (ctrl->id) {
 	case V4L2_CID_JPEG_COMPRESSION_QUALITY:
 		video->jpeg_quality = ctrl->val;
-		aspeed_video_update_jpeg_quality(video);
+		if (test_bit(VIDEO_STREAMING, &video->flags))
+			aspeed_video_update_regs(video);
 		break;
 	case V4L2_CID_JPEG_CHROMA_SUBSAMPLING:
-		if (ctrl->val == V4L2_JPEG_CHROMA_SUBSAMPLING_420) {
-			video->yuv420 = true;
-			aspeed_video_update_subsampling(video);
-		} else {
-			video->yuv420 = false;
-			aspeed_video_update_subsampling(video);
-		}
+		video->yuv420 = (ctrl->val == V4L2_JPEG_CHROMA_SUBSAMPLING_420);
+		if (test_bit(VIDEO_STREAMING, &video->flags))
+			aspeed_video_update_regs(video);
 		break;
 	default:
 		return -EINVAL;
@@ -1469,6 +1466,8 @@ static void aspeed_video_resolution_work(struct work_struct *work)
 		goto done;
 
 	aspeed_video_init_regs(video);
+
+	aspeed_video_update_regs(video);
 
 	aspeed_video_get_resolution(video);
 
@@ -1579,6 +1578,8 @@ static int aspeed_video_start_streaming(struct vb2_queue *q,
 	video->sequence = 0;
 	video->perf.duration_max = 0;
 	video->perf.duration_min = 0xffffffff;
+
+	aspeed_video_update_regs(video);
 
 	rc = aspeed_video_start_frame(video);
 	if (rc) {
