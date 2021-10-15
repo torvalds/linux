@@ -13,6 +13,12 @@ static __always_inline __pure bool use_fxsr(void)
 	return cpu_feature_enabled(X86_FEATURE_FXSR);
 }
 
+#ifdef CONFIG_X86_DEBUG_FPU
+# define WARN_ON_FPU(x) WARN_ON_ONCE(x)
+#else
+# define WARN_ON_FPU(x) ({ (void)(x); 0; })
+#endif
+
 /* Init functions */
 extern void fpu__init_prepare_fx_sw_frame(void);
 

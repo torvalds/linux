@@ -10,6 +10,8 @@
 #include <linux/sched/task.h>
 #include <linux/init.h>
 
+#include "internal.h"
+
 /*
  * Initialize the registers found in all CPUs, CR0 and CR4:
  */
