@@ -107,7 +107,6 @@ static int tiadc_wait_idle(struct tiadc_device *adc_dev)
 static void tiadc_step_config(struct iio_dev *indio_dev)
 {
 	struct tiadc_device *adc_dev = iio_priv(indio_dev);
-	struct device *dev = adc_dev->mfd_tscadc->dev;
 	unsigned int stepconfig;
 	int i, steps = 0;
 
@@ -125,12 +124,6 @@ static void tiadc_step_config(struct iio_dev *indio_dev)
 
 		chan = adc_dev->channel_line[i];
 
-		if (adc_dev->step_avg[i] > STEPCONFIG_AVG_16) {
-			dev_warn(dev, "chan %d: wrong step avg, truncated to %ld\n",
-				 chan, STEPCONFIG_AVG_16);
-			adc_dev->step_avg[i] = STEPCONFIG_AVG_16;
-		}
-
 		if (adc_dev->step_avg[i])
 			stepconfig = STEPCONFIG_AVG(ffs(adc_dev->step_avg[i]) - 1) |
 				     STEPCONFIG_FIFO1;
@@ -144,18 +137,6 @@ static void tiadc_step_config(struct iio_dev *indio_dev)
 			     stepconfig | STEPCONFIG_INP(chan) |
 			     STEPCONFIG_INM_ADCREFM | STEPCONFIG_RFP_VREFP |
 			     STEPCONFIG_RFM_VREFN);
-
-		if (adc_dev->open_delay[i] > STEPCONFIG_MAX_OPENDLY) {
-			dev_warn(dev, "chan %d: wrong open delay, truncated to 0x%lX\n",
-				 chan, STEPCONFIG_MAX_OPENDLY);
-			adc_dev->open_delay[i] = STEPCONFIG_MAX_OPENDLY;
-		}
-
-		if (adc_dev->sample_delay[i] > STEPCONFIG_MAX_SAMPLE) {
-			dev_warn(dev, "chan %d: wrong sample delay, truncated to 0x%lX\n",
-				 chan, STEPCONFIG_MAX_SAMPLE);
-			adc_dev->sample_delay[i] = STEPCONFIG_MAX_SAMPLE;
-		}
 
 		tiadc_writel(adc_dev, REG_STEPDELAY(steps),
 			     STEPDELAY_OPEN(adc_dev->open_delay[i]) |
@@ -572,6 +553,7 @@ static int tiadc_parse_dt(struct platform_device *pdev,
 	const __be32 *cur;
 	int channels = 0;
 	u32 val;
+	int i;
 
 	of_property_for_each_u32(node, "ti,adc-channels", prop, cur, val) {
 		adc_dev->channel_line[channels] = val;
@@ -584,6 +566,8 @@ static int tiadc_parse_dt(struct platform_device *pdev,
 		channels++;
 	}
 
+	adc_dev->channels = channels;
+
 	of_property_read_u32_array(node, "ti,chan-step-avg",
 				   adc_dev->step_avg, channels);
 	of_property_read_u32_array(node, "ti,chan-step-opendelay",
@@ -591,7 +575,33 @@ static int tiadc_parse_dt(struct platform_device *pdev,
 	of_property_read_u32_array(node, "ti,chan-step-sampledelay",
 				   adc_dev->sample_delay, channels);
 
-	adc_dev->channels = channels;
+	for (i = 0; i < adc_dev->channels; i++) {
+		int chan;
+
+		chan = adc_dev->channel_line[i];
+
+		if (adc_dev->step_avg[i] > STEPCONFIG_AVG_16) {
+			dev_warn(&pdev->dev,
+				 "chan %d: wrong step avg, truncated to %ld\n",
+				 chan, STEPCONFIG_AVG_16);
+			adc_dev->step_avg[i] = STEPCONFIG_AVG_16;
+		}
+
+		if (adc_dev->open_delay[i] > STEPCONFIG_MAX_OPENDLY) {
+			dev_warn(&pdev->dev,
+				 "chan %d: wrong open delay, truncated to 0x%lX\n",
+				 chan, STEPCONFIG_MAX_OPENDLY);
+			adc_dev->open_delay[i] = STEPCONFIG_MAX_OPENDLY;
+		}
+
+		if (adc_dev->sample_delay[i] > STEPCONFIG_MAX_SAMPLE) {
+			dev_warn(&pdev->dev,
+				 "chan %d: wrong sample delay, truncated to 0x%lX\n",
+				 chan, STEPCONFIG_MAX_SAMPLE);
+			adc_dev->sample_delay[i] = STEPCONFIG_MAX_SAMPLE;
+		}
+	}
+
 	return 0;
 }
 
