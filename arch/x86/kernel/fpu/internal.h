@@ -22,4 +22,7 @@ static __always_inline __pure bool use_fxsr(void)
 /* Init functions */
 extern void fpu__init_prepare_fx_sw_frame(void);
 
+/* Used in init.c */
+extern void fpstate_init_user(union fpregs_state *state);
+
 #endif
