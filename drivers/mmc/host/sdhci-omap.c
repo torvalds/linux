@@ -12,8 +12,10 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/pm_wakeirq.h>
 #include <linux/regulator/consumer.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/sys_soc.h>
@@ -117,6 +119,7 @@ struct sdhci_omap_host {
 
 	struct pinctrl		*pinctrl;
 	struct pinctrl_state	**pinctrl_state;
+	int			wakeirq;
 	bool			is_tuning;
 
 	/* Offset for omap specific registers from base */
@@ -1358,6 +1361,25 @@ static int sdhci_omap_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_cleanup_host;
 
+	/*
+	 * SDIO devices can use the dat1 pin as a wake-up interrupt. Some
+	 * devices like wl1xxx, use an out-of-band GPIO interrupt instead.
+	 */
+	omap_host->wakeirq = of_irq_get_byname(dev->of_node, "wakeup");
+	if (omap_host->wakeirq == -EPROBE_DEFER) {
+		ret = -EPROBE_DEFER;
+		goto err_cleanup_host;
+	}
+	if (omap_host->wakeirq > 0) {
+		device_init_wakeup(dev, true);
+		ret = dev_pm_set_dedicated_wake_irq(dev, omap_host->wakeirq);
+		if (ret) {
+			device_init_wakeup(dev, false);
+			goto err_cleanup_host;
+		}
+		host->mmc->pm_caps |= MMC_PM_KEEP_POWER | MMC_PM_WAKE_SDIO_IRQ;
+	}
+
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
@@ -1385,6 +1407,8 @@ static int sdhci_omap_remove(struct platform_device *pdev)
 
 	pm_runtime_get_sync(dev);
 	sdhci_remove_host(host, true);
+	device_init_wakeup(dev, false);
+	dev_pm_clear_wake_irq(dev);
 	pm_runtime_dont_use_autosuspend(dev);
 	pm_runtime_put_sync(dev);
 	/* Ensure device gets disabled despite userspace sysfs config */
