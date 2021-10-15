@@ -111,11 +111,6 @@
 #include "skl_universal_plane.h"
 #include "vlv_sideband.h"
 
-static void i9xx_crtc_clock_get(struct intel_crtc *crtc,
-				struct intel_crtc_state *pipe_config);
-static void ilk_pch_clock_get(struct intel_crtc *crtc,
-			      struct intel_crtc_state *pipe_config);
-
 static void intel_set_transcoder_timings(const struct intel_crtc_state *crtc_state);
 static void intel_set_pipe_src_size(const struct intel_crtc_state *crtc_state);
 static void intel_cpu_transcoder_set_m_n(const struct intel_crtc_state *crtc_state,
@@ -4226,50 +4221,9 @@ static bool ilk_get_pipe_config(struct intel_crtc *crtc,
 	i9xx_get_pipe_color_config(pipe_config);
 	intel_color_get_config(pipe_config);
 
-	if (intel_de_read(dev_priv, PCH_TRANSCONF(crtc->pipe)) & TRANS_ENABLE) {
-		struct intel_shared_dpll *pll;
-		enum intel_dpll_id pll_id;
-		bool pll_active;
+	pipe_config->pixel_multiplier = 1;
 
-		pipe_config->has_pch_encoder = true;
-
-		tmp = intel_de_read(dev_priv, FDI_RX_CTL(crtc->pipe));
-		pipe_config->fdi_lanes = ((FDI_DP_PORT_WIDTH_MASK & tmp) >>
-					  FDI_DP_PORT_WIDTH_SHIFT) + 1;
-
-		ilk_get_fdi_m_n_config(crtc, pipe_config);
-
-		if (HAS_PCH_IBX(dev_priv)) {
-			/*
-			 * The pipe->pch transcoder and pch transcoder->pll
-			 * mapping is fixed.
-			 */
-			pll_id = (enum intel_dpll_id) crtc->pipe;
-		} else {
-			tmp = intel_de_read(dev_priv, PCH_DPLL_SEL);
-			if (tmp & TRANS_DPLLB_SEL(crtc->pipe))
-				pll_id = DPLL_ID_PCH_PLL_B;
-			else
-				pll_id= DPLL_ID_PCH_PLL_A;
-		}
-
-		pipe_config->shared_dpll =
-			intel_get_shared_dpll_by_id(dev_priv, pll_id);
-		pll = pipe_config->shared_dpll;
-
-		pll_active = intel_dpll_get_hw_state(dev_priv, pll,
-						     &pipe_config->dpll_hw_state);
-		drm_WARN_ON(dev, !pll_active);
-
-		tmp = pipe_config->dpll_hw_state.dpll;
-		pipe_config->pixel_multiplier =
-			((tmp & PLL_REF_SDVO_HDMI_MULTIPLIER_MASK)
-			 >> PLL_REF_SDVO_HDMI_MULTIPLIER_SHIFT) + 1;
-
-		ilk_pch_clock_get(crtc, pipe_config);
-	} else {
-		pipe_config->pixel_multiplier = 1;
-	}
+	ilk_pch_get_config(pipe_config);
 
 	intel_get_transcoder_timings(crtc, pipe_config);
 	intel_get_pipe_src_size(crtc, pipe_config);
@@ -4852,8 +4806,8 @@ static int i9xx_pll_refclk(struct drm_device *dev,
 }
 
 /* Returns the clock of the currently programmed mode of the given pipe. */
-static void i9xx_crtc_clock_get(struct intel_crtc *crtc,
-				struct intel_crtc_state *pipe_config)
+void i9xx_crtc_clock_get(struct intel_crtc *crtc,
+			 struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -4961,24 +4915,6 @@ int intel_dotclock_calculate(int link_freq,
 		return 0;
 
 	return div_u64(mul_u32_u32(m_n->link_m, link_freq), m_n->link_n);
-}
-
-static void ilk_pch_clock_get(struct intel_crtc *crtc,
-			      struct intel_crtc_state *pipe_config)
-{
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-
-	/* read out port_clock from the DPLL */
-	i9xx_crtc_clock_get(crtc, pipe_config);
-
-	/*
-	 * In case there is an active pipe without active ports,
-	 * we may need some idea for the dotclock anyway.
-	 * Calculate one based on the FDI configuration.
-	 */
-	pipe_config->hw.adjusted_mode.crtc_clock =
-		intel_dotclock_calculate(intel_fdi_link_freq(dev_priv, pipe_config),
-					 &pipe_config->fdi_m_n);
 }
 
 /* Returns the currently programmed mode of the given encoder. */

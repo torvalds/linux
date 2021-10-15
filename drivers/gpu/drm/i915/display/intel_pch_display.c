@@ -299,6 +299,74 @@ void ilk_pch_enable(struct intel_atomic_state *state,
 	ilk_enable_pch_transcoder(crtc_state);
 }
 
+static void ilk_pch_clock_get(struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+
+	/* read out port_clock from the DPLL */
+	i9xx_crtc_clock_get(crtc, crtc_state);
+
+	/*
+	 * In case there is an active pipe without active ports,
+	 * we may need some idea for the dotclock anyway.
+	 * Calculate one based on the FDI configuration.
+	 */
+	crtc_state->hw.adjusted_mode.crtc_clock =
+		intel_dotclock_calculate(intel_fdi_link_freq(dev_priv, crtc_state),
+					 &crtc_state->fdi_m_n);
+}
+
+void ilk_pch_get_config(struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_shared_dpll *pll;
+	enum pipe pipe = crtc->pipe;
+	enum intel_dpll_id pll_id;
+	bool pll_active;
+	u32 tmp;
+
+	if ((intel_de_read(dev_priv, PCH_TRANSCONF(pipe)) & TRANS_ENABLE) == 0)
+		return;
+
+	crtc_state->has_pch_encoder = true;
+
+	tmp = intel_de_read(dev_priv, FDI_RX_CTL(pipe));
+	crtc_state->fdi_lanes = ((FDI_DP_PORT_WIDTH_MASK & tmp) >>
+				 FDI_DP_PORT_WIDTH_SHIFT) + 1;
+
+	ilk_get_fdi_m_n_config(crtc, crtc_state);
+
+	if (HAS_PCH_IBX(dev_priv)) {
+		/*
+		 * The pipe->pch transcoder and pch transcoder->pll
+		 * mapping is fixed.
+		 */
+		pll_id = (enum intel_dpll_id) pipe;
+	} else {
+		tmp = intel_de_read(dev_priv, PCH_DPLL_SEL);
+		if (tmp & TRANS_DPLLB_SEL(pipe))
+			pll_id = DPLL_ID_PCH_PLL_B;
+		else
+			pll_id = DPLL_ID_PCH_PLL_A;
+	}
+
+	crtc_state->shared_dpll = intel_get_shared_dpll_by_id(dev_priv, pll_id);
+	pll = crtc_state->shared_dpll;
+
+	pll_active = intel_dpll_get_hw_state(dev_priv, pll,
+					     &crtc_state->dpll_hw_state);
+	drm_WARN_ON(&dev_priv->drm, !pll_active);
+
+	tmp = crtc_state->dpll_hw_state.dpll;
+	crtc_state->pixel_multiplier =
+		((tmp & PLL_REF_SDVO_HDMI_MULTIPLIER_MASK)
+		 >> PLL_REF_SDVO_HDMI_MULTIPLIER_SHIFT) + 1;
+
+	ilk_pch_clock_get(crtc_state);
+}
+
 static void lpt_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 				      enum transcoder cpu_transcoder)
 {
