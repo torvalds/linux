@@ -51,6 +51,9 @@ examples:
         switch@10 {
             compatible = "qca,qca8337";
             reg = <0x10>;
-            /* ... */
+
+            ports {
+              /* ... */
+            };
         };
     };
