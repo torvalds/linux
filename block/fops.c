@@ -137,7 +137,7 @@ struct blkdev_dio {
 	size_t			size;
 	atomic_t		ref;
 	unsigned int		flags;
-	struct bio		bio;
+	struct bio		bio ____cacheline_aligned_in_smp;
 };
 
 static struct bio_set blkdev_dio_pool;
