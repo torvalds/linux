@@ -243,6 +243,8 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_alter_mutex_list_add);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_mutex_unlock_slowpath);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_rwsem_wake_finish);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_do_undefinstr);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_do_bti);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_do_ptrauth_fault);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_bad_mode);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_arm64_serror_panic);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_selinux_avc_insert);
