@@ -710,9 +710,9 @@ static char *perf_pmu__getcpuid(struct perf_pmu *pmu)
 	return cpuid;
 }
 
-struct pmu_events_map *perf_pmu__find_map(struct perf_pmu *pmu)
+const struct pmu_events_map *perf_pmu__find_map(struct perf_pmu *pmu)
 {
-	struct pmu_events_map *map;
+	const struct pmu_events_map *map;
 	char *cpuid = perf_pmu__getcpuid(pmu);
 	int i;
 
@@ -737,7 +737,7 @@ struct pmu_events_map *perf_pmu__find_map(struct perf_pmu *pmu)
 	return map;
 }
 
-struct pmu_events_map *__weak pmu_events_map__find(void)
+const struct pmu_events_map *__weak pmu_events_map__find(void)
 {
 	return perf_pmu__find_map(NULL);
 }
@@ -824,7 +824,7 @@ out:
  * as aliases.
  */
 void pmu_add_cpu_aliases_map(struct list_head *head, struct perf_pmu *pmu,
-			     struct pmu_events_map *map)
+			     const struct pmu_events_map *map)
 {
 	int i;
 	const char *name = pmu->name;
@@ -859,7 +859,7 @@ new_alias:
 
 static void pmu_add_cpu_aliases(struct list_head *head, struct perf_pmu *pmu)
 {
-	struct pmu_events_map *map;
+	const struct pmu_events_map *map;
 
 	map = perf_pmu__find_map(pmu);
 	if (!map)

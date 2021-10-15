@@ -242,9 +242,9 @@ static bool is_same(const char *reference, const char *test)
 	return !strcmp(reference, test);
 }
 
-static struct pmu_events_map *__test_pmu_get_events_map(void)
+static const struct pmu_events_map *__test_pmu_get_events_map(void)
 {
-	struct pmu_events_map *map;
+	const struct pmu_events_map *map;
 
 	for (map = &pmu_events_map[0]; map->cpuid; map++) {
 		if (!strcmp(map->cpuid, "testcpu"))
@@ -421,7 +421,7 @@ static int compare_alias_to_test_event(struct perf_pmu_alias *alias,
 static int test_pmu_event_table(void)
 {
 	struct pmu_event *sys_event_tables = __test_pmu_get_sys_events_table();
-	struct pmu_events_map *map = __test_pmu_get_events_map();
+	const struct pmu_events_map *map = __test_pmu_get_events_map();
 	struct pmu_event *table;
 	int map_events = 0, expected_events;
 
@@ -518,7 +518,7 @@ static int __test_core_pmu_event_aliases(char *pmu_name, int *count)
 	struct perf_pmu *pmu;
 	LIST_HEAD(aliases);
 	int res = 0;
-	struct pmu_events_map *map = __test_pmu_get_events_map();
+	const struct pmu_events_map *map = __test_pmu_get_events_map();
 	struct perf_pmu_alias *a, *tmp;
 
 	if (!map)
@@ -571,7 +571,7 @@ static int __test_uncore_pmu_event_aliases(struct perf_pmu_test_pmu *test_pmu)
 	struct perf_pmu *pmu = &test_pmu->pmu;
 	const char *pmu_name = pmu->name;
 	struct perf_pmu_alias *a, *tmp, *alias;
-	struct pmu_events_map *map;
+	const struct pmu_events_map *map;
 	LIST_HEAD(aliases);
 	int res = 0;
 
@@ -825,7 +825,7 @@ struct metric {
 
 static int resolve_metric_simple(struct expr_parse_ctx *pctx,
 				 struct list_head *compound_list,
-				 struct pmu_events_map *map,
+				 const struct pmu_events_map *map,
 				 const char *metric_name)
 {
 	struct hashmap_entry *cur, *cur_tmp;
@@ -885,8 +885,8 @@ out_err:
 
 static int test_parsing(void)
 {
-	struct pmu_events_map *cpus_map = pmu_events_map__find();
-	struct pmu_events_map *map;
+	const struct pmu_events_map *cpus_map = pmu_events_map__find();
+	const struct pmu_events_map *map;
 	struct pmu_event *pe;
 	int i, j, k;
 	int ret = 0;
@@ -1027,7 +1027,7 @@ out:
  */
 static int test_parsing_fake(void)
 {
-	struct pmu_events_map *map;
+	const struct pmu_events_map *map;
 	struct pmu_event *pe;
 	unsigned int i, j;
 	int err = 0;

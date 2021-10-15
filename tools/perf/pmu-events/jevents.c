@@ -798,7 +798,7 @@ static bool is_sys_dir(char *fname)
 
 static void print_mapping_table_prefix(FILE *outfp)
 {
-	fprintf(outfp, "struct pmu_events_map pmu_events_map[] = {\n");
+	fprintf(outfp, "const struct pmu_events_map pmu_events_map[] = {\n");
 }
 
 static void print_mapping_table_suffix(FILE *outfp)

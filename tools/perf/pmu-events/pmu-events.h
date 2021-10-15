@@ -53,7 +53,7 @@ struct pmu_sys_events {
  * Global table mapping each known CPU for the architecture to its
  * table of PMU events.
  */
-extern struct pmu_events_map pmu_events_map[];
+extern const struct pmu_events_map pmu_events_map[];
 extern struct pmu_sys_events pmu_sys_event_tables[];
 
 #endif

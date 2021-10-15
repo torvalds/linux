@@ -120,10 +120,10 @@ int perf_pmu__test(void);
 
 struct perf_event_attr *perf_pmu__get_default_config(struct perf_pmu *pmu);
 void pmu_add_cpu_aliases_map(struct list_head *head, struct perf_pmu *pmu,
-			     struct pmu_events_map *map);
+			     const struct pmu_events_map *map);
 
-struct pmu_events_map *perf_pmu__find_map(struct perf_pmu *pmu);
-struct pmu_events_map *pmu_events_map__find(void);
+const struct pmu_events_map *perf_pmu__find_map(struct perf_pmu *pmu);
+const struct pmu_events_map *pmu_events_map__find(void);
 bool pmu_uncore_alias_match(const char *pmu_name, const char *name);
 void perf_pmu_free_alias(struct perf_pmu_alias *alias);
 
