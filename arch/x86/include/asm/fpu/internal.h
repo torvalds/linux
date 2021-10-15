@@ -23,22 +23,4 @@
 #include <asm/cpufeature.h>
 #include <asm/trace/fpu.h>
 
-/*
- * High level FPU state handling functions:
- */
-extern void fpu__clear_user_states(struct fpu *fpu);
-extern int  fpu__exception_code(struct fpu *fpu, int trap_nr);
-
-extern void fpu_sync_fpstate(struct fpu *fpu);
-
-/*
- * Boot time FPU initialization functions:
- */
-extern void fpu__init_cpu(void);
-extern void fpu__init_system_xstate(void);
-extern void fpu__init_cpu_xstate(void);
-extern void fpu__init_system(struct cpuinfo_x86 *c);
-extern void fpu__init_check_bugs(void);
-extern void fpu__resume_cpu(void);
-
 #endif /* _ASM_X86_FPU_INTERNAL_H */

@@ -18,6 +18,9 @@ static inline void xstate_init_xcomp_bv(struct xregs_state *xsave, u64 mask)
 extern void __copy_xstate_to_uabi_buf(struct membuf to, struct xregs_state *xsave,
 				      u32 pkru_val, enum xstate_copy_mode copy_mode);
 
+extern void fpu__init_cpu_xstate(void);
+extern void fpu__init_system_xstate(void);
+
 /* XSAVE/XRSTOR wrapper functions */
 
 #ifdef CONFIG_X86_64

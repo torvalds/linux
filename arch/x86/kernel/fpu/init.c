@@ -12,6 +12,7 @@
 
 #include "internal.h"
 #include "legacy.h"
+#include "xstate.h"
 
 /*
  * Initialize the registers found in all CPUs, CR0 and CR4:
