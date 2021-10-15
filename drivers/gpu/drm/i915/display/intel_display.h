@@ -521,7 +521,6 @@ void intel_link_compute_m_n(u16 bpp, int nlanes,
 			    int pixel_clock, int link_clock,
 			    struct intel_link_m_n *m_n,
 			    bool constant_n, bool fec_enable);
-void lpt_disable_clkout_dp(struct drm_i915_private *dev_priv);
 u32 intel_plane_fb_max_stride(struct drm_i915_private *dev_priv,
 			      u32 pixel_format, u64 modifier);
 enum drm_mode_status
@@ -544,7 +543,6 @@ int vlv_get_cck_clock_hpll(struct drm_i915_private *dev_priv,
 			   const char *name, u32 reg);
 void lpt_pch_enable(const struct intel_crtc_state *crtc_state);
 void lpt_disable_pch_transcoder(struct drm_i915_private *dev_priv);
-void lpt_disable_iclkip(struct drm_i915_private *dev_priv);
 void intel_init_display_hooks(struct drm_i915_private *dev_priv);
 unsigned int intel_fb_xy_to_linear(int x, int y,
 				   const struct intel_plane_state *state,
@@ -583,7 +581,6 @@ intel_framebuffer_create(struct drm_i915_gem_object *obj,
 void assert_pch_transcoder_disabled(struct drm_i915_private *dev_priv,
 				    enum pipe pipe);
 
-int lpt_get_iclkip(struct drm_i915_private *dev_priv);
 bool intel_fuzzy_clock_check(int clock1, int clock2);
 
 void intel_display_prepare_reset(struct drm_i915_private *dev_priv);
@@ -632,7 +629,6 @@ void intel_modeset_driver_remove(struct drm_i915_private *i915);
 void intel_modeset_driver_remove_noirq(struct drm_i915_private *i915);
 void intel_modeset_driver_remove_nogem(struct drm_i915_private *i915);
 void intel_display_resume(struct drm_device *dev);
-void intel_init_pch_refclk(struct drm_i915_private *dev_priv);
 int intel_modeset_all_pipes(struct intel_atomic_state *state);
 
 /* modesetting asserts */
