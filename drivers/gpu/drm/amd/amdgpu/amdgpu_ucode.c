@@ -509,7 +509,7 @@ static ssize_t show_##name(struct device *dev,				\
 	struct drm_device *ddev = dev_get_drvdata(dev);			\
 	struct amdgpu_device *adev = drm_to_adev(ddev);			\
 									\
-	return snprintf(buf, PAGE_SIZE, "0x%08x\n", adev->field);	\
+	return sysfs_emit(buf, "0x%08x\n", adev->field);	\
 }									\
 static DEVICE_ATTR(name, mode, show_##name, NULL)
 
