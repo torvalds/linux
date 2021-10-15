@@ -18,6 +18,7 @@
 #include "strlist.h"
 #include <assert.h>
 #include <linux/ctype.h>
+#include <linux/list_sort.h>
 #include <linux/string.h>
 #include <linux/zalloc.h>
 #include <subcmd/parse-options.h>
@@ -197,28 +198,6 @@ static void metric__free(struct metric *m)
 	}
 	expr__ctx_free(m->pctx);
 	free(m);
-}
-
-#define RECURSION_ID_MAX 1000
-
-struct expr_ids {
-	struct expr_id	id[RECURSION_ID_MAX];
-	int		cnt;
-};
-
-static struct expr_id *expr_ids__alloc(struct expr_ids *ids)
-{
-	if (ids->cnt >= RECURSION_ID_MAX)
-		return NULL;
-	return &ids->id[ids->cnt++];
-}
-
-static void expr_ids__exit(struct expr_ids *ids)
-{
-	int i;
-
-	for (i = 0; i < ids->cnt; i++)
-		free(ids->id[i].id);
 }
 
 static bool contains_event(struct evsel **metric_events, int num_events,
@@ -813,14 +792,105 @@ int __weak arch_get_runtimeparam(const struct pmu_event *pe __maybe_unused)
 	return 1;
 }
 
+/*
+ * A singly linked list on the stack of the names of metrics being
+ * processed. Used to identify recursion.
+ */
+struct visited_metric {
+	const char *name;
+	const struct visited_metric *parent;
+};
+
 struct metricgroup_add_iter_data {
 	struct list_head *metric_list;
 	const char *metric_name;
-	struct expr_ids *ids;
 	int *ret;
 	bool *has_match;
 	bool metric_no_group;
+	struct metric *root_metric;
+	const struct visited_metric *visited;
+	const struct pmu_events_map *map;
 };
+
+static int add_metric(struct list_head *metric_list,
+		      const struct pmu_event *pe,
+		      bool metric_no_group,
+		      struct metric *root_metric,
+		      const struct visited_metric *visited,
+		      const struct pmu_events_map *map);
+
+/**
+ * resolve_metric - Locate metrics within the root metric and recursively add
+ *                    references to them.
+ * @metric_list: The list the metric is added to.
+ * @metric_no_group: Should events written to events be grouped "{}" or
+ *                   global. Grouping is the default but due to multiplexing the
+ *                   user may override.
+ * @root_metric: Metrics may reference other metrics to form a tree. In this
+ *               case the root_metric holds all the IDs and a list of referenced
+ *               metrics. When adding a root this argument is NULL.
+ * @visited: A singly linked list of metric names being added that is used to
+ *           detect recursion.
+ * @map: The map that is searched for metrics, most commonly the table for the
+ *       architecture perf is running upon.
+ */
+static int resolve_metric(struct list_head *metric_list,
+			  bool metric_no_group,
+			  struct metric *root_metric,
+			  const struct visited_metric *visited,
+			  const struct pmu_events_map *map)
+{
+	struct hashmap_entry *cur;
+	size_t bkt;
+	struct to_resolve {
+		/* The metric to resolve. */
+		const struct pmu_event *pe;
+		/*
+		 * The key in the IDs map, this may differ from in case,
+		 * etc. from pe->metric_name.
+		 */
+		const char *key;
+	} *pending = NULL;
+	int i, ret = 0, pending_cnt = 0;
+
+	/*
+	 * Iterate all the parsed IDs and if there's a matching metric and it to
+	 * the pending array.
+	 */
+	hashmap__for_each_entry(root_metric->pctx->ids, cur, bkt) {
+		const struct pmu_event *pe;
+
+		pe = metricgroup__find_metric(cur->key, map);
+		if (pe) {
+			pending = realloc(pending,
+					(pending_cnt + 1) * sizeof(struct to_resolve));
+			if (!pending)
+				return -ENOMEM;
+
+			pending[pending_cnt].pe = pe;
+			pending[pending_cnt].key = cur->key;
+			pending_cnt++;
+		}
+	}
+
+	/* Remove the metric IDs from the context. */
+	for (i = 0; i < pending_cnt; i++)
+		expr__del_id(root_metric->pctx, pending[i].key);
+
+	/*
+	 * Recursively add all the metrics, IDs are added to the root metric's
+	 * context.
+	 */
+	for (i = 0; i < pending_cnt; i++) {
+		ret = add_metric(metric_list, pending[i].pe, metric_no_group,
+				root_metric, visited, map);
+		if (ret)
+			break;
+	}
+
+	free(pending);
+	return ret;
+}
 
 /**
  * __add_metric - Add a metric to metric_list.
@@ -830,58 +900,59 @@ struct metricgroup_add_iter_data {
  *                   global. Grouping is the default but due to multiplexing the
  *                   user may override.
  * @runtime: A special argument for the parser only known at runtime.
- * @mp: The pointer to a location holding the first metric added to metric
- *      list. It is initialized here if this is the first metric.
- * @parent: The last entry in a linked list of metrics being
- *          added/resolved. This is maintained to detect recursion.
- * @ids: Storage for parent list.
+ * @root_metric: Metrics may reference other metrics to form a tree. In this
+ *               case the root_metric holds all the IDs and a list of referenced
+ *               metrics. When adding a root this argument is NULL.
+ * @visited: A singly linked list of metric names being added that is used to
+ *           detect recursion.
+ * @map: The map that is searched for metrics, most commonly the table for the
+ *       architecture perf is running upon.
  */
 static int __add_metric(struct list_head *metric_list,
 			const struct pmu_event *pe,
 			bool metric_no_group,
 			int runtime,
-			struct metric **mp,
-			struct expr_id *parent,
-			struct expr_ids *ids)
+			struct metric *root_metric,
+			const struct visited_metric *visited,
+			const struct pmu_events_map *map)
 {
 	struct metric_ref_node *ref;
-	struct metric *m;
+	const struct visited_metric *vm;
+	int ret;
+	bool is_root = !root_metric;
+	struct visited_metric visited_node = {
+		.name = pe->metric_name,
+		.parent = visited,
+	};
 
-	if (*mp == NULL) {
+	for (vm = visited; vm; vm = vm->parent) {
+		if (!strcmp(pe->metric_name, vm->name)) {
+			pr_err("failed: recursion detected for %s\n", pe->metric_name);
+			return -1;
+		}
+	}
+
+	if (is_root) {
 		/*
-		 * We got in here for the parent group,
-		 * allocate it and put it on the list.
+		 * This metric is the root of a tree and may reference other
+		 * metrics that are added recursively.
 		 */
-		m = metric__new(pe, metric_no_group, runtime);
-		if (!m)
+		root_metric = metric__new(pe, metric_no_group, runtime);
+		if (!root_metric)
 			return -ENOMEM;
 
-		parent = expr_ids__alloc(ids);
-		if (!parent) {
-			free(m);
-			return -EINVAL;
-		}
-
-		parent->id = strdup(pe->metric_name);
-		if (!parent->id) {
-			free(m);
-			return -ENOMEM;
-		}
-		*mp = m;
 	} else {
 		/*
 		 * This metric was referenced in a metric higher in the
 		 * tree. Check if the same metric is already resolved in the
 		 * metric_refs list.
 		 */
-		m = *mp;
-
-		list_for_each_entry(ref, &m->metric_refs, list) {
+		list_for_each_entry(ref, &root_metric->metric_refs, list) {
 			if (!strcmp(pe->metric_name, ref->metric_name))
 				return 0;
 		}
 
-		/*Add the new referenced metric to the pare the parent group. */
+		/* Create reference */
 		ref = malloc(sizeof(*ref));
 		if (!ref)
 			return -ENOMEM;
@@ -895,50 +966,31 @@ static int __add_metric(struct list_head *metric_list,
 		ref->metric_name = pe->metric_name;
 		ref->metric_expr = pe->metric_expr;
 
-		list_add(&ref->list, &m->metric_refs);
-		m->metric_refs_cnt++;
+		list_add(&ref->list, &root_metric->metric_refs);
+		root_metric->metric_refs_cnt++;
 	}
-
-	/* Force all found IDs in metric to have us as parent ID. */
-	WARN_ON_ONCE(!parent);
-	m->pctx->parent = parent;
 
 	/*
 	 * For both the parent and referenced metrics, we parse
-	 * all the metric's IDs and add it to the parent context.
+	 * all the metric's IDs and add it to the root context.
 	 */
-	if (expr__find_ids(pe->metric_expr, NULL, m->pctx) < 0) {
-		if (m->metric_refs_cnt == 0) {
-			metric__free(m);
-			*mp = NULL;
-		}
-		return -EINVAL;
+	if (expr__find_ids(pe->metric_expr, NULL, root_metric->pctx) < 0) {
+		/* Broken metric. */
+		ret = -EINVAL;
+	} else {
+		/* Resolve referenced metrics. */
+		ret = resolve_metric(metric_list, metric_no_group, root_metric,
+				     &visited_node, map);
 	}
 
-	/*
-	 * We add new group only in the 'parent' call,
-	 * so bail out for referenced metric case.
-	 */
-	if (m->metric_refs_cnt)
-		return 0;
+	if (ret) {
+		if (is_root)
+			metric__free(root_metric);
 
-	if (list_empty(metric_list))
-		list_add(&m->nd, metric_list);
-	else {
-		struct list_head *pos;
+	} else if (is_root)
+		list_add(&root_metric->nd, metric_list);
 
-		/* Place the largest groups at the front. */
-		list_for_each_prev(pos, metric_list) {
-			struct metric *old = list_entry(pos, struct metric, nd);
-
-			if (hashmap__size(m->pctx->ids) <=
-			    hashmap__size(old->pctx->ids))
-				break;
-		}
-		list_add(&m->nd, pos);
-	}
-
-	return 0;
+	return ret;
 }
 
 #define map_for_each_event(__pe, __idx, __map)					\
@@ -967,136 +1019,20 @@ const struct pmu_event *metricgroup__find_metric(const char *metric,
 	return NULL;
 }
 
-static int recursion_check(struct metric *m, const char *id, struct expr_id **parent,
-			   struct expr_ids *ids)
-{
-	struct expr_id_data *data;
-	struct expr_id *p;
-	int ret;
-
-	/*
-	 * We get the parent referenced by 'id' argument and
-	 * traverse through all the parent object IDs to check
-	 * if we already processed 'id', if we did, it's recursion
-	 * and we fail.
-	 */
-	ret = expr__get_id(m->pctx, id, &data);
-	if (ret)
-		return ret;
-
-	p = expr_id_data__parent(data);
-
-	while (p->parent) {
-		if (!strcmp(p->id, id)) {
-			pr_err("failed: recursion detected for %s\n", id);
-			return -1;
-		}
-		p = p->parent;
-	}
-
-	/*
-	 * If we are over the limit of static entris, the metric
-	 * is too difficult/nested to process, fail as well.
-	 */
-	p = expr_ids__alloc(ids);
-	if (!p) {
-		pr_err("failed: too many nested metrics\n");
-		return -EINVAL;
-	}
-
-	p->id     = strdup(id);
-	p->parent = expr_id_data__parent(data);
-	*parent   = p;
-
-	return p->id ? 0 : -ENOMEM;
-}
-
 static int add_metric(struct list_head *metric_list,
 		      const struct pmu_event *pe,
 		      bool metric_no_group,
-		      struct metric **mp,
-		      struct expr_id *parent,
-		      struct expr_ids *ids);
-
-static int __resolve_metric(struct metric *m,
-			    bool metric_no_group,
-			    struct list_head *metric_list,
-			    const struct pmu_events_map *map,
-			    struct expr_ids *ids)
+		      struct metric *root_metric,
+		      const struct visited_metric *visited,
+		      const struct pmu_events_map *map)
 {
-	struct hashmap_entry *cur;
-	size_t bkt;
-	bool all;
-	int ret;
-
-	/*
-	 * Iterate all the parsed IDs and if there's metric,
-	 * add it to the context.
-	 */
-	do {
-		all = true;
-		hashmap__for_each_entry(m->pctx->ids, cur, bkt) {
-			struct expr_id *parent;
-			const struct pmu_event *pe;
-
-			pe = metricgroup__find_metric(cur->key, map);
-			if (!pe)
-				continue;
-
-			ret = recursion_check(m, cur->key, &parent, ids);
-			if (ret)
-				return ret;
-
-			all = false;
-			/* The metric key itself needs to go out.. */
-			expr__del_id(m->pctx, cur->key);
-
-			/* ... and it gets resolved to the parent context. */
-			ret = add_metric(metric_list, pe, metric_no_group, &m, parent, ids);
-			if (ret)
-				return ret;
-
-			/*
-			 * We added new metric to hashmap, so we need
-			 * to break the iteration and start over.
-			 */
-			break;
-		}
-	} while (!all);
-
-	return 0;
-}
-
-static int resolve_metric(bool metric_no_group,
-			  struct list_head *metric_list,
-			  const struct pmu_events_map *map,
-			  struct expr_ids *ids)
-{
-	struct metric *m;
-	int err;
-
-	list_for_each_entry(m, metric_list, nd) {
-		err = __resolve_metric(m, metric_no_group, metric_list, map, ids);
-		if (err)
-			return err;
-	}
-	return 0;
-}
-
-static int add_metric(struct list_head *metric_list,
-		      const struct pmu_event *pe,
-		      bool metric_no_group,
-		      struct metric **m,
-		      struct expr_id *parent,
-		      struct expr_ids *ids)
-{
-	struct metric *orig = *m;
 	int ret = 0;
 
 	pr_debug("metric expr %s for %s\n", pe->metric_expr, pe->metric_name);
 
 	if (!strstr(pe->metric_expr, "?")) {
-		ret = __add_metric(metric_list, pe, metric_no_group, 1, m, parent, ids);
+		ret = __add_metric(metric_list, pe, metric_no_group, 0,
+				   root_metric, visited, map);
 	} else {
 		int j, count;
 
@@ -1107,8 +1043,9 @@ static int add_metric(struct list_head *metric_list,
 		 * those events to metric_list.
 		 */
 
-		for (j = 0; j < count && !ret; j++, *m = orig)
-			ret = __add_metric(metric_list, pe, metric_no_group, j, m, parent, ids);
+		for (j = 0; j < count && !ret; j++)
+			ret = __add_metric(metric_list, pe, metric_no_group, j,
+					root_metric, visited, map);
 	}
 
 	return ret;
@@ -1118,18 +1055,13 @@ static int metricgroup__add_metric_sys_event_iter(const struct pmu_event *pe,
 						  void *data)
 {
 	struct metricgroup_add_iter_data *d = data;
-	struct metric *m = NULL;
 	int ret;
 
 	if (!match_pe_metric(pe, d->metric_name))
 		return 0;
 
-	ret = add_metric(d->metric_list, pe, d->metric_no_group, &m, NULL, d->ids);
-	if (ret)
-		goto out;
-
-	ret = resolve_metric(d->metric_no_group,
-				     d->metric_list, NULL, d->ids);
+	ret = add_metric(d->metric_list, pe, d->metric_no_group,
+			 d->root_metric, d->visited, d->map);
 	if (ret)
 		goto out;
 
@@ -1138,6 +1070,15 @@ static int metricgroup__add_metric_sys_event_iter(const struct pmu_event *pe,
 out:
 	*(d->ret) = ret;
 	return ret;
+}
+
+static int metric_list_cmp(void *priv __maybe_unused, const struct list_head *l,
+			   const struct list_head *r)
+{
+	const struct metric *left = container_of(l, struct metric, nd);
+	const struct metric *right = container_of(r, struct metric, nd);
+
+	return hashmap__size(right->pctx->ids) - hashmap__size(left->pctx->ids);
 }
 
 /**
@@ -1160,7 +1101,6 @@ static int metricgroup__add_metric(const char *metric_name, bool metric_no_group
 				   struct list_head *metric_list,
 				   const struct pmu_events_map *map)
 {
-	struct expr_ids ids = { .cnt = 0, };
 	const struct pmu_event *pe;
 	struct metric *m;
 	LIST_HEAD(list);
@@ -1173,18 +1113,9 @@ static int metricgroup__add_metric(const char *metric_name, bool metric_no_group
 	 */
 	map_for_each_metric(pe, i, map, metric_name) {
 		has_match = true;
-		m = NULL;
-
-		ret = add_metric(&list, pe, metric_no_group, &m, NULL, &ids);
-		if (ret)
-			goto out;
-
-		/*
-		 * Process any possible referenced metrics
-		 * included in the expression.
-		 */
-		ret = resolve_metric(metric_no_group,
-				     &list, map, &ids);
+		ret = add_metric(&list, pe, metric_no_group,
+				 /*root_metric=*/NULL,
+				 /*visited_metrics=*/NULL, map);
 		if (ret)
 			goto out;
 	}
@@ -1196,9 +1127,9 @@ static int metricgroup__add_metric(const char *metric_name, bool metric_no_group
 				.metric_list = &list,
 				.metric_name = metric_name,
 				.metric_no_group = metric_no_group,
-				.ids = &ids,
 				.has_match = &has_match,
 				.ret = &ret,
+				.map = map,
 			},
 		};
 
@@ -1209,6 +1140,9 @@ static int metricgroup__add_metric(const char *metric_name, bool metric_no_group
 		ret = -EINVAL;
 		goto out;
 	}
+
+	/* Sort metrics from largest to smallest. */
+	list_sort(NULL,  &list, metric_list_cmp);
 
 	list_for_each_entry(m, &list, nd) {
 		if (events->len > 0)
@@ -1229,7 +1163,9 @@ out:
 	 * even if it's failed
 	 */
 	list_splice(&list, metric_list);
-	expr_ids__exit(&ids);
+
+	/* Sort metrics from largest to smallest. */
+	list_sort(NULL, metric_list, metric_list_cmp);
 	return ret;
 }
 

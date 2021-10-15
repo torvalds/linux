@@ -190,7 +190,7 @@ expr: NUMBER
 		 */
 		$$.val = BOTTOM;
 		$$.ids = ids__new();
-		if (!$$.ids || ids__insert($$.ids, $1, ctx->parent))
+		if (!$$.ids || ids__insert($$.ids, $1))
 			YYABORT;
 	}
 }

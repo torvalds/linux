@@ -24,8 +24,8 @@ static int test_ids_union(void)
 	ids2 = ids__new();
 	TEST_ASSERT_VAL("ids__new", ids2);
 
-	TEST_ASSERT_EQUAL("ids__insert", ids__insert(ids1, strdup("foo"), NULL), 0);
-	TEST_ASSERT_EQUAL("ids__insert", ids__insert(ids1, strdup("bar"), NULL), 0);
+	TEST_ASSERT_EQUAL("ids__insert", ids__insert(ids1, strdup("foo")), 0);
+	TEST_ASSERT_EQUAL("ids__insert", ids__insert(ids1, strdup("bar")), 0);
 
 	ids1 = ids__union(ids1, ids2);
 	TEST_ASSERT_EQUAL("union", (int)hashmap__size(ids1), 2);
@@ -33,7 +33,7 @@ static int test_ids_union(void)
 	/* Union {foo, bar} against {foo}. */
 	ids2 = ids__new();
 	TEST_ASSERT_VAL("ids__new", ids2);
-	TEST_ASSERT_EQUAL("ids__insert", ids__insert(ids2, strdup("foo"), NULL), 0);
+	TEST_ASSERT_EQUAL("ids__insert", ids__insert(ids2, strdup("foo")), 0);
 
 	ids1 = ids__union(ids1, ids2);
 	TEST_ASSERT_EQUAL("union", (int)hashmap__size(ids1), 2);
@@ -41,8 +41,8 @@ static int test_ids_union(void)
 	/* Union {foo, bar} against {bar,baz}. */
 	ids2 = ids__new();
 	TEST_ASSERT_VAL("ids__new", ids2);
-	TEST_ASSERT_EQUAL("ids__insert", ids__insert(ids2, strdup("bar"), NULL), 0);
-	TEST_ASSERT_EQUAL("ids__insert", ids__insert(ids2, strdup("baz"), NULL), 0);
+	TEST_ASSERT_EQUAL("ids__insert", ids__insert(ids2, strdup("bar")), 0);
+	TEST_ASSERT_EQUAL("ids__insert", ids__insert(ids2, strdup("baz")), 0);
 
 	ids1 = ids__union(ids1, ids2);
 	TEST_ASSERT_EQUAL("union", (int)hashmap__size(ids1), 3);

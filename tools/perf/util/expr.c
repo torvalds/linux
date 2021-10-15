@@ -25,7 +25,6 @@ struct expr_id_data {
 			const char *metric_name;
 			const char *metric_expr;
 		} ref;
-		struct expr_id	*parent;
 	};
 
 	enum {
@@ -35,8 +34,6 @@ struct expr_id_data {
 		EXPR_ID_DATA__REF,
 		/* A reference but the value has been computed. */
 		EXPR_ID_DATA__REF_VALUE,
-		/* A parent is remembered for the recursion check. */
-		EXPR_ID_DATA__PARENT,
 	} kind;
 };
 
@@ -80,19 +77,11 @@ void ids__free(struct hashmap *ids)
 	hashmap__free(ids);
 }
 
-int ids__insert(struct hashmap *ids, const char *id,
-		struct expr_id *parent)
+int ids__insert(struct hashmap *ids, const char *id)
 {
 	struct expr_id_data *data_ptr = NULL, *old_data = NULL;
 	char *old_key = NULL;
 	int ret;
-
-	data_ptr = malloc(sizeof(*data_ptr));
-	if (!data_ptr)
-		return -ENOMEM;
-
-	data_ptr->parent = parent;
-	data_ptr->kind = EXPR_ID_DATA__PARENT;
 
 	ret = hashmap__set(ids, id, data_ptr,
 			   (const void **)&old_key, (void **)&old_data);
@@ -142,7 +131,7 @@ struct hashmap *ids__union(struct hashmap *ids1, struct hashmap *ids2)
 /* Caller must make sure id is allocated */
 int expr__add_id(struct expr_parse_ctx *ctx, const char *id)
 {
-	return ids__insert(ctx->ids, id, ctx->parent);
+	return ids__insert(ctx->ids, id);
 }
 
 /* Caller must make sure id is allocated */
@@ -238,9 +227,6 @@ int expr__resolve_id(struct expr_parse_ctx *ctx, const char *id,
 	case EXPR_ID_DATA__VALUE:
 		pr_debug2("lookup(%s): val %f\n", id, data->val);
 		break;
-	case EXPR_ID_DATA__PARENT:
-		pr_debug2("lookup(%s): parent %s\n", id, data->parent->id);
-		break;
 	case EXPR_ID_DATA__REF:
 		pr_debug2("lookup(%s): ref metric name %s\n", id,
 			data->ref.metric_name);
@@ -283,8 +269,8 @@ struct expr_parse_ctx *expr__ctx_new(void)
 		return NULL;
 
 	ctx->ids = hashmap__new(key_hash, key_equal, NULL);
-	ctx->parent = NULL;
 	ctx->runtime = 0;
+
 	return ctx;
 }
 
@@ -368,10 +354,4 @@ double expr_id_data__value(const struct expr_id_data *data)
 		return data->val;
 	assert(data->kind == EXPR_ID_DATA__REF_VALUE);
 	return data->ref.val;
-}
-
-struct expr_id *expr_id_data__parent(struct expr_id_data *data)
-{
-	assert(data->kind == EXPR_ID_DATA__PARENT);
-	return data->parent;
 }
