@@ -527,6 +527,7 @@
 #define CPT_AF_CTX_WBACK_LATENCY_PC     (0x49448ull)
 #define CPT_AF_CTX_PSH_PC               (0x49450ull)
 #define CPT_AF_CTX_PSH_LATENCY_PC       (0x49458ull)
+#define CPT_AF_CTX_CAM_DATA(a)          (0x49800ull | (u64)(a) << 3)
 #define CPT_AF_RXC_TIME                 (0x50010ull)
 #define CPT_AF_RXC_TIME_CFG             (0x50018ull)
 #define CPT_AF_RXC_DFRG                 (0x50020ull)
@@ -544,6 +545,7 @@
 #define CPT_LF_CTL                      0x10
 #define CPT_LF_INPROG                   0x40
 #define CPT_LF_Q_GRP_PTR                0x120
+#define CPT_LF_CTX_FLUSH                0x510
 
 #define NPC_AF_BLK_RST                  (0x00040)
 
