@@ -2623,6 +2623,12 @@ static int psp_resume(void *handle)
 		goto failed;
 	}
 
+	ret = psp_rl_load(adev);
+	if (ret) {
+		dev_err(adev->dev, "PSP load RL failed!\n");
+		goto failed;
+	}
+
 	if (adev->gmc.xgmi.num_physical_nodes > 1) {
 		ret = psp_xgmi_initialize(psp, false, true);
 		/* Warning the XGMI seesion initialize failure
