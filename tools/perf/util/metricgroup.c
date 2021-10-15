@@ -127,6 +127,78 @@ struct metric {
 	bool has_constraint;
 };
 
+static void metricgroup___watchdog_constraint_hint(const char *name, bool foot)
+{
+	static bool violate_nmi_constraint;
+
+	if (!foot) {
+		pr_warning("Splitting metric group %s into standalone metrics.\n", name);
+		violate_nmi_constraint = true;
+		return;
+	}
+
+	if (!violate_nmi_constraint)
+		return;
+
+	pr_warning("Try disabling the NMI watchdog to comply NO_NMI_WATCHDOG metric constraint:\n"
+		   "    echo 0 > /proc/sys/kernel/nmi_watchdog\n"
+		   "    perf stat ...\n"
+		   "    echo 1 > /proc/sys/kernel/nmi_watchdog\n");
+}
+
+static bool metricgroup__has_constraint(const struct pmu_event *pe)
+{
+	if (!pe->metric_constraint)
+		return false;
+
+	if (!strcmp(pe->metric_constraint, "NO_NMI_WATCHDOG") &&
+	    sysctl__nmi_watchdog_enabled()) {
+		metricgroup___watchdog_constraint_hint(pe->metric_name, false);
+		return true;
+	}
+
+	return false;
+}
+
+static struct metric *metric__new(const struct pmu_event *pe,
+				  bool metric_no_group,
+				  int runtime)
+{
+	struct metric *m;
+
+	m = zalloc(sizeof(*m));
+	if (!m)
+		return NULL;
+
+	m->pctx = expr__ctx_new();
+	if (!m->pctx) {
+		free(m);
+		return NULL;
+	}
+
+	m->metric_name = pe->metric_name;
+	m->metric_expr = pe->metric_expr;
+	m->metric_unit = pe->unit;
+	m->pctx->runtime = runtime;
+	m->has_constraint = metric_no_group || metricgroup__has_constraint(pe);
+	INIT_LIST_HEAD(&m->metric_refs);
+	m->metric_refs_cnt = 0;
+
+	return m;
+}
+
+static void metric__free(struct metric *m)
+{
+	struct metric_ref_node *ref, *tmp;
+
+	list_for_each_entry_safe(ref, tmp, &m->metric_refs, list) {
+		list_del(&ref->list);
+		free(ref);
+	}
+	expr__ctx_free(m->pctx);
+	free(m);
+}
+
 #define RECURSION_ID_MAX 1000
 
 struct expr_ids {
@@ -736,39 +808,6 @@ static void metricgroup__add_metric_non_group(struct strbuf *events,
 	}
 }
 
-static void metricgroup___watchdog_constraint_hint(const char *name, bool foot)
-{
-	static bool violate_nmi_constraint;
-
-	if (!foot) {
-		pr_warning("Splitting metric group %s into standalone metrics.\n", name);
-		violate_nmi_constraint = true;
-		return;
-	}
-
-	if (!violate_nmi_constraint)
-		return;
-
-	pr_warning("Try disabling the NMI watchdog to comply NO_NMI_WATCHDOG metric constraint:\n"
-		   "    echo 0 > /proc/sys/kernel/nmi_watchdog\n"
-		   "    perf stat ...\n"
-		   "    echo 1 > /proc/sys/kernel/nmi_watchdog\n");
-}
-
-static bool metricgroup__has_constraint(const struct pmu_event *pe)
-{
-	if (!pe->metric_constraint)
-		return false;
-
-	if (!strcmp(pe->metric_constraint, "NO_NMI_WATCHDOG") &&
-	    sysctl__nmi_watchdog_enabled()) {
-		metricgroup___watchdog_constraint_hint(pe->metric_name, false);
-		return true;
-	}
-
-	return false;
-}
-
 int __weak arch_get_runtimeparam(const struct pmu_event *pe __maybe_unused)
 {
 	return 1;
@@ -813,22 +852,9 @@ static int __add_metric(struct list_head *metric_list,
 		 * We got in here for the parent group,
 		 * allocate it and put it on the list.
 		 */
-		m = zalloc(sizeof(*m));
+		m = metric__new(pe, metric_no_group, runtime);
 		if (!m)
 			return -ENOMEM;
-
-		m->pctx = expr__ctx_new();
-		if (!m->pctx) {
-			free(m);
-			return -ENOMEM;
-		}
-		m->metric_name = pe->metric_name;
-		m->metric_expr = pe->metric_expr;
-		m->metric_unit = pe->unit;
-		m->pctx->runtime = runtime;
-		m->has_constraint = metric_no_group || metricgroup__has_constraint(pe);
-		INIT_LIST_HEAD(&m->metric_refs);
-		m->metric_refs_cnt = 0;
 
 		parent = expr_ids__alloc(ids);
 		if (!parent) {
@@ -877,8 +903,7 @@ static int __add_metric(struct list_head *metric_list,
 	 */
 	if (expr__find_ids(pe->metric_expr, NULL, m->pctx) < 0) {
 		if (m->metric_refs_cnt == 0) {
-			expr__ctx_free(m->pctx);
-			free(m);
+			metric__free(m);
 			*mp = NULL;
 		}
 		return -EINVAL;
@@ -1251,25 +1276,13 @@ static int metricgroup__add_metric_list(const char *list, bool metric_no_group,
 	return ret;
 }
 
-static void metric__free_refs(struct metric *metric)
-{
-	struct metric_ref_node *ref, *tmp;
-
-	list_for_each_entry_safe(ref, tmp, &metric->metric_refs, list) {
-		list_del(&ref->list);
-		free(ref);
-	}
-}
-
 static void metricgroup__free_metrics(struct list_head *metric_list)
 {
 	struct metric *m, *tmp;
 
 	list_for_each_entry_safe (m, tmp, metric_list, nd) {
-		metric__free_refs(m);
-		expr__ctx_free(m->pctx);
 		list_del_init(&m->nd);
-		free(m);
+		metric__free(m);
 	}
 }
 
