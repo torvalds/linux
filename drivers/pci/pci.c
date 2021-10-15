@@ -2638,8 +2638,13 @@ EXPORT_SYMBOL(pci_prepare_to_sleep);
  */
 int pci_back_from_sleep(struct pci_dev *dev)
 {
+	int ret = pci_set_power_state(dev, PCI_D0);
+
+	if (ret)
+		return ret;
+
 	pci_enable_wake(dev, PCI_D0, false);
-	return pci_set_power_state(dev, PCI_D0);
+	return 0;
 }
 EXPORT_SYMBOL(pci_back_from_sleep);
 
