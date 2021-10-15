@@ -369,12 +369,10 @@ static int convert_type80(struct zcrypt_queue *zq,
 		zq->online = 0;
 		pr_err("Crypto dev=%02x.%04x code=0x%02x => online=0 rc=EAGAIN\n",
 		       AP_QID_CARD(zq->queue->qid),
-		       AP_QID_QUEUE(zq->queue->qid),
-		       t80h->code);
-		ZCRYPT_DBF_ERR("dev=%02x.%04x code=0x%02x => online=0 rc=EAGAIN\n",
-			       AP_QID_CARD(zq->queue->qid),
-			       AP_QID_QUEUE(zq->queue->qid),
-			       t80h->code);
+		       AP_QID_QUEUE(zq->queue->qid), t80h->code);
+		ZCRYPT_DBF_ERR("%s dev=%02x.%04x code=0x%02x => online=0 rc=EAGAIN\n",
+			       __func__, AP_QID_CARD(zq->queue->qid),
+			       AP_QID_QUEUE(zq->queue->qid), t80h->code);
 		ap_send_online_uevent(&zq->queue->ap_dev, zq->online);
 		return -EAGAIN;
 	}
@@ -409,10 +407,10 @@ static int convert_response_cex2a(struct zcrypt_queue *zq,
 		       AP_QID_CARD(zq->queue->qid),
 		       AP_QID_QUEUE(zq->queue->qid),
 		       (int) rtype);
-		ZCRYPT_DBF_ERR("dev=%02x.%04x unknown response type 0x%02x => online=0 rc=EAGAIN\n",
-			       AP_QID_CARD(zq->queue->qid),
-			       AP_QID_QUEUE(zq->queue->qid),
-			       (int) rtype);
+		ZCRYPT_DBF_ERR(
+			"%s dev=%02x.%04x unknown response type 0x%02x => online=0 rc=EAGAIN\n",
+			__func__, AP_QID_CARD(zq->queue->qid),
+			AP_QID_QUEUE(zq->queue->qid), (int) rtype);
 		ap_send_online_uevent(&zq->queue->ap_dev, zq->online);
 		return -EAGAIN;
 	}
