@@ -143,4 +143,34 @@ struct snd_firewire_motu_register_dsp_meter {
 	__u8 data[SNDRV_FIREWIRE_MOTU_REGISTER_DSP_METER_COUNT];
 };
 
+// In below MOTU models, software is allowed to control their DSP by command in frame of
+// asynchronous transaction to 0x'ffff'0001'0000:
+//
+//  - 828 mk3 (FireWire only and Hybrid)
+//  - 896 mk3 (FireWire only and Hybrid)
+//  - Ultralite mk3 (FireWire only and Hybrid)
+//  - Traveler mk3
+//  - Track 16
+//
+// On the other hand, the states of hardware meter is split into specific messages included in the
+// sequence of isochronous packet. ALSA firewire-motu driver gathers the message and allow userspace
+// application to read it via ioctl.
+
+#define SNDRV_FIREWIRE_MOTU_COMMAND_DSP_METER_COUNT	400
+
+/**
+ * struct snd_firewire_motu_command_dsp_meter - the container for meter information in DSP
+ *						controlled by command
+ * @data: Signal level meters. The mapping between position and signal channel is model-dependent.
+ *
+ * The structure expresses the part of DSP status for hardware meter. The 32 bit storage is
+ * estimated to include IEEE 764 32 bit single precision floating point (binary32) value. It is
+ * expected to be linear value (not logarithm) for audio signal level between 0.0 and +1.0. However,
+ * the last two quadlets (data[398] and data[399]) are filled with 0xffffffff since they are the
+ * marker of one period.
+ */
+struct snd_firewire_motu_command_dsp_meter {
+	__u32 data[SNDRV_FIREWIRE_MOTU_COMMAND_DSP_METER_COUNT];
+};
+
 #endif /* _UAPI_SOUND_FIREWIRE_H_INCLUDED */

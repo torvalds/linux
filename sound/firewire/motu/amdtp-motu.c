@@ -361,6 +361,9 @@ static unsigned int process_ir_ctx_payloads(struct amdtp_stream *s,
 	if (motu->spec->flags & SND_MOTU_SPEC_REGISTER_DSP) {
 		snd_motu_register_dsp_message_parser_parse(motu, descs, packets,
 							   s->data_block_quadlets);
+	} else if (motu->spec->flags & SND_MOTU_SPEC_COMMAND_DSP) {
+		snd_motu_command_dsp_message_parser_parse(motu, descs, packets,
+							  s->data_block_quadlets);
 	}
 
 	// For tracepoints.
