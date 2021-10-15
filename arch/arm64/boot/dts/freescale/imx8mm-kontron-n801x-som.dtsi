@@ -152,7 +152,7 @@
 
 			reg_vdd_snvs: LDO2 {
 				regulator-name = "ldo2";
-				regulator-min-microvolt = <850000>;
+				regulator-min-microvolt = <800000>;
 				regulator-max-microvolt = <900000>;
 				regulator-boot-on;
 				regulator-always-on;
