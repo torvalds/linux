@@ -1172,7 +1172,7 @@ static int metricgroup__add_metric_list(const char *list, bool metric_no_group,
 		ret = metricgroup__add_metric(p, metric_no_group, metric_list,
 					      map);
 		if (ret == -EINVAL)
-			fprintf(stderr, "Cannot find metric or group `%s'\n", p);
+			pr_err("Cannot find metric or group `%s'\n", p);
 
 		if (ret)
 			break;
