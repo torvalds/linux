@@ -414,6 +414,8 @@ config VIDEO_OTP_EEPROM
 	help
 	  This driver supports OTP load from eeprom.
 
+source "drivers/media/i2c/rk628/Kconfig"
+
 config VIDEO_SAA7110
 	tristate "Philips SAA7110 video decoder"
 	depends on VIDEO_V4L2 && I2C

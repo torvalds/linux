@@ -1,0 +1,43 @@
+* RK628 HDMI-RX to MIPI CSI2-TX Bridge
+
+The RK628 HDMI-RX to MIPI CSI2-TX (H2C) is a bridge that converts
+a HDMI stream to MIPI CSI-2 TX. It is programmable through I2C.
+
+Required Properties:
+- compatible: value should be "rockchip,rk628-csi-v4l2"
+- reg: I2C device address
+
+Optional Properties:
+- reset-gpios: gpio phandle GPIO connected to the reset pin
+- enable-gpios: a GPIO spec for the enable pin
+- plugin-det-gpios: HDMI 5V detect pin
+- interrupts: GPIO connected to the interrupt pin
+- data-lanes: should be <1 2 3 4> for four-lane operation,
+	      or <1 2> for two-lane operation
+
+For further information on the MIPI CSI-2 endpoint node properties, see
+Documentation/devicetree/bindings/media/video-interfaces.txt.
+
+Example:
+
+	rk628_csi_v4l2: rk628_csi_v4l2@50 {
+		reg = <0x50>;
+		compatible = "rockchip,rk628-csi-v4l2";
+		interrupt-parent = <&gpio2>;
+		interrupts = <2 IRQ_TYPE_LEVEL_HIGH>;
+		enable-gpios = <&gpio5 RK_PC3 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio2 RK_PA3 GPIO_ACTIVE_LOW>;
+		plugin-det-gpios = <&gpio2 RK_PA4 GPIO_ACTIVE_LOW>;
+
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "RK628-CSI";
+		rockchip,camera-module-lens-name = "NC";
+
+		port {
+			hdmiin_out0: endpoint {
+				remote-endpoint = <&mipi_in>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};

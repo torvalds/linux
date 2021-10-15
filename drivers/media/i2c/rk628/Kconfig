@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config VIDEO_RK628
+	tristate
+	help
+	  Support for the Rockchip RK628 HDMI to MIPI CSI-2/BT1120 bridge.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called video-rk628.
+
+config VIDEO_RK628_CSI
+	tristate "Rockchip RK628_CSI decoder"
+	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	select HDMI
+	select V4L2_FWNODE
+	select VIDEO_RK628
+	help
+	  Support for the Rockchip RK628 HDMI to MIPI CSI-2 bridge.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rk628-csi.
+
+config VIDEO_RK628_BT1120
+	tristate "Rockchip RK628_BT1120 decoder"
+	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	select HDMI
+	select V4L2_FWNODE
+	select VIDEO_RK628
+	help
+	  Support for the Rockchip RK628 HDMI to BT1120 bridge.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rk628-bt1120.
