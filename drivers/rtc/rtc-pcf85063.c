@@ -34,6 +34,7 @@
 #define PCF85063_REG_CTRL1		0x00 /* status */
 #define PCF85063_REG_CTRL1_CAP_SEL	BIT(0)
 #define PCF85063_REG_CTRL1_STOP		BIT(5)
+#define PCF85063_REG_CTRL1_EXT_TEST	BIT(7)
 
 #define PCF85063_REG_CTRL2		0x01
 #define PCF85063_CTRL2_AF		BIT(6)
@@ -117,6 +118,7 @@ static int pcf85063_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	 * reset state until all time/date registers are written
 	 */
 	rc = regmap_update_bits(pcf85063->regmap, PCF85063_REG_CTRL1,
+				PCF85063_REG_CTRL1_EXT_TEST |
 				PCF85063_REG_CTRL1_STOP,
 				PCF85063_REG_CTRL1_STOP);
 	if (rc)
