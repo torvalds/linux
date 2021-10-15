@@ -731,8 +731,10 @@ int acpi_enable_wakeup_device_power(struct acpi_device *dev, int sleep_state)
 	 * put into arbitrary power state afterward.
 	 */
 	err = acpi_device_sleep_wake(dev, 1, sleep_state, 3);
-	if (err)
+	if (err) {
+		acpi_power_off_list(&dev->wakeup.resources);
 		dev->wakeup.prepare_count = 0;
+	}
 
  out:
 	mutex_unlock(&acpi_device_lock);
