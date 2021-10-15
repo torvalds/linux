@@ -162,6 +162,7 @@ static int dpaa2_dpio_probe(struct fsl_mc_device *dpio_dev)
 		goto err_get_attr;
 	}
 	desc.qman_version = dpio_attrs.qbman_version;
+	desc.qman_clk = dpio_attrs.clk;
 
 	err = dpio_enable(dpio_dev->mc_io, 0, dpio_dev->mc_handle);
 	if (err) {

@@ -24,6 +24,7 @@ struct qbman_swp_desc {
 	void *cena_bar; /* Cache-enabled portal base address */
 	void __iomem *cinh_bar; /* Cache-inhibited portal base address */
 	u32 qman_version;
+	u32 qman_clk;
 };
 
 #define QBMAN_SWP_INTERRUPT_EQRI 0x01

@@ -127,6 +127,7 @@ struct dpaa2_io *dpaa2_io_create(const struct dpaa2_io_desc *desc,
 	obj->dpio_desc = *desc;
 	obj->swp_desc.cena_bar = obj->dpio_desc.regs_cena;
 	obj->swp_desc.cinh_bar = obj->dpio_desc.regs_cinh;
+	obj->swp_desc.qman_clk = obj->dpio_desc.qman_clk;
 	obj->swp_desc.qman_version = obj->dpio_desc.qman_version;
 	obj->swp = qbman_swp_init(&obj->swp_desc);
 

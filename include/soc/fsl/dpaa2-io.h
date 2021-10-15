@@ -44,6 +44,7 @@ struct device;
  * @regs_cinh:      The cache inhibited regs
  * @dpio_id:        The dpio index
  * @qman_version:   The qman version
+ * @qman_clk:       The qman clock frequency in Hz
  *
  * Describes the attributes and features of the DPIO object.
  */
@@ -55,6 +56,7 @@ struct dpaa2_io_desc {
 	void __iomem *regs_cinh;
 	int dpio_id;
 	u32 qman_version;
+	u32 qman_clk;
 };
 
 struct dpaa2_io *dpaa2_io_create(const struct dpaa2_io_desc *desc,
