@@ -74,14 +74,8 @@ static __always_inline __pure bool use_fxsr(void)
 	return static_cpu_has(X86_FEATURE_FXSR);
 }
 
-/*
- * fpstate handling functions:
- */
-
 extern union fpregs_state init_fpstate;
-
 extern void fpstate_init_user(union fpregs_state *state);
-extern void fpu_init_fpstate_user(struct fpu *fpu);
 
 #ifdef CONFIG_MATH_EMULATION
 extern void fpstate_init_soft(struct swregs_state *soft);
@@ -381,12 +375,7 @@ static inline int os_xrstor_safe(struct xregs_state *xstate, u64 mask)
 	return err;
 }
 
-extern void __restore_fpregs_from_fpstate(union fpregs_state *fpstate, u64 mask);
-
-static inline void restore_fpregs_from_fpstate(union fpregs_state *fpstate)
-{
-	__restore_fpregs_from_fpstate(fpstate, xfeatures_mask_fpstate());
-}
+extern void restore_fpregs_from_fpstate(union fpregs_state *fpstate, u64 mask);
 
 extern bool copy_fpstate_to_sigframe(void __user *buf, void __user *fp, int size);
 
@@ -467,7 +456,7 @@ static inline void fpregs_restore_userregs(void)
 		 */
 		mask = xfeatures_mask_restore_user() |
 			xfeatures_mask_supervisor();
-		__restore_fpregs_from_fpstate(&fpu->state, mask);
+		restore_fpregs_from_fpstate(&fpu->state, mask);
 
 		fpregs_activate(fpu);
 		fpu->last_cpu = cpu;

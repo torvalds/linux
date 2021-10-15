@@ -12,6 +12,8 @@
 #define _ASM_X86_FPU_API_H
 #include <linux/bottom_half.h>
 
+#include <asm/fpu/types.h>
+
 /*
  * Use kernel_fpu_begin/end() if you intend to use FPU in kernel context. It
  * disables preemption so be careful if you intend to use it for long periods
@@ -107,5 +109,11 @@ extern int cpu_has_xfeatures(u64 xfeatures_mask, const char **feature_name);
 #define PASID_DISABLED	0
 
 static inline void update_pasid(void) { }
+
+/* fpstate-related functions which are exported to KVM */
+extern void fpu_init_fpstate_user(struct fpu *fpu);
+
+/* KVM specific functions */
+extern void fpu_swap_kvm_fpu(struct fpu *save, struct fpu *rstor, u64 restore_mask);
 
 #endif /* _ASM_X86_FPU_API_H */

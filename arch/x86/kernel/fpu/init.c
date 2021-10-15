@@ -136,7 +136,6 @@ static void __init fpu__init_system_generic(void)
  * components into a single, continuous memory block:
  */
 unsigned int fpu_kernel_xstate_size __ro_after_init;
-EXPORT_SYMBOL_GPL(fpu_kernel_xstate_size);
 
 /* Get alignment of the TYPE. */
 #define TYPE_ALIGN(TYPE) offsetof(struct { char x; TYPE test; }, test)

@@ -124,9 +124,8 @@ void save_fpregs_to_fpstate(struct fpu *fpu)
 	asm volatile("fnsave %[fp]; fwait" : [fp] "=m" (fpu->state.fsave));
 	frstor(&fpu->state.fsave);
 }
-EXPORT_SYMBOL(save_fpregs_to_fpstate);
 
-void __restore_fpregs_from_fpstate(union fpregs_state *fpstate, u64 mask)
+void restore_fpregs_from_fpstate(union fpregs_state *fpstate, u64 mask)
 {
 	/*
 	 * AMD K7/K8 and later CPUs up to Zen don't save/restore
@@ -151,7 +150,31 @@ void __restore_fpregs_from_fpstate(union fpregs_state *fpstate, u64 mask)
 			frstor(&fpstate->fsave);
 	}
 }
-EXPORT_SYMBOL_GPL(__restore_fpregs_from_fpstate);
+
+#if IS_ENABLED(CONFIG_KVM)
+void fpu_swap_kvm_fpu(struct fpu *save, struct fpu *rstor, u64 restore_mask)
+{
+	fpregs_lock();
+
+	if (save) {
+		if (test_thread_flag(TIF_NEED_FPU_LOAD)) {
+			memcpy(&save->state, &current->thread.fpu.state,
+			       fpu_kernel_xstate_size);
+		} else {
+			save_fpregs_to_fpstate(save);
+		}
+	}
+
+	if (rstor) {
+		restore_mask &= xfeatures_mask_fpstate();
+		restore_fpregs_from_fpstate(&rstor->state, restore_mask);
+	}
+
+	fpregs_mark_activate();
+	fpregs_unlock();
+}
+EXPORT_SYMBOL_GPL(fpu_swap_kvm_fpu);
+#endif
 
 void kernel_fpu_begin_mask(unsigned int kfpu_mask)
 {
@@ -457,7 +480,6 @@ void fpregs_mark_activate(void)
 	fpu->last_cpu = smp_processor_id();
 	clear_thread_flag(TIF_NEED_FPU_LOAD);
 }
-EXPORT_SYMBOL_GPL(fpregs_mark_activate);
 
 /*
  * x87 math exception handling:
