@@ -2438,6 +2438,7 @@ static int soc_tplg_manifest_load(struct soc_tplg *tplg,
 		_manifest = manifest;
 	} else {
 		abi_match = false;
+
 		ret = manifest_new_ver(tplg, manifest, &_manifest);
 		if (ret < 0)
 			return ret;
@@ -2465,6 +2466,14 @@ static int soc_valid_header(struct soc_tplg *tplg,
 			"ASoC: invalid header size for type %d at offset 0x%lx size 0x%zx.\n",
 			le32_to_cpu(hdr->type), soc_tplg_get_hdr_offset(tplg),
 			tplg->fw->size);
+		return -EINVAL;
+	}
+
+	if (soc_tplg_get_hdr_offset(tplg) + hdr->payload_size >= tplg->fw->size) {
+		dev_err(tplg->dev,
+			"ASoC: invalid header of type %d at offset %ld payload_size %d\n",
+			le32_to_cpu(hdr->type), soc_tplg_get_hdr_offset(tplg),
+			hdr->payload_size);
 		return -EINVAL;
 	}
 
