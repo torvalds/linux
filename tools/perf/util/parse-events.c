@@ -337,7 +337,7 @@ static int parse_events__is_name_term(struct parse_events_term *term)
 	return term->type_term == PARSE_EVENTS__TERM_TYPE_NAME;
 }
 
-static char *get_config_name(struct list_head *head_terms)
+static const char *get_config_name(struct list_head *head_terms)
 {
 	struct parse_events_term *term;
 
@@ -355,7 +355,7 @@ static struct evsel *
 __add_event(struct list_head *list, int *idx,
 	    struct perf_event_attr *attr,
 	    bool init_attr,
-	    char *name, struct perf_pmu *pmu,
+	    const char *name, struct perf_pmu *pmu,
 	    struct list_head *config_terms, bool auto_merge_stats,
 	    const char *cpu_list)
 {
@@ -394,14 +394,14 @@ __add_event(struct list_head *list, int *idx,
 }
 
 struct evsel *parse_events__add_event(int idx, struct perf_event_attr *attr,
-					char *name, struct perf_pmu *pmu)
+				      const char *name, struct perf_pmu *pmu)
 {
 	return __add_event(NULL, &idx, attr, false, name, pmu, NULL, false,
 			   NULL);
 }
 
 static int add_event(struct list_head *list, int *idx,
-		     struct perf_event_attr *attr, char *name,
+		     struct perf_event_attr *attr, const char *name,
 		     struct list_head *config_terms)
 {
 	return __add_event(list, idx, attr, true, name, NULL, config_terms,
@@ -464,7 +464,8 @@ int parse_events_add_cache(struct list_head *list, int *idx,
 {
 	struct perf_event_attr attr;
 	LIST_HEAD(config_terms);
-	char name[MAX_NAME_LEN], *config_name;
+	char name[MAX_NAME_LEN];
+	const char *config_name;
 	int cache_type = -1, cache_op = -1, cache_result = -1;
 	char *op_result[2] = { op_result1, op_result2 };
 	int i, n, ret;
@@ -2027,7 +2028,7 @@ int parse_events__modifier_event(struct list_head *list, char *str, bool add)
 	return 0;
 }
 
-int parse_events_name(struct list_head *list, char *name)
+int parse_events_name(struct list_head *list, const char *name)
 {
 	struct evsel *evsel;
 
@@ -3344,7 +3345,7 @@ fail:
 
 struct evsel *parse_events__add_event_hybrid(struct list_head *list, int *idx,
 					     struct perf_event_attr *attr,
-					     char *name, struct perf_pmu *pmu,
+					     const char *name, struct perf_pmu *pmu,
 					     struct list_head *config_terms)
 {
 	return __add_event(list, idx, attr, true, name, pmu,

@@ -38,7 +38,7 @@ static void config_hybrid_attr(struct perf_event_attr *attr,
 
 static int create_event_hybrid(__u32 config_type, int *idx,
 			       struct list_head *list,
-			       struct perf_event_attr *attr, char *name,
+			       struct perf_event_attr *attr, const char *name,
 			       struct list_head *config_terms,
 			       struct perf_pmu *pmu)
 {
@@ -70,7 +70,7 @@ static int pmu_cmp(struct parse_events_state *parse_state,
 
 static int add_hw_hybrid(struct parse_events_state *parse_state,
 			 struct list_head *list, struct perf_event_attr *attr,
-			 char *name, struct list_head *config_terms)
+			 const char *name, struct list_head *config_terms)
 {
 	struct perf_pmu *pmu;
 	int ret;
@@ -94,7 +94,8 @@ static int add_hw_hybrid(struct parse_events_state *parse_state,
 }
 
 static int create_raw_event_hybrid(int *idx, struct list_head *list,
-				   struct perf_event_attr *attr, char *name,
+				   struct perf_event_attr *attr,
+				   const char *name,
 				   struct list_head *config_terms,
 				   struct perf_pmu *pmu)
 {
@@ -113,7 +114,7 @@ static int create_raw_event_hybrid(int *idx, struct list_head *list,
 
 static int add_raw_hybrid(struct parse_events_state *parse_state,
 			  struct list_head *list, struct perf_event_attr *attr,
-			  char *name, struct list_head *config_terms)
+			  const char *name, struct list_head *config_terms)
 {
 	struct perf_pmu *pmu;
 	int ret;
@@ -138,7 +139,8 @@ static int add_raw_hybrid(struct parse_events_state *parse_state,
 int parse_events__add_numeric_hybrid(struct parse_events_state *parse_state,
 				     struct list_head *list,
 				     struct perf_event_attr *attr,
-				     char *name, struct list_head *config_terms,
+				     const char *name,
+				     struct list_head *config_terms,
 				     bool *hybrid)
 {
 	*hybrid = false;
@@ -159,7 +161,8 @@ int parse_events__add_numeric_hybrid(struct parse_events_state *parse_state,
 }
 
 int parse_events__add_cache_hybrid(struct list_head *list, int *idx,
-				   struct perf_event_attr *attr, char *name,
+				   struct perf_event_attr *attr,
+				   const char *name,
 				   struct list_head *config_terms,
 				   bool *hybrid,
 				   struct parse_events_state *parse_state)
