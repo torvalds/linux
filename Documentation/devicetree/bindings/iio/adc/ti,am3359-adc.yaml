@@ -11,7 +11,9 @@ maintainers:
 
 properties:
   compatible:
-    const: ti,am3359-adc
+    enum:
+      - ti,am3359-adc
+      - ti,am4372-adc
 
   '#io-channel-cells':
     const: 1
