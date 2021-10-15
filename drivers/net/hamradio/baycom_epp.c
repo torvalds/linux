@@ -623,16 +623,16 @@ static int receive(struct net_device *dev, int cnt)
 
 /* --------------------------------------------------------------------- */
 
-#ifdef __i386__
+#if defined(__i386__) && !defined(CONFIG_UML)
 #include <asm/msr.h>
 #define GETTICK(x)						\
 ({								\
 	if (boot_cpu_has(X86_FEATURE_TSC))			\
 		x = (unsigned int)rdtsc();			\
 })
-#else /* __i386__ */
+#else /* __i386__  && !CONFIG_UML */
 #define GETTICK(x)
-#endif /* __i386__ */
+#endif /* __i386__  && !CONFIG_UML */
 
 static void epp_bh(struct work_struct *work)
 {
