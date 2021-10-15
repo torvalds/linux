@@ -14,6 +14,8 @@
  *    Copyright (C) 2003 James Bottomley <jejb at parisc-linux.org>
  */
 
+#define GENERATING_ASM_OFFSETS /* asm/smp.h */
+
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/thread_info.h>
@@ -35,13 +37,16 @@
 
 int main(void)
 {
-	DEFINE(TASK_THREAD_INFO, offsetof(struct task_struct, stack));
-	DEFINE(TASK_FLAGS, offsetof(struct task_struct, flags));
+	DEFINE(TASK_TI_FLAGS, offsetof(struct task_struct, thread_info.flags));
 	DEFINE(TASK_SIGPENDING, offsetof(struct task_struct, pending));
 	DEFINE(TASK_PTRACE, offsetof(struct task_struct, ptrace));
 	DEFINE(TASK_MM, offsetof(struct task_struct, mm));
 	DEFINE(TASK_PERSONALITY, offsetof(struct task_struct, personality));
 	DEFINE(TASK_PID, offsetof(struct task_struct, pid));
+	DEFINE(TASK_STACK, offsetof(struct task_struct, stack));
+#ifdef CONFIG_SMP
+	DEFINE(TASK_CPU, offsetof(struct task_struct, cpu));
+#endif
 	BLANK();
 	DEFINE(TASK_REGS, offsetof(struct task_struct, thread.regs));
 	DEFINE(TASK_PT_PSW, offsetof(struct task_struct, thread.regs.gr[ 0]));
@@ -129,10 +134,6 @@ int main(void)
 	DEFINE(TASK_PT_ISR, offsetof(struct task_struct, thread.regs.isr));
 	DEFINE(TASK_PT_IOR, offsetof(struct task_struct, thread.regs.ior));
 	BLANK();
-	DEFINE(TASK_SZ, sizeof(struct task_struct));
-	/* TASK_SZ_ALGN includes space for a stack frame. */
-	DEFINE(TASK_SZ_ALGN, align_frame(sizeof(struct task_struct), FRAME_ALIGN));
-	BLANK();
 	DEFINE(PT_PSW, offsetof(struct pt_regs, gr[ 0]));
 	DEFINE(PT_GR1, offsetof(struct pt_regs, gr[ 1]));
 	DEFINE(PT_GR2, offsetof(struct pt_regs, gr[ 2]));
@@ -217,17 +218,11 @@ int main(void)
 	DEFINE(PT_IIR, offsetof(struct pt_regs, iir));
 	DEFINE(PT_ISR, offsetof(struct pt_regs, isr));
 	DEFINE(PT_IOR, offsetof(struct pt_regs, ior));
-	DEFINE(PT_SIZE, sizeof(struct pt_regs));
 	/* PT_SZ_ALGN includes space for a stack frame. */
 	DEFINE(PT_SZ_ALGN, align_frame(sizeof(struct pt_regs), FRAME_ALIGN));
 	BLANK();
-	DEFINE(TI_TASK, offsetof(struct thread_info, task));
 	DEFINE(TI_FLAGS, offsetof(struct thread_info, flags));
-	DEFINE(TI_CPU, offsetof(struct thread_info, cpu));
-	DEFINE(TI_PRE_COUNT, offsetof(struct thread_info, preempt_count));
-	DEFINE(THREAD_SZ, sizeof(struct thread_info));
-	/* THREAD_SZ_ALGN includes space for a stack frame. */
-	DEFINE(THREAD_SZ_ALGN, align_frame(sizeof(struct thread_info), FRAME_ALIGN));
+	DEFINE(TI_PRE_COUNT, offsetof(struct task_struct, thread_info.preempt_count));
 	BLANK();
 	DEFINE(ICACHE_BASE, offsetof(struct pdc_cache_info, ic_base));
 	DEFINE(ICACHE_STRIDE, offsetof(struct pdc_cache_info, ic_stride));

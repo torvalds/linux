@@ -205,7 +205,7 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 		/* Must exit via ret_from_kernel_thread in order
 		 * to call schedule_tail()
 		 */
-		cregs->ksp = (unsigned long)stack + THREAD_SZ_ALGN + FRAME_SIZE;
+		cregs->ksp = (unsigned long) stack + FRAME_SIZE + PT_SZ_ALGN;
 		cregs->kpc = (unsigned long) &ret_from_kernel_thread;
 		/*
 		 * Copy function and argument to be called from
@@ -228,7 +228,7 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 			if (likely(usp))
 				cregs->gr[30] = usp;
 		}
-		cregs->ksp = (unsigned long)stack + THREAD_SZ_ALGN + FRAME_SIZE;
+		cregs->ksp = (unsigned long) stack + FRAME_SIZE;
 		cregs->kpc = (unsigned long) &child_return;
 
 		/* Setup thread TLS area */

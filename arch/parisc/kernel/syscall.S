@@ -139,9 +139,9 @@ linux_gateway_entry:
 	xor     %r1,%r30,%r30                   /* ye olde xor trick */
 	xor     %r1,%r30,%r1
 	xor     %r1,%r30,%r30
-	
-	ldo     THREAD_SZ_ALGN+FRAME_SIZE(%r30),%r30  /* set up kernel stack */
 
+	LDREG	TASK_STACK(%r30),%r30		/* set up kernel stack */
+	ldo	FRAME_SIZE(%r30),%r30
 	/* N.B.: It is critical that we don't set sr7 to 0 until r30
 	 *       contains a valid kernel stack pointer. It is also
 	 *       critical that we don't start using the kernel stack
@@ -152,7 +152,6 @@ linux_gateway_entry:
 	ssm	PSW_SM_I, %r0			/* enable interrupts */
 	STREGM	%r1,FRAME_SIZE(%r30)		/* save r1 (usp) here for now */
 	mfctl	%cr30,%r1			/* get task ptr in %r1 */
-	LDREG	TI_TASK(%r1),%r1
 
 	/* Save some registers for sigcontext and potential task
 	   switch (see entry.S for the details of which ones are
@@ -207,7 +206,7 @@ linux_gateway_entry:
 
 	/* Are we being ptraced? */
 	mfctl	%cr30, %r1
-	LDREG	TI_FLAGS(%r1),%r1
+	LDREG	TASK_TI_FLAGS(%r1),%r1
 	ldi	_TIF_SYSCALL_TRACE_MASK, %r19
 	and,COND(=) %r1, %r19, %r0
 	b,n	.Ltracesys
@@ -272,8 +271,7 @@ tracesys:
 	 * C bit set, a non-straced syscall entry results in C and D clear
 	 * in the saved PSW.
 	 */
-	ldo     -THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1      /* get task ptr */
-	LDREG	TI_TASK(%r1), %r1
+	mfctl	%cr30,%r1			/* get task ptr */
 	ssm	0,%r2
 	STREG	%r2,TASK_PT_PSW(%r1)		/* Lower 8 bits only!! */
 	mfsp	%sr0,%r2
@@ -327,8 +325,7 @@ tracesys_next:
 	 */
 	copy	%ret0,%r20
 
-	ldo     -THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1      /* get task ptr */
-	LDREG	TI_TASK(%r1), %r1
+	mfctl	%cr30,%r1			/* get task ptr */
 	LDREG   TASK_PT_GR28(%r1), %r28		/* Restore return value */
 	LDREG   TASK_PT_GR26(%r1), %r26		/* Restore the users args */
 	LDREG   TASK_PT_GR25(%r1), %r25
@@ -385,16 +382,14 @@ tracesys_next:
 	makes a direct call to syscall_trace. */
 	
 tracesys_exit:
-	ldo     -THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1      /* get task ptr */
-	LDREG	TI_TASK(%r1), %r1
+	mfctl	%cr30,%r1			/* get task ptr */
 #ifdef CONFIG_64BIT
 	ldo	-16(%r30),%r29			/* Reference param save area */
 #endif
 	ldo	TASK_REGS(%r1),%r26
 	BL	do_syscall_trace_exit,%r2
 	STREG   %r28,TASK_PT_GR28(%r1)          /* save return value now */
-	ldo     -THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1      /* get task ptr */
-	LDREG	TI_TASK(%r1), %r1
+	mfctl	%cr30,%r1			/* get task ptr */
 	LDREG   TASK_PT_GR28(%r1), %r28		/* Restore return val. */
 
 	ldil	L%syscall_exit,%r1
@@ -407,8 +402,7 @@ tracesys_exit:
 	ldo	R%tracesys_sigexit(%r2),%r2
 
 tracesys_sigexit:
-	ldo     -THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1      /* get task ptr */
-	LDREG	TI_TASK(%r1), %r1
+	mfctl	%cr30,%r1			/* get task ptr */
 #ifdef CONFIG_64BIT
 	ldo	-16(%r30),%r29			/* Reference param save area */
 #endif

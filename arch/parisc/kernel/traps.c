@@ -144,7 +144,7 @@ void show_regs(struct pt_regs *regs)
 	printk("%s IIR: %08lx    ISR: " RFMT "  IOR: " RFMT "\n",
 	       level, regs->iir, regs->isr, regs->ior);
 	printk("%s CPU: %8d   CR30: " RFMT " CR31: " RFMT "\n",
-	       level, current_thread_info()->cpu, cr30, cr31);
+	       level, task_cpu(current), cr30, cr31);
 	printk("%s ORIG_R28: " RFMT "\n", level, regs->orig_r28);
 
 	if (user) {

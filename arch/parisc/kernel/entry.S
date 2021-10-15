@@ -63,8 +63,8 @@
 	 *          Need to set up a kernel stack, so call the
 	 *          get_stack_use_cr30 macro to set up a pointer
 	 *          to the pt_regs structure contained within the
-	 *          task pointer pointed to by cr30. Set the stack
-	 *          pointer to point to the end of the task structure.
+	 *          task pointer pointed to by cr30. Load the stack
+	 *          pointer from the task structure.
 	 *
 	 * Note that we use shadowed registers for temps until
 	 * we can save %r26 and %r29. %r26 is used to preserve
@@ -76,8 +76,6 @@
 	 * or handle_interruption. %r29 is used to hold a pointer
 	 * the register save area, and once again, it needs to
 	 * be a non-shadowed register so that it survives the rfir.
-	 *
-	 * N.B. TASK_SZ_ALGN and PT_SZ_ALGN include space for a stack frame.
 	 */
 
 	.macro  get_stack_use_cr30
@@ -86,12 +84,11 @@
 
 	copy	%r30, %r17
 	mfctl   %cr30, %r1
-	ldo	THREAD_SZ_ALGN(%r1), %r30
-	mtsp	%r0,%sr7
+	tophys  %r1,%r9		/* task_struct */
+	LDREG	TASK_STACK(%r9),%r30
+	ldo	PT_SZ_ALGN(%r30),%r30
+	mtsp	%r0,%sr7	/* clear sr7 after kernel stack was set! */
 	mtsp	%r16,%sr3
-	tophys  %r1,%r9
-	LDREG	TI_TASK(%r9), %r1	/* thread_info -> task_struct */
-	tophys  %r1,%r9
 	ldo     TASK_REGS(%r9),%r9
 	STREG   %r17,PT_GR30(%r9)
 	STREG   %r29,PT_GR29(%r9)
@@ -733,7 +730,7 @@ ENTRY(ret_from_kernel_thread)
 	BL	schedule_tail, %r2
 	nop
 
-	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30), %r1
+	mfctl	%cr30,%r1	/* task_struct */
 	LDREG	TASK_PT_GR25(%r1), %r26
 #ifdef CONFIG_64BIT
 	LDREG	TASK_PT_GR27(%r1), %r27
@@ -764,7 +761,6 @@ ENTRY_CFI(_switch_to)
 
 	STREG	%r30, TASK_PT_KSP(%r26)
 	LDREG	TASK_PT_KSP(%r25), %r30
-	LDREG	TASK_THREAD_INFO(%r25), %r25
 	bv	%r0(%r2)
 	mtctl   %r25,%cr30
 
@@ -795,8 +791,7 @@ ENDPROC_CFI(_switch_to)
 	.align	PAGE_SIZE
 
 ENTRY_CFI(syscall_exit_rfi)
-	mfctl   %cr30,%r16
-	LDREG	TI_TASK(%r16), %r16	/* thread_info -> task_struct */
+	mfctl	%cr30,%r16		/* task_struct */
 	ldo	TASK_REGS(%r16),%r16
 	/* Force iaoq to userspace, as the user has had access to our current
 	 * context via sigcontext. Also Filter the PSW for the same reason.
@@ -841,14 +836,14 @@ ENTRY_CFI(syscall_exit_rfi)
 ENTRY(intr_return)
 	/* check for reschedule */
 	mfctl   %cr30,%r1
-	LDREG   TI_FLAGS(%r1),%r19	/* sched.h: TIF_NEED_RESCHED */
+	LDREG   TASK_TI_FLAGS(%r1),%r19	/* sched.h: TIF_NEED_RESCHED */
 	bb,<,n	%r19,31-TIF_NEED_RESCHED,intr_do_resched /* forward */
 
 	.import do_notify_resume,code
 intr_check_sig:
 	/* As above */
 	mfctl   %cr30,%r1
-	LDREG	TI_FLAGS(%r1),%r19
+	LDREG	TASK_TI_FLAGS(%r1),%r19
 	ldi	(_TIF_USER_WORK_MASK & ~_TIF_NEED_RESCHED), %r20
 	and,COND(<>)	%r19, %r20, %r0
 	b,n	intr_restore	/* skip past if we've nothing to do */
@@ -1692,7 +1687,7 @@ dtlb_fault:
 
 	.macro	fork_like name
 ENTRY_CFI(sys_\name\()_wrapper)
-	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30), %r1
+	mfctl	%cr30,%r1
 	ldo	TASK_REGS(%r1),%r1
 	reg_save %r1
 	mfctl	%cr27, %r28
@@ -1712,7 +1707,7 @@ ENTRY(child_return)
 	BL	schedule_tail, %r2
 	nop
 finish_child_return:
-	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30), %r1
+	mfctl	%cr30,%r1
 	ldo	TASK_REGS(%r1),%r1	 /* get pt regs */
 
 	LDREG	PT_CR27(%r1), %r3
@@ -1723,7 +1718,7 @@ finish_child_return:
 END(child_return)
 
 ENTRY_CFI(sys_rt_sigreturn_wrapper)
-	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r26
+	mfctl	%cr30,%r26
 	ldo	TASK_REGS(%r26),%r26	/* get pt regs */
 	/* Don't save regs, we are going to restore them from sigcontext. */
 	STREG	%r2, -RP_OFFSET(%r30)
@@ -1740,7 +1735,7 @@ ENTRY_CFI(sys_rt_sigreturn_wrapper)
 	LDREG	-RP_OFFSET(%r30), %r2
 
 	/* FIXME: I think we need to restore a few more things here. */
-	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1
+	mfctl	%cr30,%r1
 	ldo	TASK_REGS(%r1),%r1	/* get pt regs */
 	reg_restore %r1
 
@@ -1759,9 +1754,7 @@ ENTRY(syscall_exit)
 	 */
 
 	/* save return value now */
-
 	mfctl     %cr30, %r1
-	LDREG     TI_TASK(%r1),%r1
 	STREG     %r28,TASK_PT_GR28(%r1)
 
 	/* Seems to me that dp could be wrong here, if the syscall involved
@@ -1772,13 +1765,14 @@ ENTRY(syscall_exit)
 syscall_check_resched:
 
 	/* check for reschedule */
-
-	LDREG	TI_FLAGS-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r19	/* long */
+	mfctl	%cr30,%r19
+	LDREG	TASK_TI_FLAGS(%r19),%r19	/* long */
 	bb,<,n	%r19, 31-TIF_NEED_RESCHED, syscall_do_resched /* forward */
 
 	.import do_signal,code
 syscall_check_sig:
-	LDREG	TI_FLAGS-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r19
+	mfctl	%cr30,%r19
+	LDREG	TASK_TI_FLAGS(%r19),%r19
 	ldi	(_TIF_USER_WORK_MASK & ~_TIF_NEED_RESCHED), %r26
 	and,COND(<>)	%r19, %r26, %r0
 	b,n	syscall_restore	/* skip past if we've nothing to do */
@@ -1789,7 +1783,7 @@ syscall_do_signal:
 	 * consistent with all the relevant state of the process
 	 * before the syscall.  We need to verify this.
 	 */
-	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1
+	mfctl	%cr30,%r1
 	ldo	TASK_REGS(%r1), %r26		/* struct pt_regs *regs */
 	reg_save %r26
 
@@ -1800,17 +1794,17 @@ syscall_do_signal:
 	BL	do_notify_resume,%r2
 	ldi	1, %r25				/* long in_syscall = 1 */
 
-	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1
+	mfctl	%cr30,%r1
 	ldo	TASK_REGS(%r1), %r20		/* reload pt_regs */
 	reg_restore %r20
 
 	b,n     syscall_check_sig
 
 syscall_restore:
-	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1
+	mfctl	%cr30,%r1
 
 	/* Are we being ptraced? */
-	LDREG	TI_FLAGS-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r19
+	LDREG	TASK_TI_FLAGS(%r1),%r19
 	ldi	_TIF_SYSCALL_TRACE_MASK,%r2
 	and,COND(=)	%r19,%r2,%r0
 	b,n	syscall_restore_rfi
