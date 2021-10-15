@@ -4,6 +4,7 @@
  *
  * Author: Suresh Siddha <suresh.b.siddha@intel.com>
  */
+#include <linux/bitops.h>
 #include <linux/compat.h>
 #include <linux/cpu.h>
 #include <linux/mman.h>
@@ -19,6 +20,10 @@
 #include <asm/tlbflush.h>
 
 #include "xstate.h"
+
+#define for_each_extended_xfeature(bit, mask)				\
+	(bit) = FIRST_EXTENDED_XFEATURE;				\
+	for_each_set_bit_from(bit, (unsigned long *)&(mask), 8 * sizeof(mask))
 
 /*
  * Although we spell it out in here, the Processor Trace
@@ -184,10 +189,7 @@ static void __init setup_xstate_features(void)
 	xstate_sizes[XFEATURE_SSE]	= sizeof_field(struct fxregs_state,
 						       xmm_space);
 
-	for (i = FIRST_EXTENDED_XFEATURE; i < XFEATURE_MAX; i++) {
-		if (!xfeature_enabled(i))
-			continue;
-
+	for_each_extended_xfeature(i, xfeatures_mask_all) {
 		cpuid_count(XSTATE_CPUID, i, &eax, &ebx, &ecx, &edx);
 
 		xstate_sizes[i] = eax;
@@ -291,20 +293,15 @@ static void __init setup_xstate_comp_offsets(void)
 	xstate_comp_offsets[XFEATURE_SSE] = offsetof(struct fxregs_state,
 						     xmm_space);
 
-	if (!boot_cpu_has(X86_FEATURE_XSAVES)) {
-		for (i = FIRST_EXTENDED_XFEATURE; i < XFEATURE_MAX; i++) {
-			if (xfeature_enabled(i))
-				xstate_comp_offsets[i] = xstate_offsets[i];
-		}
+	if (!cpu_feature_enabled(X86_FEATURE_XSAVES)) {
+		for_each_extended_xfeature(i, xfeatures_mask_all)
+			xstate_comp_offsets[i] = xstate_offsets[i];
 		return;
 	}
 
 	next_offset = FXSAVE_SIZE + XSAVE_HDR_SIZE;
 
-	for (i = FIRST_EXTENDED_XFEATURE; i < XFEATURE_MAX; i++) {
-		if (!xfeature_enabled(i))
-			continue;
-
+	for_each_extended_xfeature(i, xfeatures_mask_all) {
 		if (xfeature_is_aligned(i))
 			next_offset = ALIGN(next_offset, 64);
 
@@ -328,8 +325,8 @@ static void __init setup_supervisor_only_offsets(void)
 
 	next_offset = FXSAVE_SIZE + XSAVE_HDR_SIZE;
 
-	for (i = FIRST_EXTENDED_XFEATURE; i < XFEATURE_MAX; i++) {
-		if (!xfeature_enabled(i) || !xfeature_is_supervisor(i))
+	for_each_extended_xfeature(i, xfeatures_mask_all) {
+		if (!xfeature_is_supervisor(i))
 			continue;
 
 		if (xfeature_is_aligned(i))
@@ -347,9 +344,7 @@ static void __init print_xstate_offset_size(void)
 {
 	int i;
 
-	for (i = FIRST_EXTENDED_XFEATURE; i < XFEATURE_MAX; i++) {
-		if (!xfeature_enabled(i))
-			continue;
+	for_each_extended_xfeature(i, xfeatures_mask_all) {
 		pr_info("x86/fpu: xstate_offset[%d]: %4d, xstate_sizes[%d]: %4d\n",
 			 i, xstate_comp_offsets[i], i, xstate_sizes[i]);
 	}
@@ -554,10 +549,7 @@ static void do_extra_xstate_size_checks(void)
 	int paranoid_xstate_size = FXSAVE_SIZE + XSAVE_HDR_SIZE;
 	int i;
 
-	for (i = FIRST_EXTENDED_XFEATURE; i < XFEATURE_MAX; i++) {
-		if (!xfeature_enabled(i))
-			continue;
-
+	for_each_extended_xfeature(i, xfeatures_mask_all) {
 		check_xstate_against_struct(i);
 		/*
 		 * Supervisor state components can be managed only by
@@ -585,7 +577,6 @@ static void do_extra_xstate_size_checks(void)
 	}
 	XSTATE_WARN_ON(paranoid_xstate_size != fpu_kernel_xstate_size);
 }
-
 
 /*
  * Get total size of enabled xstates in XCR0 | IA32_XSS.
@@ -969,6 +960,7 @@ void copy_xstate_to_uabi_buf(struct membuf to, struct task_struct *tsk,
 	struct xregs_state *xinit = &init_fpstate.xsave;
 	struct xstate_header header;
 	unsigned int zerofrom;
+	u64 mask;
 	int i;
 
 	memset(&header, 0, sizeof(header));
@@ -1022,17 +1014,15 @@ void copy_xstate_to_uabi_buf(struct membuf to, struct task_struct *tsk,
 
 	zerofrom = offsetof(struct xregs_state, extended_state_area);
 
-	for (i = FIRST_EXTENDED_XFEATURE; i < XFEATURE_MAX; i++) {
-		/*
-		 * The ptrace buffer is in non-compacted XSAVE format.
-		 * In non-compacted format disabled features still occupy
-		 * state space, but there is no state to copy from in the
-		 * compacted init_fpstate. The gap tracking will zero this
-		 * later.
-		 */
-		if (!(xfeatures_mask_uabi() & BIT_ULL(i)))
-			continue;
+	/*
+	 * The ptrace buffer is in non-compacted XSAVE format.  In
+	 * non-compacted format disabled features still occupy state space,
+	 * but there is no state to copy from in the compacted
+	 * init_fpstate. The gap tracking will zero these states.
+	 */
+	mask = xfeatures_mask_uabi();
 
+	for_each_extended_xfeature(i, mask) {
 		/*
 		 * If there was a feature or alignment gap, zero the space
 		 * in the destination buffer.
