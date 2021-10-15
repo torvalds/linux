@@ -141,7 +141,7 @@ static ssize_t tle62x0_gpio_show(struct device *dev,
 	value = (st->gpio_state >> gpio_num) & 1;
 	mutex_unlock(&st->lock);
 
-	return snprintf(buf, PAGE_SIZE, "%d", value);
+	return sysfs_emit(buf, "%d", value);
 }
 
 static ssize_t tle62x0_gpio_store(struct device *dev,
