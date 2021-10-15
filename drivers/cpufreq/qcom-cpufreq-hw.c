@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018, 2021, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/bitfield.h>
@@ -597,9 +597,9 @@ static int qcom_cpufreq_hw_cpu_exit(struct cpufreq_policy *policy)
 	struct resource *res = data->res;
 	void __iomem *base = data->base;
 
+	qcom_cpufreq_hw_lmh_exit(data);
 	dev_pm_opp_remove_all_dynamic(cpu_dev);
 	dev_pm_opp_of_cpumask_remove_table(policy->related_cpus);
-	qcom_cpufreq_hw_lmh_exit(data);
 	kfree(policy->freq_table);
 	kfree(data);
 	iounmap(base);
