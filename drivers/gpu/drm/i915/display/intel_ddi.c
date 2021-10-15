@@ -1939,7 +1939,7 @@ void intel_ddi_enable_clock(struct intel_encoder *encoder,
 		encoder->enable_clock(encoder, crtc_state);
 }
 
-static void intel_ddi_disable_clock(struct intel_encoder *encoder)
+void intel_ddi_disable_clock(struct intel_encoder *encoder)
 {
 	if (encoder->disable_clock)
 		encoder->disable_clock(encoder);
@@ -2865,41 +2865,6 @@ static void intel_ddi_post_disable(struct intel_atomic_state *state,
 
 	if (is_tc_port)
 		intel_tc_port_put_link(dig_port);
-}
-
-void intel_ddi_fdi_post_disable(struct intel_atomic_state *state,
-				struct intel_encoder *encoder,
-				const struct intel_crtc_state *old_crtc_state,
-				const struct drm_connector_state *old_conn_state)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	u32 val;
-
-	/*
-	 * Bspec lists this as both step 13 (before DDI_BUF_CTL disable)
-	 * and step 18 (after clearing PORT_CLK_SEL). Based on a BUN,
-	 * step 13 is the correct place for it. Step 18 is where it was
-	 * originally before the BUN.
-	 */
-	val = intel_de_read(dev_priv, FDI_RX_CTL(PIPE_A));
-	val &= ~FDI_RX_ENABLE;
-	intel_de_write(dev_priv, FDI_RX_CTL(PIPE_A), val);
-
-	intel_disable_ddi_buf(encoder, old_crtc_state);
-	intel_ddi_disable_clock(encoder);
-
-	val = intel_de_read(dev_priv, FDI_RX_MISC(PIPE_A));
-	val &= ~(FDI_RX_PWRDN_LANE1_MASK | FDI_RX_PWRDN_LANE0_MASK);
-	val |= FDI_RX_PWRDN_LANE1_VAL(2) | FDI_RX_PWRDN_LANE0_VAL(2);
-	intel_de_write(dev_priv, FDI_RX_MISC(PIPE_A), val);
-
-	val = intel_de_read(dev_priv, FDI_RX_CTL(PIPE_A));
-	val &= ~FDI_PCDCLK;
-	intel_de_write(dev_priv, FDI_RX_CTL(PIPE_A), val);
-
-	val = intel_de_read(dev_priv, FDI_RX_CTL(PIPE_A));
-	val &= ~FDI_RX_PLL_ENABLE;
-	intel_de_write(dev_priv, FDI_RX_CTL(PIPE_A), val);
 }
 
 static void trans_port_sync_stop_link_train(struct intel_atomic_state *state,

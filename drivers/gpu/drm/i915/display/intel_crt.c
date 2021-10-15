@@ -264,7 +264,7 @@ static void hsw_post_disable_crt(struct intel_atomic_state *state,
 	lpt_disable_pch_transcoder(dev_priv);
 	lpt_disable_iclkip(dev_priv);
 
-	intel_ddi_fdi_post_disable(state, encoder, old_crtc_state, old_conn_state);
+	hsw_fdi_disable(encoder);
 
 	drm_WARN_ON(&dev_priv->drm, !old_crtc_state->has_pch_encoder);
 

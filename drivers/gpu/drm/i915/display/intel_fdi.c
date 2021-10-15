@@ -886,6 +886,43 @@ void hsw_fdi_link_train(struct intel_encoder *encoder,
 		       DP_TP_CTL_ENABLE);
 }
 
+void hsw_fdi_disable(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	u32 val;
+
+	/*
+	 * Bspec lists this as both step 13 (before DDI_BUF_CTL disable)
+	 * and step 18 (after clearing PORT_CLK_SEL). Based on a BUN,
+	 * step 13 is the correct place for it. Step 18 is where it was
+	 * originally before the BUN.
+	 */
+	val = intel_de_read(dev_priv, FDI_RX_CTL(PIPE_A));
+	val &= ~FDI_RX_ENABLE;
+	intel_de_write(dev_priv, FDI_RX_CTL(PIPE_A), val);
+
+	val = intel_de_read(dev_priv, DDI_BUF_CTL(PORT_E));
+	val &= ~DDI_BUF_CTL_ENABLE;
+	intel_de_write(dev_priv, DDI_BUF_CTL(PORT_E), val);
+
+	intel_wait_ddi_buf_idle(dev_priv, PORT_E);
+
+	intel_ddi_disable_clock(encoder);
+
+	val = intel_de_read(dev_priv, FDI_RX_MISC(PIPE_A));
+	val &= ~(FDI_RX_PWRDN_LANE1_MASK | FDI_RX_PWRDN_LANE0_MASK);
+	val |= FDI_RX_PWRDN_LANE1_VAL(2) | FDI_RX_PWRDN_LANE0_VAL(2);
+	intel_de_write(dev_priv, FDI_RX_MISC(PIPE_A), val);
+
+	val = intel_de_read(dev_priv, FDI_RX_CTL(PIPE_A));
+	val &= ~FDI_PCDCLK;
+	intel_de_write(dev_priv, FDI_RX_CTL(PIPE_A), val);
+
+	val = intel_de_read(dev_priv, FDI_RX_CTL(PIPE_A));
+	val &= ~FDI_RX_PLL_ENABLE;
+	intel_de_write(dev_priv, FDI_RX_CTL(PIPE_A), val);
+}
+
 void ilk_fdi_pll_enable(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);

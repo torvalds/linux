@@ -30,6 +30,7 @@ void intel_ddi_fdi_post_disable(struct intel_atomic_state *state,
 				const struct drm_connector_state *old_conn_state);
 void intel_ddi_enable_clock(struct intel_encoder *encoder,
 			    const struct intel_crtc_state *crtc_state);
+void intel_ddi_disable_clock(struct intel_encoder *encoder);
 void intel_ddi_get_clock(struct intel_encoder *encoder,
 			 struct intel_crtc_state *crtc_state,
 			 struct intel_shared_dpll *pll);
