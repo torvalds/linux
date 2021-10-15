@@ -134,5 +134,8 @@ int dpaa2_io_query_bp_count(struct dpaa2_io *d, u16 bpid,
 
 int dpaa2_io_set_irq_coalescing(struct dpaa2_io *d, u32 irq_holdoff);
 void dpaa2_io_get_irq_coalescing(struct dpaa2_io *d, u32 *irq_holdoff);
-
+void dpaa2_io_set_adaptive_coalescing(struct dpaa2_io *d,
+				      int use_adaptive_rx_coalesce);
+int dpaa2_io_get_adaptive_coalescing(struct dpaa2_io *d);
+void dpaa2_io_update_net_dim(struct dpaa2_io *d, __u64 frames, __u64 bytes);
 #endif /* __FSL_DPAA2_IO_H */

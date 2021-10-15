@@ -162,6 +162,7 @@ struct qbman_swp {
 	/* Interrupt coalescing */
 	u32 irq_threshold;
 	u32 irq_holdoff;
+	int use_adaptive_rx_coalesce;
 };
 
 /* Function pointers */
