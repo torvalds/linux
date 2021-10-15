@@ -776,6 +776,14 @@ static inline u32 vop2_line_to_time(struct drm_display_mode *mode, int line)
 	return val; /* us */
 }
 
+static inline bool vop2_plane_active(struct drm_plane_state *pstate)
+{
+	if (!pstate || !pstate->fb)
+		return false;
+	else
+		return true;
+}
+
 static bool vop2_soc_is_rk3566(void)
 {
 	return soc_is_rk3566();
@@ -5202,8 +5210,7 @@ static void vop2_setup_hdr10(struct vop2_video_port *vp, uint8_t win_phys_id)
 
 		vpstate = to_vop2_plane_state(pstate);
 
-		/* skip inactive plane */
-		if (!pstate || !pstate->fb)
+		if (!vop2_plane_active(pstate))
 			continue;
 
 		if (vpstate->eotf != HDMI_EOTF_SMPTE_ST2084) {
@@ -5418,25 +5425,35 @@ static void vop2_setup_alpha(struct vop2_video_port *vp,
 	uint32_t dst_color_ctrl_offset = vop2->data->ctrl->dst_color_ctrl.offset;
 	uint32_t src_alpha_ctrl_offset = vop2->data->ctrl->src_alpha_ctrl.offset;
 	uint32_t dst_alpha_ctrl_offset = vop2->data->ctrl->dst_alpha_ctrl.offset;
+	unsigned long win_mask = vp->win_mask;
 	const struct vop2_zpos *zpos;
-	struct drm_framebuffer *fb;
+	struct vop2_plane_state *vpstate;
 	struct vop2_alpha_config alpha_config;
 	struct vop2_alpha alpha;
 	struct vop2_win *win;
-	struct drm_plane *plane;
-	struct vop2_plane_state *vpstate;
+	struct drm_plane_state *pstate;
+	struct drm_framebuffer *fb;
 	int pixel_alpha_en;
 	int premulti_en;
 	int mixer_id;
+	int phys_id;
 	uint32_t offset;
 	int i;
 	bool bottom_layer_alpha_en = false;
 	u32 dst_global_alpha = 0xff;
 
-	drm_atomic_crtc_for_each_plane(plane, &vp->rockchip_crtc.crtc) {
-		struct vop2_win *win = to_vop2_win(plane);
+	for_each_set_bit(phys_id, &win_mask, ROCKCHIP_MAX_LAYER) {
+		win = vop2_find_win_by_phys_id(vop2, phys_id);
+		if (win->splice_mode_right)
+			pstate = win->left_win->base.state;
+		else
+			pstate = win->base.state;
 
-		vpstate = to_vop2_plane_state(plane->state);
+		vpstate = to_vop2_plane_state(pstate);
+
+		if (!vop2_plane_active(pstate))
+			continue;
+
 		if (vpstate->zpos == 0 && vpstate->global_alpha != 0xff &&
 		    !vop2_cluster_window(win)) {
 			/*
@@ -5455,10 +5472,14 @@ static void vop2_setup_alpha(struct vop2_video_port *vp,
 	for (i = 1; i < vp->nr_layers; i++) {
 		zpos = &vop2_zpos[i];
 		win = vop2_find_win_by_phys_id(vop2, zpos->win_phys_id);
-		plane = &win->base;
-		vpstate = to_vop2_plane_state(plane->state);
-		fb = plane->state->fb;
-		if (plane->state->pixel_blend_mode == DRM_MODE_BLEND_PREMULTI)
+		if (win->splice_mode_right)
+			pstate = win->left_win->base.state;
+		else
+			pstate = win->base.state;
+
+		vpstate = to_vop2_plane_state(pstate);
+		fb = pstate->fb;
+		if (pstate->pixel_blend_mode == DRM_MODE_BLEND_PREMULTI)
 			premulti_en = 1;
 		else
 			premulti_en = 0;
