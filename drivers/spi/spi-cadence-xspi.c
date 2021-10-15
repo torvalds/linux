@@ -493,9 +493,11 @@ static int cdns_xspi_of_get_plat_data(struct platform_device *pdev)
 
 		if (of_property_read_u32(node_child, "reg", &cs)) {
 			dev_err(&pdev->dev, "Couldn't get memory chip select\n");
+			of_node_put(node_child);
 			return -ENXIO;
 		} else if (cs >= CDNS_XSPI_MAX_BANKS) {
 			dev_err(&pdev->dev, "reg (cs) parameter value too large\n");
+			of_node_put(node_child);
 			return -ENXIO;
 		}
 	}
