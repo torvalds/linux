@@ -284,12 +284,29 @@ struct vop2_win {
 	 * a main window and a sub window.
 	 */
 	bool two_win_mode;
+
 	/**
-	 * @splice_mode: splice the right part of a plane
-	 * in splice mode on rk3588.
-	 *
+	 * ---------------------------
+	 * |          |              |
+	 * | Left     |  Right       |
+	 * |          |              |
+	 * | Cluster0 |  Cluster1    |
+	 * ---------------------------
 	 */
-	bool splice_mode;
+
+	/*
+	 * @splice_mode_right: As right part of the screen in splice mode.
+	 */
+	bool splice_mode_right;
+
+	/**
+	 * @splice_win: splice win which used to splice for a plane
+	 * hdisplay > 4096
+	 */
+	struct vop2_win *splice_win;
+	struct vop2_win *left_win;
+
+	uint8_t splice_win_id;
 
 	/**
 	 * @phys_id: physical id for cluster0/1, esmart0/1, smart0/1
@@ -297,12 +314,6 @@ struct vop2_win {
 	 * configuration such as OVL_LAYER_SEL/OVL_PORT_SEL.
 	 */
 	uint8_t phys_id;
-
-	/**
-	 * @splice_win_id: physical id of a win which used to splice for
-	 * resolution > 4096
-	 */
-	uint8_t splice_win_id;
 
 	/**
 	 * @win_id: graphic window id, a cluster maybe split into two
@@ -1216,7 +1227,9 @@ static void vop2_win_disable(struct vop2_win *win)
 {
 	struct vop2 *vop2 = win->vop2;
 
-	win->splice_mode = false;
+	win->left_win = NULL;
+	win->splice_win = NULL;
+	win->splice_mode_right = false;
 	VOP_WIN_SET(vop2, win, enable, 0);
 	if (win->feature & WIN_FEATURE_CLUSTER_MAIN) {
 		struct vop2_win *sub_win;
@@ -3144,9 +3157,7 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_plane_sta
 static void vop2_plane_atomic_disable(struct drm_plane *plane, struct drm_plane_state *old_state)
 {
 	struct vop2_win *win = to_vop2_win(plane);
-	struct vop2_win *splice_win;
 	struct vop2 *vop2 = win->vop2;
-	struct rockchip_crtc_state *vcstate;
 #if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
 	struct vop2_plane_state *vpstate = to_vop2_plane_state(plane->state);
 #endif
@@ -3158,12 +3169,9 @@ static void vop2_plane_atomic_disable(struct drm_plane *plane, struct drm_plane_
 
 	spin_lock(&vop2->reg_lock);
 
-	vcstate = to_rockchip_crtc_state(old_state->crtc->state);
 	vop2_win_disable(win);
-	if (vcstate->splice_mode) {
-		splice_win = vop2_find_win_by_phys_id(vop2, win->splice_win_id);
-		vop2_win_disable(splice_win);
-	}
+	if (win->splice_win)
+		vop2_win_disable(win->splice_win);
 
 #if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
 	kfree(vpstate->planlist);
@@ -3310,7 +3318,7 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 	 * This win is for the right part of the plane,
 	 * we need calculate the fb offset for it.
 	 */
-	if (win->splice_mode) {
+	if (win->splice_mode_right) {
 		splice_pixel_offset = (src->x1 - left_src->x1) >> 16;
 		splice_yrgb_offset = splice_pixel_offset * fb->format->cpp[0];
 
@@ -3549,7 +3557,9 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 
 		vop2_calc_drm_rect_for_splice(vpstate, &wsrc, &wdst, &right_wsrc, &right_wdst);
 		splice_win = vop2_find_win_by_phys_id(vop2, win->splice_win_id);
-		splice_win->splice_mode = true;
+		splice_win->splice_mode_right = true;
+		splice_win->left_win = win;
+		win->splice_win = splice_win;
 		vop2_win_atomic_update(splice_win, &right_wsrc, &right_wdst, pstate);
 	} else {
 		memcpy(&wsrc, &vpstate->src, sizeof(struct drm_rect));
@@ -5121,13 +5131,13 @@ static void vop2_setup_hdr10(struct vop2_video_port *vp, uint8_t win_phys_id)
 	struct vop2 *vop2 = vp->vop2;
 	struct vop2_win *win = vop2_find_win_by_phys_id(vop2, win_phys_id);
 	struct drm_plane *plane = &win->base;
-	struct drm_plane_state *pstate = plane->state;
-	struct vop2_plane_state *vpstate = to_vop2_plane_state(pstate);
+	struct drm_plane_state *pstate;
 	struct drm_crtc_state *cstate = vp->rockchip_crtc.crtc.state;
-	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(cstate);
 	const struct vop2_data *vop2_data = vop2->data;
 	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
 	const struct vop_hdr_table *hdr_table = vp_data->hdr_table;
+	struct rockchip_crtc_state *vcstate;
+	struct vop2_plane_state *vpstate;
 	uint32_t lut_mode = VOP2_HDR_LUT_MODE_AHB;
 	uint32_t sdr2hdr_r2r_mode = 0;
 	bool hdr_en = 0;
@@ -5149,8 +5159,15 @@ static void vop2_setup_hdr10(struct vop2_video_port *vp, uint8_t win_phys_id)
 	/*
 	 * right vp share the same crtc state in splice mode
 	 */
-	if (vp->splice_mode_right)
+	if (vp->splice_mode_right) {
 		vcstate = to_rockchip_crtc_state(vp->left_vp->rockchip_crtc.crtc.state);
+		pstate = win->left_win->base.state;
+	} else {
+		vcstate = to_rockchip_crtc_state(cstate);
+		pstate = plane->state;
+	}
+
+	vpstate = to_vop2_plane_state(pstate);
 
 	/*
 	 * HDR video plane input
@@ -5178,8 +5195,11 @@ static void vop2_setup_hdr10(struct vop2_video_port *vp, uint8_t win_phys_id)
 	 */
 	for_each_set_bit(phys_id, &win_mask, ROCKCHIP_MAX_LAYER) {
 		win = vop2_find_win_by_phys_id(vop2, phys_id);
-		plane = &win->base;
-		pstate = plane->state;
+		if (vp->splice_mode_right)
+			pstate = win->left_win->base.state;
+		else
+			pstate = win->base.state;
+
 		vpstate = to_vop2_plane_state(pstate);
 
 		/* skip inactive plane */
@@ -5702,6 +5722,7 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_crtc_state 
 	struct vop2_zpos *vop2_zpos_splice;
 	struct vop2_cluster cluster;
 	uint8_t nr_layers = 0;
+	uint8_t splice_nr_layers = 0;
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 
 	vcstate->yuv_overlay = is_yuv_output(vcstate->bus_format);
@@ -5760,17 +5781,19 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_crtc_state 
 
 		DRM_DEV_DEBUG(vop2->dev, "%s active zpos:%d for vp%d from vp%d\n",
 			     win->name, vpstate->zpos, vp->id, old_vp->id);
+		/* left and right win may have different number */
 		if (vcstate->splice_mode) {
-			splice_win = vop2_find_win_by_phys_id(vop2, win->splice_win_id);
+			splice_win = win->splice_win;
 			old_vp_id = ffs(splice_win->vp_mask);
 			old_vp_id = (old_vp_id == 0) ? 0 : old_vp_id - 1;
 			old_vp = &vop2->vps[old_vp_id];
 			old_vp->win_mask &= ~BIT(splice_win->phys_id);
 			splice_vp->win_mask |=  BIT(splice_win->phys_id);
 			splice_win->vp_mask = BIT(splice_vp->id);
-			vop2_zpos_splice[nr_layers].win_phys_id = splice_win->phys_id;
-			vop2_zpos_splice[nr_layers].zpos = vpstate->zpos;
-			vop2_zpos_splice[nr_layers].plane = &splice_win->base;
+			vop2_zpos_splice[splice_nr_layers].win_phys_id = splice_win->phys_id;
+			vop2_zpos_splice[splice_nr_layers].zpos = vpstate->zpos;
+			vop2_zpos_splice[splice_nr_layers].plane = &splice_win->base;
+			splice_nr_layers++;
 			DRM_DEV_DEBUG(vop2->dev, "%s active zpos:%d for vp%d from vp%d\n",
 			     splice_win->name, vpstate->zpos, splice_vp->id, old_vp->id);
 		}
@@ -5790,9 +5813,9 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_crtc_state 
 		vop2_setup_dly_for_vp(vp);
 		vop2_setup_dly_for_window(vp, vop2_zpos);
 		if (vcstate->splice_mode) {
-			splice_vp->nr_layers = nr_layers;
+			splice_vp->nr_layers = splice_nr_layers;
 
-			sort(vop2_zpos_splice, nr_layers, sizeof(vop2_zpos_splice[0]),
+			sort(vop2_zpos_splice, splice_nr_layers, sizeof(vop2_zpos_splice[0]),
 			     vop2_zpos_cmp, NULL);
 
 			vop2_setup_layer_mixer_for_vp(splice_vp, vop2_zpos_splice);
@@ -5818,7 +5841,7 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_crtc_state 
 		cluster.sub = NULL;
 		vop2_setup_cluster_alpha(vop2, &cluster);
 		if (vcstate->splice_mode) {
-			splice_win = vop2_find_win_by_phys_id(vop2, win->splice_win_id);
+			splice_win = win->splice_win;
 			cluster.main = splice_win;
 			vop2_setup_cluster_alpha(vop2, &cluster);
 		}
