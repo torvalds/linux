@@ -16,6 +16,8 @@
 #include <asm/trapnr.h>
 #include <asm/trace/fpu.h>
 
+#include "internal.h"
+
 static struct _fpx_sw_bytes fx_sw_reserved __ro_after_init;
 static struct _fpx_sw_bytes fx_sw_reserved_ia32 __ro_after_init;
 
@@ -514,7 +516,7 @@ unsigned long fpu__get_fpstate_size(void)
  * This will be saved when ever the FP and extended state context is
  * saved on the user stack during the signal handler delivery to the user.
  */
-void fpu__init_prepare_fx_sw_frame(void)
+void __init fpu__init_prepare_fx_sw_frame(void)
 {
 	int size = fpu_user_xstate_size + FP_XSTATE_MAGIC2_SIZE;
 
