@@ -434,7 +434,7 @@ static void lpt_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 		drm_err(&dev_priv->drm, "Failed to enable PCH transcoder\n");
 }
 
-void lpt_disable_pch_transcoder(struct drm_i915_private *dev_priv)
+static void lpt_disable_pch_transcoder(struct drm_i915_private *dev_priv)
 {
 	u32 val;
 
@@ -468,6 +468,16 @@ void lpt_pch_enable(struct intel_atomic_state *state,
 	ilk_pch_transcoder_set_timings(crtc_state, PIPE_A);
 
 	lpt_enable_pch_transcoder(dev_priv, cpu_transcoder);
+}
+
+void lpt_pch_disable(struct intel_atomic_state *state,
+		     struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+
+	lpt_disable_pch_transcoder(dev_priv);
+
+	lpt_disable_iclkip(dev_priv);
 }
 
 void lpt_pch_get_config(struct intel_crtc_state *crtc_state)

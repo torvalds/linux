@@ -46,7 +46,6 @@
 #include "intel_gmbus.h"
 #include "intel_hotplug.h"
 #include "intel_pch_display.h"
-#include "intel_pch_refclk.h"
 
 /* Here's the desired hotplug mode */
 #define ADPA_HOTPLUG_BITS (ADPA_CRT_HOTPLUG_PERIOD_128 |		\
@@ -247,6 +246,7 @@ static void hsw_post_disable_crt(struct intel_atomic_state *state,
 				 const struct intel_crtc_state *old_crtc_state,
 				 const struct drm_connector_state *old_conn_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	intel_crtc_vblank_off(old_crtc_state);
@@ -261,8 +261,7 @@ static void hsw_post_disable_crt(struct intel_atomic_state *state,
 
 	pch_post_disable_crt(state, encoder, old_crtc_state, old_conn_state);
 
-	lpt_disable_pch_transcoder(dev_priv);
-	lpt_disable_iclkip(dev_priv);
+	lpt_pch_disable(state, crtc);
 
 	hsw_fdi_disable(encoder);
 
