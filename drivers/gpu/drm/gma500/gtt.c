@@ -18,6 +18,33 @@
  *	GTT resource allocator - manage page mappings in GTT space
  */
 
+int psb_gtt_allocate_resource(struct drm_psb_private *pdev, struct resource *res,
+			      const char *name, resource_size_t size, resource_size_t align,
+			      bool stolen, u32 *offset)
+{
+	struct resource *root = pdev->gtt_mem;
+	resource_size_t start, end;
+	int ret;
+
+	if (stolen) {
+		/* The start of the GTT is backed by stolen pages. */
+		start = root->start;
+		end = root->start + pdev->gtt.stolen_size - 1;
+	} else {
+		/* The rest is backed by system pages. */
+		start = root->start + pdev->gtt.stolen_size;
+		end = root->end;
+	}
+
+	res->name = name;
+	ret = allocate_resource(root, res, size, start, end, align, NULL, NULL);
+	if (ret)
+		return ret;
+	*offset = res->start - root->start;
+
+	return 0;
+}
+
 /**
  *	psb_gtt_mask_pte	-	generate GTT pte entry
  *	@pfn: page number to encode

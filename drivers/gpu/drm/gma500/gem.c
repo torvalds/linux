@@ -91,30 +91,22 @@ out:
 	mutex_unlock(&dev_priv->gtt_mutex);
 }
 
-static void psb_gtt_free_range(struct drm_device *dev, struct gtt_range *gt)
-{
-	/* Undo the mmap pin if we are destroying the object */
-	if (gt->mmapping) {
-		psb_gem_unpin(gt);
-		gt->mmapping = 0;
-	}
-	WARN_ON(gt->in_gart && !gt->stolen);
-	release_resource(&gt->resource);
-	kfree(gt);
-}
-
 static vm_fault_t psb_gem_fault(struct vm_fault *vmf);
 
 static void psb_gem_free_object(struct drm_gem_object *obj)
 {
-	struct gtt_range *gtt = to_gtt_range(obj);
+	struct gtt_range *gt = to_gtt_range(obj);
 
-	/* Remove the list map if one is present */
-	drm_gem_free_mmap_offset(obj);
 	drm_gem_object_release(obj);
 
-	/* This must occur last as it frees up the memory of the GEM object */
-	psb_gtt_free_range(obj->dev, gtt);
+	/* Undo the mmap pin if we are destroying the object */
+	if (gt->mmapping)
+		psb_gem_unpin(gt);
+
+	WARN_ON(gt->in_gart && !gt->stolen);
+
+	release_resource(&gt->resource);
+	kfree(gt);
 }
 
 static const struct vm_operations_struct psb_gem_vm_ops = {
@@ -128,58 +120,34 @@ static const struct drm_gem_object_funcs psb_gem_object_funcs = {
 	.vm_ops = &psb_gem_vm_ops,
 };
 
-static struct gtt_range *psb_gtt_alloc_range(struct drm_device *dev, int len,
-					     const char *name, int backed, u32 align)
-{
-	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
-	struct gtt_range *gt;
-	struct resource *r = dev_priv->gtt_mem;
-	int ret;
-	unsigned long start, end;
-
-	if (backed) {
-		/* The start of the GTT is the stolen pages */
-		start = r->start;
-		end = r->start + dev_priv->gtt.stolen_size - 1;
-	} else {
-		/* The rest we will use for GEM backed objects */
-		start = r->start + dev_priv->gtt.stolen_size;
-		end = r->end;
-	}
-
-	gt = kzalloc(sizeof(struct gtt_range), GFP_KERNEL);
-	if (gt == NULL)
-		return NULL;
-	gt->resource.name = name;
-	gt->stolen = backed;
-	gt->in_gart = backed;
-	/* Ensure this is set for non GEM objects */
-	gt->gem.dev = dev;
-	ret = allocate_resource(dev_priv->gtt_mem, &gt->resource,
-				len, start, end, align, NULL, NULL);
-	if (ret == 0) {
-		gt->offset = gt->resource.start - r->start;
-		return gt;
-	}
-	kfree(gt);
-	return NULL;
-}
-
 struct gtt_range *
 psb_gem_create(struct drm_device *dev, u64 size, const char *name, bool stolen, u32 align)
 {
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct gtt_range *gt;
 	struct drm_gem_object *obj;
 	int ret;
 
 	size = roundup(size, PAGE_SIZE);
 
-	gt = psb_gtt_alloc_range(dev, size, name, stolen, align);
-	if (!gt) {
-		dev_err(dev->dev, "no memory for %lld byte GEM object\n", size);
-		return ERR_PTR(-ENOSPC);
-	}
+	gt = kzalloc(sizeof(*gt), GFP_KERNEL);
+	if (!gt)
+		return ERR_PTR(-ENOMEM);
 	obj = &gt->gem;
+
+	/* GTT resource */
+
+	ret = psb_gtt_allocate_resource(dev_priv, &gt->resource, name, size, align, stolen,
+					&gt->offset);
+	if (ret)
+		goto err_kfree;
+
+	if (stolen) {
+		gt->stolen = true;
+		gt->in_gart = 1;
+	}
+
+	/* GEM object */
 
 	obj->funcs = &psb_gem_object_funcs;
 
@@ -188,7 +156,7 @@ psb_gem_create(struct drm_device *dev, u64 size, const char *name, bool stolen, 
 	} else {
 		ret = drm_gem_object_init(dev, obj, size);
 		if (ret)
-			goto err_psb_gtt_free_range;
+			goto err_release_resource;
 
 		/* Limit the object to 32-bit mappings */
 		mapping_set_gfp_mask(obj->filp->f_mapping, GFP_KERNEL | __GFP_DMA32);
@@ -196,8 +164,10 @@ psb_gem_create(struct drm_device *dev, u64 size, const char *name, bool stolen, 
 
 	return gt;
 
-err_psb_gtt_free_range:
-	psb_gtt_free_range(dev, gt);
+err_release_resource:
+	release_resource(&gt->resource);
+err_kfree:
+	kfree(gt);
 	return ERR_PTR(ret);
 }
 
