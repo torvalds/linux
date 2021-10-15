@@ -379,14 +379,9 @@ static void __init print_xstate_offset_size(void)
  */
 static void __init setup_init_fpu_buf(void)
 {
-	static int on_boot_cpu __initdata = 1;
-
 	BUILD_BUG_ON((XFEATURE_MASK_USER_SUPPORTED |
 		      XFEATURE_MASK_SUPERVISOR_SUPPORTED) !=
 		     XFEATURES_INIT_FPSTATE_HANDLED);
-
-	WARN_ON_FPU(!on_boot_cpu);
-	on_boot_cpu = 0;
 
 	if (!boot_cpu_has(X86_FEATURE_XSAVE))
 		return;
@@ -721,13 +716,9 @@ static void fpu__init_disable_system_xstate(void)
 void __init fpu__init_system_xstate(void)
 {
 	unsigned int eax, ebx, ecx, edx;
-	static int on_boot_cpu __initdata = 1;
 	u64 xfeatures;
 	int err;
 	int i;
-
-	WARN_ON_FPU(!on_boot_cpu);
-	on_boot_cpu = 0;
 
 	if (!boot_cpu_has(X86_FEATURE_FPU)) {
 		pr_info("x86/fpu: No FPU detected\n");

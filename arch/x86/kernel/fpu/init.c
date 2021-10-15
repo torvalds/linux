@@ -192,11 +192,6 @@ static void __init fpu__init_task_struct_size(void)
  */
 static void __init fpu__init_system_xstate_size_legacy(void)
 {
-	static int on_boot_cpu __initdata = 1;
-
-	WARN_ON_FPU(!on_boot_cpu);
-	on_boot_cpu = 0;
-
 	/*
 	 * Note that xstate sizes might be overwritten later during
 	 * fpu__init_system_xstate().
@@ -214,15 +209,6 @@ static void __init fpu__init_system_xstate_size_legacy(void)
 	}
 
 	fpu_user_xstate_size = fpu_kernel_xstate_size;
-}
-
-/* Legacy code to initialize eager fpu mode. */
-static void __init fpu__init_system_ctx_switch(void)
-{
-	static bool on_boot_cpu __initdata = 1;
-
-	WARN_ON_FPU(!on_boot_cpu);
-	on_boot_cpu = 0;
 }
 
 /*
@@ -243,6 +229,4 @@ void __init fpu__init_system(struct cpuinfo_x86 *c)
 	fpu__init_system_xstate_size_legacy();
 	fpu__init_system_xstate();
 	fpu__init_task_struct_size();
-
-	fpu__init_system_ctx_switch();
 }
