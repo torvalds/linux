@@ -873,7 +873,7 @@ void pmu_for_each_sys_event(pmu_sys_event_iter_fn fn, void *data)
 	int i = 0;
 
 	while (1) {
-		struct pmu_sys_events *event_table;
+		const struct pmu_sys_events *event_table;
 		int j = 0;
 
 		event_table = &pmu_sys_event_tables[i++];

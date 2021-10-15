@@ -54,6 +54,6 @@ struct pmu_sys_events {
  * table of PMU events.
  */
 extern const struct pmu_events_map pmu_events_map[];
-extern struct pmu_sys_events pmu_sys_event_tables[];
+extern const struct pmu_sys_events pmu_sys_event_tables[];
 
 #endif
