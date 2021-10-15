@@ -2287,33 +2287,12 @@ static void ilk_crtc_disable(struct intel_atomic_state *state,
 	ilk_pfit_disable(old_crtc_state);
 
 	if (old_crtc_state->has_pch_encoder)
-		ilk_fdi_disable(crtc);
+		ilk_pch_disable(state, crtc);
 
 	intel_encoders_post_disable(state, crtc);
 
-	if (old_crtc_state->has_pch_encoder) {
-		ilk_disable_pch_transcoder(crtc);
-
-		if (HAS_PCH_CPT(dev_priv)) {
-			i915_reg_t reg;
-			u32 temp;
-
-			/* disable TRANS_DP_CTL */
-			reg = TRANS_DP_CTL(pipe);
-			temp = intel_de_read(dev_priv, reg);
-			temp &= ~(TRANS_DP_OUTPUT_ENABLE |
-				  TRANS_DP_PORT_SEL_MASK);
-			temp |= TRANS_DP_PORT_SEL_NONE;
-			intel_de_write(dev_priv, reg, temp);
-
-			/* disable DPLL_SEL */
-			temp = intel_de_read(dev_priv, PCH_DPLL_SEL);
-			temp &= ~(TRANS_DPLL_ENABLE(pipe) | TRANS_DPLLB_SEL(pipe));
-			intel_de_write(dev_priv, PCH_DPLL_SEL, temp);
-		}
-
-		ilk_fdi_pll_disable(crtc);
-	}
+	if (old_crtc_state->has_pch_encoder)
+		ilk_pch_post_disable(state, crtc);
 
 	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 	intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, true);

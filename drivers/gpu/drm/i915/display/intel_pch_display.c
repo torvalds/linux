@@ -179,7 +179,7 @@ static void ilk_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
 			pipe_name(pipe));
 }
 
-void ilk_disable_pch_transcoder(struct intel_crtc *crtc)
+static void ilk_disable_pch_transcoder(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
@@ -297,6 +297,41 @@ void ilk_pch_enable(struct intel_atomic_state *state,
 	}
 
 	ilk_enable_pch_transcoder(crtc_state);
+}
+
+void ilk_pch_disable(struct intel_atomic_state *state,
+		     struct intel_crtc *crtc)
+{
+	ilk_fdi_disable(crtc);
+}
+
+void ilk_pch_post_disable(struct intel_atomic_state *state,
+			  struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+
+	ilk_disable_pch_transcoder(crtc);
+
+	if (HAS_PCH_CPT(dev_priv)) {
+		i915_reg_t reg;
+		u32 temp;
+
+		/* disable TRANS_DP_CTL */
+		reg = TRANS_DP_CTL(pipe);
+		temp = intel_de_read(dev_priv, reg);
+		temp &= ~(TRANS_DP_OUTPUT_ENABLE |
+			  TRANS_DP_PORT_SEL_MASK);
+		temp |= TRANS_DP_PORT_SEL_NONE;
+		intel_de_write(dev_priv, reg, temp);
+
+		/* disable DPLL_SEL */
+		temp = intel_de_read(dev_priv, PCH_DPLL_SEL);
+		temp &= ~(TRANS_DPLL_ENABLE(pipe) | TRANS_DPLLB_SEL(pipe));
+		intel_de_write(dev_priv, PCH_DPLL_SEL, temp);
+	}
+
+	ilk_fdi_pll_disable(crtc);
 }
 
 static void ilk_pch_clock_get(struct intel_crtc_state *crtc_state)
