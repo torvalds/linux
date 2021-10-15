@@ -39,13 +39,6 @@
 /* IRQ wakeup enable */
 #define IRQWKUP_ENB		BIT(0)
 
-/* Step Enable */
-#define STEPENB_MASK		(0x1FFFF << 0)
-#define STEPENB(val)		((val) << 0)
-#define ENB(val)		(1 << (val))
-#define STPENB_STEPENB		STEPENB(0x1FFFF)
-#define STPENB_STEPENB_TC	STEPENB(0x1FFF)
-
 /* IRQ enable */
 #define IRQENB_HW_PEN		BIT(0)
 #define IRQENB_EOS		BIT(1)
