@@ -2,6 +2,17 @@
 #ifndef __X86_KERNEL_FPU_INTERNAL_H
 #define __X86_KERNEL_FPU_INTERNAL_H
 
+/* CPU feature check wrappers */
+static __always_inline __pure bool use_xsave(void)
+{
+	return cpu_feature_enabled(X86_FEATURE_XSAVE);
+}
+
+static __always_inline __pure bool use_fxsr(void)
+{
+	return cpu_feature_enabled(X86_FEATURE_FXSR);
+}
+
 /* Init functions */
 extern void fpu__init_prepare_fx_sw_frame(void);
 

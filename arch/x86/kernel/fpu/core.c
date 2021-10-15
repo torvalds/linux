@@ -17,6 +17,7 @@
 #include <linux/hardirq.h>
 #include <linux/pkeys.h>
 
+#include "internal.h"
 #include "xstate.h"
 
 #define CREATE_TRACE_POINTS

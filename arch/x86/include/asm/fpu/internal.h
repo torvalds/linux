@@ -51,24 +51,6 @@ extern void fpu__resume_cpu(void);
 # define WARN_ON_FPU(x) ({ (void)(x); 0; })
 #endif
 
-/*
- * FPU related CPU feature flag helper routines:
- */
-static __always_inline __pure bool use_xsaveopt(void)
-{
-	return static_cpu_has(X86_FEATURE_XSAVEOPT);
-}
-
-static __always_inline __pure bool use_xsave(void)
-{
-	return static_cpu_has(X86_FEATURE_XSAVE);
-}
-
-static __always_inline __pure bool use_fxsr(void)
-{
-	return static_cpu_has(X86_FEATURE_FXSR);
-}
-
 extern union fpregs_state init_fpstate;
 extern void fpstate_init_user(union fpregs_state *state);
 
