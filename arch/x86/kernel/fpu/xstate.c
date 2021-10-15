@@ -20,6 +20,7 @@
 #include <asm/tlbflush.h>
 
 #include "internal.h"
+#include "legacy.h"
 #include "xstate.h"
 
 #define for_each_extended_xfeature(bit, mask)				\

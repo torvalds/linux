@@ -18,6 +18,7 @@
 #include <linux/pkeys.h>
 
 #include "internal.h"
+#include "legacy.h"
 #include "xstate.h"
 
 #define CREATE_TRACE_POINTS
