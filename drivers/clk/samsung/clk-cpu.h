@@ -62,7 +62,7 @@ struct exynos_cpuclk {
 #define CLK_CPU_HAS_E5433_REGS_LAYOUT	(1 << 2)
 };
 
-int __init exynos_register_cpu_clock(struct samsung_clk_provider *ctx,
+int exynos_register_cpu_clock(struct samsung_clk_provider *ctx,
 			unsigned int lookup_id, const char *name,
 			const struct clk_hw *parent, const struct clk_hw *alt_parent,
 			unsigned long offset,
