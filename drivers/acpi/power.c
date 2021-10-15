@@ -943,6 +943,7 @@ struct acpi_device *acpi_add_power_resource(acpi_handle handle)
 	union acpi_object acpi_object;
 	struct acpi_buffer buffer = { sizeof(acpi_object), &acpi_object };
 	acpi_status status;
+	u8 state_dummy;
 	int result;
 
 	acpi_bus_get_device(handle, &device);
@@ -970,6 +971,10 @@ struct acpi_device *acpi_add_power_resource(acpi_handle handle)
 	resource->system_level = acpi_object.power_resource.system_level;
 	resource->order = acpi_object.power_resource.resource_order;
 	resource->state = ACPI_POWER_RESOURCE_STATE_UNKNOWN;
+
+	/* Get the initial state or just flip it on if that fails. */
+	if (acpi_power_get_state(resource, &state_dummy))
+		__acpi_power_on(resource);
 
 	pr_info("%s [%s]\n", acpi_device_name(device), acpi_device_bid(device));
 
