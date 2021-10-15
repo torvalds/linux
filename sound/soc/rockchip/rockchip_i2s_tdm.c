@@ -357,7 +357,7 @@ static void rockchip_snd_txrxctrl(struct snd_pcm_substream *substream,
 		else
 			rockchip_disable_rde(i2s_tdm->regmap);
 
-		if (--i2s_tdm->refcount) {
+		if (--i2s_tdm->refcount == 0) {
 			rockchip_snd_xfer_clear(i2s_tdm,
 						I2S_CLR_TXC | I2S_CLR_RXC);
 		}
