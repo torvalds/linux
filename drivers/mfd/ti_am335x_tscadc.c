@@ -105,8 +105,9 @@ static void tscadc_idle_config(struct ti_tscadc_dev *tscadc)
 {
 	unsigned int idleconfig;
 
-	idleconfig = STEPCONFIG_YNN | STEPCONFIG_INM_ADCREFM |
-			STEPCONFIG_INP_ADCREFM | STEPCONFIG_YPN;
+	idleconfig = STEPCONFIG_INM_ADCREFM | STEPCONFIG_INP_ADCREFM;
+	if (ti_adc_with_touchscreen(tscadc))
+		idleconfig |= STEPCONFIG_YNN | STEPCONFIG_YPN;
 
 	regmap_write(tscadc->regmap, REG_IDLECONFIG, idleconfig);
 }
@@ -140,12 +141,14 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 
 	tscadc->data = of_device_get_match_data(&pdev->dev);
 
-	node = of_get_child_by_name(pdev->dev.of_node, "tsc");
-	of_property_read_u32(node, "ti,wires", &tscmag_wires);
-	of_property_read_u32(node, "ti,coordiante-readouts", &readouts);
-	of_node_put(node);
-	if (tscmag_wires)
-		use_tsc = true;
+	if (ti_adc_with_touchscreen(tscadc)) {
+		node = of_get_child_by_name(pdev->dev.of_node, "tsc");
+		of_property_read_u32(node, "ti,wires", &tscmag_wires);
+		of_property_read_u32(node, "ti,coordiante-readouts", &readouts);
+		of_node_put(node);
+		if (tscmag_wires)
+			use_tsc = true;
+	}
 
 	node = of_get_child_by_name(pdev->dev.of_node, "adc");
 	of_property_for_each_u32(node, "ti,adc-channels", prop, cur, val) {
@@ -225,13 +228,16 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 	 * of the CTRL register but not the subsystem enable bit which must be
 	 * added manually when timely.
 	 */
-	tscadc->ctrl = CNTRLREG_TSC_STEPCONFIGWRT | CNTRLREG_STEPID;
-	if (use_tsc) {
-		tscadc->ctrl |= CNTRLREG_TSC_ENB;
-		if (tscmag_wires == 5)
-			tscadc->ctrl |= CNTRLREG_TSC_5WIRE;
-		else
-			tscadc->ctrl |= CNTRLREG_TSC_4WIRE;
+	tscadc->ctrl = CNTRLREG_STEPID;
+	if (ti_adc_with_touchscreen(tscadc)) {
+		tscadc->ctrl |= CNTRLREG_TSC_STEPCONFIGWRT;
+		if (use_tsc) {
+			tscadc->ctrl |= CNTRLREG_TSC_ENB;
+			if (tscmag_wires == 5)
+				tscadc->ctrl |= CNTRLREG_TSC_5WIRE;
+			else
+				tscadc->ctrl |= CNTRLREG_TSC_4WIRE;
+		}
 	}
 	regmap_write(tscadc->regmap, REG_CTRL, tscadc->ctrl);
 

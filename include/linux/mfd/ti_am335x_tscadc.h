@@ -177,6 +177,12 @@ static inline struct ti_tscadc_dev *ti_tscadc_dev_get(struct platform_device *p)
 	return *tscadc_dev;
 }
 
+static inline bool ti_adc_with_touchscreen(struct ti_tscadc_dev *tscadc)
+{
+	return of_device_is_compatible(tscadc->dev->of_node,
+				       "ti,am3359-tscadc");
+}
+
 void am335x_tsc_se_set_cache(struct ti_tscadc_dev *tsadc, u32 val);
 void am335x_tsc_se_set_once(struct ti_tscadc_dev *tsadc, u32 val);
 void am335x_tsc_se_clr(struct ti_tscadc_dev *tsadc, u32 val);
