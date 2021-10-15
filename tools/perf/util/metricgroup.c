@@ -137,10 +137,8 @@ struct metric {
 	 * output.
 	 */
 	const char *metric_unit;
-	/** The list of metrics referenced by this one. */
-	struct list_head metric_refs;
-	/** The size of the metric_refs list. */
-	int metric_refs_cnt;
+	/** Optional null terminated array of referenced metrics. */
+	struct metric_ref *metric_refs;
 	/**
 	 * Is there a constraint on the group of events? In which case the
 	 * events won't be grouped.
@@ -202,20 +200,14 @@ static struct metric *metric__new(const struct pmu_event *pe,
 	m->metric_unit = pe->unit;
 	m->pctx->runtime = runtime;
 	m->has_constraint = metric_no_group || metricgroup__has_constraint(pe);
-	INIT_LIST_HEAD(&m->metric_refs);
-	m->metric_refs_cnt = 0;
+	m->metric_refs = NULL;
 
 	return m;
 }
 
 static void metric__free(struct metric *m)
 {
-	struct metric_ref_node *ref, *tmp;
-
-	list_for_each_entry_safe(ref, tmp, &m->metric_refs, list) {
-		list_del(&ref->list);
-		free(ref);
-	}
+	free(m->metric_refs);
 	expr__ctx_free(m->pctx);
 	free(m);
 }
@@ -393,7 +385,6 @@ static int metricgroup__setup_events(struct list_head *groups,
 
 	list_for_each_entry (m, groups, nd) {
 		struct evsel **metric_events;
-		struct metric_ref *metric_refs = NULL;
 		const size_t ids_size = hashmap__size(m->pctx->ids);
 
 		metric_events = calloc(sizeof(void *),
@@ -427,36 +418,8 @@ static int metricgroup__setup_events(struct list_head *groups,
 			break;
 		}
 
-		/*
-		 * Collect and store collected nested expressions
-		 * for metric processing.
-		 */
-		if (m->metric_refs_cnt) {
-			struct metric_ref_node *ref;
-
-			metric_refs = zalloc(sizeof(struct metric_ref) * (m->metric_refs_cnt + 1));
-			if (!metric_refs) {
-				ret = -ENOMEM;
-				free(metric_events);
-				free(expr);
-				break;
-			}
-
-			i = 0;
-			list_for_each_entry(ref, &m->metric_refs, list) {
-				/*
-				 * Intentionally passing just const char pointers,
-				 * originally from 'struct pmu_event' object.
-				 * We don't need to change them, so there's no
-				 * need to create our own copy.
-				 */
-				metric_refs[i].metric_name = ref->metric_name;
-				metric_refs[i].metric_expr = ref->metric_expr;
-				i++;
-			}
-		}
-
-		expr->metric_refs = metric_refs;
+		expr->metric_refs = m->metric_refs;
+		m->metric_refs = NULL;
 		expr->metric_expr = m->metric_expr;
 		expr->metric_name = m->metric_name;
 		expr->metric_unit = m->metric_unit;
@@ -936,7 +899,6 @@ static int __add_metric(struct list_head *metric_list,
 			const struct visited_metric *visited,
 			const struct pmu_events_map *map)
 {
-	struct metric_ref_node *ref;
 	const struct visited_metric *vm;
 	int ret;
 	bool is_root = !root_metric;
@@ -962,19 +924,25 @@ static int __add_metric(struct list_head *metric_list,
 			return -ENOMEM;
 
 	} else {
+		int cnt = 0;
+
 		/*
 		 * This metric was referenced in a metric higher in the
 		 * tree. Check if the same metric is already resolved in the
 		 * metric_refs list.
 		 */
-		list_for_each_entry(ref, &root_metric->metric_refs, list) {
-			if (!strcmp(pe->metric_name, ref->metric_name))
-				return 0;
+		if (root_metric->metric_refs) {
+			for (; root_metric->metric_refs[cnt].metric_name; cnt++) {
+				if (!strcmp(pe->metric_name,
+					    root_metric->metric_refs[cnt].metric_name))
+					return 0;
+			}
 		}
 
-		/* Create reference */
-		ref = malloc(sizeof(*ref));
-		if (!ref)
+		/* Create reference. Need space for the entry and the terminator. */
+		root_metric->metric_refs = realloc(root_metric->metric_refs,
+						(cnt + 2) * sizeof(struct metric_ref));
+		if (!root_metric->metric_refs)
 			return -ENOMEM;
 
 		/*
@@ -983,11 +951,12 @@ static int __add_metric(struct list_head *metric_list,
 		 * need to change them, so there's no need to create
 		 * our own copy.
 		 */
-		ref->metric_name = pe->metric_name;
-		ref->metric_expr = pe->metric_expr;
+		root_metric->metric_refs[cnt].metric_name = pe->metric_name;
+		root_metric->metric_refs[cnt].metric_expr = pe->metric_expr;
 
-		list_add(&ref->list, &root_metric->metric_refs);
-		root_metric->metric_refs_cnt++;
+		/* Null terminate array. */
+		root_metric->metric_refs[cnt+1].metric_name = NULL;
+		root_metric->metric_refs[cnt+1].metric_expr = NULL;
 	}
 
 	/*
