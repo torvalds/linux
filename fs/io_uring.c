@@ -2713,13 +2713,13 @@ static void io_complete_rw_iopoll(struct kiocb *kiocb, long res, long res2)
  * find it from a io_do_iopoll() thread before the issuer is done
  * accessing the kiocb cookie.
  */
-static void io_iopoll_req_issued(struct io_kiocb *req)
+static void io_iopoll_req_issued(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_ring_ctx *ctx = req->ctx;
-	const bool in_async = io_wq_current_is_worker();
+	const bool need_lock = !(issue_flags & IO_URING_F_NONBLOCK);
 
 	/* workqueue context doesn't hold uring_lock, grab it now */
-	if (unlikely(in_async))
+	if (unlikely(need_lock))
 		mutex_lock(&ctx->uring_lock);
 
 	/*
@@ -2747,7 +2747,7 @@ static void io_iopoll_req_issued(struct io_kiocb *req)
 	else
 		wq_list_add_tail(&req->comp_list, &ctx->iopoll_list);
 
-	if (unlikely(in_async)) {
+	if (unlikely(need_lock)) {
 		/*
 		 * If IORING_SETUP_SQPOLL is enabled, sqes are either handle
 		 * in sq thread task context or in io worker task context. If
@@ -6715,7 +6715,7 @@ static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
 		return ret;
 	/* If the op doesn't have a file, we're not polling for it */
 	if ((req->ctx->flags & IORING_SETUP_IOPOLL) && req->file)
-		io_iopoll_req_issued(req);
+		io_iopoll_req_issued(req, issue_flags);
 
 	return 0;
 }
