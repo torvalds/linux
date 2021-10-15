@@ -83,6 +83,8 @@ struct request {
 	int tag;
 	int internal_tag;
 
+	unsigned int timeout;
+
 	/* the following two fields are internal, NEVER access directly */
 	unsigned int __data_len;	/* total data len */
 	sector_t __sector;		/* sector cursor */
@@ -93,49 +95,6 @@ struct request {
 	union {
 		struct list_head queuelist;
 		struct request *rq_next;
-	};
-
-	/*
-	 * The hash is used inside the scheduler, and killed once the
-	 * request reaches the dispatch list. The ipi_list is only used
-	 * to queue the request for softirq completion, which is long
-	 * after the request has been unhashed (and even removed from
-	 * the dispatch list).
-	 */
-	union {
-		struct hlist_node hash;	/* merge hash */
-		struct llist_node ipi_list;
-	};
-
-	/*
-	 * The rb_node is only used inside the io scheduler, requests
-	 * are pruned when moved to the dispatch queue. So let the
-	 * completion_data share space with the rb_node.
-	 */
-	union {
-		struct rb_node rb_node;	/* sort/lookup */
-		struct bio_vec special_vec;
-		void *completion_data;
-		int error_count; /* for legacy drivers, don't use */
-	};
-
-	/*
-	 * Three pointers are available for the IO schedulers, if they need
-	 * more they have to dynamically allocate it.  Flush requests are
-	 * never put on the IO scheduler. So let the flush fields share
-	 * space with the elevator data.
-	 */
-	union {
-		struct {
-			struct io_cq		*icq;
-			void			*priv[2];
-		} elv;
-
-		struct {
-			unsigned int		seq;
-			struct list_head	list;
-			rq_end_io_fn		*saved_end_io;
-		} flush;
 	};
 
 	struct gendisk *rq_disk;
@@ -180,8 +139,51 @@ struct request {
 	enum mq_rq_state state;
 	refcount_t ref;
 
-	unsigned int timeout;
 	unsigned long deadline;
+
+	/*
+	 * The hash is used inside the scheduler, and killed once the
+	 * request reaches the dispatch list. The ipi_list is only used
+	 * to queue the request for softirq completion, which is long
+	 * after the request has been unhashed (and even removed from
+	 * the dispatch list).
+	 */
+	union {
+		struct hlist_node hash;	/* merge hash */
+		struct llist_node ipi_list;
+	};
+
+	/*
+	 * The rb_node is only used inside the io scheduler, requests
+	 * are pruned when moved to the dispatch queue. So let the
+	 * completion_data share space with the rb_node.
+	 */
+	union {
+		struct rb_node rb_node;	/* sort/lookup */
+		struct bio_vec special_vec;
+		void *completion_data;
+		int error_count; /* for legacy drivers, don't use */
+	};
+
+
+	/*
+	 * Three pointers are available for the IO schedulers, if they need
+	 * more they have to dynamically allocate it.  Flush requests are
+	 * never put on the IO scheduler. So let the flush fields share
+	 * space with the elevator data.
+	 */
+	union {
+		struct {
+			struct io_cq		*icq;
+			void			*priv[2];
+		} elv;
+
+		struct {
+			unsigned int		seq;
+			struct list_head	list;
+			rq_end_io_fn		*saved_end_io;
+		} flush;
+	};
 
 	union {
 		struct __call_single_data csd;
