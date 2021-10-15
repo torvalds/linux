@@ -340,10 +340,35 @@ static void vfio_group_unlock_and_free(struct vfio_group *group)
 /**
  * Group objects - create, release, get, put, search
  */
+static struct vfio_group *
+__vfio_group_get_from_iommu(struct iommu_group *iommu_group)
+{
+	struct vfio_group *group;
+
+	list_for_each_entry(group, &vfio.group_list, vfio_next) {
+		if (group->iommu_group == iommu_group) {
+			vfio_group_get(group);
+			return group;
+		}
+	}
+	return NULL;
+}
+
+static struct vfio_group *
+vfio_group_get_from_iommu(struct iommu_group *iommu_group)
+{
+	struct vfio_group *group;
+
+	mutex_lock(&vfio.group_lock);
+	group = __vfio_group_get_from_iommu(iommu_group);
+	mutex_unlock(&vfio.group_lock);
+	return group;
+}
+
 static struct vfio_group *vfio_create_group(struct iommu_group *iommu_group,
 		enum vfio_group_type type)
 {
-	struct vfio_group *group, *tmp;
+	struct vfio_group *group, *existing_group;
 	struct device *dev;
 	int ret, minor;
 
@@ -373,12 +398,10 @@ static struct vfio_group *vfio_create_group(struct iommu_group *iommu_group,
 	mutex_lock(&vfio.group_lock);
 
 	/* Did we race creating this group? */
-	list_for_each_entry(tmp, &vfio.group_list, vfio_next) {
-		if (tmp->iommu_group == iommu_group) {
-			vfio_group_get(tmp);
-			vfio_group_unlock_and_free(group);
-			return tmp;
-		}
+	existing_group = __vfio_group_get_from_iommu(iommu_group);
+	if (existing_group) {
+		vfio_group_unlock_and_free(group);
+		return existing_group;
 	}
 
 	minor = vfio_alloc_group_minor(group);
@@ -439,24 +462,6 @@ static void vfio_group_put(struct vfio_group *group)
 static void vfio_group_get(struct vfio_group *group)
 {
 	kref_get(&group->kref);
-}
-
-static
-struct vfio_group *vfio_group_get_from_iommu(struct iommu_group *iommu_group)
-{
-	struct vfio_group *group;
-
-	mutex_lock(&vfio.group_lock);
-	list_for_each_entry(group, &vfio.group_list, vfio_next) {
-		if (group->iommu_group == iommu_group) {
-			vfio_group_get(group);
-			mutex_unlock(&vfio.group_lock);
-			return group;
-		}
-	}
-	mutex_unlock(&vfio.group_lock);
-
-	return NULL;
 }
 
 static struct vfio_group *vfio_group_get_from_minor(int minor)
