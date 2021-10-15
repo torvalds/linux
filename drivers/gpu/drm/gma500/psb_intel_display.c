@@ -461,9 +461,8 @@ static void psb_intel_cursor_init(struct drm_device *dev,
 		/* Allocate 4 pages of stolen mem for a hardware cursor. That
 		 * is enough for the 64 x 64 ARGB cursors we support.
 		 */
-		cursor_gt = psb_gtt_alloc_range(dev, 4 * PAGE_SIZE, "cursor", 1,
-						PAGE_SIZE);
-		if (!cursor_gt) {
+		cursor_gt = psb_gem_create(dev, 4 * PAGE_SIZE, "cursor", true, PAGE_SIZE);
+		if (IS_ERR(cursor_gt)) {
 			gma_crtc->cursor_gt = NULL;
 			goto out;
 		}

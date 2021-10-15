@@ -498,6 +498,9 @@ void gma_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 
+	if (gma_crtc->cursor_gt)
+		drm_gem_object_put(&gma_crtc->cursor_gt->gem);
+
 	kfree(gma_crtc->crtc_state);
 	drm_crtc_cleanup(crtc);
 	kfree(gma_crtc);

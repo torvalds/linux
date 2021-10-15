@@ -225,31 +225,6 @@ static struct drm_framebuffer *psb_framebuffer_create
 }
 
 /**
- *	psbfb_alloc		-	allocate frame buffer memory
- *	@dev: the DRM device
- *	@aligned_size: space needed
- *
- *	Allocate the frame buffer. In the usual case we get a GTT range that
- *	is stolen memory backed and life is simple. If there isn't sufficient
- *	we fail as we don't have the virtual mapping space to really vmap it
- *	and the kernel console code can't handle non linear framebuffers.
- *
- *	Re-address this as and if the framebuffer layer grows this ability.
- */
-static struct gtt_range *psbfb_alloc(struct drm_device *dev, int aligned_size)
-{
-	struct gtt_range *backing;
-	/* Begin by trying to use stolen memory backing */
-	backing = psb_gtt_alloc_range(dev, aligned_size, "fb", 1, PAGE_SIZE);
-	if (backing) {
-		backing->gem.funcs = &psb_gem_object_funcs;
-		drm_gem_private_object_init(dev, &backing->gem, aligned_size);
-		return backing;
-	}
-	return NULL;
-}
-
-/**
  *	psbfb_create		-	create a framebuffer
  *	@fb_helper: the framebuffer helper
  *	@sizes: specification of the layout
@@ -268,6 +243,7 @@ static int psbfb_create(struct drm_fb_helper *fb_helper,
 	int size;
 	int ret;
 	struct gtt_range *backing;
+	struct drm_gem_object *obj;
 	u32 bpp, depth;
 
 	mode_cmd.width = sizes->surface_width;
@@ -285,24 +261,25 @@ static int psbfb_create(struct drm_fb_helper *fb_helper,
 	size = ALIGN(size, PAGE_SIZE);
 
 	/* Allocate the framebuffer in the GTT with stolen page backing */
-	backing = psbfb_alloc(dev, size);
-	if (backing == NULL)
-		return -ENOMEM;
+	backing = psb_gem_create(dev, size, "fb", true, PAGE_SIZE);
+	if (IS_ERR(backing))
+		return PTR_ERR(backing);
+	obj = &backing->gem;
 
 	memset(dev_priv->vram_addr + backing->offset, 0, size);
 
 	info = drm_fb_helper_alloc_fbi(fb_helper);
 	if (IS_ERR(info)) {
 		ret = PTR_ERR(info);
-		goto out;
+		goto err_drm_gem_object_put;
 	}
 
 	mode_cmd.pixel_format = drm_mode_legacy_fb_format(bpp, depth);
 
-	fb = psb_framebuffer_create(dev, &mode_cmd, &backing->gem);
+	fb = psb_framebuffer_create(dev, &mode_cmd, obj);
 	if (IS_ERR(fb)) {
 		ret = PTR_ERR(fb);
-		goto out;
+		goto err_drm_gem_object_put;
 	}
 
 	fb_helper->fb = fb;
@@ -333,8 +310,9 @@ static int psbfb_create(struct drm_fb_helper *fb_helper,
 	dev_dbg(dev->dev, "allocated %dx%d fb\n", fb->width, fb->height);
 
 	return 0;
-out:
-	psb_gtt_free_range(dev, backing);
+
+err_drm_gem_object_put:
+	drm_gem_object_put(obj);
 	return ret;
 }
 

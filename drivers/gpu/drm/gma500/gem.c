@@ -101,7 +101,7 @@ void psb_gtt_unpin(struct gtt_range *gt)
 	mutex_unlock(&dev_priv->gtt_mutex);
 }
 
-void psb_gtt_free_range(struct drm_device *dev, struct gtt_range *gt)
+static void psb_gtt_free_range(struct drm_device *dev, struct gtt_range *gt)
 {
 	/* Undo the mmap pin if we are destroying the object */
 	if (gt->mmapping) {
@@ -133,13 +133,13 @@ static const struct vm_operations_struct psb_gem_vm_ops = {
 	.close = drm_gem_vm_close,
 };
 
-const struct drm_gem_object_funcs psb_gem_object_funcs = {
+static const struct drm_gem_object_funcs psb_gem_object_funcs = {
 	.free = psb_gem_free_object,
 	.vm_ops = &psb_gem_vm_ops,
 };
 
-struct gtt_range *psb_gtt_alloc_range(struct drm_device *dev, int len,
-				      const char *name, int backed, u32 align)
+static struct gtt_range *psb_gtt_alloc_range(struct drm_device *dev, int len,
+					     const char *name, int backed, u32 align)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct gtt_range *gt;
@@ -193,12 +193,16 @@ psb_gem_create(struct drm_device *dev, u64 size, const char *name, bool stolen, 
 
 	obj->funcs = &psb_gem_object_funcs;
 
-	ret = drm_gem_object_init(dev, obj, size);
-	if (ret)
-		goto err_psb_gtt_free_range;
+	if (stolen) {
+		drm_gem_private_object_init(dev, obj, size);
+	} else {
+		ret = drm_gem_object_init(dev, obj, size);
+		if (ret)
+			goto err_psb_gtt_free_range;
 
-	/* Limit the object to 32-bit mappings */
-	mapping_set_gfp_mask(obj->filp->f_mapping, GFP_KERNEL | __GFP_DMA32);
+		/* Limit the object to 32-bit mappings */
+		mapping_set_gfp_mask(obj->filp->f_mapping, GFP_KERNEL | __GFP_DMA32);
+	}
 
 	return gt;
 
