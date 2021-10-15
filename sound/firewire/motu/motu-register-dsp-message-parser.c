@@ -54,7 +54,7 @@ enum register_dsp_msg_type {
 	MIXER_OUTPUT_PAIRED_FLAG = 0x06,
 	MAIN_OUTPUT_PAIRED_VOLUME = 0x07,
 	HP_OUTPUT_PAIRED_VOLUME = 0x08,
-	HP_OUTPUT_ASSIGN = 0x09,
+	HP_OUTPUT_PAIRED_ASSIGNMENT = 0x09,
 	// Transferred by all models but the purpose is still unknown.
 	UNKNOWN_0 = 0x0a,
 	// Specific to 828mk2, 896hd, Traveler.
@@ -210,6 +210,15 @@ void snd_motu_register_dsp_message_parser_parse(struct snd_motu *motu, const str
 				}
 				break;
 			}
+			case MAIN_OUTPUT_PAIRED_VOLUME:
+				parser->param.output.main_paired_volume = val;
+				break;
+			case HP_OUTPUT_PAIRED_VOLUME:
+				parser->param.output.hp_paired_volume = val;
+				break;
+			case HP_OUTPUT_PAIRED_ASSIGNMENT:
+				parser->param.output.hp_paired_assignment = val;
+				break;
 			case METER:
 			{
 				u8 pos;

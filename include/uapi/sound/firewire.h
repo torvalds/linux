@@ -160,6 +160,10 @@ struct snd_firewire_motu_register_dsp_meter {
  *			       Audio Express.
  * @mixer.output.paired_volume: The volume of paired output from mixer.
  * @mixer.output.paired_flag: The flag of paired output from mixer.
+ * @output.main_paired_volume: The volume of paired main output.
+ * @output.hp_paired_volume: The volume of paired hp output.
+ * @output.hp_paired_assignment: The source assigned to paired hp output.
+ * @output.reserved: Padding for 32 bit alignment for future extension.
  *
  * The structure expresses the set of parameters for DSP controlled by register access.
  */
@@ -177,6 +181,12 @@ struct snd_firewire_motu_register_dsp_parameter {
 			__u8 paired_flag[SNDRV_FIREWIRE_MOTU_REGISTER_DSP_MIXER_COUNT];
 		} output;
 	} mixer;
+	struct {
+		__u8 main_paired_volume;
+		__u8 hp_paired_volume;
+		__u8 hp_paired_assignment;
+		__u8 reserved[5];
+	} output;
 };
 
 // In below MOTU models, software is allowed to control their DSP by command in frame of
