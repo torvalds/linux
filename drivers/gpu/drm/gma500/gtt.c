@@ -7,10 +7,6 @@
  *	    Alan Cox <alan@linux.intel.com>
  */
 
-#include <linux/shmem_fs.h>
-
-#include <asm/set_memory.h>
-
 #include "psb_drv.h"
 
 
@@ -92,17 +88,15 @@ static u32 __iomem *psb_gtt_entry(struct drm_device *dev, struct gtt_range *r)
  *	psb_gtt_insert	-	put an object into the GTT
  *	@dev: our DRM device
  *	@r: our GTT range
- *	@resume: on resume
  *
  *	Take our preallocated GTT range and insert the GEM object into
  *	the GTT. This is protected via the gtt mutex which the caller
  *	must hold.
  */
-int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r, int resume)
+int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r)
 {
 	u32 __iomem *gtt_slot;
 	u32 pte;
-	struct page **pages;
 	int i;
 
 	if (r->pages == NULL) {
@@ -113,12 +107,6 @@ int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r, int resume)
 	WARN_ON(r->stolen);	/* refcount these maybe ? */
 
 	gtt_slot = psb_gtt_entry(dev, r);
-	pages = r->pages;
-
-	if (!resume) {
-		/* Make sure changes are visible to the GPU */
-		set_pages_array_wc(pages, r->npage);
-	}
 
 	/* Write our page entries into the GTT itself */
 	for (i = 0; i < r->npage; i++) {
@@ -158,7 +146,6 @@ void psb_gtt_remove(struct drm_device *dev, struct gtt_range *r)
 	for (i = 0; i < r->npage; i++)
 		iowrite32(pte, gtt_slot++);
 	ioread32(gtt_slot - 1);
-	set_pages_array_wb(r->pages, r->npage);
 }
 
 static void psb_gtt_alloc(struct drm_device *dev)
@@ -349,7 +336,7 @@ int psb_gtt_restore(struct drm_device *dev)
 	while (r != NULL) {
 		range = container_of(r, struct gtt_range, resource);
 		if (range->pages) {
-			psb_gtt_insert(dev, range, 1);
+			psb_gtt_insert(dev, range);
 			size += range->resource.end - range->resource.start;
 			restored++;
 		}

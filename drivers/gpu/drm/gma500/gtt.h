@@ -49,7 +49,7 @@ int psb_gtt_allocate_resource(struct drm_psb_private *pdev, struct resource *res
 			      const char *name, resource_size_t size, resource_size_t align,
 			      bool stolen, u32 *offset);
 
-int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r, int resume);
+int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r);
 void psb_gtt_remove(struct drm_device *dev, struct gtt_range *r);
 
 #endif

@@ -13,6 +13,8 @@
 
 #include <linux/pagemap.h>
 
+#include <asm/set_memory.h>
+
 #include <drm/drm.h>
 #include <drm/drm_vma_manager.h>
 
@@ -41,7 +43,9 @@ int psb_gem_pin(struct gtt_range *gt)
 
 	npages = gt->gem.size / PAGE_SIZE;
 
-	ret = psb_gtt_insert(dev, gt, 0);
+	set_pages_array_wc(pages, npages);
+
+	ret = psb_gtt_insert(dev, gt);
 	if (ret)
 		goto err_drm_gem_put_pages;
 
@@ -83,6 +87,9 @@ void psb_gem_unpin(struct gtt_range *gt)
 	psb_mmu_remove_pages(psb_mmu_get_default_pd(dev_priv->mmu),
 				     (gpu_base + gt->offset), gt->npage, 0, 0);
 	psb_gtt_remove(dev, gt);
+
+	/* Reset caching flags */
+	set_pages_array_wb(gt->pages, gt->npage);
 
 	drm_gem_put_pages(&gt->gem, gt->pages, true, false);
 	gt->pages = NULL;
