@@ -776,13 +776,27 @@ int __weak arch_get_runtimeparam(const struct pmu_event *pe __maybe_unused)
 
 struct metricgroup_add_iter_data {
 	struct list_head *metric_list;
-	const char *metric;
+	const char *metric_name;
 	struct expr_ids *ids;
 	int *ret;
 	bool *has_match;
 	bool metric_no_group;
 };
 
+/**
+ * __add_metric - Add a metric to metric_list.
+ * @metric_list: The list the metric is added to.
+ * @pe: The pmu_event containing the metric to be added.
+ * @metric_no_group: Should events written to events be grouped "{}" or
+ *                   global. Grouping is the default but due to multiplexing the
+ *                   user may override.
+ * @runtime: A special argument for the parser only known at runtime.
+ * @mp: The pointer to a location holding the first metric added to metric
+ *      list. It is initialized here if this is the first metric.
+ * @parent: The last entry in a linked list of metrics being
+ *          added/resolved. This is maintained to detect recursion.
+ * @ids: Storage for parent list.
+ */
 static int __add_metric(struct list_head *metric_list,
 			const struct pmu_event *pe,
 			bool metric_no_group,
@@ -1076,7 +1090,7 @@ static int metricgroup__add_metric_sys_event_iter(const struct pmu_event *pe,
 	struct metric *m = NULL;
 	int ret;
 
-	if (!match_pe_metric(pe, d->metric))
+	if (!match_pe_metric(pe, d->metric_name))
 		return 0;
 
 	ret = add_metric(d->metric_list, pe, d->metric_no_group, &m, NULL, d->ids);
@@ -1095,7 +1109,22 @@ out:
 	return ret;
 }
 
-static int metricgroup__add_metric(const char *metric, bool metric_no_group,
+/**
+ * metricgroup__add_metric - Find and add a metric, or a metric group.
+ * @metric_name: The name of the metric or metric group. For example, "IPC"
+ *               could be the name of a metric and "TopDownL1" the name of a
+ *               metric group.
+ * @metric_no_group: Should events written to events be grouped "{}" or
+ *                   global. Grouping is the default but due to multiplexing the
+ *                   user may override.
+ * @events: an out argument string of events that need to be parsed and
+ *          associated with the metric. For example, the metric "IPC" would
+ *          create an events string like "{instructions,cycles}:W".
+ * @metric_list: The list that the metric or metric group are added to.
+ * @map: The map that is searched for metrics, most commonly the table for the
+ *       architecture perf is running upon.
+ */
+static int metricgroup__add_metric(const char *metric_name, bool metric_no_group,
 				   struct strbuf *events,
 				   struct list_head *metric_list,
 				   const struct pmu_events_map *map)
@@ -1107,7 +1136,11 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 	int i, ret;
 	bool has_match = false;
 
-	map_for_each_metric(pe, i, map, metric) {
+	/*
+	 * Iterate over all metrics seeing if metric matches either the name or
+	 * group. When it does add the metric to the list.
+	 */
+	map_for_each_metric(pe, i, map, metric_name) {
 		has_match = true;
 		m = NULL;
 
@@ -1130,7 +1163,7 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 			.fn = metricgroup__add_metric_sys_event_iter,
 			.data = (void *) &(struct metricgroup_add_iter_data) {
 				.metric_list = &list,
-				.metric = metric,
+				.metric_name = metric_name,
 				.metric_no_group = metric_no_group,
 				.ids = &ids,
 				.has_match = &has_match,
@@ -1169,6 +1202,22 @@ out:
 	return ret;
 }
 
+/**
+ * metricgroup__add_metric_list - Find and add metrics, or metric groups,
+ *                                specified in a list.
+ * @list: the list of metrics or metric groups. For example, "IPC,CPI,TopDownL1"
+ *        would match the IPC and CPI metrics, and TopDownL1 would match all
+ *        the metrics in the TopDownL1 group.
+ * @metric_no_group: Should events written to events be grouped "{}" or
+ *                   global. Grouping is the default but due to multiplexing the
+ *                   user may override.
+ * @events: an out argument string of events that need to be parsed and
+ *          associated with the metric. For example, the metric "IPC" would
+ *          create an events string like "{instructions,cycles}:W".
+ * @metric_list: The list that metrics are added to.
+ * @map: The map that is searched for metrics, most commonly the table for the
+ *       architecture perf is running upon.
+ */
 static int metricgroup__add_metric_list(const char *list, bool metric_no_group,
 					struct strbuf *events,
 					struct list_head *metric_list,
