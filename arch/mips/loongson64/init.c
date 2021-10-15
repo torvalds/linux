@@ -177,6 +177,7 @@ static __init void reserve_pio_range(void)
 
 		if (of_range_parser_init(&parser, np)) {
 			pr_info("Failed to parse resources.\n");
+			of_node_put(np);
 			break;
 		}
 
