@@ -524,7 +524,7 @@ int smb2_allocate_rsp_buf(struct ksmbd_work *work)
 {
 	struct smb2_hdr *hdr = work->request_buf;
 	size_t small_sz = MAX_CIFS_SMALL_BUFFER_SIZE;
-	size_t large_sz = work->conn->vals->max_trans_size + MAX_SMB2_HDR_SIZE;
+	size_t large_sz = small_sz + work->conn->vals->max_trans_size;
 	size_t sz = small_sz;
 	int cmd = le16_to_cpu(hdr->Command);
 

@@ -113,6 +113,8 @@
 #define SMB21_DEFAULT_IOSIZE	(1024 * 1024)
 #define SMB3_DEFAULT_IOSIZE	(4 * 1024 * 1024)
 #define SMB3_DEFAULT_TRANS_SIZE	(1024 * 1024)
+#define SMB3_MIN_IOSIZE	(64 * 1024)
+#define SMB3_MAX_IOSIZE	(8 * 1024 * 1024)
 
 /*
  * SMB2 Header Definition
