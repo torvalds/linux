@@ -615,20 +615,19 @@ int acpi_power_wakeup_list_init(struct list_head *list, int *system_level_p)
 
 	list_for_each_entry(entry, list, node) {
 		struct acpi_power_resource *resource = entry->resource;
-		int result;
 		u8 state;
 
 		mutex_lock(&resource->resource_lock);
 
-		result = acpi_power_get_state(resource, &state);
-		if (result) {
-			mutex_unlock(&resource->resource_lock);
-			return result;
-		}
-		if (state == ACPI_POWER_RESOURCE_STATE_ON) {
-			resource->ref_count++;
-			resource->wakeup_enabled = true;
-		}
+		/*
+		 * Make sure that the power resource state and its reference
+		 * counter value are consistent with each other.
+		 */
+		if (!resource->ref_count &&
+		    !acpi_power_get_state(resource, &state) &&
+		    state == ACPI_POWER_RESOURCE_STATE_ON)
+			__acpi_power_off(resource);
+
 		if (system_level > resource->system_level)
 			system_level = resource->system_level;
 
