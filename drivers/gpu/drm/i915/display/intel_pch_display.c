@@ -179,9 +179,10 @@ static void ilk_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
 			pipe_name(pipe));
 }
 
-void ilk_disable_pch_transcoder(struct drm_i915_private *dev_priv,
-				enum pipe pipe)
+void ilk_disable_pch_transcoder(struct intel_crtc *crtc)
 {
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
 	i915_reg_t reg;
 	u32 val;
 
@@ -218,12 +219,12 @@ void ilk_disable_pch_transcoder(struct drm_i915_private *dev_priv,
  *   - DP transcoding bits
  *   - transcoder
  */
-void ilk_pch_enable(const struct intel_atomic_state *state,
-		    const struct intel_crtc_state *crtc_state)
+void ilk_pch_enable(struct intel_atomic_state *state,
+		    struct intel_crtc *crtc)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	const struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 	enum pipe pipe = crtc->pipe;
 	u32 temp;
 
@@ -289,7 +290,7 @@ void ilk_pch_enable(const struct intel_atomic_state *state,
 			temp |= TRANS_DP_VSYNC_ACTIVE_HIGH;
 
 		port = intel_get_crtc_new_encoder(state, crtc_state)->port;
-		drm_WARN_ON(dev, port < PORT_B || port > PORT_D);
+		drm_WARN_ON(&dev_priv->drm, port < PORT_B || port > PORT_D);
 		temp |= TRANS_DP_PORT_SEL(port);
 
 		intel_de_write(dev_priv, reg, temp);
@@ -348,10 +349,12 @@ void lpt_disable_pch_transcoder(struct drm_i915_private *dev_priv)
 	intel_de_write(dev_priv, TRANS_CHICKEN2(PIPE_A), val);
 }
 
-void lpt_pch_enable(const struct intel_crtc_state *crtc_state)
+void lpt_pch_enable(struct intel_atomic_state *state,
+		    struct intel_crtc *crtc)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	const struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 
 	assert_pch_transcoder_disabled(dev_priv, PIPE_A);

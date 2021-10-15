@@ -6,17 +6,17 @@
 #ifndef _INTEL_PCH_DISPLAY_H_
 #define _INTEL_PCH_DISPLAY_H_
 
-enum pipe;
 struct drm_i915_private;
 struct intel_atomic_state;
+struct intel_crtc;
 struct intel_crtc_state;
 
-void ilk_disable_pch_transcoder(struct drm_i915_private *dev_priv,
-				enum pipe pipe);
-void ilk_pch_enable(const struct intel_atomic_state *state,
-		    const struct intel_crtc_state *crtc_state);
+void ilk_disable_pch_transcoder(struct intel_crtc *crtc);
+void ilk_pch_enable(struct intel_atomic_state *state,
+		    struct intel_crtc *crtc);
 
 void lpt_disable_pch_transcoder(struct drm_i915_private *dev_priv);
-void lpt_pch_enable(const struct intel_crtc_state *crtc_state);
+void lpt_pch_enable(struct intel_atomic_state *state,
+		    struct intel_crtc *crtc);
 
 #endif

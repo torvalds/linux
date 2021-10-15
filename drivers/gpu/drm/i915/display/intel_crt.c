@@ -318,7 +318,7 @@ static void hsw_enable_crt(struct intel_atomic_state *state,
 
 	intel_enable_transcoder(crtc_state);
 
-	lpt_pch_enable(crtc_state);
+	lpt_pch_enable(state, crtc);
 
 	intel_crtc_vblank_on(crtc_state);
 
