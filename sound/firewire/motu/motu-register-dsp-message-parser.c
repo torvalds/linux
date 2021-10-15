@@ -82,6 +82,11 @@ struct msg_parser {
 	spinlock_t lock;
 	struct snd_firewire_motu_register_dsp_meter meter;
 	bool meter_pos_quirk;
+
+	struct snd_firewire_motu_register_dsp_parameter param;
+	u8 prev_mixer_src_type;
+	u8 mixer_ch;
+	u8 mixer_src_ch;
 };
 
 int snd_motu_register_dsp_message_parser_new(struct snd_motu *motu)
@@ -99,6 +104,12 @@ int snd_motu_register_dsp_message_parser_new(struct snd_motu *motu)
 
 int snd_motu_register_dsp_message_parser_init(struct snd_motu *motu)
 {
+	struct msg_parser *parser = motu->message_parser;
+
+	parser->prev_mixer_src_type = INVALID;
+	parser->mixer_ch = 0xff;
+	parser->mixer_src_ch = 0xff;
+
 	return 0;
 }
 
@@ -126,6 +137,59 @@ void snd_motu_register_dsp_message_parser_parse(struct snd_motu *motu, const str
 			buffer += data_block_quadlets;
 
 			switch (msg_type) {
+			case MIXER_SELECT:
+			{
+				u8 mixer_ch = val / 0x20;
+				if (mixer_ch < SNDRV_FIREWIRE_MOTU_REGISTER_DSP_MIXER_COUNT) {
+					parser->mixer_src_ch = 0;
+					parser->mixer_ch = mixer_ch;
+				}
+				break;
+			}
+			case MIXER_SRC_GAIN:
+			case MIXER_SRC_PAN:
+			case MIXER_SRC_FLAG:
+			case MIXER_SRC_PAIRED_BALANCE:
+			case MIXER_SRC_PAIRED_WIDTH:
+			{
+				struct snd_firewire_motu_register_dsp_parameter *param = &parser->param;
+				u8 mixer_ch = parser->mixer_ch;
+				u8 mixer_src_ch = parser->mixer_src_ch;
+
+				if (msg_type != parser->prev_mixer_src_type)
+					mixer_src_ch = 0;
+				else
+					++mixer_src_ch;
+				parser->prev_mixer_src_type = msg_type;
+
+				if (mixer_ch < SNDRV_FIREWIRE_MOTU_REGISTER_DSP_MIXER_COUNT &&
+				    mixer_src_ch < SNDRV_FIREWIRE_MOTU_REGISTER_DSP_MIXER_SRC_COUNT) {
+					u8 mixer_ch = parser->mixer_ch;
+
+					switch (msg_type) {
+					case MIXER_SRC_GAIN:
+						param->mixer.source[mixer_ch].gain[mixer_src_ch] = val;
+						break;
+					case MIXER_SRC_PAN:
+						param->mixer.source[mixer_ch].pan[mixer_src_ch] = val;
+						break;
+					case MIXER_SRC_FLAG:
+						param->mixer.source[mixer_ch].flag[mixer_src_ch] = val;
+						break;
+					case MIXER_SRC_PAIRED_BALANCE:
+						param->mixer.source[mixer_ch].paired_balance[mixer_src_ch] = val;
+						break;
+					case MIXER_SRC_PAIRED_WIDTH:
+						param->mixer.source[mixer_ch].paired_width[mixer_src_ch] = val;
+						break;
+					default:
+						break;
+					}
+
+					parser->mixer_src_ch = mixer_src_ch;
+				}
+				break;
+			}
 			case METER:
 			{
 				u8 pos;

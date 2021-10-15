@@ -145,6 +145,34 @@ struct snd_firewire_motu_register_dsp_meter {
 	__u8 data[SNDRV_FIREWIRE_MOTU_REGISTER_DSP_METER_COUNT];
 };
 
+#define SNDRV_FIREWIRE_MOTU_REGISTER_DSP_MIXER_COUNT		4
+#define SNDRV_FIREWIRE_MOTU_REGISTER_DSP_MIXER_SRC_COUNT	20
+
+/**
+ * snd_firewire_motu_register_dsp_parameter - the container for parameters of DSP controlled
+ *					      by register access.
+ * @mixer.source.gain: The gain of source to mixer.
+ * @mixer.source.pan: The L/R balance of source to mixer.
+ * @mixer.source.flag: The flag of source to mixer, including mute, solo.
+ * @mixer.source.paired_balance: The L/R balance of paired source to mixer, only for 4 pre and
+ *				 Audio Express.
+ * @mixer.source.paired_width: The width of paired source to mixer, only for 4 pre and
+ *			       Audio Express.
+ *
+ * The structure expresses the set of parameters for DSP controlled by register access.
+ */
+struct snd_firewire_motu_register_dsp_parameter {
+	struct {
+		struct {
+			__u8 gain[SNDRV_FIREWIRE_MOTU_REGISTER_DSP_MIXER_SRC_COUNT];
+			__u8 pan[SNDRV_FIREWIRE_MOTU_REGISTER_DSP_MIXER_SRC_COUNT];
+			__u8 flag[SNDRV_FIREWIRE_MOTU_REGISTER_DSP_MIXER_SRC_COUNT];
+			__u8 paired_balance[SNDRV_FIREWIRE_MOTU_REGISTER_DSP_MIXER_SRC_COUNT];
+			__u8 paired_width[SNDRV_FIREWIRE_MOTU_REGISTER_DSP_MIXER_SRC_COUNT];
+		} source[SNDRV_FIREWIRE_MOTU_REGISTER_DSP_MIXER_COUNT];
+	} mixer;
+};
+
 // In below MOTU models, software is allowed to control their DSP by command in frame of
 // asynchronous transaction to 0x'ffff'0001'0000:
 //
