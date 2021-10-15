@@ -4085,8 +4085,12 @@ static int bcmgenet_probe(struct platform_device *pdev)
 		eth_hw_addr_set(dev, pd->mac_address);
 	else
 		if (device_get_ethdev_address(&pdev->dev, dev))
-			if (has_acpi_companion(&pdev->dev))
-				bcmgenet_get_hw_addr(priv, dev->dev_addr);
+			if (has_acpi_companion(&pdev->dev)) {
+				u8 addr[ETH_ALEN];
+
+				bcmgenet_get_hw_addr(priv, addr);
+				eth_hw_addr_set(dev, addr);
+			}
 
 	if (!is_valid_ether_addr(dev->dev_addr)) {
 		dev_warn(&pdev->dev, "using random Ethernet MAC\n");
