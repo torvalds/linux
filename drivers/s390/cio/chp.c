@@ -285,7 +285,7 @@ static ssize_t chp_configure_show(struct device *dev,
 	if (status < 0)
 		return status;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", status);
+	return sysfs_emit(buf, "%d\n", status);
 }
 
 static int cfg_wait_idle(void);
