@@ -155,6 +155,50 @@ static int hwdep_ioctl(struct snd_hwdep *hwdep, struct file *file,
 		return hwdep_lock(motu);
 	case SNDRV_FIREWIRE_IOCTL_UNLOCK:
 		return hwdep_unlock(motu);
+	case SNDRV_FIREWIRE_IOCTL_MOTU_REGISTER_DSP_METER:
+	{
+		struct snd_firewire_motu_register_dsp_meter *meter;
+		int err;
+
+		if (!(motu->spec->flags & SND_MOTU_SPEC_REGISTER_DSP))
+			return -ENXIO;
+
+		meter = kzalloc(sizeof(*meter), GFP_KERNEL);
+		if (!meter)
+			return -ENOMEM;
+
+		snd_motu_register_dsp_message_parser_copy_meter(motu, meter);
+
+		err = copy_to_user((void __user *)arg, meter, sizeof(*meter));
+		kfree(meter);
+
+		if (err)
+			return -EFAULT;
+
+		return 0;
+	}
+	case SNDRV_FIREWIRE_IOCTL_MOTU_COMMAND_DSP_METER:
+	{
+		struct snd_firewire_motu_command_dsp_meter *meter;
+		int err;
+
+		if (!(motu->spec->flags & SND_MOTU_SPEC_COMMAND_DSP))
+			return -ENXIO;
+
+		meter = kzalloc(sizeof(*meter), GFP_KERNEL);
+		if (!meter)
+			return -ENOMEM;
+
+		snd_motu_command_dsp_message_parser_copy_meter(motu, meter);
+
+		err = copy_to_user((void __user *)arg, meter, sizeof(*meter));
+		kfree(meter);
+
+		if (err)
+			return -EFAULT;
+
+		return 0;
+	}
 	default:
 		return -ENOIOCTLCMD;
 	}

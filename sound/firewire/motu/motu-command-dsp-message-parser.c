@@ -23,6 +23,7 @@ enum msg_parser_state {
 };
 
 struct msg_parser {
+	spinlock_t lock;
 	enum msg_parser_state state;
 	unsigned int interval;
 	unsigned int message_count;
@@ -39,6 +40,7 @@ int snd_motu_command_dsp_message_parser_new(struct snd_motu *motu)
 	parser = devm_kzalloc(&motu->card->card_dev, sizeof(*parser), GFP_KERNEL);
 	if (!parser)
 		return -ENOMEM;
+	spin_lock_init(&parser->lock);
 	motu->message_parser = parser;
 
 	return 0;
@@ -83,7 +85,10 @@ void snd_motu_command_dsp_message_parser_parse(struct snd_motu *motu, const stru
 {
 	struct msg_parser *parser = motu->message_parser;
 	unsigned int interval = parser->interval;
+	unsigned long flags;
 	int i;
+
+	spin_lock_irqsave(&parser->lock, flags);
 
 	for (i = 0; i < desc_count; ++i) {
 		const struct pkt_desc *desc = descs + i;
@@ -157,4 +162,17 @@ void snd_motu_command_dsp_message_parser_parse(struct snd_motu *motu, const stru
 			}
 		}
 	}
+
+	spin_unlock_irqrestore(&parser->lock, flags);
+}
+
+void snd_motu_command_dsp_message_parser_copy_meter(struct snd_motu *motu,
+					struct snd_firewire_motu_command_dsp_meter *meter)
+{
+	struct msg_parser *parser = motu->message_parser;
+	unsigned long flags;
+
+	spin_lock_irqsave(&parser->lock, flags);
+	memcpy(meter, &parser->meter, sizeof(*meter));
+	spin_unlock_irqrestore(&parser->lock, flags);
 }

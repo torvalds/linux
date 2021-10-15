@@ -79,6 +79,7 @@ enum register_dsp_msg_type {
 };
 
 struct msg_parser {
+	spinlock_t lock;
 	struct snd_firewire_motu_register_dsp_meter meter;
 	bool meter_pos_quirk;
 };
@@ -89,6 +90,7 @@ int snd_motu_register_dsp_message_parser_new(struct snd_motu *motu)
 	parser = devm_kzalloc(&motu->card->card_dev, sizeof(*parser), GFP_KERNEL);
 	if (!parser)
 		return -ENOMEM;
+	spin_lock_init(&parser->lock);
 	if (motu->spec == &snd_motu_spec_4pre || motu->spec == &snd_motu_spec_audio_express)
 		parser->meter_pos_quirk = true;
 	motu->message_parser = parser;
@@ -105,7 +107,10 @@ void snd_motu_register_dsp_message_parser_parse(struct snd_motu *motu, const str
 {
 	struct msg_parser *parser = motu->message_parser;
 	bool meter_pos_quirk = parser->meter_pos_quirk;
+	unsigned long flags;
 	int i;
+
+	spin_lock_irqsave(&parser->lock, flags);
 
 	for (i = 0; i < desc_count; ++i) {
 		const struct pkt_desc *desc = descs + i;
@@ -142,4 +147,17 @@ void snd_motu_register_dsp_message_parser_parse(struct snd_motu *motu, const str
 			}
 		}
 	}
+
+	spin_unlock_irqrestore(&parser->lock, flags);
+}
+
+void snd_motu_register_dsp_message_parser_copy_meter(struct snd_motu *motu,
+						struct snd_firewire_motu_register_dsp_meter *meter)
+{
+	struct msg_parser *parser = motu->message_parser;
+	unsigned long flags;
+
+	spin_lock_irqsave(&parser->lock, flags);
+	memcpy(meter, &parser->meter, sizeof(*meter));
+	spin_unlock_irqrestore(&parser->lock, flags);
 }
