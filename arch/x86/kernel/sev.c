@@ -23,7 +23,7 @@
 #include <asm/stacktrace.h>
 #include <asm/sev.h>
 #include <asm/insn-eval.h>
-#include <asm/fpu/internal.h>
+#include <asm/fpu/xcr.h>
 #include <asm/processor.h>
 #include <asm/realmode.h>
 #include <asm/traps.h>
