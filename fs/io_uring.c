@@ -6588,7 +6588,6 @@ static void io_clean_op(struct io_kiocb *req)
 
 static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct io_ring_ctx *ctx = req->ctx;
 	const struct cred *creds = NULL;
 	int ret;
 
@@ -6715,7 +6714,7 @@ static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
 	if (ret)
 		return ret;
 	/* If the op doesn't have a file, we're not polling for it */
-	if ((ctx->flags & IORING_SETUP_IOPOLL) && req->file)
+	if ((req->ctx->flags & IORING_SETUP_IOPOLL) && req->file)
 		io_iopoll_req_issued(req);
 
 	return 0;
