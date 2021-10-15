@@ -144,8 +144,14 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 	if (ti_adc_with_touchscreen(tscadc)) {
 		node = of_get_child_by_name(pdev->dev.of_node, "tsc");
 		of_property_read_u32(node, "ti,wires", &tscmag_wires);
-		of_property_read_u32(node, "ti,coordiante-readouts", &readouts);
+		err = of_property_read_u32(node, "ti,coordinate-readouts",
+					   &readouts);
+		if (err < 0)
+			of_property_read_u32(node, "ti,coordiante-readouts",
+					     &readouts);
+
 		of_node_put(node);
+
 		if (tscmag_wires)
 			use_tsc = true;
 	} else {
