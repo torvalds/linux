@@ -140,7 +140,7 @@ static const char *get_counter_name(int set, int nr, const struct pmu_events_map
 	int rc, event_nr, wanted = get_counterset_start(set) + nr;
 
 	if (map) {
-		struct pmu_event *evp = map->table;
+		const struct pmu_event *evp = map->table;
 
 		for (; evp->name || evp->event || evp->desc; ++evp) {
 			if (evp->name == NULL || evp->event == NULL)

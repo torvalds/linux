@@ -41,12 +41,12 @@ struct pmu_events_map {
 	const char *cpuid;
 	const char *version;
 	const char *type;		/* core, uncore etc */
-	struct pmu_event *table;
+	const struct pmu_event *table;
 };
 
 struct pmu_sys_events {
 	const char *name;
-	struct pmu_event *table;
+	const struct pmu_event *table;
 };
 
 /*

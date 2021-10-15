@@ -362,7 +362,7 @@ static int close_table;
 
 static void print_events_table_prefix(FILE *fp, const char *tblname)
 {
-	fprintf(fp, "struct pmu_event %s[] = {\n", tblname);
+	fprintf(fp, "static const struct pmu_event %s[] = {\n", tblname);
 	close_table = 1;
 }
 

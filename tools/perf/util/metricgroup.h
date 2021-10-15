@@ -43,8 +43,8 @@ int metricgroup__parse_groups(const struct option *opt,
 			      bool metric_no_group,
 			      bool metric_no_merge,
 			      struct rblist *metric_events);
-struct pmu_event *metricgroup__find_metric(const char *metric,
-					   const struct pmu_events_map *map);
+const struct pmu_event *metricgroup__find_metric(const char *metric,
+						 const struct pmu_events_map *map);
 int metricgroup__parse_groups_test(struct evlist *evlist,
 				   const struct pmu_events_map *map,
 				   const char *str,
@@ -55,7 +55,7 @@ int metricgroup__parse_groups_test(struct evlist *evlist,
 void metricgroup__print(bool metrics, bool groups, char *filter,
 			bool raw, bool details);
 bool metricgroup__has_metric(const char *metric);
-int arch_get_runtimeparam(struct pmu_event *pe __maybe_unused);
+int arch_get_runtimeparam(const struct pmu_event *pe __maybe_unused);
 void metricgroup__rblist_exit(struct rblist *metric_events);
 
 int metricgroup__copy_metric_events(struct evlist *evlist, struct cgroup *cgrp,

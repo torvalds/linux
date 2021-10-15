@@ -256,7 +256,7 @@ static const struct pmu_events_map *__test_pmu_get_events_map(void)
 	return NULL;
 }
 
-static struct pmu_event *__test_pmu_get_sys_events_table(void)
+static const struct pmu_event *__test_pmu_get_sys_events_table(void)
 {
 	const struct pmu_sys_events *tables = &pmu_sys_event_tables[0];
 
@@ -268,7 +268,7 @@ static struct pmu_event *__test_pmu_get_sys_events_table(void)
 	return NULL;
 }
 
-static int compare_pmu_events(struct pmu_event *e1, const struct pmu_event *e2)
+static int compare_pmu_events(const struct pmu_event *e1, const struct pmu_event *e2)
 {
 	if (!is_same(e1->name, e2->name)) {
 		pr_debug2("testing event e1 %s: mismatched name string, %s vs %s\n",
@@ -420,9 +420,9 @@ static int compare_alias_to_test_event(struct perf_pmu_alias *alias,
 /* Verify generated events from pmu-events.c are as expected */
 static int test_pmu_event_table(void)
 {
-	struct pmu_event *sys_event_tables = __test_pmu_get_sys_events_table();
+	const struct pmu_event *sys_event_tables = __test_pmu_get_sys_events_table();
 	const struct pmu_events_map *map = __test_pmu_get_events_map();
-	struct pmu_event *table;
+	const struct pmu_event *table;
 	int map_events = 0, expected_events;
 
 	/* ignore 3x sentinels */
@@ -774,7 +774,7 @@ static int check_parse_id(const char *id, struct parse_events_error *error,
 	return ret;
 }
 
-static int check_parse_cpu(const char *id, bool same_cpu, struct pmu_event *pe)
+static int check_parse_cpu(const char *id, bool same_cpu, const struct pmu_event *pe)
 {
 	struct parse_events_error error = { .idx = 0, };
 
@@ -838,7 +838,7 @@ static int resolve_metric_simple(struct expr_parse_ctx *pctx,
 		all = true;
 		hashmap__for_each_entry_safe(pctx->ids, cur, cur_tmp, bkt) {
 			struct metric_ref *ref;
-			struct pmu_event *pe;
+			const struct pmu_event *pe;
 
 			pe = metricgroup__find_metric(cur->key, map);
 			if (!pe)
@@ -887,7 +887,7 @@ static int test_parsing(void)
 {
 	const struct pmu_events_map *cpus_map = pmu_events_map__find();
 	const struct pmu_events_map *map;
-	struct pmu_event *pe;
+	const struct pmu_event *pe;
 	int i, j, k;
 	int ret = 0;
 	struct expr_parse_ctx *ctx;
@@ -1028,7 +1028,7 @@ out:
 static int test_parsing_fake(void)
 {
 	const struct pmu_events_map *map;
-	struct pmu_event *pe;
+	const struct pmu_event *pe;
 	unsigned int i, j;
 	int err = 0;
 

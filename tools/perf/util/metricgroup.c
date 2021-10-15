@@ -427,7 +427,7 @@ static bool match_metric(const char *n, const char *list)
 	return false;
 }
 
-static bool match_pe_metric(struct pmu_event *pe, const char *metric)
+static bool match_pe_metric(const struct pmu_event *pe, const char *metric)
 {
 	return match_metric(pe->metric_group, metric) ||
 	       match_metric(pe->metric_name, metric);
@@ -511,7 +511,7 @@ static void metricgroup__print_strlist(struct strlist *metrics, bool raw)
 		putchar('\n');
 }
 
-static int metricgroup__print_pmu_event(struct pmu_event *pe,
+static int metricgroup__print_pmu_event(const struct pmu_event *pe,
 					bool metricgroups, char *filter,
 					bool raw, bool details,
 					struct rblist *groups,
@@ -586,14 +586,14 @@ struct metricgroup_print_sys_idata {
 	bool details;
 };
 
-typedef int (*metricgroup_sys_event_iter_fn)(struct pmu_event *pe, void *);
+typedef int (*metricgroup_sys_event_iter_fn)(const struct pmu_event *pe, void *);
 
 struct metricgroup_iter_data {
 	metricgroup_sys_event_iter_fn fn;
 	void *data;
 };
 
-static int metricgroup__sys_event_iter(struct pmu_event *pe, void *data)
+static int metricgroup__sys_event_iter(const struct pmu_event *pe, void *data)
 {
 	struct metricgroup_iter_data *d = data;
 	struct perf_pmu *pmu = NULL;
@@ -612,7 +612,7 @@ static int metricgroup__sys_event_iter(struct pmu_event *pe, void *data)
 	return 0;
 }
 
-static int metricgroup__print_sys_event_iter(struct pmu_event *pe, void *data)
+static int metricgroup__print_sys_event_iter(const struct pmu_event *pe, void *data)
 {
 	struct metricgroup_print_sys_idata *d = data;
 
@@ -624,7 +624,7 @@ void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 			bool raw, bool details)
 {
 	const struct pmu_events_map *map = pmu_events_map__find();
-	struct pmu_event *pe;
+	const struct pmu_event *pe;
 	int i;
 	struct rblist groups;
 	struct rb_node *node, *next;
@@ -756,7 +756,7 @@ static void metricgroup___watchdog_constraint_hint(const char *name, bool foot)
 		   "    echo 1 > /proc/sys/kernel/nmi_watchdog\n");
 }
 
-static bool metricgroup__has_constraint(struct pmu_event *pe)
+static bool metricgroup__has_constraint(const struct pmu_event *pe)
 {
 	if (!pe->metric_constraint)
 		return false;
@@ -770,7 +770,7 @@ static bool metricgroup__has_constraint(struct pmu_event *pe)
 	return false;
 }
 
-int __weak arch_get_runtimeparam(struct pmu_event *pe __maybe_unused)
+int __weak arch_get_runtimeparam(const struct pmu_event *pe __maybe_unused)
 {
 	return 1;
 }
@@ -785,7 +785,7 @@ struct metricgroup_add_iter_data {
 };
 
 static int __add_metric(struct list_head *metric_list,
-			struct pmu_event *pe,
+			const struct pmu_event *pe,
 			bool metric_no_group,
 			int runtime,
 			struct metric **mp,
@@ -909,10 +909,10 @@ static int __add_metric(struct list_head *metric_list,
 		    (match_metric(__pe->metric_group, __metric) ||	\
 		     match_metric(__pe->metric_name, __metric)))
 
-struct pmu_event *metricgroup__find_metric(const char *metric,
-					   const struct pmu_events_map *map)
+const struct pmu_event *metricgroup__find_metric(const char *metric,
+						 const struct pmu_events_map *map)
 {
-	struct pmu_event *pe;
+	const struct pmu_event *pe;
 	int i;
 
 	map_for_each_event(pe, i, map) {
@@ -968,7 +968,7 @@ static int recursion_check(struct metric *m, const char *id, struct expr_id **pa
 }
 
 static int add_metric(struct list_head *metric_list,
-		      struct pmu_event *pe,
+		      const struct pmu_event *pe,
 		      bool metric_no_group,
 		      struct metric **mp,
 		      struct expr_id *parent,
@@ -993,7 +993,7 @@ static int __resolve_metric(struct metric *m,
 		all = true;
 		hashmap__for_each_entry(m->pctx->ids, cur, bkt) {
 			struct expr_id *parent;
-			struct pmu_event *pe;
+			const struct pmu_event *pe;
 
 			pe = metricgroup__find_metric(cur->key, map);
 			if (!pe)
@@ -1040,7 +1040,7 @@ static int resolve_metric(bool metric_no_group,
 }
 
 static int add_metric(struct list_head *metric_list,
-		      struct pmu_event *pe,
+		      const struct pmu_event *pe,
 		      bool metric_no_group,
 		      struct metric **m,
 		      struct expr_id *parent,
@@ -1070,7 +1070,7 @@ static int add_metric(struct list_head *metric_list,
 	return ret;
 }
 
-static int metricgroup__add_metric_sys_event_iter(struct pmu_event *pe,
+static int metricgroup__add_metric_sys_event_iter(const struct pmu_event *pe,
 						  void *data)
 {
 	struct metricgroup_add_iter_data *d = data;
@@ -1102,7 +1102,7 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 				   const struct pmu_events_map *map)
 {
 	struct expr_ids ids = { .cnt = 0, };
-	struct pmu_event *pe;
+	const struct pmu_event *pe;
 	struct metric *m;
 	LIST_HEAD(list);
 	int i, ret;
@@ -1286,7 +1286,7 @@ int metricgroup__parse_groups_test(struct evlist *evlist,
 bool metricgroup__has_metric(const char *metric)
 {
 	const struct pmu_events_map *map = pmu_events_map__find();
-	struct pmu_event *pe;
+	const struct pmu_event *pe;
 	int i;
 
 	if (!map)
