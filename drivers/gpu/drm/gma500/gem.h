@@ -15,7 +15,7 @@ struct drm_device;
 struct gtt_range *
 psb_gem_create(struct drm_device *dev, u64 size, const char *name, bool stolen, u32 align);
 
-int psb_gtt_pin(struct gtt_range *gt);
-void psb_gtt_unpin(struct gtt_range *gt);
+int psb_gem_pin(struct gtt_range *gt);
+void psb_gem_unpin(struct gtt_range *gt);
 
 #endif

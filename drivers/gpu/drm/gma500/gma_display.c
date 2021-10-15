@@ -75,7 +75,7 @@ int gma_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 
 	/* We are displaying this buffer, make sure it is actually loaded
 	   into the GTT */
-	ret = psb_gtt_pin(gtt);
+	ret = psb_gem_pin(gtt);
 	if (ret < 0)
 		goto gma_pipe_set_base_exit;
 	start = gtt->offset;
@@ -126,7 +126,7 @@ int gma_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 gma_pipe_cleaner:
 	/* If there was a previous display we can now unpin it */
 	if (old_fb)
-		psb_gtt_unpin(to_gtt_range(old_fb->obj[0]));
+		psb_gem_unpin(to_gtt_range(old_fb->obj[0]));
 
 gma_pipe_set_base_exit:
 	gma_power_end(dev);
@@ -350,7 +350,7 @@ int gma_crtc_cursor_set(struct drm_crtc *crtc,
 		/* Unpin the old GEM object */
 		if (gma_crtc->cursor_obj) {
 			gt = to_gtt_range(gma_crtc->cursor_obj);
-			psb_gtt_unpin(gt);
+			psb_gem_unpin(gt);
 			drm_gem_object_put(gma_crtc->cursor_obj);
 			gma_crtc->cursor_obj = NULL;
 		}
@@ -378,7 +378,7 @@ int gma_crtc_cursor_set(struct drm_crtc *crtc,
 	gt = to_gtt_range(obj);
 
 	/* Pin the memory into the GTT */
-	ret = psb_gtt_pin(gt);
+	ret = psb_gem_pin(gt);
 	if (ret) {
 		dev_err(dev->dev, "Can not pin down handle 0x%x\n", handle);
 		goto unref_cursor;
@@ -426,7 +426,7 @@ int gma_crtc_cursor_set(struct drm_crtc *crtc,
 	/* unpin the old bo */
 	if (gma_crtc->cursor_obj) {
 		gt = to_gtt_range(gma_crtc->cursor_obj);
-		psb_gtt_unpin(gt);
+		psb_gem_unpin(gt);
 		drm_gem_object_put(gma_crtc->cursor_obj);
 	}
 
@@ -490,7 +490,7 @@ void gma_crtc_disable(struct drm_crtc *crtc)
 
 	if (crtc->primary->fb) {
 		gt = to_gtt_range(crtc->primary->fb->obj[0]);
-		psb_gtt_unpin(gt);
+		psb_gem_unpin(gt);
 	}
 }
 

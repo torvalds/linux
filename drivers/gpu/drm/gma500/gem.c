@@ -52,7 +52,7 @@ static void psb_gtt_detach_pages(struct gtt_range *gt)
 	gt->pages = NULL;
 }
 
-int psb_gtt_pin(struct gtt_range *gt)
+int psb_gem_pin(struct gtt_range *gt)
 {
 	int ret = 0;
 	struct drm_device *dev = gt->gem.dev;
@@ -80,7 +80,7 @@ out:
 	return ret;
 }
 
-void psb_gtt_unpin(struct gtt_range *gt)
+void psb_gem_unpin(struct gtt_range *gt)
 {
 	struct drm_device *dev = gt->gem.dev;
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
@@ -105,7 +105,7 @@ static void psb_gtt_free_range(struct drm_device *dev, struct gtt_range *gt)
 {
 	/* Undo the mmap pin if we are destroying the object */
 	if (gt->mmapping) {
-		psb_gtt_unpin(gt);
+		psb_gem_unpin(gt);
 		gt->mmapping = 0;
 	}
 	WARN_ON(gt->in_gart && !gt->stolen);
@@ -301,7 +301,7 @@ static vm_fault_t psb_gem_fault(struct vm_fault *vmf)
 	/* For now the mmap pins the object and it stays pinned. As things
 	   stand that will do us no harm */
 	if (r->mmapping == 0) {
-		err = psb_gtt_pin(r);
+		err = psb_gem_pin(r);
 		if (err < 0) {
 			dev_err(dev->dev, "gma500: pin failed: %d\n", err);
 			ret = vmf_error(err);
