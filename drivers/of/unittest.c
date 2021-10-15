@@ -3094,6 +3094,8 @@ static __init void of_unittest_overlay_high_level(void)
 			if (!strcmp(np->full_name, base_child->full_name)) {
 				unittest(0, "illegal node name in overlay_base %pOFn",
 					 np);
+				of_node_put(np);
+				of_node_put(base_child);
 				return;
 			}
 		}
