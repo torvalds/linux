@@ -175,45 +175,36 @@ struct gtt_range *psb_gtt_alloc_range(struct drm_device *dev, int len,
 	return NULL;
 }
 
-int psb_gem_create(struct drm_file *file, struct drm_device *dev, u64 size,
-		   u32 *handlep, int stolen, u32 align)
+struct gtt_range *
+psb_gem_create(struct drm_device *dev, u64 size, const char *name, bool stolen, u32 align)
 {
-	struct gtt_range *r;
+	struct gtt_range *gt;
+	struct drm_gem_object *obj;
 	int ret;
-	u32 handle;
 
 	size = roundup(size, PAGE_SIZE);
 
-	/* Allocate our object - for now a direct gtt range which is not
-	   stolen memory backed */
-	r = psb_gtt_alloc_range(dev, size, "gem", 0, PAGE_SIZE);
-	if (r == NULL) {
+	gt = psb_gtt_alloc_range(dev, size, name, stolen, align);
+	if (!gt) {
 		dev_err(dev->dev, "no memory for %lld byte GEM object\n", size);
-		return -ENOSPC;
+		return ERR_PTR(-ENOSPC);
 	}
-	r->gem.funcs = &psb_gem_object_funcs;
-	/* Initialize the extra goodies GEM needs to do all the hard work */
-	if (drm_gem_object_init(dev, &r->gem, size) != 0) {
-		psb_gtt_free_range(dev, r);
-		/* GEM doesn't give an error code so use -ENOMEM */
-		dev_err(dev->dev, "GEM init failed for %lld\n", size);
-		return -ENOMEM;
-	}
-	/* Limit the object to 32bit mappings */
-	mapping_set_gfp_mask(r->gem.filp->f_mapping, GFP_KERNEL | __GFP_DMA32);
-	/* Give the object a handle so we can carry it more easily */
-	ret = drm_gem_handle_create(file, &r->gem, &handle);
-	if (ret) {
-		dev_err(dev->dev, "GEM handle failed for %p, %lld\n",
-							&r->gem, size);
-		drm_gem_object_release(&r->gem);
-		psb_gtt_free_range(dev, r);
-		return ret;
-	}
-	/* We have the initial and handle reference but need only one now */
-	drm_gem_object_put(&r->gem);
-	*handlep = handle;
-	return 0;
+	obj = &gt->gem;
+
+	obj->funcs = &psb_gem_object_funcs;
+
+	ret = drm_gem_object_init(dev, obj, size);
+	if (ret)
+		goto err_psb_gtt_free_range;
+
+	/* Limit the object to 32-bit mappings */
+	mapping_set_gfp_mask(obj->filp->f_mapping, GFP_KERNEL | __GFP_DMA32);
+
+	return gt;
+
+err_psb_gtt_free_range:
+	psb_gtt_free_range(dev, gt);
+	return ERR_PTR(ret);
 }
 
 /**
@@ -229,10 +220,40 @@ int psb_gem_create(struct drm_file *file, struct drm_device *dev, u64 size,
 int psb_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 			struct drm_mode_create_dumb *args)
 {
-	args->pitch = ALIGN(args->width * ((args->bpp + 7) / 8), 64);
-	args->size = args->pitch * args->height;
-	return psb_gem_create(file, dev, args->size, &args->handle, 0,
-			      PAGE_SIZE);
+	size_t pitch, size;
+	struct gtt_range *gt;
+	struct drm_gem_object *obj;
+	u32 handle;
+	int ret;
+
+	pitch = args->width * DIV_ROUND_UP(args->bpp, 8);
+	pitch = ALIGN(pitch, 64);
+
+	size = pitch * args->height;
+	size = roundup(size, PAGE_SIZE);
+	if (!size)
+		return -EINVAL;
+
+	gt = psb_gem_create(dev, size, "gem", false, PAGE_SIZE);
+	if (IS_ERR(gt))
+		return PTR_ERR(gt);
+	obj = &gt->gem;
+
+	ret = drm_gem_handle_create(file, obj, &handle);
+	if (ret)
+		goto err_drm_gem_object_put;
+
+	drm_gem_object_put(obj);
+
+	args->pitch = pitch;
+	args->size = size;
+	args->handle = handle;
+
+	return 0;
+
+err_drm_gem_object_put:
+	drm_gem_object_put(obj);
+	return ret;
 }
 
 /**
