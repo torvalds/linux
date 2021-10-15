@@ -117,7 +117,7 @@ static vm_fault_t psb_gem_fault(struct vm_fault *vmf);
 
 static void psb_gem_free_object(struct drm_gem_object *obj)
 {
-	struct gtt_range *gtt = container_of(obj, struct gtt_range, gem);
+	struct gtt_range *gtt = to_gtt_range(obj);
 
 	/* Remove the list map if one is present */
 	drm_gem_free_mmap_offset(obj);
@@ -267,7 +267,7 @@ static vm_fault_t psb_gem_fault(struct vm_fault *vmf)
 	dev = obj->dev;
 	dev_priv = to_drm_psb_private(dev);
 
-	r = container_of(obj, struct gtt_range, gem);	/* Get the gtt range */
+	r = to_gtt_range(obj);
 
 	/* Make sure we don't parallel update on a fault, nor move or remove
 	   something from beneath our feet */

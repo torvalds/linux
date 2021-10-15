@@ -349,8 +349,7 @@ int gma_crtc_cursor_set(struct drm_crtc *crtc,
 
 		/* Unpin the old GEM object */
 		if (gma_crtc->cursor_obj) {
-			gt = container_of(gma_crtc->cursor_obj,
-					  struct gtt_range, gem);
+			gt = to_gtt_range(gma_crtc->cursor_obj);
 			psb_gtt_unpin(gt);
 			drm_gem_object_put(gma_crtc->cursor_obj);
 			gma_crtc->cursor_obj = NULL;
@@ -376,7 +375,7 @@ int gma_crtc_cursor_set(struct drm_crtc *crtc,
 		goto unref_cursor;
 	}
 
-	gt = container_of(obj, struct gtt_range, gem);
+	gt = to_gtt_range(obj);
 
 	/* Pin the memory into the GTT */
 	ret = psb_gtt_pin(gt);
@@ -426,7 +425,7 @@ int gma_crtc_cursor_set(struct drm_crtc *crtc,
 
 	/* unpin the old bo */
 	if (gma_crtc->cursor_obj) {
-		gt = container_of(gma_crtc->cursor_obj, struct gtt_range, gem);
+		gt = to_gtt_range(gma_crtc->cursor_obj);
 		psb_gtt_unpin(gt);
 		drm_gem_object_put(gma_crtc->cursor_obj);
 	}
