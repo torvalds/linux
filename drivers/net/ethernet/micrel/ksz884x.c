@@ -7007,9 +7007,12 @@ static int pcidev_init(struct pci_dev *pdev, const struct pci_device_id *id)
 		if (MAIN_PORT == i)
 			eth_hw_addr_set(dev, hw_priv->hw.override_addr);
 		else {
-			eth_hw_addr_set(dev, sw->other_addr);
+			u8 addr[ETH_ALEN];
+
+			ether_addr_copy(addr, sw->other_addr);
 			if (ether_addr_equal(sw->other_addr, hw->override_addr))
-				dev->dev_addr[5] += port->first_port;
+				addr[5] += port->first_port;
+			eth_hw_addr_set(dev, addr);
 		}
 
 		dev->netdev_ops = &netdev_ops;

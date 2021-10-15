@@ -285,6 +285,7 @@ static struct vnet *vnet_new(const u64 *local_mac,
 			     struct vio_dev *vdev)
 {
 	struct net_device *dev;
+	u8 addr[ETH_ALEN];
 	struct vnet *vp;
 	int err, i;
 
@@ -295,7 +296,8 @@ static struct vnet *vnet_new(const u64 *local_mac,
 	dev->needed_tailroom = 8;
 
 	for (i = 0; i < ETH_ALEN; i++)
-		dev->dev_addr[i] = (*local_mac >> (5 - i) * 8) & 0xff;
+		addr[i] = (*local_mac >> (5 - i) * 8) & 0xff;
+	eth_hw_addr_set(dev, addr);
 
 	vp = netdev_priv(dev);
 

@@ -1154,8 +1154,12 @@ static int ethoc_probe(struct platform_device *pdev)
 	/* Check that the given MAC address is valid. If it isn't, read the
 	 * current MAC from the controller.
 	 */
-	if (!is_valid_ether_addr(netdev->dev_addr))
-		ethoc_get_mac_address(netdev, netdev->dev_addr);
+	if (!is_valid_ether_addr(netdev->dev_addr)) {
+		u8 addr[ETH_ALEN];
+
+		ethoc_get_mac_address(netdev, addr);
+		eth_hw_addr_set(netdev, addr);
+	}
 
 	/* Check the MAC again for validity, if it still isn't choose and
 	 * program a random one.

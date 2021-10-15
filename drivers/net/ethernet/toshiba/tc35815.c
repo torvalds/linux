@@ -725,6 +725,7 @@ static int tc35815_init_dev_addr(struct net_device *dev)
 {
 	struct tc35815_regs __iomem *tr =
 		(struct tc35815_regs __iomem *)dev->base_addr;
+	u8 addr[ETH_ALEN];
 	int i;
 
 	while (tc_readl(&tr->PROM_Ctl) & PROM_Busy)
@@ -735,9 +736,10 @@ static int tc35815_init_dev_addr(struct net_device *dev)
 		while (tc_readl(&tr->PROM_Ctl) & PROM_Busy)
 			;
 		data = tc_readl(&tr->PROM_Data);
-		dev->dev_addr[i] = data & 0xff;
-		dev->dev_addr[i+1] = data >> 8;
+		addr[i] = data & 0xff;
+		addr[i+1] = data >> 8;
 	}
+	eth_hw_addr_set(dev, addr);
 	if (!is_valid_ether_addr(dev->dev_addr))
 		return tc35815_read_plat_dev_addr(dev);
 	return 0;

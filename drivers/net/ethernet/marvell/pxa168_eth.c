@@ -1436,9 +1436,13 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 
 	err = of_get_ethdev_address(pdev->dev.of_node, dev);
 	if (err) {
+		u8 addr[ETH_ALEN];
+
 		/* try reading the mac address, if set by the bootloader */
-		pxa168_eth_get_mac_address(dev, dev->dev_addr);
-		if (!is_valid_ether_addr(dev->dev_addr)) {
+		pxa168_eth_get_mac_address(dev, addr);
+		if (is_valid_ether_addr(addr)) {
+			eth_hw_addr_set(dev, addr);
+		} else {
 			dev_info(&pdev->dev, "Using random mac address\n");
 			eth_hw_addr_random(dev);
 		}

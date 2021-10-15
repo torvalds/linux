@@ -482,6 +482,7 @@ static int fealnx_init_one(struct pci_dev *pdev,
 	struct net_device *dev;
 	void *ring_space;
 	dma_addr_t ring_dma;
+	u8 addr[ETH_ALEN];
 #ifdef USE_IO_OPS
 	int bar = 0;
 #else
@@ -525,7 +526,8 @@ static int fealnx_init_one(struct pci_dev *pdev,
 
 	/* read ethernet id */
 	for (i = 0; i < 6; ++i)
-		dev->dev_addr[i] = ioread8(ioaddr + PAR0 + i);
+		addr[i] = ioread8(ioaddr + PAR0 + i);
+	eth_hw_addr_set(dev, addr);
 
 	/* Reset the chip to erase previous misconfiguration. */
 	iowrite32(0x00000001, ioaddr + BCR);
