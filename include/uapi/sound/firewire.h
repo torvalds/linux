@@ -147,6 +147,8 @@ struct snd_firewire_motu_register_dsp_meter {
 
 #define SNDRV_FIREWIRE_MOTU_REGISTER_DSP_MIXER_COUNT		4
 #define SNDRV_FIREWIRE_MOTU_REGISTER_DSP_MIXER_SRC_COUNT	20
+#define SNDRV_FIREWIRE_MOTU_REGISTER_DSP_INPUT_COUNT		10
+#define SNDRV_FIREWIRE_MOTU_REGISTER_DSP_ALIGNED_INPUT_COUNT	(SNDRV_FIREWIRE_MOTU_REGISTER_DSP_INPUT_COUNT + 2)
 
 /**
  * snd_firewire_motu_register_dsp_parameter - the container for parameters of DSP controlled
@@ -168,6 +170,11 @@ struct snd_firewire_motu_register_dsp_meter {
  * @line_input.nominal_level_flag: The flags of nominal level for line inputs, only for 828mk2 and
  *				   Traveler.
  * @line_input.reserved: Padding for 32 bit alignment for future extension.
+ * @input.gain_and_invert: The value including gain and invert for input, only for Ultralite, 4 pre
+ *			   and Audio Express.
+ * @input.flag: The flag of input; e.g. jack detection, phantom power, and pad, only for Ultralite,
+ *		4 pre and Audio express.
+ * @reserved: Padding so that the size of structure is kept to 512 byte, but for future extension.
  *
  * The structure expresses the set of parameters for DSP controlled by register access.
  */
@@ -196,6 +203,11 @@ struct snd_firewire_motu_register_dsp_parameter {
 		__u8 nominal_level_flag;
 		__u8 reserved[6];
 	} line_input;
+	struct {
+		__u8 gain_and_invert[SNDRV_FIREWIRE_MOTU_REGISTER_DSP_ALIGNED_INPUT_COUNT];
+		__u8 flag[SNDRV_FIREWIRE_MOTU_REGISTER_DSP_ALIGNED_INPUT_COUNT];
+	} input;
+	__u8 reserved[64];
 };
 
 // In below MOTU models, software is allowed to control their DSP by command in frame of

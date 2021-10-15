@@ -87,6 +87,9 @@ struct msg_parser {
 	u8 prev_mixer_src_type;
 	u8 mixer_ch;
 	u8 mixer_src_ch;
+
+	u8 input_ch;
+	u8 prev_msg_type;
 };
 
 int snd_motu_register_dsp_message_parser_new(struct snd_motu *motu)
@@ -109,6 +112,7 @@ int snd_motu_register_dsp_message_parser_init(struct snd_motu *motu)
 	parser->prev_mixer_src_type = INVALID;
 	parser->mixer_ch = 0xff;
 	parser->mixer_src_ch = 0xff;
+	parser->prev_msg_type = INVALID;
 
 	return 0;
 }
@@ -225,6 +229,35 @@ void snd_motu_register_dsp_message_parser_parse(struct snd_motu *motu, const str
 			case LINE_INPUT_NOMINAL_LEVEL:
 				parser->param.line_input.nominal_level_flag = val;
 				break;
+			case INPUT_GAIN_AND_INVERT:
+			case INPUT_FLAG:
+			{
+				struct snd_firewire_motu_register_dsp_parameter *param = &parser->param;
+				u8 input_ch = parser->input_ch;
+
+				if (parser->prev_msg_type != msg_type)
+					input_ch = 0;
+				else
+					++input_ch;
+
+				if (input_ch < SNDRV_FIREWIRE_MOTU_REGISTER_DSP_INPUT_COUNT) {
+					switch (msg_type) {
+					case INPUT_GAIN_AND_INVERT:
+						param->input.gain_and_invert[input_ch] = val;
+						break;
+					case INPUT_FLAG:
+						param->input.flag[input_ch] = val;
+						break;
+					default:
+						break;
+					}
+					parser->input_ch = input_ch;
+				}
+				break;
+			}
+			case UNKNOWN_0:
+			case UNKNOWN_2:
+				break;
 			case METER:
 			{
 				u8 pos;
@@ -239,11 +272,17 @@ void snd_motu_register_dsp_message_parser_parse(struct snd_motu *motu, const str
 				else
 					pos = (pos & 0x1f) + 20;
 				parser->meter.data[pos] = val;
-				break;
+				// The message for meter is interruptible to the series of other
+				// types of messages. Don't cache it.
+				fallthrough;
 			}
+			case INVALID:
 			default:
-				break;
+				// Don't cache it.
+				continue;
 			}
+
+			parser->prev_msg_type = msg_type;
 		}
 	}
 
