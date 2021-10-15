@@ -524,12 +524,6 @@ static int cs42l42_set_jack(struct snd_soc_component *component, struct snd_soc_
 
 	cs42l42->jack = jk;
 
-	regmap_update_bits(cs42l42->regmap, CS42L42_TSRS_PLUG_INT_MASK,
-			   CS42L42_RS_PLUG_MASK | CS42L42_RS_UNPLUG_MASK |
-			   CS42L42_TS_PLUG_MASK | CS42L42_TS_UNPLUG_MASK,
-			   (1 << CS42L42_RS_PLUG_SHIFT) | (1 << CS42L42_RS_UNPLUG_SHIFT) |
-			   (0 << CS42L42_TS_PLUG_SHIFT) | (0 << CS42L42_TS_UNPLUG_SHIFT));
-
 	return 0;
 }
 
@@ -1691,8 +1685,8 @@ static void cs42l42_set_interrupt_masks(struct cs42l42_private *cs42l42)
 			CS42L42_TS_UNPLUG_MASK,
 			(1 << CS42L42_RS_PLUG_SHIFT) |
 			(1 << CS42L42_RS_UNPLUG_SHIFT) |
-			(1 << CS42L42_TS_PLUG_SHIFT) |
-			(1 << CS42L42_TS_UNPLUG_SHIFT));
+			(0 << CS42L42_TS_PLUG_SHIFT) |
+			(0 << CS42L42_TS_UNPLUG_SHIFT));
 }
 
 static void cs42l42_setup_hs_type_detect(struct cs42l42_private *cs42l42)
