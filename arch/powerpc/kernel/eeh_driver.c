@@ -905,18 +905,19 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 	}
 #endif /* CONFIG_STACKTRACE */
 
+	eeh_for_each_pe(pe, tmp_pe)
+		eeh_pe_for_each_dev(tmp_pe, edev, tmp)
+			edev->mode &= ~EEH_DEV_NO_HANDLER;
+
 	eeh_pe_update_time_stamp(pe);
 	pe->freeze_count++;
 	if (pe->freeze_count > eeh_max_freezes) {
 		pr_err("EEH: PHB#%x-PE#%x has failed %d times in the last hour and has been permanently disabled.\n",
 		       pe->phb->global_number, pe->addr,
 		       pe->freeze_count);
-		result = PCI_ERS_RESULT_DISCONNECT;
-	}
 
-	eeh_for_each_pe(pe, tmp_pe)
-		eeh_pe_for_each_dev(tmp_pe, edev, tmp)
-			edev->mode &= ~EEH_DEV_NO_HANDLER;
+		goto recover_failed;
+	}
 
 	/* Walk the various device drivers attached to this slot through
 	 * a reset sequence, giving each an opportunity to do what it needs
@@ -928,39 +929,38 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 	 * the error. Override the result if necessary to have partially
 	 * hotplug for this case.
 	 */
-	if (result != PCI_ERS_RESULT_DISCONNECT) {
-		pr_warn("EEH: This PCI device has failed %d times in the last hour and will be permanently disabled after %d failures.\n",
-			pe->freeze_count, eeh_max_freezes);
-		pr_info("EEH: Notify device drivers to shutdown\n");
-		eeh_set_channel_state(pe, pci_channel_io_frozen);
-		eeh_set_irq_state(pe, false);
-		eeh_pe_report("error_detected(IO frozen)", pe,
-			      eeh_report_error, &result);
-		if ((pe->type & EEH_PE_PHB) &&
-		    result != PCI_ERS_RESULT_NONE &&
-		    result != PCI_ERS_RESULT_NEED_RESET)
-			result = PCI_ERS_RESULT_NEED_RESET;
-	}
+	pr_warn("EEH: This PCI device has failed %d times in the last hour and will be permanently disabled after %d failures.\n",
+		pe->freeze_count, eeh_max_freezes);
+	pr_info("EEH: Notify device drivers to shutdown\n");
+	eeh_set_channel_state(pe, pci_channel_io_frozen);
+	eeh_set_irq_state(pe, false);
+	eeh_pe_report("error_detected(IO frozen)", pe,
+		      eeh_report_error, &result);
+	if (result == PCI_ERS_RESULT_DISCONNECT)
+		goto recover_failed;
+
+	/*
+	 * Error logged on a PHB are always fences which need a full
+	 * PHB reset to clear so force that to happen.
+	 */
+	if ((pe->type & EEH_PE_PHB) && result != PCI_ERS_RESULT_NONE)
+		result = PCI_ERS_RESULT_NEED_RESET;
 
 	/* Get the current PCI slot state. This can take a long time,
 	 * sometimes over 300 seconds for certain systems.
 	 */
-	if (result != PCI_ERS_RESULT_DISCONNECT) {
-		rc = eeh_wait_state(pe, MAX_WAIT_FOR_RECOVERY*1000);
-		if (rc < 0 || rc == EEH_STATE_NOT_SUPPORT) {
-			pr_warn("EEH: Permanent failure\n");
-			result = PCI_ERS_RESULT_DISCONNECT;
-		}
+	rc = eeh_wait_state(pe, MAX_WAIT_FOR_RECOVERY * 1000);
+	if (rc < 0 || rc == EEH_STATE_NOT_SUPPORT) {
+		pr_warn("EEH: Permanent failure\n");
+		goto recover_failed;
 	}
 
 	/* Since rtas may enable MMIO when posting the error log,
 	 * don't post the error log until after all dev drivers
 	 * have been informed.
 	 */
-	if (result != PCI_ERS_RESULT_DISCONNECT) {
-		pr_info("EEH: Collect temporary log\n");
-		eeh_slot_error_detail(pe, EEH_LOG_TEMP);
-	}
+	pr_info("EEH: Collect temporary log\n");
+	eeh_slot_error_detail(pe, EEH_LOG_TEMP);
 
 	/* If all device drivers were EEH-unaware, then shut
 	 * down all of the device drivers, and hope they
@@ -970,9 +970,8 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 		pr_info("EEH: Reset with hotplug activity\n");
 		rc = eeh_reset_device(pe, bus, NULL, false);
 		if (rc) {
-			pr_warn("%s: Unable to reset, err=%d\n",
-				__func__, rc);
-			result = PCI_ERS_RESULT_DISCONNECT;
+			pr_warn("%s: Unable to reset, err=%d\n", __func__, rc);
+			goto recover_failed;
 		}
 	}
 
@@ -980,10 +979,10 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 	if (result == PCI_ERS_RESULT_CAN_RECOVER) {
 		pr_info("EEH: Enable I/O for affected devices\n");
 		rc = eeh_pci_enable(pe, EEH_OPT_THAW_MMIO);
+		if (rc < 0)
+			goto recover_failed;
 
-		if (rc < 0) {
-			result = PCI_ERS_RESULT_DISCONNECT;
-		} else if (rc) {
+		if (rc) {
 			result = PCI_ERS_RESULT_NEED_RESET;
 		} else {
 			pr_info("EEH: Notify device drivers to resume I/O\n");
@@ -991,15 +990,13 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 				      eeh_report_mmio_enabled, &result);
 		}
 	}
-
-	/* If all devices reported they can proceed, then re-enable DMA */
 	if (result == PCI_ERS_RESULT_CAN_RECOVER) {
 		pr_info("EEH: Enabled DMA for affected devices\n");
 		rc = eeh_pci_enable(pe, EEH_OPT_THAW_DMA);
+		if (rc < 0)
+			goto recover_failed;
 
-		if (rc < 0) {
-			result = PCI_ERS_RESULT_DISCONNECT;
-		} else if (rc) {
+		if (rc) {
 			result = PCI_ERS_RESULT_NEED_RESET;
 		} else {
 			/*
@@ -1017,16 +1014,15 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 		pr_info("EEH: Reset without hotplug activity\n");
 		rc = eeh_reset_device(pe, bus, &rmv_data, true);
 		if (rc) {
-			pr_warn("%s: Cannot reset, err=%d\n",
-				__func__, rc);
-			result = PCI_ERS_RESULT_DISCONNECT;
-		} else {
-			result = PCI_ERS_RESULT_NONE;
-			eeh_set_channel_state(pe, pci_channel_io_normal);
-			eeh_set_irq_state(pe, true);
-			eeh_pe_report("slot_reset", pe, eeh_report_reset,
-				      &result);
+			pr_warn("%s: Cannot reset, err=%d\n", __func__, rc);
+			goto recover_failed;
 		}
+
+		result = PCI_ERS_RESULT_NONE;
+		eeh_set_channel_state(pe, pci_channel_io_normal);
+		eeh_set_irq_state(pe, true);
+		eeh_pe_report("slot_reset", pe, eeh_report_reset,
+			      &result);
 	}
 
 	if ((result == PCI_ERS_RESULT_RECOVERED) ||
@@ -1057,6 +1053,7 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 		goto out;
 	}
 
+recover_failed:
 	/*
 	 * About 90% of all real-life EEH failures in the field
 	 * are due to poorly seated PCI cards. Only 10% or so are
