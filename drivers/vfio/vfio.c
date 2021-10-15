@@ -324,12 +324,16 @@ static void vfio_container_put(struct vfio_container *container)
 
 static void vfio_group_unlock_and_free(struct vfio_group *group)
 {
+	struct vfio_unbound_dev *unbound, *tmp;
+
 	mutex_unlock(&vfio.group_lock);
-	/*
-	 * Unregister outside of lock.  A spurious callback is harmless now
-	 * that the group is no longer in vfio.group_list.
-	 */
 	iommu_group_unregister_notifier(group->iommu_group, &group->nb);
+
+	list_for_each_entry_safe(unbound, tmp,
+				 &group->unbound_list, unbound_next) {
+		list_del(&unbound->unbound_next);
+		kfree(unbound);
+	}
 	kfree(group);
 }
 
@@ -360,14 +364,6 @@ static struct vfio_group *vfio_create_group(struct iommu_group *iommu_group,
 	BLOCKING_INIT_NOTIFIER_HEAD(&group->notifier);
 
 	group->nb.notifier_call = vfio_iommu_group_notifier;
-
-	/*
-	 * blocking notifiers acquire a rwsem around registering and hold
-	 * it around callback.  Therefore, need to register outside of
-	 * vfio.group_lock to avoid A-B/B-A contention.  Our callback won't
-	 * do anything unless it can find the group in vfio.group_list, so
-	 * no harm in registering early.
-	 */
 	ret = iommu_group_register_notifier(iommu_group, &group->nb);
 	if (ret) {
 		kfree(group);
@@ -415,17 +411,17 @@ static struct vfio_group *vfio_create_group(struct iommu_group *iommu_group,
 static void vfio_group_release(struct kref *kref)
 {
 	struct vfio_group *group = container_of(kref, struct vfio_group, kref);
-	struct vfio_unbound_dev *unbound, *tmp;
 	struct iommu_group *iommu_group = group->iommu_group;
 
+	/*
+	 * These data structures all have paired operations that can only be
+	 * undone when the caller holds a live reference on the group. Since all
+	 * pairs must be undone these WARN_ON's indicate some caller did not
+	 * properly hold the group reference.
+	 */
 	WARN_ON(!list_empty(&group->device_list));
+	WARN_ON(atomic_read(&group->container_users));
 	WARN_ON(group->notifier.head);
-
-	list_for_each_entry_safe(unbound, tmp,
-				 &group->unbound_list, unbound_next) {
-		list_del(&unbound->unbound_next);
-		kfree(unbound);
-	}
 
 	device_destroy(vfio.class, MKDEV(MAJOR(vfio.group_devt), group->minor));
 	list_del(&group->vfio_next);
@@ -439,59 +435,10 @@ static void vfio_group_put(struct vfio_group *group)
 	kref_put_mutex(&group->kref, vfio_group_release, &vfio.group_lock);
 }
 
-struct vfio_group_put_work {
-	struct work_struct work;
-	struct vfio_group *group;
-};
-
-static void vfio_group_put_bg(struct work_struct *work)
-{
-	struct vfio_group_put_work *do_work;
-
-	do_work = container_of(work, struct vfio_group_put_work, work);
-
-	vfio_group_put(do_work->group);
-	kfree(do_work);
-}
-
-static void vfio_group_schedule_put(struct vfio_group *group)
-{
-	struct vfio_group_put_work *do_work;
-
-	do_work = kmalloc(sizeof(*do_work), GFP_KERNEL);
-	if (WARN_ON(!do_work))
-		return;
-
-	INIT_WORK(&do_work->work, vfio_group_put_bg);
-	do_work->group = group;
-	schedule_work(&do_work->work);
-}
-
 /* Assume group_lock or group reference is held */
 static void vfio_group_get(struct vfio_group *group)
 {
 	kref_get(&group->kref);
-}
-
-/*
- * Not really a try as we will sleep for mutex, but we need to make
- * sure the group pointer is valid under lock and get a reference.
- */
-static struct vfio_group *vfio_group_try_get(struct vfio_group *group)
-{
-	struct vfio_group *target = group;
-
-	mutex_lock(&vfio.group_lock);
-	list_for_each_entry(group, &vfio.group_list, vfio_next) {
-		if (group == target) {
-			vfio_group_get(group);
-			mutex_unlock(&vfio.group_lock);
-			return group;
-		}
-	}
-	mutex_unlock(&vfio.group_lock);
-
-	return NULL;
 }
 
 static
@@ -691,14 +638,6 @@ static int vfio_iommu_group_notifier(struct notifier_block *nb,
 	struct device *dev = data;
 	struct vfio_unbound_dev *unbound;
 
-	/*
-	 * Need to go through a group_lock lookup to get a reference or we
-	 * risk racing a group being removed.  Ignore spurious notifies.
-	 */
-	group = vfio_group_try_get(group);
-	if (!group)
-		return NOTIFY_OK;
-
 	switch (action) {
 	case IOMMU_GROUP_NOTIFY_ADD_DEVICE:
 		vfio_group_nb_add_dev(group, dev);
@@ -749,15 +688,6 @@ static int vfio_iommu_group_notifier(struct notifier_block *nb,
 		mutex_unlock(&group->unbound_lock);
 		break;
 	}
-
-	/*
-	 * If we're the last reference to the group, the group will be
-	 * released, which includes unregistering the iommu group notifier.
-	 * We hold a read-lock on that notifier list, unregistering needs
-	 * a write-lock... deadlock.  Release our reference asynchronously
-	 * to avoid that situation.
-	 */
-	vfio_group_schedule_put(group);
 	return NOTIFY_OK;
 }
 
