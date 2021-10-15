@@ -306,7 +306,7 @@ void blk_mq_wake_waiters(struct request_queue *q)
  */
 static inline bool blk_mq_need_time_stamp(struct request *rq)
 {
-	return (rq->rq_flags & (RQF_IO_STAT | RQF_STATS)) || rq->q->elevator;
+	return (rq->rq_flags & (RQF_IO_STAT | RQF_STATS | RQF_ELV));
 }
 
 static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
@@ -316,9 +316,11 @@ static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 	struct request *rq = tags->static_rqs[tag];
 
 	if (data->q->elevator) {
+		rq->rq_flags = RQF_ELV;
 		rq->tag = BLK_MQ_NO_TAG;
 		rq->internal_tag = tag;
 	} else {
+		rq->rq_flags = 0;
 		rq->tag = tag;
 		rq->internal_tag = BLK_MQ_NO_TAG;
 	}
@@ -327,7 +329,6 @@ static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 	rq->q = data->q;
 	rq->mq_ctx = data->ctx;
 	rq->mq_hctx = data->hctx;
-	rq->rq_flags = 0;
 	rq->cmd_flags = data->cmd_flags;
 	if (data->flags & BLK_MQ_REQ_PM)
 		rq->rq_flags |= RQF_PM;
@@ -363,11 +364,11 @@ static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 	data->ctx->rq_dispatched[op_is_sync(data->cmd_flags)]++;
 	refcount_set(&rq->ref, 1);
 
-	if (!op_is_flush(data->cmd_flags)) {
+	if (!op_is_flush(data->cmd_flags) && (rq->rq_flags & RQF_ELV)) {
 		struct elevator_queue *e = data->q->elevator;
 
 		rq->elv.icq = NULL;
-		if (e && e->type->ops.prepare_request) {
+		if (e->type->ops.prepare_request) {
 			if (e->type->icq_cache)
 				blk_mq_sched_assign_ioc(rq);
 
@@ -588,12 +589,13 @@ static void __blk_mq_free_request(struct request *rq)
 void blk_mq_free_request(struct request *rq)
 {
 	struct request_queue *q = rq->q;
-	struct elevator_queue *e = q->elevator;
 	struct blk_mq_ctx *ctx = rq->mq_ctx;
 	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
 
-	if (rq->rq_flags & RQF_ELVPRIV) {
-		if (e && e->type->ops.finish_request)
+	if (rq->rq_flags & (RQF_ELVPRIV | RQF_ELV)) {
+		struct elevator_queue *e = q->elevator;
+
+		if (e->type->ops.finish_request)
 			e->type->ops.finish_request(rq);
 		if (rq->elv.icq) {
 			put_io_context(rq->elv.icq->ioc);
@@ -2254,7 +2256,7 @@ static blk_status_t __blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
 		goto insert;
 	}
 
-	if (q->elevator && !bypass_insert)
+	if ((rq->rq_flags & RQF_ELV) && !bypass_insert)
 		goto insert;
 
 	budget_token = blk_mq_get_dispatch_budget(q);
@@ -2492,7 +2494,7 @@ void blk_mq_submit_bio(struct bio *bio)
 		}
 
 		blk_add_rq_to_plug(plug, rq);
-	} else if (q->elevator) {
+	} else if (rq->rq_flags & RQF_ELV) {
 		/* Insert the request at the IO scheduler queue */
 		blk_mq_sched_insert_request(rq, false, true, true);
 	} else if (plug && !blk_queue_nomerges(q)) {
