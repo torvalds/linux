@@ -174,7 +174,7 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 
 	err = platform_get_irq(pdev, 0);
 	if (err < 0)
-		goto ret;
+		return err;
 	else
 		tscadc->irq = err;
 
@@ -189,8 +189,7 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 					       &tscadc_regmap_config);
 	if (IS_ERR(tscadc->regmap)) {
 		dev_err(&pdev->dev, "regmap init failed\n");
-		err = PTR_ERR(tscadc->regmap);
-		goto ret;
+		return PTR_ERR(tscadc->regmap);
 	}
 
 	spin_lock_init(&tscadc->reg_lock);
@@ -274,7 +273,7 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 err_disable_clk:
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-ret:
+
 	return err;
 }
 
