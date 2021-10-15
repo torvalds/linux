@@ -155,6 +155,11 @@ void restore_fpregs_from_fpstate(union fpregs_state *fpstate, u64 mask)
 	}
 }
 
+void fpu_reset_from_exception_fixup(void)
+{
+	restore_fpregs_from_fpstate(&init_fpstate, xfeatures_mask_fpstate());
+}
+
 #if IS_ENABLED(CONFIG_KVM)
 void fpu_swap_kvm_fpu(struct fpu *save, struct fpu *rstor, u64 restore_mask)
 {

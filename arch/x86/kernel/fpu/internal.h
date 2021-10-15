@@ -2,6 +2,8 @@
 #ifndef __X86_KERNEL_FPU_INTERNAL_H
 #define __X86_KERNEL_FPU_INTERNAL_H
 
+extern union fpregs_state init_fpstate;
+
 /* CPU feature check wrappers */
 static __always_inline __pure bool use_xsave(void)
 {

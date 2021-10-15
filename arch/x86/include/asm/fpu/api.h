@@ -113,6 +113,7 @@ static inline void update_pasid(void) { }
 /* Trap handling */
 extern int  fpu__exception_code(struct fpu *fpu, int trap_nr);
 extern void fpu_sync_fpstate(struct fpu *fpu);
+extern void fpu_reset_from_exception_fixup(void);
 
 /* Boot, hotplug and resume */
 extern void fpu__init_cpu(void);
@@ -128,9 +129,6 @@ static inline void fpstate_init_soft(struct swregs_state *soft) {}
 
 /* State tracking */
 DECLARE_PER_CPU(struct fpu *, fpu_fpregs_owner_ctx);
-
-/* fpstate */
-extern union fpregs_state init_fpstate;
 
 /* fpstate-related functions which are exported to KVM */
 extern void fpu_init_fpstate_user(struct fpu *fpu);
