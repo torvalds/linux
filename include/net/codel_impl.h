@@ -54,6 +54,7 @@ static void codel_params_init(struct codel_params *params)
 	params->interval = MS2TIME(100);
 	params->target = MS2TIME(5);
 	params->ce_threshold = CODEL_DISABLED_THRESHOLD;
+	params->ce_threshold_ect1 = false;
 	params->ecn = false;
 }
 
@@ -246,9 +247,20 @@ static struct sk_buff *codel_dequeue(void *ctx,
 						    vars->rec_inv_sqrt);
 	}
 end:
-	if (skb && codel_time_after(vars->ldelay, params->ce_threshold) &&
-	    INET_ECN_set_ce(skb))
-		stats->ce_mark++;
+	if (skb && codel_time_after(vars->ldelay, params->ce_threshold)) {
+		bool set_ce = true;
+
+		if (params->ce_threshold_ect1) {
+			/* Note: if skb_get_dsfield() returns -1, following
+			 * gives INET_ECN_MASK, which is != INET_ECN_ECT_1.
+			 */
+			u8 ecn = skb_get_dsfield(skb) & INET_ECN_MASK;
+
+			set_ce = (ecn == INET_ECN_ECT_1);
+		}
+		if (set_ce && INET_ECN_set_ce(skb))
+			stats->ce_mark++;
+	}
 	return skb;
 }
 

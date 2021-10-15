@@ -513,6 +513,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	sta->cparams.target = MS2TIME(20);
 	sta->cparams.interval = MS2TIME(100);
 	sta->cparams.ecn = true;
+	sta->cparams.ce_threshold_ect1 = false;
 
 	sta_dbg(sdata, "Allocated STA %pM\n", sta->sta.addr);
 

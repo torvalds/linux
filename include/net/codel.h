@@ -102,6 +102,7 @@ static inline u32 codel_time_to_us(codel_time_t val)
  * @interval:	width of moving time window
  * @mtu:	device mtu, or minimal queue backlog in bytes.
  * @ecn:	is Explicit Congestion Notification enabled
+ * @ce_threshold_ect1: if ce_threshold only marks ECT(1) packets
  */
 struct codel_params {
 	codel_time_t	target;
@@ -109,6 +110,7 @@ struct codel_params {
 	codel_time_t	interval;
 	u32		mtu;
 	bool		ecn;
+	bool		ce_threshold_ect1;
 };
 
 /**
