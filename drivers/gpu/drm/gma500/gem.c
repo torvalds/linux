@@ -23,12 +23,12 @@
 
 int psb_gem_pin(struct gtt_range *gt)
 {
-	int ret = 0;
 	struct drm_device *dev = gt->gem.dev;
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	u32 gpu_base = dev_priv->gtt.gatt_start;
 	struct page **pages;
 	unsigned int npages;
+	int ret;
 
 	mutex_lock(&dev_priv->gtt_mutex);
 
@@ -45,10 +45,7 @@ int psb_gem_pin(struct gtt_range *gt)
 
 	set_pages_array_wc(pages, npages);
 
-	ret = psb_gtt_insert(dev, gt);
-	if (ret)
-		goto err_drm_gem_put_pages;
-
+	psb_gtt_insert_pages(dev_priv, &gt->resource, pages);
 	psb_mmu_insert_pages(psb_mmu_get_default_pd(dev_priv->mmu), pages,
 			     (gpu_base + gt->offset), npages, 0, 0,
 			     PSB_MMU_CACHED_MEMORY);
@@ -62,8 +59,6 @@ out:
 
 	return 0;
 
-err_drm_gem_put_pages:
-	drm_gem_put_pages(&gt->gem, pages, true, false);
 err_mutex_unlock:
 	mutex_unlock(&dev_priv->gtt_mutex);
 	return ret;
@@ -86,13 +81,14 @@ void psb_gem_unpin(struct gtt_range *gt)
 
 	psb_mmu_remove_pages(psb_mmu_get_default_pd(dev_priv->mmu),
 				     (gpu_base + gt->offset), gt->npage, 0, 0);
-	psb_gtt_remove(dev, gt);
+	psb_gtt_remove_pages(dev_priv, &gt->resource);
 
 	/* Reset caching flags */
 	set_pages_array_wb(gt->pages, gt->npage);
 
 	drm_gem_put_pages(&gt->gem, gt->pages, true, false);
 	gt->pages = NULL;
+	gt->npage = 0;
 
 out:
 	mutex_unlock(&dev_priv->gtt_mutex);

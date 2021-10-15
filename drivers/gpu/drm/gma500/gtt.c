@@ -66,85 +66,61 @@ static inline uint32_t psb_gtt_mask_pte(uint32_t pfn, int type)
 	return (pfn << PAGE_SHIFT) | mask;
 }
 
-/**
- *	psb_gtt_entry		-	find the GTT entries for a gtt_range
- *	@dev: our DRM device
- *	@r: our GTT range
- *
- *	Given a gtt_range object return the GTT offset of the page table
- *	entries for this gtt_range
- */
-static u32 __iomem *psb_gtt_entry(struct drm_device *dev, struct gtt_range *r)
+static u32 __iomem *psb_gtt_entry(struct drm_psb_private *pdev, const struct resource *res)
 {
-	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
-	unsigned long offset;
+	unsigned long offset = res->start - pdev->gtt_mem->start;
 
-	offset = r->resource.start - dev_priv->gtt_mem->start;
-
-	return dev_priv->gtt_map + (offset >> PAGE_SHIFT);
+	return pdev->gtt_map + (offset >> PAGE_SHIFT);
 }
 
-/**
- *	psb_gtt_insert	-	put an object into the GTT
- *	@dev: our DRM device
- *	@r: our GTT range
- *
- *	Take our preallocated GTT range and insert the GEM object into
- *	the GTT. This is protected via the gtt mutex which the caller
- *	must hold.
+/*
+ * Take our preallocated GTT range and insert the GEM object into
+ * the GTT. This is protected via the gtt mutex which the caller
+ * must hold.
  */
-int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r)
+void psb_gtt_insert_pages(struct drm_psb_private *pdev, const struct resource *res,
+			  struct page **pages)
 {
+	resource_size_t npages, i;
 	u32 __iomem *gtt_slot;
 	u32 pte;
-	int i;
-
-	if (r->pages == NULL) {
-		WARN_ON(1);
-		return -EINVAL;
-	}
-
-	WARN_ON(r->stolen);	/* refcount these maybe ? */
-
-	gtt_slot = psb_gtt_entry(dev, r);
 
 	/* Write our page entries into the GTT itself */
-	for (i = 0; i < r->npage; i++) {
-		pte = psb_gtt_mask_pte(page_to_pfn(r->pages[i]),
-				       PSB_MMU_CACHED_MEMORY);
-		iowrite32(pte, gtt_slot++);
+
+	npages = resource_size(res) >> PAGE_SHIFT;
+	gtt_slot = psb_gtt_entry(pdev, res);
+
+	for (i = 0; i < npages; ++i, ++gtt_slot) {
+		pte = psb_gtt_mask_pte(page_to_pfn(pages[i]), PSB_MMU_CACHED_MEMORY);
+		iowrite32(pte, gtt_slot);
 	}
 
 	/* Make sure all the entries are set before we return */
 	ioread32(gtt_slot - 1);
-
-	return 0;
 }
 
-/**
- *	psb_gtt_remove	-	remove an object from the GTT
- *	@dev: our DRM device
- *	@r: our GTT range
- *
- *	Remove a preallocated GTT range from the GTT. Overwrite all the
- *	page table entries with the dummy page. This is protected via the gtt
- *	mutex which the caller must hold.
+/*
+ * Remove a preallocated GTT range from the GTT. Overwrite all the
+ * page table entries with the dummy page. This is protected via the gtt
+ * mutex which the caller must hold.
  */
-void psb_gtt_remove(struct drm_device *dev, struct gtt_range *r)
+void psb_gtt_remove_pages(struct drm_psb_private *pdev, const struct resource *res)
 {
-	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
+	resource_size_t npages, i;
 	u32 __iomem *gtt_slot;
 	u32 pte;
-	int i;
 
-	WARN_ON(r->stolen);
+	/* Install scratch page for the resource */
 
-	gtt_slot = psb_gtt_entry(dev, r);
-	pte = psb_gtt_mask_pte(page_to_pfn(dev_priv->scratch_page),
-			       PSB_MMU_CACHED_MEMORY);
+	pte = psb_gtt_mask_pte(page_to_pfn(pdev->scratch_page), PSB_MMU_CACHED_MEMORY);
 
-	for (i = 0; i < r->npage; i++)
-		iowrite32(pte, gtt_slot++);
+	npages = resource_size(res) >> PAGE_SHIFT;
+	gtt_slot = psb_gtt_entry(pdev, res);
+
+	for (i = 0; i < npages; ++i, ++gtt_slot)
+		iowrite32(pte, gtt_slot);
+
+	/* Make sure all the entries are set before we return */
 	ioread32(gtt_slot - 1);
 }
 
@@ -334,9 +310,14 @@ int psb_gtt_restore(struct drm_device *dev)
 	psb_gtt_init(dev, 1);
 
 	while (r != NULL) {
+		/*
+		 * TODO: GTT restoration needs a refactoring, so that we don't have to touch
+		 *       struct gtt_range here. The type represents a GEM object and is not
+		 *       related to the GTT itself.
+		 */
 		range = container_of(r, struct gtt_range, resource);
 		if (range->pages) {
-			psb_gtt_insert(dev, range);
+			psb_gtt_insert_pages(dev_priv, &range->resource, range->pages);
 			size += range->resource.end - range->resource.start;
 			restored++;
 		}
