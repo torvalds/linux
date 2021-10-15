@@ -77,11 +77,6 @@ s32 ODM_CompareMemory(struct odm_dm_struct *pDM_Odm, void *pBuf1, void *pBuf2, u
 }
 
 /*  ODM Timer relative API. */
-void ODM_StallExecution(u32 usDelay)
-{
-	udelay(usDelay);
-}
-
 void ODM_delay_ms(u32 ms)
 {
 	mdelay(ms);

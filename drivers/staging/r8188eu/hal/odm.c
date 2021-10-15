@@ -5,17 +5,6 @@
 
 #include "../include/odm_precomp.h"
 
-static const u16 dB_Invert_Table[8][12] = {
-	{1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 4, 4},
-	{4, 5, 6, 6, 7, 8, 9, 10, 11, 13, 14, 16},
-	{18, 20, 22, 25, 28, 32, 35, 40, 45, 50, 56, 63},
-	{71, 79, 89, 100, 112, 126, 141, 158, 178, 200, 224, 251},
-	{282, 316, 355, 398, 447, 501, 562, 631, 708, 794, 891, 1000},
-	{1122, 1259, 1413, 1585, 1778, 1995, 2239, 2512, 2818, 3162, 3548, 3981},
-	{4467, 5012, 5623, 6310, 7079, 7943, 8913, 10000, 11220, 12589, 14125, 15849},
-	{17783, 19953, 22387, 25119, 28184, 31623, 35481, 39811, 44668, 50119, 56234, 65535}
-};
-
 /* avoid to warn in FreeBSD ==> To DO modify */
 static u32 EDCAParam[HT_IOT_PEER_MAX][3] = {
 	/*  UL			DL */
@@ -1141,52 +1130,4 @@ dm_CheckEdcaTurbo_EXIT:
 	precvpriv->bIsAnyNonBEPkts = false;
 	pxmitpriv->last_tx_bytes = pxmitpriv->tx_bytes;
 	precvpriv->last_rx_bytes = precvpriv->rx_bytes;
-}
-
-/*  need to ODM CE Platform */
-/* move to here for ANT detection mechanism using */
-
-u32 GetPSDData(struct odm_dm_struct *pDM_Odm, unsigned int point, u8 initial_gain_psd)
-{
-	u32 psd_report;
-
-	/* Set DCO frequency index, offset=(40MHz/SamplePts)*point */
-	ODM_SetBBReg(pDM_Odm, 0x808, 0x3FF, point);
-
-	/* Start PSD calculation, Reg808[22]=0->1 */
-	ODM_SetBBReg(pDM_Odm, 0x808, BIT(22), 1);
-	/* Need to wait for HW PSD report */
-	ODM_StallExecution(30);
-	ODM_SetBBReg(pDM_Odm, 0x808, BIT(22), 0);
-	/* Read PSD report, Reg8B4[15:0] */
-	psd_report = ODM_GetBBReg(pDM_Odm, 0x8B4, bMaskDWord) & 0x0000FFFF;
-
-	psd_report = (u32)(ConvertTo_dB(psd_report)) + (u32)(initial_gain_psd - 0x1c);
-
-	return psd_report;
-}
-
-u32 ConvertTo_dB(u32 Value)
-{
-	u8 i;
-	u8 j;
-	u32 dB;
-
-	Value = Value & 0xFFFF;
-	for (i = 0; i < 8; i++) {
-		if (Value <= dB_Invert_Table[i][11])
-			break;
-	}
-
-	if (i >= 8)
-		return 96;	/*  maximum 96 dB */
-
-	for (j = 0; j < 12; j++) {
-		if (Value <= dB_Invert_Table[i][j])
-			break;
-	}
-
-	dB = i * 12 + j + 1;
-
-	return dB;
 }

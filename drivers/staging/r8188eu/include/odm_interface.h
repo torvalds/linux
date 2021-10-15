@@ -50,8 +50,6 @@ s32 ODM_CompareMemory(struct odm_dm_struct *pDM_Odm, void *pBuf1, void *pBuf2,
 		      u32 length);
 
 /*  ODM Timer relative API. */
-void ODM_StallExecution(u32 usDelay);
-
 void ODM_delay_ms(u32 ms);
 
 void ODM_delay_us(u32 us);

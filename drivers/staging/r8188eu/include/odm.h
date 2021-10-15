@@ -880,11 +880,6 @@ void ODM_TXPowerTrackingCheck(struct odm_dm_struct *pDM_Odm);
 bool ODM_RAStateCheck(struct odm_dm_struct *pDM_Odm, s32 RSSI,
 		      bool bForceUpdate, u8 *pRATRState);
 
-u32 ConvertTo_dB(u32 Value);
-
-u32 GetPSDData(struct odm_dm_struct *pDM_Odm, unsigned int point,
-	       u8 initial_gain_psd);
-
 u32 ODM_Get_Rate_Bitmap(struct odm_dm_struct *pDM_Odm, u32 macid,
 			u32 ra_mask, u8 rssi_level);
 
