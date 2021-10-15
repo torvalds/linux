@@ -641,6 +641,7 @@ static int starfire_init_one(struct pci_dev *pdev,
 	struct netdev_private *np;
 	int i, irq, chip_idx = ent->driver_data;
 	struct net_device *dev;
+	u8 addr[ETH_ALEN];
 	long ioaddr;
 	void __iomem *base;
 	int drv_flags, io_size;
@@ -696,7 +697,8 @@ static int starfire_init_one(struct pci_dev *pdev,
 
 	/* Serial EEPROM reads are hidden by the hardware. */
 	for (i = 0; i < 6; i++)
-		dev->dev_addr[i] = readb(base + EEPROMCtrl + 20 - i);
+		addr[i] = readb(base + EEPROMCtrl + 20 - i);
+	eth_hw_addr_set(dev, addr);
 
 #if ! defined(final_version) /* Dump the EEPROM contents during development. */
 	if (debug > 4)
