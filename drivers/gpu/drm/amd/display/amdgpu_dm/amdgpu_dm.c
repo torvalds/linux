@@ -1356,8 +1356,7 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 		switch (adev->ip_versions[DCE_HWIP][0]) {
 		case IP_VERSION(2, 1, 0):
 			init_data.flags.gpu_vm_support = true;
-			if (ASICREV_IS_GREEN_SARDINE(adev->external_rev_id))
-				init_data.flags.disable_dmcu = true;
+			init_data.flags.disable_dmcu = true;
 			break;
 		case IP_VERSION(1, 0, 0):
 		case IP_VERSION(1, 0, 1):
