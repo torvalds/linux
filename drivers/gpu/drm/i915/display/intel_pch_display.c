@@ -451,4 +451,6 @@ void lpt_pch_get_config(struct intel_crtc_state *crtc_state)
 				 FDI_DP_PORT_WIDTH_SHIFT) + 1;
 
 	ilk_get_fdi_m_n_config(crtc, crtc_state);
+
+	crtc_state->hw.adjusted_mode.crtc_clock = lpt_get_iclkip(dev_priv);
 }
