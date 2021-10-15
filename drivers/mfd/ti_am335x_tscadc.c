@@ -120,6 +120,7 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 	struct mfd_cell *cell;
 	struct property *prop;
 	const __be32 *cur;
+	bool use_tsc = false;
 	u32 val;
 	int err;
 	int tscmag_wires = 0, adc_channels = 0, cell_idx = 0, total_channels;
@@ -143,6 +144,8 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 	of_property_read_u32(node, "ti,wires", &tscmag_wires);
 	of_property_read_u32(node, "ti,coordiante-readouts", &readouts);
 	of_node_put(node);
+	if (tscmag_wires)
+		use_tsc = true;
 
 	node = of_get_child_by_name(pdev->dev.of_node, "adc");
 	of_property_for_each_u32(node, "ti,adc-channels", prop, cur, val) {
@@ -168,7 +171,7 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	if (readouts * 2 + 2 + adc_channels > 16) {
+	if (use_tsc && (readouts * 2 + 2 + adc_channels > 16)) {
 		dev_err(&pdev->dev, "Too many step configurations requested\n");
 		return -EINVAL;
 	}
@@ -223,7 +226,7 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 	 * added manually when timely.
 	 */
 	tscadc->ctrl = CNTRLREG_TSC_STEPCONFIGWRT | CNTRLREG_STEPID;
-	if (tscmag_wires > 0) {
+	if (use_tsc) {
 		tscadc->ctrl |= CNTRLREG_TSC_ENB;
 		if (tscmag_wires == 5)
 			tscadc->ctrl |= CNTRLREG_TSC_5WIRE;
