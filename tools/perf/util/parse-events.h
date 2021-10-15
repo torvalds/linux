@@ -87,6 +87,7 @@ enum {
 	PARSE_EVENTS__TERM_TYPE_PERCORE,
 	PARSE_EVENTS__TERM_TYPE_AUX_OUTPUT,
 	PARSE_EVENTS__TERM_TYPE_AUX_SAMPLE_SIZE,
+	PARSE_EVENTS__TERM_TYPE_METRIC_ID,
 	__PARSE_EVENTS__TERM_TYPE_NR,
 };
 
@@ -199,7 +200,8 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 			 bool use_alias);
 
 struct evsel *parse_events__add_event(int idx, struct perf_event_attr *attr,
-				      const char *name, struct perf_pmu *pmu);
+				      const char *name, const char *metric_id,
+				      struct perf_pmu *pmu);
 
 int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 			       char *str,
@@ -267,6 +269,7 @@ int perf_pmu__test_parse_init(void);
 struct evsel *parse_events__add_event_hybrid(struct list_head *list, int *idx,
 					     struct perf_event_attr *attr,
 					     const char *name,
+					     const char *metric_id,
 					     struct perf_pmu *pmu,
 					     struct list_head *config_terms);
 
