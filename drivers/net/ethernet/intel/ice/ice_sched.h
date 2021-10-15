@@ -58,6 +58,8 @@ struct ice_sched_agg_info {
 	DECLARE_BITMAP(tc_bitmap, ICE_MAX_TRAFFIC_CLASS);
 	u32 agg_id;
 	enum ice_agg_type agg_type;
+	/* bw_t_info saves aggregator BW information */
+	struct ice_bw_type_info bw_t_info[ICE_MAX_TRAFFIC_CLASS];
 	/* save aggregator TC bitmap */
 	DECLARE_BITMAP(replay_tc_bitmap, ICE_MAX_TRAFFIC_CLASS);
 };

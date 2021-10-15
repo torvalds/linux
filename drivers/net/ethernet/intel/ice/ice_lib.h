@@ -51,13 +51,18 @@ void ice_cfg_sw_lldp(struct ice_vsi *vsi, bool tx, bool create);
 
 int ice_set_link(struct ice_vsi *vsi, bool ena);
 
-#ifdef CONFIG_DCB
+void ice_vsi_delete(struct ice_vsi *vsi);
+int ice_vsi_clear(struct ice_vsi *vsi);
+
 int ice_vsi_cfg_tc(struct ice_vsi *vsi, u8 ena_tc);
-#endif /* CONFIG_DCB */
+
+int ice_vsi_cfg_rss_lut_key(struct ice_vsi *vsi);
+
+void ice_vsi_cfg_netdev_tc(struct ice_vsi *vsi, u8 ena_tc);
 
 struct ice_vsi *
 ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
-	      enum ice_vsi_type vsi_type, u16 vf_id);
+	      enum ice_vsi_type vsi_type, u16 vf_id, struct ice_channel *ch);
 
 void ice_napi_del(struct ice_vsi *vsi);
 

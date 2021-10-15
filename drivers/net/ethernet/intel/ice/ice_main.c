@@ -3240,7 +3240,7 @@ void ice_fill_rss_lut(u8 *lut, u16 rss_table_size, u16 rss_size)
 static struct ice_vsi *
 ice_pf_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi)
 {
-	return ice_vsi_setup(pf, pi, ICE_VSI_PF, ICE_INVAL_VFID);
+	return ice_vsi_setup(pf, pi, ICE_VSI_PF, ICE_INVAL_VFID, NULL);
 }
 
 /**
@@ -3254,7 +3254,7 @@ ice_pf_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi)
 static struct ice_vsi *
 ice_ctrl_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi)
 {
-	return ice_vsi_setup(pf, pi, ICE_VSI_CTRL, ICE_INVAL_VFID);
+	return ice_vsi_setup(pf, pi, ICE_VSI_CTRL, ICE_INVAL_VFID, NULL);
 }
 
 /**
@@ -3268,7 +3268,7 @@ ice_ctrl_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi)
 struct ice_vsi *
 ice_lb_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi)
 {
-	return ice_vsi_setup(pf, pi, ICE_VSI_LB, ICE_INVAL_VFID);
+	return ice_vsi_setup(pf, pi, ICE_VSI_LB, ICE_INVAL_VFID, NULL);
 }
 
 /**

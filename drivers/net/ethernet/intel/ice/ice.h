@@ -38,6 +38,7 @@
 #include <linux/avf/virtchnl.h>
 #include <linux/cpu_rmap.h>
 #include <linux/dim.h>
+#include <net/pkt_cls.h>
 #include <net/devlink.h>
 #include <net/ipv6.h>
 #include <net/xdp_sock.h>
@@ -104,6 +105,10 @@
 #define ICE_INVAL_VFID		256
 
 #define ICE_MAX_RXQS_PER_TC		256	/* Used when setting VSI context per TC Rx queues */
+
+#define ICE_CHNL_START_TC		1
+#define ICE_CHNL_MAX_TC			16
+
 #define ICE_MAX_RESET_WAIT		20
 
 #define ICE_VSIQF_HKEY_ARRAY_SIZE	((VSIQF_HKEY_MAX_INDEX + 1) *	4)
@@ -145,6 +150,9 @@
 #define ice_for_each_q_vector(vsi, i) \
 	for ((i) = 0; (i) < (vsi)->num_q_vectors; (i)++)
 
+#define ice_for_each_chnl_tc(i)	\
+	for ((i) = ICE_CHNL_START_TC; (i) < ICE_CHNL_MAX_TC; (i)++)
+
 #define ICE_UCAST_PROMISC_BITS (ICE_PROMISC_UCAST_TX | ICE_PROMISC_MCAST_TX | \
 				ICE_PROMISC_UCAST_RX | ICE_PROMISC_MCAST_RX)
 
@@ -172,6 +180,21 @@ enum ice_feature {
 
 DECLARE_STATIC_KEY_FALSE(ice_xdp_locking_key);
 
+struct ice_channel {
+	struct list_head list;
+	u8 type;
+	u16 sw_id;
+	u16 base_q;
+	u16 num_rxq;
+	u16 num_txq;
+	u16 vsi_num;
+	u8 ena_tc;
+	struct ice_aqc_vsi_props info;
+	u64 max_tx_rate;
+	u64 min_tx_rate;
+	struct ice_vsi *ch_vsi;
+};
+
 struct ice_txq_meta {
 	u32 q_teid;	/* Tx-scheduler element identifier */
 	u16 q_id;	/* Entry in VSI's txq_map bitmap */
@@ -189,7 +212,7 @@ struct ice_tc_info {
 
 struct ice_tc_cfg {
 	u8 numtc; /* Total number of enabled TCs */
-	u8 ena_tc; /* Tx map */
+	u16 ena_tc; /* Tx map */
 	struct ice_tc_info tc_info[ICE_MAX_TRAFFIC_CLASS];
 };
 
@@ -361,6 +384,34 @@ struct ice_vsi {
 
 	struct net_device **target_netdevs;
 
+	struct tc_mqprio_qopt_offload mqprio_qopt; /* queue parameters */
+
+	/* Channel Specific Fields */
+	struct ice_vsi *tc_map_vsi[ICE_CHNL_MAX_TC];
+	u16 cnt_q_avail;
+	u16 next_base_q;	/* next queue to be used for channel setup */
+	struct list_head ch_list;
+	u16 num_chnl_rxq;
+	u16 num_chnl_txq;
+	u16 ch_rss_size;
+	/* store away rss size info before configuring ADQ channels so that,
+	 * it can be used after tc-qdisc delete, to get back RSS setting as
+	 * they were before
+	 */
+	u16 orig_rss_size;
+	/* this keeps tracks of all enabled TC with and without DCB
+	 * and inclusive of ADQ, vsi->mqprio_opt keeps track of queue
+	 * information
+	 */
+	u8 all_numtc;
+	u16 all_enatc;
+
+	/* store away TC info, to be used for rebuild logic */
+	u8 old_numtc;
+	u16 old_ena_tc;
+
+	struct ice_channel *ch;
+
 	/* setup back reference, to which aggregator node this VSI
 	 * corresponds to
 	 */
@@ -407,6 +458,7 @@ enum ice_pf_flags {
 	ICE_FLAG_PTP,			/* PTP is enabled by software */
 	ICE_FLAG_AUX_ENA,
 	ICE_FLAG_ADV_FEATURES,
+	ICE_FLAG_TC_MQPRIO,		/* support for Multi queue TC */
 	ICE_FLAG_CLS_FLOWER,
 	ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA,
 	ICE_FLAG_TOTAL_PORT_SHUTDOWN_ENA,
@@ -703,6 +755,30 @@ static inline void ice_clear_sriov_cap(struct ice_pf *pf)
 #define ICE_FD_STAT_PF_IDX(base_idx) \
 			((base_idx) * ICE_FD_STAT_CTR_BLOCK_COUNT)
 #define ICE_FD_SB_STAT_IDX(base_idx) ICE_FD_STAT_PF_IDX(base_idx)
+
+/**
+ * ice_is_adq_active - any active ADQs
+ * @pf: pointer to PF
+ *
+ * This function returns true if there are any ADQs configured (which is
+ * determined by looking at VSI type (which should be VSI_PF), numtc, and
+ * TC_MQPRIO flag) otherwise return false
+ */
+static inline bool ice_is_adq_active(struct ice_pf *pf)
+{
+	struct ice_vsi *vsi;
+
+	vsi = ice_get_main_vsi(pf);
+	if (!vsi)
+		return false;
+
+	/* is ADQ configured */
+	if (vsi->tc_cfg.numtc > ICE_CHNL_START_TC &&
+	    test_bit(ICE_FLAG_TC_MQPRIO, pf->flags))
+		return true;
+
+	return false;
+}
 
 bool netif_is_ice(struct net_device *dev);
 int ice_vsi_setup_tx_rings(struct ice_vsi *vsi);

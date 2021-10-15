@@ -138,6 +138,7 @@ enum ice_vsi_type {
 	ICE_VSI_PF = 0,
 	ICE_VSI_VF = 1,
 	ICE_VSI_CTRL = 3,	/* equates to ICE_VSI_PF with 1 queue pair */
+	ICE_VSI_CHNL = 4,
 	ICE_VSI_LB = 6,
 	ICE_VSI_SWITCHDEV_CTRL = 7,
 };
@@ -570,6 +571,8 @@ struct ice_sched_vsi_info {
 	struct list_head list_entry;
 	u16 max_lanq[ICE_MAX_TRAFFIC_CLASS];
 	u16 max_rdmaq[ICE_MAX_TRAFFIC_CLASS];
+	/* bw_t_info saves VSI BW information */
+	struct ice_bw_type_info bw_t_info[ICE_MAX_TRAFFIC_CLASS];
 };
 
 /* driver defines the policy */
