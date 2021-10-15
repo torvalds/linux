@@ -205,6 +205,7 @@ struct evsel *parse_events__add_event(int idx, struct perf_event_attr *attr,
 
 int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 			       char *str,
+			       struct list_head *head_config,
 			       struct list_head **listp);
 
 int parse_events_copy_term_list(struct list_head *old,
