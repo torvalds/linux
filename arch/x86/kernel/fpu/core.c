@@ -184,6 +184,24 @@ void fpu_swap_kvm_fpu(struct fpu *save, struct fpu *rstor, u64 restore_mask)
 }
 EXPORT_SYMBOL_GPL(fpu_swap_kvm_fpu);
 
+void fpu_copy_fpstate_to_kvm_uabi(struct fpu *fpu, void *buf,
+			       unsigned int size, u32 pkru)
+{
+	union fpregs_state *kstate = &fpu->state;
+	union fpregs_state *ustate = buf;
+	struct membuf mb = { .p = buf, .left = size };
+
+	if (cpu_feature_enabled(X86_FEATURE_XSAVE)) {
+		__copy_xstate_to_uabi_buf(mb, &kstate->xsave, pkru,
+					  XSTATE_COPY_XSAVE);
+	} else {
+		memcpy(&ustate->fxsave, &kstate->fxsave, sizeof(ustate->fxsave));
+		/* Make it restorable on a XSAVE enabled host */
+		ustate->xsave.header.xfeatures = XFEATURE_MASK_FPSSE;
+	}
+}
+EXPORT_SYMBOL_GPL(fpu_copy_fpstate_to_kvm_uabi);
+
 int fpu_copy_kvm_uabi_to_fpstate(struct fpu *fpu, const void *buf, u64 xcr0,
 				 u32 *vpkru)
 {
