@@ -2179,12 +2179,13 @@ static int intel_hdmi_compute_output_format(struct intel_encoder *encoder,
 
 	ret = intel_hdmi_compute_clock(encoder, crtc_state);
 	if (ret) {
-		if (!intel_hdmi_is_ycbcr420(crtc_state) &&
-		    connector->ycbcr_420_allowed &&
-		    drm_mode_is_420_also(&connector->display_info, adjusted_mode)) {
-			crtc_state->output_format = INTEL_OUTPUT_FORMAT_YCBCR420;
-			ret = intel_hdmi_compute_clock(encoder, crtc_state);
-		}
+		if (intel_hdmi_is_ycbcr420(crtc_state) ||
+		    !connector->ycbcr_420_allowed ||
+		    !drm_mode_is_420_also(&connector->display_info, adjusted_mode))
+			return ret;
+
+		crtc_state->output_format = INTEL_OUTPUT_FORMAT_YCBCR420;
+		ret = intel_hdmi_compute_clock(encoder, crtc_state);
 	}
 
 	return ret;
