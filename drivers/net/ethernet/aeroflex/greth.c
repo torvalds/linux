@@ -1346,6 +1346,7 @@ static int greth_of_probe(struct platform_device *ofdev)
 	int i;
 	int err;
 	int tmp;
+	u8 addr[ETH_ALEN];
 	unsigned long timeout;
 
 	dev = alloc_etherdev(sizeof(struct greth_private));
@@ -1449,8 +1450,6 @@ static int greth_of_probe(struct platform_device *ofdev)
 			break;
 	}
 	if (i == 6) {
-		u8 addr[ETH_ALEN];
-
 		err = of_get_mac_address(ofdev->dev.of_node, addr);
 		if (!err) {
 			for (i = 0; i < 6; i++)
@@ -1464,7 +1463,8 @@ static int greth_of_probe(struct platform_device *ofdev)
 	}
 
 	for (i = 0; i < 6; i++)
-		dev->dev_addr[i] = macaddr[i];
+		addr[i] = macaddr[i];
+	eth_hw_addr_set(dev, addr);
 
 	macaddr[5]++;
 
