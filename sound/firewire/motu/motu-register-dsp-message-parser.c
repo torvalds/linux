@@ -219,6 +219,12 @@ void snd_motu_register_dsp_message_parser_parse(struct snd_motu *motu, const str
 			case HP_OUTPUT_PAIRED_ASSIGNMENT:
 				parser->param.output.hp_paired_assignment = val;
 				break;
+			case LINE_INPUT_BOOST:
+				parser->param.line_input.boost_flag = val;
+				break;
+			case LINE_INPUT_NOMINAL_LEVEL:
+				parser->param.line_input.nominal_level_flag = val;
+				break;
 			case METER:
 			{
 				u8 pos;

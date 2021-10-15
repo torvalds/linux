@@ -164,6 +164,10 @@ struct snd_firewire_motu_register_dsp_meter {
  * @output.hp_paired_volume: The volume of paired hp output.
  * @output.hp_paired_assignment: The source assigned to paired hp output.
  * @output.reserved: Padding for 32 bit alignment for future extension.
+ * @line_input.boost_flag: The flags of boost for line inputs, only for 828mk2 and Traveler.
+ * @line_input.nominal_level_flag: The flags of nominal level for line inputs, only for 828mk2 and
+ *				   Traveler.
+ * @line_input.reserved: Padding for 32 bit alignment for future extension.
  *
  * The structure expresses the set of parameters for DSP controlled by register access.
  */
@@ -187,6 +191,11 @@ struct snd_firewire_motu_register_dsp_parameter {
 		__u8 hp_paired_assignment;
 		__u8 reserved[5];
 	} output;
+	struct {
+		__u8 boost_flag;
+		__u8 nominal_level_flag;
+		__u8 reserved[6];
+	} line_input;
 };
 
 // In below MOTU models, software is allowed to control their DSP by command in frame of
