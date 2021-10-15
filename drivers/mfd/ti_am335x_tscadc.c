@@ -121,11 +121,11 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 	struct mfd_cell *cell;
 	struct property *prop;
 	const __be32 *cur;
-	bool use_tsc = false;
+	bool use_tsc = false, use_mag = false;
 	u32 val;
 	int err;
 	int tscmag_wires = 0, adc_channels = 0, cell_idx = 0, total_channels;
-	int readouts = 0;
+	int readouts = 0, mag_tracks = 0;
 
 	/* Allocate memory for device */
 	tscadc = devm_kzalloc(&pdev->dev, sizeof(*tscadc), GFP_KERNEL);
@@ -148,6 +148,16 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 		of_node_put(node);
 		if (tscmag_wires)
 			use_tsc = true;
+	} else {
+		/*
+		 * When adding support for the magnetic stripe reader, here is
+		 * the place to look for the number of tracks used from device
+		 * tree. Let's default to 0 for now.
+		 */
+		mag_tracks = 0;
+		tscmag_wires = mag_tracks * 2;
+		if (tscmag_wires)
+			use_mag = true;
 	}
 
 	node = of_get_child_by_name(pdev->dev.of_node, "adc");
@@ -209,8 +219,9 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 	 * The TSC_ADC_Subsystem has 2 clock domains: OCP_CLK and ADC_CLK.
 	 * ADCs produce a 12-bit sample every 15 ADC_CLK cycles.
 	 * am33xx ADCs expect to capture 200ksps.
-	 * We need the ADC clocks to run at 3MHz.
-	 * This frequency is valid since TSC_ADC_SS controller design
+	 * am47xx ADCs expect to capture 867ksps.
+	 * We need ADC clocks respectively running at 3MHz and 13MHz.
+	 * These frequencies are valid since TSC_ADC_SS controller design
 	 * assumes the OCP clock is at least 6x faster than the ADC clock.
 	 */
 	clk = devm_clk_get(&pdev->dev, NULL);
@@ -238,6 +249,9 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 			else
 				tscadc->ctrl |= CNTRLREG_TSC_4WIRE;
 		}
+	} else {
+		tscadc->ctrl |= CNTRLREG_MAG_PREAMP_PWRDOWN |
+				CNTRLREG_MAG_PREAMP_BYPASS;
 	}
 	regmap_write(tscadc->regmap, REG_CTRL, tscadc->ctrl);
 
@@ -246,8 +260,8 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 	/* Enable the TSC module enable bit */
 	regmap_write(tscadc->regmap, REG_CTRL, tscadc->ctrl | CNTRLREG_SSENB);
 
-	/* TSC Cell */
-	if (tscmag_wires > 0) {
+	/* TSC or MAG Cell */
+	if (use_tsc || use_mag) {
 		cell = &tscadc->cells[cell_idx++];
 		cell->name = tscadc->data->secondary_feature_name;
 		cell->of_compatible = tscadc->data->secondary_feature_compatible;
@@ -340,8 +354,17 @@ static const struct ti_tscadc_data tscdata = {
 	.target_clk_rate = TSC_ADC_CLK,
 };
 
+static const struct ti_tscadc_data magdata = {
+	.adc_feature_name = "TI-am43xx-adc",
+	.adc_feature_compatible = "ti,am4372-adc",
+	.secondary_feature_name = "TI-am43xx-mag",
+	.secondary_feature_compatible = "ti,am4372-mag",
+	.target_clk_rate = MAG_ADC_CLK,
+};
+
 static const struct of_device_id ti_tscadc_dt_ids[] = {
 	{ .compatible = "ti,am3359-tscadc", .data = &tscdata },
+	{ .compatible = "ti,am4372-magadc", .data = &magdata },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ti_tscadc_dt_ids);
@@ -359,6 +382,6 @@ static struct platform_driver ti_tscadc_driver = {
 
 module_platform_driver(ti_tscadc_driver);
 
-MODULE_DESCRIPTION("TI touchscreen / ADC MFD controller driver");
+MODULE_DESCRIPTION("TI touchscreen/magnetic stripe reader/ADC MFD controller driver");
 MODULE_AUTHOR("Rachna Patil <rachna@ti.com>");
 MODULE_LICENSE("GPL");
