@@ -299,3 +299,14 @@ void snd_motu_register_dsp_message_parser_copy_meter(struct snd_motu *motu,
 	memcpy(meter, &parser->meter, sizeof(*meter));
 	spin_unlock_irqrestore(&parser->lock, flags);
 }
+
+void snd_motu_register_dsp_message_parser_copy_parameter(struct snd_motu *motu,
+					struct snd_firewire_motu_register_dsp_parameter *param)
+{
+	struct msg_parser *parser = motu->message_parser;
+	unsigned long flags;
+
+	spin_lock_irqsave(&parser->lock, flags);
+	memcpy(param, &parser->param, sizeof(*param));
+	spin_unlock_irqrestore(&parser->lock, flags);
+}

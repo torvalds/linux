@@ -199,6 +199,27 @@ static int hwdep_ioctl(struct snd_hwdep *hwdep, struct file *file,
 
 		return 0;
 	}
+	case SNDRV_FIREWIRE_IOCTL_MOTU_REGISTER_DSP_PARAMETER:
+	{
+		struct snd_firewire_motu_register_dsp_parameter *param;
+		int err;
+
+		if (!(motu->spec->flags & SND_MOTU_SPEC_REGISTER_DSP))
+			return -ENXIO;
+
+		param = kzalloc(sizeof(*param), GFP_KERNEL);
+		if (!param)
+			return -ENOMEM;
+
+		snd_motu_register_dsp_message_parser_copy_parameter(motu, param);
+
+		err = copy_to_user((void __user *)arg, param, sizeof(*param));
+		kfree(param);
+		if (err)
+			return -EFAULT;
+
+		return 0;
+	}
 	default:
 		return -ENOIOCTLCMD;
 	}
