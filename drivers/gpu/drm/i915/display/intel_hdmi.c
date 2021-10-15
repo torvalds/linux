@@ -1868,8 +1868,12 @@ hdmi_port_clock_valid(struct intel_hdmi *hdmi,
 	return MODE_OK;
 }
 
-static int intel_hdmi_port_clock(int clock, int bpc)
+static int intel_hdmi_tmds_clock(int clock, int bpc, bool ycbcr420_output)
 {
+	/* YCBCR420 TMDS rate requirement is half the pixel clock */
+	if (ycbcr420_output)
+		clock /= 2;
+
 	/*
 	 * Need to adjust the port link by:
 	 *  1.5x for 12bpc
@@ -1932,25 +1936,22 @@ intel_hdmi_mode_clock_valid(struct drm_connector *connector, int clock,
 	struct intel_hdmi *hdmi = intel_attached_hdmi(to_intel_connector(connector));
 	enum drm_mode_status status;
 
-	if (ycbcr420_output)
-		clock /= 2;
-
 	/* check if we can do 8bpc */
-	status = hdmi_port_clock_valid(hdmi, intel_hdmi_port_clock(clock, 8),
+	status = hdmi_port_clock_valid(hdmi, intel_hdmi_tmds_clock(clock, 8, ycbcr420_output),
 				       true, has_hdmi_sink);
 
 	/* if we can't do 8bpc we may still be able to do 12bpc */
 	if (status != MODE_OK &&
 	    intel_hdmi_source_bpc_possible(i915, 12) &&
 	    intel_hdmi_sink_bpc_possible(connector, 12, has_hdmi_sink, ycbcr420_output))
-		status = hdmi_port_clock_valid(hdmi, intel_hdmi_port_clock(clock, 12),
+		status = hdmi_port_clock_valid(hdmi, intel_hdmi_tmds_clock(clock, 12, ycbcr420_output),
 					       true, has_hdmi_sink);
 
 	/* if we can't do 8,12bpc we may still be able to do 10bpc */
 	if (status != MODE_OK &&
 	    intel_hdmi_source_bpc_possible(i915, 10) &&
 	    intel_hdmi_sink_bpc_possible(connector, 10, has_hdmi_sink, ycbcr420_output))
-		status = hdmi_port_clock_valid(hdmi, intel_hdmi_port_clock(clock, 10),
+		status = hdmi_port_clock_valid(hdmi, intel_hdmi_tmds_clock(clock, 10, ycbcr420_output),
 					       true, has_hdmi_sink);
 
 	return status;
@@ -2057,12 +2058,13 @@ static int intel_hdmi_compute_bpc(struct intel_encoder *encoder,
 				  int clock)
 {
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
+	bool ycbcr420_output = intel_hdmi_is_ycbcr420(crtc_state);
 	int bpc;
 
 	for (bpc = 12; bpc >= 10; bpc -= 2) {
 		if (hdmi_deep_color_possible(crtc_state, bpc) &&
 		    hdmi_port_clock_valid(intel_hdmi,
-					  intel_hdmi_port_clock(clock, bpc),
+					  intel_hdmi_tmds_clock(clock, bpc, ycbcr420_output),
 					  true, crtc_state->has_hdmi_sink) == MODE_OK)
 			return bpc;
 	}
@@ -2082,13 +2084,10 @@ static int intel_hdmi_compute_clock(struct intel_encoder *encoder,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK)
 		clock *= 2;
 
-	/* YCBCR420 TMDS rate requirement is half the pixel clock */
-	if (intel_hdmi_is_ycbcr420(crtc_state))
-		clock /= 2;
-
 	bpc = intel_hdmi_compute_bpc(encoder, crtc_state, clock);
 
-	crtc_state->port_clock = intel_hdmi_port_clock(clock, bpc);
+	crtc_state->port_clock = intel_hdmi_tmds_clock(clock, bpc,
+						       intel_hdmi_is_ycbcr420(crtc_state));
 
 	/*
 	 * pipe_bpp could already be below 8bpc due to
