@@ -738,6 +738,7 @@ static SIMPLE_DEV_PM_OPS(tiadc_pm_ops, tiadc_suspend, tiadc_resume);
 
 static const struct of_device_id ti_adc_dt_ids[] = {
 	{ .compatible = "ti,am3359-adc", },
+	{ .compatible = "ti,am4372-adc", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ti_adc_dt_ids);
