@@ -41,16 +41,6 @@
  */
 #define HVC_CLOSE_WAIT (HZ/100) /* 1/10 of a second */
 
-/*
- * These sizes are most efficient for vio, because they are the
- * native transfer size. We could make them selectable in the
- * future to better deal with backends that want other buffer sizes.
- */
-#define N_OUTBUF	16
-#define N_INBUF		16
-
-#define __ALIGNED__ __attribute__((__aligned__(L1_CACHE_BYTES)))
-
 static struct tty_driver *hvc_driver;
 static struct task_struct *hvc_task;
 
@@ -142,6 +132,7 @@ static int hvc_flush(struct hvc_struct *hp)
 static const struct hv_ops *cons_ops[MAX_NR_HVC_CONSOLES];
 static uint32_t vtermnos[MAX_NR_HVC_CONSOLES] =
 	{[0 ... MAX_NR_HVC_CONSOLES - 1] = -1};
+static struct hvc_struct *cons_hvcs[MAX_NR_HVC_CONSOLES];
 
 /*
  * Console APIs, NOT TTY.  These APIs are available immediately when
@@ -151,9 +142,11 @@ static uint32_t vtermnos[MAX_NR_HVC_CONSOLES] =
 static void hvc_console_print(struct console *co, const char *b,
 			      unsigned count)
 {
-	char c[N_OUTBUF] __ALIGNED__;
+	char *c;
 	unsigned i = 0, n = 0;
 	int r, donecr = 0, index = co->index;
+	unsigned long flags;
+	struct hvc_struct *hp;
 
 	/* Console access attempt outside of acceptable console range. */
 	if (index >= MAX_NR_HVC_CONSOLES)
@@ -163,6 +156,13 @@ static void hvc_console_print(struct console *co, const char *b,
 	if (vtermnos[index] == -1)
 		return;
 
+	hp = cons_hvcs[index];
+	if (!hp)
+		return;
+
+	c = hp->cons_outbuf;
+
+	spin_lock_irqsave(&hp->cons_outbuf_lock, flags);
 	while (count > 0 || i > 0) {
 		if (count > 0 && i < sizeof(c)) {
 			if (b[n] == '\n' && !donecr) {
@@ -191,6 +191,7 @@ static void hvc_console_print(struct console *co, const char *b,
 			}
 		}
 	}
+	spin_unlock_irqrestore(&hp->cons_outbuf_lock, flags);
 	hvc_console_flush(cons_ops[index], vtermnos[index]);
 }
 
@@ -878,9 +879,13 @@ static void hvc_poll_put_char(struct tty_driver *driver, int line, char ch)
 	struct tty_struct *tty = driver->ttys[0];
 	struct hvc_struct *hp = tty->driver_data;
 	int n;
+	unsigned long flags;
 
 	do {
-		n = hp->ops->put_chars(hp->vtermno, &ch, 1);
+		spin_lock_irqsave(&hp->cons_outbuf_lock, flags);
+		hp->cons_outbuf[0] = ch;
+		n = hp->ops->put_chars(hp->vtermno, &hp->cons_outbuf[0], 1);
+		spin_unlock_irqrestore(&hp->cons_outbuf_lock, flags);
 	} while (n <= 0);
 }
 #endif
@@ -922,8 +927,7 @@ struct hvc_struct *hvc_alloc(uint32_t vtermno, int data,
 			return ERR_PTR(err);
 	}
 
-	hp = kzalloc(ALIGN(sizeof(*hp), sizeof(long)) + outbuf_size,
-			GFP_KERNEL);
+	hp = kzalloc(struct_size(hp, outbuf, outbuf_size), GFP_KERNEL);
 	if (!hp)
 		return ERR_PTR(-ENOMEM);
 
@@ -931,13 +935,13 @@ struct hvc_struct *hvc_alloc(uint32_t vtermno, int data,
 	hp->data = data;
 	hp->ops = ops;
 	hp->outbuf_size = outbuf_size;
-	hp->outbuf = &((char *)hp)[ALIGN(sizeof(*hp), sizeof(long))];
 
 	tty_port_init(&hp->port);
 	hp->port.ops = &hvc_port_ops;
 
 	INIT_WORK(&hp->tty_resize, hvc_set_winsz);
 	spin_lock_init(&hp->lock);
+	spin_lock_init(&hp->cons_outbuf_lock);
 	mutex_lock(&hvc_structs_mutex);
 
 	/*
@@ -964,6 +968,7 @@ struct hvc_struct *hvc_alloc(uint32_t vtermno, int data,
 	if (i < MAX_NR_HVC_CONSOLES) {
 		cons_ops[i] = ops;
 		vtermnos[i] = vtermno;
+		cons_hvcs[i] = hp;
 	}
 
 	list_add_tail(&(hp->next), &hvc_structs);
@@ -988,6 +993,7 @@ int hvc_remove(struct hvc_struct *hp)
 	if (hp->index < MAX_NR_HVC_CONSOLES) {
 		vtermnos[hp->index] = -1;
 		cons_ops[hp->index] = NULL;
+		cons_hvcs[hp->index] = NULL;
 	}
 
 	/* Don't whack hp->irq because tty_hangup() will need to free the irq. */
