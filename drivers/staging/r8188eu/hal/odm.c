@@ -1016,27 +1016,6 @@ void odm_InitHybridAntDiv(struct odm_dm_struct *pDM_Odm)
 	ODM_AntennaDiversityInit_88E(pDM_Odm);
 }
 
-void ODM_AntselStatistics_88C(struct odm_dm_struct *pDM_Odm, u8 MacId, u32 PWDBAll, bool isCCKrate)
-{
-	struct sw_ant_switch *pDM_SWAT_Table = &pDM_Odm->DM_SWAT_Table;
-
-	if (pDM_SWAT_Table->antsel == 1) {
-		if (isCCKrate) {
-			pDM_SWAT_Table->CCK_Ant1_Cnt[MacId]++;
-		} else {
-			pDM_SWAT_Table->OFDM_Ant1_Cnt[MacId]++;
-			pDM_SWAT_Table->RSSI_Ant1_Sum[MacId] += PWDBAll;
-		}
-	} else {
-		if (isCCKrate) {
-			pDM_SWAT_Table->CCK_Ant2_Cnt[MacId]++;
-		} else {
-			pDM_SWAT_Table->OFDM_Ant2_Cnt[MacId]++;
-			pDM_SWAT_Table->RSSI_Ant2_Sum[MacId] += PWDBAll;
-		}
-	}
-}
-
 void odm_HwAntDiv(struct odm_dm_struct *pDM_Odm)
 {
 	if (!(pDM_Odm->SupportAbility & ODM_BB_ANT_DIV))
