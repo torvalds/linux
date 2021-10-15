@@ -69,7 +69,7 @@ struct vfio_unbound_dev {
 };
 
 struct vfio_group {
-	struct kref			kref;
+	refcount_t			users;
 	int				minor;
 	atomic_t			container_users;
 	struct iommu_group		*iommu_group;
@@ -377,7 +377,7 @@ static struct vfio_group *vfio_create_group(struct iommu_group *iommu_group,
 	if (!group)
 		return ERR_PTR(-ENOMEM);
 
-	kref_init(&group->kref);
+	refcount_set(&group->users, 1);
 	INIT_LIST_HEAD(&group->device_list);
 	mutex_init(&group->device_lock);
 	INIT_LIST_HEAD(&group->unbound_list);
@@ -433,10 +433,10 @@ static struct vfio_group *vfio_create_group(struct iommu_group *iommu_group,
 	return group;
 }
 
-/* called with vfio.group_lock held */
-static void vfio_group_release(struct kref *kref)
+static void vfio_group_put(struct vfio_group *group)
 {
-	struct vfio_group *group = container_of(kref, struct vfio_group, kref);
+	if (!refcount_dec_and_mutex_lock(&group->users, &vfio.group_lock))
+		return;
 
 	/*
 	 * These data structures all have paired operations that can only be
@@ -454,15 +454,9 @@ static void vfio_group_release(struct kref *kref)
 	vfio_group_unlock_and_free(group);
 }
 
-static void vfio_group_put(struct vfio_group *group)
-{
-	kref_put_mutex(&group->kref, vfio_group_release, &vfio.group_lock);
-}
-
-/* Assume group_lock or group reference is held */
 static void vfio_group_get(struct vfio_group *group)
 {
-	kref_get(&group->kref);
+	refcount_inc(&group->users);
 }
 
 static struct vfio_group *vfio_group_get_from_minor(int minor)
@@ -1657,6 +1651,9 @@ struct vfio_group *vfio_group_get_external_user(struct file *filep)
 	if (ret)
 		return ERR_PTR(ret);
 
+	/*
+	 * Since the caller holds the fget on the file group->users must be >= 1
+	 */
 	vfio_group_get(group);
 
 	return group;
