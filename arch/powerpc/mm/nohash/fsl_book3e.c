@@ -181,7 +181,7 @@ static unsigned long map_mem_in_cams_addr(phys_addr_t phys, unsigned long virt,
 	/* Calculate CAM values */
 	for (i = 0; boundary && i < max_cam_idx; i++) {
 		unsigned long cam_sz;
-		pgprot_t prot = PAGE_KERNEL_X;
+		pgprot_t prot = init ? PAGE_KERNEL_X : PAGE_KERNEL_ROX;
 
 		cam_sz = calc_cam_sz(boundary, virt, phys);
 		if (!dryrun)
@@ -194,7 +194,7 @@ static unsigned long map_mem_in_cams_addr(phys_addr_t phys, unsigned long virt,
 	}
 	for (ram -= amount_mapped; ram && i < max_cam_idx; i++) {
 		unsigned long cam_sz;
-		pgprot_t prot = PAGE_KERNEL_X;
+		pgprot_t prot = init ? PAGE_KERNEL_X : PAGE_KERNEL;
 
 		cam_sz = calc_cam_sz(ram, virt, phys);
 		if (!dryrun)
@@ -209,8 +209,13 @@ static unsigned long map_mem_in_cams_addr(phys_addr_t phys, unsigned long virt,
 	if (dryrun)
 		return amount_mapped;
 
-	loadcam_multi(0, i, max_cam_idx);
-	tlbcam_index = i;
+	if (init) {
+		loadcam_multi(0, i, max_cam_idx);
+		tlbcam_index = i;
+	} else {
+		loadcam_multi(0, i, 0);
+		WARN_ON(i > tlbcam_index);
+	}
 
 #ifdef CONFIG_PPC64
 	get_paca()->tcd.esel_next = i;
@@ -277,6 +282,25 @@ void __init adjust_total_lowmem(void)
 	        (unsigned int)((total_lowmem - __max_low_memory) >> 20));
 
 	memblock_set_current_limit(memstart_addr + __max_low_memory);
+}
+
+#ifdef CONFIG_STRICT_KERNEL_RWX
+void mmu_mark_rodata_ro(void)
+{
+	/* Everything is done in mmu_mark_initmem_nx() */
+}
+#endif
+
+void mmu_mark_initmem_nx(void)
+{
+	unsigned long remapped;
+
+	if (!strict_kernel_rwx_enabled())
+		return;
+
+	remapped = map_mem_in_cams(__max_low_memory, CONFIG_LOWMEM_CAM_NUM, false, false);
+
+	WARN_ON(__max_low_memory != remapped);
 }
 
 void setup_initial_memory_limit(phys_addr_t first_memblock_base,
