@@ -108,4 +108,39 @@ struct snd_firewire_tascam_state {
 	__be32 data[SNDRV_FIREWIRE_TASCAM_STATE_COUNT];
 };
 
+// In below MOTU models, software is allowed to control their DSP by accessing to registers.
+//  - 828mk2
+//  - 896hd
+//  - Traveler
+//  - 8 pre
+//  - Ultralite
+//  - 4 pre
+//  - Audio Express
+//
+// On the other hand, the status of DSP is split into specific messages included in the sequence of
+// isochronous packet. ALSA firewire-motu driver gathers the messages and allow userspace applications
+// to read it via ioctl. In 828mk2, 896hd, and Traveler, hardware meter for all of physical inputs
+// are put into the message, while one pair of physical outputs is selected. The selection is done by
+// LSB one byte in asynchronous write quadlet transaction to 0x'ffff'f000'0b2c.
+//
+// I note that V3HD/V4HD uses asynchronous transaction for the purpose. The destination address is
+// registered to 0x'ffff'f000'0b38 and '0b3c by asynchronous write quadlet request. The size of
+// message differs between 23 and 51 quadlets. For the case, the number of mixer bus can be extended
+// up to 12.
+
+#define SNDRV_FIREWIRE_MOTU_REGISTER_DSP_METER_COUNT	40
+
+/**
+ * struct snd_firewire_motu_register_dsp_meter - the container for meter information in DSP
+ *						 controlled by register access
+ * @data: Signal level meters. The mapping between position and input/output channel is
+ *	  model-dependent.
+ *
+ * The structure expresses the part of DSP status for hardware meter. The u8 storage includes linear
+ * value for audio signal level between 0x00 and 0x7f.
+ */
+struct snd_firewire_motu_register_dsp_meter {
+	__u8 data[SNDRV_FIREWIRE_MOTU_REGISTER_DSP_METER_COUNT];
+};
+
 #endif /* _UAPI_SOUND_FIREWIRE_H_INCLUDED */

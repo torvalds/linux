@@ -78,6 +78,8 @@ struct snd_motu {
 	struct amdtp_domain domain;
 
 	struct amdtp_motu_cache cache;
+
+	void *message_parser;
 };
 
 enum snd_motu_spec_flags {
@@ -85,6 +87,7 @@ enum snd_motu_spec_flags {
 	SND_MOTU_SPEC_RX_MIDI_3RD_Q	= 0x0002,
 	SND_MOTU_SPEC_TX_MIDI_2ND_Q	= 0x0004,
 	SND_MOTU_SPEC_TX_MIDI_3RD_Q	= 0x0008,
+	SND_MOTU_SPEC_REGISTER_DSP	= 0x0010,
 };
 
 #define SND_MOTU_CLOCK_RATE_COUNT	6
@@ -269,5 +272,10 @@ static inline int snd_motu_protocol_cache_packet_formats(struct snd_motu *motu)
 	else
 		return -ENXIO;
 }
+
+int snd_motu_register_dsp_message_parser_new(struct snd_motu *motu);
+int snd_motu_register_dsp_message_parser_init(struct snd_motu *motu);
+void snd_motu_register_dsp_message_parser_parse(struct snd_motu *motu, const struct pkt_desc *descs,
+					unsigned int desc_count, unsigned int data_block_quadlets);
 
 #endif

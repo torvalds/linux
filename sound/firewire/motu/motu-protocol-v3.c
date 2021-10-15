@@ -293,7 +293,8 @@ const struct snd_motu_spec snd_motu_spec_audio_express = {
 	.name = "AudioExpress",
 	.protocol_version = SND_MOTU_PROTOCOL_V3,
 	.flags = SND_MOTU_SPEC_RX_MIDI_2ND_Q |
-		 SND_MOTU_SPEC_TX_MIDI_3RD_Q,
+		 SND_MOTU_SPEC_TX_MIDI_3RD_Q |
+		 SND_MOTU_SPEC_REGISTER_DSP,
 	.tx_fixed_pcm_chunks = {10, 10, 0},
 	.rx_fixed_pcm_chunks = {10, 10, 0},
 };
@@ -301,6 +302,7 @@ const struct snd_motu_spec snd_motu_spec_audio_express = {
 const struct snd_motu_spec snd_motu_spec_4pre = {
 	.name = "4pre",
 	.protocol_version = SND_MOTU_PROTOCOL_V3,
+	.flags = SND_MOTU_SPEC_REGISTER_DSP,
 	.tx_fixed_pcm_chunks = {10, 10, 0},
 	.rx_fixed_pcm_chunks = {10, 10, 0},
 };
