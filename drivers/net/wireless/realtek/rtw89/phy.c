@@ -1715,7 +1715,7 @@ static s32 rtw89_phy_multi_sta_cfo_calc(struct rtw89_dev *rtwdev)
 			target_cfo = clamp(cfo_avg, max_cfo_lb, min_cfo_ub);
 		} else {
 			rtw89_debug(rtwdev, RTW89_DBG_CFO,
-				    "No intersection of cfo torlence windows\n");
+				    "No intersection of cfo tolerance windows\n");
 			target_cfo = phy_div(cfo_khz_all, (s32)sta_cnt);
 		}
 		for (i = 0; i < CFO_TRACK_MAX_USER; i++)
@@ -2749,7 +2749,7 @@ static void rtw89_phy_dig_dyn_pd_th(struct rtw89_dev *rtwdev, u8 rssi,
 			    dig->igi_rssi, final_rssi, under_region, val);
 	} else {
 		rtw89_debug(rtwdev, RTW89_DBG_DIG,
-			    "Dynamic PD th dsiabled, Set PD_low_bd=0\n");
+			    "Dynamic PD th disabled, Set PD_low_bd=0\n");
 	}
 
 	rtw89_phy_write32_mask(rtwdev, R_SEG0R_PD, B_SEG0R_PD_LOWER_BOUND_MSK,
