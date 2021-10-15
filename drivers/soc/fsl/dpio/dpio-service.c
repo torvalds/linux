@@ -114,6 +114,7 @@ struct dpaa2_io *dpaa2_io_create(const struct dpaa2_io_desc *desc,
 				 struct device *dev)
 {
 	struct dpaa2_io *obj = kmalloc(sizeof(*obj), GFP_KERNEL);
+	u32 qman_256_cycles_per_ns;
 
 	if (!obj)
 		return NULL;
@@ -129,6 +130,13 @@ struct dpaa2_io *dpaa2_io_create(const struct dpaa2_io_desc *desc,
 	obj->swp_desc.cinh_bar = obj->dpio_desc.regs_cinh;
 	obj->swp_desc.qman_clk = obj->dpio_desc.qman_clk;
 	obj->swp_desc.qman_version = obj->dpio_desc.qman_version;
+
+	/* Compute how many 256 QBMAN cycles fit into one ns. This is because
+	 * the interrupt timeout period register needs to be specified in QBMAN
+	 * clock cycles in increments of 256.
+	 */
+	qman_256_cycles_per_ns = 256000 / (obj->swp_desc.qman_clk / 1000000);
+	obj->swp_desc.qman_256_cycles_per_ns = qman_256_cycles_per_ns;
 	obj->swp = qbman_swp_init(&obj->swp_desc);
 
 	if (!obj->swp) {
@@ -780,3 +788,32 @@ int dpaa2_io_query_bp_count(struct dpaa2_io *d, u16 bpid, u32 *num)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(dpaa2_io_query_bp_count);
+
+/**
+ * dpaa2_io_set_irq_coalescing() - Set new IRQ coalescing values
+ * @d: the given DPIO object
+ * @irq_holdoff: interrupt holdoff (timeout) period in us
+ *
+ * Return 0 for success, or negative error code on error.
+ */
+int dpaa2_io_set_irq_coalescing(struct dpaa2_io *d, u32 irq_holdoff)
+{
+	struct qbman_swp *swp = d->swp;
+
+	return qbman_swp_set_irq_coalescing(swp, swp->dqrr.dqrr_size - 1,
+					    irq_holdoff);
+}
+EXPORT_SYMBOL(dpaa2_io_set_irq_coalescing);
+
+/**
+ * dpaa2_io_get_irq_coalescing() - Get the current IRQ coalescing parameters
+ * @d: the given DPIO object
+ * @irq_holdoff: interrupt holdoff (timeout) period in us
+ */
+void dpaa2_io_get_irq_coalescing(struct dpaa2_io *d, u32 *irq_holdoff)
+{
+	struct qbman_swp *swp = d->swp;
+
+	qbman_swp_get_irq_coalescing(swp, NULL, irq_holdoff);
+}
+EXPORT_SYMBOL(dpaa2_io_get_irq_coalescing);

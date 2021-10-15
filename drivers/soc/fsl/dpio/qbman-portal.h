@@ -25,6 +25,7 @@ struct qbman_swp_desc {
 	void __iomem *cinh_bar; /* Cache-inhibited portal base address */
 	u32 qman_version;
 	u32 qman_clk;
+	u32 qman_256_cycles_per_ns;
 };
 
 #define QBMAN_SWP_INTERRUPT_EQRI 0x01
@@ -157,6 +158,10 @@ struct qbman_swp {
 	} eqcr;
 
 	spinlock_t access_spinlock;
+
+	/* Interrupt coalescing */
+	u32 irq_threshold;
+	u32 irq_holdoff;
 };
 
 /* Function pointers */
@@ -648,5 +653,11 @@ static inline const struct dpaa2_dq *qbman_swp_dqrr_next(struct qbman_swp *s)
 {
 	return qbman_swp_dqrr_next_ptr(s);
 }
+
+int qbman_swp_set_irq_coalescing(struct qbman_swp *p, u32 irq_threshold,
+				 u32 irq_holdoff);
+
+void qbman_swp_get_irq_coalescing(struct qbman_swp *p, u32 *irq_threshold,
+				  u32 *irq_holdoff);
 
 #endif /* __FSL_QBMAN_PORTAL_H */

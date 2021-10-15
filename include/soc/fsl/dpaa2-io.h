@@ -131,4 +131,8 @@ int dpaa2_io_query_fq_count(struct dpaa2_io *d, u32 fqid,
 			    u32 *fcnt, u32 *bcnt);
 int dpaa2_io_query_bp_count(struct dpaa2_io *d, u16 bpid,
 			    u32 *num);
+
+int dpaa2_io_set_irq_coalescing(struct dpaa2_io *d, u32 irq_holdoff);
+void dpaa2_io_get_irq_coalescing(struct dpaa2_io *d, u32 *irq_holdoff);
+
 #endif /* __FSL_DPAA2_IO_H */
