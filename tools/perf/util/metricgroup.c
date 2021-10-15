@@ -117,14 +117,34 @@ struct metric_ref_node {
 	struct list_head list;
 };
 
+/**
+ * The metric under construction. The data held here will be placed in a
+ * metric_expr.
+ */
 struct metric {
 	struct list_head nd;
+	/**
+	 * The expression parse context importantly holding the IDs contained
+	 * within the expression.
+	 */
 	struct expr_parse_ctx *pctx;
+	/** The name of the metric such as "IPC". */
 	const char *metric_name;
+	/** The expression to parse, for example, "instructions/cycles". */
 	const char *metric_expr;
+	/**
+	 * The "ScaleUnit" that scales and adds a unit to the metric during
+	 * output.
+	 */
 	const char *metric_unit;
+	/** The list of metrics referenced by this one. */
 	struct list_head metric_refs;
+	/** The size of the metric_refs list. */
 	int metric_refs_cnt;
+	/**
+	 * Is there a constraint on the group of events? In which case the
+	 * events won't be grouped.
+	 */
 	bool has_constraint;
 };
 
