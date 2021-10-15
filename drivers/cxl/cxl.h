@@ -139,7 +139,17 @@ struct cxl_device_reg_map {
 	struct cxl_reg_map memdev;
 };
 
+/**
+ * struct cxl_register_map - DVSEC harvested register block mapping parameters
+ * @base: virtual base of the register-block-BAR + @block_offset
+ * @block_offset: offset to start of register block in @barno
+ * @reg_type: see enum cxl_regloc_type
+ * @barno: PCI BAR number containing the register block
+ * @component_map: cxl_reg_map for component registers
+ * @device_map: cxl_reg_maps for device registers
+ */
 struct cxl_register_map {
+	void __iomem *base;
 	u64 block_offset;
 	u8 reg_type;
 	u8 barno;

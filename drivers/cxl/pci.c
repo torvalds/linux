@@ -306,8 +306,7 @@ static int cxl_pci_setup_mailbox(struct cxl_mem *cxlm)
 	return 0;
 }
 
-static void __iomem *cxl_pci_map_regblock(struct pci_dev *pdev,
-					  struct cxl_register_map *map)
+static int cxl_map_regblock(struct pci_dev *pdev, struct cxl_register_map *map)
 {
 	void __iomem *addr;
 	int bar = map->barno;
@@ -318,24 +317,27 @@ static void __iomem *cxl_pci_map_regblock(struct pci_dev *pdev,
 	if (pci_resource_len(pdev, bar) < offset) {
 		dev_err(dev, "BAR%d: %pr: too small (offset: %pa)\n", bar,
 			&pdev->resource[bar], &offset);
-		return NULL;
+		return -ENXIO;
 	}
 
 	addr = pci_iomap(pdev, bar, 0);
 	if (!addr) {
 		dev_err(dev, "failed to map registers\n");
-		return addr;
+		return -ENOMEM;
 	}
 
 	dev_dbg(dev, "Mapped CXL Memory Device resource bar %u @ %pa\n",
 		bar, &offset);
 
-	return addr;
+	map->base = addr + map->block_offset;
+	return 0;
 }
 
-static void cxl_pci_unmap_regblock(struct pci_dev *pdev, void __iomem *base)
+static void cxl_unmap_regblock(struct pci_dev *pdev,
+			       struct cxl_register_map *map)
 {
-	pci_iounmap(pdev, base);
+	pci_iounmap(pdev, map->base - map->block_offset);
+	map->base = NULL;
 }
 
 static int cxl_pci_dvsec(struct pci_dev *pdev, int dvsec)
@@ -361,12 +363,12 @@ static int cxl_pci_dvsec(struct pci_dev *pdev, int dvsec)
 	return 0;
 }
 
-static int cxl_probe_regs(struct pci_dev *pdev, void __iomem *base,
-			  struct cxl_register_map *map)
+static int cxl_probe_regs(struct pci_dev *pdev, struct cxl_register_map *map)
 {
 	struct cxl_component_reg_map *comp_map;
 	struct cxl_device_reg_map *dev_map;
 	struct device *dev = &pdev->dev;
+	void __iomem *base = map->base;
 
 	switch (map->reg_type) {
 	case CXL_REGLOC_RBI_COMPONENT:
@@ -442,7 +444,6 @@ static void cxl_decode_regblock(u32 reg_lo, u32 reg_hi,
  */
 static int cxl_pci_setup_regs(struct cxl_mem *cxlm)
 {
-	void __iomem *base;
 	u32 regloc_size, regblocks;
 	int regloc, i, n_maps, ret = 0;
 	struct device *dev = cxlm->dev;
@@ -475,12 +476,12 @@ static int cxl_pci_setup_regs(struct cxl_mem *cxlm)
 		if (map->reg_type > CXL_REGLOC_RBI_MEMDEV)
 			continue;
 
-		base = cxl_pci_map_regblock(pdev, map);
-		if (!base)
-			return -ENOMEM;
+		ret = cxl_map_regblock(pdev, map);
+		if (ret)
+			return ret;
 
-		ret = cxl_probe_regs(pdev, base + map->block_offset, map);
-		cxl_pci_unmap_regblock(pdev, base);
+		ret = cxl_probe_regs(pdev, map);
+		cxl_unmap_regblock(pdev, map);
 		if (ret)
 			return ret;
 
