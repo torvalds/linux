@@ -1292,6 +1292,25 @@ static int psp_ras_unload(struct psp_context *psp)
 	return psp_ta_unload(psp, &psp->ras_context.context);
 }
 
+static void psp_ras_ta_check_status(struct psp_context *psp)
+{
+	struct ta_ras_shared_memory *ras_cmd =
+		(struct ta_ras_shared_memory *)psp->ras_context.context.mem_context.shared_buf;
+
+	switch (ras_cmd->ras_status) {
+	case TA_RAS_STATUS__ERROR_UNSUPPORTED_IP:
+		dev_warn(psp->adev->dev,
+				"RAS WARNING: cmd failed due to unsupported ip\n");
+		break;
+	case TA_RAS_STATUS__SUCCESS:
+		break;
+	default:
+		dev_warn(psp->adev->dev,
+				"RAS WARNING: ras status = 0x%X\n", ras_cmd->ras_status);
+		break;
+	}
+}
+
 int psp_ras_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 {
 	struct ta_ras_shared_memory *ras_cmd;
@@ -1326,10 +1345,7 @@ int psp_ras_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 			dev_warn(psp->adev->dev,
 				 "RAS internal register access blocked\n");
 
-		if (ras_cmd->ras_status == TA_RAS_STATUS__ERROR_UNSUPPORTED_IP)
-		    dev_warn(psp->adev->dev, "RAS WARNING: cmd failed due to unsupported ip\n");
-		else if (ras_cmd->ras_status)
-		    dev_warn(psp->adev->dev, "RAS WARNING: ras status = 0x%X\n", ras_cmd->ras_status);
+		psp_ras_ta_check_status(psp);
 	}
 
 	return ret;
