@@ -378,11 +378,12 @@ static void print_timerlat_headers(struct seq_file *s)
 	seq_puts(s, "#                               / _----=> need-resched\n");
 	seq_puts(s, "#                              | / _---=> hardirq/softirq\n");
 	seq_puts(s, "#                              || / _--=> preempt-depth\n");
-	seq_puts(s, "#                              || /\n");
-	seq_puts(s, "#                              ||||             ACTIVATION\n");
-	seq_puts(s, "#           TASK-PID      CPU# ||||   TIMESTAMP    ID     ");
-	seq_puts(s, "       CONTEXT                LATENCY\n");
-	seq_puts(s, "#              | |         |   ||||      |         |      ");
+	seq_puts(s, "#                              ||| / _-=> migrate-disable\n");
+	seq_puts(s, "#                              |||| /     delay\n");
+	seq_puts(s, "#                              |||||            ACTIVATION\n");
+	seq_puts(s, "#           TASK-PID      CPU# |||||   TIMESTAMP   ID      ");
+	seq_puts(s, "      CONTEXT                 LATENCY\n");
+	seq_puts(s, "#              | |         |   |||||      |         |      ");
 	seq_puts(s, "            |                       |\n");
 }
 #endif /* CONFIG_PREEMPT_RT */
