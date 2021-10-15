@@ -41,11 +41,9 @@ static char *normalize(char *str, int runtime)
 	char *dst = str;
 
 	while (*str) {
-		if (*str == '@')
-			*dst++ = '/';
-		else if (*str == '\\')
+		if (*str == '\\')
 			*dst++ = *++str;
-		 else if (*str == '?') {
+		else if (*str == '?') {
 			char *paramval;
 			int i = 0;
 			int size = asprintf(&paramval, "%d", runtime);

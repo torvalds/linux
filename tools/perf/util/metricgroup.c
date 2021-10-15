@@ -212,13 +212,13 @@ static void metric__free(struct metric *m)
 	free(m);
 }
 
-static bool contains_event(struct evsel **metric_events, int num_events,
-			const char *event_name)
+static bool contains_metric_id(struct evsel **metric_events, int num_events,
+			       const char *metric_id)
 {
 	int i;
 
 	for (i = 0; i < num_events; i++) {
-		if (!strcmp(metric_events[i]->name, event_name))
+		if (!strcmp(evsel__metric_id(metric_events[i]), metric_id))
 			return true;
 	}
 	return false;
@@ -259,6 +259,7 @@ static struct evsel *find_evsel_group(struct evlist *perf_evlist,
 {
 	struct evsel *ev, *current_leader = NULL;
 	struct expr_id_data *val_ptr;
+	const char *metric_id;
 	int i = 0, matched_events = 0, events_to_match;
 	int idnum = (int)hashmap__size(pctx->ids);
 
@@ -300,10 +301,11 @@ static struct evsel *find_evsel_group(struct evlist *perf_evlist,
 			 * different sibling groups aren't both added to
 			 * metric_events.
 			 */
-			if (contains_event(metric_events, matched_events, ev->name))
+			metric_id = evsel__metric_id(ev);
+			if (contains_metric_id(metric_events, matched_events, metric_id))
 				continue;
 			/* Does this event belong to the parse context? */
-			if (hashmap__find(pctx->ids, ev->name, (void **)&val_ptr))
+			if (hashmap__find(pctx->ids, metric_id, (void **)&val_ptr))
 				metric_events[matched_events++] = ev;
 
 			if (matched_events == events_to_match)
@@ -347,6 +349,7 @@ static struct evsel *find_evsel_group(struct evlist *perf_evlist,
 		 * for each pmu. Set the metric leader of such events to be the
 		 * event that appears in metric_events.
 		 */
+		metric_id = evsel__metric_id(ev);
 		evlist__for_each_entry_continue(perf_evlist, ev) {
 			/*
 			 * If events are grouped then the search can terminate
@@ -356,7 +359,7 @@ static struct evsel *find_evsel_group(struct evlist *perf_evlist,
 			    ev->core.leader != metric_events[i]->core.leader &&
 			    evsel_same_pmu_or_none(evsel__leader(ev), evsel__leader(metric_events[i])))
 				break;
-			if (!strcmp(metric_events[i]->name, ev->name)) {
+			if (!strcmp(evsel__metric_id(metric_events[i]), metric_id)) {
 				set_bit(ev->core.idx, evlist_used);
 				ev->metric_leader = metric_events[i];
 			}
@@ -724,50 +727,191 @@ void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 	strlist__delete(metriclist);
 }
 
-static void metricgroup__add_metric_weak_group(struct strbuf *events,
-					       struct expr_parse_ctx *ctx)
+static const char *code_characters = ",-=@";
+
+static int encode_metric_id(struct strbuf *sb, const char *x)
+{
+	char *c;
+	int ret = 0;
+
+	for (; *x; x++) {
+		c = strchr(code_characters, *x);
+		if (c) {
+			ret = strbuf_addch(sb, '!');
+			if (ret)
+				break;
+
+			ret = strbuf_addch(sb, '0' + (c - code_characters));
+			if (ret)
+				break;
+		} else {
+			ret = strbuf_addch(sb, *x);
+			if (ret)
+				break;
+		}
+	}
+	return ret;
+}
+
+static int decode_metric_id(struct strbuf *sb, const char *x)
+{
+	const char *orig = x;
+	size_t i;
+	char c;
+	int ret;
+
+	for (; *x; x++) {
+		c = *x;
+		if (*x == '!') {
+			x++;
+			i = *x - '0';
+			if (i > strlen(code_characters)) {
+				pr_err("Bad metric-id encoding in: '%s'", orig);
+				return -1;
+			}
+			c = code_characters[i];
+		}
+		ret = strbuf_addch(sb, c);
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
+
+static int decode_all_metric_ids(struct evlist *perf_evlist)
+{
+	struct evsel *ev;
+	struct strbuf sb = STRBUF_INIT;
+	char *cur;
+	int ret = 0;
+
+	evlist__for_each_entry(perf_evlist, ev) {
+		if (!ev->metric_id)
+			continue;
+
+		ret = strbuf_setlen(&sb, 0);
+		if (ret)
+			break;
+
+		ret = decode_metric_id(&sb, ev->metric_id);
+		if (ret)
+			break;
+
+		free((char *)ev->metric_id);
+		ev->metric_id = strdup(sb.buf);
+		if (!ev->metric_id) {
+			ret = -ENOMEM;
+			break;
+		}
+		/*
+		 * If the name is just the parsed event, use the metric-id to
+		 * give a more friendly display version.
+		 */
+		if (strstr(ev->name, "metric-id=")) {
+			free(ev->name);
+			for (cur = strchr(sb.buf, '@') ; cur; cur = strchr(++cur, '@'))
+				*cur = '/';
+
+			ev->name = strdup(sb.buf);
+			if (!ev->name) {
+				ret = -ENOMEM;
+				break;
+			}
+		}
+	}
+	strbuf_release(&sb);
+	return ret;
+}
+
+static int metricgroup__build_event_string(struct strbuf *events,
+					   const struct expr_parse_ctx *ctx,
+					   bool has_constraint)
 {
 	struct hashmap_entry *cur;
 	size_t bkt;
 	bool no_group = true, has_duration = false;
+	int ret = 0;
+
+#define RETURN_IF_NON_ZERO(x) do { if (x) return x; } while (0)
 
 	hashmap__for_each_entry(ctx->ids, cur, bkt) {
-		pr_debug("found event %s\n", (const char *)cur->key);
+		const char *sep, *rsep, *id = cur->key;
+
+		pr_debug("found event %s\n", id);
 		/*
 		 * Duration time maps to a software event and can make
 		 * groups not count. Always use it outside a
 		 * group.
 		 */
-		if (!strcmp(cur->key, "duration_time")) {
+		if (!strcmp(id, "duration_time")) {
 			has_duration = true;
 			continue;
 		}
-		strbuf_addf(events, "%s%s",
-			no_group ? "{" : ",",
-			(const char *)cur->key);
-		no_group = false;
-	}
-	if (!no_group) {
-		strbuf_addf(events, "}:W");
-		if (has_duration)
-			strbuf_addf(events, ",duration_time");
-	} else if (has_duration)
-		strbuf_addf(events, "duration_time");
-}
+		/* Separate events with commas and open the group if necessary. */
+		if (no_group) {
+			if (!has_constraint) {
+				ret = strbuf_addch(events, '{');
+				RETURN_IF_NON_ZERO(ret);
+			}
 
-static void metricgroup__add_metric_non_group(struct strbuf *events,
-					      struct expr_parse_ctx *ctx)
-{
-	struct hashmap_entry *cur;
-	size_t bkt;
-	bool first = true;
+			no_group = false;
+		} else {
+			ret = strbuf_addch(events, ',');
+			RETURN_IF_NON_ZERO(ret);
+		}
+		/*
+		 * Encode the ID as an event string. Add a qualifier for
+		 * metric_id that is the original name except with characters
+		 * that parse-events can't parse replaced. For example,
+		 * 'msr@tsc@' gets added as msr/tsc,metric-id=msr!3tsc!3/
+		 */
+		sep = strchr(id, '@');
+		if (sep != NULL) {
+			ret = strbuf_add(events, id, sep - id);
+			RETURN_IF_NON_ZERO(ret);
+			ret = strbuf_addch(events, '/');
+			RETURN_IF_NON_ZERO(ret);
+			rsep = strrchr(sep, '@');
+			ret = strbuf_add(events, sep + 1, rsep - sep - 1);
+			RETURN_IF_NON_ZERO(ret);
+			ret = strbuf_addstr(events, ",metric-id=");
+			RETURN_IF_NON_ZERO(ret);
+			sep = rsep;
+		} else {
+			sep = strchr(id, ':');
+			if (sep != NULL) {
+				ret = strbuf_add(events, id, sep - id);
+				RETURN_IF_NON_ZERO(ret);
+			} else {
+				ret = strbuf_addstr(events, id);
+				RETURN_IF_NON_ZERO(ret);
+			}
+			ret = strbuf_addstr(events, "/metric-id=");
+			RETURN_IF_NON_ZERO(ret);
+		}
+		ret = encode_metric_id(events, id);
+		RETURN_IF_NON_ZERO(ret);
+		ret = strbuf_addstr(events, "/");
+		RETURN_IF_NON_ZERO(ret);
 
-	hashmap__for_each_entry(ctx->ids, cur, bkt) {
-		if (!first)
-			strbuf_addf(events, ",");
-		strbuf_addf(events, "%s", (const char *)cur->key);
-		first = false;
+		if (sep != NULL) {
+			ret = strbuf_addstr(events, sep + 1);
+			RETURN_IF_NON_ZERO(ret);
+		}
 	}
+	if (has_duration) {
+		if (no_group) {
+			/* Strange case of a metric of just duration_time. */
+			ret = strbuf_addf(events, "duration_time");
+		} else if (!has_constraint)
+			ret = strbuf_addf(events, "}:W,duration_time");
+		else
+			ret = strbuf_addf(events, ",duration_time");
+	} else if (!no_group && !has_constraint)
+		ret = strbuf_addf(events, "}:W");
+
+	return ret;
+#undef RETURN_IF_NON_ZERO
 }
 
 int __weak arch_get_runtimeparam(const struct pmu_event *pe __maybe_unused)
@@ -1134,16 +1278,17 @@ static int metricgroup__add_metric(const char *metric_name, bool metric_no_group
 	list_sort(NULL,  &list, metric_list_cmp);
 
 	list_for_each_entry(m, &list, nd) {
-		if (events->len > 0)
-			strbuf_addf(events, ",");
-
-		if (m->has_constraint) {
-			metricgroup__add_metric_non_group(events,
-							  m->pctx);
-		} else {
-			metricgroup__add_metric_weak_group(events,
-							   m->pctx);
+		if (events->len > 0) {
+			ret = strbuf_addf(events, ",");
+			if (ret)
+				break;
 		}
+
+		ret = metricgroup__build_event_string(events,
+						m->pctx,
+						m->has_constraint);
+		if (ret)
+			break;
 	}
 
 out:
@@ -1180,30 +1325,40 @@ static int metricgroup__add_metric_list(const char *list, bool metric_no_group,
 					const struct pmu_events_map *map)
 {
 	char *llist, *nlist, *p;
-	int ret = -EINVAL;
+	int ret, count = 0;
 
 	nlist = strdup(list);
 	if (!nlist)
 		return -ENOMEM;
 	llist = nlist;
 
-	strbuf_init(events, 100);
-	strbuf_addf(events, "%s", "");
+	ret = strbuf_init(events, 100);
+	if (ret)
+		return ret;
 
 	while ((p = strsep(&llist, ",")) != NULL) {
 		ret = metricgroup__add_metric(p, metric_no_group, events,
 					      metric_list, map);
-		if (ret == -EINVAL) {
-			fprintf(stderr, "Cannot find metric or group `%s'\n",
-					p);
+		if (ret == -EINVAL)
+			fprintf(stderr, "Cannot find metric or group `%s'\n", p);
+
+		if (ret)
 			break;
-		}
+
+		count++;
 	}
 	free(nlist);
 
-	if (!ret)
+	if (!ret) {
+		/*
+		 * Warn about nmi_watchdog if any parsed metrics had the
+		 * NO_NMI_WATCHDOG constraint.
+		 */
 		metricgroup___watchdog_constraint_hint(NULL, true);
-
+		/* No metrics. */
+		if (count == 0)
+			return -EINVAL;
+	}
 	return ret;
 }
 
@@ -1243,6 +1398,10 @@ static int parse_groups(struct evlist *perf_evlist, const char *str,
 		parse_events_print_error(&parse_error, extra_events.buf);
 		goto out;
 	}
+	ret = decode_all_metric_ids(perf_evlist);
+	if (ret)
+		goto out;
+
 	ret = metricgroup__setup_events(&metric_list, metric_no_merge,
 					perf_evlist, metric_events);
 out:

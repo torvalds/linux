@@ -761,6 +761,7 @@ static int check_parse_id(const char *id, struct parse_events_error *error,
 {
 	struct evlist *evlist;
 	int ret;
+	char *dup, *cur;
 
 	/* Numbers are always valid. */
 	if (is_number(id))
@@ -769,7 +770,17 @@ static int check_parse_id(const char *id, struct parse_events_error *error,
 	evlist = evlist__new();
 	if (!evlist)
 		return -ENOMEM;
-	ret = __parse_events(evlist, id, error, fake_pmu);
+
+	dup = strdup(id);
+	if (!dup)
+		return -ENOMEM;
+
+	for (cur = strchr(dup, '@') ; cur; cur = strchr(++cur, '@'))
+		*cur = '/';
+
+	ret = __parse_events(evlist, dup, error, fake_pmu);
+	free(dup);
+
 	evlist__delete(evlist);
 	return ret;
 }
