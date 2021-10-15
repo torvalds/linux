@@ -1671,13 +1671,14 @@ void rtl8188e_SetHalODMVar(struct adapter *Adapter, enum hal_odm_variable eVaria
 	case HAL_ODM_STA_INFO:
 		{
 			struct sta_info *psta = (struct sta_info *)pValue1;
+
 			if (bSet) {
 				DBG_88E("### Set STA_(%d) info\n", psta->mac_id);
-				ODM_CmnInfoPtrArrayHook(podmpriv, ODM_CMNINFO_STA_STATUS, psta->mac_id, psta);
+				podmpriv->pODM_StaInfo[psta->mac_id] = psta;
 				ODM_RAInfo_Init(podmpriv, psta->mac_id);
 			} else {
 				DBG_88E("### Clean STA_(%d) info\n", psta->mac_id);
-				ODM_CmnInfoPtrArrayHook(podmpriv, ODM_CMNINFO_STA_STATUS, psta->mac_id, NULL);
+				podmpriv->pODM_StaInfo[psta->mac_id] = NULL;
 		       }
 		}
 		break;

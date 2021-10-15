@@ -305,12 +305,6 @@ enum odm_common_info_def {
 	ODM_CMNINFO_BT_BUSY,			/* Check Bt is using or not */
 	ODM_CMNINFO_BT_DISABLE_EDCA,
 /* CALL BY VALUE-------------*/
-
-	/*  Dynamic ptr array hook itms. */
-	ODM_CMNINFO_STA_STATUS,
-	ODM_CMNINFO_PHY_STATUS,
-	ODM_CMNINFO_MAC_STATUS,
-	ODM_CMNINFO_MAX,
 };
 
 /*  2011/10/20 MH Define ODM support ability.  ODM_CMNINFO_ABILITY */
@@ -881,10 +875,6 @@ void ODM_CmnInfoInit(struct odm_dm_struct *pDM_Odm,
 
 void ODM_CmnInfoHook(struct odm_dm_struct *pDM_Odm,
 		     enum odm_common_info_def CmnInfo, void *pValue);
-
-void ODM_CmnInfoPtrArrayHook(struct odm_dm_struct *pDM_Odm,
-			     enum odm_common_info_def CmnInfo,
-			     u16 Index, void *pValue);
 
 void ODM_CmnInfoUpdate(struct odm_dm_struct *pDM_Odm, u32 CmnInfo, u64 Value);
 
