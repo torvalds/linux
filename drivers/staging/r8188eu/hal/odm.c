@@ -1190,14 +1190,3 @@ u32 ConvertTo_dB(u32 Value)
 
 	return dB;
 }
-
-/*  Description: */
-/* 	Set Single/Dual Antenna default setting for products that do not do detection in advance. */
-/*  Added by Joseph, 2012.03.22 */
-void ODM_SingleDualAntennaDefaultSetting(struct odm_dm_struct *pDM_Odm)
-{
-	struct sw_ant_switch *pDM_SWAT_Table = &pDM_Odm->DM_SWAT_Table;
-
-	pDM_SWAT_Table->ANTA_ON = true;
-	pDM_SWAT_Table->ANTB_ON = true;
-}

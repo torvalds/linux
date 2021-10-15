@@ -907,6 +907,4 @@ void ODM_CmnInfoUpdate(struct odm_dm_struct *pDM_Odm, u32 CmnInfo, u64 Value);
 void ODM_AntselStatistics_88C(struct odm_dm_struct *pDM_Odm, u8 MacId,
 			      u32 PWDBAll, bool isCCKrate);
 
-void ODM_SingleDualAntennaDefaultSetting(struct odm_dm_struct *pDM_Odm);
-
 #endif
