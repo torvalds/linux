@@ -43,9 +43,8 @@ static struct vfio {
 	struct list_head		iommu_drivers_list;
 	struct mutex			iommu_drivers_lock;
 	struct list_head		group_list;
-	struct idr			group_idr;
-	struct mutex			group_lock;
-	struct cdev			group_cdev;
+	struct mutex			group_lock; /* locks group_list */
+	struct ida			group_ida;
 	dev_t				group_devt;
 } vfio;
 
@@ -69,14 +68,14 @@ struct vfio_unbound_dev {
 };
 
 struct vfio_group {
+	struct device 			dev;
+	struct cdev			cdev;
 	refcount_t			users;
-	int				minor;
 	atomic_t			container_users;
 	struct iommu_group		*iommu_group;
 	struct vfio_container		*container;
 	struct list_head		device_list;
 	struct mutex			device_lock;
-	struct device			*dev;
 	struct notifier_block		nb;
 	struct list_head		vfio_next;
 	struct list_head		container_next;
@@ -98,6 +97,7 @@ MODULE_PARM_DESC(enable_unsafe_noiommu_mode, "Enable UNSAFE, no-IOMMU mode.  Thi
 #endif
 
 static DEFINE_XARRAY(vfio_device_set_xa);
+static const struct file_operations vfio_group_fops;
 
 int vfio_assign_device_set(struct vfio_device *device, void *set_id)
 {
@@ -281,19 +281,6 @@ void vfio_unregister_iommu_driver(const struct vfio_iommu_driver_ops *ops)
 }
 EXPORT_SYMBOL_GPL(vfio_unregister_iommu_driver);
 
-/**
- * Group minor allocation/free - both called with vfio.group_lock held
- */
-static int vfio_alloc_group_minor(struct vfio_group *group)
-{
-	return idr_alloc(&vfio.group_idr, group, 0, MINORMASK + 1, GFP_KERNEL);
-}
-
-static void vfio_free_group_minor(int minor)
-{
-	idr_remove(&vfio.group_idr, minor);
-}
-
 static int vfio_iommu_group_notifier(struct notifier_block *nb,
 				     unsigned long action, void *data);
 static void vfio_group_get(struct vfio_group *group);
@@ -320,22 +307,6 @@ static void vfio_container_release(struct kref *kref)
 static void vfio_container_put(struct vfio_container *container)
 {
 	kref_put(&container->kref, vfio_container_release);
-}
-
-static void vfio_group_unlock_and_free(struct vfio_group *group)
-{
-	struct vfio_unbound_dev *unbound, *tmp;
-
-	mutex_unlock(&vfio.group_lock);
-	iommu_group_unregister_notifier(group->iommu_group, &group->nb);
-
-	list_for_each_entry_safe(unbound, tmp,
-				 &group->unbound_list, unbound_next) {
-		list_del(&unbound->unbound_next);
-		kfree(unbound);
-	}
-	iommu_group_put(group->iommu_group);
-	kfree(group);
 }
 
 /**
@@ -366,71 +337,112 @@ vfio_group_get_from_iommu(struct iommu_group *iommu_group)
 	return group;
 }
 
-static struct vfio_group *vfio_create_group(struct iommu_group *iommu_group,
-		enum vfio_group_type type)
+static void vfio_group_release(struct device *dev)
 {
-	struct vfio_group *group, *existing_group;
-	struct device *dev;
-	int ret, minor;
+	struct vfio_group *group = container_of(dev, struct vfio_group, dev);
+	struct vfio_unbound_dev *unbound, *tmp;
+
+	list_for_each_entry_safe(unbound, tmp,
+				 &group->unbound_list, unbound_next) {
+		list_del(&unbound->unbound_next);
+		kfree(unbound);
+	}
+
+	mutex_destroy(&group->device_lock);
+	mutex_destroy(&group->unbound_lock);
+	iommu_group_put(group->iommu_group);
+	ida_free(&vfio.group_ida, MINOR(group->dev.devt));
+	kfree(group);
+}
+
+static struct vfio_group *vfio_group_alloc(struct iommu_group *iommu_group,
+					   enum vfio_group_type type)
+{
+	struct vfio_group *group;
+	int minor;
 
 	group = kzalloc(sizeof(*group), GFP_KERNEL);
 	if (!group)
 		return ERR_PTR(-ENOMEM);
+
+	minor = ida_alloc_max(&vfio.group_ida, MINORMASK, GFP_KERNEL);
+	if (minor < 0) {
+		kfree(group);
+		return ERR_PTR(minor);
+	}
+
+	device_initialize(&group->dev);
+	group->dev.devt = MKDEV(MAJOR(vfio.group_devt), minor);
+	group->dev.class = vfio.class;
+	group->dev.release = vfio_group_release;
+	cdev_init(&group->cdev, &vfio_group_fops);
+	group->cdev.owner = THIS_MODULE;
 
 	refcount_set(&group->users, 1);
 	INIT_LIST_HEAD(&group->device_list);
 	mutex_init(&group->device_lock);
 	INIT_LIST_HEAD(&group->unbound_list);
 	mutex_init(&group->unbound_lock);
-	atomic_set(&group->container_users, 0);
-	atomic_set(&group->opened, 0);
 	init_waitqueue_head(&group->container_q);
 	group->iommu_group = iommu_group;
-	/* put in vfio_group_unlock_and_free() */
+	/* put in vfio_group_release() */
 	iommu_group_ref_get(iommu_group);
 	group->type = type;
 	BLOCKING_INIT_NOTIFIER_HEAD(&group->notifier);
 
+	return group;
+}
+
+static struct vfio_group *vfio_create_group(struct iommu_group *iommu_group,
+		enum vfio_group_type type)
+{
+	struct vfio_group *group;
+	struct vfio_group *ret;
+	int err;
+
+	group = vfio_group_alloc(iommu_group, type);
+	if (IS_ERR(group))
+		return group;
+
+	err = dev_set_name(&group->dev, "%s%d",
+			   group->type == VFIO_NO_IOMMU ? "noiommu-" : "",
+			   iommu_group_id(iommu_group));
+	if (err) {
+		ret = ERR_PTR(err);
+		goto err_put;
+	}
+
 	group->nb.notifier_call = vfio_iommu_group_notifier;
-	ret = iommu_group_register_notifier(iommu_group, &group->nb);
-	if (ret) {
-		iommu_group_put(iommu_group);
-		kfree(group);
-		return ERR_PTR(ret);
+	err = iommu_group_register_notifier(iommu_group, &group->nb);
+	if (err) {
+		ret = ERR_PTR(err);
+		goto err_put;
 	}
 
 	mutex_lock(&vfio.group_lock);
 
 	/* Did we race creating this group? */
-	existing_group = __vfio_group_get_from_iommu(iommu_group);
-	if (existing_group) {
-		vfio_group_unlock_and_free(group);
-		return existing_group;
-	}
+	ret = __vfio_group_get_from_iommu(iommu_group);
+	if (ret)
+		goto err_unlock;
 
-	minor = vfio_alloc_group_minor(group);
-	if (minor < 0) {
-		vfio_group_unlock_and_free(group);
-		return ERR_PTR(minor);
+	err = cdev_device_add(&group->cdev, &group->dev);
+	if (err) {
+		ret = ERR_PTR(err);
+		goto err_unlock;
 	}
-
-	dev = device_create(vfio.class, NULL,
-			    MKDEV(MAJOR(vfio.group_devt), minor), group, "%s%d",
-			    group->type == VFIO_NO_IOMMU ? "noiommu-" : "",
-			    iommu_group_id(iommu_group));
-	if (IS_ERR(dev)) {
-		vfio_free_group_minor(minor);
-		vfio_group_unlock_and_free(group);
-		return ERR_CAST(dev);
-	}
-
-	group->minor = minor;
-	group->dev = dev;
 
 	list_add(&group->vfio_next, &vfio.group_list);
 
 	mutex_unlock(&vfio.group_lock);
 	return group;
+
+err_unlock:
+	mutex_unlock(&vfio.group_lock);
+	iommu_group_unregister_notifier(group->iommu_group, &group->nb);
+err_put:
+	put_device(&group->dev);
+	return ret;
 }
 
 static void vfio_group_put(struct vfio_group *group)
@@ -448,31 +460,17 @@ static void vfio_group_put(struct vfio_group *group)
 	WARN_ON(atomic_read(&group->container_users));
 	WARN_ON(group->notifier.head);
 
-	device_destroy(vfio.class, MKDEV(MAJOR(vfio.group_devt), group->minor));
 	list_del(&group->vfio_next);
-	vfio_free_group_minor(group->minor);
-	vfio_group_unlock_and_free(group);
+	cdev_device_del(&group->cdev, &group->dev);
+	mutex_unlock(&vfio.group_lock);
+
+	iommu_group_unregister_notifier(group->iommu_group, &group->nb);
+	put_device(&group->dev);
 }
 
 static void vfio_group_get(struct vfio_group *group)
 {
 	refcount_inc(&group->users);
-}
-
-static struct vfio_group *vfio_group_get_from_minor(int minor)
-{
-	struct vfio_group *group;
-
-	mutex_lock(&vfio.group_lock);
-	group = idr_find(&vfio.group_idr, minor);
-	if (!group) {
-		mutex_unlock(&vfio.group_lock);
-		return NULL;
-	}
-	vfio_group_get(group);
-	mutex_unlock(&vfio.group_lock);
-
-	return group;
 }
 
 static struct vfio_group *vfio_group_get_from_dev(struct device *dev)
@@ -1479,11 +1477,12 @@ static long vfio_group_fops_unl_ioctl(struct file *filep,
 
 static int vfio_group_fops_open(struct inode *inode, struct file *filep)
 {
-	struct vfio_group *group;
+	struct vfio_group *group =
+		container_of(inode->i_cdev, struct vfio_group, cdev);
 	int opened;
 
-	group = vfio_group_get_from_minor(iminor(inode));
-	if (!group)
+	/* users can be zero if this races with vfio_group_put() */
+	if (!refcount_inc_not_zero(&group->users))
 		return -ENODEV;
 
 	if (group->type == VFIO_NO_IOMMU && !capable(CAP_SYS_RAWIO)) {
@@ -2293,7 +2292,7 @@ static int __init vfio_init(void)
 {
 	int ret;
 
-	idr_init(&vfio.group_idr);
+	ida_init(&vfio.group_ida);
 	mutex_init(&vfio.group_lock);
 	mutex_init(&vfio.iommu_drivers_lock);
 	INIT_LIST_HEAD(&vfio.group_list);
@@ -2318,11 +2317,6 @@ static int __init vfio_init(void)
 	if (ret)
 		goto err_alloc_chrdev;
 
-	cdev_init(&vfio.group_cdev, &vfio_group_fops);
-	ret = cdev_add(&vfio.group_cdev, vfio.group_devt, MINORMASK + 1);
-	if (ret)
-		goto err_cdev_add;
-
 	pr_info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
 
 #ifdef CONFIG_VFIO_NOIOMMU
@@ -2330,8 +2324,6 @@ static int __init vfio_init(void)
 #endif
 	return 0;
 
-err_cdev_add:
-	unregister_chrdev_region(vfio.group_devt, MINORMASK + 1);
 err_alloc_chrdev:
 	class_destroy(vfio.class);
 	vfio.class = NULL;
@@ -2347,8 +2339,7 @@ static void __exit vfio_cleanup(void)
 #ifdef CONFIG_VFIO_NOIOMMU
 	vfio_unregister_iommu_driver(&vfio_noiommu_ops);
 #endif
-	idr_destroy(&vfio.group_idr);
-	cdev_del(&vfio.group_cdev);
+	ida_destroy(&vfio.group_ida);
 	unregister_chrdev_region(vfio.group_devt, MINORMASK + 1);
 	class_destroy(vfio.class);
 	vfio.class = NULL;
