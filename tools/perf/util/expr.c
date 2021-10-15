@@ -211,6 +211,21 @@ int expr__get_id(struct expr_parse_ctx *ctx, const char *id,
 	return hashmap__find(ctx->ids, id, (void **)data) ? 0 : -1;
 }
 
+bool expr__subset_of_ids(struct expr_parse_ctx *haystack,
+			 struct expr_parse_ctx *needles)
+{
+	struct hashmap_entry *cur;
+	size_t bkt;
+	struct expr_id_data *data;
+
+	hashmap__for_each_entry(needles->ids, cur, bkt) {
+		if (expr__get_id(haystack, cur->key, &data))
+			return false;
+	}
+	return true;
+}
+
+
 int expr__resolve_id(struct expr_parse_ctx *ctx, const char *id,
 		     struct expr_id_data **datap)
 {
