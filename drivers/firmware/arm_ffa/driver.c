@@ -613,6 +613,22 @@ ffa_memory_share(struct ffa_device *dev, struct ffa_mem_ops_args *args)
 	return ffa_memory_ops(FFA_FN_NATIVE(MEM_SHARE), args);
 }
 
+static int
+ffa_memory_lend(struct ffa_device *dev, struct ffa_mem_ops_args *args)
+{
+	/* Note that upon a successful MEM_LEND request the caller
+	 * must ensure that the memory region specified is not accessed
+	 * until a successful MEM_RECALIM call has been made.
+	 * On systems with a hypervisor present this will been enforced,
+	 * however on systems without a hypervisor the responsibility
+	 * falls to the calling kernel driver to prevent access.
+	 */
+	if (dev->mode_32bit)
+		return ffa_memory_ops(FFA_MEM_LEND, args);
+
+	return ffa_memory_ops(FFA_FN_NATIVE(MEM_LEND), args);
+}
+
 static const struct ffa_dev_ops ffa_ops = {
 	.api_version_get = ffa_api_version_get,
 	.partition_info_get = ffa_partition_info_get,
@@ -620,6 +636,7 @@ static const struct ffa_dev_ops ffa_ops = {
 	.sync_send_receive = ffa_sync_send_receive,
 	.memory_reclaim = ffa_memory_reclaim,
 	.memory_share = ffa_memory_share,
+	.memory_lend = ffa_memory_lend,
 };
 
 const struct ffa_dev_ops *ffa_dev_ops_get(struct ffa_device *dev)
