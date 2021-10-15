@@ -3762,6 +3762,24 @@ static int verify_info_level(int info_level)
 	return 0;
 }
 
+static int smb2_calc_max_out_buf_len(struct ksmbd_work *work,
+				     unsigned short hdr2_len,
+				     unsigned int out_buf_len)
+{
+	int free_len;
+
+	if (out_buf_len > work->conn->vals->max_trans_size)
+		return -EINVAL;
+
+	free_len = (int)(work->response_sz -
+			 (get_rfc1002_len(work->response_buf) + 4)) -
+		hdr2_len;
+	if (free_len < 0)
+		return -EINVAL;
+
+	return min_t(int, out_buf_len, free_len);
+}
+
 int smb2_query_dir(struct ksmbd_work *work)
 {
 	struct ksmbd_conn *conn = work->conn;
@@ -3838,9 +3856,13 @@ int smb2_query_dir(struct ksmbd_work *work)
 	memset(&d_info, 0, sizeof(struct ksmbd_dir_info));
 	d_info.wptr = (char *)rsp->Buffer;
 	d_info.rptr = (char *)rsp->Buffer;
-	d_info.out_buf_len = (work->response_sz - (get_rfc1002_len(rsp_org) + 4));
-	d_info.out_buf_len = min_t(int, d_info.out_buf_len, le32_to_cpu(req->OutputBufferLength)) -
-		sizeof(struct smb2_query_directory_rsp);
+	d_info.out_buf_len =
+		smb2_calc_max_out_buf_len(work, 8,
+					  le32_to_cpu(req->OutputBufferLength));
+	if (d_info.out_buf_len < 0) {
+		rc = -EINVAL;
+		goto err_out;
+	}
 	d_info.flags = srch_flag;
 
 	/*
@@ -4074,12 +4096,11 @@ static int smb2_get_ea(struct ksmbd_work *work, struct ksmbd_file *fp,
 				    le32_to_cpu(req->Flags));
 	}
 
-	buf_free_len = work->response_sz -
-			(get_rfc1002_len(rsp_org) + 4) -
-			sizeof(struct smb2_query_info_rsp);
-
-	if (le32_to_cpu(req->OutputBufferLength) < buf_free_len)
-		buf_free_len = le32_to_cpu(req->OutputBufferLength);
+	buf_free_len =
+		smb2_calc_max_out_buf_len(work, 8,
+					  le32_to_cpu(req->OutputBufferLength));
+	if (buf_free_len < 0)
+		return -EINVAL;
 
 	rc = ksmbd_vfs_listxattr(path->dentry, &xattr_list);
 	if (rc < 0) {
@@ -4390,6 +4411,8 @@ static void get_file_stream_info(struct ksmbd_work *work,
 	struct path *path = &fp->filp->f_path;
 	ssize_t xattr_list_len;
 	int nbytes = 0, streamlen, stream_name_len, next, idx = 0;
+	int buf_free_len;
+	struct smb2_query_info_req *req = ksmbd_req_buf_next(work);
 
 	generic_fillattr(file_mnt_user_ns(fp->filp), file_inode(fp->filp),
 			 &stat);
@@ -4402,6 +4425,12 @@ static void get_file_stream_info(struct ksmbd_work *work,
 		ksmbd_debug(SMB, "empty xattr in the file\n");
 		goto out;
 	}
+
+	buf_free_len =
+		smb2_calc_max_out_buf_len(work, 8,
+					  le32_to_cpu(req->OutputBufferLength));
+	if (buf_free_len < 0)
+		goto out;
 
 	while (idx < xattr_list_len) {
 		stream_name = xattr_list + idx;
@@ -4427,6 +4456,10 @@ static void get_file_stream_info(struct ksmbd_work *work,
 		streamlen = snprintf(stream_buf, streamlen + 1,
 				     ":%s", &stream_name[XATTR_NAME_STREAM_LEN]);
 
+		next = sizeof(struct smb2_file_stream_info) + streamlen * 2;
+		if (next > buf_free_len)
+			break;
+
 		file_info = (struct smb2_file_stream_info *)&rsp->Buffer[nbytes];
 		streamlen  = smbConvertToUTF16((__le16 *)file_info->StreamName,
 					       stream_buf, streamlen,
@@ -4437,12 +4470,13 @@ static void get_file_stream_info(struct ksmbd_work *work,
 		file_info->StreamSize = cpu_to_le64(stream_name_len);
 		file_info->StreamAllocationSize = cpu_to_le64(stream_name_len);
 
-		next = sizeof(struct smb2_file_stream_info) + streamlen;
 		nbytes += next;
+		buf_free_len -= next;
 		file_info->NextEntryOffset = cpu_to_le32(next);
 	}
 
-	if (!S_ISDIR(stat.mode)) {
+	if (!S_ISDIR(stat.mode) &&
+	    buf_free_len >= sizeof(struct smb2_file_stream_info) + 7 * 2) {
 		file_info = (struct smb2_file_stream_info *)
 			&rsp->Buffer[nbytes];
 		streamlen = smbConvertToUTF16((__le16 *)file_info->StreamName,
@@ -7453,11 +7487,13 @@ int smb2_ioctl(struct ksmbd_work *work)
 	}
 
 	cnt_code = le32_to_cpu(req->CntCode);
-	out_buf_len = le32_to_cpu(req->MaxOutputResponse);
-	out_buf_len =
-		min_t(u32, work->response_sz - work->next_smb2_rsp_hdr_off -
-				(offsetof(struct smb2_ioctl_rsp, Buffer) - 4),
-		      out_buf_len);
+	ret = smb2_calc_max_out_buf_len(work, 48,
+					le32_to_cpu(req->MaxOutputResponse));
+	if (ret < 0) {
+		rsp->hdr.Status = STATUS_INVALID_PARAMETER;
+		goto out;
+	}
+	out_buf_len = (unsigned int)ret;
 	in_buf_len = le32_to_cpu(req->InputCount);
 
 	switch (cnt_code) {
