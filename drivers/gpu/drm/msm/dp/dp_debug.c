@@ -210,25 +210,28 @@ static const struct file_operations test_active_fops = {
 static int dp_debug_init(struct dp_debug *dp_debug, struct drm_minor *minor)
 {
 	int rc = 0;
+	char path[64];
 	struct dp_debug_private *debug = container_of(dp_debug,
 			struct dp_debug_private, dp_debug);
 
-	debugfs_create_file("dp_debug", 0444, minor->debugfs_root,
+	snprintf(path, sizeof(path), "msm_dp-%s", debug->connector->name);
+
+	debug->root = debugfs_create_dir(path, minor->debugfs_root);
+
+	debugfs_create_file("dp_debug", 0444, debug->root,
 			debug, &dp_debug_fops);
 
 	debugfs_create_file("msm_dp_test_active", 0444,
-			minor->debugfs_root,
+			debug->root,
 			debug, &test_active_fops);
 
 	debugfs_create_file("msm_dp_test_data", 0444,
-			minor->debugfs_root,
+			debug->root,
 			debug, &dp_test_data_fops);
 
 	debugfs_create_file("msm_dp_test_type", 0444,
-			minor->debugfs_root,
+			debug->root,
 			debug, &dp_test_type_fops);
-
-	debug->root = minor->debugfs_root;
 
 	return rc;
 }
