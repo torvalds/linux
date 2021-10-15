@@ -226,31 +226,6 @@ static inline void fxsave(struct fxregs_state *fx)
 		     : "memory")
 
 /*
- * This function is called only during boot time when x86 caps are not set
- * up and alternative can not be used yet.
- */
-static inline void os_xrstor_booting(struct xregs_state *xstate)
-{
-	u64 mask = xfeatures_mask_fpstate();
-	u32 lmask = mask;
-	u32 hmask = mask >> 32;
-	int err;
-
-	WARN_ON(system_state != SYSTEM_BOOTING);
-
-	if (boot_cpu_has(X86_FEATURE_XSAVES))
-		XSTATE_OP(XRSTORS, xstate, lmask, hmask, err);
-	else
-		XSTATE_OP(XRSTOR, xstate, lmask, hmask, err);
-
-	/*
-	 * We should never fault when copying from a kernel buffer, and the FPU
-	 * state we set at boot time should be valid.
-	 */
-	WARN_ON_FPU(err);
-}
-
-/*
  * Save processor xstate to xsave area.
  *
  * Uses either XSAVE or XSAVEOPT or XSAVES depending on the CPU features

@@ -351,6 +351,29 @@ static void __init print_xstate_offset_size(void)
 }
 
 /*
+ * This function is called only during boot time when x86 caps are not set
+ * up and alternative can not be used yet.
+ */
+static __init void os_xrstor_booting(struct xregs_state *xstate)
+{
+	u64 mask = xfeatures_mask_fpstate();
+	u32 lmask = mask;
+	u32 hmask = mask >> 32;
+	int err;
+
+	if (cpu_feature_enabled(X86_FEATURE_XSAVES))
+		XSTATE_OP(XRSTORS, xstate, lmask, hmask, err);
+	else
+		XSTATE_OP(XRSTOR, xstate, lmask, hmask, err);
+
+	/*
+	 * We should never fault when copying from a kernel buffer, and the FPU
+	 * state we set at boot time should be valid.
+	 */
+	WARN_ON_FPU(err);
+}
+
+/*
  * All supported features have either init state all zeros or are
  * handled in setup_init_fpu() individually. This is an explicit
  * feature list and does not use XFEATURE_MASK*SUPPORTED to catch
