@@ -145,6 +145,8 @@ __poll_t rpmsg_poll(struct rpmsg_endpoint *ept, struct file *filp,
 int rpmsg_get_signals(struct rpmsg_endpoint *ept);
 int rpmsg_set_signals(struct rpmsg_endpoint *ept, u32 set, u32 clear);
 
+ssize_t rpmsg_get_mtu(struct rpmsg_endpoint *ept);
+
 #else
 
 static inline int register_rpmsg_device(struct rpmsg_device *dev)
@@ -262,6 +264,14 @@ static inline int rpmsg_get_signals(struct rpmsg_endpoint *ept)
 
 static inline int rpmsg_set_signals(struct rpmsg_endpoint *ept,
 				    u32 set, u32 clear)
+{
+	/* This shouldn't be possible */
+	WARN_ON(1);
+
+	return -ENXIO;
+}
+
+static inline ssize_t rpmsg_get_mtu(struct rpmsg_endpoint *ept)
 {
 	/* This shouldn't be possible */
 	WARN_ON(1);
