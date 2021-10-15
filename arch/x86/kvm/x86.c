@@ -11514,8 +11514,7 @@ void kvm_arch_free_memslot(struct kvm *kvm, struct kvm_memory_slot *slot)
 	kvm_page_track_free_memslot(slot);
 }
 
-static int memslot_rmap_alloc(struct kvm_memory_slot *slot,
-			      unsigned long npages)
+int memslot_rmap_alloc(struct kvm_memory_slot *slot, unsigned long npages)
 {
 	const int sz = sizeof(*slot->arch.rmap[0]);
 	int i;
@@ -11534,50 +11533,6 @@ static int memslot_rmap_alloc(struct kvm_memory_slot *slot,
 		}
 	}
 
-	return 0;
-}
-
-int alloc_all_memslots_rmaps(struct kvm *kvm)
-{
-	struct kvm_memslots *slots;
-	struct kvm_memory_slot *slot;
-	int r, i;
-
-	/*
-	 * Check if memslots alreday have rmaps early before acquiring
-	 * the slots_arch_lock below.
-	 */
-	if (kvm_memslots_have_rmaps(kvm))
-		return 0;
-
-	mutex_lock(&kvm->slots_arch_lock);
-
-	/*
-	 * Read memslots_have_rmaps again, under the slots arch lock,
-	 * before allocating the rmaps
-	 */
-	if (kvm_memslots_have_rmaps(kvm)) {
-		mutex_unlock(&kvm->slots_arch_lock);
-		return 0;
-	}
-
-	for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++) {
-		slots = __kvm_memslots(kvm, i);
-		kvm_for_each_memslot(slot, slots) {
-			r = memslot_rmap_alloc(slot, slot->npages);
-			if (r) {
-				mutex_unlock(&kvm->slots_arch_lock);
-				return r;
-			}
-		}
-	}
-
-	/*
-	 * Ensure that memslots_have_rmaps becomes true strictly after
-	 * all the rmap pointers are set.
-	 */
-	smp_store_release(&kvm->arch.memslots_have_rmaps, true);
-	mutex_unlock(&kvm->slots_arch_lock);
 	return 0;
 }
 
