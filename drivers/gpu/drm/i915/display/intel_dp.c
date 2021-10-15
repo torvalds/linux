@@ -1166,14 +1166,13 @@ static bool intel_dp_hdmi_tmds_clock_valid(struct intel_dp *intel_dp,
 	return true;
 }
 
-static bool intel_dp_hdmi_deep_color_possible(struct intel_dp *intel_dp,
-					      const struct intel_crtc_state *crtc_state,
-					      int bpc)
+static bool intel_dp_hdmi_bpc_possible(struct intel_dp *intel_dp,
+				       const struct intel_crtc_state *crtc_state,
+				       int bpc)
 {
 
-	return intel_hdmi_deep_color_possible(crtc_state, bpc,
-					      intel_dp->has_hdmi_sink,
-					      intel_dp_hdmi_ycbcr420(intel_dp, crtc_state)) &&
+	return intel_hdmi_bpc_possible(crtc_state, bpc, intel_dp->has_hdmi_sink,
+				       intel_dp_hdmi_ycbcr420(intel_dp, crtc_state)) &&
 		intel_dp_hdmi_tmds_clock_valid(intel_dp, crtc_state, bpc);
 }
 
@@ -1191,7 +1190,7 @@ static int intel_dp_max_bpp(struct intel_dp *intel_dp,
 
 	if (intel_dp->dfp.min_tmds_clock) {
 		for (; bpc >= 10; bpc -= 2) {
-			if (intel_dp_hdmi_deep_color_possible(intel_dp, crtc_state, bpc))
+			if (intel_dp_hdmi_bpc_possible(intel_dp, crtc_state, bpc))
 				break;
 		}
 	}
