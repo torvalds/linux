@@ -5,6 +5,10 @@
 #include <linux/futex.h>
 #include <linux/sched/wake_q.h>
 
+#ifdef CONFIG_PREEMPT_RT
+#include <linux/rcuwait.h>
+#endif
+
 #include <asm/futex.h>
 
 /*
