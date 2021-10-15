@@ -623,18 +623,18 @@ static bool
 qed_ll2_lb_rxq_handler_slowpath(struct qed_hwfn *p_hwfn,
 				struct core_rx_slow_path_cqe *p_cqe)
 {
-	struct ooo_opaque *iscsi_ooo;
+	struct ooo_opaque *ooo_opq;
 	u32 cid;
 
 	if (p_cqe->ramrod_cmd_id != CORE_RAMROD_RX_QUEUE_FLUSH)
 		return false;
 
-	iscsi_ooo = (struct ooo_opaque *)&p_cqe->opaque_data;
-	if (iscsi_ooo->ooo_opcode != TCP_EVENT_DELETE_ISLES)
+	ooo_opq = (struct ooo_opaque *)&p_cqe->opaque_data;
+	if (ooo_opq->ooo_opcode != TCP_EVENT_DELETE_ISLES)
 		return false;
 
 	/* Need to make a flush */
-	cid = le32_to_cpu(iscsi_ooo->cid);
+	cid = le32_to_cpu(ooo_opq->cid);
 	qed_ooo_release_connection_isles(p_hwfn, p_hwfn->p_ooo_info, cid);
 
 	return true;
@@ -650,7 +650,7 @@ static int qed_ll2_lb_rxq_handler(struct qed_hwfn *p_hwfn,
 	union core_rx_cqe_union *cqe = NULL;
 	u16 cq_new_idx = 0, cq_old_idx = 0;
 	struct qed_ooo_buffer *p_buffer;
-	struct ooo_opaque *iscsi_ooo;
+	struct ooo_opaque *ooo_opq;
 	u8 placement_offset = 0;
 	u8 cqe_type;
 
@@ -683,18 +683,17 @@ static int qed_ll2_lb_rxq_handler(struct qed_hwfn *p_hwfn,
 		parse_flags = le16_to_cpu(p_cqe_fp->parse_flags.flags);
 		packet_length = le16_to_cpu(p_cqe_fp->packet_length);
 		vlan = le16_to_cpu(p_cqe_fp->vlan);
-		iscsi_ooo = (struct ooo_opaque *)&p_cqe_fp->opaque_data;
-		qed_ooo_save_history_entry(p_hwfn, p_hwfn->p_ooo_info,
-					   iscsi_ooo);
-		cid = le32_to_cpu(iscsi_ooo->cid);
+		ooo_opq = (struct ooo_opaque *)&p_cqe_fp->opaque_data;
+		qed_ooo_save_history_entry(p_hwfn, p_hwfn->p_ooo_info, ooo_opq);
+		cid = le32_to_cpu(ooo_opq->cid);
 
 		/* Process delete isle first */
-		if (iscsi_ooo->drop_size)
+		if (ooo_opq->drop_size)
 			qed_ooo_delete_isles(p_hwfn, p_hwfn->p_ooo_info, cid,
-					     iscsi_ooo->drop_isle,
-					     iscsi_ooo->drop_size);
+					     ooo_opq->drop_isle,
+					     ooo_opq->drop_size);
 
-		if (iscsi_ooo->ooo_opcode == TCP_EVENT_NOP)
+		if (ooo_opq->ooo_opcode == TCP_EVENT_NOP)
 			continue;
 
 		/* Now process create/add/join isles */
@@ -708,11 +707,11 @@ static int qed_ll2_lb_rxq_handler(struct qed_hwfn *p_hwfn,
 		p_pkt = list_first_entry(&p_rx->active_descq,
 					 struct qed_ll2_rx_packet, list_entry);
 
-		if (likely(iscsi_ooo->ooo_opcode == TCP_EVENT_ADD_NEW_ISLE ||
-			   iscsi_ooo->ooo_opcode == TCP_EVENT_ADD_ISLE_RIGHT ||
-			   iscsi_ooo->ooo_opcode == TCP_EVENT_ADD_ISLE_LEFT ||
-			   iscsi_ooo->ooo_opcode == TCP_EVENT_ADD_PEN ||
-			   iscsi_ooo->ooo_opcode == TCP_EVENT_JOIN)) {
+		if (likely(ooo_opq->ooo_opcode == TCP_EVENT_ADD_NEW_ISLE ||
+			   ooo_opq->ooo_opcode == TCP_EVENT_ADD_ISLE_RIGHT ||
+			   ooo_opq->ooo_opcode == TCP_EVENT_ADD_ISLE_LEFT ||
+			   ooo_opq->ooo_opcode == TCP_EVENT_ADD_PEN ||
+			   ooo_opq->ooo_opcode == TCP_EVENT_JOIN)) {
 			if (unlikely(!p_pkt)) {
 				DP_NOTICE(p_hwfn,
 					  "LL2 OOO RX packet is not valid\n");
@@ -727,19 +726,19 @@ static int qed_ll2_lb_rxq_handler(struct qed_hwfn *p_hwfn,
 			qed_chain_consume(&p_rx->rxq_chain);
 			list_add_tail(&p_pkt->list_entry, &p_rx->free_descq);
 
-			switch (iscsi_ooo->ooo_opcode) {
+			switch (ooo_opq->ooo_opcode) {
 			case TCP_EVENT_ADD_NEW_ISLE:
 				qed_ooo_add_new_isle(p_hwfn,
 						     p_hwfn->p_ooo_info,
 						     cid,
-						     iscsi_ooo->ooo_isle,
+						     ooo_opq->ooo_isle,
 						     p_buffer);
 				break;
 			case TCP_EVENT_ADD_ISLE_RIGHT:
 				qed_ooo_add_new_buffer(p_hwfn,
 						       p_hwfn->p_ooo_info,
 						       cid,
-						       iscsi_ooo->ooo_isle,
+						       ooo_opq->ooo_isle,
 						       p_buffer,
 						       QED_OOO_RIGHT_BUF);
 				break;
@@ -747,7 +746,7 @@ static int qed_ll2_lb_rxq_handler(struct qed_hwfn *p_hwfn,
 				qed_ooo_add_new_buffer(p_hwfn,
 						       p_hwfn->p_ooo_info,
 						       cid,
-						       iscsi_ooo->ooo_isle,
+						       ooo_opq->ooo_isle,
 						       p_buffer,
 						       QED_OOO_LEFT_BUF);
 				break;
@@ -755,13 +754,12 @@ static int qed_ll2_lb_rxq_handler(struct qed_hwfn *p_hwfn,
 				qed_ooo_add_new_buffer(p_hwfn,
 						       p_hwfn->p_ooo_info,
 						       cid,
-						       iscsi_ooo->ooo_isle +
-						       1,
+						       ooo_opq->ooo_isle + 1,
 						       p_buffer,
 						       QED_OOO_LEFT_BUF);
 				qed_ooo_join_isles(p_hwfn,
 						   p_hwfn->p_ooo_info,
-						   cid, iscsi_ooo->ooo_isle);
+						   cid, ooo_opq->ooo_isle);
 				break;
 			case TCP_EVENT_ADD_PEN:
 				num_ooo_add_to_peninsula++;
@@ -773,7 +771,7 @@ static int qed_ll2_lb_rxq_handler(struct qed_hwfn *p_hwfn,
 		} else {
 			DP_NOTICE(p_hwfn,
 				  "Unexpected event (%d) TX OOO completion\n",
-				  iscsi_ooo->ooo_opcode);
+				  ooo_opq->ooo_opcode);
 		}
 	}
 
