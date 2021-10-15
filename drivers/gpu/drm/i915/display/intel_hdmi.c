@@ -1935,25 +1935,30 @@ intel_hdmi_mode_clock_valid(struct drm_connector *connector, int clock,
 {
 	struct drm_i915_private *i915 = to_i915(connector->dev);
 	struct intel_hdmi *hdmi = intel_attached_hdmi(to_intel_connector(connector));
-	enum drm_mode_status status;
+	enum drm_mode_status status = MODE_OK;
+	int bpc;
 
-	/* check if we can do 8bpc */
-	status = hdmi_port_clock_valid(hdmi, intel_hdmi_tmds_clock(clock, 8, ycbcr420_output),
-				       true, has_hdmi_sink);
+	/*
+	 * Try all color depths since valid port clock range
+	 * can have holes. Any mode that can be used with at
+	 * least one color depth is accepted.
+	 */
+	for (bpc = 12; bpc >= 8; bpc -= 2) {
+		int tmds_clock = intel_hdmi_tmds_clock(clock, bpc, ycbcr420_output);
 
-	/* if we can't do 8bpc we may still be able to do 12bpc */
-	if (status != MODE_OK &&
-	    intel_hdmi_source_bpc_possible(i915, 12) &&
-	    intel_hdmi_sink_bpc_possible(connector, 12, has_hdmi_sink, ycbcr420_output))
-		status = hdmi_port_clock_valid(hdmi, intel_hdmi_tmds_clock(clock, 12, ycbcr420_output),
-					       true, has_hdmi_sink);
+		if (!intel_hdmi_source_bpc_possible(i915, bpc))
+			continue;
 
-	/* if we can't do 8,12bpc we may still be able to do 10bpc */
-	if (status != MODE_OK &&
-	    intel_hdmi_source_bpc_possible(i915, 10) &&
-	    intel_hdmi_sink_bpc_possible(connector, 10, has_hdmi_sink, ycbcr420_output))
-		status = hdmi_port_clock_valid(hdmi, intel_hdmi_tmds_clock(clock, 10, ycbcr420_output),
-					       true, has_hdmi_sink);
+		if (!intel_hdmi_sink_bpc_possible(connector, bpc, has_hdmi_sink, ycbcr420_output))
+			continue;
+
+		status = hdmi_port_clock_valid(hdmi, tmds_clock, true, has_hdmi_sink);
+		if (status == MODE_OK)
+			return MODE_OK;
+	}
+
+	/* can never happen */
+	drm_WARN_ON(&i915->drm, status == MODE_OK);
 
 	return status;
 }
