@@ -19,6 +19,100 @@
 #include "gem.h"
 #include "psb_drv.h"
 
+/*
+ * Pin and build an in-kernel list of the pages that back our GEM object.
+ * While we hold this the pages cannot be swapped out. This is protected
+ * via the gtt mutex which the caller must hold.
+ */
+static int psb_gtt_attach_pages(struct gtt_range *gt)
+{
+	struct page **pages;
+
+	WARN_ON(gt->pages);
+
+	pages = drm_gem_get_pages(&gt->gem);
+	if (IS_ERR(pages))
+		return PTR_ERR(pages);
+
+	gt->npage = gt->gem.size / PAGE_SIZE;
+	gt->pages = pages;
+
+	return 0;
+}
+
+/*
+ * Undo the effect of psb_gtt_attach_pages. At this point the pages
+ * must have been removed from the GTT as they could now be paged out
+ * and move bus address. This is protected via the gtt mutex which the
+ * caller must hold.
+ */
+static void psb_gtt_detach_pages(struct gtt_range *gt)
+{
+	drm_gem_put_pages(&gt->gem, gt->pages, true, false);
+	gt->pages = NULL;
+}
+
+int psb_gtt_pin(struct gtt_range *gt)
+{
+	int ret = 0;
+	struct drm_device *dev = gt->gem.dev;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
+	u32 gpu_base = dev_priv->gtt.gatt_start;
+
+	mutex_lock(&dev_priv->gtt_mutex);
+
+	if (gt->in_gart == 0 && gt->stolen == 0) {
+		ret = psb_gtt_attach_pages(gt);
+		if (ret < 0)
+			goto out;
+		ret = psb_gtt_insert(dev, gt, 0);
+		if (ret < 0) {
+			psb_gtt_detach_pages(gt);
+			goto out;
+		}
+		psb_mmu_insert_pages(psb_mmu_get_default_pd(dev_priv->mmu),
+				     gt->pages, (gpu_base + gt->offset),
+				     gt->npage, 0, 0, PSB_MMU_CACHED_MEMORY);
+	}
+	gt->in_gart++;
+out:
+	mutex_unlock(&dev_priv->gtt_mutex);
+	return ret;
+}
+
+void psb_gtt_unpin(struct gtt_range *gt)
+{
+	struct drm_device *dev = gt->gem.dev;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
+	u32 gpu_base = dev_priv->gtt.gatt_start;
+
+	mutex_lock(&dev_priv->gtt_mutex);
+
+	WARN_ON(!gt->in_gart);
+
+	gt->in_gart--;
+	if (gt->in_gart == 0 && gt->stolen == 0) {
+		psb_mmu_remove_pages(psb_mmu_get_default_pd(dev_priv->mmu),
+				     (gpu_base + gt->offset), gt->npage, 0, 0);
+		psb_gtt_remove(dev, gt);
+		psb_gtt_detach_pages(gt);
+	}
+
+	mutex_unlock(&dev_priv->gtt_mutex);
+}
+
+void psb_gtt_free_range(struct drm_device *dev, struct gtt_range *gt)
+{
+	/* Undo the mmap pin if we are destroying the object */
+	if (gt->mmapping) {
+		psb_gtt_unpin(gt);
+		gt->mmapping = 0;
+	}
+	WARN_ON(gt->in_gart && !gt->stolen);
+	release_resource(&gt->resource);
+	kfree(gt);
+}
+
 static vm_fault_t psb_gem_fault(struct vm_fault *vmf);
 
 static void psb_gem_free_object(struct drm_gem_object *obj)
@@ -44,19 +138,43 @@ const struct drm_gem_object_funcs psb_gem_object_funcs = {
 	.vm_ops = &psb_gem_vm_ops,
 };
 
-/**
- *	psb_gem_create		-	create a mappable object
- *	@file: the DRM file of the client
- *	@dev: our device
- *	@size: the size requested
- *	@handlep: returned handle (opaque number)
- *	@stolen: unused
- *	@align: unused
- *
- *	Create a GEM object, fill in the boilerplate and attach a handle to
- *	it so that userspace can speak about it. This does the core work
- *	for the various methods that do/will create GEM objects for things
- */
+struct gtt_range *psb_gtt_alloc_range(struct drm_device *dev, int len,
+				      const char *name, int backed, u32 align)
+{
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
+	struct gtt_range *gt;
+	struct resource *r = dev_priv->gtt_mem;
+	int ret;
+	unsigned long start, end;
+
+	if (backed) {
+		/* The start of the GTT is the stolen pages */
+		start = r->start;
+		end = r->start + dev_priv->gtt.stolen_size - 1;
+	} else {
+		/* The rest we will use for GEM backed objects */
+		start = r->start + dev_priv->gtt.stolen_size;
+		end = r->end;
+	}
+
+	gt = kzalloc(sizeof(struct gtt_range), GFP_KERNEL);
+	if (gt == NULL)
+		return NULL;
+	gt->resource.name = name;
+	gt->stolen = backed;
+	gt->in_gart = backed;
+	/* Ensure this is set for non GEM objects */
+	gt->gem.dev = dev;
+	ret = allocate_resource(dev_priv->gtt_mem, &gt->resource,
+				len, start, end, align, NULL, NULL);
+	if (ret == 0) {
+		gt->offset = gt->resource.start - r->start;
+		return gt;
+	}
+	kfree(gt);
+	return NULL;
+}
+
 int psb_gem_create(struct drm_file *file, struct drm_device *dev, u64 size,
 		   u32 *handlep, int stolen, u32 align)
 {

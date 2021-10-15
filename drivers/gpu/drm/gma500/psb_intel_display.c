@@ -12,6 +12,7 @@
 #include <drm/drm_plane_helper.h>
 
 #include "framebuffer.h"
+#include "gem.h"
 #include "gma_display.h"
 #include "power.h"
 #include "psb_drv.h"

@@ -15,6 +15,7 @@
 #include <drm/drm_vblank.h>
 
 #include "framebuffer.h"
+#include "gem.h"
 #include "gma_display.h"
 #include "psb_drv.h"
 #include "psb_intel_drv.h"

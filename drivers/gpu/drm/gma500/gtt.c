@@ -71,8 +71,7 @@ static u32 __iomem *psb_gtt_entry(struct drm_device *dev, struct gtt_range *r)
  *	the GTT. This is protected via the gtt mutex which the caller
  *	must hold.
  */
-static int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r,
-			  int resume)
+int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r, int resume)
 {
 	u32 __iomem *gtt_slot;
 	u32 pte;
@@ -116,7 +115,7 @@ static int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r,
  *	page table entries with the dummy page. This is protected via the gtt
  *	mutex which the caller must hold.
  */
-static void psb_gtt_remove(struct drm_device *dev, struct gtt_range *r)
+void psb_gtt_remove(struct drm_device *dev, struct gtt_range *r)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	u32 __iomem *gtt_slot;
@@ -133,191 +132,6 @@ static void psb_gtt_remove(struct drm_device *dev, struct gtt_range *r)
 		iowrite32(pte, gtt_slot++);
 	ioread32(gtt_slot - 1);
 	set_pages_array_wb(r->pages, r->npage);
-}
-
-/**
- *	psb_gtt_attach_pages	-	attach and pin GEM pages
- *	@gt: the gtt range
- *
- *	Pin and build an in kernel list of the pages that back our GEM object.
- *	While we hold this the pages cannot be swapped out. This is protected
- *	via the gtt mutex which the caller must hold.
- */
-static int psb_gtt_attach_pages(struct gtt_range *gt)
-{
-	struct page **pages;
-
-	WARN_ON(gt->pages);
-
-	pages = drm_gem_get_pages(&gt->gem);
-	if (IS_ERR(pages))
-		return PTR_ERR(pages);
-
-	gt->npage = gt->gem.size / PAGE_SIZE;
-	gt->pages = pages;
-
-	return 0;
-}
-
-/**
- *	psb_gtt_detach_pages	-	attach and pin GEM pages
- *	@gt: the gtt range
- *
- *	Undo the effect of psb_gtt_attach_pages. At this point the pages
- *	must have been removed from the GTT as they could now be paged out
- *	and move bus address. This is protected via the gtt mutex which the
- *	caller must hold.
- */
-static void psb_gtt_detach_pages(struct gtt_range *gt)
-{
-	drm_gem_put_pages(&gt->gem, gt->pages, true, false);
-	gt->pages = NULL;
-}
-
-/**
- *	psb_gtt_pin		-	pin pages into the GTT
- *	@gt: range to pin
- *
- *	Pin a set of pages into the GTT. The pins are refcounted so that
- *	multiple pins need multiple unpins to undo.
- *
- *	Non GEM backed objects treat this as a no-op as they are always GTT
- *	backed objects.
- */
-int psb_gtt_pin(struct gtt_range *gt)
-{
-	int ret = 0;
-	struct drm_device *dev = gt->gem.dev;
-	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
-	u32 gpu_base = dev_priv->gtt.gatt_start;
-
-	mutex_lock(&dev_priv->gtt_mutex);
-
-	if (gt->in_gart == 0 && gt->stolen == 0) {
-		ret = psb_gtt_attach_pages(gt);
-		if (ret < 0)
-			goto out;
-		ret = psb_gtt_insert(dev, gt, 0);
-		if (ret < 0) {
-			psb_gtt_detach_pages(gt);
-			goto out;
-		}
-		psb_mmu_insert_pages(psb_mmu_get_default_pd(dev_priv->mmu),
-				     gt->pages, (gpu_base + gt->offset),
-				     gt->npage, 0, 0, PSB_MMU_CACHED_MEMORY);
-	}
-	gt->in_gart++;
-out:
-	mutex_unlock(&dev_priv->gtt_mutex);
-	return ret;
-}
-
-/**
- *	psb_gtt_unpin		-	Drop a GTT pin requirement
- *	@gt: range to pin
- *
- *	Undoes the effect of psb_gtt_pin. On the last drop the GEM object
- *	will be removed from the GTT which will also drop the page references
- *	and allow the VM to clean up or page stuff.
- *
- *	Non GEM backed objects treat this as a no-op as they are always GTT
- *	backed objects.
- */
-void psb_gtt_unpin(struct gtt_range *gt)
-{
-	struct drm_device *dev = gt->gem.dev;
-	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
-	u32 gpu_base = dev_priv->gtt.gatt_start;
-
-	mutex_lock(&dev_priv->gtt_mutex);
-
-	WARN_ON(!gt->in_gart);
-
-	gt->in_gart--;
-	if (gt->in_gart == 0 && gt->stolen == 0) {
-		psb_mmu_remove_pages(psb_mmu_get_default_pd(dev_priv->mmu),
-				     (gpu_base + gt->offset), gt->npage, 0, 0);
-		psb_gtt_remove(dev, gt);
-		psb_gtt_detach_pages(gt);
-	}
-
-	mutex_unlock(&dev_priv->gtt_mutex);
-}
-
-/*
- *	GTT resource allocator - allocate and manage GTT address space
- */
-
-/**
- *	psb_gtt_alloc_range	-	allocate GTT address space
- *	@dev: Our DRM device
- *	@len: length (bytes) of address space required
- *	@name: resource name
- *	@backed: resource should be backed by stolen pages
- *	@align: requested alignment
- *
- *	Ask the kernel core to find us a suitable range of addresses
- *	to use for a GTT mapping.
- *
- *	Returns a gtt_range structure describing the object, or NULL on
- *	error. On successful return the resource is both allocated and marked
- *	as in use.
- */
-struct gtt_range *psb_gtt_alloc_range(struct drm_device *dev, int len,
-				      const char *name, int backed, u32 align)
-{
-	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
-	struct gtt_range *gt;
-	struct resource *r = dev_priv->gtt_mem;
-	int ret;
-	unsigned long start, end;
-
-	if (backed) {
-		/* The start of the GTT is the stolen pages */
-		start = r->start;
-		end = r->start + dev_priv->gtt.stolen_size - 1;
-	} else {
-		/* The rest we will use for GEM backed objects */
-		start = r->start + dev_priv->gtt.stolen_size;
-		end = r->end;
-	}
-
-	gt = kzalloc(sizeof(struct gtt_range), GFP_KERNEL);
-	if (gt == NULL)
-		return NULL;
-	gt->resource.name = name;
-	gt->stolen = backed;
-	gt->in_gart = backed;
-	/* Ensure this is set for non GEM objects */
-	gt->gem.dev = dev;
-	ret = allocate_resource(dev_priv->gtt_mem, &gt->resource,
-				len, start, end, align, NULL, NULL);
-	if (ret == 0) {
-		gt->offset = gt->resource.start - r->start;
-		return gt;
-	}
-	kfree(gt);
-	return NULL;
-}
-
-/**
- *	psb_gtt_free_range	-	release GTT address space
- *	@dev: our DRM device
- *	@gt: a mapping created with psb_gtt_alloc_range
- *
- *	Release a resource that was allocated with psb_gtt_alloc_range. If the
- *	object has been pinned by mmap users we clean this up here currently.
- */
-void psb_gtt_free_range(struct drm_device *dev, struct gtt_range *gt)
-{
-	/* Undo the mmap pin if we are destroying the object */
-	if (gt->mmapping) {
-		psb_gtt_unpin(gt);
-		gt->mmapping = 0;
-	}
-	WARN_ON(gt->in_gart && !gt->stolen);
-	release_resource(&gt->resource);
-	kfree(gt);
 }
 
 static void psb_gtt_alloc(struct drm_device *dev)

@@ -25,7 +25,6 @@
 
 #include "framebuffer.h"
 #include "gem.h"
-#include "gtt.h"
 #include "psb_drv.h"
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"
