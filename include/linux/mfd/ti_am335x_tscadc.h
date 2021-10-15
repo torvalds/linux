@@ -141,7 +141,7 @@
  *
  * max processing time: 266431 * 308ns = 83ms(approx)
  */
-#define IDLE_TIMEOUT		83 /* milliseconds */
+#define IDLE_TIMEOUT_MS		83 /* milliseconds */
 
 #define TSCADC_CELLS		2
 
