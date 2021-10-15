@@ -1869,7 +1869,7 @@ hdmi_port_clock_valid(struct intel_hdmi *hdmi,
 	return MODE_OK;
 }
 
-static int intel_hdmi_tmds_clock(int clock, int bpc, bool ycbcr420_output)
+int intel_hdmi_tmds_clock(int clock, int bpc, bool ycbcr420_output)
 {
 	/* YCBCR420 TMDS rate requirement is half the pixel clock */
 	if (ycbcr420_output)

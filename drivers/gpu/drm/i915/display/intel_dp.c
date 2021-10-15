@@ -886,9 +886,8 @@ intel_dp_mode_valid_downstream(struct intel_connector *connector,
 		return MODE_CLOCK_HIGH;
 
 	/* Assume 8bpc for the DP++/HDMI/DVI TMDS clock check */
-	tmds_clock = target_clock;
-	if (drm_mode_is_420_only(info, mode))
-		tmds_clock /= 2;
+	tmds_clock = intel_hdmi_tmds_clock(target_clock, 8,
+					   drm_mode_is_420_only(info, mode));
 
 	if (intel_dp->dfp.min_tmds_clock &&
 	    tmds_clock < intel_dp->dfp.min_tmds_clock)
@@ -1139,21 +1138,12 @@ static bool intel_dp_hdmi_ycbcr420(struct intel_dp *intel_dp,
 		 intel_dp->dfp.ycbcr_444_to_420);
 }
 
-static int intel_dp_hdmi_tmds_clock(struct intel_dp *intel_dp,
-				    const struct intel_crtc_state *crtc_state, int bpc)
-{
-	int clock = crtc_state->hw.adjusted_mode.crtc_clock * bpc / 8;
-
-	if (intel_dp_hdmi_ycbcr420(intel_dp, crtc_state))
-		clock /= 2;
-
-	return clock;
-}
-
 static bool intel_dp_hdmi_tmds_clock_valid(struct intel_dp *intel_dp,
 					   const struct intel_crtc_state *crtc_state, int bpc)
 {
-	int tmds_clock = intel_dp_hdmi_tmds_clock(intel_dp, crtc_state, bpc);
+	int clock = crtc_state->hw.adjusted_mode.crtc_clock;
+	int tmds_clock = intel_hdmi_tmds_clock(clock, bpc,
+					       intel_dp_hdmi_ycbcr420(intel_dp, crtc_state));
 
 	if (intel_dp->dfp.min_tmds_clock &&
 	    tmds_clock < intel_dp->dfp.min_tmds_clock)
