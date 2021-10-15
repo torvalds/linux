@@ -1834,7 +1834,7 @@ const struct nla_policy nda_policy[NDA_MAX+1] = {
 	[NDA_MASTER]		= { .type = NLA_U32 },
 	[NDA_PROTOCOL]		= { .type = NLA_U8 },
 	[NDA_NH_ID]		= { .type = NLA_U32 },
-	[NDA_FLAGS_EXT]		= { .type = NLA_U32 },
+	[NDA_FLAGS_EXT]		= NLA_POLICY_MASK(NLA_U32, NTF_EXT_MASK),
 	[NDA_FDB_EXT_ATTRS]	= { .type = NLA_NESTED },
 };
 
@@ -1936,10 +1936,9 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (tb[NDA_FLAGS_EXT]) {
 		u32 ext = nla_get_u32(tb[NDA_FLAGS_EXT]);
 
-		if (ext & ~NTF_EXT_MASK) {
-			NL_SET_ERR_MSG(extack, "Invalid extended flags");
-			goto out;
-		}
+		BUILD_BUG_ON(sizeof(neigh->flags) * BITS_PER_BYTE <
+			     (sizeof(ndm->ndm_flags) * BITS_PER_BYTE +
+			      hweight32(NTF_EXT_MASK)));
 		ndm_flags |= (ext << NTF_EXT_SHIFT);
 	}
 	if (ndm->ndm_ifindex) {
@@ -2000,15 +1999,20 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	neigh = neigh_lookup(tbl, dst, dev);
 	if (neigh == NULL) {
-		bool exempt_from_gc;
+		bool ndm_permanent  = ndm->ndm_state & NUD_PERMANENT;
+		bool exempt_from_gc = ndm_permanent ||
+				      ndm_flags & NTF_EXT_LEARNED;
 
 		if (!(nlh->nlmsg_flags & NLM_F_CREATE)) {
 			err = -ENOENT;
 			goto out;
 		}
+		if (ndm_permanent && (ndm_flags & NTF_MANAGED)) {
+			NL_SET_ERR_MSG(extack, "Invalid NTF_* flag for permanent entry");
+			err = -EINVAL;
+			goto out;
+		}
 
-		exempt_from_gc = ndm->ndm_state & NUD_PERMANENT ||
-				 ndm_flags & NTF_EXT_LEARNED;
 		neigh = ___neigh_create(tbl, dst, dev,
 					ndm_flags &
 					(NTF_EXT_LEARNED | NTF_MANAGED),
