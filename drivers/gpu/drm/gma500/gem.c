@@ -19,63 +19,48 @@
 #include "gem.h"
 #include "psb_drv.h"
 
-/*
- * Pin and build an in-kernel list of the pages that back our GEM object.
- * While we hold this the pages cannot be swapped out. This is protected
- * via the gtt mutex which the caller must hold.
- */
-static int psb_gtt_attach_pages(struct gtt_range *gt)
-{
-	struct page **pages;
-
-	WARN_ON(gt->pages);
-
-	pages = drm_gem_get_pages(&gt->gem);
-	if (IS_ERR(pages))
-		return PTR_ERR(pages);
-
-	gt->npage = gt->gem.size / PAGE_SIZE;
-	gt->pages = pages;
-
-	return 0;
-}
-
-/*
- * Undo the effect of psb_gtt_attach_pages. At this point the pages
- * must have been removed from the GTT as they could now be paged out
- * and move bus address. This is protected via the gtt mutex which the
- * caller must hold.
- */
-static void psb_gtt_detach_pages(struct gtt_range *gt)
-{
-	drm_gem_put_pages(&gt->gem, gt->pages, true, false);
-	gt->pages = NULL;
-}
-
 int psb_gem_pin(struct gtt_range *gt)
 {
 	int ret = 0;
 	struct drm_device *dev = gt->gem.dev;
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	u32 gpu_base = dev_priv->gtt.gatt_start;
+	struct page **pages;
+	unsigned int npages;
 
 	mutex_lock(&dev_priv->gtt_mutex);
 
-	if (gt->in_gart == 0 && gt->stolen == 0) {
-		ret = psb_gtt_attach_pages(gt);
-		if (ret < 0)
-			goto out;
-		ret = psb_gtt_insert(dev, gt, 0);
-		if (ret < 0) {
-			psb_gtt_detach_pages(gt);
-			goto out;
-		}
-		psb_mmu_insert_pages(psb_mmu_get_default_pd(dev_priv->mmu),
-				     gt->pages, (gpu_base + gt->offset),
-				     gt->npage, 0, 0, PSB_MMU_CACHED_MEMORY);
+	if (gt->in_gart || gt->stolen)
+		goto out; /* already mapped */
+
+	pages = drm_gem_get_pages(&gt->gem);
+	if (IS_ERR(pages)) {
+		ret = PTR_ERR(pages);
+		goto err_mutex_unlock;
 	}
-	gt->in_gart++;
+
+	npages = gt->gem.size / PAGE_SIZE;
+
+	ret = psb_gtt_insert(dev, gt, 0);
+	if (ret)
+		goto err_drm_gem_put_pages;
+
+	psb_mmu_insert_pages(psb_mmu_get_default_pd(dev_priv->mmu), pages,
+			     (gpu_base + gt->offset), npages, 0, 0,
+			     PSB_MMU_CACHED_MEMORY);
+
+	gt->npage = npages;
+	gt->pages = pages;
+
 out:
+	++gt->in_gart;
+	mutex_unlock(&dev_priv->gtt_mutex);
+
+	return 0;
+
+err_drm_gem_put_pages:
+	drm_gem_put_pages(&gt->gem, pages, true, false);
+err_mutex_unlock:
 	mutex_unlock(&dev_priv->gtt_mutex);
 	return ret;
 }
@@ -90,14 +75,19 @@ void psb_gem_unpin(struct gtt_range *gt)
 
 	WARN_ON(!gt->in_gart);
 
-	gt->in_gart--;
-	if (gt->in_gart == 0 && gt->stolen == 0) {
-		psb_mmu_remove_pages(psb_mmu_get_default_pd(dev_priv->mmu),
-				     (gpu_base + gt->offset), gt->npage, 0, 0);
-		psb_gtt_remove(dev, gt);
-		psb_gtt_detach_pages(gt);
-	}
+	--gt->in_gart;
 
+	if (gt->in_gart || gt->stolen)
+		goto out;
+
+	psb_mmu_remove_pages(psb_mmu_get_default_pd(dev_priv->mmu),
+				     (gpu_base + gt->offset), gt->npage, 0, 0);
+	psb_gtt_remove(dev, gt);
+
+	drm_gem_put_pages(&gt->gem, gt->pages, true, false);
+	gt->pages = NULL;
+
+out:
 	mutex_unlock(&dev_priv->gtt_mutex);
 }
 
