@@ -273,7 +273,6 @@ enum odm_common_info_def {
 	ODM_CMNINFO_TX_UNI,
 	ODM_CMNINFO_RX_UNI,
 	ODM_CMNINFO_WM_MODE,		/*  ODM_WIRELESS_MODE_E */
-	ODM_CMNINFO_BAND,		/*  ODM_BAND_TYPE_E */
 	ODM_CMNINFO_SEC_CHNL_OFFSET,	/*  ODM_SEC_CHNL_OFFSET_E */
 	ODM_CMNINFO_SEC_MODE,		/*  ODM_SECURITY_E */
 	ODM_CMNINFO_BW,			/*  ODM_BW_E */
@@ -403,11 +402,6 @@ enum odm_wireless_mode {
 	ODM_WM_G	= BIT(1),
 	ODM_WM_N24G	= BIT(3),
 	ODM_WM_AUTO	= BIT(5),
-};
-
-/*  ODM_CMNINFO_BAND */
-enum odm_band_type {
-	ODM_BAND_2_4G	= BIT(0),
 };
 
 /*  ODM_CMNINFO_SEC_CHNL_OFFSET */
@@ -635,8 +629,6 @@ struct odm_dm_struct {
 	u64	*pNumRxBytesUnicast;
 	/*  Wireless mode B/G/A/N = BIT(0)/BIT(1)/BIT(2)/BIT(3) */
 	u8	*pWirelessMode; /* ODM_WIRELESS_MODE_E */
-	/*  Frequence band 2.4G/5G = 0/1 */
-	u8	*pBandType;
 	/*  Secondary channel offset don't_care/below/above = 0/1/2 */
 	u8	*pSecChOffset;
 	/*  Security mode Open/WEP/AES/TKIP = 0/1/2/3 */

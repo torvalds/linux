@@ -317,7 +317,7 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 					X = dm_odm->RFCalibrateInfo.IQKMatrixRegSetting.Value[0][4];
 					Y = dm_odm->RFCalibrateInfo.IQKMatrixRegSetting.Value[0][5];
 
-					if ((X != 0) && (*dm_odm->pBandType == ODM_BAND_2_4G)) {
+					if (X != 0) {
 						if ((X & 0x00000200) != 0)	/* consider minus */
 							X = X | 0xFFFFFC00;
 						ele_A = ((X * ele_D) >> 8) & 0x000003FF;
