@@ -246,7 +246,7 @@ int expr__resolve_id(struct expr_parse_ctx *ctx, const char *id,
 			data->ref.metric_name);
 		pr_debug("processing metric: %s ENTRY\n", id);
 		data->kind = EXPR_ID_DATA__REF_VALUE;
-		if (expr__parse(&data->ref.val, ctx, data->ref.metric_expr, 1)) {
+		if (expr__parse(&data->ref.val, ctx, data->ref.metric_expr)) {
 			pr_debug("%s failed to count\n", id);
 			return -1;
 		}
@@ -284,6 +284,7 @@ struct expr_parse_ctx *expr__ctx_new(void)
 
 	ctx->ids = hashmap__new(key_hash, key_equal, NULL);
 	ctx->parent = NULL;
+	ctx->runtime = 0;
 	return ctx;
 }
 
@@ -314,10 +315,10 @@ void expr__ctx_free(struct expr_parse_ctx *ctx)
 
 static int
 __expr__parse(double *val, struct expr_parse_ctx *ctx, const char *expr,
-	      bool compute_ids, int runtime)
+	      bool compute_ids)
 {
 	struct expr_scanner_ctx scanner_ctx = {
-		.runtime = runtime,
+		.runtime = ctx->runtime,
 	};
 	YY_BUFFER_STATE buffer;
 	void *scanner;
@@ -345,15 +346,15 @@ __expr__parse(double *val, struct expr_parse_ctx *ctx, const char *expr,
 }
 
 int expr__parse(double *final_val, struct expr_parse_ctx *ctx,
-		const char *expr, int runtime)
+		const char *expr)
 {
-	return __expr__parse(final_val, ctx, expr, /*compute_ids=*/false, runtime) ? -1 : 0;
+	return __expr__parse(final_val, ctx, expr, /*compute_ids=*/false) ? -1 : 0;
 }
 
 int expr__find_ids(const char *expr, const char *one,
-		   struct expr_parse_ctx *ctx, int runtime)
+		   struct expr_parse_ctx *ctx)
 {
-	int ret = __expr__parse(NULL, ctx, expr, /*compute_ids=*/true, runtime);
+	int ret = __expr__parse(NULL, ctx, expr, /*compute_ids=*/true);
 
 	if (one)
 		expr__del_id(ctx, one);

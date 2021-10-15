@@ -394,7 +394,7 @@ void perf_stat__collect_metric_expr(struct evlist *evsel_list)
 		if (!metric_events) {
 			if (expr__find_ids(counter->metric_expr,
 					   counter->name,
-					   ctx, 1) < 0)
+					   ctx) < 0)
 				continue;
 
 			metric_events = calloc(sizeof(struct evsel *),
@@ -894,13 +894,14 @@ static void generic_metric(struct perf_stat_config *config,
 	if (!pctx)
 		return;
 
+	pctx->runtime = runtime;
 	i = prepare_metric(metric_events, metric_refs, pctx, cpu, st);
 	if (i < 0) {
 		expr__ctx_free(pctx);
 		return;
 	}
 	if (!metric_events[i]) {
-		if (expr__parse(&ratio, pctx, metric_expr, runtime) == 0) {
+		if (expr__parse(&ratio, pctx, metric_expr) == 0) {
 			char *unit;
 			char metric_bf[64];
 
@@ -951,7 +952,7 @@ double test_generic_metric(struct metric_expr *mexp, int cpu, struct runtime_sta
 	if (prepare_metric(mexp->metric_events, mexp->metric_refs, pctx, cpu, st) < 0)
 		goto out;
 
-	if (expr__parse(&ratio, pctx, mexp->metric_expr, 1))
+	if (expr__parse(&ratio, pctx, mexp->metric_expr))
 		ratio = 0.0;
 
 out:

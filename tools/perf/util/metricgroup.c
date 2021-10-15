@@ -124,7 +124,6 @@ struct metric {
 	const char *metric_unit;
 	struct list_head metric_refs;
 	int metric_refs_cnt;
-	int runtime;
 	bool has_constraint;
 };
 
@@ -391,7 +390,7 @@ static int metricgroup__setup_events(struct list_head *groups,
 		expr->metric_name = m->metric_name;
 		expr->metric_unit = m->metric_unit;
 		expr->metric_events = metric_events;
-		expr->runtime = m->runtime;
+		expr->runtime = m->pctx->runtime;
 		list_add(&expr->nd, &me->head);
 	}
 
@@ -812,7 +811,7 @@ static int __add_metric(struct list_head *metric_list,
 		m->metric_name = pe->metric_name;
 		m->metric_expr = pe->metric_expr;
 		m->metric_unit = pe->unit;
-		m->runtime = runtime;
+		m->pctx->runtime = runtime;
 		m->has_constraint = metric_no_group || metricgroup__has_constraint(pe);
 		INIT_LIST_HEAD(&m->metric_refs);
 		m->metric_refs_cnt = 0;
@@ -862,7 +861,7 @@ static int __add_metric(struct list_head *metric_list,
 	 * For both the parent and referenced metrics, we parse
 	 * all the metric's IDs and add it to the parent context.
 	 */
-	if (expr__find_ids(pe->metric_expr, NULL, m->pctx, runtime) < 0) {
+	if (expr__find_ids(pe->metric_expr, NULL, m->pctx) < 0) {
 		if (m->metric_refs_cnt == 0) {
 			expr__ctx_free(m->pctx);
 			free(m);

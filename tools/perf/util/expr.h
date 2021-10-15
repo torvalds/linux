@@ -21,6 +21,7 @@ struct expr_id {
 struct expr_parse_ctx {
 	struct hashmap	*ids;
 	struct expr_id	*parent;
+	int runtime;
 };
 
 struct expr_id_data;
@@ -52,10 +53,10 @@ int expr__resolve_id(struct expr_parse_ctx *ctx, const char *id,
 		     struct expr_id_data **datap);
 
 int expr__parse(double *final_val, struct expr_parse_ctx *ctx,
-		const char *expr, int runtime);
+		const char *expr);
 
 int expr__find_ids(const char *expr, const char *one,
-		struct expr_parse_ctx *ids, int runtime);
+		   struct expr_parse_ctx *ids);
 
 double expr_id_data__value(const struct expr_id_data *data);
 struct expr_id *expr_id_data__parent(struct expr_id_data *data);
