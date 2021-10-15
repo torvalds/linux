@@ -16,6 +16,7 @@
 #include <asm/trapnr.h>
 #include <asm/trace/fpu.h>
 
+#include "context.h"
 #include "internal.h"
 #include "legacy.h"
 #include "xstate.h"

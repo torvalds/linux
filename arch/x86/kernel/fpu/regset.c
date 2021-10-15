@@ -10,6 +10,7 @@
 #include <asm/fpu/regset.h>
 #include <asm/fpu/xstate.h>
 
+#include "context.h"
 #include "internal.h"
 
 /*
