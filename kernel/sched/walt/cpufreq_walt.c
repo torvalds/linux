@@ -629,9 +629,9 @@ static ssize_t boost_store(struct gov_attr_set *attr_set, const char *buf,
 		struct rq *rq = cpu_rq(wg_policy->policy->cpu);
 		unsigned long flags;
 
-		raw_spin_lock_irqsave(&rq->lock, flags);
+		raw_spin_lock_irqsave(&rq->__lock, flags);
 		waltgov_run_callback(rq, WALT_CPUFREQ_BOOST_UPDATE);
-		raw_spin_unlock_irqrestore(&rq->lock, flags);
+		raw_spin_unlock_irqrestore(&rq->__lock, flags);
 	}
 	return count;
 }

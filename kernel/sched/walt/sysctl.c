@@ -96,9 +96,9 @@ static int walt_proc_group_thresholds_handler(struct ctl_table *table, int write
 	 * updating the thresholds is sufficient for
 	 * an atomic update.
 	 */
-	raw_spin_lock_irqsave(&rq->lock, flags);
+	raw_spin_lock_irqsave(&rq->__lock, flags);
 	walt_update_group_thresholds();
-	raw_spin_unlock_irqrestore(&rq->lock, flags);
+	raw_spin_unlock_irqrestore(&rq->__lock, flags);
 
 	mutex_unlock(&mutex);
 

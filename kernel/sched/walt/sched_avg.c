@@ -256,13 +256,13 @@ unsigned int sched_get_cpu_util(int cpu)
 	unsigned int busy;
 	struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
 
-	raw_spin_lock_irqsave(&rq->lock, flags);
+	raw_spin_lock_irqsave(&rq->__lock, flags);
 
 	capacity = capacity_orig_of(cpu);
 
 	util = wrq->prev_runnable_sum + wrq->grp_time.prev_runnable_sum;
 	util = div64_u64(util, sched_ravg_window >> SCHED_CAPACITY_SHIFT);
-	raw_spin_unlock_irqrestore(&rq->lock, flags);
+	raw_spin_unlock_irqrestore(&rq->__lock, flags);
 
 	util = (util >= capacity) ? capacity : util;
 	busy = div64_ul((util * 100), capacity);

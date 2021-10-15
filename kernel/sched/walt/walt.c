@@ -134,9 +134,9 @@ static inline void acquire_rq_locks_irqsave(const cpumask_t *cpus,
 
 	for_each_cpu(cpu, cpus) {
 		if (level == 0)
-			raw_spin_lock(&cpu_rq(cpu)->lock);
+			raw_spin_lock(&cpu_rq(cpu)->__lock);
 		else
-			raw_spin_lock_nested(&cpu_rq(cpu)->lock, level);
+			raw_spin_lock_nested(&cpu_rq(cpu)->__lock, level);
 		level++;
 	}
 }
@@ -147,7 +147,7 @@ static inline void release_rq_locks_irqrestore(const cpumask_t *cpus,
 	int cpu;
 
 	for_each_cpu(cpu, cpus)
-		raw_spin_unlock(&cpu_rq(cpu)->lock);
+		raw_spin_unlock(&cpu_rq(cpu)->__lock);
 	local_irq_restore(*flags);
 }
 
@@ -290,7 +290,7 @@ fixup_cumulative_runnable_avg(struct rq *rq,
 	s64 pred_demands_sum_scaled =
 		stats->pred_demands_sum_scaled + pred_demand_scaled_delta;
 
-	lockdep_assert_held(&rq->lock);
+	lockdep_assert_held(&rq->__lock);
 
 	if (task_rq(p) != rq)
 		WALT_BUG(p, "on CPU %d task %s(%d) not on rq %d",
@@ -473,9 +473,9 @@ static void walt_sched_account_irqstart(int cpu, struct task_struct *curr)
 		return;
 
 	/* We're here without rq->lock held, IRQ disabled */
-	raw_spin_lock(&rq->lock);
+	raw_spin_lock(&rq->__lock);
 	update_task_cpu_cycles(curr, cpu, walt_ktime_get_ns());
-	raw_spin_unlock(&rq->lock);
+	raw_spin_unlock(&rq->__lock);
 }
 
 static void walt_update_task_ravg(struct task_struct *p, struct rq *rq, int event,
@@ -485,9 +485,9 @@ static void walt_sched_account_irqend(int cpu, struct task_struct *curr, u64 del
 	struct rq *rq = cpu_rq(cpu);
 	unsigned long flags;
 
-	raw_spin_lock_irqsave(&rq->lock, flags);
+	raw_spin_lock_irqsave(&rq->__lock, flags);
 	walt_update_task_ravg(curr, rq, IRQ_UPDATE, walt_ktime_get_ns(), delta);
-	raw_spin_unlock_irqrestore(&rq->lock, flags);
+	raw_spin_unlock_irqrestore(&rq->__lock, flags);
 }
 
 /*
@@ -510,14 +510,14 @@ void clear_walt_request(int cpu)
 	if (wrq->push_task) {
 		struct task_struct *push_task = NULL;
 
-		raw_spin_lock_irqsave(&rq->lock, flags);
+		raw_spin_lock_irqsave(&rq->__lock, flags);
 		if (wrq->push_task) {
 			clear_reserved(rq->push_cpu);
 			push_task = wrq->push_task;
 			wrq->push_task = NULL;
 		}
 		rq->active_balance = 0;
-		raw_spin_unlock_irqrestore(&rq->lock, flags);
+		raw_spin_unlock_irqrestore(&rq->__lock, flags);
 		if (push_task)
 			put_task_struct(push_task);
 	}
@@ -977,8 +977,8 @@ static void fixup_busy_time(struct task_struct *p, int new_cpu)
 
 	wallclock = walt_ktime_get_ns();
 
-	lockdep_assert_held(&src_rq->lock);
-	lockdep_assert_held(&dest_rq->lock);
+	lockdep_assert_held(&src_rq->__lock);
+	lockdep_assert_held(&dest_rq->__lock);
 
 	if (task_rq(p) != src_rq)
 		WALT_BUG(p, "on CPU %d task %s(%d) not on src_rq %d",
@@ -1083,12 +1083,12 @@ static void set_window_start(struct rq *rq)
 		struct rq *sync_rq = cpu_rq(cpumask_any(cpu_online_mask));
 
 		sync_wrq = (struct walt_rq *) sync_rq->android_vendor_data1;
-		raw_spin_unlock(&rq->lock);
+		raw_spin_unlock(&rq->__lock);
 		double_rq_lock(rq, sync_rq);
 		wrq->window_start = sync_wrq->window_start;
 		wrq->curr_runnable_sum = wrq->prev_runnable_sum = 0;
 		wrq->nt_curr_runnable_sum = wrq->nt_prev_runnable_sum = 0;
-		raw_spin_unlock(&sync_rq->lock);
+		raw_spin_unlock(&sync_rq->__lock);
 	}
 
 	wts->mark_start = wrq->window_start;
@@ -2082,7 +2082,7 @@ update_task_rq_cpu_cycles(struct task_struct *p, struct rq *rq, int event,
 	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 
-	lockdep_assert_held(&rq->lock);
+	lockdep_assert_held(&rq->__lock);
 
 	if (!use_cycle_counter) {
 		wrq->task_exec_scale = DIV64_U64_ROUNDUP(cpu_cur_freq(cpu) *
@@ -2168,7 +2168,7 @@ static void walt_update_task_ravg(struct task_struct *p, struct rq *rq, int even
 	if (!wrq->window_start || wts->mark_start == wallclock)
 		return;
 
-	lockdep_assert_held(&rq->lock);
+	lockdep_assert_held(&rq->__lock);
 
 	old_window_start = update_window_start(rq, wallclock, event);
 
@@ -2665,10 +2665,10 @@ static int cpufreq_notifier_trans(struct notifier_block *nb,
 		for_each_cpu(j, &cluster->cpus) {
 			struct rq *rq = cpu_rq(j);
 
-			raw_spin_lock_irqsave(&rq->lock, flags);
+			raw_spin_lock_irqsave(&rq->__lock, flags);
 			walt_update_task_ravg(rq->curr, rq, TASK_UPDATE,
 					 walt_ktime_get_ns(), 0);
-			raw_spin_unlock_irqrestore(&rq->lock, flags);
+			raw_spin_unlock_irqrestore(&rq->__lock, flags);
 		}
 
 		cluster->cur_freq = new_freq;
@@ -3390,9 +3390,9 @@ static void walt_irq_work(struct irq_work *irq_work)
 
 	for_each_cpu(cpu, cpu_possible_mask) {
 		if (level == 0)
-			raw_spin_lock(&cpu_rq(cpu)->lock);
+			raw_spin_lock(&cpu_rq(cpu)->__lock);
 		else
-			raw_spin_lock_nested(&cpu_rq(cpu)->lock, level);
+			raw_spin_lock_nested(&cpu_rq(cpu)->__lock, level);
 		level++;
 	}
 
@@ -3512,7 +3512,7 @@ static void walt_irq_work(struct irq_work *irq_work)
 	}
 
 	for_each_cpu(cpu, cpu_possible_mask)
-		raw_spin_unlock(&cpu_rq(cpu)->lock);
+		raw_spin_unlock(&cpu_rq(cpu)->__lock);
 
 	if (!is_migration) {
 		wrq = (struct walt_rq *) this_rq()->android_vendor_data1;
@@ -3783,9 +3783,9 @@ static void android_rvh_sched_cpu_starting(void *unused, int cpu)
 
 	if (unlikely(walt_disabled))
 		return;
-	raw_spin_lock_irqsave(&rq->lock, flags);
+	raw_spin_lock_irqsave(&rq->__lock, flags);
 	set_window_start(rq);
-	raw_spin_unlock_irqrestore(&rq->lock, flags);
+	raw_spin_unlock_irqrestore(&rq->__lock, flags);
 
 	clear_walt_request(cpu);
 }
@@ -3842,7 +3842,7 @@ static void android_rvh_enqueue_task(void *unused, struct rq *rq, struct task_st
 	if (unlikely(walt_disabled))
 		return;
 
-	lockdep_assert_held(&rq->lock);
+	lockdep_assert_held(&rq->__lock);
 
 	if (p->cpu != cpu_of(rq))
 		WALT_BUG(p, "enqueuing on rq %d when task->cpu is %d\n",
@@ -3882,7 +3882,7 @@ static void android_rvh_dequeue_task(void *unused, struct rq *rq, struct task_st
 	if (unlikely(walt_disabled))
 		return;
 
-	lockdep_assert_held(&rq->lock);
+	lockdep_assert_held(&rq->__lock);
 
 	/*
 	 * a task can be enqueued before walt is started, and dequeued after.
@@ -3992,17 +3992,17 @@ static void android_rvh_try_to_wake_up_success(void *unused, struct task_struct 
 	if (unlikely(walt_disabled))
 		return;
 
-	raw_spin_lock_irqsave(&cpu_rq(cpu)->lock, flags);
+	raw_spin_lock_irqsave(&cpu_rq(cpu)->__lock, flags);
 	if (do_pl_notif(cpu_rq(cpu)))
 		waltgov_run_callback(cpu_rq(cpu), WALT_CPUFREQ_PL);
-	raw_spin_unlock_irqrestore(&cpu_rq(cpu)->lock, flags);
+	raw_spin_unlock_irqrestore(&cpu_rq(cpu)->__lock, flags);
 }
 
 static void android_rvh_tick_entry(void *unused, struct rq *rq)
 {
 	u64 wallclock;
 
-	lockdep_assert_held(&rq->lock);
+	lockdep_assert_held(&rq->__lock);
 	if (unlikely(walt_disabled))
 		return;
 
@@ -4069,9 +4069,9 @@ static void android_rvh_resume_cpus(void *unused, struct cpumask *resuming_cpus,
 	 */
 	for_each_cpu(i, resuming_cpus) {
 		rq = cpu_rq(i);
-		raw_spin_lock_irqsave(&rq->lock, flags);
+		raw_spin_lock_irqsave(&rq->__lock, flags);
 		resched_curr(rq);
-		raw_spin_unlock_irqrestore(&rq->lock, flags);
+		raw_spin_unlock_irqrestore(&rq->__lock, flags);
 	}
 
 	*err = 0;
@@ -4215,7 +4215,7 @@ static int walt_init_stop_handler(void *data)
 
 	read_lock(&tasklist_lock);
 	for_each_possible_cpu(cpu) {
-		raw_spin_lock(&cpu_rq(cpu)->lock);
+		raw_spin_lock(&cpu_rq(cpu)->__lock);
 	}
 
 	do_each_thread(g, p) {
@@ -4247,7 +4247,7 @@ static int walt_init_stop_handler(void *data)
 	walt_disabled = false;
 
 	for_each_possible_cpu(cpu) {
-		raw_spin_unlock(&cpu_rq(cpu)->lock);
+		raw_spin_unlock(&cpu_rq(cpu)->__lock);
 	}
 	read_unlock(&tasklist_lock);
 	return 0;
