@@ -521,7 +521,7 @@ static inline void switch_fpu_prepare(struct fpu *old_fpu, int cpu)
  * Delay loading of the complete FPU state until the return to userland.
  * PKRU is handled separately.
  */
-static inline void switch_fpu_finish(struct fpu *new_fpu)
+static inline void switch_fpu_finish(void)
 {
 	if (cpu_feature_enabled(X86_FEATURE_FPU))
 		set_thread_flag(TIF_NEED_FPU_LOAD);
