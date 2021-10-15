@@ -2656,8 +2656,6 @@ int rtw89_mac_init(struct rtw89_dev *rtwdev)
 		goto fail;
 
 	rtw89_mac_enable_bb_rf(rtwdev);
-	if (ret)
-		goto fail;
 
 	ret = rtw89_mac_sys_init(rtwdev);
 	if (ret)
