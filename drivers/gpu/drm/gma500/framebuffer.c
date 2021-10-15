@@ -81,14 +81,13 @@ static vm_fault_t psbfb_vm_fault(struct vm_fault *vmf)
 	struct drm_framebuffer *fb = vma->vm_private_data;
 	struct drm_device *dev = fb->dev;
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
-	struct gtt_range *gtt = to_gtt_range(fb->obj[0]);
+	struct psb_gem_object *pobj = to_psb_gem_object(fb->obj[0]);
 	int page_num;
 	int i;
 	unsigned long address;
 	vm_fault_t ret = VM_FAULT_SIGBUS;
 	unsigned long pfn;
-	unsigned long phys_addr = (unsigned long)dev_priv->stolen_base +
-				  gtt->offset;
+	unsigned long phys_addr = (unsigned long)dev_priv->stolen_base + pobj->offset;
 
 	page_num = vma_pages(vma);
 	address = vmf->address - (vmf->pgoff << PAGE_SHIFT);
@@ -242,7 +241,7 @@ static int psbfb_create(struct drm_fb_helper *fb_helper,
 	struct drm_mode_fb_cmd2 mode_cmd;
 	int size;
 	int ret;
-	struct gtt_range *backing;
+	struct psb_gem_object *backing;
 	struct drm_gem_object *obj;
 	u32 bpp, depth;
 
@@ -264,7 +263,7 @@ static int psbfb_create(struct drm_fb_helper *fb_helper,
 	backing = psb_gem_create(dev, size, "fb", true, PAGE_SIZE);
 	if (IS_ERR(backing))
 		return PTR_ERR(backing);
-	obj = &backing->gem;
+	obj = &backing->base;
 
 	memset(dev_priv->vram_addr + backing->offset, 0, size);
 

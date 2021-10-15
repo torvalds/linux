@@ -7,6 +7,7 @@
  *	    Alan Cox <alan@linux.intel.com>
  */
 
+#include "gem.h" /* TODO: for struct psb_gem_object, see psb_gtt_restore() */
 #include "psb_drv.h"
 
 
@@ -302,7 +303,7 @@ int psb_gtt_restore(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct resource *r = dev_priv->gtt_mem->child;
-	struct gtt_range *range;
+	struct psb_gem_object *pobj;
 	unsigned int restored = 0, total = 0, size = 0;
 
 	/* On resume, the gtt_mutex is already initialized */
@@ -312,13 +313,13 @@ int psb_gtt_restore(struct drm_device *dev)
 	while (r != NULL) {
 		/*
 		 * TODO: GTT restoration needs a refactoring, so that we don't have to touch
-		 *       struct gtt_range here. The type represents a GEM object and is not
-		 *       related to the GTT itself.
+		 *       struct psb_gem_object here. The type represents a GEM object and is
+		 *       not related to the GTT itself.
 		 */
-		range = container_of(r, struct gtt_range, resource);
-		if (range->pages) {
-			psb_gtt_insert_pages(dev_priv, &range->resource, range->pages);
-			size += range->resource.end - range->resource.start;
+		pobj = container_of(r, struct psb_gem_object, resource);
+		if (pobj->pages) {
+			psb_gtt_insert_pages(dev_priv, &pobj->resource, pobj->pages);
+			size += pobj->resource.end - pobj->resource.start;
 			restored++;
 		}
 		r = r->sibling;
