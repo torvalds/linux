@@ -12,6 +12,7 @@
 
 #include "context.h"
 #include "internal.h"
+#include "legacy.h"
 
 /*
  * The xstateregs_active() routine is the same as the regset_fpregs_active() routine,

@@ -4,6 +4,13 @@
 
 #include <asm/fpu/types.h>
 
+extern unsigned int mxcsr_feature_mask;
+
+static inline void ldmxcsr(u32 mxcsr)
+{
+	asm volatile("ldmxcsr %0" :: "m" (mxcsr));
+}
+
 /*
  * Returns 0 on success or the trap number when the operation raises an
  * exception.
