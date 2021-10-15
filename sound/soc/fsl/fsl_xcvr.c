@@ -487,8 +487,9 @@ static int fsl_xcvr_prepare(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	/* clear DPATH RESET */
+	/* set DPATH RESET */
 	m_ctl |= FSL_XCVR_EXT_CTRL_DPTH_RESET(tx);
+	v_ctl |= FSL_XCVR_EXT_CTRL_DPTH_RESET(tx);
 	ret = regmap_update_bits(xcvr->regmap, FSL_XCVR_EXT_CTRL, m_ctl, v_ctl);
 	if (ret < 0) {
 		dev_err(dai->dev, "Error while setting EXT_CTRL: %d\n", ret);
@@ -590,10 +591,6 @@ static void fsl_xcvr_shutdown(struct snd_pcm_substream *substream,
 		val  |= FSL_XCVR_EXT_CTRL_CMDC_RESET(tx);
 	}
 
-	/* set DPATH RESET */
-	mask |= FSL_XCVR_EXT_CTRL_DPTH_RESET(tx);
-	val  |= FSL_XCVR_EXT_CTRL_DPTH_RESET(tx);
-
 	ret = regmap_update_bits(xcvr->regmap, FSL_XCVR_EXT_CTRL, mask, val);
 	if (ret < 0) {
 		dev_err(dai->dev, "Err setting DPATH RESET: %d\n", ret);
@@ -643,6 +640,16 @@ static int fsl_xcvr_trigger(struct snd_pcm_substream *substream, int cmd,
 			dev_err(dai->dev, "Failed to enable DMA: %d\n", ret);
 			return ret;
 		}
+
+		/* clear DPATH RESET */
+		ret = regmap_update_bits(xcvr->regmap, FSL_XCVR_EXT_CTRL,
+					 FSL_XCVR_EXT_CTRL_DPTH_RESET(tx),
+					 0);
+		if (ret < 0) {
+			dev_err(dai->dev, "Failed to clear DPATH RESET: %d\n", ret);
+			return ret;
+		}
+
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
