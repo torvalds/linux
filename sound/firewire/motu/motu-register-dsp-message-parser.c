@@ -190,6 +190,26 @@ void snd_motu_register_dsp_message_parser_parse(struct snd_motu *motu, const str
 				}
 				break;
 			}
+			case MIXER_OUTPUT_PAIRED_VOLUME:
+			case MIXER_OUTPUT_PAIRED_FLAG:
+			{
+				struct snd_firewire_motu_register_dsp_parameter *param = &parser->param;
+				u8 mixer_ch = parser->mixer_ch;
+
+				if (mixer_ch < SNDRV_FIREWIRE_MOTU_REGISTER_DSP_MIXER_COUNT) {
+					switch (msg_type) {
+					case MIXER_OUTPUT_PAIRED_VOLUME:
+						param->mixer.output.paired_volume[mixer_ch] = val;
+						break;
+					case MIXER_OUTPUT_PAIRED_FLAG:
+						param->mixer.output.paired_flag[mixer_ch] = val;
+						break;
+					default:
+						break;
+					}
+				}
+				break;
+			}
 			case METER:
 			{
 				u8 pos;

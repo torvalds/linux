@@ -158,6 +158,8 @@ struct snd_firewire_motu_register_dsp_meter {
  *				 Audio Express.
  * @mixer.source.paired_width: The width of paired source to mixer, only for 4 pre and
  *			       Audio Express.
+ * @mixer.output.paired_volume: The volume of paired output from mixer.
+ * @mixer.output.paired_flag: The flag of paired output from mixer.
  *
  * The structure expresses the set of parameters for DSP controlled by register access.
  */
@@ -170,6 +172,10 @@ struct snd_firewire_motu_register_dsp_parameter {
 			__u8 paired_balance[SNDRV_FIREWIRE_MOTU_REGISTER_DSP_MIXER_SRC_COUNT];
 			__u8 paired_width[SNDRV_FIREWIRE_MOTU_REGISTER_DSP_MIXER_SRC_COUNT];
 		} source[SNDRV_FIREWIRE_MOTU_REGISTER_DSP_MIXER_COUNT];
+		struct {
+			__u8 paired_volume[SNDRV_FIREWIRE_MOTU_REGISTER_DSP_MIXER_COUNT];
+			__u8 paired_flag[SNDRV_FIREWIRE_MOTU_REGISTER_DSP_MIXER_COUNT];
+		} output;
 	} mixer;
 };
 
