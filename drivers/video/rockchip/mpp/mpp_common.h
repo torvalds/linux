@@ -430,7 +430,7 @@ struct mpp_taskqueue {
 	struct mutex pending_lock;
 	struct list_head pending_list;
 	/* lock for running list */
-	struct mutex running_lock;
+	spinlock_t running_lock;
 	struct list_head running_list;
 
 	/* point to MPP Service */

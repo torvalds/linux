@@ -138,11 +138,12 @@ mpp_taskqueue_get_pending_task(struct mpp_taskqueue *queue)
 static bool
 mpp_taskqueue_is_running(struct mpp_taskqueue *queue)
 {
+	unsigned long flags;
 	bool flag;
 
-	mutex_lock(&queue->running_lock);
+	spin_lock_irqsave(&queue->running_lock, flags);
 	flag = !list_empty(&queue->running_list);
-	mutex_unlock(&queue->running_lock);
+	spin_unlock_irqrestore(&queue->running_lock, flags);
 
 	return flag;
 }
@@ -151,10 +152,13 @@ static int
 mpp_taskqueue_pending_to_run(struct mpp_taskqueue *queue,
 			     struct mpp_task *task)
 {
+	unsigned long flags;
+
 	mutex_lock(&queue->pending_lock);
-	mutex_lock(&queue->running_lock);
+	spin_lock_irqsave(&queue->running_lock, flags);
 	list_move_tail(&task->queue_link, &queue->running_list);
-	mutex_unlock(&queue->running_lock);
+	spin_unlock_irqrestore(&queue->running_lock, flags);
+
 	mutex_unlock(&queue->pending_lock);
 
 	return 0;
@@ -163,13 +167,14 @@ mpp_taskqueue_pending_to_run(struct mpp_taskqueue *queue,
 static struct mpp_task *
 mpp_taskqueue_get_running_task(struct mpp_taskqueue *queue)
 {
+	unsigned long flags;
 	struct mpp_task *task = NULL;
 
-	mutex_lock(&queue->running_lock);
+	spin_lock_irqsave(&queue->running_lock, flags);
 	task = list_first_entry_or_null(&queue->running_list,
 					struct mpp_task,
 					queue_link);
-	mutex_unlock(&queue->running_lock);
+	spin_unlock_irqrestore(&queue->running_lock, flags);
 
 	return task;
 }
@@ -178,12 +183,14 @@ static int
 mpp_taskqueue_pop_running(struct mpp_taskqueue *queue,
 			  struct mpp_task *task)
 {
+	unsigned long flags;
+
 	if (!task->session || !task->session->mpp)
 		return -EINVAL;
 
-	mutex_lock(&queue->running_lock);
+	spin_lock_irqsave(&queue->running_lock, flags);
 	list_del_init(&task->queue_link);
-	mutex_unlock(&queue->running_lock);
+	spin_unlock_irqrestore(&queue->running_lock, flags);
 	kref_put(&task->ref, mpp_free_task);
 
 	return 0;
@@ -932,7 +939,7 @@ struct mpp_taskqueue *mpp_taskqueue_init(struct device *dev)
 
 	mutex_init(&queue->session_lock);
 	mutex_init(&queue->pending_lock);
-	mutex_init(&queue->running_lock);
+	spin_lock_init(&queue->running_lock);
 	mutex_init(&queue->mmu_lock);
 	mutex_init(&queue->dev_lock);
 	INIT_LIST_HEAD(&queue->session_attach);
