@@ -167,7 +167,7 @@ unsigned long calc_cam_sz(unsigned long ram, unsigned long virt,
 
 static unsigned long map_mem_in_cams_addr(phys_addr_t phys, unsigned long virt,
 					unsigned long ram, int max_cam_idx,
-					bool dryrun)
+					bool dryrun, bool init)
 {
 	int i;
 	unsigned long amount_mapped = 0;
@@ -202,12 +202,12 @@ static unsigned long map_mem_in_cams_addr(phys_addr_t phys, unsigned long virt,
 	return amount_mapped;
 }
 
-unsigned long map_mem_in_cams(unsigned long ram, int max_cam_idx, bool dryrun)
+unsigned long map_mem_in_cams(unsigned long ram, int max_cam_idx, bool dryrun, bool init)
 {
 	unsigned long virt = PAGE_OFFSET;
 	phys_addr_t phys = memstart_addr;
 
-	return map_mem_in_cams_addr(phys, virt, ram, max_cam_idx, dryrun);
+	return map_mem_in_cams_addr(phys, virt, ram, max_cam_idx, dryrun, init);
 }
 
 #ifdef CONFIG_PPC32
@@ -248,7 +248,7 @@ void __init adjust_total_lowmem(void)
 	ram = min((phys_addr_t)__max_low_memory, (phys_addr_t)total_lowmem);
 
 	i = switch_to_as1();
-	__max_low_memory = map_mem_in_cams(ram, CONFIG_LOWMEM_CAM_NUM, false);
+	__max_low_memory = map_mem_in_cams(ram, CONFIG_LOWMEM_CAM_NUM, false, true);
 	restore_to_as0(i, 0, 0, 1);
 
 	pr_info("Memory CAM mapping: ");
@@ -319,11 +319,11 @@ notrace void __init relocate_init(u64 dt_ptr, phys_addr_t start)
 		/* map a 64M area for the second relocation */
 		if (memstart_addr > start)
 			map_mem_in_cams(0x4000000, CONFIG_LOWMEM_CAM_NUM,
-					false);
+					false, true);
 		else
 			map_mem_in_cams_addr(start, PAGE_OFFSET + offset,
 					0x4000000, CONFIG_LOWMEM_CAM_NUM,
-					false);
+					false, true);
 		restore_to_as0(n, offset, __va(dt_ptr), 1);
 		/* We should never reach here */
 		panic("Relocation error");
