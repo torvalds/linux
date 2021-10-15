@@ -283,6 +283,8 @@ void snd_motu_register_dsp_message_parser_copy_meter(struct snd_motu *motu,
 					struct snd_firewire_motu_register_dsp_meter *meter);
 void snd_motu_register_dsp_message_parser_copy_parameter(struct snd_motu *motu,
 					struct snd_firewire_motu_register_dsp_parameter *params);
+unsigned int snd_motu_register_dsp_message_parser_count_event(struct snd_motu *motu);
+bool snd_motu_register_dsp_message_parser_copy_event(struct snd_motu *motu, u32 *event);
 
 int snd_motu_command_dsp_message_parser_new(struct snd_motu *motu);
 int snd_motu_command_dsp_message_parser_init(struct snd_motu *motu, enum cip_sfc sfc);

@@ -95,6 +95,7 @@ struct msg_parser {
 
 	u32 event_queue[EVENT_QUEUE_SIZE];
 	unsigned int push_pos;
+	unsigned int pull_pos;
 };
 
 int snd_motu_register_dsp_message_parser_new(struct snd_motu *motu)
@@ -122,6 +123,7 @@ int snd_motu_register_dsp_message_parser_init(struct snd_motu *motu)
 	return 0;
 }
 
+// Rough implementaion of queue without overrun check.
 static void queue_event(struct snd_motu *motu, u8 msg_type, u8 identifier0, u8 identifier1, u8 val)
 {
 	struct msg_parser *parser = motu->message_parser;
@@ -145,6 +147,7 @@ void snd_motu_register_dsp_message_parser_parse(struct snd_motu *motu, const str
 {
 	struct msg_parser *parser = motu->message_parser;
 	bool meter_pos_quirk = parser->meter_pos_quirk;
+	unsigned int pos = parser->push_pos;
 	unsigned long flags;
 	int i;
 
@@ -351,6 +354,9 @@ void snd_motu_register_dsp_message_parser_parse(struct snd_motu *motu, const str
 		}
 	}
 
+	if (pos != parser->push_pos)
+		wake_up(&motu->hwdep_wait);
+
 	spin_unlock_irqrestore(&parser->lock, flags);
 }
 
@@ -374,4 +380,37 @@ void snd_motu_register_dsp_message_parser_copy_parameter(struct snd_motu *motu,
 	spin_lock_irqsave(&parser->lock, flags);
 	memcpy(param, &parser->param, sizeof(*param));
 	spin_unlock_irqrestore(&parser->lock, flags);
+}
+
+unsigned int snd_motu_register_dsp_message_parser_count_event(struct snd_motu *motu)
+{
+	struct msg_parser *parser = motu->message_parser;
+
+	if (parser->pull_pos > parser->push_pos)
+		return EVENT_QUEUE_SIZE - parser->pull_pos + parser->push_pos;
+	else
+		return parser->push_pos - parser->pull_pos;
+}
+
+bool snd_motu_register_dsp_message_parser_copy_event(struct snd_motu *motu, u32 *event)
+{
+	struct msg_parser *parser = motu->message_parser;
+	unsigned int pos = parser->pull_pos;
+	unsigned long flags;
+
+	if (pos == parser->push_pos)
+		return false;
+
+	spin_lock_irqsave(&parser->lock, flags);
+
+	*event = parser->event_queue[pos];
+
+	++pos;
+	if (pos >= EVENT_QUEUE_SIZE)
+		pos = 0;
+	parser->pull_pos = pos;
+
+	spin_unlock_irqrestore(&parser->lock, flags);
+
+	return true;
 }

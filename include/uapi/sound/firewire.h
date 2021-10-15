@@ -13,6 +13,7 @@
 #define SNDRV_FIREWIRE_EVENT_DIGI00X_MESSAGE	0x746e736c
 #define SNDRV_FIREWIRE_EVENT_MOTU_NOTIFICATION	0x64776479
 #define SNDRV_FIREWIRE_EVENT_TASCAM_CONTROL	0x7473636d
+#define SNDRV_FIREWIRE_EVENT_MOTU_REGISTER_DSP_CHANGE	0x4d545244
 
 struct snd_firewire_event_common {
 	unsigned int type; /* SNDRV_FIREWIRE_EVENT_xxx */
@@ -65,6 +66,12 @@ struct snd_firewire_event_tascam_control {
 	struct snd_firewire_tascam_change changes[0];
 };
 
+struct snd_firewire_event_motu_register_dsp_change {
+	unsigned int type;
+	__u32 count;		// The number of changes.
+	__u32 changes[];	// Encoded event for change of register DSP.
+};
+
 union snd_firewire_event {
 	struct snd_firewire_event_common            common;
 	struct snd_firewire_event_lock_status       lock_status;
@@ -73,6 +80,7 @@ union snd_firewire_event {
 	struct snd_firewire_event_digi00x_message   digi00x_message;
 	struct snd_firewire_event_tascam_control    tascam_control;
 	struct snd_firewire_event_motu_notification motu_notification;
+	struct snd_firewire_event_motu_register_dsp_change motu_register_dsp_change;
 };
 
 
