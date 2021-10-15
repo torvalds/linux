@@ -2942,7 +2942,11 @@ static int module_sig_check(struct load_info *info, int flags)
 
 static int validate_section_offset(struct load_info *info, Elf_Shdr *shdr)
 {
+#if defined(CONFIG_64BIT)
+	unsigned long long secend;
+#else
 	unsigned long secend;
+#endif
 
 	/*
 	 * Check for both overflow and offset/size being
