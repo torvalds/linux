@@ -196,13 +196,9 @@ void ODM_DMWatchdog(struct odm_dm_struct *pDM_Odm)
 	    (pDM_Odm->AntDivType == CGCS_RX_HW_ANTDIV)	||
 	    (pDM_Odm->AntDivType == CG_TRX_SMART_ANTDIV))
 		odm_HwAntDiv(pDM_Odm);
-	else if (pDM_Odm->AntDivType == CGCS_RX_SW_ANTDIV)
-		odm_SwAntDivChkAntSwitch(pDM_Odm, SWAW_STEP_PEAK);
 
 	ODM_TXPowerTrackingCheck(pDM_Odm);
 	odm_EdcaTurboCheck(pDM_Odm);
-
-	odm_dtc(pDM_Odm);
 }
 
 /*  Init /.. Fixed HW value. Only init time. */
@@ -1023,29 +1019,6 @@ void ODM_TXPowerTrackingCheck(struct odm_dm_struct *pDM_Odm)
 /*  We select left antenna as default antenna in initial process, modify it as needed */
 /*  */
 
-/* 3============================================================ */
-/* 3 SW Antenna Diversity */
-/* 3============================================================ */
-void ODM_SwAntDivChkPerPktRssi(struct odm_dm_struct *pDM_Odm, u8 StationID, struct odm_phy_status_info *pPhyInfo)
-{
-}
-
-void odm_SwAntDivChkAntSwitch(struct odm_dm_struct *pDM_Odm, u8 Step)
-{
-}
-
-void ODM_SwAntDivRestAfterLink(struct odm_dm_struct *pDM_Odm)
-{
-}
-
-void odm_SwAntDivChkAntSwitchCallback(struct timer_list *t)
-{
-}
-
-/* 3============================================================ */
-/* 3 SW Antenna Diversity */
-/* 3============================================================ */
-
 void odm_InitHybridAntDiv(struct odm_dm_struct *pDM_Odm)
 {
 	if (!(pDM_Odm->SupportAbility & ODM_BB_ANT_DIV))
@@ -1227,9 +1200,4 @@ void ODM_SingleDualAntennaDefaultSetting(struct odm_dm_struct *pDM_Odm)
 
 	pDM_SWAT_Table->ANTA_ON = true;
 	pDM_SWAT_Table->ANTB_ON = true;
-}
-
-/* Justin: According to the current RRSI to adjust Response Frame TX power, 2012/11/05 */
-void odm_dtc(struct odm_dm_struct *pDM_Odm)
-{
 }

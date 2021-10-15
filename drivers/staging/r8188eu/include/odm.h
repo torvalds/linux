@@ -875,15 +875,10 @@ void ODM_SetAntenna(struct odm_dm_struct *pDM_Odm, u8 Antenna);
 
 void ODM_RF_Saving(struct odm_dm_struct *pDM_Odm, u8 bForceInNormal);
 
-void ODM_SwAntDivRestAfterLink(struct odm_dm_struct *pDM_Odm);
-
 void ODM_TXPowerTrackingCheck(struct odm_dm_struct *pDM_Odm);
 
 bool ODM_RAStateCheck(struct odm_dm_struct *pDM_Odm, s32 RSSI,
 		      bool bForceUpdate, u8 *pRATRState);
-
-void ODM_SwAntDivChkPerPktRssi(struct odm_dm_struct *pDM_Odm, u8 StationID,
-			       struct odm_phy_status_info *pPhyInfo);
 
 u32 ConvertTo_dB(u32 Value);
 
@@ -913,7 +908,5 @@ void ODM_AntselStatistics_88C(struct odm_dm_struct *pDM_Odm, u8 MacId,
 			      u32 PWDBAll, bool isCCKrate);
 
 void ODM_SingleDualAntennaDefaultSetting(struct odm_dm_struct *pDM_Odm);
-
-void odm_dtc(struct odm_dm_struct *pDM_Odm);
 
 #endif
