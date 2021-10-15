@@ -25,7 +25,8 @@ static long hwdep_read(struct snd_hwdep *hwdep, char __user *buf, long count,
 
 	spin_lock_irq(&motu->lock);
 
-	while (!motu->dev_lock_changed && motu->msg == 0) {
+	while (!motu->dev_lock_changed && motu->msg == 0 &&
+			snd_motu_register_dsp_message_parser_count_event(motu) == 0) {
 		prepare_to_wait(&motu->hwdep_wait, &wait, TASK_INTERRUPTIBLE);
 		spin_unlock_irq(&motu->lock);
 		schedule();
@@ -40,20 +41,46 @@ static long hwdep_read(struct snd_hwdep *hwdep, char __user *buf, long count,
 		event.lock_status.type = SNDRV_FIREWIRE_EVENT_LOCK_STATUS;
 		event.lock_status.status = (motu->dev_lock_count > 0);
 		motu->dev_lock_changed = false;
+		spin_unlock_irq(&motu->lock);
 
-		count = min_t(long, count, sizeof(event.lock_status));
-	} else {
+		count = min_t(long, count, sizeof(event));
+		if (copy_to_user(buf, &event, count))
+			return -EFAULT;
+	} else if (motu->msg > 0) {
 		event.motu_notification.type = SNDRV_FIREWIRE_EVENT_MOTU_NOTIFICATION;
 		event.motu_notification.message = motu->msg;
 		motu->msg = 0;
+		spin_unlock_irq(&motu->lock);
 
-		count = min_t(long, count, sizeof(event.motu_notification));
+		count = min_t(long, count, sizeof(event));
+		if (copy_to_user(buf, &event, count))
+			return -EFAULT;
+	} else if (snd_motu_register_dsp_message_parser_count_event(motu) > 0) {
+		size_t consumed = 0;
+		u32 __user *ptr;
+		u32 ev;
+
+		spin_unlock_irq(&motu->lock);
+
+		// Header is filled later.
+		consumed += sizeof(event.motu_register_dsp_change);
+
+		while (consumed < count &&
+		       snd_motu_register_dsp_message_parser_copy_event(motu, &ev)) {
+			ptr = (u32 __user *)(buf + consumed);
+			if (put_user(ev, ptr))
+				return -EFAULT;
+			consumed += sizeof(ev);
+		}
+
+		event.motu_register_dsp_change.type = SNDRV_FIREWIRE_EVENT_MOTU_REGISTER_DSP_CHANGE;
+		event.motu_register_dsp_change.count =
+			(consumed - sizeof(event.motu_register_dsp_change)) / 4;
+		if (copy_to_user(buf, &event, sizeof(event.motu_register_dsp_change)))
+			return -EFAULT;
+
+		count = consumed;
 	}
-
-	spin_unlock_irq(&motu->lock);
-
-	if (copy_to_user(buf, &event, count))
-		return -EFAULT;
 
 	return count;
 }
@@ -67,7 +94,8 @@ static __poll_t hwdep_poll(struct snd_hwdep *hwdep, struct file *file,
 	poll_wait(file, &motu->hwdep_wait, wait);
 
 	spin_lock_irq(&motu->lock);
-	if (motu->dev_lock_changed || motu->msg)
+	if (motu->dev_lock_changed || motu->msg ||
+	    snd_motu_register_dsp_message_parser_count_event(motu) > 0)
 		events = EPOLLIN | EPOLLRDNORM;
 	else
 		events = 0;
@@ -155,6 +183,71 @@ static int hwdep_ioctl(struct snd_hwdep *hwdep, struct file *file,
 		return hwdep_lock(motu);
 	case SNDRV_FIREWIRE_IOCTL_UNLOCK:
 		return hwdep_unlock(motu);
+	case SNDRV_FIREWIRE_IOCTL_MOTU_REGISTER_DSP_METER:
+	{
+		struct snd_firewire_motu_register_dsp_meter *meter;
+		int err;
+
+		if (!(motu->spec->flags & SND_MOTU_SPEC_REGISTER_DSP))
+			return -ENXIO;
+
+		meter = kzalloc(sizeof(*meter), GFP_KERNEL);
+		if (!meter)
+			return -ENOMEM;
+
+		snd_motu_register_dsp_message_parser_copy_meter(motu, meter);
+
+		err = copy_to_user((void __user *)arg, meter, sizeof(*meter));
+		kfree(meter);
+
+		if (err)
+			return -EFAULT;
+
+		return 0;
+	}
+	case SNDRV_FIREWIRE_IOCTL_MOTU_COMMAND_DSP_METER:
+	{
+		struct snd_firewire_motu_command_dsp_meter *meter;
+		int err;
+
+		if (!(motu->spec->flags & SND_MOTU_SPEC_COMMAND_DSP))
+			return -ENXIO;
+
+		meter = kzalloc(sizeof(*meter), GFP_KERNEL);
+		if (!meter)
+			return -ENOMEM;
+
+		snd_motu_command_dsp_message_parser_copy_meter(motu, meter);
+
+		err = copy_to_user((void __user *)arg, meter, sizeof(*meter));
+		kfree(meter);
+
+		if (err)
+			return -EFAULT;
+
+		return 0;
+	}
+	case SNDRV_FIREWIRE_IOCTL_MOTU_REGISTER_DSP_PARAMETER:
+	{
+		struct snd_firewire_motu_register_dsp_parameter *param;
+		int err;
+
+		if (!(motu->spec->flags & SND_MOTU_SPEC_REGISTER_DSP))
+			return -ENXIO;
+
+		param = kzalloc(sizeof(*param), GFP_KERNEL);
+		if (!param)
+			return -ENOMEM;
+
+		snd_motu_register_dsp_message_parser_copy_parameter(motu, param);
+
+		err = copy_to_user((void __user *)arg, param, sizeof(*param));
+		kfree(param);
+		if (err)
+			return -EFAULT;
+
+		return 0;
+	}
 	default:
 		return -ENOIOCTLCMD;
 	}
@@ -192,6 +285,8 @@ int snd_motu_create_hwdep_device(struct snd_motu *motu)
 	hwdep->ops = ops;
 	hwdep->private_data = motu;
 	hwdep->exclusive = true;
+
+	motu->hwdep = hwdep;
 
 	return 0;
 }
