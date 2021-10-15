@@ -174,7 +174,43 @@ void fpu_swap_kvm_fpu(struct fpu *save, struct fpu *rstor, u64 restore_mask)
 	fpregs_unlock();
 }
 EXPORT_SYMBOL_GPL(fpu_swap_kvm_fpu);
-#endif
+
+int fpu_copy_kvm_uabi_to_fpstate(struct fpu *fpu, const void *buf, u64 xcr0,
+				 u32 *vpkru)
+{
+	union fpregs_state *kstate = &fpu->state;
+	const union fpregs_state *ustate = buf;
+	struct pkru_state *xpkru;
+	int ret;
+
+	if (!cpu_feature_enabled(X86_FEATURE_XSAVE)) {
+		if (ustate->xsave.header.xfeatures & ~XFEATURE_MASK_FPSSE)
+			return -EINVAL;
+		if (ustate->fxsave.mxcsr & ~mxcsr_feature_mask)
+			return -EINVAL;
+		memcpy(&kstate->fxsave, &ustate->fxsave, sizeof(ustate->fxsave));
+		return 0;
+	}
+
+	if (ustate->xsave.header.xfeatures & ~xcr0)
+		return -EINVAL;
+
+	ret = copy_uabi_from_kernel_to_xstate(&kstate->xsave, ustate);
+	if (ret)
+		return ret;
+
+	/* Retrieve PKRU if not in init state */
+	if (kstate->xsave.header.xfeatures & XFEATURE_MASK_PKRU) {
+		xpkru = get_xsave_addr(&kstate->xsave, XFEATURE_PKRU);
+		*vpkru = xpkru->pkru;
+	}
+
+	/* Ensure that XCOMP_BV is set up for XSAVES */
+	xstate_init_xcomp_bv(&kstate->xsave, xfeatures_mask_uabi());
+	return 0;
+}
+EXPORT_SYMBOL_GPL(fpu_copy_kvm_uabi_to_fpstate);
+#endif /* CONFIG_KVM */
 
 void kernel_fpu_begin_mask(unsigned int kfpu_mask)
 {

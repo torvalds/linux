@@ -116,4 +116,6 @@ extern void fpu_init_fpstate_user(struct fpu *fpu);
 /* KVM specific functions */
 extern void fpu_swap_kvm_fpu(struct fpu *save, struct fpu *rstor, u64 restore_mask);
 
+extern int fpu_copy_kvm_uabi_to_fpstate(struct fpu *fpu, const void *buf, u64 xcr0, u32 *pkru);
+
 #endif /* _ASM_X86_FPU_API_H */

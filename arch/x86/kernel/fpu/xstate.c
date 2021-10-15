@@ -1134,8 +1134,7 @@ static int copy_uabi_to_xstate(struct xregs_state *xsave, const void *kbuf,
 
 /*
  * Convert from a ptrace standard-format kernel buffer to kernel XSAVE[S]
- * format and copy to the target thread. This is called from
- * xstateregs_set().
+ * format and copy to the target thread. Used by ptrace and KVM.
  */
 int copy_uabi_from_kernel_to_xstate(struct xregs_state *xsave, const void *kbuf)
 {
