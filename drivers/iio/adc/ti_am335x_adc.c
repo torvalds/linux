@@ -25,6 +25,7 @@
 #include <linux/of_device.h>
 #include <linux/iio/machine.h>
 #include <linux/iio/driver.h>
+#include <linux/iopoll.h>
 
 #include <linux/mfd/ti_am335x_tscadc.h>
 #include <linux/iio/buffer.h>
@@ -100,6 +101,15 @@ static u32 get_adc_chan_step_mask(struct tiadc_device *adc_dev,
 static u32 get_adc_step_bit(struct tiadc_device *adc_dev, int chan)
 {
 	return 1 << adc_dev->channel_step[chan];
+}
+
+static int tiadc_wait_idle(struct tiadc_device *adc_dev)
+{
+	u32 val;
+
+	return readl_poll_timeout(adc_dev->mfd_tscadc->tscadc_base + REG_ADCFSM,
+				  val, !(val & SEQ_STATUS), 10,
+				  IDLE_TIMEOUT * 1000 * adc_dev->channels);
 }
 
 static void tiadc_step_config(struct iio_dev *indio_dev)
@@ -295,6 +305,11 @@ static int tiadc_buffer_preenable(struct iio_dev *indio_dev)
 {
 	struct tiadc_device *adc_dev = iio_priv(indio_dev);
 	int i, fifo1count;
+	int ret;
+
+	ret = tiadc_wait_idle(adc_dev);
+	if (ret)
+		return ret;
 
 	tiadc_writel(adc_dev, REG_IRQCLR, (IRQENB_FIFO1THRES |
 				IRQENB_FIFO1OVRRUN |
@@ -446,12 +461,12 @@ static int tiadc_read_raw(struct iio_dev *indio_dev,
 		int *val, int *val2, long mask)
 {
 	struct tiadc_device *adc_dev = iio_priv(indio_dev);
-	int ret = IIO_VAL_INT;
 	int i, map_val;
 	unsigned int fifo1count, read, stepid;
 	bool found = false;
 	u32 step_en;
 	unsigned long timeout;
+	int ret;
 
 	if (iio_buffer_enabled(indio_dev))
 		return -EBUSY;
@@ -461,6 +476,11 @@ static int tiadc_read_raw(struct iio_dev *indio_dev,
 		return -EINVAL;
 
 	mutex_lock(&adc_dev->fifo1_lock);
+
+	ret = tiadc_wait_idle(adc_dev);
+	if (ret)
+		goto err_unlock;
+
 	fifo1count = tiadc_readl(adc_dev, REG_FIFO1CNT);
 	while (fifo1count--)
 		tiadc_readl(adc_dev, REG_FIFO1);
@@ -508,7 +528,7 @@ static int tiadc_read_raw(struct iio_dev *indio_dev,
 
 err_unlock:
 	mutex_unlock(&adc_dev->fifo1_lock);
-	return ret;
+	return ret ? ret : IIO_VAL_INT;
 }
 
 static const struct iio_info tiadc_info = {
