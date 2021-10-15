@@ -618,6 +618,14 @@ static int cs42l42_pll_config(struct snd_soc_component *component)
 	else
 		clk = cs42l42->sclk;
 
+	/* Don't reconfigure if there is an audio stream running */
+	if (cs42l42->stream_use) {
+		if (pll_ratio_table[cs42l42->pll_config].sclk == clk)
+			return 0;
+		else
+			return -EBUSY;
+	}
+
 	for (i = 0; i < ARRAY_SIZE(pll_ratio_table); i++) {
 		if (pll_ratio_table[i].sclk == clk) {
 			cs42l42->pll_config = i;
