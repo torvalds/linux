@@ -258,5 +258,7 @@ int snd_motu_create_hwdep_device(struct snd_motu *motu)
 	hwdep->private_data = motu;
 	hwdep->exclusive = true;
 
+	motu->hwdep = hwdep;
+
 	return 0;
 }

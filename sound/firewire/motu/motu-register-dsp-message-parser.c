@@ -78,6 +78,8 @@ enum register_dsp_msg_type {
 	METER = 0x1f,
 };
 
+#define EVENT_QUEUE_SIZE	16
+
 struct msg_parser {
 	spinlock_t lock;
 	struct snd_firewire_motu_register_dsp_meter meter;
@@ -90,6 +92,9 @@ struct msg_parser {
 
 	u8 input_ch;
 	u8 prev_msg_type;
+
+	u32 event_queue[EVENT_QUEUE_SIZE];
+	unsigned int push_pos;
 };
 
 int snd_motu_register_dsp_message_parser_new(struct snd_motu *motu)
@@ -115,6 +120,24 @@ int snd_motu_register_dsp_message_parser_init(struct snd_motu *motu)
 	parser->prev_msg_type = INVALID;
 
 	return 0;
+}
+
+static void queue_event(struct snd_motu *motu, u8 msg_type, u8 identifier0, u8 identifier1, u8 val)
+{
+	struct msg_parser *parser = motu->message_parser;
+	unsigned int pos = parser->push_pos;
+	u32 entry;
+
+	if (!motu->hwdep || motu->hwdep->used == 0)
+		return;
+
+	entry = (msg_type << 24) | (identifier0 << 16) | (identifier1 << 8) | val;
+	parser->event_queue[pos] = entry;
+
+	++pos;
+	if (pos >= EVENT_QUEUE_SIZE)
+		pos = 0;
+	parser->push_pos = pos;
 }
 
 void snd_motu_register_dsp_message_parser_parse(struct snd_motu *motu, const struct pkt_desc *descs,
@@ -172,19 +195,34 @@ void snd_motu_register_dsp_message_parser_parse(struct snd_motu *motu, const str
 
 					switch (msg_type) {
 					case MIXER_SRC_GAIN:
-						param->mixer.source[mixer_ch].gain[mixer_src_ch] = val;
+						if (param->mixer.source[mixer_ch].gain[mixer_src_ch] != val) {
+							queue_event(motu, msg_type, mixer_ch, mixer_src_ch, val);
+							param->mixer.source[mixer_ch].gain[mixer_src_ch] = val;
+						}
 						break;
 					case MIXER_SRC_PAN:
-						param->mixer.source[mixer_ch].pan[mixer_src_ch] = val;
+						if (param->mixer.source[mixer_ch].pan[mixer_src_ch] != val) {
+							queue_event(motu, msg_type, mixer_ch, mixer_src_ch, val);
+							param->mixer.source[mixer_ch].pan[mixer_src_ch] = val;
+						}
 						break;
 					case MIXER_SRC_FLAG:
-						param->mixer.source[mixer_ch].flag[mixer_src_ch] = val;
+						if (param->mixer.source[mixer_ch].flag[mixer_src_ch] != val) {
+							queue_event(motu, msg_type, mixer_ch, mixer_src_ch, val);
+							param->mixer.source[mixer_ch].flag[mixer_src_ch] = val;
+						}
 						break;
 					case MIXER_SRC_PAIRED_BALANCE:
-						param->mixer.source[mixer_ch].paired_balance[mixer_src_ch] = val;
+						if (param->mixer.source[mixer_ch].paired_balance[mixer_src_ch] != val) {
+							queue_event(motu, msg_type, mixer_ch, mixer_src_ch, val);
+							param->mixer.source[mixer_ch].paired_balance[mixer_src_ch] = val;
+						}
 						break;
 					case MIXER_SRC_PAIRED_WIDTH:
-						param->mixer.source[mixer_ch].paired_width[mixer_src_ch] = val;
+						if (param->mixer.source[mixer_ch].paired_width[mixer_src_ch] != val) {
+							queue_event(motu, msg_type, mixer_ch, mixer_src_ch, val);
+							param->mixer.source[mixer_ch].paired_width[mixer_src_ch] = val;
+						}
 						break;
 					default:
 						break;
@@ -203,10 +241,16 @@ void snd_motu_register_dsp_message_parser_parse(struct snd_motu *motu, const str
 				if (mixer_ch < SNDRV_FIREWIRE_MOTU_REGISTER_DSP_MIXER_COUNT) {
 					switch (msg_type) {
 					case MIXER_OUTPUT_PAIRED_VOLUME:
-						param->mixer.output.paired_volume[mixer_ch] = val;
+						if (param->mixer.output.paired_volume[mixer_ch] != val) {
+							queue_event(motu, msg_type, mixer_ch, 0, val);
+							param->mixer.output.paired_volume[mixer_ch] = val;
+						}
 						break;
 					case MIXER_OUTPUT_PAIRED_FLAG:
-						param->mixer.output.paired_flag[mixer_ch] = val;
+						if (param->mixer.output.paired_flag[mixer_ch] != val) {
+							queue_event(motu, msg_type, mixer_ch, 0, val);
+							param->mixer.output.paired_flag[mixer_ch] = val;
+						}
 						break;
 					default:
 						break;
@@ -215,19 +259,34 @@ void snd_motu_register_dsp_message_parser_parse(struct snd_motu *motu, const str
 				break;
 			}
 			case MAIN_OUTPUT_PAIRED_VOLUME:
-				parser->param.output.main_paired_volume = val;
+				if (parser->param.output.main_paired_volume != val) {
+					queue_event(motu, msg_type, 0, 0, val);
+					parser->param.output.main_paired_volume = val;
+				}
 				break;
 			case HP_OUTPUT_PAIRED_VOLUME:
-				parser->param.output.hp_paired_volume = val;
+				if (parser->param.output.hp_paired_volume != val) {
+					queue_event(motu, msg_type, 0, 0, val);
+					parser->param.output.hp_paired_volume = val;
+				}
 				break;
 			case HP_OUTPUT_PAIRED_ASSIGNMENT:
-				parser->param.output.hp_paired_assignment = val;
+				if (parser->param.output.hp_paired_assignment != val) {
+					queue_event(motu, msg_type, 0, 0, val);
+					parser->param.output.hp_paired_assignment = val;
+				}
 				break;
 			case LINE_INPUT_BOOST:
-				parser->param.line_input.boost_flag = val;
+				if (parser->param.line_input.boost_flag != val) {
+					queue_event(motu, msg_type, 0, 0, val);
+					parser->param.line_input.boost_flag = val;
+				}
 				break;
 			case LINE_INPUT_NOMINAL_LEVEL:
-				parser->param.line_input.nominal_level_flag = val;
+				if (parser->param.line_input.nominal_level_flag != val) {
+					queue_event(motu, msg_type, 0, 0, val);
+					parser->param.line_input.nominal_level_flag = val;
+				}
 				break;
 			case INPUT_GAIN_AND_INVERT:
 			case INPUT_FLAG:
@@ -243,10 +302,16 @@ void snd_motu_register_dsp_message_parser_parse(struct snd_motu *motu, const str
 				if (input_ch < SNDRV_FIREWIRE_MOTU_REGISTER_DSP_INPUT_COUNT) {
 					switch (msg_type) {
 					case INPUT_GAIN_AND_INVERT:
-						param->input.gain_and_invert[input_ch] = val;
+						if (param->input.gain_and_invert[input_ch] != val) {
+							queue_event(motu, msg_type, input_ch, 0, val);
+							param->input.gain_and_invert[input_ch] = val;
+						}
 						break;
 					case INPUT_FLAG:
-						param->input.flag[input_ch] = val;
+						if (param->input.flag[input_ch] != val) {
+							queue_event(motu, msg_type, input_ch, 0, val);
+							param->input.flag[input_ch] = val;
+						}
 						break;
 					default:
 						break;
