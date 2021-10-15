@@ -11,7 +11,15 @@
 
 #define CPG_PL2_DDIV		(0x204)
 #define CPG_PL3A_DDIV		(0x208)
+#define CPG_PL2SDHI_DSEL	(0x218)
+#define CPG_CLKSTATUS		(0x280)
+#define CPG_PL3_SSEL		(0x408)
 #define CPG_PL6_ETH_SSEL	(0x418)
+
+#define CPG_CLKSTATUS_SELSDHI0_STS	BIT(28)
+#define CPG_CLKSTATUS_SELSDHI1_STS	BIT(29)
+
+#define CPG_SDHI_CLK_SWITCH_STATUS_TIMEOUT_US	20000
 
 /* n = 0/1/2 for PLL1/4/6 */
 #define CPG_SAMPLL_CLK1(n)	(0x04 + (16 * n))
@@ -24,11 +32,16 @@
 #define DIVPL2A		DDIV_PACK(CPG_PL2_DDIV, 0, 3)
 #define DIVPL3A		DDIV_PACK(CPG_PL3A_DDIV, 0, 3)
 #define DIVPL3B		DDIV_PACK(CPG_PL3A_DDIV, 4, 3)
+#define DIVPL3C		DDIV_PACK(CPG_PL3A_DDIV, 8, 3)
 
 #define SEL_PLL_PACK(offset, bitpos, size) \
 		(((offset) << 20) | ((bitpos) << 12) | ((size) << 8))
 
+#define SEL_PLL3_3	SEL_PLL_PACK(CPG_PL3_SSEL, 8, 1)
 #define SEL_PLL6_2	SEL_PLL_PACK(CPG_PL6_ETH_SSEL, 0, 1)
+
+#define SEL_SDHI0	DDIV_PACK(CPG_PL2SDHI_DSEL, 0, 2)
+#define SEL_SDHI1	DDIV_PACK(CPG_PL2SDHI_DSEL, 4, 2)
 
 /**
  * Definitions of CPG Core Clocks
@@ -64,6 +77,9 @@ enum clk_types {
 
 	/* Clock with clock source selector */
 	CLK_TYPE_MUX,
+
+	/* Clock with SD clock source selector */
+	CLK_TYPE_SD_MUX,
 };
 
 #define DEF_TYPE(_name, _id, _type...) \
@@ -84,6 +100,9 @@ enum clk_types {
 	DEF_TYPE(_name, _id, CLK_TYPE_MUX, .conf = _conf, \
 		 .parent_names = _parent_names, .num_parents = _num_parents, \
 		 .flag = _flag, .mux_flags = _mux_flags)
+#define DEF_SD_MUX(_name, _id, _conf, _parent_names, _num_parents) \
+	DEF_TYPE(_name, _id, CLK_TYPE_SD_MUX, .conf = _conf, \
+		 .parent_names = _parent_names, .num_parents = _num_parents)
 
 /**
  * struct rzg2l_mod_clk - Module Clocks definitions
