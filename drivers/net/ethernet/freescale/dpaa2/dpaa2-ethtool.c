@@ -820,7 +820,56 @@ static int dpaa2_eth_set_tunable(struct net_device *net_dev,
 	return err;
 }
 
+static int dpaa2_eth_get_coalesce(struct net_device *dev,
+				  struct ethtool_coalesce *ic,
+				  struct kernel_ethtool_coalesce *kernel_coal,
+				  struct netlink_ext_ack *extack)
+{
+	struct dpaa2_eth_priv *priv = netdev_priv(dev);
+	struct dpaa2_io *dpio = priv->channel[0]->dpio;
+
+	dpaa2_io_get_irq_coalescing(dpio, &ic->rx_coalesce_usecs);
+
+	return 0;
+}
+
+static int dpaa2_eth_set_coalesce(struct net_device *dev,
+				  struct ethtool_coalesce *ic,
+				  struct kernel_ethtool_coalesce *kernel_coal,
+				  struct netlink_ext_ack *extack)
+{
+	struct dpaa2_eth_priv *priv = netdev_priv(dev);
+	struct dpaa2_io *dpio;
+	u32 prev_rx_usecs;
+	int i, j, err;
+
+	/* Keep track of the previous value, just in case we fail */
+	dpio = priv->channel[0]->dpio;
+	dpaa2_io_get_irq_coalescing(dpio, &prev_rx_usecs);
+
+	/* Setup new value for rx coalescing */
+	for (i = 0; i < priv->num_channels; i++) {
+		dpio = priv->channel[i]->dpio;
+
+		err = dpaa2_io_set_irq_coalescing(dpio, ic->rx_coalesce_usecs);
+		if (err)
+			goto restore_rx_usecs;
+	}
+
+	return 0;
+
+restore_rx_usecs:
+	for (j = 0; j < i; j++) {
+		dpio = priv->channel[j]->dpio;
+
+		dpaa2_io_set_irq_coalescing(dpio, prev_rx_usecs);
+	}
+
+	return err;
+}
+
 const struct ethtool_ops dpaa2_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_RX_USECS,
 	.get_drvinfo = dpaa2_eth_get_drvinfo,
 	.nway_reset = dpaa2_eth_nway_reset,
 	.get_link = ethtool_op_get_link,
@@ -836,4 +885,6 @@ const struct ethtool_ops dpaa2_ethtool_ops = {
 	.get_ts_info = dpaa2_eth_get_ts_info,
 	.get_tunable = dpaa2_eth_get_tunable,
 	.set_tunable = dpaa2_eth_set_tunable,
+	.get_coalesce = dpaa2_eth_get_coalesce,
+	.set_coalesce = dpaa2_eth_set_coalesce,
 };
