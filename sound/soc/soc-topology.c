@@ -1591,8 +1591,25 @@ static int soc_tplg_dapm_widget_elems_load(struct soc_tplg *tplg,
 		struct snd_soc_tplg_dapm_widget *widget = (struct snd_soc_tplg_dapm_widget *) tplg->pos;
 		int ret;
 
+		/*
+		 * check if widget itself fits within topology file
+		 * use sizeof instead of widget->size, as we can't be sure
+		 * it is set properly yet (file may end before it is present)
+		 */
+		if (soc_tplg_get_offset(tplg) + sizeof(*widget) >= tplg->fw->size) {
+			dev_err(tplg->dev, "ASoC: invalid widget data size\n");
+			return -EINVAL;
+		}
+
+		/* check if widget has proper size */
 		if (le32_to_cpu(widget->size) != sizeof(*widget)) {
 			dev_err(tplg->dev, "ASoC: invalid widget size\n");
+			return -EINVAL;
+		}
+
+		/* check if widget private data fits within topology file */
+		if (soc_tplg_get_offset(tplg) + le32_to_cpu(widget->priv.size) >= tplg->fw->size) {
+			dev_err(tplg->dev, "ASoC: invalid widget private data size\n");
 			return -EINVAL;
 		}
 
