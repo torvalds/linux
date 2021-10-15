@@ -137,6 +137,8 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	tscadc->data = of_device_get_match_data(&pdev->dev);
+
 	node = of_get_child_by_name(pdev->dev.of_node, "tsc");
 	of_property_read_u32(node, "ti,wires", &tsc_wires);
 	of_property_read_u32(node, "ti,coordiante-readouts", &readouts);
@@ -212,7 +214,7 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 		goto err_disable_clk;
 	}
 
-	tscadc->clk_div = (clk_get_rate(clk) / ADC_CLK) - 1;
+	tscadc->clk_div = (clk_get_rate(clk) / tscadc->data->target_clk_rate) - 1;
 	regmap_write(tscadc->regmap, REG_CLKDIV, tscadc->clk_div);
 
 	/* Set the control register bits */
@@ -241,8 +243,8 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 	if (tsc_wires > 0) {
 		tscadc->tsc_cell = tscadc->used_cells;
 		cell = &tscadc->cells[tscadc->used_cells++];
-		cell->name = "TI-am335x-tsc";
-		cell->of_compatible = "ti,am3359-tsc";
+		cell->name = tscadc->data->secondary_feature_name;
+		cell->of_compatible = tscadc->data->secondary_feature_compatible;
 		cell->platform_data = &tscadc;
 		cell->pdata_size = sizeof(tscadc);
 	}
@@ -251,8 +253,8 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 	if (adc_channels > 0) {
 		tscadc->adc_cell = tscadc->used_cells;
 		cell = &tscadc->cells[tscadc->used_cells++];
-		cell->name = "TI-am335x-adc";
-		cell->of_compatible = "ti,am3359-adc";
+		cell->name = tscadc->data->adc_feature_name;
+		cell->of_compatible = tscadc->data->adc_feature_compatible;
 		cell->platform_data = &tscadc;
 		cell->pdata_size = sizeof(tscadc);
 	}
@@ -338,8 +340,16 @@ static int __maybe_unused tscadc_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(tscadc_pm_ops, tscadc_suspend, tscadc_resume);
 
+static const struct ti_tscadc_data tscdata = {
+	.adc_feature_name = "TI-am335x-adc",
+	.adc_feature_compatible = "ti,am3359-adc",
+	.secondary_feature_name = "TI-am335x-tsc",
+	.secondary_feature_compatible = "ti,am3359-tsc",
+	.target_clk_rate = ADC_CLK,
+};
+
 static const struct of_device_id ti_tscadc_dt_ids[] = {
-	{ .compatible = "ti,am3359-tscadc", },
+	{ .compatible = "ti,am3359-tscadc", .data = &tscdata },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ti_tscadc_dt_ids);
