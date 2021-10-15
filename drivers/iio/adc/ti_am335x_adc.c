@@ -184,7 +184,7 @@ static irqreturn_t tiadc_irq_h(int irq, void *private)
 	if (status & IRQENB_FIFO1OVRRUN) {
 		/* FIFO Overrun. Clear flag. Disable/Enable ADC to recover */
 		config = tiadc_readl(adc_dev, REG_CTRL);
-		config &= ~(CNTRLREG_TSCSSENB);
+		config &= ~(CNTRLREG_SSENB);
 		tiadc_writel(adc_dev, REG_CTRL, config);
 		tiadc_writel(adc_dev, REG_IRQSTATUS, IRQENB_FIFO1OVRRUN
 				| IRQENB_FIFO1UNDRFLW | IRQENB_FIFO1THRES);
@@ -197,7 +197,7 @@ static irqreturn_t tiadc_irq_h(int irq, void *private)
 			adc_fsm = tiadc_readl(adc_dev, REG_ADCFSM);
 		} while (adc_fsm != 0x10 && count++ < 100);
 
-		tiadc_writel(adc_dev, REG_CTRL, (config | CNTRLREG_TSCSSENB));
+		tiadc_writel(adc_dev, REG_CTRL, (config | CNTRLREG_SSENB));
 		return IRQ_HANDLED;
 	} else if (status & IRQENB_FIFO1THRES) {
 		/* Disable irq and wake worker thread */
@@ -671,7 +671,7 @@ static int __maybe_unused tiadc_suspend(struct device *dev)
 	unsigned int idle;
 
 	idle = tiadc_readl(adc_dev, REG_CTRL);
-	idle &= ~(CNTRLREG_TSCSSENB);
+	idle &= ~(CNTRLREG_SSENB);
 	tiadc_writel(adc_dev, REG_CTRL, (idle |
 			CNTRLREG_POWERDOWN));
 
