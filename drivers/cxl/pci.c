@@ -433,72 +433,69 @@ static void cxl_decode_regblock(u32 reg_lo, u32 reg_hi,
 }
 
 /**
- * cxl_pci_setup_regs() - Setup necessary MMIO.
- * @cxlm: The CXL memory device to communicate with.
+ * cxl_find_regblock() - Locate register blocks by type
+ * @pdev: The CXL PCI device to enumerate.
+ * @type: Register Block Indicator id
+ * @map: Enumeration output, clobbered on error
  *
- * Return: 0 if all necessary registers mapped.
+ * Return: 0 if register block enumerated, negative error code otherwise
  *
- * A memory device is required by spec to implement a certain set of MMIO
- * regions. The purpose of this function is to enumerate and map those
- * registers.
+ * A CXL DVSEC may point to one or more register blocks, search for them
+ * by @type.
  */
-static int cxl_pci_setup_regs(struct cxl_mem *cxlm)
+static int cxl_find_regblock(struct pci_dev *pdev, enum cxl_regloc_type type,
+			     struct cxl_register_map *map)
 {
 	u32 regloc_size, regblocks;
-	int regloc, i, n_maps, ret = 0;
-	struct device *dev = cxlm->dev;
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct cxl_register_map *map, maps[CXL_REGLOC_RBI_TYPES];
+	int regloc, i;
 
 	regloc = cxl_pci_dvsec(pdev, PCI_DVSEC_ID_CXL_REGLOC_DVSEC_ID);
-	if (!regloc) {
-		dev_err(dev, "register location dvsec not found\n");
+	if (!regloc)
 		return -ENXIO;
-	}
 
-	/* Get the size of the Register Locator DVSEC */
 	pci_read_config_dword(pdev, regloc + PCI_DVSEC_HEADER1, &regloc_size);
 	regloc_size = FIELD_GET(PCI_DVSEC_HEADER1_LENGTH_MASK, regloc_size);
 
 	regloc += PCI_DVSEC_ID_CXL_REGLOC_BLOCK1_OFFSET;
 	regblocks = (regloc_size - PCI_DVSEC_ID_CXL_REGLOC_BLOCK1_OFFSET) / 8;
 
-	for (i = 0, n_maps = 0; i < regblocks; i++, regloc += 8) {
+	for (i = 0; i < regblocks; i++, regloc += 8) {
 		u32 reg_lo, reg_hi;
 
 		pci_read_config_dword(pdev, regloc, &reg_lo);
 		pci_read_config_dword(pdev, regloc + 4, &reg_hi);
 
-		map = &maps[n_maps];
 		cxl_decode_regblock(reg_lo, reg_hi, map);
 
-		/* Ignore unknown register block types */
-		if (map->reg_type > CXL_REGLOC_RBI_MEMDEV)
-			continue;
-
-		ret = cxl_map_regblock(pdev, map);
-		if (ret)
-			return ret;
-
-		ret = cxl_probe_regs(pdev, map);
-		cxl_unmap_regblock(pdev, map);
-		if (ret)
-			return ret;
-
-		n_maps++;
+		if (map->reg_type == type)
+			return 0;
 	}
 
-	for (i = 0; i < n_maps; i++) {
-		ret = cxl_map_regs(cxlm, &maps[i]);
-		if (ret)
-			break;
-	}
+	return -ENODEV;
+}
 
-	return ret;
+static int cxl_setup_regs(struct pci_dev *pdev, enum cxl_regloc_type type,
+			  struct cxl_register_map *map)
+{
+	int rc;
+
+	rc = cxl_find_regblock(pdev, type, map);
+	if (rc)
+		return rc;
+
+	rc = cxl_map_regblock(pdev, map);
+	if (rc)
+		return rc;
+
+	rc = cxl_probe_regs(pdev, map);
+	cxl_unmap_regblock(pdev, map);
+
+	return rc;
 }
 
 static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
+	struct cxl_register_map map;
 	struct cxl_memdev *cxlmd;
 	struct cxl_mem *cxlm;
 	int rc;
@@ -518,7 +515,11 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (IS_ERR(cxlm))
 		return PTR_ERR(cxlm);
 
-	rc = cxl_pci_setup_regs(cxlm);
+	rc = cxl_setup_regs(pdev, CXL_REGLOC_RBI_MEMDEV, &map);
+	if (rc)
+		return rc;
+
+	rc = cxl_map_regs(cxlm, &map);
 	if (rc)
 		return rc;
 
