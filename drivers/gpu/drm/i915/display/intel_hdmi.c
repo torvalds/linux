@@ -1873,18 +1873,29 @@ static int intel_hdmi_port_clock(int clock, int bpc)
 	return clock * bpc / 8;
 }
 
-static bool intel_hdmi_bpc_possible(struct drm_connector *connector,
-				    int bpc, bool has_hdmi_sink, bool ycbcr420_output)
+static bool intel_hdmi_source_bpc_possible(struct drm_i915_private *i915, int bpc)
 {
-	struct drm_i915_private *i915 = to_i915(connector->dev);
+	switch (bpc) {
+	case 12:
+		return !HAS_GMCH(i915);
+	case 10:
+		return DISPLAY_VER(i915) >= 11;
+	case 8:
+		return true;
+	default:
+		MISSING_CASE(bpc);
+		return false;
+	}
+}
+
+static bool intel_hdmi_sink_bpc_possible(struct drm_connector *connector,
+					 int bpc, bool has_hdmi_sink, bool ycbcr420_output)
+{
 	const struct drm_display_info *info = &connector->display_info;
 	const struct drm_hdmi_info *hdmi = &info->hdmi;
 
 	switch (bpc) {
 	case 12:
-		if (HAS_GMCH(i915))
-			return false;
-
 		if (!has_hdmi_sink)
 			return false;
 
@@ -1893,9 +1904,6 @@ static bool intel_hdmi_bpc_possible(struct drm_connector *connector,
 		else
 			return info->edid_hdmi_dc_modes & DRM_EDID_HDMI_DC_36;
 	case 10:
-		if (DISPLAY_VER(i915) < 11)
-			return false;
-
 		if (!has_hdmi_sink)
 			return false;
 
@@ -1915,6 +1923,7 @@ static enum drm_mode_status
 intel_hdmi_mode_clock_valid(struct drm_connector *connector, int clock,
 			    bool has_hdmi_sink, bool ycbcr420_output)
 {
+	struct drm_i915_private *i915 = to_i915(connector->dev);
 	struct intel_hdmi *hdmi = intel_attached_hdmi(to_intel_connector(connector));
 	enum drm_mode_status status;
 
@@ -1927,13 +1936,15 @@ intel_hdmi_mode_clock_valid(struct drm_connector *connector, int clock,
 
 	/* if we can't do 8bpc we may still be able to do 12bpc */
 	if (status != MODE_OK &&
-	    intel_hdmi_bpc_possible(connector, 12, has_hdmi_sink, ycbcr420_output))
+	    intel_hdmi_source_bpc_possible(i915, 12) &&
+	    intel_hdmi_sink_bpc_possible(connector, 12, has_hdmi_sink, ycbcr420_output))
 		status = hdmi_port_clock_valid(hdmi, intel_hdmi_port_clock(clock, 12),
 					       true, has_hdmi_sink);
 
 	/* if we can't do 8,12bpc we may still be able to do 10bpc */
 	if (status != MODE_OK &&
-	    intel_hdmi_bpc_possible(connector, 10, has_hdmi_sink, ycbcr420_output))
+	    intel_hdmi_source_bpc_possible(i915, 10) &&
+	    intel_hdmi_sink_bpc_possible(connector, 10, has_hdmi_sink, ycbcr420_output))
 		status = hdmi_port_clock_valid(hdmi, intel_hdmi_port_clock(clock, 10),
 					       true, has_hdmi_sink);
 
@@ -1999,7 +2010,7 @@ bool intel_hdmi_deep_color_possible(const struct intel_crtc_state *crtc_state,
 		if (connector_state->crtc != crtc_state->uapi.crtc)
 			continue;
 
-		if (!intel_hdmi_bpc_possible(connector, bpc, has_hdmi_sink, ycbcr420_output))
+		if (!intel_hdmi_sink_bpc_possible(connector, bpc, has_hdmi_sink, ycbcr420_output))
 			return false;
 	}
 
@@ -2013,6 +2024,9 @@ static bool hdmi_deep_color_possible(const struct intel_crtc_state *crtc_state,
 		to_i915(crtc_state->uapi.crtc->dev);
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
+
+	if (!intel_hdmi_source_bpc_possible(dev_priv, bpc))
+		return false;
 
 	/*
 	 * HDMI deep color affects the clocks, so it's only possible
