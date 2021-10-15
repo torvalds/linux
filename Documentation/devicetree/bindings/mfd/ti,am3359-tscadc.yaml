@@ -16,6 +16,7 @@ properties:
       - items:
           - const: ti,am654-tscadc
           - const: ti,am3359-tscadc
+      - const: ti,am4372-magadc
 
   reg:
     maxItems: 1
@@ -46,6 +47,10 @@ properties:
   tsc:
     type: object
     description: Touchscreen controller child
+
+  mag:
+    type: object
+    description: Magnetic reader
 
 required:
   - compatible
