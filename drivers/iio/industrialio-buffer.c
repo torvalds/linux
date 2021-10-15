@@ -179,7 +179,7 @@ static ssize_t iio_buffer_write(struct file *filp, const char __user *buf,
 	struct iio_buffer *rb = ib->buffer;
 	struct iio_dev *indio_dev = ib->indio_dev;
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
-	int ret;
+	int ret = 0;
 	size_t written;
 
 	if (!indio_dev->info)
