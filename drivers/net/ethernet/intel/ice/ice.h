@@ -56,6 +56,7 @@
 #include "ice_dcb.h"
 #include "ice_switch.h"
 #include "ice_common.h"
+#include "ice_flow.h"
 #include "ice_sched.h"
 #include "ice_idc_int.h"
 #include "ice_virtchnl_pf.h"
@@ -125,6 +126,13 @@
 #define ICE_RX_DESC(R, i) (&(((union ice_32b_rx_flex_desc *)((R)->desc))[i]))
 #define ICE_TX_CTX_DESC(R, i) (&(((struct ice_tx_ctx_desc *)((R)->desc))[i]))
 #define ICE_TX_FDIRDESC(R, i) (&(((struct ice_fltr_desc *)((R)->desc))[i]))
+
+/* Minimum BW limit is 500 Kbps for any scheduler node */
+#define ICE_MIN_BW_LIMIT		500
+/* User can specify BW in either Kbit/Mbit/Gbit and OS converts it in bytes.
+ * use it to convert user specified BW limit into Kbps
+ */
+#define ICE_BW_KBPS_DIVISOR		125
 
 /* Macro for each VSI in a PF */
 #define ice_for_each_vsi(pf, i) \
@@ -440,6 +448,8 @@ struct ice_q_vector {
 	cpumask_t affinity_mask;
 	struct irq_affinity_notify affinity_notify;
 
+	struct ice_channel *ch;
+
 	char name[ICE_INT_NAME_STR_LEN];
 
 	u16 total_events;	/* net_dim(): number of interrupts processed */
@@ -594,6 +604,17 @@ struct ice_netdev_priv {
 	struct ice_vsi *vsi;
 	struct ice_repr *repr;
 };
+
+/**
+ * ice_vector_ch_enabled
+ * @qv: pointer to q_vector, can be NULL
+ *
+ * This function returns true if vector is channel enabled otherwise false
+ */
+static inline bool ice_vector_ch_enabled(struct ice_q_vector *qv)
+{
+	return !!qv->ch; /* Enable it to run with TC */
+}
 
 /**
  * ice_irq_dynamic_ena - Enable default interrupt generation settings

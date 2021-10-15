@@ -3954,7 +3954,7 @@ int ice_get_link_speed_mbps(struct ice_vsi *vsi)
  *
  * Return current VSI link speed and 0 if the speed is unknown.
  */
-static int ice_get_link_speed_kbps(struct ice_vsi *vsi)
+int ice_get_link_speed_kbps(struct ice_vsi *vsi)
 {
 	int speed_mbps;
 
