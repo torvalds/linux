@@ -118,6 +118,8 @@
 						reg = <0>;
 						ethernet = <&sgmii1>;
 						phy-mode = "sgmii";
+						qca,sgmii-enable-pll;
+						qca,sgmii-txclk-falling-edge;
 						fixed-link {
 							speed = <1000>;
 							full-duplex;
@@ -194,6 +196,8 @@
 						reg = <0>;
 						ethernet = <&sgmii0>;
 						phy-mode = "sgmii";
+						qca,sgmii-enable-pll;
+						qca,sgmii-txclk-falling-edge;
 						fixed-link {
 							speed = <1000>;
 							full-duplex;
