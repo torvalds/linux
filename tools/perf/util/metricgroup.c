@@ -144,6 +144,12 @@ struct metric {
 	 * events won't be grouped.
 	 */
 	bool has_constraint;
+	/**
+	 * Parsed events for the metric. Optional as events may be taken from a
+	 * different metric whose group contains all the IDs necessary for this
+	 * one.
+	 */
+	struct evlist *evlist;
 };
 
 static void metricgroup___watchdog_constraint_hint(const char *name, bool foot)
@@ -201,6 +207,7 @@ static struct metric *metric__new(const struct pmu_event *pe,
 	m->pctx->runtime = runtime;
 	m->has_constraint = metric_no_group || metricgroup__has_constraint(pe);
 	m->metric_refs = NULL;
+	m->evlist = NULL;
 
 	return m;
 }
@@ -224,222 +231,82 @@ static bool contains_metric_id(struct evsel **metric_events, int num_events,
 	return false;
 }
 
-static bool evsel_same_pmu_or_none(struct evsel *ev1, struct evsel *ev2)
-{
-	if (!ev1->pmu_name || !ev2->pmu_name)
-		return true;
-
-	return !strcmp(ev1->pmu_name, ev2->pmu_name);
-}
-
 /**
- * Find a group of events in perf_evlist that correspond to those from a parsed
- * metric expression. Note, as find_evsel_group is called in the same order as
- * perf_evlist was constructed, metric_no_merge doesn't need to test for
- * underfilling a group.
- * @perf_evlist: a list of events something like: {metric1 leader, metric1
- * sibling, metric1 sibling}:W,duration_time,{metric2 leader, metric2 sibling,
- * metric2 sibling}:W,duration_time
- * @pctx: the parse context for the metric expression.
- * @metric_no_merge: don't attempt to share events for the metric with other
- * metrics.
- * @has_constraint: is there a constraint on the group of events? In which case
- * the events won't be grouped.
- * @metric_events: out argument, null terminated array of evsel's associated
- * with the metric.
- * @evlist_used: in/out argument, bitmap tracking which evlist events are used.
- * @return the first metric event or NULL on failure.
+ * setup_metric_events - Find a group of events in metric_evlist that correspond
+ *                       to the IDs from a parsed metric expression.
+ * @ids: the metric IDs to match.
+ * @metric_evlist: the list of perf events.
+ * @out_metric_events: holds the created metric events array.
  */
-static struct evsel *find_evsel_group(struct evlist *perf_evlist,
-				      struct expr_parse_ctx *pctx,
-				      bool metric_no_merge,
-				      bool has_constraint,
-				      struct evsel **metric_events,
-				      unsigned long *evlist_used)
+static int setup_metric_events(struct hashmap *ids,
+			       struct evlist *metric_evlist,
+			       struct evsel ***out_metric_events)
 {
-	struct evsel *ev, *current_leader = NULL;
-	struct expr_id_data *val_ptr;
+	struct evsel **metric_events;
 	const char *metric_id;
-	int i = 0, matched_events = 0, events_to_match;
-	int idnum = (int)hashmap__size(pctx->ids);
+	struct evsel *ev;
+	size_t ids_size, matched_events, i;
 
-	if (idnum != 0) {
+	*out_metric_events = NULL;
+	ids_size = hashmap__size(ids);
+
+	metric_events = calloc(sizeof(void *), ids_size + 1);
+	if (!metric_events)
+		return -ENOMEM;
+
+	matched_events = 0;
+	evlist__for_each_entry(metric_evlist, ev) {
+		struct expr_id_data *val_ptr;
+
 		/*
-		 * duration_time is always grouped separately, when events are
-		 * grouped (ie has_constraint is false) then ignore it in the
-		 * matching loop and add it to metric_events at the end.
+		 * Check for duplicate events with the same name. For
+		 * example, uncore_imc/cas_count_read/ will turn into 6
+		 * events per socket on skylakex. Only the first such
+		 * event is placed in metric_events.
 		 */
-		events_to_match = idnum;
-		if (!has_constraint && hashmap__find(pctx->ids, "duration_time", (void **)&val_ptr))
-			events_to_match--;
+		metric_id = evsel__metric_id(ev);
+		if (contains_metric_id(metric_events, matched_events, metric_id))
+			continue;
+		/*
+		 * Does this event belong to the parse context? For
+		 * combined or shared groups, this metric may not care
+		 * about this event.
+		 */
+		if (hashmap__find(ids, metric_id, (void **)&val_ptr)) {
+			metric_events[matched_events++] = ev;
 
-		evlist__for_each_entry(perf_evlist, ev) {
-			/*
-			 * Events with a constraint aren't grouped and match the
-			 * first events available.
-			 */
-			if (has_constraint && ev->weak_group)
-				continue;
-			/* Ignore event if already used and merging is disabled. */
-			if (metric_no_merge && test_bit(ev->core.idx, evlist_used))
-				continue;
-			if (!has_constraint && !evsel__has_leader(ev, current_leader)) {
-				/*
-				 * Start of a new group, discard the whole match
-				 * and start again.
-				 */
-				matched_events = 0;
-				memset(metric_events, 0, sizeof(struct evsel *) * idnum);
-				current_leader = evsel__leader(ev);
-			}
-			/*
-			 * Check for duplicate events with the same name. For
-			 * example, uncore_imc/cas_count_read/ will turn into 6
-			 * events per socket on skylakex. Only the first such
-			 * event is placed in metric_events. If events aren't
-			 * grouped then this also ensures that the same event in
-			 * different sibling groups aren't both added to
-			 * metric_events.
-			 */
-			metric_id = evsel__metric_id(ev);
-			if (contains_metric_id(metric_events, matched_events, metric_id))
-				continue;
-			/* Does this event belong to the parse context? */
-			if (hashmap__find(pctx->ids, metric_id, (void **)&val_ptr))
-				metric_events[matched_events++] = ev;
-
-			if (matched_events == events_to_match)
+			if (matched_events >= ids_size)
 				break;
 		}
-	} else {
-		/*
-		 * There are no events to match, but we need to associate the
-		 * metric with an event for printing. A duration_time event was
-		 * parsed for this.
-		 */
-		idnum = 1;
-		events_to_match = 0;
 	}
-	if (events_to_match != idnum) {
-		/* Add the first duration_time. */
-		ev = evlist__find_evsel_by_str(perf_evlist, "duration_time");
-		if (ev)
-			metric_events[matched_events++] = ev;
+	if (matched_events < ids_size) {
+		free(metric_events);
+		return -EINVAL;
 	}
-
-	if (matched_events != idnum) {
-		/* Not a whole match */
-		return NULL;
-	}
-
-	metric_events[idnum] = NULL;
-
-	for (i = 0; i < idnum; i++) {
+	for (i = 0; i < ids_size; i++) {
 		ev = metric_events[i];
-		/* Don't free the used events. */
-		set_bit(ev->core.idx, evlist_used);
+		ev->collect_stat = true;
+
 		/*
-		 * The metric leader points to the identically named event in
-		 * metric_events.
+		 * The metric leader points to the identically named
+		 * event in metric_events.
 		 */
 		ev->metric_leader = ev;
 		/*
-		 * Mark two events with identical names in the same group (or
-		 * globally) as being in use as uncore events may be duplicated
-		 * for each pmu. Set the metric leader of such events to be the
-		 * event that appears in metric_events.
+		 * Mark two events with identical names in the same
+		 * group (or globally) as being in use as uncore events
+		 * may be duplicated for each pmu. Set the metric leader
+		 * of such events to be the event that appears in
+		 * metric_events.
 		 */
 		metric_id = evsel__metric_id(ev);
-		evlist__for_each_entry_continue(perf_evlist, ev) {
-			/*
-			 * If events are grouped then the search can terminate
-			 * when then group is left.
-			 */
-			if (!has_constraint &&
-			    ev->core.leader != metric_events[i]->core.leader &&
-			    evsel_same_pmu_or_none(evsel__leader(ev), evsel__leader(metric_events[i])))
-				break;
-			if (!strcmp(evsel__metric_id(metric_events[i]), metric_id)) {
-				set_bit(ev->core.idx, evlist_used);
+		evlist__for_each_entry_continue(metric_evlist, ev) {
+			if (!strcmp(evsel__metric_id(metric_events[i]), metric_id))
 				ev->metric_leader = metric_events[i];
-			}
 		}
 	}
-
-	return metric_events[0];
-}
-
-static int metricgroup__setup_events(struct list_head *groups,
-				     bool metric_no_merge,
-				     struct evlist *perf_evlist,
-				     struct rblist *metric_events_list)
-{
-	struct metric_event *me;
-	struct metric_expr *expr;
-	int i = 0;
-	int ret = 0;
-	struct metric *m;
-	struct evsel *evsel, *tmp;
-	unsigned long *evlist_used;
-
-	evlist_used = bitmap_zalloc(perf_evlist->core.nr_entries);
-	if (!evlist_used)
-		return -ENOMEM;
-
-	list_for_each_entry (m, groups, nd) {
-		struct evsel **metric_events;
-		const size_t ids_size = hashmap__size(m->pctx->ids);
-
-		metric_events = calloc(sizeof(void *),
-				ids_size == 0 ? 2 : ids_size + 1);
-		if (!metric_events) {
-			ret = -ENOMEM;
-			break;
-		}
-		evsel = find_evsel_group(perf_evlist, m->pctx,
-					 metric_no_merge,
-					 m->has_constraint, metric_events,
-					 evlist_used);
-		if (!evsel) {
-			pr_debug("Cannot resolve %s: %s\n",
-					m->metric_name, m->metric_expr);
-			free(metric_events);
-			continue;
-		}
-		for (i = 0; metric_events[i]; i++)
-			metric_events[i]->collect_stat = true;
-		me = metricgroup__lookup(metric_events_list, evsel, true);
-		if (!me) {
-			ret = -ENOMEM;
-			free(metric_events);
-			break;
-		}
-		expr = malloc(sizeof(struct metric_expr));
-		if (!expr) {
-			ret = -ENOMEM;
-			free(metric_events);
-			break;
-		}
-
-		expr->metric_refs = m->metric_refs;
-		m->metric_refs = NULL;
-		expr->metric_expr = m->metric_expr;
-		expr->metric_name = m->metric_name;
-		expr->metric_unit = m->metric_unit;
-		expr->metric_events = metric_events;
-		expr->runtime = m->pctx->runtime;
-		list_add(&expr->nd, &me->head);
-	}
-
-	evlist__for_each_entry_safe(perf_evlist, tmp, evsel) {
-		if (!test_bit(evsel->core.idx, evlist_used)) {
-			evlist__remove(perf_evlist, evsel);
-			evsel__delete(evsel);
-		}
-	}
-	bitmap_free(evlist_used);
-
-	return ret;
+	*out_metric_events = metric_events;
+	return 0;
 }
 
 static bool match_metric(const char *n, const char *list)
@@ -1222,20 +1089,15 @@ static int metric_list_cmp(void *priv __maybe_unused, const struct list_head *l,
  * @metric_no_group: Should events written to events be grouped "{}" or
  *                   global. Grouping is the default but due to multiplexing the
  *                   user may override.
- * @events: an out argument string of events that need to be parsed and
- *          associated with the metric. For example, the metric "IPC" would
- *          create an events string like "{instructions,cycles}:W".
  * @metric_list: The list that the metric or metric group are added to.
  * @map: The map that is searched for metrics, most commonly the table for the
  *       architecture perf is running upon.
  */
 static int metricgroup__add_metric(const char *metric_name, bool metric_no_group,
-				   struct strbuf *events,
 				   struct list_head *metric_list,
 				   const struct pmu_events_map *map)
 {
 	const struct pmu_event *pe;
-	struct metric *m;
 	LIST_HEAD(list);
 	int i, ret;
 	bool has_match = false;
@@ -1269,27 +1131,8 @@ static int metricgroup__add_metric(const char *metric_name, bool metric_no_group
 		pmu_for_each_sys_event(metricgroup__sys_event_iter, &data);
 	}
 	/* End of pmu events. */
-	if (!has_match) {
+	if (!has_match)
 		ret = -EINVAL;
-		goto out;
-	}
-
-	/* Sort metrics from largest to smallest. */
-	list_sort(NULL,  &list, metric_list_cmp);
-
-	list_for_each_entry(m, &list, nd) {
-		if (events->len > 0) {
-			ret = strbuf_addf(events, ",");
-			if (ret)
-				break;
-		}
-
-		ret = metricgroup__build_event_string(events,
-						m->pctx,
-						m->has_constraint);
-		if (ret)
-			break;
-	}
 
 out:
 	/*
@@ -1297,9 +1140,6 @@ out:
 	 * even if it's failed
 	 */
 	list_splice(&list, metric_list);
-
-	/* Sort metrics from largest to smallest. */
-	list_sort(NULL, metric_list, metric_list_cmp);
 	return ret;
 }
 
@@ -1312,15 +1152,11 @@ out:
  * @metric_no_group: Should events written to events be grouped "{}" or
  *                   global. Grouping is the default but due to multiplexing the
  *                   user may override.
- * @events: an out argument string of events that need to be parsed and
- *          associated with the metric. For example, the metric "IPC" would
- *          create an events string like "{instructions,cycles}:W".
  * @metric_list: The list that metrics are added to.
  * @map: The map that is searched for metrics, most commonly the table for the
  *       architecture perf is running upon.
  */
 static int metricgroup__add_metric_list(const char *list, bool metric_no_group,
-					struct strbuf *events,
 					struct list_head *metric_list,
 					const struct pmu_events_map *map)
 {
@@ -1332,13 +1168,9 @@ static int metricgroup__add_metric_list(const char *list, bool metric_no_group,
 		return -ENOMEM;
 	llist = nlist;
 
-	ret = strbuf_init(events, 100);
-	if (ret)
-		return ret;
-
 	while ((p = strsep(&llist, ",")) != NULL) {
-		ret = metricgroup__add_metric(p, metric_no_group, events,
-					      metric_list, map);
+		ret = metricgroup__add_metric(p, metric_no_group, metric_list,
+					      map);
 		if (ret == -EINVAL)
 			fprintf(stderr, "Cannot find metric or group `%s'\n", p);
 
@@ -1372,41 +1204,220 @@ static void metricgroup__free_metrics(struct list_head *metric_list)
 	}
 }
 
+/**
+ * build_combined_expr_ctx - Make an expr_parse_ctx with all has_constraint
+ *                           metric IDs, as the IDs are held in a set,
+ *                           duplicates will be removed.
+ * @metric_list: List to take metrics from.
+ * @combined: Out argument for result.
+ */
+static int build_combined_expr_ctx(const struct list_head *metric_list,
+				   struct expr_parse_ctx **combined)
+{
+	struct hashmap_entry *cur;
+	size_t bkt;
+	struct metric *m;
+	char *dup;
+	int ret;
+
+	*combined = expr__ctx_new();
+	if (!*combined)
+		return -ENOMEM;
+
+	list_for_each_entry(m, metric_list, nd) {
+		if (m->has_constraint) {
+			hashmap__for_each_entry(m->pctx->ids, cur, bkt) {
+				dup = strdup(cur->key);
+				if (!dup) {
+					ret = -ENOMEM;
+					goto err_out;
+				}
+				ret = expr__add_id(*combined, dup);
+				if (ret)
+					goto err_out;
+			}
+		}
+	}
+	return 0;
+err_out:
+	expr__ctx_free(*combined);
+	*combined = NULL;
+	return ret;
+}
+
+/**
+ * parse_ids - Build the event string for the ids and parse them creating an
+ *             evlist. The encoded metric_ids are decoded.
+ * @fake_pmu: used when testing metrics not supported by the current CPU.
+ * @ids: the event identifiers parsed from a metric.
+ * @has_constraint: false if events should be placed in a weak group.
+ * @out_evlist: the created list of events.
+ */
+static int parse_ids(struct perf_pmu *fake_pmu, struct expr_parse_ctx *ids,
+		     bool has_constraint, struct evlist **out_evlist)
+{
+	struct parse_events_error parse_error;
+	struct evlist *parsed_evlist;
+	struct strbuf events = STRBUF_INIT;
+	int ret;
+
+	*out_evlist = NULL;
+	if (hashmap__size(ids->ids) == 0) {
+		char *tmp;
+		/*
+		 * No ids/events in the expression parsing context. Events may
+		 * have been removed because of constant evaluation, e.g.:
+		 *  event1 if #smt_on else 0
+		 * Add a duration_time event to avoid a parse error on an empty
+		 * string.
+		 */
+		tmp = strdup("duration_time");
+		if (!tmp)
+			return -ENOMEM;
+
+		ids__insert(ids->ids, tmp);
+	}
+	ret = metricgroup__build_event_string(&events, ids, has_constraint);
+	if (ret)
+		return ret;
+
+	parsed_evlist = evlist__new();
+	if (!parsed_evlist) {
+		ret = -ENOMEM;
+		goto err_out;
+	}
+	pr_debug("Parsing metric events '%s'\n", events.buf);
+	bzero(&parse_error, sizeof(parse_error));
+	ret = __parse_events(parsed_evlist, events.buf, &parse_error, fake_pmu);
+	if (ret) {
+		parse_events_print_error(&parse_error, events.buf);
+		goto err_out;
+	}
+	ret = decode_all_metric_ids(parsed_evlist);
+	if (ret)
+		goto err_out;
+
+	*out_evlist = parsed_evlist;
+	parsed_evlist = NULL;
+err_out:
+	evlist__delete(parsed_evlist);
+	strbuf_release(&events);
+	return ret;
+}
+
 static int parse_groups(struct evlist *perf_evlist, const char *str,
 			bool metric_no_group,
 			bool metric_no_merge,
 			struct perf_pmu *fake_pmu,
-			struct rblist *metric_events,
+			struct rblist *metric_events_list,
 			const struct pmu_events_map *map)
 {
-	struct parse_events_error parse_error;
-	struct strbuf extra_events;
+	struct evlist *combined_evlist = NULL;
 	LIST_HEAD(metric_list);
+	struct metric *m;
 	int ret;
 
-	if (metric_events->nr_entries == 0)
-		metricgroup__rblist_init(metric_events);
+	if (metric_events_list->nr_entries == 0)
+		metricgroup__rblist_init(metric_events_list);
 	ret = metricgroup__add_metric_list(str, metric_no_group,
-					   &extra_events, &metric_list, map);
-	if (ret)
-		goto out;
-	pr_debug("adding %s\n", extra_events.buf);
-	bzero(&parse_error, sizeof(parse_error));
-	ret = __parse_events(perf_evlist, extra_events.len > 0 ? extra_events.buf : "duration_time",
-			     &parse_error, fake_pmu);
-	if (ret) {
-		parse_events_print_error(&parse_error, extra_events.buf);
-		goto out;
-	}
-	ret = decode_all_metric_ids(perf_evlist);
+					   &metric_list, map);
 	if (ret)
 		goto out;
 
-	ret = metricgroup__setup_events(&metric_list, metric_no_merge,
-					perf_evlist, metric_events);
+	/* Sort metrics from largest to smallest. */
+	list_sort(NULL, &metric_list, metric_list_cmp);
+
+	if (!metric_no_merge) {
+		struct expr_parse_ctx *combined = NULL;
+
+		ret = build_combined_expr_ctx(&metric_list, &combined);
+
+		if (!ret && combined && hashmap__size(combined->ids)) {
+			ret = parse_ids(fake_pmu, combined, /*has_constraint=*/true,
+					&combined_evlist);
+		}
+		if (combined)
+			expr__ctx_free(combined);
+
+		if (ret)
+			goto out;
+	}
+
+	list_for_each_entry(m, &metric_list, nd) {
+		struct metric_event *me;
+		struct evsel **metric_events;
+		struct evlist *metric_evlist = NULL;
+		struct metric *n;
+		struct metric_expr *expr;
+
+		if (combined_evlist && m->has_constraint) {
+			metric_evlist = combined_evlist;
+		} else if (!metric_no_merge) {
+			/*
+			 * See if the IDs for this metric are a subset of an
+			 * earlier metric.
+			 */
+			list_for_each_entry(n, &metric_list, nd) {
+				if (m == n)
+					break;
+
+				if (n->evlist == NULL)
+					continue;
+
+				if (expr__subset_of_ids(n->pctx, m->pctx)) {
+					pr_debug("Events in '%s' fully contained within '%s'\n",
+						 m->metric_name, n->metric_name);
+					metric_evlist = n->evlist;
+					break;
+				}
+
+			}
+		}
+		if (!metric_evlist) {
+			ret = parse_ids(fake_pmu, m->pctx, m->has_constraint,
+					&m->evlist);
+			if (ret)
+				goto out;
+
+			metric_evlist = m->evlist;
+		}
+		ret = setup_metric_events(m->pctx->ids, metric_evlist, &metric_events);
+		if (ret) {
+			pr_debug("Cannot resolve IDs for %s: %s\n",
+				m->metric_name, m->metric_expr);
+			goto out;
+		}
+
+		me = metricgroup__lookup(metric_events_list, metric_events[0], true);
+
+		expr = malloc(sizeof(struct metric_expr));
+		if (!expr) {
+			ret = -ENOMEM;
+			free(metric_events);
+			goto out;
+		}
+
+		expr->metric_refs = m->metric_refs;
+		m->metric_refs = NULL;
+		expr->metric_expr = m->metric_expr;
+		expr->metric_name = m->metric_name;
+		expr->metric_unit = m->metric_unit;
+		expr->metric_events = metric_events;
+		expr->runtime = m->pctx->runtime;
+		list_add(&expr->nd, &me->head);
+	}
+
+
+	if (combined_evlist)
+		evlist__splice_list_tail(perf_evlist, &combined_evlist->core.entries);
+
+	list_for_each_entry(m, &metric_list, nd) {
+		if (m->evlist)
+			evlist__splice_list_tail(perf_evlist, &m->evlist->core.entries);
+	}
+
 out:
 	metricgroup__free_metrics(&metric_list);
-	strbuf_release(&extra_events);
 	return ret;
 }
 
