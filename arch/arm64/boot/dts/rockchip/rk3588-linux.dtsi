@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/ {
+	chosen: chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xfe660000 console=ttyFIQ0 root=PARTUUID=614e0000-0000 rw rootwait";
+	};
+
+	fiq-debugger {
+		compatible = "rockchip,fiq-debugger";
+		rockchip,serial-id = <2>;
+		rockchip,wake-irq = <0>;
+		/* If enable uart uses irq instead of fiq */
+		rockchip,irq-mode-enable = <1>;
+		rockchip,baudrate = <1500000>;  /* Only 115200 and 1500000 */
+		interrupts = <GIC_SPI 252 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart2m0_xfer>;
+		status = "okay";
+	};
+
+	debug: debug@81004000 {
+		compatible = "rockchip,debug";
+		reg = <0x0 0x81004000 0x0 0x1000>,
+		      <0x0 0x81005000 0x0 0x1000>,
+		      <0x0 0x81006000 0x0 0x1000>,
+		      <0x0 0x81007000 0x0 0x1000>,
+		      <0x0 0x81024000 0x0 0x1000>,
+		      <0x0 0x81025000 0x0 0x1000>,
+		      <0x0 0x81026000 0x0 0x1000>,
+		      <0x0 0x81027000 0x0 0x1000>;
+	};
+};
+
+
