@@ -769,6 +769,7 @@ static int orion_spi_probe(struct platform_device *pdev)
 		dir_acc->vaddr = devm_ioremap(&pdev->dev, r->start, PAGE_SIZE);
 		if (!dir_acc->vaddr) {
 			status = -ENOMEM;
+			of_node_put(np);
 			goto out_rel_axi_clk;
 		}
 		dir_acc->size = PAGE_SIZE;
