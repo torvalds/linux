@@ -269,7 +269,6 @@ enum odm_common_info_def {
 
 	/*  Dynamic value: */
 /*  POINTER REFERENCE-----------  */
-	ODM_CMNINFO_MAC_PHY_MODE,	/*  ODM_MAC_PHY_MODE_E */
 	ODM_CMNINFO_TX_UNI,
 	ODM_CMNINFO_RX_UNI,
 	ODM_CMNINFO_WM_MODE,		/*  ODM_WIRELESS_MODE_E */
@@ -621,8 +620,6 @@ struct odm_dm_struct {
 	bool	bool_temp;
 	struct adapter *adapter_temp;
 
-	/*  MAC PHY Mode SMSP/DMSP/DMDP = 0/1/2 */
-	u8	*pMacPhyMode;
 	/* TX Unicast byte count */
 	u64	*pNumTxBytesUnicast;
 	/* RX Unicast byte count */

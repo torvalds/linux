@@ -231,9 +231,6 @@ void ODM_CmnInfoHook(struct odm_dm_struct *pDM_Odm, enum odm_common_info_def Cmn
 	/*  */
 	switch	(CmnInfo) {
 	/*  Dynamic call by reference pointer. */
-	case	ODM_CMNINFO_MAC_PHY_MODE:
-		pDM_Odm->pMacPhyMode = (u8 *)pValue;
-		break;
 	case	ODM_CMNINFO_TX_UNI:
 		pDM_Odm->pNumTxBytesUnicast = (u64 *)pValue;
 		break;
