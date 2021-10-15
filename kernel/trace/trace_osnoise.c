@@ -294,19 +294,19 @@ static void print_osnoise_headers(struct seq_file *s)
 	seq_puts(s, "#                                _-----=> irqs-off\n");
 	seq_puts(s, "#                               / _----=> need-resched\n");
 	seq_puts(s, "#                              | / _---=> hardirq/softirq\n");
-	seq_puts(s, "#                              || / _--=> preempt-depth     ");
-	seq_puts(s, "                       MAX\n");
-
-	seq_puts(s, "#                              || /                         ");
+	seq_puts(s, "#                              || / _--=> preempt-depth\n");
+	seq_puts(s, "#                              ||| / _-=> migrate-disable     ");
+	seq_puts(s, "                    MAX\n");
+	seq_puts(s, "#                              |||| /     delay               ");
 	seq_puts(s, "                    SINGLE      Interference counters:\n");
 
-	seq_puts(s, "#                              ||||               RUNTIME   ");
+	seq_puts(s, "#                              |||||               RUNTIME   ");
 	seq_puts(s, "   NOISE  %% OF CPU  NOISE    +-----------------------------+\n");
 
-	seq_puts(s, "#           TASK-PID      CPU# ||||   TIMESTAMP    IN US    ");
+	seq_puts(s, "#           TASK-PID      CPU# |||||   TIMESTAMP    IN US    ");
 	seq_puts(s, "   IN US  AVAILABLE  IN US     HW    NMI    IRQ   SIRQ THREAD\n");
 
-	seq_puts(s, "#              | |         |   ||||      |           |      ");
+	seq_puts(s, "#              | |         |   |||||      |           |      ");
 	seq_puts(s, "       |    |            |      |      |      |      |      |\n");
 }
 #endif /* CONFIG_PREEMPT_RT */
