@@ -219,8 +219,6 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 
 	/* Set the control register bits */
 	ctrl = CNTRLREG_STEPCONFIGWRT |	CNTRLREG_STEPID;
-	regmap_write(tscadc->regmap, REG_CTRL, ctrl);
-
 	if (tsc_wires > 0) {
 		tscadc->tsc_wires = tsc_wires;
 		if (tsc_wires == 5)
@@ -228,6 +226,7 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 		else
 			ctrl |= CNTRLREG_4WIRE | CNTRLREG_TSCENB;
 	}
+	regmap_write(tscadc->regmap, REG_CTRL, ctrl);
 
 	tscadc_idle_config(tscadc);
 
@@ -313,9 +312,9 @@ static int __maybe_unused tscadc_resume(struct device *dev)
 	pm_runtime_get_sync(dev);
 
 	/* context restore */
-	ctrl = CNTRLREG_STEPCONFIGWRT |	CNTRLREG_STEPID;
-	regmap_write(tscadc->regmap, REG_CTRL, ctrl);
+	regmap_write(tscadc->regmap, REG_CLKDIV, tscadc->clk_div);
 
+	ctrl = CNTRLREG_STEPCONFIGWRT |	CNTRLREG_STEPID;
 	if (tscadc->tsc_wires > 0) {
 		if (tscadc->tsc_wires == 5)
 			ctrl |= CNTRLREG_5WIRE | CNTRLREG_TSCENB;
@@ -323,12 +322,12 @@ static int __maybe_unused tscadc_resume(struct device *dev)
 			ctrl |= CNTRLREG_4WIRE | CNTRLREG_TSCENB;
 	}
 
+	regmap_write(tscadc->regmap, REG_CTRL, ctrl);
+
 	tscadc_idle_config(tscadc);
 
 	ctrl |= CNTRLREG_TSCSSENB;
 	regmap_write(tscadc->regmap, REG_CTRL, ctrl);
-
-	regmap_write(tscadc->regmap, REG_CLKDIV, tscadc->clk_div);
 
 	return 0;
 }
