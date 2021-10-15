@@ -5,6 +5,11 @@
 #ifndef _ASM_X86_FPU_SIGNAL_H
 #define _ASM_X86_FPU_SIGNAL_H
 
+#include <linux/compat.h>
+#include <linux/user.h>
+
+#include <asm/fpu/types.h>
+
 #ifdef CONFIG_X86_64
 # include <uapi/asm/sigcontext.h>
 # include <asm/user32.h>
@@ -30,5 +35,13 @@ fpu__alloc_mathframe(unsigned long sp, int ia32_frame,
 		     unsigned long *buf_fx, unsigned long *size);
 
 unsigned long fpu__get_fpstate_size(void);
+
+extern bool copy_fpstate_to_sigframe(void __user *buf, void __user *fp, int size);
+extern void fpu__clear_user_states(struct fpu *fpu);
+extern bool fpu__restore_sig(void __user *buf, int ia32_frame);
+
+extern void restore_fpregs_from_fpstate(union fpregs_state *fpstate, u64 mask);
+
+extern bool copy_fpstate_to_sigframe(void __user *buf, void __user *fp, int size);
 
 #endif /* _ASM_X86_FPU_SIGNAL_H */

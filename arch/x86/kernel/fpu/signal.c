@@ -7,7 +7,6 @@
 #include <linux/cpu.h>
 #include <linux/pagemap.h>
 
-#include <asm/fpu/internal.h>
 #include <asm/fpu/signal.h>
 #include <asm/fpu/regset.h>
 #include <asm/fpu/xstate.h>

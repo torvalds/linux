@@ -116,6 +116,9 @@ extern void fpstate_init_soft(struct swregs_state *soft);
 static inline void fpstate_init_soft(struct swregs_state *soft) {}
 #endif
 
+/* State tracking */
+DECLARE_PER_CPU(struct fpu *, fpu_fpregs_owner_ctx);
+
 /* fpstate */
 extern union fpregs_state init_fpstate;
 

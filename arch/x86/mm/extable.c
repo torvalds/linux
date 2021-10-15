@@ -4,7 +4,8 @@
 #include <linux/sched/debug.h>
 #include <xen/xen.h>
 
-#include <asm/fpu/internal.h>
+#include <asm/fpu/signal.h>
+#include <asm/fpu/xstate.h>
 #include <asm/sev.h>
 #include <asm/traps.h>
 #include <asm/kdebug.h>

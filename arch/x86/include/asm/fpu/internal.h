@@ -26,7 +26,6 @@
 /*
  * High level FPU state handling functions:
  */
-extern bool fpu__restore_sig(void __user *buf, int ia32_frame);
 extern void fpu__clear_user_states(struct fpu *fpu);
 extern int  fpu__exception_code(struct fpu *fpu, int trap_nr);
 
@@ -41,11 +40,5 @@ extern void fpu__init_cpu_xstate(void);
 extern void fpu__init_system(struct cpuinfo_x86 *c);
 extern void fpu__init_check_bugs(void);
 extern void fpu__resume_cpu(void);
-
-extern void restore_fpregs_from_fpstate(union fpregs_state *fpstate, u64 mask);
-
-extern bool copy_fpstate_to_sigframe(void __user *buf, void __user *fp, int size);
-
-DECLARE_PER_CPU(struct fpu *, fpu_fpregs_owner_ctx);
 
 #endif /* _ASM_X86_FPU_INTERNAL_H */
