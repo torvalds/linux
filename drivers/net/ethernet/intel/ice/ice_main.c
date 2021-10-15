@@ -5255,6 +5255,12 @@ static int ice_set_mac_address(struct net_device *netdev, void *pi)
 		return -EBUSY;
 	}
 
+	if (ice_chnl_dmac_fltr_cnt(pf)) {
+		netdev_err(netdev, "can't set mac %pM. Device has tc-flower filters, delete all of them and try again\n",
+			   mac);
+		return -EAGAIN;
+	}
+
 	netif_addr_lock_bh(netdev);
 	ether_addr_copy(old_mac, netdev->dev_addr);
 	/* change the netdev's MAC address */
@@ -5511,6 +5517,13 @@ ice_set_features(struct net_device *netdev, netdev_features_t features)
 		dev_err(ice_pf_to_dev(pf), "ADQ is active, can't turn hw_tc_offload off\n");
 		return -EACCES;
 	}
+
+	if ((features & NETIF_F_HW_TC) &&
+	    !(netdev->features & NETIF_F_HW_TC))
+		set_bit(ICE_FLAG_CLS_FLOWER, pf->flags);
+	else
+		clear_bit(ICE_FLAG_CLS_FLOWER, pf->flags);
+
 	return ret;
 }
 
@@ -7650,16 +7663,72 @@ static int ice_create_q_channel(struct ice_vsi *vsi, struct ice_channel *ch)
 }
 
 /**
+ * ice_rem_all_chnl_fltrs - removes all channel filters
+ * @pf: ptr to PF, TC-flower based filter are tracked at PF level
+ *
+ * Remove all advanced switch filters only if they are channel specific
+ * tc-flower based filter
+ */
+static void ice_rem_all_chnl_fltrs(struct ice_pf *pf)
+{
+	struct ice_tc_flower_fltr *fltr;
+	struct hlist_node *node;
+
+	/* to remove all channel filters, iterate an ordered list of filters */
+	hlist_for_each_entry_safe(fltr, node,
+				  &pf->tc_flower_fltr_list,
+				  tc_flower_node) {
+		struct ice_rule_query_data rule;
+		int status;
+
+		/* for now process only channel specific filters */
+		if (!ice_is_chnl_fltr(fltr))
+			continue;
+
+		rule.rid = fltr->rid;
+		rule.rule_id = fltr->rule_id;
+		rule.vsi_handle = fltr->dest_id;
+		status = ice_rem_adv_rule_by_id(&pf->hw, &rule);
+		if (status) {
+			if (status == -ENOENT)
+				dev_dbg(ice_pf_to_dev(pf), "TC flower filter (rule_id %u) does not exist\n",
+					rule.rule_id);
+			else
+				dev_err(ice_pf_to_dev(pf), "failed to delete TC flower filter, status %d\n",
+					status);
+		} else if (fltr->dest_vsi) {
+			/* update advanced switch filter count */
+			if (fltr->dest_vsi->type == ICE_VSI_CHNL) {
+				u32 flags = fltr->flags;
+
+				fltr->dest_vsi->num_chnl_fltr--;
+				if (flags & (ICE_TC_FLWR_FIELD_DST_MAC |
+					     ICE_TC_FLWR_FIELD_ENC_DST_MAC))
+					pf->num_dmac_chnl_fltrs--;
+			}
+		}
+
+		hlist_del(&fltr->tc_flower_node);
+		kfree(fltr);
+	}
+}
+
+/**
  * ice_remove_q_channels - Remove queue channels for the TCs
  * @vsi: VSI to be configured
  * @rem_fltr: delete advanced switch filter or not
  *
  * Remove queue channels for the TCs
  */
-static void ice_remove_q_channels(struct ice_vsi *vsi, bool __maybe_unused rem_fltr)
+static void ice_remove_q_channels(struct ice_vsi *vsi, bool rem_fltr)
 {
 	struct ice_channel *ch, *ch_tmp;
+	struct ice_pf *pf = vsi->back;
 	int i;
+
+	/* remove all tc-flower based filter if they are channel filters only */
+	if (rem_fltr)
+		ice_rem_all_chnl_fltrs(pf);
 
 	/* perform cleanup for channels if they exist */
 	list_for_each_entry_safe(ch, ch_tmp, &vsi->ch_list, list) {
@@ -7926,6 +7995,12 @@ static int ice_setup_tc_mqprio_qdisc(struct net_device *netdev, void *type_data)
 		}
 		memcpy(&vsi->mqprio_qopt, mqprio_qopt, sizeof(*mqprio_qopt));
 		set_bit(ICE_FLAG_TC_MQPRIO, pf->flags);
+		/* don't assume state of hw_tc_offload during driver load
+		 * and set the flag for TC flower filter if hw_tc_offload
+		 * already ON
+		 */
+		if (vsi->netdev->features & NETIF_F_HW_TC)
+			set_bit(ICE_FLAG_CLS_FLOWER, pf->flags);
 		break;
 	default:
 		return -EINVAL;
