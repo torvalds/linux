@@ -1975,17 +1975,21 @@ static int cs42l42_i2c_probe(struct i2c_client *i2c_client,
 	}
 	usleep_range(CS42L42_BOOT_TIME_US, CS42L42_BOOT_TIME_US * 2);
 
-	/* Request IRQ */
-	ret = devm_request_threaded_irq(&i2c_client->dev,
-			i2c_client->irq,
-			NULL, cs42l42_irq_thread,
-			IRQF_ONESHOT | IRQF_TRIGGER_LOW,
-			"cs42l42", cs42l42);
-	if (ret == -EPROBE_DEFER)
-		goto err_disable;
-	else if (ret != 0)
-		dev_err(&i2c_client->dev,
-			"Failed to request IRQ: %d\n", ret);
+	/* Request IRQ if one was specified */
+	if (i2c_client->irq) {
+		ret = devm_request_threaded_irq(&i2c_client->dev,
+						i2c_client->irq,
+						NULL, cs42l42_irq_thread,
+						IRQF_ONESHOT | IRQF_TRIGGER_LOW,
+						"cs42l42", cs42l42);
+		if (ret == -EPROBE_DEFER) {
+			goto err_disable;
+		} else if (ret != 0) {
+			dev_err(&i2c_client->dev,
+				"Failed to request IRQ: %d\n", ret);
+			goto err_disable;
+		}
+	}
 
 	/* initialize codec */
 	devid = cirrus_read_device_id(cs42l42->regmap, CS42L42_DEVID_AB);
@@ -2056,7 +2060,9 @@ static int cs42l42_i2c_remove(struct i2c_client *i2c_client)
 {
 	struct cs42l42_private *cs42l42 = i2c_get_clientdata(i2c_client);
 
-	devm_free_irq(&i2c_client->dev, i2c_client->irq, cs42l42);
+	if (i2c_client->irq)
+		devm_free_irq(&i2c_client->dev, i2c_client->irq, cs42l42);
+
 	pm_runtime_suspend(&i2c_client->dev);
 	pm_runtime_disable(&i2c_client->dev);
 
