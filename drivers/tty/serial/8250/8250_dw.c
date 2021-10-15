@@ -338,15 +338,12 @@ static void dw8250_set_termios(struct uart_port *p, struct ktermios *termios,
 	rate = clk_round_rate(d->clk, newrate);
 	if (rate > 0) {
 		/*
-		 * Preliminary set the uartclk to the new clock rate so the
-		 * clock update event handler caused by the clk_set_rate()
-		 * calling wouldn't actually update the UART divisor since
-		 * we about to do this anyway.
+		 * Note that any clock-notifer worker will block in
+		 * serial8250_update_uartclk() until we are done.
 		 */
-		swap(p->uartclk, rate);
 		ret = clk_set_rate(d->clk, newrate);
-		if (ret)
-			swap(p->uartclk, rate);
+		if (!ret)
+			p->uartclk = rate;
 	}
 	clk_prepare_enable(d->clk);
 
