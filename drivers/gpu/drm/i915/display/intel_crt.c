@@ -45,6 +45,7 @@
 #include "intel_fifo_underrun.h"
 #include "intel_gmbus.h"
 #include "intel_hotplug.h"
+#include "intel_pch_display.h"
 #include "intel_pch_refclk.h"
 
 /* Here's the desired hotplug mode */
