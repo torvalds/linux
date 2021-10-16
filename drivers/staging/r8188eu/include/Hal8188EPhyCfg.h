@@ -48,14 +48,6 @@ enum rf_radio_path {
 						 * total three groups */
 #define CHANNEL_GROUP_MAX_88E		6
 
-enum wireless_mode {
-	WIRELESS_MODE_UNKNOWN = 0x00,
-	WIRELESS_MODE_B			= BIT(0),
-	WIRELESS_MODE_G			= BIT(1),
-	WIRELESS_MODE_AUTO		= BIT(5),
-	WIRELESS_MODE_N_24G		= BIT(3),
-};
-
 /* BB/RF related */
 enum RF_TYPE_8190P {
 	RF_TYPE_MIN,		/*  0 */
