@@ -308,7 +308,7 @@ static inline void ether_addr_copy(u8 *dst, const u8 *src)
  */
 static inline void eth_hw_addr_set(struct net_device *dev, const u8 *addr)
 {
-	ether_addr_copy(dev->dev_addr, addr);
+	__dev_addr_set(dev, addr, ETH_ALEN);
 }
 
 /**

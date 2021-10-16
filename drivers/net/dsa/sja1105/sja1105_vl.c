@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright 2020, NXP Semiconductors
+/* Copyright 2020 NXP
  */
 #include <net/tc_act/tc_gate.h>
 #include <linux/dsa/8021q.h>
