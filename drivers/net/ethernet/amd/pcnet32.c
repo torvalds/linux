@@ -1595,6 +1595,7 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 	struct net_device *dev;
 	const struct pcnet32_access *a = NULL;
 	u8 promaddr[ETH_ALEN];
+	u8 addr[ETH_ALEN];
 	int ret = -ENODEV;
 
 	/* reset the chip */
@@ -1760,9 +1761,10 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 		unsigned int val;
 		val = a->read_csr(ioaddr, i + 12) & 0x0ffff;
 		/* There may be endianness issues here. */
-		dev->dev_addr[2 * i] = val & 0x0ff;
-		dev->dev_addr[2 * i + 1] = (val >> 8) & 0x0ff;
+		addr[2 * i] = val & 0x0ff;
+		addr[2 * i + 1] = (val >> 8) & 0x0ff;
 	}
+	eth_hw_addr_set(dev, addr);
 
 	/* read PROM address and compare with CSR address */
 	for (i = 0; i < ETH_ALEN; i++)
@@ -1780,8 +1782,11 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 	}
 
 	/* if the ethernet address is not valid, force to 00:00:00:00:00:00 */
-	if (!is_valid_ether_addr(dev->dev_addr))
-		eth_zero_addr(dev->dev_addr);
+	if (!is_valid_ether_addr(dev->dev_addr)) {
+		static const u8 zero_addr[ETH_ALEN] = {};
+
+		eth_hw_addr_set(dev, zero_addr);
+	}
 
 	if (pcnet32_debug & NETIF_MSG_PROBE) {
 		pr_cont(" %pM", dev->dev_addr);
