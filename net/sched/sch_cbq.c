@@ -565,8 +565,7 @@ cbq_update(struct cbq_sched_data *q)
 		long avgidle = cl->avgidle;
 		long idle;
 
-		cl->bstats.packets++;
-		cl->bstats.bytes += len;
+		_bstats_update(&cl->bstats, len, 1);
 
 		/*
 		 * (now - last) is total time between packet right edges.

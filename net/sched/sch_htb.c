@@ -1308,6 +1308,7 @@ nla_put_failure:
 static void htb_offload_aggregate_stats(struct htb_sched *q,
 					struct htb_class *cl)
 {
+	u64 bytes = 0, packets = 0;
 	struct htb_class *c;
 	unsigned int i;
 
@@ -1323,14 +1324,15 @@ static void htb_offload_aggregate_stats(struct htb_sched *q,
 			if (p != cl)
 				continue;
 
-			cl->bstats.bytes += c->bstats_bias.bytes;
-			cl->bstats.packets += c->bstats_bias.packets;
+			bytes += c->bstats_bias.bytes;
+			packets += c->bstats_bias.packets;
 			if (c->level == 0) {
-				cl->bstats.bytes += c->leaf.q->bstats.bytes;
-				cl->bstats.packets += c->leaf.q->bstats.packets;
+				bytes += c->leaf.q->bstats.bytes;
+				packets += c->leaf.q->bstats.packets;
 			}
 		}
 	}
+	_bstats_update(&cl->bstats, bytes, packets);
 }
 
 static int
@@ -1358,8 +1360,9 @@ htb_dump_class_stats(struct Qdisc *sch, unsigned long arg, struct gnet_dump *d)
 				cl->bstats = cl->leaf.q->bstats;
 			else
 				gnet_stats_basic_packed_init(&cl->bstats);
-			cl->bstats.bytes += cl->bstats_bias.bytes;
-			cl->bstats.packets += cl->bstats_bias.packets;
+			_bstats_update(&cl->bstats,
+				       cl->bstats_bias.bytes,
+				       cl->bstats_bias.packets);
 		} else {
 			htb_offload_aggregate_stats(q, cl);
 		}
@@ -1578,8 +1581,9 @@ static int htb_destroy_class_offload(struct Qdisc *sch, struct htb_class *cl,
 		WARN_ON(old != q);
 
 	if (cl->parent) {
-		cl->parent->bstats_bias.bytes += q->bstats.bytes;
-		cl->parent->bstats_bias.packets += q->bstats.packets;
+		_bstats_update(&cl->parent->bstats_bias,
+			       q->bstats.bytes,
+			       q->bstats.packets);
 	}
 
 	offload_opt = (struct tc_htb_qopt_offload) {
@@ -1925,8 +1929,9 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 				htb_graft_helper(dev_queue, old_q);
 				goto err_kill_estimator;
 			}
-			parent->bstats_bias.bytes += old_q->bstats.bytes;
-			parent->bstats_bias.packets += old_q->bstats.packets;
+			_bstats_update(&parent->bstats_bias,
+				       old_q->bstats.bytes,
+				       old_q->bstats.packets);
 			qdisc_put(old_q);
 		}
 		new_q = qdisc_create_dflt(dev_queue, &pfifo_qdisc_ops,

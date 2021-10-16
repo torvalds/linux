@@ -353,6 +353,7 @@ static int gred_offload_dump_stats(struct Qdisc *sch)
 {
 	struct gred_sched *table = qdisc_priv(sch);
 	struct tc_gred_qopt_offload *hw_stats;
+	u64 bytes = 0, packets = 0;
 	unsigned int i;
 	int ret;
 
@@ -381,15 +382,15 @@ static int gred_offload_dump_stats(struct Qdisc *sch)
 		table->tab[i]->bytesin += hw_stats->stats.bstats[i].bytes;
 		table->tab[i]->backlog += hw_stats->stats.qstats[i].backlog;
 
-		_bstats_update(&sch->bstats,
-			       hw_stats->stats.bstats[i].bytes,
-			       hw_stats->stats.bstats[i].packets);
+		bytes += hw_stats->stats.bstats[i].bytes;
+		packets += hw_stats->stats.bstats[i].packets;
 		sch->qstats.qlen += hw_stats->stats.qstats[i].qlen;
 		sch->qstats.backlog += hw_stats->stats.qstats[i].backlog;
 		sch->qstats.drops += hw_stats->stats.qstats[i].drops;
 		sch->qstats.requeues += hw_stats->stats.qstats[i].requeues;
 		sch->qstats.overlimits += hw_stats->stats.qstats[i].overlimits;
 	}
+	_bstats_update(&sch->bstats, bytes, packets);
 
 	kfree(hw_stats);
 	return ret;

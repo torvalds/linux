@@ -126,6 +126,7 @@ EXPORT_SYMBOL(gnet_stats_basic_packed_init);
 static void gnet_stats_add_basic_cpu(struct gnet_stats_basic_packed *bstats,
 				     struct gnet_stats_basic_cpu __percpu *cpu)
 {
+	u64 t_bytes = 0, t_packets = 0;
 	int i;
 
 	for_each_possible_cpu(i) {
@@ -139,9 +140,10 @@ static void gnet_stats_add_basic_cpu(struct gnet_stats_basic_packed *bstats,
 			packets = bcpu->bstats.packets;
 		} while (u64_stats_fetch_retry_irq(&bcpu->syncp, start));
 
-		bstats->bytes += bytes;
-		bstats->packets += packets;
+		t_bytes += bytes;
+		t_packets += packets;
 	}
+	_bstats_update(bstats, t_bytes, t_packets);
 }
 
 void gnet_stats_add_basic(const seqcount_t *running,
@@ -164,8 +166,7 @@ void gnet_stats_add_basic(const seqcount_t *running,
 		packets = b->packets;
 	} while (running && read_seqcount_retry(running, seq));
 
-	bstats->bytes += bytes;
-	bstats->packets += packets;
+	_bstats_update(bstats, bytes, packets);
 }
 EXPORT_SYMBOL(gnet_stats_add_basic);
 
