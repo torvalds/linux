@@ -17,6 +17,7 @@
 #include <linux/scatterlist.h>
 #include <linux/wait.h>
 #include <linux/mutex.h>
+#include <linux/inetdevice.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_cache.h>
 
@@ -62,16 +63,23 @@ static int smc_ib_modify_qp_rtr(struct smc_link *lnk)
 		IB_QP_STATE | IB_QP_AV | IB_QP_PATH_MTU | IB_QP_DEST_QPN |
 		IB_QP_RQ_PSN | IB_QP_MAX_DEST_RD_ATOMIC | IB_QP_MIN_RNR_TIMER;
 	struct ib_qp_attr qp_attr;
+	u8 hop_lim = 1;
 
 	memset(&qp_attr, 0, sizeof(qp_attr));
 	qp_attr.qp_state = IB_QPS_RTR;
 	qp_attr.path_mtu = min(lnk->path_mtu, lnk->peer_mtu);
 	qp_attr.ah_attr.type = RDMA_AH_ATTR_TYPE_ROCE;
 	rdma_ah_set_port_num(&qp_attr.ah_attr, lnk->ibport);
-	rdma_ah_set_grh(&qp_attr.ah_attr, NULL, 0, lnk->sgid_index, 1, 0);
+	if (lnk->lgr->smc_version == SMC_V2 && lnk->lgr->uses_gateway)
+		hop_lim = IPV6_DEFAULT_HOPLIMIT;
+	rdma_ah_set_grh(&qp_attr.ah_attr, NULL, 0, lnk->sgid_index, hop_lim, 0);
 	rdma_ah_set_dgid_raw(&qp_attr.ah_attr, lnk->peer_gid);
-	memcpy(&qp_attr.ah_attr.roce.dmac, lnk->peer_mac,
-	       sizeof(lnk->peer_mac));
+	if (lnk->lgr->smc_version == SMC_V2 && lnk->lgr->uses_gateway)
+		memcpy(&qp_attr.ah_attr.roce.dmac, lnk->lgr->nexthop_mac,
+		       sizeof(lnk->lgr->nexthop_mac));
+	else
+		memcpy(&qp_attr.ah_attr.roce.dmac, lnk->peer_mac,
+		       sizeof(lnk->peer_mac));
 	qp_attr.dest_qp_num = lnk->peer_qpn;
 	qp_attr.rq_psn = lnk->peer_psn; /* starting receive packet seq # */
 	qp_attr.max_dest_rd_atomic = 1; /* max # of resources for incoming
@@ -210,9 +218,54 @@ out:
 	return -ENOENT;
 }
 
+static int smc_ib_determine_gid_rcu(const struct net_device *ndev,
+				    const struct ib_gid_attr *attr,
+				    u8 gid[], u8 *sgid_index,
+				    struct smc_init_info_smcrv2 *smcrv2)
+{
+	if (!smcrv2 && attr->gid_type == IB_GID_TYPE_ROCE) {
+		if (gid)
+			memcpy(gid, &attr->gid, SMC_GID_SIZE);
+		if (sgid_index)
+			*sgid_index = attr->index;
+		return 0;
+	}
+	if (smcrv2 && attr->gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP &&
+	    smc_ib_gid_to_ipv4((u8 *)&attr->gid) != cpu_to_be32(INADDR_NONE)) {
+		struct in_device *in_dev = __in_dev_get_rcu(ndev);
+		const struct in_ifaddr *ifa;
+		bool subnet_match = false;
+
+		if (!in_dev)
+			goto out;
+		in_dev_for_each_ifa_rcu(ifa, in_dev) {
+			if (!inet_ifa_match(smcrv2->saddr, ifa))
+				continue;
+			subnet_match = true;
+			break;
+		}
+		if (!subnet_match)
+			goto out;
+		if (smcrv2->daddr && smc_ib_find_route(smcrv2->saddr,
+						       smcrv2->daddr,
+						       smcrv2->nexthop_mac,
+						       &smcrv2->uses_gateway))
+			goto out;
+
+		if (gid)
+			memcpy(gid, &attr->gid, SMC_GID_SIZE);
+		if (sgid_index)
+			*sgid_index = attr->index;
+		return 0;
+	}
+out:
+	return -ENODEV;
+}
+
 /* determine the gid for an ib-device port and vlan id */
 int smc_ib_determine_gid(struct smc_ib_device *smcibdev, u8 ibport,
-			 unsigned short vlan_id, u8 gid[], u8 *sgid_index)
+			 unsigned short vlan_id, u8 gid[], u8 *sgid_index,
+			 struct smc_init_info_smcrv2 *smcrv2)
 {
 	const struct ib_gid_attr *attr;
 	const struct net_device *ndev;
@@ -228,15 +281,13 @@ int smc_ib_determine_gid(struct smc_ib_device *smcibdev, u8 ibport,
 		if (!IS_ERR(ndev) &&
 		    ((!vlan_id && !is_vlan_dev(ndev)) ||
 		     (vlan_id && is_vlan_dev(ndev) &&
-		      vlan_dev_vlan_id(ndev) == vlan_id)) &&
-		    attr->gid_type == IB_GID_TYPE_ROCE) {
-			rcu_read_unlock();
-			if (gid)
-				memcpy(gid, &attr->gid, SMC_GID_SIZE);
-			if (sgid_index)
-				*sgid_index = attr->index;
-			rdma_put_gid_attr(attr);
-			return 0;
+		      vlan_dev_vlan_id(ndev) == vlan_id))) {
+			if (!smc_ib_determine_gid_rcu(ndev, attr, gid,
+						      sgid_index, smcrv2)) {
+				rcu_read_unlock();
+				rdma_put_gid_attr(attr);
+				return 0;
+			}
 		}
 		rcu_read_unlock();
 		rdma_put_gid_attr(attr);

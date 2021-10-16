@@ -101,7 +101,8 @@ void smc_ib_sync_sg_for_device(struct smc_link *lnk,
 			       struct smc_buf_desc *buf_slot,
 			       enum dma_data_direction data_direction);
 int smc_ib_determine_gid(struct smc_ib_device *smcibdev, u8 ibport,
-			 unsigned short vlan_id, u8 gid[], u8 *sgid_index);
+			 unsigned short vlan_id, u8 gid[], u8 *sgid_index,
+			 struct smc_init_info_smcrv2 *smcrv2);
 int smc_ib_find_route(__be32 saddr, __be32 daddr,
 		      u8 nexthop_mac[], u8 *uses_gateway);
 bool smc_ib_is_valid_local_systemid(void);
