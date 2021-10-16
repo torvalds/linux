@@ -152,7 +152,7 @@ static void hlist_add_ucounts(struct ucounts *ucounts)
 
 struct ucounts *get_ucounts(struct ucounts *ucounts)
 {
-	if (ucounts && atomic_add_negative(1, &ucounts->count)) {
+	if (atomic_add_negative(1, &ucounts->count)) {
 		put_ucounts(ucounts);
 		ucounts = NULL;
 	}
