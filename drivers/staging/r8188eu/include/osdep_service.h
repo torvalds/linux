@@ -174,11 +174,6 @@ static inline void flush_signals_thread(void)
 		flush_signals(current);
 }
 
-static inline int res_to_status(int res)
-{
-	return res;
-}
-
 #define _RND(sz, r) ((((sz)+((r)-1))/(r))*(r))
 #define RND4(x)	(((x >> 2) + (((x & 3) == 0) ?  0: 1)) << 2)
 
