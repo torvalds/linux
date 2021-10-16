@@ -864,9 +864,6 @@ static void nfs_pgio_result(struct rpc_task *task, void *calldata)
 	struct nfs_pgio_header *hdr = calldata;
 	struct inode *inode = hdr->inode;
 
-	dprintk("NFS: %s: %5u, (status %d)\n", __func__,
-		task->tk_pid, task->tk_status);
-
 	if (hdr->rw_ops->rw_done(task, hdr, inode) != 0)
 		return;
 	if (task->tk_status < 0)
