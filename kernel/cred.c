@@ -669,7 +669,7 @@ int set_cred_ucounts(struct cred *new)
 {
 	struct task_struct *task = current;
 	const struct cred *old = task->real_cred;
-	struct ucounts *old_ucounts = new->ucounts;
+	struct ucounts *new_ucounts, *old_ucounts = new->ucounts;
 
 	if (new->user == old->user && new->user_ns == old->user_ns)
 		return 0;
@@ -681,9 +681,10 @@ int set_cred_ucounts(struct cred *new)
 	if (old_ucounts && old_ucounts->ns == new->user_ns && uid_eq(old_ucounts->uid, new->euid))
 		return 0;
 
-	if (!(new->ucounts = alloc_ucounts(new->user_ns, new->euid)))
+	if (!(new_ucounts = alloc_ucounts(new->user_ns, new->euid)))
 		return -EAGAIN;
 
+	new->ucounts = new_ucounts;
 	if (old_ucounts)
 		put_ucounts(old_ucounts);
 
