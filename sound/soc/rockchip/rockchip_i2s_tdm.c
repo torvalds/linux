@@ -76,7 +76,6 @@ struct rk_i2s_tdm_dev {
 	struct reset_control *tx_reset;
 	struct reset_control *rx_reset;
 	struct rk_i2s_soc_data *soc_data;
-	void __iomem *cru_base;
 	bool is_master_mode;
 	bool io_multiplex;
 	bool mclk_calibrate;
@@ -92,8 +91,6 @@ struct rk_i2s_tdm_dev {
 	unsigned int i2s_sdis[CH_GRP_MAX];
 	unsigned int i2s_sdos[CH_GRP_MAX];
 	int clk_ppm;
-	int tx_reset_id;
-	int rx_reset_id;
 	int refcount;
 	spinlock_t lock; /* xfer lock */
 	bool has_playback;
@@ -222,83 +219,35 @@ static inline struct rk_i2s_tdm_dev *to_info(struct snd_soc_dai *dai)
 	return snd_soc_dai_get_drvdata(dai);
 }
 
-static void rockchip_snd_xfer_reset_assert(struct rk_i2s_tdm_dev *i2s_tdm,
-					   int tx_bank, int tx_offset,
-					   int rx_bank, int rx_offset)
-{
-	void __iomem *cru_reset;
-	unsigned long flags;
-
-	cru_reset = i2s_tdm->cru_base + i2s_tdm->soc_data->softrst_offset;
-
-	if (tx_bank == rx_bank) {
-		writel(BIT(tx_offset) | BIT(rx_offset) |
-		       (BIT(tx_offset) << 16) | (BIT(rx_offset) << 16),
-		       cru_reset + (tx_bank * 4));
-	} else {
-		local_irq_save(flags);
-		writel(BIT(tx_offset) | (BIT(tx_offset) << 16),
-		       cru_reset + (tx_bank * 4));
-		writel(BIT(rx_offset) | (BIT(rx_offset) << 16),
-		       cru_reset + (rx_bank * 4));
-		local_irq_restore(flags);
-	}
-}
-
-static void rockchip_snd_xfer_reset_deassert(struct rk_i2s_tdm_dev *i2s_tdm,
-					     int tx_bank, int tx_offset,
-					     int rx_bank, int rx_offset)
-{
-	void __iomem *cru_reset;
-	unsigned long flags;
-
-	cru_reset = i2s_tdm->cru_base + i2s_tdm->soc_data->softrst_offset;
-
-	if (tx_bank == rx_bank) {
-		writel((BIT(tx_offset) << 16) | (BIT(rx_offset) << 16),
-		       cru_reset + (tx_bank * 4));
-	} else {
-		local_irq_save(flags);
-		writel((BIT(tx_offset) << 16),
-		       cru_reset + (tx_bank * 4));
-		writel((BIT(rx_offset) << 16),
-		       cru_reset + (rx_bank * 4));
-		local_irq_restore(flags);
-	}
-}
-
 /*
  * Makes sure that both tx and rx are reset at the same time to sync lrck
  * when clk_trcm > 0.
  */
 static void rockchip_snd_xfer_sync_reset(struct rk_i2s_tdm_dev *i2s_tdm)
 {
-	int tx_id, rx_id;
-	int tx_bank, rx_bank, tx_offset, rx_offset;
+	/* This is technically race-y.
+	 *
+	 * In an ideal world, we could atomically assert both resets at the
+	 * same time, through an atomic bulk reset API. This API however does
+	 * not exist, so what the downstream vendor code used to do was
+	 * implement half a reset controller here and require the CRU to be
+	 * passed to the driver as a device tree node. Violating abstractions
+	 * like that is bad, especially when it influences something like the
+	 * bindings which are supposed to describe the hardware, not whatever
+	 * workarounds the driver needs, so it was dropped.
+	 *
+	 * In practice, asserting the resets one by one appears to work just
+	 * fine for playback. During duplex (playback + capture) operation,
+	 * this might become an issue, but that should be solved by the
+	 * implementation of the aforementioned API, not by shoving a reset
+	 * controller into an audio driver.
+	 */
 
-	if (!i2s_tdm->cru_base || !i2s_tdm->soc_data)
-		return;
-
-	tx_id = i2s_tdm->tx_reset_id;
-	rx_id = i2s_tdm->rx_reset_id;
-	if (tx_id < 0 || rx_id < 0)
-		return;
-
-	tx_bank = tx_id / 16;
-	tx_offset = tx_id % 16;
-	rx_bank = rx_id / 16;
-	rx_offset = rx_id % 16;
-	dev_dbg(i2s_tdm->dev,
-		"tx_bank: %d, rx_bank: %d, tx_offset: %d, rx_offset: %d\n",
-		tx_bank, rx_bank, tx_offset, rx_offset);
-
-	rockchip_snd_xfer_reset_assert(i2s_tdm, tx_bank, tx_offset,
-				       rx_bank, rx_offset);
-
+	reset_control_assert(i2s_tdm->tx_reset);
+	reset_control_assert(i2s_tdm->rx_reset);
 	udelay(10);
-
-	rockchip_snd_xfer_reset_deassert(i2s_tdm, tx_bank, tx_offset,
-					 rx_bank, rx_offset);
+	reset_control_deassert(i2s_tdm->tx_reset);
+	reset_control_deassert(i2s_tdm->rx_reset);
 	udelay(10);
 }
 
@@ -1361,24 +1310,6 @@ static const struct of_device_id rockchip_i2s_tdm_match[] = {
 	{},
 };
 
-static int of_i2s_resetid_get(struct device_node *node,
-			      const char *id)
-{
-	struct of_phandle_args args;
-	int index = 0;
-	int ret;
-
-	if (id)
-		index = of_property_match_string(node,
-						 "reset-names", id);
-	ret = of_parse_phandle_with_args(node, "resets", "#reset-cells",
-					 index, &args);
-	if (ret)
-		return ret;
-
-	return args.args[0];
-}
-
 static struct snd_soc_dai_driver i2s_tdm_dai = {
 	.probe = rockchip_i2s_tdm_dai_probe,
 	.playback = {
@@ -1591,7 +1522,6 @@ static int rockchip_i2s_tdm_rx_path_prepare(struct rk_i2s_tdm_dev *i2s_tdm,
 static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
-	struct device_node *cru_node;
 	const struct of_device_id *of_id;
 	struct rk_i2s_tdm_dev *i2s_tdm;
 	struct resource *res;
@@ -1632,20 +1562,6 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 	if (IS_ERR(i2s_tdm->grf))
 		return dev_err_probe(i2s_tdm->dev, PTR_ERR(i2s_tdm->grf),
 				     "Error in rockchip,grf\n");
-
-	if (i2s_tdm->clk_trcm != TRCM_TXRX) {
-		cru_node = of_parse_phandle(node, "rockchip,cru", 0);
-		i2s_tdm->cru_base = of_iomap(cru_node, 0);
-		of_node_put(cru_node);
-		if (!i2s_tdm->cru_base) {
-			dev_err(i2s_tdm->dev,
-				"Missing or unsupported rockchip,cru node\n");
-			return -ENOENT;
-		}
-
-		i2s_tdm->tx_reset_id = of_i2s_resetid_get(node, "tx-m");
-		i2s_tdm->rx_reset_id = of_i2s_resetid_get(node, "rx-m");
-	}
 
 	i2s_tdm->tx_reset = devm_reset_control_get_optional_exclusive(&pdev->dev,
 								      "tx-m");
