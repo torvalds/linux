@@ -3492,7 +3492,7 @@ static int mwifiex_cfg80211_suspend(struct wiphy *wiphy,
 	}
 
 	if (!wowlan) {
-		mwifiex_dbg(adapter, ERROR,
+		mwifiex_dbg(adapter, INFO,
 			    "None of the WOWLAN triggers enabled\n");
 		ret = 0;
 		goto done;
