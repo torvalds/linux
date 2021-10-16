@@ -40,11 +40,11 @@
 
    kobject
    kref
+   assoc_array
 
 Todolist:
 
 
-   assoc_array
    xarray
    idr
    circular-buffers
