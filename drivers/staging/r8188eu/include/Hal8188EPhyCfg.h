@@ -195,9 +195,6 @@ void PHY_SetBWMode8188E(struct adapter *adapter,
 /*  channel switch related funciton */
 void PHY_SwChnl8188E(struct adapter *adapter, u8 channel);
 
-/*  BB/MAC/RF other monitor API */
-void PHY_SetRFPathSwitch_8188E(struct adapter *adapter,	bool main);
-
 void storePwrIndexDiffRateOffset(struct adapter *adapter, u32 regaddr,
 				 u32 mask, u32 data);
 /*--------------------------Exported Function prototype---------------------*/
