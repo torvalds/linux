@@ -15,6 +15,7 @@
 / {
 	model = "Microsoft Surface Duo";
 	compatible = "microsoft,surface-duo", "qcom,sm8150";
+	chassis-type = "handset";
 
 	aliases {
 		serial0 = &uart2;

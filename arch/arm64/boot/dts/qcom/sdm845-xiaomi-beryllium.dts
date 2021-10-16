@@ -29,6 +29,7 @@
 / {
 	model = "Xiaomi Pocophone F1";
 	compatible = "xiaomi,beryllium", "qcom,sdm845";
+	chassis-type = "handset";
 
 	/* required for bootloader to select correct board */
 	qcom,board-id = <69 0>;

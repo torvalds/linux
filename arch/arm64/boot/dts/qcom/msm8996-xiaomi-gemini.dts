@@ -13,6 +13,7 @@
 / {
 	model = "Xiaomi Mi 5";
 	compatible = "xiaomi,gemini", "qcom,msm8996";
+	chassis-type = "handset";
 	qcom,msm-id = <246 0x30001>;
 	qcom,pmic-id = <0x20009 0x2000a 0x00 0x00>;
 	qcom,board-id = <31 0>;

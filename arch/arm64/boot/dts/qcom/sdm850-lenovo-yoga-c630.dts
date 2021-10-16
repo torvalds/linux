@@ -19,6 +19,7 @@
 / {
 	model = "Lenovo Yoga C630";
 	compatible = "lenovo,yoga-c630", "qcom,sdm845";
+	chassis-type = "convertible";
 
 	aliases {
 		hsuart0 = &uart6;

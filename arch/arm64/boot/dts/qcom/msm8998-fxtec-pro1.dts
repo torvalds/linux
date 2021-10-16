@@ -15,6 +15,7 @@
 / {
 	model = "F(x)tec Pro1 (QX1000)";
 	compatible = "fxtec,pro1", "qcom,msm8998";
+	chassis-type = "handset";
 	qcom,board-id = <0x02000b 0x10>;
 
 	/*

@@ -11,6 +11,7 @@
 / {
 	model = "Xiaomi Redmi 2 (Wingtech WT88047)";
 	compatible = "wingtech,wt88047", "qcom,msm8916";
+	chassis-type = "handset";
 
 	aliases {
 		serial0 = &blsp1_uart2;

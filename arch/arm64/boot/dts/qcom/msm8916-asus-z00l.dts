@@ -8,6 +8,7 @@
 / {
 	model = "Asus Zenfone 2 Laser";
 	compatible = "asus,z00l", "qcom,msm8916";
+	chassis-type = "handset";
 
 	aliases {
 		serial0 = &blsp1_uart2;

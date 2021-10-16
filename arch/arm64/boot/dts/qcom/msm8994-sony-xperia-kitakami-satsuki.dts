@@ -10,6 +10,7 @@
 / {
 	model = "Sony Xperia Z5 Premium";
 	compatible = "sony,satsuki-row", "qcom,msm8994";
+	chassis-type = "handset";
 };
 
 &pm8994_l14 {
