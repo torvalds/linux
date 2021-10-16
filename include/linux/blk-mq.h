@@ -7,6 +7,7 @@
 #include <linux/srcu.h>
 #include <linux/lockdep.h>
 #include <linux/scatterlist.h>
+#include <linux/prefetch.h>
 
 struct blk_mq_tags;
 struct blk_flush_queue;
@@ -675,7 +676,40 @@ struct request *blk_mq_alloc_request(struct request_queue *q, unsigned int op,
 struct request *blk_mq_alloc_request_hctx(struct request_queue *q,
 		unsigned int op, blk_mq_req_flags_t flags,
 		unsigned int hctx_idx);
-struct request *blk_mq_tag_to_rq(struct blk_mq_tags *tags, unsigned int tag);
+
+/*
+ * Tag address space map.
+ */
+struct blk_mq_tags {
+	unsigned int nr_tags;
+	unsigned int nr_reserved_tags;
+
+	atomic_t active_queues;
+
+	struct sbitmap_queue bitmap_tags;
+	struct sbitmap_queue breserved_tags;
+
+	struct request **rqs;
+	struct request **static_rqs;
+	struct list_head page_list;
+
+	/*
+	 * used to clear request reference in rqs[] before freeing one
+	 * request pool
+	 */
+	spinlock_t lock;
+};
+
+static inline struct request *blk_mq_tag_to_rq(struct blk_mq_tags *tags,
+					       unsigned int tag)
+{
+	if (tag < tags->nr_tags) {
+		prefetch(tags->rqs[tag]);
+		return tags->rqs[tag];
+	}
+
+	return NULL;
+}
 
 enum {
 	BLK_MQ_UNIQUE_TAG_BITS = 16,

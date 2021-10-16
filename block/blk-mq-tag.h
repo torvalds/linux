@@ -4,29 +4,6 @@
 
 struct blk_mq_alloc_data;
 
-/*
- * Tag address space map.
- */
-struct blk_mq_tags {
-	unsigned int nr_tags;
-	unsigned int nr_reserved_tags;
-
-	atomic_t active_queues;
-
-	struct sbitmap_queue bitmap_tags;
-	struct sbitmap_queue breserved_tags;
-
-	struct request **rqs;
-	struct request **static_rqs;
-	struct list_head page_list;
-
-	/*
-	 * used to clear request reference in rqs[] before freeing one
-	 * request pool
-	 */
-	spinlock_t lock;
-};
-
 extern struct blk_mq_tags *blk_mq_init_tags(unsigned int nr_tags,
 					unsigned int reserved_tags,
 					int node, int alloc_policy);

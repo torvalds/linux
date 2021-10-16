@@ -1120,17 +1120,6 @@ void blk_mq_delay_kick_requeue_list(struct request_queue *q,
 }
 EXPORT_SYMBOL(blk_mq_delay_kick_requeue_list);
 
-struct request *blk_mq_tag_to_rq(struct blk_mq_tags *tags, unsigned int tag)
-{
-	if (tag < tags->nr_tags) {
-		prefetch(tags->rqs[tag]);
-		return tags->rqs[tag];
-	}
-
-	return NULL;
-}
-EXPORT_SYMBOL(blk_mq_tag_to_rq);
-
 static bool blk_mq_rq_inflight(struct blk_mq_hw_ctx *hctx, struct request *rq,
 			       void *priv, bool reserved)
 {
