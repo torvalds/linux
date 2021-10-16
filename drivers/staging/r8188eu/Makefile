@@ -4,7 +4,6 @@ EXTRA_CFLAGS += -O1
 
 ccflags-y += -D__CHECK_ENDIAN__
 
-CONFIG_BT_COEXIST = n
 CONFIG_WOWLAN = n
 
 OUTSRC_FILES :=				\
@@ -52,10 +51,6 @@ _OS_INTFS_FILES :=				\
 			os_dep/xmit_linux.o
 
 _HAL_INTFS_FILES += $(OUTSRC_FILES)
-
-ifeq ($(CONFIG_BT_COEXIST), y)
-EXTRA_CFLAGS += -DCONFIG_BT_COEXIST
-endif
 
 ifeq ($(CONFIG_WOWLAN), y)
 EXTRA_CFLAGS += -DCONFIG_WOWLAN
