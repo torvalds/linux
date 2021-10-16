@@ -321,6 +321,38 @@ void __gnet_stats_copy_queue(struct gnet_stats_queue *qstats,
 }
 EXPORT_SYMBOL(__gnet_stats_copy_queue);
 
+static void gnet_stats_add_queue_cpu(struct gnet_stats_queue *qstats,
+				     const struct gnet_stats_queue __percpu *q)
+{
+	int i;
+
+	for_each_possible_cpu(i) {
+		const struct gnet_stats_queue *qcpu = per_cpu_ptr(q, i);
+
+		qstats->qlen += qcpu->backlog;
+		qstats->backlog += qcpu->backlog;
+		qstats->drops += qcpu->drops;
+		qstats->requeues += qcpu->requeues;
+		qstats->overlimits += qcpu->overlimits;
+	}
+}
+
+void gnet_stats_add_queue(struct gnet_stats_queue *qstats,
+			  const struct gnet_stats_queue __percpu *cpu,
+			  const struct gnet_stats_queue *q)
+{
+	if (cpu) {
+		gnet_stats_add_queue_cpu(qstats, cpu);
+	} else {
+		qstats->qlen += q->qlen;
+		qstats->backlog += q->backlog;
+		qstats->drops += q->drops;
+		qstats->requeues += q->requeues;
+		qstats->overlimits += q->overlimits;
+	}
+}
+EXPORT_SYMBOL(gnet_stats_add_queue);
+
 /**
  * gnet_stats_copy_queue - copy queue statistics into statistics TLV
  * @d: dumping handle
