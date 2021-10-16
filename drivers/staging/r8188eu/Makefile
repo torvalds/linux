@@ -1,8 +1,3 @@
-SHELL := /bin/bash
-EXTRA_CFLAGS += $(USER_EXTRA_CFLAGS)
-EXTRA_CFLAGS += -O1
-
-ccflags-y += -D__CHECK_ENDIAN__
 
 OUTSRC_FILES :=				\
 		hal/HalHWImg8188E_MAC.o	\
@@ -45,15 +40,6 @@ _OS_INTFS_FILES :=				\
 			os_dep/xmit_linux.o
 
 _HAL_INTFS_FILES += $(OUTSRC_FILES)
-
-SUBARCH := $(shell uname -m | sed -e "s/i.86/i386/; s/ppc.*/powerpc/; s/armv.l/arm/; s/aarch64/arm64/;")
-
-ARCH ?= $(SUBARCH)
-CROSS_COMPILE ?=
-KVER  ?= $(if $(KERNELRELEASE),$(KERNELRELEASE),$(shell uname -r))
-KSRC ?= $(if $(KERNEL_SRC),$(KERNEL_SRC),/lib/modules/$(KVER)/build)
-MODDESTDIR := /lib/modules/$(KVER)/kernel/drivers/net/wireless
-INSTALL_PREFIX :=
 
 rtk_core :=				\
 		core/rtw_ap.o		\
