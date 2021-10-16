@@ -42,9 +42,14 @@ enum smc_link_state {			/* possible states of a link */
 };
 
 #define SMC_WR_BUF_SIZE		48	/* size of work request buffer */
+#define SMC_WR_BUF_V2_SIZE	8192	/* size of v2 work request buffer */
 
 struct smc_wr_buf {
 	u8	raw[SMC_WR_BUF_SIZE];
+};
+
+struct smc_wr_v2_buf {
+	u8	raw[SMC_WR_BUF_V2_SIZE];
 };
 
 #define SMC_WR_REG_MR_WAIT_TIME	(5 * HZ)/* wait time for ib_wr_reg_mr result */
@@ -92,7 +97,11 @@ struct smc_link {
 	struct smc_wr_tx_pend	*wr_tx_pends;	/* WR send waiting for CQE */
 	struct completion	*wr_tx_compl;	/* WR send CQE completion */
 	/* above four vectors have wr_tx_cnt elements and use the same index */
+	struct ib_send_wr	*wr_tx_v2_ib;	/* WR send v2 meta data */
+	struct ib_sge		*wr_tx_v2_sge;	/* WR send v2 gather meta data*/
+	struct smc_wr_tx_pend	*wr_tx_v2_pend;	/* WR send v2 waiting for CQE */
 	dma_addr_t		wr_tx_dma_addr;	/* DMA address of wr_tx_bufs */
+	dma_addr_t		wr_tx_v2_dma_addr; /* DMA address of v2 tx buf*/
 	atomic_long_t		wr_tx_id;	/* seq # of last sent WR */
 	unsigned long		*wr_tx_mask;	/* bit mask of used indexes */
 	u32			wr_tx_cnt;	/* number of WR send buffers */
@@ -104,6 +113,7 @@ struct smc_link {
 	struct ib_sge		*wr_rx_sges;	/* WR recv scatter meta data */
 	/* above three vectors have wr_rx_cnt elements and use the same index */
 	dma_addr_t		wr_rx_dma_addr;	/* DMA address of wr_rx_bufs */
+	dma_addr_t		wr_rx_v2_dma_addr; /* DMA address of v2 rx buf*/
 	u64			wr_rx_id;	/* seq # of last recv WR */
 	u32			wr_rx_cnt;	/* number of WR recv buffers */
 	unsigned long		wr_rx_tstamp;	/* jiffies when last buf rx */
@@ -250,6 +260,10 @@ struct smc_link_group {
 						/* client or server */
 			struct smc_link		lnk[SMC_LINKS_PER_LGR_MAX];
 						/* smc link */
+			struct smc_wr_v2_buf	*wr_rx_buf_v2;
+						/* WR v2 recv payload buffer */
+			struct smc_wr_v2_buf	*wr_tx_buf_v2;
+						/* WR v2 send payload buffer */
 			char			peer_systemid[SMC_SYSTEMID_LEN];
 						/* unique system_id of peer */
 			struct smc_rtoken	rtokens[SMC_RMBS_PER_LGR_MAX]

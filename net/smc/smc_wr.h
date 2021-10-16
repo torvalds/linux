@@ -101,8 +101,10 @@ static inline int smc_wr_rx_post(struct smc_link *link)
 
 int smc_wr_create_link(struct smc_link *lnk);
 int smc_wr_alloc_link_mem(struct smc_link *lnk);
+int smc_wr_alloc_lgr_mem(struct smc_link_group *lgr);
 void smc_wr_free_link(struct smc_link *lnk);
 void smc_wr_free_link_mem(struct smc_link *lnk);
+void smc_wr_free_lgr_mem(struct smc_link_group *lgr);
 void smc_wr_remember_qp_attr(struct smc_link *lnk);
 void smc_wr_remove_dev(struct smc_ib_device *smcibdev);
 void smc_wr_add_dev(struct smc_ib_device *smcibdev);
