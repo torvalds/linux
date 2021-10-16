@@ -36,7 +36,7 @@ static struct devlink_port *mlx5_esw_dl_port_alloc(struct mlx5_eswitch *esw, u16
 		return NULL;
 
 	mlx5_esw_get_port_parent_id(dev, &ppid);
-	pfnum = PCI_FUNC(dev->pdev->devfn);
+	pfnum = mlx5_get_dev_index(dev);
 	external = mlx5_core_is_ecpf_esw_manager(dev);
 	if (external)
 		controller_num = dev->priv.eswitch->offloads.host_number + 1;
@@ -149,7 +149,7 @@ int mlx5_esw_devlink_sf_port_register(struct mlx5_eswitch *esw, struct devlink_p
 	if (IS_ERR(vport))
 		return PTR_ERR(vport);
 
-	pfnum = PCI_FUNC(dev->pdev->devfn);
+	pfnum = mlx5_get_dev_index(dev);
 	mlx5_esw_get_port_parent_id(dev, &ppid);
 	memcpy(dl_port->attrs.switch_id.id, &ppid.id[0], ppid.id_len);
 	dl_port->attrs.switch_id.id_len = ppid.id_len;

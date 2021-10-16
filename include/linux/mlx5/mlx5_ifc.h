@@ -1306,7 +1306,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         vhca_resource_manager[0x1];
 
 	u8         hca_cap_2[0x1];
-	u8         reserved_at_21[0x2];
+	u8         reserved_at_21[0x1];
+	u8         dtor[0x1];
 	u8         event_on_vhca_state_teardown_request[0x1];
 	u8         event_on_vhca_state_in_use[0x1];
 	u8         event_on_vhca_state_active[0x1];
@@ -1587,7 +1588,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         log_max_tis_per_sq[0x5];
 
 	u8         ext_stride_num_range[0x1];
-	u8         reserved_at_3a1[0x2];
+	u8         roce_rw_supported[0x1];
+	u8         reserved_at_3a2[0x1];
 	u8         log_max_stride_sz_rq[0x5];
 	u8         reserved_at_3a8[0x3];
 	u8         log_min_stride_sz_rq[0x5];
@@ -2805,6 +2807,40 @@ struct mlx5_ifc_port_state_change_event_bits {
 
 struct mlx5_ifc_dropped_packet_logged_bits {
 	u8         reserved_at_0[0xe0];
+};
+
+struct mlx5_ifc_default_timeout_bits {
+	u8         to_multiplier[0x3];
+	u8         reserved_at_3[0x9];
+	u8         to_value[0x14];
+};
+
+struct mlx5_ifc_dtor_reg_bits {
+	u8         reserved_at_0[0x20];
+
+	struct mlx5_ifc_default_timeout_bits pcie_toggle_to;
+
+	u8         reserved_at_40[0x60];
+
+	struct mlx5_ifc_default_timeout_bits health_poll_to;
+
+	struct mlx5_ifc_default_timeout_bits full_crdump_to;
+
+	struct mlx5_ifc_default_timeout_bits fw_reset_to;
+
+	struct mlx5_ifc_default_timeout_bits flush_on_err_to;
+
+	struct mlx5_ifc_default_timeout_bits pci_sync_update_to;
+
+	struct mlx5_ifc_default_timeout_bits tear_down_to;
+
+	struct mlx5_ifc_default_timeout_bits fsm_reactivate_to;
+
+	struct mlx5_ifc_default_timeout_bits reclaim_pages_to;
+
+	struct mlx5_ifc_default_timeout_bits reclaim_vfs_pages_to;
+
+	u8         reserved_at_1c0[0x40];
 };
 
 enum {

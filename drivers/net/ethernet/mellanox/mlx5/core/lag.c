@@ -688,7 +688,7 @@ static void mlx5_ldev_add_netdev(struct mlx5_lag *ldev,
 				 struct mlx5_core_dev *dev,
 				 struct net_device *netdev)
 {
-	unsigned int fn = PCI_FUNC(dev->pdev->devfn);
+	unsigned int fn = mlx5_get_dev_index(dev);
 
 	if (fn >= MLX5_MAX_PORTS)
 		return;
@@ -718,7 +718,7 @@ static void mlx5_ldev_remove_netdev(struct mlx5_lag *ldev,
 static void mlx5_ldev_add_mdev(struct mlx5_lag *ldev,
 			       struct mlx5_core_dev *dev)
 {
-	unsigned int fn = PCI_FUNC(dev->pdev->devfn);
+	unsigned int fn = mlx5_get_dev_index(dev);
 
 	if (fn >= MLX5_MAX_PORTS)
 		return;
