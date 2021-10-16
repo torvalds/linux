@@ -25,6 +25,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/regmap.h>
 #include <linux/slab.h>
 
 /* Addresses to scan */
@@ -114,6 +115,7 @@ MODULE_DEVICE_TABLE(i2c, tmp401_id);
 
 struct tmp401_data {
 	struct i2c_client *client;
+	struct regmap *regmap;
 	struct mutex update_lock;
 	enum chips kind;
 
@@ -127,6 +129,143 @@ struct tmp401_data {
 	const struct hwmon_channel_info *info[3];
 	struct hwmon_chip_info chip;
 };
+
+/* regmap */
+
+static bool tmp401_regmap_is_volatile(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case 0:			/* local temp msb */
+	case 1:			/* remote temp msb */
+	case 2:			/* status */
+	case 0x10:		/* remote temp lsb */
+	case 0x15:		/* local temp lsb */
+	case 0x1b:		/* status (tmp432) */
+	case 0x23 ... 0x24:	/* remote temp 2 msb / lsb */
+	case 0x30 ... 0x37:	/* lowest/highest temp; status (tmp432) */
+		return true;
+	default:
+		return false;
+	}
+}
+
+static int tmp401_reg_read(void *context, unsigned int reg, unsigned int *val)
+{
+	struct tmp401_data *data = context;
+	struct i2c_client *client = data->client;
+	int regval;
+
+	switch (reg) {
+	case 0:			/* local temp msb */
+	case 1:			/* remote temp msb */
+	case 5:			/* local temp high limit msb */
+	case 6:			/* local temp low limit msb */
+	case 7:			/* remote temp ligh limit msb */
+	case 8:			/* remote temp low limit msb */
+	case 0x15:		/* remote temp 2 high limit msb */
+	case 0x16:		/* remote temp 2 low limit msb */
+	case 0x23:		/* remote temp 2 msb */
+	case 0x30:		/* local temp minimum, tmp411 */
+	case 0x32:		/* local temp maximum, tmp411 */
+	case 0x34:		/* remote temp minimum, tmp411 */
+	case 0xf6:		/* remote temp maximum, tmp411 (really 0x36) */
+		/* work around register overlap between TMP411 and TMP432 */
+		if (reg == 0xf6)
+			reg = 0x36;
+		regval = i2c_smbus_read_word_swapped(client, reg);
+		if (regval < 0)
+			return regval;
+		*val = regval;
+		break;
+	case 0x19:		/* critical limits, 8-bit registers */
+	case 0x1a:
+	case 0x20:
+		regval = i2c_smbus_read_byte_data(client, reg);
+		if (regval < 0)
+			return regval;
+		*val = regval << 8;
+		break;
+	case 0x1b:
+	case 0x35 ... 0x37:
+		if (data->kind == tmp432) {
+			regval = i2c_smbus_read_byte_data(client, reg);
+			if (regval < 0)
+				return regval;
+			*val = regval;
+			break;
+		}
+		/* simulate TMP432 status registers */
+		regval = i2c_smbus_read_byte_data(client, TMP401_STATUS);
+		if (regval < 0)
+			return regval;
+		*val = 0;
+		switch (reg) {
+		case 0x1b:	/* open / fault */
+			if (regval & TMP401_STATUS_REMOTE_OPEN)
+				*val |= BIT(1);
+			break;
+		case 0x35:	/* high limit */
+			if (regval & TMP401_STATUS_LOCAL_HIGH)
+				*val |= BIT(0);
+			if (regval & TMP401_STATUS_REMOTE_HIGH)
+				*val |= BIT(1);
+			break;
+		case 0x36:	/* low limit */
+			if (regval & TMP401_STATUS_LOCAL_LOW)
+				*val |= BIT(0);
+			if (regval & TMP401_STATUS_REMOTE_LOW)
+				*val |= BIT(1);
+			break;
+		case 0x37:	/* therm / crit limit */
+			if (regval & TMP401_STATUS_LOCAL_CRIT)
+				*val |= BIT(0);
+			if (regval & TMP401_STATUS_REMOTE_CRIT)
+				*val |= BIT(1);
+			break;
+		}
+		break;
+	default:
+		regval = i2c_smbus_read_byte_data(client, reg);
+		if (regval < 0)
+			return regval;
+		*val = regval;
+		break;
+	}
+	return 0;
+}
+
+static int tmp401_reg_write(void *context, unsigned int reg, unsigned int val)
+{
+	struct tmp401_data *data = context;
+	struct i2c_client *client = data->client;
+
+	switch (reg) {
+	case 0x0b:		/* local temp high limit msb */
+	case 0x0c:		/* local temp low limit msb */
+	case 0x0d:		/* remote temp ligh limit msb */
+	case 0x0e:		/* remote temp low limit msb */
+	case 0x15:		/* remote temp 2 high limit msb */
+	case 0x16:		/* remote temp 2 low limit msb */
+		return i2c_smbus_write_word_swapped(client, reg, val);
+	case 0x19:		/* critical limits, 8-bit registers */
+	case 0x1a:
+	case 0x20:
+		return i2c_smbus_write_byte_data(client, reg, val >> 8);
+	default:
+		return i2c_smbus_write_byte_data(client, reg, val);
+	}
+}
+
+static const struct regmap_config tmp401_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 16,
+	.cache_type = REGCACHE_RBTREE,
+	.volatile_reg = tmp401_regmap_is_volatile,
+	.reg_read = tmp401_reg_read,
+	.reg_write = tmp401_reg_write,
+};
+
+/* temperature conversion */
 
 static int tmp401_register_to_temp(u16 reg, bool extended)
 {
@@ -150,95 +289,7 @@ static u16 tmp401_temp_to_register(long temp, bool extended, int zbits)
 	return DIV_ROUND_CLOSEST(temp * (1 << (8 - zbits)), 1000) << zbits;
 }
 
-static int tmp401_reg_read(struct tmp401_data *data, unsigned int reg)
-{
-	struct i2c_client *client = data->client;
-	int val, regval;
-
-	switch (reg) {
-	case 0:			/* local temp msb */
-	case 1:			/* remote temp msb */
-	case 5:			/* local temp high limit msb */
-	case 6:			/* local temp low limit msb */
-	case 7:			/* remote temp ligh limit msb */
-	case 8:			/* remote temp low limit msb */
-	case 0x15:		/* remote temp 2 high limit msb */
-	case 0x16:		/* remote temp 2 low limit msb */
-	case 0x23:		/* remote temp 2 msb */
-	case 0x30:		/* local temp minimum, tmp411 */
-	case 0x32:		/* local temp maximum, tmp411 */
-	case 0x34:		/* remote temp minimum, tmp411 */
-	case 0xf6:		/* remote temp maximum, tmp411 (really 0x36) */
-		/* work around register overlap between TMP411 and TMP432 */
-		if (reg == 0xf6)
-			reg = 0x36;
-		return i2c_smbus_read_word_swapped(client, reg);
-	case 0x19:		/* critical limits, 8-bit registers */
-	case 0x1a:
-	case 0x20:
-		regval = i2c_smbus_read_byte_data(client, reg);
-		if (regval < 0)
-			return regval;
-		return regval << 8;
-	case 0x1b:
-	case 0x35 ... 0x37:
-		if (data->kind == tmp432)
-			return i2c_smbus_read_byte_data(client, reg);
-		/* simulate TMP432 status registers */
-		regval = i2c_smbus_read_byte_data(client, TMP401_STATUS);
-		if (regval < 0)
-			return regval;
-		val = 0;
-		switch (reg) {
-		case 0x1b:	/* open / fault */
-			if (regval & TMP401_STATUS_REMOTE_OPEN)
-				val |= BIT(1);
-			break;
-		case 0x35:	/* high limit */
-			if (regval & TMP401_STATUS_LOCAL_HIGH)
-				val |= BIT(0);
-			if (regval & TMP401_STATUS_REMOTE_HIGH)
-				val |= BIT(1);
-			break;
-		case 0x36:	/* low limit */
-			if (regval & TMP401_STATUS_LOCAL_LOW)
-				val |= BIT(0);
-			if (regval & TMP401_STATUS_REMOTE_LOW)
-				val |= BIT(1);
-			break;
-		case 0x37:	/* therm / crit limit */
-			if (regval & TMP401_STATUS_LOCAL_CRIT)
-				val |= BIT(0);
-			if (regval & TMP401_STATUS_REMOTE_CRIT)
-				val |= BIT(1);
-			break;
-		}
-		return val;
-	default:
-		return i2c_smbus_read_byte_data(client, reg);
-	}
-}
-
-static int tmp401_reg_write(struct tmp401_data *data, unsigned int reg, unsigned int val)
-{
-	struct i2c_client *client = data->client;
-
-	switch (reg) {
-	case 0x0b:		/* local temp high limit msb */
-	case 0x0c:		/* local temp low limit msb */
-	case 0x0d:		/* remote temp ligh limit msb */
-	case 0x0e:		/* remote temp low limit msb */
-	case 0x15:		/* remote temp 2 high limit msb */
-	case 0x16:		/* remote temp 2 low limit msb */
-		return i2c_smbus_write_word_swapped(client, reg, val);
-	case 0x19:		/* critical limits, 8-bit registers */
-	case 0x1a:
-	case 0x20:
-		return i2c_smbus_write_byte_data(client, reg, val >> 8);
-	default:
-		return i2c_smbus_write_byte_data(client, reg, val);
-	}
-}
+/* hwmon API functions */
 
 static const u8 tmp401_temp_reg_index[] = {
 	[hwmon_temp_input] = 0,
@@ -259,7 +310,9 @@ static const u8 tmp401_status_reg_index[] = {
 static int tmp401_temp_read(struct device *dev, u32 attr, int channel, long *val)
 {
 	struct tmp401_data *data = dev_get_drvdata(dev);
-	int reg, regval;
+	struct regmap *regmap = data->regmap;
+	unsigned int regval;
+	int reg, ret;
 
 	switch (attr) {
 	case hwmon_temp_input:
@@ -269,36 +322,35 @@ static int tmp401_temp_read(struct device *dev, u32 attr, int channel, long *val
 	case hwmon_temp_lowest:
 	case hwmon_temp_highest:
 		reg = TMP401_TEMP_MSB_READ[tmp401_temp_reg_index[attr]][channel];
-		regval = tmp401_reg_read(data, reg);
-		if (regval < 0)
-			return regval;
+		ret = regmap_read(regmap, reg, &regval);
+		if (ret < 0)
+			return ret;
 		*val = tmp401_register_to_temp(regval, data->extended_range);
 		break;
 	case hwmon_temp_crit_hyst:
 		mutex_lock(&data->update_lock);
 		reg = TMP401_TEMP_MSB_READ[3][channel];
-		regval = tmp401_reg_read(data, reg);
-		if (regval < 0)
+		ret = regmap_read(regmap, reg, &regval);
+		if (ret < 0)
 			goto unlock;
 		*val = tmp401_register_to_temp(regval, data->extended_range);
-		regval = tmp401_reg_read(data, TMP401_TEMP_CRIT_HYST);
-		if (regval < 0)
+		ret = regmap_read(regmap, TMP401_TEMP_CRIT_HYST, &regval);
+		if (ret < 0)
 			goto unlock;
 		*val -= regval * 1000;
-		regval = 0;
 unlock:
 		mutex_unlock(&data->update_lock);
-		if (regval < 0)
-			return regval;
+		if (ret < 0)
+			return ret;
 		break;
 	case hwmon_temp_fault:
 	case hwmon_temp_min_alarm:
 	case hwmon_temp_max_alarm:
 	case hwmon_temp_crit_alarm:
 		reg = TMP432_STATUS_REG[tmp401_status_reg_index[attr]];
-		regval = tmp401_reg_read(data, reg);
-		if (regval < 0)
-			return regval;
+		ret = regmap_read(regmap, reg, &regval);
+		if (ret < 0)
+			return ret;
 		*val = !!(regval & BIT(channel));
 		break;
 	default:
@@ -311,7 +363,9 @@ static int tmp401_temp_write(struct device *dev, u32 attr, int channel,
 			     long val)
 {
 	struct tmp401_data *data = dev_get_drvdata(dev);
-	int reg, regval, ret, temp;
+	struct regmap *regmap = data->regmap;
+	unsigned int regval;
+	int reg, ret, temp;
 
 	mutex_lock(&data->update_lock);
 	switch (attr) {
@@ -321,7 +375,14 @@ static int tmp401_temp_write(struct device *dev, u32 attr, int channel,
 		reg = TMP401_TEMP_MSB_WRITE[tmp401_temp_reg_index[attr]][channel];
 		regval = tmp401_temp_to_register(val, data->extended_range,
 						 attr == hwmon_temp_crit ? 8 : 4);
-		ret = tmp401_reg_write(data, reg, regval);
+		ret = regmap_write(regmap, reg, regval);
+		if (ret)
+			break;
+		/*
+		 * Read and write limit registers are different, so we need to
+		 * reinitialize the cache.
+		 */
+		ret = regmap_reinit_cache(regmap, &tmp401_regmap_config);
 		break;
 	case hwmon_temp_crit_hyst:
 		if (data->extended_range)
@@ -330,13 +391,13 @@ static int tmp401_temp_write(struct device *dev, u32 attr, int channel,
 			val = clamp_val(val, 0, 127000);
 
 		reg = TMP401_TEMP_MSB_READ[3][channel];
-		ret = tmp401_reg_read(data, reg);
+		ret = regmap_read(regmap, reg, &regval);
 		if (ret < 0)
 			break;
-		temp = tmp401_register_to_temp(ret, data->extended_range);
+		temp = tmp401_register_to_temp(regval, data->extended_range);
 		val = clamp_val(val, temp - 255000, temp);
 		regval = ((temp - val) + 500) / 1000;
-		ret = tmp401_reg_write(data, TMP401_TEMP_CRIT_HYST, regval);
+		ret = regmap_write(regmap, TMP401_TEMP_CRIT_HYST, regval);
 		break;
 	default:
 		ret = -EOPNOTSUPP;
@@ -349,13 +410,14 @@ static int tmp401_temp_write(struct device *dev, u32 attr, int channel,
 static int tmp401_chip_read(struct device *dev, u32 attr, int channel, long *val)
 {
 	struct tmp401_data *data = dev_get_drvdata(dev);
-	int regval;
+	u32 regval;
+	int ret;
 
 	switch (attr) {
 	case hwmon_chip_update_interval:
-		regval = tmp401_reg_read(data, TMP401_CONVERSION_RATE_READ);
-		if (regval < 0)
-			return regval;
+		ret = regmap_read(data->regmap, TMP401_CONVERSION_RATE_READ, &regval);
+		if (ret < 0)
+			return ret;
 		*val = (1 << (7 - regval)) * 125;
 		break;
 	case hwmon_chip_temp_reset_history:
@@ -368,7 +430,7 @@ static int tmp401_chip_read(struct device *dev, u32 attr, int channel, long *val
 	return 0;
 }
 
-static int tmp401_set_convrate(struct i2c_client *client, struct tmp401_data *data, long val)
+static int tmp401_set_convrate(struct regmap *regmap, long val)
 {
 	int err, rate;
 
@@ -382,22 +444,26 @@ static int tmp401_set_convrate(struct i2c_client *client, struct tmp401_data *da
 	 */
 	val = clamp_val(val, 125, 16000);
 	rate = 7 - __fls(val * 4 / (125 * 3));
-	err = i2c_smbus_write_byte_data(client, TMP401_CONVERSION_RATE_WRITE, rate);
+	err = regmap_write(regmap, TMP401_CONVERSION_RATE_WRITE, rate);
 	if (err)
 		return err;
-	return 0;
+	/*
+	 * Read and write conversion rate registers are different, so we need to
+	 * reinitialize the cache.
+	 */
+	return regmap_reinit_cache(regmap, &tmp401_regmap_config);
 }
 
 static int tmp401_chip_write(struct device *dev, u32 attr, int channel, long val)
 {
 	struct tmp401_data *data = dev_get_drvdata(dev);
-	struct i2c_client *client = data->client;
+	struct regmap *regmap = data->regmap;
 	int err;
 
 	mutex_lock(&data->update_lock);
 	switch (attr) {
 	case hwmon_chip_update_interval:
-		err = tmp401_set_convrate(client, data, val);
+		err = tmp401_set_convrate(regmap, val);
 		break;
 	case hwmon_chip_temp_reset_history:
 		if (val != 1) {
@@ -408,7 +474,7 @@ static int tmp401_chip_write(struct device *dev, u32 attr, int channel, long val
 		 * Reset history by writing any value to any of the
 		 * minimum/maximum registers (0x30-0x37).
 		 */
-		err = i2c_smbus_write_byte_data(client, 0x30, 0);
+		err = regmap_write(regmap, 0x30, 0);
 		break;
 	default:
 		err = -EOPNOTSUPP;
@@ -489,18 +555,23 @@ static const struct hwmon_ops tmp401_ops = {
 	.write = tmp401_write,
 };
 
-static int tmp401_init_client(struct tmp401_data *data,
-			      struct i2c_client *client)
-{
-	int config, config_orig, status = 0;
+/* chip initialization, detect, probe */
 
-	/* Set the conversion rate to 2 Hz */
-	i2c_smbus_write_byte_data(client, TMP401_CONVERSION_RATE_WRITE, 5);
+static int tmp401_init_client(struct tmp401_data *data)
+{
+	struct regmap *regmap = data->regmap;
+	u32 config, config_orig;
+	int ret;
+
+	/* Set conversion rate to 2 Hz */
+	ret = regmap_write(regmap, TMP401_CONVERSION_RATE_WRITE, 5);
+	if (ret < 0)
+		return ret;
 
 	/* Start conversions (disable shutdown if necessary) */
-	config = i2c_smbus_read_byte_data(client, TMP401_CONFIG_READ);
-	if (config < 0)
-		return config;
+	ret = regmap_read(regmap, TMP401_CONFIG_READ, &config);
+	if (ret < 0)
+		return ret;
 
 	config_orig = config;
 	config &= ~TMP401_CONFIG_SHUTDOWN;
@@ -508,11 +579,9 @@ static int tmp401_init_client(struct tmp401_data *data,
 	data->extended_range = !!(config & TMP401_CONFIG_RANGE);
 
 	if (config != config_orig)
-		status = i2c_smbus_write_byte_data(client,
-						   TMP401_CONFIG_WRITE,
-						   config);
+		ret = regmap_write(regmap, TMP401_CONFIG_WRITE, config);
 
-	return status;
+	return ret;
 }
 
 static int tmp401_detect(struct i2c_client *client,
@@ -603,6 +672,10 @@ static int tmp401_probe(struct i2c_client *client)
 	mutex_init(&data->update_lock);
 	data->kind = i2c_match_id(tmp401_id, client)->driver_data;
 
+	data->regmap = devm_regmap_init(dev, NULL, data, &tmp401_regmap_config);
+	if (IS_ERR(data->regmap))
+		return PTR_ERR(data->regmap);
+
 	/* initialize configuration data */
 	data->chip.ops = &tmp401_ops;
 	data->chip.info = data->info;
@@ -640,7 +713,7 @@ static int tmp401_probe(struct i2c_client *client)
 	}
 
 	/* Initialize the TMP401 chip */
-	status = tmp401_init_client(data, client);
+	status = tmp401_init_client(data);
 	if (status < 0)
 		return status;
 
