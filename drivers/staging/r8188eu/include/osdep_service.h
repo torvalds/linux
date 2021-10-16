@@ -160,11 +160,6 @@ static inline unsigned char _cancel_timer_ex(struct timer_list *ptimer)
 	return del_timer_sync(ptimer);
 }
 
-static __inline void thread_enter(char *name)
-{
-	allow_signal(SIGTERM);
-}
-
 static inline void flush_signals_thread(void)
 {
 	if (signal_pending (current))

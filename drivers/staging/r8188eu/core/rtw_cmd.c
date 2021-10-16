@@ -243,8 +243,6 @@ int rtw_cmd_thread(void *context)
 	struct adapter *padapter = (struct adapter *)context;
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 
-	thread_enter("RTW_CMD_THREAD");
-
 	pcmdbuf = pcmdpriv->cmd_buf;
 
 	pcmdpriv->cmdthd_running = true;
