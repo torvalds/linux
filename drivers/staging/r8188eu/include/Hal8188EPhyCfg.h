@@ -194,17 +194,9 @@ void PHY_SetBWMode8188E(struct adapter *adapter,
 
 /*  channel switch related funciton */
 void PHY_SwChnl8188E(struct adapter *adapter, u8 channel);
-/*  Call after initialization */
-void ChkFwCmdIoDone(struct adapter *adapter);
 
 /*  BB/MAC/RF other monitor API */
 void PHY_SetRFPathSwitch_8188E(struct adapter *adapter,	bool main);
-
-void PHY_SwitchEphyParameter(struct adapter *adapter);
-
-void PHY_EnableHostClkReq(struct adapter *adapter);
-
-bool SetAntennaConfig92C(struct adapter *adapter, u8 defaultant);
 
 void storePwrIndexDiffRateOffset(struct adapter *adapter, u32 regaddr,
 				 u32 mask, u32 data);
