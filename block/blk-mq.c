@@ -2284,9 +2284,10 @@ blk_qc_t blk_mq_submit_bio(struct bio *bio)
 	}
 
 	if (unlikely(is_flush_fua)) {
+		struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
 		/* Bypass scheduler for flush requests */
 		blk_insert_flush(rq);
-		blk_mq_run_hw_queue(rq->mq_hctx, true);
+		blk_mq_run_hw_queue(hctx, true);
 	} else if (plug && (q->nr_hw_queues == 1 ||
 		   blk_mq_is_shared_tags(rq->mq_hctx->flags) ||
 		   q->mq_ops->commit_rqs || !blk_queue_nonrot(q))) {
