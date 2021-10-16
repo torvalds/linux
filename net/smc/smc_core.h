@@ -340,7 +340,6 @@ struct smc_init_info {
 	u32			rc;
 	u8			negotiated_eid[SMC_MAX_EID_LEN];
 	/* SMC-R */
-	struct smc_clc_msg_local *ib_lcl;
 	u8			smcr_version;
 	u8			check_smcrv2;
 	u8			peer_gid[SMC_GID_SIZE];

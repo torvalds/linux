@@ -684,24 +684,30 @@ static void smcr_copy_dev_info_to_link(struct smc_link *link)
 int smcr_link_init(struct smc_link_group *lgr, struct smc_link *lnk,
 		   u8 link_idx, struct smc_init_info *ini)
 {
+	struct smc_ib_device *smcibdev;
 	u8 rndvec[3];
 	int rc;
 
-	get_device(&ini->ib_dev->ibdev->dev);
-	atomic_inc(&ini->ib_dev->lnk_cnt);
+	if (lgr->smc_version == SMC_V2) {
+		lnk->smcibdev = ini->smcrv2.ib_dev_v2;
+		lnk->ibport = ini->smcrv2.ib_port_v2;
+	} else {
+		lnk->smcibdev = ini->ib_dev;
+		lnk->ibport = ini->ib_port;
+	}
+	get_device(&lnk->smcibdev->ibdev->dev);
+	atomic_inc(&lnk->smcibdev->lnk_cnt);
+	lnk->path_mtu = lnk->smcibdev->pattr[lnk->ibport - 1].active_mtu;
 	lnk->link_id = smcr_next_link_id(lgr);
 	lnk->lgr = lgr;
 	lnk->link_idx = link_idx;
-	lnk->smcibdev = ini->ib_dev;
-	lnk->ibport = ini->ib_port;
 	smc_ibdev_cnt_inc(lnk);
 	smcr_copy_dev_info_to_link(lnk);
-	lnk->path_mtu = ini->ib_dev->pattr[ini->ib_port - 1].active_mtu;
 	atomic_set(&lnk->conn_cnt, 0);
 	smc_llc_link_set_uid(lnk);
 	INIT_WORK(&lnk->link_down_wrk, smc_link_down_work);
-	if (!ini->ib_dev->initialized) {
-		rc = (int)smc_ib_setup_per_ibdev(ini->ib_dev);
+	if (!lnk->smcibdev->initialized) {
+		rc = (int)smc_ib_setup_per_ibdev(lnk->smcibdev);
 		if (rc)
 			goto out;
 	}
@@ -740,11 +746,12 @@ clear_llc_lnk:
 	smc_llc_link_clear(lnk, false);
 out:
 	smc_ibdev_cnt_dec(lnk);
-	put_device(&ini->ib_dev->ibdev->dev);
+	put_device(&lnk->smcibdev->ibdev->dev);
+	smcibdev = lnk->smcibdev;
 	memset(lnk, 0, sizeof(struct smc_link));
 	lnk->state = SMC_LNK_UNUSED;
-	if (!atomic_dec_return(&ini->ib_dev->lnk_cnt))
-		wake_up(&ini->ib_dev->lnks_deleted);
+	if (!atomic_dec_return(&smcibdev->lnk_cnt))
+		wake_up(&smcibdev->lnks_deleted);
 	return rc;
 }
 
@@ -808,10 +815,25 @@ static int smc_lgr_create(struct smc_sock *smc, struct smc_init_info *ini)
 		atomic_inc(&ini->ism_dev[ini->ism_selected]->lgr_cnt);
 	} else {
 		/* SMC-R specific settings */
+		struct smc_ib_device *ibdev;
+		int ibport;
+
 		lgr->role = smc->listen_smc ? SMC_SERV : SMC_CLNT;
-		memcpy(lgr->peer_systemid, ini->ib_lcl->id_for_peer,
+		lgr->smc_version = ini->smcr_version;
+		memcpy(lgr->peer_systemid, ini->peer_systemid,
 		       SMC_SYSTEMID_LEN);
-		memcpy(lgr->pnet_id, ini->ib_dev->pnetid[ini->ib_port - 1],
+		if (lgr->smc_version == SMC_V2) {
+			ibdev = ini->smcrv2.ib_dev_v2;
+			ibport = ini->smcrv2.ib_port_v2;
+			lgr->saddr = ini->smcrv2.saddr;
+			lgr->uses_gateway = ini->smcrv2.uses_gateway;
+			memcpy(lgr->nexthop_mac, ini->smcrv2.nexthop_mac,
+			       ETH_ALEN);
+		} else {
+			ibdev = ini->ib_dev;
+			ibport = ini->ib_port;
+		}
+		memcpy(lgr->pnet_id, ibdev->pnetid[ibport - 1],
 		       SMC_MAX_PNETID_LEN);
 		smc_llc_lgr_init(lgr, smc);
 
@@ -1636,13 +1658,15 @@ out:
 	return rc;
 }
 
-static bool smcr_lgr_match(struct smc_link_group *lgr,
-			   struct smc_clc_msg_local *lcl,
+static bool smcr_lgr_match(struct smc_link_group *lgr, u8 smcr_version,
+			   u8 peer_systemid[],
+			   u8 peer_gid[],
+			   u8 peer_mac_v1[],
 			   enum smc_lgr_role role, u32 clcqpn)
 {
 	int i;
 
-	if (memcmp(lgr->peer_systemid, lcl->id_for_peer, SMC_SYSTEMID_LEN) ||
+	if (memcmp(lgr->peer_systemid, peer_systemid, SMC_SYSTEMID_LEN) ||
 	    lgr->role != role)
 		return false;
 
@@ -1650,8 +1674,9 @@ static bool smcr_lgr_match(struct smc_link_group *lgr,
 		if (!smc_link_active(&lgr->lnk[i]))
 			continue;
 		if ((lgr->role == SMC_SERV || lgr->lnk[i].peer_qpn == clcqpn) &&
-		    !memcmp(lgr->lnk[i].peer_gid, &lcl->gid, SMC_GID_SIZE) &&
-		    !memcmp(lgr->lnk[i].peer_mac, lcl->mac, sizeof(lcl->mac)))
+		    !memcmp(lgr->lnk[i].peer_gid, peer_gid, SMC_GID_SIZE) &&
+		    (smcr_version == SMC_V2 ||
+		     !memcmp(lgr->lnk[i].peer_mac, peer_mac_v1, ETH_ALEN)))
 			return true;
 	}
 	return false;
@@ -1690,7 +1715,10 @@ int smc_conn_create(struct smc_sock *smc, struct smc_init_info *ini)
 		if ((ini->is_smcd ?
 		     smcd_lgr_match(lgr, ini->ism_dev[ini->ism_selected],
 				    ini->ism_peer_gid[ini->ism_selected]) :
-		     smcr_lgr_match(lgr, ini->ib_lcl, role, ini->ib_clcqpn)) &&
+		     smcr_lgr_match(lgr, ini->smcr_version,
+				    ini->peer_systemid,
+				    ini->peer_gid, ini->peer_mac, role,
+				    ini->ib_clcqpn)) &&
 		    !lgr->sync_err &&
 		    (ini->smcd_version == SMC_V2 ||
 		     lgr->vlan_id == ini->vlan_id) &&
