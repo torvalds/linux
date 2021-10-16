@@ -480,18 +480,18 @@ int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
 		atomic_set(&p->tcfa_bindcnt, 1);
 
 	if (cpustats) {
-		p->cpu_bstats = netdev_alloc_pcpu_stats(struct gnet_stats_basic_cpu);
+		p->cpu_bstats = netdev_alloc_pcpu_stats(struct gnet_stats_basic_sync);
 		if (!p->cpu_bstats)
 			goto err1;
-		p->cpu_bstats_hw = netdev_alloc_pcpu_stats(struct gnet_stats_basic_cpu);
+		p->cpu_bstats_hw = netdev_alloc_pcpu_stats(struct gnet_stats_basic_sync);
 		if (!p->cpu_bstats_hw)
 			goto err2;
 		p->cpu_qstats = alloc_percpu(struct gnet_stats_queue);
 		if (!p->cpu_qstats)
 			goto err3;
 	}
-	gnet_stats_basic_packed_init(&p->tcfa_bstats);
-	gnet_stats_basic_packed_init(&p->tcfa_bstats_hw);
+	gnet_stats_basic_sync_init(&p->tcfa_bstats);
+	gnet_stats_basic_sync_init(&p->tcfa_bstats_hw);
 	spin_lock_init(&p->tcfa_lock);
 	p->tcfa_index = index;
 	p->tcfa_tm.install = jiffies;
@@ -1128,13 +1128,13 @@ void tcf_action_update_stats(struct tc_action *a, u64 bytes, u64 packets,
 			     u64 drops, bool hw)
 {
 	if (a->cpu_bstats) {
-		_bstats_cpu_update(this_cpu_ptr(a->cpu_bstats), bytes, packets);
+		_bstats_update(this_cpu_ptr(a->cpu_bstats), bytes, packets);
 
 		this_cpu_ptr(a->cpu_qstats)->drops += drops;
 
 		if (hw)
-			_bstats_cpu_update(this_cpu_ptr(a->cpu_bstats_hw),
-					   bytes, packets);
+			_bstats_update(this_cpu_ptr(a->cpu_bstats_hw),
+				       bytes, packets);
 		return;
 	}
 

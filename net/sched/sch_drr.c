@@ -19,7 +19,7 @@ struct drr_class {
 	struct Qdisc_class_common	common;
 	unsigned int			filter_cnt;
 
-	struct gnet_stats_basic_packed		bstats;
+	struct gnet_stats_basic_sync		bstats;
 	struct gnet_stats_queue		qstats;
 	struct net_rate_estimator __rcu *rate_est;
 	struct list_head		alist;
@@ -106,7 +106,7 @@ static int drr_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 	if (cl == NULL)
 		return -ENOBUFS;
 
-	gnet_stats_basic_packed_init(&cl->bstats);
+	gnet_stats_basic_sync_init(&cl->bstats);
 	cl->common.classid = classid;
 	cl->quantum	   = quantum;
 	cl->qdisc	   = qdisc_create_dflt(sch->dev_queue,

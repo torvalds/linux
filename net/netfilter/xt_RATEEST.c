@@ -94,11 +94,11 @@ static unsigned int
 xt_rateest_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_rateest_target_info *info = par->targinfo;
-	struct gnet_stats_basic_packed *stats = &info->est->bstats;
+	struct gnet_stats_basic_sync *stats = &info->est->bstats;
 
 	spin_lock_bh(&info->est->lock);
-	stats->bytes += skb->len;
-	stats->packets++;
+	u64_stats_add(&stats->bytes, skb->len);
+	u64_stats_inc(&stats->packets);
 	spin_unlock_bh(&info->est->lock);
 
 	return XT_CONTINUE;
@@ -143,7 +143,7 @@ static int xt_rateest_tg_checkentry(const struct xt_tgchk_param *par)
 	if (!est)
 		goto err1;
 
-	gnet_stats_basic_packed_init(&est->bstats);
+	gnet_stats_basic_sync_init(&est->bstats);
 	strlcpy(est->name, info->name, sizeof(est->name));
 	spin_lock_init(&est->lock);
 	est->refcnt		= 1;

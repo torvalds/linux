@@ -366,7 +366,7 @@ static int gred_offload_dump_stats(struct Qdisc *sch)
 	hw_stats->parent = sch->parent;
 
 	for (i = 0; i < MAX_DPs; i++) {
-		gnet_stats_basic_packed_init(&hw_stats->stats.bstats[i]);
+		gnet_stats_basic_sync_init(&hw_stats->stats.bstats[i]);
 		if (table->tab[i])
 			hw_stats->stats.xstats[i] = &table->tab[i]->stats;
 	}
@@ -378,12 +378,12 @@ static int gred_offload_dump_stats(struct Qdisc *sch)
 	for (i = 0; i < MAX_DPs; i++) {
 		if (!table->tab[i])
 			continue;
-		table->tab[i]->packetsin += hw_stats->stats.bstats[i].packets;
-		table->tab[i]->bytesin += hw_stats->stats.bstats[i].bytes;
+		table->tab[i]->packetsin += u64_stats_read(&hw_stats->stats.bstats[i].packets);
+		table->tab[i]->bytesin += u64_stats_read(&hw_stats->stats.bstats[i].bytes);
 		table->tab[i]->backlog += hw_stats->stats.qstats[i].backlog;
 
-		bytes += hw_stats->stats.bstats[i].bytes;
-		packets += hw_stats->stats.bstats[i].packets;
+		bytes += u64_stats_read(&hw_stats->stats.bstats[i].bytes);
+		packets += u64_stats_read(&hw_stats->stats.bstats[i].packets);
 		sch->qstats.qlen += hw_stats->stats.qstats[i].qlen;
 		sch->qstats.backlog += hw_stats->stats.qstats[i].backlog;
 		sch->qstats.drops += hw_stats->stats.qstats[i].drops;

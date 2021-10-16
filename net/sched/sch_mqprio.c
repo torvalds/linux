@@ -390,7 +390,7 @@ static int mqprio_dump(struct Qdisc *sch, struct sk_buff *skb)
 	unsigned int ntx, tc;
 
 	sch->q.qlen = 0;
-	gnet_stats_basic_packed_init(&sch->bstats);
+	gnet_stats_basic_sync_init(&sch->bstats);
 	memset(&sch->qstats, 0, sizeof(sch->qstats));
 
 	/* MQ supports lockless qdiscs. However, statistics accounting needs
@@ -500,11 +500,11 @@ static int mqprio_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 		int i;
 		__u32 qlen;
 		struct gnet_stats_queue qstats = {0};
-		struct gnet_stats_basic_packed bstats;
+		struct gnet_stats_basic_sync bstats;
 		struct net_device *dev = qdisc_dev(sch);
 		struct netdev_tc_txq tc = dev->tc_to_txq[cl & TC_BITMASK];
 
-		gnet_stats_basic_packed_init(&bstats);
+		gnet_stats_basic_sync_init(&bstats);
 		/* Drop lock here it will be reclaimed before touching
 		 * statistics this is required because the d->lock we
 		 * hold here is the look on dev_queue->qdisc_sleeping

@@ -458,7 +458,7 @@ nfp_abm_qdisc_graft(struct nfp_abm_link *alink, u32 handle, u32 child_handle,
 static void
 nfp_abm_stats_calculate(struct nfp_alink_stats *new,
 			struct nfp_alink_stats *old,
-			struct gnet_stats_basic_packed *bstats,
+			struct gnet_stats_basic_sync *bstats,
 			struct gnet_stats_queue *qstats)
 {
 	_bstats_update(bstats, new->tx_bytes - old->tx_bytes,

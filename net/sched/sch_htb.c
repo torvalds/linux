@@ -113,8 +113,8 @@ struct htb_class {
 	/*
 	 * Written often fields
 	 */
-	struct gnet_stats_basic_packed bstats;
-	struct gnet_stats_basic_packed bstats_bias;
+	struct gnet_stats_basic_sync bstats;
+	struct gnet_stats_basic_sync bstats_bias;
 	struct tc_htb_xstats	xstats;	/* our special stats */
 
 	/* token bucket parameters */
@@ -1312,7 +1312,7 @@ static void htb_offload_aggregate_stats(struct htb_sched *q,
 	struct htb_class *c;
 	unsigned int i;
 
-	gnet_stats_basic_packed_init(&cl->bstats);
+	gnet_stats_basic_sync_init(&cl->bstats);
 
 	for (i = 0; i < q->clhash.hashsize; i++) {
 		hlist_for_each_entry(c, &q->clhash.hash[i], common.hnode) {
@@ -1324,11 +1324,11 @@ static void htb_offload_aggregate_stats(struct htb_sched *q,
 			if (p != cl)
 				continue;
 
-			bytes += c->bstats_bias.bytes;
-			packets += c->bstats_bias.packets;
+			bytes += u64_stats_read(&c->bstats_bias.bytes);
+			packets += u64_stats_read(&c->bstats_bias.packets);
 			if (c->level == 0) {
-				bytes += c->leaf.q->bstats.bytes;
-				packets += c->leaf.q->bstats.packets;
+				bytes += u64_stats_read(&c->leaf.q->bstats.bytes);
+				packets += u64_stats_read(&c->leaf.q->bstats.packets);
 			}
 		}
 	}
@@ -1359,10 +1359,10 @@ htb_dump_class_stats(struct Qdisc *sch, unsigned long arg, struct gnet_dump *d)
 			if (cl->leaf.q)
 				cl->bstats = cl->leaf.q->bstats;
 			else
-				gnet_stats_basic_packed_init(&cl->bstats);
+				gnet_stats_basic_sync_init(&cl->bstats);
 			_bstats_update(&cl->bstats,
-				       cl->bstats_bias.bytes,
-				       cl->bstats_bias.packets);
+				       u64_stats_read(&cl->bstats_bias.bytes),
+				       u64_stats_read(&cl->bstats_bias.packets));
 		} else {
 			htb_offload_aggregate_stats(q, cl);
 		}
@@ -1582,8 +1582,8 @@ static int htb_destroy_class_offload(struct Qdisc *sch, struct htb_class *cl,
 
 	if (cl->parent) {
 		_bstats_update(&cl->parent->bstats_bias,
-			       q->bstats.bytes,
-			       q->bstats.packets);
+			       u64_stats_read(&q->bstats.bytes),
+			       u64_stats_read(&q->bstats.packets));
 	}
 
 	offload_opt = (struct tc_htb_qopt_offload) {
@@ -1853,8 +1853,8 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 		if (!cl)
 			goto failure;
 
-		gnet_stats_basic_packed_init(&cl->bstats);
-		gnet_stats_basic_packed_init(&cl->bstats_bias);
+		gnet_stats_basic_sync_init(&cl->bstats);
+		gnet_stats_basic_sync_init(&cl->bstats_bias);
 
 		err = tcf_block_get(&cl->block, &cl->filter_list, sch, extack);
 		if (err) {
@@ -1930,8 +1930,8 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 				goto err_kill_estimator;
 			}
 			_bstats_update(&parent->bstats_bias,
-				       old_q->bstats.bytes,
-				       old_q->bstats.packets);
+				       u64_stats_read(&old_q->bstats.bytes),
+				       u64_stats_read(&old_q->bstats.packets));
 			qdisc_put(old_q);
 		}
 		new_q = qdisc_create_dflt(dev_queue, &pfifo_qdisc_ops,
