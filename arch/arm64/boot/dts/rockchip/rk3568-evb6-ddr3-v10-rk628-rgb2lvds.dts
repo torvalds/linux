@@ -1,0 +1,173 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
+ */
+
+#include <dt-bindings/display/media-bus-format.h>
+#include "rk3568-evb6-ddr3-v10.dtsi"
+#include "rk3568-android.dtsi"
+
+/ {
+	vcc33_lcd: vcc33-lcd {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc33_lcd";
+		regulator-boot-on;
+		regulator-always-on;
+		gpio = <&gpio4 RK_PC6 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	panel {
+		compatible = "simple-panel";
+		power-supply = <&vcc33_lcd>;
+		backlight = <&backlight>;
+		enable-gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
+		prepare-delay-ms = <20>;
+		enable-delay-ms = <20>;
+		disable-delay-ms = <20>;
+		unprepare-delay-ms = <20>;
+		bus-format = <MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA>;
+
+		display-timings {
+			native-mode = <&timing0>;
+
+			timing0: timing0 {
+				clock-frequency = <66600000>;
+				hactive = <800>;
+				vactive = <1280>;
+				hback-porch = <30>;
+				hfront-porch = <30>;
+				vback-porch = <3>;
+				vfront-porch = <3>;
+				hsync-len = <4>;
+				vsync-len = <2>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		port {
+			panel_in_lvds: endpoint {
+				remote-endpoint = <&lvds_out_panel>;
+			};
+		};
+	};
+};
+
+&dsi0 {
+	status = "disabled";
+};
+
+&video_phy0 {
+	status = "disabled";
+};
+
+&i2c3 {
+	clock-frequency = <400000>;
+	status = "okay";
+
+	rk628: rk628@50 {
+		reg = <0x50>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <RK_PA0 IRQ_TYPE_LEVEL_HIGH>;
+		enable-gpios = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio0 RK_PB7 GPIO_ACTIVE_LOW>;
+		status = "okay";
+	};
+};
+
+#include <arm/rk628.dtsi>
+
+&backlight {
+	pwms = <&pwm14 0 25000 0>;
+};
+
+&pwm14 {
+	status = "okay";
+};
+
+&rk628_lvds {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+
+			lvds_in_post_process: endpoint {
+				remote-endpoint = <&post_process_out_lvds>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+
+			lvds_out_panel: endpoint {
+				remote-endpoint = <&panel_in_lvds>;
+			};
+		};
+	};
+};
+&rk628_combtxphy {
+	status = "okay";
+};
+
+&rk628_post_process {
+	pinctrl-names = "default";
+	pinctrl-0 = <&rk628_vop_pins>;
+	status = "okay";
+
+	mode-sync-pol = <0>;
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+
+			post_process_in_rgb: endpoint {
+				remote-endpoint = <&rgb_out_post_process>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+
+			post_process_out_lvds: endpoint {
+				remote-endpoint = <&lvds_in_post_process>;
+			};
+		};
+	};
+};
+
+&rgb {
+	status = "okay";
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			rgb_out_post_process: endpoint {
+				remote-endpoint = <&post_process_in_rgb>;
+			};
+		};
+	};
+};
+
+&rgb_in_vp2 {
+	status = "okay";
+};
+
+&vcc3v3_lcd1_n {
+	status = "disabled";
+	gpio = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
+	enable-active-high;
+};
+
+&gmac1 {
+	status = "disabled";
+};
