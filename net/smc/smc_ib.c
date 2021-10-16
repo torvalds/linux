@@ -183,6 +183,33 @@ bool smc_ib_port_active(struct smc_ib_device *smcibdev, u8 ibport)
 	return smcibdev->pattr[ibport - 1].state == IB_PORT_ACTIVE;
 }
 
+int smc_ib_find_route(__be32 saddr, __be32 daddr,
+		      u8 nexthop_mac[], u8 *uses_gateway)
+{
+	struct neighbour *neigh = NULL;
+	struct rtable *rt = NULL;
+	struct flowi4 fl4 = {
+		.saddr = saddr,
+		.daddr = daddr
+	};
+
+	if (daddr == cpu_to_be32(INADDR_NONE))
+		goto out;
+	rt = ip_route_output_flow(&init_net, &fl4, NULL);
+	if (IS_ERR(rt))
+		goto out;
+	if (rt->rt_uses_gateway && rt->rt_gw_family != AF_INET)
+		goto out;
+	neigh = rt->dst.ops->neigh_lookup(&rt->dst, NULL, &fl4.daddr);
+	if (neigh) {
+		memcpy(nexthop_mac, neigh->ha, ETH_ALEN);
+		*uses_gateway = rt->rt_uses_gateway;
+		return 0;
+	}
+out:
+	return -ENOENT;
+}
+
 /* determine the gid for an ib-device port and vlan id */
 int smc_ib_determine_gid(struct smc_ib_device *smcibdev, u8 ibport,
 			 unsigned short vlan_id, u8 gid[], u8 *sgid_index)

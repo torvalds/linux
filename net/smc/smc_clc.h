@@ -54,6 +54,8 @@
 #define SMC_CLC_DECL_NOSRVLINK	0x030b0000  /* SMC-R link from srv not found  */
 #define SMC_CLC_DECL_VERSMISMAT	0x030c0000  /* SMC version mismatch	      */
 #define SMC_CLC_DECL_MAX_DMB	0x030d0000  /* SMC-D DMB limit exceeded       */
+#define SMC_CLC_DECL_NOROUTE	0x030e0000  /* SMC-Rv2 conn. no route to peer */
+#define SMC_CLC_DECL_NOINDIRECT	0x030f0000  /* SMC-Rv2 conn. indirect mismatch*/
 #define SMC_CLC_DECL_SYNCERR	0x04000000  /* synchronization error          */
 #define SMC_CLC_DECL_PEERDECL	0x05000000  /* peer declined during handshake */
 #define SMC_CLC_DECL_INTERR	0x09990000  /* internal error		      */
@@ -213,16 +215,26 @@ struct smcd_clc_msg_accept_confirm_common {	/* SMCD accept/confirm */
 #define SMC_CLC_OS_AIX		3
 
 struct smc_clc_first_contact_ext {
-	u8 reserved1;
 #if defined(__BIG_ENDIAN_BITFIELD)
+	u8 v2_direct : 1,
+	   reserved  : 7;
 	u8 os_type : 4,
 	   release : 4;
 #elif defined(__LITTLE_ENDIAN_BITFIELD)
+	u8 reserved  : 7,
+	   v2_direct : 1;
 	u8 release : 4,
 	   os_type : 4;
 #endif
 	u8 reserved2[2];
 	u8 hostname[SMC_MAX_HOSTNAME_LEN];
+};
+
+struct smc_clc_fce_gid_ext {
+	u8 reserved[16];
+	u8 gid_cnt;
+	u8 reserved2[3];
+	u8 gid[][SMC_GID_SIZE];
 };
 
 struct smc_clc_msg_accept_confirm {	/* clc accept / confirm message */
@@ -239,13 +251,17 @@ struct smc_clc_msg_accept_confirm {	/* clc accept / confirm message */
 struct smc_clc_msg_accept_confirm_v2 {	/* clc accept / confirm message */
 	struct smc_clc_msg_hdr hdr;
 	union {
-		struct smcr_clc_msg_accept_confirm r0; /* SMC-R */
+		struct { /* SMC-R */
+			struct smcr_clc_msg_accept_confirm r0;
+			u8 eid[SMC_MAX_EID_LEN];
+			u8 reserved6[8];
+		} r1;
 		struct { /* SMC-D */
 			struct smcd_clc_msg_accept_confirm_common d0;
 			__be16 chid;
 			u8 eid[SMC_MAX_EID_LEN];
 			u8 reserved5[8];
-		};
+		} d1;
 	};
 };
 
@@ -345,7 +361,7 @@ int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info, u8 version);
 int smc_clc_send_proposal(struct smc_sock *smc, struct smc_init_info *ini);
 int smc_clc_send_confirm(struct smc_sock *smc, bool clnt_first_contact,
-			 u8 version, u8 *eid);
+			 u8 version, u8 *eid, struct smc_init_info *ini);
 int smc_clc_send_accept(struct smc_sock *smc, bool srv_first_contact,
 			u8 version, u8 *negotiated_eid);
 void smc_clc_init(void) __init;

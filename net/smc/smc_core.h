@@ -288,6 +288,9 @@ struct smc_link_group {
 						/* link keep alive time */
 			u32			llc_termination_rsn;
 						/* rsn code for termination */
+			u8			nexthop_mac[ETH_ALEN];
+			u8			uses_gateway;
+			__be32			saddr;
 		};
 		struct { /* SMC-D */
 			u64			peer_gid;
@@ -340,6 +343,9 @@ struct smc_init_info {
 	struct smc_clc_msg_local *ib_lcl;
 	u8			smcr_version;
 	u8			check_smcrv2;
+	u8			peer_gid[SMC_GID_SIZE];
+	u8			peer_mac[ETH_ALEN];
+	u8			peer_systemid[SMC_SYSTEMID_LEN];
 	struct smc_ib_device	*ib_dev;
 	u8			ib_gid[SMC_GID_SIZE];
 	u8			ib_port;
