@@ -401,6 +401,12 @@ process_start:
 		     !adapter->scan_processing) &&
 		    !adapter->data_sent &&
 		    !skb_queue_empty(&adapter->tx_data_q)) {
+			if (adapter->hs_activated_manually) {
+				mwifiex_cancel_hs(mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY),
+						  MWIFIEX_ASYNC_CMD);
+				adapter->hs_activated_manually = false;
+			}
+
 			mwifiex_process_tx_queue(adapter);
 			if (adapter->hs_activated) {
 				clear_bit(MWIFIEX_IS_HS_CONFIGURED,
@@ -418,6 +424,12 @@ process_start:
 		    !mwifiex_bypass_txlist_empty(adapter) &&
 		    !mwifiex_is_tdls_chan_switching
 			(mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA))) {
+			if (adapter->hs_activated_manually) {
+				mwifiex_cancel_hs(mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY),
+						  MWIFIEX_ASYNC_CMD);
+				adapter->hs_activated_manually = false;
+			}
+
 			mwifiex_process_bypass_tx(adapter);
 			if (adapter->hs_activated) {
 				clear_bit(MWIFIEX_IS_HS_CONFIGURED,
@@ -434,6 +446,12 @@ process_start:
 		    !adapter->data_sent && !mwifiex_wmm_lists_empty(adapter) &&
 		    !mwifiex_is_tdls_chan_switching
 			(mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA))) {
+			if (adapter->hs_activated_manually) {
+				mwifiex_cancel_hs(mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY),
+						  MWIFIEX_ASYNC_CMD);
+				adapter->hs_activated_manually = false;
+			}
+
 			mwifiex_wmm_process_tx(adapter);
 			if (adapter->hs_activated) {
 				clear_bit(MWIFIEX_IS_HS_CONFIGURED,
