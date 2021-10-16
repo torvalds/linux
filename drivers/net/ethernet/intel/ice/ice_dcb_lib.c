@@ -194,17 +194,18 @@ u8 ice_dcb_get_tc(struct ice_vsi *vsi, int queue_index)
  */
 void ice_vsi_cfg_dcb_rings(struct ice_vsi *vsi)
 {
-	struct ice_ring *tx_ring, *rx_ring;
+	struct ice_tx_ring *tx_ring;
+	struct ice_rx_ring *rx_ring;
 	u16 qoffset, qcount;
 	int i, n;
 
 	if (!test_bit(ICE_FLAG_DCB_ENA, vsi->back->flags)) {
 		/* Reset the TC information */
-		for (i = 0; i < vsi->num_txq; i++) {
+		ice_for_each_txq(vsi, i) {
 			tx_ring = vsi->tx_rings[i];
 			tx_ring->dcb_tc = 0;
 		}
-		for (i = 0; i < vsi->num_rxq; i++) {
+		ice_for_each_rxq(vsi, i) {
 			rx_ring = vsi->rx_rings[i];
 			rx_ring->dcb_tc = 0;
 		}
@@ -824,7 +825,7 @@ void ice_update_dcb_stats(struct ice_pf *pf)
  * tag will already be configured with the correct ID and priority bits
  */
 void
-ice_tx_prepare_vlan_flags_dcb(struct ice_ring *tx_ring,
+ice_tx_prepare_vlan_flags_dcb(struct ice_tx_ring *tx_ring,
 			      struct ice_tx_buf *first)
 {
 	struct sk_buff *skb = first->skb;

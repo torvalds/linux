@@ -46,12 +46,12 @@ static int ice_vsi_ctrl_all_rx_rings(struct ice_vsi *vsi, bool ena)
 	int ret = 0;
 	u16 i;
 
-	for (i = 0; i < vsi->num_rxq; i++)
+	ice_for_each_rxq(vsi, i)
 		ice_vsi_ctrl_one_rx_ring(vsi, ena, i, false);
 
 	ice_flush(&vsi->back->hw);
 
-	for (i = 0; i < vsi->num_rxq; i++) {
+	ice_for_each_rxq(vsi, i) {
 		ret = ice_vsi_wait_one_rx_ring(vsi, ena, i);
 		if (ret)
 			break;
@@ -390,12 +390,12 @@ static irqreturn_t ice_msix_clean_ctrl_vsi(int __always_unused irq, void *data)
 {
 	struct ice_q_vector *q_vector = (struct ice_q_vector *)data;
 
-	if (!q_vector->tx.ring)
+	if (!q_vector->tx.tx_ring)
 		return IRQ_HANDLED;
 
 #define FDIR_RX_DESC_CLEAN_BUDGET 64
-	ice_clean_rx_irq(q_vector->rx.ring, FDIR_RX_DESC_CLEAN_BUDGET);
-	ice_clean_ctrl_tx_irq(q_vector->tx.ring);
+	ice_clean_rx_irq(q_vector->rx.rx_ring, FDIR_RX_DESC_CLEAN_BUDGET);
+	ice_clean_ctrl_tx_irq(q_vector->tx.tx_ring);
 
 	return IRQ_HANDLED;
 }
@@ -409,7 +409,7 @@ static irqreturn_t ice_msix_clean_rings(int __always_unused irq, void *data)
 {
 	struct ice_q_vector *q_vector = (struct ice_q_vector *)data;
 
-	if (!q_vector->tx.ring && !q_vector->rx.ring)
+	if (!q_vector->tx.tx_ring && !q_vector->rx.rx_ring)
 		return IRQ_HANDLED;
 
 	q_vector->total_events++;
@@ -425,7 +425,7 @@ static irqreturn_t ice_eswitch_msix_clean_rings(int __always_unused irq, void *d
 	struct ice_pf *pf = q_vector->vsi->back;
 	int i;
 
-	if (!q_vector->tx.ring && !q_vector->rx.ring)
+	if (!q_vector->tx.tx_ring && !q_vector->rx.rx_ring)
 		return IRQ_HANDLED;
 
 	ice_for_each_vf(pf, i)
@@ -639,12 +639,12 @@ static void ice_vsi_put_qs(struct ice_vsi *vsi)
 
 	mutex_lock(&pf->avail_q_mutex);
 
-	for (i = 0; i < vsi->alloc_txq; i++) {
+	ice_for_each_alloc_txq(vsi, i) {
 		clear_bit(vsi->txq_map[i], pf->avail_txqs);
 		vsi->txq_map[i] = ICE_INVAL_Q_INDEX;
 	}
 
-	for (i = 0; i < vsi->alloc_rxq; i++) {
+	ice_for_each_alloc_rxq(vsi, i) {
 		clear_bit(vsi->rxq_map[i], pf->avail_rxqs);
 		vsi->rxq_map[i] = ICE_INVAL_Q_INDEX;
 	}
@@ -1291,14 +1291,14 @@ static void ice_vsi_clear_rings(struct ice_vsi *vsi)
 			struct ice_q_vector *q_vector = vsi->q_vectors[i];
 
 			if (q_vector) {
-				q_vector->tx.ring = NULL;
-				q_vector->rx.ring = NULL;
+				q_vector->tx.tx_ring = NULL;
+				q_vector->rx.rx_ring = NULL;
 			}
 		}
 	}
 
 	if (vsi->tx_rings) {
-		for (i = 0; i < vsi->alloc_txq; i++) {
+		ice_for_each_alloc_txq(vsi, i) {
 			if (vsi->tx_rings[i]) {
 				kfree_rcu(vsi->tx_rings[i], rcu);
 				WRITE_ONCE(vsi->tx_rings[i], NULL);
@@ -1306,7 +1306,7 @@ static void ice_vsi_clear_rings(struct ice_vsi *vsi)
 		}
 	}
 	if (vsi->rx_rings) {
-		for (i = 0; i < vsi->alloc_rxq; i++) {
+		ice_for_each_alloc_rxq(vsi, i) {
 			if (vsi->rx_rings[i]) {
 				kfree_rcu(vsi->rx_rings[i], rcu);
 				WRITE_ONCE(vsi->rx_rings[i], NULL);
@@ -1327,8 +1327,8 @@ static int ice_vsi_alloc_rings(struct ice_vsi *vsi)
 
 	dev = ice_pf_to_dev(pf);
 	/* Allocate Tx rings */
-	for (i = 0; i < vsi->alloc_txq; i++) {
-		struct ice_ring *ring;
+	ice_for_each_alloc_txq(vsi, i) {
+		struct ice_tx_ring *ring;
 
 		/* allocate with kzalloc(), free with kfree_rcu() */
 		ring = kzalloc(sizeof(*ring), GFP_KERNEL);
@@ -1338,7 +1338,6 @@ static int ice_vsi_alloc_rings(struct ice_vsi *vsi)
 
 		ring->q_index = i;
 		ring->reg_idx = vsi->txq_map[i];
-		ring->ring_active = false;
 		ring->vsi = vsi;
 		ring->tx_tstamps = &pf->ptp.port.tx;
 		ring->dev = dev;
@@ -1347,8 +1346,8 @@ static int ice_vsi_alloc_rings(struct ice_vsi *vsi)
 	}
 
 	/* Allocate Rx rings */
-	for (i = 0; i < vsi->alloc_rxq; i++) {
-		struct ice_ring *ring;
+	ice_for_each_alloc_rxq(vsi, i) {
+		struct ice_rx_ring *ring;
 
 		/* allocate with kzalloc(), free with kfree_rcu() */
 		ring = kzalloc(sizeof(*ring), GFP_KERNEL);
@@ -1357,7 +1356,6 @@ static int ice_vsi_alloc_rings(struct ice_vsi *vsi)
 
 		ring->q_index = i;
 		ring->reg_idx = vsi->rxq_map[i];
-		ring->ring_active = false;
 		ring->vsi = vsi;
 		ring->netdev = vsi->netdev;
 		ring->dev = dev;
@@ -1752,7 +1750,7 @@ int ice_vsi_cfg_single_rxq(struct ice_vsi *vsi, u16 q_idx)
 	return ice_vsi_cfg_rxq(vsi->rx_rings[q_idx]);
 }
 
-int ice_vsi_cfg_single_txq(struct ice_vsi *vsi, struct ice_ring **tx_rings, u16 q_idx)
+int ice_vsi_cfg_single_txq(struct ice_vsi *vsi, struct ice_tx_ring **tx_rings, u16 q_idx)
 {
 	struct ice_aqc_add_tx_qgrp *qg_buf;
 	int err;
@@ -1808,7 +1806,7 @@ setup_rings:
  * Configure the Tx VSI for operation.
  */
 static int
-ice_vsi_cfg_txqs(struct ice_vsi *vsi, struct ice_ring **rings, u16 count)
+ice_vsi_cfg_txqs(struct ice_vsi *vsi, struct ice_tx_ring **rings, u16 count)
 {
 	struct ice_aqc_add_tx_qgrp *qg_buf;
 	u16 q_idx = 0;
@@ -1859,8 +1857,8 @@ int ice_vsi_cfg_xdp_txqs(struct ice_vsi *vsi)
 	if (ret)
 		return ret;
 
-	for (i = 0; i < vsi->num_xdp_txq; i++)
-		vsi->xdp_rings[i]->xsk_pool = ice_xsk_pool(vsi->xdp_rings[i]);
+	ice_for_each_xdp_txq(vsi, i)
+		vsi->xdp_rings[i]->xsk_pool = ice_tx_xsk_pool(vsi->xdp_rings[i]);
 
 	return ret;
 }
@@ -1895,6 +1893,23 @@ void ice_write_intrl(struct ice_q_vector *q_vector, u8 intrl)
 	     ice_intrl_usec_to_reg(intrl, ICE_INTRL_GRAN_ABOVE_25));
 }
 
+static struct ice_q_vector *ice_pull_qvec_from_rc(struct ice_ring_container *rc)
+{
+	switch (rc->type) {
+	case ICE_RX_CONTAINER:
+		if (rc->rx_ring)
+			return rc->rx_ring->q_vector;
+		break;
+	case ICE_TX_CONTAINER:
+		if (rc->tx_ring)
+			return rc->tx_ring->q_vector;
+	default:
+		break;
+	}
+
+	return NULL;
+}
+
 /**
  * __ice_write_itr - write throttle rate to register
  * @q_vector: pointer to interrupt data structure
@@ -1919,10 +1934,9 @@ void ice_write_itr(struct ice_ring_container *rc, u16 itr)
 {
 	struct ice_q_vector *q_vector;
 
-	if (!rc->ring)
+	q_vector = ice_pull_qvec_from_rc(rc);
+	if (!q_vector)
 		return;
-
-	q_vector = rc->ring->q_vector;
 
 	__ice_write_itr(q_vector, rc, itr);
 }
@@ -1941,7 +1955,7 @@ void ice_vsi_cfg_msix(struct ice_vsi *vsi)
 	u16 txq = 0, rxq = 0;
 	int i, q;
 
-	for (i = 0; i < vsi->num_q_vectors; i++) {
+	ice_for_each_q_vector(vsi, i) {
 		struct ice_q_vector *q_vector = vsi->q_vectors[i];
 		u16 reg_idx = q_vector->reg_idx;
 
@@ -2099,7 +2113,7 @@ int ice_vsi_stop_all_rx_rings(struct ice_vsi *vsi)
  */
 static int
 ice_vsi_stop_tx_rings(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
-		      u16 rel_vmvf_num, struct ice_ring **rings, u16 count)
+		      u16 rel_vmvf_num, struct ice_tx_ring **rings, u16 count)
 {
 	u16 q_idx;
 
@@ -2635,7 +2649,7 @@ static void ice_vsi_release_msix(struct ice_vsi *vsi)
 	u32 rxq = 0;
 	int i, q;
 
-	for (i = 0; i < vsi->num_q_vectors; i++) {
+	ice_for_each_q_vector(vsi, i) {
 		struct ice_q_vector *q_vector = vsi->q_vectors[i];
 
 		ice_write_intrl(q_vector, 0);
@@ -3201,7 +3215,9 @@ int ice_vsi_rebuild(struct ice_vsi *vsi, bool init_vsi)
 
 		ice_vsi_map_rings_to_vectors(vsi);
 		if (ice_is_xdp_ena_vsi(vsi)) {
-			vsi->num_xdp_txq = vsi->alloc_rxq;
+			ret = ice_vsi_determine_xdp_res(vsi);
+			if (ret)
+				goto err_vectors;
 			ret = ice_prepare_xdp_rings(vsi, vsi->xdp_prog);
 			if (ret)
 				goto err_vectors;
@@ -3398,16 +3414,16 @@ out:
 
 /**
  * ice_update_ring_stats - Update ring statistics
- * @ring: ring to update
+ * @stats: stats to be updated
  * @pkts: number of processed packets
  * @bytes: number of processed bytes
  *
  * This function assumes that caller has acquired a u64_stats_sync lock.
  */
-static void ice_update_ring_stats(struct ice_ring *ring, u64 pkts, u64 bytes)
+static void ice_update_ring_stats(struct ice_q_stats *stats, u64 pkts, u64 bytes)
 {
-	ring->stats.bytes += bytes;
-	ring->stats.pkts += pkts;
+	stats->bytes += bytes;
+	stats->pkts += pkts;
 }
 
 /**
@@ -3416,10 +3432,10 @@ static void ice_update_ring_stats(struct ice_ring *ring, u64 pkts, u64 bytes)
  * @pkts: number of processed packets
  * @bytes: number of processed bytes
  */
-void ice_update_tx_ring_stats(struct ice_ring *tx_ring, u64 pkts, u64 bytes)
+void ice_update_tx_ring_stats(struct ice_tx_ring *tx_ring, u64 pkts, u64 bytes)
 {
 	u64_stats_update_begin(&tx_ring->syncp);
-	ice_update_ring_stats(tx_ring, pkts, bytes);
+	ice_update_ring_stats(&tx_ring->stats, pkts, bytes);
 	u64_stats_update_end(&tx_ring->syncp);
 }
 
@@ -3429,10 +3445,10 @@ void ice_update_tx_ring_stats(struct ice_ring *tx_ring, u64 pkts, u64 bytes)
  * @pkts: number of processed packets
  * @bytes: number of processed bytes
  */
-void ice_update_rx_ring_stats(struct ice_ring *rx_ring, u64 pkts, u64 bytes)
+void ice_update_rx_ring_stats(struct ice_rx_ring *rx_ring, u64 pkts, u64 bytes)
 {
 	u64_stats_update_begin(&rx_ring->syncp);
-	ice_update_ring_stats(rx_ring, pkts, bytes);
+	ice_update_ring_stats(&rx_ring->stats, pkts, bytes);
 	u64_stats_update_end(&rx_ring->syncp);
 }
 

@@ -180,7 +180,7 @@ s8 ice_ptp_request_ts(struct ice_ptp_tx *tx, struct sk_buff *skb);
 void ice_ptp_process_ts(struct ice_pf *pf);
 
 void
-ice_ptp_rx_hwtstamp(struct ice_ring *rx_ring,
+ice_ptp_rx_hwtstamp(struct ice_rx_ring *rx_ring,
 		    union ice_32b_rx_flex_desc *rx_desc, struct sk_buff *skb);
 void ice_ptp_init(struct ice_pf *pf);
 void ice_ptp_release(struct ice_pf *pf);
@@ -208,7 +208,7 @@ ice_ptp_request_ts(struct ice_ptp_tx *tx, struct sk_buff *skb)
 
 static inline void ice_ptp_process_ts(struct ice_pf *pf) { }
 static inline void
-ice_ptp_rx_hwtstamp(struct ice_ring *rx_ring,
+ice_ptp_rx_hwtstamp(struct ice_rx_ring *rx_ring,
 		    union ice_32b_rx_flex_desc *rx_desc, struct sk_buff *skb) { }
 static inline void ice_ptp_init(struct ice_pf *pf) { }
 static inline void ice_ptp_release(struct ice_pf *pf) { }

@@ -125,9 +125,12 @@
 #define ice_for_each_vsi(pf, i) \
 	for ((i) = 0; (i) < (pf)->num_alloc_vsi; (i)++)
 
-/* Macros for each Tx/Rx ring in a VSI */
+/* Macros for each Tx/Xdp/Rx ring in a VSI */
 #define ice_for_each_txq(vsi, i) \
 	for ((i) = 0; (i) < (vsi)->num_txq; (i)++)
+
+#define ice_for_each_xdp_txq(vsi, i) \
+	for ((i) = 0; (i) < (vsi)->num_xdp_txq; (i)++)
 
 #define ice_for_each_rxq(vsi, i) \
 	for ((i) = 0; (i) < (vsi)->num_rxq; (i)++)
@@ -166,6 +169,8 @@ enum ice_feature {
 	ICE_F_SMA_CTRL,
 	ICE_F_MAX
 };
+
+DECLARE_STATIC_KEY_FALSE(ice_xdp_locking_key);
 
 struct ice_txq_meta {
 	u32 q_teid;	/* Tx-scheduler element identifier */
@@ -275,8 +280,8 @@ struct ice_vsi {
 	struct ice_sw *vsw;		 /* switch this VSI is on */
 	struct ice_pf *back;		 /* back pointer to PF */
 	struct ice_port_info *port_info; /* back pointer to port_info */
-	struct ice_ring **rx_rings;	 /* Rx ring array */
-	struct ice_ring **tx_rings;	 /* Tx ring array */
+	struct ice_rx_ring **rx_rings;	 /* Rx ring array */
+	struct ice_tx_ring **tx_rings;	 /* Tx ring array */
 	struct ice_q_vector **q_vectors; /* q_vector array */
 
 	irqreturn_t (*irq_handler)(int irq, void *data);
@@ -349,7 +354,7 @@ struct ice_vsi {
 	u16 qset_handle[ICE_MAX_TRAFFIC_CLASS];
 	struct ice_tc_cfg tc_cfg;
 	struct bpf_prog *xdp_prog;
-	struct ice_ring **xdp_rings;	 /* XDP ring array */
+	struct ice_tx_ring **xdp_rings;	 /* XDP ring array */
 	unsigned long *af_xdp_zc_qps;	 /* tracks AF_XDP ZC enabled qps */
 	u16 num_xdp_txq;		 /* Used XDP queues */
 	u8 xdp_mapping_mode;		 /* ICE_MAP_MODE_[CONTIG|SCATTER] */
@@ -580,25 +585,42 @@ static inline bool ice_is_xdp_ena_vsi(struct ice_vsi *vsi)
 	return !!vsi->xdp_prog;
 }
 
-static inline void ice_set_ring_xdp(struct ice_ring *ring)
+static inline void ice_set_ring_xdp(struct ice_tx_ring *ring)
 {
 	ring->flags |= ICE_TX_FLAGS_RING_XDP;
 }
 
 /**
  * ice_xsk_pool - get XSK buffer pool bound to a ring
- * @ring: ring to use
+ * @ring: Rx ring to use
  *
  * Returns a pointer to xdp_umem structure if there is a buffer pool present,
  * NULL otherwise.
  */
-static inline struct xsk_buff_pool *ice_xsk_pool(struct ice_ring *ring)
+static inline struct xsk_buff_pool *ice_xsk_pool(struct ice_rx_ring *ring)
 {
 	struct ice_vsi *vsi = ring->vsi;
 	u16 qid = ring->q_index;
 
-	if (ice_ring_is_xdp(ring))
-		qid -= vsi->num_xdp_txq;
+	if (!ice_is_xdp_ena_vsi(vsi) || !test_bit(qid, vsi->af_xdp_zc_qps))
+		return NULL;
+
+	return xsk_get_pool_from_qid(vsi->netdev, qid);
+}
+
+/**
+ * ice_tx_xsk_pool - get XSK buffer pool bound to a ring
+ * @ring: Tx ring to use
+ *
+ * Returns a pointer to xdp_umem structure if there is a buffer pool present,
+ * NULL otherwise. Tx equivalent of ice_xsk_pool.
+ */
+static inline struct xsk_buff_pool *ice_tx_xsk_pool(struct ice_tx_ring *ring)
+{
+	struct ice_vsi *vsi = ring->vsi;
+	u16 qid;
+
+	qid = ring->q_index - vsi->num_xdp_txq;
 
 	if (!ice_is_xdp_ena_vsi(vsi) || !test_bit(qid, vsi->af_xdp_zc_qps))
 		return NULL;
@@ -699,6 +721,7 @@ int ice_up(struct ice_vsi *vsi);
 int ice_down(struct ice_vsi *vsi);
 int ice_vsi_cfg(struct ice_vsi *vsi);
 struct ice_vsi *ice_lb_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi);
+int ice_vsi_determine_xdp_res(struct ice_vsi *vsi);
 int ice_prepare_xdp_rings(struct ice_vsi *vsi, struct bpf_prog *prog);
 int ice_destroy_xdp_rings(struct ice_vsi *vsi);
 int
