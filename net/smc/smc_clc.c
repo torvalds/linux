@@ -114,6 +114,17 @@ err_out:
 	return rc;
 }
 
+int smc_clc_ueid_count(void)
+{
+	int count;
+
+	read_lock(&smc_clc_eid_table.lock);
+	count = smc_clc_eid_table.ueid_cnt;
+	read_unlock(&smc_clc_eid_table.lock);
+
+	return count;
+}
+
 int smc_nl_add_ueid(struct sk_buff *skb, struct genl_info *info)
 {
 	struct nlattr *nla_ueid = info->attrs[SMC_NLA_EID_TABLE_ENTRY];

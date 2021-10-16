@@ -608,7 +608,9 @@ static int smc_find_rdma_device(struct smc_sock *smc, struct smc_init_info *ini)
 	 * used for the internal TCP socket
 	 */
 	smc_pnet_find_roce_resource(smc->clcsock->sk, ini);
-	if (!ini->ib_dev)
+	if (!ini->check_smcrv2 && !ini->ib_dev)
+		return SMC_CLC_DECL_NOSMCRDEV;
+	if (ini->check_smcrv2 && !ini->smcrv2.ib_dev_v2)
 		return SMC_CLC_DECL_NOSMCRDEV;
 	return 0;
 }
@@ -692,27 +694,42 @@ static int smc_find_proposal_devices(struct smc_sock *smc,
 	int rc = 0;
 
 	/* check if there is an ism device available */
-	if (ini->smcd_version & SMC_V1) {
-		if (smc_find_ism_device(smc, ini) ||
-		    smc_connect_ism_vlan_setup(smc, ini)) {
-			if (ini->smc_type_v1 == SMC_TYPE_B)
-				ini->smc_type_v1 = SMC_TYPE_R;
-			else
-				ini->smc_type_v1 = SMC_TYPE_N;
-		} /* else ISM V1 is supported for this connection */
-		if (smc_find_rdma_device(smc, ini)) {
-			if (ini->smc_type_v1 == SMC_TYPE_B)
-				ini->smc_type_v1 = SMC_TYPE_D;
-			else
-				ini->smc_type_v1 = SMC_TYPE_N;
-		} /* else RDMA is supported for this connection */
-	}
-	if (smc_ism_is_v2_capable() && smc_find_ism_v2_device_clnt(smc, ini))
-		ini->smc_type_v2 = SMC_TYPE_N;
+	if (!(ini->smcd_version & SMC_V1) ||
+	    smc_find_ism_device(smc, ini) ||
+	    smc_connect_ism_vlan_setup(smc, ini))
+		ini->smcd_version &= ~SMC_V1;
+	/* else ISM V1 is supported for this connection */
+
+	/* check if there is an rdma device available */
+	if (!(ini->smcr_version & SMC_V1) ||
+	    smc_find_rdma_device(smc, ini))
+		ini->smcr_version &= ~SMC_V1;
+	/* else RDMA is supported for this connection */
+
+	ini->smc_type_v1 = smc_indicated_type(ini->smcd_version & SMC_V1,
+					      ini->smcr_version & SMC_V1);
+
+	/* check if there is an ism v2 device available */
+	if (!(ini->smcd_version & SMC_V2) ||
+	    !smc_ism_is_v2_capable() ||
+	    smc_find_ism_v2_device_clnt(smc, ini))
+		ini->smcd_version &= ~SMC_V2;
+
+	/* check if there is an rdma v2 device available */
+	ini->check_smcrv2 = true;
+	ini->smcrv2.saddr = smc->clcsock->sk->sk_rcv_saddr;
+	if (!(ini->smcr_version & SMC_V2) ||
+	    smc->clcsock->sk->sk_family != AF_INET ||
+	    !smc_clc_ueid_count() ||
+	    smc_find_rdma_device(smc, ini))
+		ini->smcr_version &= ~SMC_V2;
+	ini->check_smcrv2 = false;
+
+	ini->smc_type_v2 = smc_indicated_type(ini->smcd_version & SMC_V2,
+					      ini->smcr_version & SMC_V2);
 
 	/* if neither ISM nor RDMA are supported, fallback */
-	if (!smcr_indicated(ini->smc_type_v1) &&
-	    ini->smc_type_v1 == SMC_TYPE_N && ini->smc_type_v2 == SMC_TYPE_N)
+	if (ini->smc_type_v1 == SMC_TYPE_N && ini->smc_type_v2 == SMC_TYPE_N)
 		rc = SMC_CLC_DECL_NOSMCDEV;
 
 	return rc;
@@ -950,16 +967,23 @@ connect_abort:
 static int smc_connect_check_aclc(struct smc_init_info *ini,
 				  struct smc_clc_msg_accept_confirm *aclc)
 {
-	if ((aclc->hdr.typev1 == SMC_TYPE_R &&
-	     !smcr_indicated(ini->smc_type_v1)) ||
-	    (aclc->hdr.typev1 == SMC_TYPE_D &&
-	     ((!smcd_indicated(ini->smc_type_v1) &&
-	       !smcd_indicated(ini->smc_type_v2)) ||
-	      (aclc->hdr.version == SMC_V1 &&
-	       !smcd_indicated(ini->smc_type_v1)) ||
-	      (aclc->hdr.version == SMC_V2 &&
-	       !smcd_indicated(ini->smc_type_v2)))))
+	if (aclc->hdr.typev1 != SMC_TYPE_R &&
+	    aclc->hdr.typev1 != SMC_TYPE_D)
 		return SMC_CLC_DECL_MODEUNSUPP;
+
+	if (aclc->hdr.version >= SMC_V2) {
+		if ((aclc->hdr.typev1 == SMC_TYPE_R &&
+		     !smcr_indicated(ini->smc_type_v2)) ||
+		    (aclc->hdr.typev1 == SMC_TYPE_D &&
+		     !smcd_indicated(ini->smc_type_v2)))
+			return SMC_CLC_DECL_MODEUNSUPP;
+	} else {
+		if ((aclc->hdr.typev1 == SMC_TYPE_R &&
+		     !smcr_indicated(ini->smc_type_v1)) ||
+		    (aclc->hdr.typev1 == SMC_TYPE_D &&
+		     !smcd_indicated(ini->smc_type_v1)))
+			return SMC_CLC_DECL_MODEUNSUPP;
+	}
 
 	return 0;
 }
@@ -991,14 +1015,15 @@ static int __smc_connect(struct smc_sock *smc)
 		return smc_connect_decline_fallback(smc, SMC_CLC_DECL_MEM,
 						    version);
 
-	ini->smcd_version = SMC_V1;
-	ini->smcd_version |= smc_ism_is_v2_capable() ? SMC_V2 : 0;
+	ini->smcd_version = SMC_V1 | SMC_V2;
+	ini->smcr_version = SMC_V1 | SMC_V2;
 	ini->smc_type_v1 = SMC_TYPE_B;
-	ini->smc_type_v2 = smc_ism_is_v2_capable() ? SMC_TYPE_D : SMC_TYPE_N;
+	ini->smc_type_v2 = SMC_TYPE_B;
 
 	/* get vlan id from IP device */
 	if (smc_vlan_by_tcpsk(smc->clcsock, ini)) {
 		ini->smcd_version &= ~SMC_V1;
+		ini->smcr_version = 0;
 		ini->smc_type_v1 = SMC_TYPE_N;
 		if (!ini->smcd_version) {
 			rc = SMC_CLC_DECL_GETVLANERR;
@@ -1026,15 +1051,17 @@ static int __smc_connect(struct smc_sock *smc)
 	/* check if smc modes and versions of CLC proposal and accept match */
 	rc = smc_connect_check_aclc(ini, aclc);
 	version = aclc->hdr.version == SMC_V1 ? SMC_V1 : SMC_V2;
-	ini->smcd_version = version;
 	if (rc)
 		goto vlan_cleanup;
 
 	/* depending on previous steps, connect using rdma or ism */
-	if (aclc->hdr.typev1 == SMC_TYPE_R)
+	if (aclc->hdr.typev1 == SMC_TYPE_R) {
+		ini->smcr_version = version;
 		rc = smc_connect_rdma(smc, aclc, ini);
-	else if (aclc->hdr.typev1 == SMC_TYPE_D)
+	} else if (aclc->hdr.typev1 == SMC_TYPE_D) {
+		ini->smcd_version = version;
 		rc = smc_connect_ism(smc, aclc, ini);
+	}
 	if (rc)
 		goto vlan_cleanup;
 

@@ -282,6 +282,17 @@ static inline bool smcd_indicated(int smc_type)
 	return smc_type == SMC_TYPE_D || smc_type == SMC_TYPE_B;
 }
 
+static inline u8 smc_indicated_type(int is_smcd, int is_smcr)
+{
+	if (is_smcd && is_smcr)
+		return SMC_TYPE_B;
+	if (is_smcd)
+		return SMC_TYPE_D;
+	if (is_smcr)
+		return SMC_TYPE_R;
+	return SMC_TYPE_N;
+}
+
 /* get SMC-D info from proposal message */
 static inline struct smc_clc_msg_smcd *
 smc_get_clc_msg_smcd(struct smc_clc_msg_proposal *prop)
@@ -343,6 +354,7 @@ void smc_clc_get_hostname(u8 **host);
 bool smc_clc_match_eid(u8 *negotiated_eid,
 		       struct smc_clc_v2_extension *smc_v2_ext,
 		       u8 *peer_eid, u8 *local_eid);
+int smc_clc_ueid_count(void);
 int smc_nl_dump_ueid(struct sk_buff *skb, struct netlink_callback *cb);
 int smc_nl_add_ueid(struct sk_buff *skb, struct genl_info *info);
 int smc_nl_remove_ueid(struct sk_buff *skb, struct genl_info *info);
