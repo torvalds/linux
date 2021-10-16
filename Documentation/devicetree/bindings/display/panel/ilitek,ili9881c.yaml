@@ -27,7 +27,6 @@ required:
   - compatible
   - power-supply
   - reg
-  - reset-gpios
 
 additionalProperties: false
 
