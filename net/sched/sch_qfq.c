@@ -465,6 +465,7 @@ static int qfq_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 	if (cl == NULL)
 		return -ENOBUFS;
 
+	gnet_stats_basic_packed_init(&cl->bstats);
 	cl->common.classid = classid;
 	cl->deficit = lmax;
 

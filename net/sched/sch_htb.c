@@ -1311,7 +1311,7 @@ static void htb_offload_aggregate_stats(struct htb_sched *q,
 	struct htb_class *c;
 	unsigned int i;
 
-	memset(&cl->bstats, 0, sizeof(cl->bstats));
+	gnet_stats_basic_packed_init(&cl->bstats);
 
 	for (i = 0; i < q->clhash.hashsize; i++) {
 		hlist_for_each_entry(c, &q->clhash.hash[i], common.hnode) {
@@ -1357,7 +1357,7 @@ htb_dump_class_stats(struct Qdisc *sch, unsigned long arg, struct gnet_dump *d)
 			if (cl->leaf.q)
 				cl->bstats = cl->leaf.q->bstats;
 			else
-				memset(&cl->bstats, 0, sizeof(cl->bstats));
+				gnet_stats_basic_packed_init(&cl->bstats);
 			cl->bstats.bytes += cl->bstats_bias.bytes;
 			cl->bstats.packets += cl->bstats_bias.packets;
 		} else {
@@ -1848,6 +1848,9 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 		cl = kzalloc(sizeof(*cl), GFP_KERNEL);
 		if (!cl)
 			goto failure;
+
+		gnet_stats_basic_packed_init(&cl->bstats);
+		gnet_stats_basic_packed_init(&cl->bstats_bias);
 
 		err = tcf_block_get(&cl->block, &cl->filter_list, sch, extack);
 		if (err) {

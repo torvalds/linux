@@ -852,8 +852,10 @@ static inline int qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 static inline void _bstats_update(struct gnet_stats_basic_packed *bstats,
 				  __u64 bytes, __u32 packets)
 {
+	u64_stats_update_begin(&bstats->syncp);
 	bstats->bytes += bytes;
 	bstats->packets += packets;
+	u64_stats_update_end(&bstats->syncp);
 }
 
 static inline void bstats_update(struct gnet_stats_basic_packed *bstats,

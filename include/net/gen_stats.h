@@ -11,6 +11,7 @@
 struct gnet_stats_basic_packed {
 	__u64	bytes;
 	__u64	packets;
+	struct u64_stats_sync syncp;
 };
 
 struct gnet_stats_basic_cpu {
@@ -34,6 +35,7 @@ struct gnet_dump {
 	struct tc_stats   tc_stats;
 };
 
+void gnet_stats_basic_packed_init(struct gnet_stats_basic_packed *b);
 int gnet_stats_start_copy(struct sk_buff *skb, int type, spinlock_t *lock,
 			  struct gnet_dump *d, int padattr);
 

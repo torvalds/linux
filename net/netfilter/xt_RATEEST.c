@@ -143,6 +143,7 @@ static int xt_rateest_tg_checkentry(const struct xt_tgchk_param *par)
 	if (!est)
 		goto err1;
 
+	gnet_stats_basic_packed_init(&est->bstats);
 	strlcpy(est->name, info->name, sizeof(est->name));
 	spin_lock_init(&est->lock);
 	est->refcnt		= 1;

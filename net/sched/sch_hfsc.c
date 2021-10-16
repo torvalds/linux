@@ -1406,6 +1406,7 @@ hfsc_init_qdisc(struct Qdisc *sch, struct nlattr *opt,
 	if (err)
 		return err;
 
+	gnet_stats_basic_packed_init(&q->root.bstats);
 	q->root.cl_common.classid = sch->handle;
 	q->root.sched   = q;
 	q->root.qdisc = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops,

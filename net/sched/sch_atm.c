@@ -548,6 +548,7 @@ static int atm_tc_init(struct Qdisc *sch, struct nlattr *opt,
 	pr_debug("atm_tc_init(sch %p,[qdisc %p],opt %p)\n", sch, p, opt);
 	INIT_LIST_HEAD(&p->flows);
 	INIT_LIST_HEAD(&p->link.list);
+	gnet_stats_basic_packed_init(&p->link.bstats);
 	list_add(&p->link.list, &p->flows);
 	p->link.q = qdisc_create_dflt(sch->dev_queue,
 				      &pfifo_qdisc_ops, sch->handle, extack);

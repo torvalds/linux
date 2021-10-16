@@ -490,6 +490,8 @@ int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
 		if (!p->cpu_qstats)
 			goto err3;
 	}
+	gnet_stats_basic_packed_init(&p->tcfa_bstats);
+	gnet_stats_basic_packed_init(&p->tcfa_bstats_hw);
 	spin_lock_init(&p->tcfa_lock);
 	p->tcfa_index = index;
 	p->tcfa_tm.install = jiffies;

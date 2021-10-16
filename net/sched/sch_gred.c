@@ -364,9 +364,11 @@ static int gred_offload_dump_stats(struct Qdisc *sch)
 	hw_stats->handle = sch->handle;
 	hw_stats->parent = sch->parent;
 
-	for (i = 0; i < MAX_DPs; i++)
+	for (i = 0; i < MAX_DPs; i++) {
+		gnet_stats_basic_packed_init(&hw_stats->stats.bstats[i]);
 		if (table->tab[i])
 			hw_stats->stats.xstats[i] = &table->tab[i]->stats;
+	}
 
 	ret = qdisc_offload_dump_helper(sch, TC_SETUP_QDISC_GRED, hw_stats);
 	/* Even if driver returns failure adjust the stats - in case offload
