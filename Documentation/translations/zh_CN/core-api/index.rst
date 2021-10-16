@@ -41,11 +41,12 @@
    kobject
    kref
    assoc_array
+   xarray
 
 Todolist:
 
 
-   xarray
+
    idr
    circular-buffers
    rbtree
