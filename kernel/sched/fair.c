@@ -6917,6 +6917,11 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int wake_flags)
 			break;
 		}
 
+		/*
+		 * Usually only true for WF_EXEC and WF_FORK, as sched_domains
+		 * usually do not have SD_BALANCE_WAKE set. That means wakeup
+		 * will usually go to the fast path.
+		 */
 		if (tmp->flags & sd_flag)
 			sd = tmp;
 		else if (!want_affine)
