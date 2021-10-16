@@ -282,7 +282,7 @@ out:
 }
 
 static void ufs_mtk_setup_ref_clk_wait_us(struct ufs_hba *hba,
-					  u16 gating_us, u16 ungating_us)
+					  u16 gating_us)
 {
 	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
 
@@ -293,7 +293,7 @@ static void ufs_mtk_setup_ref_clk_wait_us(struct ufs_hba *hba,
 		host->ref_clk_gating_wait_us = gating_us;
 	}
 
-	host->ref_clk_ungating_wait_us = ungating_us;
+	host->ref_clk_ungating_wait_us = REFCLK_DEFAULT_WAIT_US;
 }
 
 static void ufs_mtk_dbg_sel(struct ufs_hba *hba)
@@ -1102,11 +1102,14 @@ static int ufs_mtk_apply_dev_quirks(struct ufs_hba *hba)
 	 * requirements.
 	 */
 	if (mid == UFS_VENDOR_SAMSUNG)
-		ufs_mtk_setup_ref_clk_wait_us(hba, 1, 1);
+		ufs_mtk_setup_ref_clk_wait_us(hba, 1);
 	else if (mid == UFS_VENDOR_SKHYNIX)
-		ufs_mtk_setup_ref_clk_wait_us(hba, 30, 30);
+		ufs_mtk_setup_ref_clk_wait_us(hba, 30);
 	else if (mid == UFS_VENDOR_TOSHIBA)
-		ufs_mtk_setup_ref_clk_wait_us(hba, 100, 32);
+		ufs_mtk_setup_ref_clk_wait_us(hba, 100);
+	else
+		ufs_mtk_setup_ref_clk_wait_us(hba,
+					      REFCLK_DEFAULT_WAIT_US);
 
 	return 0;
 }

@@ -34,6 +34,7 @@
 #define REFCLK_ACK                  BIT(1)
 
 #define REFCLK_REQ_TIMEOUT_US       3000
+#define REFCLK_DEFAULT_WAIT_US      32
 
 /*
  * Other attributes
