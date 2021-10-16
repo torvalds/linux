@@ -77,7 +77,6 @@ static int cpcap_power_button_probe(struct platform_device *pdev)
 
 	button->idev->name = "cpcap-pwrbutton";
 	button->idev->phys = "cpcap-pwrbutton/input0";
-	button->idev->dev.parent = button->dev;
 	input_set_capability(button->idev, EV_KEY, KEY_POWER);
 
 	err = devm_request_threaded_irq(&pdev->dev, irq, NULL,
