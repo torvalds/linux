@@ -823,13 +823,26 @@ ENTRY(__switch_to)
 #if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_SMP)
 	str	r7, [r8]
 #endif
- THUMB(	mov	ip, r4			   )
 	mov	r0, r5
+#if !defined(CONFIG_THUMB2_KERNEL)
 	set_current r7
- ARM(	ldmia	r4, {r4 - sl, fp, sp, pc}  )	@ Load all regs saved previously
- THUMB(	ldmia	ip!, {r4 - sl, fp}	   )	@ Load all regs saved previously
- THUMB(	ldr	sp, [ip], #4		   )
- THUMB(	ldr	pc, [ip]		   )
+	ldmia	r4, {r4 - sl, fp, sp, pc}	@ Load all regs saved previously
+#else
+	mov	r1, r7
+	ldmia	r4, {r4 - sl, fp, ip, lr}	@ Load all regs saved previously
+
+	@ When CONFIG_THREAD_INFO_IN_TASK=n, the update of SP itself is what
+	@ effectuates the task switch, as that is what causes the observable
+	@ values of current and current_thread_info to change. When
+	@ CONFIG_THREAD_INFO_IN_TASK=y, setting current (and therefore
+	@ current_thread_info) is done explicitly, and the update of SP just
+	@ switches us to another stack, with few other side effects. In order
+	@ to prevent this distinction from causing any inconsistencies, let's
+	@ keep the 'set_current' call as close as we can to the update of SP.
+	set_current r1
+	mov	sp, ip
+	ret	lr
+#endif
  UNWIND(.fnend		)
 ENDPROC(__switch_to)
 
