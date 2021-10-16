@@ -4,8 +4,6 @@ EXTRA_CFLAGS += -O1
 
 ccflags-y += -D__CHECK_ENDIAN__
 
-CONFIG_WOWLAN = n
-
 OUTSRC_FILES :=				\
 		hal/HalHWImg8188E_MAC.o	\
 		hal/HalHWImg8188E_BB.o	\
@@ -36,10 +34,6 @@ OUTSRC_FILES :=				\
 		hal/usb_halinit.o	\
 		hal/usb_ops_linux.o
 
-RTL871X = rtl8188e
-
-HCI_NAME = usb
-
 _OS_INTFS_FILES :=				\
 			os_dep/ioctl_linux.o	\
 			os_dep/mlme_linux.o	\
@@ -51,10 +45,6 @@ _OS_INTFS_FILES :=				\
 			os_dep/xmit_linux.o
 
 _HAL_INTFS_FILES += $(OUTSRC_FILES)
-
-ifeq ($(CONFIG_WOWLAN), y)
-EXTRA_CFLAGS += -DCONFIG_WOWLAN
-endif
 
 SUBARCH := $(shell uname -m | sed -e "s/i.86/i386/; s/ppc.*/powerpc/; s/armv.l/arm/; s/aarch64/arm64/;")
 
