@@ -42,7 +42,7 @@
 struct net_rate_estimator {
 	struct gnet_stats_basic_sync	*bstats;
 	spinlock_t		*stats_lock;
-	seqcount_t		*running;
+	bool			running;
 	struct gnet_stats_basic_sync __percpu *cpu_bstats;
 	u8			ewma_log;
 	u8			intvl_log; /* period : (250ms << intvl_log) */
@@ -66,7 +66,7 @@ static void est_fetch_counters(struct net_rate_estimator *e,
 	if (e->stats_lock)
 		spin_lock(e->stats_lock);
 
-	gnet_stats_add_basic(e->running, b, e->cpu_bstats, e->bstats);
+	gnet_stats_add_basic(b, e->cpu_bstats, e->bstats, e->running);
 
 	if (e->stats_lock)
 		spin_unlock(e->stats_lock);
@@ -113,7 +113,9 @@ static void est_timer(struct timer_list *t)
  * @cpu_bstats: bstats per cpu
  * @rate_est: rate estimator statistics
  * @lock: lock for statistics and control path
- * @running: qdisc running seqcount
+ * @running: true if @bstats represents a running qdisc, thus @bstats'
+ *           internal values might change during basic reads. Only used
+ *           if @bstats_cpu is NULL
  * @opt: rate estimator configuration TLV
  *
  * Creates a new rate estimator with &bstats as source and &rate_est
@@ -129,7 +131,7 @@ int gen_new_estimator(struct gnet_stats_basic_sync *bstats,
 		      struct gnet_stats_basic_sync __percpu *cpu_bstats,
 		      struct net_rate_estimator __rcu **rate_est,
 		      spinlock_t *lock,
-		      seqcount_t *running,
+		      bool running,
 		      struct nlattr *opt)
 {
 	struct gnet_estimator *parm = nla_data(opt);
@@ -218,7 +220,9 @@ EXPORT_SYMBOL(gen_kill_estimator);
  * @cpu_bstats: bstats per cpu
  * @rate_est: rate estimator statistics
  * @lock: lock for statistics and control path
- * @running: qdisc running seqcount (might be NULL)
+ * @running: true if @bstats represents a running qdisc, thus @bstats'
+ *           internal values might change during basic reads. Only used
+ *           if @cpu_bstats is NULL
  * @opt: rate estimator configuration TLV
  *
  * Replaces the configuration of a rate estimator by calling
@@ -230,7 +234,7 @@ int gen_replace_estimator(struct gnet_stats_basic_sync *bstats,
 			  struct gnet_stats_basic_sync __percpu *cpu_bstats,
 			  struct net_rate_estimator __rcu **rate_est,
 			  spinlock_t *lock,
-			  seqcount_t *running, struct nlattr *opt)
+			  bool running, struct nlattr *opt)
 {
 	return gen_new_estimator(bstats, cpu_bstats, rate_est,
 				 lock, running, opt);

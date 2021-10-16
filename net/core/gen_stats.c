@@ -146,14 +146,15 @@ static void gnet_stats_add_basic_cpu(struct gnet_stats_basic_sync *bstats,
 	_bstats_update(bstats, t_bytes, t_packets);
 }
 
-void gnet_stats_add_basic(const seqcount_t *running,
-			  struct gnet_stats_basic_sync *bstats,
+void gnet_stats_add_basic(struct gnet_stats_basic_sync *bstats,
 			  struct gnet_stats_basic_sync __percpu *cpu,
-			  struct gnet_stats_basic_sync *b)
+			  struct gnet_stats_basic_sync *b, bool running)
 {
-	unsigned int seq;
+	unsigned int start;
 	u64 bytes = 0;
 	u64 packets = 0;
+
+	WARN_ON_ONCE((cpu || running) && !in_task());
 
 	if (cpu) {
 		gnet_stats_add_basic_cpu(bstats, cpu);
@@ -161,27 +162,26 @@ void gnet_stats_add_basic(const seqcount_t *running,
 	}
 	do {
 		if (running)
-			seq = read_seqcount_begin(running);
+			start = u64_stats_fetch_begin_irq(&b->syncp);
 		bytes = u64_stats_read(&b->bytes);
 		packets = u64_stats_read(&b->packets);
-	} while (running && read_seqcount_retry(running, seq));
+	} while (running && u64_stats_fetch_retry_irq(&b->syncp, start));
 
 	_bstats_update(bstats, bytes, packets);
 }
 EXPORT_SYMBOL(gnet_stats_add_basic);
 
 static int
-___gnet_stats_copy_basic(const seqcount_t *running,
-			 struct gnet_dump *d,
+___gnet_stats_copy_basic(struct gnet_dump *d,
 			 struct gnet_stats_basic_sync __percpu *cpu,
 			 struct gnet_stats_basic_sync *b,
-			 int type)
+			 int type, bool running)
 {
 	struct gnet_stats_basic_sync bstats;
 	u64 bstats_bytes, bstats_packets;
 
 	gnet_stats_basic_sync_init(&bstats);
-	gnet_stats_add_basic(running, &bstats, cpu, b);
+	gnet_stats_add_basic(&bstats, cpu, b, running);
 
 	bstats_bytes = u64_stats_read(&bstats.bytes);
 	bstats_packets = u64_stats_read(&bstats.packets);
@@ -210,10 +210,14 @@ ___gnet_stats_copy_basic(const seqcount_t *running,
 
 /**
  * gnet_stats_copy_basic - copy basic statistics into statistic TLV
- * @running: seqcount_t pointer
  * @d: dumping handle
  * @cpu: copy statistic per cpu
  * @b: basic statistics
+ * @running: true if @b represents a running qdisc, thus @b's
+ *           internal values might change during basic reads.
+ *           Only used if @cpu is NULL
+ *
+ * Context: task; must not be run from IRQ or BH contexts
  *
  * Appends the basic statistics to the top level TLV created by
  * gnet_stats_start_copy().
@@ -222,22 +226,25 @@ ___gnet_stats_copy_basic(const seqcount_t *running,
  * if the room in the socket buffer was not sufficient.
  */
 int
-gnet_stats_copy_basic(const seqcount_t *running,
-		      struct gnet_dump *d,
+gnet_stats_copy_basic(struct gnet_dump *d,
 		      struct gnet_stats_basic_sync __percpu *cpu,
-		      struct gnet_stats_basic_sync *b)
+		      struct gnet_stats_basic_sync *b,
+		      bool running)
 {
-	return ___gnet_stats_copy_basic(running, d, cpu, b,
-					TCA_STATS_BASIC);
+	return ___gnet_stats_copy_basic(d, cpu, b, TCA_STATS_BASIC, running);
 }
 EXPORT_SYMBOL(gnet_stats_copy_basic);
 
 /**
  * gnet_stats_copy_basic_hw - copy basic hw statistics into statistic TLV
- * @running: seqcount_t pointer
  * @d: dumping handle
  * @cpu: copy statistic per cpu
  * @b: basic statistics
+ * @running: true if @b represents a running qdisc, thus @b's
+ *           internal values might change during basic reads.
+ *           Only used if @cpu is NULL
+ *
+ * Context: task; must not be run from IRQ or BH contexts
  *
  * Appends the basic statistics to the top level TLV created by
  * gnet_stats_start_copy().
@@ -246,13 +253,12 @@ EXPORT_SYMBOL(gnet_stats_copy_basic);
  * if the room in the socket buffer was not sufficient.
  */
 int
-gnet_stats_copy_basic_hw(const seqcount_t *running,
-			 struct gnet_dump *d,
+gnet_stats_copy_basic_hw(struct gnet_dump *d,
 			 struct gnet_stats_basic_sync __percpu *cpu,
-			 struct gnet_stats_basic_sync *b)
+			 struct gnet_stats_basic_sync *b,
+			 bool running)
 {
-	return ___gnet_stats_copy_basic(running, d, cpu, b,
-					TCA_STATS_BASIC_HW);
+	return ___gnet_stats_copy_basic(d, cpu, b, TCA_STATS_BASIC_HW, running);
 }
 EXPORT_SYMBOL(gnet_stats_copy_basic_hw);
 

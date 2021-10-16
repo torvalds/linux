@@ -501,7 +501,7 @@ int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
 	if (est) {
 		err = gen_new_estimator(&p->tcfa_bstats, p->cpu_bstats,
 					&p->tcfa_rate_est,
-					&p->tcfa_lock, NULL, est);
+					&p->tcfa_lock, false, est);
 		if (err)
 			goto err4;
 	}
@@ -1173,9 +1173,10 @@ int tcf_action_copy_stats(struct sk_buff *skb, struct tc_action *p,
 	if (err < 0)
 		goto errout;
 
-	if (gnet_stats_copy_basic(NULL, &d, p->cpu_bstats, &p->tcfa_bstats) < 0 ||
-	    gnet_stats_copy_basic_hw(NULL, &d, p->cpu_bstats_hw,
-				     &p->tcfa_bstats_hw) < 0 ||
+	if (gnet_stats_copy_basic(&d, p->cpu_bstats,
+				  &p->tcfa_bstats, false) < 0 ||
+	    gnet_stats_copy_basic_hw(&d, p->cpu_bstats_hw,
+				     &p->tcfa_bstats_hw, false) < 0 ||
 	    gnet_stats_copy_rate_est(&d, &p->tcfa_rate_est) < 0 ||
 	    gnet_stats_copy_queue(&d, p->cpu_qstats,
 				  &p->tcfa_qstats,

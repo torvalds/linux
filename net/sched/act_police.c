@@ -125,7 +125,7 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 					    police->common.cpu_bstats,
 					    &police->tcf_rate_est,
 					    &police->tcf_lock,
-					    NULL, est);
+					    false, est);
 		if (err)
 			goto failure;
 	} else if (tb[TCA_POLICE_AVRATE] &&
