@@ -295,6 +295,58 @@ int smc_ib_determine_gid(struct smc_ib_device *smcibdev, u8 ibport,
 	return -ENODEV;
 }
 
+/* check if gid is still defined on smcibdev */
+static bool smc_ib_check_link_gid(u8 gid[SMC_GID_SIZE], bool smcrv2,
+				  struct smc_ib_device *smcibdev, u8 ibport)
+{
+	const struct ib_gid_attr *attr;
+	bool rc = false;
+	int i;
+
+	for (i = 0; !rc && i < smcibdev->pattr[ibport - 1].gid_tbl_len; i++) {
+		attr = rdma_get_gid_attr(smcibdev->ibdev, ibport, i);
+		if (IS_ERR(attr))
+			continue;
+
+		rcu_read_lock();
+		if ((!smcrv2 && attr->gid_type == IB_GID_TYPE_ROCE) ||
+		    (smcrv2 && attr->gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP &&
+		     !(ipv6_addr_type((const struct in6_addr *)&attr->gid)
+				     & IPV6_ADDR_LINKLOCAL)))
+			if (!memcmp(gid, &attr->gid, SMC_GID_SIZE))
+				rc = true;
+		rcu_read_unlock();
+		rdma_put_gid_attr(attr);
+	}
+	return rc;
+}
+
+/* check all links if the gid is still defined on smcibdev */
+static void smc_ib_gid_check(struct smc_ib_device *smcibdev, u8 ibport)
+{
+	struct smc_link_group *lgr;
+	int i;
+
+	spin_lock_bh(&smc_lgr_list.lock);
+	list_for_each_entry(lgr, &smc_lgr_list.list, list) {
+		if (strncmp(smcibdev->pnetid[ibport - 1], lgr->pnet_id,
+			    SMC_MAX_PNETID_LEN))
+			continue; /* lgr is not affected */
+		if (list_empty(&lgr->list))
+			continue;
+		for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
+			if (lgr->lnk[i].state == SMC_LNK_UNUSED ||
+			    lgr->lnk[i].smcibdev != smcibdev)
+				continue;
+			if (!smc_ib_check_link_gid(lgr->lnk[i].gid,
+						   lgr->smc_version == SMC_V2,
+						   smcibdev, ibport))
+				smcr_port_err(smcibdev, ibport);
+		}
+	}
+	spin_unlock_bh(&smc_lgr_list.lock);
+}
+
 static int smc_ib_remember_port_attr(struct smc_ib_device *smcibdev, u8 ibport)
 {
 	int rc;
@@ -333,6 +385,7 @@ static void smc_ib_port_event_work(struct work_struct *work)
 		} else {
 			clear_bit(port_idx, smcibdev->ports_going_away);
 			smcr_port_add(smcibdev, port_idx + 1);
+			smc_ib_gid_check(smcibdev, port_idx + 1);
 		}
 	}
 }
