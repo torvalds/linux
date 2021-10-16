@@ -402,24 +402,11 @@ static int mqprio_dump(struct Qdisc *sch, struct sk_buff *skb)
 		qdisc = netdev_get_tx_queue(dev, ntx)->qdisc_sleeping;
 		spin_lock_bh(qdisc_lock(qdisc));
 
-		if (qdisc_is_percpu_stats(qdisc)) {
-			__u32 qlen = qdisc_qlen_sum(qdisc);
-
-			gnet_stats_add_basic(NULL, &sch->bstats,
-					     qdisc->cpu_bstats, &qdisc->bstats);
-			__gnet_stats_copy_queue(&sch->qstats,
-						qdisc->cpu_qstats,
-						&qdisc->qstats, qlen);
-			sch->q.qlen		+= qlen;
-		} else {
-			sch->q.qlen		+= qdisc->q.qlen;
-			sch->bstats.bytes	+= qdisc->bstats.bytes;
-			sch->bstats.packets	+= qdisc->bstats.packets;
-			sch->qstats.backlog	+= qdisc->qstats.backlog;
-			sch->qstats.drops	+= qdisc->qstats.drops;
-			sch->qstats.requeues	+= qdisc->qstats.requeues;
-			sch->qstats.overlimits	+= qdisc->qstats.overlimits;
-		}
+		gnet_stats_add_basic(NULL, &sch->bstats, qdisc->cpu_bstats,
+				     &qdisc->bstats);
+		gnet_stats_add_queue(&sch->qstats, qdisc->cpu_qstats,
+				     &qdisc->qstats);
+		sch->q.qlen += qdisc_qlen(qdisc);
 
 		spin_unlock_bh(qdisc_lock(qdisc));
 	}
@@ -511,7 +498,7 @@ static int mqprio_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 {
 	if (cl >= TC_H_MIN_PRIORITY) {
 		int i;
-		__u32 qlen = 0;
+		__u32 qlen;
 		struct gnet_stats_queue qstats = {0};
 		struct gnet_stats_basic_packed bstats = {0};
 		struct net_device *dev = qdisc_dev(sch);
@@ -531,27 +518,15 @@ static int mqprio_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 
 			spin_lock_bh(qdisc_lock(qdisc));
 
-			if (qdisc_is_percpu_stats(qdisc)) {
-				qlen = qdisc_qlen_sum(qdisc);
+			gnet_stats_add_basic(NULL, &bstats, qdisc->cpu_bstats,
+					     &qdisc->bstats);
+			gnet_stats_add_queue(&qstats, qdisc->cpu_qstats,
+					     &qdisc->qstats);
+			sch->q.qlen += qdisc_qlen(qdisc);
 
-				gnet_stats_add_basic(NULL, &bstats,
-						     qdisc->cpu_bstats,
-						     &qdisc->bstats);
-				__gnet_stats_copy_queue(&qstats,
-							qdisc->cpu_qstats,
-							&qdisc->qstats,
-							qlen);
-			} else {
-				qlen		+= qdisc->q.qlen;
-				bstats.bytes	+= qdisc->bstats.bytes;
-				bstats.packets	+= qdisc->bstats.packets;
-				qstats.backlog	+= qdisc->qstats.backlog;
-				qstats.drops	+= qdisc->qstats.drops;
-				qstats.requeues	+= qdisc->qstats.requeues;
-				qstats.overlimits += qdisc->qstats.overlimits;
-			}
 			spin_unlock_bh(qdisc_lock(qdisc));
 		}
+		qlen = qdisc_qlen(sch) + qstats.qlen;
 
 		/* Reclaim root sleeping lock before completing stats */
 		if (d->lock)
