@@ -405,9 +405,8 @@ static int mqprio_dump(struct Qdisc *sch, struct sk_buff *skb)
 		if (qdisc_is_percpu_stats(qdisc)) {
 			__u32 qlen = qdisc_qlen_sum(qdisc);
 
-			__gnet_stats_copy_basic(NULL, &sch->bstats,
-						qdisc->cpu_bstats,
-						&qdisc->bstats);
+			gnet_stats_add_basic(NULL, &sch->bstats,
+					     qdisc->cpu_bstats, &qdisc->bstats);
 			__gnet_stats_copy_queue(&sch->qstats,
 						qdisc->cpu_qstats,
 						&qdisc->qstats, qlen);
@@ -535,9 +534,9 @@ static int mqprio_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 			if (qdisc_is_percpu_stats(qdisc)) {
 				qlen = qdisc_qlen_sum(qdisc);
 
-				__gnet_stats_copy_basic(NULL, &bstats,
-							qdisc->cpu_bstats,
-							&qdisc->bstats);
+				gnet_stats_add_basic(NULL, &bstats,
+						     qdisc->cpu_bstats,
+						     &qdisc->bstats);
 				__gnet_stats_copy_queue(&qstats,
 							qdisc->cpu_qstats,
 							&qdisc->qstats,

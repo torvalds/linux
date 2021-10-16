@@ -46,10 +46,10 @@ int gnet_stats_copy_basic(const seqcount_t *running,
 			  struct gnet_dump *d,
 			  struct gnet_stats_basic_cpu __percpu *cpu,
 			  struct gnet_stats_basic_packed *b);
-void __gnet_stats_copy_basic(const seqcount_t *running,
-			     struct gnet_stats_basic_packed *bstats,
-			     struct gnet_stats_basic_cpu __percpu *cpu,
-			     struct gnet_stats_basic_packed *b);
+void gnet_stats_add_basic(const seqcount_t *running,
+			  struct gnet_stats_basic_packed *bstats,
+			  struct gnet_stats_basic_cpu __percpu *cpu,
+			  struct gnet_stats_basic_packed *b);
 int gnet_stats_copy_basic_hw(const seqcount_t *running,
 			     struct gnet_dump *d,
 			     struct gnet_stats_basic_cpu __percpu *cpu,

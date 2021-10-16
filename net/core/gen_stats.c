@@ -114,9 +114,8 @@ gnet_stats_start_copy(struct sk_buff *skb, int type, spinlock_t *lock,
 }
 EXPORT_SYMBOL(gnet_stats_start_copy);
 
-static void
-__gnet_stats_copy_basic_cpu(struct gnet_stats_basic_packed *bstats,
-			    struct gnet_stats_basic_cpu __percpu *cpu)
+static void gnet_stats_add_basic_cpu(struct gnet_stats_basic_packed *bstats,
+				     struct gnet_stats_basic_cpu __percpu *cpu)
 {
 	int i;
 
@@ -136,26 +135,30 @@ __gnet_stats_copy_basic_cpu(struct gnet_stats_basic_packed *bstats,
 	}
 }
 
-void
-__gnet_stats_copy_basic(const seqcount_t *running,
-			struct gnet_stats_basic_packed *bstats,
-			struct gnet_stats_basic_cpu __percpu *cpu,
-			struct gnet_stats_basic_packed *b)
+void gnet_stats_add_basic(const seqcount_t *running,
+			  struct gnet_stats_basic_packed *bstats,
+			  struct gnet_stats_basic_cpu __percpu *cpu,
+			  struct gnet_stats_basic_packed *b)
 {
 	unsigned int seq;
+	u64 bytes = 0;
+	u64 packets = 0;
 
 	if (cpu) {
-		__gnet_stats_copy_basic_cpu(bstats, cpu);
+		gnet_stats_add_basic_cpu(bstats, cpu);
 		return;
 	}
 	do {
 		if (running)
 			seq = read_seqcount_begin(running);
-		bstats->bytes = b->bytes;
-		bstats->packets = b->packets;
+		bytes = b->bytes;
+		packets = b->packets;
 	} while (running && read_seqcount_retry(running, seq));
+
+	bstats->bytes += bytes;
+	bstats->packets += packets;
 }
-EXPORT_SYMBOL(__gnet_stats_copy_basic);
+EXPORT_SYMBOL(gnet_stats_add_basic);
 
 static int
 ___gnet_stats_copy_basic(const seqcount_t *running,
@@ -166,7 +169,7 @@ ___gnet_stats_copy_basic(const seqcount_t *running,
 {
 	struct gnet_stats_basic_packed bstats = {0};
 
-	__gnet_stats_copy_basic(running, &bstats, cpu, b);
+	gnet_stats_add_basic(running, &bstats, cpu, b);
 
 	if (d->compat_tc_stats && type == TCA_STATS_BASIC) {
 		d->tc_stats.bytes = bstats.bytes;

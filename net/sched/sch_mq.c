@@ -147,9 +147,8 @@ static int mq_dump(struct Qdisc *sch, struct sk_buff *skb)
 
 		if (qdisc_is_percpu_stats(qdisc)) {
 			qlen = qdisc_qlen_sum(qdisc);
-			__gnet_stats_copy_basic(NULL, &sch->bstats,
-						qdisc->cpu_bstats,
-						&qdisc->bstats);
+			gnet_stats_add_basic(NULL, &sch->bstats,
+					     qdisc->cpu_bstats, &qdisc->bstats);
 			__gnet_stats_copy_queue(&sch->qstats,
 						qdisc->cpu_qstats,
 						&qdisc->qstats, qlen);
