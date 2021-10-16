@@ -101,8 +101,10 @@ static inline int smc_wr_rx_post(struct smc_link *link)
 
 int smc_wr_create_link(struct smc_link *lnk);
 int smc_wr_alloc_link_mem(struct smc_link *lnk);
+int smc_wr_alloc_lgr_mem(struct smc_link_group *lgr);
 void smc_wr_free_link(struct smc_link *lnk);
 void smc_wr_free_link_mem(struct smc_link *lnk);
+void smc_wr_free_lgr_mem(struct smc_link_group *lgr);
 void smc_wr_remember_qp_attr(struct smc_link *lnk);
 void smc_wr_remove_dev(struct smc_ib_device *smcibdev);
 void smc_wr_add_dev(struct smc_ib_device *smcibdev);
@@ -111,10 +113,16 @@ int smc_wr_tx_get_free_slot(struct smc_link *link, smc_wr_tx_handler handler,
 			    struct smc_wr_buf **wr_buf,
 			    struct smc_rdma_wr **wrs,
 			    struct smc_wr_tx_pend_priv **wr_pend_priv);
+int smc_wr_tx_get_v2_slot(struct smc_link *link,
+			  smc_wr_tx_handler handler,
+			  struct smc_wr_v2_buf **wr_buf,
+			  struct smc_wr_tx_pend_priv **wr_pend_priv);
 int smc_wr_tx_put_slot(struct smc_link *link,
 		       struct smc_wr_tx_pend_priv *wr_pend_priv);
 int smc_wr_tx_send(struct smc_link *link,
 		   struct smc_wr_tx_pend_priv *wr_pend_priv);
+int smc_wr_tx_v2_send(struct smc_link *link,
+		      struct smc_wr_tx_pend_priv *priv, int len);
 int smc_wr_tx_send_wait(struct smc_link *link, struct smc_wr_tx_pend_priv *priv,
 			unsigned long timeout);
 void smc_wr_tx_cq_handler(struct ib_cq *ib_cq, void *cq_context);
