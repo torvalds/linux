@@ -870,31 +870,37 @@ int smc_llc_cli_add_link(struct smc_link *link, struct smc_llc_qentry *qentry)
 	struct smc_llc_msg_add_link *llc = &qentry->msg.add_link;
 	enum smc_lgr_type lgr_new_t = SMC_LGR_SYMMETRIC;
 	struct smc_link_group *lgr = smc_get_lgr(link);
+	struct smc_init_info *ini = NULL;
 	struct smc_link *lnk_new = NULL;
-	struct smc_init_info ini;
 	int lnk_idx, rc = 0;
 
 	if (!llc->qp_mtu)
 		goto out_reject;
 
-	ini.vlan_id = lgr->vlan_id;
-	smc_pnet_find_alt_roce(lgr, &ini, link->smcibdev);
+	ini = kzalloc(sizeof(*ini), GFP_KERNEL);
+	if (!ini) {
+		rc = -ENOMEM;
+		goto out_reject;
+	}
+
+	ini->vlan_id = lgr->vlan_id;
+	smc_pnet_find_alt_roce(lgr, ini, link->smcibdev);
 	if (!memcmp(llc->sender_gid, link->peer_gid, SMC_GID_SIZE) &&
 	    !memcmp(llc->sender_mac, link->peer_mac, ETH_ALEN)) {
-		if (!ini.ib_dev)
+		if (!ini->ib_dev)
 			goto out_reject;
 		lgr_new_t = SMC_LGR_ASYMMETRIC_PEER;
 	}
-	if (!ini.ib_dev) {
+	if (!ini->ib_dev) {
 		lgr_new_t = SMC_LGR_ASYMMETRIC_LOCAL;
-		ini.ib_dev = link->smcibdev;
-		ini.ib_port = link->ibport;
+		ini->ib_dev = link->smcibdev;
+		ini->ib_port = link->ibport;
 	}
 	lnk_idx = smc_llc_alloc_alt_link(lgr, lgr_new_t);
 	if (lnk_idx < 0)
 		goto out_reject;
 	lnk_new = &lgr->lnk[lnk_idx];
-	rc = smcr_link_init(lgr, lnk_new, lnk_idx, &ini);
+	rc = smcr_link_init(lgr, lnk_new, lnk_idx, ini);
 	if (rc)
 		goto out_reject;
 	smc_llc_save_add_link_info(lnk_new, llc);
@@ -910,7 +916,7 @@ int smc_llc_cli_add_link(struct smc_link *link, struct smc_llc_qentry *qentry)
 		goto out_clear_lnk;
 
 	rc = smc_llc_send_add_link(link,
-				   lnk_new->smcibdev->mac[ini.ib_port - 1],
+				   lnk_new->smcibdev->mac[ini->ib_port - 1],
 				   lnk_new->gid, lnk_new, SMC_LLC_RESP);
 	if (rc)
 		goto out_clear_lnk;
@@ -919,7 +925,7 @@ int smc_llc_cli_add_link(struct smc_link *link, struct smc_llc_qentry *qentry)
 		rc = 0;
 		goto out_clear_lnk;
 	}
-	rc = smc_llc_cli_conf_link(link, &ini, lnk_new, lgr_new_t);
+	rc = smc_llc_cli_conf_link(link, ini, lnk_new, lgr_new_t);
 	if (!rc)
 		goto out;
 out_clear_lnk:
@@ -928,6 +934,7 @@ out_clear_lnk:
 out_reject:
 	smc_llc_cli_add_link_reject(qentry);
 out:
+	kfree(ini);
 	kfree(qentry);
 	return rc;
 }
@@ -937,20 +944,25 @@ static void smc_llc_cli_add_link_invite(struct smc_link *link,
 					struct smc_llc_qentry *qentry)
 {
 	struct smc_link_group *lgr = smc_get_lgr(link);
-	struct smc_init_info ini;
+	struct smc_init_info *ini = NULL;
 
 	if (lgr->type == SMC_LGR_SYMMETRIC ||
 	    lgr->type == SMC_LGR_ASYMMETRIC_PEER)
 		goto out;
 
-	ini.vlan_id = lgr->vlan_id;
-	smc_pnet_find_alt_roce(lgr, &ini, link->smcibdev);
-	if (!ini.ib_dev)
+	ini = kzalloc(sizeof(*ini), GFP_KERNEL);
+	if (!ini)
 		goto out;
 
-	smc_llc_send_add_link(link, ini.ib_dev->mac[ini.ib_port - 1],
-			      ini.ib_gid, NULL, SMC_LLC_REQ);
+	ini->vlan_id = lgr->vlan_id;
+	smc_pnet_find_alt_roce(lgr, ini, link->smcibdev);
+	if (!ini->ib_dev)
+		goto out;
+
+	smc_llc_send_add_link(link, ini->ib_dev->mac[ini->ib_port - 1],
+			      ini->ib_gid, NULL, SMC_LLC_REQ);
 out:
+	kfree(ini);
 	kfree(qentry);
 }
 
@@ -1158,28 +1170,34 @@ int smc_llc_srv_add_link(struct smc_link *link)
 	struct smc_link_group *lgr = link->lgr;
 	struct smc_llc_msg_add_link *add_llc;
 	struct smc_llc_qentry *qentry = NULL;
-	struct smc_link *link_new;
-	struct smc_init_info ini;
+	struct smc_link *link_new = NULL;
+	struct smc_init_info *ini;
 	int lnk_idx, rc = 0;
 
+	ini = kzalloc(sizeof(*ini), GFP_KERNEL);
+	if (!ini)
+		return -ENOMEM;
+
 	/* ignore client add link recommendation, start new flow */
-	ini.vlan_id = lgr->vlan_id;
-	smc_pnet_find_alt_roce(lgr, &ini, link->smcibdev);
-	if (!ini.ib_dev) {
+	ini->vlan_id = lgr->vlan_id;
+	smc_pnet_find_alt_roce(lgr, ini, link->smcibdev);
+	if (!ini->ib_dev) {
 		lgr_new_t = SMC_LGR_ASYMMETRIC_LOCAL;
-		ini.ib_dev = link->smcibdev;
-		ini.ib_port = link->ibport;
+		ini->ib_dev = link->smcibdev;
+		ini->ib_port = link->ibport;
 	}
 	lnk_idx = smc_llc_alloc_alt_link(lgr, lgr_new_t);
-	if (lnk_idx < 0)
-		return 0;
+	if (lnk_idx < 0) {
+		rc = 0;
+		goto out;
+	}
 
-	rc = smcr_link_init(lgr, &lgr->lnk[lnk_idx], lnk_idx, &ini);
+	rc = smcr_link_init(lgr, &lgr->lnk[lnk_idx], lnk_idx, ini);
 	if (rc)
-		return rc;
+		goto out;
 	link_new = &lgr->lnk[lnk_idx];
 	rc = smc_llc_send_add_link(link,
-				   link_new->smcibdev->mac[ini.ib_port - 1],
+				   link_new->smcibdev->mac[ini->ib_port - 1],
 				   link_new->gid, link_new, SMC_LLC_REQ);
 	if (rc)
 		goto out_err;
@@ -1218,10 +1236,15 @@ int smc_llc_srv_add_link(struct smc_link *link)
 	rc = smc_llc_srv_conf_link(link, link_new, lgr_new_t);
 	if (rc)
 		goto out_err;
+	kfree(ini);
 	return 0;
 out_err:
-	link_new->state = SMC_LNK_INACTIVE;
-	smcr_link_clear(link_new, false);
+	if (link_new) {
+		link_new->state = SMC_LNK_INACTIVE;
+		smcr_link_clear(link_new, false);
+	}
+out:
+	kfree(ini);
 	return rc;
 }
 
