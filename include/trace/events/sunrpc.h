@@ -925,18 +925,18 @@ TRACE_EVENT(rpc_socket_nospace,
 
 #define rpc_show_xprt_state(x)						\
 	__print_flags(x, "|",						\
-		{ (1UL << XPRT_LOCKED),		"LOCKED"},		\
-		{ (1UL << XPRT_CONNECTED),	"CONNECTED"},		\
-		{ (1UL << XPRT_CONNECTING),	"CONNECTING"},		\
-		{ (1UL << XPRT_CLOSE_WAIT),	"CLOSE_WAIT"},		\
-		{ (1UL << XPRT_BOUND),		"BOUND"},		\
-		{ (1UL << XPRT_BINDING),	"BINDING"},		\
-		{ (1UL << XPRT_CLOSING),	"CLOSING"},		\
-		{ (1UL << XPRT_OFFLINE),	"OFFLINE"},		\
-		{ (1UL << XPRT_REMOVE),		"REMOVE"},		\
-		{ (1UL << XPRT_CONGESTED),	"CONGESTED"},		\
-		{ (1UL << XPRT_CWND_WAIT),	"CWND_WAIT"},		\
-		{ (1UL << XPRT_WRITE_SPACE),	"WRITE_SPACE"})
+		{ BIT(XPRT_LOCKED),		"LOCKED" },		\
+		{ BIT(XPRT_CONNECTED),		"CONNECTED" },		\
+		{ BIT(XPRT_CONNECTING),		"CONNECTING" },		\
+		{ BIT(XPRT_CLOSE_WAIT),		"CLOSE_WAIT" },		\
+		{ BIT(XPRT_BOUND),		"BOUND" },		\
+		{ BIT(XPRT_BINDING),		"BINDING" },		\
+		{ BIT(XPRT_CLOSING),		"CLOSING" },		\
+		{ BIT(XPRT_OFFLINE),		"OFFLINE" },		\
+		{ BIT(XPRT_REMOVE),		"REMOVE" },		\
+		{ BIT(XPRT_CONGESTED),		"CONGESTED" },		\
+		{ BIT(XPRT_CWND_WAIT),		"CWND_WAIT" },		\
+		{ BIT(XPRT_WRITE_SPACE),	"WRITE_SPACE" })
 
 DECLARE_EVENT_CLASS(rpc_xprt_lifetime_class,
 	TP_PROTO(
