@@ -400,6 +400,24 @@ smc_clc_msg_acc_conf_valid(struct smc_clc_msg_accept_confirm_v2 *clc_v2)
 	return true;
 }
 
+/* check arriving CLC decline */
+static bool
+smc_clc_msg_decl_valid(struct smc_clc_msg_decline *dclc)
+{
+	struct smc_clc_msg_hdr *hdr = &dclc->hdr;
+
+	if (hdr->typev1 != SMC_TYPE_R && hdr->typev1 != SMC_TYPE_D)
+		return false;
+	if (hdr->version == SMC_V1) {
+		if (ntohs(hdr->length) != sizeof(struct smc_clc_msg_decline))
+			return false;
+	} else {
+		if (ntohs(hdr->length) != sizeof(struct smc_clc_msg_decline_v2))
+			return false;
+	}
+	return true;
+}
+
 static void smc_clc_fill_fce(struct smc_clc_first_contact_ext *fce, int *len)
 {
 	memset(fce, 0, sizeof(*fce));
@@ -441,9 +459,9 @@ static bool smc_clc_msg_hdr_valid(struct smc_clc_msg_hdr *clcm, bool check_trl)
 		break;
 	case SMC_CLC_DECLINE:
 		dclc = (struct smc_clc_msg_decline *)clcm;
-		if (ntohs(dclc->hdr.length) != sizeof(*dclc))
+		if (!smc_clc_msg_decl_valid(dclc))
 			return false;
-		trl = &dclc->trl;
+		check_trl = false;
 		break;
 	default:
 		return false;
@@ -742,15 +760,16 @@ out:
 /* send CLC DECLINE message across internal TCP socket */
 int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info, u8 version)
 {
-	struct smc_clc_msg_decline dclc;
+	struct smc_clc_msg_decline *dclc_v1;
+	struct smc_clc_msg_decline_v2 dclc;
 	struct msghdr msg;
+	int len, send_len;
 	struct kvec vec;
-	int len;
 
+	dclc_v1 = (struct smc_clc_msg_decline *)&dclc;
 	memset(&dclc, 0, sizeof(dclc));
 	memcpy(dclc.hdr.eyecatcher, SMC_EYECATCHER, sizeof(SMC_EYECATCHER));
 	dclc.hdr.type = SMC_CLC_DECLINE;
-	dclc.hdr.length = htons(sizeof(struct smc_clc_msg_decline));
 	dclc.hdr.version = version;
 	dclc.os_type = version == SMC_V1 ? 0 : SMC_CLC_OS_LINUX;
 	dclc.hdr.typev2 = (peer_diag_info == SMC_CLC_DECL_SYNCERR) ?
@@ -760,14 +779,22 @@ int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info, u8 version)
 		memcpy(dclc.id_for_peer, local_systemid,
 		       sizeof(local_systemid));
 	dclc.peer_diagnosis = htonl(peer_diag_info);
-	memcpy(dclc.trl.eyecatcher, SMC_EYECATCHER, sizeof(SMC_EYECATCHER));
+	if (version == SMC_V1) {
+		memcpy(dclc_v1->trl.eyecatcher, SMC_EYECATCHER,
+		       sizeof(SMC_EYECATCHER));
+		send_len = sizeof(*dclc_v1);
+	} else {
+		memcpy(dclc.trl.eyecatcher, SMC_EYECATCHER,
+		       sizeof(SMC_EYECATCHER));
+		send_len = sizeof(dclc);
+	}
+	dclc.hdr.length = htons(send_len);
 
 	memset(&msg, 0, sizeof(msg));
 	vec.iov_base = &dclc;
-	vec.iov_len = sizeof(struct smc_clc_msg_decline);
-	len = kernel_sendmsg(smc->clcsock, &msg, &vec, 1,
-			     sizeof(struct smc_clc_msg_decline));
-	if (len < 0 || len < sizeof(struct smc_clc_msg_decline))
+	vec.iov_len = send_len;
+	len = kernel_sendmsg(smc->clcsock, &msg, &vec, 1, send_len);
+	if (len < 0 || len < send_len)
 		len = -EPROTO;
 	return len > 0 ? 0 : len;
 }

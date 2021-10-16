@@ -281,6 +281,24 @@ struct smc_clc_msg_decline {	/* clc decline message */
 	struct smc_clc_msg_trail trl; /* eye catcher "SMCD" or "SMCR" EBCDIC */
 } __aligned(4);
 
+#define SMC_DECL_DIAG_COUNT_V2	4 /* no. of additional peer diagnosis codes */
+
+struct smc_clc_msg_decline_v2 {	/* clc decline message */
+	struct smc_clc_msg_hdr hdr;
+	u8 id_for_peer[SMC_SYSTEMID_LEN]; /* sender peer_id */
+	__be32 peer_diagnosis;	/* diagnosis information */
+#if defined(__BIG_ENDIAN_BITFIELD)
+	u8 os_type  : 4,
+	   reserved : 4;
+#elif defined(__LITTLE_ENDIAN_BITFIELD)
+	u8 reserved : 4,
+	   os_type  : 4;
+#endif
+	u8 reserved2[3];
+	__be32 peer_diagnosis_v2[SMC_DECL_DIAG_COUNT_V2];
+	struct smc_clc_msg_trail trl; /* eye catcher "SMCD" or "SMCR" EBCDIC */
+} __aligned(4);
+
 /* determine start of the prefix area within the proposal message */
 static inline struct smc_clc_msg_proposal_prefix *
 smc_clc_proposal_get_prefix(struct smc_clc_msg_proposal *pclc)
