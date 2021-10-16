@@ -246,7 +246,6 @@ enum odm_common_info_def {
 
 	/* HOOK BEFORE REG INIT----------- */
 	ODM_CMNINFO_ABILITY,		/* ODM_ABILITY_E */
-	ODM_CMNINFO_INTERFACE,		/* ODM_INTERFACE_E */
 	ODM_CMNINFO_MP_TEST_CHIP,
 	ODM_CMNINFO_RF_TYPE,		/* RF_PATH_E or ODM_RF_TYPE_E? */
 	/* HOOK BEFORE REG INIT-----------  */
@@ -319,13 +318,7 @@ enum odm_ability_def {
 	ODM_RF_CALIBRATION		= BIT(26),
 };
 
-/* 	ODM_CMNINFO_INTERFACE */
-enum odm_interface_def {
-	ODM_ITRF_PCIE	=	0x1,
-	ODM_ITRF_USB	=	0x2,
-	ODM_ITRF_SDIO	=	0x4,
-	ODM_ITRF_ALL	=	0x7,
-};
+# define ODM_ITRF_USB 0x2
 
 /*  ODM_CMNINFO_RF_TYPE */
 /*  For example 1T2R (A+AB = BIT(0)|BIT(4)|BIT(5)) */
@@ -581,8 +574,6 @@ struct odm_dm_struct {
 /* HOOK BEFORE REG INIT----------- */
 	/*  ODM Support Ability DIG/RATR/TX_PWR_TRACK/ �K�K = 1/2/3/�K */
 	u32	SupportAbility;
-	/*  ODM PCIE/USB/SDIO/GSPI = 0/1/2/3 */
-	u8	SupportInterface;
 	/*  RF Type 4T4R/3T3R/2T2R/1T2R/1T1R/... */
 	u8	RFType;
 
