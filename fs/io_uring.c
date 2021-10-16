@@ -732,8 +732,7 @@ enum {
 	REQ_F_ARM_LTIMEOUT_BIT,
 	REQ_F_ASYNC_DATA_BIT,
 	/* keep async read/write and isreg together and in order */
-	REQ_F_NOWAIT_READ_BIT,
-	REQ_F_NOWAIT_WRITE_BIT,
+	REQ_F_SUPPORT_NOWAIT_BIT,
 	REQ_F_ISREG_BIT,
 
 	/* not a real bit, just to check we're not overflowing the space */
@@ -774,10 +773,8 @@ enum {
 	REQ_F_COMPLETE_INLINE	= BIT(REQ_F_COMPLETE_INLINE_BIT),
 	/* caller should reissue async */
 	REQ_F_REISSUE		= BIT(REQ_F_REISSUE_BIT),
-	/* supports async reads */
-	REQ_F_NOWAIT_READ	= BIT(REQ_F_NOWAIT_READ_BIT),
-	/* supports async writes */
-	REQ_F_NOWAIT_WRITE	= BIT(REQ_F_NOWAIT_WRITE_BIT),
+	/* supports async reads/writes */
+	REQ_F_SUPPORT_NOWAIT	= BIT(REQ_F_SUPPORT_NOWAIT_BIT),
 	/* regular file */
 	REQ_F_ISREG		= BIT(REQ_F_ISREG_BIT),
 	/* has creds assigned */
@@ -1390,18 +1387,13 @@ static bool req_need_defer(struct io_kiocb *req, u32 seq)
 	return false;
 }
 
-#define FFS_ASYNC_READ		0x1UL
-#define FFS_ASYNC_WRITE		0x2UL
-#ifdef CONFIG_64BIT
-#define FFS_ISREG		0x4UL
-#else
-#define FFS_ISREG		0x0UL
-#endif
-#define FFS_MASK		~(FFS_ASYNC_READ|FFS_ASYNC_WRITE|FFS_ISREG)
+#define FFS_NOWAIT		0x1UL
+#define FFS_ISREG		0x2UL
+#define FFS_MASK		~(FFS_NOWAIT|FFS_ISREG)
 
 static inline bool io_req_ffs_set(struct io_kiocb *req)
 {
-	return IS_ENABLED(CONFIG_64BIT) && (req->flags & REQ_F_FIXED_FILE);
+	return req->flags & REQ_F_FIXED_FILE;
 }
 
 static inline void io_req_track_inflight(struct io_kiocb *req)
@@ -2772,7 +2764,7 @@ static bool io_bdev_nowait(struct block_device *bdev)
  * any file. For now, just ensure that anything potentially problematic is done
  * inline.
  */
-static bool __io_file_supports_nowait(struct file *file, int rw)
+static bool __io_file_supports_nowait(struct file *file)
 {
 	umode_t mode = file_inode(file)->i_mode;
 
@@ -2795,24 +2787,14 @@ static bool __io_file_supports_nowait(struct file *file, int rw)
 	/* any ->read/write should understand O_NONBLOCK */
 	if (file->f_flags & O_NONBLOCK)
 		return true;
-
-	if (!(file->f_mode & FMODE_NOWAIT))
-		return false;
-
-	if (rw == READ)
-		return file->f_op->read_iter != NULL;
-
-	return file->f_op->write_iter != NULL;
+	return file->f_mode & FMODE_NOWAIT;
 }
 
-static bool io_file_supports_nowait(struct io_kiocb *req, int rw)
+static inline bool io_file_supports_nowait(struct io_kiocb *req)
 {
-	if (rw == READ && (req->flags & REQ_F_NOWAIT_READ))
+	if (likely(req->flags & REQ_F_SUPPORT_NOWAIT))
 		return true;
-	else if (rw == WRITE && (req->flags & REQ_F_NOWAIT_WRITE))
-		return true;
-
-	return __io_file_supports_nowait(req->file, rw);
+	return __io_file_supports_nowait(req->file);
 }
 
 static int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe,
@@ -2844,7 +2826,7 @@ static int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	 * reliably. If not, or it IOCB_NOWAIT is set, don't retry.
 	 */
 	if ((kiocb->ki_flags & IOCB_NOWAIT) ||
-	    ((file->f_flags & O_NONBLOCK) && !io_file_supports_nowait(req, rw)))
+	    ((file->f_flags & O_NONBLOCK) && !io_file_supports_nowait(req)))
 		req->flags |= REQ_F_NOWAIT;
 
 	ioprio = READ_ONCE(sqe->ioprio);
@@ -3235,7 +3217,8 @@ static ssize_t loop_rw_iter(int rw, struct io_kiocb *req, struct iov_iter *iter)
 	 */
 	if (kiocb->ki_flags & IOCB_HIPRI)
 		return -EOPNOTSUPP;
-	if (kiocb->ki_flags & IOCB_NOWAIT)
+	if ((kiocb->ki_flags & IOCB_NOWAIT) &&
+	    !(kiocb->ki_filp->f_flags & O_NONBLOCK))
 		return -EAGAIN;
 
 	while (iov_iter_count(iter)) {
@@ -3475,7 +3458,7 @@ static int io_read(struct io_kiocb *req, unsigned int issue_flags)
 
 	if (force_nonblock) {
 		/* If the file doesn't support async, just async punt */
-		if (unlikely(!io_file_supports_nowait(req, READ))) {
+		if (unlikely(!io_file_supports_nowait(req))) {
 			ret = io_setup_async_rw(req, iovec, s, true);
 			return ret ?: -EAGAIN;
 		}
@@ -3599,7 +3582,7 @@ static int io_write(struct io_kiocb *req, unsigned int issue_flags)
 
 	if (force_nonblock) {
 		/* If the file doesn't support async, just async punt */
-		if (unlikely(!io_file_supports_nowait(req, WRITE)))
+		if (unlikely(!io_file_supports_nowait(req)))
 			goto copy_iov;
 
 		/* file path doesn't support NOWAIT for non-direct_IO */
@@ -3631,7 +3614,7 @@ static int io_write(struct io_kiocb *req, unsigned int issue_flags)
 	}
 	kiocb->ki_flags |= IOCB_WRITE;
 
-	if (req->file->f_op->write_iter)
+	if (likely(req->file->f_op->write_iter))
 		ret2 = call_write_iter(req->file, kiocb, &s->iter);
 	else if (req->file->f_op->write)
 		ret2 = loop_rw_iter(WRITE, req, &s->iter);
@@ -6778,10 +6761,8 @@ static void io_fixed_file_set(struct io_fixed_file *file_slot, struct file *file
 {
 	unsigned long file_ptr = (unsigned long) file;
 
-	if (__io_file_supports_nowait(file, READ))
-		file_ptr |= FFS_ASYNC_READ;
-	if (__io_file_supports_nowait(file, WRITE))
-		file_ptr |= FFS_ASYNC_WRITE;
+	if (__io_file_supports_nowait(file))
+		file_ptr |= FFS_NOWAIT;
 	if (S_ISREG(file_inode(file)->i_mode))
 		file_ptr |= FFS_ISREG;
 	file_slot->file_ptr = file_ptr;
@@ -6800,7 +6781,7 @@ static inline struct file *io_file_get_fixed(struct io_ring_ctx *ctx,
 	file = (struct file *) (file_ptr & FFS_MASK);
 	file_ptr &= ~FFS_MASK;
 	/* mask in overlapping REQ_F and FFS bits */
-	req->flags |= (file_ptr << REQ_F_NOWAIT_READ_BIT);
+	req->flags |= (file_ptr << REQ_F_SUPPORT_NOWAIT_BIT);
 	io_req_set_rsrc_node(req, ctx);
 	return file;
 }
