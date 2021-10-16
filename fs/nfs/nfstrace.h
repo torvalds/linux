@@ -11,6 +11,8 @@
 #include <linux/tracepoint.h>
 #include <linux/iversion.h>
 
+#include <trace/events/sunrpc_base.h>
+
 #define nfs_show_file_type(ftype) \
 	__print_symbolic(ftype, \
 			{ DT_UNKNOWN, "UNKNOWN" }, \
@@ -1409,8 +1411,8 @@ DECLARE_EVENT_CLASS(nfs_xdr_event,
 			__assign_str(procedure, task->tk_msg.rpc_proc->p_name);
 		),
 
-		TP_printk(
-			"task:%u@%d xid=0x%08x %sv%d %s error=%ld (%s)",
+		TP_printk(SUNRPC_TRACE_TASK_SPECIFIER
+			  " xid=0x%08x %sv%d %s error=%ld (%s)",
 			__entry->task_id, __entry->client_id, __entry->xid,
 			__get_str(program), __entry->version,
 			__get_str(procedure), -__entry->error,

@@ -9,6 +9,7 @@
 #define _TRACE_NFS4_H
 
 #include <linux/tracepoint.h>
+#include <trace/events/sunrpc_base.h>
 
 TRACE_DEFINE_ENUM(EPERM);
 TRACE_DEFINE_ENUM(ENOENT);
@@ -694,8 +695,8 @@ TRACE_EVENT(nfs4_xdr_bad_operation,
 			__entry->expected = expected;
 		),
 
-		TP_printk(
-			"task:%u@%d xid=0x%08x operation=%u, expected=%u",
+		TP_printk(SUNRPC_TRACE_TASK_SPECIFIER
+			  " xid=0x%08x operation=%u, expected=%u",
 			__entry->task_id, __entry->client_id, __entry->xid,
 			__entry->op, __entry->expected
 		)
@@ -729,8 +730,8 @@ DECLARE_EVENT_CLASS(nfs4_xdr_event,
 			__entry->error = error;
 		),
 
-		TP_printk(
-			"task:%u@%d xid=0x%08x error=%ld (%s) operation=%u",
+		TP_printk(SUNRPC_TRACE_TASK_SPECIFIER
+			  " xid=0x%08x error=%ld (%s) operation=%u",
 			__entry->task_id, __entry->client_id, __entry->xid,
 			-__entry->error, show_nfsv4_errors(__entry->error),
 			__entry->op
