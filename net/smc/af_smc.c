@@ -786,9 +786,9 @@ static int smc_connect_clc(struct smc_sock *smc,
 				SMC_CLC_ACCEPT, CLC_WAIT_TIME);
 }
 
-static void smc_fill_gid_list(struct smc_link_group *lgr,
-			      struct smc_gidlist *gidlist,
-			      struct smc_ib_device *known_dev, u8 *known_gid)
+void smc_fill_gid_list(struct smc_link_group *lgr,
+		       struct smc_gidlist *gidlist,
+		       struct smc_ib_device *known_dev, u8 *known_gid)
 {
 	struct smc_init_info *alt_ini = NULL;
 
@@ -1435,7 +1435,7 @@ static int smcr_serv_conf_first_link(struct smc_sock *smc)
 	smcr_lgr_set_type(link->lgr, SMC_LGR_SINGLE);
 
 	/* initial contact - try to establish second link */
-	smc_llc_srv_add_link(link);
+	smc_llc_srv_add_link(link, NULL);
 	return 0;
 }
 

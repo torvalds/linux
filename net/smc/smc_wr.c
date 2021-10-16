@@ -258,6 +258,33 @@ int smc_wr_tx_get_free_slot(struct smc_link *link,
 	return 0;
 }
 
+int smc_wr_tx_get_v2_slot(struct smc_link *link,
+			  smc_wr_tx_handler handler,
+			  struct smc_wr_v2_buf **wr_buf,
+			  struct smc_wr_tx_pend_priv **wr_pend_priv)
+{
+	struct smc_wr_tx_pend *wr_pend;
+	struct ib_send_wr *wr_ib;
+	u64 wr_id;
+
+	if (link->wr_tx_v2_pend->idx == link->wr_tx_cnt)
+		return -EBUSY;
+
+	*wr_buf = NULL;
+	*wr_pend_priv = NULL;
+	wr_id = smc_wr_tx_get_next_wr_id(link);
+	wr_pend = link->wr_tx_v2_pend;
+	wr_pend->wr_id = wr_id;
+	wr_pend->handler = handler;
+	wr_pend->link = link;
+	wr_pend->idx = link->wr_tx_cnt;
+	wr_ib = link->wr_tx_v2_ib;
+	wr_ib->wr_id = wr_id;
+	*wr_buf = link->lgr->wr_tx_buf_v2;
+	*wr_pend_priv = &wr_pend->priv;
+	return 0;
+}
+
 int smc_wr_tx_put_slot(struct smc_link *link,
 		       struct smc_wr_tx_pend_priv *wr_pend_priv)
 {
@@ -300,6 +327,22 @@ int smc_wr_tx_send(struct smc_link *link, struct smc_wr_tx_pend_priv *priv)
 			 IB_CQ_NEXT_COMP | IB_CQ_REPORT_MISSED_EVENTS);
 	pend = container_of(priv, struct smc_wr_tx_pend, priv);
 	rc = ib_post_send(link->roce_qp, &link->wr_tx_ibs[pend->idx], NULL);
+	if (rc) {
+		smc_wr_tx_put_slot(link, priv);
+		smcr_link_down_cond_sched(link);
+	}
+	return rc;
+}
+
+int smc_wr_tx_v2_send(struct smc_link *link, struct smc_wr_tx_pend_priv *priv,
+		      int len)
+{
+	int rc;
+
+	link->wr_tx_v2_ib->sg_list[0].length = len;
+	ib_req_notify_cq(link->smcibdev->roce_cq_send,
+			 IB_CQ_NEXT_COMP | IB_CQ_REPORT_MISSED_EVENTS);
+	rc = ib_post_send(link->roce_qp, link->wr_tx_v2_ib, NULL);
 	if (rc) {
 		smc_wr_tx_put_slot(link, priv);
 		smcr_link_down_cond_sched(link);

@@ -218,6 +218,7 @@ enum smc_llc_flowtype {
 	SMC_LLC_FLOW_NONE	= 0,
 	SMC_LLC_FLOW_ADD_LINK	= 2,
 	SMC_LLC_FLOW_DEL_LINK	= 4,
+	SMC_LLC_FLOW_REQ_ADD_LINK = 5,
 	SMC_LLC_FLOW_RKEY	= 6,
 };
 
