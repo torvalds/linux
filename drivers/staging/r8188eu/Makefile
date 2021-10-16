@@ -74,7 +74,6 @@ rtk_core :=				\
 		core/rtw_ap.o		\
 		core/rtw_br_ext.o	\
 		core/rtw_cmd.o		\
-		core/rtw_debug.o	\
 		core/rtw_efuse.o	\
 		core/rtw_ieee80211.o	\
 		core/rtw_ioctl_set.o	\
