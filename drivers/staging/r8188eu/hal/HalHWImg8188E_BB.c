@@ -13,17 +13,12 @@
 
 static bool CheckCondition(const u32  condition, const u32  hex)
 {
-	u32 _board     = (hex & 0x000000FF);
 	u32 _interface = (hex & 0x0000FF00) >> 8;
 	u32 _platform  = (hex & 0x00FF0000) >> 16;
 	u32 cond = condition;
 
 	if (condition == 0xCDCDCDCD)
 		return true;
-
-	cond = condition & 0x000000FF;
-	if ((_board == cond) && cond != 0x00)
-		return false;
 
 	cond = condition & 0x0000FF00;
 	cond = cond >> 8;
