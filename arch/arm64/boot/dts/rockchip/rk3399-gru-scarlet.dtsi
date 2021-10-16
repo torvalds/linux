@@ -8,6 +8,8 @@
 #include "rk3399-gru.dtsi"
 
 /{
+	chassis-type = "tablet";
+
 	/* Power tree */
 
 	/* ppvar_sys children, sorted by name */
