@@ -25,13 +25,6 @@ struct blk_mq_ctx {
 	unsigned short		index_hw[HCTX_MAX_TYPES];
 	struct blk_mq_hw_ctx 	*hctxs[HCTX_MAX_TYPES];
 
-	/* incremented at dispatch time */
-	unsigned long		rq_dispatched[2];
-	unsigned long		rq_merged;
-
-	/* incremented at completion time */
-	unsigned long		____cacheline_aligned_in_smp rq_completed[2];
-
 	struct request_queue	*queue;
 	struct blk_mq_ctxs      *ctxs;
 	struct kobject		kobj;

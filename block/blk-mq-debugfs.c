@@ -663,57 +663,6 @@ CTX_RQ_SEQ_OPS(default, HCTX_TYPE_DEFAULT);
 CTX_RQ_SEQ_OPS(read, HCTX_TYPE_READ);
 CTX_RQ_SEQ_OPS(poll, HCTX_TYPE_POLL);
 
-static int ctx_dispatched_show(void *data, struct seq_file *m)
-{
-	struct blk_mq_ctx *ctx = data;
-
-	seq_printf(m, "%lu %lu\n", ctx->rq_dispatched[1], ctx->rq_dispatched[0]);
-	return 0;
-}
-
-static ssize_t ctx_dispatched_write(void *data, const char __user *buf,
-				    size_t count, loff_t *ppos)
-{
-	struct blk_mq_ctx *ctx = data;
-
-	ctx->rq_dispatched[0] = ctx->rq_dispatched[1] = 0;
-	return count;
-}
-
-static int ctx_merged_show(void *data, struct seq_file *m)
-{
-	struct blk_mq_ctx *ctx = data;
-
-	seq_printf(m, "%lu\n", ctx->rq_merged);
-	return 0;
-}
-
-static ssize_t ctx_merged_write(void *data, const char __user *buf,
-				size_t count, loff_t *ppos)
-{
-	struct blk_mq_ctx *ctx = data;
-
-	ctx->rq_merged = 0;
-	return count;
-}
-
-static int ctx_completed_show(void *data, struct seq_file *m)
-{
-	struct blk_mq_ctx *ctx = data;
-
-	seq_printf(m, "%lu %lu\n", ctx->rq_completed[1], ctx->rq_completed[0]);
-	return 0;
-}
-
-static ssize_t ctx_completed_write(void *data, const char __user *buf,
-				   size_t count, loff_t *ppos)
-{
-	struct blk_mq_ctx *ctx = data;
-
-	ctx->rq_completed[0] = ctx->rq_completed[1] = 0;
-	return count;
-}
-
 static int blk_mq_debugfs_show(struct seq_file *m, void *v)
 {
 	const struct blk_mq_debugfs_attr *attr = m->private;
@@ -803,9 +752,6 @@ static const struct blk_mq_debugfs_attr blk_mq_debugfs_ctx_attrs[] = {
 	{"default_rq_list", 0400, .seq_ops = &ctx_default_rq_list_seq_ops},
 	{"read_rq_list", 0400, .seq_ops = &ctx_read_rq_list_seq_ops},
 	{"poll_rq_list", 0400, .seq_ops = &ctx_poll_rq_list_seq_ops},
-	{"dispatched", 0600, ctx_dispatched_show, ctx_dispatched_write},
-	{"merged", 0600, ctx_merged_show, ctx_merged_write},
-	{"completed", 0600, ctx_completed_show, ctx_completed_write},
 	{},
 };
 

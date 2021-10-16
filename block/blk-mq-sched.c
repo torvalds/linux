@@ -387,13 +387,10 @@ bool __blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio,
 	 * potentially merge with. Currently includes a hand-wavy stop
 	 * count of 8, to not spend too much time checking for merges.
 	 */
-	if (blk_bio_list_merge(q, &ctx->rq_lists[type], bio, nr_segs)) {
-		ctx->rq_merged++;
+	if (blk_bio_list_merge(q, &ctx->rq_lists[type], bio, nr_segs))
 		ret = true;
-	}
 
 	spin_unlock(&ctx->lock);
-
 	return ret;
 }
 
