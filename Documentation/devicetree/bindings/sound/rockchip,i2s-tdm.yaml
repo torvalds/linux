@@ -82,12 +82,6 @@ properties:
         - tx-m
         - rx-m
 
-  rockchip,cru:
-    $ref: /schemas/types.yaml#/definitions/phandle
-    description:
-      The phandle of the cru.
-      Required if neither trcm-sync-tx-only nor trcm-sync-rx-only are specified.
-
   rockchip,grf:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
@@ -144,15 +138,6 @@ required:
   - rockchip,grf
   - "#sound-dai-cells"
 
-allOf:
-  - if:
-      properties:
-        rockchip,trcm-sync-tx-only: false
-        rockchip,trcm-sync-rx-only: false
-    then:
-      required:
-        - rockchip,cru
-
 additionalProperties: false
 
 examples:
@@ -177,7 +162,6 @@ examples:
             resets = <&cru SRST_M_I2S1_8CH_TX>, <&cru SRST_M_I2S1_8CH_RX>;
             reset-names = "tx-m", "rx-m";
             rockchip,trcm-sync-tx-only;
-            rockchip,cru = <&cru>;
             rockchip,grf = <&grf>;
             #sound-dai-cells = <0>;
             pinctrl-names = "default";
