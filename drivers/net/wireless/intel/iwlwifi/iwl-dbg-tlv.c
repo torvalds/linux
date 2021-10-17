@@ -1179,8 +1179,10 @@ static void iwl_dbg_tlv_init_cfg(struct iwl_fw_runtime *fwrt)
 			&fwrt->trans->dbg.active_regions[i];
 		u32 reg_type;
 
-		if (!*active_reg)
+		if (!*active_reg) {
+			fwrt->trans->dbg.unsupported_region_msk |= BIT(i);
 			continue;
+		}
 
 		reg = (void *)(*active_reg)->data;
 		reg_type = le32_to_cpu(reg->type);
