@@ -1240,7 +1240,7 @@ static int _iwl_dbgfs_inject_beacon_ie(struct iwl_mvm *mvm, char *bin, int len)
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	info = IEEE80211_SKB_CB(beacon);
 	rate = iwl_mvm_mac_ctxt_get_lowest_rate(info, vif);
-	flags = iwl_mvm_mac80211_idx_to_hwrate(rate);
+	flags = iwl_mvm_mac80211_idx_to_hwrate(mvm->fw, rate);
 
 	if (rate == IWL_FIRST_CCK_RATE)
 		flags |= IWL_MAC_BEACON_CCK;

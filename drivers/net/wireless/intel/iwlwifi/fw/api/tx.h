@@ -267,7 +267,8 @@ struct iwl_tx_cmd_gen2 {
 	struct iwl_dram_sec_info dram_info;
 	__le32 rate_n_flags;
 	struct ieee80211_hdr hdr[];
-} __packed; /* TX_CMD_API_S_VER_7 */
+} __packed; /* TX_CMD_API_S_VER_7,
+	       TX_CMD_API_S_VER_9 */
 
 /**
  * struct iwl_tx_cmd_gen3 - TX command struct to FW for AX210+ devices
@@ -290,7 +291,8 @@ struct iwl_tx_cmd_gen3 {
 	__le32 rate_n_flags;
 	__le64 ttl;
 	struct ieee80211_hdr hdr[];
-} __packed; /* TX_CMD_API_S_VER_8 */
+} __packed; /* TX_CMD_API_S_VER_8,
+	       TX_CMD_API_S_VER_10 */
 
 /*
  * TX response related data
