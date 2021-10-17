@@ -624,7 +624,7 @@ struct iwl_wowlan_status_v6 {
 } __packed; /* WOWLAN_STATUSES_API_S_VER_6 */
 
 /**
- * struct iwl_wowlan_status - WoWLAN status
+ * struct iwl_wowlan_status_v7 - WoWLAN status
  * @gtk: GTK data
  * @igtk: IGTK data
  * @replay_ctr: GTK rekey replay counter
