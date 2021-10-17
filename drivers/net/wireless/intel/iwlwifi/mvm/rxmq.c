@@ -240,8 +240,7 @@ static void iwl_mvm_add_rtap_sniffer_config(struct iwl_mvm *mvm,
 static void iwl_mvm_pass_packet_to_mac80211(struct iwl_mvm *mvm,
 					    struct napi_struct *napi,
 					    struct sk_buff *skb, int queue,
-					    struct ieee80211_sta *sta,
-					    bool csi)
+					    struct ieee80211_sta *sta)
 {
 	if (iwl_mvm_check_pn(mvm, skb, queue, sta))
 		kfree_skb(skb);
@@ -619,7 +618,7 @@ static void iwl_mvm_release_frames(struct iwl_mvm *mvm,
 		while ((skb = __skb_dequeue(skb_list))) {
 			iwl_mvm_pass_packet_to_mac80211(mvm, napi, skb,
 							reorder_buf->queue,
-							sta, false);
+							sta);
 			reorder_buf->num_stored--;
 		}
 	}
@@ -1653,7 +1652,6 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	struct iwl_mvm_rx_phy_data phy_data = {
 		.info_type = IWL_RX_PHY_INFO_TYPE_NONE,
 	};
-	bool csi = false;
 	u32 format;
 	bool is_sgi;
 
@@ -2004,7 +2002,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 
 	if (!iwl_mvm_reorder(mvm, napi, queue, sta, skb, desc))
 		iwl_mvm_pass_packet_to_mac80211(mvm, napi, skb, queue,
-						sta, csi);
+						sta);
 out:
 	rcu_read_unlock();
 }
