@@ -476,6 +476,14 @@ const char iwl_ax210_killer_1675w_name[] =
 	"Killer(R) Wi-Fi 6E AX1675w 160MHz Wireless Network Adapter (210D2W)";
 const char iwl_ax210_killer_1675x_name[] =
 	"Killer(R) Wi-Fi 6E AX1675x 160MHz Wireless Network Adapter (210NGW)";
+const char iwl_ax211_killer_1675s_name[] =
+	"Killer(R) Wi-Fi 6E AX1675s 160MHz Wireless Network Adapter (211NGW)";
+const char iwl_ax211_killer_1675i_name[] =
+	"Killer(R) Wi-Fi 6E AX1675i 160MHz Wireless Network Adapter (211NGW)";
+const char iwl_ax411_killer_1690s_name[] =
+	"Killer(R) Wi-Fi 6E AX1690s 160MHz Wireless Network Adapter (411D2W)";
+const char iwl_ax411_killer_1690i_name[] =
+	"Killer(R) Wi-Fi 6E AX1690i 160MHz Wireless Network Adapter (411NGW)";
 
 const struct iwl_cfg iwl_qu_b0_hr1_b0 = {
 	.fw_name_pre = IWL_QU_B_HR_B_FW_PRE,
