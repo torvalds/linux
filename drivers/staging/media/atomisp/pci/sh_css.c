@@ -1000,20 +1000,10 @@ static bool sh_css_translate_stream_cfg_to_isys_stream_descr(
 	isys_stream_descr->raw_packed = stream_cfg->pack_raw_pixels;
 	isys_stream_descr->linked_isys_stream_id = (int8_t)
 		stream_cfg->isys_config[isys_stream_idx].linked_isys_stream_id;
-	/*
-	 * Early polling is required for timestamp accuracy in certain case.
-	 * The ISYS HW polling is started on
-	 * ia_css_isys_stream_capture_indication() instead of
-	 * ia_css_pipeline_sp_wait_for_isys_stream_N() as isp processing of
-	 * capture takes longer than getting an ISYS frame
-	 */
-	if (IS_ISP2401) {
-		isys_stream_descr->polling_mode
-		    = early_polling ? INPUT_SYSTEM_POLL_ON_CAPTURE_REQUEST
-		      : INPUT_SYSTEM_POLL_ON_WAIT_FOR_FRAME;
+
+	if (IS_ISP2401)
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
 				    "sh_css_translate_stream_cfg_to_isys_stream_descr() leave:\n");
-	}
 
 	return rc;
 }
