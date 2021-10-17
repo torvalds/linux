@@ -398,9 +398,9 @@ int iwl_dump_fh(struct iwl_trans *trans, char **buf)
 	return 0;
 }
 
-int iwl_finish_nic_init(struct iwl_trans *trans,
-			const struct iwl_cfg_trans_params *cfg_trans)
+int iwl_finish_nic_init(struct iwl_trans *trans)
 {
+	const struct iwl_cfg_trans_params *cfg_trans = trans->trans_cfg;
 	u32 poll_ready;
 	int err;
 
