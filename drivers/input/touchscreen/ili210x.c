@@ -22,6 +22,12 @@
 /* Touchscreen commands */
 #define REG_TOUCHDATA		0x10
 #define REG_PANEL_INFO		0x20
+#define REG_FIRMWARE_VERSION	0x40
+#define REG_PROTOCOL_VERSION	0x42
+#define REG_KERNEL_VERSION	0x61
+#define REG_GET_MODE		0xc0
+#define REG_GET_MODE_AP		0x5a
+#define REG_GET_MODE_BL		0x55
 #define REG_CALIBRATE		0xcc
 
 struct ili2xxx_chip {
@@ -45,6 +51,10 @@ struct ili210x {
 	struct gpio_desc *reset_gpio;
 	struct touchscreen_properties prop;
 	const struct ili2xxx_chip *chip;
+	u8 version_firmware[8];
+	u8 version_kernel[5];
+	u8 version_proto[2];
+	u8 ic_mode[2];
 	bool stop;
 };
 
@@ -353,6 +363,69 @@ static int ili251x_firmware_update_resolution(struct device *dev)
 	return 0;
 }
 
+static ssize_t ili251x_firmware_update_firmware_version(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct ili210x *priv = i2c_get_clientdata(client);
+	int error;
+	u8 fw[8];
+
+	/* Get firmware version */
+	error = priv->chip->read_reg(client, REG_FIRMWARE_VERSION,
+				     &fw, sizeof(fw));
+	if (!error)
+		memcpy(priv->version_firmware, fw, sizeof(fw));
+
+	return error;
+}
+
+static ssize_t ili251x_firmware_update_kernel_version(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct ili210x *priv = i2c_get_clientdata(client);
+	int error;
+	u8 kv[5];
+
+	/* Get kernel version */
+	error = priv->chip->read_reg(client, REG_KERNEL_VERSION,
+				     &kv, sizeof(kv));
+	if (!error)
+		memcpy(priv->version_kernel, kv, sizeof(kv));
+
+	return error;
+}
+
+static ssize_t ili251x_firmware_update_protocol_version(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct ili210x *priv = i2c_get_clientdata(client);
+	int error;
+	u8 pv[2];
+
+	/* Get protocol version */
+	error = priv->chip->read_reg(client, REG_PROTOCOL_VERSION,
+				     &pv, sizeof(pv));
+	if (!error)
+		memcpy(priv->version_proto, pv, sizeof(pv));
+
+	return error;
+}
+
+static ssize_t ili251x_firmware_update_ic_mode(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct ili210x *priv = i2c_get_clientdata(client);
+	int error;
+	u8 md[2];
+
+	/* Get chip boot mode */
+	error = priv->chip->read_reg(client, REG_GET_MODE, &md, sizeof(md));
+	if (!error)
+		memcpy(priv->ic_mode, md, sizeof(md));
+
+	return error;
+}
+
 static int ili251x_firmware_update_cached_state(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -370,8 +443,82 @@ static int ili251x_firmware_update_cached_state(struct device *dev)
 	if (error)
 		return error;
 
+	error = ili251x_firmware_update_firmware_version(dev);
+	if (error)
+		return error;
+
+	error = ili251x_firmware_update_kernel_version(dev);
+	if (error)
+		return error;
+
+	error = ili251x_firmware_update_protocol_version(dev);
+	if (error)
+		return error;
+
+	error = ili251x_firmware_update_ic_mode(dev);
+	if (error)
+		return error;
+
 	return 0;
 }
+
+static ssize_t ili251x_firmware_version_show(struct device *dev,
+					     struct device_attribute *attr,
+					     char *buf)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct ili210x *priv = i2c_get_clientdata(client);
+	u8 *fw = priv->version_firmware;
+
+	return sysfs_emit(buf, "%02x%02x.%02x%02x.%02x%02x.%02x%02x\n",
+			  fw[0], fw[1], fw[2], fw[3],
+			  fw[4], fw[5], fw[6], fw[7]);
+}
+static DEVICE_ATTR(firmware_version, 0444, ili251x_firmware_version_show, NULL);
+
+static ssize_t ili251x_kernel_version_show(struct device *dev,
+					   struct device_attribute *attr,
+					   char *buf)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct ili210x *priv = i2c_get_clientdata(client);
+	u8 *kv = priv->version_kernel;
+
+	return sysfs_emit(buf, "%02x.%02x.%02x.%02x.%02x\n",
+			  kv[0], kv[1], kv[2], kv[3], kv[4]);
+}
+static DEVICE_ATTR(kernel_version, 0444, ili251x_kernel_version_show, NULL);
+
+static ssize_t ili251x_protocol_version_show(struct device *dev,
+					     struct device_attribute *attr,
+					     char *buf)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct ili210x *priv = i2c_get_clientdata(client);
+	u8 *pv = priv->version_proto;
+
+	return sysfs_emit(buf, "%02x.%02x\n", pv[0], pv[1]);
+}
+static DEVICE_ATTR(protocol_version, 0444, ili251x_protocol_version_show, NULL);
+
+static ssize_t ili251x_mode_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct ili210x *priv = i2c_get_clientdata(client);
+	u8 *md = priv->ic_mode;
+	char *mode = "AP";
+
+	if (md[0] == REG_GET_MODE_AP)		/* Application Mode */
+		mode = "AP";
+	else if (md[0] == REG_GET_MODE_BL)	/* BootLoader Mode */
+		mode = "BL";
+	else					/* Unknown Mode */
+		mode = "??";
+
+	return sysfs_emit(buf, "%02x.%02x:%s\n", md[0], md[1], mode);
+}
+static DEVICE_ATTR(mode, 0444, ili251x_mode_show, NULL);
 
 static ssize_t ili210x_calibrate(struct device *dev,
 				 struct device_attribute *attr,
@@ -401,22 +548,34 @@ static DEVICE_ATTR(calibrate, S_IWUSR, NULL, ili210x_calibrate);
 
 static struct attribute *ili210x_attributes[] = {
 	&dev_attr_calibrate.attr,
+	&dev_attr_firmware_version.attr,
+	&dev_attr_kernel_version.attr,
+	&dev_attr_protocol_version.attr,
+	&dev_attr_mode.attr,
 	NULL,
 };
 
-static umode_t ili210x_calibrate_visible(struct kobject *kobj,
+static umode_t ili210x_attributes_visible(struct kobject *kobj,
 					  struct attribute *attr, int index)
 {
 	struct device *dev = kobj_to_dev(kobj);
 	struct i2c_client *client = to_i2c_client(dev);
 	struct ili210x *priv = i2c_get_clientdata(client);
 
-	return priv->chip->has_calibrate_reg ? attr->mode : 0;
+	/* Calibrate is present on all ILI2xxx which have calibrate register */
+	if (attr == &dev_attr_calibrate.attr)
+		return priv->chip->has_calibrate_reg ? attr->mode : 0;
+
+	/* Firmware/Kernel/Protocol/BootMode is implememted only for ILI251x */
+	if (!priv->chip->has_firmware_proto)
+		return 0;
+
+	return attr->mode;
 }
 
 static const struct attribute_group ili210x_attr_group = {
 	.attrs = ili210x_attributes,
-	.is_visible = ili210x_calibrate_visible,
+	.is_visible = ili210x_attributes_visible,
 };
 
 static void ili210x_power_down(void *data)
