@@ -1501,7 +1501,9 @@ struct iwl_tof_range_rsp_ap_entry_ntfy_v6 {
 	u8 reserved[3];
 	u8 rx_pn[IEEE80211_CCMP_PN_LEN];
 	u8 tx_pn[IEEE80211_CCMP_PN_LEN];
-} __packed; /* LOCATION_RANGE_RSP_AP_ETRY_NTFY_API_S_VER_6 */
+} __packed; /* LOCATION_RANGE_RSP_AP_ETRY_NTFY_API_S_VER_6,
+	       LOCATION_RANGE_RSP_AP_ETRY_NTFY_API_S_VER_7 */
+
 
 /**
  * enum iwl_tof_response_status - tof response status
@@ -1582,7 +1584,8 @@ struct iwl_tof_range_rsp_ntfy_v8 {
 	u8 last_report;
 	u8 reserved;
 	struct iwl_tof_range_rsp_ap_entry_ntfy_v6 ap[IWL_MVM_TOF_MAX_APS];
-} __packed; /* LOCATION_RANGE_RSP_NTFY_API_S_VER_8 */
+} __packed; /* LOCATION_RANGE_RSP_NTFY_API_S_VER_8,
+	       LOCATION_RANGE_RSP_NTFY_API_S_VER_9 */
 
 #define IWL_MVM_TOF_MCSI_BUF_SIZE  (245)
 /**

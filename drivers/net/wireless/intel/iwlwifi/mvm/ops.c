@@ -1044,8 +1044,8 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	mvm->cmd_ver.range_resp =
 		iwl_fw_lookup_notif_ver(mvm->fw, LOCATION_GROUP,
 					TOF_RANGE_RESPONSE_NOTIF, 5);
-	/* we only support up to version 8 */
-	if (WARN_ON_ONCE(mvm->cmd_ver.range_resp > 8))
+	/* we only support up to version 9 */
+	if (WARN_ON_ONCE(mvm->cmd_ver.range_resp > 9))
 		goto out_free;
 
 	/*
