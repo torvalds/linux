@@ -176,6 +176,10 @@ struct iwl_fw_dbg {
 	u32 dump_mask;
 };
 
+struct iwl_dump_exclude {
+	u32 addr, size;
+};
+
 /**
  * struct iwl_fw - variables associated with the firmware
  *
@@ -198,6 +202,8 @@ struct iwl_fw_dbg {
  *	we get the ALIVE from the uCode
  * @phy_integration_ver: PHY integration version string
  * @phy_integration_ver_len: length of @phy_integration_ver
+ * @dump_excl: image dump exclusion areas for RT image
+ * @dump_excl_wowlan: image dump exclusion areas for WoWLAN image
  */
 struct iwl_fw {
 	u32 ucode_ver;
@@ -229,6 +235,8 @@ struct iwl_fw {
 
 	u8 *phy_integration_ver;
 	u32 phy_integration_ver_len;
+
+	struct iwl_dump_exclude dump_excl[2], dump_excl_wowlan[2];
 };
 
 static inline const char *get_fw_dbg_mode_string(int mode)

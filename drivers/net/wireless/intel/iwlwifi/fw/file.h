@@ -100,6 +100,9 @@ enum iwl_ucode_tlv_type {
 	IWL_UCODE_TLV_PNVM_SKU			= 64,
 	IWL_UCODE_TLV_TCM_DEBUG_ADDRS		= 65,
 
+	IWL_UCODE_TLV_SEC_TABLE_ADDR		= 66,
+	IWL_UCODE_TLV_D3_KEK_KCK_ADDR		= 67,
+
 	IWL_UCODE_TLV_FW_NUM_STATIONS		= IWL_UCODE_TLV_CONST_BASE + 0,
 
 	IWL_UCODE_TLV_TYPE_DEBUG_INFO		= IWL_UCODE_TLV_DEBUG_BASE + 0,
@@ -955,6 +958,10 @@ struct iwl_fw_cmd_version {
 struct iwl_fw_tcm_error_addr {
 	__le32 addr;
 }; /* FW_TLV_TCM_ERROR_INFO_ADDRS_S */
+
+struct iwl_fw_dump_exclude {
+	__le32 addr, size;
+};
 
 static inline size_t _iwl_tlv_array_len(const struct iwl_ucode_tlv *tlv,
 					size_t fixed_size, size_t var_size)
