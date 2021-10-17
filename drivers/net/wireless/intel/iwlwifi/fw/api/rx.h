@@ -125,14 +125,12 @@ enum iwl_rx_phy_flags {
  * @RX_MPDU_RES_STATUS_OVERRUN_OK: there was no RXE overflow
  * @RX_MPDU_RES_STATUS_SRC_STA_FOUND: station was found
  * @RX_MPDU_RES_STATUS_KEY_VALID: key was valid
- * @RX_MPDU_RES_STATUS_KEY_PARAM_OK: key parameters were usable
  * @RX_MPDU_RES_STATUS_ICV_OK: ICV is fine, if not, the packet is destroyed
  * @RX_MPDU_RES_STATUS_MIC_OK: used for CCM alg only. TKIP MIC is checked
  *	in the driver.
  * @RX_MPDU_RES_STATUS_TTAK_OK: TTAK is fine
  * @RX_MPDU_RES_STATUS_MNG_FRAME_REPLAY_ERR:  valid for alg = CCM_CMAC or
- *	alg = CCM only. Checks replay attack for 11w frames. Relevant only if
- *	%RX_MPDU_RES_STATUS_ROBUST_MNG_FRAME is set.
+ *	alg = CCM only. Checks replay attack for 11w frames.
  * @RX_MPDU_RES_STATUS_SEC_NO_ENC: this frame is not encrypted
  * @RX_MPDU_RES_STATUS_SEC_WEP_ENC: this frame is encrypted using WEP
  * @RX_MPDU_RES_STATUS_SEC_CCM_ENC: this frame is encrypted using CCM
@@ -144,9 +142,6 @@ enum iwl_rx_phy_flags {
  * @RX_MPDU_RES_STATUS_SEC_ENC_ERR: this frame couldn't be decrypted
  * @RX_MPDU_RES_STATUS_SEC_ENC_MSK: bitmask of the encryption algorithm
  * @RX_MPDU_RES_STATUS_DEC_DONE: this frame has been successfully decrypted
- * @RX_MPDU_RES_STATUS_EXT_IV_BIT_CMP: extended IV (set with TKIP)
- * @RX_MPDU_RES_STATUS_KEY_ID_CMP_BIT: key ID comparison done
- * @RX_MPDU_RES_STATUS_ROBUST_MNG_FRAME: this frame is an 11w management frame
  * @RX_MPDU_RES_STATUS_CSUM_DONE: checksum was done by the hw
  * @RX_MPDU_RES_STATUS_CSUM_OK: checksum found no errors
  * @RX_MPDU_RES_STATUS_STA_ID_MSK: station ID mask
@@ -157,7 +152,6 @@ enum iwl_mvm_rx_status {
 	RX_MPDU_RES_STATUS_OVERRUN_OK			= BIT(1),
 	RX_MPDU_RES_STATUS_SRC_STA_FOUND		= BIT(2),
 	RX_MPDU_RES_STATUS_KEY_VALID			= BIT(3),
-	RX_MPDU_RES_STATUS_KEY_PARAM_OK			= BIT(4),
 	RX_MPDU_RES_STATUS_ICV_OK			= BIT(5),
 	RX_MPDU_RES_STATUS_MIC_OK			= BIT(6),
 	RX_MPDU_RES_STATUS_TTAK_OK			= BIT(7),
@@ -171,9 +165,6 @@ enum iwl_mvm_rx_status {
 	RX_MPDU_RES_STATUS_SEC_ENC_ERR			= (7 << 8),
 	RX_MPDU_RES_STATUS_SEC_ENC_MSK			= (7 << 8),
 	RX_MPDU_RES_STATUS_DEC_DONE			= BIT(11),
-	RX_MPDU_RES_STATUS_EXT_IV_BIT_CMP		= BIT(13),
-	RX_MPDU_RES_STATUS_KEY_ID_CMP_BIT		= BIT(14),
-	RX_MPDU_RES_STATUS_ROBUST_MNG_FRAME		= BIT(15),
 	RX_MPDU_RES_STATUS_CSUM_DONE			= BIT(16),
 	RX_MPDU_RES_STATUS_CSUM_OK			= BIT(17),
 	RX_MDPU_RES_STATUS_STA_ID_SHIFT			= 24,
@@ -235,7 +226,6 @@ enum iwl_rx_mpdu_status {
 	IWL_RX_MPDU_STATUS_OVERRUN_OK		= BIT(1),
 	IWL_RX_MPDU_STATUS_SRC_STA_FOUND	= BIT(2),
 	IWL_RX_MPDU_STATUS_KEY_VALID		= BIT(3),
-	IWL_RX_MPDU_STATUS_KEY_PARAM_OK		= BIT(4),
 	IWL_RX_MPDU_STATUS_ICV_OK		= BIT(5),
 	IWL_RX_MPDU_STATUS_MIC_OK		= BIT(6),
 	IWL_RX_MPDU_RES_STATUS_TTAK_OK		= BIT(7),
@@ -250,12 +240,8 @@ enum iwl_rx_mpdu_status {
 	IWL_RX_MPDU_STATUS_SEC_EXT_ENC		= 0x4 << 8,
 	IWL_RX_MPDU_STATUS_SEC_GCM		= 0x5 << 8,
 	IWL_RX_MPDU_STATUS_DECRYPTED		= BIT(11),
-	IWL_RX_MPDU_STATUS_WEP_MATCH		= BIT(12),
-	IWL_RX_MPDU_STATUS_EXT_IV_MATCH		= BIT(13),
-	IWL_RX_MPDU_STATUS_KEY_ID_MATCH		= BIT(14),
 	IWL_RX_MPDU_STATUS_ROBUST_MNG_FRAME	= BIT(15),
 
-	IWL_RX_MPDU_STATUS_KEY			= 0x3f0000,
 	IWL_RX_MPDU_STATUS_DUPLICATE		= BIT(22),
 
 	IWL_RX_MPDU_STATUS_STA_ID		= 0x1f000000,
