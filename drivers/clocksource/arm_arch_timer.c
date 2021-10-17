@@ -144,9 +144,6 @@ u32 arch_timer_reg_read(int access, enum arch_timer_reg reg,
 		case ARCH_TIMER_REG_CTRL:
 			val = readl_relaxed(timer->base + CNTP_CTL);
 			break;
-		case ARCH_TIMER_REG_TVAL:
-			val = readl_relaxed(timer->base + CNTP_TVAL);
-			break;
 		default:
 			BUILD_BUG();
 		}
@@ -155,9 +152,6 @@ u32 arch_timer_reg_read(int access, enum arch_timer_reg reg,
 		switch (reg) {
 		case ARCH_TIMER_REG_CTRL:
 			val = readl_relaxed(timer->base + CNTV_CTL);
-			break;
-		case ARCH_TIMER_REG_TVAL:
-			val = readl_relaxed(timer->base + CNTV_TVAL);
 			break;
 		default:
 			BUILD_BUG();
@@ -247,16 +241,6 @@ struct ate_acpi_oem_info {
 	_new;						\
 })
 
-static u32 notrace fsl_a008585_read_cntp_tval_el0(void)
-{
-	return __fsl_a008585_read_reg(cntp_tval_el0);
-}
-
-static u32 notrace fsl_a008585_read_cntv_tval_el0(void)
-{
-	return __fsl_a008585_read_reg(cntv_tval_el0);
-}
-
 static u64 notrace fsl_a008585_read_cntpct_el0(void)
 {
 	return __fsl_a008585_read_reg(cntpct_el0);
@@ -292,16 +276,6 @@ static u64 notrace fsl_a008585_read_cntvct_el0(void)
 	WARN_ON_ONCE(!_retries);				\
 	_new;							\
 })
-
-static u32 notrace hisi_161010101_read_cntp_tval_el0(void)
-{
-	return __hisi_161010101_read_reg(cntp_tval_el0);
-}
-
-static u32 notrace hisi_161010101_read_cntv_tval_el0(void)
-{
-	return __hisi_161010101_read_reg(cntv_tval_el0);
-}
 
 static u64 notrace hisi_161010101_read_cntpct_el0(void)
 {
@@ -387,16 +361,6 @@ static u64 notrace sun50i_a64_read_cntvct_el0(void)
 {
 	return __sun50i_a64_read_reg(cntvct_el0);
 }
-
-static u32 notrace sun50i_a64_read_cntp_tval_el0(void)
-{
-	return read_sysreg(cntp_cval_el0) - sun50i_a64_read_cntpct_el0();
-}
-
-static u32 notrace sun50i_a64_read_cntv_tval_el0(void)
-{
-	return read_sysreg(cntv_cval_el0) - sun50i_a64_read_cntvct_el0();
-}
 #endif
 
 #ifdef CONFIG_ARM_ARCH_TIMER_OOL_WORKAROUND
@@ -446,8 +410,6 @@ static const struct arch_timer_erratum_workaround ool_workarounds[] = {
 		.match_type = ate_match_dt,
 		.id = "fsl,erratum-a008585",
 		.desc = "Freescale erratum a005858",
-		.read_cntp_tval_el0 = fsl_a008585_read_cntp_tval_el0,
-		.read_cntv_tval_el0 = fsl_a008585_read_cntv_tval_el0,
 		.read_cntpct_el0 = fsl_a008585_read_cntpct_el0,
 		.read_cntvct_el0 = fsl_a008585_read_cntvct_el0,
 		.set_next_event_phys = erratum_set_next_event_tval_phys,
@@ -459,8 +421,6 @@ static const struct arch_timer_erratum_workaround ool_workarounds[] = {
 		.match_type = ate_match_dt,
 		.id = "hisilicon,erratum-161010101",
 		.desc = "HiSilicon erratum 161010101",
-		.read_cntp_tval_el0 = hisi_161010101_read_cntp_tval_el0,
-		.read_cntv_tval_el0 = hisi_161010101_read_cntv_tval_el0,
 		.read_cntpct_el0 = hisi_161010101_read_cntpct_el0,
 		.read_cntvct_el0 = hisi_161010101_read_cntvct_el0,
 		.set_next_event_phys = erratum_set_next_event_tval_phys,
@@ -470,8 +430,6 @@ static const struct arch_timer_erratum_workaround ool_workarounds[] = {
 		.match_type = ate_match_acpi_oem_info,
 		.id = hisi_161010101_oem_info,
 		.desc = "HiSilicon erratum 161010101",
-		.read_cntp_tval_el0 = hisi_161010101_read_cntp_tval_el0,
-		.read_cntv_tval_el0 = hisi_161010101_read_cntv_tval_el0,
 		.read_cntpct_el0 = hisi_161010101_read_cntpct_el0,
 		.read_cntvct_el0 = hisi_161010101_read_cntvct_el0,
 		.set_next_event_phys = erratum_set_next_event_tval_phys,
@@ -492,8 +450,6 @@ static const struct arch_timer_erratum_workaround ool_workarounds[] = {
 		.match_type = ate_match_dt,
 		.id = "allwinner,erratum-unknown1",
 		.desc = "Allwinner erratum UNKNOWN1",
-		.read_cntp_tval_el0 = sun50i_a64_read_cntp_tval_el0,
-		.read_cntv_tval_el0 = sun50i_a64_read_cntv_tval_el0,
 		.read_cntpct_el0 = sun50i_a64_read_cntpct_el0,
 		.read_cntvct_el0 = sun50i_a64_read_cntvct_el0,
 		.set_next_event_phys = erratum_set_next_event_tval_phys,

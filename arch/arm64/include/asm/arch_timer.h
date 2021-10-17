@@ -52,8 +52,6 @@ struct arch_timer_erratum_workaround {
 	enum arch_timer_erratum_match_type match_type;
 	const void *id;
 	const char *desc;
-	u32 (*read_cntp_tval_el0)(void);
-	u32 (*read_cntv_tval_el0)(void);
 	u64 (*read_cntpct_el0)(void);
 	u64 (*read_cntvct_el0)(void);
 	int (*set_next_event_phys)(unsigned long, struct clock_event_device *);
@@ -63,17 +61,6 @@ struct arch_timer_erratum_workaround {
 
 DECLARE_PER_CPU(const struct arch_timer_erratum_workaround *,
 		timer_unstable_counter_workaround);
-
-/* inline sysreg accessors that make erratum_handler() work */
-static inline notrace u32 arch_timer_read_cntp_tval_el0(void)
-{
-	return read_sysreg(cntp_tval_el0);
-}
-
-static inline notrace u32 arch_timer_read_cntv_tval_el0(void)
-{
-	return read_sysreg(cntv_tval_el0);
-}
 
 static inline notrace u64 arch_timer_read_cntpct_el0(void)
 {
@@ -140,8 +127,6 @@ u32 arch_timer_reg_read_cp15(int access, enum arch_timer_reg reg)
 		switch (reg) {
 		case ARCH_TIMER_REG_CTRL:
 			return read_sysreg(cntp_ctl_el0);
-		case ARCH_TIMER_REG_TVAL:
-			return arch_timer_reg_read_stable(cntp_tval_el0);
 		default:
 			BUILD_BUG();
 		}
@@ -149,8 +134,6 @@ u32 arch_timer_reg_read_cp15(int access, enum arch_timer_reg reg)
 		switch (reg) {
 		case ARCH_TIMER_REG_CTRL:
 			return read_sysreg(cntv_ctl_el0);
-		case ARCH_TIMER_REG_TVAL:
-			return arch_timer_reg_read_stable(cntv_tval_el0);
 		default:
 			BUILD_BUG();
 		}
