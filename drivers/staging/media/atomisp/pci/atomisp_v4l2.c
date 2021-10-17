@@ -711,15 +711,15 @@ static int atomisp_mrfld_power(struct atomisp_device *isp, bool enable)
 
 	dev_dbg(isp->dev, "IUNIT power-%s.\n", enable ? "on" : "off");
 
-	/*WA:Enable DVFS*/
+	/* WA for P-Unit, if DVFS enabled, ISP timeout observed */
 	if (IS_CHT && enable)
-		punit_ddr_dvfs_enable(true);
+		punit_ddr_dvfs_enable(false);
 
 	/*
 	 * FIXME:WA for ECS28A, with this sleep, CTS
 	 * android.hardware.camera2.cts.CameraDeviceTest#testCameraDeviceAbort
 	 * PASS, no impact on other platforms
-	*/
+	 */
 	if (IS_BYT && enable)
 		msleep(10);
 
@@ -727,7 +727,7 @@ static int atomisp_mrfld_power(struct atomisp_device *isp, bool enable)
 	iosf_mbi_modify(BT_MBI_UNIT_PMC, MBI_REG_READ, MRFLD_ISPSSPM0,
 			val, MRFLD_ISPSSPM0_ISPSSC_MASK);
 
-	/*WA:Enable DVFS*/
+	/* WA:Enable DVFS */
 	if (IS_CHT && !enable)
 		punit_ddr_dvfs_enable(true);
 
