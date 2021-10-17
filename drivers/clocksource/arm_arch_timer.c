@@ -780,9 +780,32 @@ static int arch_timer_set_next_event_phys_mem(unsigned long evt,
 	return 0;
 }
 
+static u64 __arch_timer_check_delta(void)
+{
+#ifdef CONFIG_ARM64
+	const struct midr_range broken_cval_midrs[] = {
+		/*
+		 * XGene-1 implements CVAL in terms of TVAL, meaning
+		 * that the maximum timer range is 32bit. Shame on them.
+		 */
+		MIDR_ALL_VERSIONS(MIDR_CPU_MODEL(ARM_CPU_IMP_APM,
+						 APM_CPU_PART_POTENZA)),
+		{},
+	};
+
+	if (is_midr_in_range_list(read_cpuid_id(), broken_cval_midrs)) {
+		pr_warn_once("Broken CNTx_CVAL_EL1, limiting width to 32bits");
+		return CLOCKSOURCE_MASK(32);
+	}
+#endif
+	return CLOCKSOURCE_MASK(56);
+}
+
 static void __arch_timer_setup(unsigned type,
 			       struct clock_event_device *clk)
 {
+	u64 max_delta;
+
 	clk->features = CLOCK_EVT_FEAT_ONESHOT;
 
 	if (type == ARCH_TIMER_TYPE_CP15) {
@@ -814,6 +837,7 @@ static void __arch_timer_setup(unsigned type,
 		}
 
 		clk->set_next_event = sne;
+		max_delta = __arch_timer_check_delta();
 	} else {
 		clk->features |= CLOCK_EVT_FEAT_DYNIRQ;
 		clk->name = "arch_mem_timer";
@@ -830,11 +854,13 @@ static void __arch_timer_setup(unsigned type,
 			clk->set_next_event =
 				arch_timer_set_next_event_phys_mem;
 		}
+
+		max_delta = CLOCKSOURCE_MASK(56);
 	}
 
 	clk->set_state_shutdown(clk);
 
-	clockevents_config_and_register(clk, arch_timer_rate, 0xf, CLOCKSOURCE_MASK(56));
+	clockevents_config_and_register(clk, arch_timer_rate, 0xf, max_delta);
 }
 
 static void arch_timer_evtstrm_enable(int divider)
