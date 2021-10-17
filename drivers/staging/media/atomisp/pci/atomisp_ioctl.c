@@ -646,6 +646,12 @@ static int atomisp_g_input(struct file *file, void *fh, unsigned int *input)
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	struct atomisp_sub_device *asd = atomisp_to_video_pipe(vdev)->asd;
 
+	if (!asd) {
+		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
+
 	rt_mutex_lock(&isp->mutex);
 	*input = asd->input_curr;
 	rt_mutex_unlock(&isp->mutex);
@@ -664,6 +670,12 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
 	struct v4l2_subdev *camera = NULL;
 	struct v4l2_subdev *motor;
 	int ret;
+
+	if (!asd) {
+		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
 
 	rt_mutex_lock(&isp->mutex);
 	if (input >= ATOM_ISP_MAX_INPUTS || input >= isp->input_cnt) {
@@ -764,6 +776,12 @@ static int atomisp_enum_fmt_cap(struct file *file, void *fh,
 	struct v4l2_subdev_mbus_code_enum code = { 0 };
 	unsigned int i, fi = 0;
 	int rval;
+
+	if (!asd) {
+		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
 
 	rt_mutex_lock(&isp->mutex);
 	rval = v4l2_subdev_call(isp->inputs[asd->input_curr].camera, pad,
@@ -1027,6 +1045,12 @@ int __atomisp_reqbufs(struct file *file, void *fh,
 	u16 stream_id = atomisp_source_pad_to_stream_id(asd, source_pad);
 	int ret = 0, i = 0;
 
+	if (!asd) {
+		dev_err(pipe->isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
+
 	if (req->count == 0) {
 		mutex_lock(&pipe->capq.vb_lock);
 		if (!list_empty(&pipe->capq.stream))
@@ -1153,6 +1177,12 @@ static int atomisp_qbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 	u32 length;
 	u32 pgnr;
 	int ret = 0;
+
+	if (!asd) {
+		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
 
 	rt_mutex_lock(&isp->mutex);
 	if (isp->isp_fatal_error) {
@@ -1388,6 +1418,12 @@ static int atomisp_dqbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 	struct atomisp_sub_device *asd = pipe->asd;
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	int ret = 0;
+
+	if (!asd) {
+		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
 
 	rt_mutex_lock(&isp->mutex);
 
@@ -1639,6 +1675,12 @@ static int atomisp_streamon(struct file *file, void *fh,
 	unsigned int wdt_duration = ATOMISP_ISP_TIMEOUT_DURATION;
 	int ret = 0;
 	unsigned long irqflags;
+
+	if (!asd) {
+		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
 
 	dev_dbg(isp->dev, "Start stream on pad %d for asd%d\n",
 		atomisp_subdev_source_pad(vdev), asd->index);
@@ -1901,6 +1943,12 @@ int __atomisp_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 	unsigned long flags;
 	bool first_streamoff = false;
 
+	if (!asd) {
+		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
+
 	dev_dbg(isp->dev, "Stop stream on pad %d for asd%d\n",
 		atomisp_subdev_source_pad(vdev), asd->index);
 
@@ -2150,6 +2198,12 @@ static int atomisp_g_ctrl(struct file *file, void *fh,
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	int i, ret = -EINVAL;
 
+	if (!asd) {
+		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
+
 	for (i = 0; i < ctrls_num; i++) {
 		if (ci_v4l2_controls[i].id == control->id) {
 			ret = 0;
@@ -2228,6 +2282,12 @@ static int atomisp_s_ctrl(struct file *file, void *fh,
 	struct atomisp_sub_device *asd = atomisp_to_video_pipe(vdev)->asd;
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	int i, ret = -EINVAL;
+
+	if (!asd) {
+		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
 
 	for (i = 0; i < ctrls_num; i++) {
 		if (ci_v4l2_controls[i].id == control->id) {
@@ -2310,6 +2370,12 @@ static int atomisp_queryctl(struct file *file, void *fh,
 	struct atomisp_sub_device *asd = atomisp_to_video_pipe(vdev)->asd;
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 
+	if (!asd) {
+		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
+
 	switch (qc->id) {
 	case V4L2_CID_FOCUS_ABSOLUTE:
 	case V4L2_CID_FOCUS_RELATIVE:
@@ -2354,6 +2420,12 @@ static int atomisp_camera_g_ext_ctrls(struct file *file, void *fh,
 	struct v4l2_control ctrl;
 	int i;
 	int ret = 0;
+
+	if (!asd) {
+		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
 
 	if (!IS_ISP2401)
 		motor = isp->inputs[asd->input_curr].motor;
@@ -2465,6 +2537,12 @@ static int atomisp_camera_s_ext_ctrls(struct file *file, void *fh,
 	struct v4l2_control ctrl;
 	int i;
 	int ret = 0;
+
+	if (!asd) {
+		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
 
 	if (!IS_ISP2401)
 		motor = isp->inputs[asd->input_curr].motor;
@@ -2591,6 +2669,12 @@ static int atomisp_g_parm(struct file *file, void *fh,
 	struct atomisp_sub_device *asd = atomisp_to_video_pipe(vdev)->asd;
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 
+	if (!asd) {
+		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
+
 	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
 		dev_err(isp->dev, "unsupported v4l2 buf type\n");
 		return -EINVAL;
@@ -2612,6 +2696,12 @@ static int atomisp_s_parm(struct file *file, void *fh,
 	int mode;
 	int rval;
 	int fps;
+
+	if (!asd) {
+		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
 
 	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
 		dev_err(isp->dev, "unsupported v4l2 buf type\n");
