@@ -551,14 +551,6 @@ struct sh_css_sp_pipeline {
 			u32	raw_bit_depth;
 		} raw;
 	} copy;
-
-/* ISP2401 */
-
-	/* Parameters passed to Shading Correction kernel. */
-	struct {
-		u32 internal_frame_origin_x_bqs_on_sctbl; /* Origin X (bqs) of internal frame on shading table */
-		u32 internal_frame_origin_y_bqs_on_sctbl; /* Origin Y (bqs) of internal frame on shading table */
-	} shading;
 };
 
 /*
