@@ -124,11 +124,13 @@ struct fw_img {
  * @fw_paging_phys: page phy pointer
  * @fw_paging_block: pointer to the allocated block
  * @fw_paging_size: page size
+ * @fw_offs: offset in the device
  */
 struct iwl_fw_paging {
 	dma_addr_t fw_paging_phys;
 	struct page *fw_paging_block;
 	u32 fw_paging_size;
+	u32 fw_offs;
 };
 
 /**

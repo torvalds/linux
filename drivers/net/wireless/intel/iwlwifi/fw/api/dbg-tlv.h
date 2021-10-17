@@ -7,6 +7,7 @@
 
 #include <linux/bitops.h>
 
+#define IWL_FW_INI_HW_SMEM_REGION_ID		15
 #define IWL_FW_INI_MAX_REGION_ID		64
 #define IWL_FW_INI_MAX_NAME			32
 #define IWL_FW_INI_MAX_CFG_NAME			64

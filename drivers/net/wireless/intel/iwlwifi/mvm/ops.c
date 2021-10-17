@@ -774,7 +774,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	mvm->hw = hw;
 
 	iwl_fw_runtime_init(&mvm->fwrt, trans, fw, &iwl_mvm_fwrt_ops, mvm,
-			    dbgfs_dir);
+			    NULL, NULL, dbgfs_dir);
 
 	iwl_mvm_get_acpi_tables(mvm);
 
