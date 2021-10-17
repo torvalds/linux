@@ -1101,7 +1101,6 @@ static int hl_fw_read_preboot_caps(struct hl_device *hdev,
 		(status == CPU_BOOT_STATUS_DRAM_RDY) ||
 		(status == CPU_BOOT_STATUS_NIC_FW_RDY) ||
 		(status == CPU_BOOT_STATUS_READY_TO_BOOT) ||
-		(status == CPU_BOOT_STATUS_SRAM_AVAIL) ||
 		(status == CPU_BOOT_STATUS_WAITING_FOR_BOOT_FIT),
 		FW_CPU_STATUS_POLL_INTERVAL_USEC,
 		timeout);
@@ -2055,12 +2054,20 @@ static int hl_fw_dynamic_wait_for_boot_fit_active(struct hl_device *hdev,
 
 	dyn_loader = &fw_loader->dynamic_loader;
 
-	/* Make sure CPU boot-loader is running */
+	/*
+	 * Make sure CPU boot-loader is running
+	 * Note that the CPU_BOOT_STATUS_SRAM_AVAIL is generally set by Linux
+	 * yet there is a debug scenario in which we loading uboot (without Linux)
+	 * which at later stage is relocated to DRAM. In this case we expect
+	 * uboot to set the CPU_BOOT_STATUS_SRAM_AVAIL and so we add it to the
+	 * poll flags
+	 */
 	rc = hl_poll_timeout(
 		hdev,
 		le32_to_cpu(dyn_loader->comm_desc.cpu_dyn_regs.cpu_boot_status),
 		status,
-		(status == CPU_BOOT_STATUS_READY_TO_BOOT),
+		(status == CPU_BOOT_STATUS_READY_TO_BOOT) ||
+		(status == CPU_BOOT_STATUS_SRAM_AVAIL),
 		FW_CPU_STATUS_POLL_INTERVAL_USEC,
 		dyn_loader->wait_for_bl_timeout);
 	if (rc) {
@@ -2081,7 +2088,7 @@ static int hl_fw_dynamic_wait_for_linux_active(struct hl_device *hdev,
 
 	dyn_loader = &fw_loader->dynamic_loader;
 
-	/* Make sure CPU boot-loader is running */
+	/* Make sure CPU linux is running */
 
 	rc = hl_poll_timeout(
 		hdev,
@@ -2415,7 +2422,14 @@ static int hl_fw_static_init_cpu(struct hl_device *hdev,
 		WREG32(msg_to_cpu_reg, KMD_MSG_NA);
 	}
 
-	/* Make sure CPU boot-loader is running */
+	/*
+	 * Make sure CPU boot-loader is running
+	 * Note that the CPU_BOOT_STATUS_SRAM_AVAIL is generally set by Linux
+	 * yet there is a debug scenario in which we loading uboot (without Linux)
+	 * which at later stage is relocated to DRAM. In this case we expect
+	 * uboot to set the CPU_BOOT_STATUS_SRAM_AVAIL and so we add it to the
+	 * poll flags
+	 */
 	rc = hl_poll_timeout(
 		hdev,
 		cpu_boot_status_reg,
