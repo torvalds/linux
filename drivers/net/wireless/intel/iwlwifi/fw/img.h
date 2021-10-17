@@ -194,6 +194,8 @@ struct iwl_fw_dbg {
  * @cipher_scheme: optional external cipher scheme.
  * @human_readable: human readable version
  *	we get the ALIVE from the uCode
+ * @phy_integration_ver: PHY integration version string
+ * @phy_integration_ver_len: length of @phy_integration_ver
  */
 struct iwl_fw {
 	u32 ucode_ver;
