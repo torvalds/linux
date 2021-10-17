@@ -64,10 +64,10 @@ module_param(dbg_level, int, 0644);
 MODULE_PARM_DESC(dbg_level, "debug message level (default:0)");
 
 /* log function switch */
-int dbg_func = 2;
+int dbg_func = 1;
 module_param(dbg_func, int, 0644);
 MODULE_PARM_DESC(dbg_func,
-		 "log function switch non/trace_printk/printk (default:printk)");
+		 "log function switch non/printk (default:printk)");
 
 int mipicsi_flag;
 module_param(mipicsi_flag, int, 0644);
