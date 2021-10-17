@@ -191,24 +191,27 @@ ENDPROC(__und_invalid)
 	.macro	svc_entry, stack_hole=0, trace=1, uaccess=1
  UNWIND(.fnstart		)
  UNWIND(.save {r0 - pc}		)
-	sub	sp, sp, #(SVC_REGS_SIZE + \stack_hole - 4)
+	sub	sp, sp, #(SVC_REGS_SIZE + \stack_hole)
 #ifdef CONFIG_THUMB2_KERNEL
- SPFIX(	str	r0, [sp]	)	@ temporarily saved
- SPFIX(	mov	r0, sp		)
- SPFIX(	tst	r0, #4		)	@ test original stack alignment
- SPFIX(	ldr	r0, [sp]	)	@ restored
+	add	sp, r1			@ get SP in a GPR without
+	sub	r1, sp, r1		@ using a temp register
+	tst	r1, #4			@ test stack pointer alignment
+	sub	r1, sp, r1		@ restore original R1
+	sub	sp, r1			@ restore original SP
 #else
  SPFIX(	tst	sp, #4		)
 #endif
- SPFIX(	subeq	sp, sp, #4	)
-	stmia	sp, {r1 - r12}
+ SPFIX(	subne	sp, sp, #4	)
+
+ ARM(	stmib	sp, {r1 - r12}	)
+ THUMB(	stmia	sp, {r0 - r12}	)	@ No STMIB in Thumb-2
 
 	ldmia	r0, {r3 - r5}
-	add	r7, sp, #S_SP - 4	@ here for interlock avoidance
+	add	r7, sp, #S_SP		@ here for interlock avoidance
 	mov	r6, #-1			@  ""  ""      ""       ""
-	add	r2, sp, #(SVC_REGS_SIZE + \stack_hole - 4)
- SPFIX(	addeq	r2, r2, #4	)
-	str	r3, [sp, #-4]!		@ save the "real" r0 copied
+	add	r2, sp, #(SVC_REGS_SIZE + \stack_hole)
+ SPFIX(	addne	r2, r2, #4	)
+	str	r3, [sp]		@ save the "real" r0 copied
 					@ from the exception stack
 
 	mov	r3, lr
