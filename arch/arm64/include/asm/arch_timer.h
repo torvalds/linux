@@ -112,6 +112,8 @@ void arch_timer_reg_write_cp15(int access, enum arch_timer_reg reg, u32 val)
 		case ARCH_TIMER_REG_TVAL:
 			write_sysreg(val, cntp_tval_el0);
 			break;
+		default:
+			BUILD_BUG();
 		}
 	} else if (access == ARCH_TIMER_VIRT_ACCESS) {
 		switch (reg) {
@@ -121,7 +123,11 @@ void arch_timer_reg_write_cp15(int access, enum arch_timer_reg reg, u32 val)
 		case ARCH_TIMER_REG_TVAL:
 			write_sysreg(val, cntv_tval_el0);
 			break;
+		default:
+			BUILD_BUG();
 		}
+	} else {
+		BUILD_BUG();
 	}
 
 	isb();
@@ -136,6 +142,8 @@ u32 arch_timer_reg_read_cp15(int access, enum arch_timer_reg reg)
 			return read_sysreg(cntp_ctl_el0);
 		case ARCH_TIMER_REG_TVAL:
 			return arch_timer_reg_read_stable(cntp_tval_el0);
+		default:
+			BUILD_BUG();
 		}
 	} else if (access == ARCH_TIMER_VIRT_ACCESS) {
 		switch (reg) {
@@ -143,10 +151,13 @@ u32 arch_timer_reg_read_cp15(int access, enum arch_timer_reg reg)
 			return read_sysreg(cntv_ctl_el0);
 		case ARCH_TIMER_REG_TVAL:
 			return arch_timer_reg_read_stable(cntv_tval_el0);
+		default:
+			BUILD_BUG();
 		}
 	}
 
-	BUG();
+	BUILD_BUG();
+	unreachable();
 }
 
 static inline u32 arch_timer_get_cntfrq(void)
