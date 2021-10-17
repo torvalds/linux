@@ -49,36 +49,22 @@ enum chips { tmp401, tmp411, tmp431, tmp432, tmp435 };
 #define TMP401_MANUFACTURER_ID_REG		0xFE
 #define TMP401_DEVICE_ID_REG			0xFF
 
-static const u8 TMP401_TEMP_MSB_READ[7][2] = {
-	{ 0x00, 0x01 },	/* temp */
-	{ 0x06, 0x08 },	/* low limit */
-	{ 0x05, 0x07 },	/* high limit */
-	{ 0x20, 0x19 },	/* therm (crit) limit */
-	{ 0x30, 0x34 },	/* lowest */
-	{ 0x32, 0x36 },	/* highest */
-};
-
-static const u8 TMP401_TEMP_MSB_WRITE[7][2] = {
-	{ 0, 0 },	/* temp (unused) */
-	{ 0x0C, 0x0E },	/* low limit */
-	{ 0x0B, 0x0D },	/* high limit */
-	{ 0x20, 0x19 },	/* therm (crit) limit */
-	{ 0x30, 0x34 },	/* lowest */
-	{ 0x32, 0x36 },	/* highest */
-};
-
-static const u8 TMP432_TEMP_MSB_READ[4][3] = {
+static const u8 TMP401_TEMP_MSB_READ[7][3] = {
 	{ 0x00, 0x01, 0x23 },	/* temp */
 	{ 0x06, 0x08, 0x16 },	/* low limit */
 	{ 0x05, 0x07, 0x15 },	/* high limit */
-	{ 0x20, 0x19, 0x1A },	/* therm (crit) limit */
+	{ 0x20, 0x19, 0x1a },	/* therm (crit) limit */
+	{ 0x30, 0x34, 0x00 },	/* lowest */
+	{ 0x32, 0x36, 0x00 },	/* highest */
 };
 
-static const u8 TMP432_TEMP_MSB_WRITE[4][3] = {
-	{ 0, 0, 0 },		/* temp  - unused */
+static const u8 TMP401_TEMP_MSB_WRITE[7][3] = {
+	{ 0x00, 0x00, 0x00 },	/* temp (unused) */
 	{ 0x0C, 0x0E, 0x16 },	/* low limit */
 	{ 0x0B, 0x0D, 0x15 },	/* high limit */
-	{ 0x20, 0x19, 0x1A },	/* therm (crit) limit */
+	{ 0x20, 0x19, 0x1a },	/* therm (crit) limit */
+	{ 0x30, 0x34, 0x00 },	/* lowest */
+	{ 0x32, 0x36, 0x00 },	/* highest */
 };
 
 /* [0] = fault, [1] = low, [2] = high, [3] = therm/crit */
@@ -182,9 +168,7 @@ static int tmp401_update_device_reg16(struct i2c_client *client,
 		for (j = 0; j < num_regs; j++) {	/* temp / low / ... */
 			u8 regaddr;
 
-			regaddr = data->kind == tmp432 ?
-						TMP432_TEMP_MSB_READ[j][i] :
-						TMP401_TEMP_MSB_READ[j][i];
+			regaddr = TMP401_TEMP_MSB_READ[j][i];
 			if (j == 3) { /* crit is msb only */
 				val = i2c_smbus_read_byte_data(client, regaddr);
 			} else {
@@ -336,8 +320,7 @@ static ssize_t temp_store(struct device *dev,
 
 	mutex_lock(&data->update_lock);
 
-	regaddr = data->kind == tmp432 ? TMP432_TEMP_MSB_WRITE[nr][index]
-				       : TMP401_TEMP_MSB_WRITE[nr][index];
+	regaddr = TMP401_TEMP_MSB_WRITE[nr][index];
 	if (nr == 3) { /* crit is msb only */
 		i2c_smbus_write_byte_data(client, regaddr, reg >> 8);
 	} else {
