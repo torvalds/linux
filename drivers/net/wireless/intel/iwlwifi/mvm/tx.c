@@ -1505,7 +1505,9 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 			/* the FW should have stopped the queue and not
 			 * return this status
 			 */
-			WARN_ON(1);
+			IWL_ERR_LIMIT(mvm,
+				      "FW reported TX filtered, status=0x%x, FC=0x%x\n",
+				      status, le16_to_cpu(hdr->frame_control));
 			info->flags |= IEEE80211_TX_STAT_TX_FILTERED;
 			break;
 		default:
