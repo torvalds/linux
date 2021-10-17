@@ -321,6 +321,18 @@ static struct gmin_cfg_var i8880_vars[] = {
 	{},
 };
 
+/*
+ * Surface 3 does not describe CsiPort/CsiLanes in both DSDT and EFI.
+ */
+static struct gmin_cfg_var surface3_vars[] = {
+	{"APTA0330:00_CsiPort", "0"},
+	{"APTA0330:00_CsiLanes", "2"},
+
+	{"OVTI8835:00_CsiPort", "1"},
+	{"OVTI8835:00_CsiLanes", "4"},
+	{},
+};
+
 static const struct dmi_system_id gmin_vars[] = {
 	{
 		.ident = "BYT-T FFD8",
@@ -357,6 +369,13 @@ static const struct dmi_system_id gmin_vars[] = {
 			DMI_MATCH(DMI_BOARD_NAME, "VTA0803"),
 		},
 		.driver_data = i8880_vars,
+	},
+	{
+		.ident = "Surface 3",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "Surface 3"),
+		},
+		.driver_data = surface3_vars,
 	},
 	{}
 };
