@@ -295,6 +295,7 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	if (ret) {
 		struct iwl_trans *trans = mvm->trans;
 
+		/* SecBoot info */
 		if (trans->trans_cfg->device_family >=
 					IWL_DEVICE_FAMILY_22000) {
 			IWL_ERR(mvm,
@@ -302,6 +303,17 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 				iwl_read_umac_prph(trans, UMAG_SB_CPU_1_STATUS),
 				iwl_read_umac_prph(trans,
 						   UMAG_SB_CPU_2_STATUS));
+		} else if (trans->trans_cfg->device_family >=
+			   IWL_DEVICE_FAMILY_8000) {
+			IWL_ERR(mvm,
+				"SecBoot CPU1 Status: 0x%x, CPU2 Status: 0x%x\n",
+				iwl_read_prph(trans, SB_CPU_1_STATUS),
+				iwl_read_prph(trans, SB_CPU_2_STATUS));
+		}
+
+		/* LMAC/UMAC PC info */
+		if (trans->trans_cfg->device_family >=
+					IWL_DEVICE_FAMILY_9000) {
 			IWL_ERR(mvm, "UMAC PC: 0x%x\n",
 				iwl_read_umac_prph(trans,
 						   UREG_UMAC_CURRENT_PC));
@@ -312,12 +324,6 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 				IWL_ERR(mvm, "LMAC2 PC: 0x%x\n",
 					iwl_read_umac_prph(trans,
 						UREG_LMAC2_CURRENT_PC));
-		} else if (trans->trans_cfg->device_family >=
-			   IWL_DEVICE_FAMILY_8000) {
-			IWL_ERR(mvm,
-				"SecBoot CPU1 Status: 0x%x, CPU2 Status: 0x%x\n",
-				iwl_read_prph(trans, SB_CPU_1_STATUS),
-				iwl_read_prph(trans, SB_CPU_2_STATUS));
 		}
 
 		if (ret == -ETIMEDOUT)
