@@ -16,6 +16,7 @@
 / {
 	model = "Google Spring";
 	compatible = "google,spring", "samsung,exynos5250", "samsung,exynos5";
+	chassis-type = "laptop";
 
 	memory@40000000 {
 		device_type = "memory";
