@@ -834,7 +834,7 @@ static void __arch_timer_setup(unsigned type,
 
 	clk->set_state_shutdown(clk);
 
-	clockevents_config_and_register(clk, arch_timer_rate, 0xf, 0x7fffffff);
+	clockevents_config_and_register(clk, arch_timer_rate, 0xf, CLOCKSOURCE_MASK(56));
 }
 
 static void arch_timer_evtstrm_enable(int divider)
