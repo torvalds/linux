@@ -827,10 +827,6 @@ configure_isp_from_args(
 	ia_css_output1_configure(binary, &args->out_vf_frame->info);
 	ia_css_copy_output_configure(binary, args->copy_output);
 	ia_css_output0_configure(binary, &args->out_frame[0]->info);
-#ifdef ISP2401
-	ia_css_sc_configure(binary, pipeline->shading.internal_frame_origin_x_bqs_on_sctbl,
-			    pipeline->shading.internal_frame_origin_y_bqs_on_sctbl);
-#endif
 	ia_css_iterator_configure(binary, &args->in_frame->info);
 	ia_css_dvs_configure(binary, &args->out_frame[0]->info);
 	ia_css_output_configure(binary, &args->out_frame[0]->info);

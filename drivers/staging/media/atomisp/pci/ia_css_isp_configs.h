@@ -23,10 +23,6 @@
 #include "isp/kernels/raw/raw_1.0/ia_css_raw.host.h"
 #include "isp/kernels/ref/ref_1.0/ia_css_ref.host.h"
 #include "isp/kernels/s3a/s3a_1.0/ia_css_s3a.host.h"
-
-/* ISP2401 */
-#include "isp/kernels/sc/sc_1.0/ia_css_sc.host.h"
-
 #include "isp/kernels/tnr/tnr_1.0/ia_css_tnr.host.h"
 #include "isp/kernels/vf/vf_1.0/ia_css_vf.host.h"
 #include "isp/kernels/iterator/iterator_1.0/ia_css_iterator.host.h"
@@ -73,10 +69,6 @@ struct ia_css_config_memory_offsets {
 		struct ia_css_isp_parameter output0;
 		struct ia_css_isp_parameter output1;
 		struct ia_css_isp_parameter output;
-
-		/* ISP2401 */
-		struct ia_css_isp_parameter sc;
-
 		struct ia_css_isp_parameter raw;
 		struct ia_css_isp_parameter tnr;
 		struct ia_css_isp_parameter ref;
