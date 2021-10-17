@@ -81,6 +81,10 @@ enum iwl_tx_cmd_flags {
 	IWL_TX_FLAGS_CMD_RATE		= BIT(0),
 	IWL_TX_FLAGS_ENCRYPT_DIS	= BIT(1),
 	IWL_TX_FLAGS_HIGH_PRI		= BIT(2),
+	/* Use these flags only from
+	 * TX_FLAGS_BITS_API_S_VER_4 and above */
+	IWL_TX_FLAGS_RTS		= BIT(3),
+	IWL_TX_FLAGS_CTS		= BIT(4),
 }; /* TX_FLAGS_BITS_API_S_VER_3 */
 
 /**
