@@ -3194,32 +3194,35 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 		if (iwl_mvm_phy_ctx_count(mvm) > 1)
 			iwl_mvm_teardown_tdls_peers(mvm);
 
-		if (sta->tdls)
+		if (sta->tdls) {
 			iwl_mvm_tdls_check_trigger(mvm, vif, sta->addr,
 						   NL80211_TDLS_ENABLE_LINK);
+		} else {
+			/* enable beacon filtering */
+			WARN_ON(iwl_mvm_enable_beacon_filter(mvm, vif, 0));
 
-		/* enable beacon filtering */
-		WARN_ON(iwl_mvm_enable_beacon_filter(mvm, vif, 0));
-
-		/*
-		 * Now that the station is authorized, i.e., keys were already
-		 * installed, need to indicate to the FW that
-		 * multicast data frames can be forwarded to the driver
-		 */
-		iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
+			/*
+			 * Now that the station is authorized, i.e., keys were already
+			 * installed, need to indicate to the FW that
+			 * multicast data frames can be forwarded to the driver
+			 */
+			iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
+		}
 
 		iwl_mvm_rs_rate_init(mvm, sta, mvmvif->phy_ctxt->channel->band,
 				     true);
 	} else if (old_state == IEEE80211_STA_AUTHORIZED &&
 		   new_state == IEEE80211_STA_ASSOC) {
-		/* Multicast data frames are no longer allowed */
-		iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
+		if (!sta->tdls) {
+			/* Multicast data frames are no longer allowed */
+			iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
 
-		/* disable beacon filtering */
-		ret = iwl_mvm_disable_beacon_filter(mvm, vif, 0);
-		WARN_ON(ret &&
-			!test_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED,
-				  &mvm->status));
+			/* disable beacon filtering */
+			ret = iwl_mvm_disable_beacon_filter(mvm, vif, 0);
+			WARN_ON(ret &&
+				!test_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED,
+					  &mvm->status));
+		}
 		ret = 0;
 	} else if (old_state == IEEE80211_STA_ASSOC &&
 		   new_state == IEEE80211_STA_AUTH) {
