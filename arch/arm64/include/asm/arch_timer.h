@@ -95,6 +95,7 @@ void arch_timer_reg_write_cp15(int access, enum arch_timer_reg reg, u64 val)
 		switch (reg) {
 		case ARCH_TIMER_REG_CTRL:
 			write_sysreg(val, cntp_ctl_el0);
+			isb();
 			break;
 		case ARCH_TIMER_REG_CVAL:
 			write_sysreg(val, cntp_cval_el0);
@@ -106,6 +107,7 @@ void arch_timer_reg_write_cp15(int access, enum arch_timer_reg reg, u64 val)
 		switch (reg) {
 		case ARCH_TIMER_REG_CTRL:
 			write_sysreg(val, cntv_ctl_el0);
+			isb();
 			break;
 		case ARCH_TIMER_REG_CVAL:
 			write_sysreg(val, cntv_cval_el0);
@@ -116,8 +118,6 @@ void arch_timer_reg_write_cp15(int access, enum arch_timer_reg reg, u64 val)
 	} else {
 		BUILD_BUG();
 	}
-
-	isb();
 }
 
 static __always_inline
