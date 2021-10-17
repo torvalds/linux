@@ -1629,6 +1629,8 @@ int iwl_mvm_mac_ctxt_send_beacon_cmd(struct iwl_mvm *mvm,
 				     void *data, int len);
 u8 iwl_mvm_mac_ctxt_get_lowest_rate(struct ieee80211_tx_info *info,
 				    struct ieee80211_vif *vif);
+u16 iwl_mvm_mac_ctxt_get_beacon_flags(const struct iwl_fw *fw,
+				      u8 rate_idx);
 void iwl_mvm_mac_ctxt_set_tim(struct iwl_mvm *mvm,
 			      __le32 *tim_index, __le32 *tim_size,
 			      u8 *beacon, u32 frame_size);
