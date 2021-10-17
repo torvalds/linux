@@ -48,6 +48,7 @@ struct thread_info {
 #define TIF_BLOCKSTEP		10	/* branch stepping? */
 #define TIF_SECCOMP		11	/* secure computing */
 #define TIF_SYSCALL_TRACEPOINT	12	/* syscall tracepoint instrumentation */
+#define TIF_NONBLOCK_WARNING	13	/* warned about wrong O_NONBLOCK usage */
 
 #define _TIF_SYSCALL_TRACE	(1 << TIF_SYSCALL_TRACE)
 #define _TIF_SIGPENDING		(1 << TIF_SIGPENDING)
