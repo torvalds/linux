@@ -89,7 +89,7 @@ static inline notrace u64 arch_timer_read_cntvct_el0(void)
  * the code.
  */
 static __always_inline
-void arch_timer_reg_write_cp15(int access, enum arch_timer_reg reg, u32 val)
+void arch_timer_reg_write_cp15(int access, enum arch_timer_reg reg, u64 val)
 {
 	if (access == ARCH_TIMER_PHYS_ACCESS) {
 		switch (reg) {

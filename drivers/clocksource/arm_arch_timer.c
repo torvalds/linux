@@ -100,17 +100,17 @@ early_param("clocksource.arm_arch_timer.evtstrm", early_evtstrm_cfg);
  */
 
 static __always_inline
-void arch_timer_reg_write(int access, enum arch_timer_reg reg, u32 val,
+void arch_timer_reg_write(int access, enum arch_timer_reg reg, u64 val,
 			  struct clock_event_device *clk)
 {
 	if (access == ARCH_TIMER_MEM_PHYS_ACCESS) {
 		struct arch_timer *timer = to_arch_timer(clk);
 		switch (reg) {
 		case ARCH_TIMER_REG_CTRL:
-			writel_relaxed(val, timer->base + CNTP_CTL);
+			writel_relaxed((u32)val, timer->base + CNTP_CTL);
 			break;
 		case ARCH_TIMER_REG_TVAL:
-			writel_relaxed(val, timer->base + CNTP_TVAL);
+			writel_relaxed((u32)val, timer->base + CNTP_TVAL);
 			break;
 		default:
 			BUILD_BUG();
@@ -119,10 +119,10 @@ void arch_timer_reg_write(int access, enum arch_timer_reg reg, u32 val,
 		struct arch_timer *timer = to_arch_timer(clk);
 		switch (reg) {
 		case ARCH_TIMER_REG_CTRL:
-			writel_relaxed(val, timer->base + CNTV_CTL);
+			writel_relaxed((u32)val, timer->base + CNTV_CTL);
 			break;
 		case ARCH_TIMER_REG_TVAL:
-			writel_relaxed(val, timer->base + CNTV_TVAL);
+			writel_relaxed((u32)val, timer->base + CNTV_TVAL);
 			break;
 		default:
 			BUILD_BUG();
