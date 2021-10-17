@@ -2060,7 +2060,6 @@ static int hl_fw_dynamic_wait_for_boot_fit_active(struct hl_device *hdev,
 		hdev,
 		le32_to_cpu(dyn_loader->comm_desc.cpu_dyn_regs.cpu_boot_status),
 		status,
-		(status == CPU_BOOT_STATUS_NIC_FW_RDY) ||
 		(status == CPU_BOOT_STATUS_READY_TO_BOOT),
 		FW_CPU_STATUS_POLL_INTERVAL_USEC,
 		dyn_loader->wait_for_bl_timeout);
