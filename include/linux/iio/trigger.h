@@ -55,6 +55,7 @@ struct iio_trigger_ops {
  * @attached_own_device:[INTERN] if we are using our own device as trigger,
  *			i.e. if we registered a poll function to the same
  *			device as the one providing the trigger.
+ * @reenable_work:	[INTERN] work item used to ensure reenable can sleep.
  **/
 struct iio_trigger {
 	const struct iio_trigger_ops	*ops;
@@ -74,6 +75,7 @@ struct iio_trigger {
 	unsigned long pool[BITS_TO_LONGS(CONFIG_IIO_CONSUMERS_PER_TRIGGER)];
 	struct mutex			pool_lock;
 	bool				attached_own_device;
+	struct work_struct		reenable_work;
 };
 
 
