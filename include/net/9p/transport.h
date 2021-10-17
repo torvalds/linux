@@ -11,6 +11,8 @@
 #ifndef NET_9P_TRANSPORT_H
 #define NET_9P_TRANSPORT_H
 
+#include <linux/module.h>
+
 #define P9_DEF_MIN_RESVPORT	(665U)
 #define P9_DEF_MAX_RESVPORT	(1023U)
 
@@ -55,4 +57,8 @@ void v9fs_unregister_trans(struct p9_trans_module *m);
 struct p9_trans_module *v9fs_get_trans_by_name(char *s);
 struct p9_trans_module *v9fs_get_default_trans(void);
 void v9fs_put_trans(struct p9_trans_module *m);
+
+#define MODULE_ALIAS_9P(transport) \
+	MODULE_ALIAS("9p-" transport)
+
 #endif /* NET_9P_TRANSPORT_H */

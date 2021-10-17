@@ -552,6 +552,7 @@ static int p9_trans_xen_init(void)
 	return rc;
 }
 module_init(p9_trans_xen_init);
+MODULE_ALIAS_9P("xen");
 
 static void p9_trans_xen_exit(void)
 {

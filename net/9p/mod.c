@@ -12,6 +12,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
+#include <linux/kmod.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/moduleparam.h>
@@ -87,12 +88,7 @@ void v9fs_unregister_trans(struct p9_trans_module *m)
 }
 EXPORT_SYMBOL(v9fs_unregister_trans);
 
-/**
- * v9fs_get_trans_by_name - get transport with the matching name
- * @s: string identifying transport
- *
- */
-struct p9_trans_module *v9fs_get_trans_by_name(char *s)
+static struct p9_trans_module *_p9_get_trans_by_name(char *s)
 {
 	struct p9_trans_module *t, *found = NULL;
 
@@ -106,6 +102,28 @@ struct p9_trans_module *v9fs_get_trans_by_name(char *s)
 		}
 
 	spin_unlock(&v9fs_trans_lock);
+
+	return found;
+}
+
+/**
+ * v9fs_get_trans_by_name - get transport with the matching name
+ * @s: string identifying transport
+ *
+ */
+struct p9_trans_module *v9fs_get_trans_by_name(char *s)
+{
+	struct p9_trans_module *found = NULL;
+
+	found = _p9_get_trans_by_name(s);
+
+#ifdef CONFIG_MODULES
+	if (!found) {
+		request_module("9p-%s", s);
+		found = _p9_get_trans_by_name(s);
+	}
+#endif
+
 	return found;
 }
 EXPORT_SYMBOL(v9fs_get_trans_by_name);
