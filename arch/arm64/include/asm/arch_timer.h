@@ -32,7 +32,7 @@
 	({								\
 		const struct arch_timer_erratum_workaround *__wa;	\
 		__wa = __this_cpu_read(timer_unstable_counter_workaround); \
-		(__wa && __wa->h) ? __wa->h : arch_timer_##h;		\
+		(__wa && __wa->h) ? ({ isb(); __wa->h;}) : arch_timer_##h; \
 	})
 
 #else
@@ -64,11 +64,13 @@ DECLARE_PER_CPU(const struct arch_timer_erratum_workaround *,
 
 static inline notrace u64 arch_timer_read_cntpct_el0(void)
 {
+	isb();
 	return read_sysreg(cntpct_el0);
 }
 
 static inline notrace u64 arch_timer_read_cntvct_el0(void)
 {
+	isb();
 	return read_sysreg(cntvct_el0);
 }
 
@@ -163,7 +165,6 @@ static __always_inline u64 __arch_counter_get_cntpct_stable(void)
 {
 	u64 cnt;
 
-	isb();
 	cnt = arch_timer_reg_read_stable(cntpct_el0);
 	arch_counter_enforce_ordering(cnt);
 	return cnt;
@@ -183,7 +184,6 @@ static __always_inline u64 __arch_counter_get_cntvct_stable(void)
 {
 	u64 cnt;
 
-	isb();
 	cnt = arch_timer_reg_read_stable(cntvct_el0);
 	arch_counter_enforce_ordering(cnt);
 	return cnt;
