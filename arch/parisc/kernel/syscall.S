@@ -78,7 +78,7 @@ ENTRY(linux_gateway_page)
 
 lws_entry:
 	gate	lws_start, %r0		/* increase privilege */
-	depi	3, 31, 2, %r31		/* Ensure we return into user mode. */
+	depi	PRIV_USER, 31, 2, %r31	/* Ensure we return into user mode. */
 
 	/* Fill from 0xb8 to 0xe0 */
 	.rept 10
@@ -89,7 +89,7 @@ lws_entry:
 	mechanism to work. DO NOT MOVE THIS CODE EVER! */
 set_thread_pointer:
 	gate	.+8, %r0		/* increase privilege */
-	depi	3, 31, 2, %r31		/* Ensure we return into user mode. */
+	depi	PRIV_USER, 31, 2, %r31	/* Ensure we return into user mode. */
 	be	0(%sr7,%r31)		/* return to user space */
 	mtctl	%r26, %cr27		/* move arg0 to the control register */
 
