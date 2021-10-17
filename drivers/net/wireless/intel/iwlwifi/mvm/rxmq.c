@@ -1440,7 +1440,7 @@ static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
 	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
 	struct ieee80211_radiotap_he *he = NULL;
 	struct ieee80211_radiotap_he_mu *he_mu = NULL;
-	u32 he_type = rate_n_flags & RATE_MCS_HE_TYPE_MSK_V1;
+	u32 he_type = rate_n_flags & RATE_MCS_HE_TYPE_MSK;
 	u8 stbc, ltf;
 	static const struct ieee80211_radiotap_he known = {
 		.data1 = cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA1_DATA_MCS_KNOWN |
@@ -1493,23 +1493,23 @@ static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
 		}
 	}
 
-	if (he_type == RATE_MCS_HE_TYPE_EXT_SU_V1 &&
-	    rate_n_flags & RATE_MCS_HE_106T_MSK_V1) {
+	if (he_type == RATE_MCS_HE_TYPE_EXT_SU &&
+	    rate_n_flags & RATE_MCS_HE_106T_MSK) {
 		rx_status->bw = RATE_INFO_BW_HE_RU;
 		rx_status->he_ru = NL80211_RATE_INFO_HE_RU_ALLOC_106;
 	}
 
 	/* actually data is filled in mac80211 */
-	if (he_type == RATE_MCS_HE_TYPE_SU_V1 ||
-	    he_type == RATE_MCS_HE_TYPE_EXT_SU_V1)
+	if (he_type == RATE_MCS_HE_TYPE_SU ||
+	    he_type == RATE_MCS_HE_TYPE_EXT_SU)
 		he->data1 |=
 			cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA1_BW_RU_ALLOC_KNOWN);
 
 	stbc = (rate_n_flags & RATE_MCS_STBC_MSK) >> RATE_MCS_STBC_POS;
 	rx_status->nss =
-		((rate_n_flags & RATE_VHT_MCS_NSS_MSK) >>
-					RATE_VHT_MCS_NSS_POS) + 1;
-	rx_status->rate_idx = rate_n_flags & RATE_VHT_MCS_RATE_CODE_MSK;
+		((rate_n_flags & RATE_MCS_NSS_MSK) >>
+		 RATE_MCS_NSS_POS) + 1;
+	rx_status->rate_idx = rate_n_flags & RATE_MCS_CODE_MSK;
 	rx_status->encoding = RX_ENC_HE;
 	rx_status->enc_flags |= stbc << RX_ENC_FLAG_STBC_SHIFT;
 	if (rate_n_flags & RATE_MCS_BF_MSK)
@@ -1520,39 +1520,39 @@ static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 #define CHECK_TYPE(F)							\
 	BUILD_BUG_ON(IEEE80211_RADIOTAP_HE_DATA1_FORMAT_ ## F !=	\
-		     (RATE_MCS_HE_TYPE_ ## F ##_V1 >> RATE_MCS_HE_TYPE_POS_V1))
+		     (RATE_MCS_HE_TYPE_ ## F >> RATE_MCS_HE_TYPE_POS))
 
 	CHECK_TYPE(SU);
 	CHECK_TYPE(EXT_SU);
 	CHECK_TYPE(MU);
 	CHECK_TYPE(TRIG);
 
-	he->data1 |= cpu_to_le16(he_type >> RATE_MCS_HE_TYPE_POS_V1);
+	he->data1 |= cpu_to_le16(he_type >> RATE_MCS_HE_TYPE_POS);
 
 	if (rate_n_flags & RATE_MCS_BF_MSK)
 		he->data5 |= cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA5_TXBF);
 
-	switch ((rate_n_flags & RATE_MCS_HE_GI_LTF_MSK_V1) >>
+	switch ((rate_n_flags & RATE_MCS_HE_GI_LTF_MSK) >>
 		RATE_MCS_HE_GI_LTF_POS) {
 	case 0:
-		if (he_type == RATE_MCS_HE_TYPE_TRIG_V1)
+		if (he_type == RATE_MCS_HE_TYPE_TRIG)
 			rx_status->he_gi = NL80211_RATE_INFO_HE_GI_1_6;
 		else
 			rx_status->he_gi = NL80211_RATE_INFO_HE_GI_0_8;
-		if (he_type == RATE_MCS_HE_TYPE_MU_V1)
+		if (he_type == RATE_MCS_HE_TYPE_MU)
 			ltf = IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE_4X;
 		else
 			ltf = IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE_1X;
 		break;
 	case 1:
-		if (he_type == RATE_MCS_HE_TYPE_TRIG_V1)
+		if (he_type == RATE_MCS_HE_TYPE_TRIG)
 			rx_status->he_gi = NL80211_RATE_INFO_HE_GI_1_6;
 		else
 			rx_status->he_gi = NL80211_RATE_INFO_HE_GI_0_8;
 		ltf = IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE_2X;
 		break;
 	case 2:
-		if (he_type == RATE_MCS_HE_TYPE_TRIG_V1) {
+		if (he_type == RATE_MCS_HE_TYPE_TRIG) {
 			rx_status->he_gi = NL80211_RATE_INFO_HE_GI_3_2;
 			ltf = IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE_4X;
 		} else {
@@ -1561,14 +1561,15 @@ static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
 		}
 		break;
 	case 3:
-		if ((he_type == RATE_MCS_HE_TYPE_SU_V1 ||
-		     he_type == RATE_MCS_HE_TYPE_EXT_SU_V1) &&
-		    rate_n_flags & RATE_MCS_SGI_MSK_V1)
-			rx_status->he_gi = NL80211_RATE_INFO_HE_GI_0_8;
-		else
-			rx_status->he_gi = NL80211_RATE_INFO_HE_GI_3_2;
+		rx_status->he_gi = NL80211_RATE_INFO_HE_GI_3_2;
 		ltf = IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE_4X;
 		break;
+	case 4:
+		rx_status->he_gi = NL80211_RATE_INFO_HE_GI_0_8;
+		ltf = IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE_4X;
+		break;
+	default:
+		ltf = IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE_UNKNOWN;
 	}
 
 	he->data5 |= le16_encode_bits(ltf,
@@ -1653,6 +1654,8 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		.info_type = IWL_RX_PHY_INFO_TYPE_NONE,
 	};
 	bool csi = false;
+	u32 format;
+	bool is_sgi;
 
 	if (unlikely(test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)))
 		return;
@@ -1690,6 +1693,13 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		phy_data.d2 = desc->v1.phy_data2;
 		phy_data.d3 = desc->v1.phy_data3;
 	}
+	if (iwl_fw_lookup_notif_ver(mvm->fw, LEGACY_GROUP,
+				    REPLY_RX_MPDU_CMD, 0) < 4) {
+		rate_n_flags = iwl_new_rate_from_v1(rate_n_flags);
+		IWL_DEBUG_DROP(mvm, "Got old format rate, converting. New rate: 0x%x\n",
+			       rate_n_flags);
+	}
+	format = rate_n_flags & RATE_MCS_MOD_TYPE_MSK;
 
 	len = le16_to_cpu(desc->mpdu_len);
 
@@ -1729,7 +1739,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	rx_status = IEEE80211_SKB_RXCB(skb);
 
 	/* This may be overridden by iwl_mvm_rx_he() to HE_RU */
-	switch (rate_n_flags & RATE_MCS_CHAN_WIDTH_MSK_V1) {
+	switch (rate_n_flags & RATE_MCS_CHAN_WIDTH_MSK) {
 	case RATE_MCS_CHAN_WIDTH_20:
 		break;
 	case RATE_MCS_CHAN_WIDTH_40:
@@ -1743,7 +1753,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		break;
 	}
 
-	if (rate_n_flags & RATE_MCS_HE_MSK_V1)
+	if (format == RATE_MCS_HE_MSK)
 		iwl_mvm_rx_he(mvm, skb, &phy_data, rate_n_flags,
 			      phy_info, queue);
 
@@ -1760,7 +1770,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
 	}
 	/* set the preamble flag if appropriate */
-	if (rate_n_flags & RATE_MCS_CCK_MSK_V1 &&
+	if (format == RATE_MCS_CCK_MSK &&
 	    phy_info & IWL_RX_MPDU_PHY_SHORT_PREAMBLE)
 		rx_status->enc_flags |= RX_ENC_FLAG_SHORTPRE;
 
@@ -1936,33 +1946,34 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		}
 	}
 
-	if (!(rate_n_flags & RATE_MCS_CCK_MSK_V1) &&
-	    rate_n_flags & RATE_MCS_SGI_MSK_V1)
+	is_sgi = format == RATE_MCS_HE_MSK ?
+		iwl_he_is_sgi(rate_n_flags) :
+		rate_n_flags & RATE_MCS_SGI_MSK;
+
+	if (!(format == RATE_MCS_CCK_MSK) && is_sgi)
 		rx_status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
-	if (rate_n_flags & RATE_HT_MCS_GF_MSK)
-		rx_status->enc_flags |= RX_ENC_FLAG_HT_GF;
-	if (rate_n_flags & RATE_MCS_LDPC_MSK_V1)
+	if (rate_n_flags & RATE_MCS_LDPC_MSK)
 		rx_status->enc_flags |= RX_ENC_FLAG_LDPC;
-	if (rate_n_flags & RATE_MCS_HT_MSK_V1) {
+	if (format == RATE_MCS_HT_MSK) {
 		u8 stbc = (rate_n_flags & RATE_MCS_STBC_MSK) >>
-				RATE_MCS_STBC_POS;
+			RATE_MCS_STBC_POS;
 		rx_status->encoding = RX_ENC_HT;
-		rx_status->rate_idx = rate_n_flags & RATE_HT_MCS_INDEX_MSK_V1;
+		rx_status->rate_idx = RATE_HT_MCS_INDEX(rate_n_flags);
 		rx_status->enc_flags |= stbc << RX_ENC_FLAG_STBC_SHIFT;
-	} else if (rate_n_flags & RATE_MCS_VHT_MSK_V1) {
+	} else if (format == RATE_MCS_VHT_MSK) {
 		u8 stbc = (rate_n_flags & RATE_MCS_STBC_MSK) >>
-				RATE_MCS_STBC_POS;
-		rx_status->nss =
-			((rate_n_flags & RATE_VHT_MCS_NSS_MSK) >>
-						RATE_VHT_MCS_NSS_POS) + 1;
-		rx_status->rate_idx = rate_n_flags & RATE_VHT_MCS_RATE_CODE_MSK;
+			RATE_MCS_STBC_POS;
+			rx_status->nss =
+			((rate_n_flags & RATE_MCS_NSS_MSK) >>
+			RATE_MCS_NSS_POS) + 1;
+		rx_status->rate_idx = rate_n_flags & RATE_MCS_CODE_MSK;
 		rx_status->encoding = RX_ENC_VHT;
 		rx_status->enc_flags |= stbc << RX_ENC_FLAG_STBC_SHIFT;
 		if (rate_n_flags & RATE_MCS_BF_MSK)
 			rx_status->enc_flags |= RX_ENC_FLAG_BF;
-	} else if (!(rate_n_flags & RATE_MCS_HE_MSK_V1)) {
-		int rate = iwl_mvm_legacy_rate_to_mac80211_idx(rate_n_flags,
-							       rx_status->band);
+	} else if (!(format == RATE_MCS_HE_MSK)) {
+		int rate = iwl_mvm_legacy_hw_idx_to_mac80211_idx(rate_n_flags,
+								 rx_status->band);
 
 		if (WARN(rate < 0 || rate > 0xFF,
 			 "Invalid rate flags 0x%x, band %d,\n",
@@ -2012,12 +2023,24 @@ void iwl_mvm_rx_monitor_no_data(struct iwl_mvm *mvm, struct napi_struct *napi,
 	struct ieee80211_sta *sta = NULL;
 	struct sk_buff *skb;
 	u8 channel, energy_a, energy_b;
+	u32 format;
 	struct iwl_mvm_rx_phy_data phy_data = {
 		.info_type = le32_get_bits(desc->phy_info[1],
 					   IWL_RX_PHY_DATA1_INFO_TYPE_MASK),
 		.d0 = desc->phy_info[0],
 		.d1 = desc->phy_info[1],
 	};
+	bool is_sgi;
+
+	if (iwl_fw_lookup_notif_ver(mvm->fw, DATA_PATH_GROUP,
+				    RX_NO_DATA_NOTIF, 0) < 2) {
+		IWL_DEBUG_DROP(mvm, "Got an old rate format. Old rate: 0x%x\n",
+			       rate_n_flags);
+		rate_n_flags = iwl_new_rate_from_v1(rate_n_flags);
+		IWL_DEBUG_DROP(mvm, " Rate after conversion to the new format: 0x%x\n",
+			       rate_n_flags);
+	}
+	format = rate_n_flags & RATE_MCS_MOD_TYPE_MSK;
 
 	if (unlikely(iwl_rx_packet_payload_len(pkt) < sizeof(*desc)))
 		return;
@@ -2060,7 +2083,7 @@ void iwl_mvm_rx_monitor_no_data(struct iwl_mvm *mvm, struct napi_struct *napi,
 	}
 
 	/* This may be overridden by iwl_mvm_rx_he() to HE_RU */
-	switch (rate_n_flags & RATE_MCS_CHAN_WIDTH_MSK_V1) {
+	switch (rate_n_flags & RATE_MCS_CHAN_WIDTH_MSK) {
 	case RATE_MCS_CHAN_WIDTH_20:
 		break;
 	case RATE_MCS_CHAN_WIDTH_40:
@@ -2074,7 +2097,7 @@ void iwl_mvm_rx_monitor_no_data(struct iwl_mvm *mvm, struct napi_struct *napi,
 		break;
 	}
 
-	if (rate_n_flags & RATE_MCS_HE_MSK_V1)
+	if (format == RATE_MCS_HE_MSK)
 		iwl_mvm_rx_he(mvm, skb, &phy_data, rate_n_flags,
 			      phy_info, queue);
 
@@ -2090,23 +2113,24 @@ void iwl_mvm_rx_monitor_no_data(struct iwl_mvm *mvm, struct napi_struct *napi,
 
 	rcu_read_lock();
 
-	if (!(rate_n_flags & RATE_MCS_CCK_MSK_V1) &&
-	    rate_n_flags & RATE_MCS_SGI_MSK_V1)
+	is_sgi = format == RATE_MCS_HE_MSK ?
+		iwl_he_is_sgi(rate_n_flags) :
+		rate_n_flags & RATE_MCS_SGI_MSK;
+
+	if (!(format == RATE_MCS_CCK_MSK) && is_sgi)
 		rx_status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
-	if (rate_n_flags & RATE_HT_MCS_GF_MSK)
-		rx_status->enc_flags |= RX_ENC_FLAG_HT_GF;
-	if (rate_n_flags & RATE_MCS_LDPC_MSK_V1)
+	if (rate_n_flags & RATE_MCS_LDPC_MSK)
 		rx_status->enc_flags |= RX_ENC_FLAG_LDPC;
-	if (rate_n_flags & RATE_MCS_HT_MSK_V1) {
+	if (format == RATE_MCS_HT_MSK) {
 		u8 stbc = (rate_n_flags & RATE_MCS_STBC_MSK) >>
 				RATE_MCS_STBC_POS;
 		rx_status->encoding = RX_ENC_HT;
-		rx_status->rate_idx = rate_n_flags & RATE_HT_MCS_INDEX_MSK_V1;
+		rx_status->rate_idx = RATE_HT_MCS_INDEX(rate_n_flags);
 		rx_status->enc_flags |= stbc << RX_ENC_FLAG_STBC_SHIFT;
-	} else if (rate_n_flags & RATE_MCS_VHT_MSK_V1) {
+	} else if (format == RATE_MCS_VHT_MSK) {
 		u8 stbc = (rate_n_flags & RATE_MCS_STBC_MSK) >>
 				RATE_MCS_STBC_POS;
-		rx_status->rate_idx = rate_n_flags & RATE_VHT_MCS_RATE_CODE_MSK;
+		rx_status->rate_idx = rate_n_flags & RATE_MCS_CODE_MSK;
 		rx_status->encoding = RX_ENC_VHT;
 		rx_status->enc_flags |= stbc << RX_ENC_FLAG_STBC_SHIFT;
 		if (rate_n_flags & RATE_MCS_BF_MSK)
@@ -2119,12 +2143,12 @@ void iwl_mvm_rx_monitor_no_data(struct iwl_mvm *mvm, struct napi_struct *napi,
 		rx_status->nss =
 			le32_get_bits(desc->rx_vec[0],
 				      RX_NO_DATA_RX_VEC0_VHT_NSTS_MSK) + 1;
-	} else if (rate_n_flags & RATE_MCS_HE_MSK_V1) {
+	} else if (format == RATE_MCS_HE_MSK) {
 		rx_status->nss =
 			le32_get_bits(desc->rx_vec[0],
 				      RX_NO_DATA_RX_VEC0_HE_NSTS_MSK) + 1;
 	} else {
-		int rate = iwl_mvm_legacy_rate_to_mac80211_idx(rate_n_flags,
+		int rate = iwl_mvm_legacy_hw_idx_to_mac80211_idx(rate_n_flags,
 							       rx_status->band);
 
 		if (WARN(rate < 0 || rate > 0xFF,

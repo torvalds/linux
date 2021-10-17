@@ -445,7 +445,7 @@ struct iwl_rx_mpdu_desc_v1 {
 			__le32 phy_data1;
 		};
 	};
-} __packed;
+} __packed; /* RX_MPDU_RES_START_API_S_VER_4 */
 
 /**
  * struct iwl_rx_mpdu_desc_v3 - RX MPDU descriptor
@@ -545,7 +545,8 @@ struct iwl_rx_mpdu_desc_v3 {
 	 * @reserved: reserved
 	 */
 	__le32 reserved[2];
-} __packed; /* RX_MPDU_RES_START_API_S_VER_3 */
+} __packed; /* RX_MPDU_RES_START_API_S_VER_3,
+	       RX_MPDU_RES_START_API_S_VER_5 */
 
 /**
  * struct iwl_rx_mpdu_desc - RX MPDU descriptor
@@ -610,7 +611,9 @@ struct iwl_rx_mpdu_desc {
 		struct iwl_rx_mpdu_desc_v1 v1;
 		struct iwl_rx_mpdu_desc_v3 v3;
 	};
-} __packed; /* RX_MPDU_RES_START_API_S_VER_3 */
+} __packed; /* RX_MPDU_RES_START_API_S_VER_3,
+	       RX_MPDU_RES_START_API_S_VER_4,
+	       RX_MPDU_RES_START_API_S_VER_5 */
 
 #define IWL_RX_DESC_SIZE_V1 offsetofend(struct iwl_rx_mpdu_desc, v1)
 
@@ -664,7 +667,8 @@ struct iwl_rx_no_data {
 	__le32 rate;
 	__le32 phy_info[2];
 	__le32 rx_vec[2];
-} __packed; /* RX_NO_DATA_NTFY_API_S_VER_1 */
+} __packed; /* RX_NO_DATA_NTFY_API_S_VER_1,
+	       TX_NO_DATA_NTFY_API_S_VER_2 */
 
 struct iwl_frame_release {
 	u8 baid;
