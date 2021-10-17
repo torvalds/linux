@@ -485,13 +485,9 @@ static const char *rs_pretty_ant(u8 ant)
 		[ANT_A]    = "A",
 		[ANT_B]    = "B",
 		[ANT_AB]   = "AB",
-		[ANT_C]    = "C",
-		[ANT_AC]   = "AC",
-		[ANT_BC]   = "BC",
-		[ANT_ABC]  = "ABC",
 	};
 
-	if (ant > ANT_ABC)
+	if (ant > ANT_AB)
 		return "UNKNOWN";
 
 	return ant_name[ant];
@@ -654,8 +650,7 @@ static void rs_tl_turn_on_agg(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 static inline int get_num_of_ant_from_rate(u32 rate_n_flags)
 {
 	return !!(rate_n_flags & RATE_MCS_ANT_A_MSK) +
-	       !!(rate_n_flags & RATE_MCS_ANT_B_MSK) +
-	       !!(rate_n_flags & RATE_MCS_ANT_C_MSK);
+	       !!(rate_n_flags & RATE_MCS_ANT_B_MSK);
 }
 
 /*
@@ -820,7 +815,7 @@ static u32 ucode_rate_from_rs_rate(struct iwl_mvm *mvm,
 	int index = rate->index;
 
 	ucode_rate |= ((rate->ant << RATE_MCS_ANT_POS) &
-			 RATE_MCS_ANT_ABC_MSK);
+			 RATE_MCS_ANT_AB_MSK);
 
 	if (is_legacy(rate)) {
 		ucode_rate |= iwl_rates[index].plcp;
@@ -885,7 +880,7 @@ static int rs_rate_from_ucode_rate(const u32 ucode_rate,
 				   enum nl80211_band band,
 				   struct rs_rate *rate)
 {
-	u32 ant_msk = ucode_rate & RATE_MCS_ANT_ABC_MSK;
+	u32 ant_msk = ucode_rate & RATE_MCS_ANT_AB_MSK;
 	u8 num_of_ant = get_num_of_ant_from_rate(ucode_rate);
 	u8 nss;
 
@@ -980,9 +975,6 @@ static int rs_rate_from_ucode_rate(const u32 ucode_rate,
 static int rs_toggle_antenna(u32 valid_ant, struct rs_rate *rate)
 {
 	u8 new_ant_type;
-
-	if (!rate->ant || WARN_ON_ONCE(rate->ant & ANT_C))
-		return 0;
 
 	if (!rs_is_valid_ant(valid_ant, rate->ant))
 		return 0;
@@ -2652,7 +2644,6 @@ void rs_update_last_rssi(struct iwl_mvm *mvm,
 	lq_sta->pers.chains = rx_status->chains;
 	lq_sta->pers.chain_signal[0] = rx_status->chain_signal[0];
 	lq_sta->pers.chain_signal[1] = rx_status->chain_signal[1];
-	lq_sta->pers.chain_signal[2] = rx_status->chain_signal[2];
 	lq_sta->pers.last_rssi = S8_MIN;
 
 	for (i = 0; i < ARRAY_SIZE(lq_sta->pers.chain_signal); i++) {
@@ -3323,7 +3314,7 @@ static void rs_build_rates_table_from_fixed(struct iwl_mvm *mvm,
 	int i;
 	int num_rates = ARRAY_SIZE(lq_cmd->rs_table);
 	__le32 ucode_rate_le32 = cpu_to_le32(ucode_rate);
-	u8 ant = (ucode_rate & RATE_MCS_ANT_ABC_MSK) >> RATE_MCS_ANT_POS;
+	u8 ant = (ucode_rate & RATE_MCS_ANT_AB_MSK) >> RATE_MCS_ANT_POS;
 
 	for (i = 0; i < num_rates; i++)
 		lq_cmd->rs_table[i] = ucode_rate_le32;
@@ -3693,7 +3684,7 @@ int rs_pretty_print_rate(char *buf, int bufsz, const u32 rate)
 
 	char *type, *bw;
 	u8 mcs = 0, nss = 0;
-	u8 ant = (rate & RATE_MCS_ANT_ABC_MSK) >> RATE_MCS_ANT_POS;
+	u8 ant = (rate & RATE_MCS_ANT_AB_MSK) >> RATE_MCS_ANT_POS;
 
 	if (!(rate & RATE_MCS_HT_MSK) &&
 	    !(rate & RATE_MCS_VHT_MSK) &&
@@ -3830,10 +3821,9 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 			  lq_sta->active_legacy_rate);
 	desc += scnprintf(buff + desc, bufsz - desc, "fixed rate 0x%X\n",
 			  lq_sta->pers.dbg_fixed_rate);
-	desc += scnprintf(buff + desc, bufsz - desc, "valid_tx_ant %s%s%s\n",
+	desc += scnprintf(buff + desc, bufsz - desc, "valid_tx_ant %s%s\n",
 	    (iwl_mvm_get_valid_tx_ant(mvm) & ANT_A) ? "ANT_A," : "",
-	    (iwl_mvm_get_valid_tx_ant(mvm) & ANT_B) ? "ANT_B," : "",
-	    (iwl_mvm_get_valid_tx_ant(mvm) & ANT_C) ? "ANT_C" : "");
+	    (iwl_mvm_get_valid_tx_ant(mvm) & ANT_B) ? "ANT_B," : "");
 	desc += scnprintf(buff + desc, bufsz - desc, "lq type %s\n",
 			  (is_legacy(rate)) ? "legacy" :
 			  is_vht(rate) ? "VHT" : "HT");

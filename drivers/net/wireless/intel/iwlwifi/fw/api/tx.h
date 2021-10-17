@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2021 Intel Corporation
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
 #ifndef __iwl_fw_api_tx_h__
@@ -759,7 +759,6 @@ enum iwl_mac_beacon_flags {
 	IWL_MAC_BEACON_CCK	= BIT(8),
 	IWL_MAC_BEACON_ANT_A	= BIT(9),
 	IWL_MAC_BEACON_ANT_B	= BIT(10),
-	IWL_MAC_BEACON_ANT_C	= BIT(11),
 	IWL_MAC_BEACON_FILS	= BIT(12),
 };
 

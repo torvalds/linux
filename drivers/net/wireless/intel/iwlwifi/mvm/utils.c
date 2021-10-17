@@ -217,6 +217,7 @@ u8 first_antenna(u8 mask)
 	return BIT(ffs(mask) - 1);
 }
 
+#define MAX_ANT_NUM 2
 /*
  * Toggles between TX antennas to send the probe request on.
  * Receives the bitmask of valid TX antennas and the *index* used

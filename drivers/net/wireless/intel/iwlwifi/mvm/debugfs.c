@@ -395,10 +395,9 @@ static ssize_t iwl_dbgfs_rs_data_read(struct file *file, char __user *user_buf,
 			  "A-MPDU size limit %d\n",
 			  lq_sta->pers.dbg_agg_frame_count_lim);
 	desc += scnprintf(buff + desc, bufsz - desc,
-			  "valid_tx_ant %s%s%s\n",
+			  "valid_tx_ant %s%s\n",
 		(iwl_mvm_get_valid_tx_ant(mvm) & ANT_A) ? "ANT_A," : "",
-		(iwl_mvm_get_valid_tx_ant(mvm) & ANT_B) ? "ANT_B," : "",
-		(iwl_mvm_get_valid_tx_ant(mvm) & ANT_C) ? "ANT_C" : "");
+		(iwl_mvm_get_valid_tx_ant(mvm) & ANT_B) ? "ANT_B," : "");
 	desc += scnprintf(buff + desc, bufsz - desc,
 			  "last tx rate=0x%X ",
 			  lq_sta->last_rate_n_flags);
@@ -1060,8 +1059,6 @@ iwl_dbgfs_scan_ant_rxchain_read(struct file *file,
 		pos += scnprintf(buf + pos, bufsz - pos, "A");
 	if (mvm->scan_rx_ant & ANT_B)
 		pos += scnprintf(buf + pos, bufsz - pos, "B");
-	if (mvm->scan_rx_ant & ANT_C)
-		pos += scnprintf(buf + pos, bufsz - pos, "C");
 	pos += scnprintf(buf + pos, bufsz - pos, " (%hhx)\n", mvm->scan_rx_ant);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);

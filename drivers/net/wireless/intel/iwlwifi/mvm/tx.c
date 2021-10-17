@@ -1329,7 +1329,7 @@ static void iwl_mvm_hwrate_to_tx_status(u32 rate_n_flags,
 	struct ieee80211_tx_rate *r = &info->status.rates[0];
 
 	info->status.antenna =
-		((rate_n_flags & RATE_MCS_ANT_ABC_MSK) >> RATE_MCS_ANT_POS);
+		((rate_n_flags & RATE_MCS_ANT_AB_MSK) >> RATE_MCS_ANT_POS);
 	iwl_mvm_hwrate_to_tx_rate(rate_n_flags, info->band, r);
 }
 
