@@ -854,6 +854,7 @@ static const struct spinand_manufacturer *spinand_manufacturers[] = {
 	&esmt_spinand_manufacturer,
 	&etron_spinand_manufacturer,
 	&fmsh_spinand_manufacturer,
+	&foresee_spinand_manufacturer,
 	&gigadevice_spinand_manufacturer,
 	&macronix_spinand_manufacturer,
 	&micron_spinand_manufacturer,
