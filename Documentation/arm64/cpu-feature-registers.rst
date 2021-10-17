@@ -235,7 +235,15 @@ infrastructure:
      | DPB                          | [3-0]   |    y    |
      +------------------------------+---------+---------+
 
-  6) ID_AA64MMFR2_EL1 - Memory model feature register 2
+  6) ID_AA64MMFR0_EL1 - Memory model feature register 0
+
+     +------------------------------+---------+---------+
+     | Name                         |  bits   | visible |
+     +------------------------------+---------+---------+
+     | ECV                          | [63-60] |    y    |
+     +------------------------------+---------+---------+
+
+  7) ID_AA64MMFR2_EL1 - Memory model feature register 2
 
      +------------------------------+---------+---------+
      | Name                         |  bits   | visible |
@@ -243,7 +251,7 @@ infrastructure:
      | AT                           | [35-32] |    y    |
      +------------------------------+---------+---------+
 
-  7) ID_AA64ZFR0_EL1 - SVE feature ID register 0
+  8) ID_AA64ZFR0_EL1 - SVE feature ID register 0
 
      +------------------------------+---------+---------+
      | Name                         |  bits   | visible |
