@@ -1,3 +1,3 @@
 # SPDX-License-Identifier: GPL-2.0
-spinand-objs := biwin.o core.o dosilicon.o esmt.o etron.o fmsh.o foresee.o gigadevice.o hyf.o jsc.o macronix.o micron.o paragon.o silicongo.o toshiba.o unim.o winbond.o
+spinand-objs := core.o gigadevice.o macronix.o micron.o paragon.o toshiba.o winbond.o biwin.o dosilicon.o esmt.o etron.o fmsh.o foresee.o hyf.o jsc.o silicongo.o unim.o xtx.o
 obj-$(CONFIG_MTD_SPI_NAND) += spinand.o
