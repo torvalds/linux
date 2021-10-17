@@ -297,6 +297,7 @@ struct iwl_probe_resp_data {
  *	see enum &iwl_mvm_low_latency_cause for causes.
  * @low_latency_actual: boolean, indicates low latency is set,
  *	as a result from low_latency bit flags and takes force into account.
+ * @authorized: indicates the AP station was set to authorized
  * @ps_disabled: indicates that this interface requires PS to be disabled
  * @queue_params: QoS params for this MAC
  * @bcast_sta: station used for broadcast packets. Used by the following
@@ -330,6 +331,7 @@ struct iwl_mvm_vif {
 	bool monitor_active;
 	u8 low_latency: 6;
 	u8 low_latency_actual: 1;
+	u8 authorized:1;
 	bool ps_disabled;
 	struct iwl_mvm_vif_bf_data bf_data;
 

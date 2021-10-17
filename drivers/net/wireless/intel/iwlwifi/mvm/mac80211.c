@@ -3201,6 +3201,8 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 			/* enable beacon filtering */
 			WARN_ON(iwl_mvm_enable_beacon_filter(mvm, vif, 0));
 
+			mvmvif->authorized = 1;
+
 			/*
 			 * Now that the station is authorized, i.e., keys were already
 			 * installed, need to indicate to the FW that
@@ -3216,6 +3218,12 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 		if (!sta->tdls) {
 			/* Multicast data frames are no longer allowed */
 			iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
+
+			/*
+			 * Set this after the above iwl_mvm_mac_ctxt_changed()
+			 * to avoid sending high prio again for a little time.
+			 */
+			mvmvif->authorized = 0;
 
 			/* disable beacon filtering */
 			ret = iwl_mvm_disable_beacon_filter(mvm, vif, 0);
