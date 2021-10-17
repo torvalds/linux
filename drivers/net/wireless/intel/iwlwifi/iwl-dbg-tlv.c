@@ -1149,8 +1149,10 @@ static void iwl_dbg_tlv_init_cfg(struct iwl_fw_runtime *fwrt)
 			&fwrt->trans->dbg.fw_mon_cfg[i];
 		u32 dest = le32_to_cpu(fw_mon_cfg->buf_location);
 
-		if (dest == IWL_FW_INI_LOCATION_INVALID)
+		if (dest == IWL_FW_INI_LOCATION_INVALID) {
+			failed_alloc |= BIT(i);
 			continue;
+		}
 
 		if (*ini_dest == IWL_FW_INI_LOCATION_INVALID)
 			*ini_dest = dest;
