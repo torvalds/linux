@@ -38,15 +38,11 @@
 #define DEFAULT_MAP_BASE	DEFAULT_MAP_BASE32
 #endif
 
-#ifdef __KERNEL__
-
 /* XXX: STACK_TOP actually should be STACK_BOTTOM for parisc.
  * prumpf */
 
 #define STACK_TOP	TASK_SIZE
 #define STACK_TOP_MAX	DEFAULT_TASK_SIZE
-
-#endif
 
 #ifndef __ASSEMBLY__
 

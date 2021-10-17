@@ -2,8 +2,6 @@
 #ifndef _ASM_PARISC_THREAD_INFO_H
 #define _ASM_PARISC_THREAD_INFO_H
 
-#ifdef __KERNEL__
-
 #ifndef __ASSEMBLY__
 #include <asm/processor.h>
 #include <asm/special_insns.h>
@@ -79,7 +77,5 @@ struct thread_info {
 #else
 # define is_32bit_task()	(1)
 #endif
-
-#endif /* __KERNEL__ */
 
 #endif /* _ASM_PARISC_THREAD_INFO_H */
