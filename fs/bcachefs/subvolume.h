@@ -75,7 +75,7 @@ static inline void snapshots_seen_init(struct snapshots_seen *s)
 static inline int snapshots_seen_add(struct bch_fs *c, struct snapshots_seen *s, u32 id)
 {
 	if (s->nr == s->size) {
-		size_t new_size = max(s->size, 128UL) * 2;
+		size_t new_size = max(s->size, (size_t) 128) * 2;
 		u32 *d = krealloc(s->d, new_size * sizeof(s->d[0]), GFP_KERNEL);
 
 		if (!d) {

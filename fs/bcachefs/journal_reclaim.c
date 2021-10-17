@@ -653,7 +653,7 @@ static int __bch2_journal_reclaim(struct journal *j, bool direct)
 				atomic_long_read(&c->btree_key_cache.nr_dirty),
 				atomic_long_read(&c->btree_key_cache.nr_keys));
 
-		min_key_cache = min(bch2_nr_btree_keys_need_flush(c), 128UL);
+		min_key_cache = min(bch2_nr_btree_keys_need_flush(c), (size_t) 128);
 
 		nr_flushed = journal_flush_pins(j, seq_to_flush,
 						min_nr, min_key_cache);
