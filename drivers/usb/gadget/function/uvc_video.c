@@ -260,12 +260,12 @@ static void uvcg_video_pump(struct work_struct *work)
 {
 	struct uvc_video *video = container_of(work, struct uvc_video, pump);
 	struct uvc_video_queue *queue = &video->queue;
-	struct usb_request *req;
+	struct usb_request *req = NULL;
 	struct uvc_buffer *buf;
 	unsigned long flags;
 	int ret;
 
-	while (1) {
+	while (video->ep->enabled) {
 		/* Retrieve the first available USB request, protected by the
 		 * request lock.
 		 */
@@ -300,6 +300,9 @@ static void uvcg_video_pump(struct work_struct *work)
 			break;
 		}
 	}
+
+	if (!req)
+		return;
 
 	spin_lock_irqsave(&video->req_lock, flags);
 	list_add_tail(&req->list, &video->req_free);
