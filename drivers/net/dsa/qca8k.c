@@ -976,7 +976,7 @@ qca8k_setup_of_pws_reg(struct qca8k_priv *priv)
 static int
 qca8k_parse_port_config(struct qca8k_priv *priv)
 {
-	int port, cpu_port_index = 0, ret;
+	int port, cpu_port_index = -1, ret;
 	struct device_node *port_dn;
 	phy_interface_t mode;
 	struct dsa_port *dp;
