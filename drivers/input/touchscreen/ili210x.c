@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
+#include <linux/crc-ccitt.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
+#include <linux/ihex.h>
 #include <linux/input.h>
 #include <linux/input/mt.h>
 #include <linux/input/touchscreen.h>
@@ -25,10 +27,19 @@
 #define REG_FIRMWARE_VERSION	0x40
 #define REG_PROTOCOL_VERSION	0x42
 #define REG_KERNEL_VERSION	0x61
+#define REG_IC_BUSY		0x80
+#define REG_IC_BUSY_NOT_BUSY	0x50
 #define REG_GET_MODE		0xc0
 #define REG_GET_MODE_AP		0x5a
 #define REG_GET_MODE_BL		0x55
+#define REG_SET_MODE_AP		0xc1
+#define REG_SET_MODE_BL		0xc2
+#define REG_WRITE_DATA		0xc3
+#define REG_WRITE_ENABLE	0xc4
+#define REG_READ_DATA_CRC	0xc7
 #define REG_CALIBRATE		0xcc
+
+#define ILI251X_FW_FILENAME	"ilitek/ili251x.bin"
 
 struct ili2xxx_chip {
 	int (*read_reg)(struct i2c_client *client, u8 reg,
@@ -546,8 +557,305 @@ static ssize_t ili210x_calibrate(struct device *dev,
 }
 static DEVICE_ATTR(calibrate, S_IWUSR, NULL, ili210x_calibrate);
 
+static int ili251x_firmware_to_buffer(const struct firmware *fw,
+				      u8 **buf, u16 *ac_end, u16 *df_end)
+{
+	const struct ihex_binrec *rec;
+	u32 fw_addr, fw_last_addr = 0;
+	u16 fw_len;
+	u8 *fw_buf;
+	int error;
+
+	/*
+	 * The firmware ihex blob can never be bigger than 64 kiB, so make this
+	 * simple -- allocate a 64 kiB buffer, iterate over the ihex blob records
+	 * once, copy them all into this buffer at the right locations, and then
+	 * do all operations on this linear buffer.
+	 */
+	fw_buf = kzalloc(SZ_64K, GFP_KERNEL);
+	if (!fw_buf)
+		return -ENOMEM;
+
+	rec = (const struct ihex_binrec *)fw->data;
+	while (rec) {
+		fw_addr = be32_to_cpu(rec->addr);
+		fw_len = be16_to_cpu(rec->len);
+
+		/* The last 32 Byte firmware block can be 0xffe0 */
+		if (fw_addr + fw_len > SZ_64K || fw_addr > SZ_64K - 32) {
+			error = -EFBIG;
+			goto err_big;
+		}
+
+		/* Find the last address before DF start address, that is AC end */
+		if (fw_addr == 0xf000)
+			*ac_end = fw_last_addr;
+		fw_last_addr = fw_addr + fw_len;
+
+		memcpy(fw_buf + fw_addr, rec->data, fw_len);
+		rec = ihex_next_binrec(rec);
+	}
+
+	/* DF end address is the last address in the firmware blob */
+	*df_end = fw_addr + fw_len;
+	*buf = fw_buf;
+	return 0;
+
+err_big:
+	kfree(fw_buf);
+	return error;
+}
+
+/* Switch mode between Application and BootLoader */
+static int ili251x_switch_ic_mode(struct i2c_client *client, u8 cmd_mode)
+{
+	struct ili210x *priv = i2c_get_clientdata(client);
+	u8 cmd_wren[3] = { REG_WRITE_ENABLE, 0x5a, 0xa5 };
+	u8 md[2];
+	int error;
+
+	error = priv->chip->read_reg(client, REG_GET_MODE, md, sizeof(md));
+	if (error)
+		return error;
+	/* Mode already set */
+	if ((cmd_mode == REG_SET_MODE_AP && md[0] == REG_GET_MODE_AP) ||
+	    (cmd_mode == REG_SET_MODE_BL && md[0] == REG_GET_MODE_BL))
+		return 0;
+
+	/* Unlock writes */
+	error = i2c_master_send(client, cmd_wren, sizeof(cmd_wren));
+	if (error != sizeof(cmd_wren))
+		return -EINVAL;
+
+	mdelay(20);
+
+	/* Select mode (BootLoader or Application) */
+	error = i2c_master_send(client, &cmd_mode, 1);
+	if (error != 1)
+		return -EINVAL;
+
+	mdelay(200);	/* Reboot into bootloader takes a lot of time ... */
+
+	/* Read back mode */
+	error = priv->chip->read_reg(client, REG_GET_MODE, md, sizeof(md));
+	if (error)
+		return error;
+	/* Check if mode is correct now. */
+	if ((cmd_mode == REG_SET_MODE_AP && md[0] == REG_GET_MODE_AP) ||
+	    (cmd_mode == REG_SET_MODE_BL && md[0] == REG_GET_MODE_BL))
+		return 0;
+
+	return -EINVAL;
+}
+
+static int ili251x_firmware_busy(struct i2c_client *client)
+{
+	struct ili210x *priv = i2c_get_clientdata(client);
+	int error, i = 0;
+	u8 data;
+
+	do {
+		/* The read_reg already contains suitable delay */
+		error = priv->chip->read_reg(client, REG_IC_BUSY, &data, 1);
+		if (error)
+			return error;
+		if (i++ == 100000)
+			return -ETIMEDOUT;
+	} while (data != REG_IC_BUSY_NOT_BUSY);
+
+	return 0;
+}
+
+static int ili251x_firmware_write_to_ic(struct device *dev, u8 *fwbuf,
+					u16 start, u16 end, u8 dataflash)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct ili210x *priv = i2c_get_clientdata(client);
+	u8 cmd_crc = REG_READ_DATA_CRC;
+	u8 crcrb[4] = { 0 };
+	u8 fw_data[33];
+	u16 fw_addr;
+	int error;
+
+	/*
+	 * The DF (dataflash) needs 2 bytes offset for unknown reasons,
+	 * the AC (application) has 2 bytes CRC16-CCITT at the end.
+	 */
+	u16 crc = crc_ccitt(0, fwbuf + start + (dataflash ? 2 : 0),
+			    end - start - 2);
+
+	/* Unlock write to either AC (application) or DF (dataflash) area */
+	u8 cmd_wr[10] = {
+		REG_WRITE_ENABLE, 0x5a, 0xa5, dataflash,
+		(end >> 16) & 0xff, (end >> 8) & 0xff, end & 0xff,
+		(crc >> 16) & 0xff, (crc >> 8) & 0xff, crc & 0xff
+	};
+
+	error = i2c_master_send(client, cmd_wr, sizeof(cmd_wr));
+	if (error != sizeof(cmd_wr))
+		return -EINVAL;
+
+	error = ili251x_firmware_busy(client);
+	if (error)
+		return error;
+
+	for (fw_addr = start; fw_addr < end; fw_addr += 32) {
+		fw_data[0] = REG_WRITE_DATA;
+		memcpy(&(fw_data[1]), fwbuf + fw_addr, 32);
+		error = i2c_master_send(client, fw_data, 33);
+		if (error != sizeof(fw_data))
+			return error;
+		error = ili251x_firmware_busy(client);
+		if (error)
+			return error;
+	}
+
+	error = i2c_master_send(client, &cmd_crc, 1);
+	if (error != 1)
+		return -EINVAL;
+
+	error = ili251x_firmware_busy(client);
+	if (error)
+		return error;
+
+	error = priv->chip->read_reg(client, REG_READ_DATA_CRC,
+				   &crcrb, sizeof(crcrb));
+	if (error)
+		return error;
+
+	/* Check CRC readback */
+	if ((crcrb[0] != (crc & 0xff)) || crcrb[1] != ((crc >> 8) & 0xff))
+		return -EINVAL;
+
+	return 0;
+}
+
+static int ili251x_firmware_reset(struct i2c_client *client)
+{
+	u8 cmd_reset[2] = { 0xf2, 0x01 };
+	int error;
+
+	error = i2c_master_send(client, cmd_reset, sizeof(cmd_reset));
+	if (error != sizeof(cmd_reset))
+		return -EINVAL;
+
+	return ili251x_firmware_busy(client);
+}
+
+static void ili251x_hardware_reset(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct ili210x *priv = i2c_get_clientdata(client);
+
+	/* Reset the controller */
+	gpiod_set_value_cansleep(priv->reset_gpio, 1);
+	usleep_range(10000, 15000);
+	gpiod_set_value_cansleep(priv->reset_gpio, 0);
+	msleep(300);
+}
+
+static ssize_t ili210x_firmware_update_store(struct device *dev,
+					     struct device_attribute *attr,
+					     const char *buf, size_t count)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	const char *fwname = ILI251X_FW_FILENAME;
+	const struct firmware *fw;
+	u16 ac_end, df_end;
+	u8 *fwbuf;
+	int error;
+	int i;
+
+	error = request_ihex_firmware(&fw, fwname, dev);
+	if (error) {
+		dev_err(dev, "Failed to request firmware %s, error=%d\n",
+			fwname, error);
+		return error;
+	}
+
+	error = ili251x_firmware_to_buffer(fw, &fwbuf, &ac_end, &df_end);
+	release_firmware(fw);
+	if (error)
+		return error;
+
+	/*
+	 * Disable touchscreen IRQ, so that we would not get spurious touch
+	 * interrupt during firmware update, and so that the IRQ handler won't
+	 * trigger and interfere with the firmware update. There is no bit in
+	 * the touch controller to disable the IRQs during update, so we have
+	 * to do it this way here.
+	 */
+	disable_irq(client->irq);
+
+	dev_dbg(dev, "Firmware update started, firmware=%s\n", fwname);
+
+	ili251x_hardware_reset(dev);
+
+	error = ili251x_firmware_reset(client);
+	if (error)
+		goto exit;
+
+	/* This may not succeed on first try, so re-try a few times. */
+	for (i = 0; i < 5; i++) {
+		error = ili251x_switch_ic_mode(client, REG_SET_MODE_BL);
+		if (!error)
+			break;
+	}
+
+	if (error)
+		goto exit;
+
+	dev_dbg(dev, "IC is now in BootLoader mode\n");
+
+	msleep(200);	/* The bootloader seems to need some time too. */
+
+	error = ili251x_firmware_write_to_ic(dev, fwbuf, 0xf000, df_end, 1);
+	if (error) {
+		dev_err(dev, "DF firmware update failed, error=%d\n", error);
+		goto exit;
+	}
+
+	dev_dbg(dev, "DataFlash firmware written\n");
+
+	error = ili251x_firmware_write_to_ic(dev, fwbuf, 0x2000, ac_end, 0);
+	if (error) {
+		dev_err(dev, "AC firmware update failed, error=%d\n", error);
+		goto exit;
+	}
+
+	dev_dbg(dev, "Application firmware written\n");
+
+	/* This may not succeed on first try, so re-try a few times. */
+	for (i = 0; i < 5; i++) {
+		error = ili251x_switch_ic_mode(client, REG_SET_MODE_AP);
+		if (!error)
+			break;
+	}
+
+	if (error)
+		goto exit;
+
+	dev_dbg(dev, "IC is now in Application mode\n");
+
+	error = ili251x_firmware_update_cached_state(dev);
+	if (error)
+		goto exit;
+
+	error = count;
+
+exit:
+	ili251x_hardware_reset(dev);
+	dev_dbg(dev, "Firmware update ended, error=%i\n", error);
+	enable_irq(client->irq);
+	kfree(fwbuf);
+	return error;
+}
+
+static DEVICE_ATTR(firmware_update, 0200, NULL, ili210x_firmware_update_store);
+
 static struct attribute *ili210x_attributes[] = {
 	&dev_attr_calibrate.attr,
+	&dev_attr_firmware_update.attr,
 	&dev_attr_firmware_version.attr,
 	&dev_attr_kernel_version.attr,
 	&dev_attr_protocol_version.attr,

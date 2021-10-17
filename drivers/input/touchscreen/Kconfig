@@ -425,6 +425,7 @@ config TOUCHSCREEN_HYCON_HY46XX
 config TOUCHSCREEN_ILI210X
 	tristate "Ilitek ILI210X based touchscreen"
 	depends on I2C
+	select CRC_CCITT
 	help
 	  Say Y here if you have a ILI210X based touchscreen
 	  controller. This driver supports models ILI2102,
