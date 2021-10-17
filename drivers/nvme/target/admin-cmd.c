@@ -278,8 +278,8 @@ static void nvmet_execute_get_log_page_ana(struct nvmet_req *req)
 	u16 status;
 
 	status = NVME_SC_INTERNAL;
-	desc = kmalloc(sizeof(struct nvme_ana_group_desc) +
-			NVMET_MAX_NAMESPACES * sizeof(__le32), GFP_KERNEL);
+	desc = kmalloc(struct_size(desc, nsids, NVMET_MAX_NAMESPACES),
+		       GFP_KERNEL);
 	if (!desc)
 		goto out;
 
