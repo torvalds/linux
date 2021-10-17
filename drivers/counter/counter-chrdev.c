@@ -384,10 +384,6 @@ static int counter_chrdev_open(struct inode *inode, struct file *filp)
 							    typeof(*counter),
 							    chrdev);
 
-	/* Ensure chrdev is not opened more than 1 at a time */
-	if (!atomic_add_unless(&counter->chrdev_lock, 1, 1))
-		return -EBUSY;
-
 	get_device(&counter->dev);
 	filp->private_data = counter;
 
@@ -419,7 +415,6 @@ out_unlock:
 	mutex_unlock(&counter->ops_exist_lock);
 
 	put_device(&counter->dev);
-	atomic_dec(&counter->chrdev_lock);
 
 	return ret;
 }
@@ -445,7 +440,6 @@ int counter_chrdev_add(struct counter_device *const counter)
 	mutex_init(&counter->events_lock);
 
 	/* Initialize character device */
-	atomic_set(&counter->chrdev_lock, 0);
 	cdev_init(&counter->chrdev, &counter_fops);
 
 	/* Allocate Counter events queue */

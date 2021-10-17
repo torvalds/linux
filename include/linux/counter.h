@@ -297,7 +297,6 @@ struct counter_ops {
  * @events:		queue of detected Counter events
  * @events_wait:	wait queue to allow blocking reads of Counter events
  * @events_lock:	lock to protect Counter events queue read operations
- * @chrdev_lock:	lock to limit chrdev to a single open at a time
  * @ops_exist_lock:	lock to prevent use during removal
  */
 struct counter_device {
@@ -325,12 +324,6 @@ struct counter_device {
 	DECLARE_KFIFO_PTR(events, struct counter_event);
 	wait_queue_head_t events_wait;
 	struct mutex events_lock;
-	/*
-	 * chrdev_lock is locked by counter_chrdev_open() and unlocked by
-	 * counter_chrdev_release(), so a mutex is not possible here because
-	 * chrdev_lock will invariably be held when returning to user space
-	 */
-	atomic_t chrdev_lock;
 	struct mutex ops_exist_lock;
 };
 

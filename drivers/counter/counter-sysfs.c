@@ -796,25 +796,18 @@ static int counter_events_queue_size_write(struct counter_device *counter,
 					   u64 val)
 {
 	DECLARE_KFIFO_PTR(events, struct counter_event);
-	int err = 0;
-
-	/* Ensure chrdev is not opened more than 1 at a time */
-	if (!atomic_add_unless(&counter->chrdev_lock, 1, 1))
-		return -EBUSY;
+	int err;
 
 	/* Allocate new events queue */
 	err = kfifo_alloc(&events, val, GFP_KERNEL);
 	if (err)
-		goto exit_early;
+		return err;
 
 	/* Swap in new events queue */
 	kfifo_free(&counter->events);
 	counter->events.kfifo = events.kfifo;
 
-exit_early:
-	atomic_dec(&counter->chrdev_lock);
-
-	return err;
+	return 0;
 }
 
 static struct counter_comp counter_num_signals_comp =
