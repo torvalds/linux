@@ -18,11 +18,6 @@
  *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
  * BSD LICENSE
  *
  * Copyright(c) 2019 - 2020 Intel Corporation

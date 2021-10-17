@@ -5,11 +5,6 @@
  * Copyright(c) 2018 - 2020 Intel Corporation
  *
  * Portions of this file are derived from the ipw3945 project.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
  *****************************************************************************/
 
 #ifndef __iwl_debug_h__
