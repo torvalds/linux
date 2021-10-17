@@ -3654,7 +3654,7 @@ static int io_write(struct io_kiocb *req, unsigned int issue_flags)
 		goto done;
 	if (!force_nonblock || ret2 != -EAGAIN) {
 		/* IOPOLL retry should happen for io-wq threads */
-		if ((req->ctx->flags & IORING_SETUP_IOPOLL) && ret2 == -EAGAIN)
+		if (ret2 == -EAGAIN && (req->ctx->flags & IORING_SETUP_IOPOLL))
 			goto copy_iov;
 done:
 		kiocb_done(kiocb, ret2, issue_flags);
