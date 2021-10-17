@@ -1171,6 +1171,12 @@ static int atomisp_mmap(struct file *file, struct vm_area_struct *vma)
 	u32 origin_size, new_size;
 	int ret;
 
+	if (!asd) {
+		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
+
 	if (!(vma->vm_flags & (VM_WRITE | VM_READ)))
 		return -EACCES;
 
