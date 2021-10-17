@@ -4878,7 +4878,7 @@ static int iwl_mvm_mac_get_survey(struct ieee80211_hw *hw, int idx,
 
 static void iwl_mvm_set_sta_rate(u32 rate_n_flags, struct rate_info *rinfo)
 {
-	switch (rate_n_flags & RATE_MCS_CHAN_WIDTH_MSK) {
+	switch (rate_n_flags & RATE_MCS_CHAN_WIDTH_MSK_V1) {
 	case RATE_MCS_CHAN_WIDTH_20:
 		rinfo->bw = RATE_INFO_BW_20;
 		break;
@@ -4893,24 +4893,24 @@ static void iwl_mvm_set_sta_rate(u32 rate_n_flags, struct rate_info *rinfo)
 		break;
 	}
 
-	if (rate_n_flags & RATE_MCS_HT_MSK) {
+	if (rate_n_flags & RATE_MCS_HT_MSK_V1) {
 		rinfo->flags |= RATE_INFO_FLAGS_MCS;
-		rinfo->mcs = u32_get_bits(rate_n_flags, RATE_HT_MCS_INDEX_MSK);
+		rinfo->mcs = u32_get_bits(rate_n_flags, RATE_HT_MCS_INDEX_MSK_V1);
 		rinfo->nss = u32_get_bits(rate_n_flags,
-					  RATE_HT_MCS_NSS_MSK) + 1;
-		if (rate_n_flags & RATE_MCS_SGI_MSK)
+					  RATE_HT_MCS_NSS_MSK_V1) + 1;
+		if (rate_n_flags & RATE_MCS_SGI_MSK_V1)
 			rinfo->flags |= RATE_INFO_FLAGS_SHORT_GI;
-	} else if (rate_n_flags & RATE_MCS_VHT_MSK) {
+	} else if (rate_n_flags & RATE_MCS_VHT_MSK_V1) {
 		rinfo->flags |= RATE_INFO_FLAGS_VHT_MCS;
 		rinfo->mcs = u32_get_bits(rate_n_flags,
 					  RATE_VHT_MCS_RATE_CODE_MSK);
 		rinfo->nss = u32_get_bits(rate_n_flags,
 					  RATE_VHT_MCS_NSS_MSK) + 1;
-		if (rate_n_flags & RATE_MCS_SGI_MSK)
+		if (rate_n_flags & RATE_MCS_SGI_MSK_V1)
 			rinfo->flags |= RATE_INFO_FLAGS_SHORT_GI;
-	} else if (rate_n_flags & RATE_MCS_HE_MSK) {
+	} else if (rate_n_flags & RATE_MCS_HE_MSK_V1) {
 		u32 gi_ltf = u32_get_bits(rate_n_flags,
-					  RATE_MCS_HE_GI_LTF_MSK);
+					  RATE_MCS_HE_GI_LTF_MSK_V1);
 
 		rinfo->flags |= RATE_INFO_FLAGS_HE_MCS;
 		rinfo->mcs = u32_get_bits(rate_n_flags,
@@ -4918,24 +4918,24 @@ static void iwl_mvm_set_sta_rate(u32 rate_n_flags, struct rate_info *rinfo)
 		rinfo->nss = u32_get_bits(rate_n_flags,
 					  RATE_VHT_MCS_NSS_MSK) + 1;
 
-		if (rate_n_flags & RATE_MCS_HE_106T_MSK) {
+		if (rate_n_flags & RATE_MCS_HE_106T_MSK_V1) {
 			rinfo->bw = RATE_INFO_BW_HE_RU;
 			rinfo->he_ru_alloc = NL80211_RATE_INFO_HE_RU_ALLOC_106;
 		}
 
-		switch (rate_n_flags & RATE_MCS_HE_TYPE_MSK) {
-		case RATE_MCS_HE_TYPE_SU:
-		case RATE_MCS_HE_TYPE_EXT_SU:
+		switch (rate_n_flags & RATE_MCS_HE_TYPE_MSK_V1) {
+		case RATE_MCS_HE_TYPE_SU_V1:
+		case RATE_MCS_HE_TYPE_EXT_SU_V1:
 			if (gi_ltf == 0 || gi_ltf == 1)
 				rinfo->he_gi = NL80211_RATE_INFO_HE_GI_0_8;
 			else if (gi_ltf == 2)
 				rinfo->he_gi = NL80211_RATE_INFO_HE_GI_1_6;
-			else if (rate_n_flags & RATE_MCS_SGI_MSK)
+			else if (rate_n_flags & RATE_MCS_SGI_MSK_V1)
 				rinfo->he_gi = NL80211_RATE_INFO_HE_GI_0_8;
 			else
 				rinfo->he_gi = NL80211_RATE_INFO_HE_GI_3_2;
 			break;
-		case RATE_MCS_HE_TYPE_MU:
+		case RATE_MCS_HE_TYPE_MU_V1:
 			if (gi_ltf == 0 || gi_ltf == 1)
 				rinfo->he_gi = NL80211_RATE_INFO_HE_GI_0_8;
 			else if (gi_ltf == 2)
@@ -4943,7 +4943,7 @@ static void iwl_mvm_set_sta_rate(u32 rate_n_flags, struct rate_info *rinfo)
 			else
 				rinfo->he_gi = NL80211_RATE_INFO_HE_GI_3_2;
 			break;
-		case RATE_MCS_HE_TYPE_TRIG:
+		case RATE_MCS_HE_TYPE_TRIG_V1:
 			if (gi_ltf == 0 || gi_ltf == 1)
 				rinfo->he_gi = NL80211_RATE_INFO_HE_GI_1_6;
 			else
@@ -4954,7 +4954,7 @@ static void iwl_mvm_set_sta_rate(u32 rate_n_flags, struct rate_info *rinfo)
 		if (rate_n_flags & RATE_HE_DUAL_CARRIER_MODE_MSK)
 			rinfo->he_dcm = 1;
 	} else {
-		switch (u32_get_bits(rate_n_flags, RATE_LEGACY_RATE_MSK)) {
+		switch (u32_get_bits(rate_n_flags, RATE_LEGACY_RATE_MSK_V1)) {
 		case IWL_RATE_1M_PLCP:
 			rinfo->legacy = 10;
 			break;

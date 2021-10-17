@@ -303,7 +303,7 @@ static u32 iwl_mvm_get_tx_rate(struct iwl_mvm *mvm,
 
 	/* Set CCK flag as needed */
 	if ((rate_idx >= IWL_FIRST_CCK_RATE) && (rate_idx <= IWL_LAST_CCK_RATE))
-		rate_flags |= RATE_MCS_CCK_MSK;
+		rate_flags |= RATE_MCS_CCK_MSK_V1;
 
 	return (u32)rate_plcp | rate_flags;
 }
@@ -1290,7 +1290,7 @@ void iwl_mvm_hwrate_to_tx_rate(u32 rate_n_flags,
 {
 	if (rate_n_flags & RATE_HT_MCS_GF_MSK)
 		r->flags |= IEEE80211_TX_RC_GREEN_FIELD;
-	switch (rate_n_flags & RATE_MCS_CHAN_WIDTH_MSK) {
+	switch (rate_n_flags & RATE_MCS_CHAN_WIDTH_MSK_V1) {
 	case RATE_MCS_CHAN_WIDTH_20:
 		break;
 	case RATE_MCS_CHAN_WIDTH_40:
@@ -1303,12 +1303,12 @@ void iwl_mvm_hwrate_to_tx_rate(u32 rate_n_flags,
 		r->flags |= IEEE80211_TX_RC_160_MHZ_WIDTH;
 		break;
 	}
-	if (rate_n_flags & RATE_MCS_SGI_MSK)
+	if (rate_n_flags & RATE_MCS_SGI_MSK_V1)
 		r->flags |= IEEE80211_TX_RC_SHORT_GI;
-	if (rate_n_flags & RATE_MCS_HT_MSK) {
+	if (rate_n_flags & RATE_MCS_HT_MSK_V1) {
 		r->flags |= IEEE80211_TX_RC_MCS;
-		r->idx = rate_n_flags & RATE_HT_MCS_INDEX_MSK;
-	} else if (rate_n_flags & RATE_MCS_VHT_MSK) {
+		r->idx = rate_n_flags & RATE_HT_MCS_INDEX_MSK_V1;
+	} else if (rate_n_flags & RATE_MCS_VHT_MSK_V1) {
 		ieee80211_rate_set_vht(
 			r, rate_n_flags & RATE_VHT_MCS_RATE_CODE_MSK,
 			((rate_n_flags & RATE_VHT_MCS_NSS_MSK) >>

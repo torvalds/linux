@@ -330,15 +330,15 @@ static const struct rs_tx_column rs_tx_columns[] = {
 static inline u8 rs_extract_rate(u32 rate_n_flags)
 {
 	/* also works for HT because bits 7:6 are zero there */
-	return (u8)(rate_n_flags & RATE_LEGACY_RATE_MSK);
+	return (u8)(rate_n_flags & RATE_LEGACY_RATE_MSK_V1);
 }
 
 static int iwl_hwrate_to_plcp_idx(u32 rate_n_flags)
 {
 	int idx = 0;
 
-	if (rate_n_flags & RATE_MCS_HT_MSK) {
-		idx = rate_n_flags & RATE_HT_MCS_RATE_CODE_MSK;
+	if (rate_n_flags & RATE_MCS_HT_MSK_V1) {
+		idx = rate_n_flags & RATE_HT_MCS_RATE_CODE_MSK_V1;
 		idx += IWL_RATE_MCS_0_INDEX;
 
 		/* skip 9M not supported in HT*/
@@ -346,8 +346,8 @@ static int iwl_hwrate_to_plcp_idx(u32 rate_n_flags)
 			idx += 1;
 		if ((idx >= IWL_FIRST_HT_RATE) && (idx <= IWL_LAST_HT_RATE))
 			return idx;
-	} else if (rate_n_flags & RATE_MCS_VHT_MSK ||
-		   rate_n_flags & RATE_MCS_HE_MSK) {
+	} else if (rate_n_flags & RATE_MCS_VHT_MSK_V1 ||
+		   rate_n_flags & RATE_MCS_HE_MSK_V1) {
 		idx = rate_n_flags & RATE_VHT_MCS_RATE_CODE_MSK;
 		idx += IWL_RATE_MCS_0_INDEX;
 
@@ -356,8 +356,8 @@ static int iwl_hwrate_to_plcp_idx(u32 rate_n_flags)
 			idx++;
 		if ((idx >= IWL_FIRST_VHT_RATE) && (idx <= IWL_LAST_VHT_RATE))
 			return idx;
-		if ((rate_n_flags & RATE_MCS_HE_MSK) &&
-		    (idx <= IWL_LAST_HE_RATE))
+		if ((rate_n_flags & RATE_MCS_HE_MSK_V1) &&
+		    idx <= IWL_LAST_HE_RATE)
 			return idx;
 	} else {
 		/* legacy rate format, search for match in table */
@@ -815,7 +815,7 @@ static u32 ucode_rate_from_rs_rate(struct iwl_mvm *mvm,
 	if (is_legacy(rate)) {
 		ucode_rate |= iwl_rates[index].plcp;
 		if (index >= IWL_FIRST_CCK_RATE && index <= IWL_LAST_CCK_RATE)
-			ucode_rate |= RATE_MCS_CCK_MSK;
+			ucode_rate |= RATE_MCS_CCK_MSK_V1;
 		return ucode_rate;
 	}
 
@@ -830,7 +830,7 @@ static u32 ucode_rate_from_rs_rate(struct iwl_mvm *mvm,
 			IWL_ERR(mvm, "Invalid HT rate index %d\n", index);
 			index = IWL_LAST_HT_RATE;
 		}
-		ucode_rate |= RATE_MCS_HT_MSK;
+		ucode_rate |= RATE_MCS_HT_MSK_V1;
 
 		if (is_ht_siso(rate))
 			ucode_rate |= iwl_rates[index].plcp_ht_siso;
@@ -843,7 +843,7 @@ static u32 ucode_rate_from_rs_rate(struct iwl_mvm *mvm,
 			IWL_ERR(mvm, "Invalid VHT rate index %d\n", index);
 			index = IWL_LAST_VHT_RATE;
 		}
-		ucode_rate |= RATE_MCS_VHT_MSK;
+		ucode_rate |= RATE_MCS_VHT_MSK_V1;
 		if (is_vht_siso(rate))
 			ucode_rate |= iwl_rates[index].plcp_vht_siso;
 		else if (is_vht_mimo2(rate))
@@ -863,9 +863,9 @@ static u32 ucode_rate_from_rs_rate(struct iwl_mvm *mvm,
 
 	ucode_rate |= rate->bw;
 	if (rate->sgi)
-		ucode_rate |= RATE_MCS_SGI_MSK;
+		ucode_rate |= RATE_MCS_SGI_MSK_V1;
 	if (rate->ldpc)
-		ucode_rate |= RATE_MCS_LDPC_MSK;
+		ucode_rate |= RATE_MCS_LDPC_MSK_V1;
 
 	return ucode_rate;
 }
@@ -888,9 +888,9 @@ static int rs_rate_from_ucode_rate(const u32 ucode_rate,
 	rate->ant = (ant_msk >> RATE_MCS_ANT_POS);
 
 	/* Legacy */
-	if (!(ucode_rate & RATE_MCS_HT_MSK) &&
-	    !(ucode_rate & RATE_MCS_VHT_MSK) &&
-	    !(ucode_rate & RATE_MCS_HE_MSK)) {
+	if (!(ucode_rate & RATE_MCS_HT_MSK_V1) &&
+	    !(ucode_rate & RATE_MCS_VHT_MSK_V1) &&
+	    !(ucode_rate & RATE_MCS_HE_MSK_V1)) {
 		if (num_of_ant == 1) {
 			if (band == NL80211_BAND_5GHZ)
 				rate->type = LQ_LEGACY_A;
@@ -902,20 +902,20 @@ static int rs_rate_from_ucode_rate(const u32 ucode_rate,
 	}
 
 	/* HT, VHT or HE */
-	if (ucode_rate & RATE_MCS_SGI_MSK)
+	if (ucode_rate & RATE_MCS_SGI_MSK_V1)
 		rate->sgi = true;
-	if (ucode_rate & RATE_MCS_LDPC_MSK)
+	if (ucode_rate & RATE_MCS_LDPC_MSK_V1)
 		rate->ldpc = true;
 	if (ucode_rate & RATE_MCS_STBC_MSK)
 		rate->stbc = true;
 	if (ucode_rate & RATE_MCS_BF_MSK)
 		rate->bfer = true;
 
-	rate->bw = ucode_rate & RATE_MCS_CHAN_WIDTH_MSK;
+	rate->bw = ucode_rate & RATE_MCS_CHAN_WIDTH_MSK_V1;
 
-	if (ucode_rate & RATE_MCS_HT_MSK) {
-		nss = ((ucode_rate & RATE_HT_MCS_NSS_MSK) >>
-		       RATE_HT_MCS_NSS_POS) + 1;
+	if (ucode_rate & RATE_MCS_HT_MSK_V1) {
+		nss = ((ucode_rate & RATE_HT_MCS_NSS_MSK_V1) >>
+		       RATE_HT_MCS_NSS_POS_V1) + 1;
 
 		if (nss == 1) {
 			rate->type = LQ_HT_SISO;
@@ -928,7 +928,7 @@ static int rs_rate_from_ucode_rate(const u32 ucode_rate,
 		} else {
 			WARN_ON_ONCE(1);
 		}
-	} else if (ucode_rate & RATE_MCS_VHT_MSK) {
+	} else if (ucode_rate & RATE_MCS_VHT_MSK_V1) {
 		nss = ((ucode_rate & RATE_VHT_MCS_NSS_MSK) >>
 		       RATE_VHT_MCS_NSS_POS) + 1;
 
@@ -943,7 +943,7 @@ static int rs_rate_from_ucode_rate(const u32 ucode_rate,
 		} else {
 			WARN_ON_ONCE(1);
 		}
-	} else if (ucode_rate & RATE_MCS_HE_MSK) {
+	} else if (ucode_rate & RATE_MCS_HE_MSK_V1) {
 		nss = ((ucode_rate & RATE_VHT_MCS_NSS_MSK) >>
 		      RATE_VHT_MCS_NSS_POS) + 1;
 
@@ -2895,7 +2895,7 @@ void iwl_mvm_update_frame_stats(struct iwl_mvm *mvm, u32 rate, bool agg)
 
 	mvm->drv_rx_stats.success_frames++;
 
-	switch (rate & RATE_MCS_CHAN_WIDTH_MSK) {
+	switch (rate & RATE_MCS_CHAN_WIDTH_MSK_V1) {
 	case RATE_MCS_CHAN_WIDTH_20:
 		mvm->drv_rx_stats.bw_20_frames++;
 		break;
@@ -2912,10 +2912,10 @@ void iwl_mvm_update_frame_stats(struct iwl_mvm *mvm, u32 rate, bool agg)
 		WARN_ONCE(1, "bad BW. rate 0x%x", rate);
 	}
 
-	if (rate & RATE_MCS_HT_MSK) {
+	if (rate & RATE_MCS_HT_MSK_V1) {
 		mvm->drv_rx_stats.ht_frames++;
-		nss = ((rate & RATE_HT_MCS_NSS_MSK) >> RATE_HT_MCS_NSS_POS) + 1;
-	} else if (rate & RATE_MCS_VHT_MSK) {
+		nss = ((rate & RATE_HT_MCS_NSS_MSK_V1) >> RATE_HT_MCS_NSS_POS_V1) + 1;
+	} else if (rate & RATE_MCS_VHT_MSK_V1) {
 		mvm->drv_rx_stats.vht_frames++;
 		nss = ((rate & RATE_VHT_MCS_NSS_MSK) >>
 		       RATE_VHT_MCS_NSS_POS) + 1;
@@ -2928,7 +2928,7 @@ void iwl_mvm_update_frame_stats(struct iwl_mvm *mvm, u32 rate, bool agg)
 	else if (nss == 2)
 		mvm->drv_rx_stats.mimo2_frames++;
 
-	if (rate & RATE_MCS_SGI_MSK)
+	if (rate & RATE_MCS_SGI_MSK_V1)
 		mvm->drv_rx_stats.sgi_frames++;
 	else
 		mvm->drv_rx_stats.ngi_frames++;
@@ -3681,9 +3681,9 @@ int rs_pretty_print_rate(char *buf, int bufsz, const u32 rate)
 	u8 mcs = 0, nss = 0;
 	u8 ant = (rate & RATE_MCS_ANT_AB_MSK) >> RATE_MCS_ANT_POS;
 
-	if (!(rate & RATE_MCS_HT_MSK) &&
-	    !(rate & RATE_MCS_VHT_MSK) &&
-	    !(rate & RATE_MCS_HE_MSK)) {
+	if (!(rate & RATE_MCS_HT_MSK_V1) &&
+	    !(rate & RATE_MCS_VHT_MSK_V1) &&
+	    !(rate & RATE_MCS_HE_MSK_V1)) {
 		int index = iwl_hwrate_to_plcp_idx(rate);
 
 		return scnprintf(buf, bufsz, "Legacy | ANT: %s Rate: %s Mbps",
@@ -3692,17 +3692,17 @@ int rs_pretty_print_rate(char *buf, int bufsz, const u32 rate)
 				 iwl_rate_mcs[index].mbps);
 	}
 
-	if (rate & RATE_MCS_VHT_MSK) {
+	if (rate & RATE_MCS_VHT_MSK_V1) {
 		type = "VHT";
 		mcs = rate & RATE_VHT_MCS_RATE_CODE_MSK;
 		nss = ((rate & RATE_VHT_MCS_NSS_MSK)
 		       >> RATE_VHT_MCS_NSS_POS) + 1;
-	} else if (rate & RATE_MCS_HT_MSK) {
+	} else if (rate & RATE_MCS_HT_MSK_V1) {
 		type = "HT";
-		mcs = rate & RATE_HT_MCS_INDEX_MSK;
-		nss = ((rate & RATE_HT_MCS_NSS_MSK)
-		       >> RATE_HT_MCS_NSS_POS) + 1;
-	} else if (rate & RATE_MCS_HE_MSK) {
+		mcs = rate & RATE_HT_MCS_INDEX_MSK_V1;
+		nss = ((rate & RATE_HT_MCS_NSS_MSK_V1)
+		       >> RATE_HT_MCS_NSS_POS_V1) + 1;
+	} else if (rate & RATE_MCS_HE_MSK_V1) {
 		type = "HE";
 		mcs = rate & RATE_VHT_MCS_RATE_CODE_MSK;
 		nss = ((rate & RATE_VHT_MCS_NSS_MSK)
@@ -3711,7 +3711,7 @@ int rs_pretty_print_rate(char *buf, int bufsz, const u32 rate)
 		type = "Unknown"; /* shouldn't happen */
 	}
 
-	switch (rate & RATE_MCS_CHAN_WIDTH_MSK) {
+	switch (rate & RATE_MCS_CHAN_WIDTH_MSK_V1) {
 	case RATE_MCS_CHAN_WIDTH_20:
 		bw = "20Mhz";
 		break;
@@ -3731,9 +3731,9 @@ int rs_pretty_print_rate(char *buf, int bufsz, const u32 rate)
 	return scnprintf(buf, bufsz,
 			 "0x%x: %s | ANT: %s BW: %s MCS: %d NSS: %d %s%s%s%s%s",
 			 rate, type, rs_pretty_ant(ant), bw, mcs, nss,
-			 (rate & RATE_MCS_SGI_MSK) ? "SGI " : "NGI ",
+			 (rate & RATE_MCS_SGI_MSK_V1) ? "SGI " : "NGI ",
 			 (rate & RATE_MCS_STBC_MSK) ? "STBC " : "",
-			 (rate & RATE_MCS_LDPC_MSK) ? "LDPC " : "",
+			 (rate & RATE_MCS_LDPC_MSK_V1) ? "LDPC " : "",
 			 (rate & RATE_HE_DUAL_CARRIER_MODE_MSK) ? "DCM " : "",
 			 (rate & RATE_MCS_BF_MSK) ? "BF " : "");
 }

@@ -159,7 +159,7 @@ static const u8 fw_rate_idx_to_plcp[IWL_RATE_COUNT] = {
 int iwl_mvm_legacy_rate_to_mac80211_idx(u32 rate_n_flags,
 					enum nl80211_band band)
 {
-	int rate = rate_n_flags & RATE_LEGACY_RATE_MSK;
+	int rate = rate_n_flags & RATE_LEGACY_RATE_MSK_V1;
 	int idx;
 	int band_offset = 0;
 

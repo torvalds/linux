@@ -248,7 +248,7 @@ enum {
 };
 
 /*
- * rate_n_flags bit fields
+ * rate_n_flags bit fields version 1
  *
  * The 32-bit value has different layouts in the low 8 bites depending on the
  * format. There are three formats, HT, VHT and legacy (11abg, with subformats
@@ -266,15 +266,15 @@ enum {
 
 /* Bit 8: (1) HT format, (0) legacy or VHT format */
 #define RATE_MCS_HT_POS 8
-#define RATE_MCS_HT_MSK (1 << RATE_MCS_HT_POS)
+#define RATE_MCS_HT_MSK_V1 BIT(RATE_MCS_HT_POS)
 
 /* Bit 9: (1) CCK, (0) OFDM.  HT (bit 8) must be "0" for this bit to be valid */
-#define RATE_MCS_CCK_POS 9
-#define RATE_MCS_CCK_MSK (1 << RATE_MCS_CCK_POS)
+#define RATE_MCS_CCK_POS_V1 9
+#define RATE_MCS_CCK_MSK_V1 BIT(RATE_MCS_CCK_POS_V1)
 
 /* Bit 26: (1) VHT format, (0) legacy format in bits 8:0 */
-#define RATE_MCS_VHT_POS 26
-#define RATE_MCS_VHT_MSK (1 << RATE_MCS_VHT_POS)
+#define RATE_MCS_VHT_POS_V1 26
+#define RATE_MCS_VHT_MSK_V1 BIT(RATE_MCS_VHT_POS_V1)
 
 
 /*
@@ -300,15 +300,15 @@ enum {
  * streams and 16-23 have three streams. We could also support MCS 32
  * which is the duplicate 20 MHz MCS (bit 5 set, all others zero.)
  */
-#define RATE_HT_MCS_RATE_CODE_MSK	0x7
-#define RATE_HT_MCS_NSS_POS             3
-#define RATE_HT_MCS_NSS_MSK             (3 << RATE_HT_MCS_NSS_POS)
+#define RATE_HT_MCS_RATE_CODE_MSK_V1	0x7
+#define RATE_HT_MCS_NSS_POS_V1          3
+#define RATE_HT_MCS_NSS_MSK_V1          (3 << RATE_HT_MCS_NSS_POS_V1)
 
 /* Bit 10: (1) Use Green Field preamble */
 #define RATE_HT_MCS_GF_POS		10
 #define RATE_HT_MCS_GF_MSK		(1 << RATE_HT_MCS_GF_POS)
 
-#define RATE_HT_MCS_INDEX_MSK		0x3f
+#define RATE_HT_MCS_INDEX_MSK_V1	0x3f
 
 /*
  * Very High-throughput (VHT) rate format for bits 7:0
@@ -347,26 +347,26 @@ enum {
  *        110)  11 Mbps
  * (bit 7 is 0)
  */
-#define RATE_LEGACY_RATE_MSK 0xff
+#define RATE_LEGACY_RATE_MSK_V1 0xff
 
 /* Bit 10 - OFDM HE */
-#define RATE_MCS_HE_POS		10
-#define RATE_MCS_HE_MSK		BIT(RATE_MCS_HE_POS)
+#define RATE_MCS_HE_POS_V1	10
+#define RATE_MCS_HE_MSK_V1	BIT(RATE_MCS_HE_POS_V1)
 
 /*
  * Bit 11-12: (0) 20MHz, (1) 40MHz, (2) 80MHz, (3) 160MHz
  * 0 and 1 are valid for HT and VHT, 2 and 3 only for VHT
  */
 #define RATE_MCS_CHAN_WIDTH_POS		11
-#define RATE_MCS_CHAN_WIDTH_MSK		(3 << RATE_MCS_CHAN_WIDTH_POS)
+#define RATE_MCS_CHAN_WIDTH_MSK_V1	(3 << RATE_MCS_CHAN_WIDTH_POS)
 #define RATE_MCS_CHAN_WIDTH_20		(0 << RATE_MCS_CHAN_WIDTH_POS)
 #define RATE_MCS_CHAN_WIDTH_40		(1 << RATE_MCS_CHAN_WIDTH_POS)
 #define RATE_MCS_CHAN_WIDTH_80		(2 << RATE_MCS_CHAN_WIDTH_POS)
 #define RATE_MCS_CHAN_WIDTH_160		(3 << RATE_MCS_CHAN_WIDTH_POS)
 
 /* Bit 13: (1) Short guard interval (0.4 usec), (0) normal GI (0.8 usec) */
-#define RATE_MCS_SGI_POS		13
-#define RATE_MCS_SGI_MSK		(1 << RATE_MCS_SGI_POS)
+#define RATE_MCS_SGI_POS_V1		13
+#define RATE_MCS_SGI_MSK_V1		BIT(RATE_MCS_SGI_POS_V1)
 
 /* Bit 14-16: Antenna selection (1) Ant A, (2) Ant B, (4) Ant C */
 #define RATE_MCS_ANT_POS		14
@@ -408,27 +408,27 @@ enum {
  *	3			(does not occur)
  */
 #define RATE_MCS_HE_GI_LTF_POS		20
-#define RATE_MCS_HE_GI_LTF_MSK		(3 << RATE_MCS_HE_GI_LTF_POS)
+#define RATE_MCS_HE_GI_LTF_MSK_V1		(3 << RATE_MCS_HE_GI_LTF_POS)
 
 /* Bit 22-23: HE type. (0) SU, (1) SU_EXT, (2) MU, (3) trigger based */
-#define RATE_MCS_HE_TYPE_POS		22
-#define RATE_MCS_HE_TYPE_SU		(0 << RATE_MCS_HE_TYPE_POS)
-#define RATE_MCS_HE_TYPE_EXT_SU		(1 << RATE_MCS_HE_TYPE_POS)
-#define RATE_MCS_HE_TYPE_MU		(2 << RATE_MCS_HE_TYPE_POS)
-#define RATE_MCS_HE_TYPE_TRIG		(3 << RATE_MCS_HE_TYPE_POS)
-#define RATE_MCS_HE_TYPE_MSK		(3 << RATE_MCS_HE_TYPE_POS)
+#define RATE_MCS_HE_TYPE_POS_V1		22
+#define RATE_MCS_HE_TYPE_SU_V1		(0 << RATE_MCS_HE_TYPE_POS_V1)
+#define RATE_MCS_HE_TYPE_EXT_SU_V1		BIT(RATE_MCS_HE_TYPE_POS_V1)
+#define RATE_MCS_HE_TYPE_MU_V1		(2 << RATE_MCS_HE_TYPE_POS_V1)
+#define RATE_MCS_HE_TYPE_TRIG_V1	(3 << RATE_MCS_HE_TYPE_POS_V1)
+#define RATE_MCS_HE_TYPE_MSK_V1		(3 << RATE_MCS_HE_TYPE_POS_V1)
 
 /* Bit 24-25: (0) 20MHz (no dup), (1) 2x20MHz, (2) 4x20MHz, 3 8x20MHz */
-#define RATE_MCS_DUP_POS		24
-#define RATE_MCS_DUP_MSK		(3 << RATE_MCS_DUP_POS)
+#define RATE_MCS_DUP_POS_V1		24
+#define RATE_MCS_DUP_MSK_V1		(3 << RATE_MCS_DUP_POS_V1)
 
 /* Bit 27: (1) LDPC enabled, (0) LDPC disabled */
-#define RATE_MCS_LDPC_POS		27
-#define RATE_MCS_LDPC_MSK		(1 << RATE_MCS_LDPC_POS)
+#define RATE_MCS_LDPC_POS_V1		27
+#define RATE_MCS_LDPC_MSK_V1		BIT(RATE_MCS_LDPC_POS_V1)
 
 /* Bit 28: (1) 106-tone RX (8 MHz RU), (0) normal bandwidth */
-#define RATE_MCS_HE_106T_POS		28
-#define RATE_MCS_HE_106T_MSK		(1 << RATE_MCS_HE_106T_POS)
+#define RATE_MCS_HE_106T_POS_V1		28
+#define RATE_MCS_HE_106T_MSK_V1		BIT(RATE_MCS_HE_106T_POS_V1)
 
 /* Bit 30-31: (1) RTS, (2) CTS */
 #define RATE_MCS_RTS_REQUIRED_POS  (30)

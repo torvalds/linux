@@ -163,7 +163,7 @@ iwl_mvm_scan_rate_n_flags(struct iwl_mvm *mvm, enum nl80211_band band,
 	tx_ant = BIT(mvm->scan_last_antenna_idx) << RATE_MCS_ANT_POS;
 
 	if (band == NL80211_BAND_2GHZ && !no_cck)
-		return cpu_to_le32(IWL_RATE_1M_PLCP | RATE_MCS_CCK_MSK |
+		return cpu_to_le32(IWL_RATE_1M_PLCP | RATE_MCS_CCK_MSK_V1 |
 				   tx_ant);
 	else
 		return cpu_to_le32(IWL_RATE_6M_PLCP | tx_ant);
