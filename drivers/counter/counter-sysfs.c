@@ -113,7 +113,7 @@ static ssize_t counter_comp_u8_show(struct device *dev,
 		/* data should already be boolean but ensure just to be safe */
 		data = !!data;
 
-	return sprintf(buf, "%u\n", (unsigned int)data);
+	return sysfs_emit(buf, "%u\n", (unsigned int)data);
 }
 
 static ssize_t counter_comp_u8_store(struct device *dev,
@@ -196,7 +196,7 @@ static ssize_t counter_comp_u32_show(struct device *dev,
 	case COUNTER_COMP_COUNT_MODE:
 		return sysfs_emit(buf, "%s\n", counter_count_mode_str[data]);
 	default:
-		return sprintf(buf, "%u\n", (unsigned int)data);
+		return sysfs_emit(buf, "%u\n", (unsigned int)data);
 	}
 }
 
@@ -300,7 +300,7 @@ static ssize_t counter_comp_u64_show(struct device *dev,
 	if (err < 0)
 		return err;
 
-	return sprintf(buf, "%llu\n", (unsigned long long)data);
+	return sysfs_emit(buf, "%llu\n", (unsigned long long)data);
 }
 
 static ssize_t counter_comp_u64_store(struct device *dev,
@@ -539,7 +539,7 @@ static ssize_t counter_comp_id_show(struct device *dev,
 {
 	const size_t id = (size_t)to_counter_attribute(attr)->comp.priv;
 
-	return sprintf(buf, "%zu\n", id);
+	return sysfs_emit(buf, "%zu\n", id);
 }
 
 static int counter_comp_id_attr_create(struct device *const dev,
