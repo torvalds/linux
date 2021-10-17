@@ -35,6 +35,7 @@ struct ili2xxx_chip {
 	unsigned int max_touches;
 	unsigned int resolution;
 	bool has_calibrate_reg;
+	bool has_firmware_proto;
 	bool has_pressure_reg;
 };
 
@@ -268,6 +269,7 @@ static const struct ili2xxx_chip ili251x_chip = {
 	.continue_polling	= ili251x_check_continue_polling,
 	.max_touches		= 10,
 	.has_calibrate_reg	= true,
+	.has_firmware_proto	= true,
 	.has_pressure_reg	= true,
 };
 
@@ -321,6 +323,54 @@ static irqreturn_t ili210x_irq(int irq, void *irq_data)
 	} while (!priv->stop && keep_polling);
 
 	return IRQ_HANDLED;
+}
+
+static int ili251x_firmware_update_resolution(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct ili210x *priv = i2c_get_clientdata(client);
+	u16 resx, resy;
+	u8 rs[10];
+	int error;
+
+	/* The firmware update blob might have changed the resolution. */
+	error = priv->chip->read_reg(client, REG_PANEL_INFO, &rs, sizeof(rs));
+	if (error)
+		return error;
+
+	resx = le16_to_cpup((__le16 *)rs);
+	resy = le16_to_cpup((__le16 *)(rs + 2));
+
+	/* The value reported by the firmware is invalid. */
+	if (!resx || resx == 0xffff || !resy || resy == 0xffff)
+		return -EINVAL;
+
+	input_abs_set_max(priv->input, ABS_X, resx - 1);
+	input_abs_set_max(priv->input, ABS_Y, resy - 1);
+	input_abs_set_max(priv->input, ABS_MT_POSITION_X, resx - 1);
+	input_abs_set_max(priv->input, ABS_MT_POSITION_Y, resy - 1);
+
+	return 0;
+}
+
+static int ili251x_firmware_update_cached_state(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct ili210x *priv = i2c_get_clientdata(client);
+	int error;
+
+	if (!priv->chip->has_firmware_proto)
+		return 0;
+
+	/* Wait for firmware to boot and stabilize itself. */
+	msleep(200);
+
+	/* Firmware does report valid information. */
+	error = ili251x_firmware_update_resolution(dev);
+	if (error)
+		return error;
+
+	return 0;
 }
 
 static ssize_t ili210x_calibrate(struct device *dev,
@@ -449,6 +499,12 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 	input_set_abs_params(input, ABS_MT_POSITION_Y, 0, max_xy, 0, 0);
 	if (priv->chip->has_pressure_reg)
 		input_set_abs_params(input, ABS_MT_PRESSURE, 0, 0xa, 0, 0);
+	error = ili251x_firmware_update_cached_state(dev);
+	if (error) {
+		dev_err(dev, "Unable to cache firmware information, err: %d\n",
+			error);
+		return error;
+	}
 	touchscreen_parse_properties(input, true, &priv->prop);
 
 	error = input_mt_init_slots(input, priv->chip->max_touches,
