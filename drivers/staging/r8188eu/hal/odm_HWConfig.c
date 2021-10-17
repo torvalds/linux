@@ -58,7 +58,6 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 			struct odm_per_pkt_info *pPktinfo,
 			struct adapter *adapt)
 {
-	struct sw_ant_switch *pDM_SWAT_Table = &dm_odm->DM_SWAT_Table;
 	u8 i, Max_spatial_stream;
 	s8 rx_pwr[4], rx_pwr_all = 0;
 	u8 EVM, PWDB_ALL = 0, PWDB_ALL_BT;
@@ -224,8 +223,6 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 			pPhyInfo->SignalStrength = (u8)(odm_SignalScaleMapping(dm_odm, total_rssi /= rf_rx_num));
 	}
 
-	/* For 92C/92D HW (Hybrid) Antenna Diversity */
-	pDM_SWAT_Table->antsel = pPhyStaRpt->ant_sel;
 	/* For 88E HW Antenna Diversity */
 	dm_odm->DM_FatTable.antsel_rx_keep_0 = pPhyStaRpt->ant_sel;
 	dm_odm->DM_FatTable.antsel_rx_keep_1 = pPhyStaRpt->ant_sel_b;

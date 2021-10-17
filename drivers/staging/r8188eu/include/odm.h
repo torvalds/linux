@@ -111,12 +111,6 @@ struct rx_hpc {
 
 #define ODM_ASSOCIATE_ENTRY_NUM	32 /*  Max size of AsocEntry[]. */
 
-/*  This indicates two different steps. */
-/*  Using SWAW_STEP_PEAK, driver needs to switch antenna and listen to
- *  the signal on the air. */
-
-#define SWAW_STEP_PEAK		0
-
 struct sw_ant_switch {
 	u8	try_flag;
 	s32	PreRSSI;
@@ -131,8 +125,6 @@ struct sw_ant_switch {
 	/*  Before link Antenna Switch check */
 	u8	SWAS_NoLink_State;
 	u32	SWAS_NoLink_BK_Reg860;
-	bool	ANTA_ON;	/* To indicate Ant A is or not */
-	bool	ANTB_ON;	/* To indicate Ant B is on or not */
 
 	s32	RSSI_sum_A;
 	s32	RSSI_sum_B;
@@ -146,16 +138,8 @@ struct sw_ant_switch {
 	u64	RXByteCnt_B;
 	u8	TrafficLoad;
 	struct timer_list SwAntennaSwitchTimer;
-	/* Hybrid Antenna Diversity */
-	u32	CCK_Ant1_Cnt[ODM_ASSOCIATE_ENTRY_NUM];
-	u32	CCK_Ant2_Cnt[ODM_ASSOCIATE_ENTRY_NUM];
-	u32	OFDM_Ant1_Cnt[ODM_ASSOCIATE_ENTRY_NUM];
-	u32	OFDM_Ant2_Cnt[ODM_ASSOCIATE_ENTRY_NUM];
-	u32	RSSI_Ant1_Sum[ODM_ASSOCIATE_ENTRY_NUM];
-	u32	RSSI_Ant2_Sum[ODM_ASSOCIATE_ENTRY_NUM];
 	u8	TxAnt[ODM_ASSOCIATE_ENTRY_NUM];
 	u8	TargetSTA;
-	u8	antsel;
 	u8	RxIdleAnt;
 };
 
@@ -574,7 +558,6 @@ enum ant_div_type {
 	CGCS_RX_HW_ANTDIV		= 0x02,
 	FIXED_HW_ANTDIV			= 0x03,
 	CG_TRX_SMART_ANTDIV		= 0x04,
-	CGCS_RX_SW_ANTDIV		= 0x05,
 };
 
 /* Copy from SD4 defined structure. We use to support PHY DM integration. */
