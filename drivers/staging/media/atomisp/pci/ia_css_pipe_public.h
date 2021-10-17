@@ -123,9 +123,6 @@ struct ia_css_pipe_config {
 	     processing stages. */
 
 /* ISP2401 */
-	bool enable_luma_only;
-	/** Enabling of monochrome mode for a pipeline. If enabled only luma processing
-	     will be done. */
 	bool enable_tnr;
 	/** Enabling of TNR (temporal noise reduction). This is only applicable to video
 	     pipes. Non video-pipes should always set this parameter to false. */
