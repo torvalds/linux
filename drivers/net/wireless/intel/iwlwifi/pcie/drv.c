@@ -1322,6 +1322,24 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	trans_pcie = IWL_TRANS_GET_PCIE_TRANS(iwl_trans);
 
+	/*
+	 * Let's try to grab NIC access early here. Sometimes, NICs may
+	 * fail to initialize, and if that happens it's better if we see
+	 * issues early on (and can reprobe, per the logic inside), than
+	 * first trying to load the firmware etc. and potentially only
+	 * detecting any problems when the first interface is brought up.
+	 */
+	ret = iwl_finish_nic_init(iwl_trans);
+	if (ret)
+		goto out_free_trans;
+	if (iwl_trans_grab_nic_access(iwl_trans)) {
+		/* all good */
+		iwl_trans_release_nic_access(iwl_trans);
+	} else {
+		ret = -EIO;
+		goto out_free_trans;
+	}
+
 	iwl_trans->hw_rf_id = iwl_read32(iwl_trans, CSR_HW_RF_ID);
 
 	/*
