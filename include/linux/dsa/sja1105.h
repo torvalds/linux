@@ -48,6 +48,10 @@ struct sja1105_tagger_data {
 	spinlock_t meta_lock;
 	unsigned long state;
 	u8 ts_id;
+	/* Used on SJA1110 where meta frames are generated only for
+	 * 2-step TX timestamps
+	 */
+	struct sk_buff_head skb_txtstamp_queue;
 };
 
 struct sja1105_skb_cb {
@@ -69,42 +73,24 @@ struct sja1105_port {
 	bool hwts_tx_en;
 };
 
-enum sja1110_meta_tstamp {
-	SJA1110_META_TSTAMP_TX = 0,
-	SJA1110_META_TSTAMP_RX = 1,
-};
+/* Timestamps are in units of 8 ns clock ticks (equivalent to
+ * a fixed 125 MHz clock).
+ */
+#define SJA1105_TICK_NS			8
 
-#if IS_ENABLED(CONFIG_NET_DSA_SJA1105_PTP)
-
-void sja1110_process_meta_tstamp(struct dsa_switch *ds, int port, u8 ts_id,
-				 enum sja1110_meta_tstamp dir, u64 tstamp);
-
-#else
-
-static inline void sja1110_process_meta_tstamp(struct dsa_switch *ds, int port,
-					       u8 ts_id, enum sja1110_meta_tstamp dir,
-					       u64 tstamp)
+static inline s64 ns_to_sja1105_ticks(s64 ns)
 {
+	return ns / SJA1105_TICK_NS;
 }
 
-#endif /* IS_ENABLED(CONFIG_NET_DSA_SJA1105_PTP) */
-
-#if IS_ENABLED(CONFIG_NET_DSA_SJA1105)
-
-extern const struct dsa_switch_ops sja1105_switch_ops;
+static inline s64 sja1105_ticks_to_ns(s64 ticks)
+{
+	return ticks * SJA1105_TICK_NS;
+}
 
 static inline bool dsa_port_is_sja1105(struct dsa_port *dp)
 {
-	return dp->ds->ops == &sja1105_switch_ops;
+	return true;
 }
-
-#else
-
-static inline bool dsa_port_is_sja1105(struct dsa_port *dp)
-{
-	return false;
-}
-
-#endif
 
 #endif /* _NET_DSA_SJA1105_H */

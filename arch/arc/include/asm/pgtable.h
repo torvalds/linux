@@ -26,11 +26,6 @@ extern char empty_zero_page[PAGE_SIZE];
 
 extern pgd_t swapper_pg_dir[] __aligned(PAGE_SIZE);
 
-/* Macro to mark a page protection as uncacheable */
-#define pgprot_noncached(prot)	(__pgprot(pgprot_val(prot) & ~_PAGE_CACHEABLE))
-
-extern pgd_t swapper_pg_dir[] __aligned(PAGE_SIZE);
-
 /* to cope with aliasing VIPT cache */
 #define HAVE_ARCH_UNMAPPED_AREA
 
