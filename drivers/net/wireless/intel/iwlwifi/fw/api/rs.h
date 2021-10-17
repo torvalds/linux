@@ -303,6 +303,7 @@ enum {
 #define RATE_HT_MCS_RATE_CODE_MSK_V1	0x7
 #define RATE_HT_MCS_NSS_POS_V1          3
 #define RATE_HT_MCS_NSS_MSK_V1          (3 << RATE_HT_MCS_NSS_POS_V1)
+#define RATE_HT_MCS_MIMO2_MSK		BIT(RATE_HT_MCS_NSS_POS_V1)
 
 /* Bit 10: (1) Use Green Field preamble */
 #define RATE_HT_MCS_GF_POS		10
@@ -324,6 +325,7 @@ enum {
 #define RATE_VHT_MCS_RATE_CODE_MSK	0xf
 #define RATE_VHT_MCS_NSS_POS		4
 #define RATE_VHT_MCS_NSS_MSK		(3 << RATE_VHT_MCS_NSS_POS)
+#define RATE_VHT_MCS_MIMO2_MSK		BIT(RATE_VHT_MCS_NSS_POS)
 
 /*
  * Legacy OFDM rate format for bits 7:0
@@ -545,6 +547,7 @@ enum {
 #define RATE_MCS_HE_GI_LTF_MSK		(0x7 << RATE_MCS_HE_GI_LTF_POS)
 #define RATE_MCS_SGI_POS		RATE_MCS_HE_GI_LTF_POS
 #define RATE_MCS_SGI_MSK		(1 << RATE_MCS_SGI_POS)
+#define RATE_MCS_HE_SU_4_LTF		3
 
 /* Bit 24-23: HE type. (0) SU, (1) SU_EXT, (2) MU, (3) trigger based */
 #define RATE_MCS_HE_TYPE_POS		23
@@ -693,5 +696,9 @@ struct iwl_lq_cmd {
 	__le32 rs_table[LQ_MAX_RETRY_NUM];
 	__le32 ss_params;
 }; /* LINK_QUALITY_CMD_API_S_VER_1 */
+
+u8 iwl_fw_rate_idx_to_plcp(int idx);
+u32 iwl_new_rate_from_v1(u32 rate_v1);
+u32 iwl_legacy_rate_to_fw_idx(u32 rate_n_flags);
 
 #endif /* __iwl_fw_api_rs_h__ */
