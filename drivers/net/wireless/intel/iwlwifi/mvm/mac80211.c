@@ -3347,6 +3347,21 @@ static void iwl_mvm_mac_mgd_prepare_tx(struct ieee80211_hw *hw,
 	mutex_unlock(&mvm->mutex);
 }
 
+static void iwl_mvm_mac_mgd_complete_tx(struct ieee80211_hw *hw,
+					struct ieee80211_vif *vif,
+					struct ieee80211_prep_tx_info *info)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+
+	/* for successful cases (auth/assoc), don't cancel session protection */
+	if (info->success)
+		return;
+
+	mutex_lock(&mvm->mutex);
+	iwl_mvm_stop_session_protection(mvm, vif);
+	mutex_unlock(&mvm->mutex);
+}
+
 static int iwl_mvm_mac_sched_scan_start(struct ieee80211_hw *hw,
 					struct ieee80211_vif *vif,
 					struct cfg80211_sched_scan_request *req,
@@ -5347,6 +5362,7 @@ const struct ieee80211_ops iwl_mvm_hw_ops = {
 	.sta_rc_update = iwl_mvm_sta_rc_update,
 	.conf_tx = iwl_mvm_mac_conf_tx,
 	.mgd_prepare_tx = iwl_mvm_mac_mgd_prepare_tx,
+	.mgd_complete_tx = iwl_mvm_mac_mgd_complete_tx,
 	.mgd_protect_tdls_discover = iwl_mvm_mac_mgd_protect_tdls_discover,
 	.flush = iwl_mvm_mac_flush,
 	.sched_scan_start = iwl_mvm_mac_sched_scan_start,
