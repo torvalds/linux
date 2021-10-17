@@ -54,12 +54,12 @@
 
 static unsigned arch_timers_present __initdata;
 
-static void __iomem *arch_counter_base __ro_after_init;
-
 struct arch_timer {
 	void __iomem *base;
 	struct clock_event_device evt;
 };
+
+static struct arch_timer *arch_timer_mem __ro_after_init;
 
 #define to_arch_timer(e) container_of(e, struct arch_timer, evt)
 
@@ -973,9 +973,9 @@ static u64 arch_counter_get_cntvct_mem(void)
 	u32 vct_lo, vct_hi, tmp_hi;
 
 	do {
-		vct_hi = readl_relaxed(arch_counter_base + CNTVCT_HI);
-		vct_lo = readl_relaxed(arch_counter_base + CNTVCT_LO);
-		tmp_hi = readl_relaxed(arch_counter_base + CNTVCT_HI);
+		vct_hi = readl_relaxed(arch_timer_mem->base + CNTVCT_HI);
+		vct_lo = readl_relaxed(arch_timer_mem->base + CNTVCT_LO);
+		tmp_hi = readl_relaxed(arch_timer_mem->base + CNTVCT_HI);
 	} while (vct_hi != tmp_hi);
 
 	return ((u64) vct_hi << 32) | vct_lo;
@@ -1166,25 +1166,25 @@ static int __init arch_timer_mem_register(void __iomem *base, unsigned int irq)
 {
 	int ret;
 	irq_handler_t func;
-	struct arch_timer *t;
 
-	t = kzalloc(sizeof(*t), GFP_KERNEL);
-	if (!t)
+	arch_timer_mem = kzalloc(sizeof(*arch_timer_mem), GFP_KERNEL);
+	if (!arch_timer_mem)
 		return -ENOMEM;
 
-	t->base = base;
-	t->evt.irq = irq;
-	__arch_timer_setup(ARCH_TIMER_TYPE_MEM, &t->evt);
+	arch_timer_mem->base = base;
+	arch_timer_mem->evt.irq = irq;
+	__arch_timer_setup(ARCH_TIMER_TYPE_MEM, &arch_timer_mem->evt);
 
 	if (arch_timer_mem_use_virtual)
 		func = arch_timer_handler_virt_mem;
 	else
 		func = arch_timer_handler_phys_mem;
 
-	ret = request_irq(irq, func, IRQF_TIMER, "arch_mem_timer", &t->evt);
+	ret = request_irq(irq, func, IRQF_TIMER, "arch_mem_timer", &arch_timer_mem->evt);
 	if (ret) {
 		pr_err("Failed to request mem timer irq\n");
-		kfree(t);
+		kfree(arch_timer_mem);
+		arch_timer_mem = NULL;
 	}
 
 	return ret;
@@ -1442,7 +1442,6 @@ arch_timer_mem_frame_register(struct arch_timer_mem_frame *frame)
 		return ret;
 	}
 
-	arch_counter_base = base;
 	arch_timers_present |= ARCH_TIMER_TYPE_MEM;
 
 	return 0;
