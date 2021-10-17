@@ -6,12 +6,11 @@
 #include <net/mac80211.h>
 #include "fw/api/rs.h"
 #include "iwl-drv.h"
+#include "iwl-config.h"
 
 #define IWL_DECLARE_RATE_INFO(r) \
 	[IWL_RATE_##r##M_INDEX] = IWL_RATE_##r##M_PLCP
 
-u8 iwl_fw_rate_idx_to_plcp(int idx)
-{
 /*
  * Translate from fw_rate_index (IWL_RATE_XXM_INDEX) to PLCP
  * */
@@ -30,9 +29,67 @@ static const u8 fw_rate_idx_to_plcp[IWL_RATE_COUNT] = {
 	IWL_DECLARE_RATE_INFO(54),
 };
 
+/* mbps, mcs */
+static const struct iwl_rate_mcs_info rate_mcs[IWL_RATE_COUNT] = {
+	{  "1", "BPSK DSSS"},
+	{  "2", "QPSK DSSS"},
+	{"5.5", "BPSK CCK"},
+	{ "11", "QPSK CCK"},
+	{  "6", "BPSK 1/2"},
+	{  "9", "BPSK 1/2"},
+	{ "12", "QPSK 1/2"},
+	{ "18", "QPSK 3/4"},
+	{ "24", "16QAM 1/2"},
+	{ "36", "16QAM 3/4"},
+	{ "48", "64QAM 2/3"},
+	{ "54", "64QAM 3/4"},
+	{ "60", "64QAM 5/6"},
+};
+
+static const char * const ant_name[] = {
+	[ANT_NONE] = "None",
+	[ANT_A]    = "A",
+	[ANT_B]    = "B",
+	[ANT_AB]   = "AB",
+};
+
+static const char * const pretty_bw[] = {
+	"20Mhz",
+	"40Mhz",
+	"80Mhz",
+	"160 Mhz",
+	"320Mhz",
+};
+
+u8 iwl_fw_rate_idx_to_plcp(int idx)
+{
 	return fw_rate_idx_to_plcp[idx];
 }
 IWL_EXPORT_SYMBOL(iwl_fw_rate_idx_to_plcp);
+
+const struct iwl_rate_mcs_info *iwl_rate_mcs(int idx)
+{
+	return &rate_mcs[idx];
+}
+IWL_EXPORT_SYMBOL(iwl_rate_mcs);
+
+const char *iwl_rs_pretty_ant(u8 ant)
+{
+	if (ant >= ARRAY_SIZE(ant_name))
+		return "UNKNOWN";
+
+	return ant_name[ant];
+}
+IWL_EXPORT_SYMBOL(iwl_rs_pretty_ant);
+
+const char *iwl_rs_pretty_bw(int bw)
+{
+	if (bw >= ARRAY_SIZE(pretty_bw))
+		return "unknown bw";
+
+	return pretty_bw[bw];
+}
+IWL_EXPORT_SYMBOL(iwl_rs_pretty_bw);
 
 u32 iwl_new_rate_from_v1(u32 rate_v1)
 {
@@ -128,4 +185,68 @@ u32 iwl_legacy_rate_to_fw_idx(u32 rate_n_flags)
 			return idx - offset;
 	return -1;
 }
+
+int rs_pretty_print_rate(char *buf, int bufsz, const u32 rate)
+{
+	char *type;
+	u8 mcs = 0, nss = 0;
+	u8 ant = (rate & RATE_MCS_ANT_AB_MSK) >> RATE_MCS_ANT_POS;
+	u32 bw = (rate & RATE_MCS_CHAN_WIDTH_MSK) >>
+		RATE_MCS_CHAN_WIDTH_POS;
+	u32 format = rate & RATE_MCS_MOD_TYPE_MSK;
+	bool sgi;
+
+	if (format == RATE_MCS_CCK_MSK ||
+	    format == RATE_MCS_LEGACY_OFDM_MSK) {
+		int legacy_rate = rate & RATE_LEGACY_RATE_MSK;
+		int index = format == RATE_MCS_CCK_MSK ?
+			legacy_rate :
+			legacy_rate + IWL_FIRST_OFDM_RATE;
+
+		return scnprintf(buf, bufsz, "Legacy | ANT: %s Rate: %s Mbps",
+				 iwl_rs_pretty_ant(ant),
+				 index == IWL_RATE_INVALID ? "BAD" :
+				 iwl_rate_mcs(index)->mbps);
+	}
+
+	if (format ==  RATE_MCS_VHT_MSK)
+		type = "VHT";
+	else if (format ==  RATE_MCS_HT_MSK)
+		type = "HT";
+	else if (format == RATE_MCS_HE_MSK)
+		type = "HE";
+	else
+		type = "Unknown"; /* shouldn't happen */
+
+	mcs = format == RATE_MCS_HT_MSK ?
+		RATE_HT_MCS_INDEX(rate) :
+		rate & RATE_MCS_CODE_MSK;
+	nss = ((rate & RATE_MCS_NSS_MSK)
+	       >> RATE_MCS_NSS_POS) + 1;
+	sgi = format == RATE_MCS_HE_MSK ?
+		iwl_he_is_sgi(rate) :
+		rate & RATE_MCS_SGI_MSK;
+
+	return scnprintf(buf, bufsz,
+			 "0x%x: %s | ANT: %s BW: %s MCS: %d NSS: %d %s%s%s%s%s",
+			 rate, type, iwl_rs_pretty_ant(ant), iwl_rs_pretty_bw(bw), mcs, nss,
+			 (sgi) ? "SGI " : "NGI ",
+			 (rate & RATE_MCS_STBC_MSK) ? "STBC " : "",
+			 (rate & RATE_MCS_LDPC_MSK) ? "LDPC " : "",
+			 (rate & RATE_HE_DUAL_CARRIER_MODE_MSK) ? "DCM " : "",
+			 (rate & RATE_MCS_BF_MSK) ? "BF " : "");
+}
+IWL_EXPORT_SYMBOL(rs_pretty_print_rate);
+
+bool iwl_he_is_sgi(u32 rate_n_flags)
+{
+	u32 type = rate_n_flags & RATE_MCS_HE_TYPE_MSK;
+	u32 ltf_gi = rate_n_flags & RATE_MCS_HE_GI_LTF_MSK;
+
+	if (type == RATE_MCS_HE_TYPE_SU ||
+	    type == RATE_MCS_HE_TYPE_EXT_SU)
+		return ltf_gi == RATE_MCS_HE_SU_4_LTF_08_GI;
+	return false;
+}
+IWL_EXPORT_SYMBOL(iwl_he_is_sgi);
 

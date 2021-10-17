@@ -985,8 +985,8 @@ static ssize_t iwl_dbgfs_frame_stats_read(struct iwl_mvm *mvm,
 			continue;
 		pos += scnprintf(pos, endpos - pos, "Rate[%d]: ",
 				 (int)(ARRAY_SIZE(stats->last_rates) - i));
-		pos += rs_pretty_print_rate(pos, endpos - pos,
-					    stats->last_rates[idx]);
+		pos += rs_pretty_print_rate_v1(pos, endpos - pos,
+					       stats->last_rates[idx]);
 		if (pos < endpos - 1)
 			*pos++ = '\n';
 	}

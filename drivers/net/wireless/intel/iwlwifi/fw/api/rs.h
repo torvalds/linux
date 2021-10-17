@@ -184,6 +184,14 @@ struct iwl_tlc_update_notif {
 	__le32 amsdu_enabled;
 } __packed; /* TLC_MNG_UPDATE_NTFY_API_S_VER_2 */
 
+
+#define IWL_MAX_MCS_DISPLAY_SIZE        12
+
+struct iwl_rate_mcs_info {
+	char    mbps[IWL_MAX_MCS_DISPLAY_SIZE];
+	char    mcs[IWL_MAX_MCS_DISPLAY_SIZE];
+};
+
 /*
  * These serve as indexes into
  * struct iwl_rate_info fw_rate_idx_to_plcp[IWL_RATE_COUNT];
@@ -226,6 +234,8 @@ enum {
 	IWL_LAST_HE_RATE = IWL_RATE_MCS_11_INDEX,
 	IWL_RATE_COUNT_LEGACY = IWL_LAST_NON_HT_RATE + 1,
 	IWL_RATE_COUNT = IWL_LAST_HE_RATE + 1,
+	IWL_RATE_INVM_INDEX = IWL_RATE_COUNT,
+	IWL_RATE_INVALID = IWL_RATE_COUNT,
 };
 
 #define IWL_RATE_BIT_MSK(r) BIT(IWL_RATE_##r##M_INDEX)
@@ -548,6 +558,7 @@ enum {
 #define RATE_MCS_SGI_POS		RATE_MCS_HE_GI_LTF_POS
 #define RATE_MCS_SGI_MSK		(1 << RATE_MCS_SGI_POS)
 #define RATE_MCS_HE_SU_4_LTF		3
+#define RATE_MCS_HE_SU_4_LTF_08_GI	4
 
 /* Bit 24-23: HE type. (0) SU, (1) SU_EXT, (2) MU, (3) trigger based */
 #define RATE_MCS_HE_TYPE_POS		23
@@ -700,5 +711,10 @@ struct iwl_lq_cmd {
 u8 iwl_fw_rate_idx_to_plcp(int idx);
 u32 iwl_new_rate_from_v1(u32 rate_v1);
 u32 iwl_legacy_rate_to_fw_idx(u32 rate_n_flags);
+const struct iwl_rate_mcs_info *iwl_rate_mcs(int idx);
+const char *iwl_rs_pretty_ant(u8 ant);
+const char *iwl_rs_pretty_bw(int bw);
+int rs_pretty_print_rate(char *buf, int bufsz, const u32 rate);
+bool iwl_he_is_sgi(u32 rate_n_flags);
 
 #endif /* __iwl_fw_api_rs_h__ */

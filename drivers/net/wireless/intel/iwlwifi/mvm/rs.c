@@ -454,39 +454,7 @@ static const u16 expected_tpt_mimo2_160MHz[4][IWL_RATE_COUNT] = {
 	{0, 0, 0, 0, 971, 0, 1925, 2861, 3779, 5574, 7304, 8147, 8976, 10592, 11640},
 };
 
-/* mbps, mcs */
-static const struct iwl_rate_mcs_info iwl_rate_mcs[IWL_RATE_COUNT] = {
-	{  "1", "BPSK DSSS"},
-	{  "2", "QPSK DSSS"},
-	{"5.5", "BPSK CCK"},
-	{ "11", "QPSK CCK"},
-	{  "6", "BPSK 1/2"},
-	{  "9", "BPSK 1/2"},
-	{ "12", "QPSK 1/2"},
-	{ "18", "QPSK 3/4"},
-	{ "24", "16QAM 1/2"},
-	{ "36", "16QAM 3/4"},
-	{ "48", "64QAM 2/3"},
-	{ "54", "64QAM 3/4"},
-	{ "60", "64QAM 5/6"},
-};
-
 #define MCS_INDEX_PER_STREAM	(8)
-
-static const char *rs_pretty_ant(u8 ant)
-{
-	static const char * const ant_name[] = {
-		[ANT_NONE] = "None",
-		[ANT_A]    = "A",
-		[ANT_B]    = "B",
-		[ANT_AB]   = "AB",
-	};
-
-	if (ant > ANT_AB)
-		return "UNKNOWN";
-
-	return ant_name[ant];
-}
 
 static const char *rs_pretty_lq_type(enum iwl_table_type type)
 {
@@ -549,7 +517,7 @@ static char *rs_pretty_rate(const struct rs_rate *rate)
 		rate_str = "BAD_RATE";
 
 	sprintf(buf, "(%s|%s|%s)", rs_pretty_lq_type(rate->type),
-		rs_pretty_ant(rate->ant), rate_str);
+		iwl_rs_pretty_ant(rate->ant), rate_str);
 	return buf;
 }
 
@@ -2539,7 +2507,7 @@ static void rs_get_initial_rate(struct iwl_mvm *mvm,
 	}
 
 	IWL_DEBUG_RATE(mvm, "Best ANT: %s Best RSSI: %d\n",
-		       rs_pretty_ant(best_ant), best_rssi);
+		       iwl_rs_pretty_ant(best_ant), best_rssi);
 
 	if (best_ant != ANT_A && best_ant != ANT_B)
 		rate->ant = first_antenna(valid_tx_ant);
@@ -3674,12 +3642,14 @@ static void rs_free_sta(void *mvm_r, struct ieee80211_sta *sta, void *mvm_sta)
 	IWL_DEBUG_RATE(mvm, "leave\n");
 }
 
-int rs_pretty_print_rate(char *buf, int bufsz, const u32 rate)
+int rs_pretty_print_rate_v1(char *buf, int bufsz, const u32 rate)
 {
 
-	char *type, *bw;
+	char *type;
 	u8 mcs = 0, nss = 0;
 	u8 ant = (rate & RATE_MCS_ANT_AB_MSK) >> RATE_MCS_ANT_POS;
+	u32 bw = (rate & RATE_MCS_CHAN_WIDTH_MSK_V1) >>
+		RATE_MCS_CHAN_WIDTH_POS;
 
 	if (!(rate & RATE_MCS_HT_MSK_V1) &&
 	    !(rate & RATE_MCS_VHT_MSK_V1) &&
@@ -3687,9 +3657,9 @@ int rs_pretty_print_rate(char *buf, int bufsz, const u32 rate)
 		int index = iwl_hwrate_to_plcp_idx(rate);
 
 		return scnprintf(buf, bufsz, "Legacy | ANT: %s Rate: %s Mbps",
-				 rs_pretty_ant(ant),
+				 iwl_rs_pretty_ant(ant),
 				 index == IWL_RATE_INVALID ? "BAD" :
-				 iwl_rate_mcs[index].mbps);
+				 iwl_rate_mcs(index)->mbps);
 	}
 
 	if (rate & RATE_MCS_VHT_MSK_V1) {
@@ -3711,26 +3681,9 @@ int rs_pretty_print_rate(char *buf, int bufsz, const u32 rate)
 		type = "Unknown"; /* shouldn't happen */
 	}
 
-	switch (rate & RATE_MCS_CHAN_WIDTH_MSK_V1) {
-	case RATE_MCS_CHAN_WIDTH_20:
-		bw = "20Mhz";
-		break;
-	case RATE_MCS_CHAN_WIDTH_40:
-		bw = "40Mhz";
-		break;
-	case RATE_MCS_CHAN_WIDTH_80:
-		bw = "80Mhz";
-		break;
-	case RATE_MCS_CHAN_WIDTH_160:
-		bw = "160Mhz";
-		break;
-	default:
-		bw = "BAD BW";
-	}
-
 	return scnprintf(buf, bufsz,
 			 "0x%x: %s | ANT: %s BW: %s MCS: %d NSS: %d %s%s%s%s%s",
-			 rate, type, rs_pretty_ant(ant), bw, mcs, nss,
+			 rate, type, iwl_rs_pretty_ant(ant), iwl_rs_pretty_bw(bw), mcs, nss,
 			 (rate & RATE_MCS_SGI_MSK_V1) ? "SGI " : "NGI ",
 			 (rate & RATE_MCS_STBC_MSK) ? "STBC " : "",
 			 (rate & RATE_MCS_LDPC_MSK_V1) ? "LDPC " : "",
@@ -3876,7 +3829,7 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 
 		desc += scnprintf(buff + desc, bufsz - desc,
 				  " rate[%d] 0x%X ", i, r);
-		desc += rs_pretty_print_rate(buff + desc, bufsz - desc, r);
+		desc += rs_pretty_print_rate_v1(buff + desc, bufsz - desc, r);
 		if (desc < bufsz - 1)
 			buff[desc++] = '\n';
 	}
