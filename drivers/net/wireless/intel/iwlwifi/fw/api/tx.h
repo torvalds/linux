@@ -593,7 +593,8 @@ struct iwl_mvm_tx_resp {
 	__le16 tx_queue;
 	__le16 reserved2;
 	struct agg_tx_status status;
-} __packed; /* TX_RSP_API_S_VER_6 */
+} __packed; /* TX_RSP_API_S_VER_6,
+	       TX_RSP_API_S_VER_7 */
 
 /**
  * struct iwl_mvm_ba_notif - notifies about reception of BA
@@ -717,7 +718,8 @@ struct iwl_mvm_compressed_ba_notif {
 	__le16 ra_tid_cnt;
 	struct iwl_mvm_compressed_ba_ratid ra_tid[0];
 	struct iwl_mvm_compressed_ba_tfd tfd[];
-} __packed; /* COMPRESSED_BA_RES_API_S_VER_4 */
+} __packed; /* COMPRESSED_BA_RES_API_S_VER_4,
+	       COMPRESSED_BA_RES_API_S_VER_5 */
 
 /**
  * struct iwl_mac_beacon_cmd_v6 - beacon template command

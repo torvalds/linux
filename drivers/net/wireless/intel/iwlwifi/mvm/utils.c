@@ -135,6 +135,21 @@ int iwl_mvm_send_cmd_pdu_status(struct iwl_mvm *mvm, u32 id, u16 len,
 	return iwl_mvm_send_cmd_status(mvm, &cmd, status);
 }
 
+int iwl_mvm_legacy_hw_idx_to_mac80211_idx(u32 rate_n_flags,
+					  enum nl80211_band band)
+{
+	int format = rate_n_flags & RATE_MCS_MOD_TYPE_MSK;
+	int rate = rate_n_flags & RATE_LEGACY_RATE_MSK;
+	bool is_LB = band == NL80211_BAND_2GHZ;
+
+	if (format == RATE_MCS_LEGACY_OFDM_MSK)
+		return is_LB ? rate + IWL_FIRST_OFDM_RATE :
+			rate;
+
+	/* CCK is not allowed in HB */
+	return is_LB ? rate : -1;
+}
+
 int iwl_mvm_legacy_rate_to_mac80211_idx(u32 rate_n_flags,
 					enum nl80211_band band)
 {
