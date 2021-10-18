@@ -97,6 +97,10 @@ patternProperties:
 
           managed: true
 
+          rx-internal-delay-ps: true
+
+          tx-internal-delay-ps: true
+
         required:
           - reg
 
