@@ -5,6 +5,9 @@
  * Copyright (C) 2015 Eric Biggers
  */
 
+#ifndef _LINUX_NTFS3_LIB_DECOMPRESS_COMMON_H
+#define _LINUX_NTFS3_LIB_DECOMPRESS_COMMON_H
+
 #include <linux/string.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
@@ -336,3 +339,5 @@ static forceinline u8 *lz_copy(u8 *dst, u32 length, u32 offset, const u8 *bufend
 
 	return dst;
 }
+
+#endif /* _LINUX_NTFS3_LIB_DECOMPRESS_COMMON_H */

@@ -9,6 +9,37 @@
 #ifndef _LINUX_NTFS3_NTFS_FS_H
 #define _LINUX_NTFS3_NTFS_FS_H
 
+#include <linux/blkdev.h>
+#include <linux/buffer_head.h>
+#include <linux/cleancache.h>
+#include <linux/fs.h>
+#include <linux/highmem.h>
+#include <linux/kernel.h>
+#include <linux/mm.h>
+#include <linux/mutex.h>
+#include <linux/page-flags.h>
+#include <linux/pagemap.h>
+#include <linux/rbtree.h>
+#include <linux/rwsem.h>
+#include <linux/slab.h>
+#include <linux/string.h>
+#include <linux/time64.h>
+#include <linux/types.h>
+#include <linux/uidgid.h>
+#include <asm/div64.h>
+#include <asm/page.h>
+
+#include "debug.h"
+#include "ntfs.h"
+
+struct dentry;
+struct fiemap_extent_info;
+struct user_namespace;
+struct page;
+struct writeback_control;
+enum utf16_endian;
+
+
 #define MINUS_ONE_T			((size_t)(-1))
 /* Biggest MFT / smallest cluster */
 #define MAXIMUM_BYTES_PER_MFT		4096
@@ -52,6 +83,7 @@
 // clang-format on
 
 struct ntfs_mount_options {
+	char *nls_name;
 	struct nls_table *nls;
 
 	kuid_t fs_uid;
@@ -59,19 +91,16 @@ struct ntfs_mount_options {
 	u16 fs_fmask_inv;
 	u16 fs_dmask_inv;
 
-	unsigned uid : 1, /* uid was set. */
-		gid : 1, /* gid was set. */
-		fmask : 1, /* fmask was set. */
-		dmask : 1, /* dmask was set. */
-		sys_immutable : 1, /* Immutable system files. */
-		discard : 1, /* Issue discard requests on deletions. */
-		sparse : 1, /* Create sparse files. */
-		showmeta : 1, /* Show meta files. */
-		nohidden : 1, /* Do not show hidden files. */
-		force : 1, /* Rw mount dirty volume. */
-		no_acs_rules : 1, /*Exclude acs rules. */
-		prealloc : 1 /* Preallocate space when file is growing. */
-		;
+	unsigned fmask : 1; /* fmask was set. */
+	unsigned dmask : 1; /*dmask was set. */
+	unsigned sys_immutable : 1; /* Immutable system files. */
+	unsigned discard : 1; /* Issue discard requests on deletions. */
+	unsigned sparse : 1; /* Create sparse files. */
+	unsigned showmeta : 1; /* Show meta files. */
+	unsigned nohidden : 1; /* Do not show hidden files. */
+	unsigned force : 1; /* RW mount dirty volume. */
+	unsigned noacsrules : 1; /* Exclude acs rules. */
+	unsigned prealloc : 1; /* Preallocate space when file is growing. */
 };
 
 /* Special value to unpack and deallocate. */
@@ -182,10 +211,8 @@ struct ntfs_sb_info {
 	u32 blocks_per_cluster; // cluster_size / sb->s_blocksize
 
 	u32 record_size;
-	u32 sector_size;
 	u32 index_size;
 
-	u8 sector_bits;
 	u8 cluster_bits;
 	u8 record_bits;
 
@@ -279,7 +306,7 @@ struct ntfs_sb_info {
 #endif
 	} compress;
 
-	struct ntfs_mount_options options;
+	struct ntfs_mount_options *options;
 	struct ratelimit_state msg_ratelimit;
 };
 
@@ -436,7 +463,7 @@ bool al_remove_le(struct ntfs_inode *ni, struct ATTR_LIST_ENTRY *le);
 bool al_delete_le(struct ntfs_inode *ni, enum ATTR_TYPE type, CLST vcn,
 		  const __le16 *name, size_t name_len,
 		  const struct MFT_REF *ref);
-int al_update(struct ntfs_inode *ni);
+int al_update(struct ntfs_inode *ni, int sync);
 static inline size_t al_aligned(size_t size)
 {
 	return (size + 1023) & ~(size_t)1023;
@@ -448,7 +475,7 @@ bool are_bits_set(const ulong *map, size_t bit, size_t nbits);
 size_t get_set_bits_ex(const ulong *map, size_t bit, size_t nbits);
 
 /* Globals from dir.c */
-int ntfs_utf16_to_nls(struct ntfs_sb_info *sbi, const struct le_str *uni,
+int ntfs_utf16_to_nls(struct ntfs_sb_info *sbi, const __le16 *name, u32 len,
 		      u8 *buf, int buf_len);
 int ntfs_nls_to_utf16(struct ntfs_sb_info *sbi, const u8 *name, u32 name_len,
 		      struct cpu_str *uni, u32 max_ulen,
@@ -520,7 +547,7 @@ struct ATTR_FILE_NAME *ni_fname_type(struct ntfs_inode *ni, u8 name_type,
 				     struct ATTR_LIST_ENTRY **entry);
 int ni_new_attr_flags(struct ntfs_inode *ni, enum FILE_ATTRIBUTE new_fa);
 enum REPARSE_SIGN ni_parse_reparse(struct ntfs_inode *ni, struct ATTRIB *attr,
-				   void *buffer);
+				   struct REPARSE_DATA_BUFFER *buffer);
 int ni_write_inode(struct inode *inode, int sync, const char *hint);
 #define _ni_write_inode(i, w) ni_write_inode(i, w, __func__)
 int ni_fiemap(struct ntfs_inode *ni, struct fiemap_extent_info *fieinfo,
@@ -577,7 +604,7 @@ int ntfs_sb_read(struct super_block *sb, u64 lbo, size_t bytes, void *buffer);
 int ntfs_sb_write(struct super_block *sb, u64 lbo, size_t bytes,
 		  const void *buffer, int wait);
 int ntfs_sb_write_run(struct ntfs_sb_info *sbi, const struct runs_tree *run,
-		      u64 vbo, const void *buf, size_t bytes);
+		      u64 vbo, const void *buf, size_t bytes, int sync);
 struct buffer_head *ntfs_bread_run(struct ntfs_sb_info *sbi,
 				   const struct runs_tree *run, u64 vbo);
 int ntfs_read_run_nb(struct ntfs_sb_info *sbi, const struct runs_tree *run,

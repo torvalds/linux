@@ -50,6 +50,11 @@ static int __hw_addr_add_ex(struct netdev_hw_addr_list *list,
 	if (addr_len > MAX_ADDR_LEN)
 		return -EINVAL;
 
+	ha = list_first_entry(&list->list, struct netdev_hw_addr, list);
+	if (ha && !memcmp(addr, ha->addr, addr_len) &&
+	    (!addr_type || addr_type == ha->type))
+		goto found_it;
+
 	while (*ins_point) {
 		int diff;
 
@@ -64,6 +69,7 @@ static int __hw_addr_add_ex(struct netdev_hw_addr_list *list,
 		} else if (diff > 0) {
 			ins_point = &parent->rb_right;
 		} else {
+found_it:
 			if (exclusive)
 				return -EEXIST;
 			if (global) {

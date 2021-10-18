@@ -545,7 +545,6 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm)
 		(svm->nested.ctl.int_ctl & int_ctl_vmcb12_bits) |
 		(svm->vmcb01.ptr->control.int_ctl & int_ctl_vmcb01_bits);
 
-	svm->vmcb->control.virt_ext            = svm->nested.ctl.virt_ext;
 	svm->vmcb->control.int_vector          = svm->nested.ctl.int_vector;
 	svm->vmcb->control.int_state           = svm->nested.ctl.int_state;
 	svm->vmcb->control.event_inj           = svm->nested.ctl.event_inj;
@@ -579,7 +578,7 @@ static void nested_svm_copy_common_state(struct vmcb *from_vmcb, struct vmcb *to
 }
 
 int enter_svm_guest_mode(struct kvm_vcpu *vcpu, u64 vmcb12_gpa,
-			 struct vmcb *vmcb12)
+			 struct vmcb *vmcb12, bool from_vmrun)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	int ret;
@@ -609,12 +608,15 @@ int enter_svm_guest_mode(struct kvm_vcpu *vcpu, u64 vmcb12_gpa,
 	nested_vmcb02_prepare_save(svm, vmcb12);
 
 	ret = nested_svm_load_cr3(&svm->vcpu, vmcb12->save.cr3,
-				  nested_npt_enabled(svm), true);
+				  nested_npt_enabled(svm), from_vmrun);
 	if (ret)
 		return ret;
 
 	if (!npt_enabled)
 		vcpu->arch.mmu->inject_page_fault = svm_inject_page_fault_nested;
+
+	if (!from_vmrun)
+		kvm_make_request(KVM_REQ_GET_NESTED_STATE_PAGES, vcpu);
 
 	svm_set_gif(svm, true);
 
@@ -681,7 +683,7 @@ int nested_svm_vmrun(struct kvm_vcpu *vcpu)
 
 	svm->nested.nested_run_pending = 1;
 
-	if (enter_svm_guest_mode(vcpu, vmcb12_gpa, vmcb12))
+	if (enter_svm_guest_mode(vcpu, vmcb12_gpa, vmcb12, true))
 		goto out_exit_err;
 
 	if (nested_svm_vmrun_msrpm(svm))
