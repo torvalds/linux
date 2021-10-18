@@ -104,9 +104,9 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 				SURVEY_INFO_TIME_RX |
 				SURVEY_INFO_TIME_BSS_RX,
 		.token_size = MT7921_TOKEN_SIZE,
-		.tx_prepare_skb = mt7921_tx_prepare_skb,
-		.tx_complete_skb = mt7921_tx_complete_skb,
-		.rx_skb = mt7921_queue_rx_skb,
+		.tx_prepare_skb = mt7921e_tx_prepare_skb,
+		.tx_complete_skb = mt7921e_tx_complete_skb,
+		.rx_skb = mt7921e_queue_rx_skb,
 		.rx_poll_complete = mt7921_rx_poll_complete,
 		.sta_ps = mt7921_sta_ps,
 		.sta_add = mt7921_mac_sta_add,
@@ -114,6 +114,11 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 		.sta_remove = mt7921_mac_sta_remove,
 		.update_survey = mt7921_update_channel,
 	};
+
+	static const struct mt7921_hif_ops mt7921_pcie_ops = {
+		.reset = mt7921e_mac_reset,
+	};
+
 	struct mt7921_dev *dev;
 	struct mt76_dev *mdev;
 	int ret;
@@ -147,6 +152,7 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 	}
 
 	dev = container_of(mdev, struct mt7921_dev, mt76);
+	dev->hif_ops = &mt7921_pcie_ops;
 
 	mt76_mmio_init(&dev->mt76, pcim_iomap_table(pdev)[0]);
 	tasklet_init(&dev->irq_tasklet, mt7921_irq_tasklet, (unsigned long)dev);

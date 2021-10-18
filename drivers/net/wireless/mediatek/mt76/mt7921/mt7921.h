@@ -133,6 +133,11 @@ struct mt7921_phy {
 	struct delayed_work scan_work;
 };
 
+#define mt7921_dev_reset(dev)	((dev)->hif_ops->reset(dev))
+struct mt7921_hif_ops {
+	int (*reset)(struct mt7921_dev *dev);
+};
+
 struct mt7921_dev {
 	union { /* must be first */
 		struct mt76_dev mt76;
@@ -156,6 +161,7 @@ struct mt7921_dev {
 
 	struct mt76_connac_pm pm;
 	struct mt76_connac_coredump coredump;
+	const struct mt7921_hif_ops *hif_ops;
 };
 
 enum {
@@ -325,13 +331,13 @@ void mt7921_mac_reset_work(struct work_struct *work);
 void mt7921_mac_update_mib_stats(struct mt7921_phy *phy);
 void mt7921_reset(struct mt76_dev *mdev);
 void mt7921_tx_cleanup(struct mt7921_dev *dev);
-int mt7921_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
-			  enum mt76_txq_id qid, struct mt76_wcid *wcid,
-			  struct ieee80211_sta *sta,
-			  struct mt76_tx_info *tx_info);
+int mt7921e_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+			   enum mt76_txq_id qid, struct mt76_wcid *wcid,
+			   struct ieee80211_sta *sta,
+			   struct mt76_tx_info *tx_info);
 
 void mt7921_tx_worker(struct mt76_worker *w);
-void mt7921_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e);
+void mt7921e_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e);
 int mt7921_init_tx_queues(struct mt7921_phy *phy, int idx, int n_desc);
 void mt7921_tx_token_put(struct mt7921_dev *dev);
 void mt7921_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
@@ -366,4 +372,13 @@ int mt7921_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			void *data, int len);
 int mt7921_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *msg,
 			 struct netlink_callback *cb, void *data, int len);
+void mt7921_mac_write_txwi(struct mt7921_dev *dev, __le32 *txwi,
+			   struct sk_buff *skb, struct mt76_wcid *wcid,
+			   struct ieee80211_key_conf *key, int pid,
+			   bool beacon);
+void mt7921_tx_check_aggr(struct ieee80211_sta *sta, __le32 *txwi);
+void mt7921_mac_sta_poll(struct mt7921_dev *dev);
+void mt7921e_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
+			  struct sk_buff *skb);
+int mt7921e_mac_reset(struct mt7921_dev *dev);
 #endif
