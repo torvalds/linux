@@ -1922,6 +1922,17 @@ static int eb_move_to_gpu(struct i915_execbuffer *eb)
 		 *   !(obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_READ)
 		 * but gcc's optimiser doesn't handle that as well and emits
 		 * two jumps instead of one. Maybe one day...
+		 *
+		 * FIXME: There is also sync flushing in set_pages(), which
+		 * serves a different purpose(some of the time at least).
+		 *
+		 * We should consider:
+		 *
+		 *   1. Rip out the async flush code.
+		 *
+		 *   2. Or make the sync flushing use the async clflush path
+		 *   using mandatory fences underneath. Currently the below
+		 *   async flush happens after we bind the object.
 		 */
 		if (unlikely(obj->cache_dirty & ~obj->cache_coherent)) {
 			if (i915_gem_clflush_object(obj, 0))
