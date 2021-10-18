@@ -377,18 +377,11 @@ static ssize_t bpmp_debug_store(struct file *file, const char __user *buf,
 	if (!filename)
 		return -ENOENT;
 
-	databuf = kmalloc(count, GFP_KERNEL);
-	if (!databuf)
-		return -ENOMEM;
-
-	if (copy_from_user(databuf, buf, count)) {
-		err = -EFAULT;
-		goto free_ret;
-	}
+	databuf = memdup_user(buf, count);
+	if (IS_ERR(databuf))
+		return PTR_ERR(databuf);
 
 	err = mrq_debug_write(bpmp, filename, databuf, count);
-
-free_ret:
 	kfree(databuf);
 
 	return err ?: count;
