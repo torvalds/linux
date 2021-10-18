@@ -2,7 +2,6 @@
 /* Copyright 2019 NXP
  */
 #include <linux/dsa/ocelot.h>
-#include <soc/mscc/ocelot.h>
 #include "dsa_priv.h"
 
 static void ocelot_xmit_common(struct sk_buff *skb, struct net_device *netdev,

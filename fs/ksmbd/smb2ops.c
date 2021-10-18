@@ -187,11 +187,6 @@ static struct smb_version_cmds smb2_0_server_cmds[NUMBER_OF_SMB2_COMMANDS] = {
 	[SMB2_CHANGE_NOTIFY_HE]	=	{ .proc = smb2_notify},
 };
 
-int init_smb2_0_server(struct ksmbd_conn *conn)
-{
-	return -EOPNOTSUPP;
-}
-
 /**
  * init_smb2_1_server() - initialize a smb server connection with smb2.1
  *			command dispatcher
