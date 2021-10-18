@@ -286,4 +286,6 @@ static inline void __mem_info__zput(struct mem_info **mi)
 
 #define mem_info__zput(mi) __mem_info__zput(&mi)
 
+int symbol__validate_sym_arguments(void);
+
 #endif /* __PERF_SYMBOL */
