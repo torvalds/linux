@@ -223,6 +223,10 @@ static int snd_acp6x_probe(struct pci_dev *pci,
 		pdevinfo[1].id = 0;
 		pdevinfo[1].parent = &pci->dev;
 
+		pdevinfo[2].name = "acp_yc_mach";
+		pdevinfo[2].id = 0;
+		pdevinfo[2].parent = &pci->dev;
+
 		for (index = 0; index < ACP6x_DEVS; index++) {
 			adata->pdev[index] =
 				platform_device_register_full(&pdevinfo[index]);
