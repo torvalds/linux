@@ -32,6 +32,9 @@
 #define I3C_CCC_DEFSLVS			I3C_CCC_ID(0x8, true)
 #define I3C_CCC_ENTTM			I3C_CCC_ID(0xb, true)
 #define I3C_CCC_ENTHDR(x)		I3C_CCC_ID(0x20 + (x), true)
+#define I3C_CCC_SETAASA			I3C_CCC_ID(0x29, true)
+#define I3C_CCC_SETHID			I3C_CCC_ID(0x61, true)
+#define I3C_CCC_DEVCTRL			I3C_CCC_ID(0x62, true)
 
 /* Unicast-only commands */
 #define I3C_CCC_SETDASA			I3C_CCC_ID(0x7, false)
@@ -243,6 +246,15 @@ struct i3c_ccc_setbrgtgt {
 	struct i3c_ccc_bridged_slave_desc bslaves[0];
 } __packed;
 
+
+/**
+ * struct i3c_ccc_sethid - payload passed to SETHID CCC
+ *
+ * @hid: 3-bit HID
+ */
+struct i3c_ccc_sethid {
+	u8 hid;
+};
 /**
  * enum i3c_sdr_max_data_rate - max data rate values for private SDR transfers
  */
