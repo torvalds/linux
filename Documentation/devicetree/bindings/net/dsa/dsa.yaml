@@ -46,6 +46,9 @@ patternProperties:
         type: object
         description: Ethernet switch ports
 
+        allOf:
+          - $ref: "http://devicetree.org/schemas/net/ethernet-controller.yaml#"
+
         properties:
           reg:
             description: Port number
