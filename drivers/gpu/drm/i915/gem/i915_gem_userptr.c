@@ -165,8 +165,11 @@ alloc_table:
 		goto err;
 	}
 
-	sg_page_sizes = i915_sg_dma_sizes(st->sgl);
+	WARN_ON_ONCE(!(obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_WRITE));
+	if (i915_gem_object_can_bypass_llc(obj))
+		obj->cache_dirty = true;
 
+	sg_page_sizes = i915_sg_dma_sizes(st->sgl);
 	__i915_gem_object_set_pages(obj, st, sg_page_sizes);
 
 	return 0;
