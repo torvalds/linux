@@ -418,8 +418,10 @@ static int tmp421_probe_from_dt(struct i2c_client *client, struct tmp421_data *d
 			continue;
 
 		err = tmp421_probe_child_from_dt(client, child, data);
-		if (err)
+		if (err) {
+			of_node_put(child);
 			return err;
+		}
 	}
 
 	return 0;
