@@ -1618,6 +1618,10 @@ int cmd_top(int argc, const char **argv)
 	if (argc)
 		usage_with_options(top_usage, options);
 
+	status = symbol__validate_sym_arguments();
+	if (status)
+		goto out_delete_evlist;
+
 	if (annotate_check_args(&top.annotation_opts) < 0)
 		goto out_delete_evlist;
 
