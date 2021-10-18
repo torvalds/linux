@@ -6,6 +6,7 @@
 
 #include "rk3588s.dtsi"
 #include "rk3588s-evb.dtsi"
+#include "rk806-single.dtsi"
 
 &sdmmc {
 	status = "okay";

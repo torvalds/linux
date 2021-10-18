@@ -7,6 +7,7 @@
 #include "dt-bindings/usb/pd.h"
 #include "rk3588.dtsi"
 #include "rk3588-evb.dtsi"
+#include "rk806-double.dtsi"
 
 / {
 	vbus5v0_typec: vbus-typec-regulator {
