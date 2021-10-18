@@ -434,6 +434,7 @@ config ARCH_PXA
 config ARCH_RPC
 	bool "RiscPC"
 	depends on MMU
+	depends on !CC_IS_CLANG && GCC_VERSION < 90100 && GCC_VERSION >= 60000
 	select ARCH_ACORN
 	select ARCH_MAY_HAVE_PC_FDC
 	select ARCH_SPARSEMEM_ENABLE
