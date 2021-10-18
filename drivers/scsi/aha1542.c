@@ -268,8 +268,7 @@ static void aha1542_free_cmd(struct scsi_cmnd *cmd)
 		struct bio_vec bv;
 
 		rq_for_each_segment(bv, rq, iter) {
-			memcpy_to_page(bv.bv_page, bv.bv_offset, buf,
-				       bv.bv_len);
+			memcpy_to_bvec(&bv, buf);
 			buf += bv.bv_len;
 		}
 	}
@@ -452,8 +451,7 @@ static int aha1542_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 		struct bio_vec bv;
 
 		rq_for_each_segment(bv, rq, iter) {
-			memcpy_from_page(buf, bv.bv_page, bv.bv_offset,
-					 bv.bv_len);
+			memcpy_from_bvec(buf, &bv);
 			buf += bv.bv_len;
 		}
 	}
