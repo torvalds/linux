@@ -68,8 +68,8 @@ struct snd_firewire_event_tascam_control {
 
 struct snd_firewire_event_motu_register_dsp_change {
 	unsigned int type;
-	__u32 count;		// The number of changes.
-	__u32 changes[];	// Encoded event for change of register DSP.
+	__u32 count;		/* The number of changes. */
+	__u32 changes[];	/* Encoded event for change of register DSP. */
 };
 
 union snd_firewire_event {
@@ -119,25 +119,27 @@ struct snd_firewire_tascam_state {
 	__be32 data[SNDRV_FIREWIRE_TASCAM_STATE_COUNT];
 };
 
-// In below MOTU models, software is allowed to control their DSP by accessing to registers.
-//  - 828mk2
-//  - 896hd
-//  - Traveler
-//  - 8 pre
-//  - Ultralite
-//  - 4 pre
-//  - Audio Express
-//
-// On the other hand, the status of DSP is split into specific messages included in the sequence of
-// isochronous packet. ALSA firewire-motu driver gathers the messages and allow userspace applications
-// to read it via ioctl. In 828mk2, 896hd, and Traveler, hardware meter for all of physical inputs
-// are put into the message, while one pair of physical outputs is selected. The selection is done by
-// LSB one byte in asynchronous write quadlet transaction to 0x'ffff'f000'0b2c.
-//
-// I note that V3HD/V4HD uses asynchronous transaction for the purpose. The destination address is
-// registered to 0x'ffff'f000'0b38 and '0b3c by asynchronous write quadlet request. The size of
-// message differs between 23 and 51 quadlets. For the case, the number of mixer bus can be extended
-// up to 12.
+/*
+ * In below MOTU models, software is allowed to control their DSP by accessing to registers.
+ *  - 828mk2
+ *  - 896hd
+ *  - Traveler
+ *  - 8 pre
+ *  - Ultralite
+ *  - 4 pre
+ *  - Audio Express
+ *
+ * On the other hand, the status of DSP is split into specific messages included in the sequence of
+ * isochronous packet. ALSA firewire-motu driver gathers the messages and allow userspace applications
+ * to read it via ioctl. In 828mk2, 896hd, and Traveler, hardware meter for all of physical inputs
+ * are put into the message, while one pair of physical outputs is selected. The selection is done by
+ * LSB one byte in asynchronous write quadlet transaction to 0x'ffff'f000'0b2c.
+ *
+ * I note that V3HD/V4HD uses asynchronous transaction for the purpose. The destination address is
+ * registered to 0x'ffff'f000'0b38 and '0b3c by asynchronous write quadlet request. The size of
+ * message differs between 23 and 51 quadlets. For the case, the number of mixer bus can be extended
+ * up to 12.
+ */
 
 #define SNDRV_FIREWIRE_MOTU_REGISTER_DSP_METER_COUNT	40
 
@@ -219,18 +221,20 @@ struct snd_firewire_motu_register_dsp_parameter {
 	__u8 reserved[64];
 };
 
-// In below MOTU models, software is allowed to control their DSP by command in frame of
-// asynchronous transaction to 0x'ffff'0001'0000:
-//
-//  - 828 mk3 (FireWire only and Hybrid)
-//  - 896 mk3 (FireWire only and Hybrid)
-//  - Ultralite mk3 (FireWire only and Hybrid)
-//  - Traveler mk3
-//  - Track 16
-//
-// On the other hand, the states of hardware meter is split into specific messages included in the
-// sequence of isochronous packet. ALSA firewire-motu driver gathers the message and allow userspace
-// application to read it via ioctl.
+/*
+ * In below MOTU models, software is allowed to control their DSP by command in frame of
+ * asynchronous transaction to 0x'ffff'0001'0000:
+ *
+ *  - 828 mk3 (FireWire only and Hybrid)
+ *  - 896 mk3 (FireWire only and Hybrid)
+ *  - Ultralite mk3 (FireWire only and Hybrid)
+ *  - Traveler mk3
+ *  - Track 16
+ *
+ * On the other hand, the states of hardware meter is split into specific messages included in the
+ * sequence of isochronous packet. ALSA firewire-motu driver gathers the message and allow userspace
+ * application to read it via ioctl.
+ */
 
 #define SNDRV_FIREWIRE_MOTU_COMMAND_DSP_METER_COUNT	400
 
