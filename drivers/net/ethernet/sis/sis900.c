@@ -292,6 +292,7 @@ static int sis630e_get_mac_addr(struct pci_dev *pci_dev,
 				struct net_device *net_dev)
 {
 	struct pci_dev *isa_bridge = NULL;
+	u8 addr[ETH_ALEN];
 	u8 reg;
 	int i;
 
@@ -308,8 +309,9 @@ static int sis630e_get_mac_addr(struct pci_dev *pci_dev,
 
 	for (i = 0; i < 6; i++) {
 		outb(0x09 + i, 0x70);
-		((u8 *)(net_dev->dev_addr))[i] = inb(0x71);
+		addr[i] = inb(0x71);
 	}
+	eth_hw_addr_set(net_dev, addr);
 
 	pci_write_config_byte(isa_bridge, 0x48, reg & ~0x40);
 	pci_dev_put(isa_bridge);
