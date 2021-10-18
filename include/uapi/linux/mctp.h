@@ -20,10 +20,12 @@ struct mctp_addr {
 
 struct sockaddr_mctp {
 	__kernel_sa_family_t	smctp_family;
+	__u16			__smctp_pad0;
 	unsigned int		smctp_network;
 	struct mctp_addr	smctp_addr;
 	__u8			smctp_type;
 	__u8			smctp_tag;
+	__u8			__smctp_pad1;
 };
 
 #define MCTP_NET_ANY		0x0
