@@ -34,11 +34,17 @@
  * struct ipu3_uapi_grid_config - Grid plane config
  *
  * @width:	Grid horizontal dimensions, in number of grid blocks(cells).
+ *		For AWB, the range is (16, 80).
+ *		For AF/AE, the range is (16, 32).
  * @height:	Grid vertical dimensions, in number of grid cells.
+ *		For AWB, the range is (16, 60).
+ *		For AF/AE, the range is (16, 24).
  * @block_width_log2:	Log2 of the width of each cell in pixels.
- *			for (2^3, 2^4, 2^5, 2^6, 2^7), values [3, 7].
+ *			For AWB, the range is [3, 6].
+ *			For AF/AE, the range is [3, 7].
  * @block_height_log2:	Log2 of the height of each cell in pixels.
- *			for (2^3, 2^4, 2^5, 2^6, 2^7), values [3, 7].
+ *			For AWB, the range is [3, 6].
+ *			For AF/AE, the range is [3, 7].
  * @height_per_slice:	The number of blocks in vertical axis per slice.
  *			Default 2.
  * @x_start: X value of top left corner of Region of Interest(ROI).
