@@ -191,7 +191,7 @@ struct vcpu_svm {
 
 	/* SEV-ES scratch area support */
 	void *ghcb_sa;
-	u64 ghcb_sa_len;
+	u32 ghcb_sa_len;
 	bool ghcb_sa_sync;
 	bool ghcb_sa_free;
 
