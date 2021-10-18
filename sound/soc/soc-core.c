@@ -1247,14 +1247,13 @@ int snd_soc_runtime_set_dai_fmt(struct snd_soc_pcm_runtime *rtd,
 
 	/*
 	 * Flip the polarity for the "CPU" end of a CODEC<->CODEC link
-	 * the component which has non_legacy_dai_naming is Codec
 	 */
 	inv_dai_fmt = snd_soc_daifmt_clock_provider_fliped(dai_fmt);
 
 	for_each_rtd_cpu_dais(rtd, i, cpu_dai) {
 		unsigned int fmt = dai_fmt;
 
-		if (cpu_dai->component->driver->non_legacy_dai_naming)
+		if (snd_soc_component_is_codec(cpu_dai->component))
 			fmt = inv_dai_fmt;
 
 		ret = snd_soc_dai_set_fmt(cpu_dai, fmt);
@@ -2521,7 +2520,7 @@ static int snd_soc_register_dais(struct snd_soc_component *component,
 
 	for (i = 0; i < count; i++) {
 		dai = snd_soc_register_dai(component, dai_drv + i, count == 1 &&
-				  !component->driver->non_legacy_dai_naming);
+					   !snd_soc_component_is_codec(component));
 		if (dai == NULL) {
 			ret = -ENOMEM;
 			goto err;

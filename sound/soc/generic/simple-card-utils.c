@@ -355,9 +355,9 @@ static int asoc_simple_init_dai_link_params(struct snd_soc_pcm_runtime *rtd,
 	struct snd_pcm_hardware hw;
 	int i, ret, stream;
 
-	/* Only codecs should have non_legacy_dai_naming set. */
+	/* Only Codecs */
 	for_each_rtd_components(rtd, i, component) {
-		if (!component->driver->non_legacy_dai_naming)
+		if (!snd_soc_component_is_codec(component))
 			return 0;
 	}
 
