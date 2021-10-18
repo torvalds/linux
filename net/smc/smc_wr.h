@@ -60,6 +60,20 @@ static inline void smc_wr_tx_set_wr_id(atomic_long_t *wr_tx_id, long val)
 	atomic_long_set(wr_tx_id, val);
 }
 
+static inline bool smc_wr_tx_link_hold(struct smc_link *link)
+{
+	if (!smc_link_usable(link))
+		return false;
+	atomic_inc(&link->wr_tx_refcnt);
+	return true;
+}
+
+static inline void smc_wr_tx_link_put(struct smc_link *link)
+{
+	if (atomic_dec_and_test(&link->wr_tx_refcnt))
+		wake_up_all(&link->wr_tx_wait);
+}
+
 static inline void smc_wr_wakeup_tx_wait(struct smc_link *lnk)
 {
 	wake_up_all(&lnk->wr_tx_wait);

@@ -873,6 +873,7 @@ extern void sched_put_rd(struct root_domain *rd);
 #ifdef HAVE_RT_PUSH_IPI
 extern void rto_push_irq_work_func(struct irq_work *work);
 #endif
+extern struct task_struct *pick_highest_pushable_task(struct rq *rq, int cpu);
 #endif /* CONFIG_SMP */
 
 #ifdef CONFIG_UCLAMP_TASK

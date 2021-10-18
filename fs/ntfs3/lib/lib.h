@@ -7,6 +7,10 @@
  * - linux kernel code style
  */
 
+#ifndef _LINUX_NTFS3_LIB_LIB_H
+#define _LINUX_NTFS3_LIB_LIB_H
+
+#include <linux/types.h>
 
 /* globals from xpress_decompress.c */
 struct xpress_decompressor *xpress_allocate_decompressor(void);
@@ -24,3 +28,5 @@ int lzx_decompress(struct lzx_decompressor *__restrict d,
 		   const void *__restrict compressed_data,
 		   size_t compressed_size, void *__restrict uncompressed_data,
 		   size_t uncompressed_size);
+
+#endif /* _LINUX_NTFS3_LIB_LIB_H */

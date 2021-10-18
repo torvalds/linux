@@ -2949,7 +2949,7 @@ static void kiocb_done(struct kiocb *kiocb, ssize_t ret,
 			struct io_ring_ctx *ctx = req->ctx;
 
 			req_set_fail(req);
-			if (issue_flags & IO_URING_F_NONBLOCK) {
+			if (!(issue_flags & IO_URING_F_NONBLOCK)) {
 				mutex_lock(&ctx->uring_lock);
 				__io_req_complete(req, issue_flags, ret, cflags);
 				mutex_unlock(&ctx->uring_lock);
