@@ -1003,7 +1003,7 @@ int mwifiex_set_mac_address(struct mwifiex_private *priv,
 		return ret;
 	}
 
-	ether_addr_copy(dev->dev_addr, priv->curr_addr);
+	eth_hw_addr_set(dev, priv->curr_addr);
 	return 0;
 }
 
