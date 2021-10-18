@@ -988,6 +988,21 @@ static int i3c_master_setda_locked(struct i3c_master_controller *master,
 	return ret;
 }
 
+static int i3c_master_setaasa_locked(struct i3c_master_controller *master)
+{
+	struct i3c_ccc_cmd_dest dest;
+	struct i3c_ccc_cmd cmd;
+	int ret;
+
+	i3c_ccc_cmd_dest_init(&dest, I3C_BROADCAST_ADDR, 0);
+	i3c_ccc_cmd_init(&cmd, false, I3C_CCC_SETAASA, &dest, 1);
+
+	ret = i3c_master_send_ccc_cmd_locked(master, &cmd);
+	i3c_ccc_cmd_dest_cleanup(&dest);
+
+	return ret;
+}
+
 static int i3c_master_setdasa_locked(struct i3c_master_controller *master,
 				     u8 static_addr, u8 dyn_addr)
 {
@@ -998,6 +1013,26 @@ static int i3c_master_setnewda_locked(struct i3c_master_controller *master,
 				      u8 oldaddr, u8 newaddr)
 {
 	return i3c_master_setda_locked(master, oldaddr, newaddr, false);
+}
+
+static int i3c_master_sethid_locked(struct i3c_master_controller *master)
+{
+	struct i3c_ccc_cmd_dest dest;
+	struct i3c_ccc_cmd cmd;
+	struct i3c_ccc_sethid *sethid;
+	int ret;
+
+	sethid = i3c_ccc_cmd_dest_init(&dest, I3C_BROADCAST_ADDR, 1);
+	if (!sethid)
+		return -ENOMEM;
+
+	sethid->hid = 0;
+	i3c_ccc_cmd_init(&cmd, false, I3C_CCC_SETHID, &dest, 1);
+
+	ret = i3c_master_send_ccc_cmd_locked(master, &cmd);
+	i3c_ccc_cmd_dest_cleanup(&dest);
+
+	return ret;
 }
 
 static int i3c_master_getmrl_locked(struct i3c_master_controller *master,
@@ -1234,6 +1269,13 @@ static int i3c_master_retrieve_dev_info(struct i3c_dev_desc *dev)
 	    slot_status == I3C_ADDR_SLOT_I2C_DEV)
 		return -EINVAL;
 
+	if (master->jdec_spd) {
+		dev->info.pid = dev->boardinfo->pid;
+		dev->info.dcr = dev->boardinfo->dcr;
+		dev->info.bcr = dev->boardinfo->bcr;
+		return 0;
+	}
+
 	ret = i3c_master_getpid_locked(master, &dev->info);
 	if (ret)
 		return ret;
@@ -1449,10 +1491,13 @@ static int i3c_master_early_i3c_dev_add(struct i3c_master_controller *master,
 	if (ret)
 		goto err_free_dev;
 
-	ret = i3c_master_setdasa_locked(master, i3cdev->info.static_addr,
-					i3cdev->boardinfo->init_dyn_addr);
-	if (ret)
-		goto err_detach_dev;
+	if (master->jdec_spd == 0) {
+		ret = i3c_master_setdasa_locked(
+			master, i3cdev->info.static_addr,
+			i3cdev->boardinfo->init_dyn_addr);
+		if (ret)
+			goto err_detach_dev;
+	}
 
 	i3cdev->info.dyn_addr = i3cdev->boardinfo->init_dyn_addr;
 	ret = i3c_master_reattach_i3c_dev(i3cdev, 0);
@@ -1530,9 +1575,14 @@ int i3c_master_do_daa(struct i3c_master_controller *master)
 {
 	int ret;
 
-	i3c_bus_maintenance_lock(&master->bus);
-	ret = master->ops->do_daa(master);
-	i3c_bus_maintenance_unlock(&master->bus);
+	if (master->jdec_spd) {
+		ret = i3c_master_sethid_locked(master);
+		ret = i3c_master_setaasa_locked(master);
+	} else {
+		i3c_bus_maintenance_lock(&master->bus);
+		ret = master->ops->do_daa(master);
+		i3c_bus_maintenance_unlock(&master->bus);
+	}
 
 	if (ret)
 		return ret;
@@ -1670,7 +1720,7 @@ static int i3c_master_bus_init(struct i3c_master_controller *master)
 	struct i2c_dev_boardinfo *i2cboardinfo;
 	struct i3c_dev_boardinfo *i3cboardinfo;
 	struct i2c_dev_desc *i2cdev;
-	int ret;
+	int ret, n_i3cdev = 0;
 
 	/*
 	 * First attach all devices with static definitions provided by the
@@ -1758,9 +1808,15 @@ static int i3c_master_bus_init(struct i3c_master_controller *master)
 			goto err_rstdaa;
 		}
 
-		i3c_bus_set_addr_slot_status(&master->bus,
-					     i3cboardinfo->init_dyn_addr,
-					     I3C_ADDR_SLOT_I3C_DEV);
+		/*
+		 * If the static address equals to the assigned dynamic address,
+		 * don't reserve the address slot here, it will be set after the
+		 * DA has been assigned.
+		 */
+		if (i3cboardinfo->static_addr != i3cboardinfo->init_dyn_addr)
+			i3c_bus_set_addr_slot_status(
+				&master->bus, i3cboardinfo->init_dyn_addr,
+				I3C_ADDR_SLOT_I3C_DEV);
 
 		/*
 		 * Only try to create/attach devices that have a static
@@ -1770,9 +1826,18 @@ static int i3c_master_bus_init(struct i3c_master_controller *master)
 		 * addressable.
 		 */
 
-		if (i3cboardinfo->static_addr)
+		if (i3cboardinfo->static_addr) {
 			i3c_master_early_i3c_dev_add(master, i3cboardinfo);
+			n_i3cdev++;
+		}
 	}
+
+	/*
+	 * Since SPD devices are all with static address.  Don't do DAA if we
+	 * know it is a pure I2C bus.
+	 */
+	if (master->jdec_spd && n_i3cdev == 0)
+		return 0;
 
 	ret = i3c_master_do_daa(master);
 	if (ret)
@@ -2030,6 +2095,8 @@ of_i3c_master_add_i3c_boardinfo(struct i3c_master_controller *master,
 	struct device *dev = &master->dev;
 	enum i3c_addr_slot_status addrstatus;
 	u32 init_dyn_addr = 0;
+	u32 bcr = 0;
+	u32 dcr = 0;
 
 	boardinfo = devm_kzalloc(dev, sizeof(*boardinfo), GFP_KERNEL);
 	if (!boardinfo)
@@ -2062,6 +2129,16 @@ of_i3c_master_add_i3c_boardinfo(struct i3c_master_controller *master,
 	if ((boardinfo->pid & GENMASK_ULL(63, 48)) ||
 	    I3C_PID_RND_LOWER_32BITS(boardinfo->pid))
 		return -EINVAL;
+
+	if (!of_property_read_u32(node, "dcr", &dcr)) {
+		if (dcr > I3C_DCR_MAX)
+			return -EINVAL;
+
+		boardinfo->dcr = dcr;
+	}
+
+	if (!of_property_read_u32(node, "bcr", &bcr))
+		boardinfo->bcr = bcr;
 
 	boardinfo->init_dyn_addr = init_dyn_addr;
 	boardinfo->of_node = of_node_get(node);
@@ -2106,6 +2183,9 @@ static int of_populate_i3c_bus(struct i3c_master_controller *master)
 	if (!i3cbus_np)
 		return 0;
 
+	if (of_get_property(i3cbus_np, "jdec-spd", NULL)) {
+		master->jdec_spd = 1;
+	}
 	for_each_available_child_of_node(i3cbus_np, node) {
 		ret = of_i3c_master_add_dev(master, node);
 		if (ret) {

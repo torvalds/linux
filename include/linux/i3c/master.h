@@ -181,6 +181,8 @@ struct i3c_dev_boardinfo {
 	u8 init_dyn_addr;
 	u8 static_addr;
 	u64 pid;
+	u8 bcr;
+	u8 dcr;
 	struct device_node *of_node;
 };
 
@@ -487,6 +489,7 @@ struct i3c_master_controller {
 	const struct i3c_master_controller_ops *ops;
 	unsigned int secondary : 1;
 	unsigned int init_done : 1;
+	unsigned int jdec_spd : 1;
 	struct {
 		struct list_head i3c;
 		struct list_head i2c;
