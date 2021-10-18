@@ -166,9 +166,15 @@ static int bch2_make_extent_indirect(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
+	/*
+	 * orig is in a bkey_buf which statically allocates 5 64s for the val,
+	 * so we know it will be big enough:
+	 */
 	orig->k.type = KEY_TYPE_reflink_p;
 	r_p = bkey_i_to_reflink_p(orig);
 	set_bkey_val_bytes(&r_p->k, sizeof(r_p->v));
+	memset(&r_p->v, 0, sizeof(r_p->v));
+
 	r_p->v.idx = cpu_to_le64(bkey_start_offset(&r_v->k));
 
 	ret = bch2_trans_update(trans, extent_iter, &r_p->k_i, 0);
