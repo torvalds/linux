@@ -381,8 +381,6 @@ extern struct samsung_clk_provider __init *samsung_cmu_register_one(
 			struct device_node *,
 			const struct samsung_cmu_info *);
 
-extern unsigned long _get_rate(const char *clk_name);
-
 #ifdef CONFIG_PM_SLEEP
 extern void samsung_clk_extended_sleep_init(void __iomem *reg_base,
 			const unsigned long *rdump,
