@@ -54,6 +54,14 @@ properties:
   phy-names:
     const: ufs-phy
 
+  samsung,sysreg:
+    $ref: '/schemas/types.yaml#/definitions/phandle-array'
+    description: Should be phandle/offset pair. The phandle to the syscon node
+                 which indicates the FSYSx sysreg interface and the offset of
+                 the control register for UFS io coherency setting.
+
+  dma-coherent: true
+
 required:
   - compatible
   - reg
