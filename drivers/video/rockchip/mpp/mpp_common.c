@@ -1780,13 +1780,19 @@ static int mpp_iommu_handle(struct iommu_domain *iommu,
 			    unsigned long iova,
 			    int status, void *arg)
 {
-	struct mpp_dev *mpp = (struct mpp_dev *)arg;
-	struct mpp_task *task = mpp_taskqueue_get_running_task(mpp->queue);
+	struct mpp_taskqueue *queue = (struct mpp_taskqueue *)arg;
+	struct mpp_task *task = mpp_taskqueue_get_running_task(queue);
+	struct mpp_dev *mpp;
 
-	dev_err(mpp->dev, "fault addr 0x%08lx status %x\n", iova, status);
-
-	if (!task)
+	/*
+	 * NOTE: In link mode, this task may not be the task of the current
+	 * hardware processing error
+	 */
+	if (!task || !task->session)
 		return -EIO;
+	/* get mpp from cur task */
+	mpp = task->session->mpp;
+	dev_err(mpp->dev, "fault addr 0x%08lx status %x\n", iova, status);
 
 	mpp_task_dump_mem_region(mpp, task);
 	mpp_task_dump_hw_reg(mpp, task);
@@ -1896,7 +1902,7 @@ int mpp_dev_probe(struct mpp_dev *mpp,
 	/* set iommu fault handler */
 	if (!IS_ERR(mpp->iommu_info))
 		iommu_set_fault_handler(mpp->iommu_info->domain,
-					mpp_iommu_handle, mpp);
+					mpp_iommu_handle, mpp->queue);
 
 	/* read hardware id */
 	if (hw_info->reg_id >= 0) {
