@@ -136,6 +136,7 @@ struct rtc_param {
 
 /* parameter list */
 #define RTC_PARAM_FEATURES		0
+#define RTC_PARAM_CORRECTION		1
 
 #define RTC_MAX_FREQ	8192
 
