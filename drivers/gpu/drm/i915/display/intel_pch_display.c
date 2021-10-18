@@ -366,3 +366,21 @@ void lpt_pch_enable(struct intel_atomic_state *state,
 
 	lpt_enable_pch_transcoder(dev_priv, cpu_transcoder);
 }
+
+void lpt_pch_get_config(struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	u32 tmp;
+
+	if ((intel_de_read(dev_priv, LPT_TRANSCONF) & TRANS_ENABLE) == 0)
+		return;
+
+	crtc_state->has_pch_encoder = true;
+
+	tmp = intel_de_read(dev_priv, FDI_RX_CTL(PIPE_A));
+	crtc_state->fdi_lanes = ((FDI_DP_PORT_WIDTH_MASK & tmp) >>
+				 FDI_DP_PORT_WIDTH_SHIFT) + 1;
+
+	ilk_get_fdi_m_n_config(crtc, crtc_state);
+}

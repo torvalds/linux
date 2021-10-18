@@ -18,5 +18,6 @@ void ilk_pch_enable(struct intel_atomic_state *state,
 void lpt_disable_pch_transcoder(struct drm_i915_private *dev_priv);
 void lpt_pch_enable(struct intel_atomic_state *state,
 		    struct intel_crtc *crtc);
+void lpt_pch_get_config(struct intel_crtc_state *crtc_state);
 
 #endif

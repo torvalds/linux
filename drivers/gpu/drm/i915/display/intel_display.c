@@ -4088,8 +4088,8 @@ void intel_dp_get_m_n(struct intel_crtc *crtc,
 					     &pipe_config->dp_m2_n2);
 }
 
-static void ilk_get_fdi_m_n_config(struct intel_crtc *crtc,
-				   struct intel_crtc_state *pipe_config)
+void ilk_get_fdi_m_n_config(struct intel_crtc *crtc,
+			    struct intel_crtc_state *pipe_config)
 {
 	intel_cpu_transcoder_get_m_n(crtc, pipe_config->cpu_transcoder,
 				     &pipe_config->fdi_m_n, NULL);
@@ -4484,45 +4484,6 @@ static bool bxt_get_dsi_transcoder_state(struct intel_crtc *crtc,
 	return transcoder_is_dsi(pipe_config->cpu_transcoder);
 }
 
-static void hsw_get_ddi_port_state(struct intel_crtc *crtc,
-				   struct intel_crtc_state *pipe_config)
-{
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	enum transcoder cpu_transcoder = pipe_config->cpu_transcoder;
-	enum port port;
-	u32 tmp;
-
-	if (transcoder_is_dsi(cpu_transcoder)) {
-		port = (cpu_transcoder == TRANSCODER_DSI_A) ?
-						PORT_A : PORT_B;
-	} else {
-		tmp = intel_de_read(dev_priv,
-				    TRANS_DDI_FUNC_CTL(cpu_transcoder));
-		if (!(tmp & TRANS_DDI_FUNC_ENABLE))
-			return;
-		if (DISPLAY_VER(dev_priv) >= 12)
-			port = TGL_TRANS_DDI_FUNC_CTL_VAL_TO_PORT(tmp);
-		else
-			port = TRANS_DDI_FUNC_CTL_VAL_TO_PORT(tmp);
-	}
-
-	/*
-	 * Haswell has only FDI/PCH transcoder A. It is which is connected to
-	 * DDI E. So just check whether this pipe is wired to DDI E and whether
-	 * the PCH transcoder is on.
-	 */
-	if (DISPLAY_VER(dev_priv) < 9 &&
-	    (port == PORT_E) && intel_de_read(dev_priv, LPT_TRANSCONF) & TRANS_ENABLE) {
-		pipe_config->has_pch_encoder = true;
-
-		tmp = intel_de_read(dev_priv, FDI_RX_CTL(PIPE_A));
-		pipe_config->fdi_lanes = ((FDI_DP_PORT_WIDTH_MASK & tmp) >>
-					  FDI_DP_PORT_WIDTH_SHIFT) + 1;
-
-		ilk_get_fdi_m_n_config(crtc, pipe_config);
-	}
-}
-
 static bool hsw_get_pipe_config(struct intel_crtc *crtc,
 				struct intel_crtc_state *pipe_config)
 {
@@ -4560,8 +4521,7 @@ static bool hsw_get_pipe_config(struct intel_crtc *crtc,
 		/* we cannot read out most state, so don't bother.. */
 		pipe_config->quirks |= PIPE_CONFIG_QUIRK_BIGJOINER_SLAVE;
 	} else if (!transcoder_is_dsi(pipe_config->cpu_transcoder) ||
-	    DISPLAY_VER(dev_priv) >= 11) {
-		hsw_get_ddi_port_state(crtc, pipe_config);
+		   DISPLAY_VER(dev_priv) >= 11) {
 		intel_get_transcoder_timings(crtc, pipe_config);
 	}
 

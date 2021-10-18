@@ -147,6 +147,8 @@ static void hsw_crt_get_config(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
+	lpt_pch_get_config(pipe_config);
+
 	hsw_ddi_get_config(encoder, pipe_config);
 
 	pipe_config->hw.adjusted_mode.flags &= ~(DRM_MODE_FLAG_PHSYNC |
