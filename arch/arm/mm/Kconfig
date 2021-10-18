@@ -675,7 +675,7 @@ config ARM_PV_FIXUP
 
 config ARM_THUMB
 	bool "Support Thumb user binaries" if !CPU_THUMBONLY && EXPERT
-	depends on CPU_THUMB_CAPABLE
+	depends on CPU_THUMB_CAPABLE && !CPU_32v4
 	default y
 	help
 	  Say Y if you want to include kernel support for running user space
