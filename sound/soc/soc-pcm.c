@@ -879,12 +879,10 @@ static int soc_pcm_hw_clean(struct snd_pcm_substream *substream, int rollback)
 
 	/* clear the corresponding DAIs parameters when going to be inactive */
 	for_each_rtd_dais(rtd, i, dai) {
-		int active = snd_soc_dai_stream_active(dai, substream->stream);
-
 		if (snd_soc_dai_active(dai) == 1)
 			soc_pcm_set_dai_params(dai, NULL);
 
-		if (active == 1)
+		if (snd_soc_dai_stream_active(dai, substream->stream) == 1)
 			snd_soc_dai_digital_mute(dai, 1, substream->stream);
 	}
 
@@ -898,12 +896,9 @@ static int soc_pcm_hw_clean(struct snd_pcm_substream *substream, int rollback)
 	snd_soc_pcm_component_hw_free(substream, rollback);
 
 	/* now free hw params for the DAIs  */
-	for_each_rtd_dais(rtd, i, dai) {
-		if (!snd_soc_dai_stream_valid(dai, substream->stream))
-			continue;
-
-		snd_soc_dai_hw_free(dai, substream, rollback);
-	}
+	for_each_rtd_dais(rtd, i, dai)
+		if (snd_soc_dai_stream_valid(dai, substream->stream))
+			snd_soc_dai_hw_free(dai, substream, rollback);
 
 	mutex_unlock(&rtd->card->pcm_mutex);
 	return 0;
