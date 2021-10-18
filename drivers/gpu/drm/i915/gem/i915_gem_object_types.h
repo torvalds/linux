@@ -54,8 +54,10 @@ struct drm_i915_gem_object_ops {
 	int (*get_pages)(struct drm_i915_gem_object *obj);
 	void (*put_pages)(struct drm_i915_gem_object *obj,
 			  struct sg_table *pages);
-	void (*truncate)(struct drm_i915_gem_object *obj);
+	int (*truncate)(struct drm_i915_gem_object *obj);
 	void (*writeback)(struct drm_i915_gem_object *obj);
+	int (*shrinker_release_pages)(struct drm_i915_gem_object *obj,
+				      bool should_writeback);
 
 	int (*pread)(struct drm_i915_gem_object *obj,
 		     const struct drm_i915_gem_pread *arg);

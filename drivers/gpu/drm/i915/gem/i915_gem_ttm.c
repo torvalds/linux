@@ -35,6 +35,8 @@
  * @ttm: The base TTM page vector.
  * @dev: The struct device used for dma mapping and unmapping.
  * @cached_st: The cached scatter-gather table.
+ * @is_shmem: Set if using shmem.
+ * @filp: The shmem file, if using shmem backend.
  *
  * Note that DMA may be going on right up to the point where the page-
  * vector is unpopulated in delayed destroy. Hence keep the
@@ -46,6 +48,9 @@ struct i915_ttm_tt {
 	struct ttm_tt ttm;
 	struct device *dev;
 	struct sg_table *cached_st;
+
+	bool is_shmem;
+	struct file *filp;
 };
 
 static const struct ttm_place sys_placement_flags = {
@@ -179,12 +184,88 @@ i915_ttm_placement_from_obj(const struct drm_i915_gem_object *obj,
 	placement->busy_placement = busy;
 }
 
+static int i915_ttm_tt_shmem_populate(struct ttm_device *bdev,
+				      struct ttm_tt *ttm,
+				      struct ttm_operation_ctx *ctx)
+{
+	struct drm_i915_private *i915 = container_of(bdev, typeof(*i915), bdev);
+	struct intel_memory_region *mr = i915->mm.regions[INTEL_MEMORY_SYSTEM];
+	struct i915_ttm_tt *i915_tt = container_of(ttm, typeof(*i915_tt), ttm);
+	const unsigned int max_segment = i915_sg_segment_size();
+	const size_t size = ttm->num_pages << PAGE_SHIFT;
+	struct file *filp = i915_tt->filp;
+	struct sgt_iter sgt_iter;
+	struct sg_table *st;
+	struct page *page;
+	unsigned long i;
+	int err;
+
+	if (!filp) {
+		struct address_space *mapping;
+		gfp_t mask;
+
+		filp = shmem_file_setup("i915-shmem-tt", size, VM_NORESERVE);
+		if (IS_ERR(filp))
+			return PTR_ERR(filp);
+
+		mask = GFP_HIGHUSER | __GFP_RECLAIMABLE;
+
+		mapping = filp->f_mapping;
+		mapping_set_gfp_mask(mapping, mask);
+		GEM_BUG_ON(!(mapping_gfp_mask(mapping) & __GFP_RECLAIM));
+
+		i915_tt->filp = filp;
+	}
+
+	st = shmem_alloc_st(i915, size, mr, filp->f_mapping, max_segment);
+	if (IS_ERR(st))
+		return PTR_ERR(st);
+
+	err = dma_map_sg_attrs(i915_tt->dev,
+			       st->sgl, st->nents,
+			       DMA_BIDIRECTIONAL,
+			       DMA_ATTR_SKIP_CPU_SYNC);
+	if (err <= 0) {
+		err = -EINVAL;
+		goto err_free_st;
+	}
+
+	i = 0;
+	for_each_sgt_page(page, sgt_iter, st)
+		ttm->pages[i++] = page;
+
+	if (ttm->page_flags & TTM_TT_FLAG_SWAPPED)
+		ttm->page_flags &= ~TTM_TT_FLAG_SWAPPED;
+
+	i915_tt->cached_st = st;
+	return 0;
+
+err_free_st:
+	shmem_free_st(st, filp->f_mapping, false, false);
+	return err;
+}
+
+static void i915_ttm_tt_shmem_unpopulate(struct ttm_tt *ttm)
+{
+	struct i915_ttm_tt *i915_tt = container_of(ttm, typeof(*i915_tt), ttm);
+	bool backup = ttm->page_flags & TTM_TT_FLAG_SWAPPED;
+
+	dma_unmap_sg(i915_tt->dev, i915_tt->cached_st->sgl,
+		     i915_tt->cached_st->nents,
+		     DMA_BIDIRECTIONAL);
+
+	shmem_free_st(fetch_and_zero(&i915_tt->cached_st),
+		      file_inode(i915_tt->filp)->i_mapping,
+		      backup, backup);
+}
+
 static struct ttm_tt *i915_ttm_tt_create(struct ttm_buffer_object *bo,
 					 uint32_t page_flags)
 {
 	struct ttm_resource_manager *man =
 		ttm_manager_type(bo->bdev, bo->resource->mem_type);
 	struct drm_i915_gem_object *obj = i915_ttm_to_gem(bo);
+	enum ttm_caching caching = i915_ttm_select_tt_caching(obj);
 	struct i915_ttm_tt *i915_tt;
 	int ret;
 
@@ -196,35 +277,61 @@ static struct ttm_tt *i915_ttm_tt_create(struct ttm_buffer_object *bo,
 	    man->use_tt)
 		page_flags |= TTM_TT_FLAG_ZERO_ALLOC;
 
-	ret = ttm_tt_init(&i915_tt->ttm, bo, page_flags,
-			  i915_ttm_select_tt_caching(obj));
-	if (ret) {
-		kfree(i915_tt);
-		return NULL;
+	if (i915_gem_object_is_shrinkable(obj) && caching == ttm_cached) {
+		page_flags |= TTM_TT_FLAG_EXTERNAL |
+			      TTM_TT_FLAG_EXTERNAL_MAPPABLE;
+		i915_tt->is_shmem = true;
 	}
+
+	ret = ttm_tt_init(&i915_tt->ttm, bo, page_flags, caching);
+	if (ret)
+		goto err_free;
 
 	i915_tt->dev = obj->base.dev->dev;
 
 	return &i915_tt->ttm;
+
+err_free:
+	kfree(i915_tt);
+	return NULL;
+}
+
+static int i915_ttm_tt_populate(struct ttm_device *bdev,
+				struct ttm_tt *ttm,
+				struct ttm_operation_ctx *ctx)
+{
+	struct i915_ttm_tt *i915_tt = container_of(ttm, typeof(*i915_tt), ttm);
+
+	if (i915_tt->is_shmem)
+		return i915_ttm_tt_shmem_populate(bdev, ttm, ctx);
+
+	return ttm_pool_alloc(&bdev->pool, ttm, ctx);
 }
 
 static void i915_ttm_tt_unpopulate(struct ttm_device *bdev, struct ttm_tt *ttm)
 {
 	struct i915_ttm_tt *i915_tt = container_of(ttm, typeof(*i915_tt), ttm);
 
-	if (i915_tt->cached_st) {
-		dma_unmap_sgtable(i915_tt->dev, i915_tt->cached_st,
-				  DMA_BIDIRECTIONAL, 0);
-		sg_free_table(i915_tt->cached_st);
-		kfree(i915_tt->cached_st);
-		i915_tt->cached_st = NULL;
+	if (i915_tt->is_shmem) {
+		i915_ttm_tt_shmem_unpopulate(ttm);
+	} else {
+		if (i915_tt->cached_st) {
+			dma_unmap_sgtable(i915_tt->dev, i915_tt->cached_st,
+					  DMA_BIDIRECTIONAL, 0);
+			sg_free_table(i915_tt->cached_st);
+			kfree(i915_tt->cached_st);
+			i915_tt->cached_st = NULL;
+		}
+		ttm_pool_free(&bdev->pool, ttm);
 	}
-	ttm_pool_free(&bdev->pool, ttm);
 }
 
 static void i915_ttm_tt_destroy(struct ttm_device *bdev, struct ttm_tt *ttm)
 {
 	struct i915_ttm_tt *i915_tt = container_of(ttm, typeof(*i915_tt), ttm);
+
+	if (i915_tt->filp)
+		fput(i915_tt->filp);
 
 	ttm_tt_fini(ttm);
 	kfree(i915_tt);
@@ -234,6 +341,14 @@ static bool i915_ttm_eviction_valuable(struct ttm_buffer_object *bo,
 				       const struct ttm_place *place)
 {
 	struct drm_i915_gem_object *obj = i915_ttm_to_gem(bo);
+
+	/*
+	 * EXTERNAL objects should never be swapped out by TTM, instead we need
+	 * to handle that ourselves. TTM will already skip such objects for us,
+	 * but we would like to avoid grabbing locks for no good reason.
+	 */
+	if (bo->ttm && bo->ttm->page_flags & TTM_TT_FLAG_EXTERNAL)
+		return -EBUSY;
 
 	/* Will do for now. Our pinned objects are still on TTM's LRU lists */
 	return i915_gem_object_evictable(obj);
@@ -328,9 +443,11 @@ static void i915_ttm_adjust_gem_after_move(struct drm_i915_gem_object *obj)
 	i915_gem_object_set_cache_coherency(obj, cache_level);
 }
 
-static void i915_ttm_purge(struct drm_i915_gem_object *obj)
+static int i915_ttm_purge(struct drm_i915_gem_object *obj)
 {
 	struct ttm_buffer_object *bo = i915_gem_to_ttm(obj);
+	struct i915_ttm_tt *i915_tt =
+		container_of(bo->ttm, typeof(*i915_tt), ttm);
 	struct ttm_operation_ctx ctx = {
 		.interruptible = true,
 		.no_wait_gpu = false,
@@ -339,17 +456,74 @@ static void i915_ttm_purge(struct drm_i915_gem_object *obj)
 	int ret;
 
 	if (obj->mm.madv == __I915_MADV_PURGED)
-		return;
+		return 0;
 
-	/* TTM's purge interface. Note that we might be reentering. */
 	ret = ttm_bo_validate(bo, &place, &ctx);
-	if (!ret) {
-		obj->write_domain = 0;
-		obj->read_domains = 0;
-		i915_ttm_adjust_gem_after_move(obj);
-		i915_ttm_free_cached_io_st(obj);
-		obj->mm.madv = __I915_MADV_PURGED;
+	if (ret)
+		return ret;
+
+	if (bo->ttm && i915_tt->filp) {
+		/*
+		 * The below fput(which eventually calls shmem_truncate) might
+		 * be delayed by worker, so when directly called to purge the
+		 * pages(like by the shrinker) we should try to be more
+		 * aggressive and release the pages immediately.
+		 */
+		shmem_truncate_range(file_inode(i915_tt->filp),
+				     0, (loff_t)-1);
+		fput(fetch_and_zero(&i915_tt->filp));
 	}
+
+	obj->write_domain = 0;
+	obj->read_domains = 0;
+	i915_ttm_adjust_gem_after_move(obj);
+	i915_ttm_free_cached_io_st(obj);
+	obj->mm.madv = __I915_MADV_PURGED;
+	return 0;
+}
+
+static int i915_ttm_shrinker_release_pages(struct drm_i915_gem_object *obj,
+					   bool should_writeback)
+{
+	struct ttm_buffer_object *bo = i915_gem_to_ttm(obj);
+	struct i915_ttm_tt *i915_tt =
+		container_of(bo->ttm, typeof(*i915_tt), ttm);
+	struct ttm_operation_ctx ctx = {
+		.interruptible = true,
+		.no_wait_gpu = false,
+	};
+	struct ttm_placement place = {};
+	int ret;
+
+	if (!bo->ttm || bo->resource->mem_type != TTM_PL_SYSTEM)
+		return 0;
+
+	GEM_BUG_ON(!i915_tt->is_shmem);
+
+	if (!i915_tt->filp)
+		return 0;
+
+	switch (obj->mm.madv) {
+	case I915_MADV_DONTNEED:
+		return i915_ttm_purge(obj);
+	case __I915_MADV_PURGED:
+		return 0;
+	}
+
+	if (bo->ttm->page_flags & TTM_TT_FLAG_SWAPPED)
+		return 0;
+
+	bo->ttm->page_flags |= TTM_TT_FLAG_SWAPPED;
+	ret = ttm_bo_validate(bo, &place, &ctx);
+	if (ret) {
+		bo->ttm->page_flags &= ~TTM_TT_FLAG_SWAPPED;
+		return ret;
+	}
+
+	if (should_writeback)
+		__shmem_writeback(obj->base.size, i915_tt->filp->f_mapping);
+
+	return 0;
 }
 
 static void i915_ttm_swap_notify(struct ttm_buffer_object *bo)
@@ -620,6 +794,7 @@ static unsigned long i915_ttm_io_mem_pfn(struct ttm_buffer_object *bo,
 
 static struct ttm_device_funcs i915_ttm_bo_driver = {
 	.ttm_tt_create = i915_ttm_tt_create,
+	.ttm_tt_populate = i915_ttm_tt_populate,
 	.ttm_tt_unpopulate = i915_ttm_tt_unpopulate,
 	.ttm_tt_destroy = i915_ttm_tt_destroy,
 	.eviction_valuable = i915_ttm_eviction_valuable,
@@ -687,12 +862,17 @@ static int __i915_ttm_get_pages(struct drm_i915_gem_object *obj,
 	}
 
 	if (!i915_gem_object_has_pages(obj)) {
+		struct i915_ttm_tt *i915_tt =
+			container_of(bo->ttm, typeof(*i915_tt), ttm);
+
 		/* Object either has a page vector or is an iomem object */
 		st = bo->ttm ? i915_ttm_tt_get_st(bo->ttm) : obj->ttm.cached_io_st;
 		if (IS_ERR(st))
 			return PTR_ERR(st);
 
 		__i915_gem_object_set_pages(obj, st, i915_sg_dma_sizes(st->sgl));
+		if (!bo->ttm || !i915_tt->is_shmem)
+			i915_gem_object_make_unshrinkable(obj);
 	}
 
 	return ret;
@@ -772,6 +952,8 @@ static void i915_ttm_put_pages(struct drm_i915_gem_object *obj,
 static void i915_ttm_adjust_lru(struct drm_i915_gem_object *obj)
 {
 	struct ttm_buffer_object *bo = i915_gem_to_ttm(obj);
+	struct i915_ttm_tt *i915_tt =
+		container_of(bo->ttm, typeof(*i915_tt), ttm);
 
 	/*
 	 * Don't manipulate the TTM LRUs while in TTM bo destruction.
@@ -784,7 +966,10 @@ static void i915_ttm_adjust_lru(struct drm_i915_gem_object *obj)
 	 * Put on the correct LRU list depending on the MADV status
 	 */
 	spin_lock(&bo->bdev->lru_lock);
-	if (obj->mm.madv != I915_MADV_WILLNEED) {
+	if (bo->ttm && i915_tt->filp) {
+		/* Try to keep shmem_tt from being considered for shrinking. */
+		bo->priority = TTM_MAX_BO_PRIORITY - 1;
+	} else if (obj->mm.madv != I915_MADV_WILLNEED) {
 		bo->priority = I915_TTM_PRIO_PURGE;
 	} else if (!i915_gem_object_has_pages(obj)) {
 		if (bo->priority < I915_TTM_PRIO_HAS_PAGES)
@@ -886,9 +1071,12 @@ static const struct drm_i915_gem_object_ops i915_gem_ttm_obj_ops = {
 	.get_pages = i915_ttm_get_pages,
 	.put_pages = i915_ttm_put_pages,
 	.truncate = i915_ttm_purge,
+	.shrinker_release_pages = i915_ttm_shrinker_release_pages,
+
 	.adjust_lru = i915_ttm_adjust_lru,
 	.delayed_free = i915_ttm_delayed_free,
 	.migrate = i915_ttm_migrate,
+
 	.mmap_offset = i915_ttm_mmap_offset,
 	.mmap_ops = &vm_ops_ttm,
 };
@@ -943,7 +1131,6 @@ int __i915_gem_ttm_object_init(struct intel_memory_region *mem,
 	obj->mm.region = intel_memory_region_get(mem);
 	INIT_LIST_HEAD(&obj->mm.region_link);
 
-	i915_gem_object_make_unshrinkable(obj);
 	INIT_RADIX_TREE(&obj->ttm.get_io_page.radix, GFP_KERNEL | __GFP_NOWARN);
 	mutex_init(&obj->ttm.get_io_page.lock);
 	bo_type = (obj->flags & I915_BO_ALLOC_USER) ? ttm_bo_type_device :

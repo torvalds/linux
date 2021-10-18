@@ -158,11 +158,13 @@ retry:
 }
 
 /* Immediately discard the backing storage */
-void i915_gem_object_truncate(struct drm_i915_gem_object *obj)
+int i915_gem_object_truncate(struct drm_i915_gem_object *obj)
 {
 	drm_gem_free_mmap_offset(&obj->base);
 	if (obj->ops->truncate)
-		obj->ops->truncate(obj);
+		return obj->ops->truncate(obj);
+
+	return 0;
 }
 
 /* Try to discard unwanted pages */

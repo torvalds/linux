@@ -56,19 +56,24 @@ static bool unsafe_drop_pages(struct drm_i915_gem_object *obj,
 	return false;
 }
 
-static void try_to_writeback(struct drm_i915_gem_object *obj,
-			     unsigned int flags)
+static int try_to_writeback(struct drm_i915_gem_object *obj, unsigned int flags)
 {
+	if (obj->ops->shrinker_release_pages)
+		return obj->ops->shrinker_release_pages(obj,
+							flags & I915_SHRINK_WRITEBACK);
+
 	switch (obj->mm.madv) {
 	case I915_MADV_DONTNEED:
 		i915_gem_object_truncate(obj);
-		return;
+		return 0;
 	case __I915_MADV_PURGED:
-		return;
+		return 0;
 	}
 
 	if (flags & I915_SHRINK_WRITEBACK)
 		i915_gem_object_writeback(obj);
+
+	return 0;
 }
 
 /**
@@ -222,8 +227,8 @@ i915_gem_shrink(struct i915_gem_ww_ctx *ww,
 				}
 
 				if (!__i915_gem_object_put_pages(obj)) {
-					try_to_writeback(obj, shrink);
-					count += obj->base.size >> PAGE_SHIFT;
+					if (!try_to_writeback(obj, shrink))
+						count += obj->base.size >> PAGE_SHIFT;
 				}
 				if (!ww)
 					i915_gem_object_unlock(obj);

@@ -25,8 +25,8 @@ static void check_release_pagevec(struct pagevec *pvec)
 	cond_resched();
 }
 
-static void shmem_free_st(struct sg_table *st, struct address_space *mapping,
-			  bool dirty, bool backup)
+void shmem_free_st(struct sg_table *st, struct address_space *mapping,
+		   bool dirty, bool backup)
 {
 	struct sgt_iter sgt_iter;
 	struct pagevec pvec;
@@ -52,10 +52,10 @@ static void shmem_free_st(struct sg_table *st, struct address_space *mapping,
 	kfree(st);
 }
 
-static struct sg_table *shmem_alloc_st(struct drm_i915_private *i915,
-				       size_t size, struct intel_memory_region *mr,
-				       struct address_space *mapping,
-				       unsigned int max_segment)
+struct sg_table *shmem_alloc_st(struct drm_i915_private *i915,
+				size_t size, struct intel_memory_region *mr,
+				struct address_space *mapping,
+				unsigned int max_segment)
 {
 	const unsigned long page_count = size / PAGE_SIZE;
 	unsigned long i;
@@ -271,7 +271,7 @@ err_st:
 	return ret;
 }
 
-static void
+static int
 shmem_truncate(struct drm_i915_gem_object *obj)
 {
 	/*
@@ -283,9 +283,11 @@ shmem_truncate(struct drm_i915_gem_object *obj)
 	shmem_truncate_range(file_inode(obj->base.filp), 0, (loff_t)-1);
 	obj->mm.madv = __I915_MADV_PURGED;
 	obj->mm.pages = ERR_PTR(-EFAULT);
+
+	return 0;
 }
 
-static void __shmem_writeback(size_t size, struct address_space *mapping)
+void __shmem_writeback(size_t size, struct address_space *mapping)
 {
 	struct writeback_control wbc = {
 		.sync_mode = WB_SYNC_NONE,
