@@ -14,14 +14,24 @@
 static void cdn_dp_set_signal_levels(struct cdn_dp_device *dp)
 {
 	struct cdn_dp_port *port = dp->port[dp->active_port];
-	int rate = drm_dp_bw_code_to_link_rate(dp->max_rate);
+	union phy_configure_opts phy_cfg = {0};
 	u8 swing = (dp->train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK) >>
 		   DP_TRAIN_VOLTAGE_SWING_SHIFT;
 	u8 pre_emphasis = (dp->train_set[0] & DP_TRAIN_PRE_EMPHASIS_MASK)
 			  >> DP_TRAIN_PRE_EMPHASIS_SHIFT;
+	unsigned int lane;
 
-	tcphy_dp_set_phy_config(port->phy, rate, dp->max_lanes,
-				swing, pre_emphasis);
+	for (lane = 0; lane < dp->max_lanes; lane++) {
+		phy_cfg.dp.voltage[lane] = swing;
+		phy_cfg.dp.pre[lane] = pre_emphasis;
+	}
+
+	phy_cfg.dp.lanes = dp->max_lanes;
+	phy_cfg.dp.link_rate = drm_dp_bw_code_to_link_rate(dp->max_rate) / 100;
+	phy_cfg.dp.set_lanes = false;
+	phy_cfg.dp.set_rate = false;
+	phy_cfg.dp.set_voltages = true;
+	phy_configure(port->phy, &phy_cfg);
 }
 
 static int cdn_dp_set_pattern(struct cdn_dp_device *dp, uint8_t dp_train_pat)
@@ -387,19 +397,17 @@ int cdn_dp_software_train_link(struct cdn_dp_device *dp)
 	drm_dp_dpcd_write(&dp->aux, DP_DOWNSPREAD_CTRL, link_config, 2);
 
 	while (true) {
-		ret = tcphy_dp_set_link_rate(port->phy,
-				drm_dp_bw_code_to_link_rate(dp->max_rate),
-				ssc_on);
-		if (ret) {
-			DRM_ERROR("failed to set link rate: %d\n", ret);
-			return ret;
-		}
+		union phy_configure_opts phy_cfg = {0};
 
-		ret = tcphy_dp_set_lane_count(port->phy, dp->max_lanes);
-		if (ret) {
-			DRM_ERROR("failed to set lane count: %d\n", ret);
+		phy_cfg.dp.lanes = dp->max_lanes;
+		phy_cfg.dp.link_rate = drm_dp_bw_code_to_link_rate(dp->max_rate) / 100;
+		phy_cfg.dp.ssc = ssc_on;
+		phy_cfg.dp.set_lanes = true;
+		phy_cfg.dp.set_rate = true;
+		phy_cfg.dp.set_voltages = false;
+		ret = phy_configure(port->phy, &phy_cfg);
+		if (ret)
 			return ret;
-		}
 
 		/* Write the link configuration data */
 		link_config[0] = dp->max_rate;

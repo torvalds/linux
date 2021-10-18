@@ -9,7 +9,6 @@
 
 #include <linux/bitops.h>
 #include <linux/phy/phy.h>
-#include <linux/phy/phy-rockchip-typec.h>
 
 #define ADDR_IMEM		0x10000
 #define ADDR_DMEM		0x20000
