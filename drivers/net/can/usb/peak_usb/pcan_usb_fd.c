@@ -551,11 +551,10 @@ static int pcan_usb_fd_decode_status(struct pcan_usb_fd_if *usb_if,
 	} else if (sm->channel_p_w_b & PUCAN_BUS_WARNING) {
 		new_state = CAN_STATE_ERROR_WARNING;
 	} else {
-		/* no error bit (so, no error skb, back to active state) */
-		dev->can.state = CAN_STATE_ERROR_ACTIVE;
+		/* back to (or still in) ERROR_ACTIVE state */
+		new_state = CAN_STATE_ERROR_ACTIVE;
 		pdev->bec.txerr = 0;
 		pdev->bec.rxerr = 0;
-		return 0;
 	}
 
 	/* state hasn't changed */
@@ -568,8 +567,7 @@ static int pcan_usb_fd_decode_status(struct pcan_usb_fd_if *usb_if,
 
 	/* allocate an skb to store the error frame */
 	skb = alloc_can_err_skb(netdev, &cf);
-	if (skb)
-		can_change_state(netdev, cf, tx_state, rx_state);
+	can_change_state(netdev, cf, tx_state, rx_state);
 
 	/* things must be done even in case of OOM */
 	if (new_state == CAN_STATE_BUS_OFF)
