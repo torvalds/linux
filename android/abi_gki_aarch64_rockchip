@@ -1660,26 +1660,6 @@
   of_property_read_variable_u8_array
   platform_device_register_full
 
-# required by slip.ko
-  alloc_netdev_mqs
-  consume_skb
-  dev_close
-  free_netdev
-  __netdev_alloc_skb
-  netif_rx_ni
-  netif_tx_wake_queue
-  __rcu_read_lock
-  __rcu_read_unlock
-  register_netdevice
-  rtnl_lock
-  rtnl_unlock
-  skb_put
-  tty_hangup
-  tty_mode_ioctl
-  tty_register_ldisc
-  tty_unregister_ldisc
-  unregister_netdev
-
 # required by snd-soc-cx2072x.ko
   __devm_regmap_init
   regmap_multi_reg_write
