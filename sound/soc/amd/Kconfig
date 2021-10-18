@@ -84,3 +84,14 @@ config SND_SOC_AMD_ACP6x
 	  triggered for ACP PCI driver, ACP PDM DMA driver.
 	  Say m if you have such a device.
 	  If unsure select "N".
+
+config SND_SOC_AMD_YC_MACH
+	tristate "AMD YC support for DMIC"
+	select SND_SOC_DMIC
+	depends on SND_SOC_AMD_ACP6x
+	help
+	  This option enables machine driver for Yellow Carp platform
+	  using dmic. ACP IP has PDM Decoder block with DMA controller.
+	  DMIC can be connected directly to ACP IP.
+	  Say m if you have such a device.
+	  If unsure select "N".
