@@ -730,6 +730,8 @@ static void dm_handle_hpd_work(struct work_struct *work)
 		dmub_hpd_wrk->adev->dm.dmub_callback[dmub_hpd_wrk->dmub_notify->type](dmub_hpd_wrk->adev,
 		dmub_hpd_wrk->dmub_notify);
 	}
+
+	kfree(dmub_hpd_wrk->dmub_notify);
 	kfree(dmub_hpd_wrk);
 
 }
@@ -755,12 +757,6 @@ static void dm_dmub_outbox1_low_irq(void *interrupt_params)
 
 	if (dc_enable_dmub_notifications(adev->dm.dc) &&
 		irq_params->irq_src == DC_IRQ_SOURCE_DMCUB_OUTBOX) {
-		dmub_hpd_wrk = kzalloc(sizeof(*dmub_hpd_wrk), GFP_ATOMIC);
-		if (!dmub_hpd_wrk) {
-			DRM_ERROR("Failed to allocate dmub_hpd_wrk");
-			return;
-		}
-		INIT_WORK(&dmub_hpd_wrk->handle_hpd_work, dm_handle_hpd_work);
 
 		do {
 			dc_stat_get_dmub_notification(adev->dm.dc, &notify);
@@ -769,7 +765,20 @@ static void dm_dmub_outbox1_low_irq(void *interrupt_params)
 				continue;
 			}
 			if (dm->dmub_thread_offload[notify.type] == true) {
-				dmub_hpd_wrk->dmub_notify = &notify;
+				dmub_hpd_wrk = kzalloc(sizeof(*dmub_hpd_wrk), GFP_ATOMIC);
+				if (!dmub_hpd_wrk) {
+					DRM_ERROR("Failed to allocate dmub_hpd_wrk");
+					return;
+				}
+				dmub_hpd_wrk->dmub_notify = kzalloc(sizeof(struct dmub_notification), GFP_ATOMIC);
+				if (!dmub_hpd_wrk->dmub_notify) {
+					kfree(dmub_hpd_wrk);
+					DRM_ERROR("Failed to allocate dmub_hpd_wrk->dmub_notify");
+					return;
+				}
+				INIT_WORK(&dmub_hpd_wrk->handle_hpd_work, dm_handle_hpd_work);
+				if (dmub_hpd_wrk->dmub_notify)
+					memcpy(dmub_hpd_wrk->dmub_notify, &notify, sizeof(struct dmub_notification));
 				dmub_hpd_wrk->adev = adev;
 				if (notify.type == DMUB_NOTIFICATION_HPD) {
 					plink = adev->dm.dc->links[notify.link_index];
