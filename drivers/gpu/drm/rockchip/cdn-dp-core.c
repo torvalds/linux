@@ -6,7 +6,6 @@
 
 #include <linux/clk.h>
 #include <linux/component.h>
-#include <linux/extcon.h>
 #include <linux/firmware.h>
 #include <linux/mfd/syscon.h>
 #include <linux/phy/phy.h>
@@ -142,24 +141,7 @@ static void cdn_dp_clk_disable(struct cdn_dp_device *dp)
 
 static int cdn_dp_get_port_lanes(struct cdn_dp_port *port)
 {
-	struct extcon_dev *edev = port->extcon;
-	union extcon_property_value property;
-	int dptx;
-	u8 lanes;
-
-	dptx = extcon_get_state(edev, EXTCON_DISP_DP);
-	if (dptx > 0) {
-		extcon_get_property(edev, EXTCON_DISP_DP,
-				    EXTCON_PROP_USB_SS, &property);
-		if (property.intval)
-			lanes = 2;
-		else
-			lanes = 4;
-	} else {
-		lanes = 0;
-	}
-
-	return lanes;
+	return phy_get_bus_width(port->phy);
 }
 
 static int cdn_dp_get_sink_count(struct cdn_dp_device *dp, u8 *sink_count)
@@ -193,15 +175,12 @@ static struct cdn_dp_port *cdn_dp_connected_port(struct cdn_dp_device *dp)
 static bool cdn_dp_check_sink_connection(struct cdn_dp_device *dp)
 {
 	unsigned long timeout = jiffies + msecs_to_jiffies(CDN_DPCD_TIMEOUT_MS);
-	struct cdn_dp_port *port;
 	u8 sink_count = 0;
 
 	if (dp->active_port < 0 || dp->active_port >= dp->ports) {
 		DRM_DEV_ERROR(dp->dev, "active_port is wrong!\n");
 		return false;
 	}
-
-	port = dp->port[dp->active_port];
 
 	/*
 	 * Attempt to read sink count, retry in case the sink may not be ready.
@@ -210,9 +189,6 @@ static bool cdn_dp_check_sink_connection(struct cdn_dp_device *dp)
 	 * some docks need more time to power up.
 	 */
 	while (time_before(jiffies, timeout)) {
-		if (!extcon_get_state(port->extcon, EXTCON_DISP_DP))
-			return false;
-
 		if (!cdn_dp_get_sink_count(dp, &sink_count))
 			return sink_count ? true : false;
 
@@ -381,7 +357,6 @@ static int cdn_dp_get_sink_capability(struct cdn_dp_device *dp)
 
 static int cdn_dp_enable_phy(struct cdn_dp_device *dp, struct cdn_dp_port *port)
 {
-	union extcon_property_value property;
 	int ret;
 
 	if (!port->phy_enabled) {
@@ -408,15 +383,8 @@ static int cdn_dp_enable_phy(struct cdn_dp_device *dp, struct cdn_dp_port *port)
 		goto err_power_on;
 	}
 
-	ret = extcon_get_property(port->extcon, EXTCON_DISP_DP,
-				  EXTCON_PROP_USB_TYPEC_POLARITY, &property);
-	if (ret) {
-		DRM_DEV_ERROR(dp->dev, "get property failed\n");
-		goto err_power_on;
-	}
-
 	port->lanes = cdn_dp_get_port_lanes(port);
-	ret = cdn_dp_set_host_cap(dp, port->lanes, property.intval);
+	ret = cdn_dp_set_host_cap(dp, port->lanes, 0);
 	if (ret) {
 		DRM_DEV_ERROR(dp->dev, "set host capabilities failed: %d\n",
 			      ret);
@@ -985,31 +953,13 @@ out:
 		drm_kms_helper_hotplug_event(dp->drm_dev);
 }
 
-static int cdn_dp_pd_event(struct notifier_block *nb,
-			   unsigned long event, void *priv)
-{
-	struct cdn_dp_port *port = container_of(nb, struct cdn_dp_port,
-						event_nb);
-	struct cdn_dp_device *dp = port->dp;
-
-	/*
-	 * It would be nice to be able to just do the work inline right here.
-	 * However, we need to make a bunch of calls that might sleep in order
-	 * to turn on the block/phy, so use a worker instead.
-	 */
-	schedule_work(&dp->event_work);
-
-	return NOTIFY_DONE;
-}
-
 static int cdn_dp_bind(struct device *dev, struct device *master, void *data)
 {
 	struct cdn_dp_device *dp = dev_get_drvdata(dev);
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
-	struct cdn_dp_port *port;
 	struct drm_device *drm_dev = data;
-	int ret, i;
+	int ret;
 
 	ret = cdn_dp_parse_dt(dp);
 	if (ret < 0)
@@ -1056,20 +1006,6 @@ static int cdn_dp_bind(struct device *dev, struct device *master, void *data)
 	if (ret) {
 		DRM_ERROR("failed to attach connector and encoder\n");
 		goto err_free_connector;
-	}
-
-	for (i = 0; i < dp->ports; i++) {
-		port = dp->port[i];
-
-		port->event_nb.notifier_call = cdn_dp_pd_event;
-		ret = devm_extcon_register_notifier(dp->dev, port->extcon,
-						    EXTCON_DISP_DP,
-						    &port->event_nb);
-		if (ret) {
-			DRM_DEV_ERROR(dev,
-				      "register EXTCON_DISP_DP notifier err\n");
-			goto err_free_connector;
-		}
 	}
 
 	pm_runtime_enable(dev);
@@ -1142,7 +1078,6 @@ static int cdn_dp_probe(struct platform_device *pdev)
 	struct cdn_dp_data *dp_data;
 	struct cdn_dp_port *port;
 	struct cdn_dp_device *dp;
-	struct extcon_dev *extcon;
 	struct phy *phy;
 	int i;
 
@@ -1155,21 +1090,18 @@ static int cdn_dp_probe(struct platform_device *pdev)
 	dp_data = (struct cdn_dp_data *)match->data;
 
 	for (i = 0; i < dp_data->max_phy; i++) {
-		extcon = extcon_get_edev_by_phandle(dev, i);
 		phy = devm_of_phy_get_by_index(dev, dev->of_node, i);
 
-		if (PTR_ERR(extcon) == -EPROBE_DEFER ||
-		    PTR_ERR(phy) == -EPROBE_DEFER)
+		if (PTR_ERR(phy) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
 
-		if (IS_ERR(extcon) || IS_ERR(phy))
+		if (IS_ERR(phy))
 			continue;
 
 		port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
 		if (!port)
 			return -ENOMEM;
 
-		port->extcon = extcon;
 		port->phy = phy;
 		port->dp = dp;
 		port->id = i;
@@ -1177,7 +1109,7 @@ static int cdn_dp_probe(struct platform_device *pdev)
 	}
 
 	if (!dp->ports) {
-		DRM_DEV_ERROR(dev, "missing extcon or phy\n");
+		DRM_DEV_ERROR(dev, "missing phy\n");
 		return -EINVAL;
 	}
 
