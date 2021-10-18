@@ -3653,13 +3653,16 @@ static const struct net_device_ops hwsim_netdev_ops = {
 
 static void hwsim_mon_setup(struct net_device *dev)
 {
+	u8 addr[ETH_ALEN];
+
 	dev->netdev_ops = &hwsim_netdev_ops;
 	dev->needs_free_netdev = true;
 	ether_setup(dev);
 	dev->priv_flags |= IFF_NO_QUEUE;
 	dev->type = ARPHRD_IEEE80211_RADIOTAP;
-	eth_zero_addr(dev->dev_addr);
-	dev->dev_addr[0] = 0x12;
+	eth_zero_addr(addr);
+	addr[0] = 0x12;
+	eth_hw_addr_set(dev, addr);
 }
 
 static struct mac80211_hwsim_data *get_hwsim_data_ref_from_addr(const u8 *addr)
