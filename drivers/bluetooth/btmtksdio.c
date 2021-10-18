@@ -520,8 +520,12 @@ static int btmtksdio_open(struct hci_dev *hdev)
 	/* SDIO CMD 5 allows the SDIO device back to idle state an
 	 * synchronous interrupt is supported in SDIO 4-bit mode
 	 */
-	sdio_writel(bdev->func, SDIO_INT_CTL | SDIO_RE_INIT_EN,
-		    MTK_REG_CSDIOCSR, &err);
+	val = sdio_readl(bdev->func, MTK_REG_CSDIOCSR, &err);
+	if (err < 0)
+		goto err_release_irq;
+
+	val |= SDIO_INT_CTL;
+	sdio_writel(bdev->func, val, MTK_REG_CSDIOCSR, &err);
 	if (err < 0)
 		goto err_release_irq;
 
