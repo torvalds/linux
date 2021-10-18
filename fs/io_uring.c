@@ -199,6 +199,7 @@ struct io_rings {
 
 enum io_uring_cmd_flags {
 	IO_URING_F_COMPLETE_DEFER	= 1,
+	IO_URING_F_UNLOCKED		= 2,
 	/* int's last bit, sign checks are usually faster than a bit test */
 	IO_URING_F_NONBLOCK		= INT_MIN,
 };
@@ -2706,10 +2707,10 @@ static void io_complete_rw_iopoll(struct kiocb *kiocb, long res, long res2)
 static void io_iopoll_req_issued(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_ring_ctx *ctx = req->ctx;
-	const bool need_lock = !(issue_flags & IO_URING_F_NONBLOCK);
+	const bool needs_lock = issue_flags & IO_URING_F_UNLOCKED;
 
 	/* workqueue context doesn't hold uring_lock, grab it now */
-	if (unlikely(need_lock))
+	if (unlikely(needs_lock))
 		mutex_lock(&ctx->uring_lock);
 
 	/*
@@ -2737,7 +2738,7 @@ static void io_iopoll_req_issued(struct io_kiocb *req, unsigned int issue_flags)
 	else
 		wq_list_add_tail(&req->comp_list, &ctx->iopoll_list);
 
-	if (unlikely(need_lock)) {
+	if (unlikely(needs_lock)) {
 		/*
 		 * If IORING_SETUP_SQPOLL is enabled, sqes are either handle
 		 * in sq thread task context or in io worker task context. If
@@ -2921,7 +2922,7 @@ static void kiocb_done(struct kiocb *kiocb, ssize_t ret,
 			struct io_ring_ctx *ctx = req->ctx;
 
 			req_set_fail(req);
-			if (!(issue_flags & IO_URING_F_NONBLOCK)) {
+			if (issue_flags & IO_URING_F_UNLOCKED) {
 				mutex_lock(&ctx->uring_lock);
 				__io_req_complete(req, issue_flags, ret, cflags);
 				mutex_unlock(&ctx->uring_lock);
@@ -3031,7 +3032,7 @@ static struct io_buffer *io_buffer_select(struct io_kiocb *req, size_t *len,
 {
 	struct io_buffer *kbuf = req->kbuf;
 	struct io_buffer *head;
-	bool needs_lock = !(issue_flags & IO_URING_F_NONBLOCK);
+	bool needs_lock = issue_flags & IO_URING_F_UNLOCKED;
 
 	if (req->flags & REQ_F_BUFFER_SELECTED)
 		return kbuf;
@@ -3336,7 +3337,7 @@ static inline int io_rw_prep_async(struct io_kiocb *req, int rw)
 	int ret;
 
 	/* submission path, ->uring_lock should already be taken */
-	ret = io_import_iovec(rw, req, &iov, &iorw->s, IO_URING_F_NONBLOCK);
+	ret = io_import_iovec(rw, req, &iov, &iorw->s, 0);
 	if (unlikely(ret < 0))
 		return ret;
 
@@ -4309,9 +4310,9 @@ static int io_remove_buffers(struct io_kiocb *req, unsigned int issue_flags)
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_buffer *head;
 	int ret = 0;
-	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
+	bool needs_lock = issue_flags & IO_URING_F_UNLOCKED;
 
-	io_ring_submit_lock(ctx, !force_nonblock);
+	io_ring_submit_lock(ctx, needs_lock);
 
 	lockdep_assert_held(&ctx->uring_lock);
 
@@ -4324,7 +4325,7 @@ static int io_remove_buffers(struct io_kiocb *req, unsigned int issue_flags)
 
 	/* complete before unlock, IOPOLL may need the lock */
 	__io_req_complete(req, issue_flags, ret, 0);
-	io_ring_submit_unlock(ctx, !force_nonblock);
+	io_ring_submit_unlock(ctx, needs_lock);
 	return 0;
 }
 
@@ -4396,9 +4397,9 @@ static int io_provide_buffers(struct io_kiocb *req, unsigned int issue_flags)
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_buffer *head, *list;
 	int ret = 0;
-	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
+	bool needs_lock = issue_flags & IO_URING_F_UNLOCKED;
 
-	io_ring_submit_lock(ctx, !force_nonblock);
+	io_ring_submit_lock(ctx, needs_lock);
 
 	lockdep_assert_held(&ctx->uring_lock);
 
@@ -4414,7 +4415,7 @@ static int io_provide_buffers(struct io_kiocb *req, unsigned int issue_flags)
 		req_set_fail(req);
 	/* complete before unlock, IOPOLL may need the lock */
 	__io_req_complete(req, issue_flags, ret, 0);
-	io_ring_submit_unlock(ctx, !force_nonblock);
+	io_ring_submit_unlock(ctx, needs_lock);
 	return 0;
 }
 
@@ -6271,6 +6272,7 @@ static int io_async_cancel(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	u64 sqe_addr = req->cancel.addr;
+	bool needs_lock = issue_flags & IO_URING_F_UNLOCKED;
 	struct io_tctx_node *node;
 	int ret;
 
@@ -6279,7 +6281,7 @@ static int io_async_cancel(struct io_kiocb *req, unsigned int issue_flags)
 		goto done;
 
 	/* slow path, try all io-wq's */
-	io_ring_submit_lock(ctx, !(issue_flags & IO_URING_F_NONBLOCK));
+	io_ring_submit_lock(ctx, needs_lock);
 	ret = -ENOENT;
 	list_for_each_entry(node, &ctx->tctx_list, ctx_node) {
 		struct io_uring_task *tctx = node->task->io_uring;
@@ -6288,7 +6290,7 @@ static int io_async_cancel(struct io_kiocb *req, unsigned int issue_flags)
 		if (ret != -ENOENT)
 			break;
 	}
-	io_ring_submit_unlock(ctx, !(issue_flags & IO_URING_F_NONBLOCK));
+	io_ring_submit_unlock(ctx, needs_lock);
 done:
 	if (ret < 0)
 		req_set_fail(req);
@@ -6315,6 +6317,7 @@ static int io_rsrc_update_prep(struct io_kiocb *req,
 static int io_files_update(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_ring_ctx *ctx = req->ctx;
+	bool needs_lock = issue_flags & IO_URING_F_UNLOCKED;
 	struct io_uring_rsrc_update2 up;
 	int ret;
 
@@ -6324,10 +6327,10 @@ static int io_files_update(struct io_kiocb *req, unsigned int issue_flags)
 	up.tags = 0;
 	up.resv = 0;
 
-	io_ring_submit_lock(ctx, !(issue_flags & IO_URING_F_NONBLOCK));
+	io_ring_submit_lock(ctx, needs_lock);
 	ret = __io_register_rsrc_update(ctx, IORING_RSRC_FILE,
 					&up, req->rsrc_update.nr_args);
-	io_ring_submit_unlock(ctx, !(issue_flags & IO_URING_F_NONBLOCK));
+	io_ring_submit_unlock(ctx, needs_lock);
 
 	if (ret < 0)
 		req_set_fail(req);
@@ -6737,7 +6740,7 @@ static void io_wq_submit_work(struct io_wq_work *work)
 
 	if (!ret) {
 		do {
-			ret = io_issue_sqe(req, 0);
+			ret = io_issue_sqe(req, IO_URING_F_UNLOCKED);
 			/*
 			 * We can get EAGAIN for polled IO even though we're
 			 * forcing a sync submission from here, since we can't
@@ -8326,12 +8329,12 @@ static int io_install_fixed_file(struct io_kiocb *req, struct file *file,
 				 unsigned int issue_flags, u32 slot_index)
 {
 	struct io_ring_ctx *ctx = req->ctx;
-	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
+	bool needs_lock = issue_flags & IO_URING_F_UNLOCKED;
 	bool needs_switch = false;
 	struct io_fixed_file *file_slot;
 	int ret = -EBADF;
 
-	io_ring_submit_lock(ctx, !force_nonblock);
+	io_ring_submit_lock(ctx, needs_lock);
 	if (file->f_op == &io_uring_fops)
 		goto err;
 	ret = -ENXIO;
@@ -8372,7 +8375,7 @@ static int io_install_fixed_file(struct io_kiocb *req, struct file *file,
 err:
 	if (needs_switch)
 		io_rsrc_node_switch(ctx, ctx->file_data);
-	io_ring_submit_unlock(ctx, !force_nonblock);
+	io_ring_submit_unlock(ctx, needs_lock);
 	if (ret)
 		fput(file);
 	return ret;
@@ -8382,11 +8385,12 @@ static int io_close_fixed(struct io_kiocb *req, unsigned int issue_flags)
 {
 	unsigned int offset = req->close.file_slot - 1;
 	struct io_ring_ctx *ctx = req->ctx;
+	bool needs_lock = issue_flags & IO_URING_F_UNLOCKED;
 	struct io_fixed_file *file_slot;
 	struct file *file;
 	int ret, i;
 
-	io_ring_submit_lock(ctx, !(issue_flags & IO_URING_F_NONBLOCK));
+	io_ring_submit_lock(ctx, needs_lock);
 	ret = -ENXIO;
 	if (unlikely(!ctx->file_data))
 		goto out;
@@ -8412,7 +8416,7 @@ static int io_close_fixed(struct io_kiocb *req, unsigned int issue_flags)
 	io_rsrc_node_switch(ctx, ctx->file_data);
 	ret = 0;
 out:
-	io_ring_submit_unlock(ctx, !(issue_flags & IO_URING_F_NONBLOCK));
+	io_ring_submit_unlock(ctx, needs_lock);
 	return ret;
 }
 
