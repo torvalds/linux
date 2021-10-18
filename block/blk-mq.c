@@ -325,6 +325,10 @@ static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 		rq->internal_tag = BLK_MQ_NO_TAG;
 	}
 
+	if (blk_mq_need_time_stamp(rq))
+		rq->start_time_ns = ktime_get_ns();
+	else
+		rq->start_time_ns = 0;
 	/* csd/requeue_work/fifo_time is initialized before use */
 	rq->q = data->q;
 	rq->mq_ctx = data->ctx;
@@ -334,41 +338,37 @@ static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 		rq->rq_flags |= RQF_PM;
 	if (blk_queue_io_stat(data->q))
 		rq->rq_flags |= RQF_IO_STAT;
-	INIT_LIST_HEAD(&rq->queuelist);
-	INIT_HLIST_NODE(&rq->hash);
-	RB_CLEAR_NODE(&rq->rb_node);
 	rq->rq_disk = NULL;
 	rq->part = NULL;
 #ifdef CONFIG_BLK_RQ_ALLOC_TIME
 	rq->alloc_time_ns = alloc_time_ns;
 #endif
-	if (blk_mq_need_time_stamp(rq))
-		rq->start_time_ns = ktime_get_ns();
-	else
-		rq->start_time_ns = 0;
 	rq->io_start_time_ns = 0;
 	rq->stats_sectors = 0;
 	rq->nr_phys_segments = 0;
 #if defined(CONFIG_BLK_DEV_INTEGRITY)
 	rq->nr_integrity_segments = 0;
 #endif
-	blk_crypto_rq_set_defaults(rq);
-	/* tag was already set */
-	WRITE_ONCE(rq->deadline, 0);
-
 	rq->timeout = 0;
-
 	rq->end_io = NULL;
 	rq->end_io_data = NULL;
 
 	data->ctx->rq_dispatched[op_is_sync(data->cmd_flags)]++;
+	blk_crypto_rq_set_defaults(rq);
+	INIT_LIST_HEAD(&rq->queuelist);
+	/* tag was already set */
+	WRITE_ONCE(rq->deadline, 0);
 	refcount_set(&rq->ref, 1);
 
-	if (!op_is_flush(data->cmd_flags) && (rq->rq_flags & RQF_ELV)) {
+	if (rq->rq_flags & RQF_ELV) {
 		struct elevator_queue *e = data->q->elevator;
 
 		rq->elv.icq = NULL;
-		if (e->type->ops.prepare_request) {
+		INIT_HLIST_NODE(&rq->hash);
+		RB_CLEAR_NODE(&rq->rb_node);
+
+		if (!op_is_flush(data->cmd_flags) &&
+		    e->type->ops.prepare_request) {
 			if (e->type->icq_cache)
 				blk_mq_sched_assign_ioc(rq);
 
