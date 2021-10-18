@@ -111,7 +111,8 @@ out:
 	return ndev;
 }
 
-void wilc_wlan_set_bssid(struct net_device *wilc_netdev, u8 *bssid, u8 mode)
+void wilc_wlan_set_bssid(struct net_device *wilc_netdev, const u8 *bssid,
+			 u8 mode)
 {
 	struct wilc_vif *vif = netdev_priv(wilc_netdev);
 
@@ -594,10 +595,14 @@ static int wilc_mac_open(struct net_device *ndev)
 	wilc_set_operation_mode(vif, wilc_get_vif_idx(vif), vif->iftype,
 				vif->idx);
 
-	if (is_valid_ether_addr(ndev->dev_addr))
+	if (is_valid_ether_addr(ndev->dev_addr)) {
 		wilc_set_mac_address(vif, ndev->dev_addr);
-	else
-		wilc_get_mac_address(vif, ndev->dev_addr);
+	} else {
+		u8 addr[ETH_ALEN];
+
+		wilc_get_mac_address(vif, addr);
+		eth_hw_addr_set(ndev, addr);
+	}
 	netdev_dbg(ndev, "Mac address: %pM\n", ndev->dev_addr);
 
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
