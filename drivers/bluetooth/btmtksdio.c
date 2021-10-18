@@ -487,8 +487,8 @@ static void btmtksdio_interrupt(struct sdio_func *func)
 static int btmtksdio_open(struct hci_dev *hdev)
 {
 	struct btmtksdio_dev *bdev = hci_get_drvdata(hdev);
+	u32 status, val;
 	int err;
-	u32 status;
 
 	sdio_claim_host(bdev->func);
 
@@ -533,8 +533,13 @@ static int btmtksdio_open(struct hci_dev *hdev)
 	if (err < 0)
 		goto err_release_irq;
 
-	/* Setup write-1-clear for CHISR register */
-	sdio_writel(bdev->func, C_INT_CLR_CTRL, MTK_REG_CHCR, &err);
+	/* Explitly set write-1-clear method */
+	val = sdio_readl(bdev->func, MTK_REG_CHCR, &err);
+	if (err < 0)
+		goto err_release_irq;
+
+	val |= C_INT_CLR_CTRL;
+	sdio_writel(bdev->func, val, MTK_REG_CHCR, &err);
 	if (err < 0)
 		goto err_release_irq;
 
