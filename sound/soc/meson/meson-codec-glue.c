@@ -113,9 +113,6 @@ int meson_codec_glue_output_startup(struct snd_pcm_substream *substream,
 	/* Replace link params with the input params */
 	rtd->dai_link->params = &in_data->params;
 
-	if (!in_data->fmt)
-		return 0;
-
 	return snd_soc_runtime_set_dai_fmt(rtd, in_data->fmt);
 }
 EXPORT_SYMBOL_GPL(meson_codec_glue_output_startup);
