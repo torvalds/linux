@@ -74,7 +74,7 @@ examples:
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     #include <dt-bindings/interrupt-controller/irq.h>
     #include <dt-bindings/power/mt8192-power.h>
-    #include <dt-bindings/reset-controller/mt8192-resets.h>
+    #include <dt-bindings/reset/mt8192-resets.h>
 
     afe: mt8192-afe-pcm {
         compatible = "mediatek,mt8192-audio";
