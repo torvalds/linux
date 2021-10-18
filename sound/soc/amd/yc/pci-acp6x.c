@@ -12,6 +12,7 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <sound/pcm_params.h>
+#include <linux/pm_runtime.h>
 
 #include "acp6x.h"
 
@@ -240,6 +241,11 @@ static int snd_acp6x_probe(struct pci_dev *pci,
 		dev_err(&pci->dev, "ACP PCI IRQ request failed\n");
 		goto unregister_devs;
 	}
+	pm_runtime_set_autosuspend_delay(&pci->dev, ACP_SUSPEND_DELAY_MS);
+	pm_runtime_use_autosuspend(&pci->dev);
+	pm_runtime_put_noidle(&pci->dev);
+	pm_runtime_allow(&pci->dev);
+
 	return 0;
 unregister_devs:
 	for (--index; index >= 0; index--)
@@ -255,6 +261,35 @@ disable_pci:
 	return ret;
 }
 
+static int __maybe_unused snd_acp6x_suspend(struct device *dev)
+{
+	struct acp6x_dev_data *adata;
+	int ret;
+
+	adata = dev_get_drvdata(dev);
+	ret = acp6x_deinit(adata->acp6x_base);
+	if (ret)
+		dev_err(dev, "ACP de-init failed\n");
+	return ret;
+}
+
+static int __maybe_unused snd_acp6x_resume(struct device *dev)
+{
+	struct acp6x_dev_data *adata;
+	int ret;
+
+	adata = dev_get_drvdata(dev);
+	ret = acp6x_init(adata->acp6x_base);
+	if (ret)
+		dev_err(dev, "ACP init failed\n");
+	return ret;
+}
+
+static const struct dev_pm_ops acp6x_pm = {
+	SET_RUNTIME_PM_OPS(snd_acp6x_suspend, snd_acp6x_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(snd_acp6x_suspend, snd_acp6x_resume)
+};
+
 static void snd_acp6x_remove(struct pci_dev *pci)
 {
 	struct acp6x_dev_data *adata;
@@ -268,6 +303,8 @@ static void snd_acp6x_remove(struct pci_dev *pci)
 	ret = acp6x_deinit(adata->acp6x_base);
 	if (ret)
 		dev_err(&pci->dev, "ACP de-init failed\n");
+	pm_runtime_forbid(&pci->dev);
+	pm_runtime_get_noresume(&pci->dev);
 	pci_release_regions(pci);
 	pci_disable_device(pci);
 }
@@ -285,6 +322,9 @@ static struct pci_driver yc_acp6x_driver  = {
 	.id_table = snd_acp6x_ids,
 	.probe = snd_acp6x_probe,
 	.remove = snd_acp6x_remove,
+	.driver = {
+		.pm = &acp6x_pm,
+	}
 };
 
 module_pci_driver(yc_acp6x_driver);
