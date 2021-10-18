@@ -10,11 +10,11 @@
 #include <linux/module.h>
 #include <linux/iopoll.h>
 
+#include "../sdio.h"
 #include "mt7615.h"
 #include "mac.h"
 #include "mcu.h"
 #include "regs.h"
-#include "sdio.h"
 
 static int mt7663s_mcu_init_sched(struct mt7615_dev *dev)
 {
@@ -63,7 +63,7 @@ static int __mt7663s_mcu_drv_pmctrl(struct mt7615_dev *dev)
 
 	sdio_writel(func, WHLPCR_FW_OWN_REQ_CLR, MCR_WHLPCR, NULL);
 
-	ret = readx_poll_timeout(mt7663s_read_pcr, dev, status,
+	ret = readx_poll_timeout(mt76s_read_pcr, &dev->mt76, status,
 				 status & WHLPCR_IS_DRIVER_OWN, 2000, 1000000);
 	if (ret < 0) {
 		dev_err(dev->mt76.dev, "Cannot get ownership from device");
@@ -111,7 +111,7 @@ static int mt7663s_mcu_fw_pmctrl(struct mt7615_dev *dev)
 
 	sdio_writel(func, WHLPCR_FW_OWN_REQ_SET, MCR_WHLPCR, NULL);
 
-	ret = readx_poll_timeout(mt7663s_read_pcr, dev, status,
+	ret = readx_poll_timeout(mt76s_read_pcr, &dev->mt76, status,
 				 !(status & WHLPCR_IS_DRIVER_OWN), 2000, 1000000);
 	if (ret < 0) {
 		dev_err(dev->mt76.dev, "Cannot set ownership to device");

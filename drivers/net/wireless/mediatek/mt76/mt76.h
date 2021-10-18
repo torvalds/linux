@@ -1248,6 +1248,22 @@ int mt76s_init(struct mt76_dev *dev, struct sdio_func *func,
 int mt76s_alloc_rx_queue(struct mt76_dev *dev, enum mt76_rxq_id qid);
 int mt76s_alloc_tx(struct mt76_dev *dev);
 void mt76s_deinit(struct mt76_dev *dev);
+void mt76s_sdio_irq(struct sdio_func *func);
+void mt76s_txrx_worker(struct mt76_sdio *sdio);
+int mt76s_hw_init(struct mt76_dev *dev, struct sdio_func *func);
+u32 mt76s_rr(struct mt76_dev *dev, u32 offset);
+void mt76s_wr(struct mt76_dev *dev, u32 offset, u32 val);
+u32 mt76s_rmw(struct mt76_dev *dev, u32 offset, u32 mask, u32 val);
+u32 mt76s_read_pcr(struct mt76_dev *dev);
+void mt76s_write_copy(struct mt76_dev *dev, u32 offset,
+		      const void *data, int len);
+void mt76s_read_copy(struct mt76_dev *dev, u32 offset,
+		     void *data, int len);
+int mt76s_wr_rp(struct mt76_dev *dev, u32 base,
+		const struct mt76_reg_pair *data,
+		int len);
+int mt76s_rd_rp(struct mt76_dev *dev, u32 base,
+		struct mt76_reg_pair *data, int len);
 
 struct sk_buff *
 mt76_mcu_msg_alloc(struct mt76_dev *dev, const void *data,
