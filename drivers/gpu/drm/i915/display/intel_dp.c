@@ -127,7 +127,7 @@ static void intel_dp_set_default_sink_rates(struct intel_dp *intel_dp)
 }
 
 /* update sink rates from dpcd */
-static void intel_dp_set_sink_rates(struct intel_dp *intel_dp)
+static void intel_dp_set_dpcd_sink_rates(struct intel_dp *intel_dp)
 {
 	static const int dp_rates[] = {
 		162000, 270000, 540000, 810000
@@ -195,6 +195,25 @@ static void intel_dp_set_sink_rates(struct intel_dp *intel_dp)
 	}
 
 	intel_dp->num_sink_rates = i;
+}
+
+static void intel_dp_set_sink_rates(struct intel_dp *intel_dp)
+{
+	struct intel_connector *connector = intel_dp->attached_connector;
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct intel_encoder *encoder = &intel_dig_port->base;
+
+	intel_dp_set_dpcd_sink_rates(intel_dp);
+
+	if (intel_dp->num_sink_rates)
+		return;
+
+	drm_err(&dp_to_i915(intel_dp)->drm,
+		"[CONNECTOR:%d:%s][ENCODER:%d:%s] Invalid DPCD with no link rates, using defaults\n",
+		connector->base.base.id, connector->base.name,
+		encoder->base.base.id, encoder->base.name);
+
+	intel_dp_set_default_sink_rates(intel_dp);
 }
 
 static void intel_dp_set_default_max_sink_lane_count(struct intel_dp *intel_dp)
