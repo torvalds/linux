@@ -561,7 +561,8 @@ int rtc_update_irq_enable(struct rtc_device *rtc, unsigned int enabled)
 	if (rtc->uie_rtctimer.enabled == enabled)
 		goto out;
 
-	if (rtc->uie_unsupported || !test_bit(RTC_FEATURE_ALARM, rtc->features)) {
+	if (!test_bit(RTC_FEATURE_UPDATE_INTERRUPT, rtc->features) ||
+	    !test_bit(RTC_FEATURE_ALARM, rtc->features)) {
 		mutex_unlock(&rtc->ops_lock);
 #ifdef CONFIG_RTC_INTF_DEV_UIE_EMUL
 		return rtc_dev_update_irq_enable_emul(rtc, enabled);
