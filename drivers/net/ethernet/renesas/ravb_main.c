@@ -136,13 +136,15 @@ static void ravb_read_mac_address(struct device_node *np,
 	if (ret) {
 		u32 mahr = ravb_read(ndev, MAHR);
 		u32 malr = ravb_read(ndev, MALR);
+		u8 addr[ETH_ALEN];
 
-		ndev->dev_addr[0] = (mahr >> 24) & 0xFF;
-		ndev->dev_addr[1] = (mahr >> 16) & 0xFF;
-		ndev->dev_addr[2] = (mahr >>  8) & 0xFF;
-		ndev->dev_addr[3] = (mahr >>  0) & 0xFF;
-		ndev->dev_addr[4] = (malr >>  8) & 0xFF;
-		ndev->dev_addr[5] = (malr >>  0) & 0xFF;
+		addr[0] = (mahr >> 24) & 0xFF;
+		addr[1] = (mahr >> 16) & 0xFF;
+		addr[2] = (mahr >>  8) & 0xFF;
+		addr[3] = (mahr >>  0) & 0xFF;
+		addr[4] = (malr >>  8) & 0xFF;
+		addr[5] = (malr >>  0) & 0xFF;
+		eth_hw_addr_set(ndev, addr);
 	}
 }
 
