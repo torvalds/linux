@@ -34,9 +34,11 @@ struct i915_lut_handle {
 
 struct drm_i915_gem_object_ops {
 	unsigned int flags;
-#define I915_GEM_OBJECT_IS_SHRINKABLE	BIT(1)
-#define I915_GEM_OBJECT_IS_PROXY	BIT(2)
-#define I915_GEM_OBJECT_NO_MMAP		BIT(3)
+#define I915_GEM_OBJECT_IS_SHRINKABLE			BIT(1)
+/* Skip the shrinker management in set_pages/unset_pages */
+#define I915_GEM_OBJECT_SELF_MANAGED_SHRINK_LIST	BIT(2)
+#define I915_GEM_OBJECT_IS_PROXY			BIT(3)
+#define I915_GEM_OBJECT_NO_MMAP				BIT(4)
 
 	/* Interface between the GEM object and its backing storage.
 	 * get_pages() is called once prior to the use of the associated set
@@ -511,6 +513,12 @@ struct drm_i915_gem_object {
 		 * and make the pages visible again.
 		 */
 		atomic_t shrink_pin;
+
+		/**
+		 * @ttm_shrinkable: True when the object is using shmem pages
+		 * underneath. Protected by the object lock.
+		 */
+		bool ttm_shrinkable;
 
 		/**
 		 * Priority list of potential placements for this object.

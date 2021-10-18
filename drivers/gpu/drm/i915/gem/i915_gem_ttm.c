@@ -762,6 +762,7 @@ static int i915_ttm_move(struct ttm_buffer_object *bo, bool evict,
 		obj->ttm.get_io_page.sg_idx = 0;
 	}
 
+	i915_ttm_adjust_lru(obj);
 	i915_ttm_adjust_gem_after_move(obj);
 	return 0;
 }
@@ -851,7 +852,6 @@ static int __i915_ttm_get_pages(struct drm_i915_gem_object *obj,
 			return i915_ttm_err_to_gem(ret);
 	}
 
-	i915_ttm_adjust_lru(obj);
 	if (bo->ttm && !ttm_tt_is_populated(bo->ttm)) {
 		ret = ttm_tt_populate(bo->bdev, bo->ttm, &ctx);
 		if (ret)
@@ -862,19 +862,15 @@ static int __i915_ttm_get_pages(struct drm_i915_gem_object *obj,
 	}
 
 	if (!i915_gem_object_has_pages(obj)) {
-		struct i915_ttm_tt *i915_tt =
-			container_of(bo->ttm, typeof(*i915_tt), ttm);
-
 		/* Object either has a page vector or is an iomem object */
 		st = bo->ttm ? i915_ttm_tt_get_st(bo->ttm) : obj->ttm.cached_io_st;
 		if (IS_ERR(st))
 			return PTR_ERR(st);
 
 		__i915_gem_object_set_pages(obj, st, i915_sg_dma_sizes(st->sgl));
-		if (!bo->ttm || !i915_tt->is_shmem)
-			i915_gem_object_make_unshrinkable(obj);
 	}
 
+	i915_ttm_adjust_lru(obj);
 	return ret;
 }
 
@@ -945,8 +941,6 @@ static void i915_ttm_put_pages(struct drm_i915_gem_object *obj,
 	 * If the object is not destroyed next, The TTM eviction logic
 	 * and shrinkers will move it out if needed.
 	 */
-
-	i915_ttm_adjust_lru(obj);
 }
 
 static void i915_ttm_adjust_lru(struct drm_i915_gem_object *obj)
@@ -954,6 +948,8 @@ static void i915_ttm_adjust_lru(struct drm_i915_gem_object *obj)
 	struct ttm_buffer_object *bo = i915_gem_to_ttm(obj);
 	struct i915_ttm_tt *i915_tt =
 		container_of(bo->ttm, typeof(*i915_tt), ttm);
+	bool shrinkable =
+		bo->ttm && i915_tt->filp && ttm_tt_is_populated(bo->ttm);
 
 	/*
 	 * Don't manipulate the TTM LRUs while in TTM bo destruction.
@@ -963,10 +959,39 @@ static void i915_ttm_adjust_lru(struct drm_i915_gem_object *obj)
 		return;
 
 	/*
+	 * We skip managing the shrinker LRU in set_pages() and just manage
+	 * everything here. This does at least solve the issue with having
+	 * temporary shmem mappings(like with evicted lmem) not being visible to
+	 * the shrinker. Only our shmem objects are shrinkable, everything else
+	 * we keep as unshrinkable.
+	 *
+	 * To make sure everything plays nice we keep an extra shrink pin in TTM
+	 * if the underlying pages are not currently shrinkable. Once we release
+	 * our pin, like when the pages are moved to shmem, the pages will then
+	 * be added to the shrinker LRU, assuming the caller isn't also holding
+	 * a pin.
+	 *
+	 * TODO: consider maybe also bumping the shrinker list here when we have
+	 * already unpinned it, which should give us something more like an LRU.
+	 */
+	if (shrinkable != obj->mm.ttm_shrinkable) {
+		if (shrinkable) {
+			if (obj->mm.madv == I915_MADV_WILLNEED)
+				__i915_gem_object_make_shrinkable(obj);
+			else
+				__i915_gem_object_make_purgeable(obj);
+		} else {
+			i915_gem_object_make_unshrinkable(obj);
+		}
+
+		obj->mm.ttm_shrinkable = shrinkable;
+	}
+
+	/*
 	 * Put on the correct LRU list depending on the MADV status
 	 */
 	spin_lock(&bo->bdev->lru_lock);
-	if (bo->ttm && i915_tt->filp) {
+	if (shrinkable) {
 		/* Try to keep shmem_tt from being considered for shrinking. */
 		bo->priority = TTM_MAX_BO_PRIORITY - 1;
 	} else if (obj->mm.madv != I915_MADV_WILLNEED) {
@@ -1010,13 +1035,34 @@ static vm_fault_t vm_fault_ttm(struct vm_fault *vmf)
 	struct vm_area_struct *area = vmf->vma;
 	struct drm_i915_gem_object *obj =
 		i915_ttm_to_gem(area->vm_private_data);
+	struct ttm_buffer_object *bo = i915_gem_to_ttm(obj);
+	struct drm_device *dev = bo->base.dev;
+	vm_fault_t ret;
+	int idx;
 
 	/* Sanity check that we allow writing into this object */
 	if (unlikely(i915_gem_object_is_readonly(obj) &&
 		     area->vm_flags & VM_WRITE))
 		return VM_FAULT_SIGBUS;
 
-	return ttm_bo_vm_fault(vmf);
+	ret = ttm_bo_vm_reserve(bo, vmf);
+	if (ret)
+		return ret;
+
+	if (drm_dev_enter(dev, &idx)) {
+		ret = ttm_bo_vm_fault_reserved(vmf, vmf->vma->vm_page_prot,
+					       TTM_BO_VM_NUM_PREFAULT, 1);
+		drm_dev_exit(idx);
+	} else {
+		ret = ttm_bo_vm_dummy_page(vmf, vmf->vma->vm_page_prot);
+	}
+	if (ret == VM_FAULT_RETRY && !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT))
+		return ret;
+
+	i915_ttm_adjust_lru(obj);
+
+	dma_resv_unlock(bo->base.resv);
+	return ret;
 }
 
 static int
@@ -1067,6 +1113,7 @@ static u64 i915_ttm_mmap_offset(struct drm_i915_gem_object *obj)
 
 static const struct drm_i915_gem_object_ops i915_gem_ttm_obj_ops = {
 	.name = "i915_gem_object_ttm",
+	.flags = I915_GEM_OBJECT_SELF_MANAGED_SHRINK_LIST,
 
 	.get_pages = i915_ttm_get_pages,
 	.put_pages = i915_ttm_put_pages,
@@ -1089,6 +1136,18 @@ void i915_ttm_bo_destroy(struct ttm_buffer_object *bo)
 	mutex_destroy(&obj->ttm.get_io_page.lock);
 
 	if (obj->ttm.created) {
+		/*
+		 * We freely manage the shrinker LRU outide of the mm.pages life
+		 * cycle. As a result when destroying the object we should be
+		 * extra paranoid and ensure we remove it from the LRU, before
+		 * we free the object.
+		 *
+		 * Touching the ttm_shrinkable outside of the object lock here
+		 * should be safe now that the last GEM object ref was dropped.
+		 */
+		if (obj->mm.ttm_shrinkable)
+			i915_gem_object_make_unshrinkable(obj);
+
 		i915_ttm_backup_free(obj);
 
 		/* This releases all gem object bindings to the backend. */
@@ -1140,6 +1199,14 @@ int __i915_gem_ttm_object_init(struct intel_memory_region *mem,
 
 	/* Forcing the page size is kernel internal only */
 	GEM_BUG_ON(page_size && obj->mm.n_placements);
+
+	/*
+	 * Keep an extra shrink pin to prevent the object from being made
+	 * shrinkable too early. If the ttm_tt is ever allocated in shmem, we
+	 * drop the pin. The TTM backend manages the shrinker LRU itself,
+	 * outside of the normal mm.pages life cycle.
+	 */
+	i915_gem_object_make_unshrinkable(obj);
 
 	/*
 	 * If this function fails, it will call the destructor, but
