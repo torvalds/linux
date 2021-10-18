@@ -650,7 +650,9 @@ static int mt7921_load_patch(struct mt7921_dev *dev)
 {
 	const struct mt7921_patch_hdr *hdr;
 	const struct firmware *fw = NULL;
-	int i, ret, sem;
+	int i, ret, sem, max_len;
+
+	max_len = mt76_is_sdio(&dev->mt76) ? 2048 : 4096;
 
 	sem = mt76_connac_mcu_patch_sem_ctrl(&dev->mt76, true);
 	switch (sem) {
@@ -706,7 +708,7 @@ static int mt7921_load_patch(struct mt7921_dev *dev)
 		}
 
 		ret = __mt76_mcu_send_firmware(&dev->mt76, MCU_CMD_FW_SCATTER,
-					       dl, len, 4096);
+					       dl, len, max_len);
 		if (ret) {
 			dev_err(dev->mt76.dev, "Failed to send patch\n");
 			goto out;
@@ -753,8 +755,10 @@ mt7921_mcu_send_ram_firmware(struct mt7921_dev *dev,
 			     const struct mt7921_fw_trailer *hdr,
 			     const u8 *data, bool is_wa)
 {
-	int i, offset = 0;
+	int i, offset = 0, max_len;
 	u32 override = 0, option = 0;
+
+	max_len = mt76_is_sdio(&dev->mt76) ? 2048 : 4096;
 
 	for (i = 0; i < hdr->n_region; i++) {
 		const struct mt7921_fw_region *region;
@@ -778,7 +782,7 @@ mt7921_mcu_send_ram_firmware(struct mt7921_dev *dev,
 		}
 
 		err = __mt76_mcu_send_firmware(&dev->mt76, MCU_CMD_FW_SCATTER,
-					       data + offset, len, 4096);
+					       data + offset, len, max_len);
 		if (err) {
 			dev_err(dev->mt76.dev, "Failed to send firmware.\n");
 			return err;
@@ -851,7 +855,7 @@ static int mt7921_load_firmware(struct mt7921_dev *dev)
 	int ret;
 
 	ret = mt76_get_field(dev, MT_CONN_ON_MISC, MT_TOP_MISC2_FW_N9_RDY);
-	if (ret) {
+	if (ret && mt76_is_mmio(&dev->mt76)) {
 		dev_dbg(dev->mt76.dev, "Firmware is already download\n");
 		goto fw_loaded;
 	}
