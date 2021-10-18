@@ -200,20 +200,16 @@ static int
 mlxsw_m_port_dev_addr_get(struct mlxsw_m_port *mlxsw_m_port)
 {
 	struct mlxsw_m *mlxsw_m = mlxsw_m_port->mlxsw_m;
-	struct net_device *dev = mlxsw_m_port->dev;
 	char ppad_pl[MLXSW_REG_PPAD_LEN];
+	u8 addr[ETH_ALEN];
 	int err;
 
 	mlxsw_reg_ppad_pack(ppad_pl, false, 0);
 	err = mlxsw_reg_query(mlxsw_m->core, MLXSW_REG(ppad), ppad_pl);
 	if (err)
 		return err;
-	mlxsw_reg_ppad_mac_memcpy_from(ppad_pl, dev->dev_addr);
-	/* The last byte value in base mac address is guaranteed
-	 * to be such it does not overflow when adding local_port
-	 * value.
-	 */
-	dev->dev_addr[ETH_ALEN - 1] += mlxsw_m_port->module + 1;
+	mlxsw_reg_ppad_mac_memcpy_from(ppad_pl, addr);
+	eth_hw_addr_gen(mlxsw_m_port->dev, addr, mlxsw_m_port->module + 1);
 	return 0;
 }
 
