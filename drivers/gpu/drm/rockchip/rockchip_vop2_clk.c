@@ -301,7 +301,7 @@ static struct clk *vop2_clk_register(struct vop2 *vop2, struct vop2_clk_branch *
 	return clk;
 }
 
-int vop2_clk_init(struct vop2 *vop2)
+static int vop2_clk_init(struct vop2 *vop2)
 {
 	struct vop2_clk_branch *branch = rk3588_vop_clk_branches;
 	unsigned int nr_clk = ARRAY_SIZE(rk3588_vop_clk_branches);
