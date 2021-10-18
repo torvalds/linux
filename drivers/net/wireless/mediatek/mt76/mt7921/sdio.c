@@ -46,6 +46,7 @@ static void mt7921s_unregister_device(struct mt7921_dev *dev)
 	cancel_work_sync(&pm->wake_work);
 
 	mt76s_deinit(&dev->mt76);
+	mt7921s_wfsys_reset(dev);
 	mt7921_mcu_exit(dev);
 
 	mt76_free_device(&dev->mt76);
@@ -104,6 +105,8 @@ static int mt7921s_probe(struct sdio_func *func,
 		.type = MT76_BUS_SDIO,
 	};
 	static const struct mt7921_hif_ops mt7921_sdio_ops = {
+		.init_reset = mt7921s_init_reset,
+		.reset = mt7921s_mac_reset,
 		.mcu_init = mt7921s_mcu_init,
 		.drv_own = mt7921s_mcu_drv_pmctrl,
 		.fw_own = mt7921s_mcu_fw_pmctrl,

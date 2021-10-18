@@ -235,6 +235,9 @@ static int mt76s_tx_run_queue(struct mt76_dev *dev, struct mt76_queue *q)
 
 		smp_rmb();
 
+		if (test_bit(MT76_MCU_RESET, &dev->phy.state))
+			goto next;
+
 		if (!test_bit(MT76_STATE_MCU_RUNNING, &dev->phy.state)) {
 			__skb_put_zero(e->skb, 4);
 			err = __mt76s_xmit_queue(dev, e->skb->data,
@@ -313,6 +316,13 @@ void mt76s_txrx_worker(struct mt76_sdio *sdio)
 		ret = mt76s_rx_handler(dev);
 		if (ret > 0)
 			nframes += ret;
+
+		if (test_bit(MT76_MCU_RESET, &dev->phy.state)) {
+			if (!mt76s_txqs_empty(dev))
+				continue;
+			else
+				wake_up(&sdio->wait);
+		}
 	} while (nframes > 0);
 
 	/* enable interrupt */
@@ -326,9 +336,29 @@ void mt76s_sdio_irq(struct sdio_func *func)
 	struct mt76_dev *dev = sdio_get_drvdata(func);
 	struct mt76_sdio *sdio = &dev->sdio;
 
-	if (!test_bit(MT76_STATE_INITIALIZED, &dev->phy.state))
+	if (!test_bit(MT76_STATE_INITIALIZED, &dev->phy.state) ||
+	    test_bit(MT76_MCU_RESET, &dev->phy.state))
 		return;
 
 	mt76_worker_schedule(&sdio->txrx_worker);
 }
 EXPORT_SYMBOL_GPL(mt76s_sdio_irq);
+
+bool mt76s_txqs_empty(struct mt76_dev *dev)
+{
+	struct mt76_queue *q;
+	int i;
+
+	for (i = 0; i <= MT_TXQ_PSD + 1; i++) {
+		if (i <= MT_TXQ_PSD)
+			q = dev->phy.q_tx[i];
+		else
+			q = dev->q_mcu[MT_MCUQ_WM];
+
+		if (q->first != q->head)
+			return false;
+	}
+
+	return true;
+}
+EXPORT_SYMBOL_GPL(mt76s_txqs_empty);

@@ -182,6 +182,7 @@ struct mt7921_dev {
 	struct work_struct reset_work;
 	bool hw_full_reset:1;
 	bool hw_init_done:1;
+	bool fw_assert:1;
 
 	struct list_head sta_poll_list;
 	spinlock_t sta_poll_lock;
@@ -425,6 +426,9 @@ void mt7921e_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			  struct sk_buff *skb);
 int mt7921e_mac_reset(struct mt7921_dev *dev);
 int mt7921e_mcu_init(struct mt7921_dev *dev);
+int mt7921s_wfsys_reset(struct mt7921_dev *dev);
+int mt7921s_mac_reset(struct mt7921_dev *dev);
+int mt7921s_init_reset(struct mt7921_dev *dev);
 int mt7921e_mcu_drv_pmctrl(struct mt7921_dev *dev);
 int mt7921e_mcu_fw_pmctrl(struct mt7921_dev *dev);
 
