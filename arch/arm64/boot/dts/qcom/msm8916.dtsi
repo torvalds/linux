@@ -41,9 +41,13 @@
 			no-map;
 		};
 
-		smem_mem: smem@86300000 {
+		smem@86300000 {
+			compatible = "qcom,smem";
 			reg = <0x0 0x86300000 0x0 0x100000>;
 			no-map;
+
+			hwlocks = <&tcsr_mutex 3>;
+			qcom,rpm-msg-ram = <&rpm_msg_ram>;
 		};
 
 		hypervisor@86400000 {
@@ -329,15 +333,6 @@
 				};
 			};
 		};
-	};
-
-	smem {
-		compatible = "qcom,smem";
-
-		memory-region = <&smem_mem>;
-		qcom,rpm-msg-ram = <&rpm_msg_ram>;
-
-		hwlocks = <&tcsr_mutex 3>;
 	};
 
 	smp2p-hexagon {
