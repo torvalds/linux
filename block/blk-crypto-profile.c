@@ -4,26 +4,22 @@
  */
 
 /**
- * DOC: The Keyslot Manager
+ * DOC: blk-crypto profiles
  *
- * Many devices with inline encryption support have a limited number of "slots"
- * into which encryption contexts may be programmed, and requests can be tagged
- * with a slot number to specify the key to use for en/decryption.
+ * 'struct blk_crypto_profile' contains all generic inline encryption-related
+ * state for a particular inline encryption device.  blk_crypto_profile serves
+ * as the way that drivers for inline encryption hardware expose their crypto
+ * capabilities and certain functions (e.g., functions to program and evict
+ * keys) to upper layers.  Device drivers that want to support inline encryption
+ * construct a crypto profile, then associate it with the disk's request_queue.
  *
- * As the number of slots is limited, and programming keys is expensive on
- * many inline encryption hardware, we don't want to program the same key into
- * multiple slots - if multiple requests are using the same key, we want to
- * program just one slot with that key and use that slot for all requests.
+ * If the device has keyslots, then its blk_crypto_profile also handles managing
+ * these keyslots in a device-independent way, using the driver-provided
+ * functions to program and evict keys as needed.  This includes keeping track
+ * of which key and how many I/O requests are using each keyslot, getting
+ * keyslots for I/O requests, and handling key eviction requests.
  *
- * The keyslot manager manages these keyslots appropriately, and also acts as
- * an abstraction between the inline encryption hardware and the upper layers.
- *
- * Lower layer devices will set up a keyslot manager in their request queue
- * and tell it how to perform device specific operations like programming/
- * evicting keys from keyslots.
- *
- * Upper layers will call blk_ksm_get_slot_for_key() to program a
- * key into some slot in the inline encryption hardware.
+ * For more information, see Documentation/block/inline-encryption.rst.
  */
 
 #define pr_fmt(fmt) "blk-crypto: " fmt
@@ -37,77 +33,75 @@
 #include <linux/blkdev.h>
 #include <linux/blk-integrity.h>
 
-struct blk_ksm_keyslot {
+struct blk_crypto_keyslot {
 	atomic_t slot_refs;
 	struct list_head idle_slot_node;
 	struct hlist_node hash_node;
 	const struct blk_crypto_key *key;
-	struct blk_keyslot_manager *ksm;
+	struct blk_crypto_profile *profile;
 };
 
-static inline void blk_ksm_hw_enter(struct blk_keyslot_manager *ksm)
+static inline void blk_crypto_hw_enter(struct blk_crypto_profile *profile)
 {
 	/*
-	 * Calling into the driver requires ksm->lock held and the device
+	 * Calling into the driver requires profile->lock held and the device
 	 * resumed.  But we must resume the device first, since that can acquire
-	 * and release ksm->lock via blk_ksm_reprogram_all_keys().
+	 * and release profile->lock via blk_crypto_reprogram_all_keys().
 	 */
-	if (ksm->dev)
-		pm_runtime_get_sync(ksm->dev);
-	down_write(&ksm->lock);
+	if (profile->dev)
+		pm_runtime_get_sync(profile->dev);
+	down_write(&profile->lock);
 }
 
-static inline void blk_ksm_hw_exit(struct blk_keyslot_manager *ksm)
+static inline void blk_crypto_hw_exit(struct blk_crypto_profile *profile)
 {
-	up_write(&ksm->lock);
-	if (ksm->dev)
-		pm_runtime_put_sync(ksm->dev);
-}
-
-static inline bool blk_ksm_is_passthrough(struct blk_keyslot_manager *ksm)
-{
-	return ksm->num_slots == 0;
+	up_write(&profile->lock);
+	if (profile->dev)
+		pm_runtime_put_sync(profile->dev);
 }
 
 /**
- * blk_ksm_init() - Initialize a keyslot manager
- * @ksm: The keyslot_manager to initialize.
- * @num_slots: The number of key slots to manage.
+ * blk_crypto_profile_init() - Initialize a blk_crypto_profile
+ * @profile: the blk_crypto_profile to initialize
+ * @num_slots: the number of keyslots
  *
- * Allocate memory for keyslots and initialize a keyslot manager. Called by
- * e.g. storage drivers to set up a keyslot manager in their request_queue.
+ * Storage drivers must call this when starting to set up a blk_crypto_profile,
+ * before filling in additional fields.
  *
  * Return: 0 on success, or else a negative error code.
  */
-int blk_ksm_init(struct blk_keyslot_manager *ksm, unsigned int num_slots)
+int blk_crypto_profile_init(struct blk_crypto_profile *profile,
+			    unsigned int num_slots)
 {
 	unsigned int slot;
 	unsigned int i;
 	unsigned int slot_hashtable_size;
 
-	memset(ksm, 0, sizeof(*ksm));
+	memset(profile, 0, sizeof(*profile));
+	init_rwsem(&profile->lock);
 
 	if (num_slots == 0)
-		return -EINVAL;
+		return 0;
 
-	ksm->slots = kvcalloc(num_slots, sizeof(ksm->slots[0]), GFP_KERNEL);
-	if (!ksm->slots)
+	/* Initialize keyslot management data. */
+
+	profile->slots = kvcalloc(num_slots, sizeof(profile->slots[0]),
+				  GFP_KERNEL);
+	if (!profile->slots)
 		return -ENOMEM;
 
-	ksm->num_slots = num_slots;
+	profile->num_slots = num_slots;
 
-	init_rwsem(&ksm->lock);
-
-	init_waitqueue_head(&ksm->idle_slots_wait_queue);
-	INIT_LIST_HEAD(&ksm->idle_slots);
+	init_waitqueue_head(&profile->idle_slots_wait_queue);
+	INIT_LIST_HEAD(&profile->idle_slots);
 
 	for (slot = 0; slot < num_slots; slot++) {
-		ksm->slots[slot].ksm = ksm;
-		list_add_tail(&ksm->slots[slot].idle_slot_node,
-			      &ksm->idle_slots);
+		profile->slots[slot].profile = profile;
+		list_add_tail(&profile->slots[slot].idle_slot_node,
+			      &profile->idle_slots);
 	}
 
-	spin_lock_init(&ksm->idle_slots_lock);
+	spin_lock_init(&profile->idle_slots_lock);
 
 	slot_hashtable_size = roundup_pow_of_two(num_slots);
 	/*
@@ -117,74 +111,80 @@ int blk_ksm_init(struct blk_keyslot_manager *ksm, unsigned int num_slots)
 	if (slot_hashtable_size < 2)
 		slot_hashtable_size = 2;
 
-	ksm->log_slot_ht_size = ilog2(slot_hashtable_size);
-	ksm->slot_hashtable = kvmalloc_array(slot_hashtable_size,
-					     sizeof(ksm->slot_hashtable[0]),
-					     GFP_KERNEL);
-	if (!ksm->slot_hashtable)
-		goto err_destroy_ksm;
+	profile->log_slot_ht_size = ilog2(slot_hashtable_size);
+	profile->slot_hashtable =
+		kvmalloc_array(slot_hashtable_size,
+			       sizeof(profile->slot_hashtable[0]), GFP_KERNEL);
+	if (!profile->slot_hashtable)
+		goto err_destroy;
 	for (i = 0; i < slot_hashtable_size; i++)
-		INIT_HLIST_HEAD(&ksm->slot_hashtable[i]);
+		INIT_HLIST_HEAD(&profile->slot_hashtable[i]);
 
 	return 0;
 
-err_destroy_ksm:
-	blk_ksm_destroy(ksm);
+err_destroy:
+	blk_crypto_profile_destroy(profile);
 	return -ENOMEM;
 }
-EXPORT_SYMBOL_GPL(blk_ksm_init);
+EXPORT_SYMBOL_GPL(blk_crypto_profile_init);
 
-static void blk_ksm_destroy_callback(void *ksm)
+static void blk_crypto_profile_destroy_callback(void *profile)
 {
-	blk_ksm_destroy(ksm);
+	blk_crypto_profile_destroy(profile);
 }
 
 /**
- * devm_blk_ksm_init() - Resource-managed blk_ksm_init()
- * @dev: The device which owns the blk_keyslot_manager.
- * @ksm: The blk_keyslot_manager to initialize.
- * @num_slots: The number of key slots to manage.
+ * devm_blk_crypto_profile_init() - Resource-managed blk_crypto_profile_init()
+ * @dev: the device which owns the blk_crypto_profile
+ * @profile: the blk_crypto_profile to initialize
+ * @num_slots: the number of keyslots
  *
- * Like blk_ksm_init(), but causes blk_ksm_destroy() to be called automatically
- * on driver detach.
+ * Like blk_crypto_profile_init(), but causes blk_crypto_profile_destroy() to be
+ * called automatically on driver detach.
  *
  * Return: 0 on success, or else a negative error code.
  */
-int devm_blk_ksm_init(struct device *dev, struct blk_keyslot_manager *ksm,
-		      unsigned int num_slots)
+int devm_blk_crypto_profile_init(struct device *dev,
+				 struct blk_crypto_profile *profile,
+				 unsigned int num_slots)
 {
-	int err = blk_ksm_init(ksm, num_slots);
+	int err = blk_crypto_profile_init(profile, num_slots);
 
 	if (err)
 		return err;
 
-	return devm_add_action_or_reset(dev, blk_ksm_destroy_callback, ksm);
+	return devm_add_action_or_reset(dev,
+					blk_crypto_profile_destroy_callback,
+					profile);
 }
-EXPORT_SYMBOL_GPL(devm_blk_ksm_init);
+EXPORT_SYMBOL_GPL(devm_blk_crypto_profile_init);
 
 static inline struct hlist_head *
-blk_ksm_hash_bucket_for_key(struct blk_keyslot_manager *ksm,
-			    const struct blk_crypto_key *key)
+blk_crypto_hash_bucket_for_key(struct blk_crypto_profile *profile,
+			       const struct blk_crypto_key *key)
 {
-	return &ksm->slot_hashtable[hash_ptr(key, ksm->log_slot_ht_size)];
+	return &profile->slot_hashtable[
+			hash_ptr(key, profile->log_slot_ht_size)];
 }
 
-static void blk_ksm_remove_slot_from_lru_list(struct blk_ksm_keyslot *slot)
+static void
+blk_crypto_remove_slot_from_lru_list(struct blk_crypto_keyslot *slot)
 {
-	struct blk_keyslot_manager *ksm = slot->ksm;
+	struct blk_crypto_profile *profile = slot->profile;
 	unsigned long flags;
 
-	spin_lock_irqsave(&ksm->idle_slots_lock, flags);
+	spin_lock_irqsave(&profile->idle_slots_lock, flags);
 	list_del(&slot->idle_slot_node);
-	spin_unlock_irqrestore(&ksm->idle_slots_lock, flags);
+	spin_unlock_irqrestore(&profile->idle_slots_lock, flags);
 }
 
-static struct blk_ksm_keyslot *blk_ksm_find_keyslot(
-					struct blk_keyslot_manager *ksm,
-					const struct blk_crypto_key *key)
+static struct blk_crypto_keyslot *
+blk_crypto_find_keyslot(struct blk_crypto_profile *profile,
+			const struct blk_crypto_key *key)
 {
-	const struct hlist_head *head = blk_ksm_hash_bucket_for_key(ksm, key);
-	struct blk_ksm_keyslot *slotp;
+	const struct hlist_head *head =
+		blk_crypto_hash_bucket_for_key(profile, key);
+	struct blk_crypto_keyslot *slotp;
 
 	hlist_for_each_entry(slotp, head, hash_node) {
 		if (slotp->key == key)
@@ -193,68 +193,79 @@ static struct blk_ksm_keyslot *blk_ksm_find_keyslot(
 	return NULL;
 }
 
-static struct blk_ksm_keyslot *blk_ksm_find_and_grab_keyslot(
-					struct blk_keyslot_manager *ksm,
-					const struct blk_crypto_key *key)
+static struct blk_crypto_keyslot *
+blk_crypto_find_and_grab_keyslot(struct blk_crypto_profile *profile,
+				 const struct blk_crypto_key *key)
 {
-	struct blk_ksm_keyslot *slot;
+	struct blk_crypto_keyslot *slot;
 
-	slot = blk_ksm_find_keyslot(ksm, key);
+	slot = blk_crypto_find_keyslot(profile, key);
 	if (!slot)
 		return NULL;
 	if (atomic_inc_return(&slot->slot_refs) == 1) {
 		/* Took first reference to this slot; remove it from LRU list */
-		blk_ksm_remove_slot_from_lru_list(slot);
+		blk_crypto_remove_slot_from_lru_list(slot);
 	}
 	return slot;
 }
 
-unsigned int blk_ksm_get_slot_idx(struct blk_ksm_keyslot *slot)
+/**
+ * blk_crypto_keyslot_index() - Get the index of a keyslot
+ * @slot: a keyslot that blk_crypto_get_keyslot() returned
+ *
+ * Return: the 0-based index of the keyslot within the device's keyslots.
+ */
+unsigned int blk_crypto_keyslot_index(struct blk_crypto_keyslot *slot)
 {
-	return slot - slot->ksm->slots;
+	return slot - slot->profile->slots;
 }
-EXPORT_SYMBOL_GPL(blk_ksm_get_slot_idx);
+EXPORT_SYMBOL_GPL(blk_crypto_keyslot_index);
 
 /**
- * blk_ksm_get_slot_for_key() - Program a key into a keyslot.
- * @ksm: The keyslot manager to program the key into.
- * @key: Pointer to the key object to program, including the raw key, crypto
- *	 mode, and data unit size.
- * @slot_ptr: A pointer to return the pointer of the allocated keyslot.
+ * blk_crypto_get_keyslot() - Get a keyslot for a key, if needed.
+ * @profile: the crypto profile of the device the key will be used on
+ * @key: the key that will be used
+ * @slot_ptr: If a keyslot is allocated, an opaque pointer to the keyslot struct
+ *	      will be stored here; otherwise NULL will be stored here.
  *
- * Get a keyslot that's been programmed with the specified key.  If one already
- * exists, return it with incremented refcount.  Otherwise, wait for a keyslot
- * to become idle and program it.
+ * If the device has keyslots, this gets a keyslot that's been programmed with
+ * the specified key.  If the key is already in a slot, this reuses it;
+ * otherwise this waits for a slot to become idle and programs the key into it.
  *
- * Context: Process context. Takes and releases ksm->lock.
- * Return: BLK_STS_OK on success (and keyslot is set to the pointer of the
- *	   allocated keyslot), or some other blk_status_t otherwise (and
- *	   keyslot is set to NULL).
+ * This must be paired with a call to blk_crypto_put_keyslot().
+ *
+ * Context: Process context. Takes and releases profile->lock.
+ * Return: BLK_STS_OK on success, meaning that either a keyslot was allocated or
+ *	   one wasn't needed; or a blk_status_t error on failure.
  */
-blk_status_t blk_ksm_get_slot_for_key(struct blk_keyslot_manager *ksm,
-				      const struct blk_crypto_key *key,
-				      struct blk_ksm_keyslot **slot_ptr)
+blk_status_t blk_crypto_get_keyslot(struct blk_crypto_profile *profile,
+				    const struct blk_crypto_key *key,
+				    struct blk_crypto_keyslot **slot_ptr)
 {
-	struct blk_ksm_keyslot *slot;
+	struct blk_crypto_keyslot *slot;
 	int slot_idx;
 	int err;
 
 	*slot_ptr = NULL;
 
-	if (blk_ksm_is_passthrough(ksm))
+	/*
+	 * If the device has no concept of "keyslots", then there is no need to
+	 * get one.
+	 */
+	if (profile->num_slots == 0)
 		return BLK_STS_OK;
 
-	down_read(&ksm->lock);
-	slot = blk_ksm_find_and_grab_keyslot(ksm, key);
-	up_read(&ksm->lock);
+	down_read(&profile->lock);
+	slot = blk_crypto_find_and_grab_keyslot(profile, key);
+	up_read(&profile->lock);
 	if (slot)
 		goto success;
 
 	for (;;) {
-		blk_ksm_hw_enter(ksm);
-		slot = blk_ksm_find_and_grab_keyslot(ksm, key);
+		blk_crypto_hw_enter(profile);
+		slot = blk_crypto_find_and_grab_keyslot(profile, key);
 		if (slot) {
-			blk_ksm_hw_exit(ksm);
+			blk_crypto_hw_exit(profile);
 			goto success;
 		}
 
@@ -262,22 +273,22 @@ blk_status_t blk_ksm_get_slot_for_key(struct blk_keyslot_manager *ksm,
 		 * If we're here, that means there wasn't a slot that was
 		 * already programmed with the key. So try to program it.
 		 */
-		if (!list_empty(&ksm->idle_slots))
+		if (!list_empty(&profile->idle_slots))
 			break;
 
-		blk_ksm_hw_exit(ksm);
-		wait_event(ksm->idle_slots_wait_queue,
-			   !list_empty(&ksm->idle_slots));
+		blk_crypto_hw_exit(profile);
+		wait_event(profile->idle_slots_wait_queue,
+			   !list_empty(&profile->idle_slots));
 	}
 
-	slot = list_first_entry(&ksm->idle_slots, struct blk_ksm_keyslot,
+	slot = list_first_entry(&profile->idle_slots, struct blk_crypto_keyslot,
 				idle_slot_node);
-	slot_idx = blk_ksm_get_slot_idx(slot);
+	slot_idx = blk_crypto_keyslot_index(slot);
 
-	err = ksm->ksm_ll_ops.keyslot_program(ksm, key, slot_idx);
+	err = profile->ll_ops.keyslot_program(profile, key, slot_idx);
 	if (err) {
-		wake_up(&ksm->idle_slots_wait_queue);
-		blk_ksm_hw_exit(ksm);
+		wake_up(&profile->idle_slots_wait_queue);
+		blk_crypto_hw_exit(profile);
 		return errno_to_blk_status(err);
 	}
 
@@ -285,97 +296,98 @@ blk_status_t blk_ksm_get_slot_for_key(struct blk_keyslot_manager *ksm,
 	if (slot->key)
 		hlist_del(&slot->hash_node);
 	slot->key = key;
-	hlist_add_head(&slot->hash_node, blk_ksm_hash_bucket_for_key(ksm, key));
+	hlist_add_head(&slot->hash_node,
+		       blk_crypto_hash_bucket_for_key(profile, key));
 
 	atomic_set(&slot->slot_refs, 1);
 
-	blk_ksm_remove_slot_from_lru_list(slot);
+	blk_crypto_remove_slot_from_lru_list(slot);
 
-	blk_ksm_hw_exit(ksm);
+	blk_crypto_hw_exit(profile);
 success:
 	*slot_ptr = slot;
 	return BLK_STS_OK;
 }
 
 /**
- * blk_ksm_put_slot() - Release a reference to a slot
- * @slot: The keyslot to release the reference of.
+ * blk_crypto_put_keyslot() - Release a reference to a keyslot
+ * @slot: The keyslot to release the reference of (may be NULL).
  *
  * Context: Any context.
  */
-void blk_ksm_put_slot(struct blk_ksm_keyslot *slot)
+void blk_crypto_put_keyslot(struct blk_crypto_keyslot *slot)
 {
-	struct blk_keyslot_manager *ksm;
+	struct blk_crypto_profile *profile;
 	unsigned long flags;
 
 	if (!slot)
 		return;
 
-	ksm = slot->ksm;
+	profile = slot->profile;
 
 	if (atomic_dec_and_lock_irqsave(&slot->slot_refs,
-					&ksm->idle_slots_lock, flags)) {
-		list_add_tail(&slot->idle_slot_node, &ksm->idle_slots);
-		spin_unlock_irqrestore(&ksm->idle_slots_lock, flags);
-		wake_up(&ksm->idle_slots_wait_queue);
+					&profile->idle_slots_lock, flags)) {
+		list_add_tail(&slot->idle_slot_node, &profile->idle_slots);
+		spin_unlock_irqrestore(&profile->idle_slots_lock, flags);
+		wake_up(&profile->idle_slots_wait_queue);
 	}
 }
 
 /**
- * blk_ksm_crypto_cfg_supported() - Find out if a crypto configuration is
- *				    supported by a ksm.
- * @ksm: The keyslot manager to check
- * @cfg: The crypto configuration to check for.
+ * __blk_crypto_cfg_supported() - Check whether the given crypto profile
+ *				  supports the given crypto configuration.
+ * @profile: the crypto profile to check
+ * @cfg: the crypto configuration to check for
  *
- * Checks for crypto_mode/data unit size/dun bytes support.
- *
- * Return: Whether or not this ksm supports the specified crypto config.
+ * Return: %true if @profile supports the given @cfg.
  */
-bool blk_ksm_crypto_cfg_supported(struct blk_keyslot_manager *ksm,
-				  const struct blk_crypto_config *cfg)
+bool __blk_crypto_cfg_supported(struct blk_crypto_profile *profile,
+				const struct blk_crypto_config *cfg)
 {
-	if (!ksm)
+	if (!profile)
 		return false;
-	if (!(ksm->crypto_modes_supported[cfg->crypto_mode] &
-	      cfg->data_unit_size))
+	if (!(profile->modes_supported[cfg->crypto_mode] & cfg->data_unit_size))
 		return false;
-	if (ksm->max_dun_bytes_supported < cfg->dun_bytes)
+	if (profile->max_dun_bytes_supported < cfg->dun_bytes)
 		return false;
 	return true;
 }
 
 /**
- * blk_ksm_evict_key() - Evict a key from the lower layer device.
- * @ksm: The keyslot manager to evict from
- * @key: The key to evict
+ * __blk_crypto_evict_key() - Evict a key from a device.
+ * @profile: the crypto profile of the device
+ * @key: the key to evict.  It must not still be used in any I/O.
  *
- * Find the keyslot that the specified key was programmed into, and evict that
- * slot from the lower layer device. The slot must not be in use by any
- * in-flight IO when this function is called.
+ * If the device has keyslots, this finds the keyslot (if any) that contains the
+ * specified key and calls the driver's keyslot_evict function to evict it.
  *
- * Context: Process context. Takes and releases ksm->lock.
+ * Otherwise, this just calls the driver's keyslot_evict function if it is
+ * implemented, passing just the key (without any particular keyslot).  This
+ * allows layered devices to evict the key from their underlying devices.
+ *
+ * Context: Process context. Takes and releases profile->lock.
  * Return: 0 on success or if there's no keyslot with the specified key, -EBUSY
  *	   if the keyslot is still in use, or another -errno value on other
  *	   error.
  */
-int blk_ksm_evict_key(struct blk_keyslot_manager *ksm,
-		      const struct blk_crypto_key *key)
+int __blk_crypto_evict_key(struct blk_crypto_profile *profile,
+			   const struct blk_crypto_key *key)
 {
-	struct blk_ksm_keyslot *slot;
+	struct blk_crypto_keyslot *slot;
 	int err = 0;
 
-	if (blk_ksm_is_passthrough(ksm)) {
-		if (ksm->ksm_ll_ops.keyslot_evict) {
-			blk_ksm_hw_enter(ksm);
-			err = ksm->ksm_ll_ops.keyslot_evict(ksm, key, -1);
-			blk_ksm_hw_exit(ksm);
+	if (profile->num_slots == 0) {
+		if (profile->ll_ops.keyslot_evict) {
+			blk_crypto_hw_enter(profile);
+			err = profile->ll_ops.keyslot_evict(profile, key, -1);
+			blk_crypto_hw_exit(profile);
 			return err;
 		}
 		return 0;
 	}
 
-	blk_ksm_hw_enter(ksm);
-	slot = blk_ksm_find_keyslot(ksm, key);
+	blk_crypto_hw_enter(profile);
+	slot = blk_crypto_find_keyslot(profile, key);
 	if (!slot)
 		goto out_unlock;
 
@@ -383,8 +395,8 @@ int blk_ksm_evict_key(struct blk_keyslot_manager *ksm,
 		err = -EBUSY;
 		goto out_unlock;
 	}
-	err = ksm->ksm_ll_ops.keyslot_evict(ksm, key,
-					    blk_ksm_get_slot_idx(slot));
+	err = profile->ll_ops.keyslot_evict(profile, key,
+					    blk_crypto_keyslot_index(slot));
 	if (err)
 		goto out_unlock;
 
@@ -392,81 +404,84 @@ int blk_ksm_evict_key(struct blk_keyslot_manager *ksm,
 	slot->key = NULL;
 	err = 0;
 out_unlock:
-	blk_ksm_hw_exit(ksm);
+	blk_crypto_hw_exit(profile);
 	return err;
 }
 
 /**
- * blk_ksm_reprogram_all_keys() - Re-program all keyslots.
- * @ksm: The keyslot manager
+ * blk_crypto_reprogram_all_keys() - Re-program all keyslots.
+ * @profile: The crypto profile
  *
  * Re-program all keyslots that are supposed to have a key programmed.  This is
  * intended only for use by drivers for hardware that loses its keys on reset.
  *
- * Context: Process context. Takes and releases ksm->lock.
+ * Context: Process context. Takes and releases profile->lock.
  */
-void blk_ksm_reprogram_all_keys(struct blk_keyslot_manager *ksm)
+void blk_crypto_reprogram_all_keys(struct blk_crypto_profile *profile)
 {
 	unsigned int slot;
 
-	if (blk_ksm_is_passthrough(ksm))
+	if (profile->num_slots == 0)
 		return;
 
 	/* This is for device initialization, so don't resume the device */
-	down_write(&ksm->lock);
-	for (slot = 0; slot < ksm->num_slots; slot++) {
-		const struct blk_crypto_key *key = ksm->slots[slot].key;
+	down_write(&profile->lock);
+	for (slot = 0; slot < profile->num_slots; slot++) {
+		const struct blk_crypto_key *key = profile->slots[slot].key;
 		int err;
 
 		if (!key)
 			continue;
 
-		err = ksm->ksm_ll_ops.keyslot_program(ksm, key, slot);
+		err = profile->ll_ops.keyslot_program(profile, key, slot);
 		WARN_ON(err);
 	}
-	up_write(&ksm->lock);
+	up_write(&profile->lock);
 }
-EXPORT_SYMBOL_GPL(blk_ksm_reprogram_all_keys);
+EXPORT_SYMBOL_GPL(blk_crypto_reprogram_all_keys);
 
-void blk_ksm_destroy(struct blk_keyslot_manager *ksm)
+void blk_crypto_profile_destroy(struct blk_crypto_profile *profile)
 {
-	if (!ksm)
+	if (!profile)
 		return;
-	kvfree(ksm->slot_hashtable);
-	kvfree_sensitive(ksm->slots, sizeof(ksm->slots[0]) * ksm->num_slots);
-	memzero_explicit(ksm, sizeof(*ksm));
+	kvfree(profile->slot_hashtable);
+	kvfree_sensitive(profile->slots,
+			 sizeof(profile->slots[0]) * profile->num_slots);
+	memzero_explicit(profile, sizeof(*profile));
 }
-EXPORT_SYMBOL_GPL(blk_ksm_destroy);
+EXPORT_SYMBOL_GPL(blk_crypto_profile_destroy);
 
-bool blk_ksm_register(struct blk_keyslot_manager *ksm, struct request_queue *q)
+bool blk_crypto_register(struct blk_crypto_profile *profile,
+			 struct request_queue *q)
 {
 	if (blk_integrity_queue_supports_integrity(q)) {
 		pr_warn("Integrity and hardware inline encryption are not supported together. Disabling hardware inline encryption.\n");
 		return false;
 	}
-	q->ksm = ksm;
+	q->crypto_profile = profile;
 	return true;
 }
-EXPORT_SYMBOL_GPL(blk_ksm_register);
+EXPORT_SYMBOL_GPL(blk_crypto_register);
 
-void blk_ksm_unregister(struct request_queue *q)
+void blk_crypto_unregister(struct request_queue *q)
 {
-	q->ksm = NULL;
+	q->crypto_profile = NULL;
 }
 
 /**
- * blk_ksm_intersect_modes() - restrict supported modes by child device
- * @parent: The keyslot manager for parent device
- * @child: The keyslot manager for child device, or NULL
+ * blk_crypto_intersect_capabilities() - restrict supported crypto capabilities
+ *					 by child device
+ * @parent: the crypto profile for the parent device
+ * @child: the crypto profile for the child device, or NULL
  *
- * Clear any crypto mode support bits in @parent that aren't set in @child.
- * If @child is NULL, then all parent bits are cleared.
+ * This clears all crypto capabilities in @parent that aren't set in @child.  If
+ * @child is NULL, then this clears all parent capabilities.
  *
- * Only use this when setting up the keyslot manager for a layered device,
- * before it's been exposed yet.
+ * Only use this when setting up the crypto profile for a layered device, before
+ * it's been exposed yet.
  */
-void blk_ksm_intersect_modes(struct blk_keyslot_manager *parent,
-			     const struct blk_keyslot_manager *child)
+void blk_crypto_intersect_capabilities(struct blk_crypto_profile *parent,
+				       const struct blk_crypto_profile *child)
 {
 	if (child) {
 		unsigned int i;
@@ -474,73 +489,63 @@ void blk_ksm_intersect_modes(struct blk_keyslot_manager *parent,
 		parent->max_dun_bytes_supported =
 			min(parent->max_dun_bytes_supported,
 			    child->max_dun_bytes_supported);
-		for (i = 0; i < ARRAY_SIZE(child->crypto_modes_supported);
-		     i++) {
-			parent->crypto_modes_supported[i] &=
-				child->crypto_modes_supported[i];
-		}
+		for (i = 0; i < ARRAY_SIZE(child->modes_supported); i++)
+			parent->modes_supported[i] &= child->modes_supported[i];
 	} else {
 		parent->max_dun_bytes_supported = 0;
-		memset(parent->crypto_modes_supported, 0,
-		       sizeof(parent->crypto_modes_supported));
+		memset(parent->modes_supported, 0,
+		       sizeof(parent->modes_supported));
 	}
 }
-EXPORT_SYMBOL_GPL(blk_ksm_intersect_modes);
+EXPORT_SYMBOL_GPL(blk_crypto_intersect_capabilities);
 
 /**
- * blk_ksm_is_superset() - Check if a KSM supports a superset of crypto modes
- *			   and DUN bytes that another KSM supports. Here,
- *			   "superset" refers to the mathematical meaning of the
- *			   word - i.e. if two KSMs have the *same* capabilities,
- *			   they *are* considered supersets of each other.
- * @ksm_superset: The KSM that we want to verify is a superset
- * @ksm_subset: The KSM that we want to verify is a subset
+ * blk_crypto_has_capabilities() - Check whether @target supports at least all
+ *				   the crypto capabilities that @reference does.
+ * @target: the target profile
+ * @reference: the reference profile
  *
- * Return: True if @ksm_superset supports a superset of the crypto modes and DUN
- *	   bytes that @ksm_subset supports.
+ * Return: %true if @target supports all the crypto capabilities of @reference.
  */
-bool blk_ksm_is_superset(struct blk_keyslot_manager *ksm_superset,
-			 struct blk_keyslot_manager *ksm_subset)
+bool blk_crypto_has_capabilities(const struct blk_crypto_profile *target,
+				 const struct blk_crypto_profile *reference)
 {
 	int i;
 
-	if (!ksm_subset)
+	if (!reference)
 		return true;
 
-	if (!ksm_superset)
+	if (!target)
 		return false;
 
-	for (i = 0; i < ARRAY_SIZE(ksm_superset->crypto_modes_supported); i++) {
-		if (ksm_subset->crypto_modes_supported[i] &
-		    (~ksm_superset->crypto_modes_supported[i])) {
+	for (i = 0; i < ARRAY_SIZE(target->modes_supported); i++) {
+		if (reference->modes_supported[i] & ~target->modes_supported[i])
 			return false;
-		}
 	}
 
-	if (ksm_subset->max_dun_bytes_supported >
-	    ksm_superset->max_dun_bytes_supported) {
+	if (reference->max_dun_bytes_supported >
+	    target->max_dun_bytes_supported)
 		return false;
-	}
 
 	return true;
 }
-EXPORT_SYMBOL_GPL(blk_ksm_is_superset);
+EXPORT_SYMBOL_GPL(blk_crypto_has_capabilities);
 
 /**
- * blk_ksm_update_capabilities() - Update the restrictions of a KSM to those of
- *				   another KSM
- * @target_ksm: The KSM whose restrictions to update.
- * @reference_ksm: The KSM to whose restrictions this function will update
- *		   @target_ksm's restrictions to.
+ * blk_crypto_update_capabilities() - Update the capabilities of a crypto
+ *				      profile to match those of another crypto
+ *				      profile.
+ * @dst: The crypto profile whose capabilities to update.
+ * @src: The crypto profile whose capabilities this function will update @dst's
+ *	 capabilities to.
  *
  * Blk-crypto requires that crypto capabilities that were
  * advertised when a bio was created continue to be supported by the
  * device until that bio is ended. This is turn means that a device cannot
  * shrink its advertised crypto capabilities without any explicit
  * synchronization with upper layers. So if there's no such explicit
- * synchronization, @reference_ksm must support all the crypto capabilities that
- * @target_ksm does
- * (i.e. we need blk_ksm_is_superset(@reference_ksm, @target_ksm) == true).
+ * synchronization, @src must support all the crypto capabilities that
+ * @dst does (i.e. we need blk_crypto_has_capabilities(@src, @dst)).
  *
  * Note also that as long as the crypto capabilities are being expanded, the
  * order of updates becoming visible is not important because it's alright
@@ -549,31 +554,12 @@ EXPORT_SYMBOL_GPL(blk_ksm_is_superset);
  * might result in blk-crypto-fallback being used if available, or the bio being
  * failed).
  */
-void blk_ksm_update_capabilities(struct blk_keyslot_manager *target_ksm,
-				 struct blk_keyslot_manager *reference_ksm)
+void blk_crypto_update_capabilities(struct blk_crypto_profile *dst,
+				    const struct blk_crypto_profile *src)
 {
-	memcpy(target_ksm->crypto_modes_supported,
-	       reference_ksm->crypto_modes_supported,
-	       sizeof(target_ksm->crypto_modes_supported));
+	memcpy(dst->modes_supported, src->modes_supported,
+	       sizeof(dst->modes_supported));
 
-	target_ksm->max_dun_bytes_supported =
-				reference_ksm->max_dun_bytes_supported;
+	dst->max_dun_bytes_supported = src->max_dun_bytes_supported;
 }
-EXPORT_SYMBOL_GPL(blk_ksm_update_capabilities);
-
-/**
- * blk_ksm_init_passthrough() - Init a passthrough keyslot manager
- * @ksm: The keyslot manager to init
- *
- * Initialize a passthrough keyslot manager.
- * Called by e.g. storage drivers to set up a keyslot manager in their
- * request_queue, when the storage driver wants to manage its keys by itself.
- * This is useful for inline encryption hardware that doesn't have the concept
- * of keyslots, and for layered devices.
- */
-void blk_ksm_init_passthrough(struct blk_keyslot_manager *ksm)
-{
-	memset(ksm, 0, sizeof(*ksm));
-	init_rwsem(&ksm->lock);
-}
-EXPORT_SYMBOL_GPL(blk_ksm_init_passthrough);
+EXPORT_SYMBOL_GPL(blk_crypto_update_capabilities);

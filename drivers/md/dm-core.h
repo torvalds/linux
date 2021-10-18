@@ -200,7 +200,7 @@ struct dm_table {
 	struct dm_md_mempools *mempools;
 
 #ifdef CONFIG_BLK_INLINE_ENCRYPTION
-	struct blk_keyslot_manager *ksm;
+	struct blk_crypto_profile *crypto_profile;
 #endif
 };
 

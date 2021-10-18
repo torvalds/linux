@@ -409,9 +409,9 @@ void blk_integrity_register(struct gendisk *disk, struct blk_integrity *template
 	blk_queue_flag_set(QUEUE_FLAG_STABLE_WRITES, disk->queue);
 
 #ifdef CONFIG_BLK_INLINE_ENCRYPTION
-	if (disk->queue->ksm) {
+	if (disk->queue->crypto_profile) {
 		pr_warn("blk-integrity: Integrity and hardware inline encryption are not supported together. Disabling hardware inline encryption.\n");
-		blk_ksm_unregister(disk->queue);
+		blk_crypto_unregister(disk->queue);
 	}
 #endif
 }
