@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
  */
 #define pr_fmt(fmt)	"qti-flash: %s: " fmt, __func__
 
@@ -237,6 +237,22 @@ static int current_to_code(u32 target_curr_ma, u32 ires_ua)
 		return 0;
 
 	return DIV_ROUND_CLOSEST(target_curr_ma * 1000, ires_ua) - 1;
+}
+
+static bool is_channel_configured(struct flash_node_data *fnode)
+{
+	int i;
+
+	for (i = 0; i < fnode->led->num_fnodes; i++) {
+		if (fnode->led->fnode[i].id == fnode->id &&
+		    fnode->led->fnode[i].type != fnode->type &&
+		    fnode->led->fnode[i].configured) {
+			pr_debug("Channel %d for %s is already configured by %s\n", fnode->id,
+				fnode->fdev.led_cdev.name, fnode->led->fnode[i].fdev.led_cdev.name);
+			return true;
+		}
+	}
+	return false;
 }
 
 static int qti_flash_led_read(struct qti_flash_led *led, u16 offset,
@@ -639,6 +655,9 @@ static void qti_flash_led_brightness_set(struct led_classdev *led_cdev,
 	fdev = container_of(led_cdev, struct led_classdev_flash, led_cdev);
 	fnode = container_of(fdev, struct flash_node_data, fdev);
 	led = fnode->led;
+
+	if (is_channel_configured(fnode))
+		return;
 
 	rc = __qti_flash_led_brightness_set(led_cdev, brightness);
 	if (!rc)
