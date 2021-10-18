@@ -1541,6 +1541,7 @@ struct nvmet_subsys *nvmet_subsys_alloc(const char *subsysnqn,
 		subsys->max_qid = NVMET_NR_QUEUES;
 		break;
 	case NVME_NQN_DISC:
+	case NVME_NQN_CURR:
 		subsys->max_qid = 0;
 		break;
 	default:
