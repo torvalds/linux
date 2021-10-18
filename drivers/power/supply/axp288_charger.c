@@ -304,22 +304,17 @@ static int axp288_charger_enable_charger(struct axp288_chrg_info *info,
 
 static int axp288_get_charger_health(struct axp288_chrg_info *info)
 {
-	int health = POWER_SUPPLY_HEALTH_UNKNOWN;
-
 	if (!(info->input_status & PS_STAT_VBUS_PRESENT))
-		goto health_read_fail;
+		return POWER_SUPPLY_HEALTH_UNKNOWN;
 
 	if (!(info->input_status & PS_STAT_VBUS_VALID))
-		health = POWER_SUPPLY_HEALTH_DEAD;
+		return POWER_SUPPLY_HEALTH_DEAD;
 	else if (info->op_mode & CHRG_STAT_PMIC_OTP)
-		health = POWER_SUPPLY_HEALTH_OVERHEAT;
+		return POWER_SUPPLY_HEALTH_OVERHEAT;
 	else if (info->op_mode & CHRG_STAT_BAT_SAFE_MODE)
-		health = POWER_SUPPLY_HEALTH_SAFETY_TIMER_EXPIRE;
+		return POWER_SUPPLY_HEALTH_SAFETY_TIMER_EXPIRE;
 	else
-		health = POWER_SUPPLY_HEALTH_GOOD;
-
-health_read_fail:
-	return health;
+		return POWER_SUPPLY_HEALTH_GOOD;
 }
 
 static int axp288_charger_usb_set_property(struct power_supply *psy,
