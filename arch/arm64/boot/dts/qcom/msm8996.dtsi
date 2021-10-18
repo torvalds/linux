@@ -638,7 +638,7 @@
 			};
 		};
 
-		rpm_msg_ram: memory@68000 {
+		rpm_msg_ram: sram@68000 {
 			compatible = "qcom,rpm-msg-ram";
 			reg = <0x00068000 0x6000>;
 		};
