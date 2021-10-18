@@ -113,6 +113,7 @@ examples:
                             };
 
                             port@3 {
+                                    phy-handle = <&rgmii_phy4>;
                                     phy-mode = "rgmii-id";
                                     reg = <3>;
                             };
