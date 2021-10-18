@@ -125,7 +125,7 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 					    police->common.cpu_bstats,
 					    &police->tcf_rate_est,
 					    &police->tcf_lock,
-					    NULL, est);
+					    false, est);
 		if (err)
 			goto failure;
 	} else if (tb[TCA_POLICE_AVRATE] &&
@@ -248,7 +248,7 @@ static int tcf_police_act(struct sk_buff *skb, const struct tc_action *a,
 	int ret;
 
 	tcf_lastuse_update(&police->tcf_tm);
-	bstats_cpu_update(this_cpu_ptr(police->common.cpu_bstats), skb);
+	bstats_update(this_cpu_ptr(police->common.cpu_bstats), skb);
 
 	ret = READ_ONCE(police->tcf_action);
 	p = rcu_dereference_bh(police->params);
