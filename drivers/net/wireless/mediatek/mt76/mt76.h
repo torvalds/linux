@@ -506,6 +506,7 @@ struct mt76_sdio {
 
 	struct sdio_func *func;
 	void *intr_data;
+	u8 hw_ver;
 
 	struct {
 		int pse_data_quota;
@@ -1253,7 +1254,8 @@ int mt76s_alloc_tx(struct mt76_dev *dev);
 void mt76s_deinit(struct mt76_dev *dev);
 void mt76s_sdio_irq(struct sdio_func *func);
 void mt76s_txrx_worker(struct mt76_sdio *sdio);
-int mt76s_hw_init(struct mt76_dev *dev, struct sdio_func *func);
+int mt76s_hw_init(struct mt76_dev *dev, struct sdio_func *func,
+		  int hw_ver);
 u32 mt76s_rr(struct mt76_dev *dev, u32 offset);
 void mt76s_wr(struct mt76_dev *dev, u32 offset, u32 val);
 u32 mt76s_rmw(struct mt76_dev *dev, u32 offset, u32 mask, u32 val);
