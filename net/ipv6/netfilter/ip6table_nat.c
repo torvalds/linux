@@ -31,34 +31,27 @@ static const struct xt_table nf_nat_ipv6_table = {
 	.af		= NFPROTO_IPV6,
 };
 
-static unsigned int ip6table_nat_do_chain(void *priv,
-					  struct sk_buff *skb,
-					  const struct nf_hook_state *state)
-{
-	return ip6t_do_table(skb, state, priv);
-}
-
 static const struct nf_hook_ops nf_nat_ipv6_ops[] = {
 	{
-		.hook		= ip6table_nat_do_chain,
+		.hook		= ip6t_do_table,
 		.pf		= NFPROTO_IPV6,
 		.hooknum	= NF_INET_PRE_ROUTING,
 		.priority	= NF_IP6_PRI_NAT_DST,
 	},
 	{
-		.hook		= ip6table_nat_do_chain,
+		.hook		= ip6t_do_table,
 		.pf		= NFPROTO_IPV6,
 		.hooknum	= NF_INET_POST_ROUTING,
 		.priority	= NF_IP6_PRI_NAT_SRC,
 	},
 	{
-		.hook		= ip6table_nat_do_chain,
+		.hook		= ip6t_do_table,
 		.pf		= NFPROTO_IPV6,
 		.hooknum	= NF_INET_LOCAL_OUT,
 		.priority	= NF_IP6_PRI_NAT_DST,
 	},
 	{
-		.hook		= ip6table_nat_do_chain,
+		.hook		= ip6t_do_table,
 		.pf		= NFPROTO_IPV6,
 		.hooknum	= NF_INET_LOCAL_IN,
 		.priority	= NF_IP6_PRI_NAT_SRC,
