@@ -402,9 +402,10 @@ static int i9xx_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
 	return DIV_ROUND_UP(pixel_rate * num, den);
 }
 
-static void i9xx_update_plane(struct intel_plane *plane,
-			      const struct intel_crtc_state *crtc_state,
-			      const struct intel_plane_state *plane_state)
+/* TODO: split into noarm+arm pair */
+static void i9xx_plane_update_arm(struct intel_plane *plane,
+				  const struct intel_crtc_state *crtc_state,
+				  const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
@@ -477,8 +478,8 @@ static void i9xx_update_plane(struct intel_plane *plane,
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
-static void i9xx_disable_plane(struct intel_plane *plane,
-			       const struct intel_crtc_state *crtc_state)
+static void i9xx_plane_disable_arm(struct intel_plane *plane,
+				   const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
@@ -836,8 +837,8 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 			plane->max_stride = ilk_primary_max_stride;
 	}
 
-	plane->update_plane = i9xx_update_plane;
-	plane->disable_plane = i9xx_disable_plane;
+	plane->update_arm = i9xx_plane_update_arm;
+	plane->disable_arm = i9xx_plane_disable_arm;
 	plane->get_hw_state = i9xx_plane_get_hw_state;
 	plane->check_plane = i9xx_plane_check;
 

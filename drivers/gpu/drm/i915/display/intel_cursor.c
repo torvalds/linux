@@ -248,9 +248,10 @@ static int i845_check_cursor(struct intel_crtc_state *crtc_state,
 	return 0;
 }
 
-static void i845_update_cursor(struct intel_plane *plane,
-			       const struct intel_crtc_state *crtc_state,
-			       const struct intel_plane_state *plane_state)
+/* TODO: split into noarm+arm pair */
+static void i845_cursor_update_arm(struct intel_plane *plane,
+				   const struct intel_crtc_state *crtc_state,
+				   const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	u32 cntl = 0, base = 0, pos = 0, size = 0;
@@ -293,10 +294,10 @@ static void i845_update_cursor(struct intel_plane *plane,
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
-static void i845_disable_cursor(struct intel_plane *plane,
-				const struct intel_crtc_state *crtc_state)
+static void i845_cursor_disable_arm(struct intel_plane *plane,
+				    const struct intel_crtc_state *crtc_state)
 {
-	i845_update_cursor(plane, crtc_state, NULL);
+	i845_cursor_update_arm(plane, crtc_state, NULL);
 }
 
 static bool i845_cursor_get_hw_state(struct intel_plane *plane,
@@ -483,9 +484,10 @@ static int i9xx_check_cursor(struct intel_crtc_state *crtc_state,
 	return 0;
 }
 
-static void i9xx_update_cursor(struct intel_plane *plane,
-			       const struct intel_crtc_state *crtc_state,
-			       const struct intel_plane_state *plane_state)
+/* TODO: split into noarm+arm pair */
+static void i9xx_cursor_update_arm(struct intel_plane *plane,
+				   const struct intel_crtc_state *crtc_state,
+				   const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum pipe pipe = plane->pipe;
@@ -557,10 +559,10 @@ static void i9xx_update_cursor(struct intel_plane *plane,
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
-static void i9xx_disable_cursor(struct intel_plane *plane,
-				const struct intel_crtc_state *crtc_state)
+static void i9xx_cursor_disable_arm(struct intel_plane *plane,
+				    const struct intel_crtc_state *crtc_state)
 {
-	i9xx_update_cursor(plane, crtc_state, NULL);
+	i9xx_cursor_update_arm(plane, crtc_state, NULL);
 }
 
 static bool i9xx_cursor_get_hw_state(struct intel_plane *plane,
@@ -714,10 +716,12 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
 	 */
 	crtc_state->active_planes = new_crtc_state->active_planes;
 
-	if (new_plane_state->uapi.visible)
-		intel_update_plane(plane, crtc_state, new_plane_state);
-	else
-		intel_disable_plane(plane, crtc_state);
+	if (new_plane_state->uapi.visible) {
+		intel_plane_update_noarm(plane, crtc_state, new_plane_state);
+		intel_plane_update_arm(plane, crtc_state, new_plane_state);
+	} else {
+		intel_plane_disable_arm(plane, crtc_state);
+	}
 
 	intel_plane_unpin_fb(old_plane_state);
 
@@ -764,14 +768,14 @@ intel_cursor_plane_create(struct drm_i915_private *dev_priv,
 
 	if (IS_I845G(dev_priv) || IS_I865G(dev_priv)) {
 		cursor->max_stride = i845_cursor_max_stride;
-		cursor->update_plane = i845_update_cursor;
-		cursor->disable_plane = i845_disable_cursor;
+		cursor->update_arm = i845_cursor_update_arm;
+		cursor->disable_arm = i845_cursor_disable_arm;
 		cursor->get_hw_state = i845_cursor_get_hw_state;
 		cursor->check_plane = i845_check_cursor;
 	} else {
 		cursor->max_stride = i9xx_cursor_max_stride;
-		cursor->update_plane = i9xx_update_cursor;
-		cursor->disable_plane = i9xx_disable_cursor;
+		cursor->update_arm = i9xx_cursor_update_arm;
+		cursor->disable_arm = i9xx_cursor_disable_arm;
 		cursor->get_hw_state = i9xx_cursor_get_hw_state;
 		cursor->check_plane = i9xx_check_cursor;
 	}

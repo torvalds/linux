@@ -598,8 +598,8 @@ static u32 skl_plane_stride(const struct intel_plane_state *plane_state,
 }
 
 static void
-skl_disable_plane(struct intel_plane *plane,
-		  const struct intel_crtc_state *crtc_state)
+skl_plane_disable_arm(struct intel_plane *plane,
+		      const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum plane_id plane_id = plane->id;
@@ -1155,10 +1155,11 @@ skl_plane_async_flip(struct intel_plane *plane,
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
+/* TODO: split into noarm+arm pair */
 static void
-skl_update_plane(struct intel_plane *plane,
-		 const struct intel_crtc_state *crtc_state,
-		 const struct intel_plane_state *plane_state)
+skl_plane_update_arm(struct intel_plane *plane,
+		     const struct intel_crtc_state *crtc_state,
+		     const struct intel_plane_state *plane_state)
 {
 	int color_plane = 0;
 
@@ -2093,8 +2094,8 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 	}
 
 	plane->max_stride = skl_plane_max_stride;
-	plane->update_plane = skl_update_plane;
-	plane->disable_plane = skl_disable_plane;
+	plane->update_arm = skl_plane_update_arm;
+	plane->disable_arm = skl_plane_disable_arm;
 	plane->get_hw_state = skl_plane_get_hw_state;
 	plane->check_plane = skl_plane_check;
 

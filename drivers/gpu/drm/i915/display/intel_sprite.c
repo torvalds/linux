@@ -417,10 +417,11 @@ static void vlv_sprite_update_gamma(const struct intel_plane_state *plane_state)
 				  gamma[i] << 16 | gamma[i] << 8 | gamma[i]);
 }
 
+/* TODO: split into noarm+arm pair */
 static void
-vlv_sprite_update(struct intel_plane *plane,
-		  const struct intel_crtc_state *crtc_state,
-		  const struct intel_plane_state *plane_state)
+vlv_sprite_update_arm(struct intel_plane *plane,
+		      const struct intel_crtc_state *crtc_state,
+		      const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum pipe pipe = plane->pipe;
@@ -486,8 +487,8 @@ vlv_sprite_update(struct intel_plane *plane,
 }
 
 static void
-vlv_sprite_disable(struct intel_plane *plane,
-		   const struct intel_crtc_state *crtc_state)
+vlv_sprite_disable_arm(struct intel_plane *plane,
+		       const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum pipe pipe = plane->pipe;
@@ -835,10 +836,11 @@ static void ivb_sprite_update_gamma(const struct intel_plane_state *plane_state)
 	i++;
 }
 
+/* TODO: split into noarm+arm pair */
 static void
-ivb_sprite_update(struct intel_plane *plane,
-		  const struct intel_crtc_state *crtc_state,
-		  const struct intel_plane_state *plane_state)
+ivb_sprite_update_arm(struct intel_plane *plane,
+		      const struct intel_crtc_state *crtc_state,
+		      const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum pipe pipe = plane->pipe;
@@ -909,8 +911,8 @@ ivb_sprite_update(struct intel_plane *plane,
 }
 
 static void
-ivb_sprite_disable(struct intel_plane *plane,
-		   const struct intel_crtc_state *crtc_state)
+ivb_sprite_disable_arm(struct intel_plane *plane,
+		       const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum pipe pipe = plane->pipe;
@@ -1164,9 +1166,9 @@ static void ilk_sprite_update_gamma(const struct intel_plane_state *plane_state)
 }
 
 static void
-g4x_sprite_update(struct intel_plane *plane,
-		  const struct intel_crtc_state *crtc_state,
-		  const struct intel_plane_state *plane_state)
+g4x_sprite_update_arm(struct intel_plane *plane,
+		      const struct intel_crtc_state *crtc_state,
+		      const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum pipe pipe = plane->pipe;
@@ -1233,8 +1235,8 @@ g4x_sprite_update(struct intel_plane *plane,
 }
 
 static void
-g4x_sprite_disable(struct intel_plane *plane,
-		   const struct intel_crtc_state *crtc_state)
+g4x_sprite_disable_arm(struct intel_plane *plane,
+		       const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum pipe pipe = plane->pipe;
@@ -1742,8 +1744,8 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		return plane;
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
-		plane->update_plane = vlv_sprite_update;
-		plane->disable_plane = vlv_sprite_disable;
+		plane->update_arm = vlv_sprite_update_arm;
+		plane->disable_arm = vlv_sprite_disable_arm;
 		plane->get_hw_state = vlv_sprite_get_hw_state;
 		plane->check_plane = vlv_sprite_check;
 		plane->max_stride = i965_plane_max_stride;
@@ -1759,8 +1761,8 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 
 		plane_funcs = &vlv_sprite_funcs;
 	} else if (DISPLAY_VER(dev_priv) >= 7) {
-		plane->update_plane = ivb_sprite_update;
-		plane->disable_plane = ivb_sprite_disable;
+		plane->update_arm = ivb_sprite_update_arm;
+		plane->disable_arm = ivb_sprite_disable_arm;
 		plane->get_hw_state = ivb_sprite_get_hw_state;
 		plane->check_plane = g4x_sprite_check;
 
@@ -1777,8 +1779,8 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 
 		plane_funcs = &snb_sprite_funcs;
 	} else {
-		plane->update_plane = g4x_sprite_update;
-		plane->disable_plane = g4x_sprite_disable;
+		plane->update_arm = g4x_sprite_update_arm;
+		plane->disable_arm = g4x_sprite_disable_arm;
 		plane->get_hw_state = g4x_sprite_get_hw_state;
 		plane->check_plane = g4x_sprite_check;
 		plane->max_stride = g4x_sprite_max_stride;

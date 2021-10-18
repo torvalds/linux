@@ -1357,11 +1357,17 @@ struct intel_plane {
 	unsigned int (*max_stride)(struct intel_plane *plane,
 				   u32 pixel_format, u64 modifier,
 				   unsigned int rotation);
-	void (*update_plane)(struct intel_plane *plane,
+	/* Write all non-self arming plane registers */
+	void (*update_noarm)(struct intel_plane *plane,
 			     const struct intel_crtc_state *crtc_state,
 			     const struct intel_plane_state *plane_state);
-	void (*disable_plane)(struct intel_plane *plane,
-			      const struct intel_crtc_state *crtc_state);
+	/* Write all self-arming plane registers */
+	void (*update_arm)(struct intel_plane *plane,
+			   const struct intel_crtc_state *crtc_state,
+			   const struct intel_plane_state *plane_state);
+	/* Disable the plane, must arm */
+	void (*disable_arm)(struct intel_plane *plane,
+			    const struct intel_crtc_state *crtc_state);
 	bool (*get_hw_state)(struct intel_plane *plane, enum pipe *pipe);
 	int (*check_plane)(struct intel_crtc_state *crtc_state,
 			   struct intel_plane_state *plane_state);

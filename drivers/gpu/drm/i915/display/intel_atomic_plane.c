@@ -470,31 +470,72 @@ skl_next_plane_to_commit(struct intel_atomic_state *state,
 	return NULL;
 }
 
-void intel_update_plane(struct intel_plane *plane,
-			const struct intel_crtc_state *crtc_state,
-			const struct intel_plane_state *plane_state)
+void intel_plane_update_noarm(struct intel_plane *plane,
+			      const struct intel_crtc_state *crtc_state,
+			      const struct intel_plane_state *plane_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
-	trace_intel_update_plane(&plane->base, crtc);
+	trace_intel_plane_update_noarm(&plane->base, crtc);
+
+	if (plane->update_noarm)
+		plane->update_noarm(plane, crtc_state, plane_state);
+}
+
+void intel_plane_update_arm(struct intel_plane *plane,
+			    const struct intel_crtc_state *crtc_state,
+			    const struct intel_plane_state *plane_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+
+	trace_intel_plane_update_arm(&plane->base, crtc);
 
 	if (crtc_state->uapi.async_flip && plane->async_flip)
 		plane->async_flip(plane, crtc_state, plane_state, true);
 	else
-		plane->update_plane(plane, crtc_state, plane_state);
+		plane->update_arm(plane, crtc_state, plane_state);
 }
 
-void intel_disable_plane(struct intel_plane *plane,
-			 const struct intel_crtc_state *crtc_state)
+void intel_plane_disable_arm(struct intel_plane *plane,
+			     const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
-	trace_intel_disable_plane(&plane->base, crtc);
-	plane->disable_plane(plane, crtc_state);
+	trace_intel_plane_disable_arm(&plane->base, crtc);
+	plane->disable_arm(plane, crtc_state);
 }
 
-void skl_update_planes_on_crtc(struct intel_atomic_state *state,
-			       struct intel_crtc *crtc)
+void intel_update_planes_on_crtc(struct intel_atomic_state *state,
+				 struct intel_crtc *crtc)
+{
+	struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+	u32 update_mask = new_crtc_state->update_planes;
+	struct intel_plane_state *new_plane_state;
+	struct intel_plane *plane;
+	int i;
+
+	if (new_crtc_state->uapi.async_flip)
+		return;
+
+	/*
+	 * Since we only write non-arming registers here,
+	 * the order does not matter even for skl+.
+	 */
+	for_each_new_intel_plane_in_state(state, plane, new_plane_state, i) {
+		if (crtc->pipe != plane->pipe ||
+		    !(update_mask & BIT(plane->id)))
+			continue;
+
+		/* TODO: for mailbox updates this should be skipped */
+		if (new_plane_state->uapi.visible ||
+		    new_plane_state->planar_slave)
+			intel_plane_update_noarm(plane, new_crtc_state, new_plane_state);
+	}
+}
+
+void skl_arm_planes_on_crtc(struct intel_atomic_state *state,
+			    struct intel_crtc *crtc)
 {
 	struct intel_crtc_state *old_crtc_state =
 		intel_atomic_get_old_crtc_state(state, crtc);
@@ -516,17 +557,20 @@ void skl_update_planes_on_crtc(struct intel_atomic_state *state,
 		struct intel_plane_state *new_plane_state =
 			intel_atomic_get_new_plane_state(state, plane);
 
+		/*
+		 * TODO: for mailbox updates intel_plane_update_noarm()
+		 * would have to be called here as well.
+		 */
 		if (new_plane_state->uapi.visible ||
-		    new_plane_state->planar_slave) {
-			intel_update_plane(plane, new_crtc_state, new_plane_state);
-		} else {
-			intel_disable_plane(plane, new_crtc_state);
-		}
+		    new_plane_state->planar_slave)
+			intel_plane_update_arm(plane, new_crtc_state, new_plane_state);
+		else
+			intel_plane_disable_arm(plane, new_crtc_state);
 	}
 }
 
-void i9xx_update_planes_on_crtc(struct intel_atomic_state *state,
-				struct intel_crtc *crtc)
+void i9xx_arm_planes_on_crtc(struct intel_atomic_state *state,
+			     struct intel_crtc *crtc)
 {
 	struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
@@ -540,10 +584,14 @@ void i9xx_update_planes_on_crtc(struct intel_atomic_state *state,
 		    !(update_mask & BIT(plane->id)))
 			continue;
 
+		/*
+		 * TODO: for mailbox updates intel_plane_update_noarm()
+		 * would have to be called here as well.
+		 */
 		if (new_plane_state->uapi.visible)
-			intel_update_plane(plane, new_crtc_state, new_plane_state);
+			intel_plane_update_arm(plane, new_crtc_state, new_plane_state);
 		else
-			intel_disable_plane(plane, new_crtc_state);
+			intel_plane_disable_arm(plane, new_crtc_state);
 	}
 }
 

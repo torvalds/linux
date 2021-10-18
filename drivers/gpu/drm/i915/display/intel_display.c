@@ -781,7 +781,7 @@ void intel_plane_disable_noatomic(struct intel_crtc *crtc,
 	if (DISPLAY_VER(dev_priv) == 2 && !crtc_state->active_planes)
 		intel_set_cpu_fifo_underrun_reporting(dev_priv, crtc->pipe, false);
 
-	intel_disable_plane(plane, crtc_state);
+	intel_plane_disable_arm(plane, crtc_state);
 	intel_wait_for_vblank(dev_priv, crtc->pipe);
 }
 
@@ -1563,7 +1563,7 @@ static void intel_crtc_disable_planes(struct intel_atomic_state *state,
 		    !(update_mask & BIT(plane->id)))
 			continue;
 
-		intel_disable_plane(plane, new_crtc_state);
+		intel_plane_disable_arm(plane, new_crtc_state);
 
 		if (old_plane_state->uapi.visible)
 			fb_bits |= plane->frontbuffer_bit;
@@ -1808,7 +1808,7 @@ static void intel_disable_primary_plane(const struct intel_crtc_state *crtc_stat
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct intel_plane *plane = to_intel_plane(crtc->base.primary);
 
-	plane->disable_plane(plane, crtc_state);
+	plane->disable_arm(plane, crtc_state);
 }
 
 static void ilk_crtc_enable(struct intel_atomic_state *state,
@@ -8278,15 +8278,17 @@ static void intel_update_crtc(struct intel_atomic_state *state,
 
 	intel_fbc_update(state, crtc);
 
+	intel_update_planes_on_crtc(state, crtc);
+
 	/* Perform vblank evasion around commit operation */
 	intel_pipe_update_start(new_crtc_state);
 
 	commit_pipe_pre_planes(state, crtc);
 
 	if (DISPLAY_VER(dev_priv) >= 9)
-		skl_update_planes_on_crtc(state, crtc);
+		skl_arm_planes_on_crtc(state, crtc);
 	else
-		i9xx_update_planes_on_crtc(state, crtc);
+		i9xx_arm_planes_on_crtc(state, crtc);
 
 	commit_pipe_post_planes(state, crtc);
 
