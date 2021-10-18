@@ -2602,6 +2602,7 @@ nv172_chipset = {
 	.top      = { 0x00000001, ga100_top_new },
 	.disp     = { 0x00000001, ga102_disp_new },
 	.dma      = { 0x00000001, gv100_dma_new },
+	.fifo     = { 0x00000001, ga102_fifo_new },
 };
 
 static const struct nvkm_device_chip
@@ -2622,6 +2623,7 @@ nv174_chipset = {
 	.top      = { 0x00000001, ga100_top_new },
 	.disp     = { 0x00000001, ga102_disp_new },
 	.dma      = { 0x00000001, gv100_dma_new },
+	.fifo     = { 0x00000001, ga102_fifo_new },
 };
 
 static const struct nvkm_device_chip
@@ -2642,6 +2644,7 @@ nv177_chipset = {
 	.top      = { 0x00000001, ga100_top_new },
 	.disp     = { 0x00000001, ga102_disp_new },
 	.dma      = { 0x00000001, gv100_dma_new },
+	.fifo     = { 0x00000001, ga102_fifo_new },
 };
 
 static int

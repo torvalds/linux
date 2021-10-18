@@ -192,32 +192,9 @@
 				remote-endpoint = <&clcd_pads>;
 			};
 		};
-
-	       panel-timing {
-		       clock-frequency = <63500127>;
-		       hactive = <1024>;
-		       hback-porch = <152>;
-		       hfront-porch = <48>;
-		       hsync-len = <104>;
-		       vactive = <768>;
-		       vback-porch = <23>;
-		       vfront-porch = <3>;
-		       vsync-len = <4>;
-	       };
 	};
 
 	bus@8000000 {
-		compatible = "simple-bus";
-
-		#address-cells = <2>;
-		#size-cells = <1>;
-		ranges = <0 0 0 0x08000000 0x04000000>,
-			 <1 0 0 0x14000000 0x04000000>,
-			 <2 0 0 0x18000000 0x04000000>,
-			 <3 0 0 0x1c000000 0x04000000>,
-			 <4 0 0 0x0c000000 0x04000000>,
-			 <5 0 0 0x10000000 0x04000000>;
-
 		#interrupt-cells = <1>;
 		interrupt-map-mask = <0 0 63>;
 		interrupt-map = <0 0  0 &gic 0 0 GIC_SPI  0 IRQ_TYPE_LEVEL_HIGH>,
