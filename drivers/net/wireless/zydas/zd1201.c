@@ -857,7 +857,7 @@ static int zd1201_set_mac_address(struct net_device *dev, void *p)
 	    addr->sa_data, dev->addr_len, 1);
 	if (err)
 		return err;
-	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+	eth_hw_addr_set(dev, addr->sa_data);
 
 	return zd1201_mac_reset(zd);
 }
