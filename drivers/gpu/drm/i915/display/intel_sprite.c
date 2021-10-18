@@ -1166,27 +1166,20 @@ static void ilk_sprite_update_gamma(const struct intel_plane_state *plane_state)
 }
 
 static void
-g4x_sprite_update_arm(struct intel_plane *plane,
-		      const struct intel_crtc_state *crtc_state,
-		      const struct intel_plane_state *plane_state)
+g4x_sprite_update_noarm(struct intel_plane *plane,
+			const struct intel_crtc_state *crtc_state,
+			const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum pipe pipe = plane->pipe;
-	u32 dvssurf_offset = plane_state->view.color_plane[0].offset;
-	u32 linear_offset;
-	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
 	int crtc_x = plane_state->uapi.dst.x1;
 	int crtc_y = plane_state->uapi.dst.y1;
 	u32 crtc_w = drm_rect_width(&plane_state->uapi.dst);
 	u32 crtc_h = drm_rect_height(&plane_state->uapi.dst);
-	u32 x = plane_state->view.color_plane[0].x;
-	u32 y = plane_state->view.color_plane[0].y;
 	u32 src_w = drm_rect_width(&plane_state->uapi.src) >> 16;
 	u32 src_h = drm_rect_height(&plane_state->uapi.src) >> 16;
-	u32 dvscntr, dvsscale = 0;
+	u32 dvsscale = 0;
 	unsigned long irqflags;
-
-	dvscntr = plane_state->ctl | g4x_sprite_ctl_crtc(crtc_state);
 
 	/* Sizes are 0 based */
 	src_w--;
@@ -1197,8 +1190,6 @@ g4x_sprite_update_arm(struct intel_plane *plane,
 	if (crtc_w != src_w || crtc_h != src_h)
 		dvsscale = DVS_SCALE_ENABLE | (src_w << 16) | src_h;
 
-	linear_offset = intel_fb_xy_to_linear(x, y, plane_state, 0);
-
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
 	intel_de_write_fw(dev_priv, DVSSTRIDE(pipe),
@@ -1206,6 +1197,29 @@ g4x_sprite_update_arm(struct intel_plane *plane,
 	intel_de_write_fw(dev_priv, DVSPOS(pipe), (crtc_y << 16) | crtc_x);
 	intel_de_write_fw(dev_priv, DVSSIZE(pipe), (crtc_h << 16) | crtc_w);
 	intel_de_write_fw(dev_priv, DVSSCALE(pipe), dvsscale);
+
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
+}
+
+static void
+g4x_sprite_update_arm(struct intel_plane *plane,
+		      const struct intel_crtc_state *crtc_state,
+		      const struct intel_plane_state *plane_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	enum pipe pipe = plane->pipe;
+	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
+	u32 dvssurf_offset = plane_state->view.color_plane[0].offset;
+	u32 x = plane_state->view.color_plane[0].x;
+	u32 y = plane_state->view.color_plane[0].y;
+	u32 dvscntr, linear_offset;
+	unsigned long irqflags;
+
+	dvscntr = plane_state->ctl | g4x_sprite_ctl_crtc(crtc_state);
+
+	linear_offset = intel_fb_xy_to_linear(x, y, plane_state, 0);
+
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
 	if (key->flags) {
 		intel_de_write_fw(dev_priv, DVSKEYVAL(pipe), key->min_value);
@@ -1779,6 +1793,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 
 		plane_funcs = &snb_sprite_funcs;
 	} else {
+		plane->update_noarm = g4x_sprite_update_noarm;
 		plane->update_arm = g4x_sprite_update_arm;
 		plane->disable_arm = g4x_sprite_disable_arm;
 		plane->get_hw_state = g4x_sprite_get_hw_state;
