@@ -77,7 +77,7 @@ static int rtw89_cam_send_sec_key_cmd(struct rtw89_dev *rtwdev,
 		return 0;
 
 	ext_skb = rtw89_cam_get_sec_key_cmd(rtwdev, sec_cam, true);
-	if (!skb) {
+	if (!ext_skb) {
 		rtw89_err(rtwdev, "failed to get ext sec key command\n");
 		return -ENOMEM;
 	}
