@@ -66,7 +66,7 @@ struct cdn_dp_device {
 	struct drm_encoder encoder;
 	struct drm_display_mode mode;
 	struct platform_device *audio_pdev;
-	struct work_struct event_work;
+	struct delayed_work event_work;
 	struct edid *edid;
 	struct rockchip_drm_sub_dev sub_dev;
 

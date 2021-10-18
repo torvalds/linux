@@ -223,7 +223,7 @@ static void cdn_dp_oob_hotplug_event(struct drm_connector *connector)
 {
 	struct cdn_dp_device *dp = connector_to_dp(connector);
 
-	schedule_work(&dp->event_work);
+	schedule_delayed_work(&dp->event_work, msecs_to_jiffies(100));
 }
 
 static const struct drm_connector_funcs cdn_dp_atomic_connector_funcs = {
@@ -643,7 +643,7 @@ static void cdn_dp_encoder_disable(struct drm_encoder *encoder)
 	 *    run the event_work to re-connect it.
 	 */
 	if (!dp->connected && cdn_dp_connected_port(dp))
-		schedule_work(&dp->event_work);
+		schedule_delayed_work(&dp->event_work, 0);
 }
 
 static int cdn_dp_encoder_atomic_check(struct drm_encoder *encoder,
@@ -887,7 +887,7 @@ out:
 
 static void cdn_dp_pd_event_work(struct work_struct *work)
 {
-	struct cdn_dp_device *dp = container_of(work, struct cdn_dp_device,
+	struct cdn_dp_device *dp = container_of(to_delayed_work(work), struct cdn_dp_device,
 						event_work);
 	struct drm_connector *connector = &dp->connector;
 	enum drm_connector_status old_status;
@@ -978,7 +978,7 @@ static int cdn_dp_bind(struct device *dev, struct device *master, void *data)
 	dp->active_port = -1;
 	dp->fw_loaded = false;
 
-	INIT_WORK(&dp->event_work, cdn_dp_pd_event_work);
+	INIT_DELAYED_WORK(&dp->event_work, cdn_dp_pd_event_work);
 
 	encoder = &dp->encoder;
 
@@ -1022,7 +1022,7 @@ static int cdn_dp_bind(struct device *dev, struct device *master, void *data)
 
 	pm_runtime_enable(dev);
 
-	schedule_work(&dp->event_work);
+	schedule_delayed_work(&dp->event_work, 0);
 
 	return 0;
 
@@ -1039,7 +1039,7 @@ static void cdn_dp_unbind(struct device *dev, struct device *master, void *data)
 	struct drm_encoder *encoder = &dp->encoder;
 	struct drm_connector *connector = &dp->connector;
 
-	cancel_work_sync(&dp->event_work);
+	cancel_delayed_work_sync(&dp->event_work);
 	cdn_dp_encoder_disable(encoder);
 	encoder->funcs->destroy(encoder);
 	connector->funcs->destroy(connector);
@@ -1077,7 +1077,7 @@ static int cdn_dp_resume(struct device *dev)
 	mutex_lock(&dp->lock);
 	dp->suspended = false;
 	if (dp->fw_loaded)
-		schedule_work(&dp->event_work);
+		schedule_delayed_work(&dp->event_work, 0);
 	mutex_unlock(&dp->lock);
 
 	return 0;
