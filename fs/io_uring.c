@@ -6739,8 +6739,18 @@ static void io_wq_submit_work(struct io_wq_work *work)
 		ret = -ECANCELED;
 
 	if (!ret) {
+		bool needs_poll = false;
+		unsigned int issue_flags = IO_URING_F_UNLOCKED;
+
+		if (req->flags & REQ_F_FORCE_ASYNC) {
+			needs_poll = req->file && file_can_poll(req->file);
+			if (needs_poll)
+				issue_flags |= IO_URING_F_NONBLOCK;
+		}
+
 		do {
-			ret = io_issue_sqe(req, IO_URING_F_UNLOCKED);
+issue_sqe:
+			ret = io_issue_sqe(req, issue_flags);
 			/*
 			 * We can get EAGAIN for polled IO even though we're
 			 * forcing a sync submission from here, since we can't
@@ -6748,6 +6758,30 @@ static void io_wq_submit_work(struct io_wq_work *work)
 			 */
 			if (ret != -EAGAIN)
 				break;
+			if (needs_poll) {
+				bool armed = false;
+
+				ret = 0;
+				needs_poll = false;
+				issue_flags &= ~IO_URING_F_NONBLOCK;
+
+				switch (io_arm_poll_handler(req)) {
+				case IO_APOLL_READY:
+					goto issue_sqe;
+				case IO_APOLL_ABORTED:
+					/*
+					 * somehow we failed to arm the poll infra,
+					 * fallback it to a normal async worker try.
+					 */
+					break;
+				case IO_APOLL_OK:
+					armed = true;
+					break;
+				}
+
+				if (armed)
+					break;
+			}
 			cond_resched();
 		} while (1);
 	}
