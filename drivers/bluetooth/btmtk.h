@@ -7,6 +7,8 @@
 
 #define HCI_WMT_MAX_EVENT_SIZE		64
 
+#define BTMTK_WMT_REG_READ 0x2
+
 enum {
 	BTMTK_WMT_PATCH_DWNLD = 0x1,
 	BTMTK_WMT_TEST = 0x2,
@@ -14,6 +16,7 @@ enum {
 	BTMTK_WMT_HIF = 0x4,
 	BTMTK_WMT_FUNC_CTRL = 0x6,
 	BTMTK_WMT_RST = 0x7,
+	BTMTK_WMT_REGISTER = 0x8,
 	BTMTK_WMT_SEMAPHORE = 0x17,
 };
 
@@ -47,6 +50,14 @@ struct btmtk_hci_wmt_evt {
 struct btmtk_hci_wmt_evt_funcc {
 	struct btmtk_hci_wmt_evt hwhdr;
 	__be16 status;
+} __packed;
+
+struct btmtk_hci_wmt_evt_reg {
+	struct btmtk_hci_wmt_evt hwhdr;
+	u8 rsv[2];
+	u8 num;
+	__le32 addr;
+	__le32 val;
 } __packed;
 
 struct btmtk_tci_sleep {
