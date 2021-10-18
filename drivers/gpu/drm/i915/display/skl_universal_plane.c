@@ -967,6 +967,20 @@ static u32 skl_surf_address(const struct intel_plane_state *plane_state,
 	}
 }
 
+static u32 skl_plane_surf(const struct intel_plane_state *plane_state,
+			  int color_plane)
+{
+	u32 plane_surf;
+
+	plane_surf = intel_plane_ggtt_offset(plane_state) +
+		skl_surf_address(plane_state, color_plane);
+
+	if (plane_state->decrypt)
+		plane_surf |= PLANE_SURF_DECRYPT;
+
+	return plane_surf;
+}
+
 static void icl_plane_csc_load_black(struct intel_plane *plane)
 {
 	struct drm_i915_private *i915 = to_i915(plane->base.dev);
@@ -1001,7 +1015,6 @@ skl_program_plane(struct intel_plane *plane,
 	enum plane_id plane_id = plane->id;
 	enum pipe pipe = plane->pipe;
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
-	u32 surf_addr = skl_surf_address(plane_state, color_plane);
 	u32 stride = skl_plane_stride(plane_state, color_plane);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	int aux_plane = skl_main_to_aux_plane(fb, color_plane);
@@ -1014,7 +1027,7 @@ skl_program_plane(struct intel_plane *plane,
 	u8 alpha = plane_state->hw.alpha >> 8;
 	u32 plane_color_ctl = 0, aux_dist = 0;
 	unsigned long irqflags;
-	u32 keymsk, keymax, plane_surf;
+	u32 keymsk, keymax;
 	u32 plane_ctl = plane_state->ctl;
 
 	plane_ctl |= skl_plane_ctl_crtc(crtc_state);
@@ -1040,15 +1053,12 @@ skl_program_plane(struct intel_plane *plane,
 	}
 
 	if (aux_plane) {
-		aux_dist = skl_surf_address(plane_state, aux_plane) - surf_addr;
+		aux_dist = skl_surf_address(plane_state, aux_plane) -
+			skl_surf_address(plane_state, color_plane);
 
 		if (DISPLAY_VER(dev_priv) < 12)
 			aux_dist |= skl_plane_stride(plane_state, aux_plane);
 	}
-
-	plane_surf = intel_plane_ggtt_offset(plane_state) + surf_addr;
-	if (plane_state->decrypt)
-		plane_surf |= PLANE_SURF_DECRYPT;
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
@@ -1113,7 +1123,8 @@ skl_program_plane(struct intel_plane *plane,
 	 * the control register just before the surface register.
 	 */
 	intel_de_write_fw(dev_priv, PLANE_CTL(pipe, plane_id), plane_ctl);
-	intel_de_write_fw(dev_priv, PLANE_SURF(pipe, plane_id), plane_surf);
+	intel_de_write_fw(dev_priv, PLANE_SURF(pipe, plane_id),
+			  skl_plane_surf(plane_state, color_plane));
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
@@ -1128,7 +1139,6 @@ skl_plane_async_flip(struct intel_plane *plane,
 	unsigned long irqflags;
 	enum plane_id plane_id = plane->id;
 	enum pipe pipe = plane->pipe;
-	u32 surf_addr = plane_state->view.color_plane[0].offset;
 	u32 plane_ctl = plane_state->ctl;
 
 	plane_ctl |= skl_plane_ctl_crtc(crtc_state);
@@ -1140,7 +1150,7 @@ skl_plane_async_flip(struct intel_plane *plane,
 
 	intel_de_write_fw(dev_priv, PLANE_CTL(pipe, plane_id), plane_ctl);
 	intel_de_write_fw(dev_priv, PLANE_SURF(pipe, plane_id),
-			  intel_plane_ggtt_offset(plane_state) + surf_addr);
+			  skl_plane_surf(plane_state, 0));
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
