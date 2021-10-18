@@ -906,10 +906,12 @@ int mt7921_run_firmware(struct mt7921_dev *dev)
 	if (err)
 		return err;
 
-	set_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state);
-	mt7921_mcu_fw_log_2_host(dev, 1);
+	err = mt76_connac_mcu_get_nic_capability(&dev->mphy);
+	if (err)
+		return err;
 
-	return mt76_connac_mcu_get_nic_capability(&dev->mphy);
+	set_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state);
+	return mt7921_mcu_fw_log_2_host(dev, 1);
 }
 EXPORT_SYMBOL_GPL(mt7921_run_firmware);
 

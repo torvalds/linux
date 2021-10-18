@@ -149,7 +149,6 @@ EXPORT_SYMBOL_GPL(mt7921_mac_init);
 
 static int __mt7921_init_hardware(struct mt7921_dev *dev)
 {
-	struct mt76_dev *mdev = &dev->mt76;
 	int ret;
 
 	/* force firmware operation mode into normal state,
@@ -160,9 +159,7 @@ static int __mt7921_init_hardware(struct mt7921_dev *dev)
 	if (ret)
 		goto out;
 
-	ret = mt7921_eeprom_init(dev);
-	if (ret)
-		goto out;
+	mt76_eeprom_override(&dev->mphy);
 
 	ret = mt7921_mcu_set_eeprom(dev);
 	if (ret)
@@ -170,11 +167,6 @@ static int __mt7921_init_hardware(struct mt7921_dev *dev)
 
 	ret = mt7921_mac_init(dev);
 out:
-	if (ret && mdev->eeprom.data) {
-		devm_kfree(mdev->dev, mdev->eeprom.data);
-		mdev->eeprom.data = NULL;
-	}
-
 	return ret;
 }
 

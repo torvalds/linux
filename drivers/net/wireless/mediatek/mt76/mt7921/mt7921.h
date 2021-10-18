@@ -156,8 +156,6 @@ struct mt7921_dev {
 	struct mt7921_phy phy;
 	struct tasklet_struct irq_tasklet;
 
-	u16 chainmask;
-
 	struct work_struct reset_work;
 	bool hw_full_reset:1;
 	bool hw_init_done:1;
@@ -247,12 +245,6 @@ u32 mt7921_reg_map(struct mt7921_dev *dev, u32 addr);
 int __mt7921_start(struct mt7921_phy *phy);
 int mt7921_register_device(struct mt7921_dev *dev);
 void mt7921_unregister_device(struct mt7921_dev *dev);
-int mt7921_eeprom_init(struct mt7921_dev *dev);
-void mt7921_eeprom_parse_band_config(struct mt7921_phy *phy);
-int mt7921_eeprom_get_target_power(struct mt7921_dev *dev,
-				   struct ieee80211_channel *chan,
-				   u8 chain_idx);
-void mt7921_eeprom_init_sku(struct mt7921_dev *dev);
 int mt7921_dma_init(struct mt7921_dev *dev);
 int mt7921_wpdma_reset(struct mt7921_dev *dev, bool force);
 int mt7921_wpdma_reinit_cond(struct mt7921_dev *dev);

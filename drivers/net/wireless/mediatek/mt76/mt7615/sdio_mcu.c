@@ -27,6 +27,7 @@ static int mt7663s_mcu_init_sched(struct mt7615_dev *dev)
 						   MT_HIF1_MIN_QUOTA);
 	sdio->sched.ple_data_quota = mt76_get_field(dev, MT_PLE_PG_HIF0_GROUP,
 						    MT_HIF0_MIN_QUOTA);
+	sdio->sched.pse_page_size = MT_PSE_PAGE_SZ;
 	txdwcnt = mt76_get_field(dev, MT_PP_TXDWCNT,
 				 MT_PP_TXDWCNT_TX1_ADD_DW_CNT);
 	sdio->sched.deficit = txdwcnt << 2;
