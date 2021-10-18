@@ -341,9 +341,6 @@ struct blk_mq_hw_ctx {
 	unsigned long		queued;
 	/** @run: Number of dispatched requests. */
 	unsigned long		run;
-#define BLK_MQ_MAX_DISPATCH_ORDER	7
-	/** @dispatched: Number of dispatch requests by queue. */
-	unsigned long		dispatched[BLK_MQ_MAX_DISPATCH_ORDER];
 
 	/** @numa_node: NUMA node the storage adapter has been connected to. */
 	unsigned int		numa_node;
@@ -362,13 +359,6 @@ struct blk_mq_hw_ctx {
 	struct hlist_node	cpuhp_dead;
 	/** @kobj: Kernel object for sysfs. */
 	struct kobject		kobj;
-
-	/** @poll_considered: Count times blk_mq_poll() was called. */
-	unsigned long		poll_considered;
-	/** @poll_invoked: Count how many requests blk_mq_poll() polled. */
-	unsigned long		poll_invoked;
-	/** @poll_success: Count how many polled requests were completed. */
-	unsigned long		poll_success;
 
 #ifdef CONFIG_BLK_DEBUG_FS
 	/**

@@ -529,70 +529,6 @@ out:
 	return res;
 }
 
-static int hctx_io_poll_show(void *data, struct seq_file *m)
-{
-	struct blk_mq_hw_ctx *hctx = data;
-
-	seq_printf(m, "considered=%lu\n", hctx->poll_considered);
-	seq_printf(m, "invoked=%lu\n", hctx->poll_invoked);
-	seq_printf(m, "success=%lu\n", hctx->poll_success);
-	return 0;
-}
-
-static ssize_t hctx_io_poll_write(void *data, const char __user *buf,
-				  size_t count, loff_t *ppos)
-{
-	struct blk_mq_hw_ctx *hctx = data;
-
-	hctx->poll_considered = hctx->poll_invoked = hctx->poll_success = 0;
-	return count;
-}
-
-static int hctx_dispatched_show(void *data, struct seq_file *m)
-{
-	struct blk_mq_hw_ctx *hctx = data;
-	int i;
-
-	seq_printf(m, "%8u\t%lu\n", 0U, hctx->dispatched[0]);
-
-	for (i = 1; i < BLK_MQ_MAX_DISPATCH_ORDER - 1; i++) {
-		unsigned int d = 1U << (i - 1);
-
-		seq_printf(m, "%8u\t%lu\n", d, hctx->dispatched[i]);
-	}
-
-	seq_printf(m, "%8u+\t%lu\n", 1U << (i - 1), hctx->dispatched[i]);
-	return 0;
-}
-
-static ssize_t hctx_dispatched_write(void *data, const char __user *buf,
-				     size_t count, loff_t *ppos)
-{
-	struct blk_mq_hw_ctx *hctx = data;
-	int i;
-
-	for (i = 0; i < BLK_MQ_MAX_DISPATCH_ORDER; i++)
-		hctx->dispatched[i] = 0;
-	return count;
-}
-
-static int hctx_queued_show(void *data, struct seq_file *m)
-{
-	struct blk_mq_hw_ctx *hctx = data;
-
-	seq_printf(m, "%lu\n", hctx->queued);
-	return 0;
-}
-
-static ssize_t hctx_queued_write(void *data, const char __user *buf,
-				 size_t count, loff_t *ppos)
-{
-	struct blk_mq_hw_ctx *hctx = data;
-
-	hctx->queued = 0;
-	return count;
-}
-
 static int hctx_run_show(void *data, struct seq_file *m)
 {
 	struct blk_mq_hw_ctx *hctx = data;
@@ -738,9 +674,6 @@ static const struct blk_mq_debugfs_attr blk_mq_debugfs_hctx_attrs[] = {
 	{"tags_bitmap", 0400, hctx_tags_bitmap_show},
 	{"sched_tags", 0400, hctx_sched_tags_show},
 	{"sched_tags_bitmap", 0400, hctx_sched_tags_bitmap_show},
-	{"io_poll", 0600, hctx_io_poll_show, hctx_io_poll_write},
-	{"dispatched", 0600, hctx_dispatched_show, hctx_dispatched_write},
-	{"queued", 0600, hctx_queued_show, hctx_queued_write},
 	{"run", 0600, hctx_run_show, hctx_run_write},
 	{"active", 0400, hctx_active_show},
 	{"dispatch_busy", 0400, hctx_dispatch_busy_show},
