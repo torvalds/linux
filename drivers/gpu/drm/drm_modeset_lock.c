@@ -79,7 +79,7 @@
 static DEFINE_WW_CLASS(crtc_ww_class);
 
 #if IS_ENABLED(CONFIG_DRM_DEBUG_MODESET_LOCK)
-static noinline depot_stack_handle_t __stack_depot_save(void)
+static noinline depot_stack_handle_t __drm_stack_depot_save(void)
 {
 	unsigned long entries[8];
 	unsigned int n;
@@ -89,7 +89,7 @@ static noinline depot_stack_handle_t __stack_depot_save(void)
 	return stack_depot_save(entries, n, GFP_NOWAIT | __GFP_NOWARN);
 }
 
-static void __stack_depot_print(depot_stack_handle_t stack_depot)
+static void __drm_stack_depot_print(depot_stack_handle_t stack_depot)
 {
 	struct drm_printer p = drm_debug_printer("drm_modeset_lock");
 	unsigned long *entries;
@@ -108,11 +108,11 @@ static void __stack_depot_print(depot_stack_handle_t stack_depot)
 	kfree(buf);
 }
 #else /* CONFIG_DRM_DEBUG_MODESET_LOCK */
-static depot_stack_handle_t __stack_depot_save(void)
+static depot_stack_handle_t __drm_stack_depot_save(void)
 {
 	return 0;
 }
-static void __stack_depot_print(depot_stack_handle_t stack_depot)
+static void __drm_stack_depot_print(depot_stack_handle_t stack_depot)
 {
 }
 #endif /* CONFIG_DRM_DEBUG_MODESET_LOCK */
@@ -266,7 +266,7 @@ EXPORT_SYMBOL(drm_modeset_acquire_fini);
 void drm_modeset_drop_locks(struct drm_modeset_acquire_ctx *ctx)
 {
 	if (WARN_ON(ctx->contended))
-		__stack_depot_print(ctx->stack_depot);
+		__drm_stack_depot_print(ctx->stack_depot);
 
 	while (!list_empty(&ctx->locked)) {
 		struct drm_modeset_lock *lock;
@@ -286,7 +286,7 @@ static inline int modeset_lock(struct drm_modeset_lock *lock,
 	int ret;
 
 	if (WARN_ON(ctx->contended))
-		__stack_depot_print(ctx->stack_depot);
+		__drm_stack_depot_print(ctx->stack_depot);
 
 	if (ctx->trylock_only) {
 		lockdep_assert_held(&ctx->ww_ctx);
@@ -317,7 +317,7 @@ static inline int modeset_lock(struct drm_modeset_lock *lock,
 		ret = 0;
 	} else if (ret == -EDEADLK) {
 		ctx->contended = lock;
-		ctx->stack_depot = __stack_depot_save();
+		ctx->stack_depot = __drm_stack_depot_save();
 	}
 
 	return ret;
