@@ -579,7 +579,7 @@ static inline struct nvmet_subsys *nvmet_req_subsys(struct nvmet_req *req)
 
 static inline bool nvmet_is_disc_subsys(struct nvmet_subsys *subsys)
 {
-    return subsys->type == NVME_NQN_DISC;
+    return subsys->type != NVME_NQN_NVME;
 }
 
 #ifdef CONFIG_NVME_TARGET_PASSTHRU
