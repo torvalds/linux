@@ -52,6 +52,7 @@
 #define RKPM_DDR_EXIT_SRPD_IDLE		BIT(8)	/* ddr exit sr/pd idle by ddr controller,  not recommend */
 #define RKPM_PDM_CLK_OFF		BIT(9)	/* armoff with pdm clk off, not recommend */
 #define RKPM_PWM_VOLTAGE_DEFAULT	BIT(10) /* pwm regulator default voltage (same with maskrom) */
+#define RKPM_PWM_VOLTAGE_DEFAULT_BS	BIT(20) /* pwm regulator default voltage on 0.895v for RK3308BS chip */
 
 /*
  * Regulator mode:
