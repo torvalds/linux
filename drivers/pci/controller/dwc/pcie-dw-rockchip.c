@@ -698,18 +698,24 @@ static int rk_pcie_establish_link(struct dw_pcie *pci)
 
 	/*
 	 * PCIe requires the refclk to be stable for 100µs prior to releasing
-	 * PERST.  See table 2-4 in section 2.6.2 AC Specifications of the PCI
-	 * Express Card Electromechanical Specification, 1.1. However, we don't
-	 * know if the refclk is coming from RC's PHY or external OSC. If it's
-	 * from RC, so enabling LTSSM is the just right place to release #PERST.
-	 * We need a little more extra time as before, rather than setting just
-	 * 100us as we don't know how long should the device need to reset.
+	 * PERST and T_PVPERL (Power stable to PERST# inactive) should be a
+	 * minimum of 100ms.  See table 2-4 in section 2.6.2 AC, the PCI Express
+	 * Card Electromechanical Specification 3.0. So 100ms in total is the min
+	 * requuirement here. We add a 1s for sake of hoping everthings work fine.
 	 */
 	msleep(1000);
 	gpiod_set_value_cansleep(rk_pcie->rst_gpio, 1);
 
 	for (retries = 0; retries < 10; retries++) {
 		if (dw_pcie_link_up(pci)) {
+			/*
+			 * We may be here in case of L0 in Gen1. But if EP is capable
+			 * of Gen2 or Gen3, Gen switch may happen just in this time, but
+			 * we keep on accessing devices in unstable link status. Given
+			 * that LTSSM max timeout is 24ms per period, we can wait a bit
+			 * more for Gen switch.
+			 */
+			msleep(100);
 			dev_info(pci->dev, "PCIe Link up, LTSSM is 0x%x\n",
 				 rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_LTSSM_STATUS));
 			rk_pcie_debug_dump(rk_pcie);
