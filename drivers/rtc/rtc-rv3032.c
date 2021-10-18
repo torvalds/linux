@@ -106,6 +106,7 @@
 struct rv3032_data {
 	struct regmap *regmap;
 	struct rtc_device *rtc;
+	bool trickle_charger_set;
 #ifdef CONFIG_COMMON_CLK
 	struct clk_hw clkout_hw;
 #endif
@@ -402,6 +403,75 @@ static int rv3032_set_offset(struct device *dev, long offset)
 				 FIELD_PREP(RV3032_OFFSET_MSK, offset));
 }
 
+static int rv3032_param_get(struct device *dev, struct rtc_param *param)
+{
+	struct rv3032_data *rv3032 = dev_get_drvdata(dev);
+	int ret;
+
+	switch(param->param) {
+		u32 value;
+
+	case RTC_PARAM_BACKUP_SWITCH_MODE:
+		ret = regmap_read(rv3032->regmap, RV3032_PMU, &value);
+		if (ret < 0)
+			return ret;
+
+		value = FIELD_GET(RV3032_PMU_BSM, value);
+
+		switch(value) {
+		case RV3032_PMU_BSM_DSM:
+			param->uvalue = RTC_BSM_DIRECT;
+			break;
+		case RV3032_PMU_BSM_LSM:
+			param->uvalue = RTC_BSM_LEVEL;
+			break;
+		default:
+			param->uvalue = RTC_BSM_DISABLED;
+		}
+
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int rv3032_param_set(struct device *dev, struct rtc_param *param)
+{
+	struct rv3032_data *rv3032 = dev_get_drvdata(dev);
+
+	switch(param->param) {
+		u8 mode;
+	case RTC_PARAM_BACKUP_SWITCH_MODE:
+		if (rv3032->trickle_charger_set)
+			return -EINVAL;
+
+		switch (param->uvalue) {
+		case RTC_BSM_DISABLED:
+			mode = 0;
+			break;
+		case RTC_BSM_DIRECT:
+			mode = RV3032_PMU_BSM_DSM;
+			break;
+		case RTC_BSM_LEVEL:
+			mode = RV3032_PMU_BSM_LSM;
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		return rv3032_update_cfg(rv3032, RV3032_PMU, RV3032_PMU_BSM,
+					 FIELD_PREP(RV3032_PMU_BSM, mode));
+
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int rv3032_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 {
 	struct rv3032_data *rv3032 = dev_get_drvdata(dev);
@@ -540,6 +610,8 @@ static int rv3032_trickle_charger_setup(struct device *dev, struct rv3032_data *
 
 		return 0;
 	}
+
+	rv3032->trickle_charger_set = true;
 
 	return rv3032_update_cfg(rv3032, RV3032_PMU,
 				 RV3032_PMU_TCR | RV3032_PMU_TCM | RV3032_PMU_BSM,
@@ -813,6 +885,8 @@ static const struct rtc_class_ops rv3032_rtc_ops = {
 	.read_alarm = rv3032_get_alarm,
 	.set_alarm = rv3032_set_alarm,
 	.alarm_irq_enable = rv3032_alarm_irq_enable,
+	.param_get = rv3032_param_get,
+	.param_set = rv3032_param_set,
 };
 
 static const struct regmap_config regmap_config = {
@@ -882,6 +956,8 @@ static int rv3032_probe(struct i2c_client *client)
 		return ret;
 
 	rv3032_trickle_charger_setup(&client->dev, rv3032);
+
+	set_bit(RTC_FEATURE_BACKUP_SWITCH_MODE, rv3032->rtc->features);
 
 	rv3032->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	rv3032->rtc->range_max = RTC_TIMESTAMP_END_2099;
