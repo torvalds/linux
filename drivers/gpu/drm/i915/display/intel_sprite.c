@@ -417,34 +417,23 @@ static void vlv_sprite_update_gamma(const struct intel_plane_state *plane_state)
 				  gamma[i] << 16 | gamma[i] << 8 | gamma[i]);
 }
 
-/* TODO: split into noarm+arm pair */
 static void
-vlv_sprite_update_arm(struct intel_plane *plane,
-		      const struct intel_crtc_state *crtc_state,
-		      const struct intel_plane_state *plane_state)
+vlv_sprite_update_noarm(struct intel_plane *plane,
+			const struct intel_crtc_state *crtc_state,
+			const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum pipe pipe = plane->pipe;
 	enum plane_id plane_id = plane->id;
-	u32 sprsurf_offset = plane_state->view.color_plane[0].offset;
-	u32 linear_offset;
-	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
 	int crtc_x = plane_state->uapi.dst.x1;
 	int crtc_y = plane_state->uapi.dst.y1;
 	u32 crtc_w = drm_rect_width(&plane_state->uapi.dst);
 	u32 crtc_h = drm_rect_height(&plane_state->uapi.dst);
-	u32 x = plane_state->view.color_plane[0].x;
-	u32 y = plane_state->view.color_plane[0].y;
 	unsigned long irqflags;
-	u32 sprctl;
-
-	sprctl = plane_state->ctl | vlv_sprite_ctl_crtc(crtc_state);
 
 	/* Sizes are 0 based */
 	crtc_w--;
 	crtc_h--;
-
-	linear_offset = intel_fb_xy_to_linear(x, y, plane_state, 0);
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
@@ -454,7 +443,30 @@ vlv_sprite_update_arm(struct intel_plane *plane,
 			  (crtc_y << 16) | crtc_x);
 	intel_de_write_fw(dev_priv, SPSIZE(pipe, plane_id),
 			  (crtc_h << 16) | crtc_w);
-	intel_de_write_fw(dev_priv, SPCONSTALPHA(pipe, plane_id), 0);
+
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
+}
+
+static void
+vlv_sprite_update_arm(struct intel_plane *plane,
+		      const struct intel_crtc_state *crtc_state,
+		      const struct intel_plane_state *plane_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	enum pipe pipe = plane->pipe;
+	enum plane_id plane_id = plane->id;
+	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
+	u32 sprsurf_offset = plane_state->view.color_plane[0].offset;
+	u32 x = plane_state->view.color_plane[0].x;
+	u32 y = plane_state->view.color_plane[0].y;
+	u32 sprctl, linear_offset;
+	unsigned long irqflags;
+
+	sprctl = plane_state->ctl | vlv_sprite_ctl_crtc(crtc_state);
+
+	linear_offset = intel_fb_xy_to_linear(x, y, plane_state, 0);
+
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
 	if (IS_CHERRYVIEW(dev_priv) && pipe == PIPE_B)
 		chv_sprite_update_csc(plane_state);
@@ -467,6 +479,8 @@ vlv_sprite_update_arm(struct intel_plane *plane,
 		intel_de_write_fw(dev_priv, SPKEYMAXVAL(pipe, plane_id),
 				  key->max_value);
 	}
+
+	intel_de_write_fw(dev_priv, SPCONSTALPHA(pipe, plane_id), 0);
 
 	intel_de_write_fw(dev_priv, SPLINOFF(pipe, plane_id), linear_offset);
 	intel_de_write_fw(dev_priv, SPTILEOFF(pipe, plane_id), (y << 16) | x);
@@ -1771,6 +1785,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		return plane;
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
+		plane->update_noarm = vlv_sprite_update_noarm;
 		plane->update_arm = vlv_sprite_update_arm;
 		plane->disable_arm = vlv_sprite_disable_arm;
 		plane->get_hw_state = vlv_sprite_get_hw_state;
