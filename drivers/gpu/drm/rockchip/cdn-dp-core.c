@@ -219,6 +219,13 @@ static void cdn_dp_connector_destroy(struct drm_connector *connector)
 	drm_connector_cleanup(connector);
 }
 
+static void cdn_dp_oob_hotplug_event(struct drm_connector *connector)
+{
+	struct cdn_dp_device *dp = connector_to_dp(connector);
+
+	schedule_work(&dp->event_work);
+}
+
 static const struct drm_connector_funcs cdn_dp_atomic_connector_funcs = {
 	.detect = cdn_dp_connector_detect,
 	.destroy = cdn_dp_connector_destroy,
@@ -1007,6 +1014,11 @@ static int cdn_dp_bind(struct device *dev, struct device *master, void *data)
 		DRM_ERROR("failed to attach connector and encoder\n");
 		goto err_free_connector;
 	}
+
+	dp->sub_dev.connector = &dp->connector;
+	dp->sub_dev.of_node = dev->of_node;
+	dp->sub_dev.oob_hotplug_event = cdn_dp_oob_hotplug_event;
+	rockchip_drm_register_sub_dev(&dp->sub_dev);
 
 	pm_runtime_enable(dev);
 
