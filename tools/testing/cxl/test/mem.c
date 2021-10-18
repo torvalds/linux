@@ -28,7 +28,23 @@ static struct cxl_cel_entry mock_cel[] = {
 		.opcode = cpu_to_le16(CXL_MBOX_OP_SET_LSA),
 		.effect = cpu_to_le16(EFFECT(1) | EFFECT(2)),
 	},
+	{
+		.opcode = cpu_to_le16(CXL_MBOX_OP_GET_HEALTH_INFO),
+		.effect = cpu_to_le16(0),
+	},
 };
+
+/* See CXL 2.0 Table 181 Get Health Info Output Payload */
+struct cxl_mbox_health_info {
+	u8 health_status;
+	u8 media_status;
+	u8 ext_status;
+	u8 life_used;
+	__le16 temperature;
+	__le32 dirty_shutdowns;
+	__le32 volatile_errors;
+	__le32 pmem_errors;
+} __packed;
 
 static struct {
 	struct cxl_mbox_get_supported_logs gsl;
@@ -156,6 +172,36 @@ static int mock_set_lsa(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd)
 	return 0;
 }
 
+static int mock_health_info(struct cxl_dev_state *cxlds,
+			    struct cxl_mbox_cmd *cmd)
+{
+	struct cxl_mbox_health_info health_info = {
+		/* set flags for maint needed, perf degraded, hw replacement */
+		.health_status = 0x7,
+		/* set media status to "All Data Lost" */
+		.media_status = 0x3,
+		/*
+		 * set ext_status flags for:
+		 *  ext_life_used: normal,
+		 *  ext_temperature: critical,
+		 *  ext_corrected_volatile: warning,
+		 *  ext_corrected_persistent: normal,
+		 */
+		.ext_status = 0x18,
+		.life_used = 15,
+		.temperature = cpu_to_le16(25),
+		.dirty_shutdowns = cpu_to_le32(10),
+		.volatile_errors = cpu_to_le32(20),
+		.pmem_errors = cpu_to_le32(30),
+	};
+
+	if (cmd->size_out < sizeof(health_info))
+		return -EINVAL;
+
+	memcpy(cmd->payload_out, &health_info, sizeof(health_info));
+	return 0;
+}
+
 static int cxl_mock_mbox_send(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd)
 {
 	struct device *dev = cxlds->dev;
@@ -176,6 +222,9 @@ static int cxl_mock_mbox_send(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *
 		break;
 	case CXL_MBOX_OP_SET_LSA:
 		rc = mock_set_lsa(cxlds, cmd);
+		break;
+	case CXL_MBOX_OP_GET_HEALTH_INFO:
+		rc = mock_health_info(cxlds, cmd);
 		break;
 	default:
 		break;
