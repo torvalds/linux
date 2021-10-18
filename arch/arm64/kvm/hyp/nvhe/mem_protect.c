@@ -11,7 +11,7 @@
 #include <asm/kvm_pgtable.h>
 #include <asm/stage2_pgtable.h>
 
-#include <hyp/switch.h>
+#include <hyp/fault.h>
 
 #include <nvhe/gfp.h>
 #include <nvhe/memory.h>
@@ -24,12 +24,6 @@ extern unsigned long hyp_nr_cpus;
 struct host_kvm host_kvm;
 
 static struct hyp_pool host_s2_pool;
-
-/*
- * Copies of the host's CPU features registers holding sanitized values.
- */
-u64 id_aa64mmfr0_el1_sys_val;
-u64 id_aa64mmfr1_el1_sys_val;
 
 const u8 pkvm_hyp_id = 1;
 
