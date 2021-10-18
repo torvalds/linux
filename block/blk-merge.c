@@ -1090,11 +1090,11 @@ bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 	struct request *rq;
 
 	plug = blk_mq_plug(q, bio);
-	if (!plug || list_empty(&plug->mq_list))
+	if (!plug || rq_list_empty(plug->mq_list))
 		return false;
 
 	/* check the previously added entry for a quick merge attempt */
-	rq = list_last_entry(&plug->mq_list, struct request, queuelist);
+	rq = rq_list_peek(&plug->mq_list);
 	if (rq->q == q) {
 		/*
 		 * Only blk-mq multiple hardware queues case checks the rq in

@@ -2151,34 +2151,46 @@ void blk_mq_insert_requests(struct blk_mq_hw_ctx *hctx, struct blk_mq_ctx *ctx,
 
 void blk_mq_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 {
+	struct blk_mq_hw_ctx *this_hctx;
+	struct blk_mq_ctx *this_ctx;
+	unsigned int depth;
 	LIST_HEAD(list);
 
-	if (list_empty(&plug->mq_list))
+	if (rq_list_empty(plug->mq_list))
 		return;
-	list_splice_init(&plug->mq_list, &list);
 	plug->rq_count = 0;
 
+	this_hctx = NULL;
+	this_ctx = NULL;
+	depth = 0;
 	do {
-		struct list_head rq_list;
-		struct request *rq, *head_rq = list_entry_rq(list.next);
-		struct list_head *pos = &head_rq->queuelist; /* skip first */
-		struct blk_mq_hw_ctx *this_hctx = head_rq->mq_hctx;
-		struct blk_mq_ctx *this_ctx = head_rq->mq_ctx;
-		unsigned int depth = 1;
+		struct request *rq;
 
-		list_for_each_continue(pos, &list) {
-			rq = list_entry_rq(pos);
-			BUG_ON(!rq->q);
-			if (rq->mq_hctx != this_hctx || rq->mq_ctx != this_ctx)
-				break;
-			depth++;
+		rq = rq_list_pop(&plug->mq_list);
+
+		if (!this_hctx) {
+			this_hctx = rq->mq_hctx;
+			this_ctx = rq->mq_ctx;
+		} else if (this_hctx != rq->mq_hctx || this_ctx != rq->mq_ctx) {
+			trace_block_unplug(this_hctx->queue, depth,
+						!from_schedule);
+			blk_mq_sched_insert_requests(this_hctx, this_ctx,
+						&list, from_schedule);
+			depth = 0;
+			this_hctx = rq->mq_hctx;
+			this_ctx = rq->mq_ctx;
+
 		}
 
-		list_cut_before(&rq_list, &list, pos);
-		trace_block_unplug(head_rq->q, depth, !from_schedule);
-		blk_mq_sched_insert_requests(this_hctx, this_ctx, &rq_list,
+		list_add(&rq->queuelist, &list);
+		depth++;
+	} while (!rq_list_empty(plug->mq_list));
+
+	if (!list_empty(&list)) {
+		trace_block_unplug(this_hctx->queue, depth, !from_schedule);
+		blk_mq_sched_insert_requests(this_hctx, this_ctx, &list,
 						from_schedule);
-	} while(!list_empty(&list));
+	}
 }
 
 static void blk_mq_bio_to_request(struct request *rq, struct bio *bio,
@@ -2358,16 +2370,15 @@ void blk_mq_try_issue_list_directly(struct blk_mq_hw_ctx *hctx,
 
 static void blk_add_rq_to_plug(struct blk_plug *plug, struct request *rq)
 {
-	list_add_tail(&rq->queuelist, &plug->mq_list);
-	plug->rq_count++;
-	if (!plug->multiple_queues && !list_is_singular(&plug->mq_list)) {
-		struct request *tmp;
+	if (!plug->multiple_queues) {
+		struct request *nxt = rq_list_peek(&plug->mq_list);
 
-		tmp = list_first_entry(&plug->mq_list, struct request,
-						queuelist);
-		if (tmp->q != rq->q)
+		if (nxt && nxt->q != rq->q)
 			plug->multiple_queues = true;
 	}
+	rq->rq_next = NULL;
+	rq_list_add(&plug->mq_list, rq);
+	plug->rq_count++;
 }
 
 /*
@@ -2479,13 +2490,15 @@ void blk_mq_submit_bio(struct bio *bio)
 		unsigned int request_count = plug->rq_count;
 		struct request *last = NULL;
 
-		if (!request_count)
+		if (!request_count) {
 			trace_block_plug(q);
-		else
-			last = list_entry_rq(plug->mq_list.prev);
+		} else if (!blk_queue_nomerges(q)) {
+			last = rq_list_peek(&plug->mq_list);
+			if (blk_rq_bytes(last) < BLK_PLUG_FLUSH_SIZE)
+				last = NULL;
+		}
 
-		if (request_count >= blk_plug_max_rq_count(plug) || (last &&
-		    blk_rq_bytes(last) >= BLK_PLUG_FLUSH_SIZE)) {
+		if (request_count >= blk_plug_max_rq_count(plug) || last) {
 			blk_flush_plug_list(plug, false);
 			trace_block_plug(q);
 		}
@@ -2505,10 +2518,7 @@ void blk_mq_submit_bio(struct bio *bio)
 		 * the plug list is empty, and same_queue_rq is invalid.
 		 */
 		if (same_queue_rq) {
-			next_rq = list_last_entry(&plug->mq_list,
-							struct request,
-							queuelist);
-			list_del_init(&next_rq->queuelist);
+			next_rq = rq_list_pop(&plug->mq_list);
 			plug->rq_count--;
 		}
 		blk_add_rq_to_plug(plug, rq);

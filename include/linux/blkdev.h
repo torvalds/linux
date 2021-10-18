@@ -728,7 +728,7 @@ extern void blk_set_queue_dying(struct request_queue *);
  * schedule() where blk_schedule_flush_plug() is called.
  */
 struct blk_plug {
-	struct list_head mq_list; /* blk-mq requests */
+	struct request *mq_list; /* blk-mq requests */
 
 	/* if ios_left is > 1, we can batch tag/rq allocations */
 	struct request *cached_rq;
@@ -777,8 +777,7 @@ static inline bool blk_needs_flush_plug(struct task_struct *tsk)
 	struct blk_plug *plug = tsk->plug;
 
 	return plug &&
-		 (!list_empty(&plug->mq_list) ||
-		 !list_empty(&plug->cb_list));
+		 (plug->mq_list || !list_empty(&plug->cb_list));
 }
 
 int blkdev_issue_flush(struct block_device *bdev);
