@@ -376,9 +376,7 @@ static int pcf8523_probe(struct i2c_client *client,
 		dev_pm_set_wake_irq(&client->dev, client->irq);
 	}
 
-#ifdef CONFIG_OF
 	wakeup_source = of_property_read_bool(client->dev.of_node, "wakeup-source");
-#endif
 	if (client->irq > 0 || wakeup_source)
 		device_init_wakeup(&client->dev, true);
 
