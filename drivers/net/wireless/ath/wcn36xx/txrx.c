@@ -31,6 +31,13 @@ struct wcn36xx_rate {
 	enum rate_info_bw bw;
 };
 
+/* Buffer descriptor rx_ch field is limited to 5-bit (4+1), a mapping is used
+ * for 11A Channels.
+ */
+static const u8 ab_rx_ch_map[] = { 36, 40, 44, 48, 52, 56, 60, 64, 100, 104,
+				   108, 112, 116, 120, 124, 128, 132, 136, 140,
+				   149, 153, 157, 161, 165, 144 };
+
 static const struct wcn36xx_rate wcn36xx_rate_table[] = {
 	/* 11b rates */
 	{  10, 0, RX_ENC_LEGACY, 0, RATE_INFO_BW_20 },
@@ -290,6 +297,22 @@ int wcn36xx_rx_skb(struct wcn36xx *wcn, struct sk_buff *skb)
 	if (ieee80211_is_beacon(hdr->frame_control) ||
 	    ieee80211_is_probe_resp(hdr->frame_control))
 		status.boottime_ns = ktime_get_boottime_ns();
+
+	if (bd->scan_learn) {
+		/* If packet originates from hardware scanning, extract the
+		 * band/channel from bd descriptor.
+		 */
+		u8 hwch = (bd->reserved0 << 4) + bd->rx_ch;
+
+		if (bd->rf_band != 1 && hwch <= sizeof(ab_rx_ch_map) && hwch >= 1) {
+			status.band = NL80211_BAND_5GHZ;
+			status.freq = ieee80211_channel_to_frequency(ab_rx_ch_map[hwch - 1],
+								     status.band);
+		} else {
+			status.band = NL80211_BAND_2GHZ;
+			status.freq = ieee80211_channel_to_frequency(hwch, status.band);
+		}
+	}
 
 	memcpy(IEEE80211_SKB_RXCB(skb), &status, sizeof(status));
 
