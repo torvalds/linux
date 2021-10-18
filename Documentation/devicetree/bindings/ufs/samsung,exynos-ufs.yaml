@@ -20,6 +20,8 @@ properties:
   compatible:
     enum:
       - samsung,exynos7-ufs
+      - samsung,exynosautov9-ufs
+      - samsung,exynosautov9-ufs-vh
 
   reg:
     items:
