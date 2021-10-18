@@ -312,10 +312,14 @@ static inline bool blk_mq_need_time_stamp(struct request *rq)
 static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 		unsigned int tag, u64 alloc_time_ns)
 {
+	struct blk_mq_ctx *ctx = data->ctx;
+	struct blk_mq_hw_ctx *hctx = data->hctx;
+	struct request_queue *q = data->q;
+	struct elevator_queue *e = q->elevator;
 	struct blk_mq_tags *tags = blk_mq_tags_from_data(data);
 	struct request *rq = tags->static_rqs[tag];
 
-	if (data->q->elevator) {
+	if (e) {
 		rq->rq_flags = RQF_ELV;
 		rq->tag = BLK_MQ_NO_TAG;
 		rq->internal_tag = tag;
@@ -330,13 +334,13 @@ static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 	else
 		rq->start_time_ns = 0;
 	/* csd/requeue_work/fifo_time is initialized before use */
-	rq->q = data->q;
-	rq->mq_ctx = data->ctx;
-	rq->mq_hctx = data->hctx;
+	rq->q = q;
+	rq->mq_ctx = ctx;
+	rq->mq_hctx = hctx;
 	rq->cmd_flags = data->cmd_flags;
 	if (data->flags & BLK_MQ_REQ_PM)
 		rq->rq_flags |= RQF_PM;
-	if (blk_queue_io_stat(data->q))
+	if (blk_queue_io_stat(q))
 		rq->rq_flags |= RQF_IO_STAT;
 	rq->rq_disk = NULL;
 	rq->part = NULL;
