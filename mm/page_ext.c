@@ -269,7 +269,7 @@ static int __meminit init_section_page_ext(unsigned long pfn, int nid)
 	total_usage += table_size;
 	return 0;
 }
-#ifdef CONFIG_MEMORY_HOTPLUG
+
 static void free_page_ext(void *addr)
 {
 	if (is_vmalloc_addr(addr)) {
@@ -373,8 +373,6 @@ static int __meminit page_ext_callback(struct notifier_block *self,
 
 	return notifier_from_errno(ret);
 }
-
-#endif
 
 void __init page_ext_init(void)
 {
