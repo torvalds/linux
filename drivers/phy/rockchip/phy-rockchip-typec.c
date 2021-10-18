@@ -56,7 +56,8 @@
 
 #include <linux/mfd/syscon.h>
 #include <linux/phy/phy.h>
-#include <linux/phy/phy-rockchip-typec.h>
+#include <linux/usb/typec_mux.h>
+#include <linux/usb/typec_dp.h>
 
 #define CMN_SSM_BANDGAP			(0x21 << 2)
 #define CMN_SSM_BIAS			(0x22 << 2)
@@ -853,17 +854,14 @@ static void tcphy_dp_cfg_lane(struct rockchip_typec_phy *tcphy, u32 lane)
 	writel(0x98, tcphy->base + TX_PSC_A3(lane));
 }
 
-int tcphy_dp_set_phy_config(struct phy *phy, int link_rate,
-			    int lane_count, u8 swing, u8 pre_emp)
+static int rockchip_dp_phy_set_voltages(struct rockchip_typec_phy *tcphy,
+					struct phy_configure_opts_dp *dp)
 {
-	struct rockchip_typec_phy *tcphy = phy_get_drvdata(phy);
 	u8 i, j, lane;
 	u32 val;
 
-	if (!phy->power_count)
-		return -EPERM;
 
-	if (lane_count == 4) {
+	if (dp->lanes == 4) {
 		i = 0;
 		j = 3;
 	} else {
@@ -877,12 +875,12 @@ int tcphy_dp_set_phy_config(struct phy *phy, int link_rate,
 	}
 
 	for (lane = i; lane <= j; lane++) {
-		writel(tcphy->config[swing][pre_emp].swing,
+		writel(tcphy->config[dp->voltage[lane]][dp->pre[lane]].swing,
 		       tcphy->base + TX_TXCC_MGNFS_MULT_000(lane));
-		writel(tcphy->config[swing][pre_emp].pe,
+		writel(tcphy->config[dp->voltage[lane]][dp->pre[lane]].pe,
 		       tcphy->base + TX_TXCC_CPOST_MULT_00(lane));
 
-		if (swing == 2 && pre_emp == 0 && link_rate != 540000) {
+		if (dp->voltage[lane] == 2 && dp->pre[lane] == 0 && dp->link_rate != 540000) {
 			writel(0x700, tcphy->base + TX_DIAG_TX_DRV(lane));
 			writel(0x13c, tcphy->base + TX_TXCC_CAL_SCLR_MULT(lane));
 		} else {
@@ -892,21 +890,17 @@ int tcphy_dp_set_phy_config(struct phy *phy, int link_rate,
 
 		val = readl(tcphy->base + XCVR_DIAG_PLLDRC_CTRL(lane));
 		val &= ~GENMASK(14, 12);
-		val |= ((link_rate == 540000) ? 0x5 : 0x6) << 12;
+		val |= ((dp->link_rate == 540000) ? 0x5 : 0x6) << 12;
 		writel(val, tcphy->base + XCVR_DIAG_PLLDRC_CTRL(lane));
 	}
 
 	return 0;
 }
-EXPORT_SYMBOL(tcphy_dp_set_phy_config);
 
-int tcphy_dp_set_lane_count(struct phy *phy, u8 lane_count)
+static int rockchip_dp_phy_set_lanes(struct rockchip_typec_phy *tcphy,
+				     struct phy_configure_opts_dp *dp)
 {
-	struct rockchip_typec_phy *tcphy = phy_get_drvdata(phy);
 	u32 reg;
-
-	if (!phy->power_count)
-		return -EPERM;
 
 	/*
 	 * In cases where fewer than the configured number of DP lanes are
@@ -918,7 +912,7 @@ int tcphy_dp_set_lane_count(struct phy *phy, u8 lane_count)
 	reg = readl(tcphy->base + PHY_DP_MODE_CTL);
 	reg |= PHY_DP_LANE_DISABLE;
 
-	switch (lane_count) {
+	switch (dp->lanes) {
 	case 4:
 		reg &= ~(PHY_DP_LANE_3_DISABLE | PHY_DP_LANE_2_DISABLE |
 			 PHY_DP_LANE_1_DISABLE | PHY_DP_LANE_0_DISABLE);
@@ -937,18 +931,14 @@ int tcphy_dp_set_lane_count(struct phy *phy, u8 lane_count)
 
 	return 0;
 }
-EXPORT_SYMBOL(tcphy_dp_set_lane_count);
 
-int tcphy_dp_set_link_rate(struct phy *phy, int link_rate, bool ssc_on)
+static int rockchip_dp_phy_set_rate(struct rockchip_typec_phy *tcphy,
+				    struct phy_configure_opts_dp *dp)
 {
-	struct rockchip_typec_phy *tcphy = phy_get_drvdata(phy);
 	const struct phy_reg *phy_cfg;
 	u32 cmn_diag_hsclk_sel, phy_dp_clk_ctl, reg;
 	u32 i, cfg_size;
 	int ret;
-
-	if (!phy->power_count)
-		return -EPERM;
 
 	/* Place the PHY lanes in the A3 power state. */
 	ret = tcphy_dp_set_power_state(tcphy, PHY_DP_POWER_STATE_A3);
@@ -992,29 +982,29 @@ int tcphy_dp_set_link_rate(struct phy *phy, int link_rate, bool ssc_on)
 	phy_dp_clk_ctl = readl(tcphy->base + PHY_DP_CLK_CTL);
 	phy_dp_clk_ctl &= ~(GENMASK(15, 12) | GENMASK(11, 8));
 
-	switch (link_rate) {
-	case 162000:
+	switch (dp->link_rate) {
+	case 1620:
 		cmn_diag_hsclk_sel |= (3 << 4) | (0 << 0);
 		phy_dp_clk_ctl |= (2 << 12) | (4 << 8);
 
-		phy_cfg = ssc_on ? dp_pll_rbr_ssc_cfg : dp_pll_rbr_cfg;
-		cfg_size = ssc_on ? ARRAY_SIZE(dp_pll_rbr_ssc_cfg) :
+		phy_cfg = dp->ssc ? dp_pll_rbr_ssc_cfg : dp_pll_rbr_cfg;
+		cfg_size = dp->ssc ? ARRAY_SIZE(dp_pll_rbr_ssc_cfg) :
 				    ARRAY_SIZE(dp_pll_rbr_cfg);
 		break;
-	case 270000:
+	case 2700:
 		cmn_diag_hsclk_sel |= (3 << 4) | (0 << 0);
 		phy_dp_clk_ctl |= (2 << 12) | (4 << 8);
 
-		phy_cfg = ssc_on ? dp_pll_hbr_ssc_cfg : dp_pll_hbr_cfg;
-		cfg_size = ssc_on ? ARRAY_SIZE(dp_pll_hbr_ssc_cfg) :
+		phy_cfg = dp->ssc ? dp_pll_hbr_ssc_cfg : dp_pll_hbr_cfg;
+		cfg_size = dp->ssc ? ARRAY_SIZE(dp_pll_hbr_ssc_cfg) :
 				    ARRAY_SIZE(dp_pll_hbr_cfg);
 		break;
-	case 540000:
+	case 5400:
 		cmn_diag_hsclk_sel |= (2 << 4) | (0 << 0);
 		phy_dp_clk_ctl |= (1 << 12) | (2 << 8);
 
-		phy_cfg = ssc_on ? dp_pll_hbr2_ssc_cfg : dp_pll_hbr2_cfg;
-		cfg_size = ssc_on ? ARRAY_SIZE(dp_pll_hbr2_ssc_cfg) :
+		phy_cfg = dp->ssc ? dp_pll_hbr2_ssc_cfg : dp_pll_hbr2_cfg;
+		cfg_size = dp->ssc ? ARRAY_SIZE(dp_pll_hbr2_ssc_cfg) :
 				    ARRAY_SIZE(dp_pll_hbr2_cfg);
 		break;
 	default:
@@ -1072,7 +1062,6 @@ int tcphy_dp_set_link_rate(struct phy *phy, int link_rate, bool ssc_on)
 
 	return 0;
 }
-EXPORT_SYMBOL(tcphy_dp_set_link_rate);
 
 static inline int property_enable(struct rockchip_typec_phy *tcphy,
 				  const struct usb3phy_reg *reg, bool en)
@@ -1569,9 +1558,102 @@ unlock:
 	return 0;
 }
 
+static int rockchip_dp_phy_verify_config(struct rockchip_typec_phy *tcphy,
+					 struct phy_configure_opts_dp *dp)
+{
+	u8 i;
+
+	/* If changing link rate was required, verify it's supported. */
+	if (dp->set_rate) {
+		switch (dp->link_rate) {
+		case 1620:
+		case 2700:
+		case 5400:
+			/* valid bit rate */
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+
+	/* Verify lane count. */
+	switch (dp->lanes) {
+	case 1:
+	case 2:
+	case 4:
+		/* valid lane count. */
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/*
+	 * If changing voltages is required, check swing and pre-emphasis
+	 * levels, per-lane.
+	 */
+	if (dp->set_voltages) {
+		/* Lane count verified previously. */
+		for (i = 0; i < dp->lanes; i++) {
+			if (dp->voltage[i] > 3 || dp->pre[i] > 3)
+				return -EINVAL;
+
+			/* Sum of voltage swing and pre-emphasis levels cannot
+			 * exceed 3.
+			 */
+			if (dp->voltage[i] + dp->pre[i] > 3)
+				return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static int rockchip_dp_phy_configure(struct phy *phy,
+					union phy_configure_opts *opts)
+{
+	struct rockchip_typec_phy *tcphy = phy_get_drvdata(phy);
+	int ret;
+
+	if (!phy->power_count)
+		return -EPERM;
+
+	ret = rockchip_dp_phy_verify_config(tcphy, &opts->dp);
+	if (ret) {
+		dev_err(&phy->dev, "invalid params for phy configure\n");
+		return ret;
+	}
+
+	if (opts->dp.set_lanes) {
+		ret = rockchip_dp_phy_set_lanes(tcphy, &opts->dp);
+		if (ret) {
+			dev_err(&phy->dev, "rockchip_dp_phy_set_lanes failed\n");
+			return ret;
+		}
+	}
+
+	if (opts->dp.set_rate) {
+		ret = rockchip_dp_phy_set_rate(tcphy, &opts->dp);
+		if (ret) {
+			dev_err(&phy->dev, "rockchip_dp_phy_set_rate failed\n");
+			return ret;
+		}
+	}
+
+	if (opts->dp.set_voltages) {
+		ret = rockchip_dp_phy_set_voltages(tcphy, &opts->dp);
+		if (ret) {
+			dev_err(&phy->dev, "rockchip_dp_phy_set_voltages failed\n");
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static const struct phy_ops rockchip_dp_phy_ops = {
 	.power_on	= rockchip_dp_phy_power_on,
 	.power_off	= rockchip_dp_phy_power_off,
+	.configure	= rockchip_dp_phy_configure,
 	.owner		= THIS_MODULE,
 };
 
