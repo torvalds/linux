@@ -940,6 +940,10 @@ int cmd_inject(int argc, const char **argv)
 #endif
 		OPT_INCR('v', "verbose", &verbose,
 			 "be more verbose (show build ids, etc)"),
+		OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
+			   "file", "vmlinux pathname"),
+		OPT_BOOLEAN(0, "ignore-vmlinux", &symbol_conf.ignore_vmlinux,
+			    "don't load vmlinux even if found"),
 		OPT_STRING(0, "kallsyms", &symbol_conf.kallsyms_name, "file",
 			   "kallsyms pathname"),
 		OPT_BOOLEAN('f', "force", &data.force, "don't complain, do it"),
@@ -973,6 +977,9 @@ int cmd_inject(int argc, const char **argv)
 		pr_err("--strip option requires --itrace option\n");
 		return -1;
 	}
+
+	if (symbol__validate_sym_arguments())
+		return -1;
 
 	if (inject.in_place_update) {
 		if (!strcmp(inject.input_name, "-")) {
