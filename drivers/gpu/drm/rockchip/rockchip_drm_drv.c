@@ -46,6 +46,32 @@
 static bool is_support_iommu = true;
 static struct drm_driver rockchip_drm_driver;
 
+/**
+ * drm_connector_oob_hotplug_event - Report out-of-band hotplug event to connector
+ * @connector: connector to report the event on
+ *
+ * On some hardware a hotplug event notification may come from outside the display
+ * driver / device. An example of this is some USB Type-C setups where the hardware
+ * muxes the DisplayPort data and aux-lines but does not pass the altmode HPD
+ * status bit to the GPU's DP HPD pin.
+ *
+ * This function can be used to report these out-of-band events after obtaining
+ * a drm_connector reference through calling drm_connector_find_by_fwnode().
+ */
+void drm_connector_oob_hotplug_event(struct fwnode_handle *connector_fwnode)
+{
+	struct rockchip_drm_sub_dev *sub_dev;
+
+	if (!connector_fwnode || !connector_fwnode->dev)
+		return;
+
+	sub_dev = rockchip_drm_get_sub_dev(dev_of_node(connector_fwnode->dev));
+
+	if (sub_dev && sub_dev->connector && sub_dev->oob_hotplug_event)
+		sub_dev->oob_hotplug_event(sub_dev->connector);
+}
+EXPORT_SYMBOL(drm_connector_oob_hotplug_event);
+
 uint32_t rockchip_drm_get_bpp(const struct drm_format_info *info)
 {
 	/* use whatever a driver has set */

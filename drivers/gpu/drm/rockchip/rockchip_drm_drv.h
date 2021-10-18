@@ -58,6 +58,7 @@ struct rockchip_drm_sub_dev {
 	struct drm_connector *connector;
 	struct device_node *of_node;
 	void (*loader_protect)(struct drm_encoder *encoder, bool on);
+	void (*oob_hotplug_event)(struct drm_connector *connector);
 };
 
 struct rockchip_sdr2hdr_state {
