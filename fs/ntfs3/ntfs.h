@@ -10,19 +10,27 @@
 #ifndef _LINUX_NTFS3_NTFS_H
 #define _LINUX_NTFS3_NTFS_H
 
-/* TODO: Check 4K MFT record and 512 bytes cluster. */
+#include <linux/blkdev.h>
+#include <linux/build_bug.h>
+#include <linux/kernel.h>
+#include <linux/stddef.h>
+#include <linux/string.h>
+#include <linux/types.h>
 
-/* Activate this define to use binary search in indexes. */
-#define NTFS3_INDEX_BINARY_SEARCH
+#include "debug.h"
+
+/* TODO: Check 4K MFT record and 512 bytes cluster. */
 
 /* Check each run for marked clusters. */
 #define NTFS3_CHECK_FREE_CLST
 
 #define NTFS_NAME_LEN 255
 
-/* ntfs.sys used 500 maximum links on-disk struct allows up to 0xffff. */
-#define NTFS_LINK_MAX 0x400
-//#define NTFS_LINK_MAX 0xffff
+/*
+ * ntfs.sys used 500 maximum links on-disk struct allows up to 0xffff.
+ * xfstest generic/041 creates 3003 hardlinks.
+ */
+#define NTFS_LINK_MAX 4000
 
 /*
  * Activate to use 64 bit clusters instead of 32 bits in ntfs.sys.

@@ -75,7 +75,11 @@ static bool ioam6_validate_trace_hdr(struct ioam6_trace_hdr *trace)
 	u32 fields;
 
 	if (!trace->type_be32 || !trace->remlen ||
-	    trace->remlen > IOAM6_TRACE_DATA_SIZE_MAX / 4)
+	    trace->remlen > IOAM6_TRACE_DATA_SIZE_MAX / 4 ||
+	    trace->type.bit12 | trace->type.bit13 | trace->type.bit14 |
+	    trace->type.bit15 | trace->type.bit16 | trace->type.bit17 |
+	    trace->type.bit18 | trace->type.bit19 | trace->type.bit20 |
+	    trace->type.bit21)
 		return false;
 
 	trace->nodelen = 0;
