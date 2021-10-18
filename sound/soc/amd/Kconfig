@@ -74,3 +74,13 @@ config SND_SOC_AMD_VANGOGH_MACH
 	  using NAU8821 and CS35L41 codecs.
 	  Say m if you have such a device.
 	  If unsure select "N".
+
+config SND_SOC_AMD_ACP6x
+	tristate "AMD Audio Coprocessor-v6.x Yellow Carp support"
+	depends on X86 && PCI
+	help
+	  This option enables Audio Coprocessor i.e ACP v6.x support on
+	  AMD Yellow Carp platform. By enabling this flag build will be
+	  triggered for ACP PCI driver, ACP PDM DMA driver.
+	  Say m if you have such a device.
+	  If unsure select "N".
