@@ -40,17 +40,6 @@
 #include <mach/usb.h>
 
 
-/* OMAP-1510 OHCI has its own MMU for DMA */
-#define OMAP1510_LB_MEMSIZE	32	/* Should be same as SDRAM size */
-#define OMAP1510_LB_CLOCK_DIV	0xfffec10c
-#define OMAP1510_LB_MMU_CTL	0xfffec208
-#define OMAP1510_LB_MMU_LCK	0xfffec224
-#define OMAP1510_LB_MMU_LD_TLB	0xfffec228
-#define OMAP1510_LB_MMU_CAM_H	0xfffec22c
-#define OMAP1510_LB_MMU_CAM_L	0xfffec230
-#define OMAP1510_LB_MMU_RAM_H	0xfffec234
-#define OMAP1510_LB_MMU_RAM_L	0xfffec238
-
 #define DRIVER_DESC "OHCI OMAP driver"
 
 struct ohci_omap_priv {
@@ -103,61 +92,6 @@ static int omap_ohci_transceiver_power(struct ohci_omap_priv *priv, int on)
 
 	return 0;
 }
-
-#ifdef CONFIG_ARCH_OMAP15XX
-/*
- * OMAP-1510 specific Local Bus clock on/off
- */
-static int omap_1510_local_bus_power(int on)
-{
-	if (on) {
-		omap_writel((1 << 1) | (1 << 0), OMAP1510_LB_MMU_CTL);
-		udelay(200);
-	} else {
-		omap_writel(0, OMAP1510_LB_MMU_CTL);
-	}
-
-	return 0;
-}
-
-/*
- * OMAP-1510 specific Local Bus initialization
- * NOTE: This assumes 32MB memory size in OMAP1510LB_MEMSIZE.
- *       See also arch/mach-omap/memory.h for __virt_to_dma() and
- *       __dma_to_virt() which need to match with the physical
- *       Local Bus address below.
- */
-static int omap_1510_local_bus_init(void)
-{
-	unsigned int tlb;
-	unsigned long lbaddr, physaddr;
-
-	omap_writel((omap_readl(OMAP1510_LB_CLOCK_DIV) & 0xfffffff8) | 0x4,
-	       OMAP1510_LB_CLOCK_DIV);
-
-	/* Configure the Local Bus MMU table */
-	for (tlb = 0; tlb < OMAP1510_LB_MEMSIZE; tlb++) {
-		lbaddr = tlb * 0x00100000 + OMAP1510_LB_OFFSET;
-		physaddr = tlb * 0x00100000 + PHYS_OFFSET;
-		omap_writel((lbaddr & 0x0fffffff) >> 22, OMAP1510_LB_MMU_CAM_H);
-		omap_writel(((lbaddr & 0x003ffc00) >> 6) | 0xc,
-		       OMAP1510_LB_MMU_CAM_L);
-		omap_writel(physaddr >> 16, OMAP1510_LB_MMU_RAM_H);
-		omap_writel((physaddr & 0x0000fc00) | 0x300, OMAP1510_LB_MMU_RAM_L);
-		omap_writel(tlb << 4, OMAP1510_LB_MMU_LCK);
-		omap_writel(0x1, OMAP1510_LB_MMU_LD_TLB);
-	}
-
-	/* Enable the walking table */
-	omap_writel(omap_readl(OMAP1510_LB_MMU_CTL) | (1 << 3), OMAP1510_LB_MMU_CTL);
-	udelay(200);
-
-	return 0;
-}
-#else
-#define omap_1510_local_bus_power(x)	{}
-#define omap_1510_local_bus_init()	{}
-#endif
 
 #ifdef	CONFIG_USB_OTG
 
@@ -229,10 +163,8 @@ static int ohci_omap_reset(struct usb_hcd *hcd)
 
 	omap_ohci_clock_power(priv, 1);
 
-	if (cpu_is_omap15xx()) {
-		omap_1510_local_bus_power(1);
-		omap_1510_local_bus_init();
-	}
+	if (config->lb_reset)
+		config->lb_reset();
 
 	ret = ohci_setup(hcd);
 	if (ret < 0)
