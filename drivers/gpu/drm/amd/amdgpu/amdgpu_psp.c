@@ -1302,6 +1302,10 @@ static void psp_ras_ta_check_status(struct psp_context *psp)
 		dev_warn(psp->adev->dev,
 				"RAS WARNING: cmd failed due to unsupported ip\n");
 		break;
+	case TA_RAS_STATUS__ERROR_UNSUPPORTED_ERROR_INJ:
+		dev_warn(psp->adev->dev,
+				"RAS WARNING: cmd failed due to unsupported error injection\n");
+		break;
 	case TA_RAS_STATUS__SUCCESS:
 		break;
 	default:
