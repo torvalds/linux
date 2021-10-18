@@ -969,6 +969,7 @@ static int mscc_ocelot_init_ports(struct platform_device *pdev,
 		target = ocelot_regmap_init(ocelot, res);
 		if (IS_ERR(target)) {
 			err = PTR_ERR(target);
+			of_node_put(portnp);
 			goto out_teardown;
 		}
 
