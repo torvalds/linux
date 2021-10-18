@@ -7,6 +7,7 @@
 
 #include <linux/kernel.h>
 #include <linux/thread_info.h>
+#include <linux/mm_types.h>
 #include <uapi/linux/uio.h>
 
 struct page;
@@ -145,6 +146,12 @@ size_t copy_page_from_iter(struct page *page, size_t offset, size_t bytes,
 size_t _copy_to_iter(const void *addr, size_t bytes, struct iov_iter *i);
 size_t _copy_from_iter(void *addr, size_t bytes, struct iov_iter *i);
 size_t _copy_from_iter_nocache(void *addr, size_t bytes, struct iov_iter *i);
+
+static inline size_t copy_folio_to_iter(struct folio *folio, size_t offset,
+		size_t bytes, struct iov_iter *i)
+{
+	return copy_page_to_iter(&folio->page, offset, bytes, i);
+}
 
 static __always_inline __must_check
 size_t copy_to_iter(const void *addr, size_t bytes, struct iov_iter *i)
