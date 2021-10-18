@@ -267,10 +267,19 @@ static int intel_dp_common_len_rate_limit(const struct intel_dp *intel_dp,
 				       intel_dp->num_common_rates, max_rate);
 }
 
+static int intel_dp_common_rate(struct intel_dp *intel_dp, int index)
+{
+	if (drm_WARN_ON(&dp_to_i915(intel_dp)->drm,
+			index < 0 || index >= intel_dp->num_common_rates))
+		return 162000;
+
+	return intel_dp->common_rates[index];
+}
+
 /* Theoretical max between source and sink */
 static int intel_dp_max_common_rate(struct intel_dp *intel_dp)
 {
-	return intel_dp->common_rates[intel_dp->num_common_rates - 1];
+	return intel_dp_common_rate(intel_dp, intel_dp->num_common_rates - 1);
 }
 
 /* Theoretical max between source and sink */
@@ -610,13 +619,13 @@ int intel_dp_get_link_train_fallback_values(struct intel_dp *intel_dp,
 	if (index > 0) {
 		if (intel_dp_is_edp(intel_dp) &&
 		    !intel_dp_can_link_train_fallback_for_edp(intel_dp,
-							      intel_dp->common_rates[index - 1],
+							      intel_dp_common_rate(intel_dp, index - 1),
 							      lane_count)) {
 			drm_dbg_kms(&i915->drm,
 				    "Retrying Link training for eDP with same parameters\n");
 			return 0;
 		}
-		intel_dp->max_link_rate = intel_dp->common_rates[index - 1];
+		intel_dp->max_link_rate = intel_dp_common_rate(intel_dp, index - 1);
 		intel_dp->max_link_lane_count = lane_count;
 	} else if (lane_count > 1) {
 		if (intel_dp_is_edp(intel_dp) &&
@@ -1056,14 +1065,11 @@ static void intel_dp_print_rates(struct intel_dp *intel_dp)
 int
 intel_dp_max_link_rate(struct intel_dp *intel_dp)
 {
-	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	int len;
 
 	len = intel_dp_common_len_rate_limit(intel_dp, intel_dp->max_link_rate);
-	if (drm_WARN_ON(&i915->drm, len <= 0))
-		return 162000;
 
-	return intel_dp->common_rates[len - 1];
+	return intel_dp_common_rate(intel_dp, len - 1);
 }
 
 int intel_dp_rate_select(struct intel_dp *intel_dp, int rate)
@@ -1260,7 +1266,7 @@ intel_dp_compute_link_config_wide(struct intel_dp *intel_dp,
 						   output_bpp);
 
 		for (i = 0; i < intel_dp->num_common_rates; i++) {
-			link_rate = intel_dp->common_rates[i];
+			link_rate = intel_dp_common_rate(intel_dp, i);
 			if (link_rate < limits->min_rate ||
 			    link_rate > limits->max_rate)
 				continue;
@@ -1508,17 +1514,10 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 		&pipe_config->hw.adjusted_mode;
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct link_config_limits limits;
-	int common_len;
 	int ret;
 
-	common_len = intel_dp_common_len_rate_limit(intel_dp,
-						    intel_dp->max_link_rate);
-
-	/* No common link rates between source and sink */
-	drm_WARN_ON(encoder->base.dev, common_len <= 0);
-
-	limits.min_rate = intel_dp->common_rates[0];
-	limits.max_rate = intel_dp->common_rates[common_len - 1];
+	limits.min_rate = intel_dp_common_rate(intel_dp, 0);
+	limits.max_rate = intel_dp_max_link_rate(intel_dp);
 
 	limits.min_lane_count = 1;
 	limits.max_lane_count = intel_dp_max_lane_count(intel_dp);
