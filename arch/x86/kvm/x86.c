@@ -8532,18 +8532,20 @@ int kvm_arch_init(void *opaque)
 	int r;
 
 	if (kvm_x86_ops.hardware_enable) {
-		printk(KERN_ERR "kvm: already loaded the other module\n");
+		pr_err("kvm: already loaded vendor module '%s'\n", kvm_x86_ops.name);
 		r = -EEXIST;
 		goto out;
 	}
 
 	if (!ops->cpu_has_kvm_support()) {
-		pr_err_ratelimited("kvm: no hardware support\n");
+		pr_err_ratelimited("kvm: no hardware support for '%s'\n",
+				   ops->runtime_ops->name);
 		r = -EOPNOTSUPP;
 		goto out;
 	}
 	if (ops->disabled_by_bios()) {
-		pr_err_ratelimited("kvm: disabled by bios\n");
+		pr_err_ratelimited("kvm: support for '%s' disabled by bios\n",
+				   ops->runtime_ops->name);
 		r = -EOPNOTSUPP;
 		goto out;
 	}
