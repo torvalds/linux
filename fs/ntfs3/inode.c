@@ -5,10 +5,8 @@
  *
  */
 
-#include <linux/blkdev.h>
 #include <linux/buffer_head.h>
 #include <linux/fs.h>
-#include <linux/iversion.h>
 #include <linux/mpage.h>
 #include <linux/namei.h>
 #include <linux/nls.h>
@@ -49,8 +47,8 @@ static struct inode *ntfs_read_mft(struct inode *inode,
 
 	inode->i_op = NULL;
 	/* Setup 'uid' and 'gid' */
-	inode->i_uid = sbi->options.fs_uid;
-	inode->i_gid = sbi->options.fs_gid;
+	inode->i_uid = sbi->options->fs_uid;
+	inode->i_gid = sbi->options->fs_gid;
 
 	err = mi_init(&ni->mi, sbi, ino);
 	if (err)
@@ -224,12 +222,9 @@ next_attr:
 		if (!attr->non_res) {
 			ni->i_valid = inode->i_size = rsize;
 			inode_set_bytes(inode, rsize);
-			t32 = asize;
-		} else {
-			t32 = le16_to_cpu(attr->nres.run_off);
 		}
 
-		mode = S_IFREG | (0777 & sbi->options.fs_fmask_inv);
+		mode = S_IFREG | (0777 & sbi->options->fs_fmask_inv);
 
 		if (!attr->non_res) {
 			ni->ni_flags |= NI_FLAG_RESIDENT;
@@ -272,7 +267,7 @@ next_attr:
 			goto out;
 
 		mode = sb->s_root
-			       ? (S_IFDIR | (0777 & sbi->options.fs_dmask_inv))
+			       ? (S_IFDIR | (0777 & sbi->options->fs_dmask_inv))
 			       : (S_IFDIR | 0777);
 		goto next_attr;
 
@@ -315,17 +310,14 @@ next_attr:
 		rp_fa = ni_parse_reparse(ni, attr, &rp);
 		switch (rp_fa) {
 		case REPARSE_LINK:
-			if (!attr->non_res) {
-				inode->i_size = rsize;
-				inode_set_bytes(inode, rsize);
-				t32 = asize;
-			} else {
-				inode->i_size =
-					le64_to_cpu(attr->nres.data_size);
-				t32 = le16_to_cpu(attr->nres.run_off);
-			}
+			/*
+			 * Normal symlink.
+			 * Assume one unicode symbol == one utf8.
+			 */
+			inode->i_size = le16_to_cpu(rp.SymbolicLinkReparseBuffer
+							    .PrintNameLength) /
+					sizeof(u16);
 
-			/* Looks like normal symlink. */
 			ni->i_valid = inode->i_size;
 
 			/* Clear directory bit. */
@@ -422,7 +414,7 @@ end_enum:
 		ni->std_fa &= ~FILE_ATTRIBUTE_DIRECTORY;
 		inode->i_op = &ntfs_link_inode_operations;
 		inode->i_fop = NULL;
-		inode_nohighmem(inode); // ??
+		inode_nohighmem(inode);
 	} else if (S_ISREG(mode)) {
 		ni->std_fa &= ~FILE_ATTRIBUTE_DIRECTORY;
 		inode->i_op = &ntfs_file_inode_operations;
@@ -443,7 +435,7 @@ end_enum:
 		goto out;
 	}
 
-	if ((sbi->options.sys_immutable &&
+	if ((sbi->options->sys_immutable &&
 	     (std5->fa & FILE_ATTRIBUTE_SYSTEM)) &&
 	    !S_ISFIFO(mode) && !S_ISSOCK(mode) && !S_ISLNK(mode)) {
 		inode->i_flags |= S_IMMUTABLE;
@@ -1200,9 +1192,13 @@ struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 	struct REPARSE_DATA_BUFFER *rp = NULL;
 	bool rp_inserted = false;
 
+	ni_lock_dir(dir_ni);
+
 	dir_root = indx_get_root(&dir_ni->dir, dir_ni, NULL, NULL);
-	if (!dir_root)
-		return ERR_PTR(-EINVAL);
+	if (!dir_root) {
+		err = -EINVAL;
+		goto out1;
+	}
 
 	if (S_ISDIR(mode)) {
 		/* Use parent's directory attributes. */
@@ -1244,7 +1240,7 @@ struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 		 *	}
 		 */
 	} else if (S_ISREG(mode)) {
-		if (sbi->options.sparse) {
+		if (sbi->options->sparse) {
 			/* Sparsed regular file, cause option 'sparse'. */
 			fa = FILE_ATTRIBUTE_SPARSE_FILE |
 			     FILE_ATTRIBUTE_ARCHIVE;
@@ -1486,7 +1482,10 @@ struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 		asize = ALIGN(SIZEOF_RESIDENT + nsize, 8);
 		t16 = PtrOffset(rec, attr);
 
-		/* 0x78 - the size of EA + EAINFO to store WSL */
+		/*
+		 * Below function 'ntfs_save_wsl_perm' requires 0x78 bytes.
+		 * It is good idea to keep extened attributes resident.
+		 */
 		if (asize + t16 + 0x78 + 8 > sbi->record_size) {
 			CLST alen;
 			CLST clst = bytes_to_cluster(sbi, nsize);
@@ -1521,14 +1520,14 @@ struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 			}
 
 			asize = SIZEOF_NONRESIDENT + ALIGN(err, 8);
-			inode->i_size = nsize;
 		} else {
 			attr->res.data_off = SIZEOF_RESIDENT_LE;
 			attr->res.data_size = cpu_to_le32(nsize);
 			memcpy(Add2Ptr(attr, SIZEOF_RESIDENT), rp, nsize);
-			inode->i_size = nsize;
 			nsize = 0;
 		}
+		/* Size of symlink equals the length of input string. */
+		inode->i_size = size;
 
 		attr->size = cpu_to_le32(asize);
 
@@ -1551,6 +1550,9 @@ struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 	if (err)
 		goto out6;
 
+	/* Unlock parent directory before ntfs_init_acl. */
+	ni_unlock(dir_ni);
+
 	inode->i_generation = le16_to_cpu(rec->seq);
 
 	dir->i_mtime = dir->i_ctime = inode->i_atime;
@@ -1562,6 +1564,8 @@ struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 		inode->i_op = &ntfs_link_inode_operations;
 		inode->i_fop = NULL;
 		inode->i_mapping->a_ops = &ntfs_aops;
+		inode->i_size = size;
+		inode_nohighmem(inode);
 	} else if (S_ISREG(mode)) {
 		inode->i_op = &ntfs_file_inode_operations;
 		inode->i_fop = &ntfs_file_operations;
@@ -1577,7 +1581,7 @@ struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 	if (!S_ISLNK(mode) && (sb->s_flags & SB_POSIXACL)) {
 		err = ntfs_init_acl(mnt_userns, inode, dir);
 		if (err)
-			goto out6;
+			goto out7;
 	} else
 #endif
 	{
@@ -1586,7 +1590,7 @@ struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 
 	/* Write non resident data. */
 	if (nsize) {
-		err = ntfs_sb_write_run(sbi, &ni->file.run, 0, rp, nsize);
+		err = ntfs_sb_write_run(sbi, &ni->file.run, 0, rp, nsize, 0);
 		if (err)
 			goto out7;
 	}
@@ -1607,8 +1611,10 @@ struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 out7:
 
 	/* Undo 'indx_insert_entry'. */
+	ni_lock_dir(dir_ni);
 	indx_delete_entry(&dir_ni->dir, dir_ni, new_de + 1,
 			  le16_to_cpu(new_de->key_size), sbi);
+	/* ni_unlock(dir_ni); will be called later. */
 out6:
 	if (rp_inserted)
 		ntfs_remove_reparse(sbi, IO_REPARSE_TAG_SYMLINK, &new_de->ref);
@@ -1632,8 +1638,10 @@ out2:
 	kfree(rp);
 
 out1:
-	if (err)
+	if (err) {
+		ni_unlock(dir_ni);
 		return ERR_PTR(err);
+	}
 
 	unlock_new_inode(inode);
 
@@ -1754,15 +1762,15 @@ void ntfs_evict_inode(struct inode *inode)
 static noinline int ntfs_readlink_hlp(struct inode *inode, char *buffer,
 				      int buflen)
 {
-	int i, err = 0;
+	int i, err = -EINVAL;
 	struct ntfs_inode *ni = ntfs_i(inode);
 	struct super_block *sb = inode->i_sb;
 	struct ntfs_sb_info *sbi = sb->s_fs_info;
-	u64 i_size = inode->i_size;
-	u16 nlen = 0;
+	u64 size;
+	u16 ulen = 0;
 	void *to_free = NULL;
 	struct REPARSE_DATA_BUFFER *rp;
-	struct le_str *uni;
+	const __le16 *uname;
 	struct ATTRIB *attr;
 
 	/* Reparse data present. Try to parse it. */
@@ -1771,68 +1779,64 @@ static noinline int ntfs_readlink_hlp(struct inode *inode, char *buffer,
 
 	*buffer = 0;
 
-	/* Read into temporal buffer. */
-	if (i_size > sbi->reparse.max_size || i_size <= sizeof(u32)) {
-		err = -EINVAL;
-		goto out;
-	}
-
 	attr = ni_find_attr(ni, NULL, NULL, ATTR_REPARSE, NULL, 0, NULL, NULL);
-	if (!attr) {
-		err = -EINVAL;
+	if (!attr)
 		goto out;
-	}
 
 	if (!attr->non_res) {
-		rp = resident_data_ex(attr, i_size);
-		if (!rp) {
-			err = -EINVAL;
+		rp = resident_data_ex(attr, sizeof(struct REPARSE_DATA_BUFFER));
+		if (!rp)
 			goto out;
-		}
+		size = le32_to_cpu(attr->res.data_size);
 	} else {
-		rp = kmalloc(i_size, GFP_NOFS);
+		size = le64_to_cpu(attr->nres.data_size);
+		rp = NULL;
+	}
+
+	if (size > sbi->reparse.max_size || size <= sizeof(u32))
+		goto out;
+
+	if (!rp) {
+		rp = kmalloc(size, GFP_NOFS);
 		if (!rp) {
 			err = -ENOMEM;
 			goto out;
 		}
 		to_free = rp;
-		err = ntfs_read_run_nb(sbi, &ni->file.run, 0, rp, i_size, NULL);
+		/* Read into temporal buffer. */
+		err = ntfs_read_run_nb(sbi, &ni->file.run, 0, rp, size, NULL);
 		if (err)
 			goto out;
 	}
-
-	err = -EINVAL;
 
 	/* Microsoft Tag. */
 	switch (rp->ReparseTag) {
 	case IO_REPARSE_TAG_MOUNT_POINT:
 		/* Mount points and junctions. */
 		/* Can we use 'Rp->MountPointReparseBuffer.PrintNameLength'? */
-		if (i_size <= offsetof(struct REPARSE_DATA_BUFFER,
-				       MountPointReparseBuffer.PathBuffer))
+		if (size <= offsetof(struct REPARSE_DATA_BUFFER,
+				     MountPointReparseBuffer.PathBuffer))
 			goto out;
-		uni = Add2Ptr(rp,
-			      offsetof(struct REPARSE_DATA_BUFFER,
-				       MountPointReparseBuffer.PathBuffer) +
-				      le16_to_cpu(rp->MountPointReparseBuffer
-							  .PrintNameOffset) -
-				      2);
-		nlen = le16_to_cpu(rp->MountPointReparseBuffer.PrintNameLength);
+		uname = Add2Ptr(rp,
+				offsetof(struct REPARSE_DATA_BUFFER,
+					 MountPointReparseBuffer.PathBuffer) +
+					le16_to_cpu(rp->MountPointReparseBuffer
+							    .PrintNameOffset));
+		ulen = le16_to_cpu(rp->MountPointReparseBuffer.PrintNameLength);
 		break;
 
 	case IO_REPARSE_TAG_SYMLINK:
 		/* FolderSymbolicLink */
 		/* Can we use 'Rp->SymbolicLinkReparseBuffer.PrintNameLength'? */
-		if (i_size <= offsetof(struct REPARSE_DATA_BUFFER,
-				       SymbolicLinkReparseBuffer.PathBuffer))
+		if (size <= offsetof(struct REPARSE_DATA_BUFFER,
+				     SymbolicLinkReparseBuffer.PathBuffer))
 			goto out;
-		uni = Add2Ptr(rp,
-			      offsetof(struct REPARSE_DATA_BUFFER,
-				       SymbolicLinkReparseBuffer.PathBuffer) +
-				      le16_to_cpu(rp->SymbolicLinkReparseBuffer
-							  .PrintNameOffset) -
-				      2);
-		nlen = le16_to_cpu(
+		uname = Add2Ptr(
+			rp, offsetof(struct REPARSE_DATA_BUFFER,
+				     SymbolicLinkReparseBuffer.PathBuffer) +
+				    le16_to_cpu(rp->SymbolicLinkReparseBuffer
+							.PrintNameOffset));
+		ulen = le16_to_cpu(
 			rp->SymbolicLinkReparseBuffer.PrintNameLength);
 		break;
 
@@ -1864,29 +1868,28 @@ static noinline int ntfs_readlink_hlp(struct inode *inode, char *buffer,
 			goto out;
 		}
 		if (!IsReparseTagNameSurrogate(rp->ReparseTag) ||
-		    i_size <= sizeof(struct REPARSE_POINT)) {
+		    size <= sizeof(struct REPARSE_POINT)) {
 			goto out;
 		}
 
 		/* Users tag. */
-		uni = Add2Ptr(rp, sizeof(struct REPARSE_POINT) - 2);
-		nlen = le16_to_cpu(rp->ReparseDataLength) -
+		uname = Add2Ptr(rp, sizeof(struct REPARSE_POINT));
+		ulen = le16_to_cpu(rp->ReparseDataLength) -
 		       sizeof(struct REPARSE_POINT);
 	}
 
 	/* Convert nlen from bytes to UNICODE chars. */
-	nlen >>= 1;
+	ulen >>= 1;
 
 	/* Check that name is available. */
-	if (!nlen || &uni->name[nlen] > (__le16 *)Add2Ptr(rp, i_size))
+	if (!ulen || uname + ulen > (__le16 *)Add2Ptr(rp, size))
 		goto out;
 
 	/* If name is already zero terminated then truncate it now. */
-	if (!uni->name[nlen - 1])
-		nlen -= 1;
-	uni->len = nlen;
+	if (!uname[ulen - 1])
+		ulen -= 1;
 
-	err = ntfs_utf16_to_nls(sbi, uni, buffer, buflen);
+	err = ntfs_utf16_to_nls(sbi, uname, ulen, buffer, buflen);
 
 	if (err < 0)
 		goto out;
