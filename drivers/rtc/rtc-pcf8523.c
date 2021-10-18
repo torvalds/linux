@@ -389,19 +389,17 @@ static const struct i2c_device_id pcf8523_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, pcf8523_id);
 
-#ifdef CONFIG_OF
 static const struct of_device_id pcf8523_of_match[] = {
 	{ .compatible = "nxp,pcf8523" },
 	{ .compatible = "microcrystal,rv8523" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, pcf8523_of_match);
-#endif
 
 static struct i2c_driver pcf8523_driver = {
 	.driver = {
 		.name = "rtc-pcf8523",
-		.of_match_table = of_match_ptr(pcf8523_of_match),
+		.of_match_table = pcf8523_of_match,
 	},
 	.probe = pcf8523_probe,
 	.id_table = pcf8523_id,
