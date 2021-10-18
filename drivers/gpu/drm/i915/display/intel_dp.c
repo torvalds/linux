@@ -197,6 +197,35 @@ static void intel_dp_set_sink_rates(struct intel_dp *intel_dp)
 	intel_dp->num_sink_rates = i;
 }
 
+static void intel_dp_set_default_max_sink_lane_count(struct intel_dp *intel_dp)
+{
+	intel_dp->max_sink_lane_count = 1;
+}
+
+static void intel_dp_set_max_sink_lane_count(struct intel_dp *intel_dp)
+{
+	struct intel_connector *connector = intel_dp->attached_connector;
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct intel_encoder *encoder = &intel_dig_port->base;
+
+	intel_dp->max_sink_lane_count = drm_dp_max_lane_count(intel_dp->dpcd);
+
+	switch (intel_dp->max_sink_lane_count) {
+	case 1:
+	case 2:
+	case 4:
+		return;
+	}
+
+	drm_err(&dp_to_i915(intel_dp)->drm,
+		"[CONNECTOR:%d:%s][ENCODER:%d:%s] Invalid DPCD max lane count (%d), using default\n",
+		connector->base.base.id, connector->base.name,
+		encoder->base.base.id, encoder->base.name,
+		intel_dp->max_sink_lane_count);
+
+	intel_dp_set_default_max_sink_lane_count(intel_dp);
+}
+
 /* Get length of rates array potentially limited by max_rate. */
 static int intel_dp_rate_limit_len(const int *rates, int len, int max_rate)
 {
@@ -230,7 +259,7 @@ static int intel_dp_max_common_lane_count(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	int source_max = dig_port->max_lanes;
-	int sink_max = drm_dp_max_lane_count(intel_dp->dpcd);
+	int sink_max = intel_dp->max_sink_lane_count;
 	int fia_max = intel_tc_port_fia_max_lane_count(dig_port);
 	int lttpr_max = drm_dp_lttpr_max_lane_count(intel_dp->lttpr_common_caps);
 
@@ -242,7 +271,15 @@ static int intel_dp_max_common_lane_count(struct intel_dp *intel_dp)
 
 int intel_dp_max_lane_count(struct intel_dp *intel_dp)
 {
-	return intel_dp->max_link_lane_count;
+	switch (intel_dp->max_link_lane_count) {
+	case 1:
+	case 2:
+	case 4:
+		return intel_dp->max_link_lane_count;
+	default:
+		MISSING_CASE(intel_dp->max_link_lane_count);
+		return 1;
+	}
 }
 
 /*
@@ -2603,6 +2640,7 @@ intel_edp_init_dpcd(struct intel_dp *intel_dp)
 		intel_dp->use_rate_select = true;
 	else
 		intel_dp_set_sink_rates(intel_dp);
+	intel_dp_set_max_sink_lane_count(intel_dp);
 
 	intel_dp_set_common_rates(intel_dp);
 	intel_dp_reset_max_link_params(intel_dp);
@@ -2648,6 +2686,7 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 				 drm_dp_is_branch(intel_dp->dpcd));
 
 		intel_dp_set_sink_rates(intel_dp);
+		intel_dp_set_max_sink_lane_count(intel_dp);
 		intel_dp_set_common_rates(intel_dp);
 	}
 
@@ -5014,6 +5053,7 @@ intel_dp_init_connector(struct intel_digital_port *dig_port,
 
 	intel_dp_set_source_rates(intel_dp);
 	intel_dp_set_default_sink_rates(intel_dp);
+	intel_dp_set_default_max_sink_lane_count(intel_dp);
 	intel_dp_set_common_rates(intel_dp);
 	intel_dp_reset_max_link_params(intel_dp);
 
