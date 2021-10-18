@@ -929,8 +929,6 @@ static inline blk_status_t nvme_setup_rw(struct nvme_ns *ns,
 	u16 control = 0;
 	u32 dsmgmt = 0;
 
-	memset(cmnd, 0, sizeof(*cmnd));
-
 	if (req->cmd_flags & REQ_FUA)
 		control |= NVME_RW_FUA;
 	if (req->cmd_flags & (REQ_FAILFAST_DEV | REQ_RAHEAD))
@@ -940,9 +938,15 @@ static inline blk_status_t nvme_setup_rw(struct nvme_ns *ns,
 		dsmgmt |= NVME_RW_DSM_FREQ_PREFETCH;
 
 	cmnd->rw.opcode = op;
+	cmnd->rw.flags = 0;
 	cmnd->rw.nsid = cpu_to_le32(ns->head->ns_id);
+	cmnd->rw.rsvd2 = 0;
+	cmnd->rw.metadata = 0;
 	cmnd->rw.slba = cpu_to_le64(nvme_sect_to_lba(ns, blk_rq_pos(req)));
 	cmnd->rw.length = cpu_to_le16((blk_rq_bytes(req) >> ns->lba_shift) - 1);
+	cmnd->rw.reftag = 0;
+	cmnd->rw.apptag = 0;
+	cmnd->rw.appmask = 0;
 
 	if (req_op(req) == REQ_OP_WRITE && ctrl->nr_streams)
 		nvme_assign_write_stream(ctrl, req, &control, &dsmgmt);
