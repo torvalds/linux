@@ -1076,9 +1076,13 @@ static inline int nvme_poll_cq(struct nvme_queue *nvmeq,
 static irqreturn_t nvme_irq(int irq, void *data)
 {
 	struct nvme_queue *nvmeq = data;
+	DEFINE_IO_COMP_BATCH(iob);
 
-	if (nvme_poll_cq(nvmeq, NULL))
+	if (nvme_poll_cq(nvmeq, &iob)) {
+		if (!rq_list_empty(iob.req_list))
+			nvme_pci_complete_batch(&iob);
 		return IRQ_HANDLED;
+	}
 	return IRQ_NONE;
 }
 
