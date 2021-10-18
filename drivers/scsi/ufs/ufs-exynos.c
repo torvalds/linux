@@ -83,6 +83,44 @@
 #define UFS_SHARABLE		(UFS_WR_SHARABLE | UFS_RD_SHARABLE)
 #define UFS_SHAREABILITY_OFFSET	0x710
 
+/* Multi-host registers */
+#define MHCTRL			0xC4
+#define MHCTRL_EN_VH_MASK	(0xE)
+#define MHCTRL_EN_VH(vh)	(vh << 1)
+#define PH2VH_MBOX		0xD8
+
+#define MH_MSG_MASK		(0xFF)
+
+#define MH_MSG(id, msg)		((id << 8) | (msg & 0xFF))
+#define MH_MSG_PH_READY		0x1
+#define MH_MSG_VH_READY		0x2
+
+#define ALLOW_INQUIRY		BIT(25)
+#define ALLOW_MODE_SELECT	BIT(24)
+#define ALLOW_MODE_SENSE	BIT(23)
+#define ALLOW_PRE_FETCH		GENMASK(22, 21)
+#define ALLOW_READ_CMD_ALL	GENMASK(20, 18)	/* read_6/10/16 */
+#define ALLOW_READ_BUFFER	BIT(17)
+#define ALLOW_READ_CAPACITY	GENMASK(16, 15)
+#define ALLOW_REPORT_LUNS	BIT(14)
+#define ALLOW_REQUEST_SENSE	BIT(13)
+#define ALLOW_SYNCHRONIZE_CACHE	GENMASK(8, 7)
+#define ALLOW_TEST_UNIT_READY	BIT(6)
+#define ALLOW_UNMAP		BIT(5)
+#define ALLOW_VERIFY		BIT(4)
+#define ALLOW_WRITE_CMD_ALL	GENMASK(3, 1)	/* write_6/10/16 */
+
+#define ALLOW_TRANS_VH_DEFAULT	(ALLOW_INQUIRY | ALLOW_MODE_SELECT | \
+				 ALLOW_MODE_SENSE | ALLOW_PRE_FETCH | \
+				 ALLOW_READ_CMD_ALL | ALLOW_READ_BUFFER | \
+				 ALLOW_READ_CAPACITY | ALLOW_REPORT_LUNS | \
+				 ALLOW_REQUEST_SENSE | ALLOW_SYNCHRONIZE_CACHE | \
+				 ALLOW_TEST_UNIT_READY | ALLOW_UNMAP | \
+				 ALLOW_VERIFY | ALLOW_WRITE_CMD_ALL)
+
+#define HCI_MH_ALLOWABLE_TRAN_OF_VH		0x30C
+#define HCI_MH_IID_IN_TASK_TAG			0X308
+
 enum {
 	UNIPRO_L1_5 = 0,/* PHY Adapter */
 	UNIPRO_L2,	/* Data Link */
@@ -174,6 +212,20 @@ static int exynosauto_ufs_drv_init(struct device *dev, struct exynos_ufs *ufs)
 	return 0;
 }
 
+static int exynosauto_ufs_post_hce_enable(struct exynos_ufs *ufs)
+{
+	struct ufs_hba *hba = ufs->hba;
+
+	/* Enable Virtual Host #1 */
+	ufshcd_rmwl(hba, MHCTRL_EN_VH_MASK, MHCTRL_EN_VH(1), MHCTRL);
+	/* Default VH Transfer permissions */
+	hci_writel(ufs, ALLOW_TRANS_VH_DEFAULT, HCI_MH_ALLOWABLE_TRAN_OF_VH);
+	/* IID information is replaced in TASKTAG[7:5] instead of IID in UCD */
+	hci_writel(ufs, 0x1, HCI_MH_IID_IN_TASK_TAG);
+
+	return 0;
+}
+
 static int exynosauto_ufs_pre_link(struct exynos_ufs *ufs)
 {
 	struct ufs_hba *hba = ufs->hba;
@@ -237,6 +289,20 @@ static int exynosauto_ufs_pre_pwr_change(struct exynos_ufs *ufs,
 	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_PWRMODEUSERDATA0), 12000);
 	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_PWRMODEUSERDATA1), 32000);
 	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_PWRMODEUSERDATA2), 16000);
+
+	return 0;
+}
+
+static int exynosauto_ufs_post_pwr_change(struct exynos_ufs *ufs,
+					  struct ufs_pa_layer_attr *pwr)
+{
+	struct ufs_hba *hba = ufs->hba;
+	u32 enabled_vh;
+
+	enabled_vh = ufshcd_readl(hba, MHCTRL) & MHCTRL_EN_VH_MASK;
+
+	/* Send physical host ready message to virtual hosts */
+	ufshcd_writel(hba, MH_MSG(enabled_vh, MH_MSG_PH_READY), PH2VH_MBOX);
 
 	return 0;
 }
@@ -1416,8 +1482,10 @@ static struct exynos_ufs_drv_data exynosauto_ufs_drvs = {
 				  EXYNOS_UFS_OPT_SKIP_CONFIG_PHY_ATTR |
 				  EXYNOS_UFS_OPT_BROKEN_RX_SEL_IDX,
 	.drv_init		= exynosauto_ufs_drv_init,
+	.post_hce_enable	= exynosauto_ufs_post_hce_enable,
 	.pre_link		= exynosauto_ufs_pre_link,
 	.pre_pwr_change		= exynosauto_ufs_pre_pwr_change,
+	.post_pwr_change	= exynosauto_ufs_post_pwr_change,
 };
 
 static struct exynos_ufs_drv_data exynos_ufs_drvs = {
