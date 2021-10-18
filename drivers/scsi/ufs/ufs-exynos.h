@@ -56,6 +56,22 @@
 #define TX_GRAN_NVAL_10_08	0x0296
 #define TX_GRAN_NVAL_H(v)	(((v) >> 8) & 0x3)
 
+#define VND_TX_CLK_PRD		0xAA
+#define VND_TX_CLK_PRD_EN	0xA9
+#define VND_TX_LINERESET_PVALUE0	0xAD
+#define VND_TX_LINERESET_PVALUE1	0xAC
+#define VND_TX_LINERESET_PVALUE2	0xAB
+
+#define TX_LINE_RESET_TIME	3200
+
+#define VND_RX_CLK_PRD		0x12
+#define VND_RX_CLK_PRD_EN	0x11
+#define VND_RX_LINERESET_VALUE0	0x1D
+#define VND_RX_LINERESET_VALUE1	0x1C
+#define VND_RX_LINERESET_VALUE2	0x1B
+
+#define RX_LINE_RESET_TIME	1000
+
 #define RX_FILLER_ENABLE	0x0316
 #define RX_FILLER_EN		(1 << 1)
 #define RX_LINERESET_VAL	0x0317
@@ -194,6 +210,8 @@ struct exynos_ufs {
 	struct ufs_phy_time_cfg t_cfg;
 	ktime_t entry_hibern8_t;
 	const struct exynos_ufs_drv_data *drv_data;
+	struct regmap *sysreg;
+	u32 shareability_reg_offset;
 
 	u32 opts;
 #define EXYNOS_UFS_OPT_HAS_APB_CLK_CTRL		BIT(0)
