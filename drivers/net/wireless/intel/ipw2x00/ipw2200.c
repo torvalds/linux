@@ -199,7 +199,7 @@ static int ipw_queue_tx_reclaim(struct ipw_priv *priv,
 				struct clx2_tx_queue *txq, int qindex);
 static int ipw_queue_reset(struct ipw_priv *priv);
 
-static int ipw_queue_tx_hcmd(struct ipw_priv *priv, int hcmd, void *buf,
+static int ipw_queue_tx_hcmd(struct ipw_priv *priv, int hcmd, const void *buf,
 			     int len, int sync);
 
 static void ipw_tx_queue_free(struct ipw_priv *);
@@ -2264,7 +2264,7 @@ static int ipw_send_cmd_simple(struct ipw_priv *priv, u8 command)
 }
 
 static int ipw_send_cmd_pdu(struct ipw_priv *priv, u8 command, u8 len,
-			    void *data)
+			    const void *data)
 {
 	struct host_cmd cmd = {
 		.cmd = command,
@@ -5033,7 +5033,7 @@ static int ipw_queue_tx_reclaim(struct ipw_priv *priv,
 	return used;
 }
 
-static int ipw_queue_tx_hcmd(struct ipw_priv *priv, int hcmd, void *buf,
+static int ipw_queue_tx_hcmd(struct ipw_priv *priv, int hcmd, const void *buf,
 			     int len, int sync)
 {
 	struct clx2_tx_queue *txq = &priv->txq_cmd;
