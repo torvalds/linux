@@ -66,6 +66,8 @@ struct rtc_class_ops {
 	int (*alarm_irq_enable)(struct device *, unsigned int enabled);
 	int (*read_offset)(struct device *, long *offset);
 	int (*set_offset)(struct device *, long offset);
+	int (*param_get)(struct device *, struct rtc_param *param);
+	int (*param_set)(struct device *, struct rtc_param *param);
 };
 
 struct rtc_device;

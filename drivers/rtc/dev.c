@@ -409,7 +409,10 @@ static long rtc_dev_ioctl(struct file *file,
 			break;
 
 		default:
-			err = -EINVAL;
+			if (rtc->ops->param_get)
+				err = rtc->ops->param_get(rtc->dev.parent, &param);
+			else
+				err = -EINVAL;
 		}
 
 		if (!err)
@@ -436,7 +439,10 @@ static long rtc_dev_ioctl(struct file *file,
 			return rtc_set_offset(rtc, param.svalue);
 
 		default:
-			err = -EINVAL;
+			if (rtc->ops->param_set)
+				err = rtc->ops->param_set(rtc->dev.parent, &param);
+			else
+				err = -EINVAL;
 		}
 
 		break;
