@@ -347,7 +347,7 @@ config ARCH_EP93XX
 	select CLKSRC_MMIO
 	select CPU_ARM920T
 	select GPIOLIB
-	select HAVE_LEGACY_CLK
+	select COMMON_CLK
 	help
 	  This enables support for the Cirrus EP93xx series of CPUs.
 
