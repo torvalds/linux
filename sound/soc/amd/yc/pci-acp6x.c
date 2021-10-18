@@ -10,6 +10,8 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
+#include <linux/interrupt.h>
+#include <sound/pcm_params.h>
 
 #include "acp6x.h"
 
@@ -117,6 +119,27 @@ static int acp6x_deinit(void __iomem *acp_base)
 	return 0;
 }
 
+static irqreturn_t acp6x_irq_handler(int irq, void *dev_id)
+{
+	struct acp6x_dev_data *adata;
+	struct pdm_dev_data *yc_pdm_data;
+	u32 val;
+
+	adata = dev_id;
+	if (!adata)
+		return IRQ_NONE;
+
+	val = acp6x_readl(adata->acp6x_base + ACP_EXTERNAL_INTR_STAT);
+	if (val & BIT(PDM_DMA_STAT)) {
+		yc_pdm_data = dev_get_drvdata(&adata->pdev[0]->dev);
+		acp6x_writel(BIT(PDM_DMA_STAT), adata->acp6x_base + ACP_EXTERNAL_INTR_STAT);
+		if (yc_pdm_data->capture_stream)
+			snd_pcm_period_elapsed(yc_pdm_data->capture_stream);
+		return IRQ_HANDLED;
+	}
+	return IRQ_NONE;
+}
+
 static int snd_acp6x_probe(struct pci_dev *pci,
 			   const struct pci_device_id *pci_id)
 {
@@ -125,7 +148,9 @@ static int snd_acp6x_probe(struct pci_dev *pci,
 	int ret, index;
 	int val = 0x00;
 	u32 addr;
+	unsigned int irqflags;
 
+	irqflags = IRQF_SHARED;
 	/* Yellow Carp device check */
 	if (pci->revision != 0x60)
 		return -ENODEV;
@@ -208,6 +233,12 @@ static int snd_acp6x_probe(struct pci_dev *pci,
 			}
 		}
 		break;
+	}
+	ret = devm_request_irq(&pci->dev, pci->irq, acp6x_irq_handler,
+			       irqflags, "ACP_PCI_IRQ", adata);
+	if (ret) {
+		dev_err(&pci->dev, "ACP PCI IRQ request failed\n");
+		goto unregister_devs;
 	}
 	return 0;
 unregister_devs:
