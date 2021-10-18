@@ -179,7 +179,7 @@ static int qtnf_netdev_set_mac_address(struct net_device *ndev, void *addr)
 					     sa->sa_data);
 
 	if (ret)
-		memcpy(ndev->dev_addr, old_addr, ETH_ALEN);
+		eth_hw_addr_set(ndev, old_addr);
 
 	return ret;
 }

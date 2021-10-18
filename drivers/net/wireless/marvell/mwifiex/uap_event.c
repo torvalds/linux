@@ -197,8 +197,7 @@ int mwifiex_process_uap_event(struct mwifiex_private *priv)
 		mwifiex_dbg(adapter, EVENT,
 			    "AP EVENT: event id: %#x\n", eventcause);
 		priv->port_open = false;
-		memcpy(priv->netdev->dev_addr, adapter->event_body + 2,
-		       ETH_ALEN);
+		eth_hw_addr_set(priv->netdev, adapter->event_body + 2);
 		if (priv->hist_data)
 			mwifiex_hist_data_reset(priv);
 		mwifiex_check_uap_capabilities(priv, adapter->event_skb);
