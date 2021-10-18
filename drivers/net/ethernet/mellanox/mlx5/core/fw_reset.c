@@ -396,13 +396,14 @@ static int fw_reset_event_notifier(struct notifier_block *nb, unsigned long acti
 
 int mlx5_fw_reset_wait_reset_done(struct mlx5_core_dev *dev)
 {
-	unsigned long timeout = msecs_to_jiffies(mlx5_tout_ms(dev, PCI_SYNC_UPDATE));
+	unsigned long pci_sync_update_timeout = mlx5_tout_ms(dev, PCI_SYNC_UPDATE);
+	unsigned long timeout = msecs_to_jiffies(pci_sync_update_timeout);
 	struct mlx5_fw_reset *fw_reset = dev->priv.fw_reset;
 	int err;
 
 	if (!wait_for_completion_timeout(&fw_reset->done, timeout)) {
-		mlx5_core_warn(dev, "FW sync reset timeout after %llu seconds\n",
-			       mlx5_tout_ms(dev, PCI_SYNC_UPDATE) / 1000);
+		mlx5_core_warn(dev, "FW sync reset timeout after %lu seconds\n",
+			       pci_sync_update_timeout / 1000);
 		err = -ETIMEDOUT;
 		goto out;
 	}
