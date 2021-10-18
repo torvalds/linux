@@ -151,6 +151,7 @@ struct kyber_ctx_queue {
 
 struct kyber_queue_data {
 	struct request_queue *q;
+	dev_t dev;
 
 	/*
 	 * Each scheduling domain has a limited number of in-flight requests
@@ -257,7 +258,7 @@ static int calculate_percentile(struct kyber_queue_data *kqd,
 	}
 	memset(buckets, 0, sizeof(kqd->latency_buckets[sched_domain][type]));
 
-	trace_kyber_latency(kqd->q, kyber_domain_names[sched_domain],
+	trace_kyber_latency(kqd->dev, kyber_domain_names[sched_domain],
 			    kyber_latency_type_names[type], percentile,
 			    bucket + 1, 1 << KYBER_LATENCY_SHIFT, samples);
 
@@ -270,7 +271,7 @@ static void kyber_resize_domain(struct kyber_queue_data *kqd,
 	depth = clamp(depth, 1U, kyber_depth[sched_domain]);
 	if (depth != kqd->domain_tokens[sched_domain].sb.depth) {
 		sbitmap_queue_resize(&kqd->domain_tokens[sched_domain], depth);
-		trace_kyber_adjust(kqd->q, kyber_domain_names[sched_domain],
+		trace_kyber_adjust(kqd->dev, kyber_domain_names[sched_domain],
 				   depth);
 	}
 }
@@ -366,6 +367,7 @@ static struct kyber_queue_data *kyber_queue_data_alloc(struct request_queue *q)
 		goto err;
 
 	kqd->q = q;
+	kqd->dev = disk_devt(q->disk);
 
 	kqd->cpu_latency = alloc_percpu_gfp(struct kyber_cpu_latency,
 					    GFP_KERNEL | __GFP_ZERO);
@@ -774,7 +776,7 @@ kyber_dispatch_cur_domain(struct kyber_queue_data *kqd,
 			list_del_init(&rq->queuelist);
 			return rq;
 		} else {
-			trace_kyber_throttled(kqd->q,
+			trace_kyber_throttled(kqd->dev,
 					      kyber_domain_names[khd->cur_domain]);
 		}
 	} else if (sbitmap_any_bit_set(&khd->kcq_map[khd->cur_domain])) {
@@ -787,7 +789,7 @@ kyber_dispatch_cur_domain(struct kyber_queue_data *kqd,
 			list_del_init(&rq->queuelist);
 			return rq;
 		} else {
-			trace_kyber_throttled(kqd->q,
+			trace_kyber_throttled(kqd->dev,
 					      kyber_domain_names[khd->cur_domain]);
 		}
 	}

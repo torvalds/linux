@@ -110,7 +110,7 @@ config PCI_PF_STUB
 
 config XEN_PCIDEV_FRONTEND
 	tristate "Xen PCI Frontend"
-	depends on X86 && XEN
+	depends on XEN_PV
 	select PCI_XEN
 	select XEN_XENBUS_FRONTEND
 	default y

@@ -1666,7 +1666,8 @@ static size_t br_get_linkxstats_size(const struct net_device *dev, int attr)
 	}
 
 	return numvls * nla_total_size(sizeof(struct bridge_vlan_xstats)) +
-	       nla_total_size(sizeof(struct br_mcast_stats)) +
+	       nla_total_size_64bit(sizeof(struct br_mcast_stats)) +
+	       (p ? nla_total_size_64bit(sizeof(p->stp_xstats)) : 0) +
 	       nla_total_size(0);
 }
 
