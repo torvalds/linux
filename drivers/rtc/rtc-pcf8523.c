@@ -237,7 +237,6 @@ static int pcf8523_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *tm)
 	return 0;
 }
 
-#ifdef CONFIG_RTC_INTF_DEV
 static int pcf8523_rtc_ioctl(struct device *dev, unsigned int cmd,
 			     unsigned long arg)
 {
@@ -268,9 +267,6 @@ static int pcf8523_rtc_ioctl(struct device *dev, unsigned int cmd,
 		return -ENOIOCTLCMD;
 	}
 }
-#else
-#define pcf8523_rtc_ioctl NULL
-#endif
 
 static int pcf8523_rtc_read_offset(struct device *dev, long *offset)
 {
