@@ -302,24 +302,6 @@ static int axp288_charger_enable_charger(struct axp288_chrg_info *info,
 	return ret;
 }
 
-static int axp288_charger_is_present(struct axp288_chrg_info *info)
-{
-	int present = 0;
-
-	if (info->input_status & PS_STAT_VBUS_PRESENT)
-		present = 1;
-	return present;
-}
-
-static int axp288_charger_is_online(struct axp288_chrg_info *info)
-{
-	int online = 0;
-
-	if (info->input_status & PS_STAT_VBUS_VALID)
-		online = 1;
-	return online;
-}
-
 static int axp288_get_charger_health(struct axp288_chrg_info *info)
 {
 	int health = POWER_SUPPLY_HEALTH_UNKNOWN;
@@ -450,7 +432,7 @@ static int axp288_charger_usb_get_property(struct power_supply *psy,
 			val->intval = 0;
 			break;
 		}
-		val->intval = axp288_charger_is_present(info);
+		val->intval = (info->input_status & PS_STAT_VBUS_PRESENT) ? 1 : 0;
 		break;
 	case POWER_SUPPLY_PROP_ONLINE:
 		/* Check for OTG case first */
@@ -458,7 +440,7 @@ static int axp288_charger_usb_get_property(struct power_supply *psy,
 			val->intval = 0;
 			break;
 		}
-		val->intval = axp288_charger_is_online(info);
+		val->intval = (info->input_status & PS_STAT_VBUS_VALID) ? 1 : 0;
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
 		val->intval = axp288_get_charger_health(info);
