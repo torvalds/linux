@@ -229,31 +229,12 @@ static void snd_soc_debugfs_exit(void)
 
 #else
 
-static inline void soc_init_component_debugfs(
-	struct snd_soc_component *component)
-{
-}
-
-static inline void soc_cleanup_component_debugfs(
-	struct snd_soc_component *component)
-{
-}
-
-static inline void soc_init_card_debugfs(struct snd_soc_card *card)
-{
-}
-
-static inline void soc_cleanup_card_debugfs(struct snd_soc_card *card)
-{
-}
-
-static inline void snd_soc_debugfs_init(void)
-{
-}
-
-static inline void snd_soc_debugfs_exit(void)
-{
-}
+static inline void soc_init_component_debugfs(struct snd_soc_component *component) { }
+static inline void soc_cleanup_component_debugfs(struct snd_soc_component *component) { }
+static inline void soc_init_card_debugfs(struct snd_soc_card *card) { }
+static inline void soc_cleanup_card_debugfs(struct snd_soc_card *card) { }
+static inline void snd_soc_debugfs_init(void) { }
+static inline void snd_soc_debugfs_exit(void) { }
 
 #endif
 
@@ -739,9 +720,7 @@ static void soc_resume_init(struct snd_soc_card *card)
 #else
 #define snd_soc_suspend NULL
 #define snd_soc_resume NULL
-static inline void soc_resume_init(struct snd_soc_card *card)
-{
-}
+static inline void soc_resume_init(struct snd_soc_card *card) { }
 #endif
 
 static struct device_node
