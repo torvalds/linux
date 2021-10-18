@@ -659,19 +659,19 @@ static int wcn36xx_hw_scan(struct ieee80211_hw *hw,
 			   struct ieee80211_scan_request *hw_req)
 {
 	struct wcn36xx *wcn = hw->priv;
-	int i;
 
 	if (!get_feat_caps(wcn->fw_feat_caps, SCAN_OFFLOAD)) {
 		/* fallback to mac80211 software scan */
 		return 1;
 	}
 
-	/* For unknown reason, the hardware offloaded scan only works with
-	 * 2.4Ghz channels, fallback to software scan in other cases.
+	/* Firmware scan offload is limited to 48 channels, fallback to
+	 * software driven scanning otherwise.
 	 */
-	for (i = 0; i < hw_req->req.n_channels; i++) {
-		if (hw_req->req.channels[i]->band != NL80211_BAND_2GHZ)
-			return 1;
+	if (hw_req->req.n_channels > 48) {
+		wcn36xx_warn("Offload scan aborted, n_channels=%u",
+			     hw_req->req.n_channels);
+		return 1;
 	}
 
 	mutex_lock(&wcn->scan_lock);
