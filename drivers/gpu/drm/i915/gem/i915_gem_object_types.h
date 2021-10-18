@@ -488,6 +488,28 @@ struct drm_i915_gem_object {
 		 * instead go through the pin/unpin interfaces.
 		 */
 		atomic_t pages_pin_count;
+
+		/**
+		 * @shrink_pin: Prevents the pages from being made visible to
+		 * the shrinker, while the shrink_pin is non-zero. Most users
+		 * should pretty much never have to care about this, outside of
+		 * some special use cases.
+		 *
+		 * By default most objects will start out as visible to the
+		 * shrinker(if I915_GEM_OBJECT_IS_SHRINKABLE) as soon as the
+		 * backing pages are attached to the object, like in
+		 * __i915_gem_object_set_pages(). They will then be removed the
+		 * shrinker list once the pages are released.
+		 *
+		 * The @shrink_pin is incremented by calling
+		 * i915_gem_object_make_unshrinkable(), which will also remove
+		 * the object from the shrinker list, if the pin count was zero.
+		 *
+		 * Callers will then typically call
+		 * i915_gem_object_make_shrinkable() or
+		 * i915_gem_object_make_purgeable() to decrement the pin count,
+		 * and make the pages visible again.
+		 */
 		atomic_t shrink_pin;
 
 		/**
@@ -549,7 +571,7 @@ struct drm_i915_gem_object {
 		struct i915_gem_object_page_iter get_dma_page;
 
 		/**
-		 * Element within i915->mm.unbound_list or i915->mm.bound_list,
+		 * Element within i915->mm.shrink_list or i915->mm.purge_list,
 		 * locked by i915->mm.obj_lock.
 		 */
 		struct list_head link;
