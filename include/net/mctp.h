@@ -54,7 +54,7 @@ struct mctp_sock {
 	struct sock	sk;
 
 	/* bind() params */
-	int		bind_net;
+	unsigned int	bind_net;
 	mctp_eid_t	bind_addr;
 	__u8		bind_type;
 

@@ -10,6 +10,7 @@
 #define __UAPI_MCTP_H
 
 #include <linux/types.h>
+#include <linux/socket.h>
 
 typedef __u8			mctp_eid_t;
 
@@ -18,8 +19,8 @@ struct mctp_addr {
 };
 
 struct sockaddr_mctp {
-	unsigned short int	smctp_family;
-	int			smctp_network;
+	__kernel_sa_family_t	smctp_family;
+	unsigned int		smctp_network;
 	struct mctp_addr	smctp_addr;
 	__u8			smctp_type;
 	__u8			smctp_tag;
