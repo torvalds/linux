@@ -109,6 +109,9 @@ own name.
      - Boolean
      - When enabled, the device driver will instantiate VDPA networking
        specific auxiliary device of the devlink device.
+   * - ``enable_iwarp``
+     - Boolean
+     - Enable handling of iWARP traffic in the device.
    * - ``internal_err_reset``
      - Boolean
      - When enabled, the device driver will reset the device on internal
