@@ -124,9 +124,6 @@ mt7915_ampdu_stat_read_phy(struct mt7915_phy *phy,
 	bool ext_phy = phy != &dev->phy;
 	int bound[15], range[4], i, n;
 
-	if (!phy)
-		return;
-
 	/* Tx ampdu stat */
 	for (i = 0; i < ARRAY_SIZE(range); i++)
 		range[i] = mt76_rr(dev, MT_MIB_ARNG(ext_phy, i));
@@ -156,12 +153,7 @@ mt7915_txbf_stat_read_phy(struct mt7915_phy *phy, struct seq_file *s)
 	static const char * const bw[] = {
 		"BW20", "BW40", "BW80", "BW160"
 	};
-	struct mib_stats *mib;
-
-	if (!phy)
-		return;
-
-	mib = &phy->mib;
+	struct mib_stats *mib = &phy->mib;
 
 	/* Tx Beamformer monitor */
 	seq_puts(s, "\nTx Beamformer applied PPDU counts: ");
@@ -395,8 +387,8 @@ mt7915_xmit_queues_show(struct seq_file *file, void *data)
 
 DEFINE_SHOW_ATTRIBUTE(mt7915_xmit_queues);
 
-static void
-mt7915_puts_rate_txpower(struct seq_file *s, struct mt7915_phy *phy)
+static int
+mt7915_rate_txpower_show(struct seq_file *file, void *data)
 {
 	static const char * const sku_group_name[] = {
 		"CCK", "OFDM", "HT20", "HT40",
@@ -404,14 +396,11 @@ mt7915_puts_rate_txpower(struct seq_file *s, struct mt7915_phy *phy)
 		"RU26", "RU52", "RU106", "RU242/SU20",
 		"RU484/SU40", "RU996/SU80", "RU2x996/SU160"
 	};
+	struct mt7915_phy *phy = file->private;
 	s8 txpower[MT7915_SKU_RATE_NUM], *buf;
 	int i;
 
-	if (!phy)
-		return;
-
-	seq_printf(s, "\nBand %d\n", phy != &phy->dev->phy);
-
+	seq_printf(file, "\nBand %d\n", phy != &phy->dev->phy);
 	mt7915_mcu_get_txpower_sku(phy, txpower, sizeof(txpower));
 	for (i = 0, buf = txpower; i < ARRAY_SIZE(mt7915_sku_group_len); i++) {
 		u8 mcs_num = mt7915_sku_group_len[i];
@@ -419,17 +408,9 @@ mt7915_puts_rate_txpower(struct seq_file *s, struct mt7915_phy *phy)
 		if (i >= SKU_VHT_BW20 && i <= SKU_VHT_BW160)
 			mcs_num = 10;
 
-		mt76_seq_puts_array(s, sku_group_name[i], buf, mcs_num);
+		mt76_seq_puts_array(file, sku_group_name[i], buf, mcs_num);
 		buf += mt7915_sku_group_len[i];
 	}
-}
-
-static int
-mt7915_rate_txpower_show(struct seq_file *file, void *data)
-{
-	struct mt7915_phy *phy = file->private;
-
-	mt7915_puts_rate_txpower(file, phy);
 
 	return 0;
 }
