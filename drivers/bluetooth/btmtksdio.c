@@ -98,7 +98,7 @@ struct btmtksdio_dev {
 	struct sdio_func *func;
 	struct device *dev;
 
-	struct work_struct tx_work;
+	struct work_struct txrx_work;
 	unsigned long tx_state;
 	struct sk_buff_head txq;
 
@@ -247,32 +247,6 @@ err_skb_pull:
 static u32 btmtksdio_drv_own_query(struct btmtksdio_dev *bdev)
 {
 	return sdio_readl(bdev->func, MTK_REG_CHLPCR, NULL);
-}
-
-static void btmtksdio_tx_work(struct work_struct *work)
-{
-	struct btmtksdio_dev *bdev = container_of(work, struct btmtksdio_dev,
-						  tx_work);
-	struct sk_buff *skb;
-	int err;
-
-	pm_runtime_get_sync(bdev->dev);
-
-	sdio_claim_host(bdev->func);
-
-	while ((skb = skb_dequeue(&bdev->txq))) {
-		err = btmtksdio_tx_packet(bdev, skb);
-		if (err < 0) {
-			bdev->hdev->stat.err_tx++;
-			skb_queue_head(&bdev->txq, skb);
-			break;
-		}
-	}
-
-	sdio_release_host(bdev->func);
-
-	pm_runtime_mark_last_busy(bdev->dev);
-	pm_runtime_put_autosuspend(bdev->dev);
 }
 
 static int btmtksdio_recv_event(struct hci_dev *hdev, struct sk_buff *skb)
@@ -425,63 +399,81 @@ err_kfree_skb:
 	return err;
 }
 
-static void btmtksdio_interrupt(struct sdio_func *func)
+static void btmtksdio_txrx_work(struct work_struct *work)
 {
-	struct btmtksdio_dev *bdev = sdio_get_drvdata(func);
+	struct btmtksdio_dev *bdev = container_of(work, struct btmtksdio_dev,
+						  txrx_work);
+	unsigned long txrx_timeout;
+	struct sk_buff *skb;
 	u32 int_status;
 	u16 rx_size;
-
-	/* It is required that the host gets ownership from the device before
-	 * accessing any register, however, if SDIO host is not being released,
-	 * a potential deadlock probably happens in a circular wait between SDIO
-	 * IRQ work and PM runtime work. So, we have to explicitly release SDIO
-	 * host here and claim again after the PM runtime work is all done.
-	 */
-	sdio_release_host(bdev->func);
+	int err;
 
 	pm_runtime_get_sync(bdev->dev);
 
 	sdio_claim_host(bdev->func);
 
 	/* Disable interrupt */
-	sdio_writel(func, C_INT_EN_CLR, MTK_REG_CHLPCR, NULL);
+	sdio_writel(bdev->func, C_INT_EN_CLR, MTK_REG_CHLPCR, 0);
 
-	int_status = sdio_readl(func, MTK_REG_CHISR, NULL);
-
-	/* Ack an interrupt as soon as possible before any operation on
-	 * hardware.
-	 *
-	 * Note that we don't ack any status during operations to avoid race
-	 * condition between the host and the device such as it's possible to
-	 * mistakenly ack RX_DONE for the next packet and then cause interrupts
-	 * not be raised again but there is still pending data in the hardware
-	 * FIFO.
-	 */
-	sdio_writel(func, int_status, MTK_REG_CHISR, NULL);
-
-	if (unlikely(!int_status))
-		bt_dev_err(bdev->hdev, "CHISR is 0");
-
-	if (int_status & FW_OWN_BACK_INT)
-		bt_dev_dbg(bdev->hdev, "Get fw own back");
-
-	if (int_status & TX_EMPTY)
-		schedule_work(&bdev->tx_work);
-	else if (unlikely(int_status & TX_FIFO_OVERFLOW))
-		bt_dev_warn(bdev->hdev, "Tx fifo overflow");
-
-	if (int_status & RX_DONE_INT) {
-		rx_size = (int_status & RX_PKT_LEN) >> 16;
-
-		if (btmtksdio_rx_packet(bdev, rx_size) < 0)
-			bdev->hdev->stat.err_rx++;
+	while ((skb = skb_dequeue(&bdev->txq))) {
+		err = btmtksdio_tx_packet(bdev, skb);
+		if (err < 0) {
+			bdev->hdev->stat.err_tx++;
+			skb_queue_head(&bdev->txq, skb);
+			break;
+		}
 	}
 
+	txrx_timeout = jiffies + 5 * HZ;
+
+	do {
+		int_status = sdio_readl(bdev->func, MTK_REG_CHISR, NULL);
+
+		/* Ack an interrupt as soon as possible before any operation on
+		 * hardware.
+		 *
+		 * Note that we don't ack any status during operations to avoid race
+		 * condition between the host and the device such as it's possible to
+		 * mistakenly ack RX_DONE for the next packet and then cause interrupts
+		 * not be raised again but there is still pending data in the hardware
+		 * FIFO.
+		 */
+		sdio_writel(bdev->func, int_status, MTK_REG_CHISR, NULL);
+
+		if (int_status & FW_OWN_BACK_INT)
+			bt_dev_dbg(bdev->hdev, "Get fw own back");
+
+		if (int_status & TX_EMPTY)
+			schedule_work(&bdev->txrx_work);
+		else if (unlikely(int_status & TX_FIFO_OVERFLOW))
+			bt_dev_warn(bdev->hdev, "Tx fifo overflow");
+
+		if (int_status & RX_DONE_INT) {
+			rx_size = (int_status & RX_PKT_LEN) >> 16;
+			if (btmtksdio_rx_packet(bdev, rx_size) < 0)
+				bdev->hdev->stat.err_rx++;
+		}
+
+	} while (int_status || time_is_before_jiffies(txrx_timeout));
+
 	/* Enable interrupt */
-	sdio_writel(func, C_INT_EN_SET, MTK_REG_CHLPCR, NULL);
+	sdio_writel(bdev->func, C_INT_EN_SET, MTK_REG_CHLPCR, 0);
+
+	sdio_release_host(bdev->func);
 
 	pm_runtime_mark_last_busy(bdev->dev);
 	pm_runtime_put_autosuspend(bdev->dev);
+}
+
+static void btmtksdio_interrupt(struct sdio_func *func)
+{
+	struct btmtksdio_dev *bdev = sdio_get_drvdata(func);
+
+	/* Disable interrupt */
+	sdio_writel(bdev->func, C_INT_EN_CLR, MTK_REG_CHLPCR, 0);
+
+	schedule_work(&bdev->txrx_work);
 }
 
 static int btmtksdio_open(struct hci_dev *hdev)
@@ -583,6 +575,8 @@ static int btmtksdio_close(struct hci_dev *hdev)
 
 	sdio_release_irq(bdev->func);
 
+	cancel_work_sync(&bdev->txrx_work);
+
 	/* Return ownership to the device */
 	sdio_writel(bdev->func, C_FW_OWN_REQ_SET, MTK_REG_CHLPCR, NULL);
 
@@ -604,7 +598,7 @@ static int btmtksdio_flush(struct hci_dev *hdev)
 
 	skb_queue_purge(&bdev->txq);
 
-	cancel_work_sync(&bdev->tx_work);
+	cancel_work_sync(&bdev->txrx_work);
 
 	return 0;
 }
@@ -795,7 +789,7 @@ static int btmtksdio_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 
 	skb_queue_tail(&bdev->txq, skb);
 
-	schedule_work(&bdev->tx_work);
+	schedule_work(&bdev->txrx_work);
 
 	return 0;
 }
@@ -818,7 +812,7 @@ static int btmtksdio_probe(struct sdio_func *func,
 	bdev->dev = &func->dev;
 	bdev->func = func;
 
-	INIT_WORK(&bdev->tx_work, btmtksdio_tx_work);
+	INIT_WORK(&bdev->txrx_work, btmtksdio_txrx_work);
 	skb_queue_head_init(&bdev->txq);
 
 	/* Initialize and register HCI device */
