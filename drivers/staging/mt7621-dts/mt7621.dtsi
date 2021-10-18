@@ -100,28 +100,6 @@
 			pinctrl-0 = <&i2c_pins>;
 		};
 
-		i2s: i2s@a00 {
-			compatible = "mediatek,mt7621-i2s";
-			reg = <0xa00 0x100>;
-
-			clocks = <&sysc MT7621_CLK_I2S>;
-			clock-names = "i2s";
-			resets = <&rstctrl 17>;
-			reset-names = "i2s";
-
-			interrupt-parent = <&gic>;
-			interrupts = <GIC_SHARED 16 IRQ_TYPE_LEVEL_HIGH>;
-
-			txdma-req = <2>;
-			rxdma-req = <3>;
-
-			dmas = <&gdma 4>,
-				<&gdma 6>;
-			dma-names = "tx", "rx";
-
-			status = "disabled";
-		};
-
 		memc: syscon@5000 {
 			compatible = "mediatek,mt7621-memc", "syscon";
 			reg = <0x5000 0x1000>;
@@ -356,20 +334,6 @@
 	cdmm: cdmm@1fbf8000 {
 		compatible = "mti,mips-cdmm";
 		reg = <0x1fbf8000 0x8000>;
-	};
-
-	nand: nand@1e003000 {
-		status = "disabled";
-
-		compatible = "mediatek,mt7621-nand";
-		bank-width = <2>;
-		reg = <0x1e003000 0x800
-			0x1e003800 0x800>;
-		#address-cells = <1>;
-		#size-cells = <1>;
-
-		clocks = <&sysc MT7621_CLK_NAND>;
-		clock-names = "nand";
 	};
 
 	ethernet: ethernet@1e100000 {
