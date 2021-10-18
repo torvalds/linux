@@ -1276,12 +1276,9 @@ void mt7921_mac_reset_work(struct work_struct *work)
 	cancel_work_sync(&pm->wake_work);
 
 	mutex_lock(&dev->mt76.mutex);
-	for (i = 0; i < 10; i++) {
-		__mt7921_mcu_drv_pmctrl(dev);
-
+	for (i = 0; i < 10; i++)
 		if (!mt7921_dev_reset(dev))
 			break;
-	}
 	mutex_unlock(&dev->mt76.mutex);
 
 	if (i == 10)

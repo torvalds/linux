@@ -282,6 +282,8 @@ int mt7921e_mac_reset(struct mt7921_dev *dev)
 {
 	int i, err;
 
+	mt7921e_mcu_drv_pmctrl(dev);
+
 	mt76_connac_free_pending_tx_skbs(&dev->pm, NULL);
 
 	mt76_wr(dev, MT_WFDMA0_HOST_INT_ENA, 0);

@@ -117,6 +117,9 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 
 	static const struct mt7921_hif_ops mt7921_pcie_ops = {
 		.reset = mt7921e_mac_reset,
+		.mcu_init = mt7921e_mcu_init,
+		.drv_own = mt7921e_mcu_drv_pmctrl,
+		.fw_own = mt7921e_mcu_fw_pmctrl,
 	};
 
 	struct mt7921_dev *dev;
