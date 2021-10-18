@@ -33,7 +33,7 @@ uvc_video_encode_header(struct uvc_video *video, struct uvc_buffer *buf,
 	if (buf->bytesused - video->queue.buf_used <= len - UVCG_REQUEST_HEADER_LEN)
 		data[1] |= UVC_STREAM_EOF;
 
-	return 2;
+	return UVCG_REQUEST_HEADER_LEN;
 }
 
 static int
@@ -302,8 +302,8 @@ uvc_video_alloc_requests(struct uvc_video *video)
 		list_add_tail(&video->ureq[i].req->list, &video->req_free);
 		/* req_size/PAGE_SIZE + 1 for overruns and + 1 for header */
 		sg_alloc_table(&video->ureq[i].sgt,
-			       DIV_ROUND_UP(req_size - 2, PAGE_SIZE) + 2,
-			       GFP_KERNEL);
+			       DIV_ROUND_UP(req_size - UVCG_REQUEST_HEADER_LEN,
+					    PAGE_SIZE) + 2, GFP_KERNEL);
 	}
 
 	video->req_size = req_size;
