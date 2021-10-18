@@ -102,14 +102,14 @@
 
 struct mt76s_intr {
 	u32 isr;
+	u32 *rec_mb;
 	struct {
-		u32 wtqcr[8];
+		u32 *wtqcr;
 	} tx;
 	struct {
-		u16 num[2];
-		u16 len[2][16];
+		u16 *len[2];
+		u16 *num;
 	} rx;
-	u32 rec_mb[2];
-} __packed;
+};
 
 #endif

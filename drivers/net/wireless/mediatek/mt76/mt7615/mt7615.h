@@ -107,6 +107,18 @@ struct mt7615_wtbl_rate_desc {
 	struct mt7615_sta *sta;
 };
 
+struct mt7663s_intr {
+	u32 isr;
+	struct {
+		u32 wtqcr[8];
+	} tx;
+	struct {
+		u16 num[2];
+		u16 len[2][16];
+	} rx;
+	u32 rec_mb[2];
+} __packed;
+
 struct mt7615_sta {
 	struct mt76_wcid wcid; /* must be first */
 

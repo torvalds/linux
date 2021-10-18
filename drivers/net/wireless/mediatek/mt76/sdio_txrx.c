@@ -135,32 +135,32 @@ mt76s_rx_run_queue(struct mt76_dev *dev, enum mt76_rxq_id qid,
 static int mt76s_rx_handler(struct mt76_dev *dev)
 {
 	struct mt76_sdio *sdio = &dev->sdio;
-	struct mt76s_intr *intr = sdio->intr_data;
+	struct mt76s_intr intr;
 	int nframes = 0, ret;
 
-	ret = sdio_readsb(sdio->func, intr, MCR_WHISR, sizeof(*intr));
-	if (ret < 0)
+	ret = sdio->parse_irq(dev, &intr);
+	if (ret)
 		return ret;
 
-	trace_dev_irq(dev, intr->isr, 0);
+	trace_dev_irq(dev, intr.isr, 0);
 
-	if (intr->isr & WHIER_RX0_DONE_INT_EN) {
-		ret = mt76s_rx_run_queue(dev, 0, intr);
+	if (intr.isr & WHIER_RX0_DONE_INT_EN) {
+		ret = mt76s_rx_run_queue(dev, 0, &intr);
 		if (ret > 0) {
 			mt76_worker_schedule(&sdio->net_worker);
 			nframes += ret;
 		}
 	}
 
-	if (intr->isr & WHIER_RX1_DONE_INT_EN) {
-		ret = mt76s_rx_run_queue(dev, 1, intr);
+	if (intr.isr & WHIER_RX1_DONE_INT_EN) {
+		ret = mt76s_rx_run_queue(dev, 1, &intr);
 		if (ret > 0) {
 			mt76_worker_schedule(&sdio->net_worker);
 			nframes += ret;
 		}
 	}
 
-	nframes += !!mt76s_refill_sched_quota(dev, intr->tx.wtqcr);
+	nframes += !!mt76s_refill_sched_quota(dev, intr.tx.wtqcr);
 
 	return nframes;
 }
