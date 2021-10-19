@@ -232,6 +232,7 @@ mlxsw_sp_qdisc_destroy(struct mlxsw_sp_port *mlxsw_sp_port,
 	struct mlxsw_sp_qdisc *root_qdisc = &mlxsw_sp_port->qdisc->root_qdisc;
 	int err_hdroom = 0;
 	int err = 0;
+	int i;
 
 	if (!mlxsw_sp_qdisc)
 		return 0;
@@ -249,6 +250,9 @@ mlxsw_sp_qdisc_destroy(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (!mlxsw_sp_qdisc->ops)
 		return 0;
 
+	for (i = 0; i < mlxsw_sp_qdisc->num_classes; i++)
+		mlxsw_sp_qdisc_destroy(mlxsw_sp_port,
+				       &mlxsw_sp_qdisc->qdiscs[i]);
 	mlxsw_sp_qdisc_reduce_parent_backlog(mlxsw_sp_qdisc);
 	if (mlxsw_sp_qdisc->ops->destroy)
 		err = mlxsw_sp_qdisc->ops->destroy(mlxsw_sp_port,
@@ -1123,8 +1127,6 @@ static int __mlxsw_sp_qdisc_ets_destroy(struct mlxsw_sp_port *mlxsw_sp_port,
 		mlxsw_sp_port_ets_set(mlxsw_sp_port,
 				      MLXSW_REG_QEEC_HR_SUBGROUP,
 				      i, 0, false, 0);
-		mlxsw_sp_qdisc_destroy(mlxsw_sp_port,
-				       &mlxsw_sp_qdisc->qdiscs[i]);
 	}
 
 	kfree(mlxsw_sp_qdisc->ets_data);
