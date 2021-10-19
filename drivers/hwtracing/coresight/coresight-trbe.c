@@ -477,10 +477,14 @@ static unsigned long trbe_normal_offset(struct perf_output_handle *handle)
 	 * If the head is too close to the limit and we don't
 	 * have space for a meaningful run, we rather pad it
 	 * and start fresh.
+	 *
+	 * We might have to do this more than once to make sure
+	 * we have enough required space.
 	 */
-	if (limit && ((limit - head) < trbe_min_trace_buf_size(handle))) {
+	while (limit && ((limit - head) < trbe_min_trace_buf_size(handle))) {
 		trbe_pad_buf(handle, limit - head);
 		limit = __trbe_normal_offset(handle);
+		head = PERF_IDX2OFF(handle->head, buf);
 	}
 	return limit;
 }
