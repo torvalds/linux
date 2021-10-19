@@ -463,7 +463,7 @@ static int rk628_reset_controller_register(struct rk628_cru *cru)
 	cru->rcdev.of_node = dev->of_node;
 	cru->rcdev.ops = &rk628_rgu_ops;
 
-	return reset_controller_register(&cru->rcdev);
+	return devm_reset_controller_register(dev, &cru->rcdev);
 }
 
 static const struct regmap_range rk628_cru_readable_ranges[] = {
@@ -583,10 +583,7 @@ static int rk628_cru_probe(struct platform_device *pdev)
 
 static int rk628_cru_remove(struct platform_device *pdev)
 {
-	struct rk628_cru *cru = dev_get_drvdata(&pdev->dev);
-
 	of_clk_del_provider(pdev->dev.of_node);
-	reset_controller_unregister(&cru->rcdev);
 
 	return 0;
 }
