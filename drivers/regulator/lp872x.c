@@ -103,7 +103,7 @@ struct lp872x {
 	enum lp872x_id chipid;
 	struct lp872x_platform_data *pdata;
 	int num_regulators;
-	enum lp872x_dvs_state dvs_pin;
+	enum gpiod_flags dvs_pin;
 };
 
 /* LP8720/LP8725 shared voltage table for LDOs */
@@ -251,9 +251,9 @@ static int lp872x_regulator_enable_time(struct regulator_dev *rdev)
 static void lp872x_set_dvs(struct lp872x *lp, enum lp872x_dvs_sel dvs_sel,
 			struct gpio_desc *gpio)
 {
-	enum lp872x_dvs_state state;
+	enum gpiod_flags state;
 
-	state = dvs_sel == SEL_V1 ? DVS_HIGH : DVS_LOW;
+	state = dvs_sel == SEL_V1 ? GPIOD_OUT_HIGH : GPIOD_OUT_LOW;
 	gpiod_set_value(gpio, state);
 	lp->dvs_pin = state;
 }
@@ -269,7 +269,7 @@ static u8 lp872x_select_buck_vout_addr(struct lp872x *lp,
 	switch (buck) {
 	case LP8720_ID_BUCK:
 		if (val & LP8720_EXT_DVS_M) {
-			addr = (lp->dvs_pin == DVS_HIGH) ?
+			addr = (lp->dvs_pin == GPIOD_OUT_HIGH) ?
 				LP8720_BUCK_VOUT1 : LP8720_BUCK_VOUT2;
 		} else {
 			if (lp872x_read_byte(lp, LP8720_ENABLE, &val))
@@ -283,7 +283,7 @@ static u8 lp872x_select_buck_vout_addr(struct lp872x *lp,
 		if (val & LP8725_DVS1_M)
 			addr = LP8725_BUCK1_VOUT1;
 		else
-			addr = (lp->dvs_pin == DVS_HIGH) ?
+			addr = (lp->dvs_pin == GPIOD_OUT_HIGH) ?
 				LP8725_BUCK1_VOUT1 : LP8725_BUCK1_VOUT2;
 		break;
 	case LP8725_ID_BUCK2:
@@ -675,7 +675,7 @@ static const struct regulator_desc lp8725_regulator_desc[] = {
 static int lp872x_init_dvs(struct lp872x *lp)
 {
 	struct lp872x_dvs *dvs = lp->pdata ? lp->pdata->dvs : NULL;
-	enum lp872x_dvs_state pinstate;
+	enum gpiod_flags pinstate;
 	u8 mask[] = { LP8720_EXT_DVS_M, LP8725_DVS1_M | LP8725_DVS2_M };
 	u8 default_dvs_mode[] = { LP8720_DEFAULT_DVS, LP8725_DEFAULT_DVS };
 
@@ -841,7 +841,7 @@ static struct lp872x_platform_data
 
 	of_property_read_u8(np, "ti,dvs-vsel", (u8 *)&pdata->dvs->vsel);
 	of_property_read_u8(np, "ti,dvs-state", &dvs_state);
-	pdata->dvs->init_state = dvs_state ? DVS_HIGH : DVS_LOW;
+	pdata->dvs->init_state = dvs_state ? GPIOD_OUT_HIGH : GPIOD_OUT_LOW;
 
 	if (of_get_child_count(np) == 0)
 		goto out;
