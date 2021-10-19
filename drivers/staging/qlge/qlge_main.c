@@ -724,9 +724,7 @@ static int qlge_get_8000_flash_params(struct qlge_adapter *qdev)
 		goto exit;
 	}
 
-	memcpy(qdev->ndev->dev_addr,
-	       mac_addr,
-	       qdev->ndev->addr_len);
+	eth_hw_addr_set(qdev->ndev, mac_addr);
 
 exit:
 	qlge_sem_unlock(qdev, SEM_FLASH_MASK);
@@ -774,9 +772,7 @@ static int qlge_get_8012_flash_params(struct qlge_adapter *qdev)
 		goto exit;
 	}
 
-	memcpy(qdev->ndev->dev_addr,
-	       qdev->flash.flash_params_8012.mac_addr,
-	       qdev->ndev->addr_len);
+	eth_hw_addr_set(qdev->ndev, qdev->flash.flash_params_8012.mac_addr);
 
 exit:
 	qlge_sem_unlock(qdev, SEM_FLASH_MASK);
@@ -4214,7 +4210,7 @@ static int qlge_set_mac_address(struct net_device *ndev, void *p)
 
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
-	memcpy(ndev->dev_addr, addr->sa_data, ndev->addr_len);
+	eth_hw_addr_set(ndev, addr->sa_data);
 	/* Update local copy of current mac address. */
 	memcpy(qdev->current_mac_addr, ndev->dev_addr, ndev->addr_len);
 

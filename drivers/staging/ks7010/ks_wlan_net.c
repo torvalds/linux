@@ -2490,7 +2490,7 @@ int ks_wlan_set_mac_address(struct net_device *dev, void *addr)
 
 	if (netif_running(dev))
 		return -EBUSY;
-	memcpy(dev->dev_addr, mac_addr->sa_data, dev->addr_len);
+	eth_hw_addr_set(dev, mac_addr->sa_data);
 	ether_addr_copy(priv->eth_addr, mac_addr->sa_data);
 
 	priv->mac_address_valid = false;

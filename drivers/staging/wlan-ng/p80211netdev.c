@@ -616,7 +616,7 @@ static int p80211knetdev_set_mac_address(struct net_device *dev, void *addr)
 		result = -EADDRNOTAVAIL;
 	} else {
 		/* everything's ok, change the addr in netdev */
-		memcpy(dev->dev_addr, new_addr->sa_data, dev->addr_len);
+		eth_hw_addr_set(dev, new_addr->sa_data);
 	}
 
 	return result;
