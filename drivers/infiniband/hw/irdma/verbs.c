@@ -3399,9 +3399,13 @@ static void irdma_process_cqe(struct ib_wc *entry,
 		}
 
 		if (cq_poll_info->ud_vlan_valid) {
-			entry->vlan_id = cq_poll_info->ud_vlan & VLAN_VID_MASK;
-			entry->wc_flags |= IB_WC_WITH_VLAN;
+			u16 vlan = cq_poll_info->ud_vlan & VLAN_VID_MASK;
+
 			entry->sl = cq_poll_info->ud_vlan >> VLAN_PRIO_SHIFT;
+			if (vlan) {
+				entry->vlan_id = vlan;
+				entry->wc_flags |= IB_WC_WITH_VLAN;
+			}
 		} else {
 			entry->sl = 0;
 		}
