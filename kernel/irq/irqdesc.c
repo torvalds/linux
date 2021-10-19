@@ -690,17 +690,11 @@ int handle_domain_irq(struct irq_domain *domain,
 		      unsigned int hwirq, struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
-	struct irq_desc *desc;
-	int ret = 0;
+	int ret;
 
 	irq_enter();
 
-	/* The irqdomain code provides boundary checks */
-	desc = irq_resolve_mapping(domain, hwirq);
-	if (likely(desc))
-		handle_irq_desc(desc);
-	else
-		ret = -EINVAL;
+	ret = generic_handle_domain_irq(domain, hwirq);
 
 	irq_exit();
 	set_irq_regs(old_regs);
@@ -721,24 +715,14 @@ int handle_domain_nmi(struct irq_domain *domain, unsigned int hwirq,
 		      struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
-	struct irq_desc *desc;
-	int ret = 0;
+	int ret;
 
 	/*
 	 * NMI context needs to be setup earlier in order to deal with tracing.
 	 */
 	WARN_ON(!in_nmi());
 
-	desc = irq_resolve_mapping(domain, hwirq);
-
-	/*
-	 * ack_bad_irq is not NMI-safe, just report
-	 * an invalid interrupt.
-	 */
-	if (likely(desc))
-		handle_irq_desc(desc);
-	else
-		ret = -EINVAL;
+	ret = generic_handle_domain_irq(domain, hwirq);
 
 	set_irq_regs(old_regs);
 	return ret;
