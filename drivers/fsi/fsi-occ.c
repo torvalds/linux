@@ -46,6 +46,9 @@ struct occ {
 	int idx;
 	u8 sequence_number;
 	void *buffer;
+	void *client_buffer;
+	size_t client_buffer_size;
+	size_t client_response_size;
 	enum versions version;
 	struct miscdevice mdev;
 	struct mutex occ_lock;
@@ -208,6 +211,22 @@ static const struct file_operations occ_fops = {
 	.release = occ_release,
 };
 
+static void occ_save_ffdc(struct occ *occ, __be32 *resp, size_t parsed_len,
+			  size_t resp_len)
+{
+	if (resp_len > parsed_len) {
+		size_t dh = resp_len - parsed_len;
+		size_t ffdc_len = (dh - 1) * 4; /* SBE words are four bytes */
+		__be32 *ffdc = &resp[parsed_len];
+
+		if (ffdc_len > occ->client_buffer_size)
+			ffdc_len = occ->client_buffer_size;
+
+		memcpy(occ->client_buffer, ffdc, ffdc_len);
+		occ->client_response_size = ffdc_len;
+	}
+}
+
 static int occ_verify_checksum(struct occ *occ, struct occ_response *resp,
 			       u16 data_length)
 {
@@ -236,7 +255,7 @@ static int occ_verify_checksum(struct occ *occ, struct occ_response *resp,
 static int occ_getsram(struct occ *occ, u32 offset, void *data, ssize_t len)
 {
 	u32 data_len = ((len + 7) / 8) * 8;	/* must be multiples of 8 B */
-	size_t cmd_len, resp_data_len;
+	size_t cmd_len, parsed_len, resp_data_len;
 	size_t resp_len = OCC_MAX_RESP_WORDS;
 	__be32 *resp = occ->buffer;
 	__be32 cmd[6];
@@ -271,16 +290,17 @@ static int occ_getsram(struct occ *occ, u32 offset, void *data, ssize_t len)
 		return rc;
 
 	rc = sbefifo_parse_status(occ->sbefifo, SBEFIFO_CMD_GET_OCC_SRAM,
-				  resp, resp_len, &resp_len);
+				  resp, resp_len, &parsed_len);
 	if (rc > 0) {
 		dev_err(occ->dev, "SRAM read returned failure status: %08x\n",
 			rc);
-		return -EBADMSG;
+		occ_save_ffdc(occ, resp, parsed_len, resp_len);
+		return -ECOMM;
 	} else if (rc) {
 		return rc;
 	}
 
-	resp_data_len = be32_to_cpu(resp[resp_len - 1]);
+	resp_data_len = be32_to_cpu(resp[parsed_len - 1]);
 	if (resp_data_len != data_len) {
 		dev_err(occ->dev, "SRAM read expected %d bytes got %zd\n",
 			data_len, resp_data_len);
@@ -296,7 +316,7 @@ static int occ_putsram(struct occ *occ, const void *data, ssize_t len,
 		       u8 seq_no, u16 checksum)
 {
 	u32 data_len = ((len + 7) / 8) * 8;	/* must be multiples of 8 B */
-	size_t cmd_len, resp_data_len;
+	size_t cmd_len, parsed_len, resp_data_len;
 	size_t resp_len = OCC_MAX_RESP_WORDS;
 	__be32 *buf = occ->buffer;
 	u8 *byte_buf;
@@ -343,18 +363,19 @@ static int occ_putsram(struct occ *occ, const void *data, ssize_t len,
 		return rc;
 
 	rc = sbefifo_parse_status(occ->sbefifo, SBEFIFO_CMD_PUT_OCC_SRAM,
-				  buf, resp_len, &resp_len);
+				  buf, resp_len, &parsed_len);
 	if (rc > 0) {
 		dev_err(occ->dev, "SRAM write returned failure status: %08x\n",
 			rc);
-		return -EBADMSG;
+		occ_save_ffdc(occ, buf, parsed_len, resp_len);
+		return -ECOMM;
 	} else if (rc) {
 		return rc;
 	}
 
-	if (resp_len != 1) {
+	if (parsed_len != 1) {
 		dev_err(occ->dev, "SRAM write response length invalid: %zd\n",
-			resp_len);
+			parsed_len);
 		rc = -EBADMSG;
 	} else {
 		resp_data_len = be32_to_cpu(buf[0]);
@@ -372,7 +393,7 @@ static int occ_putsram(struct occ *occ, const void *data, ssize_t len,
 static int occ_trigger_attn(struct occ *occ)
 {
 	__be32 *buf = occ->buffer;
-	size_t cmd_len, resp_data_len;
+	size_t cmd_len, parsed_len, resp_data_len;
 	size_t resp_len = OCC_MAX_RESP_WORDS;
 	int idx = 0, rc;
 
@@ -403,18 +424,19 @@ static int occ_trigger_attn(struct occ *occ)
 		return rc;
 
 	rc = sbefifo_parse_status(occ->sbefifo, SBEFIFO_CMD_PUT_OCC_SRAM,
-				  buf, resp_len, &resp_len);
+				  buf, resp_len, &parsed_len);
 	if (rc > 0) {
 		dev_err(occ->dev, "SRAM attn returned failure status: %08x\n",
 			rc);
-		return -EBADMSG;
+		occ_save_ffdc(occ, buf, parsed_len, resp_len);
+		return -ECOMM;
 	} else if (rc) {
 		return rc;
 	}
 
-	if (resp_len != 1) {
+	if (parsed_len != 1) {
 		dev_err(occ->dev, "SRAM attn response length invalid: %zd\n",
-			resp_len);
+			parsed_len);
 		rc = -EBADMSG;
 	} else {
 		resp_data_len = be32_to_cpu(buf[0]);
@@ -437,6 +459,7 @@ int fsi_occ_submit(struct device *dev, const void *request, size_t req_len,
 		msecs_to_jiffies(OCC_CMD_IN_PRG_WAIT_MS);
 	struct occ *occ = dev_get_drvdata(dev);
 	struct occ_response *resp = response;
+	size_t user_resp_len = *resp_len;
 	u8 seq_no;
 	u16 checksum = 0;
 	u16 resp_data_length;
@@ -445,11 +468,13 @@ int fsi_occ_submit(struct device *dev, const void *request, size_t req_len,
 	int rc;
 	size_t i;
 
+	*resp_len = 0;
+
 	if (!occ)
 		return -ENODEV;
 
-	if (*resp_len < 7) {
-		dev_dbg(dev, "Bad resplen %zd\n", *resp_len);
+	if (user_resp_len < 7) {
+		dev_dbg(dev, "Bad resplen %zd\n", user_resp_len);
 		return -EINVAL;
 	}
 
@@ -458,6 +483,10 @@ int fsi_occ_submit(struct device *dev, const void *request, size_t req_len,
 		checksum += byte_request[i];
 
 	mutex_lock(&occ->occ_lock);
+
+	occ->client_buffer = response;
+	occ->client_buffer_size = user_resp_len;
+	occ->client_response_size = 0;
 
 	/*
 	 * Get a sequence number and update the counter. Avoid a sequence
@@ -509,7 +538,7 @@ int fsi_occ_submit(struct device *dev, const void *request, size_t req_len,
 	resp_data_length = get_unaligned_be16(&resp->data_length);
 
 	/* Message size is data length + 5 bytes header + 2 bytes checksum */
-	if ((resp_data_length + 7) > *resp_len) {
+	if ((resp_data_length + 7) > user_resp_len) {
 		rc = -EMSGSIZE;
 		goto done;
 	}
@@ -525,10 +554,11 @@ int fsi_occ_submit(struct device *dev, const void *request, size_t req_len,
 			goto done;
 	}
 
-	*resp_len = resp_data_length + 7;
+	occ->client_response_size = resp_data_length + 7;
 	rc = occ_verify_checksum(occ, resp, resp_data_length);
 
  done:
+	*resp_len = occ->client_response_size;
 	mutex_unlock(&occ->occ_lock);
 
 	return rc;
