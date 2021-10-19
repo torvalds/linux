@@ -217,10 +217,9 @@ static int noa1305_probe(struct i2c_client *client,
 	priv = iio_priv(indio_dev);
 
 	priv->vin_reg = devm_regulator_get(&client->dev, "vin");
-	if (IS_ERR(priv->vin_reg)) {
-		dev_err(&client->dev, "get regulator vin failed\n");
-		return PTR_ERR(priv->vin_reg);
-	}
+	if (IS_ERR(priv->vin_reg))
+		return dev_err_probe(&client->dev, PTR_ERR(priv->vin_reg),
+				     "get regulator vin failed\n");
 
 	ret = regulator_enable(priv->vin_reg);
 	if (ret) {

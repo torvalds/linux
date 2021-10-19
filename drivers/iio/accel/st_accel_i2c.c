@@ -177,27 +177,7 @@ static int st_accel_i2c_probe(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	ret = st_accel_common_probe(indio_dev);
-	if (ret < 0)
-		goto st_accel_power_off;
-
-	return 0;
-
-st_accel_power_off:
-	st_sensors_power_disable(indio_dev);
-
-	return ret;
-}
-
-static int st_accel_i2c_remove(struct i2c_client *client)
-{
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-
-	st_sensors_power_disable(indio_dev);
-
-	st_accel_common_remove(indio_dev);
-
-	return 0;
+	return st_accel_common_probe(indio_dev);
 }
 
 static struct i2c_driver st_accel_driver = {
@@ -207,7 +187,6 @@ static struct i2c_driver st_accel_driver = {
 		.acpi_match_table = ACPI_PTR(st_accel_acpi_match),
 	},
 	.probe_new = st_accel_i2c_probe,
-	.remove = st_accel_i2c_remove,
 	.id_table = st_accel_id_table,
 };
 module_i2c_driver(st_accel_driver);

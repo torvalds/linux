@@ -118,6 +118,19 @@ config SCD30_SERIAL
 	  To compile this driver as a module, choose M here: the module will
 	  be called scd30_serial.
 
+config SCD4X
+	tristate "SCD4X carbon dioxide sensor driver"
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	depends on I2C
+	select CRC8
+	help
+	  Say Y here to build support for the Sensirion SCD4X sensor with carbon
+	  dioxide, relative humidity and temperature sensing capabilities.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called scd4x.
+
 config SENSIRION_SGP30
 	tristate "Sensirion SGPxx gas sensors"
 	depends on I2C
@@ -169,6 +182,17 @@ config SPS30_SERIAL
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called sps30_serial.
+
+config SENSEAIR_SUNRISE_CO2
+	tristate "Senseair Sunrise 006-0-0007 CO2 sensor"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say yes here to build support for Senseair Sunrise 006-0-0007 CO2
+	  sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sunrise_co2.
 
 config VZ89X
 	tristate "SGX Sensortech MiCS VZ89X VOC sensor"

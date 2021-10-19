@@ -536,7 +536,7 @@ int bmi088_accel_core_probe(struct device *dev, struct regmap *regmap,
 EXPORT_SYMBOL_GPL(bmi088_accel_core_probe);
 
 
-int bmi088_accel_core_remove(struct device *dev)
+void bmi088_accel_core_remove(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct bmi088_accel_data *data = iio_priv(indio_dev);
@@ -546,8 +546,6 @@ int bmi088_accel_core_remove(struct device *dev)
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
 	bmi088_accel_power_down(data);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(bmi088_accel_core_remove);
 

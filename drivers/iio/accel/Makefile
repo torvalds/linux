@@ -6,9 +6,15 @@
 # When adding new entries keep the list in alphabetical order
 obj-$(CONFIG_ADIS16201) += adis16201.o
 obj-$(CONFIG_ADIS16209) += adis16209.o
+obj-$(CONFIG_ADXL313) += adxl313_core.o
+obj-$(CONFIG_ADXL313_I2C) += adxl313_i2c.o
+obj-$(CONFIG_ADXL313_SPI) += adxl313_spi.o
 obj-$(CONFIG_ADXL345) += adxl345_core.o
 obj-$(CONFIG_ADXL345_I2C) += adxl345_i2c.o
 obj-$(CONFIG_ADXL345_SPI) += adxl345_spi.o
+obj-$(CONFIG_ADXL355) += adxl355_core.o
+obj-$(CONFIG_ADXL355_I2C) += adxl355_i2c.o
+obj-$(CONFIG_ADXL355_SPI) += adxl355_spi.o
 obj-$(CONFIG_ADXL372) += adxl372.o
 obj-$(CONFIG_ADXL372_I2C) += adxl372_i2c.o
 obj-$(CONFIG_ADXL372_SPI) += adxl372_spi.o

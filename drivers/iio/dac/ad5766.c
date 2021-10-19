@@ -5,10 +5,13 @@
  * Copyright 2019-2020 Analog Devices Inc.
  */
 #include <linux/bitfield.h>
+#include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/gpio/consumer.h>
 #include <linux/iio/iio.h>
+#include <linux/iio/triggered_buffer.h>
+#include <linux/iio/trigger_consumer.h>
 #include <linux/module.h>
 #include <linux/spi/spi.h>
 #include <asm/unaligned.h>
@@ -455,6 +458,7 @@ static const struct iio_chan_spec_ext_info ad5766_ext_info[] = {
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),			\
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_OFFSET) |		\
 		BIT(IIO_CHAN_INFO_SCALE),				\
+	.scan_index = (_chan),						\
 	.scan_type = {							\
 		.sign = 'u',						\
 		.realbits = (_bits),					\
@@ -576,6 +580,35 @@ static int ad5766_default_setup(struct ad5766_state *st)
 	return  __ad5766_spi_write(st, AD5766_CMD_SPAN_REG, st->crt_range);
 }
 
+static irqreturn_t ad5766_trigger_handler(int irq, void *p)
+{
+	struct iio_poll_func *pf = p;
+	struct iio_dev *indio_dev = pf->indio_dev;
+	struct iio_buffer *buffer = indio_dev->buffer;
+	struct ad5766_state *st = iio_priv(indio_dev);
+	int ret, ch, i;
+	u16 data[ARRAY_SIZE(ad5766_channels)];
+
+	ret = iio_pop_from_buffer(buffer, data);
+	if (ret)
+		goto done;
+
+	i = 0;
+	mutex_lock(&st->lock);
+	for_each_set_bit(ch, indio_dev->active_scan_mask,
+			 st->chip_info->num_channels - 1)
+		__ad5766_spi_write(st, AD5766_CMD_WR_IN_REG(ch), data[i++]);
+
+	__ad5766_spi_write(st, AD5766_CMD_SW_LDAC,
+			   *indio_dev->active_scan_mask);
+	mutex_unlock(&st->lock);
+
+done:
+	iio_trigger_notify_done(indio_dev->trig);
+
+	return IRQ_HANDLED;
+}
+
 static int ad5766_probe(struct spi_device *spi)
 {
 	enum ad5766_type type;
@@ -606,6 +639,15 @@ static int ad5766_probe(struct spi_device *spi)
 		return PTR_ERR(st->gpio_reset);
 
 	ret = ad5766_default_setup(st);
+	if (ret)
+		return ret;
+
+	/* Configure trigger buffer */
+	ret = devm_iio_triggered_buffer_setup_ext(&spi->dev, indio_dev, NULL,
+						  ad5766_trigger_handler,
+						  IIO_BUFFER_DIRECTION_OUT,
+						  NULL,
+						  NULL);
 	if (ret)
 		return ret;
 

@@ -319,7 +319,6 @@ static int rockchip_saradc_probe(struct platform_device *pdev)
 	struct rockchip_saradc *info = NULL;
 	struct device_node *np = pdev->dev.of_node;
 	struct iio_dev *indio_dev = NULL;
-	struct resource	*mem;
 	const struct of_device_id *match;
 	int ret;
 	int irq;
@@ -348,8 +347,7 @@ static int rockchip_saradc_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	info->regs = devm_ioremap_resource(&pdev->dev, mem);
+	info->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(info->regs))
 		return PTR_ERR(info->regs);
 
