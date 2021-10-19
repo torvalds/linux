@@ -494,6 +494,7 @@ void raw_spin_rq_lock_nested(struct rq *rq, int subclass)
 		raw_spin_unlock(lock);
 	}
 }
+EXPORT_SYMBOL_GPL(raw_spin_rq_lock_nested);
 
 bool raw_spin_rq_trylock(struct rq *rq)
 {
@@ -523,6 +524,7 @@ void raw_spin_rq_unlock(struct rq *rq)
 {
 	raw_spin_unlock(rq_lockp(rq));
 }
+EXPORT_SYMBOL_GPL(raw_spin_rq_unlock);
 
 #ifdef CONFIG_SMP
 /*
@@ -541,6 +543,7 @@ void double_rq_lock(struct rq *rq1, struct rq *rq2)
 
 	raw_spin_rq_lock_nested(rq2, SINGLE_DEPTH_NESTING);
 }
+EXPORT_SYMBOL_GPL(double_rq_lock);
 #endif
 
 /*
