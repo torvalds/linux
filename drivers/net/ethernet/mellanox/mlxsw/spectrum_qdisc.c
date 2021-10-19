@@ -157,8 +157,7 @@ mlxsw_sp_qdisc_walk_cb_find(struct mlxsw_sp_qdisc *qdisc, void *data)
 }
 
 static struct mlxsw_sp_qdisc *
-mlxsw_sp_qdisc_find(struct mlxsw_sp_port *mlxsw_sp_port, u32 parent,
-		    bool root_only)
+mlxsw_sp_qdisc_find(struct mlxsw_sp_port *mlxsw_sp_port, u32 parent)
 {
 	struct mlxsw_sp_qdisc_state *qdisc_state = mlxsw_sp_port->qdisc;
 
@@ -166,8 +165,6 @@ mlxsw_sp_qdisc_find(struct mlxsw_sp_port *mlxsw_sp_port, u32 parent,
 		return NULL;
 	if (parent == TC_H_ROOT)
 		return &qdisc_state->root_qdisc;
-	if (root_only)
-		return NULL;
 	return mlxsw_sp_qdisc_walk(&qdisc_state->root_qdisc,
 				   mlxsw_sp_qdisc_walk_cb_find, &parent);
 }
@@ -268,6 +265,78 @@ mlxsw_sp_qdisc_destroy(struct mlxsw_sp_port *mlxsw_sp_port,
 	return err_hdroom ?: err;
 }
 
+struct mlxsw_sp_qdisc_tree_validate {
+	bool forbid_ets;
+	bool forbid_tbf;
+	bool forbid_red;
+};
+
+static int
+__mlxsw_sp_qdisc_tree_validate(struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
+			       struct mlxsw_sp_qdisc_tree_validate validate);
+
+static int
+mlxsw_sp_qdisc_tree_validate_children(struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
+				      struct mlxsw_sp_qdisc_tree_validate validate)
+{
+	unsigned int i;
+	int err;
+
+	for (i = 0; i < mlxsw_sp_qdisc->num_classes; i++) {
+		err = __mlxsw_sp_qdisc_tree_validate(&mlxsw_sp_qdisc->qdiscs[i],
+						     validate);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static int
+__mlxsw_sp_qdisc_tree_validate(struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
+			       struct mlxsw_sp_qdisc_tree_validate validate)
+{
+	if (!mlxsw_sp_qdisc->ops)
+		return 0;
+
+	switch (mlxsw_sp_qdisc->ops->type) {
+	case MLXSW_SP_QDISC_FIFO:
+		break;
+	case MLXSW_SP_QDISC_RED:
+		if (validate.forbid_red)
+			return -EINVAL;
+		validate.forbid_red = true;
+		validate.forbid_ets = true;
+		break;
+	case MLXSW_SP_QDISC_TBF:
+		if (validate.forbid_tbf)
+			return -EINVAL;
+		validate.forbid_tbf = true;
+		validate.forbid_ets = true;
+		break;
+	case MLXSW_SP_QDISC_PRIO:
+	case MLXSW_SP_QDISC_ETS:
+		if (validate.forbid_ets)
+			return -EINVAL;
+		validate.forbid_ets = true;
+		break;
+	default:
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
+	return mlxsw_sp_qdisc_tree_validate_children(mlxsw_sp_qdisc, validate);
+}
+
+static int mlxsw_sp_qdisc_tree_validate(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	struct mlxsw_sp_qdisc_tree_validate validate = {};
+	struct mlxsw_sp_qdisc *mlxsw_sp_qdisc;
+
+	mlxsw_sp_qdisc = &mlxsw_sp_port->qdisc->root_qdisc;
+	return __mlxsw_sp_qdisc_tree_validate(mlxsw_sp_qdisc, validate);
+}
+
 static int mlxsw_sp_qdisc_create(struct mlxsw_sp_port *mlxsw_sp_port,
 				 u32 handle,
 				 struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
@@ -310,6 +379,10 @@ static int mlxsw_sp_qdisc_create(struct mlxsw_sp_port *mlxsw_sp_port,
 	mlxsw_sp_qdisc->num_classes = ops->num_classes;
 	mlxsw_sp_qdisc->ops = ops;
 	mlxsw_sp_qdisc->handle = handle;
+	err = mlxsw_sp_qdisc_tree_validate(mlxsw_sp_port);
+	if (err)
+		goto err_replace;
+
 	err = ops->replace(mlxsw_sp_port, handle, mlxsw_sp_qdisc, params);
 	if (err)
 		goto err_replace;
@@ -748,7 +821,7 @@ static int __mlxsw_sp_setup_tc_red(struct mlxsw_sp_port *mlxsw_sp_port,
 {
 	struct mlxsw_sp_qdisc *mlxsw_sp_qdisc;
 
-	mlxsw_sp_qdisc = mlxsw_sp_qdisc_find(mlxsw_sp_port, p->parent, false);
+	mlxsw_sp_qdisc = mlxsw_sp_qdisc_find(mlxsw_sp_port, p->parent);
 	if (!mlxsw_sp_qdisc)
 		return -EOPNOTSUPP;
 
@@ -964,7 +1037,7 @@ static int __mlxsw_sp_setup_tc_tbf(struct mlxsw_sp_port *mlxsw_sp_port,
 {
 	struct mlxsw_sp_qdisc *mlxsw_sp_qdisc;
 
-	mlxsw_sp_qdisc = mlxsw_sp_qdisc_find(mlxsw_sp_port, p->parent, false);
+	mlxsw_sp_qdisc = mlxsw_sp_qdisc_find(mlxsw_sp_port, p->parent);
 	if (!mlxsw_sp_qdisc)
 		return -EOPNOTSUPP;
 
@@ -1070,7 +1143,7 @@ static int __mlxsw_sp_setup_tc_fifo(struct mlxsw_sp_port *mlxsw_sp_port,
 	unsigned int band;
 	u32 parent_handle;
 
-	mlxsw_sp_qdisc = mlxsw_sp_qdisc_find(mlxsw_sp_port, p->parent, false);
+	mlxsw_sp_qdisc = mlxsw_sp_qdisc_find(mlxsw_sp_port, p->parent);
 	if (!mlxsw_sp_qdisc && p->handle == TC_H_UNSPEC) {
 		parent_handle = TC_H_MAJ(p->parent);
 		if (parent_handle != qdisc_state->future_handle) {
@@ -1534,7 +1607,7 @@ static int __mlxsw_sp_setup_tc_prio(struct mlxsw_sp_port *mlxsw_sp_port,
 {
 	struct mlxsw_sp_qdisc *mlxsw_sp_qdisc;
 
-	mlxsw_sp_qdisc = mlxsw_sp_qdisc_find(mlxsw_sp_port, p->parent, true);
+	mlxsw_sp_qdisc = mlxsw_sp_qdisc_find(mlxsw_sp_port, p->parent);
 	if (!mlxsw_sp_qdisc)
 		return -EOPNOTSUPP;
 
@@ -1579,7 +1652,7 @@ static int __mlxsw_sp_setup_tc_ets(struct mlxsw_sp_port *mlxsw_sp_port,
 {
 	struct mlxsw_sp_qdisc *mlxsw_sp_qdisc;
 
-	mlxsw_sp_qdisc = mlxsw_sp_qdisc_find(mlxsw_sp_port, p->parent, true);
+	mlxsw_sp_qdisc = mlxsw_sp_qdisc_find(mlxsw_sp_port, p->parent);
 	if (!mlxsw_sp_qdisc)
 		return -EOPNOTSUPP;
 
