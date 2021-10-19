@@ -95,7 +95,7 @@
 		};
 	};
 
-	memory {
+	memory@0 {
 		device_type = "memory";
 		reg = <0x0 0x0>;
 	};
@@ -1230,13 +1230,17 @@
 				  &gfx3d1 30
 				  &gfx3d1 31>;
 
-			qcom,gpu-pwrlevels {
-				compatible = "qcom,gpu-pwrlevels";
-				qcom,gpu-pwrlevel@0 {
-					qcom,gpu-freq = <450000000>;
+			operating-points-v2 = <&gpu_opp_table>;
+
+			gpu_opp_table: opp-table {
+				compatible = "operating-points-v2";
+
+				opp-320000000 {
+					opp-hz = /bits/ 64 <450000000>;
 				};
-				qcom,gpu-pwrlevel@1 {
-					qcom,gpu-freq = <27000000>;
+
+				opp-27000000 {
+					opp-hz = /bits/ 64 <27000000>;
 				};
 			};
 		};

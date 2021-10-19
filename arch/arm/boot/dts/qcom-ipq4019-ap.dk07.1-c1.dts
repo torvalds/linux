@@ -5,7 +5,7 @@
 
 / {
 	model = "Qualcomm Technologies, Inc. IPQ4019/AP-DK07.1-C1";
-	compatible = "qcom,ipq4019-ap-dk07.1-c1";
+	compatible = "qcom,ipq4019-ap-dk07.1-c1", "qcom,ipq4019";
 
 	soc {
 		pci@40000000 {
