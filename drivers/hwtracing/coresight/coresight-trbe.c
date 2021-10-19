@@ -16,6 +16,8 @@
 #define pr_fmt(fmt) DRVNAME ": " fmt
 
 #include <asm/barrier.h>
+#include <asm/cpufeature.h>
+
 #include "coresight-self-hosted-trace.h"
 #include "coresight-trbe.h"
 
@@ -68,6 +70,34 @@ struct trbe_buf {
 };
 
 /*
+ * TRBE erratum list
+ *
+ * The errata are defined in arm64 generic cpu_errata framework.
+ * Since the errata work arounds could be applied individually
+ * to the affected CPUs inside the TRBE driver, we need to know if
+ * a given CPU is affected by the erratum. Unlike the other erratum
+ * work arounds, TRBE driver needs to check multiple times during
+ * a trace session. Thus we need a quicker access to per-CPU
+ * errata and not issue costly this_cpu_has_cap() everytime.
+ * We keep a set of the affected errata in trbe_cpudata, per TRBE.
+ *
+ * We rely on the corresponding cpucaps to be defined for a given
+ * TRBE erratum. We map the given cpucap into a TRBE internal number
+ * to make the tracking of the errata lean.
+ *
+ * This helps in :
+ *   - Not duplicating the detection logic
+ *   - Streamlined detection of erratum across the system
+ */
+
+static int trbe_errata_cpucaps[] = {
+	-1,		/* Sentinel, must be the last entry */
+};
+
+/* The total number of listed errata in trbe_errata_cpucaps */
+#define TRBE_ERRATA_MAX			(ARRAY_SIZE(trbe_errata_cpucaps) - 1)
+
+/*
  * struct trbe_cpudata: TRBE instance specific data
  * @trbe_flag		- TRBE dirty/access flag support
  * @trbe_hw_align	- Actual TRBE alignment required for TRBPTR_EL1.
@@ -75,6 +105,7 @@ struct trbe_buf {
  * @cpu			- CPU this TRBE belongs to.
  * @mode		- Mode of current operation. (perf/disabled)
  * @drvdata		- TRBE specific drvdata
+ * @errata		- Bit map for the errata on this TRBE.
  */
 struct trbe_cpudata {
 	bool trbe_flag;
@@ -84,6 +115,7 @@ struct trbe_cpudata {
 	enum cs_mode mode;
 	struct trbe_buf *buf;
 	struct trbe_drvdata *drvdata;
+	DECLARE_BITMAP(errata, TRBE_ERRATA_MAX);
 };
 
 struct trbe_drvdata {
@@ -95,6 +127,25 @@ struct trbe_drvdata {
 	enum cpuhp_state trbe_online;
 	struct platform_device *pdev;
 };
+
+static void trbe_check_errata(struct trbe_cpudata *cpudata)
+{
+	int i;
+
+	for (i = 0; i < TRBE_ERRATA_MAX; i++) {
+		int cap = trbe_errata_cpucaps[i];
+
+		if (WARN_ON_ONCE(cap < 0))
+			return;
+		if (this_cpu_has_cap(cap))
+			set_bit(i, cpudata->errata);
+	}
+}
+
+static inline bool trbe_has_erratum(struct trbe_cpudata *cpudata, int i)
+{
+	return (i < TRBE_ERRATA_MAX) && test_bit(i, cpudata->errata);
+}
 
 static int trbe_alloc_node(struct perf_event *event)
 {
@@ -956,6 +1007,9 @@ cpu_clear:
 	cpumask_clear_cpu(cpu, &drvdata->supported_cpus);
 }
 
+/*
+ * Must be called with preemption disabled, for trbe_check_errata().
+ */
 static void arm_trbe_probe_cpu(void *info)
 {
 	struct trbe_drvdata *drvdata = info;
@@ -982,6 +1036,12 @@ static void arm_trbe_probe_cpu(void *info)
 		pr_err("Unsupported alignment on cpu %d\n", cpu);
 		goto cpu_clear;
 	}
+
+	/*
+	 * Run the TRBE erratum checks, now that we know
+	 * this instance is about to be registered.
+	 */
+	trbe_check_errata(cpudata);
 
 	cpudata->trbe_align = cpudata->trbe_hw_align;
 	cpudata->trbe_flag = get_trbe_flag_update(trbidr);
@@ -1038,6 +1098,13 @@ static int arm_trbe_remove_coresight(struct trbe_drvdata *drvdata)
 	return 0;
 }
 
+static void arm_trbe_probe_hotplugged_cpu(struct trbe_drvdata *drvdata)
+{
+	preempt_disable();
+	arm_trbe_probe_cpu(drvdata);
+	preempt_enable();
+}
+
 static int arm_trbe_cpu_startup(unsigned int cpu, struct hlist_node *node)
 {
 	struct trbe_drvdata *drvdata = hlist_entry_safe(node, struct trbe_drvdata, hotplug_node);
@@ -1049,7 +1116,7 @@ static int arm_trbe_cpu_startup(unsigned int cpu, struct hlist_node *node)
 		 * initialize it now.
 		 */
 		if (!coresight_get_percpu_sink(cpu)) {
-			arm_trbe_probe_cpu(drvdata);
+			arm_trbe_probe_hotplugged_cpu(drvdata);
 			if (cpumask_test_cpu(cpu, &drvdata->supported_cpus))
 				arm_trbe_register_coresight_cpu(drvdata, cpu);
 			if (cpumask_test_cpu(cpu, &drvdata->supported_cpus))
