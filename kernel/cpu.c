@@ -1073,7 +1073,7 @@ static int cpu_down(unsigned int cpu, enum cpuhp_state target)
 {
 	int err;
 
-	trace_android_vh_cpu_down(NULL);
+	trace_android_vh_cpu_down(cpu);
 
 	cpu_maps_update_begin();
 	err = cpu_down_maps_locked(cpu, target);
@@ -1538,7 +1538,7 @@ static int cpu_up(unsigned int cpu, enum cpuhp_state target)
 		return -EINVAL;
 	}
 
-	trace_android_vh_cpu_up(NULL);
+	trace_android_vh_cpu_up(cpu);
 
 	/*
 	 * CPU hotplug operations consists of many steps and each step
