@@ -23,15 +23,9 @@ struct pipe_inode_info;
 #ifdef CONFIG_BLOCK
 extern void __init bdev_cache_init(void);
 
-void iterate_bdevs(void (*)(struct block_device *, void *), void *);
 void emergency_thaw_bdev(struct super_block *sb);
 #else
 static inline void bdev_cache_init(void)
-{
-}
-
-static inline void iterate_bdevs(void (*f)(struct block_device *, void *),
-		void *arg)
 {
 }
 static inline int emergency_thaw_bdev(struct super_block *sb)

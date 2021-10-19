@@ -2000,6 +2000,7 @@ int truncate_bdev_range(struct block_device *bdev, fmode_t mode, loff_t lstart,
 void invalidate_bdev(struct block_device *bdev);
 int sync_blockdev(struct block_device *bdev);
 int sync_blockdev_nowait(struct block_device *bdev);
+void sync_bdevs(bool wait);
 #else
 static inline void invalidate_bdev(struct block_device *bdev)
 {
@@ -2011,6 +2012,9 @@ static inline int sync_blockdev(struct block_device *bdev)
 static inline int sync_blockdev_nowait(struct block_device *bdev)
 {
 	return 0;
+}
+static inline void sync_bdevs(bool wait)
+{
 }
 #endif
 int fsync_bdev(struct block_device *bdev);
