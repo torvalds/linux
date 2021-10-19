@@ -672,7 +672,6 @@ config ARM64_WORKAROUND_TRBE_OVERWRITE_FILL_MODE
 config ARM64_ERRATUM_2119858
 	bool "Cortex-A710: 2119858: workaround TRBE overwriting trace data in FILL mode"
 	default y
-	depends on COMPILE_TEST # Until the CoreSight TRBE driver changes are in
 	depends on CORESIGHT_TRBE
 	select ARM64_WORKAROUND_TRBE_OVERWRITE_FILL_MODE
 	help
@@ -691,7 +690,6 @@ config ARM64_ERRATUM_2119858
 config ARM64_ERRATUM_2139208
 	bool "Neoverse-N2: 2139208: workaround TRBE overwriting trace data in FILL mode"
 	default y
-	depends on COMPILE_TEST # Until the CoreSight TRBE driver changes are in
 	depends on CORESIGHT_TRBE
 	select ARM64_WORKAROUND_TRBE_OVERWRITE_FILL_MODE
 	help
