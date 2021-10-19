@@ -406,7 +406,7 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	rtw_macaddr_cfg(padapter->eeprompriv.mac_addr);
 	rtw_init_wifidirect_addrs(padapter, padapter->eeprompriv.mac_addr,
 				  padapter->eeprompriv.mac_addr);
-	memcpy(pnetdev->dev_addr, padapter->eeprompriv.mac_addr, ETH_ALEN);
+	eth_hw_addr_set(pnetdev, padapter->eeprompriv.mac_addr);
 	DBG_88E("MAC Address from pnetdev->dev_addr =  %pM\n",
 		pnetdev->dev_addr);
 

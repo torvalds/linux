@@ -2307,7 +2307,7 @@ static int rtl8192_read_eeprom_info(struct net_device *dev)
 			*(u16 *)(&dev->dev_addr[i]) = (u16)ret;
 		}
 	} else {
-		memcpy(dev->dev_addr, bMac_Tmp_Addr, 6);
+		eth_hw_addr_set(dev, bMac_Tmp_Addr);
 		/* should I set IDR0 here? */
 	}
 	RT_TRACE(COMP_EPROM, "MAC addr:%pM\n", dev->dev_addr);

@@ -789,7 +789,7 @@ static int _rtw_drv_register_netdev(struct adapter *padapter, char *name)
 	if (rtw_init_netdev_name(pnetdev, name))
 		return _FAIL;
 
-	memcpy(pnetdev->dev_addr, padapter->eeprompriv.mac_addr, ETH_ALEN);
+	eth_hw_addr_set(pnetdev, padapter->eeprompriv.mac_addr);
 
 	/* Tell the network stack we exist */
 	if (register_netdev(pnetdev) != 0) {
