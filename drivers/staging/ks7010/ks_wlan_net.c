@@ -2625,7 +2625,7 @@ int ks_wlan_net_start(struct net_device *dev)
 
 	/* dummy address set */
 	ether_addr_copy(priv->eth_addr, dummy_addr);
-	ether_addr_copy(dev->dev_addr, priv->eth_addr);
+	eth_hw_addr_set(dev, priv->eth_addr);
 
 	/* The ks_wlan-specific entries in the device structure. */
 	dev->netdev_ops = &ks_wlan_netdev_ops;

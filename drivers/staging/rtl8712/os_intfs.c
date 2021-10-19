@@ -166,7 +166,7 @@ static int r871x_net_set_mac_address(struct net_device *pnetdev, void *p)
 	struct sockaddr *addr = p;
 
 	if (!padapter->bup)
-		ether_addr_copy(pnetdev->dev_addr, addr->sa_data);
+		eth_hw_addr_set(pnetdev, addr->sa_data);
 	return 0;
 }
 

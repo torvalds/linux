@@ -563,7 +563,7 @@ static int r871xu_drv_init(struct usb_interface *pusb_intf,
 			dev_info(&udev->dev,
 				"r8712u: MAC Address from efuse = %pM\n", mac);
 		}
-		ether_addr_copy(pnetdev->dev_addr, mac);
+		eth_hw_addr_set(pnetdev, mac);
 	}
 	/* step 6. Load the firmware asynchronously */
 	if (rtl871x_load_fw(padapter))
