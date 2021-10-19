@@ -216,6 +216,32 @@ void crypto_remove_spawns(struct crypto_alg *alg, struct list_head *list,
 }
 EXPORT_SYMBOL_GPL(crypto_remove_spawns);
 
+static struct crypto_larval *crypto_alloc_test_larval(struct crypto_alg *alg)
+{
+	struct crypto_larval *larval;
+
+	if (!IS_ENABLED(CONFIG_CRYPTO_MANAGER))
+		return NULL;
+
+	larval = crypto_larval_alloc(alg->cra_name,
+				     alg->cra_flags | CRYPTO_ALG_TESTED, 0);
+	if (IS_ERR(larval))
+		return larval;
+
+	larval->adult = crypto_mod_get(alg);
+	if (!larval->adult) {
+		kfree(larval);
+		return ERR_PTR(-ENOENT);
+	}
+
+	refcount_set(&larval->alg.cra_refcnt, 1);
+	memcpy(larval->alg.cra_driver_name, alg->cra_driver_name,
+	       CRYPTO_MAX_ALG_NAME);
+	larval->alg.cra_priority = alg->cra_priority;
+
+	return larval;
+}
+
 static struct crypto_larval *__crypto_register_alg(struct crypto_alg *alg)
 {
 	struct crypto_alg *q;
@@ -250,31 +276,20 @@ static struct crypto_larval *__crypto_register_alg(struct crypto_alg *alg)
 			goto err;
 	}
 
-	larval = crypto_larval_alloc(alg->cra_name,
-				     alg->cra_flags | CRYPTO_ALG_TESTED, 0);
+	larval = crypto_alloc_test_larval(alg);
 	if (IS_ERR(larval))
 		goto out;
 
-	ret = -ENOENT;
-	larval->adult = crypto_mod_get(alg);
-	if (!larval->adult)
-		goto free_larval;
-
-	refcount_set(&larval->alg.cra_refcnt, 1);
-	memcpy(larval->alg.cra_driver_name, alg->cra_driver_name,
-	       CRYPTO_MAX_ALG_NAME);
-	larval->alg.cra_priority = alg->cra_priority;
-
 	list_add(&alg->cra_list, &crypto_alg_list);
-	list_add(&larval->alg.cra_list, &crypto_alg_list);
+
+	if (larval)
+		list_add(&larval->alg.cra_list, &crypto_alg_list);
 
 	crypto_stats_init(alg);
 
 out:
 	return larval;
 
-free_larval:
-	kfree(larval);
 err:
 	larval = ERR_PTR(ret);
 	goto out;
@@ -403,10 +418,11 @@ int crypto_register_alg(struct crypto_alg *alg)
 	down_write(&crypto_alg_sem);
 	larval = __crypto_register_alg(alg);
 	test_started = static_key_enabled(&crypto_boot_test_finished);
-	larval->test_started = test_started;
+	if (!IS_ERR_OR_NULL(larval))
+		larval->test_started = test_started;
 	up_write(&crypto_alg_sem);
 
-	if (IS_ERR(larval))
+	if (IS_ERR_OR_NULL(larval))
 		return PTR_ERR(larval);
 
 	if (test_started)
@@ -616,8 +632,8 @@ int crypto_register_instance(struct crypto_template *tmpl,
 	larval = __crypto_register_alg(&inst->alg);
 	if (IS_ERR(larval))
 		goto unlock;
-
-	larval->test_started = true;
+	else if (larval)
+		larval->test_started = true;
 
 	hlist_add_head(&inst->list, &tmpl->instances);
 	inst->tmpl = tmpl;
@@ -626,7 +642,7 @@ unlock:
 	up_write(&crypto_alg_sem);
 
 	err = PTR_ERR(larval);
-	if (IS_ERR(larval))
+	if (IS_ERR_OR_NULL(larval))
 		goto err;
 
 	crypto_wait_for_test(larval);
