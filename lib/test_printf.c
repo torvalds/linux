@@ -614,8 +614,7 @@ page_flags_test(int section, int node, int zone, int last_cpupid,
 	int i;
 
 	if (flags & PAGEFLAGS_MASK) {
-		snprintf(cmp_buf + size, BUF_SIZE - size, "%s", name);
-		size = strlen(cmp_buf);
+		size += scnprintf(cmp_buf + size, BUF_SIZE - size, "%s", name);
 		append = true;
 	}
 
@@ -623,17 +622,14 @@ page_flags_test(int section, int node, int zone, int last_cpupid,
 		if (!pft[i].width)
 			continue;
 
-		if (append) {
-			snprintf(cmp_buf + size, BUF_SIZE - size, "|");
-			size = strlen(cmp_buf);
-		}
+		if (append)
+			size += scnprintf(cmp_buf + size, BUF_SIZE - size, "|");
 
 		flags |= (values[i] & pft[i].mask) << pft[i].shift;
-		snprintf(cmp_buf + size, BUF_SIZE - size, "%s=", pft[i].name);
-		size = strlen(cmp_buf);
-		snprintf(cmp_buf + size, BUF_SIZE - size, pft[i].fmt,
-			 values[i] & pft[i].mask);
-		size = strlen(cmp_buf);
+		size += scnprintf(cmp_buf + size, BUF_SIZE - size, "%s=",
+				pft[i].name);
+		size += scnprintf(cmp_buf + size, BUF_SIZE - size, pft[i].fmt,
+				values[i] & pft[i].mask);
 		append = true;
 	}
 
