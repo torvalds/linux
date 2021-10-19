@@ -124,6 +124,7 @@ struct sbefifo {
 	bool			broken;
 	bool			dead;
 	bool			async_ffdc;
+	bool			timed_out;
 };
 
 struct sbefifo_user {
@@ -136,6 +137,14 @@ struct sbefifo_user {
 
 static DEFINE_MUTEX(sbefifo_ffdc_mutex);
 
+static ssize_t timeout_show(struct device *dev, struct device_attribute *attr,
+			    char *buf)
+{
+	struct sbefifo *sbefifo = container_of(dev, struct sbefifo, dev);
+
+	return sysfs_emit(buf, "%d\n", sbefifo->timed_out ? 1 : 0);
+}
+static DEVICE_ATTR_RO(timeout);
 
 static void __sbefifo_dump_ffdc(struct device *dev, const __be32 *ffdc,
 				size_t ffdc_sz, bool internal)
@@ -462,11 +471,14 @@ static int sbefifo_wait(struct sbefifo *sbefifo, bool up,
 			break;
 	}
 	if (!ready) {
+		sysfs_notify(&sbefifo->dev.kobj, NULL, dev_attr_timeout.attr.name);
+		sbefifo->timed_out = true;
 		dev_err(dev, "%s FIFO Timeout ! status=%08x\n", up ? "UP" : "DOWN", sts);
 		return -ETIMEDOUT;
 	}
 	dev_vdbg(dev, "End of wait status: %08x\n", sts);
 
+	sbefifo->timed_out = false;
 	*status = sts;
 
 	return 0;
@@ -993,6 +1005,8 @@ static int sbefifo_probe(struct device *dev)
 				 child_name);
 	}
 
+	device_create_file(&sbefifo->dev, &dev_attr_timeout);
+
 	return 0;
  err_free_minor:
 	fsi_free_minor(sbefifo->dev.devt);
@@ -1017,6 +1031,8 @@ static int sbefifo_remove(struct device *dev)
 	struct sbefifo *sbefifo = dev_get_drvdata(dev);
 
 	dev_dbg(dev, "Removing sbefifo device...\n");
+
+	device_remove_file(&sbefifo->dev, &dev_attr_timeout);
 
 	mutex_lock(&sbefifo->lock);
 	sbefifo->dead = true;
