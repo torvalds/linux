@@ -2278,7 +2278,6 @@ rcu_report_qs_rdp(struct rcu_data *rdp)
 	unsigned long flags;
 	unsigned long mask;
 	bool needwake = false;
-	const bool offloaded = rcu_rdp_is_offloaded(rdp);
 	struct rcu_node *rnp;
 
 	WARN_ON_ONCE(rdp->cpu != smp_processor_id());
@@ -2305,8 +2304,10 @@ rcu_report_qs_rdp(struct rcu_data *rdp)
 		/*
 		 * This GP can't end until cpu checks in, so all of our
 		 * callbacks can be processed during the next GP.
+		 *
+		 * NOCB kthreads have their own way to deal with that.
 		 */
-		if (!offloaded)
+		if (!rcu_rdp_is_offloaded(rdp))
 			needwake = rcu_accelerate_cbs(rnp, rdp);
 
 		rcu_disable_urgency_upon_qs(rdp);
