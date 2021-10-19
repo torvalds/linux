@@ -2793,8 +2793,15 @@ static enum drm_connector_status dw_hdmi_detect(struct dw_hdmi *hdmi)
 {
 	enum drm_connector_status result;
 
-	result = hdmi->phy.ops->read_hpd(hdmi, hdmi->phy.data);
+	if (!hdmi->force_logo) {
+		mutex_lock(&hdmi->mutex);
+		hdmi->force = DRM_FORCE_UNSPECIFIED;
+		dw_hdmi_update_power(hdmi);
+		dw_hdmi_update_phy_mask(hdmi);
+		mutex_unlock(&hdmi->mutex);
+	}
 
+	result = hdmi->phy.ops->read_hpd(hdmi, hdmi->phy.data);
 	mutex_lock(&hdmi->mutex);
 	if (result != hdmi->last_connector_result) {
 		dev_dbg(hdmi->dev, "read_hpd result: %d", result);
