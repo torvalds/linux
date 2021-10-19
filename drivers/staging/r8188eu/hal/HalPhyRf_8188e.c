@@ -583,50 +583,6 @@ static void patha_fill_iqk(struct adapter *adapt, bool iqkok, s32 result[][8], u
 	}
 }
 
-static void pathb_fill_iqk(struct adapter *adapt, bool iqkok, s32 result[][8], u8 final_candidate, bool txonly)
-{
-	u32 Oldval_1, X, TX1_A, reg;
-	s32 Y, TX1_C;
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
-	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
-
-	if (final_candidate == 0xFF) {
-		return;
-	} else if (iqkok) {
-		Oldval_1 = (ODM_GetBBReg(dm_odm, rOFDM0_XBTxIQImbalance, bMaskDWord) >> 22) & 0x3FF;
-
-		X = result[final_candidate][4];
-		if ((X & 0x00000200) != 0)
-			X = X | 0xFFFFFC00;
-		TX1_A = (X * Oldval_1) >> 8;
-		ODM_SetBBReg(dm_odm, rOFDM0_XBTxIQImbalance, 0x3FF, TX1_A);
-
-		ODM_SetBBReg(dm_odm, rOFDM0_ECCAThreshold, BIT(27), ((X * Oldval_1 >> 7) & 0x1));
-
-		Y = result[final_candidate][5];
-		if ((Y & 0x00000200) != 0)
-			Y = Y | 0xFFFFFC00;
-
-		TX1_C = (Y * Oldval_1) >> 8;
-		ODM_SetBBReg(dm_odm, rOFDM0_XDTxAFE, 0xF0000000, ((TX1_C & 0x3C0) >> 6));
-		ODM_SetBBReg(dm_odm, rOFDM0_XBTxIQImbalance, 0x003F0000, (TX1_C & 0x3F));
-
-		ODM_SetBBReg(dm_odm, rOFDM0_ECCAThreshold, BIT(25), ((Y * Oldval_1 >> 7) & 0x1));
-
-		if (txonly)
-			return;
-
-		reg = result[final_candidate][6];
-		ODM_SetBBReg(dm_odm, rOFDM0_XBRxIQImbalance, 0x3FF, reg);
-
-		reg = result[final_candidate][7] & 0x3F;
-		ODM_SetBBReg(dm_odm, rOFDM0_XBRxIQImbalance, 0xFC00, reg);
-
-		reg = (result[final_candidate][7] >> 6) & 0xF;
-		ODM_SetBBReg(dm_odm, rOFDM0_AGCRSSITable, 0x0000F000, reg);
-	}
-}
-
 void _PHY_SaveADDARegisters(struct adapter *adapt, u32 *ADDAReg, u32 *ADDABackup, u32 RegisterNum)
 {
 	u32 i;
@@ -759,23 +715,11 @@ static bool phy_SimularityCompare_8188E(
 	)
 {
 	u32 i, j, diff, sim_bitmap, bound = 0;
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
-	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
 	u8 final_candidate[2] = {0xFF, 0xFF};	/* for path A and path B */
 	bool result = true;
-	bool is2t;
 	s32 tmp1 = 0, tmp2 = 0;
 
-	if ((dm_odm->RFType == ODM_2T2R) || (dm_odm->RFType == ODM_2T3R) || (dm_odm->RFType == ODM_2T4R))
-		is2t = true;
-	else
-		is2t = false;
-
-	if (is2t)
-		bound = 8;
-	else
-		bound = 4;
-
+	bound = 4;
 	sim_bitmap = 0;
 
 	for (i = 0; i < bound; i++) {
@@ -1049,8 +993,8 @@ void PHY_IQCalibrate_8188E(struct adapter *adapt, bool recovery)
 	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
 	s32 result[4][8];	/* last is final result */
 	u8 i, final_candidate;
-	bool pathaok, pathbok;
-	s32 RegE94, RegE9C, RegEA4, RegEB4, RegEBC, RegEC4;
+	bool pathaok;
+	s32 RegE94, RegE9C, RegEA4, RegEB4, RegEBC;
 	bool is12simular, is13simular, is23simular;
 	bool singletone = false, carrier_sup = false;
 	u32 IQK_BB_REG_92C[IQK_BB_REG_NUM] = {
@@ -1059,9 +1003,6 @@ void PHY_IQCalibrate_8188E(struct adapter *adapt, bool recovery)
 		rOFDM0_XATxIQImbalance, rOFDM0_XBTxIQImbalance,
 		rOFDM0_XCTxAFE, rOFDM0_XDTxAFE,
 		rOFDM0_RxIQExtAnta};
-	bool is2t;
-
-	is2t = (dm_odm->RFType == ODM_2T2R) ? true : false;
 
 	if (!(dm_odm->SupportAbility & ODM_RF_CALIBRATION))
 		return;
@@ -1086,13 +1027,12 @@ void PHY_IQCalibrate_8188E(struct adapter *adapt, bool recovery)
 	}
 	final_candidate = 0xff;
 	pathaok = false;
-	pathbok = false;
 	is12simular = false;
 	is23simular = false;
 	is13simular = false;
 
 	for (i = 0; i < 3; i++) {
-		phy_IQCalibrate_8188E(adapt, result, i, is2t);
+		phy_IQCalibrate_8188E(adapt, result, i, false);
 
 		if (i == 1) {
 			is12simular = phy_SimularityCompare_8188E(adapt, result, 0, 1);
@@ -1124,7 +1064,6 @@ void PHY_IQCalibrate_8188E(struct adapter *adapt, bool recovery)
 		RegEA4 = result[i][2];
 		RegEB4 = result[i][4];
 		RegEBC = result[i][5];
-		RegEC4 = result[i][6];
 	}
 
 	if (final_candidate != 0xff) {
@@ -1137,9 +1076,7 @@ void PHY_IQCalibrate_8188E(struct adapter *adapt, bool recovery)
 		dm_odm->RFCalibrateInfo.RegE9C = RegE9C;
 		dm_odm->RFCalibrateInfo.RegEB4 = RegEB4;
 		dm_odm->RFCalibrateInfo.RegEBC = RegEBC;
-		RegEC4 = result[final_candidate][6];
 		pathaok = true;
-		pathbok = true;
 	} else {
 		dm_odm->RFCalibrateInfo.RegE94 = 0x100;
 		dm_odm->RFCalibrateInfo.RegEB4 = 0x100;	/* X default value */
@@ -1148,10 +1085,6 @@ void PHY_IQCalibrate_8188E(struct adapter *adapt, bool recovery)
 	}
 	if (RegE94 != 0)
 		patha_fill_iqk(adapt, pathaok, result, final_candidate, (RegEA4 == 0));
-	if (is2t) {
-		if (RegEB4 != 0)
-			pathb_fill_iqk(adapt, pathbok, result, final_candidate, (RegEC4 == 0));
-	}
 
 /* To Fix BSOD when final_candidate is 0xff */
 /* by sherry 20120321 */
@@ -1182,10 +1115,5 @@ void PHY_LCCalibrate_8188E(struct adapter *adapt)
 		timecount += 50;
 	}
 
-	if (dm_odm->RFType == ODM_2T2R) {
-		phy_LCCalibrate_8188E(adapt, true);
-	} else {
-		/*  For 88C 1T1R */
-		phy_LCCalibrate_8188E(adapt, false);
-	}
+	phy_LCCalibrate_8188E(adapt, false);
 }

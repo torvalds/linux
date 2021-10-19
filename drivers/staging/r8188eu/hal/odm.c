@@ -202,9 +202,6 @@ void ODM_CmnInfoInit(struct odm_dm_struct *pDM_Odm, enum odm_common_info_def Cmn
 	case	ODM_CMNINFO_MP_TEST_CHIP:
 		pDM_Odm->bIsMPChip = (u8)Value;
 		break;
-	case	ODM_CMNINFO_RF_TYPE:
-		pDM_Odm->RFType = (u8)Value;
-		break;
 	case    ODM_CMNINFO_RF_ANTENNA_TYPE:
 		pDM_Odm->AntDivType = (u8)Value;
 		break;
@@ -274,9 +271,6 @@ void ODM_CmnInfoUpdate(struct odm_dm_struct *pDM_Odm, u32 CmnInfo, u64 Value)
 	switch	(CmnInfo) {
 	case	ODM_CMNINFO_ABILITY:
 		pDM_Odm->SupportAbility = (u32)Value;
-		break;
-	case	ODM_CMNINFO_RF_TYPE:
-		pDM_Odm->RFType = (u8)Value;
 		break;
 	case	ODM_CMNINFO_WIFI_DIRECT:
 		pDM_Odm->bWIFI_Direct = (bool)Value;
@@ -714,36 +708,20 @@ u32 ODM_Get_Rate_Bitmap(struct odm_dm_struct *pDM_Odm, u32 macid, u32 ra_mask, u
 			rate_bitmap = 0x00000ff5;
 		break;
 	case (ODM_WM_B | ODM_WM_G | ODM_WM_N24G):
-		if (pDM_Odm->RFType == ODM_1T2R || pDM_Odm->RFType == ODM_1T1R) {
-			if (rssi_level == DM_RATR_STA_HIGH) {
-				rate_bitmap = 0x000f0000;
-			} else if (rssi_level == DM_RATR_STA_MIDDLE) {
-				rate_bitmap = 0x000ff000;
-			} else {
-				if (*pDM_Odm->pBandWidth == ODM_BW40M)
-					rate_bitmap = 0x000ff015;
-				else
-					rate_bitmap = 0x000ff005;
-			}
+		if (rssi_level == DM_RATR_STA_HIGH) {
+			rate_bitmap = 0x000f0000;
+		} else if (rssi_level == DM_RATR_STA_MIDDLE) {
+			rate_bitmap = 0x000ff000;
 		} else {
-			if (rssi_level == DM_RATR_STA_HIGH) {
-				rate_bitmap = 0x0f8f0000;
-			} else if (rssi_level == DM_RATR_STA_MIDDLE) {
-				rate_bitmap = 0x0f8ff000;
-			} else {
-				if (*pDM_Odm->pBandWidth == ODM_BW40M)
-					rate_bitmap = 0x0f8ff015;
-				else
-					rate_bitmap = 0x0f8ff005;
-			}
+			if (*pDM_Odm->pBandWidth == ODM_BW40M)
+				rate_bitmap = 0x000ff015;
+			else
+				rate_bitmap = 0x000ff005;
 		}
 		break;
 	default:
 		/* case WIRELESS_11_24N: */
-		if (pDM_Odm->RFType == RF_1T2R)
-			rate_bitmap = 0x000fffff;
-		else
-			rate_bitmap = 0x0fffffff;
+		rate_bitmap = 0x0fffffff;
 		break;
 	}
 

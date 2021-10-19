@@ -229,7 +229,6 @@ enum odm_common_info_def {
 	/* HOOK BEFORE REG INIT----------- */
 	ODM_CMNINFO_ABILITY,		/* ODM_ABILITY_E */
 	ODM_CMNINFO_MP_TEST_CHIP,
-	ODM_CMNINFO_RF_TYPE,		/* RF_PATH_E or ODM_RF_TYPE_E? */
 	/* HOOK BEFORE REG INIT-----------  */
 
 	/*  Dynamic value: */
@@ -285,17 +284,6 @@ enum odm_ability_def {
 };
 
 # define ODM_ITRF_USB 0x2
-
-enum odm_rf_type {
-	ODM_1T1R	=	0,
-	ODM_1T2R	=	1,
-	ODM_2T2R	=	2,
-	ODM_2T3R	=	3,
-	ODM_2T4R	=	4,
-	ODM_3T3R	=	5,
-	ODM_3T4R	=	6,
-	ODM_4T4R	=	7,
-};
 
 /*  ODM_CMNINFO_OP_MODE */
 enum odm_operation_mode {
@@ -493,8 +481,6 @@ struct odm_dm_struct {
 /* HOOK BEFORE REG INIT----------- */
 	/*  ODM Support Ability DIG/RATR/TX_PWR_TRACK/ �K�K = 1/2/3/�K */
 	u32	SupportAbility;
-	/*  RF Type 4T4R/3T3R/2T2R/1T2R/1T1R/... */
-	u8	RFType;
 
 	u32	BK_SupportAbility;
 	u8	AntDivType;
