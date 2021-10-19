@@ -917,10 +917,7 @@ struct bch_stripe {
 struct bch_reflink_p {
 	struct bch_val		v;
 	__le64			idx;
-
-	__le32			reservation_generation;
-	__u8			nr_replicas;
-	__u8			pad[3];
+	__le64			v2;
 };
 
 struct bch_reflink_v {
@@ -1263,7 +1260,8 @@ enum bcachefs_metadata_version {
 	bcachefs_metadata_version_inode_backpointers	= 13,
 	bcachefs_metadata_version_btree_ptr_sectors_written = 14,
 	bcachefs_metadata_version_snapshot_2		= 15,
-	bcachefs_metadata_version_max			= 16,
+	bcachefs_metadata_version_reflink_p_fix		= 16,
+	bcachefs_metadata_version_max			= 17,
 };
 
 #define bcachefs_metadata_version_current	(bcachefs_metadata_version_max - 1)

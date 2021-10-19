@@ -1086,12 +1086,10 @@ int bch2_fs_recovery(struct bch_fs *c)
 		c->opts.version_upgrade	= true;
 		c->opts.fsck		= true;
 		c->opts.fix_errors	= FSCK_OPT_YES;
-	} else if (c->sb.version < bcachefs_metadata_version_btree_ptr_sectors_written) {
-		bch_info(c, "version prior to btree_ptr_sectors_written, upgrade required");
-		c->opts.version_upgrade	= true;
-	} else if (c->sb.version < bcachefs_metadata_version_snapshot_2) {
-		bch_info(c, "filesystem version is prior to snapshots - upgrading");
+	} else if (c->sb.version < bcachefs_metadata_version_reflink_p_fix) {
+		bch_info(c, "filesystem version is prior to reflink_p fix - upgrading");
 		c->opts.version_upgrade = true;
+		c->opts.fsck		= true;
 	}
 
 	ret = bch2_blacklist_table_initialize(c);

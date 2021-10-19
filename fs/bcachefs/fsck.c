@@ -2154,6 +2154,71 @@ static int check_nlinks(struct bch_fs *c)
 	return ret;
 }
 
+static int fix_reflink_p_key(struct btree_trans *trans, struct btree_iter *iter)
+{
+	struct bkey_s_c k;
+	struct bkey_s_c_reflink_p p;
+	struct bkey_i_reflink_p *u;
+	int ret;
+
+	k = bch2_btree_iter_peek(iter);
+	if (!k.k)
+		return 0;
+
+	ret = bkey_err(k);
+	if (ret)
+		return ret;
+
+	if (k.k->type != KEY_TYPE_reflink_p)
+		return 0;
+
+	p = bkey_s_c_to_reflink_p(k);
+
+	if (!p.v->v2)
+		return 0;
+
+	u = bch2_trans_kmalloc(trans, sizeof(*u));
+	ret = PTR_ERR_OR_ZERO(u);
+	if (ret)
+		return ret;
+
+	bkey_reassemble(&u->k_i, k);
+	u->v.v2 = 0;
+
+	return bch2_trans_update(trans, iter, &u->k_i, 0);
+}
+
+static int fix_reflink_p(struct bch_fs *c)
+{
+	struct btree_trans trans;
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	int ret;
+
+	if (c->sb.version >= bcachefs_metadata_version_reflink_p_fix)
+		return 0;
+
+	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
+
+	for_each_btree_key(&trans, iter, BTREE_ID_extents, POS_MIN,
+			   BTREE_ITER_INTENT|
+			   BTREE_ITER_PREFETCH|
+			   BTREE_ITER_ALL_SNAPSHOTS, k, ret) {
+		if (k.k->type == KEY_TYPE_reflink_p) {
+			ret = __bch2_trans_do(&trans, NULL, NULL,
+					      BTREE_INSERT_NOFAIL|
+					      BTREE_INSERT_LAZY_RW,
+					      fix_reflink_p_key(&trans, &iter));
+			if (ret)
+				break;
+		}
+	}
+	bch2_trans_iter_exit(&trans, &iter);
+
+	bch2_trans_exit(&trans);
+	return ret;
+}
+
 /*
  * Checks for inconsistencies that shouldn't happen, unless we have a bug.
  * Doesn't fix them yet, mainly because they haven't yet been observed:
@@ -2168,7 +2233,8 @@ int bch2_fsck_full(struct bch_fs *c)
 		check_xattrs(c) ?:
 		check_root(c) ?:
 		check_directory_structure(c) ?:
-		check_nlinks(c);
+		check_nlinks(c) ?:
+		fix_reflink_p(c);
 }
 
 int bch2_fsck_walk_inodes_only(struct bch_fs *c)
