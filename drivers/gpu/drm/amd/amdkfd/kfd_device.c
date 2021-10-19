@@ -894,7 +894,7 @@ static int kfd_gws_init(struct kfd_dev *kfd)
 		|| (kfd->device_info->asic_family == CHIP_ALDEBARAN
 			&& kfd->mec2_fw_version >= 0x28))
 		ret = amdgpu_amdkfd_alloc_gws(kfd->adev,
-				amdgpu_amdkfd_get_num_gws(kfd->kgd), &kfd->gws);
+				amdgpu_amdkfd_get_num_gws(kfd->adev), &kfd->gws);
 
 	return ret;
 }
@@ -911,11 +911,11 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	unsigned int size, map_process_packet_size;
 
 	kfd->ddev = ddev;
-	kfd->mec_fw_version = amdgpu_amdkfd_get_fw_version(kfd->kgd,
+	kfd->mec_fw_version = amdgpu_amdkfd_get_fw_version(kfd->adev,
 			KGD_ENGINE_MEC1);
-	kfd->mec2_fw_version = amdgpu_amdkfd_get_fw_version(kfd->kgd,
+	kfd->mec2_fw_version = amdgpu_amdkfd_get_fw_version(kfd->adev,
 			KGD_ENGINE_MEC2);
-	kfd->sdma_fw_version = amdgpu_amdkfd_get_fw_version(kfd->kgd,
+	kfd->sdma_fw_version = amdgpu_amdkfd_get_fw_version(kfd->adev,
 			KGD_ENGINE_SDMA1);
 	kfd->shared_resources = *gpu_resources;
 
@@ -996,9 +996,9 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		goto kfd_doorbell_error;
 	}
 
-	kfd->hive_id = amdgpu_amdkfd_get_hive_id(kfd->kgd);
+	kfd->hive_id = amdgpu_amdkfd_get_hive_id(kfd->adev);
 
-	kfd->noretry = amdgpu_amdkfd_get_noretry(kfd->kgd);
+	kfd->noretry = amdgpu_amdkfd_get_noretry(kfd->adev);
 
 	if (kfd_interrupt_init(kfd)) {
 		dev_err(kfd_device, "Error initializing interrupts\n");
@@ -1016,7 +1016,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	 */
 	if (kfd_gws_init(kfd)) {
 		dev_err(kfd_device, "Could not allocate %d gws\n",
-			amdgpu_amdkfd_get_num_gws(kfd->kgd));
+			amdgpu_amdkfd_get_num_gws(kfd->adev));
 		goto gws_error;
 	}
 
