@@ -893,7 +893,7 @@ static int kfd_gws_init(struct kfd_dev *kfd)
 			&& kfd->mec2_fw_version >= 0x30)
 		|| (kfd->device_info->asic_family == CHIP_ALDEBARAN
 			&& kfd->mec2_fw_version >= 0x28))
-		ret = amdgpu_amdkfd_alloc_gws(kfd->kgd,
+		ret = amdgpu_amdkfd_alloc_gws(kfd->adev,
 				amdgpu_amdkfd_get_num_gws(kfd->kgd), &kfd->gws);
 
 	return ret;
@@ -928,7 +928,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	 * 32 and 64-bit requests are possible and must be
 	 * supported.
 	 */
-	kfd->pci_atomic_requested = amdgpu_amdkfd_have_atomics_support(kfd->kgd);
+	kfd->pci_atomic_requested = amdgpu_amdkfd_have_atomics_support(kfd->adev);
 	if (!kfd->pci_atomic_requested &&
 	    kfd->device_info->needs_pci_atomics &&
 	    (!kfd->device_info->no_atomic_fw_version ||
@@ -975,7 +975,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	size += 512 * 1024;
 
 	if (amdgpu_amdkfd_alloc_gtt_mem(
-			kfd->kgd, size, &kfd->gtt_mem,
+			kfd->adev, size, &kfd->gtt_mem,
 			&kfd->gtt_start_gpu_addr, &kfd->gtt_start_cpu_ptr,
 			false)) {
 		dev_err(kfd_device, "Could not allocate %d bytes\n", size);
@@ -1069,10 +1069,10 @@ kfd_interrupt_error:
 kfd_doorbell_error:
 	kfd_gtt_sa_fini(kfd);
 kfd_gtt_sa_init_error:
-	amdgpu_amdkfd_free_gtt_mem(kfd->kgd, kfd->gtt_mem);
+	amdgpu_amdkfd_free_gtt_mem(kfd->adev, kfd->gtt_mem);
 alloc_gtt_mem_failure:
 	if (kfd->gws)
-		amdgpu_amdkfd_free_gws(kfd->kgd, kfd->gws);
+		amdgpu_amdkfd_free_gws(kfd->adev, kfd->gws);
 	dev_err(kfd_device,
 		"device %x:%x NOT added due to errors\n",
 		kfd->pdev->vendor, kfd->pdev->device);
@@ -1089,9 +1089,9 @@ void kgd2kfd_device_exit(struct kfd_dev *kfd)
 		kfd_doorbell_fini(kfd);
 		ida_destroy(&kfd->doorbell_ida);
 		kfd_gtt_sa_fini(kfd);
-		amdgpu_amdkfd_free_gtt_mem(kfd->kgd, kfd->gtt_mem);
+		amdgpu_amdkfd_free_gtt_mem(kfd->adev, kfd->gtt_mem);
 		if (kfd->gws)
-			amdgpu_amdkfd_free_gws(kfd->kgd, kfd->gws);
+			amdgpu_amdkfd_free_gws(kfd->adev, kfd->gws);
 	}
 
 	kfree(kfd);
@@ -1527,7 +1527,7 @@ void kgd2kfd_set_sram_ecc_flag(struct kfd_dev *kfd)
 void kfd_inc_compute_active(struct kfd_dev *kfd)
 {
 	if (atomic_inc_return(&kfd->compute_profile) == 1)
-		amdgpu_amdkfd_set_compute_idle(kfd->kgd, false);
+		amdgpu_amdkfd_set_compute_idle(kfd->adev, false);
 }
 
 void kfd_dec_compute_active(struct kfd_dev *kfd)
@@ -1535,7 +1535,7 @@ void kfd_dec_compute_active(struct kfd_dev *kfd)
 	int count = atomic_dec_return(&kfd->compute_profile);
 
 	if (count == 0)
-		amdgpu_amdkfd_set_compute_idle(kfd->kgd, true);
+		amdgpu_amdkfd_set_compute_idle(kfd->adev, true);
 	WARN_ONCE(count < 0, "Compute profile ref. count error");
 }
 

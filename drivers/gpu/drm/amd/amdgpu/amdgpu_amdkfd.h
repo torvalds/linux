@@ -144,14 +144,16 @@ void amdgpu_amdkfd_interrupt(struct amdgpu_device *adev,
 void amdgpu_amdkfd_device_probe(struct amdgpu_device *adev);
 void amdgpu_amdkfd_device_init(struct amdgpu_device *adev);
 void amdgpu_amdkfd_device_fini_sw(struct amdgpu_device *adev);
-int amdgpu_amdkfd_submit_ib(struct kgd_dev *kgd, enum kgd_engine_type engine,
+int amdgpu_amdkfd_submit_ib(struct amdgpu_device *adev,
+				enum kgd_engine_type engine,
 				uint32_t vmid, uint64_t gpu_addr,
 				uint32_t *ib_cmd, uint32_t ib_len);
-void amdgpu_amdkfd_set_compute_idle(struct kgd_dev *kgd, bool idle);
-bool amdgpu_amdkfd_have_atomics_support(struct kgd_dev *kgd);
-int amdgpu_amdkfd_flush_gpu_tlb_vmid(struct kgd_dev *kgd, uint16_t vmid);
-int amdgpu_amdkfd_flush_gpu_tlb_pasid(struct kgd_dev *kgd, uint16_t pasid,
-				      enum TLB_FLUSH_TYPE flush_type);
+void amdgpu_amdkfd_set_compute_idle(struct amdgpu_device *adev, bool idle);
+bool amdgpu_amdkfd_have_atomics_support(struct amdgpu_device *adev);
+int amdgpu_amdkfd_flush_gpu_tlb_vmid(struct amdgpu_device *adev,
+				uint16_t vmid);
+int amdgpu_amdkfd_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
+				uint16_t pasid, enum TLB_FLUSH_TYPE flush_type);
 
 bool amdgpu_amdkfd_is_kfd_vmid(struct amdgpu_device *adev, u32 vmid);
 
@@ -159,7 +161,7 @@ int amdgpu_amdkfd_pre_reset(struct amdgpu_device *adev);
 
 int amdgpu_amdkfd_post_reset(struct amdgpu_device *adev);
 
-void amdgpu_amdkfd_gpu_reset(struct kgd_dev *kgd);
+void amdgpu_amdkfd_gpu_reset(struct amdgpu_device *adev);
 
 int amdgpu_queue_mask_bit_to_set_resource_bit(struct amdgpu_device *adev,
 					int queue_bit);
@@ -198,12 +200,13 @@ int amdgpu_amdkfd_evict_userptr(struct kgd_mem *mem, struct mm_struct *mm)
 }
 #endif
 /* Shared API */
-int amdgpu_amdkfd_alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
+int amdgpu_amdkfd_alloc_gtt_mem(struct amdgpu_device *adev, size_t size,
 				void **mem_obj, uint64_t *gpu_addr,
 				void **cpu_ptr, bool mqd_gfx9);
-void amdgpu_amdkfd_free_gtt_mem(struct kgd_dev *kgd, void *mem_obj);
-int amdgpu_amdkfd_alloc_gws(struct kgd_dev *kgd, size_t size, void **mem_obj);
-void amdgpu_amdkfd_free_gws(struct kgd_dev *kgd, void *mem_obj);
+void amdgpu_amdkfd_free_gtt_mem(struct amdgpu_device *adev, void *mem_obj);
+int amdgpu_amdkfd_alloc_gws(struct amdgpu_device *adev, size_t size,
+				void **mem_obj);
+void amdgpu_amdkfd_free_gws(struct amdgpu_device *adev, void *mem_obj);
 int amdgpu_amdkfd_add_gws_to_process(void *info, void *gws, struct kgd_mem **mem);
 int amdgpu_amdkfd_remove_gws_from_process(void *info, void *mem);
 uint32_t amdgpu_amdkfd_get_fw_version(struct kgd_dev *kgd,
@@ -292,7 +295,7 @@ int amdgpu_amdkfd_gpuvm_import_dmabuf(struct kgd_dev *kgd,
 				      uint64_t *mmap_offset);
 int amdgpu_amdkfd_get_tile_config(struct kgd_dev *kgd,
 				struct tile_config *config);
-void amdgpu_amdkfd_ras_poison_consumption_handler(struct kgd_dev *kgd);
+void amdgpu_amdkfd_ras_poison_consumption_handler(struct amdgpu_device *adev);
 #if IS_ENABLED(CONFIG_HSA_AMD)
 void amdgpu_amdkfd_gpuvm_init_mem_limits(void);
 void amdgpu_amdkfd_gpuvm_destroy_cb(struct amdgpu_device *adev,

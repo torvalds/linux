@@ -1951,10 +1951,10 @@ void kfd_flush_tlb(struct kfd_process_device *pdd, enum TLB_FLUSH_TYPE type)
 		 * only happens when the first queue is created.
 		 */
 		if (pdd->qpd.vmid)
-			amdgpu_amdkfd_flush_gpu_tlb_vmid(dev->kgd,
+			amdgpu_amdkfd_flush_gpu_tlb_vmid(dev->adev,
 							pdd->qpd.vmid);
 	} else {
-		amdgpu_amdkfd_flush_gpu_tlb_pasid(dev->kgd,
+		amdgpu_amdkfd_flush_gpu_tlb_pasid(dev->adev,
 					pdd->process->pasid, type);
 	}
 }

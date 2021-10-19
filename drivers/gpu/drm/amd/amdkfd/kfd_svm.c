@@ -1129,7 +1129,6 @@ svm_range_unmap_from_gpus(struct svm_range *prange, unsigned long start,
 	DECLARE_BITMAP(bitmap, MAX_GPU_INSTANCE);
 	struct kfd_process_device *pdd;
 	struct dma_fence *fence = NULL;
-	struct amdgpu_device *adev;
 	struct kfd_process *p;
 	uint32_t gpuidx;
 	int r = 0;
@@ -1145,9 +1144,9 @@ svm_range_unmap_from_gpus(struct svm_range *prange, unsigned long start,
 			pr_debug("failed to find device idx %d\n", gpuidx);
 			return -EINVAL;
 		}
-		adev = (struct amdgpu_device *)pdd->dev->kgd;
 
-		r = svm_range_unmap_from_gpu(adev, drm_priv_to_vm(pdd->drm_priv),
+		r = svm_range_unmap_from_gpu(pdd->dev->adev,
+					     drm_priv_to_vm(pdd->drm_priv),
 					     start, last, &fence);
 		if (r)
 			break;
@@ -1159,7 +1158,7 @@ svm_range_unmap_from_gpus(struct svm_range *prange, unsigned long start,
 			if (r)
 				break;
 		}
-		amdgpu_amdkfd_flush_gpu_tlb_pasid((struct kgd_dev *)adev,
+		amdgpu_amdkfd_flush_gpu_tlb_pasid(pdd->dev->adev,
 					p->pasid, TLB_FLUSH_HEAVYWEIGHT);
 	}
 
@@ -1243,8 +1242,7 @@ svm_range_map_to_gpu(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		struct kfd_process *p;
 
 		p = container_of(prange->svms, struct kfd_process, svms);
-		amdgpu_amdkfd_flush_gpu_tlb_pasid((struct kgd_dev *)adev,
-						p->pasid, TLB_FLUSH_LEGACY);
+		amdgpu_amdkfd_flush_gpu_tlb_pasid(adev, p->pasid, TLB_FLUSH_LEGACY);
 	}
 out:
 	return r;

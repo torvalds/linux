@@ -231,7 +231,7 @@ static void event_interrupt_wq_v9(struct kfd_dev *dev,
 				if (sq_intr_err != SQ_INTERRUPT_ERROR_TYPE_ILLEGAL_INST &&
 					sq_intr_err != SQ_INTERRUPT_ERROR_TYPE_MEMVIOL) {
 					kfd_signal_poison_consumed_event(dev, pasid);
-					amdgpu_amdkfd_ras_poison_consumption_handler(dev->kgd);
+					amdgpu_amdkfd_ras_poison_consumption_handler(dev->adev);
 					return;
 				}
 				break;
@@ -253,7 +253,7 @@ static void event_interrupt_wq_v9(struct kfd_dev *dev,
 			kfd_signal_event_interrupt(pasid, context_id0 & 0xfffffff, 28);
 		} else if (source_id == SOC15_INTSRC_SDMA_ECC) {
 			kfd_signal_poison_consumed_event(dev, pasid);
-			amdgpu_amdkfd_ras_poison_consumption_handler(dev->kgd);
+			amdgpu_amdkfd_ras_poison_consumption_handler(dev->adev);
 			return;
 		}
 	} else if (client_id == SOC15_IH_CLIENTID_VMC ||

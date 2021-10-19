@@ -283,7 +283,7 @@ static int flush_texture_cache_nocpsch(struct kfd_dev *kdev,
 	if (ret)
 		return ret;
 
-	return amdgpu_amdkfd_submit_ib(kdev->kgd, KGD_ENGINE_MEC1, qpd->vmid,
+	return amdgpu_amdkfd_submit_ib(kdev->adev, KGD_ENGINE_MEC1, qpd->vmid,
 				qpd->ib_base, (uint32_t *)qpd->ib_kaddr,
 				pmf->release_mem_size / sizeof(uint32_t));
 }
@@ -1845,7 +1845,7 @@ static int allocate_hiq_sdma_mqd(struct device_queue_manager *dqm)
 		dev->device_info->num_sdma_queues_per_engine +
 		dqm->mqd_mgrs[KFD_MQD_TYPE_HIQ]->mqd_size;
 
-	retval = amdgpu_amdkfd_alloc_gtt_mem(dev->kgd, size,
+	retval = amdgpu_amdkfd_alloc_gtt_mem(dev->adev, size,
 		&(mem_obj->gtt_mem), &(mem_obj->gpu_addr),
 		(void *)&(mem_obj->cpu_ptr), false);
 
@@ -1995,7 +1995,7 @@ static void deallocate_hiq_sdma_mqd(struct kfd_dev *dev,
 {
 	WARN(!mqd, "No hiq sdma mqd trunk to free");
 
-	amdgpu_amdkfd_free_gtt_mem(dev->kgd, mqd->gtt_mem);
+	amdgpu_amdkfd_free_gtt_mem(dev->adev, mqd->gtt_mem);
 }
 
 void device_queue_manager_uninit(struct device_queue_manager *dqm)
@@ -2026,7 +2026,7 @@ static void kfd_process_hw_exception(struct work_struct *work)
 {
 	struct device_queue_manager *dqm = container_of(work,
 			struct device_queue_manager, hw_exception_work);
-	amdgpu_amdkfd_gpu_reset(dqm->dev->kgd);
+	amdgpu_amdkfd_gpu_reset(dqm->dev->adev);
 }
 
 #if defined(CONFIG_DEBUG_FS)
