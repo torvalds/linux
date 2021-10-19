@@ -1345,7 +1345,7 @@ static int rtw89_pci_check_mdio(struct rtw89_dev *rtwdev, u8 addr, u8 speed, u16
 	default:
 		rtw89_err(rtwdev, "[ERR]Error Speed %d!\n", speed);
 		return -EINVAL;
-	};
+	}
 	rtw89_write16(rtwdev, R_AX_MDIO_CFG, val);
 	rtw89_write16_set(rtwdev, R_AX_MDIO_CFG, rw_bit);
 
