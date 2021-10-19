@@ -388,7 +388,8 @@ static int netdev_open(struct net_device *pnetdev)
 			 * address.
 			 */
 			msleep(200);
-			r8712_setMacAddr_cmd(padapter, (u8 *)pnetdev->dev_addr);
+			r8712_setMacAddr_cmd(padapter,
+					     (const u8 *)pnetdev->dev_addr);
 			/*
 			 * The "myid" function will get the wifi mac address
 			 * from eeprompriv structure instead of netdev
