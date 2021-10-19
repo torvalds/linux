@@ -616,12 +616,7 @@ page_flags_test(int section, int node, int zone, int last_cpupid,
 	if (flags & PAGEFLAGS_MASK) {
 		snprintf(cmp_buf + size, BUF_SIZE - size, "%s", name);
 		size = strlen(cmp_buf);
-#if SECTIONS_WIDTH || NODES_WIDTH || ZONES_WIDTH || \
-	LAST_CPUPID_WIDTH || KASAN_TAG_WIDTH
-		/* Other information also included in page flags */
-		snprintf(cmp_buf + size, BUF_SIZE - size, "|");
-		size = strlen(cmp_buf);
-#endif
+		append = true;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(pft); i++) {
