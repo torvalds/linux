@@ -1041,7 +1041,7 @@ static int kfd_ioctl_create_event(struct file *filp, struct kfd_process *p,
 			goto out_unlock;
 		}
 
-		err = amdgpu_amdkfd_gpuvm_map_gtt_bo_to_kernel(kfd->kgd,
+		err = amdgpu_amdkfd_gpuvm_map_gtt_bo_to_kernel(kfd->adev,
 						mem, &kern_addr, &size);
 		if (err) {
 			pr_err("Failed to map event page to kernel\n");
@@ -1051,7 +1051,7 @@ static int kfd_ioctl_create_event(struct file *filp, struct kfd_process *p,
 		err = kfd_event_page_set(p, kern_addr, size);
 		if (err) {
 			pr_err("Failed to set event page\n");
-			amdgpu_amdkfd_gpuvm_unmap_gtt_bo_from_kernel(kfd->kgd, mem);
+			amdgpu_amdkfd_gpuvm_unmap_gtt_bo_from_kernel(kfd->adev, mem);
 			goto out_unlock;
 		}
 
@@ -1158,7 +1158,7 @@ static int kfd_ioctl_get_tile_config(struct file *filep,
 	if (!dev)
 		return -EINVAL;
 
-	amdgpu_amdkfd_get_tile_config(dev->kgd, &config);
+	amdgpu_amdkfd_get_tile_config(dev->adev, &config);
 
 	args->gb_addr_config = config.gb_addr_config;
 	args->num_banks = config.num_banks;
@@ -1321,7 +1321,7 @@ static int kfd_ioctl_alloc_memory_of_gpu(struct file *filep,
 	}
 
 	err = amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
-		dev->kgd, args->va_addr, args->size,
+		dev->adev, args->va_addr, args->size,
 		pdd->drm_priv, (struct kgd_mem **) &mem, &offset,
 		flags);
 
@@ -1353,7 +1353,7 @@ static int kfd_ioctl_alloc_memory_of_gpu(struct file *filep,
 	return 0;
 
 err_free:
-	amdgpu_amdkfd_gpuvm_free_memory_of_gpu(dev->kgd, (struct kgd_mem *)mem,
+	amdgpu_amdkfd_gpuvm_free_memory_of_gpu(dev->adev, (struct kgd_mem *)mem,
 					       pdd->drm_priv, NULL);
 err_unlock:
 	mutex_unlock(&p->mutex);
@@ -1399,7 +1399,7 @@ static int kfd_ioctl_free_memory_of_gpu(struct file *filep,
 		goto err_unlock;
 	}
 
-	ret = amdgpu_amdkfd_gpuvm_free_memory_of_gpu(dev->kgd,
+	ret = amdgpu_amdkfd_gpuvm_free_memory_of_gpu(dev->adev,
 				(struct kgd_mem *)mem, pdd->drm_priv, &size);
 
 	/* If freeing the buffer failed, leave the handle in place for
@@ -1484,7 +1484,7 @@ static int kfd_ioctl_map_memory_to_gpu(struct file *filep,
 			goto get_mem_obj_from_handle_failed;
 		}
 		err = amdgpu_amdkfd_gpuvm_map_memory_to_gpu(
-			peer->kgd, (struct kgd_mem *)mem,
+			peer->adev, (struct kgd_mem *)mem,
 			peer_pdd->drm_priv, &table_freed);
 		if (err) {
 			pr_err("Failed to map to gpu %d/%d\n",
@@ -1496,7 +1496,7 @@ static int kfd_ioctl_map_memory_to_gpu(struct file *filep,
 
 	mutex_unlock(&p->mutex);
 
-	err = amdgpu_amdkfd_gpuvm_sync_memory(dev->kgd, (struct kgd_mem *) mem, true);
+	err = amdgpu_amdkfd_gpuvm_sync_memory(dev->adev, (struct kgd_mem *) mem, true);
 	if (err) {
 		pr_debug("Sync memory failed, wait interrupted by user signal\n");
 		goto sync_memory_failed;
@@ -1593,7 +1593,7 @@ static int kfd_ioctl_unmap_memory_from_gpu(struct file *filep,
 			goto get_mem_obj_from_handle_failed;
 		}
 		err = amdgpu_amdkfd_gpuvm_unmap_memory_from_gpu(
-			peer->kgd, (struct kgd_mem *)mem, peer_pdd->drm_priv);
+			peer->adev, (struct kgd_mem *)mem, peer_pdd->drm_priv);
 		if (err) {
 			pr_err("Failed to unmap from gpu %d/%d\n",
 			       i, args->n_devices);
@@ -1604,7 +1604,7 @@ static int kfd_ioctl_unmap_memory_from_gpu(struct file *filep,
 	mutex_unlock(&p->mutex);
 
 	if (dev->device_info->asic_family == CHIP_ALDEBARAN) {
-		err = amdgpu_amdkfd_gpuvm_sync_memory(dev->kgd,
+		err = amdgpu_amdkfd_gpuvm_sync_memory(dev->adev,
 				(struct kgd_mem *) mem, true);
 		if (err) {
 			pr_debug("Sync memory failed, wait interrupted by user signal\n");
@@ -1758,7 +1758,7 @@ static int kfd_ioctl_import_dmabuf(struct file *filep,
 		goto err_unlock;
 	}
 
-	r = amdgpu_amdkfd_gpuvm_import_dmabuf(dev->kgd, dmabuf,
+	r = amdgpu_amdkfd_gpuvm_import_dmabuf(dev->adev, dmabuf,
 					      args->va_addr, pdd->drm_priv,
 					      (struct kgd_mem **)&mem, &size,
 					      NULL);
@@ -1779,7 +1779,7 @@ static int kfd_ioctl_import_dmabuf(struct file *filep,
 	return 0;
 
 err_free:
-	amdgpu_amdkfd_gpuvm_free_memory_of_gpu(dev->kgd, (struct kgd_mem *)mem,
+	amdgpu_amdkfd_gpuvm_free_memory_of_gpu(dev->adev, (struct kgd_mem *)mem,
 					       pdd->drm_priv, NULL);
 err_unlock:
 	mutex_unlock(&p->mutex);
