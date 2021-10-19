@@ -10,6 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/miscdevice.h>
+#include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/fsi-occ.h>
@@ -33,13 +34,6 @@
 
 #define OCC_P10_SRAM_MODE	0x58	/* Normal mode, OCB channel 2 */
 
-/*
- * Assume we don't have much FFDC, if we do we'll overflow and
- * fail the command. This needs to be big enough for simple
- * commands as well.
- */
-#define OCC_SBE_STATUS_WORDS	32
-
 #define OCC_TIMEOUT_MS		1000
 #define OCC_CMD_IN_PRG_WAIT_MS	50
 
@@ -51,6 +45,7 @@ struct occ {
 	char name[32];
 	int idx;
 	u8 sequence_number;
+	void *buffer;
 	enum versions version;
 	struct miscdevice mdev;
 	struct mutex occ_lock;
@@ -241,8 +236,10 @@ static int occ_verify_checksum(struct occ *occ, struct occ_response *resp,
 static int occ_getsram(struct occ *occ, u32 offset, void *data, ssize_t len)
 {
 	u32 data_len = ((len + 7) / 8) * 8;	/* must be multiples of 8 B */
-	size_t cmd_len, resp_len, resp_data_len;
-	__be32 *resp, cmd[6];
+	size_t cmd_len, resp_data_len;
+	size_t resp_len = OCC_MAX_RESP_WORDS;
+	__be32 *resp = occ->buffer;
+	__be32 cmd[6];
 	int idx = 0, rc;
 
 	/*
@@ -269,19 +266,19 @@ static int occ_getsram(struct occ *occ, u32 offset, void *data, ssize_t len)
 	cmd[1] = cpu_to_be32(SBEFIFO_CMD_GET_OCC_SRAM);
 	cmd[4 + idx] = cpu_to_be32(data_len);
 
-	resp_len = (data_len >> 2) + OCC_SBE_STATUS_WORDS;
-	resp = kzalloc(resp_len << 2, GFP_KERNEL);
-	if (!resp)
-		return -ENOMEM;
-
 	rc = sbefifo_submit(occ->sbefifo, cmd, cmd_len, resp, &resp_len);
 	if (rc)
-		goto free;
+		return rc;
 
 	rc = sbefifo_parse_status(occ->sbefifo, SBEFIFO_CMD_GET_OCC_SRAM,
 				  resp, resp_len, &resp_len);
-	if (rc)
-		goto free;
+	if (rc > 0) {
+		dev_err(occ->dev, "SRAM read returned failure status: %08x\n",
+			rc);
+		return -EBADMSG;
+	} else if (rc) {
+		return rc;
+	}
 
 	resp_data_len = be32_to_cpu(resp[resp_len - 1]);
 	if (resp_data_len != data_len) {
@@ -292,39 +289,21 @@ static int occ_getsram(struct occ *occ, u32 offset, void *data, ssize_t len)
 		memcpy(data, resp, len);
 	}
 
-free:
-	/* Convert positive SBEI status */
-	if (rc > 0) {
-		dev_err(occ->dev, "SRAM read returned failure status: %08x\n",
-			rc);
-		rc = -EBADMSG;
-	}
-
-	kfree(resp);
 	return rc;
 }
 
 static int occ_putsram(struct occ *occ, const void *data, ssize_t len,
 		       u8 seq_no, u16 checksum)
 {
-	size_t cmd_len, buf_len, resp_len, resp_data_len;
 	u32 data_len = ((len + 7) / 8) * 8;	/* must be multiples of 8 B */
-	__be32 *buf;
+	size_t cmd_len, resp_data_len;
+	size_t resp_len = OCC_MAX_RESP_WORDS;
+	__be32 *buf = occ->buffer;
 	u8 *byte_buf;
 	int idx = 0, rc;
 
 	cmd_len = (occ->version == occ_p10) ? 6 : 5;
-
-	/*
-	 * We use the same buffer for command and response, make
-	 * sure it's big enough
-	 */
-	resp_len = OCC_SBE_STATUS_WORDS;
 	cmd_len += data_len >> 2;
-	buf_len = max(cmd_len, resp_len);
-	buf = kzalloc(buf_len << 2, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
 
 	/*
 	 * Magic sequence to do SBE putsram command. SBE will transfer
@@ -361,12 +340,17 @@ static int occ_putsram(struct occ *occ, const void *data, ssize_t len,
 
 	rc = sbefifo_submit(occ->sbefifo, buf, cmd_len, buf, &resp_len);
 	if (rc)
-		goto free;
+		return rc;
 
 	rc = sbefifo_parse_status(occ->sbefifo, SBEFIFO_CMD_PUT_OCC_SRAM,
 				  buf, resp_len, &resp_len);
-	if (rc)
-		goto free;
+	if (rc > 0) {
+		dev_err(occ->dev, "SRAM write returned failure status: %08x\n",
+			rc);
+		return -EBADMSG;
+	} else if (rc) {
+		return rc;
+	}
 
 	if (resp_len != 1) {
 		dev_err(occ->dev, "SRAM write response length invalid: %zd\n",
@@ -382,26 +366,15 @@ static int occ_putsram(struct occ *occ, const void *data, ssize_t len,
 		}
 	}
 
-free:
-	/* Convert positive SBEI status */
-	if (rc > 0) {
-		dev_err(occ->dev, "SRAM write returned failure status: %08x\n",
-			rc);
-		rc = -EBADMSG;
-	}
-
-	kfree(buf);
 	return rc;
 }
 
 static int occ_trigger_attn(struct occ *occ)
 {
-	__be32 buf[OCC_SBE_STATUS_WORDS];
-	size_t cmd_len, resp_len, resp_data_len;
+	__be32 *buf = occ->buffer;
+	size_t cmd_len, resp_data_len;
+	size_t resp_len = OCC_MAX_RESP_WORDS;
 	int idx = 0, rc;
-
-	BUILD_BUG_ON(OCC_SBE_STATUS_WORDS < 8);
-	resp_len = OCC_SBE_STATUS_WORDS;
 
 	switch (occ->version) {
 	default:
@@ -427,12 +400,17 @@ static int occ_trigger_attn(struct occ *occ)
 
 	rc = sbefifo_submit(occ->sbefifo, buf, cmd_len, buf, &resp_len);
 	if (rc)
-		goto error;
+		return rc;
 
 	rc = sbefifo_parse_status(occ->sbefifo, SBEFIFO_CMD_PUT_OCC_SRAM,
 				  buf, resp_len, &resp_len);
-	if (rc)
-		goto error;
+	if (rc > 0) {
+		dev_err(occ->dev, "SRAM attn returned failure status: %08x\n",
+			rc);
+		return -EBADMSG;
+	} else if (rc) {
+		return rc;
+	}
 
 	if (resp_len != 1) {
 		dev_err(occ->dev, "SRAM attn response length invalid: %zd\n",
@@ -446,14 +424,6 @@ static int occ_trigger_attn(struct occ *occ)
 				resp_data_len);
 			rc = -EBADMSG;
 		}
-	}
-
- error:
-	/* Convert positive SBEI status */
-	if (rc > 0) {
-		dev_err(occ->dev, "SRAM attn returned failure status: %08x\n",
-			rc);
-		rc = -EBADMSG;
 	}
 
 	return rc;
@@ -590,6 +560,11 @@ static int occ_probe(struct platform_device *pdev)
 	if (!occ)
 		return -ENOMEM;
 
+	/* SBE words are always four bytes */
+	occ->buffer = kvmalloc(OCC_MAX_RESP_WORDS * 4, GFP_KERNEL);
+	if (!occ->buffer)
+		return -ENOMEM;
+
 	occ->version = (uintptr_t)of_device_get_match_data(dev);
 	occ->dev = dev;
 	occ->sbefifo = dev->parent;
@@ -625,6 +600,7 @@ static int occ_probe(struct platform_device *pdev)
 	if (rc) {
 		dev_err(dev, "failed to register miscdevice: %d\n", rc);
 		ida_simple_remove(&occ_ida, occ->idx);
+		kvfree(occ->buffer);
 		return rc;
 	}
 
@@ -639,6 +615,8 @@ static int occ_probe(struct platform_device *pdev)
 static int occ_remove(struct platform_device *pdev)
 {
 	struct occ *occ = platform_get_drvdata(pdev);
+
+	kvfree(occ->buffer);
 
 	misc_deregister(&occ->mdev);
 
