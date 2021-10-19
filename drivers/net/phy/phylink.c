@@ -1612,20 +1612,11 @@ int phylink_ethtool_ksettings_set(struct phylink *pl,
 	linkmode_mod_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, config.advertising,
 			 config.an_enabled);
 
-	/* Validate without changing the current supported mask. */
-	linkmode_copy(support, pl->supported);
-	if (phylink_validate(pl, support, &config))
-		return -EINVAL;
-
-	/* If autonegotiation is enabled, we must have an advertisement */
-	if (config.an_enabled && phylink_is_empty_linkmode(config.advertising))
-		return -EINVAL;
-
 	/* If this link is with an SFP, ensure that changes to advertised modes
 	 * also cause the associated interface to be selected such that the
 	 * link can be configured correctly.
 	 */
-	if (pl->sfp_port && pl->sfp_bus) {
+	if (pl->sfp_bus) {
 		config.interface = sfp_select_interface(pl->sfp_bus,
 							config.advertising);
 		if (config.interface == PHY_INTERFACE_MODE_NA) {
@@ -1645,7 +1636,16 @@ int phylink_ethtool_ksettings_set(struct phylink *pl,
 				    __ETHTOOL_LINK_MODE_MASK_NBITS, support);
 			return -EINVAL;
 		}
+	} else {
+		/* Validate without changing the current supported mask. */
+		linkmode_copy(support, pl->supported);
+		if (phylink_validate(pl, support, &config))
+			return -EINVAL;
 	}
+
+	/* If autonegotiation is enabled, we must have an advertisement */
+	if (config.an_enabled && phylink_is_empty_linkmode(config.advertising))
+		return -EINVAL;
 
 	mutex_lock(&pl->state_mutex);
 	pl->link_config.speed = config.speed;
