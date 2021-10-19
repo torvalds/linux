@@ -1160,6 +1160,10 @@ mlx5_esw_bridge_fdb_entry_init(struct net_device *dev, u16 vport_num, u16 esw_ow
 			return ERR_CAST(vlan);
 	}
 
+	entry = mlx5_esw_bridge_fdb_lookup(bridge, addr, vid);
+	if (entry)
+		mlx5_esw_bridge_fdb_entry_notify_and_cleanup(entry, bridge);
+
 	entry = kvzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
 		return ERR_PTR(-ENOMEM);
