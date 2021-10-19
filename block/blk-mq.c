@@ -316,12 +316,11 @@ void blk_mq_wake_waiters(struct request_queue *q)
 }
 
 static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
-		unsigned int tag, u64 alloc_time_ns)
+		struct blk_mq_tags *tags, unsigned int tag, u64 alloc_time_ns)
 {
 	struct blk_mq_ctx *ctx = data->ctx;
 	struct blk_mq_hw_ctx *hctx = data->hctx;
 	struct request_queue *q = data->q;
-	struct blk_mq_tags *tags = blk_mq_tags_from_data(data);
 	struct request *rq = tags->static_rqs[tag];
 
 	if (!(data->rq_flags & RQF_ELV)) {
@@ -393,20 +392,22 @@ __blk_mq_alloc_requests_batch(struct blk_mq_alloc_data *data,
 		u64 alloc_time_ns)
 {
 	unsigned int tag, tag_offset;
+	struct blk_mq_tags *tags;
 	struct request *rq;
-	unsigned long tags;
+	unsigned long tag_mask;
 	int i, nr = 0;
 
-	tags = blk_mq_get_tags(data, data->nr_tags, &tag_offset);
-	if (unlikely(!tags))
+	tag_mask = blk_mq_get_tags(data, data->nr_tags, &tag_offset);
+	if (unlikely(!tag_mask))
 		return NULL;
 
-	for (i = 0; tags; i++) {
-		if (!(tags & (1UL << i)))
+	tags = blk_mq_tags_from_data(data);
+	for (i = 0; tag_mask; i++) {
+		if (!(tag_mask & (1UL << i)))
 			continue;
 		tag = tag_offset + i;
-		tags &= ~(1UL << i);
-		rq = blk_mq_rq_ctx_init(data, tag, alloc_time_ns);
+		tag_mask &= ~(1UL << i);
+		rq = blk_mq_rq_ctx_init(data, tags, tag, alloc_time_ns);
 		rq_list_add(data->cached_rq, rq);
 	}
 	data->nr_tags -= nr;
@@ -477,7 +478,8 @@ retry:
 		goto retry;
 	}
 
-	return blk_mq_rq_ctx_init(data, tag, alloc_time_ns);
+	return blk_mq_rq_ctx_init(data, blk_mq_tags_from_data(data), tag,
+					alloc_time_ns);
 }
 
 struct request *blk_mq_alloc_request(struct request_queue *q, unsigned int op,
@@ -563,7 +565,8 @@ struct request *blk_mq_alloc_request_hctx(struct request_queue *q,
 	tag = blk_mq_get_tag(&data);
 	if (tag == BLK_MQ_NO_TAG)
 		goto out_queue_exit;
-	return blk_mq_rq_ctx_init(&data, tag, alloc_time_ns);
+	return blk_mq_rq_ctx_init(&data, blk_mq_tags_from_data(&data), tag,
+					alloc_time_ns);
 
 out_queue_exit:
 	blk_queue_exit(q);
