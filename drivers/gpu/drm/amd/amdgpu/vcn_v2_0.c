@@ -1876,15 +1876,14 @@ static int vcn_v2_0_start_sriov(struct amdgpu_device *adev)
 
 		/* mc resume*/
 		if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
-			tmp = AMDGPU_UCODE_ID_VCN;
 			MMSCH_V2_0_INSERT_DIRECT_WT(
 				SOC15_REG_OFFSET(UVD, i,
 					mmUVD_LMI_VCPU_CACHE_64BIT_BAR_LOW),
-				adev->firmware.ucode[tmp].tmr_mc_addr_lo);
+				adev->firmware.ucode[AMDGPU_UCODE_ID_VCN].tmr_mc_addr_lo);
 			MMSCH_V2_0_INSERT_DIRECT_WT(
 				SOC15_REG_OFFSET(UVD, i,
 					mmUVD_LMI_VCPU_CACHE_64BIT_BAR_HIGH),
-				adev->firmware.ucode[tmp].tmr_mc_addr_hi);
+				adev->firmware.ucode[AMDGPU_UCODE_ID_VCN].tmr_mc_addr_hi);
 			offset = 0;
 		} else {
 			MMSCH_V2_0_INSERT_DIRECT_WT(
