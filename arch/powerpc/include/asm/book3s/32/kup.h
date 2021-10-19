@@ -23,40 +23,6 @@ static __always_inline bool kuep_is_disabled(void)
 	return !IS_ENABLED(CONFIG_PPC_KUEP);
 }
 
-static inline void kuep_lock(void)
-{
-	if (kuep_is_disabled())
-		return;
-
-	update_user_segments(mfsr(0) | SR_NX);
-	/*
-	 * This isync() shouldn't be necessary as the kernel is not excepted to
-	 * run any instruction in userspace soon after the update of segments,
-	 * but hash based cores (at least G3) seem to exhibit a random
-	 * behaviour when the 'isync' is not there. 603 cores don't have this
-	 * behaviour so don't do the 'isync' as it saves several CPU cycles.
-	 */
-	if (mmu_has_feature(MMU_FTR_HPTE_TABLE))
-		isync();	/* Context sync required after mtsr() */
-}
-
-static inline void kuep_unlock(void)
-{
-	if (kuep_is_disabled())
-		return;
-
-	update_user_segments(mfsr(0) & ~SR_NX);
-	/*
-	 * This isync() shouldn't be necessary as a 'rfi' will soon be executed
-	 * to return to userspace, but hash based cores (at least G3) seem to
-	 * exhibit a random behaviour when the 'isync' is not there. 603 cores
-	 * don't have this behaviour so don't do the 'isync' as it saves several
-	 * CPU cycles.
-	 */
-	if (mmu_has_feature(MMU_FTR_HPTE_TABLE))
-		isync();	/* Context sync required after mtsr() */
-}
-
 #ifdef CONFIG_PPC_KUAP
 
 #include <linux/sched.h>

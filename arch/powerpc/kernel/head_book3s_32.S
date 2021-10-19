@@ -931,7 +931,11 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_USE_HIGH_BATS)
 _GLOBAL(load_segment_registers)
 	li	r0, NUM_USER_SEGMENTS /* load up user segment register values */
 	mtctr	r0		/* for context 0 */
+#ifdef CONFIG_PPC_KUEP
+	lis	r3, SR_NX@h	/* Kp = 0, Ks = 0, VSID = 0 */
+#else
 	li	r3, 0		/* Kp = 0, Ks = 0, VSID = 0 */
+#endif
 	li	r4, 0
 3:	mtsrin	r3, r4
 	addi	r3, r3, 0x111	/* increment VSID */

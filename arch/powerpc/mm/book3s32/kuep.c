@@ -5,8 +5,6 @@
 
 void setup_kuep(bool disabled)
 {
-	kuep_lock();
-
 	if (smp_processor_id() != boot_cpuid)
 		return;
 
