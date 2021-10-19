@@ -1022,10 +1022,27 @@ EXPORT_SYMBOL_GPL(kvm_is_valid_cr4);
 
 void kvm_post_set_cr4(struct kvm_vcpu *vcpu, unsigned long old_cr4, unsigned long cr4)
 {
+	/*
+	 * If any role bit is changed, the MMU needs to be reset.
+	 *
+	 * If CR4.PCIDE is changed 1 -> 0, the guest TLB must be flushed.
+	 * If CR4.PCIDE is changed 0 -> 1, there is no need to flush the TLB
+	 * according to the SDM; however, stale prev_roots could be reused
+	 * incorrectly in the future after a MOV to CR3 with NOFLUSH=1, so we
+	 * free them all.  KVM_REQ_MMU_RELOAD is fit for the both cases; it
+	 * is slow, but changing CR4.PCIDE is a rare case.
+	 *
+	 * If CR4.PGE is changed, the guest TLB must be flushed.
+	 *
+	 * Note: resetting MMU is a superset of KVM_REQ_MMU_RELOAD and
+	 * KVM_REQ_MMU_RELOAD is a superset of KVM_REQ_TLB_FLUSH_GUEST, hence
+	 * the usage of "else if".
+	 */
 	if ((cr4 ^ old_cr4) & KVM_MMU_CR4_ROLE_BITS)
 		kvm_mmu_reset_context(vcpu);
-	else if (((cr4 ^ old_cr4) & X86_CR4_PGE) ||
-		 (!(cr4 & X86_CR4_PCIDE) && (old_cr4 & X86_CR4_PCIDE)))
+	else if ((cr4 ^ old_cr4) & X86_CR4_PCIDE)
+		kvm_make_request(KVM_REQ_MMU_RELOAD, vcpu);
+	else if ((cr4 ^ old_cr4) & X86_CR4_PGE)
 		kvm_make_request(KVM_REQ_TLB_FLUSH_GUEST, vcpu);
 }
 EXPORT_SYMBOL_GPL(kvm_post_set_cr4);
@@ -1094,6 +1111,14 @@ static void kvm_invalidate_pcid(struct kvm_vcpu *vcpu, unsigned long pcid)
 		kvm_make_request(KVM_REQ_MMU_SYNC, vcpu);
 		kvm_make_request(KVM_REQ_TLB_FLUSH_CURRENT, vcpu);
 	}
+
+	/*
+	 * If PCID is disabled, there is no need to free prev_roots even if the
+	 * PCIDs for them are also 0, because MOV to CR3 always flushes the TLB
+	 * with PCIDE=0.
+	 */
+	if (!kvm_read_cr4_bits(vcpu, X86_CR4_PCIDE))
+		return;
 
 	for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++)
 		if (kvm_get_pcid(vcpu, mmu->prev_roots[i].pgd) == pcid)
