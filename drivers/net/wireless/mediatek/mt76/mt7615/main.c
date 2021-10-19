@@ -862,8 +862,6 @@ mt7615_get_stats(struct ieee80211_hw *hw,
 	stats->dot11FCSErrorCount = mib->fcs_err_cnt;
 	stats->dot11ACKFailureCount = mib->ack_fail_cnt;
 
-	memset(mib, 0, sizeof(*mib));
-
 	mt7615_mutex_release(phy->dev);
 
 	return 0;
