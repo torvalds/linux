@@ -321,25 +321,22 @@ static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 	struct blk_mq_ctx *ctx = data->ctx;
 	struct blk_mq_hw_ctx *hctx = data->hctx;
 	struct request_queue *q = data->q;
-	struct elevator_queue *e = q->elevator;
 	struct blk_mq_tags *tags = blk_mq_tags_from_data(data);
 	struct request *rq = tags->static_rqs[tag];
-	unsigned int rq_flags = 0;
 
-	if (e) {
-		rq_flags = RQF_ELV;
-		rq->tag = BLK_MQ_NO_TAG;
-		rq->internal_tag = tag;
-	} else {
+	if (!(data->rq_flags & RQF_ELV)) {
 		rq->tag = tag;
 		rq->internal_tag = BLK_MQ_NO_TAG;
+	} else {
+		rq->tag = BLK_MQ_NO_TAG;
+		rq->internal_tag = tag;
 	}
 
 	if (data->flags & BLK_MQ_REQ_PM)
-		rq_flags |= RQF_PM;
+		data->rq_flags |= RQF_PM;
 	if (blk_queue_io_stat(q))
-		rq_flags |= RQF_IO_STAT;
-	rq->rq_flags = rq_flags;
+		data->rq_flags |= RQF_IO_STAT;
+	rq->rq_flags = data->rq_flags;
 
 	if (blk_mq_need_time_stamp(rq))
 		rq->start_time_ns = ktime_get_ns();
@@ -490,6 +487,7 @@ struct request *blk_mq_alloc_request(struct request_queue *q, unsigned int op,
 		.q		= q,
 		.flags		= flags,
 		.cmd_flags	= op,
+		.rq_flags	= q->elevator ? RQF_ELV : 0,
 		.nr_tags	= 1,
 	};
 	struct request *rq;
@@ -519,6 +517,7 @@ struct request *blk_mq_alloc_request_hctx(struct request_queue *q,
 		.q		= q,
 		.flags		= flags,
 		.cmd_flags	= op,
+		.rq_flags	= q->elevator ? RQF_ELV : 0,
 		.nr_tags	= 1,
 	};
 	u64 alloc_time_ns = 0;
@@ -2512,6 +2511,7 @@ void blk_mq_submit_bio(struct bio *bio)
 			.q		= q,
 			.nr_tags	= 1,
 			.cmd_flags	= bio->bi_opf,
+			.rq_flags	= q->elevator ? RQF_ELV : 0,
 		};
 
 		if (plug) {

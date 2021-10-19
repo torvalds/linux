@@ -149,6 +149,7 @@ struct blk_mq_alloc_data {
 	blk_mq_req_flags_t flags;
 	unsigned int shallow_depth;
 	unsigned int cmd_flags;
+	unsigned int rq_flags;
 
 	/* allocate multiple requests/tags in one go */
 	unsigned int nr_tags;
@@ -166,10 +167,9 @@ static inline bool blk_mq_is_shared_tags(unsigned int flags)
 
 static inline struct blk_mq_tags *blk_mq_tags_from_data(struct blk_mq_alloc_data *data)
 {
-	if (data->q->elevator)
-		return data->hctx->sched_tags;
-
-	return data->hctx->tags;
+	if (!(data->rq_flags & RQF_ELV))
+		return data->hctx->tags;
+	return data->hctx->sched_tags;
 }
 
 static inline bool blk_mq_hctx_stopped(struct blk_mq_hw_ctx *hctx)
