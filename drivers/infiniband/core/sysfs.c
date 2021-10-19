@@ -757,7 +757,7 @@ static void ib_port_release(struct kobject *kobj)
 	if (port->hw_stats_data)
 		kfree(port->hw_stats_data->stats);
 	kfree(port->hw_stats_data);
-	kfree(port);
+	kvfree(port);
 }
 
 static void ib_port_gid_attr_release(struct kobject *kobj)
@@ -1189,7 +1189,7 @@ static struct ib_port *setup_port(struct ib_core_device *coredev, int port_num,
 	struct ib_port *p;
 	int ret;
 
-	p = kzalloc(struct_size(p, attrs_list,
+	p = kvzalloc(struct_size(p, attrs_list,
 				attr->gid_tbl_len + attr->pkey_tbl_len),
 		    GFP_KERNEL);
 	if (!p)
