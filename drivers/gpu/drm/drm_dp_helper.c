@@ -154,38 +154,155 @@ u8 drm_dp_get_adjust_request_post_cursor(const u8 link_status[DP_LINK_STATUS_SIZ
 }
 EXPORT_SYMBOL(drm_dp_get_adjust_request_post_cursor);
 
+static int __8b10b_clock_recovery_delay_us(const struct drm_dp_aux *aux, u8 rd_interval)
+{
+	if (rd_interval > 4)
+		drm_dbg_kms(aux->drm_dev, "%s: invalid AUX interval 0x%02x (max 4)\n",
+			    aux->name, rd_interval);
+
+	if (rd_interval == 0)
+		return 100;
+
+	return rd_interval * 4 * USEC_PER_MSEC;
+}
+
+static int __8b10b_channel_eq_delay_us(const struct drm_dp_aux *aux, u8 rd_interval)
+{
+	if (rd_interval > 4)
+		drm_dbg_kms(aux->drm_dev, "%s: invalid AUX interval 0x%02x (max 4)\n",
+			    aux->name, rd_interval);
+
+	if (rd_interval == 0)
+		return 400;
+
+	return rd_interval * 4 * USEC_PER_MSEC;
+}
+
+static int __128b132b_channel_eq_delay_us(const struct drm_dp_aux *aux, u8 rd_interval)
+{
+	switch (rd_interval) {
+	default:
+		drm_dbg_kms(aux->drm_dev, "%s: invalid AUX interval 0x%02x\n",
+			    aux->name, rd_interval);
+		fallthrough;
+	case DP_128B132B_TRAINING_AUX_RD_INTERVAL_400_US:
+		return 400;
+	case DP_128B132B_TRAINING_AUX_RD_INTERVAL_4_MS:
+		return 4000;
+	case DP_128B132B_TRAINING_AUX_RD_INTERVAL_8_MS:
+		return 8000;
+	case DP_128B132B_TRAINING_AUX_RD_INTERVAL_12_MS:
+		return 12000;
+	case DP_128B132B_TRAINING_AUX_RD_INTERVAL_16_MS:
+		return 16000;
+	case DP_128B132B_TRAINING_AUX_RD_INTERVAL_32_MS:
+		return 32000;
+	case DP_128B132B_TRAINING_AUX_RD_INTERVAL_64_MS:
+		return 64000;
+	}
+}
+
+/*
+ * The link training delays are different for:
+ *
+ *  - Clock recovery vs. channel equalization
+ *  - DPRX vs. LTTPR
+ *  - 128b/132b vs. 8b/10b
+ *  - DPCD rev 1.3 vs. later
+ *
+ * Get the correct delay in us, reading DPCD if necessary.
+ */
+static int __read_delay(struct drm_dp_aux *aux, const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+			enum drm_dp_phy dp_phy, bool uhbr, bool cr)
+{
+	int (*parse)(const struct drm_dp_aux *aux, u8 rd_interval);
+	unsigned int offset;
+	u8 rd_interval, mask;
+
+	if (dp_phy == DP_PHY_DPRX) {
+		if (uhbr) {
+			if (cr)
+				return 100;
+
+			offset = DP_128B132B_TRAINING_AUX_RD_INTERVAL;
+			mask = DP_128B132B_TRAINING_AUX_RD_INTERVAL_MASK;
+			parse = __128b132b_channel_eq_delay_us;
+		} else {
+			if (cr && dpcd[DP_DPCD_REV] >= DP_DPCD_REV_14)
+				return 100;
+
+			offset = DP_TRAINING_AUX_RD_INTERVAL;
+			mask = DP_TRAINING_AUX_RD_MASK;
+			if (cr)
+				parse = __8b10b_clock_recovery_delay_us;
+			else
+				parse = __8b10b_channel_eq_delay_us;
+		}
+	} else {
+		if (uhbr) {
+			offset = DP_128B132B_TRAINING_AUX_RD_INTERVAL_PHY_REPEATER(dp_phy);
+			mask = DP_128B132B_TRAINING_AUX_RD_INTERVAL_MASK;
+			parse = __128b132b_channel_eq_delay_us;
+		} else {
+			if (cr)
+				return 100;
+
+			offset = DP_TRAINING_AUX_RD_INTERVAL_PHY_REPEATER(dp_phy);
+			mask = DP_TRAINING_AUX_RD_MASK;
+			parse = __8b10b_channel_eq_delay_us;
+		}
+	}
+
+	if (offset < DP_RECEIVER_CAP_SIZE) {
+		rd_interval = dpcd[offset];
+	} else {
+		if (drm_dp_dpcd_readb(aux, offset, &rd_interval) != 1) {
+			drm_dbg_kms(aux->drm_dev, "%s: failed rd interval read\n",
+				    aux->name);
+			/* arbitrary default delay */
+			return 400;
+		}
+	}
+
+	return parse(aux, rd_interval & mask);
+}
+
+int drm_dp_read_clock_recovery_delay(struct drm_dp_aux *aux, const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+				     enum drm_dp_phy dp_phy, bool uhbr)
+{
+	return __read_delay(aux, dpcd, dp_phy, uhbr, true);
+}
+EXPORT_SYMBOL(drm_dp_read_clock_recovery_delay);
+
+int drm_dp_read_channel_eq_delay(struct drm_dp_aux *aux, const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+				 enum drm_dp_phy dp_phy, bool uhbr)
+{
+	return __read_delay(aux, dpcd, dp_phy, uhbr, false);
+}
+EXPORT_SYMBOL(drm_dp_read_channel_eq_delay);
+
 void drm_dp_link_train_clock_recovery_delay(const struct drm_dp_aux *aux,
 					    const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 {
-	unsigned long rd_interval = dpcd[DP_TRAINING_AUX_RD_INTERVAL] &
-					 DP_TRAINING_AUX_RD_MASK;
+	u8 rd_interval = dpcd[DP_TRAINING_AUX_RD_INTERVAL] &
+		DP_TRAINING_AUX_RD_MASK;
+	int delay_us;
 
-	if (rd_interval > 4)
-		drm_dbg_kms(aux->drm_dev, "%s: AUX interval %lu, out of range (max 4)\n",
-			    aux->name, rd_interval);
-
-	if (rd_interval == 0 || dpcd[DP_DPCD_REV] >= DP_DPCD_REV_14)
-		rd_interval = 100;
+	if (dpcd[DP_DPCD_REV] >= DP_DPCD_REV_14)
+		delay_us = 100;
 	else
-		rd_interval *= 4 * USEC_PER_MSEC;
+		delay_us = __8b10b_clock_recovery_delay_us(aux, rd_interval);
 
-	usleep_range(rd_interval, rd_interval * 2);
+	usleep_range(delay_us, delay_us * 2);
 }
 EXPORT_SYMBOL(drm_dp_link_train_clock_recovery_delay);
 
 static void __drm_dp_link_train_channel_eq_delay(const struct drm_dp_aux *aux,
-						 unsigned long rd_interval)
+						 u8 rd_interval)
 {
-	if (rd_interval > 4)
-		drm_dbg_kms(aux->drm_dev, "%s: AUX interval %lu, out of range (max 4)\n",
-			    aux->name, rd_interval);
+	int delay_us = __8b10b_channel_eq_delay_us(aux, rd_interval);
 
-	if (rd_interval == 0)
-		rd_interval = 400;
-	else
-		rd_interval *= 4 * USEC_PER_MSEC;
-
-	usleep_range(rd_interval, rd_interval * 2);
+	usleep_range(delay_us, delay_us * 2);
 }
 
 void drm_dp_link_train_channel_eq_delay(const struct drm_dp_aux *aux,
