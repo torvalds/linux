@@ -573,7 +573,7 @@ fail:
 }
 
 /* GUID */
-void bnxt_qplib_get_guid(u8 *dev_addr, u8 *guid)
+void bnxt_qplib_get_guid(const u8 *dev_addr, u8 *guid)
 {
 	u8 mac[ETH_ALEN];
 

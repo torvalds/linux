@@ -898,7 +898,8 @@ struct hns_roce_hw {
 	bool (*chk_mbox_avail)(struct hns_roce_dev *hr_dev, bool *is_busy);
 	int (*set_gid)(struct hns_roce_dev *hr_dev, u32 port, int gid_index,
 		       const union ib_gid *gid, const struct ib_gid_attr *attr);
-	int (*set_mac)(struct hns_roce_dev *hr_dev, u8 phy_port, u8 *addr);
+	int (*set_mac)(struct hns_roce_dev *hr_dev, u8 phy_port,
+		       const u8 *addr);
 	void (*set_mtu)(struct hns_roce_dev *hr_dev, u8 phy_port,
 			enum ib_mtu mtu);
 	int (*write_mtpt)(struct hns_roce_dev *hr_dev, void *mb_buf,

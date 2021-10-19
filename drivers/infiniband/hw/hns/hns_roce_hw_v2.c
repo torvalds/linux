@@ -2982,7 +2982,7 @@ static int hns_roce_v2_set_gid(struct hns_roce_dev *hr_dev, u32 port,
 }
 
 static int hns_roce_v2_set_mac(struct hns_roce_dev *hr_dev, u8 phy_port,
-			       u8 *addr)
+			       const u8 *addr)
 {
 	struct hns_roce_cmq_desc desc;
 	struct hns_roce_cfg_smac_tb *smac_tb =
@@ -4308,10 +4308,10 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 	dma_addr_t trrl_ba;
 	dma_addr_t irrl_ba;
 	enum ib_mtu ib_mtu;
+	const u8 *smac;
 	u8 lp_pktn_ini;
 	u64 *mtts;
 	u8 *dmac;
-	u8 *smac;
 	u32 port;
 	int mtu;
 	int ret;
@@ -4364,7 +4364,7 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 
 	port = (attr_mask & IB_QP_PORT) ? (attr->port_num - 1) : hr_qp->port;
 
-	smac = (u8 *)hr_dev->dev_addr[port];
+	smac = (const u8 *)hr_dev->dev_addr[port];
 	dmac = (u8 *)attr->ah_attr.roce.dmac;
 	/* when dmac equals smac or loop_idc is 1, it should loopback */
 	if (ether_addr_equal_unaligned(dmac, smac) ||

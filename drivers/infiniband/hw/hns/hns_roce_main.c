@@ -42,7 +42,8 @@
 #include "hns_roce_device.h"
 #include "hns_roce_hem.h"
 
-static int hns_roce_set_mac(struct hns_roce_dev *hr_dev, u32 port, u8 *addr)
+static int hns_roce_set_mac(struct hns_roce_dev *hr_dev, u32 port,
+			    const u8 *addr)
 {
 	u8 phy_port;
 	u32 i;

@@ -4326,7 +4326,7 @@ static enum rdma_link_layer irdma_get_link_layer(struct ib_device *ibdev,
 
 static __be64 irdma_mac_to_guid(struct net_device *ndev)
 {
-	unsigned char *mac = ndev->dev_addr;
+	const unsigned char *mac = ndev->dev_addr;
 	__be64 guid;
 	unsigned char *dst = (unsigned char *)&guid;
 
