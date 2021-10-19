@@ -1000,12 +1000,12 @@ static long rcu_nocb_rdp_deoffload(void *arg)
 	 */
 	rcu_nocb_lock_irqsave(rdp, flags);
 	/*
-	 * Theoretically we could set SEGCBLIST_SOFTIRQ_ONLY after the nocb
+	 * Theoretically we could clear SEGCBLIST_LOCKING after the nocb
 	 * lock is released but how about being paranoid for once?
 	 */
-	rcu_segcblist_set_flags(cblist, SEGCBLIST_SOFTIRQ_ONLY);
+	rcu_segcblist_clear_flags(cblist, SEGCBLIST_LOCKING);
 	/*
-	 * With SEGCBLIST_SOFTIRQ_ONLY, we can't use
+	 * Without SEGCBLIST_LOCKING, we can't use
 	 * rcu_nocb_unlock_irqrestore() anymore.
 	 */
 	raw_spin_unlock_irqrestore(&rdp->nocb_lock, flags);
@@ -1058,14 +1058,14 @@ static long rcu_nocb_rdp_offload(void *arg)
 
 	pr_info("Offloading %d\n", rdp->cpu);
 	/*
-	 * Can't use rcu_nocb_lock_irqsave() while we are in
-	 * SEGCBLIST_SOFTIRQ_ONLY mode.
+	 * Can't use rcu_nocb_lock_irqsave() before SEGCBLIST_LOCKING
+	 * is set.
 	 */
 	raw_spin_lock_irqsave(&rdp->nocb_lock, flags);
 
 	/*
 	 * We didn't take the nocb lock while working on the
-	 * rdp->cblist in SEGCBLIST_SOFTIRQ_ONLY mode.
+	 * rdp->cblist with SEGCBLIST_LOCKING cleared (pure softirq/rcuc mode).
 	 * Every modifications that have been done previously on
 	 * rdp->cblist must be visible remotely by the nocb kthreads
 	 * upon wake up after reading the cblist flags.
@@ -1083,6 +1083,14 @@ static long rcu_nocb_rdp_offload(void *arg)
 	swait_event_exclusive(rdp->nocb_state_wq,
 			      rcu_segcblist_test_flags(cblist, SEGCBLIST_KTHREAD_CB) &&
 			      rcu_segcblist_test_flags(cblist, SEGCBLIST_KTHREAD_GP));
+
+	/*
+	 * All kthreads are ready to work, we can finally relieve rcu_core() and
+	 * enable nocb bypass.
+	 */
+	rcu_nocb_lock_irqsave(rdp, flags);
+	rcu_segcblist_clear_flags(cblist, SEGCBLIST_RCU_CORE);
+	rcu_nocb_unlock_irqrestore(rdp, flags);
 
 	return ret;
 }
@@ -1154,8 +1162,8 @@ void __init rcu_init_nohz(void)
 		if (rcu_segcblist_empty(&rdp->cblist))
 			rcu_segcblist_init(&rdp->cblist);
 		rcu_segcblist_offload(&rdp->cblist, true);
-		rcu_segcblist_set_flags(&rdp->cblist, SEGCBLIST_KTHREAD_CB);
-		rcu_segcblist_set_flags(&rdp->cblist, SEGCBLIST_KTHREAD_GP);
+		rcu_segcblist_set_flags(&rdp->cblist, SEGCBLIST_KTHREAD_CB | SEGCBLIST_KTHREAD_GP);
+		rcu_segcblist_clear_flags(&rdp->cblist, SEGCBLIST_RCU_CORE);
 	}
 	rcu_organize_nocb_kthreads();
 }
