@@ -48,6 +48,7 @@ struct dmcfreq_common_info {
 	struct device *dev;
 	struct devfreq *devfreq;
 	struct freq_map_table *vop_bw_tbl;
+	struct freq_map_table *vop_frame_bw_tbl;
 	struct rl_map_table *vop_pn_rl_tbl;
 	struct delayed_work msch_rl_work;
 	unsigned long vop_req_rate;

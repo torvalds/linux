@@ -85,6 +85,10 @@ void rockchip_dmcfreq_vop_bandwidth_update(struct dmcfreq_vop_info *vop_info)
 	if (!common_info)
 		return;
 
+	dev_dbg(common_info->dev, "line bw=%u, frame bw=%u, pn=%u\n",
+		vop_info->line_bw_mbyte, vop_info->frame_bw_mbyte,
+		vop_info->plane_num);
+
 	if (!common_info->vop_pn_rl_tbl || !common_info->set_msch_readlatency)
 		goto vop_bw_tbl;
 	for (i = 0; common_info->vop_pn_rl_tbl[i].rl != DMCFREQ_TABLE_END; i++) {
@@ -106,18 +110,25 @@ void rockchip_dmcfreq_vop_bandwidth_update(struct dmcfreq_vop_info *vop_info)
 
 vop_bw_tbl:
 	if (!common_info->auto_freq_en || !common_info->vop_bw_tbl)
-		return;
+		goto vop_frame_bw_tbl;
 
 	for (i = 0; common_info->vop_bw_tbl[i].freq != DMCFREQ_TABLE_END; i++) {
 		if (vop_info->line_bw_mbyte >= common_info->vop_bw_tbl[i].min)
 			target = common_info->vop_bw_tbl[i].freq;
 	}
 
-	dev_dbg(common_info->dev, "bw=%u\n", vop_info->line_bw_mbyte);
+vop_frame_bw_tbl:
+	if (!common_info->auto_freq_en || !common_info->vop_frame_bw_tbl)
+		goto next;
+	for (i = 0; common_info->vop_frame_bw_tbl[i].freq != DMCFREQ_TABLE_END;
+	     i++) {
+		if (vop_info->frame_bw_mbyte >= common_info->vop_frame_bw_tbl[i].min) {
+			if (target < common_info->vop_frame_bw_tbl[i].freq)
+				target = common_info->vop_frame_bw_tbl[i].freq;
+		}
+	}
 
-	if (!target || target == common_info->vop_req_rate)
-		return;
-
+next:
 	vop_last_rate = common_info->vop_req_rate;
 	common_info->vop_req_rate = target;
 

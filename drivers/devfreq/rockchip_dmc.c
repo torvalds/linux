@@ -2740,7 +2740,9 @@ static void rockchip_dmcfreq_parse_dt(struct rockchip_dmcfreq *dmcfreq)
 	if (rockchip_get_freq_map_talbe(np, "cpu-bw-dmc-freq",
 					&dmcfreq->cpu_bw_tbl))
 		dev_dbg(dev, "failed to get cpu bandwidth to dmc rate\n");
-
+	if (rockchip_get_freq_map_talbe(np, "vop-frame-bw-dmc-freq",
+					&dmcfreq->info.vop_frame_bw_tbl))
+		dev_dbg(dev, "failed to get vop frame bandwidth to dmc rate\n");
 	if (rockchip_get_freq_map_talbe(np, "vop-bw-dmc-freq",
 					&dmcfreq->info.vop_bw_tbl))
 		dev_err(dev, "failed to get vop bandwidth to dmc rate\n");
