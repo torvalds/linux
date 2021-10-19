@@ -25,6 +25,12 @@ config CHARLCD
 	  This is some character LCD core interface that multiple drivers can
 	  use.
 
+config LINEDISP
+	tristate "Character line display core support" if COMPILE_TEST
+	help
+	  This is the core support for single-line character displays, to be
+	  selected by drivers that use it.
+
 config HD44780_COMMON
 	tristate "Common functions for HD44780 (and compatibles) LCD displays" if COMPILE_TEST
 	select CHARLCD
@@ -155,6 +161,7 @@ config IMG_ASCII_LCD
 	depends on HAS_IOMEM
 	default y if MIPS_MALTA
 	select MFD_SYSCON
+	select LINEDISP
 	help
 	  Enable this to support the simple ASCII LCD displays found on
 	  development boards such as the MIPS Boston, MIPS Malta & MIPS SEAD3
