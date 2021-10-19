@@ -217,7 +217,7 @@ static inline bool qdisc_run_begin(struct Qdisc *qdisc)
 		 */
 		return spin_trylock(&qdisc->seqlock);
 	}
-	return test_and_set_bit(__QDISC_STATE_RUNNING, &qdisc->state);
+	return !test_and_set_bit(__QDISC_STATE_RUNNING, &qdisc->state);
 }
 
 static inline void qdisc_run_end(struct Qdisc *qdisc)
