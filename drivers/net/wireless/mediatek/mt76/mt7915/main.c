@@ -1187,45 +1187,15 @@ int mt7915_get_et_sset_count(struct ieee80211_hw *hw,
 	return 0;
 }
 
-struct mt7915_ethtool_worker_info {
-	u64 *data;
-	struct mt7915_vif *mvif;
-	int initial_stat_idx;
-	int worker_stat_count;
-	int sta_count;
-};
-
 static void mt7915_ethtool_worker(void *wi_data, struct ieee80211_sta *sta)
 {
-	struct mt7915_ethtool_worker_info *wi = wi_data;
+	struct mt76_ethtool_worker_info *wi = wi_data;
 	struct mt7915_sta *msta = (struct mt7915_sta *)sta->drv_priv;
-	struct mt76_sta_stats *mstats = &msta->stats;
-	int ei = wi->initial_stat_idx;
-	int q;
-	u64 *data = wi->data;
 
-	if (msta->vif != wi->mvif)
+	if (msta->vif->idx != wi->idx)
 		return;
 
-	wi->sta_count++;
-
-	data[ei++] += mstats->tx_mode[MT_PHY_TYPE_CCK];
-	data[ei++] += mstats->tx_mode[MT_PHY_TYPE_OFDM];
-	data[ei++] += mstats->tx_mode[MT_PHY_TYPE_HT];
-	data[ei++] += mstats->tx_mode[MT_PHY_TYPE_HT_GF];
-	data[ei++] += mstats->tx_mode[MT_PHY_TYPE_VHT];
-	data[ei++] += mstats->tx_mode[MT_PHY_TYPE_HE_SU];
-	data[ei++] += mstats->tx_mode[MT_PHY_TYPE_HE_EXT_SU];
-	data[ei++] += mstats->tx_mode[MT_PHY_TYPE_HE_TB];
-	data[ei++] += mstats->tx_mode[MT_PHY_TYPE_HE_MU];
-
-	for (q = 0; q < ARRAY_SIZE(mstats->tx_bw); q++)
-		data[ei++] += mstats->tx_bw[q];
-
-	for (q = 0; q < 12; q++)
-		data[ei++] += mstats->tx_mcs[q];
-
-	wi->worker_stat_count = ei - wi->initial_stat_idx;
+	mt76_ethtool_worker(wi, &msta->stats);
 }
 
 static
@@ -1236,9 +1206,11 @@ void mt7915_get_et_stats(struct ieee80211_hw *hw,
 	struct mt7915_dev *dev = mt7915_hw_dev(hw);
 	struct mt7915_phy *phy = mt7915_hw_phy(hw);
 	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
-	struct mt7915_ethtool_worker_info wi;
+	struct mt76_ethtool_worker_info wi = {
+		.data = data,
+		.idx = mvif->idx,
+	};
 	struct mib_stats *mib = &phy->mib;
-
 	/* See mt7915_ampdu_stat_read_phy, etc */
 	bool ext_phy = phy != &dev->phy;
 	int i, n, ei = 0;
@@ -1303,12 +1275,7 @@ void mt7915_get_et_stats(struct ieee80211_hw *hw,
 	data[ei++] = mib->rx_ba_cnt;
 
 	/* Add values for all stations owned by this vif */
-	wi.data = data;
-	wi.mvif = mvif;
 	wi.initial_stat_idx = ei;
-	wi.worker_stat_count = 0;
-	wi.sta_count = 0;
-
 	ieee80211_iterate_stations_atomic(hw, mt7915_ethtool_worker, &wi);
 
 	if (wi.sta_count == 0)

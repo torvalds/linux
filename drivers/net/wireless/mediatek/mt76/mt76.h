@@ -786,6 +786,14 @@ struct mt76_sta_stats {
 	u64 tx_mcs[16];		/* mcs idx */
 };
 
+struct mt76_ethtool_worker_info {
+	u64 *data;
+	int idx;
+	int initial_stat_idx;
+	int worker_stat_count;
+	int sta_count;
+};
+
 #define CCK_RATE(_idx, _rate) {					\
 	.bitrate = _rate,					\
 	.flags = IEEE80211_RATE_SHORT_PREAMBLE,			\
@@ -1241,6 +1249,8 @@ mt76u_bulk_msg(struct mt76_dev *dev, void *data, int len, int *actual_len,
 	return usb_bulk_msg(udev, pipe, data, len, actual_len, timeout);
 }
 
+void mt76_ethtool_worker(struct mt76_ethtool_worker_info *wi,
+			 struct mt76_sta_stats *stats);
 int mt76_skb_adjust_pad(struct sk_buff *skb, int pad);
 int mt76u_vendor_request(struct mt76_dev *dev, u8 req,
 			 u8 req_type, u16 val, u16 offset,
