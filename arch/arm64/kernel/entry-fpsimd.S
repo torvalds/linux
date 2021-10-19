@@ -38,9 +38,10 @@ SYM_FUNC_END(fpsimd_load_state)
  *
  * x0 - pointer to buffer for state
  * x1 - pointer to storage for FPSR
+ * x2 - Save FFR if non-zero
  */
 SYM_FUNC_START(sve_save_state)
-	sve_save 0, x1, 2
+	sve_save 0, x1, x2, 3
 	ret
 SYM_FUNC_END(sve_save_state)
 
@@ -49,10 +50,11 @@ SYM_FUNC_END(sve_save_state)
  *
  * x0 - pointer to buffer for state
  * x1 - pointer to storage for FPSR
- * x2 - VQ-1
+ * x2 - Restore FFR if non-zero
+ * x3 - VQ-1
  */
 SYM_FUNC_START(sve_load_state)
-	sve_load 0, x1, x2, 3, x4
+	sve_load 0, x1, x2, x3, 4, x5
 	ret
 SYM_FUNC_END(sve_load_state)
 
@@ -72,13 +74,16 @@ SYM_FUNC_END(sve_set_vq)
  * VQ must already be configured by caller, any further updates of VQ
  * will need to ensure that the register state remains valid.
  *
- * x0 = VQ - 1
+ * x0 = include FFR?
+ * x1 = VQ - 1
  */
 SYM_FUNC_START(sve_flush_live)
-	cbz		x0, 1f	// A VQ-1 of 0 is 128 bits so no extra Z state
+	cbz		x1, 1f	// A VQ-1 of 0 is 128 bits so no extra Z state
 	sve_flush_z
-1:	sve_flush_p_ffr
-	ret
+1:	sve_flush_p
+	tbz		x0, #0, 2f
+	sve_flush_ffr
+2:	ret
 SYM_FUNC_END(sve_flush_live)
 
 #endif /* CONFIG_ARM64_SVE */
