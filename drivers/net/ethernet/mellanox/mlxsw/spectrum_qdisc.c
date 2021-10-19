@@ -739,6 +739,10 @@ static struct mlxsw_sp_qdisc_ops mlxsw_sp_qdisc_ops_red = {
 	.find_class = mlxsw_sp_qdisc_leaf_find_class,
 };
 
+static int mlxsw_sp_qdisc_graft(struct mlxsw_sp_port *mlxsw_sp_port,
+				struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
+				u8 band, u32 child_handle);
+
 static int __mlxsw_sp_setup_tc_red(struct mlxsw_sp_port *mlxsw_sp_port,
 				   struct tc_red_qopt_offload *p)
 {
@@ -766,6 +770,9 @@ static int __mlxsw_sp_setup_tc_red(struct mlxsw_sp_port *mlxsw_sp_port,
 	case TC_RED_STATS:
 		return mlxsw_sp_qdisc_get_stats(mlxsw_sp_port, mlxsw_sp_qdisc,
 						&p->stats);
+	case TC_RED_GRAFT:
+		return mlxsw_sp_qdisc_graft(mlxsw_sp_port, mlxsw_sp_qdisc, 0,
+					    p->child_handle);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -976,6 +983,9 @@ static int __mlxsw_sp_setup_tc_tbf(struct mlxsw_sp_port *mlxsw_sp_port,
 	case TC_TBF_STATS:
 		return mlxsw_sp_qdisc_get_stats(mlxsw_sp_port, mlxsw_sp_qdisc,
 						&p->stats);
+	case TC_TBF_GRAFT:
+		return mlxsw_sp_qdisc_graft(mlxsw_sp_port, mlxsw_sp_qdisc, 0,
+					    p->child_handle);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -1463,10 +1473,9 @@ static struct mlxsw_sp_qdisc_ops mlxsw_sp_qdisc_ops_ets = {
  * grafted corresponds to the parent handle. If the two don't match, we
  * unoffload the child.
  */
-static int
-__mlxsw_sp_qdisc_ets_graft(struct mlxsw_sp_port *mlxsw_sp_port,
-			   struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
-			   u8 band, u32 child_handle)
+static int mlxsw_sp_qdisc_graft(struct mlxsw_sp_port *mlxsw_sp_port,
+				struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
+				u8 band, u32 child_handle)
 {
 	struct mlxsw_sp_qdisc *old_qdisc;
 	u32 parent;
@@ -1499,15 +1508,6 @@ __mlxsw_sp_qdisc_ets_graft(struct mlxsw_sp_port *mlxsw_sp_port,
 	return -EOPNOTSUPP;
 }
 
-static int
-mlxsw_sp_qdisc_prio_graft(struct mlxsw_sp_port *mlxsw_sp_port,
-			  struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
-			  struct tc_prio_qopt_offload_graft_params *p)
-{
-	return __mlxsw_sp_qdisc_ets_graft(mlxsw_sp_port, mlxsw_sp_qdisc,
-					  p->band, p->child_handle);
-}
-
 static int __mlxsw_sp_setup_tc_prio(struct mlxsw_sp_port *mlxsw_sp_port,
 				    struct tc_prio_qopt_offload *p)
 {
@@ -1533,8 +1533,9 @@ static int __mlxsw_sp_setup_tc_prio(struct mlxsw_sp_port *mlxsw_sp_port,
 		return mlxsw_sp_qdisc_get_stats(mlxsw_sp_port, mlxsw_sp_qdisc,
 						&p->stats);
 	case TC_PRIO_GRAFT:
-		return mlxsw_sp_qdisc_prio_graft(mlxsw_sp_port, mlxsw_sp_qdisc,
-						 &p->graft_params);
+		return mlxsw_sp_qdisc_graft(mlxsw_sp_port, mlxsw_sp_qdisc,
+					    p->graft_params.band,
+					    p->graft_params.child_handle);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -1577,9 +1578,9 @@ static int __mlxsw_sp_setup_tc_ets(struct mlxsw_sp_port *mlxsw_sp_port,
 		return mlxsw_sp_qdisc_get_stats(mlxsw_sp_port, mlxsw_sp_qdisc,
 						&p->stats);
 	case TC_ETS_GRAFT:
-		return __mlxsw_sp_qdisc_ets_graft(mlxsw_sp_port, mlxsw_sp_qdisc,
-						  p->graft_params.band,
-						  p->graft_params.child_handle);
+		return mlxsw_sp_qdisc_graft(mlxsw_sp_port, mlxsw_sp_qdisc,
+					    p->graft_params.band,
+					    p->graft_params.child_handle);
 	default:
 		return -EOPNOTSUPP;
 	}
