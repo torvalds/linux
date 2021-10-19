@@ -2176,7 +2176,7 @@ static struct i2c_driver hi846_i2c_driver = {
 	.driver = {
 		.name = "hi846",
 		.pm = &hi846_pm_ops,
-		.of_match_table = of_match_ptr(hi846_of_match),
+		.of_match_table = hi846_of_match,
 	},
 	.probe_new = hi846_probe,
 	.remove = hi846_remove,
