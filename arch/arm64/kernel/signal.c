@@ -594,7 +594,7 @@ static int setup_sigframe_layout(struct rt_sigframe_user_layout *user,
 		unsigned int vq = 0;
 
 		if (add_all || test_thread_flag(TIF_SVE)) {
-			int vl = sve_max_vl;
+			int vl = sve_max_vl();
 
 			if (!add_all)
 				vl = task_get_sve_vl(current);
