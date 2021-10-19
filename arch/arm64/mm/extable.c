@@ -39,6 +39,33 @@ static bool ex_handler_uaccess_err_zero(const struct exception_table_entry *ex,
 	return true;
 }
 
+static bool
+ex_handler_load_unaligned_zeropad(const struct exception_table_entry *ex,
+				  struct pt_regs *regs)
+{
+	int reg_data = FIELD_GET(EX_DATA_REG_DATA, ex->type);
+	int reg_addr = FIELD_GET(EX_DATA_REG_ADDR, ex->type);
+	unsigned long data, addr, offset;
+
+	addr = pt_regs_read_reg(regs, reg_addr);
+
+	offset = addr & 0x7UL;
+	addr &= ~0x7UL;
+
+	data = *(unsigned long*)addr;
+
+#ifndef __AARCH64EB__
+	data >>= 8 * offset;
+#else
+	data <<= 8 * offset;
+#endif
+
+	pt_regs_write_reg(regs, reg_data, data);
+
+	regs->pc = get_ex_fixup(ex);
+	return true;
+}
+
 bool fixup_exception(struct pt_regs *regs)
 {
 	const struct exception_table_entry *ex;
@@ -54,6 +81,8 @@ bool fixup_exception(struct pt_regs *regs)
 		return ex_handler_bpf(ex, regs);
 	case EX_TYPE_UACCESS_ERR_ZERO:
 		return ex_handler_uaccess_err_zero(ex, regs);
+	case EX_TYPE_LOAD_UNALIGNED_ZEROPAD:
+		return ex_handler_load_unaligned_zeropad(ex, regs);
 	}
 
 	BUG();
