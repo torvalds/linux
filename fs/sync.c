@@ -3,6 +3,7 @@
  * High-level sync()-related operations
  */
 
+#include <linux/blkdev.h>
 #include <linux/kernel.h>
 #include <linux/file.h>
 #include <linux/fs.h>
@@ -45,7 +46,7 @@ int sync_filesystem(struct super_block *sb)
 	/*
 	 * Do the filesystem syncing work.  For simple filesystems
 	 * writeback_inodes_sb(sb) just dirties buffers with inodes so we have
-	 * to submit I/O for these buffers via __sync_blockdev().  This also
+	 * to submit I/O for these buffers via sync_blockdev().  This also
 	 * speeds up the wait == 1 case since in that case write_inode()
 	 * methods call sync_dirty_buffer() and thus effectively write one block
 	 * at a time.
@@ -53,14 +54,14 @@ int sync_filesystem(struct super_block *sb)
 	writeback_inodes_sb(sb, WB_REASON_SYNC);
 	if (sb->s_op->sync_fs)
 		sb->s_op->sync_fs(sb, 0);
-	ret = __sync_blockdev(sb->s_bdev, 0);
+	ret = sync_blockdev_nowait(sb->s_bdev);
 	if (ret < 0)
 		return ret;
 
 	sync_inodes_sb(sb);
 	if (sb->s_op->sync_fs)
 		sb->s_op->sync_fs(sb, 1);
-	return __sync_blockdev(sb->s_bdev, 1);
+	return sync_blockdev(sb->s_bdev);
 }
 EXPORT_SYMBOL(sync_filesystem);
 
