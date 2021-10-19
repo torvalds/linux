@@ -69,10 +69,10 @@
  * This driver also supports the G781 from GMT. This device is compatible
  * with the ADM1032.
  *
- * This driver also supports TMP451 from Texas Instruments. This device is
- * supported in both compatibility and extended mode. It's mostly compatible
- * with ADT7461 except for local temperature low byte register and max
- * conversion rate.
+ * This driver also supports TMP451 and TMP461 from Texas Instruments.
+ * Those devices are supported in both compatibility and extended mode.
+ * They are mostly compatible with ADT7461 except for local temperature
+ * low byte register and max conversion rate.
  *
  * Since the LM90 was the first chipset supported by this driver, most
  * comments will refer to this chipset, but are actually general and
@@ -112,7 +112,7 @@ static const unsigned short normal_i2c[] = {
 	0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
 
 enum chips { lm90, adm1032, lm99, lm86, max6657, max6659, adt7461, max6680,
-	max6646, w83l771, max6696, sa56004, g781, tmp451, max6654 };
+	max6646, w83l771, max6696, sa56004, g781, tmp451, tmp461, max6654 };
 
 /*
  * The LM90 registers
@@ -168,8 +168,12 @@ enum chips { lm90, adm1032, lm99, lm86, max6657, max6659, adt7461, max6680,
 
 #define LM90_MAX_CONVRATE_MS	16000	/* Maximum conversion rate in ms */
 
-/* TMP451 registers */
+/* TMP451/TMP461 registers */
 #define TMP451_REG_R_LOCAL_TEMPL	0x15
+#define TMP451_REG_CONALERT		0x22
+
+#define TMP461_REG_CHEN			0x16
+#define TMP461_REG_DFC			0x24
 
 /*
  * Device flags
@@ -229,6 +233,7 @@ static const struct i2c_device_id lm90_id[] = {
 	{ "w83l771", w83l771 },
 	{ "sa56004", sa56004 },
 	{ "tmp451", tmp451 },
+	{ "tmp461", tmp461 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm90_id);
@@ -325,6 +330,10 @@ static const struct of_device_id __maybe_unused lm90_of_match[] = {
 	{
 		.compatible = "ti,tmp451",
 		.data = (void *)tmp451
+	},
+	{
+		.compatible = "ti,tmp461",
+		.data = (void *)tmp461
 	},
 	{ },
 };
@@ -423,6 +432,13 @@ static const struct lm90_params lm90_params[] = {
 	[tmp451] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
 		  | LM90_HAVE_BROKEN_ALERT,
+		.alert_alarms = 0x7c,
+		.max_convrate = 9,
+		.reg_local_ext = TMP451_REG_R_LOCAL_TEMPL,
+	},
+	[tmp461] = {
+		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
+		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_EXTENDED_TEMP,
 		.alert_alarms = 0x7c,
 		.max_convrate = 9,
 		.reg_local_ext = TMP451_REG_R_LOCAL_TEMPL,
@@ -1616,18 +1632,26 @@ static int lm90_detect(struct i2c_client *client,
 		 && convrate <= 0x08)
 			name = "g781";
 	} else
-	if (address == 0x4C
-	 && man_id == 0x55) { /* Texas Instruments */
-		int local_ext;
+	if (man_id == 0x55 && chip_id == 0x00 &&
+	    (config1 & 0x1B) == 0x00 && convrate <= 0x09) {
+		int local_ext, conalert, chen, dfc;
 
 		local_ext = i2c_smbus_read_byte_data(client,
 						     TMP451_REG_R_LOCAL_TEMPL);
+		conalert = i2c_smbus_read_byte_data(client,
+						    TMP451_REG_CONALERT);
+		chen = i2c_smbus_read_byte_data(client, TMP461_REG_CHEN);
+		dfc = i2c_smbus_read_byte_data(client, TMP461_REG_DFC);
 
-		if (chip_id == 0x00 /* TMP451 */
-		 && (config1 & 0x1B) == 0x00
-		 && convrate <= 0x09
-		 && (local_ext & 0x0F) == 0x00)
-			name = "tmp451";
+		if ((local_ext & 0x0F) == 0x00 &&
+		    (conalert & 0xf1) == 0x01 &&
+		    (chen & 0xfc) == 0x00 &&
+		    (dfc & 0xfc) == 0x00) {
+			if (address == 0x4c && !(chen & 0x03))
+				name = "tmp451";
+			else if (address >= 0x48 && address <= 0x4f)
+				name = "tmp461";
+		}
 	}
 
 	if (!name) { /* identification failed */
