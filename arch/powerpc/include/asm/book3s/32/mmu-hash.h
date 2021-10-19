@@ -175,8 +175,13 @@ struct hash_pte {
 
 typedef struct {
 	unsigned long id;
+	unsigned long sr0;
 	void __user *vdso;
 } mm_context_t;
+
+#ifdef CONFIG_PPC_KUEP
+#define INIT_MM_CONTEXT(mm) .context.sr0 = SR_NX
+#endif
 
 void update_bats(void);
 static inline void cleanup_cpu_mmu_context(void) { }

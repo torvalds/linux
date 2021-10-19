@@ -76,15 +76,13 @@ _ASM_NOKPROBE_SYMBOL(prepare_transfer_to_handler)
 #if defined(CONFIG_PPC_KUEP) && defined(CONFIG_PPC_BOOK3S_32)
 	.globl	__kuep_lock
 __kuep_lock:
-	mfsr    r9,0
-	rlwinm  r9,r9,0,8,3
-	oris    r9,r9,SR_NX@h
+	lwz	r9, THREAD+THSR0(r2)
 	update_user_segments_by_4 r9, r10, r11, r12
 	blr
 
 __kuep_unlock:
-	mfsr    r9,0
-	rlwinm  r9,r9,0,8,2
+	lwz	r9, THREAD+THSR0(r2)
+	rlwinm  r9,r9,0,~SR_NX
 	update_user_segments_by_4 r9, r10, r11, r12
 	blr
 
