@@ -316,8 +316,8 @@ void irdma_uk_cq_request_notification(struct irdma_cq_uk *cq,
 				      enum irdma_cmpl_notify cq_notify);
 void irdma_uk_cq_resize(struct irdma_cq_uk *cq, void *cq_base, int size);
 void irdma_uk_cq_set_resized_cnt(struct irdma_cq_uk *qp, u16 cnt);
-enum irdma_status_code irdma_uk_cq_init(struct irdma_cq_uk *cq,
-					struct irdma_cq_uk_init_info *info);
+void irdma_uk_cq_init(struct irdma_cq_uk *cq,
+		      struct irdma_cq_uk_init_info *info);
 enum irdma_status_code irdma_uk_qp_init(struct irdma_qp_uk *qp,
 					struct irdma_qp_uk_init_info *info);
 struct irdma_sq_uk_wr_trk_info {

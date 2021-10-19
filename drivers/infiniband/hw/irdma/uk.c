@@ -1446,8 +1446,8 @@ enum irdma_status_code irdma_uk_qp_init(struct irdma_qp_uk *qp,
  * @cq: hw cq
  * @info: hw cq initialization info
  */
-enum irdma_status_code irdma_uk_cq_init(struct irdma_cq_uk *cq,
-					struct irdma_cq_uk_init_info *info)
+void irdma_uk_cq_init(struct irdma_cq_uk *cq,
+		      struct irdma_cq_uk_init_info *info)
 {
 	cq->cq_base = info->cq_base;
 	cq->cq_id = info->cq_id;
@@ -1458,8 +1458,6 @@ enum irdma_status_code irdma_uk_cq_init(struct irdma_cq_uk *cq,
 	cq->avoid_mem_cflct = info->avoid_mem_cflct;
 	IRDMA_RING_INIT(cq->cq_ring, cq->cq_size);
 	cq->polarity = 1;
-
-	return 0;
 }
 
 /**

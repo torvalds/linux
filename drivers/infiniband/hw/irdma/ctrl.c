@@ -2463,7 +2463,6 @@ static inline void irdma_sc_cq_ack(struct irdma_sc_cq *cq)
 enum irdma_status_code irdma_sc_cq_init(struct irdma_sc_cq *cq,
 					struct irdma_cq_init_info *info)
 {
-	enum irdma_status_code ret_code;
 	u32 pble_obj_cnt;
 
 	pble_obj_cnt = info->dev->hmc_info->hmc_obj[IRDMA_HMC_IW_PBLE].cnt;
@@ -2475,9 +2474,7 @@ enum irdma_status_code irdma_sc_cq_init(struct irdma_sc_cq *cq,
 	cq->ceq_id = info->ceq_id;
 	info->cq_uk_init_info.cqe_alloc_db = cq->dev->cq_arm_db;
 	info->cq_uk_init_info.cq_ack_db = cq->dev->cq_ack_db;
-	ret_code = irdma_uk_cq_init(&cq->cq_uk, &info->cq_uk_init_info);
-	if (ret_code)
-		return ret_code;
+	irdma_uk_cq_init(&cq->cq_uk, &info->cq_uk_init_info);
 
 	cq->virtual_map = info->virtual_map;
 	cq->pbl_chunk_size = info->pbl_chunk_size;
