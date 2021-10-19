@@ -5558,7 +5558,7 @@ struct wireless_dev {
 	unsigned long unprot_beacon_reported;
 };
 
-static inline u8 *wdev_address(struct wireless_dev *wdev)
+static inline const u8 *wdev_address(struct wireless_dev *wdev)
 {
 	if (wdev->netdev)
 		return wdev->netdev->dev_addr;
