@@ -89,13 +89,21 @@ struct trbe_buf {
  *   - Not duplicating the detection logic
  *   - Streamlined detection of erratum across the system
  */
+#define TRBE_WORKAROUND_OVERWRITE_FILL_MODE	0
 
 static int trbe_errata_cpucaps[] = {
+	[TRBE_WORKAROUND_OVERWRITE_FILL_MODE] = ARM64_WORKAROUND_TRBE_OVERWRITE_FILL_MODE,
 	-1,		/* Sentinel, must be the last entry */
 };
 
 /* The total number of listed errata in trbe_errata_cpucaps */
 #define TRBE_ERRATA_MAX			(ARRAY_SIZE(trbe_errata_cpucaps) - 1)
+
+/*
+ * Safe limit for the number of bytes that may be overwritten
+ * when ARM64_WORKAROUND_TRBE_OVERWRITE_FILL_MODE is triggered.
+ */
+#define TRBE_WORKAROUND_OVERWRITE_FILL_MODE_SKIP_BYTES	256
 
 /*
  * struct trbe_cpudata: TRBE instance specific data
@@ -145,6 +153,11 @@ static void trbe_check_errata(struct trbe_cpudata *cpudata)
 static inline bool trbe_has_erratum(struct trbe_cpudata *cpudata, int i)
 {
 	return (i < TRBE_ERRATA_MAX) && test_bit(i, cpudata->errata);
+}
+
+static inline bool trbe_may_overwrite_in_fill_mode(struct trbe_cpudata *cpudata)
+{
+	return trbe_has_erratum(cpudata, TRBE_WORKAROUND_OVERWRITE_FILL_MODE);
 }
 
 static int trbe_alloc_node(struct perf_event *event)
@@ -550,10 +563,13 @@ static void trbe_enable_hw(struct trbe_buf *buf)
 	set_trbe_limit_pointer_enabled(buf->trbe_limit);
 }
 
-static enum trbe_fault_action trbe_get_fault_act(u64 trbsr)
+static enum trbe_fault_action trbe_get_fault_act(struct perf_output_handle *handle,
+						 u64 trbsr)
 {
 	int ec = get_trbe_ec(trbsr);
 	int bsc = get_trbe_bsc(trbsr);
+	struct trbe_buf *buf = etm_perf_sink_config(handle);
+	struct trbe_cpudata *cpudata = buf->cpudata;
 
 	WARN_ON(is_trbe_running(trbsr));
 	if (is_trbe_trg(trbsr) || is_trbe_abort(trbsr))
@@ -562,10 +578,16 @@ static enum trbe_fault_action trbe_get_fault_act(u64 trbsr)
 	if ((ec == TRBE_EC_STAGE1_ABORT) || (ec == TRBE_EC_STAGE2_ABORT))
 		return TRBE_FAULT_ACT_FATAL;
 
-	if (is_trbe_wrap(trbsr) && (ec == TRBE_EC_OTHERS) && (bsc == TRBE_BSC_FILLED)) {
-		if (get_trbe_write_pointer() == get_trbe_base_pointer())
-			return TRBE_FAULT_ACT_WRAP;
-	}
+	/*
+	 * If the trbe is affected by TRBE_WORKAROUND_OVERWRITE_FILL_MODE,
+	 * it might write data after a WRAP event in the fill mode.
+	 * Thus the check TRBPTR == TRBBASER will not be honored.
+	 */
+	if ((is_trbe_wrap(trbsr) && (ec == TRBE_EC_OTHERS) && (bsc == TRBE_BSC_FILLED)) &&
+	    (trbe_may_overwrite_in_fill_mode(cpudata) ||
+	     get_trbe_write_pointer() == get_trbe_base_pointer()))
+		return TRBE_FAULT_ACT_WRAP;
+
 	return TRBE_FAULT_ACT_SPURIOUS;
 }
 
@@ -574,6 +596,8 @@ static unsigned long trbe_get_trace_size(struct perf_output_handle *handle,
 {
 	u64 write;
 	u64 start_off, end_off;
+	u64 size;
+	u64 overwrite_skip = TRBE_WORKAROUND_OVERWRITE_FILL_MODE_SKIP_BYTES;
 
 	/*
 	 * If the TRBE has wrapped around the write pointer has
@@ -594,7 +618,18 @@ static unsigned long trbe_get_trace_size(struct perf_output_handle *handle,
 
 	if (WARN_ON_ONCE(end_off < start_off))
 		return 0;
-	return (end_off - start_off);
+
+	size = end_off - start_off;
+	/*
+	 * If the TRBE is affected by the following erratum, we must fill
+	 * the space we skipped with IGNORE packets. And we are always
+	 * guaranteed to have at least a PAGE_SIZE space in the buffer.
+	 */
+	if (trbe_has_erratum(buf->cpudata, TRBE_WORKAROUND_OVERWRITE_FILL_MODE) &&
+	    !WARN_ON(size < overwrite_skip))
+		__trbe_pad_buf(buf, start_off, overwrite_skip);
+
+	return size;
 }
 
 static void *arm_trbe_alloc_buffer(struct coresight_device *csdev,
@@ -713,7 +748,7 @@ static unsigned long arm_trbe_update_buffer(struct coresight_device *csdev,
 		clr_trbe_irq();
 		isb();
 
-		act = trbe_get_fault_act(status);
+		act = trbe_get_fault_act(handle, status);
 		/*
 		 * If this was not due to a WRAP event, we have some
 		 * errors and as such buffer is empty.
@@ -737,21 +772,117 @@ done:
 	return size;
 }
 
+
+static int trbe_apply_work_around_before_enable(struct trbe_buf *buf)
+{
+	/*
+	 * TRBE_WORKAROUND_OVERWRITE_FILL_MODE causes the TRBE to overwrite a few cache
+	 * line size from the "TRBBASER_EL1" in the event of a "FILL".
+	 * Thus, we could loose some amount of the trace at the base.
+	 *
+	 * Before Fix:
+	 *
+	 *  normal-BASE     head (normal-TRBPTR)         tail (normal-LIMIT)
+	 *  |                   \/                       /
+	 *   -------------------------------------------------------------
+	 *  |   Pg0      |   Pg1       |           |          |  PgN     |
+	 *   -------------------------------------------------------------
+	 *
+	 * In the normal course of action, we would set the TRBBASER to the
+	 * beginning of the ring-buffer (normal-BASE). But with the erratum,
+	 * the TRBE could overwrite the contents at the "normal-BASE", after
+	 * hitting the "normal-LIMIT", since it doesn't stop as expected. And
+	 * this is wrong. This could result in overwriting trace collected in
+	 * one of the previous runs, being consumed by the user. So we must
+	 * always make sure that the TRBBASER is within the region
+	 * [head, head+size]. Note that TRBBASER must be PAGE aligned,
+	 *
+	 *  After moving the BASE:
+	 *
+	 *  normal-BASE     head (normal-TRBPTR)         tail (normal-LIMIT)
+	 *  |                   \/                       /
+	 *   -------------------------------------------------------------
+	 *  |         |          |xyzdef.     |..   tuvw|                |
+	 *   -------------------------------------------------------------
+	 *                      /
+	 *              New-BASER
+	 *
+	 * Also, we would set the TRBPTR to head (after adjusting for
+	 * alignment) at normal-PTR. This would mean that the last few bytes
+	 * of the trace (say, "xyz") might overwrite the first few bytes of
+	 * trace written ("abc"). More importantly they will appear in what
+	 * userspace sees as the beginning of the trace, which is wrong. We may
+	 * not always have space to move the latest trace "xyz" to the correct
+	 * order as it must appear beyond the LIMIT. (i.e, [head..head+size]).
+	 * Thus it is easier to ignore those bytes than to complicate the
+	 * driver to move it, assuming that the erratum was triggered and
+	 * doing additional checks to see if there is indeed allowed space at
+	 * TRBLIMITR.LIMIT.
+	 *
+	 *  Thus the full workaround will move the BASE and the PTR and would
+	 *  look like (after padding at the skipped bytes at the end of
+	 *  session) :
+	 *
+	 *  normal-BASE     head (normal-TRBPTR)         tail (normal-LIMIT)
+	 *  |                   \/                       /
+	 *   -------------------------------------------------------------
+	 *  |         |          |///abc..     |..  rst|                |
+	 *   -------------------------------------------------------------
+	 *                      /    |
+	 *              New-BASER    New-TRBPTR
+	 *
+	 * To summarize, with the work around:
+	 *
+	 *  - We always align the offset for the next session to PAGE_SIZE
+	 *    (This is to ensure we can program the TRBBASER to this offset
+	 *    within the region [head...head+size]).
+	 *
+	 *  - At TRBE enable:
+	 *     - Set the TRBBASER to the page aligned offset of the current
+	 *       proposed write offset. (which is guaranteed to be aligned
+	 *       as above)
+	 *     - Move the TRBPTR to skip first 256bytes (that might be
+	 *       overwritten with the erratum). This ensures that the trace
+	 *       generated in the session is not re-written.
+	 *
+	 *  - At trace collection:
+	 *     - Pad the 256bytes skipped above again with IGNORE packets.
+	 */
+	if (trbe_has_erratum(buf->cpudata, TRBE_WORKAROUND_OVERWRITE_FILL_MODE)) {
+		if (WARN_ON(!IS_ALIGNED(buf->trbe_write, PAGE_SIZE)))
+			return -EINVAL;
+		buf->trbe_hw_base = buf->trbe_write;
+		buf->trbe_write += TRBE_WORKAROUND_OVERWRITE_FILL_MODE_SKIP_BYTES;
+	}
+
+	return 0;
+}
+
 static int __arm_trbe_enable(struct trbe_buf *buf,
 			     struct perf_output_handle *handle)
 {
+	int ret = 0;
+
 	perf_aux_output_flag(handle, PERF_AUX_FLAG_CORESIGHT_FORMAT_RAW);
 	buf->trbe_limit = compute_trbe_buffer_limit(handle);
 	buf->trbe_write = buf->trbe_base + PERF_IDX2OFF(handle->head, buf);
 	if (buf->trbe_limit == buf->trbe_base) {
-		trbe_stop_and_truncate_event(handle);
-		return -ENOSPC;
+		ret = -ENOSPC;
+		goto err;
 	}
 	/* Set the base of the TRBE to the buffer base */
 	buf->trbe_hw_base = buf->trbe_base;
+
+	ret = trbe_apply_work_around_before_enable(buf);
+	if (ret)
+		goto err;
+
 	*this_cpu_ptr(buf->cpudata->drvdata->handle) = handle;
 	trbe_enable_hw(buf);
 	return 0;
+err:
+	trbe_stop_and_truncate_event(handle);
+	return ret;
 }
 
 static int arm_trbe_enable(struct coresight_device *csdev, u32 mode, void *data)
@@ -891,7 +1022,7 @@ static irqreturn_t arm_trbe_irq_handler(int irq, void *dev)
 	if (!is_perf_trbe(handle))
 		return IRQ_NONE;
 
-	act = trbe_get_fault_act(status);
+	act = trbe_get_fault_act(handle, status);
 	switch (act) {
 	case TRBE_FAULT_ACT_WRAP:
 		truncated = !!trbe_handle_overflow(handle);
@@ -1043,7 +1174,22 @@ static void arm_trbe_probe_cpu(void *info)
 	 */
 	trbe_check_errata(cpudata);
 
-	cpudata->trbe_align = cpudata->trbe_hw_align;
+	/*
+	 * If the TRBE is affected by erratum TRBE_WORKAROUND_OVERWRITE_FILL_MODE,
+	 * we must always program the TBRPTR_EL1, 256bytes from a page
+	 * boundary, with TRBBASER_EL1 set to the page, to prevent
+	 * TRBE over-writing 256bytes at TRBBASER_EL1 on FILL event.
+	 *
+	 * Thus make sure we always align our write pointer to a PAGE_SIZE,
+	 * which also guarantees that we have at least a PAGE_SIZE space in
+	 * the buffer (TRBLIMITR is PAGE aligned) and thus we can skip
+	 * the required bytes at the base.
+	 */
+	if (trbe_may_overwrite_in_fill_mode(cpudata))
+		cpudata->trbe_align = PAGE_SIZE;
+	else
+		cpudata->trbe_align = cpudata->trbe_hw_align;
+
 	cpudata->trbe_flag = get_trbe_flag_update(trbidr);
 	cpudata->cpu = cpu;
 	cpudata->drvdata = drvdata;
