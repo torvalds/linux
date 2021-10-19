@@ -247,12 +247,6 @@ void setup_kuep(bool disabled)
 	if (smp_processor_id() != boot_cpuid)
 		return;
 
-	if (disabled)
-		patch_instruction_site(&patch__tlb_44x_kuep, ppc_inst(PPC_RAW_NOP()));
-	else
-		pr_info("Activating Kernel Userspace Execution Prevention\n");
-
-	if (IS_ENABLED(CONFIG_PPC_47x) && disabled)
-		patch_instruction_site(&patch__tlb_47x_kuep, ppc_inst(PPC_RAW_NOP()));
+	pr_info("Activating Kernel Userspace Execution Prevention\n");
 }
 #endif
