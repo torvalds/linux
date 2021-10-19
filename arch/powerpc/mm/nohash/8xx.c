@@ -215,12 +215,7 @@ void __init setup_initial_memory_limit(phys_addr_t first_memblock_base,
 #ifdef CONFIG_PPC_KUEP
 void setup_kuep(bool disabled)
 {
-	if (disabled)
-		return;
-
 	pr_info("Activating Kernel Userspace Execution Prevention\n");
-
-	mtspr(SPRN_MI_AP, MI_APG_KUEP);
 }
 #endif
 
