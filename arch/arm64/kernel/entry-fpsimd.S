@@ -51,10 +51,9 @@ SYM_FUNC_END(sve_save_state)
  * x0 - pointer to buffer for state
  * x1 - pointer to storage for FPSR
  * x2 - Restore FFR if non-zero
- * x3 - VQ-1
  */
 SYM_FUNC_START(sve_load_state)
-	sve_load 0, x1, x2, x3, 4, x5
+	sve_load 0, x1, x2, 4
 	ret
 SYM_FUNC_END(sve_load_state)
 

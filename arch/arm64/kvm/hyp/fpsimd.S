@@ -22,7 +22,7 @@ SYM_FUNC_END(__fpsimd_restore_state)
 
 SYM_FUNC_START(__sve_restore_state)
 	mov	x2, #1
-	__sve_load 0, x1, x2, 3
+	sve_load 0, x1, x2, 3
 	ret
 SYM_FUNC_END(__sve_restore_state)
 
