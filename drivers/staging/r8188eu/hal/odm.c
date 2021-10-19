@@ -249,35 +249,11 @@ void ODM_CmnInfoHook(struct odm_dm_struct *pDM_Odm, enum odm_common_info_def Cmn
 	case	ODM_CMNINFO_CHNL:
 		pDM_Odm->pChannel = (u8 *)pValue;
 		break;
-	case	ODM_CMNINFO_DMSP_GET_VALUE:
-		pDM_Odm->pbGetValueFromOtherMac = (bool *)pValue;
-		break;
-	case	ODM_CMNINFO_BUDDY_ADAPTOR:
-		pDM_Odm->pBuddyAdapter = (struct adapter **)pValue;
-		break;
-	case	ODM_CMNINFO_DMSP_IS_MASTER:
-		pDM_Odm->pbMasterOfDMSP = (bool *)pValue;
-		break;
 	case	ODM_CMNINFO_SCAN:
 		pDM_Odm->pbScanInProcess = (bool *)pValue;
 		break;
 	case	ODM_CMNINFO_POWER_SAVING:
 		pDM_Odm->pbPowerSaving = (bool *)pValue;
-		break;
-	case	ODM_CMNINFO_ONE_PATH_CCA:
-		pDM_Odm->pOnePathCCA = (u8 *)pValue;
-		break;
-	case	ODM_CMNINFO_DRV_STOP:
-		pDM_Odm->pbDriverStopped =  (bool *)pValue;
-		break;
-	case	ODM_CMNINFO_PNP_IN:
-		pDM_Odm->pbDriverIsGoingToPnpSetPowerSleep =  (bool *)pValue;
-		break;
-	case	ODM_CMNINFO_INIT_ON:
-		pDM_Odm->pinit_adpt_in_progress =  (bool *)pValue;
-		break;
-	case	ODM_CMNINFO_ANT_TEST:
-		pDM_Odm->pAntennaTest =  (u8 *)pValue;
 		break;
 	case	ODM_CMNINFO_NET_CLOSED:
 		pDM_Odm->pbNet_closed = (bool *)pValue;
@@ -313,12 +289,6 @@ void ODM_CmnInfoUpdate(struct odm_dm_struct *pDM_Odm, u32 CmnInfo, u64 Value)
 		break;
 	case	ODM_CMNINFO_RSSI_MIN:
 		pDM_Odm->RSSI_Min = (u8)Value;
-		break;
-	case	ODM_CMNINFO_RA_THRESHOLD_HIGH:
-		pDM_Odm->RateAdaptive.HighRSSIThresh = (u8)Value;
-		break;
-	case	ODM_CMNINFO_RA_THRESHOLD_LOW:
-		pDM_Odm->RateAdaptive.LowRSSIThresh = (u8)Value;
 		break;
 	}
 }
