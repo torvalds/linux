@@ -196,7 +196,7 @@ EXPORT_SYMBOL(snd_dma_buffer_mmap);
 /**
  * snd_dma_buffer_sync - sync DMA buffer between CPU and device
  * @dmab: buffer allocation information
- * @mod: sync mode
+ * @mode: sync mode
  */
 void snd_dma_buffer_sync(struct snd_dma_buffer *dmab,
 			 enum snd_dma_sync_mode mode)
