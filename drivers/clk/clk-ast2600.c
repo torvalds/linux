@@ -4,6 +4,7 @@
 
 #define pr_fmt(fmt) "clk-ast2600: " fmt
 
+#include <linux/bitfield.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
@@ -33,6 +34,17 @@
 #define ASPEED_G6_CLK_SELECTION2	0x304
 #define ASPEED_G6_CLK_SELECTION4	0x310
 #define ASPEED_G6_CLK_SELECTION5	0x314
+#define   I3C_CLK_SELECTION		BIT(31)
+#define     I3C_CLK_SELECT_HCLK		0
+#define     I3C_CLK_SELECT_APLL_DIV	1
+#define   APLL_DIV_SELECTION		GENMASK(30, 28)
+#define     APLL_DIV_2			0b001
+#define     APLL_DIV_3			0b010
+#define     APLL_DIV_4			0b011
+#define     APLL_DIV_5			0b100
+#define     APLL_DIV_6			0b101
+#define     APLL_DIV_7			0b110
+#define     APLL_DIV_8			0b111
 
 #define ASPEED_HPLL_PARAM		0x200
 #define ASPEED_APLL_PARAM		0x210
@@ -151,14 +163,14 @@ static struct aspeed_gate_data aspeed_g6_gates[] = {
 	[ASPEED_CLK_GATE_LHCCLK]	= { 37, -1, "lhclk-gate",	"lhclk", 0 },	/* LPC master/LPC+ */
 	/* Reserved 38 RSA: no longer used */
 	/* Reserved 39 */
-	[ASPEED_CLK_GATE_I3C0CLK]	= { 40,  40, "i3c0clk-gate",	NULL,	 0 },	/* I3C0 */
-	[ASPEED_CLK_GATE_I3C1CLK]	= { 41,  41, "i3c1clk-gate",	NULL,	 0 },	/* I3C1 */
-	[ASPEED_CLK_GATE_I3C2CLK]	= { 42,  42, "i3c2clk-gate",	NULL,	 0 },	/* I3C2 */
-	[ASPEED_CLK_GATE_I3C3CLK]	= { 43,  43, "i3c3clk-gate",	NULL,	 0 },	/* I3C3 */
-	[ASPEED_CLK_GATE_I3C4CLK]	= { 44,  44, "i3c4clk-gate",	NULL,	 0 },	/* I3C4 */
-	[ASPEED_CLK_GATE_I3C5CLK]	= { 45,  45, "i3c5clk-gate",	NULL,	 0 },	/* I3C5 */
-	[ASPEED_CLK_GATE_I3C6CLK]	= { 46,  46, "i3c6clk-gate",	NULL,	 0 },	/* I3C6 */
-	[ASPEED_CLK_GATE_I3C7CLK]	= { 47,  47, "i3c7clk-gate",	NULL,	 0 },	/* I3C7 */
+	[ASPEED_CLK_GATE_I3CDMACLK] 	= { 39,  ASPEED_RESET_I3C,		"i3cclk-gate",	NULL,	0 }, 			/* I3C_DMA */
+	[ASPEED_CLK_GATE_I3C0CLK]	= { 40, ASPEED_RESET_I3C0, "i3c0clk-gate", "i3cclk", 0 },
+	[ASPEED_CLK_GATE_I3C1CLK]	= { 41, ASPEED_RESET_I3C1, "i3c1clk-gate", "i3cclk", 0 },
+	[ASPEED_CLK_GATE_I3C2CLK]	= { 42, ASPEED_RESET_I3C2, "i3c2clk-gate", "i3cclk", 0 },
+	[ASPEED_CLK_GATE_I3C3CLK]	= { 43, ASPEED_RESET_I3C3, "i3c3clk-gate", "i3cclk", 0 },
+	[ASPEED_CLK_GATE_I3C4CLK]	= { 44, ASPEED_RESET_I3C4, "i3c4clk-gate", "i3cclk", 0 },
+	[ASPEED_CLK_GATE_I3C5CLK]	= { 45, ASPEED_RESET_I3C5, "i3c5clk-gate", "i3cclk", 0 },
+	[ASPEED_CLK_GATE_RESERVED44]	= { 46, ASPEED_RESET_RESERVED46, "reserved-46", NULL, 0 },
 	[ASPEED_CLK_GATE_UART1CLK]	= { 48,  -1, "uart1clk-gate",	"uxclk",	 CLK_IS_CRITICAL },	/* UART1 */
 	[ASPEED_CLK_GATE_UART2CLK]	= { 49,  -1, "uart2clk-gate",	"uxclk",	 CLK_IS_CRITICAL },	/* UART2 */
 	[ASPEED_CLK_GATE_UART3CLK]	= { 50,  -1, "uart3clk-gate",	"uxclk",  0 },	/* UART3 */
@@ -964,6 +976,21 @@ static void __init aspeed_g6_cc(struct regmap *map)
 	hw = clk_hw_register_fixed_factor(NULL, "huxclk", "uartx", 0, mult, div);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_HUXCLK] = hw;
 
+	/* i3c clock */
+	regmap_read(map, ASPEED_G6_CLK_SELECTION5, &val);
+	if (FIELD_GET(I3C_CLK_SELECTION, val) == I3C_CLK_SELECT_APLL_DIV) {
+		val = FIELD_GET(APLL_DIV_SELECTION, val);
+		if (val)
+			div = val + 1;
+		else
+			div = val + 2;
+		hw = clk_hw_register_fixed_factor(NULL, "i3cclk", "apll", 0, 1,
+						  div);
+	} else {
+		hw = clk_hw_register_fixed_factor(NULL, "i3cclk", "ahb", 0, 1,
+						  1);
+	}
+	aspeed_g6_clk_data->hws[ASPEED_CLK_I3C] = hw;
 };
 
 static void __init aspeed_g6_cc_init(struct device_node *np)
