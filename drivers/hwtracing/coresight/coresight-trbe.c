@@ -303,6 +303,11 @@ static unsigned long trbe_snapshot_offset(struct perf_output_handle *handle)
 	return buf->nr_pages * PAGE_SIZE;
 }
 
+static u64 trbe_min_trace_buf_size(struct perf_output_handle *handle)
+{
+	return TRBE_TRACE_MIN_BUF_SIZE;
+}
+
 /*
  * TRBE Limit Calculation
  *
@@ -473,7 +478,7 @@ static unsigned long trbe_normal_offset(struct perf_output_handle *handle)
 	 * have space for a meaningful run, we rather pad it
 	 * and start fresh.
 	 */
-	if (limit && (limit - head < TRBE_TRACE_MIN_BUF_SIZE)) {
+	if (limit && ((limit - head) < trbe_min_trace_buf_size(handle))) {
 		trbe_pad_buf(handle, limit - head);
 		limit = __trbe_normal_offset(handle);
 	}
