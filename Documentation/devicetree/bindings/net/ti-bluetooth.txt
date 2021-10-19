@@ -13,7 +13,7 @@ and GPS over what's called "shared transport". The shared transport is
 standard BT HCI protocol with additional channels for the other functions.
 
 TI WiLink devices also have a separate WiFi interface as described in
-wireless/ti,wlcore.txt.
+wireless/ti,wlcore.yaml.
 
 This bindings follows the UART slave device binding in ../serial/serial.yaml.
 
