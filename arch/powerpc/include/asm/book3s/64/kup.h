@@ -229,6 +229,11 @@ static inline u64 current_thread_iamr(void)
 
 #ifdef CONFIG_PPC_KUAP
 
+static __always_inline bool kuap_is_disabled(void)
+{
+	return !mmu_has_feature(MMU_FTR_BOOK3S_KUAP);
+}
+
 static inline void kuap_user_restore(struct pt_regs *regs)
 {
 	bool restore_amr = false, restore_iamr = false;
@@ -270,36 +275,32 @@ static inline void kuap_user_restore(struct pt_regs *regs)
 
 static inline void __kuap_kernel_restore(struct pt_regs *regs, unsigned long amr)
 {
-	if (mmu_has_feature(MMU_FTR_BOOK3S_KUAP)) {
-		if (unlikely(regs->amr != amr)) {
-			isync();
-			mtspr(SPRN_AMR, regs->amr);
-			/*
-			 * No isync required here because we are about to rfi
-			 * back to previous context before any user accesses
-			 * would be made, which is a CSI.
-			 */
-		}
-	}
+	if (likely(regs->amr == amr))
+		return;
+
+	isync();
+	mtspr(SPRN_AMR, regs->amr);
 	/*
+	 * No isync required here because we are about to rfi
+	 * back to previous context before any user accesses
+	 * would be made, which is a CSI.
+	 *
 	 * No need to restore IAMR when returning to kernel space.
 	 */
 }
 
 static inline unsigned long __kuap_get_and_assert_locked(void)
 {
-	if (mmu_has_feature(MMU_FTR_BOOK3S_KUAP)) {
-		unsigned long amr = mfspr(SPRN_AMR);
-		if (IS_ENABLED(CONFIG_PPC_KUAP_DEBUG)) /* kuap_check_amr() */
-			WARN_ON_ONCE(amr != AMR_KUAP_BLOCKED);
-		return amr;
-	}
-	return 0;
+	unsigned long amr = mfspr(SPRN_AMR);
+
+	if (IS_ENABLED(CONFIG_PPC_KUAP_DEBUG)) /* kuap_check_amr() */
+		WARN_ON_ONCE(amr != AMR_KUAP_BLOCKED);
+	return amr;
 }
 
 static inline void __kuap_assert_locked(void)
 {
-	if (IS_ENABLED(CONFIG_PPC_KUAP_DEBUG) && mmu_has_feature(MMU_FTR_BOOK3S_KUAP))
+	if (IS_ENABLED(CONFIG_PPC_KUAP_DEBUG))
 		WARN_ON_ONCE(mfspr(SPRN_AMR) != AMR_KUAP_BLOCKED);
 }
 
@@ -340,8 +341,6 @@ static inline void set_kuap(unsigned long value)
 
 static inline bool __bad_kuap_fault(struct pt_regs *regs, unsigned long address, bool is_write)
 {
-	if (!mmu_has_feature(MMU_FTR_BOOK3S_KUAP))
-		return false;
 	/*
 	 * For radix this will be a storage protection fault (DSISR_PROTFAULT).
 	 * For hash this will be a key fault (DSISR_KEYFAULT)
