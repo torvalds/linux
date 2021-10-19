@@ -385,7 +385,7 @@ int hva_hw_probe(struct platform_device *pdev, struct hva_dev *hva)
 	ret = pm_runtime_resume_and_get(dev);
 	if (ret < 0) {
 		dev_err(dev, "%s     failed to set PM\n", HVA_PREFIX);
-		goto err_clk;
+		goto err_disable;
 	}
 
 	/* check IP hardware version */
@@ -403,6 +403,8 @@ int hva_hw_probe(struct platform_device *pdev, struct hva_dev *hva)
 
 err_pm:
 	pm_runtime_put(dev);
+err_disable:
+	pm_runtime_disable(dev);
 err_clk:
 	if (hva->clk)
 		clk_unprepare(hva->clk);
