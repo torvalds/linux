@@ -251,10 +251,9 @@ int ili9320_probe_spi(struct spi_device *spi,
 }
 EXPORT_SYMBOL_GPL(ili9320_probe_spi);
 
-int ili9320_remove(struct ili9320 *ili)
+void ili9320_remove(struct ili9320 *ili)
 {
 	ili9320_power(ili, FB_BLANK_POWERDOWN);
-	return 0;
 }
 EXPORT_SYMBOL_GPL(ili9320_remove);
 
