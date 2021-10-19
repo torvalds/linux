@@ -888,14 +888,20 @@ mlx5_esw_bridge_fdb_entry_cleanup(struct mlx5_esw_bridge_fdb_entry *entry,
 	kvfree(entry);
 }
 
+static void
+mlx5_esw_bridge_fdb_entry_notify_and_cleanup(struct mlx5_esw_bridge_fdb_entry *entry,
+					     struct mlx5_esw_bridge *bridge)
+{
+	mlx5_esw_bridge_fdb_del_notify(entry);
+	mlx5_esw_bridge_fdb_entry_cleanup(entry, bridge);
+}
+
 static void mlx5_esw_bridge_fdb_flush(struct mlx5_esw_bridge *bridge)
 {
 	struct mlx5_esw_bridge_fdb_entry *entry, *tmp;
 
-	list_for_each_entry_safe(entry, tmp, &bridge->fdb_list, list) {
-		mlx5_esw_bridge_fdb_del_notify(entry);
-		mlx5_esw_bridge_fdb_entry_cleanup(entry, bridge);
-	}
+	list_for_each_entry_safe(entry, tmp, &bridge->fdb_list, list)
+		mlx5_esw_bridge_fdb_entry_notify_and_cleanup(entry, bridge);
 }
 
 static struct mlx5_esw_bridge_vlan *
@@ -1065,10 +1071,8 @@ static void mlx5_esw_bridge_vlan_flush(struct mlx5_esw_bridge_vlan *vlan,
 	struct mlx5_eswitch *esw = bridge->br_offloads->esw;
 	struct mlx5_esw_bridge_fdb_entry *entry, *tmp;
 
-	list_for_each_entry_safe(entry, tmp, &vlan->fdb_list, vlan_list) {
-		mlx5_esw_bridge_fdb_del_notify(entry);
-		mlx5_esw_bridge_fdb_entry_cleanup(entry, bridge);
-	}
+	list_for_each_entry_safe(entry, tmp, &vlan->fdb_list, vlan_list)
+		mlx5_esw_bridge_fdb_entry_notify_and_cleanup(entry, bridge);
 
 	if (vlan->pkt_reformat_pop)
 		mlx5_esw_bridge_vlan_pop_cleanup(vlan, esw);
@@ -1125,6 +1129,17 @@ mlx5_esw_bridge_port_vlan_lookup(u16 vid, u16 vport_num, u16 esw_owner_vhca_id,
 	}
 
 	return vlan;
+}
+
+static struct mlx5_esw_bridge_fdb_entry *
+mlx5_esw_bridge_fdb_lookup(struct mlx5_esw_bridge *bridge,
+			   const unsigned char *addr, u16 vid)
+{
+	struct mlx5_esw_bridge_fdb_key key = {};
+
+	ether_addr_copy(key.addr, addr);
+	key.vid = vid;
+	return rhashtable_lookup_fast(&bridge->fdb_ht, &key, fdb_ht_params);
 }
 
 static struct mlx5_esw_bridge_fdb_entry *
@@ -1444,7 +1459,6 @@ void mlx5_esw_bridge_fdb_update_used(struct net_device *dev, u16 vport_num, u16 
 				     struct switchdev_notifier_fdb_info *fdb_info)
 {
 	struct mlx5_esw_bridge_fdb_entry *entry;
-	struct mlx5_esw_bridge_fdb_key key;
 	struct mlx5_esw_bridge_port *port;
 	struct mlx5_esw_bridge *bridge;
 
@@ -1453,13 +1467,11 @@ void mlx5_esw_bridge_fdb_update_used(struct net_device *dev, u16 vport_num, u16 
 		return;
 
 	bridge = port->bridge;
-	ether_addr_copy(key.addr, fdb_info->addr);
-	key.vid = fdb_info->vid;
-	entry = rhashtable_lookup_fast(&bridge->fdb_ht, &key, fdb_ht_params);
+	entry = mlx5_esw_bridge_fdb_lookup(bridge, fdb_info->addr, fdb_info->vid);
 	if (!entry) {
 		esw_debug(br_offloads->esw->dev,
 			  "FDB entry with specified key not found (MAC=%pM,vid=%u,vport=%u)\n",
-			  key.addr, key.vid, vport_num);
+			  fdb_info->addr, fdb_info->vid, vport_num);
 		return;
 	}
 
@@ -1501,7 +1513,6 @@ void mlx5_esw_bridge_fdb_remove(struct net_device *dev, u16 vport_num, u16 esw_o
 {
 	struct mlx5_eswitch *esw = br_offloads->esw;
 	struct mlx5_esw_bridge_fdb_entry *entry;
-	struct mlx5_esw_bridge_fdb_key key;
 	struct mlx5_esw_bridge_port *port;
 	struct mlx5_esw_bridge *bridge;
 
@@ -1510,18 +1521,15 @@ void mlx5_esw_bridge_fdb_remove(struct net_device *dev, u16 vport_num, u16 esw_o
 		return;
 
 	bridge = port->bridge;
-	ether_addr_copy(key.addr, fdb_info->addr);
-	key.vid = fdb_info->vid;
-	entry = rhashtable_lookup_fast(&bridge->fdb_ht, &key, fdb_ht_params);
+	entry = mlx5_esw_bridge_fdb_lookup(bridge, fdb_info->addr, fdb_info->vid);
 	if (!entry) {
 		esw_warn(esw->dev,
 			 "FDB entry with specified key not found (MAC=%pM,vid=%u,vport=%u)\n",
-			 key.addr, key.vid, vport_num);
+			 fdb_info->addr, fdb_info->vid, vport_num);
 		return;
 	}
 
-	mlx5_esw_bridge_fdb_del_notify(entry);
-	mlx5_esw_bridge_fdb_entry_cleanup(entry, bridge);
+	mlx5_esw_bridge_fdb_entry_notify_and_cleanup(entry, bridge);
 }
 
 void mlx5_esw_bridge_update(struct mlx5_esw_bridge_offloads *br_offloads)
@@ -1537,13 +1545,11 @@ void mlx5_esw_bridge_update(struct mlx5_esw_bridge_offloads *br_offloads)
 			if (entry->flags & MLX5_ESW_BRIDGE_FLAG_ADDED_BY_USER)
 				continue;
 
-			if (time_after(lastuse, entry->lastuse)) {
+			if (time_after(lastuse, entry->lastuse))
 				mlx5_esw_bridge_fdb_entry_refresh(entry);
-			} else if (!(entry->flags & MLX5_ESW_BRIDGE_FLAG_PEER) &&
-				   time_is_before_jiffies(entry->lastuse + bridge->ageing_time)) {
-				mlx5_esw_bridge_fdb_del_notify(entry);
-				mlx5_esw_bridge_fdb_entry_cleanup(entry, bridge);
-			}
+			else if (!(entry->flags & MLX5_ESW_BRIDGE_FLAG_PEER) &&
+				 time_is_before_jiffies(entry->lastuse + bridge->ageing_time))
+				mlx5_esw_bridge_fdb_entry_notify_and_cleanup(entry, bridge);
 		}
 	}
 }
