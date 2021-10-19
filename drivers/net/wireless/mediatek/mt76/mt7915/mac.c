@@ -2023,6 +2023,12 @@ void mt7915_mac_update_stats(struct mt7915_phy *phy)
 	mib->tx_bf_fb_cpl_cnt += FIELD_GET(MT_ETBF_TX_FB_CPL, cnt);
 	mib->tx_bf_fb_trig_cnt += FIELD_GET(MT_ETBF_TX_FB_TRI, cnt);
 
+	for (i = 0; i < ARRAY_SIZE(mib->tx_amsdu); i++) {
+		cnt = mt76_rr(dev, MT_PLE_AMSDU_PACK_MSDU_CNT(i));
+		mib->tx_amsdu[i] += cnt;
+		mib->tx_amsdu_cnt += cnt;
+	}
+
 	aggr0 = ext_phy ? ARRAY_SIZE(dev->mt76.aggr_stats) / 2 : 0;
 	for (i = 0, aggr1 = aggr0 + 4; i < 4; i++) {
 		u32 val;

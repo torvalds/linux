@@ -1260,8 +1260,8 @@ void mt7915_get_et_stats(struct ieee80211_hw *hw,
 	data[ei++] = mib->tx_su_acked_mpdu_cnt;
 
 	/* Tx amsdu info (pack-count histogram) */
-	for (i = 0; i < 8; i++)
-		data[ei++] = mt76_rr(dev,  MT_PLE_AMSDU_PACK_MSDU_CNT(i));
+	for (i = 0; i < ARRAY_SIZE(mib->tx_amsdu); i++)
+		data[ei++] = mib->tx_amsdu[i];
 
 	/* rx counters */
 	data[ei++] = mib->rx_fifo_full_cnt;

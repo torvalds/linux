@@ -199,7 +199,8 @@ mt7915_tx_stats_show(struct seq_file *file, void *data)
 {
 	struct mt7915_phy *phy = file->private;
 	struct mt7915_dev *dev = phy->dev;
-	int stat[8], i, n;
+	struct mib_stats *mib = &phy->mib;
+	int i;
 
 	mutex_lock(&dev->mt76.mutex);
 
@@ -209,16 +210,12 @@ mt7915_tx_stats_show(struct seq_file *file, void *data)
 
 	/* Tx amsdu info */
 	seq_puts(file, "Tx MSDU statistics:\n");
-	for (i = 0, n = 0; i < ARRAY_SIZE(stat); i++) {
-		stat[i] = mt76_rr(dev,  MT_PLE_AMSDU_PACK_MSDU_CNT(i));
-		n += stat[i];
-	}
-
-	for (i = 0; i < ARRAY_SIZE(stat); i++) {
-		seq_printf(file, "AMSDU pack count of %d MSDU in TXD: 0x%x ",
-			   i + 1, stat[i]);
-		if (n != 0)
-			seq_printf(file, "(%d%%)\n", stat[i] * 100 / n);
+	for (i = 0; i < ARRAY_SIZE(mib->tx_amsdu); i++) {
+		seq_printf(file, "AMSDU pack count of %d MSDU in TXD: %8d ",
+			   i + 1, mib->tx_amsdu[i]);
+		if (mib->tx_amsdu_cnt)
+			seq_printf(file, "(%3d%%)\n",
+				   mib->tx_amsdu[i] * 100 / mib->tx_amsdu_cnt);
 		else
 			seq_puts(file, "\n");
 	}
