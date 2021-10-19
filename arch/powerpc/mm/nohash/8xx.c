@@ -213,7 +213,7 @@ void __init setup_initial_memory_limit(phys_addr_t first_memblock_base,
 }
 
 #ifdef CONFIG_PPC_KUEP
-void __init setup_kuep(bool disabled)
+void setup_kuep(bool disabled)
 {
 	if (disabled)
 		return;
@@ -228,7 +228,7 @@ void __init setup_kuep(bool disabled)
 struct static_key_false disable_kuap_key;
 EXPORT_SYMBOL(disable_kuap_key);
 
-void __init setup_kuap(bool disabled)
+void setup_kuap(bool disabled)
 {
 	if (disabled) {
 		static_branch_enable(&disable_kuap_key);

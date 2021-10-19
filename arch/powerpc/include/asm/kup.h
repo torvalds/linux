@@ -32,6 +32,8 @@ extern bool disable_kuap;
 
 #include <linux/pgtable.h>
 
+void setup_kup(void);
+
 #ifdef CONFIG_PPC_KUEP
 void setup_kuep(bool disabled);
 #else
@@ -77,12 +79,6 @@ static inline unsigned long prevent_user_access_return(void) { return 0UL; }
 static inline void restore_user_access(unsigned long flags) { }
 #endif /* CONFIG_PPC_BOOK3S_64 */
 #endif /* CONFIG_PPC_KUAP */
-
-static __always_inline void setup_kup(void)
-{
-	setup_kuep(disable_kuep);
-	setup_kuap(disable_kuap);
-}
 
 static __always_inline void allow_read_from_user(const void __user *from, unsigned long size)
 {

@@ -47,6 +47,12 @@ static int __init parse_nosmap(char *p)
 }
 early_param("nosmap", parse_nosmap);
 
+void setup_kup(void)
+{
+	setup_kuap(disable_kuap);
+	setup_kuep(disable_kuep);
+}
+
 #define CTOR(shift) static void ctor_##shift(void *addr) \
 {							\
 	memset(addr, 0, sizeof(void *) << (shift));	\
