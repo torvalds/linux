@@ -1215,6 +1215,10 @@ void mt7915_get_et_stats(struct ieee80211_hw *hw,
 	bool ext_phy = phy != &dev->phy;
 	int i, n, ei = 0;
 
+	mutex_lock(&dev->mt76.mutex);
+
+	mt7915_mac_update_stats(phy);
+
 	data[ei++] = mib->tx_ampdu_cnt;
 	data[ei++] = mib->tx_stop_q_empty_cnt;
 	data[ei++] = mib->tx_mpdu_attempts_cnt;
@@ -1277,6 +1281,8 @@ void mt7915_get_et_stats(struct ieee80211_hw *hw,
 	/* Add values for all stations owned by this vif */
 	wi.initial_stat_idx = ei;
 	ieee80211_iterate_stations_atomic(hw, mt7915_ethtool_worker, &wi);
+
+	mutex_unlock(&dev->mt76.mutex);
 
 	if (wi.sta_count == 0)
 		return;

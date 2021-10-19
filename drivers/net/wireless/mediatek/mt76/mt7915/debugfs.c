@@ -201,7 +201,10 @@ mt7915_tx_stats_show(struct seq_file *file, void *data)
 	struct mt7915_dev *dev = phy->dev;
 	int stat[8], i, n;
 
+	mutex_lock(&dev->mt76.mutex);
+
 	mt7915_ampdu_stat_read_phy(phy, file);
+	mt7915_mac_update_stats(phy);
 	mt7915_txbf_stat_read_phy(phy, file);
 
 	/* Tx amsdu info */
@@ -219,6 +222,8 @@ mt7915_tx_stats_show(struct seq_file *file, void *data)
 		else
 			seq_puts(file, "\n");
 	}
+
+	mutex_unlock(&dev->mt76.mutex);
 
 	return 0;
 }
