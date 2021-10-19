@@ -149,7 +149,7 @@
 			reset-names = "dma";
 
 			interrupt-parent = <&gic>;
-			interrupts = <0 13 4>;
+			interrupts = <0 13 IRQ_TYPE_LEVEL_HIGH>;
 
 			#dma-cells = <1>;
 			#dma-channels = <16>;
@@ -168,7 +168,7 @@
 			reset-names = "hsdma";
 
 			interrupt-parent = <&gic>;
-			interrupts = <0 11 4>;
+			interrupts = <0 11 IRQ_TYPE_LEVEL_HIGH>;
 
 			#dma-cells = <1>;
 			#dma-channels = <1>;
