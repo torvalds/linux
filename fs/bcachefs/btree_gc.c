@@ -806,7 +806,7 @@ static int bch2_gc_btree(struct bch_fs *c, enum btree_id btree_id,
 	gc_pos_set(c, gc_pos_btree(btree_id, POS_MIN, 0));
 
 	__for_each_btree_node(&trans, iter, btree_id, POS_MIN,
-			      0, depth, BTREE_ITER_PREFETCH, b) {
+			      0, depth, BTREE_ITER_PREFETCH, b, ret) {
 		bch2_verify_btree_nr_keys(b);
 
 		gc_pos_set(c, gc_pos_btree_node(b));
@@ -833,7 +833,7 @@ static int bch2_gc_btree(struct bch_fs *c, enum btree_id btree_id,
 	}
 	bch2_trans_iter_exit(&trans, &iter);
 
-	ret = bch2_trans_exit(&trans) ?: ret;
+	bch2_trans_exit(&trans);
 	if (ret)
 		return ret;
 

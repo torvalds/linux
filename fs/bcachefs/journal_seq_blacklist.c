@@ -254,7 +254,7 @@ void bch2_blacklist_entries_gc(struct work_struct *work)
 		struct btree *b;
 
 		for_each_btree_node(&trans, iter, i, POS_MIN,
-				    BTREE_ITER_PREFETCH, b)
+				    BTREE_ITER_PREFETCH, b, ret)
 			if (test_bit(BCH_FS_STOPPING, &c->flags)) {
 				bch2_trans_exit(&trans);
 				return;
@@ -262,7 +262,7 @@ void bch2_blacklist_entries_gc(struct work_struct *work)
 		bch2_trans_iter_exit(&trans, &iter);
 	}
 
-	ret = bch2_trans_exit(&trans);
+	bch2_trans_exit(&trans);
 	if (ret)
 		return;
 

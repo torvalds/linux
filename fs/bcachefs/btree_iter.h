@@ -284,18 +284,18 @@ static inline int bch2_trans_cond_resched(struct btree_trans *trans)
 	}
 }
 
-#define __for_each_btree_node(_trans, _iter, _btree_id, _start,	\
-			      _locks_want, _depth, _flags, _b)		\
+#define __for_each_btree_node(_trans, _iter, _btree_id, _start,		\
+			      _locks_want, _depth, _flags, _b, _ret)	\
 	for (bch2_trans_node_iter_init((_trans), &(_iter), (_btree_id),	\
 				_start, _locks_want, _depth, _flags),	\
 	     _b = bch2_btree_iter_peek_node(&(_iter));			\
-	     (_b);							\
+	     !((_ret) = PTR_ERR_OR_ZERO(_b)) && (_b);			\
 	     (_b) = bch2_btree_iter_next_node(&(_iter)))
 
 #define for_each_btree_node(_trans, _iter, _btree_id, _start,		\
-			    _flags, _b)					\
+			    _flags, _b, _ret)				\
 	__for_each_btree_node(_trans, _iter, _btree_id, _start,		\
-			      0, 0, _flags, _b)
+			      0, 0, _flags, _b, _ret)
 
 static inline struct bkey_s_c __bch2_btree_iter_peek(struct btree_iter *iter,
 						     unsigned flags)

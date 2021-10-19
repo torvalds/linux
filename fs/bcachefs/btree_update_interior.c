@@ -1736,6 +1736,10 @@ retry:
 		goto out;
 
 	b = bch2_btree_iter_peek_node(iter);
+	ret = PTR_ERR_OR_ZERO(b);
+	if (ret)
+		goto out;
+
 	if (!b || b->data->keys.seq != seq)
 		goto out;
 

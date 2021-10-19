@@ -318,7 +318,7 @@ static ssize_t bch2_read_btree_formats(struct file *file, char __user *buf,
 
 	bch2_trans_init(&trans, i->c, 0, 0);
 
-	for_each_btree_node(&trans, iter, i->id, i->from, 0, b) {
+	for_each_btree_node(&trans, iter, i->id, i->from, 0, b, err) {
 		bch2_btree_node_to_text(&PBUF(i->buf), i->c, b);
 		i->bytes = strlen(i->buf);
 		err = flush_buf(i);

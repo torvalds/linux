@@ -135,9 +135,10 @@ static int bch2_dev_metadata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 	for (id = 0; id < BTREE_ID_NR; id++) {
 		bch2_trans_node_iter_init(&trans, &iter, id, POS_MIN, 0, 0,
 					  BTREE_ITER_PREFETCH);
-
+retry:
 		while (bch2_trans_begin(&trans),
-		       (b = bch2_btree_iter_peek_node(&iter))) {
+		       (b = bch2_btree_iter_peek_node(&iter)) &&
+		       !(ret = PTR_ERR_OR_ZERO(b))) {
 			if (!bch2_bkey_has_device(bkey_i_to_s_c(&b->key),
 						  dev_idx))
 				goto next;
@@ -164,6 +165,9 @@ static int bch2_dev_metadata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 next:
 			bch2_btree_iter_next_node(&iter);
 		}
+		if (ret == -EINTR)
+			goto retry;
+
 		bch2_trans_iter_exit(&trans, &iter);
 
 		if (ret)
