@@ -379,7 +379,7 @@ static void mq_flush_data_end_io(struct request *rq, blk_status_t error)
  * @rq is being submitted.  Analyze what needs to be done and put it on the
  * right queue.
  */
-void blk_insert_flush(struct request *rq)
+bool blk_insert_flush(struct request *rq)
 {
 	struct request_queue *q = rq->q;
 	unsigned long fflags = q->queue_flags;	/* may change, cache */
@@ -409,7 +409,7 @@ void blk_insert_flush(struct request *rq)
 	 */
 	if (!policy) {
 		blk_mq_end_request(rq, 0);
-		return;
+		return true;
 	}
 
 	BUG_ON(rq->bio != rq->biotail); /*assumes zero or single bio rq */
@@ -420,10 +420,8 @@ void blk_insert_flush(struct request *rq)
 	 * for normal execution.
 	 */
 	if ((policy & REQ_FSEQ_DATA) &&
-	    !(policy & (REQ_FSEQ_PREFLUSH | REQ_FSEQ_POSTFLUSH))) {
-		blk_mq_request_bypass_insert(rq, false, false);
-		return;
-	}
+	    !(policy & (REQ_FSEQ_PREFLUSH | REQ_FSEQ_POSTFLUSH)))
+		return false;
 
 	/*
 	 * @rq should go through flush machinery.  Mark it part of flush
@@ -439,6 +437,8 @@ void blk_insert_flush(struct request *rq)
 	spin_lock_irq(&fq->mq_flush_lock);
 	blk_flush_complete_seq(rq, fq, REQ_FSEQ_ACTIONS & ~policy, 0);
 	spin_unlock_irq(&fq->mq_flush_lock);
+
+	return true;
 }
 
 /**

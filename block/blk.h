@@ -236,7 +236,7 @@ void __blk_account_io_done(struct request *req, u64 now);
  */
 #define ELV_ON_HASH(rq) ((rq)->rq_flags & RQF_HASHED)
 
-void blk_insert_flush(struct request *rq);
+bool blk_insert_flush(struct request *rq);
 
 int elevator_switch_mq(struct request_queue *q,
 			      struct elevator_type *new_e);
