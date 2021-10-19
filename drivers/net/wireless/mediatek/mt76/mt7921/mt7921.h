@@ -104,6 +104,7 @@ struct mt7921_sta {
 
 	unsigned long last_txs;
 	unsigned long ampdu_state;
+	struct mt76_sta_stats stats;
 
 	struct mt7921_sta_key_conf bip;
 };
