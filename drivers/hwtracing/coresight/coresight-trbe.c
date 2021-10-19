@@ -57,6 +57,8 @@ struct trbe_buf {
 	 * trbe_limit sibling pointers.
 	 */
 	unsigned long trbe_base;
+	/* The base programmed into the TRBE */
+	unsigned long trbe_hw_base;
 	unsigned long trbe_limit;
 	unsigned long trbe_write;
 	int nr_pages;
@@ -470,12 +472,13 @@ static void set_trbe_limit_pointer_enabled(unsigned long addr)
 
 static void trbe_enable_hw(struct trbe_buf *buf)
 {
-	WARN_ON(buf->trbe_write < buf->trbe_base);
+	WARN_ON(buf->trbe_hw_base < buf->trbe_base);
+	WARN_ON(buf->trbe_write < buf->trbe_hw_base);
 	WARN_ON(buf->trbe_write >= buf->trbe_limit);
 	set_trbe_disabled();
 	isb();
 	clr_trbe_status();
-	set_trbe_base_pointer(buf->trbe_base);
+	set_trbe_base_pointer(buf->trbe_hw_base);
 	set_trbe_write_pointer(buf->trbe_write);
 
 	/*
@@ -520,7 +523,12 @@ static unsigned long trbe_get_trace_size(struct perf_output_handle *handle,
 	else
 		write = get_trbe_write_pointer();
 
-	end_off = write - get_trbe_base_pointer();
+	/*
+	 * TRBE may use a different base address than the base
+	 * of the ring buffer. Thus use the beginning of the ring
+	 * buffer to compute the offsets.
+	 */
+	end_off = write - buf->trbe_base;
 	start_off = PERF_IDX2OFF(handle->head, buf);
 
 	if (WARN_ON_ONCE(end_off < start_off))
@@ -678,6 +686,8 @@ static int __arm_trbe_enable(struct trbe_buf *buf,
 		trbe_stop_and_truncate_event(handle);
 		return -ENOSPC;
 	}
+	/* Set the base of the TRBE to the buffer base */
+	buf->trbe_hw_base = buf->trbe_base;
 	*this_cpu_ptr(buf->cpudata->drvdata->handle) = handle;
 	trbe_enable_hw(buf);
 	return 0;
@@ -771,7 +781,7 @@ static bool is_perf_trbe(struct perf_output_handle *handle)
 	struct trbe_drvdata *drvdata = cpudata->drvdata;
 	int cpu = smp_processor_id();
 
-	WARN_ON(buf->trbe_base != get_trbe_base_pointer());
+	WARN_ON(buf->trbe_hw_base != get_trbe_base_pointer());
 	WARN_ON(buf->trbe_limit != get_trbe_limit_pointer());
 
 	if (cpudata->mode != CS_MODE_PERF)
