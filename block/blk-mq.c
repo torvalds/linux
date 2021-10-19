@@ -323,13 +323,10 @@ static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 	struct request_queue *q = data->q;
 	struct request *rq = tags->static_rqs[tag];
 
-	if (!(data->rq_flags & RQF_ELV)) {
-		rq->tag = tag;
-		rq->internal_tag = BLK_MQ_NO_TAG;
-	} else {
-		rq->tag = BLK_MQ_NO_TAG;
-		rq->internal_tag = tag;
-	}
+	rq->q = q;
+	rq->mq_ctx = ctx;
+	rq->mq_hctx = hctx;
+	rq->cmd_flags = data->cmd_flags;
 
 	if (data->flags & BLK_MQ_REQ_PM)
 		data->rq_flags |= RQF_PM;
@@ -337,15 +334,19 @@ static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 		data->rq_flags |= RQF_IO_STAT;
 	rq->rq_flags = data->rq_flags;
 
+	if (!(data->rq_flags & RQF_ELV)) {
+		rq->tag = tag;
+		rq->internal_tag = BLK_MQ_NO_TAG;
+	} else {
+		rq->tag = BLK_MQ_NO_TAG;
+		rq->internal_tag = tag;
+	}
+	rq->timeout = 0;
+
 	if (blk_mq_need_time_stamp(rq))
 		rq->start_time_ns = ktime_get_ns();
 	else
 		rq->start_time_ns = 0;
-	/* csd/requeue_work/fifo_time is initialized before use */
-	rq->q = q;
-	rq->mq_ctx = ctx;
-	rq->mq_hctx = hctx;
-	rq->cmd_flags = data->cmd_flags;
 	rq->rq_disk = NULL;
 	rq->part = NULL;
 #ifdef CONFIG_BLK_RQ_ALLOC_TIME
@@ -357,7 +358,6 @@ static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 #if defined(CONFIG_BLK_DEV_INTEGRITY)
 	rq->nr_integrity_segments = 0;
 #endif
-	rq->timeout = 0;
 	rq->end_io = NULL;
 	rq->end_io_data = NULL;
 
