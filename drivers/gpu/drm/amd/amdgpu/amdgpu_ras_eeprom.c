@@ -1105,11 +1105,18 @@ int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control,
 			res = amdgpu_ras_eeprom_correct_header_tag(control,
 								   RAS_TABLE_HDR_VAL);
 		} else {
-			*exceed_err_limit = true;
-			dev_err(adev->dev,
-				"RAS records:%d exceed threshold:%d, "
-				"GPU will not be initialized. Replace this GPU or increase the threshold",
+			dev_err(adev->dev, "RAS records:%d exceed threshold:%d",
 				control->ras_num_recs, ras->bad_page_cnt_threshold);
+			if (amdgpu_bad_page_threshold == -2) {
+				dev_warn(adev->dev, "GPU will be initialized due to bad_page_threshold = -2.");
+				res = 0;
+			} else {
+				*exceed_err_limit = true;
+				dev_err(adev->dev,
+					"RAS records:%d exceed threshold:%d, "
+					"GPU will not be initialized. Replace this GPU or increase the threshold",
+					control->ras_num_recs, ras->bad_page_cnt_threshold);
+			}
 		}
 	} else {
 		DRM_INFO("Creating a new EEPROM table");
