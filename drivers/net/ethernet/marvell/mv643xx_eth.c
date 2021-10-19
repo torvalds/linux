@@ -2925,10 +2925,14 @@ static void set_params(struct mv643xx_eth_private *mp,
 	struct net_device *dev = mp->dev;
 	unsigned int tx_ring_size;
 
-	if (is_valid_ether_addr(pd->mac_addr))
+	if (is_valid_ether_addr(pd->mac_addr)) {
 		eth_hw_addr_set(dev, pd->mac_addr);
-	else
-		uc_addr_get(mp, dev->dev_addr);
+	} else {
+		u8 addr[ETH_ALEN];
+
+		uc_addr_get(mp, addr);
+		eth_hw_addr_set(dev, addr);
+	}
 
 	mp->rx_ring_size = DEFAULT_RX_QUEUE_SIZE;
 	if (pd->rx_queue_size)

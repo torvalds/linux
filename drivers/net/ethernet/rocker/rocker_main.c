@@ -2545,11 +2545,13 @@ static void rocker_port_dev_addr_init(struct rocker_port *rocker_port)
 {
 	const struct rocker *rocker = rocker_port->rocker;
 	const struct pci_dev *pdev = rocker->pdev;
+	u8 addr[ETH_ALEN];
 	int err;
 
-	err = rocker_cmd_get_port_settings_macaddr(rocker_port,
-						   rocker_port->dev->dev_addr);
-	if (err) {
+	err = rocker_cmd_get_port_settings_macaddr(rocker_port, addr);
+	if (!err) {
+		eth_hw_addr_set(rocker_port->dev, addr);
+	} else {
 		dev_warn(&pdev->dev, "failed to get mac address, using random\n");
 		eth_hw_addr_random(rocker_port->dev);
 	}
