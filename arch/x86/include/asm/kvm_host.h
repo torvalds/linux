@@ -499,7 +499,6 @@ struct kvm_pmu {
 	u64 fixed_ctr_ctrl;
 	u64 global_ctrl;
 	u64 global_status;
-	u64 global_ovf_ctrl;
 	u64 counter_bitmask[2];
 	u64 global_ctrl_mask;
 	u64 global_ovf_ctrl_mask;
