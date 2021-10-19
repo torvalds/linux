@@ -2,13 +2,19 @@
 #ifndef __ASM_ASM_EXTABLE_H
 #define __ASM_ASM_EXTABLE_H
 
+#define EX_TYPE_NONE			0
+#define EX_TYPE_FIXUP			1
+#define EX_TYPE_BPF			2
+
 #ifdef __ASSEMBLY__
 
-#define __ASM_EXTABLE_RAW(insn, fixup)		\
-	.pushsection	__ex_table, "a";	\
-	.align		3;			\
-	.long		((insn) - .);		\
-	.long		((fixup) - .);		\
+#define __ASM_EXTABLE_RAW(insn, fixup, type, data)	\
+	.pushsection	__ex_table, "a";		\
+	.align		2;				\
+	.long		((insn) - .);			\
+	.long		((fixup) - .);			\
+	.short		(type);				\
+	.short		(data);				\
 	.popsection;
 
 /*
@@ -16,7 +22,7 @@
  * when an unhandled fault is taken.
  */
 	.macro		_asm_extable, insn, fixup
-	__ASM_EXTABLE_RAW(\insn, \fixup)
+	__ASM_EXTABLE_RAW(\insn, \fixup, EX_TYPE_FIXUP, 0)
 	.endm
 
 /*
@@ -33,15 +39,17 @@
 
 #include <linux/stringify.h>
 
-#define __ASM_EXTABLE_RAW(insn, fixup)		\
-	".pushsection	__ex_table, \"a\"\n"	\
-	".align		3\n"			\
-	".long		((" insn ") - .)\n"	\
-	".long		((" fixup ") - .)\n"	\
+#define __ASM_EXTABLE_RAW(insn, fixup, type, data)	\
+	".pushsection	__ex_table, \"a\"\n"		\
+	".align		2\n"				\
+	".long		((" insn ") - .)\n"		\
+	".long		((" fixup ") - .)\n"		\
+	".short		(" type ")\n"			\
+	".short		(" data ")\n"			\
 	".popsection\n"
 
 #define _ASM_EXTABLE(insn, fixup) \
-	__ASM_EXTABLE_RAW(#insn, #fixup)
+	__ASM_EXTABLE_RAW(#insn, #fixup, __stringify(EX_TYPE_FIXUP), "0")
 
 #endif /* __ASSEMBLY__ */
 
