@@ -580,7 +580,7 @@ void blk_mq_free_request(struct request *rq)
 	struct request_queue *q = rq->q;
 	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
 
-	if (rq->rq_flags & (RQF_ELVPRIV | RQF_ELV)) {
+	if (rq->rq_flags & RQF_ELVPRIV) {
 		struct elevator_queue *e = q->elevator;
 
 		if (e->type->ops.finish_request)
