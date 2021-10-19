@@ -633,25 +633,23 @@ void blk_mq_free_plug_rqs(struct blk_plug *plug)
 static void req_bio_endio(struct request *rq, struct bio *bio,
 			  unsigned int nbytes, blk_status_t error)
 {
-	if (error)
+	if (unlikely(error)) {
 		bio->bi_status = error;
-
-	if (unlikely(rq->rq_flags & RQF_QUIET))
-		bio_set_flag(bio, BIO_QUIET);
-
-	bio_advance(bio, nbytes);
-
-	if (req_op(rq) == REQ_OP_ZONE_APPEND && error == BLK_STS_OK) {
+	} else if (req_op(rq) == REQ_OP_ZONE_APPEND) {
 		/*
 		 * Partial zone append completions cannot be supported as the
 		 * BIO fragments may end up not being written sequentially.
 		 */
-		if (bio->bi_iter.bi_size)
+		if (bio->bi_iter.bi_size == nbytes)
 			bio->bi_status = BLK_STS_IOERR;
 		else
 			bio->bi_iter.bi_sector = rq->__sector;
 	}
 
+	bio_advance(bio, nbytes);
+
+	if (unlikely(rq->rq_flags & RQF_QUIET))
+		bio_set_flag(bio, BIO_QUIET);
 	/* don't actually finish bio if it's part of flush sequence */
 	if (bio->bi_iter.bi_size == 0 && !(rq->rq_flags & RQF_FLUSH_SEQ))
 		bio_endio(bio);
