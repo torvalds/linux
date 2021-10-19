@@ -246,7 +246,6 @@ enum odm_common_info_def {
 	ODM_CMNINFO_SCAN,
 	ODM_CMNINFO_POWER_SAVING,
 	ODM_CMNINFO_NET_CLOSED,
-	ODM_CMNINFO_MP_MODE,
 /*  POINTER REFERENCE----------- */
 
 /* CALL BY VALUE------------- */
@@ -255,11 +254,6 @@ enum odm_common_info_def {
 	ODM_CMNINFO_LINK,
 	ODM_CMNINFO_RSSI_MIN,
 	ODM_CMNINFO_RF_ANTENNA_TYPE,		/*  u8 */
-	ODM_CMNINFO_BT_DISABLED,
-	ODM_CMNINFO_BT_OPERATION,
-	ODM_CMNINFO_BT_DIG,
-	ODM_CMNINFO_BT_BUSY,			/* Check Bt is using or not */
-	ODM_CMNINFO_BT_DISABLE_EDCA,
 /* CALL BY VALUE-------------*/
 };
 
