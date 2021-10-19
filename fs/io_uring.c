@@ -1487,14 +1487,11 @@ static inline void io_req_add_compl_list(struct io_kiocb *req)
 	wq_list_add_tail(&req->comp_list, &state->compl_reqs);
 }
 
-static void io_queue_async_work(struct io_kiocb *req, bool *locked)
+static void io_queue_async_work(struct io_kiocb *req, bool *dont_use)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_kiocb *link = io_prep_linked_timeout(req);
 	struct io_uring_task *tctx = req->task->io_uring;
-
-	/* must not take the lock, NULL it as a precaution */
-	locked = NULL;
 
 	BUG_ON(!tctx);
 	BUG_ON(!tctx->io_wq);
