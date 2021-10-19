@@ -187,6 +187,8 @@ end_free:
  * vfio_ap_irq_enable - Enable Interruption for a APQN
  *
  * @q:	 the vfio_ap_queue holding AQIC parameters
+ * @isc: the guest ISC to register with the GIB interface
+ * @nib: the notification indicator byte to pin.
  *
  * Pin the NIB saved in *q
  * Register the guest ISC to GIB interface and retrieve the
@@ -738,7 +740,6 @@ vfio_ap_mdev_verify_queues_reserved_for_apqi(struct ap_matrix_mdev *matrix_mdev,
  * assign_domain_store - parses the APQI from @buf and sets the
  * corresponding bit in the mediated matrix device's AQM
  *
- *
  * @dev:	the matrix device
  * @attr:	the mediated matrix device's assign_domain attribute
  * @buf:	a buffer containing the AP queue index (APQI) of the domain to
@@ -865,7 +866,6 @@ static DEVICE_ATTR_WO(unassign_domain);
 /**
  * assign_control_domain_store - parses the domain ID from @buf and sets
  * the corresponding bit in the mediated matrix device's ADM
- *
  *
  * @dev:	the matrix device
  * @attr:	the mediated matrix device's assign_control_domain attribute
@@ -1142,6 +1142,7 @@ static int vfio_ap_mdev_iommu_notifier(struct notifier_block *nb,
  * by @matrix_mdev.
  *
  * @matrix_mdev: a matrix mediated device
+ * @kvm: the pointer to the kvm structure being unset.
  *
  * Note: The matrix_dev->lock must be taken prior to calling
  * this function; however, the lock will be temporarily released while the
