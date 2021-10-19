@@ -2195,9 +2195,10 @@ static void ov8858_get_r1a_otp(struct ov8858_otp_info_r1a *otp_r1a,
 	/* af */
 	if (otp_r1a->flag & 0x20) {
 		inf->af.flag = 1;
-		inf->af.vcm_start = otp_r1a->vcm_start;
-		inf->af.vcm_end = otp_r1a->vcm_end;
-		inf->af.vcm_dir = otp_r1a->vcm_dir;
+		inf->af.dir_cnt = 1;
+		inf->af.af_otp[0].vcm_start = otp_r1a->vcm_start;
+		inf->af.af_otp[0].vcm_end = otp_r1a->vcm_end;
+		inf->af.af_otp[0].vcm_dir = otp_r1a->vcm_dir;
 	}
 
 	/* lsc */
@@ -2264,9 +2265,10 @@ static void ov8858_get_r2a_otp(struct ov8858_otp_info_r2a *otp_r2a,
 	/* af */
 	if (otp_r2a->flag & 0x20) {
 		inf->af.flag = 1;
-		inf->af.vcm_start = otp_r2a->vcm_start;
-		inf->af.vcm_end = otp_r2a->vcm_end;
-		inf->af.vcm_dir = otp_r2a->vcm_dir;
+		inf->af.dir_cnt = 1;
+		inf->af.af_otp[0].vcm_start = otp_r2a->vcm_start;
+		inf->af.af_otp[0].vcm_end = otp_r2a->vcm_end;
+		inf->af.af_otp[0].vcm_dir = otp_r2a->vcm_dir;
 	}
 
 	/* lsc */

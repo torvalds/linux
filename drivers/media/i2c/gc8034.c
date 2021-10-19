@@ -1604,9 +1604,10 @@ static void gc8034_get_otp(struct gc8034_otp_info *otp,
 	/* af */
 	if (otp->flag & 0x20) {
 		inf->af.flag = 1;
-		inf->af.vcm_start = otp->vcm_start;
-		inf->af.vcm_end = otp->vcm_end;
-		inf->af.vcm_dir = otp->vcm_dir;
+		inf->af.dir_cnt = 1;
+		inf->af.af_otp[0].vcm_start = otp->vcm_start;
+		inf->af.af_otp[0].vcm_end = otp->vcm_end;
+		inf->af.af_otp[0].vcm_dir = otp->vcm_dir;
 	}
 }
 
