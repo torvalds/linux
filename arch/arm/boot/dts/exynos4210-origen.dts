@@ -206,74 +206,74 @@
 			ldo4_reg: LDO4 {
 				regulator-name = "VDD_RTC_1.8V";
 				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt	= <1800000>;
+				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
 			};
 
 			ldo6_reg: LDO6 {
 				regulator-name = "VMIPI_1.8V";
 				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt	= <1800000>;
+				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
 			};
 
 			ldo7_reg: LDO7 {
 				regulator-name = "VDD_AUD_1.8V";
 				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt	= <1800000>;
+				regulator-max-microvolt = <1800000>;
 			};
 
 			ldo8_reg: LDO8 {
 				regulator-name = "VADC_3.3V";
 				regulator-min-microvolt = <3300000>;
-				regulator-max-microvolt	= <3300000>;
+				regulator-max-microvolt = <3300000>;
 			};
 
 			ldo9_reg: LDO9 {
 				regulator-name = "DVDD_SWB_2.8V";
 				regulator-min-microvolt = <2800000>;
-				regulator-max-microvolt	= <2800000>;
+				regulator-max-microvolt = <2800000>;
 				regulator-always-on;
 			};
 
 			ldo10_reg: LDO10 {
 				regulator-name = "VDD_PLL_1.1V";
 				regulator-min-microvolt = <1100000>;
-				regulator-max-microvolt	= <1100000>;
+				regulator-max-microvolt = <1100000>;
 				regulator-always-on;
 			};
 
 			ldo11_reg: LDO11 {
 				regulator-name = "VDD_AUD_3V";
 				regulator-min-microvolt = <3000000>;
-				regulator-max-microvolt	= <3000000>;
+				regulator-max-microvolt = <3000000>;
 			};
 
 			ldo14_reg: LDO14 {
 				regulator-name = "AVDD18_SWB_1.8V";
 				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt	= <1800000>;
+				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
 			};
 
 			ldo17_reg: LDO17 {
 				regulator-name = "VDD_SWB_3.3V";
 				regulator-min-microvolt = <3300000>;
-				regulator-max-microvolt	= <3300000>;
+				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
 			};
 
 			ldo21_reg: LDO21 {
 				regulator-name = "VDD_MIF_1.2V";
 				regulator-min-microvolt = <1200000>;
-				regulator-max-microvolt	= <1200000>;
+				regulator-max-microvolt = <1200000>;
 				regulator-always-on;
 			};
 
 			buck1_reg: BUCK1 {
 				regulator-name = "VDD_ARM_1.2V";
 				regulator-min-microvolt = <950000>;
-				regulator-max-microvolt	= <1350000>;
+				regulator-max-microvolt = <1350000>;
 				regulator-always-on;
 				regulator-boot-on;
 			};
@@ -281,7 +281,7 @@
 			buck2_reg: BUCK2 {
 				regulator-name = "VDD_INT_1.1V";
 				regulator-min-microvolt = <900000>;
-				regulator-max-microvolt	= <1100000>;
+				regulator-max-microvolt = <1100000>;
 				regulator-always-on;
 				regulator-boot-on;
 			};
