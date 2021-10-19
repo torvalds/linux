@@ -207,6 +207,8 @@ static u8 mlxsw_sp_qdisc_get_prio_bitmap(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	if (!parent)
 		return 0xff;
+	if (!parent->ops->get_prio_bitmap)
+		return mlxsw_sp_qdisc_get_prio_bitmap(mlxsw_sp_port, parent);
 	return parent->ops->get_prio_bitmap(parent, mlxsw_sp_qdisc);
 }
 
@@ -219,6 +221,8 @@ static int mlxsw_sp_qdisc_get_tclass_num(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	if (!parent)
 		return MLXSW_SP_PORT_DEFAULT_TCLASS;
+	if (!parent->ops->get_tclass_num)
+		return mlxsw_sp_qdisc_get_tclass_num(mlxsw_sp_port, parent);
 	return parent->ops->get_tclass_num(parent, mlxsw_sp_qdisc);
 }
 
@@ -690,6 +694,14 @@ mlxsw_sp_qdisc_red_check_params(struct mlxsw_sp_port *mlxsw_sp_port,
 }
 
 static int
+mlxsw_sp_qdisc_future_fifo_replace(struct mlxsw_sp_port *mlxsw_sp_port,
+				   u32 handle, unsigned int band,
+				   struct mlxsw_sp_qdisc *child_qdisc);
+static void
+mlxsw_sp_qdisc_future_fifos_init(struct mlxsw_sp_port *mlxsw_sp_port,
+				 u32 handle);
+
+static int
 mlxsw_sp_qdisc_red_replace(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle,
 			   struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
 			   void *params)
@@ -699,6 +711,13 @@ mlxsw_sp_qdisc_red_replace(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle,
 	int tclass_num;
 	u32 min, max;
 	u64 prob;
+	int err;
+
+	err = mlxsw_sp_qdisc_future_fifo_replace(mlxsw_sp_port, handle, 0,
+						 &mlxsw_sp_qdisc->qdiscs[0]);
+	if (err)
+		return err;
+	mlxsw_sp_qdisc_future_fifos_init(mlxsw_sp_port, TC_H_UNSPEC);
 
 	tclass_num = mlxsw_sp_qdisc_get_tclass_num(mlxsw_sp_port,
 						   mlxsw_sp_qdisc);
@@ -797,7 +816,10 @@ static struct mlxsw_sp_qdisc *
 mlxsw_sp_qdisc_leaf_find_class(struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
 			       u32 parent)
 {
-	return NULL;
+	/* RED and TBF are formally classful qdiscs, but all class references,
+	 * including X:0, just refer to the same one class.
+	 */
+	return &mlxsw_sp_qdisc->qdiscs[0];
 }
 
 static struct mlxsw_sp_qdisc_ops mlxsw_sp_qdisc_ops_red = {
@@ -810,6 +832,7 @@ static struct mlxsw_sp_qdisc_ops mlxsw_sp_qdisc_ops_red = {
 	.get_xstats = mlxsw_sp_qdisc_get_red_xstats,
 	.clean_stats = mlxsw_sp_setup_tc_qdisc_red_clean_stats,
 	.find_class = mlxsw_sp_qdisc_leaf_find_class,
+	.num_classes = 1,
 };
 
 static int mlxsw_sp_qdisc_graft(struct mlxsw_sp_port *mlxsw_sp_port,
@@ -979,6 +1002,12 @@ mlxsw_sp_qdisc_tbf_replace(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle,
 	u8 burst_size;
 	int err;
 
+	err = mlxsw_sp_qdisc_future_fifo_replace(mlxsw_sp_port, handle, 0,
+						 &mlxsw_sp_qdisc->qdiscs[0]);
+	if (err)
+		return err;
+	mlxsw_sp_qdisc_future_fifos_init(mlxsw_sp_port, TC_H_UNSPEC);
+
 	tclass_num = mlxsw_sp_qdisc_get_tclass_num(mlxsw_sp_port,
 						   mlxsw_sp_qdisc);
 
@@ -1030,6 +1059,7 @@ static struct mlxsw_sp_qdisc_ops mlxsw_sp_qdisc_ops_tbf = {
 	.get_stats = mlxsw_sp_qdisc_get_tbf_stats,
 	.clean_stats = mlxsw_sp_setup_tc_qdisc_leaf_clean_stats,
 	.find_class = mlxsw_sp_qdisc_leaf_find_class,
+	.num_classes = 1,
 };
 
 static int __mlxsw_sp_setup_tc_tbf(struct mlxsw_sp_port *mlxsw_sp_port,
