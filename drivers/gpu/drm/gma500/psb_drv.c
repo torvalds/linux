@@ -19,6 +19,7 @@
 #include <acpi/video.h>
 
 #include <drm/drm.h>
+#include <drm/drm_aperture.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_file.h>
@@ -447,6 +448,17 @@ static int psb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct drm_psb_private *dev_priv;
 	struct drm_device *dev;
 	int ret;
+
+	/*
+	 * We cannot yet easily find the framebuffer's location in memory. So
+	 * remove all framebuffers here.
+	 *
+	 * TODO: Refactor psb_driver_load() to map vdc_reg earlier. Then we
+	 *       might be able to read the framebuffer range from the device.
+	 */
+	ret = drm_aperture_remove_framebuffers(true, &driver);
+	if (ret)
+		return ret;
 
 	ret = pcim_enable_device(pdev);
 	if (ret)
