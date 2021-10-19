@@ -327,7 +327,7 @@ static int bch2_compression_stats_to_text(struct printbuf *out, struct bch_fs *c
 		}
 	bch2_trans_iter_exit(&trans, &iter);
 
-	ret = bch2_trans_exit(&trans) ?: ret;
+	bch2_trans_exit(&trans);
 	if (ret)
 		return ret;
 

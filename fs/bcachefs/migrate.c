@@ -100,7 +100,7 @@ static int __bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags
 	}
 	bch2_trans_iter_exit(&trans, &iter);
 
-	ret = bch2_trans_exit(&trans) ?: ret;
+	bch2_trans_exit(&trans);
 	bch2_bkey_buf_exit(&sk, c);
 
 	BUG_ON(ret == -EINTR);
@@ -180,7 +180,7 @@ next:
 
 	ret = 0;
 err:
-	ret = bch2_trans_exit(&trans) ?: ret;
+	bch2_trans_exit(&trans);
 	bch2_bkey_buf_exit(&k, c);
 
 	BUG_ON(ret == -EINTR);

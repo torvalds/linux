@@ -1670,11 +1670,12 @@ int bch2_ec_mem_alloc(struct bch_fs *c, bool gc)
 	bch2_trans_iter_init(&trans, &iter, BTREE_ID_stripes, POS(0, U64_MAX), 0);
 
 	k = bch2_btree_iter_prev(&iter);
-	if (!IS_ERR_OR_NULL(k.k))
+	ret = bkey_err(k);
+	if (!ret && k.k)
 		idx = k.k->p.offset + 1;
 
 	bch2_trans_iter_exit(&trans, &iter);
-	ret = bch2_trans_exit(&trans);
+	bch2_trans_exit(&trans);
 	if (ret)
 		return ret;
 

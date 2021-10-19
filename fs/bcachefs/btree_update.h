@@ -120,14 +120,14 @@ static inline int bch2_trans_commit(struct btree_trans *trans,
 #define bch2_trans_do(_c, _disk_res, _journal_seq, _flags, _do)		\
 ({									\
 	struct btree_trans trans;					\
-	int _ret, _ret2;						\
+	int _ret;							\
 									\
 	bch2_trans_init(&trans, (_c), 0, 0);				\
 	_ret = __bch2_trans_do(&trans, _disk_res, _journal_seq, _flags,	\
 			       _do);					\
-	_ret2 = bch2_trans_exit(&trans);				\
+	bch2_trans_exit(&trans);					\
 									\
-	_ret ?: _ret2;							\
+	_ret;								\
 })
 
 #define trans_for_each_update(_trans, _i)				\

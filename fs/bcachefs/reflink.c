@@ -349,7 +349,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 		bch2_trans_iter_exit(&trans, &inode_iter);
 	} while (ret2 == -EINTR);
 
-	ret = bch2_trans_exit(&trans) ?: ret;
+	bch2_trans_exit(&trans);
 	bch2_bkey_buf_exit(&new_src, c);
 	bch2_bkey_buf_exit(&new_dst, c);
 

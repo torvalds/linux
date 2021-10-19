@@ -374,7 +374,8 @@ static int bch2_quota_init_type(struct bch_fs *c, enum quota_types type)
 	}
 	bch2_trans_iter_exit(&trans, &iter);
 
-	return bch2_trans_exit(&trans) ?: ret;
+	bch2_trans_exit(&trans);
+	return ret;
 }
 
 void bch2_fs_quota_exit(struct bch_fs *c)
@@ -452,7 +453,8 @@ int bch2_fs_quota_read(struct bch_fs *c)
 	}
 	bch2_trans_iter_exit(&trans, &iter);
 
-	return bch2_trans_exit(&trans) ?: ret;
+	bch2_trans_exit(&trans);
+	return ret;
 }
 
 /* Enable/disable/delete quotas for an entire filesystem: */

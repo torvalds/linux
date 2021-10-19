@@ -773,7 +773,7 @@ next_nondata:
 out:
 
 	bch2_trans_iter_exit(&trans, &iter);
-	ret = bch2_trans_exit(&trans) ?: ret;
+	bch2_trans_exit(&trans);
 	bch2_bkey_buf_exit(&sk, c);
 
 	return ret;

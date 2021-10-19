@@ -981,7 +981,8 @@ static int check_inodes(struct bch_fs *c, bool full)
 
 	BUG_ON(ret == -EINTR);
 
-	return bch2_trans_exit(&trans) ?: ret;
+	bch2_trans_exit(&trans);
+	return ret;
 }
 
 noinline_for_stack
@@ -1659,7 +1660,8 @@ fsck_err:
 		goto retry;
 
 	bch2_trans_iter_exit(&trans, &iter);
-	return bch2_trans_exit(&trans) ?: ret;
+	bch2_trans_exit(&trans);
+	return ret;
 }
 
 /* Get root directory, create if it doesn't exist: */
@@ -1876,7 +1878,8 @@ static int check_directory_structure(struct bch_fs *c)
 
 	kfree(path.entries);
 
-	return bch2_trans_exit(&trans) ?: ret;
+	bch2_trans_exit(&trans);
+	return ret;
 }
 
 struct nlink_table {
