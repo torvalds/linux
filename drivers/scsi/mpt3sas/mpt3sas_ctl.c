@@ -3985,7 +3985,7 @@ sas_ncq_prio_enable_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(sas_ncq_prio_enable);
 
-struct attribute *mpt3sas_dev_attrs[] = {
+static struct attribute *mpt3sas_dev_attrs[] = {
 	&dev_attr_sas_address.attr,
 	&dev_attr_sas_device_handle.attr,
 	&dev_attr_sas_ncq_prio_supported.attr,
