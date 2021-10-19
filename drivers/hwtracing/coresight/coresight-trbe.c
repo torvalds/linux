@@ -90,9 +90,11 @@ struct trbe_buf {
  *   - Streamlined detection of erratum across the system
  */
 #define TRBE_WORKAROUND_OVERWRITE_FILL_MODE	0
+#define TRBE_WORKAROUND_WRITE_OUT_OF_RANGE	1
 
 static int trbe_errata_cpucaps[] = {
 	[TRBE_WORKAROUND_OVERWRITE_FILL_MODE] = ARM64_WORKAROUND_TRBE_OVERWRITE_FILL_MODE,
+	[TRBE_WORKAROUND_WRITE_OUT_OF_RANGE] = ARM64_WORKAROUND_TRBE_WRITE_OUT_OF_RANGE,
 	-1,		/* Sentinel, must be the last entry */
 };
 
@@ -158,6 +160,11 @@ static inline bool trbe_has_erratum(struct trbe_cpudata *cpudata, int i)
 static inline bool trbe_may_overwrite_in_fill_mode(struct trbe_cpudata *cpudata)
 {
 	return trbe_has_erratum(cpudata, TRBE_WORKAROUND_OVERWRITE_FILL_MODE);
+}
+
+static inline bool trbe_may_write_out_of_range(struct trbe_cpudata *cpudata)
+{
+	return trbe_has_erratum(cpudata, TRBE_WORKAROUND_WRITE_OUT_OF_RANGE);
 }
 
 static int trbe_alloc_node(struct perf_event *event)
@@ -305,7 +312,21 @@ static unsigned long trbe_snapshot_offset(struct perf_output_handle *handle)
 
 static u64 trbe_min_trace_buf_size(struct perf_output_handle *handle)
 {
-	return TRBE_TRACE_MIN_BUF_SIZE;
+	u64 size = TRBE_TRACE_MIN_BUF_SIZE;
+	struct trbe_buf *buf = etm_perf_sink_config(handle);
+	struct trbe_cpudata *cpudata = buf->cpudata;
+
+	/*
+	 * When the TRBE is affected by an erratum that could make it
+	 * write to the next "virtually addressed" page beyond the LIMIT.
+	 * We need to make sure there is always a PAGE after the LIMIT,
+	 * within the buffer. Thus we ensure there is at least an extra
+	 * page than normal. With this we could then adjust the LIMIT
+	 * pointer down by a PAGE later.
+	 */
+	if (trbe_may_write_out_of_range(cpudata))
+		size += PAGE_SIZE;
+	return size;
 }
 
 /*
@@ -611,6 +632,17 @@ static unsigned long trbe_get_trace_size(struct perf_output_handle *handle,
 	/*
 	 * If the TRBE has wrapped around the write pointer has
 	 * wrapped and should be treated as limit.
+	 *
+	 * When the TRBE is affected by TRBE_WORKAROUND_WRITE_OUT_OF_RANGE,
+	 * it may write upto 64bytes beyond the "LIMIT". The driver already
+	 * keeps a valid page next to the LIMIT and we could potentially
+	 * consume the trace data that may have been collected there. But we
+	 * cannot be really sure it is available, and the TRBPTR may not
+	 * indicate the same. Also, affected cores are also affected by another
+	 * erratum which forces the PAGE_SIZE alignment on the TRBPTR, and thus
+	 * could potentially pad an entire PAGE_SIZE - 64bytes, to get those
+	 * 64bytes. Thus we ignore the potential triggering of the erratum
+	 * on WRAP and limit the data to LIMIT.
 	 */
 	if (wrap)
 		write = get_trbe_limit_pointer();
@@ -862,6 +894,35 @@ static int trbe_apply_work_around_before_enable(struct trbe_buf *buf)
 			return -EINVAL;
 		buf->trbe_hw_base = buf->trbe_write;
 		buf->trbe_write += TRBE_WORKAROUND_OVERWRITE_FILL_MODE_SKIP_BYTES;
+	}
+
+	/*
+	 * TRBE_WORKAROUND_WRITE_OUT_OF_RANGE could cause the TRBE to write to
+	 * the next page after the TRBLIMITR.LIMIT. For perf, the "next page"
+	 * may be:
+	 *     - The page beyond the ring buffer. This could mean, TRBE could
+	 *       corrupt another entity (kernel / user)
+	 *     - A portion of the "ring buffer" consumed by the userspace.
+	 *       i.e, a page outisde [head, head + size].
+	 *
+	 * We work around this by:
+	 *     - Making sure that we have at least an extra space of PAGE left
+	 *       in the ring buffer [head, head + size], than we normally do
+	 *       without the erratum. See trbe_min_trace_buf_size().
+	 *
+	 *     - Adjust the TRBLIMITR.LIMIT to leave the extra PAGE outside
+	 *       the TRBE's range (i.e [TRBBASER, TRBLIMITR.LIMI] ).
+	 */
+	if (trbe_has_erratum(buf->cpudata, TRBE_WORKAROUND_WRITE_OUT_OF_RANGE)) {
+		s64 space = buf->trbe_limit - buf->trbe_write;
+		/*
+		 * We must have more than a PAGE_SIZE worth space in the proposed
+		 * range for the TRBE.
+		 */
+		if (WARN_ON(space <= PAGE_SIZE ||
+			    !IS_ALIGNED(buf->trbe_limit, PAGE_SIZE)))
+			return -EINVAL;
+		buf->trbe_limit -= PAGE_SIZE;
 	}
 
 	return 0;
