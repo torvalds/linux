@@ -1816,18 +1816,17 @@ int qbman_swp_set_irq_coalescing(struct qbman_swp *p, u32 irq_threshold,
 	u32 itp, max_holdoff;
 
 	/* Convert irq_holdoff value from usecs to 256 QBMAN clock cycles
-	 * increments. This depends to the QBMAN internal frequency.
+	 * increments. This depends on the QBMAN internal frequency.
 	 */
 	itp = (irq_holdoff * 1000) / p->desc->qman_256_cycles_per_ns;
-	if (itp < 0 || itp > 4096) {
+	if (itp > 4096) {
 		max_holdoff = (p->desc->qman_256_cycles_per_ns * 4096) / 1000;
-		pr_err("irq_holdoff must be between 0..%dus\n", max_holdoff);
+		pr_err("irq_holdoff must be <= %uus\n", max_holdoff);
 		return -EINVAL;
 	}
 
-	if (irq_threshold >= p->dqrr.dqrr_size || irq_threshold < 0) {
-		pr_err("irq_threshold must be between 0..%d\n",
-		       p->dqrr.dqrr_size - 1);
+	if (irq_threshold >= p->dqrr.dqrr_size) {
+		pr_err("irq_threshold must be < %u\n", p->dqrr.dqrr_size - 1);
 		return -EINVAL;
 	}
 
