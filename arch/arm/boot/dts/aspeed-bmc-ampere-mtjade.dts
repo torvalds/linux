@@ -374,6 +374,15 @@
 		m25p,fast-read;
 		label = "pnor";
 		/* spi-max-frequency = <100000000>; */
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			uefi@400000 {
+				reg = <0x400000 0x1C00000>;
+				label = "pnor-uefi";
+			};
+		};
 	};
 };
 
