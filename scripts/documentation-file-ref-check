@@ -94,6 +94,9 @@ while (<IN>) {
 	# Makefiles and scripts contain nasty expressions to parse docs
 	next if ($f =~ m/Makefile/ || $f =~ m/\.sh$/);
 
+	# It doesn't make sense to parse hidden files
+	next if ($f =~ m#/\.#);
+
 	# Skip this script
 	next if ($f eq $scriptname);
 
