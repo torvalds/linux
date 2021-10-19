@@ -30,8 +30,16 @@ void vp_disable_cbs(struct virtio_device *vdev)
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
 	int i;
 
-	if (vp_dev->intx_enabled)
+	if (vp_dev->intx_enabled) {
+		/*
+		 * The below synchronize() guarantees that any
+		 * interrupt for this line arriving after
+		 * synchronize_irq() has completed is guaranteed to see
+		 * intx_soft_enabled == false.
+		 */
+		WRITE_ONCE(vp_dev->intx_soft_enabled, false);
 		synchronize_irq(vp_dev->pci_dev->irq);
+	}
 
 	for (i = 0; i < vp_dev->msix_vectors; ++i)
 		disable_irq(pci_irq_vector(vp_dev->pci_dev, i));
@@ -43,8 +51,16 @@ void vp_enable_cbs(struct virtio_device *vdev)
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
 	int i;
 
-	if (vp_dev->intx_enabled)
+	if (vp_dev->intx_enabled) {
+		disable_irq(vp_dev->pci_dev->irq);
+		/*
+		 * The above disable_irq() provides TSO ordering and
+		 * as such promotes the below store to store-release.
+		 */
+		WRITE_ONCE(vp_dev->intx_soft_enabled, true);
+		enable_irq(vp_dev->pci_dev->irq);
 		return;
+	}
 
 	for (i = 0; i < vp_dev->msix_vectors; ++i)
 		enable_irq(pci_irq_vector(vp_dev->pci_dev, i));
@@ -96,6 +112,9 @@ static irqreturn_t vp_interrupt(int irq, void *opaque)
 {
 	struct virtio_pci_device *vp_dev = opaque;
 	u8 isr;
+
+	if (!READ_ONCE(vp_dev->intx_soft_enabled))
+		return IRQ_NONE;
 
 	/* reading the ISR has the effect of also clearing it so it's very
 	 * important to save off the value. */
