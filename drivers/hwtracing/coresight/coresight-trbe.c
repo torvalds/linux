@@ -67,8 +67,18 @@ struct trbe_buf {
 	struct trbe_cpudata *cpudata;
 };
 
+/*
+ * struct trbe_cpudata: TRBE instance specific data
+ * @trbe_flag		- TRBE dirty/access flag support
+ * @trbe_hw_align	- Actual TRBE alignment required for TRBPTR_EL1.
+ * @trbe_align		- Software alignment used for the TRBPTR_EL1.
+ * @cpu			- CPU this TRBE belongs to.
+ * @mode		- Mode of current operation. (perf/disabled)
+ * @drvdata		- TRBE specific drvdata
+ */
 struct trbe_cpudata {
 	bool trbe_flag;
+	u64 trbe_hw_align;
 	u64 trbe_align;
 	int cpu;
 	enum cs_mode mode;
@@ -875,7 +885,7 @@ static ssize_t align_show(struct device *dev, struct device_attribute *attr, cha
 {
 	struct trbe_cpudata *cpudata = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%llx\n", cpudata->trbe_align);
+	return sprintf(buf, "%llx\n", cpudata->trbe_hw_align);
 }
 static DEVICE_ATTR_RO(align);
 
@@ -967,11 +977,13 @@ static void arm_trbe_probe_cpu(void *info)
 		goto cpu_clear;
 	}
 
-	cpudata->trbe_align = 1ULL << get_trbe_address_align(trbidr);
-	if (cpudata->trbe_align > SZ_2K) {
+	cpudata->trbe_hw_align = 1ULL << get_trbe_address_align(trbidr);
+	if (cpudata->trbe_hw_align > SZ_2K) {
 		pr_err("Unsupported alignment on cpu %d\n", cpu);
 		goto cpu_clear;
 	}
+
+	cpudata->trbe_align = cpudata->trbe_hw_align;
 	cpudata->trbe_flag = get_trbe_flag_update(trbidr);
 	cpudata->cpu = cpu;
 	cpudata->drvdata = drvdata;
