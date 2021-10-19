@@ -148,6 +148,9 @@ struct mib_stats {
 	u32 rx_ampdu_cnt;
 	u32 rx_ampdu_bytes_cnt;
 	u32 rx_ba_cnt;
+
+	u32 tx_amsdu[8];
+	u32 tx_amsdu_cnt;
 };
 
 struct mt7921_phy {

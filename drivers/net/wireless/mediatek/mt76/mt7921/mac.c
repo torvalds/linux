@@ -1375,6 +1375,12 @@ void mt7921_mac_update_mib_stats(struct mt7921_phy *phy)
 	mib->rx_ampdu_bytes_cnt += mt76_rr(dev, MT_MIB_SDR23(0));
 	mib->rx_ba_cnt += mt76_rr(dev, MT_MIB_SDR31(0));
 
+	for (i = 0; i < ARRAY_SIZE(mib->tx_amsdu); i++) {
+		val = mt76_rr(dev, MT_PLE_AMSDU_PACK_MSDU_CNT(i));
+		mib->tx_amsdu[i] += val;
+		mib->tx_amsdu_cnt += val;
+	}
+
 	for (i = 0, aggr1 = aggr0 + 4; i < 4; i++) {
 		u32 val2;
 
