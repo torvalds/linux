@@ -1199,10 +1199,10 @@ static void mt7915_ethtool_worker(void *wi_data, struct ieee80211_sta *sta)
 {
 	struct mt7915_ethtool_worker_info *wi = wi_data;
 	struct mt7915_sta *msta = (struct mt7915_sta *)sta->drv_priv;
+	struct mt76_sta_stats *mstats = &msta->stats;
 	int ei = wi->initial_stat_idx;
 	int q;
 	u64 *data = wi->data;
-	struct mt7915_sta_stats *mstats = &msta->stats;
 
 	if (msta->vif != wi->mvif)
 		return;
