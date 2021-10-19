@@ -4683,6 +4683,7 @@ struct callback_head balance_push_callback = {
 	.next = NULL,
 	.func = (void (*)(struct callback_head *))balance_push,
 };
+EXPORT_SYMBOL_GPL(balance_push_callback);
 
 static inline struct callback_head *splice_balance_callbacks(struct rq *rq)
 {
