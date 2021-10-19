@@ -54,6 +54,9 @@ config 40x
 	select PPC_UDBG_16550
 	select 4xx_SOC
 	select HAVE_PCI
+	select PPC_HAVE_KUAP
+	select PPC_HAVE_KUEP
+	select PPC_KUEP if PPC_KUAP
 
 config 44x
 	bool "AMCC 44x, 46x or 47x"
@@ -425,9 +428,9 @@ config PPC_HAVE_KUEP
 	bool
 
 config PPC_KUEP
-	bool "Kernel Userspace Execution Prevention"
+	bool "Kernel Userspace Execution Prevention" if !40x
 	depends on PPC_HAVE_KUEP
-	default y
+	default y if !40x
 	help
 	  Enable support for Kernel Userspace Execution Prevention (KUEP)
 

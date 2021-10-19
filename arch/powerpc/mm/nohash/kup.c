@@ -19,6 +19,8 @@ EXPORT_SYMBOL(disable_kuap_key);
 void setup_kuap(bool disabled)
 {
 	if (disabled) {
+		if (IS_ENABLED(CONFIG_40x))
+			disable_kuep = true;
 		if (smp_processor_id() == boot_cpuid)
 			static_branch_enable(&disable_kuap_key);
 		return;
