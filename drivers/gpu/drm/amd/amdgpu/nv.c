@@ -1257,7 +1257,7 @@ static int nv_common_early_init(void *handle)
 			AMD_PG_SUPPORT_VCN_DPG |
 			AMD_PG_SUPPORT_JPEG;
 		if (adev->pdev->device == 0x1681)
-			adev->external_rev_id = adev->rev_id + 0x19;
+			adev->external_rev_id = 0x20;
 		else
 			adev->external_rev_id = adev->rev_id + 0x01;
 		break;
