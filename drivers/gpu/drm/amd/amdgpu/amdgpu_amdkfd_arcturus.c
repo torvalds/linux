@@ -57,11 +57,6 @@
 		(*dump)[i++][1] = RREG32(addr);		\
 	} while (0)
 
-static inline struct amdgpu_device *get_amdgpu_device(struct kgd_dev *kgd)
-{
-	return (struct amdgpu_device *)kgd;
-}
-
 static inline struct v9_sdma_mqd *get_sdma_mqd(void *mqd)
 {
 	return (struct v9_sdma_mqd *)mqd;

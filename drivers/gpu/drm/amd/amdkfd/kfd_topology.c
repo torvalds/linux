@@ -1286,7 +1286,6 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	void *crat_image = NULL;
 	size_t image_size = 0;
 	int proximity_domain;
-	struct amdgpu_device *adev;
 
 	INIT_LIST_HEAD(&temp_topology_device_list);
 
@@ -1296,10 +1295,8 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 
 	proximity_domain = atomic_inc_return(&topology_crat_proximity_domain);
 
-	adev = (struct amdgpu_device *)(gpu->kgd);
-
 	/* Include the CPU in xGMI hive if xGMI connected by assigning it the hive ID. */
-	if (gpu->hive_id && adev->gmc.xgmi.connected_to_cpu) {
+	if (gpu->hive_id && gpu->adev->gmc.xgmi.connected_to_cpu) {
 		struct kfd_topology_device *top_dev;
 
 		down_read(&topology_lock);
@@ -1477,16 +1474,17 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 
 	/* kfd only concerns sram ecc on GFX and HBM ecc on UMC */
 	dev->node_props.capability |=
-		((adev->ras_enabled & BIT(AMDGPU_RAS_BLOCK__GFX)) != 0) ?
+		((dev->gpu->adev->ras_enabled & BIT(AMDGPU_RAS_BLOCK__GFX)) != 0) ?
 		HSA_CAP_SRAM_EDCSUPPORTED : 0;
-	dev->node_props.capability |= ((adev->ras_enabled & BIT(AMDGPU_RAS_BLOCK__UMC)) != 0) ?
+	dev->node_props.capability |=
+		((dev->gpu->adev->ras_enabled & BIT(AMDGPU_RAS_BLOCK__UMC)) != 0) ?
 		HSA_CAP_MEM_EDCSUPPORTED : 0;
 
-	if (adev->asic_type != CHIP_VEGA10)
-		dev->node_props.capability |= (adev->ras_enabled != 0) ?
+	if (dev->gpu->adev->asic_type != CHIP_VEGA10)
+		dev->node_props.capability |= (dev->gpu->adev->ras_enabled != 0) ?
 			HSA_CAP_RASEVENTNOTIFY : 0;
 
-	if (KFD_IS_SVM_API_SUPPORTED(adev->kfd.dev))
+	if (KFD_IS_SVM_API_SUPPORTED(dev->gpu->adev->kfd.dev))
 		dev->node_props.capability |= HSA_CAP_SVMAPI_SUPPORTED;
 
 	kfd_debug_print_topology();

@@ -1963,8 +1963,6 @@ static int kfd_fill_gpu_direct_io_link_to_cpu(int *avail_size,
 			struct crat_subtype_iolink *sub_type_hdr,
 			uint32_t proximity_domain)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)kdev->kgd;
-
 	*avail_size -= sizeof(struct crat_subtype_iolink);
 	if (*avail_size < 0)
 		return -ENOMEM;
@@ -1981,7 +1979,7 @@ static int kfd_fill_gpu_direct_io_link_to_cpu(int *avail_size,
 	/* Fill in IOLINK subtype.
 	 * TODO: Fill-in other fields of iolink subtype
 	 */
-	if (adev->gmc.xgmi.connected_to_cpu) {
+	if (kdev->adev->gmc.xgmi.connected_to_cpu) {
 		/*
 		 * with host gpu xgmi link, host can access gpu memory whether
 		 * or not pcie bar type is large, so always create bidirectional
@@ -1990,7 +1988,7 @@ static int kfd_fill_gpu_direct_io_link_to_cpu(int *avail_size,
 		sub_type_hdr->flags |= CRAT_IOLINK_FLAGS_BI_DIRECTIONAL;
 		sub_type_hdr->io_interface_type = CRAT_IOLINK_TYPE_XGMI;
 		sub_type_hdr->num_hops_xgmi = 1;
-		if (adev->asic_type == CHIP_ALDEBARAN) {
+		if (kdev->adev->asic_type == CHIP_ALDEBARAN) {
 			sub_type_hdr->minimum_bandwidth_mbs =
 					amdgpu_amdkfd_get_xgmi_bandwidth_mbytes(
 							kdev->adev, NULL, true);

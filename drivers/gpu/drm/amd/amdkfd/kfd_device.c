@@ -1031,7 +1031,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 
 	kfd_cwsr_init(kfd);
 
-	svm_migrate_init((struct amdgpu_device *)kfd->kgd);
+	svm_migrate_init(kfd->adev);
 
 	if(kgd2kfd_resume_iommu(kfd))
 		goto device_iommu_error;

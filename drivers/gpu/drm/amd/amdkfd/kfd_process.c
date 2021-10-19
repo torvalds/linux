@@ -1779,14 +1779,13 @@ int kfd_process_gpuidx_from_gpuid(struct kfd_process *p, uint32_t gpu_id)
 }
 
 int
-kfd_process_gpuid_from_kgd(struct kfd_process *p, struct amdgpu_device *adev,
+kfd_process_gpuid_from_adev(struct kfd_process *p, struct amdgpu_device *adev,
 			   uint32_t *gpuid, uint32_t *gpuidx)
 {
-	struct kgd_dev *kgd = (struct kgd_dev *)adev;
 	int i;
 
 	for (i = 0; i < p->n_pdds; i++)
-		if (p->pdds[i] && p->pdds[i]->dev->kgd == kgd) {
+		if (p->pdds[i] && p->pdds[i]->dev->adev == adev) {
 			*gpuid = p->pdds[i]->dev->id;
 			*gpuidx = i;
 			return 0;

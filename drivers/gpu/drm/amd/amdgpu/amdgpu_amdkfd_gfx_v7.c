@@ -82,11 +82,6 @@ union TCP_WATCH_CNTL_BITS {
 	float f32All;
 };
 
-static inline struct amdgpu_device *get_amdgpu_device(struct kgd_dev *kgd)
-{
-	return (struct amdgpu_device *)kgd;
-}
-
 static void lock_srbm(struct amdgpu_device *adev, uint32_t mec, uint32_t pipe,
 			uint32_t queue, uint32_t vmid)
 {
