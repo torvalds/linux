@@ -97,9 +97,6 @@ static inline void snd_dma_buffer_sync(struct snd_dma_buffer *dmab,
 				       enum snd_dma_sync_mode mode) {}
 #endif
 
-void snd_dma_buffer_sync(struct snd_dma_buffer *dmab,
-			 enum snd_dma_sync_mode mode);
-
 dma_addr_t snd_sgbuf_get_addr(struct snd_dma_buffer *dmab, size_t offset);
 struct page *snd_sgbuf_get_page(struct snd_dma_buffer *dmab, size_t offset);
 unsigned int snd_sgbuf_get_chunk_size(struct snd_dma_buffer *dmab,
