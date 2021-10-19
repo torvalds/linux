@@ -18,6 +18,7 @@
 #include <linux/backlight.h>
 #include <linux/input.h>
 #include <linux/input/matrix_keypad.h>
+#include <linux/leds.h>
 #include <linux/workqueue.h>
 #include <linux/mm.h>
 
@@ -34,6 +35,10 @@
 
 #define REG_DISPLAY_SETUP		0x80
 #define REG_DISPLAY_SETUP_ON		BIT(0)
+#define REG_DISPLAY_SETUP_BLINK_OFF	(0 << 1)
+#define REG_DISPLAY_SETUP_BLINK_2HZ	(1 << 1)
+#define REG_DISPLAY_SETUP_BLINK_1HZ	(2 << 1)
+#define REG_DISPLAY_SETUP_BLINK_0HZ5	(3 << 1)
 
 #define REG_ROWINT_SET			0xA0
 #define REG_ROWINT_SET_INT_EN		BIT(0)
@@ -94,12 +99,14 @@ struct ht16k33_seg {
 struct ht16k33_priv {
 	struct i2c_client *client;
 	struct delayed_work work;
+	struct led_classdev led;
 	struct ht16k33_keypad keypad;
 	union {
 		struct ht16k33_fbdev fbdev;
 		struct ht16k33_seg seg;
 	};
 	enum display_type type;
+	uint8_t blink;
 };
 
 static const struct fb_fix_screeninfo ht16k33_fb_fix = {
@@ -158,7 +165,7 @@ static DEVICE_ATTR(map_seg14, 0644, map_seg_show, map_seg_store);
 
 static int ht16k33_display_on(struct ht16k33_priv *priv)
 {
-	uint8_t data = REG_DISPLAY_SETUP | REG_DISPLAY_SETUP_ON;
+	uint8_t data = REG_DISPLAY_SETUP | REG_DISPLAY_SETUP_ON | priv->blink;
 
 	return i2c_smbus_write_byte(priv->client, data);
 }
@@ -173,8 +180,10 @@ static int ht16k33_brightness_set(struct ht16k33_priv *priv,
 {
 	int err;
 
-	if (brightness == 0)
+	if (brightness == 0) {
+		priv->blink = REG_DISPLAY_SETUP_BLINK_OFF;
 		return ht16k33_display_off(priv);
+	}
 
 	err = ht16k33_display_on(priv);
 	if (err)
@@ -182,6 +191,49 @@ static int ht16k33_brightness_set(struct ht16k33_priv *priv,
 
 	return i2c_smbus_write_byte(priv->client,
 				    REG_BRIGHTNESS | (brightness - 1));
+}
+
+static int ht16k33_brightness_set_blocking(struct led_classdev *led_cdev,
+					   enum led_brightness brightness)
+{
+	struct ht16k33_priv *priv = container_of(led_cdev, struct ht16k33_priv,
+						 led);
+
+	return ht16k33_brightness_set(priv, brightness);
+}
+
+static int ht16k33_blink_set(struct led_classdev *led_cdev,
+			     unsigned long *delay_on, unsigned long *delay_off)
+{
+	struct ht16k33_priv *priv = container_of(led_cdev, struct ht16k33_priv,
+						 led);
+	unsigned int delay;
+	uint8_t blink;
+	int err;
+
+	if (!*delay_on && !*delay_off) {
+		blink = REG_DISPLAY_SETUP_BLINK_1HZ;
+		delay = 1000;
+	} else if (*delay_on <= 750) {
+		blink = REG_DISPLAY_SETUP_BLINK_2HZ;
+		delay = 500;
+	} else if (*delay_on <= 1500) {
+		blink = REG_DISPLAY_SETUP_BLINK_1HZ;
+		delay = 1000;
+	} else {
+		blink = REG_DISPLAY_SETUP_BLINK_0HZ5;
+		delay = 2000;
+	}
+
+	err = i2c_smbus_write_byte(priv->client,
+				   REG_DISPLAY_SETUP | REG_DISPLAY_SETUP_ON |
+				   blink);
+	if (err)
+		return err;
+
+	priv->blink = blink;
+	*delay_on = *delay_off = delay;
+	return 0;
 }
 
 static void ht16k33_fb_queue(struct ht16k33_priv *priv)
@@ -435,6 +487,35 @@ static void ht16k33_seg14_update(struct work_struct *work)
 	i2c_smbus_write_i2c_block_data(priv->client, 0, ARRAY_SIZE(buf), buf);
 }
 
+static int ht16k33_led_probe(struct device *dev, struct led_classdev *led,
+			     unsigned int brightness)
+{
+	struct led_init_data init_data = {};
+	struct device_node *node;
+	int err;
+
+	/* The LED is optional */
+	node = of_get_child_by_name(dev->of_node, "led");
+	if (!node)
+		return 0;
+
+	init_data.fwnode = of_fwnode_handle(node);
+	init_data.devicename = "auxdisplay";
+	init_data.devname_mandatory = true;
+
+	led->brightness_set_blocking = ht16k33_brightness_set_blocking;
+	led->blink_set = ht16k33_blink_set;
+	led->flags = LED_CORE_SUSPENDRESUME;
+	led->brightness = brightness;
+	led->max_brightness = MAX_BRIGHTNESS;
+
+	err = devm_led_classdev_register_ext(dev, led, &init_data);
+	if (err)
+		dev_err(dev, "Failed to register LED\n");
+
+	return err;
+}
+
 static int ht16k33_keypad_probe(struct i2c_client *client,
 				struct ht16k33_keypad *keypad)
 {
@@ -508,24 +589,32 @@ static int ht16k33_fbdev_probe(struct device *dev, struct ht16k33_priv *priv,
 			       uint32_t brightness)
 {
 	struct ht16k33_fbdev *fbdev = &priv->fbdev;
-	struct backlight_properties bl_props;
-	struct backlight_device *bl;
+	struct backlight_device *bl = NULL;
 	int err;
 
-	/* Backlight */
-	memset(&bl_props, 0, sizeof(struct backlight_properties));
-	bl_props.type = BACKLIGHT_RAW;
-	bl_props.max_brightness = MAX_BRIGHTNESS;
+	if (priv->led.dev) {
+		err = ht16k33_brightness_set(priv, brightness);
+		if (err)
+			return err;
+	} else {
+		/* backwards compatibility with DT lacking an led subnode */
+		struct backlight_properties bl_props;
 
-	bl = devm_backlight_device_register(dev, DRIVER_NAME"-bl", dev, priv,
-					    &ht16k33_bl_ops, &bl_props);
-	if (IS_ERR(bl)) {
-		dev_err(dev, "failed to register backlight\n");
-		return PTR_ERR(bl);
+		memset(&bl_props, 0, sizeof(struct backlight_properties));
+		bl_props.type = BACKLIGHT_RAW;
+		bl_props.max_brightness = MAX_BRIGHTNESS;
+
+		bl = devm_backlight_device_register(dev, DRIVER_NAME"-bl", dev,
+						    priv, &ht16k33_bl_ops,
+						    &bl_props);
+		if (IS_ERR(bl)) {
+			dev_err(dev, "failed to register backlight\n");
+			return PTR_ERR(bl);
+		}
+
+		bl->props.brightness = brightness;
+		ht16k33_bl_update_status(bl);
 	}
-
-	bl->props.brightness = brightness;
-	ht16k33_bl_update_status(bl);
 
 	/* Framebuffer (2 bytes per column) */
 	BUILD_BUG_ON(PAGE_SIZE < HT16K33_FB_SIZE);
@@ -662,6 +751,11 @@ static int ht16k33_probe(struct i2c_client *client)
 			 dft_brightness, MAX_BRIGHTNESS);
 		dft_brightness = MAX_BRIGHTNESS;
 	}
+
+	/* LED */
+	err = ht16k33_led_probe(dev, &priv->led, dft_brightness);
+	if (err)
+		return err;
 
 	/* Keypad */
 	if (client->irq > 0) {
