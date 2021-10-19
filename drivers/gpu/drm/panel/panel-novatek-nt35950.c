@@ -636,7 +636,7 @@ static int nt35950_remove(struct mipi_dsi_device *dsi)
 			dev_err(&dsi->dev,
 				"Failed to detach from DSI1 host: %d\n", ret);
 		mipi_dsi_device_unregister(nt->dsi[1]);
-	};
+	}
 
 	drm_panel_remove(&nt->panel);
 
