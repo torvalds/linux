@@ -2498,7 +2498,7 @@ static void rcu_do_batch(struct rcu_data *rdp)
 	trace_rcu_batch_start(rcu_state.name,
 			      rcu_segcblist_n_cbs(&rdp->cblist), bl);
 	rcu_segcblist_extract_done_cbs(&rdp->cblist, &rcl);
-	if (offloaded)
+	if (rcu_rdp_is_offloaded(rdp))
 		rdp->qlen_last_fqs_check = rcu_segcblist_n_cbs(&rdp->cblist);
 
 	trace_rcu_segcb_stats(&rdp->cblist, TPS("SegCbDequeued"));
