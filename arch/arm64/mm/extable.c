@@ -8,15 +8,15 @@
 
 bool fixup_exception(struct pt_regs *regs)
 {
-	const struct exception_table_entry *fixup;
+	const struct exception_table_entry *ex;
 
-	fixup = search_exception_tables(instruction_pointer(regs));
-	if (!fixup)
+	ex = search_exception_tables(instruction_pointer(regs));
+	if (!ex)
 		return false;
 
 	if (in_bpf_jit(regs))
-		return arm64_bpf_fixup_exception(fixup, regs);
+		return arm64_bpf_fixup_exception(ex, regs);
 
-	regs->pc = (unsigned long)&fixup->fixup + fixup->fixup;
+	regs->pc = (unsigned long)&ex->fixup + ex->fixup;
 	return true;
 }
