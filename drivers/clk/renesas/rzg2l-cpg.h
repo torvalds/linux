@@ -168,6 +168,9 @@ struct rzg2l_reset {
  * @num_mod_clks: Number of entries in mod_clks[]
  * @num_hw_mod_clks: Number of Module Clocks supported by the hardware
  *
+ * @resets: Array of Module Reset definitions
+ * @num_resets: Number of entries in resets[]
+ *
  * @crit_mod_clks: Array with Module Clock IDs of critical clocks that
  *                 should not be disabled without a knowledgeable driver
  * @num_crit_mod_clks: Number of entries in crit_mod_clks[]
