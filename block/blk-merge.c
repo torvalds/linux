@@ -383,7 +383,7 @@ void __blk_queue_split(struct request_queue *q, struct bio **bio,
  */
 void blk_queue_split(struct bio **bio)
 {
-	struct request_queue *q = (*bio)->bi_bdev->bd_disk->queue;
+	struct request_queue *q = bdev_get_queue((*bio)->bi_bdev);
 	unsigned int nr_segs;
 
 	if (blk_may_split(q, *bio))
