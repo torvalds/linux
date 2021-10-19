@@ -1930,50 +1930,6 @@ static int _intel_bios_max_tmds_clock(const struct intel_bios_encoder_data *devd
 	}
 }
 
-static enum port get_edp_port(struct drm_i915_private *i915)
-{
-	const struct intel_bios_encoder_data *devdata;
-	enum port port;
-
-	for_each_port(port) {
-		devdata = i915->vbt.ports[port];
-
-		if (devdata && intel_bios_encoder_supports_edp(devdata))
-			return port;
-	}
-
-	return PORT_NONE;
-}
-
-/*
- * FIXME: The power sequencer and backlight code currently do not support more
- * than one set registers, at least not on anything other than VLV/CHV. It will
- * clobber the registers. As a temporary workaround, gracefully prevent more
- * than one eDP from being registered.
- */
-static void sanitize_dual_edp(struct intel_bios_encoder_data *devdata,
-			      enum port port)
-{
-	struct drm_i915_private *i915 = devdata->i915;
-	struct child_device_config *child = &devdata->child;
-	enum port p;
-
-	/* CHV might not clobber PPS registers. */
-	if (IS_CHERRYVIEW(i915))
-		return;
-
-	p = get_edp_port(i915);
-	if (p == PORT_NONE)
-		return;
-
-	drm_dbg_kms(&i915->drm, "both ports %c and %c configured as eDP, "
-		    "disabling port %c eDP\n", port_name(p), port_name(port),
-		    port_name(port));
-
-	child->device_type &= ~DEVICE_TYPE_DISPLAYPORT_OUTPUT;
-	child->device_type &= ~DEVICE_TYPE_INTERNAL_CONNECTOR;
-}
-
 static bool is_port_valid(struct drm_i915_private *i915, enum port port)
 {
 	/*
@@ -2030,9 +1986,6 @@ static void parse_ddi_port(struct drm_i915_private *i915,
 		    HAS_LSPCON(i915) && child->lspcon,
 		    supports_typec_usb, supports_tbt,
 		    devdata->dsc != NULL);
-
-	if (is_edp)
-		sanitize_dual_edp(devdata, port);
 
 	if (is_dvi)
 		sanitize_ddc_pin(devdata, port);
