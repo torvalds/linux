@@ -133,6 +133,17 @@ __ro_after_init struct vl_info vl_info[ARM64_VEC_MAX] = {
 #endif
 };
 
+static unsigned int vec_vl_inherit_flag(enum vec_type type)
+{
+	switch (type) {
+	case ARM64_VEC_SVE:
+		return TIF_SVE_VL_INHERIT;
+	default:
+		WARN_ON_ONCE(1);
+		return 0;
+	}
+}
+
 struct vl_config {
 	int __default_vl;		/* Default VL for tasks */
 };
@@ -239,24 +250,27 @@ static void sve_free(struct task_struct *task)
 	__sve_free(task);
 }
 
-unsigned int task_get_sve_vl(const struct task_struct *task)
+unsigned int task_get_vl(const struct task_struct *task, enum vec_type type)
 {
-	return task->thread.sve_vl;
+	return task->thread.vl[type];
 }
 
-void task_set_sve_vl(struct task_struct *task, unsigned long vl)
+void task_set_vl(struct task_struct *task, enum vec_type type,
+		 unsigned long vl)
 {
-	task->thread.sve_vl = vl;
+	task->thread.vl[type] = vl;
 }
 
-unsigned int task_get_sve_vl_onexec(const struct task_struct *task)
+unsigned int task_get_vl_onexec(const struct task_struct *task,
+				enum vec_type type)
 {
-	return task->thread.sve_vl_onexec;
+	return task->thread.vl_onexec[type];
 }
 
-void task_set_sve_vl_onexec(struct task_struct *task, unsigned long vl)
+void task_set_vl_onexec(struct task_struct *task, enum vec_type type,
+			unsigned long vl)
 {
-	task->thread.sve_vl_onexec = vl;
+	task->thread.vl_onexec[type] = vl;
 }
 
 /*
@@ -1074,10 +1088,43 @@ void fpsimd_thread_switch(struct task_struct *next)
 	__put_cpu_fpsimd_context();
 }
 
-void fpsimd_flush_thread(void)
+static void fpsimd_flush_thread_vl(enum vec_type type)
 {
 	int vl, supported_vl;
 
+	/*
+	 * Reset the task vector length as required.  This is where we
+	 * ensure that all user tasks have a valid vector length
+	 * configured: no kernel task can become a user task without
+	 * an exec and hence a call to this function.  By the time the
+	 * first call to this function is made, all early hardware
+	 * probing is complete, so __sve_default_vl should be valid.
+	 * If a bug causes this to go wrong, we make some noise and
+	 * try to fudge thread.sve_vl to a safe value here.
+	 */
+	vl = task_get_vl_onexec(current, type);
+	if (!vl)
+		vl = get_default_vl(type);
+
+	if (WARN_ON(!sve_vl_valid(vl)))
+		vl = SVE_VL_MIN;
+
+	supported_vl = find_supported_vector_length(type, vl);
+	if (WARN_ON(supported_vl != vl))
+		vl = supported_vl;
+
+	task_set_vl(current, type, vl);
+
+	/*
+	 * If the task is not set to inherit, ensure that the vector
+	 * length will be reset by a subsequent exec:
+	 */
+	if (!test_thread_flag(vec_vl_inherit_flag(type)))
+		task_set_vl_onexec(current, type, 0);
+}
+
+void fpsimd_flush_thread(void)
+{
 	if (!system_supports_fpsimd())
 		return;
 
@@ -1090,37 +1137,7 @@ void fpsimd_flush_thread(void)
 	if (system_supports_sve()) {
 		clear_thread_flag(TIF_SVE);
 		sve_free(current);
-
-		/*
-		 * Reset the task vector length as required.
-		 * This is where we ensure that all user tasks have a valid
-		 * vector length configured: no kernel task can become a user
-		 * task without an exec and hence a call to this function.
-		 * By the time the first call to this function is made, all
-		 * early hardware probing is complete, so __sve_default_vl
-		 * should be valid.
-		 * If a bug causes this to go wrong, we make some noise and
-		 * try to fudge thread.sve_vl to a safe value here.
-		 */
-		vl = task_get_sve_vl_onexec(current);
-		if (!vl)
-			vl = get_sve_default_vl();
-
-		if (WARN_ON(!sve_vl_valid(vl)))
-			vl = SVE_VL_MIN;
-
-		supported_vl = find_supported_vector_length(ARM64_VEC_SVE, vl);
-		if (WARN_ON(supported_vl != vl))
-			vl = supported_vl;
-
-		task_set_sve_vl(current, vl);
-
-		/*
-		 * If the task is not set to inherit, ensure that the vector
-		 * length will be reset by a subsequent exec:
-		 */
-		if (!test_thread_flag(TIF_SVE_VL_INHERIT))
-			task_set_sve_vl_onexec(current, 0);
+		fpsimd_flush_thread_vl(ARM64_VEC_SVE);
 	}
 
 	put_cpu_fpsimd_context();
