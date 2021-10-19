@@ -1122,28 +1122,34 @@ qca8k_setup(struct dsa_switch *ds)
 	if (ret)
 		dev_warn(priv->dev, "mib init failed");
 
-	/* Enable QCA header mode on the cpu port */
-	ret = qca8k_write(priv, QCA8K_REG_PORT_HDR_CTRL(cpu_port),
-			  QCA8K_PORT_HDR_CTRL_ALL << QCA8K_PORT_HDR_CTRL_TX_S |
-			  QCA8K_PORT_HDR_CTRL_ALL << QCA8K_PORT_HDR_CTRL_RX_S);
-	if (ret) {
-		dev_err(priv->dev, "failed enabling QCA header mode");
-		return ret;
-	}
-
-	/* Disable forwarding by default on all ports */
+	/* Initial setup of all ports */
 	for (i = 0; i < QCA8K_NUM_PORTS; i++) {
+		/* Disable forwarding by default on all ports */
 		ret = qca8k_rmw(priv, QCA8K_PORT_LOOKUP_CTRL(i),
 				QCA8K_PORT_LOOKUP_MEMBER, 0);
 		if (ret)
 			return ret;
+
+		/* Enable QCA header mode on all cpu ports */
+		if (dsa_is_cpu_port(ds, i)) {
+			ret = qca8k_write(priv, QCA8K_REG_PORT_HDR_CTRL(i),
+					  QCA8K_PORT_HDR_CTRL_ALL << QCA8K_PORT_HDR_CTRL_TX_S |
+					  QCA8K_PORT_HDR_CTRL_ALL << QCA8K_PORT_HDR_CTRL_RX_S);
+			if (ret) {
+				dev_err(priv->dev, "failed enabling QCA header mode");
+				return ret;
+			}
+		}
+
+		/* Disable MAC by default on all user ports */
+		if (dsa_is_user_port(ds, i))
+			qca8k_port_set_status(priv, i, 0);
 	}
 
-	/* Disable MAC by default on all ports */
-	for (i = 1; i < QCA8K_NUM_PORTS; i++)
-		qca8k_port_set_status(priv, i, 0);
-
-	/* Forward all unknown frames to CPU port for Linux processing */
+	/* Forward all unknown frames to CPU port for Linux processing
+	 * Notice that in multi-cpu config only one port should be set
+	 * for igmp, unknown, multicast and broadcast packet
+	 */
 	ret = qca8k_write(priv, QCA8K_REG_GLOBAL_FW_CTRL1,
 			  BIT(cpu_port) << QCA8K_GLOBAL_FW_CTRL1_IGMP_DP_S |
 			  BIT(cpu_port) << QCA8K_GLOBAL_FW_CTRL1_BC_DP_S |
@@ -1152,11 +1158,13 @@ qca8k_setup(struct dsa_switch *ds)
 	if (ret)
 		return ret;
 
-	/* Setup connection between CPU port & user ports */
+	/* Setup connection between CPU port & user ports
+	 * Configure specific switch configuration for ports
+	 */
 	for (i = 0; i < QCA8K_NUM_PORTS; i++) {
 		/* CPU port gets connected to all user ports of the switch */
 		if (dsa_is_cpu_port(ds, i)) {
-			ret = qca8k_rmw(priv, QCA8K_PORT_LOOKUP_CTRL(cpu_port),
+			ret = qca8k_rmw(priv, QCA8K_PORT_LOOKUP_CTRL(i),
 					QCA8K_PORT_LOOKUP_MEMBER, dsa_user_ports(ds));
 			if (ret)
 				return ret;
@@ -1193,16 +1201,14 @@ qca8k_setup(struct dsa_switch *ds)
 			if (ret)
 				return ret;
 		}
-	}
 
-	/* The port 5 of the qca8337 have some problem in flood condition. The
-	 * original legacy driver had some specific buffer and priority settings
-	 * for the different port suggested by the QCA switch team. Add this
-	 * missing settings to improve switch stability under load condition.
-	 * This problem is limited to qca8337 and other qca8k switch are not affected.
-	 */
-	if (priv->switch_id == QCA8K_ID_QCA8337) {
-		for (i = 0; i < QCA8K_NUM_PORTS; i++) {
+		/* The port 5 of the qca8337 have some problem in flood condition. The
+		 * original legacy driver had some specific buffer and priority settings
+		 * for the different port suggested by the QCA switch team. Add this
+		 * missing settings to improve switch stability under load condition.
+		 * This problem is limited to qca8337 and other qca8k switch are not affected.
+		 */
+		if (priv->switch_id == QCA8K_ID_QCA8337) {
 			switch (i) {
 			/* The 2 CPU port and port 5 requires some different
 			 * priority than any other ports.
@@ -1238,6 +1244,12 @@ qca8k_setup(struct dsa_switch *ds)
 				  QCA8K_PORT_HOL_CTRL1_WRED_EN,
 				  mask);
 		}
+
+		/* Set initial MTU for every port.
+		 * We have only have a general MTU setting. So track
+		 * every port and set the max across all port.
+		 */
+		priv->port_mtu[i] = ETH_FRAME_LEN + ETH_FCS_LEN;
 	}
 
 	/* Special GLOBAL_FC_THRESH value are needed for ar8327 switch */
@@ -1251,8 +1263,6 @@ qca8k_setup(struct dsa_switch *ds)
 	}
 
 	/* Setup our port MTUs to match power on defaults */
-	for (i = 0; i < QCA8K_NUM_PORTS; i++)
-		priv->port_mtu[i] = ETH_FRAME_LEN + ETH_FCS_LEN;
 	ret = qca8k_write(priv, QCA8K_MAX_FRAME_SIZE, ETH_FRAME_LEN + ETH_FCS_LEN);
 	if (ret)
 		dev_warn(priv->dev, "failed setting MTU settings");
@@ -1728,7 +1738,9 @@ qca8k_port_bridge_join(struct dsa_switch *ds, int port, struct net_device *br)
 	cpu_port = dsa_to_port(ds, port)->cpu_dp->index;
 	port_mask = BIT(cpu_port);
 
-	for (i = 1; i < QCA8K_NUM_PORTS; i++) {
+	for (i = 0; i < QCA8K_NUM_PORTS; i++) {
+		if (dsa_is_cpu_port(ds, i))
+			continue;
 		if (dsa_to_port(ds, i)->bridge_dev != br)
 			continue;
 		/* Add this port to the portvlan mask of the other ports
@@ -1758,7 +1770,9 @@ qca8k_port_bridge_leave(struct dsa_switch *ds, int port, struct net_device *br)
 
 	cpu_port = dsa_to_port(ds, port)->cpu_dp->index;
 
-	for (i = 1; i < QCA8K_NUM_PORTS; i++) {
+	for (i = 0; i < QCA8K_NUM_PORTS; i++) {
+		if (dsa_is_cpu_port(ds, i))
+			continue;
 		if (dsa_to_port(ds, i)->bridge_dev != br)
 			continue;
 		/* Remove this port to the portvlan mask of the other ports
