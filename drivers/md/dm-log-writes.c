@@ -753,7 +753,7 @@ static int log_writes_map(struct dm_target *ti, struct bio *bio)
 	 */
 	bio_for_each_segment(bv, bio, iter) {
 		struct page *page;
-		void *src, *dst;
+		void *dst;
 
 		page = alloc_page(GFP_NOIO);
 		if (!page) {
@@ -765,11 +765,9 @@ static int log_writes_map(struct dm_target *ti, struct bio *bio)
 			return DM_MAPIO_KILL;
 		}
 
-		src = kmap_atomic(bv.bv_page);
 		dst = kmap_atomic(page);
-		memcpy(dst, src + bv.bv_offset, bv.bv_len);
+		memcpy_from_bvec(dst, &bv);
 		kunmap_atomic(dst);
-		kunmap_atomic(src);
 		block->vecs[i].bv_page = page;
 		block->vecs[i].bv_len = bv.bv_len;
 		block->vec_cnt++;
