@@ -113,6 +113,10 @@ ifeq ($(CONFIG_CC_IS_CLANG),y)
 CFLAGS_ABI	+= -meabi gnu
 endif
 
+ifeq ($(CONFIG_CURRENT_POINTER_IN_TPIDRURO),y)
+CFLAGS_ABI	+= -mtp=cp15
+endif
+
 # Accept old syntax despite ".syntax unified"
 AFLAGS_NOWARN	:=$(call as-option,-Wa$(comma)-mno-warn-deprecated,-Wa$(comma)-W)
 
@@ -273,11 +277,8 @@ ifeq ($(CONFIG_STACKPROTECTOR_PER_TASK),y)
 prepare: stack_protector_prepare
 stack_protector_prepare: prepare0
 	$(eval SSP_PLUGIN_CFLAGS := \
-		-fplugin-arg-arm_ssp_per_task_plugin-tso=$(shell	\
-			awk '{if ($$2 == "THREAD_SZ_ORDER") print $$3;}'\
-				include/generated/asm-offsets.h)	\
 		-fplugin-arg-arm_ssp_per_task_plugin-offset=$(shell	\
-			awk '{if ($$2 == "TI_STACK_CANARY") print $$3;}'\
+			awk '{if ($$2 == "TSK_STACK_CANARY") print $$3;}'\
 				include/generated/asm-offsets.h))
 	$(eval KBUILD_CFLAGS += $(SSP_PLUGIN_CFLAGS))
 	$(eval GCC_PLUGINS_CFLAGS += $(SSP_PLUGIN_CFLAGS))

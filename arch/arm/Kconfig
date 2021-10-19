@@ -125,6 +125,7 @@ config ARM
 	select PERF_USE_VMALLOC
 	select RTC_LIB
 	select SYS_SUPPORTS_APM_EMULATION
+	select THREAD_INFO_IN_TASK if CURRENT_POINTER_IN_TPIDRURO
 	select TRACE_IRQFLAGS_SUPPORT if !CPU_V7M
 	# Above selects are sorted alphabetically; please add new ones
 	# according to that.  Thanks.
@@ -1157,6 +1158,11 @@ config SMP_ON_UP
 
 	  If you don't know what to do here, say Y.
 
+
+config CURRENT_POINTER_IN_TPIDRURO
+	def_bool y
+	depends on SMP && CPU_32v6K && !CPU_V6
+
 config ARM_CPU_TOPOLOGY
 	bool "Support cpu topology definition"
 	depends on SMP && CPU_V7
@@ -1600,7 +1606,7 @@ config XEN
 
 config STACKPROTECTOR_PER_TASK
 	bool "Use a unique stack canary value for each task"
-	depends on GCC_PLUGINS && STACKPROTECTOR && SMP && !XIP_DEFLATED_DATA
+	depends on GCC_PLUGINS && STACKPROTECTOR && THREAD_INFO_IN_TASK && !XIP_DEFLATED_DATA
 	select GCC_PLUGIN_ARM_SSP_PER_TASK
 	default y
 	help
