@@ -886,6 +886,7 @@ static int bch2_move_btree(struct bch_fs *c,
 		bch2_trans_node_iter_init(&trans, &iter, id, POS_MIN, 0, 0,
 					  BTREE_ITER_PREFETCH);
 retry:
+		ret = 0;
 		while (bch2_trans_begin(&trans),
 		       (b = bch2_btree_iter_peek_node(&iter)) &&
 		       !(ret = PTR_ERR_OR_ZERO(b))) {
