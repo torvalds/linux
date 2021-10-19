@@ -433,7 +433,7 @@ enum mlx5_flow_match_level {
 };
 
 /* current maximum for flow based vport multicasting */
-#define MLX5_MAX_FLOW_FWD_VPORTS 2
+#define MLX5_MAX_FLOW_FWD_VPORTS 32
 
 enum {
 	MLX5_ESW_DEST_ENCAP         = BIT(0),
