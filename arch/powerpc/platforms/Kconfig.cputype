@@ -30,22 +30,17 @@ config PPC_BOOK3S_32
 	bool "512x/52xx/6xx/7xx/74xx/82xx/83xx/86xx"
 	imply PPC_FPU
 	select PPC_HAVE_PMU_SUPPORT
-	select PPC_HAVE_KUEP
-	select PPC_HAVE_KUAP
 	select HAVE_ARCH_VMAP_STACK
 
 config PPC_85xx
 	bool "Freescale 85xx"
 	select E500
-	select PPC_HAVE_KUAP
 
 config PPC_8xx
 	bool "Freescale 8xx"
 	select ARCH_SUPPORTS_HUGETLBFS
 	select FSL_SOC
-	select PPC_HAVE_KUEP
 	select PPC_KUEP
-	select PPC_HAVE_KUAP
 	select HAVE_ARCH_VMAP_STACK
 	select HUGETLBFS
 
@@ -55,8 +50,6 @@ config 40x
 	select PPC_UDBG_16550
 	select 4xx_SOC
 	select HAVE_PCI
-	select PPC_HAVE_KUAP
-	select PPC_HAVE_KUEP
 	select PPC_KUEP if PPC_KUAP
 
 config 44x
@@ -66,9 +59,7 @@ config 44x
 	select 4xx_SOC
 	select HAVE_PCI
 	select PHYS_64BIT
-	select PPC_HAVE_KUEP
 	select PPC_KUEP
-	select PPC_HAVE_KUAP
 
 endchoice
 
@@ -112,8 +103,6 @@ config PPC_BOOK3S_64
 	select HAVE_MOVE_PMD
 	select HAVE_MOVE_PUD
 	select IRQ_WORK
-	select PPC_HAVE_KUEP
-	select PPC_HAVE_KUAP
 	select PPC_64S_HASH_MMU if !PPC_RADIX_MMU
 
 config PPC_BOOK3E_64
@@ -122,7 +111,6 @@ config PPC_BOOK3E_64
 	select PPC_SMP_MUXED_IPI
 	select PPC_DOORBELL
 	select ZONE_DMA
-	select PPC_HAVE_KUAP
 
 endchoice
 
@@ -310,7 +298,6 @@ config PPC_FSL_BOOK3E
 	select FSL_EMB_PERFMON
 	select PPC_SMP_MUXED_IPI
 	select PPC_DOORBELL
-	select PPC_HAVE_KUEP
 	select PPC_KUEP
 	default y if FSL_BOOKE
 
@@ -426,24 +413,16 @@ config PPC_RADIX_MMU_DEFAULT
 
 	  If you're unsure, say Y.
 
-config PPC_HAVE_KUEP
-	bool
-
 config PPC_KUEP
 	bool "Kernel Userspace Execution Prevention" if !40x
-	depends on PPC_HAVE_KUEP
 	default y if !40x
 	help
 	  Enable support for Kernel Userspace Execution Prevention (KUEP)
 
 	  If you're unsure, say Y.
 
-config PPC_HAVE_KUAP
-	bool
-
 config PPC_KUAP
 	bool "Kernel Userspace Access Protection"
-	depends on PPC_HAVE_KUAP
 	default y
 	help
 	  Enable support for Kernel Userspace Access Protection (KUAP)
