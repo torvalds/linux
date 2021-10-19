@@ -299,6 +299,8 @@ config PPC_FSL_BOOK3E
 	select FSL_EMB_PERFMON
 	select PPC_SMP_MUXED_IPI
 	select PPC_DOORBELL
+	select PPC_HAVE_KUEP
+	select PPC_KUEP
 	default y if FSL_BOOKE
 
 config PTE_64BIT
