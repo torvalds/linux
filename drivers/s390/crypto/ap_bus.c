@@ -61,6 +61,10 @@ static char *aqm_str;
 module_param_named(aqmask, aqm_str, charp, 0440);
 MODULE_PARM_DESC(aqmask, "AP bus domain mask.");
 
+static int ap_useirq = 1;
+module_param_named(useirq, ap_useirq, int, 0440);
+MODULE_PARM_DESC(useirq, "Use interrupt if available, default is 1 (on).");
+
 atomic_t ap_max_msg_size = ATOMIC_INIT(AP_DEFAULT_MAX_MSG_SIZE);
 EXPORT_SYMBOL(ap_max_msg_size);
 
@@ -1899,7 +1903,7 @@ static int __init ap_module_init(void)
 	}
 
 	/* enable interrupts if available */
-	if (ap_interrupts_available()) {
+	if (ap_interrupts_available() && ap_useirq) {
 		rc = register_adapter_interrupt(&ap_airq);
 		ap_irq_flag = (rc == 0);
 	}
