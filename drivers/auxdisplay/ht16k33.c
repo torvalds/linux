@@ -12,7 +12,7 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
-#include <linux/of.h>
+#include <linux/property.h>
 #include <linux/fb.h>
 #include <linux/slab.h>
 #include <linux/backlight.h>
@@ -491,15 +491,13 @@ static int ht16k33_led_probe(struct device *dev, struct led_classdev *led,
 			     unsigned int brightness)
 {
 	struct led_init_data init_data = {};
-	struct device_node *node;
 	int err;
 
 	/* The LED is optional */
-	node = of_get_child_by_name(dev->of_node, "led");
-	if (!node)
+	init_data.fwnode = device_get_named_child_node(dev, "led");
+	if (!init_data.fwnode)
 		return 0;
 
-	init_data.fwnode = of_fwnode_handle(node);
 	init_data.devicename = "auxdisplay";
 	init_data.devname_mandatory = true;
 
@@ -520,7 +518,6 @@ static int ht16k33_keypad_probe(struct i2c_client *client,
 				struct ht16k33_keypad *keypad)
 {
 	struct device *dev = &client->dev;
-	struct device_node *node = dev->of_node;
 	u32 rows = HT16K33_MATRIX_KEYPAD_MAX_ROWS;
 	u32 cols = HT16K33_MATRIX_KEYPAD_MAX_COLS;
 	int err;
@@ -539,17 +536,17 @@ static int ht16k33_keypad_probe(struct i2c_client *client,
 	keypad->dev->open = ht16k33_keypad_start;
 	keypad->dev->close = ht16k33_keypad_stop;
 
-	if (!of_get_property(node, "linux,no-autorepeat", NULL))
+	if (!device_property_read_bool(dev, "linux,no-autorepeat"))
 		__set_bit(EV_REP, keypad->dev->evbit);
 
-	err = of_property_read_u32(node, "debounce-delay-ms",
-				   &keypad->debounce_ms);
+	err = device_property_read_u32(dev, "debounce-delay-ms",
+				       &keypad->debounce_ms);
 	if (err) {
 		dev_err(dev, "key debounce delay not specified\n");
 		return err;
 	}
 
-	err = matrix_keypad_parse_of_params(dev, &rows, &cols);
+	err = matrix_keypad_parse_properties(dev, &rows, &cols);
 	if (err)
 		return err;
 	if (rows > HT16K33_MATRIX_KEYPAD_MAX_ROWS ||
@@ -634,8 +631,8 @@ static int ht16k33_fbdev_probe(struct device *dev, struct ht16k33_priv *priv,
 		goto err_fbdev_buffer;
 	}
 
-	err = of_property_read_u32(dev->of_node, "refresh-rate-hz",
-				   &fbdev->refresh_rate);
+	err = device_property_read_u32(dev, "refresh-rate-hz",
+				       &fbdev->refresh_rate);
 	if (err) {
 		dev_err(dev, "refresh rate not specified\n");
 		goto err_fbdev_info;
@@ -741,8 +738,8 @@ static int ht16k33_probe(struct i2c_client *client)
 	if (err)
 		return err;
 
-	err = of_property_read_u32(dev->of_node, "default-brightness-level",
-				   &dft_brightness);
+	err = device_property_read_u32(dev, "default-brightness-level",
+				       &dft_brightness);
 	if (err) {
 		dft_brightness = MAX_BRIGHTNESS;
 	} else if (dft_brightness > MAX_BRIGHTNESS) {
@@ -830,7 +827,7 @@ static struct i2c_driver ht16k33_driver = {
 	.remove		= ht16k33_remove,
 	.driver		= {
 		.name		= DRIVER_NAME,
-		.of_match_table	= of_match_ptr(ht16k33_of_match),
+		.of_match_table	= ht16k33_of_match,
 	},
 	.id_table = ht16k33_i2c_match,
 };
