@@ -3378,7 +3378,7 @@
 			Disable SMAP (Supervisor Mode Access Prevention)
 			even if it is supported by processor.
 
-	nosmep		[X86,PPC]
+	nosmep		[X86,PPC64s]
 			Disable SMEP (Supervisor Mode Execution Prevention)
 			even if it is supported by processor.
 

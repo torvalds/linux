@@ -212,13 +212,6 @@ void __init setup_initial_memory_limit(phys_addr_t first_memblock_base,
 	memblock_set_current_limit(min_t(u64, first_memblock_size, SZ_32M));
 }
 
-#ifdef CONFIG_PPC_KUEP
-void setup_kuep(bool disabled)
-{
-	pr_info("Activating Kernel Userspace Execution Prevention\n");
-}
-#endif
-
 #ifdef CONFIG_PPC_KUAP
 struct static_key_false disable_kuap_key;
 EXPORT_SYMBOL(disable_kuap_key);

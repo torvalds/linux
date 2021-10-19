@@ -240,13 +240,3 @@ void __init mmu_init_secondary(int cpu)
 	}
 }
 #endif /* CONFIG_SMP */
-
-#ifdef CONFIG_PPC_KUEP
-void setup_kuep(bool disabled)
-{
-	if (smp_processor_id() != boot_cpuid)
-		return;
-
-	pr_info("Activating Kernel Userspace Execution Prevention\n");
-}
-#endif
