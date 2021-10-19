@@ -497,7 +497,7 @@ static void sve_to_fpsimd(struct task_struct *task)
  * Return how many bytes of memory are required to store the full SVE
  * state for task, given task's currently configured vector length.
  */
-size_t sve_state_size(struct task_struct const *task)
+static size_t sve_state_size(struct task_struct const *task)
 {
 	return SVE_SIG_REGS_SIZE(sve_vq_from_vl(task->thread.sve_vl));
 }

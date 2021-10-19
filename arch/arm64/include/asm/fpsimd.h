@@ -104,8 +104,6 @@ static inline bool sve_vq_available(unsigned int vq)
 
 #ifdef CONFIG_ARM64_SVE
 
-extern size_t sve_state_size(struct task_struct const *task);
-
 extern void sve_alloc(struct task_struct *task);
 extern void fpsimd_release_task(struct task_struct *task);
 extern void fpsimd_sync_to_sve(struct task_struct *task);
