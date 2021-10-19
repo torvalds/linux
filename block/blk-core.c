@@ -1555,6 +1555,7 @@ void blk_start_plug_nr_ios(struct blk_plug *plug, unsigned short nr_ios)
 	plug->nr_ios = min_t(unsigned short, nr_ios, BLK_MAX_REQUEST_COUNT);
 	plug->rq_count = 0;
 	plug->multiple_queues = false;
+	plug->has_elevator = false;
 	plug->nowait = false;
 	INIT_LIST_HEAD(&plug->cb_list);
 
