@@ -404,7 +404,7 @@ static bool blk_try_enter_queue(struct request_queue *q, bool pm)
 	return true;
 
 fail_put:
-	percpu_ref_put(&q->q_usage_counter);
+	blk_queue_exit(q);
 fail:
 	rcu_read_unlock();
 	return false;
