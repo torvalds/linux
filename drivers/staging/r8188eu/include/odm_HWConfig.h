@@ -90,7 +90,7 @@ struct phy_status_rpt {
 };
 
 void ODM_PhyStatusQuery(struct odm_dm_struct *pDM_Odm,
-			struct odm_phy_status_info *pPhyInfo,
+			struct phy_info *pPhyInfo,
 			u8 *pPhyStatus,
 			struct odm_per_pkt_info *pPktinfo,
 			struct adapter *adapt);

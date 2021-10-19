@@ -53,7 +53,7 @@ static u8 odm_evm_db_to_percentage(s8 value)
 }
 
 static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
-			struct odm_phy_status_info *pPhyInfo,
+			struct phy_info *pPhyInfo,
 			u8 *pPhyStatus,
 			struct odm_per_pkt_info *pPktinfo,
 			struct adapter *adapt)
@@ -137,7 +137,7 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 
 		pPhyInfo->RxPWDBAll = PWDB_ALL;
 		pPhyInfo->BTRxRSSIPercentage = PWDB_ALL;
-		pPhyInfo->RecvSignalPower = rx_pwr_all;
+		pPhyInfo->recvpower = rx_pwr_all;
 		/*  (3) Get Signal Quality (EVM) */
 		if (pPktinfo->bPacketMatchBSSID) {
 			u8 SQ, SQ_rpt;
@@ -193,7 +193,7 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 		pPhyInfo->RxPWDBAll = PWDB_ALL;
 		pPhyInfo->BTRxRSSIPercentage = PWDB_ALL_BT;
 		pPhyInfo->RxPower = rx_pwr_all;
-		pPhyInfo->RecvSignalPower = rx_pwr_all;
+		pPhyInfo->recvpower = rx_pwr_all;
 
 		/*  (3)EVM of HT rate */
 		if (pPktinfo->Rate >= DESC92C_RATEMCS8 && pPktinfo->Rate <= DESC92C_RATEMCS15)
@@ -230,7 +230,7 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 }
 
 static void odm_Process_RSSIForDM(struct odm_dm_struct *dm_odm,
-				  struct odm_phy_status_info *pPhyInfo,
+				  struct phy_info *pPhyInfo,
 				  struct odm_per_pkt_info *pPktinfo)
 {
 	s32 UndecoratedSmoothedPWDB, UndecoratedSmoothedCCK;
@@ -366,7 +366,7 @@ static void odm_Process_RSSIForDM(struct odm_dm_struct *dm_odm,
 
 /*  Endianness before calling this API */
 static void ODM_PhyStatusQuery_92CSeries(struct odm_dm_struct *dm_odm,
-					 struct odm_phy_status_info *pPhyInfo,
+					 struct phy_info *pPhyInfo,
 					 u8 *pPhyStatus,
 					 struct odm_per_pkt_info *pPktinfo,
 					 struct adapter *adapt)
@@ -378,7 +378,7 @@ static void ODM_PhyStatusQuery_92CSeries(struct odm_dm_struct *dm_odm,
 }
 
 void ODM_PhyStatusQuery(struct odm_dm_struct *dm_odm,
-			struct odm_phy_status_info *pPhyInfo,
+			struct phy_info *pPhyInfo,
 			u8 *pPhyStatus, struct odm_per_pkt_info *pPktinfo,
 			struct adapter *adapt)
 {
