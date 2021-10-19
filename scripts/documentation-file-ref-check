@@ -147,6 +147,7 @@ while (<IN>) {
 		if ($f =~ m/tools/) {
 			my $path = $f;
 			$path =~ s,(.*)/.*,$1,;
+			$path =~ s,testing/selftests/bpf,bpf/bpftool,;
 			next if (grep -e, glob("$path/$ref $path/../$ref $path/$fulref"));
 		}
 
