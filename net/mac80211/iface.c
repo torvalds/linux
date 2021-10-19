@@ -1137,9 +1137,7 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 	 * this interface, if it has the special null one.
 	 */
 	if (dev && is_zero_ether_addr(dev->dev_addr)) {
-		memcpy(dev->dev_addr,
-		       local->hw.wiphy->perm_addr,
-		       ETH_ALEN);
+		eth_hw_addr_set(dev, local->hw.wiphy->perm_addr);
 		memcpy(dev->perm_addr, dev->dev_addr, ETH_ALEN);
 
 		if (!is_valid_ether_addr(dev->dev_addr)) {
@@ -1993,9 +1991,9 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 
 		ieee80211_assign_perm_addr(local, ndev->perm_addr, type);
 		if (is_valid_ether_addr(params->macaddr))
-			memcpy(ndev->dev_addr, params->macaddr, ETH_ALEN);
+			eth_hw_addr_set(ndev, params->macaddr);
 		else
-			memcpy(ndev->dev_addr, ndev->perm_addr, ETH_ALEN);
+			eth_hw_addr_set(ndev, ndev->perm_addr);
 		SET_NETDEV_DEV(ndev, wiphy_dev(local->hw.wiphy));
 
 		/* don't use IEEE80211_DEV_TO_SUB_IF -- it checks too much */
