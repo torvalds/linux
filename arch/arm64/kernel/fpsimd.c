@@ -228,6 +228,26 @@ static void sve_free(struct task_struct *task)
 	__sve_free(task);
 }
 
+unsigned int task_get_sve_vl(const struct task_struct *task)
+{
+	return task->thread.sve_vl;
+}
+
+void task_set_sve_vl(struct task_struct *task, unsigned long vl)
+{
+	task->thread.sve_vl = vl;
+}
+
+unsigned int task_get_sve_vl_onexec(const struct task_struct *task)
+{
+	return task->thread.sve_vl_onexec;
+}
+
+void task_set_sve_vl_onexec(struct task_struct *task, unsigned long vl)
+{
+	task->thread.sve_vl_onexec = vl;
+}
+
 /*
  * TIF_SVE controls whether a task can use SVE without trapping while
  * in userspace, and also the way a task's FPSIMD/SVE state is stored
@@ -290,7 +310,7 @@ static void task_fpsimd_load(void)
 	if (IS_ENABLED(CONFIG_ARM64_SVE) && test_thread_flag(TIF_SVE))
 		sve_load_state(sve_pffr(&current->thread),
 			       &current->thread.uw.fpsimd_state.fpsr, true,
-			       sve_vq_from_vl(current->thread.sve_vl) - 1);
+			       sve_vq_from_vl(task_get_sve_vl(current)) - 1);
 	else
 		fpsimd_load_state(&current->thread.uw.fpsimd_state);
 }
@@ -458,7 +478,7 @@ static void fpsimd_to_sve(struct task_struct *task)
 	if (!system_supports_sve())
 		return;
 
-	vq = sve_vq_from_vl(task->thread.sve_vl);
+	vq = sve_vq_from_vl(task_get_sve_vl(task));
 	__fpsimd_to_sve(sst, fst, vq);
 }
 
@@ -484,7 +504,7 @@ static void sve_to_fpsimd(struct task_struct *task)
 	if (!system_supports_sve())
 		return;
 
-	vq = sve_vq_from_vl(task->thread.sve_vl);
+	vq = sve_vq_from_vl(task_get_sve_vl(task));
 	for (i = 0; i < SVE_NUM_ZREGS; ++i) {
 		p = (__uint128_t const *)ZREG(sst, vq, i);
 		fst->vregs[i] = arm64_le128_to_cpu(*p);
@@ -499,7 +519,7 @@ static void sve_to_fpsimd(struct task_struct *task)
  */
 static size_t sve_state_size(struct task_struct const *task)
 {
-	return SVE_SIG_REGS_SIZE(sve_vq_from_vl(task->thread.sve_vl));
+	return SVE_SIG_REGS_SIZE(sve_vq_from_vl(task_get_sve_vl(task)));
 }
 
 /*
@@ -574,7 +594,7 @@ void sve_sync_from_fpsimd_zeropad(struct task_struct *task)
 	if (!test_tsk_thread_flag(task, TIF_SVE))
 		return;
 
-	vq = sve_vq_from_vl(task->thread.sve_vl);
+	vq = sve_vq_from_vl(task_get_sve_vl(task));
 
 	memset(sst, 0, SVE_SIG_REGS_SIZE(vq));
 	__fpsimd_to_sve(sst, fst, vq);
@@ -602,16 +622,16 @@ int sve_set_vector_length(struct task_struct *task,
 
 	if (flags & (PR_SVE_VL_INHERIT |
 		     PR_SVE_SET_VL_ONEXEC))
-		task->thread.sve_vl_onexec = vl;
+		task_set_sve_vl_onexec(task, vl);
 	else
 		/* Reset VL to system default on next exec: */
-		task->thread.sve_vl_onexec = 0;
+		task_set_sve_vl_onexec(task, 0);
 
 	/* Only actually set the VL if not deferred: */
 	if (flags & PR_SVE_SET_VL_ONEXEC)
 		goto out;
 
-	if (vl == task->thread.sve_vl)
+	if (vl == task_get_sve_vl(task))
 		goto out;
 
 	/*
@@ -638,7 +658,7 @@ int sve_set_vector_length(struct task_struct *task,
 	 */
 	sve_free(task);
 
-	task->thread.sve_vl = vl;
+	task_set_sve_vl(task, vl);
 
 out:
 	update_tsk_thread_flag(task, TIF_SVE_VL_INHERIT,
@@ -658,9 +678,9 @@ static int sve_prctl_status(unsigned long flags)
 	int ret;
 
 	if (flags & PR_SVE_SET_VL_ONEXEC)
-		ret = current->thread.sve_vl_onexec;
+		ret = task_get_sve_vl_onexec(current);
 	else
-		ret = current->thread.sve_vl;
+		ret = task_get_sve_vl(current);
 
 	if (test_thread_flag(TIF_SVE_VL_INHERIT))
 		ret |= PR_SVE_VL_INHERIT;
@@ -960,7 +980,7 @@ void do_sve_acc(unsigned int esr, struct pt_regs *regs)
 	 */
 	if (!test_thread_flag(TIF_FOREIGN_FPSTATE)) {
 		unsigned long vq_minus_one =
-			sve_vq_from_vl(current->thread.sve_vl) - 1;
+			sve_vq_from_vl(task_get_sve_vl(current)) - 1;
 		sve_set_vq(vq_minus_one);
 		sve_flush_live(true, vq_minus_one);
 		fpsimd_bind_task_to_cpu();
@@ -1060,8 +1080,9 @@ void fpsimd_flush_thread(void)
 		 * If a bug causes this to go wrong, we make some noise and
 		 * try to fudge thread.sve_vl to a safe value here.
 		 */
-		vl = current->thread.sve_vl_onexec ?
-			current->thread.sve_vl_onexec : get_sve_default_vl();
+		vl = task_get_sve_vl_onexec(current);
+		if (!vl)
+			vl = get_sve_default_vl();
 
 		if (WARN_ON(!sve_vl_valid(vl)))
 			vl = SVE_VL_MIN;
@@ -1070,14 +1091,14 @@ void fpsimd_flush_thread(void)
 		if (WARN_ON(supported_vl != vl))
 			vl = supported_vl;
 
-		current->thread.sve_vl = vl;
+		task_set_sve_vl(current, vl);
 
 		/*
 		 * If the task is not set to inherit, ensure that the vector
 		 * length will be reset by a subsequent exec:
 		 */
 		if (!test_thread_flag(TIF_SVE_VL_INHERIT))
-			current->thread.sve_vl_onexec = 0;
+			task_set_sve_vl_onexec(current, 0);
 	}
 
 	put_cpu_fpsimd_context();
@@ -1122,7 +1143,7 @@ static void fpsimd_bind_task_to_cpu(void)
 	WARN_ON(!system_supports_fpsimd());
 	last->st = &current->thread.uw.fpsimd_state;
 	last->sve_state = current->thread.sve_state;
-	last->sve_vl = current->thread.sve_vl;
+	last->sve_vl = task_get_sve_vl(current);
 	current->thread.fpsimd_cpu = smp_processor_id();
 
 	if (system_supports_sve()) {

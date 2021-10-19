@@ -164,6 +164,16 @@ struct thread_struct {
 	u64			sctlr_user;
 };
 
+static inline unsigned int thread_get_sve_vl(struct thread_struct *thread)
+{
+	return thread->sve_vl;
+}
+
+unsigned int task_get_sve_vl(const struct task_struct *task);
+void task_set_sve_vl(struct task_struct *task, unsigned long vl);
+unsigned int task_get_sve_vl_onexec(const struct task_struct *task);
+void task_set_sve_vl_onexec(struct task_struct *task, unsigned long vl);
+
 #define SCTLR_USER_MASK                                                        \
 	(SCTLR_ELx_ENIA | SCTLR_ELx_ENIB | SCTLR_ELx_ENDA | SCTLR_ELx_ENDB |   \
 	 SCTLR_EL1_TCF0_MASK)

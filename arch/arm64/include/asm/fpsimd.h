@@ -62,7 +62,7 @@ static inline size_t sve_ffr_offset(int vl)
 
 static inline void *sve_pffr(struct thread_struct *thread)
 {
-	return (char *)thread->sve_state + sve_ffr_offset(thread->sve_vl);
+	return (char *)thread->sve_state + sve_ffr_offset(thread_get_sve_vl(thread));
 }
 
 extern void sve_save_state(void *state, u32 *pfpsr, int save_ffr);
