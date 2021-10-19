@@ -755,6 +755,7 @@ int smu_v11_0_init_display_count(struct smu_context *smu, uint32_t count)
 	 */
 	if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 11) ||
 	    adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 5, 0) ||
+	    adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 12) ||
 	    adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 13))
 		return 0;
 
