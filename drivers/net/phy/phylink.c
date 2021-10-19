@@ -551,9 +551,15 @@ static void phylink_mac_pcs_get_state(struct phylink *pl,
 	linkmode_zero(state->lp_advertising);
 	state->interface = pl->link_config.interface;
 	state->an_enabled = pl->link_config.an_enabled;
-	state->speed = SPEED_UNKNOWN;
-	state->duplex = DUPLEX_UNKNOWN;
-	state->pause = MLO_PAUSE_NONE;
+	if  (state->an_enabled) {
+		state->speed = SPEED_UNKNOWN;
+		state->duplex = DUPLEX_UNKNOWN;
+		state->pause = MLO_PAUSE_NONE;
+	} else {
+		state->speed =  pl->link_config.speed;
+		state->duplex = pl->link_config.duplex;
+		state->pause = pl->link_config.pause;
+	}
 	state->an_complete = 0;
 	state->link = 1;
 
@@ -2549,7 +2555,10 @@ void phylink_mii_c22_pcs_get_state(struct mdio_device *pcs,
 
 	state->link = !!(bmsr & BMSR_LSTATUS);
 	state->an_complete = !!(bmsr & BMSR_ANEGCOMPLETE);
-	if (!state->link)
+	/* If there is no link or autonegotiation is disabled, the LP advertisement
+	 * data is not meaningful, so don't go any further.
+	 */
+	if (!state->link || !state->an_enabled)
 		return;
 
 	switch (state->interface) {
@@ -2651,7 +2660,12 @@ int phylink_mii_c22_pcs_config(struct mdio_device *pcs, unsigned int mode,
 	changed = ret > 0;
 
 	/* Ensure ISOLATE bit is disabled */
-	bmcr = mode == MLO_AN_INBAND ? BMCR_ANENABLE : 0;
+	if (mode == MLO_AN_INBAND &&
+	    linkmode_test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, advertising))
+		bmcr = BMCR_ANENABLE;
+	else
+		bmcr = 0;
+
 	ret = mdiobus_modify(pcs->bus, pcs->addr, MII_BMCR,
 			     BMCR_ANENABLE | BMCR_ISOLATE, bmcr);
 	if (ret < 0)
