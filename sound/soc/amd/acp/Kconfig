@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
+# This file is provided under a dual BSD/GPLv2 license. When using or
+# redistributing this file, you may do so under either license.
+#
+# Copyright(c) 2021 Advanced Micro Devices, Inc. All rights reserved.
+#
+
+config SND_SOC_AMD_ACP_COMMON
+	tristate "AMD Audio ACP Common support"
+	select SND_AMD_ACP_CONFIG
+	help
+	  This option enables common modules for Audio-Coprocessor i.e. ACP
+	  IP block on AMD platforms.
+
+config SND_SOC_AMD_ACP_I2S
+	tristate
+
+config SND_SOC_AMD_ACP_PCM
+	tristate

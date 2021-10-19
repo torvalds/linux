@@ -74,3 +74,5 @@ config SND_SOC_AMD_VANGOGH_MACH
 	  using NAU8821 and CS35L41 codecs.
 	  Say m if you have such a device.
 	  If unsure select "N".
+
+source "sound/soc/amd/acp/Kconfig"
