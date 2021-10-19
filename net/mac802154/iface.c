@@ -129,7 +129,7 @@ static int mac802154_wpan_mac_addr(struct net_device *dev, void *p)
 	if (!ieee802154_is_valid_extended_unicast_addr(extended_addr))
 		return -EINVAL;
 
-	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+	dev_addr_set(dev, addr->sa_data);
 	sdata->wpan_dev.extended_addr = extended_addr;
 
 	/* update lowpan interface mac address when
