@@ -2669,8 +2669,8 @@ int mmu_try_to_unsync_pages(struct kvm_vcpu *vcpu, struct kvm_memory_slot *slot,
 	 *     (sp->unsync = true)
 	 *
 	 * The write barrier below ensures that 1.1 happens before 1.2 and thus
-	 * the situation in 2.4 does not arise. The implicit barrier in 2.2
-	 * pairs with this write barrier.
+	 * the situation in 2.4 does not arise.  It pairs with the read barrier
+	 * in is_unsync_root(), placed between 2.1's load of SPTE.W and 2.3.
 	 */
 	smp_wmb();
 
@@ -3643,6 +3643,30 @@ err_pml4:
 #endif
 }
 
+static bool is_unsync_root(hpa_t root)
+{
+	struct kvm_mmu_page *sp;
+
+	/*
+	 * The read barrier orders the CPU's read of SPTE.W during the page table
+	 * walk before the reads of sp->unsync/sp->unsync_children here.
+	 *
+	 * Even if another CPU was marking the SP as unsync-ed simultaneously,
+	 * any guest page table changes are not guaranteed to be visible anyway
+	 * until this VCPU issues a TLB flush strictly after those changes are
+	 * made.  We only need to ensure that the other CPU sets these flags
+	 * before any actual changes to the page tables are made.  The comments
+	 * in mmu_try_to_unsync_pages() describe what could go wrong if this
+	 * requirement isn't satisfied.
+	 */
+	smp_rmb();
+	sp = to_shadow_page(root);
+	if (sp->unsync || sp->unsync_children)
+		return true;
+
+	return false;
+}
+
 void kvm_mmu_sync_roots(struct kvm_vcpu *vcpu)
 {
 	int i;
@@ -3660,18 +3684,7 @@ void kvm_mmu_sync_roots(struct kvm_vcpu *vcpu)
 		hpa_t root = vcpu->arch.mmu->root_hpa;
 		sp = to_shadow_page(root);
 
-		/*
-		 * Even if another CPU was marking the SP as unsync-ed
-		 * simultaneously, any guest page table changes are not
-		 * guaranteed to be visible anyway until this VCPU issues a TLB
-		 * flush strictly after those changes are made. We only need to
-		 * ensure that the other CPU sets these flags before any actual
-		 * changes to the page tables are made. The comments in
-		 * mmu_try_to_unsync_pages() describe what could go wrong if
-		 * this requirement isn't satisfied.
-		 */
-		if (!smp_load_acquire(&sp->unsync) &&
-		    !smp_load_acquire(&sp->unsync_children))
+		if (!is_unsync_root(root))
 			return;
 
 		write_lock(&vcpu->kvm->mmu_lock);
