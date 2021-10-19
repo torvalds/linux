@@ -430,22 +430,6 @@ void zero_fill_bio(struct bio *bio);
 
 extern const char *bio_devname(struct bio *bio, char *buffer);
 
-#define bio_set_dev(bio, bdev) 				\
-do {							\
-	bio_clear_flag(bio, BIO_REMAPPED);		\
-	if ((bio)->bi_bdev != (bdev))			\
-		bio_clear_flag(bio, BIO_THROTTLED);	\
-	(bio)->bi_bdev = (bdev);			\
-	bio_associate_blkg(bio);			\
-} while (0)
-
-#define bio_copy_dev(dst, src)			\
-do {						\
-	bio_clear_flag(dst, BIO_REMAPPED);		\
-	(dst)->bi_bdev = (src)->bi_bdev;	\
-	bio_clone_blkg_association(dst, src);	\
-} while (0)
-
 #define bio_dev(bio) \
 	disk_devt((bio)->bi_bdev->bd_disk)
 
@@ -462,6 +446,22 @@ static inline void bio_associate_blkg_from_css(struct bio *bio,
 static inline void bio_clone_blkg_association(struct bio *dst,
 					      struct bio *src) { }
 #endif	/* CONFIG_BLK_CGROUP */
+
+static inline void bio_set_dev(struct bio *bio, struct block_device *bdev)
+{
+	bio_clear_flag(bio, BIO_REMAPPED);
+	if (bio->bi_bdev != bdev)
+		bio_clear_flag(bio, BIO_THROTTLED);
+	bio->bi_bdev = bdev;
+	bio_associate_blkg(bio);
+}
+
+static inline void bio_copy_dev(struct bio *dst, struct bio *src)
+{
+	bio_clear_flag(dst, BIO_REMAPPED);
+	dst->bi_bdev = src->bi_bdev;
+	bio_clone_blkg_association(dst, src);
+}
 
 /*
  * BIO list management for use by remapping drivers (e.g. DM or MD) and loop.
