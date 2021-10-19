@@ -1169,6 +1169,31 @@ mlxsw_sp_qdisc_prio_check_params(struct mlxsw_sp_port *mlxsw_sp_port,
 	return __mlxsw_sp_qdisc_ets_check_params(p->bands);
 }
 
+static struct mlxsw_sp_qdisc *
+mlxsw_sp_qdisc_walk_cb_clean_stats(struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
+				   void *mlxsw_sp_port)
+{
+	u64 backlog;
+
+	if (mlxsw_sp_qdisc->ops) {
+		backlog = mlxsw_sp_qdisc->stats_base.backlog;
+		if (mlxsw_sp_qdisc->ops->clean_stats)
+			mlxsw_sp_qdisc->ops->clean_stats(mlxsw_sp_port,
+							 mlxsw_sp_qdisc);
+		mlxsw_sp_qdisc->stats_base.backlog = backlog;
+	}
+
+	return NULL;
+}
+
+static void
+mlxsw_sp_qdisc_tree_clean_stats(struct mlxsw_sp_port *mlxsw_sp_port,
+				struct mlxsw_sp_qdisc *mlxsw_sp_qdisc)
+{
+	mlxsw_sp_qdisc_walk(mlxsw_sp_qdisc, mlxsw_sp_qdisc_walk_cb_clean_stats,
+			    mlxsw_sp_port);
+}
+
 static int
 __mlxsw_sp_qdisc_ets_replace(struct mlxsw_sp_port *mlxsw_sp_port,
 			     struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
@@ -1181,7 +1206,7 @@ __mlxsw_sp_qdisc_ets_replace(struct mlxsw_sp_port *mlxsw_sp_port,
 	struct mlxsw_sp_qdisc_ets_band *ets_band;
 	struct mlxsw_sp_qdisc *child_qdisc;
 	u8 old_priomap, new_priomap;
-	int i, band, backlog;
+	int i, band;
 	int err;
 
 	if (!ets_data) {
@@ -1229,13 +1254,9 @@ __mlxsw_sp_qdisc_ets_replace(struct mlxsw_sp_port *mlxsw_sp_port,
 
 		ets_band->prio_bitmap = new_priomap;
 
-		if (old_priomap != new_priomap &&
-		    child_qdisc->ops && child_qdisc->ops->clean_stats) {
-			backlog = child_qdisc->stats_base.backlog;
-			child_qdisc->ops->clean_stats(mlxsw_sp_port,
-						      child_qdisc);
-			child_qdisc->stats_base.backlog = backlog;
-		}
+		if (old_priomap != new_priomap)
+			mlxsw_sp_qdisc_tree_clean_stats(mlxsw_sp_port,
+							child_qdisc);
 
 		err = mlxsw_sp_qdisc_future_fifo_replace(mlxsw_sp_port, handle,
 							 band, child_qdisc);
