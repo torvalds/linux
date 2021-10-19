@@ -159,7 +159,6 @@ struct odm_rate_adapt {
 
 #define IQK_MAC_REG_NUM		4
 #define IQK_ADDA_REG_NUM	16
-#define IQK_BB_REG_NUM_MAX	10
 #define IQK_BB_REG_NUM		9
 #define HP_THERMAL_NUM		8
 
@@ -287,19 +286,6 @@ enum odm_ability_def {
 
 # define ODM_ITRF_USB 0x2
 
-/*  ODM_CMNINFO_RF_TYPE */
-/*  For example 1T2R (A+AB = BIT(0)|BIT(4)|BIT(5)) */
-enum odm_rf_path {
-	ODM_RF_TX_A	=	BIT(0),
-	ODM_RF_TX_B	=	BIT(1),
-	ODM_RF_TX_C	=	BIT(2),
-	ODM_RF_TX_D	=	BIT(3),
-	ODM_RF_RX_A	=	BIT(4),
-	ODM_RF_RX_B	=	BIT(5),
-	ODM_RF_RX_C	=	BIT(6),
-	ODM_RF_RX_D	=	BIT(7),
-};
-
 enum odm_rf_type {
 	ODM_1T1R	=	0,
 	ODM_1T2R	=	1,
@@ -309,14 +295,6 @@ enum odm_rf_type {
 	ODM_3T3R	=	5,
 	ODM_3T4R	=	6,
 	ODM_4T4R	=	7,
-};
-
-/*  ODM Dynamic common info value definition */
-
-enum odm_mac_phy_mode {
-	ODM_SMSP	= 0,
-	ODM_DMSP	= 1,
-	ODM_DMDP	= 2,
 };
 
 /*  ODM_CMNINFO_OP_MODE */
@@ -341,36 +319,10 @@ enum odm_wireless_mode {
 	ODM_WM_AUTO	= BIT(5),
 };
 
-/*  ODM_CMNINFO_SEC_CHNL_OFFSET */
-enum odm_sec_chnl_offset {
-	ODM_DONT_CARE	= 0,
-	ODM_BELOW	= 1,
-	ODM_ABOVE	= 2
-};
-
-/*  ODM_CMNINFO_SEC_MODE */
-enum odm_security {
-	ODM_SEC_OPEN		= 0,
-	ODM_SEC_WEP40		= 1,
-	ODM_SEC_TKIP		= 2,
-	ODM_SEC_RESERVE		= 3,
-	ODM_SEC_AESCCMP		= 4,
-	ODM_SEC_WEP104		= 5,
-	ODM_WEP_WPA_MIXED   	= 6, /*  WEP + WPA */
-	ODM_SEC_SMS4		= 7,
-};
-
 /*  ODM_CMNINFO_BW */
 enum odm_bw {
 	ODM_BW20M		= 0,
 	ODM_BW40M		= 1,
-};
-
-/*  ODM_CMNINFO_ONE_PATH_CCA */
-enum odm_cca_path {
-	ODM_CCA_2R		= 0,
-	ODM_CCA_1R_A		= 1,
-	ODM_CCA_1R_B		= 2,
 };
 
 struct odm_ra_info {
@@ -673,13 +625,6 @@ struct odm_dm_struct {
 	struct timer_list FastAntTrainingTimer;
 };		/*  DM_Dynamic_Mechanism_Structure */
 
-enum ODM_RF_CONTENT {
-	odm_radioa_txt = 0x1000,
-	odm_radiob_txt = 0x1001,
-	odm_radioc_txt = 0x1002,
-	odm_radiod_txt = 0x1003
-};
-
 enum odm_bb_config_type {
     CONFIG_BB_PHY_REG,
     CONFIG_BB_AGC_TAB,
@@ -687,37 +632,8 @@ enum odm_bb_config_type {
     CONFIG_BB_PHY_REG_PG,
 };
 
-/*  Status code */
-enum rt_status {
-	RT_STATUS_SUCCESS,
-	RT_STATUS_FAILURE,
-	RT_STATUS_PENDING,
-	RT_STATUS_RESOURCE,
-	RT_STATUS_INVALID_CONTEXT,
-	RT_STATUS_INVALID_PARAMETER,
-	RT_STATUS_NOT_SUPPORT,
-	RT_STATUS_OS_API_FAILED,
-};
-
-/* 3=========================================================== */
-/* 3 DIG */
-/* 3=========================================================== */
-
-enum dm_dig_op {
-	RT_TYPE_THRESH_HIGH	= 0,
-	RT_TYPE_THRESH_LOW	= 1,
-	RT_TYPE_BACKOFF		= 2,
-	RT_TYPE_RX_GAIN_MIN	= 3,
-	RT_TYPE_RX_GAIN_MAX	= 4,
-	RT_TYPE_ENABLE		= 5,
-	RT_TYPE_DISABLE		= 6,
-	DIG_OP_TYPE_MAX
-};
-
 #define		DM_DIG_THRESH_HIGH	40
 #define		DM_DIG_THRESH_LOW	35
-
-#define		DM_SCAN_RSSI_TH		0x14 /* scan return issue for LC */
 
 #define		DM_false_ALARM_THRESH_LOW	400
 #define		DM_false_ALARM_THRESH_HIGH	1000
@@ -726,23 +642,12 @@ enum dm_dig_op {
 #define		DM_DIG_MIN_NIC			0x1e /* 0x22/0x1c */
 
 #define		DM_DIG_MAX_AP			0x32
-#define		DM_DIG_MIN_AP			0x20
-
-#define		DM_DIG_MAX_NIC_HP		0x46
-#define		DM_DIG_MIN_NIC_HP		0x2e
-
-#define		DM_DIG_MAX_AP_HP		0x42
-#define		DM_DIG_MIN_AP_HP		0x30
 
 /* vivi 92c&92d has different definition, 20110504 */
 /* this is for 92c */
 #define		DM_DIG_FA_TH0			0x200/* 0x20 */
 #define		DM_DIG_FA_TH1			0x300/* 0x100 */
 #define		DM_DIG_FA_TH2			0x400/* 0x200 */
-/* this is for 92d */
-#define		DM_DIG_FA_TH0_92D		0x100
-#define		DM_DIG_FA_TH1_92D		0x400
-#define		DM_DIG_FA_TH2_92D		0x600
 
 #define		DM_DIG_BACKOFF_MAX		12
 #define		DM_DIG_BACKOFF_MIN		-4
