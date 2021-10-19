@@ -287,6 +287,11 @@ config BOOKE
 	depends on E500 || 44x || PPC_BOOK3E
 	default y
 
+config BOOKE_OR_40x
+	bool
+	depends on BOOKE || 40x
+	default y
+
 config FSL_BOOKE
 	bool
 	depends on E500 && PPC32
