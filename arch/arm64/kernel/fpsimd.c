@@ -337,7 +337,7 @@ static void fpsimd_save(void)
  * If things go wrong there's a bug somewhere, but try to fall back to a
  * safe choice.
  */
-static unsigned int find_supported_vector_length(unsigned int vl)
+static unsigned int find_supported_sve_vector_length(unsigned int vl)
 {
 	int bit;
 	int max_vl = sve_max_vl;
@@ -379,7 +379,7 @@ static int sve_proc_do_default_vl(struct ctl_table *table, int write,
 	if (!sve_vl_valid(vl))
 		return -EINVAL;
 
-	set_sve_default_vl(find_supported_vector_length(vl));
+	set_sve_default_vl(find_supported_sve_vector_length(vl));
 	return 0;
 }
 
@@ -598,7 +598,7 @@ int sve_set_vector_length(struct task_struct *task,
 	if (vl > SVE_VL_ARCH_MAX)
 		vl = SVE_VL_ARCH_MAX;
 
-	vl = find_supported_vector_length(vl);
+	vl = find_supported_sve_vector_length(vl);
 
 	if (flags & (PR_SVE_VL_INHERIT |
 		     PR_SVE_SET_VL_ONEXEC))
@@ -873,14 +873,14 @@ void __init sve_setup(void)
 	 * Sanity-check that the max VL we determined through CPU features
 	 * corresponds properly to sve_vq_map.  If not, do our best:
 	 */
-	if (WARN_ON(sve_max_vl != find_supported_vector_length(sve_max_vl)))
-		sve_max_vl = find_supported_vector_length(sve_max_vl);
+	if (WARN_ON(sve_max_vl != find_supported_sve_vector_length(sve_max_vl)))
+		sve_max_vl = find_supported_sve_vector_length(sve_max_vl);
 
 	/*
 	 * For the default VL, pick the maximum supported value <= 64.
 	 * VL == 64 is guaranteed not to grow the signal frame.
 	 */
-	set_sve_default_vl(find_supported_vector_length(64));
+	set_sve_default_vl(find_supported_sve_vector_length(64));
 
 	bitmap_andnot(tmp_map, sve_vq_partial_map, sve_vq_map,
 		      SVE_VQ_MAX);
@@ -1066,7 +1066,7 @@ void fpsimd_flush_thread(void)
 		if (WARN_ON(!sve_vl_valid(vl)))
 			vl = SVE_VL_MIN;
 
-		supported_vl = find_supported_vector_length(vl);
+		supported_vl = find_supported_sve_vector_length(vl);
 		if (WARN_ON(supported_vl != vl))
 			vl = supported_vl;
 
