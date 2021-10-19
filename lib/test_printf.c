@@ -586,22 +586,21 @@ struct page_flags_test {
 	int width;
 	int shift;
 	int mask;
-	unsigned long value;
 	const char *fmt;
 	const char *name;
 };
 
-static struct page_flags_test pft[] = {
+static const struct page_flags_test pft[] = {
 	{SECTIONS_WIDTH, SECTIONS_PGSHIFT, SECTIONS_MASK,
-	 0, "%d", "section"},
+	 "%d", "section"},
 	{NODES_WIDTH, NODES_PGSHIFT, NODES_MASK,
-	 0, "%d", "node"},
+	 "%d", "node"},
 	{ZONES_WIDTH, ZONES_PGSHIFT, ZONES_MASK,
-	 0, "%d", "zone"},
+	 "%d", "zone"},
 	{LAST_CPUPID_WIDTH, LAST_CPUPID_PGSHIFT, LAST_CPUPID_MASK,
-	 0, "%#x", "lastcpupid"},
+	 "%#x", "lastcpupid"},
 	{KASAN_TAG_WIDTH, KASAN_TAG_PGSHIFT, KASAN_TAG_MASK,
-	 0, "%#x", "kasantag"},
+	 "%#x", "kasantag"},
 };
 
 static void __init
@@ -627,10 +626,6 @@ page_flags_test(int section, int node, int zone, int last_cpupid,
 #endif
 	}
 
-	/* Set the test value */
-	for (i = 0; i < ARRAY_SIZE(pft); i++)
-		pft[i].value = values[i];
-
 	for (i = 0; i < ARRAY_SIZE(pft); i++) {
 		if (!pft[i].width)
 			continue;
@@ -640,11 +635,11 @@ page_flags_test(int section, int node, int zone, int last_cpupid,
 			size = strlen(cmp_buf);
 		}
 
-		page_flags |= (pft[i].value & pft[i].mask) << pft[i].shift;
+		page_flags |= (values[i] & pft[i].mask) << pft[i].shift;
 		snprintf(cmp_buf + size, BUF_SIZE - size, "%s=", pft[i].name);
 		size = strlen(cmp_buf);
 		snprintf(cmp_buf + size, BUF_SIZE - size, pft[i].fmt,
-			 pft[i].value & pft[i].mask);
+			 values[i] & pft[i].mask);
 		size = strlen(cmp_buf);
 		append = true;
 	}
