@@ -44,7 +44,7 @@ ap_h1_spi: &spi0 {};
 };
 
 &cpu6_thermal {
-	sustainable-power = <948>;
+	sustainable-power = <1124>;
 };
 
 &cpu7_alert0 {
@@ -56,7 +56,7 @@ ap_h1_spi: &spi0 {};
 };
 
 &cpu7_thermal {
-	sustainable-power = <948>;
+	sustainable-power = <1124>;
 };
 
 &cpu8_alert0 {
@@ -68,7 +68,7 @@ ap_h1_spi: &spi0 {};
 };
 
 &cpu8_thermal {
-	sustainable-power = <948>;
+	sustainable-power = <1124>;
 };
 
 &cpu9_alert0 {
@@ -80,7 +80,7 @@ ap_h1_spi: &spi0 {};
 };
 
 &cpu9_thermal {
-	sustainable-power = <948>;
+	sustainable-power = <1124>;
 };
 
 &gpio_keys {

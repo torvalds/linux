@@ -751,17 +751,6 @@ hp_i2c: &i2c9 {
 	};
 };
 
-&ipa {
-	status = "okay";
-
-	/*
-	 * Trogdor doesn't have QHEE (Qualcomm's EL2 blob), so the
-	 * modem needs to cover certain init steps (GSI init), and
-	 * the AP needs to wait for it.
-	 */
-	modem-init;
-};
-
 &lpass_cpu {
 	status = "okay";
 
@@ -1524,13 +1513,13 @@ ap_spi_fp: &spi10 {
 		pinconf-cmd {
 			pins = "sdc1_cmd";
 			bias-pull-up;
-			drive-strength = <10>;
+			drive-strength = <16>;
 		};
 
 		pinconf-data {
 			pins = "sdc1_data";
 			bias-pull-up;
-			drive-strength = <10>;
+			drive-strength = <16>;
 		};
 
 		pinconf-rclk {

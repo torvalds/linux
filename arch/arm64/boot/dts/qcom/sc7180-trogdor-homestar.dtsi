@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Google CoachZ board device tree source
+ * Google Homestar board device tree source
  *
- * Copyright 2020 Google LLC.
+ * Copyright 2021 Google LLC.
  */
 
 #include "sc7180.dtsi"
@@ -12,19 +12,37 @@ ap_h1_spi: &spi0 {};
 
 #include "sc7180-trogdor.dtsi"
 
-/* Deleted nodes from trogdor.dtsi */
-
-/delete-node/ &alc5682;
-/delete-node/ &pp3300_codec;
-
 / {
 	/* BOARD-SPECIFIC TOP LEVEL NODES */
 
-	adau7002: audio-codec-1 {
-		compatible = "adi,adau7002";
-		IOVDD-supply = <&pp1800_l15a>;
-		wakeup-delay-ms = <80>;
+	max98360a_1: max98360a_1 {
+		compatible = "maxim,max98360a";
 		#sound-dai-cells = <0>;
+	};
+
+	max98360a_2: max98360a_2 {
+		compatible = "maxim,max98360a";
+		#sound-dai-cells = <0>;
+	};
+
+	max98360a_3: max98360a_3 {
+		compatible = "maxim,max98360a";
+		#sound-dai-cells = <0>;
+	};
+
+	pp3300_touch: pp3300-touch {
+		compatible = "regulator-fixed";
+		regulator-name = "pp3300_touch";
+
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpio = <&tlmm 87 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		pinctrl-names = "default";
+		pinctrl-0 = <&en_pp3300_touch>;
+
+		vin-supply = <&pp3300_a>;
 	};
 
 	thermal-zones {
@@ -37,19 +55,19 @@ ap_h1_spi: &spi0 {};
 
 			trips {
 				skin_temp_alert0: trip-point0 {
-					temperature = <42000>;
+					temperature = <55000>;
 					hysteresis = <1000>;
 					type = "passive";
 				};
 
 				skin_temp_alert1: trip-point1 {
-					temperature = <45000>;
+					temperature = <58000>;
 					hysteresis = <1000>;
 					type = "passive";
 				};
 
 				skin-temp-crit {
-					temperature = <60000>;
+					temperature = <73000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
@@ -72,32 +90,17 @@ ap_h1_spi: &spi0 {};
 	};
 };
 
-&ap_spi_fp {
-	status = "okay";
-};
-
-&backlight {
-	pwms = <&cros_ec_pwm 0>;
-};
-
-&camcc {
-	status = "okay";
-};
-
-&cros_ec {
-	cros_ec_proximity: proximity {
-		compatible = "google,cros-ec-mkbp-proximity";
-		label = "proximity-wifi";
-	};
+&ap_tp_i2c {
+	status = "disabled";
 };
 
 ap_ts_pen_1v8: &i2c4 {
 	status = "okay";
 	clock-frequency = <400000>;
 
-	ap_ts: touchscreen@5d {
+	ap_ts: touchscreen@14 {
 		compatible = "goodix,gt7375p";
-		reg = <0x5d>;
+		reg = <0x14>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&ts_int_l>, <&ts_reset_l>;
 
@@ -106,25 +109,29 @@ ap_ts_pen_1v8: &i2c4 {
 
 		reset-gpios = <&tlmm 8 GPIO_ACTIVE_LOW>;
 
-		vdd-supply = <&pp3300_ts>;
+		vdd-supply = <&pp3300_touch>;
 	};
 };
 
-&i2c7 {
+/* Panel controls backlight over aux channel */
+
+&backlight {
 	status = "disabled";
 };
 
-&i2c9 {
-	status = "disabled";
+&camcc {
+	status = "okay";
 };
 
 &panel {
-	compatible = "boe,nv110wtm-n61";
+	compatible = "samsung,atna33xc20";
+	enable-gpios = <&tlmm 12 GPIO_ACTIVE_HIGH>;
+	/delete-property/ backlight;
 };
 
 &pm6150_adc {
-	skin-temp-thermistor@4e {
-		reg = <ADC5_AMUX_THM2_100K_PU>;
+	skin-temp-thermistor@4d {
+		reg = <ADC5_AMUX_THM1_100K_PU>;
 		qcom,ratiometric;
 		qcom,hw-settle-time = <200>;
 	};
@@ -135,7 +142,7 @@ ap_ts_pen_1v8: &i2c4 {
 
 	skin-temp-thermistor@1 {
 		reg = <1>;
-		io-channels = <&pm6150_adc ADC5_AMUX_THM2_100K_PU>;
+		io-channels = <&pm6150_adc ADC5_AMUX_THM1_100K_PU>;
 		qcom,ratiometric;
 		qcom,hw-settle-time-us = <200>;
 	};
@@ -145,36 +152,34 @@ ap_ts_pen_1v8: &i2c4 {
 	gpio = <&tlmm 67 GPIO_ACTIVE_HIGH>;
 };
 
-&sdhc_2 {
-	status = "okay";
+&secondary_mi2s {
+	qcom,playback-sd-lines = <0 1>;
 };
 
-&sn65dsi86_out {
-	data-lanes = <0 1 2 3>;
+&sound_multimedia1_codec {
+	sound-dai = <&max98360a>, <&max98360a_1>, <&max98360a_2>, <&max98360a_3> ;
 };
 
-&sound {
-	compatible = "google,sc7180-coachz";
-	model = "sc7180-adau7002-max98357a";
-	audio-routing = "PDM_DAT", "DMIC";
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&dmic_clk_en>;
-};
-
-&sound_multimedia0_codec {
-	sound-dai = <&adau7002>;
+&wifi {
+	qcom,ath10k-calibration-variant = "GO_HOMESTAR";
 };
 
 /* PINCTRL - modifications to sc7180-trogdor.dtsi */
 
 &en_pp3300_dx_edp {
-	pinmux  {
+	pinmux {
 		pins = "gpio67";
 	};
 
 	pinconf {
 		pins = "gpio67";
+	};
+};
+
+&sec_mi2s_active{
+	pinmux {
+		pins = "gpio49", "gpio50", "gpio51", "gpio52";
+		function = "mi2s_1";
 	};
 };
 
@@ -195,13 +200,13 @@ ap_ts_pen_1v8: &i2c4 {
 			  "AP_RAM_ID0",
 			  "AP_SKU_ID2",
 			  "AP_RAM_ID1",
-			  "FP_TO_AP_IRQ_L",
+			  "",
 			  "AP_RAM_ID2",
 			  "UF_CAM_EN",
 			  "WF_CAM_EN",
 			  "TS_RESET_L",
 			  "TS_INT_L",
-			  "FPMCU_BOOT0",
+			  "",
 			  "EDP_BRIJ_IRQ",
 			  "AP_EDP_BKLTEN",
 			  "UF_CAM_MCLK",
@@ -212,14 +217,14 @@ ap_ts_pen_1v8: &i2c4 {
 			  "UF_CAM_SCL",
 			  "WF_CAM_SDA",
 			  "WF_CAM_SCL",
-			  "WLC_IRQ",
-			  "FP_RST_L",
+			  "AVEE_LCD_EN",
+			  "",
 			  "AMP_EN",
-			  "WLC_NRST",
+			  "AMP_EN2",
 			  "AP_SAR_SENSOR_SDA",
 			  "AP_SAR_SENSOR_SCL",
-			  "",
-			  "",
+			  "SEL_LCM",
+			  "HP_IRQ",
 			  "WF_CAM_RST_L",
 			  "UF_CAM_RST_L",
 			  "AP_BRD_ID2",
@@ -229,21 +234,21 @@ ap_ts_pen_1v8: &i2c4 {
 			  "AP_H1_SPI_MOSI",
 			  "AP_H1_SPI_CLK",
 			  "AP_H1_SPI_CS_L",
-			  "",
-			  "",
-			  "",
-			  "",
+			  "BT_UART_CTS",
+			  "BT_UART_RTS",
+			  "BT_UART_TXD",
+			  "BT_UART_RXD",
 			  "H1_AP_INT_ODL",
 			  "",
 			  "UART_AP_TX_DBG_RX",
 			  "UART_DBG_TX_AP_RX",
-			  "",
-			  "",
+			  "HP_I2C_SDA",
+			  "HP_I2C_SCL",
 			  "FORCED_USB_BOOT",
 			  "AMP_BCLK",
 			  "AMP_LRCLK",
 			  "AMP_DIN",
-			  "",
+			  "AMP_DIN_2",
 			  "HP_BCLK",
 			  "HP_LRCLK",
 			  "HP_DOUT",
@@ -268,33 +273,33 @@ ap_ts_pen_1v8: &i2c4 {
 			  "",
 			  "",
 			  "",
+			  "WLAN_SW_CTRL",
 			  "",
-			  "EN_FP_RAILS",
-			  "UIM2_DATA",
-			  "UIM2_CLK",
-			  "UIM2_RST",
-			  "UIM2_PRESENT_L",
-			  "UIM1_DATA",
-			  "UIM1_CLK",
-			  "UIM1_RST",
+			  "REPORT_E",
+			  "VDD_RESET_1.8V",
+			  "ID0",
 			  "",
+			  "ID1",
+			  "AVDD_LCD_EN",
+			  "MIPI_1.8V_EN",
 			  "",
+			  "CODEC_PWR_EN",
 			  "HUB_EN",
 			  "",
-			  "AP_SPI_FP_MISO",
-			  "AP_SPI_FP_MOSI",
-			  "AP_SPI_FP_CLK",
-			  "AP_SPI_FP_CS_L",
+			  "PP1800_MIPI_SW_EN",
+			  "EN_PP3300_TOUCH",
+			  "",
+			  "",
 			  "AP_SKU_ID1",
 			  "AP_RST_REQ",
 			  "",
 			  "AP_BRD_ID1",
 			  "AP_EC_INT_L",
+			  "SDM_GRFC_3",
 			  "",
 			  "",
-			  "",
-			  "",
-			  "",
+			  "BOOT_CONFIG_4",
+			  "BOOT_CONFIG_2",
 			  "",
 			  "",
 			  "",
@@ -302,29 +307,29 @@ ap_ts_pen_1v8: &i2c4 {
 			  "EDP_BRIJ_EN",
 			  "",
 			  "",
+			  "BOOT_CONFIG_3",
+			  "WCI2_LTE_COEX_TXD",
+			  "WCI2_LTE_COEX_RXD",
 			  "",
 			  "",
 			  "",
 			  "",
-			  "",
-			  "",
-			  "",
-			  "",
+			  "FORCED_USB_BOOT_POL",
 			  "AP_TS_PEN_I2C_SDA",
 			  "AP_TS_PEN_I2C_SCL",
 			  "DP_HOT_PLUG_DET",
 			  "EC_IN_RW_ODL";
 
-	dmic_clk_en: dmic_clk_en {
+	en_pp3300_touch: en-pp3300-touch {
 		pinmux {
-			pins = "gpio83";
+			pins = "gpio87";
 			function = "gpio";
 		};
 
 		pinconf {
-			pins = "gpio83";
-			drive-strength = <8>;
-			bias-pull-up;
+			pins = "gpio87";
+			drive-strength = <2>;
+			bias-disable;
 		};
 	};
 };
