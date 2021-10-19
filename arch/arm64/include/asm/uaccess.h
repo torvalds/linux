@@ -18,6 +18,7 @@
 #include <linux/kasan-checks.h>
 #include <linux/string.h>
 
+#include <asm/asm-extable.h>
 #include <asm/cpufeature.h>
 #include <asm/mmu.h>
 #include <asm/mte.h>
@@ -69,12 +70,6 @@ static inline unsigned long __range_ok(const void __user *addr, unsigned long si
 }
 
 #define access_ok(addr, size)	__range_ok(addr, size)
-
-#define _ASM_EXTABLE(from, to)						\
-	"	.pushsection	__ex_table, \"a\"\n"			\
-	"	.align		3\n"					\
-	"	.long		(" #from " - .), (" #to " - .)\n"	\
-	"	.popsection\n"
 
 /*
  * User access enabling/disabling.
