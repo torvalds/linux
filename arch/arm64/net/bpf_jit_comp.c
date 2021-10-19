@@ -358,15 +358,15 @@ static void build_epilogue(struct jit_ctx *ctx)
 #define BPF_FIXUP_OFFSET_MASK	GENMASK(26, 0)
 #define BPF_FIXUP_REG_MASK	GENMASK(31, 27)
 
-int arm64_bpf_fixup_exception(const struct exception_table_entry *ex,
-			      struct pt_regs *regs)
+bool arm64_bpf_fixup_exception(const struct exception_table_entry *ex,
+			       struct pt_regs *regs)
 {
 	off_t offset = FIELD_GET(BPF_FIXUP_OFFSET_MASK, ex->fixup);
 	int dst_reg = FIELD_GET(BPF_FIXUP_REG_MASK, ex->fixup);
 
 	regs->regs[dst_reg] = 0;
 	regs->pc = (unsigned long)&ex->fixup - offset;
-	return 1;
+	return true;
 }
 
 /* For accesses to BTF pointers, add an entry to the exception table */
