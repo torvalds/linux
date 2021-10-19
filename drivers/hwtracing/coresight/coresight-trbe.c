@@ -499,6 +499,29 @@ static enum trbe_fault_action trbe_get_fault_act(u64 trbsr)
 	return TRBE_FAULT_ACT_SPURIOUS;
 }
 
+static unsigned long trbe_get_trace_size(struct perf_output_handle *handle,
+					 struct trbe_buf *buf, bool wrap)
+{
+	u64 write;
+	u64 start_off, end_off;
+
+	/*
+	 * If the TRBE has wrapped around the write pointer has
+	 * wrapped and should be treated as limit.
+	 */
+	if (wrap)
+		write = get_trbe_limit_pointer();
+	else
+		write = get_trbe_write_pointer();
+
+	end_off = write - get_trbe_base_pointer();
+	start_off = PERF_IDX2OFF(handle->head, buf);
+
+	if (WARN_ON_ONCE(end_off < start_off))
+		return 0;
+	return (end_off - start_off);
+}
+
 static void *arm_trbe_alloc_buffer(struct coresight_device *csdev,
 				   struct perf_event *event, void **pages,
 				   int nr_pages, bool snapshot)
@@ -560,9 +583,9 @@ static unsigned long arm_trbe_update_buffer(struct coresight_device *csdev,
 	struct trbe_cpudata *cpudata = dev_get_drvdata(&csdev->dev);
 	struct trbe_buf *buf = config;
 	enum trbe_fault_action act;
-	unsigned long size, offset;
-	unsigned long write, base, status;
+	unsigned long size, status;
 	unsigned long flags;
+	bool wrap = false;
 
 	WARN_ON(buf->cpudata != cpudata);
 	WARN_ON(cpudata->cpu != smp_processor_id());
@@ -602,8 +625,6 @@ static unsigned long arm_trbe_update_buffer(struct coresight_device *csdev,
 	 * handle gets freed in etm_event_stop().
 	 */
 	trbe_drain_and_disable_local();
-	write = get_trbe_write_pointer();
-	base = get_trbe_base_pointer();
 
 	/* Check if there is a pending interrupt and handle it here */
 	status = read_sysreg_s(SYS_TRBSR_EL1);
@@ -627,20 +648,11 @@ static unsigned long arm_trbe_update_buffer(struct coresight_device *csdev,
 			goto done;
 		}
 
-		/*
-		 * Otherwise, the buffer is full and the write pointer
-		 * has reached base. Adjust this back to the Limit pointer
-		 * for correct size. Also, mark the buffer truncated.
-		 */
-		write = get_trbe_limit_pointer();
 		trbe_report_wrap_event(handle);
+		wrap = true;
 	}
 
-	offset = write - base;
-	if (WARN_ON_ONCE(offset < PERF_IDX2OFF(handle->head, buf)))
-		size = 0;
-	else
-		size = offset - PERF_IDX2OFF(handle->head, buf);
+	size = trbe_get_trace_size(handle, buf, wrap);
 
 done:
 	local_irq_restore(flags);
@@ -721,11 +733,10 @@ static int trbe_handle_overflow(struct perf_output_handle *handle)
 {
 	struct perf_event *event = handle->event;
 	struct trbe_buf *buf = etm_perf_sink_config(handle);
-	unsigned long offset, size;
+	unsigned long size;
 	struct etm_event_data *event_data;
 
-	offset = get_trbe_limit_pointer() - get_trbe_base_pointer();
-	size = offset - PERF_IDX2OFF(handle->head, buf);
+	size = trbe_get_trace_size(handle, buf, true);
 	if (buf->snapshot)
 		handle->head += size;
 
