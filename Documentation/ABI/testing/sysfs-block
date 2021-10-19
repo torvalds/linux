@@ -28,6 +28,22 @@ Description:
 		For more details refer Documentation/admin-guide/iostats.rst
 
 
+What:		/sys/block/<disk>/inflight
+Date:		October 2009
+Contact:	Jens Axboe <axboe@kernel.dk>, Nikanth Karthikesan <knikanth@suse.de>
+Description:
+		Reports the number of I/O requests currently in progress
+		(pending / in flight) in a device driver. This can be less
+		than the number of requests queued in the block device queue.
+		The report contains 2 fields: one for read requests
+		and one for write requests.
+		The value type is unsigned int.
+		Cf. Documentation/block/stat.rst which contains a single value for
+		requests in flight.
+		This is related to nr_requests in Documentation/block/queue-sysfs.rst
+		and for SCSI device also its queue_depth.
+
+
 What:		/sys/block/<disk>/diskseq
 Date:		February 2021
 Contact:	Matteo Croce <mcroce@microsoft.com>
