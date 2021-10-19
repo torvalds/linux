@@ -78,7 +78,6 @@ struct phy_info {
 /*  Real power in dBm for this packet, no beautification and aggregation.
  * Keep this raw info to be used for the other procedures. */
 	s8	recvpower;
-	u8	BTRxRSSIPercentage;
 	u8	SignalStrength; /*  in 0-100 index. */
 	u8	RxPwr[MAX_PATH_NUM_92CS];/* per-path's pwdb */
 	u8	RxSNR[MAX_PATH_NUM_92CS];/* per-path's SNR */

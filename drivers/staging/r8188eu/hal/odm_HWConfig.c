@@ -60,7 +60,7 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 {
 	u8 i, Max_spatial_stream;
 	s8 rx_pwr[4], rx_pwr_all = 0;
-	u8 EVM, PWDB_ALL = 0, PWDB_ALL_BT;
+	u8 EVM, PWDB_ALL = 0;
 	u8 RSSI, total_rssi = 0;
 	u8 isCCKrate = 0;
 	u8 rf_rx_num = 0;
@@ -136,7 +136,6 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 		}
 
 		pPhyInfo->RxPWDBAll = PWDB_ALL;
-		pPhyInfo->BTRxRSSIPercentage = PWDB_ALL;
 		pPhyInfo->recvpower = rx_pwr_all;
 		/*  (3) Get Signal Quality (EVM) */
 		if (pPktinfo->bPacketMatchBSSID) {
@@ -188,10 +187,8 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 		rx_pwr_all = (((pPhyStaRpt->cck_sig_qual_ofdm_pwdb_all) >> 1) & 0x7f) - 110;
 
 		PWDB_ALL = odm_QueryRxPwrPercentage(rx_pwr_all);
-		PWDB_ALL_BT = PWDB_ALL;
 
 		pPhyInfo->RxPWDBAll = PWDB_ALL;
-		pPhyInfo->BTRxRSSIPercentage = PWDB_ALL_BT;
 		pPhyInfo->RxPower = rx_pwr_all;
 		pPhyInfo->recvpower = rx_pwr_all;
 
