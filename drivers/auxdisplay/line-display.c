@@ -91,12 +91,9 @@ static int linedisp_display(struct linedisp *linedisp, const char *msg,
 		return 0;
 	}
 
-	new_msg = kmalloc(count + 1, GFP_KERNEL);
+	new_msg = kmemdup_nul(msg, count, GFP_KERNEL);
 	if (!new_msg)
 		return -ENOMEM;
-
-	memcpy(new_msg, msg, count);
-	new_msg[count] = 0;
 
 	kfree(linedisp->message);
 
