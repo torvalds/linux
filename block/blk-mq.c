@@ -405,6 +405,7 @@ __blk_mq_alloc_requests_batch(struct blk_mq_alloc_data *data,
 	for (i = 0; tag_mask; i++) {
 		if (!(tag_mask & (1UL << i)))
 			continue;
+		prefetch(tags->static_rqs[tag]);
 		tag = tag_offset + i;
 		tag_mask &= ~(1UL << i);
 		rq = blk_mq_rq_ctx_init(data, tags, tag, alloc_time_ns);
