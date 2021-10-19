@@ -456,6 +456,8 @@ struct io_ring_ctx {
 		struct work_struct		exit_work;
 		struct list_head		tctx_list;
 		struct completion		ref_comp;
+		u32				iowq_limits[2];
+		bool				iowq_limits_set;
 	};
 };
 
@@ -9638,7 +9640,16 @@ static int __io_uring_add_tctx_node(struct io_ring_ctx *ctx)
 		ret = io_uring_alloc_task_context(current, ctx);
 		if (unlikely(ret))
 			return ret;
+
 		tctx = current->io_uring;
+		if (ctx->iowq_limits_set) {
+			unsigned int limits[2] = { ctx->iowq_limits[0],
+						   ctx->iowq_limits[1], };
+
+			ret = io_wq_max_workers(tctx->io_wq, limits);
+			if (ret)
+				return ret;
+		}
 	}
 	if (!xa_load(&tctx->xa, (unsigned long)ctx)) {
 		node = kmalloc(sizeof(*node), GFP_KERNEL);
@@ -10674,13 +10685,19 @@ static int io_register_iowq_max_workers(struct io_ring_ctx *ctx,
 		tctx = current->io_uring;
 	}
 
-	ret = -EINVAL;
-	if (!tctx || !tctx->io_wq)
-		goto err;
+	BUILD_BUG_ON(sizeof(new_count) != sizeof(ctx->iowq_limits));
 
-	ret = io_wq_max_workers(tctx->io_wq, new_count);
-	if (ret)
-		goto err;
+	memcpy(ctx->iowq_limits, new_count, sizeof(new_count));
+	ctx->iowq_limits_set = true;
+
+	ret = -EINVAL;
+	if (tctx && tctx->io_wq) {
+		ret = io_wq_max_workers(tctx->io_wq, new_count);
+		if (ret)
+			goto err;
+	} else {
+		memset(new_count, 0, sizeof(new_count));
+	}
 
 	if (sqd) {
 		mutex_unlock(&sqd->lock);
