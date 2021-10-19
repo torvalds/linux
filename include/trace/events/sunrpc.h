@@ -1789,50 +1789,99 @@ TRACE_EVENT(svc_xprt_create_err,
 		__entry->error)
 );
 
+#define SVC_XPRT_ENDPOINT_FIELDS(x) \
+		__sockaddr(server, (x)->xpt_locallen) \
+		__sockaddr(client, (x)->xpt_remotelen) \
+		__field(unsigned long, flags) \
+		__field(unsigned int, netns_ino)
+
+#define SVC_XPRT_ENDPOINT_ASSIGNMENTS(x) \
+		do { \
+			__assign_sockaddr(server, &(x)->xpt_local, \
+					  (x)->xpt_locallen); \
+			__assign_sockaddr(client, &(x)->xpt_remote, \
+					  (x)->xpt_remotelen); \
+			__entry->flags = (x)->xpt_flags; \
+			__entry->netns_ino = (x)->xpt_net->ns.inum; \
+		} while (0)
+
+#define SVC_XPRT_ENDPOINT_FORMAT \
+		"server=%pISpc client=%pISpc flags=%s"
+
+#define SVC_XPRT_ENDPOINT_VARARGS \
+		__get_sockaddr(server), __get_sockaddr(client), \
+		show_svc_xprt_flags(__entry->flags)
+
 TRACE_EVENT(svc_xprt_enqueue,
-	TP_PROTO(struct svc_xprt *xprt, struct svc_rqst *rqst),
+	TP_PROTO(
+		const struct svc_xprt *xprt,
+		const struct svc_rqst *rqst
+	),
 
 	TP_ARGS(xprt, rqst),
 
 	TP_STRUCT__entry(
+		SVC_XPRT_ENDPOINT_FIELDS(xprt)
+
 		__field(int, pid)
-		__field(unsigned long, flags)
-		__string(addr, xprt->xpt_remotebuf)
 	),
 
 	TP_fast_assign(
+		SVC_XPRT_ENDPOINT_ASSIGNMENTS(xprt);
+
 		__entry->pid = rqst? rqst->rq_task->pid : 0;
-		__entry->flags = xprt->xpt_flags;
-		__assign_str(addr, xprt->xpt_remotebuf);
 	),
 
-	TP_printk("addr=%s pid=%d flags=%s", __get_str(addr),
-		__entry->pid, show_svc_xprt_flags(__entry->flags))
+	TP_printk(SVC_XPRT_ENDPOINT_FORMAT " pid=%d",
+		SVC_XPRT_ENDPOINT_VARARGS, __entry->pid)
+);
+
+TRACE_EVENT(svc_xprt_dequeue,
+	TP_PROTO(
+		const struct svc_rqst *rqst
+	),
+
+	TP_ARGS(rqst),
+
+	TP_STRUCT__entry(
+		SVC_XPRT_ENDPOINT_FIELDS(rqst->rq_xprt)
+
+		__field(unsigned long, wakeup)
+	),
+
+	TP_fast_assign(
+		SVC_XPRT_ENDPOINT_ASSIGNMENTS(rqst->rq_xprt);
+
+		__entry->wakeup = ktime_to_us(ktime_sub(ktime_get(),
+							rqst->rq_qtime));
+	),
+
+	TP_printk(SVC_XPRT_ENDPOINT_FORMAT " wakeup-us=%lu",
+		SVC_XPRT_ENDPOINT_VARARGS, __entry->wakeup)
 );
 
 DECLARE_EVENT_CLASS(svc_xprt_event,
-	TP_PROTO(struct svc_xprt *xprt),
+	TP_PROTO(
+		const struct svc_xprt *xprt
+	),
 
 	TP_ARGS(xprt),
 
 	TP_STRUCT__entry(
-		__field(unsigned long, flags)
-		__string(addr, xprt->xpt_remotebuf)
+		SVC_XPRT_ENDPOINT_FIELDS(xprt)
 	),
 
 	TP_fast_assign(
-		__entry->flags = xprt->xpt_flags;
-		__assign_str(addr, xprt->xpt_remotebuf);
+		SVC_XPRT_ENDPOINT_ASSIGNMENTS(xprt);
 	),
 
-	TP_printk("addr=%s flags=%s", __get_str(addr),
-		show_svc_xprt_flags(__entry->flags))
+	TP_printk(SVC_XPRT_ENDPOINT_FORMAT, SVC_XPRT_ENDPOINT_VARARGS)
 );
 
 #define DEFINE_SVC_XPRT_EVENT(name) \
 	DEFINE_EVENT(svc_xprt_event, svc_xprt_##name, \
 			TP_PROTO( \
-				struct svc_xprt *xprt \
+				const struct svc_xprt *xprt \
 			), \
 			TP_ARGS(xprt))
 
@@ -1850,42 +1899,23 @@ TRACE_EVENT(svc_xprt_accept,
 	TP_ARGS(xprt, service),
 
 	TP_STRUCT__entry(
-		__string(addr, xprt->xpt_remotebuf)
+		SVC_XPRT_ENDPOINT_FIELDS(xprt)
+
 		__string(protocol, xprt->xpt_class->xcl_name)
 		__string(service, service)
 	),
 
 	TP_fast_assign(
-		__assign_str(addr, xprt->xpt_remotebuf);
+		SVC_XPRT_ENDPOINT_ASSIGNMENTS(xprt);
+
 		__assign_str(protocol, xprt->xpt_class->xcl_name);
 		__assign_str(service, service);
 	),
 
-	TP_printk("addr=%s protocol=%s service=%s",
-		__get_str(addr), __get_str(protocol), __get_str(service)
+	TP_printk(SVC_XPRT_ENDPOINT_FORMAT " protocol=%s service=%s",
+		SVC_XPRT_ENDPOINT_VARARGS,
+		__get_str(protocol), __get_str(service)
 	)
-);
-
-TRACE_EVENT(svc_xprt_dequeue,
-	TP_PROTO(struct svc_rqst *rqst),
-
-	TP_ARGS(rqst),
-
-	TP_STRUCT__entry(
-		__field(unsigned long, flags)
-		__field(unsigned long, wakeup)
-		__string(addr, rqst->rq_xprt->xpt_remotebuf)
-	),
-
-	TP_fast_assign(
-		__entry->flags = rqst->rq_xprt->xpt_flags;
-		__entry->wakeup = ktime_to_us(ktime_sub(ktime_get(),
-							rqst->rq_qtime));
-		__assign_str(addr, rqst->rq_xprt->xpt_remotebuf);
-	),
-
-	TP_printk("addr=%s flags=%s wakeup-us=%lu", __get_str(addr),
-		show_svc_xprt_flags(__entry->flags), __entry->wakeup)
 );
 
 TRACE_EVENT(svc_wake_up,
