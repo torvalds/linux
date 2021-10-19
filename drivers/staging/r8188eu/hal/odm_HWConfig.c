@@ -362,24 +362,16 @@ static void odm_Process_RSSIForDM(struct odm_dm_struct *dm_odm,
 }
 
 /*  Endianness before calling this API */
-static void ODM_PhyStatusQuery_92CSeries(struct odm_dm_struct *dm_odm,
-					 struct phy_info *pPhyInfo,
-					 u8 *pPhyStatus,
-					 struct odm_per_pkt_info *pPktinfo,
-					 struct adapter *adapt)
+void ODM_PhyStatusQuery(struct odm_dm_struct *dm_odm,
+			struct phy_info *pPhyInfo,
+			u8 *pPhyStatus,
+			struct odm_per_pkt_info *pPktinfo,
+			struct adapter *adapt)
 {
 	odm_RxPhyStatus92CSeries_Parsing(dm_odm, pPhyInfo, pPhyStatus,
 					 pPktinfo, adapt);
 	if (!dm_odm->RSSI_test)
 		odm_Process_RSSIForDM(dm_odm, pPhyInfo, pPktinfo);
-}
-
-void ODM_PhyStatusQuery(struct odm_dm_struct *dm_odm,
-			struct phy_info *pPhyInfo,
-			u8 *pPhyStatus, struct odm_per_pkt_info *pPktinfo,
-			struct adapter *adapt)
-{
-	ODM_PhyStatusQuery_92CSeries(dm_odm, pPhyInfo, pPhyStatus, pPktinfo, adapt);
 }
 
 enum HAL_STATUS ODM_ConfigRFWithHeaderFile(struct odm_dm_struct *dm_odm,
