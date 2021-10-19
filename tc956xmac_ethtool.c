@@ -38,6 +38,9 @@
  *  VERSION     : 01-00-02
  *  14 Oct 2021 : 1. Returning error on disabling Receive Flow Control via ethtool for speed other than 10G in XFI mode.
  *  VERSION     : 01-00-16
+ *  19 Oct 2021 : 1. Adding M3 SRAM Debug counters to ethtool statistics
+ *                2. Adding MTL RX Overflow/packet miss count, TX underflow counts,Rx Watchdog value to ethtool statistics.
+ *  VERSION     : 01-00-17
  */
 
 #include <linux/etherdevice.h>
@@ -605,6 +608,59 @@ static const struct tc956xmac_stats tc956xmac_gstrings_stats[] = {
 	TC956XMAC_STAT(xpcs_intr_n),
 	TC956XMAC_STAT(phy_intr_n),
 	TC956XMAC_STAT(sw_msi_n),
+	TC956XMAC_STAT(mtl_tx_underflow[0]),
+	TC956XMAC_STAT(mtl_tx_underflow[1]),
+	TC956XMAC_STAT(mtl_tx_underflow[3]),
+	TC956XMAC_STAT(mtl_tx_underflow[4]),
+	TC956XMAC_STAT(mtl_tx_underflow[5]),
+	TC956XMAC_STAT(mtl_tx_underflow[6]),
+	TC956XMAC_STAT(mtl_tx_underflow[7]),
+
+	TC956XMAC_STAT(mtl_rx_miss_pkt_cnt[0]),
+	TC956XMAC_STAT(mtl_rx_miss_pkt_cnt[1]),
+	TC956XMAC_STAT(mtl_rx_miss_pkt_cnt[3]),
+	TC956XMAC_STAT(mtl_rx_miss_pkt_cnt[4]),
+	TC956XMAC_STAT(mtl_rx_miss_pkt_cnt[5]),
+	TC956XMAC_STAT(mtl_rx_miss_pkt_cnt[6]),
+	TC956XMAC_STAT(mtl_rx_miss_pkt_cnt[7]),
+
+	TC956XMAC_STAT(mtl_rx_overflow_pkt_cnt[0]),
+	TC956XMAC_STAT(mtl_rx_overflow_pkt_cnt[1]),
+	TC956XMAC_STAT(mtl_rx_overflow_pkt_cnt[3]),
+	TC956XMAC_STAT(mtl_rx_overflow_pkt_cnt[4]),
+	TC956XMAC_STAT(mtl_rx_overflow_pkt_cnt[5]),
+	TC956XMAC_STAT(mtl_rx_overflow_pkt_cnt[6]),
+	TC956XMAC_STAT(mtl_rx_overflow_pkt_cnt[7]),
+
+	TC956XMAC_STAT(rxch_watchdog_timer[0]),
+	TC956XMAC_STAT(rxch_watchdog_timer[1]),
+	TC956XMAC_STAT(rxch_watchdog_timer[2]),
+	TC956XMAC_STAT(rxch_watchdog_timer[3]),
+	TC956XMAC_STAT(rxch_watchdog_timer[4]),
+	TC956XMAC_STAT(rxch_watchdog_timer[5]),
+	TC956XMAC_STAT(rxch_watchdog_timer[6]),
+	TC956XMAC_STAT(rxch_watchdog_timer[7]),
+
+	TC956XMAC_STAT(m3_debug_cnt0),
+	TC956XMAC_STAT(m3_debug_cnt1),
+	TC956XMAC_STAT(m3_debug_cnt2),
+	TC956XMAC_STAT(m3_debug_cnt3),
+	TC956XMAC_STAT(m3_debug_cnt4),
+	TC956XMAC_STAT(m3_debug_cnt5),
+	TC956XMAC_STAT(m3_debug_cnt6),
+	TC956XMAC_STAT(m3_debug_cnt7),
+	TC956XMAC_STAT(m3_debug_cnt8),
+	TC956XMAC_STAT(m3_debug_cnt9),
+	TC956XMAC_STAT(m3_debug_cnt10),
+	TC956XMAC_STAT(m3_watchdog_exp_cnt),
+	TC956XMAC_STAT(m3_watchdog_monitor_cnt),
+	TC956XMAC_STAT(m3_debug_cnt13),
+	TC956XMAC_STAT(m3_debug_cnt14),
+	TC956XMAC_STAT(m3_systick_cnt_upper_value),
+	TC956XMAC_STAT(m3_systick_cnt_lower_value),
+	TC956XMAC_STAT(m3_tx_timeout_port0),
+	TC956XMAC_STAT(m3_tx_timeout_port1),
+	TC956XMAC_STAT(m3_debug_cnt19),
 };
 #define TC956XMAC_STATS_LEN ARRAY_SIZE(tc956xmac_gstrings_stats)
 
@@ -988,6 +1044,74 @@ tc956xmac_set_pauseparam(struct net_device *netdev,
 				 priv->pause, tx_cnt);
 	return 0;
 }
+static void tc956xmac_m3fw_stats_read(struct tc956xmac_priv *priv)
+{
+	u32 rx_queues_count = priv->plat->rx_queues_to_use;
+	u32 tx_queues_count = priv->plat->tx_queues_to_use;
+	u32 chno, reg_val=0;
+
+	for (chno = 0; chno < tx_queues_count; chno++) {
+		/* Tx Underflow count may not match with actual value, as it is 11bit value
+		accumulation happening only when reading ethool statistics, not after overflow of counter*/
+		priv->xstats.mtl_tx_underflow[chno] +=
+			readl(priv->ioaddr + XGMAC_MTL_TXQ_UFPKT_CNT(chno));
+	}
+	for (chno = 0; chno < rx_queues_count; chno++) {
+		/* Rx overflow/missed pkt count may not match with actual values, as these are 11bit values
+		accumulation happening only when reading ethool statistics, not after overflow of counters*/
+		reg_val = readl(priv->ioaddr + XGMAC_MTL_RXQ_MISS_PKT_OF_CNT_OFFSET(chno));
+
+		priv->xstats.mtl_rx_miss_pkt_cnt[chno] += ((reg_val & XGMAC_MISPKTCNT_MASK) >>
+								XGMAC_MISPKTCNT_SHIFT);
+
+		priv->xstats.mtl_rx_overflow_pkt_cnt[chno] += (reg_val & XGMAC_OVFPKTCNT_MASK);
+
+		priv->xstats.rxch_watchdog_timer[chno] =
+			readl(priv->ioaddr + XGMAC_DMA_CH_Rx_WATCHDOG(chno));
+	}
+	/* Reading M3 Debug Counters*/
+	priv->xstats.m3_debug_cnt0 = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT0 )));
+	priv->xstats.m3_debug_cnt1 = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT1 )));
+	priv->xstats.m3_debug_cnt2 = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT2 )));
+	priv->xstats.m3_debug_cnt3 = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT3 )));
+	priv->xstats.m3_debug_cnt4 = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT4 )));
+	priv->xstats.m3_debug_cnt5 = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT5 )));
+	priv->xstats.m3_debug_cnt6 = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT6 )));
+	priv->xstats.m3_debug_cnt7 = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT7 )));
+	priv->xstats.m3_debug_cnt8 = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT8 )));
+	priv->xstats.m3_debug_cnt9 = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT9 )));
+	priv->xstats.m3_debug_cnt10 = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT10 )));
+	priv->xstats.m3_watchdog_exp_cnt = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT11 )));
+	priv->xstats.m3_watchdog_monitor_cnt = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT12 )));
+	priv->xstats.m3_debug_cnt13 = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT13 )));
+	priv->xstats.m3_debug_cnt14 = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT14 )));
+	priv->xstats.m3_systick_cnt_upper_value = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT16 )));
+	priv->xstats.m3_systick_cnt_lower_value = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT15 )));
+	priv->xstats.m3_tx_timeout_port0 = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT17 )));
+	priv->xstats.m3_tx_timeout_port1 = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT18 )));
+	priv->xstats.m3_debug_cnt19 = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT19 )));
+
+}
 
 static void tc956xmac_get_ethtool_stats(struct net_device *dev,
 				 struct ethtool_stats *dummy, u64 *data)
@@ -1040,6 +1164,7 @@ static void tc956xmac_get_ethtool_stats(struct net_device *dev,
 			tc956xmac_dma_desc_stats(priv, priv->ioaddr);
 		}
 	}
+	tc956xmac_m3fw_stats_read(priv);
 	for (i = 0; i < TC956XMAC_STATS_LEN; i++) {
 		char *p = (char *)priv + tc956xmac_gstrings_stats[i].stat_offset;
 

@@ -48,6 +48,9 @@
  *  VERSION     : 01-00-14
  *  14 Oct 2021 : 1. Moving common Macros to common header file 
  *  VERSION     : 01-00-16
+ *  19 Oct 2021 : 1. Adding M3 SRAM Debug counters to ethtool statistics
+ *                2. Adding MTL RX Overflow/packet miss count, TX underflow counts,Rx Watchdog value to ethtool statistics.
+ *  VERSION     : 01-00-17
  */
 
 #ifndef __COMMON_H__
@@ -1223,6 +1226,33 @@ struct tc956xmac_extra_stats {
 	u64 xpcs_intr_n;
 	u64 phy_intr_n;
 	u64 sw_msi_n;
+	/*MTL Debug counters */
+	u64 mtl_tx_underflow[MTL_MAX_TX_QUEUES];
+	u64 mtl_rx_miss_pkt_cnt[MTL_MAX_RX_QUEUES];
+	u64 mtl_rx_overflow_pkt_cnt[MTL_MAX_RX_QUEUES];
+	u64 rxch_watchdog_timer[TC956XMAC_CH_MAX];
+
+	/*m3 SRAM debug counters */
+	u64 m3_debug_cnt0;
+	u64 m3_debug_cnt1;
+	u64 m3_debug_cnt2;
+	u64 m3_debug_cnt3;
+	u64 m3_debug_cnt4;
+	u64 m3_debug_cnt5;
+	u64 m3_debug_cnt6;
+	u64 m3_debug_cnt7;
+	u64 m3_debug_cnt8;
+	u64 m3_debug_cnt9;
+	u64 m3_debug_cnt10;
+	u64 m3_watchdog_exp_cnt;
+	u64 m3_watchdog_monitor_cnt;
+	u64 m3_debug_cnt13;
+	u64 m3_debug_cnt14;
+	u64 m3_systick_cnt_upper_value;
+	u64 m3_systick_cnt_lower_value;
+	u64 m3_tx_timeout_port0;
+	u64 m3_tx_timeout_port1;
+	u64 m3_debug_cnt19;
 
 };
 

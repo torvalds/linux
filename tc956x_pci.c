@@ -69,6 +69,8 @@
 		: 2. Configuring pause frame control using kernel module parameter also forwarding
  *  		  only Link partner pause frames to Application and filtering PHY pause frames using FRP
  *  VERSION     : 01-00-16
+ *  19 Oct 2021 : 1. Version update
+ *  VERSION     : 01-00-17
  */
 
 #include <linux/clk-provider.h>
@@ -101,7 +103,7 @@ static unsigned int tc956x_port1_interface = ENABLE_SGMII_INTERFACE;
 unsigned int tc956x_port0_filter_phy_pause_frames = DISABLE;
 unsigned int tc956x_port1_filter_phy_pause_frames = DISABLE;
 
-static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 1, 6};
+static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 1, 7};
 
 /*
  * This struct is used to associate PCI Function of MAC controller on a board,

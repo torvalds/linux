@@ -39,6 +39,9 @@
  * 		  3. Removed IOCTL TC956XMAC_VLAN_STRIP_CONFIG.
  * 		  4. Removed "Disable VLAN Filter" option in IOCTL TC956XMAC_VLAN_FILTERING.
  *  VERSION     : 01-00-13
+ *  19 Oct 2021 : 1. Adding M3 SRAM Debug counters to ethtool statistics
+ * 		  2. Adding MTL RX Overflow/packet miss count, TX underflow counts,Rx Watchdog value to ethtool statistics.
+ *  VERSION     : 01-00-17
  */
 
 
@@ -427,6 +430,10 @@
 #define XGMAC_TXQEN			GENMASK(3, 2)
 #define XGMAC_TXQEN_SHIFT		2
 #define XGMAC_TSF			BIT(1)
+#define XGMAC_MTL_TXQ_UF_OFFSET(x)	(MAC_OFFSET + (0x00001104 + (0x80 * (x))))
+#define XGMAC_MTL_UFPKTCNT_MASK		GENMASK(10, 0)
+#define XGMAC_MTL_TXQ_UFPKT_CNT(x)	((XGMAC_MTL_TXQ_UF_OFFSET(x)) & XGMAC_MTL_UFPKTCNT_MASK)
+
 #define XGMAC_MTL_TXQ_Debug(x)		(MAC_OFFSET + (0x00001108 + (0x80 * (x))))
 #define XGMAC_MTL_DEBUG_TXQSTS		BIT(4)
 #define XGMAC_MTL_DEBUG_TWCSTS		BIT(3)
@@ -454,6 +461,11 @@
 #define XGMAC_RSF			BIT(5)
 #define XGMAC_RTC			GENMASK(1, 0)
 #define XGMAC_RTC_SHIFT		0
+#define XGMAC_MTL_RXQ_MISS_PKT_OF_CNT_OFFSET(x)	(MAC_OFFSET + 0x00001144 + (0x80 * (x)))
+#define XGMAC_OVFPKTCNT_MASK		GENMASK(10, 0)
+#define XGMAC_MISPKTCNT_MASK		GENMASK(26, 16)
+#define XGMAC_MISPKTCNT_SHIFT		16
+
 #define XGMAC_MTL_RXQ_Debug(x)		(0x00001148 + (0x80 * (x)))
 #define XGMAC_MTL_DEBUG_RXQSTS_MASK	GENMASK(5, 4)
 #define XGMAC_MTL_DEBUG_RXQSTS_SHIFT	4

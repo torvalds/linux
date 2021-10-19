@@ -68,6 +68,10 @@
  *  VERSION     : 01-00-15
  *  14 Oct 2021 : 1. Version update
  *  VERSION     : 01-00-16
+ *  19 Oct 2021 : 1. Adding M3 SRAM Debug counters to ethtool statistics
+ *		: 2. Adding MTL RX Overflow/packet miss count, TX underflow counts,Rx Watchdog value to ethtool statistics.
+ *		: 3. Version update
+ *  VERSION     : 01-00-17
  */
 
 #ifndef __TC956XMAC_H__
@@ -116,7 +120,7 @@
 #ifdef TC956X
 
 #define TC956X_RESOURCE_NAME	"tc956x_pci-eth"
-#define DRV_MODULE_VERSION	"V_01-00-16"
+#define DRV_MODULE_VERSION	"V_01-00-17"
 #define TC956X_FW_MAX_SIZE	(64*1024)
 
 #define ATR_AXI4_SLV_BASE		0x0800
@@ -172,6 +176,30 @@
 #endif
 
 #define TC956X_M3_SRAM_FW_VER_OFFSET 0x4F900 /* DMEM addrs 0x2000F900 */
+/* M3 Debug Counters in SRAM*/
+#define TC956X_M3_SRAM_DEBUG_CNTS_OFFSET	0x4F800 /* DMEM addrs 0x2000F800 */
+
+#define DB_CNT_LEN	4	/* Size of each debug counter in bytes */
+#define DB_CNT0		0	/* reserved0 */
+#define DB_CNT1		1	/* reserved1 */
+#define DB_CNT2		2	/* reserved2 */
+#define DB_CNT3		3	/* reserved3 */
+#define DB_CNT4		4	/* reserved4 */
+#define DB_CNT5		5	/* reserved5 */
+#define DB_CNT6		6	/* reserved6 */
+#define DB_CNT7		7	/* reserved7 */
+#define DB_CNT8		8	/* reserved8 */
+#define DB_CNT9		9	/* reserved9 */
+#define DB_CNT10	10	/* reserved10 */
+#define DB_CNT11	11	/* m3 watchdog expiry count*/
+#define DB_CNT12	12	/* m3 watchdog monitor value */
+#define DB_CNT13	13	/* reserved13 */
+#define DB_CNT14	14	/* reserved14 */
+#define DB_CNT15	15	/* m3 systick counter lower 32bits  */
+#define DB_CNT16	16	/* m3 systick counter upper 32bits */
+#define DB_CNT17	17	/* m3 transmission timeout indication for port0 */
+#define DB_CNT18	18	/* m3 transmission timeout indication for port1 */
+#define DB_CNT19	19	/* reserved19 */
 
 #define NRSTCTRL0_RST_ASRT 0x1
 #define NRSTCTRL0_RST_DE_ASRT 0x3
