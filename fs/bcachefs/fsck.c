@@ -1050,6 +1050,8 @@ static int inode_backpointer_exists(struct btree_trans *trans,
 {
 	struct btree_iter iter;
 	struct bkey_s_c k;
+	u32 target_subvol, target_snapshot;
+	u64 target_inum;
 	int ret;
 
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_dirents,
@@ -1061,7 +1063,15 @@ static int inode_backpointer_exists(struct btree_trans *trans,
 	if (k.k->type != KEY_TYPE_dirent)
 		goto out;
 
-	ret = le64_to_cpu(bkey_s_c_to_dirent(k).v->d_inum) == inode->bi_inum;
+	ret = __bch2_dirent_read_target(trans, bkey_s_c_to_dirent(k),
+					&target_subvol,
+					&target_snapshot,
+					&target_inum,
+					true);
+	if (ret)
+		goto out;
+
+	ret = target_inum == inode->bi_inum;
 out:
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
@@ -1754,7 +1764,17 @@ static int check_path(struct btree_trans *trans,
 	snapshot = snapshot_t(c, snapshot)->equiv;
 	p->nr = 0;
 
-	while (inode->bi_inum != BCACHEFS_ROOT_INO) {
+	while (!(inode->bi_inum == BCACHEFS_ROOT_INO &&
+		 inode->bi_subvol == BCACHEFS_ROOT_SUBVOL)) {
+		if (inode->bi_parent_subvol) {
+			u64 inum;
+
+			ret = subvol_lookup(trans, inode->bi_parent_subvol,
+					    &snapshot, &inum);
+			if (ret)
+				break;
+		}
+
 		ret = lockrestart_do(trans,
 			inode_backpointer_exists(trans, inode, snapshot));
 		if (ret < 0)
