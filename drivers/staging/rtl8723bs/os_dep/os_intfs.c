@@ -283,7 +283,7 @@ static int rtw_net_set_mac_address(struct net_device *pnetdev, void *p)
 	if (!padapter->bup) {
 		/* addr->sa_data[4], addr->sa_data[5]); */
 		memcpy(padapter->eeprompriv.mac_addr, addr->sa_data, ETH_ALEN);
-		/* memcpy(pnetdev->dev_addr, addr->sa_data, ETH_ALEN); */
+		/* eth_hw_addr_set(pnetdev, addr->sa_data); */
 		/* padapter->bset_hwaddr = true; */
 	}
 

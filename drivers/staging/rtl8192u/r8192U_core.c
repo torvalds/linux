@@ -2300,12 +2300,15 @@ static int rtl8192_read_eeprom_info(struct net_device *dev)
 	/* set channelplan from eeprom */
 	priv->ChannelPlan = priv->eeprom_ChannelPlan;
 	if (bLoad_From_EEPOM) {
+		u8 addr[ETH_ALEN];
+
 		for (i = 0; i < 6; i += 2) {
 			ret = eprom_read(dev, (u16)((EEPROM_NODE_ADDRESS_BYTE_0 + i) >> 1));
 			if (ret < 0)
 				return ret;
-			*(u16 *)(&dev->dev_addr[i]) = (u16)ret;
+			*(u16 *)(&addr[i]) = (u16)ret;
 		}
+		eth_hw_addr_set(dev, addr);
 	} else {
 		eth_hw_addr_set(dev, bMac_Tmp_Addr);
 		/* should I set IDR0 here? */
@@ -3045,14 +3048,14 @@ static void CamRestoreAllEntry(struct net_device *dev)
 	} else if (priv->ieee80211->pairwise_key_type == KEY_TYPE_TKIP) {
 		if (priv->ieee80211->iw_mode == IW_MODE_ADHOC)
 			setKey(dev, 4, 0, priv->ieee80211->pairwise_key_type,
-			       (u8 *)dev->dev_addr, 0, NULL);
+			       (const u8 *)dev->dev_addr, 0, NULL);
 		else
 			setKey(dev, 4, 0, priv->ieee80211->pairwise_key_type,
 			       MacAddr, 0, NULL);
 	} else if (priv->ieee80211->pairwise_key_type == KEY_TYPE_CCMP) {
 		if (priv->ieee80211->iw_mode == IW_MODE_ADHOC)
 			setKey(dev, 4, 0, priv->ieee80211->pairwise_key_type,
-			       (u8 *)dev->dev_addr, 0, NULL);
+			       (const u8 *)dev->dev_addr, 0, NULL);
 		else
 			setKey(dev, 4, 0, priv->ieee80211->pairwise_key_type,
 			       MacAddr, 0, NULL);
@@ -4868,7 +4871,7 @@ void EnableHWSecurityConfig8192(struct net_device *dev)
 }
 
 void setKey(struct net_device *dev, u8 entryno, u8 keyindex, u16 keytype,
-	    u8 *macaddr, u8 defaultkey, u32 *keycontent)
+	    const u8 *macaddr, u8 defaultkey, u32 *keycontent)
 {
 	u32 target_command = 0;
 	u32 target_content = 0;
