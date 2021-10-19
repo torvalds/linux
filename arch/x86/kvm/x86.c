@@ -3245,15 +3245,14 @@ static void kvm_vcpu_flush_tlb_guest(struct kvm_vcpu *vcpu)
 	++vcpu->stat.tlb_flush;
 
 	if (!tdp_enabled) {
-               /*
+		/*
 		 * A TLB flush on behalf of the guest is equivalent to
 		 * INVPCID(all), toggling CR4.PGE, etc., which requires
-		 * a forced sync of the shadow page tables.  Unload the
-		 * entire MMU here and the subsequent load will sync the
-		 * shadow page tables, and also flush the TLB.
+		 * a forced sync of the shadow page tables.  Ensure all the
+		 * roots are synced and the guest TLB in hardware is clean.
 		 */
-		kvm_mmu_unload(vcpu);
-		return;
+		kvm_mmu_sync_roots(vcpu);
+		kvm_mmu_sync_prev_roots(vcpu);
 	}
 
 	static_call(kvm_x86_tlb_flush_guest)(vcpu);

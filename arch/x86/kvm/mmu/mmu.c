@@ -3647,6 +3647,9 @@ static bool is_unsync_root(hpa_t root)
 {
 	struct kvm_mmu_page *sp;
 
+	if (!VALID_PAGE(root))
+		return false;
+
 	/*
 	 * The read barrier orders the CPU's read of SPTE.W during the page table
 	 * walk before the reads of sp->unsync/sp->unsync_children here.
@@ -3712,6 +3715,19 @@ void kvm_mmu_sync_roots(struct kvm_vcpu *vcpu)
 
 	kvm_mmu_audit(vcpu, AUDIT_POST_SYNC);
 	write_unlock(&vcpu->kvm->mmu_lock);
+}
+
+void kvm_mmu_sync_prev_roots(struct kvm_vcpu *vcpu)
+{
+	unsigned long roots_to_free = 0;
+	int i;
+
+	for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++)
+		if (is_unsync_root(vcpu->arch.mmu->prev_roots[i].hpa))
+			roots_to_free |= KVM_MMU_ROOT_PREVIOUS(i);
+
+	/* sync prev_roots by simply freeing them */
+	kvm_mmu_free_roots(vcpu, vcpu->arch.mmu, roots_to_free);
 }
 
 static gpa_t nonpaging_gva_to_gpa(struct kvm_vcpu *vcpu, gpa_t vaddr,
