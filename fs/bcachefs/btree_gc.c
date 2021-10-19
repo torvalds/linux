@@ -738,7 +738,7 @@ static int bch2_gc_mark_key(struct bch_fs *c, enum btree_id btree_id,
 		*max_stale = max(*max_stale, ptr_stale(ca, ptr));
 	}
 
-	bch2_mark_key(c, *k, flags);
+	ret = bch2_mark_key(c, *k, flags);
 fsck_err:
 err:
 	if (ret)

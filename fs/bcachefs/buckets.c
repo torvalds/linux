@@ -14,6 +14,7 @@
 #include "ec.h"
 #include "error.h"
 #include "movinggc.h"
+#include "recovery.h"
 #include "reflink.h"
 #include "replicas.h"
 #include "subvolume.h"
@@ -1115,10 +1116,9 @@ static s64 __bch2_mark_reflink_p(struct bch_fs *c, struct bkey_s_c_reflink_p p,
 {
 	struct reflink_gc *r;
 	int add = !(flags & BTREE_TRIGGER_OVERWRITE) ? 1 : -1;
+	s64 ret = 0;
 
-	while (1) {
-		if (*r_idx >= c->reflink_gc_nr)
-			goto not_found;
+	while (*r_idx < c->reflink_gc_nr) {
 		r = genradix_ptr(&c->reflink_gc_table, *r_idx);
 		BUG_ON(!r);
 
@@ -1127,16 +1127,49 @@ static s64 __bch2_mark_reflink_p(struct bch_fs *c, struct bkey_s_c_reflink_p p,
 		(*r_idx)++;
 	}
 
+	if (*r_idx >= c->reflink_gc_nr ||
+	    idx < r->offset - r->size) {
+		ret = p.k->size;
+		goto not_found;
+	}
+
 	BUG_ON((s64) r->refcount + add < 0);
 
 	r->refcount += add;
 	return r->offset - idx;
 not_found:
-	bch2_fs_inconsistent(c,
-		"%llu:%llu len %u points to nonexistent indirect extent %llu",
-		p.k->p.inode, p.k->p.offset, p.k->size, idx);
-	bch2_inconsistent_error(c);
-	return -EIO;
+	if ((flags & BTREE_TRIGGER_GC) &&
+	    (flags & BTREE_TRIGGER_NOATOMIC)) {
+		/*
+		 * XXX: we're replacing the entire reflink pointer with an error
+		 * key, we should just be replacing the part that was missing:
+		 */
+		if (fsck_err(c, "%llu:%llu len %u points to nonexistent indirect extent %llu",
+			     p.k->p.inode, p.k->p.offset, p.k->size, idx)) {
+			struct bkey_i_error *new;
+
+			new = kmalloc(sizeof(*new), GFP_KERNEL);
+			if (!new) {
+				bch_err(c, "%s: error allocating new key", __func__);
+				return -ENOMEM;
+			}
+
+			bkey_init(&new->k);
+			new->k.type	= KEY_TYPE_error;
+			new->k.p	= p.k->p;
+			new->k.size	= p.k->size;
+			ret = bch2_journal_key_insert(c, BTREE_ID_extents, 0, &new->k_i);
+
+		}
+	} else {
+		bch2_fs_inconsistent(c,
+				     "%llu:%llu len %u points to nonexistent indirect extent %llu",
+				     p.k->p.inode, p.k->p.offset, p.k->size, idx);
+		bch2_inconsistent_error(c);
+		ret = -EIO;
+	}
+fsck_err:
+	return ret;
 }
 
 static int bch2_mark_reflink_p(struct bch_fs *c,
@@ -1168,7 +1201,7 @@ static int bch2_mark_reflink_p(struct bch_fs *c,
 
 	while (sectors) {
 		ret = __bch2_mark_reflink_p(c, p, idx, flags, &l);
-		if (ret < 0)
+		if (ret <= 0)
 			return ret;
 
 		ret = min_t(s64, ret, sectors);
