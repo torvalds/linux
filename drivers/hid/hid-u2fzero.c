@@ -191,6 +191,8 @@ static int u2fzero_rng_read(struct hwrng *rng, void *data,
 	struct u2f_hid_msg resp;
 	int ret;
 	size_t actual_length;
+	/* valid packets must have a correct header */
+	int min_length = offsetof(struct u2f_hid_msg, init.data);
 
 	if (!dev->present) {
 		hid_dbg(dev->hdev, "device not present");
@@ -200,12 +202,12 @@ static int u2fzero_rng_read(struct hwrng *rng, void *data,
 	ret = u2fzero_recv(dev, &req, &resp);
 
 	/* ignore errors or packets without data */
-	if (ret < offsetof(struct u2f_hid_msg, init.data))
+	if (ret < min_length)
 		return 0;
 
 	/* only take the minimum amount of data it is safe to take */
-	actual_length = min3((size_t)ret - offsetof(struct u2f_hid_msg,
-		init.data), U2F_HID_MSG_LEN(resp), max);
+	actual_length = min3((size_t)ret - min_length,
+		U2F_HID_MSG_LEN(resp), max);
 
 	memcpy(data, resp.init.data, actual_length);
 
