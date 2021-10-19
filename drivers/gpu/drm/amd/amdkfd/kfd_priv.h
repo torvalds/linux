@@ -228,7 +228,6 @@ struct kfd_vmid_info {
 };
 
 struct kfd_dev {
-	struct kgd_dev *kgd;
 	struct amdgpu_device *adev;
 
 	const struct kfd_device_info *device_info;

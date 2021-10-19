@@ -627,12 +627,11 @@ static void kfd_gtt_sa_fini(struct kfd_dev *kfd);
 
 static int kfd_resume(struct kfd_dev *kfd);
 
-struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd, bool vf)
+struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 {
 	struct kfd_dev *kfd;
 	const struct kfd_device_info *device_info;
 	const struct kfd2kgd_calls *f2g;
-	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
 	struct pci_dev *pdev = adev->pdev;
 
 	switch (adev->asic_type) {
@@ -824,7 +823,6 @@ struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd, bool vf)
 	if (!kfd)
 		return NULL;
 
-	kfd->kgd = kgd;
 	kfd->adev = adev;
 	kfd->device_info = device_info;
 	kfd->pdev = pdev;

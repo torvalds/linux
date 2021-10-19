@@ -38,8 +38,6 @@ struct amdgpu_device;
 #define KGD_MAX_QUEUES 128
 
 struct kfd_dev;
-struct kgd_dev;
-
 struct kgd_mem;
 
 enum kfd_preempt_type {
