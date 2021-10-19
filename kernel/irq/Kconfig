@@ -100,6 +100,10 @@ config IRQ_MSI_IOMMU
 config HANDLE_DOMAIN_IRQ
 	bool
 
+# Legacy behaviour; architectures should call irq_{enter,exit}() themselves
+config HANDLE_DOMAIN_IRQ_IRQENTRY
+	bool
+
 config IRQ_TIMINGS
 	bool
 
