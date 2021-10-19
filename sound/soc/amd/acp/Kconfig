@@ -25,3 +25,13 @@ config SND_AMD_ASOC_RENOIR
 	depends on X86 && PCI
 	help
 	  This option enables Renoir I2S support on AMD platform.
+
+config SND_SOC_AMD_MACH_COMMON
+	tristate
+	select CLK_FIXED_FCH
+	select SND_SOC_RT5682_I2C
+	select SND_SOC_DMIC
+	select SND_SOC_RT1019
+	depends on X86 && PCI && I2C
+	help
+	  This option enables common Machine driver module for ACP.
