@@ -563,11 +563,6 @@ struct ocelot_vcap_block {
 	int pol_lpr;
 };
 
-struct ocelot_vlan {
-	bool valid;
-	u16 vid;
-};
-
 struct ocelot_bridge_vlan {
 	u16 vid;
 	unsigned long portmask;
@@ -608,7 +603,7 @@ struct ocelot_port {
 
 	bool				vlan_aware;
 	/* VLAN that untagged frames are classified to, on ingress */
-	struct ocelot_vlan		pvid_vlan;
+	const struct ocelot_bridge_vlan	*pvid_vlan;
 
 	unsigned int			ptp_skbs_in_flight;
 	u8				ptp_cmd;

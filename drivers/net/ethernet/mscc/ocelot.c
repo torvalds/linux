@@ -260,18 +260,19 @@ static void ocelot_port_manage_port_tag(struct ocelot *ocelot, int port)
 
 /* Default vlan to clasify for untagged frames (may be zero) */
 static void ocelot_port_set_pvid(struct ocelot *ocelot, int port,
-				 struct ocelot_vlan pvid_vlan)
+				 const struct ocelot_bridge_vlan *pvid_vlan)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
+	u16 pvid = OCELOT_VLAN_UNAWARE_PVID;
 	u32 val = 0;
 
 	ocelot_port->pvid_vlan = pvid_vlan;
 
-	if (!ocelot_port->vlan_aware)
-		pvid_vlan.vid = OCELOT_VLAN_UNAWARE_PVID;
+	if (ocelot_port->vlan_aware && pvid_vlan)
+		pvid = pvid_vlan->vid;
 
 	ocelot_rmw_gix(ocelot,
-		       ANA_PORT_VLAN_CFG_VLAN_VID(pvid_vlan.vid),
+		       ANA_PORT_VLAN_CFG_VLAN_VID(pvid),
 		       ANA_PORT_VLAN_CFG_VLAN_VID_M,
 		       ANA_PORT_VLAN_CFG, port);
 
@@ -280,7 +281,7 @@ static void ocelot_port_set_pvid(struct ocelot *ocelot, int port,
 	 * classified to VLAN 0, but that is always in our RX filter, so it
 	 * would get accepted were it not for this setting.
 	 */
-	if (!pvid_vlan.valid && ocelot_port->vlan_aware)
+	if (!pvid_vlan && ocelot_port->vlan_aware)
 		val = ANA_PORT_DROP_CFG_DROP_PRIO_S_TAGGED_ENA |
 		      ANA_PORT_DROP_CFG_DROP_PRIO_C_TAGGED_ENA;
 
@@ -445,13 +446,9 @@ int ocelot_vlan_add(struct ocelot *ocelot, int port, u16 vid, bool pvid,
 		return err;
 
 	/* Default ingress vlan classification */
-	if (pvid) {
-		struct ocelot_vlan pvid_vlan;
-
-		pvid_vlan.vid = vid;
-		pvid_vlan.valid = true;
-		ocelot_port_set_pvid(ocelot, port, pvid_vlan);
-	}
+	if (pvid)
+		ocelot_port_set_pvid(ocelot, port,
+				     ocelot_bridge_vlan_find(ocelot, vid));
 
 	/* Untagged egress vlan clasification */
 	ocelot_port_manage_port_tag(ocelot, port);
@@ -470,11 +467,8 @@ int ocelot_vlan_del(struct ocelot *ocelot, int port, u16 vid)
 		return err;
 
 	/* Ingress */
-	if (ocelot_port->pvid_vlan.vid == vid) {
-		struct ocelot_vlan pvid_vlan = {0};
-
-		ocelot_port_set_pvid(ocelot, port, pvid_vlan);
-	}
+	if (ocelot_port->pvid_vlan && ocelot_port->pvid_vlan->vid == vid)
+		ocelot_port_set_pvid(ocelot, port, NULL);
 
 	/* Egress */
 	ocelot_port_manage_port_tag(ocelot, port);
@@ -1803,11 +1797,10 @@ void ocelot_port_bridge_leave(struct ocelot *ocelot, int port,
 			      struct net_device *bridge)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
-	struct ocelot_vlan pvid = {0};
 
 	ocelot_port->bridge = NULL;
 
-	ocelot_port_set_pvid(ocelot, port, pvid);
+	ocelot_port_set_pvid(ocelot, port, NULL);
 	ocelot_port_manage_port_tag(ocelot, port);
 	ocelot_apply_bridge_fwd_mask(ocelot);
 }
