@@ -1652,10 +1652,6 @@ int i3c_master_set_info(struct i3c_master_controller *master,
 	if (!i3c_bus_dev_addr_is_avail(&master->bus, info->dyn_addr))
 		return -EINVAL;
 
-	if (I3C_BCR_DEVICE_ROLE(info->bcr) == I3C_BCR_I3C_MASTER &&
-	    master->secondary)
-		return -EINVAL;
-
 	if (master->this)
 		return -EINVAL;
 
@@ -1664,7 +1660,10 @@ int i3c_master_set_info(struct i3c_master_controller *master,
 		return PTR_ERR(i3cdev);
 
 	master->this = i3cdev;
-	master->bus.cur_master = master->this;
+	if (master->secondary)
+		master->bus.cur_master = NULL;
+	else
+		master->bus.cur_master = master->this;
 
 	ret = i3c_master_attach_i3c_dev(master, i3cdev);
 	if (ret)
@@ -1793,6 +1792,9 @@ static int i3c_master_bus_init(struct i3c_master_controller *master)
 		ret = -EINVAL;
 		goto err_bus_cleanup;
 	}
+
+	if (master->secondary)
+		return 0;
 
 	/*
 	 * Reset all dynamic address that may have been assigned before
@@ -2581,9 +2583,6 @@ int i3c_master_register(struct i3c_master_controller *master,
 	struct i2c_dev_boardinfo *i2cbi;
 	int ret;
 
-	/* We do not support secondary masters yet. */
-	if (secondary)
-		return -ENOTSUPP;
 
 	ret = i3c_master_check_ops(ops);
 	if (ret)
@@ -2666,6 +2665,10 @@ int i3c_master_register(struct i3c_master_controller *master,
 	master->init_done = true;
 	i3c_bus_normaluse_lock(&master->bus);
 	i3c_master_register_new_i3c_devs(master);
+#ifdef CONFIG_I3C_SLAVE_MQUEUE
+	if (master->secondary)
+		i3c_slave_mqueue_probe(master);
+#endif
 	i3c_bus_normaluse_unlock(&master->bus);
 
 	return 0;
@@ -2804,6 +2807,32 @@ void i3c_dev_free_ibi_locked(struct i3c_dev_desc *dev)
 	master->ops->free_ibi(dev);
 	kfree(dev->ibi);
 	dev->ibi = NULL;
+}
+
+int i3c_master_register_slave(struct i3c_master_controller *master,
+			      const struct i3c_slave_setup *req)
+{
+	if (!master->ops->register_slave)
+		return -ENOTSUPP;
+
+	return master->ops->register_slave(master, req);
+}
+
+int i3c_master_unregister_slave(struct i3c_master_controller *master)
+{
+	if (!master->ops->unregister_slave)
+		return -ENOTSUPP;
+
+	return master->ops->unregister_slave(master);
+}
+
+int i3c_master_send_sir(struct i3c_master_controller *master,
+			struct i3c_slave_payload *payload)
+{
+	if (!master->ops->send_sir)
+		return -ENOTSUPP;
+
+	return master->ops->send_sir(master, payload);
 }
 
 int i3c_for_each_dev(void *data, int (*fn)(struct device *, void *))

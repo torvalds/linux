@@ -101,6 +101,22 @@ enum i3c_dcr {
 #define I3C_BCR_IBI_REQ_CAP		BIT(1)
 #define I3C_BCR_MAX_DATA_SPEED_LIM	BIT(0)
 
+/*
+ * MIPI I3C MDB definition
+ * see https://www.mipi.org/MIPI_I3C_mandatory_data_byte_values_public
+ */
+#define IBI_MDB_ID(grp, id)                                                    \
+	((((grp) << 5) & GENMASK(7, 5)) | ((id)&GENMASK(4, 0)))
+#define IBI_MDB_GET_GRP(m) (((m)&GENMASK(7, 5)) >> 5)
+#define IBI_MDB_GET_ID(m) ((m)&GENMASK(4, 0))
+
+#define IBI_MDB_GRP_PENDING_READ_NOTIF 0x5
+#define IS_MDB_PENDING_READ_NOTIFY(m)                                          \
+	(IBI_MDB_GET_GRP(m) == IBI_MDB_GRP_PENDING_READ_NOTIF)
+#define IBI_MDB_MIPI_DBGDATAREADY                                              \
+	IBI_MDB_ID(IBI_MDB_GRP_PENDING_READ_NOTIF, 0xd)
+#define IBI_MDB_MCTP IBI_MDB_ID(IBI_MDB_GRP_PENDING_READ_NOTIF, 0xe)
+
 /**
  * struct i3c_device_info - I3C device information
  * @pid: Provisional ID
