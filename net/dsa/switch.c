@@ -17,14 +17,11 @@
 static unsigned int dsa_switch_fastest_ageing_time(struct dsa_switch *ds,
 						   unsigned int ageing_time)
 {
-	int i;
+	struct dsa_port *dp;
 
-	for (i = 0; i < ds->num_ports; ++i) {
-		struct dsa_port *dp = dsa_to_port(ds, i);
-
+	dsa_switch_for_each_port(dp, ds)
 		if (dp->ageing_time && dp->ageing_time < ageing_time)
 			ageing_time = dp->ageing_time;
-	}
 
 	return ageing_time;
 }
@@ -120,7 +117,8 @@ static int dsa_switch_bridge_leave(struct dsa_switch *ds,
 	struct netlink_ext_ack extack = {0};
 	bool change_vlan_filtering = false;
 	bool vlan_filtering;
-	int err, port;
+	struct dsa_port *dp;
+	int err;
 
 	if (dst->index == info->tree_index && ds->index == info->sw_index &&
 	    ds->ops->port_bridge_leave)
@@ -150,10 +148,10 @@ static int dsa_switch_bridge_leave(struct dsa_switch *ds,
 	 * VLAN-aware bridge.
 	 */
 	if (change_vlan_filtering && ds->vlan_filtering_is_global) {
-		for (port = 0; port < ds->num_ports; port++) {
+		dsa_switch_for_each_port(dp, ds) {
 			struct net_device *bridge_dev;
 
-			bridge_dev = dsa_to_port(ds, port)->bridge_dev;
+			bridge_dev = dp->bridge_dev;
 
 			if (bridge_dev && br_vlan_enabled(bridge_dev)) {
 				change_vlan_filtering = false;
@@ -579,38 +577,34 @@ static int dsa_switch_change_tag_proto(struct dsa_switch *ds,
 				       struct dsa_notifier_tag_proto_info *info)
 {
 	const struct dsa_device_ops *tag_ops = info->tag_ops;
-	int port, err;
+	struct dsa_port *dp, *cpu_dp;
+	int err;
 
 	if (!ds->ops->change_tag_protocol)
 		return -EOPNOTSUPP;
 
 	ASSERT_RTNL();
 
-	for (port = 0; port < ds->num_ports; port++) {
-		if (!dsa_is_cpu_port(ds, port))
-			continue;
-
-		err = ds->ops->change_tag_protocol(ds, port, tag_ops->proto);
+	dsa_switch_for_each_cpu_port(cpu_dp, ds) {
+		err = ds->ops->change_tag_protocol(ds, cpu_dp->index,
+						   tag_ops->proto);
 		if (err)
 			return err;
 
-		dsa_port_set_tag_protocol(dsa_to_port(ds, port), tag_ops);
+		dsa_port_set_tag_protocol(cpu_dp, tag_ops);
 	}
 
 	/* Now that changing the tag protocol can no longer fail, let's update
 	 * the remaining bits which are "duplicated for faster access", and the
 	 * bits that depend on the tagger, such as the MTU.
 	 */
-	for (port = 0; port < ds->num_ports; port++) {
-		if (dsa_is_user_port(ds, port)) {
-			struct net_device *slave;
+	dsa_switch_for_each_user_port(dp, ds) {
+		struct net_device *slave = dp->slave;
 
-			slave = dsa_to_port(ds, port)->slave;
-			dsa_slave_setup_tagger(slave);
+		dsa_slave_setup_tagger(slave);
 
-			/* rtnl_mutex is held in dsa_tree_change_tag_proto */
-			dsa_slave_change_mtu(slave, slave->mtu);
-		}
+		/* rtnl_mutex is held in dsa_tree_change_tag_proto */
+		dsa_slave_change_mtu(slave, slave->mtu);
 	}
 
 	return 0;

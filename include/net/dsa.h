@@ -504,12 +504,11 @@ static inline bool dsa_is_user_port(struct dsa_switch *ds, int p)
 
 static inline u32 dsa_user_ports(struct dsa_switch *ds)
 {
+	struct dsa_port *dp;
 	u32 mask = 0;
-	int p;
 
-	for (p = 0; p < ds->num_ports; p++)
-		if (dsa_is_user_port(ds, p))
-			mask |= BIT(p);
+	dsa_switch_for_each_user_port(dp, ds)
+		mask |= BIT(dp->index);
 
 	return mask;
 }

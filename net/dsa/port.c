@@ -515,7 +515,8 @@ static bool dsa_port_can_apply_vlan_filtering(struct dsa_port *dp,
 					      struct netlink_ext_ack *extack)
 {
 	struct dsa_switch *ds = dp->ds;
-	int err, i;
+	struct dsa_port *other_dp;
+	int err;
 
 	/* VLAN awareness was off, so the question is "can we turn it on".
 	 * We may have had 8021q uppers, those need to go. Make sure we don't
@@ -557,10 +558,10 @@ static bool dsa_port_can_apply_vlan_filtering(struct dsa_port *dp,
 	 * different ports of the same switch device and one of them has a
 	 * different setting than what is being requested.
 	 */
-	for (i = 0; i < ds->num_ports; i++) {
+	dsa_switch_for_each_port(other_dp, ds) {
 		struct net_device *other_bridge;
 
-		other_bridge = dsa_to_port(ds, i)->bridge_dev;
+		other_bridge = other_dp->bridge_dev;
 		if (!other_bridge)
 			continue;
 		/* If it's the same bridge, it also has same
@@ -607,20 +608,16 @@ int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
 		return err;
 
 	if (ds->vlan_filtering_is_global) {
-		int port;
+		struct dsa_port *other_dp;
 
 		ds->vlan_filtering = vlan_filtering;
 
-		for (port = 0; port < ds->num_ports; port++) {
-			struct net_device *slave;
-
-			if (!dsa_is_user_port(ds, port))
-				continue;
+		dsa_switch_for_each_user_port(other_dp, ds) {
+			struct net_device *slave = dp->slave;
 
 			/* We might be called in the unbind path, so not
 			 * all slave devices might still be registered.
 			 */
-			slave = dsa_to_port(ds, port)->slave;
 			if (!slave)
 				continue;
 
