@@ -172,7 +172,7 @@
 
 				cs-gpios = <&qcom_pinmux 20 GPIO_ACTIVE_HIGH>;
 
-				norflash: s25fl016k@0 {
+				norflash: flash@0 {
 					compatible = "jedec,spi-nor";
 					#address-cells = <1>;
 					#size-cells = <1>;
