@@ -14033,6 +14033,7 @@ skip_full_check:
 
 	env->verification_time = ktime_get_ns() - start_time;
 	print_verification_stats(env);
+	env->prog->aux->verified_insns = env->insn_processed;
 
 	if (log->level && bpf_verifier_log_full(log))
 		ret = -ENOSPC;
