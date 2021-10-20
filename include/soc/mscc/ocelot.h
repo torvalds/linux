@@ -571,6 +571,7 @@ struct ocelot_vlan {
 struct ocelot_bridge_vlan {
 	u16 vid;
 	unsigned long portmask;
+	unsigned long untagged;
 	struct list_head list;
 };
 
@@ -608,8 +609,6 @@ struct ocelot_port {
 	bool				vlan_aware;
 	/* VLAN that untagged frames are classified to, on ingress */
 	struct ocelot_vlan		pvid_vlan;
-	/* The VLAN ID that will be transmitted as untagged, on egress */
-	struct ocelot_vlan		native_vlan;
 
 	unsigned int			ptp_skbs_in_flight;
 	u8				ptp_cmd;

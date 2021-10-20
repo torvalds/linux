@@ -162,29 +162,100 @@ static int ocelot_vlant_set_mask(struct ocelot *ocelot, u16 vid, u32 mask)
 	return ocelot_vlant_wait_for_completion(ocelot);
 }
 
-static void ocelot_port_set_native_vlan(struct ocelot *ocelot, int port,
-					struct ocelot_vlan native_vlan)
+static int ocelot_port_num_untagged_vlans(struct ocelot *ocelot, int port)
+{
+	struct ocelot_bridge_vlan *vlan;
+	int num_untagged = 0;
+
+	list_for_each_entry(vlan, &ocelot->vlans, list) {
+		if (!(vlan->portmask & BIT(port)))
+			continue;
+
+		if (vlan->untagged & BIT(port))
+			num_untagged++;
+	}
+
+	return num_untagged;
+}
+
+static int ocelot_port_num_tagged_vlans(struct ocelot *ocelot, int port)
+{
+	struct ocelot_bridge_vlan *vlan;
+	int num_tagged = 0;
+
+	list_for_each_entry(vlan, &ocelot->vlans, list) {
+		if (!(vlan->portmask & BIT(port)))
+			continue;
+
+		if (!(vlan->untagged & BIT(port)))
+			num_tagged++;
+	}
+
+	return num_tagged;
+}
+
+/* We use native VLAN when we have to mix egress-tagged VLANs with exactly
+ * _one_ egress-untagged VLAN (_the_ native VLAN)
+ */
+static bool ocelot_port_uses_native_vlan(struct ocelot *ocelot, int port)
+{
+	return ocelot_port_num_tagged_vlans(ocelot, port) &&
+	       ocelot_port_num_untagged_vlans(ocelot, port) == 1;
+}
+
+static struct ocelot_bridge_vlan *
+ocelot_port_find_native_vlan(struct ocelot *ocelot, int port)
+{
+	struct ocelot_bridge_vlan *vlan;
+
+	list_for_each_entry(vlan, &ocelot->vlans, list)
+		if (vlan->portmask & BIT(port) && vlan->untagged & BIT(port))
+			return vlan;
+
+	return NULL;
+}
+
+/* Keep in sync REW_TAG_CFG_TAG_CFG and, if applicable,
+ * REW_PORT_VLAN_CFG_PORT_VID, with the bridge VLAN table and VLAN awareness
+ * state of the port.
+ */
+static void ocelot_port_manage_port_tag(struct ocelot *ocelot, int port)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	enum ocelot_port_tag_config tag_cfg;
-
-	ocelot_port->native_vlan = native_vlan;
-
-	ocelot_rmw_gix(ocelot, REW_PORT_VLAN_CFG_PORT_VID(native_vlan.vid),
-		       REW_PORT_VLAN_CFG_PORT_VID_M,
-		       REW_PORT_VLAN_CFG, port);
+	bool uses_native_vlan = false;
 
 	if (ocelot_port->vlan_aware) {
-		if (native_vlan.valid)
+		uses_native_vlan = ocelot_port_uses_native_vlan(ocelot, port);
+
+		if (uses_native_vlan)
 			tag_cfg = OCELOT_PORT_TAG_NATIVE;
+		else if (ocelot_port_num_untagged_vlans(ocelot, port))
+			tag_cfg = OCELOT_PORT_TAG_DISABLED;
 		else
 			tag_cfg = OCELOT_PORT_TAG_TRUNK;
 	} else {
 		tag_cfg = OCELOT_PORT_TAG_DISABLED;
 	}
+
 	ocelot_rmw_gix(ocelot, REW_TAG_CFG_TAG_CFG(tag_cfg),
 		       REW_TAG_CFG_TAG_CFG_M,
 		       REW_TAG_CFG, port);
+
+	if (uses_native_vlan) {
+		struct ocelot_bridge_vlan *native_vlan;
+
+		/* Not having a native VLAN is impossible, because
+		 * ocelot_port_num_untagged_vlans has returned 1.
+		 * So there is no use in checking for NULL here.
+		 */
+		native_vlan = ocelot_port_find_native_vlan(ocelot, port);
+
+		ocelot_rmw_gix(ocelot,
+			       REW_PORT_VLAN_CFG_PORT_VID(native_vlan->vid),
+			       REW_PORT_VLAN_CFG_PORT_VID_M,
+			       REW_PORT_VLAN_CFG, port);
+	}
 }
 
 /* Default vlan to clasify for untagged frames (may be zero) */
@@ -231,7 +302,8 @@ static struct ocelot_bridge_vlan *ocelot_bridge_vlan_find(struct ocelot *ocelot,
 	return NULL;
 }
 
-static int ocelot_vlan_member_add(struct ocelot *ocelot, int port, u16 vid)
+static int ocelot_vlan_member_add(struct ocelot *ocelot, int port, u16 vid,
+				  bool untagged)
 {
 	struct ocelot_bridge_vlan *vlan = ocelot_bridge_vlan_find(ocelot, vid);
 	unsigned long portmask;
@@ -245,6 +317,14 @@ static int ocelot_vlan_member_add(struct ocelot *ocelot, int port, u16 vid)
 			return err;
 
 		vlan->portmask = portmask;
+		/* Bridge VLANs can be overwritten with a different
+		 * egress-tagging setting, so make sure to override an untagged
+		 * with a tagged VID if that's going on.
+		 */
+		if (untagged)
+			vlan->untagged |= BIT(port);
+		else
+			vlan->untagged &= ~BIT(port);
 
 		return 0;
 	}
@@ -263,6 +343,8 @@ static int ocelot_vlan_member_add(struct ocelot *ocelot, int port, u16 vid)
 
 	vlan->vid = vid;
 	vlan->portmask = portmask;
+	if (untagged)
+		vlan->untagged = BIT(port);
 	INIT_LIST_HEAD(&vlan->list);
 	list_add_tail(&vlan->list, &ocelot->vlans);
 
@@ -324,7 +406,7 @@ int ocelot_port_vlan_filtering(struct ocelot *ocelot, int port,
 		       ANA_PORT_VLAN_CFG, port);
 
 	ocelot_port_set_pvid(ocelot, port, ocelot_port->pvid_vlan);
-	ocelot_port_set_native_vlan(ocelot, port, ocelot_port->native_vlan);
+	ocelot_port_manage_port_tag(ocelot, port);
 
 	return 0;
 }
@@ -333,14 +415,20 @@ EXPORT_SYMBOL(ocelot_port_vlan_filtering);
 int ocelot_vlan_prepare(struct ocelot *ocelot, int port, u16 vid, bool pvid,
 			bool untagged, struct netlink_ext_ack *extack)
 {
-	struct ocelot_port *ocelot_port = ocelot->ports[port];
-
-	/* Deny changing the native VLAN, but always permit deleting it */
-	if (untagged && ocelot_port->native_vlan.vid != vid &&
-	    ocelot_port->native_vlan.valid) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "Port already has a native VLAN");
-		return -EBUSY;
+	if (untagged) {
+		/* We are adding an egress-tagged VLAN */
+		if (ocelot_port_uses_native_vlan(ocelot, port)) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Port with egress-tagged VLANs cannot have more than one egress-untagged (native) VLAN");
+			return -EBUSY;
+		}
+	} else {
+		/* We are adding an egress-tagged VLAN */
+		if (ocelot_port_num_untagged_vlans(ocelot, port) > 1) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Port with more than one egress-untagged VLAN cannot have egress-tagged VLANs");
+			return -EBUSY;
+		}
 	}
 
 	return 0;
@@ -352,7 +440,7 @@ int ocelot_vlan_add(struct ocelot *ocelot, int port, u16 vid, bool pvid,
 {
 	int err;
 
-	err = ocelot_vlan_member_add(ocelot, port, vid);
+	err = ocelot_vlan_member_add(ocelot, port, vid, untagged);
 	if (err)
 		return err;
 
@@ -366,13 +454,7 @@ int ocelot_vlan_add(struct ocelot *ocelot, int port, u16 vid, bool pvid,
 	}
 
 	/* Untagged egress vlan clasification */
-	if (untagged) {
-		struct ocelot_vlan native_vlan;
-
-		native_vlan.vid = vid;
-		native_vlan.valid = true;
-		ocelot_port_set_native_vlan(ocelot, port, native_vlan);
-	}
+	ocelot_port_manage_port_tag(ocelot, port);
 
 	return 0;
 }
@@ -395,11 +477,7 @@ int ocelot_vlan_del(struct ocelot *ocelot, int port, u16 vid)
 	}
 
 	/* Egress */
-	if (ocelot_port->native_vlan.vid == vid) {
-		struct ocelot_vlan native_vlan = {0};
-
-		ocelot_port_set_native_vlan(ocelot, port, native_vlan);
-	}
+	ocelot_port_manage_port_tag(ocelot, port);
 
 	return 0;
 }
@@ -1725,12 +1803,12 @@ void ocelot_port_bridge_leave(struct ocelot *ocelot, int port,
 			      struct net_device *bridge)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
-	struct ocelot_vlan pvid = {0}, native_vlan = {0};
+	struct ocelot_vlan pvid = {0};
 
 	ocelot_port->bridge = NULL;
 
 	ocelot_port_set_pvid(ocelot, port, pvid);
-	ocelot_port_set_native_vlan(ocelot, port, native_vlan);
+	ocelot_port_manage_port_tag(ocelot, port);
 	ocelot_apply_bridge_fwd_mask(ocelot);
 }
 EXPORT_SYMBOL(ocelot_port_bridge_leave);
