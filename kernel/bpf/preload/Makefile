@@ -27,8 +27,7 @@ userccflags += -I $(srctree)/tools/include/ -I $(srctree)/tools/include/uapi \
 
 userprogs := bpf_preload_umd
 
-clean-files := $(userprogs) bpf_helper_defs.h FEATURE-DUMP.libbpf staticobjs/ feature/
-clean-files += $(LIBBPF_OUT) $(LIBBPF_DESTDIR)
+clean-files := libbpf/
 
 $(obj)/iterators/iterators.o: | libbpf_hdrs
 
