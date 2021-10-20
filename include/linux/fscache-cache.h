@@ -16,4 +16,6 @@
 
 #include <linux/fscache.h>
 
+extern struct workqueue_struct *fscache_wq;
+
 #endif /* _LINUX_FSCACHE_CACHE_H */
