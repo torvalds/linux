@@ -4607,7 +4607,6 @@ entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr, int queued)
 
 	if (cfs_rq->nr_running > 1)
 		check_preempt_tick(cfs_rq, curr);
-	trace_android_rvh_entity_tick(cfs_rq, curr);
 }
 
 

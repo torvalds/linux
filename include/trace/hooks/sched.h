@@ -339,10 +339,6 @@ DECLARE_RESTRICTED_HOOK(android_rvh_dequeue_entity,
 	TP_PROTO(struct cfs_rq *cfs, struct sched_entity *se),
 	TP_ARGS(cfs, se), 1);
 
-DECLARE_RESTRICTED_HOOK(android_rvh_entity_tick,
-	TP_PROTO(struct cfs_rq *cfs_rq, struct sched_entity *se),
-	TP_ARGS(cfs_rq, se), 1);
-
 DECLARE_RESTRICTED_HOOK(android_rvh_enqueue_task_fair,
 	TP_PROTO(struct rq *rq, struct task_struct *p, int flags),
 	TP_ARGS(rq, p, flags), 1);
