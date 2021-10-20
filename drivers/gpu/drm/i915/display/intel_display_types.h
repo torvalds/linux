@@ -1336,7 +1336,6 @@ struct intel_plane {
 	enum plane_id id;
 	enum pipe pipe;
 	bool has_fbc;
-	bool has_ccs;
 	bool need_async_flip_disable_wa;
 	u32 frontbuffer_bit;
 

@@ -6,6 +6,7 @@
 #ifndef __INTEL_FB_H__
 #define __INTEL_FB_H__
 
+#include <linux/bits.h>
 #include <linux/types.h>
 
 struct drm_device;
@@ -16,12 +17,24 @@ struct drm_i915_private;
 struct drm_mode_fb_cmd2;
 struct intel_fb_view;
 struct intel_framebuffer;
+struct intel_plane;
 struct intel_plane_state;
+
+enum intel_plane_caps {
+	PLANE_HAS_NO_CAPS = 0,
+	PLANE_HAS_TILING = BIT(0),
+	PLANE_HAS_CCS_RC = BIT(1),
+	PLANE_HAS_CCS_MC = BIT(2),
+};
 
 bool is_ccs_plane(const struct drm_framebuffer *fb, int plane);
 bool is_gen12_ccs_plane(const struct drm_framebuffer *fb, int plane);
 bool is_gen12_ccs_cc_plane(const struct drm_framebuffer *fb, int plane);
 bool is_semiplanar_uv_plane(const struct drm_framebuffer *fb, int color_plane);
+
+u64 *intel_fb_plane_get_modifiers(struct drm_i915_private *i915,
+				  enum intel_plane_caps plane_caps);
+bool intel_fb_plane_supports_modifier(struct intel_plane *plane, u64 modifier);
 
 bool is_surface_linear(const struct drm_framebuffer *fb, int color_plane);
 

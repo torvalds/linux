@@ -45,6 +45,7 @@
 #include "intel_atomic_plane.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
+#include "intel_fb.h"
 #include "intel_frontbuffer.h"
 #include "intel_sprite.h"
 #include "i9xx_plane.h"
@@ -1575,12 +1576,6 @@ static const u32 g4x_plane_formats[] = {
 	DRM_FORMAT_VYUY,
 };
 
-static const u64 i9xx_plane_format_modifiers[] = {
-	I915_FORMAT_MOD_X_TILED,
-	DRM_FORMAT_MOD_LINEAR,
-	DRM_FORMAT_MOD_INVALID
-};
-
 static const u32 snb_plane_formats[] = {
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_XBGR8888,
@@ -1629,13 +1624,8 @@ static const u32 chv_pipe_b_sprite_formats[] = {
 static bool g4x_sprite_format_mod_supported(struct drm_plane *_plane,
 					    u32 format, u64 modifier)
 {
-	switch (modifier) {
-	case DRM_FORMAT_MOD_LINEAR:
-	case I915_FORMAT_MOD_X_TILED:
-		break;
-	default:
+	if (!intel_fb_plane_supports_modifier(to_intel_plane(_plane), modifier))
 		return false;
-	}
 
 	switch (format) {
 	case DRM_FORMAT_XRGB8888:
@@ -1655,13 +1645,8 @@ static bool g4x_sprite_format_mod_supported(struct drm_plane *_plane,
 static bool snb_sprite_format_mod_supported(struct drm_plane *_plane,
 					    u32 format, u64 modifier)
 {
-	switch (modifier) {
-	case DRM_FORMAT_MOD_LINEAR:
-	case I915_FORMAT_MOD_X_TILED:
-		break;
-	default:
+	if (!intel_fb_plane_supports_modifier(to_intel_plane(_plane), modifier))
 		return false;
-	}
 
 	switch (format) {
 	case DRM_FORMAT_XRGB8888:
@@ -1686,13 +1671,8 @@ static bool snb_sprite_format_mod_supported(struct drm_plane *_plane,
 static bool vlv_sprite_format_mod_supported(struct drm_plane *_plane,
 					    u32 format, u64 modifier)
 {
-	switch (modifier) {
-	case DRM_FORMAT_MOD_LINEAR:
-	case I915_FORMAT_MOD_X_TILED:
-		break;
-	default:
+	if (!intel_fb_plane_supports_modifier(to_intel_plane(_plane), modifier))
 		return false;
-	}
 
 	switch (format) {
 	case DRM_FORMAT_C8:
@@ -1776,7 +1756,6 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 			formats = vlv_plane_formats;
 			num_formats = ARRAY_SIZE(vlv_plane_formats);
 		}
-		modifiers = i9xx_plane_format_modifiers;
 
 		plane_funcs = &vlv_sprite_funcs;
 	} else if (DISPLAY_VER(dev_priv) >= 7) {
@@ -1795,7 +1774,6 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 
 		formats = snb_plane_formats;
 		num_formats = ARRAY_SIZE(snb_plane_formats);
-		modifiers = i9xx_plane_format_modifiers;
 
 		plane_funcs = &snb_sprite_funcs;
 	} else {
@@ -1806,7 +1784,6 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		plane->max_stride = g4x_sprite_max_stride;
 		plane->min_cdclk = g4x_sprite_min_cdclk;
 
-		modifiers = i9xx_plane_format_modifiers;
 		if (IS_SANDYBRIDGE(dev_priv)) {
 			formats = snb_plane_formats;
 			num_formats = ARRAY_SIZE(snb_plane_formats);
@@ -1833,11 +1810,15 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 	plane->id = PLANE_SPRITE0 + sprite;
 	plane->frontbuffer_bit = INTEL_FRONTBUFFER(pipe, plane->id);
 
+	modifiers = intel_fb_plane_get_modifiers(dev_priv, PLANE_HAS_TILING);
+
 	ret = drm_universal_plane_init(&dev_priv->drm, &plane->base,
 				       0, plane_funcs,
 				       formats, num_formats, modifiers,
 				       DRM_PLANE_TYPE_OVERLAY,
 				       "sprite %c", sprite_name(pipe, sprite));
+	kfree(modifiers);
+
 	if (ret)
 		goto fail;
 

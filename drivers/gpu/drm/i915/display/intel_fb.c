@@ -13,6 +13,150 @@
 
 #define check_array_bounds(i915, a, i) drm_WARN_ON(&(i915)->drm, (i) >= ARRAY_SIZE(a))
 
+struct intel_modifier_desc {
+	u64 modifier;
+	struct {
+		u8 from;
+		u8 until;
+	} display_ver;
+#define DISPLAY_VER_ALL		{ 0, -1 }
+
+	u8 is_linear:1;
+
+	struct {
+#define INTEL_CCS_RC		BIT(0)
+#define INTEL_CCS_RC_CC		BIT(1)
+#define INTEL_CCS_MC		BIT(2)
+
+#define INTEL_CCS_ANY		(INTEL_CCS_RC | INTEL_CCS_RC_CC | INTEL_CCS_MC)
+		u8 type:3;
+	} ccs;
+};
+
+static const struct intel_modifier_desc intel_modifiers[] = {
+	{
+		.modifier = I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS,
+		.display_ver = { 12, 13 },
+
+		.ccs.type = INTEL_CCS_MC,
+	}, {
+		.modifier = I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS,
+		.display_ver = { 12, 13 },
+
+		.ccs.type = INTEL_CCS_RC,
+	}, {
+		.modifier = I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC,
+		.display_ver = { 12, 13 },
+
+		.ccs.type = INTEL_CCS_RC_CC,
+	}, {
+		.modifier = I915_FORMAT_MOD_Yf_TILED_CCS,
+		.display_ver = { 9, 11 },
+
+		.ccs.type = INTEL_CCS_RC,
+	}, {
+		.modifier = I915_FORMAT_MOD_Y_TILED_CCS,
+		.display_ver = { 9, 11 },
+
+		.ccs.type = INTEL_CCS_RC,
+	}, {
+		.modifier = I915_FORMAT_MOD_Yf_TILED,
+		.display_ver = { 9, 11 },
+	}, {
+		.modifier = I915_FORMAT_MOD_Y_TILED,
+		.display_ver = { 9, 13 },
+	}, {
+		.modifier = I915_FORMAT_MOD_X_TILED,
+		.display_ver = DISPLAY_VER_ALL,
+	}, {
+		.modifier = DRM_FORMAT_MOD_LINEAR,
+		.display_ver = DISPLAY_VER_ALL,
+
+		.is_linear = true,
+	},
+};
+
+static bool is_ccs_type_modifier(const struct intel_modifier_desc *md, u8 ccs_type)
+{
+	return md->ccs.type & ccs_type;
+}
+
+static bool plane_has_modifier(struct drm_i915_private *i915,
+			       enum intel_plane_caps plane_caps,
+			       const struct intel_modifier_desc *md)
+{
+	if (!IS_DISPLAY_VER(i915, md->display_ver.from, md->display_ver.until))
+		return false;
+
+	if (!md->is_linear &&
+	    !(plane_caps & PLANE_HAS_TILING))
+		return false;
+
+	if (is_ccs_type_modifier(md, INTEL_CCS_RC | INTEL_CCS_RC_CC) &&
+	    !(plane_caps & PLANE_HAS_CCS_RC))
+		return false;
+
+	if (is_ccs_type_modifier(md, INTEL_CCS_MC) &&
+	    !(plane_caps & PLANE_HAS_CCS_MC))
+		return false;
+
+	return true;
+}
+
+/**
+ * intel_fb_plane_get_modifiers: Get the modifiers for the given platform and plane capabilities
+ * @i915: i915 device instance
+ * @plane_caps: capabilities for the plane the modifiers are queried for
+ *
+ * Returns:
+ * Returns the list of modifiers allowed by the @i915 platform and @plane_caps.
+ * The caller must free the returned buffer.
+ */
+u64 *intel_fb_plane_get_modifiers(struct drm_i915_private *i915,
+				  enum intel_plane_caps plane_caps)
+{
+	u64 *list, *p;
+	int count = 1;		/* +1 for invalid modifier terminator */
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(intel_modifiers); i++) {
+		if (plane_has_modifier(i915, plane_caps, &intel_modifiers[i]))
+			count++;
+	}
+
+	list = kmalloc_array(count, sizeof(*list), GFP_KERNEL);
+	if (drm_WARN_ON(&i915->drm, !list))
+		return NULL;
+
+	p = list;
+	for (i = 0; i < ARRAY_SIZE(intel_modifiers); i++) {
+		if (plane_has_modifier(i915, plane_caps, &intel_modifiers[i]))
+			*p++ = intel_modifiers[i].modifier;
+	}
+	*p++ = DRM_FORMAT_MOD_INVALID;
+
+	return list;
+}
+
+/**
+ * intel_fb_plane_supports_modifier: Determine if a modifier is supported by the given plane
+ * @plane: Plane to check the modifier support for
+ * @modifier: The modifier to check the support for
+ *
+ * Returns:
+ * %true if the @modifier is supported on @plane.
+ */
+bool intel_fb_plane_supports_modifier(struct intel_plane *plane, u64 modifier)
+{
+	int i;
+
+	for (i = 0; i < plane->base.modifier_count; i++)
+		if (plane->base.modifiers[i] == modifier)
+			return true;
+
+	return false;
+}
+
 bool is_ccs_plane(const struct drm_framebuffer *fb, int plane)
 {
 	if (!is_ccs_modifier(fb->modifier))
