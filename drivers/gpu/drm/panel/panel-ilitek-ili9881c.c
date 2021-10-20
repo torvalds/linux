@@ -52,6 +52,8 @@ struct ili9881c {
 
 	struct regulator	*power;
 	struct gpio_desc	*reset;
+
+	enum drm_panel_orientation	orientation;
 };
 
 #define ILI9881C_SWITCH_PAGE_INSTR(_page)	\
@@ -851,6 +853,8 @@ static int ili9881c_get_modes(struct drm_panel *panel,
 	connector->display_info.width_mm = mode->width_mm;
 	connector->display_info.height_mm = mode->height_mm;
 
+	drm_connector_set_panel_orientation(connector, ctx->orientation);
+
 	return 1;
 }
 
@@ -886,6 +890,13 @@ static int ili9881c_dsi_probe(struct mipi_dsi_device *dsi)
 	if (IS_ERR(ctx->reset))
 		return dev_err_probe(&dsi->dev, PTR_ERR(ctx->reset),
 				     "Couldn't get our reset GPIO\n");
+
+	ret = of_drm_get_panel_orientation(dsi->dev.of_node, &ctx->orientation);
+	if (ret) {
+		dev_err(&dsi->dev, "%pOF: failed to get orientation: %d\n",
+			dsi->dev.of_node, ret);
+		return ret;
+	}
 
 	ret = drm_panel_of_backlight(&ctx->panel);
 	if (ret)
