@@ -343,7 +343,7 @@ int ice_setup_tx_ring(struct ice_tx_ring *tx_ring)
 	/* warn if we are about to overwrite the pointer */
 	WARN_ON(tx_ring->tx_buf);
 	tx_ring->tx_buf =
-		devm_kzalloc(dev, sizeof(*tx_ring->tx_buf) * tx_ring->count,
+		devm_kcalloc(dev, sizeof(*tx_ring->tx_buf), tx_ring->count,
 			     GFP_KERNEL);
 	if (!tx_ring->tx_buf)
 		return -ENOMEM;
@@ -475,7 +475,7 @@ int ice_setup_rx_ring(struct ice_rx_ring *rx_ring)
 	/* warn if we are about to overwrite the pointer */
 	WARN_ON(rx_ring->rx_buf);
 	rx_ring->rx_buf =
-		devm_kzalloc(dev, sizeof(*rx_ring->rx_buf) * rx_ring->count,
+		devm_kcalloc(dev, sizeof(*rx_ring->rx_buf), rx_ring->count,
 			     GFP_KERNEL);
 	if (!rx_ring->rx_buf)
 		return -ENOMEM;
@@ -1259,6 +1259,41 @@ construct_skb:
 	return failure ? budget : (int)total_rx_pkts;
 }
 
+static void __ice_update_sample(struct ice_q_vector *q_vector,
+				struct ice_ring_container *rc,
+				struct dim_sample *sample,
+				bool is_tx)
+{
+	u64 packets = 0, bytes = 0;
+
+	if (is_tx) {
+		struct ice_tx_ring *tx_ring;
+
+		ice_for_each_tx_ring(tx_ring, *rc) {
+			packets += tx_ring->stats.pkts;
+			bytes += tx_ring->stats.bytes;
+		}
+	} else {
+		struct ice_rx_ring *rx_ring;
+
+		ice_for_each_rx_ring(rx_ring, *rc) {
+			packets += rx_ring->stats.pkts;
+			bytes += rx_ring->stats.bytes;
+		}
+	}
+
+	dim_update_sample(q_vector->total_events, packets, bytes, sample);
+	sample->comp_ctr = 0;
+
+	/* if dim settings get stale, like when not updated for 1
+	 * second or longer, force it to start again. This addresses the
+	 * frequent case of an idle queue being switched to by the
+	 * scheduler. The 1,000 here means 1,000 milliseconds.
+	 */
+	if (ktime_ms_delta(sample->time, rc->dim.start_sample.time) >= 1000)
+		rc->dim.state = DIM_START_MEASURE;
+}
+
 /**
  * ice_net_dim - Update net DIM algorithm
  * @q_vector: the vector associated with the interrupt
@@ -1274,34 +1309,16 @@ static void ice_net_dim(struct ice_q_vector *q_vector)
 	struct ice_ring_container *rx = &q_vector->rx;
 
 	if (ITR_IS_DYNAMIC(tx)) {
-		struct dim_sample dim_sample = {};
-		u64 packets = 0, bytes = 0;
-		struct ice_tx_ring *ring;
+		struct dim_sample dim_sample;
 
-		ice_for_each_tx_ring(ring, q_vector->tx) {
-			packets += ring->stats.pkts;
-			bytes += ring->stats.bytes;
-		}
-
-		dim_update_sample(q_vector->total_events, packets, bytes,
-				  &dim_sample);
-
+		__ice_update_sample(q_vector, tx, &dim_sample, true);
 		net_dim(&tx->dim, dim_sample);
 	}
 
 	if (ITR_IS_DYNAMIC(rx)) {
-		struct dim_sample dim_sample = {};
-		u64 packets = 0, bytes = 0;
-		struct ice_rx_ring *ring;
+		struct dim_sample dim_sample;
 
-		ice_for_each_rx_ring(ring, q_vector->rx) {
-			packets += ring->stats.pkts;
-			bytes += ring->stats.bytes;
-		}
-
-		dim_update_sample(q_vector->total_events, packets, bytes,
-				  &dim_sample);
-
+		__ice_update_sample(q_vector, rx, &dim_sample, false);
 		net_dim(&rx->dim, dim_sample);
 	}
 }
@@ -1328,15 +1345,14 @@ static u32 ice_buildreg_itr(u16 itr_idx, u16 itr)
 }
 
 /**
- * ice_update_ena_itr - Update ITR moderation and re-enable MSI-X interrupt
+ * ice_enable_interrupt - re-enable MSI-X interrupt
  * @q_vector: the vector associated with the interrupt to enable
  *
- * Update the net_dim() algorithm and re-enable the interrupt associated with
- * this vector.
- *
- * If the VSI is down, the interrupt will not be re-enabled.
+ * If the VSI is down, the interrupt will not be re-enabled. Also,
+ * when enabling the interrupt always reset the wb_on_itr to false
+ * and trigger a software interrupt to clean out internal state.
  */
-static void ice_update_ena_itr(struct ice_q_vector *q_vector)
+static void ice_enable_interrupt(struct ice_q_vector *q_vector)
 {
 	struct ice_vsi *vsi = q_vector->vsi;
 	bool wb_en = q_vector->wb_on_itr;
@@ -1345,25 +1361,25 @@ static void ice_update_ena_itr(struct ice_q_vector *q_vector)
 	if (test_bit(ICE_DOWN, vsi->state))
 		return;
 
-	/* When exiting WB_ON_ITR, let ITR resume its normal
-	 * interrupts-enabled path.
+	/* trigger an ITR delayed software interrupt when exiting busy poll, to
+	 * make sure to catch any pending cleanups that might have been missed
+	 * due to interrupt state transition. If busy poll or poll isn't
+	 * enabled, then don't update ITR, and just enable the interrupt.
 	 */
-	if (wb_en)
+	if (!wb_en) {
+		itr_val = ice_buildreg_itr(ICE_ITR_NONE, 0);
+	} else {
 		q_vector->wb_on_itr = false;
 
-	/* This will do nothing if dynamic updates are not enabled. */
-	ice_net_dim(q_vector);
-
-	/* net_dim() updates ITR out-of-band using a work item */
-	itr_val = ice_buildreg_itr(ICE_ITR_NONE, 0);
-	/* trigger an immediate software interrupt when exiting
-	 * busy poll, to make sure to catch any pending cleanups
-	 * that might have been missed due to interrupt state
-	 * transition.
-	 */
-	if (wb_en) {
+		/* do two things here with a single write. Set up the third ITR
+		 * index to be used for software interrupt moderation, and then
+		 * trigger a software interrupt with a rate limit of 20K on
+		 * software interrupts, this will help avoid high interrupt
+		 * loads due to frequently polling and exiting polling.
+		 */
+		itr_val = ice_buildreg_itr(ICE_IDX_ITR2, ICE_ITR_20K);
 		itr_val |= GLINT_DYN_CTL_SWINT_TRIG_M |
-			   GLINT_DYN_CTL_SW_ITR_INDX_M |
+			   ICE_IDX_ITR2 << GLINT_DYN_CTL_SW_ITR_INDX_S |
 			   GLINT_DYN_CTL_SW_ITR_INDX_ENA_M;
 	}
 	wr32(&vsi->back->hw, GLINT_DYN_CTL(q_vector->reg_idx), itr_val);
@@ -1482,10 +1498,12 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
 	/* Exit the polling mode, but don't re-enable interrupts if stack might
 	 * poll us due to busy-polling
 	 */
-	if (likely(napi_complete_done(napi, work_done)))
-		ice_update_ena_itr(q_vector);
-	else
+	if (likely(napi_complete_done(napi, work_done))) {
+		ice_net_dim(q_vector);
+		ice_enable_interrupt(q_vector);
+	} else {
 		ice_set_wb_on_itr(q_vector);
+	}
 
 	return min_t(int, work_done, budget - 1);
 }

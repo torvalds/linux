@@ -5502,77 +5502,59 @@ int ice_vsi_cfg(struct ice_vsi *vsi)
 }
 
 /* THEORY OF MODERATION:
- * The below code creates custom DIM profiles for use by this driver, because
- * the ice driver hardware works differently than the hardware that DIMLIB was
+ * The ice driver hardware works differently than the hardware that DIMLIB was
  * originally made for. ice hardware doesn't have packet count limits that
  * can trigger an interrupt, but it *does* have interrupt rate limit support,
- * and this code adds that capability to be used by the driver when it's using
- * DIMLIB. The DIMLIB code was always designed to be a suggestion to the driver
- * for how to "respond" to traffic and interrupts, so this driver uses a
- * slightly different set of moderation parameters to get best performance.
+ * which is hard-coded to a limit of 250,000 ints/second.
+ * If not using dynamic moderation, the INTRL value can be modified
+ * by ethtool rx-usecs-high.
  */
 struct ice_dim {
 	/* the throttle rate for interrupts, basically worst case delay before
 	 * an initial interrupt fires, value is stored in microseconds.
 	 */
 	u16 itr;
-	/* the rate limit for interrupts, which can cap a delay from a small
-	 * ITR at a certain amount of interrupts per second. f.e. a 2us ITR
-	 * could yield as much as 500,000 interrupts per second, but with a
-	 * 10us rate limit, it limits to 100,000 interrupts per second. Value
-	 * is stored in microseconds.
-	 */
-	u16 intrl;
 };
 
 /* Make a different profile for Rx that doesn't allow quite so aggressive
- * moderation at the high end (it maxes out at 128us or about 8k interrupts a
- * second. The INTRL/rate parameters here are only useful to cap small ITR
- * values, which is why for larger ITR's - like 128, which can only generate
- * 8k interrupts per second, there is no point to rate limit and the values
- * are set to zero. The rate limit values do affect latency, and so must
- * be reasonably small so to not impact latency sensitive tests.
+ * moderation at the high end (it maxes out at 126us or about 8k interrupts a
+ * second.
  */
 static const struct ice_dim rx_profile[] = {
-	{2, 10},
-	{8, 16},
-	{32, 0},
-	{96, 0},
-	{128, 0}
+	{2},    /* 500,000 ints/s, capped at 250K by INTRL */
+	{8},    /* 125,000 ints/s */
+	{16},   /*  62,500 ints/s */
+	{62},   /*  16,129 ints/s */
+	{126}   /*   7,936 ints/s */
 };
 
 /* The transmit profile, which has the same sorts of values
  * as the previous struct
  */
 static const struct ice_dim tx_profile[] = {
-	{2, 10},
-	{8, 16},
-	{64, 0},
-	{128, 0},
-	{256, 0}
+	{2},    /* 500,000 ints/s, capped at 250K by INTRL */
+	{8},    /* 125,000 ints/s */
+	{40},   /*  16,125 ints/s */
+	{128},  /*   7,812 ints/s */
+	{256}   /*   3,906 ints/s */
 };
 
 static void ice_tx_dim_work(struct work_struct *work)
 {
 	struct ice_ring_container *rc;
-	struct ice_q_vector *q_vector;
 	struct dim *dim;
-	u16 itr, intrl;
+	u16 itr;
 
 	dim = container_of(work, struct dim, work);
-	rc = container_of(dim, struct ice_ring_container, dim);
-	q_vector = container_of(rc, struct ice_q_vector, tx);
+	rc = (struct ice_ring_container *)dim->priv;
 
-	if (dim->profile_ix >= ARRAY_SIZE(tx_profile))
-		dim->profile_ix = ARRAY_SIZE(tx_profile) - 1;
+	WARN_ON(dim->profile_ix >= ARRAY_SIZE(tx_profile));
 
 	/* look up the values in our local table */
 	itr = tx_profile[dim->profile_ix].itr;
-	intrl = tx_profile[dim->profile_ix].intrl;
 
-	ice_trace(tx_dim_work, q_vector, dim);
+	ice_trace(tx_dim_work, container_of(rc, struct ice_q_vector, tx), dim);
 	ice_write_itr(rc, itr);
-	ice_write_intrl(q_vector, intrl);
 
 	dim->state = DIM_START_MEASURE;
 }
@@ -5580,26 +5562,63 @@ static void ice_tx_dim_work(struct work_struct *work)
 static void ice_rx_dim_work(struct work_struct *work)
 {
 	struct ice_ring_container *rc;
-	struct ice_q_vector *q_vector;
 	struct dim *dim;
-	u16 itr, intrl;
+	u16 itr;
 
 	dim = container_of(work, struct dim, work);
-	rc = container_of(dim, struct ice_ring_container, dim);
-	q_vector = container_of(rc, struct ice_q_vector, rx);
+	rc = (struct ice_ring_container *)dim->priv;
 
-	if (dim->profile_ix >= ARRAY_SIZE(rx_profile))
-		dim->profile_ix = ARRAY_SIZE(rx_profile) - 1;
+	WARN_ON(dim->profile_ix >= ARRAY_SIZE(rx_profile));
 
 	/* look up the values in our local table */
 	itr = rx_profile[dim->profile_ix].itr;
-	intrl = rx_profile[dim->profile_ix].intrl;
 
-	ice_trace(rx_dim_work, q_vector, dim);
+	ice_trace(rx_dim_work, container_of(rc, struct ice_q_vector, rx), dim);
 	ice_write_itr(rc, itr);
-	ice_write_intrl(q_vector, intrl);
 
 	dim->state = DIM_START_MEASURE;
+}
+
+#define ICE_DIM_DEFAULT_PROFILE_IX 1
+
+/**
+ * ice_init_moderation - set up interrupt moderation
+ * @q_vector: the vector containing rings to be configured
+ *
+ * Set up interrupt moderation registers, with the intent to do the right thing
+ * when called from reset or from probe, and whether or not dynamic moderation
+ * is enabled or not. Take special care to write all the registers in both
+ * dynamic moderation mode or not in order to make sure hardware is in a known
+ * state.
+ */
+static void ice_init_moderation(struct ice_q_vector *q_vector)
+{
+	struct ice_ring_container *rc;
+	bool tx_dynamic, rx_dynamic;
+
+	rc = &q_vector->tx;
+	INIT_WORK(&rc->dim.work, ice_tx_dim_work);
+	rc->dim.mode = DIM_CQ_PERIOD_MODE_START_FROM_EQE;
+	rc->dim.profile_ix = ICE_DIM_DEFAULT_PROFILE_IX;
+	rc->dim.priv = rc;
+	tx_dynamic = ITR_IS_DYNAMIC(rc);
+
+	/* set the initial TX ITR to match the above */
+	ice_write_itr(rc, tx_dynamic ?
+		      tx_profile[rc->dim.profile_ix].itr : rc->itr_setting);
+
+	rc = &q_vector->rx;
+	INIT_WORK(&rc->dim.work, ice_rx_dim_work);
+	rc->dim.mode = DIM_CQ_PERIOD_MODE_START_FROM_EQE;
+	rc->dim.profile_ix = ICE_DIM_DEFAULT_PROFILE_IX;
+	rc->dim.priv = rc;
+	rx_dynamic = ITR_IS_DYNAMIC(rc);
+
+	/* set the initial RX ITR to match the above */
+	ice_write_itr(rc, rx_dynamic ? rx_profile[rc->dim.profile_ix].itr :
+				       rc->itr_setting);
+
+	ice_set_q_vector_intrl(q_vector);
 }
 
 /**
@@ -5616,11 +5635,7 @@ static void ice_napi_enable_all(struct ice_vsi *vsi)
 	ice_for_each_q_vector(vsi, q_idx) {
 		struct ice_q_vector *q_vector = vsi->q_vectors[q_idx];
 
-		INIT_WORK(&q_vector->tx.dim.work, ice_tx_dim_work);
-		q_vector->tx.dim.mode = DIM_CQ_PERIOD_MODE_START_FROM_EQE;
-
-		INIT_WORK(&q_vector->rx.dim.work, ice_rx_dim_work);
-		q_vector->rx.dim.mode = DIM_CQ_PERIOD_MODE_START_FROM_EQE;
+		ice_init_moderation(q_vector);
 
 		if (q_vector->rx.rx_ring || q_vector->tx.tx_ring)
 			napi_enable(&q_vector->napi);
@@ -7390,6 +7405,7 @@ static const struct net_device_ops ice_netdev_ops = {
 	.ndo_set_vf_vlan = ice_set_vf_port_vlan,
 	.ndo_set_vf_link_state = ice_set_vf_link_state,
 	.ndo_get_vf_stats = ice_get_vf_stats,
+	.ndo_set_vf_rate = ice_set_vf_bw,
 	.ndo_vlan_rx_add_vid = ice_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid = ice_vlan_rx_kill_vid,
 	.ndo_setup_tc = ice_setup_tc,

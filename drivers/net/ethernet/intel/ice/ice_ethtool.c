@@ -192,7 +192,6 @@ __ice_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo,
 
 	strscpy(drvinfo->bus_info, pci_name(pf->pdev),
 		sizeof(drvinfo->bus_info));
-	drvinfo->n_priv_flags = ICE_PRIV_FLAG_ARRAY_SIZE;
 }
 
 static void
@@ -201,18 +200,8 @@ ice_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 
 	__ice_get_drvinfo(netdev, drvinfo, np->vsi);
-}
 
-static void
-ice_repr_get_drvinfo(struct net_device *netdev,
-		     struct ethtool_drvinfo *drvinfo)
-{
-	struct ice_repr *repr = ice_netdev_to_repr(netdev);
-
-	if (ice_check_vf_ready_for_cfg(repr->vf))
-		return;
-
-	__ice_get_drvinfo(netdev, drvinfo, repr->src_vsi);
+	drvinfo->n_priv_flags = ICE_PRIV_FLAG_ARRAY_SIZE;
 }
 
 static int ice_get_regs_len(struct net_device __always_unused *netdev)
@@ -886,10 +875,10 @@ skip_ol_tests:
 	netdev_info(netdev, "testing finished\n");
 }
 
-static void ice_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
+static void
+__ice_get_strings(struct net_device *netdev, u32 stringset, u8 *data,
+		  struct ice_vsi *vsi)
 {
-	struct ice_netdev_priv *np = netdev_priv(netdev);
-	struct ice_vsi *vsi = ice_get_netdev_priv_vsi(np);
 	unsigned int i;
 	u8 *p = data;
 
@@ -938,6 +927,13 @@ static void ice_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 	default:
 		break;
 	}
+}
+
+static void ice_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+
+	__ice_get_strings(netdev, stringset, data, np->vsi);
 }
 
 static int
@@ -1331,9 +1327,6 @@ static int ice_get_sset_count(struct net_device *netdev, int sset)
 		 * order of strings will suffer from race conditions and are
 		 * not safe.
 		 */
-		if (ice_is_port_repr_netdev(netdev))
-			return ICE_VSI_STATS_LEN;
-
 		return ICE_ALL_STATS_LEN(netdev);
 	case ETH_SS_TEST:
 		return ICE_TEST_LEN;
@@ -1345,11 +1338,10 @@ static int ice_get_sset_count(struct net_device *netdev, int sset)
 }
 
 static void
-ice_get_ethtool_stats(struct net_device *netdev,
-		      struct ethtool_stats __always_unused *stats, u64 *data)
+__ice_get_ethtool_stats(struct net_device *netdev,
+			struct ethtool_stats __always_unused *stats, u64 *data,
+			struct ice_vsi *vsi)
 {
-	struct ice_netdev_priv *np = netdev_priv(netdev);
-	struct ice_vsi *vsi = ice_get_netdev_priv_vsi(np);
 	struct ice_pf *pf = vsi->back;
 	struct ice_tx_ring *tx_ring;
 	struct ice_rx_ring *rx_ring;
@@ -1414,6 +1406,15 @@ ice_get_ethtool_stats(struct net_device *netdev,
 		data[i++] = pf->stats.priority_xon_rx[j];
 		data[i++] = pf->stats.priority_xoff_rx[j];
 	}
+}
+
+static void
+ice_get_ethtool_stats(struct net_device *netdev,
+		      struct ethtool_stats __always_unused *stats, u64 *data)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+
+	__ice_get_ethtool_stats(netdev, stats, data, np->vsi);
 }
 
 #define ICE_PHY_TYPE_LOW_MASK_MIN_1G	(ICE_PHY_TYPE_LOW_100BASE_TX | \
@@ -3640,6 +3641,9 @@ ice_set_rc_coalesce(struct ethtool_coalesce *ec,
 
 	switch (rc->type) {
 	case ICE_RX_CONTAINER:
+	{
+		struct ice_q_vector *q_vector = rc->rx_ring->q_vector;
+
 		if (ec->rx_coalesce_usecs_high > ICE_MAX_INTRL ||
 		    (ec->rx_coalesce_usecs_high &&
 		     ec->rx_coalesce_usecs_high < pf->hw.intrl_gran)) {
@@ -3648,22 +3652,20 @@ ice_set_rc_coalesce(struct ethtool_coalesce *ec,
 				    ICE_MAX_INTRL);
 			return -EINVAL;
 		}
-		if (ec->rx_coalesce_usecs_high != rc->rx_ring->q_vector->intrl &&
+		if (ec->rx_coalesce_usecs_high != q_vector->intrl &&
 		    (ec->use_adaptive_rx_coalesce || ec->use_adaptive_tx_coalesce)) {
 			netdev_info(vsi->netdev, "Invalid value, %s-usecs-high cannot be changed if adaptive-tx or adaptive-rx is enabled\n",
 				    c_type_str);
 			return -EINVAL;
 		}
-		if (ec->rx_coalesce_usecs_high != rc->rx_ring->q_vector->intrl) {
-			rc->rx_ring->q_vector->intrl = ec->rx_coalesce_usecs_high;
-			ice_write_intrl(rc->rx_ring->q_vector,
-					ec->rx_coalesce_usecs_high);
-		}
+		if (ec->rx_coalesce_usecs_high != q_vector->intrl)
+			q_vector->intrl = ec->rx_coalesce_usecs_high;
 
 		use_adaptive_coalesce = ec->use_adaptive_rx_coalesce;
 		coalesce_usecs = ec->rx_coalesce_usecs;
 
 		break;
+	}
 	case ICE_TX_CONTAINER:
 		use_adaptive_coalesce = ec->use_adaptive_tx_coalesce;
 		coalesce_usecs = ec->tx_coalesce_usecs;
@@ -3808,12 +3810,16 @@ __ice_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *ec,
 
 			if (ice_set_q_coalesce(vsi, ec, v_idx))
 				return -EINVAL;
+
+			ice_set_q_vector_intrl(vsi->q_vectors[v_idx]);
 		}
 		goto set_complete;
 	}
 
 	if (ice_set_q_coalesce(vsi, ec, q_num))
 		return -EINVAL;
+
+	ice_set_q_vector_intrl(vsi->q_vectors[q_num]);
 
 set_complete:
 	return 0;
@@ -3832,6 +3838,54 @@ ice_set_per_q_coalesce(struct net_device *netdev, u32 q_num,
 		       struct ethtool_coalesce *ec)
 {
 	return __ice_set_coalesce(netdev, ec, q_num);
+}
+
+static void
+ice_repr_get_drvinfo(struct net_device *netdev,
+		     struct ethtool_drvinfo *drvinfo)
+{
+	struct ice_repr *repr = ice_netdev_to_repr(netdev);
+
+	if (ice_check_vf_ready_for_cfg(repr->vf))
+		return;
+
+	__ice_get_drvinfo(netdev, drvinfo, repr->src_vsi);
+}
+
+static void
+ice_repr_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
+{
+	struct ice_repr *repr = ice_netdev_to_repr(netdev);
+
+	/* for port representors only ETH_SS_STATS is supported */
+	if (ice_check_vf_ready_for_cfg(repr->vf) ||
+	    stringset != ETH_SS_STATS)
+		return;
+
+	__ice_get_strings(netdev, stringset, data, repr->src_vsi);
+}
+
+static void
+ice_repr_get_ethtool_stats(struct net_device *netdev,
+			   struct ethtool_stats __always_unused *stats,
+			   u64 *data)
+{
+	struct ice_repr *repr = ice_netdev_to_repr(netdev);
+
+	if (ice_check_vf_ready_for_cfg(repr->vf))
+		return;
+
+	__ice_get_ethtool_stats(netdev, stats, data, repr->src_vsi);
+}
+
+static int ice_repr_get_sset_count(struct net_device *netdev, int sset)
+{
+	switch (sset) {
+	case ETH_SS_STATS:
+		return ICE_VSI_STATS_LEN;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 #define ICE_I2C_EEPROM_DEV_ADDR		0xA0
@@ -4088,9 +4142,9 @@ void ice_set_ethtool_safe_mode_ops(struct net_device *netdev)
 static const struct ethtool_ops ice_ethtool_repr_ops = {
 	.get_drvinfo		= ice_repr_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
-	.get_strings		= ice_get_strings,
-	.get_ethtool_stats      = ice_get_ethtool_stats,
-	.get_sset_count		= ice_get_sset_count,
+	.get_strings		= ice_repr_get_strings,
+	.get_ethtool_stats      = ice_repr_get_ethtool_stats,
+	.get_sset_count		= ice_repr_get_sset_count,
 };
 
 /**

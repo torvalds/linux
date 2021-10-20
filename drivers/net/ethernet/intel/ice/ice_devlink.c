@@ -452,10 +452,8 @@ struct ice_pf *ice_allocate_pf(struct device *dev)
 		return NULL;
 
 	/* Add an action to teardown the devlink when unwinding the driver */
-	if (devm_add_action(dev, ice_devlink_free, devlink)) {
-		devlink_free(devlink);
+	if (devm_add_action_or_reset(dev, ice_devlink_free, devlink))
 		return NULL;
-	}
 
 	return devlink_priv(devlink);
 }

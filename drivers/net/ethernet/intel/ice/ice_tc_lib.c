@@ -274,6 +274,8 @@ ice_eswitch_add_tc_fltr(struct ice_vsi *vsi, struct ice_tc_flower_fltr *fltr)
 		rule_info.sw_act.flag |= ICE_FLTR_TX;
 		rule_info.sw_act.src = vsi->idx;
 		rule_info.rx = false;
+		rule_info.flags_info.act = ICE_SINGLE_ACT_LAN_ENABLE;
+		rule_info.flags_info.act_valid = true;
 	}
 
 	/* specify the cookie as filter_rule_id */
@@ -295,12 +297,6 @@ ice_eswitch_add_tc_fltr(struct ice_vsi *vsi, struct ice_tc_flower_fltr *fltr)
 	 */
 	fltr->rid = rule_added.rid;
 	fltr->rule_id = rule_added.rule_id;
-
-	if (fltr->direction == ICE_ESWITCH_FLTR_EGRESS) {
-		if (ice_fltr_update_flags(vsi, fltr->rule_id, fltr->rid,
-					  ICE_SINGLE_ACT_LAN_ENABLE))
-			ice_rem_adv_rule_by_id(hw, &rule_added);
-	}
 
 exit:
 	kfree(list);
