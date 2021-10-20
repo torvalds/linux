@@ -4577,6 +4577,19 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			retry = 1;
 			delay = 100;
 			break;
+		case IOERR_SLI_ABORTED:
+			/* Retry ELS PLOGI command?
+			 * Possibly the rport just wasn't ready.
+			 */
+			if (cmd == ELS_CMD_PLOGI) {
+				/* No retry if state change */
+				if (ndlp &&
+				    ndlp->nlp_state != NLP_STE_PLOGI_ISSUE)
+					goto out_retry;
+				retry = 1;
+				maxretry = 2;
+			}
+			break;
 		}
 		break;
 
