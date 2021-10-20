@@ -87,6 +87,7 @@
 			compatible = "arm,cortex-a55";
 			reg = <0x0>;
 			enable-method = "psci";
+			capacity-dmips-mhz = <530>;
 		};
 
 		cpu_l1: cpu@100 {
@@ -94,6 +95,7 @@
 			compatible = "arm,cortex-a55";
 			reg = <0x100>;
 			enable-method = "psci";
+			capacity-dmips-mhz = <530>;
 		};
 
 		cpu_l2: cpu@200 {
@@ -101,6 +103,7 @@
 			compatible = "arm,cortex-a55";
 			reg = <0x200>;
 			enable-method = "psci";
+			capacity-dmips-mhz = <530>;
 		};
 
 		cpu_l3: cpu@300 {
@@ -108,6 +111,7 @@
 			compatible = "arm,cortex-a55";
 			reg = <0x300>;
 			enable-method = "psci";
+			capacity-dmips-mhz = <530>;
 		};
 
 		cpu_b0: cpu@400 {
@@ -115,6 +119,7 @@
 			compatible = "arm,cortex-a76";
 			reg = <0x400>;
 			enable-method = "psci";
+			capacity-dmips-mhz = <1024>;
 		};
 
 		cpu_b1: cpu@500 {
@@ -122,6 +127,7 @@
 			compatible = "arm,cortex-a76";
 			reg = <0x500>;
 			enable-method = "psci";
+			capacity-dmips-mhz = <1024>;
 		};
 
 		cpu_b2: cpu@600 {
@@ -129,6 +135,7 @@
 			compatible = "arm,cortex-a76";
 			reg = <0x600>;
 			enable-method = "psci";
+			capacity-dmips-mhz = <1024>;
 		};
 
 		cpu_b3: cpu@700 {
@@ -136,6 +143,7 @@
 			compatible = "arm,cortex-a76";
 			reg = <0x700>;
 			enable-method = "psci";
+			capacity-dmips-mhz = <1024>;
 		};
 	};
 
