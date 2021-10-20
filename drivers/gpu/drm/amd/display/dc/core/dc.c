@@ -1750,8 +1750,11 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 
 	result = dc->hwss.apply_ctx_to_hw(dc, context);
 
-	if (result != DC_OK)
+	if (result != DC_OK) {
+		/* Application of dc_state to hardware stopped. */
+		dc->current_state->res_ctx.link_enc_cfg_ctx.mode = LINK_ENC_CFG_STEADY;
 		return result;
+	}
 
 	dc_trigger_sync(dc, context);
 

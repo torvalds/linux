@@ -3015,12 +3015,11 @@ bool pipe_need_reprogram(
 	if (pipe_ctx_old->stream->ctx->dc->res_pool->funcs->link_encs_assign) {
 		bool need_reprogram = false;
 		struct dc *dc = pipe_ctx_old->stream->ctx->dc;
-		enum link_enc_cfg_mode mode = dc->current_state->res_ctx.link_enc_cfg_ctx.mode;
+		struct link_encoder *link_enc_prev =
+			link_enc_cfg_get_link_enc_used_by_stream_current(dc, pipe_ctx_old->stream);
 
-		dc->current_state->res_ctx.link_enc_cfg_ctx.mode = LINK_ENC_CFG_STEADY;
-		if (link_enc_cfg_get_link_enc_used_by_stream(dc, pipe_ctx_old->stream) != pipe_ctx->stream->link_enc)
+		if (link_enc_prev != pipe_ctx->stream->link_enc)
 			need_reprogram = true;
-		dc->current_state->res_ctx.link_enc_cfg_ctx.mode = mode;
 
 		return need_reprogram;
 	}
