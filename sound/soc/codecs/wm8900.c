@@ -1252,17 +1252,11 @@ static int wm8900_spi_probe(struct spi_device *spi)
 	return ret;
 }
 
-static int wm8900_spi_remove(struct spi_device *spi)
-{
-	return 0;
-}
-
 static struct spi_driver wm8900_spi_driver = {
 	.driver = {
 		.name	= "wm8900",
 	},
 	.probe		= wm8900_spi_probe,
-	.remove		= wm8900_spi_remove,
 };
 #endif /* CONFIG_SPI_MASTER */
 
