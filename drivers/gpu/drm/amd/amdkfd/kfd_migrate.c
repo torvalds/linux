@@ -268,6 +268,19 @@ static void svm_migrate_put_sys_page(unsigned long addr)
 	put_page(page);
 }
 
+static unsigned long svm_migrate_successful_pages(struct migrate_vma *migrate)
+{
+	unsigned long cpages = 0;
+	unsigned long i;
+
+	for (i = 0; i < migrate->npages; i++) {
+		if (migrate->src[i] & MIGRATE_PFN_VALID &&
+		    migrate->src[i] & MIGRATE_PFN_MIGRATE)
+			cpages++;
+	}
+	return cpages;
+}
+
 static int
 svm_migrate_copy_to_vram(struct amdgpu_device *adev, struct svm_range *prange,
 			 struct migrate_vma *migrate, struct dma_fence **mfence,
@@ -429,6 +442,10 @@ svm_migrate_vma_to_vram(struct amdgpu_device *adev, struct svm_range *prange,
 
 	r = svm_migrate_copy_to_vram(adev, prange, &migrate, &mfence, scratch);
 	migrate_vma_pages(&migrate);
+
+	pr_debug("successful/cpages/npages 0x%lx/0x%lx/0x%lx\n",
+		svm_migrate_successful_pages(&migrate), cpages, migrate.npages);
+
 	svm_migrate_copy_done(adev, mfence);
 	migrate_vma_finalize(&migrate);
 
@@ -665,6 +682,10 @@ svm_migrate_vma_to_ram(struct amdgpu_device *adev, struct svm_range *prange,
 	r = svm_migrate_copy_to_ram(adev, prange, &migrate, &mfence,
 				    scratch, npages);
 	migrate_vma_pages(&migrate);
+
+	pr_debug("successful/cpages/npages 0x%lx/0x%lx/0x%lx\n",
+		svm_migrate_successful_pages(&migrate), cpages, migrate.npages);
+
 	svm_migrate_copy_done(adev, mfence);
 	migrate_vma_finalize(&migrate);
 	svm_range_dma_unmap(adev->dev, scratch, 0, npages);
