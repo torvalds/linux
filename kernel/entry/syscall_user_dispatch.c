@@ -47,14 +47,18 @@ bool syscall_user_dispatch(struct pt_regs *regs)
 		 * access_ok() is performed once, at prctl time, when
 		 * the selector is loaded by userspace.
 		 */
-		if (unlikely(__get_user(state, sd->selector)))
-			do_exit(SIGSEGV);
+		if (unlikely(__get_user(state, sd->selector))) {
+			force_fatal_sig(SIGSEGV);
+			return true;
+		}
 
 		if (likely(state == SYSCALL_DISPATCH_FILTER_ALLOW))
 			return false;
 
-		if (state != SYSCALL_DISPATCH_FILTER_BLOCK)
-			do_exit(SIGSYS);
+		if (state != SYSCALL_DISPATCH_FILTER_BLOCK) {
+			force_fatal_sig(SIGSYS);
+			return true;
+		}
 	}
 
 	sd->on_dispatch = true;
