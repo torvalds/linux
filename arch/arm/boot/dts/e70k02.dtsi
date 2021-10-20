@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright 2019 Andreas Kemnade
+ * Copyright 2021 Andreas Kemnade
  * based on works
  * Copyright 2016 Freescale Semiconductor, Inc.
  * and
  * Copyright (C) 2014 Ricoh Electronic Devices Co., Ltd
  *
- * Netronix E60K02 board common.
+ * Netronix E70K02 board common.
  * This board is equipped with different SoCs and
  * found in ebook-readers like the Kobo Clara HD (with i.MX6SLL) and
  * the Tolino Shine 3 (with i.MX6SL)
@@ -14,6 +14,10 @@
 #include <dt-bindings/input/input.h>
 
 / {
+	aliases {
+		mmc0 = &usdhc1;
+		mmc1 = &usdhc3;
+	};
 
 	chosen {
 		stdout-path = &uart1;
@@ -24,17 +28,29 @@
 
 		power {
 			label = "Power";
-			gpios = <&gpio5 8 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio4 25 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
 			wakeup-source;
 		};
 
 		cover {
 			label = "Cover";
-			gpios = <&gpio5 12 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio4 23 GPIO_ACTIVE_LOW>;
 			linux,code = <SW_LID>;
 			linux,input-type = <EV_SW>;
 			wakeup-source;
+		};
+
+		pageup {
+			label = "PageUp";
+			gpios = <&gpio4 0 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_PAGEUP>;
+		};
+
+		pagedown {
+			label = "PageDown";
+			gpios = <&gpio4 2 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_PAGEDOWN>;
 		};
 	};
 
@@ -42,8 +58,8 @@
 		compatible = "gpio-leds";
 
 		led {
-			label = "e60k02:white:on";
-			gpios = <&gpio5 7 GPIO_ACTIVE_LOW>;
+			label = "e70k02:white:on";
+			gpios = <&gpio4 17 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "timer";
 		};
 	};
@@ -62,13 +78,12 @@
 		enable-active-high;
 	};
 
-	wifi_pwrseq: wifi_pwrseq {
+	wifi_pwrseq: wifi-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		post-power-on-delay-ms = <20>;
 		reset-gpios = <&gpio5 0 GPIO_ACTIVE_LOW>;
 	};
 };
-
 
 &i2c1 {
 	clock-frequency = <100000>;
@@ -98,6 +113,9 @@
 			max-brightness = <255>;
 		};
 	};
+
+	/* TODO: KX122 acceleration sensor a 0x1e */
+
 };
 
 &i2c2 {
@@ -106,7 +124,7 @@
 
 	/* TODO: CYTTSP5 touch controller at 0x24 */
 
-	/* TODO: TPS65185 PMIC for E Ink at 0x68 */
+	/* TODO: SY7636 PMIC for E Ink at 0x62 */
 
 };
 
@@ -117,8 +135,8 @@
 	ricoh619: pmic@32 {
 		compatible = "ricoh,rc5t619";
 		reg = <0x32>;
-		interrupt-parent = <&gpio5>;
-		interrupts = <11 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <19 IRQ_TYPE_EDGE_FALLING>;
 		system-power-controller;
 
 		regulators {
@@ -193,7 +211,6 @@
 				};
 			};
 
-			/* IR_3V3 */
 			ldo1_reg: LDO1  {
 				regulator-name = "LDO1";
 				regulator-boot-on;
@@ -241,7 +258,6 @@
 			/* VDD_PWM */
 			ldo7_reg: LDO7 {
 				regulator-name = "LDO7";
-				regulator-always-on;
 				regulator-boot-on;
 			};
 
@@ -250,7 +266,6 @@
 				regulator-name = "LDO8";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
-				regulator-always-on;
 				regulator-boot-on;
 			};
 
@@ -278,17 +293,12 @@
 };
 
 &uart1 {
-	/* J4, through-hole */
 	status = "okay";
 };
 
-&uart4 {
-	/* TP198, next to J4, SMD pads */
-	status = "okay";
-};
-
-&usdhc2 {
+&usdhc1 {
 	non-removable;
+	no-1-8-v;
 	status = "okay";
 };
 

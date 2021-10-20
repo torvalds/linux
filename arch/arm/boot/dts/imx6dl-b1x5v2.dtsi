@@ -47,7 +47,6 @@
 	mpl3115a2: pressure-sensor@60 {
 		compatible = "fsl,mpl3115";
 		reg = <0x60>;
-		vcc-supply = <&reg_3v3_acm>;
 
 		/*
 		 * The MPL3115 interrupts are connected to pin 22 and 23
