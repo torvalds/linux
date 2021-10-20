@@ -325,86 +325,6 @@
 			"presence-lcd-op",
 			"presence-base-op",
 			"";
-
-		gpio@0 {
-			reg = <0>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@1 {
-			reg = <1>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@2 {
-			reg = <2>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@3 {
-			reg = <3>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@4 {
-			reg = <4>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@5 {
-			reg = <5>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@6 {
-			reg = <6>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@7 {
-			reg = <7>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@8 {
-			reg = <8>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@9 {
-			reg = <9>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@10 {
-			reg = <10>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@11 {
-			reg = <11>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@12 {
-			reg = <12>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@13 {
-			reg = <13>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@14 {
-			reg = <14>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@15 {
-			reg = <15>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
 	};
 };
 
@@ -468,56 +388,6 @@
 			"expander-cable-card3",
 			"expander-cable-card4",
 			"expander-cable-card5";
-
-		gpio@0 {
-			reg = <0>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@1 {
-			reg = <1>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@2 {
-			reg = <2>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@3 {
-			reg = <3>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@4 {
-			reg = <4>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@5 {
-			reg = <5>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@6 {
-			reg = <6>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@7 {
-			reg = <7>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@8 {
-			reg = <8>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@9 {
-			reg = <9>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
 	};
 
 	i2c-switch@70 {
@@ -561,36 +431,6 @@
 					default-state = "keep";
 					type = <PCA955X_TYPE_LED>;
 				};
-
-				gpio@2 {
-					reg = <2>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@3 {
-					reg = <3>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@4 {
-					reg = <4>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@5 {
-					reg = <5>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@6 {
-					reg = <6>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@7 {
-					reg = <7>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
 			};
 		};
 
@@ -626,36 +466,6 @@
 					retain-state-shutdown;
 					default-state = "keep";
 					type = <PCA955X_TYPE_LED>;
-				};
-
-				gpio@2 {
-					reg = <2>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@3 {
-					reg = <3>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@4 {
-					reg = <4>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@5 {
-					reg = <5>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@6 {
-					reg = <6>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@7 {
-					reg = <7>;
-					type = <PCA955X_TYPE_GPIO>;
 				};
 			};
 		};
@@ -693,36 +503,6 @@
 					default-state = "keep";
 					type = <PCA955X_TYPE_LED>;
 				};
-
-				gpio@2 {
-					reg = <2>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@3 {
-					reg = <3>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@4 {
-					reg = <4>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@5 {
-					reg = <5>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@6 {
-					reg = <6>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@7 {
-					reg = <7>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
 			};
 		};
 	};
@@ -753,67 +533,6 @@
 			"expander-cable-card9",
 			"expander-cable-card10",
 			"expander-cable-card11";
-
-		gpio@0 {
-			reg = <0>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@1 {
-			reg = <1>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@2 {
-			reg = <2>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@3 {
-			reg = <3>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@4 {
-			reg = <4>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@5 {
-			reg = <5>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@6 {
-			reg = <6>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@7 {
-			reg = <7>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@8 {
-			reg = <8>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@9 {
-			reg = <9>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@10 {
-			reg = <10>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@11 {
-			reg = <11>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
 	};
 
 	i2c-switch@70 {
@@ -857,36 +576,6 @@
 					default-state = "keep";
 					type = <PCA955X_TYPE_LED>;
 				};
-
-				gpio@2 {
-					reg = <2>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@3 {
-					reg = <3>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@4 {
-					reg = <4>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@5 {
-					reg = <5>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@6 {
-					reg = <6>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@7 {
-					reg = <7>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
 			};
 		};
 
@@ -922,36 +611,6 @@
 					retain-state-shutdown;
 					default-state = "keep";
 					type = <PCA955X_TYPE_LED>;
-				};
-
-				gpio@2 {
-					reg = <2>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@3 {
-					reg = <3>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@4 {
-					reg = <4>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@5 {
-					reg = <5>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@6 {
-					reg = <6>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@7 {
-					reg = <7>;
-					type = <PCA955X_TYPE_GPIO>;
 				};
 			};
 		};
@@ -989,36 +648,6 @@
 					default-state = "keep";
 					type = <PCA955X_TYPE_LED>;
 				};
-
-				gpio@2 {
-					reg = <2>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@3 {
-					reg = <3>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@4 {
-					reg = <4>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@5 {
-					reg = <5>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@6 {
-					reg = <6>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@7 {
-					reg = <7>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
 			};
 		};
 
@@ -1054,36 +683,6 @@
 					retain-state-shutdown;
 					default-state = "keep";
 					type = <PCA955X_TYPE_LED>;
-				};
-
-				gpio@2 {
-					reg = <2>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@3 {
-					reg = <3>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@4 {
-					reg = <4>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@5 {
-					reg = <5>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@6 {
-					reg = <6>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@7 {
-					reg = <7>;
-					type = <PCA955X_TYPE_GPIO>;
 				};
 			};
 		};
@@ -1134,36 +733,6 @@
 					default-state = "keep";
 					type = <PCA955X_TYPE_LED>;
 				};
-
-				gpio@2 {
-					reg = <2>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@3 {
-					reg = <3>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@4 {
-					reg = <4>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@5 {
-					reg = <5>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@6 {
-					reg = <6>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@7 {
-					reg = <7>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
 			};
 		};
 
@@ -1199,36 +768,6 @@
 					retain-state-shutdown;
 					default-state = "keep";
 					type = <PCA955X_TYPE_LED>;
-				};
-
-				gpio@2 {
-					reg = <2>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@3 {
-					reg = <3>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@4 {
-					reg = <4>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@5 {
-					reg = <5>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@6 {
-					reg = <6>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@7 {
-					reg = <7>;
-					type = <PCA955X_TYPE_GPIO>;
 				};
 			};
 		};
@@ -1266,36 +805,6 @@
 					default-state = "keep";
 					type = <PCA955X_TYPE_LED>;
 				};
-
-				gpio@2 {
-					reg = <2>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@3 {
-					reg = <3>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@4 {
-					reg = <4>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@5 {
-					reg = <5>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@6 {
-					reg = <6>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@7 {
-					reg = <7>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
 			};
 		};
 
@@ -1332,36 +841,6 @@
 					default-state = "keep";
 					type = <PCA955X_TYPE_LED>;
 				};
-
-				gpio@2 {
-					reg = <2>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@3 {
-					reg = <3>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@4 {
-					reg = <4>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@5 {
-					reg = <5>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@6 {
-					reg = <6>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@7 {
-					reg = <7>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
 			};
 		};
 	};
@@ -1374,11 +853,6 @@
 
 		gpio-controller;
 		#gpio-cells = <2>;
-
-		gpio@0 {
-			reg = <0>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
 
 		led@1 {
 			label = "pcieslot-c01";
@@ -1466,26 +940,6 @@
 			retain-state-shutdown;
 			default-state = "keep";
 			type = <PCA955X_TYPE_LED>;
-		};
-
-		gpio@12 {
-			reg = <12>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@13 {
-			reg = <13>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@14 {
-			reg = <14>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@15 {
-			reg = <15>;
-			type = <PCA955X_TYPE_GPIO>;
 		};
 	};
 };
@@ -2110,11 +1564,6 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		gpio@7 {
-			reg = <7>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
 		led@8 {
 			label = "vrm4";
 			reg = <8>;
@@ -2243,11 +1692,6 @@
 			retain-state-shutdown;
 			default-state = "keep";
 			type = <PCA955X_TYPE_LED>;
-		};
-
-		gpio@7 {
-			reg = <7>;
-			type = <PCA955X_TYPE_GPIO>;
 		};
 
 		led@8 {
@@ -2679,16 +2123,6 @@
 					default-state = "keep";
 					type = <PCA955X_TYPE_LED>;
 				};
-
-				gpio@14 {
-					reg = <14>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@15 {
-					reg = <15>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
 			};
 
 			pca0: pca9552@61 {
@@ -2708,86 +2142,6 @@
 					"presence-fan2",
 					"presence-fan1",
 					"presence-fan0";
-
-				gpio@0 {
-					reg = <0>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@1 {
-					reg = <1>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@2 {
-					reg = <2>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@3 {
-					reg = <3>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@4 {
-					reg = <4>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@5 {
-					reg = <5>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@6 {
-					reg = <6>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@7 {
-					reg = <7>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@8 {
-					reg = <8>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@9 {
-					reg = <9>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@10 {
-					reg = <10>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@11 {
-					reg = <11>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@12 {
-					reg = <12>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@13 {
-					reg = <13>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@14 {
-					reg = <14>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@15 {
-					reg = <15>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
 			};
 		};
 	};
