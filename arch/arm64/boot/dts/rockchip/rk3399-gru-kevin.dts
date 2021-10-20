@@ -24,6 +24,7 @@
 		     "google,kevin-rev9", "google,kevin-rev8",
 		     "google,kevin-rev7", "google,kevin-rev6",
 		     "google,kevin", "google,gru", "rockchip,rk3399";
+	chassis-type = "convertible";
 
 	/* Power tree */
 
