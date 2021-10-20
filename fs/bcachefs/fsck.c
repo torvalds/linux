@@ -1357,10 +1357,10 @@ static int check_dirent_target(struct btree_trans *trans,
 		}
 
 		if (fsck_err_on(!backpointer_exists, c,
-				"inode %llu has wrong backpointer:\n"
+				"inode %llu:%u has wrong backpointer:\n"
 				"got       %llu:%llu\n"
 				"should be %llu:%llu",
-				target->bi_inum,
+				target->bi_inum, target_snapshot,
 				target->bi_dir,
 				target->bi_dir_offset,
 				d.k->p.inode,
@@ -1730,10 +1730,23 @@ struct pathbuf {
 
 	struct pathbuf_entry {
 		u64	inum;
+		u32	snapshot;
 	}		*entries;
 };
 
-static int path_down(struct pathbuf *p, u64 inum)
+static bool path_is_dup(struct pathbuf *p, u64 inum, u32 snapshot)
+{
+	struct pathbuf_entry *i;
+
+	for (i = p->entries; i < p->entries + p->nr; i++)
+		if (i->inum	== inum &&
+		    i->snapshot	== snapshot)
+			return true;
+
+	return false;
+}
+
+static int path_down(struct pathbuf *p, u64 inum, u32 snapshot)
 {
 	if (p->nr == p->size) {
 		size_t new_size = max_t(size_t, 256UL, p->size * 2);
@@ -1749,18 +1762,23 @@ static int path_down(struct pathbuf *p, u64 inum)
 	};
 
 	p->entries[p->nr++] = (struct pathbuf_entry) {
-		.inum = inum,
+		.inum		= inum,
+		.snapshot	= snapshot,
 	};
 	return 0;
 }
 
+/*
+ * Check that a given inode is reachable from the root:
+ *
+ * XXX: we should also be verifying that inodes are in the right subvolumes
+ */
 static int check_path(struct btree_trans *trans,
 		      struct pathbuf *p,
 		      struct bch_inode_unpacked *inode,
 		      u32 snapshot)
 {
 	struct bch_fs *c = trans->c;
-	size_t i;
 	int ret = 0;
 
 	snapshot = snapshot_t(c, snapshot)->equiv;
@@ -1768,17 +1786,19 @@ static int check_path(struct btree_trans *trans,
 
 	while (!(inode->bi_inum == BCACHEFS_ROOT_INO &&
 		 inode->bi_subvol == BCACHEFS_ROOT_SUBVOL)) {
+		u32 parent_snapshot = snapshot;
+
 		if (inode->bi_parent_subvol) {
 			u64 inum;
 
 			ret = subvol_lookup(trans, inode->bi_parent_subvol,
-					    &snapshot, &inum);
+					    &parent_snapshot, &inum);
 			if (ret)
 				break;
 		}
 
 		ret = lockrestart_do(trans,
-			inode_backpointer_exists(trans, inode, snapshot));
+			inode_backpointer_exists(trans, inode, parent_snapshot));
 		if (ret < 0)
 			break;
 
@@ -1797,17 +1817,31 @@ static int check_path(struct btree_trans *trans,
 		if (!S_ISDIR(inode->bi_mode))
 			break;
 
-		ret = path_down(p, inode->bi_inum);
+		ret = path_down(p, inode->bi_inum, snapshot);
 		if (ret) {
 			bch_err(c, "memory allocation failure");
 			return ret;
 		}
 
-		for (i = 0; i < p->nr; i++) {
-			if (inode->bi_dir != p->entries[i].inum)
-				continue;
+		snapshot = parent_snapshot;
+
+		ret = lookup_inode(trans, inode->bi_dir, inode, &snapshot);
+		if (ret) {
+			/* Should have been caught in dirents pass */
+			bch_err(c, "error looking up parent directory: %i", ret);
+			break;
+		}
+
+		if (path_is_dup(p, inode->bi_inum, snapshot)) {
+			struct pathbuf_entry *i;
 
 			/* XXX print path */
+			bch_err(c, "directory structure loop");
+
+			for (i = p->entries; i < p->entries + p->nr; i++)
+				pr_err("%llu:%u", i->inum, i->snapshot);
+			pr_err("%llu:%u", inode->bi_inum, snapshot);
+
 			if (!fsck_err(c, "directory structure loop"))
 				return 0;
 
@@ -1819,14 +1853,6 @@ static int check_path(struct btree_trans *trans,
 			}
 
 			ret = reattach_inode(trans, inode, snapshot);
-			break;
-		}
-
-		ret = lookup_inode(trans, inode->bi_dir, inode, &snapshot);
-		if (ret) {
-			/* Should have been caught in dirents pass */
-			bch_err(c, "error looking up parent directory: %i", ret);
-			break;
 		}
 	}
 fsck_err:
