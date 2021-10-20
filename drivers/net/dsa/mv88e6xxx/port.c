@@ -1257,6 +1257,27 @@ int mv88e6xxx_port_set_8021q_mode(struct mv88e6xxx_chip *chip, int port,
 	return 0;
 }
 
+int mv88e6xxx_port_drop_untagged(struct mv88e6xxx_chip *chip, int port,
+				 bool drop_untagged)
+{
+	u16 old, new;
+	int err;
+
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_CTL2, &old);
+	if (err)
+		return err;
+
+	if (drop_untagged)
+		new = old | MV88E6XXX_PORT_CTL2_DISCARD_UNTAGGED;
+	else
+		new = old & ~MV88E6XXX_PORT_CTL2_DISCARD_UNTAGGED;
+
+	if (new == old)
+		return 0;
+
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL2, new);
+}
+
 int mv88e6xxx_port_set_map_da(struct mv88e6xxx_chip *chip, int port)
 {
 	u16 reg;

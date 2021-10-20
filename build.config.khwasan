@@ -1,0 +1,17 @@
+append_cmd POST_DEFCONFIG_CMDS update_khwasan_config
+
+function update_khwasan_config() {
+  ${KERNEL_DIR}/scripts/config --file ${OUT_DIR}/.config \
+    -e CONFIG_KASAN \
+    -d CONFIG_KASAN_HW_TAGS \
+    -e CONFIG_KASAN_SW_TAGS \
+    -e CONFIG_KASAN_OUTLINE \
+    -e CONFIG_KASAN_PANIC_ON_WARN \
+    -e CONFIG_KCOV \
+    -e CONFIG_PANIC_ON_WARN_DEFAULT_ENABLE \
+    -d CONFIG_RANDOMIZE_BASE \
+    --set-val CONFIG_FRAME_WARN 0 \
+    -d SHADOW_CALL_STACK
+  (cd ${OUT_DIR} && \
+   make O=${OUT_DIR} "${TOOL_ARGS[@]}" ${MAKE_ARGS} olddefconfig)
+}

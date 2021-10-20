@@ -160,6 +160,51 @@ DEFINE_EVENT(softirq, softirq_raise,
 	TP_ARGS(vec_nr)
 );
 
+DECLARE_EVENT_CLASS(tasklet,
+
+	TP_PROTO(void *func),
+
+	TP_ARGS(func),
+
+	TP_STRUCT__entry(
+		__field( void *,	func)
+	),
+
+	TP_fast_assign(
+		__entry->func = func;
+	),
+
+	TP_printk("function=%ps", __entry->func)
+);
+
+DEFINE_EVENT(tasklet, tasklet_entry,
+
+	TP_PROTO(void *func),
+
+	TP_ARGS(func)
+);
+
+DEFINE_EVENT(tasklet, tasklet_exit,
+
+	TP_PROTO(void *func),
+
+	TP_ARGS(func)
+);
+
+DEFINE_EVENT(tasklet, tasklet_hi_entry,
+
+	TP_PROTO(void *func),
+
+	TP_ARGS(func)
+);
+
+DEFINE_EVENT(tasklet, tasklet_hi_exit,
+
+	TP_PROTO(void *func),
+
+	TP_ARGS(func)
+);
+
 #endif /*  _TRACE_IRQ_H */
 
 /* This part must be outside protection */

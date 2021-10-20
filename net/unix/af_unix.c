@@ -828,7 +828,7 @@ static void unix_unhash(struct sock *sk)
 }
 
 struct proto unix_dgram_proto = {
-	.name			= "UNIX-DGRAM",
+	.name			= "UNIX",
 	.owner			= THIS_MODULE,
 	.obj_size		= sizeof(struct unix_sock),
 	.close			= unix_close,

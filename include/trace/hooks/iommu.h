@@ -12,17 +12,19 @@
 #include <linux/tracepoint.h>
 #include <trace/hooks/vendor_hooks.h>
 
-#if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
-
 DECLARE_HOOK(android_vh_iommu_setup_dma_ops,
 	TP_PROTO(struct device *dev, u64 dma_base, u64 dma_limit),
 	TP_ARGS(dev, dma_base, dma_limit));
 
-#else
+struct iova_domain;
 
-#define trace_android_vh_iommu_setup_dma_ops(dev, dma_base, dma_limit)
+DECLARE_HOOK(android_vh_iommu_iovad_alloc_iova,
+	TP_PROTO(struct device *dev, struct iova_domain *iovad, dma_addr_t iova, size_t size),
+	TP_ARGS(dev, iovad, iova, size));
 
-#endif
+DECLARE_HOOK(android_vh_iommu_iovad_free_iova,
+	TP_PROTO(struct iova_domain *iovad, dma_addr_t iova, size_t size),
+	TP_ARGS(iovad, iova, size));
 
 #endif /* _TRACE_HOOK_IOMMU_H */
 

@@ -4535,7 +4535,11 @@ static struct sched_entity *
 pick_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 {
 	struct sched_entity *left = __pick_first_entity(cfs_rq);
-	struct sched_entity *se;
+	struct sched_entity *se = NULL;
+
+	trace_android_rvh_pick_next_entity(cfs_rq, curr, &se);
+	if (se)
+		goto done;
 
 	/*
 	 * If curr is set we have to see if its left of the leftmost entity
@@ -4577,6 +4581,7 @@ pick_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 		se = cfs_rq->last;
 	}
 
+done:
 	return se;
 }
 
@@ -7213,6 +7218,7 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int wake_
 	int next_buddy_marked = 0;
 	int cse_is_idle, pse_is_idle;
 	bool ignore = false;
+	bool preempt = false;
 
 	if (unlikely(se == pse))
 		return;
@@ -7275,6 +7281,12 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int wake_
 		return;
 
 	update_curr(cfs_rq_of(se));
+	trace_android_rvh_check_preempt_wakeup(rq, p, &preempt, &ignore);
+	if (preempt)
+		goto preempt;
+	if (ignore)
+		return;
+
 	if (wakeup_preempt_entity(se, pse) == 1) {
 		/*
 		 * Bias pick_next to pick the sched entity that is
@@ -7342,8 +7354,8 @@ struct task_struct *
 pick_next_task_fair(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
 {
 	struct cfs_rq *cfs_rq = &rq->cfs;
-	struct sched_entity *se;
-	struct task_struct *p;
+	struct sched_entity *se = NULL;
+	struct task_struct *p = NULL;
 	int new_tasks;
 	bool repick = false;
 

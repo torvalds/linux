@@ -184,6 +184,7 @@ void optee_fill_pages_list(u64 *dst, struct page **pages, int num_pages,
 #define PTA_CMD_GET_DEVICES		0x0
 #define PTA_CMD_GET_DEVICES_SUPP	0x1
 int optee_enumerate_devices(u32 func);
+void optee_unregister_devices(void);
 
 /*
  * Small helpers
