@@ -123,13 +123,13 @@ void bch_count_io_errors(struct cache *ca,
 		errors >>= IO_ERROR_SHIFT;
 
 		if (errors < ca->set->error_limit)
-			pr_err("%s: IO error on %s%s\n",
-			       ca->cache_dev_name, m,
+			pr_err("%pg: IO error on %s%s\n",
+			       ca->bdev, m,
 			       is_read ? ", recovering." : ".");
 		else
 			bch_cache_set_error(ca->set,
-					    "%s: too many IO errors %s\n",
-					    ca->cache_dev_name, m);
+					    "%pg: too many IO errors %s\n",
+					    ca->bdev, m);
 	}
 }
 
