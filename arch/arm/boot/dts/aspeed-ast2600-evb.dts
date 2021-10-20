@@ -550,3 +550,21 @@
 	status = "okay";
 	aspeed,lpc-io-reg = <0xca4>;
 };
+
+/*
+ * I3C loopback: connect I3C0 (slave) to I3C1 (master)
+ * Three devices will be created under /sys/bus/i3c/devices
+ *   i3c-0: represent i3c0 controller, play the role as the slave device
+ *   i3c-1: represent i3c1 controller, play the role as the master device
+ *   1-7ec05030000: represent the slave device attached to the bus hosted by
+ *                  i3c-1 controller.  In this case, 1-7ec05030000 maps to the
+ *                  physical device i3c0.
+ */
+&i3c0 {
+	status = "okay";
+	secondary;
+};
+
+&i3c1 {
+	status = "okay";
+};
