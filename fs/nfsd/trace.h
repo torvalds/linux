@@ -13,22 +13,6 @@
 #include "export.h"
 #include "nfsfh.h"
 
-#define NFSD_TRACE_PROC_ARG_FIELDS \
-		__field(unsigned int, netns_ino) \
-		__field(u32, xid) \
-		__array(unsigned char, server, sizeof(struct sockaddr_in6)) \
-		__array(unsigned char, client, sizeof(struct sockaddr_in6))
-
-#define NFSD_TRACE_PROC_ARG_ASSIGNMENTS \
-		do { \
-			__entry->netns_ino = SVC_NET(rqstp)->ns.inum; \
-			__entry->xid = be32_to_cpu(rqstp->rq_xid); \
-			memcpy(__entry->server, &rqstp->rq_xprt->xpt_local, \
-			       rqstp->rq_xprt->xpt_locallen); \
-			memcpy(__entry->client, &rqstp->rq_xprt->xpt_remote, \
-			       rqstp->rq_xprt->xpt_remotelen); \
-		} while (0);
-
 #define NFSD_TRACE_PROC_RES_FIELDS \
 		__field(unsigned int, netns_ino) \
 		__field(u32, xid) \
@@ -53,16 +37,22 @@ DECLARE_EVENT_CLASS(nfsd_xdr_err_class,
 	),
 	TP_ARGS(rqstp),
 	TP_STRUCT__entry(
-		NFSD_TRACE_PROC_ARG_FIELDS
-
+		__field(unsigned int, netns_ino)
+		__field(u32, xid)
 		__field(u32, vers)
 		__field(u32, proc)
+		__sockaddr(server, rqstp->rq_xprt->xpt_locallen)
+		__sockaddr(client, rqstp->rq_xprt->xpt_remotelen)
 	),
 	TP_fast_assign(
-		NFSD_TRACE_PROC_ARG_ASSIGNMENTS
+		const struct svc_xprt *xprt = rqstp->rq_xprt;
 
+		__entry->netns_ino = xprt->xpt_net->ns.inum;
+		__entry->xid = be32_to_cpu(rqstp->rq_xid);
 		__entry->vers = rqstp->rq_vers;
 		__entry->proc = rqstp->rq_proc;
+		__assign_sockaddr(server, &xprt->xpt_local, xprt->xpt_locallen);
+		__assign_sockaddr(client, &xprt->xpt_remote, xprt->xpt_remotelen);
 	),
 	TP_printk("xid=0x%08x vers=%u proc=%u",
 		__entry->xid, __entry->vers, __entry->proc
