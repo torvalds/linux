@@ -1469,7 +1469,6 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 		break;
 	case HW_VAR_DM_FUNC_SET:
 		if (*((u32 *)val) == DYNAMIC_ALL_FUNC_ENABLE) {
-			pdmpriv->DMFlag = pdmpriv->InitDMFlag;
 			podmpriv->SupportAbility =	pdmpriv->InitODMFlag;
 		} else {
 			podmpriv->SupportAbility |= *((u32 *)val);

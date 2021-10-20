@@ -87,12 +87,9 @@ static void Update_ODM_ComInfo_88E(struct adapter *Adapter)
 void rtl8188e_InitHalDm(struct adapter *Adapter)
 {
 	struct hal_data_8188e *hal_data = GET_HAL_DATA(Adapter);
-	struct dm_priv	*pdmpriv = &hal_data->dmpriv;
 	struct odm_dm_struct *dm_odm = &hal_data->odmpriv;
 
 	dm_InitGPIOSetting(Adapter);
-	pdmpriv->DM_Type = DM_Type_ByDriver;
-	pdmpriv->DMFlag = DYNAMIC_FUNC_DISABLE;
 	Update_ODM_ComInfo_88E(Adapter);
 	ODM_DMInit(dm_odm);
 	Adapter->fix_rate = 0xFF;

@@ -15,14 +15,9 @@ enum{
 #define HP_THERMAL_NUM		8
 /*  duplicate code,will move to ODM ######### */
 struct	dm_priv {
-	u8	DM_Type;
-	u8	DMFlag;
-	u8	InitDMFlag;
 	u32	InitODMFlag;
 
 	/*  Upper and Lower Signal threshold for Rate Adaptive*/
-	int	UndecoratedSmoothedPWDB;
-	int	UndecoratedSmoothedCCK;
 	int	EntryMinUndecoratedSmoothedPWDB;
 	int	EntryMaxUndecoratedSmoothedPWDB;
 	int	MinUndecoratedPWDBForDM;
