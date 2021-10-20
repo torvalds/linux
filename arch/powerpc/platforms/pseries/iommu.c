@@ -1302,6 +1302,12 @@ static bool enable_ddw(struct pci_dev *dev, struct device_node *pdn)
 		struct property *default_win;
 		int reset_win_ext;
 
+		/* DDW + IOMMU on single window may fail if there is any allocation */
+		if (iommu_table_in_use(tbl)) {
+			dev_warn(&dev->dev, "current IOMMU table in use, can't be replaced.\n");
+			goto out_failed;
+		}
+
 		default_win = of_find_property(pdn, "ibm,dma-window", NULL);
 		if (!default_win)
 			goto out_failed;
@@ -1355,12 +1361,6 @@ static bool enable_ddw(struct pci_dev *dev, struct device_node *pdn)
 			1ULL << len,
 			query.largest_available_block,
 			1ULL << page_shift);
-
-		/* DDW + IOMMU on single window may fail if there is any allocation */
-		if (default_win_removed && iommu_table_in_use(tbl)) {
-			dev_dbg(&dev->dev, "current IOMMU table in use, can't be replaced.\n");
-			goto out_failed;
-		}
 
 		len = order_base_2(query.largest_available_block << page_shift);
 		win_name = DMA64_PROPNAME;
