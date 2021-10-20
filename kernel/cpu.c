@@ -1127,7 +1127,7 @@ static int cpu_down(unsigned int cpu, enum cpuhp_state target)
 {
 	int err;
 
-	trace_android_vh_cpu_down(cpu);
+	trace_android_vh_cpu_down(NULL);
 
 	cpu_maps_update_begin();
 	err = cpu_down_maps_locked(cpu, target);
