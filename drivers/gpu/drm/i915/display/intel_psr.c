@@ -1346,6 +1346,7 @@ void intel_psr_disable(struct intel_dp *intel_dp,
  */
 void intel_psr_pause(struct intel_dp *intel_dp)
 {
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	struct intel_psr *psr = &intel_dp->psr;
 
 	if (!CAN_PSR(intel_dp))
@@ -1357,6 +1358,9 @@ void intel_psr_pause(struct intel_dp *intel_dp)
 		mutex_unlock(&psr->lock);
 		return;
 	}
+
+	/* If we ever hit this, we will need to add refcount to pause/resume */
+	drm_WARN_ON(&dev_priv->drm, psr->paused);
 
 	intel_psr_exit(intel_dp);
 	intel_psr_wait_exit_locked(intel_dp);
