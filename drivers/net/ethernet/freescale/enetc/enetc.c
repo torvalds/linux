@@ -813,10 +813,7 @@ static bool enetc_clean_tx_ring(struct enetc_bdr *tx_ring, int napi_budget)
 		bool is_eof = tx_swbd->is_eof;
 
 		if (unlikely(tx_swbd->check_wb)) {
-			struct enetc_ndev_priv *priv = netdev_priv(ndev);
-			union enetc_tx_bd *txbd;
-
-			txbd = ENETC_TXBD(*tx_ring, i);
+			union enetc_tx_bd *txbd = ENETC_TXBD(*tx_ring, i);
 
 			if (txbd->flags & ENETC_TXBD_FLAGS_W &&
 			    tx_swbd->do_twostep_tstamp) {
