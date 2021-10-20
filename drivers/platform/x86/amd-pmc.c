@@ -17,9 +17,11 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
+#include <linux/limits.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
+#include <linux/rtc.h>
 #include <linux/suspend.h>
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
@@ -412,20 +414,76 @@ static int amd_pmc_get_os_hint(struct amd_pmc_dev *dev)
 	return -EINVAL;
 }
 
+static int amd_pmc_verify_czn_rtc(struct amd_pmc_dev *pdev, u32 *arg)
+{
+	struct rtc_device *rtc_device;
+	time64_t then, now, duration;
+	struct rtc_wkalrm alarm;
+	struct rtc_time tm;
+	int rc;
+
+	if (pdev->major < 64 || (pdev->major == 64 && pdev->minor < 53))
+		return 0;
+
+	rtc_device = rtc_class_open(CONFIG_RTC_SYSTOHC_DEVICE);
+	if (!rtc_device)
+		return 0;
+	rc = rtc_read_alarm(rtc_device, &alarm);
+	if (rc)
+		return rc;
+	if (!alarm.enabled) {
+		dev_dbg(pdev->dev, "alarm not enabled\n");
+		return 0;
+	}
+	rc = rtc_valid_tm(&alarm.time);
+	if (rc)
+		return rc;
+	rc = rtc_read_time(rtc_device, &tm);
+	if (rc)
+		return rc;
+	then = rtc_tm_to_time64(&alarm.time);
+	now = rtc_tm_to_time64(&tm);
+	duration = then-now;
+
+	/* in the past */
+	if (then < now)
+		return 0;
+
+	/* will be stored in upper 16 bits of s0i3 hint argument,
+	 * so timer wakeup from s0i3 is limited to ~18 hours or less
+	 */
+	if (duration <= 4 || duration > U16_MAX)
+		return -EINVAL;
+
+	*arg |= (duration << 16);
+	rc = rtc_alarm_irq_enable(rtc_device, 0);
+	dev_info(pdev->dev, "wakeup timer programmed for %lld seconds\n", duration);
+
+	return rc;
+}
+
 static int __maybe_unused amd_pmc_suspend(struct device *dev)
 {
 	struct amd_pmc_dev *pdev = dev_get_drvdata(dev);
 	int rc;
 	u8 msg;
+	u32 arg = 1;
 
 	/* Reset and Start SMU logging - to monitor the s0i3 stats */
 	amd_pmc_send_cmd(pdev, 0, NULL, SMU_MSG_LOG_RESET, 0);
 	amd_pmc_send_cmd(pdev, 0, NULL, SMU_MSG_LOG_START, 0);
 
+	/* Activate CZN specific RTC functionality */
+	if (pdev->cpu_id == AMD_CPU_ID_CZN) {
+		rc = amd_pmc_verify_czn_rtc(pdev, &arg);
+		if (rc < 0)
+			return rc;
+	}
+
 	/* Dump the IdleMask before we send hint to SMU */
 	amd_pmc_idlemask_read(pdev, dev, NULL);
 	msg = amd_pmc_get_os_hint(pdev);
-	rc = amd_pmc_send_cmd(pdev, 1, NULL, msg, 0);
+	rc = amd_pmc_send_cmd(pdev, arg, NULL, msg, 0);
 	if (rc)
 		dev_err(pdev->dev, "suspend failed\n");
 
