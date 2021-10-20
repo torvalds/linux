@@ -1189,8 +1189,6 @@ static int dasd_eckd_read_conf(struct dasd_device *device)
 		}
 	}
 
-	dasd_eckd_read_fc_security(device);
-
 	return path_err;
 }
 
@@ -2101,6 +2099,7 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 	if (rc)
 		goto out_err3;
 
+	dasd_eckd_read_fc_security(device);
 	dasd_path_create_kobjects(device);
 
 	/* Read Feature Codes */
@@ -5787,6 +5786,8 @@ static int dasd_eckd_reload_device(struct dasd_device *device)
 	rc = dasd_eckd_read_conf(device);
 	if (rc)
 		goto out_err;
+
+	dasd_eckd_read_fc_security(device);
 
 	rc = dasd_eckd_generate_uid(device);
 	if (rc)
