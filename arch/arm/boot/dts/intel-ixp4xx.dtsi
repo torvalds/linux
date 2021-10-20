@@ -78,8 +78,6 @@
 			dma-ranges =
 			<0x02000000 0 0x00000000 0x00000000 0 0x04000000>;
 
-			#interrupt-cells = <1>;
-			interrupt-map-mask = <0xf800 0 0 7>;
 			/* Each unique DTS using PCI must specify the swizzling */
 		};
 

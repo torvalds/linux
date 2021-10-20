@@ -68,6 +68,8 @@
 			 * We have slots (IDSEL) 12, 13 and 14 with one assigned IRQ
 			 * for 12 & 13 and one for 14.
 			 */
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0xf800 0 0 7>;
 			interrupt-map =
 			/* IDSEL 12 */
 			<0x6000 0 0 1 &gpio0 7 IRQ_TYPE_LEVEL_LOW>, /* INT A on slot 12 is irq 7 */
