@@ -395,8 +395,6 @@ struct cached_dev {
 	atomic_t		io_errors;
 	unsigned int		error_limit;
 	unsigned int		offline_seconds;
-
-	char			backing_dev_name[BDEVNAME_SIZE];
 };
 
 enum alloc_reserve {

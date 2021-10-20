@@ -137,8 +137,8 @@ void bch_data_verify(struct cached_dev *dc, struct bio *bio)
 					p2 + bv.bv_offset,
 					bv.bv_len),
 				 dc->disk.c,
-				 "verify failed at dev %s sector %llu",
-				 dc->backing_dev_name,
+				 "verify failed at dev %pg sector %llu",
+				 dc->bdev,
 				 (uint64_t) bio->bi_iter.bi_sector);
 
 		kunmap_atomic(p1);

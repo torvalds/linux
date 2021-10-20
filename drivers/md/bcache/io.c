@@ -65,15 +65,15 @@ void bch_count_backing_io_errors(struct cached_dev *dc, struct bio *bio)
 	 * we shouldn't count failed REQ_RAHEAD bio to dc->io_errors.
 	 */
 	if (bio->bi_opf & REQ_RAHEAD) {
-		pr_warn_ratelimited("%s: Read-ahead I/O failed on backing device, ignore\n",
-				    dc->backing_dev_name);
+		pr_warn_ratelimited("%pg: Read-ahead I/O failed on backing device, ignore\n",
+				    dc->bdev);
 		return;
 	}
 
 	errors = atomic_add_return(1, &dc->io_errors);
 	if (errors < dc->error_limit)
-		pr_err("%s: IO error on backing device, unrecoverable\n",
-			dc->backing_dev_name);
+		pr_err("%pg: IO error on backing device, unrecoverable\n",
+			dc->bdev);
 	else
 		bch_cached_dev_error(dc);
 }
