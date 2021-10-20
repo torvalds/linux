@@ -100,7 +100,9 @@ static int cs35l41_spi_remove(struct spi_device *spi)
 {
 	struct cs35l41_private *cs35l41 = spi_get_drvdata(spi);
 
-	return cs35l41_remove(cs35l41);
+	cs35l41_remove(cs35l41);
+
+	return 0;
 }
 
 #ifdef CONFIG_OF

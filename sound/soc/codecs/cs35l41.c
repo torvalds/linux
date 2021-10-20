@@ -1433,13 +1433,11 @@ err:
 	return ret;
 }
 
-int cs35l41_remove(struct cs35l41_private *cs35l41)
+void cs35l41_remove(struct cs35l41_private *cs35l41)
 {
 	regmap_write(cs35l41->regmap, CS35L41_IRQ1_MASK1, 0xFFFFFFFF);
 	regulator_bulk_disable(CS35L41_NUM_SUPPLIES, cs35l41->supplies);
 	gpiod_set_value_cansleep(cs35l41->reset_gpio, 0);
-
-	return 0;
 }
 
 MODULE_DESCRIPTION("ASoC CS35L41 driver");
