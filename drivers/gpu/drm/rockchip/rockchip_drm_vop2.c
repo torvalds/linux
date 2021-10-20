@@ -1319,20 +1319,22 @@ static int32_t vop2_pending_done_bits(struct vop2_video_port *vp)
 		if (first_vp_left_time > first_vp_safe_time &&
 		    second_vp_left_time > second_vp_safe_time)
 			return done_bits_bak;
-		if (first_vp_left_time > second_vp_left_time)
-			wait_vp = first_done_vp;
-		else
-			wait_vp = second_done_vp;
+
+		if (first_vp_left_time > second_vp_left_time) {
+			if ((first_vp_left_time - second_vp_left_time) > first_vp_safe_time)
+				wait_vp = second_done_vp;
+			else
+				wait_vp = first_done_vp;
+		} else {
+			if ((second_vp_left_time - first_vp_left_time) > second_vp_safe_time)
+				wait_vp = first_done_vp;
+			else
+				wait_vp = second_done_vp;
+		}
 
 		vop2_wait_for_fs_by_done_bit_status(wait_vp);
 
 		done_bits = vop2_readl(vop2, RK3568_REG_CFG_DONE) & 0x7;
-		if (done_bits) {
-			vp_id = ffs(done_bits) - 1;
-			done_vp = &vop2->vps[vp_id];
-			vop2_wait_for_fs_by_done_bit_status(done_vp);
-		}
-		done_bits = 0;
 	}
 	return done_bits;
 }
