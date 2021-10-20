@@ -37,6 +37,8 @@ config GCC_PLUGIN_CYC_COMPLEXITY
 
 config GCC_PLUGIN_SANCOV
 	bool
+	# Plugin can be removed once the kernel only supports GCC 6+
+	depends on !CC_HAS_SANCOV_TRACE_PC
 	help
 	  This plugin inserts a __sanitizer_cov_trace_pc() call at the start of
 	  basic blocks. It supports all gcc versions with plugin support (from
@@ -82,8 +84,6 @@ config GCC_PLUGIN_RANDSTRUCT
 	  a make clean to allow for external modules to be compiled with
 	  the existing seed and will be removed by a make mrproper or
 	  make distclean.
-
-	  Note that the implementation requires gcc 4.7 or newer.
 
 	  This plugin was ported from grsecurity/PaX. More information at:
 	   * https://grsecurity.net/
