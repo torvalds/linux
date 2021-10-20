@@ -7385,7 +7385,7 @@ lpfc_enable_pci_dev(struct lpfc_hba *phba)
 out_disable_device:
 	pci_disable_device(pdev);
 out_error:
-	lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 			"1401 Failed to enable pci device\n");
 	return -ENODEV;
 }
@@ -8428,7 +8428,7 @@ lpfc_init_api_table_setup(struct lpfc_hba *phba, uint8_t dev_grp)
 		phba->lpfc_stop_port = lpfc_stop_port_s4;
 		break;
 	default:
-		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"1431 Invalid HBA PCI-device group: 0x%x\n",
 				dev_grp);
 		return -ENODEV;
@@ -11661,7 +11661,7 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 	/* There is no SLI3 failback for SLI4 devices. */
 	if (bf_get(lpfc_sli_intf_valid, &phba->sli4_hba.sli_intf) !=
 	    LPFC_SLI_INTF_VALID) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"2894 SLI_INTF reg contents invalid "
 				"sli_intf reg 0x%x\n",
 				phba->sli4_hba.sli_intf.word0);
