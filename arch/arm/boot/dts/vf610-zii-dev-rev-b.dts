@@ -149,7 +149,7 @@
 						reg = <5>;
 						label = "dsa";
 						link = <&switch2port9>;
-						phy-mode = "rgmii-txid";
+						phy-mode = "1000base-x";
 
 						fixed-link {
 							speed = <1000>;
@@ -252,7 +252,7 @@
 					switch2port9: port@9 {
 						reg = <9>;
 						label = "dsa";
-						phy-mode = "rgmii-txid";
+						phy-mode = "1000base-x";
 						link = <&switch1port5
 							&switch0port5>;
 
