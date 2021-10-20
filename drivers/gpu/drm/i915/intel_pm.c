@@ -37,6 +37,7 @@
 #include "display/intel_bw.h"
 #include "display/intel_de.h"
 #include "display/intel_display_types.h"
+#include "display/intel_fb.h"
 #include "display/intel_fbc.h"
 #include "display/intel_sprite.h"
 #include "display/skl_universal_plane.h"

@@ -330,6 +330,36 @@ bool intel_fb_plane_supports_modifier(struct intel_plane *plane, u64 modifier)
 	return false;
 }
 
+static bool format_is_yuv_semiplanar(const struct intel_modifier_desc *md,
+				     const struct drm_format_info *info)
+{
+	int yuv_planes;
+
+	if (!info->is_yuv)
+		return false;
+
+	if (is_ccs_type_modifier(md, INTEL_CCS_ANY))
+		yuv_planes = 4;
+	else
+		yuv_planes = 2;
+
+	return info->num_planes == yuv_planes;
+}
+
+/**
+ * intel_format_info_is_yuv_semiplanar: Check if the given format is YUV semiplanar
+ * @info: format to check
+ * @modifier: modifier used with the format
+ *
+ * Returns:
+ * %true if @info / @modifier is YUV semiplanar.
+ */
+bool intel_format_info_is_yuv_semiplanar(const struct drm_format_info *info,
+					 u64 modifier)
+{
+	return format_is_yuv_semiplanar(lookup_modifier(modifier), info);
+}
+
 bool is_ccs_plane(const struct drm_framebuffer *fb, int plane)
 {
 	if (!is_ccs_modifier(fb->modifier))
