@@ -46,10 +46,10 @@ static int dsa_switch_ageing_time(struct dsa_switch *ds,
 	return 0;
 }
 
-static bool dsa_switch_mtu_match(struct dsa_switch *ds, int port,
-				 struct dsa_notifier_mtu_info *info)
+static bool dsa_port_mtu_match(struct dsa_port *dp,
+			       struct dsa_notifier_mtu_info *info)
 {
-	if (ds->index == info->sw_index && port == info->port)
+	if (dp->ds->index == info->sw_index && dp->index == info->port)
 		return true;
 
 	/* Do not propagate to other switches in the tree if the notifier was
@@ -58,7 +58,7 @@ static bool dsa_switch_mtu_match(struct dsa_switch *ds, int port,
 	if (info->targeted_match)
 		return false;
 
-	if (dsa_is_dsa_port(ds, port) || dsa_is_cpu_port(ds, port))
+	if (dsa_port_is_dsa(dp) || dsa_port_is_cpu(dp))
 		return true;
 
 	return false;
@@ -67,14 +67,16 @@ static bool dsa_switch_mtu_match(struct dsa_switch *ds, int port,
 static int dsa_switch_mtu(struct dsa_switch *ds,
 			  struct dsa_notifier_mtu_info *info)
 {
-	int port, ret;
+	struct dsa_port *dp;
+	int ret;
 
 	if (!ds->ops->port_change_mtu)
 		return -EOPNOTSUPP;
 
-	for (port = 0; port < ds->num_ports; port++) {
-		if (dsa_switch_mtu_match(ds, port, info)) {
-			ret = ds->ops->port_change_mtu(ds, port, info->mtu);
+	dsa_switch_for_each_port(dp, ds) {
+		if (dsa_port_mtu_match(dp, info)) {
+			ret = ds->ops->port_change_mtu(ds, dp->index,
+						       info->mtu);
 			if (ret)
 				return ret;
 		}
@@ -177,19 +179,19 @@ static int dsa_switch_bridge_leave(struct dsa_switch *ds,
  * DSA links) that sit between the targeted port on which the notifier was
  * emitted and its dedicated CPU port.
  */
-static bool dsa_switch_host_address_match(struct dsa_switch *ds, int port,
-					  int info_sw_index, int info_port)
+static bool dsa_port_host_address_match(struct dsa_port *dp,
+					int info_sw_index, int info_port)
 {
 	struct dsa_port *targeted_dp, *cpu_dp;
 	struct dsa_switch *targeted_ds;
 
-	targeted_ds = dsa_switch_find(ds->dst->index, info_sw_index);
+	targeted_ds = dsa_switch_find(dp->ds->dst->index, info_sw_index);
 	targeted_dp = dsa_to_port(targeted_ds, info_port);
 	cpu_dp = targeted_dp->cpu_dp;
 
-	if (dsa_switch_is_upstream_of(ds, targeted_ds))
-		return port == dsa_towards_port(ds, cpu_dp->ds->index,
-						cpu_dp->index);
+	if (dsa_switch_is_upstream_of(dp->ds, targeted_ds))
+		return dp->index == dsa_towards_port(dp->ds, cpu_dp->ds->index,
+						     cpu_dp->index);
 
 	return false;
 }
@@ -207,11 +209,12 @@ static struct dsa_mac_addr *dsa_mac_addr_find(struct list_head *addr_list,
 	return NULL;
 }
 
-static int dsa_switch_do_mdb_add(struct dsa_switch *ds, int port,
-				 const struct switchdev_obj_port_mdb *mdb)
+static int dsa_port_do_mdb_add(struct dsa_port *dp,
+			       const struct switchdev_obj_port_mdb *mdb)
 {
-	struct dsa_port *dp = dsa_to_port(ds, port);
+	struct dsa_switch *ds = dp->ds;
 	struct dsa_mac_addr *a;
+	int port = dp->index;
 	int err;
 
 	/* No need to bother with refcounting for user ports */
@@ -242,11 +245,12 @@ static int dsa_switch_do_mdb_add(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-static int dsa_switch_do_mdb_del(struct dsa_switch *ds, int port,
-				 const struct switchdev_obj_port_mdb *mdb)
+static int dsa_port_do_mdb_del(struct dsa_port *dp,
+			       const struct switchdev_obj_port_mdb *mdb)
 {
-	struct dsa_port *dp = dsa_to_port(ds, port);
+	struct dsa_switch *ds = dp->ds;
 	struct dsa_mac_addr *a;
+	int port = dp->index;
 	int err;
 
 	/* No need to bother with refcounting for user ports */
@@ -272,11 +276,12 @@ static int dsa_switch_do_mdb_del(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-static int dsa_switch_do_fdb_add(struct dsa_switch *ds, int port,
-				 const unsigned char *addr, u16 vid)
+static int dsa_port_do_fdb_add(struct dsa_port *dp, const unsigned char *addr,
+			       u16 vid)
 {
-	struct dsa_port *dp = dsa_to_port(ds, port);
+	struct dsa_switch *ds = dp->ds;
 	struct dsa_mac_addr *a;
+	int port = dp->index;
 	int err;
 
 	/* No need to bother with refcounting for user ports */
@@ -307,11 +312,12 @@ static int dsa_switch_do_fdb_add(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-static int dsa_switch_do_fdb_del(struct dsa_switch *ds, int port,
-				 const unsigned char *addr, u16 vid)
+static int dsa_port_do_fdb_del(struct dsa_port *dp, const unsigned char *addr,
+			       u16 vid)
 {
-	struct dsa_port *dp = dsa_to_port(ds, port);
+	struct dsa_switch *ds = dp->ds;
 	struct dsa_mac_addr *a;
+	int port = dp->index;
 	int err;
 
 	/* No need to bother with refcounting for user ports */
@@ -340,17 +346,16 @@ static int dsa_switch_do_fdb_del(struct dsa_switch *ds, int port,
 static int dsa_switch_host_fdb_add(struct dsa_switch *ds,
 				   struct dsa_notifier_fdb_info *info)
 {
+	struct dsa_port *dp;
 	int err = 0;
-	int port;
 
 	if (!ds->ops->port_fdb_add)
 		return -EOPNOTSUPP;
 
-	for (port = 0; port < ds->num_ports; port++) {
-		if (dsa_switch_host_address_match(ds, port, info->sw_index,
-						  info->port)) {
-			err = dsa_switch_do_fdb_add(ds, port, info->addr,
-						    info->vid);
+	dsa_switch_for_each_port(dp, ds) {
+		if (dsa_port_host_address_match(dp, info->sw_index,
+						info->port)) {
+			err = dsa_port_do_fdb_add(dp, info->addr, info->vid);
 			if (err)
 				break;
 		}
@@ -362,17 +367,16 @@ static int dsa_switch_host_fdb_add(struct dsa_switch *ds,
 static int dsa_switch_host_fdb_del(struct dsa_switch *ds,
 				   struct dsa_notifier_fdb_info *info)
 {
+	struct dsa_port *dp;
 	int err = 0;
-	int port;
 
 	if (!ds->ops->port_fdb_del)
 		return -EOPNOTSUPP;
 
-	for (port = 0; port < ds->num_ports; port++) {
-		if (dsa_switch_host_address_match(ds, port, info->sw_index,
-						  info->port)) {
-			err = dsa_switch_do_fdb_del(ds, port, info->addr,
-						    info->vid);
+	dsa_switch_for_each_port(dp, ds) {
+		if (dsa_port_host_address_match(dp, info->sw_index,
+						info->port)) {
+			err = dsa_port_do_fdb_del(dp, info->addr, info->vid);
 			if (err)
 				break;
 		}
@@ -385,22 +389,24 @@ static int dsa_switch_fdb_add(struct dsa_switch *ds,
 			      struct dsa_notifier_fdb_info *info)
 {
 	int port = dsa_towards_port(ds, info->sw_index, info->port);
+	struct dsa_port *dp = dsa_to_port(ds, port);
 
 	if (!ds->ops->port_fdb_add)
 		return -EOPNOTSUPP;
 
-	return dsa_switch_do_fdb_add(ds, port, info->addr, info->vid);
+	return dsa_port_do_fdb_add(dp, info->addr, info->vid);
 }
 
 static int dsa_switch_fdb_del(struct dsa_switch *ds,
 			      struct dsa_notifier_fdb_info *info)
 {
 	int port = dsa_towards_port(ds, info->sw_index, info->port);
+	struct dsa_port *dp = dsa_to_port(ds, port);
 
 	if (!ds->ops->port_fdb_del)
 		return -EOPNOTSUPP;
 
-	return dsa_switch_do_fdb_del(ds, port, info->addr, info->vid);
+	return dsa_port_do_fdb_del(dp, info->addr, info->vid);
 }
 
 static int dsa_switch_hsr_join(struct dsa_switch *ds,
@@ -466,37 +472,39 @@ static int dsa_switch_mdb_add(struct dsa_switch *ds,
 			      struct dsa_notifier_mdb_info *info)
 {
 	int port = dsa_towards_port(ds, info->sw_index, info->port);
+	struct dsa_port *dp = dsa_to_port(ds, port);
 
 	if (!ds->ops->port_mdb_add)
 		return -EOPNOTSUPP;
 
-	return dsa_switch_do_mdb_add(ds, port, info->mdb);
+	return dsa_port_do_mdb_add(dp, info->mdb);
 }
 
 static int dsa_switch_mdb_del(struct dsa_switch *ds,
 			      struct dsa_notifier_mdb_info *info)
 {
 	int port = dsa_towards_port(ds, info->sw_index, info->port);
+	struct dsa_port *dp = dsa_to_port(ds, port);
 
 	if (!ds->ops->port_mdb_del)
 		return -EOPNOTSUPP;
 
-	return dsa_switch_do_mdb_del(ds, port, info->mdb);
+	return dsa_port_do_mdb_del(dp, info->mdb);
 }
 
 static int dsa_switch_host_mdb_add(struct dsa_switch *ds,
 				   struct dsa_notifier_mdb_info *info)
 {
+	struct dsa_port *dp;
 	int err = 0;
-	int port;
 
 	if (!ds->ops->port_mdb_add)
 		return -EOPNOTSUPP;
 
-	for (port = 0; port < ds->num_ports; port++) {
-		if (dsa_switch_host_address_match(ds, port, info->sw_index,
-						  info->port)) {
-			err = dsa_switch_do_mdb_add(ds, port, info->mdb);
+	dsa_switch_for_each_port(dp, ds) {
+		if (dsa_port_host_address_match(dp, info->sw_index,
+						info->port)) {
+			err = dsa_port_do_mdb_add(dp, info->mdb);
 			if (err)
 				break;
 		}
@@ -508,16 +516,16 @@ static int dsa_switch_host_mdb_add(struct dsa_switch *ds,
 static int dsa_switch_host_mdb_del(struct dsa_switch *ds,
 				   struct dsa_notifier_mdb_info *info)
 {
+	struct dsa_port *dp;
 	int err = 0;
-	int port;
 
 	if (!ds->ops->port_mdb_del)
 		return -EOPNOTSUPP;
 
-	for (port = 0; port < ds->num_ports; port++) {
-		if (dsa_switch_host_address_match(ds, port, info->sw_index,
-						  info->port)) {
-			err = dsa_switch_do_mdb_del(ds, port, info->mdb);
+	dsa_switch_for_each_port(dp, ds) {
+		if (dsa_port_host_address_match(dp, info->sw_index,
+						info->port)) {
+			err = dsa_port_do_mdb_del(dp, info->mdb);
 			if (err)
 				break;
 		}
@@ -526,13 +534,13 @@ static int dsa_switch_host_mdb_del(struct dsa_switch *ds,
 	return err;
 }
 
-static bool dsa_switch_vlan_match(struct dsa_switch *ds, int port,
-				  struct dsa_notifier_vlan_info *info)
+static bool dsa_port_vlan_match(struct dsa_port *dp,
+				struct dsa_notifier_vlan_info *info)
 {
-	if (ds->index == info->sw_index && port == info->port)
+	if (dp->ds->index == info->sw_index && dp->index == info->port)
 		return true;
 
-	if (dsa_is_dsa_port(ds, port))
+	if (dsa_port_is_dsa(dp))
 		return true;
 
 	return false;
@@ -541,14 +549,15 @@ static bool dsa_switch_vlan_match(struct dsa_switch *ds, int port,
 static int dsa_switch_vlan_add(struct dsa_switch *ds,
 			       struct dsa_notifier_vlan_info *info)
 {
-	int port, err;
+	struct dsa_port *dp;
+	int err;
 
 	if (!ds->ops->port_vlan_add)
 		return -EOPNOTSUPP;
 
-	for (port = 0; port < ds->num_ports; port++) {
-		if (dsa_switch_vlan_match(ds, port, info)) {
-			err = ds->ops->port_vlan_add(ds, port, info->vlan,
+	dsa_switch_for_each_port(dp, ds) {
+		if (dsa_port_vlan_match(dp, info)) {
+			err = ds->ops->port_vlan_add(ds, dp->index, info->vlan,
 						     info->extack);
 			if (err)
 				return err;
