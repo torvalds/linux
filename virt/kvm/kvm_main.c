@@ -3396,6 +3396,19 @@ void kvm_vcpu_kick(struct kvm_vcpu *vcpu)
 	if (kvm_vcpu_wake_up(vcpu))
 		return;
 
+	me = get_cpu();
+	/*
+	 * The only state change done outside the vcpu mutex is IN_GUEST_MODE
+	 * to EXITING_GUEST_MODE.  Therefore the moderately expensive "should
+	 * kick" check does not need atomic operations if kvm_vcpu_kick is used
+	 * within the vCPU thread itself.
+	 */
+	if (vcpu == __this_cpu_read(kvm_running_vcpu)) {
+		if (vcpu->mode == IN_GUEST_MODE)
+			WRITE_ONCE(vcpu->mode, EXITING_GUEST_MODE);
+		goto out;
+	}
+
 	/*
 	 * Note, the vCPU could get migrated to a different pCPU at any point
 	 * after kvm_arch_vcpu_should_kick(), which could result in sending an
@@ -3403,12 +3416,12 @@ void kvm_vcpu_kick(struct kvm_vcpu *vcpu)
 	 * IPI is to force the vCPU to leave IN_GUEST_MODE, and migrating the
 	 * vCPU also requires it to leave IN_GUEST_MODE.
 	 */
-	me = get_cpu();
 	if (kvm_arch_vcpu_should_kick(vcpu)) {
 		cpu = READ_ONCE(vcpu->cpu);
 		if (cpu != me && (unsigned)cpu < nr_cpu_ids && cpu_online(cpu))
 			smp_send_reschedule(cpu);
 	}
+out:
 	put_cpu();
 }
 EXPORT_SYMBOL_GPL(kvm_vcpu_kick);
