@@ -1440,7 +1440,8 @@ static bool enable_ddw(struct pci_dev *dev, struct device_node *pdn)
 		/* Keep default DMA window stuct if removed */
 		if (default_win_removed) {
 			tbl->it_size = 0;
-			kfree(tbl->it_map);
+			vfree(tbl->it_map);
+			tbl->it_map = NULL;
 		}
 
 		set_iommu_table_base(&dev->dev, newtbl);
