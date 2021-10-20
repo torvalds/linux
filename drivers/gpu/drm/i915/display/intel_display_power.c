@@ -155,8 +155,8 @@ intel_display_power_domain_str(enum intel_display_power_domain domain)
 		return "MODESET";
 	case POWER_DOMAIN_GT_IRQ:
 		return "GT_IRQ";
-	case POWER_DOMAIN_DPLL_DC_OFF:
-		return "DPLL_DC_OFF";
+	case POWER_DOMAIN_DC_OFF:
+		return "DC_OFF";
 	case POWER_DOMAIN_TC_COLD_OFF:
 		return "TC_COLD_OFF";
 	default:
@@ -2803,7 +2803,7 @@ intel_display_power_put_mask_in_set(struct drm_i915_private *i915,
 	ICL_PW_2_POWER_DOMAINS |			\
 	BIT_ULL(POWER_DOMAIN_MODESET) |			\
 	BIT_ULL(POWER_DOMAIN_AUX_A) |			\
-	BIT_ULL(POWER_DOMAIN_DPLL_DC_OFF) |			\
+	BIT_ULL(POWER_DOMAIN_DC_OFF) |			\
 	BIT_ULL(POWER_DOMAIN_INIT))
 
 #define ICL_DDI_IO_A_POWER_DOMAINS (			\
