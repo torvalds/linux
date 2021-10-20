@@ -2240,9 +2240,9 @@
 			#size-cells = <0>;
 			reg = <0>;
 
-			eeprom@50 {
+			eeprom@53 {
 				compatible = "atmel,24c64";
-				reg = <0x50>;
+				reg = <0x53>;
 			};
 		};
 
@@ -2251,9 +2251,9 @@
 			#size-cells = <0>;
 			reg = <1>;
 
-			eeprom@50 {
+			eeprom@53 {
 				compatible = "atmel,24c64";
-				reg = <0x50>;
+				reg = <0x53>;
 			};
 		};
 
@@ -2262,9 +2262,9 @@
 			#size-cells = <0>;
 			reg = <2>;
 
-			eeprom@50 {
+			eeprom@53 {
 				compatible = "atmel,24c64";
-				reg = <0x50>;
+				reg = <0x53>;
 			};
 		};
 
@@ -2273,9 +2273,9 @@
 			#size-cells = <0>;
 			reg = <3>;
 
-			eeprom@50 {
+			eeprom@53 {
 				compatible = "atmel,24c64";
-				reg = <0x50>;
+				reg = <0x53>;
 			};
 		};
 	};
@@ -2292,9 +2292,9 @@
 			#size-cells = <0>;
 			reg = <0>;
 
-			eeprom@50 {
+			eeprom@53 {
 				compatible = "atmel,24c64";
-				reg = <0x50>;
+				reg = <0x53>;
 			};
 		};
 
@@ -2303,9 +2303,9 @@
 			#size-cells = <0>;
 			reg = <1>;
 
-			eeprom@50 {
+			eeprom@53 {
 				compatible = "atmel,24c64";
-				reg = <0x50>;
+				reg = <0x53>;
 			};
 		};
 
@@ -2314,9 +2314,9 @@
 			#size-cells = <0>;
 			reg = <2>;
 
-			eeprom@50 {
+			eeprom@53 {
 				compatible = "atmel,24c64";
-				reg = <0x50>;
+				reg = <0x53>;
 			};
 		};
 
@@ -2325,9 +2325,9 @@
 			#size-cells = <0>;
 			reg = <3>;
 
-			eeprom@50 {
+			eeprom@53 {
 				compatible = "atmel,24c64";
-				reg = <0x50>;
+				reg = <0x53>;
 			};
 		};
 	};
@@ -2344,9 +2344,9 @@
 			#size-cells = <0>;
 			reg = <0>;
 
-			eeprom@50 {
+			eeprom@53 {
 				compatible = "atmel,24c64";
-				reg = <0x50>;
+				reg = <0x53>;
 			};
 		};
 
@@ -2355,9 +2355,9 @@
 			#size-cells = <0>;
 			reg = <1>;
 
-			eeprom@50 {
+			eeprom@53 {
 				compatible = "atmel,24c64";
-				reg = <0x50>;
+				reg = <0x53>;
 			};
 		};
 
