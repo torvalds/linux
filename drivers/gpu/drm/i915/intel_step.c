@@ -23,8 +23,8 @@
  * use a macro to define these to make it easier to identify the platforms
  * where the two steppings can deviate.
  */
-#define COMMON_STEP(x)  .gt_step = STEP_##x, .display_step = STEP_##x, .media_step = STEP_##x
-#define COMMON_GT_MEDIA_STEP(x)  .gt_step = STEP_##x, .media_step = STEP_##x
+#define COMMON_STEP(x)  .graphics_step = STEP_##x, .display_step = STEP_##x, .media_step = STEP_##x
+#define COMMON_GT_MEDIA_STEP(x)  .graphics_step = STEP_##x, .media_step = STEP_##x
 
 static const struct intel_step_info skl_revids[] = {
 	[0x6] = { COMMON_STEP(G0) },
@@ -180,7 +180,7 @@ void intel_step_init(struct drm_i915_private *i915)
 	if (!revids)
 		return;
 
-	if (revid < size && revids[revid].gt_step != STEP_NONE) {
+	if (revid < size && revids[revid].graphics_step != STEP_NONE) {
 		step = revids[revid];
 	} else {
 		drm_warn(&i915->drm, "Unknown revid 0x%02x\n", revid);
@@ -193,7 +193,7 @@ void intel_step_init(struct drm_i915_private *i915)
 		 * steppings in the array are not monotonically increasing, but
 		 * it's better than defaulting to 0.
 		 */
-		while (revid < size && revids[revid].gt_step == STEP_NONE)
+		while (revid < size && revids[revid].graphics_step == STEP_NONE)
 			revid++;
 
 		if (revid < size) {
@@ -202,12 +202,12 @@ void intel_step_init(struct drm_i915_private *i915)
 			step = revids[revid];
 		} else {
 			drm_dbg(&i915->drm, "Using future steppings\n");
-			step.gt_step = STEP_FUTURE;
+			step.graphics_step = STEP_FUTURE;
 			step.display_step = STEP_FUTURE;
 		}
 	}
 
-	if (drm_WARN_ON(&i915->drm, step.gt_step == STEP_NONE))
+	if (drm_WARN_ON(&i915->drm, step.graphics_step == STEP_NONE))
 		return;
 
 	RUNTIME_INFO(i915)->step = step;
