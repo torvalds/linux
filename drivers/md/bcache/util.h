@@ -548,14 +548,6 @@ static inline uint64_t bch_crc64(const void *p, size_t len)
 	return crc ^ 0xffffffffffffffffULL;
 }
 
-static inline uint64_t bch_crc64_update(uint64_t crc,
-					const void *p,
-					size_t len)
-{
-	crc = crc64_be(crc, p, len);
-	return crc;
-}
-
 /*
  * A stepwise-linear pseudo-exponential.  This returns 1 << (x >>
  * frac_bits), with the less-significant bits filled in by linear
