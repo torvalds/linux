@@ -138,8 +138,73 @@ static void ufs_debugfs_restart_ee(struct work_struct *work)
 	ufs_debugfs_put_user_access(hba);
 }
 
+static int ufs_saved_err_show(struct seq_file *s, void *data)
+{
+	struct ufs_debugfs_attr *attr = s->private;
+	struct ufs_hba *hba = hba_from_file(s->file);
+	const int *p;
+
+	if (strcmp(attr->name, "saved_err") == 0) {
+		p = &hba->saved_err;
+	} else if (strcmp(attr->name, "saved_uic_err") == 0) {
+		p = &hba->saved_uic_err;
+	} else {
+		return -ENOENT;
+	}
+
+	seq_printf(s, "%d\n", *p);
+	return 0;
+}
+
+static ssize_t ufs_saved_err_write(struct file *file, const char __user *buf,
+				   size_t count, loff_t *ppos)
+{
+	struct ufs_debugfs_attr *attr = file->f_inode->i_private;
+	struct ufs_hba *hba = hba_from_file(file);
+	char val_str[16] = { };
+	int val, ret;
+
+	if (count > sizeof(val_str))
+		return -EINVAL;
+	if (copy_from_user(val_str, buf, count))
+		return -EFAULT;
+	ret = kstrtoint(val_str, 0, &val);
+	if (ret < 0)
+		return ret;
+
+	spin_lock_irq(hba->host->host_lock);
+	if (strcmp(attr->name, "saved_err") == 0) {
+		hba->saved_err = val;
+	} else if (strcmp(attr->name, "saved_uic_err") == 0) {
+		hba->saved_uic_err = val;
+	} else {
+		ret = -ENOENT;
+	}
+	if (ret == 0)
+		ufshcd_schedule_eh_work(hba);
+	spin_unlock_irq(hba->host->host_lock);
+
+	return ret < 0 ? ret : count;
+}
+
+static int ufs_saved_err_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, ufs_saved_err_show, inode->i_private);
+}
+
+static const struct file_operations ufs_saved_err_fops = {
+	.owner		= THIS_MODULE,
+	.open		= ufs_saved_err_open,
+	.read		= seq_read,
+	.write		= ufs_saved_err_write,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 static const struct ufs_debugfs_attr ufs_attrs[] = {
 	{ "stats", 0400, &ufs_debugfs_stats_fops },
+	{ "saved_err", 0600, &ufs_saved_err_fops },
+	{ "saved_uic_err", 0600, &ufs_saved_err_fops },
 	{ }
 };
 
