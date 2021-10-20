@@ -22,7 +22,7 @@
 #define LAST_ENTERED_AT_OFFSET	0x8
 #define LAST_EXITED_AT_OFFSET	0x10
 #define ACCUMULATED_OFFSET	0x18
-#define CLIENT_VOTES_OFFSET	0x1c
+#define CLIENT_VOTES_OFFSET	0x20
 
 struct subsystem_data {
 	const char *name;
