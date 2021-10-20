@@ -115,11 +115,7 @@ void __irq_entry do_domain_IRQ(struct irq_domain *domain, unsigned int hwirq)
 
 	irq_enter();
 	check_stack_overflow();
-
-	desc = irq_resolve_mapping(domain, hwirq);
-	if (likely(desc))
-		handle_irq_desc(desc);
-
+	generic_handle_domain_irq(domain, hwirq);
 	irq_exit();
 }
 #endif
