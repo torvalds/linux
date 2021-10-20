@@ -426,7 +426,7 @@ static void wkup_m3_rproc_boot_thread(struct wkup_m3_ipc *m3_ipc)
 	else
 		m3_ipc_state = m3_ipc;
 
-	do_exit(0);
+	return 0;
 }
 
 static int wkup_m3_ipc_probe(struct platform_device *pdev)
