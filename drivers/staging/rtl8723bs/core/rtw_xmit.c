@@ -2491,7 +2491,7 @@ int rtw_xmit_thread(void *context)
 
 	complete(&padapter->xmitpriv.terminate_xmitthread_comp);
 
-	thread_exit();
+	return 0;
 }
 
 void rtw_sctx_init(struct submit_ctx *sctx, int timeout_ms)
