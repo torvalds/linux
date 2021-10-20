@@ -43,8 +43,8 @@
 		gpmc,sync-clk-ps = <0>;
 		gpmc,mux-add-data = <2>;
 		gpmc,device-width = <1>;
-		gpmc,cycle2cycle-samecsen = <1>;
-		gpmc,cycle2cycle-diffcsen = <1>;
+		gpmc,cycle2cycle-samecsen;
+		gpmc,cycle2cycle-diffcsen;
 		gpmc,cs-on-ns = <6>;
 		gpmc,cs-rd-off-ns = <187>;
 		gpmc,cs-wr-off-ns = <187>;
