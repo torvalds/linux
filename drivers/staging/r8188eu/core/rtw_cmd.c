@@ -347,7 +347,7 @@ post_process:
 
 	up(&pcmdpriv->terminate_cmdthread_sema);
 
-	thread_exit();
+	return 0;
 }
 
 u8 rtw_setstandby_cmd(struct adapter *padapter, uint action)
