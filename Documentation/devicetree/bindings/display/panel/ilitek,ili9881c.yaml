@@ -9,6 +9,9 @@ title: Ilitek ILI9881c based MIPI-DSI panels
 maintainers:
   - Maxime Ripard <mripard@kernel.org>
 
+allOf:
+  - $ref: panel-common.yaml#
+
 properties:
   compatible:
     items:
