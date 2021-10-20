@@ -25,6 +25,7 @@ properties:
   power-supply: true
   reg: true
   reset-gpios: true
+  rotation: true
 
 required:
   - compatible
