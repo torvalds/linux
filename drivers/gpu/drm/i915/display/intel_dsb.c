@@ -100,7 +100,7 @@ void intel_dsb_indexed_reg_write(const struct intel_crtc_state *crtc_state,
 	u32 reg_val;
 
 	if (!dsb) {
-		intel_de_write(dev_priv, reg, val);
+		intel_de_write_fw(dev_priv, reg, val);
 		return;
 	}
 	buf = dsb->cmd_buf;
@@ -177,7 +177,7 @@ void intel_dsb_reg_write(const struct intel_crtc_state *crtc_state,
 
 	dsb = crtc_state->dsb;
 	if (!dsb) {
-		intel_de_write(dev_priv, reg, val);
+		intel_de_write_fw(dev_priv, reg, val);
 		return;
 	}
 
