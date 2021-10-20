@@ -402,23 +402,49 @@ static int i9xx_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
 	return DIV_ROUND_UP(pixel_rate * num, den);
 }
 
-/* TODO: split into noarm+arm pair */
+static void i9xx_plane_update_noarm(struct intel_plane *plane,
+				    const struct intel_crtc_state *crtc_state,
+				    const struct intel_plane_state *plane_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+
+	intel_de_write_fw(dev_priv, DSPSTRIDE(i9xx_plane),
+			  plane_state->view.color_plane[0].mapping_stride);
+
+	if (DISPLAY_VER(dev_priv) < 4) {
+		int crtc_x = plane_state->uapi.dst.x1;
+		int crtc_y = plane_state->uapi.dst.y1;
+		int crtc_w = drm_rect_width(&plane_state->uapi.dst);
+		int crtc_h = drm_rect_height(&plane_state->uapi.dst);
+
+		/*
+		 * PLANE_A doesn't actually have a full window
+		 * generator but let's assume we still need to
+		 * program whatever is there.
+		 */
+		intel_de_write_fw(dev_priv, DSPPOS(i9xx_plane),
+				  (crtc_y << 16) | crtc_x);
+		intel_de_write_fw(dev_priv, DSPSIZE(i9xx_plane),
+				  ((crtc_h - 1) << 16) | (crtc_w - 1));
+	}
+
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
+}
+
 static void i9xx_plane_update_arm(struct intel_plane *plane,
 				  const struct intel_crtc_state *crtc_state,
 				  const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
-	u32 linear_offset;
 	int x = plane_state->view.color_plane[0].x;
 	int y = plane_state->view.color_plane[0].y;
-	int crtc_x = plane_state->uapi.dst.x1;
-	int crtc_y = plane_state->uapi.dst.y1;
-	int crtc_w = drm_rect_width(&plane_state->uapi.dst);
-	int crtc_h = drm_rect_height(&plane_state->uapi.dst);
+	u32 dspcntr, dspaddr_offset, linear_offset;
 	unsigned long irqflags;
-	u32 dspaddr_offset;
-	u32 dspcntr;
 
 	dspcntr = plane_state->ctl | i9xx_plane_ctl_crtc(crtc_state);
 
@@ -431,20 +457,12 @@ static void i9xx_plane_update_arm(struct intel_plane *plane,
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
-	intel_de_write_fw(dev_priv, DSPSTRIDE(i9xx_plane),
-			  plane_state->view.color_plane[0].mapping_stride);
+	if (IS_CHERRYVIEW(dev_priv) && i9xx_plane == PLANE_B) {
+		int crtc_x = plane_state->uapi.dst.x1;
+		int crtc_y = plane_state->uapi.dst.y1;
+		int crtc_w = drm_rect_width(&plane_state->uapi.dst);
+		int crtc_h = drm_rect_height(&plane_state->uapi.dst);
 
-	if (DISPLAY_VER(dev_priv) < 4) {
-		/*
-		 * PLANE_A doesn't actually have a full window
-		 * generator but let's assume we still need to
-		 * program whatever is there.
-		 */
-		intel_de_write_fw(dev_priv, DSPPOS(i9xx_plane),
-				  (crtc_y << 16) | crtc_x);
-		intel_de_write_fw(dev_priv, DSPSIZE(i9xx_plane),
-				  ((crtc_h - 1) << 16) | (crtc_w - 1));
-	} else if (IS_CHERRYVIEW(dev_priv) && i9xx_plane == PLANE_B) {
 		intel_de_write_fw(dev_priv, PRIMPOS(i9xx_plane),
 				  (crtc_y << 16) | crtc_x);
 		intel_de_write_fw(dev_priv, PRIMSIZE(i9xx_plane),
@@ -476,6 +494,20 @@ static void i9xx_plane_update_arm(struct intel_plane *plane,
 				  intel_plane_ggtt_offset(plane_state) + dspaddr_offset);
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
+}
+
+static void i830_plane_update_arm(struct intel_plane *plane,
+				  const struct intel_crtc_state *crtc_state,
+				  const struct intel_plane_state *plane_state)
+{
+	/*
+	 * On i830/i845 all registers are self-arming [ALM040].
+	 *
+	 * Additional breakage on i830 causes register reads to return
+	 * the last latched value instead of the last written value [ALM026].
+	 */
+	i9xx_plane_update_noarm(plane, crtc_state, plane_state);
+	i9xx_plane_update_arm(plane, crtc_state, plane_state);
 }
 
 static void i9xx_plane_disable_arm(struct intel_plane *plane,
@@ -837,7 +869,12 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 			plane->max_stride = ilk_primary_max_stride;
 	}
 
-	plane->update_arm = i9xx_plane_update_arm;
+	if (IS_I830(dev_priv) || IS_I845G(dev_priv)) {
+		plane->update_arm = i830_plane_update_arm;
+	} else {
+		plane->update_noarm = i9xx_plane_update_noarm;
+		plane->update_arm = i9xx_plane_update_arm;
+	}
 	plane->disable_arm = i9xx_plane_disable_arm;
 	plane->get_hw_state = i9xx_plane_get_hw_state;
 	plane->check_plane = i9xx_plane_check;
