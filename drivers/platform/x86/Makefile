@@ -81,6 +81,9 @@ obj-$(CONFIG_XO1_RFKILL)	+= xo1-rfkill.o
 # PC Engines
 obj-$(CONFIG_PCENGINES_APU2)	+= pcengines-apuv2.o
 
+# Barco
+obj-$(CONFIG_BARCO_P50_GPIO)	+= barco-p50-gpio.o
+
 # Samsung
 obj-$(CONFIG_SAMSUNG_LAPTOP)	+= samsung-laptop.o
 obj-$(CONFIG_SAMSUNG_Q10)	+= samsung-q10.o

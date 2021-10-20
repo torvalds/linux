@@ -729,6 +729,16 @@ config PCENGINES_APU2
 	  To compile this driver as a module, choose M here: the module
 	  will be called pcengines-apuv2.
 
+config BARCO_P50_GPIO
+	tristate "Barco P50 GPIO driver for identify LED/button"
+	depends on GPIOLIB
+	help
+	  This driver provides access to the GPIOs for the identify button
+	  and led present on Barco P50 board.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called barco-p50-gpio.
+
 config SAMSUNG_LAPTOP
 	tristate "Samsung Laptop driver"
 	depends on RFKILL || RFKILL = n

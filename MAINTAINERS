@@ -3215,6 +3215,12 @@ F:	drivers/video/backlight/
 F:	include/linux/backlight.h
 F:	include/linux/pwm_backlight.h
 
+BARCO P50 GPIO DRIVER
+M:	Santosh Kumar Yadav <santoshkumar.yadav@barco.com>
+M:	Peter Korsgaard <peter.korsgaard@barco.com>
+S:	Maintained
+F:	drivers/platform/x86/barco-p50-gpio.c
+
 BATMAN ADVANCED
 M:	Marek Lindner <mareklindner@neomailbox.ch>
 M:	Simon Wunderlich <sw@simonwunderlich.de>
