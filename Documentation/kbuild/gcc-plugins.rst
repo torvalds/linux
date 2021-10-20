@@ -96,7 +96,6 @@ Enable the GCC plugin infrastructure and some plugin(s) you want to use
 in the kernel config::
 
 	CONFIG_GCC_PLUGINS=y
-	CONFIG_GCC_PLUGIN_CYC_COMPLEXITY=y
 	CONFIG_GCC_PLUGIN_LATENT_ENTROPY=y
 	...
 
@@ -115,4 +114,3 @@ The GCC plugins are in scripts/gcc-plugins/. You need to put plugin source files
 right under scripts/gcc-plugins/. Creating subdirectories is not supported.
 It must be added to scripts/gcc-plugins/Makefile, scripts/Makefile.gcc-plugins
 and a relevant Kconfig file.
-See the cyc_complexity_plugin.c (CONFIG_GCC_PLUGIN_CYC_COMPLEXITY) GCC plugin.

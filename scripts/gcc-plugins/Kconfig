@@ -19,22 +19,6 @@ menuconfig GCC_PLUGINS
 
 if GCC_PLUGINS
 
-config GCC_PLUGIN_CYC_COMPLEXITY
-	bool "Compute the cyclomatic complexity of a function" if EXPERT
-	depends on !COMPILE_TEST	# too noisy
-	help
-	  The complexity M of a function's control flow graph is defined as:
-	   M = E - N + 2P
-	  where
-
-	  E = the number of edges
-	  N = the number of nodes
-	  P = the number of connected components (exit nodes).
-
-	  Enabling this plugin reports the complexity to stderr during the
-	  build. It mainly serves as a simple example of how to create a
-	  gcc plugin for the kernel.
-
 config GCC_PLUGIN_SANCOV
 	bool
 	# Plugin can be removed once the kernel only supports GCC 6+
