@@ -35,5 +35,27 @@ config I3CDEV
 	  Note that this application programming interface is EXPERIMENTAL
 	  and hence SUBJECT TO CHANGE WITHOUT NOTICE while it stabilizes.
 
+config I3C_IBI_MQUEUE
+	bool "I3C mqueue (message queue) master ibi driver"
+	default y
+	help
+	  Some protocols over I3C are designed for bi-directional transferring
+	  messages by using I3C IBI protocol. This driver is used to receive and
+	  queue messages from the remote I3C slave device.
+
+	  Userspace can get the messages by reading sysfs file that this driver
+	  exposes.
+
+config I3C_SLAVE_MQUEUE
+	bool "I3C mqueue (message queue) secondary master and slave driver"
+	default y
+	help
+	  Some protocols over I3C are designed for bi-directional transferring
+	  messages by using I3C Master Write protocol. This driver is used to
+	  receive and queue messages from the remote I3C main master device.
+
+	  Userspace can get the messages by reading sysfs file that this driver
+	  exposes.
+
 source "drivers/i3c/master/Kconfig"
 endif # I3C
