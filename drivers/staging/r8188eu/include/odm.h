@@ -150,7 +150,6 @@ struct edca_turbo {
 };
 
 struct odm_rate_adapt {
-	u8	Type;		/*  DM_Type_ByFW/DM_Type_ByDriver */
 	u8	HighRSSIThresh;	/*  if RSSI > HighRSSIThresh	=> RATRState is DM_RATR_STA_HIGH */
 	u8	LowRSSIThresh;	/*  if RSSI <= LowRSSIThresh	=> RATRState is DM_RATR_STA_LOW */
 	u8	RATRState;	/*  Current RSSI level, DM_RATR_STA_HIGH/DM_RATR_STA_MIDDLE/DM_RATR_STA_LOW */
@@ -164,8 +163,6 @@ struct odm_rate_adapt {
 
 #define AVG_THERMAL_NUM		8
 #define IQK_Matrix_REG_NUM	8
-
-#define	DM_Type_ByDriver	1
 
 struct odm_phy_dbg_info {
 	/* ODM Write,debug info */
@@ -585,9 +582,6 @@ struct odm_dm_struct {
 	u8	RSSI_BT;			/* come from BT */
 	bool	bPSDinProcess;
 	bool	bDMInitialGainEnable;
-
-	/* for rate adaptive, in fact,  88c/92c fw will handle this */
-	u8	bUseRAMask;
 
 	struct odm_rate_adapt RateAdaptive;
 

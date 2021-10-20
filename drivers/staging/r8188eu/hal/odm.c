@@ -669,12 +669,6 @@ void odm_RateAdaptiveMaskInit(struct odm_dm_struct *pDM_Odm)
 {
 	struct odm_rate_adapt *pOdmRA = &pDM_Odm->RateAdaptive;
 
-	pOdmRA->Type = DM_Type_ByDriver;
-	if (pOdmRA->Type == DM_Type_ByDriver)
-		pDM_Odm->bUseRAMask = true;
-	else
-		pDM_Odm->bUseRAMask = false;
-
 	pOdmRA->RATRState = DM_RATR_STA_INIT;
 	pOdmRA->HighRSSIThresh = 50;
 	pOdmRA->LowRSSIThresh = 20;
@@ -753,9 +747,6 @@ void odm_RefreshRateAdaptiveMask(struct odm_dm_struct *pDM_Odm)
 		return;
 
 	if (pAdapter->bDriverStopped)
-		return;
-
-	if (!pDM_Odm->bUseRAMask)
 		return;
 
 	for (i = 0; i < ODM_ASSOCIATE_ENTRY_NUM; i++) {
