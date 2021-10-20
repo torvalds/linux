@@ -158,10 +158,7 @@ static u16 sja1105_xmit_tpid(struct dsa_port *dp)
 	 * we're sure about that). It may not be on this port though, so we
 	 * need to find it.
 	 */
-	list_for_each_entry(other_dp, &ds->dst->ports, list) {
-		if (other_dp->ds != ds)
-			continue;
-
+	dsa_switch_for_each_port(other_dp, ds) {
 		if (!other_dp->bridge_dev)
 			continue;
 
