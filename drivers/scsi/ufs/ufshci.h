@@ -389,7 +389,7 @@ enum {
 };
 
 /* Overall command status values */
-enum {
+enum utp_ocs {
 	OCS_SUCCESS			= 0x0,
 	OCS_INVALID_CMD_TABLE_ATTR	= 0x1,
 	OCS_INVALID_PRDT_ATTR		= 0x2,
@@ -402,6 +402,9 @@ enum {
 	OCS_INVALID_CRYPTO_CONFIG	= 0x9,
 	OCS_GENERAL_CRYPTO_ERROR	= 0xA,
 	OCS_INVALID_COMMAND_STATUS	= 0x0F,
+};
+
+enum {
 	MASK_OCS			= 0x0F,
 };
 
