@@ -219,31 +219,79 @@ static void ocelot_port_set_pvid(struct ocelot *ocelot, int port,
 		       ANA_PORT_DROP_CFG, port);
 }
 
-static int ocelot_vlan_member_set(struct ocelot *ocelot, u32 vlan_mask, u16 vid)
+static struct ocelot_bridge_vlan *ocelot_bridge_vlan_find(struct ocelot *ocelot,
+							  u16 vid)
 {
-	int err;
+	struct ocelot_bridge_vlan *vlan;
 
-	err = ocelot_vlant_set_mask(ocelot, vid, vlan_mask);
-	if (err)
-		return err;
+	list_for_each_entry(vlan, &ocelot->vlans, list)
+		if (vlan->vid == vid)
+			return vlan;
 
-	ocelot->vlan_mask[vid] = vlan_mask;
-
-	return 0;
+	return NULL;
 }
 
 static int ocelot_vlan_member_add(struct ocelot *ocelot, int port, u16 vid)
 {
-	return ocelot_vlan_member_set(ocelot,
-				      ocelot->vlan_mask[vid] | BIT(port),
-				      vid);
+	struct ocelot_bridge_vlan *vlan = ocelot_bridge_vlan_find(ocelot, vid);
+	unsigned long portmask;
+	int err;
+
+	if (vlan) {
+		portmask = vlan->portmask | BIT(port);
+
+		err = ocelot_vlant_set_mask(ocelot, vid, portmask);
+		if (err)
+			return err;
+
+		vlan->portmask = portmask;
+
+		return 0;
+	}
+
+	vlan = kzalloc(sizeof(*vlan), GFP_KERNEL);
+	if (!vlan)
+		return -ENOMEM;
+
+	portmask = BIT(port);
+
+	err = ocelot_vlant_set_mask(ocelot, vid, portmask);
+	if (err) {
+		kfree(vlan);
+		return err;
+	}
+
+	vlan->vid = vid;
+	vlan->portmask = portmask;
+	INIT_LIST_HEAD(&vlan->list);
+	list_add_tail(&vlan->list, &ocelot->vlans);
+
+	return 0;
 }
 
 static int ocelot_vlan_member_del(struct ocelot *ocelot, int port, u16 vid)
 {
-	return ocelot_vlan_member_set(ocelot,
-				      ocelot->vlan_mask[vid] & ~BIT(port),
-				      vid);
+	struct ocelot_bridge_vlan *vlan = ocelot_bridge_vlan_find(ocelot, vid);
+	unsigned long portmask;
+	int err;
+
+	if (!vlan)
+		return 0;
+
+	portmask = vlan->portmask & ~BIT(port);
+
+	err = ocelot_vlant_set_mask(ocelot, vid, portmask);
+	if (err)
+		return err;
+
+	vlan->portmask = portmask;
+	if (vlan->portmask)
+		return 0;
+
+	list_del(&vlan->list);
+	kfree(vlan);
+
+	return 0;
 }
 
 int ocelot_port_vlan_filtering(struct ocelot *ocelot, int port,
@@ -369,13 +417,13 @@ static void ocelot_vlan_init(struct ocelot *ocelot)
 
 	/* Configure the port VLAN memberships */
 	for (vid = 1; vid < VLAN_N_VID; vid++)
-		ocelot_vlan_member_set(ocelot, 0, vid);
+		ocelot_vlant_set_mask(ocelot, vid, 0);
 
 	/* Because VLAN filtering is enabled, we need VID 0 to get untagged
 	 * traffic.  It is added automatically if 8021q module is loaded, but
 	 * we can't rely on it since module may be not loaded.
 	 */
-	ocelot_vlan_member_set(ocelot, all_ports, 0);
+	ocelot_vlant_set_mask(ocelot, 0, all_ports);
 
 	/* Set vlan ingress filter mask to all ports but the CPU port by
 	 * default.
@@ -2127,6 +2175,7 @@ int ocelot_init(struct ocelot *ocelot)
 
 	INIT_LIST_HEAD(&ocelot->multicast);
 	INIT_LIST_HEAD(&ocelot->pgids);
+	INIT_LIST_HEAD(&ocelot->vlans);
 	ocelot_detect_features(ocelot);
 	ocelot_mact_init(ocelot);
 	ocelot_vlan_init(ocelot);

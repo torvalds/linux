@@ -568,6 +568,12 @@ struct ocelot_vlan {
 	u16 vid;
 };
 
+struct ocelot_bridge_vlan {
+	u16 vid;
+	unsigned long portmask;
+	struct list_head list;
+};
+
 enum ocelot_port_tag_config {
 	/* all VLANs are egress-untagged */
 	OCELOT_PORT_TAG_DISABLED = 0,
@@ -646,8 +652,7 @@ struct ocelot {
 
 	u8				base_mac[ETH_ALEN];
 
-	/* Keep track of the vlan port masks */
-	u32				vlan_mask[VLAN_N_VID];
+	struct list_head		vlans;
 
 	/* Switches like VSC9959 have flooding per traffic class */
 	int				num_flooding_pgids;
