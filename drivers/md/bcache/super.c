@@ -2617,8 +2617,11 @@ static ssize_t register_bcache(struct kobject *k, struct kobj_attribute *attr,
 	if (SB_IS_BDEV(sb)) {
 		struct cached_dev *dc = kzalloc(sizeof(*dc), GFP_KERNEL);
 
-		if (!dc)
+		if (!dc) {
+			ret = -ENOMEM;
+			err = "cannot allocate memory";
 			goto out_put_sb_page;
+		}
 
 		mutex_lock(&bch_register_lock);
 		ret = register_bdev(sb, sb_disk, bdev, dc);
@@ -2629,11 +2632,15 @@ static ssize_t register_bcache(struct kobject *k, struct kobj_attribute *attr,
 	} else {
 		struct cache *ca = kzalloc(sizeof(*ca), GFP_KERNEL);
 
-		if (!ca)
+		if (!ca) {
+			ret = -ENOMEM;
+			err = "cannot allocate memory";
 			goto out_put_sb_page;
+		}
 
 		/* blkdev_put() will be called in bch_cache_release() */
-		if (register_cache(sb, sb_disk, bdev, ca) != 0)
+		ret = register_cache(sb, sb_disk, bdev, ca);
+		if (ret)
 			goto out_free_sb;
 	}
 
