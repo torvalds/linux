@@ -409,7 +409,8 @@ static bool is_semiplanar_uv_plane(const struct drm_framebuffer *fb, int color_p
 bool is_surface_linear(const struct drm_framebuffer *fb, int color_plane)
 {
 	return fb->modifier == DRM_FORMAT_MOD_LINEAR ||
-	       is_gen12_ccs_plane(fb, color_plane);
+	       is_gen12_ccs_plane(fb, color_plane) ||
+	       is_gen12_ccs_cc_plane(fb, color_plane);
 }
 
 int main_to_ccs_plane(const struct drm_framebuffer *fb, int main_plane)
@@ -502,7 +503,8 @@ intel_tile_width_bytes(const struct drm_framebuffer *fb, int color_plane)
 	case I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS:
 	case I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC:
 	case I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS:
-		if (is_ccs_plane(fb, color_plane))
+		if (is_ccs_plane(fb, color_plane) ||
+		    is_gen12_ccs_cc_plane(fb, color_plane))
 			return 64;
 		fallthrough;
 	case I915_FORMAT_MOD_Y_TILED:
