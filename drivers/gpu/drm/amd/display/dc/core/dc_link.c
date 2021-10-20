@@ -4792,6 +4792,8 @@ bool dc_link_should_enable_fec(const struct dc_link *link)
 			link->local_sink &&
 			link->local_sink->edid_caps.panel_patch.disable_fec) ||
 			(link->connector_signal == SIGNAL_TYPE_EDP
+				// enable FEC for EDP if DSC is supported
+				&& link->dpcd_caps.dsc_caps.dsc_basic_caps.fields.dsc_support.DSC_SUPPORT == false
 				))
 		is_fec_disable = true;
 

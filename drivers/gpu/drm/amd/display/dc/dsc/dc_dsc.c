@@ -455,6 +455,7 @@ static bool intersect_dsc_caps(
 	if (pixel_encoding == PIXEL_ENCODING_YCBCR422 || pixel_encoding == PIXEL_ENCODING_YCBCR420)
 		dsc_common_caps->bpp_increment_div = min(dsc_common_caps->bpp_increment_div, (uint32_t)8);
 
+	dsc_common_caps->edp_sink_max_bits_per_pixel = dsc_sink_caps->edp_max_bits_per_pixel;
 	dsc_common_caps->is_dp = dsc_sink_caps->is_dp;
 	return true;
 }
@@ -512,6 +513,13 @@ static bool decide_dsc_bandwidth_range(
 			range->max_target_bpp_x16 = preferred_bpp_x16;
 			range->min_target_bpp_x16 = preferred_bpp_x16;
 		}
+	}
+	/* TODO - make this value generic to all signal types */
+	else if (dsc_caps->edp_sink_max_bits_per_pixel) {
+		/* apply max bpp limitation from edp sink */
+		range->max_target_bpp_x16 = MIN(dsc_caps->edp_sink_max_bits_per_pixel,
+				max_bpp_x16);
+		range->min_target_bpp_x16 = min_bpp_x16;
 	}
 	else {
 		range->max_target_bpp_x16 = max_bpp_x16;

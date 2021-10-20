@@ -1549,10 +1549,14 @@ struct dmub_cmd_psr_copy_settings_data {
 	 * Currently the support is only for 0 or 1
 	 */
 	uint8_t panel_inst;
-	/**
-	 * Explicit padding to 4 byte boundary.
+	/*
+	 * DSC enable status in driver
 	 */
-	uint8_t pad3[4];
+	uint8_t dsc_enable_status;
+	/**
+	 * Explicit padding to 3 byte boundary.
+	 */
+	uint8_t pad3[3];
 };
 
 /**
