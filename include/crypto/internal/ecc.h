@@ -226,6 +226,41 @@ void vli_mod_mult_slow(u64 *result, const u64 *left, const u64 *right,
 		       const u64 *mod, unsigned int ndigits);
 
 /**
+ * vli_num_bits() - Counts the number of bits required for vli.
+ *
+ * @vli:		vli to check.
+ * @ndigits:		Length of the @vli
+ *
+ * Return: The number of bits required to represent @vli.
+ */
+unsigned int vli_num_bits(const u64 *vli, unsigned int ndigits);
+
+/**
+ * ecc_aloc_point() - Allocate ECC point.
+ *
+ * @ndigits:		Length of vlis in u64 qwords.
+ *
+ * Return: Pointer to the allocated point or NULL if allocation failed.
+ */
+struct ecc_point *ecc_alloc_point(unsigned int ndigits);
+
+/**
+ * ecc_free_point() - Free ECC point.
+ *
+ * @p:			The point to free.
+ */
+void ecc_free_point(struct ecc_point *p);
+
+/**
+ * ecc_point_is_zero() - Check if point is zero.
+ *
+ * @p:			Point to check for zero.
+ *
+ * Return: true if point is the point at infinity, false otherwise.
+ */
+bool ecc_point_is_zero(const struct ecc_point *point);
+
+/**
  * ecc_point_mult_shamir() - Add two points multiplied by scalars
  *
  * @result:		resulting point
@@ -242,4 +277,5 @@ void ecc_point_mult_shamir(const struct ecc_point *result,
 			   const u64 *x, const struct ecc_point *p,
 			   const u64 *y, const struct ecc_point *q,
 			   const struct ecc_curve *curve);
+
 #endif
