@@ -122,6 +122,14 @@
 #endif
 
 /*
+ * Treat __SANITIZE_HWADDRESS__ the same as __SANITIZE_ADDRESS__ in the kernel,
+ * matching the defines used by Clang.
+ */
+#ifdef __SANITIZE_HWADDRESS__
+#define __SANITIZE_ADDRESS__
+#endif
+
+/*
  * Turn individual warnings and errors on and off locally, depending
  * on version.
  */
