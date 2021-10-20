@@ -37,9 +37,9 @@
 
 static struct irq_domain *nvic_irq_domain;
 
-static void __nvic_handle_irq(irq_hw_number_t hwirq, struct pt_regs *regs)
+static void __nvic_handle_irq(irq_hw_number_t hwirq)
 {
-	handle_domain_irq(nvic_irq_domain, hwirq, regs);
+	generic_handle_domain_irq(nvic_irq_domain, hwirq);
 }
 
 /*
@@ -53,7 +53,7 @@ nvic_handle_irq(irq_hw_number_t hwirq, struct pt_regs *regs)
 
 	irq_enter();
 	old_regs = set_irq_regs(regs);
-	__nvic_handle_irq(hwirq, regs);
+	__nvic_handle_irq(hwirq);
 	set_irq_regs(old_regs);
 	irq_exit();
 }

@@ -154,7 +154,7 @@ static void __exception_irq_entry avic_handle_irq(struct pt_regs *regs)
 		if (nivector == 0xffff)
 			break;
 
-		handle_domain_irq(domain, nivector, regs);
+		generic_handle_domain_irq(domain, nivector);
 	} while (1);
 }
 
