@@ -1403,6 +1403,14 @@ static void dasd_eckd_path_available_action(struct dasd_device *device,
 		if (conf_data) {
 			memcpy(conf_data, data->rcd_buffer,
 			       DASD_ECKD_RCD_DATA_SIZE);
+		} else {
+			/*
+			 * path is operational but path config data could not
+			 * be stored due to low mem condition
+			 * add it to the error path mask and schedule a path
+			 * verification later that this could be added again
+			 */
+			epm |= lpm;
 		}
 		pos = pathmask_to_pos(lpm);
 		dasd_eckd_store_conf_data(device, conf_data, pos);
@@ -1423,7 +1431,10 @@ static void dasd_eckd_path_available_action(struct dasd_device *device,
 		}
 		dasd_path_add_nppm(device, npm);
 		dasd_path_add_ppm(device, ppm);
-		dasd_path_add_tbvpm(device, epm);
+		if (epm) {
+			dasd_path_add_tbvpm(device, epm);
+			dasd_device_set_timer(device, 50);
+		}
 		dasd_path_add_cablepm(device, cablepm);
 		dasd_path_add_nohpfpm(device, hpfpm);
 		spin_unlock_irqrestore(get_ccwdev_lock(device->cdev), flags);
