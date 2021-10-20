@@ -98,6 +98,7 @@ int rkisp_alloc_buffer(struct rkisp_device *dev,
 	if (dev->hw_dev->is_dma_sg_ops) {
 		sg_tbl = (struct sg_table *)g_ops->cookie(mem_priv);
 		buf->dma_addr = sg_dma_address(sg_tbl->sgl);
+		g_ops->prepare(mem_priv);
 	} else {
 		buf->dma_addr = *((dma_addr_t *)g_ops->cookie(mem_priv));
 	}
