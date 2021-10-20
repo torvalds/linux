@@ -1305,6 +1305,15 @@ static inline void dasd_path_add_ppm(struct dasd_device *device, __u8 pm)
 			dasd_path_preferred(device, chp);
 }
 
+static inline void dasd_path_add_fcsecpm(struct dasd_device *device, __u8 pm)
+{
+	int chp;
+
+	for (chp = 0; chp < 8; chp++)
+		if (pm & (0x80 >> chp))
+			dasd_path_fcsec(device, chp);
+}
+
 /*
  * set functions for path masks
  * the existing path mask will be replaced by the given path mask
