@@ -751,7 +751,7 @@
 				interrupt-names = "uplow";
 
 				#qcom,sensors = <11>;
-				#thermal-sensorcells = <1>;
+				#thermal-sensor-cells = <1>;
 			};
 		};
 
