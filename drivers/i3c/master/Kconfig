@@ -22,6 +22,27 @@ config DW_I3C_MASTER
 	  This driver can also be built as a module.  If so, the module
 	  will be called dw-i3c-master.
 
+config AST2600_I3C_MASTER
+	tristate "Aspeed AST2600 I3C master driver"
+	depends on I3C
+	depends on HAS_IOMEM
+	depends on MACH_ASPEED_G6
+	help
+	  Support for Aspeed AST2600 MIPI I3C Controller.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called ast2600-i3c-master.
+
+if AST2600_I3C_MASTER
+config AST2600_I3C_IBI_MAX_PAYLOAD
+	int "Max IBI payload size"
+	default 255
+
+config AST2600_I3C_MRL
+	int "Max read length"
+	default 256
+endif
+
 config SVC_I3C_MASTER
 	tristate "Silvaco I3C Dual-Role Master driver"
 	depends on I3C
