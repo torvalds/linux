@@ -79,9 +79,20 @@ static int __init fscache_init(void)
 	if (ret < 0)
 		goto error_proc;
 
+	fscache_cookie_jar = kmem_cache_create("fscache_cookie_jar",
+					       sizeof(struct fscache_cookie),
+					       0, 0, NULL);
+	if (!fscache_cookie_jar) {
+		pr_notice("Failed to allocate a cookie jar\n");
+		ret = -ENOMEM;
+		goto error_cookie_jar;
+	}
+
 	pr_notice("Loaded\n");
 	return 0;
 
+error_cookie_jar:
+	fscache_proc_cleanup();
 error_proc:
 	destroy_workqueue(fscache_wq);
 error_wq:
@@ -97,6 +108,7 @@ static void __exit fscache_exit(void)
 {
 	_enter("");
 
+	kmem_cache_destroy(fscache_cookie_jar);
 	fscache_proc_cleanup();
 	destroy_workqueue(fscache_wq);
 	pr_notice("Unloaded\n");

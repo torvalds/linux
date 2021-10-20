@@ -5,6 +5,7 @@
 
 fscache-y := \
 	cache.o \
+	cookie.o \
 	main.o \
 	volume.o
 

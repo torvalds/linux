@@ -51,6 +51,20 @@ static inline bool fscache_set_cache_state_maybe(struct fscache_cache *cache,
 }
 
 /*
+ * cookie.c
+ */
+extern struct kmem_cache *fscache_cookie_jar;
+extern const struct seq_operations fscache_cookies_seq_ops;
+
+extern void fscache_print_cookie(struct fscache_cookie *cookie, char prefix);
+static inline void fscache_see_cookie(struct fscache_cookie *cookie,
+				      enum fscache_cookie_trace where)
+{
+	trace_fscache_cookie(cookie->debug_id, refcount_read(&cookie->ref),
+			     where);
+}
+
+/*
  * main.c
  */
 extern unsigned fscache_debug;
@@ -75,6 +89,15 @@ extern void fscache_proc_cleanup(void);
 extern atomic_t fscache_n_volumes;
 extern atomic_t fscache_n_volumes_collision;
 extern atomic_t fscache_n_volumes_nomem;
+extern atomic_t fscache_n_cookies;
+
+extern atomic_t fscache_n_acquires;
+extern atomic_t fscache_n_acquires_ok;
+extern atomic_t fscache_n_acquires_oom;
+
+extern atomic_t fscache_n_relinquishes;
+extern atomic_t fscache_n_relinquishes_retire;
+extern atomic_t fscache_n_relinquishes_dropped;
 
 static inline void fscache_stat(atomic_t *stat)
 {

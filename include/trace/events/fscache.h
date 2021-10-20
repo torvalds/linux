@@ -45,6 +45,23 @@ enum fscache_volume_trace {
 	fscache_volume_see_hash_wake,
 };
 
+enum fscache_cookie_trace {
+	fscache_cookie_collision,
+	fscache_cookie_discard,
+	fscache_cookie_get_end_access,
+	fscache_cookie_get_hash_collision,
+	fscache_cookie_new_acquire,
+	fscache_cookie_put_hash_collision,
+	fscache_cookie_put_over_queued,
+	fscache_cookie_put_relinquish,
+	fscache_cookie_put_withdrawn,
+	fscache_cookie_put_work,
+	fscache_cookie_see_active,
+	fscache_cookie_see_relinquish,
+	fscache_cookie_see_withdraw,
+	fscache_cookie_see_work,
+};
+
 #endif
 
 /*
@@ -74,6 +91,22 @@ enum fscache_volume_trace {
 	EM(fscache_volume_see_create_work,	"SEE creat")		\
 	E_(fscache_volume_see_hash_wake,	"SEE hwake")
 
+#define fscache_cookie_traces						\
+	EM(fscache_cookie_collision,		"*COLLIDE*")		\
+	EM(fscache_cookie_discard,		"DISCARD  ")		\
+	EM(fscache_cookie_get_hash_collision,	"GET hcoll")		\
+	EM(fscache_cookie_get_end_access,	"GQ  endac")		\
+	EM(fscache_cookie_new_acquire,		"NEW acq  ")		\
+	EM(fscache_cookie_put_hash_collision,	"PUT hcoll")		\
+	EM(fscache_cookie_put_over_queued,	"PQ  overq")		\
+	EM(fscache_cookie_put_relinquish,	"PUT relnq")		\
+	EM(fscache_cookie_put_withdrawn,	"PUT wthdn")		\
+	EM(fscache_cookie_put_work,		"PQ  work ")		\
+	EM(fscache_cookie_see_active,		"-   activ")		\
+	EM(fscache_cookie_see_relinquish,	"-   x-rlq")		\
+	EM(fscache_cookie_see_withdraw,		"-   x-wth")		\
+	E_(fscache_cookie_see_work,		"-   work ")
+
 /*
  * Export enum symbols via userspace.
  */
@@ -84,6 +117,7 @@ enum fscache_volume_trace {
 
 fscache_cache_traces;
 fscache_volume_traces;
+fscache_cookie_traces;
 
 /*
  * Now redefine the EM() and E_() macros to map the enums to the strings that
@@ -143,6 +177,83 @@ TRACE_EVENT(fscache_volume,
 		      __entry->volume,
 		      __print_symbolic(__entry->where, fscache_volume_traces),
 		      __entry->usage)
+	    );
+
+TRACE_EVENT(fscache_cookie,
+	    TP_PROTO(unsigned int cookie_debug_id,
+		     int ref,
+		     enum fscache_cookie_trace where),
+
+	    TP_ARGS(cookie_debug_id, ref, where),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,		cookie		)
+		    __field(int,			ref		)
+		    __field(enum fscache_cookie_trace,	where		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->cookie	= cookie_debug_id;
+		    __entry->ref	= ref;
+		    __entry->where	= where;
+			   ),
+
+	    TP_printk("c=%08x %s r=%d",
+		      __entry->cookie,
+		      __print_symbolic(__entry->where, fscache_cookie_traces),
+		      __entry->ref)
+	    );
+
+TRACE_EVENT(fscache_acquire,
+	    TP_PROTO(struct fscache_cookie *cookie),
+
+	    TP_ARGS(cookie),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,		cookie		)
+		    __field(unsigned int,		volume		)
+		    __field(int,			v_ref		)
+		    __field(int,			v_n_cookies	)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->cookie		= cookie->debug_id;
+		    __entry->volume		= cookie->volume->debug_id;
+		    __entry->v_ref		= refcount_read(&cookie->volume->ref);
+		    __entry->v_n_cookies	= atomic_read(&cookie->volume->n_cookies);
+			   ),
+
+	    TP_printk("c=%08x V=%08x vr=%d vc=%d",
+		      __entry->cookie,
+		      __entry->volume, __entry->v_ref, __entry->v_n_cookies)
+	    );
+
+TRACE_EVENT(fscache_relinquish,
+	    TP_PROTO(struct fscache_cookie *cookie, bool retire),
+
+	    TP_ARGS(cookie, retire),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,		cookie		)
+		    __field(unsigned int,		volume		)
+		    __field(int,			ref		)
+		    __field(int,			n_active	)
+		    __field(u8,				flags		)
+		    __field(bool,			retire		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->cookie	= cookie->debug_id;
+		    __entry->volume	= cookie->volume->debug_id;
+		    __entry->ref	= refcount_read(&cookie->ref);
+		    __entry->n_active	= atomic_read(&cookie->n_active);
+		    __entry->flags	= cookie->flags;
+		    __entry->retire	= retire;
+			   ),
+
+	    TP_printk("c=%08x V=%08x r=%d U=%d f=%02x rt=%u",
+		      __entry->cookie, __entry->volume, __entry->ref,
+		      __entry->n_active, __entry->flags, __entry->retire)
 	    );
 
 #endif /* _TRACE_FSCACHE_H */
