@@ -2561,9 +2561,8 @@ mt7915_mcu_beacon_check_caps(struct mt7915_phy *phy, struct ieee80211_vif *vif,
 			      len);
 	if (ie && ie[1] >= sizeof(*ht)) {
 		ht = (void *)(ie + 2);
-		bc = le32_to_cpu(ht->cap_info);
-
-		vc->ldpc |= !!(bc & IEEE80211_HT_CAP_LDPC_CODING);
+		vc->ldpc |= !!(le16_to_cpu(ht->cap_info) &
+			       IEEE80211_HT_CAP_LDPC_CODING);
 	}
 
 	ie = cfg80211_find_ie(WLAN_EID_VHT_CAPABILITY, mgmt->u.beacon.variable,
