@@ -160,6 +160,7 @@ void topology_set_cpu_scale(unsigned int cpu, unsigned long capacity)
 }
 
 DEFINE_PER_CPU(unsigned long, thermal_pressure);
+EXPORT_PER_CPU_SYMBOL_GPL(thermal_pressure);
 
 void topology_set_thermal_pressure(const struct cpumask *cpus,
 			       unsigned long th_pressure)

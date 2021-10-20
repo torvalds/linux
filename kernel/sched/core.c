@@ -62,6 +62,7 @@ EXPORT_SYMBOL_GPL(runqueues);
 const_debug unsigned int sysctl_sched_features =
 #include "features.h"
 	0;
+EXPORT_SYMBOL_GPL(sysctl_sched_features);
 #undef SCHED_FEAT
 
 /*
@@ -991,6 +992,7 @@ void resched_curr(struct rq *rq)
 	else
 		trace_sched_wake_idle_without_ipi(cpu);
 }
+EXPORT_SYMBOL_GPL(resched_curr);
 
 void resched_cpu(int cpu)
 {
@@ -1987,6 +1989,7 @@ static inline void enqueue_task(struct rq *rq, struct task_struct *p, int flags)
 	uclamp_rq_inc(rq, p);
 	trace_android_rvh_enqueue_task(rq, p, flags);
 	p->sched_class->enqueue_task(rq, p, flags);
+	trace_android_rvh_after_enqueue_task(rq, p);
 
 	if (sched_core_enabled(rq))
 		sched_core_enqueue(rq, p);
@@ -2008,6 +2011,7 @@ static inline void dequeue_task(struct rq *rq, struct task_struct *p, int flags)
 	uclamp_rq_dec(rq, p);
 	trace_android_rvh_dequeue_task(rq, p, flags);
 	p->sched_class->dequeue_task(rq, p, flags);
+	trace_android_rvh_after_dequeue_task(rq, p);
 }
 
 void activate_task(struct rq *rq, struct task_struct *p, int flags)
@@ -4050,6 +4054,9 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
 	smp_rmb();
 	if (READ_ONCE(p->on_rq) && ttwu_runnable(p, wake_flags))
 		goto unlock;
+
+	if (READ_ONCE(p->__state) & TASK_UNINTERRUPTIBLE)
+		trace_sched_blocked_reason(p);
 
 #ifdef CONFIG_SMP
 	/*
