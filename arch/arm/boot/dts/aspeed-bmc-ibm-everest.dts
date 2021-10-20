@@ -1908,7 +1908,13 @@
 };
 
 &i2c14 {
+	multi-master;
 	status = "okay";
+
+	ibm-panel@62 {
+		compatible = "ibm,op-panel";
+		reg = <(0x62 | I2C_OWN_SLAVE_ADDRESS)>;
+	};
 
 	i2c-switch@70 {
 		compatible = "nxp,pca9546";
@@ -1916,7 +1922,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		status = "okay";
-		i2c-mux-idle-disconnect;
+		idle-state = <1>;
 
 		i2c14mux0chn0: i2c@0 {
 			#address-cells = <1>;
