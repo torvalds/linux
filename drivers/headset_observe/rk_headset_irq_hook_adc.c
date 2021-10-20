@@ -82,9 +82,6 @@ extern int rt5631_headset_mic_detect(bool headset_status);
 extern int rt3261_headset_mic_detect(int jack_insert);
 #endif
 
-#if defined(CONFIG_SND_SOC_CX2072X)
-extern int cx2072x_jack_report(void);
-#endif
 
 /* headset private data */
 struct headset_priv {
@@ -299,13 +296,6 @@ static void hook_once_work(struct work_struct *work)
 	}
 	headset_info->cur_headset_status =
 		headset_info->isMic ? BIT_HEADSET : BIT_HEADSET_NO_MIC;
-
-#if defined(CONFIG_SND_SOC_CX2072X)
-	if (cx2072x_jack_report() != -1)
-		headset_info->cur_headset_status =
-			(cx2072x_jack_report() == 3) ? BIT_HEADSET :
-						       BIT_HEADSET_NO_MIC;
-#endif
 	if (headset_info->cur_headset_status) {
 		if (headset_info->isMic) {
 			extcon_set_state_sync(headset_info->edev,
