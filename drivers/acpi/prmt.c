@@ -49,7 +49,6 @@ struct prm_context_buffer {
 };
 #pragma pack()
 
-
 static LIST_HEAD(prm_module_list);
 
 struct prm_handler_info {
@@ -73,7 +72,6 @@ struct prm_module_info {
 	struct prm_handler_info handlers[];
 };
 
-
 static u64 efi_pa_va_lookup(u64 pa)
 {
 	efi_memory_desc_t *md;
@@ -87,7 +85,6 @@ static u64 efi_pa_va_lookup(u64 pa)
 
 	return 0;
 }
-
 
 #define get_first_handler(a) ((struct acpi_prmt_handler_info *) ((char *) (a) + a->handler_info_offset))
 #define get_next_handler(a) ((struct acpi_prmt_handler_info *) (sizeof(struct acpi_prmt_handler_info) + (char *) a))
@@ -170,7 +167,6 @@ static void *find_guid_info(const guid_t *guid, u8 mode)
 
 	return NULL;
 }
-
 
 static struct prm_module_info *find_prm_module(const guid_t *guid)
 {
