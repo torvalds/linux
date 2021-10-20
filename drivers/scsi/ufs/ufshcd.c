@@ -9791,6 +9791,11 @@ static int __init ufshcd_core_init(void)
 {
 	int ret;
 
+	/* Verify that there are no gaps in struct utp_transfer_cmd_desc. */
+	static_assert(sizeof(struct utp_transfer_cmd_desc) ==
+		      2 * ALIGNED_UPIU_SIZE +
+			      SG_ALL * sizeof(struct ufshcd_sg_entry));
+
 	ufs_debugfs_init();
 
 	ret = scsi_register_driver(&ufs_dev_wlun_template.gendrv);
