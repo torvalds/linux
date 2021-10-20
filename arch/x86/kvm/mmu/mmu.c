@@ -58,6 +58,7 @@
 extern bool itlb_multihit_kvm_mitigation;
 
 int __read_mostly nx_huge_pages = -1;
+static uint __read_mostly nx_huge_pages_recovery_period_ms;
 #ifdef CONFIG_PREEMPT_RT
 /* Recovery can cause latency spikes, disable it for PREEMPT_RT.  */
 static uint __read_mostly nx_huge_pages_recovery_ratio = 0;
@@ -66,23 +67,26 @@ static uint __read_mostly nx_huge_pages_recovery_ratio = 60;
 #endif
 
 static int set_nx_huge_pages(const char *val, const struct kernel_param *kp);
-static int set_nx_huge_pages_recovery_ratio(const char *val, const struct kernel_param *kp);
+static int set_nx_huge_pages_recovery_param(const char *val, const struct kernel_param *kp);
 
 static const struct kernel_param_ops nx_huge_pages_ops = {
 	.set = set_nx_huge_pages,
 	.get = param_get_bool,
 };
 
-static const struct kernel_param_ops nx_huge_pages_recovery_ratio_ops = {
-	.set = set_nx_huge_pages_recovery_ratio,
+static const struct kernel_param_ops nx_huge_pages_recovery_param_ops = {
+	.set = set_nx_huge_pages_recovery_param,
 	.get = param_get_uint,
 };
 
 module_param_cb(nx_huge_pages, &nx_huge_pages_ops, &nx_huge_pages, 0644);
 __MODULE_PARM_TYPE(nx_huge_pages, "bool");
-module_param_cb(nx_huge_pages_recovery_ratio, &nx_huge_pages_recovery_ratio_ops,
+module_param_cb(nx_huge_pages_recovery_ratio, &nx_huge_pages_recovery_param_ops,
 		&nx_huge_pages_recovery_ratio, 0644);
 __MODULE_PARM_TYPE(nx_huge_pages_recovery_ratio, "uint");
+module_param_cb(nx_huge_pages_recovery_period_ms, &nx_huge_pages_recovery_param_ops,
+		&nx_huge_pages_recovery_period_ms, 0644);
+__MODULE_PARM_TYPE(nx_huge_pages_recovery_period_ms, "uint");
 
 static bool __read_mostly force_flush_and_sync_on_reuse;
 module_param_named(flush_on_reuse, force_flush_and_sync_on_reuse, bool, 0644);
@@ -6145,18 +6149,24 @@ void kvm_mmu_module_exit(void)
 	mmu_audit_disable();
 }
 
-static int set_nx_huge_pages_recovery_ratio(const char *val, const struct kernel_param *kp)
+static int set_nx_huge_pages_recovery_param(const char *val, const struct kernel_param *kp)
 {
-	unsigned int old_val;
+	bool was_recovery_enabled, is_recovery_enabled;
+	uint old_period, new_period;
 	int err;
 
-	old_val = nx_huge_pages_recovery_ratio;
+	was_recovery_enabled = nx_huge_pages_recovery_ratio;
+	old_period = nx_huge_pages_recovery_period_ms;
+
 	err = param_set_uint(val, kp);
 	if (err)
 		return err;
 
-	if (READ_ONCE(nx_huge_pages) &&
-	    !old_val && nx_huge_pages_recovery_ratio) {
+	is_recovery_enabled = nx_huge_pages_recovery_ratio;
+	new_period = nx_huge_pages_recovery_period_ms;
+
+	if (READ_ONCE(nx_huge_pages) && is_recovery_enabled &&
+	    (!was_recovery_enabled || old_period > new_period)) {
 		struct kvm *kvm;
 
 		mutex_lock(&kvm_lock);
@@ -6219,8 +6229,17 @@ static void kvm_recover_nx_lpages(struct kvm *kvm)
 
 static long get_nx_lpage_recovery_timeout(u64 start_time)
 {
-	return READ_ONCE(nx_huge_pages) && READ_ONCE(nx_huge_pages_recovery_ratio)
-		? start_time + 60 * HZ - get_jiffies_64()
+	uint ratio = READ_ONCE(nx_huge_pages_recovery_ratio);
+	uint period = READ_ONCE(nx_huge_pages_recovery_period_ms);
+
+	if (!period && ratio) {
+		/* Make sure the period is not less than one second.  */
+		ratio = min(ratio, 3600u);
+		period = 60 * 60 * 1000 / ratio;
+	}
+
+	return READ_ONCE(nx_huge_pages) && ratio
+		? start_time + msecs_to_jiffies(period) - get_jiffies_64()
 		: MAX_SCHEDULE_TIMEOUT;
 }
 
