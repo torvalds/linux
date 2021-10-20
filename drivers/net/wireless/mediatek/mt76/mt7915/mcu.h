@@ -886,7 +886,7 @@ struct sta_rec_sec {
 	struct sec_key key[2];
 } __packed;
 
-struct ra_phy {
+struct sta_phy {
 	u8 type;
 	u8 flag;
 	u8 stbc;
@@ -930,7 +930,7 @@ struct sta_rec_ra {
 
 	__le32 sta_cap;
 
-	struct ra_phy phy;
+	struct sta_phy phy;
 } __packed;
 
 struct sta_rec_ra_fixed {
@@ -943,7 +943,7 @@ struct sta_rec_ra_fixed {
 	u8 op_vht_rx_nss;
 	u8 op_vht_rx_nss_type;
 
-	struct ra_phy phy;
+	struct sta_phy phy;
 
 	u8 spe_en;
 	u8 short_preamble;
@@ -951,8 +951,14 @@ struct sta_rec_ra_fixed {
 	u8 mmps_mode;
 } __packed;
 
-#define RATE_PARAM_FIXED		3
-#define RATE_PARAM_AUTO			20
+enum {
+	RATE_PARAM_FIXED = 3,
+	RATE_PARAM_FIXED_HE_LTF = 7,
+	RATE_PARAM_FIXED_MCS,
+	RATE_PARAM_FIXED_GI = 11,
+	RATE_PARAM_AUTO = 20,
+};
+
 #define RATE_CFG_MCS			GENMASK(3, 0)
 #define RATE_CFG_NSS			GENMASK(7, 4)
 #define RATE_CFG_GI			GENMASK(11, 8)
