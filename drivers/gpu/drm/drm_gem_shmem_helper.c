@@ -5,6 +5,7 @@
 
 #include <linux/dma-buf.h>
 #include <linux/export.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/shmem_fs.h>
 #include <linux/slab.h>
@@ -774,3 +775,6 @@ drm_gem_shmem_prime_import_sg_table(struct drm_device *dev,
 	return &shmem->base;
 }
 EXPORT_SYMBOL_GPL(drm_gem_shmem_prime_import_sg_table);
+
+MODULE_DESCRIPTION("DRM SHMEM memory-management helpers");
+MODULE_LICENSE("GPL v2");
