@@ -477,9 +477,10 @@ def main(argv, linux=None):
 			sys.exit(1)
 	elif cli_args.subcommand == 'parse':
 		if cli_args.file == None:
+			sys.stdin.reconfigure(errors='backslashreplace')  # pytype: disable=attribute-error
 			kunit_output = sys.stdin
 		else:
-			with open(cli_args.file, 'r') as f:
+			with open(cli_args.file, 'r', errors='backslashreplace') as f:
 				kunit_output = f.read().splitlines()
 		request = KunitParseRequest(cli_args.raw_output,
 					    None,
