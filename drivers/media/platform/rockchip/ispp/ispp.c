@@ -273,8 +273,6 @@ static int rkispp_sd_s_stream(struct v4l2_subdev *sd, int on)
 		 "s_stream on:%d\n", on);
 
 	if (on) {
-		dev->is_first = true;
-		dev->first_frame_dma = -1;
 		ispp_sdev->state = ISPP_START;
 		ispp_sdev->frm_sync_seq = -1;
 		ispp_sdev->frame_timestamp = 0;

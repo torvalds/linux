@@ -2848,11 +2848,6 @@ static void nr_work_event(struct rkispp_device *dev,
 			dbuf = vdev->nr.cur_rd->dbuf[GROUP_BUF_PIC];
 			dummy = dbuf_to_dummy(dbuf, &vdev->tnr.buf.iir, size);
 			val = dummy->dma_addr;
-			if (dev->is_first && dev->first_frame_dma != -1) {
-				val = dev->first_frame_dma;
-				dev->first_frame_dma = -1;
-				dev->is_first = false;
-			}
 			rkispp_write(dev, RKISPP_NR_ADDR_BASE_Y, val);
 			val += vdev->nr.uv_offset;
 			rkispp_write(dev, RKISPP_NR_ADDR_BASE_UV, val);
@@ -3084,13 +3079,6 @@ static void tnr_work_event(struct rkispp_device *dev,
 	if (!buf_rd && !buf_wr && is_isr) {
 		vdev->tnr.is_end = true;
 
-		if (dev->is_first && vdev->tnr.nxt_rd) {
-			struct rkispp_isp_buf_pool *tbuf = get_pool_buf(dev, vdev->tnr.nxt_rd);
-
-			dev->first_frame_dma = tbuf->dma[GROUP_BUF_PIC];
-			rkispp_set_bits(dev, RKISPP_TNR_CTRL, 0, SW_TNR_1ST_FRM);
-		}
-
 		if (vdev->tnr.cur_rd) {
 			/* tnr read buf return to isp */
 			if (sd) {
@@ -3171,7 +3159,8 @@ static void tnr_work_event(struct rkispp_device *dev,
 		vdev->tnr.cur_rd = vdev->tnr.nxt_rd;
 		vdev->tnr.nxt_rd = buf_rd;
 		/* first buf for 3to1 using twice */
-		if (!is_3to1 || dev->is_first)
+		if (!is_3to1 ||
+		    (rkispp_read(dev, RKISPP_TNR_CTRL) & SW_TNR_1ST_FRM))
 			vdev->tnr.cur_rd = vdev->tnr.nxt_rd;
 	} else if (vdev->tnr.is_end && !list_empty(list)) {
 		/* tnr read buf from list
@@ -3230,7 +3219,7 @@ static void tnr_work_event(struct rkispp_device *dev,
 				val = buf->dma[GROUP_BUF_GAIN];
 				rkispp_write(dev, RKISPP_TNR_GAIN_NXT_Y_BASE, val);
 
-				if (dev->is_first)
+				if (rkispp_read(dev, RKISPP_TNR_CTRL) & SW_TNR_1ST_FRM)
 					vdev->tnr.cur_rd = NULL;
 			}
 		}

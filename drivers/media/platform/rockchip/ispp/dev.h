@@ -56,8 +56,5 @@ struct rkispp_device {
 	bool stream_sync;
 
 	void (*irq_hdl)(u32 mis, struct rkispp_device *dev);
-
-	u32 first_frame_dma;
-	bool is_first;
 };
 #endif
