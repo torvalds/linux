@@ -2037,13 +2037,15 @@ static int netsec_probe(struct platform_device *pdev)
 	if (ret && priv->eeprom_base) {
 		void __iomem *macp = priv->eeprom_base +
 					NETSEC_EEPROM_MAC_ADDRESS;
+		u8 addr[ETH_ALEN];
 
-		ndev->dev_addr[0] = readb(macp + 3);
-		ndev->dev_addr[1] = readb(macp + 2);
-		ndev->dev_addr[2] = readb(macp + 1);
-		ndev->dev_addr[3] = readb(macp + 0);
-		ndev->dev_addr[4] = readb(macp + 7);
-		ndev->dev_addr[5] = readb(macp + 6);
+		addr[0] = readb(macp + 3);
+		addr[1] = readb(macp + 2);
+		addr[2] = readb(macp + 1);
+		addr[3] = readb(macp + 0);
+		addr[4] = readb(macp + 7);
+		addr[5] = readb(macp + 6);
+		eth_hw_addr_set(ndev, addr);
 	}
 
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
