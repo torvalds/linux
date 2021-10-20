@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Device Tree File for TMPV7708 RM main board
+ * Device Tree File for TMPV7708 VisROBO VRB board
  *
- * (C) Copyright 2020, Toshiba Corporation.
+ * (C) Copyright 2020, 2021, Toshiba Corporation.
  * (C) Copyright 2020, Nobuhiro Iwamatsu <nobuhiro1.iwamatsu@toshiba.co.jp>
  */
 
 /dts-v1/;
 
-#include "tmpv7708.dtsi"
+#include "tmpv7708-visrobo-vrc.dtsi"
 
 / {
-	model = "Toshiba TMPV7708 RM main board";
-	compatible = "toshiba,tmpv7708-rm-mbrc", "toshiba,tmpv7708";
+	model = "Toshiba TMPV7708 VisROBO (VRB) board";
+	compatible = "toshiba,tmpv7708-visrobo-vrb", "toshiba,tmpv7708";
 
 	aliases {
 		serial0 = &uart0;
@@ -58,27 +58,4 @@
 			reg = <0x1>;
 		};
 	};
-};
-
-&wdt {
-	status = "okay";
-	clocks = <&wdt_clk>;
-};
-
-&gpio {
-	status = "okay";
-};
-
-&pwm_mux {
-	groups = "pwm0_gpio16_grp", "pwm1_gpio17_grp", "pwm2_gpio18_grp", "pwm3_gpio19_grp";
-};
-
-&pwm {
-	status = "okay";
-};
-
-&pcie {
-	status = "okay";
-	clocks = <&extclk100mhz>, <&clk600mhz>, <&clk25mhz>;
-	clock-names = "ref", "core", "aux";
 };
