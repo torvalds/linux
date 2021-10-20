@@ -1069,6 +1069,20 @@ again:
 	if (!page)
 		return ERR_PTR(-ENOMEM);
 
+	/*
+	 * Since we can defragment files opened read-only, we can encounter
+	 * transparent huge pages here (see CONFIG_READ_ONLY_THP_FOR_FS). We
+	 * can't do I/O using huge pages yet, so return an error for now.
+	 * Filesystem transparent huge pages are typically only used for
+	 * executables that explicitly enable them, so this isn't very
+	 * restrictive.
+	 */
+	if (PageCompound(page)) {
+		unlock_page(page);
+		put_page(page);
+		return ERR_PTR(-ETXTBSY);
+	}
+
 	ret = set_page_extent_mapped(page);
 	if (ret < 0) {
 		unlock_page(page);
