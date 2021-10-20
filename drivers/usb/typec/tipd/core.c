@@ -750,6 +750,14 @@ static int tps6598x_probe(struct i2c_client *client)
 			return ret;
 
 		irq_handler = cd321x_interrupt;
+	} else {
+		/* Enable power status, data status and plug event interrupts */
+		ret = tps6598x_write64(tps, TPS_REG_INT_MASK1,
+				       TPS_REG_INT_POWER_STATUS_UPDATE |
+				       TPS_REG_INT_DATA_STATUS_UPDATE |
+				       TPS_REG_INT_PLUG_EVENT);
+		if (ret)
+			return ret;
 	}
 
 	ret = tps6598x_read32(tps, TPS_REG_STATUS, &status);
