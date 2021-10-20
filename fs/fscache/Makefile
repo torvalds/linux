@@ -5,7 +5,8 @@
 
 fscache-y := \
 	cache.o \
-	main.o
+	main.o \
+	volume.o
 
 fscache-$(CONFIG_PROC_FS) += proc.o
 fscache-$(CONFIG_FSCACHE_STATS) += stats.o

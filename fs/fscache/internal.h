@@ -72,6 +72,9 @@ extern void fscache_proc_cleanup(void);
  * stats.c
  */
 #ifdef CONFIG_FSCACHE_STATS
+extern atomic_t fscache_n_volumes;
+extern atomic_t fscache_n_volumes_collision;
+extern atomic_t fscache_n_volumes_nomem;
 
 static inline void fscache_stat(atomic_t *stat)
 {
@@ -92,6 +95,17 @@ int fscache_stats_show(struct seq_file *m, void *v);
 #define fscache_stat(stat) do {} while (0)
 #define fscache_stat_d(stat) do {} while (0)
 #endif
+
+/*
+ * volume.c
+ */
+extern const struct seq_operations fscache_volumes_seq_ops;
+
+struct fscache_volume *fscache_get_volume(struct fscache_volume *volume,
+					  enum fscache_volume_trace where);
+void fscache_put_volume(struct fscache_volume *volume,
+			enum fscache_volume_trace where);
+void fscache_create_volume(struct fscache_volume *volume, bool wait);
 
 
 /*****************************************************************************/
