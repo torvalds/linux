@@ -195,14 +195,6 @@ static inline int __pure __get_cpu_type(const int cpu_type)
 #ifdef CONFIG_SYS_HAS_CPU_BMIPS5000
 	case CPU_BMIPS5000:
 #endif
-
-#ifdef CONFIG_SYS_HAS_CPU_XLP
-	case CPU_XLP:
-#endif
-
-#ifdef CONFIG_SYS_HAS_CPU_XLR
-	case CPU_XLR:
-#endif
 		break;
 	default:
 		unreachable();
