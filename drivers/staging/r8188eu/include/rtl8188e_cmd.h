@@ -27,25 +27,12 @@ enum RTL8188E_H2C_CMD_ID {
 	/* Class DM */
 	H2C_DM_MACID_CFG		= 0x40,
 	H2C_DM_TXBF			= 0x41,
-
-	/* Class BT */
-	H2C_BT_COEX_MASK		= 0x60,
-	H2C_BT_COEX_GPIO_MODE		= 0x61,
-	H2C_BT_DAC_SWING_VAL		= 0x62,
-	H2C_BT_PSD_RST			= 0x63,
-
-	/* Class */
-	 H2C_RESET_TSF			= 0xc0,
 };
 
 struct cmd_msg_parm {
 	u8 eid; /* element id */
 	u8 sz; /*  sz */
 	u8 buf[6];
-};
-
-enum {
-	PWRS
 };
 
 struct setpwrmode_parm {
