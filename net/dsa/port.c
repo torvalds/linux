@@ -523,7 +523,7 @@ static bool dsa_port_can_apply_vlan_filtering(struct dsa_port *dp,
 	 * enter an inconsistent state: deny changing the VLAN awareness state
 	 * as long as we have 8021q uppers.
 	 */
-	if (vlan_filtering && dsa_is_user_port(ds, dp->index)) {
+	if (vlan_filtering && dsa_port_is_user(dp)) {
 		struct net_device *upper_dev, *slave = dp->slave;
 		struct net_device *br = dp->bridge_dev;
 		struct list_head *iter;
@@ -1038,7 +1038,7 @@ static void dsa_port_phylink_mac_link_down(struct phylink_config *config,
 	struct phy_device *phydev = NULL;
 	struct dsa_switch *ds = dp->ds;
 
-	if (dsa_is_user_port(ds, dp->index))
+	if (dsa_port_is_user(dp))
 		phydev = dp->slave->phydev;
 
 	if (!ds->ops->phylink_mac_link_down) {
