@@ -166,7 +166,7 @@ static void ocelot_port_set_native_vlan(struct ocelot *ocelot, int port,
 					struct ocelot_vlan native_vlan)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
-	u32 val = 0;
+	enum ocelot_port_tag_config tag_cfg;
 
 	ocelot_port->native_vlan = native_vlan;
 
@@ -176,16 +176,13 @@ static void ocelot_port_set_native_vlan(struct ocelot *ocelot, int port,
 
 	if (ocelot_port->vlan_aware) {
 		if (native_vlan.valid)
-			/* Tag all frames except when VID == DEFAULT_VLAN */
-			val = REW_TAG_CFG_TAG_CFG(1);
+			tag_cfg = OCELOT_PORT_TAG_NATIVE;
 		else
-			/* Tag all frames */
-			val = REW_TAG_CFG_TAG_CFG(3);
+			tag_cfg = OCELOT_PORT_TAG_TRUNK;
 	} else {
-		/* Port tagging disabled. */
-		val = REW_TAG_CFG_TAG_CFG(0);
+		tag_cfg = OCELOT_PORT_TAG_DISABLED;
 	}
-	ocelot_rmw_gix(ocelot, val,
+	ocelot_rmw_gix(ocelot, REW_TAG_CFG_TAG_CFG(tag_cfg),
 		       REW_TAG_CFG_TAG_CFG_M,
 		       REW_TAG_CFG, port);
 }
