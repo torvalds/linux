@@ -2481,7 +2481,6 @@ void blk_mq_submit_bio(struct bio *bio)
 {
 	struct request_queue *q = bdev_get_queue(bio->bi_bdev);
 	const int is_sync = op_is_sync(bio->bi_opf);
-	const int is_flush_fua = op_is_flush(bio->bi_opf);
 	struct request *rq;
 	struct blk_plug *plug;
 	bool same_queue_rq = false;
@@ -2495,12 +2494,12 @@ void blk_mq_submit_bio(struct bio *bio)
 	if (!bio_integrity_prep(bio))
 		goto queue_exit;
 
-	if (!is_flush_fua && !blk_queue_nomerges(q) &&
-	    blk_attempt_plug_merge(q, bio, nr_segs, &same_queue_rq))
-		goto queue_exit;
-
-	if (blk_mq_sched_bio_merge(q, bio, nr_segs))
-		goto queue_exit;
+	if (!blk_queue_nomerges(q) && bio_mergeable(bio)) {
+		if (blk_attempt_plug_merge(q, bio, nr_segs, &same_queue_rq))
+			goto queue_exit;
+		if (blk_mq_sched_bio_merge(q, bio, nr_segs))
+			goto queue_exit;
+	}
 
 	rq_qos_throttle(q, bio);
 
@@ -2543,7 +2542,7 @@ void blk_mq_submit_bio(struct bio *bio)
 		return;
 	}
 
-	if (is_flush_fua && blk_insert_flush(rq))
+	if (op_is_flush(bio->bi_opf) && blk_insert_flush(rq))
 		return;
 
 	if (plug && (q->nr_hw_queues == 1 ||
