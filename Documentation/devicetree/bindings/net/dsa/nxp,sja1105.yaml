@@ -74,9 +74,41 @@ properties:
           - compatible
           - reg
 
+patternProperties:
+  "^(ethernet-)?ports$":
+    patternProperties:
+      "^(ethernet-)?port@[0-9]+$":
+        allOf:
+          - if:
+              properties:
+                phy-mode:
+                  contains:
+                    enum:
+                      - rgmii
+                      - rgmii-rxid
+                      - rgmii-txid
+                      - rgmii-id
+            then:
+              properties:
+                rx-internal-delay-ps:
+                  $ref: "#/$defs/internal-delay-ps"
+                tx-internal-delay-ps:
+                  $ref: "#/$defs/internal-delay-ps"
+
 required:
   - compatible
   - reg
+
+$defs:
+  internal-delay-ps:
+    description:
+      Disable tunable delay lines using 0 ps, or enable them and select
+      the phase between 1640 ps (73.8 degree shift at 1Gbps) and 2260 ps
+      (101.7 degree shift) in increments of 0.9 degrees (20 ps).
+    enum:
+      [0, 1640, 1660, 1680, 1700, 1720, 1740, 1760, 1780, 1800, 1820, 1840,
+       1860, 1880, 1900, 1920, 1940, 1960, 1980, 2000, 2020, 2040, 2060, 2080,
+       2100, 2120, 2140, 2160, 2180, 2200, 2220, 2240, 2260]
 
 unevaluatedProperties: false
 
@@ -97,29 +129,40 @@ examples:
                             port@0 {
                                     phy-handle = <&rgmii_phy6>;
                                     phy-mode = "rgmii-id";
+                                    rx-internal-delay-ps = <0>;
+                                    tx-internal-delay-ps = <0>;
                                     reg = <0>;
                             };
 
                             port@1 {
                                     phy-handle = <&rgmii_phy3>;
                                     phy-mode = "rgmii-id";
+                                    rx-internal-delay-ps = <0>;
+                                    tx-internal-delay-ps = <0>;
                                     reg = <1>;
                             };
 
                             port@2 {
                                     phy-handle = <&rgmii_phy4>;
                                     phy-mode = "rgmii-id";
+                                    rx-internal-delay-ps = <0>;
+                                    tx-internal-delay-ps = <0>;
                                     reg = <2>;
                             };
 
                             port@3 {
+                                    phy-handle = <&rgmii_phy4>;
                                     phy-mode = "rgmii-id";
+                                    rx-internal-delay-ps = <0>;
+                                    tx-internal-delay-ps = <0>;
                                     reg = <3>;
                             };
 
                             port@4 {
                                     ethernet = <&enet2>;
                                     phy-mode = "rgmii";
+                                    rx-internal-delay-ps = <0>;
+                                    tx-internal-delay-ps = <0>;
                                     reg = <4>;
 
                                     fixed-link {
