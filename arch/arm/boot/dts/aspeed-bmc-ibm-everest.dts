@@ -108,6 +108,8 @@
 		i2c44 = &i2c15mux2chn1;
 		i2c45 = &i2c15mux2chn2;
 		i2c46 = &i2c15mux2chn3;
+		i2c47 = &i2c8mux0chn0;
+		i2c48 = &i2c8mux0chn1;
 
 		serial4 = &uart5;
 
@@ -1781,6 +1783,27 @@
 	eeprom@50 {
 		compatible = "atmel,24c128";
 		reg = <0x50>;
+	};
+
+	i2c-switch@70 {
+		compatible = "nxp,pca9546";
+		reg = <0x70>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "okay";
+		i2c-mux-idle-disconnect;
+
+		i2c8mux0chn0: i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+		};
+
+		i2c8mux0chn1: i2c@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+		};
 	};
 };
 
