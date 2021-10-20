@@ -130,6 +130,13 @@
 			reg = <0xe001d060 0x48>;
 		};
 
+		rtc: rtc@e001d0a8 {
+			compatible = "microchip,sama7g5-rtc", "microchip,sam9x60-rtc";
+			reg = <0xe001d0a8 0x30>;
+			interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk32k 1>;
+		};
+
 		ps_wdt: watchdog@e001d180 {
 			compatible = "microchip,sama7g5-wdt";
 			reg = <0xe001d180 0x24>;
