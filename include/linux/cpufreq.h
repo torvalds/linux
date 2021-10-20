@@ -385,7 +385,7 @@ struct cpufreq_driver {
 /* flags */
 
 /*
- * Set by drivers that need to update internale upper and lower boundaries along
+ * Set by drivers that need to update internal upper and lower boundaries along
  * with the target frequency and so the core and governors should also invoke
  * the diver if the target frequency does not change, but the policy min or max
  * may have changed.
