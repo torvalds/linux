@@ -1071,15 +1071,55 @@ static void dasd_eckd_read_fc_security(struct dasd_device *device)
 	}
 }
 
+static void dasd_eckd_get_uid_string(struct dasd_eckd_private *private,
+				     char *print_uid)
+{
+	struct dasd_uid *uid;
+
+	uid = &private->uid;
+	if (strlen(uid->vduit) > 0)
+		snprintf(print_uid, sizeof(*print_uid),
+			 "%s.%s.%04x.%02x.%s",
+			 uid->vendor, uid->serial, uid->ssid,
+			 uid->real_unit_addr, uid->vduit);
+	else
+		snprintf(print_uid, sizeof(*print_uid),
+			 "%s.%s.%04x.%02x",
+			 uid->vendor, uid->serial, uid->ssid,
+			 uid->real_unit_addr);
+}
+
+static int dasd_eckd_check_cabling(struct dasd_device *device,
+				   void *conf_data, __u8 lpm)
+{
+	struct dasd_eckd_private *private = device->private;
+	char print_path_uid[60], print_device_uid[60];
+	struct dasd_eckd_private path_private;
+
+	path_private.conf_data = conf_data;
+	path_private.conf_len = DASD_ECKD_RCD_DATA_SIZE;
+	if (dasd_eckd_identify_conf_parts(&path_private))
+		return 1;
+
+	if (dasd_eckd_compare_path_uid(device, &path_private)) {
+		dasd_eckd_get_uid_string(&path_private, print_path_uid);
+		dasd_eckd_get_uid_string(private, print_device_uid);
+		dev_err(&device->cdev->dev,
+			"Not all channel paths lead to the same device, path %02X leads to device %s instead of %s\n",
+			lpm, print_path_uid, print_device_uid);
+		return 1;
+	}
+
+	return 0;
+}
+
 static int dasd_eckd_read_conf(struct dasd_device *device)
 {
 	void *conf_data;
 	int conf_len, conf_data_saved;
 	int rc, path_err, pos;
 	__u8 lpm, opm;
-	struct dasd_eckd_private *private, path_private;
-	struct dasd_uid *uid;
-	char print_path_uid[60], print_device_uid[60];
+	struct dasd_eckd_private *private;
 
 	private = device->private;
 	opm = ccw_device_get_path_mask(device->cdev);
@@ -1123,59 +1163,11 @@ static int dasd_eckd_read_conf(struct dasd_device *device)
 			 */
 			dasd_eckd_generate_uid(device);
 			conf_data_saved++;
-		} else {
-			path_private.conf_data = conf_data;
-			path_private.conf_len = DASD_ECKD_RCD_DATA_SIZE;
-			if (dasd_eckd_identify_conf_parts(
-				    &path_private)) {
-				path_private.conf_data = NULL;
-				path_private.conf_len = 0;
-				kfree(conf_data);
-				continue;
-			}
-			if (dasd_eckd_compare_path_uid(
-				    device, &path_private)) {
-				uid = &path_private.uid;
-				if (strlen(uid->vduit) > 0)
-					snprintf(print_path_uid,
-						 sizeof(print_path_uid),
-						 "%s.%s.%04x.%02x.%s",
-						 uid->vendor, uid->serial,
-						 uid->ssid, uid->real_unit_addr,
-						 uid->vduit);
-				else
-					snprintf(print_path_uid,
-						 sizeof(print_path_uid),
-						 "%s.%s.%04x.%02x",
-						 uid->vendor, uid->serial,
-						 uid->ssid,
-						 uid->real_unit_addr);
-				uid = &private->uid;
-				if (strlen(uid->vduit) > 0)
-					snprintf(print_device_uid,
-						 sizeof(print_device_uid),
-						 "%s.%s.%04x.%02x.%s",
-						 uid->vendor, uid->serial,
-						 uid->ssid, uid->real_unit_addr,
-						 uid->vduit);
-				else
-					snprintf(print_device_uid,
-						 sizeof(print_device_uid),
-						 "%s.%s.%04x.%02x",
-						 uid->vendor, uid->serial,
-						 uid->ssid,
-						 uid->real_unit_addr);
-				dev_err(&device->cdev->dev,
-					"Not all channel paths lead to "
-					"the same device, path %02X leads to "
-					"device %s instead of %s\n", lpm,
-					print_path_uid, print_device_uid);
-				path_err = -EINVAL;
-				dasd_path_add_cablepm(device, lpm);
-				continue;
-			}
-			path_private.conf_data = NULL;
-			path_private.conf_len = 0;
+		} else if (dasd_eckd_check_cabling(device, conf_data, lpm)) {
+			dasd_path_add_cablepm(device, lpm);
+			path_err = -EINVAL;
+			kfree(conf_data);
+			continue;
 		}
 
 		pos = pathmask_to_pos(lpm);
@@ -1300,7 +1292,6 @@ static void dasd_eckd_path_available_action(struct dasd_device *device,
 					    struct pe_handler_work_data *data)
 {
 	struct dasd_eckd_private path_private;
-	struct dasd_uid *uid;
 	__u8 path_rcd_buf[DASD_ECKD_RCD_DATA_SIZE];
 	__u8 lpm, opm, npm, ppm, epm, hpfpm, cablepm;
 	struct dasd_conf_data *conf_data;
@@ -1397,19 +1388,8 @@ static void dasd_eckd_path_available_action(struct dasd_device *device,
 			if (rebuild_device_uid(device, data) ||
 			    dasd_eckd_compare_path_uid(
 				    device, &path_private)) {
-				uid = &path_private.uid;
-				if (strlen(uid->vduit) > 0)
-					snprintf(print_uid, sizeof(print_uid),
-						 "%s.%s.%04x.%02x.%s",
-						 uid->vendor, uid->serial,
-						 uid->ssid, uid->real_unit_addr,
-						 uid->vduit);
-				else
-					snprintf(print_uid, sizeof(print_uid),
-						 "%s.%s.%04x.%02x",
-						 uid->vendor, uid->serial,
-						 uid->ssid,
-						 uid->real_unit_addr);
+				dasd_eckd_get_uid_string(&path_private,
+							 print_uid);
 				dev_err(&device->cdev->dev,
 					"The newly added channel path %02X "
 					"will not be used because it leads "
@@ -5820,15 +5800,7 @@ static int dasd_eckd_reload_device(struct dasd_device *device)
 	dasd_eckd_get_uid(device, &uid);
 
 	if (old_base != uid.base_unit_addr) {
-		if (strlen(uid.vduit) > 0)
-			snprintf(print_uid, sizeof(print_uid),
-				 "%s.%s.%04x.%02x.%s", uid.vendor, uid.serial,
-				 uid.ssid, uid.base_unit_addr, uid.vduit);
-		else
-			snprintf(print_uid, sizeof(print_uid),
-				 "%s.%s.%04x.%02x", uid.vendor, uid.serial,
-				 uid.ssid, uid.base_unit_addr);
-
+		dasd_eckd_get_uid_string(private, print_uid);
 		dev_info(&device->cdev->dev,
 			 "An Alias device was reassigned to a new base device "
 			 "with UID: %s\n", print_uid);
