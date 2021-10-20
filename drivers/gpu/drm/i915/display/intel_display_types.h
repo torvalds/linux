@@ -2051,11 +2051,4 @@ static inline bool is_ccs_modifier(u64 modifier)
 	       modifier == I915_FORMAT_MOD_Yf_TILED_CCS;
 }
 
-static inline bool is_gen12_ccs_modifier(u64 modifier)
-{
-	return modifier == I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS ||
-	       modifier == I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC ||
-	       modifier == I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS;
-}
-
 #endif /*  __INTEL_DISPLAY_TYPES_H__ */

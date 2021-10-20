@@ -27,10 +27,7 @@ enum intel_plane_caps {
 	PLANE_HAS_CCS_MC = BIT(2),
 };
 
-bool is_ccs_plane(const struct drm_framebuffer *fb, int plane);
-bool is_gen12_ccs_plane(const struct drm_framebuffer *fb, int plane);
-bool is_gen12_ccs_cc_plane(const struct drm_framebuffer *fb, int plane);
-
+bool intel_fb_is_ccs_aux_plane(const struct drm_framebuffer *fb, int color_plane);
 int intel_fb_rc_ccs_cc_plane(const struct drm_framebuffer *fb);
 
 u64 *intel_fb_plane_get_modifiers(struct drm_i915_private *i915,
