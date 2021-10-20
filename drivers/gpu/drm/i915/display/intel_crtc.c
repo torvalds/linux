@@ -542,6 +542,9 @@ void intel_pipe_update_end(struct intel_crtc_state *new_crtc_state)
 
 	trace_intel_pipe_update_end(crtc, end_vbl_count, scanline_end);
 
+	/* Send VRR Push to terminate Vblank */
+	intel_vrr_send_push(new_crtc_state);
+
 	/*
 	 * Incase of mipi dsi command mode, we need to set frame update
 	 * request for every commit.
@@ -567,9 +570,6 @@ void intel_pipe_update_end(struct intel_crtc_state *new_crtc_state)
 	}
 
 	local_irq_enable();
-
-	/* Send VRR Push to terminate Vblank */
-	intel_vrr_send_push(new_crtc_state);
 
 	if (intel_vgpu_active(dev_priv))
 		return;
