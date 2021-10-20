@@ -57,6 +57,15 @@ struct fscache_cache_ops {
 
 	/* Free the cache's data attached to a volume */
 	void (*free_volume)(struct fscache_volume *volume);
+
+	/* Look up a cookie in the cache */
+	bool (*lookup_cookie)(struct fscache_cookie *cookie);
+
+	/* Withdraw an object without any cookie access counts held */
+	void (*withdraw_cookie)(struct fscache_cookie *cookie);
+
+	/* Prepare to write to a live cache object */
+	void (*prepare_to_write)(struct fscache_cookie *cookie);
 };
 
 extern struct workqueue_struct *fscache_wq;
@@ -72,6 +81,7 @@ extern int fscache_add_cache(struct fscache_cache *cache,
 			     void *cache_priv);
 extern void fscache_withdraw_cache(struct fscache_cache *cache);
 extern void fscache_withdraw_volume(struct fscache_volume *volume);
+extern void fscache_withdraw_cookie(struct fscache_cookie *cookie);
 
 extern void fscache_io_error(struct fscache_cache *cache);
 
@@ -85,8 +95,21 @@ extern void fscache_put_cookie(struct fscache_cookie *cookie,
 			       enum fscache_cookie_trace where);
 extern void fscache_end_cookie_access(struct fscache_cookie *cookie,
 				      enum fscache_access_trace why);
-extern void fscache_set_cookie_state(struct fscache_cookie *cookie,
-				     enum fscache_cookie_state state);
+extern void fscache_cookie_lookup_negative(struct fscache_cookie *cookie);
+extern void fscache_caching_failed(struct fscache_cookie *cookie);
+
+/**
+ * fscache_cookie_state - Read the state of a cookie
+ * @cookie: The cookie to query
+ *
+ * Get the state of a cookie, imposing an ordering between the cookie contents
+ * and the state value.  Paired with fscache_set_cookie_state().
+ */
+static inline
+enum fscache_cookie_state fscache_cookie_state(struct fscache_cookie *cookie)
+{
+	return smp_load_acquire(&cookie->state);
+}
 
 /**
  * fscache_get_key - Get a pointer to the cookie key
