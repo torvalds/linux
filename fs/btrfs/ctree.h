@@ -218,6 +218,9 @@ struct btrfs_root_backup {
 	u8 unused_8[10];
 } __attribute__ ((__packed__));
 
+#define BTRFS_SUPER_INFO_OFFSET			SZ_64K
+#define BTRFS_SUPER_INFO_SIZE			4096
+
 /*
  * the super block basically lists the main trees of the FS
  * it currently lacks any block count etc etc
@@ -270,7 +273,11 @@ struct btrfs_super_block {
 	__le64 reserved[28];
 	u8 sys_chunk_array[BTRFS_SYSTEM_CHUNK_ARRAY_SIZE];
 	struct btrfs_root_backup super_roots[BTRFS_NUM_BACKUP_ROOTS];
+
+	/* Padded to 4096 bytes */
+	u8 padding[565];
 } __attribute__ ((__packed__));
+static_assert(sizeof(struct btrfs_super_block) == BTRFS_SUPER_INFO_SIZE);
 
 /*
  * Compat flags that we support.  If any incompat flags are set other than the
