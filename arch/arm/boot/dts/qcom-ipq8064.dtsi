@@ -1181,7 +1181,7 @@
 			#size-cells = <1>;
 			ranges;
 
-			sdcc1: sdcc@12400000 {
+			sdcc1: mmc@12400000 {
 				status          = "disabled";
 				compatible      = "arm,pl18x", "arm,primecell";
 				arm,primecell-periphid = <0x00051180>;
@@ -1201,7 +1201,7 @@
 				dma-names = "tx", "rx";
 			};
 
-			sdcc3: sdcc@12180000 {
+			sdcc3: mmc@12180000 {
 				compatible      = "arm,pl18x", "arm,primecell";
 				arm,primecell-periphid = <0x00051180>;
 				status          = "disabled";

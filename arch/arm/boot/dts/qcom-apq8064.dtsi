@@ -1073,7 +1073,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
-			sdcc1: sdcc@12400000 {
+			sdcc1: mmc@12400000 {
 				status		= "disabled";
 				compatible	= "arm,pl18x", "arm,primecell";
 				pinctrl-names	= "default";
@@ -1093,7 +1093,7 @@
 				dma-names = "tx", "rx";
 			};
 
-			sdcc3: sdcc@12180000 {
+			sdcc3: mmc@12180000 {
 				compatible	= "arm,pl18x", "arm,primecell";
 				arm,primecell-periphid = <0x00051180>;
 				status		= "disabled";
@@ -1111,7 +1111,7 @@
 				dma-names = "tx", "rx";
 			};
 
-			sdcc4: sdcc@121c0000 {
+			sdcc4: mmc@121c0000 {
 				compatible	= "arm,pl18x", "arm,primecell";
 				arm,primecell-periphid = <0x00051180>;
 				status		= "disabled";

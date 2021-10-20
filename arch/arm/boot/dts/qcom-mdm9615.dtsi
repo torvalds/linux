@@ -354,7 +354,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
-			sdcc1: sdcc@12180000 {
+			sdcc1: mmc@12180000 {
 				status = "disabled";
 				compatible = "arm,pl18x", "arm,primecell";
 				arm,primecell-periphid = <0x00051180>;
@@ -374,7 +374,7 @@
 				assigned-clock-rates = <400000>;
 			};
 
-			sdcc2: sdcc@12140000 {
+			sdcc2: mmc@12140000 {
 				compatible = "arm,pl18x", "arm,primecell";
 				arm,primecell-periphid = <0x00051180>;
 				status = "disabled";
