@@ -394,7 +394,8 @@ static int sja1105_init_virtual_links(struct sja1105_private *priv,
 				vl_lookup[k].vlanid = rule->key.vl.vid;
 				vl_lookup[k].vlanprior = rule->key.vl.pcp;
 			} else {
-				u16 vid = dsa_8021q_rx_vid(priv->ds, port);
+				struct dsa_port *dp = dsa_to_port(priv->ds, port);
+				u16 vid = dsa_tag_8021q_rx_vid(dp);
 
 				vl_lookup[k].vlanid = vid;
 				vl_lookup[k].vlanprior = 0;

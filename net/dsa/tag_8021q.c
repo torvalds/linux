@@ -77,22 +77,22 @@ EXPORT_SYMBOL_GPL(dsa_8021q_bridge_tx_fwd_offload_vid);
 /* Returns the VID to be inserted into the frame from xmit for switch steering
  * instructions on egress. Encodes switch ID and port ID.
  */
-u16 dsa_8021q_tx_vid(struct dsa_switch *ds, int port)
+u16 dsa_tag_8021q_tx_vid(const struct dsa_port *dp)
 {
-	return DSA_8021Q_DIR_TX | DSA_8021Q_SWITCH_ID(ds->index) |
-	       DSA_8021Q_PORT(port);
+	return DSA_8021Q_DIR_TX | DSA_8021Q_SWITCH_ID(dp->ds->index) |
+	       DSA_8021Q_PORT(dp->index);
 }
-EXPORT_SYMBOL_GPL(dsa_8021q_tx_vid);
+EXPORT_SYMBOL_GPL(dsa_tag_8021q_tx_vid);
 
 /* Returns the VID that will be installed as pvid for this switch port, sent as
  * tagged egress towards the CPU port and decoded by the rcv function.
  */
-u16 dsa_8021q_rx_vid(struct dsa_switch *ds, int port)
+u16 dsa_tag_8021q_rx_vid(const struct dsa_port *dp)
 {
-	return DSA_8021Q_DIR_RX | DSA_8021Q_SWITCH_ID(ds->index) |
-	       DSA_8021Q_PORT(port);
+	return DSA_8021Q_DIR_RX | DSA_8021Q_SWITCH_ID(dp->ds->index) |
+	       DSA_8021Q_PORT(dp->index);
 }
-EXPORT_SYMBOL_GPL(dsa_8021q_rx_vid);
+EXPORT_SYMBOL_GPL(dsa_tag_8021q_rx_vid);
 
 /* Returns the decoded switch ID from the RX VID. */
 int dsa_8021q_rx_switch_id(u16 vid)
@@ -354,10 +354,10 @@ int dsa_tag_8021q_bridge_join(struct dsa_switch *ds,
 
 	targeted_ds = dsa_switch_find(info->tree_index, info->sw_index);
 	targeted_dp = dsa_to_port(targeted_ds, info->port);
-	targeted_rx_vid = dsa_8021q_rx_vid(targeted_ds, info->port);
+	targeted_rx_vid = dsa_tag_8021q_rx_vid(targeted_dp);
 
 	dsa_switch_for_each_port(dp, ds) {
-		u16 rx_vid = dsa_8021q_rx_vid(ds, dp->index);
+		u16 rx_vid = dsa_tag_8021q_rx_vid(dp);
 
 		if (!dsa_port_tag_8021q_bridge_match(dp, info))
 			continue;
@@ -389,10 +389,10 @@ int dsa_tag_8021q_bridge_leave(struct dsa_switch *ds,
 
 	targeted_ds = dsa_switch_find(info->tree_index, info->sw_index);
 	targeted_dp = dsa_to_port(targeted_ds, info->port);
-	targeted_rx_vid = dsa_8021q_rx_vid(targeted_ds, info->port);
+	targeted_rx_vid = dsa_tag_8021q_rx_vid(targeted_dp);
 
 	dsa_switch_for_each_port(dp, ds) {
-		u16 rx_vid = dsa_8021q_rx_vid(ds, dp->index);
+		u16 rx_vid = dsa_tag_8021q_rx_vid(dp);
 
 		if (!dsa_port_tag_8021q_bridge_match(dp, info))
 			continue;
@@ -433,8 +433,8 @@ static int dsa_tag_8021q_port_setup(struct dsa_switch *ds, int port)
 {
 	struct dsa_8021q_context *ctx = ds->tag_8021q_ctx;
 	struct dsa_port *dp = dsa_to_port(ds, port);
-	u16 rx_vid = dsa_8021q_rx_vid(ds, port);
-	u16 tx_vid = dsa_8021q_tx_vid(ds, port);
+	u16 rx_vid = dsa_tag_8021q_rx_vid(dp);
+	u16 tx_vid = dsa_tag_8021q_tx_vid(dp);
 	struct net_device *master;
 	int err;
 
@@ -478,8 +478,8 @@ static void dsa_tag_8021q_port_teardown(struct dsa_switch *ds, int port)
 {
 	struct dsa_8021q_context *ctx = ds->tag_8021q_ctx;
 	struct dsa_port *dp = dsa_to_port(ds, port);
-	u16 rx_vid = dsa_8021q_rx_vid(ds, port);
-	u16 tx_vid = dsa_8021q_tx_vid(ds, port);
+	u16 rx_vid = dsa_tag_8021q_rx_vid(dp);
+	u16 tx_vid = dsa_tag_8021q_tx_vid(dp);
 	struct net_device *master;
 
 	/* The CPU port is implicitly configured by
