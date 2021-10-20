@@ -6628,6 +6628,13 @@ lpfc_host_reset_handler(struct scsi_cmnd *cmnd)
 	if (rc)
 		goto error;
 
+	/* Wait for successful restart of adapter */
+	if (phba->sli_rev < LPFC_SLI_REV4) {
+		rc = lpfc_sli_chipset_init(phba);
+		if (rc)
+			goto error;
+	}
+
 	rc = lpfc_online(phba);
 	if (rc)
 		goto error;
