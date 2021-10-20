@@ -35,6 +35,16 @@ config I3CDEV
 	  Note that this application programming interface is EXPERIMENTAL
 	  and hence SUBJECT TO CHANGE WITHOUT NOTICE while it stabilizes.
 
+if I3CDEV
+config I3CDEV_FORCE_CREATE
+	bool "force create I3C device interface"
+	default y
+	help
+	  Say 'y' to force create I3C devices under /dev/bus/i3c/ regardless of
+	  driver binding.  This option is to help development so it shall be
+	  turned off in production.
+endif # I3CDEV
+
 config I3C_IBI_MQUEUE
 	bool "I3C mqueue (message queue) master ibi driver"
 	default y

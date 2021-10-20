@@ -76,7 +76,7 @@ i3cdev_read(struct file *file, char __user *buf, size_t count, loff_t *f_pos)
 	char *tmp;
 
 	mutex_lock(&i3cdev->xfer_lock);
-	if (i3c->dev.driver)
+	if (!IS_ENABLED(CONFIG_I3CDEV_FORCE_CREATE) && i3c->dev.driver)
 		goto err_out;
 
 	tmp = kzalloc(count, GFP_KERNEL);
@@ -112,7 +112,7 @@ i3cdev_write(struct file *file, const char __user *buf, size_t count,
 	char *tmp;
 
 	mutex_lock(&i3cdev->xfer_lock);
-	if (i3c->dev.driver)
+	if (!IS_ENABLED(CONFIG_I3CDEV_FORCE_CREATE) && i3c->dev.driver)
 		goto err_out;
 
 	tmp = memdup_user(buf, count);
@@ -240,7 +240,7 @@ i3cdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	/* Use the xfer_lock to prevent device detach during ioctl call */
 	mutex_lock(&i3cdev->xfer_lock);
-	if (i3c->dev.driver)
+	if (!IS_ENABLED(CONFIG_I3CDEV_FORCE_CREATE) && i3c->dev.driver)
 		goto err_no_dev;
 
 	/* Check command number and direction */
@@ -291,7 +291,10 @@ static int i3cdev_attach(struct device *dev, void *dummy)
 	struct i3c_device *i3c;
 	int res;
 
-	if (dev->type == &i3c_masterdev_type || dev->driver)
+	if (dev->type == &i3c_masterdev_type)
+		return 0;
+
+	if (!IS_ENABLED(CONFIG_I3CDEV_FORCE_CREATE) && dev->driver)
 		return 0;
 
 	i3c = dev_to_i3cdev(dev);
@@ -366,8 +369,12 @@ static int i3cdev_notifier_call(struct notifier_block *nb,
 	case BUS_NOTIFY_ADD_DEVICE:
 	case BUS_NOTIFY_UNBOUND_DRIVER:
 		return i3cdev_attach(dev, NULL);
-	case BUS_NOTIFY_DEL_DEVICE:
 	case BUS_NOTIFY_BIND_DRIVER:
+		if (IS_ENABLED(CONFIG_I3CDEV_FORCE_CREATE))
+			break;
+
+		fallthrough;
+	case BUS_NOTIFY_DEL_DEVICE:
 		return i3cdev_detach(dev, NULL);
 	}
 
