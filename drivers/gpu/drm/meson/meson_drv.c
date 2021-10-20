@@ -32,6 +32,7 @@
 #include "meson_osd_afbcd.h"
 #include "meson_registers.h"
 #include "meson_venc_cvbs.h"
+#include "meson_encoder_hdmi.h"
 #include "meson_viu.h"
 #include "meson_vpp.h"
 #include "meson_rdma.h"
@@ -317,6 +318,10 @@ static int meson_drv_bind_master(struct device *dev, bool has_components)
 			goto free_drm;
 		}
 	}
+
+	ret = meson_encoder_hdmi_init(priv);
+	if (ret)
+		goto free_drm;
 
 	ret = meson_plane_create(priv);
 	if (ret)
