@@ -323,8 +323,11 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 			break;
 		/* Aldebaran */
 		case IP_VERSION(9, 4, 2):
-		case IP_VERSION(9, 4, 3):
 			gfx_target_version = 90010;
+			f2g = &aldebaran_kfd2kgd;
+			break;
+		case IP_VERSION(9, 4, 3):
+			gfx_target_version = 90400;
 			f2g = &aldebaran_kfd2kgd;
 			break;
 		/* Navi10 */
