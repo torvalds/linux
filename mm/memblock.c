@@ -936,7 +936,12 @@ int __init_memblock memblock_mark_mirror(phys_addr_t base, phys_addr_t size)
  */
 int __init_memblock memblock_mark_nomap(phys_addr_t base, phys_addr_t size)
 {
-	return memblock_setclr_flag(base, size, 1, MEMBLOCK_NOMAP);
+	int ret = memblock_setclr_flag(base, size, 1, MEMBLOCK_NOMAP);
+
+	if (!ret)
+		kmemleak_free_part_phys(base, size);
+
+	return ret;
 }
 
 /**
@@ -1687,7 +1692,7 @@ void __init memblock_cap_memory_range(phys_addr_t base, phys_addr_t size)
 	if (!size)
 		return;
 
-	if (memblock.memory.cnt <= 1) {
+	if (!memblock_memory->total_size) {
 		pr_warn("%s: No memory registered yet\n", __func__);
 		return;
 	}
