@@ -503,17 +503,20 @@ static ssize_t blkdev_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	size_t shorted = 0;
 	ssize_t ret;
 
-	if (pos >= size)
-		return 0;
-
-	size -= pos;
-	if (iov_iter_count(to) > size) {
-		shorted = iov_iter_count(to) - size;
-		iov_iter_truncate(to, size);
+	if (unlikely(pos + iov_iter_count(to) > size)) {
+		if (pos >= size)
+			return 0;
+		size -= pos;
+		if (iov_iter_count(to) > size) {
+			shorted = iov_iter_count(to) - size;
+			iov_iter_truncate(to, size);
+		}
 	}
 
 	ret = generic_file_read_iter(iocb, to);
-	iov_iter_reexpand(to, iov_iter_count(to) + shorted);
+
+	if (unlikely(shorted))
+		iov_iter_reexpand(to, iov_iter_count(to) + shorted);
 	return ret;
 }
 
