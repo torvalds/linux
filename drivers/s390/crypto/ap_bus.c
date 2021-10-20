@@ -793,6 +793,9 @@ static int __ap_revise_reserved(struct device *dev, void *dummy)
 			AP_DBF_DBG("%s reprobing queue=%02x.%04x\n",
 				   __func__, card, queue);
 			rc = device_reprobe(dev);
+			if (rc)
+				AP_DBF_WARN("%s reprobing queue=%02x.%04x failed\n",
+					    __func__, card, queue);
 		}
 	}
 
