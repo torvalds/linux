@@ -663,6 +663,50 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 }
 
 /**
+ * lpfc_sli4_refresh_params - update driver copy of params.
+ * @phba: Pointer to HBA context object.
+ *
+ * This is called to refresh driver copy of dynamic fields from the
+ * common_get_sli4_parameters descriptor.
+ **/
+int
+lpfc_sli4_refresh_params(struct lpfc_hba *phba)
+{
+	LPFC_MBOXQ_t *mboxq;
+	struct lpfc_mqe *mqe;
+	struct lpfc_sli4_parameters *mbx_sli4_parameters;
+	int length, rc;
+
+	mboxq = (LPFC_MBOXQ_t *)mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mboxq)
+		return -ENOMEM;
+
+	mqe = &mboxq->u.mqe;
+	/* Read the port's SLI4 Config Parameters */
+	length = (sizeof(struct lpfc_mbx_get_sli4_parameters) -
+		  sizeof(struct lpfc_sli4_cfg_mhdr));
+	lpfc_sli4_config(phba, mboxq, LPFC_MBOX_SUBSYSTEM_COMMON,
+			 LPFC_MBOX_OPCODE_GET_SLI4_PARAMETERS,
+			 length, LPFC_SLI4_MBX_EMBED);
+
+	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
+	if (unlikely(rc)) {
+		mempool_free(mboxq, phba->mbox_mem_pool);
+		return rc;
+	}
+	mbx_sli4_parameters = &mqe->un.get_sli4_parameters.sli4_parameters;
+	phba->sli4_hba.pc_sli4_params.mi_ver =
+			bf_get(cfg_mi_ver, mbx_sli4_parameters);
+	phba->sli4_hba.pc_sli4_params.cmf =
+			bf_get(cfg_cmf, mbx_sli4_parameters);
+	phba->sli4_hba.pc_sli4_params.pls =
+			bf_get(cfg_pvl, mbx_sli4_parameters);
+
+	mempool_free(mboxq, phba->mbox_mem_pool);
+	return rc;
+}
+
+/**
  * lpfc_hba_init_link - Initialize the FC link
  * @phba: pointer to lpfc hba data structure.
  * @flag: mailbox command issue mode - either MBX_POLL or MBX_NOWAIT
@@ -6454,6 +6498,12 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 					LOG_TRACE_EVENT,
 					"3194 Unable to retrieve supported "
 					"speeds, rc = 0x%x\n", rc);
+		}
+		rc = lpfc_sli4_refresh_params(phba);
+		if (rc) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+					"3174 Unable to update pls support, "
+					"rc x%x\n", rc);
 		}
 		vports = lpfc_create_vport_work_array(phba);
 		if (vports != NULL) {

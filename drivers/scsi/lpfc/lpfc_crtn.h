@@ -205,6 +205,7 @@ void lpfc_delayed_disc_timeout_handler(struct lpfc_vport *);
 int lpfc_config_port_prep(struct lpfc_hba *);
 void lpfc_update_vport_wwn(struct lpfc_vport *vport);
 int lpfc_config_port_post(struct lpfc_hba *);
+int lpfc_sli4_refresh_params(struct lpfc_hba *phba);
 int lpfc_hba_down_prep(struct lpfc_hba *);
 int lpfc_hba_down_post(struct lpfc_hba *);
 void lpfc_hba_init(struct lpfc_hba *, uint32_t *);
