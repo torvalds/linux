@@ -101,8 +101,8 @@ properties:
 
       - items:
           - enum:
-              - asus,nexus4-mako
               - asus,nexus7-flo
+              - lg,nexus4-mako
               - sony,xperia-yuga
               - qcom,apq8064-cm-qs600
               - qcom,apq8064-ifc6410
