@@ -1704,7 +1704,6 @@ int mlx5_devlink_port_function_hw_addr_get(struct devlink_port *port,
 {
 	struct mlx5_eswitch *esw;
 	struct mlx5_vport *vport;
-	int err = -EOPNOTSUPP;
 	u16 vport_num;
 
 	esw = mlx5_devlink_eswitch_get(port->devlink);
@@ -1722,13 +1721,10 @@ int mlx5_devlink_port_function_hw_addr_get(struct devlink_port *port,
 	}
 
 	mutex_lock(&esw->state_lock);
-	if (vport->enabled) {
-		ether_addr_copy(hw_addr, vport->info.mac);
-		*hw_addr_len = ETH_ALEN;
-		err = 0;
-	}
+	ether_addr_copy(hw_addr, vport->info.mac);
+	*hw_addr_len = ETH_ALEN;
 	mutex_unlock(&esw->state_lock);
-	return err;
+	return 0;
 }
 
 int mlx5_devlink_port_function_hw_addr_set(struct devlink_port *port,
@@ -1737,8 +1733,8 @@ int mlx5_devlink_port_function_hw_addr_set(struct devlink_port *port,
 {
 	struct mlx5_eswitch *esw;
 	struct mlx5_vport *vport;
-	int err = -EOPNOTSUPP;
 	u16 vport_num;
+	int err;
 
 	esw = mlx5_devlink_eswitch_get(port->devlink);
 	if (IS_ERR(esw)) {
@@ -1758,10 +1754,7 @@ int mlx5_devlink_port_function_hw_addr_set(struct devlink_port *port,
 	}
 
 	mutex_lock(&esw->state_lock);
-	if (vport->enabled)
-		err = mlx5_esw_set_vport_mac_locked(esw, vport, hw_addr);
-	else
-		NL_SET_ERR_MSG_MOD(extack, "Eswitch vport is disabled");
+	err = mlx5_esw_set_vport_mac_locked(esw, vport, hw_addr);
 	mutex_unlock(&esw->state_lock);
 	return err;
 }
