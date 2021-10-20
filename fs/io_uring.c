@@ -3172,7 +3172,7 @@ static struct iovec *__io_import_iovec(int rw, struct io_kiocb *req,
 		if (req->flags & REQ_F_BUFFER_SELECT) {
 			buf = io_rw_buffer_select(req, &sqe_len, issue_flags);
 			if (IS_ERR(buf))
-				return ERR_PTR(PTR_ERR(buf));
+				return ERR_CAST(buf);
 			req->rw.len = sqe_len;
 		}
 
