@@ -8689,6 +8689,8 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 		intel_set_cdclk_post_plane_update(state);
 	}
 
+	intel_wait_for_vblank_workers(state);
+
 	/* FIXME: We should call drm_atomic_helper_commit_hw_done() here
 	 * already, but still need the state for the delayed optimization. To
 	 * fix this:
@@ -8703,13 +8705,6 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
 		if (new_crtc_state->uapi.async_flip)
 			intel_crtc_disable_flip_done(state, crtc);
-
-		if (new_crtc_state->hw.active &&
-		    !intel_crtc_needs_modeset(new_crtc_state) &&
-		    !new_crtc_state->preload_luts &&
-		    (new_crtc_state->uapi.color_mgmt_changed ||
-		     new_crtc_state->update_pipe))
-			intel_color_load_luts(new_crtc_state);
 	}
 
 	/*

@@ -3,12 +3,14 @@
  * Copyright © 2020 Intel Corporation
  */
 #include <linux/kernel.h>
+#include <linux/pm_qos.h>
 #include <linux/slab.h>
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_plane.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_vblank_work.h>
 
 #include "i915_trace.h"
 #include "i915_vgpu.h"
@@ -166,6 +168,8 @@ static void intel_crtc_free(struct intel_crtc *crtc)
 static void intel_crtc_destroy(struct drm_crtc *_crtc)
 {
 	struct intel_crtc *crtc = to_intel_crtc(_crtc);
+
+	cpu_latency_qos_remove_request(&crtc->vblank_pm_qos);
 
 	drm_crtc_cleanup(&crtc->base);
 	kfree(crtc);
@@ -344,6 +348,8 @@ int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 
 	intel_crtc_crc_init(crtc);
 
+	cpu_latency_qos_add_request(&crtc->vblank_pm_qos, PM_QOS_DEFAULT_VALUE);
+
 	drm_WARN_ON(&dev_priv->drm, drm_crtc_index(&crtc->base) != crtc->pipe);
 
 	return 0;
@@ -352,6 +358,65 @@ fail:
 	intel_crtc_free(crtc);
 
 	return ret;
+}
+
+static bool intel_crtc_needs_vblank_work(const struct intel_crtc_state *crtc_state)
+{
+	return crtc_state->hw.active &&
+		!intel_crtc_needs_modeset(crtc_state) &&
+		!crtc_state->preload_luts &&
+		(crtc_state->uapi.color_mgmt_changed ||
+		 crtc_state->update_pipe);
+}
+
+static void intel_crtc_vblank_work(struct kthread_work *base)
+{
+	struct drm_vblank_work *work = to_drm_vblank_work(base);
+	struct intel_crtc_state *crtc_state =
+		container_of(work, typeof(*crtc_state), vblank_work);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+
+	trace_intel_crtc_vblank_work_start(crtc);
+
+	intel_color_load_luts(crtc_state);
+
+	if (crtc_state->uapi.event) {
+		spin_lock_irq(&crtc->base.dev->event_lock);
+		drm_crtc_send_vblank_event(&crtc->base, crtc_state->uapi.event);
+		crtc_state->uapi.event = NULL;
+		spin_unlock_irq(&crtc->base.dev->event_lock);
+	}
+
+	trace_intel_crtc_vblank_work_end(crtc);
+}
+
+static void intel_crtc_vblank_work_init(struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+
+	drm_vblank_work_init(&crtc_state->vblank_work, &crtc->base,
+			     intel_crtc_vblank_work);
+	/*
+	 * Interrupt latency is critical for getting the vblank
+	 * work executed as early as possible during the vblank.
+	 */
+	cpu_latency_qos_update_request(&crtc->vblank_pm_qos, 0);
+}
+
+void intel_wait_for_vblank_workers(struct intel_atomic_state *state)
+{
+	struct intel_crtc_state *crtc_state;
+	struct intel_crtc *crtc;
+	int i;
+
+	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
+		if (!intel_crtc_needs_vblank_work(crtc_state))
+			continue;
+
+		drm_vblank_work_flush(&crtc_state->vblank_work);
+		cpu_latency_qos_update_request(&crtc->vblank_pm_qos,
+					       PM_QOS_DEFAULT_VALUE);
+	}
 }
 
 int intel_usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,
@@ -387,7 +452,7 @@ static int intel_mode_vblank_start(const struct drm_display_mode *mode)
  * until a subsequent call to intel_pipe_update_end(). That is done to
  * avoid random delays.
  */
-void intel_pipe_update_start(const struct intel_crtc_state *new_crtc_state)
+void intel_pipe_update_start(struct intel_crtc_state *new_crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -401,6 +466,9 @@ void intel_pipe_update_start(const struct intel_crtc_state *new_crtc_state)
 
 	if (new_crtc_state->uapi.async_flip)
 		return;
+
+	if (intel_crtc_needs_vblank_work(new_crtc_state))
+		intel_crtc_vblank_work_init(new_crtc_state);
 
 	if (new_crtc_state->vrr.enable)
 		vblank_start = intel_vrr_vmax_vblank_start(new_crtc_state);
@@ -557,7 +625,11 @@ void intel_pipe_update_end(struct intel_crtc_state *new_crtc_state)
 	 * Would be slightly nice to just grab the vblank count and arm the
 	 * event outside of the critical section - the spinlock might spin for a
 	 * while ... */
-	if (new_crtc_state->uapi.event) {
+	if (intel_crtc_needs_vblank_work(new_crtc_state)) {
+		drm_vblank_work_schedule(&new_crtc_state->vblank_work,
+					 drm_crtc_accurate_vblank_count(&crtc->base) + 1,
+					 false);
+	} else if (new_crtc_state->uapi.event) {
 		drm_WARN_ON(&dev_priv->drm,
 			    drm_crtc_vblank_get(&crtc->base) != 0);
 
