@@ -268,7 +268,7 @@ static void ocelot_port_set_pvid(struct ocelot *ocelot, int port,
 	ocelot_port->pvid_vlan = pvid_vlan;
 
 	if (!ocelot_port->vlan_aware)
-		pvid_vlan.vid = 0;
+		pvid_vlan.vid = OCELOT_VLAN_UNAWARE_PVID;
 
 	ocelot_rmw_gix(ocelot,
 		       ANA_PORT_VLAN_CFG_VLAN_VID(pvid_vlan.vid),
@@ -501,7 +501,7 @@ static void ocelot_vlan_init(struct ocelot *ocelot)
 	 * traffic.  It is added automatically if 8021q module is loaded, but
 	 * we can't rely on it since module may be not loaded.
 	 */
-	ocelot_vlant_set_mask(ocelot, 0, all_ports);
+	ocelot_vlant_set_mask(ocelot, OCELOT_VLAN_UNAWARE_PVID, all_ports);
 
 	/* Set vlan ingress filter mask to all ports but the CPU port by
 	 * default.
@@ -2194,9 +2194,10 @@ static void ocelot_cpu_port_init(struct ocelot *ocelot)
 			    OCELOT_TAG_PREFIX_NONE);
 
 	/* Configure the CPU port to be VLAN aware */
-	ocelot_write_gix(ocelot, ANA_PORT_VLAN_CFG_VLAN_VID(0) |
-				 ANA_PORT_VLAN_CFG_VLAN_AWARE_ENA |
-				 ANA_PORT_VLAN_CFG_VLAN_POP_CNT(1),
+	ocelot_write_gix(ocelot,
+			 ANA_PORT_VLAN_CFG_VLAN_VID(OCELOT_VLAN_UNAWARE_PVID) |
+			 ANA_PORT_VLAN_CFG_VLAN_AWARE_ENA |
+			 ANA_PORT_VLAN_CFG_VLAN_POP_CNT(1),
 			 ANA_PORT_VLAN_CFG, cpu);
 }
 
