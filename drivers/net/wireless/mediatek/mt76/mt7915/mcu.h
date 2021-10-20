@@ -43,7 +43,7 @@ enum {
 	MCU_EXT_EVENT_ASSERT_DUMP = 0x23,
 	MCU_EXT_EVENT_RDD_REPORT = 0x3a,
 	MCU_EXT_EVENT_CSA_NOTIFY = 0x4f,
-	MCU_EXT_EVENT_RATE_REPORT = 0x87,
+	MCU_EXT_EVENT_BCC_NOTIFY = 0x75,
 };
 
 enum {
@@ -164,41 +164,6 @@ struct mt7915_mcu_eeprom_info {
 	u8 data[16];
 } __packed;
 
-struct mt7915_mcu_ra_info {
-	struct mt7915_mcu_rxd rxd;
-
-	__le32 event_id;
-	__le16 wlan_idx;
-	__le16 ru_idx;
-	__le16 direction;
-	__le16 dump_group;
-
-	__le32 suggest_rate;
-	__le32 min_rate;	/* for dynamic sounding */
-	__le32 max_rate;	/* for dynamic sounding */
-	__le32 init_rate_down_rate;
-
-	__le16 curr_rate;
-	__le16 init_rate_down_total;
-	__le16 init_rate_down_succ;
-	__le16 success;
-	__le16 attempts;
-
-	__le16 prev_rate;
-	__le16 prob_up_rate;
-	u8 no_rate_up_cnt;
-	u8 ppdu_cnt;
-	u8 gi;
-
-	u8 try_up_fail;
-	u8 try_up_total;
-	u8 suggest_wf;
-	u8 try_up_check;
-	u8 prob_up_period;
-	u8 prob_down_pending;
-} __packed;
-
-
 struct mt7915_mcu_phy_rx_info {
 	u8 category;
 	u8 rate;
@@ -209,12 +174,6 @@ struct mt7915_mcu_phy_rx_info {
 	u8 stbc;
 	u8 bw;
 };
-
-#define MT_RA_RATE_NSS			GENMASK(8, 6)
-#define MT_RA_RATE_MCS			GENMASK(3, 0)
-#define MT_RA_RATE_TX_MODE		GENMASK(12, 9)
-#define MT_RA_RATE_DCM_EN		BIT(4)
-#define MT_RA_RATE_BW			GENMASK(14, 13)
 
 struct mt7915_mcu_mib {
 	__le32 band;
@@ -312,19 +271,29 @@ enum {
 	MCU_EXT_CMD_MAC_INIT_CTRL = 0x46,
 	MCU_EXT_CMD_RX_HDR_TRANS = 0x47,
 	MCU_EXT_CMD_MUAR_UPDATE = 0x48,
+	MCU_EXT_CMD_RX_AIRTIME_CTRL = 0x4a,
 	MCU_EXT_CMD_SET_RX_PATH = 0x4e,
 	MCU_EXT_CMD_TX_POWER_FEATURE_CTRL = 0x58,
 	MCU_EXT_CMD_GET_MIB_INFO = 0x5a,
 	MCU_EXT_CMD_MWDS_SUPPORT = 0x80,
 	MCU_EXT_CMD_SET_SER_TRIGGER = 0x81,
 	MCU_EXT_CMD_SCS_CTRL = 0x82,
-	MCU_EXT_CMD_RATE_CTRL = 0x87,
+	MCU_EXT_CMD_TWT_AGRT_UPDATE = 0x94,
 	MCU_EXT_CMD_FW_DBG_CTRL = 0x95,
 	MCU_EXT_CMD_SET_RDD_TH = 0x9d,
+	MCU_EXT_CMD_MURU_CTRL = 0x9f,
 	MCU_EXT_CMD_SET_SPR = 0xa8,
 	MCU_EXT_CMD_GROUP_PRE_CAL_INFO = 0xab,
 	MCU_EXT_CMD_DPD_PRE_CAL_INFO = 0xac,
 	MCU_EXT_CMD_PHY_STAT_INFO = 0xad,
+};
+
+enum {
+	MCU_TWT_AGRT_ADD,
+	MCU_TWT_AGRT_MODIFY,
+	MCU_TWT_AGRT_DELETE,
+	MCU_TWT_AGRT_TEARDOWN,
+	MCU_TWT_AGRT_GET_TSF,
 };
 
 enum {
@@ -545,6 +514,14 @@ struct bss_info_hw_amsdu {
 	u8 rsv;
 } __packed;
 
+struct bss_info_color {
+	__le16 tag;
+	__le16 len;
+	u8 disable;
+	u8 color;
+	u8 rsv[2];
+} __packed;
+
 struct bss_info_he {
 	__le16 tag;
 	__le16 len;
@@ -563,14 +540,7 @@ struct bss_info_bcn {
 	__le16 sub_ntlv;
 } __packed __aligned(4);
 
-struct bss_info_bcn_csa {
-	__le16 tag;
-	__le16 len;
-	u8 cnt;
-	u8 rsv[3];
-} __packed __aligned(4);
-
-struct bss_info_bcn_bcc {
+struct bss_info_bcn_cntdwn {
 	__le16 tag;
 	__le16 len;
 	u8 cnt;
@@ -716,6 +686,7 @@ struct wtbl_ba {
 	__le16 sn;
 	u8 ba_en;
 	u8 ba_winsize_idx;
+	/* originator & recipient */
 	__le16 ba_winsize;
 	/* recipient only */
 	u8 peer_addr[ETH_ALEN];
@@ -989,6 +960,7 @@ struct sta_rec_ra_fixed {
 #define RATE_CFG_STBC			GENMASK(19, 16)
 #define RATE_CFG_LDPC			GENMASK(23, 20)
 #define RATE_CFG_PHY_TYPE		GENMASK(27, 24)
+#define RATE_CFG_HE_LTF			GENMASK(31, 28)
 
 struct sta_rec_bf {
 	__le16 tag;
@@ -1002,8 +974,8 @@ struct sta_rec_bf {
 	u8 ndp_rate;
 	u8 rept_poll_rate;
 	u8 tx_mode;		/* 0: legacy, 1: OFDM, 2: HT, 4: VHT ... */
-	u8 nc;
-	u8 nr;
+	u8 ncol;
+	u8 nrow;
 	u8 bw;			/* 0: 20M, 1: 40M, 2: 80M, 3: 160M */
 
 	u8 mem_total;
@@ -1023,8 +995,8 @@ struct sta_rec_bf {
 	u8 ibf_dbw;
 	u8 ibf_ncol;
 	u8 ibf_nrow;
-	u8 nr_bw160;
-	u8 nc_bw160;
+	u8 nrow_bw160;
+	u8 ncol_bw160;
 	u8 ru_start_idx;
 	u8 ru_end_idx;
 
@@ -1036,7 +1008,7 @@ struct sta_rec_bf {
 	bool codebook75_mu;
 
 	u8 he_ltf;
-	u8 rsv[2];
+	u8 rsv[3];
 } __packed;
 
 struct sta_rec_bfee {
@@ -1116,14 +1088,19 @@ enum {
 };
 
 enum {
-	MT_EBF = BIT(0),	/* explicit beamforming */
-	MT_IBF = BIT(1)		/* implicit beamforming */
-};
-
-enum {
 	MT_BF_SOUNDING_ON = 1,
 	MT_BF_TYPE_UPDATE = 20,
 	MT_BF_MODULE_UPDATE = 25
+};
+
+enum {
+	MURU_SET_ARB_OP_MODE = 14,
+	MURU_SET_PLATFORM_TYPE = 25,
+};
+
+enum {
+	MURU_PLATFORM_TYPE_PERF_LEVEL_1 = 1,
+	MURU_PLATFORM_TYPE_PERF_LEVEL_2,
 };
 
 #define MT7915_WTBL_UPDATE_MAX_SIZE	(sizeof(struct wtbl_req_hdr) +	\
@@ -1137,12 +1114,15 @@ enum {
 
 #define MT7915_STA_UPDATE_MAX_SIZE	(sizeof(struct sta_req_hdr) +	\
 					 sizeof(struct sta_rec_basic) +	\
+					 sizeof(struct sta_rec_bf) +	\
 					 sizeof(struct sta_rec_ht) +	\
 					 sizeof(struct sta_rec_he) +	\
 					 sizeof(struct sta_rec_ba) +	\
 					 sizeof(struct sta_rec_vht) +	\
 					 sizeof(struct sta_rec_uapsd) + \
 					 sizeof(struct sta_rec_amsdu) +	\
+					 sizeof(struct sta_rec_muru) +	\
+					 sizeof(struct sta_rec_bfee) +	\
 					 sizeof(struct tlv) +		\
 					 MT7915_WTBL_UPDATE_MAX_SIZE)
 
@@ -1157,8 +1137,7 @@ enum {
 					 sizeof(struct bss_info_ext_bss))
 
 #define MT7915_BEACON_UPDATE_SIZE	(sizeof(struct sta_req_hdr) +	\
-					 sizeof(struct bss_info_bcn_csa) + \
-					 sizeof(struct bss_info_bcn_bcc) + \
+					 sizeof(struct bss_info_bcn_cntdwn) + \
 					 sizeof(struct bss_info_bcn_mbss) + \
 					 sizeof(struct bss_info_bcn_cont))
 
