@@ -415,14 +415,12 @@ enum {
 
 /**
  * struct ufshcd_sg_entry - UFSHCI PRD Entry
- * @base_addr: Lower 32bit physical address DW-0
- * @upper_addr: Upper 32bit physical address DW-1
+ * @addr: Physical address; DW-0 and DW-1.
  * @reserved: Reserved for future use DW-2
  * @size: size of physical segment DW-3
  */
 struct ufshcd_sg_entry {
-	__le32    base_addr;
-	__le32    upper_addr;
+	__le64    addr;
 	__le32    reserved;
 	__le32    size;
 };

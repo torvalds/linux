@@ -2379,12 +2379,19 @@ static int ufshcd_map_sg(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 		prd_table = lrbp->ucd_prdt_ptr;
 
 		scsi_for_each_sg(cmd, sg, sg_segments, i) {
-			prd_table[i].size  =
-				cpu_to_le32(((u32) sg_dma_len(sg))-1);
-			prd_table[i].base_addr =
-				cpu_to_le32(lower_32_bits(sg->dma_address));
-			prd_table[i].upper_addr =
-				cpu_to_le32(upper_32_bits(sg->dma_address));
+			const unsigned int len = sg_dma_len(sg);
+
+			/*
+			 * From the UFSHCI spec: "Data Byte Count (DBC): A '0'
+			 * based value that indicates the length, in bytes, of
+			 * the data block. A maximum of length of 256KB may
+			 * exist for any entry. Bits 1:0 of this field shall be
+			 * 11b to indicate Dword granularity. A value of '3'
+			 * indicates 4 bytes, '7' indicates 8 bytes, etc."
+			 */
+			WARN_ONCE(len > 256 * 1024, "len = %#x\n", len);
+			prd_table[i].size = cpu_to_le32(len - 1);
+			prd_table[i].addr = cpu_to_le64(sg->dma_address);
 			prd_table[i].reserved = 0;
 		}
 	} else {
