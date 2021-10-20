@@ -1210,8 +1210,6 @@ static const struct soc_device_attribute sdhci_omap_soc_devices[] = {
 	}
 };
 
-static void sdhci_omap_context_save(struct sdhci_omap_host *omap_host);
-
 static int sdhci_omap_probe(struct platform_device *pdev)
 {
 	int ret;
