@@ -60,7 +60,6 @@
 #include <trace/hooks/v4l2core.h>
 #include <trace/hooks/v4l2mc.h>
 #include <trace/hooks/scmi.h>
-#include <trace/hooks/user.h>
 #include <trace/hooks/cpuidle_psci.h>
 #include <trace/hooks/fips140.h>
 #include <trace/hooks/remoteproc.h>
@@ -355,8 +354,6 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_v4l2subdev_set_frame_interval);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_v4l2subdev_set_frame_interval);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_scmi_timeout_sync);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_find_new_ilb);
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_alloc_uid);
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_free_user);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_freq_qos_add_request);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_freq_qos_update_request);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_freq_qos_remove_request);
