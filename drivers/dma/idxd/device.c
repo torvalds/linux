@@ -1050,8 +1050,6 @@ static int idxd_wq_load_config(struct idxd_wq *wq)
 
 	wq->size = wq->wqcfg->wq_size;
 	wq->threshold = wq->wqcfg->wq_thresh;
-	if (wq->wqcfg->priv)
-		wq->type = IDXD_WQT_KERNEL;
 
 	/* The driver does not support shared WQ mode in read-only config yet */
 	if (wq->wqcfg->mode == 0 || wq->wqcfg->pasid_en)
