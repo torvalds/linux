@@ -137,6 +137,15 @@ void fpu__init_cpu_xstate(void)
 	cr4_set_bits(X86_CR4_OSXSAVE);
 
 	/*
+	 * Must happen after CR4 setup and before xsetbv() to allow KVM
+	 * lazy passthrough.  Write independent of the dynamic state static
+	 * key as that does not work on the boot CPU. This also ensures
+	 * that any stale state is wiped out from XFD.
+	 */
+	if (cpu_feature_enabled(X86_FEATURE_XFD))
+		wrmsrl(MSR_IA32_XFD, init_fpstate.xfd);
+
+	/*
 	 * XCR_XFEATURE_ENABLED_MASK (aka. XCR0) sets user features
 	 * managed by XSAVE{C, OPT, S} and XRSTOR{S}.  Only XSAVE user
 	 * states can be set here.
@@ -875,6 +884,9 @@ void fpu__resume_cpu(void)
 		wrmsrl(MSR_IA32_XSS, xfeatures_mask_supervisor()  |
 				     xfeatures_mask_independent());
 	}
+
+	if (fpu_state_size_dynamic())
+		wrmsrl(MSR_IA32_XFD, current->thread.fpu.fpstate->xfd);
 }
 
 /*

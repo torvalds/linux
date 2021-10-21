@@ -136,6 +136,22 @@ extern void xfd_validate_state(struct fpstate *fpstate, u64 mask, bool rstor);
 static inline void xfd_validate_state(struct fpstate *fpstate, u64 mask, bool rstor) { }
 #endif
 
+#ifdef CONFIG_X86_64
+static inline void xfd_update_state(struct fpstate *fpstate)
+{
+	if (fpu_state_size_dynamic()) {
+		u64 xfd = fpstate->xfd;
+
+		if (__this_cpu_read(xfd_state) != xfd) {
+			wrmsrl(MSR_IA32_XFD, xfd);
+			__this_cpu_write(xfd_state, xfd);
+		}
+	}
+}
+#else
+static inline void xfd_update_state(struct fpstate *fpstate) { }
+#endif
+
 /*
  * Save processor xstate to xsave area.
  *
@@ -247,7 +263,8 @@ static inline int os_xrstor_safe(struct fpstate *fpstate, u64 mask)
 	u32 hmask = mask >> 32;
 	int err;
 
-	/* Must enforce XFD update here */
+	/* Ensure that XFD is up to date */
+	xfd_update_state(fpstate);
 
 	if (cpu_feature_enabled(X86_FEATURE_XSAVES))
 		XSTATE_OP(XRSTORS, xstate, lmask, hmask, err);
