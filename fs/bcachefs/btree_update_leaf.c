@@ -1058,7 +1058,7 @@ static int bch2_trans_update_extent(struct btree_trans *trans,
 		if (bch2_bkey_maybe_mergable(k.k, &insert->k)) {
 			ret = extent_front_merge(trans, &iter, k, &insert, flags);
 			if (ret)
-				goto out;
+				goto err;
 		}
 
 		goto next;
@@ -1178,8 +1178,11 @@ next:
 			goto out;
 	}
 
-	if (bch2_bkey_maybe_mergable(&insert->k, k.k))
-		extent_back_merge(trans, &iter, insert, k);
+	if (bch2_bkey_maybe_mergable(&insert->k, k.k)) {
+		ret = extent_back_merge(trans, &iter, insert, k);
+		if (ret)
+			goto err;
+	}
 out:
 	if (!bkey_deleted(&insert->k)) {
 		/*
