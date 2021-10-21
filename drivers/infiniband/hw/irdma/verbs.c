@@ -833,7 +833,6 @@ static int irdma_create_qp(struct ib_qp *ibqp,
 
 	qp = &iwqp->sc_qp;
 	qp->qp_uk.back_qp = iwqp;
-	qp->qp_uk.lock = &iwqp->lock;
 	qp->push_idx = IRDMA_INVALID_PUSH_PAGE_INDEX;
 
 	iwqp->iwdev = iwdev;

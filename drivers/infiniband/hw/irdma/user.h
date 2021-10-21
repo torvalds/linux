@@ -367,7 +367,6 @@ struct irdma_qp_uk {
 	bool rq_flush_complete:1; /* Indicates flush was seen and RQ was empty after the flush */
 	bool destroy_pending:1; /* Indicates the QP is being destroyed */
 	void *back_qp;
-	spinlock_t *lock;
 	u8 dbg_rq_flushed;
 	u8 sq_flush_seen;
 	u8 rq_flush_seen;
