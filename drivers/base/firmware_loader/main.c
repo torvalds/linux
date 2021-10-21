@@ -93,82 +93,6 @@ DEFINE_MUTEX(fw_lock);
 
 static struct firmware_cache fw_cache;
 
-/* Builtin firmware support */
-
-#ifdef CONFIG_FW_LOADER
-
-extern struct builtin_fw __start_builtin_fw[];
-extern struct builtin_fw __end_builtin_fw[];
-
-static bool fw_copy_to_prealloc_buf(struct firmware *fw,
-				    void *buf, size_t size)
-{
-	if (!buf)
-		return true;
-	if (size < fw->size)
-		return false;
-	memcpy(buf, fw->data, fw->size);
-	return true;
-}
-
-static bool firmware_request_builtin(struct firmware *fw, const char *name)
-{
-	struct builtin_fw *b_fw;
-
-	if (!fw)
-		return false;
-
-	for (b_fw = __start_builtin_fw; b_fw != __end_builtin_fw; b_fw++) {
-		if (strcmp(name, b_fw->name) == 0) {
-			fw->size = b_fw->size;
-			fw->data = b_fw->data;
-			return true;
-		}
-	}
-
-	return false;
-}
-
-static bool firmware_request_builtin_buf(struct firmware *fw, const char *name,
-					 void *buf, size_t size)
-{
-	if (!firmware_request_builtin(fw, name))
-		return false;
-	return fw_copy_to_prealloc_buf(fw, buf, size);
-}
-
-static bool fw_is_builtin_firmware(const struct firmware *fw)
-{
-	struct builtin_fw *b_fw;
-
-	for (b_fw = __start_builtin_fw; b_fw != __end_builtin_fw; b_fw++)
-		if (fw->data == b_fw->data)
-			return true;
-
-	return false;
-}
-
-#else /* Module case - no builtin firmware support */
-
-static inline bool firmware_request_builtin(struct firmware *fw,
-					    const char *name)
-{
-	return false;
-}
-
-static inline bool firmware_request_builtin_buf(struct firmware *fw,
-						const char *name, void *buf,
-						size_t size)
-{
-	return false;
-}
-
-static inline bool fw_is_builtin_firmware(const struct firmware *fw)
-{
-	return false;
-}
-#endif
-
 static void fw_state_init(struct fw_priv *fw_priv)
 {
 	struct fw_state *fw_st = &fw_priv->fw_st;
@@ -1068,7 +992,7 @@ EXPORT_SYMBOL(request_partial_firmware_into_buf);
 void release_firmware(const struct firmware *fw)
 {
 	if (fw) {
-		if (!fw_is_builtin_firmware(fw))
+		if (!firmware_is_builtin(fw))
 			firmware_free_data(fw);
 		kfree(fw);
 	}
