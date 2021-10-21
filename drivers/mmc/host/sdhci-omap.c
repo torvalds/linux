@@ -1415,8 +1415,9 @@ static int sdhci_omap_remove(struct platform_device *pdev)
 
 	return 0;
 }
-#ifdef CONFIG_PM_SLEEP
-static void sdhci_omap_context_save(struct sdhci_omap_host *omap_host)
+
+#ifdef CONFIG_PM
+static void __maybe_unused sdhci_omap_context_save(struct sdhci_omap_host *omap_host)
 {
 	omap_host->con = sdhci_omap_readl(omap_host, SDHCI_OMAP_CON);
 	omap_host->hctl = sdhci_omap_readl(omap_host, SDHCI_OMAP_HCTL);
@@ -1427,7 +1428,7 @@ static void sdhci_omap_context_save(struct sdhci_omap_host *omap_host)
 }
 
 /* Order matters here, HCTL must be restored in two phases */
-static void sdhci_omap_context_restore(struct sdhci_omap_host *omap_host)
+static void __maybe_unused sdhci_omap_context_restore(struct sdhci_omap_host *omap_host)
 {
 	sdhci_omap_writel(omap_host, SDHCI_OMAP_HCTL, omap_host->hctl);
 	sdhci_omap_writel(omap_host, SDHCI_OMAP_CAPA, omap_host->capa);
