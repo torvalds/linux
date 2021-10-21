@@ -71,7 +71,7 @@ static int qeth_l2_send_setdelmac_cb(struct qeth_card *card,
 	return qeth_l2_setdelmac_makerc(card, cmd->hdr.return_code);
 }
 
-static int qeth_l2_send_setdelmac(struct qeth_card *card, __u8 *mac,
+static int qeth_l2_send_setdelmac(struct qeth_card *card, const __u8 *mac,
 			   enum qeth_ipa_cmds ipacmd)
 {
 	struct qeth_ipa_cmd *cmd;
@@ -88,7 +88,7 @@ static int qeth_l2_send_setdelmac(struct qeth_card *card, __u8 *mac,
 	return qeth_send_ipa_cmd(card, iob, qeth_l2_send_setdelmac_cb, NULL);
 }
 
-static int qeth_l2_send_setmac(struct qeth_card *card, __u8 *mac)
+static int qeth_l2_send_setmac(struct qeth_card *card, const __u8 *mac)
 {
 	int rc;
 
@@ -377,7 +377,7 @@ static int qeth_l2_set_mac_address(struct net_device *dev, void *p)
 	if (rc)
 		return rc;
 	ether_addr_copy(old_addr, dev->dev_addr);
-	ether_addr_copy(dev->dev_addr, addr->sa_data);
+	eth_hw_addr_set(dev, addr->sa_data);
 
 	if (card->info.dev_addr_is_registered)
 		qeth_l2_remove_mac(card, old_addr);

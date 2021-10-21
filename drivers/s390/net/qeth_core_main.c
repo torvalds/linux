@@ -4375,7 +4375,7 @@ static int qeth_setadpparms_change_macaddr_cb(struct qeth_card *card,
 	    !(adp_cmd->hdr.flags & QETH_SETADP_FLAGS_VIRTUAL_MAC))
 		return -EADDRNOTAVAIL;
 
-	ether_addr_copy(card->dev->dev_addr, adp_cmd->data.change_addr.addr);
+	eth_hw_addr_set(card->dev, adp_cmd->data.change_addr.addr);
 	return 0;
 }
 
@@ -5046,7 +5046,7 @@ int qeth_vm_request_mac(struct qeth_card *card)
 		QETH_CARD_TEXT(card, 2, "badmac");
 		QETH_CARD_HEX(card, 2, response->mac, ETH_ALEN);
 	} else {
-		ether_addr_copy(card->dev->dev_addr, response->mac);
+		eth_hw_addr_set(card->dev, response->mac);
 	}
 
 out:
