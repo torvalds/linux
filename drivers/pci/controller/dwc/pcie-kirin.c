@@ -688,6 +688,9 @@ static int kirin_pcie_power_off(struct kirin_pcie *kirin_pcie)
 	if (kirin_pcie->type == PCIE_KIRIN_INTERNAL_PHY)
 		return hi3660_pcie_phy_power_off(kirin_pcie);
 
+	for (i = 0; i < kirin_pcie->n_gpio_clkreq; i++)
+		gpio_direction_output(kirin_pcie->gpio_id_clkreq[i], 1);
+
 	phy_power_off(kirin_pcie->phy);
 	phy_exit(kirin_pcie->phy);
 
