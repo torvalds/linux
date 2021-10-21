@@ -5041,7 +5041,7 @@ struct wiphy_iftype_akm_suites {
  * @mbssid_max_interfaces: maximum number of interfaces supported by the driver
  *	in a multiple BSSID set. This field must be set to a non-zero value
  *	by the driver to advertise MBSSID support.
- * @mbssid_max_ema_profile_periodicity: maximum profile periodicity supported by
+ * @ema_max_profile_periodicity: maximum profile periodicity supported by
  *	the driver. Setting this field to a non-zero value indicates that the
  *	driver supports enhanced multi-BSSID advertisements (EMA AP).
  */

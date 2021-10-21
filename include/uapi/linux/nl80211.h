@@ -7424,7 +7424,7 @@ enum nl80211_sar_specs_attrs {
  * @NL80211_MBSSID_CONFIG_ATTR_MAX_EMA_PROFILE_PERIODICITY: Used by the kernel
  *	to advertise the maximum profile periodicity supported by the driver
  *	if EMA is enabled. Driver should indicate EMA support to the userspace
- *	by setting wiphy->mbssid_max_ema_profile_periodicity to
+ *	by setting wiphy->ema_max_profile_periodicity to
  *	a non-zero value.
  *
  * @NL80211_MBSSID_CONFIG_ATTR_INDEX: Mandatory parameter to pass the index of
@@ -7443,7 +7443,7 @@ enum nl80211_sar_specs_attrs {
  *
  * @NL80211_MBSSID_CONFIG_ATTR_EMA: Flag used to enable EMA AP feature.
  *	Setting this flag is permitted only if the driver advertises EMA support
- *	by setting wiphy->mbssid_max_ema_profile_periodicity to non-zero.
+ *	by setting wiphy->ema_max_profile_periodicity to non-zero.
  *
  * @__NL80211_MBSSID_CONFIG_ATTR_LAST: Internal
  * @NL80211_MBSSID_CONFIG_ATTR_MAX: highest attribute
