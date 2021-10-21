@@ -412,6 +412,11 @@ void fpstate_reset(struct fpu *fpu)
 	/* Set the fpstate pointer to the default fpstate */
 	fpu->fpstate = &fpu->__fpstate;
 	__fpstate_reset(fpu->fpstate);
+
+	/* Initialize the permission related info in fpu */
+	fpu->perm.__state_perm		= fpu_kernel_cfg.default_features;
+	fpu->perm.__state_size		= fpu_kernel_cfg.default_size;
+	fpu->perm.__user_state_size	= fpu_user_cfg.default_size;
 }
 
 /* Clone current's FPU state on fork */
