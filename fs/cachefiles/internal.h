@@ -126,6 +126,15 @@ static inline int cachefiles_inject_remove_error(void)
 }
 
 /*
+ * namei.c
+ */
+extern struct dentry *cachefiles_get_directory(struct cachefiles_cache *cache,
+					       struct dentry *dir,
+					       const char *name,
+					       bool *_is_new);
+extern void cachefiles_put_directory(struct dentry *dir);
+
+/*
  * security.c
  */
 extern int cachefiles_get_security_ID(struct cachefiles_cache *cache);
