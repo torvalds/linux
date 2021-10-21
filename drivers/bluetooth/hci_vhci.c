@@ -200,7 +200,7 @@ static int msft_opcode_set(void *data, u64 val)
 {
 	struct vhci_data *vhci = data;
 
-	if (val > 0xffff || (val & 0xffff >> 10) != 0x3f)
+	if (val > 0xffff || hci_opcode_ogf(val) != 0x3f)
 		return -EINVAL;
 
 	if (vhci->msft_opcode)
