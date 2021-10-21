@@ -21,14 +21,13 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include "display/intel_dp.h"
-
 #include "intel_ddi.h"
 #include "intel_ddi_buf_trans.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
+#include "intel_dp.h"
 #include "intel_dpio_phy.h"
-#include "intel_sideband.h"
+#include "vlv_sideband.h"
 
 /**
  * DOC: DPIO

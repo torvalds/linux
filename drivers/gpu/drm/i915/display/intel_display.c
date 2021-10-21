@@ -68,7 +68,6 @@
 #include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_object.h"
 
-#include "gt/intel_rps.h"
 #include "gt/gen8_ppgtt.h"
 
 #include "pxp/intel_pxp.h"
@@ -89,26 +88,29 @@
 #include "intel_dp_link_training.h"
 #include "intel_dpt.h"
 #include "intel_fbc.h"
-#include "intel_fdi.h"
 #include "intel_fbdev.h"
+#include "intel_fdi.h"
 #include "intel_fifo_underrun.h"
 #include "intel_frontbuffer.h"
 #include "intel_hdcp.h"
 #include "intel_hotplug.h"
 #include "intel_overlay.h"
 #include "intel_panel.h"
+#include "intel_pcode.h"
 #include "intel_pipe_crc.h"
+#include "intel_plane_initial.h"
 #include "intel_pm.h"
 #include "intel_pps.h"
 #include "intel_psr.h"
 #include "intel_quirks.h"
-#include "intel_sideband.h"
+#include "intel_sbi.h"
 #include "intel_sprite.h"
 #include "intel_tc.h"
 #include "intel_vga.h"
 #include "i9xx_plane.h"
 #include "skl_scaler.h"
 #include "skl_universal_plane.h"
+#include "vlv_sideband.h"
 
 static void i9xx_crtc_clock_get(struct intel_crtc *crtc,
 				struct intel_crtc_state *pipe_config);
@@ -854,7 +856,7 @@ unsigned int intel_remapped_info_size(const struct intel_remapped_info *rem_info
 	return size;
 }
 
-static bool intel_plane_uses_fence(const struct intel_plane_state *plane_state)
+bool intel_plane_uses_fence(const struct intel_plane_state *plane_state)
 {
 	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
@@ -862,198 +864,6 @@ static bool intel_plane_uses_fence(const struct intel_plane_state *plane_state)
 	return DISPLAY_VER(dev_priv) < 4 ||
 		(plane->has_fbc &&
 		 plane_state->view.gtt.type == I915_GGTT_VIEW_NORMAL);
-}
-
-static struct i915_vma *
-intel_pin_fb_obj_dpt(struct drm_framebuffer *fb,
-		     const struct i915_ggtt_view *view,
-		     bool uses_fence,
-		     unsigned long *out_flags,
-		     struct i915_address_space *vm)
-{
-	struct drm_device *dev = fb->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
-	struct i915_vma *vma;
-	u32 alignment;
-	int ret;
-
-	if (WARN_ON(!i915_gem_object_is_framebuffer(obj)))
-		return ERR_PTR(-EINVAL);
-
-	alignment = 4096 * 512;
-
-	atomic_inc(&dev_priv->gpu_error.pending_fb_pin);
-
-	ret = i915_gem_object_set_cache_level(obj, I915_CACHE_NONE);
-	if (ret) {
-		vma = ERR_PTR(ret);
-		goto err;
-	}
-
-	vma = i915_vma_instance(obj, vm, view);
-	if (IS_ERR(vma))
-		goto err;
-
-	if (i915_vma_misplaced(vma, 0, alignment, 0)) {
-		ret = i915_vma_unbind(vma);
-		if (ret) {
-			vma = ERR_PTR(ret);
-			goto err;
-		}
-	}
-
-	ret = i915_vma_pin(vma, 0, alignment, PIN_GLOBAL);
-	if (ret) {
-		vma = ERR_PTR(ret);
-		goto err;
-	}
-
-	vma->display_alignment = max_t(u64, vma->display_alignment, alignment);
-
-	i915_gem_object_flush_if_display(obj);
-
-	i915_vma_get(vma);
-err:
-	atomic_dec(&dev_priv->gpu_error.pending_fb_pin);
-
-	return vma;
-}
-
-struct i915_vma *
-intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
-			   bool phys_cursor,
-			   const struct i915_ggtt_view *view,
-			   bool uses_fence,
-			   unsigned long *out_flags)
-{
-	struct drm_device *dev = fb->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
-	intel_wakeref_t wakeref;
-	struct i915_gem_ww_ctx ww;
-	struct i915_vma *vma;
-	unsigned int pinctl;
-	u32 alignment;
-	int ret;
-
-	if (drm_WARN_ON(dev, !i915_gem_object_is_framebuffer(obj)))
-		return ERR_PTR(-EINVAL);
-
-	if (phys_cursor)
-		alignment = intel_cursor_alignment(dev_priv);
-	else
-		alignment = intel_surf_alignment(fb, 0);
-	if (drm_WARN_ON(dev, alignment && !is_power_of_2(alignment)))
-		return ERR_PTR(-EINVAL);
-
-	/* Note that the w/a also requires 64 PTE of padding following the
-	 * bo. We currently fill all unused PTE with the shadow page and so
-	 * we should always have valid PTE following the scanout preventing
-	 * the VT-d warning.
-	 */
-	if (intel_scanout_needs_vtd_wa(dev_priv) && alignment < 256 * 1024)
-		alignment = 256 * 1024;
-
-	/*
-	 * Global gtt pte registers are special registers which actually forward
-	 * writes to a chunk of system memory. Which means that there is no risk
-	 * that the register values disappear as soon as we call
-	 * intel_runtime_pm_put(), so it is correct to wrap only the
-	 * pin/unpin/fence and not more.
-	 */
-	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
-
-	atomic_inc(&dev_priv->gpu_error.pending_fb_pin);
-
-	/*
-	 * Valleyview is definitely limited to scanning out the first
-	 * 512MiB. Lets presume this behaviour was inherited from the
-	 * g4x display engine and that all earlier gen are similarly
-	 * limited. Testing suggests that it is a little more
-	 * complicated than this. For example, Cherryview appears quite
-	 * happy to scanout from anywhere within its global aperture.
-	 */
-	pinctl = 0;
-	if (HAS_GMCH(dev_priv))
-		pinctl |= PIN_MAPPABLE;
-
-	i915_gem_ww_ctx_init(&ww, true);
-retry:
-	ret = i915_gem_object_lock(obj, &ww);
-	if (!ret && phys_cursor)
-		ret = i915_gem_object_attach_phys(obj, alignment);
-	else if (!ret && HAS_LMEM(dev_priv))
-		ret = i915_gem_object_migrate(obj, &ww, INTEL_REGION_LMEM);
-	/* TODO: Do we need to sync when migration becomes async? */
-	if (!ret)
-		ret = i915_gem_object_pin_pages(obj);
-	if (ret)
-		goto err;
-
-	if (!ret) {
-		vma = i915_gem_object_pin_to_display_plane(obj, &ww, alignment,
-							   view, pinctl);
-		if (IS_ERR(vma)) {
-			ret = PTR_ERR(vma);
-			goto err_unpin;
-		}
-	}
-
-	if (uses_fence && i915_vma_is_map_and_fenceable(vma)) {
-		/*
-		 * Install a fence for tiled scan-out. Pre-i965 always needs a
-		 * fence, whereas 965+ only requires a fence if using
-		 * framebuffer compression.  For simplicity, we always, when
-		 * possible, install a fence as the cost is not that onerous.
-		 *
-		 * If we fail to fence the tiled scanout, then either the
-		 * modeset will reject the change (which is highly unlikely as
-		 * the affected systems, all but one, do not have unmappable
-		 * space) or we will not be able to enable full powersaving
-		 * techniques (also likely not to apply due to various limits
-		 * FBC and the like impose on the size of the buffer, which
-		 * presumably we violated anyway with this unmappable buffer).
-		 * Anyway, it is presumably better to stumble onwards with
-		 * something and try to run the system in a "less than optimal"
-		 * mode that matches the user configuration.
-		 */
-		ret = i915_vma_pin_fence(vma);
-		if (ret != 0 && DISPLAY_VER(dev_priv) < 4) {
-			i915_vma_unpin(vma);
-			goto err_unpin;
-		}
-		ret = 0;
-
-		if (vma->fence)
-			*out_flags |= PLANE_HAS_FENCE;
-	}
-
-	i915_vma_get(vma);
-
-err_unpin:
-	i915_gem_object_unpin_pages(obj);
-err:
-	if (ret == -EDEADLK) {
-		ret = i915_gem_ww_ctx_backoff(&ww);
-		if (!ret)
-			goto retry;
-	}
-	i915_gem_ww_ctx_fini(&ww);
-	if (ret)
-		vma = ERR_PTR(ret);
-
-	atomic_dec(&dev_priv->gpu_error.pending_fb_pin);
-	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
-	return vma;
-}
-
-void intel_unpin_fb_vma(struct i915_vma *vma, unsigned long flags)
-{
-	if (flags & PLANE_HAS_FENCE)
-		i915_vma_unpin_fence(vma);
-	i915_vma_unpin(vma);
-	i915_vma_put(vma);
 }
 
 /*
@@ -1241,123 +1051,6 @@ u32 intel_plane_fb_max_stride(struct drm_i915_private *dev_priv,
 				 DRM_MODE_ROTATE_0);
 }
 
-static struct i915_vma *
-initial_plane_vma(struct drm_i915_private *i915,
-		  struct intel_initial_plane_config *plane_config)
-{
-	struct drm_i915_gem_object *obj;
-	struct i915_vma *vma;
-	u32 base, size;
-
-	if (plane_config->size == 0)
-		return NULL;
-
-	base = round_down(plane_config->base,
-			  I915_GTT_MIN_ALIGNMENT);
-	size = round_up(plane_config->base + plane_config->size,
-			I915_GTT_MIN_ALIGNMENT);
-	size -= base;
-
-	/*
-	 * If the FB is too big, just don't use it since fbdev is not very
-	 * important and we should probably use that space with FBC or other
-	 * features.
-	 */
-	if (IS_ENABLED(CONFIG_FRAMEBUFFER_CONSOLE) &&
-	    size * 2 > i915->stolen_usable_size)
-		return NULL;
-
-	obj = i915_gem_object_create_stolen_for_preallocated(i915, base, size);
-	if (IS_ERR(obj))
-		return NULL;
-
-	/*
-	 * Mark it WT ahead of time to avoid changing the
-	 * cache_level during fbdev initialization. The
-	 * unbind there would get stuck waiting for rcu.
-	 */
-	i915_gem_object_set_cache_coherency(obj, HAS_WT(i915) ?
-					    I915_CACHE_WT : I915_CACHE_NONE);
-
-	switch (plane_config->tiling) {
-	case I915_TILING_NONE:
-		break;
-	case I915_TILING_X:
-	case I915_TILING_Y:
-		obj->tiling_and_stride =
-			plane_config->fb->base.pitches[0] |
-			plane_config->tiling;
-		break;
-	default:
-		MISSING_CASE(plane_config->tiling);
-		goto err_obj;
-	}
-
-	vma = i915_vma_instance(obj, &i915->ggtt.vm, NULL);
-	if (IS_ERR(vma))
-		goto err_obj;
-
-	if (i915_ggtt_pin(vma, NULL, 0, PIN_MAPPABLE | PIN_OFFSET_FIXED | base))
-		goto err_obj;
-
-	if (i915_gem_object_is_tiled(obj) &&
-	    !i915_vma_is_map_and_fenceable(vma))
-		goto err_obj;
-
-	return vma;
-
-err_obj:
-	i915_gem_object_put(obj);
-	return NULL;
-}
-
-static bool
-intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
-			      struct intel_initial_plane_config *plane_config)
-{
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct drm_mode_fb_cmd2 mode_cmd = { 0 };
-	struct drm_framebuffer *fb = &plane_config->fb->base;
-	struct i915_vma *vma;
-
-	switch (fb->modifier) {
-	case DRM_FORMAT_MOD_LINEAR:
-	case I915_FORMAT_MOD_X_TILED:
-	case I915_FORMAT_MOD_Y_TILED:
-		break;
-	default:
-		drm_dbg(&dev_priv->drm,
-			"Unsupported modifier for initial FB: 0x%llx\n",
-			fb->modifier);
-		return false;
-	}
-
-	vma = initial_plane_vma(dev_priv, plane_config);
-	if (!vma)
-		return false;
-
-	mode_cmd.pixel_format = fb->format->format;
-	mode_cmd.width = fb->width;
-	mode_cmd.height = fb->height;
-	mode_cmd.pitches[0] = fb->pitches[0];
-	mode_cmd.modifier[0] = fb->modifier;
-	mode_cmd.flags = DRM_MODE_FB_MODIFIERS;
-
-	if (intel_framebuffer_init(to_intel_framebuffer(fb),
-				   vma->obj, &mode_cmd)) {
-		drm_dbg_kms(&dev_priv->drm, "intel fb init failed\n");
-		goto err_vma;
-	}
-
-	plane_config->vma = vma;
-	return true;
-
-err_vma:
-	i915_vma_put(vma);
-	return false;
-}
-
 static void
 intel_set_plane_visible(struct intel_crtc_state *crtc_state,
 			struct intel_plane_state *plane_state,
@@ -1393,8 +1086,8 @@ static void fixup_plane_bitmasks(struct intel_crtc_state *crtc_state)
 	}
 }
 
-static void intel_plane_disable_noatomic(struct intel_crtc *crtc,
-					 struct intel_plane *plane)
+void intel_plane_disable_noatomic(struct intel_crtc *crtc,
+				  struct intel_plane *plane)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_crtc_state *crtc_state =
@@ -1437,123 +1130,6 @@ static void intel_plane_disable_noatomic(struct intel_crtc *crtc,
 
 	intel_disable_plane(plane, crtc_state);
 	intel_wait_for_vblank(dev_priv, crtc->pipe);
-}
-
-static bool
-intel_reuse_initial_plane_obj(struct drm_i915_private *i915,
-			      const struct intel_initial_plane_config *plane_config,
-			      struct drm_framebuffer **fb,
-			      struct i915_vma **vma)
-{
-	struct intel_crtc *crtc;
-
-	for_each_intel_crtc(&i915->drm, crtc) {
-		struct intel_crtc_state *crtc_state =
-			to_intel_crtc_state(crtc->base.state);
-		struct intel_plane *plane =
-			to_intel_plane(crtc->base.primary);
-		struct intel_plane_state *plane_state =
-			to_intel_plane_state(plane->base.state);
-
-		if (!crtc_state->uapi.active)
-			continue;
-
-		if (!plane_state->ggtt_vma)
-			continue;
-
-		if (intel_plane_ggtt_offset(plane_state) == plane_config->base) {
-			*fb = plane_state->hw.fb;
-			*vma = plane_state->ggtt_vma;
-			return true;
-		}
-	}
-
-	return false;
-}
-
-static void
-intel_find_initial_plane_obj(struct intel_crtc *crtc,
-			     struct intel_initial_plane_config *plane_config)
-{
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc_state *crtc_state =
-		to_intel_crtc_state(crtc->base.state);
-	struct intel_plane *plane =
-		to_intel_plane(crtc->base.primary);
-	struct intel_plane_state *plane_state =
-		to_intel_plane_state(plane->base.state);
-	struct drm_framebuffer *fb;
-	struct i915_vma *vma;
-
-	/*
-	 * TODO:
-	 *   Disable planes if get_initial_plane_config() failed.
-	 *   Make sure things work if the surface base is not page aligned.
-	 */
-	if (!plane_config->fb)
-		return;
-
-	if (intel_alloc_initial_plane_obj(crtc, plane_config)) {
-		fb = &plane_config->fb->base;
-		vma = plane_config->vma;
-		goto valid_fb;
-	}
-
-	/*
-	 * Failed to alloc the obj, check to see if we should share
-	 * an fb with another CRTC instead
-	 */
-	if (intel_reuse_initial_plane_obj(dev_priv, plane_config, &fb, &vma))
-		goto valid_fb;
-
-	/*
-	 * We've failed to reconstruct the BIOS FB.  Current display state
-	 * indicates that the primary plane is visible, but has a NULL FB,
-	 * which will lead to problems later if we don't fix it up.  The
-	 * simplest solution is to just disable the primary plane now and
-	 * pretend the BIOS never had it enabled.
-	 */
-	intel_plane_disable_noatomic(crtc, plane);
-	if (crtc_state->bigjoiner) {
-		struct intel_crtc *slave =
-			crtc_state->bigjoiner_linked_crtc;
-		intel_plane_disable_noatomic(slave, to_intel_plane(slave->base.primary));
-	}
-
-	return;
-
-valid_fb:
-	plane_state->uapi.rotation = plane_config->rotation;
-	intel_fb_fill_view(to_intel_framebuffer(fb),
-			   plane_state->uapi.rotation, &plane_state->view);
-
-	__i915_vma_pin(vma);
-	plane_state->ggtt_vma = i915_vma_get(vma);
-	if (intel_plane_uses_fence(plane_state) &&
-	    i915_vma_pin_fence(vma) == 0 && vma->fence)
-		plane_state->flags |= PLANE_HAS_FENCE;
-
-	plane_state->uapi.src_x = 0;
-	plane_state->uapi.src_y = 0;
-	plane_state->uapi.src_w = fb->width << 16;
-	plane_state->uapi.src_h = fb->height << 16;
-
-	plane_state->uapi.crtc_x = 0;
-	plane_state->uapi.crtc_y = 0;
-	plane_state->uapi.crtc_w = fb->width;
-	plane_state->uapi.crtc_h = fb->height;
-
-	if (plane_config->tiling)
-		dev_priv->preserve_bios_swizzle = true;
-
-	plane_state->uapi.fb = fb;
-	drm_framebuffer_get(fb);
-
-	plane_state->uapi.crtc = &crtc->base;
-	intel_plane_copy_uapi_to_hw_state(plane_state, plane_state, crtc);
-
-	atomic_or(plane->frontbuffer_bit, &to_intel_frontbuffer(fb)->bits);
 }
 
 unsigned int
@@ -2313,6 +1889,33 @@ static bool needs_cursorclk_wa(const struct intel_crtc_state *crtc_state)
 	return false;
 }
 
+static void intel_async_flip_vtd_wa(struct drm_i915_private *i915,
+				    enum pipe pipe, bool enable)
+{
+	if (DISPLAY_VER(i915) == 9) {
+		/*
+		 * "Plane N strech max must be programmed to 11b (x1)
+		 *  when Async flips are enabled on that plane."
+		 */
+		intel_de_rmw(i915, CHICKEN_PIPESL_1(pipe),
+			     SKL_PLANE1_STRETCH_MAX_MASK,
+			     enable ? SKL_PLANE1_STRETCH_MAX_X1 : SKL_PLANE1_STRETCH_MAX_X8);
+	} else {
+		/* Also needed on HSW/BDW albeit undocumented */
+		intel_de_rmw(i915, CHICKEN_PIPESL_1(pipe),
+			     HSW_PRI_STRETCH_MAX_MASK,
+			     enable ? HSW_PRI_STRETCH_MAX_X1 : HSW_PRI_STRETCH_MAX_X8);
+	}
+}
+
+static bool needs_async_flip_vtd_wa(const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+
+	return crtc_state->uapi.async_flip && intel_vtd_active() &&
+		(DISPLAY_VER(i915) == 9 || IS_BROADWELL(i915) || IS_HASWELL(i915));
+}
+
 static bool planes_enabling(const struct intel_crtc_state *old_crtc_state,
 			    const struct intel_crtc_state *new_crtc_state)
 {
@@ -2347,6 +1950,10 @@ static void intel_post_plane_update(struct intel_atomic_state *state,
 
 	intel_fbc_post_update(state, crtc);
 	intel_drrs_page_flip(state, crtc);
+
+	if (needs_async_flip_vtd_wa(old_crtc_state) &&
+	    !needs_async_flip_vtd_wa(new_crtc_state))
+		intel_async_flip_vtd_wa(dev_priv, pipe, false);
 
 	if (needs_nv12_wa(old_crtc_state) &&
 	    !needs_nv12_wa(new_crtc_state))
@@ -2445,6 +2052,10 @@ static void intel_pre_plane_update(struct intel_atomic_state *state,
 
 	if (intel_fbc_pre_update(state, crtc))
 		intel_wait_for_vblank(dev_priv, pipe);
+
+	if (!needs_async_flip_vtd_wa(old_crtc_state) &&
+	    needs_async_flip_vtd_wa(new_crtc_state))
+		intel_async_flip_vtd_wa(dev_priv, pipe, true);
 
 	/* Display WA 827 */
 	if (!needs_nv12_wa(old_crtc_state) &&
@@ -10478,279 +10089,6 @@ static int intel_atomic_commit(struct drm_device *dev,
 	return 0;
 }
 
-struct wait_rps_boost {
-	struct wait_queue_entry wait;
-
-	struct drm_crtc *crtc;
-	struct i915_request *request;
-};
-
-static int do_rps_boost(struct wait_queue_entry *_wait,
-			unsigned mode, int sync, void *key)
-{
-	struct wait_rps_boost *wait = container_of(_wait, typeof(*wait), wait);
-	struct i915_request *rq = wait->request;
-
-	/*
-	 * If we missed the vblank, but the request is already running it
-	 * is reasonable to assume that it will complete before the next
-	 * vblank without our intervention, so leave RPS alone.
-	 */
-	if (!i915_request_started(rq))
-		intel_rps_boost(rq);
-	i915_request_put(rq);
-
-	drm_crtc_vblank_put(wait->crtc);
-
-	list_del(&wait->wait.entry);
-	kfree(wait);
-	return 1;
-}
-
-static void add_rps_boost_after_vblank(struct drm_crtc *crtc,
-				       struct dma_fence *fence)
-{
-	struct wait_rps_boost *wait;
-
-	if (!dma_fence_is_i915(fence))
-		return;
-
-	if (DISPLAY_VER(to_i915(crtc->dev)) < 6)
-		return;
-
-	if (drm_crtc_vblank_get(crtc))
-		return;
-
-	wait = kmalloc(sizeof(*wait), GFP_KERNEL);
-	if (!wait) {
-		drm_crtc_vblank_put(crtc);
-		return;
-	}
-
-	wait->request = to_request(dma_fence_get(fence));
-	wait->crtc = crtc;
-
-	wait->wait.func = do_rps_boost;
-	wait->wait.flags = 0;
-
-	add_wait_queue(drm_crtc_vblank_waitqueue(crtc), &wait->wait);
-}
-
-int intel_plane_pin_fb(struct intel_plane_state *plane_state)
-{
-	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
-	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
-	struct drm_framebuffer *fb = plane_state->hw.fb;
-	struct i915_vma *vma;
-	bool phys_cursor =
-		plane->id == PLANE_CURSOR &&
-		INTEL_INFO(dev_priv)->display.cursor_needs_physical;
-
-	if (!intel_fb_uses_dpt(fb)) {
-		vma = intel_pin_and_fence_fb_obj(fb, phys_cursor,
-						 &plane_state->view.gtt,
-						 intel_plane_uses_fence(plane_state),
-						 &plane_state->flags);
-		if (IS_ERR(vma))
-			return PTR_ERR(vma);
-
-		plane_state->ggtt_vma = vma;
-	} else {
-		struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
-
-		vma = intel_dpt_pin(intel_fb->dpt_vm);
-		if (IS_ERR(vma))
-			return PTR_ERR(vma);
-
-		plane_state->ggtt_vma = vma;
-
-		vma = intel_pin_fb_obj_dpt(fb, &plane_state->view.gtt, false,
-					   &plane_state->flags, intel_fb->dpt_vm);
-		if (IS_ERR(vma)) {
-			intel_dpt_unpin(intel_fb->dpt_vm);
-			plane_state->ggtt_vma = NULL;
-			return PTR_ERR(vma);
-		}
-
-		plane_state->dpt_vma = vma;
-
-		WARN_ON(plane_state->ggtt_vma == plane_state->dpt_vma);
-	}
-
-	return 0;
-}
-
-void intel_plane_unpin_fb(struct intel_plane_state *old_plane_state)
-{
-	struct drm_framebuffer *fb = old_plane_state->hw.fb;
-	struct i915_vma *vma;
-
-	if (!intel_fb_uses_dpt(fb)) {
-		vma = fetch_and_zero(&old_plane_state->ggtt_vma);
-		if (vma)
-			intel_unpin_fb_vma(vma, old_plane_state->flags);
-	} else {
-		struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
-
-		vma = fetch_and_zero(&old_plane_state->dpt_vma);
-		if (vma)
-			intel_unpin_fb_vma(vma, old_plane_state->flags);
-
-		vma = fetch_and_zero(&old_plane_state->ggtt_vma);
-		if (vma)
-			intel_dpt_unpin(intel_fb->dpt_vm);
-	}
-}
-
-/**
- * intel_prepare_plane_fb - Prepare fb for usage on plane
- * @_plane: drm plane to prepare for
- * @_new_plane_state: the plane state being prepared
- *
- * Prepares a framebuffer for usage on a display plane.  Generally this
- * involves pinning the underlying object and updating the frontbuffer tracking
- * bits.  Some older platforms need special physical address handling for
- * cursor planes.
- *
- * Returns 0 on success, negative error code on failure.
- */
-int
-intel_prepare_plane_fb(struct drm_plane *_plane,
-		       struct drm_plane_state *_new_plane_state)
-{
-	struct i915_sched_attr attr = { .priority = I915_PRIORITY_DISPLAY };
-	struct intel_plane *plane = to_intel_plane(_plane);
-	struct intel_plane_state *new_plane_state =
-		to_intel_plane_state(_new_plane_state);
-	struct intel_atomic_state *state =
-		to_intel_atomic_state(new_plane_state->uapi.state);
-	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
-	const struct intel_plane_state *old_plane_state =
-		intel_atomic_get_old_plane_state(state, plane);
-	struct drm_i915_gem_object *obj = intel_fb_obj(new_plane_state->hw.fb);
-	struct drm_i915_gem_object *old_obj = intel_fb_obj(old_plane_state->hw.fb);
-	int ret;
-
-	if (old_obj) {
-		const struct intel_crtc_state *crtc_state =
-			intel_atomic_get_new_crtc_state(state,
-							to_intel_crtc(old_plane_state->hw.crtc));
-
-		/* Big Hammer, we also need to ensure that any pending
-		 * MI_WAIT_FOR_EVENT inside a user batch buffer on the
-		 * current scanout is retired before unpinning the old
-		 * framebuffer. Note that we rely on userspace rendering
-		 * into the buffer attached to the pipe they are waiting
-		 * on. If not, userspace generates a GPU hang with IPEHR
-		 * point to the MI_WAIT_FOR_EVENT.
-		 *
-		 * This should only fail upon a hung GPU, in which case we
-		 * can safely continue.
-		 */
-		if (intel_crtc_needs_modeset(crtc_state)) {
-			ret = i915_sw_fence_await_reservation(&state->commit_ready,
-							      old_obj->base.resv, NULL,
-							      false, 0,
-							      GFP_KERNEL);
-			if (ret < 0)
-				return ret;
-		}
-	}
-
-	if (new_plane_state->uapi.fence) { /* explicit fencing */
-		i915_gem_fence_wait_priority(new_plane_state->uapi.fence,
-					     &attr);
-		ret = i915_sw_fence_await_dma_fence(&state->commit_ready,
-						    new_plane_state->uapi.fence,
-						    i915_fence_timeout(dev_priv),
-						    GFP_KERNEL);
-		if (ret < 0)
-			return ret;
-	}
-
-	if (!obj)
-		return 0;
-
-
-	ret = intel_plane_pin_fb(new_plane_state);
-	if (ret)
-		return ret;
-
-	i915_gem_object_wait_priority(obj, 0, &attr);
-
-	if (!new_plane_state->uapi.fence) { /* implicit fencing */
-		struct dma_fence *fence;
-
-		ret = i915_sw_fence_await_reservation(&state->commit_ready,
-						      obj->base.resv, NULL,
-						      false,
-						      i915_fence_timeout(dev_priv),
-						      GFP_KERNEL);
-		if (ret < 0)
-			goto unpin_fb;
-
-		fence = dma_resv_get_excl_unlocked(obj->base.resv);
-		if (fence) {
-			add_rps_boost_after_vblank(new_plane_state->hw.crtc,
-						   fence);
-			dma_fence_put(fence);
-		}
-	} else {
-		add_rps_boost_after_vblank(new_plane_state->hw.crtc,
-					   new_plane_state->uapi.fence);
-	}
-
-	/*
-	 * We declare pageflips to be interactive and so merit a small bias
-	 * towards upclocking to deliver the frame on time. By only changing
-	 * the RPS thresholds to sample more regularly and aim for higher
-	 * clocks we can hopefully deliver low power workloads (like kodi)
-	 * that are not quite steady state without resorting to forcing
-	 * maximum clocks following a vblank miss (see do_rps_boost()).
-	 */
-	if (!state->rps_interactive) {
-		intel_rps_mark_interactive(&dev_priv->gt.rps, true);
-		state->rps_interactive = true;
-	}
-
-	return 0;
-
-unpin_fb:
-	intel_plane_unpin_fb(new_plane_state);
-
-	return ret;
-}
-
-/**
- * intel_cleanup_plane_fb - Cleans up an fb after plane use
- * @plane: drm plane to clean up for
- * @_old_plane_state: the state from the previous modeset
- *
- * Cleans up a framebuffer that has just been removed from a plane.
- */
-void
-intel_cleanup_plane_fb(struct drm_plane *plane,
-		       struct drm_plane_state *_old_plane_state)
-{
-	struct intel_plane_state *old_plane_state =
-		to_intel_plane_state(_old_plane_state);
-	struct intel_atomic_state *state =
-		to_intel_atomic_state(old_plane_state->uapi.state);
-	struct drm_i915_private *dev_priv = to_i915(plane->dev);
-	struct drm_i915_gem_object *obj = intel_fb_obj(old_plane_state->hw.fb);
-
-	if (!obj)
-		return;
-
-	if (state->rps_interactive) {
-		intel_rps_mark_interactive(&dev_priv->gt.rps, false);
-		state->rps_interactive = false;
-	}
-
-	/* Should only be called after a successful intel_prepare_plane_fb()! */
-	intel_plane_unpin_fb(old_plane_state);
-}
-
 /**
  * intel_plane_destroy - destroy a plane
  * @plane: plane to destroy
@@ -11580,22 +10918,6 @@ static void intel_mode_config_cleanup(struct drm_i915_private *i915)
 	drm_mode_config_cleanup(&i915->drm);
 }
 
-static void plane_config_fini(struct intel_initial_plane_config *plane_config)
-{
-	if (plane_config->fb) {
-		struct drm_framebuffer *fb = &plane_config->fb->base;
-
-		/* We may only have the stub and not a full framebuffer */
-		if (drm_framebuffer_read_refcount(fb))
-			drm_framebuffer_put(fb);
-		else
-			kfree(fb);
-	}
-
-	if (plane_config->vma)
-		i915_vma_put(plane_config->vma);
-}
-
 /* part #1: call before irq install */
 int intel_modeset_init_noirq(struct drm_i915_private *i915)
 {
@@ -11728,27 +11050,9 @@ int intel_modeset_init_nogem(struct drm_i915_private *i915)
 	drm_modeset_unlock_all(dev);
 
 	for_each_intel_crtc(dev, crtc) {
-		struct intel_initial_plane_config plane_config = {};
-
 		if (!to_intel_crtc_state(crtc->base.state)->uapi.active)
 			continue;
-
-		/*
-		 * Note that reserving the BIOS fb up front prevents us
-		 * from stuffing other stolen allocations like the ring
-		 * on top.  This prevents some ugliness at boot time, and
-		 * can even allow for smooth boot transitions if the BIOS
-		 * fb is large enough for the active pipe configuration.
-		 */
-		i915->display->get_initial_plane_config(crtc, &plane_config);
-
-		/*
-		 * If the fb is shared between multiple heads, we'll
-		 * just get the first one.
-		 */
-		intel_find_initial_plane_obj(crtc, &plane_config);
-
-		plane_config_fini(&plane_config);
+		intel_crtc_initial_plane_config(crtc);
 	}
 
 	/*

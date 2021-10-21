@@ -17,7 +17,7 @@
 #include "intel_display_types.h"
 #include "intel_display.h"
 #include "intel_fb.h"
-
+#include "intel_fb_pin.h"
 #include "intel_frontbuffer.h"
 #include "intel_pm.h"
 #include "intel_psr.h"

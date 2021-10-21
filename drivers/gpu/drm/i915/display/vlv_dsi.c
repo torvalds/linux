@@ -40,8 +40,8 @@
 #include "intel_dsi.h"
 #include "intel_fifo_underrun.h"
 #include "intel_panel.h"
-#include "intel_sideband.h"
 #include "skl_scaler.h"
+#include "vlv_sideband.h"
 
 /* return pixels in terms of txbyteclkhs */
 static u16 txbyteclkhs(u16 pixels, int bpp, int lane_count,

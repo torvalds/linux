@@ -233,7 +233,7 @@ static void dsi_program_swing_and_deemphasis(struct intel_encoder *encoder)
 		 * Program voltage swing and pre-emphasis level values as per
 		 * table in BSPEC under DDI buffer programing
 		 */
-		tmp = intel_de_read(dev_priv, ICL_PORT_TX_DW5_LN0(phy));
+		tmp = intel_de_read(dev_priv, ICL_PORT_TX_DW5_LN(0, phy));
 		tmp &= ~(SCALING_MODE_SEL_MASK | RTERM_SELECT_MASK);
 		tmp |= SCALING_MODE_SEL(0x2);
 		tmp |= TAP2_DISABLE | TAP3_DISABLE;
@@ -247,7 +247,7 @@ static void dsi_program_swing_and_deemphasis(struct intel_encoder *encoder)
 		tmp |= RTERM_SELECT(0x6);
 		intel_de_write(dev_priv, ICL_PORT_TX_DW5_AUX(phy), tmp);
 
-		tmp = intel_de_read(dev_priv, ICL_PORT_TX_DW2_LN0(phy));
+		tmp = intel_de_read(dev_priv, ICL_PORT_TX_DW2_LN(0, phy));
 		tmp &= ~(SWING_SEL_LOWER_MASK | SWING_SEL_UPPER_MASK |
 			 RCOMP_SCALAR_MASK);
 		tmp |= SWING_SEL_UPPER(0x2);
@@ -455,7 +455,7 @@ static void gen11_dsi_config_phy_lanes_sequence(struct intel_encoder *encoder)
 		tmp &= ~FRC_LATENCY_OPTIM_MASK;
 		tmp |= FRC_LATENCY_OPTIM_VAL(0x5);
 		intel_de_write(dev_priv, ICL_PORT_TX_DW2_AUX(phy), tmp);
-		tmp = intel_de_read(dev_priv, ICL_PORT_TX_DW2_LN0(phy));
+		tmp = intel_de_read(dev_priv, ICL_PORT_TX_DW2_LN(0, phy));
 		tmp &= ~FRC_LATENCY_OPTIM_MASK;
 		tmp |= FRC_LATENCY_OPTIM_VAL(0x5);
 		intel_de_write(dev_priv, ICL_PORT_TX_DW2_GRP(phy), tmp);
@@ -470,7 +470,7 @@ static void gen11_dsi_config_phy_lanes_sequence(struct intel_encoder *encoder)
 				       tmp);
 
 			tmp = intel_de_read(dev_priv,
-					    ICL_PORT_PCS_DW1_LN0(phy));
+					    ICL_PORT_PCS_DW1_LN(0, phy));
 			tmp &= ~LATENCY_OPTIM_MASK;
 			tmp |= LATENCY_OPTIM_VAL(0x1);
 			intel_de_write(dev_priv, ICL_PORT_PCS_DW1_GRP(phy),
@@ -489,7 +489,7 @@ static void gen11_dsi_voltage_swing_program_seq(struct intel_encoder *encoder)
 
 	/* clear common keeper enable bit */
 	for_each_dsi_phy(phy, intel_dsi->phys) {
-		tmp = intel_de_read(dev_priv, ICL_PORT_PCS_DW1_LN0(phy));
+		tmp = intel_de_read(dev_priv, ICL_PORT_PCS_DW1_LN(0, phy));
 		tmp &= ~COMMON_KEEPER_EN;
 		intel_de_write(dev_priv, ICL_PORT_PCS_DW1_GRP(phy), tmp);
 		tmp = intel_de_read(dev_priv, ICL_PORT_PCS_DW1_AUX(phy));
@@ -510,7 +510,7 @@ static void gen11_dsi_voltage_swing_program_seq(struct intel_encoder *encoder)
 
 	/* Clear training enable to change swing values */
 	for_each_dsi_phy(phy, intel_dsi->phys) {
-		tmp = intel_de_read(dev_priv, ICL_PORT_TX_DW5_LN0(phy));
+		tmp = intel_de_read(dev_priv, ICL_PORT_TX_DW5_LN(0, phy));
 		tmp &= ~TX_TRAINING_EN;
 		intel_de_write(dev_priv, ICL_PORT_TX_DW5_GRP(phy), tmp);
 		tmp = intel_de_read(dev_priv, ICL_PORT_TX_DW5_AUX(phy));
@@ -523,7 +523,7 @@ static void gen11_dsi_voltage_swing_program_seq(struct intel_encoder *encoder)
 
 	/* Set training enable to trigger update */
 	for_each_dsi_phy(phy, intel_dsi->phys) {
-		tmp = intel_de_read(dev_priv, ICL_PORT_TX_DW5_LN0(phy));
+		tmp = intel_de_read(dev_priv, ICL_PORT_TX_DW5_LN(0, phy));
 		tmp |= TX_TRAINING_EN;
 		intel_de_write(dev_priv, ICL_PORT_TX_DW5_GRP(phy), tmp);
 		tmp = intel_de_read(dev_priv, ICL_PORT_TX_DW5_AUX(phy));

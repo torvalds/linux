@@ -68,9 +68,9 @@ void intel_snps_phy_set_signal_levels(struct intel_encoder *encoder,
 	for (ln = 0; ln < 4; ln++) {
 		u32 val = 0;
 
-		val |= REG_FIELD_PREP(SNPS_PHY_TX_EQ_MAIN, trans->entries[level].snps.snps_vswing);
-		val |= REG_FIELD_PREP(SNPS_PHY_TX_EQ_PRE, trans->entries[level].snps.snps_pre_cursor);
-		val |= REG_FIELD_PREP(SNPS_PHY_TX_EQ_POST, trans->entries[level].snps.snps_post_cursor);
+		val |= REG_FIELD_PREP(SNPS_PHY_TX_EQ_MAIN, trans->entries[level].snps.vswing);
+		val |= REG_FIELD_PREP(SNPS_PHY_TX_EQ_PRE, trans->entries[level].snps.pre_cursor);
+		val |= REG_FIELD_PREP(SNPS_PHY_TX_EQ_POST, trans->entries[level].snps.post_cursor);
 
 		intel_de_write(dev_priv, SNPS_PHY_TX_EQ(ln, phy), val);
 	}

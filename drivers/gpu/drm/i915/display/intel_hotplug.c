@@ -215,7 +215,7 @@ intel_hpd_irq_storm_switch_to_polling(struct drm_i915_private *dev_priv)
 
 static void intel_hpd_irq_setup(struct drm_i915_private *i915)
 {
-	if (i915->display_irqs_enabled && i915->hotplug_funcs->hpd_irq_setup)
+	if (i915->display_irqs_enabled && i915->hotplug_funcs)
 		i915->hotplug_funcs->hpd_irq_setup(i915);
 }
 

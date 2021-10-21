@@ -13,8 +13,8 @@
 #include "intel_lvds.h"
 #include "intel_panel.h"
 #include "intel_pps.h"
-#include "intel_sideband.h"
 #include "intel_snps_phy.h"
+#include "vlv_sideband.h"
 
 struct intel_limit {
 	struct {
