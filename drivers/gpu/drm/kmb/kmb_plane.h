@@ -63,6 +63,12 @@ struct layer_status {
 	u32 ctrl;
 };
 
+struct disp_cfg {
+	unsigned int width;
+	unsigned int height;
+	unsigned int format;
+};
+
 struct kmb_plane *kmb_plane_init(struct drm_device *drm);
 void kmb_plane_destroy(struct drm_plane *plane);
 #endif /* __KMB_PLANE_H__ */
