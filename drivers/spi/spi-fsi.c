@@ -234,6 +234,26 @@ static int fsi_spi_reset(struct fsi_spi *ctx)
 	return fsi_spi_write_reg(ctx, SPI_FSI_STATUS, 0ULL);
 }
 
+static int fsi_spi_status(struct fsi_spi *ctx, u64 *status, const char *dir)
+{
+	int rc = fsi_spi_read_reg(ctx, SPI_FSI_STATUS, status);
+
+	if (rc)
+		return rc;
+
+	if (*status & SPI_FSI_STATUS_ANY_ERROR) {
+		dev_err(ctx->dev, "%s error: %08llx\n", dir, *status);
+
+		rc = fsi_spi_reset(ctx);
+		if (rc)
+			return rc;
+
+		return -EREMOTEIO;
+	}
+
+	return 0;
+}
+
 static void fsi_spi_sequence_add(struct fsi_spi_sequence *seq, u8 val)
 {
 	/*
@@ -273,18 +293,9 @@ static int fsi_spi_transfer_data(struct fsi_spi *ctx,
 				return rc;
 
 			do {
-				rc = fsi_spi_read_reg(ctx, SPI_FSI_STATUS,
-						      &status);
+				rc = fsi_spi_status(ctx, &status, "TX");
 				if (rc)
 					return rc;
-
-				if (status & SPI_FSI_STATUS_ANY_ERROR) {
-					rc = fsi_spi_reset(ctx);
-					if (rc)
-						return rc;
-
-					return -EREMOTEIO;
-				}
 			} while (status & SPI_FSI_STATUS_TDR_FULL);
 
 			sent += nb;
@@ -296,18 +307,9 @@ static int fsi_spi_transfer_data(struct fsi_spi *ctx,
 
 		while (transfer->len > recv) {
 			do {
-				rc = fsi_spi_read_reg(ctx, SPI_FSI_STATUS,
-						      &status);
+				rc = fsi_spi_status(ctx, &status, "RX");
 				if (rc)
 					return rc;
-
-				if (status & SPI_FSI_STATUS_ANY_ERROR) {
-					rc = fsi_spi_reset(ctx);
-					if (rc)
-						return rc;
-
-					return -EREMOTEIO;
-				}
 			} while (!(status & SPI_FSI_STATUS_RDR_FULL));
 
 			rc = fsi_spi_read_reg(ctx, SPI_FSI_DATA_RX, &in);
@@ -348,8 +350,12 @@ static int fsi_spi_transfer_init(struct fsi_spi *ctx)
 		if (status & (SPI_FSI_STATUS_ANY_ERROR |
 			      SPI_FSI_STATUS_TDR_FULL |
 			      SPI_FSI_STATUS_RDR_FULL)) {
-			if (reset)
+			if (reset) {
+				dev_err(ctx->dev,
+					"Initialization error: %08llx\n",
+					status);
 				return -EIO;
+			}
 
 			rc = fsi_spi_reset(ctx);
 			if (rc)
