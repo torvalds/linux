@@ -503,6 +503,13 @@ struct fpu_state_config {
 	 * be requested by user space before usage.
 	 */
 	u64 default_features;
+	/*
+	 * @legacy_features:
+	 *
+	 * Features which can be reported back to user space
+	 * even without XSAVE support, i.e. legacy features FP + SSE
+	 */
+	u64 legacy_features;
 };
 
 /* FPU state configuration information */

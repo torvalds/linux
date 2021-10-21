@@ -193,12 +193,15 @@ static void __init fpu__init_system_xstate_size_legacy(void)
 	 * Note that the size configuration might be overwritten later
 	 * during fpu__init_system_xstate().
 	 */
-	if (!cpu_feature_enabled(X86_FEATURE_FPU))
+	if (!cpu_feature_enabled(X86_FEATURE_FPU)) {
 		size = sizeof(struct swregs_state);
-	else if (cpu_feature_enabled(X86_FEATURE_FXSR))
+	} else if (cpu_feature_enabled(X86_FEATURE_FXSR)) {
 		size = sizeof(struct fxregs_state);
-	else
+		fpu_user_cfg.legacy_features = XFEATURE_MASK_FPSSE;
+	} else {
 		size = sizeof(struct fregs_state);
+		fpu_user_cfg.legacy_features = XFEATURE_MASK_FP;
+	}
 
 	fpu_kernel_cfg.max_size = size;
 	fpu_kernel_cfg.default_size = size;
