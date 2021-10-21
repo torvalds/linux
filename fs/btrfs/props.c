@@ -158,7 +158,7 @@ static int iterate_object_props(struct btrfs_root *root,
 
 		di = btrfs_item_ptr(leaf, slot, struct btrfs_dir_item);
 		cur = 0;
-		total_len = btrfs_item_size_nr(leaf, slot);
+		total_len = btrfs_item_size(leaf, slot);
 
 		while (cur < total_len) {
 			u32 name_len = btrfs_dir_name_len(leaf, di);

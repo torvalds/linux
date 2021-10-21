@@ -25,7 +25,7 @@ static void btrfs_read_root_item(struct extent_buffer *eb, int slot,
 	u32 len;
 	int need_reset = 0;
 
-	len = btrfs_item_size_nr(eb, slot);
+	len = btrfs_item_size(eb, slot);
 	read_extent_buffer(eb, item, btrfs_item_ptr_offset(eb, slot),
 			   min_t(u32, len, sizeof(*item)));
 	if (len < sizeof(*item))
@@ -146,7 +146,7 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 	l = path->nodes[0];
 	slot = path->slots[0];
 	ptr = btrfs_item_ptr_offset(l, slot);
-	old_len = btrfs_item_size_nr(l, slot);
+	old_len = btrfs_item_size(l, slot);
 
 	/*
 	 * If this is the first time we update the root item which originated

@@ -435,7 +435,7 @@ static int process_extent_item(struct btrfs_fs_info *fs_info,
 	struct btrfs_extent_data_ref *dref;
 	struct btrfs_shared_data_ref *sref;
 	struct extent_buffer *leaf = path->nodes[0];
-	u32 item_size = btrfs_item_size_nr(leaf, slot);
+	u32 item_size = btrfs_item_size(leaf, slot);
 	unsigned long end, ptr;
 	u64 offset, flags, count;
 	int type, ret;

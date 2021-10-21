@@ -386,7 +386,7 @@ static int do_overwrite_item(struct btrfs_trans_handle *trans,
 	if (root->root_key.objectid != BTRFS_TREE_LOG_OBJECTID)
 		overwrite_root = 1;
 
-	item_size = btrfs_item_size_nr(eb, slot);
+	item_size = btrfs_item_size(eb, slot);
 	src_ptr = btrfs_item_ptr_offset(eb, slot);
 
 	/* Our caller must have done a search for the key for us. */
@@ -409,7 +409,7 @@ static int do_overwrite_item(struct btrfs_trans_handle *trans,
 	if (ret == 0) {
 		char *src_copy;
 		char *dst_copy;
-		u32 dst_size = btrfs_item_size_nr(path->nodes[0],
+		u32 dst_size = btrfs_item_size(path->nodes[0],
 						  path->slots[0]);
 		if (dst_size != item_size)
 			goto insert;
@@ -503,7 +503,7 @@ insert:
 	/* make sure any existing item is the correct size */
 	if (ret == -EEXIST || ret == -EOVERFLOW) {
 		u32 found_size;
-		found_size = btrfs_item_size_nr(path->nodes[0],
+		found_size = btrfs_item_size(path->nodes[0],
 						path->slots[0]);
 		if (found_size > item_size)
 			btrfs_truncate_item(path, item_size, 1);
@@ -1096,7 +1096,7 @@ again:
 		 * otherwise they must be unlinked as a conflict
 		 */
 		ptr = btrfs_item_ptr_offset(leaf, path->slots[0]);
-		ptr_end = ptr + btrfs_item_size_nr(leaf, path->slots[0]);
+		ptr_end = ptr + btrfs_item_size(leaf, path->slots[0]);
 		while (ptr < ptr_end) {
 			victim_ref = (struct btrfs_inode_ref *)ptr;
 			victim_name_len = btrfs_inode_ref_name_len(leaf,
@@ -1155,7 +1155,7 @@ again:
 
 		leaf = path->nodes[0];
 
-		item_size = btrfs_item_size_nr(leaf, path->slots[0]);
+		item_size = btrfs_item_size(leaf, path->slots[0]);
 		base = btrfs_item_ptr_offset(leaf, path->slots[0]);
 
 		while (cur_offset < item_size) {
@@ -1318,7 +1318,7 @@ again:
 
 	eb = path->nodes[0];
 	ref_ptr = btrfs_item_ptr_offset(eb, path->slots[0]);
-	ref_end = ref_ptr + btrfs_item_size_nr(eb, path->slots[0]);
+	ref_end = ref_ptr + btrfs_item_size(eb, path->slots[0]);
 	while (ref_ptr < ref_end) {
 		char *name = NULL;
 		int namelen;
@@ -1504,7 +1504,7 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 	int ref_struct_size;
 
 	ref_ptr = btrfs_item_ptr_offset(eb, slot);
-	ref_end = ref_ptr + btrfs_item_size_nr(eb, slot);
+	ref_end = ref_ptr + btrfs_item_size(eb, slot);
 
 	if (key->type == BTRFS_INODE_EXTREF_KEY) {
 		struct btrfs_inode_extref *r;
@@ -1678,7 +1678,7 @@ static int count_inode_extrefs(struct btrfs_root *root,
 			break;
 
 		leaf = path->nodes[0];
-		item_size = btrfs_item_size_nr(leaf, path->slots[0]);
+		item_size = btrfs_item_size(leaf, path->slots[0]);
 		ptr = btrfs_item_ptr_offset(leaf, path->slots[0]);
 		cur_offset = 0;
 
@@ -1732,7 +1732,7 @@ process_slot:
 		    key.type != BTRFS_INODE_REF_KEY)
 			break;
 		ptr = btrfs_item_ptr_offset(path->nodes[0], path->slots[0]);
-		ptr_end = ptr + btrfs_item_size_nr(path->nodes[0],
+		ptr_end = ptr + btrfs_item_size(path->nodes[0],
 						   path->slots[0]);
 		while (ptr < ptr_end) {
 			struct btrfs_inode_ref *ref;
@@ -2406,7 +2406,7 @@ process_leaf:
 		}
 
 		di = btrfs_item_ptr(path->nodes[0], i, struct btrfs_dir_item);
-		total_size = btrfs_item_size_nr(path->nodes[0], i);
+		total_size = btrfs_item_size(path->nodes[0], i);
 		cur = 0;
 		while (cur < total_size) {
 			u16 name_len = btrfs_dir_name_len(path->nodes[0], di);
@@ -3640,7 +3640,7 @@ static int flush_dir_items_batch(struct btrfs_trans_handle *trans,
 
 	if (count == 1) {
 		btrfs_item_key_to_cpu(src, &key, start_slot);
-		item_size = btrfs_item_size_nr(src, start_slot);
+		item_size = btrfs_item_size(src, start_slot);
 		batch.keys = &key;
 		batch.data_sizes = &item_size;
 		batch.total_data_size = item_size;
@@ -3663,7 +3663,7 @@ static int flush_dir_items_batch(struct btrfs_trans_handle *trans,
 			const int slot = start_slot + i;
 
 			btrfs_item_key_to_cpu(src, &ins_keys[i], slot);
-			ins_sizes[i] = btrfs_item_size_nr(src, slot);
+			ins_sizes[i] = btrfs_item_size(src, slot);
 			batch.total_data_size += ins_sizes[i];
 		}
 	}
@@ -4296,7 +4296,7 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 	batch.nr = nr;
 
 	for (i = 0; i < nr; i++) {
-		ins_sizes[i] = btrfs_item_size_nr(src, i + start_slot);
+		ins_sizes[i] = btrfs_item_size(src, i + start_slot);
 		batch.total_data_size += ins_sizes[i];
 		btrfs_item_key_to_cpu(src, ins_keys + i, i + start_slot);
 	}
@@ -5112,7 +5112,7 @@ static int btrfs_check_ref_name_override(struct extent_buffer *eb,
 	struct btrfs_path *search_path;
 	char *name = NULL;
 	u32 name_len = 0;
-	u32 item_size = btrfs_item_size_nr(eb, slot);
+	u32 item_size = btrfs_item_size(eb, slot);
 	u32 cur_offset = 0;
 	unsigned long ptr = btrfs_item_ptr_offset(eb, slot);
 
@@ -6033,7 +6033,7 @@ static int btrfs_log_all_parents(struct btrfs_trans_handle *trans,
 		if (key.objectid != ino || key.type > BTRFS_INODE_EXTREF_KEY)
 			break;
 
-		item_size = btrfs_item_size_nr(leaf, slot);
+		item_size = btrfs_item_size(leaf, slot);
 		ptr = btrfs_item_ptr_offset(leaf, slot);
 		while (cur_offset < item_size) {
 			struct btrfs_key inode_key;

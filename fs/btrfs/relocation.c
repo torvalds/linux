@@ -3149,7 +3149,7 @@ static int add_tree_block(struct reloc_control *rc,
 	u64 owner = 0;
 
 	eb =  path->nodes[0];
-	item_size = btrfs_item_size_nr(eb, path->slots[0]);
+	item_size = btrfs_item_size(eb, path->slots[0]);
 
 	if (extent_key->type == BTRFS_METADATA_ITEM_KEY ||
 	    item_size >= sizeof(*ei) + sizeof(*bi)) {

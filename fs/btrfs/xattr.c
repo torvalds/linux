@@ -168,7 +168,7 @@ int btrfs_setxattr(struct btrfs_trans_handle *trans, struct inode *inode,
 		const int slot = path->slots[0];
 		struct extent_buffer *leaf = path->nodes[0];
 		const u16 old_data_len = btrfs_dir_data_len(leaf, di);
-		const u32 item_size = btrfs_item_size_nr(leaf, slot);
+		const u32 item_size = btrfs_item_size(leaf, slot);
 		const u32 data_size = sizeof(*di) + name_len + size;
 		unsigned long data_ptr;
 		char *ptr;
@@ -196,7 +196,7 @@ int btrfs_setxattr(struct btrfs_trans_handle *trans, struct inode *inode,
 		}
 
 		ptr = btrfs_item_ptr(leaf, slot, char);
-		ptr += btrfs_item_size_nr(leaf, slot) - data_size;
+		ptr += btrfs_item_size(leaf, slot) - data_size;
 		di = (struct btrfs_dir_item *)ptr;
 		btrfs_set_dir_data_len(leaf, di, size);
 		data_ptr = ((unsigned long)(di + 1)) + name_len;
@@ -333,7 +333,7 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 			goto next_item;
 
 		di = btrfs_item_ptr(leaf, slot, struct btrfs_dir_item);
-		item_size = btrfs_item_size_nr(leaf, slot);
+		item_size = btrfs_item_size(leaf, slot);
 		cur = 0;
 		while (cur < item_size) {
 			u16 name_len = btrfs_dir_name_len(leaf, di);

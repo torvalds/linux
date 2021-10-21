@@ -950,7 +950,7 @@ static int add_inline_refs(const struct btrfs_fs_info *fs_info,
 	leaf = path->nodes[0];
 	slot = path->slots[0];
 
-	item_size = btrfs_item_size_nr(leaf, slot);
+	item_size = btrfs_item_size(leaf, slot);
 	BUG_ON(item_size < sizeof(*ei));
 
 	ei = btrfs_item_ptr(leaf, slot, struct btrfs_extent_item);
@@ -1779,7 +1779,7 @@ int extent_from_logical(struct btrfs_fs_info *fs_info, u64 logical,
 	}
 
 	eb = path->nodes[0];
-	item_size = btrfs_item_size_nr(eb, path->slots[0]);
+	item_size = btrfs_item_size(eb, path->slots[0]);
 	BUG_ON(item_size < sizeof(*ei));
 
 	ei = btrfs_item_ptr(eb, path->slots[0], struct btrfs_extent_item);
@@ -2085,7 +2085,7 @@ static int iterate_inode_refs(u64 inum, struct btrfs_root *fs_root,
 
 		iref = btrfs_item_ptr(eb, slot, struct btrfs_inode_ref);
 
-		for (cur = 0; cur < btrfs_item_size_nr(eb, slot); cur += len) {
+		for (cur = 0; cur < btrfs_item_size(eb, slot); cur += len) {
 			name_len = btrfs_inode_ref_name_len(eb, iref);
 			/* path must be released before calling iterate()! */
 			btrfs_debug(fs_root->fs_info,
@@ -2141,7 +2141,7 @@ static int iterate_inode_extrefs(u64 inum, struct btrfs_root *fs_root,
 		}
 		btrfs_release_path(path);
 
-		item_size = btrfs_item_size_nr(eb, slot);
+		item_size = btrfs_item_size(eb, slot);
 		ptr = btrfs_item_ptr_offset(eb, slot);
 		cur_offset = 0;
 
@@ -2362,7 +2362,7 @@ int btrfs_backref_iter_start(struct btrfs_backref_iter *iter, u64 bytenr)
 	iter->item_ptr = (u32)btrfs_item_ptr_offset(path->nodes[0],
 						    path->slots[0]);
 	iter->end_ptr = (u32)(iter->item_ptr +
-			btrfs_item_size_nr(path->nodes[0], path->slots[0]));
+			btrfs_item_size(path->nodes[0], path->slots[0]));
 	ei = btrfs_item_ptr(path->nodes[0], path->slots[0],
 			    struct btrfs_extent_item);
 
@@ -2402,7 +2402,7 @@ int btrfs_backref_iter_start(struct btrfs_backref_iter *iter, u64 bytenr)
 		iter->cur_ptr = (u32)btrfs_item_ptr_offset(path->nodes[0],
 							   path->slots[0]);
 		iter->item_ptr = iter->cur_ptr;
-		iter->end_ptr = (u32)(iter->item_ptr + btrfs_item_size_nr(
+		iter->end_ptr = (u32)(iter->item_ptr + btrfs_item_size(
 				      path->nodes[0], path->slots[0]));
 	}
 
@@ -2467,7 +2467,7 @@ int btrfs_backref_iter_next(struct btrfs_backref_iter *iter)
 	iter->item_ptr = (u32)btrfs_item_ptr_offset(path->nodes[0],
 					path->slots[0]);
 	iter->cur_ptr = iter->item_ptr;
-	iter->end_ptr = iter->item_ptr + (u32)btrfs_item_size_nr(path->nodes[0],
+	iter->end_ptr = iter->item_ptr + (u32)btrfs_item_size(path->nodes[0],
 						path->slots[0]);
 	return 0;
 }

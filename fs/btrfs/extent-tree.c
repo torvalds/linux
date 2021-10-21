@@ -171,7 +171,7 @@ search_again:
 
 	if (ret == 0) {
 		leaf = path->nodes[0];
-		item_size = btrfs_item_size_nr(leaf, path->slots[0]);
+		item_size = btrfs_item_size(leaf, path->slots[0]);
 		if (item_size >= sizeof(*ei)) {
 			ei = btrfs_item_ptr(leaf, path->slots[0],
 					    struct btrfs_extent_item);
@@ -865,7 +865,7 @@ again:
 	}
 
 	leaf = path->nodes[0];
-	item_size = btrfs_item_size_nr(leaf, path->slots[0]);
+	item_size = btrfs_item_size(leaf, path->slots[0]);
 	if (unlikely(item_size < sizeof(*ei))) {
 		err = -EINVAL;
 		btrfs_print_v0_err(fs_info);
@@ -1007,7 +1007,7 @@ void setup_inline_extent_backref(struct btrfs_fs_info *fs_info,
 		__run_delayed_extent_op(extent_op, leaf, ei);
 
 	ptr = (unsigned long)ei + item_offset;
-	end = (unsigned long)ei + btrfs_item_size_nr(leaf, path->slots[0]);
+	end = (unsigned long)ei + btrfs_item_size(leaf, path->slots[0]);
 	if (ptr < end - size)
 		memmove_extent_buffer(leaf, ptr + size, ptr,
 				      end - size - ptr);
@@ -1119,7 +1119,7 @@ void update_inline_extent_backref(struct btrfs_path *path,
 	} else {
 		*last_ref = 1;
 		size =  btrfs_extent_inline_ref_size(type);
-		item_size = btrfs_item_size_nr(leaf, path->slots[0]);
+		item_size = btrfs_item_size(leaf, path->slots[0]);
 		ptr = (unsigned long)iref;
 		end = (unsigned long)ei + item_size;
 		if (ptr + size < end)
@@ -1634,7 +1634,7 @@ again:
 	}
 
 	leaf = path->nodes[0];
-	item_size = btrfs_item_size_nr(leaf, path->slots[0]);
+	item_size = btrfs_item_size(leaf, path->slots[0]);
 
 	if (unlikely(item_size < sizeof(*ei))) {
 		err = -EINVAL;
@@ -2316,7 +2316,7 @@ static noinline int check_committed_ref(struct btrfs_root *root,
 		goto out;
 
 	ret = 1;
-	item_size = btrfs_item_size_nr(leaf, path->slots[0]);
+	item_size = btrfs_item_size(leaf, path->slots[0]);
 	ei = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_extent_item);
 
 	/* If extent item has more than 1 inline ref then it's shared */
@@ -3068,7 +3068,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 	}
 
 	leaf = path->nodes[0];
-	item_size = btrfs_item_size_nr(leaf, extent_slot);
+	item_size = btrfs_item_size(leaf, extent_slot);
 	if (unlikely(item_size < sizeof(*ei))) {
 		ret = -EINVAL;
 		btrfs_print_v0_err(info);

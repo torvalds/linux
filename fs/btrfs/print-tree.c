@@ -85,7 +85,7 @@ static void print_extent_item(struct extent_buffer *eb, int slot, int type)
 	struct btrfs_disk_key key;
 	unsigned long end;
 	unsigned long ptr;
-	u32 item_size = btrfs_item_size_nr(eb, slot);
+	u32 item_size = btrfs_item_size(eb, slot);
 	u64 flags;
 	u64 offset;
 	int ref_index = 0;
@@ -227,7 +227,7 @@ void btrfs_print_leaf(struct extent_buffer *l)
 		type = key.type;
 		pr_info("\titem %d key (%llu %u %llu) itemoff %d itemsize %d\n",
 			i, key.objectid, type, key.offset,
-			btrfs_item_offset_nr(l, i), btrfs_item_size_nr(l, i));
+			btrfs_item_offset(l, i), btrfs_item_size(l, i));
 		switch (type) {
 		case BTRFS_INODE_ITEM_KEY:
 			ii = btrfs_item_ptr(l, i, struct btrfs_inode_item);
@@ -345,7 +345,7 @@ void btrfs_print_leaf(struct extent_buffer *l)
 		case BTRFS_UUID_KEY_SUBVOL:
 		case BTRFS_UUID_KEY_RECEIVED_SUBVOL:
 			print_uuid_item(l, btrfs_item_ptr_offset(l, i),
-					btrfs_item_size_nr(l, i));
+					btrfs_item_size(l, i));
 			break;
 		}
 	}

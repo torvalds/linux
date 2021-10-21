@@ -1960,8 +1960,8 @@ static inline void btrfs_set_node_key(const struct extent_buffer *eb,
 }
 
 /* struct btrfs_item */
-BTRFS_SETGET_FUNCS(item_offset, struct btrfs_item, offset, 32);
-BTRFS_SETGET_FUNCS(item_size, struct btrfs_item, size, 32);
+BTRFS_SETGET_FUNCS(raw_item_offset, struct btrfs_item, offset, 32);
+BTRFS_SETGET_FUNCS(raw_item_size, struct btrfs_item, size, 32);
 BTRFS_SETGET_STACK_FUNCS(stack_item_offset, struct btrfs_item, offset, 32);
 BTRFS_SETGET_STACK_FUNCS(stack_item_size, struct btrfs_item, size, 32);
 
@@ -1979,7 +1979,7 @@ static inline struct btrfs_item *btrfs_item_nr(int nr)
 static inline u32 btrfs_item_end(const struct extent_buffer *eb,
 				 struct btrfs_item *item)
 {
-	return btrfs_item_offset(eb, item) + btrfs_item_size(eb, item);
+	return btrfs_raw_item_offset(eb, item) + btrfs_raw_item_size(eb, item);
 }
 
 static inline u32 btrfs_item_end_nr(const struct extent_buffer *eb, int nr)
@@ -1987,59 +1987,32 @@ static inline u32 btrfs_item_end_nr(const struct extent_buffer *eb, int nr)
 	return btrfs_item_end(eb, btrfs_item_nr(nr));
 }
 
-static inline u32 btrfs_item_offset_nr(const struct extent_buffer *eb, int nr)
-{
-	return btrfs_item_offset(eb, btrfs_item_nr(nr));
+#define BTRFS_ITEM_SETGET_FUNCS(member)						\
+static inline u32 btrfs_item_##member(const struct extent_buffer *eb,		\
+				      int slot)					\
+{										\
+	return btrfs_raw_item_##member(eb, btrfs_item_nr(slot));		\
+}										\
+static inline void btrfs_set_item_##member(const struct extent_buffer *eb,	\
+					   int slot, u32 val)			\
+{										\
+	btrfs_set_raw_item_##member(eb, btrfs_item_nr(slot), val);		\
+}										\
+static inline u32 btrfs_token_item_##member(struct btrfs_map_token *token,	\
+					    int slot)				\
+{										\
+	struct btrfs_item *item = btrfs_item_nr(slot);				\
+	return btrfs_token_raw_item_##member(token, item);			\
+}										\
+static inline void btrfs_set_token_item_##member(struct btrfs_map_token *token,	\
+						 int slot, u32 val)		\
+{										\
+	struct btrfs_item *item = btrfs_item_nr(slot);				\
+	btrfs_set_token_raw_item_##member(token, item, val);			\
 }
 
-static inline u32 btrfs_item_size_nr(const struct extent_buffer *eb, int nr)
-{
-	return btrfs_item_size(eb, btrfs_item_nr(nr));
-}
-
-static inline void btrfs_set_item_size_nr(struct extent_buffer *eb, int nr,
-					  u32 val)
-{
-	btrfs_set_item_size(eb, btrfs_item_nr(nr), val);
-}
-
-static inline void btrfs_set_item_offset_nr(struct extent_buffer *eb, int nr,
-					    u32 val)
-{
-	btrfs_set_item_offset(eb, btrfs_item_nr(nr), val);
-}
-
-static inline u32 btrfs_token_item_offset_nr(struct btrfs_map_token *token,
-					     int slot)
-{
-	struct btrfs_item *item = btrfs_item_nr(slot);
-
-	return btrfs_token_item_offset(token, item);
-}
-
-static inline u32 btrfs_token_item_size_nr(struct btrfs_map_token *token,
-					   int slot)
-{
-	struct btrfs_item *item = btrfs_item_nr(slot);
-
-	return btrfs_token_item_size(token, item);
-}
-
-static inline void btrfs_set_token_item_offset_nr(struct btrfs_map_token *token,
-						  int slot, u32 val)
-{
-	struct btrfs_item *item = btrfs_item_nr(slot);
-
-	btrfs_set_token_item_offset(token, item, val);
-}
-
-static inline void btrfs_set_token_item_size_nr(struct btrfs_map_token *token,
-						int slot, u32 val)
-{
-	struct btrfs_item *item = btrfs_item_nr(slot);
-
-	btrfs_set_token_item_size(token, item, val);
-}
+BTRFS_ITEM_SETGET_FUNCS(offset)
+BTRFS_ITEM_SETGET_FUNCS(size);
 
 static inline void btrfs_item_key(const struct extent_buffer *eb,
 			   struct btrfs_disk_key *disk_key, int nr)
@@ -2507,7 +2480,7 @@ static inline unsigned int leaf_data_end(const struct extent_buffer *leaf)
 
 	if (nr == 0)
 		return BTRFS_LEAF_DATA_SIZE(leaf->fs_info);
-	return btrfs_item_offset_nr(leaf, nr - 1);
+	return btrfs_item_offset(leaf, nr - 1);
 }
 
 /* struct btrfs_file_extent_item */
@@ -2568,7 +2541,7 @@ static inline u32 btrfs_file_extent_inline_item_len(
 						const struct extent_buffer *eb,
 						int nr)
 {
-	return btrfs_item_size_nr(eb, nr) - BTRFS_FILE_EXTENT_INLINE_DATA_START;
+	return btrfs_item_size(eb, nr) - BTRFS_FILE_EXTENT_INLINE_DATA_START;
 }
 
 /* btrfs_qgroup_status_item */
@@ -2660,11 +2633,11 @@ BTRFS_SETGET_STACK_FUNCS(stack_dev_replace_cursor_right,
 /* helper function to cast into the data area of the leaf. */
 #define btrfs_item_ptr(leaf, slot, type) \
 	((type *)(BTRFS_LEAF_DATA_OFFSET + \
-	btrfs_item_offset_nr(leaf, slot)))
+	btrfs_item_offset(leaf, slot)))
 
 #define btrfs_item_ptr_offset(leaf, slot) \
 	((unsigned long)(BTRFS_LEAF_DATA_OFFSET + \
-	btrfs_item_offset_nr(leaf, slot)))
+	btrfs_item_offset(leaf, slot)))
 
 static inline u32 btrfs_crc32c(u32 crc, const void *address, unsigned length)
 {

@@ -88,7 +88,7 @@ static int test_btrfs_split_item(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 
-	if (btrfs_item_size_nr(eb, 0) != strlen(split1)) {
+	if (btrfs_item_size(eb, 0) != strlen(split1)) {
 		test_err("invalid len in the first split");
 		ret = -EINVAL;
 		goto out;
@@ -112,7 +112,7 @@ static int test_btrfs_split_item(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 
-	if (btrfs_item_size_nr(eb, 1) != strlen(split2)) {
+	if (btrfs_item_size(eb, 1) != strlen(split2)) {
 		test_err("invalid len in the second split");
 		ret = -EINVAL;
 		goto out;
@@ -143,7 +143,7 @@ static int test_btrfs_split_item(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 
-	if (btrfs_item_size_nr(eb, 0) != strlen(split3)) {
+	if (btrfs_item_size(eb, 0) != strlen(split3)) {
 		test_err("invalid len in the first split");
 		ret = -EINVAL;
 		goto out;
@@ -166,7 +166,7 @@ static int test_btrfs_split_item(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 
-	if (btrfs_item_size_nr(eb, 1) != strlen(split4)) {
+	if (btrfs_item_size(eb, 1) != strlen(split4)) {
 		test_err("invalid len in the second split");
 		ret = -EINVAL;
 		goto out;
@@ -189,7 +189,7 @@ static int test_btrfs_split_item(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 
-	if (btrfs_item_size_nr(eb, 2) != strlen(split2)) {
+	if (btrfs_item_size(eb, 2) != strlen(split2)) {
 		test_err("invalid len in the second split");
 		ret = -EINVAL;
 		goto out;

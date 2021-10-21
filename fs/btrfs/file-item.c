@@ -208,7 +208,7 @@ btrfs_lookup_csum(struct btrfs_trans_handle *trans,
 
 		csum_offset = (bytenr - found_key.offset) >>
 				fs_info->sectorsize_bits;
-		csums_in_item = btrfs_item_size_nr(leaf, path->slots[0]);
+		csums_in_item = btrfs_item_size(leaf, path->slots[0]);
 		csums_in_item /= csum_size;
 
 		if (csum_offset == csums_in_item) {
@@ -274,7 +274,7 @@ static int search_csum_tree(struct btrfs_fs_info *fs_info,
 		item = btrfs_item_ptr(path->nodes[0], path->slots[0],
 				      struct btrfs_csum_item);
 		btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
-		itemsize = btrfs_item_size_nr(path->nodes[0], path->slots[0]);
+		itemsize = btrfs_item_size(path->nodes[0], path->slots[0]);
 
 		csum_start = key.offset;
 		csum_len = (itemsize / csum_size) * sectorsize;
@@ -291,7 +291,7 @@ static int search_csum_tree(struct btrfs_fs_info *fs_info,
 		goto out;
 	}
 	btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
-	itemsize = btrfs_item_size_nr(path->nodes[0], path->slots[0]);
+	itemsize = btrfs_item_size(path->nodes[0], path->slots[0]);
 
 	csum_start = key.offset;
 	csum_len = (itemsize / csum_size) * sectorsize;
@@ -534,7 +534,7 @@ int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
 		    key.type == BTRFS_EXTENT_CSUM_KEY) {
 			offset = (start - key.offset) >> fs_info->sectorsize_bits;
 			if (offset * csum_size <
-			    btrfs_item_size_nr(leaf, path->slots[0] - 1))
+			    btrfs_item_size(leaf, path->slots[0] - 1))
 				path->slots[0]--;
 		}
 	}
@@ -559,7 +559,7 @@ int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
 		if (key.offset > start)
 			start = key.offset;
 
-		size = btrfs_item_size_nr(leaf, path->slots[0]);
+		size = btrfs_item_size(leaf, path->slots[0]);
 		csum_end = key.offset + (size / csum_size) * fs_info->sectorsize;
 		if (csum_end <= start) {
 			path->slots[0]++;
@@ -750,7 +750,7 @@ static noinline void truncate_one_csum(struct btrfs_fs_info *fs_info,
 	u32 blocksize_bits = fs_info->sectorsize_bits;
 
 	leaf = path->nodes[0];
-	csum_end = btrfs_item_size_nr(leaf, path->slots[0]) / csum_size;
+	csum_end = btrfs_item_size(leaf, path->slots[0]) / csum_size;
 	csum_end <<= blocksize_bits;
 	csum_end += key->offset;
 
@@ -834,7 +834,7 @@ int btrfs_del_csums(struct btrfs_trans_handle *trans,
 		if (key.offset >= end_byte)
 			break;
 
-		csum_end = btrfs_item_size_nr(leaf, path->slots[0]) / csum_size;
+		csum_end = btrfs_item_size(leaf, path->slots[0]) / csum_size;
 		csum_end <<= blocksize_bits;
 		csum_end += key.offset;
 
@@ -1002,7 +1002,7 @@ again:
 		item_end = btrfs_item_ptr(leaf, path->slots[0],
 					  struct btrfs_csum_item);
 		item_end = (struct btrfs_csum_item *)((char *)item_end +
-			   btrfs_item_size_nr(leaf, path->slots[0]));
+			   btrfs_item_size(leaf, path->slots[0]));
 		goto found;
 	}
 	ret = PTR_ERR(item);
@@ -1013,7 +1013,7 @@ again:
 		u32 item_size;
 		/* we found one, but it isn't big enough yet */
 		leaf = path->nodes[0];
-		item_size = btrfs_item_size_nr(leaf, path->slots[0]);
+		item_size = btrfs_item_size(leaf, path->slots[0]);
 		if ((item_size / csum_size) >=
 		    MAX_CSUM_ITEMS(fs_info, csum_size)) {
 			/* already at max size, make a new one */
@@ -1070,7 +1070,7 @@ again:
 	}
 
 extend_csum:
-	if (csum_offset == btrfs_item_size_nr(leaf, path->slots[0]) /
+	if (csum_offset == btrfs_item_size(leaf, path->slots[0]) /
 	    csum_size) {
 		int extend_nr;
 		u64 tmp;
@@ -1125,7 +1125,7 @@ extend_csum:
 		diff = min(diff,
 			   MAX_CSUM_ITEMS(fs_info, csum_size) * csum_size);
 
-		diff = diff - btrfs_item_size_nr(leaf, path->slots[0]);
+		diff = diff - btrfs_item_size(leaf, path->slots[0]);
 		diff = min_t(u32, btrfs_leaf_free_space(leaf), diff);
 		diff /= csum_size;
 		diff *= csum_size;
@@ -1162,7 +1162,7 @@ insert:
 csum:
 	item = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_csum_item);
 	item_end = (struct btrfs_csum_item *)((unsigned char *)item +
-				      btrfs_item_size_nr(leaf, path->slots[0]));
+				      btrfs_item_size(leaf, path->slots[0]));
 	item = (struct btrfs_csum_item *)((unsigned char *)item +
 					  csum_offset * csum_size);
 found:
