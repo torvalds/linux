@@ -15,6 +15,7 @@
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/kernel.h>
+#include <linux/kstrtox.h>
 #include <linux/errno.h>
 #include <linux/wait.h>
 #include <linux/tracehook.h>
@@ -40,6 +41,7 @@
 #include <linux/compat.h>
 #include <asm/proto.h>
 #include <asm/ia32_unistd.h>
+#include <asm/fpu/xstate.h>
 #endif /* CONFIG_X86_64 */
 
 #include <asm/syscall.h>
@@ -906,6 +908,39 @@ void signal_fault(struct pt_regs *regs, void __user *frame, char *where)
 
 	force_sig(SIGSEGV);
 }
+
+#ifdef CONFIG_DYNAMIC_SIGFRAME
+#ifdef CONFIG_STRICT_SIGALTSTACK_SIZE
+static bool strict_sigaltstack_size __ro_after_init = true;
+#else
+static bool strict_sigaltstack_size __ro_after_init = false;
+#endif
+
+static int __init strict_sas_size(char *arg)
+{
+	return kstrtobool(arg, &strict_sigaltstack_size);
+}
+__setup("strict_sas_size", strict_sas_size);
+
+/*
+ * MINSIGSTKSZ is 2048 and can't be changed despite the fact that AVX512
+ * exceeds that size already. As such programs might never use the
+ * sigaltstack they just continued to work. While always checking against
+ * the real size would be correct, this might be considered a regression.
+ *
+ * Therefore avoid the sanity check, unless enforced by kernel config or
+ * command line option.
+ */
+bool sigaltstack_size_valid(size_t ss_size)
+{
+	lockdep_assert_held(&current->sighand->siglock);
+
+	if (strict_sigaltstack_size)
+		return ss_size > get_sigframe_size();
+
+	return true;
+}
+#endif /* CONFIG_DYNAMIC_SIGFRAME */
 
 #ifdef CONFIG_X86_X32_ABI
 COMPAT_SYSCALL_DEFINE0(x32_rt_sigreturn)
