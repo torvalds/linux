@@ -11173,8 +11173,7 @@ devlink_trap_policer_notify(struct devlink *devlink,
 
 	WARN_ON_ONCE(cmd != DEVLINK_CMD_TRAP_POLICER_NEW &&
 		     cmd != DEVLINK_CMD_TRAP_POLICER_DEL);
-	if (!xa_get_mark(&devlinks, devlink->index, DEVLINK_REGISTERED))
-		return;
+	ASSERT_DEVLINK_REGISTERED(devlink);
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
@@ -11216,9 +11215,6 @@ devlink_trap_policer_register(struct devlink *devlink,
 	}
 
 	list_add_tail(&policer_item->list, &devlink->trap_policer_list);
-	devlink_trap_policer_notify(devlink, policer_item,
-				    DEVLINK_CMD_TRAP_POLICER_NEW);
-
 	return 0;
 
 err_policer_init:
@@ -11236,8 +11232,6 @@ devlink_trap_policer_unregister(struct devlink *devlink,
 	if (WARN_ON_ONCE(!policer_item))
 		return;
 
-	devlink_trap_policer_notify(devlink, policer_item,
-				    DEVLINK_CMD_TRAP_POLICER_DEL);
 	list_del(&policer_item->list);
 	if (devlink->ops->trap_policer_fini)
 		devlink->ops->trap_policer_fini(devlink, policer);
@@ -11258,6 +11252,8 @@ devlink_trap_policers_register(struct devlink *devlink,
 			       size_t policers_count)
 {
 	int i, err;
+
+	ASSERT_DEVLINK_NOT_REGISTERED(devlink);
 
 	mutex_lock(&devlink->lock);
 	for (i = 0; i < policers_count; i++) {
@@ -11299,6 +11295,8 @@ devlink_trap_policers_unregister(struct devlink *devlink,
 				 size_t policers_count)
 {
 	int i;
+
+	ASSERT_DEVLINK_NOT_REGISTERED(devlink);
 
 	mutex_lock(&devlink->lock);
 	for (i = policers_count - 1; i >= 0; i--)
