@@ -1976,17 +1976,6 @@ static inline struct btrfs_item *btrfs_item_nr(int nr)
 	return (struct btrfs_item *)btrfs_item_nr_offset(nr);
 }
 
-static inline u32 btrfs_item_end(const struct extent_buffer *eb,
-				 struct btrfs_item *item)
-{
-	return btrfs_raw_item_offset(eb, item) + btrfs_raw_item_size(eb, item);
-}
-
-static inline u32 btrfs_item_end_nr(const struct extent_buffer *eb, int nr)
-{
-	return btrfs_item_end(eb, btrfs_item_nr(nr));
-}
-
 #define BTRFS_ITEM_SETGET_FUNCS(member)						\
 static inline u32 btrfs_item_##member(const struct extent_buffer *eb,		\
 				      int slot)					\
@@ -2013,6 +2002,11 @@ static inline void btrfs_set_token_item_##member(struct btrfs_map_token *token,	
 
 BTRFS_ITEM_SETGET_FUNCS(offset)
 BTRFS_ITEM_SETGET_FUNCS(size);
+
+static inline u32 btrfs_item_end_nr(const struct extent_buffer *eb, int nr)
+{
+	return btrfs_item_offset(eb, nr) + btrfs_item_size(eb, nr);
+}
 
 static inline void btrfs_item_key(const struct extent_buffer *eb,
 			   struct btrfs_disk_key *disk_key, int nr)
