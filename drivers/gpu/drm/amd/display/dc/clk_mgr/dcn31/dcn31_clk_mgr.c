@@ -523,14 +523,21 @@ static unsigned int find_clk_for_voltage(
 		unsigned int voltage)
 {
 	int i;
+	int max_voltage = 0;
+	int clock = 0;
 
 	for (i = 0; i < NUM_SOC_VOLTAGE_LEVELS; i++) {
-		if (clock_table->SocVoltage[i] == voltage)
+		if (clock_table->SocVoltage[i] == voltage) {
 			return clocks[i];
+		} else if (clock_table->SocVoltage[i] >= max_voltage &&
+				clock_table->SocVoltage[i] < voltage) {
+			max_voltage = clock_table->SocVoltage[i];
+			clock = clocks[i];
+		}
 	}
 
-	ASSERT(0);
-	return 0;
+	ASSERT(clock);
+	return clock;
 }
 
 void dcn31_clk_mgr_helper_populate_bw_params(
