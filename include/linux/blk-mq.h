@@ -567,11 +567,6 @@ struct blk_mq_ops {
 			     unsigned int);
 
 	/**
-	 * @initialize_rq_fn: Called from inside blk_get_request().
-	 */
-	void (*initialize_rq_fn)(struct request *rq);
-
-	/**
 	 * @cleanup_rq: Called before freeing one request which isn't completed
 	 * yet, and usually for freeing the driver private data.
 	 */
