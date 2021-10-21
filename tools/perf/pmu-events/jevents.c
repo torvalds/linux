@@ -71,7 +71,7 @@ struct json_event {
 	char *metric_constraint;
 };
 
-enum aggr_mode_class convert(const char *aggr_mode)
+static enum aggr_mode_class convert(const char *aggr_mode)
 {
 	if (!strcmp(aggr_mode, "PerCore"))
 		return PerCore;
@@ -81,8 +81,6 @@ enum aggr_mode_class convert(const char *aggr_mode)
 	pr_err("%s: Wrong AggregationMode value '%s'\n", prog, aggr_mode);
 	return -1;
 }
-
-typedef int (*func)(void *data, struct json_event *je);
 
 static LIST_HEAD(sys_event_tables);
 
@@ -370,7 +368,7 @@ static int print_events_table_entry(void *data, struct json_event *je)
 {
 	struct perf_entry_data *pd = data;
 	FILE *outfp = pd->outfp;
-	char *topic = pd->topic;
+	char *topic_local = pd->topic;
 
 	/*
 	 * TODO: Remove formatting chars after debugging to reduce
@@ -385,7 +383,7 @@ static int print_events_table_entry(void *data, struct json_event *je)
 	fprintf(outfp, "\t.desc = \"%s\",\n", je->desc);
 	if (je->compat)
 		fprintf(outfp, "\t.compat = \"%s\",\n", je->compat);
-	fprintf(outfp, "\t.topic = \"%s\",\n", topic);
+	fprintf(outfp, "\t.topic = \"%s\",\n", topic_local);
 	if (je->long_desc && je->long_desc[0])
 		fprintf(outfp, "\t.long_desc = \"%s\",\n", je->long_desc);
 	if (je->pmu)
@@ -1208,7 +1206,7 @@ int main(int argc, char *argv[])
 	const char *arch;
 	const char *output_file;
 	const char *start_dirname;
-	char *err_string_ext = "";
+	const char *err_string_ext = "";
 	struct stat stbuf;
 
 	prog = basename(argv[0]);
