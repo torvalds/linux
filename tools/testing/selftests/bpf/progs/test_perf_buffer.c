@@ -12,7 +12,7 @@ struct {
 	__type(value, int);
 } perf_buf_map SEC(".maps");
 
-SEC("tp/raw_syscalls/sys_enter")
+SEC("tp/syscalls/sys_enter_nanosleep")
 int handle_sys_enter(void *ctx)
 {
 	int cpu = bpf_get_smp_processor_id();
