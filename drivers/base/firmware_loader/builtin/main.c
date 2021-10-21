@@ -7,6 +7,12 @@
 /* Only if FW_LOADER=y */
 #ifdef CONFIG_FW_LOADER
 
+struct builtin_fw {
+	char *name;
+	void *data;
+	unsigned long size;
+};
+
 extern struct builtin_fw __start_builtin_fw[];
 extern struct builtin_fw __end_builtin_fw[];
 
