@@ -1017,6 +1017,9 @@ bool bch2_have_enough_devs(struct bch_fs *c, struct bch_devs_mask devs,
 		unsigned i, nr_online = 0, nr_failed = 0, dflags = 0;
 		bool metadata = e->data_type < BCH_DATA_user;
 
+		if (e->data_type == BCH_DATA_cached)
+			continue;
+
 		for (i = 0; i < e->nr_devs; i++) {
 			struct bch_dev *ca = bch_dev_bkey_exists(c, e->devs[i]);
 
