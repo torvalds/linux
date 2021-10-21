@@ -18,6 +18,7 @@
 #include <linux/delay.h>
 #include <linux/dmi.h>
 #include <linux/err.h>
+#include <linux/errno.h>
 #include <linux/hwmon.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -516,7 +517,7 @@ i8k_ioctl_unlocked(struct file *fp, struct dell_smm_data *data, unsigned int cmd
 		break;
 
 	default:
-		return -EINVAL;
+		return -ENOIOCTLCMD;
 	}
 
 	if (val < 0)
