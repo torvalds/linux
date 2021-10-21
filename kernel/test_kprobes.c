@@ -5,18 +5,17 @@
  * Copyright IBM Corp. 2008
  */
 
-#define pr_fmt(fmt) "Kprobe smoke test: " fmt
-
 #include <linux/kernel.h>
 #include <linux/kprobes.h>
 #include <linux/random.h>
+#include <kunit/test.h>
 
 #define div_factor 3
 
 static u32 rand1, preh_val, posth_val;
-static int errors, handler_errors, num_tests;
 static u32 (*target)(u32 value);
 static u32 (*target2)(u32 value);
+static struct kunit *current_test;
 
 static noinline u32 kprobe_target(u32 value)
 {
@@ -25,10 +24,7 @@ static noinline u32 kprobe_target(u32 value)
 
 static int kp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 {
-	if (preemptible()) {
-		handler_errors++;
-		pr_err("pre-handler is preemptible\n");
-	}
+	KUNIT_EXPECT_FALSE(current_test, preemptible());
 	preh_val = (rand1 / div_factor);
 	return 0;
 }
@@ -36,14 +32,8 @@ static int kp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 static void kp_post_handler(struct kprobe *p, struct pt_regs *regs,
 		unsigned long flags)
 {
-	if (preemptible()) {
-		handler_errors++;
-		pr_err("post-handler is preemptible\n");
-	}
-	if (preh_val != (rand1 / div_factor)) {
-		handler_errors++;
-		pr_err("incorrect value in post_handler\n");
-	}
+	KUNIT_EXPECT_FALSE(current_test, preemptible());
+	KUNIT_EXPECT_EQ(current_test, preh_val, (rand1 / div_factor));
 	posth_val = preh_val + div_factor;
 }
 
@@ -53,30 +43,14 @@ static struct kprobe kp = {
 	.post_handler = kp_post_handler
 };
 
-static int test_kprobe(void)
+static void test_kprobe(struct kunit *test)
 {
-	int ret;
-
-	ret = register_kprobe(&kp);
-	if (ret < 0) {
-		pr_err("register_kprobe returned %d\n", ret);
-		return ret;
-	}
-
-	ret = target(rand1);
+	current_test = test;
+	KUNIT_EXPECT_EQ(test, 0, register_kprobe(&kp));
+	target(rand1);
 	unregister_kprobe(&kp);
-
-	if (preh_val == 0) {
-		pr_err("kprobe pre_handler not called\n");
-		handler_errors++;
-	}
-
-	if (posth_val == 0) {
-		pr_err("kprobe post_handler not called\n");
-		handler_errors++;
-	}
-
-	return 0;
+	KUNIT_EXPECT_NE(test, 0, preh_val);
+	KUNIT_EXPECT_NE(test, 0, posth_val);
 }
 
 static noinline u32 kprobe_target2(u32 value)
@@ -93,10 +67,7 @@ static int kp_pre_handler2(struct kprobe *p, struct pt_regs *regs)
 static void kp_post_handler2(struct kprobe *p, struct pt_regs *regs,
 		unsigned long flags)
 {
-	if (preh_val != (rand1 / div_factor) + 1) {
-		handler_errors++;
-		pr_err("incorrect value in post_handler2\n");
-	}
+	KUNIT_EXPECT_EQ(current_test, preh_val, (rand1 / div_factor) + 1);
 	posth_val = preh_val + div_factor;
 }
 
@@ -106,51 +77,31 @@ static struct kprobe kp2 = {
 	.post_handler = kp_post_handler2
 };
 
-static int test_kprobes(void)
+static void test_kprobes(struct kunit *test)
 {
-	int ret;
 	struct kprobe *kps[2] = {&kp, &kp2};
+
+	current_test = test;
 
 	/* addr and flags should be cleard for reusing kprobe. */
 	kp.addr = NULL;
 	kp.flags = 0;
-	ret = register_kprobes(kps, 2);
-	if (ret < 0) {
-		pr_err("register_kprobes returned %d\n", ret);
-		return ret;
-	}
+
+	KUNIT_EXPECT_EQ(test, 0, register_kprobes(kps, 2));
+	preh_val = 0;
+	posth_val = 0;
+	target(rand1);
+
+	KUNIT_EXPECT_NE(test, 0, preh_val);
+	KUNIT_EXPECT_NE(test, 0, posth_val);
 
 	preh_val = 0;
 	posth_val = 0;
-	ret = target(rand1);
+	target2(rand1);
 
-	if (preh_val == 0) {
-		pr_err("kprobe pre_handler not called\n");
-		handler_errors++;
-	}
-
-	if (posth_val == 0) {
-		pr_err("kprobe post_handler not called\n");
-		handler_errors++;
-	}
-
-	preh_val = 0;
-	posth_val = 0;
-	ret = target2(rand1);
-
-	if (preh_val == 0) {
-		pr_err("kprobe pre_handler2 not called\n");
-		handler_errors++;
-	}
-
-	if (posth_val == 0) {
-		pr_err("kprobe post_handler2 not called\n");
-		handler_errors++;
-	}
-
+	KUNIT_EXPECT_NE(test, 0, preh_val);
+	KUNIT_EXPECT_NE(test, 0, posth_val);
 	unregister_kprobes(kps, 2);
-	return 0;
-
 }
 
 #ifdef CONFIG_KRETPROBES
@@ -158,10 +109,7 @@ static u32 krph_val;
 
 static int entry_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
-	if (preemptible()) {
-		handler_errors++;
-		pr_err("kretprobe entry handler is preemptible\n");
-	}
+	KUNIT_EXPECT_FALSE(current_test, preemptible());
 	krph_val = (rand1 / div_factor);
 	return 0;
 }
@@ -170,19 +118,9 @@ static int return_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
 	unsigned long ret = regs_return_value(regs);
 
-	if (preemptible()) {
-		handler_errors++;
-		pr_err("kretprobe return handler is preemptible\n");
-	}
-	if (ret != (rand1 / div_factor)) {
-		handler_errors++;
-		pr_err("incorrect value in kretprobe handler\n");
-	}
-	if (krph_val == 0) {
-		handler_errors++;
-		pr_err("call to kretprobe entry handler failed\n");
-	}
-
+	KUNIT_EXPECT_FALSE(current_test, preemptible());
+	KUNIT_EXPECT_EQ(current_test, ret, rand1 / div_factor);
+	KUNIT_EXPECT_NE(current_test, krph_val, 0);
 	krph_val = rand1;
 	return 0;
 }
@@ -193,39 +131,21 @@ static struct kretprobe rp = {
 	.kp.symbol_name = "kprobe_target"
 };
 
-static int test_kretprobe(void)
+static void test_kretprobe(struct kunit *test)
 {
-	int ret;
-
-	ret = register_kretprobe(&rp);
-	if (ret < 0) {
-		pr_err("register_kretprobe returned %d\n", ret);
-		return ret;
-	}
-
-	ret = target(rand1);
+	current_test = test;
+	KUNIT_EXPECT_EQ(test, 0, register_kretprobe(&rp));
+	target(rand1);
 	unregister_kretprobe(&rp);
-	if (krph_val != rand1) {
-		pr_err("kretprobe handler not called\n");
-		handler_errors++;
-	}
-
-	return 0;
+	KUNIT_EXPECT_EQ(test, krph_val, rand1);
 }
 
 static int return_handler2(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
 	unsigned long ret = regs_return_value(regs);
 
-	if (ret != (rand1 / div_factor) + 1) {
-		handler_errors++;
-		pr_err("incorrect value in kretprobe handler2\n");
-	}
-	if (krph_val == 0) {
-		handler_errors++;
-		pr_err("call to kretprobe entry handler failed\n");
-	}
-
+	KUNIT_EXPECT_EQ(current_test, ret, (rand1 / div_factor) + 1);
+	KUNIT_EXPECT_NE(current_test, krph_val, 0);
 	krph_val = rand1;
 	return 0;
 }
@@ -236,78 +156,54 @@ static struct kretprobe rp2 = {
 	.kp.symbol_name = "kprobe_target2"
 };
 
-static int test_kretprobes(void)
+static void test_kretprobes(struct kunit *test)
 {
-	int ret;
 	struct kretprobe *rps[2] = {&rp, &rp2};
 
+	current_test = test;
 	/* addr and flags should be cleard for reusing kprobe. */
 	rp.kp.addr = NULL;
 	rp.kp.flags = 0;
-	ret = register_kretprobes(rps, 2);
-	if (ret < 0) {
-		pr_err("register_kretprobe returned %d\n", ret);
-		return ret;
-	}
+	KUNIT_EXPECT_EQ(test, 0, register_kretprobes(rps, 2));
 
 	krph_val = 0;
-	ret = target(rand1);
-	if (krph_val != rand1) {
-		pr_err("kretprobe handler not called\n");
-		handler_errors++;
-	}
+	target(rand1);
+	KUNIT_EXPECT_EQ(test, krph_val, rand1);
 
 	krph_val = 0;
-	ret = target2(rand1);
-	if (krph_val != rand1) {
-		pr_err("kretprobe handler2 not called\n");
-		handler_errors++;
-	}
+	target2(rand1);
+	KUNIT_EXPECT_EQ(test, krph_val, rand1);
 	unregister_kretprobes(rps, 2);
-	return 0;
 }
 #endif /* CONFIG_KRETPROBES */
 
-int init_test_probes(void)
+static int kprobes_test_init(struct kunit *test)
 {
-	int ret;
-
 	target = kprobe_target;
 	target2 = kprobe_target2;
 
 	do {
 		rand1 = prandom_u32();
 	} while (rand1 <= div_factor);
-
-	pr_info("started\n");
-	num_tests++;
-	ret = test_kprobe();
-	if (ret < 0)
-		errors++;
-
-	num_tests++;
-	ret = test_kprobes();
-	if (ret < 0)
-		errors++;
-
-#ifdef CONFIG_KRETPROBES
-	num_tests++;
-	ret = test_kretprobe();
-	if (ret < 0)
-		errors++;
-
-	num_tests++;
-	ret = test_kretprobes();
-	if (ret < 0)
-		errors++;
-#endif /* CONFIG_KRETPROBES */
-
-	if (errors)
-		pr_err("BUG: %d out of %d tests failed\n", errors, num_tests);
-	else if (handler_errors)
-		pr_err("BUG: %d error(s) running handlers\n", handler_errors);
-	else
-		pr_info("passed successfully\n");
-
 	return 0;
 }
+
+static struct kunit_case kprobes_testcases[] = {
+	KUNIT_CASE(test_kprobe),
+	KUNIT_CASE(test_kprobes),
+#ifdef CONFIG_KRETPROBES
+	KUNIT_CASE(test_kretprobe),
+	KUNIT_CASE(test_kretprobes),
+#endif
+	{}
+};
+
+static struct kunit_suite kprobes_test_suite = {
+	.name = "kprobes_test",
+	.init = kprobes_test_init,
+	.test_cases = kprobes_testcases,
+};
+
+kunit_test_suites(&kprobes_test_suite);
+
+MODULE_LICENSE("GPL");
