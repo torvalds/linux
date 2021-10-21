@@ -62,6 +62,7 @@ struct cachefiles_cache {
 	char				*tag;		/* cache binding tag */
 };
 
+#include <trace/events/cachefiles.h>
 
 /*
  * error_inject.c
