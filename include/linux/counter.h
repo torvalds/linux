@@ -296,7 +296,8 @@ struct counter_ops {
  * @n_events_list_lock:	lock to protect Counter next events list operations
  * @events:		queue of detected Counter events
  * @events_wait:	wait queue to allow blocking reads of Counter events
- * @events_lock:	lock to protect Counter events queue read operations
+ * @events_in_lock:	lock to protect Counter events queue in operations
+ * @events_out_lock:	lock to protect Counter events queue out operations
  * @ops_exist_lock:	lock to prevent use during removal
  */
 struct counter_device {
@@ -323,7 +324,8 @@ struct counter_device {
 	struct mutex n_events_list_lock;
 	DECLARE_KFIFO_PTR(events, struct counter_event);
 	wait_queue_head_t events_wait;
-	struct mutex events_lock;
+	spinlock_t events_in_lock;
+	struct mutex events_out_lock;
 	struct mutex ops_exist_lock;
 };
 

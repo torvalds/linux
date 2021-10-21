@@ -81,10 +81,10 @@ static ssize_t counter_chrdev_read(struct file *filp, char __user *buf,
 				return -ENODEV;
 		}
 
-		if (mutex_lock_interruptible(&counter->events_lock))
+		if (mutex_lock_interruptible(&counter->events_out_lock))
 			return -ERESTARTSYS;
 		err = kfifo_to_user(&counter->events, buf, len, &copied);
-		mutex_unlock(&counter->events_lock);
+		mutex_unlock(&counter->events_out_lock);
 		if (err < 0)
 			return err;
 	} while (!copied);
@@ -436,7 +436,8 @@ int counter_chrdev_add(struct counter_device *const counter)
 	spin_lock_init(&counter->events_list_lock);
 	mutex_init(&counter->n_events_list_lock);
 	init_waitqueue_head(&counter->events_wait);
-	mutex_init(&counter->events_lock);
+	spin_lock_init(&counter->events_in_lock);
+	mutex_init(&counter->events_out_lock);
 
 	/* Initialize character device */
 	cdev_init(&counter->chrdev, &counter_fops);
@@ -559,7 +560,8 @@ void counter_push_event(struct counter_device *const counter, const u8 event,
 		ev.watch.component = comp_node->component;
 		ev.status = -counter_get_data(counter, comp_node, &ev.value);
 
-		copied += kfifo_in(&counter->events, &ev, 1);
+		copied += kfifo_in_spinlocked_noirqsave(&counter->events, &ev,
+							1, &counter->events_in_lock);
 	}
 
 exit_early:
