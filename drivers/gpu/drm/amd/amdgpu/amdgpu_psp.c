@@ -1115,7 +1115,7 @@ int psp_xgmi_get_node_id(struct psp_context *psp, uint64_t *node_id)
 static bool psp_xgmi_peer_link_info_supported(struct psp_context *psp)
 {
 	return psp->adev->ip_versions[MP0_HWIP][0] == IP_VERSION(13, 0, 2) &&
-		psp->xgmi_context.context.bin_desc.feature_version >= 0x2000000b;
+		psp->xgmi_context.context.bin_desc.fw_version >= 0x2000000b;
 }
 
 /*
@@ -3108,32 +3108,32 @@ static int parse_ta_bin_descriptor(struct psp_context *psp,
 		psp->asd_context.bin_desc.start_addr        = ucode_start_addr;
 		break;
 	case TA_FW_TYPE_PSP_XGMI:
-		psp->xgmi_context.context.bin_desc.feature_version  = le32_to_cpu(desc->fw_version);
+		psp->xgmi_context.context.bin_desc.fw_version       = le32_to_cpu(desc->fw_version);
 		psp->xgmi_context.context.bin_desc.size_bytes       = le32_to_cpu(desc->size_bytes);
 		psp->xgmi_context.context.bin_desc.start_addr       = ucode_start_addr;
 		break;
 	case TA_FW_TYPE_PSP_RAS:
-		psp->ras_context.context.bin_desc.feature_version   = le32_to_cpu(desc->fw_version);
+		psp->ras_context.context.bin_desc.fw_version        = le32_to_cpu(desc->fw_version);
 		psp->ras_context.context.bin_desc.size_bytes        = le32_to_cpu(desc->size_bytes);
 		psp->ras_context.context.bin_desc.start_addr        = ucode_start_addr;
 		break;
 	case TA_FW_TYPE_PSP_HDCP:
-		psp->hdcp_context.context.bin_desc.feature_version  = le32_to_cpu(desc->fw_version);
+		psp->hdcp_context.context.bin_desc.fw_version       = le32_to_cpu(desc->fw_version);
 		psp->hdcp_context.context.bin_desc.size_bytes       = le32_to_cpu(desc->size_bytes);
 		psp->hdcp_context.context.bin_desc.start_addr       = ucode_start_addr;
 		break;
 	case TA_FW_TYPE_PSP_DTM:
-		psp->dtm_context.context.bin_desc.feature_version  = le32_to_cpu(desc->fw_version);
+		psp->dtm_context.context.bin_desc.fw_version       = le32_to_cpu(desc->fw_version);
 		psp->dtm_context.context.bin_desc.size_bytes       = le32_to_cpu(desc->size_bytes);
 		psp->dtm_context.context.bin_desc.start_addr       = ucode_start_addr;
 		break;
 	case TA_FW_TYPE_PSP_RAP:
-		psp->rap_context.context.bin_desc.feature_version  = le32_to_cpu(desc->fw_version);
+		psp->rap_context.context.bin_desc.fw_version       = le32_to_cpu(desc->fw_version);
 		psp->rap_context.context.bin_desc.size_bytes       = le32_to_cpu(desc->size_bytes);
 		psp->rap_context.context.bin_desc.start_addr       = ucode_start_addr;
 		break;
 	case TA_FW_TYPE_PSP_SECUREDISPLAY:
-		psp->securedisplay_context.context.bin_desc.feature_version =
+		psp->securedisplay_context.context.bin_desc.fw_version =
 			le32_to_cpu(desc->fw_version);
 		psp->securedisplay_context.context.bin_desc.size_bytes =
 			le32_to_cpu(desc->size_bytes);

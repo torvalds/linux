@@ -151,7 +151,7 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 				goto out2;
 
 			ta_hdr = (const struct ta_firmware_header_v1_0 *)adev->psp.ta_fw->data;
-			adev->psp.xgmi_context.context.bin_desc.feature_version =
+			adev->psp.xgmi_context.context.bin_desc.fw_version =
 				le32_to_cpu(ta_hdr->xgmi.fw_version);
 			adev->psp.xgmi_context.context.bin_desc.size_bytes =
 				le32_to_cpu(ta_hdr->xgmi.size_bytes);
@@ -159,7 +159,7 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 				(uint8_t *)ta_hdr +
 				le32_to_cpu(ta_hdr->header.ucode_array_offset_bytes);
 			adev->psp.ta_fw_version = le32_to_cpu(ta_hdr->header.ucode_version);
-			adev->psp.ras_context.context.bin_desc.feature_version =
+			adev->psp.ras_context.context.bin_desc.fw_version =
 				le32_to_cpu(ta_hdr->ras.fw_version);
 			adev->psp.ras_context.context.bin_desc.size_bytes =
 				le32_to_cpu(ta_hdr->ras.size_bytes);
@@ -192,7 +192,7 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 				goto out2;
 
 			ta_hdr = (const struct ta_firmware_header_v1_0 *)adev->psp.ta_fw->data;
-			adev->psp.hdcp_context.context.bin_desc.feature_version =
+			adev->psp.hdcp_context.context.bin_desc.fw_version =
 				le32_to_cpu(ta_hdr->hdcp.fw_version);
 			adev->psp.hdcp_context.context.bin_desc.size_bytes =
 				le32_to_cpu(ta_hdr->hdcp.size_bytes);
@@ -203,7 +203,7 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 
 			adev->psp.ta_fw_version = le32_to_cpu(ta_hdr->header.ucode_version);
 
-			adev->psp.dtm_context.context.bin_desc.feature_version =
+			adev->psp.dtm_context.context.bin_desc.fw_version =
 				le32_to_cpu(ta_hdr->dtm.fw_version);
 			adev->psp.dtm_context.context.bin_desc.size_bytes =
 				le32_to_cpu(ta_hdr->dtm.size_bytes);
