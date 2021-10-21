@@ -200,7 +200,6 @@ void btrfs_print_leaf(struct extent_buffer *l)
 	struct btrfs_fs_info *fs_info;
 	int i;
 	u32 type, nr;
-	struct btrfs_item *item;
 	struct btrfs_root_item *ri;
 	struct btrfs_dir_item *di;
 	struct btrfs_inode_item *ii;
@@ -224,12 +223,11 @@ void btrfs_print_leaf(struct extent_buffer *l)
 		   btrfs_leaf_free_space(l), btrfs_header_owner(l));
 	print_eb_refs_lock(l);
 	for (i = 0 ; i < nr ; i++) {
-		item = btrfs_item_nr(i);
 		btrfs_item_key_to_cpu(l, &key, i);
 		type = key.type;
 		pr_info("\titem %d key (%llu %u %llu) itemoff %d itemsize %d\n",
 			i, key.objectid, type, key.offset,
-			btrfs_item_offset(l, item), btrfs_item_size(l, item));
+			btrfs_item_offset_nr(l, i), btrfs_item_size_nr(l, i));
 		switch (type) {
 		case BTRFS_INODE_ITEM_KEY:
 			ii = btrfs_item_ptr(l, i, struct btrfs_inode_item);

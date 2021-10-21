@@ -2616,19 +2616,14 @@ static noinline int split_node(struct btrfs_trans_handle *trans,
  */
 static int leaf_space_used(struct extent_buffer *l, int start, int nr)
 {
-	struct btrfs_item *start_item;
-	struct btrfs_item *end_item;
 	int data_len;
 	int nritems = btrfs_header_nritems(l);
 	int end = min(nritems, start + nr) - 1;
 
 	if (!nr)
 		return 0;
-	start_item = btrfs_item_nr(start);
-	end_item = btrfs_item_nr(end);
-	data_len = btrfs_item_offset(l, start_item) +
-		   btrfs_item_size(l, start_item);
-	data_len = data_len - btrfs_item_offset(l, end_item);
+	data_len = btrfs_item_offset_nr(l, start) + btrfs_item_size_nr(l, start);
+	data_len = data_len - btrfs_item_offset_nr(l, end);
 	data_len += sizeof(struct btrfs_item) * nr;
 	WARN_ON(data_len < 0);
 	return data_len;
@@ -2692,8 +2687,6 @@ static noinline int __push_leaf_right(struct btrfs_path *path,
 	slot = path->slots[1];
 	i = left_nritems - 1;
 	while (i >= nr) {
-		item = btrfs_item_nr(i);
-
 		if (!empty && push_items > 0) {
 			if (path->slots[0] > i)
 				break;
@@ -2708,7 +2701,7 @@ static noinline int __push_leaf_right(struct btrfs_path *path,
 		if (path->slots[0] == i)
 			push_space += data_size;
 
-		this_item_size = btrfs_item_size(left, item);
+		this_item_size = btrfs_item_size_nr(left, i);
 		if (this_item_size + sizeof(*item) + push_space > free_space)
 			break;
 
@@ -2919,8 +2912,6 @@ static noinline int __push_leaf_left(struct btrfs_path *path, int data_size,
 		nr = min(right_nritems - 1, max_slot);
 
 	for (i = 0; i < nr; i++) {
-		item = btrfs_item_nr(i);
-
 		if (!empty && push_items > 0) {
 			if (path->slots[0] < i)
 				break;
@@ -2935,7 +2926,7 @@ static noinline int __push_leaf_left(struct btrfs_path *path, int data_size,
 		if (path->slots[0] == i)
 			push_space += data_size;
 
-		this_item_size = btrfs_item_size(right, item);
+		this_item_size = btrfs_item_size_nr(right, i);
 		if (this_item_size + sizeof(*item) + push_space > free_space)
 			break;
 
@@ -3502,8 +3493,8 @@ static noinline int split_item(struct btrfs_path *path,
 	BUG_ON(btrfs_leaf_free_space(leaf) < sizeof(struct btrfs_item));
 
 	item = btrfs_item_nr(path->slots[0]);
-	orig_offset = btrfs_item_offset(leaf, item);
-	item_size = btrfs_item_size(leaf, item);
+	orig_offset = btrfs_item_offset_nr(leaf, path->slots[0]);
+	item_size = btrfs_item_size_nr(leaf, path->slots[0]);
 
 	buf = kmalloc(item_size, GFP_NOFS);
 	if (!buf)

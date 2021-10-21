@@ -170,7 +170,6 @@ int btrfs_setxattr(struct btrfs_trans_handle *trans, struct inode *inode,
 		const u16 old_data_len = btrfs_dir_data_len(leaf, di);
 		const u32 item_size = btrfs_item_size_nr(leaf, slot);
 		const u32 data_size = sizeof(*di) + name_len + size;
-		struct btrfs_item *item;
 		unsigned long data_ptr;
 		char *ptr;
 
@@ -196,9 +195,8 @@ int btrfs_setxattr(struct btrfs_trans_handle *trans, struct inode *inode,
 			btrfs_extend_item(path, data_size);
 		}
 
-		item = btrfs_item_nr(slot);
 		ptr = btrfs_item_ptr(leaf, slot, char);
-		ptr += btrfs_item_size(leaf, item) - data_size;
+		ptr += btrfs_item_size_nr(leaf, slot) - data_size;
 		di = (struct btrfs_dir_item *)ptr;
 		btrfs_set_dir_data_len(leaf, di, size);
 		data_ptr = ((unsigned long)(di + 1)) + name_len;
