@@ -849,7 +849,6 @@ static int ina2xx_buffer_enable(struct iio_dev *indio_dev)
 	if (IS_ERR(task))
 		return PTR_ERR(task);
 
-	get_task_struct(task);
 	chip->task = task;
 
 	return 0;
@@ -861,7 +860,6 @@ static int ina2xx_buffer_disable(struct iio_dev *indio_dev)
 
 	if (chip->task) {
 		kthread_stop(chip->task);
-		put_task_struct(chip->task);
 		chip->task = NULL;
 	}
 
