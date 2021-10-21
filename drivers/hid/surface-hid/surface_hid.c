@@ -209,7 +209,7 @@ static int surface_hid_probe(struct ssam_device *sdev)
 
 	shid->notif.base.priority = 1;
 	shid->notif.base.fn = ssam_hid_event_fn;
-	shid->notif.event.reg = SSAM_EVENT_REGISTRY_REG;
+	shid->notif.event.reg = SSAM_EVENT_REGISTRY_REG(sdev->uid.target);
 	shid->notif.event.id.target_category = sdev->uid.category;
 	shid->notif.event.id.instance = sdev->uid.instance;
 	shid->notif.event.mask = SSAM_EVENT_MASK_STRICT;
