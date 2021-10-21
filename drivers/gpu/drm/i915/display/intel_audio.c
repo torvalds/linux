@@ -947,6 +947,40 @@ void intel_init_audio_hooks(struct drm_i915_private *dev_priv)
 	}
 }
 
+struct aud_ts_cdclk_m_n {
+	u8 m;
+	u16 n;
+};
+
+void intel_audio_cdclk_change_pre(struct drm_i915_private *i915)
+{
+	if (DISPLAY_VER(i915) >= 13)
+		intel_de_rmw(i915, AUD_TS_CDCLK_M, AUD_TS_CDCLK_M_EN, 0);
+}
+
+static void get_aud_ts_cdclk_m_n(int refclk, int cdclk, struct aud_ts_cdclk_m_n *aud_ts)
+{
+	if (refclk == 24000)
+		aud_ts->m = 12;
+	else
+		aud_ts->m = 15;
+
+	aud_ts->n = cdclk * aud_ts->m / 24000;
+}
+
+void intel_audio_cdclk_change_post(struct drm_i915_private *i915)
+{
+	struct aud_ts_cdclk_m_n aud_ts;
+
+	if (DISPLAY_VER(i915) >= 13) {
+		get_aud_ts_cdclk_m_n(i915->cdclk.hw.ref, i915->cdclk.hw.cdclk, &aud_ts);
+
+		intel_de_write(i915, AUD_TS_CDCLK_N, aud_ts.n);
+		intel_de_write(i915, AUD_TS_CDCLK_M, aud_ts.m | AUD_TS_CDCLK_M_EN);
+		drm_dbg_kms(&i915->drm, "aud_ts_cdclk set to M=%u, N=%u\n", aud_ts.m, aud_ts.n);
+	}
+}
+
 static int glk_force_audio_cdclk_commit(struct intel_atomic_state *state,
 					struct intel_crtc *crtc,
 					bool enable)
@@ -1329,6 +1363,9 @@ static void i915_audio_component_init(struct drm_i915_private *dev_priv)
 
 		dev_priv->audio_freq_cntrl = aud_freq;
 	}
+
+	/* init with current cdclk */
+	intel_audio_cdclk_change_post(dev_priv);
 
 	dev_priv->audio_component_registered = true;
 }
