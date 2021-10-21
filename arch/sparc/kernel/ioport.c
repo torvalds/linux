@@ -361,7 +361,6 @@ void arch_dma_free(struct device *dev, size_t size, void *cpu_addr,
 	if (!sparc_dma_free_resource(cpu_addr, size))
 		return;
 
-	dma_make_coherent(dma_addr, size);
 	srmmu_unmapiorange((unsigned long)cpu_addr, size);
 	free_pages((unsigned long)phys_to_virt(dma_addr), get_order(size));
 }
