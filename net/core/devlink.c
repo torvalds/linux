@@ -4600,8 +4600,6 @@ static int devlink_nl_param_fill(struct sk_buff *msg, struct devlink *devlink,
 				return -EOPNOTSUPP;
 			param_value[i] = param_item->driverinit_value;
 		} else {
-			if (!param_item->published)
-				continue;
 			ctx.cmode = i;
 			err = devlink_param_get(devlink, param, &ctx);
 			if (err)
@@ -9076,6 +9074,7 @@ static void devlink_notify_register(struct devlink *devlink)
 {
 	struct devlink_trap_policer_item *policer_item;
 	struct devlink_trap_group_item *group_item;
+	struct devlink_param_item *param_item;
 	struct devlink_trap_item *trap_item;
 	struct devlink_port *devlink_port;
 	struct devlink_rate *rate_node;
@@ -9102,19 +9101,24 @@ static void devlink_notify_register(struct devlink *devlink)
 	list_for_each_entry(region, &devlink->region_list, list)
 		devlink_nl_region_notify(region, NULL, DEVLINK_CMD_REGION_NEW);
 
-	devlink_params_publish(devlink);
+	list_for_each_entry(param_item, &devlink->param_list, list)
+		devlink_param_notify(devlink, 0, param_item,
+				     DEVLINK_CMD_PARAM_NEW);
 }
 
 static void devlink_notify_unregister(struct devlink *devlink)
 {
 	struct devlink_trap_policer_item *policer_item;
 	struct devlink_trap_group_item *group_item;
+	struct devlink_param_item *param_item;
 	struct devlink_trap_item *trap_item;
 	struct devlink_port *devlink_port;
 	struct devlink_rate *rate_node;
 	struct devlink_region *region;
 
-	devlink_params_unpublish(devlink);
+	list_for_each_entry_reverse(param_item, &devlink->param_list, list)
+		devlink_param_notify(devlink, 0, param_item,
+				     DEVLINK_CMD_PARAM_DEL);
 
 	list_for_each_entry_reverse(region, &devlink->region_list, list)
 		devlink_nl_region_notify(region, NULL, DEVLINK_CMD_REGION_DEL);
@@ -10228,51 +10232,6 @@ void devlink_param_unregister(struct devlink *devlink,
 	mutex_unlock(&devlink->lock);
 }
 EXPORT_SYMBOL_GPL(devlink_param_unregister);
-
-/**
- *	devlink_params_publish - publish configuration parameters
- *
- *	@devlink: devlink
- *
- *	Publish previously registered configuration parameters.
- */
-void devlink_params_publish(struct devlink *devlink)
-{
-	struct devlink_param_item *param_item;
-
-	if (!xa_get_mark(&devlinks, devlink->index, DEVLINK_REGISTERED))
-		return;
-
-	list_for_each_entry(param_item, &devlink->param_list, list) {
-		if (param_item->published)
-			continue;
-		param_item->published = true;
-		devlink_param_notify(devlink, 0, param_item,
-				     DEVLINK_CMD_PARAM_NEW);
-	}
-}
-EXPORT_SYMBOL_GPL(devlink_params_publish);
-
-/**
- *	devlink_params_unpublish - unpublish configuration parameters
- *
- *	@devlink: devlink
- *
- *	Unpublish previously registered configuration parameters.
- */
-void devlink_params_unpublish(struct devlink *devlink)
-{
-	struct devlink_param_item *param_item;
-
-	list_for_each_entry(param_item, &devlink->param_list, list) {
-		if (!param_item->published)
-			continue;
-		param_item->published = false;
-		devlink_param_notify(devlink, 0, param_item,
-				     DEVLINK_CMD_PARAM_DEL);
-	}
-}
-EXPORT_SYMBOL_GPL(devlink_params_unpublish);
 
 /**
  *	devlink_param_driverinit_value_get - get configuration parameter
