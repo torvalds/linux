@@ -495,6 +495,12 @@ int fpu_clone(struct task_struct *dst, unsigned long clone_flags)
 	}
 
 	/*
+	 * If a new feature is added, ensure all dynamic features are
+	 * caller-saved from here!
+	 */
+	BUILD_BUG_ON(XFEATURE_MASK_USER_DYNAMIC != XFEATURE_MASK_XTILE_DATA);
+
+	/*
 	 * Save the default portion of the current FPU state into the
 	 * clone. Assume all dynamic features to be defined as caller-
 	 * saved, which enables skipping both the expansion of fpstate

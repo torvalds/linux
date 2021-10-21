@@ -404,7 +404,8 @@ static __init void os_xrstor_booting(struct xregs_state *xstate)
 	 XFEATURE_MASK_PKRU |			\
 	 XFEATURE_MASK_BNDREGS |		\
 	 XFEATURE_MASK_BNDCSR |			\
-	 XFEATURE_MASK_PASID)
+	 XFEATURE_MASK_PASID |			\
+	 XFEATURE_MASK_XTILE)
 
 /*
  * setup the xstate image representing the init state
@@ -1636,7 +1637,7 @@ static int __xstate_request_perm(u64 permitted, u64 requested)
  * Permissions array to map facilities with more than one component
  */
 static const u64 xstate_prctl_req[XFEATURE_MAX] = {
-	/* [XFEATURE_XTILE_DATA] = XFEATURE_MASK_XTILE, */
+	[XFEATURE_XTILE_DATA] = XFEATURE_MASK_XTILE_DATA,
 };
 
 static int xstate_request_perm(unsigned long idx)
