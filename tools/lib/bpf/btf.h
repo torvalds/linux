@@ -123,6 +123,7 @@ LIBBPF_API struct btf *btf__load_from_kernel_by_id_split(__u32 id, struct btf *b
 LIBBPF_DEPRECATED_SINCE(0, 6, "use btf__load_from_kernel_by_id instead")
 LIBBPF_API int btf__get_from_id(__u32 id, struct btf **btf);
 
+LIBBPF_DEPRECATED_SINCE(0, 6, "intended for internal libbpf use only")
 LIBBPF_API int btf__finalize_data(struct bpf_object *obj, struct btf *btf);
 LIBBPF_DEPRECATED_SINCE(0, 6, "use btf__load_into_kernel instead")
 LIBBPF_API int btf__load(struct btf *btf);

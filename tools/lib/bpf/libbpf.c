@@ -1324,8 +1324,7 @@ static bool bpf_map_type__is_map_in_map(enum bpf_map_type type)
 	return false;
 }
 
-int bpf_object__section_size(const struct bpf_object *obj, const char *name,
-			     __u32 *size)
+static int find_elf_sec_sz(const struct bpf_object *obj, const char *name, __u32 *size)
 {
 	int ret = -ENOENT;
 
@@ -1357,8 +1356,7 @@ int bpf_object__section_size(const struct bpf_object *obj, const char *name,
 	return *size ? 0 : ret;
 }
 
-int bpf_object__variable_offset(const struct bpf_object *obj, const char *name,
-				__u32 *off)
+static int find_elf_var_offset(const struct bpf_object *obj, const char *name, __u32 *off)
 {
 	Elf_Data *symbols = obj->efile.symbols;
 	const char *sname;
@@ -2650,6 +2648,104 @@ out:
 	return 0;
 }
 
+static int compare_vsi_off(const void *_a, const void *_b)
+{
+	const struct btf_var_secinfo *a = _a;
+	const struct btf_var_secinfo *b = _b;
+
+	return a->offset - b->offset;
+}
+
+static int btf_fixup_datasec(struct bpf_object *obj, struct btf *btf,
+			     struct btf_type *t)
+{
+	__u32 size = 0, off = 0, i, vars = btf_vlen(t);
+	const char *name = btf__name_by_offset(btf, t->name_off);
+	const struct btf_type *t_var;
+	struct btf_var_secinfo *vsi;
+	const struct btf_var *var;
+	int ret;
+
+	if (!name) {
+		pr_debug("No name found in string section for DATASEC kind.\n");
+		return -ENOENT;
+	}
+
+	/* .extern datasec size and var offsets were set correctly during
+	 * extern collection step, so just skip straight to sorting variables
+	 */
+	if (t->size)
+		goto sort_vars;
+
+	ret = find_elf_sec_sz(obj, name, &size);
+	if (ret || !size || (t->size && t->size != size)) {
+		pr_debug("Invalid size for section %s: %u bytes\n", name, size);
+		return -ENOENT;
+	}
+
+	t->size = size;
+
+	for (i = 0, vsi = btf_var_secinfos(t); i < vars; i++, vsi++) {
+		t_var = btf__type_by_id(btf, vsi->type);
+		var = btf_var(t_var);
+
+		if (!btf_is_var(t_var)) {
+			pr_debug("Non-VAR type seen in section %s\n", name);
+			return -EINVAL;
+		}
+
+		if (var->linkage == BTF_VAR_STATIC)
+			continue;
+
+		name = btf__name_by_offset(btf, t_var->name_off);
+		if (!name) {
+			pr_debug("No name found in string section for VAR kind\n");
+			return -ENOENT;
+		}
+
+		ret = find_elf_var_offset(obj, name, &off);
+		if (ret) {
+			pr_debug("No offset found in symbol table for VAR %s\n",
+				 name);
+			return -ENOENT;
+		}
+
+		vsi->offset = off;
+	}
+
+sort_vars:
+	qsort(btf_var_secinfos(t), vars, sizeof(*vsi), compare_vsi_off);
+	return 0;
+}
+
+static int btf_finalize_data(struct bpf_object *obj, struct btf *btf)
+{
+	int err = 0;
+	__u32 i, n = btf__get_nr_types(btf);
+
+	for (i = 1; i <= n; i++) {
+		struct btf_type *t = btf_type_by_id(btf, i);
+
+		/* Loader needs to fix up some of the things compiler
+		 * couldn't get its hands on while emitting BTF. This
+		 * is section size and global variable offset. We use
+		 * the info from the ELF itself for this purpose.
+		 */
+		if (btf_is_datasec(t)) {
+			err = btf_fixup_datasec(obj, btf, t);
+			if (err)
+				break;
+		}
+	}
+
+	return libbpf_err(err);
+}
+
+int btf__finalize_data(struct bpf_object *obj, struct btf *btf)
+{
+	return btf_finalize_data(obj, btf);
+}
+
 static int bpf_object__finalize_btf(struct bpf_object *obj)
 {
 	int err;
@@ -2657,7 +2753,7 @@ static int bpf_object__finalize_btf(struct bpf_object *obj)
 	if (!obj->btf)
 		return 0;
 
-	err = btf__finalize_data(obj, obj->btf);
+	err = btf_finalize_data(obj, obj->btf);
 	if (err) {
 		pr_warn("Error finalizing %s: %d.\n", BTF_ELF_SEC, err);
 		return err;
