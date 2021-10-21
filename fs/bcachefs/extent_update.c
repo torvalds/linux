@@ -61,7 +61,7 @@ static int count_iters_for_insert(struct btree_trans *trans,
 		struct btree_iter iter;
 		struct bkey_s_c r_k;
 
-		for_each_btree_key(trans, iter,
+		for_each_btree_key_norestart(trans, iter,
 				   BTREE_ID_reflink, POS(0, idx + offset),
 				   BTREE_ITER_SLOTS, r_k, ret2) {
 			if (bkey_cmp(bkey_start_pos(r_k.k),
@@ -120,7 +120,7 @@ int bch2_extent_atomic_end(struct btree_trans *trans,
 
 	bch2_trans_copy_iter(&copy, iter);
 
-	for_each_btree_key_continue(copy, 0, k, ret) {
+	for_each_btree_key_continue_norestart(copy, 0, k, ret) {
 		unsigned offset = 0;
 
 		if (bkey_cmp(bkey_start_pos(k.k), *end) >= 0)

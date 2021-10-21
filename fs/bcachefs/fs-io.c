@@ -1815,7 +1815,7 @@ retry:
 	if (err)
 		goto err;
 
-	for_each_btree_key(&trans, iter, BTREE_ID_extents,
+	for_each_btree_key_norestart(&trans, iter, BTREE_ID_extents,
 			   SPOS(inum.inum, offset, snapshot),
 			   BTREE_ITER_SLOTS, k, err) {
 		if (bkey_cmp(bkey_start_pos(k.k), POS(inum.inum, end)) >= 0)
@@ -2208,7 +2208,7 @@ retry:
 	if (ret)
 		goto err;
 
-	for_each_btree_key(&trans, iter, BTREE_ID_extents, start, 0, k, ret) {
+	for_each_btree_key_norestart(&trans, iter, BTREE_ID_extents, start, 0, k, ret) {
 		if (bkey_cmp(bkey_start_pos(k.k), end) >= 0)
 			break;
 
@@ -3111,7 +3111,7 @@ retry:
 	if (ret)
 		goto err;
 
-	for_each_btree_key(&trans, iter, BTREE_ID_extents,
+	for_each_btree_key_norestart(&trans, iter, BTREE_ID_extents,
 			   SPOS(inode->v.i_ino, offset >> 9, snapshot), 0, k, ret) {
 		if (k.k->p.inode != inode->v.i_ino) {
 			break;
@@ -3218,7 +3218,7 @@ retry:
 	if (ret)
 		goto err;
 
-	for_each_btree_key(&trans, iter, BTREE_ID_extents,
+	for_each_btree_key_norestart(&trans, iter, BTREE_ID_extents,
 			   SPOS(inode->v.i_ino, offset >> 9, snapshot),
 			   BTREE_ITER_SLOTS, k, ret) {
 		if (k.k->p.inode != inode->v.i_ino) {

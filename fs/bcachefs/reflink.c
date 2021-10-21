@@ -131,7 +131,7 @@ static int bch2_make_extent_indirect(struct btree_trans *trans,
 	if (orig->k.type == KEY_TYPE_inline_data)
 		bch2_check_set_feature(c, BCH_FEATURE_reflink_inline_data);
 
-	for_each_btree_key(trans, reflink_iter, BTREE_ID_reflink,
+	for_each_btree_key_norestart(trans, reflink_iter, BTREE_ID_reflink,
 			   POS(0, c->reflink_hint),
 			   BTREE_ITER_INTENT|BTREE_ITER_SLOTS, k, ret) {
 		if (reflink_iter.pos.inode) {
@@ -194,7 +194,7 @@ static struct bkey_s_c get_next_src(struct btree_iter *iter, struct bpos end)
 	struct bkey_s_c k;
 	int ret;
 
-	for_each_btree_key_continue(*iter, 0, k, ret) {
+	for_each_btree_key_continue_norestart(*iter, 0, k, ret) {
 		if (bkey_cmp(iter->pos, end) >= 0)
 			break;
 

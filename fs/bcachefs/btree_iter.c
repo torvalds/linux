@@ -1511,19 +1511,11 @@ static int __btree_path_traverse_all(struct btree_trans *, int, unsigned long);
 int __must_check bch2_btree_path_traverse(struct btree_trans *trans,
 					  struct btree_path *path, unsigned flags)
 {
-	int ret;
-
 	if (path->uptodate < BTREE_ITER_NEED_RELOCK)
 		return 0;
 
-	ret =   bch2_trans_cond_resched(trans) ?:
+	return  bch2_trans_cond_resched(trans) ?:
 		btree_path_traverse_one(trans, path, flags, _RET_IP_);
-	if (unlikely(ret) && hweight64(trans->paths_allocated) == 1) {
-		ret = __btree_path_traverse_all(trans, ret, _RET_IP_);
-		BUG_ON(ret == -EINTR);
-	}
-
-	return ret;
 }
 
 static void btree_path_copy(struct btree_trans *trans, struct btree_path *dst,
@@ -1936,10 +1928,6 @@ struct btree *bch2_btree_iter_next_node(struct btree_iter *iter)
 	/* already got to end? */
 	if (!btree_path_node(path, path->level))
 		goto out;
-
-	ret = bch2_trans_cond_resched(trans);
-	if (ret)
-		goto err;
 
 	btree_node_unlock(path, path->level);
 	path->l[path->level].b = BTREE_ITER_NO_NODE_UP;

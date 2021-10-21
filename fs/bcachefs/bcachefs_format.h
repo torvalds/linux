@@ -1041,8 +1041,6 @@ LE64_BITMASK(BCH_MEMBER_DATA_ALLOWED,	struct bch_member, flags[0], 15, 20)
 LE64_BITMASK(BCH_MEMBER_GROUP,		struct bch_member, flags[0], 20, 28)
 LE64_BITMASK(BCH_MEMBER_DURABILITY,	struct bch_member, flags[0], 28, 30)
 
-#define BCH_TIER_MAX			4U
-
 #if 0
 LE64_BITMASK(BCH_MEMBER_NR_READ_ERRORS,	struct bch_member, flags[1], 0,  20);
 LE64_BITMASK(BCH_MEMBER_NR_WRITE_ERRORS,struct bch_member, flags[1], 20, 40);

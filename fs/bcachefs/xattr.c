@@ -295,7 +295,7 @@ retry:
 	if (ret)
 		goto err;
 
-	for_each_btree_key(&trans, iter, BTREE_ID_xattrs,
+	for_each_btree_key_norestart(&trans, iter, BTREE_ID_xattrs,
 			   SPOS(inum, offset, snapshot), 0, k, ret) {
 		BUG_ON(k.k->p.inode < inum);
 

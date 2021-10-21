@@ -1216,7 +1216,7 @@ static int need_whiteout_for_snapshot(struct btree_trans *trans,
 
 	pos.snapshot++;
 
-	for_each_btree_key(trans, iter, btree_id, pos,
+	for_each_btree_key_norestart(trans, iter, btree_id, pos,
 			   BTREE_ITER_ALL_SNAPSHOTS, k, ret) {
 		if (bkey_cmp(k.k->p, pos))
 			break;

@@ -156,7 +156,7 @@ bch2_hash_lookup(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	for_each_btree_key(trans, *iter, desc.btree_id,
+	for_each_btree_key_norestart(trans, *iter, desc.btree_id,
 			   SPOS(inum.inum, desc.hash_key(info, key), snapshot),
 			   BTREE_ITER_SLOTS|flags, k, ret) {
 		if (iter->pos.inode != inum.inum)
@@ -192,7 +192,7 @@ bch2_hash_hole(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	for_each_btree_key(trans, *iter, desc.btree_id,
+	for_each_btree_key_norestart(trans, *iter, desc.btree_id,
 			   SPOS(inum.inum, desc.hash_key(info, key), snapshot),
 			   BTREE_ITER_SLOTS|BTREE_ITER_INTENT, k, ret) {
 		if (iter->pos.inode != inum.inum)
@@ -220,7 +220,7 @@ int bch2_hash_needs_whiteout(struct btree_trans *trans,
 
 	bch2_btree_iter_advance(&iter);
 
-	for_each_btree_key_continue(iter, BTREE_ITER_SLOTS, k, ret) {
+	for_each_btree_key_continue_norestart(iter, BTREE_ITER_SLOTS, k, ret) {
 		if (k.k->type != desc.key_type &&
 		    k.k->type != KEY_TYPE_hash_whiteout)
 			break;
@@ -253,7 +253,7 @@ int bch2_hash_set(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	for_each_btree_key(trans, iter, desc.btree_id,
+	for_each_btree_key_norestart(trans, iter, desc.btree_id,
 			   SPOS(inum.inum,
 				desc.hash_bkey(info, bkey_i_to_s_c(insert)),
 				snapshot),

@@ -432,7 +432,7 @@ int bch2_empty_dir_trans(struct btree_trans *trans, subvol_inum dir)
 	if (ret)
 		return ret;
 
-	for_each_btree_key(trans, iter, BTREE_ID_dirents,
+	for_each_btree_key_norestart(trans, iter, BTREE_ID_dirents,
 			   SPOS(dir.inum, 0, snapshot), 0, k, ret) {
 		if (k.k->p.inode > dir.inum)
 			break;
@@ -464,7 +464,7 @@ retry:
 	if (ret)
 		goto err;
 
-	for_each_btree_key(&trans, iter, BTREE_ID_dirents,
+	for_each_btree_key_norestart(&trans, iter, BTREE_ID_dirents,
 			   SPOS(inum.inum, ctx->pos, snapshot), 0, k, ret) {
 		if (k.k->p.inode > inum.inum)
 			break;
