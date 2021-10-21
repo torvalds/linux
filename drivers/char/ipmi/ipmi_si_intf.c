@@ -1603,7 +1603,7 @@ static ssize_t name##_show(struct device *dev,			\
 {									\
 	struct smi_info *smi_info = dev_get_drvdata(dev);		\
 									\
-	return snprintf(buf, 10, "%u\n", smi_get_stat(smi_info, name));	\
+	return sysfs_emit(buf, "%u\n", smi_get_stat(smi_info, name));	\
 }									\
 static DEVICE_ATTR_RO(name)
 
@@ -1613,7 +1613,7 @@ static ssize_t type_show(struct device *dev,
 {
 	struct smi_info *smi_info = dev_get_drvdata(dev);
 
-	return snprintf(buf, 10, "%s\n", si_to_str[smi_info->io.si_type]);
+	return sysfs_emit(buf, "%s\n", si_to_str[smi_info->io.si_type]);
 }
 static DEVICE_ATTR_RO(type);
 
@@ -1624,7 +1624,7 @@ static ssize_t interrupts_enabled_show(struct device *dev,
 	struct smi_info *smi_info = dev_get_drvdata(dev);
 	int enabled = smi_info->io.irq && !smi_info->interrupt_disabled;
 
-	return snprintf(buf, 10, "%d\n", enabled);
+	return sysfs_emit(buf, "%d\n", enabled);
 }
 static DEVICE_ATTR_RO(interrupts_enabled);
 
@@ -1646,7 +1646,7 @@ static ssize_t params_show(struct device *dev,
 {
 	struct smi_info *smi_info = dev_get_drvdata(dev);
 
-	return snprintf(buf, 200,
+	return sysfs_emit(buf,
 			"%s,%s,0x%lx,rsp=%d,rsi=%d,rsh=%d,irq=%d,ipmb=%d\n",
 			si_to_str[smi_info->io.si_type],
 			addr_space_to_str[smi_info->io.addr_space],

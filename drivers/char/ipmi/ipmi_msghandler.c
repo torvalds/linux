@@ -2716,7 +2716,7 @@ static ssize_t device_id_show(struct device *dev,
 	if (rv)
 		return rv;
 
-	return snprintf(buf, 10, "%u\n", id.device_id);
+	return sysfs_emit(buf, "%u\n", id.device_id);
 }
 static DEVICE_ATTR_RO(device_id);
 
@@ -2732,7 +2732,7 @@ static ssize_t provides_device_sdrs_show(struct device *dev,
 	if (rv)
 		return rv;
 
-	return snprintf(buf, 10, "%u\n", (id.device_revision & 0x80) >> 7);
+	return sysfs_emit(buf, "%u\n", (id.device_revision & 0x80) >> 7);
 }
 static DEVICE_ATTR_RO(provides_device_sdrs);
 
@@ -2747,7 +2747,7 @@ static ssize_t revision_show(struct device *dev, struct device_attribute *attr,
 	if (rv)
 		return rv;
 
-	return snprintf(buf, 20, "%u\n", id.device_revision & 0x0F);
+	return sysfs_emit(buf, "%u\n", id.device_revision & 0x0F);
 }
 static DEVICE_ATTR_RO(revision);
 
@@ -2763,7 +2763,7 @@ static ssize_t firmware_revision_show(struct device *dev,
 	if (rv)
 		return rv;
 
-	return snprintf(buf, 20, "%u.%x\n", id.firmware_revision_1,
+	return sysfs_emit(buf, "%u.%x\n", id.firmware_revision_1,
 			id.firmware_revision_2);
 }
 static DEVICE_ATTR_RO(firmware_revision);
@@ -2780,7 +2780,7 @@ static ssize_t ipmi_version_show(struct device *dev,
 	if (rv)
 		return rv;
 
-	return snprintf(buf, 20, "%u.%u\n",
+	return sysfs_emit(buf, "%u.%u\n",
 			ipmi_version_major(&id),
 			ipmi_version_minor(&id));
 }
@@ -2798,7 +2798,7 @@ static ssize_t add_dev_support_show(struct device *dev,
 	if (rv)
 		return rv;
 
-	return snprintf(buf, 10, "0x%02x\n", id.additional_device_support);
+	return sysfs_emit(buf, "0x%02x\n", id.additional_device_support);
 }
 static DEVICE_ATTR(additional_device_support, S_IRUGO, add_dev_support_show,
 		   NULL);
@@ -2815,7 +2815,7 @@ static ssize_t manufacturer_id_show(struct device *dev,
 	if (rv)
 		return rv;
 
-	return snprintf(buf, 20, "0x%6.6x\n", id.manufacturer_id);
+	return sysfs_emit(buf, "0x%6.6x\n", id.manufacturer_id);
 }
 static DEVICE_ATTR_RO(manufacturer_id);
 
@@ -2831,7 +2831,7 @@ static ssize_t product_id_show(struct device *dev,
 	if (rv)
 		return rv;
 
-	return snprintf(buf, 10, "0x%4.4x\n", id.product_id);
+	return sysfs_emit(buf, "0x%4.4x\n", id.product_id);
 }
 static DEVICE_ATTR_RO(product_id);
 
@@ -2847,7 +2847,7 @@ static ssize_t aux_firmware_rev_show(struct device *dev,
 	if (rv)
 		return rv;
 
-	return snprintf(buf, 21, "0x%02x 0x%02x 0x%02x 0x%02x\n",
+	return sysfs_emit(buf, "0x%02x 0x%02x 0x%02x 0x%02x\n",
 			id.aux_firmware_revision[3],
 			id.aux_firmware_revision[2],
 			id.aux_firmware_revision[1],
@@ -2869,7 +2869,7 @@ static ssize_t guid_show(struct device *dev, struct device_attribute *attr,
 	if (!guid_set)
 		return -ENOENT;
 
-	return snprintf(buf, UUID_STRING_LEN + 1 + 1, "%pUl\n", &guid);
+	return sysfs_emit(buf, "%pUl\n", &guid);
 }
 static DEVICE_ATTR_RO(guid);
 
