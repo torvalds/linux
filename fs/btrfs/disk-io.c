@@ -2592,8 +2592,7 @@ static int validate_super(struct btrfs_fs_info *fs_info,
 
 	/*
 	 * For 4K page size, we only support 4K sector size.
-	 * For 64K page size, we support read-write for 64K sector size, and
-	 * read-only for 4K sector size.
+	 * For 64K page size, we support 64K and 4K sector sizes.
 	 */
 	if ((PAGE_SIZE == SZ_4K && sectorsize != PAGE_SIZE) ||
 	    (PAGE_SIZE == SZ_64K && (sectorsize != SZ_4K &&
