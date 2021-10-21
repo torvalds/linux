@@ -1532,6 +1532,158 @@ static bool cmd_allowed_from_miror(u32 cmd_id)
 	return false;
 }
 
+static int sev_lock_for_migration(struct kvm *kvm)
+{
+	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
+
+	/*
+	 * Bail if this VM is already involved in a migration to avoid deadlock
+	 * between two VMs trying to migrate to/from each other.
+	 */
+	if (atomic_cmpxchg_acquire(&sev->migration_in_progress, 0, 1))
+		return -EBUSY;
+
+	mutex_lock(&kvm->lock);
+
+	return 0;
+}
+
+static void sev_unlock_after_migration(struct kvm *kvm)
+{
+	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
+
+	mutex_unlock(&kvm->lock);
+	atomic_set_release(&sev->migration_in_progress, 0);
+}
+
+
+static int sev_lock_vcpus_for_migration(struct kvm *kvm)
+{
+	struct kvm_vcpu *vcpu;
+	int i, j;
+
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		if (mutex_lock_killable(&vcpu->mutex))
+			goto out_unlock;
+	}
+
+	return 0;
+
+out_unlock:
+	kvm_for_each_vcpu(j, vcpu, kvm) {
+		if (i == j)
+			break;
+
+		mutex_unlock(&vcpu->mutex);
+	}
+	return -EINTR;
+}
+
+static void sev_unlock_vcpus_for_migration(struct kvm *kvm)
+{
+	struct kvm_vcpu *vcpu;
+	int i;
+
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		mutex_unlock(&vcpu->mutex);
+	}
+}
+
+static void sev_migrate_from(struct kvm_sev_info *dst,
+			      struct kvm_sev_info *src)
+{
+	dst->active = true;
+	dst->asid = src->asid;
+	dst->handle = src->handle;
+	dst->pages_locked = src->pages_locked;
+
+	src->asid = 0;
+	src->active = false;
+	src->handle = 0;
+	src->pages_locked = 0;
+
+	if (dst->misc_cg != src->misc_cg)
+		sev_misc_cg_uncharge(src);
+
+	put_misc_cg(src->misc_cg);
+	src->misc_cg = NULL;
+
+	INIT_LIST_HEAD(&dst->regions_list);
+	list_replace_init(&src->regions_list, &dst->regions_list);
+}
+
+int svm_vm_migrate_from(struct kvm *kvm, unsigned int source_fd)
+{
+	struct kvm_sev_info *dst_sev = &to_kvm_svm(kvm)->sev_info;
+	struct kvm_sev_info *src_sev;
+	struct file *source_kvm_file;
+	struct kvm *source_kvm;
+	int ret;
+
+	ret = sev_lock_for_migration(kvm);
+	if (ret)
+		return ret;
+
+	if (sev_guest(kvm)) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	source_kvm_file = fget(source_fd);
+	if (!file_is_kvm(source_kvm_file)) {
+		ret = -EBADF;
+		goto out_fput;
+	}
+
+	source_kvm = source_kvm_file->private_data;
+	ret = sev_lock_for_migration(source_kvm);
+	if (ret)
+		goto out_fput;
+
+	if (!sev_guest(source_kvm) || sev_es_guest(source_kvm)) {
+		ret = -EINVAL;
+		goto out_source;
+	}
+
+	src_sev = &to_kvm_svm(source_kvm)->sev_info;
+	dst_sev->misc_cg = get_current_misc_cg();
+	if (dst_sev->misc_cg != src_sev->misc_cg) {
+		ret = sev_misc_cg_try_charge(dst_sev);
+		if (ret)
+			goto out_dst_put_cgroup;
+	}
+
+	ret = sev_lock_vcpus_for_migration(kvm);
+	if (ret)
+		goto out_dst_cgroup;
+	ret = sev_lock_vcpus_for_migration(source_kvm);
+	if (ret)
+		goto out_dst_vcpu;
+
+	sev_migrate_from(dst_sev, src_sev);
+	kvm_vm_dead(source_kvm);
+	ret = 0;
+
+	sev_unlock_vcpus_for_migration(source_kvm);
+out_dst_vcpu:
+	sev_unlock_vcpus_for_migration(kvm);
+out_dst_cgroup:
+	if (ret < 0) {
+		sev_misc_cg_uncharge(dst_sev);
+out_dst_put_cgroup:
+		put_misc_cg(dst_sev->misc_cg);
+		dst_sev->misc_cg = NULL;
+	}
+out_source:
+	sev_unlock_after_migration(source_kvm);
+out_fput:
+	if (source_kvm_file)
+		fput(source_kvm_file);
+out_unlock:
+	sev_unlock_after_migration(kvm);
+	return ret;
+}
+
 int svm_mem_enc_op(struct kvm *kvm, void __user *argp)
 {
 	struct kvm_sev_cmd sev_cmd;
