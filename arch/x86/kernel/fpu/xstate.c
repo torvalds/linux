@@ -1464,6 +1464,53 @@ static int xstate_request_perm(unsigned long idx)
 	spin_unlock_irq(&current->sighand->siglock);
 	return ret;
 }
+
+/* Place holder for now */
+static int fpstate_realloc(u64 xfeatures, unsigned int ksize,
+			   unsigned int usize)
+{
+	return -ENOMEM;
+}
+
+int xfd_enable_feature(u64 xfd_err)
+{
+	u64 xfd_event = xfd_err & XFEATURE_MASK_USER_DYNAMIC;
+	unsigned int ksize, usize;
+	struct fpu *fpu;
+
+	if (!xfd_event) {
+		pr_err_once("XFD: Invalid xfd error: %016llx\n", xfd_err);
+		return 0;
+	}
+
+	/* Protect against concurrent modifications */
+	spin_lock_irq(&current->sighand->siglock);
+
+	/* If not permitted let it die */
+	if ((xstate_get_host_group_perm() & xfd_event) != xfd_event) {
+		spin_unlock_irq(&current->sighand->siglock);
+		return -EPERM;
+	}
+
+	fpu = &current->group_leader->thread.fpu;
+	ksize = fpu->perm.__state_size;
+	usize = fpu->perm.__user_state_size;
+	/*
+	 * The feature is permitted. State size is sufficient.  Dropping
+	 * the lock is safe here even if more features are added from
+	 * another task, the retrieved buffer sizes are valid for the
+	 * currently requested feature(s).
+	 */
+	spin_unlock_irq(&current->sighand->siglock);
+
+	/*
+	 * Try to allocate a new fpstate. If that fails there is no way
+	 * out.
+	 */
+	if (fpstate_realloc(xfd_event, ksize, usize))
+		return -EFAULT;
+	return 0;
+}
 #else /* CONFIG_X86_64 */
 static inline int xstate_request_perm(unsigned long idx)
 {
