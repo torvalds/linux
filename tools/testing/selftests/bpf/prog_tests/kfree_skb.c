@@ -93,7 +93,7 @@ void serial_test_kfree_skb(void)
 	if (CHECK(!fexit, "find_prog", "prog eth_type_trans not found\n"))
 		goto close_prog;
 
-	global_data = bpf_object__find_map_by_name(obj2, "kfree_sk.bss");
+	global_data = bpf_object__find_map_by_name(obj2, ".bss");
 	if (CHECK(!global_data, "find global data", "not found\n"))
 		goto close_prog;
 

@@ -867,7 +867,7 @@ void test_core_reloc(void)
 			goto cleanup;
 		}
 
-		data_map = bpf_object__find_map_by_name(obj, "test_cor.bss");
+		data_map = bpf_object__find_map_by_name(obj, ".bss");
 		if (CHECK(!data_map, "find_data_map", "data map not found\n"))
 			goto cleanup;
 
