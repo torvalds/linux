@@ -103,11 +103,11 @@ static int fscrypt_user_key_instantiate(struct key *key,
 					struct key_preparsed_payload *prep)
 {
 	/*
-	 * We just charge FSCRYPT_MAX_KEY_SIZE bytes to the user's key quota for
-	 * each key, regardless of the exact key size.  The amount of memory
-	 * actually used is greater than the size of the raw key anyway.
+	 * We just charge FSCRYPT_MAX_STANDARD_KEY_SIZE bytes to the user's key
+	 * quota for each key, regardless of the exact key size.  The amount of
+	 * memory actually used is greater than the size of the raw key anyway.
 	 */
-	return key_payload_reserve(key, FSCRYPT_MAX_KEY_SIZE);
+	return key_payload_reserve(key, FSCRYPT_MAX_STANDARD_KEY_SIZE);
 }
 
 static void fscrypt_user_key_describe(const struct key *key, struct seq_file *m)
@@ -479,20 +479,36 @@ static int add_master_key(struct super_block *sb,
 	int err;
 
 	if (key_spec->type == FSCRYPT_KEY_SPEC_TYPE_IDENTIFIER) {
-		err = fscrypt_init_hkdf(&secret->hkdf, secret->raw,
-					secret->size);
+		u8 sw_secret[BLK_CRYPTO_SW_SECRET_SIZE];
+		u8 *kdf_key = secret->raw;
+		unsigned int kdf_key_size = secret->size;
+		u8 keyid_kdf_ctx = HKDF_CONTEXT_KEY_IDENTIFIER;
+
+		/*
+		 * For standard keys, the fscrypt master key is used directly as
+		 * the fscrypt KDF key.  For hardware-wrapped keys, we have to
+		 * pass the master key to the hardware to derive the KDF key,
+		 * which is then only used to derive non-file-contents subkeys.
+		 */
+		if (secret->is_hw_wrapped) {
+			err = fscrypt_derive_sw_secret(sb, secret->raw,
+						       secret->size, sw_secret);
+			if (err)
+				return err;
+			kdf_key = sw_secret;
+			kdf_key_size = sizeof(sw_secret);
+		}
+		err = fscrypt_init_hkdf(&secret->hkdf, kdf_key, kdf_key_size);
+		/*
+		 * Now that the KDF context is initialized, the raw KDF key is
+		 * no longer needed.
+		 */
+		memzero_explicit(kdf_key, kdf_key_size);
 		if (err)
 			return err;
 
-		/*
-		 * Now that the HKDF context is initialized, the raw key is no
-		 * longer needed.
-		 */
-		memzero_explicit(secret->raw, secret->size);
-
 		/* Calculate the key identifier */
-		err = fscrypt_hkdf_expand(&secret->hkdf,
-					  HKDF_CONTEXT_KEY_IDENTIFIER, NULL, 0,
+		err = fscrypt_hkdf_expand(&secret->hkdf, keyid_kdf_ctx, NULL, 0,
 					  key_spec->u.identifier,
 					  FSCRYPT_KEY_IDENTIFIER_SIZE);
 		if (err)
@@ -506,7 +522,7 @@ static int fscrypt_provisioning_key_preparse(struct key_preparsed_payload *prep)
 	const struct fscrypt_provisioning_key_payload *payload = prep->data;
 
 	if (prep->datalen < sizeof(*payload) + FSCRYPT_MIN_KEY_SIZE ||
-	    prep->datalen > sizeof(*payload) + FSCRYPT_MAX_KEY_SIZE)
+	    prep->datalen > sizeof(*payload) + FSCRYPT_MAX_ANY_KEY_SIZE)
 		return -EINVAL;
 
 	if (payload->type != FSCRYPT_KEY_SPEC_TYPE_DESCRIPTOR &&
@@ -655,15 +671,30 @@ int fscrypt_ioctl_add_key(struct file *filp, void __user *_uarg)
 		return -EACCES;
 
 	memset(&secret, 0, sizeof(secret));
+
+	if (arg.__flags) {
+		if (arg.__flags & ~__FSCRYPT_ADD_KEY_FLAG_HW_WRAPPED)
+			return -EINVAL;
+		if (arg.key_spec.type != FSCRYPT_KEY_SPEC_TYPE_IDENTIFIER)
+			return -EINVAL;
+		secret.is_hw_wrapped = true;
+	}
+
 	if (arg.key_id) {
 		if (arg.raw_size != 0)
 			return -EINVAL;
 		err = get_keyring_key(arg.key_id, arg.key_spec.type, &secret);
 		if (err)
 			goto out_wipe_secret;
+		err = -EINVAL;
+		if (secret.size > FSCRYPT_MAX_STANDARD_KEY_SIZE &&
+		    !secret.is_hw_wrapped)
+			goto out_wipe_secret;
 	} else {
 		if (arg.raw_size < FSCRYPT_MIN_KEY_SIZE ||
-		    arg.raw_size > FSCRYPT_MAX_KEY_SIZE)
+		    arg.raw_size > (secret.is_hw_wrapped ?
+				    FSCRYPT_MAX_HW_WRAPPED_KEY_SIZE :
+				    FSCRYPT_MAX_STANDARD_KEY_SIZE))
 			return -EINVAL;
 		secret.size = arg.raw_size;
 		err = -EFAULT;
@@ -696,15 +727,15 @@ EXPORT_SYMBOL_GPL(fscrypt_ioctl_add_key);
 int fscrypt_add_test_dummy_key(struct super_block *sb,
 			       struct fscrypt_key_specifier *key_spec)
 {
-	static u8 test_key[FSCRYPT_MAX_KEY_SIZE];
+	static u8 test_key[FSCRYPT_MAX_STANDARD_KEY_SIZE];
 	struct fscrypt_master_key_secret secret;
 	int err;
 
-	get_random_once(test_key, FSCRYPT_MAX_KEY_SIZE);
+	get_random_once(test_key, FSCRYPT_MAX_STANDARD_KEY_SIZE);
 
 	memset(&secret, 0, sizeof(secret));
-	secret.size = FSCRYPT_MAX_KEY_SIZE;
-	memcpy(secret.raw, test_key, FSCRYPT_MAX_KEY_SIZE);
+	secret.size = FSCRYPT_MAX_STANDARD_KEY_SIZE;
+	memcpy(secret.raw, test_key, FSCRYPT_MAX_STANDARD_KEY_SIZE);
 
 	err = add_master_key(sb, &secret, key_spec);
 	wipe_master_key_secret(&secret);

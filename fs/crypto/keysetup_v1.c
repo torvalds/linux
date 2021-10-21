@@ -118,7 +118,8 @@ find_and_lock_process_key(const char *prefix,
 	payload = (const struct fscrypt_key *)ukp->data;
 
 	if (ukp->datalen != sizeof(struct fscrypt_key) ||
-	    payload->size < 1 || payload->size > FSCRYPT_MAX_KEY_SIZE) {
+	    payload->size < 1 ||
+	    payload->size > FSCRYPT_MAX_STANDARD_KEY_SIZE) {
 		fscrypt_warn(NULL,
 			     "key with description '%s' has invalid payload",
 			     key->description);
@@ -148,7 +149,7 @@ struct fscrypt_direct_key {
 	const struct fscrypt_mode	*dk_mode;
 	struct fscrypt_prepared_key	dk_key;
 	u8				dk_descriptor[FSCRYPT_KEY_DESCRIPTOR_SIZE];
-	u8				dk_raw[FSCRYPT_MAX_KEY_SIZE];
+	u8				dk_raw[FSCRYPT_MAX_STANDARD_KEY_SIZE];
 };
 
 static void free_direct_key(struct fscrypt_direct_key *dk)

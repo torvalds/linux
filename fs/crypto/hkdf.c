@@ -4,7 +4,9 @@
  * Function"), aka RFC 5869.  See also the original paper (Krawczyk 2010):
  * "Cryptographic Extraction and Key Derivation: The HKDF Scheme".
  *
- * This is used to derive keys from the fscrypt master keys.
+ * This is used to derive keys from the fscrypt master keys (or from the
+ * "software secrets" which hardware derives from the fscrypt master keys, in
+ * the case that the fscrypt master keys are hardware-wrapped keys).
  *
  * Copyright 2019 Google LLC
  */

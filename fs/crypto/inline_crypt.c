@@ -13,6 +13,7 @@
  */
 
 #include <linux/blk-crypto.h>
+#include <linux/blk-crypto-profile.h>
 #include <linux/blkdev.h>
 #include <linux/buffer_head.h>
 #include <linux/sched/mm.h>
@@ -65,7 +66,8 @@ static unsigned int fscrypt_get_dun_bytes(const struct fscrypt_info *ci)
 }
 
 /* Enable inline encryption for this file if supported. */
-int fscrypt_select_encryption_impl(struct fscrypt_info *ci)
+int fscrypt_select_encryption_impl(struct fscrypt_info *ci,
+				   bool is_hw_wrapped_key)
 {
 	const struct inode *inode = ci->ci_inode;
 	struct super_block *sb = inode->i_sb;
@@ -106,7 +108,9 @@ int fscrypt_select_encryption_impl(struct fscrypt_info *ci)
 	crypto_cfg.crypto_mode = ci->ci_mode->blk_crypto_mode;
 	crypto_cfg.data_unit_size = sb->s_blocksize;
 	crypto_cfg.dun_bytes = fscrypt_get_dun_bytes(ci);
-	crypto_cfg.key_type = BLK_CRYPTO_KEY_TYPE_STANDARD;
+	crypto_cfg.key_type =
+		is_hw_wrapped_key ? BLK_CRYPTO_KEY_TYPE_HW_WRAPPED :
+		BLK_CRYPTO_KEY_TYPE_STANDARD;
 	num_devs = fscrypt_get_num_devices(sb);
 	devs = kmalloc_array(num_devs, sizeof(*devs), GFP_KERNEL);
 	if (!devs)
@@ -127,11 +131,15 @@ out_free_devs:
 
 int fscrypt_prepare_inline_crypt_key(struct fscrypt_prepared_key *prep_key,
 				     const u8 *raw_key,
+				     unsigned int raw_key_size,
+				     bool is_hw_wrapped,
 				     const struct fscrypt_info *ci)
 {
 	const struct inode *inode = ci->ci_inode;
 	struct super_block *sb = inode->i_sb;
 	enum blk_crypto_mode_num crypto_mode = ci->ci_mode->blk_crypto_mode;
+	enum blk_crypto_key_type key_type = is_hw_wrapped ?
+		BLK_CRYPTO_KEY_TYPE_HW_WRAPPED : BLK_CRYPTO_KEY_TYPE_STANDARD;
 	int num_devs = fscrypt_get_num_devices(sb);
 	int queue_refs = 0;
 	struct fscrypt_blk_crypto_key *blk_key;
@@ -145,8 +153,8 @@ int fscrypt_prepare_inline_crypt_key(struct fscrypt_prepared_key *prep_key,
 	blk_key->num_devs = num_devs;
 	fscrypt_get_devices(sb, num_devs, blk_key->devs);
 
-	err = blk_crypto_init_key(&blk_key->base, raw_key, ci->ci_mode->keysize,
-				  BLK_CRYPTO_KEY_TYPE_STANDARD, crypto_mode,
+	err = blk_crypto_init_key(&blk_key->base, raw_key, raw_key_size,
+				  key_type, crypto_mode,
 				  fscrypt_get_dun_bytes(ci), sb->s_blocksize);
 	if (err) {
 		fscrypt_err(inode, "error %d initializing blk-crypto key", err);
@@ -204,6 +212,55 @@ void fscrypt_destroy_inline_crypt_key(struct fscrypt_prepared_key *prep_key)
 		}
 		kfree_sensitive(blk_key);
 	}
+}
+
+/*
+ * Ask the inline encryption hardware to derive the software secret from a
+ * hardware-wrapped key.  Returns -EOPNOTSUPP if hardware-wrapped keys aren't
+ * supported on this filesystem or hardware.
+ */
+int fscrypt_derive_sw_secret(struct super_block *sb, const u8 *wrapped_key,
+			     unsigned int wrapped_key_size,
+			     u8 sw_secret[BLK_CRYPTO_SW_SECRET_SIZE])
+{
+	struct blk_crypto_profile *profile;
+	int num_devs;
+
+	/* The filesystem must be mounted with -o inlinecrypt */
+	if (!(sb->s_flags & SB_INLINECRYPT))
+		return -EOPNOTSUPP;
+
+	/*
+	 * Hardware-wrapped keys might be specific to a particular storage
+	 * device, so for now we don't allow them to be used if the filesystem
+	 * uses block devices with different crypto profiles.  This way, there
+	 * is no ambiguity about which ->derive_sw_secret method to call.
+	 */
+	profile = bdev_get_queue(sb->s_bdev)->crypto_profile;
+	num_devs = fscrypt_get_num_devices(sb);
+	if (num_devs > 1) {
+		struct request_queue **devs =
+			kmalloc_array(num_devs, sizeof(*devs), GFP_KERNEL);
+		int i;
+
+		if (!devs)
+			return -ENOMEM;
+
+		fscrypt_get_devices(sb, num_devs, devs);
+
+		for (i = 0; i < num_devs; i++) {
+			if (devs[i]->crypto_profile != profile) {
+				fscrypt_warn(NULL,
+					     "unsupported multi-device configuration for hardware-wrapped keys");
+				kfree(devs);
+				return -EOPNOTSUPP;
+			}
+		}
+		kfree(devs);
+	}
+
+	return blk_crypto_derive_sw_secret(profile, wrapped_key,
+					   wrapped_key_size, sw_secret);
 }
 
 bool __fscrypt_inode_uses_inline_crypto(const struct inode *inode)
