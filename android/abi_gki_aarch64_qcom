@@ -1482,6 +1482,7 @@
   neigh_destroy
   __neigh_event_send
   neigh_lookup
+  neigh_resolve_output
   neigh_xmit
   __netdev_alloc_skb
   netdev_err
