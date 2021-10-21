@@ -171,20 +171,51 @@ void gnet_stats_add_basic(struct gnet_stats_basic_sync *bstats,
 }
 EXPORT_SYMBOL(gnet_stats_add_basic);
 
+static void gnet_stats_read_basic(u64 *ret_bytes, u64 *ret_packets,
+				  struct gnet_stats_basic_sync __percpu *cpu,
+				  struct gnet_stats_basic_sync *b, bool running)
+{
+	unsigned int start;
+
+	if (cpu) {
+		u64 t_bytes = 0, t_packets = 0;
+		int i;
+
+		for_each_possible_cpu(i) {
+			struct gnet_stats_basic_sync *bcpu = per_cpu_ptr(cpu, i);
+			unsigned int start;
+			u64 bytes, packets;
+
+			do {
+				start = u64_stats_fetch_begin_irq(&bcpu->syncp);
+				bytes = u64_stats_read(&bcpu->bytes);
+				packets = u64_stats_read(&bcpu->packets);
+			} while (u64_stats_fetch_retry_irq(&bcpu->syncp, start));
+
+			t_bytes += bytes;
+			t_packets += packets;
+		}
+		*ret_bytes = t_bytes;
+		*ret_packets = t_packets;
+		return;
+	}
+	do {
+		if (running)
+			start = u64_stats_fetch_begin_irq(&b->syncp);
+		*ret_bytes = u64_stats_read(&b->bytes);
+		*ret_packets = u64_stats_read(&b->packets);
+	} while (running && u64_stats_fetch_retry_irq(&b->syncp, start));
+}
+
 static int
 ___gnet_stats_copy_basic(struct gnet_dump *d,
 			 struct gnet_stats_basic_sync __percpu *cpu,
 			 struct gnet_stats_basic_sync *b,
 			 int type, bool running)
 {
-	struct gnet_stats_basic_sync bstats;
 	u64 bstats_bytes, bstats_packets;
 
-	gnet_stats_basic_sync_init(&bstats);
-	gnet_stats_add_basic(&bstats, cpu, b, running);
-
-	bstats_bytes = u64_stats_read(&bstats.bytes);
-	bstats_packets = u64_stats_read(&bstats.packets);
+	gnet_stats_read_basic(&bstats_bytes, &bstats_packets, cpu, b, running);
 
 	if (d->compat_tc_stats && type == TCA_STATS_BASIC) {
 		d->tc_stats.bytes = bstats_bytes;
