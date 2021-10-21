@@ -30,6 +30,7 @@
 #include <asm/apic.h>
 #include <linux/uaccess.h>
 #include <asm/mwait.h>
+#include <asm/fpu/api.h>
 #include <asm/fpu/sched.h>
 #include <asm/debugreg.h>
 #include <asm/nmi.h>
@@ -1003,13 +1004,17 @@ out:
 }
 
 long do_arch_prctl_common(struct task_struct *task, int option,
-			  unsigned long cpuid_enabled)
+			  unsigned long arg2)
 {
 	switch (option) {
 	case ARCH_GET_CPUID:
 		return get_cpuid_mode();
 	case ARCH_SET_CPUID:
-		return set_cpuid_mode(task, cpuid_enabled);
+		return set_cpuid_mode(task, arg2);
+	case ARCH_GET_XCOMP_SUPP:
+	case ARCH_GET_XCOMP_PERM:
+	case ARCH_REQ_XCOMP_PERM:
+		return fpu_xstate_prctl(task, option, arg2);
 	}
 
 	return -EINVAL;

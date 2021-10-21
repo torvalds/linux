@@ -151,4 +151,8 @@ static inline bool fpstate_is_confidential(struct fpu_guest *gfpu)
 	return gfpu->fpstate->is_confidential;
 }
 
+/* prctl */
+struct task_struct;
+extern long fpu_xstate_prctl(struct task_struct *tsk, int option, unsigned long arg2);
+
 #endif /* _ASM_X86_FPU_API_H */

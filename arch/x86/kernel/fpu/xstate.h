@@ -15,6 +15,12 @@ static inline void xstate_init_xcomp_bv(struct xregs_state *xsave, u64 mask)
 		xsave->header.xcomp_bv = mask | XCOMP_BV_COMPACTED_FORMAT;
 }
 
+static inline u64 xstate_get_host_group_perm(void)
+{
+	/* Pairs with WRITE_ONCE() in xstate_request_perm() */
+	return READ_ONCE(current->group_leader->thread.fpu.perm.__state_perm);
+}
+
 enum xstate_copy_mode {
 	XSTATE_COPY_FP,
 	XSTATE_COPY_FX,
