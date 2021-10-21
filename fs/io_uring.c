@@ -10649,7 +10649,9 @@ static int io_unregister_iowq_aff(struct io_ring_ctx *ctx)
 
 static int io_register_iowq_max_workers(struct io_ring_ctx *ctx,
 					void __user *arg)
+	__must_hold(&ctx->uring_lock)
 {
+	struct io_tctx_node *node;
 	struct io_uring_task *tctx = NULL;
 	struct io_sq_data *sqd = NULL;
 	__u32 new_count[2];
@@ -10702,6 +10704,22 @@ static int io_register_iowq_max_workers(struct io_ring_ctx *ctx,
 	if (copy_to_user(arg, new_count, sizeof(new_count)))
 		return -EFAULT;
 
+	/* that's it for SQPOLL, only the SQPOLL task creates requests */
+	if (sqd)
+		return 0;
+
+	/* now propagate the restriction to all registered users */
+	list_for_each_entry(node, &ctx->tctx_list, ctx_node) {
+		struct io_uring_task *tctx = node->task->io_uring;
+
+		if (WARN_ON_ONCE(!tctx->io_wq))
+			continue;
+
+		for (i = 0; i < ARRAY_SIZE(new_count); i++)
+			new_count[i] = ctx->iowq_limits[i];
+		/* ignore errors, it always returns zero anyway */
+		(void)io_wq_max_workers(tctx->io_wq, new_count);
+	}
 	return 0;
 err:
 	if (sqd) {
