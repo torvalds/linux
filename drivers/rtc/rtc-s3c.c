@@ -219,11 +219,6 @@ static int s3c_rtc_settime(struct device *dev, struct rtc_time *tm)
 	rtc_tm.tm_year -= 100;
 	rtc_tm.tm_mon += 1;
 
-	if (rtc_tm.tm_year < 0 || rtc_tm.tm_year >= 100) {
-		dev_err(dev, "rtc only supports 100 years\n");
-		return -EINVAL;
-	}
-
 	return s3c_rtc_write_time(info, &rtc_tm);
 }
 
@@ -478,6 +473,8 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 	}
 
 	info->rtc->ops = &s3c_rtcops;
+	info->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	info->rtc->range_max = RTC_TIMESTAMP_END_2099;
 
 	ret = devm_rtc_register_device(info->rtc);
 	if (ret)
