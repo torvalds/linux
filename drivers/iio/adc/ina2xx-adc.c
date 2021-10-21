@@ -842,15 +842,14 @@ static int ina2xx_buffer_enable(struct iio_dev *indio_dev)
 	dev_dbg(&indio_dev->dev, "Async readout mode: %d\n",
 		chip->allow_async_readout);
 
-	task = kthread_create(ina2xx_capture_thread, (void *)indio_dev,
-			      "%s:%d-%uus", indio_dev->name,
-			      iio_device_id(indio_dev),
-			      sampling_us);
+	task = kthread_run(ina2xx_capture_thread, (void *)indio_dev,
+			   "%s:%d-%uus", indio_dev->name,
+			   iio_device_id(indio_dev),
+			   sampling_us);
 	if (IS_ERR(task))
 		return PTR_ERR(task);
 
 	get_task_struct(task);
-	wake_up_process(task);
 	chip->task = task;
 
 	return 0;
