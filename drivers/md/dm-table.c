@@ -1239,83 +1239,8 @@ static int dm_keyslot_evict(struct blk_keyslot_manager *ksm,
 	return args.err;
 }
 
-struct dm_derive_raw_secret_args {
-	const u8 *wrapped_key;
-	unsigned int wrapped_key_size;
-	u8 *secret;
-	unsigned int secret_size;
-	int err;
-};
-
-static int dm_derive_raw_secret_callback(struct dm_target *ti,
-					 struct dm_dev *dev, sector_t start,
-					 sector_t len, void *data)
-{
-	struct dm_derive_raw_secret_args *args = data;
-	struct request_queue *q = bdev_get_queue(dev->bdev);
-
-	if (!args->err)
-		return 0;
-
-	if (!q->ksm) {
-		args->err = -EOPNOTSUPP;
-		return 0;
-	}
-
-	args->err = blk_ksm_derive_raw_secret(q->ksm, args->wrapped_key,
-					      args->wrapped_key_size,
-					      args->secret,
-					      args->secret_size);
-	/* Try another device in case this fails. */
-	return 0;
-}
-
-/*
- * Retrieve the raw_secret from the underlying device.  Given that only one
- * raw_secret can exist for a particular wrappedkey, retrieve it only from the
- * first device that supports derive_raw_secret().
- */
-static int dm_derive_raw_secret(struct blk_keyslot_manager *ksm,
-				const u8 *wrapped_key,
-				unsigned int wrapped_key_size,
-				u8 *secret, unsigned int secret_size)
-{
-	struct dm_keyslot_manager *dksm = container_of(ksm,
-						       struct dm_keyslot_manager,
-						       ksm);
-	struct mapped_device *md = dksm->md;
-	struct dm_derive_raw_secret_args args = {
-		.wrapped_key = wrapped_key,
-		.wrapped_key_size = wrapped_key_size,
-		.secret = secret,
-		.secret_size = secret_size,
-		.err = -EOPNOTSUPP,
-	};
-	struct dm_table *t;
-	int srcu_idx;
-	int i;
-	struct dm_target *ti;
-
-	t = dm_get_live_table(md, &srcu_idx);
-	if (!t)
-		return -EOPNOTSUPP;
-	for (i = 0; i < dm_table_get_num_targets(t); i++) {
-		ti = dm_table_get_target(t, i);
-		if (!ti->type->iterate_devices)
-			continue;
-		ti->type->iterate_devices(ti, dm_derive_raw_secret_callback,
-					  &args);
-		if (!args.err)
-			break;
-	}
-	dm_put_live_table(md, srcu_idx);
-	return args.err;
-}
-
-
 static const struct blk_ksm_ll_ops dm_ksm_ll_ops = {
 	.keyslot_evict = dm_keyslot_evict,
-	.derive_raw_secret = dm_derive_raw_secret,
 };
 
 static int device_intersect_crypto_modes(struct dm_target *ti,
