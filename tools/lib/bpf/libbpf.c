@@ -462,6 +462,35 @@ struct module_btf {
 	int fd_array_idx;
 };
 
+struct elf_state {
+	int fd;
+	const void *obj_buf;
+	size_t obj_buf_sz;
+	Elf *elf;
+	GElf_Ehdr ehdr;
+	Elf_Data *symbols;
+	Elf_Data *data;
+	Elf_Data *rodata;
+	Elf_Data *bss;
+	Elf_Data *st_ops_data;
+	size_t shstrndx; /* section index for section name strings */
+	size_t strtabidx;
+	struct {
+		GElf_Shdr shdr;
+		Elf_Data *data;
+	} *reloc_sects;
+	int nr_reloc_sects;
+	int maps_shndx;
+	int btf_maps_shndx;
+	__u32 btf_maps_sec_btf_id;
+	int text_shndx;
+	int symbols_shndx;
+	int data_shndx;
+	int rodata_shndx;
+	int bss_shndx;
+	int st_ops_shndx;
+};
+
 struct bpf_object {
 	char name[BPF_OBJ_NAME_LEN];
 	char license[64];
@@ -484,40 +513,10 @@ struct bpf_object {
 
 	struct bpf_gen *gen_loader;
 
+	/* Information when doing ELF related work. Only valid if efile.elf is not NULL */
+	struct elf_state efile;
 	/*
-	 * Information when doing elf related work. Only valid if fd
-	 * is valid.
-	 */
-	struct {
-		int fd;
-		const void *obj_buf;
-		size_t obj_buf_sz;
-		Elf *elf;
-		GElf_Ehdr ehdr;
-		Elf_Data *symbols;
-		Elf_Data *data;
-		Elf_Data *rodata;
-		Elf_Data *bss;
-		Elf_Data *st_ops_data;
-		size_t shstrndx; /* section index for section name strings */
-		size_t strtabidx;
-		struct {
-			GElf_Shdr shdr;
-			Elf_Data *data;
-		} *reloc_sects;
-		int nr_reloc_sects;
-		int maps_shndx;
-		int btf_maps_shndx;
-		__u32 btf_maps_sec_btf_id;
-		int text_shndx;
-		int symbols_shndx;
-		int data_shndx;
-		int rodata_shndx;
-		int bss_shndx;
-		int st_ops_shndx;
-	} efile;
-	/*
-	 * All loaded bpf_object is linked in a list, which is
+	 * All loaded bpf_object are linked in a list, which is
 	 * hidden to caller. bpf_objects__<func> handlers deal with
 	 * all objects.
 	 */
@@ -551,7 +550,6 @@ struct bpf_object {
 
 	char path[];
 };
-#define obj_elf_valid(o)	((o)->efile.elf)
 
 static const char *elf_sym_str(const struct bpf_object *obj, size_t off);
 static const char *elf_sec_str(const struct bpf_object *obj, size_t off);
@@ -1185,7 +1183,7 @@ static struct bpf_object *bpf_object__new(const char *path,
 
 static void bpf_object__elf_finish(struct bpf_object *obj)
 {
-	if (!obj_elf_valid(obj))
+	if (!obj->efile.elf)
 		return;
 
 	if (obj->efile.elf) {
@@ -1210,7 +1208,7 @@ static int bpf_object__elf_init(struct bpf_object *obj)
 	int err = 0;
 	GElf_Ehdr *ep;
 
-	if (obj_elf_valid(obj)) {
+	if (obj->efile.elf) {
 		pr_warn("elf: init internal error\n");
 		return -LIBBPF_ERRNO__LIBELF;
 	}
