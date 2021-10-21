@@ -186,7 +186,8 @@ enum chips { lm90, adm1032, lm99, lm86, max6657, max6659, adt7461, max6680,
 #define LM90_HAVE_EMERGENCY_ALARM (1 << 5)/* emergency alarm		*/
 #define LM90_HAVE_TEMP3		(1 << 6) /* 3rd temperature sensor	*/
 #define LM90_HAVE_BROKEN_ALERT	(1 << 7) /* Broken alert		*/
-#define LM90_PAUSE_FOR_CONFIG	(1 << 8) /* Pause conversion for config	*/
+#define LM90_HAVE_EXTENDED_TEMP	(1 << 8) /* extended temperature support*/
+#define LM90_PAUSE_FOR_CONFIG	(1 << 9) /* Pause conversion for config	*/
 
 /* LM90 status */
 #define LM90_STATUS_LTHRM	(1 << 0) /* local THERM limit tripped */
@@ -359,7 +360,7 @@ static const struct lm90_params lm90_params[] = {
 	},
 	[adt7461] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
-		  | LM90_HAVE_BROKEN_ALERT,
+		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_EXTENDED_TEMP,
 		.alert_alarms = 0x7c,
 		.max_convrate = 10,
 	},
@@ -431,7 +432,7 @@ static const struct lm90_params lm90_params[] = {
 	},
 	[tmp451] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
-		  | LM90_HAVE_BROKEN_ALERT,
+		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_EXTENDED_TEMP,
 		.alert_alarms = 0x7c,
 		.max_convrate = 9,
 		.reg_local_ext = TMP451_REG_R_LOCAL_TEMPL,
@@ -1013,7 +1014,7 @@ static int lm90_get_temp11(struct lm90_data *data, int index)
 	s16 temp11 = data->temp11[index];
 	int temp;
 
-	if (data->kind == adt7461 || data->kind == tmp451)
+	if (data->flags & LM90_HAVE_EXTENDED_TEMP)
 		temp = temp_from_u16_adt7461(data, temp11);
 	else if (data->kind == max6646)
 		temp = temp_from_u16(temp11);
@@ -1047,7 +1048,7 @@ static int lm90_set_temp11(struct lm90_data *data, int index, long val)
 	if (data->kind == lm99 && index <= 2)
 		val -= 16000;
 
-	if (data->kind == adt7461 || data->kind == tmp451)
+	if (data->flags & LM90_HAVE_EXTENDED_TEMP)
 		data->temp11[index] = temp_to_u16_adt7461(data, val);
 	else if (data->kind == max6646)
 		data->temp11[index] = temp_to_u8(val) << 8;
@@ -1074,7 +1075,7 @@ static int lm90_get_temp8(struct lm90_data *data, int index)
 	s8 temp8 = data->temp8[index];
 	int temp;
 
-	if (data->kind == adt7461 || data->kind == tmp451)
+	if (data->flags & LM90_HAVE_EXTENDED_TEMP)
 		temp = temp_from_u8_adt7461(data, temp8);
 	else if (data->kind == max6646)
 		temp = temp_from_u8(temp8);
@@ -1107,7 +1108,7 @@ static int lm90_set_temp8(struct lm90_data *data, int index, long val)
 	if (data->kind == lm99 && index == 3)
 		val -= 16000;
 
-	if (data->kind == adt7461 || data->kind == tmp451)
+	if (data->flags & LM90_HAVE_EXTENDED_TEMP)
 		data->temp8[index] = temp_to_u8_adt7461(data, val);
 	else if (data->kind == max6646)
 		data->temp8[index] = temp_to_u8(val);
@@ -1125,7 +1126,7 @@ static int lm90_get_temphyst(struct lm90_data *data, int index)
 {
 	int temp;
 
-	if (data->kind == adt7461 || data->kind == tmp451)
+	if (data->flags & LM90_HAVE_EXTENDED_TEMP)
 		temp = temp_from_u8_adt7461(data, data->temp8[index]);
 	else if (data->kind == max6646)
 		temp = temp_from_u8(data->temp8[index]);
@@ -1145,7 +1146,7 @@ static int lm90_set_temphyst(struct lm90_data *data, long val)
 	int temp;
 	int err;
 
-	if (data->kind == adt7461 || data->kind == tmp451)
+	if (data->flags & LM90_HAVE_EXTENDED_TEMP)
 		temp = temp_from_u8_adt7461(data, data->temp8[LOCAL_CRIT]);
 	else if (data->kind == max6646)
 		temp = temp_from_u8(data->temp8[LOCAL_CRIT]);
@@ -1698,7 +1699,7 @@ static int lm90_init_client(struct i2c_client *client, struct lm90_data *data)
 	lm90_set_convrate(client, data, 500); /* 500ms; 2Hz conversion rate */
 
 	/* Check Temperature Range Select */
-	if (data->kind == adt7461 || data->kind == tmp451) {
+	if (data->flags & LM90_HAVE_EXTENDED_TEMP) {
 		if (config & 0x04)
 			data->flags |= LM90_FLAG_ADT7461_EXT;
 	}
