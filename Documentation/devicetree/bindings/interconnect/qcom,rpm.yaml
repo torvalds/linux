@@ -27,6 +27,14 @@ properties:
       - qcom,msm8939-pcnoc
       - qcom,msm8939-snoc
       - qcom,msm8939-snoc-mm
+      - qcom,msm8996-a0noc
+      - qcom,msm8996-a1noc
+      - qcom,msm8996-a2noc
+      - qcom,msm8996-bimc
+      - qcom,msm8996-cnoc
+      - qcom,msm8996-mnoc
+      - qcom,msm8996-pnoc
+      - qcom,msm8996-snoc
       - qcom,qcs404-bimc
       - qcom,qcs404-pcnoc
       - qcom,qcs404-snoc
@@ -47,6 +55,9 @@ properties:
   clock-names:
     minItems: 2
     maxItems: 7
+
+  power-domains:
+    maxItems: 1
 
 required:
   - compatible
@@ -70,6 +81,12 @@ allOf:
               - qcom,msm8939-pcnoc
               - qcom,msm8939-snoc
               - qcom,msm8939-snoc-mm
+              - qcom,msm8996-a1noc
+              - qcom,msm8996-a2noc
+              - qcom,msm8996-bimc
+              - qcom,msm8996-cnoc
+              - qcom,msm8996-pnoc
+              - qcom,msm8996-snoc
               - qcom,qcs404-bimc
               - qcom,qcs404-pcnoc
               - qcom,qcs404-snoc
@@ -95,6 +112,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,msm8996-mnoc
               - qcom,sdm660-mnoc
 
     then:
@@ -110,6 +128,30 @@ allOf:
             - description: Bus Clock.
             - description: Bus A Clock.
             - description: CPU-NoC High-performance Bus Clock.
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,msm8996-a0noc
+
+    then:
+      properties:
+        clock-names:
+          items:
+            - const: aggre0_snoc_axi
+            - const: aggre0_cnoc_ahb
+            - const: aggre0_noc_mpu_cfg
+
+        clocks:
+          items:
+            - description: Aggregate0 System NoC AXI Clock.
+            - description: Aggregate0 Config NoC AHB Clock.
+            - description: Aggregate0 NoC MPU Clock.
+
+      required:
+        - power-domains
 
   - if:
       properties:
