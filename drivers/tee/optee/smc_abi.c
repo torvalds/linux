@@ -10,6 +10,7 @@
 #include <linux/errno.h>
 #include <linux/io.h>
 #include <linux/sched.h>
+#include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
