@@ -251,25 +251,6 @@ int strcmp(const char *s1, const char *s2)
 EXPORT_SYMBOL(strcmp);
 #endif
 
-/**
- * strrchr - Find the last occurrence of a character in a string
- * @s: The string to be searched
- * @c: The character to search for
- */
-#ifdef __HAVE_ARCH_STRRCHR
-char *strrchr(const char *s, int c)
-{
-	ssize_t len = __strend(s) - s;
-
-	do {
-		if (s[len] == (char)c)
-			return (char *)s + len;
-	} while (--len >= 0);
-	return NULL;
-}
-EXPORT_SYMBOL(strrchr);
-#endif
-
 static inline int clcle(const char *s1, unsigned long l1,
 			const char *s2, unsigned long l2)
 {
