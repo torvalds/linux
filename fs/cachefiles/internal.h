@@ -16,6 +16,8 @@
 #include <linux/cred.h>
 #include <linux/security.h>
 
+#define CACHEFILES_DIO_BLOCK_SIZE 4096
+
 struct cachefiles_cache;
 struct cachefiles_object;
 
@@ -68,6 +70,7 @@ struct cachefiles_cache {
 	struct dentry			*graveyard;	/* directory into which dead objects go */
 	struct file			*cachefilesd;	/* manager daemon handle */
 	struct list_head		volumes;	/* List of volume objects */
+	struct list_head		object_list;	/* List of active objects */
 	spinlock_t			object_list_lock; /* Lock for volumes and object_list */
 	const struct cred		*cache_cred;	/* security override for accessing cache */
 	struct mutex			daemon_mutex;	/* command serialisation mutex */
@@ -194,6 +197,9 @@ extern int cachefiles_bury_object(struct cachefiles_cache *cache,
 				  struct dentry *dir,
 				  struct dentry *rep,
 				  enum fscache_why_object_killed why);
+extern int cachefiles_delete_object(struct cachefiles_object *object,
+				    enum fscache_why_object_killed why);
+extern bool cachefiles_look_up_object(struct cachefiles_object *object);
 extern struct dentry *cachefiles_get_directory(struct cachefiles_cache *cache,
 					       struct dentry *dir,
 					       const char *name,
@@ -205,6 +211,9 @@ extern int cachefiles_cull(struct cachefiles_cache *cache, struct dentry *dir,
 
 extern int cachefiles_check_in_use(struct cachefiles_cache *cache,
 				   struct dentry *dir, char *filename);
+extern struct file *cachefiles_create_tmpfile(struct cachefiles_object *object);
+extern bool cachefiles_commit_tmpfile(struct cachefiles_cache *cache,
+				      struct cachefiles_object *object);
 
 /*
  * security.c

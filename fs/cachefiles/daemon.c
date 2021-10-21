@@ -106,6 +106,7 @@ static int cachefiles_daemon_open(struct inode *inode, struct file *file)
 	mutex_init(&cache->daemon_mutex);
 	init_waitqueue_head(&cache->daemon_pollwq);
 	INIT_LIST_HEAD(&cache->volumes);
+	INIT_LIST_HEAD(&cache->object_list);
 	spin_lock_init(&cache->object_list_lock);
 
 	/* set default caching limits

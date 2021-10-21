@@ -263,6 +263,36 @@ begin_cull:
 }
 
 /*
+ * Mark all the objects as being out of service and queue them all for cleanup.
+ */
+static void cachefiles_withdraw_objects(struct cachefiles_cache *cache)
+{
+	struct cachefiles_object *object;
+	unsigned int count = 0;
+
+	_enter("");
+
+	spin_lock(&cache->object_list_lock);
+
+	while (!list_empty(&cache->object_list)) {
+		object = list_first_entry(&cache->object_list,
+					  struct cachefiles_object, cache_link);
+		cachefiles_see_object(object, cachefiles_obj_see_withdrawal);
+		list_del_init(&object->cache_link);
+		fscache_withdraw_cookie(object->cookie);
+		count++;
+		if ((count & 63) == 0) {
+			spin_unlock(&cache->object_list_lock);
+			cond_resched();
+			spin_lock(&cache->object_list_lock);
+		}
+	}
+
+	spin_unlock(&cache->object_list_lock);
+	_leave(" [%u objs]", count);
+}
+
+/*
  * Withdraw volumes.
  */
 static void cachefiles_withdraw_volumes(struct cachefiles_cache *cache)
@@ -326,7 +356,7 @@ void cachefiles_withdraw_cache(struct cachefiles_cache *cache)
 	/* we now have to destroy all the active objects pertaining to this
 	 * cache - which we do by passing them off to thread pool to be
 	 * disposed of */
-	// PLACEHOLDER: Withdraw objects
+	cachefiles_withdraw_objects(cache);
 	fscache_wait_for_objects(fscache);
 
 	cachefiles_withdraw_volumes(cache);
