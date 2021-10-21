@@ -1557,8 +1557,6 @@ static int fuse_fill_super(struct super_block *sb, struct fs_context *fsc)
 {
 	struct fuse_fs_context *ctx = fsc->fs_private;
 	int err;
-	struct fuse_conn *fc;
-	struct fuse_mount *fm;
 
 	if (!ctx->file || !ctx->rootmode_present ||
 	    !ctx->user_id_present || !ctx->group_id_present)
@@ -1573,22 +1571,6 @@ static int fuse_fill_super(struct super_block *sb, struct fs_context *fsc)
 	    (ctx->file->f_cred->user_ns != sb->s_user_ns))
 		goto err;
 	ctx->fudptr = &ctx->file->private_data;
-
-	fc = kmalloc(sizeof(*fc), GFP_KERNEL);
-	err = -ENOMEM;
-	if (!fc)
-		goto err;
-
-	fm = kzalloc(sizeof(*fm), GFP_KERNEL);
-	if (!fm) {
-		kfree(fc);
-		goto err;
-	}
-
-	fuse_conn_init(fc, fm, sb->s_user_ns, &fuse_dev_fiq_ops, NULL);
-	fc->release = fuse_free_conn;
-
-	sb->s_fs_info = fm;
 
 	err = fuse_fill_super_common(sb, ctx);
 	if (err)
@@ -1621,22 +1603,40 @@ static int fuse_get_tree(struct fs_context *fsc)
 {
 	struct fuse_fs_context *ctx = fsc->fs_private;
 	struct fuse_dev *fud;
+	struct fuse_conn *fc;
+	struct fuse_mount *fm;
 	struct super_block *sb;
 	int err;
+
+	fc = kmalloc(sizeof(*fc), GFP_KERNEL);
+	if (!fc)
+		return -ENOMEM;
+
+	fm = kzalloc(sizeof(*fm), GFP_KERNEL);
+	if (!fm) {
+		kfree(fc);
+		return -ENOMEM;
+	}
+
+	fuse_conn_init(fc, fm, fsc->user_ns, &fuse_dev_fiq_ops, NULL);
+	fc->release = fuse_free_conn;
+
+	fsc->s_fs_info = fm;
 
 	if (ctx->fd_present)
 		ctx->file = fget(ctx->fd);
 
 	if (IS_ENABLED(CONFIG_BLOCK) && ctx->is_bdev) {
 		err = get_tree_bdev(fsc, fuse_fill_super);
-		goto out_fput;
+		goto out;
 	}
 	/*
 	 * While block dev mount can be initialized with a dummy device fd
 	 * (found by device name), normal fuse mounts can't
 	 */
+	err = -EINVAL;
 	if (!ctx->file)
-		return -EINVAL;
+		goto out;
 
 	/*
 	 * Allow creating a fuse mount with an already initialized fuse
@@ -1652,7 +1652,9 @@ static int fuse_get_tree(struct fs_context *fsc)
 	} else {
 		err = get_tree_nodev(fsc, fuse_fill_super);
 	}
-out_fput:
+out:
+	if (fsc->s_fs_info)
+		fuse_mount_destroy(fm);
 	if (ctx->file)
 		fput(ctx->file);
 	return err;
@@ -1740,10 +1742,8 @@ static void fuse_sb_destroy(struct super_block *sb)
 
 void fuse_mount_destroy(struct fuse_mount *fm)
 {
-	if (fm) {
-		fuse_conn_put(fm->fc);
-		kfree(fm);
-	}
+	fuse_conn_put(fm->fc);
+	kfree(fm);
 }
 EXPORT_SYMBOL(fuse_mount_destroy);
 
