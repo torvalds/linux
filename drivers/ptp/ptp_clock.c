@@ -170,6 +170,7 @@ static void ptp_clock_release(struct device *dev)
 	struct ptp_clock *ptp = container_of(dev, struct ptp_clock, dev);
 
 	ptp_cleanup_pin_groups(ptp);
+	kfree(ptp->vclock_index);
 	mutex_destroy(&ptp->tsevq_mux);
 	mutex_destroy(&ptp->pincfg_mux);
 	mutex_destroy(&ptp->n_vclocks_mux);
@@ -286,8 +287,6 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 	        if (ptp->pps_source)
 	                pps_unregister_source(ptp->pps_source);
 
-		kfree(ptp->vclock_index);
-
 		if (ptp->kworker)
 	                kthread_destroy_worker(ptp->kworker);
 
@@ -327,8 +326,6 @@ int ptp_clock_unregister(struct ptp_clock *ptp)
 
 	ptp->defunct = 1;
 	wake_up_interruptible(&ptp->tsev_wq);
-
-	kfree(ptp->vclock_index);
 
 	if (ptp->kworker) {
 		kthread_cancel_delayed_work_sync(&ptp->aux_work);
