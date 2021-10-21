@@ -422,6 +422,7 @@ static long bch2_ioctl_subvolume_destroy(struct bch_fs *c, struct file *filp,
 				struct bch_ioctl_subvolume arg)
 {
 	struct path path;
+	struct inode *dir;
 	int ret = 0;
 
 	if (arg.flags)
@@ -438,7 +439,13 @@ static long bch2_ioctl_subvolume_destroy(struct bch_fs *c, struct file *filp,
 		return -EXDEV;
 	}
 
-	ret = __bch2_unlink(path.dentry->d_parent->d_inode, path.dentry, 1);
+	dir = path.dentry->d_parent->d_inode;
+
+	ret = __bch2_unlink(dir, path.dentry, 1);
+	if (!ret) {
+		fsnotify_rmdir(dir, path.dentry);
+		d_delete(path.dentry);
+	}
 	path_put(&path);
 
 	return ret;
