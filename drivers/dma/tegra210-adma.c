@@ -961,7 +961,6 @@ static int tegra_adma_remove(struct platform_device *pdev)
 	for (i = 0; i < tdma->nr_channels; ++i)
 		irq_dispose_mapping(tdma->channels[i].irq);
 
-	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 	return 0;
