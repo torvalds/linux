@@ -1469,10 +1469,19 @@ void intel_psr2_program_plane_sel_fetch(struct intel_plane *plane,
 	val |= plane_state->uapi.dst.x1;
 	intel_de_write_fw(dev_priv, PLANE_SEL_FETCH_POS(pipe, plane->id), val);
 
-	/* TODO: consider auxiliary surfaces */
-	x = plane_state->uapi.src.x1 >> 16;
-	y = (plane_state->uapi.src.y1 >> 16) + clip->y1;
+	x = plane_state->view.color_plane[color_plane].x;
+
+	/*
+	 * From Bspec: UV surface Start Y Position = half of Y plane Y
+	 * start position.
+	 */
+	if (!color_plane)
+		y = plane_state->view.color_plane[color_plane].y + clip->y1;
+	else
+		y = plane_state->view.color_plane[color_plane].y + clip->y1 / 2;
+
 	val = y << 16 | x;
+
 	intel_de_write_fw(dev_priv, PLANE_SEL_FETCH_OFFSET(pipe, plane->id),
 			  val);
 
@@ -1702,6 +1711,7 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 	for_each_oldnew_intel_plane_in_state(state, plane, old_plane_state,
 					     new_plane_state, i) {
 		struct drm_rect *sel_fetch_area, inter;
+		struct intel_plane *linked = new_plane_state->planar_linked_plane;
 
 		if (new_plane_state->uapi.crtc != crtc_state->uapi.crtc ||
 		    !new_plane_state->uapi.visible)
@@ -1720,6 +1730,20 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 		sel_fetch_area->y1 = inter.y1 - new_plane_state->uapi.dst.y1;
 		sel_fetch_area->y2 = inter.y2 - new_plane_state->uapi.dst.y1;
 		crtc_state->update_planes |= BIT(plane->id);
+
+		/*
+		 * Sel_fetch_area is calculated for UV plane. Use
+		 * same area for Y plane as well.
+		 */
+		if (linked) {
+			struct intel_plane_state *linked_new_plane_state =
+			  intel_atomic_get_new_plane_state(state, linked);
+			struct drm_rect *linked_sel_fetch_area =
+			  &linked_new_plane_state->psr2_sel_fetch_area;
+
+			linked_sel_fetch_area->y1 = sel_fetch_area->y1;
+			linked_sel_fetch_area->y2 = sel_fetch_area->y2;
+		}
 	}
 
 skip_sel_fetch_set_loop:
