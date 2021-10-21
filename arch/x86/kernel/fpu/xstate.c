@@ -781,35 +781,40 @@ static bool __init is_supported_xstate_size(unsigned int test_xstate_size)
 static int __init init_xstate_size(void)
 {
 	/* Recompute the context size for enabled features: */
-	unsigned int user_size, kernel_size;
+	unsigned int user_size, kernel_size, kernel_default_size;
+	bool compacted = cpu_feature_enabled(X86_FEATURE_XSAVES);
 
 	/* Uncompacted user space size */
 	user_size = get_xsave_size_user();
 
 	/*
 	 * XSAVES kernel size includes supervisor states and
-	 * uses compacted format.
+	 * uses compacted format when available.
 	 *
 	 * XSAVE does not support supervisor states so
 	 * kernel and user size is identical.
 	 */
-	if (cpu_feature_enabled(X86_FEATURE_XSAVES))
+	if (compacted)
 		kernel_size = get_xsaves_size_no_independent();
 	else
 		kernel_size = user_size;
 
-	/* Ensure we have the space to store all enabled features. */
-	if (!is_supported_xstate_size(kernel_size))
+	kernel_default_size =
+		xstate_calculate_size(fpu_kernel_cfg.default_features, compacted);
+
+	/* Ensure we have the space to store all default enabled features. */
+	if (!is_supported_xstate_size(kernel_default_size))
 		return -EINVAL;
 
 	if (!paranoid_xstate_size_valid(kernel_size))
 		return -EINVAL;
 
-	/* Keep it the same for now */
 	fpu_kernel_cfg.max_size = kernel_size;
-	fpu_kernel_cfg.default_size = kernel_size;
 	fpu_user_cfg.max_size = user_size;
-	fpu_user_cfg.default_size = user_size;
+
+	fpu_kernel_cfg.default_size = kernel_default_size;
+	fpu_user_cfg.default_size =
+		xstate_calculate_size(fpu_user_cfg.default_features, false);
 
 	return 0;
 }
@@ -894,15 +899,21 @@ void __init fpu__init_system_xstate(unsigned int legacy_size)
 			fpu_kernel_cfg.max_features &= ~BIT_ULL(i);
 	}
 
+	if (!cpu_feature_enabled(X86_FEATURE_XFD))
+		fpu_kernel_cfg.max_features &= ~XFEATURE_MASK_USER_DYNAMIC;
+
 	fpu_kernel_cfg.max_features &= XFEATURE_MASK_USER_SUPPORTED |
 			      XFEATURE_MASK_SUPERVISOR_SUPPORTED;
 
 	fpu_user_cfg.max_features = fpu_kernel_cfg.max_features;
 	fpu_user_cfg.max_features &= XFEATURE_MASK_USER_SUPPORTED;
 
-	/* Identical for now */
+	/* Clean out dynamic features from default */
 	fpu_kernel_cfg.default_features = fpu_kernel_cfg.max_features;
+	fpu_kernel_cfg.default_features &= ~XFEATURE_MASK_USER_DYNAMIC;
+
 	fpu_user_cfg.default_features = fpu_user_cfg.max_features;
+	fpu_user_cfg.default_features &= ~XFEATURE_MASK_USER_DYNAMIC;
 
 	/* Store it for paranoia check at the end */
 	xfeatures = fpu_kernel_cfg.max_features;
@@ -913,6 +924,7 @@ void __init fpu__init_system_xstate(unsigned int legacy_size)
 	if (err)
 		goto out_disable;
 
+	/* Reset the state for the current task */
 	fpstate_reset(&current->thread.fpu);
 
 	/*
