@@ -2589,6 +2589,13 @@ static void ieee80211_mgd_probe_ap(struct ieee80211_sub_if_data *sdata,
 		goto out;
 	}
 
+	if (sdata->local->suspending) {
+		/* reschedule after resume */
+		mutex_unlock(&sdata->local->mtx);
+		ieee80211_reset_ap_probe(sdata);
+		goto out;
+	}
+
 	if (beacon) {
 		mlme_dbg_ratelimited(sdata,
 				     "detected beacon loss from AP (missed %d beacons) - probing\n",

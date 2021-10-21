@@ -1241,6 +1241,9 @@ struct ieee80211_local {
 	 */
 	bool suspended;
 
+	/* suspending is true during the whole suspend process */
+	bool suspending;
+
 	/*
 	 * Resuming is true while suspended, but when we're reprogramming the
 	 * hardware -- at that time it's allowed to use ieee80211_queue_work()
