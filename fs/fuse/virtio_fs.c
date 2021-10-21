@@ -1400,6 +1400,7 @@ static void virtio_kill_sb(struct super_block *sb)
 			virtio_fs_conn_destroy(fm);
 	}
 	kill_anon_super(sb);
+	fuse_mount_destroy(fm);
 }
 
 static int virtio_fs_test_super(struct super_block *sb,

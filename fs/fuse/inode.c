@@ -457,14 +457,6 @@ static void fuse_send_destroy(struct fuse_mount *fm)
 	}
 }
 
-static void fuse_put_super(struct super_block *sb)
-{
-	struct fuse_mount *fm = get_fuse_mount_super(sb);
-
-	fuse_conn_put(fm->fc);
-	kfree(fm);
-}
-
 static void convert_fuse_statfs(struct kstatfs *stbuf, struct fuse_kstatfs *attr)
 {
 	stbuf->f_type    = FUSE_SUPER_MAGIC;
@@ -1003,7 +995,6 @@ static const struct super_operations fuse_super_operations = {
 	.evict_inode	= fuse_evict_inode,
 	.write_inode	= fuse_write_inode,
 	.drop_inode	= generic_delete_inode,
-	.put_super	= fuse_put_super,
 	.umount_begin	= fuse_umount_begin,
 	.statfs		= fuse_statfs,
 	.sync_fs	= fuse_sync_fs,
@@ -1754,10 +1745,20 @@ static void fuse_sb_destroy(struct super_block *sb)
 	}
 }
 
+void fuse_mount_destroy(struct fuse_mount *fm)
+{
+	if (fm) {
+		fuse_conn_put(fm->fc);
+		kfree(fm);
+	}
+}
+EXPORT_SYMBOL(fuse_mount_destroy);
+
 static void fuse_kill_sb_anon(struct super_block *sb)
 {
 	fuse_sb_destroy(sb);
 	kill_anon_super(sb);
+	fuse_mount_destroy(get_fuse_mount_super(sb));
 }
 
 static struct file_system_type fuse_fs_type = {
@@ -1775,6 +1776,7 @@ static void fuse_kill_sb_blk(struct super_block *sb)
 {
 	fuse_sb_destroy(sb);
 	kill_block_super(sb);
+	fuse_mount_destroy(get_fuse_mount_super(sb));
 }
 
 static struct file_system_type fuseblk_fs_type = {
