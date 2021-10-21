@@ -130,6 +130,13 @@ static inline void fpstate_init_soft(struct swregs_state *soft) {}
 /* State tracking */
 DECLARE_PER_CPU(struct fpu *, fpu_fpregs_owner_ctx);
 
+/* Process cleanup */
+#ifdef CONFIG_X86_64
+extern void fpstate_free(struct fpu *fpu);
+#else
+static inline void fpstate_free(struct fpu *fpu) { }
+#endif
+
 /* fpstate-related functions which are exported to KVM */
 extern void fpstate_clear_xstate_component(struct fpstate *fps, unsigned int xfeature);
 

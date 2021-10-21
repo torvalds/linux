@@ -12,6 +12,7 @@
 #include <linux/pkeys.h>
 #include <linux/seq_file.h>
 #include <linux/proc_fs.h>
+#include <linux/vmalloc.h>
 
 #include <asm/fpu/api.h>
 #include <asm/fpu/regset.h>
@@ -22,6 +23,7 @@
 #include <asm/prctl.h>
 #include <asm/elf.h>
 
+#include "context.h"
 #include "internal.h"
 #include "legacy.h"
 #include "xstate.h"
@@ -1371,6 +1373,91 @@ void xfd_validate_state(struct fpstate *fpstate, u64 mask, bool rstor)
 }
 #endif /* CONFIG_X86_DEBUG_FPU */
 
+void fpstate_free(struct fpu *fpu)
+{
+	if (fpu->fpstate || fpu->fpstate != &fpu->__fpstate)
+		vfree(fpu->fpstate);
+}
+
+/**
+ * fpu_install_fpstate - Update the active fpstate in the FPU
+ *
+ * @fpu:	A struct fpu * pointer
+ * @newfps:	A struct fpstate * pointer
+ *
+ * Returns:	A null pointer if the last active fpstate is the embedded
+ *		one or the new fpstate is already installed;
+ *		otherwise, a pointer to the old fpstate which has to
+ *		be freed by the caller.
+ */
+static struct fpstate *fpu_install_fpstate(struct fpu *fpu,
+					   struct fpstate *newfps)
+{
+	struct fpstate *oldfps = fpu->fpstate;
+
+	if (fpu->fpstate == newfps)
+		return NULL;
+
+	fpu->fpstate = newfps;
+	return oldfps != &fpu->__fpstate ? oldfps : NULL;
+}
+
+/**
+ * fpstate_realloc - Reallocate struct fpstate for the requested new features
+ *
+ * @xfeatures:	A bitmap of xstate features which extend the enabled features
+ *		of that task
+ * @ksize:	The required size for the kernel buffer
+ * @usize:	The required size for user space buffers
+ *
+ * Note vs. vmalloc(): If the task with a vzalloc()-allocated buffer
+ * terminates quickly, vfree()-induced IPIs may be a concern, but tasks
+ * with large states are likely to live longer.
+ *
+ * Returns: 0 on success, -ENOMEM on allocation error.
+ */
+static int fpstate_realloc(u64 xfeatures, unsigned int ksize,
+			   unsigned int usize)
+{
+	struct fpu *fpu = &current->thread.fpu;
+	struct fpstate *curfps, *newfps = NULL;
+	unsigned int fpsize;
+
+	curfps = fpu->fpstate;
+	fpsize = ksize + ALIGN(offsetof(struct fpstate, regs), 64);
+
+	newfps = vzalloc(fpsize);
+	if (!newfps)
+		return -ENOMEM;
+	newfps->size = ksize;
+	newfps->user_size = usize;
+	newfps->is_valloc = true;
+
+	fpregs_lock();
+	/*
+	 * Ensure that the current state is in the registers before
+	 * swapping fpstate as that might invalidate it due to layout
+	 * changes.
+	 */
+	if (test_thread_flag(TIF_NEED_FPU_LOAD))
+		fpregs_restore_userregs();
+
+	newfps->xfeatures = curfps->xfeatures | xfeatures;
+	newfps->user_xfeatures = curfps->user_xfeatures | xfeatures;
+	newfps->xfd = curfps->xfd & ~xfeatures;
+
+	curfps = fpu_install_fpstate(fpu, newfps);
+
+	/* Do the final updates within the locked region */
+	xstate_init_xcomp_bv(&newfps->regs.xsave, newfps->xfeatures);
+	xfd_update_state(newfps);
+
+	fpregs_unlock();
+
+	vfree(curfps);
+	return 0;
+}
+
 static int validate_sigaltstack(unsigned int usize)
 {
 	struct task_struct *thread, *leader = current->group_leader;
@@ -1393,7 +1480,8 @@ static int __xstate_request_perm(u64 permitted, u64 requested)
 	/*
 	 * This deliberately does not exclude !XSAVES as we still might
 	 * decide to optionally context switch XCR0 or talk the silicon
-	 * vendors into extending XFD for the pre AMX states.
+	 * vendors into extending XFD for the pre AMX states, especially
+	 * AVX512.
 	 */
 	bool compacted = cpu_feature_enabled(X86_FEATURE_XSAVES);
 	struct fpu *fpu = &current->group_leader->thread.fpu;
@@ -1463,13 +1551,6 @@ static int xstate_request_perm(unsigned long idx)
 	ret = __xstate_request_perm(permitted, requested);
 	spin_unlock_irq(&current->sighand->siglock);
 	return ret;
-}
-
-/* Place holder for now */
-static int fpstate_realloc(u64 xfeatures, unsigned int ksize,
-			   unsigned int usize)
-{
-	return -ENOMEM;
 }
 
 int xfd_enable_feature(u64 xfd_err)

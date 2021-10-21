@@ -32,6 +32,7 @@
 #include <asm/mwait.h>
 #include <asm/fpu/api.h>
 #include <asm/fpu/sched.h>
+#include <asm/fpu/xstate.h>
 #include <asm/debugreg.h>
 #include <asm/nmi.h>
 #include <asm/tlbflush.h>
@@ -90,8 +91,17 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 #endif
 	/* Drop the copied pointer to current's fpstate */
 	dst->thread.fpu.fpstate = NULL;
+
 	return 0;
 }
+
+#ifdef CONFIG_X86_64
+void arch_release_task_struct(struct task_struct *tsk)
+{
+	if (fpu_state_size_dynamic())
+		fpstate_free(&tsk->thread.fpu);
+}
+#endif
 
 /*
  * Free thread data structures etc..
