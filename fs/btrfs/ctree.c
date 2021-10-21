@@ -2670,7 +2670,6 @@ static noinline int __push_leaf_right(struct btrfs_path *path,
 	u32 i;
 	int push_space = 0;
 	int push_items = 0;
-	struct btrfs_item *item;
 	u32 nr;
 	u32 right_nritems;
 	u32 data_end;
@@ -2702,11 +2701,12 @@ static noinline int __push_leaf_right(struct btrfs_path *path,
 			push_space += data_size;
 
 		this_item_size = btrfs_item_size_nr(left, i);
-		if (this_item_size + sizeof(*item) + push_space > free_space)
+		if (this_item_size + sizeof(struct btrfs_item) +
+		    push_space > free_space)
 			break;
 
 		push_items++;
-		push_space += this_item_size + sizeof(*item);
+		push_space += this_item_size + sizeof(struct btrfs_item);
 		if (i == 0)
 			break;
 		i--;
@@ -2751,9 +2751,8 @@ static noinline int __push_leaf_right(struct btrfs_path *path,
 	btrfs_set_header_nritems(right, right_nritems);
 	push_space = BTRFS_LEAF_DATA_SIZE(fs_info);
 	for (i = 0; i < right_nritems; i++) {
-		item = btrfs_item_nr(i);
-		push_space -= btrfs_token_item_size(&token, item);
-		btrfs_set_token_item_offset(&token, item, push_space);
+		push_space -= btrfs_token_item_size_nr(&token, i);
+		btrfs_set_token_item_offset_nr(&token, i, push_space);
 	}
 
 	left_nritems -= push_items;
@@ -2898,7 +2897,6 @@ static noinline int __push_leaf_left(struct btrfs_path *path, int data_size,
 	int i;
 	int push_space = 0;
 	int push_items = 0;
-	struct btrfs_item *item;
 	u32 old_left_nritems;
 	u32 nr;
 	int ret = 0;
@@ -2927,11 +2925,12 @@ static noinline int __push_leaf_left(struct btrfs_path *path, int data_size,
 			push_space += data_size;
 
 		this_item_size = btrfs_item_size_nr(right, i);
-		if (this_item_size + sizeof(*item) + push_space > free_space)
+		if (this_item_size + sizeof(struct btrfs_item) + push_space >
+		    free_space)
 			break;
 
 		push_items++;
-		push_space += this_item_size + sizeof(*item);
+		push_space += this_item_size + sizeof(struct btrfs_item);
 	}
 
 	if (push_items == 0) {
@@ -2962,10 +2961,8 @@ static noinline int __push_leaf_left(struct btrfs_path *path, int data_size,
 	for (i = old_left_nritems; i < old_left_nritems + push_items; i++) {
 		u32 ioff;
 
-		item = btrfs_item_nr(i);
-
-		ioff = btrfs_token_item_offset(&token, item);
-		btrfs_set_token_item_offset(&token, item,
+		ioff = btrfs_token_item_offset_nr(&token, i);
+		btrfs_set_token_item_offset_nr(&token, i,
 		      ioff - (BTRFS_LEAF_DATA_SIZE(fs_info) - old_left_item_size));
 	}
 	btrfs_set_header_nritems(left, old_left_nritems + push_items);
@@ -2994,10 +2991,8 @@ static noinline int __push_leaf_left(struct btrfs_path *path, int data_size,
 	btrfs_set_header_nritems(right, right_nritems);
 	push_space = BTRFS_LEAF_DATA_SIZE(fs_info);
 	for (i = 0; i < right_nritems; i++) {
-		item = btrfs_item_nr(i);
-
-		push_space = push_space - btrfs_token_item_size(&token, item);
-		btrfs_set_token_item_offset(&token, item, push_space);
+		push_space = push_space - btrfs_token_item_size_nr(&token, i);
+		btrfs_set_token_item_offset_nr(&token, i, push_space);
 	}
 
 	btrfs_mark_buffer_dirty(left);
@@ -3140,11 +3135,10 @@ static noinline void copy_for_split(struct btrfs_trans_handle *trans,
 
 	btrfs_init_map_token(&token, right);
 	for (i = 0; i < nritems; i++) {
-		struct btrfs_item *item = btrfs_item_nr(i);
 		u32 ioff;
 
-		ioff = btrfs_token_item_offset(&token, item);
-		btrfs_set_token_item_offset(&token, item, ioff + rt_data_off);
+		ioff = btrfs_token_item_offset_nr(&token, i);
+		btrfs_set_token_item_offset_nr(&token, i, ioff + rt_data_off);
 	}
 
 	btrfs_set_header_nritems(l, mid);
@@ -3579,7 +3573,6 @@ void btrfs_truncate_item(struct btrfs_path *path, u32 new_size, int from_end)
 {
 	int slot;
 	struct extent_buffer *leaf;
-	struct btrfs_item *item;
 	u32 nritems;
 	unsigned int data_end;
 	unsigned int old_data_start;
@@ -3612,10 +3605,9 @@ void btrfs_truncate_item(struct btrfs_path *path, u32 new_size, int from_end)
 	btrfs_init_map_token(&token, leaf);
 	for (i = slot; i < nritems; i++) {
 		u32 ioff;
-		item = btrfs_item_nr(i);
 
-		ioff = btrfs_token_item_offset(&token, item);
-		btrfs_set_token_item_offset(&token, item, ioff + size_diff);
+		ioff = btrfs_token_item_offset_nr(&token, i);
+		btrfs_set_token_item_offset_nr(&token, i, ioff + size_diff);
 	}
 
 	/* shift the data */
@@ -3674,7 +3666,6 @@ void btrfs_extend_item(struct btrfs_path *path, u32 data_size)
 {
 	int slot;
 	struct extent_buffer *leaf;
-	struct btrfs_item *item;
 	u32 nritems;
 	unsigned int data_end;
 	unsigned int old_data;
@@ -3709,10 +3700,9 @@ void btrfs_extend_item(struct btrfs_path *path, u32 data_size)
 	btrfs_init_map_token(&token, leaf);
 	for (i = slot; i < nritems; i++) {
 		u32 ioff;
-		item = btrfs_item_nr(i);
 
-		ioff = btrfs_token_item_offset(&token, item);
-		btrfs_set_token_item_offset(&token, item, ioff - data_size);
+		ioff = btrfs_token_item_offset_nr(&token, i);
+		btrfs_set_token_item_offset_nr(&token, i, ioff - data_size);
 	}
 
 	/* shift the data */
@@ -3744,7 +3734,6 @@ static void setup_items_for_insert(struct btrfs_root *root, struct btrfs_path *p
 				   const struct btrfs_item_batch *batch)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
-	struct btrfs_item *item;
 	int i;
 	u32 nritems;
 	unsigned int data_end;
@@ -3797,10 +3786,9 @@ static void setup_items_for_insert(struct btrfs_root *root, struct btrfs_path *p
 		for (i = slot; i < nritems; i++) {
 			u32 ioff;
 
-			item = btrfs_item_nr(i);
-			ioff = btrfs_token_item_offset(&token, item);
-			btrfs_set_token_item_offset(&token, item,
-						    ioff - batch->total_data_size);
+			ioff = btrfs_token_item_offset_nr(&token, i);
+			btrfs_set_token_item_offset_nr(&token, i,
+						       ioff - batch->total_data_size);
 		}
 		/* shift the items */
 		memmove_extent_buffer(leaf, btrfs_item_nr_offset(slot + batch->nr),
@@ -3819,10 +3807,9 @@ static void setup_items_for_insert(struct btrfs_root *root, struct btrfs_path *p
 	for (i = 0; i < batch->nr; i++) {
 		btrfs_cpu_key_to_disk(&disk_key, &batch->keys[i]);
 		btrfs_set_item_key(leaf, &disk_key, slot + i);
-		item = btrfs_item_nr(slot + i);
 		data_end -= batch->data_sizes[i];
-		btrfs_set_token_item_offset(&token, item, data_end);
-		btrfs_set_token_item_size(&token, item, batch->data_sizes[i]);
+		btrfs_set_token_item_offset_nr(&token, slot + i, data_end);
+		btrfs_set_token_item_size_nr(&token, slot + i, batch->data_sizes[i]);
 	}
 
 	btrfs_set_header_nritems(leaf, nritems + batch->nr);
@@ -4030,7 +4017,6 @@ int btrfs_del_items(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct extent_buffer *leaf;
-	struct btrfs_item *item;
 	u32 last_off;
 	u32 dsize = 0;
 	int ret = 0;
@@ -4059,9 +4045,8 @@ int btrfs_del_items(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		for (i = slot + nr; i < nritems; i++) {
 			u32 ioff;
 
-			item = btrfs_item_nr(i);
-			ioff = btrfs_token_item_offset(&token, item);
-			btrfs_set_token_item_offset(&token, item, ioff + dsize);
+			ioff = btrfs_token_item_offset_nr(&token, i);
+			btrfs_set_token_item_offset_nr(&token, i, ioff + dsize);
 		}
 
 		memmove_extent_buffer(leaf, btrfs_item_nr_offset(slot),

@@ -2009,6 +2009,38 @@ static inline void btrfs_set_item_offset_nr(struct extent_buffer *eb, int nr,
 	btrfs_set_item_offset(eb, btrfs_item_nr(nr), val);
 }
 
+static inline u32 btrfs_token_item_offset_nr(struct btrfs_map_token *token,
+					     int slot)
+{
+	struct btrfs_item *item = btrfs_item_nr(slot);
+
+	return btrfs_token_item_offset(token, item);
+}
+
+static inline u32 btrfs_token_item_size_nr(struct btrfs_map_token *token,
+					   int slot)
+{
+	struct btrfs_item *item = btrfs_item_nr(slot);
+
+	return btrfs_token_item_size(token, item);
+}
+
+static inline void btrfs_set_token_item_offset_nr(struct btrfs_map_token *token,
+						  int slot, u32 val)
+{
+	struct btrfs_item *item = btrfs_item_nr(slot);
+
+	btrfs_set_token_item_offset(token, item, val);
+}
+
+static inline void btrfs_set_token_item_size_nr(struct btrfs_map_token *token,
+						int slot, u32 val)
+{
+	struct btrfs_item *item = btrfs_item_nr(slot);
+
+	btrfs_set_token_item_size(token, item, val);
+}
+
 static inline void btrfs_item_key(const struct extent_buffer *eb,
 			   struct btrfs_disk_key *disk_key, int nr)
 {
