@@ -24,18 +24,23 @@ struct key_t {
 	int c;
 } __tag1 __tag2;
 
+typedef struct {
+	int a;
+	int b;
+} value_t __tag1 __tag2;
+
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
 	__uint(max_entries, 3);
 	__type(key, struct key_t);
-	__type(value, __u64);
+	__type(value, value_t);
 } hashmap1 SEC(".maps");
 
 
 static __noinline int foo(int x __tag1 __tag2) __tag1 __tag2
 {
 	struct key_t key;
-	__u64 val = 1;
+	value_t val = {};
 
 	key.a = key.b = key.c = x;
 	bpf_map_update_elem(&hashmap1, &key, &val, 0);
