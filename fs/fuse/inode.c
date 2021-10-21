@@ -1566,22 +1566,18 @@ static int fuse_fill_super(struct super_block *sb, struct fs_context *fsc)
 	 * Require mount to happen from the same user namespace which
 	 * opened /dev/fuse to prevent potential attacks.
 	 */
-	err = -EINVAL;
 	if ((ctx->file->f_op != &fuse_dev_operations) ||
 	    (ctx->file->f_cred->user_ns != sb->s_user_ns))
-		goto err;
+		return -EINVAL;
 	ctx->fudptr = &ctx->file->private_data;
 
 	err = fuse_fill_super_common(sb, ctx);
 	if (err)
-		goto err;
+		return err;
 	/* file->private_data shall be visible on all CPUs after this */
 	smp_mb();
 	fuse_send_init(get_fuse_mount_super(sb));
 	return 0;
-
- err:
-	return err;
 }
 
 /*
