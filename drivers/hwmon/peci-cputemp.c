@@ -12,6 +12,7 @@
 #define DEFAULT_CHANNEL_NUMS	5
 #define MODTEMP_CHANNEL_NUMS	CORE_MASK_BITS_MAX
 #define CPUTEMP_CHANNEL_NUMS	(DEFAULT_CHANNEL_NUMS + MODTEMP_CHANNEL_NUMS)
+#define BIOS_RST_CPL3		BIT(3)
 
 struct temp_group {
 	struct peci_sensor_data		die;
@@ -83,6 +84,8 @@ static s32 ten_dot_six_to_millidegree(s32 val)
 
 static int get_temp_targets(struct peci_cputemp *priv)
 {
+	struct peci_rd_end_pt_cfg_msg re_msg;
+	u32 bios_reset_cpl_cfg;
 	s32 tthrottle_offset;
 	s32 tcontrol_margin;
 	u8  pkg_cfg[4];
@@ -94,6 +97,42 @@ static int get_temp_targets(struct peci_cputemp *priv)
 	 */
 	if (!peci_sensor_need_update(&priv->temp.tcontrol))
 		return 0;
+
+	/*
+	 * CPU can return invalid temperatures prior to BIOS-PCU handshake
+	 * RST_CPL3 completion so filter the invalid readings out.
+	 */
+	switch (priv->gen_info->model) {
+	case INTEL_FAM6_ICELAKE_X:
+	case INTEL_FAM6_ICELAKE_XD:
+		re_msg.addr = priv->mgr->client->addr;
+		re_msg.msg_type = PECI_ENDPTCFG_TYPE_LOCAL_PCI;
+		re_msg.params.pci_cfg.seg = 0;
+		re_msg.params.pci_cfg.bus = 31;
+		re_msg.params.pci_cfg.device = 30;
+		re_msg.params.pci_cfg.function = 1;
+		re_msg.params.pci_cfg.reg = 0x94;
+		re_msg.rx_len = 4;
+
+		ret = peci_command(priv->mgr->client->adapter,
+				   PECI_CMD_RD_END_PT_CFG, &re_msg);
+		if (ret || re_msg.cc != PECI_DEV_CC_SUCCESS)
+			ret = -EAGAIN;
+		if (ret)
+			return ret;
+
+		bios_reset_cpl_cfg = le32_to_cpup((__le32 *)re_msg.data);
+		if (!(bios_reset_cpl_cfg & BIOS_RST_CPL3)) {
+			dev_dbg(priv->dev, "BIOS and Pcode Node ID isn't configured, BIOS_RESET_CPL_CFG: 0x%x\n",
+				bios_reset_cpl_cfg);
+			return -EAGAIN;
+		}
+
+		break;
+	default:
+		/* TODO: Check reset completion for other CPUs if needed */
+		break;
+	}
 
 	ret = peci_client_read_package_config(priv->mgr,
 					      PECI_MBX_INDEX_TEMP_TARGET, 0,

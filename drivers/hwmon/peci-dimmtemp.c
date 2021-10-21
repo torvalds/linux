@@ -15,6 +15,7 @@
 					   /* -1 = no timeout */
 #define DIMM_TEMP_MAX_DEFAULT		90000
 #define DIMM_TEMP_CRIT_DEFAULT		100000
+#define BIOS_RST_CPL4			BIT(4)
 
 struct peci_dimmtemp {
 	struct peci_client_manager	*mgr;
@@ -59,6 +60,7 @@ static int get_dimm_temp(struct peci_dimmtemp *priv, int dimm_no)
 	int chan_rank = dimm_no / priv->gen_info->dimm_idx_max;
 	struct peci_rd_pci_cfg_local_msg rp_msg;
 	struct peci_rd_end_pt_cfg_msg re_msg;
+	u32 bios_reset_cpl_cfg;
 	u8  cfg_data[4];
 	u8  cpu_seg, cpu_bus;
 	int ret;
@@ -71,6 +73,42 @@ static int get_dimm_temp(struct peci_dimmtemp *priv, int dimm_no)
 		return -ENODATA;
 
 	priv->temp[dimm_no].value = cfg_data[dimm_order] * 1000;
+
+	/*
+	 * CPU can return invalid temperatures prior to BIOS-PCU handshake
+	 * RST_CPL4 completion so filter the invalid readings out.
+	 */
+	switch (priv->gen_info->model) {
+	case INTEL_FAM6_ICELAKE_X:
+	case INTEL_FAM6_ICELAKE_XD:
+		re_msg.addr = priv->mgr->client->addr;
+		re_msg.msg_type = PECI_ENDPTCFG_TYPE_LOCAL_PCI;
+		re_msg.params.pci_cfg.seg = 0;
+		re_msg.params.pci_cfg.bus = 31;
+		re_msg.params.pci_cfg.device = 30;
+		re_msg.params.pci_cfg.function = 1;
+		re_msg.params.pci_cfg.reg = 0x94;
+		re_msg.rx_len = 4;
+
+		ret = peci_command(priv->mgr->client->adapter,
+				   PECI_CMD_RD_END_PT_CFG, &re_msg);
+		if (ret || re_msg.cc != PECI_DEV_CC_SUCCESS)
+			ret = -EAGAIN;
+		if (ret)
+			return ret;
+
+		bios_reset_cpl_cfg = le32_to_cpup((__le32 *)re_msg.data);
+		if (!(bios_reset_cpl_cfg & BIOS_RST_CPL4)) {
+			dev_dbg(priv->dev, "DRAM parameters aren't calibrated, BIOS_RESET_CPL_CFG: 0x%x\n",
+				bios_reset_cpl_cfg);
+			return -EAGAIN;
+		}
+
+		break;
+	default:
+		/* TODO: Check reset completion for other CPUs if needed */
+		break;
+	}
 
 	switch (priv->gen_info->model) {
 	case INTEL_FAM6_ICELAKE_X:
