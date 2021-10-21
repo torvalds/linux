@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright 2016-2020 HabanaLabs, Ltd.
+ * Copyright 2016-2021 HabanaLabs, Ltd.
  * All Rights Reserved.
  */
 
@@ -4296,6 +4296,24 @@ static void gaudi_hw_fini(struct hl_device *hdev, bool hard_reset, bool fw_reset
 
 		WREG32(irq_handler_offset,
 			gaudi_irq_map_table[GAUDI_EVENT_HALT_MACHINE].cpu_id);
+
+		/* This is a hail-mary attempt to revive the card in the small chance that the
+		 * f/w has experienced a watchdog event, which caused it to return back to preboot.
+		 * In that case, triggering reset through GIC won't help. We need to trigger the
+		 * reset as if Linux wasn't loaded.
+		 *
+		 * We do it only if the reset cause was HB, because that would be the indication
+		 * of such an event.
+		 *
+		 * In case watchdog hasn't expired but we still got HB, then this won't do any
+		 * damage.
+		 */
+		if (hdev->curr_reset_cause == HL_RESET_CAUSE_HEARTBEAT) {
+			if (hdev->asic_prop.hard_reset_done_by_fw)
+				hl_fw_ask_hard_reset_without_linux(hdev);
+			else
+				hl_fw_ask_halt_machine_without_linux(hdev);
+		}
 	} else {
 		if (hdev->asic_prop.hard_reset_done_by_fw)
 			hl_fw_ask_hard_reset_without_linux(hdev);
