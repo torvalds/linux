@@ -2368,7 +2368,7 @@ static int dsa_slave_netdevice_event(struct notifier_block *nb,
 		dst = cpu_dp->ds->dst;
 
 		list_for_each_entry(dp, &dst->ports, list) {
-			if (!dsa_is_user_port(dp->ds, dp->index))
+			if (!dsa_port_is_user(dp))
 				continue;
 
 			list_add(&dp->slave->close_list, &close_list);
