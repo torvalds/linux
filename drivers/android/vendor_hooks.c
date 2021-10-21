@@ -20,7 +20,6 @@
 #include <trace/hooks/gic.h>
 #include <trace/hooks/wqlockup.h>
 #include <trace/hooks/debug.h>
-#include <trace/hooks/sysrqcrash.h>
 #include <trace/hooks/printk.h>
 #include <trace/hooks/gic_v3.h>
 #include <trace/hooks/epoch.h>
@@ -126,7 +125,6 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_find_busiest_group);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_gic_resume);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_wq_lockup_pool);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ipi_stop);
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_sysrq_crash);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_dump_throttled_rt_tasks);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_printk_hotplug);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_jiffies_update);
