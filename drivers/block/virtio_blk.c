@@ -704,7 +704,7 @@ cache_type_show(struct device *dev, struct device_attribute *attr, char *buf)
 	u8 writeback = virtblk_get_cache_mode(vblk->vdev);
 
 	BUG_ON(writeback >= ARRAY_SIZE(virtblk_cache_types));
-	return snprintf(buf, 40, "%s\n", virtblk_cache_types[writeback]);
+	return sysfs_emit(buf, "%s\n", virtblk_cache_types[writeback]);
 }
 
 static DEVICE_ATTR_RW(cache_type);
