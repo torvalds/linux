@@ -150,6 +150,41 @@ static int sgx_vepc_free_page(struct sgx_epc_page *epc_page)
 	return 0;
 }
 
+static long sgx_vepc_remove_all(struct sgx_vepc *vepc)
+{
+	struct sgx_epc_page *entry;
+	unsigned long index;
+	long failures = 0;
+
+	xa_for_each(&vepc->page_array, index, entry) {
+		int ret = sgx_vepc_remove_page(entry);
+		if (ret) {
+			if (ret == SGX_CHILD_PRESENT) {
+				/* The page is a SECS, userspace will retry.  */
+				failures++;
+			} else {
+				/*
+				 * Report errors due to #GP or SGX_ENCLAVE_ACT; do not
+				 * WARN, as userspace can induce said failures by
+				 * calling the ioctl concurrently on multiple vEPCs or
+				 * while one or more CPUs is running the enclave.  Only
+				 * a #PF on EREMOVE indicates a kernel/hardware issue.
+				 */
+				WARN_ON_ONCE(encls_faulted(ret) &&
+					     ENCLS_TRAPNR(ret) != X86_TRAP_GP);
+				return -EBUSY;
+			}
+		}
+		cond_resched();
+	}
+
+	/*
+	 * Return the number of SECS pages that failed to be removed, so
+	 * userspace knows that it has to retry.
+	 */
+	return failures;
+}
+
 static int sgx_vepc_release(struct inode *inode, struct file *file)
 {
 	struct sgx_vepc *vepc = file->private_data;
@@ -235,9 +270,27 @@ static int sgx_vepc_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static long sgx_vepc_ioctl(struct file *file,
+			   unsigned int cmd, unsigned long arg)
+{
+	struct sgx_vepc *vepc = file->private_data;
+
+	switch (cmd) {
+	case SGX_IOC_VEPC_REMOVE_ALL:
+		if (arg)
+			return -EINVAL;
+		return sgx_vepc_remove_all(vepc);
+
+	default:
+		return -ENOTTY;
+	}
+}
+
 static const struct file_operations sgx_vepc_fops = {
 	.owner		= THIS_MODULE,
 	.open		= sgx_vepc_open,
+	.unlocked_ioctl	= sgx_vepc_ioctl,
+	.compat_ioctl	= sgx_vepc_ioctl,
 	.release	= sgx_vepc_release,
 	.mmap		= sgx_vepc_mmap,
 };
