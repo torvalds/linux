@@ -47,7 +47,7 @@
 			       rqstp->rq_xprt->xpt_remotelen); \
 		} while (0);
 
-TRACE_EVENT(nfsd_garbage_args_err,
+DECLARE_EVENT_CLASS(nfsd_xdr_err_class,
 	TP_PROTO(
 		const struct svc_rqst *rqstp
 	),
@@ -69,27 +69,13 @@ TRACE_EVENT(nfsd_garbage_args_err,
 	)
 );
 
-TRACE_EVENT(nfsd_cant_encode_err,
-	TP_PROTO(
-		const struct svc_rqst *rqstp
-	),
-	TP_ARGS(rqstp),
-	TP_STRUCT__entry(
-		NFSD_TRACE_PROC_ARG_FIELDS
+#define DEFINE_NFSD_XDR_ERR_EVENT(name) \
+DEFINE_EVENT(nfsd_xdr_err_class, nfsd_##name##_err, \
+	TP_PROTO(const struct svc_rqst *rqstp), \
+	TP_ARGS(rqstp))
 
-		__field(u32, vers)
-		__field(u32, proc)
-	),
-	TP_fast_assign(
-		NFSD_TRACE_PROC_ARG_ASSIGNMENTS
-
-		__entry->vers = rqstp->rq_vers;
-		__entry->proc = rqstp->rq_proc;
-	),
-	TP_printk("xid=0x%08x vers=%u proc=%u",
-		__entry->xid, __entry->vers, __entry->proc
-	)
-);
+DEFINE_NFSD_XDR_ERR_EVENT(garbage_args);
+DEFINE_NFSD_XDR_ERR_EVENT(cant_encode);
 
 #define show_nfsd_may_flags(x)						\
 	__print_flags(x, "|",						\
