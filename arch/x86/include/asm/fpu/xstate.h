@@ -43,6 +43,9 @@
 #define XFEATURE_MASK_USER_RESTORE	\
 	(XFEATURE_MASK_USER_SUPPORTED & ~XFEATURE_MASK_PKRU)
 
+/* Features which are dynamically enabled for a process on request */
+#define XFEATURE_MASK_USER_DYNAMIC	0ULL
+
 /* All currently supported supervisor features */
 #define XFEATURE_MASK_SUPERVISOR_SUPPORTED (XFEATURE_MASK_PASID)
 
@@ -95,5 +98,23 @@ int xfeature_size(int xfeature_nr);
 
 void xsaves(struct xregs_state *xsave, u64 mask);
 void xrstors(struct xregs_state *xsave, u64 mask);
+
+#ifdef CONFIG_X86_64
+DECLARE_STATIC_KEY_FALSE(__fpu_state_size_dynamic);
+#endif
+
+#ifdef CONFIG_X86_64
+DECLARE_STATIC_KEY_FALSE(__fpu_state_size_dynamic);
+
+static __always_inline __pure bool fpu_state_size_dynamic(void)
+{
+	return static_branch_unlikely(&__fpu_state_size_dynamic);
+}
+#else
+static __always_inline __pure bool fpu_state_size_dynamic(void)
+{
+	return false;
+}
+#endif
 
 #endif
