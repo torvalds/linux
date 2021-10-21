@@ -213,22 +213,61 @@ static int codegen_datasecs(struct bpf_object *obj, const char *obj_name)
 	struct btf *btf = bpf_object__btf(obj);
 	int n = btf__get_nr_types(btf);
 	struct btf_dump *d;
+	struct bpf_map *map;
+	const struct btf_type *sec;
+	char sec_ident[256], map_ident[256];
 	int i, err = 0;
 
 	d = btf_dump__new(btf, NULL, NULL, codegen_btf_dump_printf);
 	if (IS_ERR(d))
 		return PTR_ERR(d);
 
-	for (i = 1; i <= n; i++) {
-		const struct btf_type *t = btf__type_by_id(btf, i);
-
-		if (!btf_is_datasec(t))
+	bpf_object__for_each_map(map, obj) {
+		/* only generate definitions for memory-mapped internal maps */
+		if (!bpf_map__is_internal(map))
+			continue;
+		if (!(bpf_map__def(map)->map_flags & BPF_F_MMAPABLE))
 			continue;
 
-		err = codegen_datasec_def(obj, btf, d, t, obj_name);
-		if (err)
-			goto out;
+		if (!get_map_ident(map, map_ident, sizeof(map_ident)))
+			continue;
+
+		sec = NULL;
+		for (i = 1; i <= n; i++) {
+			const struct btf_type *t = btf__type_by_id(btf, i);
+			const char *name;
+
+			if (!btf_is_datasec(t))
+				continue;
+
+			name = btf__str_by_offset(btf, t->name_off);
+			if (!get_datasec_ident(name, sec_ident, sizeof(sec_ident)))
+				continue;
+
+			if (strcmp(sec_ident, map_ident) == 0) {
+				sec = t;
+				break;
+			}
+		}
+
+		/* In some cases (e.g., sections like .rodata.cst16 containing
+		 * compiler allocated string constants only) there will be
+		 * special internal maps with no corresponding DATASEC BTF
+		 * type. In such case, generate empty structs for each such
+		 * map. It will still be memory-mapped and its contents
+		 * accessible from user-space through BPF skeleton.
+		 */
+		if (!sec) {
+			printf("	struct %s__%s {\n", obj_name, map_ident);
+			printf("	} *%s;\n", map_ident);
+		} else {
+			err = codegen_datasec_def(obj, btf, d, sec, obj_name);
+			if (err)
+				goto out;
+		}
 	}
+
+
 out:
 	btf_dump__free(d);
 	return err;
