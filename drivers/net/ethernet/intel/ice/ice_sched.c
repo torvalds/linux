@@ -2999,6 +2999,43 @@ static void ice_set_clear_shared_bw(struct ice_bw_type_info *bw_t_info, u32 bw)
 }
 
 /**
+ * ice_sched_save_vsi_bw - save VSI node's BW information
+ * @pi: port information structure
+ * @vsi_handle: sw VSI handle
+ * @tc: traffic class
+ * @rl_type: rate limit type min, max, or shared
+ * @bw: bandwidth in Kbps - Kilo bits per sec
+ *
+ * Save BW information of VSI type node for post replay use.
+ */
+static int
+ice_sched_save_vsi_bw(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
+		      enum ice_rl_type rl_type, u32 bw)
+{
+	struct ice_vsi_ctx *vsi_ctx;
+
+	if (!ice_is_vsi_valid(pi->hw, vsi_handle))
+		return -EINVAL;
+	vsi_ctx = ice_get_vsi_ctx(pi->hw, vsi_handle);
+	if (!vsi_ctx)
+		return -EINVAL;
+	switch (rl_type) {
+	case ICE_MIN_BW:
+		ice_set_clear_cir_bw(&vsi_ctx->sched.bw_t_info[tc], bw);
+		break;
+	case ICE_MAX_BW:
+		ice_set_clear_eir_bw(&vsi_ctx->sched.bw_t_info[tc], bw);
+		break;
+	case ICE_SHARED_BW:
+		ice_set_clear_shared_bw(&vsi_ctx->sched.bw_t_info[tc], bw);
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+/**
  * ice_sched_calc_wakeup - calculate RL profile wakeup parameter
  * @hw: pointer to the HW struct
  * @bw: bandwidth in Kbps
@@ -3875,9 +3912,17 @@ enum ice_status
 ice_cfg_vsi_bw_lmt_per_tc(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
 			  enum ice_rl_type rl_type, u32 bw)
 {
-	return ice_sched_set_node_bw_lmt_per_tc(pi, vsi_handle,
-						ICE_AGG_TYPE_VSI,
-						tc, rl_type, bw);
+	int status;
+
+	status = ice_sched_set_node_bw_lmt_per_tc(pi, vsi_handle,
+						  ICE_AGG_TYPE_VSI,
+						  tc, rl_type, bw);
+	if (!status) {
+		mutex_lock(&pi->sched_lock);
+		status = ice_sched_save_vsi_bw(pi, vsi_handle, tc, rl_type, bw);
+		mutex_unlock(&pi->sched_lock);
+	}
+	return status;
 }
 
 /**
@@ -3894,10 +3939,19 @@ enum ice_status
 ice_cfg_vsi_bw_dflt_lmt_per_tc(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
 			       enum ice_rl_type rl_type)
 {
-	return ice_sched_set_node_bw_lmt_per_tc(pi, vsi_handle,
-						ICE_AGG_TYPE_VSI,
-						tc, rl_type,
-						ICE_SCHED_DFLT_BW);
+	int status;
+
+	status = ice_sched_set_node_bw_lmt_per_tc(pi, vsi_handle,
+						  ICE_AGG_TYPE_VSI,
+						  tc, rl_type,
+						  ICE_SCHED_DFLT_BW);
+	if (!status) {
+		mutex_lock(&pi->sched_lock);
+		status = ice_sched_save_vsi_bw(pi, vsi_handle, tc, rl_type,
+					       ICE_SCHED_DFLT_BW);
+		mutex_unlock(&pi->sched_lock);
+	}
+	return status;
 }
 
 /**

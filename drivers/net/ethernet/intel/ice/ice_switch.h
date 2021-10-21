@@ -335,6 +335,8 @@ enum ice_status
 ice_remove_eth_mac(struct ice_hw *hw, struct list_head *em_list);
 int
 ice_cfg_rdma_fltr(struct ice_hw *hw, u16 vsi_handle, bool enable);
+bool ice_mac_fltr_exist(struct ice_hw *hw, u8 *mac, u16 vsi_handle);
+bool ice_vlan_fltr_exist(struct ice_hw *hw, u16 vlan_id, u16 vsi_handle);
 void ice_remove_vsi_fltr(struct ice_hw *hw, u16 vsi_handle);
 enum ice_status
 ice_add_vlan(struct ice_hw *hw, struct list_head *m_list);

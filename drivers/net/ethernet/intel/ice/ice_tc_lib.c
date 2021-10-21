@@ -304,6 +304,136 @@ exit:
 }
 
 /**
+ * ice_add_tc_flower_adv_fltr - add appropriate filter rules
+ * @vsi: Pointer to VSI
+ * @tc_fltr: Pointer to TC flower filter structure
+ *
+ * based on filter parameters using Advance recipes supported
+ * by OS package.
+ */
+static int
+ice_add_tc_flower_adv_fltr(struct ice_vsi *vsi,
+			   struct ice_tc_flower_fltr *tc_fltr)
+{
+	struct ice_tc_flower_lyr_2_4_hdrs *headers = &tc_fltr->outer_headers;
+	struct ice_adv_rule_info rule_info = {0};
+	struct ice_rule_query_data rule_added;
+	struct ice_adv_lkup_elem *list;
+	struct ice_pf *pf = vsi->back;
+	struct ice_hw *hw = &pf->hw;
+	u32 flags = tc_fltr->flags;
+	struct ice_vsi *ch_vsi;
+	struct device *dev;
+	u16 lkups_cnt = 0;
+	u16 l4_proto = 0;
+	int ret = 0;
+	u16 i = 0;
+
+	dev = ice_pf_to_dev(pf);
+	if (ice_is_safe_mode(pf)) {
+		NL_SET_ERR_MSG_MOD(tc_fltr->extack, "Unable to add filter because driver is in safe mode");
+		return -EOPNOTSUPP;
+	}
+
+	if (!flags || (flags & (ICE_TC_FLWR_FIELD_ENC_DEST_IPV4 |
+				ICE_TC_FLWR_FIELD_ENC_SRC_IPV4 |
+				ICE_TC_FLWR_FIELD_ENC_DEST_IPV6 |
+				ICE_TC_FLWR_FIELD_ENC_SRC_IPV6 |
+				ICE_TC_FLWR_FIELD_ENC_SRC_L4_PORT))) {
+		NL_SET_ERR_MSG_MOD(tc_fltr->extack, "Unsupported encap field(s)");
+		return -EOPNOTSUPP;
+	}
+
+	/* get the channel (aka ADQ VSI) */
+	if (tc_fltr->dest_vsi)
+		ch_vsi = tc_fltr->dest_vsi;
+	else
+		ch_vsi = vsi->tc_map_vsi[tc_fltr->action.tc_class];
+
+	lkups_cnt = ice_tc_count_lkups(flags, headers, tc_fltr);
+	list = kcalloc(lkups_cnt, sizeof(*list), GFP_ATOMIC);
+	if (!list)
+		return -ENOMEM;
+
+	i = ice_tc_fill_rules(hw, flags, tc_fltr, list, &rule_info, &l4_proto);
+	if (i != lkups_cnt) {
+		ret = -EINVAL;
+		goto exit;
+	}
+
+	rule_info.sw_act.fltr_act = tc_fltr->action.fltr_act;
+	if (tc_fltr->action.tc_class >= ICE_CHNL_START_TC) {
+		if (!ch_vsi) {
+			NL_SET_ERR_MSG_MOD(tc_fltr->extack, "Unable to add filter because specified destination doesn't exist");
+			ret = -EINVAL;
+			goto exit;
+		}
+
+		rule_info.sw_act.fltr_act = ICE_FWD_TO_VSI;
+		rule_info.sw_act.vsi_handle = ch_vsi->idx;
+		rule_info.priority = 7;
+		rule_info.sw_act.src = hw->pf_id;
+		rule_info.rx = true;
+		dev_dbg(dev, "add switch rule for TC:%u vsi_idx:%u, lkups_cnt:%u\n",
+			tc_fltr->action.tc_class,
+			rule_info.sw_act.vsi_handle, lkups_cnt);
+	} else {
+		rule_info.sw_act.flag |= ICE_FLTR_TX;
+		rule_info.sw_act.src = vsi->idx;
+		rule_info.rx = false;
+	}
+
+	/* specify the cookie as filter_rule_id */
+	rule_info.fltr_rule_id = tc_fltr->cookie;
+
+	ret = ice_add_adv_rule(hw, list, lkups_cnt, &rule_info, &rule_added);
+	if (ret == -EEXIST) {
+		NL_SET_ERR_MSG_MOD(tc_fltr->extack,
+				   "Unable to add filter because it already exist");
+		ret = -EINVAL;
+		goto exit;
+	} else if (ret) {
+		NL_SET_ERR_MSG_MOD(tc_fltr->extack,
+				   "Unable to add filter due to error");
+		ret = -EIO;
+		goto exit;
+	}
+
+	/* store the output params, which are needed later for removing
+	 * advanced switch filter
+	 */
+	tc_fltr->rid = rule_added.rid;
+	tc_fltr->rule_id = rule_added.rule_id;
+	if (tc_fltr->action.tc_class > 0 && ch_vsi) {
+		/* For PF ADQ, VSI type is set as ICE_VSI_CHNL, and
+		 * for PF ADQ filter, it is not yet set in tc_fltr,
+		 * hence store the dest_vsi ptr in tc_fltr
+		 */
+		if (ch_vsi->type == ICE_VSI_CHNL)
+			tc_fltr->dest_vsi = ch_vsi;
+		/* keep track of advanced switch filter for
+		 * destination VSI (channel VSI)
+		 */
+		ch_vsi->num_chnl_fltr++;
+		/* in this case, dest_id is VSI handle (sw handle) */
+		tc_fltr->dest_id = rule_added.vsi_handle;
+
+		/* keeps track of channel filters for PF VSI */
+		if (vsi->type == ICE_VSI_PF &&
+		    (flags & (ICE_TC_FLWR_FIELD_DST_MAC |
+			      ICE_TC_FLWR_FIELD_ENC_DST_MAC)))
+			pf->num_dmac_chnl_fltrs++;
+	}
+	dev_dbg(dev, "added switch rule (lkups_cnt %u, flags 0x%x) for TC %u, rid %u, rule_id %u, vsi_idx %u\n",
+		lkups_cnt, flags,
+		tc_fltr->action.tc_class, rule_added.rid,
+		rule_added.rule_id, rule_added.vsi_handle);
+exit:
+	kfree(list);
+	return ret;
+}
+
+/**
  * ice_tc_set_ipv4 - Parse IPv4 addresses from TC flower filter
  * @match: Pointer to flow match structure
  * @fltr: Pointer to filter structure
@@ -561,10 +691,13 @@ ice_parse_cls_flower(struct net_device *filter_dev, struct ice_vsi *vsi,
 static int
 ice_add_switch_fltr(struct ice_vsi *vsi, struct ice_tc_flower_fltr *fltr)
 {
+	if (fltr->action.fltr_act == ICE_FWD_TO_QGRP)
+		return -EOPNOTSUPP;
+
 	if (ice_is_eswitch_mode_switchdev(vsi->back))
 		return ice_eswitch_add_tc_fltr(vsi, fltr);
 
-	return -EOPNOTSUPP;
+	return ice_add_tc_flower_adv_fltr(vsi, fltr);
 }
 
 /**
@@ -581,6 +714,7 @@ ice_handle_tclass_action(struct ice_vsi *vsi,
 			 struct ice_tc_flower_fltr *fltr)
 {
 	int tc = tc_classid_to_hwtc(vsi->netdev, cls_flower->classid);
+	struct ice_vsi *main_vsi;
 
 	if (tc < 0) {
 		NL_SET_ERR_MSG_MOD(fltr->extack, "Unable to add filter because specified destination is invalid");
@@ -591,13 +725,69 @@ ice_handle_tclass_action(struct ice_vsi *vsi,
 		return -EINVAL;
 	}
 
-	if (!(vsi->tc_cfg.ena_tc & BIT(tc))) {
+	if (!(vsi->all_enatc & BIT(tc))) {
 		NL_SET_ERR_MSG_MOD(fltr->extack, "Unable to add filter because of non-existence destination");
 		return -EINVAL;
 	}
 
 	/* Redirect to a TC class or Queue Group */
-	fltr->action.fltr_act = ICE_FWD_TO_QGRP;
+	main_vsi = ice_get_main_vsi(vsi->back);
+	if (!main_vsi || !main_vsi->netdev) {
+		NL_SET_ERR_MSG_MOD(fltr->extack,
+				   "Unable to add filter because of invalid netdevice");
+		return -EINVAL;
+	}
+
+	if ((fltr->flags & ICE_TC_FLWR_FIELD_TENANT_ID) &&
+	    (fltr->flags & (ICE_TC_FLWR_FIELD_DST_MAC |
+			   ICE_TC_FLWR_FIELD_SRC_MAC))) {
+		NL_SET_ERR_MSG_MOD(fltr->extack,
+				   "Unable to add filter because filter using tunnel key and inner MAC is unsupported combination");
+		return -EOPNOTSUPP;
+	}
+
+	/* For ADQ, filter must include dest MAC address, otherwise unwanted
+	 * packets with unrelated MAC address get delivered to ADQ VSIs as long
+	 * as remaining filter criteria is satisfied such as dest IP address
+	 * and dest/src L4 port. Following code is trying to handle:
+	 * 1. For non-tunnel, if user specify MAC addresses, use them (means
+	 * this code won't do anything
+	 * 2. For non-tunnel, if user didn't specify MAC address, add implicit
+	 * dest MAC to be lower netdev's active unicast MAC address
+	 */
+	if (!(fltr->flags & ICE_TC_FLWR_FIELD_DST_MAC)) {
+		ether_addr_copy(fltr->outer_headers.l2_key.dst_mac,
+				main_vsi->netdev->dev_addr);
+		eth_broadcast_addr(fltr->outer_headers.l2_mask.dst_mac);
+		fltr->flags |= ICE_TC_FLWR_FIELD_DST_MAC;
+	}
+
+	/* validate specified dest MAC address, make sure either it belongs to
+	 * lower netdev or any of MACVLAN. MACVLANs MAC address are added as
+	 * unicast MAC filter destined to main VSI.
+	 */
+	if (!ice_mac_fltr_exist(&main_vsi->back->hw,
+				fltr->outer_headers.l2_key.dst_mac,
+				main_vsi->idx)) {
+		NL_SET_ERR_MSG_MOD(fltr->extack,
+				   "Unable to add filter because legacy MAC filter for specified destination doesn't exist");
+		return -EINVAL;
+	}
+
+	/* Make sure VLAN is already added to main VSI, before allowing ADQ to
+	 * add a VLAN based filter such as MAC + VLAN + L4 port.
+	 */
+	if (fltr->flags & ICE_TC_FLWR_FIELD_VLAN) {
+		u16 vlan_id = be16_to_cpu(fltr->outer_headers.vlan_hdr.vlan_id);
+
+		if (!ice_vlan_fltr_exist(&main_vsi->back->hw, vlan_id,
+					 main_vsi->idx)) {
+			NL_SET_ERR_MSG_MOD(fltr->extack,
+					   "Unable to add filter because legacy VLAN filter for specified destination doesn't exist");
+			return -EINVAL;
+		}
+	}
+	fltr->action.fltr_act = ICE_FWD_TO_VSI;
 	fltr->action.tc_class = tc;
 
 	return 0;
@@ -639,8 +829,8 @@ ice_parse_tc_flower_actions(struct ice_vsi *vsi,
 
 		/* Drop action */
 		if (act->id == FLOW_ACTION_DROP) {
-			fltr->action.fltr_act = ICE_DROP_PACKET;
-			return 0;
+			NL_SET_ERR_MSG_MOD(fltr->extack, "Unsupported action DROP");
+			return -EINVAL;
 		}
 		fltr->action.fltr_act = ICE_FWD_TO_VSI;
 	}
@@ -673,6 +863,20 @@ static int ice_del_tc_fltr(struct ice_vsi *vsi, struct ice_tc_flower_fltr *fltr)
 		return -EIO;
 	}
 
+	/* update advanced switch filter count for destination
+	 * VSI if filter destination was VSI
+	 */
+	if (fltr->dest_vsi) {
+		if (fltr->dest_vsi->type == ICE_VSI_CHNL) {
+			fltr->dest_vsi->num_chnl_fltr--;
+
+			/* keeps track of channel filters for PF VSI */
+			if (vsi->type == ICE_VSI_PF &&
+			    (fltr->flags & (ICE_TC_FLWR_FIELD_DST_MAC |
+					    ICE_TC_FLWR_FIELD_ENC_DST_MAC)))
+				pf->num_dmac_chnl_fltrs--;
+		}
+	}
 	return 0;
 }
 
@@ -811,7 +1015,8 @@ ice_del_cls_flower(struct ice_vsi *vsi, struct flow_cls_offload *cls_flower)
 	/* find filter */
 	fltr = ice_find_tc_flower_fltr(pf, cls_flower->cookie);
 	if (!fltr) {
-		if (hlist_empty(&pf->tc_flower_fltr_list))
+		if (!test_bit(ICE_FLAG_TC_MQPRIO, pf->flags) &&
+		    hlist_empty(&pf->tc_flower_fltr_list))
 			return 0;
 
 		NL_SET_ERR_MSG_MOD(cls_flower->common.extack, "failed to delete TC flower filter because unable to find it");

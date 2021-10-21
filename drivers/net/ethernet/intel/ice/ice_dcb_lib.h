@@ -16,7 +16,6 @@
 
 void ice_dcb_rebuild(struct ice_pf *pf);
 int ice_dcb_sw_dflt_cfg(struct ice_pf *pf, bool ets_willing, bool locked);
-u8 ice_dcb_get_ena_tc(struct ice_dcbx_cfg *dcbcfg);
 u8 ice_dcb_get_num_tc(struct ice_dcbx_cfg *dcbcfg);
 void ice_vsi_set_dcb_tc_cfg(struct ice_vsi *vsi);
 bool ice_is_pfc_causing_hung_q(struct ice_pf *pf, unsigned int txqueue);
@@ -34,8 +33,6 @@ ice_tx_prepare_vlan_flags_dcb(struct ice_tx_ring *tx_ring,
 void
 ice_dcb_process_lldp_set_mib_change(struct ice_pf *pf,
 				    struct ice_rq_event_info *event);
-void ice_vsi_cfg_netdev_tc(struct ice_vsi *vsi, u8 ena_tc);
-
 /**
  * ice_find_q_in_range
  * @low: start of queue range for a TC i.e. offset of TC
@@ -68,6 +65,12 @@ static inline u8 ice_get_pfc_mode(struct ice_pf *pf)
 
 #else
 static inline void ice_dcb_rebuild(struct ice_pf *pf) { }
+
+static inline void ice_vsi_set_dcb_tc_cfg(struct ice_vsi *vsi)
+{
+	vsi->tc_cfg.ena_tc = ICE_DFLT_TRAFFIC_CLASS;
+	vsi->tc_cfg.numtc = 1;
+}
 
 static inline u8 ice_dcb_get_ena_tc(struct ice_dcbx_cfg __always_unused *dcbcfg)
 {
@@ -130,7 +133,6 @@ static inline void ice_vsi_cfg_dcb_rings(struct ice_vsi *vsi) { }
 static inline void ice_update_dcb_stats(struct ice_pf *pf) { }
 static inline void
 ice_dcb_process_lldp_set_mib_change(struct ice_pf *pf, struct ice_rq_event_info *event) { }
-static inline void ice_vsi_cfg_netdev_tc(struct ice_vsi *vsi, u8 ena_tc) { }
 static inline void ice_set_cgd_num(struct ice_tlan_ctx *tlan_ctx, u8 dcb_tc) { }
 #endif /* CONFIG_DCB */
 #endif /* _ICE_DCB_LIB_H_ */

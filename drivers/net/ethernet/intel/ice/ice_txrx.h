@@ -287,6 +287,7 @@ struct ice_rx_ring {
 
 	struct rcu_head rcu;		/* to avoid race on free */
 	/* CL4 - 3rd cacheline starts here */
+	struct ice_channel *ch;
 	struct bpf_prog *xdp_prog;
 	struct ice_tx_ring *xdp_ring;
 	struct xsk_buff_pool *xsk_pool;
@@ -328,6 +329,7 @@ struct ice_tx_ring {
 	/* CL3 - 3rd cacheline starts here */
 	struct rcu_head rcu;		/* to avoid race on free */
 	DECLARE_BITMAP(xps_state, ICE_TX_NBITS);	/* XPS Config State */
+	struct ice_channel *ch;
 	struct ice_ptp_tx *tx_tstamps;
 	spinlock_t tx_lock;
 	u32 txq_teid;			/* Added Tx queue TEID */
@@ -350,6 +352,11 @@ static inline void ice_set_ring_build_skb_ena(struct ice_rx_ring *ring)
 static inline void ice_clear_ring_build_skb_ena(struct ice_rx_ring *ring)
 {
 	ring->flags &= ~ICE_RX_FLAGS_RING_BUILD_SKB;
+}
+
+static inline bool ice_ring_ch_enabled(struct ice_tx_ring *ring)
+{
+	return !!ring->ch;
 }
 
 static inline bool ice_ring_is_xdp(struct ice_tx_ring *ring)

@@ -213,6 +213,9 @@ static u16 ice_calc_txq_handle(struct ice_vsi *vsi, struct ice_tx_ring *ring, u8
 {
 	WARN_ONCE(ice_ring_is_xdp(ring) && tc, "XDP ring can't belong to TC other than 0\n");
 
+	if (ring->ch)
+		return ring->q_index - ring->ch->base_q;
+
 	/* Idea here for calculation is that we subtract the number of queue
 	 * count from TC that ring belongs to from it's absolute queue index
 	 * and as a result we get the queue's index within TC.
@@ -300,7 +303,10 @@ ice_setup_tx_ctx(struct ice_tx_ring *ring, struct ice_tlan_ctx *tlan_ctx, u16 pf
 	case ICE_VSI_LB:
 	case ICE_VSI_CTRL:
 	case ICE_VSI_PF:
-		tlan_ctx->vmvf_type = ICE_TLAN_CTX_VMVF_TYPE_PF;
+		if (ring->ch)
+			tlan_ctx->vmvf_type = ICE_TLAN_CTX_VMVF_TYPE_VMQ;
+		else
+			tlan_ctx->vmvf_type = ICE_TLAN_CTX_VMVF_TYPE_PF;
 		break;
 	case ICE_VSI_VF:
 		/* Firmware expects vmvf_num to be absolute VF ID */
@@ -315,7 +321,10 @@ ice_setup_tx_ctx(struct ice_tx_ring *ring, struct ice_tlan_ctx *tlan_ctx, u16 pf
 	}
 
 	/* make sure the context is associated with the right VSI */
-	tlan_ctx->src_vsi = ice_get_hw_vsi_num(hw, vsi->idx);
+	if (ring->ch)
+		tlan_ctx->src_vsi = ring->ch->vsi_num;
+	else
+		tlan_ctx->src_vsi = ice_get_hw_vsi_num(hw, vsi->idx);
 
 	/* Restrict Tx timestamps to the PF VSI */
 	switch (vsi->type) {
@@ -747,6 +756,7 @@ ice_vsi_cfg_txq(struct ice_vsi *vsi, struct ice_tx_ring *ring,
 	u8 buf_len = struct_size(qg_buf, txqs, 1);
 	struct ice_tlan_ctx tlan_ctx = { 0 };
 	struct ice_aqc_add_txqs_perq *txq;
+	struct ice_channel *ch = ring->ch;
 	struct ice_pf *pf = vsi->back;
 	struct ice_hw *hw = &pf->hw;
 	enum ice_status status;
@@ -785,8 +795,14 @@ ice_vsi_cfg_txq(struct ice_vsi *vsi, struct ice_tx_ring *ring,
 		ring->q_handle = ice_calc_txq_handle(vsi, ring, tc);
 	}
 
-	status = ice_ena_vsi_txq(vsi->port_info, vsi->idx, tc, ring->q_handle,
-				 1, qg_buf, buf_len, NULL);
+	if (ch)
+		status = ice_ena_vsi_txq(vsi->port_info, ch->ch_vsi->idx, 0,
+					 ring->q_handle, 1, qg_buf, buf_len,
+					 NULL);
+	else
+		status = ice_ena_vsi_txq(vsi->port_info, vsi->idx, tc,
+					 ring->q_handle, 1, qg_buf, buf_len,
+					 NULL);
 	if (status) {
 		dev_err(ice_pf_to_dev(pf), "Failed to set LAN Tx queue context, error: %s\n",
 			ice_stat_str(status));
@@ -967,6 +983,7 @@ void
 ice_fill_txq_meta(struct ice_vsi *vsi, struct ice_tx_ring *ring,
 		  struct ice_txq_meta *txq_meta)
 {
+	struct ice_channel *ch = ring->ch;
 	u8 tc;
 
 	if (IS_ENABLED(CONFIG_DCB))
@@ -977,6 +994,11 @@ ice_fill_txq_meta(struct ice_vsi *vsi, struct ice_tx_ring *ring,
 	txq_meta->q_id = ring->reg_idx;
 	txq_meta->q_teid = ring->txq_teid;
 	txq_meta->q_handle = ring->q_handle;
-	txq_meta->vsi_idx = vsi->idx;
-	txq_meta->tc = tc;
+	if (ch) {
+		txq_meta->vsi_idx = ch->ch_vsi->idx;
+		txq_meta->tc = 0;
+	} else {
+		txq_meta->vsi_idx = vsi->idx;
+		txq_meta->tc = tc;
+	}
 }

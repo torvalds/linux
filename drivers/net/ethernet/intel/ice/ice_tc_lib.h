@@ -120,6 +120,28 @@ struct ice_tc_flower_fltr {
 	struct netlink_ext_ack *extack;
 };
 
+/**
+ * ice_is_chnl_fltr - is this a valid channel filter
+ * @f: Pointer to tc-flower filter
+ *
+ * Criteria to determine of given filter is valid channel filter
+ * or not is based on its "destination". If destination is hw_tc (aka tc_class)
+ * and it is non-zero, then it is valid channel (aka ADQ) filter
+ */
+static inline bool ice_is_chnl_fltr(struct ice_tc_flower_fltr *f)
+{
+	return !!f->action.tc_class;
+}
+
+/**
+ * ice_chnl_dmac_fltr_cnt - DMAC based CHNL filter count
+ * @pf: Pointer to PF
+ */
+static inline int ice_chnl_dmac_fltr_cnt(struct ice_pf *pf)
+{
+	return pf->num_dmac_chnl_fltrs;
+}
+
 int
 ice_add_cls_flower(struct net_device *netdev, struct ice_vsi *vsi,
 		   struct flow_cls_offload *cls_flower);

@@ -2273,6 +2273,125 @@ exit:
 }
 
 /**
+ * ice_mac_fltr_exist - does this MAC filter exist for given VSI
+ * @hw: pointer to the hardware structure
+ * @mac: MAC address to be checked (for MAC filter)
+ * @vsi_handle: check MAC filter for this VSI
+ */
+bool ice_mac_fltr_exist(struct ice_hw *hw, u8 *mac, u16 vsi_handle)
+{
+	struct ice_fltr_mgmt_list_entry *entry;
+	struct list_head *rule_head;
+	struct ice_switch_info *sw;
+	struct mutex *rule_lock; /* Lock to protect filter rule list */
+	u16 hw_vsi_id;
+
+	if (!ice_is_vsi_valid(hw, vsi_handle))
+		return false;
+
+	hw_vsi_id = ice_get_hw_vsi_num(hw, vsi_handle);
+	sw = hw->switch_info;
+	rule_head = &sw->recp_list[ICE_SW_LKUP_MAC].filt_rules;
+	if (!rule_head)
+		return false;
+
+	rule_lock = &sw->recp_list[ICE_SW_LKUP_MAC].filt_rule_lock;
+	mutex_lock(rule_lock);
+	list_for_each_entry(entry, rule_head, list_entry) {
+		struct ice_fltr_info *f_info = &entry->fltr_info;
+		u8 *mac_addr = &f_info->l_data.mac.mac_addr[0];
+
+		if (is_zero_ether_addr(mac_addr))
+			continue;
+
+		if (f_info->flag != ICE_FLTR_TX ||
+		    f_info->src_id != ICE_SRC_ID_VSI ||
+		    f_info->lkup_type != ICE_SW_LKUP_MAC ||
+		    f_info->fltr_act != ICE_FWD_TO_VSI ||
+		    hw_vsi_id != f_info->fwd_id.hw_vsi_id)
+			continue;
+
+		if (ether_addr_equal(mac, mac_addr)) {
+			mutex_unlock(rule_lock);
+			return true;
+		}
+	}
+	mutex_unlock(rule_lock);
+	return false;
+}
+
+/**
+ * ice_vlan_fltr_exist - does this VLAN filter exist for given VSI
+ * @hw: pointer to the hardware structure
+ * @vlan_id: VLAN ID
+ * @vsi_handle: check MAC filter for this VSI
+ */
+bool ice_vlan_fltr_exist(struct ice_hw *hw, u16 vlan_id, u16 vsi_handle)
+{
+	struct ice_fltr_mgmt_list_entry *entry;
+	struct list_head *rule_head;
+	struct ice_switch_info *sw;
+	struct mutex *rule_lock; /* Lock to protect filter rule list */
+	u16 hw_vsi_id;
+
+	if (vlan_id > ICE_MAX_VLAN_ID)
+		return false;
+
+	if (!ice_is_vsi_valid(hw, vsi_handle))
+		return false;
+
+	hw_vsi_id = ice_get_hw_vsi_num(hw, vsi_handle);
+	sw = hw->switch_info;
+	rule_head = &sw->recp_list[ICE_SW_LKUP_VLAN].filt_rules;
+	if (!rule_head)
+		return false;
+
+	rule_lock = &sw->recp_list[ICE_SW_LKUP_VLAN].filt_rule_lock;
+	mutex_lock(rule_lock);
+	list_for_each_entry(entry, rule_head, list_entry) {
+		struct ice_fltr_info *f_info = &entry->fltr_info;
+		u16 entry_vlan_id = f_info->l_data.vlan.vlan_id;
+		struct ice_vsi_list_map_info *map_info;
+
+		if (entry_vlan_id > ICE_MAX_VLAN_ID)
+			continue;
+
+		if (f_info->flag != ICE_FLTR_TX ||
+		    f_info->src_id != ICE_SRC_ID_VSI ||
+		    f_info->lkup_type != ICE_SW_LKUP_VLAN)
+			continue;
+
+		/* Only allowed filter action are FWD_TO_VSI/_VSI_LIST */
+		if (f_info->fltr_act != ICE_FWD_TO_VSI &&
+		    f_info->fltr_act != ICE_FWD_TO_VSI_LIST)
+			continue;
+
+		if (f_info->fltr_act == ICE_FWD_TO_VSI) {
+			if (hw_vsi_id != f_info->fwd_id.hw_vsi_id)
+				continue;
+		} else if (f_info->fltr_act == ICE_FWD_TO_VSI_LIST) {
+			/* If filter_action is FWD_TO_VSI_LIST, make sure
+			 * that VSI being checked is part of VSI list
+			 */
+			if (entry->vsi_count == 1 &&
+			    entry->vsi_list_info) {
+				map_info = entry->vsi_list_info;
+				if (!test_bit(vsi_handle, map_info->vsi_map))
+					continue;
+			}
+		}
+
+		if (vlan_id == entry_vlan_id) {
+			mutex_unlock(rule_lock);
+			return true;
+		}
+	}
+	mutex_unlock(rule_lock);
+
+	return false;
+}
+
+/**
  * ice_add_mac - Add a MAC address based filter rule
  * @hw: pointer to the hardware structure
  * @m_list: list of MAC addresses and forwarding information
