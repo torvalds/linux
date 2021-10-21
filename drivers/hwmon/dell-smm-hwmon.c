@@ -12,22 +12,22 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/capability.h>
 #include <linux/cpu.h>
+#include <linux/ctype.h>
 #include <linux/delay.h>
+#include <linux/dmi.h>
 #include <linux/err.h>
-#include <linux/module.h>
-#include <linux/platform_device.h>
-#include <linux/types.h>
+#include <linux/hwmon.h>
 #include <linux/init.h>
+#include <linux/module.h>
+#include <linux/mutex.h>
+#include <linux/platform_device.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <linux/dmi.h>
-#include <linux/capability.h>
-#include <linux/mutex.h>
-#include <linux/hwmon.h>
-#include <linux/uaccess.h>
-#include <linux/ctype.h>
 #include <linux/smp.h>
+#include <linux/types.h>
+#include <linux/uaccess.h>
 
 #include <linux/i8k.h>
 
