@@ -193,7 +193,7 @@ struct dso {
 		int		 fd;
 		int		 status;
 		u32		 status_seen;
-		size_t		 file_size;
+		u64		 file_size;
 		struct list_head open_entry;
 		u64		 debug_frame_offset;
 		u64		 eh_frame_hdr_offset;
