@@ -2720,7 +2720,7 @@ static noinline int __push_leaf_right(struct btrfs_path *path,
 	/* push left to right */
 	right_nritems = btrfs_header_nritems(right);
 
-	push_space = btrfs_item_end_nr(left, left_nritems - push_items);
+	push_space = btrfs_item_data_end(left, left_nritems - push_items);
 	push_space -= leaf_data_end(left);
 
 	/* make room in the right data area */
@@ -3120,7 +3120,7 @@ static noinline void copy_for_split(struct btrfs_trans_handle *trans,
 
 	nritems = nritems - mid;
 	btrfs_set_header_nritems(right, nritems);
-	data_copy_size = btrfs_item_end_nr(l, mid) - leaf_data_end(l);
+	data_copy_size = btrfs_item_data_end(l, mid) - leaf_data_end(l);
 
 	copy_extent_buffer(right, l, btrfs_item_nr_offset(0),
 			   btrfs_item_nr_offset(mid),
@@ -3131,7 +3131,7 @@ static noinline void copy_for_split(struct btrfs_trans_handle *trans,
 		     data_copy_size, BTRFS_LEAF_DATA_OFFSET +
 		     leaf_data_end(l), data_copy_size);
 
-	rt_data_off = BTRFS_LEAF_DATA_SIZE(fs_info) - btrfs_item_end_nr(l, mid);
+	rt_data_off = BTRFS_LEAF_DATA_SIZE(fs_info) - btrfs_item_data_end(l, mid);
 
 	btrfs_init_map_token(&token, right);
 	for (i = 0; i < nritems; i++) {
@@ -3683,7 +3683,7 @@ void btrfs_extend_item(struct btrfs_path *path, u32 data_size)
 		BUG();
 	}
 	slot = path->slots[0];
-	old_data = btrfs_item_end_nr(leaf, slot);
+	old_data = btrfs_item_data_end(leaf, slot);
 
 	BUG_ON(slot < 0);
 	if (slot >= nritems) {
@@ -3770,7 +3770,7 @@ static void setup_items_for_insert(struct btrfs_root *root, struct btrfs_path *p
 
 	btrfs_init_map_token(&token, leaf);
 	if (slot != nritems) {
-		unsigned int old_data = btrfs_item_end_nr(leaf, slot);
+		unsigned int old_data = btrfs_item_data_end(leaf, slot);
 
 		if (old_data < data_end) {
 			btrfs_print_leaf(leaf);

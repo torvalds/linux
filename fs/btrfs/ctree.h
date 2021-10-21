@@ -2003,7 +2003,7 @@ static inline void btrfs_set_token_item_##member(struct btrfs_map_token *token,	
 BTRFS_ITEM_SETGET_FUNCS(offset)
 BTRFS_ITEM_SETGET_FUNCS(size);
 
-static inline u32 btrfs_item_end_nr(const struct extent_buffer *eb, int nr)
+static inline u32 btrfs_item_data_end(const struct extent_buffer *eb, int nr)
 {
 	return btrfs_item_offset(eb, nr) + btrfs_item_size(eb, nr);
 }

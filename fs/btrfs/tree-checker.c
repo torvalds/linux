@@ -1691,10 +1691,10 @@ static int check_leaf(struct extent_buffer *leaf, bool check_item_data)
 		else
 			item_end_expected = btrfs_item_offset(leaf,
 								 slot - 1);
-		if (unlikely(btrfs_item_end_nr(leaf, slot) != item_end_expected)) {
+		if (unlikely(btrfs_item_data_end(leaf, slot) != item_end_expected)) {
 			generic_err(leaf, slot,
 				"unexpected item end, have %u expect %u",
-				btrfs_item_end_nr(leaf, slot),
+				btrfs_item_data_end(leaf, slot),
 				item_end_expected);
 			return -EUCLEAN;
 		}
@@ -1704,11 +1704,11 @@ static int check_leaf(struct extent_buffer *leaf, bool check_item_data)
 		 * just in case all the items are consistent to each other, but
 		 * all point outside of the leaf.
 		 */
-		if (unlikely(btrfs_item_end_nr(leaf, slot) >
+		if (unlikely(btrfs_item_data_end(leaf, slot) >
 			     BTRFS_LEAF_DATA_SIZE(fs_info))) {
 			generic_err(leaf, slot,
 			"slot end outside of leaf, have %u expect range [0, %u]",
-				btrfs_item_end_nr(leaf, slot),
+				btrfs_item_data_end(leaf, slot),
 				BTRFS_LEAF_DATA_SIZE(fs_info));
 			return -EUCLEAN;
 		}
