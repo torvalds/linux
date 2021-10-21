@@ -675,6 +675,7 @@ struct dc_debug_options {
 #endif
 	union mem_low_power_enable_options enable_mem_low_power;
 	union root_clock_optimization_options root_clock_optimization;
+	bool hpo_optimization;
 	bool force_vblank_alignment;
 
 	/* Enable dmub aux for legacy ddc */

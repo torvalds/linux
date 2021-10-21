@@ -264,6 +264,9 @@ void dcn31_init_hw(struct dc *dc)
 	if (dc->debug.enable_mem_low_power.bits.i2c)
 		REG_UPDATE(DIO_MEM_PWR_CTRL, I2C_LIGHT_SLEEP_FORCE, 1);
 
+	if (hws->funcs.setup_hpo_hw_control)
+		hws->funcs.setup_hpo_hw_control(hws, false);
+
 	if (!dc->debug.disable_clock_gate) {
 		/* enable all DCN clock gating */
 		REG_WRITE(DCCG_GATE_DISABLE_CNTL, 0);
@@ -596,4 +599,10 @@ void dcn31_reset_hw_ctx_wrap(
 
 	/* New dc_state in the process of being applied to hardware. */
 	dc->current_state->res_ctx.link_enc_cfg_ctx.mode = LINK_ENC_CFG_TRANSIENT;
+}
+
+void dcn31_setup_hpo_hw_control(const struct dce_hwseq *hws, bool enable)
+{
+	if (hws->ctx->dc->debug.hpo_optimization)
+		REG_UPDATE(HPO_TOP_HW_CONTROL, HPO_IO_EN, !!enable);
 }
