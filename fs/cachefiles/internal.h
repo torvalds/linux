@@ -189,11 +189,22 @@ extern struct kmem_cache *cachefiles_object_jar;
  */
 extern void cachefiles_unmark_inode_in_use(struct cachefiles_object *object,
 					   struct file *file);
+extern int cachefiles_bury_object(struct cachefiles_cache *cache,
+				  struct cachefiles_object *object,
+				  struct dentry *dir,
+				  struct dentry *rep,
+				  enum fscache_why_object_killed why);
 extern struct dentry *cachefiles_get_directory(struct cachefiles_cache *cache,
 					       struct dentry *dir,
 					       const char *name,
 					       bool *_is_new);
 extern void cachefiles_put_directory(struct dentry *dir);
+
+extern int cachefiles_cull(struct cachefiles_cache *cache, struct dentry *dir,
+			   char *filename);
+
+extern int cachefiles_check_in_use(struct cachefiles_cache *cache,
+				   struct dentry *dir, char *filename);
 
 /*
  * security.c

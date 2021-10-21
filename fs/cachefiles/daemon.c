@@ -574,7 +574,7 @@ static int cachefiles_daemon_cull(struct cachefiles_cache *cache, char *args)
 		goto notdir;
 
 	cachefiles_begin_secure(cache, &saved_cred);
-	ret = -ENOANO; // PLACEHOLDER: Do culling
+	ret = cachefiles_cull(cache, path.dentry, args);
 	cachefiles_end_secure(cache, saved_cred);
 
 	path_put(&path);
@@ -645,7 +645,7 @@ static int cachefiles_daemon_inuse(struct cachefiles_cache *cache, char *args)
 		goto notdir;
 
 	cachefiles_begin_secure(cache, &saved_cred);
-	ret = -ENOANO; // PLACEHOLDER: Check if in use
+	ret = cachefiles_check_in_use(cache, path.dentry, args);
 	cachefiles_end_secure(cache, saved_cred);
 
 	path_put(&path);
