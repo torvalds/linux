@@ -964,9 +964,11 @@ EXPORT_SYMBOL(blkdev_put);
  * @pathname:	special file representing the block device
  * @dev:	return value of the block device's dev_t
  *
- * Get a reference to the blockdevice at @pathname in the current
- * namespace if possible and return it.  Return ERR_PTR(error)
- * otherwise.
+ * Lookup the block device's dev_t at @pathname in the current
+ * namespace if possible and return it by @dev.
+ *
+ * RETURNS:
+ * 0 if succeeded, errno otherwise.
  */
 int lookup_bdev(const char *pathname, dev_t *dev)
 {
