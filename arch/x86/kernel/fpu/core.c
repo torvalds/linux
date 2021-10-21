@@ -423,8 +423,20 @@ void fpstate_reset(struct fpu *fpu)
 	fpu->perm.__user_state_size	= fpu_user_cfg.default_size;
 }
 
+static inline void fpu_inherit_perms(struct fpu *dst_fpu)
+{
+	if (fpu_state_size_dynamic()) {
+		struct fpu *src_fpu = &current->group_leader->thread.fpu;
+
+		spin_lock_irq(&current->sighand->siglock);
+		/* Fork also inherits the permissions of the parent */
+		dst_fpu->perm = src_fpu->perm;
+		spin_unlock_irq(&current->sighand->siglock);
+	}
+}
+
 /* Clone current's FPU state on fork */
-int fpu_clone(struct task_struct *dst)
+int fpu_clone(struct task_struct *dst, unsigned long clone_flags)
 {
 	struct fpu *src_fpu = &current->thread.fpu;
 	struct fpu *dst_fpu = &dst->thread.fpu;
@@ -455,17 +467,20 @@ int fpu_clone(struct task_struct *dst)
 	}
 
 	/*
-	 * If the FPU registers are not owned by current just memcpy() the
-	 * state.  Otherwise save the FPU registers directly into the
-	 * child's FPU context, without any memory-to-memory copying.
+	 * Save the default portion of the current FPU state into the
+	 * clone. Assume all dynamic features to be defined as caller-
+	 * saved, which enables skipping both the expansion of fpstate
+	 * and the copying of any dynamic state.
+	 *
+	 * Do not use memcpy() when TIF_NEED_FPU_LOAD is set because
+	 * copying is not valid when current uses non-default states.
 	 */
 	fpregs_lock();
-	if (test_thread_flag(TIF_NEED_FPU_LOAD)) {
-		memcpy(&dst_fpu->fpstate->regs, &src_fpu->fpstate->regs,
-		       dst_fpu->fpstate->size);
-	} else {
-		save_fpregs_to_fpstate(dst_fpu);
-	}
+	if (test_thread_flag(TIF_NEED_FPU_LOAD))
+		fpregs_restore_userregs();
+	save_fpregs_to_fpstate(dst_fpu);
+	if (!(clone_flags & CLONE_THREAD))
+		fpu_inherit_perms(dst_fpu);
 	fpregs_unlock();
 
 	trace_x86_fpu_copy_src(src_fpu);
