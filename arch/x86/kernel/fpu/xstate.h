@@ -5,6 +5,10 @@
 #include <asm/cpufeature.h>
 #include <asm/fpu/xstate.h>
 
+#ifdef CONFIG_X86_64
+DECLARE_PER_CPU(u64, xfd_state);
+#endif
+
 static inline void xstate_init_xcomp_bv(struct xregs_state *xsave, u64 mask)
 {
 	/*

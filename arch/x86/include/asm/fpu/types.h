@@ -322,6 +322,9 @@ struct fpstate {
 	/* @user_xfeatures:	xfeatures valid in UABI buffers */
 	u64			user_xfeatures;
 
+	/* @xfd:		xfeatures disabled to trap userspace use. */
+	u64			xfd;
+
 	/* @is_valloc:		Indicator for dynamically allocated state */
 	unsigned int		is_valloc	: 1;
 
