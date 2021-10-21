@@ -4675,6 +4675,7 @@ static void devlink_param_notify(struct devlink *devlink,
 	WARN_ON(cmd != DEVLINK_CMD_PARAM_NEW && cmd != DEVLINK_CMD_PARAM_DEL &&
 		cmd != DEVLINK_CMD_PORT_PARAM_NEW &&
 		cmd != DEVLINK_CMD_PORT_PARAM_DEL);
+	ASSERT_DEVLINK_REGISTERED(devlink);
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
@@ -4946,7 +4947,6 @@ static int devlink_param_register_one(struct devlink *devlink,
 	param_item->param = param;
 
 	list_add_tail(&param_item->list, param_list);
-	devlink_param_notify(devlink, port_index, param_item, cmd);
 	return 0;
 }
 
@@ -4960,7 +4960,6 @@ static void devlink_param_unregister_one(struct devlink *devlink,
 
 	param_item = devlink_param_find_by_name(param_list, param->name);
 	WARN_ON(!param_item);
-	devlink_param_notify(devlink, port_index, param_item, cmd);
 	list_del(&param_item->list);
 	kfree(param_item);
 }
@@ -10173,6 +10172,8 @@ int devlink_params_register(struct devlink *devlink,
 			    const struct devlink_param *params,
 			    size_t params_count)
 {
+	ASSERT_DEVLINK_NOT_REGISTERED(devlink);
+
 	return __devlink_params_register(devlink, 0, &devlink->param_list,
 					 params, params_count,
 					 DEVLINK_CMD_PARAM_NEW,
@@ -10190,6 +10191,8 @@ void devlink_params_unregister(struct devlink *devlink,
 			       const struct devlink_param *params,
 			       size_t params_count)
 {
+	ASSERT_DEVLINK_NOT_REGISTERED(devlink);
+
 	return __devlink_params_unregister(devlink, 0, &devlink->param_list,
 					   params, params_count,
 					   DEVLINK_CMD_PARAM_DEL);
@@ -10210,6 +10213,8 @@ int devlink_param_register(struct devlink *devlink,
 {
 	int err;
 
+	ASSERT_DEVLINK_NOT_REGISTERED(devlink);
+
 	mutex_lock(&devlink->lock);
 	err = __devlink_param_register_one(devlink, 0, &devlink->param_list,
 					   param, DEVLINK_CMD_PARAM_NEW);
@@ -10226,6 +10231,8 @@ EXPORT_SYMBOL_GPL(devlink_param_register);
 void devlink_param_unregister(struct devlink *devlink,
 			      const struct devlink_param *param)
 {
+	ASSERT_DEVLINK_NOT_REGISTERED(devlink);
+
 	mutex_lock(&devlink->lock);
 	devlink_param_unregister_one(devlink, 0, &devlink->param_list, param,
 				     DEVLINK_CMD_PARAM_DEL);
@@ -10287,6 +10294,8 @@ int devlink_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
 {
 	struct devlink_param_item *param_item;
 
+	ASSERT_DEVLINK_NOT_REGISTERED(devlink);
+
 	param_item = devlink_param_find_by_id(&devlink->param_list, param_id);
 	if (!param_item)
 		return -EINVAL;
@@ -10300,8 +10309,6 @@ int devlink_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
 	else
 		param_item->driverinit_value = init_val;
 	param_item->driverinit_value_valid = true;
-
-	devlink_param_notify(devlink, 0, param_item, DEVLINK_CMD_PARAM_NEW);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(devlink_param_driverinit_value_set);
