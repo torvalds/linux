@@ -835,6 +835,12 @@ static void __init fpu__init_disable_system_xstate(unsigned int legacy_size)
 	fpu_user_cfg.max_size = legacy_size;
 	fpu_user_cfg.default_size = legacy_size;
 
+	/*
+	 * Prevent enabling the static branch which enables writes to the
+	 * XFD MSR.
+	 */
+	init_fpstate.xfd = 0;
+
 	fpstate_reset(&current->thread.fpu);
 }
 
@@ -917,6 +923,14 @@ void __init fpu__init_system_xstate(unsigned int legacy_size)
 
 	/* Store it for paranoia check at the end */
 	xfeatures = fpu_kernel_cfg.max_features;
+
+	/*
+	 * Initialize the default XFD state in initfp_state and enable the
+	 * dynamic sizing mechanism if dynamic states are available.  The
+	 * static key cannot be enabled here because this runs before
+	 * jump_label_init(). This is delayed to an initcall.
+	 */
+	init_fpstate.xfd = fpu_user_cfg.max_features & XFEATURE_MASK_USER_DYNAMIC;
 
 	/* Enable xstate instructions to be able to continue with initialization: */
 	fpu__init_cpu_xstate();
@@ -1466,9 +1480,21 @@ void xfd_validate_state(struct fpstate *fpstate, u64 mask, bool rstor)
 }
 #endif /* CONFIG_X86_DEBUG_FPU */
 
+static int __init xfd_update_static_branch(void)
+{
+	/*
+	 * If init_fpstate.xfd has bits set then dynamic features are
+	 * available and the dynamic sizing must be enabled.
+	 */
+	if (init_fpstate.xfd)
+		static_branch_enable(&__fpu_state_size_dynamic);
+	return 0;
+}
+arch_initcall(xfd_update_static_branch)
+
 void fpstate_free(struct fpu *fpu)
 {
-	if (fpu->fpstate || fpu->fpstate != &fpu->__fpstate)
+	if (fpu->fpstate && fpu->fpstate != &fpu->__fpstate)
 		vfree(fpu->fpstate);
 }
 
