@@ -865,7 +865,7 @@ static int create_virtqueue(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtque
 	MLX5_SET64(virtio_q, vq_ctx, desc_addr, mvq->desc_addr);
 	MLX5_SET64(virtio_q, vq_ctx, used_addr, mvq->device_addr);
 	MLX5_SET64(virtio_q, vq_ctx, available_addr, mvq->driver_addr);
-	MLX5_SET(virtio_q, vq_ctx, virtio_q_mkey, ndev->mvdev.mr.mkey.key);
+	MLX5_SET(virtio_q, vq_ctx, virtio_q_mkey, ndev->mvdev.mr.mkey);
 	MLX5_SET(virtio_q, vq_ctx, umem_1_id, mvq->umem1.id);
 	MLX5_SET(virtio_q, vq_ctx, umem_1_size, mvq->umem1.size);
 	MLX5_SET(virtio_q, vq_ctx, umem_2_id, mvq->umem2.id);
@@ -1714,6 +1714,9 @@ static void mlx5_vdpa_set_vq_ready(struct vdpa_device *vdev, u16 idx, bool ready
 	struct mlx5_vdpa_net *ndev = to_mlx5_vdpa_ndev(mvdev);
 	struct mlx5_vdpa_virtqueue *mvq;
 
+	if (!mvdev->actual_features)
+		return;
+
 	if (!is_index_valid(mvdev, idx))
 		return;
 
@@ -2145,6 +2148,8 @@ static void clear_vqs_ready(struct mlx5_vdpa_net *ndev)
 
 	for (i = 0; i < ndev->mvdev.max_vqs; i++)
 		ndev->vqs[i].ready = false;
+
+	ndev->mvdev.cvq.ready = false;
 }
 
 static void mlx5_vdpa_set_status(struct vdpa_device *vdev, u8 status)

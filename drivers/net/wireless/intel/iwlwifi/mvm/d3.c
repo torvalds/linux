@@ -160,6 +160,7 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 		mvm->ptk_icvlen = key->icv_len;
 		mvm->gtk_ivlen = key->iv_len;
 		mvm->gtk_icvlen = key->icv_len;
+		mutex_unlock(&mvm->mutex);
 
 		/* don't upload key again */
 		return;
@@ -360,11 +361,11 @@ static void iwl_mvm_wowlan_get_rsc_v5_data(struct ieee80211_hw *hw,
 	if (sta) {
 		rsc = data->rsc->ucast_rsc;
 	} else {
-		if (WARN_ON(data->gtks > ARRAY_SIZE(data->gtk_ids)))
+		if (WARN_ON(data->gtks >= ARRAY_SIZE(data->gtk_ids)))
 			return;
 		data->gtk_ids[data->gtks] = key->keyidx;
 		rsc = data->rsc->mcast_rsc[data->gtks % 2];
-		if (WARN_ON(key->keyidx >
+		if (WARN_ON(key->keyidx >=
 				ARRAY_SIZE(data->rsc->mcast_key_id_map)))
 			return;
 		data->rsc->mcast_key_id_map[key->keyidx] = data->gtks % 2;

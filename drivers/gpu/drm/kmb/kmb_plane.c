@@ -94,9 +94,10 @@ static int kmb_plane_atomic_check(struct drm_plane *plane,
 	if (ret)
 		return ret;
 
-	if (new_plane_state->crtc_w > KMB_MAX_WIDTH || new_plane_state->crtc_h > KMB_MAX_HEIGHT)
-		return -EINVAL;
-	if (new_plane_state->crtc_w < KMB_MIN_WIDTH || new_plane_state->crtc_h < KMB_MIN_HEIGHT)
+	if (new_plane_state->crtc_w > KMB_FB_MAX_WIDTH ||
+	    new_plane_state->crtc_h > KMB_FB_MAX_HEIGHT ||
+	    new_plane_state->crtc_w < KMB_FB_MIN_WIDTH ||
+	    new_plane_state->crtc_h < KMB_FB_MIN_HEIGHT)
 		return -EINVAL;
 	can_position = (plane->type == DRM_PLANE_TYPE_OVERLAY);
 	crtc_state =
@@ -277,6 +278,44 @@ static void config_csc(struct kmb_drm_private *kmb, int plane_id)
 	kmb_write_lcd(kmb, LCD_LAYERn_CSC_OFF3(plane_id), csc_coef_lcd[11]);
 }
 
+static void kmb_plane_set_alpha(struct kmb_drm_private *kmb,
+				const struct drm_plane_state *state,
+				unsigned char plane_id,
+				unsigned int *val)
+{
+	u16 plane_alpha = state->alpha;
+	u16 pixel_blend_mode = state->pixel_blend_mode;
+	int has_alpha = state->fb->format->has_alpha;
+
+	if (plane_alpha != DRM_BLEND_ALPHA_OPAQUE)
+		*val |= LCD_LAYER_ALPHA_STATIC;
+
+	if (has_alpha) {
+		switch (pixel_blend_mode) {
+		case DRM_MODE_BLEND_PIXEL_NONE:
+			break;
+		case DRM_MODE_BLEND_PREMULTI:
+			*val |= LCD_LAYER_ALPHA_EMBED | LCD_LAYER_ALPHA_PREMULT;
+			break;
+		case DRM_MODE_BLEND_COVERAGE:
+			*val |= LCD_LAYER_ALPHA_EMBED;
+			break;
+		default:
+			DRM_DEBUG("Missing pixel blend mode case (%s == %ld)\n",
+				  __stringify(pixel_blend_mode),
+				  (long)pixel_blend_mode);
+			break;
+		}
+	}
+
+	if (plane_alpha == DRM_BLEND_ALPHA_OPAQUE && !has_alpha) {
+		*val &= LCD_LAYER_ALPHA_DISABLED;
+		return;
+	}
+
+	kmb_write_lcd(kmb, LCD_LAYERn_ALPHA(plane_id), plane_alpha);
+}
+
 static void kmb_plane_atomic_update(struct drm_plane *plane,
 				    struct drm_atomic_state *state)
 {
@@ -303,11 +342,12 @@ static void kmb_plane_atomic_update(struct drm_plane *plane,
 	fb = new_plane_state->fb;
 	if (!fb)
 		return;
+
 	num_planes = fb->format->num_planes;
 	kmb_plane = to_kmb_plane(plane);
-	plane_id = kmb_plane->id;
 
 	kmb = to_kmb(plane->dev);
+	plane_id = kmb_plane->id;
 
 	spin_lock_irq(&kmb->irq_lock);
 	if (kmb->kmb_under_flow || kmb->kmb_flush_done) {
@@ -400,20 +440,32 @@ static void kmb_plane_atomic_update(struct drm_plane *plane,
 		config_csc(kmb, plane_id);
 	}
 
+	kmb_plane_set_alpha(kmb, plane->state, plane_id, &val);
+
 	kmb_write_lcd(kmb, LCD_LAYERn_CFG(plane_id), val);
+
+	/* Configure LCD_CONTROL */
+	ctrl = kmb_read_lcd(kmb, LCD_CONTROL);
+
+	/* Set layer blending config */
+	ctrl &= ~LCD_CTRL_ALPHA_ALL;
+	ctrl |= LCD_CTRL_ALPHA_BOTTOM_VL1 |
+		LCD_CTRL_ALPHA_BLEND_VL2;
+
+	ctrl &= ~LCD_CTRL_ALPHA_BLEND_BKGND_DISABLE;
 
 	switch (plane_id) {
 	case LAYER_0:
-		ctrl = LCD_CTRL_VL1_ENABLE;
+		ctrl |= LCD_CTRL_VL1_ENABLE;
 		break;
 	case LAYER_1:
-		ctrl = LCD_CTRL_VL2_ENABLE;
+		ctrl |= LCD_CTRL_VL2_ENABLE;
 		break;
 	case LAYER_2:
-		ctrl = LCD_CTRL_GL1_ENABLE;
+		ctrl |= LCD_CTRL_GL1_ENABLE;
 		break;
 	case LAYER_3:
-		ctrl = LCD_CTRL_GL2_ENABLE;
+		ctrl |= LCD_CTRL_GL2_ENABLE;
 		break;
 	}
 
@@ -425,7 +477,7 @@ static void kmb_plane_atomic_update(struct drm_plane *plane,
 	 */
 	ctrl |= LCD_CTRL_VHSYNC_IDLE_LVL;
 
-	kmb_set_bitmask_lcd(kmb, LCD_CONTROL, ctrl);
+	kmb_write_lcd(kmb, LCD_CONTROL, ctrl);
 
 	/* Enable pipeline AXI read transactions for the DMA
 	 * after setting graphics layers. This must be done
@@ -490,6 +542,9 @@ struct kmb_plane *kmb_plane_init(struct drm_device *drm)
 	enum drm_plane_type plane_type;
 	const u32 *plane_formats;
 	int num_plane_formats;
+	unsigned int blend_caps = BIT(DRM_MODE_BLEND_PIXEL_NONE) |
+				  BIT(DRM_MODE_BLEND_PREMULTI)   |
+				  BIT(DRM_MODE_BLEND_COVERAGE);
 
 	for (i = 0; i < KMB_MAX_PLANES; i++) {
 		plane = drmm_kzalloc(drm, sizeof(*plane), GFP_KERNEL);
@@ -521,8 +576,16 @@ struct kmb_plane *kmb_plane_init(struct drm_device *drm)
 		drm_dbg(drm, "%s : %d i=%d type=%d",
 			__func__, __LINE__,
 			  i, plane_type);
+		drm_plane_create_alpha_property(&plane->base_plane);
+
+		drm_plane_create_blend_mode_property(&plane->base_plane,
+						     blend_caps);
+
+		drm_plane_create_zpos_immutable_property(&plane->base_plane, i);
+
 		drm_plane_helper_add(&plane->base_plane,
 				     &kmb_plane_helper_funcs);
+
 		if (plane_type == DRM_PLANE_TYPE_PRIMARY) {
 			primary = plane;
 			kmb->plane = plane;

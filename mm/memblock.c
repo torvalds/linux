@@ -936,7 +936,12 @@ int __init_memblock memblock_mark_mirror(phys_addr_t base, phys_addr_t size)
  */
 int __init_memblock memblock_mark_nomap(phys_addr_t base, phys_addr_t size)
 {
-	return memblock_setclr_flag(base, size, 1, MEMBLOCK_NOMAP);
+	int ret = memblock_setclr_flag(base, size, 1, MEMBLOCK_NOMAP);
+
+	if (!ret)
+		kmemleak_free_part_phys(base, size);
+
+	return ret;
 }
 
 /**

@@ -18,7 +18,7 @@ properties:
     const: ti,sn65dsi86
 
   reg:
-    const: 0x2d
+    enum: [ 0x2c, 0x2d ]
 
   enable-gpios:
     maxItems: 1

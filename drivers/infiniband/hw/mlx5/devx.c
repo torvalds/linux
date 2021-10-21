@@ -1292,21 +1292,16 @@ static int devx_handle_mkey_indirect(struct devx_obj *obj,
 				     struct mlx5_ib_dev *dev,
 				     void *in, void *out)
 {
-	struct mlx5_ib_devx_mr *devx_mr = &obj->devx_mr;
-	struct mlx5_core_mkey *mkey;
+	struct mlx5_ib_mkey *mkey = &obj->mkey;
 	void *mkc;
 	u8 key;
 
-	mkey = &devx_mr->mmkey;
 	mkc = MLX5_ADDR_OF(create_mkey_in, in, memory_key_mkey_entry);
 	key = MLX5_GET(mkc, mkc, mkey_7_0);
 	mkey->key = mlx5_idx_to_mkey(
 			MLX5_GET(create_mkey_out, out, mkey_index)) | key;
 	mkey->type = MLX5_MKEY_INDIRECT_DEVX;
-	mkey->iova = MLX5_GET64(mkc, mkc, start_addr);
-	mkey->size = MLX5_GET64(mkc, mkc, len);
-	mkey->pd = MLX5_GET(mkc, mkc, pd);
-	devx_mr->ndescs = MLX5_GET(mkc, mkc, translations_octword_size);
+	mkey->ndescs = MLX5_GET(mkc, mkc, translations_octword_size);
 	init_waitqueue_head(&mkey->wait);
 
 	return mlx5r_store_odp_mkey(dev, mkey);
@@ -1384,13 +1379,13 @@ static int devx_obj_cleanup(struct ib_uobject *uobject,
 	dev = mlx5_udata_to_mdev(&attrs->driver_udata);
 	if (obj->flags & DEVX_OBJ_FLAGS_INDIRECT_MKEY &&
 	    xa_erase(&obj->ib_dev->odp_mkeys,
-		     mlx5_base_mkey(obj->devx_mr.mmkey.key)))
+		     mlx5_base_mkey(obj->mkey.key)))
 		/*
 		 * The pagefault_single_data_segment() does commands against
 		 * the mmkey, we must wait for that to stop before freeing the
 		 * mkey, as another allocation could get the same mkey #.
 		 */
-		mlx5r_deref_wait_odp_mkey(&obj->devx_mr.mmkey);
+		mlx5r_deref_wait_odp_mkey(&obj->mkey);
 
 	if (obj->flags & DEVX_OBJ_FLAGS_DCT)
 		ret = mlx5_core_destroy_dct(obj->ib_dev, &obj->core_dct);

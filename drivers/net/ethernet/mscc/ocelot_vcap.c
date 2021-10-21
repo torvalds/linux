@@ -998,8 +998,8 @@ ocelot_vcap_block_find_filter_by_index(struct ocelot_vcap_block *block,
 }
 
 struct ocelot_vcap_filter *
-ocelot_vcap_block_find_filter_by_id(struct ocelot_vcap_block *block, int cookie,
-				    bool tc_offload)
+ocelot_vcap_block_find_filter_by_id(struct ocelot_vcap_block *block,
+				    unsigned long cookie, bool tc_offload)
 {
 	struct ocelot_vcap_filter *filter;
 

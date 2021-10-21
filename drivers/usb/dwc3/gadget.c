@@ -4243,7 +4243,7 @@ int dwc3_gadget_init(struct dwc3 *dwc)
 	}
 
 
-	usb_initialize_gadget(dwc->sysdev, dwc->gadget, dwc_gadget_release);
+	usb_initialize_gadget(dwc->dev, dwc->gadget, dwc_gadget_release);
 	dev				= &dwc->gadget->dev;
 	dev->platform_data		= dwc;
 	dwc->gadget->ops		= &dwc3_gadget_ops;

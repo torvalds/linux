@@ -247,6 +247,10 @@ static int hclge_ieee_setets(struct hnae3_handle *h, struct ieee_ets *ets)
 	}
 
 	hclge_tm_schd_info_update(hdev, num_tc);
+	if (num_tc > 1)
+		hdev->flag |= HCLGE_FLAG_DCB_ENABLE;
+	else
+		hdev->flag &= ~HCLGE_FLAG_DCB_ENABLE;
 
 	ret = hclge_ieee_ets_to_tm_info(hdev, ets);
 	if (ret)
@@ -306,8 +310,7 @@ static int hclge_ieee_setpfc(struct hnae3_handle *h, struct ieee_pfc *pfc)
 	u8 i, j, pfc_map, *prio_tc;
 	int ret;
 
-	if (!(hdev->dcbx_cap & DCB_CAP_DCBX_VER_IEEE) ||
-	    hdev->flag & HCLGE_FLAG_MQPRIO_ENABLE)
+	if (!(hdev->dcbx_cap & DCB_CAP_DCBX_VER_IEEE))
 		return -EINVAL;
 
 	if (pfc->pfc_en == hdev->tm_info.pfc_en)
@@ -441,8 +444,6 @@ static int hclge_mqprio_qopt_check(struct hclge_dev *hdev,
 static void hclge_sync_mqprio_qopt(struct hnae3_tc_info *tc_info,
 				   struct tc_mqprio_qopt_offload *mqprio_qopt)
 {
-	int i;
-
 	memset(tc_info, 0, sizeof(*tc_info));
 	tc_info->num_tc = mqprio_qopt->qopt.num_tc;
 	memcpy(tc_info->prio_tc, mqprio_qopt->qopt.prio_tc_map,
@@ -451,9 +452,6 @@ static void hclge_sync_mqprio_qopt(struct hnae3_tc_info *tc_info,
 	       sizeof_field(struct hnae3_tc_info, tqp_count));
 	memcpy(tc_info->tqp_offset, mqprio_qopt->qopt.offset,
 	       sizeof_field(struct hnae3_tc_info, tqp_offset));
-
-	for (i = 0; i < HNAE3_MAX_USER_PRIO; i++)
-		set_bit(tc_info->prio_tc[i], &tc_info->tc_en);
 }
 
 static int hclge_config_tc(struct hclge_dev *hdev,
@@ -519,12 +517,17 @@ static int hclge_setup_tc(struct hnae3_handle *h,
 	return hclge_notify_init_up(hdev);
 
 err_out:
-	/* roll-back */
-	memcpy(&kinfo->tc_info, &old_tc_info, sizeof(old_tc_info));
-	if (hclge_config_tc(hdev, &kinfo->tc_info))
-		dev_err(&hdev->pdev->dev,
-			"failed to roll back tc configuration\n");
-
+	if (!tc) {
+		dev_warn(&hdev->pdev->dev,
+			 "failed to destroy mqprio, will active after reset, ret = %d\n",
+			 ret);
+	} else {
+		/* roll-back */
+		memcpy(&kinfo->tc_info, &old_tc_info, sizeof(old_tc_info));
+		if (hclge_config_tc(hdev, &kinfo->tc_info))
+			dev_err(&hdev->pdev->dev,
+				"failed to roll back tc configuration\n");
+	}
 	hclge_notify_init_up(hdev);
 
 	return ret;

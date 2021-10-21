@@ -382,6 +382,7 @@ static char * __init xbc_make_cmdline(const char *key)
 	ret = xbc_snprint_cmdline(new_cmdline, len + 1, root);
 	if (ret < 0 || ret > len) {
 		pr_err("Failed to print extra kernel cmdline.\n");
+		memblock_free_ptr(new_cmdline, len + 1);
 		return NULL;
 	}
 
@@ -1242,7 +1243,7 @@ trace_initcall_start_cb(void *data, initcall_t fn)
 {
 	ktime_t *calltime = (ktime_t *)data;
 
-	printk(KERN_DEBUG "calling  %pS @ %i irqs_disabled() %d\n", fn, task_pid_nr(current), irqs_disabled());
+	printk(KERN_DEBUG "calling  %pS @ %i\n", fn, task_pid_nr(current));
 	*calltime = ktime_get();
 }
 
@@ -1256,8 +1257,8 @@ trace_initcall_finish_cb(void *data, initcall_t fn, int ret)
 	rettime = ktime_get();
 	delta = ktime_sub(rettime, *calltime);
 	duration = (unsigned long long) ktime_to_ns(delta) >> 10;
-	printk(KERN_DEBUG "initcall %pS returned %d after %lld usecs, irqs_disabled() %d\n",
-		 fn, ret, duration, irqs_disabled());
+	printk(KERN_DEBUG "initcall %pS returned %d after %lld usecs\n",
+		 fn, ret, duration);
 }
 
 static ktime_t initcall_calltime;

@@ -31,6 +31,8 @@
 /* delay 0.1 second to enable gfx off feature */
 #define GFX_OFF_DELAY_ENABLE         msecs_to_jiffies(100)
 
+#define GFX_OFF_NO_DELAY 0
+
 /*
  * GPU GFX IP block helpers function.
  */
@@ -558,6 +560,8 @@ int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev)
 
 void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable)
 {
+	unsigned long delay = GFX_OFF_DELAY_ENABLE;
+
 	if (!(adev->pm.pp_feature & PP_GFXOFF_MASK))
 		return;
 
@@ -573,8 +577,14 @@ void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable)
 
 		adev->gfx.gfx_off_req_count--;
 
-		if (adev->gfx.gfx_off_req_count == 0 && !adev->gfx.gfx_off_state)
-			schedule_delayed_work(&adev->gfx.gfx_off_delay_work, GFX_OFF_DELAY_ENABLE);
+		if (adev->gfx.gfx_off_req_count == 0 &&
+		    !adev->gfx.gfx_off_state) {
+			/* If going to s2idle, no need to wait */
+			if (adev->in_s0ix)
+				delay = GFX_OFF_NO_DELAY;
+			schedule_delayed_work(&adev->gfx.gfx_off_delay_work,
+					      delay);
+		}
 	} else {
 		if (adev->gfx.gfx_off_req_count == 0) {
 			cancel_delayed_work_sync(&adev->gfx.gfx_off_delay_work);

@@ -14,6 +14,7 @@
 #include <linux/task_io_accounting_ops.h>
 #include <linux/falloc.h>
 #include <linux/suspend.h>
+#include <linux/fs.h>
 #include "blk.h"
 
 static struct inode *bdev_file_inode(struct file *file)
@@ -553,7 +554,8 @@ static ssize_t blkdev_read_iter(struct kiocb *iocb, struct iov_iter *to)
 static long blkdev_fallocate(struct file *file, int mode, loff_t start,
 			     loff_t len)
 {
-	struct block_device *bdev = I_BDEV(bdev_file_inode(file));
+	struct inode *inode = bdev_file_inode(file);
+	struct block_device *bdev = I_BDEV(inode);
 	loff_t end = start + len - 1;
 	loff_t isize;
 	int error;
@@ -580,10 +582,12 @@ static long blkdev_fallocate(struct file *file, int mode, loff_t start,
 	if ((start | len) & (bdev_logical_block_size(bdev) - 1))
 		return -EINVAL;
 
+	filemap_invalidate_lock(inode->i_mapping);
+
 	/* Invalidate the page cache, including dirty pages. */
 	error = truncate_bdev_range(bdev, file->f_mode, start, end);
 	if (error)
-		return error;
+		goto fail;
 
 	switch (mode) {
 	case FALLOC_FL_ZERO_RANGE:
@@ -600,17 +604,12 @@ static long blkdev_fallocate(struct file *file, int mode, loff_t start,
 					     GFP_KERNEL, 0);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		error = -EOPNOTSUPP;
 	}
-	if (error)
-		return error;
 
-	/*
-	 * Invalidate the page cache again; if someone wandered in and dirtied
-	 * a page, we just discard it - userspace has no way of knowing whether
-	 * the write happened before or after discard completing...
-	 */
-	return truncate_bdev_range(bdev, file->f_mode, start, end);
+ fail:
+	filemap_invalidate_unlock(inode->i_mapping);
+	return error;
 }
 
 const struct file_operations def_blk_fops = {

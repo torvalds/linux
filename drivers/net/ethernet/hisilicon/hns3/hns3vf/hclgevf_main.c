@@ -816,40 +816,56 @@ static int hclgevf_get_rss(struct hnae3_handle *handle, u32 *indir, u8 *key,
 	return 0;
 }
 
+static int hclgevf_parse_rss_hfunc(struct hclgevf_dev *hdev, const u8 hfunc,
+				   u8 *hash_algo)
+{
+	switch (hfunc) {
+	case ETH_RSS_HASH_TOP:
+		*hash_algo = HCLGEVF_RSS_HASH_ALGO_TOEPLITZ;
+		return 0;
+	case ETH_RSS_HASH_XOR:
+		*hash_algo = HCLGEVF_RSS_HASH_ALGO_SIMPLE;
+		return 0;
+	case ETH_RSS_HASH_NO_CHANGE:
+		*hash_algo = hdev->rss_cfg.hash_algo;
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
 static int hclgevf_set_rss(struct hnae3_handle *handle, const u32 *indir,
 			   const u8 *key, const u8 hfunc)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 	struct hclgevf_rss_cfg *rss_cfg = &hdev->rss_cfg;
+	u8 hash_algo;
 	int ret, i;
 
 	if (hdev->ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2) {
+		ret = hclgevf_parse_rss_hfunc(hdev, hfunc, &hash_algo);
+		if (ret)
+			return ret;
+
 		/* Set the RSS Hash Key if specififed by the user */
 		if (key) {
-			switch (hfunc) {
-			case ETH_RSS_HASH_TOP:
-				rss_cfg->hash_algo =
-					HCLGEVF_RSS_HASH_ALGO_TOEPLITZ;
-				break;
-			case ETH_RSS_HASH_XOR:
-				rss_cfg->hash_algo =
-					HCLGEVF_RSS_HASH_ALGO_SIMPLE;
-				break;
-			case ETH_RSS_HASH_NO_CHANGE:
-				break;
-			default:
-				return -EINVAL;
-			}
-
-			ret = hclgevf_set_rss_algo_key(hdev, rss_cfg->hash_algo,
-						       key);
-			if (ret)
+			ret = hclgevf_set_rss_algo_key(hdev, hash_algo, key);
+			if (ret) {
+				dev_err(&hdev->pdev->dev,
+					"invalid hfunc type %u\n", hfunc);
 				return ret;
+			}
 
 			/* Update the shadow RSS key with user specified qids */
 			memcpy(rss_cfg->rss_hash_key, key,
 			       HCLGEVF_RSS_KEY_SIZE);
+		} else {
+			ret = hclgevf_set_rss_algo_key(hdev, hash_algo,
+						       rss_cfg->rss_hash_key);
+			if (ret)
+				return ret;
 		}
+		rss_cfg->hash_algo = hash_algo;
 	}
 
 	/* update the shadow RSS table with user specified qids */

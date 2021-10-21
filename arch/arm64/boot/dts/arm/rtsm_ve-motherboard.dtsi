@@ -77,13 +77,21 @@
 	};
 
 	bus@8000000 {
-		motherboard-bus {
-			arm,v2m-memory-map = "rs1";
+		compatible = "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges = <0 0x8000000 0 0x8000000 0x18000000>;
+
+		motherboard-bus@8000000 {
 			compatible = "arm,vexpress,v2m-p1", "simple-bus";
 			#address-cells = <2>; /* SMB chipselect number and offset */
 			#size-cells = <1>;
-			#interrupt-cells = <1>;
-			ranges;
+			ranges = <0 0 0 0x08000000 0x04000000>,
+				 <1 0 0 0x14000000 0x04000000>,
+				 <2 0 0 0x18000000 0x04000000>,
+				 <3 0 0 0x1c000000 0x04000000>,
+				 <4 0 0 0x0c000000 0x04000000>,
+				 <5 0 0 0x10000000 0x04000000>;
 
 			flash@0 {
 				compatible = "arm,vexpress-flash", "cfi-flash";
@@ -130,7 +138,7 @@
 					clock-names = "apb_pclk";
 				};
 
-				mmci@50000 {
+				mmc@50000 {
 					compatible = "arm,pl180", "arm,primecell";
 					reg = <0x050000 0x1000>;
 					interrupts = <9>, <10>;
@@ -190,7 +198,7 @@
 					clock-names = "uartclk", "apb_pclk";
 				};
 
-				wdt@f0000 {
+				watchdog@f0000 {
 					compatible = "arm,sp805", "arm,primecell";
 					reg = <0x0f0000 0x1000>;
 					interrupts = <0>;
