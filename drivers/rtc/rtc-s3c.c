@@ -127,10 +127,9 @@ static int s3c_rtc_setaie(struct device *dev, unsigned int enabled)
 	return ret;
 }
 
-/* Time read/write */
-static int s3c_rtc_gettime(struct device *dev, struct rtc_time *rtc_tm)
+/* Read time from RTC and convert it from BCD */
+static int s3c_rtc_read_time(struct s3c_rtc *info, struct rtc_time *tm)
 {
-	struct s3c_rtc *info = dev_get_drvdata(dev);
 	unsigned int have_retried = 0;
 	int ret;
 
@@ -139,53 +138,39 @@ static int s3c_rtc_gettime(struct device *dev, struct rtc_time *rtc_tm)
 		return ret;
 
 retry_get_time:
-	rtc_tm->tm_min  = readb(info->base + S3C2410_RTCMIN);
-	rtc_tm->tm_hour = readb(info->base + S3C2410_RTCHOUR);
-	rtc_tm->tm_mday = readb(info->base + S3C2410_RTCDATE);
-	rtc_tm->tm_mon  = readb(info->base + S3C2410_RTCMON);
-	rtc_tm->tm_year = readb(info->base + S3C2410_RTCYEAR);
-	rtc_tm->tm_sec  = readb(info->base + S3C2410_RTCSEC);
+	tm->tm_min  = readb(info->base + S3C2410_RTCMIN);
+	tm->tm_hour = readb(info->base + S3C2410_RTCHOUR);
+	tm->tm_mday = readb(info->base + S3C2410_RTCDATE);
+	tm->tm_mon  = readb(info->base + S3C2410_RTCMON);
+	tm->tm_year = readb(info->base + S3C2410_RTCYEAR);
+	tm->tm_sec  = readb(info->base + S3C2410_RTCSEC);
 
-	/* the only way to work out whether the system was mid-update
+	/*
+	 * The only way to work out whether the system was mid-update
 	 * when we read it is to check the second counter, and if it
 	 * is zero, then we re-try the entire read
 	 */
-
-	if (rtc_tm->tm_sec == 0 && !have_retried) {
+	if (tm->tm_sec == 0 && !have_retried) {
 		have_retried = 1;
 		goto retry_get_time;
 	}
 
-	rtc_tm->tm_sec = bcd2bin(rtc_tm->tm_sec);
-	rtc_tm->tm_min = bcd2bin(rtc_tm->tm_min);
-	rtc_tm->tm_hour = bcd2bin(rtc_tm->tm_hour);
-	rtc_tm->tm_mday = bcd2bin(rtc_tm->tm_mday);
-	rtc_tm->tm_mon = bcd2bin(rtc_tm->tm_mon);
-	rtc_tm->tm_year = bcd2bin(rtc_tm->tm_year);
-
 	s3c_rtc_disable_clk(info);
 
-	rtc_tm->tm_year += 100;
-	rtc_tm->tm_mon -= 1;
+	tm->tm_sec  = bcd2bin(tm->tm_sec);
+	tm->tm_min  = bcd2bin(tm->tm_min);
+	tm->tm_hour = bcd2bin(tm->tm_hour);
+	tm->tm_mday = bcd2bin(tm->tm_mday);
+	tm->tm_mon  = bcd2bin(tm->tm_mon);
+	tm->tm_year = bcd2bin(tm->tm_year);
 
-	dev_dbg(dev, "read time %ptR\n", rtc_tm);
 	return 0;
 }
 
-static int s3c_rtc_settime(struct device *dev, struct rtc_time *tm)
+/* Convert time to BCD and write it to RTC */
+static int s3c_rtc_write_time(struct s3c_rtc *info, const struct rtc_time *tm)
 {
-	struct s3c_rtc *info = dev_get_drvdata(dev);
-	int year = tm->tm_year - 100;
 	int ret;
-
-	dev_dbg(dev, "set time %ptR\n", tm);
-
-	/* we get around y2k by simply not supporting it */
-
-	if (year < 0 || year >= 100) {
-		dev_err(dev, "rtc only supports 100 years\n");
-		return -EINVAL;
-	}
 
 	ret = s3c_rtc_enable_clk(info);
 	if (ret)
@@ -195,12 +180,51 @@ static int s3c_rtc_settime(struct device *dev, struct rtc_time *tm)
 	writeb(bin2bcd(tm->tm_min),  info->base + S3C2410_RTCMIN);
 	writeb(bin2bcd(tm->tm_hour), info->base + S3C2410_RTCHOUR);
 	writeb(bin2bcd(tm->tm_mday), info->base + S3C2410_RTCDATE);
-	writeb(bin2bcd(tm->tm_mon + 1), info->base + S3C2410_RTCMON);
-	writeb(bin2bcd(year), info->base + S3C2410_RTCYEAR);
+	writeb(bin2bcd(tm->tm_mon),  info->base + S3C2410_RTCMON);
+	writeb(bin2bcd(tm->tm_year), info->base + S3C2410_RTCYEAR);
 
 	s3c_rtc_disable_clk(info);
 
 	return 0;
+}
+
+static int s3c_rtc_gettime(struct device *dev, struct rtc_time *tm)
+{
+	struct s3c_rtc *info = dev_get_drvdata(dev);
+	int ret;
+
+	ret = s3c_rtc_read_time(info, tm);
+	if (ret)
+		return ret;
+
+	/* Convert internal representation to actual date/time */
+	tm->tm_year += 100;
+	tm->tm_mon -= 1;
+
+	dev_dbg(dev, "read time %ptR\n", tm);
+	return 0;
+}
+
+static int s3c_rtc_settime(struct device *dev, struct rtc_time *tm)
+{
+	struct s3c_rtc *info = dev_get_drvdata(dev);
+	struct rtc_time rtc_tm = *tm;
+
+	dev_dbg(dev, "set time %ptR\n", tm);
+
+	/*
+	 * Convert actual date/time to internal representation.
+	 * We get around Y2K by simply not supporting it.
+	 */
+	rtc_tm.tm_year -= 100;
+	rtc_tm.tm_mon += 1;
+
+	if (rtc_tm.tm_year < 0 || rtc_tm.tm_year >= 100) {
+		dev_err(dev, "rtc only supports 100 years\n");
+		return -EINVAL;
+	}
+
+	return s3c_rtc_write_time(info, &rtc_tm);
 }
 
 static int s3c_rtc_getalarm(struct device *dev, struct rtc_wkalrm *alrm)
