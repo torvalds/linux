@@ -1158,6 +1158,14 @@ static inline void blk_crypto_unregister(struct request_queue *q) { }
 
 #endif /* CONFIG_BLK_INLINE_ENCRYPTION */
 
+enum blk_unique_id {
+	/* these match the Designator Types specified in SPC */
+	BLK_UID_T10	= 1,
+	BLK_UID_EUI64	= 2,
+	BLK_UID_NAA	= 3,
+};
+
+#define NFL4_UFLG_MASK			0x0000003F
 
 struct block_device_operations {
 	void (*submit_bio)(struct bio *bio);
@@ -1176,6 +1184,9 @@ struct block_device_operations {
 	int (*report_zones)(struct gendisk *, sector_t sector,
 			unsigned int nr_zones, report_zones_cb cb, void *data);
 	char *(*devnode)(struct gendisk *disk, umode_t *mode);
+	/* returns the length of the identifier or a negative errno: */
+	int (*get_unique_id)(struct gendisk *disk, u8 id[16],
+			enum blk_unique_id id_type);
 	struct module *owner;
 	const struct pr_ops *pr_ops;
 
