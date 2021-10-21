@@ -1303,8 +1303,6 @@ static int dm_table_construct_keyslot_manager(struct dm_table *t)
 	ksm->max_dun_bytes_supported = UINT_MAX;
 	memset(ksm->crypto_modes_supported, 0xFF,
 	       sizeof(ksm->crypto_modes_supported));
-	ksm->features = BLK_CRYPTO_FEATURE_STANDARD_KEYS |
-			BLK_CRYPTO_FEATURE_WRAPPED_KEYS;
 
 	for (i = 0; i < dm_table_get_num_targets(t); i++) {
 		ti = dm_table_get_target(t, i);

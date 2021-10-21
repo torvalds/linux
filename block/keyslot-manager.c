@@ -340,13 +340,6 @@ bool blk_ksm_crypto_cfg_supported(struct blk_keyslot_manager *ksm,
 		return false;
 	if (ksm->max_dun_bytes_supported < cfg->dun_bytes)
 		return false;
-	if (cfg->is_hw_wrapped) {
-		if (!(ksm->features & BLK_CRYPTO_FEATURE_WRAPPED_KEYS))
-			return false;
-	} else {
-		if (!(ksm->features & BLK_CRYPTO_FEATURE_STANDARD_KEYS))
-			return false;
-	}
 	return true;
 }
 
@@ -461,44 +454,6 @@ void blk_ksm_unregister(struct request_queue *q)
 }
 
 /**
- * blk_ksm_derive_raw_secret() - Derive software secret from wrapped key
- * @ksm: The keyslot manager
- * @wrapped_key: The wrapped key
- * @wrapped_key_size: Size of the wrapped key in bytes
- * @secret: (output) the software secret
- * @secret_size: (output) the number of secret bytes to derive
- *
- * Given a hardware-wrapped key, ask the hardware to derive a secret which
- * software can use for cryptographic tasks other than inline encryption.  The
- * derived secret is guaranteed to be cryptographically isolated from the key
- * with which any inline encryption with this wrapped key would actually be
- * done.  I.e., both will be derived from the unwrapped key.
- *
- * Return: 0 on success, -EOPNOTSUPP if hardware-wrapped keys are unsupported,
- *	   or another -errno code.
- */
-int blk_ksm_derive_raw_secret(struct blk_keyslot_manager *ksm,
-			      const u8 *wrapped_key,
-			      unsigned int wrapped_key_size,
-			      u8 *secret, unsigned int secret_size)
-{
-	int err;
-
-	if (ksm->ksm_ll_ops.derive_raw_secret) {
-		blk_ksm_hw_enter(ksm);
-		err = ksm->ksm_ll_ops.derive_raw_secret(ksm, wrapped_key,
-							wrapped_key_size,
-							secret, secret_size);
-		blk_ksm_hw_exit(ksm);
-	} else {
-		err = -EOPNOTSUPP;
-	}
-
-	return err;
-}
-EXPORT_SYMBOL_GPL(blk_ksm_derive_raw_secret);
-
-/**
  * blk_ksm_intersect_modes() - restrict supported modes by child device
  * @parent: The keyslot manager for parent device
  * @child: The keyslot manager for child device, or NULL
@@ -523,12 +478,10 @@ void blk_ksm_intersect_modes(struct blk_keyslot_manager *parent,
 			parent->crypto_modes_supported[i] &=
 				child->crypto_modes_supported[i];
 		}
-		parent->features &= child->features;
 	} else {
 		parent->max_dun_bytes_supported = 0;
 		memset(parent->crypto_modes_supported, 0,
 		       sizeof(parent->crypto_modes_supported));
-		parent->features = 0;
 	}
 }
 EXPORT_SYMBOL_GPL(blk_ksm_intersect_modes);
@@ -568,9 +521,6 @@ bool blk_ksm_is_superset(struct blk_keyslot_manager *ksm_superset,
 		return false;
 	}
 
-	if (ksm_subset->features & ~ksm_superset->features)
-		return false;
-
 	return true;
 }
 EXPORT_SYMBOL_GPL(blk_ksm_is_superset);
@@ -607,8 +557,6 @@ void blk_ksm_update_capabilities(struct blk_keyslot_manager *target_ksm,
 
 	target_ksm->max_dun_bytes_supported =
 				reference_ksm->max_dun_bytes_supported;
-
-	target_ksm->features = reference_ksm->features;
 }
 EXPORT_SYMBOL_GPL(blk_ksm_update_capabilities);
 
