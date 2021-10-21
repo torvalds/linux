@@ -751,6 +751,8 @@ static int __exit kirin_pcie_remove(struct platform_device *pdev)
 {
 	struct kirin_pcie *kirin_pcie = platform_get_drvdata(pdev);
 
+	dw_pcie_host_deinit(&kirin_pcie->pci->pp);
+
 	kirin_pcie_power_off(kirin_pcie);
 
 	return 0;
