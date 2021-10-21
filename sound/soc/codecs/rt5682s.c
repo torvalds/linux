@@ -1003,7 +1003,7 @@ static int rt5682s_set_jack_detect(struct snd_soc_component *component,
 	return 0;
 }
 
-static const DECLARE_TLV_DB_SCALE(dac_vol_tlv, -9450, 150, 0);
+static const DECLARE_TLV_DB_SCALE(dac_vol_tlv, -9562, 75, 0);
 static const DECLARE_TLV_DB_SCALE(adc_vol_tlv, -1725, 75, 0);
 static const DECLARE_TLV_DB_SCALE(adc_bst_tlv, 0, 1200, 0);
 static const DECLARE_TLV_DB_SCALE(cbj_bst_tlv, -1200, 150, 0);
@@ -1011,7 +1011,7 @@ static const DECLARE_TLV_DB_SCALE(cbj_bst_tlv, -1200, 150, 0);
 static const struct snd_kcontrol_new rt5682s_snd_controls[] = {
 	/* DAC Digital Volume */
 	SOC_DOUBLE_TLV("DAC1 Playback Volume", RT5682S_DAC1_DIG_VOL,
-		RT5682S_L_VOL_SFT + 2, RT5682S_R_VOL_SFT + 2, 63, 0, dac_vol_tlv),
+		RT5682S_L_VOL_SFT + 1, RT5682S_R_VOL_SFT + 1, 127, 0, dac_vol_tlv),
 
 	/* CBJ Boost Volume */
 	SOC_SINGLE_TLV("CBJ Boost Volume", RT5682S_REC_MIXER,
