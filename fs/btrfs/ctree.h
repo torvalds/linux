@@ -2534,9 +2534,9 @@ BTRFS_SETGET_FUNCS(file_extent_other_encoding, struct btrfs_file_extent_item,
  */
 static inline u32 btrfs_file_extent_inline_item_len(
 						const struct extent_buffer *eb,
-						struct btrfs_item *e)
+						int nr)
 {
-	return btrfs_item_size(eb, e) - BTRFS_FILE_EXTENT_INLINE_DATA_START;
+	return btrfs_item_size_nr(eb, nr) - BTRFS_FILE_EXTENT_INLINE_DATA_START;
 }
 
 /* btrfs_qgroup_status_item */
