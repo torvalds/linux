@@ -261,7 +261,7 @@ static int __restore_fpregs_from_user(void __user *buf, u64 ufeatures,
 			ret = fxrstor_from_user_sigframe(buf);
 
 		if (!ret && unlikely(init_bv))
-			os_xrstor(&init_fpstate.regs.xsave, init_bv);
+			os_xrstor(&init_fpstate, init_bv);
 		return ret;
 	} else if (use_fxsr()) {
 		return fxrstor_from_user_sigframe(buf);
@@ -322,7 +322,7 @@ retry:
 	 * been restored from a user buffer directly.
 	 */
 	if (test_thread_flag(TIF_NEED_FPU_LOAD) && xfeatures_mask_supervisor())
-		os_xrstor(&fpu->fpstate->regs.xsave, xfeatures_mask_supervisor());
+		os_xrstor_supervisor(fpu->fpstate);
 
 	fpregs_mark_activate();
 	fpregs_unlock();
@@ -432,7 +432,7 @@ static bool __fpu_restore_sig(void __user *buf, void __user *buf_fx,
 		u64 mask = user_xfeatures | xfeatures_mask_supervisor();
 
 		fpregs->xsave.header.xfeatures &= mask;
-		success = !os_xrstor_safe(&fpregs->xsave,
+		success = !os_xrstor_safe(fpu->fpstate,
 					  fpu_kernel_cfg.max_features);
 	} else {
 		success = !fxrstor_safe(&fpregs->fxsave);

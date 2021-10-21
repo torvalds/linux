@@ -166,7 +166,7 @@ void restore_fpregs_from_fpstate(struct fpstate *fpstate, u64 mask)
 		 */
 		mask = fpu_kernel_cfg.max_features & mask;
 
-		os_xrstor(&fpstate->regs.xsave, mask);
+		os_xrstor(fpstate, mask);
 	} else {
 		if (use_fxsr())
 			fxrstor(&fpstate->regs.fxsave);
@@ -534,7 +534,7 @@ void fpu__drop(struct fpu *fpu)
 static inline void restore_fpregs_from_init_fpstate(u64 features_mask)
 {
 	if (use_xsave())
-		os_xrstor(&init_fpstate.regs.xsave, features_mask);
+		os_xrstor(&init_fpstate, features_mask);
 	else if (use_fxsr())
 		fxrstor(&init_fpstate.regs.fxsave);
 	else
@@ -591,9 +591,8 @@ void fpu__clear_user_states(struct fpu *fpu)
 	 * corresponding registers.
 	 */
 	if (xfeatures_mask_supervisor() &&
-	    !fpregs_state_valid(fpu, smp_processor_id())) {
-		os_xrstor(&fpu->fpstate->regs.xsave, xfeatures_mask_supervisor());
-	}
+	    !fpregs_state_valid(fpu, smp_processor_id()))
+		os_xrstor_supervisor(fpu->fpstate);
 
 	/* Reset user states in registers. */
 	restore_fpregs_from_init_fpstate(XFEATURE_MASK_USER_RESTORE);

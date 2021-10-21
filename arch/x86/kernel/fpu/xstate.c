@@ -1301,6 +1301,64 @@ EXPORT_SYMBOL_GPL(fpstate_clear_xstate_component);
 #endif
 
 #ifdef CONFIG_X86_64
+
+#ifdef CONFIG_X86_DEBUG_FPU
+/*
+ * Ensure that a subsequent XSAVE* or XRSTOR* instruction with RFBM=@mask
+ * can safely operate on the @fpstate buffer.
+ */
+static bool xstate_op_valid(struct fpstate *fpstate, u64 mask, bool rstor)
+{
+	u64 xfd = __this_cpu_read(xfd_state);
+
+	if (fpstate->xfd == xfd)
+		return true;
+
+	 /*
+	  * The XFD MSR does not match fpstate->xfd. That's invalid when
+	  * the passed in fpstate is current's fpstate.
+	  */
+	if (fpstate->xfd == current->thread.fpu.fpstate->xfd)
+		return false;
+
+	/*
+	 * XRSTOR(S) from init_fpstate are always correct as it will just
+	 * bring all components into init state and not read from the
+	 * buffer. XSAVE(S) raises #PF after init.
+	 */
+	if (fpstate == &init_fpstate)
+		return rstor;
+
+	/*
+	 * XSAVE(S): clone(), fpu_swap_kvm_fpu()
+	 * XRSTORS(S): fpu_swap_kvm_fpu()
+	 */
+
+	/*
+	 * No XSAVE/XRSTOR instructions (except XSAVE itself) touch
+	 * the buffer area for XFD-disabled state components.
+	 */
+	mask &= ~xfd;
+
+	/*
+	 * Remove features which are valid in fpstate. They
+	 * have space allocated in fpstate.
+	 */
+	mask &= ~fpstate->xfeatures;
+
+	/*
+	 * Any remaining state components in 'mask' might be written
+	 * by XSAVE/XRSTOR. Fail validation it found.
+	 */
+	return !mask;
+}
+
+void xfd_validate_state(struct fpstate *fpstate, u64 mask, bool rstor)
+{
+	WARN_ON_ONCE(!xstate_op_valid(fpstate, mask, rstor));
+}
+#endif /* CONFIG_X86_DEBUG_FPU */
+
 static int validate_sigaltstack(unsigned int usize)
 {
 	struct task_struct *thread, *leader = current->group_leader;
