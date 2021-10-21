@@ -389,7 +389,7 @@ EXPORT_SYMBOL(blk_cleanup_queue);
 static bool blk_try_enter_queue(struct request_queue *q, bool pm)
 {
 	rcu_read_lock();
-	if (!percpu_ref_tryget_live(&q->q_usage_counter))
+	if (!percpu_ref_tryget_live_rcu(&q->q_usage_counter))
 		goto fail;
 
 	/*
