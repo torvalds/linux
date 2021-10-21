@@ -201,29 +201,49 @@ void *dma_direct_alloc(struct device *dev, size_t size,
 	    !force_dma_unencrypted(dev) && !is_swiotlb_for_alloc(dev))
 		return dma_direct_alloc_no_mapping(dev, size, dma_handle, gfp);
 
-	if (!IS_ENABLED(CONFIG_ARCH_HAS_DMA_SET_UNCACHED) &&
-	    !IS_ENABLED(CONFIG_DMA_DIRECT_REMAP) &&
-	    !IS_ENABLED(CONFIG_DMA_GLOBAL_POOL) &&
-	    !dev_is_dma_coherent(dev) &&
-	    !is_swiotlb_for_alloc(dev))
-		return arch_dma_alloc(dev, size, dma_handle, gfp, attrs);
+	if (!dev_is_dma_coherent(dev)) {
+		/*
+		 * Fallback to the arch handler if it exists.  This should
+		 * eventually go away.
+		 */
+		if (!IS_ENABLED(CONFIG_ARCH_HAS_DMA_SET_UNCACHED) &&
+		    !IS_ENABLED(CONFIG_DMA_DIRECT_REMAP) &&
+		    !IS_ENABLED(CONFIG_DMA_GLOBAL_POOL) &&
+		    !is_swiotlb_for_alloc(dev))
+			return arch_dma_alloc(dev, size, dma_handle, gfp,
+					      attrs);
 
-	if (IS_ENABLED(CONFIG_DMA_GLOBAL_POOL) &&
-	    !dev_is_dma_coherent(dev))
-		return dma_alloc_from_global_coherent(dev, size, dma_handle);
+		/*
+		 * If there is a global pool, always allocate from it for
+		 * non-coherent devices.
+		 */
+		if (IS_ENABLED(CONFIG_DMA_GLOBAL_POOL))
+			return dma_alloc_from_global_coherent(dev, size,
+					dma_handle);
+
+		/*
+		 * Otherwise remap if the architecture is asking for it.  But
+		 * given that remapping memory is a blocking operation we'll
+		 * instead have to dip into the atomic pools.
+		 */
+		remap = IS_ENABLED(CONFIG_DMA_DIRECT_REMAP);
+		if (remap) {
+			if (!gfpflags_allow_blocking(gfp) &&
+			    !is_swiotlb_for_alloc(dev))
+				return dma_direct_alloc_from_pool(dev, size,
+						dma_handle, gfp);
+		} else {
+			if (IS_ENABLED(CONFIG_ARCH_HAS_DMA_SET_UNCACHED))
+				set_uncached = true;
+		}
+	}
 
 	/*
-	 * Remapping or decrypting memory may block. If either is required and
-	 * we can't block, allocate the memory from the atomic pools.
-	 * If restricted DMA (i.e., is_swiotlb_for_alloc) is required, one must
-	 * set up another device coherent pool by shared-dma-pool and use
-	 * dma_alloc_from_dev_coherent instead.
+	 * Decrypting memory may block, so allocate the memory from the atomic
+	 * pools if we can't block.
 	 */
 	if (IS_ENABLED(CONFIG_DMA_COHERENT_POOL) &&
-	    !gfpflags_allow_blocking(gfp) &&
-	    (force_dma_unencrypted(dev) ||
-	     (IS_ENABLED(CONFIG_DMA_DIRECT_REMAP) &&
-	      !dev_is_dma_coherent(dev))) &&
+	    force_dma_unencrypted(dev) && !gfpflags_allow_blocking(gfp) &&
 	    !is_swiotlb_for_alloc(dev))
 		return dma_direct_alloc_from_pool(dev, size, dma_handle, gfp);
 
@@ -231,10 +251,7 @@ void *dma_direct_alloc(struct device *dev, size_t size,
 	page = __dma_direct_alloc_pages(dev, size, gfp & ~__GFP_ZERO);
 	if (!page)
 		return NULL;
-
-	if (!dev_is_dma_coherent(dev) && IS_ENABLED(CONFIG_DMA_DIRECT_REMAP)) {
-		remap = true;
-	} else if (PageHighMem(page)) {
+	if (PageHighMem(page)) {
 		/*
 		 * Depending on the cma= arguments and per-arch setup,
 		 * dma_alloc_contiguous could return highmem pages.
@@ -246,9 +263,8 @@ void *dma_direct_alloc(struct device *dev, size_t size,
 			goto out_free_pages;
 		}
 		remap = true;
-	} else if (!dev_is_dma_coherent(dev) &&
-		   IS_ENABLED(CONFIG_ARCH_HAS_DMA_SET_UNCACHED))
-		set_uncached = true;
+		set_uncached = false;
+	}
 
 	if (remap) {
 		/* remove any dirty cache lines on the kernel alias */
