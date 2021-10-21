@@ -10747,8 +10747,7 @@ devlink_trap_group_notify(struct devlink *devlink,
 
 	WARN_ON_ONCE(cmd != DEVLINK_CMD_TRAP_GROUP_NEW &&
 		     cmd != DEVLINK_CMD_TRAP_GROUP_DEL);
-	if (!xa_get_mark(&devlinks, devlink->index, DEVLINK_REGISTERED))
-		return;
+	ASSERT_DEVLINK_REGISTERED(devlink);
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
@@ -11075,9 +11074,6 @@ devlink_trap_group_register(struct devlink *devlink,
 	}
 
 	list_add_tail(&group_item->list, &devlink->trap_group_list);
-	devlink_trap_group_notify(devlink, group_item,
-				  DEVLINK_CMD_TRAP_GROUP_NEW);
-
 	return 0;
 
 err_group_init:
@@ -11098,8 +11094,6 @@ devlink_trap_group_unregister(struct devlink *devlink,
 	if (WARN_ON_ONCE(!group_item))
 		return;
 
-	devlink_trap_group_notify(devlink, group_item,
-				  DEVLINK_CMD_TRAP_GROUP_DEL);
 	list_del(&group_item->list);
 	free_percpu(group_item->stats);
 	kfree(group_item);
@@ -11118,6 +11112,8 @@ int devlink_trap_groups_register(struct devlink *devlink,
 				 size_t groups_count)
 {
 	int i, err;
+
+	ASSERT_DEVLINK_NOT_REGISTERED(devlink);
 
 	mutex_lock(&devlink->lock);
 	for (i = 0; i < groups_count; i++) {
@@ -11155,6 +11151,8 @@ void devlink_trap_groups_unregister(struct devlink *devlink,
 				    size_t groups_count)
 {
 	int i;
+
+	ASSERT_DEVLINK_NOT_REGISTERED(devlink);
 
 	mutex_lock(&devlink->lock);
 	for (i = groups_count - 1; i >= 0; i--)
