@@ -32,6 +32,7 @@
 #include <asm/processor.h>
 #include <asm/ucontext.h>
 #include <asm/fpu/signal.h>
+#include <asm/fpu/xstate.h>
 #include <asm/vdso.h>
 #include <asm/mce.h>
 #include <asm/sighandling.h>
@@ -720,12 +721,15 @@ badframe:
 
 /* max_frame_size tells userspace the worst case signal stack size. */
 static unsigned long __ro_after_init max_frame_size;
+static unsigned int __ro_after_init fpu_default_state_size;
 
 void __init init_sigframe_size(void)
 {
+	fpu_default_state_size = fpu__get_fpstate_size();
+
 	max_frame_size = MAX_FRAME_SIGINFO_UCTXT_SIZE + MAX_FRAME_PADDING;
 
-	max_frame_size += fpu__get_fpstate_size() + MAX_XSAVE_PADDING;
+	max_frame_size += fpu_default_state_size + MAX_XSAVE_PADDING;
 
 	/* Userspace expects an aligned size. */
 	max_frame_size = round_up(max_frame_size, FRAME_ALIGNMENT);
@@ -928,15 +932,38 @@ __setup("strict_sas_size", strict_sas_size);
  * sigaltstack they just continued to work. While always checking against
  * the real size would be correct, this might be considered a regression.
  *
- * Therefore avoid the sanity check, unless enforced by kernel config or
- * command line option.
+ * Therefore avoid the sanity check, unless enforced by kernel
+ * configuration or command line option.
+ *
+ * When dynamic FPU features are supported, the check is also enforced when
+ * the task has permissions to use dynamic features. Tasks which have no
+ * permission are checked against the size of the non-dynamic feature set
+ * if strict checking is enabled. This avoids forcing all tasks on the
+ * system to allocate large sigaltstacks even if they are never going
+ * to use a dynamic feature. As this is serialized via sighand::siglock
+ * any permission request for a dynamic feature either happened already
+ * or will see the newly install sigaltstack size in the permission checks.
  */
 bool sigaltstack_size_valid(size_t ss_size)
 {
+	unsigned long fsize = max_frame_size - fpu_default_state_size;
+	u64 mask;
+
 	lockdep_assert_held(&current->sighand->siglock);
 
+	if (!fpu_state_size_dynamic() && !strict_sigaltstack_size)
+		return true;
+
+	fsize += current->group_leader->thread.fpu.perm.__user_state_size;
+	if (likely(ss_size > fsize))
+		return true;
+
 	if (strict_sigaltstack_size)
-		return ss_size > get_sigframe_size();
+		return ss_size > fsize;
+
+	mask = current->group_leader->thread.fpu.perm.__state_perm;
+	if (mask & XFEATURE_MASK_USER_DYNAMIC)
+		return ss_size > fsize;
 
 	return true;
 }
