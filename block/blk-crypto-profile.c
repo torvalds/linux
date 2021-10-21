@@ -350,6 +350,8 @@ bool __blk_crypto_cfg_supported(struct blk_crypto_profile *profile,
 		return false;
 	if (profile->max_dun_bytes_supported < cfg->dun_bytes)
 		return false;
+	if (!(profile->key_types_supported & cfg->key_type))
+		return false;
 	return true;
 }
 
@@ -469,6 +471,42 @@ void blk_crypto_unregister(struct request_queue *q)
 }
 
 /**
+ * blk_crypto_derive_sw_secret() - Derive software secret from hardware-wrapped
+ *				   key
+ * @profile: the crypto profile of the device the key will be used on
+ * @wrapped_key: the hardware-wrapped key
+ * @wrapped_key_size: size of @wrapped_key in bytes
+ * @sw_secret: (output) the software secret
+ *
+ * Given a hardware-wrapped key, ask the hardware to derive the secret which
+ * software can use for cryptographic tasks other than inline encryption.  This
+ * secret is guaranteed to be cryptographically isolated from the inline
+ * encryption key, i.e. derived with a different KDF context.
+ *
+ * Return: 0 on success, -EOPNOTSUPP if the given @profile doesn't support
+ *	   hardware-wrapped keys (or is NULL), -EBADMSG if the key isn't a valid
+ *	   hardware-wrapped key, or another -errno code.
+ */
+int blk_crypto_derive_sw_secret(struct blk_crypto_profile *profile,
+				const u8 *wrapped_key,
+				unsigned int wrapped_key_size,
+				u8 sw_secret[BLK_CRYPTO_SW_SECRET_SIZE])
+{
+	int err = -EOPNOTSUPP;
+
+	if (profile &&
+	    (profile->key_types_supported & BLK_CRYPTO_KEY_TYPE_HW_WRAPPED) &&
+	    profile->ll_ops.derive_sw_secret) {
+		blk_crypto_hw_enter(profile);
+		err = profile->ll_ops.derive_sw_secret(profile, wrapped_key,
+						       wrapped_key_size,
+						       sw_secret);
+		blk_crypto_hw_exit(profile);
+	}
+	return err;
+}
+
+/**
  * blk_crypto_intersect_capabilities() - restrict supported crypto capabilities
  *					 by child device
  * @parent: the crypto profile for the parent device
@@ -491,10 +529,12 @@ void blk_crypto_intersect_capabilities(struct blk_crypto_profile *parent,
 			    child->max_dun_bytes_supported);
 		for (i = 0; i < ARRAY_SIZE(child->modes_supported); i++)
 			parent->modes_supported[i] &= child->modes_supported[i];
+		parent->key_types_supported &= child->key_types_supported;
 	} else {
 		parent->max_dun_bytes_supported = 0;
 		memset(parent->modes_supported, 0,
 		       sizeof(parent->modes_supported));
+		parent->key_types_supported = 0;
 	}
 }
 EXPORT_SYMBOL_GPL(blk_crypto_intersect_capabilities);
@@ -525,6 +565,9 @@ bool blk_crypto_has_capabilities(const struct blk_crypto_profile *target,
 
 	if (reference->max_dun_bytes_supported >
 	    target->max_dun_bytes_supported)
+		return false;
+
+	if (reference->key_types_supported & ~target->key_types_supported)
 		return false;
 
 	return true;
@@ -561,5 +604,6 @@ void blk_crypto_update_capabilities(struct blk_crypto_profile *dst,
 	       sizeof(dst->modes_supported));
 
 	dst->max_dun_bytes_supported = src->max_dun_bytes_supported;
+	dst->key_types_supported = src->key_types_supported;
 }
 EXPORT_SYMBOL_GPL(blk_crypto_update_capabilities);
