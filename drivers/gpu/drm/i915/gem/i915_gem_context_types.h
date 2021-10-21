@@ -78,13 +78,16 @@ enum i915_gem_engine_type {
 
 	/** @I915_GEM_ENGINE_TYPE_BALANCED: A load-balanced engine set */
 	I915_GEM_ENGINE_TYPE_BALANCED,
+
+	/** @I915_GEM_ENGINE_TYPE_PARALLEL: A parallel engine set */
+	I915_GEM_ENGINE_TYPE_PARALLEL,
 };
 
 /**
  * struct i915_gem_proto_engine - prototype engine
  *
  * This struct describes an engine that a context may contain.  Engines
- * have three types:
+ * have four types:
  *
  *  - I915_GEM_ENGINE_TYPE_INVALID: Invalid engines can be created but they
  *    show up as a NULL in i915_gem_engines::engines[i] and any attempt to
@@ -97,6 +100,10 @@ enum i915_gem_engine_type {
  *
  *  - I915_GEM_ENGINE_TYPE_BALANCED: A load-balanced engine set, described
  *    i915_gem_proto_engine::num_siblings and i915_gem_proto_engine::siblings.
+ *
+ *  - I915_GEM_ENGINE_TYPE_PARALLEL: A parallel submission engine set, described
+ *    i915_gem_proto_engine::width, i915_gem_proto_engine::num_siblings, and
+ *    i915_gem_proto_engine::siblings.
  */
 struct i915_gem_proto_engine {
 	/** @type: Type of this engine */
@@ -105,10 +112,13 @@ struct i915_gem_proto_engine {
 	/** @engine: Engine, for physical */
 	struct intel_engine_cs *engine;
 
-	/** @num_siblings: Number of balanced siblings */
+	/** @num_siblings: Number of balanced or parallel siblings */
 	unsigned int num_siblings;
 
-	/** @siblings: Balanced siblings */
+	/** @width: Width of each sibling */
+	unsigned int width;
+
+	/** @siblings: Balanced siblings or num_siblings * width for parallel */
 	struct intel_engine_cs **siblings;
 
 	/** @sseu: Client-set SSEU parameters */
