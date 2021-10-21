@@ -205,8 +205,11 @@ void topology_update_thermal_pressure(const struct cpumask *cpus,
 
 	trace_thermal_pressure_update(cpu, th_pressure);
 
-	for_each_cpu(cpu, cpus)
+	for_each_cpu(cpu, cpus) {
 		WRITE_ONCE(per_cpu(thermal_pressure, cpu), th_pressure);
+		trace_android_rvh_update_thermal_stats(cpu);
+	}
+
 }
 EXPORT_SYMBOL_GPL(topology_update_thermal_pressure);
 
