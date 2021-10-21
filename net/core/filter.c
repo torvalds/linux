@@ -10723,6 +10723,26 @@ const struct bpf_func_proto bpf_skc_to_udp6_sock_proto = {
 	.ret_btf_id		= &btf_sock_ids[BTF_SOCK_TYPE_UDP6],
 };
 
+BPF_CALL_1(bpf_skc_to_unix_sock, struct sock *, sk)
+{
+	/* unix_sock type is not generated in dwarf and hence btf,
+	 * trigger an explicit type generation here.
+	 */
+	BTF_TYPE_EMIT(struct unix_sock);
+	if (sk && sk_fullsock(sk) && sk->sk_family == AF_UNIX)
+		return (unsigned long)sk;
+
+	return (unsigned long)NULL;
+}
+
+const struct bpf_func_proto bpf_skc_to_unix_sock_proto = {
+	.func			= bpf_skc_to_unix_sock,
+	.gpl_only		= false,
+	.ret_type		= RET_PTR_TO_BTF_ID_OR_NULL,
+	.arg1_type		= ARG_PTR_TO_BTF_ID_SOCK_COMMON,
+	.ret_btf_id		= &btf_sock_ids[BTF_SOCK_TYPE_UNIX],
+};
+
 BPF_CALL_1(bpf_sock_from_file, struct file *, file)
 {
 	return (unsigned long)sock_from_file(file);
@@ -10761,6 +10781,9 @@ bpf_sk_base_func_proto(enum bpf_func_id func_id)
 		break;
 	case BPF_FUNC_skc_to_udp6_sock:
 		func = &bpf_skc_to_udp6_sock_proto;
+		break;
+	case BPF_FUNC_skc_to_unix_sock:
+		func = &bpf_skc_to_unix_sock_proto;
 		break;
 	default:
 		return bpf_base_func_proto(func_id);
