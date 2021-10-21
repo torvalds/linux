@@ -1732,9 +1732,7 @@ int mlx5_devlink_port_function_hw_addr_set(struct devlink_port *port,
 					   struct netlink_ext_ack *extack)
 {
 	struct mlx5_eswitch *esw;
-	struct mlx5_vport *vport;
 	u16 vport_num;
-	int err;
 
 	esw = mlx5_devlink_eswitch_get(port->devlink);
 	if (IS_ERR(esw)) {
@@ -1747,16 +1745,8 @@ int mlx5_devlink_port_function_hw_addr_set(struct devlink_port *port,
 		NL_SET_ERR_MSG_MOD(extack, "Port doesn't support set hw_addr");
 		return -EINVAL;
 	}
-	vport = mlx5_eswitch_get_vport(esw, vport_num);
-	if (IS_ERR(vport)) {
-		NL_SET_ERR_MSG_MOD(extack, "Invalid port");
-		return PTR_ERR(vport);
-	}
 
-	mutex_lock(&esw->state_lock);
-	err = mlx5_esw_set_vport_mac_locked(esw, vport, hw_addr);
-	mutex_unlock(&esw->state_lock);
-	return err;
+	return mlx5_eswitch_set_vport_mac(esw, vport_num, hw_addr);
 }
 
 int mlx5_eswitch_set_vport_state(struct mlx5_eswitch *esw,
