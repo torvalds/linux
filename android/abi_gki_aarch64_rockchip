@@ -308,6 +308,7 @@
   flush_workqueue
   fpsimd_context_busy
   frame_vector_to_pages
+  free_irq
   __free_pages
   free_pages
   fwnode_handle_put
@@ -358,6 +359,7 @@
   i2c_get_adapter
   i2c_put_adapter
   i2c_register_driver
+  i2c_smbus_read_byte_data
   __i2c_smbus_xfer
   i2c_smbus_xfer
   i2c_transfer
@@ -450,6 +452,7 @@
   memset
   memstart_addr
   mmc_of_parse
+  mod_delayed_work_on
   mod_timer
   module_layout
   module_put
@@ -616,6 +619,7 @@
   regulator_set_voltage_time_sel
   remap_pfn_range
   remove_proc_entry
+  request_threaded_irq
   reset_control_assert
   reset_control_deassert
   revalidate_disk_size
@@ -624,6 +628,7 @@
   rtc_tm_to_time64
   rtc_valid_tm
   scatterwalk_map_and_copy
+  sched_clock
   schedule
   schedule_timeout
   scnprintf
@@ -694,6 +699,7 @@
   sysfs_create_file_ns
   sysfs_create_group
   sysfs_create_link
+  __sysfs_match_string
   sysfs_remove_group
   sysfs_remove_link
   system_unbound_wq
@@ -714,6 +720,7 @@
   update_devfreq
   up_read
   up_write
+  usb_debug_root
   usleep_range
   uuid_null
   v4l2_async_notifier_cleanup
@@ -968,7 +975,6 @@
   extcon_set_property_capability
   hdmi_drm_infoframe_pack
   hdmi_vendor_infoframe_pack
-  mod_delayed_work_on
   of_get_i2c_adapter_by_node
 
 # required by dw-mipi-dsi.ko
@@ -1031,7 +1037,6 @@
   usb_add_hcd
   usb_calc_bus_time
   usb_create_hcd
-  usb_debug_root
   usb_del_gadget_udc
   usb_disabled
   usb_ep_set_maxpacket_limit
@@ -1059,6 +1064,23 @@
 
 # required by fan53555.ko
   gpiod_set_raw_value
+
+# required by fusb302.ko
+  device_get_named_child_node
+  disable_irq_nosync
+  extcon_get_extcon_dev
+  fwnode_create_software_node
+  i2c_smbus_read_i2c_block_data
+  i2c_smbus_write_byte_data
+  i2c_smbus_write_i2c_block_data
+  tcpm_cc_change
+  tcpm_pd_hard_reset
+  tcpm_pd_receive
+  tcpm_pd_transmit_complete
+  tcpm_register_port
+  tcpm_unregister_port
+  tcpm_vbus_change
+  vsnprintf
 
 # required by ghash-ce.ko
   aes_expandkey
@@ -1119,14 +1141,12 @@
 
 # required by i2c-hid.ko
   dev_printk
-  free_irq
   hid_add_device
   hid_allocate_device
   hid_destroy_device
   hid_input_report
   hid_parse_report
   i2c_smbus_read_byte
-  request_threaded_irq
 
 # required by i2c-mux.ko
   i2c_add_numbered_adapter
@@ -1457,7 +1477,6 @@
 
 # required by rk808.ko
   devm_mfd_add_devices
-  i2c_smbus_read_byte_data
   kobject_create_and_add
   platform_device_add
   platform_device_alloc
@@ -1570,9 +1589,6 @@
   iio_get_time_ns
   iio_push_to_buffers
   iio_trigger_notify_done
-
-# required by rockchip_sip.ko
-  sched_clock
 
 # required by rockchip_thermal.ko
   devm_thermal_zone_of_sensor_register
@@ -1889,6 +1905,12 @@
   __sg_page_iter_next
   __sg_page_iter_start
 
+# required by tcpci_husb311.ko
+  i2c_smbus_read_word_data
+  tcpci_irq
+  tcpci_register_port
+  tcpci_unregister_port
+
 # required by tee.ko
   bus_register
   bus_unregister
@@ -1912,6 +1934,18 @@
 
 # required by tps65132-regulator.ko
   regulator_set_active_discharge_regmap
+
+# required by typec_displayport.ko
+  sysfs_notify
+  typec_altmode2port
+  typec_altmode_enter
+  typec_altmode_exit
+  typec_altmode_get_partner
+  typec_altmode_notify
+  __typec_altmode_register_driver
+  typec_altmode_unregister_driver
+  typec_altmode_vdm
+  typec_get_negotiated_svdm_version
 
 # required by v4l2-fwnode.ko
   fwnode_device_is_available
@@ -1970,7 +2004,6 @@
   page_endio
   register_blkdev
   strcpy
-  __sysfs_match_string
   sysfs_streq
   unregister_blkdev
   vzalloc
