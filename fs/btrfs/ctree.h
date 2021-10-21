@@ -1997,6 +1997,18 @@ static inline u32 btrfs_item_size_nr(const struct extent_buffer *eb, int nr)
 	return btrfs_item_size(eb, btrfs_item_nr(nr));
 }
 
+static inline void btrfs_set_item_size_nr(struct extent_buffer *eb, int nr,
+					  u32 val)
+{
+	btrfs_set_item_size(eb, btrfs_item_nr(nr), val);
+}
+
+static inline void btrfs_set_item_offset_nr(struct extent_buffer *eb, int nr,
+					    u32 val)
+{
+	btrfs_set_item_offset(eb, btrfs_item_nr(nr), val);
+}
+
 static inline void btrfs_item_key(const struct extent_buffer *eb,
 			   struct btrfs_disk_key *disk_key, int nr)
 {

@@ -3480,9 +3480,7 @@ static noinline int split_item(struct btrfs_path *path,
 			       unsigned long split_offset)
 {
 	struct extent_buffer *leaf;
-	struct btrfs_item *item;
-	struct btrfs_item *new_item;
-	int slot;
+	int orig_slot, slot;
 	char *buf;
 	u32 nritems;
 	u32 item_size;
@@ -3492,7 +3490,7 @@ static noinline int split_item(struct btrfs_path *path,
 	leaf = path->nodes[0];
 	BUG_ON(btrfs_leaf_free_space(leaf) < sizeof(struct btrfs_item));
 
-	item = btrfs_item_nr(path->slots[0]);
+	orig_slot = path->slots[0];
 	orig_offset = btrfs_item_offset_nr(leaf, path->slots[0]);
 	item_size = btrfs_item_size_nr(leaf, path->slots[0]);
 
@@ -3515,14 +3513,12 @@ static noinline int split_item(struct btrfs_path *path,
 	btrfs_cpu_key_to_disk(&disk_key, new_key);
 	btrfs_set_item_key(leaf, &disk_key, slot);
 
-	new_item = btrfs_item_nr(slot);
+	btrfs_set_item_offset_nr(leaf, slot, orig_offset);
+	btrfs_set_item_size_nr(leaf, slot, item_size - split_offset);
 
-	btrfs_set_item_offset(leaf, new_item, orig_offset);
-	btrfs_set_item_size(leaf, new_item, item_size - split_offset);
-
-	btrfs_set_item_offset(leaf, item,
-			      orig_offset + item_size - split_offset);
-	btrfs_set_item_size(leaf, item, split_offset);
+	btrfs_set_item_offset_nr(leaf, orig_slot,
+				 orig_offset + item_size - split_offset);
+	btrfs_set_item_size_nr(leaf, orig_slot, split_offset);
 
 	btrfs_set_header_nritems(leaf, nritems + 1);
 
@@ -3662,8 +3658,7 @@ void btrfs_truncate_item(struct btrfs_path *path, u32 new_size, int from_end)
 			fixup_low_keys(path, &disk_key, 1);
 	}
 
-	item = btrfs_item_nr(slot);
-	btrfs_set_item_size(leaf, item, new_size);
+	btrfs_set_item_size_nr(leaf, slot, new_size);
 	btrfs_mark_buffer_dirty(leaf);
 
 	if (btrfs_leaf_free_space(leaf) < 0) {
@@ -3727,8 +3722,7 @@ void btrfs_extend_item(struct btrfs_path *path, u32 data_size)
 
 	data_end = old_data;
 	old_size = btrfs_item_size_nr(leaf, slot);
-	item = btrfs_item_nr(slot);
-	btrfs_set_item_size(leaf, item, old_size + data_size);
+	btrfs_set_item_size_nr(leaf, slot, old_size + data_size);
 	btrfs_mark_buffer_dirty(leaf);
 
 	if (btrfs_leaf_free_space(leaf) < 0) {
