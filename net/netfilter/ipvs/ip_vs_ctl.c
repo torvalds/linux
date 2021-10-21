@@ -48,6 +48,8 @@
 
 #include <net/ip_vs.h>
 
+MODULE_ALIAS_GENL_FAMILY(IPVS_GENL_NAME);
+
 /* semaphore for IPVS sockopts. And, [gs]etsockopt may sleep. */
 static DEFINE_MUTEX(__ip_vs_mutex);
 
