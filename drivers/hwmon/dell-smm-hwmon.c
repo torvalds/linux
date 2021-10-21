@@ -996,6 +996,11 @@ enum i8k_configs {
 	DELL_XPS,
 };
 
+/*
+ * Only use for machines which need some special configuration
+ * in order to work correctly (e.g. if autoconfig fails on this machines).
+ */
+
 static const struct i8k_config_data i8k_config_data[] __initconst = {
 	[DELL_LATITUDE_D520] = {
 		.fan_mult = 1,
