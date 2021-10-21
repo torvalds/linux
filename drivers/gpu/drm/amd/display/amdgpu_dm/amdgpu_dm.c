@@ -1017,6 +1017,7 @@ static int dm_dmub_hw_init(struct amdgpu_device *adev)
 	const unsigned char *fw_inst_const, *fw_bss_data;
 	uint32_t i, fw_inst_const_size, fw_bss_data_size;
 	bool has_hw_support;
+	struct dc *dc = adev->dm.dc;
 
 	if (!dmub_srv)
 		/* DMUB isn't supported on the ASIC. */
@@ -1102,6 +1103,19 @@ static int dm_dmub_hw_init(struct amdgpu_device *adev)
 
 	for (i = 0; i < fb_info->num_fb; ++i)
 		hw_params.fb[i] = &fb_info->fb[i];
+
+	switch (adev->asic_type) {
+	case CHIP_YELLOW_CARP:
+		if (dc->ctx->asic_id.hw_internal_rev != YELLOW_CARP_A0) {
+			hw_params.dpia_supported = true;
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+			hw_params.disable_dpia = dc->debug.dpia_debug.bits.disable_dpia;
+#endif
+		}
+		break;
+	default:
+		break;
+	}
 
 	status = dmub_srv_hw_init(dmub_srv, &hw_params);
 	if (status != DMUB_STATUS_OK) {
