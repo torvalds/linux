@@ -1138,7 +1138,7 @@ kill_processes:
 	hdev->asic_funcs->hw_fini(hdev, hard_reset, fw_reset);
 
 	if (hard_reset) {
-		hdev->fw_loader.linux_loaded = false;
+		hdev->fw_loader.fw_comp_loaded = FW_TYPE_NONE;
 
 		/* Release kernel context */
 		if (hdev->kernel_ctx && hl_ctx_put(hdev->kernel_ctx) == 1)
@@ -1692,7 +1692,7 @@ void hl_device_fini(struct hl_device *hdev)
 	/* Reset the H/W. It will be in idle state after this returns */
 	hdev->asic_funcs->hw_fini(hdev, true, false);
 
-	hdev->fw_loader.linux_loaded = false;
+	hdev->fw_loader.fw_comp_loaded = FW_TYPE_NONE;
 
 	/* Release kernel context */
 	if ((hdev->kernel_ctx) && (hl_ctx_put(hdev->kernel_ctx) != 1))

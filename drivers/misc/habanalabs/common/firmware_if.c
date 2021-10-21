@@ -1919,6 +1919,8 @@ static void hl_fw_boot_fit_update_state(struct hl_device *hdev,
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 
+	hdev->fw_loader.fw_comp_loaded |= FW_TYPE_BOOT_CPU;
+
 	/* Clear reset status since we need to read it again from boot CPU */
 	prop->hard_reset_done_by_fw = false;
 
@@ -2127,7 +2129,7 @@ static void hl_fw_linux_update_state(struct hl_device *hdev,
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 
-	hdev->fw_loader.linux_loaded = true;
+	hdev->fw_loader.fw_comp_loaded |= FW_TYPE_LINUX;
 
 	/* Clear reset status since we need to read again from app */
 	prop->hard_reset_done_by_fw = false;

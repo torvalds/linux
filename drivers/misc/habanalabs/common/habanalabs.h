@@ -219,6 +219,7 @@ enum hl_fw_component {
 
 /**
  * enum hl_fw_types - F/W types present in the system
+ * @FW_TYPE_NONE: no FW component indication
  * @FW_TYPE_LINUX: Linux image for device CPU
  * @FW_TYPE_BOOT_CPU: Boot image for device CPU
  * @FW_TYPE_PREBOOT_CPU: Indicates pre-loaded CPUs are present in the system
@@ -226,6 +227,7 @@ enum hl_fw_component {
  * @FW_TYPE_ALL_TYPES: Mask for all types
  */
 enum hl_fw_types {
+	FW_TYPE_NONE = 0x0,
 	FW_TYPE_LINUX = 0x1,
 	FW_TYPE_BOOT_CPU = 0x2,
 	FW_TYPE_PREBOOT_CPU = 0x4,
@@ -1059,7 +1061,8 @@ struct fw_image_props {
  * @skip_bmc: should BMC be skipped
  * @sram_bar_id: SRAM bar ID
  * @dram_bar_id: DRAM bar ID
- * @linux_loaded: true if linux was loaded so far
+ * @fw_comp_loaded: bitmask of loaded FW components. set bit meaning loaded
+ *                  component. values are set according to enum hl_fw_types.
  */
 struct fw_load_mgr {
 	union {
@@ -1073,7 +1076,7 @@ struct fw_load_mgr {
 	u8 skip_bmc;
 	u8 sram_bar_id;
 	u8 dram_bar_id;
-	u8 linux_loaded;
+	u8 fw_comp_loaded;
 };
 
 /**
