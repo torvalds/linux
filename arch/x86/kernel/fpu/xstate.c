@@ -549,6 +549,33 @@ static bool __init check_xstate_against_struct(int nr)
 	return true;
 }
 
+static unsigned int xstate_calculate_size(u64 xfeatures, bool compacted)
+{
+	unsigned int size = FXSAVE_SIZE + XSAVE_HDR_SIZE;
+	int i;
+
+	for_each_extended_xfeature(i, xfeatures) {
+		/* Align from the end of the previous feature */
+		if (xfeature_is_aligned(i))
+			size = ALIGN(size, 64);
+		/*
+		 * In compacted format the enabled features are packed,
+		 * i.e. disabled features do not occupy space.
+		 *
+		 * In non-compacted format the offsets are fixed and
+		 * disabled states still occupy space in the memory buffer.
+		 */
+		if (!compacted)
+			size = xfeature_uncompacted_offset(i);
+		/*
+		 * Add the feature size even for non-compacted format
+		 * to make the end result correct
+		 */
+		size += xfeature_size(i);
+	}
+	return size;
+}
+
 /*
  * This essentially double-checks what the cpu told us about
  * how large the XSAVE buffer needs to be.  We are recalculating
@@ -575,25 +602,8 @@ static bool __init paranoid_xstate_size_valid(unsigned int kernel_size)
 			XSTATE_WARN_ON(1);
 			return false;
 		}
-
-		/* Align from the end of the previous feature */
-		if (xfeature_is_aligned(i))
-			size = ALIGN(size, 64);
-		/*
-		 * In compacted format the enabled features are packed,
-		 * i.e. disabled features do not occupy space.
-		 *
-		 * In non-compacted format the offsets are fixed and
-		 * disabled states still occupy space in the memory buffer.
-		 */
-		if (!compacted)
-			size = xfeature_uncompacted_offset(i);
-		/*
-		 * Add the feature size even for non-compacted format
-		 * to make the end result correct
-		 */
-		size += xfeature_size(i);
 	}
+	size = xstate_calculate_size(fpu_kernel_cfg.max_features, compacted);
 	XSTATE_WARN_ON(size != kernel_size);
 	return size == kernel_size;
 }
