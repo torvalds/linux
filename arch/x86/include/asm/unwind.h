@@ -16,7 +16,9 @@ struct unwind_state {
 	unsigned long stack_mask;
 	struct task_struct *task;
 	int graph_idx;
+#ifdef CONFIG_KRETPROBES
 	struct llist_node *kr_cur;
+#endif
 	bool error;
 #if defined(CONFIG_UNWINDER_ORC)
 	bool signal, full_regs;
@@ -105,9 +107,13 @@ static inline
 unsigned long unwind_recover_kretprobe(struct unwind_state *state,
 				       unsigned long addr, unsigned long *addr_p)
 {
+#ifdef CONFIG_KRETPROBES
 	return is_kretprobe_trampoline(addr) ?
 		kretprobe_find_ret_addr(state->task, addr_p, &state->kr_cur) :
 		addr;
+#else
+	return addr;
+#endif
 }
 
 /* Recover the return address modified by kretprobe and ftrace_graph. */
