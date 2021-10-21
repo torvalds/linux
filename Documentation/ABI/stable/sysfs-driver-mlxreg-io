@@ -231,16 +231,19 @@ Date:		October 2021
 KernelVersion:	5.16
 Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	The files represent BIOS statuses:
-		- bios_active_image: location of current active BIOS image:
-		  0: Top, 1: Bottom.
-		  The reported value should correspond to value expected by OS
-		  in case of BIOS safe mode is 0. This bit is related to Intel
-		  top-swap feature of DualBios on the same flash.
-		- bios_auth_fail: BIOS upgrade is failed because provided BIOS
-		  image is not signed correctly.
-		- bios_upgrade_fail: BIOS upgrade is failed by some other
-		  reason not because authentication. For example due to
-		  physical SPI flash problem.
+
+		bios_active_image: location of current active BIOS image:
+		0: Top, 1: Bottom.
+		The reported value should correspond to value expected by OS
+		in case of BIOS safe mode is 0. This bit is related to Intel
+		top-swap feature of DualBios on the same flash.
+
+		bios_auth_fail: BIOS upgrade is failed because provided BIOS
+		image is not signed correctly.
+
+		bios_upgrade_fail: BIOS upgrade is failed by some other
+		reason not because authentication. For example due to
+		physical SPI flash problem.
 
 		The files are read only.
 
