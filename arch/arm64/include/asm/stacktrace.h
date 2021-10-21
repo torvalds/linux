@@ -9,6 +9,7 @@
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
 #include <linux/types.h>
+#include <linux/llist.h>
 
 #include <asm/memory.h>
 #include <asm/ptrace.h>
@@ -58,6 +59,9 @@ struct stackframe {
 	enum stack_type prev_type;
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	int graph;
+#endif
+#ifdef CONFIG_KRETPROBES
+	struct llist_node *kr_cur;
 #endif
 };
 
