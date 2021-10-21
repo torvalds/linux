@@ -261,9 +261,10 @@ struct amd_sriov_msg_vf2pf_info {
 		uint8_t  id;
 		uint32_t version;
 	} ucode_info[AMD_SRIOV_MSG_RESERVE_UCODE];
+	uint64_t dummy_page_addr;
 
 	/* reserved */
-	uint32_t reserved[256-68];
+	uint32_t reserved[256-70];
 };
 
 /* mailbox message send from guest to host  */
