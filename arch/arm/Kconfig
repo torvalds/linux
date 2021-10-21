@@ -1607,10 +1607,14 @@ config XEN
 	help
 	  Say Y if you want to run Linux in a Virtual Machine on Xen on ARM.
 
+config CC_HAVE_STACKPROTECTOR_TLS
+	def_bool $(cc-option,-mtp=cp15 -mstack-protector-guard=tls -mstack-protector-guard-offset=0)
+
 config STACKPROTECTOR_PER_TASK
 	bool "Use a unique stack canary value for each task"
-	depends on GCC_PLUGINS && STACKPROTECTOR && THREAD_INFO_IN_TASK && !XIP_DEFLATED_DATA
-	select GCC_PLUGIN_ARM_SSP_PER_TASK
+	depends on STACKPROTECTOR && THREAD_INFO_IN_TASK && !XIP_DEFLATED_DATA
+	depends on GCC_PLUGINS || CC_HAVE_STACKPROTECTOR_TLS
+	select GCC_PLUGIN_ARM_SSP_PER_TASK if !CC_HAVE_STACKPROTECTOR_TLS
 	default y
 	help
 	  Due to the fact that GCC uses an ordinary symbol reference from
