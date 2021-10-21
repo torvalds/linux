@@ -58,6 +58,8 @@
  *  VERSION     : 01-00-13
  *  23 Sep 2021 : 1. Capturing RBU status using MAC EVENT Interupt and updating to ethtool statistics for both S/W & IPA DMA channels
  *  VERSION     : 01-00-14
+ *  21 Oct 2021 : 1. Added support for GPIO configuration API
+ *  VERSION     : 01-00-18
  */
 
 #include <linux/clk.h>
@@ -206,6 +208,117 @@ static const struct config_parameter_list config_param_list[] = {
 static uint16_t mdio_bus_id;
 #define CONFIG_PARAM_NUM ARRAY_SIZE(config_param_list)
 int tc956xmac_rx_parser_configuration(struct tc956xmac_priv *);
+
+/**
+ *  tc956x_GPIO_OutputConfigPin - to configure GPIO as output and write the value
+ *  @priv: driver private structure
+ *  @gpio_pin: GPIO pin number
+ *  @out_value : value to write to the GPIO pin. Can be 0 or 1
+ *  @remarks : Only GPIO0- GPIO06, GPI010-GPIO12 are allowed
+ */
+int tc956x_GPIO_OutputConfigPin(struct tc956xmac_priv *priv, u32 gpio_pin, u8 out_value)
+{
+	u32 config, val;
+
+	/* Only GPIO0- GPIO06, GPI010-GPIO12 are allowed */ 
+	switch (gpio_pin) {
+		case GPIO_00:
+			val = readl(priv->ioaddr + NFUNCEN4_OFFSET);
+			val &= ~NFUNCEN4_GPIO_00;
+			val |= (NFUNCEN_FUNC0 << NFUNCEN4_GPIO_00_SHIFT);
+			writel(val, priv->ioaddr + NFUNCEN4_OFFSET);
+			break;
+		case GPIO_01:
+			val = readl(priv->ioaddr + NFUNCEN4_OFFSET);
+			val &= ~NFUNCEN4_GPIO_01;
+			val |= (NFUNCEN_FUNC0 << NFUNCEN4_GPIO_01_SHIFT);
+			writel(val, priv->ioaddr + NFUNCEN4_OFFSET);
+			break;
+		case GPIO_02:
+			val = readl(priv->ioaddr + NFUNCEN4_OFFSET);
+			val &= ~NFUNCEN4_GPIO_02;
+			val |= (NFUNCEN_FUNC0 << NFUNCEN4_GPIO_02_SHIFT);
+			writel(val, priv->ioaddr + NFUNCEN4_OFFSET);
+			break;
+		case GPIO_03:
+			val = readl(priv->ioaddr + NFUNCEN4_OFFSET);
+			val &= ~NFUNCEN4_GPIO_03;
+			val |= (NFUNCEN_FUNC0 << NFUNCEN4_GPIO_03_SHIFT);
+			writel(val, priv->ioaddr + NFUNCEN4_OFFSET);
+			break;
+		case GPIO_04:
+			val = readl(priv->ioaddr + NFUNCEN4_OFFSET);
+			val &= ~NFUNCEN4_GPIO_04;
+			val |= (NFUNCEN_FUNC0 << NFUNCEN4_GPIO_04_SHIFT);
+			writel(val, priv->ioaddr + NFUNCEN4_OFFSET);
+			break;
+		case GPIO_05:
+			val = readl(priv->ioaddr + NFUNCEN4_OFFSET);
+			val &= ~NFUNCEN4_GPIO_05;
+			val |= (NFUNCEN_FUNC0 << NFUNCEN4_GPIO_05_SHIFT);
+			writel(val, priv->ioaddr + NFUNCEN4_OFFSET);
+			break;
+		case GPIO_06:
+			val = readl(priv->ioaddr + NFUNCEN4_OFFSET);
+			val &= ~NFUNCEN4_GPIO_06;
+			val |= (NFUNCEN_FUNC0 << NFUNCEN4_GPIO_06_SHIFT);
+			writel(val, priv->ioaddr + NFUNCEN4_OFFSET);
+			break;
+		case GPIO_10:
+			val = readl(priv->ioaddr + NFUNCEN5_OFFSET);
+			val &= ~NFUNCEN5_GPIO_10;
+			val |= (NFUNCEN_FUNC0 << NFUNCEN5_GPIO_10_SHIFT);
+			writel(val, priv->ioaddr + NFUNCEN5_OFFSET);
+			break;
+		case GPIO_11:
+			val = readl(priv->ioaddr + NFUNCEN5_OFFSET);
+			val &= ~NFUNCEN5_GPIO_11;
+			val |= (NFUNCEN_FUNC0 << NFUNCEN5_GPIO_11_SHIFT);
+			writel(val, priv->ioaddr + NFUNCEN5_OFFSET);
+			break;
+		case GPIO_12:
+			val = readl(priv->ioaddr + NFUNCEN6_OFFSET);
+			val &= ~NFUNCEN6_GPIO_12;
+			val |= (NFUNCEN_FUNC0 << NFUNCEN6_GPIO_12_SHIFT);
+			writel(val, priv->ioaddr + NFUNCEN6_OFFSET);
+			break;
+		default : 
+			netdev_err(priv->dev, "Invalid GPIO pin - %d\n", gpio_pin);
+			return -EPERM;
+	}
+
+	/* Write data to GPIO pin */
+	if(gpio_pin < GPIO_32) {
+		config = 1 << gpio_pin; 
+		val = readl(priv->ioaddr + GPIOO0_OFFSET);
+		val &= ~config;
+		if(out_value)
+			val |= config;
+
+		writel(val, priv->ioaddr + GPIOO0_OFFSET);
+	}  else {
+		config = 1 << (gpio_pin - GPIO_32);
+		val = readl(priv->ioaddr + GPIOO1_OFFSET);
+		val &= ~config;
+		if(out_value)
+			val |= config;
+
+		writel(val, priv->ioaddr + GPIOO1_OFFSET);
+	}
+
+	/* Configure the GPIO pin in output direction */
+	if(gpio_pin < GPIO_32) {
+		config = ~(1 << gpio_pin) ;
+		val = readl(priv->ioaddr + GPIOE0_OFFSET);
+		writel(val & config, priv->ioaddr + GPIOE0_OFFSET);
+	} else {
+		config = ~(1 << (gpio_pin - GPIO_32)) ;
+		val = readl(priv->ioaddr + GPIOE1_OFFSET);
+		writel(val & config, priv->ioaddr + GPIOE1_OFFSET);
+	}
+
+	return 0;
+}
 
 /**
  * tc956xmac_verify_args - verify the driver parameters.
@@ -9863,6 +9976,7 @@ int tc956xmac_dvr_probe(struct device *device,
 	priv = netdev_priv(ndev);
 	priv->device = device;
 	priv->dev = ndev;
+	priv->ioaddr = res->addr;
 
 	ret = tc956x_platform_probe(priv, res);
 	if (ret) {
@@ -9878,7 +9992,6 @@ int tc956xmac_dvr_probe(struct device *device,
 	tc956xmac_set_ethtool_ops(ndev);
 	priv->pause = pause;
 	priv->plat = plat_dat;
-	priv->ioaddr = res->addr;
 #ifdef TC956X
 	priv->tc956x_SFR_pci_base_addr = res->tc956x_SFR_pci_base_addr;
 	priv->tc956x_SRAM_pci_base_addr = res->tc956x_SRAM_pci_base_addr;

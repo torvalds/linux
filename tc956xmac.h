@@ -72,6 +72,9 @@
  *		: 2. Adding MTL RX Overflow/packet miss count, TX underflow counts,Rx Watchdog value to ethtool statistics.
  *		: 3. Version update
  *  VERSION     : 01-00-17
+ *  21 Oct 2021 : 1. Added support for GPIO configuration API
+ *		: 2. Version update 
+ *  VERSION     : 01-00-18
  */
 
 #ifndef __TC956XMAC_H__
@@ -120,7 +123,7 @@
 #ifdef TC956X
 
 #define TC956X_RESOURCE_NAME	"tc956x_pci-eth"
-#define DRV_MODULE_VERSION	"V_01-00-17"
+#define DRV_MODULE_VERSION	"V_01-00-18"
 #define TC956X_FW_MAX_SIZE	(64*1024)
 
 #define ATR_AXI4_SLV_BASE		0x0800
@@ -703,5 +706,6 @@ static inline int tc956x_platform_suspend(struct tc956xmac_priv *priv) { return 
 static inline int tc956x_platform_resume(struct tc956xmac_priv *priv) { return 0; }
 #endif
 
+int tc956x_GPIO_OutputConfigPin(struct tc956xmac_priv *priv, u32 gpio_pin, u8 out_value);
 
 #endif /* __TC956XMAC_H__ */

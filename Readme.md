@@ -1,7 +1,7 @@
 # Toshiba Electronic Devices & Storage Corporation TC956X PCIe Ethernet Host Driver
-Release Date: 19 Oct 2021
+Release Date: 21 Oct 2021
 
-Release Version: V_01-00-17 : Limited-tested version
+Release Version: V_01-00-18 : Limited-tested version
 
 TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
@@ -254,3 +254,7 @@ Default Configuraton:
 
 1. Added M3 SRAM Debug counters to ethtool statistics.
 2. Added MTL RX Overflow/packet miss count, TX underflow counts,Rx Watchdog value to ethtool statistics.
+
+## TC956X_Host_Driver_20211021_V_01-00-18:
+
+1. Added support for GPIO configuration API
