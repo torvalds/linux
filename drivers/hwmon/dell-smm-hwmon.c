@@ -25,6 +25,7 @@
 #include <linux/platform_device.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/string.h>
 #include <linux/smp.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
@@ -472,8 +473,7 @@ i8k_ioctl_unlocked(struct file *fp, struct dell_smm_data *data, unsigned int cmd
 		if (restricted && !capable(CAP_SYS_ADMIN))
 			return -EPERM;
 
-		memset(buff, 0, sizeof(buff));
-		strscpy(buff, data->bios_machineid, sizeof(buff));
+		strscpy_pad(buff, data->bios_machineid, sizeof(buff));
 		break;
 
 	case I8K_FN_STATUS:
