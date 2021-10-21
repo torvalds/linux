@@ -9043,6 +9043,16 @@ bpf_object__find_map_by_name(const struct bpf_object *obj, const char *name)
 	struct bpf_map *pos;
 
 	bpf_object__for_each_map(pos, obj) {
+		/* if it's a special internal map name (which always starts
+		 * with dot) then check if that special name matches the
+		 * real map name (ELF section name)
+		 */
+		if (name[0] == '.') {
+			if (pos->real_name && strcmp(pos->real_name, name) == 0)
+				return pos;
+			continue;
+		}
+		/* otherwise map name has to be an exact match */
 		if (map_uses_real_name(pos)) {
 			if (strcmp(pos->real_name, name) == 0)
 				return pos;
