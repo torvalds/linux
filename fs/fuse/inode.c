@@ -1415,20 +1415,17 @@ static int fuse_get_tree_submount(struct fs_context *fsc)
 	if (!fm)
 		return -ENOMEM;
 
+	fm->fc = fuse_conn_get(fc);
 	fsc->s_fs_info = fm;
 	sb = sget_fc(fsc, NULL, set_anon_super_fc);
-	if (IS_ERR(sb)) {
-		kfree(fm);
+	if (fsc->s_fs_info)
+		fuse_mount_destroy(fm);
+	if (IS_ERR(sb))
 		return PTR_ERR(sb);
-	}
-	fm->fc = fuse_conn_get(fc);
 
 	/* Initialize superblock, making @mp_fi its root */
 	err = fuse_fill_super_submount(sb, mp_fi);
 	if (err) {
-		fuse_conn_put(fc);
-		kfree(fm);
-		sb->s_fs_info = NULL;
 		deactivate_locked_super(sb);
 		return err;
 	}
@@ -1595,16 +1592,12 @@ static int fuse_fill_super(struct super_block *sb, struct fs_context *fsc)
 
 	err = fuse_fill_super_common(sb, ctx);
 	if (err)
-		goto err_put_conn;
+		goto err;
 	/* file->private_data shall be visible on all CPUs after this */
 	smp_mb();
 	fuse_send_init(get_fuse_mount_super(sb));
 	return 0;
 
- err_put_conn:
-	fuse_conn_put(fc);
-	kfree(fm);
-	sb->s_fs_info = NULL;
  err:
 	return err;
 }
