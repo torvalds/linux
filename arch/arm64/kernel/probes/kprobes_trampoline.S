@@ -66,6 +66,9 @@ SYM_CODE_START(__kretprobe_trampoline)
 
 	save_all_base_regs
 
+	/* Setup a frame pointer. */
+	add x29, sp, #S_FP
+
 	mov x0, sp
 	bl trampoline_probe_handler
 	/*
@@ -74,6 +77,7 @@ SYM_CODE_START(__kretprobe_trampoline)
 	 */
 	mov lr, x0
 
+	/* The frame pointer (x29) is restored with other registers. */
 	restore_all_base_regs
 
 	add sp, sp, #PT_REGS_SIZE
