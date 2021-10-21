@@ -706,7 +706,7 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 
 	r = dm_split_args(&argc, &argv, params);
 	if (r) {
-		tgt->error = "couldn't split parameters (insufficient memory)";
+		tgt->error = "couldn't split parameters";
 		goto bad;
 	}
 
@@ -724,7 +724,7 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 	return 0;
 
  bad:
-	DMERR("%s: %s: %s", dm_device_name(t->md), type, tgt->error);
+	DMERR("%s: %s: %s (%pe)", dm_device_name(t->md), type, tgt->error, ERR_PTR(r));
 	dm_put_target_type(tgt->type);
 	return r;
 }
