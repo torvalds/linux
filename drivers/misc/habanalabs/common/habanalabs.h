@@ -382,6 +382,7 @@ enum hl_device_hw_state {
  * @hop3_mask: mask to get the PTE address in hop 3.
  * @hop4_mask: mask to get the PTE address in hop 4.
  * @hop5_mask: mask to get the PTE address in hop 5.
+ * @last_mask: mask to get the bit indicating this is the last hop.
  * @page_size: default page size used to allocate memory.
  * @num_hops: The amount of hops supported by the translation table.
  * @host_resident: Should the MMU page table reside in host memory or in the
@@ -402,6 +403,7 @@ struct hl_mmu_properties {
 	u64	hop3_mask;
 	u64	hop4_mask;
 	u64	hop5_mask;
+	u64	last_mask;
 	u32	page_size;
 	u32	num_hops;
 	u8	host_resident;
