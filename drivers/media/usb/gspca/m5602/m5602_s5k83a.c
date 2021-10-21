@@ -339,14 +339,13 @@ int s5k83a_start(struct sd *sd)
 	/* Create another thread, polling the GPIO ports of the camera to check
 	   if it got rotated. This is how the windows driver does it so we have
 	   to assume that there is no better way of accomplishing this */
-	sd->rotation_thread = kthread_create(rotation_thread_function,
-					     sd, "rotation thread");
+	sd->rotation_thread = kthread_run(rotation_thread_function,
+					  sd, "rotation thread");
 	if (IS_ERR(sd->rotation_thread)) {
 		err = PTR_ERR(sd->rotation_thread);
 		sd->rotation_thread = NULL;
 		return err;
 	}
-	wake_up_process(sd->rotation_thread);
 
 	/* Preinit the sensor */
 	for (i = 0; i < ARRAY_SIZE(start_s5k83a) && !err; i++) {
