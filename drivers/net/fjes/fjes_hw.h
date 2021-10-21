@@ -330,7 +330,7 @@ int fjes_hw_register_buff_addr(struct fjes_hw *, int,
 int fjes_hw_unregister_buff_addr(struct fjes_hw *, int);
 void fjes_hw_init_command_registers(struct fjes_hw *,
 				    struct fjes_device_command_param *);
-void fjes_hw_setup_epbuf(struct epbuf_handler *, u8 *, u32);
+void fjes_hw_setup_epbuf(struct epbuf_handler *, const u8 *, u32);
 int fjes_hw_raise_interrupt(struct fjes_hw *, int, enum REG_ICTL_MASK);
 void fjes_hw_set_irqmask(struct fjes_hw *, enum REG_ICTL_MASK, bool);
 u32 fjes_hw_capture_interrupt_status(struct fjes_hw *);
