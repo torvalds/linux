@@ -1233,8 +1233,10 @@ static int sja1105_parse_ports_node(struct sja1105_private *priv,
 		priv->phy_mode[index] = phy_mode;
 
 		err = sja1105_parse_rgmii_delays(priv, index, child);
-		if (err)
+		if (err) {
+			of_node_put(child);
 			return err;
+		}
 	}
 
 	return 0;
