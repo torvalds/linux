@@ -20,9 +20,6 @@
 #include "legacy.h"
 #include "xstate.h"
 
-static struct _fpx_sw_bytes fx_sw_reserved __ro_after_init;
-static struct _fpx_sw_bytes fx_sw_reserved_ia32 __ro_after_init;
-
 /*
  * Check for the presence of extended state information in the
  * user fpstate pointer in the sigcontext.
@@ -98,23 +95,42 @@ static inline bool save_fsave_header(struct task_struct *tsk, void __user *buf)
 	return true;
 }
 
+/*
+ * Prepare the SW reserved portion of the fxsave memory layout, indicating
+ * the presence of the extended state information in the memory layout
+ * pointed to by the fpstate pointer in the sigcontext.
+ * This is saved when ever the FP and extended state context is
+ * saved on the user stack during the signal handler delivery to the user.
+ */
+static inline void save_sw_bytes(struct _fpx_sw_bytes *sw_bytes, bool ia32_frame,
+				 struct fpstate *fpstate)
+{
+	sw_bytes->magic1 = FP_XSTATE_MAGIC1;
+	sw_bytes->extended_size = fpstate->user_size + FP_XSTATE_MAGIC2_SIZE;
+	sw_bytes->xfeatures = fpstate->user_xfeatures;
+	sw_bytes->xstate_size = fpstate->user_size;
+
+	if (ia32_frame)
+		sw_bytes->extended_size += sizeof(struct fregs_state);
+}
+
 static inline bool save_xstate_epilog(void __user *buf, int ia32_frame,
-				      unsigned int usize)
+				      struct fpstate *fpstate)
 {
 	struct xregs_state __user *x = buf;
-	struct _fpx_sw_bytes *sw_bytes;
+	struct _fpx_sw_bytes sw_bytes;
 	u32 xfeatures;
 	int err;
 
 	/* Setup the bytes not touched by the [f]xsave and reserved for SW. */
-	sw_bytes = ia32_frame ? &fx_sw_reserved_ia32 : &fx_sw_reserved;
-	err = __copy_to_user(&x->i387.sw_reserved, sw_bytes, sizeof(*sw_bytes));
+	save_sw_bytes(&sw_bytes, ia32_frame, fpstate);
+	err = __copy_to_user(&x->i387.sw_reserved, &sw_bytes, sizeof(sw_bytes));
 
 	if (!use_xsave())
 		return !err;
 
 	err |= __put_user(FP_XSTATE_MAGIC2,
-			  (__u32 __user *)(buf + usize));
+			  (__u32 __user *)(buf + fpstate->user_size));
 
 	/*
 	 * Read the xfeatures which we copied (directly from the cpu or
@@ -173,7 +189,7 @@ bool copy_fpstate_to_sigframe(void __user *buf, void __user *buf_fx, int size)
 {
 	struct task_struct *tsk = current;
 	struct fpstate *fpstate = tsk->thread.fpu.fpstate;
-	int ia32_fxstate = (buf != buf_fx);
+	bool ia32_fxstate = (buf != buf_fx);
 	int ret;
 
 	ia32_fxstate &= (IS_ENABLED(CONFIG_X86_32) ||
@@ -226,8 +242,7 @@ retry:
 	if ((ia32_fxstate || !use_fxsr()) && !save_fsave_header(tsk, buf))
 		return false;
 
-	if (use_fxsr() &&
-	    !save_xstate_epilog(buf_fx, ia32_fxstate, fpstate->user_size))
+	if (use_fxsr() && !save_xstate_epilog(buf_fx, ia32_fxstate, fpstate))
 		return false;
 
 	return true;
@@ -521,30 +536,5 @@ unsigned long __init fpu__get_fpstate_size(void)
 		ret += sizeof(struct fregs_state);
 
 	return ret;
-}
-
-/*
- * Prepare the SW reserved portion of the fxsave memory layout, indicating
- * the presence of the extended state information in the memory layout
- * pointed by the fpstate pointer in the sigcontext.
- * This will be saved when ever the FP and extended state context is
- * saved on the user stack during the signal handler delivery to the user.
- */
-void __init fpu__init_prepare_fx_sw_frame(void)
-{
-	int size = fpu_user_cfg.default_size + FP_XSTATE_MAGIC2_SIZE;
-
-	fx_sw_reserved.magic1 = FP_XSTATE_MAGIC1;
-	fx_sw_reserved.extended_size = size;
-	fx_sw_reserved.xfeatures = fpu_user_cfg.default_features;
-	fx_sw_reserved.xstate_size = fpu_user_cfg.default_size;
-
-	if (IS_ENABLED(CONFIG_IA32_EMULATION) ||
-	    IS_ENABLED(CONFIG_X86_32)) {
-		int fsave_header_size = sizeof(struct fregs_state);
-
-		fx_sw_reserved_ia32 = fx_sw_reserved;
-		fx_sw_reserved_ia32.extended_size = size + fsave_header_size;
-	}
 }
 
