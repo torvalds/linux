@@ -231,6 +231,7 @@ intel_dp_mst_atomic_master_trans_check(struct intel_connector *connector,
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct drm_connector_list_iter connector_list_iter;
 	struct intel_connector *connector_iter;
+	int ret = 0;
 
 	if (DISPLAY_VER(dev_priv) < 12)
 		return  0;
@@ -243,7 +244,6 @@ intel_dp_mst_atomic_master_trans_check(struct intel_connector *connector,
 		struct intel_digital_connector_state *conn_iter_state;
 		struct intel_crtc_state *crtc_state;
 		struct intel_crtc *crtc;
-		int ret;
 
 		if (connector_iter->mst_port != connector->mst_port ||
 		    connector_iter == connector)
@@ -252,8 +252,8 @@ intel_dp_mst_atomic_master_trans_check(struct intel_connector *connector,
 		conn_iter_state = intel_atomic_get_digital_connector_state(state,
 									   connector_iter);
 		if (IS_ERR(conn_iter_state)) {
-			drm_connector_list_iter_end(&connector_list_iter);
-			return PTR_ERR(conn_iter_state);
+			ret = PTR_ERR(conn_iter_state);
+			break;
 		}
 
 		if (!conn_iter_state->base.crtc)
@@ -262,20 +262,18 @@ intel_dp_mst_atomic_master_trans_check(struct intel_connector *connector,
 		crtc = to_intel_crtc(conn_iter_state->base.crtc);
 		crtc_state = intel_atomic_get_crtc_state(&state->base, crtc);
 		if (IS_ERR(crtc_state)) {
-			drm_connector_list_iter_end(&connector_list_iter);
-			return PTR_ERR(crtc_state);
+			ret = PTR_ERR(crtc_state);
+			break;
 		}
 
 		ret = drm_atomic_add_affected_planes(&state->base, &crtc->base);
-		if (ret) {
-			drm_connector_list_iter_end(&connector_list_iter);
-			return ret;
-		}
+		if (ret)
+			break;
 		crtc_state->uapi.mode_changed = true;
 	}
 	drm_connector_list_iter_end(&connector_list_iter);
 
-	return 0;
+	return ret;
 }
 
 static int
