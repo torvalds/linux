@@ -502,12 +502,12 @@ static int symbols_resolve(struct object *obj)
 	}
 
 	err = -1;
-	nr_types = btf__get_nr_types(btf);
+	nr_types = btf__type_cnt(btf);
 
 	/*
 	 * Iterate all the BTF types and search for collected symbol IDs.
 	 */
-	for (type_id = 1; type_id <= nr_types; type_id++) {
+	for (type_id = 1; type_id < nr_types; type_id++) {
 		const struct btf_type *type;
 		struct rb_root *root;
 		struct btf_id *id;
