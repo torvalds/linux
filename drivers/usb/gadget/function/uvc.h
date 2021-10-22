@@ -68,7 +68,7 @@ extern unsigned int uvc_gadget_trace_param;
 #define UVC_MAX_REQUEST_SIZE			64
 #define UVC_MAX_EVENTS				4
 
-#define UVCG_REQUEST_HEADER_LEN			2
+#define UVCG_REQUEST_HEADER_LEN			12
 
 /* ------------------------------------------------------------------------
  * Structures

@@ -12,6 +12,7 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 #include <linux/usb/video.h>
+#include <asm/unaligned.h>
 
 #include <media/v4l2-dev.h>
 
@@ -27,13 +28,41 @@ static int
 uvc_video_encode_header(struct uvc_video *video, struct uvc_buffer *buf,
 		u8 *data, int len)
 {
-	data[0] = UVCG_REQUEST_HEADER_LEN;
+	struct uvc_device *uvc = container_of(video, struct uvc_device, video);
+	struct usb_composite_dev *cdev = uvc->func.config->cdev;
+	struct timespec64 ts = ns_to_timespec64(buf->buf.vb2_buf.timestamp);
+	int pos = 2;
+
 	data[1] = UVC_STREAM_EOH | video->fid;
 
-	if (buf->bytesused - video->queue.buf_used <= len - UVCG_REQUEST_HEADER_LEN)
+	if (video->queue.buf_used == 0 && ts.tv_sec) {
+		/* dwClockFrequency is 48 MHz */
+		u32 pts = ((u64)ts.tv_sec * USEC_PER_SEC + ts.tv_nsec / NSEC_PER_USEC) * 48;
+
+		data[1] |= UVC_STREAM_PTS;
+		put_unaligned_le32(pts, &data[pos]);
+		pos += 4;
+	}
+
+	if (cdev->gadget->ops->get_frame) {
+		u32 sof, stc;
+
+		sof = usb_gadget_frame_number(cdev->gadget);
+		ktime_get_ts64(&ts);
+		stc = ((u64)ts.tv_sec * USEC_PER_SEC + ts.tv_nsec / NSEC_PER_USEC) * 48;
+
+		data[1] |= UVC_STREAM_SCR;
+		put_unaligned_le32(stc, &data[pos]);
+		put_unaligned_le16(sof, &data[pos+4]);
+		pos += 6;
+	}
+
+	data[0] = pos;
+
+	if (buf->bytesused - video->queue.buf_used <= len - pos)
 		data[1] |= UVC_STREAM_EOF;
 
-	return UVCG_REQUEST_HEADER_LEN;
+	return pos;
 }
 
 static int
