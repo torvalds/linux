@@ -2008,7 +2008,7 @@ nfs4_opendata_get_inode(struct nfs4_opendata *data)
 		if (!(data->f_attr.valid & NFS_ATTR_FATTR))
 			return ERR_PTR(-EAGAIN);
 		inode = nfs_fhget(data->dir->d_sb, &data->o_res.fh,
-				&data->f_attr, data->f_attr.label);
+				&data->f_attr);
 		break;
 	default:
 		inode = d_inode(data->dentry);

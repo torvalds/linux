@@ -103,7 +103,7 @@ nfs_fh_to_dentry(struct super_block *sb, struct fid *fid,
 		goto out_free_fattr;
 	}
 
-	inode = nfs_fhget(sb, server_fh, fattr, fattr->label);
+	inode = nfs_fhget(sb, server_fh, fattr);
 
 out_found:
 	dentry = d_obtain_alias(inode);
@@ -138,7 +138,7 @@ nfs_get_parent(struct dentry *dentry)
 		goto out;
 	}
 
-	pinode = nfs_fhget(sb, &fh, fattr, fattr->label);
+	pinode = nfs_fhget(sb, &fh, fattr);
 	parent = d_obtain_alias(pinode);
 out:
 	nfs_free_fattr(fattr);
