@@ -226,11 +226,8 @@ _GLOBAL(tm_reclaim)
 
 	/* Sync the userland GPRs 2-12, 14-31 to thread->regs: */
 	SAVE_GPR(0, r7)				/* user r0 */
-	SAVE_GPR(2, r7)				/* user r2 */
-	SAVE_4GPRS(3, r7)			/* user r3-r6 */
-	SAVE_GPR(8, r7)				/* user r8 */
-	SAVE_GPR(9, r7)				/* user r9 */
-	SAVE_GPR(10, r7)			/* user r10 */
+	SAVE_GPRS(2, 6, r7)			/* user r2-r6 */
+	SAVE_GPRS(8, 10, r7)			/* user r8-r10 */
 	ld	r3, GPR1(r1)			/* user r1 */
 	ld	r4, GPR7(r1)			/* user r7 */
 	ld	r5, GPR11(r1)			/* user r11 */
@@ -445,12 +442,8 @@ restore_gprs:
 	ld	r6, THREAD_TM_PPR(r3)
 
 	REST_GPR(0, r7)				/* GPR0 */
-	REST_2GPRS(2, r7)			/* GPR2-3 */
-	REST_GPR(4, r7)				/* GPR4 */
-	REST_4GPRS(8, r7)			/* GPR8-11 */
-	REST_2GPRS(12, r7)			/* GPR12-13 */
-
-	REST_NVGPRS(r7)				/* GPR14-31 */
+	REST_GPRS(2, 4, r7)			/* GPR2-4 */
+	REST_GPRS(8, 31, r7)			/* GPR8-31 */
 
 	/* Load up PPR and DSCR here so we don't run with user values for long */
 	mtspr	SPRN_DSCR, r5
