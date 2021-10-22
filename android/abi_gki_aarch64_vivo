@@ -1782,10 +1782,15 @@
   __tracepoint_android_rvh_set_readahead_gfp_mask
   __tracepoint_android_rvh_set_skip_swapcache_flags
   __tracepoint_android_rvh_set_task_cpu
+  __tracepoint_android_rvh_tcp_recvmsg
+  __tracepoint_android_rvh_tcp_recvmsg_stat
+  __tracepoint_android_rvh_tcp_sendmsg_locked
   __tracepoint_android_rvh_tick_entry
   __tracepoint_android_rvh_try_to_wake_up
   __tracepoint_android_rvh_try_to_wake_up_success
   __tracepoint_android_rvh_ttwu_cond
+  __tracepoint_android_rvh_udp_recvmsg
+  __tracepoint_android_rvh_udp_sendmsg
   __tracepoint_android_rvh_update_cpu_capacity
   __tracepoint_android_rvh_update_cpus_allowed
   __tracepoint_android_rvh_update_misfit_status
