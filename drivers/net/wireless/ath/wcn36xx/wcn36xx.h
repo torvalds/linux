@@ -127,7 +127,6 @@ struct wcn36xx_vif {
 	enum wcn36xx_hal_bss_type bss_type;
 
 	/* Power management */
-	bool allow_bmps;
 	enum wcn36xx_power_state pw_state;
 
 	u8 bss_index;
