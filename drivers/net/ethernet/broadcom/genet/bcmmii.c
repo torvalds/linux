@@ -139,14 +139,15 @@ void bcmgenet_phy_power_set(struct net_device *dev, bool enable)
 	u32 reg = 0;
 
 	/* EXT_GPHY_CTRL is only valid for GENETv4 and onward */
-	if (GENET_IS_V4(priv)) {
+	if (GENET_IS_V4(priv) || priv->ephy_16nm) {
 		reg = bcmgenet_ext_readl(priv, EXT_GPHY_CTRL);
 		if (enable) {
 			reg &= ~EXT_CK25_DIS;
 			bcmgenet_ext_writel(priv, reg, EXT_GPHY_CTRL);
 			mdelay(1);
 
-			reg &= ~(EXT_CFG_IDDQ_BIAS | EXT_CFG_PWR_DOWN);
+			reg &= ~(EXT_CFG_IDDQ_BIAS | EXT_CFG_PWR_DOWN |
+				 EXT_CFG_IDDQ_GLOBAL_PWR);
 			reg |= EXT_GPHY_RESET;
 			bcmgenet_ext_writel(priv, reg, EXT_GPHY_CTRL);
 			mdelay(1);
@@ -154,7 +155,7 @@ void bcmgenet_phy_power_set(struct net_device *dev, bool enable)
 			reg &= ~EXT_GPHY_RESET;
 		} else {
 			reg |= EXT_CFG_IDDQ_BIAS | EXT_CFG_PWR_DOWN |
-			       EXT_GPHY_RESET;
+			       EXT_GPHY_RESET | EXT_CFG_IDDQ_GLOBAL_PWR;
 			bcmgenet_ext_writel(priv, reg, EXT_GPHY_CTRL);
 			mdelay(1);
 			reg |= EXT_CK25_DIS;

@@ -1653,7 +1653,7 @@ static int bcmgenet_power_down(struct bcmgenet_priv *priv,
 		/* Power down LED */
 		if (priv->hw_params->flags & GENET_HAS_EXT) {
 			reg = bcmgenet_ext_readl(priv, EXT_EXT_PWR_MGMT);
-			if (GENET_IS_V5(priv))
+			if (GENET_IS_V5(priv) && !priv->ephy_16nm)
 				reg |= EXT_PWR_DOWN_PHY_EN |
 				       EXT_PWR_DOWN_PHY_RD |
 				       EXT_PWR_DOWN_PHY_SD |
@@ -1690,7 +1690,7 @@ static void bcmgenet_power_up(struct bcmgenet_priv *priv,
 	case GENET_POWER_PASSIVE:
 		reg &= ~(EXT_PWR_DOWN_DLL | EXT_PWR_DOWN_BIAS |
 			 EXT_ENERGY_DET_MASK);
-		if (GENET_IS_V5(priv)) {
+		if (GENET_IS_V5(priv) && !priv->ephy_16nm) {
 			reg &= ~(EXT_PWR_DOWN_PHY_EN |
 				 EXT_PWR_DOWN_PHY_RD |
 				 EXT_PWR_DOWN_PHY_SD |
@@ -3910,6 +3910,7 @@ static void bcmgenet_set_hw_params(struct bcmgenet_priv *priv)
 struct bcmgenet_plat_data {
 	enum bcmgenet_version version;
 	u32 dma_max_burst_length;
+	bool ephy_16nm;
 };
 
 static const struct bcmgenet_plat_data v1_plat_data = {
@@ -3942,6 +3943,12 @@ static const struct bcmgenet_plat_data bcm2711_plat_data = {
 	.dma_max_burst_length = 0x08,
 };
 
+static const struct bcmgenet_plat_data bcm7712_plat_data = {
+	.version = GENET_V5,
+	.dma_max_burst_length = DMA_MAX_BURST_LENGTH,
+	.ephy_16nm = true,
+};
+
 static const struct of_device_id bcmgenet_match[] = {
 	{ .compatible = "brcm,genet-v1", .data = &v1_plat_data },
 	{ .compatible = "brcm,genet-v2", .data = &v2_plat_data },
@@ -3949,6 +3956,7 @@ static const struct of_device_id bcmgenet_match[] = {
 	{ .compatible = "brcm,genet-v4", .data = &v4_plat_data },
 	{ .compatible = "brcm,genet-v5", .data = &v5_plat_data },
 	{ .compatible = "brcm,bcm2711-genet-v5", .data = &bcm2711_plat_data },
+	{ .compatible = "brcm,bcm7712-genet-v5", .data = &bcm7712_plat_data },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, bcmgenet_match);
@@ -4029,6 +4037,7 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	if (pdata) {
 		priv->version = pdata->version;
 		priv->dma_max_burst_length = pdata->dma_max_burst_length;
+		priv->ephy_16nm = pdata->ephy_16nm;
 	} else {
 		priv->version = pd->genet_version;
 		priv->dma_max_burst_length = DMA_MAX_BURST_LENGTH;

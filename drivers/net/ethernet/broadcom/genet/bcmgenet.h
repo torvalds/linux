@@ -329,6 +329,7 @@ struct bcmgenet_mib_counters {
 #define  EXT_CFG_IDDQ_BIAS		(1 << 0)
 #define  EXT_CFG_PWR_DOWN		(1 << 1)
 #define  EXT_CK25_DIS			(1 << 4)
+#define  EXT_CFG_IDDQ_GLOBAL_PWR	(1 << 3)
 #define  EXT_GPHY_RESET			(1 << 5)
 
 /* DMA rings size */
@@ -612,6 +613,7 @@ struct bcmgenet_priv {
 	phy_interface_t phy_interface;
 	int phy_addr;
 	int ext_phy;
+	bool ephy_16nm;
 
 	/* Interrupt variables */
 	struct work_struct bcmgenet_irq_work;
