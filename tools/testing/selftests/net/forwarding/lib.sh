@@ -751,6 +751,14 @@ qdisc_parent_stats_get()
 	    | jq '.[] | select(.parent == "'"$parent"'") | '"$selector"
 }
 
+ipv6_stats_get()
+{
+	local dev=$1; shift
+	local stat=$1; shift
+
+	cat /proc/net/dev_snmp6/$dev | grep "^$stat" | cut -f2
+}
+
 humanize()
 {
 	local speed=$1; shift
