@@ -1345,7 +1345,7 @@ static int intel_dp_dsc_compute_params(struct intel_encoder *encoder,
 	else
 		vdsc_cfg->slice_height = 2;
 
-	ret = intel_dsc_compute_params(encoder, crtc_state);
+	ret = intel_dsc_compute_params(crtc_state);
 	if (ret)
 		return ret;
 

@@ -2386,7 +2386,10 @@ static void dg2_ddi_pre_enable_dp(struct intel_atomic_state *state,
 
 	/* 5.k Configure and enable FEC if needed */
 	intel_ddi_enable_fec(encoder, crtc_state);
-	intel_dsc_enable(encoder, crtc_state);
+
+	intel_dsc_dp_pps_write(encoder, crtc_state);
+
+	intel_dsc_enable(crtc_state);
 }
 
 static void tgl_ddi_pre_enable_dp(struct intel_atomic_state *state,
@@ -2520,8 +2523,11 @@ static void tgl_ddi_pre_enable_dp(struct intel_atomic_state *state,
 
 	/* 7.l Configure and enable FEC if needed */
 	intel_ddi_enable_fec(encoder, crtc_state);
+
+	intel_dsc_dp_pps_write(encoder, crtc_state);
+
 	if (!crtc_state->bigjoiner)
-		intel_dsc_enable(encoder, crtc_state);
+		intel_dsc_enable(crtc_state);
 }
 
 static void hsw_ddi_pre_enable_dp(struct intel_atomic_state *state,
@@ -2586,8 +2592,10 @@ static void hsw_ddi_pre_enable_dp(struct intel_atomic_state *state,
 	if (!is_mst)
 		intel_ddi_enable_pipe_clock(encoder, crtc_state);
 
+	intel_dsc_dp_pps_write(encoder, crtc_state);
+
 	if (!crtc_state->bigjoiner)
-		intel_dsc_enable(encoder, crtc_state);
+		intel_dsc_enable(crtc_state);
 }
 
 static void intel_ddi_pre_enable_dp(struct intel_atomic_state *state,

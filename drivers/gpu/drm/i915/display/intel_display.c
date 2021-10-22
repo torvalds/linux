@@ -1976,7 +1976,7 @@ static void icl_ddi_bigjoiner_pre_enable(struct intel_atomic_state *state,
 
 	if (!crtc_state->bigjoiner_slave) {
 		/* need to enable VDSC, which we skipped in pre-enable */
-		intel_dsc_enable(encoder, crtc_state);
+		intel_dsc_enable(crtc_state);
 	} else {
 		/*
 		 * Enable sequence steps 1-7 on bigjoiner master
@@ -1986,8 +1986,7 @@ static void icl_ddi_bigjoiner_pre_enable(struct intel_atomic_state *state,
 			intel_enable_shared_dpll(master_crtc_state);
 		intel_encoders_pre_enable(state, master_crtc);
 
-		/* and DSC on slave */
-		intel_dsc_enable(NULL, crtc_state);
+		intel_dsc_enable(crtc_state);
 	}
 
 	if (DISPLAY_VER(dev_priv) >= 13)

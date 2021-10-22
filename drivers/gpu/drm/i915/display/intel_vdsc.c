@@ -442,10 +442,10 @@ calculate_rc_params(struct rc_parameters *rc,
 	}
 }
 
-int intel_dsc_compute_params(struct intel_encoder *encoder,
-			     struct intel_crtc_state *pipe_config)
+int intel_dsc_compute_params(struct intel_crtc_state *pipe_config)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct drm_dsc_config *vdsc_cfg = &pipe_config->dsc.config;
 	u16 compressed_bpp = pipe_config->dsc.compressed_bpp;
 	const struct rc_parameters *rc_params;
@@ -1055,14 +1055,17 @@ static void intel_dsc_pps_configure(const struct intel_crtc_state *crtc_state)
 	}
 }
 
-static void intel_dsc_dsi_pps_write(struct intel_encoder *encoder,
-				    const struct intel_crtc_state *crtc_state)
+void intel_dsc_dsi_pps_write(struct intel_encoder *encoder,
+			     const struct intel_crtc_state *crtc_state)
 {
 	const struct drm_dsc_config *vdsc_cfg = &crtc_state->dsc.config;
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	struct mipi_dsi_device *dsi;
 	struct drm_dsc_picture_parameter_set pps;
 	enum port port;
+
+	if (!crtc_state->dsc.compression_enable)
+		return;
 
 	drm_dsc_pps_payload_pack(&pps, vdsc_cfg);
 
@@ -1074,13 +1077,15 @@ static void intel_dsc_dsi_pps_write(struct intel_encoder *encoder,
 	}
 }
 
-static void intel_dsc_dp_pps_write(struct intel_encoder *encoder,
-				   const struct intel_crtc_state *crtc_state)
+void intel_dsc_dp_pps_write(struct intel_encoder *encoder,
+			    const struct intel_crtc_state *crtc_state)
 {
-	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	const struct drm_dsc_config *vdsc_cfg = &crtc_state->dsc.config;
 	struct drm_dsc_pps_infoframe dp_dsc_pps_sdp;
+
+	if (!crtc_state->dsc.compression_enable)
+		return;
 
 	/* Prepare DP SDP PPS header as per DP 1.4 spec, Table 2-123 */
 	drm_dsc_dp_pps_header_init(&dp_dsc_pps_sdp.pps_header);
@@ -1142,8 +1147,7 @@ void intel_uncompressed_joiner_enable(const struct intel_crtc_state *crtc_state)
 	}
 }
 
-void intel_dsc_enable(struct intel_encoder *encoder,
-		      const struct intel_crtc_state *crtc_state)
+void intel_dsc_enable(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -1154,13 +1158,6 @@ void intel_dsc_enable(struct intel_encoder *encoder,
 		return;
 
 	intel_dsc_pps_configure(crtc_state);
-
-	if (!crtc_state->bigjoiner_slave) {
-		if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI))
-			intel_dsc_dsi_pps_write(encoder, crtc_state);
-		else
-			intel_dsc_dp_pps_write(encoder, crtc_state);
-	}
 
 	dss_ctl2_val |= LEFT_BRANCH_VDSC_ENABLE;
 	if (crtc_state->dsc.dsc_split) {
