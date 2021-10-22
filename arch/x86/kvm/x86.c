@@ -7575,37 +7575,31 @@ emul_write:
 	return emulator_write_emulated(ctxt, addr, new, bytes, exception);
 }
 
-static int kernel_pio(struct kvm_vcpu *vcpu, void *pd)
-{
-	int r = 0, i;
-
-	for (i = 0; i < vcpu->arch.pio.count; i++) {
-		if (vcpu->arch.pio.in)
-			r = kvm_io_bus_read(vcpu, KVM_PIO_BUS, vcpu->arch.pio.port,
-					    vcpu->arch.pio.size, pd);
-		else
-			r = kvm_io_bus_write(vcpu, KVM_PIO_BUS,
-					     vcpu->arch.pio.port, vcpu->arch.pio.size,
-					     pd);
-		if (r)
-			break;
-		pd += vcpu->arch.pio.size;
-	}
-	return r;
-}
-
 static int emulator_pio_in_out(struct kvm_vcpu *vcpu, int size,
 			       unsigned short port,
 			       unsigned int count, bool in)
 {
+	void *data = vcpu->arch.pio_data;
+	unsigned i;
+	int r;
+
 	vcpu->arch.pio.port = port;
 	vcpu->arch.pio.in = in;
-	vcpu->arch.pio.count  = count;
+	vcpu->arch.pio.count = count;
 	vcpu->arch.pio.size = size;
 
-	if (!kernel_pio(vcpu, vcpu->arch.pio_data))
-		return 1;
+	for (i = 0; i < count; i++) {
+		if (in)
+			r = kvm_io_bus_read(vcpu, KVM_PIO_BUS, port, size, data);
+		else
+			r = kvm_io_bus_write(vcpu, KVM_PIO_BUS, port, size, data);
+		if (r)
+			goto userspace_io;
+		data += size;
+	}
+	return 1;
 
+userspace_io:
 	vcpu->run->exit_reason = KVM_EXIT_IO;
 	vcpu->run->io.direction = in ? KVM_EXIT_IO_IN : KVM_EXIT_IO_OUT;
 	vcpu->run->io.size = size;
