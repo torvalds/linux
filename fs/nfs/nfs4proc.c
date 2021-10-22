@@ -4850,7 +4850,6 @@ struct nfs4_createdata {
 	struct nfs4_create_res res;
 	struct nfs_fh fh;
 	struct nfs_fattr fattr;
-	struct nfs4_label *label;
 };
 
 static struct nfs4_createdata *nfs4_alloc_createdata(struct inode *dir,
@@ -4862,8 +4861,8 @@ static struct nfs4_createdata *nfs4_alloc_createdata(struct inode *dir,
 	if (data != NULL) {
 		struct nfs_server *server = NFS_SERVER(dir);
 
-		data->label = nfs4_label_alloc(server, GFP_KERNEL);
-		if (IS_ERR(data->label))
+		data->fattr.label = nfs4_label_alloc(server, GFP_KERNEL);
+		if (IS_ERR(data->fattr.label))
 			goto out_free;
 
 		data->msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_CREATE];
@@ -4874,12 +4873,11 @@ static struct nfs4_createdata *nfs4_alloc_createdata(struct inode *dir,
 		data->arg.name = name;
 		data->arg.attrs = sattr;
 		data->arg.ftype = ftype;
-		data->arg.bitmask = nfs4_bitmask(server, data->label);
+		data->arg.bitmask = nfs4_bitmask(server, data->fattr.label);
 		data->arg.umask = current_umask();
 		data->res.server = server;
 		data->res.fh = &data->fh;
 		data->res.fattr = &data->fattr;
-		data->res.label = data->label;
 		nfs_fattr_init(data->res.fattr);
 	}
 	return data;
@@ -4901,14 +4899,14 @@ static int nfs4_do_create(struct inode *dir, struct dentry *dentry, struct nfs4_
 					      data->res.fattr->time_start,
 					      NFS_INO_INVALID_DATA);
 		spin_unlock(&dir->i_lock);
-		status = nfs_instantiate(dentry, data->res.fh, data->res.fattr, data->res.label);
+		status = nfs_instantiate(dentry, data->res.fh, data->res.fattr, data->res.fattr->label);
 	}
 	return status;
 }
 
 static void nfs4_free_createdata(struct nfs4_createdata *data)
 {
-	nfs4_label_free(data->label);
+	nfs4_label_free(data->fattr.label);
 	kfree(data);
 }
 
