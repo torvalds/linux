@@ -334,6 +334,7 @@ static void tw5864_finidev(struct pci_dev *pci_dev)
 	/* release resources */
 	iounmap(dev->mmio);
 	pci_release_regions(pci_dev);
+	pci_disable_device(pci_dev);
 
 	v4l2_device_unregister(&dev->v4l2_dev);
 }
