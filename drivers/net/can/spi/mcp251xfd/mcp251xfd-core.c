@@ -2503,19 +2503,19 @@ static int mcp251xfd_open(struct net_device *ndev)
 	const struct spi_device *spi = priv->spi;
 	int err;
 
+	err = open_candev(ndev);
+	if (err)
+		return err;
+
 	err = pm_runtime_get_sync(ndev->dev.parent);
 	if (err < 0) {
 		pm_runtime_put_noidle(ndev->dev.parent);
-		return err;
+		goto out_close_candev;
 	}
-
-	err = open_candev(ndev);
-	if (err)
-		goto out_pm_runtime_put;
 
 	err = mcp251xfd_ring_alloc(priv);
 	if (err)
-		goto out_close_candev;
+		goto out_pm_runtime_put;
 
 	err = mcp251xfd_transceiver_enable(priv);
 	if (err)
@@ -2551,11 +2551,11 @@ static int mcp251xfd_open(struct net_device *ndev)
 	mcp251xfd_transceiver_disable(priv);
  out_mcp251xfd_ring_free:
 	mcp251xfd_ring_free(priv);
- out_close_candev:
-	close_candev(ndev);
  out_pm_runtime_put:
 	mcp251xfd_chip_stop(priv, CAN_STATE_STOPPED);
 	pm_runtime_put(ndev->dev.parent);
+ out_close_candev:
+	close_candev(ndev);
 
 	return err;
 }
