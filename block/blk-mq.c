@@ -640,7 +640,7 @@ static void req_bio_endio(struct request *rq, struct bio *bio,
 		 * Partial zone append completions cannot be supported as the
 		 * BIO fragments may end up not being written sequentially.
 		 */
-		if (bio->bi_iter.bi_size == nbytes)
+		if (bio->bi_iter.bi_size != nbytes)
 			bio->bi_status = BLK_STS_IOERR;
 		else
 			bio->bi_iter.bi_sector = rq->__sector;
