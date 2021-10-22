@@ -4416,8 +4416,7 @@ nfs4_proc_lookup_mountpoint(struct inode *dir, struct dentry *dentry,
 }
 
 static int _nfs4_proc_lookupp(struct inode *inode,
-		struct nfs_fh *fhandle, struct nfs_fattr *fattr,
-		struct nfs4_label *label)
+		struct nfs_fh *fhandle, struct nfs_fattr *fattr)
 {
 	struct rpc_clnt *clnt = NFS_CLIENT(inode);
 	struct nfs_server *server = NFS_SERVER(inode);
@@ -4429,7 +4428,6 @@ static int _nfs4_proc_lookupp(struct inode *inode,
 	struct nfs4_lookupp_res res = {
 		.server = server,
 		.fattr = fattr,
-		.label = label,
 		.fh = fhandle,
 	};
 	struct rpc_message msg = {
@@ -4442,7 +4440,7 @@ static int _nfs4_proc_lookupp(struct inode *inode,
 	if (NFS_SERVER(inode)->flags & NFS_MOUNT_SOFTREVAL)
 		task_flags |= RPC_TASK_TIMEOUT;
 
-	args.bitmask = nfs4_bitmask(server, label);
+	args.bitmask = nfs4_bitmask(server, fattr->label);
 
 	nfs_fattr_init(fattr);
 
@@ -4454,14 +4452,14 @@ static int _nfs4_proc_lookupp(struct inode *inode,
 }
 
 static int nfs4_proc_lookupp(struct inode *inode, struct nfs_fh *fhandle,
-			     struct nfs_fattr *fattr, struct nfs4_label *label)
+			     struct nfs_fattr *fattr)
 {
 	struct nfs4_exception exception = {
 		.interruptible = true,
 	};
 	int err;
 	do {
-		err = _nfs4_proc_lookupp(inode, fhandle, fattr, label);
+		err = _nfs4_proc_lookupp(inode, fhandle, fattr);
 		trace_nfs4_lookupp(inode, err);
 		err = nfs4_handle_exception(NFS_SERVER(inode), err,
 				&exception);

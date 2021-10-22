@@ -208,7 +208,7 @@ nfs3_proc_lookup(struct inode *dir, struct dentry *dentry,
 }
 
 static int nfs3_proc_lookupp(struct inode *inode, struct nfs_fh *fhandle,
-			     struct nfs_fattr *fattr, struct nfs4_label *label)
+			     struct nfs_fattr *fattr)
 {
 	const char dotdot[] = "..";
 	const size_t len = strlen(dotdot);
