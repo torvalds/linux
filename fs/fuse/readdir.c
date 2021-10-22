@@ -454,7 +454,7 @@ static int fuse_readdir_cached(struct file *file, struct dir_context *ctx)
 	 * cache; both cases require an up-to-date mtime value.
 	 */
 	if (!ctx->pos && fc->auto_inval_data) {
-		int err = fuse_update_attributes(inode, file);
+		int err = fuse_update_attributes(inode, file, STATX_MTIME);
 
 		if (err)
 			return err;
