@@ -913,8 +913,7 @@ static int qeth_l3_iqd_read_initial_mac_cb(struct qeth_card *card,
 	if (!is_valid_ether_addr(cmd->data.create_destroy_addr.mac_addr))
 		return -EADDRNOTAVAIL;
 
-	ether_addr_copy(card->dev->dev_addr,
-			cmd->data.create_destroy_addr.mac_addr);
+	eth_hw_addr_set(card->dev, cmd->data.create_destroy_addr.mac_addr);
 	return 0;
 }
 
