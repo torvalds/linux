@@ -529,8 +529,7 @@ extern void nfs_set_verifier(struct dentry * dentry, unsigned long verf);
 extern void nfs_clear_verifier_delegated(struct inode *inode);
 #endif /* IS_ENABLED(CONFIG_NFS_V4) */
 extern struct dentry *nfs_add_or_obtain(struct dentry *dentry,
-			struct nfs_fh *fh, struct nfs_fattr *fattr,
-			struct nfs4_label *label);
+			struct nfs_fh *fh, struct nfs_fattr *fattr);
 extern int nfs_instantiate(struct dentry *dentry, struct nfs_fh *fh,
 			struct nfs_fattr *fattr);
 extern int nfs_may_open(struct inode *inode, const struct cred *cred, int openflags);

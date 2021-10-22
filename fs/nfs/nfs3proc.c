@@ -321,7 +321,7 @@ nfs3_do_create(struct inode *dir, struct dentry *dentry, struct nfs3_createdata 
 	if (status != 0)
 		return ERR_PTR(status);
 
-	return nfs_add_or_obtain(dentry, data->res.fh, data->res.fattr, NULL);
+	return nfs_add_or_obtain(dentry, data->res.fh, data->res.fattr);
 }
 
 static void nfs3_free_createdata(struct nfs3_createdata *data)
