@@ -736,7 +736,7 @@ static ssize_t fuse_dax_direct_write(struct kiocb *iocb, struct iov_iter *from)
 		return ret;
 
 	fuse_invalidate_attr_mask(inode, FUSE_STATX_MODSIZE);
-	fuse_write_update_size(inode, iocb->ki_pos);
+	fuse_write_update_attr(inode, iocb->ki_pos);
 	return ret;
 }
 
