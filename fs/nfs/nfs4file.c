@@ -331,7 +331,7 @@ static struct file *__nfs42_ssc_open(struct vfsmount *ss_mnt,
 	if (!fattr)
 		return ERR_PTR(-ENOMEM);
 
-	status = nfs4_proc_getattr(server, src_fh, fattr, NULL, NULL);
+	status = nfs4_proc_getattr(server, src_fh, fattr, NULL);
 	if (status < 0) {
 		res = ERR_PTR(status);
 		goto out;

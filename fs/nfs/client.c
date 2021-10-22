@@ -1048,7 +1048,7 @@ struct nfs_server *nfs_create_server(struct fs_context *fc)
 
 	if (!(fattr->valid & NFS_ATTR_FATTR)) {
 		error = ctx->nfs_mod->rpc_ops->getattr(server, ctx->mntfh,
-						       fattr, NULL, NULL);
+						       fattr, NULL);
 		if (error < 0) {
 			dprintk("nfs_create_server: getattr error = %d\n", -error);
 			goto error;
