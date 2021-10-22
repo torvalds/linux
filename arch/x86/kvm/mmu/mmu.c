@@ -5710,40 +5710,48 @@ void kvm_mmu_uninit_vm(struct kvm *kvm)
 	kvm_mmu_uninit_tdp_mmu(kvm);
 }
 
+static bool __kvm_zap_rmaps(struct kvm *kvm, gfn_t gfn_start, gfn_t gfn_end)
+{
+	const struct kvm_memory_slot *memslot;
+	struct kvm_memslots *slots;
+	bool flush = false;
+	gfn_t start, end;
+	int i;
+
+	if (!kvm_memslots_have_rmaps(kvm))
+		return flush;
+
+	for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++) {
+		slots = __kvm_memslots(kvm, i);
+		kvm_for_each_memslot(memslot, slots) {
+			start = max(gfn_start, memslot->base_gfn);
+			end = min(gfn_end, memslot->base_gfn + memslot->npages);
+			if (start >= end)
+				continue;
+
+			flush = slot_handle_level_range(kvm, memslot, kvm_zap_rmapp,
+							PG_LEVEL_4K, KVM_MAX_HUGEPAGE_LEVEL,
+							start, end - 1, true, flush);
+		}
+	}
+
+	return flush;
+}
+
 /*
  * Invalidate (zap) SPTEs that cover GFNs from gfn_start and up to gfn_end
  * (not including it)
  */
 void kvm_zap_gfn_range(struct kvm *kvm, gfn_t gfn_start, gfn_t gfn_end)
 {
-	struct kvm_memslots *slots;
-	struct kvm_memory_slot *memslot;
+	bool flush;
 	int i;
-	bool flush = false;
 
 	write_lock(&kvm->mmu_lock);
 
 	kvm_inc_notifier_count(kvm, gfn_start, gfn_end);
 
-	if (kvm_memslots_have_rmaps(kvm)) {
-		for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++) {
-			slots = __kvm_memslots(kvm, i);
-			kvm_for_each_memslot(memslot, slots) {
-				gfn_t start, end;
-
-				start = max(gfn_start, memslot->base_gfn);
-				end = min(gfn_end, memslot->base_gfn + memslot->npages);
-				if (start >= end)
-					continue;
-
-				flush = slot_handle_level_range(kvm,
-						(const struct kvm_memory_slot *) memslot,
-						kvm_zap_rmapp, PG_LEVEL_4K,
-						KVM_MAX_HUGEPAGE_LEVEL, start,
-						end - 1, true, flush);
-			}
-		}
-	}
+	flush = __kvm_zap_rmaps(kvm, gfn_start, gfn_end);
 
 	if (is_tdp_mmu_enabled(kvm)) {
 		for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++)
