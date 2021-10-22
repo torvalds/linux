@@ -451,8 +451,6 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
 					  : SHRINK_BATCH;
 	long scanned = 0, next_deferred;
 
-	trace_android_vh_do_shrink_slab(shrinker, shrinkctl, priority);
-
 	if (!(shrinker->flags & SHRINKER_NUMA_AWARE))
 		nid = 0;
 
