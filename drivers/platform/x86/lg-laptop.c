@@ -330,7 +330,7 @@ static ssize_t fan_mode_show(struct device *dev,
 	status = r->integer.value & 0x01;
 	kfree(r);
 
-	return snprintf(buffer, PAGE_SIZE, "%d\n", status);
+	return sysfs_emit(buffer, "%d\n", status);
 }
 
 static ssize_t usb_charge_store(struct device *dev,
@@ -372,7 +372,7 @@ static ssize_t usb_charge_show(struct device *dev,
 
 	kfree(r);
 
-	return snprintf(buffer, PAGE_SIZE, "%d\n", status);
+	return sysfs_emit(buffer, "%d\n", status);
 }
 
 static ssize_t reader_mode_store(struct device *dev,
@@ -414,7 +414,7 @@ static ssize_t reader_mode_show(struct device *dev,
 
 	kfree(r);
 
-	return snprintf(buffer, PAGE_SIZE, "%d\n", status);
+	return sysfs_emit(buffer, "%d\n", status);
 }
 
 static ssize_t fn_lock_store(struct device *dev,
@@ -455,7 +455,7 @@ static ssize_t fn_lock_show(struct device *dev,
 	status = !!r->buffer.pointer[0];
 	kfree(r);
 
-	return snprintf(buffer, PAGE_SIZE, "%d\n", status);
+	return sysfs_emit(buffer, "%d\n", status);
 }
 
 static ssize_t battery_care_limit_store(struct device *dev,
@@ -520,7 +520,7 @@ static ssize_t battery_care_limit_show(struct device *dev,
 	if (status != 80 && status != 100)
 		status = 0;
 
-	return snprintf(buffer, PAGE_SIZE, "%d\n", status);
+	return sysfs_emit(buffer, "%d\n", status);
 }
 
 static DEVICE_ATTR_RW(fan_mode);
