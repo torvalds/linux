@@ -191,8 +191,6 @@ struct i915_hotplug {
 	 I915_GEM_DOMAIN_VERTEX)
 
 struct drm_i915_private;
-struct i915_mm_struct;
-struct i915_mmu_object;
 
 struct drm_i915_file_private {
 	struct drm_i915_private *dev_priv;
