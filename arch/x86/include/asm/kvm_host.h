@@ -1071,7 +1071,7 @@ struct kvm_arch {
 	atomic_t apic_map_dirty;
 
 	/* Protects apic_access_memslot_enabled and apicv_inhibit_reasons */
-	struct mutex apicv_update_lock;
+	struct rw_semaphore apicv_update_lock;
 
 	bool apic_access_memslot_enabled;
 	unsigned long apicv_inhibit_reasons;
