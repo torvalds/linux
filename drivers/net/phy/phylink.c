@@ -2542,12 +2542,10 @@ EXPORT_SYMBOL_GPL(phylink_decode_usxgmii_word);
 void phylink_mii_c22_pcs_get_state(struct mdio_device *pcs,
 				   struct phylink_link_state *state)
 {
-	struct mii_bus *bus = pcs->bus;
-	int addr = pcs->addr;
 	int bmsr, lpa;
 
-	bmsr = mdiobus_read(bus, addr, MII_BMSR);
-	lpa = mdiobus_read(bus, addr, MII_LPA);
+	bmsr = mdiodev_read(pcs, MII_BMSR);
+	lpa = mdiodev_read(pcs, MII_LPA);
 	if (bmsr < 0 || lpa < 0) {
 		state->link = false;
 		return;
@@ -2603,8 +2601,6 @@ int phylink_mii_c22_pcs_set_advertisement(struct mdio_device *pcs,
 					  phy_interface_t interface,
 					  const unsigned long *advertising)
 {
-	struct mii_bus *bus = pcs->bus;
-	int addr = pcs->addr;
 	u16 adv;
 
 	switch (interface) {
@@ -2618,12 +2614,10 @@ int phylink_mii_c22_pcs_set_advertisement(struct mdio_device *pcs,
 				      advertising))
 			adv |= ADVERTISE_1000XPSE_ASYM;
 
-		return mdiobus_modify_changed(bus, addr, MII_ADVERTISE,
-					      0xffff, adv);
+		return mdiodev_modify_changed(pcs, MII_ADVERTISE, 0xffff, adv);
 
 	case PHY_INTERFACE_MODE_SGMII:
-		return mdiobus_modify_changed(bus, addr, MII_ADVERTISE,
-					      0xffff, 0x0001);
+		return mdiodev_modify_changed(pcs, MII_ADVERTISE, 0xffff, 0x0001);
 
 	default:
 		/* Nothing to do for other modes */
@@ -2666,8 +2660,7 @@ int phylink_mii_c22_pcs_config(struct mdio_device *pcs, unsigned int mode,
 	else
 		bmcr = 0;
 
-	ret = mdiobus_modify(pcs->bus, pcs->addr, MII_BMCR,
-			     BMCR_ANENABLE | BMCR_ISOLATE, bmcr);
+	ret = mdiodev_modify(pcs, MII_BMCR, BMCR_ANENABLE | BMCR_ISOLATE, bmcr);
 	if (ret < 0)
 		return ret;
 
@@ -2688,14 +2681,12 @@ EXPORT_SYMBOL_GPL(phylink_mii_c22_pcs_config);
  */
 void phylink_mii_c22_pcs_an_restart(struct mdio_device *pcs)
 {
-	struct mii_bus *bus = pcs->bus;
-	int val, addr = pcs->addr;
+	int val = mdiodev_read(pcs, MII_BMCR);
 
-	val = mdiobus_read(bus, addr, MII_BMCR);
 	if (val >= 0) {
 		val |= BMCR_ANRESTART;
 
-		mdiobus_write(bus, addr, MII_BMCR, val);
+		mdiodev_write(pcs, MII_BMCR, val);
 	}
 }
 EXPORT_SYMBOL_GPL(phylink_mii_c22_pcs_an_restart);
