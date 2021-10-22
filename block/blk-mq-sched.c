@@ -541,7 +541,7 @@ static void blk_mq_sched_tags_teardown(struct request_queue *q, unsigned int fla
 
 	queue_for_each_hw_ctx(q, hctx, i) {
 		if (hctx->sched_tags) {
-			if (!blk_mq_is_shared_tags(q->tag_set->flags))
+			if (!blk_mq_is_shared_tags(flags))
 				blk_mq_free_rq_map(hctx->sched_tags);
 			hctx->sched_tags = NULL;
 		}
