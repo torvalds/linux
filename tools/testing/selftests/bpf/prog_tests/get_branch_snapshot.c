@@ -97,9 +97,10 @@ void serial_test_get_branch_snapshot(void)
 	if (!ASSERT_OK(err, "kallsyms_find"))
 		goto cleanup;
 
-	err = kallsyms_find_next("bpf_testmod_loop_test", &skel->bss->address_high);
-	if (!ASSERT_OK(err, "kallsyms_find_next"))
-		goto cleanup;
+	/* Just a guess for the end of this function, as module functions
+	 * in /proc/kallsyms could come in any order.
+	 */
+	skel->bss->address_high = skel->bss->address_low + 128;
 
 	err = get_branch_snapshot__attach(skel);
 	if (!ASSERT_OK(err, "get_branch_snapshot__attach"))
