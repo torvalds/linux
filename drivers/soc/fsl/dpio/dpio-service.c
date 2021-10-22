@@ -462,7 +462,7 @@ int dpaa2_io_service_enqueue_multiple_fq(struct dpaa2_io *d,
 	qbman_eq_desc_set_no_orp(&ed, 0);
 	qbman_eq_desc_set_fq(&ed, fqid);
 
-	return qbman_swp_enqueue_multiple(d->swp, &ed, fd, 0, nb);
+	return qbman_swp_enqueue_multiple(d->swp, &ed, fd, NULL, nb);
 }
 EXPORT_SYMBOL(dpaa2_io_service_enqueue_multiple_fq);
 
