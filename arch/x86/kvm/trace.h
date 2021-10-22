@@ -154,7 +154,7 @@ TRACE_EVENT(kvm_xen_hypercall,
 
 TRACE_EVENT(kvm_pio,
 	TP_PROTO(unsigned int rw, unsigned int port, unsigned int size,
-		 unsigned int count, void *data),
+		 unsigned int count, const void *data),
 	TP_ARGS(rw, port, size, count, data),
 
 	TP_STRUCT__entry(

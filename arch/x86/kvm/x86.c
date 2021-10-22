@@ -7576,17 +7576,25 @@ emul_write:
 }
 
 static int emulator_pio_in_out(struct kvm_vcpu *vcpu, int size,
-			       unsigned short port,
+			       unsigned short port, void *data,
 			       unsigned int count, bool in)
 {
-	void *data = vcpu->arch.pio_data;
 	unsigned i;
 	int r;
 
+	WARN_ON_ONCE(vcpu->arch.pio.count);
 	vcpu->arch.pio.port = port;
 	vcpu->arch.pio.in = in;
 	vcpu->arch.pio.count = count;
 	vcpu->arch.pio.size = size;
+	if (in) {
+		/* The buffer is only used in complete_emulator_pio_in().  */
+		WARN_ON(data);
+		memset(vcpu->arch.pio_data, 0, size * count);
+	} else {
+		memcpy(vcpu->arch.pio_data, data, size * count);
+	}
+	data = vcpu->arch.pio_data;
 
 	for (i = 0; i < count; i++) {
 		if (in)
@@ -7623,9 +7631,7 @@ userspace_io:
 static int __emulator_pio_in(struct kvm_vcpu *vcpu, int size,
 			     unsigned short port, unsigned int count)
 {
-	WARN_ON(vcpu->arch.pio.count);
-	memset(vcpu->arch.pio_data, 0, size * count);
-	return emulator_pio_in_out(vcpu, size, port, count, true);
+	return emulator_pio_in_out(vcpu, size, port, NULL, count, true);
 }
 
 static void complete_emulator_pio_in(struct kvm_vcpu *vcpu, void *val)
@@ -7674,9 +7680,8 @@ static int emulator_pio_out(struct kvm_vcpu *vcpu, int size,
 {
 	int ret;
 
-	memcpy(vcpu->arch.pio_data, val, size * count);
-	trace_kvm_pio(KVM_PIO_OUT, port, size, count, vcpu->arch.pio_data);
-	ret = emulator_pio_in_out(vcpu, size, port, count, false);
+	trace_kvm_pio(KVM_PIO_OUT, port, size, count, val);
+	ret = emulator_pio_in_out(vcpu, size, port, (void *)val, count, false);
 	if (ret)
                 vcpu->arch.pio.count = 0;
 
