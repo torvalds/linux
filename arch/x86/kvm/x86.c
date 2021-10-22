@@ -9481,6 +9481,18 @@ void __kvm_request_apicv_update(struct kvm *kvm, bool activate, ulong bit)
 
 	if (!!old != !!new) {
 		trace_kvm_apicv_update_request(activate, bit);
+		/*
+		 * Kick all vCPUs before setting apicv_inhibit_reasons to avoid
+		 * false positives in the sanity check WARN in svm_vcpu_run().
+		 * This task will wait for all vCPUs to ack the kick IRQ before
+		 * updating apicv_inhibit_reasons, and all other vCPUs will
+		 * block on acquiring apicv_update_lock so that vCPUs can't
+		 * redo svm_vcpu_run() without seeing the new inhibit state.
+		 *
+		 * Note, holding apicv_update_lock and taking it in the read
+		 * side (handling the request) also prevents other vCPUs from
+		 * servicing the request with a stale apicv_inhibit_reasons.
+		 */
 		kvm_make_all_cpus_request(kvm, KVM_REQ_APICV_UPDATE);
 		kvm->arch.apicv_inhibit_reasons = new;
 		if (new) {
@@ -9815,6 +9827,14 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	}
 
 	for (;;) {
+		/*
+		 * Assert that vCPU vs. VM APICv state is consistent.  An APICv
+		 * update must kick and wait for all vCPUs before toggling the
+		 * per-VM state, and responsing vCPUs must wait for the update
+		 * to complete before servicing KVM_REQ_APICV_UPDATE.
+		 */
+		WARN_ON_ONCE(kvm_apicv_activated(vcpu->kvm) != kvm_vcpu_apicv_active(vcpu));
+
 		exit_fastpath = static_call(kvm_x86_run)(vcpu);
 		if (likely(exit_fastpath != EXIT_FASTPATH_REENTER_GUEST))
 			break;
