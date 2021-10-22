@@ -646,7 +646,6 @@ int handle_irq_desc(struct irq_desc *desc)
 	generic_handle_irq_desc(desc);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(handle_irq_desc);
 
 /**
  * generic_handle_irq - Invoke the handler for a particular irq
