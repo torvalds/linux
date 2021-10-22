@@ -199,6 +199,26 @@ enum vop2_layer_phy_id {
 	ROCKCHIP_VOP2_PHY_ID_INVALID = -1,
 };
 
+struct vop2_power_domain {
+	struct vop2_power_domain *parent;
+	struct vop2 *vop2;
+	/*
+	 * @lock: protect power up/down procedure.
+	 * power on take effect immediately,
+	 * power down take effect by vsync.
+	 * we must check power_domain_status register
+	 * to make sure the power domain is down before
+	 * send a power on request.
+	 *
+	 */
+	struct mutex lock;
+	unsigned int ref_count;
+	bool on;
+	const struct vop2_power_domain_data *data;
+	struct list_head list;
+	struct delayed_work power_off_work;
+};
+
 struct vop2_zpos {
 	struct drm_plane *plane;
 	int win_phys_id;
@@ -307,6 +327,10 @@ struct vop2_win {
 	struct vop2_win *left_win;
 
 	uint8_t splice_win_id;
+
+	struct vop2_power_domain *pd;
+
+	bool enabled;
 
 	/**
 	 * @phys_id: physical id for cluster0/1, esmart0/1, smart0/1
@@ -419,6 +443,7 @@ struct vop2_wb {
 struct vop2_dsc {
 	uint8_t id;
 	const struct vop2_dsc_regs *regs;
+	struct vop2_power_domain *pd;
 };
 
 enum vop2_wb_format {
@@ -643,6 +668,7 @@ struct vop2 {
 
 	/* list_head of internal clk */
 	struct list_head clk_list_head;
+	struct list_head pd_list_head;
 
 	struct vop2_layer layers[ROCKCHIP_MAX_LAYER];
 	/* must put at the end of the struct */
@@ -865,6 +891,18 @@ static struct vop2_win *vop2_find_win_by_phys_id(struct vop2 *vop2, uint8_t phys
 		win = &vop2->win[i];
 		if (win->phys_id == phys_id)
 			return win;
+	}
+
+	return NULL;
+}
+
+static struct vop2_power_domain *vop2_find_pd_by_id(struct vop2 *vop2, uint8_t id)
+{
+	struct vop2_power_domain *pd, *n;
+
+	list_for_each_entry_safe(pd, n, &vop2->pd_list_head, list) {
+		if (pd->data->id == id)
+			return pd;
 	}
 
 	return NULL;
@@ -1218,6 +1256,119 @@ static inline void vop2_cfg_done(struct drm_crtc *crtc)
 		return rk3588_vop2_cfg_done(crtc);
 }
 
+static uint32_t vop2_power_domain_status(struct vop2_power_domain *pd)
+{
+	struct vop2 *vop2 = pd->vop2;
+
+	return vop2_read_reg(vop2, 0, &pd->data->regs->status);
+
+}
+
+static void vop2_wait_power_domain_off(struct vop2_power_domain *pd)
+{
+	struct vop2 *vop2 = pd->vop2;
+	int val;
+	int ret;
+
+	ret = readx_poll_timeout(vop2_power_domain_status, pd, val, val, 100, 50 * 1000);
+
+	if (ret)
+		DRM_DEV_ERROR(vop2->dev, "wait pd off timeout\n");
+}
+
+static void vop2_wait_power_domain_on(struct vop2_power_domain *pd)
+{
+	struct vop2 *vop2 = pd->vop2;
+	int val;
+	int ret;
+
+	ret = readx_poll_timeout_atomic(vop2_power_domain_status, pd, val, !val, 0, 50 * 1000);
+	if (ret)
+		DRM_DEV_ERROR(vop2->dev, "wait pd on timeout\n");
+}
+
+/*
+ * Power domain on take effect immediately
+ */
+static void vop2_power_domain_on(struct vop2_power_domain *pd)
+{
+	struct vop2 *vop2 = pd->vop2;
+
+	if (!pd->on) {
+		vop2_wait_power_domain_off(pd);
+		VOP_MODULE_SET(vop2, pd->data, pd, 0);
+		vop2_wait_power_domain_on(pd);
+		pd->on = true;
+		dev_dbg(vop2->dev, "pd%d on\n", pd->data->id);
+	}
+}
+
+/*
+ * Power domain off take effect by vsync.
+ */
+static void vop2_power_domain_off(struct vop2_power_domain *pd)
+{
+	struct vop2 *vop2 = pd->vop2;
+
+	dev_dbg(vop2->dev, "pd%d off\n", pd->data->id);
+	pd->on = false;
+	VOP_MODULE_SET(vop2, pd->data, pd, 1);
+}
+
+static void vop2_power_domain_get(struct vop2_power_domain *pd)
+{
+	mutex_lock(&pd->lock);
+	if (pd->parent)
+		vop2_power_domain_get(pd->parent);
+	if (pd->ref_count == 0) {
+		if (pd->vop2->data->delayed_pd)
+			cancel_delayed_work(&pd->power_off_work);
+		vop2_power_domain_on(pd);
+	}
+	pd->ref_count++;
+	mutex_unlock(&pd->lock);
+}
+
+static void vop2_power_domain_put(struct vop2_power_domain *pd)
+{
+	mutex_lock(&pd->lock);
+	if (--pd->ref_count == 0) {
+		if (pd->vop2->data->delayed_pd)
+			schedule_delayed_work(&pd->power_off_work, msecs_to_jiffies(2500));
+		else
+			vop2_power_domain_off(pd);
+	}
+
+	if (pd->parent)
+		vop2_power_domain_put(pd->parent);
+	mutex_unlock(&pd->lock);
+}
+
+/*
+ * Called if the pd ref_count reach 0 after 2.5
+ * seconds.
+ */
+static void vop2_power_domain_off_work(struct work_struct *work)
+{
+	struct vop2_power_domain *pd;
+
+	pd = container_of(to_delayed_work(work), struct vop2_power_domain, power_off_work);
+
+	mutex_lock(&pd->lock);
+	if (pd->ref_count == 0)
+		vop2_power_domain_off(pd);
+	mutex_unlock(&pd->lock);
+}
+
+static void vop2_win_enable(struct vop2_win *win)
+{
+	if (!win->enabled) {
+		if (win->pd)
+			vop2_power_domain_get(win->pd);
+		win->enabled = true;
+	}
+}
+
 static void vop2_win_multi_area_disable(struct vop2_win *parent)
 {
 	struct vop2 *vop2 = parent->vop2;
@@ -1238,27 +1389,33 @@ static void vop2_win_disable(struct vop2_win *win)
 	win->left_win = NULL;
 	win->splice_win = NULL;
 	win->splice_mode_right = false;
-	VOP_WIN_SET(vop2, win, enable, 0);
-	if (win->feature & WIN_FEATURE_CLUSTER_MAIN) {
-		struct vop2_win *sub_win;
-		int i = 0;
 
-		for (i = 0; i < vop2->registered_num_wins; i++) {
-			sub_win = &vop2->win[i];
+	if (win->enabled) {
+		VOP_WIN_SET(vop2, win, enable, 0);
+		if (win->feature & WIN_FEATURE_CLUSTER_MAIN) {
+			struct vop2_win *sub_win;
+			int i = 0;
 
-			if ((sub_win->phys_id == win->phys_id) &&
-			    (sub_win->feature & WIN_FEATURE_CLUSTER_SUB))
-				VOP_WIN_SET(vop2, sub_win, enable, 0);
+			for (i = 0; i < vop2->registered_num_wins; i++) {
+				sub_win = &vop2->win[i];
+
+				if ((sub_win->phys_id == win->phys_id) &&
+				    (sub_win->feature & WIN_FEATURE_CLUSTER_SUB))
+					VOP_WIN_SET(vop2, sub_win, enable, 0);
+			}
+
+			VOP_CLUSTER_SET(vop2, win, enable, 0);
 		}
 
-		VOP_CLUSTER_SET(vop2, win, enable, 0);
+		/*
+		 * disable all other multi area win if we want disable area0 here
+		 */
+		if (!win->parent && (win->feature & WIN_FEATURE_MULTI_AREA))
+			vop2_win_multi_area_disable(win);
+		if (win->pd)
+			vop2_power_domain_put(win->pd);
+		win->enabled = false;
 	}
-
-	/*
-	 * disable all other multi area win if we want disable area0 here
-	 */
-	if (!win->parent && (win->feature & WIN_FEATURE_MULTI_AREA))
-		vop2_win_multi_area_disable(win);
 }
 
 static inline void vop2_write_lut(struct vop2 *vop2, uint32_t offset, uint32_t v)
@@ -2760,13 +2917,20 @@ static void rk3588_vop2_regsbak(struct vop2 *vop2)
 	uint32_t *base = vop2->regs;
 	int i = 0;
 
-	vop2_writel(vop2, RK3568_SYS_PD_CTRL, 0);
-
 	/*
 	 * No need to backup DSC/GAMMA_LUT/BPP_LUT/MMU
 	 */
 	for (i = 0; i < (RK3588_DSC_8K_PPS0_3 >> 2); i++)
 		vop2->regsbak[i] = base[i];
+}
+
+static void vop2_power_domain_init(struct vop2 *vop2)
+{
+	struct vop2_power_domain *pd, *n;
+
+	list_for_each_entry_safe(pd, n, &vop2->pd_list_head, list) {
+		vop2_power_domain_on(pd);
+	}
 }
 
 static void vop2_initial(struct drm_crtc *crtc)
@@ -2796,6 +2960,8 @@ static void vop2_initial(struct drm_crtc *crtc)
 
 		if (vop2_soc_is_rk3566())
 			VOP_CTRL_SET(vop2, otp_en, 1);
+
+		vop2_power_domain_init(vop2);
 
 		/* dsc must deassert rst before its register can accessed */
 		for (i = 0; i < vop2_data->nr_dscs; i++) {
@@ -3385,6 +3551,7 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 
 	afbc_half_block_en = vop2_afbc_half_block_enable(vpstate);
 
+	vop2_win_enable(win);
 	spin_lock(&vop2->reg_lock);
 	DRM_DEV_DEBUG(vop2->dev, "vp%d update %s[%dx%d->%dx%d@%dx%d] fmt[%.4s_%s] addr[%pad]\n",
 		      vp->id, win->name, actual_w, actual_h, dsp_w, dsp_h,
@@ -7085,6 +7252,37 @@ static void vop2_destroy_crtc(struct drm_crtc *crtc)
 	drm_flip_work_cleanup(&vp->fb_unref_work);
 }
 
+static int vop2_pd_data_init(struct vop2 *vop2)
+{
+	const struct vop2_data *vop2_data = vop2->data;
+	const struct vop2_power_domain_data *pd_data;
+	struct vop2_power_domain *pd;
+	int i;
+
+	INIT_LIST_HEAD(&vop2->pd_list_head);
+
+	for (i = 0; i < vop2_data->nr_pds; i++) {
+		pd_data = &vop2_data->pd[i];
+		pd = devm_kzalloc(vop2->dev, sizeof(*pd), GFP_KERNEL);
+		if (!pd)
+			return -ENOMEM;
+		pd->vop2 = vop2;
+		pd->data = pd_data;
+		mutex_init(&pd->lock);
+		list_add_tail(&pd->list, &vop2->pd_list_head);
+		INIT_DELAYED_WORK(&pd->power_off_work, vop2_power_domain_off_work);
+		if (pd_data->parent_id) {
+			pd->parent = vop2_find_pd_by_id(vop2, pd_data->parent_id);
+			if (!pd->parent) {
+				DRM_DEV_ERROR(vop2->dev, "no parent pd find for pd%d\n", pd->data->id);
+				return -EINVAL;
+			}
+		}
+	}
+
+	return 0;
+}
+
 static void vop2_dsc_data_init(struct vop2 *vop2)
 {
 	const struct vop2_data *vop2_data = vop2->data;
@@ -7097,6 +7295,8 @@ static void vop2_dsc_data_init(struct vop2 *vop2)
 		dsc_data = &vop2_data->dsc[i];
 		dsc->id = dsc_data->id;
 		dsc->regs = dsc_data->regs;
+		if (dsc_data->pd_id)
+			dsc->pd = vop2_find_pd_by_id(vop2, dsc_data->pd_id);
 	}
 }
 
@@ -7140,6 +7340,9 @@ static int vop2_win_init(struct vop2 *vop2)
 		win->area_id = 0;
 		win->zpos = i;
 		win->vop2 = vop2;
+
+		if (win_data->pd_id)
+			win->pd = vop2_find_pd_by_id(vop2, win_data->pd_id);
 
 		num_wins++;
 
@@ -7247,6 +7450,10 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 
 	vop2->support_multi_area = of_property_read_bool(dev->of_node, "support-multi-area");
 	vop2->disable_afbc_win = of_property_read_bool(dev->of_node, "disable-afbc-win");
+
+	ret = vop2_pd_data_init(vop2);
+	if (ret)
+		return ret;
 
 	ret = vop2_win_init(vop2);
 	if (ret)

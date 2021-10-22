@@ -35,7 +35,7 @@
 #define VOP_FEATURE_ALPHA_HDR10		BIT(3)
 #define VOP_FEATURE_ALPHA_NEXT_HDR	BIT(4)
 /* a feature to splice two windows and two vps to support resolution > 4096 */
-#define VOP_FEATURE_SPLICE	       BIT(5)
+#define VOP_FEATURE_SPLICE		BIT(5)
 
 #define VOP_FEATURE_OUTPUT_10BIT	VOP_FEATURE_OUTPUT_RGB10
 
@@ -96,6 +96,19 @@ enum vop2_win_dly_mode {
 	VOP2_DLY_MODE_HIHO_H,    /** HDR in HDR out mode, as a HDR window */
 	VOP2_DLY_MODE_MAX,
 };
+
+/*
+ * vop2 internal power domain id,
+ * should be all none zero, 0 will be
+ * treat as invalid;
+ */
+#define VOP2_PD_CLUSTER0	BIT(0)
+#define VOP2_PD_CLUSTER1	BIT(1)
+#define VOP2_PD_CLUSTER2	BIT(2)
+#define VOP2_PD_CLUSTER3	BIT(3)
+#define VOP2_PD_ESMART0		BIT(4)
+#define VOP2_PD_DSC_8K		BIT(5)
+#define VOP2_PD_DSC_4K		BIT(6)
 
 #define DSP_BG_SWAP		0x1
 #define DSP_RB_SWAP		0x2
@@ -657,6 +670,11 @@ struct vop2_video_port_regs {
 	struct vop_reg splice_en;
 };
 
+struct vop2_power_domain_regs {
+	struct vop_reg pd;
+	struct vop_reg status;
+};
+
 struct vop2_dsc_regs {
 	struct vop_reg rst_deassert;
 	struct vop_reg port_mux;
@@ -676,6 +694,12 @@ struct vop2_wb_regs {
 	struct vop_reg scale_y_en;
 	struct vop_reg axi_yrgb_id;
 	struct vop_reg axi_uv_id;
+};
+
+struct vop2_power_domain_data {
+	uint8_t id;
+	uint8_t parent_id;
+	const struct vop2_power_domain_regs *regs;
 };
 
 /*
@@ -698,6 +722,7 @@ struct vop2_win_data {
 	const char *name;
 	uint8_t phys_id;
 	uint8_t splice_win_id;
+	uint8_t pd_id;
 
 	uint32_t base;
 	enum drm_plane_type type;
@@ -731,6 +756,7 @@ struct vop2_win_data {
 
 struct vop2_dsc_data {
 	char id;
+	uint8_t pd_id;
 	const struct vop2_dsc_regs *regs;
 };
 
@@ -924,6 +950,8 @@ struct vop2_data {
 	uint8_t nr_axi_intr;
 	uint8_t nr_gammas;
 	uint8_t nr_conns;
+	uint8_t nr_pds;
+	bool delayed_pd;
 	const struct vop_intr *axi_intr;
 	const struct vop2_ctrl *ctrl;
 	const struct vop2_dsc_data *dsc;
@@ -932,6 +960,7 @@ struct vop2_data {
 	const struct vop2_connector_if_data *conn;
 	const struct vop2_wb_data *wb;
 	const struct vop2_layer_data *layer;
+	const struct vop2_power_domain_data *pd;
 	const struct vop_csc_table *csc_table;
 	const struct vop_hdr_table *hdr_table;
 	const struct vop_grf_ctrl *grf_ctrl;

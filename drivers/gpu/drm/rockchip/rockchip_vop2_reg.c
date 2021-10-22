@@ -464,10 +464,13 @@ static const struct vop2_dsc_data rk3588_vop_dsc_data[] = {
 	{
 	 .id = 0,
 	 .regs = &rk3588_vop_dsc0_regs,
+	 .pd_id = VOP2_PD_DSC_8K,
 	},
+
 	{
 	 .id = 1,
 	 .regs = &rk3588_vop_dsc1_regs,
+	 .pd_id = VOP2_PD_DSC_4K,
 	},
 };
 
@@ -1783,6 +1786,90 @@ static const struct vop2_win_data rk3568_vop_win_data[] = {
 	},
 };
 
+const struct vop2_power_domain_regs rk3588_cluster0_pd_regs = {
+	.pd = VOP_REG(RK3568_SYS_PD_CTRL, 0x1, 0),
+	.status = VOP_REG(RK3568_SYS_STATUS0, 0x1, 8),
+};
+
+const struct vop2_power_domain_regs rk3588_cluster1_pd_regs = {
+	.pd = VOP_REG(RK3568_SYS_PD_CTRL, 0x1, 1),
+	.status = VOP_REG(RK3568_SYS_STATUS0, 0x1, 9),
+};
+
+const struct vop2_power_domain_regs rk3588_cluster2_pd_regs = {
+	.pd = VOP_REG(RK3568_SYS_PD_CTRL, 0x1, 2),
+	.status = VOP_REG(RK3568_SYS_STATUS0, 0x1, 10),
+};
+
+const struct vop2_power_domain_regs rk3588_cluster3_pd_regs = {
+	.pd = VOP_REG(RK3568_SYS_PD_CTRL, 0x1, 3),
+	.status = VOP_REG(RK3568_SYS_STATUS0, 0x1, 11),
+};
+
+const struct vop2_power_domain_regs rk3588_esmart_pd_regs = {
+	.pd = VOP_REG(RK3568_SYS_PD_CTRL, 0x1, 7),
+	.status = VOP_REG(RK3568_SYS_STATUS0, 0x1, 15),
+};
+
+const struct vop2_power_domain_regs rk3588_dsc_8k_pd_regs = {
+	.pd = VOP_REG(RK3568_SYS_PD_CTRL, 0x1, 5),
+	.status = VOP_REG(RK3568_SYS_STATUS0, 0x1, 13),
+};
+
+const struct vop2_power_domain_regs rk3588_dsc_4k_pd_regs = {
+	.pd = VOP_REG(RK3568_SYS_PD_CTRL, 0x1, 6),
+	.status = VOP_REG(RK3568_SYS_STATUS0, 0x1, 14),
+};
+
+/*
+ * There are 7 internal power domains on rk3588 vop,
+ * Cluster0/1/2/3 each have on pd, and PD_CLUSTER0 as parent,
+ * that means PD_CLUSTER0 should turn on first before
+ * PD_CLUSTER1/2/3 turn on.
+ *
+ * Esmart0/1/2/3 share one pd PD_ESMART0.
+ * DSC_8K/DSC_4K each have on pd.
+ */
+static const struct vop2_power_domain_data rk3588_vop_pd_data[] = {
+	{
+	  .id = VOP2_PD_CLUSTER0,
+	  .regs = &rk3588_cluster0_pd_regs,
+	},
+
+	{
+	  .id = VOP2_PD_CLUSTER1,
+	  .parent_id = VOP2_PD_CLUSTER0,
+	  .regs = &rk3588_cluster1_pd_regs,
+	},
+
+	{
+	  .id = VOP2_PD_CLUSTER2,
+	  .parent_id = VOP2_PD_CLUSTER0,
+	  .regs = &rk3588_cluster0_pd_regs,
+	},
+
+	{
+	  .id = VOP2_PD_CLUSTER3,
+	  .parent_id = VOP2_PD_CLUSTER0,
+	  .regs = &rk3588_cluster1_pd_regs,
+	},
+
+	{
+	  .id = VOP2_PD_ESMART0,
+	  .regs = &rk3588_esmart_pd_regs,
+	},
+
+	{
+	  .id = VOP2_PD_DSC_8K,
+	  .regs = &rk3588_dsc_8k_pd_regs,
+	},
+
+	{
+	  .id = VOP2_PD_DSC_4K,
+	  .regs = &rk3588_dsc_4k_pd_regs,
+	},
+};
+
 /*
  * rk3588 vop with 4 cluster, 4 esmart win.
  * Every cluster can work as 4K win or split into two win.
@@ -1817,6 +1904,7 @@ static const struct vop2_win_data rk3588_vop_win_data[] = {
 	  .vsu_filter_mode = VOP2_SCALE_UP_BIL,
 	  .vsd_filter_mode = VOP2_SCALE_DOWN_BIL,
 	  .regs = &rk3568_cluster0_win_data,
+	  .pd_id = VOP2_PD_CLUSTER0,
 	  .max_upscale_factor = 4,
 	  .max_downscale_factor = 4,
 	  .dly = { 4, 26, 29 },
@@ -1859,6 +1947,7 @@ static const struct vop2_win_data rk3588_vop_win_data[] = {
 	  .vsu_filter_mode = VOP2_SCALE_UP_BIL,
 	  .vsd_filter_mode = VOP2_SCALE_DOWN_BIL,
 	  .regs = &rk3568_cluster1_win_data,
+	  .pd_id = VOP2_PD_CLUSTER1,
 	  .type = DRM_PLANE_TYPE_OVERLAY,
 	  .max_upscale_factor = 4,
 	  .max_downscale_factor = 4,
@@ -1889,6 +1978,7 @@ static const struct vop2_win_data rk3588_vop_win_data[] = {
 	{
 	  .name = "Cluster2-win0",
 	  .phys_id = ROCKCHIP_VOP2_CLUSTER2,
+	  .pd_id = VOP2_PD_CLUSTER2,
 	  .splice_win_id = ROCKCHIP_VOP2_CLUSTER3,
 	  .base = 0x00,
 	  .formats = formats_win_full_10bit,
@@ -1932,6 +2022,7 @@ static const struct vop2_win_data rk3588_vop_win_data[] = {
 	{
 	  .name = "Cluster3-win0",
 	  .phys_id = ROCKCHIP_VOP2_CLUSTER3,
+	  .pd_id = VOP2_PD_CLUSTER3,
 	  .base = 0x00,
 	  .formats = formats_win_full_10bit,
 	  .nformats = ARRAY_SIZE(formats_win_full_10bit),
@@ -1974,6 +2065,7 @@ static const struct vop2_win_data rk3588_vop_win_data[] = {
 	{
 	  .name = "Esmart0-win0",
 	  .phys_id = ROCKCHIP_VOP2_ESMART0,
+	  .pd_id = VOP2_PD_ESMART0,
 	  .splice_win_id = ROCKCHIP_VOP2_ESMART1,
 	  .formats = formats_win_full_10bit,
 	  .nformats = ARRAY_SIZE(formats_win_full_10bit),
@@ -1998,6 +2090,7 @@ static const struct vop2_win_data rk3588_vop_win_data[] = {
 	{
 	  .name = "Esmart2-win0",
 	  .phys_id = ROCKCHIP_VOP2_ESMART2,
+	  .pd_id = VOP2_PD_ESMART0,
 	  .splice_win_id = ROCKCHIP_VOP2_ESMART3,
 	  .base = 0x400,
 	  .formats = formats_win_full_10bit,
@@ -2022,6 +2115,7 @@ static const struct vop2_win_data rk3588_vop_win_data[] = {
 	{
 	  .name = "Esmart1-win0",
 	  .phys_id = ROCKCHIP_VOP2_ESMART1,
+	  .pd_id = VOP2_PD_ESMART0,
 	  .formats = formats_win_full_10bit,
 	  .nformats = ARRAY_SIZE(formats_win_full_10bit),
 	  .format_modifiers = format_modifiers,
@@ -2044,6 +2138,7 @@ static const struct vop2_win_data rk3588_vop_win_data[] = {
 	{
 	  .name = "Esmart3-win0",
 	  .phys_id = ROCKCHIP_VOP2_ESMART3,
+	  .pd_id = VOP2_PD_ESMART0,
 	  .formats = formats_win_full_10bit,
 	  .nformats = ARRAY_SIZE(formats_win_full_10bit),
 	  .format_modifiers = format_modifiers,
@@ -2235,6 +2330,7 @@ static const struct vop2_data rk3588_vop = {
 	.nr_vps = 4,
 	.nr_mixers = 7,
 	.nr_layers = 8,
+	.nr_pds = 7,
 	.max_input = { 8192, 4320 },
 	.max_output = { 4096, 2304 },
 	.ctrl = &rk3588_vop_ctrl,
@@ -2248,6 +2344,8 @@ static const struct vop2_data rk3588_vop = {
 	.layer = rk3568_vop_layers,
 	.win = rk3588_vop_win_data,
 	.win_size = ARRAY_SIZE(rk3588_vop_win_data),
+	.pd = rk3588_vop_pd_data,
+	.nr_pds = ARRAY_SIZE(rk3588_vop_pd_data),
 };
 
 static const struct of_device_id vop2_dt_match[] = {
