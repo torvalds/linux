@@ -1676,7 +1676,7 @@ static int btf_dump_int_data(struct btf_dump *d,
 {
 	__u8 encoding = btf_int_encoding(t);
 	bool sign = encoding & BTF_INT_SIGNED;
-	char buf[16] __aligned(16);
+	char buf[16] __attribute__((aligned(16)));
 	int sz = t->size;
 
 	if (sz == 0 || sz > sizeof(buf)) {
