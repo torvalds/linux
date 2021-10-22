@@ -245,29 +245,6 @@ int fpu_swap_kvm_fpstate(struct fpu_guest *guest_fpu, bool enter_guest)
 }
 EXPORT_SYMBOL_GPL(fpu_swap_kvm_fpstate);
 
-void fpu_swap_kvm_fpu(struct fpu *save, struct fpu *rstor, u64 restore_mask)
-{
-	fpregs_lock();
-
-	if (save) {
-		struct fpstate *fpcur = current->thread.fpu.fpstate;
-
-		if (test_thread_flag(TIF_NEED_FPU_LOAD))
-			memcpy(&save->fpstate->regs, &fpcur->regs, fpcur->size);
-		else
-			save_fpregs_to_fpstate(save);
-	}
-
-	if (rstor) {
-		restore_mask &= XFEATURE_MASK_FPSTATE;
-		restore_fpregs_from_fpstate(rstor->fpstate, restore_mask);
-	}
-
-	fpregs_mark_activate();
-	fpregs_unlock();
-}
-EXPORT_SYMBOL_GPL(fpu_swap_kvm_fpu);
-
 void fpu_copy_guest_fpstate_to_uabi(struct fpu_guest *gfpu, void *buf,
 				    unsigned int size, u32 pkru)
 {
@@ -436,15 +413,6 @@ void fpstate_reset(struct fpu *fpu)
 	fpu->fpstate = &fpu->__fpstate;
 	__fpstate_reset(fpu->fpstate);
 }
-
-#if IS_ENABLED(CONFIG_KVM)
-void fpu_init_fpstate_user(struct fpu *fpu)
-{
-	fpstate_reset(fpu);
-	fpstate_init_user(fpu->fpstate);
-}
-EXPORT_SYMBOL_GPL(fpu_init_fpstate_user);
-#endif
 
 /* Clone current's FPU state on fork */
 int fpu_clone(struct task_struct *dst)
