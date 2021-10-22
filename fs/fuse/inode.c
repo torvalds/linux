@@ -228,6 +228,19 @@ void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr,
 	struct timespec64 old_mtime;
 
 	spin_lock(&fi->lock);
+	/*
+	 * In case of writeback_cache enabled, writes update mtime, ctime and
+	 * may update i_size.  In these cases trust the cached value in the
+	 * inode.
+	 */
+	if (is_wb) {
+		attr->size = i_size_read(inode);
+		attr->mtime = inode->i_mtime.tv_sec;
+		attr->mtimensec = inode->i_mtime.tv_nsec;
+		attr->ctime = inode->i_ctime.tv_sec;
+		attr->ctimensec = inode->i_ctime.tv_nsec;
+	}
+
 	if ((attr_version != 0 && fi->attr_version > attr_version) ||
 	    test_bit(FUSE_I_SIZE_UNSTABLE, &fi->state)) {
 		spin_unlock(&fi->lock);
