@@ -82,7 +82,8 @@ struct btrfs_ioctl_send_args_32 {
 	compat_uptr_t clone_sources;	/* in */
 	__u64 parent_root;		/* in */
 	__u64 flags;			/* in */
-	__u64 reserved[4];		/* in */
+	__u32 version;			/* in */
+	__u8  reserved[28];		/* in */
 } __attribute__ ((__packed__));
 
 #define BTRFS_IOC_SEND_32 _IOW(BTRFS_IOCTL_MAGIC, 38, \
