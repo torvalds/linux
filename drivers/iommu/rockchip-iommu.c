@@ -28,6 +28,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <soc/rockchip/rockchip_iommu.h>
 
 /** MMU register offsets */
 #define RK_MMU_DTE_ADDR		0x00	/* Directory table address */
@@ -1268,6 +1269,20 @@ static void rk_iommu_disable(struct rk_iommu *iommu)
 	clk_bulk_disable(iommu->num_clocks, iommu->clocks);
 }
 
+int rockchip_iommu_disable(struct device *dev)
+{
+	struct rk_iommu *iommu;
+
+	iommu = rk_iommu_from_dev(dev);
+	if (!iommu)
+		return -ENODEV;
+
+	rk_iommu_disable(iommu);
+
+	return 0;
+}
+EXPORT_SYMBOL(rockchip_iommu_disable);
+
 /* Must be called with iommu powered on and attached */
 static int rk_iommu_enable(struct rk_iommu *iommu)
 {
@@ -1315,6 +1330,18 @@ out_disable_clocks:
 	clk_bulk_disable(iommu->num_clocks, iommu->clocks);
 	return ret;
 }
+
+int rockchip_iommu_enable(struct device *dev)
+{
+	struct rk_iommu *iommu;
+
+	iommu = rk_iommu_from_dev(dev);
+	if (!iommu)
+		return -ENODEV;
+
+	return rk_iommu_enable(iommu);
+}
+EXPORT_SYMBOL(rockchip_iommu_enable);
 
 static void rk_iommu_detach_device(struct iommu_domain *domain,
 				   struct device *dev)
