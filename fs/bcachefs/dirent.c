@@ -529,6 +529,15 @@ retry:
 			      vfs_d_type(dirent.v->d_type)))
 			break;
 		ctx->pos = dirent.k->p.offset + 1;
+
+		/*
+		 * read_target looks up subvolumes, we can overflow paths if the
+		 * directory has many subvolumes in it
+		 */
+		if (hweight64(trans.paths_allocated) > BTREE_ITER_MAX / 2) {
+			ret = -EINTR;
+			break;
+		}
 	}
 	bch2_trans_iter_exit(&trans, &iter);
 err:
