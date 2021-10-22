@@ -515,7 +515,7 @@ static int pci_siig_init(struct pci_dev *dev)
 
 	if (type == 0x1000)
 		return pci_siig10x_init(dev);
-	else if (type == 0x2000)
+	if (type == 0x2000)
 		return pci_siig20x_init(dev);
 
 	moan_device("Unknown SIIG card", dev);
@@ -792,9 +792,9 @@ static int pci_netmos_9900_setup(struct serial_private *priv,
 		bar = 3 * idx;
 
 		return setup_port(priv, port, bar, 0, board->reg_shift);
-	} else {
-		return pci_default_setup(priv, board, port, idx);
 	}
+
+	return pci_default_setup(priv, board, port, idx);
 }
 
 /* the 99xx series comes with a range of device IDs and a variety
