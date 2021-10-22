@@ -19,6 +19,7 @@ config MT7921S
 	select MT76_SDIO
 	select MT7921_COMMON
 	depends on MAC80211
+	depends on MMC
 	help
 	  This adds support for MT7921S 802.11ax 2x2:2SS wireless devices.
 
