@@ -1815,14 +1815,13 @@ static void fuse_writepage_end(struct fuse_mount *fm, struct fuse_args *args,
 
 static struct fuse_file *__fuse_write_file_get(struct fuse_inode *fi)
 {
-	struct fuse_file *ff = NULL;
+	struct fuse_file *ff;
 
 	spin_lock(&fi->lock);
-	if (!list_empty(&fi->write_files)) {
-		ff = list_entry(fi->write_files.next, struct fuse_file,
-				write_entry);
+	ff = list_first_entry_or_null(&fi->write_files, struct fuse_file,
+				      write_entry);
+	if (ff)
 		fuse_file_get(ff);
-	}
 	spin_unlock(&fi->lock);
 
 	return ff;
