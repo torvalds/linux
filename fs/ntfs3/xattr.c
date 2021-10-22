@@ -259,7 +259,7 @@ out:
 
 static noinline int ntfs_set_ea(struct inode *inode, const char *name,
 				size_t name_len, const void *value,
-				size_t val_size, int flags)
+				size_t val_size, int flags, bool locked)
 {
 	struct ntfs_inode *ni = ntfs_i(inode);
 	struct ntfs_sb_info *sbi = ni->mi.sbi;
@@ -278,7 +278,8 @@ static noinline int ntfs_set_ea(struct inode *inode, const char *name,
 	u64 new_sz;
 	void *p;
 
-	ni_lock(ni);
+	if (!locked)
+		ni_lock(ni);
 
 	run_init(&ea_run);
 
@@ -467,7 +468,8 @@ update_ea:
 	mark_inode_dirty(&ni->vfs_inode);
 
 out:
-	ni_unlock(ni);
+	if (!locked)
+		ni_unlock(ni);
 
 	run_close(&ea_run);
 	kfree(ea_all);
@@ -598,7 +600,7 @@ static noinline int ntfs_set_acl_ex(struct user_namespace *mnt_userns,
 		flags = 0;
 	}
 
-	err = ntfs_set_ea(inode, name, name_len, value, size, flags);
+	err = ntfs_set_ea(inode, name, name_len, value, size, flags, 0);
 	if (err == -ENODATA && !size)
 		err = 0; /* Removing non existed xattr. */
 	if (!err)
@@ -992,7 +994,7 @@ set_new_fa:
 	}
 #endif
 	/* Deal with NTFS extended attribute. */
-	err = ntfs_set_ea(inode, name, name_len, value, size, flags);
+	err = ntfs_set_ea(inode, name, name_len, value, size, flags, 0);
 
 out:
 	inode->i_ctime = current_time(inode);
@@ -1010,35 +1012,37 @@ int ntfs_save_wsl_perm(struct inode *inode)
 {
 	int err;
 	__le32 value;
+	struct ntfs_inode *ni = ntfs_i(inode);
 
-	/* TODO: refactor this, so we don't lock 4 times in ntfs_set_ea */
+	ni_lock(ni);
 	value = cpu_to_le32(i_uid_read(inode));
 	err = ntfs_set_ea(inode, "$LXUID", sizeof("$LXUID") - 1, &value,
-			  sizeof(value), 0);
+			  sizeof(value), 0, true); /* true == already locked. */
 	if (err)
 		goto out;
 
 	value = cpu_to_le32(i_gid_read(inode));
 	err = ntfs_set_ea(inode, "$LXGID", sizeof("$LXGID") - 1, &value,
-			  sizeof(value), 0);
+			  sizeof(value), 0, true);
 	if (err)
 		goto out;
 
 	value = cpu_to_le32(inode->i_mode);
 	err = ntfs_set_ea(inode, "$LXMOD", sizeof("$LXMOD") - 1, &value,
-			  sizeof(value), 0);
+			  sizeof(value), 0, true);
 	if (err)
 		goto out;
 
 	if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode)) {
 		value = cpu_to_le32(inode->i_rdev);
 		err = ntfs_set_ea(inode, "$LXDEV", sizeof("$LXDEV") - 1, &value,
-				  sizeof(value), 0);
+				  sizeof(value), 0, true);
 		if (err)
 			goto out;
 	}
 
 out:
+	ni_unlock(ni);
 	/* In case of error should we delete all WSL xattr? */
 	return err;
 }
