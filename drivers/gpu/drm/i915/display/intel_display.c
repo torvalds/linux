@@ -8251,18 +8251,13 @@ static void intel_old_crtc_state_disables(struct intel_atomic_state *state,
 
 	drm_WARN_ON(&dev_priv->drm, old_crtc_state->bigjoiner_slave);
 
-	intel_crtc_disable_planes(state, crtc);
-
 	/*
 	 * We still need special handling for disabling bigjoiner master
 	 * and slaves since for slave we do not have encoder or plls
 	 * so we dont need to disable those.
 	 */
-	if (old_crtc_state->bigjoiner) {
-		intel_crtc_disable_planes(state,
-					  old_crtc_state->bigjoiner_linked_crtc);
+	if (old_crtc_state->bigjoiner)
 		old_crtc_state->bigjoiner_linked_crtc->active = false;
-	}
 
 	/*
 	 * We need to disable pipe CRC before disabling the pipe,
@@ -8288,6 +8283,18 @@ static void intel_commit_modeset_disables(struct intel_atomic_state *state)
 	u32 handled = 0;
 	int i;
 
+	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
+					    new_crtc_state, i) {
+		if (!intel_crtc_needs_modeset(new_crtc_state))
+			continue;
+
+		if (!old_crtc_state->hw.active)
+			continue;
+
+		intel_pre_plane_update(state, crtc);
+		intel_crtc_disable_planes(state, crtc);
+	}
+
 	/* Only disable port sync and MST slaves */
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
@@ -8306,7 +8313,6 @@ static void intel_commit_modeset_disables(struct intel_atomic_state *state)
 		    !intel_dp_mst_is_slave_trans(old_crtc_state))
 			continue;
 
-		intel_pre_plane_update(state, crtc);
 		intel_old_crtc_state_disables(state, old_crtc_state,
 					      new_crtc_state, crtc);
 		handled |= BIT(crtc->pipe);
@@ -8319,14 +8325,6 @@ static void intel_commit_modeset_disables(struct intel_atomic_state *state)
 		    (handled & BIT(crtc->pipe)) ||
 		    old_crtc_state->bigjoiner_slave)
 			continue;
-
-		intel_pre_plane_update(state, crtc);
-		if (old_crtc_state->bigjoiner) {
-			struct intel_crtc *slave =
-				old_crtc_state->bigjoiner_linked_crtc;
-
-			intel_pre_plane_update(state, slave);
-		}
 
 		if (old_crtc_state->hw.active)
 			intel_old_crtc_state_disables(state, old_crtc_state,
