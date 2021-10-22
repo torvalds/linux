@@ -24,7 +24,10 @@
 struct btf * __weak btf__load_from_kernel_by_id(__u32 id)
 {
        struct btf *btf;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
        int err = btf__get_from_id(id, &btf);
+#pragma GCC diagnostic pop
 
        return err ? ERR_PTR(err) : btf;
 }

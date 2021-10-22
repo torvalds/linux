@@ -467,6 +467,11 @@ void optc2_lock_doublebuffer_enable(struct timing_generator *optc)
 			(h_blank_start - 200 - 1) / optc1->opp_count,
 			MASTER_UPDATE_LOCK_DB_Y,
 			v_blank_start - 1);
+
+	REG_SET_3(OTG_VUPDATE_KEEPOUT, 0,
+		MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_START_OFFSET, 0,
+		MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_END_OFFSET, 100,
+		OTG_MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_EN, 1);
 }
 
 void optc2_lock_doublebuffer_disable(struct timing_generator *optc)

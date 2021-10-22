@@ -3073,7 +3073,7 @@ static __poll_t unix_dgram_poll(struct file *file, struct socket *sock,
 
 		other = unix_peer(sk);
 		if (other && unix_peer(other) != sk &&
-		    unix_recvq_full(other) &&
+		    unix_recvq_full_lockless(other) &&
 		    unix_dgram_peer_wake_me(sk, other))
 			writable = 0;
 

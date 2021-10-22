@@ -897,6 +897,33 @@ static void dsa_switch_teardown(struct dsa_switch *ds)
 	ds->setup = false;
 }
 
+/* First tear down the non-shared, then the shared ports. This ensures that
+ * all work items scheduled by our switchdev handlers for user ports have
+ * completed before we destroy the refcounting kept on the shared ports.
+ */
+static void dsa_tree_teardown_ports(struct dsa_switch_tree *dst)
+{
+	struct dsa_port *dp;
+
+	list_for_each_entry(dp, &dst->ports, list)
+		if (dsa_port_is_user(dp) || dsa_port_is_unused(dp))
+			dsa_port_teardown(dp);
+
+	dsa_flush_workqueue();
+
+	list_for_each_entry(dp, &dst->ports, list)
+		if (dsa_port_is_dsa(dp) || dsa_port_is_cpu(dp))
+			dsa_port_teardown(dp);
+}
+
+static void dsa_tree_teardown_switches(struct dsa_switch_tree *dst)
+{
+	struct dsa_port *dp;
+
+	list_for_each_entry(dp, &dst->ports, list)
+		dsa_switch_teardown(dp->ds);
+}
+
 static int dsa_tree_setup_switches(struct dsa_switch_tree *dst)
 {
 	struct dsa_port *dp;
@@ -923,24 +950,11 @@ static int dsa_tree_setup_switches(struct dsa_switch_tree *dst)
 	return 0;
 
 teardown:
-	list_for_each_entry(dp, &dst->ports, list)
-		dsa_port_teardown(dp);
+	dsa_tree_teardown_ports(dst);
 
-	list_for_each_entry(dp, &dst->ports, list)
-		dsa_switch_teardown(dp->ds);
+	dsa_tree_teardown_switches(dst);
 
 	return err;
-}
-
-static void dsa_tree_teardown_switches(struct dsa_switch_tree *dst)
-{
-	struct dsa_port *dp;
-
-	list_for_each_entry(dp, &dst->ports, list)
-		dsa_port_teardown(dp);
-
-	list_for_each_entry(dp, &dst->ports, list)
-		dsa_switch_teardown(dp->ds);
 }
 
 static int dsa_tree_setup_master(struct dsa_switch_tree *dst)
@@ -1051,6 +1065,8 @@ static void dsa_tree_teardown(struct dsa_switch_tree *dst)
 	dsa_tree_teardown_lags(dst);
 
 	dsa_tree_teardown_master(dst);
+
+	dsa_tree_teardown_ports(dst);
 
 	dsa_tree_teardown_switches(dst);
 

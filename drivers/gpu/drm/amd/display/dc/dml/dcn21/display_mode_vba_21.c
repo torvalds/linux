@@ -3394,6 +3394,127 @@ static unsigned int TruncToValidBPP(
 	}
 }
 
+
+static noinline void CalculatePrefetchSchedulePerPlane(
+		struct display_mode_lib *mode_lib,
+		int i,
+		unsigned j,
+		unsigned k)
+{
+	struct vba_vars_st *locals = &mode_lib->vba;
+	Pipe myPipe;
+	HostVM myHostVM;
+
+	if (mode_lib->vba.XFCEnabled[k] == true) {
+		mode_lib->vba.XFCRemoteSurfaceFlipDelay =
+				CalculateRemoteSurfaceFlipDelay(
+						mode_lib,
+						mode_lib->vba.VRatio[k],
+						locals->SwathWidthYThisState[k],
+						dml_ceil(locals->BytePerPixelInDETY[k], 1.0),
+						mode_lib->vba.HTotal[k] / mode_lib->vba.PixelClock[k],
+						mode_lib->vba.XFCTSlvVupdateOffset,
+						mode_lib->vba.XFCTSlvVupdateWidth,
+						mode_lib->vba.XFCTSlvVreadyOffset,
+						mode_lib->vba.XFCXBUFLatencyTolerance,
+						mode_lib->vba.XFCFillBWOverhead,
+						mode_lib->vba.XFCSlvChunkSize,
+						mode_lib->vba.XFCBusTransportTime,
+						mode_lib->vba.TimeCalc,
+						mode_lib->vba.TWait,
+						&mode_lib->vba.SrcActiveDrainRate,
+						&mode_lib->vba.TInitXFill,
+						&mode_lib->vba.TslvChk);
+	} else {
+		mode_lib->vba.XFCRemoteSurfaceFlipDelay = 0.0;
+	}
+
+	myPipe.DPPCLK = locals->RequiredDPPCLK[i][j][k];
+	myPipe.DISPCLK = locals->RequiredDISPCLK[i][j];
+	myPipe.PixelClock = mode_lib->vba.PixelClock[k];
+	myPipe.DCFCLKDeepSleep = mode_lib->vba.ProjectedDCFCLKDeepSleep[0][0];
+	myPipe.DPPPerPlane = locals->NoOfDPP[i][j][k];
+	myPipe.ScalerEnabled = mode_lib->vba.ScalerEnabled[k];
+	myPipe.SourceScan = mode_lib->vba.SourceScan[k];
+	myPipe.BlockWidth256BytesY = locals->Read256BlockWidthY[k];
+	myPipe.BlockHeight256BytesY = locals->Read256BlockHeightY[k];
+	myPipe.BlockWidth256BytesC = locals->Read256BlockWidthC[k];
+	myPipe.BlockHeight256BytesC = locals->Read256BlockHeightC[k];
+	myPipe.InterlaceEnable = mode_lib->vba.Interlace[k];
+	myPipe.NumberOfCursors = mode_lib->vba.NumberOfCursors[k];
+	myPipe.VBlank = mode_lib->vba.VTotal[k] - mode_lib->vba.VActive[k];
+	myPipe.HTotal = mode_lib->vba.HTotal[k];
+
+
+	myHostVM.Enable = mode_lib->vba.HostVMEnable;
+	myHostVM.MaxPageTableLevels = mode_lib->vba.HostVMMaxPageTableLevels;
+	myHostVM.CachedPageTableLevels = mode_lib->vba.HostVMCachedPageTableLevels;
+
+
+	mode_lib->vba.IsErrorResult[i][j][k] = CalculatePrefetchSchedule(
+			mode_lib,
+			mode_lib->vba.PercentOfIdealDRAMFabricAndSDPPortBWReceivedAfterUrgLatencyPixelMixedWithVMData,
+			mode_lib->vba.PercentOfIdealDRAMFabricAndSDPPortBWReceivedAfterUrgLatencyVMDataOnly,
+			&myPipe,
+			locals->DSCDelayPerState[i][k],
+			mode_lib->vba.DPPCLKDelaySubtotal,
+			mode_lib->vba.DPPCLKDelaySCL,
+			mode_lib->vba.DPPCLKDelaySCLLBOnly,
+			mode_lib->vba.DPPCLKDelayCNVCFormater,
+			mode_lib->vba.DPPCLKDelayCNVCCursor,
+			mode_lib->vba.DISPCLKDelaySubtotal,
+			locals->SwathWidthYThisState[k] / mode_lib->vba.HRatio[k],
+			mode_lib->vba.OutputFormat[k],
+			mode_lib->vba.MaxInterDCNTileRepeaters,
+			dml_min(mode_lib->vba.MaxVStartup, locals->MaximumVStartup[0][0][k]),
+			locals->MaximumVStartup[0][0][k],
+			mode_lib->vba.GPUVMMaxPageTableLevels,
+			mode_lib->vba.GPUVMEnable,
+			&myHostVM,
+			mode_lib->vba.DynamicMetadataEnable[k],
+			mode_lib->vba.DynamicMetadataLinesBeforeActiveRequired[k],
+			mode_lib->vba.DynamicMetadataTransmittedBytes[k],
+			mode_lib->vba.DCCEnable[k],
+			mode_lib->vba.UrgentLatency,
+			mode_lib->vba.ExtraLatency,
+			mode_lib->vba.TimeCalc,
+			locals->PDEAndMetaPTEBytesPerFrame[0][0][k],
+			locals->MetaRowBytes[0][0][k],
+			locals->DPTEBytesPerRow[0][0][k],
+			locals->PrefetchLinesY[0][0][k],
+			locals->SwathWidthYThisState[k],
+			locals->BytePerPixelInDETY[k],
+			locals->PrefillY[k],
+			locals->MaxNumSwY[k],
+			locals->PrefetchLinesC[0][0][k],
+			locals->BytePerPixelInDETC[k],
+			locals->PrefillC[k],
+			locals->MaxNumSwC[k],
+			locals->SwathHeightYThisState[k],
+			locals->SwathHeightCThisState[k],
+			mode_lib->vba.TWait,
+			mode_lib->vba.XFCEnabled[k],
+			mode_lib->vba.XFCRemoteSurfaceFlipDelay,
+			mode_lib->vba.ProgressiveToInterlaceUnitInOPP,
+			&locals->dst_x_after_scaler,
+			&locals->dst_y_after_scaler,
+			&locals->LineTimesForPrefetch[k],
+			&locals->PrefetchBW[k],
+			&locals->LinesForMetaPTE[k],
+			&locals->LinesForMetaAndDPTERow[k],
+			&locals->VRatioPreY[i][j][k],
+			&locals->VRatioPreC[i][j][k],
+			&locals->RequiredPrefetchPixelDataBWLuma[i][j][k],
+			&locals->RequiredPrefetchPixelDataBWChroma[i][j][k],
+			&locals->VStartupRequiredWhenNotEnoughTimeForDynamicMetadata,
+			&locals->Tno_bw[k],
+			&locals->prefetch_vmrow_bw[k],
+			locals->swath_width_luma_ub,
+			locals->swath_width_chroma_ub,
+			&mode_lib->vba.VUpdateOffsetPix[k],
+			&mode_lib->vba.VUpdateWidthPix[k],
+			&mode_lib->vba.VReadyOffsetPix[k]);
+}
 void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_lib)
 {
 	struct vba_vars_st *locals = &mode_lib->vba;
@@ -4676,120 +4797,9 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 						mode_lib->vba.DRAMClockChangeLatency,
 						mode_lib->vba.UrgentLatency,
 						mode_lib->vba.SREnterPlusExitTime);
-				for (k = 0; k <= mode_lib->vba.NumberOfActivePlanes - 1; k++) {
-					Pipe myPipe;
-					HostVM myHostVM;
+				for (k = 0; k <= mode_lib->vba.NumberOfActivePlanes - 1; k++)
+					CalculatePrefetchSchedulePerPlane(mode_lib, i, j, k);
 
-					if (mode_lib->vba.XFCEnabled[k] == true) {
-						mode_lib->vba.XFCRemoteSurfaceFlipDelay =
-								CalculateRemoteSurfaceFlipDelay(
-										mode_lib,
-										mode_lib->vba.VRatio[k],
-										locals->SwathWidthYThisState[k],
-										dml_ceil(locals->BytePerPixelInDETY[k], 1.0),
-										mode_lib->vba.HTotal[k] / mode_lib->vba.PixelClock[k],
-										mode_lib->vba.XFCTSlvVupdateOffset,
-										mode_lib->vba.XFCTSlvVupdateWidth,
-										mode_lib->vba.XFCTSlvVreadyOffset,
-										mode_lib->vba.XFCXBUFLatencyTolerance,
-										mode_lib->vba.XFCFillBWOverhead,
-										mode_lib->vba.XFCSlvChunkSize,
-										mode_lib->vba.XFCBusTransportTime,
-										mode_lib->vba.TimeCalc,
-										mode_lib->vba.TWait,
-										&mode_lib->vba.SrcActiveDrainRate,
-										&mode_lib->vba.TInitXFill,
-										&mode_lib->vba.TslvChk);
-					} else {
-						mode_lib->vba.XFCRemoteSurfaceFlipDelay = 0.0;
-					}
-
-					myPipe.DPPCLK = locals->RequiredDPPCLK[i][j][k];
-					myPipe.DISPCLK = locals->RequiredDISPCLK[i][j];
-					myPipe.PixelClock = mode_lib->vba.PixelClock[k];
-					myPipe.DCFCLKDeepSleep = mode_lib->vba.ProjectedDCFCLKDeepSleep[0][0];
-					myPipe.DPPPerPlane = locals->NoOfDPP[i][j][k];
-					myPipe.ScalerEnabled = mode_lib->vba.ScalerEnabled[k];
-					myPipe.SourceScan = mode_lib->vba.SourceScan[k];
-					myPipe.BlockWidth256BytesY = locals->Read256BlockWidthY[k];
-					myPipe.BlockHeight256BytesY = locals->Read256BlockHeightY[k];
-					myPipe.BlockWidth256BytesC = locals->Read256BlockWidthC[k];
-					myPipe.BlockHeight256BytesC = locals->Read256BlockHeightC[k];
-					myPipe.InterlaceEnable = mode_lib->vba.Interlace[k];
-					myPipe.NumberOfCursors = mode_lib->vba.NumberOfCursors[k];
-					myPipe.VBlank = mode_lib->vba.VTotal[k] - mode_lib->vba.VActive[k];
-					myPipe.HTotal = mode_lib->vba.HTotal[k];
-
-
-					myHostVM.Enable = mode_lib->vba.HostVMEnable;
-					myHostVM.MaxPageTableLevels = mode_lib->vba.HostVMMaxPageTableLevels;
-					myHostVM.CachedPageTableLevels = mode_lib->vba.HostVMCachedPageTableLevels;
-
-
-					mode_lib->vba.IsErrorResult[i][j][k] = CalculatePrefetchSchedule(
-							mode_lib,
-							mode_lib->vba.PercentOfIdealDRAMFabricAndSDPPortBWReceivedAfterUrgLatencyPixelMixedWithVMData,
-							mode_lib->vba.PercentOfIdealDRAMFabricAndSDPPortBWReceivedAfterUrgLatencyVMDataOnly,
-							&myPipe,
-							locals->DSCDelayPerState[i][k],
-							mode_lib->vba.DPPCLKDelaySubtotal,
-							mode_lib->vba.DPPCLKDelaySCL,
-							mode_lib->vba.DPPCLKDelaySCLLBOnly,
-							mode_lib->vba.DPPCLKDelayCNVCFormater,
-							mode_lib->vba.DPPCLKDelayCNVCCursor,
-							mode_lib->vba.DISPCLKDelaySubtotal,
-							locals->SwathWidthYThisState[k] / mode_lib->vba.HRatio[k],
-							mode_lib->vba.OutputFormat[k],
-							mode_lib->vba.MaxInterDCNTileRepeaters,
-							dml_min(mode_lib->vba.MaxVStartup, locals->MaximumVStartup[0][0][k]),
-							locals->MaximumVStartup[0][0][k],
-							mode_lib->vba.GPUVMMaxPageTableLevels,
-							mode_lib->vba.GPUVMEnable,
-							&myHostVM,
-							mode_lib->vba.DynamicMetadataEnable[k],
-							mode_lib->vba.DynamicMetadataLinesBeforeActiveRequired[k],
-							mode_lib->vba.DynamicMetadataTransmittedBytes[k],
-							mode_lib->vba.DCCEnable[k],
-							mode_lib->vba.UrgentLatency,
-							mode_lib->vba.ExtraLatency,
-							mode_lib->vba.TimeCalc,
-							locals->PDEAndMetaPTEBytesPerFrame[0][0][k],
-							locals->MetaRowBytes[0][0][k],
-							locals->DPTEBytesPerRow[0][0][k],
-							locals->PrefetchLinesY[0][0][k],
-							locals->SwathWidthYThisState[k],
-							locals->BytePerPixelInDETY[k],
-							locals->PrefillY[k],
-							locals->MaxNumSwY[k],
-							locals->PrefetchLinesC[0][0][k],
-							locals->BytePerPixelInDETC[k],
-							locals->PrefillC[k],
-							locals->MaxNumSwC[k],
-							locals->SwathHeightYThisState[k],
-							locals->SwathHeightCThisState[k],
-							mode_lib->vba.TWait,
-							mode_lib->vba.XFCEnabled[k],
-							mode_lib->vba.XFCRemoteSurfaceFlipDelay,
-							mode_lib->vba.ProgressiveToInterlaceUnitInOPP,
-							&locals->dst_x_after_scaler,
-							&locals->dst_y_after_scaler,
-							&locals->LineTimesForPrefetch[k],
-							&locals->PrefetchBW[k],
-							&locals->LinesForMetaPTE[k],
-							&locals->LinesForMetaAndDPTERow[k],
-							&locals->VRatioPreY[i][j][k],
-							&locals->VRatioPreC[i][j][k],
-							&locals->RequiredPrefetchPixelDataBWLuma[i][j][k],
-							&locals->RequiredPrefetchPixelDataBWChroma[i][j][k],
-							&locals->VStartupRequiredWhenNotEnoughTimeForDynamicMetadata,
-							&locals->Tno_bw[k],
-							&locals->prefetch_vmrow_bw[k],
-							locals->swath_width_luma_ub,
-							locals->swath_width_chroma_ub,
-							&mode_lib->vba.VUpdateOffsetPix[k],
-							&mode_lib->vba.VUpdateWidthPix[k],
-							&mode_lib->vba.VReadyOffsetPix[k]);
-				}
 				mode_lib->vba.MaximumReadBandwidthWithoutPrefetch = 0.0;
 				mode_lib->vba.MaximumReadBandwidthWithPrefetch = 0.0;
 				for (k = 0; k <= mode_lib->vba.NumberOfActivePlanes - 1; k++) {

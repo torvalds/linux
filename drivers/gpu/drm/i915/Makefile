@@ -47,13 +47,15 @@ i915-y += i915_drv.o \
 	  intel_dram.o \
 	  intel_memory_region.o \
 	  intel_pch.o \
+	  intel_pcode.o \
 	  intel_pm.o \
 	  intel_region_ttm.o \
 	  intel_runtime_pm.o \
-	  intel_sideband.o \
+	  intel_sbi.o \
 	  intel_step.o \
 	  intel_uncore.o \
 	  intel_wakeref.o \
+	  vlv_sideband.o \
 	  vlv_suspend.o
 
 # core library code
@@ -210,8 +212,11 @@ i915-y += \
 	display/intel_dpio_phy.o \
 	display/intel_dpll.o \
 	display/intel_dpll_mgr.o \
+	display/intel_dpt.o \
+	display/intel_drrs.o \
 	display/intel_dsb.o \
 	display/intel_fb.o \
+	display/intel_fb_pin.o \
 	display/intel_fbc.o \
 	display/intel_fdi.o \
 	display/intel_fifo_underrun.o \
@@ -221,6 +226,7 @@ i915-y += \
 	display/intel_hotplug.o \
 	display/intel_lpe_audio.o \
 	display/intel_overlay.o \
+	display/intel_plane_initial.o \
 	display/intel_psr.o \
 	display/intel_quirks.o \
 	display/intel_sprite.o \
@@ -246,6 +252,7 @@ i915-y += \
 	display/g4x_dp.o \
 	display/g4x_hdmi.o \
 	display/icl_dsi.o \
+	display/intel_backlight.o \
 	display/intel_crt.o \
 	display/intel_ddi.o \
 	display/intel_ddi_buf_trans.o \

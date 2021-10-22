@@ -7,6 +7,7 @@
 
 #include "g4x_dp.h"
 #include "intel_audio.h"
+#include "intel_backlight.h"
 #include "intel_connector.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
@@ -16,9 +17,8 @@
 #include "intel_fifo_underrun.h"
 #include "intel_hdmi.h"
 #include "intel_hotplug.h"
-#include "intel_panel.h"
 #include "intel_pps.h"
-#include "intel_sideband.h"
+#include "vlv_sideband.h"
 
 struct dp_link_dpll {
 	int clock;
@@ -211,7 +211,7 @@ static void ilk_edp_pll_on(struct intel_dp *intel_dp,
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
-	assert_pipe_disabled(dev_priv, pipe_config->cpu_transcoder);
+	assert_transcoder_disabled(dev_priv, pipe_config->cpu_transcoder);
 	assert_dp_port_disabled(intel_dp);
 	assert_edp_pll_disabled(dev_priv);
 
@@ -251,7 +251,7 @@ static void ilk_edp_pll_off(struct intel_dp *intel_dp,
 	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
-	assert_pipe_disabled(dev_priv, old_crtc_state->cpu_transcoder);
+	assert_transcoder_disabled(dev_priv, old_crtc_state->cpu_transcoder);
 	assert_dp_port_disabled(intel_dp);
 	assert_edp_pll_enabled(dev_priv);
 
@@ -426,7 +426,6 @@ intel_dp_link_down(struct intel_encoder *encoder,
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
 	enum port port = encoder->port;
-	u32 DP = intel_dp->DP;
 
 	if (drm_WARN_ON(&dev_priv->drm,
 			(intel_de_read(dev_priv, intel_dp->output_reg) &
@@ -437,17 +436,17 @@ intel_dp_link_down(struct intel_encoder *encoder,
 
 	if ((IS_IVYBRIDGE(dev_priv) && port == PORT_A) ||
 	    (HAS_PCH_CPT(dev_priv) && port != PORT_A)) {
-		DP &= ~DP_LINK_TRAIN_MASK_CPT;
-		DP |= DP_LINK_TRAIN_PAT_IDLE_CPT;
+		intel_dp->DP &= ~DP_LINK_TRAIN_MASK_CPT;
+		intel_dp->DP |= DP_LINK_TRAIN_PAT_IDLE_CPT;
 	} else {
-		DP &= ~DP_LINK_TRAIN_MASK;
-		DP |= DP_LINK_TRAIN_PAT_IDLE;
+		intel_dp->DP &= ~DP_LINK_TRAIN_MASK;
+		intel_dp->DP |= DP_LINK_TRAIN_PAT_IDLE;
 	}
-	intel_de_write(dev_priv, intel_dp->output_reg, DP);
+	intel_de_write(dev_priv, intel_dp->output_reg, intel_dp->DP);
 	intel_de_posting_read(dev_priv, intel_dp->output_reg);
 
-	DP &= ~(DP_PORT_EN | DP_AUDIO_OUTPUT_ENABLE);
-	intel_de_write(dev_priv, intel_dp->output_reg, DP);
+	intel_dp->DP &= ~(DP_PORT_EN | DP_AUDIO_OUTPUT_ENABLE);
+	intel_de_write(dev_priv, intel_dp->output_reg, intel_dp->DP);
 	intel_de_posting_read(dev_priv, intel_dp->output_reg);
 
 	/*
@@ -464,14 +463,14 @@ intel_dp_link_down(struct intel_encoder *encoder,
 		intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, false);
 
 		/* always enable with pattern 1 (as per spec) */
-		DP &= ~(DP_PIPE_SEL_MASK | DP_LINK_TRAIN_MASK);
-		DP |= DP_PORT_EN | DP_PIPE_SEL(PIPE_A) |
+		intel_dp->DP &= ~(DP_PIPE_SEL_MASK | DP_LINK_TRAIN_MASK);
+		intel_dp->DP |= DP_PORT_EN | DP_PIPE_SEL(PIPE_A) |
 			DP_LINK_TRAIN_PAT_1;
-		intel_de_write(dev_priv, intel_dp->output_reg, DP);
+		intel_de_write(dev_priv, intel_dp->output_reg, intel_dp->DP);
 		intel_de_posting_read(dev_priv, intel_dp->output_reg);
 
-		DP &= ~DP_PORT_EN;
-		intel_de_write(dev_priv, intel_dp->output_reg, DP);
+		intel_dp->DP &= ~DP_PORT_EN;
+		intel_de_write(dev_priv, intel_dp->output_reg, intel_dp->DP);
 		intel_de_posting_read(dev_priv, intel_dp->output_reg);
 
 		intel_wait_for_vblank_if_active(dev_priv, PIPE_A);
@@ -480,8 +479,6 @@ intel_dp_link_down(struct intel_encoder *encoder,
 	}
 
 	msleep(intel_dp->pps.panel_power_down_delay);
-
-	intel_dp->DP = DP;
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		intel_wakeref_t wakeref;
@@ -582,19 +579,18 @@ cpt_set_link_train(struct intel_dp *intel_dp,
 		   u8 dp_train_pat)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	u32 *DP = &intel_dp->DP;
 
-	*DP &= ~DP_LINK_TRAIN_MASK_CPT;
+	intel_dp->DP &= ~DP_LINK_TRAIN_MASK_CPT;
 
 	switch (intel_dp_training_pattern_symbol(dp_train_pat)) {
 	case DP_TRAINING_PATTERN_DISABLE:
-		*DP |= DP_LINK_TRAIN_OFF_CPT;
+		intel_dp->DP |= DP_LINK_TRAIN_OFF_CPT;
 		break;
 	case DP_TRAINING_PATTERN_1:
-		*DP |= DP_LINK_TRAIN_PAT_1_CPT;
+		intel_dp->DP |= DP_LINK_TRAIN_PAT_1_CPT;
 		break;
 	case DP_TRAINING_PATTERN_2:
-		*DP |= DP_LINK_TRAIN_PAT_2_CPT;
+		intel_dp->DP |= DP_LINK_TRAIN_PAT_2_CPT;
 		break;
 	default:
 		MISSING_CASE(intel_dp_training_pattern_symbol(dp_train_pat));
@@ -611,19 +607,18 @@ g4x_set_link_train(struct intel_dp *intel_dp,
 		   u8 dp_train_pat)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	u32 *DP = &intel_dp->DP;
 
-	*DP &= ~DP_LINK_TRAIN_MASK;
+	intel_dp->DP &= ~DP_LINK_TRAIN_MASK;
 
 	switch (intel_dp_training_pattern_symbol(dp_train_pat)) {
 	case DP_TRAINING_PATTERN_DISABLE:
-		*DP |= DP_LINK_TRAIN_OFF;
+		intel_dp->DP |= DP_LINK_TRAIN_OFF;
 		break;
 	case DP_TRAINING_PATTERN_1:
-		*DP |= DP_LINK_TRAIN_PAT_1;
+		intel_dp->DP |= DP_LINK_TRAIN_PAT_1;
 		break;
 	case DP_TRAINING_PATTERN_2:
-		*DP |= DP_LINK_TRAIN_PAT_2;
+		intel_dp->DP |= DP_LINK_TRAIN_PAT_2;
 		break;
 	default:
 		MISSING_CASE(intel_dp_training_pattern_symbol(dp_train_pat));
@@ -642,7 +637,7 @@ static void intel_dp_enable_port(struct intel_dp *intel_dp,
 	/* enable with pattern 1 (as per spec) */
 
 	intel_dp_program_link_training_pattern(intel_dp, crtc_state,
-					       DP_TRAINING_PATTERN_1);
+					       DP_PHY_DPRX, DP_TRAINING_PATTERN_1);
 
 	/*
 	 * Magic for VLV/CHV. We _must_ first set up the register
@@ -813,10 +808,10 @@ static u8 intel_dp_preemph_max_3(struct intel_dp *intel_dp)
 	return DP_TRAIN_PRE_EMPH_LEVEL_3;
 }
 
-static void vlv_set_signal_levels(struct intel_dp *intel_dp,
+static void vlv_set_signal_levels(struct intel_encoder *encoder,
 				  const struct intel_crtc_state *crtc_state)
 {
-	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	unsigned long demph_reg_value, preemph_reg_value,
 		uniqtranscale_reg_value;
 	u8 train_set = intel_dp->train_set[0];
@@ -899,10 +894,10 @@ static void vlv_set_signal_levels(struct intel_dp *intel_dp,
 				 uniqtranscale_reg_value, 0);
 }
 
-static void chv_set_signal_levels(struct intel_dp *intel_dp,
+static void chv_set_signal_levels(struct intel_encoder *encoder,
 				  const struct intel_crtc_state *crtc_state)
 {
-	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	u32 deemph_reg_value, margin_reg_value;
 	bool uniq_trans_scale = false;
 	u8 train_set = intel_dp->train_set[0];
@@ -1020,10 +1015,11 @@ static u32 g4x_signal_levels(u8 train_set)
 }
 
 static void
-g4x_set_signal_levels(struct intel_dp *intel_dp,
+g4x_set_signal_levels(struct intel_encoder *encoder,
 		      const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	u8 train_set = intel_dp->train_set[0];
 	u32 signal_levels;
 
@@ -1067,10 +1063,11 @@ static u32 snb_cpu_edp_signal_levels(u8 train_set)
 }
 
 static void
-snb_cpu_edp_set_signal_levels(struct intel_dp *intel_dp,
+snb_cpu_edp_set_signal_levels(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	u8 train_set = intel_dp->train_set[0];
 	u32 signal_levels;
 
@@ -1118,10 +1115,11 @@ static u32 ivb_cpu_edp_signal_levels(u8 train_set)
 }
 
 static void
-ivb_cpu_edp_set_signal_levels(struct intel_dp *intel_dp,
+ivb_cpu_edp_set_signal_levels(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	u8 train_set = intel_dp->train_set[0];
 	u32 signal_levels;
 
@@ -1334,7 +1332,7 @@ bool g4x_dp_init(struct drm_i915_private *dev_priv,
 	intel_encoder->get_config = intel_dp_get_config;
 	intel_encoder->sync_state = intel_dp_sync_state;
 	intel_encoder->initial_fastset_check = intel_dp_initial_fastset_check;
-	intel_encoder->update_pipe = intel_panel_update_backlight;
+	intel_encoder->update_pipe = intel_backlight_update;
 	intel_encoder->suspend = intel_dp_encoder_suspend;
 	intel_encoder->shutdown = intel_dp_encoder_shutdown;
 	if (IS_CHERRYVIEW(dev_priv)) {
@@ -1364,15 +1362,15 @@ bool g4x_dp_init(struct drm_i915_private *dev_priv,
 		dig_port->dp.set_link_train = g4x_set_link_train;
 
 	if (IS_CHERRYVIEW(dev_priv))
-		dig_port->dp.set_signal_levels = chv_set_signal_levels;
+		intel_encoder->set_signal_levels = chv_set_signal_levels;
 	else if (IS_VALLEYVIEW(dev_priv))
-		dig_port->dp.set_signal_levels = vlv_set_signal_levels;
+		intel_encoder->set_signal_levels = vlv_set_signal_levels;
 	else if (IS_IVYBRIDGE(dev_priv) && port == PORT_A)
-		dig_port->dp.set_signal_levels = ivb_cpu_edp_set_signal_levels;
+		intel_encoder->set_signal_levels = ivb_cpu_edp_set_signal_levels;
 	else if (IS_SANDYBRIDGE(dev_priv) && port == PORT_A)
-		dig_port->dp.set_signal_levels = snb_cpu_edp_set_signal_levels;
+		intel_encoder->set_signal_levels = snb_cpu_edp_set_signal_levels;
 	else
-		dig_port->dp.set_signal_levels = g4x_set_signal_levels;
+		intel_encoder->set_signal_levels = g4x_set_signal_levels;
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv) ||
 	    (HAS_PCH_SPLIT(dev_priv) && port != PORT_A)) {

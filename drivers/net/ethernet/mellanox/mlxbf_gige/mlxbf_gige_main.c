@@ -142,6 +142,13 @@ static int mlxbf_gige_open(struct net_device *netdev)
 	err = mlxbf_gige_clean_port(priv);
 	if (err)
 		goto free_irqs;
+
+	/* Clear driver's valid_polarity to match hardware,
+	 * since the above call to clean_port() resets the
+	 * receive polarity used by hardware.
+	 */
+	priv->valid_polarity = 0;
+
 	err = mlxbf_gige_rx_init(priv);
 	if (err)
 		goto free_irqs;

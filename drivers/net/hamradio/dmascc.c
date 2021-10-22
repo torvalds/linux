@@ -973,7 +973,7 @@ static inline void tx_on(struct scc_priv *priv)
 		flags = claim_dma_lock();
 		set_dma_mode(priv->param.dma, DMA_MODE_WRITE);
 		set_dma_addr(priv->param.dma,
-			     (int) priv->tx_buf[priv->tx_tail] + n);
+			     virt_to_bus(priv->tx_buf[priv->tx_tail]) + n);
 		set_dma_count(priv->param.dma,
 			      priv->tx_len[priv->tx_tail] - n);
 		release_dma_lock(flags);
@@ -1020,7 +1020,7 @@ static inline void rx_on(struct scc_priv *priv)
 		flags = claim_dma_lock();
 		set_dma_mode(priv->param.dma, DMA_MODE_READ);
 		set_dma_addr(priv->param.dma,
-			     (int) priv->rx_buf[priv->rx_head]);
+			     virt_to_bus(priv->rx_buf[priv->rx_head]));
 		set_dma_count(priv->param.dma, BUF_SIZE);
 		release_dma_lock(flags);
 		enable_dma(priv->param.dma);
@@ -1233,7 +1233,7 @@ static void special_condition(struct scc_priv *priv, int rc)
 		if (priv->param.dma >= 0) {
 			flags = claim_dma_lock();
 			set_dma_addr(priv->param.dma,
-				     (int) priv->rx_buf[priv->rx_head]);
+				     virt_to_bus(priv->rx_buf[priv->rx_head]));
 			set_dma_count(priv->param.dma, BUF_SIZE);
 			release_dma_lock(flags);
 		} else {

@@ -48,6 +48,7 @@
 #include "dc_link_dp.h"
 #include "inc/link_dpcd.h"
 #include "dcn10/dcn10_hw_sequencer.h"
+#include "inc/link_enc_cfg.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -70,7 +71,7 @@ void dcn31_init_hw(struct dc *dc)
 	struct dc_bios *dcb = dc->ctx->dc_bios;
 	struct resource_pool *res_pool = dc->res_pool;
 	uint32_t backlight = MAX_BACKLIGHT_LEVEL;
-	int i, j;
+	int i;
 	int edp_num;
 
 	if (dc->clk_mgr && dc->clk_mgr->funcs->init_clocks)
@@ -157,6 +158,9 @@ void dcn31_init_hw(struct dc *dc)
 		 */
 		struct dc_link *link = dc->links[i];
 
+		if (link->ep_type != DISPLAY_ENDPOINT_PHY)
+			continue;
+
 		link->link_enc->funcs->hw_init(link->link_enc);
 
 		/* Check for enabled DIG to identify enabled display */
@@ -170,40 +174,14 @@ void dcn31_init_hw(struct dc *dc)
 		if (hws->funcs.dsc_pg_control != NULL)
 			hws->funcs.dsc_pg_control(hws, res_pool->dscs[i]->inst, false);
 
+	/* Enables outbox notifications for usb4 dpia */
+	if (dc->res_pool->usb4_dpia_count)
+		dmub_enable_outbox_notification(dc);
+
 	/* we want to turn off all dp displays before doing detection */
-	if (dc->config.power_down_display_on_boot) {
-		uint8_t dpcd_power_state = '\0';
-		enum dc_status status = DC_ERROR_UNEXPECTED;
+	if (dc->config.power_down_display_on_boot)
+		blank_all_dp_displays(dc, true);
 
-		for (i = 0; i < dc->link_count; i++) {
-			if (dc->links[i]->connector_signal != SIGNAL_TYPE_DISPLAY_PORT)
-				continue;
-
-			/* if any of the displays are lit up turn them off */
-			status = core_link_read_dpcd(dc->links[i], DP_SET_POWER,
-						     &dpcd_power_state, sizeof(dpcd_power_state));
-			if (status == DC_OK && dpcd_power_state == DP_POWER_STATE_D0) {
-				/* blank dp stream before power off receiver*/
-				if (dc->links[i]->link_enc->funcs->get_dig_frontend) {
-					unsigned int fe;
-
-					fe = dc->links[i]->link_enc->funcs->get_dig_frontend(
-										dc->links[i]->link_enc);
-					if (fe == ENGINE_ID_UNKNOWN)
-						continue;
-
-					for (j = 0; j < dc->res_pool->stream_enc_count; j++) {
-						if (fe == dc->res_pool->stream_enc[j]->id) {
-							dc->res_pool->stream_enc[j]->funcs->dp_blank(
-										dc->res_pool->stream_enc[j]);
-							break;
-						}
-					}
-				}
-				dp_receiver_power_ctrl(dc->links[i], false);
-			}
-		}
-	}
 
 	/* If taking control over from VBIOS, we may want to optimize our first
 	 * mode set, so we need to skip powering down pipes until we know which
@@ -248,7 +226,8 @@ void dcn31_init_hw(struct dc *dc)
 			for (i = 0; i < dc->link_count; i++) {
 				struct dc_link *link = dc->links[i];
 
-				if (link->link_enc->funcs->is_dig_enabled &&
+				if (link->ep_type == DISPLAY_ENDPOINT_PHY &&
+						link->link_enc->funcs->is_dig_enabled &&
 						link->link_enc->funcs->is_dig_enabled(link->link_enc) &&
 						dc->hwss.power_down) {
 					dc->hwss.power_down(dc);
@@ -303,8 +282,10 @@ void dcn31_init_hw(struct dc *dc)
 	if (dc->res_pool->hubbub->funcs->force_pstate_change_control)
 		dc->res_pool->hubbub->funcs->force_pstate_change_control(
 				dc->res_pool->hubbub, false, false);
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	if (dc->res_pool->hubbub->funcs->init_crb)
 		dc->res_pool->hubbub->funcs->init_crb(dc->res_pool->hubbub);
+#endif
 }
 
 void dcn31_dsc_pg_control(
@@ -420,7 +401,7 @@ void dcn31_z10_save_init(struct dc *dc)
 	dc_dmub_srv_wait_idle(dc->ctx->dmub_srv);
 }
 
-void dcn31_z10_restore(struct dc *dc)
+void dcn31_z10_restore(const struct dc *dc)
 {
 	union dmub_rb_cmd cmd;
 
@@ -594,19 +575,7 @@ void dcn31_reset_hw_ctx_wrap(
 				old_clk->funcs->cs_power_down(old_clk);
 		}
 	}
-}
 
-bool dcn31_is_abm_supported(struct dc *dc,
-		struct dc_state *context, struct dc_stream_state *stream)
-{
-	int i;
-
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-
-		if (pipe_ctx->stream == stream &&
-				(pipe_ctx->prev_odm_pipe == NULL && pipe_ctx->next_odm_pipe == NULL))
-			return true;
-	}
-	return false;
+	/* New dc_state in the process of being applied to hardware. */
+	dc->current_state->res_ctx.link_enc_cfg_ctx.mode = LINK_ENC_CFG_TRANSIENT;
 }

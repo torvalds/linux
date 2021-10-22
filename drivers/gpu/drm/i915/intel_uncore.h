@@ -84,12 +84,12 @@ enum forcewake_domains {
 	FORCEWAKE_ALL = BIT(FW_DOMAIN_ID_COUNT) - 1,
 };
 
-struct intel_uncore_funcs {
+struct intel_uncore_fw_get {
 	void (*force_wake_get)(struct intel_uncore *uncore,
 			       enum forcewake_domains domains);
-	void (*force_wake_put)(struct intel_uncore *uncore,
-			       enum forcewake_domains domains);
+};
 
+struct intel_uncore_funcs {
 	enum forcewake_domains (*read_fw_domains)(struct intel_uncore *uncore,
 						  i915_reg_t r);
 	enum forcewake_domains (*write_fw_domains)(struct intel_uncore *uncore,
@@ -150,6 +150,7 @@ struct intel_uncore {
 	unsigned int shadowed_reg_table_entries;
 
 	struct notifier_block pmic_bus_access_nb;
+	const struct intel_uncore_fw_get *fw_get_funcs;
 	struct intel_uncore_funcs funcs;
 
 	unsigned int fifo_count;

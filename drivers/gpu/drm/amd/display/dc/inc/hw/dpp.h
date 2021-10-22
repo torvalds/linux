@@ -29,6 +29,15 @@
 
 #include "transform.h"
 
+union defer_reg_writes {
+	struct {
+		bool disable_blnd_lut:1;
+		bool disable_3dlut:1;
+		bool disable_shaper:1;
+	} bits;
+	uint32_t raw;
+};
+
 struct dpp {
 	const struct dpp_funcs *funcs;
 	struct dc_context *ctx;
@@ -43,6 +52,7 @@ struct dpp {
 	struct pwl_params regamma_params;
 	struct pwl_params degamma_params;
 	struct dpp_cursor_attributes cur_attr;
+	union defer_reg_writes deferred_reg_writes;
 
 	struct pwl_params shaper_params;
 	bool cm_bypass_mode;
@@ -245,6 +255,8 @@ struct dpp_funcs {
 			bool dppclk_div,
 			bool enable);
 
+	void (*dpp_deferred_update)(
+			struct dpp *dpp);
 	bool (*dpp_program_blnd_lut)(
 			struct dpp *dpp,
 			const struct pwl_params *params);

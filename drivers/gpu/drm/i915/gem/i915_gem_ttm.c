@@ -194,7 +194,7 @@ static struct ttm_tt *i915_ttm_tt_create(struct ttm_buffer_object *bo,
 
 	if (obj->flags & I915_BO_ALLOC_CPU_CLEAR &&
 	    man->use_tt)
-		page_flags |= TTM_PAGE_FLAG_ZERO_ALLOC;
+		page_flags |= TTM_TT_FLAG_ZERO_ALLOC;
 
 	ret = ttm_tt_init(&i915_tt->ttm, bo, page_flags,
 			  i915_ttm_select_tt_caching(obj));
@@ -226,7 +226,6 @@ static void i915_ttm_tt_destroy(struct ttm_device *bdev, struct ttm_tt *ttm)
 {
 	struct i915_ttm_tt *i915_tt = container_of(ttm, typeof(*i915_tt), ttm);
 
-	ttm_tt_destroy_common(bdev, ttm);
 	ttm_tt_fini(ttm);
 	kfree(i915_tt);
 }
@@ -565,7 +564,7 @@ static int i915_ttm_move(struct ttm_buffer_object *bo, bool evict,
 	}
 
 	/* Populate ttm with pages if needed. Typically system memory. */
-	if (ttm && (dst_man->use_tt || (ttm->page_flags & TTM_PAGE_FLAG_SWAPPED))) {
+	if (ttm && (dst_man->use_tt || (ttm->page_flags & TTM_TT_FLAG_SWAPPED))) {
 		ret = ttm_tt_populate(bo->bdev, ttm, ctx);
 		if (ret)
 			return ret;
@@ -576,7 +575,7 @@ static int i915_ttm_move(struct ttm_buffer_object *bo, bool evict,
 		return PTR_ERR(dst_st);
 
 	clear = !cpu_maps_iomem(bo->resource) && (!ttm || !ttm_tt_is_populated(ttm));
-	if (!(clear && ttm && !(ttm->page_flags & TTM_PAGE_FLAG_ZERO_ALLOC)))
+	if (!(clear && ttm && !(ttm->page_flags & TTM_TT_FLAG_ZERO_ALLOC)))
 		__i915_ttm_move(bo, clear, dst_mem, bo->ttm, dst_st, true);
 
 	ttm_bo_move_sync_cleanup(bo, dst_mem);

@@ -338,6 +338,7 @@ void dmub_dcn31_enable_dmub_boot_options(struct dmub_srv *dmub, const struct dmu
 	union dmub_fw_boot_options boot_options = {0};
 
 	boot_options.bits.z10_disable = params->disable_z10;
+	boot_options.bits.enable_dpia = params->disable_dpia ? 0 : 1;
 
 	REG_WRITE(DMCUB_SCRATCH14, boot_options.all);
 }
@@ -432,3 +433,11 @@ void dmub_dcn31_get_diagnostic_data(struct dmub_srv *dmub, struct dmub_diagnosti
 	REG_GET(DMCUB_REGION3_CW6_TOP_ADDRESS, DMCUB_REGION3_CW6_ENABLE, &is_cw6_enabled);
 	diag_data->is_cw6_enabled = is_cw6_enabled;
 }
+
+bool dmub_dcn31_should_detect(struct dmub_srv *dmub)
+{
+	uint32_t fw_boot_status = REG_READ(DMCUB_SCRATCH0);
+	bool should_detect = fw_boot_status & DMUB_FW_BOOT_STATUS_BIT_DETECTION_REQUIRED;
+	return should_detect;
+}
+

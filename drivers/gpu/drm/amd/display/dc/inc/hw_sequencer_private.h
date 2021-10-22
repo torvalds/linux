@@ -41,6 +41,9 @@ struct dce_hwseq_wa {
 	bool DEGVIDCN10_254;
 	bool DEGVIDCN21;
 	bool disallow_self_refresh_during_multi_plane_transition;
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	bool dp_hpo_and_otg_sequence;
+#endif
 };
 
 struct hwseq_wa_state {
@@ -151,6 +154,10 @@ struct dce_hwseq {
 	struct hwseq_wa_state wa_state;
 	struct hwseq_private_funcs funcs;
 
+	PHYSICAL_ADDRESS_LOC fb_base;
+	PHYSICAL_ADDRESS_LOC fb_top;
+	PHYSICAL_ADDRESS_LOC fb_offset;
+	PHYSICAL_ADDRESS_LOC uma_top;
 };
 
 #endif /* __DC_HW_SEQUENCER_PRIVATE_H__ */

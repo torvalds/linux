@@ -13,11 +13,12 @@
 #include "intel_gt_pm.h"
 #include "intel_gt_pm_debugfs.h"
 #include "intel_llc.h"
+#include "intel_pcode.h"
 #include "intel_rc6.h"
 #include "intel_rps.h"
 #include "intel_runtime_pm.h"
-#include "intel_sideband.h"
 #include "intel_uncore.h"
+#include "vlv_sideband.h"
 
 int intel_gt_pm_debugfs_forcewake_user_open(struct intel_gt *gt)
 {

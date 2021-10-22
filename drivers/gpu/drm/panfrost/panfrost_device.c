@@ -198,7 +198,6 @@ err:
 int panfrost_device_init(struct panfrost_device *pfdev)
 {
 	int err;
-	struct resource *res;
 
 	mutex_init(&pfdev->sched_lock);
 	INIT_LIST_HEAD(&pfdev->scheduled_jobs);
@@ -236,8 +235,7 @@ int panfrost_device_init(struct panfrost_device *pfdev)
 	if (err)
 		goto out_reset;
 
-	res = platform_get_resource(pfdev->pdev, IORESOURCE_MEM, 0);
-	pfdev->iomem = devm_ioremap_resource(pfdev->dev, res);
+	pfdev->iomem = devm_platform_ioremap_resource(pfdev->pdev, 0);
 	if (IS_ERR(pfdev->iomem)) {
 		err = PTR_ERR(pfdev->iomem);
 		goto out_pm_domain;
@@ -400,8 +398,7 @@ void panfrost_device_reset(struct panfrost_device *pfdev)
 #ifdef CONFIG_PM
 int panfrost_device_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct panfrost_device *pfdev = platform_get_drvdata(pdev);
+	struct panfrost_device *pfdev = dev_get_drvdata(dev);
 
 	panfrost_device_reset(pfdev);
 	panfrost_devfreq_resume(pfdev);
@@ -411,8 +408,7 @@ int panfrost_device_resume(struct device *dev)
 
 int panfrost_device_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct panfrost_device *pfdev = platform_get_drvdata(pdev);
+	struct panfrost_device *pfdev = dev_get_drvdata(dev);
 
 	if (!panfrost_job_is_idle(pfdev))
 		return -EBUSY;
