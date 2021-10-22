@@ -4600,8 +4600,6 @@ static int devlink_nl_param_fill(struct sk_buff *msg, struct devlink *devlink,
 				return -EOPNOTSUPP;
 			param_value[i] = param_item->driverinit_value;
 		} else {
-			if (!param_item->published)
-				continue;
 			ctx.cmode = i;
 			err = devlink_param_get(devlink, param, &ctx);
 			if (err)
@@ -4677,6 +4675,7 @@ static void devlink_param_notify(struct devlink *devlink,
 	WARN_ON(cmd != DEVLINK_CMD_PARAM_NEW && cmd != DEVLINK_CMD_PARAM_DEL &&
 		cmd != DEVLINK_CMD_PORT_PARAM_NEW &&
 		cmd != DEVLINK_CMD_PORT_PARAM_DEL);
+	ASSERT_DEVLINK_REGISTERED(devlink);
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
@@ -4948,7 +4947,6 @@ static int devlink_param_register_one(struct devlink *devlink,
 	param_item->param = param;
 
 	list_add_tail(&param_item->list, param_list);
-	devlink_param_notify(devlink, port_index, param_item, cmd);
 	return 0;
 }
 
@@ -4962,7 +4960,6 @@ static void devlink_param_unregister_one(struct devlink *devlink,
 
 	param_item = devlink_param_find_by_name(param_list, param->name);
 	WARN_ON(!param_item);
-	devlink_param_notify(devlink, port_index, param_item, cmd);
 	list_del(&param_item->list);
 	kfree(param_item);
 }
@@ -9076,6 +9073,7 @@ static void devlink_notify_register(struct devlink *devlink)
 {
 	struct devlink_trap_policer_item *policer_item;
 	struct devlink_trap_group_item *group_item;
+	struct devlink_param_item *param_item;
 	struct devlink_trap_item *trap_item;
 	struct devlink_port *devlink_port;
 	struct devlink_rate *rate_node;
@@ -9102,19 +9100,24 @@ static void devlink_notify_register(struct devlink *devlink)
 	list_for_each_entry(region, &devlink->region_list, list)
 		devlink_nl_region_notify(region, NULL, DEVLINK_CMD_REGION_NEW);
 
-	devlink_params_publish(devlink);
+	list_for_each_entry(param_item, &devlink->param_list, list)
+		devlink_param_notify(devlink, 0, param_item,
+				     DEVLINK_CMD_PARAM_NEW);
 }
 
 static void devlink_notify_unregister(struct devlink *devlink)
 {
 	struct devlink_trap_policer_item *policer_item;
 	struct devlink_trap_group_item *group_item;
+	struct devlink_param_item *param_item;
 	struct devlink_trap_item *trap_item;
 	struct devlink_port *devlink_port;
 	struct devlink_rate *rate_node;
 	struct devlink_region *region;
 
-	devlink_params_unpublish(devlink);
+	list_for_each_entry_reverse(param_item, &devlink->param_list, list)
+		devlink_param_notify(devlink, 0, param_item,
+				     DEVLINK_CMD_PARAM_DEL);
 
 	list_for_each_entry_reverse(region, &devlink->region_list, list)
 		devlink_nl_region_notify(region, NULL, DEVLINK_CMD_REGION_DEL);
@@ -10169,6 +10172,8 @@ int devlink_params_register(struct devlink *devlink,
 			    const struct devlink_param *params,
 			    size_t params_count)
 {
+	ASSERT_DEVLINK_NOT_REGISTERED(devlink);
+
 	return __devlink_params_register(devlink, 0, &devlink->param_list,
 					 params, params_count,
 					 DEVLINK_CMD_PARAM_NEW,
@@ -10186,6 +10191,8 @@ void devlink_params_unregister(struct devlink *devlink,
 			       const struct devlink_param *params,
 			       size_t params_count)
 {
+	ASSERT_DEVLINK_NOT_REGISTERED(devlink);
+
 	return __devlink_params_unregister(devlink, 0, &devlink->param_list,
 					   params, params_count,
 					   DEVLINK_CMD_PARAM_DEL);
@@ -10206,6 +10213,8 @@ int devlink_param_register(struct devlink *devlink,
 {
 	int err;
 
+	ASSERT_DEVLINK_NOT_REGISTERED(devlink);
+
 	mutex_lock(&devlink->lock);
 	err = __devlink_param_register_one(devlink, 0, &devlink->param_list,
 					   param, DEVLINK_CMD_PARAM_NEW);
@@ -10222,57 +10231,14 @@ EXPORT_SYMBOL_GPL(devlink_param_register);
 void devlink_param_unregister(struct devlink *devlink,
 			      const struct devlink_param *param)
 {
+	ASSERT_DEVLINK_NOT_REGISTERED(devlink);
+
 	mutex_lock(&devlink->lock);
 	devlink_param_unregister_one(devlink, 0, &devlink->param_list, param,
 				     DEVLINK_CMD_PARAM_DEL);
 	mutex_unlock(&devlink->lock);
 }
 EXPORT_SYMBOL_GPL(devlink_param_unregister);
-
-/**
- *	devlink_params_publish - publish configuration parameters
- *
- *	@devlink: devlink
- *
- *	Publish previously registered configuration parameters.
- */
-void devlink_params_publish(struct devlink *devlink)
-{
-	struct devlink_param_item *param_item;
-
-	if (!xa_get_mark(&devlinks, devlink->index, DEVLINK_REGISTERED))
-		return;
-
-	list_for_each_entry(param_item, &devlink->param_list, list) {
-		if (param_item->published)
-			continue;
-		param_item->published = true;
-		devlink_param_notify(devlink, 0, param_item,
-				     DEVLINK_CMD_PARAM_NEW);
-	}
-}
-EXPORT_SYMBOL_GPL(devlink_params_publish);
-
-/**
- *	devlink_params_unpublish - unpublish configuration parameters
- *
- *	@devlink: devlink
- *
- *	Unpublish previously registered configuration parameters.
- */
-void devlink_params_unpublish(struct devlink *devlink)
-{
-	struct devlink_param_item *param_item;
-
-	list_for_each_entry(param_item, &devlink->param_list, list) {
-		if (!param_item->published)
-			continue;
-		param_item->published = false;
-		devlink_param_notify(devlink, 0, param_item,
-				     DEVLINK_CMD_PARAM_DEL);
-	}
-}
-EXPORT_SYMBOL_GPL(devlink_params_unpublish);
 
 /**
  *	devlink_param_driverinit_value_get - get configuration parameter
@@ -10328,6 +10294,8 @@ int devlink_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
 {
 	struct devlink_param_item *param_item;
 
+	ASSERT_DEVLINK_NOT_REGISTERED(devlink);
+
 	param_item = devlink_param_find_by_id(&devlink->param_list, param_id);
 	if (!param_item)
 		return -EINVAL;
@@ -10341,8 +10309,6 @@ int devlink_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
 	else
 		param_item->driverinit_value = init_val;
 	param_item->driverinit_value_valid = true;
-
-	devlink_param_notify(devlink, 0, param_item, DEVLINK_CMD_PARAM_NEW);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(devlink_param_driverinit_value_set);
@@ -10788,8 +10754,7 @@ devlink_trap_group_notify(struct devlink *devlink,
 
 	WARN_ON_ONCE(cmd != DEVLINK_CMD_TRAP_GROUP_NEW &&
 		     cmd != DEVLINK_CMD_TRAP_GROUP_DEL);
-	if (!xa_get_mark(&devlinks, devlink->index, DEVLINK_REGISTERED))
-		return;
+	ASSERT_DEVLINK_REGISTERED(devlink);
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
@@ -11116,9 +11081,6 @@ devlink_trap_group_register(struct devlink *devlink,
 	}
 
 	list_add_tail(&group_item->list, &devlink->trap_group_list);
-	devlink_trap_group_notify(devlink, group_item,
-				  DEVLINK_CMD_TRAP_GROUP_NEW);
-
 	return 0;
 
 err_group_init:
@@ -11139,8 +11101,6 @@ devlink_trap_group_unregister(struct devlink *devlink,
 	if (WARN_ON_ONCE(!group_item))
 		return;
 
-	devlink_trap_group_notify(devlink, group_item,
-				  DEVLINK_CMD_TRAP_GROUP_DEL);
 	list_del(&group_item->list);
 	free_percpu(group_item->stats);
 	kfree(group_item);
@@ -11159,6 +11119,8 @@ int devlink_trap_groups_register(struct devlink *devlink,
 				 size_t groups_count)
 {
 	int i, err;
+
+	ASSERT_DEVLINK_NOT_REGISTERED(devlink);
 
 	mutex_lock(&devlink->lock);
 	for (i = 0; i < groups_count; i++) {
@@ -11197,6 +11159,8 @@ void devlink_trap_groups_unregister(struct devlink *devlink,
 {
 	int i;
 
+	ASSERT_DEVLINK_NOT_REGISTERED(devlink);
+
 	mutex_lock(&devlink->lock);
 	for (i = groups_count - 1; i >= 0; i--)
 		devlink_trap_group_unregister(devlink, &groups[i]);
@@ -11214,8 +11178,7 @@ devlink_trap_policer_notify(struct devlink *devlink,
 
 	WARN_ON_ONCE(cmd != DEVLINK_CMD_TRAP_POLICER_NEW &&
 		     cmd != DEVLINK_CMD_TRAP_POLICER_DEL);
-	if (!xa_get_mark(&devlinks, devlink->index, DEVLINK_REGISTERED))
-		return;
+	ASSERT_DEVLINK_REGISTERED(devlink);
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
@@ -11257,9 +11220,6 @@ devlink_trap_policer_register(struct devlink *devlink,
 	}
 
 	list_add_tail(&policer_item->list, &devlink->trap_policer_list);
-	devlink_trap_policer_notify(devlink, policer_item,
-				    DEVLINK_CMD_TRAP_POLICER_NEW);
-
 	return 0;
 
 err_policer_init:
@@ -11277,8 +11237,6 @@ devlink_trap_policer_unregister(struct devlink *devlink,
 	if (WARN_ON_ONCE(!policer_item))
 		return;
 
-	devlink_trap_policer_notify(devlink, policer_item,
-				    DEVLINK_CMD_TRAP_POLICER_DEL);
 	list_del(&policer_item->list);
 	if (devlink->ops->trap_policer_fini)
 		devlink->ops->trap_policer_fini(devlink, policer);
@@ -11299,6 +11257,8 @@ devlink_trap_policers_register(struct devlink *devlink,
 			       size_t policers_count)
 {
 	int i, err;
+
+	ASSERT_DEVLINK_NOT_REGISTERED(devlink);
 
 	mutex_lock(&devlink->lock);
 	for (i = 0; i < policers_count; i++) {
@@ -11340,6 +11300,8 @@ devlink_trap_policers_unregister(struct devlink *devlink,
 				 size_t policers_count)
 {
 	int i;
+
+	ASSERT_DEVLINK_NOT_REGISTERED(devlink);
 
 	mutex_lock(&devlink->lock);
 	for (i = policers_count - 1; i >= 0; i--)
