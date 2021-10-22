@@ -1021,7 +1021,7 @@ void mt7921_get_et_stats(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	ei += wi.worker_stat_count;
 	if (ei != ARRAY_SIZE(mt7921_gstrings_stats))
-		dev_err(dev->mt76.dev, "ei: %d  SSTATS_LEN: %lu",
+		dev_err(dev->mt76.dev, "ei: %d  SSTATS_LEN: %zu",
 			ei, ARRAY_SIZE(mt7921_gstrings_stats));
 }
 
