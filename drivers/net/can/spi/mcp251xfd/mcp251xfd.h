@@ -626,6 +626,12 @@ MCP251XFD_IS(2517);
 MCP251XFD_IS(2518);
 MCP251XFD_IS(251X);
 
+static inline bool mcp251xfd_is_fd_mode(const struct mcp251xfd_priv *priv)
+{
+	/* listen-only mode works like FD mode */
+	return priv->can.ctrlmode & (CAN_CTRLMODE_LISTENONLY | CAN_CTRLMODE_FD);
+}
+
 static inline u8 mcp251xfd_first_byte_set(u32 mask)
 {
 	return (mask & 0x0000ffff) ?

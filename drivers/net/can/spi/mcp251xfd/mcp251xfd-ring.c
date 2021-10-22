@@ -209,8 +209,7 @@ int mcp251xfd_ring_alloc(struct mcp251xfd_priv *priv)
 	int ram_free, i;
 
 	tef_obj_size = sizeof(struct mcp251xfd_hw_tef_obj);
-	/* listen-only mode works like FD mode */
-	if (priv->can.ctrlmode & (CAN_CTRLMODE_LISTENONLY | CAN_CTRLMODE_FD)) {
+	if (mcp251xfd_is_fd_mode(priv)) {
 		tx_obj_num = MCP251XFD_TX_OBJ_NUM_CANFD;
 		tx_obj_size = sizeof(struct mcp251xfd_hw_tx_obj_canfd);
 		rx_obj_size = sizeof(struct mcp251xfd_hw_rx_obj_canfd);

@@ -34,7 +34,7 @@ mcp251xfd_chip_rx_fifo_init_one(const struct mcp251xfd_priv *priv,
 		MCP251XFD_REG_FIFOCON_RXOVIE |
 		MCP251XFD_REG_FIFOCON_TFNRFNIE;
 
-	if (priv->can.ctrlmode & (CAN_CTRLMODE_LISTENONLY | CAN_CTRLMODE_FD))
+	if (mcp251xfd_is_fd_mode(priv))
 		fifo_con |= FIELD_PREP(MCP251XFD_REG_FIFOCON_PLSIZE_MASK,
 				       MCP251XFD_REG_FIFOCON_PLSIZE_64);
 	else
@@ -84,7 +84,7 @@ int mcp251xfd_chip_fifo_init(const struct mcp251xfd_priv *priv)
 		MCP251XFD_REG_FIFOCON_TXEN |
 		MCP251XFD_REG_FIFOCON_TXATIE;
 
-	if (priv->can.ctrlmode & (CAN_CTRLMODE_LISTENONLY | CAN_CTRLMODE_FD))
+	if (mcp251xfd_is_fd_mode(priv))
 		val |= FIELD_PREP(MCP251XFD_REG_FIFOCON_PLSIZE_MASK,
 				  MCP251XFD_REG_FIFOCON_PLSIZE_64);
 	else
