@@ -3033,6 +3033,7 @@ void ice_napi_del(struct ice_vsi *vsi)
  */
 int ice_vsi_release(struct ice_vsi *vsi)
 {
+	enum ice_status err;
 	struct ice_pf *pf;
 
 	if (!vsi->back)
@@ -3105,6 +3106,10 @@ int ice_vsi_release(struct ice_vsi *vsi)
 
 	ice_fltr_remove_all(vsi);
 	ice_rm_vsi_lan_cfg(vsi->port_info, vsi->idx);
+	err = ice_rm_vsi_rdma_cfg(vsi->port_info, vsi->idx);
+	if (err)
+		dev_err(ice_pf_to_dev(vsi->back), "Failed to remove RDMA scheduler config for VSI %u, err %d\n",
+			vsi->vsi_num, err);
 	ice_vsi_delete(vsi);
 	ice_vsi_free_q_vectors(vsi);
 
@@ -3285,6 +3290,10 @@ int ice_vsi_rebuild(struct ice_vsi *vsi, bool init_vsi)
 	prev_num_q_vectors = ice_vsi_rebuild_get_coalesce(vsi, coalesce);
 
 	ice_rm_vsi_lan_cfg(vsi->port_info, vsi->idx);
+	ret = ice_rm_vsi_rdma_cfg(vsi->port_info, vsi->idx);
+	if (ret)
+		dev_err(ice_pf_to_dev(vsi->back), "Failed to remove RDMA scheduler config for VSI %u, err %d\n",
+			vsi->vsi_num, ret);
 	ice_vsi_free_q_vectors(vsi);
 
 	/* SR-IOV determines needed MSIX resources all at once instead of per

@@ -203,6 +203,10 @@ struct msm_gpu {
 	uint32_t suspend_count;
 
 	struct msm_gpu_state *crashstate;
+
+	/* Enable clamping to idle freq when inactive: */
+	bool clamp_to_idle;
+
 	/* True if the hardware supports expanded apriv (a650 and newer) */
 	bool hw_apriv;
 
@@ -258,6 +262,39 @@ struct msm_gpu_perfcntr {
 #define NR_SCHED_PRIORITIES (1 + DRM_SCHED_PRIORITY_HIGH - DRM_SCHED_PRIORITY_MIN)
 
 /**
+ * struct msm_file_private - per-drm_file context
+ *
+ * @queuelock:    synchronizes access to submitqueues list
+ * @submitqueues: list of &msm_gpu_submitqueue created by userspace
+ * @queueid:      counter incremented each time a submitqueue is created,
+ *                used to assign &msm_gpu_submitqueue.id
+ * @aspace:       the per-process GPU address-space
+ * @ref:          reference count
+ * @seqno:        unique per process seqno
+ */
+struct msm_file_private {
+	rwlock_t queuelock;
+	struct list_head submitqueues;
+	int queueid;
+	struct msm_gem_address_space *aspace;
+	struct kref ref;
+	int seqno;
+
+	/**
+	 * entities:
+	 *
+	 * Table of per-priority-level sched entities used by submitqueues
+	 * associated with this &drm_file.  Because some userspace apps
+	 * make assumptions about rendering from multiple gl contexts
+	 * (of the same priority) within the process happening in FIFO
+	 * order without requiring any fencing beyond MakeCurrent(), we
+	 * create at most one &drm_sched_entity per-process per-priority-
+	 * level.
+	 */
+	struct drm_sched_entity *entities[NR_SCHED_PRIORITIES * MSM_GPU_MAX_RINGS];
+};
+
+/**
  * msm_gpu_convert_priority - Map userspace priority to ring # and sched priority
  *
  * @gpu:        the gpu instance
@@ -304,6 +341,8 @@ static inline int msm_gpu_convert_priority(struct msm_gpu *gpu, int prio,
 }
 
 /**
+ * struct msm_gpu_submitqueues - Userspace created context.
+ *
  * A submitqueue is associated with a gl context or vk queue (or equiv)
  * in userspace.
  *
@@ -321,7 +360,7 @@ static inline int msm_gpu_convert_priority(struct msm_gpu *gpu, int prio,
  *             seqno, protected by submitqueue lock
  * @lock:      submitqueue lock
  * @ref:       reference count
- * @entity: the submit job-queue
+ * @entity:    the submit job-queue
  */
 struct msm_gpu_submitqueue {
 	int id;
@@ -333,7 +372,7 @@ struct msm_gpu_submitqueue {
 	struct idr fence_idr;
 	struct mutex lock;
 	struct kref ref;
-	struct drm_sched_entity entity;
+	struct drm_sched_entity *entity;
 };
 
 struct msm_gpu_state_bo {
@@ -420,6 +459,33 @@ static inline void gpu_write64(struct msm_gpu *gpu, u32 lo, u32 hi, u64 val)
 
 int msm_gpu_pm_suspend(struct msm_gpu *gpu);
 int msm_gpu_pm_resume(struct msm_gpu *gpu);
+
+int msm_submitqueue_init(struct drm_device *drm, struct msm_file_private *ctx);
+struct msm_gpu_submitqueue *msm_submitqueue_get(struct msm_file_private *ctx,
+		u32 id);
+int msm_submitqueue_create(struct drm_device *drm,
+		struct msm_file_private *ctx,
+		u32 prio, u32 flags, u32 *id);
+int msm_submitqueue_query(struct drm_device *drm, struct msm_file_private *ctx,
+		struct drm_msm_submitqueue_query *args);
+int msm_submitqueue_remove(struct msm_file_private *ctx, u32 id);
+void msm_submitqueue_close(struct msm_file_private *ctx);
+
+void msm_submitqueue_destroy(struct kref *kref);
+
+void __msm_file_private_destroy(struct kref *kref);
+
+static inline void msm_file_private_put(struct msm_file_private *ctx)
+{
+	kref_put(&ctx->ref, __msm_file_private_destroy);
+}
+
+static inline struct msm_file_private *msm_file_private_get(
+	struct msm_file_private *ctx)
+{
+	kref_get(&ctx->ref);
+	return ctx;
+}
 
 void msm_devfreq_init(struct msm_gpu *gpu);
 void msm_devfreq_cleanup(struct msm_gpu *gpu);

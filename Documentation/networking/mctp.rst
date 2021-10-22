@@ -59,11 +59,11 @@ specified with a ``sockaddr`` type, with a single-byte endpoint address:
     };
 
     struct sockaddr_mctp {
-            unsigned short int	smctp_family;
-            int			smctp_network;
-            struct mctp_addr	smctp_addr;
-            __u8		smctp_type;
-            __u8		smctp_tag;
+            __kernel_sa_family_t smctp_family;
+            unsigned int         smctp_network;
+            struct mctp_addr     smctp_addr;
+            __u8                 smctp_type;
+            __u8                 smctp_tag;
     };
 
     #define MCTP_NET_ANY	0x0

@@ -1182,8 +1182,7 @@ static int tegra_slink_resume(struct device *dev)
 }
 #endif
 
-#ifdef CONFIG_PM
-static int tegra_slink_runtime_suspend(struct device *dev)
+static int __maybe_unused tegra_slink_runtime_suspend(struct device *dev)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
 	struct tegra_slink_data *tspi = spi_master_get_devdata(master);
@@ -1208,7 +1207,6 @@ static int tegra_slink_runtime_resume(struct device *dev)
 	}
 	return 0;
 }
-#endif /* CONFIG_PM */
 
 static const struct dev_pm_ops slink_pm_ops = {
 	SET_RUNTIME_PM_OPS(tegra_slink_runtime_suspend,

@@ -618,7 +618,12 @@ static int __sev_launch_update_vmsa(struct kvm *kvm, struct kvm_vcpu *vcpu,
 	vmsa.handle = to_kvm_svm(kvm)->sev_info.handle;
 	vmsa.address = __sme_pa(svm->vmsa);
 	vmsa.len = PAGE_SIZE;
-	return sev_issue_cmd(kvm, SEV_CMD_LAUNCH_UPDATE_VMSA, &vmsa, error);
+	ret = sev_issue_cmd(kvm, SEV_CMD_LAUNCH_UPDATE_VMSA, &vmsa, error);
+	if (ret)
+	  return ret;
+
+	vcpu->arch.guest_state_protected = true;
+	return 0;
 }
 
 static int sev_launch_update_vmsa(struct kvm *kvm, struct kvm_sev_cmd *argp)
@@ -2583,7 +2588,7 @@ int sev_es_string_io(struct vcpu_svm *svm, int size, unsigned int port, int in)
 		return -EINVAL;
 
 	return kvm_sev_es_string_io(&svm->vcpu, size, port,
-				    svm->ghcb_sa, svm->ghcb_sa_len, in);
+				    svm->ghcb_sa, svm->ghcb_sa_len / size, in);
 }
 
 void sev_es_init_vmcb(struct vcpu_svm *svm)

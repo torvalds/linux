@@ -9,18 +9,21 @@
 #include "eswitch.h"
 #include "lib/mlx5.h"
 
+static bool __mlx5_lag_is_multipath(struct mlx5_lag *ldev)
+{
+	return !!(ldev->flags & MLX5_LAG_FLAG_MULTIPATH);
+}
+
 static bool mlx5_lag_multipath_check_prereq(struct mlx5_lag *ldev)
 {
 	if (!mlx5_lag_is_ready(ldev))
 		return false;
 
+	if (__mlx5_lag_is_active(ldev) && !__mlx5_lag_is_multipath(ldev))
+		return false;
+
 	return mlx5_esw_multipath_prereq(ldev->pf[MLX5_LAG_P1].dev,
 					 ldev->pf[MLX5_LAG_P2].dev);
-}
-
-static bool __mlx5_lag_is_multipath(struct mlx5_lag *ldev)
-{
-	return !!(ldev->flags & MLX5_LAG_FLAG_MULTIPATH);
 }
 
 bool mlx5_lag_is_multipath(struct mlx5_core_dev *dev)
