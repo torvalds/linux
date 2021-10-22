@@ -1561,10 +1561,10 @@ int fuse_do_setattr(struct dentry *dentry, struct iattr *attr,
 	struct fuse_setattr_in inarg;
 	struct fuse_attr_out outarg;
 	bool is_truncate = false;
-	bool is_wb = fc->writeback_cache;
+	bool is_wb = fc->writeback_cache && S_ISREG(inode->i_mode);
 	loff_t oldsize;
 	int err;
-	bool trust_local_cmtime = is_wb && S_ISREG(inode->i_mode);
+	bool trust_local_cmtime = is_wb;
 	bool fault_blocked = false;
 
 	if (!fc->default_permissions)
@@ -1608,7 +1608,7 @@ int fuse_do_setattr(struct dentry *dentry, struct iattr *attr,
 	}
 
 	/* Flush dirty data/metadata before non-truncate SETATTR */
-	if (is_wb && S_ISREG(inode->i_mode) &&
+	if (is_wb &&
 	    attr->ia_valid &
 			(ATTR_MODE | ATTR_UID | ATTR_GID | ATTR_MTIME_SET |
 			 ATTR_TIMES_SET)) {
@@ -1679,7 +1679,7 @@ int fuse_do_setattr(struct dentry *dentry, struct iattr *attr,
 				      attr_timeout(&outarg));
 	oldsize = inode->i_size;
 	/* see the comment in fuse_change_attributes() */
-	if (!is_wb || is_truncate || !S_ISREG(inode->i_mode))
+	if (!is_wb || is_truncate)
 		i_size_write(inode, outarg.attr.size);
 
 	if (is_truncate) {
