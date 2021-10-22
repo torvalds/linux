@@ -4850,6 +4850,9 @@ static void amdgpu_device_recheck_guilty_jobs(
 
 		/* clear job's guilty and depend the folowing step to decide the real one */
 		drm_sched_reset_karma(s_job);
+		/* for the real bad job, it will be resubmitted twice, adding a dma_fence_get
+		 * to make sure fence is balanced */
+		dma_fence_get(s_job->s_fence->parent);
 		drm_sched_resubmit_jobs_ext(&ring->sched, 1);
 
 		ret = dma_fence_wait_timeout(s_job->s_fence->parent, false, ring->sched.timeout);
@@ -4885,6 +4888,7 @@ retry:
 
 		/* got the hw fence, signal finished fence */
 		atomic_dec(ring->sched.score);
+		dma_fence_put(s_job->s_fence->parent);
 		dma_fence_get(&s_job->s_fence->finished);
 		dma_fence_signal(&s_job->s_fence->finished);
 		dma_fence_put(&s_job->s_fence->finished);
