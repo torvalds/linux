@@ -339,12 +339,6 @@ static int fuse_open(struct inode *inode, struct file *file)
 
 static int fuse_release(struct inode *inode, struct file *file)
 {
-	struct fuse_conn *fc = get_fuse_conn(inode);
-
-	/* see fuse_vma_close() for !writeback_cache case */
-	if (fc->writeback_cache)
-		write_inode_now(inode, 1);
-
 	fuse_release_common(file, false);
 
 	/* return value is ignored by VFS */
@@ -2351,12 +2345,15 @@ static int fuse_launder_page(struct page *page)
 }
 
 /*
- * Write back dirty pages now, because there may not be any suitable
- * open files later
+ * Write back dirty data/metadata now (there may not be any suitable
+ * open files later for data)
  */
 static void fuse_vma_close(struct vm_area_struct *vma)
 {
-	filemap_write_and_wait(vma->vm_file->f_mapping);
+	int err;
+
+	err = write_inode_now(vma->vm_file->f_mapping->host, 1);
+	mapping_set_error(vma->vm_file->f_mapping, err);
 }
 
 /*
