@@ -470,9 +470,9 @@ static bool match_l2c(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 {
 	int cpu1 = c->cpu_index, cpu2 = o->cpu_index;
 
-	/* Do not match if we do not have a valid APICID for cpu: */
+	/* If the arch didn't set up l2c_id, fall back to SMT */
 	if (per_cpu(cpu_l2c_id, cpu1) == BAD_APICID)
-		return false;
+		return match_smt(c, o);
 
 	/* Do not match if L2 cache id does not match: */
 	if (per_cpu(cpu_l2c_id, cpu1) != per_cpu(cpu_l2c_id, cpu2))
