@@ -118,7 +118,7 @@ static int adrf6780_spi_read(struct adrf6780_state *st, unsigned int reg,
 	int ret;
 
 	mutex_lock(&st->lock);
-	ret = adrf6780_spi_read(st, reg, val);
+	ret = __adrf6780_spi_read(st, reg, val);
 	mutex_unlock(&st->lock);
 
 	return ret;
@@ -139,7 +139,7 @@ static int adrf6780_spi_write(struct adrf6780_state *st, unsigned int reg,
 	int ret;
 
 	mutex_lock(&st->lock);
-	ret = adrf6780_spi_write(st, reg, val);
+	ret = __adrf6780_spi_write(st, reg, val);
 	mutex_unlock(&st->lock);
 
 	return ret;
