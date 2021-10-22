@@ -749,11 +749,17 @@ blk_sync_queue
 blk_unregister_region
 blk_update_request
 blk_verify_command
+blkcg_activate_policy
+blkcg_deactivate_policy
+blkcg_policy_register
+blkcg_policy_unregister
+blkcg_root
 blkdev_fsync
 blkdev_get_by_dev
 blkdev_get_by_path
 blkdev_issue_flush
 blkdev_put
+blkg_lookup_slowpath
 blocking_notifier_call_chain
 blocking_notifier_chain_register
 blocking_notifier_chain_unregister
@@ -922,6 +928,8 @@ copy_from_kernel_nofault
 copy_page
 cpu_all_bits
 cpu_bit_bitmap
+cpu_hotplug_disable
+cpu_hotplug_enable
 cpu_hwcap_keys
 cpu_hwcaps
 cpu_irqtime
@@ -1010,6 +1018,7 @@ crypto_unregister_alg
 crypto_unregister_rngs
 crypto_unregister_scomp
 css_next_child
+css_next_descendant_pre
 csum_ipv6_magic
 csum_partial
 csum_tcpudp_nofold
@@ -1163,6 +1172,7 @@ device_del
 device_destroy
 device_find_child
 device_for_each_child
+device_get_child_node_count
 device_get_dma_attr
 device_get_mac_address
 device_get_match_data
@@ -1808,7 +1818,9 @@ drm_writeback_signal_completion
 drmm_kmalloc
 drmm_mode_config_init
 dst_release
+dump_align
 dump_backtrace
+dump_emit
 dump_stack
 dup_iter
 dw_handle_msi_irq
@@ -2432,6 +2444,7 @@ kstrtoull_from_user
 ksys_sync_helper
 kthread_bind
 kthread_bind_mask
+kthread_blkcg
 kthread_cancel_delayed_work_sync
 kthread_cancel_work_sync
 kthread_create_on_node
@@ -2733,6 +2746,7 @@ of_clk_src_simple_get
 of_count_phandle_with_args
 of_cpu_node_to_id
 of_cpufreq_cooling_register
+of_css
 of_devfreq_cooling_register
 of_devfreq_cooling_register_power
 of_device_get_match_data
@@ -3442,6 +3456,7 @@ scsi_compat_ioctl
 scsi_device_get
 scsi_device_put
 scsi_device_quiesce
+scsi_dma_unmap
 scsi_eh_ready_devs
 scsi_ioctl
 scsi_ioctl_block_when_processing_errors
@@ -3484,6 +3499,7 @@ sdio_writesb
 securityfs_create_dir
 securityfs_create_file
 securityfs_remove
+send_sig_info
 seq_buf_printf
 seq_file_path
 seq_hex_dump
