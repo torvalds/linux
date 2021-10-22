@@ -4064,6 +4064,16 @@ out:
 	return ret;
 }
 
+static u8 bigjoiner_pipes(struct drm_i915_private *i915)
+{
+	if (DISPLAY_VER(i915) >= 12)
+		return BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C) | BIT(PIPE_D);
+	else if (DISPLAY_VER(i915) >= 11)
+		return BIT(PIPE_B) | BIT(PIPE_C);
+	else
+		return 0;
+}
+
 static bool transcoder_ddi_func_is_enabled(struct drm_i915_private *dev_priv,
 					   enum transcoder cpu_transcoder)
 {
@@ -4077,6 +4087,54 @@ static bool transcoder_ddi_func_is_enabled(struct drm_i915_private *dev_priv,
 		tmp = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder));
 
 	return tmp & TRANS_DDI_FUNC_ENABLE;
+}
+
+static u8 enabled_bigjoiner_pipes(struct drm_i915_private *dev_priv)
+{
+	u8 master_pipes = 0, slave_pipes = 0;
+	struct intel_crtc *crtc;
+
+	for_each_intel_crtc(&dev_priv->drm, crtc) {
+		enum intel_display_power_domain power_domain;
+		enum pipe pipe = crtc->pipe;
+		intel_wakeref_t wakeref;
+
+		if ((bigjoiner_pipes(dev_priv) & BIT(pipe)) == 0)
+			continue;
+
+		power_domain = intel_dsc_power_domain(crtc, (enum transcoder) pipe);
+		with_intel_display_power_if_enabled(dev_priv, power_domain, wakeref) {
+			u32 tmp = intel_de_read(dev_priv, ICL_PIPE_DSS_CTL1(pipe));
+
+			if (!(tmp & BIG_JOINER_ENABLE))
+				continue;
+
+			if (tmp & MASTER_BIG_JOINER_ENABLE)
+				master_pipes |= BIT(pipe);
+			else
+				slave_pipes |= BIT(pipe);
+		}
+
+		if (DISPLAY_VER(dev_priv) < 13)
+			continue;
+
+		power_domain = POWER_DOMAIN_PIPE(pipe);
+		with_intel_display_power_if_enabled(dev_priv, power_domain, wakeref) {
+			u32 tmp = intel_de_read(dev_priv, ICL_PIPE_DSS_CTL1(pipe));
+
+			if (tmp & UNCOMPRESSED_JOINER_MASTER)
+				master_pipes |= BIT(pipe);
+			if (tmp & UNCOMPRESSED_JOINER_SLAVE)
+				slave_pipes |= BIT(pipe);
+		}
+	}
+
+	/* Bigjoiner pipes should always be consecutive master and slave */
+	drm_WARN(&dev_priv->drm, slave_pipes != master_pipes << 1,
+		 "Bigjoiner misconfigured (master pipes 0x%x, slave pipes 0x%x)\n",
+		 master_pipes, slave_pipes);
+
+	return slave_pipes;
 }
 
 static u8 hsw_panel_transcoders(struct drm_i915_private *i915)
@@ -4140,9 +4198,17 @@ static u8 hsw_enabled_transcoders(struct intel_crtc *crtc)
 			enabled_transcoders |= BIT(cpu_transcoder);
 	}
 
+	/* single pipe or bigjoiner master */
 	cpu_transcoder = (enum transcoder) crtc->pipe;
 	if (transcoder_ddi_func_is_enabled(dev_priv, cpu_transcoder))
 		enabled_transcoders |= BIT(cpu_transcoder);
+
+	/* bigjoiner slave -> consider the master pipe's transcoder as well */
+	if (enabled_bigjoiner_pipes(dev_priv) & BIT(crtc->pipe)) {
+		cpu_transcoder = (enum transcoder) crtc->pipe - 1;
+		if (transcoder_ddi_func_is_enabled(dev_priv, cpu_transcoder))
+			enabled_transcoders |= BIT(cpu_transcoder);
+	}
 
 	return enabled_transcoders;
 }
