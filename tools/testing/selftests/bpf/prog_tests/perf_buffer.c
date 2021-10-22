@@ -46,6 +46,7 @@ int trigger_on_cpu(int cpu)
 void serial_test_perf_buffer(void)
 {
 	int err, on_len, nr_on_cpus = 0, nr_cpus, i, j;
+	int zero = 0, my_pid = getpid();
 	struct perf_buffer_opts pb_opts = {};
 	struct test_perf_buffer *skel;
 	cpu_set_t cpu_seen;
@@ -69,6 +70,10 @@ void serial_test_perf_buffer(void)
 	/* load program */
 	skel = test_perf_buffer__open_and_load();
 	if (CHECK(!skel, "skel_load", "skeleton open/load failed\n"))
+		goto out_close;
+
+	err = bpf_map_update_elem(bpf_map__fd(skel->maps.my_pid_map), &zero, &my_pid, 0);
+	if (!ASSERT_OK(err, "my_pid_update"))
 		goto out_close;
 
 	/* attach probe */
