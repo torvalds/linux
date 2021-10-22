@@ -329,7 +329,7 @@ static int dump_btf_type(const struct btf *btf, __u32 id,
 				printf("\n\ttype_id=%u offset=%u size=%u",
 				       v->type, v->offset, v->size);
 
-				if (v->type <= btf__get_nr_types(btf)) {
+				if (v->type < btf__type_cnt(btf)) {
 					vt = btf__type_by_id(btf, v->type);
 					printf(" (%s '%s')",
 					       btf_kind_str[btf_kind_safe(btf_kind(vt))],
@@ -390,14 +390,14 @@ static int dump_btf_raw(const struct btf *btf,
 		}
 	} else {
 		const struct btf *base;
-		int cnt = btf__get_nr_types(btf);
+		int cnt = btf__type_cnt(btf);
 		int start_id = 1;
 
 		base = btf__base_btf(btf);
 		if (base)
-			start_id = btf__get_nr_types(base) + 1;
+			start_id = btf__type_cnt(base);
 
-		for (i = start_id; i <= cnt; i++) {
+		for (i = start_id; i < cnt; i++) {
 			t = btf__type_by_id(btf, i);
 			dump_btf_type(btf, i, t);
 		}
@@ -440,9 +440,9 @@ static int dump_btf_c(const struct btf *btf,
 				goto done;
 		}
 	} else {
-		int cnt = btf__get_nr_types(btf);
+		int cnt = btf__type_cnt(btf);
 
-		for (i = 1; i <= cnt; i++) {
+		for (i = 1; i < cnt; i++) {
 			err = btf_dump__dump_type(d, i);
 			if (err)
 				goto done;
