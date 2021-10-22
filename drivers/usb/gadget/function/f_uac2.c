@@ -15,6 +15,7 @@
 #include <linux/module.h>
 
 #include "u_audio.h"
+
 #include "u_uac2.h"
 
 /* UAC2 spec: 4.1 Audio Channel Cluster Descriptor */
@@ -1932,7 +1933,7 @@ static struct usb_function_instance *afunc_alloc_inst(void)
 	opts->c_volume_res = UAC2_DEF_RES_DB;
 
 	opts->req_number = UAC2_DEF_REQ_NUM;
-	opts->fb_max = UAC2_DEF_FB_MAX;
+	opts->fb_max = FBACK_FAST_MAX;
 	return &opts->func_inst;
 }
 
