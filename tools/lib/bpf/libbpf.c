@@ -2497,8 +2497,8 @@ static int bpf_object__init_user_btf_maps(struct bpf_object *obj, bool strict,
 		return -EINVAL;
 	}
 
-	nr_types = btf__get_nr_types(obj->btf);
-	for (i = 1; i <= nr_types; i++) {
+	nr_types = btf__type_cnt(obj->btf);
+	for (i = 1; i < nr_types; i++) {
 		t = btf__type_by_id(obj->btf, i);
 		if (!btf_is_datasec(t))
 			continue;
@@ -2579,7 +2579,7 @@ static void bpf_object__sanitize_btf(struct bpf_object *obj, struct btf *btf)
 	struct btf_type *t;
 	int i, j, vlen;
 
-	for (i = 1; i <= btf__get_nr_types(btf); i++) {
+	for (i = 1; i < btf__type_cnt(btf); i++) {
 		t = (struct btf_type *)btf__type_by_id(btf, i);
 
 		if ((!has_datasec && btf_is_var(t)) || (!has_decl_tag && btf_is_decl_tag(t))) {
@@ -2763,9 +2763,9 @@ sort_vars:
 static int btf_finalize_data(struct bpf_object *obj, struct btf *btf)
 {
 	int err = 0;
-	__u32 i, n = btf__get_nr_types(btf);
+	__u32 i, n = btf__type_cnt(btf);
 
-	for (i = 1; i <= n; i++) {
+	for (i = 1; i < n; i++) {
 		struct btf_type *t = btf_type_by_id(btf, i);
 
 		/* Loader needs to fix up some of the things compiler
@@ -2905,8 +2905,8 @@ static int bpf_object__sanitize_and_load_btf(struct bpf_object *obj)
 		if (!prog->mark_btf_static || !prog_is_subprog(obj, prog))
 			continue;
 
-		n = btf__get_nr_types(obj->btf);
-		for (j = 1; j <= n; j++) {
+		n = btf__type_cnt(obj->btf);
+		for (j = 1; j < n; j++) {
 			t = btf_type_by_id(obj->btf, j);
 			if (!btf_is_func(t) || btf_func_linkage(t) != BTF_FUNC_GLOBAL)
 				continue;
@@ -2926,7 +2926,7 @@ static int bpf_object__sanitize_and_load_btf(struct bpf_object *obj)
 		__u32 sz;
 
 		/* clone BTF to sanitize a copy and leave the original intact */
-		raw_data = btf__get_raw_data(obj->btf, &sz);
+		raw_data = btf__raw_data(obj->btf, &sz);
 		kern_btf = btf__new(raw_data, sz);
 		err = libbpf_get_error(kern_btf);
 		if (err)
@@ -2939,7 +2939,7 @@ static int bpf_object__sanitize_and_load_btf(struct bpf_object *obj)
 
 	if (obj->gen_loader) {
 		__u32 raw_size = 0;
-		const void *raw_data = btf__get_raw_data(kern_btf, &raw_size);
+		const void *raw_data = btf__raw_data(kern_btf, &raw_size);
 
 		if (!raw_data)
 			return -ENOMEM;
@@ -3350,8 +3350,8 @@ static int find_extern_btf_id(const struct btf *btf, const char *ext_name)
 	if (!btf)
 		return -ESRCH;
 
-	n = btf__get_nr_types(btf);
-	for (i = 1; i <= n; i++) {
+	n = btf__type_cnt(btf);
+	for (i = 1; i < n; i++) {
 		t = btf__type_by_id(btf, i);
 
 		if (!btf_is_var(t) && !btf_is_func(t))
@@ -3382,8 +3382,8 @@ static int find_extern_sec_btf_id(struct btf *btf, int ext_btf_id) {
 	if (!btf)
 		return -ESRCH;
 
-	n = btf__get_nr_types(btf);
-	for (i = 1; i <= n; i++) {
+	n = btf__type_cnt(btf);
+	for (i = 1; i < n; i++) {
 		t = btf__type_by_id(btf, i);
 
 		if (!btf_is_datasec(t))
@@ -3467,8 +3467,8 @@ static int find_int_btf_id(const struct btf *btf)
 	const struct btf_type *t;
 	int i, n;
 
-	n = btf__get_nr_types(btf);
-	for (i = 1; i <= n; i++) {
+	n = btf__type_cnt(btf);
+	for (i = 1; i < n; i++) {
 		t = btf__type_by_id(btf, i);
 
 		if (btf_is_int(t) && btf_int_bits(t) == 32)
@@ -5076,8 +5076,8 @@ static int bpf_core_add_cands(struct bpf_core_cand *local_cand,
 	size_t targ_essent_len;
 	int n, i;
 
-	n = btf__get_nr_types(targ_btf);
-	for (i = targ_start_id; i <= n; i++) {
+	n = btf__type_cnt(targ_btf);
+	for (i = targ_start_id; i < n; i++) {
 		t = btf__type_by_id(targ_btf, i);
 		if (btf_kind(t) != btf_kind(local_cand->t))
 			continue;
@@ -5252,7 +5252,7 @@ bpf_core_find_cands(struct bpf_object *obj, const struct btf *local_btf, __u32 l
 		err = bpf_core_add_cands(&local_cand, local_essent_len,
 					 obj->btf_modules[i].btf,
 					 obj->btf_modules[i].name,
-					 btf__get_nr_types(obj->btf_vmlinux) + 1,
+					 btf__type_cnt(obj->btf_vmlinux),
 					 cands);
 		if (err)
 			goto err_out;

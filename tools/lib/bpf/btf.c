@@ -57,7 +57,7 @@ struct btf {
 	 * representation is broken up into three independently allocated
 	 * memory regions to be able to modify them independently.
 	 * raw_data is nulled out at that point, but can be later allocated
-	 * and cached again if user calls btf__get_raw_data(), at which point
+	 * and cached again if user calls btf__raw_data(), at which point
 	 * raw_data will contain a contiguous copy of header, types, and
 	 * strings:
 	 *
@@ -435,6 +435,11 @@ __u32 btf__get_nr_types(const struct btf *btf)
 	return btf->start_id + btf->nr_types - 1;
 }
 
+__u32 btf__type_cnt(const struct btf *btf)
+{
+	return btf->start_id + btf->nr_types;
+}
+
 const struct btf *btf__base_btf(const struct btf *btf)
 {
 	return btf->base_btf;
@@ -466,8 +471,8 @@ static int determine_ptr_size(const struct btf *btf)
 	if (btf->base_btf && btf->base_btf->ptr_sz > 0)
 		return btf->base_btf->ptr_sz;
 
-	n = btf__get_nr_types(btf);
-	for (i = 1; i <= n; i++) {
+	n = btf__type_cnt(btf);
+	for (i = 1; i < n; i++) {
 		t = btf__type_by_id(btf, i);
 		if (!btf_is_int(t))
 			continue;
@@ -684,12 +689,12 @@ int btf__resolve_type(const struct btf *btf, __u32 type_id)
 
 __s32 btf__find_by_name(const struct btf *btf, const char *type_name)
 {
-	__u32 i, nr_types = btf__get_nr_types(btf);
+	__u32 i, nr_types = btf__type_cnt(btf);
 
 	if (!strcmp(type_name, "void"))
 		return 0;
 
-	for (i = 1; i <= nr_types; i++) {
+	for (i = 1; i < nr_types; i++) {
 		const struct btf_type *t = btf__type_by_id(btf, i);
 		const char *name = btf__name_by_offset(btf, t->name_off);
 
@@ -703,12 +708,12 @@ __s32 btf__find_by_name(const struct btf *btf, const char *type_name)
 static __s32 btf_find_by_name_kind(const struct btf *btf, int start_id,
 				   const char *type_name, __u32 kind)
 {
-	__u32 i, nr_types = btf__get_nr_types(btf);
+	__u32 i, nr_types = btf__type_cnt(btf);
 
 	if (kind == BTF_KIND_UNKN || !strcmp(type_name, "void"))
 		return 0;
 
-	for (i = start_id; i <= nr_types; i++) {
+	for (i = start_id; i < nr_types; i++) {
 		const struct btf_type *t = btf__type_by_id(btf, i);
 		const char *name;
 
@@ -781,7 +786,7 @@ static struct btf *btf_new_empty(struct btf *base_btf)
 
 	if (base_btf) {
 		btf->base_btf = base_btf;
-		btf->start_id = btf__get_nr_types(base_btf) + 1;
+		btf->start_id = btf__type_cnt(base_btf);
 		btf->start_str_off = base_btf->hdr->str_len;
 	}
 
@@ -831,7 +836,7 @@ static struct btf *btf_new(const void *data, __u32 size, struct btf *base_btf)
 
 	if (base_btf) {
 		btf->base_btf = base_btf;
-		btf->start_id = btf__get_nr_types(base_btf) + 1;
+		btf->start_id = btf__type_cnt(base_btf);
 		btf->start_str_off = base_btf->hdr->str_len;
 	}
 
@@ -1224,7 +1229,7 @@ err_out:
 	return NULL;
 }
 
-const void *btf__get_raw_data(const struct btf *btf_ro, __u32 *size)
+const void *btf__raw_data(const struct btf *btf_ro, __u32 *size)
 {
 	struct btf *btf = (struct btf *)btf_ro;
 	__u32 data_sz;
@@ -1232,7 +1237,7 @@ const void *btf__get_raw_data(const struct btf *btf_ro, __u32 *size)
 
 	data = btf_get_raw_data(btf, &data_sz, btf->swapped_endian);
 	if (!data)
-		return errno = -ENOMEM, NULL;
+		return errno = ENOMEM, NULL;
 
 	btf->raw_size = data_sz;
 	if (btf->swapped_endian)
@@ -1242,6 +1247,9 @@ const void *btf__get_raw_data(const struct btf *btf_ro, __u32 *size)
 	*size = data_sz;
 	return data;
 }
+
+__attribute__((alias("btf__raw_data")))
+const void *btf__get_raw_data(const struct btf *btf, __u32 *size);
 
 const char *btf__str_by_offset(const struct btf *btf, __u32 offset)
 {
@@ -1651,7 +1659,7 @@ int btf__add_btf(struct btf *btf, const struct btf *src_btf)
 	old_strs_len = btf->hdr->str_len;
 
 	data_sz = src_btf->hdr->type_len;
-	cnt = btf__get_nr_types(src_btf);
+	cnt = btf__type_cnt(src_btf) - 1;
 
 	/* pre-allocate enough memory for new types */
 	t = btf_add_type_mem(btf, data_sz);
@@ -1968,7 +1976,7 @@ int btf__add_union(struct btf *btf, const char *name, __u32 byte_sz)
 
 static struct btf_type *btf_last_type(struct btf *btf)
 {
-	return btf_type_by_id(btf, btf__get_nr_types(btf));
+	return btf_type_by_id(btf, btf__type_cnt(btf) - 1);
 }
 
 /*
@@ -3174,7 +3182,7 @@ static struct btf_dedup *btf_dedup_new(struct btf *btf, struct btf_ext *btf_ext,
 		goto done;
 	}
 
-	type_cnt = btf__get_nr_types(btf) + 1;
+	type_cnt = btf__type_cnt(btf);
 	d->map = malloc(sizeof(__u32) * type_cnt);
 	if (!d->map) {
 		err = -ENOMEM;
