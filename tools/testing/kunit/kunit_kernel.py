@@ -207,12 +207,15 @@ def get_source_tree_ops_from_qemu_config(config_path: str,
 	module_path = '.' + os.path.join(os.path.basename(QEMU_CONFIGS_DIR), os.path.basename(config_path))
 	spec = importlib.util.spec_from_file_location(module_path, config_path)
 	config = importlib.util.module_from_spec(spec)
-	# TODO(brendanhiggins@google.com): I looked this up and apparently other
-	# Python projects have noted that pytype complains that "No attribute
-	# 'exec_module' on _importlib_modulespec._Loader". Disabling for now.
-	spec.loader.exec_module(config) # pytype: disable=attribute-error
-	return config.QEMU_ARCH.linux_arch, LinuxSourceTreeOperationsQemu(
-			config.QEMU_ARCH, cross_compile=cross_compile)
+	# See https://github.com/python/typeshed/pull/2626 for context.
+	assert isinstance(spec.loader, importlib.abc.Loader)
+	spec.loader.exec_module(config)
+
+	if not hasattr(config, 'QEMU_ARCH'):
+		raise ValueError('qemu_config module missing "QEMU_ARCH": ' + config_path)
+	params: qemu_config.QemuArchParams = config.QEMU_ARCH  # type: ignore
+	return params.linux_arch, LinuxSourceTreeOperationsQemu(
+			params, cross_compile=cross_compile)
 
 class LinuxSourceTree(object):
 	"""Represents a Linux kernel source tree with KUnit tests."""
