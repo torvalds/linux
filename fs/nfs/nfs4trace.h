@@ -11,6 +11,8 @@
 #include <linux/tracepoint.h>
 #include <trace/events/sunrpc_base.h>
 
+#include <trace/events/fs.h>
+
 TRACE_DEFINE_ENUM(EPERM);
 TRACE_DEFINE_ENUM(ENOENT);
 TRACE_DEFINE_ENUM(EIO);
@@ -313,19 +315,6 @@ TRACE_DEFINE_ENUM(NFS4ERR_RESET_TO_PNFS);
 		/* ***** Internal to Linux NFS client ***** */ \
 		{ NFS4ERR_RESET_TO_MDS, "RESET_TO_MDS" }, \
 		{ NFS4ERR_RESET_TO_PNFS, "RESET_TO_PNFS" })
-
-#define show_open_flags(flags) \
-	__print_flags(flags, "|", \
-		{ O_CREAT, "O_CREAT" }, \
-		{ O_EXCL, "O_EXCL" }, \
-		{ O_TRUNC, "O_TRUNC" }, \
-		{ O_DIRECT, "O_DIRECT" })
-
-#define show_fmode_flags(mode) \
-	__print_flags(mode, "|", \
-		{ ((__force unsigned long)FMODE_READ), "READ" }, \
-		{ ((__force unsigned long)FMODE_WRITE), "WRITE" }, \
-		{ ((__force unsigned long)FMODE_EXEC), "EXEC" })
 
 #define show_nfs_fattr_flags(valid) \
 	__print_flags((unsigned long)valid, "|", \
@@ -794,8 +783,8 @@ DECLARE_EVENT_CLASS(nfs4_open_event,
 
 		TP_STRUCT__entry(
 			__field(unsigned long, error)
-			__field(unsigned int, flags)
-			__field(unsigned int, fmode)
+			__field(unsigned long, flags)
+			__field(unsigned long, fmode)
 			__field(dev_t, dev)
 			__field(u32, fhandle)
 			__field(u64, fileid)
@@ -813,7 +802,7 @@ DECLARE_EVENT_CLASS(nfs4_open_event,
 
 			__entry->error = -error;
 			__entry->flags = flags;
-			__entry->fmode = (__force unsigned int)ctx->mode;
+			__entry->fmode = (__force unsigned long)ctx->mode;
 			__entry->dev = ctx->dentry->d_sb->s_dev;
 			if (!IS_ERR_OR_NULL(state)) {
 				inode = state->inode;
@@ -843,15 +832,15 @@ DECLARE_EVENT_CLASS(nfs4_open_event,
 		),
 
 		TP_printk(
-			"error=%ld (%s) flags=%d (%s) fmode=%s "
+			"error=%ld (%s) flags=%lu (%s) fmode=%s "
 			"fileid=%02x:%02x:%llu fhandle=0x%08x "
 			"name=%02x:%02x:%llu/%s stateid=%d:0x%08x "
 			"openstateid=%d:0x%08x",
 			 -__entry->error,
 			 show_nfsv4_errors(__entry->error),
 			 __entry->flags,
-			 show_open_flags(__entry->flags),
-			 show_fmode_flags(__entry->fmode),
+			 show_fs_fcntl_open_flags(__entry->flags),
+			 show_fs_fmode_flags(__entry->fmode),
 			 MAJOR(__entry->dev), MINOR(__entry->dev),
 			 (unsigned long long)__entry->fileid,
 			 __entry->fhandle,
@@ -905,7 +894,7 @@ TRACE_EVENT(nfs4_cached_open,
 		TP_printk(
 			"fmode=%s fileid=%02x:%02x:%llu "
 			"fhandle=0x%08x stateid=%d:0x%08x",
-			__entry->fmode ?  show_fmode_flags(__entry->fmode) :
+			__entry->fmode ?  show_fs_fmode_flags(__entry->fmode) :
 					  "closed",
 			MAJOR(__entry->dev), MINOR(__entry->dev),
 			(unsigned long long)__entry->fileid,
@@ -953,7 +942,7 @@ TRACE_EVENT(nfs4_close,
 			"fhandle=0x%08x openstateid=%d:0x%08x",
 			-__entry->error,
 			show_nfsv4_errors(__entry->error),
-			__entry->fmode ?  show_fmode_flags(__entry->fmode) :
+			__entry->fmode ?  show_fs_fmode_flags(__entry->fmode) :
 					  "closed",
 			MAJOR(__entry->dev), MINOR(__entry->dev),
 			(unsigned long long)__entry->fileid,
@@ -961,24 +950,6 @@ TRACE_EVENT(nfs4_close,
 			__entry->stateid_seq, __entry->stateid_hash
 		)
 );
-
-TRACE_DEFINE_ENUM(F_GETLK);
-TRACE_DEFINE_ENUM(F_SETLK);
-TRACE_DEFINE_ENUM(F_SETLKW);
-TRACE_DEFINE_ENUM(F_RDLCK);
-TRACE_DEFINE_ENUM(F_WRLCK);
-TRACE_DEFINE_ENUM(F_UNLCK);
-
-#define show_lock_cmd(type) \
-	__print_symbolic((int)type, \
-		{ F_GETLK, "GETLK" }, \
-		{ F_SETLK, "SETLK" }, \
-		{ F_SETLKW, "SETLKW" })
-#define show_lock_type(type) \
-	__print_symbolic((int)type, \
-		{ F_RDLCK, "RDLCK" }, \
-		{ F_WRLCK, "WRLCK" }, \
-		{ F_UNLCK, "UNLCK" })
 
 DECLARE_EVENT_CLASS(nfs4_lock_event,
 		TP_PROTO(
@@ -992,8 +963,8 @@ DECLARE_EVENT_CLASS(nfs4_lock_event,
 
 		TP_STRUCT__entry(
 			__field(unsigned long, error)
-			__field(int, cmd)
-			__field(char, type)
+			__field(unsigned long, cmd)
+			__field(unsigned long, type)
 			__field(loff_t, start)
 			__field(loff_t, end)
 			__field(dev_t, dev)
@@ -1026,8 +997,8 @@ DECLARE_EVENT_CLASS(nfs4_lock_event,
 			"stateid=%d:0x%08x",
 			-__entry->error,
 			show_nfsv4_errors(__entry->error),
-			show_lock_cmd(__entry->cmd),
-			show_lock_type(__entry->type),
+			show_fs_fcntl_cmd(__entry->cmd),
+			show_fs_fcntl_lock_type(__entry->type),
 			(long long)__entry->start,
 			(long long)__entry->end,
 			MAJOR(__entry->dev), MINOR(__entry->dev),
@@ -1062,8 +1033,8 @@ TRACE_EVENT(nfs4_set_lock,
 
 		TP_STRUCT__entry(
 			__field(unsigned long, error)
-			__field(int, cmd)
-			__field(char, type)
+			__field(unsigned long, cmd)
+			__field(unsigned long, type)
 			__field(loff_t, start)
 			__field(loff_t, end)
 			__field(dev_t, dev)
@@ -1102,8 +1073,8 @@ TRACE_EVENT(nfs4_set_lock,
 			"stateid=%d:0x%08x lockstateid=%d:0x%08x",
 			-__entry->error,
 			show_nfsv4_errors(__entry->error),
-			show_lock_cmd(__entry->cmd),
-			show_lock_type(__entry->type),
+			show_fs_fcntl_cmd(__entry->cmd),
+			show_fs_fcntl_lock_type(__entry->type),
 			(long long)__entry->start,
 			(long long)__entry->end,
 			MAJOR(__entry->dev), MINOR(__entry->dev),
@@ -1220,7 +1191,7 @@ DECLARE_EVENT_CLASS(nfs4_set_delegation_event,
 
 		TP_printk(
 			"fmode=%s fileid=%02x:%02x:%llu fhandle=0x%08x",
-			show_fmode_flags(__entry->fmode),
+			show_fs_fmode_flags(__entry->fmode),
 			MAJOR(__entry->dev), MINOR(__entry->dev),
 			(unsigned long long)__entry->fileid,
 			__entry->fhandle
