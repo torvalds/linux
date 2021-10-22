@@ -151,6 +151,8 @@ struct wcn36xx_vif {
 	} rekey_data;
 
 	struct list_head sta_list;
+
+	int bmps_fail_ct;
 };
 
 /**
