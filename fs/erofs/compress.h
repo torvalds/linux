@@ -22,7 +22,7 @@ struct z_erofs_decompress_req {
 
 struct z_erofs_decompressor {
 	int (*decompress)(struct z_erofs_decompress_req *rq,
-			  struct list_head *pagepool);
+			  struct page **pagepool);
 	char *name;
 };
 
@@ -64,7 +64,7 @@ static inline bool z_erofs_is_shortlived_page(struct page *page)
 	return true;
 }
 
-static inline bool z_erofs_put_shortlivedpage(struct list_head *pagepool,
+static inline bool z_erofs_put_shortlivedpage(struct page **pagepool,
 					      struct page *page)
 {
 	if (!z_erofs_is_shortlived_page(page))
@@ -75,8 +75,7 @@ static inline bool z_erofs_put_shortlivedpage(struct list_head *pagepool,
 		put_page(page);
 	} else {
 		/* follow the pcluster rule above. */
-		set_page_private(page, 0);
-		list_add(&page->lru, pagepool);
+		erofs_pagepool_add(pagepool, page);
 	}
 	return true;
 }
@@ -89,9 +88,9 @@ static inline bool erofs_page_is_managed(const struct erofs_sb_info *sbi,
 }
 
 int z_erofs_decompress(struct z_erofs_decompress_req *rq,
-		       struct list_head *pagepool);
+		       struct page **pagepool);
 
 /* prototypes for specific algorithms */
 int z_erofs_lzma_decompress(struct z_erofs_decompress_req *rq,
-			    struct list_head *pagepool);
+			    struct page **pagepool);
 #endif
