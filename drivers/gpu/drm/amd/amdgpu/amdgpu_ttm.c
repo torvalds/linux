@@ -922,11 +922,6 @@ static int amdgpu_ttm_backend_bind(struct ttm_device *bdev,
 		     ttm->num_pages, bo_mem, ttm);
 	}
 
-	if (bo_mem->mem_type == AMDGPU_PL_GDS ||
-	    bo_mem->mem_type == AMDGPU_PL_GWS ||
-	    bo_mem->mem_type == AMDGPU_PL_OA)
-		return -EINVAL;
-
 	if (bo_mem->mem_type != TTM_PL_TT ||
 	    !amdgpu_gtt_mgr_has_gart_addr(bo_mem)) {
 		gtt->offset = AMDGPU_BO_INVALID_OFFSET;
