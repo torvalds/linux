@@ -113,16 +113,16 @@
 #define NODE_SIZE		(sizeof(unsigned int))
 #define PCIE_DMA_ACK_BLOCK_SIZE		(NODE_SIZE * 8)
 
-#define PCIE_DMA_BUF_SIZE	SZ_1M
+#define PCIE_DMA_BUF_SIZE	SZ_128K
 #define PCIE_DMA_BUF_CNT	8
 #define PCIE_DMA_RD_BUF_SIZE	(PCIE_DMA_BUF_SIZE * PCIE_DMA_BUF_CNT)
 #define PCIE_DMA_WR_BUF_SIZE	(PCIE_DMA_BUF_SIZE * PCIE_DMA_BUF_CNT)
 #define PCIE_DMA_ACK_BASE	(PCIE_DMA_RD_BUF_SIZE + PCIE_DMA_WR_BUF_SIZE)
 
-#define PCIE_DMA_SET_DATA_CHECK_POS	(SZ_1M - 0x4)
-#define PCIE_DMA_SET_LOCAL_IDX_POS	(SZ_1M - 0x8)
-#define PCIE_DMA_SET_BUF_SIZE_POS	(SZ_1M - 0xc)
-#define PCIE_DMA_SET_CHK_SUM_POS	(SZ_1M - 0x10)
+#define PCIE_DMA_SET_DATA_CHECK_POS	(PCIE_DMA_BUF_SIZE - 0x4)
+#define PCIE_DMA_SET_LOCAL_IDX_POS	(PCIE_DMA_BUF_SIZE - 0x8)
+#define PCIE_DMA_SET_BUF_SIZE_POS	(PCIE_DMA_BUF_SIZE - 0xc)
+#define PCIE_DMA_SET_CHK_SUM_POS	(PCIE_DMA_BUF_SIZE - 0x10)
 
 #define PCIE_DMA_DATA_CHECK		0x12345678
 #define PCIE_DMA_DATA_ACK_CHECK		0xdeadbeef
@@ -192,7 +192,7 @@ static void rk_pcie_prepare_dma(struct dma_trx_obj *obj,
 			writel(checksum, virt + PCIE_DMA_SET_CHK_SUM_POS);
 		}
 
-		buf_size = SZ_1M;
+		buf_size = PCIE_DMA_BUF_SIZE;
 		break;
 	case PCIE_DMA_DATA_RCV_ACK:
 		table = obj->table[PCIE_DMA_DATA_RCV_ACK_TABLE_OFFSET + idx];
@@ -366,7 +366,7 @@ static enum hrtimer_restart rk_pcie_scan_timer(struct hrtimer *timer)
 		wake_up(&obj->event_queue);
 	}
 
-	hrtimer_add_expires(&obj->scan_timer, ktime_set(0, 1 * 1000 * 1000));
+	hrtimer_add_expires(&obj->scan_timer, ktime_set(0, 100 * 1000));
 
 	return HRTIMER_RESTART;
 }
@@ -437,6 +437,7 @@ static long rk_pcie_misc_ioctl(struct file *filp, unsigned int cmd,
 	phys_addr_t addr;
 	void __user *uarg = (void __user *)arg;
 	int ret;
+	int i;
 
 	if (copy_from_user(&msg, uarg, sizeof(msg)) != 0) {
 		dev_err(dev, "failed to copy argument into kernel space\n");
@@ -455,8 +456,11 @@ static long rk_pcie_misc_ioctl(struct file *filp, unsigned int cmd,
 		if (is_rc(obj))
 			addr += PCIE_DMA_WR_BUF_SIZE;
 		/* by kernel auto or by user to invalidate cache */
-		dma_sync_single_for_cpu(dev, addr, PCIE_DMA_RD_BUF_SIZE,
-					DMA_FROM_DEVICE);
+		for (i = 0; i < PCIE_DMA_BUF_CNT; i++) {
+			if (test_bit(i, &obj->local_read_available))
+				dma_sync_single_for_cpu(dev, addr + i * PCIE_DMA_BUF_SIZE, PCIE_DMA_BUF_SIZE, DMA_FROM_DEVICE);
+		}
+
 		ret = copy_to_user(uarg, &msg_to_user, sizeof(msg));
 		if (ret) {
 			dev_err(dev, "failed to get read buffer index\n");
