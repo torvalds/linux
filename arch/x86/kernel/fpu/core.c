@@ -268,10 +268,10 @@ void fpu_swap_kvm_fpu(struct fpu *save, struct fpu *rstor, u64 restore_mask)
 }
 EXPORT_SYMBOL_GPL(fpu_swap_kvm_fpu);
 
-void fpu_copy_fpstate_to_kvm_uabi(struct fpu *fpu, void *buf,
-			       unsigned int size, u32 pkru)
+void fpu_copy_guest_fpstate_to_uabi(struct fpu_guest *gfpu, void *buf,
+				    unsigned int size, u32 pkru)
 {
-	struct fpstate *kstate = fpu->fpstate;
+	struct fpstate *kstate = gfpu->fpstate;
 	union fpregs_state *ustate = buf;
 	struct membuf mb = { .p = buf, .left = size };
 
@@ -284,12 +284,12 @@ void fpu_copy_fpstate_to_kvm_uabi(struct fpu *fpu, void *buf,
 		ustate->xsave.header.xfeatures = XFEATURE_MASK_FPSSE;
 	}
 }
-EXPORT_SYMBOL_GPL(fpu_copy_fpstate_to_kvm_uabi);
+EXPORT_SYMBOL_GPL(fpu_copy_guest_fpstate_to_uabi);
 
-int fpu_copy_kvm_uabi_to_fpstate(struct fpu *fpu, const void *buf, u64 xcr0,
-				 u32 *vpkru)
+int fpu_copy_uabi_to_guest_fpstate(struct fpu_guest *gfpu, const void *buf,
+				   u64 xcr0, u32 *vpkru)
 {
-	struct fpstate *kstate = fpu->fpstate;
+	struct fpstate *kstate = gfpu->fpstate;
 	const union fpregs_state *ustate = buf;
 	struct pkru_state *xpkru;
 	int ret;
@@ -320,7 +320,7 @@ int fpu_copy_kvm_uabi_to_fpstate(struct fpu *fpu, const void *buf, u64 xcr0,
 	xstate_init_xcomp_bv(&kstate->regs.xsave, kstate->xfeatures);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(fpu_copy_kvm_uabi_to_fpstate);
+EXPORT_SYMBOL_GPL(fpu_copy_uabi_to_guest_fpstate);
 #endif /* CONFIG_KVM */
 
 void kernel_fpu_begin_mask(unsigned int kfpu_mask)
