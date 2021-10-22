@@ -6338,15 +6338,14 @@ static void mvpp2_phylink_validate(struct phylink_config *config,
 		goto empty_set;
 	}
 
-	bitmap_and(supported, supported, mask, __ETHTOOL_LINK_MODE_MASK_NBITS);
-	bitmap_and(state->advertising, state->advertising, mask,
-		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+	linkmode_and(supported, supported, mask);
+	linkmode_and(state->advertising, state->advertising, mask);
 
 	phylink_helper_basex_speed(state);
 	return;
 
 empty_set:
-	bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
+	linkmode_zero(supported);
 }
 
 static void mvpp2_xlg_config(struct mvpp2_port *port, unsigned int mode,

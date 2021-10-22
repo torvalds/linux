@@ -322,12 +322,10 @@ static int hinic_get_link_ksettings(struct net_device *netdev,
 		}
 	}
 
-	bitmap_copy(link_ksettings->link_modes.supported,
-		    (unsigned long *)&settings.supported,
-		    __ETHTOOL_LINK_MODE_MASK_NBITS);
-	bitmap_copy(link_ksettings->link_modes.advertising,
-		    (unsigned long *)&settings.advertising,
-		    __ETHTOOL_LINK_MODE_MASK_NBITS);
+	linkmode_copy(link_ksettings->link_modes.supported,
+		      (unsigned long *)&settings.supported);
+	linkmode_copy(link_ksettings->link_modes.advertising,
+		      (unsigned long *)&settings.advertising);
 
 	return 0;
 }

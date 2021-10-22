@@ -214,8 +214,7 @@ static int ionic_get_link_ksettings(struct net_device *netdev,
 		break;
 	}
 
-	bitmap_copy(ks->link_modes.advertising, ks->link_modes.supported,
-		    __ETHTOOL_LINK_MODE_MASK_NBITS);
+	linkmode_copy(ks->link_modes.advertising, ks->link_modes.supported);
 
 	ethtool_link_ksettings_add_link_mode(ks, supported, FEC_BASER);
 	ethtool_link_ksettings_add_link_mode(ks, supported, FEC_RS);

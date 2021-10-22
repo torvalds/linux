@@ -522,21 +522,21 @@ static void macb_validate(struct phylink_config *config,
 	    state->interface != PHY_INTERFACE_MODE_SGMII &&
 	    state->interface != PHY_INTERFACE_MODE_10GBASER &&
 	    !phy_interface_mode_is_rgmii(state->interface)) {
-		bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
+		linkmode_zero(supported);
 		return;
 	}
 
 	if (!macb_is_gem(bp) &&
 	    (state->interface == PHY_INTERFACE_MODE_GMII ||
 	     phy_interface_mode_is_rgmii(state->interface))) {
-		bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
+		linkmode_zero(supported);
 		return;
 	}
 
 	if (state->interface == PHY_INTERFACE_MODE_10GBASER &&
 	    !(bp->caps & MACB_CAPS_HIGH_SPEED &&
 	      bp->caps & MACB_CAPS_PCS)) {
-		bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
+		linkmode_zero(supported);
 		return;
 	}
 
@@ -570,9 +570,8 @@ static void macb_validate(struct phylink_config *config,
 			phylink_set(mask, 1000baseT_Half);
 	}
 out:
-	bitmap_and(supported, supported, mask, __ETHTOOL_LINK_MODE_MASK_NBITS);
-	bitmap_and(state->advertising, state->advertising, mask,
-		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+	linkmode_and(supported, supported, mask);
+	linkmode_and(state->advertising, state->advertising, mask);
 }
 
 static void macb_usx_pcs_link_up(struct phylink_pcs *pcs, unsigned int mode,

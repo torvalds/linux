@@ -1175,9 +1175,8 @@ static int otx2_set_link_ksettings(struct net_device *netdev,
 	otx2_get_link_ksettings(netdev, &cur_ks);
 
 	/* Check requested modes against supported modes by hardware */
-	if (!bitmap_subset(cmd->link_modes.advertising,
-			   cur_ks.link_modes.supported,
-			   __ETHTOOL_LINK_MODE_MASK_NBITS))
+	if (!linkmode_subset(cmd->link_modes.advertising,
+			     cur_ks.link_modes.supported))
 		return -EINVAL;
 
 	mutex_lock(&mbox->lock);
