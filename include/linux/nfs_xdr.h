@@ -832,7 +832,6 @@ struct nfs_getaclres {
 struct nfs_setattrres {
 	struct nfs4_sequence_res	seq_res;
 	struct nfs_fattr *              fattr;
-	struct nfs4_label		*label;
 	const struct nfs_server *	server;
 };
 
