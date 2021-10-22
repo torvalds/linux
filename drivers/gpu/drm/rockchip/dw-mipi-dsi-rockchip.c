@@ -16,6 +16,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 
+#include <drm/drm_dsc.h>
 #include <video/mipi_display.h>
 #include <uapi/linux/videodev2.h>
 #include <drm/bridge/dw_mipi_dsi.h>
@@ -212,6 +213,12 @@ enum soc_type {
 	RK3568,
 };
 
+struct cmd_header {
+	u8 cmd_type;
+	u8 delay;
+	u8 payload_length;
+};
+
 struct rockchip_dw_dsi_chip_data {
 	u32 reg;
 
@@ -239,6 +246,17 @@ struct dw_mipi_dsi_rockchip {
 	void __iomem *base;
 	int id;
 
+	bool c_option;
+	bool scrambling_en;
+	unsigned int slice_width;
+	unsigned int slice_height;
+	unsigned int slice_per_pkt;
+	bool block_pred_enable;
+	bool dsc_enable;
+	u8 version_major;
+	u8 version_minor;
+
+	struct drm_dsc_picture_parameter_set *pps;
 	struct regmap *grf_regmap;
 	struct clk *pllref_clk;
 	struct clk *pclk;
@@ -758,6 +776,20 @@ dw_mipi_dsi_encoder_atomic_check(struct drm_encoder *encoder,
 	if (dsi->id && dsi->cdata->soc_type == RK3399)
 		s->output_flags |= ROCKCHIP_OUTPUT_DATA_SWAP;
 
+	if (dsi->dsc_enable) {
+		s->dsc_enable = 1;
+		s->dsc_sink_cap.version_major = dsi->version_major;
+		s->dsc_sink_cap.version_minor = dsi->version_minor;
+		s->dsc_sink_cap.slice_width = dsi->slice_width;
+		s->dsc_sink_cap.slice_height = dsi->slice_height;
+		/* only can support rgb888 panel now */
+		s->dsc_sink_cap.target_bits_per_pixel_x16 = 8 << 4;
+		s->dsc_sink_cap.block_pred = dsi->block_pred_enable;
+		s->dsc_sink_cap.native_420 = 0;
+
+		memcpy(&s->pps, dsi->pps, sizeof(struct drm_dsc_picture_parameter_set));
+	}
+
 	return 0;
 }
 
@@ -855,6 +887,70 @@ static struct device
 	return NULL;
 }
 
+static int dw_mipi_dsi_get_dsc_info_from_sink(struct dw_mipi_dsi_rockchip *dsi,
+					      struct drm_panel *panel,
+					      struct drm_bridge *bridge)
+{
+	struct drm_dsc_picture_parameter_set *pps = NULL;
+	struct device_node *np = NULL;
+	struct cmd_header *header;
+	const void *data;
+	char *d;
+	uint8_t *dsc_packed_pps;
+	int len;
+
+	if (!panel && !bridge)
+		return -ENODEV;
+
+	if (panel)
+		np = panel->dev->of_node;
+	else
+		np = bridge->of_node;
+
+	dsi->c_option = of_property_read_bool(np, "phy-c-option");
+	dsi->scrambling_en = of_property_read_bool(np, "scrambling-enable");
+	dsi->dsc_enable = of_property_read_bool(np, "compressed-data");
+	dsi->block_pred_enable = of_property_read_bool(np, "blk-pred-enable");
+	of_property_read_u32(np, "slice-width", &dsi->slice_width);
+	of_property_read_u32(np, "slice-height", &dsi->slice_height);
+	of_property_read_u32(np, "slice-per-pkt", &dsi->slice_per_pkt);
+	of_property_read_u8(np, "version-major", &dsi->version_major);
+	of_property_read_u8(np, "version-minor", &dsi->version_minor);
+
+	data = of_get_property(np, "panel-init-sequence", &len);
+	if (!data)
+		return -EINVAL;
+
+	d = devm_kmemdup(dsi->dev, data, len, GFP_KERNEL);
+	if (!d)
+		return -ENOMEM;
+
+	while (len > sizeof(*header)) {
+		header = (struct cmd_header *)d;
+		d += sizeof(*header);
+		len -= sizeof(*header);
+
+		if (header->payload_length > len)
+			return -EINVAL;
+
+		if (header->cmd_type == MIPI_DSI_PICTURE_PARAMETER_SET) {
+			dsc_packed_pps = devm_kmemdup(dsi->dev, d,
+						      header->payload_length, GFP_KERNEL);
+			if (!dsc_packed_pps)
+				return -ENOMEM;
+
+			pps = (struct drm_dsc_picture_parameter_set *)dsc_packed_pps;
+			break;
+		}
+
+		d += header->payload_length;
+		len -= header->payload_length;
+	}
+	dsi->pps = pps;
+
+	return 0;
+}
+
 static int dw_mipi_dsi_rockchip_bind(struct device *dev,
 				     struct device *master,
 				     void *data)
@@ -906,6 +1002,8 @@ static int dw_mipi_dsi_rockchip_bind(struct device *dev,
 					  &dsi->panel, NULL);
 	if (ret)
 		dev_err(dsi->dev, "failed to find panel\n");
+
+	dw_mipi_dsi_get_dsc_info_from_sink(dsi, dsi->panel, NULL);
 
 	dsi->sub_dev.connector = dw_mipi_dsi_get_connector(dsi->dmd);
 	if (dsi->sub_dev.connector) {
