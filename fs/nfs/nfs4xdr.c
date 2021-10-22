@@ -6171,7 +6171,7 @@ static int nfs4_xdr_dec_lookup(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
 	status = decode_getfh(xdr, res->fh);
 	if (status)
 		goto out;
-	status = decode_getfattr_label(xdr, res->fattr, res->label, res->server);
+	status = decode_getfattr_label(xdr, res->fattr, res->fattr->label, res->server);
 out:
 	return status;
 }
@@ -6229,7 +6229,7 @@ static int nfs4_xdr_dec_lookup_root(struct rpc_rqst *rqstp,
 	status = decode_getfh(xdr, res->fh);
 	if (status == 0)
 		status = decode_getfattr_label(xdr, res->fattr,
-						res->label, res->server);
+						res->fattr->label, res->server);
 out:
 	return status;
 }

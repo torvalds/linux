@@ -1494,19 +1494,17 @@ nfs_lookup_revalidate_dentry(struct inode *dir, struct dentry *dentry,
 {
 	struct nfs_fh *fhandle;
 	struct nfs_fattr *fattr;
-	struct nfs4_label *label;
 	unsigned long dir_verifier;
 	int ret;
 
 	ret = -ENOMEM;
 	fhandle = nfs_alloc_fhandle();
-	fattr = nfs_alloc_fattr();
-	label = nfs4_label_alloc(NFS_SERVER(inode), GFP_KERNEL);
-	if (fhandle == NULL || fattr == NULL || IS_ERR(label))
+	fattr = nfs_alloc_fattr_with_label(NFS_SERVER(inode));
+	if (fhandle == NULL || fattr == NULL)
 		goto out;
 
 	dir_verifier = nfs_save_change_attribute(dir);
-	ret = NFS_PROTO(dir)->lookup(dir, dentry, fhandle, fattr, label);
+	ret = NFS_PROTO(dir)->lookup(dir, dentry, fhandle, fattr);
 	if (ret < 0) {
 		switch (ret) {
 		case -ESTALE:
@@ -1525,7 +1523,7 @@ nfs_lookup_revalidate_dentry(struct inode *dir, struct dentry *dentry,
 	if (nfs_refresh_inode(inode, fattr) < 0)
 		goto out;
 
-	nfs_setsecurity(inode, fattr, label);
+	nfs_setsecurity(inode, fattr, fattr->label);
 	nfs_set_verifier(dentry, dir_verifier);
 
 	/* set a readdirplus hint that we had a cache miss */
@@ -1534,7 +1532,6 @@ nfs_lookup_revalidate_dentry(struct inode *dir, struct dentry *dentry,
 out:
 	nfs_free_fattr(fattr);
 	nfs_free_fhandle(fhandle);
-	nfs4_label_free(label);
 
 	/*
 	 * If the lookup failed despite the dentry change attribute being
@@ -1754,7 +1751,6 @@ struct dentry *nfs_lookup(struct inode *dir, struct dentry * dentry, unsigned in
 	struct inode *inode = NULL;
 	struct nfs_fh *fhandle = NULL;
 	struct nfs_fattr *fattr = NULL;
-	struct nfs4_label *label = NULL;
 	unsigned long dir_verifier;
 	int error;
 
@@ -1773,27 +1769,23 @@ struct dentry *nfs_lookup(struct inode *dir, struct dentry * dentry, unsigned in
 
 	res = ERR_PTR(-ENOMEM);
 	fhandle = nfs_alloc_fhandle();
-	fattr = nfs_alloc_fattr();
+	fattr = nfs_alloc_fattr_with_label(NFS_SERVER(dir));
 	if (fhandle == NULL || fattr == NULL)
-		goto out;
-
-	label = nfs4_label_alloc(NFS_SERVER(dir), GFP_NOWAIT);
-	if (IS_ERR(label))
 		goto out;
 
 	dir_verifier = nfs_save_change_attribute(dir);
 	trace_nfs_lookup_enter(dir, dentry, flags);
-	error = NFS_PROTO(dir)->lookup(dir, dentry, fhandle, fattr, label);
+	error = NFS_PROTO(dir)->lookup(dir, dentry, fhandle, fattr);
 	if (error == -ENOENT)
 		goto no_entry;
 	if (error < 0) {
 		res = ERR_PTR(error);
-		goto out_label;
+		goto out;
 	}
-	inode = nfs_fhget(dentry->d_sb, fhandle, fattr, label);
+	inode = nfs_fhget(dentry->d_sb, fhandle, fattr, fattr->label);
 	res = ERR_CAST(inode);
 	if (IS_ERR(res))
-		goto out_label;
+		goto out;
 
 	/* Notify readdir to use READDIRPLUS */
 	nfs_force_use_readdirplus(dir);
@@ -1802,14 +1794,12 @@ no_entry:
 	res = d_splice_alias(inode, dentry);
 	if (res != NULL) {
 		if (IS_ERR(res))
-			goto out_label;
+			goto out;
 		dentry = res;
 	}
 	nfs_set_verifier(dentry, dir_verifier);
-out_label:
-	trace_nfs_lookup_exit(dir, dentry, flags, PTR_ERR_OR_ZERO(res));
-	nfs4_label_free(label);
 out:
+	trace_nfs_lookup_exit(dir, dentry, flags, PTR_ERR_OR_ZERO(res));
 	nfs_free_fattr(fattr);
 	nfs_free_fhandle(fhandle);
 	return res;
@@ -2058,7 +2048,7 @@ nfs_add_or_obtain(struct dentry *dentry, struct nfs_fh *fhandle,
 	d_drop(dentry);
 
 	if (fhandle->size == 0) {
-		error = NFS_PROTO(dir)->lookup(dir, dentry, fhandle, fattr, NULL);
+		error = NFS_PROTO(dir)->lookup(dir, dentry, fhandle, fattr);
 		if (error)
 			goto out_error;
 	}

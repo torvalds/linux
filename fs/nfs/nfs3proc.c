@@ -193,8 +193,7 @@ __nfs3_proc_lookup(struct inode *dir, const char *name, size_t len,
 
 static int
 nfs3_proc_lookup(struct inode *dir, struct dentry *dentry,
-		 struct nfs_fh *fhandle, struct nfs_fattr *fattr,
-		 struct nfs4_label *label)
+		 struct nfs_fh *fhandle, struct nfs_fattr *fattr)
 {
 	unsigned short task_flags = 0;
 
