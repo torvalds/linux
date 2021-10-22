@@ -150,24 +150,24 @@ struct vl_config {
 
 static struct vl_config vl_config[ARM64_VEC_MAX];
 
-static int get_default_vl(enum vec_type type)
+static inline int get_default_vl(enum vec_type type)
 {
 	return READ_ONCE(vl_config[type].__default_vl);
 }
 
-static int get_sve_default_vl(void)
+#ifdef CONFIG_ARM64_SVE
+
+static inline int get_sve_default_vl(void)
 {
 	return get_default_vl(ARM64_VEC_SVE);
 }
 
-#ifdef CONFIG_ARM64_SVE
-
-static void set_default_vl(enum vec_type type, int val)
+static inline void set_default_vl(enum vec_type type, int val)
 {
 	WRITE_ONCE(vl_config[type].__default_vl, val);
 }
 
-static void set_sve_default_vl(int val)
+static inline void set_sve_default_vl(int val)
 {
 	set_default_vl(ARM64_VEC_SVE, val);
 }
