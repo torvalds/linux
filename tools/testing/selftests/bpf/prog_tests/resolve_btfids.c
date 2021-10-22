@@ -106,9 +106,9 @@ static int resolve_symbols(void)
 		  "Failed to load BTF from btf_data.o\n"))
 		return -1;
 
-	nr = btf__get_nr_types(btf);
+	nr = btf__type_cnt(btf);
 
-	for (type_id = 1; type_id <= nr; type_id++) {
+	for (type_id = 1; type_id < nr; type_id++) {
 		if (__resolve_symbol(btf, type_id))
 			break;
 	}

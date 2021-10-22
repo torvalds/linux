@@ -32,7 +32,7 @@ void test_btf_endian() {
 	ASSERT_EQ(btf__endianness(btf), swap_endian, "endian");
 
 	/* Get raw BTF data in non-native endianness... */
-	raw_data = btf__get_raw_data(btf, &raw_sz);
+	raw_data = btf__raw_data(btf, &raw_sz);
 	if (!ASSERT_OK_PTR(raw_data, "raw_data_inverted"))
 		goto err_out;
 
@@ -42,9 +42,9 @@ void test_btf_endian() {
 		goto err_out;
 
 	ASSERT_EQ(btf__endianness(swap_btf), swap_endian, "endian");
-	ASSERT_EQ(btf__get_nr_types(swap_btf), btf__get_nr_types(btf), "nr_types");
+	ASSERT_EQ(btf__type_cnt(swap_btf), btf__type_cnt(btf), "nr_types");
 
-	swap_raw_data = btf__get_raw_data(swap_btf, &swap_raw_sz);
+	swap_raw_data = btf__raw_data(swap_btf, &swap_raw_sz);
 	if (!ASSERT_OK_PTR(swap_raw_data, "swap_raw_data"))
 		goto err_out;
 
@@ -58,7 +58,7 @@ void test_btf_endian() {
 
 	/* swap it back to native endianness */
 	btf__set_endianness(swap_btf, endian);
-	swap_raw_data = btf__get_raw_data(swap_btf, &swap_raw_sz);
+	swap_raw_data = btf__raw_data(swap_btf, &swap_raw_sz);
 	if (!ASSERT_OK_PTR(swap_raw_data, "swap_raw_data"))
 		goto err_out;
 
@@ -75,7 +75,7 @@ void test_btf_endian() {
 	swap_btf = NULL;
 
 	btf__set_endianness(btf, swap_endian);
-	raw_data = btf__get_raw_data(btf, &raw_sz);
+	raw_data = btf__raw_data(btf, &raw_sz);
 	if (!ASSERT_OK_PTR(raw_data, "raw_data_inverted"))
 		goto err_out;
 
@@ -85,7 +85,7 @@ void test_btf_endian() {
 		goto err_out;
 
 	ASSERT_EQ(btf__endianness(swap_btf), swap_endian, "endian");
-	ASSERT_EQ(btf__get_nr_types(swap_btf), btf__get_nr_types(btf), "nr_types");
+	ASSERT_EQ(btf__type_cnt(swap_btf), btf__type_cnt(btf), "nr_types");
 
 	/* the type should appear as if it was stored in native endianness */
 	t = btf__type_by_id(swap_btf, var_id);

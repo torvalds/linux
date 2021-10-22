@@ -7274,8 +7274,8 @@ static void do_test_dedup(unsigned int test_num)
 		goto done;
 	}
 
-	test_btf_data = btf__get_raw_data(test_btf, &test_btf_size);
-	expect_btf_data = btf__get_raw_data(expect_btf, &expect_btf_size);
+	test_btf_data = btf__raw_data(test_btf, &test_btf_size);
+	expect_btf_data = btf__raw_data(expect_btf, &expect_btf_size);
 	if (CHECK(test_btf_size != expect_btf_size,
 		  "test_btf_size:%u != expect_btf_size:%u",
 		  test_btf_size, expect_btf_size)) {
@@ -7329,8 +7329,8 @@ static void do_test_dedup(unsigned int test_num)
 		expect_str_cur += expect_len + 1;
 	}
 
-	test_nr_types = btf__get_nr_types(test_btf);
-	expect_nr_types = btf__get_nr_types(expect_btf);
+	test_nr_types = btf__type_cnt(test_btf);
+	expect_nr_types = btf__type_cnt(expect_btf);
 	if (CHECK(test_nr_types != expect_nr_types,
 		  "test_nr_types:%u != expect_nr_types:%u",
 		  test_nr_types, expect_nr_types)) {
@@ -7338,7 +7338,7 @@ static void do_test_dedup(unsigned int test_num)
 		goto done;
 	}
 
-	for (i = 1; i <= test_nr_types; i++) {
+	for (i = 1; i < test_nr_types; i++) {
 		const struct btf_type *test_type, *expect_type;
 		int test_size, expect_size;
 
