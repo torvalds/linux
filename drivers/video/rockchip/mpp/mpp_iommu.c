@@ -21,6 +21,7 @@
 #ifdef CONFIG_ARM_DMA_USE_IOMMU
 #include <asm/dma-iommu.h>
 #endif
+#include <soc/rockchip/rockchip_iommu.h>
 
 #include "mpp_debug.h"
 #include "mpp_iommu.h"
@@ -460,27 +461,14 @@ int mpp_iommu_remove(struct mpp_iommu_info *info)
 
 int mpp_iommu_refresh(struct mpp_iommu_info *info, struct device *dev)
 {
-	int i;
-	int usage_count;
-	struct device_link *link;
-	struct device *iommu_dev = &info->pdev->dev;
+	int ret;
 
-	rcu_read_lock();
-
-	usage_count = atomic_read(&iommu_dev->power.usage_count);
-	list_for_each_entry_rcu(link, &dev->links.suppliers, c_node) {
-		for (i = 0; i < usage_count; i++)
-			pm_runtime_put_sync(link->supplier);
-	}
-
-	list_for_each_entry_rcu(link, &dev->links.suppliers, c_node) {
-		for (i = 0; i < usage_count; i++)
-			pm_runtime_get_sync(link->supplier);
-	}
-
-	rcu_read_unlock();
-
-	return 0;
+	/* disable iommu */
+	ret = rockchip_iommu_disable(dev);
+	if (ret)
+		return ret;
+	/* re-enable iommu */
+	return rockchip_iommu_enable(dev);
 }
 
 int mpp_iommu_flush_tlb(struct mpp_iommu_info *info)
