@@ -188,7 +188,7 @@ err:
 
 static int btf_dump_resize(struct btf_dump *d)
 {
-	int err, last_id = btf__get_nr_types(d->btf);
+	int err, last_id = btf__type_cnt(d->btf) - 1;
 
 	if (last_id <= d->last_id)
 		return 0;
@@ -262,7 +262,7 @@ int btf_dump__dump_type(struct btf_dump *d, __u32 id)
 {
 	int err, i;
 
-	if (id > btf__get_nr_types(d->btf))
+	if (id >= btf__type_cnt(d->btf))
 		return libbpf_err(-EINVAL);
 
 	err = btf_dump_resize(d);
@@ -294,11 +294,11 @@ int btf_dump__dump_type(struct btf_dump *d, __u32 id)
  */
 static int btf_dump_mark_referenced(struct btf_dump *d)
 {
-	int i, j, n = btf__get_nr_types(d->btf);
+	int i, j, n = btf__type_cnt(d->btf);
 	const struct btf_type *t;
 	__u16 vlen;
 
-	for (i = d->last_id + 1; i <= n; i++) {
+	for (i = d->last_id + 1; i < n; i++) {
 		t = btf__type_by_id(d->btf, i);
 		vlen = btf_vlen(t);
 

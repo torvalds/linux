@@ -112,7 +112,7 @@ void test_core_autosize(void)
 	if (!ASSERT_OK_PTR(f, "btf_fdopen"))
 		goto cleanup;
 
-	raw_data = btf__get_raw_data(btf, &raw_sz);
+	raw_data = btf__raw_data(btf, &raw_sz);
 	if (!ASSERT_OK_PTR(raw_data, "raw_data"))
 		goto cleanup;
 	written = fwrite(raw_data, 1, raw_sz, f);

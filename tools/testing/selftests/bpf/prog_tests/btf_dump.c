@@ -27,7 +27,7 @@ static struct btf_dump_test_case {
 static int btf_dump_all_types(const struct btf *btf,
 			      const struct btf_dump_opts *opts)
 {
-	size_t type_cnt = btf__get_nr_types(btf);
+	size_t type_cnt = btf__type_cnt(btf);
 	struct btf_dump *d;
 	int err = 0, id;
 
@@ -36,7 +36,7 @@ static int btf_dump_all_types(const struct btf *btf,
 	if (err)
 		return err;
 
-	for (id = 1; id <= type_cnt; id++) {
+	for (id = 1; id < type_cnt; id++) {
 		err = btf_dump__dump_type(d, id);
 		if (err)
 			goto done;
@@ -171,7 +171,7 @@ void test_btf_dump_incremental(void)
 	err = btf__add_field(btf, "x", 2, 0, 0);
 	ASSERT_OK(err, "field_ok");
 
-	for (i = 1; i <= btf__get_nr_types(btf); i++) {
+	for (i = 1; i < btf__type_cnt(btf); i++) {
 		err = btf_dump__dump_type(d, i);
 		ASSERT_OK(err, "dump_type_ok");
 	}
@@ -210,7 +210,7 @@ void test_btf_dump_incremental(void)
 	err = btf__add_field(btf, "s", 3, 32, 0);
 	ASSERT_OK(err, "field_ok");
 
-	for (i = 1; i <= btf__get_nr_types(btf); i++) {
+	for (i = 1; i < btf__type_cnt(btf); i++) {
 		err = btf_dump__dump_type(d, i);
 		ASSERT_OK(err, "dump_type_ok");
 	}

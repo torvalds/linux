@@ -381,7 +381,7 @@ static int setup_type_id_case_local(struct core_reloc_test_case *test)
 	exp->local_anon_void_ptr = -1;
 	exp->local_anon_arr = -1;
 
-	for (i = 1; i <= btf__get_nr_types(local_btf); i++)
+	for (i = 1; i < btf__type_cnt(local_btf); i++)
 	{
 		t = btf__type_by_id(local_btf, i);
 		/* we are interested only in anonymous types */

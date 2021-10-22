@@ -215,7 +215,7 @@ int btf_validate_raw(struct btf *btf, int nr_types, const char *exp_types[])
 	int i;
 	bool ok = true;
 
-	ASSERT_EQ(btf__get_nr_types(btf), nr_types, "btf_nr_types");
+	ASSERT_EQ(btf__type_cnt(btf) - 1, nr_types, "btf_nr_types");
 
 	for (i = 1; i <= nr_types; i++) {
 		if (!ASSERT_STREQ(btf_type_raw_dump(btf, i), exp_types[i - 1], "raw_dump"))
@@ -254,7 +254,7 @@ const char *btf_type_c_dump(const struct btf *btf)
 		return NULL;
 	}
 
-	for (i = 1; i <= btf__get_nr_types(btf); i++) {
+	for (i = 1; i < btf__type_cnt(btf); i++) {
 		err = btf_dump__dump_type(d, i);
 		if (err) {
 			fprintf(stderr, "Failed to dump type [%d]: %d\n", i, err);
