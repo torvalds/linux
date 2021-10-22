@@ -218,7 +218,8 @@ static void debug_flush(struct platform_device *pdev)
 #define LINE_MAX 1024
 static DEFINE_KFIFO(fifo, unsigned char, FIFO_SIZE);
 static char console_buf[LINE_MAX]; /* avoid FRAME WARN */
-static bool console_thread_stop;
+static bool console_thread_stop; /* write on console_write */
+static bool console_thread_running; /* write on console_thread */
 static unsigned int console_dropped_messages;
 
 static void console_putc(struct platform_device *pdev, unsigned int c)
@@ -276,8 +277,11 @@ static int console_thread(void *data)
 		unsigned int dropped;
 
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (kfifo_is_empty(&fifo))
+		if (kfifo_is_empty(&fifo)) {
+			smp_store_mb(console_thread_running, false);
 			schedule();
+			smp_store_mb(console_thread_running, true);
+		}
 		if (kthread_should_stop())
 			break;
 		set_current_state(TASK_RUNNING);
@@ -334,7 +338,32 @@ static void console_write(struct platform_device *pdev, const char *s, unsigned 
 			console_dropped_messages++;
 			smp_wmb();
 		} else {
-			wake_up_process(t->console_task);
+			/*
+			 * Avoid dead lock on console_task->pi_lock and console_lock
+			 * when call printk() in try_to_wake_up().
+			 *
+			 * cpu0 hold console_lock, then try lock pi_lock fail:
+			 *   printk()->vprintk_emit()->console_unlock()->try_to_wake_up()
+			 *   ->lock(pi_lock)->deadlock
+			 *
+			 * cpu1 hold pi_lock, then try lock console_lock fail:
+			 *   console_thread()->console_put()->usleep_range()->run_hrtimer()
+			 *   ->hrtimer_wakeup()->try_to_wake_up()[hold_pi_lock]->printk()
+			 *   ->vprintk_emit()->console_trylock_spining()->cpu_relax()->deadlock
+			 *
+			 * if cpu0 does not hold console_lock, cpu1 also deadlock on pi_lock:
+			 *   ...->hrtimer_wakeup()->try_to_wake_up()[hold_pi_lock]->printk()
+			 *   ->vprintk_emit()->console_unlock()->try_to_wake_up()
+			 *   ->lock(pi_lock)->deadlock
+			 *
+			 * so when console_task is running on usleep_range(), printk()
+			 * should not wakeup console_task to avoid lock(pi_lock) again,
+			 * as run_hrtimer() will wakeup console_task later.
+			 * console_thread_running==false guarantee that console_task
+			 * is not running on usleep_range().
+			 */
+			if (!READ_ONCE(console_thread_running))
+				wake_up_process(t->console_task);
 		}
 	}
 }
