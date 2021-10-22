@@ -3730,10 +3730,8 @@ static void vop2_atomic_plane_reset(struct drm_plane *plane)
 	if (!vpstate)
 		return;
 
-	plane->state = &vpstate->base;
-	plane->state->plane = plane;
-	plane->state->zpos = win->zpos;
-	plane->state->alpha = DRM_BLEND_ALPHA_OPAQUE;
+	__drm_atomic_helper_plane_reset(plane, &vpstate->base);
+	vpstate->base.zpos = win->zpos;
 }
 
 static struct drm_plane_state *vop2_atomic_plane_duplicate_state(struct drm_plane *plane)
