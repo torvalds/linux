@@ -116,7 +116,7 @@ u64 entry_attr_timeout(struct fuse_entry_out *o)
 	return time_to_jiffies(o->attr_valid, o->attr_valid_nsec);
 }
 
-static void fuse_invalidate_attr_mask(struct inode *inode, u32 mask)
+void fuse_invalidate_attr_mask(struct inode *inode, u32 mask)
 {
 	set_mask_bits(&get_fuse_inode(inode)->inval_mask, 0, mask);
 }
@@ -756,7 +756,7 @@ static void fuse_update_ctime_in_cache(struct inode *inode)
 
 void fuse_update_ctime(struct inode *inode)
 {
-	fuse_invalidate_attr(inode);
+	fuse_invalidate_attr_mask(inode, STATX_CTIME);
 	fuse_update_ctime_in_cache(inode);
 }
 
