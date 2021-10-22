@@ -133,7 +133,7 @@ static char *dump_buf;
 static size_t dump_buf_sz;
 static FILE *dump_buf_file;
 
-void test_btf_dump_incremental(void)
+static void test_btf_dump_incremental(void)
 {
 	struct btf *btf = NULL;
 	struct btf_dump *d = NULL;
