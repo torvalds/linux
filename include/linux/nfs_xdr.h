@@ -753,7 +753,6 @@ struct nfs_entry {
 	int			eof;
 	struct nfs_fh *		fh;
 	struct nfs_fattr *	fattr;
-	struct nfs4_label  *label;
 	unsigned char		d_type;
 	struct nfs_server *	server;
 };

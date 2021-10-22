@@ -682,7 +682,8 @@ again:
 			nfs_set_verifier(dentry, dir_verifier);
 			status = nfs_refresh_inode(d_inode(dentry), entry->fattr);
 			if (!status)
-				nfs_setsecurity(d_inode(dentry), entry->fattr, entry->label);
+				nfs_setsecurity(d_inode(dentry), entry->fattr,
+						entry->fattr->label);
 			goto out;
 		} else {
 			d_invalidate(dentry);
@@ -696,7 +697,7 @@ again:
 		goto out;
 	}
 
-	inode = nfs_fhget(dentry->d_sb, entry->fh, entry->fattr, entry->label);
+	inode = nfs_fhget(dentry->d_sb, entry->fh, entry->fattr, entry->fattr->label);
 	alias = d_splice_alias(inode, dentry);
 	d_lookup_done(dentry);
 	if (alias) {
@@ -732,8 +733,8 @@ static int nfs_readdir_page_filler(struct nfs_readdir_descriptor *desc,
 	xdr_set_scratch_page(&stream, scratch);
 
 	do {
-		if (entry->label)
-			entry->label->len = NFS4_MAXLABELLEN;
+		if (entry->fattr->label)
+			entry->fattr->label->len = NFS4_MAXLABELLEN;
 
 		status = xdr_decode(desc, entry, &stream);
 		if (status != 0)
@@ -838,21 +839,15 @@ static int nfs_readdir_xdr_to_array(struct nfs_readdir_descriptor *desc,
 		return -ENOMEM;
 	entry->cookie = nfs_readdir_page_last_cookie(page);
 	entry->fh = nfs_alloc_fhandle();
-	entry->fattr = nfs_alloc_fattr();
+	entry->fattr = nfs_alloc_fattr_with_label(NFS_SERVER(inode));
 	entry->server = NFS_SERVER(inode);
 	if (entry->fh == NULL || entry->fattr == NULL)
 		goto out;
 
-	entry->label = nfs4_label_alloc(NFS_SERVER(inode), GFP_NOWAIT);
-	if (IS_ERR(entry->label)) {
-		status = PTR_ERR(entry->label);
-		goto out;
-	}
-
 	array_size = (dtsize + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	pages = nfs_readdir_alloc_pages(array_size);
 	if (!pages)
-		goto out_release_label;
+		goto out;
 
 	do {
 		unsigned int pglen;
@@ -875,8 +870,6 @@ static int nfs_readdir_xdr_to_array(struct nfs_readdir_descriptor *desc,
 	} while (!status && nfs_readdir_page_needs_filling(page));
 
 	nfs_readdir_free_pages(pages, array_size);
-out_release_label:
-	nfs4_label_free(entry->label);
 out:
 	nfs_free_fattr(entry->fattr);
 	nfs_free_fhandle(entry->fh);
