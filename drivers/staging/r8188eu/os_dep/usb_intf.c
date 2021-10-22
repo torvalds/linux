@@ -234,7 +234,7 @@ static int rtw_suspend(struct usb_interface *pusb_intf, pm_message_t message)
 	rtw_cancel_all_timer(padapter);
 	LeaveAllPowerSaveMode(padapter);
 
-	_enter_pwrlock(&pwrpriv->lock);
+	mutex_lock(&pwrpriv->lock);
 	/* s1. */
 	if (pnetdev) {
 		netif_carrier_off(pnetdev);
@@ -263,7 +263,7 @@ static int rtw_suspend(struct usb_interface *pusb_intf, pm_message_t message)
 	rtw_free_network_queue(padapter, true);
 
 	rtw_dev_unload(padapter);
-	_exit_pwrlock(&pwrpriv->lock);
+	mutex_unlock(&pwrpriv->lock);
 
 	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY))
 		rtw_indicate_scan_done(padapter, 1);
@@ -292,7 +292,7 @@ static int rtw_resume(struct usb_interface *pusb_intf)
 	pnetdev = padapter->pnetdev;
 	pwrpriv = &padapter->pwrctrlpriv;
 
-	_enter_pwrlock(&pwrpriv->lock);
+	mutex_lock(&pwrpriv->lock);
 	rtw_reset_drv_sw(padapter);
 	if (pwrpriv)
 		pwrpriv->bkeepfwalive = false;
@@ -304,7 +304,7 @@ static int rtw_resume(struct usb_interface *pusb_intf)
 	netif_device_attach(pnetdev);
 	netif_carrier_on(pnetdev);
 
-	_exit_pwrlock(&pwrpriv->lock);
+	mutex_unlock(&pwrpriv->lock);
 
 	if (padapter->pid[1] != 0) {
 		DBG_88E("pid[1]:%d\n", padapter->pid[1]);

@@ -27,21 +27,6 @@ enum power_mgnt {
 	PS_MODE_NUM
 };
 
-static inline void _init_pwrlock(struct semaphore  *plock)
-{
-	sema_init(plock, 1);
-}
-
-static inline void _enter_pwrlock(struct semaphore  *plock)
-{
-	_rtw_down_sema(plock);
-}
-
-static inline void _exit_pwrlock(struct semaphore  *plock)
-{
-	up(plock);
-}
-
 #define LPS_DELAY_TIME	1*HZ /*  1 sec */
 
 /*  RF state. */
@@ -60,7 +45,7 @@ enum { /*  for ips_mode */
 };
 
 struct pwrctrl_priv {
-	struct semaphore lock;
+	struct mutex lock; /* Mutex used to protect struct pwrctrl_priv */
 
 	u8	pwr_mode;
 	u8	smart_ps;

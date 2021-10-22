@@ -42,14 +42,6 @@ Otherwise, there will be racing condition.
 Caller must check if the list is empty before calling rtw_list_delete
 */
 
-u32 _rtw_down_sema(struct semaphore *sema)
-{
-	if (down_interruptible(sema))
-		return _FAIL;
-	else
-		return _SUCCESS;
-}
-
 inline u32 rtw_systime_to_ms(u32 systime)
 {
 	return systime * 1000 / HZ;

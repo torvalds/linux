@@ -21,7 +21,7 @@ void ips_enter(struct adapter *padapter)
 		return;
 	}
 
-	_enter_pwrlock(&pwrpriv->lock);
+	mutex_lock(&pwrpriv->lock);
 
 	pwrpriv->bips_processing = true;
 
@@ -42,7 +42,7 @@ void ips_enter(struct adapter *padapter)
 	}
 	pwrpriv->bips_processing = false;
 
-	_exit_pwrlock(&pwrpriv->lock);
+	mutex_unlock(&pwrpriv->lock);
 }
 
 int ips_leave(struct adapter *padapter)
@@ -53,7 +53,7 @@ int ips_leave(struct adapter *padapter)
 	int result = _SUCCESS;
 	int keyid;
 
-	_enter_pwrlock(&pwrpriv->lock);
+	mutex_lock(&pwrpriv->lock);
 
 	if ((pwrpriv->rf_pwrstate == rf_off) && (!pwrpriv->bips_processing)) {
 		pwrpriv->bips_processing = true;
@@ -87,7 +87,7 @@ int ips_leave(struct adapter *padapter)
 		pwrpriv->bpower_saving = false;
 	}
 
-	_exit_pwrlock(&pwrpriv->lock);
+	mutex_unlock(&pwrpriv->lock);
 
 	return result;
 }
@@ -337,7 +337,7 @@ void rtw_init_pwrctrl_priv(struct adapter *padapter)
 {
 	struct pwrctrl_priv *pwrctrlpriv = &padapter->pwrctrlpriv;
 
-	_init_pwrlock(&pwrctrlpriv->lock);
+	mutex_init(&pwrctrlpriv->lock);
 	pwrctrlpriv->rf_pwrstate = rf_on;
 	pwrctrlpriv->ips_enter_cnts = 0;
 	pwrctrlpriv->ips_leave_cnts = 0;
