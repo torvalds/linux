@@ -31,7 +31,7 @@ static int xrs700x_mdio_reg_read(void *context, unsigned int reg,
 
 	uval = (u16)FIELD_GET(GENMASK(31, 16), reg);
 
-	ret = mdiobus_write(mdiodev->bus, mdiodev->addr, XRS_MDIO_IBA1, uval);
+	ret = mdiodev_write(mdiodev, XRS_MDIO_IBA1, uval);
 	if (ret < 0) {
 		dev_err(dev, "xrs mdiobus_write returned %d\n", ret);
 		return ret;
@@ -39,13 +39,13 @@ static int xrs700x_mdio_reg_read(void *context, unsigned int reg,
 
 	uval = (u16)((reg & GENMASK(15, 1)) | XRS_IB_READ);
 
-	ret = mdiobus_write(mdiodev->bus, mdiodev->addr, XRS_MDIO_IBA0, uval);
+	ret = mdiodev_write(mdiodev, XRS_MDIO_IBA0, uval);
 	if (ret < 0) {
 		dev_err(dev, "xrs mdiobus_write returned %d\n", ret);
 		return ret;
 	}
 
-	ret = mdiobus_read(mdiodev->bus, mdiodev->addr, XRS_MDIO_IBD);
+	ret = mdiodev_read(mdiodev, XRS_MDIO_IBD);
 	if (ret < 0) {
 		dev_err(dev, "xrs mdiobus_read returned %d\n", ret);
 		return ret;
@@ -64,7 +64,7 @@ static int xrs700x_mdio_reg_write(void *context, unsigned int reg,
 	u16 uval;
 	int ret;
 
-	ret = mdiobus_write(mdiodev->bus, mdiodev->addr, XRS_MDIO_IBD, (u16)val);
+	ret = mdiodev_write(mdiodev, XRS_MDIO_IBD, (u16)val);
 	if (ret < 0) {
 		dev_err(dev, "xrs mdiobus_write returned %d\n", ret);
 		return ret;
@@ -72,7 +72,7 @@ static int xrs700x_mdio_reg_write(void *context, unsigned int reg,
 
 	uval = (u16)FIELD_GET(GENMASK(31, 16), reg);
 
-	ret = mdiobus_write(mdiodev->bus, mdiodev->addr, XRS_MDIO_IBA1, uval);
+	ret = mdiodev_write(mdiodev, XRS_MDIO_IBA1, uval);
 	if (ret < 0) {
 		dev_err(dev, "xrs mdiobus_write returned %d\n", ret);
 		return ret;
@@ -80,7 +80,7 @@ static int xrs700x_mdio_reg_write(void *context, unsigned int reg,
 
 	uval = (u16)((reg & GENMASK(15, 1)) | XRS_IB_WRITE);
 
-	ret = mdiobus_write(mdiodev->bus, mdiodev->addr, XRS_MDIO_IBA0, uval);
+	ret = mdiodev_write(mdiodev, XRS_MDIO_IBA0, uval);
 	if (ret < 0) {
 		dev_err(dev, "xrs mdiobus_write returned %d\n", ret);
 		return ret;
