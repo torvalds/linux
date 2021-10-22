@@ -2309,15 +2309,18 @@ static int fuse_write_end(struct file *file, struct address_space *mapping,
 	if (!copied)
 		goto unlock;
 
+	pos += copied;
 	if (!PageUptodate(page)) {
 		/* Zero any unwritten bytes at the end of the page */
-		size_t endoff = (pos + copied) & ~PAGE_MASK;
+		size_t endoff = pos & ~PAGE_MASK;
 		if (endoff)
 			zero_user_segment(page, endoff, PAGE_SIZE);
 		SetPageUptodate(page);
 	}
 
-	fuse_write_update_size(inode, pos + copied);
+	if (pos > inode->i_size)
+		i_size_write(inode, pos);
+
 	set_page_dirty(page);
 
 unlock:
