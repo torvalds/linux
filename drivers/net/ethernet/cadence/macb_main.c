@@ -898,6 +898,17 @@ static int macb_mdiobus_register(struct macb *bp)
 {
 	struct device_node *child, *np = bp->pdev->dev.of_node;
 
+	/* If we have a child named mdio, probe it instead of looking for PHYs
+	 * directly under the MAC node
+	 */
+	child = of_get_child_by_name(np, "mdio");
+	if (np) {
+		int ret = of_mdiobus_register(bp->mii_bus, child);
+
+		of_node_put(child);
+		return ret;
+	}
+
 	if (of_phy_is_fixed_link(np))
 		return mdiobus_register(bp->mii_bus);
 
