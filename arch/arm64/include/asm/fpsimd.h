@@ -215,6 +215,11 @@ static inline void fpsimd_release_task(struct task_struct *task) { }
 static inline void sve_sync_to_fpsimd(struct task_struct *task) { }
 static inline void sve_sync_from_fpsimd_zeropad(struct task_struct *task) { }
 
+static inline int sve_max_virtualisable_vl(void)
+{
+	return 0;
+}
+
 static inline int sve_set_current_vl(unsigned long arg)
 {
 	return -EINVAL;
