@@ -1329,7 +1329,6 @@ nfs4_map_atomic_open_claim(struct nfs_server *server,
 static void nfs4_init_opendata_res(struct nfs4_opendata *p)
 {
 	p->o_res.f_attr = &p->f_attr;
-	p->o_res.f_label = p->f_label;
 	p->o_res.seqid = p->o_arg.seqid;
 	p->c_res.seqid = p->c_arg.seqid;
 	p->o_res.server = p->o_arg.server;
@@ -1355,8 +1354,8 @@ static struct nfs4_opendata *nfs4_opendata_alloc(struct dentry *dentry,
 	if (p == NULL)
 		goto err;
 
-	p->f_label = nfs4_label_alloc(server, gfp_mask);
-	if (IS_ERR(p->f_label))
+	p->f_attr.label = nfs4_label_alloc(server, gfp_mask);
+	if (IS_ERR(p->f_attr.label))
 		goto err_free_p;
 
 	p->a_label = nfs4_label_alloc(server, gfp_mask);
@@ -1434,7 +1433,7 @@ static struct nfs4_opendata *nfs4_opendata_alloc(struct dentry *dentry,
 err_free_label:
 	nfs4_label_free(p->a_label);
 err_free_f:
-	nfs4_label_free(p->f_label);
+	nfs4_label_free(p->f_attr.label);
 err_free_p:
 	kfree(p);
 err:
@@ -1456,7 +1455,7 @@ static void nfs4_opendata_free(struct kref *kref)
 	nfs4_put_state_owner(p->owner);
 
 	nfs4_label_free(p->a_label);
-	nfs4_label_free(p->f_label);
+	nfs4_label_free(p->f_attr.label);
 
 	dput(p->dir);
 	dput(p->dentry);
@@ -2009,7 +2008,7 @@ nfs4_opendata_get_inode(struct nfs4_opendata *data)
 		if (!(data->f_attr.valid & NFS_ATTR_FATTR))
 			return ERR_PTR(-EAGAIN);
 		inode = nfs_fhget(data->dir->d_sb, &data->o_res.fh,
-				&data->f_attr, data->f_label);
+				&data->f_attr, data->f_attr.label);
 		break;
 	default:
 		inode = d_inode(data->dentry);
@@ -2709,7 +2708,7 @@ static int _nfs4_proc_open(struct nfs4_opendata *data,
 	if (!(o_res->f_attr->valid & NFS_ATTR_FATTR)) {
 		nfs4_sequence_free_slot(&o_res->seq_res);
 		nfs4_proc_getattr(server, &o_res->fh, o_res->f_attr,
-				o_res->f_label, NULL);
+				o_res->f_attr->label, NULL);
 	}
 	return 0;
 }
@@ -3125,7 +3124,6 @@ static int _nfs4_do_open(struct inode *dir,
 	enum open_claim_type4 claim = NFS4_OPEN_CLAIM_NULL;
 	struct iattr *sattr = c->sattr;
 	struct nfs4_label *label = c->label;
-	struct nfs4_label *olabel = NULL;
 	int status;
 
 	/* Protect against reboot recovery conflicts */
@@ -3148,19 +3146,11 @@ static int _nfs4_do_open(struct inode *dir,
 	if (opendata == NULL)
 		goto err_put_state_owner;
 
-	if (label) {
-		olabel = nfs4_label_alloc(server, GFP_KERNEL);
-		if (IS_ERR(olabel)) {
-			status = PTR_ERR(olabel);
-			goto err_opendata_put;
-		}
-	}
-
 	if (server->attr_bitmask[2] & FATTR4_WORD2_MDSTHRESHOLD) {
 		if (!opendata->f_attr.mdsthreshold) {
 			opendata->f_attr.mdsthreshold = pnfs_mdsthreshold_alloc();
 			if (!opendata->f_attr.mdsthreshold)
-				goto err_free_label;
+				goto err_opendata_put;
 		}
 		opendata->o_arg.open_bitmap = &nfs4_pnfs_open_bitmap[0];
 	}
@@ -3169,7 +3159,7 @@ static int _nfs4_do_open(struct inode *dir,
 
 	status = _nfs4_open_and_get_state(opendata, flags, ctx);
 	if (status != 0)
-		goto err_free_label;
+		goto err_opendata_put;
 	state = ctx->state;
 
 	if ((opendata->o_arg.open_flags & (O_CREAT|O_EXCL)) == (O_CREAT|O_EXCL) &&
@@ -3186,11 +3176,12 @@ static int _nfs4_do_open(struct inode *dir,
 			nfs_fattr_init(opendata->o_res.f_attr);
 			status = nfs4_do_setattr(state->inode, cred,
 					opendata->o_res.f_attr, sattr,
-					ctx, label, olabel);
+					ctx, label, opendata->o_res.f_attr->label);
 			if (status == 0) {
 				nfs_setattr_update_inode(state->inode, sattr,
 						opendata->o_res.f_attr);
-				nfs_setsecurity(state->inode, opendata->o_res.f_attr, olabel);
+				nfs_setsecurity(state->inode, opendata->o_res.f_attr,
+						opendata->o_res.f_attr->label);
 			}
 			sattr->ia_valid = ia_old;
 		}
@@ -3203,13 +3194,9 @@ static int _nfs4_do_open(struct inode *dir,
 		opendata->f_attr.mdsthreshold = NULL;
 	}
 
-	nfs4_label_free(olabel);
-
 	nfs4_opendata_put(opendata);
 	nfs4_put_state_owner(sp);
 	return 0;
-err_free_label:
-	nfs4_label_free(olabel);
 err_opendata_put:
 	nfs4_opendata_put(opendata);
 err_put_state_owner:

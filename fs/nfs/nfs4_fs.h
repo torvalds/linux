@@ -234,7 +234,6 @@ struct nfs4_opendata {
 	struct nfs4_string group_name;
 	struct nfs4_label *a_label;
 	struct nfs_fattr f_attr;
-	struct nfs4_label *f_label;
 	struct dentry *dir;
 	struct dentry *dentry;
 	struct nfs4_state_owner *owner;
