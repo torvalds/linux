@@ -211,9 +211,8 @@ void fuse_finish_open(struct inode *inode, struct file *file)
 		i_size_write(inode, 0);
 		spin_unlock(&fi->lock);
 		truncate_pagecache(inode, 0);
+		file_update_time(file);
 		fuse_invalidate_attr_mask(inode, FUSE_STATX_MODSIZE);
-		if (fc->writeback_cache)
-			file_update_time(file);
 	} else if (!(ff->open_flags & FOPEN_KEEP_CACHE)) {
 		invalidate_inode_pages2(inode->i_mapping);
 	}
@@ -2986,10 +2985,7 @@ static long fuse_file_fallocate(struct file *file, int mode, loff_t offset,
 
 	/* we could have extended the file */
 	if (!(mode & FALLOC_FL_KEEP_SIZE)) {
-		bool changed = fuse_write_update_attr(inode, offset + length,
-						      length);
-
-		if (changed && fm->fc->writeback_cache)
+		if (fuse_write_update_attr(inode, offset + length, length))
 			file_update_time(file);
 	}
 
@@ -3104,13 +3100,8 @@ static ssize_t __fuse_copy_file_range(struct file *file_in, loff_t pos_in,
 				   ALIGN_DOWN(pos_out, PAGE_SIZE),
 				   ALIGN(pos_out + outarg.size, PAGE_SIZE) - 1);
 
-	if (fc->writeback_cache) {
-		fuse_write_update_attr(inode_out, pos_out + outarg.size,
-				       outarg.size);
-		file_update_time(file_out);
-	}
-
-	fuse_invalidate_attr_mask(inode_out, FUSE_STATX_MODSIZE);
+	file_update_time(file_out);
+	fuse_write_update_attr(inode_out, pos_out + outarg.size, outarg.size);
 
 	err = outarg.size;
 out:
