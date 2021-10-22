@@ -682,7 +682,7 @@ bool RFvWriteWakeProgSyn(struct vnt_private *priv, unsigned char byRFType,
 	void __iomem *iobase = priv->port_offset;
 	int i;
 	unsigned char init_count = 0;
-	unsigned char bySleepCount = 0;
+	unsigned char sleep_count = 0;
 
 	VNSvOutPortW(iobase + MAC_REG_MISCFFNDEX, 0);
 	switch (byRFType) {
@@ -694,8 +694,8 @@ bool RFvWriteWakeProgSyn(struct vnt_private *priv, unsigned char byRFType,
 
 		 /* Init Reg + Channel Reg (2) */
 		init_count = CB_AL2230_INIT_SEQ + 2;
-		bySleepCount = 0;
-		if (init_count > (MISCFIFO_SYNDATASIZE - bySleepCount))
+		sleep_count = 0;
+		if (init_count > (MISCFIFO_SYNDATASIZE - sleep_count))
 			return false;
 
 		for (i = 0; i < CB_AL2230_INIT_SEQ; i++)
@@ -710,8 +710,8 @@ bool RFvWriteWakeProgSyn(struct vnt_private *priv, unsigned char byRFType,
 	case RF_AIROHA7230:
 		 /* Init Reg + Channel Reg (3) */
 		init_count = CB_AL7230_INIT_SEQ + 3;
-		bySleepCount = 0;
-		if (init_count > (MISCFIFO_SYNDATASIZE - bySleepCount))
+		sleep_count = 0;
+		if (init_count > (MISCFIFO_SYNDATASIZE - sleep_count))
 			return false;
 
 		if (uChannel <= CB_MAX_CHANNEL_24G) {
@@ -736,7 +736,7 @@ bool RFvWriteWakeProgSyn(struct vnt_private *priv, unsigned char byRFType,
 		return false;
 	}
 
-	MACvSetMISCFifo(priv, MISCFIFO_SYNINFO_IDX, (unsigned long)MAKEWORD(bySleepCount, init_count));
+	MACvSetMISCFifo(priv, MISCFIFO_SYNINFO_IDX, (unsigned long)MAKEWORD(sleep_count, init_count));
 
 	return true;
 }
