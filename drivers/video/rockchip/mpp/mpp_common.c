@@ -918,10 +918,6 @@ static int mpp_attach_service(struct mpp_dev *mpp, struct device *dev)
 		}
 	}
 
-	/* register current device to mpp service */
-	mpp->srv->sub_devices[mpp->var->device_type] = mpp;
-	set_bit(mpp->var->device_type, &mpp->srv->hw_support);
-
 	return 0;
 
 err_put_pdev:
@@ -1949,6 +1945,16 @@ int mpp_dev_remove(struct mpp_dev *mpp)
 	mpp_detach_workqueue(mpp);
 	device_init_wakeup(mpp->dev, false);
 	pm_runtime_disable(mpp->dev);
+
+	return 0;
+}
+
+int mpp_dev_register_srv(struct mpp_dev *mpp, struct mpp_service *srv)
+{
+	enum MPP_DEVICE_TYPE device_type = mpp->var->device_type;
+
+	srv->sub_devices[device_type] = mpp;
+	set_bit(device_type, &srv->hw_support);
 
 	return 0;
 }

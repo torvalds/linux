@@ -589,6 +589,7 @@ int mpp_session_deinit(struct mpp_session *session);
 int mpp_dev_probe(struct mpp_dev *mpp,
 		  struct platform_device *pdev);
 int mpp_dev_remove(struct mpp_dev *mpp);
+int mpp_dev_register_srv(struct mpp_dev *mpp, struct mpp_service *srv);
 
 int mpp_power_on(struct mpp_dev *mpp);
 int mpp_power_off(struct mpp_dev *mpp);
