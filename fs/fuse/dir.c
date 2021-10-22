@@ -1021,12 +1021,14 @@ static int fuse_update_get_attr(struct inode *inode, struct file *file,
 	struct fuse_inode *fi = get_fuse_inode(inode);
 	int err = 0;
 	bool sync;
+	u32 inval_mask = READ_ONCE(fi->inval_mask);
+	u32 cache_mask = fuse_get_cache_mask(inode);
 
 	if (flags & AT_STATX_FORCE_SYNC)
 		sync = true;
 	else if (flags & AT_STATX_DONT_SYNC)
 		sync = false;
-	else if (request_mask & READ_ONCE(fi->inval_mask))
+	else if (request_mask & inval_mask & ~cache_mask)
 		sync = true;
 	else
 		sync = time_before64(fi->i_time, get_jiffies_64());
