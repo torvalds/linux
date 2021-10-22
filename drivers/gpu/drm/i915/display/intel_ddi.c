@@ -3515,18 +3515,7 @@ static void intel_ddi_get_config(struct intel_encoder *encoder,
 	if (drm_WARN_ON(&dev_priv->drm, transcoder_is_dsi(cpu_transcoder)))
 		return;
 
-	if (pipe_config->bigjoiner_slave) {
-		/* read out pipe settings from master */
-		enum transcoder save = pipe_config->cpu_transcoder;
-
-		/* Our own transcoder needs to be disabled when reading it in intel_ddi_read_func_ctl() */
-		WARN_ON(pipe_config->output_types);
-		pipe_config->cpu_transcoder = (enum transcoder)pipe_config->bigjoiner_linked_crtc->pipe;
-		intel_ddi_read_func_ctl(encoder, pipe_config);
-		pipe_config->cpu_transcoder = save;
-	} else {
-		intel_ddi_read_func_ctl(encoder, pipe_config);
-	}
+	intel_ddi_read_func_ctl(encoder, pipe_config);
 
 	intel_ddi_mso_get_config(encoder, pipe_config);
 
@@ -3554,8 +3543,7 @@ static void intel_ddi_get_config(struct intel_encoder *encoder,
 		dev_priv->vbt.edp.bpp = pipe_config->pipe_bpp;
 	}
 
-	if (!pipe_config->bigjoiner_slave)
-		ddi_dotclock_get(pipe_config);
+	ddi_dotclock_get(pipe_config);
 
 	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 		pipe_config->lane_lat_optim_mask =
