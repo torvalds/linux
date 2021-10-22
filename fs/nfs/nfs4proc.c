@@ -4859,7 +4859,7 @@ static int nfs4_do_create(struct inode *dir, struct dentry *dentry, struct nfs4_
 					      data->res.fattr->time_start,
 					      NFS_INO_INVALID_DATA);
 		spin_unlock(&dir->i_lock);
-		status = nfs_instantiate(dentry, data->res.fh, data->res.fattr, data->res.fattr->label);
+		status = nfs_instantiate(dentry, data->res.fh, data->res.fattr);
 	}
 	return status;
 }

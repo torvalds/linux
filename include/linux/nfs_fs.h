@@ -532,7 +532,7 @@ extern struct dentry *nfs_add_or_obtain(struct dentry *dentry,
 			struct nfs_fh *fh, struct nfs_fattr *fattr,
 			struct nfs4_label *label);
 extern int nfs_instantiate(struct dentry *dentry, struct nfs_fh *fh,
-			struct nfs_fattr *fattr, struct nfs4_label *label);
+			struct nfs_fattr *fattr);
 extern int nfs_may_open(struct inode *inode, const struct cred *cred, int openflags);
 extern void nfs_access_zap_cache(struct inode *inode);
 extern int nfs_access_get_cached(struct inode *inode, const struct cred *cred, struct nfs_access_entry *res,

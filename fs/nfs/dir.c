@@ -2075,12 +2075,11 @@ EXPORT_SYMBOL_GPL(nfs_add_or_obtain);
  * Code common to create, mkdir, and mknod.
  */
 int nfs_instantiate(struct dentry *dentry, struct nfs_fh *fhandle,
-				struct nfs_fattr *fattr,
-				struct nfs4_label *label)
+				struct nfs_fattr *fattr)
 {
 	struct dentry *d;
 
-	d = nfs_add_or_obtain(dentry, fhandle, fattr, label);
+	d = nfs_add_or_obtain(dentry, fhandle, fattr, fattr->label);
 	if (IS_ERR(d))
 		return PTR_ERR(d);
 
