@@ -5762,18 +5762,15 @@ static void
 intel_crtc_copy_uapi_to_hw_state_nomodeset(struct intel_atomic_state *state,
 					   struct intel_crtc_state *crtc_state)
 {
-	const struct intel_crtc_state *from_crtc_state = crtc_state;
+	const struct intel_crtc_state *master_crtc_state;
+	struct intel_crtc *master_crtc;
 
-	if (crtc_state->bigjoiner_slave) {
-		from_crtc_state = intel_atomic_get_new_crtc_state(state,
-								  crtc_state->bigjoiner_linked_crtc);
+	master_crtc = intel_master_crtc(crtc_state);
+	master_crtc_state = intel_atomic_get_new_crtc_state(state, master_crtc);
 
-		/* No need to copy state if the master state is unchanged */
-		if (!from_crtc_state)
-			return;
-	}
-
-	intel_crtc_copy_color_blobs(crtc_state, from_crtc_state);
+	/* No need to copy state if the master state is unchanged */
+	if (master_crtc_state)
+		intel_crtc_copy_color_blobs(crtc_state, master_crtc_state);
 }
 
 static void
