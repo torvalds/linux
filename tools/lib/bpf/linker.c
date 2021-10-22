@@ -15,7 +15,6 @@
 #include <linux/btf.h>
 #include <elf.h>
 #include <libelf.h>
-#include <gelf.h>
 #include <fcntl.h>
 #include "libbpf.h"
 #include "btf.h"

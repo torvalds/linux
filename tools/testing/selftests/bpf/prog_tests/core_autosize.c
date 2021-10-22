@@ -163,7 +163,7 @@ void test_core_autosize(void)
 
 	usleep(1);
 
-	bss_map = bpf_object__find_map_by_name(skel->obj, "test_cor.bss");
+	bss_map = bpf_object__find_map_by_name(skel->obj, ".bss");
 	if (!ASSERT_OK_PTR(bss_map, "bss_map_find"))
 		goto cleanup;
 
