@@ -6498,51 +6498,48 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 
 	PIPE_CONF_CHECK_X(output_types);
 
-	/* FIXME do the readout properly and get rid of this quirk */
-	if (!PIPE_CONF_QUIRK(PIPE_CONFIG_QUIRK_BIGJOINER_SLAVE)) {
-		PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_hdisplay);
-		PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_htotal);
-		PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_hblank_start);
-		PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_hblank_end);
-		PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_hsync_start);
-		PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_hsync_end);
+	PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_hdisplay);
+	PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_htotal);
+	PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_hblank_start);
+	PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_hblank_end);
+	PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_hsync_start);
+	PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_hsync_end);
 
-		PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_vdisplay);
-		PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_vtotal);
-		PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_vblank_start);
-		PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_vblank_end);
-		PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_vsync_start);
-		PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_vsync_end);
+	PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_vdisplay);
+	PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_vtotal);
+	PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_vblank_start);
+	PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_vblank_end);
+	PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_vsync_start);
+	PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_vsync_end);
 
-		PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_hdisplay);
-		PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_htotal);
-		PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_hblank_start);
-		PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_hblank_end);
-		PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_hsync_start);
-		PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_hsync_end);
+	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_hdisplay);
+	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_htotal);
+	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_hblank_start);
+	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_hblank_end);
+	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_hsync_start);
+	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_hsync_end);
 
-		PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_vdisplay);
-		PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_vtotal);
-		PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_vblank_start);
-		PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_vblank_end);
-		PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_vsync_start);
-		PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_vsync_end);
+	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_vdisplay);
+	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_vtotal);
+	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_vblank_start);
+	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_vblank_end);
+	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_vsync_start);
+	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_vsync_end);
 
-		PIPE_CONF_CHECK_I(pixel_multiplier);
+	PIPE_CONF_CHECK_I(pixel_multiplier);
 
+	PIPE_CONF_CHECK_FLAGS(hw.adjusted_mode.flags,
+			      DRM_MODE_FLAG_INTERLACE);
+
+	if (!PIPE_CONF_QUIRK(PIPE_CONFIG_QUIRK_MODE_SYNC_FLAGS)) {
 		PIPE_CONF_CHECK_FLAGS(hw.adjusted_mode.flags,
-				      DRM_MODE_FLAG_INTERLACE);
-
-		if (!PIPE_CONF_QUIRK(PIPE_CONFIG_QUIRK_MODE_SYNC_FLAGS)) {
-			PIPE_CONF_CHECK_FLAGS(hw.adjusted_mode.flags,
-					      DRM_MODE_FLAG_PHSYNC);
-			PIPE_CONF_CHECK_FLAGS(hw.adjusted_mode.flags,
-					      DRM_MODE_FLAG_NHSYNC);
-			PIPE_CONF_CHECK_FLAGS(hw.adjusted_mode.flags,
-					      DRM_MODE_FLAG_PVSYNC);
-			PIPE_CONF_CHECK_FLAGS(hw.adjusted_mode.flags,
-					      DRM_MODE_FLAG_NVSYNC);
-		}
+				      DRM_MODE_FLAG_PHSYNC);
+		PIPE_CONF_CHECK_FLAGS(hw.adjusted_mode.flags,
+				      DRM_MODE_FLAG_NHSYNC);
+		PIPE_CONF_CHECK_FLAGS(hw.adjusted_mode.flags,
+				      DRM_MODE_FLAG_PVSYNC);
+		PIPE_CONF_CHECK_FLAGS(hw.adjusted_mode.flags,
+				      DRM_MODE_FLAG_NVSYNC);
 	}
 
 	PIPE_CONF_CHECK_I(output_format);
@@ -6554,9 +6551,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	PIPE_CONF_CHECK_BOOL(hdmi_scrambling);
 	PIPE_CONF_CHECK_BOOL(hdmi_high_tmds_clock_ratio);
 	PIPE_CONF_CHECK_BOOL(has_infoframe);
-	/* FIXME do the readout properly and get rid of this quirk */
-	if (!PIPE_CONF_QUIRK(PIPE_CONFIG_QUIRK_BIGJOINER_SLAVE))
-		PIPE_CONF_CHECK_BOOL(fec_enable);
+	PIPE_CONF_CHECK_BOOL(fec_enable);
 
 	PIPE_CONF_CHECK_BOOL_INCOMPLETE(has_audio);
 
@@ -6585,9 +6580,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 		}
 
 		PIPE_CONF_CHECK_I(scaler_state.scaler_id);
-		/* FIXME do the readout properly and get rid of this quirk */
-		if (!PIPE_CONF_QUIRK(PIPE_CONFIG_QUIRK_BIGJOINER_SLAVE))
-			PIPE_CONF_CHECK_CLOCK_FUZZY(pixel_rate);
+		PIPE_CONF_CHECK_CLOCK_FUZZY(pixel_rate);
 
 		PIPE_CONF_CHECK_X(gamma_mode);
 		if (IS_CHERRYVIEW(dev_priv))
@@ -6614,11 +6607,9 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 
 	PIPE_CONF_CHECK_BOOL(double_wide);
 
-	if (dev_priv->dpll.mgr)
+	if (dev_priv->dpll.mgr) {
 		PIPE_CONF_CHECK_P(shared_dpll);
 
-	/* FIXME do the readout properly and get rid of this quirk */
-	if (dev_priv->dpll.mgr && !PIPE_CONF_QUIRK(PIPE_CONFIG_QUIRK_BIGJOINER_SLAVE)) {
 		PIPE_CONF_CHECK_X(dpll_hw_state.dpll);
 		PIPE_CONF_CHECK_X(dpll_hw_state.dpll_md);
 		PIPE_CONF_CHECK_X(dpll_hw_state.fp0);
@@ -6652,19 +6643,17 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 		PIPE_CONF_CHECK_X(dpll_hw_state.mg_pll_tdc_coldst_bias);
 	}
 
-	if (!PIPE_CONF_QUIRK(PIPE_CONFIG_QUIRK_BIGJOINER_SLAVE)) {
-		PIPE_CONF_CHECK_X(dsi_pll.ctrl);
-		PIPE_CONF_CHECK_X(dsi_pll.div);
+	PIPE_CONF_CHECK_X(dsi_pll.ctrl);
+	PIPE_CONF_CHECK_X(dsi_pll.div);
 
-		if (IS_G4X(dev_priv) || DISPLAY_VER(dev_priv) >= 5)
-			PIPE_CONF_CHECK_I(pipe_bpp);
+	if (IS_G4X(dev_priv) || DISPLAY_VER(dev_priv) >= 5)
+		PIPE_CONF_CHECK_I(pipe_bpp);
 
-		PIPE_CONF_CHECK_CLOCK_FUZZY(hw.pipe_mode.crtc_clock);
-		PIPE_CONF_CHECK_CLOCK_FUZZY(hw.adjusted_mode.crtc_clock);
-		PIPE_CONF_CHECK_CLOCK_FUZZY(port_clock);
+	PIPE_CONF_CHECK_CLOCK_FUZZY(hw.pipe_mode.crtc_clock);
+	PIPE_CONF_CHECK_CLOCK_FUZZY(hw.adjusted_mode.crtc_clock);
+	PIPE_CONF_CHECK_CLOCK_FUZZY(port_clock);
 
-		PIPE_CONF_CHECK_I(min_voltage_level);
-	}
+	PIPE_CONF_CHECK_I(min_voltage_level);
 
 	if (current_config->has_psr || pipe_config->has_psr)
 		PIPE_CONF_CHECK_X_WITH_MASK(infoframes.enable,
