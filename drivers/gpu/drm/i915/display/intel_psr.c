@@ -1725,10 +1725,16 @@ skip_sel_fetch_set_loop:
 	return 0;
 }
 
-static void _intel_psr_pre_plane_update(const struct intel_atomic_state *state,
-					const struct intel_crtc_state *crtc_state)
+void intel_psr_pre_plane_update(struct intel_atomic_state *state,
+				struct intel_crtc *crtc)
 {
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	const struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 	struct intel_encoder *encoder;
+
+	if (!HAS_PSR(i915))
+		return;
 
 	for_each_intel_encoder_mask_with_psr(state->base.dev, encoder,
 					     crtc_state->uapi.encoder_mask) {
@@ -1744,6 +1750,7 @@ static void _intel_psr_pre_plane_update(const struct intel_atomic_state *state,
 		 * - All planes will go inactive
 		 * - Changing between PSR versions
 		 */
+		needs_to_disable |= intel_crtc_needs_modeset(crtc_state);
 		needs_to_disable |= !crtc_state->has_psr;
 		needs_to_disable |= !crtc_state->active_planes;
 		needs_to_disable |= crtc_state->has_psr2 != psr->psr2_enabled;
@@ -1753,20 +1760,6 @@ static void _intel_psr_pre_plane_update(const struct intel_atomic_state *state,
 
 		mutex_unlock(&psr->lock);
 	}
-}
-
-void intel_psr_pre_plane_update(const struct intel_atomic_state *state)
-{
-	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	struct intel_crtc_state *crtc_state;
-	struct intel_crtc *crtc;
-	int i;
-
-	if (!HAS_PSR(dev_priv))
-		return;
-
-	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i)
-		_intel_psr_pre_plane_update(state, crtc_state);
 }
 
 static void _intel_psr_post_plane_update(const struct intel_atomic_state *state,
