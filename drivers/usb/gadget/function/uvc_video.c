@@ -104,22 +104,22 @@ uvc_video_encode_isoc_sg(struct usb_request *req, struct uvc_video *video,
 	unsigned int len = video->req_size;
 	unsigned int sg_left, part = 0;
 	unsigned int i;
-	int ret;
+	int header_len;
 
 	sg = ureq->sgt.sgl;
 	sg_init_table(sg, ureq->sgt.nents);
 
 	/* Init the header. */
-	ret = uvc_video_encode_header(video, buf, ureq->header,
+	header_len = uvc_video_encode_header(video, buf, ureq->header,
 				      video->req_size);
-	sg_set_buf(sg, ureq->header, UVCG_REQUEST_HEADER_LEN);
-	len -= ret;
+	sg_set_buf(sg, ureq->header, header_len);
+	len -= header_len;
 
 	if (pending <= len)
 		len = pending;
 
 	req->length = (len == pending) ?
-		len + UVCG_REQUEST_HEADER_LEN : video->req_size;
+		len + header_len : video->req_size;
 
 	/* Init the pending sgs with payload */
 	sg = sg_next(sg);
@@ -148,7 +148,7 @@ uvc_video_encode_isoc_sg(struct usb_request *req, struct uvc_video *video,
 	req->num_sgs = i + 1;
 
 	req->length -= len;
-	video->queue.buf_used += req->length - UVCG_REQUEST_HEADER_LEN;
+	video->queue.buf_used += req->length - header_len;
 
 	if (buf->bytesused == video->queue.buf_used || !buf->sg) {
 		video->queue.buf_used = 0;
