@@ -2825,12 +2825,10 @@ static void intel_ddi_post_disable(struct intel_atomic_state *state,
 	}
 
 	if (old_crtc_state->bigjoiner_linked_crtc) {
-		struct intel_atomic_state *state =
-			to_intel_atomic_state(old_crtc_state->uapi.state);
-		struct intel_crtc *slave =
+		struct intel_crtc *slave_crtc =
 			old_crtc_state->bigjoiner_linked_crtc;
 		const struct intel_crtc_state *old_slave_crtc_state =
-			intel_atomic_get_old_crtc_state(state, slave);
+			intel_atomic_get_old_crtc_state(state, slave_crtc);
 
 		intel_crtc_vblank_off(old_slave_crtc_state);
 

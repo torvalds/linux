@@ -335,6 +335,14 @@ is_trans_port_sync_mode(const struct intel_crtc_state *crtc_state)
 		is_trans_port_sync_slave(crtc_state);
 }
 
+static struct intel_crtc *intel_master_crtc(const struct intel_crtc_state *crtc_state)
+{
+	if (crtc_state->bigjoiner_slave)
+		return crtc_state->bigjoiner_linked_crtc;
+	else
+		return to_intel_crtc(crtc_state->uapi.crtc);
+}
+
 static bool pipe_scanline_is_moving(struct drm_i915_private *dev_priv,
 				    enum pipe pipe)
 {
@@ -1947,21 +1955,19 @@ static void hsw_set_frame_start_delay(const struct intel_crtc_state *crtc_state)
 static void icl_ddi_bigjoiner_pre_enable(struct intel_atomic_state *state,
 					 const struct intel_crtc_state *crtc_state)
 {
-	struct intel_crtc *master = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(master->base.dev);
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc_state *master_crtc_state;
+	struct intel_crtc *master_crtc;
 	struct drm_connector_state *conn_state;
 	struct drm_connector *conn;
 	struct intel_encoder *encoder = NULL;
 	int i;
 
-	if (crtc_state->bigjoiner_slave)
-		master = crtc_state->bigjoiner_linked_crtc;
-
-	master_crtc_state = intel_atomic_get_new_crtc_state(state, master);
+	master_crtc = intel_master_crtc(crtc_state);
+	master_crtc_state = intel_atomic_get_new_crtc_state(state, master_crtc);
 
 	for_each_new_connector_in_state(&state->base, conn, conn_state, i) {
-		if (conn_state->crtc != &master->base)
+		if (conn_state->crtc != &master_crtc->base)
 			continue;
 
 		encoder = to_intel_encoder(conn_state->best_encoder);
@@ -1975,10 +1981,10 @@ static void icl_ddi_bigjoiner_pre_enable(struct intel_atomic_state *state,
 		/*
 		 * Enable sequence steps 1-7 on bigjoiner master
 		 */
-		intel_encoders_pre_pll_enable(state, master);
+		intel_encoders_pre_pll_enable(state, master_crtc);
 		if (master_crtc_state->shared_dpll)
 			intel_enable_shared_dpll(master_crtc_state);
-		intel_encoders_pre_enable(state, master);
+		intel_encoders_pre_enable(state, master_crtc);
 
 		/* and DSC on slave */
 		intel_dsc_enable(NULL, crtc_state);
@@ -6877,7 +6883,7 @@ verify_crtc_state(struct intel_crtc *crtc,
 	struct intel_encoder *encoder;
 	struct intel_crtc_state *pipe_config = old_crtc_state;
 	struct drm_atomic_state *state = old_crtc_state->uapi.state;
-	struct intel_crtc *master = crtc;
+	struct intel_crtc *master_crtc;
 
 	__drm_atomic_helper_crtc_destroy_state(&old_crtc_state->uapi);
 	intel_crtc_free_hw_state(old_crtc_state);
@@ -6905,10 +6911,9 @@ verify_crtc_state(struct intel_crtc *crtc,
 			"(expected %i, found %i)\n",
 			new_crtc_state->hw.active, crtc->active);
 
-	if (new_crtc_state->bigjoiner_slave)
-		master = new_crtc_state->bigjoiner_linked_crtc;
+	master_crtc = intel_master_crtc(new_crtc_state);
 
-	for_each_encoder_on_crtc(dev, &master->base, encoder) {
+	for_each_encoder_on_crtc(dev, &master_crtc->base, encoder) {
 		enum pipe pipe;
 		bool active;
 
@@ -6918,7 +6923,7 @@ verify_crtc_state(struct intel_crtc *crtc,
 				encoder->base.base.id, active,
 				new_crtc_state->hw.active);
 
-		I915_STATE_WARN(active && master->pipe != pipe,
+		I915_STATE_WARN(active && master_crtc->pipe != pipe,
 				"Encoder connected to wrong pipe %c\n",
 				pipe_name(pipe));
 
@@ -7590,13 +7595,13 @@ static int intel_atomic_check_bigjoiner(struct intel_atomic_state *state,
 					struct intel_crtc_state *new_crtc_state)
 {
 	struct intel_crtc_state *slave_crtc_state, *master_crtc_state;
-	struct intel_crtc *slave, *master;
+	struct intel_crtc *slave_crtc, *master_crtc;
 
 	/* slave being enabled, is master is still claiming this crtc? */
 	if (old_crtc_state->bigjoiner_slave) {
-		slave = crtc;
-		master = old_crtc_state->bigjoiner_linked_crtc;
-		master_crtc_state = intel_atomic_get_new_crtc_state(state, master);
+		slave_crtc = crtc;
+		master_crtc = old_crtc_state->bigjoiner_linked_crtc;
+		master_crtc_state = intel_atomic_get_new_crtc_state(state, master_crtc);
 		if (!master_crtc_state || !intel_crtc_needs_modeset(master_crtc_state))
 			goto claimed;
 	}
@@ -7604,17 +7609,17 @@ static int intel_atomic_check_bigjoiner(struct intel_atomic_state *state,
 	if (!new_crtc_state->bigjoiner)
 		return 0;
 
-	slave = intel_dsc_get_bigjoiner_secondary(crtc);
-	if (!slave) {
+	slave_crtc = intel_dsc_get_bigjoiner_secondary(crtc);
+	if (!slave_crtc) {
 		DRM_DEBUG_KMS("[CRTC:%d:%s] Big joiner configuration requires "
 			      "CRTC + 1 to be used, doesn't exist\n",
 			      crtc->base.base.id, crtc->base.name);
 		return -EINVAL;
 	}
 
-	new_crtc_state->bigjoiner_linked_crtc = slave;
-	slave_crtc_state = intel_atomic_get_crtc_state(&state->base, slave);
-	master = crtc;
+	new_crtc_state->bigjoiner_linked_crtc = slave_crtc;
+	slave_crtc_state = intel_atomic_get_crtc_state(&state->base, slave_crtc);
+	master_crtc = crtc;
 	if (IS_ERR(slave_crtc_state))
 		return PTR_ERR(slave_crtc_state);
 
@@ -7623,15 +7628,15 @@ static int intel_atomic_check_bigjoiner(struct intel_atomic_state *state,
 		goto claimed;
 
 	DRM_DEBUG_KMS("[CRTC:%d:%s] Used as slave for big joiner\n",
-		      slave->base.base.id, slave->base.name);
+		      slave_crtc->base.base.id, slave_crtc->base.name);
 
 	return copy_bigjoiner_crtc_state(slave_crtc_state, new_crtc_state);
 
 claimed:
 	DRM_DEBUG_KMS("[CRTC:%d:%s] Slave is enabled as normal CRTC, but "
 		      "[CRTC:%d:%s] claiming this CRTC for bigjoiner.\n",
-		      slave->base.base.id, slave->base.name,
-		      master->base.base.id, master->base.name);
+		      slave_crtc->base.base.id, slave_crtc->base.name,
+		      master_crtc->base.base.id, master_crtc->base.name);
 	return -EINVAL;
 }
 
