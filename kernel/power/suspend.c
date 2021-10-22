@@ -160,11 +160,13 @@ EXPORT_SYMBOL_GPL(s2idle_wake);
 static bool valid_state(suspend_state_t state)
 {
 	/*
-	 * PM_SUSPEND_STANDBY and PM_SUSPEND_MEM states need low level
-	 * support and need to be valid to the low level
-	 * implementation, no valid callback implies that none are valid.
+	 * The PM_SUSPEND_STANDBY and PM_SUSPEND_MEM states require low-level
+	 * support and need to be valid to the low-level implementation.
+	 *
+	 * No ->valid() or ->enter() callback implies that none are valid.
 	 */
-	return suspend_ops && suspend_ops->valid && suspend_ops->valid(state);
+	return suspend_ops && suspend_ops->valid && suspend_ops->valid(state) &&
+		suspend_ops->enter;
 }
 
 void __init pm_states_init(void)
@@ -236,7 +238,7 @@ EXPORT_SYMBOL_GPL(suspend_valid_only_mem);
 
 static bool sleep_state_supported(suspend_state_t state)
 {
-	return state == PM_SUSPEND_TO_IDLE || (suspend_ops && suspend_ops->enter);
+	return state == PM_SUSPEND_TO_IDLE || valid_state(state);
 }
 
 static int platform_suspend_prepare(suspend_state_t state)
