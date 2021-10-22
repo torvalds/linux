@@ -276,9 +276,16 @@ static int aspeed_jtag_sw_set_tap_state(struct aspeed_jtag_info *aspeed_jtag,
 
 	from = aspeed_jtag->sts;
 	to = endstate;
-	for (i = 0; i < _tms_cycle_lookup[from][to].count; i++)
-		TCK_Cycle(aspeed_jtag,
-			((_tms_cycle_lookup[from][to].tmsbits >> i) & 0x1), 0);
+	/* Send 8 TMS high to ensure jtag tap state go to TLRESET */
+	if (endstate == JTAG_STATE_TLRESET)
+		for (i = 0; i < 8 ; i++)
+			TCK_Cycle(aspeed_jtag, ((0xff >> i) & 0x1), 0);
+	else
+		for (i = 0; i < _tms_cycle_lookup[from][to].count; i++)
+			TCK_Cycle(aspeed_jtag,
+				  ((_tms_cycle_lookup[from][to].tmsbits >> i) &
+				   0x1),
+				  0);
 	aspeed_jtag->sts = endstate;
 	JTAG_DBUG("go to %d", endstate);
 	return 0;
