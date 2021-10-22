@@ -1693,28 +1693,6 @@ static void intel_encoders_enable(struct intel_atomic_state *state,
 	}
 }
 
-static void intel_encoders_pre_disable(struct intel_atomic_state *state,
-				       struct intel_crtc *crtc)
-{
-	const struct intel_crtc_state *old_crtc_state =
-		intel_atomic_get_old_crtc_state(state, crtc);
-	const struct drm_connector_state *old_conn_state;
-	struct drm_connector *conn;
-	int i;
-
-	for_each_old_connector_in_state(&state->base, conn, old_conn_state, i) {
-		struct intel_encoder *encoder =
-			to_intel_encoder(old_conn_state->best_encoder);
-
-		if (old_conn_state->crtc != &crtc->base)
-			continue;
-
-		if (encoder->pre_disable)
-			encoder->pre_disable(state, encoder, old_crtc_state,
-					     old_conn_state);
-	}
-}
-
 static void intel_encoders_disable(struct intel_atomic_state *state,
 				   struct intel_crtc *crtc)
 {
@@ -8272,8 +8250,6 @@ static void intel_old_crtc_state_disables(struct intel_atomic_state *state,
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 
 	drm_WARN_ON(&dev_priv->drm, old_crtc_state->bigjoiner_slave);
-
-	intel_encoders_pre_disable(state, crtc);
 
 	intel_crtc_disable_planes(state, crtc);
 

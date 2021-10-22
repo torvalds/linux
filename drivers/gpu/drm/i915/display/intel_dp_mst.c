@@ -346,16 +346,6 @@ static void wait_for_act_sent(struct intel_encoder *encoder,
 	drm_dp_check_act_status(&intel_dp->mst_mgr);
 }
 
-static void intel_mst_pre_disable_dp(struct intel_atomic_state *state,
-				     struct intel_encoder *encoder,
-				     const struct intel_crtc_state *old_crtc_state,
-				     const struct drm_connector_state *old_conn_state)
-{
-	if (old_crtc_state->has_audio)
-		intel_audio_codec_disable(encoder, old_crtc_state,
-					  old_conn_state);
-}
-
 static void intel_mst_disable_dp(struct intel_atomic_state *state,
 				 struct intel_encoder *encoder,
 				 const struct intel_crtc_state *old_crtc_state,
@@ -380,6 +370,9 @@ static void intel_mst_disable_dp(struct intel_atomic_state *state,
 	if (ret) {
 		drm_dbg_kms(&i915->drm, "failed to update payload %d\n", ret);
 	}
+	if (old_crtc_state->has_audio)
+		intel_audio_codec_disable(encoder,
+					  old_crtc_state, old_conn_state);
 }
 
 static void intel_mst_post_disable_dp(struct intel_atomic_state *state,
@@ -914,7 +907,6 @@ intel_dp_create_fake_mst_encoder(struct intel_digital_port *dig_port, enum pipe 
 
 	intel_encoder->compute_config = intel_dp_mst_compute_config;
 	intel_encoder->compute_config_late = intel_dp_mst_compute_config_late;
-	intel_encoder->pre_disable = intel_mst_pre_disable_dp;
 	intel_encoder->disable = intel_mst_disable_dp;
 	intel_encoder->post_disable = intel_mst_post_disable_dp;
 	intel_encoder->update_pipe = intel_ddi_update_pipe;
