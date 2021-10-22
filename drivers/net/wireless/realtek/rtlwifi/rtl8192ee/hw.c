@@ -1430,7 +1430,7 @@ static enum version_8192e _rtl92ee_read_chip_version(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &rtlpriv->phy;
-	enum version_8192e version = VERSION_UNKNOWN;
+	enum version_8192e version;
 	u32 value32;
 
 	rtlphy->rf_type = RF_2T2R;

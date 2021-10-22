@@ -355,7 +355,7 @@ const struct iwl_cfg_trans_params iwl_so_long_latency_trans_cfg = {
 	.base_params = &iwl_ax210_base_params,
 	.umac_prph_offset = 0x300000,
 	.integrated = true,
-	/* TODO: the following values need to be checked */
+	.low_latency_xtal = true,
 	.xtal_latency = 12000,
 	.ltr_delay = IWL_CFG_TRANS_LTR_DELAY_2500US,
 };
