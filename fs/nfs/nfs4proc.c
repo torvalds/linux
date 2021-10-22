@@ -4790,7 +4790,6 @@ static int _nfs4_proc_link(struct inode *inode, struct inode *dir, const struct 
 	};
 	struct nfs4_link_res res = {
 		.server = server,
-		.label = NULL,
 	};
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_LINK],
@@ -4799,18 +4798,12 @@ static int _nfs4_proc_link(struct inode *inode, struct inode *dir, const struct 
 	};
 	int status = -ENOMEM;
 
-	res.fattr = nfs_alloc_fattr();
+	res.fattr = nfs_alloc_fattr_with_label(server);
 	if (res.fattr == NULL)
 		goto out;
 
-	res.label = nfs4_label_alloc(server, GFP_KERNEL);
-	if (IS_ERR(res.label)) {
-		status = PTR_ERR(res.label);
-		goto out;
-	}
-
 	nfs4_inode_make_writeable(inode);
-	nfs4_bitmap_copy_adjust(bitmask, nfs4_bitmask(server, res.label), inode,
+	nfs4_bitmap_copy_adjust(bitmask, nfs4_bitmask(server, res.fattr->label), inode,
 				NFS_INO_INVALID_CHANGE);
 	status = nfs4_call_sync(server->client, server, &msg, &arg.seq_args, &res.seq_res, 1);
 	if (!status) {
@@ -4819,11 +4812,8 @@ static int _nfs4_proc_link(struct inode *inode, struct inode *dir, const struct 
 		nfs4_inc_nlink(inode);
 		status = nfs_post_op_update_inode(inode, res.fattr);
 		if (!status)
-			nfs_setsecurity(inode, res.fattr, res.label);
+			nfs_setsecurity(inode, res.fattr, res.fattr->label);
 	}
-
-
-	nfs4_label_free(res.label);
 
 out:
 	nfs_free_fattr(res.fattr);
