@@ -30,6 +30,10 @@ Required properties:
 	Optional elements: 'tsu_clk'
 - clocks: Phandles to input clocks.
 
+Optional properties:
+- mdio: node containing PHY children. If this node is not present, then PHYs
+        will be direct children.
+
 The MAC address will be determined using the optional properties
 defined in ethernet.txt.
 
