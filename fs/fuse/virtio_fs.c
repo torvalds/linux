@@ -1394,12 +1394,13 @@ static void virtio_kill_sb(struct super_block *sb)
 	bool last;
 
 	/* If mount failed, we can still be called without any fc */
-	if (fm) {
+	if (sb->s_root) {
 		last = fuse_mount_remove(fm);
 		if (last)
 			virtio_fs_conn_destroy(fm);
 	}
 	kill_anon_super(sb);
+	fuse_mount_destroy(fm);
 }
 
 static int virtio_fs_test_super(struct super_block *sb,
@@ -1455,19 +1456,14 @@ static int virtio_fs_get_tree(struct fs_context *fsc)
 
 	fsc->s_fs_info = fm;
 	sb = sget_fc(fsc, virtio_fs_test_super, set_anon_super_fc);
-	if (fsc->s_fs_info) {
-		fuse_conn_put(fc);
-		kfree(fm);
-	}
+	if (fsc->s_fs_info)
+		fuse_mount_destroy(fm);
 	if (IS_ERR(sb))
 		return PTR_ERR(sb);
 
 	if (!sb->s_root) {
 		err = virtio_fs_fill_super(sb, fsc);
 		if (err) {
-			fuse_conn_put(fc);
-			kfree(fm);
-			sb->s_fs_info = NULL;
 			deactivate_locked_super(sb);
 			return err;
 		}
