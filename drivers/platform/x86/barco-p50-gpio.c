@@ -101,7 +101,7 @@ static struct gpio_led_platform_data leds_pdata = {
 /* GPIO keyboard */
 static struct gpio_keys_button buttons[] = {
 	{
-		.code = KEY_RESTART,
+		.code = KEY_VENDOR,
 		.gpio = P50_GPIO_LINE_BTN,
 		.active_low = 1,
 		.type = EV_KEY,
