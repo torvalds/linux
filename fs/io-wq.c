@@ -178,8 +178,7 @@ static void io_worker_exit(struct io_worker *worker)
 {
 	struct io_wqe *wqe = worker->wqe;
 
-	if (refcount_dec_and_test(&worker->ref))
-		complete(&worker->ref_done);
+	io_worker_release(worker);
 	wait_for_completion(&worker->ref_done);
 
 	raw_spin_lock(&wqe->lock);
