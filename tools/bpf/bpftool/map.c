@@ -56,6 +56,8 @@ const char * const map_type_name[] = {
 
 const size_t map_type_name_size = ARRAY_SIZE(map_type_name);
 
+static struct pinned_obj_table map_table;
+
 static bool map_is_per_cpu(__u32 type)
 {
 	return type == BPF_MAP_TYPE_PERCPU_HASH ||
@@ -694,8 +696,10 @@ static int do_show(int argc, char **argv)
 	int err;
 	int fd;
 
-	if (show_pinned)
+	if (show_pinned) {
+		hash_init(map_table.table);
 		build_pinned_obj_table(&map_table, BPF_OBJ_MAP);
+	}
 	build_obj_refs_table(&refs_table, BPF_OBJ_MAP);
 
 	if (argc == 2)
@@ -741,6 +745,9 @@ static int do_show(int argc, char **argv)
 		jsonw_end_array(json_wtr);
 
 	delete_obj_refs_table(&refs_table);
+
+	if (show_pinned)
+		delete_pinned_obj_table(&map_table);
 
 	return errno == ENOENT ? 0 : -1;
 }

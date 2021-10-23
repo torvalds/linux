@@ -84,6 +84,8 @@ static const char * const attach_type_strings[] = {
 	[__MAX_BPF_ATTACH_TYPE] = NULL,
 };
 
+static struct pinned_obj_table prog_table;
+
 static enum bpf_attach_type parse_attach_type(const char *str)
 {
 	enum bpf_attach_type type;
@@ -567,8 +569,10 @@ static int do_show(int argc, char **argv)
 	int err;
 	int fd;
 
-	if (show_pinned)
+	if (show_pinned) {
+		hash_init(prog_table.table);
 		build_pinned_obj_table(&prog_table, BPF_OBJ_PROG);
+	}
 	build_obj_refs_table(&refs_table, BPF_OBJ_PROG);
 
 	if (argc == 2)
@@ -612,6 +616,9 @@ static int do_show(int argc, char **argv)
 		jsonw_end_array(json_wtr);
 
 	delete_obj_refs_table(&refs_table);
+
+	if (show_pinned)
+		delete_pinned_obj_table(&prog_table);
 
 	return err;
 }

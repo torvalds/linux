@@ -91,9 +91,6 @@ extern bool verifier_logs;
 extern bool relaxed_maps;
 extern bool use_loader;
 extern struct btf *base_btf;
-extern struct pinned_obj_table prog_table;
-extern struct pinned_obj_table map_table;
-extern struct pinned_obj_table link_table;
 extern struct obj_refs_table refs_table;
 
 void __printf(1, 2) p_err(const char *fmt, ...);

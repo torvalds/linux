@@ -20,6 +20,8 @@ static const char * const link_type_name[] = {
 	[BPF_LINK_TYPE_NETNS]			= "netns",
 };
 
+static struct pinned_obj_table link_table;
+
 static int link_parse_fd(int *argc, char ***argv)
 {
 	int fd;
@@ -302,8 +304,10 @@ static int do_show(int argc, char **argv)
 	__u32 id = 0;
 	int err, fd;
 
-	if (show_pinned)
+	if (show_pinned) {
+		hash_init(link_table.table);
 		build_pinned_obj_table(&link_table, BPF_OBJ_LINK);
+	}
 	build_obj_refs_table(&refs_table, BPF_OBJ_LINK);
 
 	if (argc == 2) {
@@ -345,6 +349,9 @@ static int do_show(int argc, char **argv)
 		jsonw_end_array(json_wtr);
 
 	delete_obj_refs_table(&refs_table);
+
+	if (show_pinned)
+		delete_pinned_obj_table(&link_table);
 
 	return errno == ENOENT ? 0 : -1;
 }
