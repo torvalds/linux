@@ -672,10 +672,10 @@ static void ax88796c_get_stats64(struct net_device *ndev,
 		stats->tx_packets += tx_packets;
 		stats->tx_bytes   += tx_bytes;
 
-		rx_dropped      += stats->rx_dropped;
-		tx_dropped      += stats->tx_dropped;
-		rx_frame_errors += stats->rx_frame_errors;
-		rx_crc_errors   += stats->rx_crc_errors;
+		rx_dropped      += s->rx_dropped;
+		tx_dropped      += s->tx_dropped;
+		rx_frame_errors += s->rx_frame_errors;
+		rx_crc_errors   += s->rx_crc_errors;
 	}
 
 	stats->rx_dropped = rx_dropped;
