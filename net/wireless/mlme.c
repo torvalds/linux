@@ -970,3 +970,116 @@ void cfg80211_cac_event(struct net_device *netdev,
 	nl80211_radar_notify(rdev, chandef, event, netdev, gfp);
 }
 EXPORT_SYMBOL(cfg80211_cac_event);
+
+void cfg80211_offchan_cac_work(struct work_struct *work)
+{
+	struct delayed_work *delayed_work = to_delayed_work(work);
+	struct cfg80211_registered_device *rdev;
+
+	rdev = container_of(delayed_work, struct cfg80211_registered_device,
+			    offchan_cac_work);
+	cfg80211_offchan_cac_event(&rdev->wiphy, &rdev->offchan_radar_chandef,
+				   NL80211_RADAR_CAC_FINISHED);
+}
+
+static void
+__cfg80211_offchan_cac_event(struct cfg80211_registered_device *rdev,
+			     struct wireless_dev *wdev,
+			     const struct cfg80211_chan_def *chandef,
+			     enum nl80211_radar_event event)
+{
+	struct wiphy *wiphy = &rdev->wiphy;
+	struct net_device *netdev;
+
+	lockdep_assert_wiphy(&rdev->wiphy);
+
+	if (event != NL80211_RADAR_CAC_STARTED && !rdev->offchan_radar_wdev)
+		return;
+
+	switch (event) {
+	case NL80211_RADAR_CAC_FINISHED:
+		cfg80211_set_dfs_state(wiphy, chandef, NL80211_DFS_AVAILABLE);
+		memcpy(&rdev->cac_done_chandef, chandef, sizeof(*chandef));
+		queue_work(cfg80211_wq, &rdev->propagate_cac_done_wk);
+		cfg80211_sched_dfs_chan_update(rdev);
+		wdev = rdev->offchan_radar_wdev;
+		rdev->offchan_radar_wdev = NULL;
+		break;
+	case NL80211_RADAR_CAC_ABORTED:
+		cancel_delayed_work(&rdev->offchan_cac_work);
+		wdev = rdev->offchan_radar_wdev;
+		rdev->offchan_radar_wdev = NULL;
+		break;
+	case NL80211_RADAR_CAC_STARTED:
+		WARN_ON(!wdev);
+		rdev->offchan_radar_wdev = wdev;
+		break;
+	default:
+		return;
+	}
+
+	netdev = wdev ? wdev->netdev : NULL;
+	nl80211_radar_notify(rdev, chandef, event, netdev, GFP_KERNEL);
+}
+
+void cfg80211_offchan_cac_event(struct wiphy *wiphy,
+				const struct cfg80211_chan_def *chandef,
+				enum nl80211_radar_event event)
+{
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
+
+	wiphy_lock(wiphy);
+	__cfg80211_offchan_cac_event(rdev, NULL, chandef, event);
+	wiphy_unlock(wiphy);
+}
+EXPORT_SYMBOL(cfg80211_offchan_cac_event);
+
+int
+cfg80211_start_offchan_radar_detection(struct cfg80211_registered_device *rdev,
+				       struct wireless_dev *wdev,
+				       struct cfg80211_chan_def *chandef)
+{
+	unsigned int cac_time_ms;
+	int err;
+
+	lockdep_assert_wiphy(&rdev->wiphy);
+
+	if (!wiphy_ext_feature_isset(&rdev->wiphy,
+				     NL80211_EXT_FEATURE_RADAR_OFFCHAN))
+		return -EOPNOTSUPP;
+
+	if (rdev->offchan_radar_wdev)
+		return -EBUSY;
+
+	err = rdev_set_radar_offchan(rdev, chandef);
+	if (err)
+		return err;
+
+	cac_time_ms = cfg80211_chandef_dfs_cac_time(&rdev->wiphy, chandef);
+	if (!cac_time_ms)
+		cac_time_ms = IEEE80211_DFS_MIN_CAC_TIME_MS;
+
+	rdev->offchan_radar_chandef = *chandef;
+	__cfg80211_offchan_cac_event(rdev, wdev, chandef,
+				     NL80211_RADAR_CAC_STARTED);
+	queue_delayed_work(cfg80211_wq, &rdev->offchan_cac_work,
+			   msecs_to_jiffies(cac_time_ms));
+
+	return 0;
+}
+
+void cfg80211_stop_offchan_radar_detection(struct wireless_dev *wdev)
+{
+	struct wiphy *wiphy = wdev->wiphy;
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
+
+	lockdep_assert_wiphy(wiphy);
+
+	if (wdev != rdev->offchan_radar_wdev)
+		return;
+
+	rdev_set_radar_offchan(rdev, NULL);
+
+	__cfg80211_offchan_cac_event(rdev, NULL, NULL,
+				     NL80211_RADAR_CAC_ABORTED);
+}
