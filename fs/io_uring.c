@@ -6721,6 +6721,8 @@ static struct io_wq_work *io_wq_free_work(struct io_wq_work *work)
 static void io_wq_submit_work(struct io_wq_work *work)
 {
 	struct io_kiocb *req = container_of(work, struct io_kiocb, work);
+	unsigned int issue_flags = IO_URING_F_UNLOCKED;
+	bool needs_poll = false;
 	struct io_kiocb *timeout;
 	int ret = 0;
 
@@ -6735,40 +6737,37 @@ static void io_wq_submit_work(struct io_wq_work *work)
 		io_queue_linked_timeout(timeout);
 
 	/* either cancelled or io-wq is dying, so don't touch tctx->iowq */
-	if (work->flags & IO_WQ_WORK_CANCEL)
-		ret = -ECANCELED;
+	if (work->flags & IO_WQ_WORK_CANCEL) {
+		io_req_task_queue_fail(req, -ECANCELED);
+		return;
+	}
 
-	if (!ret) {
-		bool needs_poll = false;
-		unsigned int issue_flags = IO_URING_F_UNLOCKED;
+	if (req->flags & REQ_F_FORCE_ASYNC) {
+		needs_poll = req->file && file_can_poll(req->file);
+		if (needs_poll)
+			issue_flags |= IO_URING_F_NONBLOCK;
+	}
 
-		if (req->flags & REQ_F_FORCE_ASYNC) {
-			needs_poll = req->file && file_can_poll(req->file);
-			if (needs_poll)
-				issue_flags |= IO_URING_F_NONBLOCK;
+	do {
+		ret = io_issue_sqe(req, issue_flags);
+		if (ret != -EAGAIN)
+			break;
+		/*
+		 * We can get EAGAIN for iopolled IO even though we're
+		 * forcing a sync submission from here, since we can't
+		 * wait for request slots on the block side.
+		 */
+		if (!needs_poll) {
+			cond_resched();
+			continue;
 		}
 
-		do {
-			ret = io_issue_sqe(req, issue_flags);
-			if (ret != -EAGAIN)
-				break;
-			/*
-			 * We can get EAGAIN for iopolled IO even though we're
-			 * forcing a sync submission from here, since we can't
-			 * wait for request slots on the block side.
-			 */
-			if (!needs_poll) {
-				cond_resched();
-				continue;
-			}
-
-			if (io_arm_poll_handler(req) == IO_APOLL_OK)
-				return;
-			/* aborted or ready, in either case retry blocking */
-			needs_poll = false;
-			issue_flags &= ~IO_URING_F_NONBLOCK;
-		} while (1);
-	}
+		if (io_arm_poll_handler(req) == IO_APOLL_OK)
+			return;
+		/* aborted or ready, in either case retry blocking */
+		needs_poll = false;
+		issue_flags &= ~IO_URING_F_NONBLOCK;
+	} while (1);
 
 	/* avoid locking problems by failing it from a clean context */
 	if (ret)
