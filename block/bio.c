@@ -1046,34 +1046,25 @@ void __bio_release_pages(struct bio *bio, bool mark_dirty)
 }
 EXPORT_SYMBOL_GPL(__bio_release_pages);
 
-static void __bio_iov_bvec_set(struct bio *bio, struct iov_iter *iter)
+static void bio_iov_bvec_set(struct bio *bio, struct iov_iter *iter)
 {
+	size_t size = iov_iter_count(iter);
+
 	WARN_ON_ONCE(bio->bi_max_vecs);
+
+	if (bio_op(bio) == REQ_OP_ZONE_APPEND) {
+		struct request_queue *q = bdev_get_queue(bio->bi_bdev);
+		size_t max_sectors = queue_max_zone_append_sectors(q);
+
+		size = min(size, max_sectors << SECTOR_SHIFT);
+	}
 
 	bio->bi_vcnt = iter->nr_segs;
 	bio->bi_io_vec = (struct bio_vec *)iter->bvec;
 	bio->bi_iter.bi_bvec_done = iter->iov_offset;
-	bio->bi_iter.bi_size = iter->count;
+	bio->bi_iter.bi_size = size;
 	bio_set_flag(bio, BIO_NO_PAGE_REF);
 	bio_set_flag(bio, BIO_CLONED);
-}
-
-static int bio_iov_bvec_set(struct bio *bio, struct iov_iter *iter)
-{
-	__bio_iov_bvec_set(bio, iter);
-	iov_iter_advance(iter, iter->count);
-	return 0;
-}
-
-static int bio_iov_bvec_set_append(struct bio *bio, struct iov_iter *iter)
-{
-	struct request_queue *q = bdev_get_queue(bio->bi_bdev);
-	struct iov_iter i = *iter;
-
-	iov_iter_truncate(&i, queue_max_zone_append_sectors(q) << 9);
-	__bio_iov_bvec_set(bio, &i);
-	iov_iter_advance(iter, i.count);
-	return 0;
 }
 
 static void bio_put_pages(struct page **pages, size_t size, size_t off)
@@ -1217,9 +1208,9 @@ int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 	int ret = 0;
 
 	if (iov_iter_is_bvec(iter)) {
-		if (bio_op(bio) == REQ_OP_ZONE_APPEND)
-			return bio_iov_bvec_set_append(bio, iter);
-		return bio_iov_bvec_set(bio, iter);
+		bio_iov_bvec_set(bio, iter);
+		iov_iter_advance(iter, bio->bi_iter.bi_size);
+		return 0;
 	}
 
 	do {
