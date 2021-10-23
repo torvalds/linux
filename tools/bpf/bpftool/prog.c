@@ -24,6 +24,7 @@
 
 #include <bpf/bpf.h>
 #include <bpf/btf.h>
+#include <bpf/hashmap.h>
 #include <bpf/libbpf.h>
 #include <bpf/skel_internal.h>
 
@@ -84,7 +85,7 @@ static const char * const attach_type_strings[] = {
 	[__MAX_BPF_ATTACH_TYPE] = NULL,
 };
 
-static struct pinned_obj_table prog_table;
+static struct hashmap *prog_table;
 
 static enum bpf_attach_type parse_attach_type(const char *str)
 {
@@ -418,15 +419,14 @@ static void print_prog_json(struct bpf_prog_info *info, int fd)
 	if (info->btf_id)
 		jsonw_int_field(json_wtr, "btf_id", info->btf_id);
 
-	if (!hash_empty(prog_table.table)) {
-		struct pinned_obj *obj;
+	if (!hashmap__empty(prog_table)) {
+		struct hashmap_entry *entry;
 
 		jsonw_name(json_wtr, "pinned");
 		jsonw_start_array(json_wtr);
-		hash_for_each_possible(prog_table.table, obj, hash, info->id) {
-			if (obj->id == info->id)
-				jsonw_string(json_wtr, obj->path);
-		}
+		hashmap__for_each_key_entry(prog_table, entry,
+					    u32_as_hash_field(info->id))
+			jsonw_string(json_wtr, entry->value);
 		jsonw_end_array(json_wtr);
 	}
 
@@ -490,13 +490,12 @@ static void print_prog_plain(struct bpf_prog_info *info, int fd)
 	if (info->nr_map_ids)
 		show_prog_maps(fd, info->nr_map_ids);
 
-	if (!hash_empty(prog_table.table)) {
-		struct pinned_obj *obj;
+	if (!hashmap__empty(prog_table)) {
+		struct hashmap_entry *entry;
 
-		hash_for_each_possible(prog_table.table, obj, hash, info->id) {
-			if (obj->id == info->id)
-				printf("\n\tpinned %s", obj->path);
-		}
+		hashmap__for_each_key_entry(prog_table, entry,
+					    u32_as_hash_field(info->id))
+			printf("\n\tpinned %s", (char *)entry->value);
 	}
 
 	if (info->btf_id)
@@ -570,8 +569,13 @@ static int do_show(int argc, char **argv)
 	int fd;
 
 	if (show_pinned) {
-		hash_init(prog_table.table);
-		build_pinned_obj_table(&prog_table, BPF_OBJ_PROG);
+		prog_table = hashmap__new(hash_fn_for_key_as_id,
+					  equal_fn_for_key_as_id, NULL);
+		if (!prog_table) {
+			p_err("failed to create hashmap for pinned paths");
+			return -1;
+		}
+		build_pinned_obj_table(prog_table, BPF_OBJ_PROG);
 	}
 	build_obj_refs_table(&refs_table, BPF_OBJ_PROG);
 
@@ -618,7 +622,7 @@ static int do_show(int argc, char **argv)
 	delete_obj_refs_table(&refs_table);
 
 	if (show_pinned)
-		delete_pinned_obj_table(&prog_table);
+		delete_pinned_obj_table(prog_table);
 
 	return err;
 }

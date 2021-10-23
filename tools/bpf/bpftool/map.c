@@ -17,6 +17,7 @@
 
 #include <bpf/bpf.h>
 #include <bpf/btf.h>
+#include <bpf/hashmap.h>
 
 #include "json_writer.h"
 #include "main.h"
@@ -56,7 +57,7 @@ const char * const map_type_name[] = {
 
 const size_t map_type_name_size = ARRAY_SIZE(map_type_name);
 
-static struct pinned_obj_table map_table;
+static struct hashmap *map_table;
 
 static bool map_is_per_cpu(__u32 type)
 {
@@ -537,15 +538,14 @@ static int show_map_close_json(int fd, struct bpf_map_info *info)
 	if (info->btf_id)
 		jsonw_int_field(json_wtr, "btf_id", info->btf_id);
 
-	if (!hash_empty(map_table.table)) {
-		struct pinned_obj *obj;
+	if (!hashmap__empty(map_table)) {
+		struct hashmap_entry *entry;
 
 		jsonw_name(json_wtr, "pinned");
 		jsonw_start_array(json_wtr);
-		hash_for_each_possible(map_table.table, obj, hash, info->id) {
-			if (obj->id == info->id)
-				jsonw_string(json_wtr, obj->path);
-		}
+		hashmap__for_each_key_entry(map_table, entry,
+					    u32_as_hash_field(info->id))
+			jsonw_string(json_wtr, entry->value);
 		jsonw_end_array(json_wtr);
 	}
 
@@ -612,13 +612,12 @@ static int show_map_close_plain(int fd, struct bpf_map_info *info)
 	}
 	close(fd);
 
-	if (!hash_empty(map_table.table)) {
-		struct pinned_obj *obj;
+	if (!hashmap__empty(map_table)) {
+		struct hashmap_entry *entry;
 
-		hash_for_each_possible(map_table.table, obj, hash, info->id) {
-			if (obj->id == info->id)
-				printf("\n\tpinned %s", obj->path);
-		}
+		hashmap__for_each_key_entry(map_table, entry,
+					    u32_as_hash_field(info->id))
+			printf("\n\tpinned %s", (char *)entry->value);
 	}
 	printf("\n");
 
@@ -697,8 +696,13 @@ static int do_show(int argc, char **argv)
 	int fd;
 
 	if (show_pinned) {
-		hash_init(map_table.table);
-		build_pinned_obj_table(&map_table, BPF_OBJ_MAP);
+		map_table = hashmap__new(hash_fn_for_key_as_id,
+					 equal_fn_for_key_as_id, NULL);
+		if (!map_table) {
+			p_err("failed to create hashmap for pinned paths");
+			return -1;
+		}
+		build_pinned_obj_table(map_table, BPF_OBJ_MAP);
 	}
 	build_obj_refs_table(&refs_table, BPF_OBJ_MAP);
 
@@ -747,7 +751,7 @@ static int do_show(int argc, char **argv)
 	delete_obj_refs_table(&refs_table);
 
 	if (show_pinned)
-		delete_pinned_obj_table(&map_table);
+		delete_pinned_obj_table(map_table);
 
 	return errno == ENOENT ? 0 : -1;
 }

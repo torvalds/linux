@@ -14,6 +14,7 @@
 #include <linux/hashtable.h>
 #include <tools/libc_compat.h>
 
+#include <bpf/hashmap.h>
 #include <bpf/libbpf.h>
 
 #include "json_writer.h"
@@ -105,16 +106,6 @@ void set_max_rlimit(void);
 
 int mount_tracefs(const char *target);
 
-struct pinned_obj_table {
-	DECLARE_HASHTABLE(table, 16);
-};
-
-struct pinned_obj {
-	__u32 id;
-	char *path;
-	struct hlist_node hash;
-};
-
 struct obj_refs_table {
 	DECLARE_HASHTABLE(table, 16);
 };
@@ -134,9 +125,9 @@ struct obj_refs {
 struct btf;
 struct bpf_line_info;
 
-int build_pinned_obj_table(struct pinned_obj_table *table,
+int build_pinned_obj_table(struct hashmap *table,
 			   enum bpf_obj_type type);
-void delete_pinned_obj_table(struct pinned_obj_table *tab);
+void delete_pinned_obj_table(struct hashmap *table);
 __weak int build_obj_refs_table(struct obj_refs_table *table,
 				enum bpf_obj_type type);
 __weak void delete_obj_refs_table(struct obj_refs_table *table);
@@ -256,4 +247,18 @@ int do_filter_dump(struct tcmsg *ifinfo, struct nlattr **tb, const char *kind,
 
 int print_all_levels(__maybe_unused enum libbpf_print_level level,
 		     const char *format, va_list args);
+
+size_t hash_fn_for_key_as_id(const void *key, void *ctx);
+bool equal_fn_for_key_as_id(const void *k1, const void *k2, void *ctx);
+
+static inline void *u32_as_hash_field(__u32 x)
+{
+	return (void *)(uintptr_t)x;
+}
+
+static inline bool hashmap__empty(struct hashmap *map)
+{
+	return map ? hashmap__size(map) == 0 : true;
+}
+
 #endif
