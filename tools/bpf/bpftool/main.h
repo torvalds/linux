@@ -256,6 +256,11 @@ static inline void *u32_as_hash_field(__u32 x)
 	return (void *)(uintptr_t)x;
 }
 
+static inline __u32 hash_field_as_u32(const void *x)
+{
+	return (__u32)(uintptr_t)x;
+}
+
 static inline bool hashmap__empty(struct hashmap *map)
 {
 	return map ? hashmap__size(map) == 0 : true;
