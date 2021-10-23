@@ -182,21 +182,19 @@ static int dpu_crtc_get_crc(struct drm_crtc *crtc)
 {
 	struct dpu_crtc_state *crtc_state;
 	struct dpu_crtc_mixer *m;
-	u32 *crcs;
+	u32 crcs[CRTC_DUAL_MIXERS];
 
 	int i = 0;
 	int rc = 0;
 
 	crtc_state = to_dpu_crtc_state(crtc->state);
-	crcs = kcalloc(crtc_state->num_mixers, sizeof(*crcs), GFP_KERNEL);
 
-	if (!crcs)
-		return -ENOMEM;
+	BUILD_BUG_ON(ARRAY_SIZE(crcs) != ARRAY_SIZE(crtc_state->mixers));
 
 	/* Skip first 2 frames in case of "uncooked" CRCs */
 	if (crtc_state->crc_frame_skip_count < 2) {
 		crtc_state->crc_frame_skip_count++;
-		goto cleanup;
+		return 0;
 	}
 
 	for (i = 0; i < crtc_state->num_mixers; ++i) {
@@ -210,16 +208,12 @@ static int dpu_crtc_get_crc(struct drm_crtc *crtc)
 
 		if (rc) {
 			DRM_DEBUG_DRIVER("MISR read failed\n");
-			goto cleanup;
+			return rc;
 		}
 	}
 
-	rc = drm_crtc_add_crc_entry(crtc, true,
+	return drm_crtc_add_crc_entry(crtc, true,
 			drm_crtc_accurate_vblank_count(crtc), crcs);
-
-cleanup:
-	kfree(crcs);
-	return rc;
 }
 
 static bool dpu_crtc_get_scanout_position(struct drm_crtc *crtc,
