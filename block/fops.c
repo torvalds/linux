@@ -305,6 +305,85 @@ static ssize_t __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 	return ret;
 }
 
+static void blkdev_bio_end_io_async(struct bio *bio)
+{
+	struct blkdev_dio *dio = container_of(bio, struct blkdev_dio, bio);
+	struct kiocb *iocb = dio->iocb;
+	ssize_t ret;
+
+	if (likely(!bio->bi_status)) {
+		ret = dio->size;
+		iocb->ki_pos += ret;
+	} else {
+		ret = blk_status_to_errno(bio->bi_status);
+	}
+
+	iocb->ki_complete(iocb, ret, 0);
+
+	if (dio->flags & DIO_SHOULD_DIRTY) {
+		bio_check_pages_dirty(bio);
+	} else {
+		bio_release_pages(bio, false);
+		bio_put(bio);
+	}
+}
+
+static ssize_t __blkdev_direct_IO_async(struct kiocb *iocb,
+					struct iov_iter *iter,
+					unsigned int nr_pages)
+{
+	struct block_device *bdev = iocb->ki_filp->private_data;
+	struct blkdev_dio *dio;
+	struct bio *bio;
+	loff_t pos = iocb->ki_pos;
+	int ret = 0;
+
+	if ((pos | iov_iter_alignment(iter)) &
+	    (bdev_logical_block_size(bdev) - 1))
+		return -EINVAL;
+
+	bio = bio_alloc_kiocb(iocb, nr_pages, &blkdev_dio_pool);
+	dio = container_of(bio, struct blkdev_dio, bio);
+	dio->flags = 0;
+	dio->iocb = iocb;
+	bio_set_dev(bio, bdev);
+	bio->bi_iter.bi_sector = pos >> SECTOR_SHIFT;
+	bio->bi_write_hint = iocb->ki_hint;
+	bio->bi_end_io = blkdev_bio_end_io_async;
+	bio->bi_ioprio = iocb->ki_ioprio;
+
+	ret = bio_iov_iter_get_pages(bio, iter);
+	if (unlikely(ret)) {
+		bio->bi_status = BLK_STS_IOERR;
+		bio_endio(bio);
+		return ret;
+	}
+	dio->size = bio->bi_iter.bi_size;
+
+	if (iov_iter_rw(iter) == READ) {
+		bio->bi_opf = REQ_OP_READ;
+		if (iter_is_iovec(iter)) {
+			dio->flags |= DIO_SHOULD_DIRTY;
+			bio_set_pages_dirty(bio);
+		}
+	} else {
+		bio->bi_opf = dio_bio_write_op(iocb);
+		task_io_account_write(bio->bi_iter.bi_size);
+	}
+
+	if (iocb->ki_flags & IOCB_NOWAIT)
+		bio->bi_opf |= REQ_NOWAIT;
+
+	if (iocb->ki_flags & IOCB_HIPRI) {
+		bio_set_polled(bio, iocb);
+		submit_bio(bio);
+		WRITE_ONCE(iocb->private, bio);
+	} else {
+		submit_bio(bio);
+	}
+	return -EIOCBQUEUED;
+}
+
 static ssize_t blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 {
 	unsigned int nr_pages;
@@ -313,9 +392,11 @@ static ssize_t blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 		return 0;
 
 	nr_pages = bio_iov_vecs_to_alloc(iter, BIO_MAX_VECS + 1);
-	if (is_sync_kiocb(iocb) && nr_pages <= BIO_MAX_VECS)
-		return __blkdev_direct_IO_simple(iocb, iter, nr_pages);
-
+	if (likely(nr_pages <= BIO_MAX_VECS)) {
+		if (is_sync_kiocb(iocb))
+			return __blkdev_direct_IO_simple(iocb, iter, nr_pages);
+		return __blkdev_direct_IO_async(iocb, iter, nr_pages);
+	}
 	return __blkdev_direct_IO(iocb, iter, bio_max_segs(nr_pages));
 }
 
