@@ -1124,7 +1124,7 @@ exit_free_irq:
 exit_pm_put:
 	pm_runtime_put(&pdev->dev);
 exit_pm_disable:
-	pm_runtime_disable(&pdev->dev);
+	pm_runtime_force_suspend(&pdev->dev);
 
 	tegra_slink_deinit_dma_param(tspi, false);
 exit_rx_dma_free:
@@ -1143,7 +1143,7 @@ static int tegra_slink_remove(struct platform_device *pdev)
 
 	free_irq(tspi->irq, tspi);
 
-	pm_runtime_disable(&pdev->dev);
+	pm_runtime_force_suspend(&pdev->dev);
 
 	if (tspi->tx_dma_chan)
 		tegra_slink_deinit_dma_param(tspi, false);
