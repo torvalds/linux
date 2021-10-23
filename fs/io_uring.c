@@ -6741,9 +6741,13 @@ static void io_wq_submit_work(struct io_wq_work *work)
 	}
 
 	if (req->flags & REQ_F_FORCE_ASYNC) {
-		needs_poll = req->file && file_can_poll(req->file);
-		if (needs_poll)
+		const struct io_op_def *def = &io_op_defs[req->opcode];
+		bool opcode_poll = def->pollin || def->pollout;
+
+		if (opcode_poll && file_can_poll(req->file)) {
+			needs_poll = true;
 			issue_flags |= IO_URING_F_NONBLOCK;
+		}
 	}
 
 	do {
