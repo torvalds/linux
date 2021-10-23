@@ -95,3 +95,5 @@ config SND_SOC_AMD_YC_MACH
 	  DMIC can be connected directly to ACP IP.
 	  Say m if you have such a device.
 	  If unsure select "N".
+
+source "sound/soc/amd/acp/Kconfig"
