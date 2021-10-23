@@ -430,7 +430,7 @@ static void print_prog_json(struct bpf_prog_info *info, int fd)
 		jsonw_end_array(json_wtr);
 	}
 
-	emit_obj_refs_json(&refs_table, info->id, json_wtr);
+	emit_obj_refs_json(refs_table, info->id, json_wtr);
 
 	show_prog_metadata(fd, info->nr_map_ids);
 
@@ -501,7 +501,7 @@ static void print_prog_plain(struct bpf_prog_info *info, int fd)
 	if (info->btf_id)
 		printf("\n\tbtf_id %d", info->btf_id);
 
-	emit_obj_refs_plain(&refs_table, info->id, "\n\tpids ");
+	emit_obj_refs_plain(refs_table, info->id, "\n\tpids ");
 
 	printf("\n");
 
@@ -619,7 +619,7 @@ static int do_show(int argc, char **argv)
 	if (json_output)
 		jsonw_end_array(json_wtr);
 
-	delete_obj_refs_table(&refs_table);
+	delete_obj_refs_table(refs_table);
 
 	if (show_pinned)
 		delete_pinned_obj_table(prog_table);

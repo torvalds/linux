@@ -11,7 +11,6 @@
 #include <linux/bpf.h>
 #include <linux/compiler.h>
 #include <linux/kernel.h>
-#include <linux/hashtable.h>
 #include <tools/libc_compat.h>
 
 #include <bpf/hashmap.h>
@@ -92,7 +91,7 @@ extern bool verifier_logs;
 extern bool relaxed_maps;
 extern bool use_loader;
 extern struct btf *base_btf;
-extern struct obj_refs_table refs_table;
+extern struct hashmap *refs_table;
 
 void __printf(1, 2) p_err(const char *fmt, ...);
 void __printf(1, 2) p_info(const char *fmt, ...);
@@ -106,18 +105,12 @@ void set_max_rlimit(void);
 
 int mount_tracefs(const char *target);
 
-struct obj_refs_table {
-	DECLARE_HASHTABLE(table, 16);
-};
-
 struct obj_ref {
 	int pid;
 	char comm[16];
 };
 
 struct obj_refs {
-	struct hlist_node node;
-	__u32 id;
 	int ref_cnt;
 	struct obj_ref *refs;
 };
@@ -128,12 +121,12 @@ struct bpf_line_info;
 int build_pinned_obj_table(struct hashmap *table,
 			   enum bpf_obj_type type);
 void delete_pinned_obj_table(struct hashmap *table);
-__weak int build_obj_refs_table(struct obj_refs_table *table,
+__weak int build_obj_refs_table(struct hashmap **table,
 				enum bpf_obj_type type);
-__weak void delete_obj_refs_table(struct obj_refs_table *table);
-__weak void emit_obj_refs_json(struct obj_refs_table *table, __u32 id,
+__weak void delete_obj_refs_table(struct hashmap *table);
+__weak void emit_obj_refs_json(struct hashmap *table, __u32 id,
 			       json_writer_t *json_wtr);
-__weak void emit_obj_refs_plain(struct obj_refs_table *table, __u32 id,
+__weak void emit_obj_refs_plain(struct hashmap *table, __u32 id,
 				const char *prefix);
 void print_dev_plain(__u32 ifindex, __u64 ns_dev, __u64 ns_inode);
 void print_dev_json(__u32 ifindex, __u64 ns_dev, __u64 ns_inode);

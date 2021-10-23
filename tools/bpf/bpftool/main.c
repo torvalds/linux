@@ -10,8 +10,9 @@
 #include <string.h>
 
 #include <bpf/bpf.h>
-#include <bpf/libbpf.h>
 #include <bpf/btf.h>
+#include <bpf/hashmap.h>
+#include <bpf/libbpf.h>
 
 #include "main.h"
 
@@ -31,7 +32,7 @@ bool verifier_logs;
 bool relaxed_maps;
 bool use_loader;
 struct btf *base_btf;
-struct obj_refs_table refs_table;
+struct hashmap *refs_table;
 
 static void __noreturn clean_and_exit(int i)
 {

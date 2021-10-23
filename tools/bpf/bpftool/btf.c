@@ -9,7 +9,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <linux/btf.h>
-#include <linux/hashtable.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -797,7 +796,7 @@ show_btf_plain(struct bpf_btf_info *info, int fd,
 		       hash_field_as_u32(entry->value));
 	}
 
-	emit_obj_refs_plain(&refs_table, info->id, "\n\tpids ");
+	emit_obj_refs_plain(refs_table, info->id, "\n\tpids ");
 
 	printf("\n");
 }
@@ -830,7 +829,7 @@ show_btf_json(struct bpf_btf_info *info, int fd,
 	}
 	jsonw_end_array(json_wtr);	/* map_ids */
 
-	emit_obj_refs_json(&refs_table, info->id, json_wtr); /* pids */
+	emit_obj_refs_json(refs_table, info->id, json_wtr); /* pids */
 
 	jsonw_bool_field(json_wtr, "kernel", info->kernel_btf);
 
@@ -961,7 +960,7 @@ static int do_show(int argc, char **argv)
 exit_free:
 	hashmap__free(btf_prog_table);
 	hashmap__free(btf_map_table);
-	delete_obj_refs_table(&refs_table);
+	delete_obj_refs_table(refs_table);
 
 	return err;
 }
