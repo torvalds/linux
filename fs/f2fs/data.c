@@ -3040,6 +3040,10 @@ readd:
 			need_readd = false;
 #ifdef CONFIG_F2FS_FS_COMPRESSION
 			if (f2fs_compressed_file(inode)) {
+				void *fsdata = NULL;
+				struct page *pagep;
+				int ret2;
+
 				ret = f2fs_init_compress_ctx(&cc);
 				if (ret) {
 					done = 1;
@@ -3058,27 +3062,23 @@ readd:
 				if (unlikely(f2fs_cp_error(sbi)))
 					goto lock_page;
 
-				if (f2fs_cluster_is_empty(&cc)) {
-					void *fsdata = NULL;
-					struct page *pagep;
-					int ret2;
+				if (!f2fs_cluster_is_empty(&cc))
+					goto lock_page;
 
-					ret2 = f2fs_prepare_compress_overwrite(
+				ret2 = f2fs_prepare_compress_overwrite(
 							inode, &pagep,
 							page->index, &fsdata);
-					if (ret2 < 0) {
-						ret = ret2;
-						done = 1;
-						break;
-					} else if (ret2 &&
-						!f2fs_compress_write_end(inode,
-								fsdata, page->index,
-								1)) {
-						retry = 1;
-						break;
-					}
-				} else {
-					goto lock_page;
+				if (ret2 < 0) {
+					ret = ret2;
+					done = 1;
+					break;
+				} else if (ret2 &&
+					(!f2fs_compress_write_end(inode,
+						fsdata, page->index, 1) ||
+					 !f2fs_all_cluster_page_loaded(&cc,
+						&pvec, i, nr_pages))) {
+					retry = 1;
+					break;
 				}
 			}
 #endif
