@@ -5584,11 +5584,9 @@ static int io_arm_poll_handler(struct io_kiocb *req)
 	struct io_poll_table ipt;
 	__poll_t ret, mask = EPOLLONESHOT | POLLERR | POLLPRI;
 
-	if (!req->file || !file_can_poll(req->file))
-		return IO_APOLL_ABORTED;
-	if (req->flags & REQ_F_POLLED)
-		return IO_APOLL_ABORTED;
 	if (!def->pollin && !def->pollout)
+		return IO_APOLL_ABORTED;
+	if (!file_can_poll(req->file) || (req->flags & REQ_F_POLLED))
 		return IO_APOLL_ABORTED;
 
 	if (def->pollin) {
