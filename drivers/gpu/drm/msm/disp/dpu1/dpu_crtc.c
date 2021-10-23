@@ -187,11 +187,6 @@ static int dpu_crtc_get_crc(struct drm_crtc *crtc)
 	int i = 0;
 	int rc = 0;
 
-	if (!crtc) {
-		DPU_ERROR("Invalid crtc\n");
-		return -EINVAL;
-	}
-
 	crtc_state = to_dpu_crtc_state(crtc->state);
 	crcs = kcalloc(crtc_state->num_mixers, sizeof(*crcs), GFP_KERNEL);
 
