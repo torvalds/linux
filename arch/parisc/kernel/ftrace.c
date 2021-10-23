@@ -48,20 +48,16 @@ static void __hot prepare_ftrace_return(unsigned long *parent,
 }
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
+static ftrace_func_t ftrace_func;
+
 void notrace __hot ftrace_function_trampoline(unsigned long parent,
 				unsigned long self_addr,
 				unsigned long org_sp_gr3,
 				struct ftrace_regs *fregs)
 {
-#ifndef CONFIG_DYNAMIC_FTRACE
-	extern ftrace_func_t ftrace_trace_function;
-#endif
 	extern struct ftrace_ops *function_trace_op;
 
-	if (function_trace_op->flags & FTRACE_OPS_FL_ENABLED &&
-	    ftrace_trace_function != ftrace_stub)
-		ftrace_trace_function(self_addr, parent,
-				function_trace_op, fregs);
+	ftrace_func(self_addr, parent, function_trace_op, fregs);
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	if (dereference_function_descriptor(ftrace_graph_return) !=
@@ -99,8 +95,10 @@ int __init ftrace_dyn_arch_init(void)
 {
 	return 0;
 }
+
 int ftrace_update_ftrace_func(ftrace_func_t func)
 {
+	ftrace_func = func;
 	return 0;
 }
 
