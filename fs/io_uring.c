@@ -6749,40 +6749,24 @@ static void io_wq_submit_work(struct io_wq_work *work)
 		}
 
 		do {
-issue_sqe:
 			ret = io_issue_sqe(req, issue_flags);
+			if (ret != -EAGAIN)
+				break;
 			/*
-			 * We can get EAGAIN for polled IO even though we're
+			 * We can get EAGAIN for iopolled IO even though we're
 			 * forcing a sync submission from here, since we can't
 			 * wait for request slots on the block side.
 			 */
-			if (ret != -EAGAIN)
-				break;
-			if (needs_poll) {
-				bool armed = false;
-
-				ret = 0;
-				needs_poll = false;
-				issue_flags &= ~IO_URING_F_NONBLOCK;
-
-				switch (io_arm_poll_handler(req)) {
-				case IO_APOLL_READY:
-					goto issue_sqe;
-				case IO_APOLL_ABORTED:
-					/*
-					 * somehow we failed to arm the poll infra,
-					 * fallback it to a normal async worker try.
-					 */
-					break;
-				case IO_APOLL_OK:
-					armed = true;
-					break;
-				}
-
-				if (armed)
-					break;
+			if (!needs_poll) {
+				cond_resched();
+				continue;
 			}
-			cond_resched();
+
+			if (io_arm_poll_handler(req) == IO_APOLL_OK)
+				return;
+			/* aborted or ready, in either case retry blocking */
+			needs_poll = false;
+			issue_flags &= ~IO_URING_F_NONBLOCK;
 		} while (1);
 	}
 
