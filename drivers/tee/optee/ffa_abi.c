@@ -333,7 +333,7 @@ static int optee_ffa_shm_unregister(struct tee_context *ctx,
 
 	rc = ffa_ops->memory_reclaim(global_handle, 0);
 	if (rc)
-		pr_err("mem_reclain: 0x%llx %d", global_handle, rc);
+		pr_err("mem_reclaim: 0x%llx %d", global_handle, rc);
 
 	return rc;
 }
@@ -355,7 +355,7 @@ static int optee_ffa_shm_unregister_supp(struct tee_context *ctx,
 	optee_shm_rem_ffa_handle(optee, global_handle);
 	rc = ffa_ops->memory_reclaim(global_handle, 0);
 	if (rc)
-		pr_err("mem_reclain: 0x%llx %d", global_handle, rc);
+		pr_err("mem_reclaim: 0x%llx %d", global_handle, rc);
 
 	shm->sec_world_id = 0;
 
