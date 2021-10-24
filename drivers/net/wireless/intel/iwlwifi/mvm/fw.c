@@ -769,7 +769,7 @@ int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm)
 	int ret;
 	struct iwl_host_cmd cmd;
 	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, PHY_OPS_GROUP,
-					   GEO_TX_POWER_LIMIT,
+					   PER_CHAIN_LIMIT_OFFSET_CMD,
 					   IWL_FW_CMD_VER_UNKNOWN);
 
 	/* the ops field is at the same spot for all versions, so set in v1 */
@@ -792,7 +792,7 @@ int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm)
 		return -EOPNOTSUPP;
 
 	cmd = (struct iwl_host_cmd){
-		.id =  WIDE_ID(PHY_OPS_GROUP, GEO_TX_POWER_LIMIT),
+		.id =  WIDE_ID(PHY_OPS_GROUP, PER_CHAIN_LIMIT_OFFSET_CMD),
 		.len = { len, },
 		.flags = CMD_WANT_SKB,
 		.data = { &geo_tx_cmd },
@@ -822,7 +822,7 @@ static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
 	u32 n_profiles;
 	int ret;
 	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, PHY_OPS_GROUP,
-					   GEO_TX_POWER_LIMIT,
+					   PER_CHAIN_LIMIT_OFFSET_CMD,
 					   IWL_FW_CMD_VER_UNKNOWN);
 
 	BUILD_BUG_ON(offsetof(struct iwl_geo_tx_power_profiles_cmd_v1, ops) !=
@@ -894,7 +894,8 @@ static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
 		cmd.v2.table_revision = cpu_to_le32(mvm->fwrt.geo_rev);
 
 	return iwl_mvm_send_cmd_pdu(mvm,
-				    WIDE_ID(PHY_OPS_GROUP, GEO_TX_POWER_LIMIT),
+				    WIDE_ID(PHY_OPS_GROUP,
+					    PER_CHAIN_LIMIT_OFFSET_CMD),
 				    0, len, &cmd);
 }
 

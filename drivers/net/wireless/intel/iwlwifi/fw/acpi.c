@@ -862,10 +862,10 @@ IWL_EXPORT_SYMBOL(iwl_sar_get_wgds_table);
 bool iwl_sar_geo_support(struct iwl_fw_runtime *fwrt)
 {
 	/*
-	 * The GEO_TX_POWER_LIMIT command is not supported on earlier
-	 * firmware versions.  Unfortunately, we don't have a TLV API
-	 * flag to rely on, so rely on the major version which is in
-	 * the first byte of ucode_ver.  This was implemented
+	 * The PER_CHAIN_LIMIT_OFFSET_CMD command is not supported on
+	 * earlier firmware versions.  Unfortunately, we don't have a
+	 * TLV API flag to rely on, so rely on the major version which
+	 * is in the first byte of ucode_ver.  This was implemented
 	 * initially on version 38 and then backported to 17.  It was
 	 * also backported to 29, but only for 7265D devices.  The
 	 * intention was to have it in 36 as well, but not all 8000
