@@ -1591,6 +1591,8 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 	struct bch_dev *ca = NULL;
 	struct bch_sb_field_members *mi;
 	struct bch_member dev_mi;
+	struct bucket_array *buckets;
+	struct bucket *g;
 	unsigned dev_idx, nr_devices, u64s;
 	int ret;
 
@@ -1693,6 +1695,16 @@ have_slot:
 	mutex_unlock(&c->sb_lock);
 
 	bch2_dev_usage_journal_reserve(c);
+
+	/*
+	 * Clear marks before marking transactionally in the btree, so that
+	 * per-device accounting gets done correctly:
+	 */
+	down_read(&ca->bucket_lock);
+	buckets = bucket_array(ca);
+	for_each_bucket(g, buckets)
+		atomic64_set(&g->_mark.v, 0);
+	up_read(&ca->bucket_lock);
 
 	err = "error marking superblock";
 	ret = bch2_trans_mark_dev_sb(c, ca);
