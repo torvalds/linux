@@ -1093,96 +1093,100 @@ static int hclge_check_port_speed(struct hnae3_handle *handle, u32 speed)
 	return -EINVAL;
 }
 
-static void hclge_convert_setting_sr(struct hclge_mac *mac, u16 speed_ability)
+static void hclge_convert_setting_sr(u16 speed_ability,
+				     unsigned long *link_mode)
 {
 	if (speed_ability & HCLGE_SUPPORT_10G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_10000baseSR_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_25G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_25000baseSR_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_40G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_40000baseSR4_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_50G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_50000baseSR2_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_100G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_100000baseSR4_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_200G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_200000baseSR4_Full_BIT,
-				 mac->supported);
+				 link_mode);
 }
 
-static void hclge_convert_setting_lr(struct hclge_mac *mac, u16 speed_ability)
+static void hclge_convert_setting_lr(u16 speed_ability,
+				     unsigned long *link_mode)
 {
 	if (speed_ability & HCLGE_SUPPORT_10G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_10000baseLR_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_25G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_25000baseSR_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_50G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_50000baseLR_ER_FR_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_40G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_40000baseLR4_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_100G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_100000baseLR4_ER4_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_200G_BIT)
 		linkmode_set_bit(
 			ETHTOOL_LINK_MODE_200000baseLR4_ER4_FR4_Full_BIT,
-			mac->supported);
+			link_mode);
 }
 
-static void hclge_convert_setting_cr(struct hclge_mac *mac, u16 speed_ability)
+static void hclge_convert_setting_cr(u16 speed_ability,
+				     unsigned long *link_mode)
 {
 	if (speed_ability & HCLGE_SUPPORT_10G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_10000baseCR_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_25G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_25000baseCR_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_40G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_40000baseCR4_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_50G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_50000baseCR2_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_100G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_100000baseCR4_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_200G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_200000baseCR4_Full_BIT,
-				 mac->supported);
+				 link_mode);
 }
 
-static void hclge_convert_setting_kr(struct hclge_mac *mac, u16 speed_ability)
+static void hclge_convert_setting_kr(u16 speed_ability,
+				     unsigned long *link_mode)
 {
 	if (speed_ability & HCLGE_SUPPORT_1G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseKX_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_10G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_10000baseKR_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_25G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_25000baseKR_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_40G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_40000baseKR4_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_50G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_50000baseKR2_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_100G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_100000baseKR4_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_200G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_200000baseKR4_Full_BIT,
-				 mac->supported);
+				 link_mode);
 }
 
 static void hclge_convert_setting_fec(struct hclge_mac *mac)
@@ -1226,9 +1230,9 @@ static void hclge_parse_fiber_link_mode(struct hclge_dev *hdev,
 		linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseX_Full_BIT,
 				 mac->supported);
 
-	hclge_convert_setting_sr(mac, speed_ability);
-	hclge_convert_setting_lr(mac, speed_ability);
-	hclge_convert_setting_cr(mac, speed_ability);
+	hclge_convert_setting_sr(speed_ability, mac->supported);
+	hclge_convert_setting_lr(speed_ability, mac->supported);
+	hclge_convert_setting_cr(speed_ability, mac->supported);
 	if (hnae3_dev_fec_supported(hdev))
 		hclge_convert_setting_fec(mac);
 
@@ -1244,7 +1248,7 @@ static void hclge_parse_backplane_link_mode(struct hclge_dev *hdev,
 {
 	struct hclge_mac *mac = &hdev->hw.mac;
 
-	hclge_convert_setting_kr(mac, speed_ability);
+	hclge_convert_setting_kr(speed_ability, mac->supported);
 	if (hnae3_dev_fec_supported(hdev))
 		hclge_convert_setting_fec(mac);
 
