@@ -503,6 +503,43 @@ static int open_stats_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 		min((size_t) max_size, sizeof(open_stats_info))) ? -EFAULT : 0;
 }
 
+static int dram_pending_rows_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	struct hl_device *hdev = hpriv->hdev;
+	u32 max_size = args->return_size;
+	u32 pend_rows_num = 0;
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+	int rc;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	rc = hl_fw_dram_pending_row_get(hdev, &pend_rows_num);
+	if (rc)
+		return rc;
+
+	return copy_to_user(out, &pend_rows_num,
+			min_t(size_t, max_size, sizeof(pend_rows_num))) ? -EFAULT : 0;
+}
+
+static int dram_replaced_rows_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	struct hl_device *hdev = hpriv->hdev;
+	u32 max_size = args->return_size;
+	struct cpucp_hbm_row_info info = {0};
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+	int rc;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	rc = hl_fw_dram_replaced_row_get(hdev, &info);
+	if (rc)
+		return rc;
+
+	return copy_to_user(out, &info, min_t(size_t, max_size, sizeof(info))) ? -EFAULT : 0;
+}
+
 static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 				struct device *dev)
 {
@@ -588,6 +625,12 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 
 	case HL_INFO_OPEN_STATS:
 		return open_stats_info(hpriv, args);
+
+	case HL_INFO_DRAM_REPLACED_ROWS:
+		return dram_replaced_rows_info(hpriv, args);
+
+	case HL_INFO_DRAM_PENDING_ROWS:
+		return dram_pending_rows_info(hpriv, args);
 
 	default:
 		dev_err(dev, "Invalid request %d\n", args->op);

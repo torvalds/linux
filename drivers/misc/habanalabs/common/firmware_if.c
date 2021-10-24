@@ -972,6 +972,72 @@ int hl_fw_cpucp_power_get(struct hl_device *hdev, u64 *power)
 	return rc;
 }
 
+int hl_fw_dram_replaced_row_get(struct hl_device *hdev,
+				struct cpucp_hbm_row_info *info)
+{
+	struct cpucp_hbm_row_info *cpucp_repl_rows_info_cpu_addr;
+	dma_addr_t cpucp_repl_rows_info_dma_addr;
+	struct cpucp_packet pkt = {};
+	u64 result;
+	int rc;
+
+	cpucp_repl_rows_info_cpu_addr =
+			hdev->asic_funcs->cpu_accessible_dma_pool_alloc(hdev,
+					sizeof(struct cpucp_hbm_row_info),
+					&cpucp_repl_rows_info_dma_addr);
+	if (!cpucp_repl_rows_info_cpu_addr) {
+		dev_err(hdev->dev,
+			"Failed to allocate DMA memory for CPU-CP replaced rows info packet\n");
+		return -ENOMEM;
+	}
+
+	memset(cpucp_repl_rows_info_cpu_addr, 0, sizeof(struct cpucp_hbm_row_info));
+
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_HBM_REPLACED_ROWS_INFO_GET <<
+					CPUCP_PKT_CTL_OPCODE_SHIFT);
+	pkt.addr = cpu_to_le64(cpucp_repl_rows_info_dma_addr);
+	pkt.data_max_size = cpu_to_le32(sizeof(struct cpucp_hbm_row_info));
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
+					HL_CPUCP_INFO_TIMEOUT_USEC, &result);
+	if (rc) {
+		dev_err(hdev->dev,
+			"Failed to handle CPU-CP replaced rows info pkt, error %d\n", rc);
+		goto out;
+	}
+
+	memcpy(info, cpucp_repl_rows_info_cpu_addr, sizeof(*info));
+
+out:
+	hdev->asic_funcs->cpu_accessible_dma_pool_free(hdev,
+					sizeof(struct cpucp_hbm_row_info),
+					cpucp_repl_rows_info_cpu_addr);
+
+	return rc;
+}
+
+int hl_fw_dram_pending_row_get(struct hl_device *hdev, u32 *pend_rows_num)
+{
+	struct cpucp_packet pkt;
+	u64 result;
+	int rc;
+
+	memset(&pkt, 0, sizeof(pkt));
+
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_HBM_PENDING_ROWS_STATUS << CPUCP_PKT_CTL_OPCODE_SHIFT);
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt), 0, &result);
+	if (rc) {
+		dev_err(hdev->dev,
+				"Failed to handle CPU-CP pending rows info pkt, error %d\n", rc);
+		goto out;
+	}
+
+	*pend_rows_num = (u32) result;
+out:
+	return rc;
+}
+
 void hl_fw_ask_hard_reset_without_linux(struct hl_device *hdev)
 {
 	struct static_fw_load_mgr *static_loader =

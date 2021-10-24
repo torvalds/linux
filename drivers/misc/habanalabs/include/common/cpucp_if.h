@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0
  *
- * Copyright 2020 HabanaLabs, Ltd.
+ * Copyright 2021 HabanaLabs, Ltd.
  * All Rights Reserved.
  *
  */
@@ -377,6 +377,13 @@ enum pq_init_status {
  *       a different engine or QMAN according to enum cpucp_idle_mask.
  *       The bit will be 1 if the engine is NOT idle.
  *
+ * CPUCP_PACKET_HBM_REPLACED_ROWS_INFO_GET -
+ *       Fetch all HBM replaced-rows and prending to be replaced rows data.
+ *
+ * CPUCP_PACKET_HBM_PENDING_ROWS_STATUS -
+ *       Fetch status of HBM rows pending replacement and need a reboot to
+ *       be replaced.
+ *
  * CPUCP_PACKET_POWER_SET -
  *       Resets power history of device to 0
  */
@@ -424,6 +431,8 @@ enum cpucp_packet_id {
 	CPUCP_PACKET_NIC_STAT_REGS_CLR,		/* internal */
 	CPUCP_PACKET_NIC_STAT_REGS_ALL_GET,	/* internal */
 	CPUCP_PACKET_IS_IDLE_CHECK,		/* internal */
+	CPUCP_PACKET_HBM_REPLACED_ROWS_INFO_GET,/* internal */
+	CPUCP_PACKET_HBM_PENDING_ROWS_STATUS,	/* internal */
 	CPUCP_PACKET_POWER_SET,			/* internal */
 };
 
@@ -692,6 +701,7 @@ struct eq_generic_event {
 #define CPUCP_MAX_NIC_LANES		(CPUCP_MAX_NICS * CPUCP_LANES_PER_NIC)
 #define CPUCP_NIC_MASK_ARR_LEN		((CPUCP_MAX_NICS + 63) / 64)
 #define CPUCP_NIC_POLARITY_ARR_LEN	((CPUCP_MAX_NIC_LANES + 63) / 64)
+#define CPUCP_HBM_ROW_REPLACE_MAX	32
 
 struct cpucp_sensor {
 	__le32 type;
@@ -835,6 +845,27 @@ struct cpucp_nic_status {
 	__u8 auto_neg;
 	__le32 timeout_retransmission_cnt;
 	__le32 high_ber_cnt;
+};
+
+enum cpucp_hbm_row_replace_cause {
+	REPLACE_CAUSE_DOUBLE_ECC_ERR,
+	REPLACE_CAUSE_MULTI_SINGLE_ECC_ERR,
+};
+
+struct cpucp_hbm_row_info {
+	__u8 hbm_idx;
+	__u8 pc;
+	__u8 sid;
+	__u8 bank_idx;
+	__le16 row_addr;
+	__u8 replaced_row_cause; /* enum cpucp_hbm_row_replace_cause */
+	__u8 pad;
+};
+
+struct cpucp_hbm_row_replaced_rows_info {
+	__le16 num_replaced_rows;
+	__u8 pad[6];
+	struct cpucp_hbm_row_info replaced_rows[CPUCP_HBM_ROW_REPLACE_MAX];
 };
 
 #endif /* CPUCP_IF_H */

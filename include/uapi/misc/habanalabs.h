@@ -334,6 +334,8 @@ enum hl_server_type {
  * HL_INFO_TOTAL_ENERGY  - Retrieve total energy consumption
  * HL_INFO_PLL_FREQUENCY - Retrieve PLL frequency
  * HL_INFO_OPEN_STATS    - Retrieve info regarding recent device open calls
+ * HL_INFO_DRAM_REPLACED_ROWS - Retrieve DRAM replaced rows info
+ * HL_INFO_DRAM_PENDING_ROWS - Retrieve DRAM pending rows num
  */
 #define HL_INFO_HW_IP_INFO		0
 #define HL_INFO_HW_EVENTS		1
@@ -353,6 +355,8 @@ enum hl_server_type {
 #define HL_INFO_PLL_FREQUENCY		16
 #define HL_INFO_POWER			17
 #define HL_INFO_OPEN_STATS		18
+#define HL_INFO_DRAM_REPLACED_ROWS	21
+#define HL_INFO_DRAM_PENDING_ROWS	22
 
 #define HL_INFO_VERSION_MAX_LEN	128
 #define HL_INFO_CARD_NAME_MAX_LEN	16
