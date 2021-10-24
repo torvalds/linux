@@ -51,7 +51,6 @@ r8188eu-y = \
 		core/rtw_recv.o \
 		core/rtw_rf.o \
 		core/rtw_security.o \
-		core/rtw_sreset.o \
 		core/rtw_sta_mgt.o \
 		core/rtw_wlan_util.o \
 		core/rtw_xmit.o

@@ -11,6 +11,8 @@
 #include "../include/mlme_osdep.h"
 #include "../include/recv_osdep.h"
 #include "../include/rtl8188e_sreset.h"
+#include "../include/rtl8188e_xmit.h"
+#include "../include/rtl8188e_dm.h"
 
 static struct mlme_handler mlme_sta_tbl[] = {
 	{WIFI_ASSOCREQ,		"OnAssocReq",	&OnAssocReq},

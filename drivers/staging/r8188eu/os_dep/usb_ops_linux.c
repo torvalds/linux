@@ -5,7 +5,7 @@
 
 #include "../include/drv_types.h"
 #include "../include/usb_ops_linux.h"
-#include "../include/rtw_sreset.h"
+#include "../include/rtl8188e_recv.h"
 
 unsigned int ffaddr2pipehdl(struct dvobj_priv *pdvobj, u32 addr)
 {
@@ -176,11 +176,7 @@ u32 rtw_write_port(struct adapter *padapter, u32 addr, u32 cnt, u8 *wmem)
 			  pxmitbuf);/* context is pxmitbuf */
 
 	status = usb_submit_urb(purb, GFP_ATOMIC);
-	if (!status) {
-		struct hal_data_8188e	*haldata = GET_HAL_DATA(padapter);
-
-		haldata->srestpriv.last_tx_time = jiffies;
-	} else {
+	if (status) {
 		rtw_sctx_done_err(&pxmitbuf->sctx, RTW_SCTX_DONE_WRITE_PORT_ERR);
 		DBG_88E("usb_write_port, status =%d\n", status);
 

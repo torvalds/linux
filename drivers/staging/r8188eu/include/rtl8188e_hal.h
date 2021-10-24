@@ -256,7 +256,6 @@ struct hal_data_8188e {
 
 	struct dm_priv	dmpriv;
 	struct odm_dm_struct odmpriv;
-	struct sreset_priv srestpriv;
 
 	u8	CurAntenna;
 	u8	AntDivCfg;
