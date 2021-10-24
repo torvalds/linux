@@ -8,12 +8,6 @@
 
 void rtl8188e_sreset_xmit_status_check(struct adapter *padapter)
 {
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(padapter);
-	struct sreset_priv *psrtpriv = &pHalData->srestpriv;
-
-	unsigned long current_time;
-	struct xmit_priv	*pxmitpriv = &padapter->xmitpriv;
-	unsigned int diff_time;
 	u32 txdma_status;
 
 	txdma_status = rtw_read32(padapter, REG_TXDMA_STATUS);
@@ -22,15 +16,6 @@ void rtl8188e_sreset_xmit_status_check(struct adapter *padapter)
 		rtw_write32(padapter, REG_TXDMA_STATUS, txdma_status);
 	}
 	/* total xmit irp = 4 */
-	current_time = jiffies;
-	if (0 == pxmitpriv->free_xmitbuf_cnt) {
-		diff_time = jiffies_to_msecs(current_time - psrtpriv->last_tx_time);
-
-		if (diff_time > 2000) {
-			if (psrtpriv->last_tx_complete_time == 0)
-				psrtpriv->last_tx_complete_time = current_time;
-		}
-	}
 }
 
 void rtl8188e_sreset_linked_status_check(struct adapter *padapter)

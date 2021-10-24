@@ -9,7 +9,6 @@ void sreset_init_value(struct adapter *padapter)
 	struct sreset_priv *psrtpriv = &pHalData->srestpriv;
 
 	psrtpriv->last_tx_time = 0;
-	psrtpriv->last_tx_complete_time = 0;
 }
 void sreset_reset_value(struct adapter *padapter)
 {
@@ -17,5 +16,4 @@ void sreset_reset_value(struct adapter *padapter)
 	struct sreset_priv *psrtpriv = &pHalData->srestpriv;
 
 	psrtpriv->last_tx_time = 0;
-	psrtpriv->last_tx_complete_time = 0;
 }

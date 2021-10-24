@@ -9,7 +9,6 @@
 
 struct sreset_priv {
 	unsigned long last_tx_time;
-	unsigned long last_tx_complete_time;
 };
 
 #include "rtl8188e_hal.h"

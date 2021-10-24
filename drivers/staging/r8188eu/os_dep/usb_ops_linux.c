@@ -53,7 +53,6 @@ static void usb_write_port_complete(struct urb *purb, struct pt_regs *regs)
 	struct xmit_buf *pxmitbuf = (struct xmit_buf *)purb->context;
 	struct adapter	*padapter = pxmitbuf->padapter;
 	struct xmit_priv	*pxmitpriv = &padapter->xmitpriv;
-	struct hal_data_8188e	*haldata;
 
 	switch (pxmitbuf->flags) {
 	case VO_QUEUE_INX:
@@ -105,9 +104,6 @@ static void usb_write_port_complete(struct urb *purb, struct pt_regs *regs)
 			goto check_completion;
 		}
 	}
-
-	haldata = GET_HAL_DATA(padapter);
-	haldata->srestpriv.last_tx_complete_time = jiffies;
 
 check_completion:
 	rtw_sctx_done_err(&pxmitbuf->sctx,
