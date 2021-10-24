@@ -383,9 +383,9 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 		       iwl_mvm_probe_resp_data_notif,
 		       RX_HANDLER_ASYNC_LOCKED,
 		       struct iwl_probe_resp_data_notif),
-	RX_HANDLER_GRP(MAC_CONF_GROUP, CHANNEL_SWITCH_NOA_NOTIF,
-		       iwl_mvm_channel_switch_noa_notif,
-		       RX_HANDLER_SYNC, struct iwl_channel_switch_noa_notif),
+	RX_HANDLER_GRP(MAC_CONF_GROUP, CHANNEL_SWITCH_START_NOTIF,
+		       iwl_mvm_channel_switch_start_notif,
+		       RX_HANDLER_SYNC, struct iwl_channel_switch_start_notif),
 	RX_HANDLER_GRP(DATA_PATH_GROUP, MONITOR_NOTIF,
 		       iwl_mvm_rx_monitor_notif, RX_HANDLER_ASYNC_LOCKED,
 		       struct iwl_datapath_monitor_notif),
@@ -511,7 +511,7 @@ static const struct iwl_hcmd_names iwl_mvm_mac_conf_names[] = {
 	HCMD_NAME(CHANNEL_SWITCH_TIME_EVENT_CMD),
 	HCMD_NAME(SESSION_PROTECTION_CMD),
 	HCMD_NAME(SESSION_PROTECTION_NOTIF),
-	HCMD_NAME(CHANNEL_SWITCH_NOA_NOTIF),
+	HCMD_NAME(CHANNEL_SWITCH_START_NOTIF),
 };
 
 /* Please keep this array *SORTED* by hex value.

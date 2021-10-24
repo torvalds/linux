@@ -1557,11 +1557,11 @@ void iwl_mvm_probe_resp_data_notif(struct iwl_mvm *mvm,
 		ieee80211_beacon_set_cntdwn(vif, notif->csa_counter);
 }
 
-void iwl_mvm_channel_switch_noa_notif(struct iwl_mvm *mvm,
-				      struct iwl_rx_cmd_buffer *rxb)
+void iwl_mvm_channel_switch_start_notif(struct iwl_mvm *mvm,
+					struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_channel_switch_noa_notif *notif = (void *)pkt->data;
+	struct iwl_channel_switch_start_notif *notif = (void *)pkt->data;
 	struct ieee80211_vif *csa_vif, *vif;
 	struct iwl_mvm_vif *mvmvif;
 	u32 id_n_color, csa_id, mac_id;
