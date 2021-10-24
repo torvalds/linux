@@ -2236,6 +2236,34 @@ static void iwl_mvm_cfg_he_sta(struct iwl_mvm *mvm,
 		IWL_ERR(mvm, "Failed to config FW to work HE!\n");
 }
 
+static void iwl_mvm_protect_assoc(struct iwl_mvm *mvm,
+				  struct ieee80211_vif *vif,
+				  u32 duration_override)
+{
+	u32 duration = IWL_MVM_TE_SESSION_PROTECTION_MAX_TIME_MS;
+	u32 min_duration = IWL_MVM_TE_SESSION_PROTECTION_MIN_TIME_MS;
+
+	if (duration_override > duration)
+		duration = duration_override;
+
+	/* Try really hard to protect the session and hear a beacon
+	 * The new session protection command allows us to protect the
+	 * session for a much longer time since the firmware will internally
+	 * create two events: a 300TU one with a very high priority that
+	 * won't be fragmented which should be enough for 99% of the cases,
+	 * and another one (which we configure here to be 900TU long) which
+	 * will have a slightly lower priority, but more importantly, can be
+	 * fragmented so that it'll allow other activities to run.
+	 */
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_SESSION_PROT_CMD))
+		iwl_mvm_schedule_session_protection(mvm, vif, 900,
+						    min_duration, false);
+	else
+		iwl_mvm_protect_session(mvm, vif, duration,
+					min_duration, 500, false);
+}
+
 static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 					     struct ieee80211_vif *vif,
 					     struct ieee80211_bss_conf *bss_conf,
@@ -2319,6 +2347,20 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 				u32 dur = (11 * vif->bss_conf.beacon_int) / 10;
 				iwl_mvm_protect_session(mvm, vif, dur, dur,
 							5 * dur, false);
+			} else if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART,
+					     &mvm->status) &&
+				   !vif->bss_conf.dtim_period) {
+				/*
+				 * If we're not restarting and still haven't
+				 * heard a beacon (dtim period unknown) then
+				 * make sure we still have enough minimum time
+				 * remaining in the time event, since the auth
+				 * might actually have taken quite a while
+				 * (especially for SAE) and so the remaining
+				 * time could be small without us having heard
+				 * a beacon yet.
+				 */
+				iwl_mvm_protect_assoc(mvm, vif, 0);
 			}
 
 			iwl_mvm_sf_update(mvm, vif, false);
@@ -3332,29 +3374,9 @@ static void iwl_mvm_mac_mgd_prepare_tx(struct ieee80211_hw *hw,
 				       struct ieee80211_prep_tx_info *info)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	u32 duration = IWL_MVM_TE_SESSION_PROTECTION_MAX_TIME_MS;
-	u32 min_duration = IWL_MVM_TE_SESSION_PROTECTION_MIN_TIME_MS;
-
-	if (info->duration > duration)
-		duration = info->duration;
 
 	mutex_lock(&mvm->mutex);
-	/* Try really hard to protect the session and hear a beacon
-	 * The new session protection command allows us to protect the
-	 * session for a much longer time since the firmware will internally
-	 * create two events: a 300TU one with a very high priority that
-	 * won't be fragmented which should be enough for 99% of the cases,
-	 * and another one (which we configure here to be 900TU long) which
-	 * will have a slightly lower priority, but more importantly, can be
-	 * fragmented so that it'll allow other activities to run.
-	 */
-	if (fw_has_capa(&mvm->fw->ucode_capa,
-			IWL_UCODE_TLV_CAPA_SESSION_PROT_CMD))
-		iwl_mvm_schedule_session_protection(mvm, vif, 900,
-						    min_duration, false);
-	else
-		iwl_mvm_protect_session(mvm, vif, duration,
-					min_duration, 500, false);
+	iwl_mvm_protect_assoc(mvm, vif, info->duration);
 	mutex_unlock(&mvm->mutex);
 }
 
