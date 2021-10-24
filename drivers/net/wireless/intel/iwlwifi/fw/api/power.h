@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2021 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -378,9 +378,10 @@ struct iwl_dev_tx_power_cmd {
 	};
 };
 
-#define IWL_NUM_GEO_PROFILES   3
-#define IWL_NUM_BANDS_PER_CHAIN_V1 2
-#define IWL_NUM_BANDS_PER_CHAIN_V2 3
+#define IWL_NUM_GEO_PROFILES		3
+#define IWL_NUM_GEO_PROFILES_V3		8
+#define IWL_NUM_BANDS_PER_CHAIN_V1	2
+#define IWL_NUM_BANDS_PER_CHAIN_V2	3
 
 /**
  * enum iwl_geo_per_chain_offset_operation - type of operation
@@ -438,10 +439,36 @@ struct iwl_geo_tx_power_profiles_cmd_v3 {
 	__le32 table_revision;
 } __packed; /* GEO_TX_POWER_LIMIT_VER_3 */
 
+/**
+ * struct iwl_geo_tx_power_profile_cmd_v4 - struct for GEO_TX_POWER_LIMIT cmd.
+ * @ops: operations, value from &enum iwl_geo_per_chain_offset_operation
+ * @table: offset profile per band.
+ * @table_revision: BIOS table revision.
+ */
+struct iwl_geo_tx_power_profiles_cmd_v4 {
+	__le32 ops;
+	struct iwl_per_chain_offset table[IWL_NUM_GEO_PROFILES_V3][IWL_NUM_BANDS_PER_CHAIN_V1];
+	__le32 table_revision;
+} __packed; /* GEO_TX_POWER_LIMIT_VER_4 */
+
+/**
+ * struct iwl_geo_tx_power_profile_cmd_v5 - struct for GEO_TX_POWER_LIMIT cmd.
+ * @ops: operations, value from &enum iwl_geo_per_chain_offset_operation
+ * @table: offset profile per band.
+ * @table_revision: BIOS table revision.
+ */
+struct iwl_geo_tx_power_profiles_cmd_v5 {
+	__le32 ops;
+	struct iwl_per_chain_offset table[IWL_NUM_GEO_PROFILES_V3][IWL_NUM_BANDS_PER_CHAIN_V2];
+	__le32 table_revision;
+} __packed; /* GEO_TX_POWER_LIMIT_VER_5 */
+
 union iwl_geo_tx_power_profiles_cmd {
 	struct iwl_geo_tx_power_profiles_cmd_v1 v1;
 	struct iwl_geo_tx_power_profiles_cmd_v2 v2;
 	struct iwl_geo_tx_power_profiles_cmd_v3 v3;
+	struct iwl_geo_tx_power_profiles_cmd_v4 v4;
+	struct iwl_geo_tx_power_profiles_cmd_v5 v5;
 };
 
 /**
