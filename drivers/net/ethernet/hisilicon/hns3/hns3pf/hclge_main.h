@@ -412,6 +412,7 @@ struct hclge_comm_stats_str {
 struct hclge_mac_stats {
 	u64 mac_tx_mac_pause_num;
 	u64 mac_rx_mac_pause_num;
+	u64 rsv0;
 	u64 mac_tx_pfc_pri0_pkt_num;
 	u64 mac_tx_pfc_pri1_pkt_num;
 	u64 mac_tx_pfc_pri2_pkt_num;
@@ -448,7 +449,7 @@ struct hclge_mac_stats {
 	u64 mac_tx_1519_2047_oct_pkt_num;
 	u64 mac_tx_2048_4095_oct_pkt_num;
 	u64 mac_tx_4096_8191_oct_pkt_num;
-	u64 rsv0;
+	u64 rsv1;
 	u64 mac_tx_8192_9216_oct_pkt_num;
 	u64 mac_tx_9217_12287_oct_pkt_num;
 	u64 mac_tx_12288_16383_oct_pkt_num;
@@ -475,7 +476,7 @@ struct hclge_mac_stats {
 	u64 mac_rx_1519_2047_oct_pkt_num;
 	u64 mac_rx_2048_4095_oct_pkt_num;
 	u64 mac_rx_4096_8191_oct_pkt_num;
-	u64 rsv1;
+	u64 rsv2;
 	u64 mac_rx_8192_9216_oct_pkt_num;
 	u64 mac_rx_9217_12287_oct_pkt_num;
 	u64 mac_rx_12288_16383_oct_pkt_num;

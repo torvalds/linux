@@ -451,8 +451,9 @@ static int hclge_mac_update_stats_defective(struct hclge_dev *hdev)
 	u64 *data = (u64 *)(&hdev->mac_stats);
 	struct hclge_desc desc[HCLGE_MAC_CMD_NUM];
 	__le64 *desc_data;
-	int i, k, n;
+	u32 data_size;
 	int ret;
+	u32 i;
 
 	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_STATS_MAC, true);
 	ret = hclge_cmd_send(&hdev->hw, desc, HCLGE_MAC_CMD_NUM);
@@ -463,33 +464,36 @@ static int hclge_mac_update_stats_defective(struct hclge_dev *hdev)
 		return ret;
 	}
 
-	for (i = 0; i < HCLGE_MAC_CMD_NUM; i++) {
-		/* for special opcode 0032, only the first desc has the head */
-		if (unlikely(i == 0)) {
-			desc_data = (__le64 *)(&desc[i].data[0]);
-			n = HCLGE_RD_FIRST_STATS_NUM;
-		} else {
-			desc_data = (__le64 *)(&desc[i]);
-			n = HCLGE_RD_OTHER_STATS_NUM;
-		}
+	/* The first desc has a 64-bit header, so data size need to minus 1 */
+	data_size = sizeof(desc) / (sizeof(u64)) - 1;
 
-		for (k = 0; k < n; k++) {
-			*data += le64_to_cpu(*desc_data);
-			data++;
-			desc_data++;
-		}
+	desc_data = (__le64 *)(&desc[0].data[0]);
+	for (i = 0; i < data_size; i++) {
+		/* data memory is continuous becase only the first desc has a
+		 * header in this command
+		 */
+		*data += le64_to_cpu(*desc_data);
+		data++;
+		desc_data++;
 	}
 
 	return 0;
 }
 
-static int hclge_mac_update_stats_complete(struct hclge_dev *hdev, u32 desc_num)
+static int hclge_mac_update_stats_complete(struct hclge_dev *hdev, u32 reg_num)
 {
+#define HCLGE_REG_NUM_PER_DESC		4
+
 	u64 *data = (u64 *)(&hdev->mac_stats);
 	struct hclge_desc *desc;
 	__le64 *desc_data;
-	u16 i, k, n;
+	u32 data_size;
+	u32 desc_num;
 	int ret;
+	u32 i;
+
+	/* The first desc has a 64-bit header, so need to consider it */
+	desc_num = reg_num / HCLGE_REG_NUM_PER_DESC + 1;
 
 	/* This may be called inside atomic sections,
 	 * so GFP_ATOMIC is more suitalbe here
@@ -505,21 +509,16 @@ static int hclge_mac_update_stats_complete(struct hclge_dev *hdev, u32 desc_num)
 		return ret;
 	}
 
-	for (i = 0; i < desc_num; i++) {
-		/* for special opcode 0034, only the first desc has the head */
-		if (i == 0) {
-			desc_data = (__le64 *)(&desc[i].data[0]);
-			n = HCLGE_RD_FIRST_STATS_NUM;
-		} else {
-			desc_data = (__le64 *)(&desc[i]);
-			n = HCLGE_RD_OTHER_STATS_NUM;
-		}
+	data_size = min_t(u32, sizeof(hdev->mac_stats) / sizeof(u64), reg_num);
 
-		for (k = 0; k < n; k++) {
-			*data += le64_to_cpu(*desc_data);
-			data++;
-			desc_data++;
-		}
+	desc_data = (__le64 *)(&desc[0].data[0]);
+	for (i = 0; i < data_size; i++) {
+		/* data memory is continuous becase only the first desc has a
+		 * header in this command
+		 */
+		*data += le64_to_cpu(*desc_data);
+		data++;
+		desc_data++;
 	}
 
 	kfree(desc);
@@ -527,40 +526,41 @@ static int hclge_mac_update_stats_complete(struct hclge_dev *hdev, u32 desc_num)
 	return 0;
 }
 
-static int hclge_mac_query_reg_num(struct hclge_dev *hdev, u32 *desc_num)
+static int hclge_mac_query_reg_num(struct hclge_dev *hdev, u32 *reg_num)
 {
 	struct hclge_desc desc;
-	__le32 *desc_data;
-	u32 reg_num;
 	int ret;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_QUERY_MAC_REG_NUM, true);
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret)
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to query mac statistic reg number, ret = %d\n",
+			ret);
 		return ret;
+	}
 
-	desc_data = (__le32 *)(&desc.data[0]);
-	reg_num = le32_to_cpu(*desc_data);
-
-	*desc_num = 1 + ((reg_num - 3) >> 2) +
-		    (u32)(((reg_num - 3) & 0x3) ? 1 : 0);
+	*reg_num = le32_to_cpu(desc.data[0]);
+	if (*reg_num == 0) {
+		dev_err(&hdev->pdev->dev,
+			"mac statistic reg number is invalid!\n");
+		return -ENODATA;
+	}
 
 	return 0;
 }
 
 static int hclge_mac_update_stats(struct hclge_dev *hdev)
 {
-	u32 desc_num;
+	u32 reg_num;
 	int ret;
 
-	ret = hclge_mac_query_reg_num(hdev, &desc_num);
+	ret = hclge_mac_query_reg_num(hdev, &reg_num);
 	/* The firmware supports the new statistics acquisition method */
 	if (!ret)
-		ret = hclge_mac_update_stats_complete(hdev, desc_num);
+		ret = hclge_mac_update_stats_complete(hdev, reg_num);
 	else if (ret == -EOPNOTSUPP)
 		ret = hclge_mac_update_stats_defective(hdev);
-	else
-		dev_err(&hdev->pdev->dev, "query mac reg num fail!\n");
 
 	return ret;
 }
