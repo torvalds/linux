@@ -284,13 +284,6 @@ static int iwl_dbg_tlv_config_set(struct iwl_trans *trans,
 		return -EINVAL;
 	}
 
-	if (type != IWL_FW_INI_CONFIG_SET_TYPE_PERIPH_SCRATCH_HWM ||
-	    trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_AX210) {
-		IWL_DEBUG_FW(trans,
-			     "WRT: Config set type %u is not supported\n", type);
-		return -EINVAL;
-	}
-
 	return iwl_dbg_tlv_add(tlv, &trans->dbg.time_point[tp].config_list);
 }
 
@@ -812,18 +805,84 @@ static void iwl_dbg_tlv_apply_config(struct iwl_fw_runtime *fwrt,
 
 	list_for_each_entry(node, config_list, list) {
 		struct iwl_fw_ini_conf_set_tlv *config_list = (void *)node->tlv.data;
+		u32 count, address, value;
+		u32 len = (le32_to_cpu(node->tlv.length) - sizeof(*config_list)) / 8;
 		u32 type = le32_to_cpu(config_list->set_type);
+		u32 offset = le32_to_cpu(config_list->addr_offset);
 
 		switch (type) {
-			case IWL_FW_INI_CONFIG_SET_TYPE_PERIPH_SCRATCH_HWM: {
-				u32 debug_token_config =
-					le32_to_cpu(config_list->addr_val[0].value);
-
-				IWL_DEBUG_FW(fwrt, "WRT: Setting HWM debug token config: %u\n",
-					     debug_token_config);
-				fwrt->trans->dbg.ucode_preset = debug_token_config;
-				break;
+		case IWL_FW_INI_CONFIG_SET_TYPE_DEVICE_PERIPHERY_MAC: {
+			if (!iwl_trans_grab_nic_access(fwrt->trans)) {
+				IWL_DEBUG_FW(fwrt, "WRT: failed to get nic access\n");
+				IWL_DEBUG_FW(fwrt, "WRT: skipping MAC PERIPHERY config\n");
+				continue;
 			}
+			IWL_DEBUG_FW(fwrt, "WRT:  MAC PERIPHERY config len: len %u\n", len);
+			for (count = 0; count < len; count++) {
+				address = le32_to_cpu(config_list->addr_val[count].address);
+				value = le32_to_cpu(config_list->addr_val[count].value);
+				iwl_trans_write_prph(fwrt->trans, address + offset, value);
+			}
+			iwl_trans_release_nic_access(fwrt->trans);
+		break;
+		}
+		case IWL_FW_INI_CONFIG_SET_TYPE_DEVICE_MEMORY: {
+			for (count = 0; count < len; count++) {
+				address = le32_to_cpu(config_list->addr_val[count].address);
+				value = le32_to_cpu(config_list->addr_val[count].value);
+				iwl_trans_write_mem32(fwrt->trans, address + offset, value);
+				IWL_DEBUG_FW(fwrt, "WRT: DEV_MEM: count %u, add: %u val: %u\n",
+					     count, address, value);
+			}
+		break;
+		}
+		case IWL_FW_INI_CONFIG_SET_TYPE_CSR: {
+			for (count = 0; count < len; count++) {
+				address = le32_to_cpu(config_list->addr_val[count].address);
+				value = le32_to_cpu(config_list->addr_val[count].value);
+				iwl_write32(fwrt->trans, address + offset, value);
+				IWL_DEBUG_FW(fwrt, "WRT: CSR: count %u, add: %u val: %u\n",
+					     count, address, value);
+			}
+		break;
+		}
+		case IWL_FW_INI_CONFIG_SET_TYPE_DBGC_DRAM_ADDR: {
+			struct iwl_dbgc1_info dram_info = {};
+			struct iwl_dram_data *frags = &fwrt->trans->dbg.fw_mon_ini[1].frags[0];
+			__le64 dram_base_addr = cpu_to_le64(frags->physical);
+			__le32 dram_size = cpu_to_le32(frags->size);
+			u64  dram_addr = le64_to_cpu(dram_base_addr);
+			u32 ret;
+
+			IWL_DEBUG_FW(fwrt, "WRT: dram_base_addr 0x%016llx, dram_size 0x%x\n",
+				     dram_base_addr, dram_size);
+			IWL_DEBUG_FW(fwrt, "WRT: config_list->addr_offset: %u\n",
+				     le32_to_cpu(config_list->addr_offset));
+			for (count = 0; count < len; count++) {
+				address = le32_to_cpu(config_list->addr_val[count].address);
+				dram_info.dbgc1_add_lsb =
+					cpu_to_le32((dram_addr & 0x00000000FFFFFFFFULL) + 0x400);
+				dram_info.dbgc1_add_msb =
+					cpu_to_le32((dram_addr & 0xFFFFFFFF00000000ULL) >> 32);
+				dram_info.dbgc1_size = cpu_to_le32(le32_to_cpu(dram_size) - 0x400);
+				ret = iwl_trans_write_mem(fwrt->trans,
+							  address + offset, &dram_info, 4);
+				if (ret) {
+					IWL_ERR(fwrt, "Failed to write dram_info to HW_SMEM\n");
+					break;
+				}
+			}
+			break;
+		}
+		case IWL_FW_INI_CONFIG_SET_TYPE_PERIPH_SCRATCH_HWM: {
+			u32 debug_token_config =
+				le32_to_cpu(config_list->addr_val[0].value);
+
+			IWL_DEBUG_FW(fwrt, "WRT: Setting HWM debug token config: %u\n",
+				     debug_token_config);
+			fwrt->trans->dbg.ucode_preset = debug_token_config;
+			break;
+		}
 		default:
 			break;
 		}
@@ -1229,6 +1288,7 @@ void _iwl_dbg_tlv_time_point(struct iwl_fw_runtime *fwrt,
 	case IWL_FW_INI_TIME_POINT_AFTER_ALIVE:
 		iwl_dbg_tlv_apply_buffers(fwrt);
 		iwl_dbg_tlv_send_hcmds(fwrt, hcmd_list);
+		iwl_dbg_tlv_apply_config(fwrt, conf_list);
 		iwl_dbg_tlv_tp_trigger(fwrt, sync, trig_list, tp_data, NULL);
 		break;
 	case IWL_FW_INI_TIME_POINT_PERIODIC:
@@ -1239,11 +1299,13 @@ void _iwl_dbg_tlv_time_point(struct iwl_fw_runtime *fwrt,
 	case IWL_FW_INI_TIME_POINT_MISSED_BEACONS:
 	case IWL_FW_INI_TIME_POINT_FW_DHC_NOTIFICATION:
 		iwl_dbg_tlv_send_hcmds(fwrt, hcmd_list);
+		iwl_dbg_tlv_apply_config(fwrt, conf_list);
 		iwl_dbg_tlv_tp_trigger(fwrt, sync, trig_list, tp_data,
 				       iwl_dbg_tlv_check_fw_pkt);
 		break;
 	default:
 		iwl_dbg_tlv_send_hcmds(fwrt, hcmd_list);
+		iwl_dbg_tlv_apply_config(fwrt, conf_list);
 		iwl_dbg_tlv_tp_trigger(fwrt, sync, trig_list, tp_data, NULL);
 		break;
 	}
