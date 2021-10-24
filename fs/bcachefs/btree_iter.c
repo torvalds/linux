@@ -1462,6 +1462,11 @@ static int btree_path_traverse_one(struct btree_trans *trans,
 	unsigned depth_want = path->level;
 	int ret = 0;
 
+	if (unlikely(trans->restarted)) {
+		ret = -EINTR;
+		goto out;
+	}
+
 	/*
 	 * Ensure we obey path->should_be_locked: if it's set, we can't unlock
 	 * and re-traverse the path without a transaction restart:
@@ -1935,30 +1940,41 @@ struct btree *bch2_btree_iter_next_node(struct btree_iter *iter)
 	struct btree_trans *trans = iter->trans;
 	struct btree_path *path = iter->path;
 	struct btree *b = NULL;
+	unsigned l;
 	int ret;
 
+	BUG_ON(trans->restarted);
 	EBUG_ON(iter->path->cached);
 	bch2_btree_iter_verify(iter);
 
-	/* already got to end? */
+	/* already at end? */
 	if (!btree_path_node(path, path->level))
-		goto out;
-
-	btree_node_unlock(path, path->level);
-	path->l[path->level].b = BTREE_ITER_NO_NODE_UP;
-	path->level++;
-
-	btree_path_set_dirty(path, BTREE_ITER_NEED_TRAVERSE);
-	ret = bch2_btree_path_traverse(trans, path, iter->flags);
-	if (ret)
-		goto err;
+		return NULL;
 
 	/* got to end? */
-	b = btree_path_node(path, path->level);
-	if (!b)
-		goto out;
+	if (!btree_path_node(path, path->level + 1)) {
+		btree_node_unlock(path, path->level);
+		path->l[path->level].b = BTREE_ITER_NO_NODE_UP;
+		path->level++;
+		return NULL;
+	}
 
-	if (bpos_cmp(iter->pos, b->key.k.p) < 0) {
+	if (!bch2_btree_node_relock(trans, path, path->level + 1)) {
+		__bch2_btree_path_unlock(path);
+		path->l[path->level].b = BTREE_ITER_NO_NODE_GET_LOCKS;
+		path->l[path->level + 1].b = BTREE_ITER_NO_NODE_GET_LOCKS;
+		btree_trans_restart(trans);
+		ret = -EINTR;
+		goto err;
+	}
+
+	b = btree_path_node(path, path->level + 1);
+
+	if (!bpos_cmp(iter->pos, b->key.k.p)) {
+		btree_node_unlock(path, path->level);
+		path->l[path->level].b = BTREE_ITER_NO_NODE_UP;
+		path->level++;
+	} else {
 		/*
 		 * Haven't gotten to the end of the parent node: go back down to
 		 * the next child node
@@ -1967,10 +1983,12 @@ struct btree *bch2_btree_iter_next_node(struct btree_iter *iter)
 			btree_path_set_pos(trans, path, bpos_successor(iter->pos),
 					   iter->flags & BTREE_ITER_INTENT);
 
-		/* Unlock to avoid screwing up our lock invariants: */
-		btree_node_unlock(path, path->level);
-
 		path->level = iter->min_depth;
+
+		for (l = path->level + 1; l < BTREE_MAX_DEPTH; l++)
+			if (btree_lock_want(path, l) == BTREE_NODE_UNLOCKED)
+				btree_node_unlock(path, l);
+
 		btree_path_set_dirty(path, BTREE_ITER_NEED_TRAVERSE);
 		bch2_btree_iter_verify(iter);
 
