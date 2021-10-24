@@ -74,7 +74,6 @@ struct rxe_pool {
 	struct {
 		struct rb_root		tree;
 		unsigned long		*table;
-		size_t			table_size;
 		u32			last;
 		u32			max_index;
 		u32			min_index;

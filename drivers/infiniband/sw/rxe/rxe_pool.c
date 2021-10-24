@@ -114,7 +114,6 @@ static int rxe_pool_init_index(struct rxe_pool *pool, u32 max, u32 min)
 		goto out;
 	}
 
-	pool->index.table_size = size;
 	bitmap_zero(pool->index.table, max - min + 1);
 
 out:
