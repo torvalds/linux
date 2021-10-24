@@ -14,7 +14,6 @@
 
 #include "vchiq_cfg.h"
 
-
 /* Do this so that we can test-build the code on non-rpi systems */
 #if IS_ENABLED(CONFIG_RASPBERRYPI_FIRMWARE)
 
@@ -260,7 +259,6 @@ struct vchiq_service_quota {
 };
 
 struct vchiq_shared_state {
-
 	/* A non-zero value here indicates that the content is valid. */
 	int initialised;
 
@@ -448,7 +446,6 @@ struct vchiq_config {
 	short version;      /* The version of VCHIQ */
 	short version_min;  /* The minimum compatible version of VCHIQ */
 };
-
 
 extern spinlock_t bulk_waiter_spinlock;
 

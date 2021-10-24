@@ -257,7 +257,6 @@ find_service_by_handle(unsigned int handle)
 struct vchiq_service *
 find_service_by_port(struct vchiq_state *state, int localport)
 {
-
 	if ((unsigned int)localport <= VCHIQ_PORT_MAX) {
 		struct vchiq_service *service;
 
@@ -3338,7 +3337,6 @@ vchiq_queue_message(unsigned int handle,
 	if (!size) {
 		VCHIQ_SERVICE_STATS_INC(service, error_count);
 		goto error_exit;
-
 	}
 
 	if (size > VCHIQ_MAX_MSG_SIZE) {
