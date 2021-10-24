@@ -828,8 +828,6 @@ static int bch2_gc_btree(struct bch_fs *c, enum btree_id btree_id,
 						BTREE_INSERT_NOWAIT|
 						BTREE_INSERT_GC_LOCK_HELD);
 		}
-
-		bch2_trans_cond_resched(&trans);
 	}
 	bch2_trans_iter_exit(&trans, &iter);
 

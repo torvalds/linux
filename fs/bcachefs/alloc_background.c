@@ -367,8 +367,6 @@ int bch2_alloc_write(struct bch_fs *c, unsigned flags)
 			POS(ca->dev_idx, ca->mi.first_bucket));
 
 		while (iter.pos.offset < ca->mi.nbuckets) {
-			bch2_trans_cond_resched(&trans);
-
 			ret = bch2_alloc_write_key(&trans, &iter, flags);
 			if (ret) {
 				percpu_ref_put(&ca->ref);

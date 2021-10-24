@@ -768,7 +768,6 @@ next:
 			     &stats->sectors_seen);
 next_nondata:
 		bch2_btree_iter_advance(&iter);
-		bch2_trans_cond_resched(&trans);
 	}
 out:
 
@@ -914,7 +913,6 @@ retry:
 			ret = bch2_btree_node_rewrite(&trans, &iter,
 					b->data->keys.seq, 0) ?: ret;
 next:
-			bch2_trans_cond_resched(&trans);
 			bch2_btree_iter_next_node(&iter);
 		}
 		if (ret == -EINTR)

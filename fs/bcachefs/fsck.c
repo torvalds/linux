@@ -2116,8 +2116,6 @@ static int check_nlinks_walk_dirents(struct bch_fs *c, struct nlink_table *links
 					 d.k->p.snapshot);
 			break;
 		}
-
-		bch2_trans_cond_resched(&trans);
 	}
 	bch2_trans_iter_exit(&trans, &iter);
 

@@ -1414,8 +1414,6 @@ retry:
 					BTREE_INSERT_NOFAIL);
 		if (ret)
 			break;
-
-		bch2_trans_cond_resched(trans);
 	}
 
 	if (ret == -EINTR) {

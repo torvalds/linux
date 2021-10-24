@@ -269,21 +269,6 @@ static inline void bch2_btree_iter_set_snapshot(struct btree_iter *iter, u32 sna
 	bch2_btree_iter_set_pos(iter, pos);
 }
 
-/*
- * Unlocks before scheduling
- * Note: does not revalidate iterator
- */
-static inline int bch2_trans_cond_resched(struct btree_trans *trans)
-{
-	if (need_resched() || race_fault()) {
-		bch2_trans_unlock(trans);
-		schedule();
-		return bch2_trans_relock(trans) ? 0 : -EINTR;
-	} else {
-		return 0;
-	}
-}
-
 void bch2_trans_iter_exit(struct btree_trans *, struct btree_iter *);
 void bch2_trans_iter_init(struct btree_trans *, struct btree_iter *,
 			  unsigned, struct bpos, unsigned);
