@@ -476,6 +476,9 @@ static int fuse_flush(struct file *file, fl_owner_t id)
 	if (fuse_is_bad(inode))
 		return -EIO;
 
+	if (ff->open_flags & FOPEN_NOFLUSH && !fm->fc->writeback_cache)
+		return 0;
+
 	err = write_inode_now(inode, 1);
 	if (err)
 		return err;
