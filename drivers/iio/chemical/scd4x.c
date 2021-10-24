@@ -353,7 +353,11 @@ static int scd4x_read_raw(struct iio_dev *indio_dev,
 		*val = ret;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
-		if (chan->type == IIO_TEMP) {
+		if (chan->type == IIO_CONCENTRATION) {
+			*val = 0;
+			*val2 = 100;
+			return IIO_VAL_INT_PLUS_MICRO;
+		} else if (chan->type == IIO_TEMP) {
 			*val = 175000;
 			*val2 = 65536;
 			return IIO_VAL_FRACTIONAL;
@@ -503,7 +507,8 @@ static const struct iio_chan_spec scd4x_channels[] = {
 		.type = IIO_CONCENTRATION,
 		.channel2 = IIO_MOD_CO2,
 		.modified = 1,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+					BIT(IIO_CHAN_INFO_SCALE),
 		.address = SCD4X_CO2,
 		.scan_index = SCD4X_CO2,
 		.scan_type = {
