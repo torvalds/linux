@@ -250,7 +250,7 @@ static bool send_sci(const struct macsec_secy *secy)
 		(secy->n_rx_sc > 1 && !tx_sc->end_station && !tx_sc->scb);
 }
 
-static sci_t make_sci(u8 *addr, __be16 port)
+static sci_t make_sci(const u8 *addr, __be16 port)
 {
 	sci_t sci;
 

@@ -76,8 +76,8 @@ static struct hsr_node *find_node_by_addr_A(struct list_head *node_db,
  * frames from self that's been looped over the HSR ring.
  */
 int hsr_create_self_node(struct hsr_priv *hsr,
-			 unsigned char addr_a[ETH_ALEN],
-			 unsigned char addr_b[ETH_ALEN])
+			 const unsigned char addr_a[ETH_ALEN],
+			 const unsigned char addr_b[ETH_ALEN])
 {
 	struct list_head *self_node_db = &hsr->self_node_db;
 	struct hsr_node *node, *oldnode;
