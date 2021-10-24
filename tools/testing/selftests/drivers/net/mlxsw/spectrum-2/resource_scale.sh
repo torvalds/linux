@@ -7,12 +7,9 @@ NUM_NETIFS=6
 source $lib_dir/lib.sh
 source $lib_dir/tc_common.sh
 source $lib_dir/devlink_lib.sh
+source ../mlxsw_lib.sh
 
-if [[ "$DEVLINK_VIDDID" != "15b3:cf6c" && \
-	"$DEVLINK_VIDDID" != "15b3:cf70" ]]; then
-	echo "SKIP: test is tailored for Mellanox Spectrum-2 and Spectrum-3"
-	exit 1
-fi
+mlxsw_only_on_spectrum 2+ || exit 1
 
 current_test=""
 
