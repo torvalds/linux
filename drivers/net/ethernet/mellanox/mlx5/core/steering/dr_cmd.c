@@ -599,7 +599,8 @@ static int mlx5dr_cmd_set_extended_dest(struct mlx5_core_dev *dev,
 	for (i = 0; i < fte->dests_size; i++) {
 		if (fte->dest_arr[i].type == MLX5_FLOW_DESTINATION_TYPE_COUNTER)
 			continue;
-		if (fte->dest_arr[i].type == MLX5_FLOW_DESTINATION_TYPE_VPORT &&
+		if ((fte->dest_arr[i].type == MLX5_FLOW_DESTINATION_TYPE_VPORT ||
+		     fte->dest_arr[i].type == MLX5_FLOW_DESTINATION_TYPE_UPLINK) &&
 		    fte->dest_arr[i].vport.flags & MLX5_FLOW_DEST_VPORT_REFORMAT_ID)
 			num_encap++;
 		num_fwd_destinations++;
@@ -724,12 +725,19 @@ int mlx5dr_cmd_set_fte(struct mlx5_core_dev *dev,
 			case MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE:
 				id = fte->dest_arr[i].ft_id;
 				break;
+			case MLX5_FLOW_DESTINATION_TYPE_UPLINK:
 			case MLX5_FLOW_DESTINATION_TYPE_VPORT:
-				id = fte->dest_arr[i].vport.num;
-				MLX5_SET(dest_format_struct, in_dests,
-					 destination_eswitch_owner_vhca_id_valid,
-					 !!(fte->dest_arr[i].vport.flags &
-					    MLX5_FLOW_DEST_VPORT_VHCA_ID));
+				if (type == MLX5_FLOW_DESTINATION_TYPE_VPORT) {
+					id = fte->dest_arr[i].vport.num;
+					MLX5_SET(dest_format_struct, in_dests,
+						 destination_eswitch_owner_vhca_id_valid,
+						 !!(fte->dest_arr[i].vport.flags &
+						    MLX5_FLOW_DEST_VPORT_VHCA_ID));
+				} else {
+					id = 0;
+					MLX5_SET(dest_format_struct, in_dests,
+						 destination_eswitch_owner_vhca_id_valid, 1);
+				}
 				MLX5_SET(dest_format_struct, in_dests,
 					 destination_eswitch_owner_vhca_id,
 					 fte->dest_arr[i].vport.vhca_id);
