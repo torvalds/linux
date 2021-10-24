@@ -16,7 +16,7 @@
 static bool rcu_rdp_is_offloaded(struct rcu_data *rdp)
 {
 	/*
-	 * In order to read the offloaded state of an rdp is a safe
+	 * In order to read the offloaded state of an rdp in a safe
 	 * and stable way and prevent from its value to be changed
 	 * under us, we must either hold the barrier mutex, the cpu
 	 * hotplug lock (read or write) or the nocb lock. Local
@@ -56,7 +56,7 @@ static void __init rcu_bootup_announce_oddness(void)
 	if (IS_ENABLED(CONFIG_PROVE_RCU))
 		pr_info("\tRCU lockdep checking is enabled.\n");
 	if (IS_ENABLED(CONFIG_RCU_STRICT_GRACE_PERIOD))
-		pr_info("\tRCU strict (and thus non-scalable) grace periods enabled.\n");
+		pr_info("\tRCU strict (and thus non-scalable) grace periods are enabled.\n");
 	if (RCU_NUM_LVLS >= 4)
 		pr_info("\tFour(or more)-level hierarchy is enabled.\n");
 	if (RCU_FANOUT_LEAF != 16)
@@ -88,13 +88,13 @@ static void __init rcu_bootup_announce_oddness(void)
 	if (rcu_kick_kthreads)
 		pr_info("\tKick kthreads if too-long grace period.\n");
 	if (IS_ENABLED(CONFIG_DEBUG_OBJECTS_RCU_HEAD))
-		pr_info("\tRCU callback double-/use-after-free debug enabled.\n");
+		pr_info("\tRCU callback double-/use-after-free debug is enabled.\n");
 	if (gp_preinit_delay)
 		pr_info("\tRCU debug GP pre-init slowdown %d jiffies.\n", gp_preinit_delay);
 	if (gp_init_delay)
 		pr_info("\tRCU debug GP init slowdown %d jiffies.\n", gp_init_delay);
 	if (gp_cleanup_delay)
-		pr_info("\tRCU debug GP init slowdown %d jiffies.\n", gp_cleanup_delay);
+		pr_info("\tRCU debug GP cleanup slowdown %d jiffies.\n", gp_cleanup_delay);
 	if (!use_softirq)
 		pr_info("\tRCU_SOFTIRQ processing moved to rcuc kthreads.\n");
 	if (IS_ENABLED(CONFIG_RCU_EQS_DEBUG))
@@ -1153,7 +1153,6 @@ static void rcu_preempt_boost_start_gp(struct rcu_node *rnp)
 /*
  * Create an RCU-boost kthread for the specified node if one does not
  * already exist.  We only create this kthread for preemptible RCU.
- * Returns zero if all is well, a negated errno otherwise.
  */
 static void rcu_spawn_one_boost_kthread(struct rcu_node *rnp)
 {
@@ -1455,7 +1454,7 @@ static void rcu_cleanup_after_idle(void)
  * CPU unless the grace period has extended for too long.
  *
  * This code relies on the fact that all NO_HZ_FULL CPUs are also
- * CONFIG_RCU_NOCB_CPU CPUs.
+ * RCU_NOCB_CPU CPUs.
  */
 static bool rcu_nohz_full_cpu(void)
 {
