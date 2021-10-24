@@ -119,7 +119,6 @@ mlxsw_sp_acl_atcam_region_12kb_init(struct mlxsw_sp_acl_atcam_region *aregion)
 {
 	struct mlxsw_sp *mlxsw_sp = aregion->region->mlxsw_sp;
 	struct mlxsw_sp_acl_atcam_region_12kb *region_12kb;
-	size_t alloc_size;
 	u64 max_lkey_id;
 	int err;
 
@@ -131,8 +130,7 @@ mlxsw_sp_acl_atcam_region_12kb_init(struct mlxsw_sp_acl_atcam_region *aregion)
 	if (!region_12kb)
 		return -ENOMEM;
 
-	alloc_size = BITS_TO_LONGS(max_lkey_id) * sizeof(unsigned long);
-	region_12kb->used_lkey_id = kzalloc(alloc_size, GFP_KERNEL);
+	region_12kb->used_lkey_id = bitmap_zalloc(max_lkey_id, GFP_KERNEL);
 	if (!region_12kb->used_lkey_id) {
 		err = -ENOMEM;
 		goto err_used_lkey_id_alloc;
@@ -149,7 +147,7 @@ mlxsw_sp_acl_atcam_region_12kb_init(struct mlxsw_sp_acl_atcam_region *aregion)
 	return 0;
 
 err_rhashtable_init:
-	kfree(region_12kb->used_lkey_id);
+	bitmap_free(region_12kb->used_lkey_id);
 err_used_lkey_id_alloc:
 	kfree(region_12kb);
 	return err;
@@ -161,7 +159,7 @@ mlxsw_sp_acl_atcam_region_12kb_fini(struct mlxsw_sp_acl_atcam_region *aregion)
 	struct mlxsw_sp_acl_atcam_region_12kb *region_12kb = aregion->priv;
 
 	rhashtable_destroy(&region_12kb->lkey_ht);
-	kfree(region_12kb->used_lkey_id);
+	bitmap_free(region_12kb->used_lkey_id);
 	kfree(region_12kb);
 }
 
