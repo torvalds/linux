@@ -169,6 +169,7 @@ enum hclge_err_type_list {
 	/* add new ERROR TYPE for NIC here in order */
 	ROCEE_NORMAL_ERR	= 40,
 	ROCEE_OVF_ERR		= 41,
+	ROCEE_BUS_ERR		= 42,
 	/* add new ERROR TYPE for ROCEE here in order */
 };
 

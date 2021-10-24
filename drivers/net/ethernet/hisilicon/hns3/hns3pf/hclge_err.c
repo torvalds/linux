@@ -1321,7 +1321,10 @@ static const struct hclge_hw_type_id hclge_hw_type_id_st[] = {
 	}, {
 		.type_id = ROCEE_OVF_ERR,
 		.msg = "rocee_ovf_error"
-	}
+	}, {
+		.type_id = ROCEE_BUS_ERR,
+		.msg = "rocee_bus_error"
+	},
 };
 
 static void hclge_log_error(struct device *dev, char *reg,
