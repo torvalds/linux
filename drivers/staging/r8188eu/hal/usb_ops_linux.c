@@ -39,9 +39,6 @@ static int usb_read(struct intf_hdl *intf, u16 value, void *data, u8 size)
 	}
 
 	if (status < 0) {
-		GET_HAL_DATA(adapt)->srestpriv.wifi_error_status =
-			USB_VEN_REQ_CMD_FAIL;
-
 		if (rtw_inc_and_chk_continual_urb_error(dvobjpriv))
 			adapt->bSurpriseRemoved = true;
 
@@ -86,9 +83,6 @@ static int usb_write(struct intf_hdl *intf, u16 value, void *data, u8 size)
 	}
 
 	if (status < 0) {
-		GET_HAL_DATA(adapt)->srestpriv.wifi_error_status =
-			USB_VEN_REQ_CMD_FAIL;
-
 		if (rtw_inc_and_chk_continual_urb_error(dvobjpriv))
 			adapt->bSurpriseRemoved = true;
 
@@ -441,10 +435,6 @@ static void usb_read_port_complete(struct urb *purb, struct pt_regs *regs)
 			break;
 		case -EPROTO:
 		case -EOVERFLOW:
-			{
-				struct hal_data_8188e	*haldata = GET_HAL_DATA(adapt);
-				haldata->srestpriv.wifi_error_status = USB_READ_PORT_FAIL;
-			}
 			precvbuf->reuse = true;
 			rtw_read_port(adapt, precvpriv->ff_hwaddr, 0, (unsigned char *)precvbuf);
 			break;

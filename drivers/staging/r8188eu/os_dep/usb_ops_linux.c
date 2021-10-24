@@ -87,9 +87,7 @@ static void usb_write_port_complete(struct urb *purb, struct pt_regs *regs)
 
 	if (purb->status) {
 		DBG_88E("###=> urb_write_port_complete status(%d)\n", purb->status);
-		if ((purb->status == -EPIPE) || (purb->status == -EPROTO)) {
-			sreset_set_wifi_error_status(padapter, USB_WRITE_PORT_FAIL);
-		} else if (purb->status == -EINPROGRESS) {
+		if (purb->status == -EINPROGRESS) {
 			goto check_completion;
 		} else if (purb->status == -ENOENT) {
 			DBG_88E("%s: -ENOENT\n", __func__);
@@ -100,7 +98,7 @@ static void usb_write_port_complete(struct urb *purb, struct pt_regs *regs)
 		} else if (purb->status == -ESHUTDOWN) {
 			padapter->bDriverStopped = true;
 			goto check_completion;
-		} else {
+		} else if ((purb->status != -EPIPE) && (purb->status != -EPROTO)) {
 			padapter->bSurpriseRemoved = true;
 			DBG_88E("bSurpriseRemoved = true\n");
 
