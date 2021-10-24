@@ -264,7 +264,7 @@ static u32 nvmet_format_ana_group(struct nvmet_req *req, u32 grpid,
 	desc->chgcnt = cpu_to_le64(nvmet_ana_chgcnt);
 	desc->state = req->port->ana_state[grpid];
 	memset(desc->rsvd17, 0, sizeof(desc->rsvd17));
-	return sizeof(struct nvme_ana_group_desc) + count * sizeof(__le32);
+	return struct_size(desc, nsids, count);
 }
 
 static void nvmet_execute_get_log_page_ana(struct nvmet_req *req)
