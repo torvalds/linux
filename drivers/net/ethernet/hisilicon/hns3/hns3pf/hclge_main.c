@@ -3051,6 +3051,82 @@ static void hclge_update_link_status(struct hclge_dev *hdev)
 	clear_bit(HCLGE_STATE_LINK_UPDATING, &hdev->state);
 }
 
+static void hclge_update_speed_advertising(struct hclge_mac *mac)
+{
+	u32 speed_ability;
+
+	if (hclge_get_speed_bit(mac->speed, &speed_ability))
+		return;
+
+	switch (mac->module_type) {
+	case HNAE3_MODULE_TYPE_FIBRE_LR:
+		hclge_convert_setting_lr(speed_ability, mac->advertising);
+		break;
+	case HNAE3_MODULE_TYPE_FIBRE_SR:
+	case HNAE3_MODULE_TYPE_AOC:
+		hclge_convert_setting_sr(speed_ability, mac->advertising);
+		break;
+	case HNAE3_MODULE_TYPE_CR:
+		hclge_convert_setting_cr(speed_ability, mac->advertising);
+		break;
+	case HNAE3_MODULE_TYPE_KR:
+		hclge_convert_setting_kr(speed_ability, mac->advertising);
+		break;
+	default:
+		break;
+	}
+}
+
+static void hclge_update_fec_advertising(struct hclge_mac *mac)
+{
+	if (mac->fec_mode & BIT(HNAE3_FEC_RS))
+		linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_RS_BIT,
+				 mac->advertising);
+	else if (mac->fec_mode & BIT(HNAE3_FEC_BASER))
+		linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_BASER_BIT,
+				 mac->advertising);
+	else
+		linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_NONE_BIT,
+				 mac->advertising);
+}
+
+static void hclge_update_pause_advertising(struct hclge_dev *hdev)
+{
+	struct hclge_mac *mac = &hdev->hw.mac;
+	bool rx_en, tx_en;
+
+	switch (hdev->fc_mode_last_time) {
+	case HCLGE_FC_RX_PAUSE:
+		rx_en = true;
+		tx_en = false;
+		break;
+	case HCLGE_FC_TX_PAUSE:
+		rx_en = false;
+		tx_en = true;
+		break;
+	case HCLGE_FC_FULL:
+		rx_en = true;
+		tx_en = true;
+		break;
+	default:
+		rx_en = false;
+		tx_en = false;
+		break;
+	}
+
+	linkmode_set_pause(mac->advertising, tx_en, rx_en);
+}
+
+static void hclge_update_advertising(struct hclge_dev *hdev)
+{
+	struct hclge_mac *mac = &hdev->hw.mac;
+
+	linkmode_zero(mac->advertising);
+	hclge_update_speed_advertising(mac);
+	hclge_update_fec_advertising(mac);
+	hclge_update_pause_advertising(hdev);
+}
+
 static void hclge_update_port_capability(struct hclge_dev *hdev,
 					 struct hclge_mac *mac)
 {
@@ -3073,7 +3149,7 @@ static void hclge_update_port_capability(struct hclge_dev *hdev,
 	} else {
 		linkmode_clear_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
 				   mac->supported);
-		linkmode_zero(mac->advertising);
+		hclge_update_advertising(hdev);
 	}
 }
 
