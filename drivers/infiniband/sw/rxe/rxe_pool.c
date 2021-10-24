@@ -96,7 +96,6 @@ static inline const char *pool_name(struct rxe_pool *pool)
 static int rxe_pool_init_index(struct rxe_pool *pool, u32 max, u32 min)
 {
 	int err = 0;
-	size_t size;
 
 	if ((max - min + 1) < pool->max_elem) {
 		pr_warn("not enough indices for max_elem\n");
@@ -107,14 +106,11 @@ static int rxe_pool_init_index(struct rxe_pool *pool, u32 max, u32 min)
 	pool->index.max_index = max;
 	pool->index.min_index = min;
 
-	size = BITS_TO_LONGS(max - min + 1) * sizeof(long);
-	pool->index.table = kmalloc(size, GFP_KERNEL);
+	pool->index.table = bitmap_zalloc(max - min + 1, GFP_KERNEL);
 	if (!pool->index.table) {
 		err = -ENOMEM;
 		goto out;
 	}
-
-	bitmap_zero(pool->index.table, max - min + 1);
 
 out:
 	return err;
@@ -167,7 +163,7 @@ void rxe_pool_cleanup(struct rxe_pool *pool)
 		pr_warn("%s pool destroyed with unfree'd elem\n",
 			pool_name(pool));
 
-	kfree(pool->index.table);
+	bitmap_free(pool->index.table);
 }
 
 static u32 alloc_index(struct rxe_pool *pool)
