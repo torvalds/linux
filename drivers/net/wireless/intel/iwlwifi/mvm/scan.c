@@ -1995,8 +1995,16 @@ static u16 iwl_mvm_scan_umac_flags_v2(struct iwl_mvm *mvm,
 {
 	u16 flags = 0;
 
+	/*
+	 * If no direct SSIDs are provided perform a passive scan. Otherwise,
+	 * if there is a single SSID which is not the broadcast SSID, assume
+	 * that the scan is intended for roaming purposes and thus enable Rx on
+	 * all chains to improve chances of hearing the beacons/probe responses.
+	 */
 	if (params->n_ssids == 0)
 		flags |= IWL_UMAC_SCAN_GEN_FLAGS_V2_FORCE_PASSIVE;
+	else if (params->n_ssids == 1 && params->ssids[0].ssid_len)
+		flags |= IWL_UMAC_SCAN_GEN_FLAGS_V2_USE_ALL_RX_CHAINS;
 
 	if (iwl_mvm_is_scan_fragmented(params->type))
 		flags |= IWL_UMAC_SCAN_GEN_FLAGS_V2_FRAGMENTED_LMAC1;
