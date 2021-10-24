@@ -3237,6 +3237,9 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 		if (vif->type == NL80211_IFTYPE_AP) {
 			mvmvif->ap_assoc_sta_count--;
 			iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
+		} else if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls) {
+			/* remove session protection if still running */
+			iwl_mvm_stop_session_protection(mvm, vif);
 		}
 		ret = 0;
 	} else if (old_state == IEEE80211_STA_AUTH &&
