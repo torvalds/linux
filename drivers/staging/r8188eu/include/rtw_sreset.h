@@ -8,7 +8,6 @@
 #include "drv_types.h"
 
 struct sreset_priv {
-	struct mutex	silentreset_mutex;
 	unsigned long last_tx_time;
 	unsigned long last_tx_complete_time;
 };
