@@ -104,7 +104,7 @@ enum {
 
 #if VCHIQ_ENABLE_DEBUG
 
-#define DEBUG_INITIALISE(local) int *debug_ptr = (local)->debug;
+#define DEBUG_INITIALISE(local) int *debug_ptr = (local)->debug
 #define DEBUG_TRACE(d) \
 	do { debug_ptr[DEBUG_ ## d] = __LINE__; dsb(sy); } while (0)
 #define DEBUG_VALUE(d, v) \

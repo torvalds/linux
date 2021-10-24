@@ -986,7 +986,7 @@ add_completion(struct vchiq_instance *instance, enum vchiq_reason reason,
 	struct vchiq_completion_data_kernel *completion;
 	int insert;
 
-	DEBUG_INITIALISE(g_state.local)
+	DEBUG_INITIALISE(g_state.local);
 
 	insert = instance->completion_insert;
 	while ((insert - instance->completion_remove) >= MAX_COMPLETIONS) {
@@ -1054,7 +1054,7 @@ service_callback(enum vchiq_reason reason, struct vchiq_header *header,
 	struct vchiq_instance *instance;
 	bool skip_completion = false;
 
-	DEBUG_INITIALISE(g_state.local)
+	DEBUG_INITIALISE(g_state.local);
 
 	DEBUG_TRACE(SERVICE_CALLBACK_LINE);
 

@@ -1585,7 +1585,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 	unsigned int localport, remoteport;
 	int msgid, size, type, ret = -EINVAL;
 
-	DEBUG_INITIALISE(state->local)
+	DEBUG_INITIALISE(state->local);
 
 	DEBUG_VALUE(PARSE_HEADER, (int)(long)header);
 	msgid = header->msgid;
@@ -1856,7 +1856,7 @@ parse_rx_slots(struct vchiq_state *state)
 	struct vchiq_shared_state *remote = state->remote;
 	int tx_pos;
 
-	DEBUG_INITIALISE(state->local)
+	DEBUG_INITIALISE(state->local);
 
 	tx_pos = remote->tx_pos;
 
@@ -1961,7 +1961,7 @@ slot_handler_func(void *v)
 	struct vchiq_state *state = v;
 	struct vchiq_shared_state *local = state->local;
 
-	DEBUG_INITIALISE(local)
+	DEBUG_INITIALISE(local);
 
 	while (1) {
 		DEBUG_COUNT(SLOT_HANDLER_COUNT);
