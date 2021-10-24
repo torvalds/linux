@@ -229,6 +229,32 @@
 #define QCA808X_MASTER_SLAVE_SEED_CFG		GENMASK(12, 2)
 #define QCA808X_MASTER_SLAVE_SEED_RANGE		0x32
 
+/* Hibernation yields lower power consumpiton in contrast with normal operation mode.
+ * when the copper cable is unplugged, the PHY enters into hibernation mode in about 10s.
+ */
+#define QCA808X_DBG_AN_TEST			0xb
+#define QCA808X_HIBERNATION_EN			BIT(15)
+
+#define QCA808X_CDT_ENABLE_TEST			BIT(15)
+#define QCA808X_CDT_INTER_CHECK_DIS		BIT(13)
+#define QCA808X_CDT_LENGTH_UNIT			BIT(10)
+
+#define QCA808X_MMD3_CDT_STATUS			0x8064
+#define QCA808X_MMD3_CDT_DIAG_PAIR_A		0x8065
+#define QCA808X_MMD3_CDT_DIAG_PAIR_B		0x8066
+#define QCA808X_MMD3_CDT_DIAG_PAIR_C		0x8067
+#define QCA808X_MMD3_CDT_DIAG_PAIR_D		0x8068
+#define QCA808X_CDT_DIAG_LENGTH			GENMASK(7, 0)
+
+#define QCA808X_CDT_CODE_PAIR_A			GENMASK(15, 12)
+#define QCA808X_CDT_CODE_PAIR_B			GENMASK(11, 8)
+#define QCA808X_CDT_CODE_PAIR_C			GENMASK(7, 4)
+#define QCA808X_CDT_CODE_PAIR_D			GENMASK(3, 0)
+#define QCA808X_CDT_STATUS_STAT_FAIL		0
+#define QCA808X_CDT_STATUS_STAT_NORMAL		1
+#define QCA808X_CDT_STATUS_STAT_OPEN		2
+#define QCA808X_CDT_STATUS_STAT_SHORT		3
+
 MODULE_DESCRIPTION("Qualcomm Atheros AR803x and QCA808X PHY driver");
 MODULE_AUTHOR("Matus Ujhelyi");
 MODULE_LICENSE("GPL");
@@ -1319,8 +1345,14 @@ static int at803x_cdt_start(struct phy_device *phydev, int pair)
 {
 	u16 cdt;
 
-	cdt = FIELD_PREP(AT803X_CDT_MDI_PAIR_MASK, pair) |
-	      AT803X_CDT_ENABLE_TEST;
+	/* qca8081 takes the different bit 15 to enable CDT test */
+	if (phydev->drv->phy_id == QCA8081_PHY_ID)
+		cdt = QCA808X_CDT_ENABLE_TEST |
+			QCA808X_CDT_LENGTH_UNIT |
+			QCA808X_CDT_INTER_CHECK_DIS;
+	else
+		cdt = FIELD_PREP(AT803X_CDT_MDI_PAIR_MASK, pair) |
+			AT803X_CDT_ENABLE_TEST;
 
 	return phy_write(phydev, AT803X_CDT, cdt);
 }
@@ -1328,10 +1360,16 @@ static int at803x_cdt_start(struct phy_device *phydev, int pair)
 static int at803x_cdt_wait_for_completion(struct phy_device *phydev)
 {
 	int val, ret;
+	u16 cdt_en;
+
+	if (phydev->drv->phy_id == QCA8081_PHY_ID)
+		cdt_en = QCA808X_CDT_ENABLE_TEST;
+	else
+		cdt_en = AT803X_CDT_ENABLE_TEST;
 
 	/* One test run takes about 25ms */
 	ret = phy_read_poll_timeout(phydev, AT803X_CDT, val,
-				    !(val & AT803X_CDT_ENABLE_TEST),
+				    !(val & cdt_en),
 				    30000, 100000, true);
 
 	return ret < 0 ? ret : 0;
@@ -1685,6 +1723,153 @@ static int qca808x_soft_reset(struct phy_device *phydev)
 	return qca808x_phy_ms_seed_enable(phydev, true);
 }
 
+static bool qca808x_cdt_fault_length_valid(int cdt_code)
+{
+	switch (cdt_code) {
+	case QCA808X_CDT_STATUS_STAT_SHORT:
+	case QCA808X_CDT_STATUS_STAT_OPEN:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static int qca808x_cable_test_result_trans(int cdt_code)
+{
+	switch (cdt_code) {
+	case QCA808X_CDT_STATUS_STAT_NORMAL:
+		return ETHTOOL_A_CABLE_RESULT_CODE_OK;
+	case QCA808X_CDT_STATUS_STAT_SHORT:
+		return ETHTOOL_A_CABLE_RESULT_CODE_SAME_SHORT;
+	case QCA808X_CDT_STATUS_STAT_OPEN:
+		return ETHTOOL_A_CABLE_RESULT_CODE_OPEN;
+	case QCA808X_CDT_STATUS_STAT_FAIL:
+	default:
+		return ETHTOOL_A_CABLE_RESULT_CODE_UNSPEC;
+	}
+}
+
+static int qca808x_cdt_fault_length(struct phy_device *phydev, int pair)
+{
+	int val;
+	u32 cdt_length_reg = 0;
+
+	switch (pair) {
+	case ETHTOOL_A_CABLE_PAIR_A:
+		cdt_length_reg = QCA808X_MMD3_CDT_DIAG_PAIR_A;
+		break;
+	case ETHTOOL_A_CABLE_PAIR_B:
+		cdt_length_reg = QCA808X_MMD3_CDT_DIAG_PAIR_B;
+		break;
+	case ETHTOOL_A_CABLE_PAIR_C:
+		cdt_length_reg = QCA808X_MMD3_CDT_DIAG_PAIR_C;
+		break;
+	case ETHTOOL_A_CABLE_PAIR_D:
+		cdt_length_reg = QCA808X_MMD3_CDT_DIAG_PAIR_D;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	val = phy_read_mmd(phydev, MDIO_MMD_PCS, cdt_length_reg);
+	if (val < 0)
+		return val;
+
+	return (FIELD_GET(QCA808X_CDT_DIAG_LENGTH, val) * 824) / 10;
+}
+
+static int qca808x_cable_test_start(struct phy_device *phydev)
+{
+	int ret;
+
+	/* perform CDT with the following configs:
+	 * 1. disable hibernation.
+	 * 2. force PHY working in MDI mode.
+	 * 3. for PHY working in 1000BaseT.
+	 * 4. configure the threshold.
+	 */
+
+	ret = at803x_debug_reg_mask(phydev, QCA808X_DBG_AN_TEST, QCA808X_HIBERNATION_EN, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = at803x_config_mdix(phydev, ETH_TP_MDI);
+	if (ret < 0)
+		return ret;
+
+	/* Force 1000base-T needs to configure PMA/PMD and MII_BMCR */
+	phydev->duplex = DUPLEX_FULL;
+	phydev->speed = SPEED_1000;
+	ret = genphy_c45_pma_setup_forced(phydev);
+	if (ret < 0)
+		return ret;
+
+	ret = genphy_setup_forced(phydev);
+	if (ret < 0)
+		return ret;
+
+	/* configure the thresholds for open, short, pair ok test */
+	phy_write_mmd(phydev, MDIO_MMD_PCS, 0x8074, 0xc040);
+	phy_write_mmd(phydev, MDIO_MMD_PCS, 0x8076, 0xc040);
+	phy_write_mmd(phydev, MDIO_MMD_PCS, 0x8077, 0xa060);
+	phy_write_mmd(phydev, MDIO_MMD_PCS, 0x8078, 0xc050);
+	phy_write_mmd(phydev, MDIO_MMD_PCS, 0x807a, 0xc060);
+	phy_write_mmd(phydev, MDIO_MMD_PCS, 0x807e, 0xb060);
+
+	return 0;
+}
+
+static int qca808x_cable_test_get_status(struct phy_device *phydev, bool *finished)
+{
+	int ret, val;
+	int pair_a, pair_b, pair_c, pair_d;
+
+	*finished = false;
+
+	ret = at803x_cdt_start(phydev, 0);
+	if (ret)
+		return ret;
+
+	ret = at803x_cdt_wait_for_completion(phydev);
+	if (ret)
+		return ret;
+
+	val = phy_read_mmd(phydev, MDIO_MMD_PCS, QCA808X_MMD3_CDT_STATUS);
+	if (val < 0)
+		return val;
+
+	pair_a = FIELD_GET(QCA808X_CDT_CODE_PAIR_A, val);
+	pair_b = FIELD_GET(QCA808X_CDT_CODE_PAIR_B, val);
+	pair_c = FIELD_GET(QCA808X_CDT_CODE_PAIR_C, val);
+	pair_d = FIELD_GET(QCA808X_CDT_CODE_PAIR_D, val);
+
+	ethnl_cable_test_result(phydev, ETHTOOL_A_CABLE_PAIR_A,
+				qca808x_cable_test_result_trans(pair_a));
+	ethnl_cable_test_result(phydev, ETHTOOL_A_CABLE_PAIR_B,
+				qca808x_cable_test_result_trans(pair_b));
+	ethnl_cable_test_result(phydev, ETHTOOL_A_CABLE_PAIR_C,
+				qca808x_cable_test_result_trans(pair_c));
+	ethnl_cable_test_result(phydev, ETHTOOL_A_CABLE_PAIR_D,
+				qca808x_cable_test_result_trans(pair_d));
+
+	if (qca808x_cdt_fault_length_valid(pair_a))
+		ethnl_cable_test_fault_length(phydev, ETHTOOL_A_CABLE_PAIR_A,
+				qca808x_cdt_fault_length(phydev, ETHTOOL_A_CABLE_PAIR_A));
+	if (qca808x_cdt_fault_length_valid(pair_b))
+		ethnl_cable_test_fault_length(phydev, ETHTOOL_A_CABLE_PAIR_B,
+				qca808x_cdt_fault_length(phydev, ETHTOOL_A_CABLE_PAIR_B));
+	if (qca808x_cdt_fault_length_valid(pair_c))
+		ethnl_cable_test_fault_length(phydev, ETHTOOL_A_CABLE_PAIR_C,
+				qca808x_cdt_fault_length(phydev, ETHTOOL_A_CABLE_PAIR_C));
+	if (qca808x_cdt_fault_length_valid(pair_d))
+		ethnl_cable_test_fault_length(phydev, ETHTOOL_A_CABLE_PAIR_D,
+				qca808x_cdt_fault_length(phydev, ETHTOOL_A_CABLE_PAIR_D));
+
+	*finished = true;
+
+	return 0;
+}
+
 static struct phy_driver at803x_driver[] = {
 {
 	/* Qualcomm Atheros AR8035 */
@@ -1848,6 +2033,7 @@ static struct phy_driver at803x_driver[] = {
 	/* Qualcomm QCA8081 */
 	PHY_ID_MATCH_EXACT(QCA8081_PHY_ID),
 	.name			= "Qualcomm QCA8081",
+	.flags			= PHY_POLL_CABLE_TEST,
 	.config_intr		= at803x_config_intr,
 	.handle_interrupt	= at803x_handle_interrupt,
 	.get_tunable		= at803x_get_tunable,
@@ -1861,6 +2047,8 @@ static struct phy_driver at803x_driver[] = {
 	.read_status		= qca808x_read_status,
 	.config_init		= qca808x_config_init,
 	.soft_reset		= qca808x_soft_reset,
+	.cable_test_start	= qca808x_cable_test_start,
+	.cable_test_get_status	= qca808x_cable_test_get_status,
 }, };
 
 module_phy_driver(at803x_driver);
