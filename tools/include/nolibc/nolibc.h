@@ -1572,6 +1572,12 @@ pid_t sys_getpid(void)
 }
 
 static __attribute__((unused))
+pid_t sys_gettid(void)
+{
+	return my_syscall0(__NR_gettid);
+}
+
+static __attribute__((unused))
 int sys_gettimeofday(struct timeval *tv, struct timezone *tz)
 {
 	return my_syscall2(__NR_gettimeofday, tv, tz);
@@ -2021,6 +2027,18 @@ static __attribute__((unused))
 pid_t getpid(void)
 {
 	pid_t ret = sys_getpid();
+
+	if (ret < 0) {
+		SET_ERRNO(-ret);
+		ret = -1;
+	}
+	return ret;
+}
+
+static __attribute__((unused))
+pid_t gettid(void)
+{
+	pid_t ret = sys_gettid();
 
 	if (ret < 0) {
 		SET_ERRNO(-ret);
