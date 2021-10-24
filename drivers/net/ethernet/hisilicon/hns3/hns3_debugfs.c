@@ -1050,6 +1050,8 @@ hns3_dbg_dev_specs(struct hnae3_handle *h, char *buf, int len, int *pos)
 			  dev_specs->umv_size);
 	*pos += scnprintf(buf + *pos, len - *pos, "mc mac size: %u\n",
 			  dev_specs->mc_mac_size);
+	*pos += scnprintf(buf + *pos, len - *pos, "MAC statistics number: %u\n",
+			  dev_specs->mac_stats_num);
 }
 
 static int hns3_dbg_dev_info(struct hnae3_handle *h, char *buf, int len)

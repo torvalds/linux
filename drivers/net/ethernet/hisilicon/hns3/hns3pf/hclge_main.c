@@ -480,10 +480,11 @@ static int hclge_mac_update_stats_defective(struct hclge_dev *hdev)
 	return 0;
 }
 
-static int hclge_mac_update_stats_complete(struct hclge_dev *hdev, u32 reg_num)
+static int hclge_mac_update_stats_complete(struct hclge_dev *hdev)
 {
 #define HCLGE_REG_NUM_PER_DESC		4
 
+	u32 reg_num = hdev->ae_dev->dev_specs.mac_stats_num;
 	u64 *data = (u64 *)(&hdev->mac_stats);
 	struct hclge_desc *desc;
 	__le64 *desc_data;
@@ -552,17 +553,11 @@ static int hclge_mac_query_reg_num(struct hclge_dev *hdev, u32 *reg_num)
 
 static int hclge_mac_update_stats(struct hclge_dev *hdev)
 {
-	u32 reg_num;
-	int ret;
-
-	ret = hclge_mac_query_reg_num(hdev, &reg_num);
 	/* The firmware supports the new statistics acquisition method */
-	if (!ret)
-		ret = hclge_mac_update_stats_complete(hdev, reg_num);
-	else if (ret == -EOPNOTSUPP)
-		ret = hclge_mac_update_stats_defective(hdev);
-
-	return ret;
+	if (hdev->ae_dev->dev_specs.mac_stats_num)
+		return hclge_mac_update_stats_complete(hdev);
+	else
+		return hclge_mac_update_stats_defective(hdev);
 }
 
 static int hclge_tqps_update_stats(struct hnae3_handle *handle)
@@ -1465,11 +1460,28 @@ static void hclge_check_dev_specs(struct hclge_dev *hdev)
 		dev_specs->umv_size = HCLGE_DEFAULT_UMV_SPACE_PER_PF;
 }
 
+static int hclge_query_mac_stats_num(struct hclge_dev *hdev)
+{
+	u32 reg_num = 0;
+	int ret;
+
+	ret = hclge_mac_query_reg_num(hdev, &reg_num);
+	if (ret && ret != -EOPNOTSUPP)
+		return ret;
+
+	hdev->ae_dev->dev_specs.mac_stats_num = reg_num;
+	return 0;
+}
+
 static int hclge_query_dev_specs(struct hclge_dev *hdev)
 {
 	struct hclge_desc desc[HCLGE_QUERY_DEV_SPECS_BD_NUM];
 	int ret;
 	int i;
+
+	ret = hclge_query_mac_stats_num(hdev);
+	if (ret)
+		return ret;
 
 	/* set default specifications as devices lower than version V3 do not
 	 * support querying specifications from firmware.
