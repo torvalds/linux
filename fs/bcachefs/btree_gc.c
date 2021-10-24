@@ -817,15 +817,13 @@ static int bch2_gc_btree(struct bch_fs *c, enum btree_id btree_id,
 
 		if (!initial) {
 			if (max_stale > 64)
-				bch2_btree_node_rewrite(&trans, &iter,
-						b->data->keys.seq,
+				bch2_btree_node_rewrite(&trans, &iter, b,
 						BTREE_INSERT_NOWAIT|
 						BTREE_INSERT_GC_LOCK_HELD);
 			else if (!bch2_btree_gc_rewrite_disabled &&
 				 (bch2_btree_gc_always_rewrite || max_stale > 16))
 				bch2_btree_node_rewrite(&trans, &iter,
-						b->data->keys.seq,
-						BTREE_INSERT_NOWAIT|
+						b, BTREE_INSERT_NOWAIT|
 						BTREE_INSERT_GC_LOCK_HELD);
 		}
 	}

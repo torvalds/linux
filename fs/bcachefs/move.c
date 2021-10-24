@@ -910,8 +910,11 @@ retry:
 				BUG();
 			}
 
-			ret = bch2_btree_node_rewrite(&trans, &iter,
-					b->data->keys.seq, 0) ?: ret;
+			ret = bch2_btree_node_rewrite(&trans, &iter, b, 0) ?: ret;
+			if (ret == -EINTR)
+				continue;
+			if (ret)
+				break;
 next:
 			bch2_btree_iter_next_node(&iter);
 		}

@@ -1722,26 +1722,15 @@ err:
  */
 int bch2_btree_node_rewrite(struct btree_trans *trans,
 			    struct btree_iter *iter,
-			    __le64 seq, unsigned flags)
+			    struct btree *b,
+			    unsigned flags)
 {
 	struct bch_fs *c = trans->c;
-	struct btree *b, *n, *parent;
+	struct btree *n, *parent;
 	struct btree_update *as;
 	int ret;
 
 	flags |= BTREE_INSERT_NOFAIL;
-retry:
-	ret = bch2_btree_iter_traverse(iter);
-	if (ret)
-		goto out;
-
-	b = bch2_btree_iter_peek_node(iter);
-	ret = PTR_ERR_OR_ZERO(b);
-	if (ret)
-		goto out;
-
-	if (!b || b->data->keys.seq != seq)
-		goto out;
 
 	parent = btree_node_parent(iter->path, b);
 	as = bch2_btree_update_start(trans, iter->path, b->c.level,
@@ -1750,8 +1739,6 @@ retry:
 		 : 0) + 1,
 		flags);
 	ret = PTR_ERR_OR_ZERO(as);
-	if (ret == -EINTR)
-		goto retry;
 	if (ret) {
 		trace_btree_gc_rewrite_node_fail(c, b);
 		goto out;
@@ -1799,20 +1786,38 @@ struct async_btree_rewrite {
 	__le64			seq;
 };
 
+static int async_btree_node_rewrite_trans(struct btree_trans *trans,
+					  struct async_btree_rewrite *a)
+{
+	struct btree_iter iter;
+	struct btree *b;
+	int ret;
+
+	bch2_trans_node_iter_init(trans, &iter, a->btree_id, a->pos,
+				  BTREE_MAX_DEPTH, a->level, 0);
+	b = bch2_btree_iter_peek_node(&iter);
+	ret = PTR_ERR_OR_ZERO(b);
+	if (ret)
+		goto out;
+
+	if (!b || b->data->keys.seq != a->seq)
+		goto out;
+
+	ret = bch2_btree_node_rewrite(trans, &iter, b, 0);
+out :
+	bch2_trans_iter_exit(trans, &iter);
+
+	return ret;
+}
+
 void async_btree_node_rewrite_work(struct work_struct *work)
 {
 	struct async_btree_rewrite *a =
 		container_of(work, struct async_btree_rewrite, work);
 	struct bch_fs *c = a->c;
-	struct btree_trans trans;
-	struct btree_iter iter;
 
-	bch2_trans_init(&trans, c, 0, 0);
-	bch2_trans_node_iter_init(&trans, &iter, a->btree_id, a->pos,
-					BTREE_MAX_DEPTH, a->level, 0);
-	bch2_btree_node_rewrite(&trans, &iter, a->seq, 0);
-	bch2_trans_iter_exit(&trans, &iter);
-	bch2_trans_exit(&trans);
+	bch2_trans_do(c, NULL, NULL, 0,
+		      async_btree_node_rewrite_trans(&trans, a));
 	percpu_ref_put(&c->writes);
 	kfree(a);
 }

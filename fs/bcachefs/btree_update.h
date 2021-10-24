@@ -66,7 +66,7 @@ int bch2_btree_delete_range(struct bch_fs *, enum btree_id,
 			    struct bpos, struct bpos, u64 *);
 
 int bch2_btree_node_rewrite(struct btree_trans *, struct btree_iter *,
-			    __le64, unsigned);
+			    struct btree *, unsigned);
 void bch2_btree_node_rewrite_async(struct bch_fs *, struct btree *);
 int bch2_btree_node_update_key(struct btree_trans *, struct btree_iter *,
 			       struct btree *, struct bkey_i *, bool);
