@@ -559,79 +559,53 @@ vchiq_queue_message(unsigned int handle,
 		    void *context,
 		    size_t size);
 
-/*
- * The following functions are called from vchiq_core, and external
- * implementations must be provided.
- */
+int vchiq_prepare_bulk_data(struct vchiq_bulk *bulk, void *offset, void __user *uoffset,
+			    int size, int dir);
 
-extern int
-vchiq_prepare_bulk_data(struct vchiq_bulk *bulk, void *offset,
-			void __user *uoffset, int size, int dir);
+void vchiq_complete_bulk(struct vchiq_bulk *bulk);
 
-extern void
-vchiq_complete_bulk(struct vchiq_bulk *bulk);
+void remote_event_signal(struct remote_event *event);
 
-extern void
-remote_event_signal(struct remote_event *event);
+int vchiq_dump(void *dump_context, const char *str, int len);
 
-extern int
-vchiq_dump(void *dump_context, const char *str, int len);
+int vchiq_dump_platform_state(void *dump_context);
 
-extern int
-vchiq_dump_platform_state(void *dump_context);
+int vchiq_dump_platform_instances(void *dump_context);
 
-extern int
-vchiq_dump_platform_instances(void *dump_context);
+int vchiq_dump_platform_service_state(void *dump_context, struct vchiq_service *service);
 
-extern int
-vchiq_dump_platform_service_state(void *dump_context, struct vchiq_service *service);
+int vchiq_use_service_internal(struct vchiq_service *service);
 
-extern int
-vchiq_use_service_internal(struct vchiq_service *service);
+int vchiq_release_service_internal(struct vchiq_service *service);
 
-extern int
-vchiq_release_service_internal(struct vchiq_service *service);
+void vchiq_on_remote_use(struct vchiq_state *state);
 
-extern void
-vchiq_on_remote_use(struct vchiq_state *state);
+void vchiq_on_remote_release(struct vchiq_state *state);
 
-extern void
-vchiq_on_remote_release(struct vchiq_state *state);
+int vchiq_platform_init_state(struct vchiq_state *state);
 
-extern int
-vchiq_platform_init_state(struct vchiq_state *state);
+enum vchiq_status vchiq_check_service(struct vchiq_service *service);
 
-extern enum vchiq_status
-vchiq_check_service(struct vchiq_service *service);
+void vchiq_on_remote_use_active(struct vchiq_state *state);
 
-extern void
-vchiq_on_remote_use_active(struct vchiq_state *state);
+enum vchiq_status vchiq_send_remote_use(struct vchiq_state *state);
 
-extern enum vchiq_status
-vchiq_send_remote_use(struct vchiq_state *state);
+enum vchiq_status vchiq_send_remote_use_active(struct vchiq_state *state);
 
-extern enum vchiq_status
-vchiq_send_remote_use_active(struct vchiq_state *state);
-
-extern void
-vchiq_platform_conn_state_changed(struct vchiq_state *state,
-				  enum vchiq_connstate oldstate,
+void vchiq_platform_conn_state_changed(struct vchiq_state *state,
+				       enum vchiq_connstate oldstate,
 				  enum vchiq_connstate newstate);
 
-extern void
-vchiq_set_conn_state(struct vchiq_state *state, enum vchiq_connstate newstate);
+void vchiq_set_conn_state(struct vchiq_state *state, enum vchiq_connstate newstate);
 
-extern void
-vchiq_log_dump_mem(const char *label, u32 addr, const void *void_mem, size_t num_bytes);
+void vchiq_log_dump_mem(const char *label, u32 addr, const void *void_mem, size_t num_bytes);
 
-extern enum vchiq_status vchiq_remove_service(unsigned int service);
+enum vchiq_status vchiq_remove_service(unsigned int service);
 
-extern int vchiq_get_client_id(unsigned int service);
+int vchiq_get_client_id(unsigned int service);
 
-extern void vchiq_get_config(struct vchiq_config *config);
+void vchiq_get_config(struct vchiq_config *config);
 
-extern int
-vchiq_set_service_option(unsigned int service, enum vchiq_service_option option,
-			 int value);
+int vchiq_set_service_option(unsigned int service, enum vchiq_service_option option, int value);
 
 #endif
