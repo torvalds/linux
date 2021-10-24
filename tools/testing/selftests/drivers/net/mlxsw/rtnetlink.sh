@@ -779,7 +779,7 @@ nexthop_obj_offload_test()
 	setup_wait
 
 	ip nexthop add id 1 via 192.0.2.2 dev $swp1
-	ip neigh replace 192.0.2.2 lladdr 00:11:22:33:44:55 nud reachable \
+	ip neigh replace 192.0.2.2 lladdr 00:11:22:33:44:55 nud perm \
 		dev $swp1
 
 	busywait "$TIMEOUT" wait_for_offload \
@@ -791,7 +791,7 @@ nexthop_obj_offload_test()
 		ip nexthop show id 1
 	check_err $? "nexthop marked as offloaded after setting neigh to failed state"
 
-	ip neigh replace 192.0.2.2 lladdr 00:11:22:33:44:55 nud reachable \
+	ip neigh replace 192.0.2.2 lladdr 00:11:22:33:44:55 nud perm \
 		dev $swp1
 	busywait "$TIMEOUT" wait_for_offload \
 		ip nexthop show id 1
@@ -828,11 +828,11 @@ nexthop_obj_group_offload_test()
 	ip nexthop add id 1 via 192.0.2.2 dev $swp1
 	ip nexthop add id 2 via 2001:db8:1::2 dev $swp1
 	ip nexthop add id 10 group 1/2
-	ip neigh replace 192.0.2.2 lladdr 00:11:22:33:44:55 nud reachable \
+	ip neigh replace 192.0.2.2 lladdr 00:11:22:33:44:55 nud perm \
 		dev $swp1
-	ip neigh replace 192.0.2.3 lladdr 00:11:22:33:44:55 nud reachable \
+	ip neigh replace 192.0.2.3 lladdr 00:11:22:33:44:55 nud perm \
 		dev $swp1
-	ip neigh replace 2001:db8:1::2 lladdr 00:11:22:33:44:55 nud reachable \
+	ip neigh replace 2001:db8:1::2 lladdr 00:11:22:33:44:55 nud perm \
 		dev $swp1
 
 	busywait "$TIMEOUT" wait_for_offload \
@@ -888,11 +888,11 @@ nexthop_obj_bucket_offload_test()
 	ip nexthop add id 1 via 192.0.2.2 dev $swp1
 	ip nexthop add id 2 via 2001:db8:1::2 dev $swp1
 	ip nexthop add id 10 group 1/2 type resilient buckets 32 idle_timer 0
-	ip neigh replace 192.0.2.2 lladdr 00:11:22:33:44:55 nud reachable \
+	ip neigh replace 192.0.2.2 lladdr 00:11:22:33:44:55 nud perm \
 		dev $swp1
-	ip neigh replace 192.0.2.3 lladdr 00:11:22:33:44:55 nud reachable \
+	ip neigh replace 192.0.2.3 lladdr 00:11:22:33:44:55 nud perm \
 		dev $swp1
-	ip neigh replace 2001:db8:1::2 lladdr 00:11:22:33:44:55 nud reachable \
+	ip neigh replace 2001:db8:1::2 lladdr 00:11:22:33:44:55 nud perm \
 		dev $swp1
 
 	busywait "$TIMEOUT" wait_for_offload \
@@ -921,7 +921,7 @@ nexthop_obj_bucket_offload_test()
 	check_err $? "nexthop bucket not marked as offloaded after revalidating nexthop"
 
 	# Revalidate nexthop id 2 by changing its neighbour
-	ip neigh replace 2001:db8:1::2 lladdr 00:11:22:33:44:55 nud reachable \
+	ip neigh replace 2001:db8:1::2 lladdr 00:11:22:33:44:55 nud perm \
 		dev $swp1
 	busywait "$TIMEOUT" wait_for_offload \
 		ip nexthop bucket show nhid 2
@@ -971,9 +971,9 @@ nexthop_obj_route_offload_test()
 	setup_wait
 
 	ip nexthop add id 1 via 192.0.2.2 dev $swp1
-	ip neigh replace 192.0.2.2 lladdr 00:11:22:33:44:55 nud reachable \
+	ip neigh replace 192.0.2.2 lladdr 00:11:22:33:44:55 nud perm \
 		dev $swp1
-	ip neigh replace 192.0.2.3 lladdr 00:11:22:33:44:55 nud reachable \
+	ip neigh replace 192.0.2.3 lladdr 00:11:22:33:44:55 nud perm \
 		dev $swp1
 
 	ip route replace 198.51.100.0/24 nhid 1
