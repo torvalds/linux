@@ -22,9 +22,14 @@ typedef __builtin_va_list va_list;
 #define va_arg(v, l)            __builtin_va_arg(v, l)
 #define va_copy(d, s)           __builtin_va_copy(d, s)
 #else
+#ifdef __KERNEL__
 #include <linux/stdarg.h>
-#endif
-#endif
+#else
+/* Used to build acpi tools */
+#include <stdarg.h>
+#endif /* __KERNEL__ */
+#endif /* ACPI_USE_BUILTIN_STDARG */
+#endif /* ! va_arg */
 
 #define ACPI_INLINE             __inline__
 

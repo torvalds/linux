@@ -932,16 +932,14 @@ int __init_memblock memblock_mark_mirror(phys_addr_t base, phys_addr_t size)
  * covered by the memory map. The struct page representing NOMAP memory
  * frames in the memory map will be PageReserved()
  *
+ * Note: if the memory being marked %MEMBLOCK_NOMAP was allocated from
+ * memblock, the caller must inform kmemleak to ignore that memory
+ *
  * Return: 0 on success, -errno on failure.
  */
 int __init_memblock memblock_mark_nomap(phys_addr_t base, phys_addr_t size)
 {
-	int ret = memblock_setclr_flag(base, size, 1, MEMBLOCK_NOMAP);
-
-	if (!ret)
-		kmemleak_free_part_phys(base, size);
-
-	return ret;
+	return memblock_setclr_flag(base, size, 1, MEMBLOCK_NOMAP);
 }
 
 /**

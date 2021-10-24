@@ -203,6 +203,10 @@ struct msm_gpu {
 	uint32_t suspend_count;
 
 	struct msm_gpu_state *crashstate;
+
+	/* Enable clamping to idle freq when inactive: */
+	bool clamp_to_idle;
+
 	/* True if the hardware supports expanded apriv (a650 and newer) */
 	bool hw_apriv;
 

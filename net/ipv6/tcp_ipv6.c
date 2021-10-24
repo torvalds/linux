@@ -599,6 +599,7 @@ static int tcp_v6_parse_md5_keys(struct sock *sk, int optname,
 	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)&cmd.tcpm_addr;
 	int l3index = 0;
 	u8 prefixlen;
+	u8 flags;
 
 	if (optlen < sizeof(cmd))
 		return -EINVAL;
@@ -608,6 +609,8 @@ static int tcp_v6_parse_md5_keys(struct sock *sk, int optname,
 
 	if (sin6->sin6_family != AF_INET6)
 		return -EINVAL;
+
+	flags = cmd.tcpm_flags & TCP_MD5SIG_FLAG_IFINDEX;
 
 	if (optname == TCP_MD5SIG_EXT &&
 	    cmd.tcpm_flags & TCP_MD5SIG_FLAG_PREFIX) {
@@ -619,7 +622,7 @@ static int tcp_v6_parse_md5_keys(struct sock *sk, int optname,
 		prefixlen = ipv6_addr_v4mapped(&sin6->sin6_addr) ? 32 : 128;
 	}
 
-	if (optname == TCP_MD5SIG_EXT &&
+	if (optname == TCP_MD5SIG_EXT && cmd.tcpm_ifindex &&
 	    cmd.tcpm_flags & TCP_MD5SIG_FLAG_IFINDEX) {
 		struct net_device *dev;
 
@@ -640,9 +643,9 @@ static int tcp_v6_parse_md5_keys(struct sock *sk, int optname,
 		if (ipv6_addr_v4mapped(&sin6->sin6_addr))
 			return tcp_md5_do_del(sk, (union tcp_md5_addr *)&sin6->sin6_addr.s6_addr32[3],
 					      AF_INET, prefixlen,
-					      l3index);
+					      l3index, flags);
 		return tcp_md5_do_del(sk, (union tcp_md5_addr *)&sin6->sin6_addr,
-				      AF_INET6, prefixlen, l3index);
+				      AF_INET6, prefixlen, l3index, flags);
 	}
 
 	if (cmd.tcpm_keylen > TCP_MD5SIG_MAXKEYLEN)
@@ -650,12 +653,12 @@ static int tcp_v6_parse_md5_keys(struct sock *sk, int optname,
 
 	if (ipv6_addr_v4mapped(&sin6->sin6_addr))
 		return tcp_md5_do_add(sk, (union tcp_md5_addr *)&sin6->sin6_addr.s6_addr32[3],
-				      AF_INET, prefixlen, l3index,
+				      AF_INET, prefixlen, l3index, flags,
 				      cmd.tcpm_key, cmd.tcpm_keylen,
 				      GFP_KERNEL);
 
 	return tcp_md5_do_add(sk, (union tcp_md5_addr *)&sin6->sin6_addr,
-			      AF_INET6, prefixlen, l3index,
+			      AF_INET6, prefixlen, l3index, flags,
 			      cmd.tcpm_key, cmd.tcpm_keylen, GFP_KERNEL);
 }
 
@@ -1404,7 +1407,7 @@ static struct sock *tcp_v6_syn_recv_sock(const struct sock *sk, struct sk_buff *
 		 * across. Shucks.
 		 */
 		tcp_md5_do_add(newsk, (union tcp_md5_addr *)&newsk->sk_v6_daddr,
-			       AF_INET6, 128, l3index, key->key, key->keylen,
+			       AF_INET6, 128, l3index, key->flags, key->key, key->keylen,
 			       sk_gfp_mask(sk, GFP_ATOMIC));
 	}
 #endif

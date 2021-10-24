@@ -10,6 +10,8 @@
 #include "en_tc.h"
 #include "rep/tc.h"
 #include "rep/neigh.h"
+#include "lag.h"
+#include "lag_mp.h"
 
 struct mlx5e_tc_tun_route_attr {
 	struct net_device *out_dev;
