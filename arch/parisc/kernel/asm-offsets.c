@@ -38,11 +38,6 @@
 int main(void)
 {
 	DEFINE(TASK_TI_FLAGS, offsetof(struct task_struct, thread_info.flags));
-	DEFINE(TASK_SIGPENDING, offsetof(struct task_struct, pending));
-	DEFINE(TASK_PTRACE, offsetof(struct task_struct, ptrace));
-	DEFINE(TASK_MM, offsetof(struct task_struct, mm));
-	DEFINE(TASK_PERSONALITY, offsetof(struct task_struct, personality));
-	DEFINE(TASK_PID, offsetof(struct task_struct, pid));
 	DEFINE(TASK_STACK, offsetof(struct task_struct, stack));
 #ifdef CONFIG_SMP
 	DEFINE(TASK_CPU, offsetof(struct task_struct, cpu));
