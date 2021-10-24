@@ -156,174 +156,210 @@ static const char hns3_nic_test_strs[][ETH_GSTRING_LEN] = {
 };
 
 static const struct hclge_comm_stats_str g_mac_stats_string[] = {
-	{"mac_tx_mac_pause_num",
+	{"mac_tx_mac_pause_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_mac_pause_num)},
-	{"mac_rx_mac_pause_num",
+	{"mac_rx_mac_pause_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_mac_pause_num)},
-	{"mac_tx_control_pkt_num",
+	{"mac_tx_pause_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pause_xoff_time)},
+	{"mac_rx_pause_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pause_xoff_time)},
+	{"mac_tx_control_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_ctrl_pkt_num)},
-	{"mac_rx_control_pkt_num",
+	{"mac_rx_control_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_ctrl_pkt_num)},
-	{"mac_tx_pfc_pkt_num",
+	{"mac_tx_pfc_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pause_pkt_num)},
-	{"mac_tx_pfc_pri0_pkt_num",
+	{"mac_tx_pfc_pri0_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri0_pkt_num)},
-	{"mac_tx_pfc_pri1_pkt_num",
+	{"mac_tx_pfc_pri1_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri1_pkt_num)},
-	{"mac_tx_pfc_pri2_pkt_num",
+	{"mac_tx_pfc_pri2_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri2_pkt_num)},
-	{"mac_tx_pfc_pri3_pkt_num",
+	{"mac_tx_pfc_pri3_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri3_pkt_num)},
-	{"mac_tx_pfc_pri4_pkt_num",
+	{"mac_tx_pfc_pri4_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri4_pkt_num)},
-	{"mac_tx_pfc_pri5_pkt_num",
+	{"mac_tx_pfc_pri5_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri5_pkt_num)},
-	{"mac_tx_pfc_pri6_pkt_num",
+	{"mac_tx_pfc_pri6_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri6_pkt_num)},
-	{"mac_tx_pfc_pri7_pkt_num",
+	{"mac_tx_pfc_pri7_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri7_pkt_num)},
-	{"mac_rx_pfc_pkt_num",
+	{"mac_tx_pfc_pri0_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri0_xoff_time)},
+	{"mac_tx_pfc_pri1_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri1_xoff_time)},
+	{"mac_tx_pfc_pri2_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri2_xoff_time)},
+	{"mac_tx_pfc_pri3_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri3_xoff_time)},
+	{"mac_tx_pfc_pri4_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri4_xoff_time)},
+	{"mac_tx_pfc_pri5_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri5_xoff_time)},
+	{"mac_tx_pfc_pri6_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri6_xoff_time)},
+	{"mac_tx_pfc_pri7_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri7_xoff_time)},
+	{"mac_rx_pfc_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pause_pkt_num)},
-	{"mac_rx_pfc_pri0_pkt_num",
+	{"mac_rx_pfc_pri0_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri0_pkt_num)},
-	{"mac_rx_pfc_pri1_pkt_num",
+	{"mac_rx_pfc_pri1_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri1_pkt_num)},
-	{"mac_rx_pfc_pri2_pkt_num",
+	{"mac_rx_pfc_pri2_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri2_pkt_num)},
-	{"mac_rx_pfc_pri3_pkt_num",
+	{"mac_rx_pfc_pri3_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri3_pkt_num)},
-	{"mac_rx_pfc_pri4_pkt_num",
+	{"mac_rx_pfc_pri4_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri4_pkt_num)},
-	{"mac_rx_pfc_pri5_pkt_num",
+	{"mac_rx_pfc_pri5_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri5_pkt_num)},
-	{"mac_rx_pfc_pri6_pkt_num",
+	{"mac_rx_pfc_pri6_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri6_pkt_num)},
-	{"mac_rx_pfc_pri7_pkt_num",
+	{"mac_rx_pfc_pri7_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri7_pkt_num)},
-	{"mac_tx_total_pkt_num",
+	{"mac_rx_pfc_pri0_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri0_xoff_time)},
+	{"mac_rx_pfc_pri1_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri1_xoff_time)},
+	{"mac_rx_pfc_pri2_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri2_xoff_time)},
+	{"mac_rx_pfc_pri3_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri3_xoff_time)},
+	{"mac_rx_pfc_pri4_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri4_xoff_time)},
+	{"mac_rx_pfc_pri5_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri5_xoff_time)},
+	{"mac_rx_pfc_pri6_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri6_xoff_time)},
+	{"mac_rx_pfc_pri7_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri7_xoff_time)},
+	{"mac_tx_total_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_total_pkt_num)},
-	{"mac_tx_total_oct_num",
+	{"mac_tx_total_oct_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_total_oct_num)},
-	{"mac_tx_good_pkt_num",
+	{"mac_tx_good_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_good_pkt_num)},
-	{"mac_tx_bad_pkt_num",
+	{"mac_tx_bad_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_bad_pkt_num)},
-	{"mac_tx_good_oct_num",
+	{"mac_tx_good_oct_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_good_oct_num)},
-	{"mac_tx_bad_oct_num",
+	{"mac_tx_bad_oct_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_bad_oct_num)},
-	{"mac_tx_uni_pkt_num",
+	{"mac_tx_uni_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_uni_pkt_num)},
-	{"mac_tx_multi_pkt_num",
+	{"mac_tx_multi_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_multi_pkt_num)},
-	{"mac_tx_broad_pkt_num",
+	{"mac_tx_broad_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_broad_pkt_num)},
-	{"mac_tx_undersize_pkt_num",
+	{"mac_tx_undersize_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_undersize_pkt_num)},
-	{"mac_tx_oversize_pkt_num",
+	{"mac_tx_oversize_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_oversize_pkt_num)},
-	{"mac_tx_64_oct_pkt_num",
+	{"mac_tx_64_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_64_oct_pkt_num)},
-	{"mac_tx_65_127_oct_pkt_num",
+	{"mac_tx_65_127_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_65_127_oct_pkt_num)},
-	{"mac_tx_128_255_oct_pkt_num",
+	{"mac_tx_128_255_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_128_255_oct_pkt_num)},
-	{"mac_tx_256_511_oct_pkt_num",
+	{"mac_tx_256_511_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_256_511_oct_pkt_num)},
-	{"mac_tx_512_1023_oct_pkt_num",
+	{"mac_tx_512_1023_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_512_1023_oct_pkt_num)},
-	{"mac_tx_1024_1518_oct_pkt_num",
+	{"mac_tx_1024_1518_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_1024_1518_oct_pkt_num)},
-	{"mac_tx_1519_2047_oct_pkt_num",
+	{"mac_tx_1519_2047_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_1519_2047_oct_pkt_num)},
-	{"mac_tx_2048_4095_oct_pkt_num",
+	{"mac_tx_2048_4095_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_2048_4095_oct_pkt_num)},
-	{"mac_tx_4096_8191_oct_pkt_num",
+	{"mac_tx_4096_8191_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_4096_8191_oct_pkt_num)},
-	{"mac_tx_8192_9216_oct_pkt_num",
+	{"mac_tx_8192_9216_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_8192_9216_oct_pkt_num)},
-	{"mac_tx_9217_12287_oct_pkt_num",
+	{"mac_tx_9217_12287_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_9217_12287_oct_pkt_num)},
-	{"mac_tx_12288_16383_oct_pkt_num",
+	{"mac_tx_12288_16383_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_12288_16383_oct_pkt_num)},
-	{"mac_tx_1519_max_good_pkt_num",
+	{"mac_tx_1519_max_good_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_1519_max_good_oct_pkt_num)},
-	{"mac_tx_1519_max_bad_pkt_num",
+	{"mac_tx_1519_max_bad_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_1519_max_bad_oct_pkt_num)},
-	{"mac_rx_total_pkt_num",
+	{"mac_rx_total_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_total_pkt_num)},
-	{"mac_rx_total_oct_num",
+	{"mac_rx_total_oct_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_total_oct_num)},
-	{"mac_rx_good_pkt_num",
+	{"mac_rx_good_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_good_pkt_num)},
-	{"mac_rx_bad_pkt_num",
+	{"mac_rx_bad_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_bad_pkt_num)},
-	{"mac_rx_good_oct_num",
+	{"mac_rx_good_oct_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_good_oct_num)},
-	{"mac_rx_bad_oct_num",
+	{"mac_rx_bad_oct_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_bad_oct_num)},
-	{"mac_rx_uni_pkt_num",
+	{"mac_rx_uni_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_uni_pkt_num)},
-	{"mac_rx_multi_pkt_num",
+	{"mac_rx_multi_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_multi_pkt_num)},
-	{"mac_rx_broad_pkt_num",
+	{"mac_rx_broad_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_broad_pkt_num)},
-	{"mac_rx_undersize_pkt_num",
+	{"mac_rx_undersize_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_undersize_pkt_num)},
-	{"mac_rx_oversize_pkt_num",
+	{"mac_rx_oversize_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_oversize_pkt_num)},
-	{"mac_rx_64_oct_pkt_num",
+	{"mac_rx_64_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_64_oct_pkt_num)},
-	{"mac_rx_65_127_oct_pkt_num",
+	{"mac_rx_65_127_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_65_127_oct_pkt_num)},
-	{"mac_rx_128_255_oct_pkt_num",
+	{"mac_rx_128_255_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_128_255_oct_pkt_num)},
-	{"mac_rx_256_511_oct_pkt_num",
+	{"mac_rx_256_511_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_256_511_oct_pkt_num)},
-	{"mac_rx_512_1023_oct_pkt_num",
+	{"mac_rx_512_1023_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_512_1023_oct_pkt_num)},
-	{"mac_rx_1024_1518_oct_pkt_num",
+	{"mac_rx_1024_1518_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_1024_1518_oct_pkt_num)},
-	{"mac_rx_1519_2047_oct_pkt_num",
+	{"mac_rx_1519_2047_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_1519_2047_oct_pkt_num)},
-	{"mac_rx_2048_4095_oct_pkt_num",
+	{"mac_rx_2048_4095_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_2048_4095_oct_pkt_num)},
-	{"mac_rx_4096_8191_oct_pkt_num",
+	{"mac_rx_4096_8191_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_4096_8191_oct_pkt_num)},
-	{"mac_rx_8192_9216_oct_pkt_num",
+	{"mac_rx_8192_9216_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_8192_9216_oct_pkt_num)},
-	{"mac_rx_9217_12287_oct_pkt_num",
+	{"mac_rx_9217_12287_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_9217_12287_oct_pkt_num)},
-	{"mac_rx_12288_16383_oct_pkt_num",
+	{"mac_rx_12288_16383_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_12288_16383_oct_pkt_num)},
-	{"mac_rx_1519_max_good_pkt_num",
+	{"mac_rx_1519_max_good_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_1519_max_good_oct_pkt_num)},
-	{"mac_rx_1519_max_bad_pkt_num",
+	{"mac_rx_1519_max_bad_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_1519_max_bad_oct_pkt_num)},
 
-	{"mac_tx_fragment_pkt_num",
+	{"mac_tx_fragment_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_fragment_pkt_num)},
-	{"mac_tx_undermin_pkt_num",
+	{"mac_tx_undermin_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_undermin_pkt_num)},
-	{"mac_tx_jabber_pkt_num",
+	{"mac_tx_jabber_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_jabber_pkt_num)},
-	{"mac_tx_err_all_pkt_num",
+	{"mac_tx_err_all_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_err_all_pkt_num)},
-	{"mac_tx_from_app_good_pkt_num",
+	{"mac_tx_from_app_good_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_from_app_good_pkt_num)},
-	{"mac_tx_from_app_bad_pkt_num",
+	{"mac_tx_from_app_bad_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_from_app_bad_pkt_num)},
-	{"mac_rx_fragment_pkt_num",
+	{"mac_rx_fragment_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_fragment_pkt_num)},
-	{"mac_rx_undermin_pkt_num",
+	{"mac_rx_undermin_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_undermin_pkt_num)},
-	{"mac_rx_jabber_pkt_num",
+	{"mac_rx_jabber_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_jabber_pkt_num)},
-	{"mac_rx_fcs_err_pkt_num",
+	{"mac_rx_fcs_err_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_fcs_err_pkt_num)},
-	{"mac_rx_send_app_good_pkt_num",
+	{"mac_rx_send_app_good_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_send_app_good_pkt_num)},
-	{"mac_rx_send_app_bad_pkt_num",
+	{"mac_rx_send_app_bad_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_send_app_bad_pkt_num)}
 };
 
@@ -665,20 +701,39 @@ static u8 *hclge_tqps_get_strings(struct hnae3_handle *handle, u8 *data)
 	return buff;
 }
 
-static u64 *hclge_comm_get_stats(const void *comm_stats,
+static int hclge_comm_get_count(struct hclge_dev *hdev,
+				const struct hclge_comm_stats_str strs[],
+				u32 size)
+{
+	int count = 0;
+	u32 i;
+
+	for (i = 0; i < size; i++)
+		if (strs[i].stats_num <= hdev->ae_dev->dev_specs.mac_stats_num)
+			count++;
+
+	return count;
+}
+
+static u64 *hclge_comm_get_stats(struct hclge_dev *hdev,
 				 const struct hclge_comm_stats_str strs[],
 				 int size, u64 *data)
 {
 	u64 *buf = data;
 	u32 i;
 
-	for (i = 0; i < size; i++)
-		buf[i] = HCLGE_STATS_READ(comm_stats, strs[i].offset);
+	for (i = 0; i < size; i++) {
+		if (strs[i].stats_num > hdev->ae_dev->dev_specs.mac_stats_num)
+			continue;
 
-	return buf + size;
+		*buf = HCLGE_STATS_READ(&hdev->mac_stats, strs[i].offset);
+		buf++;
+	}
+
+	return buf;
 }
 
-static u8 *hclge_comm_get_strings(u32 stringset,
+static u8 *hclge_comm_get_strings(struct hclge_dev *hdev, u32 stringset,
 				  const struct hclge_comm_stats_str strs[],
 				  int size, u8 *data)
 {
@@ -689,6 +744,9 @@ static u8 *hclge_comm_get_strings(u32 stringset,
 		return buff;
 
 	for (i = 0; i < size; i++) {
+		if (strs[i].stats_num > hdev->ae_dev->dev_specs.mac_stats_num)
+			continue;
+
 		snprintf(buff, ETH_GSTRING_LEN, "%s", strs[i].desc);
 		buff = buff + ETH_GSTRING_LEN;
 	}
@@ -780,7 +838,8 @@ static int hclge_get_sset_count(struct hnae3_handle *handle, int stringset)
 			handle->flags |= HNAE3_SUPPORT_PHY_LOOPBACK;
 		}
 	} else if (stringset == ETH_SS_STATS) {
-		count = ARRAY_SIZE(g_mac_stats_string) +
+		count = hclge_comm_get_count(hdev, g_mac_stats_string,
+					     ARRAY_SIZE(g_mac_stats_string)) +
 			hclge_tqps_get_sset_count(handle, stringset);
 	}
 
@@ -790,12 +849,14 @@ static int hclge_get_sset_count(struct hnae3_handle *handle, int stringset)
 static void hclge_get_strings(struct hnae3_handle *handle, u32 stringset,
 			      u8 *data)
 {
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
 	u8 *p = (char *)data;
 	int size;
 
 	if (stringset == ETH_SS_STATS) {
 		size = ARRAY_SIZE(g_mac_stats_string);
-		p = hclge_comm_get_strings(stringset, g_mac_stats_string,
+		p = hclge_comm_get_strings(hdev, stringset, g_mac_stats_string,
 					   size, p);
 		p = hclge_tqps_get_strings(handle, p);
 	} else if (stringset == ETH_SS_TEST) {
@@ -829,7 +890,7 @@ static void hclge_get_stats(struct hnae3_handle *handle, u64 *data)
 	struct hclge_dev *hdev = vport->back;
 	u64 *p;
 
-	p = hclge_comm_get_stats(&hdev->mac_stats, g_mac_stats_string,
+	p = hclge_comm_get_stats(hdev, g_mac_stats_string,
 				 ARRAY_SIZE(g_mac_stats_string), data);
 	p = hclge_tqps_get_stats(handle, p);
 }
