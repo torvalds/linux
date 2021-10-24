@@ -1339,10 +1339,9 @@ iwl_pci_find_dev_info(u16 device, u16 subsystem_device,
 		      u16 mac_type, u8 mac_step,
 		      u16 rf_type, u8 cdb, u8 rf_id, u8 no_160, u8 cores)
 {
-	const struct iwl_dev_info *ret = NULL;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(iwl_dev_info_table); i++) {
+	for (i = ARRAY_SIZE(iwl_dev_info_table) - 1; i >= 0; i--) {
 		const struct iwl_dev_info *dev_info = &iwl_dev_info_table[i];
 
 		if (dev_info->device != (u16)IWL_CFG_ANY &&
@@ -1381,10 +1380,10 @@ iwl_pci_find_dev_info(u16 device, u16 subsystem_device,
 		    dev_info->cores != cores)
 			continue;
 
-		ret = dev_info;
+		return dev_info;
 	}
 
-	return ret;
+	return NULL;
 }
 
 static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
