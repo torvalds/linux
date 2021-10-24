@@ -1499,13 +1499,9 @@ parse_open(struct vchiq_state *state, struct vchiq_header *header)
 	if ((service->version < version_min) || (version < service->version_min)) {
 		/* Version mismatch */
 		vchiq_loud_error_header();
-		vchiq_loud_error("%d: service %d (%c%c%c%c) "
-			"version mismatch - local (%d, min %d)"
-			" vs. remote (%d, min %d)",
-			state->id, service->localport,
-			VCHIQ_FOURCC_AS_4CHARS(fourcc),
-			service->version, service->version_min,
-			version, version_min);
+		vchiq_loud_error("%d: service %d (%c%c%c%c) version mismatch - local (%d, min %d) vs. remote (%d, min %d)",
+				 state->id, service->localport, VCHIQ_FOURCC_AS_4CHARS(fourcc),
+				 service->version, service->version_min, version, version_min);
 		vchiq_loud_error_footer();
 		vchiq_service_put(service);
 		service = NULL;
