@@ -223,6 +223,12 @@
 #define QCA808X_PHY_MMD3_DEBUG_6		0xa011
 #define QCA808X_MMD3_DEBUG_6_VALUE		0x5f85
 
+/* master/slave seed config */
+#define QCA808X_PHY_DEBUG_LOCAL_SEED		9
+#define QCA808X_MASTER_SLAVE_SEED_ENABLE	BIT(1)
+#define QCA808X_MASTER_SLAVE_SEED_CFG		GENMASK(12, 2)
+#define QCA808X_MASTER_SLAVE_SEED_RANGE		0x32
+
 MODULE_DESCRIPTION("Qualcomm Atheros AR803x and QCA808X PHY driver");
 MODULE_AUTHOR("Matus Ujhelyi");
 MODULE_LICENSE("GPL");
@@ -1569,6 +1575,26 @@ static int qca808x_phy_fast_retrain_config(struct phy_device *phydev)
 	return 0;
 }
 
+static int qca808x_phy_ms_random_seed_set(struct phy_device *phydev)
+{
+	u16 seed_value = (prandom_u32() % QCA808X_MASTER_SLAVE_SEED_RANGE);
+
+	return at803x_debug_reg_mask(phydev, QCA808X_PHY_DEBUG_LOCAL_SEED,
+			QCA808X_MASTER_SLAVE_SEED_CFG,
+			FIELD_PREP(QCA808X_MASTER_SLAVE_SEED_CFG, seed_value));
+}
+
+static int qca808x_phy_ms_seed_enable(struct phy_device *phydev, bool enable)
+{
+	u16 seed_enable = 0;
+
+	if (enable)
+		seed_enable = QCA808X_MASTER_SLAVE_SEED_ENABLE;
+
+	return at803x_debug_reg_mask(phydev, QCA808X_PHY_DEBUG_LOCAL_SEED,
+			QCA808X_MASTER_SLAVE_SEED_ENABLE, seed_enable);
+}
+
 static int qca808x_config_init(struct phy_device *phydev)
 {
 	int ret;
@@ -1587,6 +1613,16 @@ static int qca808x_config_init(struct phy_device *phydev)
 
 	/* Config the fast retrain for the link 2500M */
 	ret = qca808x_phy_fast_retrain_config(phydev);
+	if (ret)
+		return ret;
+
+	/* Configure lower ramdom seed to make phy linked as slave mode */
+	ret = qca808x_phy_ms_random_seed_set(phydev);
+	if (ret)
+		return ret;
+
+	/* Enable seed */
+	ret = qca808x_phy_ms_seed_enable(phydev, true);
 	if (ret)
 		return ret;
 
@@ -1620,6 +1656,17 @@ static int qca808x_read_status(struct phy_device *phydev)
 		phydev->interface = PHY_INTERFACE_MODE_SMII;
 
 	return 0;
+}
+
+static int qca808x_soft_reset(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = genphy_soft_reset(phydev);
+	if (ret < 0)
+		return ret;
+
+	return qca808x_phy_ms_seed_enable(phydev, true);
 }
 
 static struct phy_driver at803x_driver[] = {
@@ -1797,6 +1844,7 @@ static struct phy_driver at803x_driver[] = {
 	.resume			= genphy_resume,
 	.read_status		= qca808x_read_status,
 	.config_init		= qca808x_config_init,
+	.soft_reset		= qca808x_soft_reset,
 }, };
 
 module_phy_driver(at803x_driver);
