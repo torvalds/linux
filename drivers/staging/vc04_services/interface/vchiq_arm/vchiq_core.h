@@ -531,12 +531,10 @@ extern struct vchiq_service *
 find_service_by_port(struct vchiq_state *state, int localport);
 
 extern struct vchiq_service *
-find_service_for_instance(struct vchiq_instance *instance,
-	unsigned int handle);
+find_service_for_instance(struct vchiq_instance *instance, unsigned int handle);
 
 extern struct vchiq_service *
-find_closed_service_for_instance(struct vchiq_instance *instance,
-	unsigned int handle);
+find_closed_service_for_instance(struct vchiq_instance *instance, unsigned int handle);
 
 extern struct vchiq_service *
 __next_service_by_instance(struct vchiq_state *state,
@@ -586,8 +584,7 @@ extern int
 vchiq_dump_platform_instances(void *dump_context);
 
 extern int
-vchiq_dump_platform_service_state(void *dump_context,
-	struct vchiq_service *service);
+vchiq_dump_platform_service_state(void *dump_context, struct vchiq_service *service);
 
 extern int
 vchiq_use_service_internal(struct vchiq_service *service);
@@ -625,8 +622,7 @@ extern void
 vchiq_set_conn_state(struct vchiq_state *state, enum vchiq_connstate newstate);
 
 extern void
-vchiq_log_dump_mem(const char *label, uint32_t addr, const void *voidMem,
-	size_t numBytes);
+vchiq_log_dump_mem(const char *label, uint32_t addr, const void *voidMem, size_t numBytes);
 
 extern enum vchiq_status vchiq_remove_service(unsigned int service);
 
