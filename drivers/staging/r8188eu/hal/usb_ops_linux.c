@@ -483,7 +483,7 @@ u32 rtw_read_port(struct adapter *adapter, u32 addr, u32 cnt, u8 *rmem)
 			precvbuf->reuse = true;
 	}
 
-	rtl8188eu_init_recvbuf(adapter, precvbuf);
+	rtl8188eu_init_recvbuf(precvbuf);
 
 	/* re-assign for linux based on skb */
 	if (!precvbuf->reuse || !precvbuf->pskb) {
