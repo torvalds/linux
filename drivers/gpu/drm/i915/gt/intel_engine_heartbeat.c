@@ -207,7 +207,7 @@ out:
 
 void intel_engine_unpark_heartbeat(struct intel_engine_cs *engine)
 {
-	if (!IS_ACTIVE(CONFIG_DRM_I915_HEARTBEAT_INTERVAL))
+	if (!CONFIG_DRM_I915_HEARTBEAT_INTERVAL)
 		return;
 
 	next_heartbeat(engine);

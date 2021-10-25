@@ -234,7 +234,7 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 		funcs->set_outbox0_rptr = dmub_dcn31_set_outbox0_rptr;
 
 		funcs->get_diagnostic_data = dmub_dcn31_get_diagnostic_data;
-
+		funcs->should_detect = dmub_dcn31_should_detect;
 		funcs->get_current_time = dmub_dcn31_get_current_time;
 
 		break;
@@ -655,13 +655,19 @@ enum dmub_status dmub_srv_wait_for_phy_init(struct dmub_srv *dmub,
 enum dmub_status dmub_srv_wait_for_idle(struct dmub_srv *dmub,
 					uint32_t timeout_us)
 {
-	uint32_t i;
+	uint32_t i, rptr;
 
 	if (!dmub->hw_init)
 		return DMUB_STATUS_INVALID;
 
 	for (i = 0; i <= timeout_us; ++i) {
-			dmub->inbox1_rb.rptr = dmub->hw_funcs.get_inbox1_rptr(dmub);
+		rptr = dmub->hw_funcs.get_inbox1_rptr(dmub);
+
+		if (rptr > dmub->inbox1_rb.capacity)
+			return DMUB_STATUS_HW_FAILURE;
+
+		dmub->inbox1_rb.rptr = rptr;
+
 		if (dmub_rb_empty(&dmub->inbox1_rb))
 			return DMUB_STATUS_OK;
 
@@ -815,4 +821,12 @@ bool dmub_srv_get_diagnostic_data(struct dmub_srv *dmub, struct dmub_diagnostic_
 		return false;
 	dmub->hw_funcs.get_diagnostic_data(dmub, diag_data);
 	return true;
+}
+
+bool dmub_srv_should_detect(struct dmub_srv *dmub)
+{
+	if (!dmub->hw_init || !dmub->hw_funcs.should_detect)
+		return false;
+
+	return dmub->hw_funcs.should_detect(dmub);
 }

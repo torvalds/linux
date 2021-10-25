@@ -104,6 +104,7 @@ void enc2_stream_encoder_dp_set_stream_attribute(
 	uint32_t enable_sdp_splitting);
 
 void enc2_stream_encoder_dp_unblank(
+	struct dc_link *link,
 	struct stream_encoder *enc,
 	const struct encoder_unblank_param *param);
 

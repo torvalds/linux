@@ -131,6 +131,17 @@ config DRM_I915_GVT_KVMGT
 	  Choose this option if you want to enable KVMGT support for
 	  Intel GVT-g.
 
+config DRM_I915_PXP
+	bool "Enable Intel PXP support"
+	depends on DRM_I915
+	depends on INTEL_MEI && INTEL_MEI_PXP
+	default n
+	help
+	  PXP (Protected Xe Path) is an i915 component, available on graphics
+	  version 12 and newer GPUs, that helps to establish the hardware
+	  protected session and manage the status of the alive software session,
+	  as well as its life cycle.
+
 menu "drm/i915 Debugging"
 depends on DRM_I915
 depends on EXPERT

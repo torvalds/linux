@@ -33,11 +33,11 @@
 struct drm_i915_private;
 
 enum fb_op_origin {
-	ORIGIN_GTT,
-	ORIGIN_CPU,
+	ORIGIN_CPU = 0,
 	ORIGIN_CS,
 	ORIGIN_FLIP,
 	ORIGIN_DIRTYFB,
+	ORIGIN_CURSOR_UPDATE,
 };
 
 struct intel_frontbuffer {

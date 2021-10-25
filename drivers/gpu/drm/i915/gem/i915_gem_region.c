@@ -80,3 +80,73 @@ err_object_free:
 	i915_gem_object_free(obj);
 	return ERR_PTR(err);
 }
+
+/**
+ * i915_gem_process_region - Iterate over all objects of a region using ops
+ * to process and optionally skip objects
+ * @mr: The memory region
+ * @apply: ops and private data
+ *
+ * This function can be used to iterate over the regions object list,
+ * checking whether to skip objects, and, if not, lock the objects and
+ * process them using the supplied ops. Note that this function temporarily
+ * removes objects from the region list while iterating, so that if run
+ * concurrently with itself may not iterate over all objects.
+ *
+ * Return: 0 if successful, negative error code on failure.
+ */
+int i915_gem_process_region(struct intel_memory_region *mr,
+			    struct i915_gem_apply_to_region *apply)
+{
+	const struct i915_gem_apply_to_region_ops *ops = apply->ops;
+	struct drm_i915_gem_object *obj;
+	struct list_head still_in_list;
+	int ret = 0;
+
+	/*
+	 * In the future, a non-NULL apply->ww could mean the caller is
+	 * already in a locking transaction and provides its own context.
+	 */
+	GEM_WARN_ON(apply->ww);
+
+	INIT_LIST_HEAD(&still_in_list);
+	mutex_lock(&mr->objects.lock);
+	for (;;) {
+		struct i915_gem_ww_ctx ww;
+
+		obj = list_first_entry_or_null(&mr->objects.list, typeof(*obj),
+					       mm.region_link);
+		if (!obj)
+			break;
+
+		list_move_tail(&obj->mm.region_link, &still_in_list);
+		if (!kref_get_unless_zero(&obj->base.refcount))
+			continue;
+
+		/*
+		 * Note: Someone else might be migrating the object at this
+		 * point. The object's region is not stable until we lock
+		 * the object.
+		 */
+		mutex_unlock(&mr->objects.lock);
+		apply->ww = &ww;
+		for_i915_gem_ww(&ww, ret, apply->interruptible) {
+			ret = i915_gem_object_lock(obj, apply->ww);
+			if (ret)
+				continue;
+
+			if (obj->mm.region == mr)
+				ret = ops->process_obj(apply, obj);
+			/* Implicit object unlock */
+		}
+
+		i915_gem_object_put(obj);
+		mutex_lock(&mr->objects.lock);
+		if (ret)
+			break;
+	}
+	list_splice_tail(&still_in_list, &mr->objects.list);
+	mutex_unlock(&mr->objects.lock);
+
+	return ret;
+}

@@ -30,6 +30,7 @@
 #define LINK_TRAINING_RETRY_DELAY 50 /* ms */
 #define LINK_AUX_DEFAULT_LTTPR_TIMEOUT_PERIOD 3200 /*us*/
 #define LINK_AUX_DEFAULT_TIMEOUT_PERIOD 552 /*us*/
+#define MAX_MTP_SLOT_COUNT 64
 #define DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE 0x50
 #define TRAINING_AUX_RD_INTERVAL 100 //us
 
@@ -146,7 +147,10 @@ bool dp_is_interlane_aligned(union lane_align_status_updated align_status);
 
 bool dp_is_max_vs_reached(
 	const struct link_training_settings *lt_settings);
-
+void dp_hw_to_dpcd_lane_settings(
+	const struct link_training_settings *lt_settings,
+	const struct dc_lane_settings hw_lane_settings[LANE_COUNT_DP_MAX],
+	union dpcd_training_lane dpcd_lane_settings[LANE_COUNT_DP_MAX]);
 void dp_update_drive_settings(
 	struct link_training_settings *dest,
 	struct link_training_settings src);
@@ -165,7 +169,7 @@ uint8_t dc_dp_initialize_scrambling_data_symbols(
 enum dc_status dp_set_fec_ready(struct dc_link *link, bool ready);
 void dp_set_fec_enable(struct dc_link *link, bool enable);
 bool dp_set_dsc_enable(struct pipe_ctx *pipe_ctx, bool enable);
-bool dp_set_dsc_pps_sdp(struct pipe_ctx *pipe_ctx, bool enable);
+bool dp_set_dsc_pps_sdp(struct pipe_ctx *pipe_ctx, bool enable, bool immediate_update);
 void dp_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable);
 bool dp_update_dsc_config(struct pipe_ctx *pipe_ctx);
 bool dp_set_dsc_on_rx(struct pipe_ctx *pipe_ctx, bool enable);
@@ -189,5 +193,26 @@ enum dc_status dpcd_configure_lttpr_mode(
 		struct link_training_settings *lt_settings);
 
 enum dp_link_encoding dp_get_link_encoding_format(const struct dc_link_settings *link_settings);
+bool dpcd_write_128b_132b_sst_payload_allocation_table(
+		const struct dc_stream_state *stream,
+		struct dc_link *link,
+		struct link_mst_stream_allocation_table *proposed_table,
+		bool allocate);
+
+enum dc_status dpcd_configure_channel_coding(
+		struct dc_link *link,
+		struct link_training_settings *lt_settings);
+
+bool dpcd_poll_for_allocation_change_trigger(struct dc_link *link);
+
+struct fixed31_32 calculate_sst_avg_time_slots_per_mtp(
+		const struct dc_stream_state *stream,
+		const struct dc_link *link);
+void enable_dp_hpo_output(struct dc_link *link, const struct dc_link_settings *link_settings);
+void disable_dp_hpo_output(struct dc_link *link, enum signal_type signal);
+void setup_dp_hpo_stream(struct pipe_ctx *pipe_ctx, bool enable);
+bool is_dp_128b_132b_signal(struct pipe_ctx *pipe_ctx);
+void reset_dp_hpo_stream_encoders_for_link(struct dc_link *link);
+
 bool dp_retrieve_lttpr_cap(struct dc_link *link);
 #endif /* __DC_LINK_DP_H__ */

@@ -447,6 +447,11 @@ static inline bool dsa_port_is_user(struct dsa_port *dp)
 	return dp->type == DSA_PORT_TYPE_USER;
 }
 
+static inline bool dsa_port_is_unused(struct dsa_port *dp)
+{
+	return dp->type == DSA_PORT_TYPE_UNUSED;
+}
+
 static inline bool dsa_is_unused_port(struct dsa_switch *ds, int p)
 {
 	return dsa_to_port(ds, p)->type == DSA_PORT_TYPE_UNUSED;

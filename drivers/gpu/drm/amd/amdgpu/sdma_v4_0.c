@@ -469,8 +469,8 @@ static int sdma_v4_0_irq_id_to_seq(unsigned client_id)
 
 static void sdma_v4_0_init_golden_registers(struct amdgpu_device *adev)
 {
-	switch (adev->asic_type) {
-	case CHIP_VEGA10:
+	switch (adev->ip_versions[SDMA0_HWIP][0]) {
+	case IP_VERSION(4, 0, 0):
 		soc15_program_register_sequence(adev,
 						golden_settings_sdma_4,
 						ARRAY_SIZE(golden_settings_sdma_4));
@@ -478,7 +478,7 @@ static void sdma_v4_0_init_golden_registers(struct amdgpu_device *adev)
 						golden_settings_sdma_vg10,
 						ARRAY_SIZE(golden_settings_sdma_vg10));
 		break;
-	case CHIP_VEGA12:
+	case IP_VERSION(4, 0, 1):
 		soc15_program_register_sequence(adev,
 						golden_settings_sdma_4,
 						ARRAY_SIZE(golden_settings_sdma_4));
@@ -486,7 +486,7 @@ static void sdma_v4_0_init_golden_registers(struct amdgpu_device *adev)
 						golden_settings_sdma_vg12,
 						ARRAY_SIZE(golden_settings_sdma_vg12));
 		break;
-	case CHIP_VEGA20:
+	case IP_VERSION(4, 2, 0):
 		soc15_program_register_sequence(adev,
 						golden_settings_sdma0_4_2_init,
 						ARRAY_SIZE(golden_settings_sdma0_4_2_init));
@@ -497,17 +497,18 @@ static void sdma_v4_0_init_golden_registers(struct amdgpu_device *adev)
 						golden_settings_sdma1_4_2,
 						ARRAY_SIZE(golden_settings_sdma1_4_2));
 		break;
-	case CHIP_ARCTURUS:
+	case IP_VERSION(4, 2, 2):
 		soc15_program_register_sequence(adev,
 						golden_settings_sdma_arct,
 						ARRAY_SIZE(golden_settings_sdma_arct));
 		break;
-	case CHIP_ALDEBARAN:
+	case IP_VERSION(4, 4, 0):
 		soc15_program_register_sequence(adev,
 						golden_settings_sdma_aldebaran,
 						ARRAY_SIZE(golden_settings_sdma_aldebaran));
 		break;
-	case CHIP_RAVEN:
+	case IP_VERSION(4, 1, 0):
+	case IP_VERSION(4, 1, 1):
 		soc15_program_register_sequence(adev,
 						golden_settings_sdma_4_1,
 						ARRAY_SIZE(golden_settings_sdma_4_1));
@@ -520,7 +521,7 @@ static void sdma_v4_0_init_golden_registers(struct amdgpu_device *adev)
 							golden_settings_sdma_rv1,
 							ARRAY_SIZE(golden_settings_sdma_rv1));
 		break;
-	case CHIP_RENOIR:
+	case IP_VERSION(4, 1, 2):
 		soc15_program_register_sequence(adev,
 						golden_settings_sdma_4_3,
 						ARRAY_SIZE(golden_settings_sdma_4_3));
@@ -538,12 +539,12 @@ static void sdma_v4_0_setup_ulv(struct amdgpu_device *adev)
 	 * The only chips with SDMAv4 and ULV are VG10 and VG20.
 	 * Server SKUs take a different hysteresis setting from other SKUs.
 	 */
-	switch (adev->asic_type) {
-	case CHIP_VEGA10:
+	switch (adev->ip_versions[SDMA0_HWIP][0]) {
+	case IP_VERSION(4, 0, 0):
 		if (adev->pdev->device == 0x6860)
 			break;
 		return;
-	case CHIP_VEGA20:
+	case IP_VERSION(4, 2, 0):
 		if (adev->pdev->device == 0x66a1)
 			break;
 		return;
@@ -589,8 +590,8 @@ static void sdma_v4_0_destroy_inst_ctx(struct amdgpu_device *adev)
 
 		/* arcturus shares the same FW memory across
 		   all SDMA isntances */
-		if (adev->asic_type == CHIP_ARCTURUS ||
-		    adev->asic_type == CHIP_ALDEBARAN)
+		if (adev->ip_versions[SDMA0_HWIP][0] == IP_VERSION(4, 2, 2) ||
+		    adev->ip_versions[SDMA0_HWIP][0] == IP_VERSION(4, 4, 0))
 			break;
 	}
 
@@ -620,17 +621,18 @@ static int sdma_v4_0_init_microcode(struct amdgpu_device *adev)
 
 	DRM_DEBUG("\n");
 
-	switch (adev->asic_type) {
-	case CHIP_VEGA10:
+	switch (adev->ip_versions[SDMA0_HWIP][0]) {
+	case IP_VERSION(4, 0, 0):
 		chip_name = "vega10";
 		break;
-	case CHIP_VEGA12:
+	case IP_VERSION(4, 0, 1):
 		chip_name = "vega12";
 		break;
-	case CHIP_VEGA20:
+	case IP_VERSION(4, 2, 0):
 		chip_name = "vega20";
 		break;
-	case CHIP_RAVEN:
+	case IP_VERSION(4, 1, 0):
+	case IP_VERSION(4, 1, 1):
 		if (adev->apu_flags & AMD_APU_IS_RAVEN2)
 			chip_name = "raven2";
 		else if (adev->apu_flags & AMD_APU_IS_PICASSO)
@@ -638,16 +640,16 @@ static int sdma_v4_0_init_microcode(struct amdgpu_device *adev)
 		else
 			chip_name = "raven";
 		break;
-	case CHIP_ARCTURUS:
+	case IP_VERSION(4, 2, 2):
 		chip_name = "arcturus";
 		break;
-	case CHIP_RENOIR:
+	case IP_VERSION(4, 1, 2):
 		if (adev->apu_flags & AMD_APU_IS_RENOIR)
 			chip_name = "renoir";
 		else
 			chip_name = "green_sardine";
 		break;
-	case CHIP_ALDEBARAN:
+	case IP_VERSION(4, 4, 0):
 		chip_name = "aldebaran";
 		break;
 	default:
@@ -665,8 +667,8 @@ static int sdma_v4_0_init_microcode(struct amdgpu_device *adev)
 		goto out;
 
 	for (i = 1; i < adev->sdma.num_instances; i++) {
-		if (adev->asic_type == CHIP_ARCTURUS ||
-		    adev->asic_type == CHIP_ALDEBARAN) {
+		if (adev->ip_versions[SDMA0_HWIP][0] == IP_VERSION(4, 2, 2) ||
+                    adev->ip_versions[SDMA0_HWIP][0] == IP_VERSION(4, 4, 0)) {
 			/* Acturus & Aldebaran will leverage the same FW memory
 			   for every SDMA instance */
 			memcpy((void *)&adev->sdma.instance[i],
@@ -1106,7 +1108,7 @@ static void sdma_v4_0_ctx_switch_enable(struct amdgpu_device *adev, bool enable)
 		 * Arcturus for the moment and firmware version 14
 		 * and above.
 		 */
-		if (adev->asic_type == CHIP_ARCTURUS &&
+		if (adev->ip_versions[SDMA0_HWIP][0] == IP_VERSION(4, 2, 2) &&
 		    adev->sdma.instance[i].fw_version >= 14)
 			WREG32_SDMA(i, mmSDMA0_PUB_DUMMY_REG2, enable);
 		/* Extend page fault timeout to avoid interrupt storm */
@@ -1393,9 +1395,10 @@ static void sdma_v4_0_init_pg(struct amdgpu_device *adev)
 	if (!(adev->pg_flags & AMD_PG_SUPPORT_SDMA))
 		return;
 
-	switch (adev->asic_type) {
-	case CHIP_RAVEN:
-	case CHIP_RENOIR:
+	switch (adev->ip_versions[SDMA0_HWIP][0]) {
+	case IP_VERSION(4, 1, 0):
+        case IP_VERSION(4, 1, 1):
+	case IP_VERSION(4, 1, 2):
 		sdma_v4_1_init_power_gating(adev);
 		sdma_v4_1_update_power_gating(adev, true);
 		break;
@@ -1835,13 +1838,13 @@ static bool sdma_v4_0_fw_support_paging_queue(struct amdgpu_device *adev)
 {
 	uint fw_version = adev->sdma.instance[0].fw_version;
 
-	switch (adev->asic_type) {
-	case CHIP_VEGA10:
+	switch (adev->ip_versions[SDMA0_HWIP][0]) {
+	case IP_VERSION(4, 0, 0):
 		return fw_version >= 430;
-	case CHIP_VEGA12:
+	case IP_VERSION(4, 0, 1):
 		/*return fw_version >= 31;*/
 		return false;
-	case CHIP_VEGA20:
+	case IP_VERSION(4, 2, 0):
 		return fw_version >= 123;
 	default:
 		return false;
@@ -1853,15 +1856,6 @@ static int sdma_v4_0_early_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int r;
 
-	if (adev->flags & AMD_IS_APU)
-		adev->sdma.num_instances = 1;
-	else if (adev->asic_type == CHIP_ARCTURUS)
-		adev->sdma.num_instances = 8;
-	else if (adev->asic_type == CHIP_ALDEBARAN)
-		adev->sdma.num_instances = 5;
-	else
-		adev->sdma.num_instances = 2;
-
 	r = sdma_v4_0_init_microcode(adev);
 	if (r) {
 		DRM_ERROR("Failed to load sdma firmware!\n");
@@ -1869,7 +1863,8 @@ static int sdma_v4_0_early_init(void *handle)
 	}
 
 	/* TODO: Page queue breaks driver reload under SRIOV */
-	if ((adev->asic_type == CHIP_VEGA10) && amdgpu_sriov_vf((adev)))
+	if ((adev->ip_versions[SDMA0_HWIP][0] == IP_VERSION(4, 0, 0)) &&
+	    amdgpu_sriov_vf((adev)))
 		adev->sdma.has_page_queue = false;
 	else if (sdma_v4_0_fw_support_paging_queue(adev))
 		adev->sdma.has_page_queue = true;
@@ -2141,14 +2136,14 @@ static int sdma_v4_0_process_trap_irq(struct amdgpu_device *adev,
 		amdgpu_fence_process(&adev->sdma.instance[instance].ring);
 		break;
 	case 1:
-		if (adev->asic_type == CHIP_VEGA20)
+		if (adev->ip_versions[SDMA0_HWIP][0] == IP_VERSION(4, 2, 0))
 			amdgpu_fence_process(&adev->sdma.instance[instance].page);
 		break;
 	case 2:
 		/* XXX compute */
 		break;
 	case 3:
-		if (adev->asic_type != CHIP_VEGA20)
+		if (adev->ip_versions[SDMA0_HWIP][0] != IP_VERSION(4, 2, 0))
 			amdgpu_fence_process(&adev->sdma.instance[instance].page);
 		break;
 	}
@@ -2364,9 +2359,10 @@ static int sdma_v4_0_set_powergating_state(void *handle,
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	switch (adev->asic_type) {
-	case CHIP_RAVEN:
-	case CHIP_RENOIR:
+	switch (adev->ip_versions[SDMA0_HWIP][0]) {
+	case IP_VERSION(4, 1, 0):
+	case IP_VERSION(4, 1, 1):
+	case IP_VERSION(4, 1, 2):
 		sdma_v4_1_update_power_gating(adev,
 				state == AMD_PG_STATE_GATE);
 		break;
@@ -2551,7 +2547,7 @@ static void sdma_v4_0_set_ring_funcs(struct amdgpu_device *adev)
 	int i;
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
-		if (adev->asic_type == CHIP_ARCTURUS && i >= 5)
+		if (adev->ip_versions[SDMA0_HWIP][0] == IP_VERSION(4, 2, 2) && i >= 5)
 			adev->sdma.instance[i].ring.funcs =
 					&sdma_v4_0_ring_funcs_2nd_mmhub;
 		else
@@ -2559,7 +2555,7 @@ static void sdma_v4_0_set_ring_funcs(struct amdgpu_device *adev)
 					&sdma_v4_0_ring_funcs;
 		adev->sdma.instance[i].ring.me = i;
 		if (adev->sdma.has_page_queue) {
-			if (adev->asic_type == CHIP_ARCTURUS && i >= 5)
+			if (adev->ip_versions[SDMA0_HWIP][0] == IP_VERSION(4, 2, 2) && i >= 5)
 				adev->sdma.instance[i].page.funcs =
 					&sdma_v4_0_page_ring_funcs_2nd_mmhub;
 			else
@@ -2786,12 +2782,12 @@ static const struct amdgpu_sdma_ras_funcs sdma_v4_0_ras_funcs = {
 
 static void sdma_v4_0_set_ras_funcs(struct amdgpu_device *adev)
 {
-	switch (adev->asic_type) {
-	case CHIP_VEGA20:
-	case CHIP_ARCTURUS:
+	switch (adev->ip_versions[SDMA0_HWIP][0]) {
+	case IP_VERSION(4, 2, 0):
+	case IP_VERSION(4, 2, 2):
 		adev->sdma.funcs = &sdma_v4_0_ras_funcs;
 		break;
-	case CHIP_ALDEBARAN:
+	case IP_VERSION(4, 4, 0):
 		adev->sdma.funcs = &sdma_v4_4_ras_funcs;
 		break;
 	default:

@@ -53,7 +53,11 @@ enum edp_revision {
 };
 
 enum {
-	LINK_RATE_REF_FREQ_IN_KHZ = 27000 /*27MHz*/
+	LINK_RATE_REF_FREQ_IN_KHZ = 27000, /*27MHz*/
+	BITS_PER_DP_BYTE = 10,
+	DATA_EFFICIENCY_8b_10b_x10000 = 8000, /* 80% data efficiency */
+	DATA_EFFICIENCY_8b_10b_FEC_EFFICIENCY_x100 = 97, /* 97% data efficiency when FEC is enabled */
+	DATA_EFFICIENCY_128b_132b_x10000 = 9646, /* 96.71% data efficiency x 99.75% downspread factor */
 };
 
 enum link_training_result {
@@ -70,6 +74,12 @@ enum link_training_result {
 	LINK_TRAINING_LINK_LOSS,
 	/* Abort link training (because sink unplugged) */
 	LINK_TRAINING_ABORT,
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	DP_128b_132b_LT_FAILED,
+	DP_128b_132b_MAX_LOOP_COUNT_REACHED,
+	DP_128b_132b_CHANNEL_EQ_DONE_TIMEOUT,
+	DP_128b_132b_CDS_DONE_TIMEOUT,
+#endif
 };
 
 enum lttpr_mode {
@@ -86,11 +96,23 @@ struct link_training_settings {
 	enum dc_pre_emphasis *pre_emphasis;
 	enum dc_post_cursor2 *post_cursor2;
 	bool should_set_fec_ready;
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	/* TODO - factor lane_settings out because it changes during LT */
+	union dc_dp_ffe_preset *ffe_preset;
+#endif
 
 	uint16_t cr_pattern_time;
 	uint16_t eq_pattern_time;
+	uint16_t cds_pattern_time;
 	enum dc_dp_training_pattern pattern_for_cr;
 	enum dc_dp_training_pattern pattern_for_eq;
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	enum dc_dp_training_pattern pattern_for_cds;
+
+	uint32_t eq_wait_time_limit;
+	uint8_t eq_loop_count_limit;
+	uint32_t cds_wait_time_limit;
+#endif
 
 	bool enhanced_framing;
 	bool allow_invalid_msa_timing_param;
@@ -114,13 +136,30 @@ enum dp_test_pattern {
 	DP_TEST_PATTERN_CP2520_2,
 	DP_TEST_PATTERN_HBR2_COMPLIANCE_EYE = DP_TEST_PATTERN_CP2520_2,
 	DP_TEST_PATTERN_CP2520_3,
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	DP_TEST_PATTERN_128b_132b_TPS1,
+	DP_TEST_PATTERN_128b_132b_TPS2,
+	DP_TEST_PATTERN_PRBS9,
+	DP_TEST_PATTERN_PRBS11,
+	DP_TEST_PATTERN_PRBS15,
+	DP_TEST_PATTERN_PRBS23,
+	DP_TEST_PATTERN_PRBS31,
+	DP_TEST_PATTERN_264BIT_CUSTOM,
+	DP_TEST_PATTERN_SQUARE_PULSE,
+#endif
 
 	/* Link Training Patterns */
 	DP_TEST_PATTERN_TRAINING_PATTERN1,
 	DP_TEST_PATTERN_TRAINING_PATTERN2,
 	DP_TEST_PATTERN_TRAINING_PATTERN3,
 	DP_TEST_PATTERN_TRAINING_PATTERN4,
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	DP_TEST_PATTERN_128b_132b_TPS1_TRAINING_MODE,
+	DP_TEST_PATTERN_128b_132b_TPS2_TRAINING_MODE,
+	DP_TEST_PATTERN_PHY_PATTERN_END = DP_TEST_PATTERN_128b_132b_TPS2_TRAINING_MODE,
+#else
 	DP_TEST_PATTERN_PHY_PATTERN_END = DP_TEST_PATTERN_TRAINING_PATTERN4,
+#endif
 
 	/* link test patterns*/
 	DP_TEST_PATTERN_COLOR_SQUARES,
@@ -150,6 +189,22 @@ enum dp_panel_mode {
 	DP_PANEL_MODE_EDP,
 	/* external chips specific settings */
 	DP_PANEL_MODE_SPECIAL
+};
+
+enum dpcd_source_sequence {
+	DPCD_SOURCE_SEQ_AFTER_CONNECT_DIG_FE_OTG = 1, /*done in apply_single_controller_ctx_to_hw */
+	DPCD_SOURCE_SEQ_AFTER_DP_STREAM_ATTR,         /*done in core_link_enable_stream */
+	DPCD_SOURCE_SEQ_AFTER_UPDATE_INFO_FRAME,      /*done in core_link_enable_stream/dcn20_enable_stream */
+	DPCD_SOURCE_SEQ_AFTER_CONNECT_DIG_FE_BE,      /*done in perform_link_training_with_retries/dcn20_enable_stream */
+	DPCD_SOURCE_SEQ_AFTER_ENABLE_LINK_PHY,        /*done in dp_enable_link_phy */
+	DPCD_SOURCE_SEQ_AFTER_SET_SOURCE_PATTERN,     /*done in dp_set_hw_test_pattern */
+	DPCD_SOURCE_SEQ_AFTER_ENABLE_AUDIO_STREAM,    /*done in dce110_enable_audio_stream */
+	DPCD_SOURCE_SEQ_AFTER_ENABLE_DP_VID_STREAM,   /*done in enc1_stream_encoder_dp_unblank */
+	DPCD_SOURCE_SEQ_AFTER_DISABLE_DP_VID_STREAM,  /*done in enc1_stream_encoder_dp_blank */
+	DPCD_SOURCE_SEQ_AFTER_FIFO_STEER_RESET,       /*done in enc1_stream_encoder_dp_blank */
+	DPCD_SOURCE_SEQ_AFTER_DISABLE_AUDIO_STREAM,   /*done in dce110_disable_audio_stream */
+	DPCD_SOURCE_SEQ_AFTER_DISABLE_LINK_PHY,       /*done in dp_disable_link_phy */
+	DPCD_SOURCE_SEQ_AFTER_DISCONNECT_DIG_FE_BE,   /*done in dce110_disable_stream */
 };
 
 /* DPCD_ADDR_TRAINING_LANEx_SET registers value */

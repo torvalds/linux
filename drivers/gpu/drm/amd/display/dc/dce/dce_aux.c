@@ -42,7 +42,7 @@
 #define DC_LOGGER \
 	engine->ctx->logger
 
-#define DC_TRACE_LEVEL_MESSAGE(...) /* do nothing */
+#define DC_TRACE_LEVEL_MESSAGE(...) do { } while (0)
 #define IS_DC_I2CAUX_LOGGING_ENABLED() (false)
 #define LOG_FLAG_Error_I2cAux LOG_ERROR
 #define LOG_FLAG_I2cAux_DceAux LOG_I2C_AUX
@@ -76,7 +76,7 @@ enum {
 #define DEFAULT_AUX_ENGINE_MULT   0
 #define DEFAULT_AUX_ENGINE_LENGTH 69
 
-#define DC_TRACE_LEVEL_MESSAGE(...) /* do nothing */
+#define DC_TRACE_LEVEL_MESSAGE(...) do { } while (0)
 
 static void release_engine(
 	struct dce_aux *engine)
@@ -627,6 +627,7 @@ int dce_aux_transfer_dmub_raw(struct ddc_service *ddc,
 #define AUX_MAX_I2C_DEFER_RETRIES 7
 #define AUX_MAX_INVALID_REPLY_RETRIES 2
 #define AUX_MAX_TIMEOUT_RETRIES 3
+#define AUX_DEFER_DELAY_FOR_DPIA 4 /*ms*/
 
 static void dce_aux_log_payload(const char *payload_name,
 	unsigned char *payload, uint32_t length, uint32_t max_length_to_log)
@@ -689,8 +690,8 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 	enum aux_return_code_type operation_result;
 	bool retry_on_defer = false;
 	struct ddc *ddc_pin = ddc->ddc_pin;
-	struct dce_aux *aux_engine = ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en];
-	struct aux_engine_dce110 *aux110 = FROM_AUX_ENGINE(aux_engine);
+	struct dce_aux *aux_engine = NULL;
+	struct aux_engine_dce110 *aux110 = NULL;
 	uint32_t defer_time_in_ms = 0;
 
 	int aux_ack_retries = 0,
@@ -698,6 +699,11 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 		aux_i2c_defer_retries = 0,
 		aux_timeout_retries = 0,
 		aux_invalid_reply_retries = 0;
+
+	if (ddc_pin) {
+		aux_engine = ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en];
+		aux110 = FROM_AUX_ENGINE(aux_engine);
+	}
 
 	if (!payload->reply) {
 		payload_reply = false;
@@ -765,7 +771,10 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 							"dce_aux_transfer_with_retries: AUX_RET_SUCCESS: AUX_TRANSACTION_REPLY_AUX_DEFER");
 
 				/* polling_timeout_period is in us */
-				defer_time_in_ms += aux110->polling_timeout_period / 1000;
+				if (aux110)
+					defer_time_in_ms += aux110->polling_timeout_period / 1000;
+				else
+					defer_time_in_ms += AUX_DEFER_DELAY_FOR_DPIA;
 				++aux_defer_retries;
 				fallthrough;
 			case AUX_TRANSACTION_REPLY_I2C_OVER_AUX_DEFER:
