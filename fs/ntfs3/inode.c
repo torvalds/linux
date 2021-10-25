@@ -757,6 +757,7 @@ static ssize_t ntfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 	loff_t vbo = iocb->ki_pos;
 	loff_t end;
 	int wr = iov_iter_rw(iter) & WRITE;
+	size_t iter_count = iov_iter_count(iter);
 	loff_t valid;
 	ssize_t ret;
 
@@ -770,10 +771,13 @@ static ssize_t ntfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 				 wr ? ntfs_get_block_direct_IO_W
 				    : ntfs_get_block_direct_IO_R);
 
-	if (ret <= 0)
+	if (ret > 0)
+		end = vbo + ret;
+	else if (wr && ret == -EIOCBQUEUED)
+		end = vbo + iter_count;
+	else
 		goto out;
 
-	end = vbo + ret;
 	valid = ni->i_valid;
 	if (wr) {
 		if (end > valid && !S_ISBLK(inode->i_mode)) {
