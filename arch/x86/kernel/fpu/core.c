@@ -16,6 +16,7 @@
 
 #include <linux/hardirq.h>
 #include <linux/pkeys.h>
+#include <linux/vmalloc.h>
 
 #include "context.h"
 #include "internal.h"
