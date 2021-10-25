@@ -2630,7 +2630,7 @@ static void qeth_free_qdio_queues(struct qeth_card *card)
 	qeth_free_cq(card);
 	for (j = 0; j < QDIO_MAX_BUFFERS_PER_Q; ++j) {
 		if (card->qdio.in_q->bufs[j].rx_skb)
-			dev_kfree_skb_any(card->qdio.in_q->bufs[j].rx_skb);
+			consume_skb(card->qdio.in_q->bufs[j].rx_skb);
 	}
 	qeth_free_qdio_queue(card->qdio.in_q);
 	card->qdio.in_q = NULL;
@@ -5606,7 +5606,7 @@ static void qeth_receive_skb(struct qeth_card *card, struct sk_buff *skb,
 		if (uses_frags)
 			napi_free_frags(napi);
 		else
-			dev_kfree_skb_any(skb);
+			kfree_skb(skb);
 		return;
 	}
 
@@ -5797,7 +5797,7 @@ walk_packet:
 					if (uses_frags)
 						napi_free_frags(napi);
 					else
-						dev_kfree_skb_any(skb);
+						kfree_skb(skb);
 					QETH_CARD_STAT_INC(card,
 							   rx_length_errors);
 				}
