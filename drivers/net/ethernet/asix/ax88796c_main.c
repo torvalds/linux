@@ -693,6 +693,7 @@ static void ax88796c_set_mac(struct  ax88796c_device *ax_local)
 	switch (ax_local->speed) {
 	case SPEED_100:
 		maccr |= MACCR_SPEED_100;
+		break;
 	case SPEED_10:
 	case SPEED_UNKNOWN:
 		break;
@@ -703,6 +704,7 @@ static void ax88796c_set_mac(struct  ax88796c_device *ax_local)
 	switch (ax_local->duplex) {
 	case DUPLEX_FULL:
 		maccr |= MACCR_SPEED_100;
+		break;
 	case DUPLEX_HALF:
 	case DUPLEX_UNKNOWN:
 		break;
