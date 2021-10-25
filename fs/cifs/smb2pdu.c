@@ -276,7 +276,6 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon,
 		if (tcon->need_reconnect)
 			goto skip_sess_setup;
 
-		rc = -EHOSTDOWN;
 		goto out;
 	}
 	spin_unlock(&ses->chan_lock);
@@ -3858,7 +3857,7 @@ SMB2_echo(struct TCP_Server_Info *server)
 				 .rq_nvec = 1 };
 	unsigned int total_len;
 
-	cifs_dbg(FYI, "In echo request\n");
+	cifs_dbg(FYI, "In echo request for conn_id %lld\n", server->conn_id);
 
 	spin_lock(&cifs_tcp_ses_lock);
 	if (server->tcpStatus == CifsNeedNegotiate) {

@@ -1057,18 +1057,9 @@ struct TCP_Server_Info *cifs_pick_channel(struct cifs_ses *ses)
 	if (!ses)
 		return NULL;
 
-	spin_lock(&ses->chan_lock);
 	/* round robin */
-pick_another:
-	if (ses->chan_count > 1 &&
-	    !CIFS_ALL_CHANS_NEED_RECONNECT(ses)) {
-		index = (uint)atomic_inc_return(&ses->chan_seq);
-		index %= ses->chan_count;
-
-		if (CIFS_CHAN_NEEDS_RECONNECT(ses, index))
-			goto pick_another;
-	}
-	spin_unlock(&ses->chan_lock);
+	index = (uint)atomic_inc_return(&ses->chan_seq);
+	index %= ses->chan_count;
 
 	return ses->chans[index].server;
 }
