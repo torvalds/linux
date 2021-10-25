@@ -329,8 +329,9 @@ __bch2_btree_iter_peek_and_restart(struct btree_trans *trans,
 {
 	struct bkey_s_c k;
 
-	while (k = __bch2_btree_iter_peek(iter, flags),
-	       bkey_err(k) == -EINTR)
+	while ((hweight64(trans->paths_allocated) > BTREE_ITER_MAX / 2) ||
+	       (k = __bch2_btree_iter_peek(iter, flags),
+		bkey_err(k) == -EINTR))
 		bch2_trans_begin(trans);
 
 	return k;
