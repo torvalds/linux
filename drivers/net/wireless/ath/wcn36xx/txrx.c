@@ -429,6 +429,7 @@ static void wcn36xx_set_tx_data(struct wcn36xx_tx_bd *bd,
 	if (ieee80211_is_any_nullfunc(hdr->frame_control)) {
 		/* Don't use a regular queue for null packet (no ampdu) */
 		bd->queue_id = WCN36XX_TX_U_WQ_ID;
+		bd->bd_rate = WCN36XX_BD_RATE_CTRL;
 	}
 
 	if (bcast) {
