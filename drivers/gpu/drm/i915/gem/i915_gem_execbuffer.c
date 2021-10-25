@@ -3114,7 +3114,7 @@ eb_requests_create(struct i915_execbuffer *eb, struct dma_fence *in_fence,
 		/* Allocate a request for this batch buffer nice and early. */
 		eb->requests[i] = i915_request_create(eb_find_context(eb, i));
 		if (IS_ERR(eb->requests[i])) {
-			out_fence = ERR_PTR(PTR_ERR(eb->requests[i]));
+			out_fence = ERR_CAST(eb->requests[i]);
 			eb->requests[i] = NULL;
 			return out_fence;
 		}
