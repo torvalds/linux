@@ -121,14 +121,15 @@ static struct rpmsg_tty_port *rpmsg_tty_alloc_cport(void)
 		return ERR_PTR(-ENOMEM);
 
 	mutex_lock(&idr_lock);
-	cport->id = idr_alloc(&tty_idr, cport, 0, MAX_TTY_RPMSG, GFP_KERNEL);
+	err = idr_alloc(&tty_idr, cport, 0, MAX_TTY_RPMSG, GFP_KERNEL);
 	mutex_unlock(&idr_lock);
 
-	if (cport->id < 0) {
-		err = cport->id;
+	if (err < 0) {
 		kfree(cport);
 		return ERR_PTR(err);
 	}
+
+	cport->id = err;
 
 	return cport;
 }
