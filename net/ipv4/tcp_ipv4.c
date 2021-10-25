@@ -508,10 +508,12 @@ int tcp_v4_err(struct sk_buff *skb, u32 info)
 	if (sk->sk_state == TCP_CLOSE)
 		goto out;
 
-	/* min_ttl can be changed concurrently from do_ip_setsockopt() */
-	if (unlikely(iph->ttl < READ_ONCE(inet_sk(sk)->min_ttl))) {
-		__NET_INC_STATS(net, LINUX_MIB_TCPMINTTLDROP);
-		goto out;
+	if (static_branch_unlikely(&ip4_min_ttl)) {
+		/* min_ttl can be changed concurrently from do_ip_setsockopt() */
+		if (unlikely(iph->ttl < READ_ONCE(inet_sk(sk)->min_ttl))) {
+			__NET_INC_STATS(net, LINUX_MIB_TCPMINTTLDROP);
+			goto out;
+		}
 	}
 
 	tp = tcp_sk(sk);
@@ -2070,10 +2072,12 @@ process:
 		}
 	}
 
-	/* min_ttl can be changed concurrently from do_ip_setsockopt() */
-	if (unlikely(iph->ttl < READ_ONCE(inet_sk(sk)->min_ttl))) {
-		__NET_INC_STATS(net, LINUX_MIB_TCPMINTTLDROP);
-		goto discard_and_relse;
+	if (static_branch_unlikely(&ip4_min_ttl)) {
+		/* min_ttl can be changed concurrently from do_ip_setsockopt() */
+		if (unlikely(iph->ttl < READ_ONCE(inet_sk(sk)->min_ttl))) {
+			__NET_INC_STATS(net, LINUX_MIB_TCPMINTTLDROP);
+			goto discard_and_relse;
+		}
 	}
 
 	if (!xfrm4_policy_check(sk, XFRM_POLICY_IN, skb))

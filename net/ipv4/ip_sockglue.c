@@ -886,6 +886,8 @@ static int compat_ip_mcast_join_leave(struct sock *sk, int optname,
 	return ip_mc_leave_group(sk, &mreq);
 }
 
+DEFINE_STATIC_KEY_FALSE(ip4_min_ttl);
+
 static int do_ip_setsockopt(struct sock *sk, int level, int optname,
 		sockptr_t optval, unsigned int optlen)
 {
@@ -1352,6 +1354,10 @@ static int do_ip_setsockopt(struct sock *sk, int level, int optname,
 			goto e_inval;
 		if (val < 0 || val > 255)
 			goto e_inval;
+
+		if (val)
+			static_branch_enable(&ip4_min_ttl);
+
 		/* tcp_v4_err() and tcp_v4_rcv() might read min_ttl
 		 * while we are changint it.
 		 */
