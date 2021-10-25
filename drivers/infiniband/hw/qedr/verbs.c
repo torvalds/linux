@@ -1052,16 +1052,6 @@ err0:
 	return -EINVAL;
 }
 
-int qedr_resize_cq(struct ib_cq *ibcq, int new_cnt, struct ib_udata *udata)
-{
-	struct qedr_dev *dev = get_qedr_dev(ibcq->device);
-	struct qedr_cq *cq = get_qedr_cq(ibcq);
-
-	DP_ERR(dev, "cq %p RESIZE NOT SUPPORTED\n", cq);
-
-	return 0;
-}
-
 #define QEDR_DESTROY_CQ_MAX_ITERATIONS		(10)
 #define QEDR_DESTROY_CQ_ITER_DURATION		(10)
 
