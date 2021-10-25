@@ -2100,6 +2100,34 @@
 		status = "disabled";
 	};
 
+	mailbox0: mailbox@fec60000 {
+		compatible = "rockchip,rk3588-mailbox",
+			     "rockchip,rk3368-mailbox";
+		reg = <0x0 0xfec60000 0x0 0x200>;
+		interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru PCLK_MAILBOX0>;
+		clock-names = "pclk_mailbox";
+		#mbox-cells = <1>;
+		status = "disabled";
+	};
+
+	mailbox1: mailbox@fec70000 {
+		compatible = "rockchip,rk3588-mailbox",
+			     "rockchip,rk3368-mailbox";
+		reg = <0x0 0xfec70000 0x0 0x200>;
+		interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru PCLK_MAILBOX1>;
+		clock-names = "pclk_mailbox";
+		#mbox-cells = <1>;
+		status = "disabled";
+	};
+
 	i2c6: i2c@fec80000 {
 		compatible = "rockchip,rk3588-i2c", "rockchip,rk3399-i2c";
 		reg = <0x0 0xfec80000 0x0 0x1000>;
@@ -2167,6 +2195,20 @@
 		resets = <&cru SRST_OTPC_NS>, <&cru SRST_P_OTPC_NS>,
 			 <&cru SRST_OTPC_ARB>;
 		reset-names = "otpc", "apb", "arb";
+	};
+
+	mailbox2: mailbox@fece0000 {
+		compatible = "rockchip,rk3588-mailbox",
+			     "rockchip,rk3368-mailbox";
+		reg = <0x0 0xfece0000 0x0 0x200>;
+		interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru PCLK_MAILBOX2>;
+		clock-names = "pclk_mailbox";
+		#mbox-cells = <1>;
+		status = "disabled";
 	};
 
 	dmac2: dma-controller@fed10000 {
