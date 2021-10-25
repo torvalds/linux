@@ -57,9 +57,12 @@ structure. The skeleton driver declares a :c:type:`usb_driver` as::
 	    .name        = "skeleton",
 	    .probe       = skel_probe,
 	    .disconnect  = skel_disconnect,
-	    .fops        = &skel_fops,
-	    .minor       = USB_SKEL_MINOR_BASE,
+	    .suspend     = skel_suspend,
+	    .resume      = skel_resume,
+	    .pre_reset   = skel_pre_reset,
+	    .post_reset  = skel_post_reset,
 	    .id_table    = skel_table,
+	    .supports_autosuspend = 1,
     };
 
 
