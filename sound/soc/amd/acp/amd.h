@@ -102,7 +102,6 @@ int acp_platform_register(struct device *dev);
 int acp_platform_unregister(struct device *dev);
 
 int acp_machine_select(struct acp_dev_data *adata);
-extern struct snd_soc_acpi_mach snd_soc_acpi_amd_acp_machines[];
 
 static inline u64 acp_get_byte_count(struct acp_dev_data *adata, int dai_id, int direction)
 {
