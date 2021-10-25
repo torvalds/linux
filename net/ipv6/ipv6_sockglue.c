@@ -950,7 +950,10 @@ done:
 			goto e_inval;
 		if (val < 0 || val > 255)
 			goto e_inval;
-		np->min_hopcount = val;
+		/* tcp_v6_err() and tcp_v6_rcv() might read min_hopcount
+		 * while we are changing it.
+		 */
+		WRITE_ONCE(np->min_hopcount, val);
 		retv = 0;
 		break;
 	case IPV6_DONTFRAG:
