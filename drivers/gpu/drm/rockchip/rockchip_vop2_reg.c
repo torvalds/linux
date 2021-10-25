@@ -450,27 +450,152 @@ static const struct vop_intr rk3588_vp3_intr = {
 	.clear = VOP_REG_MASK(RK3588_VP3_INT_CLR, 0xffff, 0),
 };
 
-static const struct vop2_dsc_regs rk3588_vop_dsc0_regs = {
-	.rst_deassert = VOP_REG(RK3588_DSC0_RST, 0x1, 0),
-	.port_mux = VOP_REG(RK3588_DSC0_SYS_CTRL, 0x3, 0),
+static const struct vop2_dsc_regs rk3588_vop_dsc_8k_regs = {
+	/* DSC SYS CTRL */
+	.dsc_port_sel = VOP_REG(RK3588_DSC_8K_SYS_CTRL, 0x3, 0),
+	.dsc_interface_mode = VOP_REG(RK3588_DSC_8K_SYS_CTRL, 0x3, 4),
+	.dsc_pixel_num = VOP_REG(RK3588_DSC_8K_SYS_CTRL, 0x3, 6),
+	.dsc_pxl_clk_div = VOP_REG(RK3588_DSC_8K_SYS_CTRL, 0x1, 8),
+	.dsc_cds_clk_div = VOP_REG(RK3588_DSC_8K_SYS_CTRL, 0x3, 12),
+	.dsc_txp_clk_div = VOP_REG(RK3588_DSC_8K_SYS_CTRL, 0x3, 14),
+	.dsc_init_dly_mode = VOP_REG(RK3588_DSC_8K_SYS_CTRL, 0x1, 16),
+	.dsc_scan_en = VOP_REG(RK3588_DSC_8K_SYS_CTRL, 0x1, 17),
+	.dsc_halt_en = VOP_REG(RK3588_DSC_8K_SYS_CTRL, 0x1, 18),
+	.rst_deassert = VOP_REG(RK3588_DSC_8K_RST, 0x1, 0),
+	.dsc_flush = VOP_REG(RK3588_DSC_8K_RST, 0x1, 16),
+	.dsc_cfg_done = VOP_REG(RK3588_DSC_8K_CFG_DONE, 0x1, 0),
+	.dsc_init_dly_num = VOP_REG(RK3588_DSC_8K_INIT_DLY, 0xffff, 0),
+	.dsc_htotal_pw = VOP_REG(RK3588_DSC_8K_HTOTAL_HS_END, 0x1, 0),
+	.dsc_hact_st_end = VOP_REG(RK3588_DSC_8K_HACT_ST_END, 0x1, 0),
+	.dsc_vtotal_pw = VOP_REG(RK3588_DSC_8K_VTOTAL_VS_END, 0x1, 0),
+	.dsc_vact_st_end = VOP_REG(RK3588_DSC_8K_VACT_ST_END, 0x1, 0),
+	.dsc_error_status = VOP_REG(RK3588_DSC_8K_STATUS, 0x1, 0),
+
+	/* DSC encoder */
+	.dsc_pps0_3 = VOP_REG(RK3588_DSC_8K_PPS0_3, 0xffffffff, 0),
+	.dsc_en = VOP_REG(RK3588_DSC_8K_CTRL0, 0x1, 0),
+	.dsc_rbit = VOP_REG(RK3588_DSC_8K_CTRL0, 0x1, 2),
+	.dsc_rbyt = VOP_REG(RK3588_DSC_8K_CTRL0, 0x1, 3),
+	.dsc_flal = VOP_REG(RK3588_DSC_8K_CTRL0, 0x1, 4),
+	.dsc_mer = VOP_REG(RK3588_DSC_8K_CTRL0, 0x1, 5),
+	.dsc_epb = VOP_REG(RK3588_DSC_8K_CTRL0, 0x1, 6),
+	.dsc_epl = VOP_REG(RK3588_DSC_8K_CTRL0, 0x1, 7),
+	.dsc_nslc = VOP_REG(RK3588_DSC_8K_CTRL0, 0x7, 16),
+	.dsc_sbo = VOP_REG(RK3588_DSC_8K_CTRL0, 0x1, 28),
+	.dsc_ifep = VOP_REG(RK3588_DSC_8K_CTRL0, 0x1, 29),
+	.dsc_pps_upd = VOP_REG(RK3588_DSC_8K_CTRL0, 0x1, 31),
+	.dsc_status = VOP_REG(RK3588_DSC_8K_STS0, 0xffffffff, 0),
+	.dsc_ecw = VOP_REG(RK3588_DSC_8K_ERS, 0xffffffff, 0),
 };
 
-static const struct vop2_dsc_regs rk3588_vop_dsc1_regs = {
-	.rst_deassert = VOP_REG(RK3588_DSC1_RST, 0x1, 0),
-	.port_mux = VOP_REG(RK3588_DSC1_SYS_CTRL, 0x3, 0),
+static const struct vop2_dsc_regs rk3588_vop_dsc_4k_regs = {
+	/* DSC SYS CTRL */
+	.dsc_port_sel = VOP_REG(RK3588_DSC_4K_SYS_CTRL, 0x3, 0),
+	.dsc_interface_mode = VOP_REG(RK3588_DSC_4K_SYS_CTRL, 0x3, 4),
+	.dsc_pixel_num = VOP_REG(RK3588_DSC_4K_SYS_CTRL, 0x3, 6),
+	.dsc_pxl_clk_div = VOP_REG(RK3588_DSC_4K_SYS_CTRL, 0x1, 8),
+	.dsc_cds_clk_div = VOP_REG(RK3588_DSC_4K_SYS_CTRL, 0x3, 12),
+	.dsc_txp_clk_div = VOP_REG(RK3588_DSC_4K_SYS_CTRL, 0x3, 14),
+	.dsc_init_dly_mode = VOP_REG(RK3588_DSC_4K_SYS_CTRL, 0x1, 16),
+	.dsc_scan_en = VOP_REG(RK3588_DSC_4K_SYS_CTRL, 0x1, 17),
+	.dsc_halt_en = VOP_REG(RK3588_DSC_4K_SYS_CTRL, 0x1, 18),
+	.rst_deassert = VOP_REG(RK3588_DSC_4K_RST, 0x1, 0),
+	.dsc_flush = VOP_REG(RK3588_DSC_4K_RST, 0x1, 16),
+	.dsc_cfg_done = VOP_REG(RK3588_DSC_4K_CFG_DONE, 0x1, 0),
+	.dsc_init_dly_num = VOP_REG(RK3588_DSC_4K_INIT_DLY, 0xffff, 0),
+	.dsc_htotal_pw = VOP_REG(RK3588_DSC_4K_HTOTAL_HS_END, 0x1, 0),
+	.dsc_hact_st_end = VOP_REG(RK3588_DSC_4K_HACT_ST_END, 0x1, 0),
+	.dsc_vtotal_pw = VOP_REG(RK3588_DSC_4K_VTOTAL_VS_END, 0x1, 0),
+	.dsc_vact_st_end = VOP_REG(RK3588_DSC_4K_VACT_ST_END, 0x1, 0),
+	.dsc_error_status = VOP_REG(RK3588_DSC_4K_STATUS, 0x1, 0),
+
+	/* DSC encoder */
+	.dsc_pps0_3 = VOP_REG(RK3588_DSC_4K_PPS0_3, 0xffffffff, 0),
+	.dsc_en = VOP_REG(RK3588_DSC_4K_CTRL0, 0x1, 0),
+	.dsc_rbit = VOP_REG(RK3588_DSC_4K_CTRL0, 0x1, 2),
+	.dsc_rbyt = VOP_REG(RK3588_DSC_4K_CTRL0, 0x1, 3),
+	.dsc_flal = VOP_REG(RK3588_DSC_4K_CTRL0, 0x1, 4),
+	.dsc_mer = VOP_REG(RK3588_DSC_4K_CTRL0, 0x1, 5),
+	.dsc_epb = VOP_REG(RK3588_DSC_4K_CTRL0, 0x1, 6),
+	.dsc_epl = VOP_REG(RK3588_DSC_4K_CTRL0, 0x1, 7),
+	.dsc_nslc = VOP_REG(RK3588_DSC_4K_CTRL0, 0x7, 16),
+	.dsc_sbo = VOP_REG(RK3588_DSC_4K_CTRL0, 0x1, 28),
+	.dsc_ifep = VOP_REG(RK3588_DSC_4K_CTRL0, 0x1, 29),
+	.dsc_pps_upd = VOP_REG(RK3588_DSC_4K_CTRL0, 0x1, 31),
+	.dsc_status = VOP_REG(RK3588_DSC_4K_STS0, 0xffffffff, 0),
+	.dsc_ecw = VOP_REG(RK3588_DSC_4K_ERS, 0xffffffff, 0),
+};
+
+static const struct dsc_error_info dsc_ecw[] = {
+	{0x00000000, "no error detected by DSC encoder"},
+	{0x0030ffff, "bits per component error"},
+	{0x0040ffff, "multiple mode error"},
+	{0x0050ffff, "line buffer depth error"},
+	{0x0060ffff, "minor version error"},
+	{0x0070ffff, "picture height error"},
+	{0x0080ffff, "picture width error"},
+	{0x0090ffff, "number of slices error"},
+	{0x00c0ffff, "slice height Error "},
+	{0x00d0ffff, "slice width error"},
+	{0x00e0ffff, "second line BPG offset error"},
+	{0x00f0ffff, "non second line BPG offset error"},
+	{0x0100ffff, "PPS ID error"},
+	{0x0110ffff, "bits per pixel (BPP) Error"},
+	{0x0120ffff, "buffer flow error"},  /* dsc_buffer_flow */
+
+	{0x01510001, "slice 0 RC buffer model overflow error"},
+	{0x01510002, "slice 1 RC buffer model overflow error"},
+	{0x01510004, "slice 2 RC buffer model overflow error"},
+	{0x01510008, "slice 3 RC buffer model overflow error"},
+	{0x01510010, "slice 4 RC buffer model overflow error"},
+	{0x01510020, "slice 5 RC buffer model overflow error"},
+	{0x01510040, "slice 6 RC buffer model overflow error"},
+	{0x01510080, "slice 7 RC buffer model overflow error"},
+
+	{0x01610001, "slice 0 RC buffer model underflow error"},
+	{0x01610002, "slice 1 RC buffer model underflow error"},
+	{0x01610004, "slice 2 RC buffer model underflow error"},
+	{0x01610008, "slice 3 RC buffer model underflow error"},
+	{0x01610010, "slice 4 RC buffer model underflow error"},
+	{0x01610020, "slice 5 RC buffer model underflow error"},
+	{0x01610040, "slice 6 RC buffer model underflow error"},
+	{0x01610080, "slice 7 RC buffer model underflow error"},
+
+	{0xffffffff, "unsuccessful RESET cycle status"},
+	{0x00a0ffff, "ICH full error precision settings error"},
+	{0x0020ffff, "native mode"},
+};
+
+static const struct dsc_error_info dsc_buffer_flow[] = {
+	{0x00000000, "rate buffer status"},
+	{0x00000001, "line buffer status"},
+	{0x00000002, "decoder model status"},
+	{0x00000003, "pixel buffer status"},
+	{0x00000004, "balance fifo buffer status"},
+	{0x00000005, "syntax element fifo status"},
 };
 
 static const struct vop2_dsc_data rk3588_vop_dsc_data[] = {
 	{
 	 .id = 0,
-	 .regs = &rk3588_vop_dsc0_regs,
 	 .pd_id = VOP2_PD_DSC_8K,
+	 .max_slice_num = 8,
+	 .dsc_txp_clk_src_name = "dsc_8k_txp_clk_src",
+	 .dsc_txp_clk_name = "dsc_8k_txp_clk",
+	 .dsc_pxl_clk_name = "dsc_8k_pxl_clk",
+	 .dsc_cds_clk_name = "dsc_8k_cds_clk",
+	 .regs = &rk3588_vop_dsc_8k_regs,
 	},
 
 	{
 	 .id = 1,
-	 .regs = &rk3588_vop_dsc1_regs,
 	 .pd_id = VOP2_PD_DSC_4K,
+	 .max_slice_num = 2,
+	 .dsc_txp_clk_src_name = "dsc_4k_txp_clk_src",
+	 .dsc_txp_clk_name = "dsc_4k_txp_clk",
+	 .dsc_pxl_clk_name = "dsc_4k_pxl_clk",
+	 .dsc_cds_clk_name = "dsc_4k_cds_clk",
+	 .regs = &rk3588_vop_dsc_4k_regs,
 	},
 };
 
@@ -2327,6 +2452,8 @@ static const struct vop2_data rk3588_vop = {
 	.version = VOP_VERSION_RK3588,
 	.feature = VOP_FEATURE_SPLICE,
 	.nr_dscs = 2,
+	.nr_dsc_ecw = ARRAY_SIZE(dsc_ecw),
+	.nr_dsc_buffer_flow = ARRAY_SIZE(dsc_buffer_flow),
 	.nr_vps = 4,
 	.nr_mixers = 7,
 	.nr_layers = 8,
@@ -2337,6 +2464,8 @@ static const struct vop2_data rk3588_vop = {
 	.axi_intr = rk3568_vop_axi_intr,
 	.nr_axi_intr = ARRAY_SIZE(rk3568_vop_axi_intr),
 	.dsc = rk3588_vop_dsc_data,
+	.dsc_error_ecw = dsc_ecw,
+	.dsc_error_buffer_flow = dsc_buffer_flow,
 	.vp = rk3588_vop_video_ports,
 	.conn = rk3588_conn_if_data,
 	.nr_conns = ARRAY_SIZE(rk3588_conn_if_data),

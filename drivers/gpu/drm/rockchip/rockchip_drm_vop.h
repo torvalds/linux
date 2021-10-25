@@ -61,6 +61,10 @@
 
 #define VOP2_SOC_VARIANT		4
 
+#define ROCKCHIP_DSC_PPS_SIZE_BYTE	88
+#define ROCKCHIP_DSC_OUTPUT_BIT_WIDTH	96
+
+
 enum vop_win_phy_id {
 	ROCKCHIP_VOP_WIN0 = 0,
 	ROCKCHIP_VOP_WIN1,
@@ -135,6 +139,13 @@ enum vop_data_format {
 	VOP_FMT_YUV420SP = 4,
 	VOP_FMT_YUV422SP,
 	VOP_FMT_YUV444SP,
+};
+
+enum vop_dsc_interface_mode {
+	VOP_DSC_IF_DISABLE = 0,
+	VOP_DSC_IF_HDMI = 1,
+	VOP_DSC_IF_MIPI_DS_MODE = 2,
+	VOP_DSC_IF_MIPI_VIDEO_MODE = 3,
 };
 
 struct vop_reg_data {
@@ -676,8 +687,41 @@ struct vop2_power_domain_regs {
 };
 
 struct vop2_dsc_regs {
+	/* DSC SYS CTRL */
+	struct vop_reg dsc_port_sel;
+	struct vop_reg dsc_interface_mode;
+	struct vop_reg dsc_pixel_num;
+	struct vop_reg dsc_pxl_clk_div;
+	struct vop_reg dsc_cds_clk_div;
+	struct vop_reg dsc_txp_clk_div;
+	struct vop_reg dsc_init_dly_mode;
+	struct vop_reg dsc_scan_en;
+	struct vop_reg dsc_halt_en;
 	struct vop_reg rst_deassert;
-	struct vop_reg port_mux;
+	struct vop_reg dsc_flush;
+	struct vop_reg dsc_cfg_done;
+	struct vop_reg dsc_init_dly_num;
+	struct vop_reg dsc_htotal_pw;
+	struct vop_reg dsc_hact_st_end;
+	struct vop_reg dsc_vtotal_pw;
+	struct vop_reg dsc_vact_st_end;
+	struct vop_reg dsc_error_status;
+
+	/* DSC encoder */
+	struct vop_reg dsc_pps0_3;
+	struct vop_reg dsc_en;
+	struct vop_reg dsc_rbit;
+	struct vop_reg dsc_rbyt;
+	struct vop_reg dsc_flal;
+	struct vop_reg dsc_mer;
+	struct vop_reg dsc_epb;
+	struct vop_reg dsc_epl;
+	struct vop_reg dsc_nslc;
+	struct vop_reg dsc_sbo;
+	struct vop_reg dsc_ifep;
+	struct vop_reg dsc_pps_upd;
+	struct vop_reg dsc_status;
+	struct vop_reg dsc_ecw;
 };
 
 struct vop2_wb_regs {
@@ -754,9 +798,19 @@ struct vop2_win_data {
 	const uint8_t dly[VOP2_DLY_MODE_MAX];
 };
 
+struct dsc_error_info {
+	u32 dsc_error_val;
+	char dsc_error_info[50];
+};
+
 struct vop2_dsc_data {
-	char id;
+	uint8_t id;
 	uint8_t pd_id;
+	uint8_t max_slice_num;
+	const char *dsc_txp_clk_src_name;
+	const char *dsc_txp_clk_name;
+	const char *dsc_pxl_clk_name;
+	const char *dsc_cds_clk_name;
 	const struct vop2_dsc_regs *regs;
 };
 
@@ -944,6 +998,8 @@ struct vop2_data {
 	uint32_t version;
 	uint32_t feature;
 	uint8_t nr_dscs;
+	uint8_t nr_dsc_ecw;
+	uint8_t nr_dsc_buffer_flow;
 	uint8_t nr_vps;
 	uint8_t nr_mixers;
 	uint8_t nr_layers;
@@ -955,6 +1011,8 @@ struct vop2_data {
 	const struct vop_intr *axi_intr;
 	const struct vop2_ctrl *ctrl;
 	const struct vop2_dsc_data *dsc;
+	const struct dsc_error_info *dsc_error_ecw;
+	const struct dsc_error_info *dsc_error_buffer_flow;
 	const struct vop2_win_data *win;
 	const struct vop2_video_port_data *vp;
 	const struct vop2_connector_if_data *conn;

@@ -129,15 +129,15 @@ static struct vop2_clk_branch rk3588_vop_clk_branches[] = {
 
 	FACTOR("rgb_pixclk", "port3_dclk_src", CLK_SET_RATE_PARENT),
 
-	MUX("dsc_8k_clk_src", mux_dsc_8k_clk_src_p, CLK_SET_RATE_NO_REPARENT),
-	DIV("dsc_8k_pixclk", "dsc_8k_clk_src", 0, 2),
-	DIV("dsc_8k_cds_clk", "dsc_8k_pixclk", 0, 2),
-	DIV("dsc_8k_slice_clk", "dsc_8k_pixclk", 0, 2),
+	MUX("dsc_8k_txp_clk_src", mux_dsc_8k_clk_src_p, CLK_SET_RATE_NO_REPARENT),
+	DIV("dsc_8k_txp_clk", "dsc_8k_txp_clk_src", 0, 2),
+	DIV("dsc_8k_pxl_clk", "dsc_8k_txp_clk", 0, 2),
+	DIV("dsc_8k_cds_clk", "dsc_8k_txp_clk", 0, 2),
 
-	MUX("dsc_4k_clk_src", mux_dsc_4k_clk_src_p, CLK_SET_RATE_NO_REPARENT),
-	DIV("dsc_4k_pixclk", "dsc_4k_clk_src", 0, 2),
-	DIV("dsc_4k_cds_clk", "dsc_4k_pixclk", 0, 2),
-	DIV("dsc_4k_slice_clk", "dsc_4k_pixclk", 0, 2),
+	MUX("dsc_4k_txp_clk_src", mux_dsc_4k_clk_src_p, CLK_SET_RATE_NO_REPARENT),
+	DIV("dsc_4k_txp_clk", "dsc_4k_txp_clk_src", 0, 2),
+	DIV("dsc_4k_pxl_clk", "dsc_4k_txp_clk", 0, 2),
+	DIV("dsc_4k_cds_clk", "dsc_4k_txp_clk", 0, 2),
 };
 
 static unsigned long clk_virtual_recalc_rate(struct clk_hw *hw,

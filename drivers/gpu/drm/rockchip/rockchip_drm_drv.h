@@ -10,6 +10,7 @@
 #define _ROCKCHIP_DRM_DRV_H
 
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_dsc.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem.h>
@@ -99,6 +100,27 @@ struct rockchip_crtc {
 #endif
 };
 
+struct rockchip_dsc_sink_cap {
+	/**
+	 * @slice_width: the number of pixel columns that comprise the slice width
+	 * @slice_height: the number of pixel rows that comprise the slice height
+	 * @block_pred: Does block prediction
+	 * @native_420: Does sink support DSC with 4:2:0 compression
+	 * @bpc_supported: compressed bpc supported by sink : 10, 12 or 16 bpc
+	 * @version_major: DSC major version
+	 * @version_minor: DSC minor version
+	 * @target_bits_per_pixel_x16: bits num after compress and multiply 16
+	 */
+	u16 slice_width;
+	u16 slice_height;
+	bool block_pred;
+	bool native_420;
+	u8 bpc_supported;
+	u8 version_major;
+	u8 version_minor;
+	u16 target_bits_per_pixel_x16;
+};
+
 struct rockchip_crtc_state {
 	struct drm_crtc_state base;
 	int output_type;
@@ -110,6 +132,14 @@ struct rockchip_crtc_state {
 	 * @splice_mode: enabled when display a hdisplay > 4096 on rk3588
 	 */
 	bool splice_mode;
+
+	/**
+	 * @hold_mode: enabled when it's:
+	 * (1) mcu hold mode
+	 * (2) mipi dsi cmd mode
+	 * (3) edp psr mode
+	 */
+	bool hold_mode;
 
 	struct drm_tv_connector_state *tv_state;
 	int left_margin;
@@ -140,8 +170,18 @@ struct rockchip_crtc_state {
 	u32 background;
 	u32 line_flag;
 	u8 mode_update;
+	u8 dsc_id;
 	u8 dsc_enable;
-	unsigned long dsc_clk;
+
+	u8 dsc_slice_num;
+	u8 dsc_pixel_num;
+
+	u64 dsc_txp_clk;
+	u64 dsc_pxl_clk;
+	u64 dsc_cds_clk;
+
+	struct drm_dsc_picture_parameter_set pps;
+	struct rockchip_dsc_sink_cap dsc_sink_cap;
 	struct rockchip_hdr_state hdr;
 };
 
