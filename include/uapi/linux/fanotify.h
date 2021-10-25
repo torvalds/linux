@@ -126,6 +126,7 @@ struct fanotify_event_metadata {
 #define FAN_EVENT_INFO_TYPE_DFID_NAME	2
 #define FAN_EVENT_INFO_TYPE_DFID	3
 #define FAN_EVENT_INFO_TYPE_PIDFD	4
+#define FAN_EVENT_INFO_TYPE_ERROR	5
 
 /* Variable length info record following event metadata */
 struct fanotify_event_info_header {
@@ -158,6 +159,12 @@ struct fanotify_event_info_fid {
 struct fanotify_event_info_pidfd {
 	struct fanotify_event_info_header hdr;
 	__s32 pidfd;
+};
+
+struct fanotify_event_info_error {
+	struct fanotify_event_info_header hdr;
+	__s32 error;
+	__u32 error_count;
 };
 
 struct fanotify_response {

@@ -115,6 +115,8 @@ struct kmem_cache *fanotify_perm_event_cachep __read_mostly;
 	(sizeof(struct fanotify_event_info_fid) + sizeof(struct file_handle))
 #define FANOTIFY_PIDFD_INFO_HDR_LEN \
 	sizeof(struct fanotify_event_info_pidfd)
+#define FANOTIFY_ERROR_INFO_LEN \
+	(sizeof(struct fanotify_event_info_error))
 
 static int fanotify_fid_info_len(int fh_len, int name_len)
 {
@@ -138,6 +140,9 @@ static size_t fanotify_event_len(unsigned int info_mode,
 
 	if (!info_mode)
 		return event_len;
+
+	if (fanotify_is_error_event(event->mask))
+		event_len += FANOTIFY_ERROR_INFO_LEN;
 
 	info = fanotify_event_info(event);
 
@@ -322,6 +327,28 @@ static int process_access_response(struct fsnotify_group *group,
 	spin_unlock(&group->notification_lock);
 
 	return -ENOENT;
+}
+
+static size_t copy_error_info_to_user(struct fanotify_event *event,
+				      char __user *buf, int count)
+{
+	struct fanotify_event_info_error info;
+	struct fanotify_error_event *fee = FANOTIFY_EE(event);
+
+	info.hdr.info_type = FAN_EVENT_INFO_TYPE_ERROR;
+	info.hdr.pad = 0;
+	info.hdr.len = FANOTIFY_ERROR_INFO_LEN;
+
+	if (WARN_ON(count < info.hdr.len))
+		return -EFAULT;
+
+	info.error = fee->error;
+	info.error_count = fee->err_count;
+
+	if (copy_to_user(buf, &info, sizeof(info)))
+		return -EFAULT;
+
+	return info.hdr.len;
 }
 
 static int copy_fid_info_to_user(__kernel_fsid_t *fsid, struct fanotify_fh *fh,
@@ -525,6 +552,15 @@ static int copy_info_records_to_user(struct fanotify_event *event,
 		if (ret < 0)
 			return ret;
 
+		buf += ret;
+		count -= ret;
+		total_bytes += ret;
+	}
+
+	if (fanotify_is_error_event(event->mask)) {
+		ret = copy_error_info_to_user(event, buf, count);
+		if (ret < 0)
+			return ret;
 		buf += ret;
 		count -= ret;
 		total_bytes += ret;
