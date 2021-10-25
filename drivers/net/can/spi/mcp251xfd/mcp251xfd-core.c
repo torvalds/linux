@@ -1871,6 +1871,8 @@ static int mcp251xfd_register(struct mcp251xfd_priv *priv)
 	if (err)
 		goto out_chip_sleep;
 
+	mcp251xfd_ethtool_init(priv);
+
 	err = register_candev(ndev);
 	if (err)
 		goto out_chip_sleep;

@@ -304,6 +304,8 @@ int mcp251xfd_ring_alloc(struct mcp251xfd_priv *priv)
 		rx_obj_size = sizeof(struct mcp251xfd_hw_rx_obj_can);
 	}
 
+	priv->rx_obj_num = 0;
+
 	tx_ring = priv->tx;
 	tx_ring->obj_num = tx_obj_num;
 	tx_ring->obj_size = tx_obj_size;
@@ -319,6 +321,8 @@ int mcp251xfd_ring_alloc(struct mcp251xfd_priv *priv)
 		rx_obj_num = ram_free / rx_obj_size;
 		rx_obj_num = min(1 << (fls(rx_obj_num) - 1),
 				 MCP251XFD_RX_OBJ_NUM_MAX);
+
+		priv->rx_obj_num += rx_obj_num;
 
 		rx_ring = kzalloc(sizeof(*rx_ring) + rx_obj_size * rx_obj_num,
 				  GFP_KERNEL);
