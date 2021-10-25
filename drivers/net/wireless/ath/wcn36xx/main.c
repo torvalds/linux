@@ -671,6 +671,7 @@ static int wcn36xx_hw_scan(struct ieee80211_hw *hw,
 
 	mutex_unlock(&wcn->scan_lock);
 
+	wcn36xx_smd_update_channel_list(wcn, &hw_req->req);
 	return wcn36xx_smd_start_hw_scan(wcn, vif, &hw_req->req);
 }
 
