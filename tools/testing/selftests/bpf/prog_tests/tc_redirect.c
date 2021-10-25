@@ -769,7 +769,7 @@ static void *test_tc_redirect_run_tests(void *arg)
 	return NULL;
 }
 
-void test_tc_redirect(void)
+void serial_test_tc_redirect(void)
 {
 	pthread_t test_thread;
 	int err;
