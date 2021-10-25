@@ -352,16 +352,18 @@ static void afs_init_rreq(struct netfs_read_request *rreq, struct file *file)
 
 static bool afs_is_cache_enabled(struct inode *inode)
 {
-	struct fscache_cookie *cookie = afs_vnode_cache(AFS_FS_I(inode));
-
-	return fscache_cookie_enabled(cookie) && !hlist_empty(&cookie->backing_objects);
+	return fscache_cookie_enabled(afs_vnode_cache(AFS_FS_I(inode)));
 }
 
 static int afs_begin_cache_operation(struct netfs_read_request *rreq)
 {
+#ifdef CONFIG_AFS_FSCACHE
 	struct afs_vnode *vnode = AFS_FS_I(rreq->inode);
 
 	return fscache_begin_read_operation(rreq, afs_vnode_cache(vnode));
+#else
+	return -ENOBUFS;
+#endif
 }
 
 static int afs_check_write_begin(struct file *file, loff_t pos, unsigned len,
