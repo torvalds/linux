@@ -2207,7 +2207,7 @@ static int at_xdmac_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct dev_pm_ops atmel_xdmac_dev_pm_ops = {
+static const struct dev_pm_ops __maybe_unused atmel_xdmac_dev_pm_ops = {
 	.prepare	= atmel_xdmac_prepare,
 	SET_LATE_SYSTEM_SLEEP_PM_OPS(atmel_xdmac_suspend, atmel_xdmac_resume)
 };
