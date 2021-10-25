@@ -114,22 +114,22 @@ static const struct tty_operations rpmsg_tty_ops = {
 static struct rpmsg_tty_port *rpmsg_tty_alloc_cport(void)
 {
 	struct rpmsg_tty_port *cport;
-	int err;
+	int ret;
 
 	cport = kzalloc(sizeof(*cport), GFP_KERNEL);
 	if (!cport)
 		return ERR_PTR(-ENOMEM);
 
 	mutex_lock(&idr_lock);
-	err = idr_alloc(&tty_idr, cport, 0, MAX_TTY_RPMSG, GFP_KERNEL);
+	ret = idr_alloc(&tty_idr, cport, 0, MAX_TTY_RPMSG, GFP_KERNEL);
 	mutex_unlock(&idr_lock);
 
-	if (err < 0) {
+	if (ret < 0) {
 		kfree(cport);
-		return ERR_PTR(err);
+		return ERR_PTR(ret);
 	}
 
-	cport->id = err;
+	cport->id = ret;
 
 	return cport;
 }
@@ -217,7 +217,7 @@ static struct rpmsg_driver rpmsg_tty_rpmsg_drv = {
 
 static int __init rpmsg_tty_init(void)
 {
-	int err;
+	int ret;
 
 	rpmsg_tty_driver = tty_alloc_driver(MAX_TTY_RPMSG, TTY_DRIVER_REAL_RAW |
 					    TTY_DRIVER_DYNAMIC_DEV);
@@ -236,15 +236,15 @@ static int __init rpmsg_tty_init(void)
 
 	tty_set_operations(rpmsg_tty_driver, &rpmsg_tty_ops);
 
-	err = tty_register_driver(rpmsg_tty_driver);
-	if (err < 0) {
-		pr_err("Couldn't install rpmsg tty driver: err %d\n", err);
+	ret = tty_register_driver(rpmsg_tty_driver);
+	if (ret < 0) {
+		pr_err("Couldn't install rpmsg tty driver: %d\n", ret);
 		goto error_put;
 	}
 
-	err = register_rpmsg_driver(&rpmsg_tty_rpmsg_drv);
-	if (err < 0) {
-		pr_err("Couldn't register rpmsg tty driver: err %d\n", err);
+	ret = register_rpmsg_driver(&rpmsg_tty_rpmsg_drv);
+	if (ret < 0) {
+		pr_err("Couldn't register rpmsg tty driver: %d\n", ret);
 		goto error_unregister;
 	}
 
@@ -256,7 +256,7 @@ error_unregister:
 error_put:
 	tty_driver_kref_put(rpmsg_tty_driver);
 
-	return err;
+	return ret;
 }
 
 static void __exit rpmsg_tty_exit(void)
