@@ -155,7 +155,7 @@ static unsigned long al2230_power_table[AL2230_PWR_IDX_LEN] = {
 /* 40MHz reference frequency
  * Need to Pull PLLON(PE3) low when writing channel registers through 3-wire.
  */
-static const unsigned long dwAL7230InitTable[CB_AL7230_INIT_SEQ] = {
+static const unsigned long al7230_init_table[CB_AL7230_INIT_SEQ] = {
 	0x00379000 + (BY_AL7230_REG_LEN << 3) + IFREGCTL_REGW, /* Channel1 // Need modify for 11a */
 	0x13333100 + (BY_AL7230_REG_LEN << 3) + IFREGCTL_REGW, /* Channel1 // Need modify for 11a */
 	0x841FF200 + (BY_AL7230_REG_LEN << 3) + IFREGCTL_REGW, /* Need modify for 11a: 451FE2 */
@@ -420,7 +420,7 @@ static bool s_bAL7230Init(struct vnt_private *priv)
 	bb_power_save_mode_off(priv); /* RobertYu:20050106, have DC value for Calibration */
 
 	for (ii = 0; ii < CB_AL7230_INIT_SEQ; ii++)
-		ret &= IFRFbWriteEmbedded(priv, dwAL7230InitTable[ii]);
+		ret &= IFRFbWriteEmbedded(priv, al7230_init_table[ii]);
 
 	/* PLL On */
 	MACvWordRegBitsOn(iobase, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_SWPE3);
@@ -434,7 +434,7 @@ static bool s_bAL7230Init(struct vnt_private *priv)
 	ret &= IFRFbWriteEmbedded(priv, (0x3ABA8F00 + (BY_AL7230_REG_LEN << 3) + IFREGCTL_REGW));
 	MACvTimer0MicroSDelay(priv, 30);/* 30us */
 	/* TXDCOC:disable, RCK:disable */
-	ret &= IFRFbWriteEmbedded(priv, dwAL7230InitTable[CB_AL7230_INIT_SEQ - 1]);
+	ret &= IFRFbWriteEmbedded(priv, al7230_init_table[CB_AL7230_INIT_SEQ - 1]);
 
 	MACvWordRegBitsOn(iobase, MAC_REG_SOFTPWRCTL, (SOFTPWRCTL_SWPE3    |
 							 SOFTPWRCTL_SWPE2    |
@@ -716,7 +716,7 @@ bool RFvWriteWakeProgSyn(struct vnt_private *priv, unsigned char rf_type,
 
 		if (channel <= CB_MAX_CHANNEL_24G) {
 			for (i = 0; i < CB_AL7230_INIT_SEQ; i++)
-				MACvSetMISCFifo(priv, (unsigned short)(MISCFIFO_SYNDATA_IDX + i), dwAL7230InitTable[i]);
+				MACvSetMISCFifo(priv, (unsigned short)(MISCFIFO_SYNDATA_IDX + i), al7230_init_table[i]);
 		} else {
 			for (i = 0; i < CB_AL7230_INIT_SEQ; i++)
 				MACvSetMISCFifo(priv, (unsigned short)(MISCFIFO_SYNDATA_IDX + i), al7230_init_table_a_mode[i]);
@@ -932,13 +932,13 @@ bool RFbAL7230SelectChannelPostProcess(struct vnt_private *priv,
 		ret &= IFRFbWriteEmbedded(priv, al7230_init_table_a_mode[15]);
 	} else if ((byOldChannel > CB_MAX_CHANNEL_24G) && (byNewChannel <= CB_MAX_CHANNEL_24G)) {
 		/* Change from 5G to 2.4G [Reg] */
-		ret &= IFRFbWriteEmbedded(priv, dwAL7230InitTable[2]);
-		ret &= IFRFbWriteEmbedded(priv, dwAL7230InitTable[3]);
-		ret &= IFRFbWriteEmbedded(priv, dwAL7230InitTable[5]);
-		ret &= IFRFbWriteEmbedded(priv, dwAL7230InitTable[7]);
-		ret &= IFRFbWriteEmbedded(priv, dwAL7230InitTable[10]);
-		ret &= IFRFbWriteEmbedded(priv, dwAL7230InitTable[12]);
-		ret &= IFRFbWriteEmbedded(priv, dwAL7230InitTable[15]);
+		ret &= IFRFbWriteEmbedded(priv, al7230_init_table[2]);
+		ret &= IFRFbWriteEmbedded(priv, al7230_init_table[3]);
+		ret &= IFRFbWriteEmbedded(priv, al7230_init_table[5]);
+		ret &= IFRFbWriteEmbedded(priv, al7230_init_table[7]);
+		ret &= IFRFbWriteEmbedded(priv, al7230_init_table[10]);
+		ret &= IFRFbWriteEmbedded(priv, al7230_init_table[12]);
+		ret &= IFRFbWriteEmbedded(priv, al7230_init_table[15]);
 	}
 
 	return ret;
