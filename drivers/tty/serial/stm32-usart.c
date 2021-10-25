@@ -210,11 +210,12 @@ static unsigned long stm32_usart_get_char_pio(struct uart_port *port)
 	return c;
 }
 
-static void stm32_usart_receive_chars_pio(struct uart_port *port)
+static unsigned int stm32_usart_receive_chars_pio(struct uart_port *port)
 {
 	struct stm32_port *stm32_port = to_stm32_port(port);
 	const struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;
 	unsigned long c;
+	unsigned int size = 0;
 	u32 sr;
 	char flag;
 
@@ -239,6 +240,7 @@ static void stm32_usart_receive_chars_pio(struct uart_port *port)
 
 		c = stm32_usart_get_char_pio(port);
 		port->icount.rx++;
+		size++;
 		if (sr & USART_SR_ERR_MASK) {
 			if (sr & USART_SR_ORE) {
 				port->icount.overrun++;
@@ -271,6 +273,8 @@ static void stm32_usart_receive_chars_pio(struct uart_port *port)
 			continue;
 		uart_insert_char(port, sr, USART_SR_ORE, c, flag);
 	}
+
+	return size;
 }
 
 static void stm32_usart_push_buffer_dma(struct uart_port *port, unsigned int dma_size)
@@ -300,50 +304,48 @@ static void stm32_usart_push_buffer_dma(struct uart_port *port, unsigned int dma
 		stm32_port->last_res = RX_BUF_L;
 }
 
-static void stm32_usart_receive_chars_dma(struct uart_port *port)
+static unsigned int stm32_usart_receive_chars_dma(struct uart_port *port)
 {
 	struct stm32_port *stm32_port = to_stm32_port(port);
-	unsigned int dma_size;
+	unsigned int dma_size, size = 0;
 
 	/* DMA buffer is configured in cyclic mode and handles the rollback of the buffer. */
 	if (stm32_port->rx_dma_state.residue > stm32_port->last_res) {
 		/* Conditional first part: from last_res to end of DMA buffer */
 		dma_size = stm32_port->last_res;
 		stm32_usart_push_buffer_dma(port, dma_size);
+		size = dma_size;
 	}
 
 	dma_size = stm32_port->last_res - stm32_port->rx_dma_state.residue;
 	stm32_usart_push_buffer_dma(port, dma_size);
+	size += dma_size;
+
+	return size;
 }
 
-static void stm32_usart_receive_chars(struct uart_port *port, bool irqflag)
+static unsigned int stm32_usart_receive_chars(struct uart_port *port, bool force_dma_flush)
 {
-	struct tty_port *tport = &port->state->port;
 	struct stm32_port *stm32_port = to_stm32_port(port);
 	const struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;
 	enum dma_status rx_dma_status;
-	unsigned long flags;
 	u32 sr;
+	unsigned int size = 0;
 
-	if (irqflag)
-		spin_lock_irqsave(&port->lock, flags);
-	else
-		spin_lock(&port->lock);
-
-	if (stm32_usart_rx_dma_enabled(port)) {
+	if (stm32_usart_rx_dma_enabled(port) || force_dma_flush) {
 		rx_dma_status = dmaengine_tx_status(stm32_port->rx_ch,
 						    stm32_port->rx_ch->cookie,
 						    &stm32_port->rx_dma_state);
 		if (rx_dma_status == DMA_IN_PROGRESS) {
 			/* Empty DMA buffer */
-			stm32_usart_receive_chars_dma(port);
+			size = stm32_usart_receive_chars_dma(port);
 			sr = readl_relaxed(port->membase + ofs->isr);
 			if (sr & USART_SR_ERR_MASK) {
 				/* Disable DMA request line */
 				stm32_usart_clr_bits(port, ofs->cr3, USART_CR3_DMAR);
 
 				/* Switch to PIO mode to handle the errors */
-				stm32_usart_receive_chars_pio(port);
+				size += stm32_usart_receive_chars_pio(port);
 
 				/* Switch back to DMA mode */
 				stm32_usart_set_bits(port, ofs->cr3, USART_CR3_DMAR);
@@ -354,18 +356,13 @@ static void stm32_usart_receive_chars(struct uart_port *port, bool irqflag)
 			stm32_usart_clr_bits(port, ofs->cr3, USART_CR3_DMAR);
 			/* Fall back to interrupt mode */
 			dev_dbg(port->dev, "DMA error, fallback to irq mode\n");
-			stm32_usart_receive_chars_pio(port);
+			size = stm32_usart_receive_chars_pio(port);
 		}
 	} else {
-		stm32_usart_receive_chars_pio(port);
+		size = stm32_usart_receive_chars_pio(port);
 	}
 
-	if (irqflag)
-		uart_unlock_and_check_sysrq_irqrestore(port, irqflag);
-	else
-		uart_unlock_and_check_sysrq(port);
-
-	tty_flip_buffer_push(tport);
+	return size;
 }
 
 static void stm32_usart_tx_dma_complete(void *arg)
@@ -403,8 +400,15 @@ static void stm32_usart_tx_interrupt_enable(struct uart_port *port)
 static void stm32_usart_rx_dma_complete(void *arg)
 {
 	struct uart_port *port = arg;
+	struct tty_port *tport = &port->state->port;
+	unsigned int size;
+	unsigned long flags;
 
-	stm32_usart_receive_chars(port, true);
+	spin_lock_irqsave(&port->lock, flags);
+	size = stm32_usart_receive_chars(port, false);
+	uart_unlock_and_check_sysrq_irqrestore(port, flags);
+	if (size)
+		tty_flip_buffer_push(tport);
 }
 
 static void stm32_usart_tx_interrupt_disable(struct uart_port *port)
@@ -557,6 +561,7 @@ static irqreturn_t stm32_usart_interrupt(int irq, void *ptr)
 	struct stm32_port *stm32_port = to_stm32_port(port);
 	const struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;
 	u32 sr;
+	unsigned int size;
 
 	sr = readl_relaxed(port->membase + ofs->isr);
 
@@ -580,7 +585,11 @@ static irqreturn_t stm32_usart_interrupt(int irq, void *ptr)
 	if (!stm32_port->throttled) {
 		if (((sr & USART_SR_RXNE) && !stm32_usart_rx_dma_enabled(port)) ||
 		    ((sr & USART_SR_ERR_MASK) && stm32_usart_rx_dma_enabled(port))) {
-			stm32_usart_receive_chars(port, false);
+			spin_lock(&port->lock);
+			size = stm32_usart_receive_chars(port, false);
+			uart_unlock_and_check_sysrq(port);
+			if (size)
+				tty_flip_buffer_push(tport);
 		}
 	}
 
@@ -599,11 +608,19 @@ static irqreturn_t stm32_usart_interrupt(int irq, void *ptr)
 static irqreturn_t stm32_usart_threaded_interrupt(int irq, void *ptr)
 {
 	struct uart_port *port = ptr;
+	struct tty_port *tport = &port->state->port;
 	struct stm32_port *stm32_port = to_stm32_port(port);
+	unsigned int size;
+	unsigned long flags;
 
 	/* Receiver timeout irq for DMA RX */
-	if (!stm32_port->throttled)
-		stm32_usart_receive_chars(port, false);
+	if (!stm32_port->throttled) {
+		spin_lock_irqsave(&port->lock, flags);
+		size = stm32_usart_receive_chars(port, false);
+		uart_unlock_and_check_sysrq_irqrestore(port, flags);
+		if (size)
+			tty_flip_buffer_push(tport);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -1678,6 +1695,8 @@ static int __maybe_unused stm32_usart_serial_en_wakeup(struct uart_port *port,
 	const struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;
 	struct tty_port *tport = &port->state->port;
 	int ret;
+	unsigned int size;
+	unsigned long flags;
 
 	if (!stm32_port->wakeup_src || !tty_port_initialized(tport))
 		return 0;
@@ -1696,8 +1715,15 @@ static int __maybe_unused stm32_usart_serial_en_wakeup(struct uart_port *port,
 		 * low-power mode.
 		 */
 		if (stm32_port->rx_ch) {
+			spin_lock_irqsave(&port->lock, flags);
+			/* Avoid race with RX IRQ when DMAR is cleared */
 			stm32_usart_clr_bits(port, ofs->cr3, USART_CR3_DMAR);
-			dmaengine_terminate_sync(stm32_port->rx_ch);
+			/* Poll data from DMA RX buffer if any */
+			size = stm32_usart_receive_chars(port, true);
+			dmaengine_terminate_async(stm32_port->rx_ch);
+			uart_unlock_and_check_sysrq_irqrestore(port, flags);
+			if (size)
+				tty_flip_buffer_push(tport);
 		}
 
 		/* Poll data from RX FIFO if any */
