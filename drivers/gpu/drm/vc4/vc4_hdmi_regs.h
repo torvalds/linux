@@ -442,6 +442,8 @@ static inline void vc4_hdmi_write(struct vc4_hdmi *hdmi,
 	const struct vc4_hdmi_variant *variant = hdmi->variant;
 	void __iomem *base;
 
+	lockdep_assert_held(&hdmi->hw_lock);
+
 	WARN_ON(!pm_runtime_active(&hdmi->pdev->dev));
 
 	if (reg >= variant->num_registers) {
