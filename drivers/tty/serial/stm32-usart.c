@@ -775,13 +775,54 @@ static void stm32_usart_break_ctl(struct uart_port *port, int break_state)
 {
 }
 
+static int stm32_usart_start_rx_dma_cyclic(struct uart_port *port)
+{
+	struct stm32_port *stm32_port = to_stm32_port(port);
+	const struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;
+	struct dma_async_tx_descriptor *desc;
+	int ret;
+
+	stm32_port->last_res = RX_BUF_L;
+	/* Prepare a DMA cyclic transaction */
+	desc = dmaengine_prep_dma_cyclic(stm32_port->rx_ch,
+					 stm32_port->rx_dma_buf,
+					 RX_BUF_L, RX_BUF_P,
+					 DMA_DEV_TO_MEM,
+					 DMA_PREP_INTERRUPT);
+	if (!desc) {
+		dev_err(port->dev, "rx dma prep cyclic failed\n");
+		return -ENODEV;
+	}
+
+	desc->callback = stm32_usart_rx_dma_complete;
+	desc->callback_param = port;
+
+	/* Push current DMA transaction in the pending queue */
+	ret = dma_submit_error(dmaengine_submit(desc));
+	if (ret) {
+		dmaengine_terminate_sync(stm32_port->rx_ch);
+		return ret;
+	}
+
+	/* Issue pending DMA requests */
+	dma_async_issue_pending(stm32_port->rx_ch);
+
+	/*
+	 * DMA request line not re-enabled at resume when port is throttled.
+	 * It will be re-enabled by unthrottle ops.
+	 */
+	if (!stm32_port->throttled)
+		stm32_usart_set_bits(port, ofs->cr3, USART_CR3_DMAR);
+
+	return 0;
+}
+
 static int stm32_usart_startup(struct uart_port *port)
 {
 	struct stm32_port *stm32_port = to_stm32_port(port);
 	const struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;
 	const struct stm32_usart_config *cfg = &stm32_port->info->cfg;
 	const char *name = to_platform_device(port->dev)->name;
-	struct dma_async_tx_descriptor *desc;
 	u32 val;
 	int ret;
 
@@ -803,49 +844,18 @@ static int stm32_usart_startup(struct uart_port *port)
 		writel_relaxed(USART_RQR_RXFRQ, port->membase + ofs->rqr);
 
 	if (stm32_port->rx_ch) {
-		stm32_port->last_res = RX_BUF_L;
-		/* Prepare a DMA cyclic transaction */
-		desc = dmaengine_prep_dma_cyclic(stm32_port->rx_ch,
-						 stm32_port->rx_dma_buf,
-						 RX_BUF_L, RX_BUF_P,
-						 DMA_DEV_TO_MEM,
-						 DMA_PREP_INTERRUPT);
-		if (!desc) {
-			dev_err(port->dev, "rx dma prep cyclic failed\n");
-			ret = -ENODEV;
-			goto err;
-		}
-
-		desc->callback = stm32_usart_rx_dma_complete;
-		desc->callback_param = port;
-
-		/* Push current DMA transaction in the pending queue */
-		ret = dma_submit_error(dmaengine_submit(desc));
+		ret = stm32_usart_start_rx_dma_cyclic(port);
 		if (ret) {
-			dmaengine_terminate_sync(stm32_port->rx_ch);
-			goto err;
+			free_irq(port->irq, port);
+			return ret;
 		}
-
-		/* Issue pending DMA requests */
-		dma_async_issue_pending(stm32_port->rx_ch);
 	}
-	/*
-	 * DMA request line not re-enabled at resume when port is throttled.
-	 * It will be re-enabled by unthrottle ops.
-	 */
-	if (!stm32_port->throttled)
-		stm32_usart_set_bits(port, ofs->cr3, USART_CR3_DMAR);
 
 	/* RX enabling */
 	val = stm32_port->cr1_irq | USART_CR1_RE | BIT(cfg->uart_enable_bit);
 	stm32_usart_set_bits(port, ofs->cr1, val);
 
 	return 0;
-
-err:
-	free_irq(port->irq, port);
-
-	return ret;
 }
 
 static void stm32_usart_shutdown(struct uart_port *port)
@@ -1661,14 +1671,16 @@ static struct uart_driver stm32_usart_driver = {
 	.cons		= STM32_SERIAL_CONSOLE,
 };
 
-static void __maybe_unused stm32_usart_serial_en_wakeup(struct uart_port *port,
-							bool enable)
+static int __maybe_unused stm32_usart_serial_en_wakeup(struct uart_port *port,
+						       bool enable)
 {
 	struct stm32_port *stm32_port = to_stm32_port(port);
 	const struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;
+	struct tty_port *tport = &port->state->port;
+	int ret;
 
-	if (!stm32_port->wakeup_src)
-		return;
+	if (!stm32_port->wakeup_src || !tty_port_initialized(tport))
+		return 0;
 
 	/*
 	 * Enable low-power wake-up and wake-up irq if argument is set to
@@ -1677,20 +1689,45 @@ static void __maybe_unused stm32_usart_serial_en_wakeup(struct uart_port *port,
 	if (enable) {
 		stm32_usart_set_bits(port, ofs->cr1, USART_CR1_UESM);
 		stm32_usart_set_bits(port, ofs->cr3, USART_CR3_WUFIE);
+
+		/*
+		 * When DMA is used for reception, it must be disabled before
+		 * entering low-power mode and re-enabled when exiting from
+		 * low-power mode.
+		 */
+		if (stm32_port->rx_ch) {
+			stm32_usart_clr_bits(port, ofs->cr3, USART_CR3_DMAR);
+			dmaengine_terminate_sync(stm32_port->rx_ch);
+		}
+
+		/* Poll data from RX FIFO if any */
+		stm32_usart_receive_chars(port, false);
 	} else {
+		if (stm32_port->rx_ch) {
+			ret = stm32_usart_start_rx_dma_cyclic(port);
+			if (ret)
+				return ret;
+		}
+
 		stm32_usart_clr_bits(port, ofs->cr1, USART_CR1_UESM);
 		stm32_usart_clr_bits(port, ofs->cr3, USART_CR3_WUFIE);
 	}
+
+	return 0;
 }
 
 static int __maybe_unused stm32_usart_serial_suspend(struct device *dev)
 {
 	struct uart_port *port = dev_get_drvdata(dev);
+	int ret;
 
 	uart_suspend_port(&stm32_usart_driver, port);
 
-	if (device_may_wakeup(dev) || device_wakeup_path(dev))
-		stm32_usart_serial_en_wakeup(port, true);
+	if (device_may_wakeup(dev) || device_wakeup_path(dev)) {
+		ret = stm32_usart_serial_en_wakeup(port, true);
+		if (ret)
+			return ret;
+	}
 
 	/*
 	 * When "no_console_suspend" is enabled, keep the pinctrl default state
@@ -1711,11 +1748,15 @@ static int __maybe_unused stm32_usart_serial_suspend(struct device *dev)
 static int __maybe_unused stm32_usart_serial_resume(struct device *dev)
 {
 	struct uart_port *port = dev_get_drvdata(dev);
+	int ret;
 
 	pinctrl_pm_select_default_state(dev);
 
-	if (device_may_wakeup(dev) || device_wakeup_path(dev))
-		stm32_usart_serial_en_wakeup(port, false);
+	if (device_may_wakeup(dev) || device_wakeup_path(dev)) {
+		ret = stm32_usart_serial_en_wakeup(port, false);
+		if (ret)
+			return ret;
+	}
 
 	return uart_resume_port(&stm32_usart_driver, port);
 }
