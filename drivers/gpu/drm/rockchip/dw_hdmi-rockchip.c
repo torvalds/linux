@@ -940,6 +940,16 @@ dw_hdmi_rockchip_get_color_changed(void *data)
 	return ret;
 }
 
+static int
+dw_hdmi_rockchip_get_yuv422_format(struct drm_connector *connector,
+				   struct edid *edid)
+{
+	if (!connector || !edid)
+		return -EINVAL;
+
+	return rockchip_drm_get_yuv422_format(connector, edid);
+}
+
 static const struct drm_prop_enum_list color_depth_enum_list[] = {
 	{ 0, "Automatic" }, /* Prefer highest color depth */
 	{ 8, "24bit" },
@@ -1600,6 +1610,8 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 		dw_hdmi_rockchip_get_hdr_blob;
 	plat_data->get_color_changed =
 		dw_hdmi_rockchip_get_color_changed;
+	plat_data->get_yuv422_format =
+		dw_hdmi_rockchip_get_yuv422_format;
 	plat_data->property_ops = &dw_hdmi_rockchip_property_ops;
 
 	encoder = &hdmi->encoder;

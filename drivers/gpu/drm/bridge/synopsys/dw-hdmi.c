@@ -42,8 +42,6 @@
 #include "dw-hdmi-hdcp.h"
 #include "dw-hdmi.h"
 
-#include "../../rockchip/rockchip_drm_drv.h"
-
 #define DDC_CI_ADDR		0x37
 #define DDC_SEGMENT_ADDR	0x30
 
@@ -2907,7 +2905,8 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 		drm_connector_update_edid_property(connector, edid);
 		cec_notifier_set_phys_addr_from_edid(hdmi->cec_notifier, edid);
 		ret = drm_add_edid_modes(connector, edid);
-		rockchip_drm_get_yuv422_format(connector, edid);
+		if (hdmi->plat_data->get_color_changed)
+			hdmi->plat_data->get_yuv422_format(connector, edid);
 		dw_hdmi_update_hdr_property(connector);
 		kfree(edid);
 	} else {

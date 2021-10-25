@@ -196,6 +196,8 @@ struct dw_hdmi_plat_data {
 	struct drm_property *(*get_hdr_property)(void *data);
 	struct drm_property_blob *(*get_hdr_blob)(void *data);
 	bool (*get_color_changed)(void *data);
+	int (*get_yuv422_format)(struct drm_connector *connector,
+				 struct edid *edid);
 
 	/* Vendor Property support */
 	const struct dw_hdmi_property_ops *property_ops;
