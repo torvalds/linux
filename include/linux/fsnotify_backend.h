@@ -289,6 +289,21 @@ static inline const struct path *fsnotify_data_path(const void *data,
 	}
 }
 
+static inline struct super_block *fsnotify_data_sb(const void *data,
+						   int data_type)
+{
+	switch (data_type) {
+	case FSNOTIFY_EVENT_INODE:
+		return ((struct inode *)data)->i_sb;
+	case FSNOTIFY_EVENT_DENTRY:
+		return ((struct dentry *)data)->d_sb;
+	case FSNOTIFY_EVENT_PATH:
+		return ((const struct path *)data)->dentry->d_sb;
+	default:
+		return NULL;
+	}
+}
+
 enum fsnotify_obj_type {
 	FSNOTIFY_OBJ_TYPE_INODE,
 	FSNOTIFY_OBJ_TYPE_PARENT,
