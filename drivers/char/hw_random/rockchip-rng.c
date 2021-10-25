@@ -101,6 +101,28 @@ static void rk_rng_cleanup(struct hwrng *rng)
 	clk_bulk_disable_unprepare(rk_rng->clk_num, rk_rng->clk_bulks);
 }
 
+static int rk_rng_read(struct hwrng *rng, void *buf, size_t max, bool wait)
+{
+	int ret;
+	struct rk_rng *rk_rng = container_of(rng, struct rk_rng, rng);
+
+	if (!rk_rng->soc_data->rk_rng_read)
+		return -EFAULT;
+
+	ret = pm_runtime_get_sync(rk_rng->dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(rk_rng->dev);
+		return ret;
+	}
+
+	ret = rk_rng->soc_data->rk_rng_read(rng, buf, max, wait);
+
+	pm_runtime_mark_last_busy(rk_rng->dev);
+	pm_runtime_put_sync_autosuspend(rk_rng->dev);
+
+	return ret;
+}
+
 static void rk_rng_read_regs(struct rk_rng *rng, u32 offset, void *buf,
 			     size_t size)
 {
@@ -115,12 +137,6 @@ static int rk_rng_v1_read(struct hwrng *rng, void *buf, size_t max, bool wait)
 	int ret = 0;
 	u32 reg_ctrl = 0;
 	struct rk_rng *rk_rng = container_of(rng, struct rk_rng, rng);
-
-	ret = pm_runtime_get_sync(rk_rng->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(rk_rng->dev);
-		return ret;
-	}
 
 	/* enable osc_ring to get entropy, sample period is set as 100 */
 	reg_ctrl = CRYPTO_V1_OSC_ENABLE | CRYPTO_V1_TRNG_SAMPLE_PERIOD(100);
@@ -146,9 +162,6 @@ out:
 	rk_rng_writel(rk_rng, HIWORD_UPDATE(0, CRYPTO_V1_RNG_START, 0),
 		      CRYPTO_V1_CTRL);
 
-	pm_runtime_mark_last_busy(rk_rng->dev);
-	pm_runtime_put_sync_autosuspend(rk_rng->dev);
-
 	return ret;
 }
 
@@ -157,12 +170,6 @@ static int rk_rng_v2_read(struct hwrng *rng, void *buf, size_t max, bool wait)
 	int ret = 0;
 	u32 reg_ctrl = 0;
 	struct rk_rng *rk_rng = container_of(rng, struct rk_rng, rng);
-
-	ret = pm_runtime_get_sync(rk_rng->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(rk_rng->dev);
-		return ret;
-	}
 
 	/* enable osc_ring to get entropy, sample period is set as 100 */
 	rk_rng_writel(rk_rng, 100, CRYPTO_V2_RNG_SAMPLE_CNT);
@@ -189,9 +196,6 @@ static int rk_rng_v2_read(struct hwrng *rng, void *buf, size_t max, bool wait)
 out:
 	/* close TRNG */
 	rk_rng_writel(rk_rng, HIWORD_UPDATE(0, 0xffff, 0), CRYPTO_V2_RNG_CTL);
-
-	pm_runtime_mark_last_busy(rk_rng->dev);
-	pm_runtime_put_sync_autosuspend(rk_rng->dev);
 
 	return ret;
 }
@@ -242,7 +246,7 @@ static int rk_rng_probe(struct platform_device *pdev)
 	rk_rng->rng.init    = rk_rng_init;
 	rk_rng->rng.cleanup = rk_rng_cleanup,
 #endif
-	rk_rng->rng.read    = rk_rng->soc_data->rk_rng_read;
+	rk_rng->rng.read    = rk_rng_read;
 	rk_rng->rng.quality = 999;
 
 	rk_rng->mem = devm_of_iomap(&pdev->dev, pdev->dev.of_node, 0, &map_size);
@@ -272,7 +276,7 @@ static int rk_rng_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, rk_rng);
 
 	pm_runtime_set_autosuspend_delay(&pdev->dev,
-					ROCKCHIP_AUTOSUSPEND_DELAY);
+					 ROCKCHIP_AUTOSUSPEND_DELAY);
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
@@ -304,7 +308,7 @@ static int rk_rng_runtime_resume(struct device *dev)
 
 static const struct dev_pm_ops rk_rng_pm_ops = {
 	SET_RUNTIME_PM_OPS(rk_rng_runtime_suspend,
-				rk_rng_runtime_resume, NULL)
+			   rk_rng_runtime_resume, NULL)
 	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
 				pm_runtime_force_resume)
 };
