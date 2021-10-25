@@ -2379,6 +2379,32 @@ struct multi_cs_data {
 };
 
 /**
+ * struct hl_clk_throttle_timestamp - current/last clock throttling timestamp
+ * @start: timestamp taken when 'start' event is received in driver
+ * @end: timestamp taken when 'end' event is received in driver
+ */
+struct hl_clk_throttle_timestamp {
+	ktime_t		start;
+	ktime_t		end;
+};
+
+/**
+ * struct hl_clk_throttle - keeps current/last clock throttling timestamps
+ * @timestamp: timestamp taken by driver and firmware, index 0 refers to POWER
+ *             index 1 refers to THERMAL
+ * @lock: protects this structure as it can be accessed from both event queue
+ *        context and info_ioctl context
+ * @current_reason: bitmask represents the current clk throttling reasons
+ * @aggregated_reason: bitmask represents aggregated clk throttling reasons since driver load
+ */
+struct hl_clk_throttle {
+	struct hl_clk_throttle_timestamp timestamp[HL_CLK_THROTTLE_TYPE_MAX];
+	struct mutex	lock;
+	u32		current_reason;
+	u32		aggregated_reason;
+};
+
+/**
  * struct hl_device - habanalabs device structure.
  * @pdev: pointer to PCI device, can be NULL in case of simulator device.
  * @pcie_bar_phys: array of available PCIe bars physical addresses.
@@ -2445,6 +2471,7 @@ struct multi_cs_data {
  * @pci_mem_region: array of memory regions in the PCI
  * @state_dump_specs: constants and dictionaries needed to dump system state.
  * @multi_cs_completion: array of multi-CS completion.
+ * @clk_throttling: holds information about current/previous clock throttling events
  * @dram_used_mem: current DRAM memory consumption.
  * @timeout_jiffies: device CS timeout value.
  * @max_power: the max power of the device, as configured by the sysadmin. This
@@ -2474,7 +2501,6 @@ struct multi_cs_data {
  * @high_pll: high PLL profile frequency.
  * @soft_reset_cnt: number of soft reset since the driver was loaded.
  * @hard_reset_cnt: number of hard reset since the driver was loaded.
- * @clk_throttling_reason: bitmask represents the current clk throttling reasons
  * @id: device minor.
  * @id_control: minor of the control device
  * @cpu_pci_msb_addr: 50-bit extension bits for the device CPU's 40-bit
@@ -2604,6 +2630,8 @@ struct hl_device {
 
 	struct multi_cs_completion	multi_cs_completion[
 							MULTI_CS_MAX_USER_CTX];
+	struct hl_clk_throttle		clk_throttling;
+
 	u32				*stream_master_qid_arr;
 	atomic64_t			dram_used_mem;
 	u64				timeout_jiffies;
@@ -2622,7 +2650,6 @@ struct hl_device {
 	u32				high_pll;
 	u32				soft_reset_cnt;
 	u32				hard_reset_cnt;
-	u32				clk_throttling_reason;
 	u16				id;
 	u16				id_control;
 	u16				cpu_pci_msb_addr;

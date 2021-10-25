@@ -455,6 +455,7 @@ static int device_early_init(struct hl_device *hdev)
 	INIT_LIST_HEAD(&hdev->fpriv_list);
 	mutex_init(&hdev->fpriv_list_lock);
 	atomic_set(&hdev->in_reset, 0);
+	mutex_init(&hdev->clk_throttling.lock);
 
 	return 0;
 
@@ -494,6 +495,8 @@ static void device_early_fini(struct hl_device *hdev)
 	mutex_destroy(&hdev->send_cpu_message_lock);
 
 	mutex_destroy(&hdev->fpriv_list_lock);
+
+	mutex_destroy(&hdev->clk_throttling.lock);
 
 	hl_cb_mgr_fini(hdev, &hdev->kernel_cb_mgr);
 

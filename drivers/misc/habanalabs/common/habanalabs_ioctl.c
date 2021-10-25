@@ -313,15 +313,38 @@ static int pci_counters_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 
 static int clk_throttle_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 {
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
 	struct hl_device *hdev = hpriv->hdev;
 	struct hl_info_clk_throttle clk_throttle = {0};
+	ktime_t end_time, zero_time = ktime_set(0, 0);
 	u32 max_size = args->return_size;
-	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+	int i;
 
 	if ((!max_size) || (!out))
 		return -EINVAL;
 
-	clk_throttle.clk_throttling_reason = hdev->clk_throttling_reason;
+	mutex_lock(&hdev->clk_throttling.lock);
+
+	clk_throttle.clk_throttling_reason = hdev->clk_throttling.current_reason;
+
+	for (i = 0 ; i < HL_CLK_THROTTLE_TYPE_MAX ; i++) {
+		if (!(hdev->clk_throttling.aggregated_reason & BIT(i)))
+			continue;
+
+		clk_throttle.clk_throttling_timestamp_us[i] =
+			ktime_to_us(hdev->clk_throttling.timestamp[i].start);
+
+		if (ktime_compare(hdev->clk_throttling.timestamp[i].end, zero_time))
+			end_time = ktime_get();
+		else
+			end_time = hdev->clk_throttling.timestamp[i].end;
+
+		clk_throttle.clk_throttling_duration_ns[i] =
+			ktime_to_ns(ktime_sub(end_time,
+				hdev->clk_throttling.timestamp[i].start));
+
+	}
+	mutex_unlock(&hdev->clk_throttling.lock);
 
 	return copy_to_user(out, &clk_throttle,
 		min((size_t) max_size, sizeof(clk_throttle))) ? -EFAULT : 0;

@@ -473,15 +473,27 @@ struct hl_info_pci_counters {
 	__u64 replay_cnt;
 };
 
-#define HL_CLK_THROTTLE_POWER	0x1
-#define HL_CLK_THROTTLE_THERMAL	0x2
+enum hl_clk_throttling_type {
+	HL_CLK_THROTTLE_TYPE_POWER,
+	HL_CLK_THROTTLE_TYPE_THERMAL,
+	HL_CLK_THROTTLE_TYPE_MAX
+};
+
+/* clk_throttling_reason masks */
+#define HL_CLK_THROTTLE_POWER		(1 << HL_CLK_THROTTLE_TYPE_POWER)
+#define HL_CLK_THROTTLE_THERMAL		(1 << HL_CLK_THROTTLE_TYPE_THERMAL)
 
 /**
  * struct hl_info_clk_throttle - clock throttling reason
  * @clk_throttling_reason: each bit represents a clk throttling reason
+ * @clk_throttling_timestamp_us: represents CPU timestamp in microseconds of the start-event
+ * @clk_throttling_duration_ns: the clock throttle time in nanosec
  */
 struct hl_info_clk_throttle {
 	__u32 clk_throttling_reason;
+	__u32 pad;
+	__u64 clk_throttling_timestamp_us[HL_CLK_THROTTLE_TYPE_MAX];
+	__u64 clk_throttling_duration_ns[HL_CLK_THROTTLE_TYPE_MAX];
 };
 
 /**
