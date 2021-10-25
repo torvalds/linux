@@ -504,10 +504,15 @@ static inline int neigh_output(struct neighbour *n, struct sk_buff *skb,
 {
 	const struct hh_cache *hh = &n->hh;
 
-	if ((n->nud_state & NUD_CONNECTED) && hh->hh_len && !skip_cache)
+	/* n->nud_state and hh->hh_len could be changed under us.
+	 * neigh_hh_output() is taking care of the race later.
+	 */
+	if (!skip_cache &&
+	    (READ_ONCE(n->nud_state) & NUD_CONNECTED) &&
+	    READ_ONCE(hh->hh_len))
 		return neigh_hh_output(hh, skb);
-	else
-		return n->output(n, skb);
+
+	return n->output(n, skb);
 }
 
 static inline struct neighbour *
