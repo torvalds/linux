@@ -6600,10 +6600,7 @@ int qeth_siocdevprivate(struct net_device *dev, struct ifreq *rq, void __user *d
 		rc = qeth_query_oat_command(card, data);
 		break;
 	default:
-		if (card->discipline->do_ioctl)
-			rc = card->discipline->do_ioctl(dev, rq, data, cmd);
-		else
-			rc = -EOPNOTSUPP;
+		rc = -EOPNOTSUPP;
 	}
 	if (rc)
 		QETH_CARD_TEXT_(card, 2, "ioce%x", rc);
