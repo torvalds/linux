@@ -10,6 +10,8 @@
  * The "rpmsg-tty" service is directly used for data exchange. No flow control is implemented yet.
  */
 
+#define pr_fmt(fmt)		KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/rpmsg.h>
 #include <linux/slab.h>
@@ -235,13 +237,13 @@ static int __init rpmsg_tty_init(void)
 
 	ret = tty_register_driver(rpmsg_tty_driver);
 	if (ret < 0) {
-		pr_err("Couldn't install rpmsg tty driver: %d\n", ret);
+		pr_err("Couldn't install driver: %d\n", ret);
 		goto error_put;
 	}
 
 	ret = register_rpmsg_driver(&rpmsg_tty_rpmsg_drv);
 	if (ret < 0) {
-		pr_err("Couldn't register rpmsg tty driver: %d\n", ret);
+		pr_err("Couldn't register driver: %d\n", ret);
 		goto error_unregister;
 	}
 
