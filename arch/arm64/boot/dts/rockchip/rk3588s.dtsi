@@ -17,6 +17,8 @@
 	#size-cells = <2>;
 
 	aliases {
+		dsi0 = &dsi0;
+		dsi1 = &dsi1;
 		ethernet1 = &gmac1;
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
@@ -357,6 +359,11 @@
 	sys_grf: syscon@fd58c000 {
 		compatible = "rockchip,rk3588-sys-grf", "syscon";
 		reg = <0x0 0xfd58c000 0x0 0x1000>;
+	};
+
+	vop_grf: syscon@fd5a4000 {
+		compatible = "rockchip,rk3588-vop-grf", "syscon";
+		reg = <0x0 0xfd5a4000 0x0 0x2000>;
 	};
 
 	vo0_grf: syscon@fd5a6000 {
@@ -1126,6 +1133,40 @@
 		resets = <&cru SRST_M_SPDIFRX0>;
 		reset-names = "spdifrx-m";
 		#sound-dai-cells = <0>;
+		status = "disabled";
+	};
+
+	dsi0: dsi@fde20000 {
+		compatible = "rockchip,rk3588-mipi-dsi2";
+		reg = <0x0 0xfde20000 0x0 0x10000>;
+		interrupts = <GIC_SPI 167 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru PCLK_DSIHOST0>, <&cru CLK_DSIHOST0>;
+		clock-names = "pclk", "sys_clk";
+		resets = <&cru SRST_P_DSIHOST0>;
+		reset-names = "apb";
+		power-domains = <&power RK3588_PD_VOP>;
+		phys = <&mipi_dcphy0>;
+		phy-names = "dcphy";
+		rockchip,grf = <&vop_grf>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
+	dsi1: dsi@fde30000 {
+		compatible = "rockchip,rk3588-mipi-dsi2";
+		reg = <0x0 0xfde30000 0x0 0x10000>;
+		interrupts = <GIC_SPI 168 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru PCLK_DSIHOST1>, <&cru CLK_DSIHOST1>;
+		clock-names = "pclk", "sys_clk";
+		resets = <&cru SRST_P_DSIHOST1>;
+		reset-names = "apb";
+		power-domains = <&power RK3588_PD_VOP>;
+		phys = <&mipi_dcphy1>;
+		phy-names = "dcphy";
+		rockchip,grf = <&vop_grf>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 		status = "disabled";
 	};
 
