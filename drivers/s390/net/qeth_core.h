@@ -1084,6 +1084,7 @@ int qeth_setadpparms_set_access_ctrl(struct qeth_card *card,
 int qeth_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 int qeth_siocdevprivate(struct net_device *dev, struct ifreq *rq,
 			void __user *data, int cmd);
+__printf(3, 4)
 void qeth_dbf_longtext(debug_info_t *id, int level, char *text, ...);
 int qeth_configure_cq(struct qeth_card *, enum qeth_cq);
 int qeth_hw_trap(struct qeth_card *, enum qeth_diags_trap_action);
