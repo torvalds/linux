@@ -825,26 +825,7 @@ static int lt9611_bridge_attach(struct drm_bridge *bridge,
 			return ret;
 	}
 
-	/* Attach primary DSI */
-	lt9611->dsi0 = lt9611_attach_dsi(lt9611, lt9611->dsi0_node);
-	if (IS_ERR(lt9611->dsi0))
-		return PTR_ERR(lt9611->dsi0);
-
-	/* Attach secondary DSI, if specified */
-	if (lt9611->dsi1_node) {
-		lt9611->dsi1 = lt9611_attach_dsi(lt9611, lt9611->dsi1_node);
-		if (IS_ERR(lt9611->dsi1)) {
-			ret = PTR_ERR(lt9611->dsi1);
-			goto err_unregister_dsi0;
-		}
-	}
-
 	return 0;
-
-err_unregister_dsi0:
-	drm_connector_cleanup(&lt9611->connector);
-
-	return ret;
 }
 
 static enum drm_mode_status lt9611_bridge_mode_valid(struct drm_bridge *bridge,
@@ -1165,9 +1146,28 @@ static int lt9611_probe(struct i2c_client *client,
 
 	drm_bridge_add(&lt9611->bridge);
 
+	/* Attach primary DSI */
+	lt9611->dsi0 = lt9611_attach_dsi(lt9611, lt9611->dsi0_node);
+	if (IS_ERR(lt9611->dsi0)) {
+		ret = PTR_ERR(lt9611->dsi0);
+		goto err_remove_bridge;
+	}
+
+	/* Attach secondary DSI, if specified */
+	if (lt9611->dsi1_node) {
+		lt9611->dsi1 = lt9611_attach_dsi(lt9611, lt9611->dsi1_node);
+		if (IS_ERR(lt9611->dsi1)) {
+			ret = PTR_ERR(lt9611->dsi1);
+			goto err_remove_bridge;
+		}
+	}
+
 	lt9611_enable_hpd_interrupts(lt9611);
 
 	return lt9611_audio_init(dev, lt9611);
+
+err_remove_bridge:
+	drm_bridge_remove(&lt9611->bridge);
 
 err_disable_regulators:
 	regulator_bulk_disable(ARRAY_SIZE(lt9611->supplies), lt9611->supplies);
