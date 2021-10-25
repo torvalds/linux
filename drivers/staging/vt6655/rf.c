@@ -176,7 +176,7 @@ static const unsigned long dwAL7230InitTable[CB_AL7230_INIT_SEQ] = {
 	0x1ABA8F00 + (BY_AL7230_REG_LEN << 3) + IFREGCTL_REGW  /* Need modify for 11a: 12BACF */
 };
 
-static const unsigned long dwAL7230InitTableAMode[CB_AL7230_INIT_SEQ] = {
+static const unsigned long al7230_init_table_a_mode[CB_AL7230_INIT_SEQ] = {
 	0x0FF52000 + (BY_AL7230_REG_LEN << 3) + IFREGCTL_REGW, /* Channel184 // Need modify for 11b/g */
 	0x00000100 + (BY_AL7230_REG_LEN << 3) + IFREGCTL_REGW, /* Channel184 // Need modify for 11b/g */
 	0x451FE200 + (BY_AL7230_REG_LEN << 3) + IFREGCTL_REGW, /* Need modify for 11b/g */
@@ -719,7 +719,7 @@ bool RFvWriteWakeProgSyn(struct vnt_private *priv, unsigned char rf_type,
 				MACvSetMISCFifo(priv, (unsigned short)(MISCFIFO_SYNDATA_IDX + i), dwAL7230InitTable[i]);
 		} else {
 			for (i = 0; i < CB_AL7230_INIT_SEQ; i++)
-				MACvSetMISCFifo(priv, (unsigned short)(MISCFIFO_SYNDATA_IDX + i), dwAL7230InitTableAMode[i]);
+				MACvSetMISCFifo(priv, (unsigned short)(MISCFIFO_SYNDATA_IDX + i), al7230_init_table_a_mode[i]);
 		}
 
 		MACvSetMISCFifo(priv, (unsigned short)(MISCFIFO_SYNDATA_IDX + i), al7230_channel_table0[channel - 1]);
@@ -923,13 +923,13 @@ bool RFbAL7230SelectChannelPostProcess(struct vnt_private *priv,
 	 */
 	if ((byOldChannel <= CB_MAX_CHANNEL_24G) && (byNewChannel > CB_MAX_CHANNEL_24G)) {
 		/* Change from 2.4G to 5G [Reg] */
-		ret &= IFRFbWriteEmbedded(priv, dwAL7230InitTableAMode[2]);
-		ret &= IFRFbWriteEmbedded(priv, dwAL7230InitTableAMode[3]);
-		ret &= IFRFbWriteEmbedded(priv, dwAL7230InitTableAMode[5]);
-		ret &= IFRFbWriteEmbedded(priv, dwAL7230InitTableAMode[7]);
-		ret &= IFRFbWriteEmbedded(priv, dwAL7230InitTableAMode[10]);
-		ret &= IFRFbWriteEmbedded(priv, dwAL7230InitTableAMode[12]);
-		ret &= IFRFbWriteEmbedded(priv, dwAL7230InitTableAMode[15]);
+		ret &= IFRFbWriteEmbedded(priv, al7230_init_table_a_mode[2]);
+		ret &= IFRFbWriteEmbedded(priv, al7230_init_table_a_mode[3]);
+		ret &= IFRFbWriteEmbedded(priv, al7230_init_table_a_mode[5]);
+		ret &= IFRFbWriteEmbedded(priv, al7230_init_table_a_mode[7]);
+		ret &= IFRFbWriteEmbedded(priv, al7230_init_table_a_mode[10]);
+		ret &= IFRFbWriteEmbedded(priv, al7230_init_table_a_mode[12]);
+		ret &= IFRFbWriteEmbedded(priv, al7230_init_table_a_mode[15]);
 	} else if ((byOldChannel > CB_MAX_CHANNEL_24G) && (byNewChannel <= CB_MAX_CHANNEL_24G)) {
 		/* Change from 5G to 2.4G [Reg] */
 		ret &= IFRFbWriteEmbedded(priv, dwAL7230InitTable[2]);
