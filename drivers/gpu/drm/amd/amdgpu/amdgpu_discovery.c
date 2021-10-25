@@ -1018,6 +1018,7 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 		adev->ip_versions[SMUIO_HWIP][0] = IP_VERSION(11, 0, 2);
 		adev->ip_versions[GC_HWIP][0] = IP_VERSION(9, 4, 0);
 		adev->ip_versions[UVD_HWIP][0] = IP_VERSION(7, 2, 0);
+		adev->ip_versions[UVD_HWIP][1] = IP_VERSION(7, 2, 0);
 		adev->ip_versions[VCE_HWIP][0] = IP_VERSION(4, 1, 0);
 		adev->ip_versions[DCI_HWIP][0] = IP_VERSION(12, 1, 0);
 		break;
@@ -1039,6 +1040,7 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 		adev->ip_versions[SMUIO_HWIP][0] = IP_VERSION(11, 0, 3);
 		adev->ip_versions[GC_HWIP][0] = IP_VERSION(9, 4, 1);
 		adev->ip_versions[UVD_HWIP][0] = IP_VERSION(2, 5, 0);
+		adev->ip_versions[UVD_HWIP][1] = IP_VERSION(2, 5, 0);
 		break;
 	case CHIP_ALDEBARAN:
 		aldebaran_reg_base_init(adev);
@@ -1058,6 +1060,7 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 		adev->ip_versions[SMUIO_HWIP][0] = IP_VERSION(13, 0, 2);
 		adev->ip_versions[GC_HWIP][0] = IP_VERSION(9, 4, 2);
 		adev->ip_versions[UVD_HWIP][0] = IP_VERSION(2, 6, 0);
+		adev->ip_versions[UVD_HWIP][1] = IP_VERSION(2, 6, 0);
 		adev->ip_versions[XGMI_HWIP][0] = IP_VERSION(6, 1, 0);
 		break;
 	default:
