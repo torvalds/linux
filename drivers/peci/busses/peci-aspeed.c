@@ -10,7 +10,7 @@
 #include <linux/iopoll.h>
 #include <linux/jiffies.h>
 #include <linux/module.h>
-#include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/peci.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
@@ -154,6 +154,9 @@
 #define ASPEED_PECI_CMD_TIMEOUT_MS_DEFAULT	1000
 #define ASPEED_PECI_CMD_TIMEOUT_MS_MAX		60000
 
+struct aspeed_peci_match_data {
+	bool support_64byte_mode;
+};
 struct aspeed_peci {
 	struct peci_adapter	*adapter;
 	struct device		*dev;
@@ -398,7 +401,9 @@ static int aspeed_peci_init_ctrl(struct aspeed_peci *priv)
 	int delta_value, delta_tmp, clk_divisor, clk_divisor_tmp;
 	int ret;
 	unsigned long bus_clk_rate;
+	const struct aspeed_peci_match_data *match_data;
 
+	match_data = of_device_get_match_data(priv->dev);
 	/* peci bus clk selection */
 	if (priv->bus_clk_sel)
 		bus_clk_rate = clk_get_rate(priv->hclk);
@@ -422,7 +427,7 @@ static int aspeed_peci_init_ctrl(struct aspeed_peci *priv)
 	 * (1 << PECI00[10:8]) * (PECI04[15:8]*4+1) =
 	 * (Bus clk rate) / (4 * PECI operation clock)
 	 */
-	clk_divisor = bus_clk_rate / (4*clk_freq);
+	clk_divisor = bus_clk_rate / (4 * clk_freq);
 	delta_value = clk_divisor;
 	/* Find the closest divisor for clock-frequency */
 	for (msg_timing_idx = 1; msg_timing_idx <= 255; msg_timing_idx++)
@@ -469,8 +474,8 @@ static int aspeed_peci_init_ctrl(struct aspeed_peci *priv)
 				 ASPEED_PECI_CMD_TIMEOUT_MS_DEFAULT);
 		priv->cmd_timeout_ms = ASPEED_PECI_CMD_TIMEOUT_MS_DEFAULT;
 	}
-
-	if (of_property_read_bool(priv->dev->of_node, "64byte-mode"))
+	if (of_property_read_bool(priv->dev->of_node, "64byte-mode") &
+	    match_data->support_64byte_mode)
 		priv->xfer_mode = ASPEED_PECI_64BYTE_MODE;
 	aspeed_peci_init_regs(priv);
 	return 0;
@@ -585,10 +590,22 @@ static int aspeed_peci_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct aspeed_peci_match_data ast2400_peci_match_data = {
+	.support_64byte_mode = false,
+};
+
+static const struct aspeed_peci_match_data ast2500_peci_match_data = {
+	.support_64byte_mode = false,
+};
+
+static const struct aspeed_peci_match_data ast2600_peci_match_data = {
+	.support_64byte_mode = true,
+};
+
 static const struct of_device_id aspeed_peci_of_table[] = {
-	{ .compatible = "aspeed,ast2400-peci", },
-	{ .compatible = "aspeed,ast2500-peci", },
-	{ .compatible = "aspeed,ast2600-peci", },
+	{ .compatible = "aspeed,ast2400-peci", .data = &ast2400_peci_match_data },
+	{ .compatible = "aspeed,ast2500-peci", .data = &ast2500_peci_match_data },
+	{ .compatible = "aspeed,ast2600-peci", .data = &ast2600_peci_match_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, aspeed_peci_of_table);
