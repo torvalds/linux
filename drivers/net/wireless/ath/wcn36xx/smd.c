@@ -266,7 +266,8 @@ static void wcn36xx_smd_set_sta_ht_params(struct ieee80211_sta *sta,
 
 		sta_params->max_ampdu_size = sta->ht_cap.ampdu_factor;
 		sta_params->max_ampdu_density = sta->ht_cap.ampdu_density;
-		sta_params->max_amsdu_size = is_cap_supported(caps,
+		/* max_amsdu_size: 1 : 3839 bytes, 0 : 7935 bytes (max) */
+		sta_params->max_amsdu_size = !is_cap_supported(caps,
 			IEEE80211_HT_CAP_MAX_AMSDU);
 		sta_params->sgi_20Mhz = is_cap_supported(caps,
 			IEEE80211_HT_CAP_SGI_20);
