@@ -609,7 +609,9 @@ static struct fanotify_event *fanotify_alloc_error_event(
 {
 	struct fs_error_report *report =
 			fsnotify_data_error_report(data, data_type);
+	struct inode *inode;
 	struct fanotify_error_event *fee;
+	int fh_len;
 
 	if (WARN_ON_ONCE(!report))
 		return NULL;
@@ -621,6 +623,15 @@ static struct fanotify_event *fanotify_alloc_error_event(
 	fee->fae.type = FANOTIFY_EVENT_TYPE_FS_ERROR;
 	fee->err_count = 1;
 	fee->fsid = *fsid;
+
+	inode = report->inode;
+	fh_len = fanotify_encode_fh_len(inode);
+
+	/* Bad fh_len. Fallback to using an invalid fh. Should never happen. */
+	if (!fh_len && inode)
+		inode = NULL;
+
+	fanotify_encode_fh(&fee->object_fh, inode, fh_len, NULL, 0);
 
 	*hash ^= fanotify_hash_fsid(fsid);
 
