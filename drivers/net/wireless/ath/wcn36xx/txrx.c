@@ -502,10 +502,11 @@ int wcn36xx_start_tx(struct wcn36xx *wcn,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct wcn36xx_vif *vif_priv = NULL;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	unsigned long flags;
 	bool is_low = ieee80211_is_data(hdr->frame_control);
 	bool bcast = is_broadcast_ether_addr(hdr->addr1) ||
 		is_multicast_ether_addr(hdr->addr1);
+	bool ack_ind = (info->flags & IEEE80211_TX_CTL_REQ_TX_STATUS) &&
+					!(info->flags & IEEE80211_TX_CTL_NO_ACK);
 	struct wcn36xx_tx_bd bd;
 	int ret;
 
@@ -521,30 +522,16 @@ int wcn36xx_start_tx(struct wcn36xx *wcn,
 
 	bd.dpu_rf = WCN36XX_BMU_WQ_TX;
 
-	if (info->flags & IEEE80211_TX_CTL_REQ_TX_STATUS) {
+	if (unlikely(ack_ind)) {
 		wcn36xx_dbg(WCN36XX_DBG_DXE, "TX_ACK status requested\n");
-
-		spin_lock_irqsave(&wcn->dxe_lock, flags);
-		if (wcn->tx_ack_skb) {
-			spin_unlock_irqrestore(&wcn->dxe_lock, flags);
-			wcn36xx_warn("tx_ack_skb already set\n");
-			return -EINVAL;
-		}
-
-		wcn->tx_ack_skb = skb;
-		spin_unlock_irqrestore(&wcn->dxe_lock, flags);
 
 		/* Only one at a time is supported by fw. Stop the TX queues
 		 * until the ack status gets back.
 		 */
 		ieee80211_stop_queues(wcn->hw);
 
-		/* TX watchdog if no TX irq or ack indication received  */
-		mod_timer(&wcn->tx_ack_timer, jiffies + HZ / 10);
-
 		/* Request ack indication from the firmware */
-		if (!(info->flags & IEEE80211_TX_CTL_NO_ACK))
-			bd.tx_comp = 1;
+		bd.tx_comp = 1;
 	}
 
 	/* Data frames served first*/
@@ -558,14 +545,8 @@ int wcn36xx_start_tx(struct wcn36xx *wcn,
 	bd.tx_bd_sign = 0xbdbdbdbd;
 
 	ret = wcn36xx_dxe_tx_frame(wcn, vif_priv, &bd, skb, is_low);
-	if (ret && (info->flags & IEEE80211_TX_CTL_REQ_TX_STATUS)) {
-		/* If the skb has not been transmitted,
-		 * don't keep a reference to it.
-		 */
-		spin_lock_irqsave(&wcn->dxe_lock, flags);
-		wcn->tx_ack_skb = NULL;
-		spin_unlock_irqrestore(&wcn->dxe_lock, flags);
-
+	if (unlikely(ret && ack_ind)) {
+		/* If the skb has not been transmitted, resume TX queue */
 		ieee80211_wake_queues(wcn->hw);
 	}
 
