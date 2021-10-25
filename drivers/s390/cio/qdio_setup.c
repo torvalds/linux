@@ -24,19 +24,6 @@
 #define QBUFF_PER_PAGE (PAGE_SIZE / sizeof(struct qdio_buffer))
 
 static struct kmem_cache *qdio_q_cache;
-static struct kmem_cache *qdio_aob_cache;
-
-struct qaob *qdio_allocate_aob(void)
-{
-	return kmem_cache_zalloc(qdio_aob_cache, GFP_ATOMIC);
-}
-EXPORT_SYMBOL_GPL(qdio_allocate_aob);
-
-void qdio_release_aob(struct qaob *aob)
-{
-	kmem_cache_free(qdio_aob_cache, aob);
-}
-EXPORT_SYMBOL_GPL(qdio_release_aob);
 
 /**
  * qdio_free_buffers() - free qdio buffers
@@ -447,22 +434,10 @@ void qdio_print_subchannel_info(struct qdio_irq *irq_ptr)
 
 int __init qdio_setup_init(void)
 {
-	int rc;
-
 	qdio_q_cache = kmem_cache_create("qdio_q", sizeof(struct qdio_q),
 					 256, 0, NULL);
 	if (!qdio_q_cache)
 		return -ENOMEM;
-
-	qdio_aob_cache = kmem_cache_create("qdio_aob",
-					sizeof(struct qaob),
-					sizeof(struct qaob),
-					0,
-					NULL);
-	if (!qdio_aob_cache) {
-		rc = -ENOMEM;
-		goto free_qdio_q_cache;
-	}
 
 	/* Check for OSA/FCP thin interrupts (bit 67). */
 	DBF_EVENT("thinint:%1d",
@@ -470,16 +445,11 @@ int __init qdio_setup_init(void)
 
 	/* Check for QEBSM support in general (bit 58). */
 	DBF_EVENT("cssQEBSM:%1d", css_general_characteristics.qebsm);
-	rc = 0;
-out:
-	return rc;
-free_qdio_q_cache:
-	kmem_cache_destroy(qdio_q_cache);
-	goto out;
+
+	return 0;
 }
 
 void qdio_setup_exit(void)
 {
-	kmem_cache_destroy(qdio_aob_cache);
 	kmem_cache_destroy(qdio_q_cache);
 }
