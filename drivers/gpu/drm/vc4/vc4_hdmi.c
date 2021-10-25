@@ -1395,20 +1395,36 @@ static inline struct vc4_hdmi *dai_to_hdmi(struct snd_soc_dai *dai)
 	return snd_soc_card_get_drvdata(card);
 }
 
+static bool vc4_hdmi_audio_can_stream(struct vc4_hdmi *vc4_hdmi)
+{
+	struct drm_encoder *encoder = &vc4_hdmi->encoder.base.base;
+
+	lockdep_assert_held(&vc4_hdmi->mutex);
+
+	/*
+	 * The encoder doesn't have a CRTC until the first modeset.
+	 */
+	if (!encoder->crtc)
+		return false;
+
+	/*
+	 * If the encoder is currently in DVI mode, treat the codec DAI
+	 * as missing.
+	 */
+	if (!(HDMI_READ(HDMI_RAM_PACKET_CONFIG) & VC4_HDMI_RAM_PACKET_ENABLE))
+		return false;
+
+	return true;
+}
+
 static int vc4_hdmi_audio_startup(struct device *dev, void *data)
 {
 	struct vc4_hdmi *vc4_hdmi = dev_get_drvdata(dev);
-	struct drm_encoder *encoder = &vc4_hdmi->encoder.base.base;
 	unsigned long flags;
 
 	mutex_lock(&vc4_hdmi->mutex);
 
-	/*
-	 * If the HDMI encoder hasn't probed, or the encoder is
-	 * currently in DVI mode, treat the codec dai as missing.
-	 */
-	if (!encoder->crtc || !(HDMI_READ(HDMI_RAM_PACKET_CONFIG) &
-				VC4_HDMI_RAM_PACKET_ENABLE)) {
+	if (!vc4_hdmi_audio_can_stream(vc4_hdmi)) {
 		mutex_unlock(&vc4_hdmi->mutex);
 		return -ENODEV;
 	}
@@ -1537,6 +1553,11 @@ static int vc4_hdmi_audio_prepare(struct device *dev, void *data,
 		sample_rate, params->sample_width, channels);
 
 	mutex_lock(&vc4_hdmi->mutex);
+
+	if (!vc4_hdmi_audio_can_stream(vc4_hdmi)) {
+		mutex_unlock(&vc4_hdmi->mutex);
+		return -EINVAL;
+	}
 
 	vc4_hdmi_audio_set_mai_clock(vc4_hdmi, sample_rate);
 
