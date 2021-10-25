@@ -234,7 +234,7 @@ error message. This can be shown with the following code::
 			   skel->bulk_in_endpointAddr),
 			   skel->bulk_in_buffer,
 			   skel->bulk_in_size,
-			   &count, HZ*10);
+			   &count, 5000);
     /* if the read was successful, copy the data to user space */
     if (!retval) {
 	    if (copy_to_user (buffer, skel->bulk_in_buffer, count))
