@@ -375,7 +375,7 @@ static void vc4_hvs_update_dlist(struct drm_crtc *crtc)
 
 		spin_lock_irqsave(&dev->event_lock, flags);
 
-		if (!vc4_state->feed_txp || vc4_state->txp_armed) {
+		if (!vc4_crtc->feeds_txp || vc4_state->txp_armed) {
 			vc4_crtc->event = crtc->state->event;
 			crtc->state->event = NULL;
 		}
@@ -395,10 +395,9 @@ void vc4_hvs_atomic_enable(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct drm_crtc_state *new_crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
-	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(new_crtc_state);
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
-	bool oneshot = vc4_state->feed_txp;
+	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
+	bool oneshot = vc4_crtc->feeds_txp;
 
 	vc4_hvs_update_dlist(crtc);
 	vc4_hvs_init_channel(vc4, crtc, mode, oneshot);
