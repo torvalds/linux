@@ -2258,7 +2258,7 @@ static int fix_reflink_p_key(struct btree_trans *trans, struct btree_iter *iter)
 	u->v.front_pad	= 0;
 	u->v.back_pad	= 0;
 
-	return bch2_trans_update(trans, iter, &u->k_i, 0);
+	return bch2_trans_update(trans, iter, &u->k_i, BTREE_TRIGGER_NORUN);
 }
 
 static int fix_reflink_p(struct bch_fs *c)
