@@ -1178,7 +1178,9 @@ static void nau8821_fll_apply(struct nau8821 *nau8821,
 
 /**
  * nau8821_set_fll - FLL configuration of nau8821
- * @codec:  codec component
+ * @component:  codec component
+ * @pll_id:  PLL requested
+ * @source:  clock source
  * @freq_in:  frequency of input clock source
  * @freq_out:  must be 256*Fs in order to achieve the best performance
  *
