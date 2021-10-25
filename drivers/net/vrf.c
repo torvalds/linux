@@ -35,6 +35,7 @@
 #include <net/l3mdev.h>
 #include <net/fib_rules.h>
 #include <net/netns/generic.h>
+#include <net/netfilter/nf_conntrack.h>
 
 #define DRV_NAME	"vrf"
 #define DRV_VERSION	"1.1"
@@ -424,11 +425,25 @@ static int vrf_local_xmit(struct sk_buff *skb, struct net_device *dev,
 	return NETDEV_TX_OK;
 }
 
+static void vrf_nf_set_untracked(struct sk_buff *skb)
+{
+	if (skb_get_nfct(skb) == 0)
+		nf_ct_set(skb, NULL, IP_CT_UNTRACKED);
+}
+
+static void vrf_nf_reset_ct(struct sk_buff *skb)
+{
+	if (skb_get_nfct(skb) == IP_CT_UNTRACKED)
+		nf_reset_ct(skb);
+}
+
 #if IS_ENABLED(CONFIG_IPV6)
 static int vrf_ip6_local_out(struct net *net, struct sock *sk,
 			     struct sk_buff *skb)
 {
 	int err;
+
+	vrf_nf_reset_ct(skb);
 
 	err = nf_hook(NFPROTO_IPV6, NF_INET_LOCAL_OUT, net,
 		      sk, skb, NULL, skb_dst(skb)->dev, dst_output);
@@ -507,6 +522,8 @@ static int vrf_ip_local_out(struct net *net, struct sock *sk,
 			    struct sk_buff *skb)
 {
 	int err;
+
+	vrf_nf_reset_ct(skb);
 
 	err = nf_hook(NFPROTO_IPV4, NF_INET_LOCAL_OUT, net, sk,
 		      skb, NULL, skb_dst(skb)->dev, dst_output);
@@ -626,8 +643,7 @@ static void vrf_finish_direct(struct sk_buff *skb)
 		skb_pull(skb, ETH_HLEN);
 	}
 
-	/* reset skb device */
-	nf_reset_ct(skb);
+	vrf_nf_reset_ct(skb);
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -641,7 +657,7 @@ static int vrf_finish_output6(struct net *net, struct sock *sk,
 	struct neighbour *neigh;
 	int ret;
 
-	nf_reset_ct(skb);
+	vrf_nf_reset_ct(skb);
 
 	skb->protocol = htons(ETH_P_IPV6);
 	skb->dev = dev;
@@ -752,6 +768,8 @@ static struct sk_buff *vrf_ip6_out_direct(struct net_device *vrf_dev,
 
 	skb->dev = vrf_dev;
 
+	vrf_nf_set_untracked(skb);
+
 	err = nf_hook(NFPROTO_IPV6, NF_INET_LOCAL_OUT, net, sk,
 		      skb, NULL, vrf_dev, vrf_ip6_out_direct_finish);
 
@@ -858,7 +876,7 @@ static int vrf_finish_output(struct net *net, struct sock *sk, struct sk_buff *s
 	struct neighbour *neigh;
 	bool is_v6gw = false;
 
-	nf_reset_ct(skb);
+	vrf_nf_reset_ct(skb);
 
 	/* Be paranoid, rather than too clever. */
 	if (unlikely(skb_headroom(skb) < hh_len && dev->header_ops)) {
@@ -979,6 +997,8 @@ static struct sk_buff *vrf_ip_out_direct(struct net_device *vrf_dev,
 	int err;
 
 	skb->dev = vrf_dev;
+
+	vrf_nf_set_untracked(skb);
 
 	err = nf_hook(NFPROTO_IPV4, NF_INET_LOCAL_OUT, net, sk,
 		      skb, NULL, vrf_dev, vrf_ip_out_direct_finish);
