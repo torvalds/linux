@@ -84,7 +84,7 @@ this user-space interaction. The skeleton driver needs this kind of
 interface, so it provides a minor starting number and a pointer to its
 :c:type:`file_operations` functions.
 
-The USB driver is then registered with a call to :c:func:`usb_register`,
+The USB driver is then registered with a call to usb_register(),
 usually in the driver's init function, as shown here::
 
     static int __init usb_skel_init(void)
@@ -105,7 +105,7 @@ usually in the driver's init function, as shown here::
 
 
 When the driver is unloaded from the system, it needs to deregister
-itself with the USB subsystem. This is done with the :c:func:`usb_deregister`
+itself with the USB subsystem. This is done with usb_deregister()
 function::
 
     static void __exit usb_skel_exit(void)
