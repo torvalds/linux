@@ -41,7 +41,7 @@ static const struct rt5682s_platform_data i2s_default_platform_data = {
 	.dai_clk_names[RT5682S_DAI_BCLK_IDX] = "rt5682-dai-bclk",
 };
 
-const char *rt5682s_supply_names[RT5682S_NUM_SUPPLIES] = {
+static const char *rt5682s_supply_names[RT5682S_NUM_SUPPLIES] = {
 	"AVDD",
 	"MICVDD",
 };
@@ -71,7 +71,7 @@ static void rt5682s_apply_patch_list(struct rt5682s_priv *rt5682s,
 		dev_warn(dev, "Failed to apply regmap patch: %d\n", ret);
 }
 
-const struct reg_default rt5682s_reg[] = {
+static const struct reg_default rt5682s_reg[] = {
 	{0x0002, 0x8080},
 	{0x0003, 0x0001},
 	{0x0005, 0x0000},
@@ -2838,7 +2838,7 @@ static int rt5682s_resume(struct snd_soc_component *component)
 #define rt5682s_resume NULL
 #endif
 
-const struct snd_soc_dai_ops rt5682s_aif1_dai_ops = {
+static const struct snd_soc_dai_ops rt5682s_aif1_dai_ops = {
 	.hw_params = rt5682s_hw_params,
 	.set_fmt = rt5682s_set_dai_fmt,
 	.set_tdm_slot = rt5682s_set_tdm_slot,
