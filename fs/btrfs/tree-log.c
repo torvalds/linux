@@ -2280,13 +2280,13 @@ out:
  * to is unlinked
  */
 static noinline int check_item_in_log(struct btrfs_trans_handle *trans,
-				      struct btrfs_root *root,
 				      struct btrfs_root *log,
 				      struct btrfs_path *path,
 				      struct btrfs_path *log_path,
 				      struct inode *dir,
 				      struct btrfs_key *dir_key)
 {
+	struct btrfs_root *root = BTRFS_I(dir)->root;
 	int ret;
 	struct extent_buffer *eb;
 	int slot;
@@ -2560,7 +2560,7 @@ again:
 			if (found_key.offset > range_end)
 				break;
 
-			ret = check_item_in_log(trans, root, log, path,
+			ret = check_item_in_log(trans, log, path,
 						log_path, dir,
 						&found_key);
 			if (ret)
