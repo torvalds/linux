@@ -112,18 +112,7 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 {
 	struct drm_device *drm = dev_get_drvdata(master);
 	struct msm_drm_private *priv = drm->dev_private;
-	struct platform_device *pdev = to_platform_device(dev);
-	struct msm_dsi *msm_dsi;
-
-	DBG("");
-	msm_dsi = dsi_init(pdev);
-	if (IS_ERR(msm_dsi)) {
-		/* Don't fail the bind if the dsi port is not connected */
-		if (PTR_ERR(msm_dsi) == -ENODEV)
-			return 0;
-		else
-			return PTR_ERR(msm_dsi);
-	}
+	struct msm_dsi *msm_dsi = dev_get_drvdata(dev);
 
 	priv->dsi[msm_dsi->id] = msm_dsi;
 
@@ -136,12 +125,8 @@ static void dsi_unbind(struct device *dev, struct device *master,
 	struct drm_device *drm = dev_get_drvdata(master);
 	struct msm_drm_private *priv = drm->dev_private;
 	struct msm_dsi *msm_dsi = dev_get_drvdata(dev);
-	int id = msm_dsi->id;
 
-	if (priv->dsi[id]) {
-		dsi_destroy(msm_dsi);
-		priv->dsi[id] = NULL;
-	}
+	priv->dsi[msm_dsi->id] = NULL;
 }
 
 static const struct component_ops dsi_ops = {
@@ -149,15 +134,40 @@ static const struct component_ops dsi_ops = {
 	.unbind = dsi_unbind,
 };
 
-static int dsi_dev_probe(struct platform_device *pdev)
+int dsi_dev_attach(struct platform_device *pdev)
 {
 	return component_add(&pdev->dev, &dsi_ops);
 }
 
+void dsi_dev_detach(struct platform_device *pdev)
+{
+	component_del(&pdev->dev, &dsi_ops);
+}
+
+static int dsi_dev_probe(struct platform_device *pdev)
+{
+	struct msm_dsi *msm_dsi;
+
+	DBG("");
+	msm_dsi = dsi_init(pdev);
+	if (IS_ERR(msm_dsi)) {
+		/* Don't fail the bind if the dsi port is not connected */
+		if (PTR_ERR(msm_dsi) == -ENODEV)
+			return 0;
+		else
+			return PTR_ERR(msm_dsi);
+	}
+
+	return 0;
+}
+
 static int dsi_dev_remove(struct platform_device *pdev)
 {
+	struct msm_dsi *msm_dsi = platform_get_drvdata(pdev);
+
 	DBG("");
-	component_del(&pdev->dev, &dsi_ops);
+	dsi_destroy(msm_dsi);
+
 	return 0;
 }
 
