@@ -428,7 +428,7 @@ static int ps8640_bridge_attach(struct drm_bridge *bridge,
 	if (!host)
 		return -ENODEV;
 
-	dsi = mipi_dsi_device_register_full(host, &info);
+	dsi = devm_mipi_dsi_device_register_full(dev, host, &info);
 	if (IS_ERR(dsi)) {
 		dev_err(dev, "failed to create dsi device\n");
 		ret = PTR_ERR(dsi);
@@ -442,27 +442,22 @@ static int ps8640_bridge_attach(struct drm_bridge *bridge,
 			  MIPI_DSI_MODE_VIDEO_SYNC_PULSE;
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->lanes = NUM_MIPI_LANES;
-	ret = mipi_dsi_attach(dsi);
+
+	ret = devm_mipi_dsi_attach(dev, dsi);
 	if (ret) {
 		dev_err(dev, "failed to attach dsi device: %d\n", ret);
-		goto err_dsi_attach;
+		return ret;
 	}
 
 	ret = drm_dp_aux_register(&ps_bridge->aux);
 	if (ret) {
 		dev_err(dev, "failed to register DP AUX channel: %d\n", ret);
-		goto err_aux_register;
+		return ret;
 	}
 
 	/* Attach the panel-bridge to the dsi bridge */
 	return drm_bridge_attach(bridge->encoder, ps_bridge->panel_bridge,
 				 &ps_bridge->bridge, flags);
-
-err_aux_register:
-	mipi_dsi_detach(dsi);
-err_dsi_attach:
-	mipi_dsi_device_unregister(dsi);
-	return ret;
 }
 
 static void ps8640_bridge_detach(struct drm_bridge *bridge)
