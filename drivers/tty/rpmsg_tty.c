@@ -18,6 +18,7 @@
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 
+#define RPMSG_TTY_NAME	"ttyRPMSG"
 #define MAX_TTY_RPMSG	32
 
 static DEFINE_IDR(tty_idr);	/* tty instance id */
@@ -172,7 +173,7 @@ static int rpmsg_tty_probe(struct rpmsg_device *rpdev)
 
 	dev_set_drvdata(dev, cport);
 
-	dev_dbg(dev, "New channel: 0x%x -> 0x%x : ttyRPMSG%d\n",
+	dev_dbg(dev, "New channel: 0x%x -> 0x%x: " RPMSG_TTY_NAME "%d\n",
 		rpdev->src, rpdev->dst, cport->id);
 
 	return 0;
@@ -224,7 +225,7 @@ static int __init rpmsg_tty_init(void)
 		return PTR_ERR(rpmsg_tty_driver);
 
 	rpmsg_tty_driver->driver_name = "rpmsg_tty";
-	rpmsg_tty_driver->name = "ttyRPMSG";
+	rpmsg_tty_driver->name = RPMSG_TTY_NAME;
 	rpmsg_tty_driver->major = 0;
 	rpmsg_tty_driver->type = TTY_DRIVER_TYPE_CONSOLE;
 
