@@ -260,7 +260,7 @@ int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 		scsi_normalize_sense(rq->sense, rq->sense_len, sshdr);
 	ret = rq->result;
  out:
-	blk_put_request(req);
+	blk_mq_free_request(req);
 
 	return ret;
 }
@@ -1100,7 +1100,7 @@ struct request *scsi_alloc_request(struct request_queue *q,
 {
 	struct request *rq;
 
-	rq = blk_get_request(q, op, flags);
+	rq = blk_mq_alloc_request(q, op, flags);
 	if (!IS_ERR(rq))
 		scsi_initialize_rq(rq);
 	return rq;

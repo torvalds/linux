@@ -1011,7 +1011,7 @@ pscsi_execute_cmd(struct se_cmd *cmd)
 	return 0;
 
 fail_put_request:
-	blk_put_request(req);
+	blk_mq_free_request(req);
 fail:
 	kfree(pt);
 	return ret;
@@ -1066,7 +1066,7 @@ static void pscsi_req_done(struct request *req, blk_status_t status)
 		break;
 	}
 
-	blk_put_request(req);
+	blk_mq_free_request(req);
 	kfree(pt);
 }
 

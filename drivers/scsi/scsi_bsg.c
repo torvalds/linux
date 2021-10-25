@@ -95,7 +95,7 @@ static int scsi_bsg_sg_io_fn(struct request_queue *q, struct sg_io_v4 *hdr,
 out_free_cmd:
 	scsi_req_free_cmd(scsi_req(rq));
 out_put_request:
-	blk_put_request(rq);
+	blk_mq_free_request(rq);
 	return ret;
 }
 

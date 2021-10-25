@@ -892,9 +892,6 @@ static inline bool rq_is_sync(struct request *rq)
 }
 
 void blk_rq_init(struct request_queue *q, struct request *rq);
-void blk_put_request(struct request *rq);
-struct request *blk_get_request(struct request_queue *q, unsigned int op,
-		blk_mq_req_flags_t flags);
 int blk_rq_prep_clone(struct request *rq, struct request *rq_src,
 		struct bio_set *bs, gfp_t gfp_mask,
 		int (*bio_ctr)(struct bio *, struct bio *, void *), void *data);

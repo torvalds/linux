@@ -726,7 +726,7 @@ static int pkt_generic_packet(struct pktcdvd_device *pd, struct packet_command *
 	if (scsi_req(rq)->result)
 		ret = -EIO;
 out:
-	blk_put_request(rq);
+	blk_mq_free_request(rq);
 	return ret;
 }
 

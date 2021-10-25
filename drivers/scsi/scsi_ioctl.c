@@ -490,7 +490,7 @@ static int sg_io(struct scsi_device *sdev, struct gendisk *disk,
 out_free_cdb:
 	scsi_req_free_cmd(req);
 out_put_request:
-	blk_put_request(rq);
+	blk_mq_free_request(rq);
 	return ret;
 }
 
@@ -634,7 +634,7 @@ static int sg_scsi_ioctl(struct request_queue *q, struct gendisk *disk,
 	}
 
 error:
-	blk_put_request(rq);
+	blk_mq_free_request(rq);
 
 error_free_buffer:
 	kfree(buffer);

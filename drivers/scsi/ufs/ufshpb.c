@@ -564,7 +564,7 @@ static int ufshpb_issue_pre_req(struct ufshpb_lu *hpb, struct scsi_cmnd *cmd,
 	int _read_id;
 	int ret = 0;
 
-	req = blk_get_request(cmd->device->request_queue,
+	req = blk_mq_alloc_request(cmd->device->request_queue,
 			      REQ_OP_DRV_OUT | REQ_SYNC, BLK_MQ_REQ_NOWAIT);
 	if (IS_ERR(req))
 		return -EAGAIN;
@@ -592,7 +592,7 @@ free_pre_req:
 	ufshpb_put_pre_req(hpb, pre_req);
 unlock_out:
 	spin_unlock_irqrestore(&hpb->rgn_state_lock, flags);
-	blk_put_request(req);
+	blk_mq_free_request(req);
 	return ret;
 }
 
@@ -721,7 +721,7 @@ static struct ufshpb_req *ufshpb_get_req(struct ufshpb_lu *hpb,
 		return NULL;
 
 retry:
-	req = blk_get_request(hpb->sdev_ufs_lu->request_queue, dir,
+	req = blk_mq_alloc_request(hpb->sdev_ufs_lu->request_queue, dir,
 			      BLK_MQ_REQ_NOWAIT);
 
 	if (!atomic && (PTR_ERR(req) == -EWOULDBLOCK) && (--retries > 0)) {
@@ -745,7 +745,7 @@ free_rq:
 
 static void ufshpb_put_req(struct ufshpb_lu *hpb, struct ufshpb_req *rq)
 {
-	blk_put_request(rq->req);
+	blk_mq_free_request(rq->req);
 	kmem_cache_free(hpb->map_req_cache, rq);
 }
 

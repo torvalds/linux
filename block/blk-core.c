@@ -597,27 +597,6 @@ bool blk_get_queue(struct request_queue *q)
 }
 EXPORT_SYMBOL(blk_get_queue);
 
-/**
- * blk_get_request - allocate a request
- * @q: request queue to allocate a request for
- * @op: operation (REQ_OP_*) and REQ_* flags, e.g. REQ_SYNC.
- * @flags: BLK_MQ_REQ_* flags, e.g. BLK_MQ_REQ_NOWAIT.
- */
-struct request *blk_get_request(struct request_queue *q, unsigned int op,
-				blk_mq_req_flags_t flags)
-{
-	WARN_ON_ONCE(op & REQ_NOWAIT);
-	WARN_ON_ONCE(flags & ~(BLK_MQ_REQ_NOWAIT | BLK_MQ_REQ_PM));
-	return blk_mq_alloc_request(q, op, flags);
-}
-EXPORT_SYMBOL(blk_get_request);
-
-void blk_put_request(struct request *req)
-{
-	blk_mq_free_request(req);
-}
-EXPORT_SYMBOL(blk_put_request);
-
 static void handle_bad_sector(struct bio *bio, sector_t maxsector)
 {
 	char b[BDEVNAME_SIZE];
