@@ -1551,6 +1551,12 @@
 		status = "disabled";
 	};
 
+	hwlock: hwspinlock@fe5a0000 {
+		compatible = "rockchip,hwspinlock";
+		reg = <0 0xfe5a0000 0 0x100>;
+		#hwlock-cells = <1>;
+	};
+
 	gic: interrupt-controller@fe600000 {
 		compatible = "arm,gic-v3";
 		#interrupt-cells = <3>;
