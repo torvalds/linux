@@ -59,6 +59,7 @@ EXPORT_SYMBOL_GPL(qeth_dbf);
 
 static struct kmem_cache *qeth_core_header_cache;
 static struct kmem_cache *qeth_qdio_outbuf_cache;
+static struct kmem_cache *qeth_qaob_cache;
 
 static struct device *qeth_core_root_dev;
 static struct dentry *qeth_debugfs_root;
@@ -1338,7 +1339,7 @@ static void qeth_clear_output_buffer(struct qeth_qdio_out_q *queue,
 static void qeth_free_out_buf(struct qeth_qdio_out_buffer *buf)
 {
 	if (buf->aob)
-		qdio_release_aob(buf->aob);
+		kmem_cache_free(qeth_qaob_cache, buf->aob);
 	kmem_cache_free(qeth_qdio_outbuf_cache, buf);
 }
 
@@ -3554,7 +3555,8 @@ static void qeth_flush_buffers(struct qeth_qdio_out_q *queue, int index,
 		    !qeth_iqd_is_mcast_queue(card, queue) &&
 		    count == 1) {
 			if (!buf->aob)
-				buf->aob = qdio_allocate_aob();
+				buf->aob = kmem_cache_zalloc(qeth_qaob_cache,
+							     GFP_ATOMIC);
 			if (buf->aob) {
 				struct qeth_qaob_priv1 *priv;
 
@@ -7174,6 +7176,16 @@ static int __init qeth_core_init(void)
 		rc = -ENOMEM;
 		goto cqslab_err;
 	}
+
+	qeth_qaob_cache = kmem_cache_create("qeth_qaob",
+					    sizeof(struct qaob),
+					    sizeof(struct qaob),
+					    0, NULL);
+	if (!qeth_qaob_cache) {
+		rc = -ENOMEM;
+		goto qaob_err;
+	}
+
 	rc = ccw_driver_register(&qeth_ccw_driver);
 	if (rc)
 		goto ccw_err;
@@ -7186,6 +7198,8 @@ static int __init qeth_core_init(void)
 ccwgroup_err:
 	ccw_driver_unregister(&qeth_ccw_driver);
 ccw_err:
+	kmem_cache_destroy(qeth_qaob_cache);
+qaob_err:
 	kmem_cache_destroy(qeth_qdio_outbuf_cache);
 cqslab_err:
 	kmem_cache_destroy(qeth_core_header_cache);
@@ -7204,6 +7218,7 @@ static void __exit qeth_core_exit(void)
 	qeth_clear_dbf_list();
 	ccwgroup_driver_unregister(&qeth_core_ccwgroup_driver);
 	ccw_driver_unregister(&qeth_ccw_driver);
+	kmem_cache_destroy(qeth_qaob_cache);
 	kmem_cache_destroy(qeth_qdio_outbuf_cache);
 	kmem_cache_destroy(qeth_core_header_cache);
 	root_device_unregister(qeth_core_root_dev);
