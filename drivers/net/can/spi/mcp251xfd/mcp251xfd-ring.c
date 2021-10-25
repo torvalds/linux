@@ -289,9 +289,9 @@ int mcp251xfd_ring_alloc(struct mcp251xfd_priv *priv)
 {
 	struct mcp251xfd_tx_ring *tx_ring;
 	struct mcp251xfd_rx_ring *rx_ring;
-	int tef_obj_size, tx_obj_size, rx_obj_size;
-	int tx_obj_num;
-	int ram_free, i;
+	u8 tef_obj_size, tx_obj_size, rx_obj_size;
+	u8 tx_obj_num;
+	u8 rem, i;
 
 	tef_obj_size = sizeof(struct mcp251xfd_hw_tef_obj);
 	if (mcp251xfd_is_fd_mode(priv)) {
@@ -310,17 +310,14 @@ int mcp251xfd_ring_alloc(struct mcp251xfd_priv *priv)
 	tx_ring->obj_num = tx_obj_num;
 	tx_ring->obj_size = tx_obj_size;
 
-	ram_free = MCP251XFD_RAM_SIZE - tx_obj_num *
-		(tef_obj_size + tx_obj_size);
+	rem = (MCP251XFD_RAM_SIZE - tx_obj_num *
+	       (tef_obj_size + tx_obj_size)) / rx_obj_size;
+	for (i = 0; i < ARRAY_SIZE(priv->rx) && rem; i++) {
+		u8 rx_obj_num;
 
-	for (i = 0;
-	     i < ARRAY_SIZE(priv->rx) && ram_free >= rx_obj_size;
-	     i++) {
-		int rx_obj_num;
-
-		rx_obj_num = ram_free / rx_obj_size;
-		rx_obj_num = min(1 << (fls(rx_obj_num) - 1),
-				 MCP251XFD_RX_OBJ_NUM_MAX);
+		rx_obj_num = min_t(u8, rounddown_pow_of_two(rem),
+				   MCP251XFD_FIFO_DEPTH);
+		rem -= rx_obj_num;
 
 		priv->rx_obj_num += rx_obj_num;
 
@@ -330,11 +327,10 @@ int mcp251xfd_ring_alloc(struct mcp251xfd_priv *priv)
 			mcp251xfd_ring_free(priv);
 			return -ENOMEM;
 		}
+
 		rx_ring->obj_num = rx_obj_num;
 		rx_ring->obj_size = rx_obj_size;
 		priv->rx[i] = rx_ring;
-
-		ram_free -= rx_ring->obj_num * rx_ring->obj_size;
 	}
 	priv->rx_ring_num = i;
 
