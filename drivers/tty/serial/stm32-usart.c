@@ -761,6 +761,10 @@ static void stm32_usart_stop_rx(struct uart_port *port)
 	struct stm32_port *stm32_port = to_stm32_port(port);
 	const struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;
 
+	/* Disable DMA request line. */
+	if (stm32_port->rx_ch)
+		stm32_usart_clr_bits(port, ofs->cr3, USART_CR3_DMAR);
+
 	stm32_usart_clr_bits(port, ofs->cr1, stm32_port->cr1_irq);
 	if (stm32_port->cr3_irq)
 		stm32_usart_clr_bits(port, ofs->cr3, stm32_port->cr3_irq);
@@ -777,6 +781,7 @@ static int stm32_usart_startup(struct uart_port *port)
 	const struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;
 	const struct stm32_usart_config *cfg = &stm32_port->info->cfg;
 	const char *name = to_platform_device(port->dev)->name;
+	struct dma_async_tx_descriptor *desc;
 	u32 val;
 	int ret;
 
@@ -797,6 +802,33 @@ static int stm32_usart_startup(struct uart_port *port)
 	if (ofs->rqr != UNDEF_REG)
 		writel_relaxed(USART_RQR_RXFRQ, port->membase + ofs->rqr);
 
+	if (stm32_port->rx_ch) {
+		stm32_port->last_res = RX_BUF_L;
+		/* Prepare a DMA cyclic transaction */
+		desc = dmaengine_prep_dma_cyclic(stm32_port->rx_ch,
+						 stm32_port->rx_dma_buf,
+						 RX_BUF_L, RX_BUF_P,
+						 DMA_DEV_TO_MEM,
+						 DMA_PREP_INTERRUPT);
+		if (!desc) {
+			dev_err(port->dev, "rx dma prep cyclic failed\n");
+			ret = -ENODEV;
+			goto err;
+		}
+
+		desc->callback = stm32_usart_rx_dma_complete;
+		desc->callback_param = port;
+
+		/* Push current DMA transaction in the pending queue */
+		ret = dma_submit_error(dmaengine_submit(desc));
+		if (ret) {
+			dmaengine_terminate_sync(stm32_port->rx_ch);
+			goto err;
+		}
+
+		/* Issue pending DMA requests */
+		dma_async_issue_pending(stm32_port->rx_ch);
+	}
 	/*
 	 * DMA request line not re-enabled at resume when port is throttled.
 	 * It will be re-enabled by unthrottle ops.
@@ -809,6 +841,11 @@ static int stm32_usart_startup(struct uart_port *port)
 	stm32_usart_set_bits(port, ofs->cr1, val);
 
 	return 0;
+
+err:
+	free_irq(port->irq, port);
+
+	return ret;
 }
 
 static void stm32_usart_shutdown(struct uart_port *port)
@@ -835,6 +872,10 @@ static void stm32_usart_shutdown(struct uart_port *port)
 	/* Send the TC error message only when ISR_TC is not set */
 	if (ret)
 		dev_err(port->dev, "Transmission is not complete\n");
+
+	/* Disable RX DMA. */
+	if (stm32_port->rx_ch)
+		dmaengine_terminate_async(stm32_port->rx_ch);
 
 	/* flush RX & TX FIFO */
 	if (ofs->rqr != UNDEF_REG)
@@ -1304,7 +1345,6 @@ static int stm32_usart_of_dma_rx_probe(struct stm32_port *stm32port,
 	struct uart_port *port = &stm32port->port;
 	struct device *dev = &pdev->dev;
 	struct dma_slave_config config;
-	struct dma_async_tx_descriptor *desc = NULL;
 	int ret;
 
 	/*
@@ -1331,32 +1371,6 @@ static int stm32_usart_of_dma_rx_probe(struct stm32_port *stm32port,
 		stm32_usart_of_dma_rx_remove(stm32port, pdev);
 		return ret;
 	}
-
-	/* Prepare a DMA cyclic transaction */
-	desc = dmaengine_prep_dma_cyclic(stm32port->rx_ch,
-					 stm32port->rx_dma_buf,
-					 RX_BUF_L, RX_BUF_P, DMA_DEV_TO_MEM,
-					 DMA_PREP_INTERRUPT);
-	if (!desc) {
-		dev_err(dev, "rx dma prep cyclic failed\n");
-		stm32_usart_of_dma_rx_remove(stm32port, pdev);
-		return -ENODEV;
-	}
-
-	/* Set DMA callback */
-	desc->callback = stm32_usart_rx_dma_complete;
-	desc->callback_param = port;
-
-	/* Push current DMA transaction in the pending queue */
-	ret = dma_submit_error(dmaengine_submit(desc));
-	if (ret) {
-		dmaengine_terminate_sync(stm32port->rx_ch);
-		stm32_usart_of_dma_rx_remove(stm32port, pdev);
-		return ret;
-	}
-
-	/* Issue pending DMA requests */
-	dma_async_issue_pending(stm32port->rx_ch);
 
 	return 0;
 }
@@ -1535,7 +1549,6 @@ static int stm32_usart_serial_remove(struct platform_device *pdev)
 	}
 
 	if (stm32_port->rx_ch) {
-		dmaengine_terminate_async(stm32_port->rx_ch);
 		stm32_usart_of_dma_rx_remove(stm32_port, pdev);
 		dma_release_channel(stm32_port->rx_ch);
 	}
