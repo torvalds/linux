@@ -1413,10 +1413,11 @@ out:
 	return ret;
 }
 
-static int add_link(struct btrfs_trans_handle *trans, struct btrfs_root *root,
+static int add_link(struct btrfs_trans_handle *trans,
 		    struct inode *dir, struct inode *inode, const char *name,
 		    int namelen, u64 ref_index)
 {
+	struct btrfs_root *root = BTRFS_I(dir)->root;
 	struct btrfs_dir_item *dir_item;
 	struct btrfs_key key;
 	struct btrfs_path *path;
@@ -1612,7 +1613,7 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 				goto out;
 
 			/* insert our name */
-			ret = add_link(trans, root, dir, inode, name, namelen,
+			ret = add_link(trans, dir, inode, name, namelen,
 				       ref_index);
 			if (ret)
 				goto out;
