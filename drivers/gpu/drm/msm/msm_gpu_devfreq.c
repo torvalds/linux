@@ -200,7 +200,8 @@ void msm_devfreq_idle(struct msm_gpu *gpu)
 
 	idle_freq = get_freq(gpu);
 
-	msm_devfreq_target(&gpu->pdev->dev, &target_freq, 0);
+	if (gpu->clamp_to_idle)
+		msm_devfreq_target(&gpu->pdev->dev, &target_freq, 0);
 
 	df->idle_time = ktime_get();
 	df->idle_freq = idle_freq;

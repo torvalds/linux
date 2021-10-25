@@ -423,6 +423,7 @@ out_del:
 	device_del(pdev);
 out_put:
 	put_device(pdev);
+	return ERR_PTR(err);
 out_put_disk:
 	put_disk(disk);
 	return ERR_PTR(err);
