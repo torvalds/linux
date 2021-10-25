@@ -171,12 +171,18 @@ static inline void fanotify_init_event(struct fanotify_event *event,
 	event->pid = NULL;
 }
 
+#define FANOTIFY_INLINE_FH(name, size)					\
+struct {								\
+	struct fanotify_fh (name);					\
+	/* Space for object_fh.buf[] - access with fanotify_fh_buf() */	\
+	unsigned char _inline_fh_buf[(size)];				\
+}
+
 struct fanotify_fid_event {
 	struct fanotify_event fae;
 	__kernel_fsid_t fsid;
-	struct fanotify_fh object_fh;
-	/* Reserve space in object_fh.buf[] - access with fanotify_fh_buf() */
-	unsigned char _inline_fh_buf[FANOTIFY_INLINE_FH_LEN];
+
+	FANOTIFY_INLINE_FH(object_fh, FANOTIFY_INLINE_FH_LEN);
 };
 
 static inline struct fanotify_fid_event *
