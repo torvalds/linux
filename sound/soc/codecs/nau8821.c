@@ -381,7 +381,7 @@ static int dmic_clock_control(struct snd_soc_dapm_widget *w,
 			speed_selection = dmic_speed_sel[i].val;
 			break;
 		}
-	if (speed_selection < 0)
+	if (i == 4)
 		return -EINVAL;
 
 	dev_dbg(nau8821->dev,
