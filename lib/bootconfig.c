@@ -43,12 +43,12 @@ static int open_brace[XBC_DEPTH_MAX] __initdata;
 static int brace_index __initdata;
 
 #ifdef __KERNEL__
-static inline void *xbc_alloc_mem(size_t size)
+static inline void * __init xbc_alloc_mem(size_t size)
 {
 	return memblock_alloc(size, SMP_CACHE_BYTES);
 }
 
-static inline void xbc_free_mem(void *addr, size_t size)
+static inline void __init xbc_free_mem(void *addr, size_t size)
 {
 	memblock_free_ptr(addr, size);
 }
