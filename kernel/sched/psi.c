@@ -833,7 +833,6 @@ void psi_task_switch(struct task_struct *prev, struct task_struct *next,
 		/*
 		 * When switching between tasks that have an identical
 		 * runtime state, the cgroup that contains both tasks
-		 * runtime state, the cgroup that contains both tasks
 		 * we reach the first common ancestor. Iterate @next's
 		 * ancestors only until we encounter @prev's ONCPU.
 		 */
