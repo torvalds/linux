@@ -616,6 +616,8 @@ static void vc4_hdmi_enable_scrambling(struct drm_encoder *encoder)
 		   VC5_HDMI_SCRAMBLER_CTL_ENABLE);
 	spin_unlock_irqrestore(&vc4_hdmi->hw_lock, flags);
 
+	vc4_hdmi->scdc_enabled = true;
+
 	queue_delayed_work(system_wq, &vc4_hdmi->scrambling_work,
 			   msecs_to_jiffies(SCRAMBLING_POLLING_DELAY_MS));
 }
@@ -623,22 +625,14 @@ static void vc4_hdmi_enable_scrambling(struct drm_encoder *encoder)
 static void vc4_hdmi_disable_scrambling(struct drm_encoder *encoder)
 {
 	struct vc4_hdmi *vc4_hdmi = encoder_to_vc4_hdmi(encoder);
-	struct drm_display_mode *mode = &vc4_hdmi->saved_adjusted_mode;
-	struct drm_crtc *crtc = encoder->crtc;
 	unsigned long flags;
 
 	lockdep_assert_held(&vc4_hdmi->mutex);
 
-	/*
-	 * At boot, encoder->crtc will be NULL. Since we don't know the
-	 * state of the scrambler and in order to avoid any
-	 * inconsistency, let's disable it all the time.
-	 */
-	if (crtc && !vc4_hdmi_supports_scrambling(encoder, mode))
+	if (!vc4_hdmi->scdc_enabled)
 		return;
 
-	if (crtc && !vc4_hdmi_mode_needs_scrambling(mode))
-		return;
+	vc4_hdmi->scdc_enabled = false;
 
 	if (delayed_work_pending(&vc4_hdmi->scrambling_work))
 		cancel_delayed_work_sync(&vc4_hdmi->scrambling_work);
@@ -2511,6 +2505,14 @@ static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
 	vc4_hdmi->encoder.base.post_crtc_powerdown = vc4_hdmi_encoder_post_crtc_powerdown;
 	vc4_hdmi->pdev = pdev;
 	vc4_hdmi->variant = variant;
+
+	/*
+	 * Since we don't know the state of the controller and its
+	 * display (if any), let's assume it's always enabled.
+	 * vc4_hdmi_disable_scrambling() will thus run at boot, make
+	 * sure it's disabled, and avoid any inconsistency.
+	 */
+	vc4_hdmi->scdc_enabled = true;
 
 	ret = variant->init_resources(vc4_hdmi);
 	if (ret)

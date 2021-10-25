@@ -209,6 +209,12 @@ struct vc4_hdmi {
 	 * Protected by @mutex.
 	 */
 	bool output_enabled;
+
+	/**
+	 * @scdc_enabled: Is the HDMI controller currently running with
+	 * the scrambler on? Protected by @mutex.
+	 */
+	bool scdc_enabled;
 };
 
 static inline struct vc4_hdmi *
