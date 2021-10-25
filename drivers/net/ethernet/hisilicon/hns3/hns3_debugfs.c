@@ -343,6 +343,13 @@ static struct hns3_dbg_cmd_info hns3_dbg_cmd[] = {
 		.buf_len = HNS3_DBG_READ_LEN,
 		.init = hns3_dbg_common_file_init,
 	},
+	{
+		.name = "coalesce_info",
+		.cmd = HNAE3_DBG_CMD_COAL_INFO,
+		.dentry = HNS3_DBG_DENTRY_COMMON,
+		.buf_len = HNS3_DBG_READ_LEN_1MB,
+		.init = hns3_dbg_common_file_init,
+	},
 };
 
 static struct hns3_dbg_cap_info hns3_dbg_cap[] = {
@@ -391,6 +398,26 @@ static struct hns3_dbg_cap_info hns3_dbg_cap[] = {
 	}
 };
 
+static const struct hns3_dbg_item coal_info_items[] = {
+	{ "VEC_ID", 2 },
+	{ "ALGO_STATE", 2 },
+	{ "PROFILE_ID", 2 },
+	{ "CQE_MODE", 2 },
+	{ "TUNE_STATE", 2 },
+	{ "STEPS_LEFT", 2 },
+	{ "STEPS_RIGHT", 2 },
+	{ "TIRED", 2 },
+	{ "SW_GL", 2 },
+	{ "SW_QL", 2 },
+	{ "HW_GL", 2 },
+	{ "HW_QL", 2 },
+};
+
+static const char * const dim_cqe_mode_str[] = { "EQE", "CQE" };
+static const char * const dim_state_str[] = { "START", "IN_PROG", "APPLY" };
+static const char * const
+dim_tune_stat_str[] = { "ON_TOP", "TIRED", "RIGHT", "LEFT" };
+
 static void hns3_dbg_fill_content(char *content, u16 len,
 				  const struct hns3_dbg_item *items,
 				  const char **result, u16 size)
@@ -410,6 +437,94 @@ static void hns3_dbg_fill_content(char *content, u16 len,
 
 	*pos++ = '\n';
 	*pos++ = '\0';
+}
+
+static void hns3_get_coal_info(struct hns3_enet_tqp_vector *tqp_vector,
+			       char **result, int i, bool is_tx)
+{
+	unsigned int gl_offset, ql_offset;
+	struct hns3_enet_coalesce *coal;
+	unsigned int reg_val;
+	unsigned int j = 0;
+	struct dim *dim;
+	bool ql_enable;
+
+	if (is_tx) {
+		coal = &tqp_vector->tx_group.coal;
+		dim = &tqp_vector->tx_group.dim;
+		gl_offset = HNS3_VECTOR_GL1_OFFSET;
+		ql_offset = HNS3_VECTOR_TX_QL_OFFSET;
+		ql_enable = tqp_vector->tx_group.coal.ql_enable;
+	} else {
+		coal = &tqp_vector->rx_group.coal;
+		dim = &tqp_vector->rx_group.dim;
+		gl_offset = HNS3_VECTOR_GL0_OFFSET;
+		ql_offset = HNS3_VECTOR_RX_QL_OFFSET;
+		ql_enable = tqp_vector->rx_group.coal.ql_enable;
+	}
+
+	sprintf(result[j++], "%d", i);
+	sprintf(result[j++], "%s", dim_state_str[dim->state]);
+	sprintf(result[j++], "%u", dim->profile_ix);
+	sprintf(result[j++], "%s", dim_cqe_mode_str[dim->mode]);
+	sprintf(result[j++], "%s",
+		dim_tune_stat_str[dim->tune_state]);
+	sprintf(result[j++], "%u", dim->steps_left);
+	sprintf(result[j++], "%u", dim->steps_right);
+	sprintf(result[j++], "%u", dim->tired);
+	sprintf(result[j++], "%u", coal->int_gl);
+	sprintf(result[j++], "%u", coal->int_ql);
+	reg_val = readl(tqp_vector->mask_addr + gl_offset) &
+		  HNS3_VECTOR_GL_MASK;
+	sprintf(result[j++], "%u", reg_val);
+	if (ql_enable) {
+		reg_val = readl(tqp_vector->mask_addr + ql_offset) &
+			  HNS3_VECTOR_QL_MASK;
+		sprintf(result[j++], "%u", reg_val);
+	} else {
+		sprintf(result[j++], "NA");
+	}
+}
+
+static void hns3_dump_coal_info(struct hnae3_handle *h, char *buf, int len,
+				int *pos, bool is_tx)
+{
+	char data_str[ARRAY_SIZE(coal_info_items)][HNS3_DBG_DATA_STR_LEN];
+	char *result[ARRAY_SIZE(coal_info_items)];
+	struct hns3_enet_tqp_vector *tqp_vector;
+	struct hns3_nic_priv *priv = h->priv;
+	char content[HNS3_DBG_INFO_LEN];
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(coal_info_items); i++)
+		result[i] = &data_str[i][0];
+
+	*pos += scnprintf(buf + *pos, len - *pos,
+			  "%s interrupt coalesce info:\n",
+			  is_tx ? "tx" : "rx");
+	hns3_dbg_fill_content(content, sizeof(content), coal_info_items,
+			      NULL, ARRAY_SIZE(coal_info_items));
+	*pos += scnprintf(buf + *pos, len - *pos, "%s", content);
+
+	for (i = 0; i < priv->vector_num; i++) {
+		tqp_vector = &priv->tqp_vector[i];
+		hns3_get_coal_info(tqp_vector, result, i, is_tx);
+		hns3_dbg_fill_content(content, sizeof(content), coal_info_items,
+				      (const char **)result,
+				      ARRAY_SIZE(coal_info_items));
+		*pos += scnprintf(buf + *pos, len - *pos, "%s", content);
+	}
+}
+
+static int hns3_dbg_coal_info(struct hnae3_handle *h, char *buf, int len)
+{
+	int pos = 0;
+
+	hns3_dump_coal_info(h, buf, len, &pos, true);
+	pos += scnprintf(buf + pos, len - pos, "\n");
+	hns3_dump_coal_info(h, buf, len, &pos, false);
+
+	return 0;
 }
 
 static const struct hns3_dbg_item tx_spare_info_items[] = {
@@ -935,6 +1050,8 @@ hns3_dbg_dev_specs(struct hnae3_handle *h, char *buf, int len, int *pos)
 			  dev_specs->umv_size);
 	*pos += scnprintf(buf + *pos, len - *pos, "mc mac size: %u\n",
 			  dev_specs->mc_mac_size);
+	*pos += scnprintf(buf + *pos, len - *pos, "MAC statistics number: %u\n",
+			  dev_specs->mac_stats_num);
 }
 
 static int hns3_dbg_dev_info(struct hnae3_handle *h, char *buf, int len)
@@ -1055,6 +1172,10 @@ static const struct hns3_dbg_func hns3_dbg_cmd_func[] = {
 	{
 		.cmd = HNAE3_DBG_CMD_PAGE_POOL_INFO,
 		.dbg_dump = hns3_dbg_page_pool_info,
+	},
+	{
+		.cmd = HNAE3_DBG_CMD_COAL_INFO,
+		.dbg_dump = hns3_dbg_coal_info,
 	},
 };
 

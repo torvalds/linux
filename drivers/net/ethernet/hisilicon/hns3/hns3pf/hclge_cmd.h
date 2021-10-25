@@ -1150,6 +1150,7 @@ struct hclge_query_ppu_pf_other_int_dfx_cmd {
 #define HCLGE_LINK_EVENT_REPORT_EN_B	0
 #define HCLGE_NCSI_ERROR_REPORT_EN_B	1
 #define HCLGE_PHY_IMP_EN_B		2
+#define HCLGE_MAC_STATS_EXT_EN_B	3
 struct hclge_firmware_compat_cmd {
 	__le32 compat;
 	u8 rsv[20];
