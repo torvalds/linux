@@ -1831,7 +1831,7 @@ static ssize_t termination_show(struct device *dev,
 		return -ETIMEDOUT;
 	}
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", mod->termination_enabled);
+	return sysfs_emit(buf, "%u\n", mod->termination_enabled);
 }
 
 static ssize_t termination_store(struct device *dev,
