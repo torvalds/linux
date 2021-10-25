@@ -55,6 +55,8 @@
 struct ip6_ra_chain *ip6_ra_chain;
 DEFINE_RWLOCK(ip6_ra_lock);
 
+DEFINE_STATIC_KEY_FALSE(ip6_min_hopcount);
+
 int ip6_ra_control(struct sock *sk, int sel)
 {
 	struct ip6_ra_chain *ra, *new_ra, **rap;
@@ -950,6 +952,10 @@ done:
 			goto e_inval;
 		if (val < 0 || val > 255)
 			goto e_inval;
+
+		if (val)
+			static_branch_enable(&ip6_min_hopcount);
+
 		/* tcp_v6_err() and tcp_v6_rcv() might read min_hopcount
 		 * while we are changing it.
 		 */

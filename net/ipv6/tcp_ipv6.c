@@ -414,10 +414,12 @@ static int tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	if (sk->sk_state == TCP_CLOSE)
 		goto out;
 
-	/* min_hopcount can be changed concurrently from do_ipv6_setsockopt() */
-	if (ipv6_hdr(skb)->hop_limit < READ_ONCE(tcp_inet6_sk(sk)->min_hopcount)) {
-		__NET_INC_STATS(net, LINUX_MIB_TCPMINTTLDROP);
-		goto out;
+	if (static_branch_unlikely(&ip6_min_hopcount)) {
+		/* min_hopcount can be changed concurrently from do_ipv6_setsockopt() */
+		if (ipv6_hdr(skb)->hop_limit < READ_ONCE(tcp_inet6_sk(sk)->min_hopcount)) {
+			__NET_INC_STATS(net, LINUX_MIB_TCPMINTTLDROP);
+			goto out;
+		}
 	}
 
 	tp = tcp_sk(sk);
@@ -1727,10 +1729,13 @@ process:
 			return 0;
 		}
 	}
-	/* min_hopcount can be changed concurrently from do_ipv6_setsockopt() */
-	if (hdr->hop_limit < READ_ONCE(tcp_inet6_sk(sk)->min_hopcount)) {
-		__NET_INC_STATS(net, LINUX_MIB_TCPMINTTLDROP);
-		goto discard_and_relse;
+
+	if (static_branch_unlikely(&ip6_min_hopcount)) {
+		/* min_hopcount can be changed concurrently from do_ipv6_setsockopt() */
+		if (hdr->hop_limit < READ_ONCE(tcp_inet6_sk(sk)->min_hopcount)) {
+			__NET_INC_STATS(net, LINUX_MIB_TCPMINTTLDROP);
+			goto discard_and_relse;
+		}
 	}
 
 	if (!xfrm6_policy_check(sk, XFRM_POLICY_IN, skb))
