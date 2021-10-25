@@ -775,9 +775,9 @@ static int ath11k_mac_monitor_vdev_start(struct ath11k *ar, int vdev_id,
 	arg.channel.chan_radar = !!(channel->flags & IEEE80211_CHAN_RADAR);
 
 	arg.channel.min_power = 0;
-	arg.channel.max_power = channel->max_power * 2;
-	arg.channel.max_reg_power = channel->max_reg_power * 2;
-	arg.channel.max_antenna_gain = channel->max_antenna_gain * 2;
+	arg.channel.max_power = channel->max_power;
+	arg.channel.max_reg_power = channel->max_reg_power;
+	arg.channel.max_antenna_gain = channel->max_antenna_gain;
 
 	arg.pref_tx_streams = ar->num_tx_chains;
 	arg.pref_rx_streams = ar->num_rx_chains;
@@ -6123,9 +6123,9 @@ ath11k_mac_vdev_start_restart(struct ath11k_vif *arvif,
 		ath11k_phymodes[chandef->chan->band][chandef->width];
 
 	arg.channel.min_power = 0;
-	arg.channel.max_power = chandef->chan->max_power * 2;
-	arg.channel.max_reg_power = chandef->chan->max_reg_power * 2;
-	arg.channel.max_antenna_gain = chandef->chan->max_antenna_gain * 2;
+	arg.channel.max_power = chandef->chan->max_power;
+	arg.channel.max_reg_power = chandef->chan->max_reg_power;
+	arg.channel.max_antenna_gain = chandef->chan->max_antenna_gain;
 
 	arg.pref_tx_streams = ar->num_tx_chains;
 	arg.pref_rx_streams = ar->num_rx_chains;
