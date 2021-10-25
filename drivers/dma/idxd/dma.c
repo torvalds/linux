@@ -329,10 +329,9 @@ static void idxd_dmaengine_drv_remove(struct idxd_dev *idxd_dev)
 	mutex_lock(&wq->wq_lock);
 	idxd_wq_quiesce(wq);
 	idxd_unregister_dma_channel(wq);
+	idxd_wq_free_resources(wq);
 	__drv_disable_wq(wq);
 	percpu_ref_exit(&wq->wq_active);
-	idxd_wq_free_resources(wq);
-	wq->type = IDXD_WQT_NONE;
 	mutex_unlock(&wq->wq_lock);
 }
 
