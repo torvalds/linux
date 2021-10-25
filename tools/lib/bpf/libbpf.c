@@ -6653,8 +6653,6 @@ int bpf_program__load(struct bpf_program *prog, char *license, __u32 kern_ver)
 out:
 	if (err)
 		pr_warn("failed to load program '%s'\n", prog->name);
-	zfree(&prog->insns);
-	prog->insns_cnt = 0;
 	return libbpf_err(err);
 }
 
@@ -8141,6 +8139,16 @@ int bpf_program__fd(const struct bpf_program *prog)
 size_t bpf_program__size(const struct bpf_program *prog)
 {
 	return prog->insns_cnt * BPF_INSN_SZ;
+}
+
+const struct bpf_insn *bpf_program__insns(const struct bpf_program *prog)
+{
+	return prog->insns;
+}
+
+size_t bpf_program__insn_cnt(const struct bpf_program *prog)
+{
+	return prog->insns_cnt;
 }
 
 int bpf_program__set_prep(struct bpf_program *prog, int nr_instances,
