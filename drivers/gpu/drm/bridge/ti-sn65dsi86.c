@@ -702,18 +702,57 @@ static struct ti_sn65dsi86 *bridge_to_ti_sn65dsi86(struct drm_bridge *bridge)
 	return container_of(bridge, struct ti_sn65dsi86, bridge);
 }
 
-static int ti_sn_bridge_attach(struct drm_bridge *bridge,
-			       enum drm_bridge_attach_flags flags)
+static int ti_sn_attach_host(struct ti_sn65dsi86 *pdata)
 {
 	int ret, val;
-	struct ti_sn65dsi86 *pdata = bridge_to_ti_sn65dsi86(bridge);
 	struct mipi_dsi_host *host;
 	struct mipi_dsi_device *dsi;
 	struct device *dev = pdata->dev;
 	const struct mipi_dsi_device_info info = { .type = "ti_sn_bridge",
 						   .channel = 0,
 						   .node = NULL,
-						 };
+	};
+
+	host = of_find_mipi_dsi_host_by_node(pdata->host_node);
+	if (!host) {
+		DRM_ERROR("failed to find dsi host\n");
+		return -ENODEV;
+	}
+
+	dsi = devm_mipi_dsi_device_register_full(dev, host, &info);
+	if (IS_ERR(dsi)) {
+		DRM_ERROR("failed to create dsi device\n");
+		return PTR_ERR(dsi);
+	}
+
+	/* TODO: setting to 4 MIPI lanes always for now */
+	dsi->lanes = 4;
+	dsi->format = MIPI_DSI_FMT_RGB888;
+	dsi->mode_flags = MIPI_DSI_MODE_VIDEO;
+
+	/* check if continuous dsi clock is required or not */
+	pm_runtime_get_sync(dev);
+	regmap_read(pdata->regmap, SN_DPPLL_SRC_REG, &val);
+	pm_runtime_put_autosuspend(dev);
+	if (!(val & DPPLL_CLK_SRC_DSICLK))
+		dsi->mode_flags |= MIPI_DSI_CLOCK_NON_CONTINUOUS;
+
+	pdata->dsi = dsi;
+
+	ret = devm_mipi_dsi_attach(dev, dsi);
+	if (ret < 0) {
+		DRM_ERROR("failed to attach dsi to host\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+static int ti_sn_bridge_attach(struct drm_bridge *bridge,
+			       enum drm_bridge_attach_flags flags)
+{
+	struct ti_sn65dsi86 *pdata = bridge_to_ti_sn65dsi86(bridge);
+	int ret;
 
 	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR) {
 		DRM_ERROR("Fix bridge driver to make connector optional!");
@@ -730,50 +769,6 @@ static int ti_sn_bridge_attach(struct drm_bridge *bridge,
 	ret = ti_sn_bridge_connector_init(pdata);
 	if (ret < 0)
 		goto err_conn_init;
-
-	/*
-	 * TODO: ideally finding host resource and dsi dev registration needs
-	 * to be done in bridge probe. But some existing DSI host drivers will
-	 * wait for any of the drm_bridge/drm_panel to get added to the global
-	 * bridge/panel list, before completing their probe. So if we do the
-	 * dsi dev registration part in bridge probe, before populating in
-	 * the global bridge list, then it will cause deadlock as dsi host probe
-	 * will never complete, neither our bridge probe. So keeping it here
-	 * will satisfy most of the existing host drivers. Once the host driver
-	 * is fixed we can move the below code to bridge probe safely.
-	 */
-	host = of_find_mipi_dsi_host_by_node(pdata->host_node);
-	if (!host) {
-		DRM_ERROR("failed to find dsi host\n");
-		ret = -ENODEV;
-		goto err_dsi_host;
-	}
-
-	dsi = devm_mipi_dsi_device_register_full(dev, host, &info);
-	if (IS_ERR(dsi)) {
-		DRM_ERROR("failed to create dsi device\n");
-		ret = PTR_ERR(dsi);
-		goto err_dsi_host;
-	}
-
-	/* TODO: setting to 4 MIPI lanes always for now */
-	dsi->lanes = 4;
-	dsi->format = MIPI_DSI_FMT_RGB888;
-	dsi->mode_flags = MIPI_DSI_MODE_VIDEO;
-
-	/* check if continuous dsi clock is required or not */
-	pm_runtime_get_sync(dev);
-	regmap_read(pdata->regmap, SN_DPPLL_SRC_REG, &val);
-	pm_runtime_put_autosuspend(dev);
-	if (!(val & DPPLL_CLK_SRC_DSICLK))
-		dsi->mode_flags |= MIPI_DSI_CLOCK_NON_CONTINUOUS;
-
-	ret = devm_mipi_dsi_attach(dev, dsi);
-	if (ret < 0) {
-		DRM_ERROR("failed to attach dsi to host\n");
-		goto err_dsi_host;
-	}
-	pdata->dsi = dsi;
 
 	/* We never want the next bridge to *also* create a connector: */
 	flags |= DRM_BRIDGE_ATTACH_NO_CONNECTOR;
@@ -1271,7 +1266,15 @@ static int ti_sn_bridge_probe(struct auxiliary_device *adev,
 
 	drm_bridge_add(&pdata->bridge);
 
+	ret = ti_sn_attach_host(pdata);
+	if (ret)
+		goto err_remove_bridge;
+
 	return 0;
+
+err_remove_bridge:
+	drm_bridge_remove(&pdata->bridge);
+	return ret;
 }
 
 static void ti_sn_bridge_remove(struct auxiliary_device *adev)
