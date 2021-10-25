@@ -276,7 +276,6 @@ struct gswip_priv {
 	int num_gphy_fw;
 	struct gswip_gphy_fw *gphy_fw;
 	u32 port_vlan_filter;
-	struct mutex pce_table_lock;
 };
 
 struct gswip_pce_table_entry {
@@ -524,14 +523,10 @@ static int gswip_pce_table_entry_read(struct gswip_priv *priv,
 	u16 addr_mode = tbl->key_mode ? GSWIP_PCE_TBL_CTRL_OPMOD_KSRD :
 					GSWIP_PCE_TBL_CTRL_OPMOD_ADRD;
 
-	mutex_lock(&priv->pce_table_lock);
-
 	err = gswip_switch_r_timeout(priv, GSWIP_PCE_TBL_CTRL,
 				     GSWIP_PCE_TBL_CTRL_BAS);
-	if (err) {
-		mutex_unlock(&priv->pce_table_lock);
+	if (err)
 		return err;
-	}
 
 	gswip_switch_w(priv, tbl->index, GSWIP_PCE_TBL_ADDR);
 	gswip_switch_mask(priv, GSWIP_PCE_TBL_CTRL_ADDR_MASK |
@@ -541,10 +536,8 @@ static int gswip_pce_table_entry_read(struct gswip_priv *priv,
 
 	err = gswip_switch_r_timeout(priv, GSWIP_PCE_TBL_CTRL,
 				     GSWIP_PCE_TBL_CTRL_BAS);
-	if (err) {
-		mutex_unlock(&priv->pce_table_lock);
+	if (err)
 		return err;
-	}
 
 	for (i = 0; i < ARRAY_SIZE(tbl->key); i++)
 		tbl->key[i] = gswip_switch_r(priv, GSWIP_PCE_TBL_KEY(i));
@@ -560,8 +553,6 @@ static int gswip_pce_table_entry_read(struct gswip_priv *priv,
 	tbl->valid = !!(crtl & GSWIP_PCE_TBL_CTRL_VLD);
 	tbl->gmap = (crtl & GSWIP_PCE_TBL_CTRL_GMAP_MASK) >> 7;
 
-	mutex_unlock(&priv->pce_table_lock);
-
 	return 0;
 }
 
@@ -574,14 +565,10 @@ static int gswip_pce_table_entry_write(struct gswip_priv *priv,
 	u16 addr_mode = tbl->key_mode ? GSWIP_PCE_TBL_CTRL_OPMOD_KSWR :
 					GSWIP_PCE_TBL_CTRL_OPMOD_ADWR;
 
-	mutex_lock(&priv->pce_table_lock);
-
 	err = gswip_switch_r_timeout(priv, GSWIP_PCE_TBL_CTRL,
 				     GSWIP_PCE_TBL_CTRL_BAS);
-	if (err) {
-		mutex_unlock(&priv->pce_table_lock);
+	if (err)
 		return err;
-	}
 
 	gswip_switch_w(priv, tbl->index, GSWIP_PCE_TBL_ADDR);
 	gswip_switch_mask(priv, GSWIP_PCE_TBL_CTRL_ADDR_MASK |
@@ -613,12 +600,8 @@ static int gswip_pce_table_entry_write(struct gswip_priv *priv,
 	crtl |= GSWIP_PCE_TBL_CTRL_BAS;
 	gswip_switch_w(priv, crtl, GSWIP_PCE_TBL_CTRL);
 
-	err = gswip_switch_r_timeout(priv, GSWIP_PCE_TBL_CTRL,
-				     GSWIP_PCE_TBL_CTRL_BAS);
-
-	mutex_unlock(&priv->pce_table_lock);
-
-	return err;
+	return gswip_switch_r_timeout(priv, GSWIP_PCE_TBL_CTRL,
+				      GSWIP_PCE_TBL_CTRL_BAS);
 }
 
 /* Add the LAN port into a bridge with the CPU port by
@@ -2121,7 +2104,6 @@ static int gswip_probe(struct platform_device *pdev)
 	priv->ds->priv = priv;
 	priv->ds->ops = priv->hw_info->ops;
 	priv->dev = dev;
-	mutex_init(&priv->pce_table_lock);
 	version = gswip_switch_r(priv, GSWIP_VERSION);
 
 	np = dev->of_node;

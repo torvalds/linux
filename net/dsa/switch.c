@@ -215,30 +215,26 @@ static int dsa_port_do_mdb_add(struct dsa_port *dp,
 	struct dsa_switch *ds = dp->ds;
 	struct dsa_mac_addr *a;
 	int port = dp->index;
-	int err = 0;
+	int err;
 
 	/* No need to bother with refcounting for user ports */
 	if (!(dsa_port_is_cpu(dp) || dsa_port_is_dsa(dp)))
 		return ds->ops->port_mdb_add(ds, port, mdb);
 
-	mutex_lock(&dp->addr_lists_lock);
-
 	a = dsa_mac_addr_find(&dp->mdbs, mdb->addr, mdb->vid);
 	if (a) {
 		refcount_inc(&a->refcount);
-		goto out;
+		return 0;
 	}
 
 	a = kzalloc(sizeof(*a), GFP_KERNEL);
-	if (!a) {
-		err = -ENOMEM;
-		goto out;
-	}
+	if (!a)
+		return -ENOMEM;
 
 	err = ds->ops->port_mdb_add(ds, port, mdb);
 	if (err) {
 		kfree(a);
-		goto out;
+		return err;
 	}
 
 	ether_addr_copy(a->addr, mdb->addr);
@@ -246,10 +242,7 @@ static int dsa_port_do_mdb_add(struct dsa_port *dp,
 	refcount_set(&a->refcount, 1);
 	list_add_tail(&a->list, &dp->mdbs);
 
-out:
-	mutex_unlock(&dp->addr_lists_lock);
-
-	return err;
+	return 0;
 }
 
 static int dsa_port_do_mdb_del(struct dsa_port *dp,
@@ -258,36 +251,29 @@ static int dsa_port_do_mdb_del(struct dsa_port *dp,
 	struct dsa_switch *ds = dp->ds;
 	struct dsa_mac_addr *a;
 	int port = dp->index;
-	int err = 0;
+	int err;
 
 	/* No need to bother with refcounting for user ports */
 	if (!(dsa_port_is_cpu(dp) || dsa_port_is_dsa(dp)))
 		return ds->ops->port_mdb_del(ds, port, mdb);
 
-	mutex_lock(&dp->addr_lists_lock);
-
 	a = dsa_mac_addr_find(&dp->mdbs, mdb->addr, mdb->vid);
-	if (!a) {
-		err = -ENOENT;
-		goto out;
-	}
+	if (!a)
+		return -ENOENT;
 
 	if (!refcount_dec_and_test(&a->refcount))
-		goto out;
+		return 0;
 
 	err = ds->ops->port_mdb_del(ds, port, mdb);
 	if (err) {
 		refcount_inc(&a->refcount);
-		goto out;
+		return err;
 	}
 
 	list_del(&a->list);
 	kfree(a);
 
-out:
-	mutex_unlock(&dp->addr_lists_lock);
-
-	return err;
+	return 0;
 }
 
 static int dsa_port_do_fdb_add(struct dsa_port *dp, const unsigned char *addr,
@@ -296,30 +282,26 @@ static int dsa_port_do_fdb_add(struct dsa_port *dp, const unsigned char *addr,
 	struct dsa_switch *ds = dp->ds;
 	struct dsa_mac_addr *a;
 	int port = dp->index;
-	int err = 0;
+	int err;
 
 	/* No need to bother with refcounting for user ports */
 	if (!(dsa_port_is_cpu(dp) || dsa_port_is_dsa(dp)))
 		return ds->ops->port_fdb_add(ds, port, addr, vid);
 
-	mutex_lock(&dp->addr_lists_lock);
-
 	a = dsa_mac_addr_find(&dp->fdbs, addr, vid);
 	if (a) {
 		refcount_inc(&a->refcount);
-		goto out;
+		return 0;
 	}
 
 	a = kzalloc(sizeof(*a), GFP_KERNEL);
-	if (!a) {
-		err = -ENOMEM;
-		goto out;
-	}
+	if (!a)
+		return -ENOMEM;
 
 	err = ds->ops->port_fdb_add(ds, port, addr, vid);
 	if (err) {
 		kfree(a);
-		goto out;
+		return err;
 	}
 
 	ether_addr_copy(a->addr, addr);
@@ -327,10 +309,7 @@ static int dsa_port_do_fdb_add(struct dsa_port *dp, const unsigned char *addr,
 	refcount_set(&a->refcount, 1);
 	list_add_tail(&a->list, &dp->fdbs);
 
-out:
-	mutex_unlock(&dp->addr_lists_lock);
-
-	return err;
+	return 0;
 }
 
 static int dsa_port_do_fdb_del(struct dsa_port *dp, const unsigned char *addr,
@@ -339,36 +318,29 @@ static int dsa_port_do_fdb_del(struct dsa_port *dp, const unsigned char *addr,
 	struct dsa_switch *ds = dp->ds;
 	struct dsa_mac_addr *a;
 	int port = dp->index;
-	int err = 0;
+	int err;
 
 	/* No need to bother with refcounting for user ports */
 	if (!(dsa_port_is_cpu(dp) || dsa_port_is_dsa(dp)))
 		return ds->ops->port_fdb_del(ds, port, addr, vid);
 
-	mutex_lock(&dp->addr_lists_lock);
-
 	a = dsa_mac_addr_find(&dp->fdbs, addr, vid);
-	if (!a) {
-		err = -ENOENT;
-		goto out;
-	}
+	if (!a)
+		return -ENOENT;
 
 	if (!refcount_dec_and_test(&a->refcount))
-		goto out;
+		return 0;
 
 	err = ds->ops->port_fdb_del(ds, port, addr, vid);
 	if (err) {
 		refcount_inc(&a->refcount);
-		goto out;
+		return err;
 	}
 
 	list_del(&a->list);
 	kfree(a);
 
-out:
-	mutex_unlock(&dp->addr_lists_lock);
-
-	return err;
+	return 0;
 }
 
 static int dsa_switch_host_fdb_add(struct dsa_switch *ds,
