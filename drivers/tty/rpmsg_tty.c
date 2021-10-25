@@ -153,10 +153,8 @@ static int rpmsg_tty_probe(struct rpmsg_device *rpdev)
 	int ret;
 
 	cport = rpmsg_tty_alloc_cport();
-	if (IS_ERR(cport)) {
-		dev_err(dev, "Failed to alloc tty port\n");
-		return PTR_ERR(cport);
-	}
+	if (IS_ERR(cport))
+		return dev_err_probe(dev, PTR_ERR(cport), "Failed to alloc tty port\n");
 
 	tty_port_init(&cport->port);
 	cport->port.ops = &rpmsg_tty_port_ops;
@@ -164,9 +162,8 @@ static int rpmsg_tty_probe(struct rpmsg_device *rpdev)
 	tty_dev = tty_port_register_device(&cport->port, rpmsg_tty_driver,
 					   cport->id, dev);
 	if (IS_ERR(tty_dev)) {
-		dev_err(dev, "Failed to register tty port\n");
-		ret = PTR_ERR(tty_dev);
-		goto  err_destroy;
+		ret = dev_err_probe(dev, PTR_ERR(tty_dev), "Failed to register tty port\n");
+		goto err_destroy;
 	}
 
 	cport->rpdev = rpdev;
