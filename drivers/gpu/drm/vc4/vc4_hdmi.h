@@ -197,6 +197,12 @@ struct vc4_hdmi {
 	 * be resilient to that.
 	 */
 	struct mutex mutex;
+
+	/**
+	 * @saved_adjusted_mode: Copy of @drm_crtc_state.adjusted_mode
+	 * for use by ALSA hooks and interrupt handlers. Protected by @mutex.
+	 */
+	struct drm_display_mode saved_adjusted_mode;
 };
 
 static inline struct vc4_hdmi *
