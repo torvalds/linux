@@ -532,6 +532,8 @@ struct vc4_crtc_state {
 		unsigned int bottom;
 	} margins;
 
+	unsigned long hvs_load;
+
 	/* Transitional state below, only valid during atomic commits */
 	bool update_muxing;
 };

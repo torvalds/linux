@@ -659,11 +659,26 @@ static int vc4_crtc_atomic_check(struct drm_crtc *crtc,
 	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc_state);
 	struct drm_connector *conn;
 	struct drm_connector_state *conn_state;
+	struct drm_encoder *encoder;
 	int ret, i;
 
 	ret = vc4_hvs_atomic_check(crtc, state);
 	if (ret)
 		return ret;
+
+	encoder = vc4_get_crtc_encoder(crtc, crtc_state);
+	if (encoder) {
+		const struct drm_display_mode *mode = &crtc_state->adjusted_mode;
+		struct vc4_encoder *vc4_encoder = to_vc4_encoder(encoder);
+
+		mode = &crtc_state->adjusted_mode;
+		if (vc4_encoder->type == VC4_ENCODER_TYPE_HDMI0) {
+			vc4_state->hvs_load = max(mode->clock * mode->hdisplay / mode->htotal + 1000,
+						  mode->clock * 9 / 10) * 1000;
+		} else {
+			vc4_state->hvs_load = mode->clock * 1000;
+		}
+	}
 
 	for_each_new_connector_in_state(state, conn, conn_state,
 					i) {

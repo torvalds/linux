@@ -39,9 +39,11 @@ static struct vc4_ctm_state *to_vc4_ctm_state(struct drm_private_state *priv)
 
 struct vc4_hvs_state {
 	struct drm_private_state base;
+	unsigned long core_clock_rate;
 
 	struct {
 		unsigned in_use: 1;
+		unsigned long fifo_load;
 		struct drm_crtc_commit *pending_commit;
 	} fifo_state[HVS_NUM_CHANNELS];
 };
@@ -339,9 +341,18 @@ static void vc4_atomic_commit_tail(struct drm_atomic_state *state)
 	struct vc4_hvs *hvs = vc4->hvs;
 	struct drm_crtc_state *old_crtc_state;
 	struct drm_crtc_state *new_crtc_state;
+	struct vc4_hvs_state *new_hvs_state;
 	struct drm_crtc *crtc;
 	struct vc4_hvs_state *old_hvs_state;
 	int i;
+
+	old_hvs_state = vc4_hvs_get_old_global_state(state);
+	if (WARN_ON(!old_hvs_state))
+		return;
+
+	new_hvs_state = vc4_hvs_get_new_global_state(state);
+	if (WARN_ON(!new_hvs_state))
+		return;
 
 	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
 		struct vc4_crtc_state *vc4_crtc_state;
@@ -353,12 +364,13 @@ static void vc4_atomic_commit_tail(struct drm_atomic_state *state)
 		vc4_hvs_mask_underrun(dev, vc4_crtc_state->assigned_channel);
 	}
 
-	if (vc4->hvs->hvs5)
-		clk_set_min_rate(hvs->core_clk, 500000000);
+	if (vc4->hvs->hvs5) {
+		unsigned long core_rate = max_t(unsigned long,
+						500000000,
+						new_hvs_state->core_clock_rate);
 
-	old_hvs_state = vc4_hvs_get_old_global_state(state);
-	if (!old_hvs_state)
-		return;
+		clk_set_min_rate(hvs->core_clk, core_rate);
+	}
 
 	for_each_old_crtc_in_state(state, crtc, old_crtc_state, i) {
 		struct vc4_crtc_state *vc4_crtc_state =
@@ -398,8 +410,12 @@ static void vc4_atomic_commit_tail(struct drm_atomic_state *state)
 
 	drm_atomic_helper_cleanup_planes(dev, state);
 
-	if (vc4->hvs->hvs5)
-		clk_set_min_rate(hvs->core_clk, 0);
+	if (vc4->hvs->hvs5) {
+		drm_dbg(dev, "Running the core clock at %lu Hz\n",
+			new_hvs_state->core_clock_rate);
+
+		clk_set_min_rate(hvs->core_clk, new_hvs_state->core_clock_rate);
+	}
 }
 
 static int vc4_atomic_commit_setup(struct drm_atomic_state *state)
@@ -656,9 +672,9 @@ vc4_hvs_channels_duplicate_state(struct drm_private_obj *obj)
 
 	__drm_atomic_helper_private_obj_duplicate_state(obj, &state->base);
 
-
 	for (i = 0; i < HVS_NUM_CHANNELS; i++) {
 		state->fifo_state[i].in_use = old_state->fifo_state[i].in_use;
+		state->fifo_state[i].fifo_load = old_state->fifo_state[i].fifo_load;
 
 		if (!old_state->fifo_state[i].pending_commit)
 			continue;
@@ -666,6 +682,8 @@ vc4_hvs_channels_duplicate_state(struct drm_private_obj *obj)
 		state->fifo_state[i].pending_commit =
 			drm_crtc_commit_get(old_state->fifo_state[i].pending_commit);
 	}
+
+	state->core_clock_rate = old_state->core_clock_rate;
 
 	return &state->base;
 }
@@ -822,6 +840,76 @@ static int vc4_pv_muxing_atomic_check(struct drm_device *dev,
 }
 
 static int
+vc4_core_clock_atomic_check(struct drm_atomic_state *state)
+{
+	struct vc4_dev *vc4 = to_vc4_dev(state->dev);
+	struct drm_private_state *priv_state;
+	struct vc4_hvs_state *hvs_new_state;
+	struct vc4_load_tracker_state *load_state;
+	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
+	struct drm_crtc *crtc;
+	unsigned int num_outputs;
+	unsigned long pixel_rate;
+	unsigned long cob_rate;
+	unsigned int i;
+
+	priv_state = drm_atomic_get_private_obj_state(state,
+						      &vc4->load_tracker);
+	if (IS_ERR(priv_state))
+		return PTR_ERR(priv_state);
+
+	load_state = to_vc4_load_tracker_state(priv_state);
+
+	hvs_new_state = vc4_hvs_get_global_state(state);
+	if (!hvs_new_state)
+		return -EINVAL;
+
+	for_each_oldnew_crtc_in_state(state, crtc,
+				      old_crtc_state,
+				      new_crtc_state,
+				      i) {
+		if (old_crtc_state->active) {
+			struct vc4_crtc_state *old_vc4_state =
+				to_vc4_crtc_state(old_crtc_state);
+			unsigned int channel = old_vc4_state->assigned_channel;
+
+			hvs_new_state->fifo_state[channel].fifo_load = 0;
+		}
+
+		if (new_crtc_state->active) {
+			struct vc4_crtc_state *new_vc4_state =
+				to_vc4_crtc_state(new_crtc_state);
+			unsigned int channel = new_vc4_state->assigned_channel;
+
+			hvs_new_state->fifo_state[channel].fifo_load =
+				new_vc4_state->hvs_load;
+		}
+	}
+
+	cob_rate = 0;
+	num_outputs = 0;
+	for (i = 0; i < HVS_NUM_CHANNELS; i++) {
+		if (!hvs_new_state->fifo_state[i].in_use)
+			continue;
+
+		num_outputs++;
+		cob_rate += hvs_new_state->fifo_state[i].fifo_load;
+	}
+
+	pixel_rate = load_state->hvs_load;
+	if (num_outputs > 1) {
+		pixel_rate = (pixel_rate * 40) / 100;
+	} else {
+		pixel_rate = (pixel_rate * 60) / 100;
+	}
+
+	hvs_new_state->core_clock_rate = max(cob_rate, pixel_rate);
+
+	return 0;
+}
+
+
+static int
 vc4_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
 {
 	int ret;
@@ -838,7 +926,11 @@ vc4_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
 	if (ret)
 		return ret;
 
-	return vc4_load_tracker_atomic_check(state);
+	ret = vc4_load_tracker_atomic_check(state);
+	if (ret)
+		return ret;
+
+	return vc4_core_clock_atomic_check(state);
 }
 
 static struct drm_mode_config_helper_funcs vc4_mode_config_helpers = {
