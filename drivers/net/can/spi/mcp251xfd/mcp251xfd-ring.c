@@ -15,6 +15,7 @@
 #include <asm/unaligned.h>
 
 #include "mcp251xfd.h"
+#include "mcp251xfd-ram.h"
 
 static inline u8
 mcp251xfd_cmd_prepare_write_reg(const struct mcp251xfd_priv *priv,
@@ -285,41 +286,69 @@ void mcp251xfd_ring_free(struct mcp251xfd_priv *priv)
 	}
 }
 
+const struct can_ram_config mcp251xfd_ram_config = {
+	.rx = {
+		.size[CAN_RAM_MODE_CAN] = sizeof(struct mcp251xfd_hw_rx_obj_can),
+		.size[CAN_RAM_MODE_CANFD] = sizeof(struct mcp251xfd_hw_rx_obj_canfd),
+		.min = MCP251XFD_RX_OBJ_NUM_MIN,
+		.max = MCP251XFD_RX_OBJ_NUM_MAX,
+		.def[CAN_RAM_MODE_CAN] = CAN_RAM_NUM_MAX,
+		.def[CAN_RAM_MODE_CANFD] = CAN_RAM_NUM_MAX,
+		.fifo_num = MCP251XFD_FIFO_RX_NUM,
+		.fifo_depth_min = MCP251XFD_RX_FIFO_DEPTH_MIN,
+	},
+	.tx = {
+		.size[CAN_RAM_MODE_CAN] = sizeof(struct mcp251xfd_hw_tef_obj) +
+			sizeof(struct mcp251xfd_hw_tx_obj_can),
+		.size[CAN_RAM_MODE_CANFD] = sizeof(struct mcp251xfd_hw_tef_obj) +
+			sizeof(struct mcp251xfd_hw_tx_obj_canfd),
+		.min = MCP251XFD_TX_OBJ_NUM_MIN,
+		.max = MCP251XFD_TX_OBJ_NUM_MAX,
+		.def[CAN_RAM_MODE_CAN] = MCP251XFD_TX_OBJ_NUM_CAN_DEFAULT,
+		.def[CAN_RAM_MODE_CANFD] = MCP251XFD_TX_OBJ_NUM_CANFD_DEFAULT,
+		.fifo_num = MCP251XFD_FIFO_TX_NUM,
+		.fifo_depth_min = MCP251XFD_TX_FIFO_DEPTH_MIN,
+	},
+	.size = MCP251XFD_RAM_SIZE,
+	.fifo_depth = MCP251XFD_FIFO_DEPTH,
+};
+
 int mcp251xfd_ring_alloc(struct mcp251xfd_priv *priv)
 {
-	struct mcp251xfd_tx_ring *tx_ring;
+	const bool fd_mode = mcp251xfd_is_fd_mode(priv);
+	struct mcp251xfd_tx_ring *tx_ring = priv->tx;
 	struct mcp251xfd_rx_ring *rx_ring;
-	u8 tef_obj_size, tx_obj_size, rx_obj_size;
-	u8 tx_obj_num;
+	u8 tx_obj_size, rx_obj_size;
 	u8 rem, i;
 
-	tef_obj_size = sizeof(struct mcp251xfd_hw_tef_obj);
-	if (mcp251xfd_is_fd_mode(priv)) {
-		tx_obj_num = MCP251XFD_TX_OBJ_NUM_CANFD_DEFAULT;
-		tx_obj_size = sizeof(struct mcp251xfd_hw_tx_obj_canfd);
-		rx_obj_size = sizeof(struct mcp251xfd_hw_rx_obj_canfd);
-	} else {
-		tx_obj_num = MCP251XFD_TX_OBJ_NUM_CAN_DEFAULT;
-		tx_obj_size = sizeof(struct mcp251xfd_hw_tx_obj_can);
-		rx_obj_size = sizeof(struct mcp251xfd_hw_rx_obj_can);
+	/* switching from CAN-2.0 to CAN-FD mode or vice versa */
+	if (fd_mode != test_bit(MCP251XFD_FLAGS_FD_MODE, priv->flags)) {
+		struct can_ram_layout layout;
+
+		can_ram_get_layout(&layout, &mcp251xfd_ram_config, NULL, NULL, fd_mode);
+		priv->rx_obj_num = layout.default_rx;
+		tx_ring->obj_num = layout.default_tx;
 	}
 
-	priv->rx_obj_num = 0;
+	if (fd_mode) {
+		tx_obj_size = sizeof(struct mcp251xfd_hw_tx_obj_canfd);
+		rx_obj_size = sizeof(struct mcp251xfd_hw_rx_obj_canfd);
+		set_bit(MCP251XFD_FLAGS_FD_MODE, priv->flags);
+	} else {
+		tx_obj_size = sizeof(struct mcp251xfd_hw_tx_obj_can);
+		rx_obj_size = sizeof(struct mcp251xfd_hw_rx_obj_can);
+		clear_bit(MCP251XFD_FLAGS_FD_MODE, priv->flags);
+	}
 
-	tx_ring = priv->tx;
-	tx_ring->obj_num = tx_obj_num;
 	tx_ring->obj_size = tx_obj_size;
 
-	rem = (MCP251XFD_RAM_SIZE - tx_obj_num *
-	       (tef_obj_size + tx_obj_size)) / rx_obj_size;
+	rem = priv->rx_obj_num;
 	for (i = 0; i < ARRAY_SIZE(priv->rx) && rem; i++) {
 		u8 rx_obj_num;
 
 		rx_obj_num = min_t(u8, rounddown_pow_of_two(rem),
 				   MCP251XFD_FIFO_DEPTH);
 		rem -= rx_obj_num;
-
-		priv->rx_obj_num += rx_obj_num;
 
 		rx_ring = kzalloc(sizeof(*rx_ring) + rx_obj_size * rx_obj_num,
 				  GFP_KERNEL);

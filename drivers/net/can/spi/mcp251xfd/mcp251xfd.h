@@ -582,6 +582,12 @@ struct mcp251xfd_devtype_data {
 	u32 quirks;
 };
 
+enum mcp251xfd_flags {
+	MCP251XFD_FLAGS_FD_MODE,
+
+	__MCP251XFD_FLAGS_SIZE__
+};
+
 struct mcp251xfd_priv {
 	struct can_priv can;
 	struct can_rx_offload offload;
@@ -606,6 +612,8 @@ struct mcp251xfd_priv {
 	struct mcp251xfd_tef_ring tef[MCP251XFD_FIFO_TEF_NUM];
 	struct mcp251xfd_rx_ring *rx[MCP251XFD_FIFO_RX_NUM];
 	struct mcp251xfd_tx_ring tx[MCP251XFD_FIFO_TX_NUM];
+
+	DECLARE_BITMAP(flags, __MCP251XFD_FLAGS_SIZE__);
 
 	u8 rx_ring_num;
 	u8 rx_obj_num;
@@ -892,6 +900,7 @@ u16 mcp251xfd_crc16_compute2(const void *cmd, size_t cmd_size,
 u16 mcp251xfd_crc16_compute(const void *data, size_t data_size);
 void mcp251xfd_ethtool_init(struct mcp251xfd_priv *priv);
 int mcp251xfd_regmap_init(struct mcp251xfd_priv *priv);
+extern const struct can_ram_config mcp251xfd_ram_config;
 int mcp251xfd_ring_init(struct mcp251xfd_priv *priv);
 void mcp251xfd_ring_free(struct mcp251xfd_priv *priv);
 int mcp251xfd_ring_alloc(struct mcp251xfd_priv *priv);
