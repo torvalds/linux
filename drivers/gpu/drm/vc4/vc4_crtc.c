@@ -715,7 +715,7 @@ static void vc4_crtc_handle_page_flip(struct vc4_crtc *vc4_crtc)
 	spin_lock_irqsave(&dev->event_lock, flags);
 	if (vc4_crtc->event &&
 	    (vc4_state->mm.start == HVS_READ(SCALER_DISPLACTX(chan)) ||
-	     vc4_state->feed_txp)) {
+	     vc4_crtc->feeds_txp)) {
 		drm_crtc_send_vblank_event(crtc, vc4_crtc->event);
 		vc4_crtc->event = NULL;
 		drm_crtc_vblank_put(crtc);
@@ -893,7 +893,6 @@ struct drm_crtc_state *vc4_crtc_duplicate_state(struct drm_crtc *crtc)
 		return NULL;
 
 	old_vc4_state = to_vc4_crtc_state(crtc->state);
-	vc4_state->feed_txp = old_vc4_state->feed_txp;
 	vc4_state->margins = old_vc4_state->margins;
 	vc4_state->assigned_channel = old_vc4_state->assigned_channel;
 

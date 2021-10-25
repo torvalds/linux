@@ -391,7 +391,6 @@ static int vc4_txp_atomic_check(struct drm_crtc *crtc,
 {
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
 									  crtc);
-	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc_state);
 	int ret;
 
 	ret = vc4_hvs_atomic_check(crtc, state);
@@ -399,7 +398,6 @@ static int vc4_txp_atomic_check(struct drm_crtc *crtc,
 		return ret;
 
 	crtc_state->no_vblank = true;
-	vc4_state->feed_txp = true;
 
 	return 0;
 }
@@ -482,6 +480,7 @@ static int vc4_txp_bind(struct device *dev, struct device *master, void *data)
 
 	vc4_crtc->pdev = pdev;
 	vc4_crtc->data = &vc4_txp_crtc_data;
+	vc4_crtc->feeds_txp = true;
 
 	txp->pdev = pdev;
 
