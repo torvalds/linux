@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 #include <dt-bindings/interrupt-controller/mips-gic.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/clock/mt7621-clk.h>
