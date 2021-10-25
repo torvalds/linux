@@ -492,7 +492,7 @@ int qeth_l3_setrouting_v6(struct qeth_card *card)
  * IP address takeover related functions
  */
 
-/**
+/*
  * qeth_l3_update_ipato() - Update 'takeover' property, for all NORMAL IPs.
  *
  * Caller must hold ip_lock.

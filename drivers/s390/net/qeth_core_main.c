@@ -1925,9 +1925,9 @@ static struct qeth_cmd_buffer *qeth_mpc_alloc_cmd(struct qeth_card *card,
  * @card:			qeth_card structure pointer
  * @iob:			qeth_cmd_buffer pointer
  * @reply_cb:			callback function pointer
- * @cb_card:			pointer to the qeth_card structure
- * @cb_reply:			pointer to the qeth_reply structure
- * @cb_cmd:			pointer to the original iob for non-IPA
+ *  cb_card:			pointer to the qeth_card structure
+ *  cb_reply:			pointer to the qeth_reply structure
+ *  cb_cmd:			pointer to the original iob for non-IPA
  *				commands, or to the qeth_ipa_cmd structure
  *				for the IPA commands.
  * @reply_param:		private pointer passed to the callback
@@ -3034,7 +3034,7 @@ static int qeth_send_ipa_cmd_cb(struct qeth_card *card,
 	return (cmd->hdr.return_code) ? -EIO : 0;
 }
 
-/**
+/*
  * qeth_send_ipa_cmd() - send an IPA command
  *
  * See qeth_send_control_data() for explanation of the arguments.
@@ -3776,7 +3776,7 @@ static void qeth_qdio_output_handler(struct ccw_device *ccwdev,
 	qeth_schedule_recovery(card);
 }
 
-/**
+/*
  * Note: Function assumes that we have 4 outbound queues.
  */
 int qeth_get_priority_queue(struct qeth_card *card, struct sk_buff *skb)
