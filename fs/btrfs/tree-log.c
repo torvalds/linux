@@ -921,11 +921,11 @@ out:
  * item
  */
 static noinline int drop_one_dir_item(struct btrfs_trans_handle *trans,
-				      struct btrfs_root *root,
 				      struct btrfs_path *path,
 				      struct btrfs_inode *dir,
 				      struct btrfs_dir_item *di)
 {
+	struct btrfs_root *root = dir->root;
 	struct inode *inode;
 	char *name;
 	int name_len;
@@ -1220,7 +1220,7 @@ next:
 	if (IS_ERR(di)) {
 		return PTR_ERR(di);
 	} else if (di) {
-		ret = drop_one_dir_item(trans, root, path, dir, di);
+		ret = drop_one_dir_item(trans, path, dir, di);
 		if (ret)
 			return ret;
 	}
@@ -1232,7 +1232,7 @@ next:
 	if (IS_ERR(di)) {
 		return PTR_ERR(di);
 	} else if (di) {
-		ret = drop_one_dir_item(trans, root, path, dir, di);
+		ret = drop_one_dir_item(trans, path, dir, di);
 		if (ret)
 			return ret;
 	}
@@ -2049,7 +2049,7 @@ static noinline int replay_one_name(struct btrfs_trans_handle *trans,
 	if (!exists)
 		goto out;
 
-	ret = drop_one_dir_item(trans, root, path, BTRFS_I(dir), dst_di);
+	ret = drop_one_dir_item(trans, path, BTRFS_I(dir), dst_di);
 	if (ret)
 		goto out;
 
