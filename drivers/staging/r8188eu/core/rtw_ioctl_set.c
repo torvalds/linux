@@ -51,7 +51,7 @@ u8 rtw_do_join(struct adapter *padapter)
 			ret = _FAIL;
 		}
 
-		goto exit;
+		return ret;
 	} else {
 		int select_ret;
 
@@ -78,10 +78,9 @@ u8 rtw_do_join(struct adapter *padapter)
 
 				rtw_generate_random_ibss(pibss);
 
-				if (rtw_createbss_cmd(padapter) != _SUCCESS) {
-					ret =  false;
-					goto exit;
-				}
+				if (rtw_createbss_cmd(padapter) != _SUCCESS)
+					return false;
+
 				pmlmepriv->to_join = false;
 			} else {
 				/*  can't associate ; reset under-linking */
@@ -101,8 +100,6 @@ u8 rtw_do_join(struct adapter *padapter)
 			}
 		}
 	}
-
-exit:
 
 	return ret;
 }
