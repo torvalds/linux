@@ -85,7 +85,7 @@ static const unsigned long al2230_channel_table1[CB_MAX_CHANNEL] = {
 	0x06666100 + (BY_AL2230_REG_LEN << 3) + IFREGCTL_REGW  /* channel = 14, Tf = 2412M */
 };
 
-static unsigned long dwAL2230PowerTable[AL2230_PWR_IDX_LEN] = {
+static unsigned long al2230_power_table[AL2230_PWR_IDX_LEN] = {
 	0x04040900 + (BY_AL2230_REG_LEN << 3) + IFREGCTL_REGW,
 	0x04041900 + (BY_AL2230_REG_LEN << 3) + IFREGCTL_REGW,
 	0x04042900 + (BY_AL2230_REG_LEN << 3) + IFREGCTL_REGW,
@@ -834,7 +834,7 @@ bool RFbRawSetPower(struct vnt_private *priv, unsigned char byPwr,
 
 	switch (priv->byRFType) {
 	case RF_AIROHA:
-		ret &= IFRFbWriteEmbedded(priv, dwAL2230PowerTable[byPwr]);
+		ret &= IFRFbWriteEmbedded(priv, al2230_power_table[byPwr]);
 		if (rate <= RATE_11M)
 			ret &= IFRFbWriteEmbedded(priv, 0x0001B400 + (BY_AL2230_REG_LEN << 3) + IFREGCTL_REGW);
 		else
@@ -843,7 +843,7 @@ bool RFbRawSetPower(struct vnt_private *priv, unsigned char byPwr,
 		break;
 
 	case RF_AL2230S:
-		ret &= IFRFbWriteEmbedded(priv, dwAL2230PowerTable[byPwr]);
+		ret &= IFRFbWriteEmbedded(priv, al2230_power_table[byPwr]);
 		if (rate <= RATE_11M) {
 			ret &= IFRFbWriteEmbedded(priv, 0x040C1400 + (BY_AL2230_REG_LEN << 3) + IFREGCTL_REGW);
 			ret &= IFRFbWriteEmbedded(priv, 0x00299B00 + (BY_AL2230_REG_LEN << 3) + IFREGCTL_REGW);
