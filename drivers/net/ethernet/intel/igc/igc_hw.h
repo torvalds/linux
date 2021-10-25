@@ -55,7 +55,6 @@ enum igc_mac_type {
 
 enum igc_phy_type {
 	igc_phy_unknown = 0,
-	igc_phy_none,
 	igc_phy_i225,
 };
 
