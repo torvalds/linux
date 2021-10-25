@@ -5,6 +5,7 @@ Required properties:
 - compatible  : should be one of the following.
 		"rockchip,cryptov1-rng" for crypto v1
 		"rockchip,cryptov2-rng" for crypto v2
+		"rockchip,trngv1" for independent trng, such as rk3588.
 - reg         : Specifies base physical address and size of the registers map.
 - clocks      : Phandle to clock-controller plus clock-specifier pair.
 - clock-names : "clk_crypto", "clk_crypto_apk", "aclk_crypto", "hclk_crypto" as a clock name.
