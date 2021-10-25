@@ -80,7 +80,8 @@ static int cb_map_mem(struct hl_ctx *ctx, struct hl_cb *cb)
 		offset += va_block->size;
 	}
 
-	hdev->asic_funcs->mmu_invalidate_cache(hdev, false, MMU_OP_USERPTR);
+	hdev->asic_funcs->mmu_invalidate_cache(hdev, false,
+		MMU_OP_USERPTR | MMU_OP_SKIP_LOW_CACHE_INV);
 
 	mutex_unlock(&ctx->mmu_lock);
 

@@ -1202,7 +1202,8 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 	}
 
 	rc = hdev->asic_funcs->mmu_invalidate_cache_range(hdev, false,
-		*vm_type, ctx->asid, ret_vaddr, phys_pg_pack->total_size);
+		*vm_type | MMU_OP_SKIP_LOW_CACHE_INV,
+		ctx->asid, ret_vaddr, phys_pg_pack->total_size);
 
 	mutex_unlock(&ctx->mmu_lock);
 

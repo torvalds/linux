@@ -356,10 +356,14 @@ enum vm_type {
  * enum mmu_op_flags - mmu operation relevant information.
  * @MMU_OP_USERPTR: operation on user memory (host resident).
  * @MMU_OP_PHYS_PACK: operation on DRAM (device resident).
+ * @MMU_OP_CLEAR_MEMCACHE: operation has to clear memcache.
+ * @MMU_OP_SKIP_LOW_CACHE_INV: operation is allowed to skip parts of cache invalidation.
  */
 enum mmu_op_flags {
 	MMU_OP_USERPTR = 0x1,
-	MMU_OP_PHYS_PACK = 0x2
+	MMU_OP_PHYS_PACK = 0x2,
+	MMU_OP_CLEAR_MEMCACHE = 0x4,
+	MMU_OP_SKIP_LOW_CACHE_INV = 0x8,
 };
 
 
