@@ -401,53 +401,10 @@ static int ps8640_bridge_attach(struct drm_bridge *bridge,
 {
 	struct ps8640 *ps_bridge = bridge_to_ps8640(bridge);
 	struct device *dev = &ps_bridge->page[0]->dev;
-	struct device_node *in_ep, *dsi_node;
-	struct mipi_dsi_device *dsi;
-	struct mipi_dsi_host *host;
 	int ret;
-	const struct mipi_dsi_device_info info = { .type = "ps8640",
-						   .channel = 0,
-						   .node = NULL,
-						 };
 
 	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR))
 		return -EINVAL;
-
-	/* port@0 is ps8640 dsi input port */
-	in_ep = of_graph_get_endpoint_by_regs(dev->of_node, 0, -1);
-	if (!in_ep)
-		return -ENODEV;
-
-	dsi_node = of_graph_get_remote_port_parent(in_ep);
-	of_node_put(in_ep);
-	if (!dsi_node)
-		return -ENODEV;
-
-	host = of_find_mipi_dsi_host_by_node(dsi_node);
-	of_node_put(dsi_node);
-	if (!host)
-		return -ENODEV;
-
-	dsi = devm_mipi_dsi_device_register_full(dev, host, &info);
-	if (IS_ERR(dsi)) {
-		dev_err(dev, "failed to create dsi device\n");
-		ret = PTR_ERR(dsi);
-		return ret;
-	}
-
-	ps_bridge->dsi = dsi;
-
-	dsi->host = host;
-	dsi->mode_flags = MIPI_DSI_MODE_VIDEO |
-			  MIPI_DSI_MODE_VIDEO_SYNC_PULSE;
-	dsi->format = MIPI_DSI_FMT_RGB888;
-	dsi->lanes = NUM_MIPI_LANES;
-
-	ret = devm_mipi_dsi_attach(dev, dsi);
-	if (ret) {
-		dev_err(dev, "failed to attach dsi device: %d\n", ret);
-		return ret;
-	}
 
 	ret = drm_dp_aux_register(&ps_bridge->aux);
 	if (ret) {
@@ -506,6 +463,53 @@ static const struct drm_bridge_funcs ps8640_bridge_funcs = {
 	.post_disable = ps8640_post_disable,
 	.pre_enable = ps8640_pre_enable,
 };
+
+static int ps8640_bridge_host_attach(struct device *dev, struct ps8640 *ps_bridge)
+{
+	struct device_node *in_ep, *dsi_node;
+	struct mipi_dsi_device *dsi;
+	struct mipi_dsi_host *host;
+	int ret;
+	const struct mipi_dsi_device_info info = { .type = "ps8640",
+						   .channel = 0,
+						   .node = NULL,
+						 };
+
+	/* port@0 is ps8640 dsi input port */
+	in_ep = of_graph_get_endpoint_by_regs(dev->of_node, 0, -1);
+	if (!in_ep)
+		return -ENODEV;
+
+	dsi_node = of_graph_get_remote_port_parent(in_ep);
+	of_node_put(in_ep);
+	if (!dsi_node)
+		return -ENODEV;
+
+	host = of_find_mipi_dsi_host_by_node(dsi_node);
+	of_node_put(dsi_node);
+	if (!host)
+		return -EPROBE_DEFER;
+
+	dsi = devm_mipi_dsi_device_register_full(dev, host, &info);
+	if (IS_ERR(dsi)) {
+		dev_err(dev, "failed to create dsi device\n");
+		return PTR_ERR(dsi);
+	}
+
+	ps_bridge->dsi = dsi;
+
+	dsi->host = host;
+	dsi->mode_flags = MIPI_DSI_MODE_VIDEO |
+			  MIPI_DSI_MODE_VIDEO_SYNC_PULSE;
+	dsi->format = MIPI_DSI_FMT_RGB888;
+	dsi->lanes = NUM_MIPI_LANES;
+
+	ret = devm_mipi_dsi_attach(dev, dsi);
+	if (ret)
+		return ret;
+
+	return 0;
+}
 
 static int ps8640_probe(struct i2c_client *client)
 {
@@ -584,7 +588,15 @@ static int ps8640_probe(struct i2c_client *client)
 
 	drm_bridge_add(&ps_bridge->bridge);
 
+	ret = ps8640_bridge_host_attach(dev, ps_bridge);
+	if (ret)
+		goto err_bridge_remove;
+
 	return 0;
+
+err_bridge_remove:
+	drm_bridge_remove(&ps_bridge->bridge);
+	return ret;
 }
 
 static int ps8640_remove(struct i2c_client *client)
