@@ -760,6 +760,7 @@ static struct mipi_dsi_device *lt9611_attach_dsi(struct lt9611 *lt9611,
 	const struct mipi_dsi_device_info info = { "lt9611", 0, NULL };
 	struct mipi_dsi_device *dsi;
 	struct mipi_dsi_host *host;
+	struct device *dev = lt9611->dev;
 	int ret;
 
 	host = of_find_mipi_dsi_host_by_node(dsi_node);
@@ -768,7 +769,7 @@ static struct mipi_dsi_device *lt9611_attach_dsi(struct lt9611 *lt9611,
 		return ERR_PTR(-EPROBE_DEFER);
 	}
 
-	dsi = mipi_dsi_device_register_full(host, &info);
+	dsi = devm_mipi_dsi_device_register_full(dev, host, &info);
 	if (IS_ERR(dsi)) {
 		dev_err(lt9611->dev, "failed to create dsi device\n");
 		return dsi;
@@ -779,27 +780,13 @@ static struct mipi_dsi_device *lt9611_attach_dsi(struct lt9611 *lt9611,
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
 			  MIPI_DSI_MODE_VIDEO_HSE;
 
-	ret = mipi_dsi_attach(dsi);
+	ret = devm_mipi_dsi_attach(dev, dsi);
 	if (ret < 0) {
-		dev_err(lt9611->dev, "failed to attach dsi to host\n");
-		mipi_dsi_device_unregister(dsi);
+		dev_err(dev, "failed to attach dsi to host\n");
 		return ERR_PTR(ret);
 	}
 
 	return dsi;
-}
-
-static void lt9611_bridge_detach(struct drm_bridge *bridge)
-{
-	struct lt9611 *lt9611 = bridge_to_lt9611(bridge);
-
-	if (lt9611->dsi1) {
-		mipi_dsi_detach(lt9611->dsi1);
-		mipi_dsi_device_unregister(lt9611->dsi1);
-	}
-
-	mipi_dsi_detach(lt9611->dsi0);
-	mipi_dsi_device_unregister(lt9611->dsi0);
 }
 
 static int lt9611_connector_init(struct drm_bridge *bridge, struct lt9611 *lt9611)
@@ -855,9 +842,7 @@ static int lt9611_bridge_attach(struct drm_bridge *bridge,
 	return 0;
 
 err_unregister_dsi0:
-	lt9611_bridge_detach(bridge);
 	drm_connector_cleanup(&lt9611->connector);
-	mipi_dsi_device_unregister(lt9611->dsi0);
 
 	return ret;
 }
@@ -952,7 +937,6 @@ static void lt9611_bridge_hpd_enable(struct drm_bridge *bridge)
 
 static const struct drm_bridge_funcs lt9611_bridge_funcs = {
 	.attach = lt9611_bridge_attach,
-	.detach = lt9611_bridge_detach,
 	.mode_valid = lt9611_bridge_mode_valid,
 	.enable = lt9611_bridge_enable,
 	.disable = lt9611_bridge_disable,
