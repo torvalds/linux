@@ -213,6 +213,16 @@ rk630_spi_probe(struct spi_device *spi)
 		return ret;
 	}
 
+	rk630->rtc = devm_regmap_init(&spi->dev, &rk630_regmap,
+				      &spi->dev, &rk630_rtc_regmap_config);
+	if (IS_ERR(rk630->rtc)) {
+		ret = PTR_ERR(rk630->rtc);
+		dev_err(rk630->dev, "Failed to initialize rtc regmap: %d\n",
+			ret);
+		return ret;
+	}
+	rk630->irq = spi->irq;
+
 	ret = rk630_core_probe(rk630);
 	if (ret)
 		return ret;

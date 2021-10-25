@@ -49,6 +49,15 @@ rk630_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		return ret;
 	}
 
+	rk630->rtc = devm_regmap_init_i2c(client, &rk630_rtc_regmap_config);
+	if (IS_ERR(rk630->rtc)) {
+		ret = PTR_ERR(rk630->rtc);
+		dev_err(dev, "failed to allocate rtc register map: %d\n", ret);
+		return ret;
+	}
+
+	rk630->irq = client->irq;
+
 	return rk630_core_probe(rk630);
 }
 
