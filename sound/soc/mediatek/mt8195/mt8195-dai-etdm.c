@@ -1316,7 +1316,7 @@ static int mt8195_afe_disable_etdm(struct mtk_base_afe *afe, int dai_id)
 	}
 out:
 	spin_unlock_irqrestore(&afe_priv->afe_ctrl_lock, flags);
-	return 0;
+	return ret;
 }
 
 static int etdm_cowork_slv_sel(int id, int slave_mode)
