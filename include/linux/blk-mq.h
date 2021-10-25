@@ -752,6 +752,17 @@ static inline void blk_mq_set_request_complete(struct request *rq)
 	WRITE_ONCE(rq->state, MQ_RQ_COMPLETE);
 }
 
+/*
+ * Complete the request directly instead of deferring it to softirq or
+ * completing it another CPU. Useful in preemptible instead of an interrupt.
+ */
+static inline void blk_mq_complete_request_direct(struct request *rq,
+		   void (*complete)(struct request *rq))
+{
+	WRITE_ONCE(rq->state, MQ_RQ_COMPLETE);
+	complete(rq);
+}
+
 void blk_mq_start_request(struct request *rq);
 void blk_mq_end_request(struct request *rq, blk_status_t error);
 void __blk_mq_end_request(struct request *rq, blk_status_t error);
