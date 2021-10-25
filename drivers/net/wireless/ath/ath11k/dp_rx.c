@@ -4826,7 +4826,7 @@ static struct sk_buff *
 ath11k_dp_rx_mon_merg_msdus(struct ath11k *ar,
 			    u32 mac_id, struct sk_buff *head_msdu,
 			    struct sk_buff *last_msdu,
-			    struct ieee80211_rx_status *rxs)
+			    struct ieee80211_rx_status *rxs, bool *fcs_err)
 {
 	struct ath11k_base *ab = ar->ab;
 	struct sk_buff *msdu, *prev_buf;
@@ -4836,12 +4836,17 @@ ath11k_dp_rx_mon_merg_msdus(struct ath11k *ar,
 	u8 *dest, decap_format;
 	struct ieee80211_hdr_3addr *wh;
 	struct rx_attention *rx_attention;
+	u32 err_bitmap;
 
 	if (!head_msdu)
 		goto err_merge_fail;
 
 	rx_desc = (struct hal_rx_desc *)head_msdu->data;
 	rx_attention = ath11k_dp_rx_get_attention(ab, rx_desc);
+	err_bitmap = ath11k_dp_rx_h_attn_mpdu_err(rx_attention);
+
+	if (err_bitmap & DP_RX_MPDU_ERR_FCS)
+		*fcs_err = true;
 
 	if (ath11k_dp_rxdesc_get_mpdulen_err(rx_attention))
 		return NULL;
@@ -4930,9 +4935,10 @@ static int ath11k_dp_rx_mon_deliver(struct ath11k *ar, u32 mac_id,
 	struct ath11k_pdev_dp *dp = &ar->dp;
 	struct sk_buff *mon_skb, *skb_next, *header;
 	struct ieee80211_rx_status *rxs = &dp->rx_status;
+	bool fcs_err = false;
 
 	mon_skb = ath11k_dp_rx_mon_merg_msdus(ar, mac_id, head_msdu,
-					      tail_msdu, rxs);
+					      tail_msdu, rxs, &fcs_err);
 
 	if (!mon_skb)
 		goto mon_deliver_fail;
@@ -4940,6 +4946,10 @@ static int ath11k_dp_rx_mon_deliver(struct ath11k *ar, u32 mac_id,
 	header = mon_skb;
 
 	rxs->flag = 0;
+
+	if (fcs_err)
+		rxs->flag = RX_FLAG_FAILED_FCS_CRC;
+
 	do {
 		skb_next = mon_skb->next;
 		if (!skb_next)
