@@ -1290,7 +1290,7 @@ static void qup_i2c_write_rx_tags_v2(struct qup_i2c_dev *qup)
  * 1. Check if tx_tags_sent is false i.e. the start of QUP block so write the
  *    tags to TX FIFO and set tx_tags_sent to true.
  * 2. Check if send_last_word is true. It will be set when last few data bytes
- *    (less than 4 bytes) are reamining to be written in FIFO because of no FIFO
+ *    (less than 4 bytes) are remaining to be written in FIFO because of no FIFO
  *    space. All this data bytes are available in tx_fifo_data so write this
  *    in FIFO.
  * 3. Write the data to TX FIFO and check for cur_blk_len. If it is non zero
