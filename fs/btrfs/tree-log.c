@@ -954,7 +954,7 @@ static noinline int drop_one_dir_item(struct btrfs_trans_handle *trans,
 	if (ret)
 		goto out;
 
-	ret = btrfs_unlink_inode(trans, root, dir, BTRFS_I(inode), name,
+	ret = btrfs_unlink_inode(trans, dir, BTRFS_I(inode), name,
 			name_len);
 	if (ret)
 		goto out;
@@ -1119,7 +1119,7 @@ again:
 				inc_nlink(&inode->vfs_inode);
 				btrfs_release_path(path);
 
-				ret = btrfs_unlink_inode(trans, root, dir, inode,
+				ret = btrfs_unlink_inode(trans, dir, inode,
 						victim_name, victim_name_len);
 				kfree(victim_name);
 				if (ret)
@@ -1190,7 +1190,7 @@ again:
 					inc_nlink(&inode->vfs_inode);
 					btrfs_release_path(path);
 
-					ret = btrfs_unlink_inode(trans, root,
+					ret = btrfs_unlink_inode(trans,
 							BTRFS_I(victim_parent),
 							inode,
 							victim_name,
@@ -1352,7 +1352,7 @@ again:
 				kfree(name);
 				goto out;
 			}
-			ret = btrfs_unlink_inode(trans, root, BTRFS_I(dir),
+			ret = btrfs_unlink_inode(trans, BTRFS_I(dir),
 						 inode, name, namelen);
 			kfree(name);
 			iput(dir);
@@ -1450,7 +1450,7 @@ static int add_link(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		ret = -ENOENT;
 		goto out;
 	}
-	ret = btrfs_unlink_inode(trans, root, BTRFS_I(dir), BTRFS_I(other_inode),
+	ret = btrfs_unlink_inode(trans, BTRFS_I(dir), BTRFS_I(other_inode),
 				 name, namelen);
 	if (ret)
 		goto out;
@@ -1596,7 +1596,7 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 			ret = btrfs_inode_ref_exists(inode, dir, key->type,
 						     name, namelen);
 			if (ret > 0) {
-				ret = btrfs_unlink_inode(trans, root,
+				ret = btrfs_unlink_inode(trans,
 							 BTRFS_I(dir),
 							 BTRFS_I(inode),
 							 name, namelen);
@@ -2346,7 +2346,7 @@ again:
 			}
 
 			inc_nlink(inode);
-			ret = btrfs_unlink_inode(trans, root, BTRFS_I(dir),
+			ret = btrfs_unlink_inode(trans, BTRFS_I(dir),
 					BTRFS_I(inode), name, name_len);
 			if (!ret)
 				ret = btrfs_run_delayed_items(trans);
