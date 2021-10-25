@@ -121,11 +121,11 @@ static int qeth_l2_write_mac(struct qeth_card *card, u8 *mac)
 	QETH_CARD_TEXT(card, 2, "L2Wmac");
 	rc = qeth_l2_send_setdelmac(card, mac, cmd);
 	if (rc == -EADDRINUSE)
-		QETH_DBF_MESSAGE(2, "MAC already registered on device %x\n",
-				 CARD_DEVID(card));
+		QETH_DBF_MESSAGE(2, "MAC address %012llx is already registered on device %x\n",
+				 ether_addr_to_u64(mac), CARD_DEVID(card));
 	else if (rc)
-		QETH_DBF_MESSAGE(2, "Failed to register MAC on device %x: %d\n",
-				 CARD_DEVID(card), rc);
+		QETH_DBF_MESSAGE(2, "Failed to register MAC address %012llx on device %x: %d\n",
+				 ether_addr_to_u64(mac), CARD_DEVID(card), rc);
 	return rc;
 }
 
@@ -138,8 +138,8 @@ static int qeth_l2_remove_mac(struct qeth_card *card, u8 *mac)
 	QETH_CARD_TEXT(card, 2, "L2Rmac");
 	rc = qeth_l2_send_setdelmac(card, mac, cmd);
 	if (rc)
-		QETH_DBF_MESSAGE(2, "Failed to delete MAC on device %u: %d\n",
-				 CARD_DEVID(card), rc);
+		QETH_DBF_MESSAGE(2, "Failed to delete MAC address %012llx on device %x: %d\n",
+				 ether_addr_to_u64(mac), CARD_DEVID(card), rc);
 	return rc;
 }
 
