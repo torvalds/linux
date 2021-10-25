@@ -5138,7 +5138,7 @@ static int bpf_core_apply_relo(struct bpf_program *prog,
 	 * relocated, so it's enough to just subtract in-section offset
 	 */
 	insn_idx = insn_idx - prog->sec_insn_off;
-	if (insn_idx > prog->insns_cnt)
+	if (insn_idx >= prog->insns_cnt)
 		return -EINVAL;
 	insn = &prog->insns[insn_idx];
 
