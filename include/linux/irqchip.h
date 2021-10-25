@@ -14,7 +14,14 @@
 #include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_irq.h>
 #include <linux/platform_device.h>
+
+/* Undefined on purpose */
+extern of_irq_init_cb_t typecheck_irq_init_cb;
+
+#define typecheck_irq_init_cb(fn)					\
+	(__typecheck(typecheck_irq_init_cb, &fn) ? fn : fn)
 
 /*
  * This macro must be used by the different irqchip drivers to declare
@@ -23,17 +30,19 @@
  *
  * @name: name that must be unique across all IRQCHIP_DECLARE of the
  * same file.
- * @compstr: compatible string of the irqchip driver
+ * @compat: compatible string of the irqchip driver
  * @fn: initialization function
  */
-#define IRQCHIP_DECLARE(name, compat, fn) OF_DECLARE_2(irqchip, name, compat, fn)
+#define IRQCHIP_DECLARE(name, compat, fn)	\
+	OF_DECLARE_2(irqchip, name, compat, typecheck_irq_init_cb(fn))
 
 extern int platform_irqchip_probe(struct platform_device *pdev);
 
 #define IRQCHIP_PLATFORM_DRIVER_BEGIN(drv_name) \
 static const struct of_device_id drv_name##_irqchip_match_table[] = {
 
-#define IRQCHIP_MATCH(compat, fn) { .compatible = compat, .data = fn },
+#define IRQCHIP_MATCH(compat, fn) { .compatible = compat,		\
+				    .data = typecheck_irq_init_cb(fn), },
 
 #define IRQCHIP_PLATFORM_DRIVER_END(drv_name)				\
 	{},								\
