@@ -572,7 +572,7 @@ done:
 static void tcp_v6_reqsk_destructor(struct request_sock *req)
 {
 	kfree(inet_rsk(req)->ipv6_opt);
-	kfree_skb(inet_rsk(req)->pktopts);
+	consume_skb(inet_rsk(req)->pktopts);
 }
 
 #ifdef CONFIG_TCP_MD5SIG
@@ -1594,7 +1594,7 @@ ipv6_pktoptions:
 		}
 	}
 
-	kfree_skb(opt_skb);
+	consume_skb(opt_skb);
 	return 0;
 }
 
