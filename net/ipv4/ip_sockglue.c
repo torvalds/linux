@@ -1352,7 +1352,10 @@ static int do_ip_setsockopt(struct sock *sk, int level, int optname,
 			goto e_inval;
 		if (val < 0 || val > 255)
 			goto e_inval;
-		inet->min_ttl = val;
+		/* tcp_v4_err() and tcp_v4_rcv() might read min_ttl
+		 * while we are changint it.
+		 */
+		WRITE_ONCE(inet->min_ttl, val);
 		break;
 
 	default:
