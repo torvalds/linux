@@ -93,6 +93,9 @@ const struct bpf_verifier_ops bpf_struct_ops_verifier_ops = {
 };
 
 const struct bpf_prog_ops bpf_struct_ops_prog_ops = {
+#ifdef CONFIG_NET
+	.test_run = bpf_struct_ops_test_run,
+#endif
 };
 
 static const struct btf_type *module_type;

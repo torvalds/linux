@@ -1018,6 +1018,22 @@ static inline void bpf_module_put(const void *data, struct module *owner)
 	else
 		module_put(owner);
 }
+
+#ifdef CONFIG_NET
+/* Define it here to avoid the use of forward declaration */
+struct bpf_dummy_ops_state {
+	int val;
+};
+
+struct bpf_dummy_ops {
+	int (*test_1)(struct bpf_dummy_ops_state *cb);
+	int (*test_2)(struct bpf_dummy_ops_state *cb, int a1, unsigned short a2,
+		      char a3, unsigned long a4);
+};
+
+int bpf_struct_ops_test_run(struct bpf_prog *prog, const union bpf_attr *kattr,
+			    union bpf_attr __user *uattr);
+#endif
 #else
 static inline const struct bpf_struct_ops *bpf_struct_ops_find(u32 type_id)
 {
