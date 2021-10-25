@@ -10,18 +10,18 @@ void __read_overflow(void) __compiletime_error("detected read beyond size of obj
 void __read_overflow2(void) __compiletime_error("detected read beyond size of object (2nd parameter)");
 void __write_overflow(void) __compiletime_error("detected write beyond size of object (1st parameter)");
 
-#define __compiletime_strlen(p)				\
-({							\
-	unsigned char *__p = (unsigned char *)(p);      \
-	size_t ret = (size_t)-1;			\
-	size_t p_size = __builtin_object_size(p, 1);	\
-	if (p_size != (size_t)-1) {			\
-		size_t p_len = p_size - 1;		\
-		if (__builtin_constant_p(__p[p_len]) &&	\
-		    __p[p_len] == '\0')			\
-			ret = __builtin_strlen(__p);	\
-	}						\
-	ret;						\
+#define __compiletime_strlen(p)					\
+({								\
+	unsigned char *__p = (unsigned char *)(p);		\
+	size_t __ret = (size_t)-1;				\
+	size_t __p_size = __builtin_object_size(p, 1);		\
+	if (__p_size != (size_t)-1) {				\
+		size_t __p_len = __p_size - 1;			\
+		if (__builtin_constant_p(__p[__p_len]) &&	\
+		    __p[__p_len] == '\0')			\
+			__ret = __builtin_strlen(__p);		\
+	}							\
+	__ret;							\
 })
 
 #if defined(CONFIG_KASAN_GENERIC) || defined(CONFIG_KASAN_SW_TAGS)
