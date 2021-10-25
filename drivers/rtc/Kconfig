@@ -374,6 +374,16 @@ config RTC_DRV_MAX77686
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-max77686.
 
+config RTC_DRV_RK630
+	tristate "Rockchip RK630 RTC"
+	depends on MFD_RK630
+	help
+	  If you say yes here you will get support for the
+	  RTC of RK630.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-rk630.
+
 config RTC_DRV_RK808
 	tristate "Rockchip RK805/RK808/RK809/RK816/RK817/RK818 RTC"
 	depends on MFD_RK808
