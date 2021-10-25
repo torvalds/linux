@@ -132,7 +132,7 @@ static void rk_rng_read_regs(struct rk_rng *rng, u32 offset, void *buf,
 		*(u32 *)(buf + i) = be32_to_cpu(rk_rng_readl(rng, offset + i));
 }
 
-static int rk_rng_v1_read(struct hwrng *rng, void *buf, size_t max, bool wait)
+static int rk_crypto_v1_read(struct hwrng *rng, void *buf, size_t max, bool wait)
 {
 	int ret = 0;
 	u32 reg_ctrl = 0;
@@ -165,7 +165,7 @@ out:
 	return ret;
 }
 
-static int rk_rng_v2_read(struct hwrng *rng, void *buf, size_t max, bool wait)
+static int rk_crypto_v2_read(struct hwrng *rng, void *buf, size_t max, bool wait)
 {
 	int ret = 0;
 	u32 reg_ctrl = 0;
@@ -180,7 +180,7 @@ static int rk_rng_v2_read(struct hwrng *rng, void *buf, size_t max, bool wait)
 	reg_ctrl |= CRYPTO_V2_RNG_START;
 
 	rk_rng_writel(rk_rng, HIWORD_UPDATE(reg_ctrl, 0xffff, 0),
-			CRYPTO_V2_RNG_CTL);
+		      CRYPTO_V2_RNG_CTL);
 
 	ret = readl_poll_timeout(rk_rng->mem + CRYPTO_V2_RNG_CTL, reg_ctrl,
 				 !(reg_ctrl & CRYPTO_V2_RNG_START),
@@ -200,24 +200,24 @@ out:
 	return ret;
 }
 
-static const struct rk_rng_soc_data rk_rng_v1_soc_data = {
+static const struct rk_rng_soc_data rk_crypto_v1_soc_data = {
 	.default_offset = 0,
-	.rk_rng_read = rk_rng_v1_read,
+	.rk_rng_read = rk_crypto_v1_read,
 };
 
-static const struct rk_rng_soc_data rk_rng_v2_soc_data = {
+static const struct rk_rng_soc_data rk_crypto_v2_soc_data = {
 	.default_offset = CRYPTO_V2_RNG_DEFAULT_OFFSET,
-	.rk_rng_read = rk_rng_v2_read,
+	.rk_rng_read = rk_crypto_v2_read,
 };
 
 static const struct of_device_id rk_rng_dt_match[] = {
 	{
 		.compatible = "rockchip,cryptov1-rng",
-		.data = (void *)&rk_rng_v1_soc_data,
+		.data = (void *)&rk_crypto_v1_soc_data,
 	},
 	{
 		.compatible = "rockchip,cryptov2-rng",
-		.data = (void *)&rk_rng_v2_soc_data,
+		.data = (void *)&rk_crypto_v2_soc_data,
 	},
 	{ },
 };
