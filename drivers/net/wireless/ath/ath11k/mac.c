@@ -1231,6 +1231,26 @@ static int ath11k_mac_setup_bcn_tmpl(struct ath11k_vif *arvif)
 	return ret;
 }
 
+void ath11k_mac_bcn_tx_event(struct ath11k_vif *arvif)
+{
+	struct ieee80211_vif *vif = arvif->vif;
+
+	if (!vif->color_change_active && !arvif->bcca_zero_sent)
+		return;
+
+	if (vif->color_change_active && ieee80211_beacon_cntdwn_is_complete(vif)) {
+		arvif->bcca_zero_sent = true;
+		ieee80211_color_change_finish(vif);
+		return;
+	}
+
+	arvif->bcca_zero_sent = false;
+
+	if (vif->color_change_active)
+		ieee80211_beacon_update_cntdwn(vif);
+	ath11k_mac_setup_bcn_tmpl(arvif);
+}
+
 static void ath11k_control_beaconing(struct ath11k_vif *arvif,
 				     struct ieee80211_bss_conf *info)
 {
@@ -2894,10 +2914,17 @@ static void ath11k_mac_op_bss_info_changed(struct ieee80211_hw *hw,
 				   "Set staggered beacon mode for VDEV: %d\n",
 				   arvif->vdev_id);
 
-		ret = ath11k_mac_setup_bcn_tmpl(arvif);
-		if (ret)
-			ath11k_warn(ar->ab, "failed to update bcn template: %d\n",
-				    ret);
+		if (!arvif->do_not_send_tmpl || !arvif->bcca_zero_sent) {
+			ret = ath11k_mac_setup_bcn_tmpl(arvif);
+			if (ret)
+				ath11k_warn(ar->ab, "failed to update bcn template: %d\n",
+					    ret);
+		}
+
+		if (arvif->bcca_zero_sent)
+			arvif->do_not_send_tmpl = true;
+		else
+			arvif->do_not_send_tmpl = false;
 	}
 
 	if (changed & (BSS_CHANGED_BEACON_INFO | BSS_CHANGED_BEACON)) {
@@ -3108,6 +3135,25 @@ static void ath11k_mac_op_bss_info_changed(struct ieee80211_hw *hw,
 			if (ret)
 				ath11k_warn(ar->ab, "failed to set bss color collision on vdev %i: %d\n",
 					    arvif->vdev_id,  ret);
+
+			param_id = WMI_VDEV_PARAM_BSS_COLOR;
+			if (info->he_bss_color.enabled)
+				param_value = info->he_bss_color.color <<
+						IEEE80211_HE_OPERATION_BSS_COLOR_OFFSET;
+			else
+				param_value = IEEE80211_HE_OPERATION_BSS_COLOR_DISABLED;
+
+			ret = ath11k_wmi_vdev_set_param_cmd(ar, arvif->vdev_id,
+							    param_id,
+							    param_value);
+			if (ret)
+				ath11k_warn(ar->ab,
+					    "failed to set bss color param on vdev %i: %d\n",
+					    arvif->vdev_id,  ret);
+
+			ath11k_dbg(ar->ab, ATH11K_DBG_MAC,
+				   "bss color param 0x%x set on vdev %i\n",
+				   param_value, arvif->vdev_id);
 		} else if (vif->type == NL80211_IFTYPE_STATION) {
 			ret = ath11k_wmi_send_bss_color_change_enable_cmd(ar,
 									  arvif->vdev_id,
@@ -7872,6 +7918,9 @@ static int __ath11k_mac_register(struct ath11k *ar)
 
 	wiphy_ext_feature_set(ar->hw->wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
 	wiphy_ext_feature_set(ar->hw->wiphy, NL80211_EXT_FEATURE_STA_TX_PWR);
+	if (test_bit(WMI_TLV_SERVICE_BSS_COLOR_OFFLOAD, ar->ab->wmi_ab.svc_map))
+		wiphy_ext_feature_set(ar->hw->wiphy,
+				      NL80211_EXT_FEATURE_BSS_COLOR);
 
 	ar->hw->wiphy->cipher_suites = cipher_suites;
 	ar->hw->wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);

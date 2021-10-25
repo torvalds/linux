@@ -255,6 +255,8 @@ struct ath11k_vif {
 	int txpower;
 	bool rsnie_present;
 	bool wpaie_present;
+	bool bcca_zero_sent;
+	bool do_not_send_tmpl;
 	struct ieee80211_chanctx_conf chanctx;
 };
 

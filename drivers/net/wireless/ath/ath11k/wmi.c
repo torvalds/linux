@@ -128,6 +128,8 @@ static const struct wmi_tlv_policy wmi_tlv_policies[] = {
 		.min_len = sizeof(struct wmi_probe_resp_tx_status_event) },
 	[WMI_TAG_VDEV_DELETE_RESP_EVENT] = {
 		.min_len = sizeof(struct wmi_vdev_delete_resp_event) },
+	[WMI_TAG_OBSS_COLOR_COLLISION_EVT] = {
+		.min_len = sizeof(struct wmi_obss_color_collision_event) },
 };
 
 #define PRIMAP(_hw_mode_) \
@@ -1633,6 +1635,15 @@ int ath11k_wmi_bcn_tmpl(struct ath11k *ar, u32 vdev_id,
 	void *ptr;
 	int ret, len;
 	size_t aligned_len = roundup(bcn->len, 4);
+	struct ieee80211_vif *vif;
+	struct ath11k_vif *arvif = ath11k_mac_get_arvif(ar, vdev_id);
+
+	if (!arvif) {
+		ath11k_warn(ar->ab, "failed to find arvif with vdev id %d\n", vdev_id);
+		return -EINVAL;
+	}
+
+	vif = arvif->vif;
 
 	len = sizeof(*cmd) + sizeof(*bcn_prb_info) + TLV_HDR_SIZE + aligned_len;
 
@@ -1645,8 +1656,12 @@ int ath11k_wmi_bcn_tmpl(struct ath11k *ar, u32 vdev_id,
 			  FIELD_PREP(WMI_TLV_LEN, sizeof(*cmd) - TLV_HDR_SIZE);
 	cmd->vdev_id = vdev_id;
 	cmd->tim_ie_offset = offs->tim_offset;
-	cmd->csa_switch_count_offset = offs->cntdwn_counter_offs[0];
-	cmd->ext_csa_switch_count_offset = offs->cntdwn_counter_offs[1];
+
+	if (vif->csa_active) {
+		cmd->csa_switch_count_offset = offs->cntdwn_counter_offs[0];
+		cmd->ext_csa_switch_count_offset = offs->cntdwn_counter_offs[1];
+	}
+
 	cmd->buf_len = bcn->len;
 
 	ptr = skb->data + sizeof(*cmd);
@@ -3448,6 +3463,53 @@ int ath11k_wmi_fils_discovery(struct ath11k *ar, u32 vdev_id, u32 interval,
 		dev_kfree_skb(skb);
 	}
 	return ret;
+}
+
+static void
+ath11k_wmi_obss_color_collision_event(struct ath11k_base *ab, struct sk_buff *skb)
+{
+	const void **tb;
+	const struct wmi_obss_color_collision_event *ev;
+	struct ath11k_vif *arvif;
+	int ret;
+
+	tb = ath11k_wmi_tlv_parse_alloc(ab, skb->data, skb->len, GFP_ATOMIC);
+	if (IS_ERR(tb)) {
+		ret = PTR_ERR(tb);
+		ath11k_warn(ab, "failed to parse tlv: %d\n", ret);
+		return;
+	}
+
+	ev = tb[WMI_TAG_OBSS_COLOR_COLLISION_EVT];
+	if (!ev) {
+		ath11k_warn(ab, "failed to fetch obss color collision ev");
+		goto exit;
+	}
+
+	arvif = ath11k_mac_get_arvif_by_vdev_id(ab, ev->vdev_id);
+	if (!arvif) {
+		ath11k_warn(ab, "failed to find arvif with vedv id %d in obss_color_collision_event\n",
+			    ev->vdev_id);
+		goto exit;
+	}
+
+	switch (ev->evt_type) {
+	case WMI_BSS_COLOR_COLLISION_DETECTION:
+		ieeee80211_obss_color_collision_notify(arvif->vif, ev->obss_color_bitmap);
+		ath11k_dbg(ab, ATH11K_DBG_WMI,
+			   "OBSS color collision detected vdev:%d, event:%d, bitmap:%08llx\n",
+			   ev->vdev_id, ev->evt_type, ev->obss_color_bitmap);
+		break;
+	case WMI_BSS_COLOR_COLLISION_DISABLE:
+	case WMI_BSS_COLOR_FREE_SLOT_TIMER_EXPIRY:
+	case WMI_BSS_COLOR_FREE_SLOT_AVAILABLE:
+		break;
+	default:
+		ath11k_warn(ab, "received unknown obss color collision detetction event\n");
+	}
+
+exit:
+	kfree(tb);
 }
 
 static void
@@ -6157,6 +6219,7 @@ static void ath11k_vdev_start_resp_event(struct ath11k_base *ab, struct sk_buff 
 
 static void ath11k_bcn_tx_status_event(struct ath11k_base *ab, struct sk_buff *skb)
 {
+	struct ath11k_vif *arvif;
 	u32 vdev_id, tx_status;
 
 	if (ath11k_pull_bcn_tx_status_ev(ab, skb->data, skb->len,
@@ -6164,6 +6227,14 @@ static void ath11k_bcn_tx_status_event(struct ath11k_base *ab, struct sk_buff *s
 		ath11k_warn(ab, "failed to extract bcn tx status");
 		return;
 	}
+
+	arvif = ath11k_mac_get_arvif_by_vdev_id(ab, vdev_id);
+	if (!arvif) {
+		ath11k_warn(ab, "invalid vdev id %d in bcn_tx_status",
+			    vdev_id);
+		return;
+	}
+	ath11k_mac_bcn_tx_event(arvif);
 }
 
 static void ath11k_vdev_stopped_event(struct ath11k_base *ab, struct sk_buff *skb)
@@ -7190,6 +7261,9 @@ static void ath11k_wmi_tlv_op_rx(struct ath11k_base *ab, struct sk_buff *skb)
 		break;
 	case WMI_OFFLOAD_PROB_RESP_TX_STATUS_EVENTID:
 		ath11k_probe_resp_tx_status_event(ab, skb);
+		break;
+	case WMI_OBSS_COLOR_COLLISION_DETECTION_EVENTID:
+		ath11k_wmi_obss_color_collision_event(ab, skb);
 		break;
 	/* add Unsupported events here */
 	case WMI_TBTTOFFSET_EXT_UPDATE_EVENTID:
