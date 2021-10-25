@@ -203,6 +203,12 @@ struct vc4_hdmi {
 	 * for use by ALSA hooks and interrupt handlers. Protected by @mutex.
 	 */
 	struct drm_display_mode saved_adjusted_mode;
+
+	/**
+	 * @output_enabled: Is the HDMI controller currently active?
+	 * Protected by @mutex.
+	 */
+	bool output_enabled;
 };
 
 static inline struct vc4_hdmi *
