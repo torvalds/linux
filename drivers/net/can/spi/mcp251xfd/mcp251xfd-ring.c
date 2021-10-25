@@ -295,11 +295,11 @@ int mcp251xfd_ring_alloc(struct mcp251xfd_priv *priv)
 
 	tef_obj_size = sizeof(struct mcp251xfd_hw_tef_obj);
 	if (mcp251xfd_is_fd_mode(priv)) {
-		tx_obj_num = MCP251XFD_TX_OBJ_NUM_CANFD;
+		tx_obj_num = MCP251XFD_TX_OBJ_NUM_CANFD_DEFAULT;
 		tx_obj_size = sizeof(struct mcp251xfd_hw_tx_obj_canfd);
 		rx_obj_size = sizeof(struct mcp251xfd_hw_rx_obj_canfd);
 	} else {
-		tx_obj_num = MCP251XFD_TX_OBJ_NUM_CAN;
+		tx_obj_num = MCP251XFD_TX_OBJ_NUM_CAN_DEFAULT;
 		tx_obj_size = sizeof(struct mcp251xfd_hw_tx_obj_can);
 		rx_obj_size = sizeof(struct mcp251xfd_hw_rx_obj_can);
 	}

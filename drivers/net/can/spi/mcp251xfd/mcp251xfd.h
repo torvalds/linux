@@ -367,23 +367,6 @@
 #define MCP251XFD_REG_DEVID_ID_MASK GENMASK(7, 4)
 #define MCP251XFD_REG_DEVID_REV_MASK GENMASK(3, 0)
 
-/* number of TX FIFO objects, depending on CAN mode
- *
- * FIFO setup: tef: 8*12 bytes = 96 bytes, tx: 8*16 bytes = 128 bytes
- * FIFO setup: tef: 4*12 bytes = 48 bytes, tx: 4*72 bytes = 288 bytes
- */
-#define MCP251XFD_RX_OBJ_NUM_MAX 32
-#define MCP251XFD_TX_OBJ_NUM_CAN 8
-#define MCP251XFD_TX_OBJ_NUM_CANFD 4
-
-#if MCP251XFD_TX_OBJ_NUM_CAN > MCP251XFD_TX_OBJ_NUM_CANFD
-#define MCP251XFD_TX_OBJ_NUM_MAX MCP251XFD_TX_OBJ_NUM_CAN
-#else
-#define MCP251XFD_TX_OBJ_NUM_MAX MCP251XFD_TX_OBJ_NUM_CANFD
-#endif
-
-#define MCP251XFD_NAPI_WEIGHT 32
-
 /* SPI commands */
 #define MCP251XFD_SPI_INSTRUCTION_RESET 0x0000
 #define MCP251XFD_SPI_INSTRUCTION_WRITE 0x2000
@@ -404,6 +387,9 @@ static_assert(MCP251XFD_TIMESTAMP_WORK_DELAY_SEC <
 #define MCP251XFD_OSC_STAB_TIMEOUT_US (10 * MCP251XFD_OSC_STAB_SLEEP_US)
 #define MCP251XFD_POLL_SLEEP_US (10)
 #define MCP251XFD_POLL_TIMEOUT_US (USEC_PER_MSEC)
+
+/* Misc */
+#define MCP251XFD_NAPI_WEIGHT 32
 #define MCP251XFD_SOFTRESET_RETRIES_MAX 3
 #define MCP251XFD_READ_CRC_RETRIES_MAX 3
 #define MCP251XFD_ECC_CNT_MAX 2
@@ -412,14 +398,24 @@ static_assert(MCP251XFD_TIMESTAMP_WORK_DELAY_SEC <
 
 /* FIFO and Ring */
 #define MCP251XFD_FIFO_TEF_NUM 1U
-#define MCP251XFD_FIFO_RX_NUM_MAX 1U
+#define MCP251XFD_FIFO_RX_NUM 1U
 #define MCP251XFD_FIFO_TX_NUM 1U
 
 #define MCP251XFD_FIFO_DEPTH 32U
 
+#define MCP251XFD_RX_OBJ_NUM_MIN 16U
+#define MCP251XFD_RX_OBJ_NUM_MAX (MCP251XFD_FIFO_RX_NUM * MCP251XFD_FIFO_DEPTH)
+#define MCP251XFD_RX_FIFO_DEPTH_MIN 4U
+
+#define MCP251XFD_TX_OBJ_NUM_MIN 2U
+#define MCP251XFD_TX_OBJ_NUM_MAX 8U
+#define MCP251XFD_TX_OBJ_NUM_CAN_DEFAULT 8U
+#define MCP251XFD_TX_OBJ_NUM_CANFD_DEFAULT 4U
+#define MCP251XFD_TX_FIFO_DEPTH_MIN 2U
+
 static_assert(MCP251XFD_FIFO_TEF_NUM == 1U);
 static_assert(MCP251XFD_FIFO_TEF_NUM == MCP251XFD_FIFO_TX_NUM);
-static_assert(MCP251XFD_FIFO_RX_NUM_MAX <= 4U);
+static_assert(MCP251XFD_FIFO_RX_NUM <= 4U);
 
 /* Silence TX MAB overflow warnings */
 #define MCP251XFD_QUIRK_MAB_NO_WARN BIT(0)
@@ -550,7 +546,7 @@ struct mcp251xfd_rx_ring {
 	u8 obj_size;
 
 	union mcp251xfd_write_reg_buf uinc_buf;
-	struct spi_transfer uinc_xfer[MCP251XFD_RX_OBJ_NUM_MAX];
+	struct spi_transfer uinc_xfer[MCP251XFD_FIFO_DEPTH];
 	struct mcp251xfd_hw_rx_obj_canfd obj[];
 };
 
@@ -608,7 +604,7 @@ struct mcp251xfd_priv {
 	u32 spi_max_speed_hz_slow;
 
 	struct mcp251xfd_tef_ring tef[MCP251XFD_FIFO_TEF_NUM];
-	struct mcp251xfd_rx_ring *rx[MCP251XFD_FIFO_RX_NUM_MAX];
+	struct mcp251xfd_rx_ring *rx[MCP251XFD_FIFO_RX_NUM];
 	struct mcp251xfd_tx_ring tx[MCP251XFD_FIFO_TX_NUM];
 
 	u8 rx_ring_num;
