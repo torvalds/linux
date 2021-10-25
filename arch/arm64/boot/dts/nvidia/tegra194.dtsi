@@ -1811,6 +1811,7 @@
 						<&mc TEGRA194_MEMORY_CLIENT_VICSWR &emc>;
 				interconnect-names = "dma-mem", "write";
 				iommus = <&smmu TEGRA194_SID_VIC>;
+				dma-coherent;
 			};
 
 			nvjpg@15380000 {
