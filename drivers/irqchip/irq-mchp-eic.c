@@ -209,7 +209,7 @@ static int mchp_eic_init(struct device_node *node, struct device_node *parent)
 		return -ENOMEM;
 
 	eic->base = of_iomap(node, 0);
-	if (IS_ERR(eic->base)) {
+	if (!eic->base) {
 		ret = -ENOMEM;
 		goto free;
 	}
