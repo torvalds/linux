@@ -24,6 +24,7 @@
 #ifndef __GFX_V9_4_3_H__
 #define __GFX_V9_4_3_H__
 
+extern const struct amdgpu_gfx_funcs gfx_v9_4_3_gfx_funcs;
 extern const struct amdgpu_rlc_funcs gfx_v9_4_3_rlc_funcs;
 
 #endif /* __GFX_V9_4_3_H__ */
