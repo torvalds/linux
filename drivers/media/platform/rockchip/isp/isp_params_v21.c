@@ -23,40 +23,6 @@
 #define ISP2X_NOBIG_OVERFLOW_SIZE	(2688 * 1536)
 #define ISP2X_AUTO_BIGMODE_WIDTH	2688
 
-static inline void
-rkisp_iowrite32(struct rkisp_isp_params_vdev *params_vdev,
-		u32 value, u32 addr)
-{
-	rkisp_write(params_vdev->dev, addr, value, false);
-}
-
-static inline u32
-rkisp_ioread32(struct rkisp_isp_params_vdev *params_vdev,
-	       u32 addr)
-{
-	return rkisp_read(params_vdev->dev, addr, false);
-}
-
-static inline void
-isp_param_set_bits(struct rkisp_isp_params_vdev *params_vdev,
-		   u32 reg, u32 bit_mask)
-{
-	u32 val;
-
-	val = rkisp_ioread32(params_vdev, reg);
-	rkisp_iowrite32(params_vdev, val | bit_mask, reg);
-}
-
-static inline void
-isp_param_clear_bits(struct rkisp_isp_params_vdev *params_vdev,
-		     u32 reg, u32 bit_mask)
-{
-	u32 val;
-
-	val = rkisp_ioread32(params_vdev, reg);
-	rkisp_iowrite32(params_vdev, val & ~bit_mask, reg);
-}
-
 static inline size_t
 isp_param_get_insize(struct rkisp_isp_params_vdev *params_vdev)
 {
@@ -632,6 +598,8 @@ static void
 isp_lsc_config(struct rkisp_isp_params_vdev *params_vdev,
 	       const struct isp2x_lsc_cfg *arg)
 {
+	struct rkisp_isp_params_val_v21 *priv_val =
+		(struct rkisp_isp_params_val_v21 *)params_vdev->priv_val;
 	struct rkisp_device *dev = params_vdev->dev;
 	unsigned int data;
 	u32 lsc_ctrl;
@@ -679,7 +647,7 @@ isp_lsc_config(struct rkisp_isp_params_vdev *params_vdev,
 		isp_param_clear_bits(params_vdev, ISP_LSC_CTRL, ISP_LSC_EN);
 	}
 
-	params_vdev->cur_lsccfg = *arg;
+	priv_val->cur_lsccfg = *arg;
 }
 
 static void
@@ -3700,19 +3668,21 @@ void __isp_config_hdrshd(struct rkisp_isp_params_vdev *params_vdev)
 {
 	struct rkisp_isp_params_v21_ops *ops =
 		(struct rkisp_isp_params_v21_ops *)params_vdev->priv_ops;
+	struct rkisp_isp_params_val_v21 *priv_val =
+		(struct rkisp_isp_params_val_v21 *)params_vdev->priv_val;
 
-	ops->hdrmge_config(params_vdev,
-			   &params_vdev->last_hdrmge, RKISP_PARAMS_SHD);
+	ops->hdrmge_config(params_vdev, &priv_val->last_hdrmge, RKISP_PARAMS_SHD);
 
-	ops->hdrdrc_config(params_vdev,
-			   &params_vdev->last_hdrdrc, RKISP_PARAMS_SHD);
+	ops->hdrdrc_config(params_vdev, &priv_val->last_hdrdrc, RKISP_PARAMS_SHD);
 }
 
 static
 void rkisp_params_cfgsram_v2x(struct rkisp_isp_params_vdev *params_vdev)
 {
-	isp_lsc_matrix_cfg_sram(params_vdev,
-				&params_vdev->cur_lsccfg, true);
+	struct rkisp_isp_params_val_v21 *priv_val =
+		(struct rkisp_isp_params_val_v21 *)params_vdev->priv_val;
+
+	isp_lsc_matrix_cfg_sram(params_vdev, &priv_val->cur_lsccfg, true);
 }
 
 static void
@@ -3777,10 +3747,10 @@ rkisp_params_first_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev)
 			       ISP2X_SYS_BIGMODE_MANUAL | ISP2X_SYS_BIGMODE_FORCEEN, false);
 	}
 
-	params_vdev->cur_hdrmge = params_vdev->isp21_params->others.hdrmge_cfg;
-	params_vdev->cur_hdrdrc = params_vdev->isp21_params->others.drc_cfg;
-	params_vdev->last_hdrmge = params_vdev->cur_hdrmge;
-	params_vdev->last_hdrdrc = params_vdev->cur_hdrdrc;
+	priv_val->cur_hdrmge = params_vdev->isp21_params->others.hdrmge_cfg;
+	priv_val->cur_hdrdrc = params_vdev->isp21_params->others.drc_cfg;
+	priv_val->last_hdrmge = priv_val->cur_hdrmge;
+	priv_val->last_hdrdrc = priv_val->cur_hdrdrc;
 	spin_unlock(&params_vdev->config_lock);
 }
 
@@ -3875,9 +3845,10 @@ rkisp_get_param_size_v2x(struct rkisp_isp_params_vdev *params_vdev,
 
 static void
 rkisp_params_get_ldchbuf_inf_v2x(struct rkisp_isp_params_vdev *params_vdev,
-				 struct rkisp_ldchbuf_info *ldchbuf)
+				 void *buf)
 {
 	struct rkisp_isp_params_val_v21 *priv_val;
+	struct rkisp_ldchbuf_info *ldchbuf = buf;
 	int i;
 
 	priv_val = params_vdev->priv_val;
@@ -3889,8 +3860,10 @@ rkisp_params_get_ldchbuf_inf_v2x(struct rkisp_isp_params_vdev *params_vdev,
 
 static void
 rkisp_params_set_ldchbuf_size_v2x(struct rkisp_isp_params_vdev *params_vdev,
-				  struct rkisp_ldchbuf_size *ldchsize)
+				  void *size)
 {
+	struct rkisp_ldchbuf_size *ldchsize = size;
+
 	rkisp_deinit_ldch_buf(params_vdev);
 	rkisp_init_ldch_buf(params_vdev, ldchsize);
 }
@@ -4024,10 +3997,13 @@ rkisp_params_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev,
 		__isp_config_hdrshd(params_vdev);
 
 	if (type != RKISP_PARAMS_IMD) {
-		params_vdev->last_hdrmge = params_vdev->cur_hdrmge;
-		params_vdev->last_hdrdrc = params_vdev->cur_hdrdrc;
-		params_vdev->cur_hdrmge = new_params->others.hdrmge_cfg;
-		params_vdev->cur_hdrdrc = new_params->others.drc_cfg;
+		struct rkisp_isp_params_val_v21 *priv_val =
+			(struct rkisp_isp_params_val_v21 *)params_vdev->priv_val;
+
+		priv_val->last_hdrmge = priv_val->cur_hdrmge;
+		priv_val->last_hdrdrc = priv_val->cur_hdrdrc;
+		priv_val->cur_hdrmge = new_params->others.hdrmge_cfg;
+		priv_val->cur_hdrdrc = new_params->others.drc_cfg;
 		vb2_buffer_done(&cur_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 		cur_buf = NULL;
 	}
@@ -4096,8 +4072,8 @@ static struct rkisp_isp_params_ops rkisp_isp_params_ops_tbl = {
 	.isr_hdl = rkisp_params_isr_v2x,
 	.param_cfg = rkisp_params_cfg_v2x,
 	.param_cfgsram = rkisp_params_cfgsram_v2x,
-	.get_ldchbuf_inf = rkisp_params_get_ldchbuf_inf_v2x,
-	.set_ldchbuf_size = rkisp_params_set_ldchbuf_size_v2x,
+	.get_meshbuf_inf = rkisp_params_get_ldchbuf_inf_v2x,
+	.set_meshbuf_size = rkisp_params_set_ldchbuf_size_v2x,
 	.stream_stop = rkisp_params_stream_stop_v2x,
 	.fop_release = rkisp_params_fop_release_v2x,
 };

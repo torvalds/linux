@@ -340,19 +340,22 @@ void rkisp_params_first_cfg(struct rkisp_isp_params_vdev *params_vdev,
 /* Not called when the camera active, thus not isr protection. */
 void rkisp_params_disable_isp(struct rkisp_isp_params_vdev *params_vdev)
 {
-	params_vdev->ops->disable_isp(params_vdev);
+	if (params_vdev->ops->disable_isp)
+		params_vdev->ops->disable_isp(params_vdev);
 }
 
-void rkisp_params_get_ldchbuf_inf(struct rkisp_isp_params_vdev *params_vdev,
-				  struct rkisp_ldchbuf_info *ldchbuf)
+void rkisp_params_get_meshbuf_inf(struct rkisp_isp_params_vdev *params_vdev,
+				  void *meshbuf)
 {
-	params_vdev->ops->get_ldchbuf_inf(params_vdev, ldchbuf);
+	if (params_vdev->ops->get_meshbuf_inf)
+		params_vdev->ops->get_meshbuf_inf(params_vdev, meshbuf);
 }
 
-void rkisp_params_set_ldchbuf_size(struct rkisp_isp_params_vdev *params_vdev,
-				   struct rkisp_ldchbuf_size *ldchsize)
+void rkisp_params_set_meshbuf_size(struct rkisp_isp_params_vdev *params_vdev,
+				   void *meshsize)
 {
-	params_vdev->ops->set_ldchbuf_size(params_vdev, ldchsize);
+	if (params_vdev->ops->set_meshbuf_size)
+		params_vdev->ops->set_meshbuf_size(params_vdev, meshsize);
 }
 
 void rkisp_params_stream_stop(struct rkisp_isp_params_vdev *params_vdev)

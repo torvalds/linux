@@ -8,174 +8,7 @@
 #include <linux/rk-preisp.h>
 #include "common.h"
 #include "isp_params.h"
-
-#define ISP2X_YUVAE_ENA				BIT(0)
-#define ISP2X_YUVAE_WNDNUM_SET			BIT(1)
-#define ISP2X_YUVAE_SUBWIN1_EN			BIT(4)
-#define ISP2X_YUVAE_SUBWIN2_EN			BIT(5)
-#define ISP2X_YUVAE_SUBWIN3_EN			BIT(6)
-#define ISP2X_YUVAE_SUBWIN4_EN			BIT(7)
-#define ISP2X_YUVAE_YSEL			BIT(16)
-#define ISP2X_YUVAE_H_OFFSET_SET(x)		((x) & 0x1FFF)
-#define ISP2X_YUVAE_V_OFFSET_SET(x)		(((x) & 0x1FFF) << 16)
-#define ISP2X_YUVAE_H_SIZE_SET(x)		((x) & 0x7FF)
-#define ISP2X_YUVAE_V_SIZE_SET(x)		(((x) & 0x7FF) << 16)
-#define ISP2X_YUVAE_SUBWIN_H_OFFSET_SET(x)	((x) & 0x1FFF)
-#define ISP2X_YUVAE_SUBWIN_V_OFFSET_SET(x)	(((x) & 0x1FFF) << 16)
-#define ISP2X_YUVAE_SUBWIN_H_SIZE_SET(x)	((x) & 0x1FFF)
-#define ISP2X_YUVAE_SUBWIN_V_SIZE_SET(x)	(((x) & 0x1FFF) << 16)
-
-#define ISP2X_RAWAE_LITE_ENA			BIT(0)
-#define ISP2X_RAWAE_LITE_WNDNUM_SET(x)		(((x) & 0x1) << 1)
-#define ISP2X_RAWAE_LITE_H_OFFSET_SET(x)	((x) & 0x1FFF)
-#define ISP2X_RAWAE_LITE_V_OFFSET_SET(x)	(((x) & 0x1FFF) << 16)
-#define ISP2X_RAWAE_LITE_H_SIZE_SET(x)		((x) & 0x1FFF)
-#define ISP2X_RAWAE_LITE_V_SIZE_SET(x)		(((x) & 0x1FFF) << 16)
-
-#define ISP2X_RAWAEBIG_ENA			BIT(0)
-#define ISP2X_RAWAEBIG_WNDNUM_SET(x)		(((x) & 0x3) << 1)
-#define ISP2X_RAWAEBIG_SUBWIN1_EN		BIT(4)
-#define ISP2X_RAWAEBIG_SUBWIN2_EN		BIT(5)
-#define ISP2X_RAWAEBIG_SUBWIN3_EN		BIT(6)
-#define ISP2X_RAWAEBIG_SUBWIN4_EN		BIT(7)
-#define ISP2X_RAWAEBIG_H_OFFSET_SET(x)		((x) & 0x1FFF)
-#define ISP2X_RAWAEBIG_V_OFFSET_SET(x)		(((x) & 0x1FFF) << 16)
-#define ISP2X_RAWAEBIG_H_SIZE_SET(x)		((x) & 0x7FF)
-#define ISP2X_RAWAEBIG_V_SIZE_SET(x)		(((x) & 0x7FF) << 16)
-#define ISP2X_RAWAEBIG_SUBWIN_H_OFFSET_SET(x)	((x) & 0x1FFF)
-#define ISP2X_RAWAEBIG_SUBWIN_V_OFFSET_SET(x)	(((x) & 0x1FFF) << 16)
-#define ISP2X_RAWAEBIG_SUBWIN_H_SIZE_SET(x)	((x) & 0x1FFF)
-#define ISP2X_RAWAEBIG_SUBWIN_V_SIZE_SET(x)	(((x) & 0x1FFF) << 16)
-
-#define ISP2X_SIAWB_YMAX_CMP_EN			BIT(2)
-#define ISP2X_SIAWB_RGB_MODE_EN			BIT(31)
-#define ISP2X_SIAWB_SET_FRAMES(x)		(((x) & 0x07) << 28)
-#define ISP2X_SIAWB_MODE_SET(x)			((x) << 0)
-
-#define ISP2X_SIAF_ENA				BIT(0)
-#define ISP2X_SIAF_WIN_X(x)			(((x) & 0x1FFF) << 16)
-#define ISP2X_SIAF_WIN_Y(x)			((x) & 0x1FFF)
-#define ISP2X_SIAF_SET_SHIFT_A(x, y)		(((x) & 0x7) << 16 | ((y) & 0x7) << 0)
-#define ISP2X_SIAF_SET_SHIFT_B(x, y)		(((x) & 0x7) << 20 | ((y) & 0x7) << 4)
-#define ISP2X_SIAF_SET_SHIFT_C(x, y)		(((x) & 0x7) << 24 | ((y) & 0x7) << 8)
-#define ISP2X_SIAF_GET_LUM_SHIFT_A(x)		(((x) & 0x70000) >> 16)
-#define ISP2X_SIAF_GET_AFM_SHIFT_A(x)		((x) & 0x7)
-
-#define ISP2X_RAWAF_ENA				BIT(0)
-#define ISP2X_RAWAF_GAMMA_ENA			BIT(1)
-#define ISP2X_RAWAF_GAUS_ENA			BIT(2)
-
-#define ISP2X_RAWAF_INT_LINE0_EN		BIT(27)
-#define ISP2X_RAWAF_INT_LINE1_EN		BIT(28)
-#define ISP2X_RAWAF_INT_LINE2_EN		BIT(29)
-#define ISP2X_RAWAF_INT_LINE3_EN		BIT(30)
-#define ISP2X_RAWAF_INT_LINE4_EN		BIT(31)
-#define ISP2X_RAWAF_INT_LINE0_NUM(x)		(((x) & 0xF) << 0)
-#define ISP2X_RAWAF_INT_LINE1_NUM(x)		(((x) & 0xF) << 4)
-#define ISP2X_RAWAF_INT_LINE2_NUM(x)		(((x) & 0xF) << 8)
-#define ISP2X_RAWAF_INT_LINE3_NUM(x)		(((x) & 0xF) << 12)
-#define ISP2X_RAWAF_INT_LINE4_NUM(x)		(((x) & 0xF) << 16)
-
-#define ISP2X_RAWAF_THRES(x)			((x) & 0xFFFF)
-
-#define ISP2X_RAWAF_WIN_X(x)			(((x) & 0x1FFF) << 16)
-#define ISP2X_RAWAF_WIN_Y(x)			((x) & 0x1FFF)
-#define ISP2X_RAWAF_SET_SHIFT_A(x, y)		(((x) & 0x7) << 16 | ((y) & 0x7) << 0)
-#define ISP2X_RAWAF_SET_SHIFT_B(x, y)		(((x) & 0x7) << 20 | ((y) & 0x7) << 4)
-
-#define ISP2X_SIHST_CTRL_EN_SET(x)		(((x) & 0x01) << 0)
-#define ISP2X_SIHST_CTRL_EN_MASK		ISP2X_SIHST_CTRL_EN_SET(0x01)
-#define ISP2X_SIHST_CTRL_STEPSIZE_SET(x)	(((x) & 0x7F) << 1)
-#define ISP2X_SIHST_CTRL_MODE_SET(x)		(((x) & 0x07) << 8)
-#define ISP2X_SIHST_CTRL_MODE_MASK		ISP2X_SIHST_CTRL_MODE_SET(0x07)
-#define ISP2X_SIHST_CTRL_AUTOSTOP_SET(x)	(((x) & 0x01) << 11)
-#define ISP2X_SIHST_CTRL_WATERLINE_SET(x)	(((x) & 0xFFF) << 12)
-#define ISP2X_SIHST_CTRL_DATASEL_SET(x)		(((x) & 0x07) << 24)
-#define ISP2X_SIHST_CTRL_INTRSEL_SET(x)		(((x) & 0x01) << 27)
-#define ISP2X_SIHST_CTRL_INTRSEL_MASK		ISP2X_SIHST_CTRL_INTRSEL_SET(0x01)
-#define ISP2X_SIHST_CTRL_WNDNUM_SET(x)		(((x) & 0x03) << 28)
-#define ISP2X_SIHST_CTRL_WNDNUM_MASK		ISP2X_SIHST_CTRL_WNDNUM_SET(0x03)
-
-#define ISP2X_SIHST_ROW_NUM			15
-#define ISP2X_SIHST_COLUMN_NUM			15
-#define ISP2X_SIHST_WEIGHT_REG_SIZE		\
-				(ISP2X_SIHST_ROW_NUM * ISP2X_SIHST_COLUMN_NUM)
-
-#define ISP2X_SIHST_WEIGHT_SET(v0, v1, v2, v3)	\
-				(((v0) & 0x3F) | (((v1) & 0x3F) << 8) |\
-				(((v2) & 0x3F) << 16) |\
-				(((v3) & 0x3F) << 24))
-
-#define ISP2X_SIHST_OFFS_SET(v0, v1)		\
-				(((v0) & 0x1FFF) | (((v1) & 0x1FFF) << 16))
-#define ISP2X_SIHST_SIZE_SET(v0, v1)		\
-				(((v0) & 0x1FFF) | (((v1) & 0x1FFF) << 16))
-
-#define ISP2X_RAWHSTBIG_CTRL_EN_SET(x)		(((x) & 0x01) << 0)
-#define ISP2X_RAWHSTBIG_CTRL_EN_MASK		ISP2X_RAWHSTBIG_CTRL_EN_SET(0x01)
-#define ISP2X_RAWHSTBIG_CTRL_STEPSIZE_SET(x)	(((x) & 0x07) << 1)
-#define ISP2X_RAWHSTBIG_CTRL_MODE_SET(x)	(((x) & 0x07) << 8)
-#define ISP2X_RAWHSTBIG_CTRL_MODE_MASK		ISP2X_RAWHSTBIG_CTRL_MODE_SET(0x07)
-#define ISP2X_RAWHSTBIG_CTRL_WATERLINE_SET(x)	(((x) & 0xFFF) << 12)
-#define ISP2X_RAWHSTBIG_CTRL_DATASEL_SET(x)	(((x) & 0x07) << 24)
-#define ISP2X_RAWHSTBIG_CTRL_WNDNUM_SET(x)	(((x) & 0x03) << 28)
-#define ISP2X_RAWHSTBIG_CTRL_WNDNUM_MASK	ISP2X_RAWHSTBIG_CTRL_WNDNUM_SET(0x03)
-
-#define ISP2X_RAWHSTBIG_WRAM_EN			BIT(31)
-
-#define ISP2X_RAWHSTBIG_ROW_NUM			15
-#define ISP2X_RAWHSTBIG_COLUMN_NUM		15
-#define ISP2X_RAWHSTBIG_WEIGHT_REG_SIZE		\
-				(ISP2X_RAWHSTBIG_ROW_NUM * ISP2X_RAWHSTBIG_COLUMN_NUM)
-
-#define ISP2X_RAWHSTBIG_WEIGHT_SET(v0, v1, v2, v3, v4)	\
-				(((v0) & 0x3F) | (((v1) & 0x3F) << 6) |\
-				(((v2) & 0x3F) << 12) |\
-				(((v3) & 0x3F) << 18) |\
-				(((v4) & 0x3F) << 24))
-
-#define ISP2X_RAWHSTBIG_OFFS_SET(v0, v1)	\
-				(((v0) & 0x1FFF) | (((v1) & 0x1FFF) << 16))
-#define ISP2X_RAWHSTBIG_SIZE_SET(v0, v1)	\
-				(((v0) & 0x7FF) | (((v1) & 0x7FF) << 16))
-
-#define ISP2X_RAWHSTLITE_CTRL_EN_SET(x)		(((x) & 0x01) << 0)
-#define ISP2X_RAWHSTLITE_CTRL_EN_MASK		ISP2X_RAWHSTBIG_CTRL_EN_SET(0x01)
-#define ISP2X_RAWHSTLITE_CTRL_STEPSIZE_SET(x)	(((x) & 0x07) << 1)
-#define ISP2X_RAWHSTLITE_CTRL_MODE_SET(x)	(((x) & 0x07) << 8)
-#define ISP2X_RAWHSTLITE_CTRL_MODE_MASK		ISP2X_RAWHSTBIG_CTRL_MODE_SET(0x07)
-#define ISP2X_RAWHSTLITE_CTRL_WATERLINE_SET(x)	(((x) & 0xFFF) << 12)
-#define ISP2X_RAWHSTLITE_CTRL_DATASEL_SET(x)	(((x) & 0x07) << 24)
-
-#define ISP2X_RAWHSTLITE_ROW_NUM		5
-#define ISP2X_RAWHSTLITE_COLUMN_NUM		5
-#define ISP2X_RAWHSTLITE_WEIGHT_REG_SIZE	\
-				(ISP2X_RAWHSTLITE_ROW_NUM * ISP2X_RAWHSTLITE_COLUMN_NUM)
-
-#define ISP2X_RAWHSTLITE_WEIGHT_SET(v0, v1, v2, v3)	\
-				(((v0) & 0x3F) | (((v1) & 0x3F) << 8) |\
-				(((v2) & 0x3F) << 16) |\
-				(((v3) & 0x3F) << 24))
-
-#define ISP2X_RAWHSTLITE_OFFS_SET(v0, v1)	\
-				(((v0) & 0x1FFF) | (((v1) & 0x1FFF) << 16))
-#define ISP2X_RAWHSTLITE_SIZE_SET(v0, v1)	\
-				(((v0) & 0x7FF) | (((v1) & 0x7FF) << 16))
-
-#define ISP2X_RAWAWB_ENA			BIT(0)
-#define ISP2X_RAWAWB_WPTH2_SET(x)		(((x) & 0x1FF) << 9)
-
-#define ISP2X_ISPPATH_RAWAE_SEL_SET(x)	(((x) & 0x03) << 16)
-#define ISP2X_ISPPATH_RAWAF_SEL_SET(x)	(((x) & 0x03) << 18)
-#define ISP2X_ISPPATH_RAWAWB_SEL_SET(x)	(((x) & 0x03) << 20)
-#define ISP2X_ISPPATH_RAWAE_SWAP_SET(x)	(((x) & 0x03) << 22)
-
-#define RKISP_PARAM_3DLUT_BUF_NUM		2
-#define RKISP_PARAM_3DLUT_BUF_SIZE		(9 * 9 * 9 * 4)
-
-#define RKISP_PARAM_LSC_LUT_BUF_NUM		2
-#define RKISP_PARAM_LSC_LUT_TBL_SIZE		(9 * 17 * 4)
-#define RKISP_PARAM_LSC_LUT_BUF_SIZE		(RKISP_PARAM_LSC_LUT_TBL_SIZE * 4)
+#include "isp_params_v2x.h"
 
 struct rkisp_isp_params_vdev;
 struct rkisp_isp_params_v21_ops {
@@ -318,6 +151,12 @@ struct rkisp_isp_params_val_v21 {
 	u32 buf_lsclut_idx;
 
 	struct rkisp_dummy_buffer buf_3dnr;
+
+	struct isp2x_hdrmge_cfg last_hdrmge;
+	struct isp21_drc_cfg last_hdrdrc;
+	struct isp2x_hdrmge_cfg cur_hdrmge;
+	struct isp21_drc_cfg cur_hdrdrc;
+	struct isp2x_lsc_cfg cur_lsccfg;
 
 	u8 dhaz_en;
 	u8 wdr_en;

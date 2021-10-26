@@ -5,8 +5,16 @@
 #define _RKISP_ISP_PARAM_H
 
 #include <linux/rkisp1-config.h>
+#include <linux/rkisp2-config.h>
 #include <linux/rk-preisp.h>
 #include "common.h"
+
+#define ISP_PACK_4BYTE(a, b, c, d)	\
+	(((a) & 0xFF) << 0 | ((b) & 0xFF) << 8 | \
+	 ((c) & 0xFF) << 16 | ((d) & 0xFF) << 24)
+
+#define ISP_PACK_2SHORT(a, b)	\
+	(((a) & 0xFFFF) << 0 | ((b) & 0xFFFF) << 16)
 
 enum rkisp_params_type {
 	RKISP_PARAMS_ALL,
@@ -25,10 +33,10 @@ struct rkisp_isp_params_ops {
 	void (*param_cfg)(struct rkisp_isp_params_vdev *params_vdev, u32 frame_id,
 			  enum rkisp_params_type type);
 	void (*param_cfgsram)(struct rkisp_isp_params_vdev *params_vdev);
-	void (*get_ldchbuf_inf)(struct rkisp_isp_params_vdev *params_vdev,
-				struct rkisp_ldchbuf_info *ldchbuf);
-	void (*set_ldchbuf_size)(struct rkisp_isp_params_vdev *params_vdev,
-				 struct rkisp_ldchbuf_size *ldchsize);
+	void (*get_meshbuf_inf)(struct rkisp_isp_params_vdev *params_vdev,
+				void *meshbuf);
+	void (*set_meshbuf_size)(struct rkisp_isp_params_vdev *params_vdev,
+				 void *meshsize);
 	void (*stream_stop)(struct rkisp_isp_params_vdev *params_vdev);
 	void (*fop_release)(struct rkisp_isp_params_vdev *params_vdev);
 };
@@ -70,17 +78,44 @@ struct rkisp_isp_params_vdev {
 	struct rkisp_buffer *cur_buf;
 	u32 rdbk_times;
 
-	struct isp2x_hdrtmo_cfg last_hdrtmo;
-	struct isp2x_hdrmge_cfg last_hdrmge;
-	struct isp21_drc_cfg last_hdrdrc;
-	struct isp2x_hdrtmo_cfg cur_hdrtmo;
-	struct isp2x_hdrmge_cfg cur_hdrmge;
-	struct isp21_drc_cfg cur_hdrdrc;
-	struct isp2x_lsc_cfg cur_lsccfg;
 	struct sensor_exposure_cfg exposure;
 
 	bool is_subs_evt;
 };
+
+static inline void
+rkisp_iowrite32(struct rkisp_isp_params_vdev *params_vdev,
+		u32 value, u32 addr)
+{
+	rkisp_write(params_vdev->dev, addr, value, false);
+}
+
+static inline u32
+rkisp_ioread32(struct rkisp_isp_params_vdev *params_vdev,
+	       u32 addr)
+{
+	return rkisp_read(params_vdev->dev, addr, false);
+}
+
+static inline void
+isp_param_set_bits(struct rkisp_isp_params_vdev *params_vdev,
+		   u32 reg, u32 bit_mask)
+{
+	u32 val;
+
+	val = rkisp_ioread32(params_vdev, reg);
+	rkisp_iowrite32(params_vdev, val | bit_mask, reg);
+}
+
+static inline void
+isp_param_clear_bits(struct rkisp_isp_params_vdev *params_vdev,
+		     u32 reg, u32 bit_mask)
+{
+	u32 val;
+
+	val = rkisp_ioread32(params_vdev, reg);
+	rkisp_iowrite32(params_vdev, val & ~bit_mask, reg);
+}
 
 /* config params before ISP streaming */
 void rkisp_params_first_cfg(struct rkisp_isp_params_vdev *params_vdev,
@@ -99,10 +134,10 @@ void rkisp_params_isr(struct rkisp_isp_params_vdev *params_vdev, u32 isp_mis);
 void rkisp_params_cfg(struct rkisp_isp_params_vdev *params_vdev, u32 frame_id);
 
 void rkisp_params_cfgsram(struct rkisp_isp_params_vdev *params_vdev);
-void rkisp_params_get_ldchbuf_inf(struct rkisp_isp_params_vdev *params_vdev,
-				  struct rkisp_ldchbuf_info *ldchbuf);
-void rkisp_params_set_ldchbuf_size(struct rkisp_isp_params_vdev *params_vdev,
-				   struct rkisp_ldchbuf_size *ldchsize);
+void rkisp_params_get_meshbuf_inf(struct rkisp_isp_params_vdev *params_vdev,
+				  void *meshbuf);
+void rkisp_params_set_meshbuf_size(struct rkisp_isp_params_vdev *params_vdev,
+				   void *meshsize);
 void rkisp_params_stream_stop(struct rkisp_isp_params_vdev *params_vdev);
 
 #endif /* _RKISP_ISP_PARAM_H */

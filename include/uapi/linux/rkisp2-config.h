@@ -35,6 +35,12 @@
 #define RKISP_CMD_GET_FBCBUF_FD \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 7, struct isp2x_buf_idxfd)
 
+#define RKISP_CMD_GET_MESHBUF_INFO \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 8, struct rkisp_meshbuf_info)
+
+#define RKISP_CMD_SET_MESHBUF_SIZE \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 9, struct rkisp_meshbuf_size)
+
 /****************ISP VIDEO IOCTL******************************/
 
 #define RKISP_CMD_GET_CSI_MEMORY_MODE \
@@ -211,6 +217,31 @@
 #define ISP2X_THUNDERBOOT_VIDEO_BUF_NUM	30
 
 #define ISP2X_FBCBUF_FD_NUM		64
+
+#define ISP2X_MESH_BUF_NUM		2
+
+enum isp2x_mesh_buf_stat {
+	MESH_BUF_INIT = 0,
+	MESH_BUF_WAIT2CHIP,
+	MESH_BUF_CHIPINUSE,
+};
+
+struct rkisp_meshbuf_info {
+	u64 module_id;
+	s32 buf_fd[ISP2X_MESH_BUF_NUM];
+	u32 buf_size[ISP2X_MESH_BUF_NUM];
+} __attribute__ ((packed));
+
+struct rkisp_meshbuf_size {
+	u64 module_id;
+	u32 meas_width;
+	u32 meas_height;
+} __attribute__ ((packed));
+
+struct isp2x_mesh_head {
+	enum isp2x_mesh_buf_stat stat;
+	u32 data_oft;
+} __attribute__ ((packed));
 
 /* trigger event mode
  * T_TRY: trigger maybe with retry
