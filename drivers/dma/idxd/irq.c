@@ -22,6 +22,11 @@ struct idxd_fault {
 	struct idxd_device *idxd;
 };
 
+struct idxd_resubmit {
+	struct work_struct work;
+	struct idxd_desc *desc;
+};
+
 static void idxd_device_reinit(struct work_struct *work)
 {
 	struct idxd_device *idxd = container_of(work, struct idxd_device, work);
@@ -214,6 +219,51 @@ irqreturn_t idxd_misc_thread(int vec, void *data)
 	}
 
 	return IRQ_HANDLED;
+}
+
+static void idxd_int_handle_resubmit_work(struct work_struct *work)
+{
+	struct idxd_resubmit *irw = container_of(work, struct idxd_resubmit, work);
+	struct idxd_desc *desc = irw->desc;
+	struct idxd_wq *wq = desc->wq;
+	int rc;
+
+	desc->completion->status = 0;
+	rc = idxd_submit_desc(wq, desc);
+	if (rc < 0) {
+		dev_dbg(&wq->idxd->pdev->dev, "Failed to resubmit desc %d to wq %d.\n",
+			desc->id, wq->id);
+		/*
+		 * If the error is not -EAGAIN, it means the submission failed due to wq
+		 * has been killed instead of ENQCMDS failure. Here the driver needs to
+		 * notify the submitter of the failure by reporting abort status.
+		 *
+		 * -EAGAIN comes from ENQCMDS failure. idxd_submit_desc() will handle the
+		 * abort.
+		 */
+		if (rc != -EAGAIN) {
+			desc->completion->status = IDXD_COMP_DESC_ABORT;
+			idxd_dma_complete_txd(desc, IDXD_COMPLETE_ABORT, false);
+		}
+		idxd_free_desc(wq, desc);
+	}
+	kfree(irw);
+}
+
+bool idxd_queue_int_handle_resubmit(struct idxd_desc *desc)
+{
+	struct idxd_wq *wq = desc->wq;
+	struct idxd_device *idxd = wq->idxd;
+	struct idxd_resubmit *irw;
+
+	irw = kzalloc(sizeof(*irw), GFP_KERNEL);
+	if (!irw)
+		return false;
+
+	irw->desc = desc;
+	INIT_WORK(&irw->work, idxd_int_handle_resubmit_work);
+	queue_work(idxd->wq, &irw->work);
+	return true;
 }
 
 static void irq_process_pending_llist(struct idxd_irq_entry *irq_entry)

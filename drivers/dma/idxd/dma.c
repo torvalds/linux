@@ -24,18 +24,24 @@ void idxd_dma_complete_txd(struct idxd_desc *desc,
 			   enum idxd_complete_type comp_type,
 			   bool free_desc)
 {
+	struct idxd_device *idxd = desc->wq->idxd;
 	struct dma_async_tx_descriptor *tx;
 	struct dmaengine_result res;
 	int complete = 1;
 
-	if (desc->completion->status == DSA_COMP_SUCCESS)
+	if (desc->completion->status == DSA_COMP_SUCCESS) {
 		res.result = DMA_TRANS_NOERROR;
-	else if (desc->completion->status)
+	} else if (desc->completion->status) {
+		if (idxd->request_int_handles && comp_type != IDXD_COMPLETE_ABORT &&
+		    desc->completion->status == DSA_COMP_INT_HANDLE_INVAL &&
+		    idxd_queue_int_handle_resubmit(desc))
+			return;
 		res.result = DMA_TRANS_WRITE_FAILED;
-	else if (comp_type == IDXD_COMPLETE_ABORT)
+	} else if (comp_type == IDXD_COMPLETE_ABORT) {
 		res.result = DMA_TRANS_ABORTED;
-	else
+	} else {
 		complete = 0;
+	}
 
 	tx = &desc->txd;
 	if (complete && tx->cookie) {
