@@ -194,6 +194,54 @@
 		method = "smc";
 	};
 
+	rkisp0_vir0: rkisp0-vir0 {
+		compatible = "rockchip,rkisp-vir";
+		rockchip,hw = <&rkisp0>;
+		status = "disabled";
+	};
+
+	rkisp0_vir1: rkisp0-vir1 {
+		compatible = "rockchip,rkisp-vir";
+		rockchip,hw = <&rkisp0>;
+		status = "disabled";
+	};
+
+	rkisp0_vir2: rkisp0-vir2 {
+		compatible = "rockchip,rkisp-vir";
+		rockchip,hw = <&rkisp0>;
+		status = "disabled";
+	};
+
+	rkisp0_vir3: rkisp0-vir3 {
+		compatible = "rockchip,rkisp-vir";
+		rockchip,hw = <&rkisp0>;
+		status = "disabled";
+	};
+
+	rkisp1_vir0: rkisp1-vir0 {
+		compatible = "rockchip,rkisp-vir";
+		rockchip,hw = <&rkisp1>;
+		status = "disabled";
+	};
+
+	rkisp1_vir1: rkisp1-vir1 {
+		compatible = "rockchip,rkisp-vir";
+		rockchip,hw = <&rkisp1>;
+		status = "disabled";
+	};
+
+	rkisp1_vir2: rkisp1-vir2 {
+		compatible = "rockchip,rkisp-vir";
+		rockchip,hw = <&rkisp1>;
+		status = "disabled";
+	};
+
+	rkisp1_vir3: rkisp1-vir3 {
+		compatible = "rockchip,rkisp-vir";
+		rockchip,hw = <&rkisp1>;
+		status = "disabled";
+	};
+
 	spll: spll {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -1103,6 +1151,23 @@
 		status = "disabled";
 	};
 
+	rkisp0: rkisp@fdcb0000 {
+		compatible = "rockchip,rk3588-rkisp";
+		reg = <0x0 0xfdcb0000 0x0 0x7f00>;
+		interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "isp_irq", "mi_irq", "mipi_irq";
+		clocks = <&cru ACLK_ISP0>, <&cru HCLK_ISP0>,
+			 <&cru CLK_ISP0_CORE>, <&cru CLK_ISP0_CORE_MARVIN>,
+			 <&cru CLK_ISP0_CORE_VICAP>;
+		clock-names = "aclk_isp", "hclk_isp", "clk_isp_core",
+			      "clk_isp_core_marvin", "clk_isp_core_vicap";
+		power-domains = <&power RK3588_PD_VI>;
+		iommus = <&isp0_mmu>;
+		status = "disabled";
+	};
+
 	isp0_mmu: iommu@fdcb7f00 {
 		compatible = "rockchip,iommu-v2";
 		reg = <0x0 0xfdcb7f00 0x0 0x100>;
@@ -1113,6 +1178,23 @@
 		power-domains = <&power RK3588_PD_VI>;
 		#iommu-cells = <0>;
 		rockchip,disable-mmu-reset;
+		status = "disabled";
+	};
+
+	rkisp1: rkisp@fdcc0000 {
+		compatible = "rockchip,rk3588-rkisp";
+		reg = <0x0 0xfdcc0000 0x0 0x7f00>;
+		interrupts = <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "isp_irq", "mi_irq", "mipi_irq";
+		clocks = <&cru ACLK_ISP1>, <&cru HCLK_ISP1>,
+			 <&cru CLK_ISP1_CORE>, <&cru CLK_ISP1_CORE_MARVIN>,
+			 <&cru CLK_ISP1_CORE_VICAP>;
+		clock-names = "aclk_isp", "hclk_isp", "clk_isp_core",
+			      "clk_isp_core_marvin", "clk_isp_core_vicap";
+		power-domains = <&power RK3588_PD_ISP1>;
+		iommus = <&isp1_mmu>;
 		status = "disabled";
 	};
 
