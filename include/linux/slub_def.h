@@ -156,9 +156,6 @@ static inline void sysfs_slab_release(struct kmem_cache *s)
 }
 #endif
 
-void object_err(struct kmem_cache *s, struct page *page,
-		u8 *object, char *reason);
-
 void *fixup_red_left(struct kmem_cache *s, void *p);
 
 static inline void *nearest_obj(struct kmem_cache *cache, struct page *page,
