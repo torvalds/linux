@@ -1721,6 +1721,7 @@
   __traceiter_android_vh_iommu_setup_dma_ops
   __traceiter_android_vh_ipi_stop
   __traceiter_android_vh_jiffies_update
+  __traceiter_android_vh_mmap_region
   __traceiter_android_vh_mmc_attach_sd
   __traceiter_android_vh_mmc_blk_mq_rw_recovery
   __traceiter_android_vh_mmc_blk_reset
@@ -1733,6 +1734,7 @@
   __traceiter_android_vh_show_resume_epoch_val
   __traceiter_android_vh_show_suspend_epoch_val
   __traceiter_android_vh_timer_calc_index
+  __traceiter_android_vh_try_to_unmap_one
   __traceiter_android_vh_ufs_check_int_errors
   __traceiter_android_vh_ufs_compl_command
   __traceiter_android_vh_ufs_send_command
@@ -1813,6 +1815,7 @@
   __tracepoint_android_vh_ipi_stop
   __tracepoint_android_vh_irqtime_account_process_tick
   __tracepoint_android_vh_jiffies_update
+  __tracepoint_android_vh_mmap_region
   __tracepoint_android_vh_mmc_attach_sd
   __tracepoint_android_vh_mmc_blk_mq_rw_recovery
   __tracepoint_android_vh_mmc_blk_reset
@@ -1825,6 +1828,7 @@
   __tracepoint_android_vh_show_resume_epoch_val
   __tracepoint_android_vh_show_suspend_epoch_val
   __tracepoint_android_vh_timer_calc_index
+  __tracepoint_android_vh_try_to_unmap_one
   __tracepoint_android_vh_tune_scan_type
   __tracepoint_android_vh_tune_swappiness
   __tracepoint_android_vh_ufs_check_int_errors
