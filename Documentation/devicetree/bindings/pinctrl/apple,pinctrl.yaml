@@ -43,6 +43,9 @@ properties:
 
   interrupt-controller: true
 
+  '#interrupt-cells':
+    const: 2
+
 patternProperties:
   '-pins$':
     type: object
@@ -88,6 +91,7 @@ examples:
         gpio-ranges = <&pinctrl 0 0 212>;
 
         interrupt-controller;
+        #interrupt-cells = <2>;
         interrupt-parent = <&aic>;
         interrupts = <AIC_IRQ 16 IRQ_TYPE_LEVEL_HIGH>,
                      <AIC_IRQ 17 IRQ_TYPE_LEVEL_HIGH>,
