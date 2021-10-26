@@ -262,6 +262,8 @@ struct ffa_dev_ops {
 	int (*memory_reclaim)(u64 g_handle, u32 flags);
 	int (*memory_share)(struct ffa_device *dev,
 			    struct ffa_mem_ops_args *args);
+	int (*memory_lend)(struct ffa_device *dev,
+			   struct ffa_mem_ops_args *args);
 };
 
 #endif /* _LINUX_ARM_FFA_H */
