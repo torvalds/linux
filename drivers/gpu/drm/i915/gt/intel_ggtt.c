@@ -1388,6 +1388,25 @@ err_st_alloc:
 }
 
 static struct scatterlist *
+add_padding_pages(unsigned int count,
+		  struct sg_table *st, struct scatterlist *sg)
+{
+	st->nents++;
+
+	/*
+	 * The DE ignores the PTEs for the padding tiles, the sg entry
+	 * here is just a convenience to indicate how many padding PTEs
+	 * to insert at this spot.
+	 */
+	sg_set_page(sg, NULL, count * I915_GTT_PAGE_SIZE, 0);
+	sg_dma_address(sg) = 0;
+	sg_dma_len(sg) = count * I915_GTT_PAGE_SIZE;
+	sg = sg_next(sg);
+
+	return sg;
+}
+
+static struct scatterlist *
 remap_pages(struct drm_i915_gem_object *obj,
 	    unsigned int offset, unsigned int alignment_pad,
 	    unsigned int width, unsigned int height,
@@ -1399,19 +1418,8 @@ remap_pages(struct drm_i915_gem_object *obj,
 	if (!width || !height)
 		return sg;
 
-	if (alignment_pad) {
-		st->nents++;
-
-		/*
-		 * The DE ignores the PTEs for the padding tiles, the sg entry
-		 * here is just a convenience to indicate how many padding PTEs
-		 * to insert at this spot.
-		 */
-		sg_set_page(sg, NULL, alignment_pad * 4096, 0);
-		sg_dma_address(sg) = 0;
-		sg_dma_len(sg) = alignment_pad * 4096;
-		sg = sg_next(sg);
-	}
+	if (alignment_pad)
+		sg = add_padding_pages(alignment_pad, st, sg);
 
 	for (row = 0; row < height; row++) {
 		unsigned int left = width * I915_GTT_PAGE_SIZE;
@@ -1448,20 +1456,43 @@ remap_pages(struct drm_i915_gem_object *obj,
 		if (!left)
 			continue;
 
-		st->nents++;
-
-		/*
-		 * The DE ignores the PTEs for the padding tiles, the sg entry
-		 * here is just a conenience to indicate how many padding PTEs
-		 * to insert at this spot.
-		 */
-		sg_set_page(sg, NULL, left, 0);
-		sg_dma_address(sg) = 0;
-		sg_dma_len(sg) = left;
-		sg = sg_next(sg);
+		sg = add_padding_pages(left >> PAGE_SHIFT, st, sg);
 	}
 
 	return sg;
+}
+
+static struct scatterlist *
+remap_contiguous_pages(struct drm_i915_gem_object *obj,
+		       unsigned int obj_offset,
+		       unsigned int count,
+		       struct sg_table *st, struct scatterlist *sg)
+{
+	struct scatterlist *iter;
+	unsigned int offset;
+
+	iter = i915_gem_object_get_sg_dma(obj, obj_offset, &offset);
+	GEM_BUG_ON(!iter);
+
+	do {
+		unsigned int len;
+
+		len = min(sg_dma_len(iter) - (offset << PAGE_SHIFT),
+			  count << PAGE_SHIFT);
+		sg_set_page(sg, NULL, len, 0);
+		sg_dma_address(sg) =
+			sg_dma_address(iter) + (offset << PAGE_SHIFT);
+		sg_dma_len(sg) = len;
+
+		st->nents++;
+		count -= len >> PAGE_SHIFT;
+		if (count == 0)
+			return sg;
+
+		sg = __sg_next(sg);
+		iter = __sg_next(iter);
+		offset = 0;
+	} while (1);
 }
 
 static noinline struct sg_table *
@@ -1524,9 +1555,8 @@ intel_partial_pages(const struct i915_ggtt_view *view,
 		    struct drm_i915_gem_object *obj)
 {
 	struct sg_table *st;
-	struct scatterlist *sg, *iter;
+	struct scatterlist *sg;
 	unsigned int count = view->partial.size;
-	unsigned int offset;
 	int ret = -ENOMEM;
 
 	st = kmalloc(sizeof(*st), GFP_KERNEL);
@@ -1537,34 +1567,14 @@ intel_partial_pages(const struct i915_ggtt_view *view,
 	if (ret)
 		goto err_sg_alloc;
 
-	iter = i915_gem_object_get_sg_dma(obj, view->partial.offset, &offset);
-	GEM_BUG_ON(!iter);
-
-	sg = st->sgl;
 	st->nents = 0;
-	do {
-		unsigned int len;
 
-		len = min(sg_dma_len(iter) - (offset << PAGE_SHIFT),
-			  count << PAGE_SHIFT);
-		sg_set_page(sg, NULL, len, 0);
-		sg_dma_address(sg) =
-			sg_dma_address(iter) + (offset << PAGE_SHIFT);
-		sg_dma_len(sg) = len;
+	sg = remap_contiguous_pages(obj, view->partial.offset, count, st, st->sgl);
 
-		st->nents++;
-		count -= len >> PAGE_SHIFT;
-		if (count == 0) {
-			sg_mark_end(sg);
-			i915_sg_trim(st); /* Drop any unused tail entries. */
+	sg_mark_end(sg);
+	i915_sg_trim(st); /* Drop any unused tail entries. */
 
-			return st;
-		}
-
-		sg = __sg_next(sg);
-		iter = __sg_next(iter);
-		offset = 0;
-	} while (1);
+	return st;
 
 err_sg_alloc:
 	kfree(st);
