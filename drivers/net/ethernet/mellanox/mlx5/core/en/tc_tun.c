@@ -103,7 +103,7 @@ static int get_route_and_out_devs(struct mlx5e_priv *priv,
 }
 
 static int mlx5e_route_lookup_ipv4_get(struct mlx5e_priv *priv,
-				       struct net_device *mirred_dev,
+				       struct net_device *dev,
 				       struct mlx5e_tc_tun_route_attr *attr)
 {
 	struct net_device *route_dev;
@@ -122,13 +122,13 @@ static int mlx5e_route_lookup_ipv4_get(struct mlx5e_priv *priv,
 		uplink_dev = mlx5_eswitch_uplink_get_proto_dev(esw, REP_ETH);
 		attr->fl.fl4.flowi4_oif = uplink_dev->ifindex;
 	} else {
-		struct mlx5e_tc_tunnel *tunnel = mlx5e_get_tc_tun(mirred_dev);
+		struct mlx5e_tc_tunnel *tunnel = mlx5e_get_tc_tun(dev);
 
 		if (tunnel && tunnel->get_remote_ifindex)
-			attr->fl.fl4.flowi4_oif = tunnel->get_remote_ifindex(mirred_dev);
+			attr->fl.fl4.flowi4_oif = tunnel->get_remote_ifindex(dev);
 	}
 
-	rt = ip_route_output_key(dev_net(mirred_dev), &attr->fl.fl4);
+	rt = ip_route_output_key(dev_net(dev), &attr->fl.fl4);
 	if (IS_ERR(rt))
 		return PTR_ERR(rt);
 
@@ -440,10 +440,10 @@ release_neigh:
 
 #if IS_ENABLED(CONFIG_INET) && IS_ENABLED(CONFIG_IPV6)
 static int mlx5e_route_lookup_ipv6_get(struct mlx5e_priv *priv,
-				       struct net_device *mirred_dev,
+				       struct net_device *dev,
 				       struct mlx5e_tc_tun_route_attr *attr)
 {
-	struct mlx5e_tc_tunnel *tunnel = mlx5e_get_tc_tun(mirred_dev);
+	struct mlx5e_tc_tunnel *tunnel = mlx5e_get_tc_tun(dev);
 	struct net_device *route_dev;
 	struct net_device *out_dev;
 	struct dst_entry *dst;
@@ -451,8 +451,8 @@ static int mlx5e_route_lookup_ipv6_get(struct mlx5e_priv *priv,
 	int ret;
 
 	if (tunnel && tunnel->get_remote_ifindex)
-		attr->fl.fl6.flowi6_oif = tunnel->get_remote_ifindex(mirred_dev);
-	dst = ipv6_stub->ipv6_dst_lookup_flow(dev_net(mirred_dev), NULL, &attr->fl.fl6,
+		attr->fl.fl6.flowi6_oif = tunnel->get_remote_ifindex(dev);
+	dst = ipv6_stub->ipv6_dst_lookup_flow(dev_net(dev), NULL, &attr->fl.fl6,
 					      NULL);
 	if (IS_ERR(dst))
 		return PTR_ERR(dst);
@@ -708,7 +708,8 @@ release_neigh:
 
 int mlx5e_tc_tun_route_lookup(struct mlx5e_priv *priv,
 			      struct mlx5_flow_spec *spec,
-			      struct mlx5_flow_attr *flow_attr)
+			      struct mlx5_flow_attr *flow_attr,
+			      struct net_device *filter_dev)
 {
 	struct mlx5_esw_flow_attr *esw_attr = flow_attr->esw_attr;
 	struct mlx5e_tc_int_port *int_port;
@@ -720,14 +721,14 @@ int mlx5e_tc_tun_route_lookup(struct mlx5e_priv *priv,
 		/* Addresses are swapped for decap */
 		attr.fl.fl4.saddr = esw_attr->rx_tun_attr->dst_ip.v4;
 		attr.fl.fl4.daddr = esw_attr->rx_tun_attr->src_ip.v4;
-		err = mlx5e_route_lookup_ipv4_get(priv, priv->netdev, &attr);
+		err = mlx5e_route_lookup_ipv4_get(priv, filter_dev, &attr);
 	}
 #if IS_ENABLED(CONFIG_INET) && IS_ENABLED(CONFIG_IPV6)
 	else if (flow_attr->tun_ip_version == 6) {
 		/* Addresses are swapped for decap */
 		attr.fl.fl6.saddr = esw_attr->rx_tun_attr->dst_ip.v6;
 		attr.fl.fl6.daddr = esw_attr->rx_tun_attr->src_ip.v6;
-		err = mlx5e_route_lookup_ipv6_get(priv, priv->netdev, &attr);
+		err = mlx5e_route_lookup_ipv6_get(priv, filter_dev, &attr);
 	}
 #endif
 	else
