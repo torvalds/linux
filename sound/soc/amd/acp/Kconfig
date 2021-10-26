@@ -8,6 +8,7 @@
 config SND_SOC_AMD_ACP_COMMON
 	tristate "AMD Audio ACP Common support"
 	select SND_AMD_ACP_CONFIG
+	depends on X86 && PCI
 	help
 	  This option enables common modules for Audio-Coprocessor i.e. ACP
 	  IP block on AMD platforms.
