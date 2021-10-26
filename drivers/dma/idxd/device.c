@@ -411,10 +411,18 @@ int idxd_wq_init_percpu_ref(struct idxd_wq *wq)
 	return 0;
 }
 
-void idxd_wq_quiesce(struct idxd_wq *wq)
+void __idxd_wq_quiesce(struct idxd_wq *wq)
 {
+	lockdep_assert_held(&wq->wq_lock);
 	percpu_ref_kill(&wq->wq_active);
 	wait_for_completion(&wq->wq_dead);
+}
+
+void idxd_wq_quiesce(struct idxd_wq *wq)
+{
+	mutex_lock(&wq->wq_lock);
+	__idxd_wq_quiesce(wq);
+	mutex_unlock(&wq->wq_lock);
 }
 
 /* Device control bits */

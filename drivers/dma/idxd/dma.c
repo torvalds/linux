@@ -316,7 +316,7 @@ static int idxd_dmaengine_drv_probe(struct idxd_dev *idxd_dev)
 	return 0;
 
 err_dma:
-	idxd_wq_quiesce(wq);
+	__idxd_wq_quiesce(wq);
 	percpu_ref_exit(&wq->wq_active);
 err_ref:
 	idxd_wq_free_resources(wq);
@@ -333,7 +333,7 @@ static void idxd_dmaengine_drv_remove(struct idxd_dev *idxd_dev)
 	struct idxd_wq *wq = idxd_dev_to_wq(idxd_dev);
 
 	mutex_lock(&wq->wq_lock);
-	idxd_wq_quiesce(wq);
+	__idxd_wq_quiesce(wq);
 	idxd_unregister_dma_channel(wq);
 	idxd_wq_free_resources(wq);
 	__drv_disable_wq(wq);
