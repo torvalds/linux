@@ -11,6 +11,7 @@
 / {
 	model = "Sony Xperia XZ Premium";
 	compatible = "sony,xperia-maple", "qcom,msm8998";
+	chassis-type = "handset";
 
 	disp_dvdd_vreg: disp-dvdd-vreg {
 		compatible = "regulator-fixed";

@@ -46,6 +46,7 @@ description: |
         sdm845
         sdx55
         sdx65
+        sm7225
         sm8150
         sm8250
         sm8350
@@ -233,6 +234,11 @@ properties:
           - enum:
               - qcom,sa8155p-adp
           - const: qcom,sa8155p
+
+      - items:
+          - enum:
+              - fairphone,fp4
+          - const: qcom,sm7225
 
       - items:
           - enum:

@@ -13,6 +13,7 @@
 / {
 	model = "Xiaomi Mi 5";
 	compatible = "xiaomi,gemini", "qcom,msm8996";
+	chassis-type = "handset";
 	qcom,msm-id = <246 0x30001>;
 	qcom,pmic-id = <0x20009 0x2000a 0x00 0x00>;
 	qcom,board-id = <31 0>;
@@ -90,10 +91,43 @@
 
 };
 
+&dsi0 {
+	status = "okay";
+
+	vdd-supply = <&vreg_l2a_1p25>;
+	vdda-supply = <&vreg_l19a_3p3>;
+	vddio-supply = <&vreg_l14a_1p8>;
+
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&mdss_dsi_default &mdss_te_default>;
+	pinctrl-1 = <&mdss_dsi_sleep &mdss_te_sleep>;
+
+	panel: panel@0 {
+		compatible = "jdi,fhd-r63452";
+		reg = <0>;
+		reset-gpios = <&tlmm 8 GPIO_ACTIVE_LOW>;
+		backlight = <&pmi8994_wled>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&dsi0_out>;
+			};
+		};
+	};
+};
+
+&dsi0_out {
+	remote-endpoint = <&panel_in>;
+};
+
 &gpu {
 	zap-shader {
 		firmware-name = "qcom/msm8996/gemini/a530_zap.mbn";
 	};
+};
+
+&pmi8994_wled {
+	status = "okay";
 };
 
 &q6asmdai {

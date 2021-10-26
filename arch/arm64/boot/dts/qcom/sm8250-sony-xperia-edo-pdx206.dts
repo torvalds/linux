@@ -10,6 +10,7 @@
 / {
 	model = "Sony Xperia 5 II";
 	compatible = "sony,pdx206-generic", "qcom,sm8250";
+	chassis-type = "handset";
 };
 
 &framebuffer {

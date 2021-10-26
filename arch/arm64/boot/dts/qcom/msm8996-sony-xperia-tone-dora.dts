@@ -12,6 +12,7 @@
 / {
 	model = "Sony Xperia X Performance";
 	compatible = "sony,dora-row", "qcom,msm8996";
+	chassis-type = "handset";
 };
 
 /delete-node/ &tof_sensor;

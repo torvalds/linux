@@ -380,7 +380,7 @@
 			status = "disabled";
 		};
 
-		rpm_msg_ram: memory@45f0000 {
+		rpm_msg_ram: sram@45f0000 {
 			compatible = "qcom,rpm-msg-ram";
 			reg = <0x045f0000 0x7000>;
 		};
@@ -458,6 +458,11 @@
 				maximum-speed = "high-speed";
 				dr_mode = "peripheral";
 			};
+		};
+
+		sram@4690000 {
+			compatible = "qcom,rpm-stats";
+			reg = <0x04690000 0x10000>;
 		};
 
 		spmi_bus: spmi@1c40000 {

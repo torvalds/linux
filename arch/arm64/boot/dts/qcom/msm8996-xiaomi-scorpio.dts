@@ -13,6 +13,7 @@
 / {
 	model = "Xiaomi Mi Note 2";
 	compatible = "xiaomi,scorpio", "qcom,msm8996";
+	chassis-type = "handset";
 	qcom,msm-id = <305 0x10000>;
 	qcom,board-id = <34 0>;
 

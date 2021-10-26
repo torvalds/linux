@@ -12,4 +12,5 @@
 / {
 	model = "Microsoft Lumia 950";
 	compatible = "microsoft,talkman", "qcom,msm8992";
+	chassis-type = "handset";
 };

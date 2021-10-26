@@ -10,6 +10,7 @@
 / {
 	model = "Sony Xperia 5";
 	compatible = "sony,bahamut-generic", "qcom,sm8150";
+	chassis-type = "handset";
 };
 
 &framebuffer {

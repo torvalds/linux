@@ -11,6 +11,7 @@
 / {
 	model = "Longcheer L8150";
 	compatible = "longcheer,l8150", "qcom,msm8916-v1-qrd/9-v1", "qcom,msm8916";
+	chassis-type = "handset";
 
 	aliases {
 		serial0 = &blsp1_uart2;

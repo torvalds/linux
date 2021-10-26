@@ -11,6 +11,7 @@
 / {
 	model = "Sony Xperia XZ1";
 	compatible = "sony,xperia-poplar", "qcom,msm8998";
+	chassis-type = "handset";
 };
 
 &ibb {

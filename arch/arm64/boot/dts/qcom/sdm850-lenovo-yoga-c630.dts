@@ -7,7 +7,6 @@
 
 /dts-v1/;
 
-#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/gpio-keys.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
@@ -19,6 +18,7 @@
 / {
 	model = "Lenovo Yoga C630";
 	compatible = "lenovo,yoga-c630", "qcom,sdm845";
+	chassis-type = "convertible";
 
 	aliases {
 		hsuart0 = &uart6;
@@ -310,7 +310,12 @@
 			   <GCC_LPASS_SWAY_CLK>;
 };
 
+&gmu {
+	status = "okay";
+};
+
 &gpu {
+	status = "okay";
 	zap-shader {
 		memory-region = <&gpu_mem>;
 		firmware-name = "qcom/LENOVO/81JL/qcdxkmsuc850.mbn";
@@ -427,11 +432,8 @@
 	status = "okay";
 };
 
-&mdss_mdp {
-	status = "okay";
-};
-
 &mss_pil {
+	status = "okay";
 	firmware-name = "qcom/LENOVO/81JL/qcdsp1v2850.mbn", "qcom/LENOVO/81JL/qcdsp2850.mbn";
 };
 
@@ -691,6 +693,10 @@
 
 	vdda-phy-supply = <&vdda_usb2_ss_1p2>;
 	vdda-pll-supply = <&vdda_usb2_ss_core>;
+};
+
+&venus {
+	status = "okay";
 };
 
 &wcd9340{
