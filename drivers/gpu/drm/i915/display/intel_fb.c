@@ -172,8 +172,9 @@ static void intel_fb_plane_dims(const struct intel_framebuffer *fb, int color_pl
 
 	intel_fb_plane_get_subsampling(&main_hsub, &main_vsub, &fb->base, main_plane);
 	intel_fb_plane_get_subsampling(&hsub, &vsub, &fb->base, color_plane);
-	*w = fb->base.width / main_hsub / hsub;
-	*h = fb->base.height / main_vsub / vsub;
+
+	*w = DIV_ROUND_UP(fb->base.width, main_hsub * hsub);
+	*h = DIV_ROUND_UP(fb->base.height, main_vsub * vsub);
 }
 
 static u32 intel_adjust_tile_offset(int *x, int *y,
