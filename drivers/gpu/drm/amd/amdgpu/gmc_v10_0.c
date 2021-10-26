@@ -714,6 +714,7 @@ static void gmc_v10_0_set_gfxhub_funcs(struct amdgpu_device *adev)
 	case IP_VERSION(10, 3, 4):
 	case IP_VERSION(10, 3, 5):
 	case IP_VERSION(10, 3, 3):
+	case IP_VERSION(10, 3, 7):
 		adev->gfxhub.funcs = &gfxhub_v2_1_funcs;
 		break;
 	default:
@@ -894,6 +895,7 @@ static int gmc_v10_0_sw_init(void *handle)
 	case IP_VERSION(10, 3, 4):
 	case IP_VERSION(10, 3, 5):
 	case IP_VERSION(10, 3, 3):
+	case IP_VERSION(10, 3, 7):
 		adev->num_vmhubs = 2;
 		/*
 		 * To fulfill 4-level page support,
