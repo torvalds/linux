@@ -518,57 +518,38 @@ static void replay_now_at(struct journal *j, u64 seq)
 }
 
 static int __bch2_journal_replay_key(struct btree_trans *trans,
-				     enum btree_id id, unsigned level,
-				     struct bkey_i *k)
+				     struct journal_key *k)
 {
 	struct btree_iter iter;
+	unsigned iter_flags =
+		BTREE_ITER_INTENT|
+		BTREE_ITER_NOT_EXTENTS;
 	int ret;
 
-	bch2_trans_node_iter_init(trans, &iter, id, k->k.p,
-				  BTREE_MAX_DEPTH, level,
-				  BTREE_ITER_INTENT|
-				  BTREE_ITER_NOT_EXTENTS);
+	if (!k->level && k->btree_id == BTREE_ID_alloc)
+		iter_flags |= BTREE_ITER_CACHED|BTREE_ITER_CACHED_NOFILL;
+
+	bch2_trans_node_iter_init(trans, &iter, k->btree_id, k->k->k.p,
+				  BTREE_MAX_DEPTH, k->level,
+				  iter_flags);
 	ret   = bch2_btree_iter_traverse(&iter) ?:
-		bch2_trans_update(trans, &iter, k, BTREE_TRIGGER_NORUN);
+		bch2_trans_update(trans, &iter, k->k, BTREE_TRIGGER_NORUN);
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
 
 static int bch2_journal_replay_key(struct bch_fs *c, struct journal_key *k)
 {
-	unsigned commit_flags = BTREE_INSERT_NOFAIL|
-		BTREE_INSERT_LAZY_RW;
+	unsigned commit_flags =
+		BTREE_INSERT_LAZY_RW|
+		BTREE_INSERT_NOFAIL|
+		BTREE_INSERT_JOURNAL_RESERVED;
 
 	if (!k->allocated)
 		commit_flags |= BTREE_INSERT_JOURNAL_REPLAY;
 
 	return bch2_trans_do(c, NULL, NULL, commit_flags,
-			     __bch2_journal_replay_key(&trans, k->btree_id, k->level, k->k));
-}
-
-static int __bch2_alloc_replay_key(struct btree_trans *trans, struct bkey_i *k)
-{
-	struct btree_iter iter;
-	int ret;
-
-	bch2_trans_iter_init(trans, &iter, BTREE_ID_alloc, k->k.p,
-			     BTREE_ITER_CACHED|
-			     BTREE_ITER_CACHED_NOFILL|
-			     BTREE_ITER_INTENT);
-	ret   = bch2_btree_iter_traverse(&iter) ?:
-		bch2_trans_update(trans, &iter, k, BTREE_TRIGGER_NORUN);
-	bch2_trans_iter_exit(trans, &iter);
-	return ret;
-}
-
-static int bch2_alloc_replay_key(struct bch_fs *c, struct bkey_i *k)
-{
-	return bch2_trans_do(c, NULL, NULL,
-			     BTREE_INSERT_NOFAIL|
-			     BTREE_INSERT_USE_RESERVE|
-			     BTREE_INSERT_LAZY_RW|
-			     BTREE_INSERT_JOURNAL_REPLAY,
-			__bch2_alloc_replay_key(&trans, k));
+			     __bch2_journal_replay_key(&trans, k));
 }
 
 static int journal_sort_seq_cmp(const void *_l, const void *_r)
@@ -606,7 +587,7 @@ static int bch2_journal_replay(struct bch_fs *c,
 
 		if (!i->level && i->btree_id == BTREE_ID_alloc) {
 			j->replay_journal_seq = keys.journal_seq_base + i->journal_seq;
-			ret = bch2_alloc_replay_key(c, i->k);
+			ret = bch2_journal_replay_key(c, i);
 			if (ret)
 				goto err;
 		}
