@@ -12,6 +12,7 @@
 #include <linux/types.h>
 #include <linux/kvm.h>
 #include <linux/kvm_types.h>
+#include <asm/kvm_vcpu_fp.h>
 #include <asm/kvm_vcpu_timer.h>
 
 #ifdef CONFIG_64BIT
@@ -247,10 +248,6 @@ int kvm_riscv_vcpu_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 			struct kvm_cpu_trap *trap);
 
 void __kvm_riscv_switch_to(struct kvm_vcpu_arch *vcpu_arch);
-void __kvm_riscv_fp_f_save(struct kvm_cpu_context *context);
-void __kvm_riscv_fp_f_restore(struct kvm_cpu_context *context);
-void __kvm_riscv_fp_d_save(struct kvm_cpu_context *context);
-void __kvm_riscv_fp_d_restore(struct kvm_cpu_context *context);
 
 int kvm_riscv_vcpu_set_interrupt(struct kvm_vcpu *vcpu, unsigned int irq);
 int kvm_riscv_vcpu_unset_interrupt(struct kvm_vcpu *vcpu, unsigned int irq);
