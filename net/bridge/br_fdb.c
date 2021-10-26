@@ -382,23 +382,26 @@ static struct net_bridge_fdb_entry *fdb_create(struct net_bridge *br,
 					       unsigned long flags)
 {
 	struct net_bridge_fdb_entry *fdb;
+	int err;
 
 	fdb = kmem_cache_alloc(br_fdb_cache, GFP_ATOMIC);
-	if (fdb) {
-		memcpy(fdb->key.addr.addr, addr, ETH_ALEN);
-		WRITE_ONCE(fdb->dst, source);
-		fdb->key.vlan_id = vid;
-		fdb->flags = flags;
-		fdb->updated = fdb->used = jiffies;
-		if (rhashtable_lookup_insert_fast(&br->fdb_hash_tbl,
-						  &fdb->rhnode,
-						  br_fdb_rht_params)) {
-			kmem_cache_free(br_fdb_cache, fdb);
-			fdb = NULL;
-		} else {
-			hlist_add_head_rcu(&fdb->fdb_node, &br->fdb_list);
-		}
+	if (!fdb)
+		return NULL;
+
+	memcpy(fdb->key.addr.addr, addr, ETH_ALEN);
+	WRITE_ONCE(fdb->dst, source);
+	fdb->key.vlan_id = vid;
+	fdb->flags = flags;
+	fdb->updated = fdb->used = jiffies;
+	err = rhashtable_lookup_insert_fast(&br->fdb_hash_tbl, &fdb->rhnode,
+					    br_fdb_rht_params);
+	if (err) {
+		kmem_cache_free(br_fdb_cache, fdb);
+		return NULL;
 	}
+
+	hlist_add_head_rcu(&fdb->fdb_node, &br->fdb_list);
+
 	return fdb;
 }
 
