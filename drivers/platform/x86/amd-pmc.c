@@ -435,9 +435,6 @@ static int amd_pmc_verify_czn_rtc(struct amd_pmc_dev *pdev, u32 *arg)
 		dev_dbg(pdev->dev, "alarm not enabled\n");
 		return 0;
 	}
-	rc = rtc_valid_tm(&alarm.time);
-	if (rc)
-		return rc;
 	rc = rtc_read_time(rtc_device, &tm);
 	if (rc)
 		return rc;
