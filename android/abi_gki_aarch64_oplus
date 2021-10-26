@@ -2617,6 +2617,12 @@
   __traceiter_android_vh_jiffies_update
   __traceiter_android_vh_kmalloc_slab
   __traceiter_android_vh_logbuf
+  __traceiter_android_vh_mem_cgroup_alloc
+  __traceiter_android_vh_mem_cgroup_css_offline
+  __traceiter_android_vh_mem_cgroup_css_online
+  __traceiter_android_vh_mem_cgroup_free
+  __traceiter_android_vh_mem_cgroup_id_remove
+  __traceiter_android_vh_meminfo_proc_show
   __traceiter_android_vh_mutex_unlock_slowpath
   __traceiter_android_vh_mutex_wait_finish
   __traceiter_android_vh_mutex_wait_start
@@ -2625,6 +2631,7 @@
   __traceiter_android_vh_printk_hotplug
   __traceiter_android_vh_process_killed
   __traceiter_android_vh_revert_creds
+  __traceiter_android_vh_rmqueue
   __traceiter_android_vh_rwsem_init
   __traceiter_android_vh_rwsem_wake
   __traceiter_android_vh_rwsem_wake_finish
@@ -2653,6 +2660,7 @@
   __traceiter_android_vh_syscall_prctl_finished
   __traceiter_android_vh_timer_calc_index
   __traceiter_android_vh_tune_inactive_ratio
+  __traceiter_android_vh_tune_scan_type
   __traceiter_android_vh_tune_swappiness
   __traceiter_android_vh_ufs_compl_command
   __traceiter_android_vh_ufs_send_command
@@ -2791,6 +2799,12 @@
   __tracepoint_android_vh_jiffies_update
   __tracepoint_android_vh_kmalloc_slab
   __tracepoint_android_vh_logbuf
+  __tracepoint_android_vh_mem_cgroup_alloc
+  __tracepoint_android_vh_mem_cgroup_css_offline
+  __tracepoint_android_vh_mem_cgroup_css_online
+  __tracepoint_android_vh_mem_cgroup_free
+  __tracepoint_android_vh_mem_cgroup_id_remove
+  __tracepoint_android_vh_meminfo_proc_show
   __tracepoint_android_vh_mutex_unlock_slowpath
   __tracepoint_android_vh_mutex_wait_finish
   __tracepoint_android_vh_mutex_wait_start
@@ -2799,6 +2813,7 @@
   __tracepoint_android_vh_printk_hotplug
   __tracepoint_android_vh_process_killed
   __tracepoint_android_vh_revert_creds
+  __tracepoint_android_vh_rmqueue
   __tracepoint_android_vh_rwsem_init
   __tracepoint_android_vh_rwsem_wake
   __tracepoint_android_vh_rwsem_wake_finish
@@ -2827,6 +2842,7 @@
   __tracepoint_android_vh_syscall_prctl_finished
   __tracepoint_android_vh_timer_calc_index
   __tracepoint_android_vh_tune_inactive_ratio
+  __tracepoint_android_vh_tune_scan_type
   __tracepoint_android_vh_tune_swappiness
   __tracepoint_android_vh_ufs_compl_command
   __tracepoint_android_vh_ufs_send_command
