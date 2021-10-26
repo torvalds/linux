@@ -29,8 +29,6 @@
 SYSCALL_DEFINE2(set_robust_list, struct robust_list_head __user *, head,
 		size_t, len)
 {
-	if (!futex_cmpxchg_enabled)
-		return -ENOSYS;
 	/*
 	 * The kernel knows only one size for now:
 	 */
@@ -55,9 +53,6 @@ SYSCALL_DEFINE3(get_robust_list, int, pid,
 	struct robust_list_head __user *head;
 	unsigned long ret;
 	struct task_struct *p;
-
-	if (!futex_cmpxchg_enabled)
-		return -ENOSYS;
 
 	rcu_read_lock();
 
@@ -100,17 +95,6 @@ long do_futex(u32 __user *uaddr, int op, u32 val, ktime_t *timeout,
 		flags |= FLAGS_CLOCKRT;
 		if (cmd != FUTEX_WAIT_BITSET && cmd != FUTEX_WAIT_REQUEUE_PI &&
 		    cmd != FUTEX_LOCK_PI2)
-			return -ENOSYS;
-	}
-
-	switch (cmd) {
-	case FUTEX_LOCK_PI:
-	case FUTEX_LOCK_PI2:
-	case FUTEX_UNLOCK_PI:
-	case FUTEX_TRYLOCK_PI:
-	case FUTEX_WAIT_REQUEUE_PI:
-	case FUTEX_CMP_REQUEUE_PI:
-		if (!futex_cmpxchg_enabled)
 			return -ENOSYS;
 	}
 
@@ -323,9 +307,6 @@ COMPAT_SYSCALL_DEFINE2(set_robust_list,
 		struct compat_robust_list_head __user *, head,
 		compat_size_t, len)
 {
-	if (!futex_cmpxchg_enabled)
-		return -ENOSYS;
-
 	if (unlikely(len != sizeof(*head)))
 		return -EINVAL;
 
@@ -341,9 +322,6 @@ COMPAT_SYSCALL_DEFINE3(get_robust_list, int, pid,
 	struct compat_robust_list_head __user *head;
 	unsigned long ret;
 	struct task_struct *p;
-
-	if (!futex_cmpxchg_enabled)
-		return -ENOSYS;
 
 	rcu_read_lock();
 
