@@ -67,8 +67,8 @@ static inline void xbc_free_mem(void *addr, size_t size)
 #endif
 /**
  * xbc_get_info() - Get the information of loaded boot config
- * node_size: A pointer to store the number of nodes.
- * data_size: A pointer to store the size of bootconfig data.
+ * @node_size: A pointer to store the number of nodes.
+ * @data_size: A pointer to store the size of bootconfig data.
  *
  * Get the number of used nodes in @node_size if it is not NULL,
  * and the size of bootconfig data in @data_size if it is not NULL.
