@@ -55,6 +55,45 @@ static void idxd_device_reinit(struct work_struct *work)
 	idxd_device_clear_state(idxd);
 }
 
+/*
+ * The function sends a drain descriptor for the interrupt handle. The drain ensures
+ * all descriptors with this interrupt handle is flushed and the interrupt
+ * will allow the cleanup of the outstanding descriptors.
+ */
+static void idxd_int_handle_revoke_drain(struct idxd_irq_entry *ie)
+{
+	struct idxd_wq *wq = ie->wq;
+	struct idxd_device *idxd = ie->idxd;
+	struct device *dev = &idxd->pdev->dev;
+	struct dsa_hw_desc desc = {};
+	void __iomem *portal;
+	int rc;
+
+	/* Issue a simple drain operation with interrupt but no completion record */
+	desc.flags = IDXD_OP_FLAG_RCI;
+	desc.opcode = DSA_OPCODE_DRAIN;
+	desc.priv = 1;
+
+	if (ie->pasid != INVALID_IOASID)
+		desc.pasid = ie->pasid;
+	desc.int_handle = ie->int_handle;
+	portal = idxd_wq_portal_addr(wq);
+
+	/*
+	 * The wmb() makes sure that the descriptor is all there before we
+	 * issue.
+	 */
+	wmb();
+	if (wq_dedicated(wq)) {
+		iosubmit_cmds512(portal, &desc, 1);
+	} else {
+		rc = enqcmds(portal, &desc);
+		/* This should not fail unless hardware failed. */
+		if (rc < 0)
+			dev_warn(dev, "Failed to submit drain desc on wq %d\n", wq->id);
+	}
+}
+
 static int process_misc_interrupts(struct idxd_device *idxd, u32 cause)
 {
 	struct device *dev = &idxd->pdev->dev;
