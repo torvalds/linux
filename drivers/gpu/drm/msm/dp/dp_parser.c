@@ -8,6 +8,7 @@
 
 #include <drm/drm_of.h>
 #include <drm/drm_print.h>
+#include <drm/drm_bridge.h>
 
 #include "dp_parser.h"
 #include "dp_reg.h"
