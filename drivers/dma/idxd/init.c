@@ -245,6 +245,7 @@ static int idxd_setup_wqs(struct idxd_device *idxd)
 		mutex_init(&wq->wq_lock);
 		init_waitqueue_head(&wq->err_queue);
 		init_completion(&wq->wq_dead);
+		init_completion(&wq->wq_resurrect);
 		wq->max_xfer_bytes = idxd->max_xfer_bytes;
 		wq->max_batch_size = idxd->max_batch_size;
 		wq->wqcfg = kzalloc_node(idxd->wqcfg_size, GFP_KERNEL, dev_to_node(dev));

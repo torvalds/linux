@@ -6,6 +6,7 @@
 #include <linux/pci.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/dmaengine.h>
+#include <linux/delay.h>
 #include <uapi/linux/idxd.h>
 #include "../dmaengine.h"
 #include "idxd.h"
@@ -25,6 +26,11 @@ struct idxd_fault {
 struct idxd_resubmit {
 	struct work_struct work;
 	struct idxd_desc *desc;
+};
+
+struct idxd_int_handle_revoke {
+	struct work_struct work;
+	struct idxd_device *idxd;
 };
 
 static void idxd_device_reinit(struct work_struct *work)
@@ -99,6 +105,120 @@ static void idxd_int_handle_revoke_drain(struct idxd_irq_entry *ie)
 	}
 }
 
+static void idxd_abort_invalid_int_handle_descs(struct idxd_irq_entry *ie)
+{
+	LIST_HEAD(flist);
+	struct idxd_desc *d, *t;
+	struct llist_node *head;
+
+	spin_lock(&ie->list_lock);
+	head = llist_del_all(&ie->pending_llist);
+	if (head) {
+		llist_for_each_entry_safe(d, t, head, llnode)
+			list_add_tail(&d->list, &ie->work_list);
+	}
+
+	list_for_each_entry_safe(d, t, &ie->work_list, list) {
+		if (d->completion->status == DSA_COMP_INT_HANDLE_INVAL)
+			list_move_tail(&d->list, &flist);
+	}
+	spin_unlock(&ie->list_lock);
+
+	list_for_each_entry_safe(d, t, &flist, list) {
+		list_del(&d->list);
+		idxd_dma_complete_txd(d, IDXD_COMPLETE_ABORT, true);
+	}
+}
+
+static void idxd_int_handle_revoke(struct work_struct *work)
+{
+	struct idxd_int_handle_revoke *revoke =
+		container_of(work, struct idxd_int_handle_revoke, work);
+	struct idxd_device *idxd = revoke->idxd;
+	struct pci_dev *pdev = idxd->pdev;
+	struct device *dev = &pdev->dev;
+	int i, new_handle, rc;
+
+	if (!idxd->request_int_handles) {
+		kfree(revoke);
+		dev_warn(dev, "Unexpected int handle refresh interrupt.\n");
+		return;
+	}
+
+	/*
+	 * The loop attempts to acquire new interrupt handle for all interrupt
+	 * vectors that supports a handle. If a new interrupt handle is acquired and the
+	 * wq is kernel type, the driver will kill the percpu_ref to pause all
+	 * ongoing descriptor submissions. The interrupt handle is then changed.
+	 * After change, the percpu_ref is revived and all the pending submissions
+	 * are woken to try again. A drain is sent to for the interrupt handle
+	 * at the end to make sure all invalid int handle descriptors are processed.
+	 */
+	for (i = 1; i < idxd->irq_cnt; i++) {
+		struct idxd_irq_entry *ie = &idxd->irq_entries[i];
+		struct idxd_wq *wq = ie->wq;
+
+		rc = idxd_device_request_int_handle(idxd, i, &new_handle, IDXD_IRQ_MSIX);
+		if (rc < 0) {
+			dev_warn(dev, "get int handle %d failed: %d\n", i, rc);
+			/*
+			 * Failed to acquire new interrupt handle. Kill the WQ
+			 * and release all the pending submitters. The submitters will
+			 * get error return code and handle appropriately.
+			 */
+			ie->int_handle = INVALID_INT_HANDLE;
+			idxd_wq_quiesce(wq);
+			idxd_abort_invalid_int_handle_descs(ie);
+			continue;
+		}
+
+		/* No change in interrupt handle, nothing needs to be done */
+		if (ie->int_handle == new_handle)
+			continue;
+
+		if (wq->state != IDXD_WQ_ENABLED || wq->type != IDXD_WQT_KERNEL) {
+			/*
+			 * All the MSIX interrupts are allocated at once during probe.
+			 * Therefore we need to update all interrupts even if the WQ
+			 * isn't supporting interrupt operations.
+			 */
+			ie->int_handle = new_handle;
+			continue;
+		}
+
+		mutex_lock(&wq->wq_lock);
+		reinit_completion(&wq->wq_resurrect);
+
+		/* Kill percpu_ref to pause additional descriptor submissions */
+		percpu_ref_kill(&wq->wq_active);
+
+		/* Wait for all submitters quiesce before we change interrupt handle */
+		wait_for_completion(&wq->wq_dead);
+
+		ie->int_handle = new_handle;
+
+		/* Revive percpu ref and wake up all the waiting submitters */
+		percpu_ref_reinit(&wq->wq_active);
+		complete_all(&wq->wq_resurrect);
+		mutex_unlock(&wq->wq_lock);
+
+		/*
+		 * The delay here is to wait for all possible MOVDIR64B that
+		 * are issued before percpu_ref_kill() has happened to have
+		 * reached the PCIe domain before the drain is issued. The driver
+		 * needs to ensure that the drain descriptor issued does not pass
+		 * all the other issued descriptors that contain the invalid
+		 * interrupt handle in order to ensure that the drain descriptor
+		 * interrupt will allow the cleanup of all the descriptors with
+		 * invalid interrupt handle.
+		 */
+		if (wq_dedicated(wq))
+			udelay(100);
+		idxd_int_handle_revoke_drain(ie);
+	}
+	kfree(revoke);
+}
+
 static int process_misc_interrupts(struct idxd_device *idxd, u32 cause)
 {
 	struct device *dev = &idxd->pdev->dev;
@@ -143,6 +263,23 @@ static int process_misc_interrupts(struct idxd_device *idxd, u32 cause)
 			dev_warn(dev, "err[%d]: %#16.16llx\n",
 				 i, idxd->sw_err.bits[i]);
 		err = true;
+	}
+
+	if (cause & IDXD_INTC_INT_HANDLE_REVOKED) {
+		struct idxd_int_handle_revoke *revoke;
+
+		val |= IDXD_INTC_INT_HANDLE_REVOKED;
+
+		revoke = kzalloc(sizeof(*revoke), GFP_ATOMIC);
+		if (revoke) {
+			revoke->idxd = idxd;
+			INIT_WORK(&revoke->work, idxd_int_handle_revoke);
+			queue_work(idxd->wq, &revoke->work);
+
+		} else {
+			dev_err(dev, "Failed to allocate work for int handle revoke\n");
+			idxd_wqs_quiesce(idxd);
+		}
 	}
 
 	if (cause & IDXD_INTC_CMD) {

@@ -127,14 +127,18 @@ int idxd_submit_desc(struct idxd_wq *wq, struct idxd_desc *desc)
 {
 	struct idxd_device *idxd = wq->idxd;
 	struct idxd_irq_entry *ie = NULL;
+	u32 desc_flags = desc->hw->flags;
 	void __iomem *portal;
 	int rc;
 
 	if (idxd->state != IDXD_DEV_ENABLED)
 		return -EIO;
 
-	if (!percpu_ref_tryget_live(&wq->wq_active))
-		return -ENXIO;
+	if (!percpu_ref_tryget_live(&wq->wq_active)) {
+		wait_for_completion(&wq->wq_resurrect);
+		if (!percpu_ref_tryget_live(&wq->wq_active))
+			return -ENXIO;
+	}
 
 	portal = idxd_wq_portal_addr(wq);
 
@@ -149,7 +153,7 @@ int idxd_submit_desc(struct idxd_wq *wq, struct idxd_desc *desc)
 	 * Pending the descriptor to the lockless list for the irq_entry
 	 * that we designated the descriptor to.
 	 */
-	if (desc->hw->flags & IDXD_OP_FLAG_RCI) {
+	if (desc_flags & IDXD_OP_FLAG_RCI) {
 		ie = wq->ie;
 		if (ie->int_handle == INVALID_INT_HANDLE)
 			desc->hw->int_handle = ie->id;

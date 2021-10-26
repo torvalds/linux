@@ -171,6 +171,7 @@ struct idxd_wq {
 	u32 portal_offset;
 	struct percpu_ref wq_active;
 	struct completion wq_dead;
+	struct completion wq_resurrect;
 	struct idxd_dev idxd_dev;
 	struct idxd_cdev *idxd_cdev;
 	struct wait_queue_head err_queue;

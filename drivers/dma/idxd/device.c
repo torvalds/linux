@@ -404,17 +404,21 @@ int idxd_wq_init_percpu_ref(struct idxd_wq *wq)
 	int rc;
 
 	memset(&wq->wq_active, 0, sizeof(wq->wq_active));
-	rc = percpu_ref_init(&wq->wq_active, idxd_wq_ref_release, 0, GFP_KERNEL);
+	rc = percpu_ref_init(&wq->wq_active, idxd_wq_ref_release,
+			     PERCPU_REF_ALLOW_REINIT, GFP_KERNEL);
 	if (rc < 0)
 		return rc;
 	reinit_completion(&wq->wq_dead);
+	reinit_completion(&wq->wq_resurrect);
 	return 0;
 }
 
 void __idxd_wq_quiesce(struct idxd_wq *wq)
 {
 	lockdep_assert_held(&wq->wq_lock);
+	reinit_completion(&wq->wq_resurrect);
 	percpu_ref_kill(&wq->wq_active);
+	complete_all(&wq->wq_resurrect);
 	wait_for_completion(&wq->wq_dead);
 }
 
