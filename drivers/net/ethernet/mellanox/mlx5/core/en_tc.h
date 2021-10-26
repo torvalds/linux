@@ -56,7 +56,7 @@
 int mlx5e_tc_num_filters(struct mlx5e_priv *priv, unsigned long flags);
 
 struct mlx5e_tc_update_priv {
-	struct net_device *tun_dev;
+	struct net_device *fwd_dev;
 };
 
 struct mlx5_nic_flow_attr {

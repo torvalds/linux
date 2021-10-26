@@ -612,8 +612,8 @@ static bool mlx5e_restore_tunnel(struct mlx5e_priv *priv, struct sk_buff *skb,
 		return false;
 	}
 
-	/* Set tun_dev so we do dev_put() after datapath */
-	tc_priv->tun_dev = dev;
+	/* Set fwd_dev so we do dev_put() after datapath */
+	tc_priv->fwd_dev = dev;
 
 	skb->dev = dev;
 
@@ -655,8 +655,8 @@ static bool mlx5e_restore_skb_chain(struct sk_buff *skb, u32 chain, u32 reg_c1,
 
 static void mlx5_rep_tc_post_napi_receive(struct mlx5e_tc_update_priv *tc_priv)
 {
-	if (tc_priv->tun_dev)
-		dev_put(tc_priv->tun_dev);
+	if (tc_priv->fwd_dev)
+		dev_put(tc_priv->fwd_dev);
 }
 
 static void mlx5e_restore_skb_sample(struct mlx5e_priv *priv, struct sk_buff *skb,
