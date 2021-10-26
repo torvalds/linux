@@ -529,7 +529,8 @@ qla_edif_app_start(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 	struct app_start_reply	appreply;
 	struct fc_port  *fcport, *tf;
 
-	ql_dbg(ql_dbg_edif, vha, 0x911d, "%s app start\n", __func__);
+	ql_log(ql_log_info, vha, 0x1313,
+	       "EDIF application registration with driver, FC device connections will be re-established.\n");
 
 	sg_copy_to_buffer(bsg_job->request_payload.sg_list,
 	    bsg_job->request_payload.sg_cnt, &appstart,
@@ -554,37 +555,36 @@ qla_edif_app_start(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 		qla2xxx_wake_dpc(vha);
 	} else {
 		list_for_each_entry_safe(fcport, tf, &vha->vp_fcports, list) {
+			ql_dbg(ql_dbg_edif, vha, 0x2058,
+			       "FCSP - nn %8phN pn %8phN portid=%06x.\n",
+			       fcport->node_name, fcport->port_name,
+			       fcport->d_id.b24);
 			ql_dbg(ql_dbg_edif, vha, 0xf084,
-			       "%s: sess %p %8phC lid %#04x s_id %06x logout %d\n",
-			       __func__, fcport, fcport->port_name,
-			       fcport->loop_id, fcport->d_id.b24,
-			       fcport->logout_on_delete);
-
-			ql_dbg(ql_dbg_edif, vha, 0xf084,
-			       "keep %d els_logo %d disc state %d auth state %d stop state %d\n",
-			       fcport->keep_nport_handle,
-			       fcport->send_els_logo, fcport->disc_state,
-			       fcport->edif.auth_state, fcport->edif.app_stop);
+			       "%s: se_sess %p / sess %p from port %8phC "
+			       "loop_id %#04x s_id %06x logout %d "
+			       "keep %d els_logo %d disc state %d auth state %d"
+			       "stop state %d\n",
+			       __func__, fcport->se_sess, fcport,
+			       fcport->port_name, fcport->loop_id,
+			       fcport->d_id.b24, fcport->logout_on_delete,
+			       fcport->keep_nport_handle, fcport->send_els_logo,
+			       fcport->disc_state, fcport->edif.auth_state,
+			       fcport->edif.app_stop);
 
 			if (atomic_read(&vha->loop_state) == LOOP_DOWN)
 				break;
-			if (!(fcport->flags & FCF_FCSP_DEVICE))
-				continue;
 
 			fcport->edif.app_started = 1;
-			if (fcport->edif.app_stop ||
-			    (fcport->disc_state != DSC_LOGIN_COMPLETE &&
-			     fcport->disc_state != DSC_LOGIN_PEND &&
-			     fcport->disc_state != DSC_DELETED)) {
-				/* no activity */
-				fcport->edif.app_stop = 0;
+			fcport->login_retry = vha->hw->login_retry_count;
 
-				ql_dbg(ql_dbg_edif, vha, 0x911e,
-				       "%s wwpn %8phC calling qla_edif_reset_auth_wait\n",
-				       __func__, fcport->port_name);
-				fcport->edif.app_sess_online = 1;
-				qla_edif_reset_auth_wait(fcport, DSC_LOGIN_PEND, 0);
-			}
+			/* no activity */
+			fcport->edif.app_stop = 0;
+
+			ql_dbg(ql_dbg_edif, vha, 0x911e,
+			       "%s wwpn %8phC calling qla_edif_reset_auth_wait\n",
+			       __func__, fcport->port_name);
+			fcport->edif.app_sess_online = 1;
+			qla_edif_reset_auth_wait(fcport, DSC_LOGIN_PEND, 0);
 			qla_edif_sa_ctl_init(vha, fcport);
 		}
 	}
