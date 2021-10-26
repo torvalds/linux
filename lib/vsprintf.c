@@ -408,8 +408,9 @@ int num_to_str(char *buf, int size, unsigned long long num, unsigned int width)
 #define SMALL	32		/* use lowercase in hex (must be 32 == 0x20) */
 #define SPECIAL	64		/* prefix hex with "0x", octal with "0" */
 
+static_assert(SIGN == 1);
 static_assert(ZEROPAD == ('0' - ' '));
-static_assert(SMALL == ' ');
+static_assert(SMALL == ('a' ^ 'A'));
 
 enum format_type {
 	FORMAT_TYPE_NONE, /* Just a string part */
