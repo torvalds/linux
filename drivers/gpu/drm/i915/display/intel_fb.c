@@ -309,7 +309,7 @@ static bool check_modifier_display_ver_range(const struct intel_modifier_desc *m
 }
 
 static bool plane_has_modifier(struct drm_i915_private *i915,
-			       enum intel_plane_caps plane_caps,
+			       u8 plane_caps,
 			       const struct intel_modifier_desc *md)
 {
 	if (!IS_DISPLAY_VER(i915, md->display_ver.from, md->display_ver.until))
@@ -340,7 +340,7 @@ static bool plane_has_modifier(struct drm_i915_private *i915,
  * The caller must free the returned buffer.
  */
 u64 *intel_fb_plane_get_modifiers(struct drm_i915_private *i915,
-				  enum intel_plane_caps plane_caps)
+				  u8 plane_caps)
 {
 	u64 *list, *p;
 	int count = 1;		/* +1 for invalid modifier terminator */
