@@ -32,8 +32,6 @@ static const struct rhashtable_params br_fdb_rht_params = {
 };
 
 static struct kmem_cache *br_fdb_cache __read_mostly;
-static int fdb_insert(struct net_bridge *br, struct net_bridge_port *source,
-		      const unsigned char *addr, u16 vid);
 
 int __init br_fdb_init(void)
 {
@@ -377,6 +375,63 @@ void br_fdb_find_delete_local(struct net_bridge *br,
 	spin_unlock_bh(&br->hash_lock);
 }
 
+static struct net_bridge_fdb_entry *fdb_create(struct net_bridge *br,
+					       struct net_bridge_port *source,
+					       const unsigned char *addr,
+					       __u16 vid,
+					       unsigned long flags)
+{
+	struct net_bridge_fdb_entry *fdb;
+
+	fdb = kmem_cache_alloc(br_fdb_cache, GFP_ATOMIC);
+	if (fdb) {
+		memcpy(fdb->key.addr.addr, addr, ETH_ALEN);
+		WRITE_ONCE(fdb->dst, source);
+		fdb->key.vlan_id = vid;
+		fdb->flags = flags;
+		fdb->updated = fdb->used = jiffies;
+		if (rhashtable_lookup_insert_fast(&br->fdb_hash_tbl,
+						  &fdb->rhnode,
+						  br_fdb_rht_params)) {
+			kmem_cache_free(br_fdb_cache, fdb);
+			fdb = NULL;
+		} else {
+			hlist_add_head_rcu(&fdb->fdb_node, &br->fdb_list);
+		}
+	}
+	return fdb;
+}
+
+static int fdb_insert(struct net_bridge *br, struct net_bridge_port *source,
+		      const unsigned char *addr, u16 vid)
+{
+	struct net_bridge_fdb_entry *fdb;
+
+	if (!is_valid_ether_addr(addr))
+		return -EINVAL;
+
+	fdb = br_fdb_find(br, addr, vid);
+	if (fdb) {
+		/* it is okay to have multiple ports with same
+		 * address, just use the first one.
+		 */
+		if (test_bit(BR_FDB_LOCAL, &fdb->flags))
+			return 0;
+		br_warn(br, "adding interface %s with same address as a received packet (addr:%pM, vlan:%u)\n",
+			source ? source->dev->name : br->dev->name, addr, vid);
+		fdb_delete(br, fdb, true);
+	}
+
+	fdb = fdb_create(br, source, addr, vid,
+			 BIT(BR_FDB_LOCAL) | BIT(BR_FDB_STATIC));
+	if (!fdb)
+		return -ENOMEM;
+
+	fdb_add_hw_addr(br, addr);
+	fdb_notify(br, fdb, RTM_NEWNEIGH, true);
+	return 0;
+}
+
 void br_fdb_changeaddr(struct net_bridge_port *p, const unsigned char *newaddr)
 {
 	struct net_bridge_vlan_group *vg;
@@ -621,63 +676,6 @@ int br_fdb_fillbuf(struct net_bridge *br, void *buf,
 	rcu_read_unlock();
 
 	return num;
-}
-
-static struct net_bridge_fdb_entry *fdb_create(struct net_bridge *br,
-					       struct net_bridge_port *source,
-					       const unsigned char *addr,
-					       __u16 vid,
-					       unsigned long flags)
-{
-	struct net_bridge_fdb_entry *fdb;
-
-	fdb = kmem_cache_alloc(br_fdb_cache, GFP_ATOMIC);
-	if (fdb) {
-		memcpy(fdb->key.addr.addr, addr, ETH_ALEN);
-		WRITE_ONCE(fdb->dst, source);
-		fdb->key.vlan_id = vid;
-		fdb->flags = flags;
-		fdb->updated = fdb->used = jiffies;
-		if (rhashtable_lookup_insert_fast(&br->fdb_hash_tbl,
-						  &fdb->rhnode,
-						  br_fdb_rht_params)) {
-			kmem_cache_free(br_fdb_cache, fdb);
-			fdb = NULL;
-		} else {
-			hlist_add_head_rcu(&fdb->fdb_node, &br->fdb_list);
-		}
-	}
-	return fdb;
-}
-
-static int fdb_insert(struct net_bridge *br, struct net_bridge_port *source,
-		  const unsigned char *addr, u16 vid)
-{
-	struct net_bridge_fdb_entry *fdb;
-
-	if (!is_valid_ether_addr(addr))
-		return -EINVAL;
-
-	fdb = br_fdb_find(br, addr, vid);
-	if (fdb) {
-		/* it is okay to have multiple ports with same
-		 * address, just use the first one.
-		 */
-		if (test_bit(BR_FDB_LOCAL, &fdb->flags))
-			return 0;
-		br_warn(br, "adding interface %s with same address as a received packet (addr:%pM, vlan:%u)\n",
-		       source ? source->dev->name : br->dev->name, addr, vid);
-		fdb_delete(br, fdb, true);
-	}
-
-	fdb = fdb_create(br, source, addr, vid,
-			 BIT(BR_FDB_LOCAL) | BIT(BR_FDB_STATIC));
-	if (!fdb)
-		return -ENOMEM;
-
-	fdb_add_hw_addr(br, addr);
-	fdb_notify(br, fdb, RTM_NEWNEIGH, true);
-	return 0;
 }
 
 /* Add entry for local address of interface */
