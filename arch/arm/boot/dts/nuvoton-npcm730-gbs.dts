@@ -414,17 +414,17 @@
 		spi-max-frequency = <50000000>;
 		spi-rx-bus-width = <2>;
 		m25p,fast-read;
-		label = "pnor";
+		label = "bios";
 		partitions@a0000000 {
 			compatible = "fixed-partitions";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			pnor-primary@0 {
-				label = "pnor-primary";
+			bios-primary@0 {
+				label = "bios-primary";
 				reg = <0x0000000 0x2000000>;
 			};
-			pnor-scratch@2000000 {
-				label = "pnor-scratch";
+			bios-secondary@2000000 {
+				label = "bios-secondary";
 				reg = <0x2000000 0x2000000>;
 			};
 		};
@@ -437,17 +437,17 @@
 		spi-max-frequency = <50000000>;
 		spi-rx-bus-width = <2>;
 		m25p,fast-read;
-		label = "pnor-2";
+		label = "bios-2";
 		partitions@a0000000 {
 			compatible = "fixed-partitions";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			pnor-primary@0 {
-				label = "pnor-2-primary";
+			bios-2-primary@0 {
+				label = "bios-2-primary";
 				reg = <0x0000000 0x2000000>;
 			};
-			pnor-scratch@2000000 {
-				label = "pnor-2-scratch";
+			bios-2-secondary@2000000 {
+				label = "bios-2-secondary";
 				reg = <0x2000000 0x2000000>;
 			};
 		};
