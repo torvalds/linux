@@ -2078,17 +2078,16 @@ static int cs42l42_i2c_probe(struct i2c_client *i2c_client,
 
 	/* Request IRQ if one was specified */
 	if (i2c_client->irq) {
-		ret = devm_request_threaded_irq(&i2c_client->dev,
-						i2c_client->irq,
-						NULL, cs42l42_irq_thread,
-						IRQF_ONESHOT | IRQF_TRIGGER_LOW,
-						"cs42l42", cs42l42);
+		ret = request_threaded_irq(i2c_client->irq,
+					   NULL, cs42l42_irq_thread,
+					   IRQF_ONESHOT | IRQF_TRIGGER_LOW,
+					   "cs42l42", cs42l42);
 		if (ret == -EPROBE_DEFER) {
-			goto err_disable;
+			goto err_disable_noirq;
 		} else if (ret != 0) {
 			dev_err(&i2c_client->dev,
 				"Failed to request IRQ: %d\n", ret);
-			goto err_disable;
+			goto err_disable_noirq;
 		}
 	}
 
@@ -2158,6 +2157,10 @@ err_shutdown:
 	regmap_write(cs42l42->regmap, CS42L42_PWR_CTL1, 0xff);
 
 err_disable:
+	if (i2c_client->irq)
+		free_irq(i2c_client->irq, cs42l42);
+
+err_disable_noirq:
 	gpiod_set_value_cansleep(cs42l42->reset_gpio, 0);
 err_disable_noreset:
 	regulator_bulk_disable(ARRAY_SIZE(cs42l42->supplies),
@@ -2170,7 +2173,7 @@ static int cs42l42_i2c_remove(struct i2c_client *i2c_client)
 	struct cs42l42_private *cs42l42 = i2c_get_clientdata(i2c_client);
 
 	if (i2c_client->irq)
-		devm_free_irq(&i2c_client->dev, i2c_client->irq, cs42l42);
+		free_irq(i2c_client->irq, cs42l42);
 
 	/*
 	 * The driver might not have control of reset and power supplies,
