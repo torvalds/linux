@@ -33,11 +33,6 @@
 #include "en.h"
 #include "ipoib.h"
 
-static u32 mlx5i_flow_type_mask(u32 flow_type)
-{
-	return flow_type & ~(FLOW_EXT | FLOW_MAC_EXT | FLOW_RSS);
-}
-
 static void mlx5i_get_drvinfo(struct net_device *dev,
 			      struct ethtool_drvinfo *drvinfo)
 {
@@ -223,6 +218,11 @@ static int mlx5i_get_link_ksettings(struct net_device *netdev,
 }
 
 #ifdef CONFIG_MLX5_EN_RXNFC
+static u32 mlx5i_flow_type_mask(u32 flow_type)
+{
+	return flow_type & ~(FLOW_EXT | FLOW_MAC_EXT | FLOW_RSS);
+}
+
 static int mlx5i_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 {
 	struct mlx5e_priv *priv = mlx5i_epriv(dev);

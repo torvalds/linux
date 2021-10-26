@@ -4432,13 +4432,17 @@ void mlx5e_build_nic_params(struct mlx5e_priv *priv, struct mlx5e_xsk *xsk, u16 
 static void mlx5e_set_netdev_dev_addr(struct net_device *netdev)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
+	u8 addr[ETH_ALEN];
 
-	mlx5_query_mac_address(priv->mdev, netdev->dev_addr);
-	if (is_zero_ether_addr(netdev->dev_addr) &&
+	mlx5_query_mac_address(priv->mdev, addr);
+	if (is_zero_ether_addr(addr) &&
 	    !MLX5_CAP_GEN(priv->mdev, vport_group_manager)) {
 		eth_hw_addr_random(netdev);
 		mlx5_core_info(priv->mdev, "Assigned random MAC address %pM\n", netdev->dev_addr);
+		return;
 	}
+
+	eth_hw_addr_set(netdev, addr);
 }
 
 static int mlx5e_vxlan_set_port(struct net_device *netdev, unsigned int table,

@@ -5,7 +5,6 @@
 #define MLX5_CORE_EQ_H
 
 #define MLX5_NUM_CMD_EQE   (32)
-#define MLX5_NUM_ASYNC_EQE (0x1000)
 #define MLX5_NUM_SPARE_EQE (0x80)
 
 struct mlx5_eq;
