@@ -5652,6 +5652,59 @@ ice_rem_adv_rule_by_id(struct ice_hw *hw,
 }
 
 /**
+ * ice_rem_adv_rule_for_vsi - removes existing advanced switch rules for a
+ *                            given VSI handle
+ * @hw: pointer to the hardware structure
+ * @vsi_handle: VSI handle for which we are supposed to remove all the rules.
+ *
+ * This function is used to remove all the rules for a given VSI and as soon
+ * as removing a rule fails, it will return immediately with the error code,
+ * else it will return success.
+ */
+int ice_rem_adv_rule_for_vsi(struct ice_hw *hw, u16 vsi_handle)
+{
+	struct ice_adv_fltr_mgmt_list_entry *list_itr, *tmp_entry;
+	struct ice_vsi_list_map_info *map_info;
+	struct ice_adv_rule_info rinfo;
+	struct list_head *list_head;
+	struct ice_switch_info *sw;
+	int status;
+	u8 rid;
+
+	sw = hw->switch_info;
+	for (rid = 0; rid < ICE_MAX_NUM_RECIPES; rid++) {
+		if (!sw->recp_list[rid].recp_created)
+			continue;
+		if (!sw->recp_list[rid].adv_rule)
+			continue;
+
+		list_head = &sw->recp_list[rid].filt_rules;
+		list_for_each_entry_safe(list_itr, tmp_entry, list_head,
+					 list_entry) {
+			rinfo = list_itr->rule_info;
+
+			if (rinfo.sw_act.fltr_act == ICE_FWD_TO_VSI_LIST) {
+				map_info = list_itr->vsi_list_info;
+				if (!map_info)
+					continue;
+
+				if (!test_bit(vsi_handle, map_info->vsi_map))
+					continue;
+			} else if (rinfo.sw_act.vsi_handle != vsi_handle) {
+				continue;
+			}
+
+			rinfo.sw_act.vsi_handle = vsi_handle;
+			status = ice_rem_adv_rule(hw, list_itr->lkups,
+						  list_itr->lkups_cnt, &rinfo);
+			if (status)
+				return status;
+		}
+	}
+	return 0;
+}
+
+/**
  * ice_replay_vsi_adv_rule - Replay advanced rule for requested VSI
  * @hw: pointer to the hardware structure
  * @vsi_handle: driver VSI handle
