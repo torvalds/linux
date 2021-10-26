@@ -1148,6 +1148,7 @@ static struct bpf_object *bpf_object__new(const char *path,
 					  size_t obj_buf_sz,
 					  const char *obj_name)
 {
+	bool strict = (libbpf_mode & LIBBPF_STRICT_NO_OBJECT_LIST);
 	struct bpf_object *obj;
 	char *end;
 
@@ -1188,7 +1189,8 @@ static struct bpf_object *bpf_object__new(const char *path,
 	obj->loaded = false;
 
 	INIT_LIST_HEAD(&obj->list);
-	list_add(&obj->list, &bpf_objects_list);
+	if (!strict)
+		list_add(&obj->list, &bpf_objects_list);
 	return obj;
 }
 
@@ -7935,6 +7937,10 @@ struct bpf_object *
 bpf_object__next(struct bpf_object *prev)
 {
 	struct bpf_object *next;
+	bool strict = (libbpf_mode & LIBBPF_STRICT_NO_OBJECT_LIST);
+
+	if (strict)
+		return NULL;
 
 	if (!prev)
 		next = list_first_entry(&bpf_objects_list,
