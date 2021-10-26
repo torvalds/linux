@@ -73,6 +73,11 @@
  *  VERSION     : 01-00-17
  *  21 Oct 2021 : 1. Version update
  *  VERSION     : 01-00-18
+ *  26 Oct 2021 : 1. Added support for EEE PHY and MAC Control Mode support.
+		  2. Added PM support for suspend-resume.
+		  3. Added platform api calls.
+		  4. Version update
+ *  VERSION     : 01-00-19
  */
 
 #include <linux/clk-provider.h>
@@ -105,7 +110,10 @@ static unsigned int tc956x_port1_interface = ENABLE_SGMII_INTERFACE;
 unsigned int tc956x_port0_filter_phy_pause_frames = DISABLE;
 unsigned int tc956x_port1_filter_phy_pause_frames = DISABLE;
 
-static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 1, 8};
+static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 1, 9};
+
+enum TC956X_INDEPENDENT_PORT_PM_SUSPEND tc956xmac_pm_suspend_counter = NO_PORT_SUSPENDED;
+struct mutex tc956x_pm_suspend_lock;
 
 /*
  * This struct is used to associate PCI Function of MAC controller on a board,
@@ -1019,8 +1027,11 @@ static int tc956xmac_xgmac3_default_data(struct pci_dev *pdev,
 		return -ENOMEM;
 
 #ifdef TC956X
-	plat->axi->axi_lpi_en = 0;
+#ifdef EEE_MAC_CONTROLLED_MODE
+	plat->axi->axi_lpi_en = 1;
 	plat->axi->axi_xit_frm = 0;
+	plat->en_tx_lpi_clockgating = 1;
+#endif
 	plat->axi->axi_wr_osr_lmt = 31;
 	plat->axi->axi_rd_osr_lmt = 31;
 #else
@@ -2241,6 +2252,7 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 		dev_dbg(&(pdev->dev), "%s : ltssm_data.ltssm_stop_status = %d\n", __func__, ltssm_data.ltssm_stop_status);
 	}
 #endif /* TC956X_PCIE_LOGSTAT */
+	mutex_init(&tc956x_pm_suspend_lock);
 
 #ifdef DMA_OFFLOAD_ENABLE
 	if (res.port_num == RM_PF0_ID)
@@ -2306,10 +2318,6 @@ static void tc956xmac_pci_remove(struct pci_dev *pdev)
 
 	pdev->irq = 0;
 
-	if (tc956x_platform_remove(priv)) {
-		dev_err(priv->device, "Platform remove error\n");
-	}
-
 	/* Enable MSI Operation */
 	pci_disable_msi(pdev);
 
@@ -2331,44 +2339,210 @@ static void tc956xmac_pci_remove(struct pci_dev *pdev)
 	pci_release_regions(pdev);
 
 	pci_disable_device(pdev);
+	mutex_destroy(&tc956x_pm_suspend_lock);
 
 	DBGPR_FUNC(&(pdev->dev), "<--%s\n", __func__);
 }
 
+/*!
+ * \brief API to increment port-wise suspend counter.
+ *
+ * \details This api will be called during suspend operation.
+ * This will set(increase) the tc956xmac_pm_set_counter based on
+ * number of times tc956x_pcie_suspend() is called as per following :
+ * If no port suspended - the api will set to Single Port Supended,
+ * If one port already suspended - the api will set to Single Port Supended,
+ * If both port suspended - the api will return error.
+ *
+ * \param[in] pdev - pointer to pci_dev structure.
+ *
+ * \return int
+ */
+static inline int tc956xmac_pm_set_counter(struct tc956xmac_priv *priv)
+{
+	if (tc956xmac_pm_suspend_counter == NO_PORT_SUSPENDED)
+		tc956xmac_pm_suspend_counter = SINGLE_PORT_SUSPENDED;
+	else if (tc956xmac_pm_suspend_counter == SINGLE_PORT_SUSPENDED)
+		tc956xmac_pm_suspend_counter = BOTH_PORT_SUSPENDED;
+	else /* if (tc956xmac_pm_suspend_counter == BOTH_PORT_SUSPENDED)*/
+		return -1;
+	return tc956xmac_pm_suspend_counter;
+}
+
+/*!
+ * \brief API to decrement port-wise suspend counter.
+ *
+ * \details This api will be called during resume operation.
+ * This will set(decrease) the tc956xmac_pm_set_counter based on
+ * number of times tc956x_pcie_resume() is called as per following :
+ * If both port suspended - the api will set to Single Port Supended,
+ * If one port is already suspended - the api will set to No Port Supended,
+ * If no port is suspended - on calling the api will return error.
+ *
+ * \param[in] pdev - pointer to pci_dev structure.
+ *
+ * \return int
+ */
+static inline int tc956xmac_pm_get_counter(struct tc956xmac_priv *priv)
+{
+	if (tc956xmac_pm_suspend_counter == BOTH_PORT_SUSPENDED)
+		tc956xmac_pm_suspend_counter = SINGLE_PORT_SUSPENDED;
+	else if (tc956xmac_pm_suspend_counter == SINGLE_PORT_SUSPENDED)
+		tc956xmac_pm_suspend_counter = NO_PORT_SUSPENDED;
+	else /* if (tc956xmac_pm_suspend_counter == NO_PORT_SUSPENDED) */
+		return -1;
+	return tc956xmac_pm_suspend_counter;
+}
+
+/*!
+ * \brief API to disable pci device.
+ *
+ * \details This api will be called during suspend operation.
+ * This will disable pci device passed as argument.
+ *
+ * \param[in] pdev - pointer to pci_dev structure.
+ *
+ * \return int
+ */
+static int tc956x_pcie_pm_disable_pci(struct pci_dev *pdev)
+{
+	struct net_device *ndev = dev_get_drvdata(&pdev->dev);
+	struct tc956xmac_priv *priv = netdev_priv(ndev);
+	int ret = 0;
+
+	DBGPR_FUNC(&(pdev->dev), "---->%s : Port %d - PCI Save State, Disable Device, Prepare to sleep", __func__, priv->port_num);
+	pci_save_state(pdev);
+	pci_disable_device(pdev);
+	pci_prepare_to_sleep(pdev);
+	DBGPR_FUNC(&(pdev->dev), "<----%s : Port %d - PCI Save State, Disable Device, Prepare to sleep", __func__, priv->port_num);
+	return ret;
+}
+
+/*!
+ * \brief API to enable pci device.
+ *
+ * \details This api will be called during resume operation.
+ * This will enable pci device passed as argument.
+ *
+ * \param[in] pdev - pointer to pci_dev structure.
+ *
+ * \return int
+ */
+static int tc956x_pcie_pm_enable_pci(struct pci_dev *pdev)
+{
+	struct net_device *ndev = dev_get_drvdata(&pdev->dev);
+	struct tc956xmac_priv *priv = netdev_priv(ndev);
+	int ret = 0;
+
+	DBGPR_FUNC(&(pdev->dev), "---->%s : Port %d - PCI Set Power, Enable Device, Restore State & Set Master", __func__, priv->port_num);
+	pci_set_power_state(pdev, PCI_D0);
+	ret = pci_enable_device_mem(pdev);
+	if (ret) {
+		NMSGPR_ERR(&(pdev->dev),
+		"%s: error in calling pci_enable_device_mem", pci_name(pdev));
+		DBGPR_FUNC(&(pdev->dev), "<--%s\n", __func__);
+		return ret;
+	}
+	pci_restore_state(pdev);
+	pci_set_master(pdev);
+	DBGPR_FUNC(&(pdev->dev), "<----%s : Port %d - PCI Set Power, Enable Device, Restore State & Set Master", __func__, priv->port_num);
+	return ret;
+}
+
+/*!
+ * \brief API to extract child pci devices.
+ *
+ * \details This api will be called during suspend and resume operation.
+ * This will find pci child devices by getting parent device of argument pci device.
+ *
+ * \param[in] pdev - pointer to pci_dev structure.
+ * \param[in] state - identify SUSPEND and RESUME operation.
+ *
+ * \return int
+ */
+static int tc956x_pcie_pm_pci(struct pci_dev *pdev, enum TC956X_PORT_PM_STATE state)
+{
+	static struct pci_dev *tc956x_pd = NULL, *tc956x_dsp_ep = NULL, *tc956x_port_pdev[2];
+	struct pci_bus *bus = NULL;
+	int ret = 0, i = 0;
+	if (tc956xmac_pm_suspend_counter > SINGLE_PORT_SUSPENDED) {
+		tc956x_dsp_ep = pci_upstream_bridge(pdev);
+		bus = tc956x_dsp_ep->subordinate;
+
+		if (bus)
+		    list_for_each_entry(tc956x_pd, &bus->devices, bus_list)
+			tc956x_port_pdev[i++] = tc956x_pd;
+
+		/* Enter only if at least 1 Port Suspended */
+		if (state == SUSPEND) {
+			ret = tc956x_pcie_pm_disable_pci(tc956x_port_pdev[0]);
+			if (ret < 0)
+				goto err;
+			ret = tc956x_pcie_pm_disable_pci(tc956x_port_pdev[1]);
+			if (ret < 0)
+				goto err;
+		} else if (state == RESUME) {
+			ret = tc956x_pcie_pm_enable_pci(tc956x_port_pdev[0]);
+			if (ret < 0)
+				goto err;
+			ret = tc956x_pcie_pm_enable_pci(tc956x_port_pdev[1]);
+			if (ret < 0)
+				goto err;
+		}
+	}
+err :
+	return ret;
+}
 
 /*!
  * \brief Routine to put the device in suspend mode
  *
- * \details This function gets called by PCI core when the device is being
- * suspended. The suspended state is passed as input argument to it. This
- * function saves the configuration space of the device and puts the device
- * in the requested suspend state apart from invoking tc956xmac_suspend() to
- * process MAC related suspend operations.
+ * \details This function is called whenever pm_generic_suspend() gets invoked. 
+ * This function invokes tc956xmac_suspend() to process MAC related suspend 
+ * operations during PORT_WIDE suspend. 
+ * This function handles PCI state during SYSTEM_WIDE suspend.
  *
- * \param[in] pdev \96 pointer to pci device structure.
- * \param[in] state \96 suspend state of device.
+ * \param[in] dev \96 pointer to device structure.
  *
- * \return s32
+ * \return int
  *
  * \retval 0
  */
-static s32 tc956x_pcie_suspend(struct pci_dev *pdev, pm_message_t state)
+static int tc956x_pcie_suspend(struct device *dev)
 {
-	s32 ret = 0;
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct net_device *ndev = dev_get_drvdata(&pdev->dev);
 	struct tc956xmac_priv *priv = netdev_priv(ndev);
+	int ret = 0;
 #ifdef DMA_OFFLOAD_ENABLE
 	u8 i;
 	u32 val;
 #endif
 
 	DBGPR_FUNC(&(pdev->dev), "-->%s\n", __func__);
+	if (priv->tc956x_port_pm_suspend == true) {
+		DBGPR_FUNC(&(pdev->dev), "<--%s : Port %d already Suspended \n", __func__, priv->port_num);
+		return -1;
+	}
+
+	mutex_lock(&tc956x_pm_suspend_lock);
+
+	/* Increment Suspend counter */
+	ret = tc956xmac_pm_set_counter(priv);
+	if (ret < 0) {
+		DBGPR_FUNC(&(pdev->dev), "%s : (Both Ports Already Suspended ) \n", __func__);
+		goto err;
+	} else
+		DBGPR_FUNC(&(pdev->dev), "%s : (Number of Ports Suspended = [%d]) \n", __func__, ret);
+
+	priv->tc956x_port_pm_suspend = true;
 
 	/* Call tc956xmac_suspend() */
 	tc956xmac_suspend(&pdev->dev);
 
 #ifdef DMA_OFFLOAD_ENABLE
-	if (priv->port_num == RM_PF0_ID) {
+	if (tc956xmac_pm_suspend_counter > SINGLE_PORT_SUSPENDED) {
+		DBGPR_FUNC(&(pdev->dev), "%s : Port %d - Tamap Configuration", __func__, priv->port_num);
 		/* Since TAMAP is common for Port0 and Port1,
 		 * Store CM3 TAMAP entries of one Port0*/
 		for (i = 1; i <= MAX_CM3_TAMAP_ENTRIES; i++) {
@@ -2392,35 +2566,22 @@ static s32 tc956x_pcie_suspend(struct pci_dev *pdev, pm_message_t state)
 	}
 #endif
 
+	DBGPR_FUNC(&(pdev->dev), "%s : Port %d - Platform Suspend", __func__, priv->port_num);
+
 	ret = tc956x_platform_suspend(priv);
 	if (ret) {
 		NMSGPR_ERR(&(pdev->dev), "%s: error in calling tc956x_platform_suspend", pci_name(pdev));
-		return ret;
+		goto err;
 	}
 
-	/* Save the PCI Config Space of the device */
-	ret = pci_save_state(pdev);
+	ret = tc956x_pcie_pm_pci(pdev, SUSPEND);
+	if (ret < 0)
+		goto err;
 
-	if (ret) {
-		NMSGPR_ERR(&(pdev->dev),
-		"%s: error in calling pci_save_state", pci_name(pdev));
-		DBGPR_FUNC(&(pdev->dev), "<--%s\n", __func__);
-		return ret;
-	}
-
-	/* Set the device into the requested power state */
-	ret = pci_set_power_state(pdev, pci_choose_state(pdev, state));
-
-	if (ret) {
-		NMSGPR_ERR(&(pdev->dev),
-		"%s: error in calling pci_set_power_state", pci_name(pdev));
-		DBGPR_FUNC(&(pdev->dev), "<--%s\n", __func__);
-		return ret;
-	}
-
+err :
+	mutex_unlock(&tc956x_pm_suspend_lock);
 	DBGPR_FUNC(&(pdev->dev), "<--%s\n", __func__);
-
-	return 0;
+	return ret;
 }
 
 /*!
@@ -2559,6 +2720,9 @@ static int tc956x_pcie_resume_config(struct pci_dev *pdev)
 			/* De-assertion of PMA &  XPCS reset  software Reset*/
 			ret = readl(priv->ioaddr + NRSTCTRL0_OFFSET);
 			ret &= ~(NRSTCTRL0_MAC0PMARST | NRSTCTRL0_MAC0PONRST);
+#ifdef EEE_MAC_CONTROLLED_MODE
+			ret &= ~(NRSTCTRL0_MAC0RST | NRSTCTRL0_MAC0RST);
+#endif
 			writel(ret, priv->ioaddr + NRSTCTRL0_OFFSET);
 		}
 
@@ -2588,58 +2752,56 @@ static int tc956x_pcie_resume_config(struct pci_dev *pdev)
 	return ret;
 }
 #endif
+
 /*!
  * \brief Routine to resume device operation
  *
- * \details This function gets called by PCI core when the device is being
- * resumed. It is always called after suspend has been called. These function
- * reverse operations performed at suspend time. This function restores the
- * power state of the device and restores the PCI config space apart from
- * invoking tc956xmac_resume() to perform MAC realted resume operations.
+ * \details This function gets called whenever pm_generic_resume() gets invoked.
+ * This function reverse operations performed at suspend time. This function restores the
+ * power state of the device and restores the PCI config space for SYSTEM_WIDE resume.
+ * And it invokes tc956xmac_resume() to perform MAC realted resume operations
+ * for PORT_WIDE resume.
  *
- * \param[in] pdev pointer to pci device structure.
+ * \param[in] dev pointer to device structure.
  *
- * \return s32
+ * \return int
  *
  * \retval 0
  */
 
-static s32 tc956x_pcie_resume(struct pci_dev *pdev)
+static int tc956x_pcie_resume(struct device *dev)
 {
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct net_device *ndev = dev_get_drvdata(&pdev->dev);
 	struct tc956xmac_priv *priv = netdev_priv(ndev);
-	s32 ret = 0;
+	int ret = 0;
+
 #ifdef DMA_OFFLOAD_ENABLE
 	u8 i;
 #endif
 
-#ifdef TC956X_PCIE_LOGSTAT
-	struct tc956x_ltssm_log ltssm_data;
-#endif /* TC956X_PCIE_LOGSTAT */
 	DBGPR_FUNC(&(pdev->dev), "-->%s\n", __func__);
-
-	/* Set requested power state */
-	ret = pci_set_power_state(pdev, PCI_D0);
-	if (ret) {
-		NMSGPR_ERR(&(pdev->dev),
-		"%s: error in calling pci_set_power_state", pci_name(pdev));
-		DBGPR_FUNC(&(pdev->dev), "<--%s\n", __func__);
-		return ret;
+	if (priv->tc956x_port_pm_suspend == false) {
+		DBGPR_FUNC(&(pdev->dev), "%s : Port %d already Resumed \n", __func__, priv->port_num);
+		return -1;
 	}
+	mutex_lock(&tc956x_pm_suspend_lock);
 
-	/* Restore PCI config space of device */
-	pci_restore_state(pdev);
+	ret = tc956x_pcie_pm_enable_pci(pdev);
+	if (ret < 0)
+		goto err;
 
+	DBGPR_FUNC(&(pdev->dev), "%s : Port %d - Platform Resume", __func__, priv->port_num);
 	ret = tc956x_platform_resume(priv);
 	if (ret) {
 		NMSGPR_ERR(&(pdev->dev), "%s: error in calling tc956x_platform_resume", pci_name(pdev));
 		pci_disable_device(pdev);
-		return ret;
+		goto err;
 	}
 
 	/* Configure TA map registers */
-#ifdef TC956X
-	if (priv->port_num == RM_PF0_ID) {
+	if (tc956xmac_pm_suspend_counter > SINGLE_PORT_SUSPENDED) {
+		DBGPR_FUNC(&(pdev->dev),"%s : Tamap Re-configuration", __func__);
 		tc956x_config_tamap(&pdev->dev, priv->tc956x_BRIDGE_CFG_pci_base_addr);
 #ifdef DMA_OFFLOAD_ENABLE
 		for (i = 1; i <= MAX_CM3_TAMAP_ENTRIES; i++) {
@@ -2650,36 +2812,33 @@ static s32 tc956x_pcie_resume(struct pci_dev *pdev)
 
 #endif
 	}
-#endif
-#ifdef TC956X
+
 	/* Configure EMAC Port */
 	tc956x_pcie_resume_config(pdev);
-#endif
+
 	/* Call tc956xmac_resume() */
 	tc956xmac_resume(&pdev->dev);
-#ifdef TC956X
+
 	if ((priv->port_num == RM_PF1_ID) && (priv->port_interface == ENABLE_RGMII_INTERFACE)) {
 		writel(NEMACTXCDLY_DEFAULT, priv->ioaddr + TC9563_CFG_NEMACTXCDLY);
 		writel(NEMACIOCTL_DEFAULT, priv->ioaddr + TC9563_CFG_NEMACIOCTL);
 	}
-#endif
-	DBGPR_FUNC(&(pdev->dev), "<--%s\n", __func__);
 
-#ifdef TC956X_PCIE_LOGSTAT
-	memset(&ltssm_data, 0, sizeof(ltssm_data));
-	ret = tc956x_logstat_GetLTSSMLogData((void __iomem *)priv->ioaddr, UPSTREAM_PORT, &ltssm_data);
-	if (ret == 0) {
-		dev_dbg(&(pdev->dev), "%s : ltssm_data.eq_phase          = %d\n", __func__, ltssm_data.eq_phase);
-		dev_dbg(&(pdev->dev), "%s : ltssm_data.rxL0s             = %d\n", __func__, ltssm_data.rxL0s);
-		dev_dbg(&(pdev->dev), "%s : ltssm_data.txL0s             = %d\n", __func__, ltssm_data.txL0s);
-		dev_dbg(&(pdev->dev), "%s : ltssm_data.substate_L1       = %d\n", __func__, ltssm_data.substate_L1);
-		dev_dbg(&(pdev->dev), "%s : ltssm_data.active_lane;      = %d\n", __func__, ltssm_data.active_lane);
-		dev_dbg(&(pdev->dev), "%s : ltssm_data.link_speed        = %d\n", __func__, ltssm_data.link_speed);
-		dev_dbg(&(pdev->dev), "%s : ltssm_data.dl_active         = %d\n", __func__, ltssm_data.dl_active);
-		dev_dbg(&(pdev->dev), "%s : ltssm_data.ltssm_timeout     = %d\n", __func__, ltssm_data.ltssm_timeout);
-		dev_dbg(&(pdev->dev), "%s : ltssm_data.ltssm_stop_status = %d\n", __func__, ltssm_data.ltssm_stop_status);
+	/* Decrement Suspend counter */
+	ret = tc956xmac_pm_get_counter(priv);
+	if (ret < 0) {
+		DBGPR_FUNC(&(pdev->dev), "%s : (Both Ports Already in Resume State ) \n", __func__);
+		goto err;
+	} else {
+		DBGPR_FUNC(&(pdev->dev), "%s : (Number of Ports left to Resume = [%d]) \n", __func__, ret);
+		ret = 0;
 	}
-#endif /* TC956X_PCIE_LOGSTAT */
+
+	priv->tc956x_port_pm_suspend = false;
+
+err:
+	mutex_unlock(&tc956x_pm_suspend_lock);
+	DBGPR_FUNC(&(pdev->dev), "<--%s\n", __func__);
 	return ret;
 }
 
@@ -2801,6 +2960,7 @@ static const struct pci_device_id tc956xmac_id_table[] = {
 	{}
 };
 
+static SIMPLE_DEV_PM_OPS(tc956xmac_pm_ops, tc956x_pcie_suspend, tc956x_pcie_resume);
 
 static struct pci_driver tc956xmac_pci_driver = {
 	.name = TC956X_RESOURCE_NAME,
@@ -2808,13 +2968,10 @@ static struct pci_driver tc956xmac_pci_driver = {
 	.probe = tc956xmac_pci_probe,
 	.remove = tc956xmac_pci_remove,
 	.shutdown	= tc956x_pcie_shutdown,
-#ifdef CONFIG_PM
-	.suspend	= tc956x_pcie_suspend,
-	.resume		= tc956x_pcie_resume,
-#endif
 	.driver		= {
 		.name		= TC956X_RESOURCE_NAME,
 		.owner		= THIS_MODULE,
+		.pm		= &tc956xmac_pm_ops,
 	},
 	.err_handler = &tc956x_err_handler
 };

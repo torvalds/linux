@@ -50,6 +50,8 @@
  *  14 Oct 2021 : 1. Configuring pause frame control using kernel module parameter also forwarding
  *  		  only Link partner pause frames to Application and filtering PHY pause frames using FRP
  *  VERSION     : 01-00-16
+ *  26 Oct 2021 : 1. Added EEE print in host IRQ and updated EEE configuration.
+ *  VERSION     : 01-00-19
  */
 
 #include <linux/bitrev.h>
@@ -428,6 +430,10 @@ static int dwxgmac2_host_irq_status(struct tc956xmac_priv *priv,
 	void __iomem *ioaddr = hw->pcsr;
 	u32 stat, en;
 	int ret = 0;
+#ifdef EEE
+	int val;
+#endif
+
 
 	en = readl(ioaddr + XGMAC_INT_EN);
 	stat = readl(ioaddr + XGMAC_INT_STATUS);
@@ -443,17 +449,40 @@ static int dwxgmac2_host_irq_status(struct tc956xmac_priv *priv,
 		u32 lpi = readl(ioaddr + XGMAC_LPI_CTRL);
 
 		if (lpi & XGMAC_TLPIEN) {
+			KPRINT_INFO("Transmit LPI Entry..... \n");
 			ret |= CORE_IRQ_TX_PATH_IN_LPI_MODE;
 			x->irq_tx_path_in_lpi_mode_n++;
 		}
 		if (lpi & XGMAC_TLPIEX) {
+			KPRINT_INFO("Transmit LPI Exit.....\n");
 			ret |= CORE_IRQ_TX_PATH_EXIT_LPI_MODE;
 			x->irq_tx_path_exit_lpi_mode_n++;
 		}
-		if (lpi & XGMAC_RLPIEN)
+		if (lpi & XGMAC_RLPIEN) {
+			KPRINT_INFO("Receive LPI Entry....... \n");
 			x->irq_rx_path_in_lpi_mode_n++;
-		if (lpi & XGMAC_RLPIEX)
+		}
+		if (lpi & XGMAC_RLPIEX) {
+			KPRINT_INFO("Receive LPI Exit...... \n");
 			x->irq_rx_path_exit_lpi_mode_n++;
+		}
+
+#ifdef EEE
+		val = tc956x_xpcs_read(priv->xpcsaddr, XGMAC_VR_XS_PCS_DIG_STS);
+		KPRINT_INFO("XPCS LPI status : %x........\n", val);
+		if (val & XGMAC_LTX_LRX_STATE) {
+			if (val & XGMAC_LPI_RECEIVE_STATE)
+				KPRINT_INFO("XPCS LPI Receive State.........\n");
+			if (val & XGMAC_LPI_TRANSMIT_STATE)
+				KPRINT_INFO("XPCS LPI transmit state.....\n");
+		}
+
+		val = tc956x_xpcs_read(priv->xpcsaddr, XGMAC_SR_XS_PCS_STS1);
+		if ( val & XGMAC_RX_LPI_RECEIVE)
+			KPRINT_INFO("XPCS RX LPI Received......");
+		if ( val & XGAMC_TX_LPI_RECEIVE)
+			KPRINT_INFO("XPCS TX LPI Received......");
+#endif
 	}
 
 	return ret;
@@ -569,7 +598,9 @@ static void dwxgmac2_set_eee_mode(struct tc956xmac_priv *priv,
 	value |= XGMAC_LPITXEN | XGMAC_LPITXA;
 	if (en_tx_lpi_clockgating)
 		value |= XGMAC_TXCGE;
-
+#ifdef EEE_MAC_CONTROLLED_MODE
+	value |= XGMAC_PLS | XGMAC_PLSDIS | XGMAC_LPIATE;
+#endif
 	writel(value, ioaddr + XGMAC_LPI_CTRL);
 }
 

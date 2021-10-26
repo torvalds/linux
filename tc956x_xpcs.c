@@ -35,6 +35,8 @@
  *  VERSION     : 01-00-02
  *  22 Jul 2021 : 1. USXGMII/XFI/SGMII/RGMII interface supported with module parameters
  *  VERSION     : 01-00-04
+ *  26 Oct 2021 : 1. Added EEE configration for PHY and MAC Controlled Mode.
+ *  VERSION     : 01-00-19
  */
 
 #include "common.h"
@@ -138,6 +140,63 @@ int tc956x_xpcs_init(struct tc956xmac_priv *priv, void __iomem *xpcsaddr)
 		} while ((XGMAC_VR_RST & reg_value) == XGMAC_VR_RST);
 
 	}
+#ifdef EEE
+	reg_value = tc956x_xpcs_read(xpcsaddr, XGMAC_SR_XS_PCS_CTRL1);
+	reg_value |= XGMAC_LPI_ENABLE;/* LPM : power down */
+	tc956x_xpcs_write(xpcsaddr, XGMAC_SR_XS_PCS_CTRL1, reg_value);
+
+	reg_value = tc956x_xpcs_read(xpcsaddr, XGMAC_VR_XS_PCS_DIG_STS);
+	reg_value &= ~(XGMAC_PSEQ_STATE);/* PSEQ_STATE(B4:2)=3'b000 */
+	tc956x_xpcs_write(xpcsaddr, XGMAC_VR_XS_PCS_DIG_STS, reg_value);
+
+	reg_value = tc956x_xpcs_read(xpcsaddr, XGMAC_SR_XS_PCS_CTRL1);
+	reg_value &= ~(XGMAC_LPI_ENABLE);/* LPM : Normal Operation */
+	tc956x_xpcs_write(xpcsaddr, XGMAC_SR_XS_PCS_CTRL1, reg_value);
+
+	reg_value = tc956x_xpcs_read(xpcsaddr, XGMAC_SR_XS_PCS_EEE_ABL);
+	reg_value |= XGMAC_KXEEE;/* KXEEE */
+	tc956x_xpcs_write(xpcsaddr, XGMAC_SR_XS_PCS_EEE_ABL, reg_value);
+
+	reg_value = tc956x_xpcs_read(xpcsaddr, XGMAC_VR_XS_PCS_EEE_MCTRL0);
+	reg_value &= ~(XGMAC_MULT_FACT_100NS);
+#ifdef EEE_MAC_CONTROLLED_MODE
+	reg_value |= XGMAC_MULT_FACT_100NS_MAC; /* MULT_FACT_100NS */
+#else
+	reg_value |= XGMAC_MULT_FACT_100NS_PHY; /* MULT_FACT_100NS */
+#endif
+	reg_value |= XGMAC_SIGN_BIT;/* SIGN_BIT */
+	reg_value |= XGMAC_TX_RX_EN;/* TX_EN_CTRL, RX_EN_CTRL */
+	tc956x_xpcs_write(xpcsaddr, XGMAC_VR_XS_PCS_EEE_MCTRL0, reg_value);
+
+	reg_value = tc956x_xpcs_read(xpcsaddr, XGMAC_VR_XS_PCS_EEE_TXTIMER);
+	reg_value &= ~(XGMAC_EEE_TX_TIMER);
+#ifdef EEE_MAC_CONTROLLED_MODE
+	reg_value |= XGMAC_EEE_TX_TIMER_MAC_CONT; /* TWL_RES=0x5, T1U_RES=0x1, TSL_RES=0x3 */
+#else
+	reg_value |= XGMAC_EEE_TX_TIMER_PHY_CONT; /* TWL_RES=0xe, T1U_RES=0x8, TSL_RES=0x1c */
+#endif
+	tc956x_xpcs_write(xpcsaddr, XGMAC_VR_XS_PCS_EEE_TXTIMER, reg_value);
+
+	reg_value = tc956x_xpcs_read(xpcsaddr, XGMAC_VR_XS_PCS_EEE_RXTIMER);
+	reg_value &= ~(XGMAC_EEE_RX_TIMER);
+#ifdef EEE_MAC_CONTROLLED_MODE
+	reg_value |= XGMAC_EEE_RX_TIMER_MAC_CONT; /* TWR_RES=0x6, RES_100U=0x42 */
+#else
+	reg_value |= XGMAC_EEE_RX_TIMER_PHY_CONT; /* TWR_RES=0x88, RES_100U=0x28 */
+#endif
+	tc956x_xpcs_write(xpcsaddr, XGMAC_VR_XS_PCS_EEE_RXTIMER, reg_value);
+
+	reg_value = tc956x_xpcs_read(xpcsaddr, XGMAC_VR_XS_PCS_EEE_MCTRL1);
+	reg_value |= XGMAC_TRN_LPI;
+	tc956x_xpcs_write(xpcsaddr, XGMAC_VR_XS_PCS_EEE_MCTRL1, reg_value);
+
+	reg_value = tc956x_xpcs_read(xpcsaddr, XGMAC_VR_XS_PCS_EEE_MCTRL0);
+
+	reg_value &= ~XGMAC_TX_RX_QUIET_EN;
+	reg_value |= XGMAC_TX_RX_QUIET_EN; /* RX_QUIET_EN, TX_QUIET_EN, LRX_EN, LTX_EN */
+
+	tc956x_xpcs_write(xpcsaddr, XGMAC_VR_XS_PCS_EEE_MCTRL0, reg_value);
+#endif
 
 	reg_value = tc956x_xpcs_read(xpcsaddr, XGMAC_VR_MII_AN_CTRL);
 	reg_value &= XGMAC_TX_CFIG_INTR_EN_MASK;/*TX_CONFIG MAC SIDE*/

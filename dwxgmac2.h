@@ -42,6 +42,8 @@
  *  19 Oct 2021 : 1. Adding M3 SRAM Debug counters to ethtool statistics
  * 		  2. Adding MTL RX Overflow/packet miss count, TX underflow counts,Rx Watchdog value to ethtool statistics.
  *  VERSION     : 01-00-17
+ *  25 Oct 2021 : 1. Added EEE macros for MAC controlled EEE.
+ *  VERSION     : 01-00-19
  */
 
 
@@ -180,6 +182,11 @@
 #define XGMAC_LPI_CTRL			(MAC_OFFSET + 0x000000d0)
 #define XGMAC_TXCGE			BIT(21)
 #define XGMAC_LPITXA			BIT(19)
+
+#ifdef EEE_MAC_CONTROLLED_MODE
+#define XGMAC_PLSDIS			BIT(18)
+#define XGMAC_LPIATE			BIT(20)
+#endif
 #define XGMAC_PLS			BIT(17)
 #define XGMAC_LPITXEN			BIT(16)
 #define XGMAC_RLPIEX			BIT(3)
@@ -187,6 +194,12 @@
 #define XGMAC_TLPIEX			BIT(1)
 #define XGMAC_TLPIEN			BIT(0)
 #define XGMAC_LPI_TIMER_CTRL		(MAC_OFFSET + 0x000000d4)
+
+#ifdef EEE_MAC_CONTROLLED_MODE
+#define XGMAC_LPI_1US_Tic_Counter	(MAC_OFFSET + 0x000000dc)
+#define XGMAC_LPI_Auto_Entry_Timer	(MAC_OFFSET + 0x000000d8)
+#define XGMAC_LPIET			0xFFFF8
+#endif
 #define XGMAC_DEBUG			(MAC_OFFSET + 0x00000114)
 #define XGMAC_HW_FEATURE0		(MAC_OFFSET + 0x0000011c)
 #define XGMAC_HW_FEATURE0_BASE		(0x0000011c)

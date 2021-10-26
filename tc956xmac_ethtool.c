@@ -41,6 +41,8 @@
  *  19 Oct 2021 : 1. Adding M3 SRAM Debug counters to ethtool statistics
  *                2. Adding MTL RX Overflow/packet miss count, TX underflow counts,Rx Watchdog value to ethtool statistics.
  *  VERSION     : 01-00-17
+ *  26 Oct 2021 : 1. Added set_wol and get_wol support using ethtool.
+ *  VERSION     : 01-00-19
  */
 
 #include <linux/etherdevice.h>
@@ -1251,6 +1253,39 @@ static void tc956xmac_get_strings(struct net_device *dev, u32 stringset, u8 *dat
 	}
 }
 
+static void tc956xmac_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
+{
+	struct tc956xmac_priv *priv = netdev_priv(dev);
+
+	if (device_can_wakeup(priv->device))
+		phylink_ethtool_get_wol(priv->phylink, wol);
+}
+
+static int tc956xmac_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
+{
+	struct tc956xmac_priv *priv = netdev_priv(dev);
+	u32 support = (WAKE_MAGIC | WAKE_PHY);
+	int ret;
+
+	if (!device_can_wakeup(priv->device))
+		return -EINVAL;
+
+	if (wol->wolopts & ~support)
+		return -EINVAL;
+
+	ret = phylink_ethtool_set_wol(priv->phylink, wol);
+	if (!ret)
+		device_set_wakeup_enable(priv->device, wol->wolopts);
+	else
+		return ret;
+
+	mutex_lock(&priv->lock);
+	priv->wolopts = wol->wolopts;
+	mutex_unlock(&priv->lock);
+
+	return ret;
+}
+
 static int tc956xmac_ethtool_op_get_eee(struct net_device *dev,
 				     struct ethtool_eee *edata)
 {
@@ -1598,6 +1633,8 @@ static const struct ethtool_ops tc956xmac_ethtool_ops = {
 	.self_test = tc956xmac_selftest_run,
 	.get_ethtool_stats = tc956xmac_get_ethtool_stats,
 	.get_strings = tc956xmac_get_strings,
+	.get_wol = tc956xmac_get_wol,
+	.set_wol = tc956xmac_set_wol,
 	.get_eee = tc956xmac_ethtool_op_get_eee,
 	.set_eee = tc956xmac_ethtool_op_set_eee,
 	.get_sset_count	= tc956xmac_get_sset_count,

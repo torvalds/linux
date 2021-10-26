@@ -1,7 +1,7 @@
 # Toshiba Electronic Devices & Storage Corporation TC956X PCIe Ethernet Host Driver
-Release Date: 21 Oct 2021
+Release Date: 26 Oct 2021
 
-Release Version: V_01-00-18 : Limited-tested version
+Release Version: V_01-00-19 : Limited-tested version
 
 TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
@@ -122,34 +122,34 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 	#define EP_L0s_ENTRY_DELAY	(0x1FU)
 	#define EP_L1_ENTRY_DELAY	(0x3FFU)
 
-Formula:
-	L0 entry delay = XXX_L0s_ENTRY_DELAY * 256 ns
-	L1 entry delay = XXX_L1_ENTRY_DELAY * 256 ns
-	
-	XXX_L0s_ENTRY_DELAY range: 1-31
-	XXX_L1_ENTRY_DELAY: 1-1023
+	Formula:
+		L0 entry delay = XXX_L0s_ENTRY_DELAY * 256 ns
+		L1 entry delay = XXX_L1_ENTRY_DELAY * 256 ns
+		
+		XXX_L0s_ENTRY_DELAY range: 1-31
+		XXX_L1_ENTRY_DELAY: 1-1023
 
 9. To check vlan feature status execute:
 	ethtool -k <interface> | grep vlan
 
-To enable/disable following vlan features execute:
-	(a) rx-vlan-filter:
-		ethtool -K <interface> rx-vlan-filter <on|off>
-	(b) rx-vlan-offload:
-		ethtool -K <interface> rxvlan <on|off>
-	(c) tx-vlan-offload:
-		ethtool -K <interface> txvlan <on|off>
+	To enable/disable following vlan features execute:
+		(a) rx-vlan-filter:
+			ethtool -K <interface> rx-vlan-filter <on|off>
+		(b) rx-vlan-offload:
+			ethtool -K <interface> rxvlan <on|off>
+		(c) tx-vlan-offload:
+			ethtool -K <interface> txvlan <on|off>
 
-Use following to configure VLAN:
-	(a) modprobe 8021q
-	(b) vconfig add <interface> <vlanid>
-	(c) vconfig set_flag <interface>.<vlanid> 1 0
-	(d) ifconfig <interface>.<vlanid> <ip> netmask 255.255.255.0 broadcast <ip mask> up
+	Use following to configure VLAN:
+		(a) modprobe 8021q
+		(b) vconfig add <interface> <vlanid>
+		(c) vconfig set_flag <interface>.<vlanid> 1 0
+		(d) ifconfig <interface>.<vlanid> <ip> netmask 255.255.255.0 broadcast <ip mask> up
 
-Default Configuraton:
-	(a) Rx vlan filter is disabled.
-	(b) Rx valn offload (vlan stripping) is disabled.
-	(c) Tx vlan offload is enabled.
+	Default Configuraton:
+		(a) Rx vlan filter is disabled.
+		(b) Rx valn offload (vlan stripping) is disabled.
+		(c) Tx vlan offload is enabled.
 
 10. Please use the below command to insert the kernel module for passing pause frames to application except pause frames from PHY:
 
@@ -162,6 +162,24 @@ Default Configuraton:
 
 	If invalid values are passed as kernel module parameter, the default value will be selected.
 
+11. Use below commands to check WOL support and its type:
+	#ethtool <interface>
+
+12. WOL command Usage :
+	#ethtool -s <interface> wol <type - p/g/d>.
+
+Supported WOL options and meaning:
+----------------------------------
+ Option  |  Meaning
+----------------------------------
+  p	  |  Wake on phy activity
+  g	  |  Wake on MagicPacket(tm)
+  d	  |  Disable (wake on nothing). (Default)
+----------------------------------  
+Example - To wake on phy activity and magic packet use :
+ethtool -s eth0 wol pg
+
+	
 # Release Versions:
 
 ## TC956X_Host_Driver_20210326_V_01-00:
@@ -258,3 +276,9 @@ Default Configuraton:
 ## TC956X_Host_Driver_20211021_V_01-00-18:
 
 1. Added support for GPIO configuration API
+
+## TC956X_Host_Driver_20211025_V_01-00-19:
+
+1. Added PM support for suspend-resume.
+2. Added WOL Interrupt Handler and ethtool Support.
+3. Updated EEE support for PHY and MAC Control. (EEE macros are not enabled as EEE LPI interrupts disable are still under validation)

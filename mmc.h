@@ -30,6 +30,8 @@
  *
  *  15 Mar 2021 : Base lined
  *  VERSION     : 01-00
+ *  26 Oct 2021 : 1. Added EEE mmc counters for MAC COntrolled mode.
+ *  VERSION     : 01-00-19
  */
 
 #ifndef __MMC_H__
@@ -81,6 +83,12 @@ struct tc956xmac_counters {
 	u64 mmc_tx_excessdef;
 	u64 mmc_tx_pause_frame;
 	u64 mmc_tx_vlan_frame_g;
+#ifdef EEE_MAC_CONTROLLED_MODE
+	u64 mmc_tx_lpi_us_cntr;
+	u64 mmc_tx_lpi_tran_cntr;
+	u64 mmc_rx_lpi_us_cntr;
+	u64 mmc_rx_lpi_tran_cntr;
+#endif
 	u64 mmc_tx_per_priority_pkt;
 	u64 mmc_tx_per_priority_pfc_pkt;
 	u64 mmc_tx_per_priority_gpfc_pkt;

@@ -53,6 +53,10 @@
  *  VERSION     : 01-00-17
  *  21 Oct 2021 : 1. Added support for GPIO configuration API
  *  VERSION     : 01-00-18
+ *  26 Oct 2021 : 1. Added macro to enable/disable EEE.
+		: 2. Added enums for PM Suspend-Resume.
+		: 3. Added macros for EEE, LPI Timer and MAC RST Status.
+ *  VERSION     : 01-00-19
  */
 
 #ifndef __COMMON_H__
@@ -79,6 +83,21 @@
 /* Enable DMA IPA offload */
 #define DMA_OFFLOAD_ENABLE
 
+/* Indepenedent Suspend/Resume Debug */
+#undef TC956X_PM_DEBUG
+
+/* Suspend-Resume Enum Counter */
+enum TC956X_INDEPENDENT_PORT_PM_SUSPEND {
+	NO_PORT_SUSPENDED = 0, /* Normal State */
+	SINGLE_PORT_SUSPENDED, /* Only Single Port suspended */
+	BOTH_PORT_SUSPENDED, /* Both Port suspended */
+};
+
+/* Suspend-Resume Arguments */
+enum TC956X_PORT_PM_STATE {
+	SUSPEND = 0,
+	RESUME,
+};
 #define TC956X_PCIE_LINK_STATE_LATENCY_CTRL
 
 #define DISABLE		0
@@ -95,6 +114,7 @@
 #define DWXGMAC_CORE_3_01	0x30
 
 //#define DISABLE_EMAC_PORT1
+//#define EEE /* Enable for EEE support */
 
 /* Note: Multiple macro definitions for TC956X_PCIE_LOGSTAT.
  * Please also define/undefine same macro in tc956xmac_ioctl.h, if changing in this file
@@ -648,6 +668,7 @@ enum packets_types {
 #define NCLKCTRL0_MAC0312CLKEN	BIT(30)
 #define NCLKCTRL0_MAC0ALLCLKEN	BIT(31)
 #define NRSTCTRL0_OFFSET	(0x1008)  /* TC956X reset control Register-0 */
+#define NRSTCTRL0_MCURST	BIT(0)
 #define NRSTCTRL0_INTRST	BIT(4)
 #define NRSTCTRL0_MAC0RST	BIT(7)
 #define NRSTCTRL0_PCIERST	BIT(9)
@@ -1526,6 +1547,12 @@ struct dma_features {
 /* Default LPI timers */
 #define TC956XMAC_DEFAULT_LIT_LS	0x3E8
 #define TC956XMAC_DEFAULT_TWT_LS	0x1E
+#define TC956XMAC_LIT_LS		0x0011
+#define TC956XMAC_TWT_LS		0x0028
+#define TC956XMAC_TIC_1US_CNTR		0x7c
+#define TC956XMAC_LPIET_600US		0x258
+#define TC956X_PHY_SPEED_5G		5000
+#define TC956X_PHY_SPEED_2_5G		2500
 
 #define TC956XMAC_CHAIN_MODE	0x1
 #define TC956XMAC_RING_MODE	0x2

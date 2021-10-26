@@ -75,6 +75,10 @@
  *  21 Oct 2021 : 1. Added support for GPIO configuration API
  *		: 2. Version update 
  *  VERSION     : 01-00-18
+ *  26 Oct 2021 : 1. Updated Driver Module Version.
+		: 2. Added variable for port-wise suspend status.
+		: 3. Added macro to control EEE MAC Control.
+ *  VERSION     : 01-00-19
  */
 
 #ifndef __TC956XMAC_H__
@@ -96,6 +100,10 @@
 //#define TC956X_LOAD_FW_HEADER
 #define PF_DRIVER 4
 
+/* Uncomment EEE_MAC_CONTROLLED_MODE macro for MAC controlled EEE Mode & comment for PHY controlled EEE mode */
+//#define EEE_MAC_CONTROLLED_MODE
+/* Uncomment TC956X_5_G_2_5_G_EEE_SUPPORT macro for enabling EEE support for 5G and 2.5G */
+//#define TC956X_5_G_2_5_G_EEE_SUPPORT
 // #define CONFIG_TC956XMAC_SELFTESTS  /*Enable this macro to test Feature selftest*/
 
 #ifdef TC956X
@@ -123,7 +131,7 @@
 #ifdef TC956X
 
 #define TC956X_RESOURCE_NAME	"tc956x_pci-eth"
-#define DRV_MODULE_VERSION	"V_01-00-18"
+#define DRV_MODULE_VERSION	"V_01-00-19"
 #define TC956X_FW_MAX_SIZE	(64*1024)
 
 #define ATR_AXI4_SLV_BASE		0x0800
@@ -575,6 +583,7 @@ struct tc956xmac_priv {
 	u32 phy_loopback_mode;
 	bool is_sgmii_2p5g; /* For 2.5G SGMI, XPCS doesn't support AN. This flag is to identify 2.5G Speed for SGMII interface. */
 	u32 port_interface; /* Kernel module parameter variable for interface */
+	bool tc956x_port_pm_suspend; /* Port Suspend Status; True : port suspended, False : port resume */
 #endif
 
 	/* set to 1 when ptp offload is enabled, else 0. */
