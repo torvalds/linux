@@ -11,6 +11,7 @@
 
 #include <linux/bits.h>
 #include <linux/mctp.h>
+#include <linux/netdevice.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
 
@@ -57,6 +58,9 @@ struct mctp_sock {
 	unsigned int	bind_net;
 	mctp_eid_t	bind_addr;
 	__u8		bind_type;
+
+	/* sendmsg()/recvmsg() uses struct sockaddr_mctp_ext */
+	bool		addr_ext;
 
 	/* list of mctp_sk_key, for incoming tag lookup. updates protected
 	 * by sk->net->keys_lock
@@ -153,7 +157,10 @@ struct mctp_sk_key {
 struct mctp_skb_cb {
 	unsigned int	magic;
 	unsigned int	net;
+	int		ifindex; /* extended/direct addressing if set */
 	mctp_eid_t	src;
+	unsigned char	halen;
+	unsigned char	haddr[MAX_ADDR_LEN];
 };
 
 /* skb control-block accessors with a little extra debugging for initial
@@ -177,6 +184,7 @@ static inline struct mctp_skb_cb *mctp_cb(struct sk_buff *skb)
 {
 	struct mctp_skb_cb *cb = (void *)skb->cb;
 
+	BUILD_BUG_ON(sizeof(struct mctp_skb_cb) > sizeof(skb->cb));
 	WARN_ON(cb->magic != 0x4d435450);
 	return (void *)(skb->cb);
 }
@@ -189,8 +197,7 @@ static inline struct mctp_skb_cb *mctp_cb(struct sk_buff *skb)
  *
  * Updates to the route table are performed under rtnl; all reads under RCU,
  * so routes cannot be referenced over a RCU grace period. Specifically: A
- * caller cannot block between mctp_route_lookup and passing the route to
- * mctp_do_route.
+ * caller cannot block between mctp_route_lookup and mctp_route_release()
  */
 struct mctp_route {
 	mctp_eid_t		min, max;
@@ -209,8 +216,6 @@ struct mctp_route {
 /* route interfaces */
 struct mctp_route *mctp_route_lookup(struct net *net, unsigned int dnet,
 				     mctp_eid_t daddr);
-
-int mctp_do_route(struct mctp_route *rt, struct sk_buff *skb);
 
 int mctp_local_output(struct sock *sk, struct mctp_route *rt,
 		      struct sk_buff *skb, mctp_eid_t daddr, u8 req_tag);
