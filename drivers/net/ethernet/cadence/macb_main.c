@@ -901,7 +901,7 @@ static int macb_mdiobus_register(struct macb *bp)
 	 * directly under the MAC node
 	 */
 	child = of_get_child_by_name(np, "mdio");
-	if (np) {
+	if (child) {
 		int ret = of_mdiobus_register(bp->mii_bus, child);
 
 		of_node_put(child);
