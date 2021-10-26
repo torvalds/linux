@@ -2094,6 +2094,7 @@ static int es58x_init_netdev(struct es58x_device *es58x_dev, int channel_idx)
 
 	netdev->netdev_ops = &es58x_netdev_ops;
 	netdev->flags |= IFF_ECHO;	/* We support local echo */
+	netdev->dev_port = channel_idx;
 
 	ret = register_candev(netdev);
 	if (ret)
