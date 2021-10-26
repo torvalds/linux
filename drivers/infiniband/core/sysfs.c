@@ -911,7 +911,6 @@ alloc_hw_stats_device(struct ib_device *ibdev)
 	if (!data->group.attrs)
 		goto err_free_data;
 
-	mutex_init(&stats->lock);
 	data->group.name = "hw_counters";
 	data->stats = stats;
 	return data;
@@ -1018,7 +1017,6 @@ alloc_hw_stats_port(struct ib_port *port, struct attribute_group *group)
 	if (!group->attrs)
 		goto err_free_data;
 
-	mutex_init(&stats->lock);
 	group->name = "hw_counters";
 	data->stats = stats;
 	return data;

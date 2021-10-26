@@ -3002,6 +3002,7 @@ struct rdma_hw_stats *rdma_alloc_hw_stats_struct(
 	stats->descs = descs;
 	stats->num_counters = num_counters;
 	stats->lifespan = msecs_to_jiffies(lifespan);
+	mutex_init(&stats->lock);
 
 	return stats;
 
