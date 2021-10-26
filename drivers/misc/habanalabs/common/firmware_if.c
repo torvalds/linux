@@ -1247,8 +1247,7 @@ static void hl_fw_preboot_update_state(struct hl_device *hdev)
 	 * 3. FW application - a. Fetch fw application security status
 	 *                     b. Check whether hard reset is done by fw app
 	 */
-	prop->hard_reset_done_by_fw =
-		!!(cpu_boot_dev_sts0 & CPU_BOOT_DEV_STS0_FW_HARD_RST_EN);
+	prop->hard_reset_done_by_fw = !!(cpu_boot_dev_sts0 & CPU_BOOT_DEV_STS0_FW_HARD_RST_EN);
 
 	dev_dbg(hdev->dev, "Firmware preboot boot device status0 %#x\n",
 							cpu_boot_dev_sts0);
@@ -1915,17 +1914,13 @@ static void hl_fw_boot_fit_update_state(struct hl_device *hdev,
 
 	hdev->fw_loader.fw_comp_loaded |= FW_TYPE_BOOT_CPU;
 
-	/* Clear reset status since we need to read it again from boot CPU */
-	prop->hard_reset_done_by_fw = false;
-
 	/* Read boot_cpu status bits */
 	if (prop->fw_preboot_cpu_boot_dev_sts0 & CPU_BOOT_DEV_STS0_ENABLED) {
 		prop->fw_bootfit_cpu_boot_dev_sts0 =
 				RREG32(cpu_boot_dev_sts0_reg);
 
-		if (prop->fw_bootfit_cpu_boot_dev_sts0 &
-				CPU_BOOT_DEV_STS0_FW_HARD_RST_EN)
-			prop->hard_reset_done_by_fw = true;
+		prop->hard_reset_done_by_fw = !!(prop->fw_bootfit_cpu_boot_dev_sts0 &
+							CPU_BOOT_DEV_STS0_FW_HARD_RST_EN);
 
 		dev_dbg(hdev->dev, "Firmware boot CPU status0 %#x\n",
 					prop->fw_bootfit_cpu_boot_dev_sts0);
@@ -2125,16 +2120,12 @@ static void hl_fw_linux_update_state(struct hl_device *hdev,
 
 	hdev->fw_loader.fw_comp_loaded |= FW_TYPE_LINUX;
 
-	/* Clear reset status since we need to read again from app */
-	prop->hard_reset_done_by_fw = false;
-
 	/* Read FW application security bits */
 	if (prop->fw_cpu_boot_dev_sts0_valid) {
 		prop->fw_app_cpu_boot_dev_sts0 = RREG32(cpu_boot_dev_sts0_reg);
 
-		if (prop->fw_app_cpu_boot_dev_sts0 &
-				CPU_BOOT_DEV_STS0_FW_HARD_RST_EN)
-			prop->hard_reset_done_by_fw = true;
+		prop->hard_reset_done_by_fw = !!(prop->fw_app_cpu_boot_dev_sts0 &
+							CPU_BOOT_DEV_STS0_FW_HARD_RST_EN);
 
 		if (prop->fw_app_cpu_boot_dev_sts0 &
 				CPU_BOOT_DEV_STS0_GIC_PRIVILEGED_EN)
