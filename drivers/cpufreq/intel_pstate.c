@@ -537,7 +537,8 @@ static void intel_pstate_hybrid_hwp_adjust(struct cpudata *cpu)
 	 * scaling factor is too high, so recompute it to make the HWP_CAP
 	 * highest performance correspond to the maximum turbo frequency.
 	 */
-	if (turbo_freq < cpu->pstate.turbo_pstate * scaling) {
+	cpu->pstate.turbo_freq = cpu->pstate.turbo_pstate * scaling;
+	if (turbo_freq < cpu->pstate.turbo_freq) {
 		cpu->pstate.turbo_freq = turbo_freq;
 		scaling = DIV_ROUND_UP(turbo_freq, cpu->pstate.turbo_pstate);
 		cpu->pstate.scaling = scaling;
