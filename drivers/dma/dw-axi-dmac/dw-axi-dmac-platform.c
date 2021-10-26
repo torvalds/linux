@@ -1164,9 +1164,8 @@ static int dma_chan_pause(struct dma_chan *dchan)
 			BIT(chan->id) << DMAC_CHAN_SUSP_WE_SHIFT;
 		axi_dma_iowrite32(chan->chip, DMAC_CHEN, val);
 	} else {
-		val = 0;
-		val |= BIT(chan->id) << DMAC_CHAN_SUSP2_SHIFT |
-			BIT(chan->id) << DMAC_CHAN_SUSP2_WE_SHIFT;
+		val = BIT(chan->id) << DMAC_CHAN_SUSP2_SHIFT |
+		      BIT(chan->id) << DMAC_CHAN_SUSP2_WE_SHIFT;
 		axi_dma_iowrite32(chan->chip, DMAC_CHSUSPREG, val);
 	}
 
