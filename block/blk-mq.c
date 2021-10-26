@@ -2223,7 +2223,7 @@ void blk_mq_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 		return;
 	plug->rq_count = 0;
 
-	if (!plug->multiple_queues && !plug->has_elevator) {
+	if (!plug->multiple_queues && !plug->has_elevator && !from_schedule) {
 		blk_mq_plug_issue_direct(plug, from_schedule);
 		if (rq_list_empty(plug->mq_list))
 			return;
