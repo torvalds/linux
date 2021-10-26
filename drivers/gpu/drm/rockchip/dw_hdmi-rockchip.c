@@ -142,6 +142,10 @@ struct rockchip_hdmi {
 	unsigned int phy_bus_width;
 	enum drm_hdmi_output_type hdmi_output;
 	struct rockchip_drm_sub_dev sub_dev;
+
+	u8 max_frl_rate_per_lane;
+	u8 max_lanes;
+	struct rockchip_drm_dsc_cap dsc_cap;
 };
 
 #define to_rockchip_hdmi(x)	container_of(x, struct rockchip_hdmi, x)
@@ -950,6 +954,19 @@ dw_hdmi_rockchip_get_yuv422_format(struct drm_connector *connector,
 	return rockchip_drm_get_yuv422_format(connector, edid);
 }
 
+static int
+dw_hdmi_rockchip_get_edid_dsc_info(void *data, struct edid *edid)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+
+	if (!edid)
+		return -EINVAL;
+
+	return rockchip_drm_parse_cea_ext(&hdmi->dsc_cap,
+					  &hdmi->max_frl_rate_per_lane,
+					  &hdmi->max_lanes, edid);
+}
+
 static const struct drm_prop_enum_list color_depth_enum_list[] = {
 	{ 0, "Automatic" }, /* Prefer highest color depth */
 	{ 8, "24bit" },
@@ -1612,6 +1629,8 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 		dw_hdmi_rockchip_get_color_changed;
 	plat_data->get_yuv422_format =
 		dw_hdmi_rockchip_get_yuv422_format;
+	plat_data->get_edid_dsc_info =
+		dw_hdmi_rockchip_get_edid_dsc_info;
 	plat_data->property_ops = &dw_hdmi_rockchip_property_ops;
 
 	encoder = &hdmi->encoder;
