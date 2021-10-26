@@ -398,7 +398,7 @@ irq_pool_request_vector(struct mlx5_irq_pool *pool, int vecidx,
 	cpumask_copy(irq->mask, affinity);
 	if (!irq_pool_is_sf_pool(pool) && !pool->xa_num_irqs.max &&
 	    cpumask_empty(irq->mask))
-		cpumask_set_cpu(0, irq->mask);
+		cpumask_set_cpu(cpumask_first(cpu_online_mask), irq->mask);
 	irq_set_affinity_hint(irq->irqn, irq->mask);
 unlock:
 	mutex_unlock(&pool->lock);
