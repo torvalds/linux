@@ -279,7 +279,6 @@ static struct tegra_pingroup *tegra_pinctrl_get_group(struct pinctrl_dev *pctlde
 					unsigned int offset)
 {
 	struct tegra_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
-	struct tegra_pingroup *g;
 	unsigned int group, num_pins, j;
 	const unsigned int *pins;
 	int ret;
@@ -290,7 +289,7 @@ static struct tegra_pingroup *tegra_pinctrl_get_group(struct pinctrl_dev *pctlde
 			continue;
 		for (j = 0; j < num_pins; j++) {
 			if (offset == pins[j])
-				return &pmx->soc->groups[group];
+				return (struct tegra_pingroup *)&pmx->soc->groups[group];
 		}
 	}
 
@@ -338,7 +337,7 @@ static void tegra_pinctrl_gpio_disable_free(struct pinctrl_dev *pctldev,
 	group = tegra_pinctrl_get_group(pctldev, offset);
 
 	if (!group)
-		return -EINVAL;
+		return;
 
 	if (group->mux_reg < 0 || group->sfsel_bit < 0)
 		return;
