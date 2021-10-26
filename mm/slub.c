@@ -1788,18 +1788,27 @@ static void *setup_object(struct kmem_cache *s, struct page *page,
 /*
  * Slab allocation and freeing
  */
-static inline struct page *alloc_slab_page(struct kmem_cache *s,
+static inline struct slab *alloc_slab_page(struct kmem_cache *s,
 		gfp_t flags, int node, struct kmem_cache_order_objects oo)
 {
-	struct page *page;
+	struct folio *folio;
+	struct slab *slab;
 	unsigned int order = oo_order(oo);
 
 	if (node == NUMA_NO_NODE)
-		page = alloc_pages(flags, order);
+		folio = (struct folio *)alloc_pages(flags, order);
 	else
-		page = __alloc_pages_node(node, flags, order);
+		folio = (struct folio *)__alloc_pages_node(node, flags, order);
 
-	return page;
+	if (!folio)
+		return NULL;
+
+	slab = folio_slab(folio);
+	__folio_set_slab(folio);
+	if (page_is_pfmemalloc(folio_page(folio, 0)))
+		slab_set_pfmemalloc(slab);
+
+	return slab;
 }
 
 #ifdef CONFIG_SLAB_FREELIST_RANDOM
@@ -1932,7 +1941,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
 	if ((alloc_gfp & __GFP_DIRECT_RECLAIM) && oo_order(oo) > oo_order(s->min))
 		alloc_gfp = (alloc_gfp | __GFP_NOMEMALLOC) & ~(__GFP_RECLAIM|__GFP_NOFAIL);
 
-	page = alloc_slab_page(s, alloc_gfp, node, oo);
+	page = slab_page(alloc_slab_page(s, alloc_gfp, node, oo));
 	if (unlikely(!page)) {
 		oo = s->min;
 		alloc_gfp = flags;
@@ -1940,7 +1949,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
 		 * Allocation may have failed due to fragmentation.
 		 * Try a lower order alloc if possible
 		 */
-		page = alloc_slab_page(s, alloc_gfp, node, oo);
+		page = slab_page(alloc_slab_page(s, alloc_gfp, node, oo));
 		if (unlikely(!page))
 			goto out;
 		stat(s, ORDER_FALLBACK);
@@ -1951,9 +1960,6 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
 	account_slab(page_slab(page), oo_order(oo), s, flags);
 
 	page->slab_cache = s;
-	__SetPageSlab(page);
-	if (page_is_pfmemalloc(page))
-		SetPageSlabPfmemalloc(page);
 
 	kasan_poison_slab(page);
 
