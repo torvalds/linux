@@ -19,7 +19,7 @@ KUnit - Unit Testing for the Linux Kernel
 What is KUnit?
 ==============
 
-KUnit is a lightweight unit testing and mocking framework for the Linux kernel.
+KUnit is a lightweight unit testing framework for the Linux kernel.
 
 KUnit is heavily inspired by JUnit, Python's unittest.mock, and
 Googletest/Googlemock for C++. KUnit provides facilities for defining unit test
