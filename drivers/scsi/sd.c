@@ -3683,7 +3683,12 @@ static int sd_resume(struct device *dev)
 static int sd_resume_runtime(struct device *dev)
 {
 	struct scsi_disk *sdkp = dev_get_drvdata(dev);
-	struct scsi_device *sdp = sdkp->device;
+	struct scsi_device *sdp;
+
+	if (!sdkp)	/* E.g.: runtime resume at the start of sd_probe() */
+		return 0;
+
+	sdp = sdkp->device;
 
 	if (sdp->ignore_media_change) {
 		/* clear the device's sense data */

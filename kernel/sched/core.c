@@ -494,6 +494,7 @@ void raw_spin_rq_lock_nested(struct rq *rq, int subclass)
 		raw_spin_unlock(lock);
 	}
 }
+EXPORT_SYMBOL_GPL(raw_spin_rq_lock_nested);
 
 bool raw_spin_rq_trylock(struct rq *rq)
 {
@@ -523,6 +524,7 @@ void raw_spin_rq_unlock(struct rq *rq)
 {
 	raw_spin_unlock(rq_lockp(rq));
 }
+EXPORT_SYMBOL_GPL(raw_spin_rq_unlock);
 
 #ifdef CONFIG_SMP
 /*
@@ -541,6 +543,7 @@ void double_rq_lock(struct rq *rq1, struct rq *rq2)
 
 	raw_spin_rq_lock_nested(rq2, SINGLE_DEPTH_NESTING);
 }
+EXPORT_SYMBOL_GPL(double_rq_lock);
 #endif
 
 /*
@@ -4680,6 +4683,7 @@ struct callback_head balance_push_callback = {
 	.next = NULL,
 	.func = (void (*)(struct callback_head *))balance_push,
 };
+EXPORT_SYMBOL_GPL(balance_push_callback);
 
 static inline struct callback_head *splice_balance_callbacks(struct rq *rq)
 {
@@ -8862,6 +8866,7 @@ void idle_task_exit(void)
 		finish_arch_post_lock_switch();
 	}
 
+	scs_task_reset(current);
 	/* finish_cpu(), as ran on the BP, will clean up the active_mm state */
 }
 

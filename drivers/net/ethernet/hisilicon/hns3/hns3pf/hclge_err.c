@@ -1560,8 +1560,11 @@ static int hclge_config_tm_hw_err_int(struct hclge_dev *hdev, bool en)
 
 	/* configure TM QCN hw errors */
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_TM_QCN_MEM_INT_CFG, false);
-	if (en)
+	desc.data[0] = cpu_to_le32(HCLGE_TM_QCN_ERR_INT_TYPE);
+	if (en) {
+		desc.data[0] |= cpu_to_le32(HCLGE_TM_QCN_FIFO_INT_EN);
 		desc.data[1] = cpu_to_le32(HCLGE_TM_QCN_MEM_ERR_INT_EN);
+	}
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret)

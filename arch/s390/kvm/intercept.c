@@ -269,6 +269,7 @@ static int handle_prog(struct kvm_vcpu *vcpu)
 
 /**
  * handle_external_interrupt - used for external interruption interceptions
+ * @vcpu: virtual cpu
  *
  * This interception only occurs if the CPUSTAT_EXT_INT bit was set, or if
  * the new PSW does not have external interrupts disabled. In the first case,
@@ -315,7 +316,8 @@ static int handle_external_interrupt(struct kvm_vcpu *vcpu)
 }
 
 /**
- * Handle MOVE PAGE partial execution interception.
+ * handle_mvpg_pei - Handle MOVE PAGE partial execution interception.
+ * @vcpu: virtual cpu
  *
  * This interception can only happen for guests with DAT disabled and
  * addresses that are currently not mapped in the host. Thus we try to

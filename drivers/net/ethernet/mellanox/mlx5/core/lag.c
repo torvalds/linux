@@ -442,6 +442,10 @@ static void mlx5_do_bond(struct mlx5_lag *ldev)
 	if (!mlx5_lag_is_ready(ldev)) {
 		do_bond = false;
 	} else {
+		/* VF LAG is in multipath mode, ignore bond change requests */
+		if (mlx5_lag_is_multipath(dev0))
+			return;
+
 		tracker = ldev->tracker;
 
 		do_bond = tracker.is_bonded && mlx5_lag_check_prereq(ldev);
