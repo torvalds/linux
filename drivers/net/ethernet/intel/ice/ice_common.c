@@ -4603,7 +4603,7 @@ static int ice_replay_pre_init(struct ice_hw *hw)
 	 * will allow adding rules entries back to filt_rules list,
 	 * which is operational list.
 	 */
-	for (i = 0; i < ICE_SW_LKUP_LAST; i++)
+	for (i = 0; i < ICE_MAX_NUM_RECIPES; i++)
 		list_replace_init(&sw->recp_list[i].filt_rules,
 				  &sw->recp_list[i].filt_replay_rules);
 	ice_sched_replay_agg_vsi_preinit(hw);
