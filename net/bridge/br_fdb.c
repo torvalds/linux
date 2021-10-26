@@ -34,8 +34,6 @@ static const struct rhashtable_params br_fdb_rht_params = {
 static struct kmem_cache *br_fdb_cache __read_mostly;
 static int fdb_insert(struct net_bridge *br, struct net_bridge_port *source,
 		      const unsigned char *addr, u16 vid);
-static void fdb_notify(struct net_bridge *br,
-		       const struct net_bridge_fdb_entry *, int, bool);
 
 int __init br_fdb_init(void)
 {
@@ -85,6 +83,128 @@ static void fdb_rcu_free(struct rcu_head *head)
 	struct net_bridge_fdb_entry *ent
 		= container_of(head, struct net_bridge_fdb_entry, rcu);
 	kmem_cache_free(br_fdb_cache, ent);
+}
+
+static int fdb_to_nud(const struct net_bridge *br,
+		      const struct net_bridge_fdb_entry *fdb)
+{
+	if (test_bit(BR_FDB_LOCAL, &fdb->flags))
+		return NUD_PERMANENT;
+	else if (test_bit(BR_FDB_STATIC, &fdb->flags))
+		return NUD_NOARP;
+	else if (has_expired(br, fdb))
+		return NUD_STALE;
+	else
+		return NUD_REACHABLE;
+}
+
+static int fdb_fill_info(struct sk_buff *skb, const struct net_bridge *br,
+			 const struct net_bridge_fdb_entry *fdb,
+			 u32 portid, u32 seq, int type, unsigned int flags)
+{
+	const struct net_bridge_port *dst = READ_ONCE(fdb->dst);
+	unsigned long now = jiffies;
+	struct nda_cacheinfo ci;
+	struct nlmsghdr *nlh;
+	struct ndmsg *ndm;
+
+	nlh = nlmsg_put(skb, portid, seq, type, sizeof(*ndm), flags);
+	if (nlh == NULL)
+		return -EMSGSIZE;
+
+	ndm = nlmsg_data(nlh);
+	ndm->ndm_family	 = AF_BRIDGE;
+	ndm->ndm_pad1    = 0;
+	ndm->ndm_pad2    = 0;
+	ndm->ndm_flags	 = 0;
+	ndm->ndm_type	 = 0;
+	ndm->ndm_ifindex = dst ? dst->dev->ifindex : br->dev->ifindex;
+	ndm->ndm_state   = fdb_to_nud(br, fdb);
+
+	if (test_bit(BR_FDB_OFFLOADED, &fdb->flags))
+		ndm->ndm_flags |= NTF_OFFLOADED;
+	if (test_bit(BR_FDB_ADDED_BY_EXT_LEARN, &fdb->flags))
+		ndm->ndm_flags |= NTF_EXT_LEARNED;
+	if (test_bit(BR_FDB_STICKY, &fdb->flags))
+		ndm->ndm_flags |= NTF_STICKY;
+
+	if (nla_put(skb, NDA_LLADDR, ETH_ALEN, &fdb->key.addr))
+		goto nla_put_failure;
+	if (nla_put_u32(skb, NDA_MASTER, br->dev->ifindex))
+		goto nla_put_failure;
+	ci.ndm_used	 = jiffies_to_clock_t(now - fdb->used);
+	ci.ndm_confirmed = 0;
+	ci.ndm_updated	 = jiffies_to_clock_t(now - fdb->updated);
+	ci.ndm_refcnt	 = 0;
+	if (nla_put(skb, NDA_CACHEINFO, sizeof(ci), &ci))
+		goto nla_put_failure;
+
+	if (fdb->key.vlan_id && nla_put(skb, NDA_VLAN, sizeof(u16),
+					&fdb->key.vlan_id))
+		goto nla_put_failure;
+
+	if (test_bit(BR_FDB_NOTIFY, &fdb->flags)) {
+		struct nlattr *nest = nla_nest_start(skb, NDA_FDB_EXT_ATTRS);
+		u8 notify_bits = FDB_NOTIFY_BIT;
+
+		if (!nest)
+			goto nla_put_failure;
+		if (test_bit(BR_FDB_NOTIFY_INACTIVE, &fdb->flags))
+			notify_bits |= FDB_NOTIFY_INACTIVE_BIT;
+
+		if (nla_put_u8(skb, NFEA_ACTIVITY_NOTIFY, notify_bits)) {
+			nla_nest_cancel(skb, nest);
+			goto nla_put_failure;
+		}
+
+		nla_nest_end(skb, nest);
+	}
+
+	nlmsg_end(skb, nlh);
+	return 0;
+
+nla_put_failure:
+	nlmsg_cancel(skb, nlh);
+	return -EMSGSIZE;
+}
+
+static inline size_t fdb_nlmsg_size(void)
+{
+	return NLMSG_ALIGN(sizeof(struct ndmsg))
+		+ nla_total_size(ETH_ALEN) /* NDA_LLADDR */
+		+ nla_total_size(sizeof(u32)) /* NDA_MASTER */
+		+ nla_total_size(sizeof(u16)) /* NDA_VLAN */
+		+ nla_total_size(sizeof(struct nda_cacheinfo))
+		+ nla_total_size(0) /* NDA_FDB_EXT_ATTRS */
+		+ nla_total_size(sizeof(u8)); /* NFEA_ACTIVITY_NOTIFY */
+}
+
+static void fdb_notify(struct net_bridge *br,
+		       const struct net_bridge_fdb_entry *fdb, int type,
+		       bool swdev_notify)
+{
+	struct net *net = dev_net(br->dev);
+	struct sk_buff *skb;
+	int err = -ENOBUFS;
+
+	if (swdev_notify)
+		br_switchdev_fdb_notify(br, fdb, type);
+
+	skb = nlmsg_new(fdb_nlmsg_size(), GFP_ATOMIC);
+	if (skb == NULL)
+		goto errout;
+
+	err = fdb_fill_info(skb, br, fdb, 0, 0, type, 0);
+	if (err < 0) {
+		/* -EMSGSIZE implies BUG in fdb_nlmsg_size() */
+		WARN_ON(err == -EMSGSIZE);
+		kfree_skb(skb);
+		goto errout;
+	}
+	rtnl_notify(skb, net, 0, RTNLGRP_NEIGH, NULL, GFP_ATOMIC);
+	return;
+errout:
+	rtnl_set_sk_err(net, RTNLGRP_NEIGH, err);
 }
 
 static struct net_bridge_fdb_entry *fdb_find_rcu(struct rhashtable *tbl,
@@ -638,100 +758,6 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 	}
 }
 
-static int fdb_to_nud(const struct net_bridge *br,
-		      const struct net_bridge_fdb_entry *fdb)
-{
-	if (test_bit(BR_FDB_LOCAL, &fdb->flags))
-		return NUD_PERMANENT;
-	else if (test_bit(BR_FDB_STATIC, &fdb->flags))
-		return NUD_NOARP;
-	else if (has_expired(br, fdb))
-		return NUD_STALE;
-	else
-		return NUD_REACHABLE;
-}
-
-static int fdb_fill_info(struct sk_buff *skb, const struct net_bridge *br,
-			 const struct net_bridge_fdb_entry *fdb,
-			 u32 portid, u32 seq, int type, unsigned int flags)
-{
-	const struct net_bridge_port *dst = READ_ONCE(fdb->dst);
-	unsigned long now = jiffies;
-	struct nda_cacheinfo ci;
-	struct nlmsghdr *nlh;
-	struct ndmsg *ndm;
-
-	nlh = nlmsg_put(skb, portid, seq, type, sizeof(*ndm), flags);
-	if (nlh == NULL)
-		return -EMSGSIZE;
-
-	ndm = nlmsg_data(nlh);
-	ndm->ndm_family	 = AF_BRIDGE;
-	ndm->ndm_pad1    = 0;
-	ndm->ndm_pad2    = 0;
-	ndm->ndm_flags	 = 0;
-	ndm->ndm_type	 = 0;
-	ndm->ndm_ifindex = dst ? dst->dev->ifindex : br->dev->ifindex;
-	ndm->ndm_state   = fdb_to_nud(br, fdb);
-
-	if (test_bit(BR_FDB_OFFLOADED, &fdb->flags))
-		ndm->ndm_flags |= NTF_OFFLOADED;
-	if (test_bit(BR_FDB_ADDED_BY_EXT_LEARN, &fdb->flags))
-		ndm->ndm_flags |= NTF_EXT_LEARNED;
-	if (test_bit(BR_FDB_STICKY, &fdb->flags))
-		ndm->ndm_flags |= NTF_STICKY;
-
-	if (nla_put(skb, NDA_LLADDR, ETH_ALEN, &fdb->key.addr))
-		goto nla_put_failure;
-	if (nla_put_u32(skb, NDA_MASTER, br->dev->ifindex))
-		goto nla_put_failure;
-	ci.ndm_used	 = jiffies_to_clock_t(now - fdb->used);
-	ci.ndm_confirmed = 0;
-	ci.ndm_updated	 = jiffies_to_clock_t(now - fdb->updated);
-	ci.ndm_refcnt	 = 0;
-	if (nla_put(skb, NDA_CACHEINFO, sizeof(ci), &ci))
-		goto nla_put_failure;
-
-	if (fdb->key.vlan_id && nla_put(skb, NDA_VLAN, sizeof(u16),
-					&fdb->key.vlan_id))
-		goto nla_put_failure;
-
-	if (test_bit(BR_FDB_NOTIFY, &fdb->flags)) {
-		struct nlattr *nest = nla_nest_start(skb, NDA_FDB_EXT_ATTRS);
-		u8 notify_bits = FDB_NOTIFY_BIT;
-
-		if (!nest)
-			goto nla_put_failure;
-		if (test_bit(BR_FDB_NOTIFY_INACTIVE, &fdb->flags))
-			notify_bits |= FDB_NOTIFY_INACTIVE_BIT;
-
-		if (nla_put_u8(skb, NFEA_ACTIVITY_NOTIFY, notify_bits)) {
-			nla_nest_cancel(skb, nest);
-			goto nla_put_failure;
-		}
-
-		nla_nest_end(skb, nest);
-	}
-
-	nlmsg_end(skb, nlh);
-	return 0;
-
-nla_put_failure:
-	nlmsg_cancel(skb, nlh);
-	return -EMSGSIZE;
-}
-
-static inline size_t fdb_nlmsg_size(void)
-{
-	return NLMSG_ALIGN(sizeof(struct ndmsg))
-		+ nla_total_size(ETH_ALEN) /* NDA_LLADDR */
-		+ nla_total_size(sizeof(u32)) /* NDA_MASTER */
-		+ nla_total_size(sizeof(u16)) /* NDA_VLAN */
-		+ nla_total_size(sizeof(struct nda_cacheinfo))
-		+ nla_total_size(0) /* NDA_FDB_EXT_ATTRS */
-		+ nla_total_size(sizeof(u8)); /* NFEA_ACTIVITY_NOTIFY */
-}
-
 static int br_fdb_replay_one(struct net_bridge *br, struct notifier_block *nb,
 			     const struct net_bridge_fdb_entry *fdb,
 			     unsigned long action, const void *ctx)
@@ -784,34 +810,6 @@ int br_fdb_replay(const struct net_device *br_dev, const void *ctx, bool adding,
 	rcu_read_unlock();
 
 	return err;
-}
-
-static void fdb_notify(struct net_bridge *br,
-		       const struct net_bridge_fdb_entry *fdb, int type,
-		       bool swdev_notify)
-{
-	struct net *net = dev_net(br->dev);
-	struct sk_buff *skb;
-	int err = -ENOBUFS;
-
-	if (swdev_notify)
-		br_switchdev_fdb_notify(br, fdb, type);
-
-	skb = nlmsg_new(fdb_nlmsg_size(), GFP_ATOMIC);
-	if (skb == NULL)
-		goto errout;
-
-	err = fdb_fill_info(skb, br, fdb, 0, 0, type, 0);
-	if (err < 0) {
-		/* -EMSGSIZE implies BUG in fdb_nlmsg_size() */
-		WARN_ON(err == -EMSGSIZE);
-		kfree_skb(skb);
-		goto errout;
-	}
-	rtnl_notify(skb, net, 0, RTNLGRP_NEIGH, NULL, GFP_ATOMIC);
-	return;
-errout:
-	rtnl_set_sk_err(net, RTNLGRP_NEIGH, err);
 }
 
 /* Dump information about entries, in response to GETNEIGH */
