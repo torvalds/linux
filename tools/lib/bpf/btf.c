@@ -538,9 +538,9 @@ int btf__set_pointer_size(struct btf *btf, size_t ptr_sz)
 
 static bool is_host_big_endian(void)
 {
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	return false;
-#elif __BYTE_ORDER == __BIG_ENDIAN
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 	return true;
 #else
 # error "Unrecognized __BYTE_ORDER__"

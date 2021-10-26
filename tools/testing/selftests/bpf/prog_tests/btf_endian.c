@@ -7,12 +7,12 @@
 #include <bpf/btf.h>
 
 void test_btf_endian() {
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	enum btf_endianness endian = BTF_LITTLE_ENDIAN;
-#elif __BYTE_ORDER == __BIG_ENDIAN
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 	enum btf_endianness endian = BTF_BIG_ENDIAN;
 #else
-#error "Unrecognized __BYTE_ORDER"
+#error "Unrecognized __BYTE_ORDER__"
 #endif
 	enum btf_endianness swap_endian = 1 - endian;
 	struct btf *btf = NULL, *swap_btf = NULL;
