@@ -41,8 +41,11 @@ struct pur_core {
 };
 
 enum db_flags_t {
-	EDB_ACTIVE = 0x1,
+	EDB_ACTIVE = BIT_0,
 };
+
+#define DBELL_ACTIVE(_v) (_v->e_dbell.db_flags & EDB_ACTIVE)
+#define DBELL_INACTIVE(_v) (!(_v->e_dbell.db_flags & EDB_ACTIVE))
 
 struct edif_dbell {
 	enum db_flags_t		db_flags;
@@ -134,7 +137,7 @@ struct enode {
 	 !_s->edif.app_sess_online))
 
 #define EDIF_NEGOTIATION_PENDING(_fcport) \
-	((_fcport->vha.e_dbell.db_flags & EDB_ACTIVE) && \
+	(DBELL_ACTIVE(_fcport->vha) && \
 	 (_fcport->disc_state == DSC_LOGIN_AUTH_PEND))
 
 #endif	/* __QLA_EDIF_H */
