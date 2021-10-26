@@ -106,7 +106,8 @@ struct mlxsw_sp_rif_ops {
 
 	void (*setup)(struct mlxsw_sp_rif *rif,
 		      const struct mlxsw_sp_rif_params *params);
-	int (*configure)(struct mlxsw_sp_rif *rif);
+	int (*configure)(struct mlxsw_sp_rif *rif,
+			 struct netlink_ext_ack *extack);
 	void (*deconfigure)(struct mlxsw_sp_rif *rif);
 	struct mlxsw_sp_fid * (*fid_get)(struct mlxsw_sp_rif *rif,
 					 struct netlink_ext_ack *extack);
@@ -8186,7 +8187,7 @@ mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 	if (ops->setup)
 		ops->setup(rif, params);
 
-	err = ops->configure(rif);
+	err = ops->configure(rif, extack);
 	if (err)
 		goto err_configure;
 
@@ -8866,7 +8867,8 @@ static int mlxsw_sp_rif_edit(struct mlxsw_sp *mlxsw_sp, u16 rif_index,
 
 static int
 mlxsw_sp_router_port_change_event(struct mlxsw_sp *mlxsw_sp,
-				  struct mlxsw_sp_rif *rif)
+				  struct mlxsw_sp_rif *rif,
+				  struct netlink_ext_ack *extack)
 {
 	struct net_device *dev = rif->dev;
 	u16 fid_index;
@@ -8928,6 +8930,7 @@ static int mlxsw_sp_router_port_pre_changeaddr_event(struct mlxsw_sp_rif *rif,
 int mlxsw_sp_netdevice_router_port_event(struct net_device *dev,
 					 unsigned long event, void *ptr)
 {
+	struct netlink_ext_ack *extack = netdev_notifier_info_to_extack(ptr);
 	struct mlxsw_sp *mlxsw_sp;
 	struct mlxsw_sp_rif *rif;
 	int err = 0;
@@ -8944,7 +8947,7 @@ int mlxsw_sp_netdevice_router_port_event(struct net_device *dev,
 	switch (event) {
 	case NETDEV_CHANGEMTU:
 	case NETDEV_CHANGEADDR:
-		err = mlxsw_sp_router_port_change_event(mlxsw_sp, rif);
+		err = mlxsw_sp_router_port_change_event(mlxsw_sp, rif, extack);
 		break;
 	case NETDEV_PRE_CHANGEADDR:
 		err = mlxsw_sp_router_port_pre_changeaddr_event(rif, ptr);
@@ -9075,7 +9078,8 @@ static int mlxsw_sp_rif_subport_op(struct mlxsw_sp_rif *rif, bool enable)
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ritr), ritr_pl);
 }
 
-static int mlxsw_sp_rif_subport_configure(struct mlxsw_sp_rif *rif)
+static int mlxsw_sp_rif_subport_configure(struct mlxsw_sp_rif *rif,
+					  struct netlink_ext_ack *extack)
 {
 	int err;
 
@@ -9143,7 +9147,8 @@ u8 mlxsw_sp_router_port(const struct mlxsw_sp *mlxsw_sp)
 	return mlxsw_core_max_ports(mlxsw_sp->core) + 1;
 }
 
-static int mlxsw_sp_rif_fid_configure(struct mlxsw_sp_rif *rif)
+static int mlxsw_sp_rif_fid_configure(struct mlxsw_sp_rif *rif,
+				      struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp *mlxsw_sp = rif->mlxsw_sp;
 	u16 fid_index = mlxsw_sp_fid_index(rif->fid);
@@ -9302,7 +9307,8 @@ mlxsw_sp_rif_ipip_lb_setup(struct mlxsw_sp_rif *rif,
 }
 
 static int
-mlxsw_sp1_rif_ipip_lb_configure(struct mlxsw_sp_rif *rif)
+mlxsw_sp1_rif_ipip_lb_configure(struct mlxsw_sp_rif *rif,
+				struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp_rif_ipip_lb *lb_rif = mlxsw_sp_rif_ipip_lb_rif(rif);
 	u32 ul_tb_id = mlxsw_sp_ipip_dev_ul_tb_id(rif->dev);
@@ -9489,7 +9495,8 @@ out:
 }
 
 static int
-mlxsw_sp2_rif_ipip_lb_configure(struct mlxsw_sp_rif *rif)
+mlxsw_sp2_rif_ipip_lb_configure(struct mlxsw_sp_rif *rif,
+				struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp_rif_ipip_lb *lb_rif = mlxsw_sp_rif_ipip_lb_rif(rif);
 	u32 ul_tb_id = mlxsw_sp_ipip_dev_ul_tb_id(rif->dev);
