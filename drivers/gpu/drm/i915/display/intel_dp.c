@@ -352,7 +352,7 @@ intel_dp_max_data_rate(int max_link_rate, int max_lanes)
 		 */
 		int max_link_rate_kbps = max_link_rate * 10;
 
-		max_link_rate_kbps = DIV_ROUND_CLOSEST_ULL(max_link_rate_kbps * 9671, 10000);
+		max_link_rate_kbps = DIV_ROUND_CLOSEST_ULL(mul_u32_u32(max_link_rate_kbps, 9671), 10000);
 		max_link_rate = max_link_rate_kbps / 8;
 	}
 
