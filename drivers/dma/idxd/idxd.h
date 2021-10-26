@@ -10,6 +10,7 @@
 #include <linux/cdev.h>
 #include <linux/idr.h>
 #include <linux/pci.h>
+#include <linux/ioasid.h>
 #include <linux/perf_event.h>
 #include <uapi/linux/idxd.h>
 #include "registers.h"
@@ -64,6 +65,7 @@ extern struct idxd_device_driver idxd_drv;
 extern struct idxd_device_driver idxd_dmaengine_drv;
 extern struct idxd_device_driver idxd_user_drv;
 
+#define INVALID_INT_HANDLE	-1
 struct idxd_irq_entry {
 	struct idxd_device *idxd;
 	int id;
@@ -75,6 +77,9 @@ struct idxd_irq_entry {
 	 * and irq thread processing error descriptor.
 	 */
 	spinlock_t list_lock;
+	int int_handle;
+	struct idxd_wq *wq;
+	ioasid_t pasid;
 };
 
 struct idxd_group {
@@ -171,6 +176,7 @@ struct idxd_wq {
 	struct wait_queue_head err_queue;
 	struct idxd_device *idxd;
 	int id;
+	struct idxd_irq_entry *ie;
 	enum idxd_wq_type type;
 	struct idxd_group *group;
 	int client_count;
@@ -266,6 +272,8 @@ struct idxd_device {
 	unsigned int pasid;
 
 	int num_groups;
+	int irq_cnt;
+	bool request_int_handles;
 
 	u32 msix_perm_offset;
 	u32 wqcfg_offset;
@@ -291,8 +299,6 @@ struct idxd_device {
 	struct idxd_dma_dev *idxd_dma;
 	struct workqueue_struct *wq;
 	struct work_struct work;
-
-	int *int_handles;
 
 	struct idxd_pmu *idxd_pmu;
 };

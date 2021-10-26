@@ -1206,6 +1206,13 @@ int __drv_enable_wq(struct idxd_wq *wq)
 		goto err;
 	}
 
+	/*
+	 * Device has 1 misc interrupt and N interrupts for descriptor completion. To
+	 * assign WQ to interrupt, we will take the N+1 interrupt since vector 0 is
+	 * for the misc interrupt.
+	 */
+	wq->ie = &idxd->irq_entries[wq->id + 1];
+
 	rc = idxd_wq_enable(wq);
 	if (rc < 0) {
 		dev_dbg(dev, "wq %d enabling failed: %d\n", wq->id, rc);
@@ -1256,6 +1263,7 @@ void __drv_disable_wq(struct idxd_wq *wq)
 	idxd_wq_drain(wq);
 	idxd_wq_reset(wq);
 
+	wq->ie = NULL;
 	wq->client_count = 0;
 }
 
