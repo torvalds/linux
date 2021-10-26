@@ -614,6 +614,7 @@ EXPORT_SYMBOL_GPL(genphy_c45_loopback);
 /**
  * genphy_c45_fast_retrain - configure fast retrain registers
  * @phydev: target phy_device struct
+ * @enable: enable fast retrain or not
  *
  * Description: If fast-retrain is enabled, we configure PHY as
  *   advertising fast retrain capable and THP Bypass Request, then
