@@ -2448,7 +2448,6 @@ static void dsa_slave_switchdev_event_work(struct work_struct *work)
 		break;
 	}
 
-	dev_put(switchdev_work->dev);
 	kfree(switchdev_work);
 }
 
@@ -2521,8 +2520,6 @@ static int dsa_slave_fdb_event(struct net_device *dev,
 	switchdev_work->vid = fdb_info->vid;
 	switchdev_work->host_addr = host_addr;
 
-	/* Hold a reference for dsa_fdb_offload_notify */
-	dev_hold(dev);
 	dsa_schedule_work(&switchdev_work->work);
 
 	return 0;
