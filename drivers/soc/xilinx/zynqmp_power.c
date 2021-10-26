@@ -46,12 +46,6 @@ static const char *const suspend_modes[] = {
 
 static enum pm_suspend_mode suspend_mode = PM_SUSPEND_MODE_STD;
 
-enum pm_api_cb_id {
-	PM_INIT_SUSPEND_CB = 30,
-	PM_ACKNOWLEDGE_CB,
-	PM_NOTIFY_CB,
-};
-
 static void zynqmp_pm_get_callback_data(u32 *buf)
 {
 	zynqmp_pm_invoke_fn(GET_CALLBACK_DATA, 0, 0, 0, 0, buf);
