@@ -412,13 +412,6 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 	if (ret)
 		goto err;
 
-	/*
-	 * We need to write out a journal entry before we start doing btree
-	 * updates, to ensure that on unclean shutdown new journal blacklist
-	 * entries are created:
-	 */
-	bch2_journal_meta(&c->journal);
-
 	clear_bit(BCH_FS_ALLOC_CLEAN, &c->flags);
 
 	for_each_rw_member(ca, c, i)
