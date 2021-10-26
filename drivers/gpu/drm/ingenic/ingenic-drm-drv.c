@@ -64,6 +64,10 @@ struct jz_soc_info {
 	unsigned int num_formats_f0, num_formats_f1;
 };
 
+struct ingenic_drm_private_state {
+	struct drm_private_state base;
+};
+
 struct ingenic_drm {
 	struct drm_device drm;
 	/*
@@ -99,7 +103,15 @@ struct ingenic_drm {
 	struct mutex clk_mutex;
 	bool update_clk_rate;
 	struct notifier_block clock_nb;
+
+	struct drm_private_obj private_obj;
 };
+
+static inline struct ingenic_drm_private_state *
+to_ingenic_drm_priv_state(struct drm_private_state *state)
+{
+	return container_of(state, struct ingenic_drm_private_state, base);
+}
 
 static bool ingenic_drm_writeable_reg(struct device *dev, unsigned int reg)
 {
@@ -766,6 +778,28 @@ ingenic_drm_gem_create_object(struct drm_device *drm, size_t size)
 	return &obj->base;
 }
 
+static struct drm_private_state *
+ingenic_drm_duplicate_state(struct drm_private_obj *obj)
+{
+	struct ingenic_drm_private_state *state = to_ingenic_drm_priv_state(obj->state);
+
+	state = kmemdup(state, sizeof(*state), GFP_KERNEL);
+	if (!state)
+		return NULL;
+
+	__drm_atomic_helper_private_obj_duplicate_state(obj, &state->base);
+
+	return &state->base;
+}
+
+static void ingenic_drm_destroy_state(struct drm_private_obj *obj,
+				      struct drm_private_state *state)
+{
+	struct ingenic_drm_private_state *priv_state = to_ingenic_drm_priv_state(state);
+
+	kfree(priv_state);
+}
+
 DEFINE_DRM_GEM_CMA_FOPS(ingenic_drm_fops);
 
 static const struct drm_driver ingenic_drm_driver_data = {
@@ -836,6 +870,11 @@ static struct drm_mode_config_helper_funcs ingenic_drm_mode_config_helpers = {
 	.atomic_commit_tail = drm_atomic_helper_commit_tail,
 };
 
+static const struct drm_private_state_funcs ingenic_drm_private_state_funcs = {
+	.atomic_duplicate_state = ingenic_drm_duplicate_state,
+	.atomic_destroy_state = ingenic_drm_destroy_state,
+};
+
 static void ingenic_drm_unbind_all(void *d)
 {
 	struct ingenic_drm *priv = d;
@@ -877,9 +916,15 @@ static void ingenic_drm_configure_hwdesc_plane(struct ingenic_drm *priv,
 	ingenic_drm_configure_hwdesc(priv, plane, plane, 0xf0 | plane);
 }
 
+static void ingenic_drm_atomic_private_obj_fini(struct drm_device *drm, void *private_obj)
+{
+	drm_atomic_private_obj_fini(private_obj);
+}
+
 static int ingenic_drm_bind(struct device *dev, bool has_components)
 {
 	struct platform_device *pdev = to_platform_device(dev);
+	struct ingenic_drm_private_state *private_state;
 	const struct jz_soc_info *soc_info;
 	struct ingenic_drm *priv;
 	struct clk *parent_clk;
@@ -1148,6 +1193,20 @@ static int ingenic_drm_bind(struct device *dev, bool has_components)
 		goto err_devclk_disable;
 	}
 
+	private_state = kzalloc(sizeof(*private_state), GFP_KERNEL);
+	if (!private_state) {
+		ret = -ENOMEM;
+		goto err_clk_notifier_unregister;
+	}
+
+	drm_atomic_private_obj_init(drm, &priv->private_obj, &private_state->base,
+				    &ingenic_drm_private_state_funcs);
+
+	ret = drmm_add_action_or_reset(drm, ingenic_drm_atomic_private_obj_fini,
+				       &priv->private_obj);
+	if (ret)
+		goto err_private_state_free;
+
 	ret = drm_dev_register(drm, 0);
 	if (ret) {
 		dev_err(dev, "Failed to register DRM driver\n");
@@ -1158,6 +1217,8 @@ static int ingenic_drm_bind(struct device *dev, bool has_components)
 
 	return 0;
 
+err_private_state_free:
+	kfree(private_state);
 err_clk_notifier_unregister:
 	clk_notifier_unregister(parent_clk, &priv->clock_nb);
 err_devclk_disable:

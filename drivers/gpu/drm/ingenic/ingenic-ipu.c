@@ -45,6 +45,10 @@ struct soc_info {
 			  unsigned int weight, unsigned int offset);
 };
 
+struct ingenic_ipu_private_state {
+	struct drm_private_state base;
+};
+
 struct ingenic_ipu {
 	struct drm_plane plane;
 	struct drm_device *drm;
@@ -60,6 +64,8 @@ struct ingenic_ipu {
 
 	struct drm_property *sharpness_prop;
 	unsigned int sharpness;
+
+	struct drm_private_obj private_obj;
 };
 
 /* Signed 15.16 fixed-point math (for bicubic scaling coefficients) */
@@ -71,6 +77,12 @@ struct ingenic_ipu {
 static inline struct ingenic_ipu *plane_to_ingenic_ipu(struct drm_plane *plane)
 {
 	return container_of(plane, struct ingenic_ipu, plane);
+}
+
+static inline struct ingenic_ipu_private_state *
+to_ingenic_ipu_priv_state(struct drm_private_state *state)
+{
+	return container_of(state, struct ingenic_ipu_private_state, base);
 }
 
 /*
@@ -679,6 +691,33 @@ static const struct drm_plane_funcs ingenic_ipu_plane_funcs = {
 	.atomic_set_property	= ingenic_ipu_plane_atomic_set_property,
 };
 
+static struct drm_private_state *
+ingenic_ipu_duplicate_state(struct drm_private_obj *obj)
+{
+	struct ingenic_ipu_private_state *state = to_ingenic_ipu_priv_state(obj->state);
+
+	state = kmemdup(state, sizeof(*state), GFP_KERNEL);
+	if (!state)
+		return NULL;
+
+	__drm_atomic_helper_private_obj_duplicate_state(obj, &state->base);
+
+	return &state->base;
+}
+
+static void ingenic_ipu_destroy_state(struct drm_private_obj *obj,
+				      struct drm_private_state *state)
+{
+	struct ingenic_ipu_private_state *priv_state = to_ingenic_ipu_priv_state(state);
+
+	kfree(priv_state);
+}
+
+static const struct drm_private_state_funcs ingenic_ipu_private_state_funcs = {
+	.atomic_duplicate_state = ingenic_ipu_duplicate_state,
+	.atomic_destroy_state = ingenic_ipu_destroy_state,
+};
+
 static irqreturn_t ingenic_ipu_irq_handler(int irq, void *arg)
 {
 	struct ingenic_ipu *ipu = arg;
@@ -717,6 +756,7 @@ static const struct regmap_config ingenic_ipu_regmap_config = {
 static int ingenic_ipu_bind(struct device *dev, struct device *master, void *d)
 {
 	struct platform_device *pdev = to_platform_device(dev);
+	struct ingenic_ipu_private_state *private_state;
 	const struct soc_info *soc_info;
 	struct drm_device *drm = d;
 	struct drm_plane *plane;
@@ -810,7 +850,20 @@ static int ingenic_ipu_bind(struct device *dev, struct device *master, void *d)
 		return err;
 	}
 
+	private_state = kzalloc(sizeof(*private_state), GFP_KERNEL);
+	if (!private_state) {
+		err = -ENOMEM;
+		goto err_clk_unprepare;
+	}
+
+	drm_atomic_private_obj_init(drm, &ipu->private_obj, &private_state->base,
+				    &ingenic_ipu_private_state_funcs);
+
 	return 0;
+
+err_clk_unprepare:
+	clk_unprepare(ipu->clk);
+	return err;
 }
 
 static void ingenic_ipu_unbind(struct device *dev,
@@ -818,6 +871,7 @@ static void ingenic_ipu_unbind(struct device *dev,
 {
 	struct ingenic_ipu *ipu = dev_get_drvdata(dev);
 
+	drm_atomic_private_obj_fini(&ipu->private_obj);
 	clk_unprepare(ipu->clk);
 }
 
