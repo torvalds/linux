@@ -19,6 +19,7 @@
 #include "en/tc_tun.h"
 #include "lib/port_tun.h"
 #include "en/tc/sample.h"
+#include "en_accel/ipsec_rxtx.h"
 
 struct mlx5e_rep_indr_block_priv {
 	struct net_device *netdev;
@@ -652,6 +653,12 @@ static bool mlx5e_restore_skb_chain(struct sk_buff *skb, u32 chain, u32 reg_c1,
 	return mlx5e_restore_tunnel(priv, skb, tc_priv, tunnel_id);
 }
 
+static void mlx5_rep_tc_post_napi_receive(struct mlx5e_tc_update_priv *tc_priv)
+{
+	if (tc_priv->tun_dev)
+		dev_put(tc_priv->tun_dev);
+}
+
 static void mlx5e_restore_skb_sample(struct mlx5e_priv *priv, struct sk_buff *skb,
 				     struct mlx5_mapped_obj *mapped_obj,
 				     struct mlx5e_tc_update_priv *tc_priv)
@@ -665,10 +672,10 @@ static void mlx5e_restore_skb_sample(struct mlx5e_priv *priv, struct sk_buff *sk
 	mlx5_rep_tc_post_napi_receive(tc_priv);
 }
 
-bool mlx5e_rep_tc_update_skb(struct mlx5_cqe64 *cqe,
-			     struct sk_buff *skb,
-			     struct mlx5e_tc_update_priv *tc_priv)
+void mlx5e_rep_tc_receive(struct mlx5_cqe64 *cqe, struct mlx5e_rq *rq,
+			  struct sk_buff *skb)
 {
+	struct mlx5e_tc_update_priv tc_priv = {};
 	struct mlx5_mapped_obj mapped_obj;
 	struct mlx5_eswitch *esw;
 	struct mlx5e_priv *priv;
@@ -677,7 +684,7 @@ bool mlx5e_rep_tc_update_skb(struct mlx5_cqe64 *cqe,
 
 	reg_c0 = (be32_to_cpu(cqe->sop_drop_qpn) & MLX5E_TC_FLOW_ID_MASK);
 	if (!reg_c0 || reg_c0 == MLX5_FS_DEFAULT_FLOW_TAG)
-		return true;
+		goto forward;
 
 	/* If reg_c0 is not equal to the default flow tag then skb->mark
 	 * is not supported and must be reset back to 0.
@@ -691,26 +698,30 @@ bool mlx5e_rep_tc_update_skb(struct mlx5_cqe64 *cqe,
 		netdev_dbg(priv->netdev,
 			   "Couldn't find mapped object for reg_c0: %d, err: %d\n",
 			   reg_c0, err);
-		return false;
+		goto free_skb;
 	}
 
 	if (mapped_obj.type == MLX5_MAPPED_OBJ_CHAIN) {
 		u32 reg_c1 = be32_to_cpu(cqe->ft_metadata);
 
-		return mlx5e_restore_skb_chain(skb, mapped_obj.chain, reg_c1, tc_priv);
+		if (!mlx5e_restore_skb_chain(skb, mapped_obj.chain, reg_c1, &tc_priv) &&
+		    !mlx5_ipsec_is_rx_flow(cqe))
+			goto free_skb;
 	} else if (mapped_obj.type == MLX5_MAPPED_OBJ_SAMPLE) {
-		mlx5e_restore_skb_sample(priv, skb, &mapped_obj, tc_priv);
-		return false;
+		mlx5e_restore_skb_sample(priv, skb, &mapped_obj, &tc_priv);
+		goto free_skb;
 	} else {
 		netdev_dbg(priv->netdev, "Invalid mapped object type: %d\n", mapped_obj.type);
-		return false;
+		goto free_skb;
 	}
 
-	return true;
-}
+forward:
+	napi_gro_receive(rq->cq.napi, skb);
 
-void mlx5_rep_tc_post_napi_receive(struct mlx5e_tc_update_priv *tc_priv)
-{
-	if (tc_priv->tun_dev)
-		dev_put(tc_priv->tun_dev);
+	mlx5_rep_tc_post_napi_receive(&tc_priv);
+
+	return;
+
+free_skb:
+	dev_kfree_skb_any(skb);
 }

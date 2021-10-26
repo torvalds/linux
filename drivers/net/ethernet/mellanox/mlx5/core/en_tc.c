@@ -60,7 +60,6 @@
 #include "en/mapping.h"
 #include "en/tc_ct.h"
 #include "en/mod_hdr.h"
-#include "en/tc_priv.h"
 #include "en/tc_tun_encap.h"
 #include "en/tc/sample.h"
 #include "lib/devcom.h"
