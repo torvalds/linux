@@ -259,6 +259,8 @@ struct bpf_local_storage;
   *	@sk_rcvbuf: size of receive buffer in bytes
   *	@sk_wq: sock wait queue and async head
   *	@sk_rx_dst: receive input route used by early demux
+  *	@sk_rx_dst_ifindex: ifindex for @sk_rx_dst
+  *	@sk_rx_dst_cookie: cookie for @sk_rx_dst
   *	@sk_dst_cache: destination cache
   *	@sk_dst_pending_confirm: need to confirm neighbour
   *	@sk_policy: flow policy
@@ -430,6 +432,9 @@ struct sock {
 	struct xfrm_policy __rcu *sk_policy[2];
 #endif
 	struct dst_entry	*sk_rx_dst;
+	int			sk_rx_dst_ifindex;
+	u32			sk_rx_dst_cookie;
+
 	struct dst_entry __rcu	*sk_dst_cache;
 	atomic_t		sk_omem_alloc;
 	int			sk_sndbuf;
@@ -1911,10 +1916,8 @@ static inline void sk_rx_queue_set(struct sock *sk, const struct sk_buff *skb)
 	if (skb_rx_queue_recorded(skb)) {
 		u16 rx_queue = skb_get_rx_queue(skb);
 
-		if (WARN_ON_ONCE(rx_queue == NO_QUEUE_MAPPING))
-			return;
-
-		sk->sk_rx_queue_mapping = rx_queue;
+		if (unlikely(READ_ONCE(sk->sk_rx_queue_mapping) != rx_queue))
+			WRITE_ONCE(sk->sk_rx_queue_mapping, rx_queue);
 	}
 #endif
 }
@@ -1922,15 +1925,19 @@ static inline void sk_rx_queue_set(struct sock *sk, const struct sk_buff *skb)
 static inline void sk_rx_queue_clear(struct sock *sk)
 {
 #ifdef CONFIG_SOCK_RX_QUEUE_MAPPING
-	sk->sk_rx_queue_mapping = NO_QUEUE_MAPPING;
+	WRITE_ONCE(sk->sk_rx_queue_mapping, NO_QUEUE_MAPPING);
 #endif
 }
 
 static inline int sk_rx_queue_get(const struct sock *sk)
 {
 #ifdef CONFIG_SOCK_RX_QUEUE_MAPPING
-	if (sk && sk->sk_rx_queue_mapping != NO_QUEUE_MAPPING)
-		return sk->sk_rx_queue_mapping;
+	if (sk) {
+		int res = READ_ONCE(sk->sk_rx_queue_mapping);
+
+		if (res != NO_QUEUE_MAPPING)
+			return res;
+	}
 #endif
 
 	return -1;
