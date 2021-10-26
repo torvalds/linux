@@ -1576,6 +1576,7 @@ ice_tx_map(struct ice_tx_ring *tx_ring, struct ice_tx_buf *first,
 	struct sk_buff *skb;
 	skb_frag_t *frag;
 	dma_addr_t dma;
+	bool kick;
 
 	td_tag = off->td_l2tag1;
 	td_cmd = off->td_cmd;
@@ -1657,9 +1658,6 @@ ice_tx_map(struct ice_tx_ring *tx_ring, struct ice_tx_buf *first,
 		tx_buf = &tx_ring->tx_buf[i];
 	}
 
-	/* record bytecount for BQL */
-	netdev_tx_sent_queue(txring_txq(tx_ring), first->bytecount);
-
 	/* record SW timestamp if HW timestamp is not available */
 	skb_tx_timestamp(first->skb);
 
@@ -1688,7 +1686,10 @@ ice_tx_map(struct ice_tx_ring *tx_ring, struct ice_tx_buf *first,
 	ice_maybe_stop_tx(tx_ring, DESC_NEEDED);
 
 	/* notify HW of packet */
-	if (netif_xmit_stopped(txring_txq(tx_ring)) || !netdev_xmit_more())
+	kick = __netdev_tx_sent_queue(txring_txq(tx_ring), first->bytecount,
+				      netdev_xmit_more());
+	if (kick)
+		/* notify HW of packet */
 		writel(i, tx_ring->tail);
 
 	return;
