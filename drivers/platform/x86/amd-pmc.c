@@ -457,7 +457,7 @@ static int amd_pmc_verify_czn_rtc(struct amd_pmc_dev *pdev, u32 *arg)
 
 	*arg |= (duration << 16);
 	rc = rtc_alarm_irq_enable(rtc_device, 0);
-	dev_info(pdev->dev, "wakeup timer programmed for %lld seconds\n", duration);
+	dev_dbg(pdev->dev, "wakeup timer programmed for %lld seconds\n", duration);
 
 	return rc;
 }
