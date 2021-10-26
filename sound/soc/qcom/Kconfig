@@ -85,8 +85,13 @@ config SND_SOC_QDSP6_ASM_DAI
 	select SND_SOC_COMPRESS
 	tristate
 
+config SND_SOC_QDSP6_APM_DAI
+	tristate
+	select SND_SOC_COMPRESS
+
 config SND_SOC_QDSP6_APM
 	tristate
+	select SND_SOC_QDSP6_APM_DAI
 
 config SND_SOC_QDSP6
 	tristate "SoC ALSA audio driver for QDSP6"
