@@ -114,6 +114,7 @@ static void udp_bpf_rebuild_protos(struct proto *prot, const struct proto *base)
 	*prot        = *base;
 	prot->close  = sock_map_close;
 	prot->recvmsg = udp_bpf_recvmsg;
+	prot->sock_is_readable = sk_msg_is_readable;
 }
 
 static void udp_bpf_check_v6_needs_rebuild(struct proto *ops)
