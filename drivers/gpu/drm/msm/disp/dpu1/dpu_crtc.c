@@ -103,7 +103,6 @@ static int dpu_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 {
 	enum dpu_crtc_crc_source source = dpu_crtc_parse_crc_source(src_name);
 	enum dpu_crtc_crc_source current_source;
-	struct drm_crtc_commit *commit;
 	struct dpu_crtc_state *crtc_state;
 	struct drm_device *drm_dev = crtc->dev;
 	struct dpu_crtc_mixer *m;
@@ -159,8 +158,6 @@ static int dpu_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 
 
 cleanup:
-	if (commit)
-		drm_crtc_commit_put(commit);
 	drm_modeset_unlock(&crtc->mutex);
 
 	return ret;
