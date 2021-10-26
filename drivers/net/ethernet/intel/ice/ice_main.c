@@ -6229,14 +6229,15 @@ static void ice_napi_disable_all(struct ice_vsi *vsi)
 /**
  * ice_down - Shutdown the connection
  * @vsi: The VSI being stopped
+ *
+ * Caller of this function is expected to set the vsi->state ICE_DOWN bit
  */
 int ice_down(struct ice_vsi *vsi)
 {
 	int i, tx_err, rx_err, link_err = 0;
 
-	/* Caller of this function is expected to set the
-	 * vsi->state ICE_DOWN bit
-	 */
+	WARN_ON(!test_bit(ICE_VSI_DOWN, vsi->state));
+
 	if (vsi->netdev && vsi->type == ICE_VSI_PF) {
 		netif_carrier_off(vsi->netdev);
 		netif_tx_disable(vsi->netdev);
