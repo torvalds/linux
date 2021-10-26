@@ -1762,7 +1762,8 @@ qla_els_reject_iocb(scsi_qla_host_t *vha, struct qla_qpair *qp,
 	qla_els_pt_iocb(vha, els_iocb, a);
 
 	ql_dbg(ql_dbg_edif, vha, 0x0183,
-	    "Sending ELS reject...\n");
+	    "Sending ELS reject ox_id %04x s:%06x -> d:%06x\n",
+	    a->ox_id, a->sid.b24, a->did.b24);
 	ql_dump_buffer(ql_dbg_edif + ql_dbg_verbose, vha, 0x0185,
 	    vha->hw->elsrej.c, sizeof(*vha->hw->elsrej.c));
 	/* flush iocb to mem before notifying hw doorbell */
@@ -2357,6 +2358,7 @@ void qla24xx_auth_els(scsi_qla_host_t *vha, void **pkt, struct rsp_que **rsp)
 	a.tx_addr = vha->hw->elsrej.cdma;
 	a.vp_idx = vha->vp_idx;
 	a.control_flags = EPD_ELS_RJT;
+	a.ox_id = le16_to_cpu(p->ox_id);
 
 	sid = p->s_id[0] | (p->s_id[1] << 8) | (p->s_id[2] << 16);
 
@@ -2405,6 +2407,8 @@ void qla24xx_auth_els(scsi_qla_host_t *vha, void **pkt, struct rsp_que **rsp)
 	purex->pur_info.pur_did.b.area =  p->d_id[1];
 	purex->pur_info.pur_did.b.al_pa =  p->d_id[0];
 	purex->pur_info.vp_idx = p->vp_idx;
+
+	a.sid = purex->pur_info.pur_did;
 
 	rc = __qla_copy_purex_to_buffer(vha, pkt, rsp, purex->msgp,
 		purex->msgp_len);

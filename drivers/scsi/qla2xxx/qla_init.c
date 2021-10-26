@@ -333,9 +333,6 @@ qla2x00_async_login(struct scsi_qla_host *vha, fc_port_t *fcport,
 		    vha->e_dbell.db_flags & EDB_ACTIVE) {
 			lio->u.logio.flags |=
 				(SRB_LOGIN_FCSP | SRB_LOGIN_SKIP_PRLI);
-			ql_dbg(ql_dbg_disc, vha, 0x2072,
-			    "Async-login: w/ FCSP %8phC hdl=%x, loopid=%x portid=%06x\n",
-			    fcport->port_name, sp->handle, fcport->loop_id, fcport->d_id.b24);
 		} else {
 			lio->u.logio.flags |= SRB_LOGIN_COND_PLOGI;
 		}
@@ -344,12 +341,14 @@ qla2x00_async_login(struct scsi_qla_host *vha, fc_port_t *fcport,
 	if (NVME_TARGET(vha->hw, fcport))
 		lio->u.logio.flags |= SRB_LOGIN_SKIP_PRLI;
 
-	ql_dbg(ql_dbg_disc, vha, 0x2072,
-	       "Async-login - %8phC hdl=%x, loopid=%x portid=%06x retries=%d.\n",
-	       fcport->port_name, sp->handle, fcport->loop_id,
-	       fcport->d_id.b24, fcport->login_retry);
-
 	rval = qla2x00_start_sp(sp);
+
+	ql_dbg(ql_dbg_disc, vha, 0x2072,
+	       "Async-login - %8phC hdl=%x, loopid=%x portid=%06x retries=%d %s.\n",
+	       fcport->port_name, sp->handle, fcport->loop_id,
+	       fcport->d_id.b24, fcport->login_retry,
+	       lio->u.logio.flags & SRB_LOGIN_FCSP ? "FCSP" : "");
+
 	if (rval != QLA_SUCCESS) {
 		fcport->flags |= FCF_LOGIN_NEEDED;
 		set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
@@ -5866,6 +5865,10 @@ void qla_register_fcport_fn(struct work_struct *work)
 		return;
 
 	qla2x00_update_fcport(fcport->vha, fcport);
+
+	ql_dbg(ql_dbg_disc, fcport->vha, 0x911e,
+	       "%s rscn gen %d/%d next DS %d\n", __func__,
+	       rscn_gen, fcport->rscn_gen, fcport->next_disc_state);
 
 	if (rscn_gen != fcport->rscn_gen) {
 		/* RSCN(s) came in while registration */
