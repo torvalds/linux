@@ -1018,6 +1018,7 @@ static int intel_fb_offset_to_xy(int *x, int *y,
 	u32 alignment;
 
 	if (DISPLAY_VER(i915) >= 12 &&
+	    !intel_fb_needs_pot_stride_remap(to_intel_framebuffer(fb)) &&
 	    is_semiplanar_uv_plane(fb, color_plane))
 		alignment = intel_tile_row_size(fb, color_plane);
 	else if (fb->modifier != DRM_FORMAT_MOD_LINEAR)
