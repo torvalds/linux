@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
-obj-$(CONFIG_SND_SOC_QDSP6_COMMON) += q6dsp-common.o
+snd-q6dsp-common-objs := q6dsp-common.o q6dsp-lpass-ports.o
+
+obj-$(CONFIG_SND_SOC_QDSP6_COMMON) += snd-q6dsp-common.o
 obj-$(CONFIG_SND_SOC_QDSP6_CORE) += q6core.o
 obj-$(CONFIG_SND_SOC_QDSP6_AFE) += q6afe.o
 obj-$(CONFIG_SND_SOC_QDSP6_AFE_DAI) += q6afe-dai.o
