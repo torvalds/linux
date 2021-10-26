@@ -792,8 +792,6 @@ int br_fdb_external_learn_del(struct net_bridge *br, struct net_bridge_port *p,
 			      bool swdev_notify);
 void br_fdb_offloaded_set(struct net_bridge *br, struct net_bridge_port *p,
 			  const unsigned char *addr, u16 vid, bool offloaded);
-int br_fdb_replay(const struct net_device *br_dev, const void *ctx, bool adding,
-		  struct notifier_block *nb);
 
 /* br_forward.c */
 enum br_pkt_type {
