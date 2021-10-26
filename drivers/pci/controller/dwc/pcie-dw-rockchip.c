@@ -1330,6 +1330,14 @@ static const struct of_device_id rk_pcie_of_match[] = {
 		.compatible = "rockchip,rk3568-pcie-ep",
 		.data = &rk_pcie_ep_of_data,
 	},
+	{
+		.compatible = "rockchip,rk3588-pcie",
+		.data = &rk_pcie_rc_of_data,
+	},
+	{
+		.compatible = "rockchip,rk3588-pcie-ep",
+		.data = &rk_pcie_ep_of_data,
+	},
 	{},
 };
 
