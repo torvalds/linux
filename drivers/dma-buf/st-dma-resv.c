@@ -287,7 +287,7 @@ static int test_get_fences(void *arg, bool shared)
 	r = dma_resv_lock(&resv, NULL);
 	if (r) {
 		pr_err("Resv locking failed\n");
-		goto err_free;
+		goto err_resv;
 	}
 
 	if (shared) {
@@ -295,7 +295,7 @@ static int test_get_fences(void *arg, bool shared)
 		if (r) {
 			pr_err("Resv shared slot allocation failed\n");
 			dma_resv_unlock(&resv);
-			goto err_free;
+			goto err_resv;
 		}
 
 		dma_resv_add_shared_fence(&resv, f);
@@ -336,6 +336,7 @@ err_free:
 	while (i--)
 		dma_fence_put(fences[i]);
 	kfree(fences);
+err_resv:
 	dma_resv_fini(&resv);
 	dma_fence_put(f);
 	return r;
