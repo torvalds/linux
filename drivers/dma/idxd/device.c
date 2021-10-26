@@ -390,6 +390,8 @@ static void idxd_wq_disable_cleanup(struct idxd_wq *wq)
 	clear_bit(WQ_FLAG_DEDICATED, &wq->flags);
 	clear_bit(WQ_FLAG_BLOCK_ON_FAULT, &wq->flags);
 	memset(wq->name, 0, WQ_NAME_SIZE);
+	wq->max_xfer_bytes = WQ_DEFAULT_MAX_XFER;
+	wq->max_batch_size = WQ_DEFAULT_MAX_BATCH;
 }
 
 static void idxd_wq_ref_release(struct percpu_ref *ref)
@@ -839,14 +841,11 @@ static int idxd_wq_config_write(struct idxd_wq *wq)
 		wq->wqcfg->bits[i] = ioread32(idxd->reg_base + wq_offset);
 	}
 
+	if (wq->size == 0 && wq->type != IDXD_WQT_NONE)
+		wq->size = WQ_DEFAULT_QUEUE_DEPTH;
+
 	/* byte 0-3 */
 	wq->wqcfg->wq_size = wq->size;
-
-	if (wq->size == 0) {
-		idxd->cmd_status = IDXD_SCMD_WQ_NO_SIZE;
-		dev_warn(dev, "Incorrect work queue size: 0\n");
-		return -EINVAL;
-	}
 
 	/* bytes 4-7 */
 	wq->wqcfg->wq_thresh = wq->threshold;
@@ -992,8 +991,6 @@ static int idxd_wqs_setup(struct idxd_device *idxd)
 		group = wq->group;
 
 		if (!wq->group)
-			continue;
-		if (!wq->size)
 			continue;
 
 		if (wq_shared(wq) && !device_swq_supported(idxd)) {

@@ -150,6 +150,10 @@ struct idxd_cdev {
 #define WQ_NAME_SIZE   1024
 #define WQ_TYPE_SIZE   10
 
+#define WQ_DEFAULT_QUEUE_DEPTH		16
+#define WQ_DEFAULT_MAX_XFER		SZ_2M
+#define WQ_DEFAULT_MAX_BATCH		32
+
 enum idxd_op_type {
 	IDXD_OP_BLOCK = 0,
 	IDXD_OP_NONBLOCK = 1,
