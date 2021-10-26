@@ -706,9 +706,9 @@ int gfx_v9_4_2_do_edc_gpr_workarounds(struct amdgpu_device *adev)
 	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX))
 		return 0;
 
-	/* Workaround for some CU settings, skip GPRs init.
-	   Will remove it once GPRs init algorithm works for all CU settings */
-	if (adev->gfx.cu_info.bitmap[1][1] == 0x3f7f)
+	/* Workaround for ALDEBARAN, skip GPRs init in GPU reset.
+	   Will remove it once GPRs init algorithm works for all CU settings. */
+	if (amdgpu_in_reset(adev))
 		return 0;
 
 	gfx_v9_4_2_do_sgprs_init(adev);
