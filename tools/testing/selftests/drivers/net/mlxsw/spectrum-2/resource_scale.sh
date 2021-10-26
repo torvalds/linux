@@ -25,7 +25,7 @@ cleanup()
 
 trap cleanup EXIT
 
-ALL_TESTS="router tc_flower mirror_gre tc_police port"
+ALL_TESTS="router tc_flower mirror_gre tc_police port rif_mac_profile"
 for current_test in ${TESTS:-$ALL_TESTS}; do
 	RET_FIN=0
 	source ${current_test}_scale.sh

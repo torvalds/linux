@@ -6526,6 +6526,12 @@ MLXSW_ITEM32(reg, ritr, mtu, 0x34, 0, 16);
  */
 MLXSW_ITEM32(reg, ritr, if_swid, 0x08, 24, 8);
 
+/* reg_ritr_if_mac_profile_id
+ * MAC msb profile ID.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ritr, if_mac_profile_id, 0x10, 16, 4);
+
 /* reg_ritr_if_mac
  * Router interface MAC address.
  * In Spectrum, all MAC addresses must have the same 38 MSBits.
