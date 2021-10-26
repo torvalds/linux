@@ -160,7 +160,7 @@ static noinline int do_fw_call_hvc(u64 arg0, u64 arg1, u64 arg2,
  *
  * Return: Returns status, either success or error+reason
  */
-static int zynqmp_pm_feature(u32 api_id)
+int zynqmp_pm_feature(const u32 api_id)
 {
 	int ret;
 	u32 ret_payload[PAYLOAD_ARG_CNT];
@@ -197,6 +197,7 @@ static int zynqmp_pm_feature(u32 api_id)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(zynqmp_pm_feature);
 
 /**
  * zynqmp_pm_invoke_fn() - Invoke the system-level platform management layer

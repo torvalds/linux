@@ -444,6 +444,7 @@ int zynqmp_pm_pinctrl_set_config(const u32 pin, const u32 param,
 int zynqmp_pm_load_pdi(const u32 src, const u64 address);
 int zynqmp_pm_register_notifier(const u32 node, const u32 event,
 				const u32 wake, const u32 enable);
+int zynqmp_pm_feature(const u32 api_id);
 #else
 static inline int zynqmp_pm_get_api_version(u32 *version)
 {
@@ -678,6 +679,11 @@ static inline int zynqmp_pm_load_pdi(const u32 src, const u64 address)
 
 static inline int zynqmp_pm_register_notifier(const u32 node, const u32 event,
 					      const u32 wake, const u32 enable)
+{
+	return -ENODEV;
+}
+
+static inline int zynqmp_pm_feature(const u32 api_id)
 {
 	return -ENODEV;
 }
