@@ -193,10 +193,12 @@ static inline pte_t pte_wrprotect(pte_t pte)
 }
 #endif
 
+#ifndef pte_mkexec
 static inline pte_t pte_mkexec(pte_t pte)
 {
 	return __pte(pte_val(pte) | _PAGE_EXEC);
 }
+#endif
 
 #define pmd_none(pmd)		(!pmd_val(pmd))
 #define	pmd_bad(pmd)		(pmd_val(pmd) & _PMD_BAD)
