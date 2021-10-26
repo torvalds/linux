@@ -68,7 +68,7 @@ static unsigned int intel_fbc_plane_stride(const struct intel_plane_state *plane
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	unsigned int stride;
 
-	stride = plane_state->view.color_plane[0].stride;
+	stride = plane_state->view.color_plane[0].mapping_stride;
 	if (!drm_rotation_90_or_270(plane_state->hw.rotation))
 		stride /= fb->format->cpp[0];
 

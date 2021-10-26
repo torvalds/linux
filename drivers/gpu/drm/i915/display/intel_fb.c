@@ -915,7 +915,7 @@ u32 intel_plane_adjust_aligned_offset(int *x, int *y,
 {
 	return intel_adjust_aligned_offset(x, y, state->hw.fb, color_plane,
 					   state->hw.rotation,
-					   state->view.color_plane[color_plane].stride,
+					   state->view.color_plane[color_plane].mapping_stride,
 					   old_offset, new_offset);
 }
 
@@ -996,7 +996,7 @@ u32 intel_plane_compute_aligned_offset(int *x, int *y,
 	struct drm_i915_private *i915 = to_i915(intel_plane->base.dev);
 	const struct drm_framebuffer *fb = state->hw.fb;
 	unsigned int rotation = state->hw.rotation;
-	int pitch = state->view.color_plane[color_plane].stride;
+	int pitch = state->view.color_plane[color_plane].mapping_stride;
 	u32 alignment;
 
 	if (intel_plane->id == PLANE_CURSOR)
@@ -1155,11 +1155,11 @@ bool intel_fb_needs_pot_stride_remap(const struct intel_framebuffer *fb)
 static int intel_fb_pitch(const struct intel_framebuffer *fb, int color_plane, unsigned int rotation)
 {
 	if (drm_rotation_90_or_270(rotation))
-		return fb->rotated_view.color_plane[color_plane].stride;
+		return fb->rotated_view.color_plane[color_plane].mapping_stride;
 	else if (intel_fb_needs_pot_stride_remap(fb))
-		return fb->remapped_view.color_plane[color_plane].stride;
+		return fb->remapped_view.color_plane[color_plane].mapping_stride;
 	else
-		return fb->normal_view.color_plane[color_plane].stride;
+		return fb->normal_view.color_plane[color_plane].mapping_stride;
 }
 
 static bool intel_plane_needs_remap(const struct intel_plane_state *plane_state)
@@ -1370,7 +1370,7 @@ static u32 calc_plane_remap_info(const struct intel_framebuffer *fb, int color_p
 		color_plane_info->x = r.x1;
 		color_plane_info->y = r.y1;
 
-		color_plane_info->stride = remap_info->dst_stride * tile_height;
+		color_plane_info->mapping_stride = remap_info->dst_stride * tile_height;
 
 		size += remap_info->dst_stride * remap_info->width;
 
@@ -1393,7 +1393,7 @@ static u32 calc_plane_remap_info(const struct intel_framebuffer *fb, int color_p
 		color_plane_info->y = y;
 
 		if (remap_info->linear) {
-			color_plane_info->stride = fb->base.pitches[color_plane];
+			color_plane_info->mapping_stride = fb->base.pitches[color_plane];
 
 			size += remap_info->size;
 		} else {
@@ -1401,8 +1401,9 @@ static u32 calc_plane_remap_info(const struct intel_framebuffer *fb, int color_p
 									      remap_info->width);
 
 			assign_chk_ovf(i915, remap_info->dst_stride, dst_stride);
-			color_plane_info->stride = dst_stride *
-						   tile_width * fb->base.format->cpp[color_plane];
+			color_plane_info->mapping_stride = dst_stride *
+							   tile_width *
+							   fb->base.format->cpp[color_plane];
 
 			size += dst_stride * remap_info->height;
 		}
@@ -1416,7 +1417,7 @@ static u32 calc_plane_remap_info(const struct intel_framebuffer *fb, int color_p
 	if (remap_info->linear)
 		intel_adjust_linear_offset(&color_plane_info->x, &color_plane_info->y,
 					   fb->base.format->cpp[color_plane],
-					   color_plane_info->stride,
+					   color_plane_info->mapping_stride,
 					   gtt_offset * tile_size, 0);
 	else
 		intel_adjust_tile_offset(&color_plane_info->x, &color_plane_info->y,
@@ -1527,7 +1528,7 @@ int intel_fill_fb_info(struct drm_i915_private *i915, struct intel_framebuffer *
 		 */
 		fb->normal_view.color_plane[i].x = x;
 		fb->normal_view.color_plane[i].y = y;
-		fb->normal_view.color_plane[i].stride = fb->base.pitches[i];
+		fb->normal_view.color_plane[i].mapping_stride = fb->base.pitches[i];
 
 		offset = calc_plane_aligned_offset(fb, i, &x, &y);
 
@@ -1721,7 +1722,7 @@ static int intel_plane_check_stride(const struct intel_plane_state *plane_state)
 		return 0;
 
 	/* FIXME other color planes? */
-	stride = plane_state->view.color_plane[0].stride;
+	stride = plane_state->view.color_plane[0].mapping_stride;
 	max_stride = plane->max_stride(plane, fb->format->format,
 				       fb->modifier, rotation);
 

@@ -190,7 +190,7 @@ static u32 i845_cursor_ctl(const struct intel_crtc_state *crtc_state,
 {
 	return CURSOR_ENABLE |
 		CURSOR_FORMAT_ARGB |
-		CURSOR_STRIDE(plane_state->view.color_plane[0].stride);
+		CURSOR_STRIDE(plane_state->view.color_plane[0].mapping_stride);
 }
 
 static bool i845_cursor_size_ok(const struct intel_plane_state *plane_state)
@@ -229,7 +229,7 @@ static int i845_check_cursor(struct intel_crtc_state *crtc_state,
 	}
 
 	drm_WARN_ON(&i915->drm, plane_state->uapi.visible &&
-		    plane_state->view.color_plane[0].stride != fb->pitches[0]);
+		    plane_state->view.color_plane[0].mapping_stride != fb->pitches[0]);
 
 	switch (fb->pitches[0]) {
 	case 256:
@@ -450,7 +450,7 @@ static int i9xx_check_cursor(struct intel_crtc_state *crtc_state,
 	}
 
 	drm_WARN_ON(&dev_priv->drm, plane_state->uapi.visible &&
-		    plane_state->view.color_plane[0].stride != fb->pitches[0]);
+		    plane_state->view.color_plane[0].mapping_stride != fb->pitches[0]);
 
 	if (fb->pitches[0] !=
 	    drm_rect_width(&plane_state->uapi.dst) * fb->format->cpp[0]) {

@@ -661,7 +661,7 @@ u32 intel_fb_xy_to_linear(int x, int y,
 {
 	const struct drm_framebuffer *fb = state->hw.fb;
 	unsigned int cpp = fb->format->cpp[color_plane];
-	unsigned int pitch = state->view.color_plane[color_plane].stride;
+	unsigned int pitch = state->view.color_plane[color_plane].mapping_stride;
 
 	return y * pitch + x * cpp;
 }
@@ -7775,8 +7775,8 @@ static int intel_atomic_check_async(struct intel_atomic_state *state, struct int
 			return -EINVAL;
 		}
 
-		if (old_plane_state->view.color_plane[0].stride !=
-		    new_plane_state->view.color_plane[0].stride) {
+		if (old_plane_state->view.color_plane[0].mapping_stride !=
+		    new_plane_state->view.color_plane[0].mapping_stride) {
 			drm_dbg_kms(&i915->drm, "Stride cannot be changed in async flip\n");
 			return -EINVAL;
 		}
