@@ -1063,13 +1063,6 @@ static int pci_asix_setup(struct serial_private *priv,
 	return pci_default_setup(priv, board, port, idx);
 }
 
-/* Quatech devices have their own extra interface features */
-
-struct quatech_feature {
-	u16 devid;
-	bool amcc;
-};
-
 #define QPCR_TEST_FOR1		0x3F
 #define QPCR_TEST_GET1		0x00
 #define QPCR_TEST_FOR2		0x40
@@ -1085,40 +1078,28 @@ struct quatech_feature {
 #define QOPR_CLOCK_X8		0x0003
 #define QOPR_CLOCK_RATE_MASK	0x0003
 
-
-static struct quatech_feature quatech_cards[] = {
-	{ PCI_DEVICE_ID_QUATECH_QSC100,   1 },
-	{ PCI_DEVICE_ID_QUATECH_DSC100,   1 },
-	{ PCI_DEVICE_ID_QUATECH_DSC100E,  0 },
-	{ PCI_DEVICE_ID_QUATECH_DSC200,   1 },
-	{ PCI_DEVICE_ID_QUATECH_DSC200E,  0 },
-	{ PCI_DEVICE_ID_QUATECH_ESC100D,  1 },
-	{ PCI_DEVICE_ID_QUATECH_ESC100M,  1 },
-	{ PCI_DEVICE_ID_QUATECH_QSCP100,  1 },
-	{ PCI_DEVICE_ID_QUATECH_DSCP100,  1 },
-	{ PCI_DEVICE_ID_QUATECH_QSCP200,  1 },
-	{ PCI_DEVICE_ID_QUATECH_DSCP200,  1 },
-	{ PCI_DEVICE_ID_QUATECH_ESCLP100, 0 },
-	{ PCI_DEVICE_ID_QUATECH_QSCLP100, 0 },
-	{ PCI_DEVICE_ID_QUATECH_DSCLP100, 0 },
-	{ PCI_DEVICE_ID_QUATECH_SSCLP100, 0 },
-	{ PCI_DEVICE_ID_QUATECH_QSCLP200, 0 },
-	{ PCI_DEVICE_ID_QUATECH_DSCLP200, 0 },
-	{ PCI_DEVICE_ID_QUATECH_SSCLP200, 0 },
-	{ PCI_DEVICE_ID_QUATECH_SPPXP_100, 0 },
+/* Quatech devices have their own extra interface features */
+static struct pci_device_id quatech_cards[] = {
+	{ PCI_DEVICE_DATA(QUATECH, QSC100,   1) },
+	{ PCI_DEVICE_DATA(QUATECH, DSC100,   1) },
+	{ PCI_DEVICE_DATA(QUATECH, DSC100E,  0) },
+	{ PCI_DEVICE_DATA(QUATECH, DSC200,   1) },
+	{ PCI_DEVICE_DATA(QUATECH, DSC200E,  0) },
+	{ PCI_DEVICE_DATA(QUATECH, ESC100D,  1) },
+	{ PCI_DEVICE_DATA(QUATECH, ESC100M,  1) },
+	{ PCI_DEVICE_DATA(QUATECH, QSCP100,  1) },
+	{ PCI_DEVICE_DATA(QUATECH, DSCP100,  1) },
+	{ PCI_DEVICE_DATA(QUATECH, QSCP200,  1) },
+	{ PCI_DEVICE_DATA(QUATECH, DSCP200,  1) },
+	{ PCI_DEVICE_DATA(QUATECH, ESCLP100, 0) },
+	{ PCI_DEVICE_DATA(QUATECH, QSCLP100, 0) },
+	{ PCI_DEVICE_DATA(QUATECH, DSCLP100, 0) },
+	{ PCI_DEVICE_DATA(QUATECH, SSCLP100, 0) },
+	{ PCI_DEVICE_DATA(QUATECH, QSCLP200, 0) },
+	{ PCI_DEVICE_DATA(QUATECH, DSCLP200, 0) },
+	{ PCI_DEVICE_DATA(QUATECH, SSCLP200, 0) },
+	{ PCI_DEVICE_DATA(QUATECH, SPPXP_100, 0) },
 	{ 0, }
-};
-
-static int pci_quatech_amcc(struct pci_dev *dev)
-{
-	struct quatech_feature *qf = &quatech_cards[0];
-	while (qf->devid) {
-		if (qf->devid == dev->device)
-			return qf->amcc;
-		qf++;
-	}
-	pci_err(dev, "unknown port type '0x%04X'.\n", dev->device);
-	return 0;
 };
 
 static int pci_quatech_rqopr(struct uart_8250_port *port)
@@ -1280,7 +1261,16 @@ static int pci_quatech_rs422(struct uart_8250_port *port)
 
 static int pci_quatech_init(struct pci_dev *dev)
 {
-	if (pci_quatech_amcc(dev)) {
+	const struct pci_device_id *match;
+	bool amcc = false;
+
+	match = pci_match_id(quatech_cards, dev);
+	if (match)
+		amcc = match->driver_data;
+	else
+		pci_err(dev, "unknown port type '0x%04X'.\n", dev->device);
+
+	if (amcc) {
 		unsigned long base = pci_resource_start(dev, 0);
 		if (base) {
 			u32 tmp;
