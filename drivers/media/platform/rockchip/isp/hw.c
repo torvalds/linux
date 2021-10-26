@@ -332,6 +332,14 @@ static const char * const rk3568_isp_clks[] = {
 	"hclk_isp",
 };
 
+static const char * const rk3588_isp_clks[] = {
+	"clk_isp_core",
+	"aclk_isp",
+	"hclk_isp",
+	"clk_isp_core_marvin",
+	"clk_isp_core_vicap",
+};
+
 static const char * const rv1126_isp_clks[] = {
 	"clk_isp",
 	"aclk_isp",
@@ -379,6 +387,25 @@ static const struct isp_clk_info rk3568_isp_clk_rate[] = {
 	}
 };
 
+static const struct isp_clk_info rk3588_isp_clk_rate[] = {
+	{
+		.clk_rate = 300,
+		.refer_data = 1920, //width
+	}, {
+		.clk_rate = 400,
+		.refer_data = 2688,
+	}, {
+		.clk_rate = 500,
+		.refer_data = 3072,
+	}, {
+		.clk_rate = 600,
+		.refer_data = 3840,
+	}, {
+		.clk_rate = 700,
+		.refer_data = 4672,
+	}
+};
+
 static const struct isp_clk_info rv1126_isp_clk_rate[] = {
 	{
 		.clk_rate = 20,
@@ -423,6 +450,12 @@ static struct isp_irqs_data rk3399_isp_irqs[] = {
 };
 
 static struct isp_irqs_data rk3568_isp_irqs[] = {
+	{"isp_irq", isp_irq_hdl},
+	{"mi_irq", mi_irq_hdl},
+	{"mipi_irq", mipi_irq_hdl}
+};
+
+static struct isp_irqs_data rk3588_isp_irqs[] = {
 	{"isp_irq", isp_irq_hdl},
 	{"mi_irq", mi_irq_hdl},
 	{"mipi_irq", mipi_irq_hdl}
@@ -504,6 +537,16 @@ static const struct isp_match_data rk3568_isp_match_data = {
 	.num_irqs = ARRAY_SIZE(rk3568_isp_irqs)
 };
 
+static const struct isp_match_data rk3588_isp_match_data = {
+	.clks = rk3588_isp_clks,
+	.num_clks = ARRAY_SIZE(rk3588_isp_clks),
+	.isp_ver = ISP_V30,
+	.clk_rate_tbl = rk3588_isp_clk_rate,
+	.num_clk_rate_tbl = ARRAY_SIZE(rk3588_isp_clk_rate),
+	.irqs = rk3588_isp_irqs,
+	.num_irqs = ARRAY_SIZE(rk3588_isp_irqs),
+};
+
 static const struct of_device_id rkisp_hw_of_match[] = {
 	{
 		.compatible = "rockchip,rk1808-rkisp1",
@@ -523,6 +566,9 @@ static const struct of_device_id rkisp_hw_of_match[] = {
 	}, {
 		.compatible = "rockchip,rk3568-rkisp",
 		.data = &rk3568_isp_match_data,
+	}, {
+		.compatible = "rockchip,rk3588-rkisp",
+		.data = &rk3588_isp_match_data,
 	}, {
 		.compatible = "rockchip,rv1126-rkisp",
 		.data = &rv1126_isp_match_data,

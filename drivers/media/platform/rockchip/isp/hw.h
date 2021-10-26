@@ -6,7 +6,7 @@
 
 #include "bridge.h"
 
-#define RKISP_MAX_BUS_CLK 8
+#define RKISP_MAX_BUS_CLK 10
 #define RKISP_MAX_RETRY_CNT 5
 
 struct isp_clk_info {
