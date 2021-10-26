@@ -97,11 +97,20 @@ enum i915_cache_level;
 
 struct intel_remapped_plane_info {
 	/* in gtt pages */
-	u32 offset;
-	u16 width;
-	u16 height;
-	u16 src_stride;
-	u16 dst_stride;
+	u32 offset:31;
+	u32 linear:1;
+	union {
+		/* in gtt pages for !linear */
+		struct {
+			u16 width;
+			u16 height;
+			u16 src_stride;
+			u16 dst_stride;
+		};
+
+		/* in gtt pages for linear */
+		u32 size;
+	};
 } __packed;
 
 struct intel_remapped_info {

@@ -622,7 +622,11 @@ unsigned int intel_remapped_info_size(const struct intel_remapped_info *rem_info
 	for (i = 0 ; i < ARRAY_SIZE(rem_info->plane); i++) {
 		unsigned int plane_size;
 
-		plane_size = rem_info->plane[i].dst_stride * rem_info->plane[i].height;
+		if (rem_info->plane[i].linear)
+			plane_size = rem_info->plane[i].size;
+		else
+			plane_size = rem_info->plane[i].dst_stride * rem_info->plane[i].height;
+
 		if (plane_size == 0)
 			continue;
 

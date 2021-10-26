@@ -853,6 +853,20 @@ static u32 intel_adjust_tile_offset(int *x, int *y,
 	return new_offset;
 }
 
+static u32 intel_adjust_linear_offset(int *x, int *y,
+				      unsigned int cpp,
+				      unsigned int pitch,
+				      u32 old_offset,
+				      u32 new_offset)
+{
+	old_offset += *y * pitch + *x * cpp;
+
+	*y = (old_offset - new_offset) / pitch;
+	*x = ((old_offset - new_offset) - *y * pitch) / cpp;
+
+	return new_offset;
+}
+
 static u32 intel_adjust_aligned_offset(int *x, int *y,
 				       const struct drm_framebuffer *fb,
 				       int color_plane,
@@ -883,10 +897,8 @@ static u32 intel_adjust_aligned_offset(int *x, int *y,
 					 tile_size, pitch_tiles,
 					 old_offset, new_offset);
 	} else {
-		old_offset += *y * pitch + *x * cpp;
-
-		*y = (old_offset - new_offset) / pitch;
-		*x = ((old_offset - new_offset) - *y * pitch) / cpp;
+		intel_adjust_linear_offset(x, y, cpp, pitch,
+					   old_offset, new_offset);
 	}
 
 	return new_offset;
@@ -1258,12 +1270,11 @@ plane_view_dst_stride_tiles(const struct intel_framebuffer *fb, int color_plane,
 			    unsigned int pitch_tiles)
 {
 	if (intel_fb_needs_pot_stride_remap(fb)) {
-		unsigned int min_stride = intel_fb_is_ccs_aux_plane(&fb->base, color_plane) ? 2 : 8;
 		/*
 		 * ADL_P, the only platform needing a POT stride has a minimum
-		 * of 8 main surface and 2 CCS AUX stride tiles.
+		 * of 8 main surface tiles.
 		 */
-		return roundup_pow_of_two(max(pitch_tiles, min_stride));
+		return roundup_pow_of_two(max(pitch_tiles, 8u));
 	} else {
 		return pitch_tiles;
 	}
@@ -1285,9 +1296,29 @@ plane_view_height_tiles(const struct intel_framebuffer *fb, int color_plane,
 	return DIV_ROUND_UP(y + dims->height, dims->tile_height);
 }
 
+static unsigned int
+plane_view_linear_tiles(const struct intel_framebuffer *fb, int color_plane,
+			const struct fb_plane_view_dims *dims,
+			int x, int y)
+{
+	struct drm_i915_private *i915 = to_i915(fb->base.dev);
+	unsigned int size;
+
+	size = (y + dims->height) * fb->base.pitches[color_plane] +
+		x * fb->base.format->cpp[color_plane];
+
+	return DIV_ROUND_UP(size, intel_tile_size(i915));
+}
+
 #define assign_chk_ovf(i915, var, val) ({ \
 	drm_WARN_ON(&(i915)->drm, overflows_type(val, var)); \
 	(var) = (val); \
+})
+
+#define assign_bfld_chk_ovf(i915, var, val) ({ \
+	(var) = (val); \
+	drm_WARN_ON(&(i915)->drm, (var) != (val)); \
+	(var); \
 })
 
 static u32 calc_plane_remap_info(const struct intel_framebuffer *fb, int color_plane,
@@ -1304,12 +1335,26 @@ static u32 calc_plane_remap_info(const struct intel_framebuffer *fb, int color_p
 	struct drm_rect r;
 	u32 size = 0;
 
-	assign_chk_ovf(i915, remap_info->offset, obj_offset);
-	assign_chk_ovf(i915, remap_info->src_stride, plane_view_src_stride_tiles(fb, color_plane, dims));
-	assign_chk_ovf(i915, remap_info->width, plane_view_width_tiles(fb, color_plane, dims, x));
-	assign_chk_ovf(i915, remap_info->height, plane_view_height_tiles(fb, color_plane, dims, y));
+	assign_bfld_chk_ovf(i915, remap_info->offset, obj_offset);
+
+	if (intel_fb_is_gen12_ccs_aux_plane(&fb->base, color_plane)) {
+		remap_info->linear = 1;
+
+		assign_chk_ovf(i915, remap_info->size,
+			       plane_view_linear_tiles(fb, color_plane, dims, x, y));
+	} else {
+		remap_info->linear = 0;
+
+		assign_chk_ovf(i915, remap_info->src_stride,
+			       plane_view_src_stride_tiles(fb, color_plane, dims));
+		assign_chk_ovf(i915, remap_info->width,
+			       plane_view_width_tiles(fb, color_plane, dims, x));
+		assign_chk_ovf(i915, remap_info->height,
+			       plane_view_height_tiles(fb, color_plane, dims, y));
+	}
 
 	if (view->gtt.type == I915_GGTT_VIEW_ROTATED) {
+		drm_WARN_ON(&i915->drm, remap_info->linear);
 		check_array_bounds(i915, view->gtt.rotated.plane, color_plane);
 
 		assign_chk_ovf(i915, remap_info->dst_stride,
@@ -1344,16 +1389,23 @@ static u32 calc_plane_remap_info(const struct intel_framebuffer *fb, int color_p
 			gtt_offset = aligned_offset;
 		}
 
-		assign_chk_ovf(i915, remap_info->dst_stride,
-			       plane_view_dst_stride_tiles(fb, color_plane, remap_info->width));
-
 		color_plane_info->x = x;
 		color_plane_info->y = y;
 
-		color_plane_info->stride = remap_info->dst_stride * tile_width *
-					   fb->base.format->cpp[color_plane];
+		if (remap_info->linear) {
+			color_plane_info->stride = fb->base.pitches[color_plane];
 
-		size += remap_info->dst_stride * remap_info->height;
+			size += remap_info->size;
+		} else {
+			unsigned int dst_stride = plane_view_dst_stride_tiles(fb, color_plane,
+									      remap_info->width);
+
+			assign_chk_ovf(i915, remap_info->dst_stride, dst_stride);
+			color_plane_info->stride = dst_stride *
+						   tile_width * fb->base.format->cpp[color_plane];
+
+			size += dst_stride * remap_info->height;
+		}
 	}
 
 	/*
@@ -1361,10 +1413,16 @@ static u32 calc_plane_remap_info(const struct intel_framebuffer *fb, int color_p
 	 * the x/y offsets.  x,y will hold the first pixel of the framebuffer
 	 * plane from the start of the remapped/rotated gtt mapping.
 	 */
-	intel_adjust_tile_offset(&color_plane_info->x, &color_plane_info->y,
-				 tile_width, tile_height,
-				 tile_size, remap_info->dst_stride,
-				 gtt_offset * tile_size, 0);
+	if (remap_info->linear)
+		intel_adjust_linear_offset(&color_plane_info->x, &color_plane_info->y,
+					   fb->base.format->cpp[color_plane],
+					   color_plane_info->stride,
+					   gtt_offset * tile_size, 0);
+	else
+		intel_adjust_tile_offset(&color_plane_info->x, &color_plane_info->y,
+					 tile_width, tile_height,
+					 tile_size, remap_info->dst_stride,
+					 gtt_offset * tile_size, 0);
 
 	return size;
 }
@@ -1377,15 +1435,10 @@ calc_plane_normal_size(const struct intel_framebuffer *fb, int color_plane,
 		       const struct fb_plane_view_dims *dims,
 		       int x, int y)
 {
-	struct drm_i915_private *i915 = to_i915(fb->base.dev);
 	unsigned int tiles;
 
 	if (is_surface_linear(&fb->base, color_plane)) {
-		unsigned int size;
-
-		size = (y + dims->height) * fb->base.pitches[color_plane] +
-		       x * fb->base.format->cpp[color_plane];
-		tiles = DIV_ROUND_UP(size, intel_tile_size(i915));
+		tiles = plane_view_linear_tiles(fb, color_plane, dims, x, y);
 	} else {
 		tiles = plane_view_src_stride_tiles(fb, color_plane, dims) *
 			plane_view_height_tiles(fb, color_plane, dims, y);
