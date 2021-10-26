@@ -677,12 +677,18 @@ int hl_set_power(struct hl_device *hdev,
 			int sensor_index, u32 attr, long value)
 {
 	struct cpucp_packet pkt;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	int rc;
 
 	memset(&pkt, 0, sizeof(pkt));
 
-	pkt.ctl = cpu_to_le32(CPUCP_PACKET_POWER_GET <<
+	if (prop->use_get_power_for_reset_history)
+		pkt.ctl = cpu_to_le32(CPUCP_PACKET_POWER_GET <<
 				CPUCP_PKT_CTL_OPCODE_SHIFT);
+	else
+		pkt.ctl = cpu_to_le32(CPUCP_PACKET_POWER_SET <<
+				CPUCP_PKT_CTL_OPCODE_SHIFT);
+
 	pkt.sensor_index = __cpu_to_le16(sensor_index);
 	pkt.type = __cpu_to_le16(attr);
 	pkt.value = __cpu_to_le64(value);

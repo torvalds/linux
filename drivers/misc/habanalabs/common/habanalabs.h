@@ -546,6 +546,8 @@ struct hl_hints_range {
  * @dynamic_fw_load: is dynamic FW load is supported.
  * @gic_interrupts_enable: true if FW is not blocking GIC controller,
  *                         false otherwise.
+ * @use_get_power_for_reset_history: To support backward compatibility for Goya
+ *                                   and Gaudi
  */
 struct asic_fixed_properties {
 	struct hw_queue_properties	*hw_queues_props;
@@ -626,6 +628,7 @@ struct asic_fixed_properties {
 	u8				iatu_done_by_fw;
 	u8				dynamic_fw_load;
 	u8				gic_interrupts_enable;
+	u8				use_get_power_for_reset_history;
 };
 
 /**

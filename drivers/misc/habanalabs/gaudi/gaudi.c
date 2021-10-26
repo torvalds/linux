@@ -665,6 +665,8 @@ static int gaudi_set_fixed_properties(struct hl_device *hdev)
 	prop->clk_pll_index = HL_GAUDI_MME_PLL;
 	prop->max_freq_value = GAUDI_MAX_CLK_FREQ;
 
+	prop->use_get_power_for_reset_history = true;
+
 	return 0;
 }
 

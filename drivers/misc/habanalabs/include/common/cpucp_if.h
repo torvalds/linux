@@ -376,6 +376,9 @@ enum pq_init_status {
  *       and QMANs. The f/w will return a bitmask where each bit represents
  *       a different engine or QMAN according to enum cpucp_idle_mask.
  *       The bit will be 1 if the engine is NOT idle.
+ *
+ * CPUCP_PACKET_POWER_SET -
+ *       Resets power history of device to 0
  */
 
 enum cpucp_packet_id {
@@ -421,6 +424,7 @@ enum cpucp_packet_id {
 	CPUCP_PACKET_NIC_STAT_REGS_CLR,		/* internal */
 	CPUCP_PACKET_NIC_STAT_REGS_ALL_GET,	/* internal */
 	CPUCP_PACKET_IS_IDLE_CHECK,		/* internal */
+	CPUCP_PACKET_POWER_SET,			/* internal */
 };
 
 #define CPUCP_PACKET_FENCE_VAL	0xFE8CE7A5
