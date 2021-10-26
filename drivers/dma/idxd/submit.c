@@ -21,15 +21,6 @@ static struct idxd_desc *__get_desc(struct idxd_wq *wq, int idx, int cpu)
 	if (device_pasid_enabled(idxd))
 		desc->hw->pasid = idxd->pasid;
 
-	/*
-	 * On host, MSIX vecotr 0 is used for misc interrupt. Therefore when we match
-	 * vector 1:1 to the WQ id, we need to add 1
-	 */
-	if (wq->ie->int_handle == INVALID_INT_HANDLE)
-		desc->hw->int_handle = wq->id + 1;
-	else
-		desc->hw->int_handle = wq->ie->int_handle;
-
 	return desc;
 }
 
@@ -160,6 +151,11 @@ int idxd_submit_desc(struct idxd_wq *wq, struct idxd_desc *desc)
 	 */
 	if (desc->hw->flags & IDXD_OP_FLAG_RCI) {
 		ie = wq->ie;
+		if (ie->int_handle == INVALID_INT_HANDLE)
+			desc->hw->int_handle = ie->id;
+		else
+			desc->hw->int_handle = ie->int_handle;
+
 		llist_add(&desc->llnode, &ie->pending_llist);
 	}
 
