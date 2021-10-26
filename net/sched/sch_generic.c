@@ -1500,7 +1500,7 @@ void mini_qdisc_pair_swap(struct mini_Qdisc_pair *miniqp,
 	if (!tp_head) {
 		RCU_INIT_POINTER(*miniqp->p_miniq, NULL);
 	} else {
-		miniq = !miniq_old || miniq_old == &miniqp->miniq2 ?
+		miniq = miniq_old != &miniqp->miniq1 ?
 			&miniqp->miniq1 : &miniqp->miniq2;
 
 		/* We need to make sure that readers won't see the miniq
