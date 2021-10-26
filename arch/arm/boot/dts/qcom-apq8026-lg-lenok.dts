@@ -10,7 +10,7 @@
 
 / {
 	model = "LG G Watch R";
-	compatible = "lge,lenok", "qcom,apq8026";
+	compatible = "lg,lenok", "qcom,apq8026";
 	qcom,board-id = <132 0x0a>;
 	qcom,msm-id = <199 0x20000>;
 
