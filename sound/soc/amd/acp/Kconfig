@@ -12,6 +12,8 @@ config SND_SOC_AMD_ACP_COMMON
 	  This option enables common modules for Audio-Coprocessor i.e. ACP
 	  IP block on AMD platforms.
 
+if SND_SOC_AMD_ACP_COMMON
+
 config SND_SOC_AMD_ACP_I2S
 	tristate
 
@@ -49,3 +51,5 @@ config SND_SOC_AMD_SOF_MACH
 	select SND_SOC_AMD_MACH_COMMON
 	help
 	  This option enables SOF sound card support for ACP audio.
+
+endif # SND_SOC_AMD_ACP_COMMON
