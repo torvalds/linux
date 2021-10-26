@@ -21,9 +21,10 @@ Linux PCI总线子系统
    :maxdepth: 2
    :numbered:
 
+   pci
+
 Todolist:
 
-   pci
    pciebus-howto
    pci-iov-howto
    msi-howto
