@@ -1571,7 +1571,6 @@ static struct device_type scsi_dev_type = {
 
 void scsi_sysfs_device_initialize(struct scsi_device *sdev)
 {
-	int i, j = 0;
 	unsigned long flags;
 	struct Scsi_Host *shost = sdev->host;
 	struct scsi_host_template *hostt = shost->hostt;
@@ -1583,15 +1582,7 @@ void scsi_sysfs_device_initialize(struct scsi_device *sdev)
 	scsi_enable_async_suspend(&sdev->sdev_gendev);
 	dev_set_name(&sdev->sdev_gendev, "%d:%d:%d:%llu",
 		     sdev->host->host_no, sdev->channel, sdev->id, sdev->lun);
-	sdev->gendev_attr_groups[j++] = &scsi_sdev_attr_group;
-	if (hostt->sdev_groups) {
-		for (i = 0; hostt->sdev_groups[i] &&
-			     j < ARRAY_SIZE(sdev->gendev_attr_groups);
-		     i++, j++) {
-			sdev->gendev_attr_groups[j] = hostt->sdev_groups[i];
-		}
-	}
-	WARN_ON_ONCE(j >= ARRAY_SIZE(sdev->gendev_attr_groups));
+	sdev->sdev_gendev.groups = hostt->sdev_groups;
 
 	device_initialize(&sdev->sdev_dev);
 	sdev->sdev_dev.parent = get_device(&sdev->sdev_gendev);
