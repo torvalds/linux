@@ -503,34 +503,11 @@ int skl_ccs_to_main_plane(const struct drm_framebuffer *fb, int ccs_plane)
 	return ccs_plane - fb->format->num_planes / 2;
 }
 
-static unsigned int gen12_aligned_scanout_stride(const struct intel_framebuffer *fb,
-						 int color_plane)
-{
-	struct drm_i915_private *i915 = to_i915(fb->base.dev);
-	unsigned int stride = fb->base.pitches[color_plane];
-
-	if (IS_ALDERLAKE_P(i915))
-		return roundup_pow_of_two(max(stride,
-					      8u * intel_tile_width_bytes(&fb->base, color_plane)));
-
-	return stride;
-}
-
 static unsigned int gen12_ccs_aux_stride(struct intel_framebuffer *fb, int ccs_plane)
 {
-	struct drm_i915_private *i915 = to_i915(fb->base.dev);
 	int main_plane = skl_ccs_to_main_plane(&fb->base, ccs_plane);
 	unsigned int main_stride = fb->base.pitches[main_plane];
 	unsigned int main_tile_width = intel_tile_width_bytes(&fb->base, main_plane);
-
-	/*
-	 * On ADL-P the AUX stride must align with a power-of-two aligned main
-	 * surface stride. The stride of the allocated main surface object can
-	 * be less than this POT stride, which is then autopadded to the POT
-	 * size.
-	 */
-	if (IS_ALDERLAKE_P(i915))
-		main_stride = gen12_aligned_scanout_stride(fb, main_plane);
 
 	return DIV_ROUND_UP(main_stride, 4 * main_tile_width) * 64;
 }
@@ -801,23 +778,12 @@ void intel_fb_plane_get_subsampling(int *hsub, int *vsub,
 
 static void intel_fb_plane_dims(const struct intel_framebuffer *fb, int color_plane, int *w, int *h)
 {
-	struct drm_i915_private *i915 = to_i915(fb->base.dev);
 	int main_plane = intel_fb_is_ccs_aux_plane(&fb->base, color_plane) ?
 			 skl_ccs_to_main_plane(&fb->base, color_plane) : 0;
 	unsigned int main_width = fb->base.width;
 	unsigned int main_height = fb->base.height;
 	int main_hsub, main_vsub;
 	int hsub, vsub;
-
-	/*
-	 * On ADL-P the CCS AUX surface layout always aligns with the
-	 * power-of-two aligned main surface stride. The main surface
-	 * stride in the allocated FB object may not be power-of-two
-	 * sized, in which case it is auto-padded to the POT size.
-	 */
-	if (IS_ALDERLAKE_P(i915) && intel_fb_is_ccs_aux_plane(&fb->base, color_plane))
-		main_width = gen12_aligned_scanout_stride(fb, 0) /
-			     fb->base.format->cpp[0];
 
 	intel_fb_plane_get_subsampling(&main_hsub, &main_vsub, &fb->base, main_plane);
 	intel_fb_plane_get_subsampling(&hsub, &vsub, &fb->base, color_plane);
@@ -1282,6 +1248,21 @@ plane_view_dst_stride_tiles(const struct intel_framebuffer *fb, int color_plane,
 }
 
 static unsigned int
+plane_view_scanout_stride(const struct intel_framebuffer *fb, int color_plane,
+			  unsigned int tile_width,
+			  unsigned int src_stride_tiles, unsigned int dst_stride_tiles)
+{
+	unsigned int stride_tiles;
+
+	if (IS_ALDERLAKE_P(to_i915(fb->base.dev)))
+		stride_tiles = src_stride_tiles;
+	else
+		stride_tiles = dst_stride_tiles;
+
+	return stride_tiles * tile_width * fb->base.format->cpp[color_plane];
+}
+
+static unsigned int
 plane_view_width_tiles(const struct intel_framebuffer *fb, int color_plane,
 		       const struct fb_plane_view_dims *dims,
 		       int x)
@@ -1372,6 +1353,7 @@ static u32 calc_plane_remap_info(const struct intel_framebuffer *fb, int color_p
 		color_plane_info->y = r.y1;
 
 		color_plane_info->mapping_stride = remap_info->dst_stride * tile_height;
+		color_plane_info->scanout_stride = color_plane_info->mapping_stride;
 
 		size += remap_info->dst_stride * remap_info->width;
 
@@ -1395,6 +1377,7 @@ static u32 calc_plane_remap_info(const struct intel_framebuffer *fb, int color_p
 
 		if (remap_info->linear) {
 			color_plane_info->mapping_stride = fb->base.pitches[color_plane];
+			color_plane_info->scanout_stride = color_plane_info->mapping_stride;
 
 			size += remap_info->size;
 		} else {
@@ -1405,6 +1388,10 @@ static u32 calc_plane_remap_info(const struct intel_framebuffer *fb, int color_p
 			color_plane_info->mapping_stride = dst_stride *
 							   tile_width *
 							   fb->base.format->cpp[color_plane];
+			color_plane_info->scanout_stride =
+				plane_view_scanout_stride(fb, color_plane, tile_width,
+							  remap_info->src_stride,
+							  dst_stride);
 
 			size += dst_stride * remap_info->height;
 		}
@@ -1530,6 +1517,8 @@ int intel_fill_fb_info(struct drm_i915_private *i915, struct intel_framebuffer *
 		fb->normal_view.color_plane[i].x = x;
 		fb->normal_view.color_plane[i].y = y;
 		fb->normal_view.color_plane[i].mapping_stride = fb->base.pitches[i];
+		fb->normal_view.color_plane[i].scanout_stride =
+			fb->normal_view.color_plane[i].mapping_stride;
 
 		offset = calc_plane_aligned_offset(fb, i, &x, &y);
 
@@ -1676,18 +1665,10 @@ intel_fb_stride_alignment(const struct drm_framebuffer *fb, int color_plane)
 	tile_width = intel_tile_width_bytes(fb, color_plane);
 	if (intel_fb_is_ccs_modifier(fb->modifier)) {
 		/*
-		 * On ADL-P the stride must be either 8 tiles or a stride
-		 * that is aligned to 16 tiles, required by the 16 tiles =
-		 * 64 kbyte CCS AUX PTE granularity, allowing CCS FBs to be
-		 * remapped.
-		 */
-		if (IS_ALDERLAKE_P(dev_priv))
-			tile_width *= fb->pitches[0] <= tile_width * 8 ? 8 : 16;
-		/*
 		 * On TGL the surface stride must be 4 tile aligned, mapped by
 		 * one 64 byte cacheline on the CCS AUX surface.
 		 */
-		else if (DISPLAY_VER(dev_priv) >= 12)
+		if (DISPLAY_VER(dev_priv) >= 12)
 			tile_width *= 4;
 		/*
 		 * Display WA #0531: skl,bxt,kbl,glk

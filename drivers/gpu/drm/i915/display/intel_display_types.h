@@ -116,6 +116,7 @@ struct intel_fb_view {
 		 *   pixels for 90/270 degree rotation
 		 */
 		unsigned int mapping_stride;
+		unsigned int scanout_stride;
 	} color_plane[4];
 };
 

@@ -589,7 +589,7 @@ static u32 skl_plane_stride(const struct intel_plane_state *plane_state,
 {
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	unsigned int rotation = plane_state->hw.rotation;
-	u32 stride = plane_state->view.color_plane[color_plane].mapping_stride;
+	u32 stride = plane_state->view.color_plane[color_plane].scanout_stride;
 
 	if (color_plane >= fb->format->num_planes)
 		return 0;
