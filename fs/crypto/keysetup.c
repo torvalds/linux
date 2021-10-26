@@ -122,8 +122,9 @@ err_free_tfm:
 
 /*
  * Prepare the crypto transform object or blk-crypto key in @prep_key, given the
- * raw key, encryption mode, and flag indicating which encryption implementation
- * (fs-layer or blk-crypto) will be used.
+ * raw key, encryption mode (@ci->ci_mode), flag indicating which encryption
+ * implementation (fs-layer or blk-crypto) will be used (@ci->ci_inlinecrypt),
+ * and IV generation method (@ci->ci_policy.flags).
  */
 int fscrypt_prepare_key(struct fscrypt_prepared_key *prep_key,
 			const u8 *raw_key, const struct fscrypt_info *ci)
