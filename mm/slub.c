@@ -440,14 +440,18 @@ slub_set_cpu_partial(struct kmem_cache *s, unsigned int nr_objects)
 /*
  * Per slab locking using the pagelock
  */
-static __always_inline void __slab_lock(struct page *page)
+static __always_inline void __slab_lock(struct slab *slab)
 {
+	struct page *page = slab_page(slab);
+
 	VM_BUG_ON_PAGE(PageTail(page), page);
 	bit_spin_lock(PG_locked, &page->flags);
 }
 
-static __always_inline void __slab_unlock(struct page *page)
+static __always_inline void __slab_unlock(struct slab *slab)
 {
+	struct page *page = slab_page(slab);
+
 	VM_BUG_ON_PAGE(PageTail(page), page);
 	__bit_spin_unlock(PG_locked, &page->flags);
 }
@@ -456,12 +460,12 @@ static __always_inline void slab_lock(struct page *page, unsigned long *flags)
 {
 	if (IS_ENABLED(CONFIG_PREEMPT_RT))
 		local_irq_save(*flags);
-	__slab_lock(page);
+	__slab_lock(page_slab(page));
 }
 
 static __always_inline void slab_unlock(struct page *page, unsigned long *flags)
 {
-	__slab_unlock(page);
+	__slab_unlock(page_slab(page));
 	if (IS_ENABLED(CONFIG_PREEMPT_RT))
 		local_irq_restore(*flags);
 }
@@ -530,16 +534,16 @@ static inline bool cmpxchg_double_slab(struct kmem_cache *s, struct page *page,
 		unsigned long flags;
 
 		local_irq_save(flags);
-		__slab_lock(page);
+		__slab_lock(page_slab(page));
 		if (page->freelist == freelist_old &&
 					page->counters == counters_old) {
 			page->freelist = freelist_new;
 			page->counters = counters_new;
-			__slab_unlock(page);
+			__slab_unlock(page_slab(page));
 			local_irq_restore(flags);
 			return true;
 		}
-		__slab_unlock(page);
+		__slab_unlock(page_slab(page));
 		local_irq_restore(flags);
 	}
 
