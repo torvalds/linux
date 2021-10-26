@@ -1573,6 +1573,11 @@ static inline void sk_mem_charge(struct sock *sk, int size)
 	sk->sk_forward_alloc -= size;
 }
 
+/* the following macros control memory reclaiming in sk_mem_uncharge()
+ */
+#define SK_RECLAIM_THRESHOLD	(1 << 21)
+#define SK_RECLAIM_CHUNK	(1 << 20)
+
 static inline void sk_mem_uncharge(struct sock *sk, int size)
 {
 	int reclaimable;
@@ -1589,8 +1594,8 @@ static inline void sk_mem_uncharge(struct sock *sk, int size)
 	 * If we reach 2 MBytes, reclaim 1 MBytes right now, there is
 	 * no need to hold that much forward allocation anyway.
 	 */
-	if (unlikely(reclaimable >= 1 << 21))
-		__sk_mem_reclaim(sk, 1 << 20);
+	if (unlikely(reclaimable >= SK_RECLAIM_THRESHOLD))
+		__sk_mem_reclaim(sk, SK_RECLAIM_CHUNK);
 }
 
 static inline void sk_wmem_free_skb(struct sock *sk, struct sk_buff *skb)
