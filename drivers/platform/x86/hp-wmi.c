@@ -1061,8 +1061,8 @@ static int thermal_profile_set(int thermal_profile)
 							   sizeof(thermal_profile), 0);
 }
 
-static int platform_profile_get(struct platform_profile_handler *pprof,
-				enum platform_profile_option *profile)
+static int hp_wmi_platform_profile_get(struct platform_profile_handler *pprof,
+					enum platform_profile_option *profile)
 {
 	int tp;
 
@@ -1087,8 +1087,8 @@ static int platform_profile_get(struct platform_profile_handler *pprof,
 	return 0;
 }
 
-static int platform_profile_set(struct platform_profile_handler *pprof,
-				enum platform_profile_option profile)
+static int hp_wmi_platform_profile_set(struct platform_profile_handler *pprof,
+					enum platform_profile_option profile)
 {
 	int err, tp;
 
@@ -1147,8 +1147,8 @@ static int thermal_profile_setup(void)
 		if (err)
 			return err;
 
-		platform_profile_handler.profile_get = platform_profile_get;
-		platform_profile_handler.profile_set = platform_profile_set;
+		platform_profile_handler.profile_get = hp_wmi_platform_profile_get;
+		platform_profile_handler.profile_set = hp_wmi_platform_profile_set;
 	}
 
 	set_bit(PLATFORM_PROFILE_COOL, platform_profile_handler.choices);
