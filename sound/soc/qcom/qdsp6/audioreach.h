@@ -693,6 +693,9 @@ void *audioreach_alloc_pkt(int payload_size, uint32_t opcode,
 void *audioreach_alloc_graph_pkt(struct q6apm *apm,
 				 struct list_head *sg_list,
 				  int graph_id);
+/* Topology specific */
+int audioreach_tplg_init(struct snd_soc_component *component);
+
 /* Module specific */
 void audioreach_graph_free_buf(struct q6apm_graph *graph);
 int audioreach_map_memory_regions(struct q6apm_graph *graph,

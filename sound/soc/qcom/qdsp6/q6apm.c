@@ -694,7 +694,7 @@ EXPORT_SYMBOL_GPL(q6apm_graph_flush);
 
 static int q6apm_audio_probe(struct snd_soc_component *component)
 {
-	return 0;
+	return audioreach_tplg_init(component);
 }
 
 static void q6apm_audio_remove(struct snd_soc_component *component)
