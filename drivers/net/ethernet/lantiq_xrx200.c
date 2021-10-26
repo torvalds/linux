@@ -25,6 +25,7 @@
 #define XRX200_DMA_DATA_LEN	(SZ_64K - 1)
 #define XRX200_DMA_RX		0
 #define XRX200_DMA_TX		1
+#define XRX200_DMA_BURST_LEN	8
 
 /* cpu port mac */
 #define PMAC_RX_IPG		0x0024
@@ -72,9 +73,6 @@ struct xrx200_priv {
 
 	struct net_device *net_dev;
 	struct device *dev;
-
-	int tx_burst_len;
-	int rx_burst_len;
 
 	__iomem void *pmac_reg;
 };
@@ -323,7 +321,7 @@ static netdev_tx_t xrx200_start_xmit(struct sk_buff *skb,
 		goto err_drop;
 
 	/* dma needs to start on a burst length value aligned address */
-	byte_offset = mapping % (priv->tx_burst_len * 4);
+	byte_offset = mapping % (XRX200_DMA_BURST_LEN * 4);
 
 	desc->addr = mapping - byte_offset;
 	/* Make sure the address is written before we give it to HW */
@@ -422,7 +420,8 @@ static int xrx200_dma_init(struct xrx200_priv *priv)
 	int ret = 0;
 	int i;
 
-	ltq_dma_init_port(DMA_PORT_ETOP, priv->tx_burst_len, rx_burst_len);
+	ltq_dma_init_port(DMA_PORT_ETOP, XRX200_DMA_BURST_LEN,
+			  XRX200_DMA_BURST_LEN);
 
 	ch_rx->dma.nr = XRX200_DMA_RX;
 	ch_rx->dma.dev = priv->dev;
@@ -530,18 +529,6 @@ static int xrx200_probe(struct platform_device *pdev)
 	err = of_get_ethdev_address(np, net_dev);
 	if (err)
 		eth_hw_addr_random(net_dev);
-
-	err = device_property_read_u32(dev, "lantiq,tx-burst-length", &priv->tx_burst_len);
-	if (err < 0) {
-		dev_err(dev, "unable to read tx-burst-length property\n");
-		return err;
-	}
-
-	err = device_property_read_u32(dev, "lantiq,rx-burst-length", &priv->rx_burst_len);
-	if (err < 0) {
-		dev_err(dev, "unable to read rx-burst-length property\n");
-		return err;
-	}
 
 	/* bring up the dma engine and IP core */
 	err = xrx200_dma_init(priv);
