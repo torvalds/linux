@@ -696,6 +696,9 @@ int amdgpu_ttm_tt_get_user_pages(struct amdgpu_bo *bo, struct page **pages)
 				       true, NULL);
 out_unlock:
 	mmap_read_unlock(mm);
+	if (r)
+		pr_debug("failed %d to get user pages 0x%lx\n", r, start);
+
 	mmput(mm);
 
 	return r;

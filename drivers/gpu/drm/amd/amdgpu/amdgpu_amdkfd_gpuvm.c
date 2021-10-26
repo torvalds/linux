@@ -2041,18 +2041,25 @@ static int update_invalid_user_pages(struct amdkfd_process_info *process_info,
 		/* Get updated user pages */
 		ret = amdgpu_ttm_tt_get_user_pages(bo, bo->tbo.ttm->pages);
 		if (ret) {
-			pr_debug("%s: Failed to get user pages: %d\n",
-				__func__, ret);
+			pr_debug("Failed %d to get user pages\n", ret);
 
-			/* Return error -EBUSY or -ENOMEM, retry restore */
-			return ret;
+			/* Return -EFAULT bad address error as success. It will
+			 * fail later with a VM fault if the GPU tries to access
+			 * it. Better than hanging indefinitely with stalled
+			 * user mode queues.
+			 *
+			 * Return other error -EBUSY or -ENOMEM to retry restore
+			 */
+			if (ret != -EFAULT)
+				return ret;
+		} else {
+
+			/*
+			 * FIXME: Cannot ignore the return code, must hold
+			 * notifier_lock
+			 */
+			amdgpu_ttm_tt_get_user_pages_done(bo->tbo.ttm);
 		}
-
-		/*
-		 * FIXME: Cannot ignore the return code, must hold
-		 * notifier_lock
-		 */
-		amdgpu_ttm_tt_get_user_pages_done(bo->tbo.ttm);
 
 		/* Mark the BO as valid unless it was invalidated
 		 * again concurrently.
