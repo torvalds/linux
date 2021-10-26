@@ -1716,6 +1716,7 @@ static int __bch2_trans_mark_reflink_p(struct btree_trans *trans,
 	struct bkey_i *n;
 	__le64 *refcount;
 	int add = !(flags & BTREE_TRIGGER_OVERWRITE) ? 1 : -1;
+	char buf[200];
 	int ret;
 
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_reflink, POS(0, *idx),
@@ -1735,17 +1736,19 @@ static int __bch2_trans_mark_reflink_p(struct btree_trans *trans,
 
 	refcount = bkey_refcount(n);
 	if (!refcount) {
+		bch2_bkey_val_to_text(&PBUF(buf), c, p.s_c);
 		bch2_fs_inconsistent(c,
-			"%llu:%llu len %u points to nonexistent indirect extent %llu",
-			p.k->p.inode, p.k->p.offset, p.k->size, *idx);
+			"nonexistent indirect extent at %llu while marking\n  %s",
+			*idx, buf);
 		ret = -EIO;
 		goto err;
 	}
 
 	if (!*refcount && (flags & BTREE_TRIGGER_OVERWRITE)) {
+		bch2_bkey_val_to_text(&PBUF(buf), c, p.s_c);
 		bch2_fs_inconsistent(c,
-			"%llu:%llu len %u idx %llu indirect extent refcount underflow",
-			p.k->p.inode, p.k->p.offset, p.k->size, *idx);
+			"indirect extent refcount underflow at %llu while marking\n  %s",
+			*idx, buf);
 		ret = -EIO;
 		goto err;
 	}
