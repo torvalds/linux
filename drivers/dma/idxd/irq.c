@@ -195,11 +195,11 @@ static void irq_process_pending_llist(struct idxd_irq_entry *irq_entry)
 			 * and 0xff, which DSA_COMP_STATUS_MASK can mask out.
 			 */
 			if (unlikely(desc->completion->status == IDXD_COMP_DESC_ABORT)) {
-				complete_desc(desc, IDXD_COMPLETE_ABORT);
+				idxd_dma_complete_txd(desc, IDXD_COMPLETE_ABORT, true);
 				continue;
 			}
 
-			complete_desc(desc, IDXD_COMPLETE_NORMAL);
+			idxd_dma_complete_txd(desc, IDXD_COMPLETE_NORMAL, true);
 		} else {
 			spin_lock(&irq_entry->list_lock);
 			list_add_tail(&desc->list,
@@ -238,11 +238,11 @@ static void irq_process_work_list(struct idxd_irq_entry *irq_entry)
 		 * and 0xff, which DSA_COMP_STATUS_MASK can mask out.
 		 */
 		if (unlikely(desc->completion->status == IDXD_COMP_DESC_ABORT)) {
-			complete_desc(desc, IDXD_COMPLETE_ABORT);
+			idxd_dma_complete_txd(desc, IDXD_COMPLETE_ABORT, true);
 			continue;
 		}
 
-		complete_desc(desc, IDXD_COMPLETE_NORMAL);
+		idxd_dma_complete_txd(desc, IDXD_COMPLETE_NORMAL, true);
 	}
 }
 

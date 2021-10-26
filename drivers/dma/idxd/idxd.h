@@ -579,7 +579,7 @@ int idxd_register_dma_channel(struct idxd_wq *wq);
 void idxd_unregister_dma_channel(struct idxd_wq *wq);
 void idxd_parse_completion_status(u8 status, enum dmaengine_tx_result *res);
 void idxd_dma_complete_txd(struct idxd_desc *desc,
-			   enum idxd_complete_type comp_type);
+			   enum idxd_complete_type comp_type, bool free_desc);
 
 /* cdev */
 int idxd_cdev_register(void);
@@ -602,11 +602,5 @@ static inline void perfmon_counter_overflow(struct idxd_device *idxd) {}
 static inline void perfmon_init(void) {}
 static inline void perfmon_exit(void) {}
 #endif
-
-static inline void complete_desc(struct idxd_desc *desc, enum idxd_complete_type reason)
-{
-	idxd_dma_complete_txd(desc, reason);
-	idxd_free_desc(desc->wq, desc);
-}
 
 #endif

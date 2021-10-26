@@ -21,7 +21,8 @@ static inline struct idxd_wq *to_idxd_wq(struct dma_chan *c)
 }
 
 void idxd_dma_complete_txd(struct idxd_desc *desc,
-			   enum idxd_complete_type comp_type)
+			   enum idxd_complete_type comp_type,
+			   bool free_desc)
 {
 	struct dma_async_tx_descriptor *tx;
 	struct dmaengine_result res;
@@ -44,6 +45,9 @@ void idxd_dma_complete_txd(struct idxd_desc *desc,
 		tx->callback = NULL;
 		tx->callback_result = NULL;
 	}
+
+	if (free_desc)
+		idxd_free_desc(desc->wq, desc);
 }
 
 static void op_flag_setup(unsigned long flags, u32 *desc_flags)
@@ -153,8 +157,10 @@ static dma_cookie_t idxd_dma_tx_submit(struct dma_async_tx_descriptor *tx)
 	cookie = dma_cookie_assign(tx);
 
 	rc = idxd_submit_desc(wq, desc);
-	if (rc < 0)
+	if (rc < 0) {
+		idxd_free_desc(wq, desc);
 		return rc;
+	}
 
 	return cookie;
 }

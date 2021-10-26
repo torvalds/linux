@@ -717,10 +717,8 @@ static void idxd_flush_pending_llist(struct idxd_irq_entry *ie)
 	if (!head)
 		return;
 
-	llist_for_each_entry_safe(desc, itr, head, llnode) {
-		idxd_dma_complete_txd(desc, IDXD_COMPLETE_ABORT);
-		idxd_free_desc(desc->wq, desc);
-	}
+	llist_for_each_entry_safe(desc, itr, head, llnode)
+		idxd_dma_complete_txd(desc, IDXD_COMPLETE_ABORT, true);
 }
 
 static void idxd_flush_work_list(struct idxd_irq_entry *ie)
@@ -729,8 +727,7 @@ static void idxd_flush_work_list(struct idxd_irq_entry *ie)
 
 	list_for_each_entry_safe(desc, iter, &ie->work_list, list) {
 		list_del(&desc->list);
-		idxd_dma_complete_txd(desc, IDXD_COMPLETE_ABORT);
-		idxd_free_desc(desc->wq, desc);
+		idxd_dma_complete_txd(desc, IDXD_COMPLETE_ABORT, true);
 	}
 }
 
