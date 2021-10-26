@@ -209,6 +209,18 @@ struct loader_cubic_lut {
 	u32 offset;
 };
 
+struct rockchip_drm_dsc_cap {
+	bool v_1p2;
+	bool native_420;
+	bool all_bpp;
+	u8 bpc_supported;
+	u8 max_slices;
+	u8 max_lanes;
+	u8 max_frl_rate_per_lane;
+	u8 total_chunk_kbytes;
+	int clk_per_slice;
+};
+
 /*
  * Rockchip drm private crtc funcs.
  * @loader_protect: protect loader logo crtc's power
@@ -326,6 +338,9 @@ uint32_t rockchip_drm_of_find_possible_crtcs(struct drm_device *dev,
 uint32_t rockchip_drm_get_bpp(const struct drm_format_info *info);
 int rockchip_drm_get_yuv422_format(struct drm_connector *connector,
 				   struct edid *edid);
+int rockchip_drm_parse_cea_ext(struct rockchip_drm_dsc_cap *dsc_cap,
+			       u8 *max_frl_rate_per_lane, u8 *max_lanes,
+			       const struct edid *edid);
 
 extern struct platform_driver cdn_dp_driver;
 extern struct platform_driver dw_hdmi_rockchip_pltfm_driver;

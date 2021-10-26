@@ -250,6 +250,80 @@ int rockchip_drm_add_modes_noedid(struct drm_connector *connector)
 }
 EXPORT_SYMBOL(rockchip_drm_add_modes_noedid);
 
+static int
+cea_db_tag(const u8 *db)
+{
+	return db[0] >> 5;
+}
+
+static int
+cea_db_payload_len(const u8 *db)
+{
+	return db[0] & 0x1f;
+}
+
+#define for_each_cea_db(cea, i, start, end) \
+	for ((i) = (start); \
+	     (i) < (end) && (i) + cea_db_payload_len(&(cea)[(i)]) < (end); \
+	     (i) += cea_db_payload_len(&(cea)[(i)]) + 1)
+
+static bool cea_db_is_hdmi_forum_vsdb(const u8 *db)
+{
+	unsigned int oui;
+
+	if (cea_db_tag(db) != 0x03)
+		return false;
+
+	if (cea_db_payload_len(db) < 7)
+		return false;
+
+	oui = db[3] << 16 | db[2] << 8 | db[1];
+
+	return oui == HDMI_FORUM_IEEE_OUI;
+}
+
+static int
+cea_db_offsets(const u8 *cea, int *start, int *end)
+{
+	/* DisplayID CTA extension blocks and top-level CEA EDID
+	 * block header definitions differ in the following bytes:
+	 *   1) Byte 2 of the header specifies length differently,
+	 *   2) Byte 3 is only present in the CEA top level block.
+	 *
+	 * The different definitions for byte 2 follow.
+	 *
+	 * DisplayID CTA extension block defines byte 2 as:
+	 *   Number of payload bytes
+	 *
+	 * CEA EDID block defines byte 2 as:
+	 *   Byte number (decimal) within this block where the 18-byte
+	 *   DTDs begin. If no non-DTD data is present in this extension
+	 *   block, the value should be set to 04h (the byte after next).
+	 *   If set to 00h, there are no DTDs present in this block and
+	 *   no non-DTD data.
+	 */
+	if (cea[0] == 0x81) {
+		/*
+		 * for_each_displayid_db() has already verified
+		 * that these stay within expected bounds.
+		 */
+		*start = 3;
+		*end = *start + cea[2];
+	} else if (cea[0] == 0x02) {
+		/* Data block offset in CEA extension block */
+		*start = 4;
+		*end = cea[2];
+		if (*end == 0)
+			*end = 127;
+		if (*end < 4 || *end > 127)
+			return -ERANGE;
+	} else {
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 static u8 *find_edid_extension(const struct edid *edid,
 			       int ext_id, int *ext_index)
 {
@@ -382,6 +456,156 @@ int rockchip_drm_get_yuv422_format(struct drm_connector *connector,
 	return 0;
 }
 EXPORT_SYMBOL(rockchip_drm_get_yuv422_format);
+
+static
+void get_max_frl_rate(int max_frl_rate, u8 *max_lanes, u8 *max_rate_per_lane)
+{
+	switch (max_frl_rate) {
+	case 1:
+		*max_lanes = 3;
+		*max_rate_per_lane = 3;
+		break;
+	case 2:
+		*max_lanes = 3;
+		*max_rate_per_lane = 6;
+		break;
+	case 3:
+		*max_lanes = 4;
+		*max_rate_per_lane = 6;
+		break;
+	case 4:
+		*max_lanes = 4;
+		*max_rate_per_lane = 8;
+		break;
+	case 5:
+		*max_lanes = 4;
+		*max_rate_per_lane = 10;
+		break;
+	case 6:
+		*max_lanes = 4;
+		*max_rate_per_lane = 12;
+		break;
+	case 0:
+	default:
+		*max_lanes = 0;
+		*max_rate_per_lane = 0;
+	}
+}
+
+#define EDID_DSC_10BPC			(1 << 0)
+#define EDID_DSC_12BPC			(1 << 1)
+#define EDID_DSC_16BPC			(1 << 2)
+#define EDID_DSC_ALL_BPP		(1 << 3)
+#define EDID_DSC_NATIVE_420		(1 << 6)
+#define EDID_DSC_1P2			(1 << 7)
+#define EDID_DSC_MAX_FRL_RATE_MASK	0xf0
+#define EDID_DSC_MAX_SLICES		0xf
+#define EDID_DSC_TOTAL_CHUNK_KBYTES	0x3f
+#define EDID_MAX_FRL_RATE_MASK		0xf0
+
+static
+void parse_edid_forum_vsdb(struct rockchip_drm_dsc_cap *dsc_cap,
+			   u8 *max_frl_rate_per_lane, u8 *max_lanes,
+			   const u8 *hf_vsdb)
+{
+	u8 max_frl_rate;
+	u8 dsc_max_frl_rate;
+	u8 dsc_max_slices;
+
+	if (!hf_vsdb[7])
+		return;
+
+	DRM_DEBUG_KMS("hdmi_21 sink detected. parsing edid\n");
+	max_frl_rate = (hf_vsdb[7] & EDID_MAX_FRL_RATE_MASK) >> 4;
+	get_max_frl_rate(max_frl_rate, max_lanes,
+			 max_frl_rate_per_lane);
+	dsc_cap->v_1p2 = hf_vsdb[11] & EDID_DSC_1P2;
+
+	if (!dsc_cap->v_1p2)
+		return;
+
+	dsc_cap->native_420 = hf_vsdb[11] & EDID_DSC_NATIVE_420;
+	dsc_cap->all_bpp = hf_vsdb[11] & EDID_DSC_ALL_BPP;
+
+	if (hf_vsdb[11] & EDID_DSC_16BPC)
+		dsc_cap->bpc_supported = 16;
+	else if (hf_vsdb[11] & EDID_DSC_12BPC)
+		dsc_cap->bpc_supported = 12;
+	else if (hf_vsdb[11] & EDID_DSC_10BPC)
+		dsc_cap->bpc_supported = 10;
+	else
+		dsc_cap->bpc_supported = 0;
+
+	dsc_max_frl_rate = (hf_vsdb[12] & EDID_DSC_MAX_FRL_RATE_MASK) >> 4;
+	get_max_frl_rate(dsc_max_frl_rate, &dsc_cap->max_lanes,
+			 &dsc_cap->max_frl_rate_per_lane);
+	dsc_cap->total_chunk_kbytes = hf_vsdb[13] & EDID_DSC_TOTAL_CHUNK_KBYTES;
+
+	dsc_max_slices = hf_vsdb[12] & EDID_DSC_MAX_SLICES;
+	switch (dsc_max_slices) {
+	case 1:
+		dsc_cap->max_slices = 1;
+		dsc_cap->clk_per_slice = 340;
+		break;
+	case 2:
+		dsc_cap->max_slices = 2;
+		dsc_cap->clk_per_slice = 340;
+		break;
+	case 3:
+		dsc_cap->max_slices = 4;
+		dsc_cap->clk_per_slice = 340;
+		break;
+	case 4:
+		dsc_cap->max_slices = 8;
+		dsc_cap->clk_per_slice = 340;
+		break;
+	case 5:
+		dsc_cap->max_slices = 8;
+		dsc_cap->clk_per_slice = 400;
+		break;
+	case 6:
+		dsc_cap->max_slices = 12;
+		dsc_cap->clk_per_slice = 400;
+		break;
+	case 7:
+		dsc_cap->max_slices = 16;
+		dsc_cap->clk_per_slice = 400;
+		break;
+	case 0:
+	default:
+		dsc_cap->max_slices = 0;
+		dsc_cap->clk_per_slice = 0;
+	}
+}
+
+int rockchip_drm_parse_cea_ext(struct rockchip_drm_dsc_cap *dsc_cap,
+			       u8 *max_frl_rate_per_lane, u8 *max_lanes,
+			       const struct edid *edid)
+{
+	const u8 *edid_ext;
+	int i, start, end;
+
+	if (!dsc_cap || !max_frl_rate_per_lane || !max_lanes || !edid)
+		return -EINVAL;
+
+	edid_ext = find_cea_extension(edid);
+	if (!edid_ext)
+		return -EINVAL;
+
+	if (cea_db_offsets(edid_ext, &start, &end))
+		return -EINVAL;
+
+	for_each_cea_db(edid_ext, i, start, end) {
+		const u8 *db = &edid_ext[i];
+
+		if (cea_db_is_hdmi_forum_vsdb(db))
+			parse_edid_forum_vsdb(dsc_cap, max_frl_rate_per_lane,
+					      max_lanes, db);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(rockchip_drm_parse_cea_ext);
 
 /*
  * Attach a (component) device to the shared drm dma mapping from master drm
