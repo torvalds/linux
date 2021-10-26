@@ -59,8 +59,18 @@ static int read_reg_otp(struct i2c_client *client, u16 reg,
 static u8 get_vendor_flag(struct i2c_client *client)
 {
 	u8 vendor_flag = 0;
+	u8 vendor[9];
+	int i = 0;
+	u32 temp = 0;
 
-	if (client->addr == SLAVE_ADDRESS)
+	for (i = 0; i < 8; i++) {
+		read_reg_otp(client, INFO_FLAG_REG, 1, &temp);
+		vendor[i] = (u8)temp;
+	}
+	vendor[i] = '\n';
+	if (strcmp(vendor, "ROCKCHIP") == 0)
+		vendor_flag |= 0x40;
+	else
 		vendor_flag |= 0x80;
 	return vendor_flag;
 }
@@ -235,6 +245,478 @@ err:
 	return -EINVAL;
 }
 
+static void rkotp_read_module_info(struct eeprom_device *eeprom_dev,
+				  struct otp_info *otp_ptr,
+				  u32 base_addr)
+{
+	struct i2c_client *client = eeprom_dev->client;
+	struct device *dev = &eeprom_dev->client->dev;
+	int i = 0;
+	u32 temp = 0;
+	u32 checksum = 0;
+	int ret = 0;
+
+	ret |= read_reg_otp(client, base_addr,
+		4, &otp_ptr->basic_data.module_size);
+	checksum += otp_ptr->basic_data.module_size;
+	base_addr += 4;
+	ret |= read_reg_otp(client, base_addr,
+		2, &otp_ptr->basic_data.version);
+	checksum += otp_ptr->basic_data.version;
+	base_addr += 2;
+	ret |= read_reg_otp(client, base_addr,
+		1, &otp_ptr->basic_data.id.supplier_id);
+	checksum += otp_ptr->basic_data.id.supplier_id;
+	base_addr += 1;
+	ret |= read_reg_otp(client, base_addr,
+		1, &otp_ptr->basic_data.id.year);
+	checksum += otp_ptr->basic_data.id.year;
+	base_addr += 1;
+	ret |= read_reg_otp(client, base_addr,
+		1, &otp_ptr->basic_data.id.month);
+	checksum += otp_ptr->basic_data.id.month;
+	base_addr += 1;
+	ret |= read_reg_otp(client, base_addr,
+		1, &otp_ptr->basic_data.id.day);
+	checksum += otp_ptr->basic_data.id.day;
+	base_addr += 1;
+	ret |= read_reg_otp(client, base_addr,
+		1, &otp_ptr->basic_data.id.sensor_id);
+	checksum += otp_ptr->basic_data.id.sensor_id;
+	base_addr += 1;
+	ret |= read_reg_otp(client, base_addr,
+		1, &otp_ptr->basic_data.id.lens_id);
+	checksum += otp_ptr->basic_data.id.lens_id;
+	base_addr += 1;
+	ret |= read_reg_otp(client, base_addr,
+		1, &otp_ptr->basic_data.id.vcm_id);
+	checksum += otp_ptr->basic_data.id.vcm_id;
+	base_addr += 1;
+	ret |= read_reg_otp(client, base_addr,
+		1, &otp_ptr->basic_data.id.driver_ic_id);
+	checksum += otp_ptr->basic_data.id.driver_ic_id;
+	base_addr += 1;
+	for (i = 0; i < RKMOUDLE_ID_SIZE; i++) {
+		ret |= read_reg_otp(client, base_addr,
+			1, &temp);
+		otp_ptr->basic_data.modul_id[i] = temp;
+		checksum += temp;
+		base_addr += 1;
+	}
+	ret |= read_reg_otp(client, base_addr,
+		1, &otp_ptr->basic_data.mirror_flip);
+	checksum += otp_ptr->basic_data.mirror_flip;
+	base_addr += 1;
+	ret |= read_reg_otp(client, base_addr,
+		2, &temp);
+	checksum += temp;
+	otp_ptr->basic_data.size.width = temp;
+	base_addr += 2;
+	ret |= read_reg_otp(client, base_addr,
+		2, &temp);
+	checksum += temp;
+	otp_ptr->basic_data.size.height = temp;
+	base_addr += 2;
+	for (i = 0; i < RK_INFO_RESERVED_SIZE; i++) {
+		ret |= read_reg_otp(client, base_addr,
+			1, &temp);
+		checksum += temp;
+		base_addr += 1;
+	}
+	ret |= read_reg_otp(client, base_addr,
+		1, &otp_ptr->basic_data.checksum);
+	if ((checksum % 255 + 1) == otp_ptr->basic_data.checksum && (!ret)) {
+		otp_ptr->basic_data.flag = 0x01;
+		otp_ptr->flag++;
+		dev_info(dev, "fasic info: supplier_id(0x%x) lens(0x%x) time(%d_%d_%d) module id %x\n",
+			 otp_ptr->basic_data.id.supplier_id,
+			 otp_ptr->basic_data.id.lens_id,
+			 otp_ptr->basic_data.id.year,
+			 otp_ptr->basic_data.id.month,
+			 otp_ptr->basic_data.id.day,
+			 (u32)(*otp_ptr->basic_data.modul_id));
+	} else {
+		otp_ptr->basic_data.flag = 0;
+		dev_info(dev, "fasic info: checksum err, checksum %d, reg_checksum %d\n",
+			 (int)(checksum % 255 + 1),
+			 (int)otp_ptr->basic_data.checksum);
+		dev_info(dev, "fasic info: supplier_id(0x%x) lens(0x%x) time(%d_%d_%d)\n",
+			 otp_ptr->basic_data.id.supplier_id,
+			 otp_ptr->basic_data.id.lens_id,
+			 otp_ptr->basic_data.id.year,
+			 otp_ptr->basic_data.id.month,
+			 otp_ptr->basic_data.id.day);
+		dev_info(dev, "fasic info: full size, width(%d) height(%d) flip(0x%x)\n",
+			 otp_ptr->basic_data.size.width,
+			 otp_ptr->basic_data.size.height,
+			 otp_ptr->basic_data.mirror_flip);
+	}
+}
+
+static void rkotp_read_awb(struct eeprom_device *eeprom_dev,
+				  struct otp_info *otp_ptr,
+				  u32 base_addr)
+{
+	struct i2c_client *client = eeprom_dev->client;
+	struct device *dev = &eeprom_dev->client->dev;
+	u32 checksum = 0;
+	u32 temp = 0;
+	int i = 0;
+	int ret = 0;
+
+	ret = read_reg_otp(client, base_addr,
+		4, &otp_ptr->awb_data.size);
+	checksum += otp_ptr->awb_data.size;
+	base_addr += 4;
+	ret |= read_reg_otp(client, base_addr,
+		2, &otp_ptr->awb_data.version);
+	checksum += otp_ptr->awb_data.version;
+	base_addr += 2;
+	ret |= read_reg_otp(client, base_addr,
+		2, &otp_ptr->awb_data.r_ratio);
+	checksum += otp_ptr->awb_data.r_ratio;
+	base_addr += 2;
+	ret |= read_reg_otp(client, base_addr,
+		2, &otp_ptr->awb_data.b_ratio);
+	checksum += otp_ptr->awb_data.b_ratio;
+	base_addr += 2;
+	ret |= read_reg_otp(client, base_addr,
+		2, &otp_ptr->awb_data.g_ratio);
+	checksum += otp_ptr->awb_data.g_ratio;
+	base_addr += 2;
+	ret |= read_reg_otp(client, base_addr,
+		2, &otp_ptr->awb_data.r_golden);
+	checksum += otp_ptr->awb_data.r_golden;
+	base_addr += 2;
+	ret |= read_reg_otp(client, base_addr,
+		2, &otp_ptr->awb_data.b_golden);
+	checksum += otp_ptr->awb_data.b_golden;
+	base_addr += 2;
+	ret |= read_reg_otp(client, base_addr,
+		2, &otp_ptr->awb_data.g_golden);
+	checksum += otp_ptr->awb_data.g_golden;
+	base_addr += 2;
+	for (i = 0; i < RK_AWB_RESERVED_SIZE; i++) {
+		ret |= read_reg_otp(client, base_addr,
+			1, &temp);
+		checksum += temp;
+		base_addr += 1;
+	}
+	ret |= read_reg_otp(client, base_addr,
+		1, &otp_ptr->awb_data.checksum);
+
+	if ((checksum % 255 + 1) == otp_ptr->awb_data.checksum && (!ret)) {
+		otp_ptr->awb_data.flag = 0x01;
+		otp_ptr->flag++;
+		dev_info(dev, "awb version:0x%x\n",
+			otp_ptr->awb_data.version);
+		dev_info(dev, "awb cur:(r 0x%x, b 0x%x, g 0x%x)\n",
+			otp_ptr->awb_data.r_ratio,
+			otp_ptr->awb_data.b_ratio,
+			otp_ptr->awb_data.g_ratio);
+		dev_info(dev, "awb gol:(r 0x%x, b 0x%x, g 0x%x),\n",
+			otp_ptr->awb_data.r_golden,
+			otp_ptr->awb_data.b_golden,
+			otp_ptr->awb_data.g_golden);
+	} else {
+		otp_ptr->awb_data.flag = 0;
+		dev_info(dev, "awb info: checksum err, checksum %d, reg_checksum %d\n",
+			(int) (checksum % 255 + 1),
+			(int) otp_ptr->awb_data.checksum);
+	}
+}
+
+static void rkotp_read_lsc(struct eeprom_device *eeprom_dev,
+				  struct otp_info *otp_ptr,
+				  u32 base_addr)
+{
+	struct i2c_client *client = eeprom_dev->client;
+	struct device *dev = &eeprom_dev->client->dev;
+	u32 checksum = 0;
+	u32 temp = 0;
+	int i = 0;
+	int ret = 0;
+#ifdef DEBUG
+	int w, h, j;
+#endif
+
+	ret = read_reg_otp(client, base_addr,
+		4, &otp_ptr->lsc_data.size);
+	checksum += otp_ptr->lsc_data.size;
+	base_addr += 4;
+	ret |= read_reg_otp(client, base_addr,
+		2, &otp_ptr->lsc_data.version);
+	checksum += otp_ptr->lsc_data.version;
+	base_addr += 2;
+	for (i = 0; i < LSC_DATA_SIZE; i++) {
+		ret |= read_reg_otp(client, base_addr,
+			1, &temp);
+		otp_ptr->lsc_data.data[i] = temp;
+		checksum += temp;
+		base_addr += 1;
+	}
+	otp_ptr->lsc_data.table_size = 17 * 17;
+#ifdef DEBUG
+	w = 17 * 2;
+	h = 17 * 4;
+	dev_info(dev, "show lsc table\n");
+	for (i = 0; i < h; i++) {
+		for (j = 0; j < w; j++)
+			dev_info(dev, "%d ", otp_ptr->lsc_data.data[i * w + j]);
+		if (i < h)
+			dev_info(dev, "\n");
+	}
+#endif
+	for (i = 0; i < RK_LSC_RESERVED_SIZE; i++) {
+		ret |= read_reg_otp(client, base_addr,
+			1, &temp);
+		checksum += temp;
+		base_addr += 1;
+	}
+	ret |= read_reg_otp(client, base_addr,
+		1, &otp_ptr->lsc_data.checksum);
+	if ((checksum % 255 + 1) == otp_ptr->lsc_data.checksum && (!ret)) {
+		otp_ptr->lsc_data.flag = 0x01;
+		otp_ptr->flag++;
+		dev_info(dev, "lsc info:(version 0x%x, checksum 0x%x)\n",
+			 otp_ptr->lsc_data.version,
+			 (int)otp_ptr->lsc_data.checksum);
+	} else {
+		otp_ptr->lsc_data.flag = 0x00;
+		dev_info(dev, "lsc info: checksum err, checksum %d, reg_checksum %d\n",
+			 (int)(checksum % 255 + 1),
+			 (int)otp_ptr->lsc_data.checksum);
+	}
+}
+
+static void rkotp_read_pdaf(struct eeprom_device *eeprom_dev,
+				  struct otp_info *otp_ptr,
+				  u32 base_addr)
+{
+	struct i2c_client *client = eeprom_dev->client;
+	struct device *dev = &eeprom_dev->client->dev;
+	u32 checksum = 0;
+	u32 temp = 0;
+	int i = 0;
+	int ret = 0;
+#ifdef DEBUG
+	int w, h, j;
+#endif
+
+	ret = read_reg_otp(client, base_addr,
+		4, &otp_ptr->pdaf_data.size);
+	checksum += otp_ptr->pdaf_data.size;
+	base_addr += 4;
+	ret |= read_reg_otp(client, base_addr,
+		2, &otp_ptr->pdaf_data.version);
+	checksum += otp_ptr->pdaf_data.version;
+	base_addr += 2;
+	ret |= read_reg_otp(client, base_addr,
+		1, &otp_ptr->pdaf_data.gainmap_width);
+	checksum += otp_ptr->pdaf_data.gainmap_width;
+	base_addr += 1;
+	ret |= read_reg_otp(client, base_addr,
+		1, &otp_ptr->pdaf_data.gainmap_height);
+	checksum += otp_ptr->pdaf_data.gainmap_height;
+	base_addr += 1;
+	for (i = 0; i < RK_GAINMAP_SIZE; i++) {
+		ret |= read_reg_otp(client, base_addr,
+			1, &otp_ptr->pdaf_data.gainmap[i]);
+		checksum += otp_ptr->pdaf_data.gainmap[i];
+		base_addr += 1;
+	}
+#ifdef DEBUG
+	w = 64;
+	h = 32;
+	dev_info(dev, "show pdaf gainmap table\n");
+	for (i = 0; i < h; i++) {
+		for (j = 0; j < w; j++)
+			dev_info(dev, "%d ", otp_ptr->pdaf_data.gainmap[i * w + j]);
+		if (i < h)
+			dev_info(dev, "\n");
+	}
+#endif
+	ret |= read_reg_otp(client, base_addr,
+		1, &otp_ptr->pdaf_data.gainmap_checksum);
+	checksum += otp_ptr->pdaf_data.gainmap_checksum;
+	base_addr += 1;
+	ret |= read_reg_otp(client, base_addr,
+		1, &otp_ptr->pdaf_data.dcc_mode);
+	checksum += otp_ptr->pdaf_data.dcc_mode;
+	base_addr += 1;
+	ret |= read_reg_otp(client, base_addr,
+		1, &otp_ptr->pdaf_data.dcc_dir);
+	checksum += otp_ptr->pdaf_data.dcc_dir;
+	base_addr += 1;
+	ret |= read_reg_otp(client, base_addr,
+		1, &otp_ptr->pdaf_data.dccmap_width);
+	checksum += otp_ptr->pdaf_data.dccmap_width;
+	base_addr += 1;
+	ret |= read_reg_otp(client, base_addr,
+		1, &otp_ptr->pdaf_data.dccmap_height);
+	checksum += otp_ptr->pdaf_data.dccmap_height;
+	base_addr += 1;
+	for (i = 0; i < RK_DCCMAP_SIZE; i++) {
+		ret |= read_reg_otp(client, base_addr,
+			1, &otp_ptr->pdaf_data.dccmap[i]);
+		checksum += otp_ptr->pdaf_data.dccmap[i];
+		base_addr += 1;
+	}
+#ifdef DEBUG
+	w = 32;
+	h = 16;
+	dev_info(dev, "show pdaf dccmap table\n");
+	for (i = 0; i < h; i++) {
+		for (j = 0; j < w; j++)
+			dev_info(dev, "%d ", otp_ptr->pdaf_data.dccmap[i * w + j]);
+		if (i < h)
+			dev_info(dev, "\n");
+	}
+#endif
+	ret |= read_reg_otp(client, base_addr,
+		1, &otp_ptr->pdaf_data.dccmap_checksum);
+	checksum += otp_ptr->pdaf_data.dccmap_checksum;
+	base_addr += 1;
+	for (i = 0; i < RK_PDAF_RESERVED_SIZE; i++) {
+		ret |= read_reg_otp(client, base_addr,
+			1, &temp);
+		checksum += temp;
+		base_addr += 1;
+	}
+	ret |= read_reg_otp(client, base_addr,
+		1, &otp_ptr->pdaf_data.checksum);
+	if ((checksum % 255 + 1) == otp_ptr->pdaf_data.checksum && (!ret)) {
+		otp_ptr->pdaf_data.flag = 0x01;
+		otp_ptr->flag++;
+		dev_info(dev, "pdaf info:(version 0x%x, checksum 0x%x)\n",
+			 otp_ptr->pdaf_data.version,
+			 (int)otp_ptr->pdaf_data.checksum);
+	} else {
+		otp_ptr->pdaf_data.flag = 0x00;
+		dev_info(dev, "pdaf info: checksum err, checksum %d, reg_checksum %d\n",
+			 (int)(checksum % 255 + 1),
+			 (int)otp_ptr->pdaf_data.checksum);
+	}
+}
+
+static void rkotp_read_af(struct eeprom_device *eeprom_dev,
+				  struct otp_info *otp_ptr,
+				  u32 base_addr)
+{
+	struct i2c_client *client = eeprom_dev->client;
+	struct device *dev = &eeprom_dev->client->dev;
+	u32 checksum = 0;
+	u32 temp = 0;
+	int i = 0;
+	int ret = 0;
+
+	ret = read_reg_otp(client, base_addr,
+		4, &otp_ptr->af_data.size);
+	checksum += otp_ptr->af_data.size;
+	base_addr += 4;
+	ret |= read_reg_otp(client, base_addr,
+		2, &otp_ptr->af_data.version);
+	checksum += otp_ptr->af_data.version;
+	base_addr += 2;
+	ret |= read_reg_otp(client, base_addr,
+		2, &otp_ptr->af_data.af_inf);
+	checksum += otp_ptr->af_data.af_inf;
+	base_addr += 2;
+	ret |= read_reg_otp(client, base_addr,
+		2, &otp_ptr->af_data.af_macro);
+	checksum += otp_ptr->af_data.af_macro;
+	base_addr += 2;
+	for (i = 0; i < RK_AF_RESERVED_SIZE; i++) {
+		ret |= read_reg_otp(client, base_addr,
+			1, &temp);
+		checksum += temp;
+		base_addr += 1;
+	}
+
+	ret |= read_reg_otp(client, base_addr,
+		1, &otp_ptr->af_data.checksum);
+	if ((checksum % 255 + 1) == otp_ptr->af_data.checksum && (!ret)) {
+		otp_ptr->af_data.flag = 0x01;
+		otp_ptr->flag++;
+		dev_info(dev, "af info:(version 0x%x, checksum 0x%x)\n",
+			 otp_ptr->af_data.version,
+			 (int)otp_ptr->af_data.checksum);
+	} else {
+		otp_ptr->af_data.flag = 0x00;
+		dev_info(dev, "af info: checksum err, checksum %d, reg_checksum %d\n",
+			 (int)(checksum % 255 + 1),
+			 (int)otp_ptr->af_data.checksum);
+	}
+
+}
+
+static int rkotp_read_data(struct eeprom_device *eeprom_dev)
+{
+	struct i2c_client *client = eeprom_dev->client;
+	struct otp_info *otp_ptr;
+	struct device *dev = &eeprom_dev->client->dev;
+	u32 id = 0;
+	u32 base_addr = 0;
+	int i = 0;
+	int ret = 0;
+
+	otp_ptr = kzalloc(sizeof(*otp_ptr), GFP_KERNEL);
+	if (!otp_ptr)
+		return -ENOMEM;
+	base_addr = RKOTP_REG_START;
+	otp_ptr->flag = 0;
+	for (i = 0; i < RKOTP_MAX_MODULE; i++) {
+		ret = read_reg_otp(client, base_addr,
+			1, &id);
+		dev_info(dev, "show block id %d, addr 0x%x\n", id, base_addr);
+		switch (id) {
+		case RKOTP_INFO_ID:
+			rkotp_read_module_info(eeprom_dev,
+				otp_ptr,
+				base_addr + 1);
+			base_addr += 0x28;//v1 0x30 v2 0x28;
+			break;
+		case RKOTP_AWB_ID:
+			rkotp_read_awb(eeprom_dev,
+				otp_ptr,
+				base_addr + 1);
+			base_addr += 0x30;
+			break;
+		case RKOTP_LSC_ID:
+			rkotp_read_lsc(eeprom_dev,
+				otp_ptr,
+				base_addr + 1);
+			base_addr += 0x930;
+			break;
+		case RKOTP_PDAF_ID:
+			rkotp_read_pdaf(eeprom_dev,
+				otp_ptr,
+				base_addr + 1);
+			base_addr += 0xA30;
+			break;
+		case RKOTP_AF_ID:
+			rkotp_read_af(eeprom_dev,
+				otp_ptr,
+				base_addr + 1);
+			base_addr += 0x20;
+			break;
+		default:
+			id = -1;
+			break;
+		}
+		if (id == -1)
+			break;
+	}
+	if (otp_ptr->flag) {
+		eeprom_dev->otp = otp_ptr;
+		dev_info(dev, "get otp successful\n");
+	} else {
+		eeprom_dev->otp = NULL;
+		kfree(otp_ptr);
+	}
+	return 0;
+}
+
 static int otp_read(struct eeprom_device *eeprom_dev)
 {
 	u8 vendor_flag = 0;
@@ -243,6 +725,8 @@ static int otp_read(struct eeprom_device *eeprom_dev)
 	vendor_flag = get_vendor_flag(client);
 	if (vendor_flag == 0x80)
 		otp_read_data(eeprom_dev);
+	else if (vendor_flag == 0x40)
+		rkotp_read_data(eeprom_dev);
 	return 0;
 }
 
@@ -265,82 +749,135 @@ static int otp_eeprom_show(struct seq_file *p, void *v)
 	struct eeprom_device *dev = p->private;
 	int i = 0;
 	int j = 0;
+	u32 gainmap_w, gainmap_h;
+	u32 dccmap_w, dccmap_h;
 
 	if (dev) {
 		seq_puts(p, "[Header]\n");
 		seq_puts(p, "version=1.0;\n\n");
 
-		seq_puts(p, "[RKAWBOTPParam]\n");
-		seq_printf(p, "flag=%d;\n", dev->otp->awb_data.flag);
-		seq_printf(p, "r_value=%d;\n", dev->otp->awb_data.r_ratio);
-		seq_printf(p, "b_value=%d;\n", dev->otp->awb_data.b_ratio);
-		seq_printf(p, "gr_value=%d;\n", dev->otp->awb_data.g_ratio);
-		seq_puts(p, "gb_value=-1;\n");
-		seq_printf(p, "golden_r_value=%d;\n", dev->otp->awb_data.r_golden);
-		seq_printf(p, "golden_b_value=%d;\n", dev->otp->awb_data.b_golden);
-		seq_printf(p, "golden_gr_value=%d;\n", dev->otp->awb_data.g_golden);
-		seq_puts(p, "golden_gb_value=-1;\n\n");
+		if (dev->otp->awb_data.flag) {
+			seq_puts(p, "[RKAWBOTPParam]\n");
+			seq_printf(p, "flag=%d;\n", dev->otp->awb_data.flag);
+			seq_printf(p, "r_value=%d;\n", dev->otp->awb_data.r_ratio);
+			seq_printf(p, "b_value=%d;\n", dev->otp->awb_data.b_ratio);
+			seq_printf(p, "gr_value=%d;\n", dev->otp->awb_data.g_ratio);
+			seq_puts(p, "gb_value=-1;\n");
+			seq_printf(p, "golden_r_value=%d;\n", dev->otp->awb_data.r_golden);
+			seq_printf(p, "golden_b_value=%d;\n", dev->otp->awb_data.b_golden);
+			seq_printf(p, "golden_gr_value=%d;\n", dev->otp->awb_data.g_golden);
+			seq_puts(p, "golden_gb_value=-1;\n\n");
 
-		seq_puts(p, "[RKLSCOTPParam]\n");
-		seq_printf(p, "flag=%d;\n", dev->otp->lsc_data.flag);
-		seq_printf(p, "width=%d;\n", dev->otp->basic_data.size.width);
-		seq_printf(p, "height=%d;\n", dev->otp->basic_data.size.height);
-		seq_printf(p, "tablesize=%d;\n\n", dev->otp->lsc_data.table_size);
+			seq_puts(p, "[RKLSCOTPParam]\n");
+			seq_printf(p, "flag=%d;\n", dev->otp->lsc_data.flag);
+			seq_printf(p, "width=%d;\n", dev->otp->basic_data.size.width);
+			seq_printf(p, "height=%d;\n", dev->otp->basic_data.size.height);
+			seq_printf(p, "tablesize=%d;\n\n", dev->otp->lsc_data.table_size);
 
-		seq_puts(p, "lsc_r_table=\n");
-		for (i = 0; i < 17; i++) {
-			for (j = 0; j < 17; j++) {
-				seq_printf(p, "%d", (dev->otp->lsc_data.data[(i * 17 + j) * 2] << 8)
-					   | dev->otp->lsc_data.data[(i * 17 + j) * 2 + 1]);
-				if (j < 16)
-					seq_puts(p, " ");
+			seq_puts(p, "lsc_r_table=\n");
+			for (i = 0; i < 17; i++) {
+				for (j = 0; j < 17; j++) {
+					seq_printf(p, "%d", (dev->otp->lsc_data.data[(i * 17 + j) * 2] << 8)
+						| dev->otp->lsc_data.data[(i * 17 + j) * 2 + 1]);
+					if (j < 16)
+						seq_puts(p, " ");
+				}
+				if (i < 16)
+					seq_puts(p, "\n");
 			}
-			if (i < 16)
-				seq_puts(p, "\n");
+			seq_puts(p, "\n\n");
 		}
-		seq_puts(p, "\n\n");
 
-		seq_puts(p, "lsc_b_table=\n");
-		for (i = 0; i < 17; i++) {
-			for (j = 0; j < 17; j++) {
-				seq_printf(p, "%d", (dev->otp->lsc_data.data[(i * 17 + j) * 2 +
-					   1734] << 8) | dev->otp->lsc_data.data[(i * 17 + j) *
-					   2 + 1735]);
-				if (j < 16)
-					seq_puts(p, " ");
+		if (dev->otp->lsc_data.flag) {
+			seq_puts(p, "lsc_b_table=\n");
+			for (i = 0; i < 17; i++) {
+				for (j = 0; j < 17; j++) {
+					seq_printf(p, "%d", (dev->otp->lsc_data.data[(i * 17 + j) * 2 +
+						1734] << 8) | dev->otp->lsc_data.data[(i * 17 + j) *
+						2 + 1735]);
+					if (j < 16)
+						seq_puts(p, " ");
+				}
+				if (i < 16)
+					seq_puts(p, "\n");
 			}
-			if (i < 16)
-				seq_puts(p, "\n");
-		}
-		seq_puts(p, "\n\n");
+			seq_puts(p, "\n\n");
 
-		seq_puts(p, "lsc_gr_table=\n");
-		for (i = 0; i < 17; i++) {
-			for (j = 0; j < 17; j++) {
-				seq_printf(p, "%d", (dev->otp->lsc_data.data[(i * 17 + j) * 2 +
-					   578] << 8) | dev->otp->lsc_data.data[(i * 17 + j) *
-					   2 + 579]);
-				if (j < 16)
-					seq_puts(p, " ");
+			seq_puts(p, "lsc_gr_table=\n");
+			for (i = 0; i < 17; i++) {
+				for (j = 0; j < 17; j++) {
+					seq_printf(p, "%d", (dev->otp->lsc_data.data[(i * 17 + j) * 2 +
+						578] << 8) | dev->otp->lsc_data.data[(i * 17 + j) *
+						2 + 579]);
+					if (j < 16)
+						seq_puts(p, " ");
+				}
+				if (i < 16)
+					seq_puts(p, "\n");
 			}
-			if (i < 16)
-				seq_puts(p, "\n");
-		}
-		seq_puts(p, "\n\n");
+			seq_puts(p, "\n\n");
 
-		seq_puts(p, "lsc_gb_table=\n");
-		for (i = 0; i < 17; i++) {
-			for (j = 0; j < 17; j++) {
-				seq_printf(p, "%d", (dev->otp->lsc_data.data[(i * 17 + j) * 2 +
-					   1156] << 8) | dev->otp->lsc_data.data[(i * 17 + j) *
-					   2 + 1157]);
-				if (j < 16)
-					seq_puts(p, " ");
+			seq_puts(p, "lsc_gb_table=\n");
+			for (i = 0; i < 17; i++) {
+				for (j = 0; j < 17; j++) {
+					seq_printf(p, "%d", (dev->otp->lsc_data.data[(i * 17 + j) * 2 +
+						1156] << 8) | dev->otp->lsc_data.data[(i * 17 + j) *
+						2 + 1157]);
+					if (j < 16)
+						seq_puts(p, " ");
+				}
+				if (i < 16)
+					seq_puts(p, "\n");
 			}
-			if (i < 16)
-				seq_puts(p, "\n");
+			seq_puts(p, "\n\n");
 		}
-		seq_puts(p, "\n\n");
+		if (dev->otp->pdaf_data.flag) {
+			gainmap_w = dev->otp->pdaf_data.gainmap_width;
+			gainmap_h = dev->otp->pdaf_data.gainmap_height;
+			dccmap_w = dev->otp->pdaf_data.dccmap_width;
+			dccmap_h = dev->otp->pdaf_data.dccmap_height;
+			seq_printf(p, "[RKPDAFOTPParam]\n");
+			seq_printf(p, "flag=%d;\n", dev->otp->pdaf_data.flag);
+			seq_printf(p, "gainmap_width=%d;\n", gainmap_w);
+			seq_printf(p, "gainmap_height=%d;\n", gainmap_h);
+
+			seq_printf(p, "gainmap_table=\n");
+			for (i = 0; i < gainmap_h; i++) {
+				for (j = 0; j < gainmap_w; j++) {
+					seq_printf(p, "%d",
+						   (dev->otp->pdaf_data.gainmap[(i * gainmap_w + j) * 2 + 1] << 8) |
+						   dev->otp->pdaf_data.gainmap[(i * gainmap_w + j) * 2]);
+					if (j < gainmap_w)
+						seq_printf(p, " ");
+				}
+				if (i < gainmap_h)
+					seq_printf(p, "\n");
+			}
+			seq_printf(p, "\n");
+			seq_printf(p, "dcc_mode=%d\n", dev->otp->pdaf_data.dcc_mode);
+			seq_printf(p, "dcc_dir=%d\n", dev->otp->pdaf_data.dcc_dir);
+			seq_printf(p, "dccmap_width=%d\n", dev->otp->pdaf_data.dccmap_width);
+			seq_printf(p, "dccmap_height=%d\n", dev->otp->pdaf_data.dccmap_height);
+			for (i = 0; i < dccmap_h; i++) {
+				for (j = 0; j < dccmap_w; j++) {
+					seq_printf(p, "%d",
+						   (dev->otp->pdaf_data.dccmap[(i * dccmap_w + j) * 2 + 1] << 8) |
+						   dev->otp->pdaf_data.dccmap[(i * dccmap_w + j) * 2]);
+					if (j < dccmap_w)
+						seq_printf(p, " ");
+				}
+				if (i < dccmap_h)
+					seq_printf(p, "\n");
+			}
+			seq_printf(p, "\n");
+		}
+
+		if (dev->otp->af_data.flag) {
+			seq_printf(p, "[RKAFOTPParam]\n");
+			seq_printf(p, "flag=%d;\n", dev->otp->af_data.flag);
+			seq_printf(p, "af_inf=%d;\n", dev->otp->af_data.af_inf);
+			seq_printf(p, "af_macro=%d;\n", dev->otp->af_data.af_macro);
+		}
 	}
 	return 0;
 }
