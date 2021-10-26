@@ -177,7 +177,6 @@ static struct ffa_drv_info *drv_info;
  */
 static u32 ffa_compatible_version_find(u32 version)
 {
-	u32 compat_version;
 	u16 major = MAJOR_VERSION(version), minor = MINOR_VERSION(version);
 	u16 drv_major = MAJOR_VERSION(FFA_DRIVER_VERSION);
 	u16 drv_minor = MINOR_VERSION(FFA_DRIVER_VERSION);
