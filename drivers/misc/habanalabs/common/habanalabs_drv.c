@@ -345,6 +345,9 @@ int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 
 	set_driver_behavior_per_device(hdev);
 
+	hdev->fw_poll_interval_usec = hdev->pldm ? HL_FW_STATUS_PLDM_POLL_INTERVAL_USEC :
+							HL_FW_STATUS_POLL_INTERVAL_USEC;
+
 	hdev->curr_reset_cause = HL_RESET_CAUSE_UNKNOWN;
 	hdev->prev_reset_trigger = HL_RESET_TRIGGER_DEFAULT;
 

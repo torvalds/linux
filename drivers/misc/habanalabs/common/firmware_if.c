@@ -15,8 +15,6 @@
 
 #define FW_FILE_MAX_SIZE		0x1400000 /* maximum size of 20MB */
 
-#define FW_CPU_STATUS_POLL_INTERVAL_USEC	10000
-
 static char *extract_fw_ver_from_str(const char *fw_str)
 {
 	char *str, *fw_ver, *whitespace;
@@ -1102,7 +1100,7 @@ static int hl_fw_read_preboot_caps(struct hl_device *hdev,
 		(status == CPU_BOOT_STATUS_NIC_FW_RDY) ||
 		(status == CPU_BOOT_STATUS_READY_TO_BOOT) ||
 		(status == CPU_BOOT_STATUS_WAITING_FOR_BOOT_FIT),
-		FW_CPU_STATUS_POLL_INTERVAL_USEC,
+		hdev->fw_poll_interval_usec,
 		timeout);
 
 	if (rc) {
@@ -1286,11 +1284,7 @@ int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
 {
 	int rc;
 
-	/* pldm was added for cases in which we use preboot on pldm and want
-	 * to load boot fit, but we can't wait for preboot because it runs
-	 * very slowly
-	 */
-	if (!(hdev->fw_components & FW_TYPE_PREBOOT_CPU) || hdev->pldm)
+	if (!(hdev->fw_components & FW_TYPE_PREBOOT_CPU))
 		return 0;
 
 	/*
@@ -1436,7 +1430,7 @@ static int hl_fw_dynamic_wait_for_status(struct hl_device *hdev,
 		le32_to_cpu(dyn_regs->cpu_cmd_status_to_host),
 		status,
 		FIELD_GET(COMMS_STATUS_STATUS_MASK, status) == expected_status,
-		FW_CPU_STATUS_POLL_INTERVAL_USEC,
+		hdev->fw_poll_interval_usec,
 		timeout);
 
 	if (rc) {
@@ -2070,7 +2064,7 @@ static int hl_fw_dynamic_wait_for_boot_fit_active(struct hl_device *hdev,
 		status,
 		(status == CPU_BOOT_STATUS_READY_TO_BOOT) ||
 		(status == CPU_BOOT_STATUS_SRAM_AVAIL),
-		FW_CPU_STATUS_POLL_INTERVAL_USEC,
+		hdev->fw_poll_interval_usec,
 		dyn_loader->wait_for_bl_timeout);
 	if (rc) {
 		dev_err(hdev->dev, "failed to wait for boot\n");
@@ -2097,7 +2091,7 @@ static int hl_fw_dynamic_wait_for_linux_active(struct hl_device *hdev,
 		le32_to_cpu(dyn_loader->comm_desc.cpu_dyn_regs.cpu_boot_status),
 		status,
 		(status == CPU_BOOT_STATUS_SRAM_AVAIL),
-		FW_CPU_STATUS_POLL_INTERVAL_USEC,
+		hdev->fw_poll_interval_usec,
 		fw_loader->cpu_timeout);
 	if (rc) {
 		dev_err(hdev->dev, "failed to wait for Linux\n");
@@ -2296,6 +2290,15 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 		goto protocol_err;
 	}
 
+	/*
+	 * when testing FW load (without Linux) on PLDM we don't want to
+	 * wait until boot fit is active as it may take several hours.
+	 * instead, we load the bootfit and let it do all initializations in
+	 * the background.
+	 */
+	if (hdev->pldm && !(hdev->fw_components & FW_TYPE_LINUX))
+		return 0;
+
 	rc = hl_fw_dynamic_wait_for_boot_fit_active(hdev, fw_loader);
 	if (rc)
 		goto protocol_err;
@@ -2388,7 +2391,7 @@ static int hl_fw_static_init_cpu(struct hl_device *hdev,
 		cpu_boot_status_reg,
 		status,
 		status == CPU_BOOT_STATUS_WAITING_FOR_BOOT_FIT,
-		FW_CPU_STATUS_POLL_INTERVAL_USEC,
+		hdev->fw_poll_interval_usec,
 		fw_loader->boot_fit_timeout);
 
 	if (rc) {
@@ -2411,7 +2414,7 @@ static int hl_fw_static_init_cpu(struct hl_device *hdev,
 			cpu_msg_status_reg,
 			status,
 			status == CPU_MSG_OK,
-			FW_CPU_STATUS_POLL_INTERVAL_USEC,
+			hdev->fw_poll_interval_usec,
 			fw_loader->boot_fit_timeout);
 
 		if (rc) {
@@ -2440,7 +2443,7 @@ static int hl_fw_static_init_cpu(struct hl_device *hdev,
 		(status == CPU_BOOT_STATUS_NIC_FW_RDY) ||
 		(status == CPU_BOOT_STATUS_READY_TO_BOOT) ||
 		(status == CPU_BOOT_STATUS_SRAM_AVAIL),
-		FW_CPU_STATUS_POLL_INTERVAL_USEC,
+		hdev->fw_poll_interval_usec,
 		cpu_timeout);
 
 	dev_dbg(hdev->dev, "uboot status = %d\n", status);
@@ -2489,7 +2492,7 @@ static int hl_fw_static_init_cpu(struct hl_device *hdev,
 			cpu_boot_status_reg,
 			status,
 			(status == CPU_BOOT_STATUS_BMC_WAITING_SKIPPED),
-			FW_CPU_STATUS_POLL_INTERVAL_USEC,
+			hdev->fw_poll_interval_usec,
 			cpu_timeout);
 
 		if (rc) {
@@ -2509,7 +2512,7 @@ static int hl_fw_static_init_cpu(struct hl_device *hdev,
 		cpu_boot_status_reg,
 		status,
 		(status == CPU_BOOT_STATUS_SRAM_AVAIL),
-		FW_CPU_STATUS_POLL_INTERVAL_USEC,
+		hdev->fw_poll_interval_usec,
 		cpu_timeout);
 
 	/* Clear message */

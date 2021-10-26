@@ -61,6 +61,9 @@
 #define HL_CPUCP_INFO_TIMEOUT_USEC	10000000 /* 10s */
 #define HL_CPUCP_EEPROM_TIMEOUT_USEC	10000000 /* 10s */
 
+#define HL_FW_STATUS_POLL_INTERVAL_USEC		10000 /* 10ms */
+#define HL_FW_STATUS_PLDM_POLL_INTERVAL_USEC	300000000 /* 300s */
+
 #define HL_PCI_ELBI_TIMEOUT_MSEC	10 /* 10ms */
 
 #define HL_SIM_MAX_TIMEOUT_US		10000000 /* 10s */
@@ -2459,6 +2462,7 @@ struct multi_cs_data {
  * @last_open_session_duration_jif: duration (jiffies) of the last device open
  *                                  session.
  * @open_counter: number of successful device open operations.
+ * @fw_poll_interval_usec: FW status poll interval in usec.
  * @in_reset: is device in reset flow.
  * @curr_pll_profile: current PLL profile.
  * @card_type: Various ASICs have several card types. This indicates the card
@@ -2607,6 +2611,7 @@ struct hl_device {
 	u64				last_successful_open_jif;
 	u64				last_open_session_duration_jif;
 	u64				open_counter;
+	u64				fw_poll_interval_usec;
 	atomic_t			in_reset;
 	enum hl_pll_frequency		curr_pll_profile;
 	enum cpucp_card_types		card_type;
