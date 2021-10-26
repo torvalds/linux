@@ -2034,7 +2034,7 @@ static int raw_output_format_match_input(u32 input, u32 output)
 	return -EINVAL;
 }
 
-static u32 get_pixel_depth(u32 pixelformat)
+u32 atomisp_get_pixel_depth(u32 pixelformat)
 {
 	switch (pixelformat) {
 	case V4L2_PIX_FMT_YUV420:
@@ -4816,15 +4816,6 @@ int atomisp_get_sensor_mode_data(struct atomisp_sub_device *asd,
 	return 0;
 }
 
-int atomisp_get_fmt(struct video_device *vdev, struct v4l2_format *f)
-{
-	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
-
-	f->fmt.pix = pipe->pix;
-
-	return 0;
-}
-
 static void __atomisp_update_stream_env(struct atomisp_sub_device *asd,
 					u16 stream_index, struct atomisp_input_stream_info *stream_info)
 {
@@ -4973,7 +4964,7 @@ atomisp_try_fmt_file(struct atomisp_device *isp, struct v4l2_format *f)
 		return -EINVAL;
 	}
 
-	depth = get_pixel_depth(pixelformat);
+	depth = atomisp_get_pixel_depth(pixelformat);
 
 	if (field == V4L2_FIELD_ANY) {
 		field = V4L2_FIELD_NONE;

@@ -838,15 +838,53 @@ static int atomisp_enum_fmt_cap(struct file *file, void *fh,
 static int atomisp_g_fmt_cap(struct file *file, void *fh,
 			     struct v4l2_format *f)
 {
+	struct v4l2_subdev_format fmt = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE
+	};
 	struct video_device *vdev = video_devdata(file);
 	struct atomisp_device *isp = video_get_drvdata(vdev);
-
+	struct v4l2_fmtdesc fmtdesc = { 0 };
+	struct atomisp_video_pipe *pipe;
+	struct atomisp_sub_device *asd;
+	struct v4l2_subdev *camera;
+	u32 depth;
 	int ret;
 
 	rt_mutex_lock(&isp->mutex);
-	ret = atomisp_get_fmt(vdev, f);
+	pipe = atomisp_to_video_pipe(vdev);
 	rt_mutex_unlock(&isp->mutex);
-	return ret;
+
+	f->fmt.pix = pipe->pix;
+	if (!f->fmt.pix.width) {
+		asd = atomisp_to_video_pipe(vdev)->asd;
+		if (!asd)
+		    return -EINVAL;
+
+		camera = isp->inputs[asd->input_curr].camera;
+		if(!camera)
+			return -EINVAL;
+
+		ret = atomisp_enum_fmt_cap(file, fh, &fmtdesc);
+		if (ret)
+			return ret;
+
+		rt_mutex_lock(&isp->mutex);
+		ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
+				       pad, get_fmt, NULL, &fmt);
+		rt_mutex_unlock(&isp->mutex);
+		if (ret)
+			return ret;
+
+		v4l2_fill_pix_format(&f->fmt.pix, &fmt.format);
+
+		f->fmt.pix.pixelformat = fmtdesc.pixelformat;
+	}
+
+	depth = atomisp_get_pixel_depth(f->fmt.pix.pixelformat);
+	f->fmt.pix.bytesperline = (f->fmt.pix.width * depth) >> 3;
+	f->fmt.pix.sizeimage = f->fmt.pix.height * f->fmt.pix.bytesperline;
+
+	return 0;
 }
 
 static int atomisp_g_fmt_file(struct file *file, void *fh,
