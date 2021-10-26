@@ -391,7 +391,7 @@ static int rzg2l_mod_clock_is_enabled(struct clk_hw *hw)
 
 	value = readl(priv->base + CLK_MON_R(clock->off));
 
-	return !(value & bitmask);
+	return value & bitmask;
 }
 
 static const struct clk_ops rzg2l_mod_clock_ops = {

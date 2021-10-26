@@ -1306,12 +1306,6 @@ static void override_training_settings(
 {
 	uint32_t lane;
 
-	/* Override link settings */
-	if (link->preferred_link_setting.link_rate != LINK_RATE_UNKNOWN)
-		lt_settings->link_settings.link_rate = link->preferred_link_setting.link_rate;
-	if (link->preferred_link_setting.lane_count != LANE_COUNT_UNKNOWN)
-		lt_settings->link_settings.lane_count = link->preferred_link_setting.lane_count;
-
 	/* Override link spread */
 	if (!link->dp_ss_off && overrides->downspread != NULL)
 		lt_settings->link_settings.link_spread = *overrides->downspread ?

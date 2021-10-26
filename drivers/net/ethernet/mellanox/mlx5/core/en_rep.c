@@ -618,6 +618,11 @@ static void mlx5e_build_rep_params(struct net_device *netdev)
 	params->mqprio.num_tc       = 1;
 	params->tunneled_offload_en = false;
 
+	/* Set an initial non-zero value, so that mlx5e_select_queue won't
+	 * divide by zero if called before first activating channels.
+	 */
+	priv->num_tc_x_num_ch = params->num_channels * params->mqprio.num_tc;
+
 	mlx5_query_min_inline(mdev, &params->tx_min_inline_mode);
 }
 
@@ -643,7 +648,6 @@ static void mlx5e_build_rep_netdev(struct net_device *netdev,
 	netdev->hw_features    |= NETIF_F_RXCSUM;
 
 	netdev->features |= netdev->hw_features;
-	netdev->features |= NETIF_F_VLAN_CHALLENGED;
 	netdev->features |= NETIF_F_NETNS_LOCAL;
 }
 

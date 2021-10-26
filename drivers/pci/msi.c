@@ -535,6 +535,7 @@ static int msi_verify_entries(struct pci_dev *dev)
 static int msi_capability_init(struct pci_dev *dev, int nvec,
 			       struct irq_affinity *affd)
 {
+	const struct attribute_group **groups;
 	struct msi_desc *entry;
 	int ret;
 
@@ -558,11 +559,13 @@ static int msi_capability_init(struct pci_dev *dev, int nvec,
 	if (ret)
 		goto err;
 
-	dev->msi_irq_groups = msi_populate_sysfs(&dev->dev);
-	if (IS_ERR(dev->msi_irq_groups)) {
-		ret = PTR_ERR(dev->msi_irq_groups);
+	groups = msi_populate_sysfs(&dev->dev);
+	if (IS_ERR(groups)) {
+		ret = PTR_ERR(groups);
 		goto err;
 	}
+
+	dev->msi_irq_groups = groups;
 
 	/* Set MSI enabled bits	*/
 	pci_intx_for_msi(dev, 0);
@@ -691,6 +694,7 @@ static void msix_mask_all(void __iomem *base, int tsize)
 static int msix_capability_init(struct pci_dev *dev, struct msix_entry *entries,
 				int nvec, struct irq_affinity *affd)
 {
+	const struct attribute_group **groups;
 	void __iomem *base;
 	int ret, tsize;
 	u16 control;
@@ -730,11 +734,13 @@ static int msix_capability_init(struct pci_dev *dev, struct msix_entry *entries,
 
 	msix_update_entries(dev, entries);
 
-	dev->msi_irq_groups = msi_populate_sysfs(&dev->dev);
-	if (IS_ERR(dev->msi_irq_groups)) {
-		ret = PTR_ERR(dev->msi_irq_groups);
+	groups = msi_populate_sysfs(&dev->dev);
+	if (IS_ERR(groups)) {
+		ret = PTR_ERR(groups);
 		goto out_free;
 	}
+
+	dev->msi_irq_groups = groups;
 
 	/* Set MSI-X enabled bits and unmask the function */
 	pci_intx_for_msi(dev, 0);

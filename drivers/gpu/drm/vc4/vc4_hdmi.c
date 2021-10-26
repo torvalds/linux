@@ -1395,14 +1395,6 @@ static int vc4_hdmi_audio_prepare(struct device *dev, void *data,
 	return 0;
 }
 
-static const struct snd_soc_dapm_widget vc4_hdmi_audio_widgets[] = {
-	SND_SOC_DAPM_OUTPUT("TX"),
-};
-
-static const struct snd_soc_dapm_route vc4_hdmi_audio_routes[] = {
-	{ "TX", NULL, "Playback" },
-};
-
 static const struct snd_soc_component_driver vc4_hdmi_audio_cpu_dai_comp = {
 	.name = "vc4-hdmi-cpu-dai-component",
 };

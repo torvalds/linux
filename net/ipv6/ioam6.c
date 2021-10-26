@@ -770,6 +770,66 @@ static void __ioam6_fill_trace_data(struct sk_buff *skb,
 		data += sizeof(__be32);
 	}
 
+	/* bit12 undefined: filled with empty value */
+	if (trace->type.bit12) {
+		*(__be32 *)data = cpu_to_be32(IOAM6_U32_UNAVAILABLE);
+		data += sizeof(__be32);
+	}
+
+	/* bit13 undefined: filled with empty value */
+	if (trace->type.bit13) {
+		*(__be32 *)data = cpu_to_be32(IOAM6_U32_UNAVAILABLE);
+		data += sizeof(__be32);
+	}
+
+	/* bit14 undefined: filled with empty value */
+	if (trace->type.bit14) {
+		*(__be32 *)data = cpu_to_be32(IOAM6_U32_UNAVAILABLE);
+		data += sizeof(__be32);
+	}
+
+	/* bit15 undefined: filled with empty value */
+	if (trace->type.bit15) {
+		*(__be32 *)data = cpu_to_be32(IOAM6_U32_UNAVAILABLE);
+		data += sizeof(__be32);
+	}
+
+	/* bit16 undefined: filled with empty value */
+	if (trace->type.bit16) {
+		*(__be32 *)data = cpu_to_be32(IOAM6_U32_UNAVAILABLE);
+		data += sizeof(__be32);
+	}
+
+	/* bit17 undefined: filled with empty value */
+	if (trace->type.bit17) {
+		*(__be32 *)data = cpu_to_be32(IOAM6_U32_UNAVAILABLE);
+		data += sizeof(__be32);
+	}
+
+	/* bit18 undefined: filled with empty value */
+	if (trace->type.bit18) {
+		*(__be32 *)data = cpu_to_be32(IOAM6_U32_UNAVAILABLE);
+		data += sizeof(__be32);
+	}
+
+	/* bit19 undefined: filled with empty value */
+	if (trace->type.bit19) {
+		*(__be32 *)data = cpu_to_be32(IOAM6_U32_UNAVAILABLE);
+		data += sizeof(__be32);
+	}
+
+	/* bit20 undefined: filled with empty value */
+	if (trace->type.bit20) {
+		*(__be32 *)data = cpu_to_be32(IOAM6_U32_UNAVAILABLE);
+		data += sizeof(__be32);
+	}
+
+	/* bit21 undefined: filled with empty value */
+	if (trace->type.bit21) {
+		*(__be32 *)data = cpu_to_be32(IOAM6_U32_UNAVAILABLE);
+		data += sizeof(__be32);
+	}
+
 	/* opaque state snapshot */
 	if (trace->type.bit22) {
 		if (!sc) {
@@ -791,16 +851,10 @@ void ioam6_fill_trace_data(struct sk_buff *skb,
 	struct ioam6_schema *sc;
 	u8 sclen = 0;
 
-	/* Skip if Overflow flag is set OR
-	 * if an unknown type (bit 12-21) is set
+	/* Skip if Overflow flag is set
 	 */
-	if (trace->overflow ||
-	    trace->type.bit12 | trace->type.bit13 | trace->type.bit14 |
-	    trace->type.bit15 | trace->type.bit16 | trace->type.bit17 |
-	    trace->type.bit18 | trace->type.bit19 | trace->type.bit20 |
-	    trace->type.bit21) {
+	if (trace->overflow)
 		return;
-	}
 
 	/* NodeLen does not include Opaque State Snapshot length. We need to
 	 * take it into account if the corresponding bit is set (bit 22) and

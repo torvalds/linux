@@ -475,9 +475,6 @@ void mlx5e_rep_bridge_init(struct mlx5e_priv *priv)
 		esw_warn(mdev, "Failed to allocate bridge offloads workqueue\n");
 		goto err_alloc_wq;
 	}
-	INIT_DELAYED_WORK(&br_offloads->update_work, mlx5_esw_bridge_update_work);
-	queue_delayed_work(br_offloads->wq, &br_offloads->update_work,
-			   msecs_to_jiffies(MLX5_ESW_BRIDGE_UPDATE_INTERVAL));
 
 	br_offloads->nb.notifier_call = mlx5_esw_bridge_switchdev_event;
 	err = register_switchdev_notifier(&br_offloads->nb);
@@ -500,6 +497,9 @@ void mlx5e_rep_bridge_init(struct mlx5e_priv *priv)
 			 err);
 		goto err_register_netdev;
 	}
+	INIT_DELAYED_WORK(&br_offloads->update_work, mlx5_esw_bridge_update_work);
+	queue_delayed_work(br_offloads->wq, &br_offloads->update_work,
+			   msecs_to_jiffies(MLX5_ESW_BRIDGE_UPDATE_INTERVAL));
 	return;
 
 err_register_netdev:
@@ -523,10 +523,10 @@ void mlx5e_rep_bridge_cleanup(struct mlx5e_priv *priv)
 	if (!br_offloads)
 		return;
 
+	cancel_delayed_work_sync(&br_offloads->update_work);
 	unregister_netdevice_notifier(&br_offloads->netdev_nb);
 	unregister_switchdev_blocking_notifier(&br_offloads->nb_blk);
 	unregister_switchdev_notifier(&br_offloads->nb);
-	cancel_delayed_work(&br_offloads->update_work);
 	destroy_workqueue(br_offloads->wq);
 	rtnl_lock();
 	mlx5_esw_bridge_cleanup(esw);
