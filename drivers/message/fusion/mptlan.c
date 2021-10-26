@@ -1350,7 +1350,7 @@ mpt_register_lan_device (MPT_ADAPTER *mpt_dev, int pnum)
 	HWaddr[5] = a[0];
 
 	dev->addr_len = FC_ALEN;
-	memcpy(dev->dev_addr, HWaddr, FC_ALEN);
+	dev_addr_set(dev, HWaddr);
 	memset(dev->broadcast, 0xff, FC_ALEN);
 
 	/* The Tx queue is 127 deep on the 909.
