@@ -8783,9 +8783,17 @@ static void post_kvm_run_save(struct kvm_vcpu *vcpu)
 
 	kvm_run->cr8 = kvm_get_cr8(vcpu);
 	kvm_run->apic_base = kvm_get_apic_base(vcpu);
+
+	/*
+	 * The call to kvm_ready_for_interrupt_injection() may end up in
+	 * kvm_xen_has_interrupt() which may require the srcu lock to be
+	 * held, to protect against changes in the vcpu_info address.
+	 */
+	vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
 	kvm_run->ready_for_interrupt_injection =
 		pic_in_kernel(vcpu->kvm) ||
 		kvm_vcpu_ready_for_interrupt_injection(vcpu);
+	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
 
 	if (is_smm(vcpu))
 		kvm_run->flags |= KVM_RUN_X86_SMM;
