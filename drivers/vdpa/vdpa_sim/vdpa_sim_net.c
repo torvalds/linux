@@ -126,7 +126,8 @@ static struct device vdpasim_net_mgmtdev = {
 	.release = vdpasim_net_mgmtdev_release,
 };
 
-static int vdpasim_net_dev_add(struct vdpa_mgmt_dev *mdev, const char *name)
+static int vdpasim_net_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
+			       const struct vdpa_dev_set_config *config)
 {
 	struct vdpasim_dev_attr dev_attr = {};
 	struct vdpasim *simdev;
