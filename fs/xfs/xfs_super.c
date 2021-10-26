@@ -37,7 +37,6 @@
 #include "xfs_reflink.h"
 #include "xfs_pwork.h"
 #include "xfs_ag.h"
-#include "xfs_btree.h"
 #include "xfs_defer.h"
 
 #include <linux/magic.h>
