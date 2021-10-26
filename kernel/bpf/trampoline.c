@@ -544,7 +544,7 @@ static void notrace inc_misses_counter(struct bpf_prog *prog)
 
 	stats = this_cpu_ptr(prog->stats);
 	u64_stats_update_begin(&stats->syncp);
-	stats->misses++;
+	u64_stats_inc(&stats->misses);
 	u64_stats_update_end(&stats->syncp);
 }
 
@@ -589,8 +589,8 @@ static void notrace update_prog_stats(struct bpf_prog *prog,
 
 		stats = this_cpu_ptr(prog->stats);
 		flags = u64_stats_update_begin_irqsave(&stats->syncp);
-		stats->cnt++;
-		stats->nsecs += sched_clock() - start;
+		u64_stats_inc(&stats->cnt);
+		u64_stats_add(&stats->nsecs, sched_clock() - start);
 		u64_stats_update_end_irqrestore(&stats->syncp, flags);
 	}
 }
