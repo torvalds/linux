@@ -679,8 +679,8 @@ int br_fdb_fillbuf(struct net_bridge *br, void *buf,
 }
 
 /* Add entry for local address of interface */
-int br_fdb_insert(struct net_bridge *br, struct net_bridge_port *source,
-		  const unsigned char *addr, u16 vid)
+int br_fdb_add_local(struct net_bridge *br, struct net_bridge_port *source,
+		     const unsigned char *addr, u16 vid)
 {
 	int ret;
 
