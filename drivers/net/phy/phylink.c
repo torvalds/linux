@@ -166,9 +166,45 @@ static const char *phylink_an_mode_str(unsigned int mode)
 	return mode < ARRAY_SIZE(modestr) ? modestr[mode] : "unknown";
 }
 
+static int phylink_validate_any(struct phylink *pl, unsigned long *supported,
+				struct phylink_link_state *state)
+{
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(all_adv) = { 0, };
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(all_s) = { 0, };
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(s);
+	struct phylink_link_state t;
+	int intf;
+
+	for (intf = 0; intf < PHY_INTERFACE_MODE_MAX; intf++) {
+		if (test_bit(intf, pl->config->supported_interfaces)) {
+			linkmode_copy(s, supported);
+
+			t = *state;
+			t.interface = intf;
+			pl->mac_ops->validate(pl->config, s, &t);
+			linkmode_or(all_s, all_s, s);
+			linkmode_or(all_adv, all_adv, t.advertising);
+		}
+	}
+
+	linkmode_copy(supported, all_s);
+	linkmode_copy(state->advertising, all_adv);
+
+	return phylink_is_empty_linkmode(supported) ? -EINVAL : 0;
+}
+
 static int phylink_validate(struct phylink *pl, unsigned long *supported,
 			    struct phylink_link_state *state)
 {
+	if (!phy_interface_empty(pl->config->supported_interfaces)) {
+		if (state->interface == PHY_INTERFACE_MODE_NA)
+			return phylink_validate_any(pl, supported, state);
+
+		if (!test_bit(state->interface,
+			      pl->config->supported_interfaces))
+			return -EINVAL;
+	}
+
 	pl->mac_ops->validate(pl->config, supported, state);
 
 	return phylink_is_empty_linkmode(supported) ? -EINVAL : 0;
