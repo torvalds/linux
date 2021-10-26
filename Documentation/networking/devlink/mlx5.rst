@@ -14,12 +14,8 @@ Parameters
 
    * - Name
      - Mode
-     - Validation
    * - ``enable_roce``
      - driverinit
-   * - ``max_macs``
-     - driverinit
-     - The range is between 1 and 2^31. Only power of 2 values are supported.
 
 The ``mlx5`` driver also implements the following driver-specific
 parameters.
@@ -49,22 +45,6 @@ parameters.
        * The default value is 15, and the range is between 1 and 1024.
 
 The ``mlx5`` driver supports reloading via ``DEVLINK_CMD_RELOAD``
-
-Resources
-=========
-
-.. list-table:: Driver-specific resources implemented
-   :widths: 5 5 5 85
-
-   * - Name
-     - Description
-   * - ``comp_eq_size``
-     - Control the size of I/O completion EQs.
-       * The default value is 1024, and the range is between 64 and 4096.
-   * - ``event_eq_size``
-     - Control the size of the asynchronous control events EQ.
-       * The default value is 4096, and the range is between 64 and 4096.
-
 
 Info versions
 =============
