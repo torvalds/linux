@@ -14,6 +14,7 @@
 #include <linux/sched/rt.h>
 #include <linux/syscore_ops.h>
 #include <uapi/linux/sched/types.h>
+#include <linux/sched/walt.h>
 
 #include "walt.h"
 #include "trace.h"
@@ -1157,10 +1158,10 @@ static void __ref do_core_ctl(void)
 	}
 
 	if (cpumask_any(&cpus_to_pause) < nr_cpu_ids)
-		pause_cpus(&cpus_to_pause);
+		walt_pause_cpus(&cpus_to_pause);
 
 	if (cpumask_any(&cpus_to_unpause) < nr_cpu_ids)
-		resume_cpus(&cpus_to_unpause);
+		walt_resume_cpus(&cpus_to_unpause);
 }
 
 static int __ref try_core_ctl(void *data)

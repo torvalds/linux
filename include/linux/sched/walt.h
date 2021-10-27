@@ -133,6 +133,8 @@ struct notifier_block;
 extern void core_ctl_notifier_register(struct notifier_block *n);
 extern void core_ctl_notifier_unregister(struct notifier_block *n);
 extern int core_ctl_set_boost(bool boost);
+extern int walt_pause_cpus(struct cpumask *cpus);
+extern int walt_resume_cpus(struct cpumask *cpus);
 #else
 static inline int sched_lpm_disallowed_time(int cpu, u64 *timeout)
 {
@@ -170,6 +172,14 @@ static inline void core_ctl_notifier_unregister(struct notifier_block *n)
 {
 }
 
+inline int walt_pause_cpus(struct cpumask *cpus)
+{
+	return 0;
+}
+inline int walt_resume_cpus(struct cpumask *cpus)
+{
+	return 0;
+}
 #endif
 
 #endif /* _LINUX_SCHED_WALT_H */
