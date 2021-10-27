@@ -816,10 +816,112 @@ bch2_trans_commit_get_rw_cold(struct btree_trans *trans)
 	return 0;
 }
 
+static int bch2_trans_commit_run_triggers(struct btree_trans *trans)
+{
+	struct bkey		_deleted = KEY(0, 0, 0);
+	struct bkey_s_c		deleted = (struct bkey_s_c) { &_deleted, NULL };
+	struct bkey_s_c		old;
+	struct bkey		unpacked;
+	struct btree_insert_entry *i = NULL, *btree_id_start = trans->updates;
+	bool trans_trigger_run;
+	unsigned btree_id = 0;
+	int ret = 0;
+
+	/*
+	 *
+	 * For a given btree, this algorithm runs insert triggers before
+	 * overwrite triggers: this is so that when extents are being moved
+	 * (e.g. by FALLOCATE_FL_INSERT_RANGE), we don't drop references before
+	 * they are re-added.
+	 */
+	for (btree_id = 0; btree_id < BTREE_ID_NR; btree_id++) {
+		while (btree_id_start < trans->updates + trans->nr_updates &&
+		       btree_id_start->btree_id < btree_id)
+			btree_id_start++;
+
+		/*
+		 * Running triggers will append more updates to the list of updates as
+		 * we're walking it:
+		 */
+		do {
+			trans_trigger_run = false;
+
+			for (i = btree_id_start;
+			     i < trans->updates + trans->nr_updates && i->btree_id <= btree_id;
+			     i++) {
+				if (i->insert_trigger_run ||
+				    (i->flags & BTREE_TRIGGER_NORUN) ||
+				    !(BTREE_NODE_TYPE_HAS_TRANS_TRIGGERS & (1U << i->bkey_type)))
+					continue;
+
+				BUG_ON(i->overwrite_trigger_run);
+
+				i->insert_trigger_run = true;
+				trans_trigger_run = true;
+
+				old = bch2_btree_path_peek_slot(i->path, &unpacked);
+				_deleted.p = i->path->pos;
+
+				if (old.k->type == i->k->k.type &&
+				    ((1U << old.k->type) & BTREE_TRIGGER_WANTS_OLD_AND_NEW)) {
+					i->overwrite_trigger_run = true;
+					ret = bch2_trans_mark_key(trans, old, bkey_i_to_s_c(i->k),
+							BTREE_TRIGGER_INSERT|BTREE_TRIGGER_OVERWRITE|i->flags);
+				} else {
+					ret = bch2_trans_mark_key(trans, deleted, bkey_i_to_s_c(i->k),
+							BTREE_TRIGGER_INSERT|i->flags);
+				}
+
+				if (ret == -EINTR)
+					trace_trans_restart_mark(trans->ip, _RET_IP_,
+							i->btree_id, &i->path->pos);
+				if (ret)
+					return ret;
+			}
+		} while (trans_trigger_run);
+
+		do {
+			trans_trigger_run = false;
+
+			for (i = btree_id_start;
+			     i < trans->updates + trans->nr_updates && i->btree_id <= btree_id;
+			     i++) {
+				if (i->overwrite_trigger_run ||
+				    (i->flags & BTREE_TRIGGER_NORUN) ||
+				    !(BTREE_NODE_TYPE_HAS_TRANS_TRIGGERS & (1U << i->bkey_type)))
+					continue;
+
+				BUG_ON(!i->insert_trigger_run);
+
+				i->overwrite_trigger_run = true;
+				trans_trigger_run = true;
+
+				old = bch2_btree_path_peek_slot(i->path, &unpacked);
+				_deleted.p = i->path->pos;
+
+				ret = bch2_trans_mark_key(trans, old, deleted,
+						BTREE_TRIGGER_OVERWRITE|i->flags);
+
+				if (ret == -EINTR)
+					trace_trans_restart_mark(trans->ip, _RET_IP_,
+							i->btree_id, &i->path->pos);
+				if (ret)
+					return ret;
+			}
+		} while (trans_trigger_run);
+	}
+
+	trans_for_each_update(trans, i)
+		BUG_ON(!(i->flags & BTREE_TRIGGER_NORUN) &&
+		       (BTREE_NODE_TYPE_HAS_TRANS_TRIGGERS & (1U << i->bkey_type)) &&
+		       (!i->insert_trigger_run || !i->overwrite_trigger_run));
+
+	return 0;
+}
+
 int __bch2_trans_commit(struct btree_trans *trans)
 {
 	struct btree_insert_entry *i = NULL;
-	bool trans_trigger_run;
 	unsigned u64s;
 	int ret = 0;
 
@@ -854,30 +956,9 @@ int __bch2_trans_commit(struct btree_trans *trans)
 					i->btree_id, i->k->k.p);
 #endif
 
-	/*
-	 * Running triggers will append more updates to the list of updates as
-	 * we're walking it:
-	 */
-	do {
-		trans_trigger_run = false;
-
-		trans_for_each_update(trans, i) {
-			if ((BTREE_NODE_TYPE_HAS_TRANS_TRIGGERS & (1U << i->bkey_type)) &&
-			    !i->trans_triggers_run) {
-				i->trans_triggers_run = true;
-				trans_trigger_run = true;
-
-				ret = bch2_trans_mark_update(trans, i->path,
-							     i->k, i->flags);
-				if (unlikely(ret)) {
-					if (ret == -EINTR)
-						trace_trans_restart_mark(trans->ip, _RET_IP_,
-								i->btree_id, &i->path->pos);
-					goto out;
-				}
-			}
-		}
-	} while (trans_trigger_run);
+	ret = bch2_trans_commit_run_triggers(trans);
+	if (ret)
+		goto out;
 
 	trans_for_each_update(trans, i) {
 		BUG_ON(!i->path->should_be_locked);
@@ -1297,7 +1378,7 @@ int bch2_trans_update(struct btree_trans *trans, struct btree_iter *iter,
 
 	if (i < trans->updates + trans->nr_updates &&
 	    !btree_insert_entry_cmp(&n, i)) {
-		BUG_ON(i->trans_triggers_run);
+		BUG_ON(i->insert_trigger_run || i->overwrite_trigger_run);
 
 		/*
 		 * This is a hack to ensure that inode creates update the btree,

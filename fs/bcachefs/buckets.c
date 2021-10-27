@@ -1882,41 +1882,6 @@ int bch2_trans_mark_key(struct btree_trans *trans, struct bkey_s_c old,
 	}
 }
 
-int bch2_trans_mark_update(struct btree_trans *trans,
-			   struct btree_path *path,
-			   struct bkey_i *new,
-			   unsigned flags)
-{
-	struct bkey		_deleted = KEY(0, 0, 0);
-	struct bkey_s_c		deleted = (struct bkey_s_c) { &_deleted, NULL };
-	struct bkey_s_c		old;
-	struct bkey		unpacked;
-	int ret;
-
-	_deleted.p = path->pos;
-
-	if (unlikely(flags & BTREE_TRIGGER_NORUN))
-		return 0;
-
-	if (!btree_node_type_needs_gc(path->btree_id))
-		return 0;
-
-	old = bch2_btree_path_peek_slot(path, &unpacked);
-
-	if (old.k->type == new->k.type &&
-	    ((1U << old.k->type) & BTREE_TRIGGER_WANTS_OLD_AND_NEW)) {
-		ret   = bch2_trans_mark_key(trans, old, bkey_i_to_s_c(new),
-				BTREE_TRIGGER_INSERT|BTREE_TRIGGER_OVERWRITE|flags);
-	} else {
-		ret   = bch2_trans_mark_key(trans, deleted, bkey_i_to_s_c(new),
-				BTREE_TRIGGER_INSERT|flags) ?:
-			bch2_trans_mark_key(trans, old, deleted,
-				BTREE_TRIGGER_OVERWRITE|flags);
-	}
-
-	return ret;
-}
-
 static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 				    struct bch_dev *ca, size_t b,
 				    enum bch_data_type type,

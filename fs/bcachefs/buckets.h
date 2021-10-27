@@ -233,8 +233,6 @@ int bch2_mark_update(struct btree_trans *, struct btree_path *,
 
 int bch2_trans_mark_key(struct btree_trans *, struct bkey_s_c,
 			struct bkey_s_c, unsigned);
-int bch2_trans_mark_update(struct btree_trans *, struct btree_path *,
-			   struct bkey_i *, unsigned);
 void bch2_trans_fs_usage_apply(struct btree_trans *, struct replicas_delta_list *);
 
 int bch2_trans_mark_metadata_bucket(struct btree_trans *, struct bch_dev *,
