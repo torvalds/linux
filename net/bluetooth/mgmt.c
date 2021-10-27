@@ -3217,33 +3217,32 @@ static int user_passkey_neg_reply(struct sock *sk, struct hci_dev *hdev,
 				 HCI_OP_USER_PASSKEY_NEG_REPLY, 0);
 }
 
-static void adv_expire(struct hci_dev *hdev, u32 flags)
+static int adv_expire_sync(struct hci_dev *hdev, u32 flags)
 {
 	struct adv_info *adv_instance;
-	struct hci_request req;
-	int err;
 
 	adv_instance = hci_find_adv_instance(hdev, hdev->cur_adv_instance);
 	if (!adv_instance)
-		return;
+		return 0;
 
 	/* stop if current instance doesn't need to be changed */
 	if (!(adv_instance->flags & flags))
-		return;
+		return 0;
 
 	cancel_adv_timeout(hdev);
 
 	adv_instance = hci_get_next_instance(hdev, adv_instance->instance);
 	if (!adv_instance)
-		return;
+		return 0;
 
-	hci_req_init(&req, hdev);
-	err = __hci_req_schedule_adv_instance(&req, adv_instance->instance,
-					      true);
-	if (err)
-		return;
+	hci_schedule_adv_instance_sync(hdev, adv_instance->instance, true);
 
-	hci_req_run(&req, NULL);
+	return 0;
+}
+
+static int name_changed_sync(struct hci_dev *hdev, void *data)
+{
+	return adv_expire_sync(hdev, MGMT_ADV_FLAG_LOCAL_NAME);
 }
 
 static void set_name_complete(struct hci_dev *hdev, void *data, int err)
@@ -3262,7 +3261,7 @@ static void set_name_complete(struct hci_dev *hdev, void *data, int err)
 				  cp, sizeof(*cp));
 
 		if (hci_dev_test_flag(hdev, HCI_LE_ADV))
-			adv_expire(hdev, MGMT_ADV_FLAG_LOCAL_NAME);
+			hci_cmd_sync_queue(hdev, name_changed_sync, NULL, NULL);
 	}
 
 	mgmt_pending_remove(cmd);
@@ -3347,6 +3346,11 @@ failed:
 	return err;
 }
 
+static int appearance_changed_sync(struct hci_dev *hdev, void *data)
+{
+	return adv_expire_sync(hdev, MGMT_ADV_FLAG_APPEARANCE);
+}
+
 static int set_appearance(struct sock *sk, struct hci_dev *hdev, void *data,
 			  u16 len)
 {
@@ -3368,7 +3372,8 @@ static int set_appearance(struct sock *sk, struct hci_dev *hdev, void *data,
 		hdev->appearance = appearance;
 
 		if (hci_dev_test_flag(hdev, HCI_LE_ADV))
-			adv_expire(hdev, MGMT_ADV_FLAG_APPEARANCE);
+			hci_cmd_sync_queue(hdev, appearance_changed_sync, NULL,
+					   NULL);
 
 		ext_info_changed(hdev, sk);
 	}
