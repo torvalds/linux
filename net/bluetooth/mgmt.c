@@ -999,11 +999,22 @@ static void service_cache_off(struct work_struct *work)
 	hci_cmd_sync_queue(hdev, service_cache_sync, NULL, NULL);
 }
 
+static int rpa_expired_sync(struct hci_dev *hdev, void *data)
+{
+	/* The generation of a new RPA and programming it into the
+	 * controller happens in the hci_req_enable_advertising()
+	 * function.
+	 */
+	if (ext_adv_capable(hdev))
+		return hci_start_ext_adv_sync(hdev, hdev->cur_adv_instance);
+	else
+		return hci_enable_advertising_sync(hdev);
+}
+
 static void rpa_expired(struct work_struct *work)
 {
 	struct hci_dev *hdev = container_of(work, struct hci_dev,
 					    rpa_expired.work);
-	struct hci_request req;
 
 	bt_dev_dbg(hdev, "");
 
@@ -1012,16 +1023,7 @@ static void rpa_expired(struct work_struct *work)
 	if (!hci_dev_test_flag(hdev, HCI_ADVERTISING))
 		return;
 
-	/* The generation of a new RPA and programming it into the
-	 * controller happens in the hci_req_enable_advertising()
-	 * function.
-	 */
-	hci_req_init(&req, hdev);
-	if (ext_adv_capable(hdev))
-		__hci_req_start_ext_adv(&req, hdev->cur_adv_instance);
-	else
-		__hci_req_enable_advertising(&req);
-	hci_req_run(&req, NULL);
+	hci_cmd_sync_queue(hdev, rpa_expired_sync, NULL, NULL);
 }
 
 static void mgmt_init_hdev(struct sock *sk, struct hci_dev *hdev)
@@ -7873,58 +7875,66 @@ static bool adv_busy(struct hci_dev *hdev)
 		pending_find(MGMT_OP_ADD_EXT_ADV_DATA, hdev));
 }
 
-static void add_advertising_complete(struct hci_dev *hdev, u8 status,
-				     u16 opcode)
+static void add_adv_complete(struct hci_dev *hdev, struct sock *sk, u8 instance,
+			     int err)
 {
-	struct mgmt_pending_cmd *cmd;
-	struct mgmt_cp_add_advertising *cp;
-	struct mgmt_rp_add_advertising rp;
-	struct adv_info *adv_instance, *n;
-	u8 instance;
+	struct adv_info *adv, *n;
 
-	bt_dev_dbg(hdev, "status %u", status);
+	bt_dev_dbg(hdev, "err %d", err);
 
 	hci_dev_lock(hdev);
 
-	cmd = pending_find(MGMT_OP_ADD_ADVERTISING, hdev);
-	if (!cmd)
-		cmd = pending_find(MGMT_OP_ADD_EXT_ADV_DATA, hdev);
+	list_for_each_entry_safe(adv, n, &hdev->adv_instances, list) {
+		u8 instance;
 
-	list_for_each_entry_safe(adv_instance, n, &hdev->adv_instances, list) {
-		if (!adv_instance->pending)
+		if (!adv->pending)
 			continue;
 
-		if (!status) {
-			adv_instance->pending = false;
+		if (!err) {
+			adv->pending = false;
 			continue;
 		}
 
-		instance = adv_instance->instance;
+		instance = adv->instance;
 
 		if (hdev->cur_adv_instance == instance)
 			cancel_adv_timeout(hdev);
 
 		hci_remove_adv_instance(hdev, instance);
-		mgmt_advertising_removed(cmd ? cmd->sk : NULL, hdev, instance);
+		mgmt_advertising_removed(sk, hdev, instance);
 	}
 
-	if (!cmd)
-		goto unlock;
+	hci_dev_unlock(hdev);
+}
 
-	cp = cmd->param;
+static void add_advertising_complete(struct hci_dev *hdev, void *data, int err)
+{
+	struct mgmt_pending_cmd *cmd = data;
+	struct mgmt_cp_add_advertising *cp = cmd->param;
+	struct mgmt_rp_add_advertising rp;
+
+	memset(&rp, 0, sizeof(rp));
+
 	rp.instance = cp->instance;
 
-	if (status)
+	if (err)
 		mgmt_cmd_status(cmd->sk, cmd->index, cmd->opcode,
-				mgmt_status(status));
+				mgmt_status(err));
 	else
 		mgmt_cmd_complete(cmd->sk, cmd->index, cmd->opcode,
-				  mgmt_status(status), &rp, sizeof(rp));
+				  mgmt_status(err), &rp, sizeof(rp));
 
-	mgmt_pending_remove(cmd);
+	add_adv_complete(hdev, cmd->sk, cp->instance, err);
 
-unlock:
-	hci_dev_unlock(hdev);
+	mgmt_pending_free(cmd);
+}
+
+static int add_advertising_sync(struct hci_dev *hdev, void *data)
+{
+	struct mgmt_pending_cmd *cmd = data;
+	struct mgmt_cp_add_advertising *cp = cmd->param;
+
+	return hci_schedule_adv_instance_sync(hdev, cp->instance, true);
 }
 
 static int add_advertising(struct sock *sk, struct hci_dev *hdev,
@@ -7940,7 +7950,6 @@ static int add_advertising(struct sock *sk, struct hci_dev *hdev,
 	struct adv_info *next_instance;
 	int err;
 	struct mgmt_pending_cmd *cmd;
-	struct hci_request req;
 
 	bt_dev_dbg(hdev, "sock %p", sk);
 
@@ -8048,25 +8057,19 @@ static int add_advertising(struct sock *sk, struct hci_dev *hdev,
 	/* We're good to go, update advertising data, parameters, and start
 	 * advertising.
 	 */
-	cmd = mgmt_pending_add(sk, MGMT_OP_ADD_ADVERTISING, hdev, data,
+	cmd = mgmt_pending_new(sk, MGMT_OP_ADD_ADVERTISING, hdev, data,
 			       data_len);
 	if (!cmd) {
 		err = -ENOMEM;
 		goto unlock;
 	}
 
-	hci_req_init(&req, hdev);
+	cp->instance = schedule_instance;
 
-	err = __hci_req_schedule_adv_instance(&req, schedule_instance, true);
-
-	if (!err)
-		err = hci_req_run(&req, add_advertising_complete);
-
-	if (err < 0) {
-		err = mgmt_cmd_status(sk, hdev->id, MGMT_OP_ADD_ADVERTISING,
-				      MGMT_STATUS_FAILED);
-		mgmt_pending_remove(cmd);
-	}
+	err = hci_cmd_sync_queue(hdev, add_advertising_sync, cmd,
+				 add_advertising_complete);
+	if (err < 0)
+		mgmt_pending_free(cmd);
 
 unlock:
 	hci_dev_unlock(hdev);
@@ -8074,30 +8077,25 @@ unlock:
 	return err;
 }
 
-static void add_ext_adv_params_complete(struct hci_dev *hdev, u8 status,
-					u16 opcode)
+static void add_ext_adv_params_complete(struct hci_dev *hdev, void *data,
+					int err)
 {
-	struct mgmt_pending_cmd *cmd;
-	struct mgmt_cp_add_ext_adv_params *cp;
+	struct mgmt_pending_cmd *cmd = data;
+	struct mgmt_cp_add_ext_adv_params *cp = cmd->param;
 	struct mgmt_rp_add_ext_adv_params rp;
-	struct adv_info *adv_instance;
+	struct adv_info *adv;
 	u32 flags;
 
 	BT_DBG("%s", hdev->name);
 
 	hci_dev_lock(hdev);
 
-	cmd = pending_find(MGMT_OP_ADD_EXT_ADV_PARAMS, hdev);
-	if (!cmd)
-		goto unlock;
-
-	cp = cmd->param;
-	adv_instance = hci_find_adv_instance(hdev, cp->instance);
-	if (!adv_instance)
+	adv = hci_find_adv_instance(hdev, cp->instance);
+	if (!adv)
 		goto unlock;
 
 	rp.instance = cp->instance;
-	rp.tx_power = adv_instance->tx_power;
+	rp.tx_power = adv->tx_power;
 
 	/* While we're at it, inform userspace of the available space for this
 	 * advertisement, given the flags that will be used.
@@ -8106,29 +8104,36 @@ static void add_ext_adv_params_complete(struct hci_dev *hdev, u8 status,
 	rp.max_adv_data_len = tlv_data_max_len(hdev, flags, true);
 	rp.max_scan_rsp_len = tlv_data_max_len(hdev, flags, false);
 
-	if (status) {
+	if (err) {
 		/* If this advertisement was previously advertising and we
 		 * failed to update it, we signal that it has been removed and
 		 * delete its structure
 		 */
-		if (!adv_instance->pending)
+		if (!adv->pending)
 			mgmt_advertising_removed(cmd->sk, hdev, cp->instance);
 
 		hci_remove_adv_instance(hdev, cp->instance);
 
 		mgmt_cmd_status(cmd->sk, cmd->index, cmd->opcode,
-				mgmt_status(status));
-
+				mgmt_status(err));
 	} else {
 		mgmt_cmd_complete(cmd->sk, cmd->index, cmd->opcode,
-				  mgmt_status(status), &rp, sizeof(rp));
+				  mgmt_status(err), &rp, sizeof(rp));
 	}
 
 unlock:
 	if (cmd)
-		mgmt_pending_remove(cmd);
+		mgmt_pending_free(cmd);
 
 	hci_dev_unlock(hdev);
+}
+
+static int add_ext_adv_params_sync(struct hci_dev *hdev, void *data)
+{
+	struct mgmt_pending_cmd *cmd = data;
+	struct mgmt_cp_add_ext_adv_params *cp = cmd->param;
+
+	return hci_setup_ext_adv_instance_sync(hdev, cp->instance);
 }
 
 static int add_ext_adv_params(struct sock *sk, struct hci_dev *hdev,
@@ -8137,8 +8142,6 @@ static int add_ext_adv_params(struct sock *sk, struct hci_dev *hdev,
 	struct mgmt_cp_add_ext_adv_params *cp = data;
 	struct mgmt_rp_add_ext_adv_params rp;
 	struct mgmt_pending_cmd *cmd = NULL;
-	struct adv_info *adv_instance;
-	struct hci_request req;
 	u32 flags, min_interval, max_interval;
 	u16 timeout, duration;
 	u8 status;
@@ -8220,29 +8223,18 @@ static int add_ext_adv_params(struct sock *sk, struct hci_dev *hdev,
 
 	/* Submit request for advertising params if ext adv available */
 	if (ext_adv_capable(hdev)) {
-		hci_req_init(&req, hdev);
-		adv_instance = hci_find_adv_instance(hdev, cp->instance);
-
-		/* Updating parameters of an active instance will return a
-		 * Command Disallowed error, so we must first disable the
-		 * instance if it is active.
-		 */
-		if (!adv_instance->pending)
-			__hci_req_disable_ext_adv_instance(&req, cp->instance);
-
-		__hci_req_setup_ext_adv_instance(&req, cp->instance);
-
-		err = hci_req_run(&req, add_ext_adv_params_complete);
-
-		if (!err)
-			cmd = mgmt_pending_add(sk, MGMT_OP_ADD_EXT_ADV_PARAMS,
-					       hdev, data, data_len);
+		cmd = mgmt_pending_new(sk, MGMT_OP_ADD_EXT_ADV_PARAMS, hdev,
+				       data, data_len);
 		if (!cmd) {
 			err = -ENOMEM;
 			hci_remove_adv_instance(hdev, cp->instance);
 			goto unlock;
 		}
 
+		err = hci_cmd_sync_queue(hdev, add_ext_adv_params_sync, cmd,
+					 add_ext_adv_params_complete);
+		if (err < 0)
+			mgmt_pending_free(cmd);
 	} else {
 		rp.instance = cp->instance;
 		rp.tx_power = HCI_ADV_TX_POWER_NO_PREFERENCE;
@@ -8259,6 +8251,49 @@ unlock:
 	return err;
 }
 
+static void add_ext_adv_data_complete(struct hci_dev *hdev, void *data, int err)
+{
+	struct mgmt_pending_cmd *cmd = data;
+	struct mgmt_cp_add_ext_adv_data *cp = cmd->param;
+	struct mgmt_rp_add_advertising rp;
+
+	add_adv_complete(hdev, cmd->sk, cp->instance, err);
+
+	memset(&rp, 0, sizeof(rp));
+
+	rp.instance = cp->instance;
+
+	if (err)
+		mgmt_cmd_status(cmd->sk, cmd->index, cmd->opcode,
+				mgmt_status(err));
+	else
+		mgmt_cmd_complete(cmd->sk, cmd->index, cmd->opcode,
+				  mgmt_status(err), &rp, sizeof(rp));
+
+	mgmt_pending_free(cmd);
+}
+
+static int add_ext_adv_data_sync(struct hci_dev *hdev, void *data)
+{
+	struct mgmt_pending_cmd *cmd = data;
+	struct mgmt_cp_add_ext_adv_data *cp = cmd->param;
+	int err;
+
+	if (ext_adv_capable(hdev)) {
+		err = hci_update_adv_data_sync(hdev, cp->instance);
+		if (err)
+			return err;
+
+		err = hci_update_scan_rsp_data_sync(hdev, cp->instance);
+		if (err)
+			return err;
+
+		return hci_enable_ext_advertising_sync(hdev, cp->instance);
+	}
+
+	return hci_schedule_adv_instance_sync(hdev, cp->instance, true);
+}
+
 static int add_ext_adv_data(struct sock *sk, struct hci_dev *hdev, void *data,
 			    u16 data_len)
 {
@@ -8269,7 +8304,6 @@ static int add_ext_adv_data(struct sock *sk, struct hci_dev *hdev, void *data,
 	struct adv_info *adv_instance;
 	int err = 0;
 	struct mgmt_pending_cmd *cmd;
-	struct hci_request req;
 
 	BT_DBG("%s", hdev->name);
 
@@ -8311,78 +8345,52 @@ static int add_ext_adv_data(struct sock *sk, struct hci_dev *hdev, void *data,
 				  cp->data, cp->scan_rsp_len,
 				  cp->data + cp->adv_data_len);
 
-	/* We're good to go, update advertising data, parameters, and start
-	 * advertising.
-	 */
-
-	hci_req_init(&req, hdev);
-
-	hci_req_add(&req, HCI_OP_READ_LOCAL_NAME, 0, NULL);
-
-	if (ext_adv_capable(hdev)) {
-		__hci_req_update_adv_data(&req, cp->instance);
-		__hci_req_update_scan_rsp_data(&req, cp->instance);
-		__hci_req_enable_ext_advertising(&req, cp->instance);
-
-	} else {
-		/* If using software rotation, determine next instance to use */
-
-		if (hdev->cur_adv_instance == cp->instance) {
-			/* If the currently advertised instance is being changed
-			 * then cancel the current advertising and schedule the
-			 * next instance. If there is only one instance then the
-			 * overridden advertising data will be visible right
-			 * away
-			 */
-			cancel_adv_timeout(hdev);
-
-			next_instance = hci_get_next_instance(hdev,
-							      cp->instance);
-			if (next_instance)
-				schedule_instance = next_instance->instance;
-		} else if (!hdev->adv_instance_timeout) {
-			/* Immediately advertise the new instance if no other
-			 * instance is currently being advertised.
-			 */
-			schedule_instance = cp->instance;
-		}
-
-		/* If the HCI_ADVERTISING flag is set or there is no instance to
-		 * be advertised then we have no HCI communication to make.
-		 * Simply return.
+	/* If using software rotation, determine next instance to use */
+	if (hdev->cur_adv_instance == cp->instance) {
+		/* If the currently advertised instance is being changed
+		 * then cancel the current advertising and schedule the
+		 * next instance. If there is only one instance then the
+		 * overridden advertising data will be visible right
+		 * away
 		 */
-		if (hci_dev_test_flag(hdev, HCI_ADVERTISING) ||
-		    !schedule_instance) {
-			if (adv_instance->pending) {
-				mgmt_advertising_added(sk, hdev, cp->instance);
-				adv_instance->pending = false;
-			}
-			rp.instance = cp->instance;
-			err = mgmt_cmd_complete(sk, hdev->id,
-						MGMT_OP_ADD_EXT_ADV_DATA,
-						MGMT_STATUS_SUCCESS, &rp,
-						sizeof(rp));
-			goto unlock;
-		}
+		cancel_adv_timeout(hdev);
 
-		err = __hci_req_schedule_adv_instance(&req, schedule_instance,
-						      true);
+		next_instance = hci_get_next_instance(hdev, cp->instance);
+		if (next_instance)
+			schedule_instance = next_instance->instance;
+	} else if (!hdev->adv_instance_timeout) {
+		/* Immediately advertise the new instance if no other
+		 * instance is currently being advertised.
+		 */
+		schedule_instance = cp->instance;
 	}
 
-	cmd = mgmt_pending_add(sk, MGMT_OP_ADD_EXT_ADV_DATA, hdev, data,
+	/* If the HCI_ADVERTISING flag is set or there is no instance to
+	 * be advertised then we have no HCI communication to make.
+	 * Simply return.
+	 */
+	if (hci_dev_test_flag(hdev, HCI_ADVERTISING) || !schedule_instance) {
+		if (adv_instance->pending) {
+			mgmt_advertising_added(sk, hdev, cp->instance);
+			adv_instance->pending = false;
+		}
+		rp.instance = cp->instance;
+		err = mgmt_cmd_complete(sk, hdev->id, MGMT_OP_ADD_EXT_ADV_DATA,
+					MGMT_STATUS_SUCCESS, &rp, sizeof(rp));
+		goto unlock;
+	}
+
+	cmd = mgmt_pending_new(sk, MGMT_OP_ADD_EXT_ADV_DATA, hdev, data,
 			       data_len);
 	if (!cmd) {
 		err = -ENOMEM;
 		goto clear_new_instance;
 	}
 
-	if (!err)
-		err = hci_req_run(&req, add_advertising_complete);
-
+	err = hci_cmd_sync_queue(hdev, add_ext_adv_data_sync, cmd,
+				 add_ext_adv_data_complete);
 	if (err < 0) {
-		err = mgmt_cmd_status(sk, hdev->id, MGMT_OP_ADD_EXT_ADV_DATA,
-				      MGMT_STATUS_FAILED);
-		mgmt_pending_remove(cmd);
+		mgmt_pending_free(cmd);
 		goto clear_new_instance;
 	}
 
@@ -8405,43 +8413,49 @@ unlock:
 	return err;
 }
 
-static void remove_advertising_complete(struct hci_dev *hdev, u8 status,
-					u16 opcode)
+static void remove_advertising_complete(struct hci_dev *hdev, void *data,
+					int err)
 {
-	struct mgmt_pending_cmd *cmd;
-	struct mgmt_cp_remove_advertising *cp;
+	struct mgmt_pending_cmd *cmd = data;
+	struct mgmt_cp_remove_advertising *cp = cmd->param;
 	struct mgmt_rp_remove_advertising rp;
 
-	bt_dev_dbg(hdev, "status %u", status);
+	bt_dev_dbg(hdev, "err %d", err);
 
-	hci_dev_lock(hdev);
-
-	/* A failure status here only means that we failed to disable
-	 * advertising. Otherwise, the advertising instance has been removed,
-	 * so report success.
-	 */
-	cmd = pending_find(MGMT_OP_REMOVE_ADVERTISING, hdev);
-	if (!cmd)
-		goto unlock;
-
-	cp = cmd->param;
+	memset(&rp, 0, sizeof(rp));
 	rp.instance = cp->instance;
 
-	mgmt_cmd_complete(cmd->sk, cmd->index, cmd->opcode, MGMT_STATUS_SUCCESS,
-			  &rp, sizeof(rp));
-	mgmt_pending_remove(cmd);
+	if (err)
+		mgmt_cmd_status(cmd->sk, cmd->index, cmd->opcode,
+				mgmt_status(err));
+	else
+		mgmt_cmd_complete(cmd->sk, cmd->index, cmd->opcode,
+				  MGMT_STATUS_SUCCESS, &rp, sizeof(rp));
 
-unlock:
-	hci_dev_unlock(hdev);
+	mgmt_pending_free(cmd);
+}
+
+static int remove_advertising_sync(struct hci_dev *hdev, void *data)
+{
+	struct mgmt_pending_cmd *cmd = data;
+	struct mgmt_cp_remove_advertising *cp = cmd->param;
+	int err;
+
+	err = hci_remove_advertising_sync(hdev, cmd->sk, cp->instance, true);
+	if (err)
+		return err;
+
+	if (list_empty(&hdev->adv_instances))
+		err = hci_disable_advertising_sync(hdev);
+
+	return err;
 }
 
 static int remove_advertising(struct sock *sk, struct hci_dev *hdev,
 			      void *data, u16 data_len)
 {
 	struct mgmt_cp_remove_advertising *cp = data;
-	struct mgmt_rp_remove_advertising rp;
 	struct mgmt_pending_cmd *cmd;
-	struct hci_request req;
 	int err;
 
 	bt_dev_dbg(hdev, "sock %p", sk);
@@ -8476,44 +8490,17 @@ static int remove_advertising(struct sock *sk, struct hci_dev *hdev,
 		goto unlock;
 	}
 
-	hci_req_init(&req, hdev);
-
-	/* If we use extended advertising, instance is disabled and removed */
-	if (ext_adv_capable(hdev)) {
-		__hci_req_disable_ext_adv_instance(&req, cp->instance);
-		__hci_req_remove_ext_adv_instance(&req, cp->instance);
-	}
-
-	hci_req_clear_adv_instance(hdev, sk, &req, cp->instance, true);
-
-	if (list_empty(&hdev->adv_instances))
-		__hci_req_disable_advertising(&req);
-
-	/* If no HCI commands have been collected so far or the HCI_ADVERTISING
-	 * flag is set or the device isn't powered then we have no HCI
-	 * communication to make. Simply return.
-	 */
-	if (skb_queue_empty(&req.cmd_q) ||
-	    !hdev_is_powered(hdev) ||
-	    hci_dev_test_flag(hdev, HCI_ADVERTISING)) {
-		hci_req_purge(&req);
-		rp.instance = cp->instance;
-		err = mgmt_cmd_complete(sk, hdev->id,
-					MGMT_OP_REMOVE_ADVERTISING,
-					MGMT_STATUS_SUCCESS, &rp, sizeof(rp));
-		goto unlock;
-	}
-
-	cmd = mgmt_pending_add(sk, MGMT_OP_REMOVE_ADVERTISING, hdev, data,
+	cmd = mgmt_pending_new(sk, MGMT_OP_REMOVE_ADVERTISING, hdev, data,
 			       data_len);
 	if (!cmd) {
 		err = -ENOMEM;
 		goto unlock;
 	}
 
-	err = hci_req_run(&req, remove_advertising_complete);
+	err = hci_cmd_sync_queue(hdev, remove_advertising_sync, cmd,
+				 remove_advertising_complete);
 	if (err < 0)
-		mgmt_pending_remove(cmd);
+		mgmt_pending_free(cmd);
 
 unlock:
 	hci_dev_unlock(hdev);

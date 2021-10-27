@@ -1239,6 +1239,55 @@ static void hci_cc_le_set_adv_set_random_addr(struct hci_dev *hdev,
 	hci_dev_unlock(hdev);
 }
 
+static void hci_cc_le_remove_adv_set(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	__u8 status = *((__u8 *)skb->data);
+	u8 *instance;
+	int err;
+
+	if (status)
+		return;
+
+	instance = hci_sent_cmd_data(hdev, HCI_OP_LE_REMOVE_ADV_SET);
+	if (!instance)
+		return;
+
+	hci_dev_lock(hdev);
+
+	err = hci_remove_adv_instance(hdev, *instance);
+	if (!err)
+		mgmt_advertising_removed(hci_skb_sk(hdev->sent_cmd), hdev,
+					 *instance);
+
+	hci_dev_unlock(hdev);
+}
+
+static void hci_cc_le_clear_adv_sets(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	__u8 status = *((__u8 *)skb->data);
+	struct adv_info *adv, *n;
+	int err;
+
+	if (status)
+		return;
+
+	if (!hci_sent_cmd_data(hdev, HCI_OP_LE_CLEAR_ADV_SETS))
+		return;
+
+	hci_dev_lock(hdev);
+
+	list_for_each_entry_safe(adv, n, &hdev->adv_instances, list) {
+		u8 instance = adv->instance;
+
+		err = hci_remove_adv_instance(hdev, instance);
+		if (!err)
+			mgmt_advertising_removed(hci_skb_sk(hdev->sent_cmd),
+						 hdev, instance);
+	}
+
+	hci_dev_unlock(hdev);
+}
+
 static void hci_cc_le_read_transmit_power(struct hci_dev *hdev,
 					  struct sk_buff *skb)
 {
@@ -3723,6 +3772,14 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb,
 
 	case HCI_OP_LE_SET_ADV_SET_RAND_ADDR:
 		hci_cc_le_set_adv_set_random_addr(hdev, skb);
+		break;
+
+	case HCI_OP_LE_REMOVE_ADV_SET:
+		hci_cc_le_remove_adv_set(hdev, skb);
+		break;
+
+	case HCI_OP_LE_CLEAR_ADV_SETS:
+		hci_cc_le_clear_adv_sets(hdev, skb);
 		break;
 
 	case HCI_OP_LE_READ_TRANSMIT_POWER:
