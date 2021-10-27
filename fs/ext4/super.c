@@ -3046,12 +3046,12 @@ static inline void ext4_show_quota_options(struct seq_file *seq,
 
 static const char *token2str(int token)
 {
-	const struct match_token *t;
+	const struct fs_parameter_spec *spec;
 
-	for (t = tokens; t->token != Opt_err; t++)
-		if (t->token == token && !strchr(t->pattern, '='))
+	for (spec = ext4_param_specs; spec->name != NULL; spec++)
+		if (spec->opt == token && !spec->type)
 			break;
-	return t->pattern;
+	return spec->name;
 }
 
 /*
