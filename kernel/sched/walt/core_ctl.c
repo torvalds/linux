@@ -14,7 +14,6 @@
 #include <linux/sched/rt.h>
 #include <linux/syscore_ops.h>
 #include <uapi/linux/sched/types.h>
-#include <linux/sched/core_ctl.h>
 
 #include "walt.h"
 #include "trace.h"

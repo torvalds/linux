@@ -12,6 +12,16 @@
 
 #if IS_ENABLED(CONFIG_SCHED_WALT)
 
+#define MAX_CPUS_PER_CLUSTER 6
+#define MAX_CLUSTERS 3
+
+struct core_ctl_notif_data {
+	unsigned int nr_big;
+	unsigned int coloc_load_pct;
+	unsigned int ta_util_pct[MAX_CLUSTERS];
+	unsigned int cur_cap_pct[MAX_CLUSTERS];
+};
+
 #define WALT_NR_CPUS 8
 #define RAVG_HIST_SIZE_MAX 5
 #define NUM_BUSY_BUCKETS 10
@@ -118,6 +128,11 @@ static inline void set_wake_up_idle(bool wake_up_idle)
 
 extern int sched_lpm_disallowed_time(int cpu, u64 *timeout);
 extern int set_task_boost(int boost, u64 period);
+
+struct notifier_block;
+extern void core_ctl_notifier_register(struct notifier_block *n);
+extern void core_ctl_notifier_unregister(struct notifier_block *n);
+extern int core_ctl_set_boost(bool boost);
 #else
 static inline int sched_lpm_disallowed_time(int cpu, u64 *timeout)
 {
@@ -141,6 +156,20 @@ static inline int sched_set_wake_up_idle(struct task_struct *p, bool wake_up_idl
 static inline void set_wake_up_idle(bool wake_up_idle)
 {
 }
+
+static inline int core_ctl_set_boost(bool boost)
+{
+	return 0;
+}
+
+static inline void core_ctl_notifier_register(struct notifier_block *n)
+{
+}
+
+static inline void core_ctl_notifier_unregister(struct notifier_block *n)
+{
+}
+
 #endif
 
 #endif /* _LINUX_SCHED_WALT_H */

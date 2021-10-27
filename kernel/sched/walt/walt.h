@@ -9,7 +9,6 @@
 #include "../../../kernel/sched/sched.h"
 #include "../../../fs/proc/internal.h"
 #include <linux/sched/walt.h>
-#include <linux/sched/core_ctl.h>
 #include <linux/jump_label.h>
 
 #include <linux/cgroup.h>

@@ -4,7 +4,6 @@
  */
 
 #include <linux/of.h>
-#include <linux/sched/core_ctl.h>
 
 #include "walt.h"
 #include "trace.h"
