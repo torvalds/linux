@@ -1318,6 +1318,12 @@ int hci_read_rssi_sync(struct hci_dev *hdev, __le16 handle)
 					sizeof(cp), &cp, HCI_CMD_TIMEOUT);
 }
 
+int hci_read_clock_sync(struct hci_dev *hdev, struct hci_cp_read_clock *cp)
+{
+	return __hci_cmd_sync_status(hdev, HCI_OP_READ_CLOCK,
+					sizeof(*cp), cp, HCI_CMD_TIMEOUT);
+}
+
 int hci_read_tx_power_sync(struct hci_dev *hdev, __le16 handle, u8 type)
 {
 	struct hci_cp_read_tx_power cp;
