@@ -3823,8 +3823,6 @@ static void mvneta_validate(struct phylink_config *config,
 			    unsigned long *supported,
 			    struct phylink_link_state *state)
 {
-	struct net_device *ndev = to_net_dev(config->dev);
-	struct mvneta_port *pp = netdev_priv(ndev);
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
 
 	/* We only support QSGMII, SGMII, 802.3z and RGMII modes.
@@ -3846,11 +3844,12 @@ static void mvneta_validate(struct phylink_config *config,
 	phylink_set(mask, Pause);
 
 	/* Half-duplex at speeds higher than 100Mbit is unsupported */
-	if (pp->comphy || state->interface != PHY_INTERFACE_MODE_2500BASEX) {
+	if (state->interface != PHY_INTERFACE_MODE_2500BASEX) {
 		phylink_set(mask, 1000baseT_Full);
 		phylink_set(mask, 1000baseX_Full);
 	}
-	if (pp->comphy || state->interface == PHY_INTERFACE_MODE_2500BASEX) {
+
+	if (state->interface == PHY_INTERFACE_MODE_2500BASEX) {
 		phylink_set(mask, 2500baseT_Full);
 		phylink_set(mask, 2500baseX_Full);
 	}
@@ -3865,11 +3864,6 @@ static void mvneta_validate(struct phylink_config *config,
 
 	linkmode_and(supported, supported, mask);
 	linkmode_and(state->advertising, state->advertising, mask);
-
-	/* We can only operate at 2500BaseX or 1000BaseX.  If requested
-	 * to advertise both, only report advertising at 2500BaseX.
-	 */
-	phylink_helper_basex_speed(state);
 }
 
 static void mvneta_mac_pcs_get_state(struct phylink_config *config,
