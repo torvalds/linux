@@ -2853,6 +2853,7 @@ static void hclge_mbx_task_schedule(struct hclge_dev *hdev)
 static void hclge_reset_task_schedule(struct hclge_dev *hdev)
 {
 	if (!test_bit(HCLGE_STATE_REMOVING, &hdev->state) &&
+	    test_bit(HCLGE_STATE_SERVICE_INITED, &hdev->state) &&
 	    !test_and_set_bit(HCLGE_STATE_RST_SERVICE_SCHED, &hdev->state))
 		mod_delayed_work(hclge_wq, &hdev->service_task, 0);
 }

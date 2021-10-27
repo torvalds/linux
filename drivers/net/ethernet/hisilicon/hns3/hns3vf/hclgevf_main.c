@@ -2232,6 +2232,7 @@ static void hclgevf_get_misc_vector(struct hclgevf_dev *hdev)
 void hclgevf_reset_task_schedule(struct hclgevf_dev *hdev)
 {
 	if (!test_bit(HCLGEVF_STATE_REMOVING, &hdev->state) &&
+	    test_bit(HCLGEVF_STATE_SERVICE_INITED, &hdev->state) &&
 	    !test_and_set_bit(HCLGEVF_STATE_RST_SERVICE_SCHED,
 			      &hdev->state))
 		mod_delayed_work(hclgevf_wq, &hdev->service_task, 0);
@@ -3448,6 +3449,8 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 	}
 
 	hclgevf_init_rxd_adv_layout(hdev);
+
+	set_bit(HCLGEVF_STATE_SERVICE_INITED, &hdev->state);
 
 	hdev->last_reset_time = jiffies;
 	dev_info(&hdev->pdev->dev, "finished initializing %s driver\n",
