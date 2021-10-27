@@ -358,6 +358,7 @@ int tls_sk_query(struct sock *sk, int optname, char __user *optval,
 		int __user *optlen);
 int tls_sk_attach(struct sock *sk, int optname, char __user *optval,
 		  unsigned int optlen);
+void tls_err_abort(struct sock *sk, int err);
 
 int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx);
 void tls_sw_strparser_arm(struct sock *sk, struct tls_context *ctx);
@@ -466,12 +467,6 @@ static inline bool tls_is_sk_tx_device_offloaded(struct sock *sk)
 #endif
 }
 
-static inline void tls_err_abort(struct sock *sk, int err)
-{
-	sk->sk_err = err;
-	sk_error_report(sk);
-}
-
 static inline bool tls_bigint_increment(unsigned char *seq, int len)
 {
 	int i;
@@ -512,7 +507,7 @@ static inline void tls_advance_record_sn(struct sock *sk,
 					 struct cipher_context *ctx)
 {
 	if (tls_bigint_increment(ctx->rec_seq, prot->rec_seq_size))
-		tls_err_abort(sk, EBADMSG);
+		tls_err_abort(sk, -EBADMSG);
 
 	if (prot->version != TLS_1_3_VERSION &&
 	    prot->cipher_type != TLS_CIPHER_CHACHA20_POLY1305)
