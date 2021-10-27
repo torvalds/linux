@@ -523,7 +523,6 @@ struct hci_dev {
 	bool			advertising_paused;
 
 	struct notifier_block	suspend_notifier;
-	struct work_struct	suspend_prepare;
 	enum suspended_state	suspend_state_next;
 	enum suspended_state	suspend_state;
 	bool			scanning_paused;
@@ -531,9 +530,6 @@ struct hci_dev {
 	u8			wake_reason;
 	bdaddr_t		wake_addr;
 	u8			wake_addr_type;
-
-	wait_queue_head_t	suspend_wait_q;
-	DECLARE_BITMAP(suspend_tasks, __SUSPEND_NUM_TASKS);
 
 	struct hci_conn_hash	conn_hash;
 

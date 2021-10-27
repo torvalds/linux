@@ -2374,61 +2374,6 @@ void hci_copy_identity_address(struct hci_dev *hdev, bdaddr_t *bdaddr,
 	}
 }
 
-static void hci_suspend_clear_tasks(struct hci_dev *hdev)
-{
-	int i;
-
-	for (i = 0; i < __SUSPEND_NUM_TASKS; i++)
-		clear_bit(i, hdev->suspend_tasks);
-
-	wake_up(&hdev->suspend_wait_q);
-}
-
-static int hci_suspend_wait_event(struct hci_dev *hdev)
-{
-#define WAKE_COND                                                              \
-	(find_first_bit(hdev->suspend_tasks, __SUSPEND_NUM_TASKS) ==           \
-	 __SUSPEND_NUM_TASKS)
-
-	int i;
-	int ret = wait_event_timeout(hdev->suspend_wait_q,
-				     WAKE_COND, SUSPEND_NOTIFIER_TIMEOUT);
-
-	if (ret == 0) {
-		bt_dev_err(hdev, "Timed out waiting for suspend events");
-		for (i = 0; i < __SUSPEND_NUM_TASKS; ++i) {
-			if (test_bit(i, hdev->suspend_tasks))
-				bt_dev_err(hdev, "Suspend timeout bit: %d", i);
-			clear_bit(i, hdev->suspend_tasks);
-		}
-
-		ret = -ETIMEDOUT;
-	} else {
-		ret = 0;
-	}
-
-	return ret;
-}
-
-static void hci_prepare_suspend(struct work_struct *work)
-{
-	struct hci_dev *hdev =
-		container_of(work, struct hci_dev, suspend_prepare);
-
-	hci_dev_lock(hdev);
-	hci_req_prepare_suspend(hdev, hdev->suspend_state_next);
-	hci_dev_unlock(hdev);
-}
-
-static int hci_change_suspend_state(struct hci_dev *hdev,
-				    enum suspended_state next)
-{
-	hdev->suspend_state_next = next;
-	set_bit(SUSPEND_PREPARE_NOTIFIER, hdev->suspend_tasks);
-	queue_work(hdev->req_workqueue, &hdev->suspend_prepare);
-	return hci_suspend_wait_event(hdev);
-}
-
 static void hci_clear_wake_reason(struct hci_dev *hdev)
 {
 	hci_dev_lock(hdev);
@@ -2565,7 +2510,6 @@ struct hci_dev *hci_alloc_dev_priv(int sizeof_priv)
 	INIT_WORK(&hdev->tx_work, hci_tx_work);
 	INIT_WORK(&hdev->power_on, hci_power_on);
 	INIT_WORK(&hdev->error_reset, hci_error_reset);
-	INIT_WORK(&hdev->suspend_prepare, hci_prepare_suspend);
 
 	hci_cmd_sync_init(hdev);
 
@@ -2576,7 +2520,6 @@ struct hci_dev *hci_alloc_dev_priv(int sizeof_priv)
 	skb_queue_head_init(&hdev->raw_q);
 
 	init_waitqueue_head(&hdev->req_wait_q);
-	init_waitqueue_head(&hdev->suspend_wait_q);
 
 	INIT_DELAYED_WORK(&hdev->cmd_timer, hci_cmd_timeout);
 	INIT_DELAYED_WORK(&hdev->ncmd_timer, hci_ncmd_timeout);
@@ -2729,11 +2672,8 @@ void hci_unregister_dev(struct hci_dev *hdev)
 
 	hci_cmd_sync_clear(hdev);
 
-	if (!test_bit(HCI_QUIRK_NO_SUSPEND_NOTIFIER, &hdev->quirks)) {
-		hci_suspend_clear_tasks(hdev);
+	if (!test_bit(HCI_QUIRK_NO_SUSPEND_NOTIFIER, &hdev->quirks))
 		unregister_pm_notifier(&hdev->suspend_notifier);
-		cancel_work_sync(&hdev->suspend_prepare);
-	}
 
 	msft_unregister(hdev);
 
@@ -2800,7 +2740,6 @@ EXPORT_SYMBOL(hci_release_dev);
 int hci_suspend_dev(struct hci_dev *hdev)
 {
 	int ret;
-	u8 state = BT_RUNNING;
 
 	bt_dev_dbg(hdev, "");
 
@@ -2809,40 +2748,17 @@ int hci_suspend_dev(struct hci_dev *hdev)
 	    hci_dev_test_flag(hdev, HCI_UNREGISTER))
 		return 0;
 
-	/* If powering down, wait for completion. */
-	if (mgmt_powering_down(hdev)) {
-		set_bit(SUSPEND_POWERING_DOWN, hdev->suspend_tasks);
-		ret = hci_suspend_wait_event(hdev);
-		if (ret)
-			goto done;
-	}
+	/* If powering down don't attempt to suspend */
+	if (mgmt_powering_down(hdev))
+		return 0;
 
-	/* Suspend consists of two actions:
-	 *  - First, disconnect everything and make the controller not
-	 *    connectable (disabling scanning)
-	 *  - Second, program event filter/accept list and enable scan
-	 */
-	ret = hci_change_suspend_state(hdev, BT_SUSPEND_DISCONNECT);
-	if (ret)
-		goto clear;
+	hci_req_sync_lock(hdev);
+	ret = hci_suspend_sync(hdev);
+	hci_req_sync_unlock(hdev);
 
-	state = BT_SUSPEND_DISCONNECT;
-
-	/* Only configure accept list if device may wakeup. */
-	if (hdev->wakeup && hdev->wakeup(hdev)) {
-		ret = hci_change_suspend_state(hdev, BT_SUSPEND_CONFIGURE_WAKE);
-		if (!ret)
-			state = BT_SUSPEND_CONFIGURE_WAKE;
-	}
-
-clear:
 	hci_clear_wake_reason(hdev);
-	mgmt_suspending(hdev, state);
+	mgmt_suspending(hdev, hdev->suspend_state);
 
-done:
-	/* We always allow suspend even if suspend preparation failed and
-	 * attempt to recover in resume.
-	 */
 	hci_sock_dev_event(hdev, HCI_DEV_SUSPEND);
 	return ret;
 }
@@ -2864,10 +2780,12 @@ int hci_resume_dev(struct hci_dev *hdev)
 	if (mgmt_powering_down(hdev))
 		return 0;
 
-	ret = hci_change_suspend_state(hdev, BT_RUNNING);
+	hci_req_sync_lock(hdev);
+	ret = hci_resume_sync(hdev);
+	hci_req_sync_unlock(hdev);
 
 	mgmt_resuming(hdev, hdev->wake_reason, &hdev->wake_addr,
-			      hdev->wake_addr_type);
+		      hdev->wake_addr_type);
 
 	hci_sock_dev_event(hdev, HCI_DEV_RESUME);
 	return ret;

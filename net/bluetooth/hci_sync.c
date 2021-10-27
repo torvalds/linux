@@ -1410,9 +1410,6 @@ int hci_scan_disable_sync(struct hci_dev *hdev)
 		return 0;
 	}
 
-	if (hdev->suspended)
-		set_bit(SUSPEND_SCAN_DISABLE, hdev->suspend_tasks);
-
 	err = hci_le_set_scan_enable_sync(hdev, LE_SCAN_DISABLE, 0x00);
 	if (err) {
 		bt_dev_err(hdev, "Unable to disable scanning: %d", err);
@@ -1642,16 +1639,32 @@ static int hci_le_add_accept_list_sync(struct hci_dev *hdev,
 	return 0;
 }
 
-/* This function disables all advertising instances (including 0x00) */
+/* This function disables/pause all advertising instances */
 static int hci_pause_advertising_sync(struct hci_dev *hdev)
 {
 	int err;
+	int old_state;
 
 	/* If there are no instances or advertising has already been paused
 	 * there is nothing to do.
 	 */
 	if (!hdev->adv_instance_cnt || hdev->advertising_paused)
 		return 0;
+
+	bt_dev_dbg(hdev, "Pausing directed advertising");
+
+	/* Stop directed advertising */
+	old_state = hci_dev_test_flag(hdev, HCI_ADVERTISING);
+	if (old_state) {
+		/* When discoverable timeout triggers, then just make sure
+		 * the limited discoverable flag is cleared. Even in the case
+		 * of a timeout triggered from general discoverable, it is
+		 * safe to unconditionally clear the flag.
+		 */
+		hci_dev_clear_flag(hdev, HCI_LIMITED_DISCOVERABLE);
+		hci_dev_clear_flag(hdev, HCI_DISCOVERABLE);
+		hdev->discov_timeout = 0;
+	}
 
 	bt_dev_dbg(hdev, "Pausing advertising instances");
 
@@ -1667,11 +1680,12 @@ static int hci_pause_advertising_sync(struct hci_dev *hdev)
 		cancel_adv_timeout(hdev);
 
 	hdev->advertising_paused = true;
+	hdev->advertising_old_state = old_state;
 
 	return 0;
 }
 
-/* This function enables all user advertising instances (excluding 0x00) */
+/* This function enables all user advertising instances */
 static int hci_resume_advertising_sync(struct hci_dev *hdev)
 {
 	struct adv_info *adv, *tmp;
@@ -1680,6 +1694,14 @@ static int hci_resume_advertising_sync(struct hci_dev *hdev)
 	/* If advertising has not been paused there is nothing  to do. */
 	if (!hdev->advertising_paused)
 		return 0;
+
+	/* Resume directed advertising */
+	hdev->advertising_paused = false;
+	if (hdev->advertising_old_state) {
+		hci_dev_set_flag(hdev, HCI_ADVERTISING);
+		queue_work(hdev->req_workqueue, &hdev->discoverable_update);
+		hdev->advertising_old_state = 0;
+	}
 
 	bt_dev_dbg(hdev, "Resuming advertising instances");
 
@@ -2002,8 +2024,6 @@ int hci_passive_scan_sync(struct hci_dev *hdev)
 	if (hdev->suspended) {
 		window = hdev->le_scan_window_suspend;
 		interval = hdev->le_scan_int_suspend;
-
-		set_bit(SUSPEND_SCAN_ENABLE, hdev->suspend_tasks);
 	} else if (hci_is_le_conn_scanning(hdev)) {
 		window = hdev->le_scan_window_connect;
 		interval = hdev->le_scan_int_connect;
@@ -2937,6 +2957,13 @@ static int hci_set_event_mask_sync(struct hci_dev *hdev)
 
 	if (lmp_bredr_capable(hdev)) {
 		events[4] |= 0x01; /* Flow Specification Complete */
+
+		/* Don't set Disconnect Complete when suspended as that
+		 * would wakeup the host when disconnecting due to
+		 * suspend.
+		 */
+		if (hdev->suspended)
+			events[0] &= 0xef;
 	} else {
 		/* Use a different default for LE-only devices */
 		memset(events, 0, sizeof(events));
@@ -2949,7 +2976,12 @@ static int hci_set_event_mask_sync(struct hci_dev *hdev)
 		 * control related events.
 		 */
 		if (hdev->commands[0] & 0x20) {
-			events[0] |= 0x10; /* Disconnection Complete */
+			/* Don't set Disconnect Complete when suspended as that
+			 * would wakeup the host when disconnecting due to
+			 * suspend.
+			 */
+			if (!hdev->suspended)
+				events[0] |= 0x10; /* Disconnection Complete */
 			events[2] |= 0x04; /* Number of Completed Packets */
 			events[3] |= 0x02; /* Data Buffer Overflow */
 		}
@@ -4033,9 +4065,6 @@ int hci_dev_close_sync(struct hci_dev *hdev)
 	clear_bit(HCI_RUNNING, &hdev->flags);
 	hci_sock_dev_event(hdev, HCI_DEV_CLOSE);
 
-	if (test_and_clear_bit(SUSPEND_POWERING_DOWN, hdev->suspend_tasks))
-		wake_up(&hdev->suspend_wait_q);
-
 	/* After this point our queues are empty and no tasks are scheduled. */
 	hdev->close(hdev);
 
@@ -4299,6 +4328,20 @@ static int hci_abort_conn_sync(struct hci_dev *hdev, struct hci_conn *conn,
 	return 0;
 }
 
+static int hci_disconnect_all_sync(struct hci_dev *hdev, u8 reason)
+{
+	struct hci_conn *conn, *tmp;
+	int err;
+
+	list_for_each_entry_safe(conn, tmp, &hdev->conn_hash.list, list) {
+		err = hci_abort_conn_sync(hdev, conn, reason);
+		if (err)
+			return err;
+	}
+
+	return err;
+}
+
 /* This function perform power off HCI command sequence as follows:
  *
  * Clear Advertising
@@ -4308,7 +4351,6 @@ static int hci_abort_conn_sync(struct hci_dev *hdev, struct hci_conn *conn,
  */
 static int hci_power_off_sync(struct hci_dev *hdev)
 {
-	struct hci_conn *conn;
 	int err;
 
 	/* If controller is already down there is nothing to do */
@@ -4330,10 +4372,10 @@ static int hci_power_off_sync(struct hci_dev *hdev)
 	if (err)
 		return err;
 
-	list_for_each_entry(conn, &hdev->conn_hash.list, list) {
-		/* 0x15 == Terminated due to Power Off */
-		hci_abort_conn_sync(hdev, conn, 0x15);
-	}
+	/* Terminated due to Power Off */
+	err = hci_disconnect_all_sync(hdev, HCI_ERROR_REMOTE_POWER_OFF);
+	if (err)
+		return err;
 
 	return hci_dev_close_sync(hdev);
 }
@@ -4533,5 +4575,225 @@ int hci_start_discovery_sync(struct hci_dev *hdev)
 
 	queue_delayed_work(hdev->req_workqueue, &hdev->le_scan_disable,
 			   timeout);
+	return 0;
+}
+
+static void hci_suspend_monitor_sync(struct hci_dev *hdev)
+{
+	switch (hci_get_adv_monitor_offload_ext(hdev)) {
+	case HCI_ADV_MONITOR_EXT_MSFT:
+		msft_suspend_sync(hdev);
+		break;
+	default:
+		return;
+	}
+}
+
+/* This function disables discovery and mark it as paused */
+static int hci_pause_discovery_sync(struct hci_dev *hdev)
+{
+	int old_state = hdev->discovery.state;
+	int err;
+
+	/* If discovery already stopped/stopping/paused there nothing to do */
+	if (old_state == DISCOVERY_STOPPED || old_state == DISCOVERY_STOPPING ||
+	    hdev->discovery_paused)
+		return 0;
+
+	hci_discovery_set_state(hdev, DISCOVERY_STOPPING);
+	err = hci_stop_discovery_sync(hdev);
+	if (err)
+		return err;
+
+	hdev->discovery_paused = true;
+	hdev->discovery_old_state = old_state;
+	hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
+
+	return 0;
+}
+
+static int hci_update_event_filter_sync(struct hci_dev *hdev)
+{
+	struct bdaddr_list_with_flags *b;
+	u8 scan = SCAN_DISABLED;
+	bool scanning = test_bit(HCI_PSCAN, &hdev->flags);
+	int err;
+
+	if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
+		return 0;
+
+	/* Always clear event filter when starting */
+	hci_clear_event_filter_sync(hdev);
+
+	list_for_each_entry(b, &hdev->accept_list, list) {
+		if (!hci_conn_test_flag(HCI_CONN_FLAG_REMOTE_WAKEUP,
+					b->current_flags))
+			continue;
+
+		bt_dev_dbg(hdev, "Adding event filters for %pMR", &b->bdaddr);
+
+		err =  hci_set_event_filter_sync(hdev, HCI_FLT_CONN_SETUP,
+						 HCI_CONN_SETUP_ALLOW_BDADDR,
+						 &b->bdaddr,
+						 HCI_CONN_SETUP_AUTO_ON);
+		if (err)
+			bt_dev_dbg(hdev, "Failed to set event filter for %pMR",
+				   &b->bdaddr);
+		else
+			scan = SCAN_PAGE;
+	}
+
+	if (scan && !scanning)
+		hci_write_scan_enable_sync(hdev, scan);
+	else if (!scan && scanning)
+		hci_write_scan_enable_sync(hdev, scan);
+
+	return 0;
+}
+
+/* This function performs the HCI suspend procedures in the follow order:
+ *
+ * Pause discovery (active scanning/inquiry)
+ * Pause Directed Advertising/Advertising
+ * Disconnect all connections
+ * Set suspend_status to BT_SUSPEND_DISCONNECT if hdev cannot wakeup
+ * otherwise:
+ * Update event mask (only set events that are allowed to wake up the host)
+ * Update event filter (with devices marked with HCI_CONN_FLAG_REMOTE_WAKEUP)
+ * Update passive scanning (lower duty cycle)
+ * Set suspend_status to BT_SUSPEND_CONFIGURE_WAKE
+ */
+int hci_suspend_sync(struct hci_dev *hdev)
+{
+	int err;
+
+	/* If marked as suspended there nothing to do */
+	if (hdev->suspended)
+		return 0;
+
+	/* Mark device as suspended */
+	hdev->suspended = true;
+
+	/* Pause discovery if not already stopped */
+	hci_pause_discovery_sync(hdev);
+
+	/* Pause other advertisements */
+	hci_pause_advertising_sync(hdev);
+
+	/* Disable page scan if enabled */
+	if (test_bit(HCI_PSCAN, &hdev->flags))
+		hci_write_scan_enable_sync(hdev, SCAN_DISABLED);
+
+	/* Suspend monitor filters */
+	hci_suspend_monitor_sync(hdev);
+
+	/* Prevent disconnects from causing scanning to be re-enabled */
+	hdev->scanning_paused = true;
+
+	/* Soft disconnect everything (power off) */
+	err = hci_disconnect_all_sync(hdev, HCI_ERROR_REMOTE_POWER_OFF);
+	if (err) {
+		/* Set state to BT_RUNNING so resume doesn't notify */
+		hdev->suspend_state = BT_RUNNING;
+		hci_resume_sync(hdev);
+		return err;
+	}
+
+	/* Only configure accept list if disconnect succeeded and wake
+	 * isn't being prevented.
+	 */
+	if (!hdev->wakeup || !hdev->wakeup(hdev)) {
+		hdev->suspend_state = BT_SUSPEND_DISCONNECT;
+		return 0;
+	}
+
+	/* Unpause to take care of updating scanning params */
+	hdev->scanning_paused = false;
+
+	/* Update event mask so only the allowed event can wakeup the host */
+	hci_set_event_mask_sync(hdev);
+
+	/* Enable event filter for paired devices */
+	hci_update_event_filter_sync(hdev);
+
+	/* Update LE passive scan if enabled */
+	hci_update_passive_scan_sync(hdev);
+
+	/* Pause scan changes again. */
+	hdev->scanning_paused = true;
+
+	hdev->suspend_state = BT_SUSPEND_CONFIGURE_WAKE;
+
+	return 0;
+}
+
+/* This function resumes discovery */
+static int hci_resume_discovery_sync(struct hci_dev *hdev)
+{
+	int err;
+
+	/* If discovery not paused there nothing to do */
+	if (!hdev->discovery_paused)
+		return 0;
+
+	hdev->discovery_paused = false;
+
+	hci_discovery_set_state(hdev, DISCOVERY_STARTING);
+
+	err = hci_start_discovery_sync(hdev);
+
+	hci_discovery_set_state(hdev, err ? DISCOVERY_STOPPED :
+				DISCOVERY_FINDING);
+
+	return err;
+}
+
+static void hci_resume_monitor_sync(struct hci_dev *hdev)
+{
+	switch (hci_get_adv_monitor_offload_ext(hdev)) {
+	case HCI_ADV_MONITOR_EXT_MSFT:
+		msft_resume_sync(hdev);
+		break;
+	default:
+		return;
+	}
+}
+
+/* This function performs the HCI suspend procedures in the follow order:
+ *
+ * Restore event mask
+ * Clear event filter
+ * Update passive scanning (normal duty cycle)
+ * Resume Directed Advertising/Advertising
+ * Resume discovery (active scanning/inquiry)
+ */
+int hci_resume_sync(struct hci_dev *hdev)
+{
+	/* If not marked as suspended there nothing to do */
+	if (!hdev->suspended)
+		return 0;
+
+	hdev->suspended = false;
+	hdev->scanning_paused = false;
+
+	/* Restore event mask */
+	hci_set_event_mask_sync(hdev);
+
+	/* Clear any event filters and restore scan state */
+	hci_clear_event_filter_sync(hdev);
+	hci_update_scan_sync(hdev);
+
+	/* Reset passive scanning to normal */
+	hci_update_passive_scan_sync(hdev);
+
+	/* Resume monitor filters */
+	hci_resume_monitor_sync(hdev);
+
+	/* Resume other advertisements */
+	hci_resume_advertising_sync(hdev);
+
+	/* Resume discovery */
+	hci_resume_discovery_sync(hdev);
+
 	return 0;
 }

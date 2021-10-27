@@ -92,3 +92,6 @@ int hci_set_powered_sync(struct hci_dev *hdev, u8 val);
 
 int hci_start_discovery_sync(struct hci_dev *hdev);
 int hci_stop_discovery_sync(struct hci_dev *hdev);
+
+int hci_suspend_sync(struct hci_dev *hdev);
+int hci_resume_sync(struct hci_dev *hdev);

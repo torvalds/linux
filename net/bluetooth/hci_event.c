@@ -2414,9 +2414,14 @@ static void hci_cs_exit_sniff_mode(struct hci_dev *hdev, __u8 status)
 static void hci_cs_disconnect(struct hci_dev *hdev, u8 status)
 {
 	struct hci_cp_disconnect *cp;
+	struct hci_conn_params *params;
 	struct hci_conn *conn;
+	bool mgmt_conn;
 
-	if (!status)
+	/* Wait for HCI_EV_DISCONN_COMPLETE if status 0x00 and not suspended
+	 * otherwise cleanup the connection immediately.
+	 */
+	if (!status && !hdev->suspended)
 		return;
 
 	cp = hci_sent_cmd_data(hdev, HCI_OP_DISCONNECT);
@@ -2426,7 +2431,10 @@ static void hci_cs_disconnect(struct hci_dev *hdev, u8 status)
 	hci_dev_lock(hdev);
 
 	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(cp->handle));
-	if (conn) {
+	if (!conn)
+		goto unlock;
+
+	if (status) {
 		mgmt_disconnect_failed(hdev, &conn->dst, conn->type,
 				       conn->dst_type, status);
 
@@ -2435,14 +2443,48 @@ static void hci_cs_disconnect(struct hci_dev *hdev, u8 status)
 			hci_enable_advertising(hdev);
 		}
 
-		/* If the disconnection failed for any reason, the upper layer
-		 * does not retry to disconnect in current implementation.
-		 * Hence, we need to do some basic cleanup here and re-enable
-		 * advertising if necessary.
-		 */
-		hci_conn_del(conn);
+		goto done;
 	}
 
+	mgmt_conn = test_and_clear_bit(HCI_CONN_MGMT_CONNECTED, &conn->flags);
+
+	if (conn->type == ACL_LINK) {
+		if (test_bit(HCI_CONN_FLUSH_KEY, &conn->flags))
+			hci_remove_link_key(hdev, &conn->dst);
+	}
+
+	params = hci_conn_params_lookup(hdev, &conn->dst, conn->dst_type);
+	if (params) {
+		switch (params->auto_connect) {
+		case HCI_AUTO_CONN_LINK_LOSS:
+			if (cp->reason != HCI_ERROR_CONNECTION_TIMEOUT)
+				break;
+			fallthrough;
+
+		case HCI_AUTO_CONN_DIRECT:
+		case HCI_AUTO_CONN_ALWAYS:
+			list_del_init(&params->action);
+			list_add(&params->action, &hdev->pend_le_conns);
+			break;
+
+		default:
+			break;
+		}
+	}
+
+	mgmt_device_disconnected(hdev, &conn->dst, conn->type, conn->dst_type,
+				 cp->reason, mgmt_conn);
+
+	hci_disconn_cfm(conn, cp->reason);
+
+done:
+	/* If the disconnection failed for any reason, the upper layer
+	 * does not retry to disconnect in current implementation.
+	 * Hence, we need to do some basic cleanup here and re-enable
+	 * advertising if necessary.
+	 */
+	hci_conn_del(conn);
+unlock:
 	hci_dev_unlock(hdev);
 }
 
@@ -3046,14 +3088,6 @@ static void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	}
 
 	hci_conn_del(conn);
-
-	/* The suspend notifier is waiting for all devices to disconnect so
-	 * clear the bit from pending tasks and inform the wait queue.
-	 */
-	if (list_empty(&hdev->conn_hash.list) &&
-	    test_and_clear_bit(SUSPEND_DISCONNECTING, hdev->suspend_tasks)) {
-		wake_up(&hdev->suspend_wait_q);
-	}
 
 unlock:
 	hci_dev_unlock(hdev);
@@ -5575,8 +5609,9 @@ static struct hci_conn *check_pending_le_conn(struct hci_dev *hdev,
 	if (adv_type != LE_ADV_IND && adv_type != LE_ADV_DIRECT_IND)
 		return NULL;
 
-	/* Ignore if the device is blocked */
-	if (hci_bdaddr_list_lookup(&hdev->reject_list, addr, addr_type))
+	/* Ignore if the device is blocked or hdev is suspended */
+	if (hci_bdaddr_list_lookup(&hdev->reject_list, addr, addr_type) ||
+	    hdev->suspended)
 		return NULL;
 
 	/* Most controller will fail if we try to create new connections
