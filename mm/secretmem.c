@@ -203,6 +203,8 @@ SYSCALL_DEFINE1(memfd_secret, unsigned int, flags)
 
 	if (flags & ~(SECRETMEM_FLAGS_MASK | O_CLOEXEC))
 		return -EINVAL;
+	if (atomic_read(&secretmem_users) < 0)
+		return -ENFILE;
 
 	fd = get_unused_fd_flags(flags & O_CLOEXEC);
 	if (fd < 0)
