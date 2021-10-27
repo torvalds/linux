@@ -16,6 +16,14 @@
 
 #include "motu.h"
 
+static bool has_dsp_event(struct snd_motu *motu)
+{
+	if (motu->spec->flags & SND_MOTU_SPEC_REGISTER_DSP)
+		return (snd_motu_register_dsp_message_parser_count_event(motu) > 0);
+	else
+		return false;
+}
+
 static long hwdep_read(struct snd_hwdep *hwdep, char __user *buf, long count,
 		       loff_t *offset)
 {
@@ -25,8 +33,7 @@ static long hwdep_read(struct snd_hwdep *hwdep, char __user *buf, long count,
 
 	spin_lock_irq(&motu->lock);
 
-	while (!motu->dev_lock_changed && motu->msg == 0 &&
-			snd_motu_register_dsp_message_parser_count_event(motu) == 0) {
+	while (!motu->dev_lock_changed && motu->msg == 0 && !has_dsp_event(motu)) {
 		prepare_to_wait(&motu->hwdep_wait, &wait, TASK_INTERRUPTIBLE);
 		spin_unlock_irq(&motu->lock);
 		schedule();
@@ -55,7 +62,7 @@ static long hwdep_read(struct snd_hwdep *hwdep, char __user *buf, long count,
 		count = min_t(long, count, sizeof(event));
 		if (copy_to_user(buf, &event, count))
 			return -EFAULT;
-	} else if (snd_motu_register_dsp_message_parser_count_event(motu) > 0) {
+	} else if (has_dsp_event(motu)) {
 		size_t consumed = 0;
 		u32 __user *ptr;
 		u32 ev;
@@ -94,8 +101,7 @@ static __poll_t hwdep_poll(struct snd_hwdep *hwdep, struct file *file,
 	poll_wait(file, &motu->hwdep_wait, wait);
 
 	spin_lock_irq(&motu->lock);
-	if (motu->dev_lock_changed || motu->msg ||
-	    snd_motu_register_dsp_message_parser_count_event(motu) > 0)
+	if (motu->dev_lock_changed || motu->msg || has_dsp_event(motu))
 		events = EPOLLIN | EPOLLRDNORM;
 	else
 		events = 0;
