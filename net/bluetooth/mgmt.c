@@ -5953,20 +5953,14 @@ unlock:
 	return err;
 }
 
-static void set_bredr_complete(struct hci_dev *hdev, u8 status, u16 opcode)
+static void set_bredr_complete(struct hci_dev *hdev, void *data, int err)
 {
-	struct mgmt_pending_cmd *cmd;
+	struct mgmt_pending_cmd *cmd = data;
 
-	bt_dev_dbg(hdev, "status 0x%02x", status);
+	bt_dev_dbg(hdev, "err %d", err);
 
-	hci_dev_lock(hdev);
-
-	cmd = pending_find(MGMT_OP_SET_BREDR, hdev);
-	if (!cmd)
-		goto unlock;
-
-	if (status) {
-		u8 mgmt_err = mgmt_status(status);
+	if (err) {
+		u8 mgmt_err = mgmt_status(err);
 
 		/* We need to restore the flag if related HCI commands
 		 * failed.
@@ -5979,17 +5973,31 @@ static void set_bredr_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 		new_settings(hdev, cmd->sk);
 	}
 
-	mgmt_pending_remove(cmd);
+	mgmt_pending_free(cmd);
+}
 
-unlock:
-	hci_dev_unlock(hdev);
+static int set_bredr_sync(struct hci_dev *hdev, void *data)
+{
+	int status;
+
+	status = hci_write_fast_connectable_sync(hdev, false);
+
+	if (!status)
+		status = hci_update_scan_sync(hdev);
+
+	/* Since only the advertising data flags will change, there
+	 * is no need to update the scan response data.
+	 */
+	if (!status)
+		status = hci_update_adv_data_sync(hdev, hdev->cur_adv_instance);
+
+	return status;
 }
 
 static int set_bredr(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 {
 	struct mgmt_mode *cp = data;
 	struct mgmt_pending_cmd *cmd;
-	struct hci_request req;
 	int err;
 
 	bt_dev_dbg(hdev, "sock %p", sk);
@@ -6061,15 +6069,19 @@ static int set_bredr(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 		}
 	}
 
-	if (pending_find(MGMT_OP_SET_BREDR, hdev)) {
-		err = mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_BREDR,
-				      MGMT_STATUS_BUSY);
-		goto unlock;
-	}
-
-	cmd = mgmt_pending_add(sk, MGMT_OP_SET_BREDR, hdev, data, len);
-	if (!cmd) {
+	cmd = mgmt_pending_new(sk, MGMT_OP_SET_BREDR, hdev, data, len);
+	if (!cmd)
 		err = -ENOMEM;
+	else
+		err = hci_cmd_sync_queue(hdev, set_bredr_sync, cmd,
+					 set_bredr_complete);
+
+	if (err < 0) {
+		mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_BREDR,
+				MGMT_STATUS_FAILED);
+		if (cmd)
+			mgmt_pending_free(cmd);
+
 		goto unlock;
 	}
 
@@ -6077,20 +6089,6 @@ static int set_bredr(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 	 * hci_req_update_adv_data generates the correct flags.
 	 */
 	hci_dev_set_flag(hdev, HCI_BREDR_ENABLED);
-
-	hci_req_init(&req, hdev);
-
-	__hci_req_write_fast_connectable(&req, false);
-	__hci_req_update_scan(&req);
-
-	/* Since only the advertising data flags will change, there
-	 * is no need to update the scan response data.
-	 */
-	__hci_req_update_adv_data(&req, hdev->cur_adv_instance);
-
-	err = hci_req_run(&req, set_bredr_complete);
-	if (err < 0)
-		mgmt_pending_remove(cmd);
 
 unlock:
 	hci_dev_unlock(hdev);
