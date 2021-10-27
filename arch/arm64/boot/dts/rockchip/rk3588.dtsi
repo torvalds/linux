@@ -15,6 +15,8 @@
 		ethernet0 = &gmac0;
 		hdptx0 = &hdptxphy0;
 		hdptx1 = &hdptxphy1;
+		hdmi0 = &hdmi0;
+		hdmi1 = &hdmi1;
 	};
 
 	usbdrd3_1: usbdrd3_1 {
@@ -244,6 +246,61 @@
 				dp1_in_vp2: endpoint@2 {
 					reg = <2>;
 					remote-endpoint = <&vp2_out_dp1>;
+					status = "disabled";
+				};
+			};
+		};
+	};
+
+	hdmi1: hdmi@fdea0000 {
+		compatible = "rockchip,rk3588-dw-hdmi";
+		reg = <0x0 0xfdea0000 0x0 0x20000>;
+		interrupts = <GIC_SPI 173 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 175 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 361 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru PCLK_HDMITX1>,
+			 <&cru CLK_HDMIHDP1>,
+			 <&cru CLK_HDMITX1_EARC>,
+			 <&cru CLK_HDMITX1_REF>;
+		clock-names = "iahb", "hpd", "earc", "ref";
+		resets = <&cru SRST_HDMITX1_REF>, <&cru SRST_HDMIHDP1>;
+		reset-names = "ref", "hdp";
+		power-domains = <&power RK3588_PD_VO1>;
+		reg-io-width = <4>;
+		rockchip,grf = <&sys_grf>;
+		rockchip,vo1_grf = <&vo1_grf>;
+		phys = <&hdptxphy1>;
+		phy-names = "hdmi";
+		pinctrl-names = "default";
+		pinctrl-0 = <&hdmim0_pins>;
+		status = "disabled";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			hdmi1_in: port@0 {
+				reg = <0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				hdmi1_in_vp0: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&vp0_out_hdmi1>;
+					status = "disabled";
+				};
+
+				hdmi1_in_vp1: endpoint@1 {
+					reg = <1>;
+					remote-endpoint = <&vp1_out_hdmi1>;
+					status = "disabled";
+				};
+
+				hdmi1_in_vp2: endpoint@2 {
+					reg = <2>;
+					remote-endpoint = <&vp2_out_hdmi1>;
 					status = "disabled";
 				};
 			};
@@ -601,6 +658,7 @@
 
 	vp0_out_hdmi1: endpoint@5 {
 		reg = <5>;
+		remote-endpoint = <&hdmi1_in_vp0>;
 	};
 };
 
@@ -617,6 +675,7 @@
 
 	vp1_out_hdmi1: endpoint@5 {
 		reg = <5>;
+		remote-endpoint = <&hdmi1_in_vp1>;
 	};
 };
 
@@ -633,5 +692,6 @@
 
 	vp2_out_hdmi1: endpoint@7 {
 		reg = <7>;
+		remote-endpoint = <&hdmi1_in_vp2>;
 	};
 };
