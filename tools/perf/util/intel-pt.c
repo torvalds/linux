@@ -172,6 +172,7 @@ struct intel_pt_queue {
 	bool step_through_buffers;
 	bool use_buffer_pid_tid;
 	bool sync_switch;
+	bool sample_ipc;
 	pid_t pid, tid;
 	int cpu;
 	int switch_state;
@@ -1581,7 +1582,7 @@ static int intel_pt_synth_branch_sample(struct intel_pt_queue *ptq)
 		sample.branch_stack = (struct branch_stack *)&dummy_bs;
 	}
 
-	if (ptq->state->flags & INTEL_PT_SAMPLE_IPC)
+	if (ptq->sample_ipc)
 		sample.cyc_cnt = ptq->ipc_cyc_cnt - ptq->last_br_cyc_cnt;
 	if (sample.cyc_cnt) {
 		sample.insn_cnt = ptq->ipc_insn_cnt - ptq->last_br_insn_cnt;
@@ -1632,7 +1633,7 @@ static int intel_pt_synth_instruction_sample(struct intel_pt_queue *ptq)
 	else
 		sample.period = ptq->state->tot_insn_cnt - ptq->last_insn_cnt;
 
-	if (ptq->state->flags & INTEL_PT_SAMPLE_IPC)
+	if (ptq->sample_ipc)
 		sample.cyc_cnt = ptq->ipc_cyc_cnt - ptq->last_in_cyc_cnt;
 	if (sample.cyc_cnt) {
 		sample.insn_cnt = ptq->ipc_insn_cnt - ptq->last_in_insn_cnt;
@@ -2245,8 +2246,15 @@ static int intel_pt_sample(struct intel_pt_queue *ptq)
 
 	ptq->have_sample = false;
 
-	ptq->ipc_insn_cnt = ptq->state->tot_insn_cnt;
-	ptq->ipc_cyc_cnt = ptq->state->tot_cyc_cnt;
+	if (pt->synth_opts.approx_ipc) {
+		ptq->ipc_insn_cnt = ptq->state->tot_insn_cnt;
+		ptq->ipc_cyc_cnt = ptq->state->cycles;
+		ptq->sample_ipc = true;
+	} else {
+		ptq->ipc_insn_cnt = ptq->state->tot_insn_cnt;
+		ptq->ipc_cyc_cnt = ptq->state->tot_cyc_cnt;
+		ptq->sample_ipc = ptq->state->flags & INTEL_PT_SAMPLE_IPC;
+	}
 
 	/*
 	 * Do PEBS first to allow for the possibility that the PEBS timestamp

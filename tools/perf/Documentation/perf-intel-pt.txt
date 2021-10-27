@@ -157,6 +157,15 @@ of instructions and number of cycles since the last update, and thus represent
 the average IPC since the last IPC for that event type.  Note IPC for "branches"
 events is calculated separately from IPC for "instructions" events.
 
+Even with the 'cyc' config term, it is possible to produce IPC information for
+every change of timestamp, but at the expense of accuracy.  That is selected by
+specifying the itrace 'A' option.  Due to the granularity of timestamps, the
+actual number of cycles increases even though the cycles reported does not.
+The number of instructions is known, but if IPC is reported, cycles can be too
+low and so IPC is too high.  Note that inaccuracy decreases as the period of
+sampling increases i.e. if the number of cycles is too low by a small amount,
+that becomes less significant if the number of cycles is large.
+
 Also note that the IPC instruction count may or may not include the current
 instruction.  If the cycle count is associated with an asynchronous branch
 (e.g. page fault or interrupt), then the instruction count does not include the
@@ -873,6 +882,7 @@ The letters are:
 	L	synthesize last branch entries on existing event records
 	s	skip initial number of events
 	q	quicker (less detailed) decoding
+	A	approximate IPC
 	Z	prefer to ignore timestamps (so-called "timeless" decoding)
 
 "Instructions" events look like they were recorded by "perf record -e
