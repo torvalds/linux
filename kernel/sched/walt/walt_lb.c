@@ -494,7 +494,13 @@ static void walt_lb_tick(void *unused, struct rq *rq)
 
 	if (unlikely(walt_disabled))
 		return;
-	if (!rq->misfit_task_load || !walt_fair_task(p))
+
+	if (!walt_fair_task(p))
+		return;
+
+	walt_cfs_tick(rq);
+
+	if (!rq->misfit_task_load)
 		return;
 
 	if (p->state != TASK_RUNNING || p->nr_cpus_allowed == 1)

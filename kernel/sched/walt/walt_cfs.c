@@ -689,7 +689,8 @@ static void walt_place_entity(void *unused, struct sched_entity *se, u64 *vrunti
 	}
 }
 
-static void walt_binder_low_latency_set(void *unused, struct task_struct *task)
+static void walt_binder_low_latency_set(void *unused, struct task_struct *task,
+					bool sync, struct binder_proc *proc)
 {
 	struct walt_task_struct *wts = (struct walt_task_struct *) task->android_vendor_data1;
 
@@ -738,16 +739,275 @@ static void binder_restore_priority_hook(void *data,
 
 	if (wts->boost == TASK_BOOST_STRICT_MAX)
 		wts->boost = bndrtrans->android_vendor_data1;
+
+}
+/*
+ * Higher prio mvp can preempt lower prio mvp.
+ *
+ * However, the lower prio MVP slice will be more since we expect them to
+ * be the work horses. For example, binders will have higher prio MVP and
+ * they can preempt long running rtg prio tasks but binders loose their
+ * powers with in 3 msec where as rtg prio tasks can run more than that.
+ */
+static inline int walt_get_mvp_task_prio(struct task_struct *p)
+{
+	if ((per_task_boost(p) == TASK_BOOST_STRICT_MAX) ||
+		task_rtg_high_prio(p) ||
+		walt_procfs_low_latency_task(p))
+		return WALT_RTG_MVP;
+
+	if (walt_binder_low_latency_task(p))
+		return WALT_BINDER_MVP;
+
+	return WALT_NOT_MVP;
+}
+
+static inline unsigned int walt_cfs_mvp_task_limit(struct task_struct *p)
+{
+	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
+
+	/* Binder MVP tasks are high prio but have only single slice */
+	if (wts->mvp_prio == WALT_BINDER_MVP)
+		return WALT_MVP_SLICE;
+
+	return WALT_MVP_LIMIT;
+}
+
+static void walt_cfs_insert_mvp_task(struct walt_rq *wrq, struct walt_task_struct *wts,
+				     bool at_front)
+{
+	struct list_head *pos;
+
+	list_for_each(pos, &wrq->mvp_tasks) {
+		struct walt_task_struct *tmp_wts = container_of(pos, struct walt_task_struct,
+								mvp_list);
+
+		if (at_front) {
+			if (wts->mvp_prio >= tmp_wts->mvp_prio)
+				break;
+		} else {
+			if (wts->mvp_prio > tmp_wts->mvp_prio)
+				break;
+		}
+	}
+
+	list_add(&wts->mvp_list, pos->prev);
+}
+
+static void walt_cfs_deactivate_mvp_task(struct task_struct *p)
+{
+	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
+
+	list_del_init(&wts->mvp_list);
+	wts->mvp_prio = WALT_NOT_MVP;
+
+	/*
+	 * Reset the exec time during sleep so that it starts
+	 * from scratch upon next wakeup. total_exec should
+	 * be preserved when task is enq/deq while it is on
+	 * runqueue.
+	 */
+	if (p->state != TASK_RUNNING)
+		wts->total_exec = 0;
+}
+
+/*
+ * MVP task runtime update happens here. Three possibilities:
+ *
+ * de-activated: The MVP consumed its runtime. Non MVP can preempt.
+ * slice expired: MVP slice is expired and other MVP can preempt.
+ * slice not expired: This MVP task can continue to run.
+ */
+static void walt_cfs_account_mvp_runtime(struct rq *rq, struct task_struct *curr)
+{
+	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
+	struct walt_task_struct *wts = (struct walt_task_struct *) curr->android_vendor_data1;
+	s64 delta;
+	unsigned int limit;
+
+	/* sum_exec_snapshot can be ahead. See below increment */
+	delta = curr->se.sum_exec_runtime - wts->sum_exec_snapshot;
+	if (delta < 0)
+		delta = 0;
+	else
+		delta += rq_clock_task(rq) - curr->se.exec_start;
+
+	/* slice is not expired */
+	if (delta < WALT_MVP_SLICE)
+		return;
+
+	/*
+	 * slice is expired, check if we have to deactivate the
+	 * MVP task, otherwise requeue the task in the list so
+	 * that other MVP tasks gets a chance.
+	 */
+	wts->sum_exec_snapshot += delta;
+	wts->total_exec += delta;
+
+	limit = walt_cfs_mvp_task_limit(curr);
+	if (wts->total_exec > limit) {
+		walt_cfs_deactivate_mvp_task(curr);
+		trace_walt_cfs_deactivate_mvp_task(curr, wts, limit);
+		return;
+	}
+
+	/* slice expired. re-queue the task */
+	list_del(&wts->mvp_list);
+	walt_cfs_insert_mvp_task(wrq, wts, false);
+}
+
+void walt_cfs_enqueue_task(struct rq *rq, struct task_struct *p)
+{
+	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
+	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
+	int mvp_prio = walt_get_mvp_task_prio(p);
+
+	if (mvp_prio == WALT_NOT_MVP)
+		return;
+
+	/*
+	 * This can happen during migration or enq/deq for prio/class change.
+	 * it was once MVP but got demoted, it will not be MVP until
+	 * it goes to sleep again.
+	 */
+	if (wts->total_exec > walt_cfs_mvp_task_limit(p))
+		return;
+
+	wts->mvp_prio = mvp_prio;
+	walt_cfs_insert_mvp_task(wrq, wts, task_running(rq, p));
+
+	/*
+	 * We inserted the task at the appropriate position. Take the
+	 * task runtime snapshot. From now onwards we use this point as a
+	 * baseline to enforce the slice and demotion.
+	 */
+	if (!wts->total_exec) /* queue after sleep */
+		wts->sum_exec_snapshot = p->se.sum_exec_runtime;
+
+}
+
+void walt_cfs_dequeue_task(struct rq *rq, struct task_struct *p)
+{
+	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
+
+	if (!list_empty(&wts->mvp_list))
+		walt_cfs_deactivate_mvp_task(p);
+}
+
+void walt_cfs_tick(struct rq *rq)
+{
+	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
+	struct walt_task_struct *wts = (struct walt_task_struct *) rq->curr->android_vendor_data1;
+
+	if (unlikely(walt_disabled))
+		return;
+
+	if (list_empty(&wts->mvp_list))
+		return;
+
+	walt_cfs_account_mvp_runtime(rq, rq->curr);
+	/*
+	 * If the current is not MVP means, we have to re-schedule to
+	 * see if we can run any other task including MVP tasks.
+	 */
+	if ((wrq->mvp_tasks.next != &wts->mvp_list) && rq->cfs.h_nr_running > 1)
+		resched_curr(rq);
+}
+
+/*
+ * When preempt = false and nopreempt = false, we leave the preemption
+ * decision to CFS.
+ */
+static void walt_cfs_check_preempt_wakeup(void *unused, struct rq *rq, struct task_struct *p,
+					  bool *preempt, bool *nopreempt, int wake_flags,
+					  struct sched_entity *se, struct sched_entity *pse,
+					  int next_buddy_marked, unsigned int granularity)
+{
+	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
+	struct walt_task_struct *wts_p = (struct walt_task_struct *) p->android_vendor_data1;
+	struct task_struct *c = rq->curr;
+	struct walt_task_struct *wts_c = (struct walt_task_struct *) rq->curr->android_vendor_data1;
+	bool resched = false;
+	bool p_is_mvp, curr_is_mvp;
+
+	if (unlikely(walt_disabled))
+		return;
+
+	p_is_mvp = !list_empty(&wts_p->mvp_list);
+	curr_is_mvp = !list_empty(&wts_c->mvp_list);
+
+	/*
+	 * current is not MVP, so preemption decision
+	 * is simple.
+	 */
+	if (!curr_is_mvp) {
+		if (p_is_mvp)
+			goto preempt;
+		return; /* CFS decides preemption */
+	}
+
+	/*
+	 * current is MVP. update its runtime before deciding the
+	 * preemption.
+	 */
+	walt_cfs_account_mvp_runtime(rq, c);
+	resched = (wrq->mvp_tasks.next != &wts_c->mvp_list);
+
+	/*
+	 * current is no longer eligible to run. It must have been
+	 * picked (because of MVP) ahead of other tasks in the CFS
+	 * tree, so drive preemption to pick up the next task from
+	 * the tree, which also includes picking up the first in
+	 * the MVP queue.
+	 */
+	if (resched)
+		goto preempt;
+
+	/* current is the first in the queue, so no preemption */
+	*nopreempt = true;
+	trace_walt_cfs_mvp_wakeup_nopreempt(c, wts_c, walt_cfs_mvp_task_limit(c));
+	return;
+preempt:
+	*preempt = true;
+	trace_walt_cfs_mvp_wakeup_preempt(p, wts_p, walt_cfs_mvp_task_limit(p));
+}
+
+static void walt_cfs_replace_next_task_fair(void *unused, struct rq *rq, struct task_struct **p,
+					    struct sched_entity **se, bool *repick, bool simple,
+					    struct task_struct *prev)
+{
+	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
+	struct walt_task_struct *wts;
+	struct task_struct *mvp;
+
+	if (unlikely(walt_disabled))
+		return;
+
+	/* We don't have MVP tasks queued */
+	if (list_empty(&wrq->mvp_tasks))
+		return;
+
+	/* Return the first task from MVP queue */
+	wts = list_first_entry(&wrq->mvp_tasks, struct walt_task_struct, mvp_list);
+	mvp = wts_to_ts(wts);
+
+	*p = mvp;
+	*se = &mvp->se;
+	*repick = true;
+
+	trace_walt_cfs_mvp_pick_next(mvp, wts, walt_cfs_mvp_task_limit(mvp));
 }
 
 void walt_cfs_init(void)
 {
 	register_trace_android_rvh_select_task_rq_fair(walt_select_task_rq_fair, NULL);
-	register_trace_android_rvh_place_entity(walt_place_entity, NULL);
 
 	register_trace_android_vh_binder_wakeup_ilocked(walt_binder_low_latency_set, NULL);
 	register_trace_binder_transaction_received(walt_binder_low_latency_clear, NULL);
 
 	register_trace_android_vh_binder_set_priority(binder_set_priority_hook, NULL);
 	register_trace_android_vh_binder_restore_priority(binder_restore_priority_hook, NULL);
+
+	register_trace_android_rvh_check_preempt_wakeup(walt_cfs_check_preempt_wakeup, NULL);
+	register_trace_android_rvh_replace_next_task_fair(walt_cfs_replace_next_task_fair, NULL);
 }

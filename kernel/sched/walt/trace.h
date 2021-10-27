@@ -1023,10 +1023,9 @@ TRACE_EVENT(sched_find_best_target,
 
 TRACE_EVENT(sched_enq_deq_task,
 
-	TP_PROTO(struct task_struct *p, bool enqueue,
-				unsigned int cpus_allowed),
+	TP_PROTO(struct task_struct *p, bool enqueue, unsigned int cpus_allowed, bool mvp),
 
-	TP_ARGS(p, enqueue, cpus_allowed),
+	TP_ARGS(p, enqueue, cpus_allowed, mvp),
 
 	TP_STRUCT__entry(
 		__array(char,		comm, TASK_COMM_LEN)
@@ -1039,7 +1038,8 @@ TRACE_EVENT(sched_enq_deq_task,
 		__field(unsigned int,	cpus_allowed)
 		__field(unsigned int,	demand)
 		__field(unsigned int,	pred_demand)
-		__field(bool,		 compat_thread)
+		__field(bool,		compat_thread)
+		__field(bool,		mvp)
 	),
 
 	TP_fast_assign(
@@ -1054,9 +1054,10 @@ TRACE_EVENT(sched_enq_deq_task,
 		__entry->demand		= task_load(p);
 		__entry->pred_demand	= task_pl(p);
 		__entry->compat_thread	= is_compat_thread(task_thread_info(p));
+		__entry->mvp		= mvp;
 	),
 
-	TP_printk("cpu=%d %s comm=%s pid=%d prio=%d nr_running=%u rt_nr_running=%u affine=%x demand=%u pred_demand=%u is_compat_t=%d",
+	TP_printk("cpu=%d %s comm=%s pid=%d prio=%d nr_running=%u rt_nr_running=%u affine=%x demand=%u pred_demand=%u is_compat_t=%d mvp=%d",
 			__entry->cpu,
 			__entry->enqueue ? "enqueue" : "dequeue",
 			__entry->comm, __entry->pid,
@@ -1064,7 +1065,7 @@ TRACE_EVENT(sched_enq_deq_task,
 			__entry->rt_nr_running,
 			__entry->cpus_allowed, __entry->demand,
 			__entry->pred_demand,
-			__entry->compat_thread)
+			__entry->compat_thread, __entry->mvp)
 );
 
 TRACE_EVENT(walt_window_rollover,
@@ -1083,6 +1084,59 @@ TRACE_EVENT(walt_window_rollover,
 
 	TP_printk("window_start=%llu", __entry->window_start)
 );
+
+DECLARE_EVENT_CLASS(walt_cfs_mvp_task_template,
+
+	TP_PROTO(struct task_struct *p, struct walt_task_struct *wts, unsigned int limit),
+
+	TP_ARGS(p, wts, limit),
+
+	TP_STRUCT__entry(
+		__array(char,		comm,	TASK_COMM_LEN)
+		__field(pid_t,		pid)
+		__field(int,		prio)
+		__field(int,		mvp_prio)
+		__field(int,		cpu)
+		__field(u64,		exec)
+		__field(unsigned int,	limit)
+	),
+
+	TP_fast_assign(
+		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
+		__entry->pid		= p->pid;
+		__entry->prio		= p->prio;
+		__entry->mvp_prio	= wts->mvp_prio;
+		__entry->cpu		= task_cpu(p);
+		__entry->exec		= wts->total_exec;
+		__entry->limit		= limit;
+	),
+
+	TP_printk("comm=%s pid=%d prio=%d mvp_prio=%d cpu=%d exec=%llu limit=%u",
+		__entry->comm, __entry->pid, __entry->prio,
+		__entry->mvp_prio, __entry->cpu, __entry->exec,
+		__entry->limit)
+);
+
+/* called upon MVP task de-activation. exec will be more than limit */
+DEFINE_EVENT(walt_cfs_mvp_task_template, walt_cfs_deactivate_mvp_task,
+	     TP_PROTO(struct task_struct *p, struct walt_task_struct *wts, unsigned int limit),
+	     TP_ARGS(p, wts, limit));
+
+/* called upon when MVP is returned to run next */
+DEFINE_EVENT(walt_cfs_mvp_task_template, walt_cfs_mvp_pick_next,
+	     TP_PROTO(struct task_struct *p, struct walt_task_struct *wts, unsigned int limit),
+	     TP_ARGS(p, wts, limit));
+
+/* called upon when MVP (current) is not preempted by waking task */
+DEFINE_EVENT(walt_cfs_mvp_task_template, walt_cfs_mvp_wakeup_nopreempt,
+	     TP_PROTO(struct task_struct *p, struct walt_task_struct *wts, unsigned int limit),
+	     TP_ARGS(p, wts, limit));
+
+/* called upon when MVP (waking task) preempts the current */
+DEFINE_EVENT(walt_cfs_mvp_task_template, walt_cfs_mvp_wakeup_preempt,
+	     TP_PROTO(struct task_struct *p, struct walt_task_struct *wts, unsigned int limit),
+	     TP_ARGS(p, wts, limit));
+
 #endif /* _TRACE_WALT_H */
 
 #undef TRACE_INCLUDE_PATH

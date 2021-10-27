@@ -118,6 +118,7 @@ struct walt_rq {
 	bool			high_irqload;
 	u64			last_cc_update;
 	u64			cycles;
+	struct list_head	mvp_tasks;
 };
 
 struct walt_sched_cluster {
@@ -729,6 +730,22 @@ static inline bool walt_low_latency_task(struct task_struct *p)
 		(task_util(p) < sysctl_walt_low_latency_task_threshold);
 }
 
+static inline bool walt_binder_low_latency_task(struct task_struct *p)
+{
+	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
+
+	return (wts->low_latency & WALT_LOW_LATENCY_BINDER) &&
+		(task_util(p) < sysctl_walt_low_latency_task_threshold);
+}
+
+static inline bool walt_procfs_low_latency_task(struct task_struct *p)
+{
+	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
+
+	return (wts->low_latency & WALT_LOW_LATENCY_PROCFS) &&
+		(task_util(p) < sysctl_walt_low_latency_task_threshold);
+}
+
 static inline unsigned int walt_get_idle_exit_latency(struct rq *rq)
 {
 	struct cpuidle_state *idle = idle_get_state(rq);
@@ -861,4 +878,19 @@ static inline bool walt_fair_task(struct task_struct *p)
 {
 	return p->prio >= MAX_RT_PRIO && !is_idle_task(p);
 }
+
+
+#define WALT_MVP_SLICE		3000000U
+#define WALT_MVP_LIMIT		(4 * WALT_MVP_SLICE)
+
+#define WALT_RTG_MVP		0
+#define WALT_BINDER_MVP		1
+
+#define WALT_NOT_MVP		-1
+
+#define is_mvp(wts) (wts->mvp_prio != WALT_NOT_MVP)
+void walt_cfs_enqueue_task(struct rq *rq, struct task_struct *p);
+void walt_cfs_dequeue_task(struct rq *rq, struct task_struct *p);
+void walt_cfs_tick(struct rq *rq);
+
 #endif /* _WALT_H */

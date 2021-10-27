@@ -2243,6 +2243,11 @@ static void init_new_task_load(struct task_struct *p)
 	wts->misfit = false;
 	wts->rtg_high_prio = false;
 	wts->unfilter = sysctl_sched_task_unfilter_period;
+
+	INIT_LIST_HEAD(&wts->mvp_list);
+	wts->sum_exec_snapshot = 0;
+	wts->total_exec = 0;
+	wts->mvp_prio = WALT_NOT_MVP;
 }
 
 static void init_existing_task_load(struct task_struct *p)
@@ -3621,6 +3626,8 @@ static void walt_sched_init_rq(struct rq *rq)
 		clear_top_tasks_bitmap(wrq->top_tasks_bitmap[j]);
 	}
 	wrq->notif_pending = false;
+
+	INIT_LIST_HEAD(&wrq->mvp_tasks);
 }
 
 void sched_window_nr_ticks_change(void)
@@ -3814,10 +3821,11 @@ static void android_rvh_enqueue_task(void *unused, struct rq *rq, struct task_st
 	if (walt_fair_task(p)) {
 		wts->misfit = !task_fits_max(p, rq->cpu);
 		inc_rq_walt_stats(rq, p);
+		walt_cfs_enqueue_task(rq, p);
 	}
 
 	walt_inc_cumulative_runnable_avg(rq, p);
-	trace_sched_enq_deq_task(p, 1, cpumask_bits(&p->cpus_mask)[0]);
+	trace_sched_enq_deq_task(p, 1, cpumask_bits(&p->cpus_mask)[0], is_mvp(wts));
 }
 
 static void android_rvh_dequeue_task(void *unused, struct rq *rq, struct task_struct *p, int flags)
@@ -3841,11 +3849,13 @@ static void android_rvh_dequeue_task(void *unused, struct rq *rq, struct task_st
 
 	sched_update_nr_prod(rq->cpu, -1);
 
-	if (walt_fair_task(p))
+	if (walt_fair_task(p)) {
 		dec_rq_walt_stats(rq, p);
+		walt_cfs_dequeue_task(rq, p);
+	}
 
 	walt_dec_cumulative_runnable_avg(rq, p);
-	trace_sched_enq_deq_task(p, 0, cpumask_bits(&p->cpus_mask)[0]);
+	trace_sched_enq_deq_task(p, 0, cpumask_bits(&p->cpus_mask)[0], is_mvp(wts));
 }
 
 static void android_rvh_update_misfit_status(void *unused, struct task_struct *p,
