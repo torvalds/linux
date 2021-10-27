@@ -53,19 +53,14 @@ static s32 FillH2CCmd_88E(struct adapter *adapt, u8 ElementID, u32 CmdLen, u8 *p
 	u8 cmd_idx, ext_cmd_len;
 	u32 h2c_cmd = 0;
 	u32 h2c_cmd_ex = 0;
-	s32 ret = _FAIL;
 
 	if (!adapt->bFWReady) {
 		DBG_88E("FillH2CCmd_88E(): return H2C cmd because fw is not ready\n");
-		return ret;
+		return _FAIL;
 	}
 
-	if (!pCmdBuffer)
-		goto exit;
-	if (CmdLen > RTL88E_MAX_CMD_LEN)
-		goto exit;
-	if (adapt->bSurpriseRemoved)
-		goto exit;
+	if (!pCmdBuffer || CmdLen > RTL88E_MAX_CMD_LEN || adapt->bSurpriseRemoved)
+		return _FAIL;
 
 	/* pay attention to if  race condition happened in  H2C cmd setting. */
 	do {
@@ -73,7 +68,7 @@ static s32 FillH2CCmd_88E(struct adapter *adapt, u8 ElementID, u32 CmdLen, u8 *p
 
 		if (!_is_fw_read_cmd_down(adapt, h2c_box_num)) {
 			DBG_88E(" fw read cmd failed...\n");
-			goto exit;
+			return _FAIL;
 		}
 
 		*(u8 *)(&h2c_cmd) = ElementID;
@@ -102,11 +97,7 @@ static s32 FillH2CCmd_88E(struct adapter *adapt, u8 ElementID, u32 CmdLen, u8 *p
 
 	} while ((!bcmd_down) && (retry_cnts--));
 
-	ret = _SUCCESS;
-
-exit:
-
-	return ret;
+	return _SUCCESS;
 }
 
 u8 rtl8188e_set_raid_cmd(struct adapter *adapt, u32 mask)
