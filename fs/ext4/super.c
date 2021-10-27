@@ -88,6 +88,7 @@ static void ext4_unregister_li_request(struct super_block *sb);
 static void ext4_clear_request_list(void);
 static struct inode *ext4_get_journal_inode(struct super_block *sb,
 					    unsigned int journal_inum);
+static int ext4_validate_options(struct super_block *sb);
 
 /*
  * Lock ordering
@@ -2582,10 +2583,9 @@ static int parse_options(char *options, struct super_block *sb,
 			 struct ext4_parsed_options *ret_opts,
 			 int is_remount)
 {
-	struct ext4_sb_info __maybe_unused *sbi = EXT4_SB(sb);
-	char *p, __maybe_unused *usr_qf_name, __maybe_unused *grp_qf_name;
 	substring_t args[MAX_OPT_ARGS];
 	int token;
+	char *p;
 
 	if (!options)
 		return 1;
@@ -2603,7 +2603,14 @@ static int parse_options(char *options, struct super_block *sb,
 				     is_remount) < 0)
 			return 0;
 	}
+	return ext4_validate_options(sb);
+}
+
+static int ext4_validate_options(struct super_block *sb)
+{
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
 #ifdef CONFIG_QUOTA
+	char *usr_qf_name, *grp_qf_name;
 	/*
 	 * We do the test below only for project quotas. 'usrquota' and
 	 * 'grpquota' mount options are allowed even without quota feature
