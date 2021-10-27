@@ -17,6 +17,13 @@
 	};
 };
 
+&es8316 {
+	pinctrl-0 = <&hp_detect &hp_int>;
+	pinctrl-names = "default";
+	interrupt-parent = <&gpio1>;
+	interrupts = <RK_PA1 IRQ_TYPE_LEVEL_HIGH>;
+};
+
 &sdio0 {
 	status = "okay";
 
@@ -29,6 +36,10 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&wifi_host_wake_l>;
 	};
+};
+
+&sound {
+	hp-det-gpio = <&gpio1 RK_PA0 GPIO_ACTIVE_HIGH>;
 };
 
 &uart0 {
