@@ -1007,7 +1007,8 @@ static int iommu_dma_map_sg(struct device *dev, struct scatterlist *sg,
 
 	if (static_branch_unlikely(&iommu_deferred_attach_enabled)) {
 		ret = iommu_deferred_attach(dev, domain);
-		goto out;
+		if (ret)
+			goto out;
 	}
 
 	if (dev_is_untrusted(dev))
