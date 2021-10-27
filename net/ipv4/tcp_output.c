@@ -3045,13 +3045,9 @@ static bool tcp_collapse_retrans(struct sock *sk, struct sk_buff *skb)
 
 	BUG_ON(tcp_skb_pcount(skb) != 1 || tcp_skb_pcount(next_skb) != 1);
 
-	if (next_skb_size) {
-		if (next_skb_size <= skb_availroom(skb))
-			skb_copy_bits(next_skb, 0, skb_put(skb, next_skb_size),
-				      next_skb_size);
-		else if (!tcp_skb_shift(skb, next_skb, 1, next_skb_size))
-			return false;
-	}
+	if (next_skb_size && !tcp_skb_shift(skb, next_skb, 1, next_skb_size))
+		return false;
+
 	tcp_highest_sack_replace(sk, next_skb, skb);
 
 	/* Update sequence range on original skb. */
