@@ -301,10 +301,12 @@ extern struct {
 
 static bool __init check_fips140_module_hmac(void)
 {
+	struct crypto_shash *tfm = NULL;
 	SHASH_DESC_ON_STACK(desc, dontcare);
 	u8 digest[SHA256_DIGEST_SIZE];
 	void *textcopy, *rodatacopy;
 	int textsize, rodatasize;
+	bool ok = false;
 	int err;
 
 	textsize	= &__fips140_text_end - &__fips140_text_start;
@@ -316,7 +318,7 @@ static bool __init check_fips140_module_hmac(void)
 	textcopy = kmalloc(textsize + rodatasize, GFP_KERNEL);
 	if (!textcopy) {
 		pr_err("Failed to allocate memory for copy of .text\n");
-		return false;
+		goto out;
 	}
 
 	rodatacopy = textcopy + textsize;
@@ -333,28 +335,29 @@ static bool __init check_fips140_module_hmac(void)
 				  offset_to_ptr(&fips140_rela_rodata.offset),
 				  fips140_rela_rodata.count);
 
-	desc->tfm = crypto_alloc_shash("hmac(sha256)", 0, 0);
-	if (IS_ERR(desc->tfm)) {
-		pr_err("failed to allocate hmac tfm (%ld)\n", PTR_ERR(desc->tfm));
-		kfree(textcopy);
-		return false;
+	tfm = crypto_alloc_shash("hmac(sha256)", 0, 0);
+	if (IS_ERR(tfm)) {
+		pr_err("failed to allocate hmac tfm (%ld)\n", PTR_ERR(tfm));
+		tfm = NULL;
+		goto out;
 	}
+	desc->tfm = tfm;
 
 	pr_info("using '%s' for integrity check\n",
-		crypto_shash_driver_name(desc->tfm));
+		crypto_shash_driver_name(tfm));
 
-	err = crypto_shash_setkey(desc->tfm, fips140_integ_hmac_key,
+	err = crypto_shash_setkey(tfm, fips140_integ_hmac_key,
 				  strlen(fips140_integ_hmac_key)) ?:
 	      crypto_shash_init(desc) ?:
 	      crypto_shash_update(desc, textcopy, textsize) ?:
 	      crypto_shash_finup(desc, rodatacopy, rodatasize, digest);
 
-	crypto_free_shash(desc->tfm);
-	kfree(textcopy);
+	/* Zeroizing this is important; see the comment below. */
+	shash_desc_zero(desc);
 
 	if (err) {
 		pr_err("failed to calculate hmac shash (%d)\n", err);
-		return false;
+		goto out;
 	}
 
 	if (memcmp(digest, fips140_integ_hmac_digest, sizeof(digest))) {
@@ -363,11 +366,20 @@ static bool __init check_fips140_module_hmac(void)
 
 		pr_err("calculated digest: %*phN\n", (int)sizeof(digest),
 		       digest);
-
-		return false;
+		goto out;
 	}
-
-	return true;
+	ok = true;
+out:
+	/*
+	 * FIPS 140-3 requires that all "temporary value(s) generated during the
+	 * integrity test" be zeroized (ref: FIPS 140-3 IG 9.7.B).  There is no
+	 * technical reason to do this given that these values are public
+	 * information, but this is the requirement so we follow it.
+	 */
+	crypto_free_shash(tfm);
+	memzero_explicit(digest, sizeof(digest));
+	kfree_sensitive(textcopy);
+	return ok;
 }
 
 static void fips140_sha256(void *p, const u8 *data, unsigned int len, u8 *out,
