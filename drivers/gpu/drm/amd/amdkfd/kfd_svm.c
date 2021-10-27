@@ -3203,10 +3203,10 @@ static void svm_range_evict_svm_bo_worker(struct work_struct *work)
 }
 
 static int
-svm_range_set_attr(struct kfd_process *p, uint64_t start, uint64_t size,
-		   uint32_t nattr, struct kfd_ioctl_svm_attribute *attrs)
+svm_range_set_attr(struct kfd_process *p, struct mm_struct *mm,
+		   uint64_t start, uint64_t size, uint32_t nattr,
+		   struct kfd_ioctl_svm_attribute *attrs)
 {
-	struct mm_struct *mm = current->mm;
 	struct list_head update_list;
 	struct list_head insert_list;
 	struct list_head remove_list;
@@ -3305,8 +3305,9 @@ out:
 }
 
 static int
-svm_range_get_attr(struct kfd_process *p, uint64_t start, uint64_t size,
-		   uint32_t nattr, struct kfd_ioctl_svm_attribute *attrs)
+svm_range_get_attr(struct kfd_process *p, struct mm_struct *mm,
+		   uint64_t start, uint64_t size, uint32_t nattr,
+		   struct kfd_ioctl_svm_attribute *attrs)
 {
 	DECLARE_BITMAP(bitmap_access, MAX_GPU_INSTANCE);
 	DECLARE_BITMAP(bitmap_aip, MAX_GPU_INSTANCE);
@@ -3316,7 +3317,6 @@ svm_range_get_attr(struct kfd_process *p, uint64_t start, uint64_t size,
 	bool get_accessible = false;
 	bool get_flags = false;
 	uint64_t last = start + size - 1UL;
-	struct mm_struct *mm = current->mm;
 	uint8_t granularity = 0xff;
 	struct interval_tree_node *node;
 	struct svm_range_list *svms;
@@ -3485,6 +3485,7 @@ int
 svm_ioctl(struct kfd_process *p, enum kfd_ioctl_svm_op op, uint64_t start,
 	  uint64_t size, uint32_t nattrs, struct kfd_ioctl_svm_attribute *attrs)
 {
+	struct mm_struct *mm = current->mm;
 	int r;
 
 	start >>= PAGE_SHIFT;
@@ -3492,10 +3493,10 @@ svm_ioctl(struct kfd_process *p, enum kfd_ioctl_svm_op op, uint64_t start,
 
 	switch (op) {
 	case KFD_IOCTL_SVM_OP_SET_ATTR:
-		r = svm_range_set_attr(p, start, size, nattrs, attrs);
+		r = svm_range_set_attr(p, mm, start, size, nattrs, attrs);
 		break;
 	case KFD_IOCTL_SVM_OP_GET_ATTR:
-		r = svm_range_get_attr(p, start, size, nattrs, attrs);
+		r = svm_range_get_attr(p, mm, start, size, nattrs, attrs);
 		break;
 	default:
 		r = EINVAL;
