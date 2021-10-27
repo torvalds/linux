@@ -731,6 +731,8 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 			node, id);
 		return -EINVAL;
 	}
+	if (pmu->genpd_data.domains[id])
+		return 0;
 
 	pd_info = &pmu->info->domain_info[id];
 	if (!pd_info) {
