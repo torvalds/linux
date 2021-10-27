@@ -12,7 +12,13 @@
 
 struct rproc;
 
+/* When recovery succeeds */
 DECLARE_HOOK(android_vh_rproc_recovery,
+	TP_PROTO(struct rproc *rproc),
+	TP_ARGS(rproc));
+
+/* When recovery mode is enabled or disabled by sysfs */
+DECLARE_HOOK(android_vh_rproc_recovery_set,
 	TP_PROTO(struct rproc *rproc),
 	TP_ARGS(rproc));
 
