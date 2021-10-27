@@ -6,11 +6,9 @@
  *  Tianyu Lan <Tianyu.Lan@microsoft.com>
  */
 
-#include <linux/types.h>
 #include <linux/bitfield.h>
 #include <linux/hyperv.h>
 #include <linux/types.h>
-#include <linux/bitfield.h>
 #include <linux/slab.h>
 #include <asm/svm.h>
 #include <asm/sev.h>
