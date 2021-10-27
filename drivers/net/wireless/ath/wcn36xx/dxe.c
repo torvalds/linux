@@ -834,6 +834,53 @@ unlock:
 	return ret;
 }
 
+static bool _wcn36xx_dxe_tx_channel_is_empty(struct wcn36xx_dxe_ch *ch)
+{
+	unsigned long flags;
+	struct wcn36xx_dxe_ctl *ctl_bd_start, *ctl_skb_start;
+	struct wcn36xx_dxe_ctl *ctl_bd, *ctl_skb;
+	bool ret = true;
+
+	spin_lock_irqsave(&ch->lock, flags);
+
+	/* Loop through ring buffer looking for nonempty entries. */
+	ctl_bd_start = ch->head_blk_ctl;
+	ctl_bd = ctl_bd_start;
+	ctl_skb_start = ctl_bd_start->next;
+	ctl_skb = ctl_skb_start;
+	do {
+		if (ctl_skb->skb) {
+			ret = false;
+			goto unlock;
+		}
+		ctl_bd = ctl_skb->next;
+		ctl_skb = ctl_bd->next;
+	} while (ctl_skb != ctl_skb_start);
+
+unlock:
+	spin_unlock_irqrestore(&ch->lock, flags);
+	return ret;
+}
+
+int wcn36xx_dxe_tx_flush(struct wcn36xx *wcn)
+{
+	int i = 0;
+
+	/* Called with mac80211 queues stopped. Wait for empty HW queues. */
+	do {
+		if (_wcn36xx_dxe_tx_channel_is_empty(&wcn->dxe_tx_l_ch) &&
+		    _wcn36xx_dxe_tx_channel_is_empty(&wcn->dxe_tx_h_ch)) {
+			return 0;
+		}
+		/* This ieee80211_ops callback is specifically allowed to
+		 * sleep.
+		 */
+		usleep_range(1000, 1100);
+	} while (++i < 100);
+
+	return -EBUSY;
+}
+
 int wcn36xx_dxe_init(struct wcn36xx *wcn)
 {
 	int reg_data = 0, ret;
