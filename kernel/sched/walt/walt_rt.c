@@ -8,7 +8,9 @@
 #include "walt.h"
 #include "trace.h"
 
-static void rt_energy_aware_wake_cpu(void *unused, struct task_struct *task,
+static DEFINE_PER_CPU(cpumask_var_t, walt_local_cpu_mask);
+
+static void walt_rt_energy_aware_wake_cpu(void *unused, struct task_struct *task,
 				struct cpumask *lowest_mask, int ret, int *best_cpu)
 {
 	int cpu;
@@ -24,6 +26,7 @@ static void rt_energy_aware_wake_cpu(void *unused, struct task_struct *task,
 
 	if (static_branch_unlikely(&walt_disabled))
 		return;
+
 	if (!ret)
 		return; /* No targets found */
 
@@ -86,7 +89,103 @@ static void rt_energy_aware_wake_cpu(void *unused, struct task_struct *task,
 	rcu_read_unlock();
 }
 
+#ifdef CONFIG_UCLAMP_TASK
+static inline bool walt_rt_task_fits_capacity(struct task_struct *p, int cpu)
+{
+	unsigned int min_cap;
+	unsigned int max_cap;
+	unsigned int cpu_cap;
+
+	min_cap = uclamp_eff_value(p, UCLAMP_MIN);
+	max_cap = uclamp_eff_value(p, UCLAMP_MAX);
+
+	cpu_cap = capacity_orig_of(cpu);
+
+	return cpu_cap >= min(min_cap, max_cap);
+}
+#else
+static inline bool walt_rt_task_fits_capacity(struct task_struct *p, int cpu)
+{
+	return true;
+}
+#endif
+
+static void walt_select_task_rq_rt(void *unused, struct task_struct *task, int cpu,
+					int sd_flag, int wake_flags, int *new_cpu)
+{
+	struct task_struct *curr;
+	struct rq *rq;
+	bool may_not_preempt;
+	int ret, target = -1;
+	struct cpumask *lowest_mask;
+
+	if (static_branch_unlikely(&walt_disabled))
+		return;
+
+	/* For anything but wake ups, just return the task_cpu */
+	if (sd_flag != SD_BALANCE_WAKE && sd_flag != SD_BALANCE_FORK)
+		return;
+
+	*new_cpu = cpu; /* previous CPU as back up */
+	rq = cpu_rq(cpu);
+
+	rcu_read_lock();
+	curr = READ_ONCE(rq->curr); /* unlocked access */
+
+	/*
+	 * If the current task on @p's runqueue is a softirq task,
+	 * it may run without preemption for a time that is
+	 * ill-suited for a waiting RT task. Therefore, try to
+	 * wake this RT task on another runqueue.
+	 *
+	 * Otherwise, just let it ride on the affined RQ and the
+	 * post-schedule router will push the preempted task away
+	 *
+	 * This test is optimistic, if we get it wrong the load-balancer
+	 * will have to sort it out.
+	 *
+	 * We take into account the capacity of the CPU to ensure it fits the
+	 * requirement of the task - which is only important on heterogeneous
+	 * systems like big.LITTLE.
+	 */
+	may_not_preempt = task_may_not_preempt(curr, cpu);
+
+	lowest_mask = this_cpu_cpumask_var_ptr(walt_local_cpu_mask);
+
+	/*
+	 * If we're on asym system ensure we consider the different capacities
+	 * of the CPUs when searching for the lowest_mask.
+	 */
+	ret = cpupri_find_fitness(&task_rq(task)->rd->cpupri, task,
+				lowest_mask, walt_rt_task_fits_capacity);
+
+	walt_rt_energy_aware_wake_cpu(NULL, task, lowest_mask, ret, &target);
+
+	/*
+	 * If cpu is non-preemptible, prefer remote cpu
+	 * even if it's running a higher-prio task.
+	 * Otherwise: Don't bother moving it if the destination CPU is
+	 * not running a lower priority task.
+	 */
+	if (target != -1 &&
+	    (may_not_preempt || task->prio < cpu_rq(target)->rt.highest_prio.curr))
+		*new_cpu = target;
+
+	rcu_read_unlock();
+}
+
 void walt_rt_init(void)
 {
-	register_trace_android_rvh_find_lowest_rq(rt_energy_aware_wake_cpu, NULL);
+	unsigned int i;
+
+	for_each_possible_cpu(i) {
+		if(!(zalloc_cpumask_var_node(&per_cpu(walt_local_cpu_mask, i),
+					GFP_KERNEL, cpu_to_node(i)))) {
+			pr_err("walt_local_cpu_mask alloc failed for cpu%d\n", i);
+			return;
+		}
+	}
+
+	register_trace_android_rvh_select_task_rq_rt(walt_select_task_rq_rt, NULL);
+	register_trace_android_rvh_find_lowest_rq(walt_rt_energy_aware_wake_cpu, NULL);
 }
