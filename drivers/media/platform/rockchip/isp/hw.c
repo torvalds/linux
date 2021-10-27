@@ -350,6 +350,19 @@ static const char * const rk3588_isp_clks[] = {
 	"clk_isp_core_vicap",
 };
 
+static const char * const rk3588_isp_unite_clks[] = {
+	"clk_isp_core0",
+	"aclk_isp0",
+	"hclk_isp0",
+	"clk_isp_core_marvin0",
+	"clk_isp_core_vicap0",
+	"clk_isp_core1",
+	"aclk_isp1",
+	"hclk_isp1",
+	"clk_isp_core_marvin1",
+	"clk_isp_core_vicap1",
+};
+
 static const char * const rv1126_isp_clks[] = {
 	"clk_isp",
 	"aclk_isp",
@@ -565,6 +578,17 @@ static const struct isp_match_data rk3588_isp_match_data = {
 	.unite = false,
 };
 
+static const struct isp_match_data rk3588_isp_unite_match_data = {
+	.clks = rk3588_isp_unite_clks,
+	.num_clks = ARRAY_SIZE(rk3588_isp_unite_clks),
+	.isp_ver = ISP_V30,
+	.clk_rate_tbl = rk3588_isp_clk_rate,
+	.num_clk_rate_tbl = ARRAY_SIZE(rk3588_isp_clk_rate),
+	.irqs = rk3588_isp_irqs,
+	.num_irqs = ARRAY_SIZE(rk3588_isp_irqs),
+	.unite = true,
+};
+
 static const struct of_device_id rkisp_hw_of_match[] = {
 	{
 		.compatible = "rockchip,rk1808-rkisp1",
@@ -587,6 +611,9 @@ static const struct of_device_id rkisp_hw_of_match[] = {
 	}, {
 		.compatible = "rockchip,rk3588-rkisp",
 		.data = &rk3588_isp_match_data,
+	}, {
+		.compatible = "rockchip,rk3588-rkisp-unite",
+		.data = &rk3588_isp_unite_match_data,
 	}, {
 		.compatible = "rockchip,rv1126-rkisp",
 		.data = &rv1126_isp_match_data,
