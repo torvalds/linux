@@ -2142,13 +2142,18 @@ int hci_write_sc_support_sync(struct hci_dev *hdev, u8 val)
 	return err;
 }
 
-static int hci_write_ssp_mode_sync(struct hci_dev *hdev, u8 mode)
+int hci_write_ssp_mode_sync(struct hci_dev *hdev, u8 mode)
 {
 	int err;
 
 	if (!hci_dev_test_flag(hdev, HCI_SSP_ENABLED) ||
 	    lmp_host_ssp_capable(hdev))
 		return 0;
+
+	if (!mode && hci_dev_test_flag(hdev, HCI_USE_DEBUG_KEYS)) {
+		__hci_cmd_sync_status(hdev, HCI_OP_WRITE_SSP_DEBUG_MODE,
+				      sizeof(mode), &mode, HCI_CMD_TIMEOUT);
+	}
 
 	err = __hci_cmd_sync_status(hdev, HCI_OP_WRITE_SSP_MODE,
 				    sizeof(mode), &mode, HCI_CMD_TIMEOUT);
