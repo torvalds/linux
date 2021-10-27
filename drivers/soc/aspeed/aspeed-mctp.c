@@ -174,6 +174,11 @@ struct aspeed_mctp {
 	struct device *dev;
 	struct regmap *map;
 	struct reset_control *reset;
+	/*
+	 * The reset of the dma block in the MCTP-RC is connected to
+	 * another reset pin.
+	 */
+	struct reset_control *reset_dma;
 	struct mctp_channel tx;
 	struct mctp_channel rx;
 	struct list_head clients;
@@ -203,6 +208,10 @@ struct aspeed_mctp {
 	} rx_runaway_wa;
 	u8 eid;
 	struct platform_device *peci_mctp;
+	/* Use the flag to identify RC or EP */
+	bool rc_f;
+	/* Use the flag to identify the support of MCTP interrupt */
+	bool miss_mctp_int;
 };
 
 struct mctp_client {
@@ -787,6 +796,7 @@ static ssize_t aspeed_mctp_read(struct file *file, char __user *buf,
 	struct mctp_client *client = file->private_data;
 	struct aspeed_mctp *priv = client->priv;
 	struct mctp_pcie_packet *rx_packet;
+	u32 mctp_ctrl;
 	u16 bdf;
 
 	if (count < PCIE_MCTP_MIN_PACKET_SIZE)
@@ -798,6 +808,13 @@ static ssize_t aspeed_mctp_read(struct file *file, char __user *buf,
 
 	if (count > sizeof(rx_packet->data))
 		count = sizeof(rx_packet->data);
+
+	if (priv->miss_mctp_int) {
+		regmap_read(priv->map, ASPEED_MCTP_CTRL, &mctp_ctrl);
+		if (!(mctp_ctrl & RX_CMD_READY))
+			priv->rx.stopped = true;
+		tasklet_hi_schedule(&priv->rx.tasklet);
+	}
 
 	rx_packet = ptr_ring_consume_bh(&client->rx_queue);
 	if (!rx_packet)
@@ -1298,6 +1315,16 @@ static __poll_t aspeed_mctp_poll(struct file *file,
 {
 	struct mctp_client *client = file->private_data;
 	__poll_t ret = 0;
+	struct aspeed_mctp *priv = client->priv;
+	struct mctp_channel *rx = &priv->rx;
+	u32 mctp_ctrl;
+
+	if (priv->miss_mctp_int) {
+		regmap_read(priv->map, ASPEED_MCTP_CTRL, &mctp_ctrl);
+		if (!(mctp_ctrl & RX_CMD_READY))
+			rx->stopped = true;
+		tasklet_hi_schedule(&priv->rx.tasklet);
+	}
 
 	poll_wait(file, &client->wait_queue, pt);
 
@@ -1391,7 +1418,8 @@ static void aspeed_mctp_reset_work(struct work_struct *work)
 	bdf = aspeed_mctp_pcie_setup(priv);
 	if (bdf) {
 		aspeed_mctp_flush_all_tx_queues(priv);
-		aspeed_mctp_irq_enable(priv);
+		if (!priv->miss_mctp_int)
+			aspeed_mctp_irq_enable(priv);
 		aspeed_mctp_rx_trigger(&priv->rx);
 		_set_bdf(priv, bdf);
 		aspeed_mctp_send_pcie_uevent(kobj, true);
@@ -1505,12 +1533,19 @@ static int aspeed_mctp_resources_init(struct aspeed_mctp *priv)
 	if (IS_ERR(priv->map))
 		return PTR_ERR(priv->map);
 
-	priv->reset = devm_reset_control_get(priv->dev, 0);
+	priv->reset = devm_reset_control_get_by_index(priv->dev, 0);
 	if (IS_ERR(priv->reset)) {
 		dev_err(priv->dev, "Failed to get reset!\n");
 		return PTR_ERR(priv->reset);
 	}
 
+	if (priv->rc_f) {
+		priv->reset_dma = devm_reset_control_get_by_index(priv->dev, 1);
+		if (IS_ERR(priv->reset_dma)) {
+			dev_err(priv->dev, "Failed to get ep reset!\n");
+			return PTR_ERR(priv->reset_dma);
+		}
+	}
 	priv->pcie.map =
 		syscon_regmap_lookup_by_phandle(priv->dev->of_node,
 						"aspeed,pcieh");
@@ -1595,22 +1630,23 @@ static int aspeed_mctp_irq_init(struct aspeed_mctp *priv)
 	struct platform_device *pdev = to_platform_device(priv->dev);
 	int irq, ret;
 
-	irq = platform_get_irq(pdev, 0);
+	irq = platform_get_irq_byname(pdev, "mctp");
+	if (irq < 0) {
+		/* mctp irq is option */
+		priv->miss_mctp_int = 1;
+	} else {
+		ret = devm_request_irq(priv->dev, irq, aspeed_mctp_irq_handler,
+				       IRQF_SHARED, dev_name(&pdev->dev), priv);
+		if (ret)
+			return ret;
+		aspeed_mctp_irq_enable(priv);
+	}
+	irq = platform_get_irq_byname(pdev, "pcie");
 	if (!irq)
 		return -ENODEV;
 
-	ret = devm_request_irq(priv->dev, irq, aspeed_mctp_irq_handler,
-			       IRQF_SHARED, "aspeed-mctp", priv);
-	if (ret)
-		return ret;
-
-	irq = platform_get_irq(pdev, 1);
-	if (!irq)
-		return -ENODEV;
-
-	ret = devm_request_irq(priv->dev, irq,
-			       aspeed_mctp_pcie_rst_irq_handler,
-			       IRQF_SHARED, "aspeed-mctp", priv);
+	ret = devm_request_irq(priv->dev, irq, aspeed_mctp_pcie_rst_irq_handler,
+			       IRQF_SHARED, dev_name(&pdev->dev), priv);
 	if (ret)
 		return ret;
 
@@ -1627,12 +1663,13 @@ static void aspeed_mctp_hw_reset(struct aspeed_mctp *priv)
 	 * however, we do need to reset once after the first boot before we're
 	 * able to use the HW.
 	 */
-	regmap_read(priv->map, ASPEED_MCTP_TX_BUF_ADDR, &reg);
+	if (!priv->rc_f) {
+		regmap_read(priv->map, ASPEED_MCTP_TX_BUF_ADDR, &reg);
 
-	if (reg) {
-		dev_info(priv->dev,
-			 "Already initialized - skipping hardware reset\n");
-		return;
+		if (reg) {
+			dev_info(priv->dev, "Already initialized - skipping hardware reset\n");
+			return;
+		}
 	}
 
 	if (reset_control_assert(priv->reset) != 0)
@@ -1640,6 +1677,14 @@ static void aspeed_mctp_hw_reset(struct aspeed_mctp *priv)
 
 	if (reset_control_deassert(priv->reset) != 0)
 		dev_warn(priv->dev, "Failed to deassert reset\n");
+
+	if (priv->rc_f) {
+		if (reset_control_assert(priv->reset_dma) != 0)
+			dev_warn(priv->dev, "Failed to assert ep reset\n");
+
+		if (reset_control_deassert(priv->reset_dma) != 0)
+			dev_warn(priv->dev, "Failed to deassert ep reset\n");
+	}
 }
 
 static int aspeed_mctp_probe(struct platform_device *pdev)
@@ -1654,6 +1699,8 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 		goto out;
 	}
 	priv->dev = &pdev->dev;
+	priv->rc_f =
+		of_find_property(priv->dev->of_node, "pcie_rc", NULL) ? 1 : 0;
 
 	aspeed_mctp_drv_init(priv);
 
@@ -1686,9 +1733,6 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 		dev_err(priv->dev, "Failed to init IRQ!\n");
 		goto out_dma;
 	}
-
-	aspeed_mctp_irq_enable(priv);
-
 	bdf = aspeed_mctp_pcie_setup(priv);
 	if (bdf != 0)
 		_set_bdf(priv, bdf);
