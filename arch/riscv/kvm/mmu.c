@@ -565,12 +565,12 @@ out:
 bool kvm_unmap_gfn_range(struct kvm *kvm, struct kvm_gfn_range *range)
 {
 	if (!kvm->arch.pgd)
-		return 0;
+		return false;
 
 	stage2_unmap_range(kvm, range->start << PAGE_SHIFT,
 			   (range->end - range->start) << PAGE_SHIFT,
 			   range->may_block);
-	return 0;
+	return false;
 }
 
 bool kvm_set_spte_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
@@ -579,7 +579,7 @@ bool kvm_set_spte_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
 	kvm_pfn_t pfn = pte_pfn(range->pte);
 
 	if (!kvm->arch.pgd)
-		return 0;
+		return false;
 
 	WARN_ON(range->end - range->start != 1);
 
@@ -587,10 +587,10 @@ bool kvm_set_spte_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
 			      __pfn_to_phys(pfn), PAGE_SIZE, true, true);
 	if (ret) {
 		kvm_debug("Failed to map stage2 page (error %d)\n", ret);
-		return 1;
+		return true;
 	}
 
-	return 0;
+	return false;
 }
 
 bool kvm_age_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
@@ -600,13 +600,13 @@ bool kvm_age_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
 	u64 size = (range->end - range->start) << PAGE_SHIFT;
 
 	if (!kvm->arch.pgd)
-		return 0;
+		return false;
 
 	WARN_ON(size != PAGE_SIZE && size != PMD_SIZE && size != PGDIR_SIZE);
 
 	if (!stage2_get_leaf_entry(kvm, range->start << PAGE_SHIFT,
 				   &ptep, &ptep_level))
-		return 0;
+		return false;
 
 	return ptep_test_and_clear_young(NULL, 0, ptep);
 }
@@ -618,13 +618,13 @@ bool kvm_test_age_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
 	u64 size = (range->end - range->start) << PAGE_SHIFT;
 
 	if (!kvm->arch.pgd)
-		return 0;
+		return false;
 
 	WARN_ON(size != PAGE_SIZE && size != PMD_SIZE && size != PGDIR_SIZE);
 
 	if (!stage2_get_leaf_entry(kvm, range->start << PAGE_SHIFT,
 				   &ptep, &ptep_level))
-		return 0;
+		return false;
 
 	return pte_young(*ptep);
 }
