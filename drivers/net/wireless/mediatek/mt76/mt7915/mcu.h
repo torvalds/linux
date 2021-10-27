@@ -229,6 +229,11 @@ enum {
 	MCU_S2D_H2CN
 };
 
+enum {
+	MCU_FW_LOG_WM,
+	MCU_FW_LOG_WA,
+	MCU_FW_LOG_TO_HOST,
+};
 
 #define __MCU_CMD_FIELD_ID	GENMASK(7, 0)
 #define __MCU_CMD_FIELD_EXT_ID	GENMASK(15, 8)
@@ -304,6 +309,8 @@ enum {
 };
 
 enum {
+	MCU_WA_PARAM_PDMA_RX = 0x04,
+	MCU_WA_PARAM_CPU_UTIL = 0x0b,
 	MCU_WA_PARAM_RED = 0x0e,
 };
 
@@ -886,7 +893,7 @@ struct sta_rec_sec {
 	struct sec_key key[2];
 } __packed;
 
-struct ra_phy {
+struct sta_phy {
 	u8 type;
 	u8 flag;
 	u8 stbc;
@@ -930,7 +937,7 @@ struct sta_rec_ra {
 
 	__le32 sta_cap;
 
-	struct ra_phy phy;
+	struct sta_phy phy;
 } __packed;
 
 struct sta_rec_ra_fixed {
@@ -943,7 +950,7 @@ struct sta_rec_ra_fixed {
 	u8 op_vht_rx_nss;
 	u8 op_vht_rx_nss_type;
 
-	struct ra_phy phy;
+	struct sta_phy phy;
 
 	u8 spe_en;
 	u8 short_preamble;
@@ -951,8 +958,14 @@ struct sta_rec_ra_fixed {
 	u8 mmps_mode;
 } __packed;
 
-#define RATE_PARAM_FIXED		3
-#define RATE_PARAM_AUTO			20
+enum {
+	RATE_PARAM_FIXED = 3,
+	RATE_PARAM_FIXED_HE_LTF = 7,
+	RATE_PARAM_FIXED_MCS,
+	RATE_PARAM_FIXED_GI = 11,
+	RATE_PARAM_AUTO = 20,
+};
+
 #define RATE_CFG_MCS			GENMASK(3, 0)
 #define RATE_CFG_NSS			GENMASK(7, 4)
 #define RATE_CFG_GI			GENMASK(11, 8)
