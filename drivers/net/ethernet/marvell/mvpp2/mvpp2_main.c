@@ -6937,6 +6937,40 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 		port->phylink_config.dev = &dev->dev;
 		port->phylink_config.type = PHYLINK_NETDEV;
 
+		if (mvpp2_port_supports_xlg(port)) {
+			__set_bit(PHY_INTERFACE_MODE_10GBASER,
+				  port->phylink_config.supported_interfaces);
+			__set_bit(PHY_INTERFACE_MODE_XAUI,
+				  port->phylink_config.supported_interfaces);
+		}
+
+		if (mvpp2_port_supports_rgmii(port))
+			phy_interface_set_rgmii(port->phylink_config.supported_interfaces);
+
+		if (comphy) {
+			/* If a COMPHY is present, we can support any of the
+			 * serdes modes and switch between them.
+			 */
+			__set_bit(PHY_INTERFACE_MODE_SGMII,
+				  port->phylink_config.supported_interfaces);
+			__set_bit(PHY_INTERFACE_MODE_1000BASEX,
+				  port->phylink_config.supported_interfaces);
+			__set_bit(PHY_INTERFACE_MODE_2500BASEX,
+				  port->phylink_config.supported_interfaces);
+		} else if (phy_mode == PHY_INTERFACE_MODE_2500BASEX) {
+			/* No COMPHY, with only 2500BASE-X mode supported */
+			__set_bit(PHY_INTERFACE_MODE_2500BASEX,
+				  port->phylink_config.supported_interfaces);
+		} else if (phy_mode == PHY_INTERFACE_MODE_1000BASEX ||
+			   phy_mode == PHY_INTERFACE_MODE_SGMII) {
+			/* No COMPHY, we can switch between 1000BASE-X and SGMII
+			 */
+			__set_bit(PHY_INTERFACE_MODE_1000BASEX,
+				  port->phylink_config.supported_interfaces);
+			__set_bit(PHY_INTERFACE_MODE_SGMII,
+				  port->phylink_config.supported_interfaces);
+		}
+
 		phylink = phylink_create(&port->phylink_config, port_fwnode,
 					 phy_mode, &mvpp2_phylink_ops);
 		if (IS_ERR(phylink)) {
