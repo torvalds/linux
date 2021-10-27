@@ -59,6 +59,7 @@ enum itrace_period_type {
 #define AUXTRACE_ERR_FLG_DATA_LOST	(1 << ('l' - 'a'))
 
 #define AUXTRACE_LOG_FLG_ALL_PERF_EVTS	(1 << ('a' - 'a'))
+#define AUXTRACE_LOG_FLG_USE_STDOUT	(1 << ('o' - 'a'))
 
 /**
  * struct itrace_synth_opts - AUX area tracing synthesis options.
@@ -641,6 +642,7 @@ bool auxtrace__evsel_is_auxtrace(struct perf_session *session,
 "				d[flags]:		create a debug log\n" \
 "							each flag must be preceded by + or -\n" \
 "							log flags are: a (all perf events)\n" \
+"							               o (output to stdout)\n" \
 "				f:	    		synthesize first level cache events\n" \
 "				m:	    		synthesize last level cache events\n" \
 "				t:	    		synthesize TLB events\n" \
