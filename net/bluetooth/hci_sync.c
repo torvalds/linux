@@ -1703,6 +1703,15 @@ static int hci_resume_advertising_sync(struct hci_dev *hdev)
 	return err;
 }
 
+struct sk_buff *hci_read_local_oob_data_sync(struct hci_dev *hdev,
+					     bool extended, struct sock *sk)
+{
+	u16 opcode = extended ? HCI_OP_READ_LOCAL_OOB_EXT_DATA :
+					HCI_OP_READ_LOCAL_OOB_DATA;
+
+	return __hci_cmd_sync_sk(hdev, opcode, 0, NULL, 0, HCI_CMD_TIMEOUT, sk);
+}
+
 /* Device must not be scanning when updating the accept list.
  *
  * Update is done using the following sequence:

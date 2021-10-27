@@ -27,6 +27,7 @@ struct mgmt_pending_cmd {
 	void *param;
 	size_t param_len;
 	struct sock *sk;
+	struct sk_buff *skb;
 	void *user_data;
 	int (*cmd_complete)(struct mgmt_pending_cmd *cmd, u8 status);
 };
