@@ -22,6 +22,18 @@ static bool gpu_write_needs_clflush(struct drm_i915_gem_object *obj)
 		 obj->cache_level == I915_CACHE_WT);
 }
 
+bool i915_gem_cpu_write_needs_clflush(struct drm_i915_gem_object *obj)
+{
+	if (obj->cache_dirty)
+		return false;
+
+	if (!(obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_WRITE))
+		return true;
+
+	/* Currently in use by HW (display engine)? Keep flushed. */
+	return i915_gem_object_is_framebuffer(obj);
+}
+
 static void
 flush_write_domain(struct drm_i915_gem_object *obj, unsigned int flush_domains)
 {
