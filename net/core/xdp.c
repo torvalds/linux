@@ -143,8 +143,6 @@ void xdp_rxq_info_unreg(struct xdp_rxq_info *xdp_rxq)
 	if (xdp_rxq->reg_state == REG_STATE_UNUSED)
 		return;
 
-	WARN(!(xdp_rxq->reg_state == REG_STATE_REGISTERED), "Driver BUG");
-
 	xdp_rxq_info_unreg_mem_model(xdp_rxq);
 
 	xdp_rxq->reg_state = REG_STATE_UNREGISTERED;
