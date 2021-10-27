@@ -454,4 +454,8 @@ long compat_blkdev_ioctl(struct file *file, unsigned cmd, unsigned long arg);
 
 extern const struct address_space_operations def_blk_aops;
 
+int disk_register_independent_access_ranges(struct gendisk *disk,
+				struct blk_independent_access_ranges *new_iars);
+void disk_unregister_independent_access_ranges(struct gendisk *disk);
+
 #endif /* BLK_INTERNAL_H */

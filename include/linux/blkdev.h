@@ -150,6 +150,34 @@ static inline int blkdev_zone_mgmt_ioctl(struct block_device *bdev,
 
 #endif /* CONFIG_BLK_DEV_ZONED */
 
+/*
+ * Independent access ranges: struct blk_independent_access_range describes
+ * a range of contiguous sectors that can be accessed using device command
+ * execution resources that are independent from the resources used for
+ * other access ranges. This is typically found with single-LUN multi-actuator
+ * HDDs where each access range is served by a different set of heads.
+ * The set of independent ranges supported by the device is defined using
+ * struct blk_independent_access_ranges. The independent ranges must not overlap
+ * and must include all sectors within the disk capacity (no sector holes
+ * allowed).
+ * For a device with multiple ranges, requests targeting sectors in different
+ * ranges can be executed in parallel. A request can straddle an access range
+ * boundary.
+ */
+struct blk_independent_access_range {
+	struct kobject		kobj;
+	struct request_queue	*queue;
+	sector_t		sector;
+	sector_t		nr_sectors;
+};
+
+struct blk_independent_access_ranges {
+	struct kobject				kobj;
+	bool					sysfs_registered;
+	unsigned int				nr_ia_ranges;
+	struct blk_independent_access_range	ia_range[];
+};
+
 struct request_queue {
 	struct request		*last_merge;
 	struct elevator_queue	*elevator;
@@ -331,6 +359,12 @@ struct request_queue {
 
 #define BLK_MAX_WRITE_HINTS	5
 	u64			write_hints[BLK_MAX_WRITE_HINTS];
+
+	/*
+	 * Independent sector access ranges. This is always NULL for
+	 * devices that do not have multiple independent access ranges.
+	 */
+	struct blk_independent_access_ranges *ia_ranges;
 };
 
 /* Keep blk_queue_flag_name[] in sync with the definitions below */
@@ -697,6 +731,11 @@ extern void blk_queue_dma_alignment(struct request_queue *, int);
 extern void blk_queue_update_dma_alignment(struct request_queue *, int);
 extern void blk_queue_rq_timeout(struct request_queue *, unsigned int);
 extern void blk_queue_write_cache(struct request_queue *q, bool enabled, bool fua);
+
+struct blk_independent_access_ranges *
+disk_alloc_independent_access_ranges(struct gendisk *disk, int nr_ia_ranges);
+void disk_set_independent_access_ranges(struct gendisk *disk,
+				struct blk_independent_access_ranges *iars);
 
 /*
  * Elevator features for blk_queue_required_elevator_features:
