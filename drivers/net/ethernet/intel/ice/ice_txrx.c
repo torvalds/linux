@@ -3,8 +3,9 @@
 
 /* The driver transmit and receive code */
 
-#include <linux/prefetch.h>
 #include <linux/mm.h>
+#include <linux/netdevice.h>
+#include <linux/prefetch.h>
 #include <linux/bpf_trace.h>
 #include <net/dsfield.h>
 #include <net/xdp.h>
@@ -219,6 +220,10 @@ static bool ice_clean_tx_irq(struct ice_tx_ring *tx_ring, int napi_budget)
 	struct ice_tx_desc *tx_desc;
 	struct ice_tx_buf *tx_buf;
 
+	/* get the bql data ready */
+	if (!ice_ring_is_xdp(tx_ring))
+		netdev_txq_bql_complete_prefetchw(txring_txq(tx_ring));
+
 	tx_buf = &tx_ring->tx_buf[i];
 	tx_desc = ICE_TX_DESC(tx_ring, i);
 	i -= tx_ring->count;
@@ -231,6 +236,9 @@ static bool ice_clean_tx_irq(struct ice_tx_ring *tx_ring, int napi_budget)
 		/* if next_to_watch is not set then there is no work pending */
 		if (!eop_desc)
 			break;
+
+		/* follow the guidelines of other drivers */
+		prefetchw(&tx_buf->skb->users);
 
 		smp_rmb();	/* prevent any other reads prior to eop_desc */
 
@@ -2264,6 +2272,9 @@ ice_xmit_frame_ring(struct sk_buff *skb, struct ice_tx_ring *tx_ring)
 		tx_ring->tx_stats.tx_busy++;
 		return NETDEV_TX_BUSY;
 	}
+
+	/* prefetch for bql data which is infrequently used */
+	netdev_txq_bql_enqueue_prefetchw(txring_txq(tx_ring));
 
 	offload.tx_ring = tx_ring;
 
