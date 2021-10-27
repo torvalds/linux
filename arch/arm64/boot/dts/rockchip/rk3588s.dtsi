@@ -661,18 +661,28 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 
+				power-domain@RK3588_PD_AV1 {
+					reg = <RK3588_PD_AV1>;
+				};
+				power-domain@RK3588_PD_RKVDEC0 {
+					reg = <RK3588_PD_RKVDEC0>;
+				};
+				power-domain@RK3588_PD_RKVDEC1 {
+					reg = <RK3588_PD_RKVDEC1>;
+				};
 				power-domain@RK3588_PD_RGA30 {
 					reg = <RK3588_PD_RGA30>;
 				};
-				power-domain@RK3588_PD_av1 {
-					reg = <RK3588_PD_AV1>;
-				};
+
 			};
 			power-domain@RK3588_PD_VOP {
 				reg = <RK3588_PD_VOP>;
-			};
-			power-domain@RK3588_PD_VO0 {
-				reg = <RK3588_PD_VO0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				power-domain@RK3588_PD_VO0 {
+					reg = <RK3588_PD_VO0>;
+				};
 			};
 			power-domain@RK3588_PD_VO1 {
 				reg = <RK3588_PD_VO1>;
@@ -715,9 +725,9 @@
 				power-domain@RK3588_PD_NVM0 {
 					reg = <RK3588_PD_NVM0>;
 				};
-			};
-			power-domain@RK3588_PD_SDIO {
-				reg = <RK3588_PD_SDIO>;
+				power-domain@RK3588_PD_SDIO {
+					reg = <RK3588_PD_SDIO>;
+				};
 			};
 			power-domain@RK3588_PD_AUDIO {
 				reg = <RK3588_PD_AUDIO>;
