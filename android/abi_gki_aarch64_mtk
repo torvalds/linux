@@ -1952,6 +1952,7 @@
   __traceiter_android_vh_set_module_permit_after_init
   __traceiter_android_vh_set_module_permit_before_init
   __traceiter_android_vh_set_wake_flags
+  __traceiter_android_vh_snd_soc_card_get_comp_chain
   __traceiter_android_vh_syscall_prctl_finished
   __traceiter_android_vh_ufs_send_command
   __traceiter_android_vh_ufs_send_tm_command
@@ -2030,6 +2031,7 @@
   __tracepoint_android_vh_set_module_permit_after_init
   __tracepoint_android_vh_set_module_permit_before_init
   __tracepoint_android_vh_set_wake_flags
+  __tracepoint_android_vh_snd_soc_card_get_comp_chain
   __tracepoint_android_vh_syscall_prctl_finished
   __tracepoint_android_vh_ufs_send_command
   __tracepoint_android_vh_ufs_send_tm_command
