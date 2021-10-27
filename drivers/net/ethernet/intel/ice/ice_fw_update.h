@@ -7,5 +7,7 @@
 int ice_devlink_flash_update(struct devlink *devlink,
 			     struct devlink_flash_update_params *params,
 			     struct netlink_ext_ack *extack);
+int ice_get_pending_updates(struct ice_pf *pf, u8 *pending,
+			    struct netlink_ext_ack *extack);
 
 #endif
