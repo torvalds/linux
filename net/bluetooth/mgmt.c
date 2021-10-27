@@ -5608,29 +5608,25 @@ static int set_device_id(struct sock *sk, struct hci_dev *hdev, void *data,
 	return err;
 }
 
-static void enable_advertising_instance(struct hci_dev *hdev, u8 status,
-					u16 opcode)
+static void enable_advertising_instance(struct hci_dev *hdev, int err)
 {
-	bt_dev_dbg(hdev, "status %u", status);
+	if (err)
+		bt_dev_err(hdev, "failed to re-configure advertising %d", err);
+	else
+		bt_dev_dbg(hdev, "status %d", err);
 }
 
-static void set_advertising_complete(struct hci_dev *hdev, u8 status,
-				     u16 opcode)
+static void set_advertising_complete(struct hci_dev *hdev, void *data, int err)
 {
 	struct cmd_lookup match = { NULL, hdev };
-	struct hci_request req;
 	u8 instance;
 	struct adv_info *adv_instance;
-	int err;
-
-	hci_dev_lock(hdev);
+	u8 status = mgmt_status(err);
 
 	if (status) {
-		u8 mgmt_err = mgmt_status(status);
-
 		mgmt_pending_foreach(MGMT_OP_SET_ADVERTISING, hdev,
-				     cmd_status_rsp, &mgmt_err);
-		goto unlock;
+				     cmd_status_rsp, &status);
+		return;
 	}
 
 	if (hci_dev_test_flag(hdev, HCI_LE_ADV))
@@ -5662,30 +5658,55 @@ static void set_advertising_complete(struct hci_dev *hdev, u8 status,
 	 */
 	if (hci_dev_test_flag(hdev, HCI_ADVERTISING) ||
 	    list_empty(&hdev->adv_instances))
-		goto unlock;
+		return;
 
 	instance = hdev->cur_adv_instance;
 	if (!instance) {
 		adv_instance = list_first_entry_or_null(&hdev->adv_instances,
 							struct adv_info, list);
 		if (!adv_instance)
-			goto unlock;
+			return;
 
 		instance = adv_instance->instance;
 	}
 
-	hci_req_init(&req, hdev);
+	err = hci_schedule_adv_instance_sync(hdev, instance, true);
 
-	err = __hci_req_schedule_adv_instance(&req, instance, true);
+	enable_advertising_instance(hdev, err);
+}
 
-	if (!err)
-		err = hci_req_run(&req, enable_advertising_instance);
+static int set_adv_sync(struct hci_dev *hdev, void *data)
+{
+	struct mgmt_pending_cmd *cmd = data;
+	struct mgmt_mode *cp = cmd->param;
+	u8 val = !!cp->val;
 
-	if (err)
-		bt_dev_err(hdev, "failed to re-configure advertising");
+	if (cp->val == 0x02)
+		hci_dev_set_flag(hdev, HCI_ADVERTISING_CONNECTABLE);
+	else
+		hci_dev_clear_flag(hdev, HCI_ADVERTISING_CONNECTABLE);
 
-unlock:
-	hci_dev_unlock(hdev);
+	cancel_adv_timeout(hdev);
+
+	if (val) {
+		/* Switch to instance "0" for the Set Advertising setting.
+		 * We cannot use update_[adv|scan_rsp]_data() here as the
+		 * HCI_ADVERTISING flag is not yet set.
+		 */
+		hdev->cur_adv_instance = 0x00;
+
+		if (ext_adv_capable(hdev)) {
+			hci_start_ext_adv_sync(hdev, 0x00);
+		} else {
+			hci_update_adv_data_sync(hdev, 0x00);
+			hci_update_scan_rsp_data_sync(hdev, 0x00);
+			hci_enable_advertising_sync(hdev);
+		}
+	} else {
+		hci_disable_advertising_sync(hdev);
+	}
+
+	return 0;
 }
 
 static int set_advertising(struct sock *sk, struct hci_dev *hdev, void *data,
@@ -5693,7 +5714,6 @@ static int set_advertising(struct sock *sk, struct hci_dev *hdev, void *data,
 {
 	struct mgmt_mode *cp = data;
 	struct mgmt_pending_cmd *cmd;
-	struct hci_request req;
 	u8 val, status;
 	int err;
 
@@ -5759,40 +5779,13 @@ static int set_advertising(struct sock *sk, struct hci_dev *hdev, void *data,
 	}
 
 	cmd = mgmt_pending_add(sk, MGMT_OP_SET_ADVERTISING, hdev, data, len);
-	if (!cmd) {
+	if (!cmd)
 		err = -ENOMEM;
-		goto unlock;
-	}
-
-	hci_req_init(&req, hdev);
-
-	if (cp->val == 0x02)
-		hci_dev_set_flag(hdev, HCI_ADVERTISING_CONNECTABLE);
 	else
-		hci_dev_clear_flag(hdev, HCI_ADVERTISING_CONNECTABLE);
+		err = hci_cmd_sync_queue(hdev, set_adv_sync, cmd,
+					 set_advertising_complete);
 
-	cancel_adv_timeout(hdev);
-
-	if (val) {
-		/* Switch to instance "0" for the Set Advertising setting.
-		 * We cannot use update_[adv|scan_rsp]_data() here as the
-		 * HCI_ADVERTISING flag is not yet set.
-		 */
-		hdev->cur_adv_instance = 0x00;
-
-		if (ext_adv_capable(hdev)) {
-			__hci_req_start_ext_adv(&req, 0x00);
-		} else {
-			__hci_req_update_adv_data(&req, 0x00);
-			__hci_req_update_scan_rsp_data(&req, 0x00);
-			__hci_req_enable_advertising(&req);
-		}
-	} else {
-		__hci_req_disable_advertising(&req);
-	}
-
-	err = hci_req_run(&req, set_advertising_complete);
-	if (err < 0)
+	if (err < 0 && cmd)
 		mgmt_pending_remove(cmd);
 
 unlock:
