@@ -735,6 +735,20 @@ static bool is_alpha_support(uint32_t format)
 	}
 }
 
+static inline bool rockchip_afbc(struct drm_plane *plane, u64 modifier)
+{
+	int i;
+
+	if (modifier == DRM_FORMAT_MOD_LINEAR)
+		return false;
+
+	for (i = 0 ; i < plane->modifier_count; i++)
+		if (plane->modifiers[i] == modifier)
+			break;
+
+	return (i < plane->modifier_count) ? true : false;
+}
+
 static uint16_t scl_vop_cal_scale(enum scale_mode mode, uint32_t src,
 				  uint32_t dst, bool is_horizontal,
 				  int vsu_mode, int *vskiplines)
@@ -2680,7 +2694,7 @@ static u64 vop_calc_max_bandwidth(struct vop_bandwidth *bw, int start,
 
 static size_t vop_crtc_bandwidth(struct drm_crtc *crtc,
 				 struct drm_crtc_state *crtc_state,
-				 unsigned int *plane_num_total)
+				 struct dmcfreq_vop_info *vop_bw_info)
 {
 	struct drm_display_mode *adjusted_mode = &crtc_state->adjusted_mode;
 	u16 htotal = adjusted_mode->crtc_htotal;
@@ -2690,7 +2704,7 @@ static size_t vop_crtc_bandwidth(struct drm_crtc *crtc,
 	struct drm_plane_state *pstate;
 	struct vop_bandwidth *pbandwidth;
 	struct drm_plane *plane;
-	u64 bandwidth;
+	u64 line_bw_mbyte = 0;
 	int cnt = 0, plane_num = 0;
 	struct drm_atomic_state *state = crtc_state->state;
 #if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
@@ -2718,37 +2732,49 @@ static size_t vop_crtc_bandwidth(struct drm_crtc *crtc,
 	drm_atomic_crtc_state_for_each_plane(plane, crtc_state)
 		plane_num++;
 
-	if (plane_num_total)
-		*plane_num_total += plane_num;
+	vop_bw_info->plane_num += plane_num;
 	pbandwidth = kmalloc_array(plane_num, sizeof(*pbandwidth),
 				   GFP_KERNEL);
 	if (!pbandwidth)
 		return -ENOMEM;
 
 	drm_atomic_crtc_state_for_each_plane(plane, crtc_state) {
+		int act_w, act_h, cpp, afbc_fac;
+
 		pstate = drm_atomic_get_existing_plane_state(state, plane);
 		if (pstate->crtc != crtc || !pstate->fb)
 			continue;
 
+		/* This is an empirical value, if it's afbc format, the frame buffer size div 2 */
+		afbc_fac = rockchip_afbc(plane, pstate->fb->modifier) ? 2 : 1;
+
 		vop_plane_state = to_vop_plane_state(pstate);
 		pbandwidth[cnt].y1 = vop_plane_state->dest.y1;
 		pbandwidth[cnt].y2 = vop_plane_state->dest.y2;
-		pbandwidth[cnt++].bandwidth = vop_plane_line_bandwidth(pstate);
+		pbandwidth[cnt++].bandwidth = vop_plane_line_bandwidth(pstate) / afbc_fac;
+
+		act_w = drm_rect_width(&pstate->src) >> 16;
+		act_h = drm_rect_height(&pstate->src) >> 16;
+		cpp = pstate->fb->format->cpp[0];
+
+		vop_bw_info->frame_bw_mbyte += act_w * act_h / 1000 * cpp * drm_mode_vrefresh(adjusted_mode) / 1000;
+
 	}
 
 	sort(pbandwidth, cnt, sizeof(pbandwidth[0]), vop_bandwidth_cmp, NULL);
 
-	bandwidth = vop_calc_max_bandwidth(pbandwidth, 0, cnt, vdisplay);
+	vop_bw_info->line_bw_mbyte = vop_calc_max_bandwidth(pbandwidth, 0, cnt, vdisplay);
 	kfree(pbandwidth);
 	/*
-	 * bandwidth(MB/s)
+	 * line_bandwidth(MB/s)
 	 *    = line_bandwidth / line_time
 	 *    = line_bandwidth(Byte) * clock(KHZ) / 1000 / htotal
 	 */
-	bandwidth *= clock;
-	do_div(bandwidth, htotal * 1000);
+	line_bw_mbyte *= clock;
+	do_div(line_bw_mbyte, htotal * 1000);
+	vop_bw_info->line_bw_mbyte = line_bw_mbyte;
 
-	return bandwidth;
+	return vop_bw_info->line_bw_mbyte;
 }
 
 static void vop_crtc_close(struct drm_crtc *crtc)

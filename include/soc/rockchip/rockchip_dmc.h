@@ -58,7 +58,8 @@ struct dmcfreq_common_info {
 };
 
 struct dmcfreq_vop_info {
-	unsigned int bw_mbyte;
+	unsigned int line_bw_mbyte;
+	unsigned int frame_bw_mbyte;
 	unsigned int plane_num;
 };
 

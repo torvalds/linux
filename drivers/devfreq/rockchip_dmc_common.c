@@ -109,11 +109,11 @@ vop_bw_tbl:
 		return;
 
 	for (i = 0; common_info->vop_bw_tbl[i].freq != DMCFREQ_TABLE_END; i++) {
-		if (vop_info->bw_mbyte >= common_info->vop_bw_tbl[i].min)
+		if (vop_info->line_bw_mbyte >= common_info->vop_bw_tbl[i].min)
 			target = common_info->vop_bw_tbl[i].freq;
 	}
 
-	dev_dbg(common_info->dev, "bw=%u\n", vop_info->bw_mbyte);
+	dev_dbg(common_info->dev, "bw=%u\n", vop_info->line_bw_mbyte);
 
 	if (!target || target == common_info->vop_req_rate)
 		return;
@@ -139,7 +139,7 @@ int rockchip_dmcfreq_vop_bandwidth_request(struct dmcfreq_vop_info *vop_info)
 		return 0;
 
 	for (i = 0; common_info->vop_bw_tbl[i].freq != DMCFREQ_TABLE_END; i++) {
-		if (vop_info->bw_mbyte <= common_info->vop_bw_tbl[i].max) {
+		if (vop_info->line_bw_mbyte <= common_info->vop_bw_tbl[i].max) {
 			target = common_info->vop_bw_tbl[i].freq;
 			break;
 		}

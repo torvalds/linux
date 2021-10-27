@@ -116,7 +116,7 @@ rockchip_drm_logo_fb_alloc(struct drm_device *dev, const struct drm_mode_fb_cmd2
 
 static int rockchip_drm_bandwidth_atomic_check(struct drm_device *dev,
 					       struct drm_atomic_state *state,
-					       struct dmcfreq_vop_info *vop_info)
+					       struct dmcfreq_vop_info *vop_bw_info)
 {
 	struct rockchip_drm_private *priv = dev->dev_private;
 	struct drm_crtc_state *old_crtc_state;
@@ -124,14 +124,15 @@ static int rockchip_drm_bandwidth_atomic_check(struct drm_device *dev,
 	struct drm_crtc *crtc;
 	int i;
 
-	vop_info->bw_mbyte = 0;
-	vop_info->plane_num = 0;
+	vop_bw_info->line_bw_mbyte = 0;
+	vop_bw_info->frame_bw_mbyte = 0;
+	vop_bw_info->plane_num = 0;
 
 	for_each_old_crtc_in_state(state, crtc, old_crtc_state, i) {
 		funcs = priv->crtc_funcs[drm_crtc_index(crtc)];
 
 		if (funcs && funcs->bandwidth)
-			vop_info->bw_mbyte += funcs->bandwidth(crtc, old_crtc_state, &vop_info->plane_num);
+			funcs->bandwidth(crtc, old_crtc_state, vop_bw_info);
 	}
 
 	return 0;
@@ -151,15 +152,15 @@ static void rockchip_drm_atomic_helper_commit_tail_rpm(struct drm_atomic_state *
 {
 	struct drm_device *dev = old_state->dev;
 	struct rockchip_drm_private *prv = dev->dev_private;
-	struct dmcfreq_vop_info vop_info;
+	struct dmcfreq_vop_info vop_bw_info;
 
 	drm_atomic_helper_commit_modeset_disables(dev, old_state);
 
 	drm_atomic_helper_commit_modeset_enables(dev, old_state);
 
-	rockchip_drm_bandwidth_atomic_check(dev, old_state, &vop_info);
+	rockchip_drm_bandwidth_atomic_check(dev, old_state, &vop_bw_info);
 
-	rockchip_dmcfreq_vop_bandwidth_update(&vop_info);
+	rockchip_dmcfreq_vop_bandwidth_update(&vop_bw_info);
 
 	mutex_lock(&prv->ovl_lock);
 	drm_atomic_helper_commit_planes(dev, old_state, DRM_PLANE_COMMIT_ACTIVE_ONLY);

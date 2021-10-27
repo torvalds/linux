@@ -18,6 +18,8 @@
 #include <linux/module.h>
 #include <linux/component.h>
 
+#include <soc/rockchip/rockchip_dmc.h>
+
 #include "../panel/panel-simple.h"
 
 #include "rockchip_drm_debugfs.h"
@@ -220,7 +222,7 @@ struct rockchip_crtc_funcs {
 	void (*disable_vblank)(struct drm_crtc *crtc);
 	size_t (*bandwidth)(struct drm_crtc *crtc,
 			    struct drm_crtc_state *crtc_state,
-			    unsigned int *plane_num_total);
+			    struct dmcfreq_vop_info *vop_bw_info);
 	void (*cancel_pending_vblank)(struct drm_crtc *crtc,
 				      struct drm_file *file_priv);
 	int (*debugfs_init)(struct drm_minor *minor, struct drm_crtc *crtc);
