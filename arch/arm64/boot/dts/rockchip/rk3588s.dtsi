@@ -1200,6 +1200,7 @@
 		dma-names = "tx";
 		resets = <&cru SRST_M_I2S4_8CH_TX>;
 		reset-names = "tx-m";
+		rockchip,playback-only;
 		#sound-dai-cells = <0>;
 		status = "disabled";
 	};
@@ -1226,6 +1227,7 @@
 		dma-names = "tx";
 		resets = <&cru SRST_M_I2S5_8CH_TX>;
 		reset-names = "tx-m";
+		rockchip,playback-only;
 		#sound-dai-cells = <0>;
 		status = "disabled";
 	};
@@ -1240,6 +1242,7 @@
 		dma-names = "rx";
 		resets = <&cru SRST_M_I2S9_8CH_RX>;
 		reset-names = "rx-m";
+		rockchip,capture-only;
 		#sound-dai-cells = <0>;
 		status = "disabled";
 	};
