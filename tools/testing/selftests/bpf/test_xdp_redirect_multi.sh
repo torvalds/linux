@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: GPL-2.0
 #
 # Test topology:
-#     - - - - - - - - - - - - - - - - - - - - - - - - -
-#    | veth1         veth2         veth3 |  ... init net
+#    - - - - - - - - - - - - - - - - - - -
+#    | veth1         veth2         veth3 |  ns0
 #     - -| - - - - - - | - - - - - - | - -
 #    ---------     ---------     ---------
-#    | veth0 |     | veth0 |     | veth0 |  ...
+#    | veth0 |     | veth0 |     | veth0 |
 #    ---------     ---------     ---------
 #       ns1           ns2           ns3
 #
@@ -51,6 +51,7 @@ clean_up()
 		ip link del veth$i 2> /dev/null
 		ip netns del ns$i 2> /dev/null
 	done
+	ip netns del ns0 2> /dev/null
 }
 
 # Kselftest framework requirement - SKIP code is 4.
@@ -78,10 +79,12 @@ setup_ns()
 		mode="xdpdrv"
 	fi
 
+	ip netns add ns0
 	for i in $(seq $NUM); do
 	        ip netns add ns$i
-	        ip link add veth$i type veth peer name veth0 netns ns$i
-		ip link set veth$i up
+		ip -n ns$i link add veth0 index 2 type veth \
+			peer name veth$i netns ns0 index $((1 + $i))
+		ip -n ns0 link set veth$i up
 		ip -n ns$i link set veth0 up
 
 		ip -n ns$i addr add 192.0.2.$i/24 dev veth0
@@ -92,7 +95,7 @@ setup_ns()
 			xdp_dummy.o sec xdp_dummy &> /dev/null || \
 			{ test_fail "Unable to load dummy xdp" && exit 1; }
 		IFACES="$IFACES veth$i"
-		veth_mac[$i]=$(ip link show veth$i | awk '/link\/ether/ {print $2}')
+		veth_mac[$i]=$(ip -n ns0 link show veth$i | awk '/link\/ether/ {print $2}')
 	done
 }
 
@@ -177,9 +180,13 @@ do_tests()
 		xdpgeneric) drv_p="-S";;
 	esac
 
-	./xdp_redirect_multi $drv_p $IFACES &> ${LOG_DIR}/xdp_redirect_${mode}.log &
+	ip netns exec ns0 ./xdp_redirect_multi $drv_p $IFACES &> ${LOG_DIR}/xdp_redirect_${mode}.log &
 	xdp_pid=$!
 	sleep 1
+	if ! ps -p $xdp_pid > /dev/null; then
+		test_fail "$mode xdp_redirect_multi start failed"
+		return 1
+	fi
 
 	if [ "$mode" = "xdpegress" ]; then
 		do_egress_tests $mode
@@ -190,7 +197,7 @@ do_tests()
 	kill $xdp_pid
 }
 
-trap clean_up 0 2 3 6 9
+trap clean_up EXIT
 
 check_env
 
