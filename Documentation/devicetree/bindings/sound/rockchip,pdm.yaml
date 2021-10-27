@@ -24,6 +24,7 @@ properties:
       - rockchip,rk1808-pdm
       - rockchip,rk3308-pdm
       - rockchip,rk3568-pdm
+      - rockchip,rk3588-pdm
       - rockchip,rv1126-pdm
 
   reg:
