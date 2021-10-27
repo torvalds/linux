@@ -5203,6 +5203,15 @@ int its_cpu_init(void)
 	return 0;
 }
 
+static void rdist_memreserve_cpuhp_cleanup_workfn(struct work_struct *work)
+{
+	cpuhp_remove_state_nocalls(gic_rdists->cpuhp_memreserve_state);
+	gic_rdists->cpuhp_memreserve_state = CPUHP_INVALID;
+}
+
+static DECLARE_WORK(rdist_memreserve_cpuhp_cleanup_work,
+		    rdist_memreserve_cpuhp_cleanup_workfn);
+
 static int its_cpu_memreserve_lpi(unsigned int cpu)
 {
 	struct page *pend_page;
@@ -5231,6 +5240,10 @@ static int its_cpu_memreserve_lpi(unsigned int cpu)
 	}
 
 out:
+	/* Last CPU being brought up gets to issue the cleanup */
+	if (cpumask_equal(&cpus_booted_once_mask, cpu_possible_mask))
+		schedule_work(&rdist_memreserve_cpuhp_cleanup_work);
+
 	gic_data_rdist()->flags |= RD_LOCAL_MEMRESERVE_DONE;
 	return ret;
 }
@@ -5425,12 +5438,15 @@ int __init its_lpi_memreserve_init(void)
 	if (!efi_enabled(EFI_CONFIG_TABLES))
 		return 0;
 
+	gic_rdists->cpuhp_memreserve_state = CPUHP_INVALID;
 	state = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN,
 				  "irqchip/arm/gicv3/memreserve:online",
 				  its_cpu_memreserve_lpi,
 				  NULL);
 	if (state < 0)
 		return state;
+
+	gic_rdists->cpuhp_memreserve_state = state;
 
 	return 0;
 }
