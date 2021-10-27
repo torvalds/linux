@@ -4212,6 +4212,10 @@ static int ath11k_mac_op_sta_state(struct ieee80211_hw *hw,
 		    new_state == IEEE80211_STA_NOTEXIST)) {
 		ath11k_dp_peer_cleanup(ar, arvif->vdev_id, sta->addr);
 
+		if (ar->ab->hw_params.vdev_start_delay &&
+		    vif->type == NL80211_IFTYPE_STATION)
+			goto free;
+
 		ret = ath11k_peer_delete(ar, arvif->vdev_id, sta->addr);
 		if (ret)
 			ath11k_warn(ar->ab, "Failed to delete peer: %pM for VDEV: %d\n",
@@ -4233,6 +4237,7 @@ static int ath11k_mac_op_sta_state(struct ieee80211_hw *hw,
 		}
 		spin_unlock_bh(&ar->ab->base_lock);
 
+free:
 		kfree(arsta->tx_stats);
 		arsta->tx_stats = NULL;
 
@@ -6615,6 +6620,19 @@ ath11k_mac_op_unassign_vif_chanctx(struct ieee80211_hw *hw,
 			    arvif->vdev_id, ret);
 
 	arvif->is_started = false;
+
+	if (ab->hw_params.vdev_start_delay &&
+	    arvif->vdev_type == WMI_VDEV_TYPE_STA) {
+		ret = ath11k_peer_delete(ar, arvif->vdev_id, arvif->bssid);
+		if (ret)
+			ath11k_warn(ar->ab,
+				    "failed to delete peer %pM for vdev %d: %d\n",
+				    arvif->bssid, arvif->vdev_id, ret);
+		else
+			ath11k_dbg(ar->ab, ATH11K_DBG_MAC,
+				   "mac removed peer %pM  vdev %d after vdev stop\n",
+				   arvif->bssid, arvif->vdev_id);
+	}
 
 	if (ab->hw_params.vdev_start_delay &&
 	    arvif->vdev_type == WMI_VDEV_TYPE_MONITOR)
