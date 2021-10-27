@@ -36,7 +36,6 @@
 #define SCHED_CPUFREQ_EARLY_DET	(1U << 6)
 #define SCHED_CPUFREQ_CONTINUE	(1U << 8)
 
-#define MAX_CLUSTERS 3
 /* MAX_MARGIN_LEVELS should be one less than MAX_CLUSTERS */
 #define MAX_MARGIN_LEVELS (MAX_CLUSTERS - 1)
 
@@ -277,9 +276,6 @@ extern int sched_group_id_open(struct inode *inode, struct file *filp);
 extern int sched_pause_cpus(struct cpumask *pause_cpus);
 extern int sched_unpause_cpus(struct cpumask *unpause_cpus);
 
-extern int core_ctl_set_boost(bool boost);
-extern void core_ctl_notifier_register(struct notifier_block *n);
-extern void core_ctl_notifier_unregister(struct notifier_block *n);
 extern unsigned int sched_get_cpu_util(int cpu);
 extern void sched_update_hyst_times(void);
 extern u64 sched_lpm_disallowed_time(int cpu);

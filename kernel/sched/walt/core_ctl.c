@@ -909,11 +909,13 @@ void core_ctl_notifier_register(struct notifier_block *n)
 {
 	atomic_notifier_chain_register(&core_ctl_notifier, n);
 }
+EXPORT_SYMBOL(core_ctl_notifier_register);
 
 void core_ctl_notifier_unregister(struct notifier_block *n)
 {
 	atomic_notifier_chain_unregister(&core_ctl_notifier, n);
 }
+EXPORT_SYMBOL(core_ctl_notifier_unregister);
 
 static void core_ctl_call_notifier(void)
 {
