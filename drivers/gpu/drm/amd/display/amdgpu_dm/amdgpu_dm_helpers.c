@@ -219,7 +219,7 @@ bool dm_helpers_dp_mst_write_payload_allocation_table(
 	struct drm_dp_mst_topology_mgr *mst_mgr;
 	struct drm_dp_mst_port *mst_port;
 	bool ret;
-	u8 link_coding_cap;
+	u8 link_coding_cap = DP_8b_10b_ENCODING;
 
 	aconnector = (struct amdgpu_dm_connector *)stream->dm_stream_context;
 	/* Accessing the connector state is required for vcpi_slots allocation
@@ -239,7 +239,9 @@ bool dm_helpers_dp_mst_write_payload_allocation_table(
 
 	mst_port = aconnector->port;
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	link_coding_cap = dc_link_dp_mst_decide_link_encoding_format(aconnector->dc_link);
+#endif
 
 	if (enable) {
 
