@@ -58,7 +58,8 @@ properties:
     items:
       - const: ext_clock
 
-  max-speed: true
+  max-speed:
+    default: 3000000
 
   nvmem-cells:
     maxItems: 1
