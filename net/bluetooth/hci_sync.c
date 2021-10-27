@@ -2104,13 +2104,27 @@ int hci_update_passive_scan(struct hci_dev *hdev)
 	return hci_cmd_sync_queue(hdev, update_passive_scan_sync, NULL, NULL);
 }
 
-static int hci_write_sc_support_sync(struct hci_dev *hdev, u8 val)
+int hci_write_sc_support_sync(struct hci_dev *hdev, u8 val)
 {
+	int err;
+
 	if (!bredr_sc_enabled(hdev) || lmp_host_sc_capable(hdev))
 		return 0;
 
-	return __hci_cmd_sync_status(hdev, HCI_OP_WRITE_SC_SUPPORT,
+	err = __hci_cmd_sync_status(hdev, HCI_OP_WRITE_SC_SUPPORT,
 				    sizeof(val), &val, HCI_CMD_TIMEOUT);
+
+	if (!err) {
+		if (val) {
+			hdev->features[1][0] |= LMP_HOST_SC;
+			hci_dev_set_flag(hdev, HCI_SC_ENABLED);
+		} else {
+			hdev->features[1][0] &= ~LMP_HOST_SC;
+			hci_dev_clear_flag(hdev, HCI_SC_ENABLED);
+		}
+	}
+
+	return err;
 }
 
 static int hci_write_ssp_mode_sync(struct hci_dev *hdev, u8 mode)
