@@ -836,7 +836,7 @@ static int __init xbc_verify_tree(void)
 static int __init xbc_parse_tree(void)
 {
 	char *p, *q;
-	int ret, c;
+	int ret = 0, c;
 
 	last_parent = NULL;
 	p = xbc_data;
