@@ -852,7 +852,6 @@ struct irdma_roce_offload_info {
 	u16 err_rq_idx;
 	u32 qkey;
 	u32 dest_qp;
-	u32 local_qp;
 	u8 roce_tver;
 	u8 ack_credits;
 	u8 err_rq_idx_valid;
