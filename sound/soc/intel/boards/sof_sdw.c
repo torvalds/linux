@@ -1044,17 +1044,6 @@ static int create_sdw_dailink(struct snd_soc_card *card,
 	return 0;
 }
 
-/*
- * DAI link ID of SSP & DMIC & HDMI are based on last
- * link ID used by sdw link. Since be_id may be changed
- * in init func of sdw codec, it is not equal to be_id
- */
-static inline int get_next_be_id(struct snd_soc_dai_link *links,
-				 int be_id)
-{
-	return links[be_id - 1].id + 1;
-}
-
 #define IDISP_CODEC_MASK	0x4
 
 static int sof_card_codec_conf_alloc(struct device *dev,
@@ -1222,9 +1211,6 @@ static int sof_card_dai_links_create(struct device *dev,
 			return ret;
 		}
 	}
-
-	/* get BE ID for non-sdw DAI */
-	be_id = get_next_be_id(links, link_index);
 
 SSP:
 	/* SSP */
