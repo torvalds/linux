@@ -941,6 +941,14 @@ int btrfs_quota_enable(struct btrfs_fs_info *fs_info)
 	int ret = 0;
 	int slot;
 
+	/*
+	 * We need to have subvol_sem write locked, to prevent races between
+	 * concurrent tasks trying to enable quotas, because we will unlock
+	 * and relock qgroup_ioctl_lock before setting fs_info->quota_root
+	 * and before setting BTRFS_FS_QUOTA_ENABLED.
+	 */
+	lockdep_assert_held_write(&fs_info->subvol_sem);
+
 	mutex_lock(&fs_info->qgroup_ioctl_lock);
 	if (fs_info->quota_root)
 		goto out;
@@ -1118,8 +1126,19 @@ out_add_root:
 		goto out_free_path;
 	}
 
+	mutex_unlock(&fs_info->qgroup_ioctl_lock);
+	/*
+	 * Commit the transaction while not holding qgroup_ioctl_lock, to avoid
+	 * a deadlock with tasks concurrently doing other qgroup operations, such
+	 * adding/removing qgroups or adding/deleting qgroup relations for example,
+	 * because all qgroup operations first start or join a transaction and then
+	 * lock the qgroup_ioctl_lock mutex.
+	 * We are safe from a concurrent task trying to enable quotas, by calling
+	 * this function, since we are serialized by fs_info->subvol_sem.
+	 */
 	ret = btrfs_commit_transaction(trans);
 	trans = NULL;
+	mutex_lock(&fs_info->qgroup_ioctl_lock);
 	if (ret)
 		goto out_free_path;
 
