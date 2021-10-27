@@ -122,28 +122,38 @@ int br_switchdev_set_port_flag(struct net_bridge_port *p,
 	return 0;
 }
 
+static void br_switchdev_fdb_populate(struct net_bridge *br,
+				      struct switchdev_notifier_fdb_info *item,
+				      const struct net_bridge_fdb_entry *fdb,
+				      const void *ctx)
+{
+	const struct net_bridge_port *p = READ_ONCE(fdb->dst);
+
+	item->addr = fdb->key.addr.addr;
+	item->vid = fdb->key.vlan_id;
+	item->added_by_user = test_bit(BR_FDB_ADDED_BY_USER, &fdb->flags);
+	item->offloaded = test_bit(BR_FDB_OFFLOADED, &fdb->flags);
+	item->is_local = test_bit(BR_FDB_LOCAL, &fdb->flags);
+	item->info.dev = (!p || item->is_local) ? br->dev : p->dev;
+	item->info.ctx = ctx;
+}
+
 void
 br_switchdev_fdb_notify(struct net_bridge *br,
 			const struct net_bridge_fdb_entry *fdb, int type)
 {
-	const struct net_bridge_port *dst = READ_ONCE(fdb->dst);
-	struct switchdev_notifier_fdb_info info = {
-		.addr = fdb->key.addr.addr,
-		.vid = fdb->key.vlan_id,
-		.added_by_user = test_bit(BR_FDB_ADDED_BY_USER, &fdb->flags),
-		.is_local = test_bit(BR_FDB_LOCAL, &fdb->flags),
-		.offloaded = test_bit(BR_FDB_OFFLOADED, &fdb->flags),
-	};
-	struct net_device *dev = (!dst || info.is_local) ? br->dev : dst->dev;
+	struct switchdev_notifier_fdb_info item;
+
+	br_switchdev_fdb_populate(br, &item, fdb, NULL);
 
 	switch (type) {
 	case RTM_DELNEIGH:
 		call_switchdev_notifiers(SWITCHDEV_FDB_DEL_TO_DEVICE,
-					 dev, &info.info, NULL);
+					 item.info.dev, &item.info, NULL);
 		break;
 	case RTM_NEWNEIGH:
 		call_switchdev_notifiers(SWITCHDEV_FDB_ADD_TO_DEVICE,
-					 dev, &info.info, NULL);
+					 item.info.dev, &item.info, NULL);
 		break;
 	}
 }
@@ -268,6 +278,53 @@ static void nbp_switchdev_del(struct net_bridge_port *p)
 		p->flags &= ~BR_TX_FWD_OFFLOAD;
 		static_branch_dec(&br_switchdev_tx_fwd_offload);
 	}
+}
+
+static int br_fdb_replay_one(struct net_bridge *br, struct notifier_block *nb,
+			     const struct net_bridge_fdb_entry *fdb,
+			     unsigned long action, const void *ctx)
+{
+	struct switchdev_notifier_fdb_info item;
+	int err;
+
+	br_switchdev_fdb_populate(br, &item, fdb, ctx);
+
+	err = nb->notifier_call(nb, action, &item);
+	return notifier_to_errno(err);
+}
+
+static int br_fdb_replay(const struct net_device *br_dev, const void *ctx,
+			 bool adding, struct notifier_block *nb)
+{
+	struct net_bridge_fdb_entry *fdb;
+	struct net_bridge *br;
+	unsigned long action;
+	int err = 0;
+
+	if (!nb)
+		return 0;
+
+	if (!netif_is_bridge_master(br_dev))
+		return -EINVAL;
+
+	br = netdev_priv(br_dev);
+
+	if (adding)
+		action = SWITCHDEV_FDB_ADD_TO_DEVICE;
+	else
+		action = SWITCHDEV_FDB_DEL_TO_DEVICE;
+
+	rcu_read_lock();
+
+	hlist_for_each_entry_rcu(fdb, &br->fdb_list, fdb_node) {
+		err = br_fdb_replay_one(br, nb, fdb, action, ctx);
+		if (err)
+			break;
+	}
+
+	rcu_read_unlock();
+
+	return err;
 }
 
 static int nbp_switchdev_sync_objs(struct net_bridge_port *p, const void *ctx,
