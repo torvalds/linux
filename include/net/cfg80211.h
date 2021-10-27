@@ -7645,19 +7645,13 @@ void cfg80211_cac_event(struct net_device *netdev,
 			enum nl80211_radar_event event, gfp_t gfp);
 
 /**
- * cfg80211_offchan_cac_event - Channel Availability Check (CAC) offchan event
+ * cfg80211_offchan_cac_abort - Channel Availability Check offchan abort event
  * @wiphy: the wiphy
- * @chandef: chandef for the current channel
- * @event: type of event
  *
- * This function is called when a Channel Availability Check (CAC) is finished,
- * started or aborted by a offchannel dedicated chain.
- *
- * Note that this acquires the wiphy lock.
+ * This function is called by the driver when a Channel Availability Check
+ * (CAC) is aborted by a offchannel dedicated chain.
  */
-void cfg80211_offchan_cac_event(struct wiphy *wiphy,
-				const struct cfg80211_chan_def *chandef,
-				enum nl80211_radar_event event);
+void cfg80211_offchan_cac_abort(struct wiphy *wiphy);
 
 /**
  * cfg80211_gtk_rekey_notify - notify userspace about driver rekeying

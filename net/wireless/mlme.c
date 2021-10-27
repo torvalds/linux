@@ -971,17 +971,6 @@ void cfg80211_cac_event(struct net_device *netdev,
 }
 EXPORT_SYMBOL(cfg80211_cac_event);
 
-void cfg80211_offchan_cac_work(struct work_struct *work)
-{
-	struct delayed_work *delayed_work = to_delayed_work(work);
-	struct cfg80211_registered_device *rdev;
-
-	rdev = container_of(delayed_work, struct cfg80211_registered_device,
-			    offchan_cac_work);
-	cfg80211_offchan_cac_event(&rdev->wiphy, &rdev->offchan_radar_chandef,
-				   NL80211_RADAR_CAC_FINISHED);
-}
-
 static void
 __cfg80211_offchan_cac_event(struct cfg80211_registered_device *rdev,
 			     struct wireless_dev *wdev,
@@ -1006,7 +995,7 @@ __cfg80211_offchan_cac_event(struct cfg80211_registered_device *rdev,
 		rdev->offchan_radar_wdev = NULL;
 		break;
 	case NL80211_RADAR_CAC_ABORTED:
-		cancel_delayed_work(&rdev->offchan_cac_work);
+		cancel_delayed_work(&rdev->offchan_cac_done_wk);
 		wdev = rdev->offchan_radar_wdev;
 		rdev->offchan_radar_wdev = NULL;
 		break;
@@ -1022,17 +1011,44 @@ __cfg80211_offchan_cac_event(struct cfg80211_registered_device *rdev,
 	nl80211_radar_notify(rdev, chandef, event, netdev, GFP_KERNEL);
 }
 
-void cfg80211_offchan_cac_event(struct wiphy *wiphy,
-				const struct cfg80211_chan_def *chandef,
-				enum nl80211_radar_event event)
+static void
+cfg80211_offchan_cac_event(struct cfg80211_registered_device *rdev,
+			   const struct cfg80211_chan_def *chandef,
+			   enum nl80211_radar_event event)
+{
+	wiphy_lock(&rdev->wiphy);
+	__cfg80211_offchan_cac_event(rdev, NULL, chandef, event);
+	wiphy_unlock(&rdev->wiphy);
+}
+
+void cfg80211_offchan_cac_done_wk(struct work_struct *work)
+{
+	struct delayed_work *delayed_work = to_delayed_work(work);
+	struct cfg80211_registered_device *rdev;
+
+	rdev = container_of(delayed_work, struct cfg80211_registered_device,
+			    offchan_cac_done_wk);
+	cfg80211_offchan_cac_event(rdev, &rdev->offchan_radar_chandef,
+				   NL80211_RADAR_CAC_FINISHED);
+}
+
+void cfg80211_offchan_cac_abort_wk(struct work_struct *work)
+{
+	struct cfg80211_registered_device *rdev;
+
+	rdev = container_of(work, struct cfg80211_registered_device,
+			    offchan_cac_abort_wk);
+	cfg80211_offchan_cac_event(rdev, &rdev->offchan_radar_chandef,
+				   NL80211_RADAR_CAC_ABORTED);
+}
+
+void cfg80211_offchan_cac_abort(struct wiphy *wiphy)
 {
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 
-	wiphy_lock(wiphy);
-	__cfg80211_offchan_cac_event(rdev, NULL, chandef, event);
-	wiphy_unlock(wiphy);
+	queue_work(cfg80211_wq, &rdev->offchan_cac_abort_wk);
 }
-EXPORT_SYMBOL(cfg80211_offchan_cac_event);
+EXPORT_SYMBOL(cfg80211_offchan_cac_abort);
 
 int
 cfg80211_start_offchan_radar_detection(struct cfg80211_registered_device *rdev,
@@ -1062,7 +1078,7 @@ cfg80211_start_offchan_radar_detection(struct cfg80211_registered_device *rdev,
 	rdev->offchan_radar_chandef = *chandef;
 	__cfg80211_offchan_cac_event(rdev, wdev, chandef,
 				     NL80211_RADAR_CAC_STARTED);
-	queue_delayed_work(cfg80211_wq, &rdev->offchan_cac_work,
+	queue_delayed_work(cfg80211_wq, &rdev->offchan_cac_done_wk,
 			   msecs_to_jiffies(cac_time_ms));
 
 	return 0;

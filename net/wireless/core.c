@@ -545,7 +545,9 @@ use_default_name:
 	INIT_WORK(&rdev->rfkill_block, cfg80211_rfkill_block_work);
 	INIT_WORK(&rdev->conn_work, cfg80211_conn_work);
 	INIT_WORK(&rdev->event_work, cfg80211_event_work);
-	INIT_DELAYED_WORK(&rdev->offchan_cac_work, cfg80211_offchan_cac_work);
+	INIT_WORK(&rdev->offchan_cac_abort_wk, cfg80211_offchan_cac_abort_wk);
+	INIT_DELAYED_WORK(&rdev->offchan_cac_done_wk,
+			  cfg80211_offchan_cac_done_wk);
 
 	init_waitqueue_head(&rdev->dev_wait);
 
@@ -1055,11 +1057,13 @@ void wiphy_unregister(struct wiphy *wiphy)
 	cancel_work_sync(&rdev->conn_work);
 	flush_work(&rdev->event_work);
 	cancel_delayed_work_sync(&rdev->dfs_update_channels_wk);
+	cancel_delayed_work_sync(&rdev->offchan_cac_done_wk);
 	flush_work(&rdev->destroy_work);
 	flush_work(&rdev->sched_scan_stop_wk);
 	flush_work(&rdev->propagate_radar_detect_wk);
 	flush_work(&rdev->propagate_cac_done_wk);
 	flush_work(&rdev->mgmt_registrations_update_wk);
+	flush_work(&rdev->offchan_cac_abort_wk);
 
 #ifdef CONFIG_PM
 	if (rdev->wiphy.wowlan_config && rdev->ops->set_wakeup)
