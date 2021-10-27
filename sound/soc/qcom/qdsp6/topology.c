@@ -461,7 +461,7 @@ static struct audioreach_module *audioreach_parse_common_tokens(struct q6apm *ap
 			break;
 		case AR_TKN_U32_MODULE_DST_IN_PORT_ID:
 			dst_mod_ip_port_id = le32_to_cpu(mod_elem->value);
-
+			break;
 		default:
 			break;
 
