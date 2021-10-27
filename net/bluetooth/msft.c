@@ -168,7 +168,7 @@ static void reregister_monitor(struct hci_dev *hdev, int handle)
 		if (!monitor) {
 			/* All monitors have been reregistered */
 			msft->reregistering = false;
-			hci_update_background_scan(hdev);
+			hci_update_passive_scan(hdev);
 			return;
 		}
 
