@@ -876,11 +876,6 @@ struct sk_buff *tcp_stream_alloc_skb(struct sock *sk, int size, gfp_t gfp,
 		}
 		if (likely(mem_scheduled)) {
 			skb_reserve(skb, MAX_TCP_HEADER);
-			/*
-			 * Make sure that we have exactly size bytes
-			 * available to the caller, no more, no less.
-			 */
-			skb->reserved_tailroom = skb->end - skb->tail - size;
 			INIT_LIST_HEAD(&skb->tcp_tsorted_anchor);
 			return skb;
 		}
