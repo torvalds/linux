@@ -228,6 +228,7 @@ static void do_stf_exit_barrier_fixups(enum stf_barrier_type types)
 
 static bool stf_exit_reentrant = false;
 static bool rfi_exit_reentrant = false;
+static DEFINE_MUTEX(exit_flush_lock);
 
 static int __do_stf_barrier_fixups(void *data)
 {
@@ -253,6 +254,9 @@ void do_stf_barrier_fixups(enum stf_barrier_type types)
 	 * low level interrupt exit code before patching. After the patching,
 	 * if allowed, then flip the branch to allow fast exits.
 	 */
+
+	// Prevent static key update races with do_rfi_flush_fixups()
+	mutex_lock(&exit_flush_lock);
 	static_branch_enable(&interrupt_exit_not_reentrant);
 
 	stop_machine(__do_stf_barrier_fixups, &types, NULL);
@@ -264,6 +268,8 @@ void do_stf_barrier_fixups(enum stf_barrier_type types)
 
 	if (stf_exit_reentrant && rfi_exit_reentrant)
 		static_branch_disable(&interrupt_exit_not_reentrant);
+
+	mutex_unlock(&exit_flush_lock);
 }
 
 void do_uaccess_flush_fixups(enum l1d_flush_type types)
@@ -486,6 +492,9 @@ void do_rfi_flush_fixups(enum l1d_flush_type types)
 	 * without stop_machine, so this could be achieved with a broadcast
 	 * IPI instead, but this matches the stf sequence.
 	 */
+
+	// Prevent static key update races with do_stf_barrier_fixups()
+	mutex_lock(&exit_flush_lock);
 	static_branch_enable(&interrupt_exit_not_reentrant);
 
 	stop_machine(__do_rfi_flush_fixups, &types, NULL);
@@ -497,6 +506,8 @@ void do_rfi_flush_fixups(enum l1d_flush_type types)
 
 	if (stf_exit_reentrant && rfi_exit_reentrant)
 		static_branch_disable(&interrupt_exit_not_reentrant);
+
+	mutex_unlock(&exit_flush_lock);
 }
 
 void do_barrier_nospec_fixups_range(bool enable, void *fixup_start, void *fixup_end)
