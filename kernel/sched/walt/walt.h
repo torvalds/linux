@@ -9,6 +9,8 @@
 #include "../../../kernel/sched/sched.h"
 #include "../../../fs/proc/internal.h"
 #include <linux/sched/core_ctl.h>
+#include <linux/jump_label.h>
+
 #include <linux/cgroup.h>
 
 #ifdef CONFIG_HZ_300
@@ -37,6 +39,8 @@
 #define MAX_CLUSTERS 3
 /* MAX_MARGIN_LEVELS should be one less than MAX_CLUSTERS */
 #define MAX_MARGIN_LEVELS (MAX_CLUSTERS - 1)
+
+extern struct static_key_true walt_disabled;
 
 enum task_event {
 	PUT_PREV_TASK	= 0,

@@ -3723,6 +3723,8 @@ static void dec_rq_walt_stats(struct rq *rq, struct task_struct *p)
 
 static void android_rvh_wake_up_new_task(void *unused, struct task_struct *new)
 {
+	if (static_branch_unlikely(&walt_disabled))
+		return;
 	add_new_task_to_grp(new);
 }
 
@@ -3735,6 +3737,9 @@ static void android_rvh_update_cpu_capacity(void *unused, int cpu, unsigned long
 	unsigned long max_capacity = arch_scale_cpu_capacity(cpu);
 	unsigned long thermal_pressure = arch_scale_thermal_pressure(cpu);
 	unsigned long thermal_cap;
+
+	if (static_branch_unlikely(&walt_disabled))
+		return;
 
 	/*
 	 * thermal_pressure = max_capacity - curr_cap_as_per_thermal.
@@ -3764,6 +3769,8 @@ static void android_rvh_sched_cpu_starting(void *unused, int cpu)
 	unsigned long flags;
 	struct rq *rq = cpu_rq(cpu);
 
+	if (static_branch_unlikely(&walt_disabled))
+		return;
 	raw_spin_lock_irqsave(&rq->lock, flags);
 	set_window_start(rq);
 	raw_spin_unlock_irqrestore(&rq->lock, flags);
@@ -3773,11 +3780,15 @@ static void android_rvh_sched_cpu_starting(void *unused, int cpu)
 
 static void android_rvh_sched_cpu_dying(void *unused, int cpu)
 {
+	if (static_branch_unlikely(&walt_disabled))
+		return;
 	clear_walt_request(cpu);
 }
 
 static void android_rvh_set_task_cpu(void *unused, struct task_struct *p, unsigned int new_cpu)
 {
+	if (static_branch_unlikely(&walt_disabled))
+		return;
 	if (new_cpu < 0)
 		return;
 	fixup_busy_time(p, (int) new_cpu);
@@ -3785,11 +3796,15 @@ static void android_rvh_set_task_cpu(void *unused, struct task_struct *p, unsign
 
 static void android_rvh_sched_fork(void *unused, struct task_struct *p)
 {
+	if (static_branch_unlikely(&walt_disabled))
+		return;
 	init_new_task_load(p);
 }
 
 static void android_rvh_new_task_stats(void *unused, struct task_struct *p)
 {
+	if (static_branch_unlikely(&walt_disabled))
+		return;
 	mark_task_starting(p);
 }
 
@@ -3797,6 +3812,8 @@ static void android_rvh_account_irq(void *unused, struct task_struct *curr, int 
 {
 	struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
 
+	if (static_branch_unlikely(&walt_disabled))
+		return;
 	if (!!(curr->flags & PF_IDLE)) {
 		if (hardirq_count() || in_serving_softirq())
 			walt_sched_account_irqend(cpu, curr, delta);
@@ -3808,6 +3825,8 @@ static void android_rvh_account_irq(void *unused, struct task_struct *curr, int 
 
 static void android_rvh_flush_task(void *unused, struct task_struct *p)
 {
+	if (static_branch_unlikely(&walt_disabled))
+		return;
 	walt_task_dead(p);
 }
 
@@ -3816,6 +3835,8 @@ static void android_rvh_enqueue_task(void *unused, struct rq *rq, struct task_st
 	u64 wallclock = sched_ktime_clock();
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 
+	if (static_branch_unlikely(&walt_disabled))
+		return;
 	wts->last_enqueued_ts = wallclock;
 	sched_update_nr_prod(rq->cpu, true);
 
@@ -3838,6 +3859,8 @@ static void android_rvh_dequeue_task(void *unused, struct rq *rq, struct task_st
 	 */
 	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
 
+	if (static_branch_unlikely(&walt_disabled))
+		return;
 	if (p == wrq->ed_task)
 		is_ed_task_present(rq, sched_ktime_clock());
 
@@ -3858,6 +3881,8 @@ static void android_rvh_update_misfit_status(void *unused, struct task_struct *p
 	bool old_misfit, misfit;
 	int change;
 
+	if (static_branch_unlikely(&walt_disabled))
+		return;
 	*need_update = false;
 
 	if (!p) {
@@ -3894,6 +3919,8 @@ static void android_rvh_try_to_wake_up(void *unused, struct task_struct *p)
 	unsigned int old_load;
 	struct walt_related_thread_group *grp = NULL;
 
+	if (static_branch_unlikely(&walt_disabled))
+		return;
 	rq_lock_irqsave(rq, &rf);
 	old_load = task_load(p);
 	wallclock = sched_ktime_clock();
@@ -3914,6 +3941,8 @@ static void android_rvh_try_to_wake_up_success(void *unused, struct task_struct 
 	unsigned long flags;
 	int cpu = p->cpu;
 
+	if (static_branch_unlikely(&walt_disabled))
+		return;
 	if (!sched_predl)
 		return;
 
@@ -3929,6 +3958,8 @@ static void android_rvh_tick_entry(void *unused, struct rq *rq)
 	u32 old_load;
 	struct walt_related_thread_group *grp;
 
+	if (static_branch_unlikely(&walt_disabled))
+		return;
 	set_window_start(rq);
 	wallclock = sched_ktime_clock();
 
@@ -3958,6 +3989,8 @@ static void android_rvh_schedule(void *unused, struct task_struct *prev,
 	u64 wallclock = sched_ktime_clock();
 	struct walt_task_struct *wts = (struct walt_task_struct *) prev->android_vendor_data1;
 
+	if (static_branch_unlikely(&walt_disabled))
+		return;
 	if (likely(prev != next)) {
 		if (!prev->on_rq)
 			wts->last_sleep_ts = wallclock;
@@ -3974,6 +4007,8 @@ static void android_rvh_resume_cpus(void *unused, struct cpumask *resuming_cpus,
 	struct rq *rq;
 	unsigned long flags;
 
+	if (static_branch_unlikely(&walt_disabled))
+		return;
 	/*
 	 * send a reschedule event  on all resumed CPUs
 	 * which trigger newly idle load balance.
@@ -3994,6 +4029,8 @@ static void android_rvh_update_cpus_allowed(void *unused, struct task_struct *p,
 {
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 
+	if (static_branch_unlikely(&walt_disabled))
+		return;
 	if (cpumask_subset(&wts->cpus_requested, cpus_requested))
 		*ret = set_cpus_allowed_ptr(p, &wts->cpus_requested);
 }
@@ -4002,6 +4039,8 @@ static void android_rvh_sched_fork_init(void *unused, struct task_struct *p)
 {
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 
+	if (static_branch_unlikely(&walt_disabled))
+		return;
 	wts->last_sleep_ts		= 0;
 	wts->wake_up_idle		= false;
 	wts->boost			= 0;
@@ -4012,16 +4051,22 @@ static void android_rvh_sched_fork_init(void *unused, struct task_struct *p)
 
 static void android_rvh_ttwu_cond(void *unused, bool *cond)
 {
+	if (static_branch_unlikely(&walt_disabled))
+		return;
 	*cond = sysctl_sched_many_wakeup_threshold < WALT_MANY_WAKEUP_DEFAULT;
 }
 
 static void android_rvh_sched_exec(void *unused, bool *cond)
 {
+	if (static_branch_unlikely(&walt_disabled))
+		return;
 	*cond = true;
 }
 
 static void android_rvh_build_perf_domains(void *unused, bool *eas_check)
 {
+	if (static_branch_unlikely(&walt_disabled))
+		return;
 	*eas_check = true;
 }
 
@@ -4054,6 +4099,7 @@ static void register_walt_hooks(void)
 }
 
 atomic64_t walt_irq_work_lastq_ws;
+DEFINE_STATIC_KEY_TRUE(walt_disabled);
 
 static int walt_init_stop_handler(void *data)
 {
@@ -4089,10 +4135,6 @@ static int walt_init_stop_handler(void *data)
 
 	atomic64_set(&walt_irq_work_lastq_ws, window_start_ns);
 
-	register_walt_hooks();
-	walt_lb_init();
-	walt_rt_init();
-	walt_cfs_init();
 	create_default_coloc_group();
 
 	walt_update_cluster_topology();
@@ -4101,7 +4143,6 @@ static int walt_init_stop_handler(void *data)
 		raw_spin_unlock(&cpu_rq(cpu)->lock);
 	}
 	read_unlock(&tasklist_lock);
-
 	return 0;
 }
 
@@ -4116,7 +4157,14 @@ static int walt_module_init(void)
 	BUG_ON(alloc_related_thread_groups());
 	walt_init_cycle_counter();
 	init_clusters();
+
+	register_walt_hooks();
+	walt_lb_init();
+	walt_rt_init();
+	walt_cfs_init();
+
 	stop_machine(walt_init_stop_handler, NULL, NULL);
+	static_branch_disable(&walt_disabled);
 
 	hdr = register_sysctl_table(walt_base_table);
 	kmemleak_not_leak(hdr);

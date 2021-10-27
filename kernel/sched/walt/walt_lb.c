@@ -489,6 +489,8 @@ static void walt_lb_tick(void *unused, struct rq *rq)
 	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 
+	if (static_branch_unlikely(&walt_disabled))
+		return;
 	if (!rq->misfit_task_load)
 		return;
 
@@ -563,14 +565,17 @@ static void walt_newidle_balance(void *unused, struct rq *this_rq,
 {
 	int this_cpu = this_rq->cpu;
 	struct walt_rq *wrq = (struct walt_rq *) this_rq->android_vendor_data1;
-	int order_index = wrq->cluster->id;
+	int order_index;
 	int cluster = 0;
 	int busy_cpu;
 	bool enough_idle = (this_rq->avg_idle > NEWIDLE_BALANCE_THRESHOLD);
 	bool help_min_cap;
 
-	if (unlikely(!cpu_array))
+	if (static_branch_unlikely(&walt_disabled))
 		return;
+
+	/*Cluster isn't initialized until after WALT is enabled*/
+	order_index = wrq->cluster->id;
 
 	/*
 	 * newly idle load balance is completely handled here, so
@@ -650,6 +655,8 @@ static void walt_find_busiest_queue(void *unused, int dst_cpu,
 	int busiest_cpu = -1;
 	struct cpumask src_mask;
 
+	if (static_branch_unlikely(&walt_disabled))
+		return;
 	*done = 1;
 	*busiest = NULL;
 
@@ -686,6 +693,8 @@ static void walt_migrate_queued_task(void *unused, struct rq *rq,
 				     struct task_struct *p,
 				     int new_cpu, int *detached)
 {
+	if (static_branch_unlikely(&walt_disabled))
+		return;
 	/*
 	 * WALT expects both source and destination rqs to be
 	 * held when set_task_cpu() is called on a queued task.
@@ -713,6 +722,8 @@ static void walt_migrate_queued_task(void *unused, struct rq *rq,
 static void walt_nohz_balancer_kick(void *unused, struct rq *rq,
 				    unsigned int *flags, int *done)
 {
+	if (static_branch_unlikely(&walt_disabled))
+		return;
 	*done = 1;
 
 	/*
@@ -730,6 +741,8 @@ static void walt_can_migrate_task(void *unused, struct task_struct *p,
 {
 	bool to_lower;
 
+	if (static_branch_unlikely(&walt_disabled))
+		return;
 	to_lower = capacity_orig_of(dst_cpu) < capacity_orig_of(task_cpu(p));
 
 	if (_walt_can_migrate_task(p, dst_cpu, to_lower))

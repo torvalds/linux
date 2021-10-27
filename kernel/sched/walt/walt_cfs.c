@@ -686,6 +686,8 @@ walt_select_task_rq_fair(void *unused, struct task_struct *p, int prev_cpu,
 	int sync = (wake_flags & WF_SYNC) && !(current->flags & PF_EXITING);
 	int sibling_count_hint = p->wake_q_head ? p->wake_q_head->count : 1;
 
+	if (static_branch_unlikely(&walt_disabled))
+		return;
 	*target_cpu = walt_find_energy_efficient_cpu(p, prev_cpu, sync, sibling_count_hint);
 	if (unlikely(*target_cpu < 0))
 		*target_cpu = prev_cpu;
@@ -710,6 +712,8 @@ static unsigned long task_h_load(struct task_struct *p)
 static void walt_update_misfit_status(void *unused, struct task_struct *p,
 					struct rq *rq, bool *need_update)
 {
+	if (static_branch_unlikely(&walt_disabled))
+		return;
 	*need_update = false;
 
 	if (!p) {
@@ -736,6 +740,8 @@ static inline struct task_struct *task_of(struct sched_entity *se)
 
 static void walt_place_entity(void *unused, struct sched_entity *se, u64 *vruntime)
 {
+	if (static_branch_unlikely(&walt_disabled))
+		return;
 	if (entity_is_task(se)) {
 		unsigned long thresh = sysctl_sched_latency;
 
@@ -760,6 +766,8 @@ static void walt_binder_low_latency_set(void *unused, struct task_struct *task)
 {
 	struct walt_task_struct *wts = (struct walt_task_struct *) task->android_vendor_data1;
 
+	if (static_branch_unlikely(&walt_disabled))
+		return;
 	if (task && current->signal &&
 			(current->signal->oom_score_adj == 0) &&
 			(current->prio < DEFAULT_PRIO))
@@ -770,6 +778,8 @@ static void walt_binder_low_latency_clear(void *unused, struct binder_transactio
 {
 	struct walt_task_struct *wts = (struct walt_task_struct *) current->android_vendor_data1;
 
+	if (static_branch_unlikely(&walt_disabled))
+		return;
 	if (wts->low_latency)
 		wts->low_latency = false;
 }

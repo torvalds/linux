@@ -22,6 +22,8 @@ static void rt_energy_aware_wake_cpu(void *unused, struct task_struct *task,
 	int cluster;
 	int order_index = (boost_on_big && num_sched_clusters > 1) ? 1 : 0;
 
+	if (static_branch_unlikely(&walt_disabled))
+		return;
 	if (!ret)
 		return; /* No targets found */
 
