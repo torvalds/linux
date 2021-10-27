@@ -3736,8 +3736,6 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 	if (err)
 		goto err_free;
 
-	intel_pt_log_set_name(INTEL_PT_PMU_NAME);
-
 	if (session->itrace_synth_opts->set) {
 		pt->synth_opts = *session->itrace_synth_opts;
 	} else {
@@ -3751,6 +3749,9 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 		}
 		pt->synth_opts.thread_stack = opts->thread_stack;
 	}
+
+	if (!(pt->synth_opts.log_plus_flags & AUXTRACE_LOG_FLG_USE_STDOUT))
+		intel_pt_log_set_name(INTEL_PT_PMU_NAME);
 
 	pt->session = session;
 	pt->machine = &session->machines.host; /* No kvm support */
