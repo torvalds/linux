@@ -1309,6 +1309,25 @@ int hci_remove_advertising_sync(struct hci_dev *hdev, struct sock *sk,
 	return 0;
 }
 
+int hci_read_rssi_sync(struct hci_dev *hdev, __le16 handle)
+{
+	struct hci_cp_read_rssi cp;
+
+	cp.handle = handle;
+	return __hci_cmd_sync_status(hdev, HCI_OP_READ_RSSI,
+					sizeof(cp), &cp, HCI_CMD_TIMEOUT);
+}
+
+int hci_read_tx_power_sync(struct hci_dev *hdev, __le16 handle, u8 type)
+{
+	struct hci_cp_read_tx_power cp;
+
+	cp.handle = handle;
+	cp.type = type;
+	return __hci_cmd_sync_status(hdev, HCI_OP_READ_TX_POWER,
+					sizeof(cp), &cp, HCI_CMD_TIMEOUT);
+}
+
 int hci_disable_advertising_sync(struct hci_dev *hdev)
 {
 	u8 enable = 0x00;
