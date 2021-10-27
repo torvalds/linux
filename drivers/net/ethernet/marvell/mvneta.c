@@ -5179,6 +5179,31 @@ static int mvneta_probe(struct platform_device *pdev)
 
 	pp->phylink_config.dev = &dev->dev;
 	pp->phylink_config.type = PHYLINK_NETDEV;
+	phy_interface_set_rgmii(pp->phylink_config.supported_interfaces);
+	__set_bit(PHY_INTERFACE_MODE_QSGMII,
+		  pp->phylink_config.supported_interfaces);
+	if (comphy) {
+		/* If a COMPHY is present, we can support any of the serdes
+		 * modes and switch between them.
+		 */
+		__set_bit(PHY_INTERFACE_MODE_SGMII,
+			  pp->phylink_config.supported_interfaces);
+		__set_bit(PHY_INTERFACE_MODE_1000BASEX,
+			  pp->phylink_config.supported_interfaces);
+		__set_bit(PHY_INTERFACE_MODE_2500BASEX,
+			  pp->phylink_config.supported_interfaces);
+	} else if (phy_mode == PHY_INTERFACE_MODE_2500BASEX) {
+		/* No COMPHY, with only 2500BASE-X mode supported */
+		__set_bit(PHY_INTERFACE_MODE_2500BASEX,
+			  pp->phylink_config.supported_interfaces);
+	} else if (phy_mode == PHY_INTERFACE_MODE_1000BASEX ||
+		   phy_mode == PHY_INTERFACE_MODE_SGMII) {
+		/* No COMPHY, we can switch between 1000BASE-X and SGMII */
+		__set_bit(PHY_INTERFACE_MODE_1000BASEX,
+			  pp->phylink_config.supported_interfaces);
+		__set_bit(PHY_INTERFACE_MODE_SGMII,
+			  pp->phylink_config.supported_interfaces);
+	}
 
 	phylink = phylink_create(&pp->phylink_config, pdev->dev.fwnode,
 				 phy_mode, &mvneta_phylink_ops);
