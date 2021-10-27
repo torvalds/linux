@@ -55,6 +55,8 @@ int walt_pause_cpus(struct cpumask *cpus)
 	cpumask_t requested_cpus;
 
 	mutex_lock(&pause_lock);
+
+	cpumask_copy(&requested_cpus, cpus);
 	inc_ref_counts(cpus);
 
 	/*
@@ -66,14 +68,15 @@ int walt_pause_cpus(struct cpumask *cpus)
 	if (cpumask_empty(cpus))
 		goto unlock;
 
-	cpumask_copy(&requested_cpus, cpus);
 	ret = pause_cpus(cpus);
+
 	if (ret < 0) {
-		dec_test_ref_counts(&requested_cpus);
 		pr_err("pause_cpus failure ret=%d cpus=%*pbl\n", ret,
 		       cpumask_pr_args(&requested_cpus));
-	}
 
+		/* ref counts recorded, suppress failure */
+		ret = 0;
+	}
 unlock:
 	mutex_unlock(&pause_lock);
 
@@ -88,7 +91,7 @@ int walt_resume_cpus(struct cpumask *cpus)
 	cpumask_t requested_cpus;
 
 	mutex_lock(&pause_lock);
-
+	cpumask_copy(&requested_cpus, cpus);
 	dec_test_ref_counts(cpus);
 
 	/* only actually resume online CPUs */
@@ -97,14 +100,15 @@ int walt_resume_cpus(struct cpumask *cpus)
 	if (cpumask_empty(cpus))
 		goto unlock;
 
-	cpumask_copy(&requested_cpus, cpus);
 	ret = resume_cpus(cpus);
+
 	if (ret < 0) {
-		inc_ref_counts(&requested_cpus);
 		pr_err("resume_cpus failure ret=%d cpus=%*pbl\n", ret,
 		       cpumask_pr_args(&requested_cpus));
-	}
 
+		/* ref counts recorded, suppress failure */
+		ret = 0;
+	}
 unlock:
 	mutex_unlock(&pause_lock);
 
@@ -159,15 +163,14 @@ static void walt_pause_online_workfn(struct work_struct *work)
 	if (cpumask_empty(&re_pause_cpus))
 		goto unlock;
 
-	/* will wait for existing hp operations to complete */
 	ret = pause_cpus(&re_pause_cpus);
 
 unlock:
 	mutex_unlock(&pause_lock);
-	if (ret < 0) {
+
+	if (ret < 0)
 		pr_err("pause_cpus during online failure ret=%d cpus=%*pb1\n", ret,
 		       cpumask_pr_args(&re_pause_cpus));
-	}
 }
 
 /* do not perform online work in hotplug context */
@@ -193,5 +196,4 @@ void walt_pause_init(void)
 	if (ret < 0)
 		pr_err("failure to register cpuhp online state ret=%d\n", ret);
 }
-
 #endif /* CONFIG_HOTPLUG_CPU */
