@@ -441,12 +441,12 @@ perf_ftrace_function_call(unsigned long ip, unsigned long parent_ip,
 	if (!rcu_is_watching())
 		return;
 
-	if ((unsigned long)ops->private != smp_processor_id())
-		return;
-
 	bit = ftrace_test_recursion_trylock(ip, parent_ip);
 	if (bit < 0)
 		return;
+
+	if ((unsigned long)ops->private != smp_processor_id())
+		goto out;
 
 	event = container_of(ops, struct perf_event, ftrace_ops);
 
