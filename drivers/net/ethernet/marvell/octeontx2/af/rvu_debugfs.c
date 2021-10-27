@@ -578,7 +578,7 @@ static ssize_t rvu_dbg_qsize_write(struct file *filp,
 	if (cmd_buf)
 		ret = -EINVAL;
 
-	if (!strncmp(subtoken, "help", 4) || ret < 0) {
+	if (ret < 0 || !strncmp(subtoken, "help", 4)) {
 		dev_info(rvu->dev, "Use echo <%s-lf > qsize\n", blk_string);
 		goto qsize_write_done;
 	}
