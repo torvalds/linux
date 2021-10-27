@@ -146,7 +146,7 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 		zdev->state = ZPCI_FN_STATE_STANDBY;
 		if (!clp_get_state(ccdf->fid, &state) &&
 		    state == ZPCI_FN_STATE_RESERVED) {
-			zpci_zdev_put(zdev);
+			zpci_device_reserved(zdev);
 		}
 		break;
 	case 0x0306: /* 0x308 or 0x302 for multiple devices */
@@ -156,7 +156,7 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 	case 0x0308: /* Standby -> Reserved */
 		if (!zdev)
 			break;
-		zpci_zdev_put(zdev);
+		zpci_device_reserved(zdev);
 		break;
 	default:
 		break;
