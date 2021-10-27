@@ -38,6 +38,7 @@ properties:
           - renesas,tpu-r8a77965  # R-Car M3-N
           - renesas,tpu-r8a77970  # R-Car V3M
           - renesas,tpu-r8a77980  # R-Car V3H
+          - renesas,tpu-r8a779a0  # R-Car V3U
       - const: renesas,tpu
 
   reg:
