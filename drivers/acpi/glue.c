@@ -113,13 +113,10 @@ struct acpi_device *acpi_find_child_device(struct acpi_device *parent,
 		return NULL;
 
 	list_for_each_entry(adev, &parent->children, node) {
-		unsigned long long addr;
-		acpi_status status;
+		acpi_bus_address addr = acpi_device_adr(adev);
 		int score;
 
-		status = acpi_evaluate_integer(adev->handle, METHOD_NAME__ADR,
-					       NULL, &addr);
-		if (ACPI_FAILURE(status) || addr != address)
+		if (!adev->pnp.type.bus_address || addr != address)
 			continue;
 
 		if (!ret) {
