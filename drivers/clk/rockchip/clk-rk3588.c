@@ -1948,6 +1948,12 @@ static struct rockchip_clk_branch rk3588_clk_branches[] __initdata = {
 			RK3588_CLKGATE_CON(57), 10, GFLAGS),
 	GATE(MCLK_SPDIF5, "mclk_spdif5", "clk_spdif5_dp1", 0,
 			RK3588_CLKGATE_CON(57), 11, GFLAGS),
+	COMPOSITE_NOMUX(CLK_AUX16M_0, "clk_aux16m_0", "gpll", 0,
+			RK3588_CLKSEL_CON(117), 0, 8, DFLAGS,
+			RK3588_CLKGATE_CON(56), 2, GFLAGS),
+	COMPOSITE_NOMUX(CLK_AUX16M_1, "clk_aux16m_1", "gpll", 0,
+			RK3588_CLKSEL_CON(117), 8, 8, DFLAGS,
+			RK3588_CLKGATE_CON(56), 3, GFLAGS),
 
 	/* vo1 */
 	GATE(PCLK_EDP0, "pclk_edp0", "pclk_vo1_root", 0,
