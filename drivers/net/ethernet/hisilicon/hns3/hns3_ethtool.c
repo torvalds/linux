@@ -824,6 +824,26 @@ static int hns3_check_ksettings_param(const struct net_device *netdev,
 	return 0;
 }
 
+static int hns3_set_phy_link_ksettings(struct net_device *netdev,
+				       const struct ethtool_link_ksettings *cmd)
+{
+	struct hnae3_handle *handle = hns3_get_handle(netdev);
+	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
+	int ret;
+
+	if (cmd->base.speed == SPEED_1000 &&
+	    cmd->base.autoneg == AUTONEG_DISABLE)
+		return -EINVAL;
+
+	if (cmd->base.autoneg == AUTONEG_DISABLE && ops->restore_pauseparam) {
+		ret = ops->restore_pauseparam(handle);
+		if (ret)
+			return ret;
+	}
+
+	return phy_ethtool_ksettings_set(netdev->phydev, cmd);
+}
+
 static int hns3_set_link_ksettings(struct net_device *netdev,
 				   const struct ethtool_link_ksettings *cmd)
 {
@@ -842,16 +862,11 @@ static int hns3_set_link_ksettings(struct net_device *netdev,
 		  cmd->base.autoneg, cmd->base.speed, cmd->base.duplex);
 
 	/* Only support ksettings_set for netdev with phy attached for now */
-	if (netdev->phydev) {
-		if (cmd->base.speed == SPEED_1000 &&
-		    cmd->base.autoneg == AUTONEG_DISABLE)
-			return -EINVAL;
-
-		return phy_ethtool_ksettings_set(netdev->phydev, cmd);
-	} else if (test_bit(HNAE3_DEV_SUPPORT_PHY_IMP_B, ae_dev->caps) &&
-		   ops->set_phy_link_ksettings) {
+	if (netdev->phydev)
+		return hns3_set_phy_link_ksettings(netdev, cmd);
+	else if (test_bit(HNAE3_DEV_SUPPORT_PHY_IMP_B, ae_dev->caps) &&
+		 ops->set_phy_link_ksettings)
 		return ops->set_phy_link_ksettings(handle, cmd);
-	}
 
 	if (ae_dev->dev_version < HNAE3_DEVICE_VERSION_V2)
 		return -EOPNOTSUPP;

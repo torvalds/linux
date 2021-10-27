@@ -2847,33 +2847,29 @@ static void hclge_mbx_task_schedule(struct hclge_dev *hdev)
 {
 	if (!test_bit(HCLGE_STATE_REMOVING, &hdev->state) &&
 	    !test_and_set_bit(HCLGE_STATE_MBX_SERVICE_SCHED, &hdev->state))
-		mod_delayed_work_on(cpumask_first(&hdev->affinity_mask),
-				    hclge_wq, &hdev->service_task, 0);
+		mod_delayed_work(hclge_wq, &hdev->service_task, 0);
 }
 
 static void hclge_reset_task_schedule(struct hclge_dev *hdev)
 {
 	if (!test_bit(HCLGE_STATE_REMOVING, &hdev->state) &&
+	    test_bit(HCLGE_STATE_SERVICE_INITED, &hdev->state) &&
 	    !test_and_set_bit(HCLGE_STATE_RST_SERVICE_SCHED, &hdev->state))
-		mod_delayed_work_on(cpumask_first(&hdev->affinity_mask),
-				    hclge_wq, &hdev->service_task, 0);
+		mod_delayed_work(hclge_wq, &hdev->service_task, 0);
 }
 
 static void hclge_errhand_task_schedule(struct hclge_dev *hdev)
 {
 	if (!test_bit(HCLGE_STATE_REMOVING, &hdev->state) &&
 	    !test_and_set_bit(HCLGE_STATE_ERR_SERVICE_SCHED, &hdev->state))
-		mod_delayed_work_on(cpumask_first(&hdev->affinity_mask),
-				    hclge_wq, &hdev->service_task, 0);
+		mod_delayed_work(hclge_wq, &hdev->service_task, 0);
 }
 
 void hclge_task_schedule(struct hclge_dev *hdev, unsigned long delay_time)
 {
 	if (!test_bit(HCLGE_STATE_REMOVING, &hdev->state) &&
 	    !test_bit(HCLGE_STATE_RST_FAIL, &hdev->state))
-		mod_delayed_work_on(cpumask_first(&hdev->affinity_mask),
-				    hclge_wq, &hdev->service_task,
-				    delay_time);
+		mod_delayed_work(hclge_wq, &hdev->service_task, delay_time);
 }
 
 static int hclge_get_mac_link_status(struct hclge_dev *hdev, int *link_status)
@@ -3491,33 +3487,14 @@ static void hclge_get_misc_vector(struct hclge_dev *hdev)
 	hdev->num_msi_used += 1;
 }
 
-static void hclge_irq_affinity_notify(struct irq_affinity_notify *notify,
-				      const cpumask_t *mask)
-{
-	struct hclge_dev *hdev = container_of(notify, struct hclge_dev,
-					      affinity_notify);
-
-	cpumask_copy(&hdev->affinity_mask, mask);
-}
-
-static void hclge_irq_affinity_release(struct kref *ref)
-{
-}
-
 static void hclge_misc_affinity_setup(struct hclge_dev *hdev)
 {
 	irq_set_affinity_hint(hdev->misc_vector.vector_irq,
 			      &hdev->affinity_mask);
-
-	hdev->affinity_notify.notify = hclge_irq_affinity_notify;
-	hdev->affinity_notify.release = hclge_irq_affinity_release;
-	irq_set_affinity_notifier(hdev->misc_vector.vector_irq,
-				  &hdev->affinity_notify);
 }
 
 static void hclge_misc_affinity_teardown(struct hclge_dev *hdev)
 {
-	irq_set_affinity_notifier(hdev->misc_vector.vector_irq, NULL);
 	irq_set_affinity_hint(hdev->misc_vector.vector_irq, NULL);
 }
 
@@ -11021,6 +10998,35 @@ static int hclge_set_pauseparam(struct hnae3_handle *handle, u32 auto_neg,
 	return -EOPNOTSUPP;
 }
 
+static int hclge_restore_pauseparam(struct hnae3_handle *handle)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+	u32 auto_neg, rx_pause, tx_pause;
+	int ret;
+
+	hclge_get_pauseparam(handle, &auto_neg, &rx_pause, &tx_pause);
+	/* when autoneg is disabled, the pause setting of phy has no effect
+	 * unless the link goes down.
+	 */
+	ret = phy_suspend(hdev->hw.mac.phydev);
+	if (ret)
+		return ret;
+
+	phy_set_asym_pause(hdev->hw.mac.phydev, rx_pause, tx_pause);
+
+	ret = phy_resume(hdev->hw.mac.phydev);
+	if (ret)
+		return ret;
+
+	ret = hclge_mac_pause_setup_hw(hdev);
+	if (ret)
+		dev_err(&hdev->pdev->dev,
+			"restore pauseparam error, ret = %d.\n", ret);
+
+	return ret;
+}
+
 static void hclge_get_ksettings_an_result(struct hnae3_handle *handle,
 					  u8 *auto_neg, u32 *speed, u8 *duplex)
 {
@@ -12984,6 +12990,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.halt_autoneg = hclge_halt_autoneg,
 	.get_pauseparam = hclge_get_pauseparam,
 	.set_pauseparam = hclge_set_pauseparam,
+	.restore_pauseparam = hclge_restore_pauseparam,
 	.set_mtu = hclge_set_mtu,
 	.reset_queue = hclge_reset_tqp,
 	.get_stats = hclge_get_stats,
@@ -13052,7 +13059,7 @@ static int hclge_init(void)
 {
 	pr_info("%s is initializing\n", HCLGE_NAME);
 
-	hclge_wq = alloc_workqueue("%s", 0, 0, HCLGE_NAME);
+	hclge_wq = alloc_workqueue("%s", WQ_UNBOUND, 0, HCLGE_NAME);
 	if (!hclge_wq) {
 		pr_err("%s: failed to create workqueue\n", HCLGE_NAME);
 		return -ENOMEM;
