@@ -352,11 +352,21 @@ static ssize_t __blkdev_direct_IO_async(struct kiocb *iocb,
 	bio->bi_end_io = blkdev_bio_end_io_async;
 	bio->bi_ioprio = iocb->ki_ioprio;
 
-	ret = bio_iov_iter_get_pages(bio, iter);
-	if (unlikely(ret)) {
-		bio->bi_status = BLK_STS_IOERR;
-		bio_endio(bio);
-		return ret;
+	if (iov_iter_is_bvec(iter)) {
+		/*
+		 * Users don't rely on the iterator being in any particular
+		 * state for async I/O returning -EIOCBQUEUED, hence we can
+		 * avoid expensive iov_iter_advance(). Bypass
+		 * bio_iov_iter_get_pages() and set the bvec directly.
+		 */
+		bio_iov_bvec_set(bio, iter);
+	} else {
+		ret = bio_iov_iter_get_pages(bio, iter);
+		if (unlikely(ret)) {
+			bio->bi_status = BLK_STS_IOERR;
+			bio_endio(bio);
+			return ret;
+		}
 	}
 	dio->size = bio->bi_iter.bi_size;
 
