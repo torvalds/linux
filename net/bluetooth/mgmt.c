@@ -1155,16 +1155,6 @@ static int send_settings_rsp(struct sock *sk, u16 opcode, struct hci_dev *hdev)
 				 sizeof(settings));
 }
 
-static void clean_up_hci_complete(struct hci_dev *hdev, u8 status, u16 opcode)
-{
-	bt_dev_dbg(hdev, "status 0x%02x", status);
-
-	if (hci_conn_count(hdev) == 0) {
-		cancel_delayed_work(&hdev->power_off);
-		queue_work(hdev->req_workqueue, &hdev->power_off.work);
-	}
-}
-
 void mgmt_advertising_added(struct sock *sk, struct hci_dev *hdev, u8 instance)
 {
 	struct mgmt_ev_advertising_added ev;
@@ -1192,38 +1182,77 @@ static void cancel_adv_timeout(struct hci_dev *hdev)
 	}
 }
 
-static int clean_up_hci_state(struct hci_dev *hdev)
+/* This function requires the caller holds hdev->lock */
+static void restart_le_actions(struct hci_dev *hdev)
 {
-	struct hci_request req;
-	struct hci_conn *conn;
-	bool discov_stopped;
-	int err;
+	struct hci_conn_params *p;
 
-	hci_req_init(&req, hdev);
+	list_for_each_entry(p, &hdev->le_conn_params, list) {
+		/* Needed for AUTO_OFF case where might not "really"
+		 * have been powered off.
+		 */
+		list_del_init(&p->action);
 
-	if (test_bit(HCI_ISCAN, &hdev->flags) ||
-	    test_bit(HCI_PSCAN, &hdev->flags)) {
-		u8 scan = 0x00;
-		hci_req_add(&req, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
+		switch (p->auto_connect) {
+		case HCI_AUTO_CONN_DIRECT:
+		case HCI_AUTO_CONN_ALWAYS:
+			list_add(&p->action, &hdev->pend_le_conns);
+			break;
+		case HCI_AUTO_CONN_REPORT:
+			list_add(&p->action, &hdev->pend_le_reports);
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+static int new_settings(struct hci_dev *hdev, struct sock *skip)
+{
+	__le32 ev = cpu_to_le32(get_current_settings(hdev));
+
+	return mgmt_limited_event(MGMT_EV_NEW_SETTINGS, hdev, &ev,
+				  sizeof(ev), HCI_MGMT_SETTING_EVENTS, skip);
+}
+
+static void mgmt_set_powered_complete(struct hci_dev *hdev, void *data, int err)
+{
+	struct mgmt_pending_cmd *cmd = data;
+	struct mgmt_mode *cp = cmd->param;
+
+	bt_dev_dbg(hdev, "err %d", err);
+
+	if (!err) {
+		if (cp->val) {
+			hci_dev_lock(hdev);
+			restart_le_actions(hdev);
+			hci_update_passive_scan(hdev);
+			hci_dev_unlock(hdev);
+		}
+
+		send_settings_rsp(cmd->sk, cmd->opcode, hdev);
+
+		/* Only call new_setting for power on as power off is deferred
+		 * to hdev->power_off work which does call hci_dev_do_close.
+		 */
+		if (cp->val)
+			new_settings(hdev, cmd->sk);
+	} else {
+		mgmt_cmd_status(cmd->sk, hdev->id, MGMT_OP_SET_POWERED,
+				mgmt_status(err));
 	}
 
-	hci_req_clear_adv_instance(hdev, NULL, NULL, 0x00, false);
+	mgmt_pending_free(cmd);
+}
 
-	if (hci_dev_test_flag(hdev, HCI_LE_ADV))
-		__hci_req_disable_advertising(&req);
+static int set_powered_sync(struct hci_dev *hdev, void *data)
+{
+	struct mgmt_pending_cmd *cmd = data;
+	struct mgmt_mode *cp = cmd->param;
 
-	discov_stopped = hci_req_stop_discovery(&req);
+	BT_DBG("%s", hdev->name);
 
-	list_for_each_entry(conn, &hdev->conn_hash.list, list) {
-		/* 0x15 == Terminated due to Power Off */
-		__hci_abort_conn(&req, conn, 0x15);
-	}
-
-	err = hci_req_run(&req, clean_up_hci_complete);
-	if (!err && discov_stopped)
-		hci_discovery_set_state(hdev, DISCOVERY_STOPPING);
-
-	return err;
+	return hci_set_powered_sync(hdev, cp->val);
 }
 
 static int set_powered(struct sock *sk, struct hci_dev *hdev, void *data,
@@ -1252,41 +1281,18 @@ static int set_powered(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto failed;
 	}
 
-	cmd = mgmt_pending_add(sk, MGMT_OP_SET_POWERED, hdev, data, len);
+	cmd = mgmt_pending_new(sk, MGMT_OP_SET_POWERED, hdev, data, len);
 	if (!cmd) {
 		err = -ENOMEM;
 		goto failed;
 	}
 
-	if (cp->val) {
-		queue_work(hdev->req_workqueue, &hdev->power_on);
-		err = 0;
-	} else {
-		/* Disconnect connections, stop scans, etc */
-		err = clean_up_hci_state(hdev);
-		if (!err)
-			queue_delayed_work(hdev->req_workqueue, &hdev->power_off,
-					   HCI_POWER_OFF_TIMEOUT);
-
-		/* ENODATA means there were no HCI commands queued */
-		if (err == -ENODATA) {
-			cancel_delayed_work(&hdev->power_off);
-			queue_work(hdev->req_workqueue, &hdev->power_off.work);
-			err = 0;
-		}
-	}
+	err = hci_cmd_sync_queue(hdev, set_powered_sync, cmd,
+				 mgmt_set_powered_complete);
 
 failed:
 	hci_dev_unlock(hdev);
 	return err;
-}
-
-static int new_settings(struct hci_dev *hdev, struct sock *skip)
-{
-	__le32 ev = cpu_to_le32(get_current_settings(hdev));
-
-	return mgmt_limited_event(MGMT_EV_NEW_SETTINGS, hdev, &ev,
-				  sizeof(ev), HCI_MGMT_SETTING_EVENTS, skip);
 }
 
 int mgmt_new_settings(struct hci_dev *hdev)
@@ -8718,31 +8724,6 @@ void mgmt_index_removed(struct hci_dev *hdev)
 
 	mgmt_index_event(MGMT_EV_EXT_INDEX_REMOVED, hdev, &ev, sizeof(ev),
 			 HCI_MGMT_EXT_INDEX_EVENTS);
-}
-
-/* This function requires the caller holds hdev->lock */
-static void restart_le_actions(struct hci_dev *hdev)
-{
-	struct hci_conn_params *p;
-
-	list_for_each_entry(p, &hdev->le_conn_params, list) {
-		/* Needed for AUTO_OFF case where might not "really"
-		 * have been powered off.
-		 */
-		list_del_init(&p->action);
-
-		switch (p->auto_connect) {
-		case HCI_AUTO_CONN_DIRECT:
-		case HCI_AUTO_CONN_ALWAYS:
-			list_add(&p->action, &hdev->pend_le_conns);
-			break;
-		case HCI_AUTO_CONN_REPORT:
-			list_add(&p->action, &hdev->pend_le_reports);
-			break;
-		default:
-			break;
-		}
-	}
 }
 
 void mgmt_power_on(struct hci_dev *hdev, int err)

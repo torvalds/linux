@@ -739,6 +739,17 @@ int hci_setup_ext_adv_instance_sync(struct hci_dev *hdev, u8 instance)
 			cp.evt_properties = cpu_to_le16(LE_LEGACY_NONCONN_IND);
 	}
 
+	/* If Own_Address_Type equals 0x02 or 0x03, the Peer_Address parameter
+	 * contains the peer’s Identity Address and the Peer_Address_Type
+	 * parameter contains the peer’s Identity Type (i.e., 0x00 or 0x01).
+	 * These parameters are used to locate the corresponding local IRK in
+	 * the resolving list; this IRK is used to generate their own address
+	 * used in the advertisement.
+	 */
+	if (own_addr_type == ADDR_LE_DEV_RANDOM_RESOLVED)
+		hci_copy_identity_address(hdev, &cp.peer_addr,
+					  &cp.peer_addr_type);
+
 	cp.own_addr_type = own_addr_type;
 	cp.channel_map = hdev->le_adv_channel_map;
 	cp.handle = instance;
@@ -1105,8 +1116,7 @@ int hci_schedule_adv_instance_sync(struct hci_dev *hdev, u8 instance,
 	struct adv_info *adv = NULL;
 	u16 timeout;
 
-	if (hci_dev_test_flag(hdev, HCI_ADVERTISING) ||
-	    list_empty(&hdev->adv_instances))
+	if (hci_dev_test_flag(hdev, HCI_ADVERTISING) && !ext_adv_capable(hdev))
 		return -EPERM;
 
 	if (hdev->adv_instance_timeout)
@@ -1474,7 +1484,9 @@ static int hci_le_del_accept_list_sync(struct hci_dev *hdev,
 	return 0;
 }
 
-/* Adds connection to resolve list if needed.*/
+/* Adds connection to resolve list if needed.
+ * Setting params to NULL programs local hdev->irk
+ */
 static int hci_le_add_resolve_list_sync(struct hci_dev *hdev,
 					struct hci_conn_params *params)
 {
@@ -1484,6 +1496,18 @@ static int hci_le_add_resolve_list_sync(struct hci_dev *hdev,
 
 	if (!use_ll_privacy(hdev))
 		return 0;
+
+	/* Attempt to program local identity address, type and irk if params is
+	 * NULL.
+	 */
+	if (!params) {
+		if (!hci_dev_test_flag(hdev, HCI_PRIVACY))
+			return 0;
+
+		hci_copy_identity_address(hdev, &cp.bdaddr, &cp.bdaddr_type);
+		memcpy(cp.peer_irk, hdev->irk, 16);
+		goto done;
+	}
 
 	irk = hci_find_irk_by_addr(hdev, &params->addr, params->addr_type);
 	if (!irk)
@@ -1500,6 +1524,7 @@ static int hci_le_add_resolve_list_sync(struct hci_dev *hdev,
 	bacpy(&cp.bdaddr, &params->addr);
 	memcpy(cp.peer_irk, irk->val, 16);
 
+done:
 	if (hci_dev_test_flag(hdev, HCI_PRIVACY))
 		memcpy(cp.local_irk, hdev->irk, 16);
 	else
@@ -2039,4 +2064,557 @@ int hci_update_passive_scan(struct hci_dev *hdev)
 		return 0;
 
 	return hci_cmd_sync_queue(hdev, update_passive_scan_sync, NULL, NULL);
+}
+
+static int hci_write_sc_support_sync(struct hci_dev *hdev, u8 val)
+{
+	if (!bredr_sc_enabled(hdev) || lmp_host_sc_capable(hdev))
+		return 0;
+
+	return __hci_cmd_sync_status(hdev, HCI_OP_WRITE_SC_SUPPORT,
+				    sizeof(val), &val, HCI_CMD_TIMEOUT);
+}
+
+static int hci_write_ssp_mode_sync(struct hci_dev *hdev, u8 mode)
+{
+	int err;
+
+	if (!hci_dev_test_flag(hdev, HCI_SSP_ENABLED) ||
+	    lmp_host_ssp_capable(hdev))
+		return 0;
+
+	err = __hci_cmd_sync_status(hdev, HCI_OP_WRITE_SSP_MODE,
+				    sizeof(mode), &mode, HCI_CMD_TIMEOUT);
+	if (err)
+		return err;
+
+	return hci_write_sc_support_sync(hdev, 0x01);
+}
+
+static int hci_write_le_host_supported_sync(struct hci_dev *hdev, u8 le,
+					    u8 simul)
+{
+	struct hci_cp_write_le_host_supported cp;
+
+	if (!hci_dev_test_flag(hdev, HCI_LE_ENABLED) ||
+	    !lmp_bredr_capable(hdev))
+		return 0;
+
+	/* Check first if we already have the right host state
+	 * (host features set)
+	 */
+	if (le == lmp_host_le_capable(hdev) &&
+	    simul == lmp_host_le_br_capable(hdev))
+		return 0;
+
+	memset(&cp, 0, sizeof(cp));
+
+	cp.le = le;
+	cp.simul = simul;
+
+	return __hci_cmd_sync_status(hdev, HCI_OP_WRITE_LE_HOST_SUPPORTED,
+				     sizeof(cp), &cp, HCI_CMD_TIMEOUT);
+}
+
+static int hci_powered_update_adv_sync(struct hci_dev *hdev)
+{
+	struct adv_info *adv, *tmp;
+	int err;
+
+	if (!hci_dev_test_flag(hdev, HCI_LE_ENABLED))
+		return 0;
+
+	/* If RPA Resolution has not been enable yet it means the
+	 * resolving list is empty and we should attempt to program the
+	 * local IRK in order to support using own_addr_type
+	 * ADDR_LE_DEV_RANDOM_RESOLVED (0x03).
+	 */
+	if (!hci_dev_test_flag(hdev, HCI_LL_RPA_RESOLUTION)) {
+		hci_le_add_resolve_list_sync(hdev, NULL);
+		hci_le_set_addr_resolution_enable_sync(hdev, 0x01);
+	}
+
+	/* Make sure the controller has a good default for
+	 * advertising data. This also applies to the case
+	 * where BR/EDR was toggled during the AUTO_OFF phase.
+	 */
+	if (hci_dev_test_flag(hdev, HCI_ADVERTISING) ||
+	    list_empty(&hdev->adv_instances)) {
+		if (ext_adv_capable(hdev)) {
+			err = hci_setup_ext_adv_instance_sync(hdev, 0x00);
+			if (!err)
+				hci_update_scan_rsp_data_sync(hdev, 0x00);
+		} else {
+			err = hci_update_adv_data_sync(hdev, 0x00);
+			if (!err)
+				hci_update_scan_rsp_data_sync(hdev, 0x00);
+		}
+
+		if (hci_dev_test_flag(hdev, HCI_ADVERTISING))
+			hci_enable_advertising_sync(hdev);
+	}
+
+	/* Call for each tracked instance to be scheduled */
+	list_for_each_entry_safe(adv, tmp, &hdev->adv_instances, list)
+		hci_schedule_adv_instance_sync(hdev, adv->instance, true);
+
+	return 0;
+}
+
+static int hci_write_auth_enable_sync(struct hci_dev *hdev)
+{
+	u8 link_sec;
+
+	link_sec = hci_dev_test_flag(hdev, HCI_LINK_SECURITY);
+	if (link_sec == test_bit(HCI_AUTH, &hdev->flags))
+		return 0;
+
+	return __hci_cmd_sync_status(hdev, HCI_OP_WRITE_AUTH_ENABLE,
+				     sizeof(link_sec), &link_sec,
+				     HCI_CMD_TIMEOUT);
+}
+
+static int hci_write_fast_connectable_sync(struct hci_dev *hdev, bool enable)
+{
+	struct hci_cp_write_page_scan_activity cp;
+	u8 type;
+	int err = 0;
+
+	if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
+		return 0;
+
+	if (hdev->hci_ver < BLUETOOTH_VER_1_2)
+		return 0;
+
+	memset(&cp, 0, sizeof(cp));
+
+	if (enable) {
+		type = PAGE_SCAN_TYPE_INTERLACED;
+
+		/* 160 msec page scan interval */
+		cp.interval = cpu_to_le16(0x0100);
+	} else {
+		type = hdev->def_page_scan_type;
+		cp.interval = cpu_to_le16(hdev->def_page_scan_int);
+	}
+
+	cp.window = cpu_to_le16(hdev->def_page_scan_window);
+
+	if (__cpu_to_le16(hdev->page_scan_interval) != cp.interval ||
+	    __cpu_to_le16(hdev->page_scan_window) != cp.window) {
+		err = __hci_cmd_sync_status(hdev,
+					    HCI_OP_WRITE_PAGE_SCAN_ACTIVITY,
+					    sizeof(cp), &cp, HCI_CMD_TIMEOUT);
+		if (err)
+			return err;
+	}
+
+	if (hdev->page_scan_type != type)
+		err = __hci_cmd_sync_status(hdev,
+					    HCI_OP_WRITE_PAGE_SCAN_TYPE,
+					    sizeof(type), &type,
+					    HCI_CMD_TIMEOUT);
+
+	return err;
+}
+
+static bool disconnected_accept_list_entries(struct hci_dev *hdev)
+{
+	struct bdaddr_list *b;
+
+	list_for_each_entry(b, &hdev->accept_list, list) {
+		struct hci_conn *conn;
+
+		conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &b->bdaddr);
+		if (!conn)
+			return true;
+
+		if (conn->state != BT_CONNECTED && conn->state != BT_CONFIG)
+			return true;
+	}
+
+	return false;
+}
+
+static int hci_write_scan_enable_sync(struct hci_dev *hdev, u8 val)
+{
+	return __hci_cmd_sync_status(hdev, HCI_OP_WRITE_SCAN_ENABLE,
+					    sizeof(val), &val,
+					    HCI_CMD_TIMEOUT);
+}
+
+static int hci_update_scan_sync(struct hci_dev *hdev)
+{
+	u8 scan;
+
+	if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
+		return 0;
+
+	if (!hdev_is_powered(hdev))
+		return 0;
+
+	if (mgmt_powering_down(hdev))
+		return 0;
+
+	if (hdev->scanning_paused)
+		return 0;
+
+	if (hci_dev_test_flag(hdev, HCI_CONNECTABLE) ||
+	    disconnected_accept_list_entries(hdev))
+		scan = SCAN_PAGE;
+	else
+		scan = SCAN_DISABLED;
+
+	if (hci_dev_test_flag(hdev, HCI_DISCOVERABLE))
+		scan |= SCAN_INQUIRY;
+
+	if (test_bit(HCI_PSCAN, &hdev->flags) == !!(scan & SCAN_PAGE) &&
+	    test_bit(HCI_ISCAN, &hdev->flags) == !!(scan & SCAN_INQUIRY))
+		return 0;
+
+	return hci_write_scan_enable_sync(hdev, scan);
+}
+
+static int hci_update_name_sync(struct hci_dev *hdev)
+{
+	struct hci_cp_write_local_name cp;
+
+	memset(&cp, 0, sizeof(cp));
+
+	memcpy(cp.name, hdev->dev_name, sizeof(cp.name));
+
+	return __hci_cmd_sync_status(hdev, HCI_OP_WRITE_LOCAL_NAME,
+					    sizeof(cp), &cp,
+					    HCI_CMD_TIMEOUT);
+}
+
+/* This function perform powered update HCI command sequence after the HCI init
+ * sequence which end up resetting all states, the sequence is as follows:
+ *
+ * HCI_SSP_ENABLED(Enable SSP)
+ * HCI_LE_ENABLED(Enable LE)
+ * HCI_LE_ENABLED(use_ll_privacy(Add local IRK to Resolving List) ->
+ * Update adv data)
+ * Enable Authentication
+ * lmp_bredr_capable(Set Fast Connectable -> Set Scan Type -> Set Class ->
+ * Set Name -> Set EIR)
+ */
+int hci_powered_update_sync(struct hci_dev *hdev)
+{
+	int err;
+
+	/* Register the available SMP channels (BR/EDR and LE) only when
+	 * successfully powering on the controller. This late
+	 * registration is required so that LE SMP can clearly decide if
+	 * the public address or static address is used.
+	 */
+	smp_register(hdev);
+
+	err = hci_write_ssp_mode_sync(hdev, 0x01);
+	if (err)
+		return err;
+
+	err = hci_write_le_host_supported_sync(hdev, 0x01, 0x00);
+	if (err)
+		return err;
+
+	err = hci_powered_update_adv_sync(hdev);
+	if (err)
+		return err;
+
+	err = hci_write_auth_enable_sync(hdev);
+	if (err)
+		return err;
+
+	if (lmp_bredr_capable(hdev)) {
+		if (hci_dev_test_flag(hdev, HCI_FAST_CONNECTABLE))
+			hci_write_fast_connectable_sync(hdev, true);
+		else
+			hci_write_fast_connectable_sync(hdev, false);
+		hci_update_scan_sync(hdev);
+		hci_update_class_sync(hdev);
+		hci_update_name_sync(hdev);
+		hci_update_eir_sync(hdev);
+	}
+
+	return 0;
+}
+
+/* This function perform power on HCI command sequence as follows:
+ *
+ * If controller is already up (HCI_UP) performs hci_powered_update_sync
+ * sequence otherwise run hci_dev_open_sync which will follow with
+ * hci_powered_update_sync after the init sequence is completed.
+ */
+static int hci_power_on_sync(struct hci_dev *hdev)
+{
+	int err;
+
+	if (test_bit(HCI_UP, &hdev->flags) &&
+	    hci_dev_test_flag(hdev, HCI_MGMT) &&
+	    hci_dev_test_and_clear_flag(hdev, HCI_AUTO_OFF)) {
+		cancel_delayed_work(&hdev->power_off);
+		return hci_powered_update_sync(hdev);
+	}
+
+	err = hci_dev_open_sync(hdev);
+	if (err < 0)
+		return err;
+
+	/* During the HCI setup phase, a few error conditions are
+	 * ignored and they need to be checked now. If they are still
+	 * valid, it is important to return the device back off.
+	 */
+	if (hci_dev_test_flag(hdev, HCI_RFKILLED) ||
+	    hci_dev_test_flag(hdev, HCI_UNCONFIGURED) ||
+	    (hdev->dev_type == HCI_PRIMARY &&
+	     !bacmp(&hdev->bdaddr, BDADDR_ANY) &&
+	     !bacmp(&hdev->static_addr, BDADDR_ANY))) {
+		hci_dev_clear_flag(hdev, HCI_AUTO_OFF);
+		hci_dev_close_sync(hdev);
+	} else if (hci_dev_test_flag(hdev, HCI_AUTO_OFF)) {
+		queue_delayed_work(hdev->req_workqueue, &hdev->power_off,
+				   HCI_AUTO_OFF_TIMEOUT);
+	}
+
+	if (hci_dev_test_and_clear_flag(hdev, HCI_SETUP)) {
+		/* For unconfigured devices, set the HCI_RAW flag
+		 * so that userspace can easily identify them.
+		 */
+		if (hci_dev_test_flag(hdev, HCI_UNCONFIGURED))
+			set_bit(HCI_RAW, &hdev->flags);
+
+		/* For fully configured devices, this will send
+		 * the Index Added event. For unconfigured devices,
+		 * it will send Unconfigued Index Added event.
+		 *
+		 * Devices with HCI_QUIRK_RAW_DEVICE are ignored
+		 * and no event will be send.
+		 */
+		mgmt_index_added(hdev);
+	} else if (hci_dev_test_and_clear_flag(hdev, HCI_CONFIG)) {
+		/* When the controller is now configured, then it
+		 * is important to clear the HCI_RAW flag.
+		 */
+		if (!hci_dev_test_flag(hdev, HCI_UNCONFIGURED))
+			clear_bit(HCI_RAW, &hdev->flags);
+
+		/* Powering on the controller with HCI_CONFIG set only
+		 * happens with the transition from unconfigured to
+		 * configured. This will send the Index Added event.
+		 */
+		mgmt_index_added(hdev);
+	}
+
+	return 0;
+}
+
+static int hci_remote_name_cancel_sync(struct hci_dev *hdev, bdaddr_t *addr)
+{
+	struct hci_cp_remote_name_req_cancel cp;
+
+	memset(&cp, 0, sizeof(cp));
+	bacpy(&cp.bdaddr, addr);
+
+	return __hci_cmd_sync_status(hdev, HCI_OP_REMOTE_NAME_REQ_CANCEL,
+				     sizeof(cp), &cp, HCI_CMD_TIMEOUT);
+}
+
+static int hci_stop_discovery_sync(struct hci_dev *hdev)
+{
+	struct discovery_state *d = &hdev->discovery;
+	struct inquiry_entry *e;
+	int err;
+
+	bt_dev_dbg(hdev, "state %u", hdev->discovery.state);
+
+	if (d->state == DISCOVERY_FINDING || d->state == DISCOVERY_STOPPING) {
+		if (test_bit(HCI_INQUIRY, &hdev->flags)) {
+			err = __hci_cmd_sync_status(hdev, HCI_OP_INQUIRY_CANCEL,
+						    0, NULL, HCI_CMD_TIMEOUT);
+			if (err)
+				return err;
+		}
+
+		if (hci_dev_test_flag(hdev, HCI_LE_SCAN)) {
+			cancel_delayed_work(&hdev->le_scan_disable);
+			cancel_delayed_work(&hdev->le_scan_restart);
+
+			err = hci_scan_disable_sync(hdev);
+			if (err)
+				return err;
+		}
+
+	} else {
+		err = hci_scan_disable_sync(hdev);
+		if (err)
+			return err;
+	}
+
+	/* No further actions needed for LE-only discovery */
+	if (d->type == DISCOV_TYPE_LE)
+		return 0;
+
+	if (d->state == DISCOVERY_RESOLVING || d->state == DISCOVERY_STOPPING) {
+		e = hci_inquiry_cache_lookup_resolve(hdev, BDADDR_ANY,
+						     NAME_PENDING);
+		if (!e)
+			return 0;
+
+		return hci_remote_name_cancel_sync(hdev, &e->data.bdaddr);
+	}
+
+	return 0;
+}
+
+static int hci_disconnect_phy_link_sync(struct hci_dev *hdev, u16 handle,
+					u8 reason)
+{
+	struct hci_cp_disconn_phy_link cp;
+
+	memset(&cp, 0, sizeof(cp));
+	cp.phy_handle = HCI_PHY_HANDLE(handle);
+	cp.reason = reason;
+
+	return __hci_cmd_sync_status(hdev, HCI_OP_DISCONN_PHY_LINK,
+				     sizeof(cp), &cp, HCI_CMD_TIMEOUT);
+}
+
+static int hci_disconnect_sync(struct hci_dev *hdev, struct hci_conn *conn,
+			       u8 reason)
+{
+	struct hci_cp_disconnect cp;
+
+	if (conn->type == AMP_LINK)
+		return hci_disconnect_phy_link_sync(hdev, conn->handle, reason);
+
+	memset(&cp, 0, sizeof(cp));
+	cp.handle = cpu_to_le16(conn->handle);
+	cp.reason = reason;
+
+	return __hci_cmd_sync_status(hdev, HCI_OP_DISCONNECT,
+				     sizeof(cp), &cp, HCI_CMD_TIMEOUT);
+}
+
+static int hci_le_connect_cancel_sync(struct hci_dev *hdev,
+				      struct hci_conn *conn)
+{
+	if (test_bit(HCI_CONN_SCANNING, &conn->flags))
+		return 0;
+
+	return __hci_cmd_sync_status(hdev, HCI_OP_LE_CREATE_CONN_CANCEL,
+				     6, &conn->dst, HCI_CMD_TIMEOUT);
+}
+
+static int hci_connect_cancel_sync(struct hci_dev *hdev, struct hci_conn *conn)
+{
+	if (conn->type == LE_LINK)
+		return hci_le_connect_cancel_sync(hdev, conn);
+
+	if (hdev->hci_ver < BLUETOOTH_VER_1_2)
+		return 0;
+
+	return __hci_cmd_sync_status(hdev, HCI_OP_CREATE_CONN_CANCEL,
+				     6, &conn->dst, HCI_CMD_TIMEOUT);
+}
+
+static int hci_reject_sco_sync(struct hci_dev *hdev, struct hci_conn *conn,
+			       u8 reason)
+{
+	struct hci_cp_reject_sync_conn_req cp;
+
+	memset(&cp, 0, sizeof(cp));
+	bacpy(&cp.bdaddr, &conn->dst);
+	cp.reason = reason;
+
+	/* SCO rejection has its own limited set of
+	 * allowed error values (0x0D-0x0F).
+	 */
+	if (reason < 0x0d || reason > 0x0f)
+		cp.reason = HCI_ERROR_REJ_LIMITED_RESOURCES;
+
+	return __hci_cmd_sync_status(hdev, HCI_OP_REJECT_SYNC_CONN_REQ,
+				     sizeof(cp), &cp, HCI_CMD_TIMEOUT);
+}
+
+static int hci_reject_conn_sync(struct hci_dev *hdev, struct hci_conn *conn,
+				u8 reason)
+{
+	struct hci_cp_reject_conn_req cp;
+
+	if (conn->type == SCO_LINK || conn->type == ESCO_LINK)
+		return hci_reject_sco_sync(hdev, conn, reason);
+
+	memset(&cp, 0, sizeof(cp));
+	bacpy(&cp.bdaddr, &conn->dst);
+	cp.reason = reason;
+
+	return __hci_cmd_sync_status(hdev, HCI_OP_REJECT_CONN_REQ,
+				     sizeof(cp), &cp, HCI_CMD_TIMEOUT);
+}
+
+static int hci_abort_conn_sync(struct hci_dev *hdev, struct hci_conn *conn,
+			       u8 reason)
+{
+	switch (conn->state) {
+	case BT_CONNECTED:
+	case BT_CONFIG:
+		return hci_disconnect_sync(hdev, conn, reason);
+	case BT_CONNECT:
+		return hci_connect_cancel_sync(hdev, conn);
+	case BT_CONNECT2:
+		return hci_reject_conn_sync(hdev, conn, reason);
+	default:
+		conn->state = BT_CLOSED;
+		break;
+	}
+
+	return 0;
+}
+
+/* This function perform power off HCI command sequence as follows:
+ *
+ * Clear Advertising
+ * Stop Discovery
+ * Disconnect all connections
+ * hci_dev_close_sync
+ */
+static int hci_power_off_sync(struct hci_dev *hdev)
+{
+	struct hci_conn *conn;
+	int err;
+
+	/* If controller is already down there is nothing to do */
+	if (!test_bit(HCI_UP, &hdev->flags))
+		return 0;
+
+	if (test_bit(HCI_ISCAN, &hdev->flags) ||
+	    test_bit(HCI_PSCAN, &hdev->flags)) {
+		err = hci_write_scan_enable_sync(hdev, 0x00);
+		if (err)
+			return err;
+	}
+
+	err = hci_clear_adv_sync(hdev, NULL, false);
+	if (err)
+		return err;
+
+	err = hci_stop_discovery_sync(hdev);
+	if (err)
+		return err;
+
+	list_for_each_entry(conn, &hdev->conn_hash.list, list) {
+		/* 0x15 == Terminated due to Power Off */
+		hci_abort_conn_sync(hdev, conn, 0x15);
+	}
+
+	return hci_dev_close_sync(hdev);
+}
+
+int hci_set_powered_sync(struct hci_dev *hdev, u8 val)
+{
+	if (val)
+		return hci_power_on_sync(hdev);
+
+	return hci_power_off_sync(hdev);
 }

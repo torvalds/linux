@@ -1794,7 +1794,8 @@ int __hci_req_setup_ext_adv_instance(struct hci_request *req, u8 instance)
 
 	hci_req_add(req, HCI_OP_LE_SET_EXT_ADV_PARAMS, sizeof(cp), &cp);
 
-	if (own_addr_type == ADDR_LE_DEV_RANDOM &&
+	if ((own_addr_type == ADDR_LE_DEV_RANDOM ||
+	     own_addr_type == ADDR_LE_DEV_RANDOM_RESOLVED) &&
 	    bacmp(&random_addr, BDADDR_ANY)) {
 		struct hci_cp_le_set_adv_set_rand_addr cp;
 
