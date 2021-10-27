@@ -74,6 +74,11 @@ bool i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 
 	assert_object_held(obj);
 
+	if (IS_DGFX(i915)) {
+		WARN_ON_ONCE(obj->cache_dirty);
+		return false;
+	}
+
 	/*
 	 * Stolen memory is always coherent with the GPU as it is explicitly
 	 * marked as wc by the system, or the system is cache-coherent.
@@ -81,7 +86,7 @@ bool i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 	 * anything not backed by physical memory we consider to be always
 	 * coherent and not need clflushing.
 	 */
-	if (!i915_gem_object_has_struct_page(obj) || IS_DGFX(i915)) {
+	if (!i915_gem_object_has_struct_page(obj)) {
 		obj->cache_dirty = false;
 		return false;
 	}
