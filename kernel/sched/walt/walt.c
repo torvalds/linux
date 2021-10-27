@@ -4279,3 +4279,7 @@ static int walt_module_init(void)
 
 module_init(walt_module_init);
 MODULE_LICENSE("GPL v2");
+
+#if IS_ENABLED(CONFIG_SCHED_WALT_DEBUG)
+MODULE_SOFTDEP("pre: sched-walt-debug");
+#endif
