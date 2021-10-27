@@ -2321,7 +2321,8 @@ svm_range_best_restore_location(struct svm_range *prange,
 
 static int
 svm_range_get_range_boundaries(struct kfd_process *p, int64_t addr,
-				unsigned long *start, unsigned long *last)
+			       unsigned long *start, unsigned long *last,
+			       bool *is_heap_stack)
 {
 	struct vm_area_struct *vma;
 	struct interval_tree_node *node;
@@ -2332,6 +2333,12 @@ svm_range_get_range_boundaries(struct kfd_process *p, int64_t addr,
 		pr_debug("VMA does not exist in address [0x%llx]\n", addr);
 		return -EFAULT;
 	}
+
+	*is_heap_stack = (vma->vm_start <= vma->vm_mm->brk &&
+			  vma->vm_end >= vma->vm_mm->start_brk) ||
+			 (vma->vm_start <= vma->vm_mm->start_stack &&
+			  vma->vm_end >= vma->vm_mm->start_stack);
+
 	start_limit = max(vma->vm_start >> PAGE_SHIFT,
 		      (unsigned long)ALIGN_DOWN(addr, 2UL << 8));
 	end_limit = min(vma->vm_end >> PAGE_SHIFT,
@@ -2361,9 +2368,9 @@ svm_range_get_range_boundaries(struct kfd_process *p, int64_t addr,
 	*start = start_limit;
 	*last = end_limit - 1;
 
-	pr_debug("vma start: 0x%lx start: 0x%lx vma end: 0x%lx last: 0x%lx\n",
-		  vma->vm_start >> PAGE_SHIFT, *start,
-		  vma->vm_end >> PAGE_SHIFT, *last);
+	pr_debug("vma [0x%lx 0x%lx] range [0x%lx 0x%lx] is_heap_stack %d\n",
+		 vma->vm_start >> PAGE_SHIFT, vma->vm_end >> PAGE_SHIFT,
+		 *start, *last, *is_heap_stack);
 
 	return 0;
 }
@@ -2428,11 +2435,13 @@ svm_range *svm_range_create_unregistered_range(struct amdgpu_device *adev,
 	struct svm_range *prange = NULL;
 	unsigned long start, last;
 	uint32_t gpuid, gpuidx;
+	bool is_heap_stack;
 	uint64_t bo_s = 0;
 	uint64_t bo_l = 0;
 	int r;
 
-	if (svm_range_get_range_boundaries(p, addr, &start, &last))
+	if (svm_range_get_range_boundaries(p, addr, &start, &last,
+					   &is_heap_stack))
 		return NULL;
 
 	r = svm_range_check_vm(p, start, last, &bo_s, &bo_l);
@@ -2458,6 +2467,9 @@ svm_range *svm_range_create_unregistered_range(struct amdgpu_device *adev,
 		svm_range_free(prange);
 		return NULL;
 	}
+
+	if (is_heap_stack)
+		prange->preferred_loc = KFD_IOCTL_SVM_LOCATION_SYSMEM;
 
 	svm_range_add_to_svms(prange);
 	svm_range_add_notifier_locked(mm, prange);
