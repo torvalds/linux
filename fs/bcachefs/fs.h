@@ -63,6 +63,12 @@ static inline subvol_inum inode_inum(struct bch_inode_info *inode)
  */
 #define EI_INODE_ERROR			0
 
+/*
+ * Set in the inode is in a snapshot subvolume - we don't do quota accounting in
+ * those:
+ */
+#define EI_INODE_SNAPSHOT		1
+
 #define to_bch_ei(_inode)					\
 	container_of_or_null(_inode, struct bch_inode_info, v)
 

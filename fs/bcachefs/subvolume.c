@@ -789,6 +789,15 @@ int bch2_subvolume_get(struct btree_trans *trans, unsigned subvol,
 	return ret;
 }
 
+int bch2_snapshot_get_subvol(struct btree_trans *trans, u32 snapshot,
+			     struct bch_subvolume *subvol)
+{
+	struct bch_snapshot snap;
+
+	return  snapshot_lookup(trans, snapshot, &snap) ?:
+		bch2_subvolume_get(trans, le32_to_cpu(snap.subvol), true, 0, subvol);
+}
+
 int bch2_subvolume_get_snapshot(struct btree_trans *trans, u32 subvol,
 				u32 *snapid)
 {

@@ -39,7 +39,8 @@ static struct kmem_cache *bch2_inode_cache;
 
 static void bch2_vfs_inode_init(struct btree_trans *, subvol_inum,
 				struct bch_inode_info *,
-				struct bch_inode_unpacked *);
+				struct bch_inode_unpacked *,
+				struct bch_subvolume *);
 
 static void __pagecache_lock_put(struct pagecache_lock *lock, long i)
 {
@@ -225,6 +226,7 @@ struct inode *bch2_vfs_inode_get(struct bch_fs *c, subvol_inum inum)
 	struct bch_inode_unpacked inode_u;
 	struct bch_inode_info *inode;
 	struct btree_trans trans;
+	struct bch_subvolume subvol;
 	int ret;
 
 	inode = to_bch_ei(iget5_locked(c->vfs_sb,
@@ -239,10 +241,11 @@ struct inode *bch2_vfs_inode_get(struct bch_fs *c, subvol_inum inum)
 
 	bch2_trans_init(&trans, c, 8, 0);
 	ret = lockrestart_do(&trans,
+		bch2_subvolume_get(&trans, inum.subvol, true, 0, &subvol) ?:
 		bch2_inode_find_by_inum_trans(&trans, inum, &inode_u));
 
 	if (!ret)
-		bch2_vfs_inode_init(&trans, inum, inode, &inode_u);
+		bch2_vfs_inode_init(&trans, inum, inode, &inode_u, &subvol);
 	bch2_trans_exit(&trans);
 
 	if (ret) {
@@ -268,6 +271,7 @@ __bch2_create(struct mnt_idmap *idmap,
 	struct bch_inode_unpacked inode_u;
 	struct posix_acl *default_acl = NULL, *acl = NULL;
 	subvol_inum inum;
+	struct bch_subvolume subvol;
 	u64 journal_seq = 0;
 	int ret;
 
@@ -310,7 +314,12 @@ retry:
 	if (unlikely(ret))
 		goto err_before_quota;
 
-	ret   = bch2_trans_commit(&trans, NULL, &journal_seq, 0);
+	inum.subvol = inode_u.bi_subvol ?: dir->ei_subvol;
+	inum.inum = inode_u.bi_inum;
+
+	ret   = bch2_subvolume_get(&trans, inum.subvol, true,
+				   BTREE_ITER_WITH_UPDATES, &subvol) ?:
+		bch2_trans_commit(&trans, NULL, &journal_seq, 0);
 	if (unlikely(ret)) {
 		bch2_quota_acct(c, bch_qid(&inode_u), Q_INO, -1,
 				KEY_TYPE_QUOTA_WARN);
@@ -326,11 +335,8 @@ err_before_quota:
 		mutex_unlock(&dir->ei_update_lock);
 	}
 
-	inum.subvol = inode_u.bi_subvol ?: dir->ei_subvol;
-	inum.inum = inode_u.bi_inum;
-
 	bch2_iget5_set(&inode->v, &inum);
-	bch2_vfs_inode_init(&trans, inum, inode, &inode_u);
+	bch2_vfs_inode_init(&trans, inum, inode, &inode_u, &subvol);
 
 	set_cached_acl(&inode->v, ACL_TYPE_ACCESS, acl);
 	set_cached_acl(&inode->v, ACL_TYPE_DEFAULT, default_acl);
@@ -1352,9 +1358,15 @@ static const struct export_operations bch_export_ops = {
 
 static void bch2_vfs_inode_init(struct btree_trans *trans, subvol_inum inum,
 				struct bch_inode_info *inode,
-				struct bch_inode_unpacked *bi)
+				struct bch_inode_unpacked *bi,
+				struct bch_subvolume *subvol)
 {
 	bch2_inode_update_after_write(trans, inode, bi, ~0);
+
+	if (BCH_SUBVOLUME_SNAP(subvol))
+		set_bit(EI_INODE_SNAPSHOT, &inode->ei_flags);
+	else
+		clear_bit(EI_INODE_SNAPSHOT, &inode->ei_flags);
 
 	inode->v.i_blocks	= bi->bi_sectors;
 	inode->v.i_ino		= bi->bi_inum;

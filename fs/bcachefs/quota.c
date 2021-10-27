@@ -3,6 +3,7 @@
 #include "btree_update.h"
 #include "inode.h"
 #include "quota.h"
+#include "subvolume.h"
 #include "super-io.h"
 
 static const char *bch2_sb_validate_quota(struct bch_sb *sb,
@@ -415,14 +416,55 @@ static void bch2_sb_quota_read(struct bch_fs *c)
 	}
 }
 
+static int bch2_fs_quota_read_inode(struct btree_trans *trans,
+				    struct btree_iter *iter)
+{
+	struct bch_fs *c = trans->c;
+	struct bch_inode_unpacked u;
+	struct bch_subvolume subvolume;
+	struct bkey_s_c k;
+	int ret;
+
+	k = bch2_btree_iter_peek(iter);
+	ret = bkey_err(k);
+	if (ret)
+		return ret;
+
+	if (!k.k)
+		return 1;
+
+	ret = bch2_snapshot_get_subvol(trans, k.k->p.snapshot, &subvolume);
+	if (ret)
+		return ret;
+
+	/*
+	 * We don't do quota accounting in snapshots:
+	 */
+	if (BCH_SUBVOLUME_SNAP(&subvolume))
+		goto advance;
+
+	if (!bkey_is_inode(k.k))
+		goto advance;
+
+	ret = bch2_inode_unpack(k, &u);
+	if (ret)
+		return ret;
+
+	bch2_quota_acct(c, bch_qid(&u), Q_SPC, u.bi_sectors,
+			KEY_TYPE_QUOTA_NOCHECK);
+	bch2_quota_acct(c, bch_qid(&u), Q_INO, 1,
+			KEY_TYPE_QUOTA_NOCHECK);
+advance:
+	bch2_btree_iter_set_pos(iter, POS(iter->pos.inode, iter->pos.offset + 1));
+	return 0;
+}
+
 int bch2_fs_quota_read(struct bch_fs *c)
 {
 	unsigned i, qtypes = enabled_qtypes(c);
 	struct bch_memquota_type *q;
 	struct btree_trans trans;
 	struct btree_iter iter;
-	struct bch_inode_unpacked u;
-	struct bkey_s_c k;
 	int ret;
 
 	mutex_lock(&c->sb_lock);
@@ -437,23 +479,18 @@ int bch2_fs_quota_read(struct bch_fs *c)
 
 	bch2_trans_init(&trans, c, 0, 0);
 
-	for_each_btree_key(&trans, iter, BTREE_ID_inodes, POS_MIN,
-			   BTREE_ITER_PREFETCH, k, ret) {
-		if (bkey_is_inode(k.k)) {
-			ret = bch2_inode_unpack(k, &u);
-			if (ret)
-				return ret;
-
-			bch2_quota_acct(c, bch_qid(&u), Q_SPC, u.bi_sectors,
-					KEY_TYPE_QUOTA_NOCHECK);
-			bch2_quota_acct(c, bch_qid(&u), Q_INO, 1,
-					KEY_TYPE_QUOTA_NOCHECK);
-		}
-	}
+	bch2_trans_iter_init(&trans, &iter, BTREE_ID_inodes, POS_MIN,
+			     BTREE_ITER_INTENT|
+			     BTREE_ITER_PREFETCH|
+			     BTREE_ITER_ALL_SNAPSHOTS);
+	do {
+		ret = lockrestart_do(&trans,
+				     bch2_fs_quota_read_inode(&trans, &iter));
+	} while (!ret);
 	bch2_trans_iter_exit(&trans, &iter);
 
 	bch2_trans_exit(&trans);
-	return ret;
+	return ret < 0 ? ret : 0;
 }
 
 /* Enable/disable/delete quotas for an entire filesystem: */
