@@ -41,7 +41,6 @@ static int __init walt_debug_init(void)
 	if (ret)
 		return ret;
 
-	register_trace_android_vh_dump_throttled_rt_tasks(dump_throttled_rt_tasks, NULL);
 	register_trace_android_rvh_schedule_bug(android_rvh_schedule_bug, NULL);
 
 	return 0;
