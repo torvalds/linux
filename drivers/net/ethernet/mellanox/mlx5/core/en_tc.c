@@ -39,7 +39,6 @@
 #include <linux/rhashtable.h>
 #include <linux/refcount.h>
 #include <linux/completion.h>
-#include <net/psample.h>
 #include <net/arp.h>
 #include <net/ipv6_stubs.h>
 #include <net/bareudp.h>
@@ -3346,14 +3345,12 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5e_tc_act_parse_state *parse_state;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
-	struct mlx5e_sample_attr sample_attr = {};
 	struct mlx5_flow_attr *attr = flow->attr;
 	enum mlx5_flow_namespace_type ns_type;
 	const struct flow_action_entry *act;
 	struct mlx5_esw_flow_attr *esw_attr;
 	struct pedit_headers_action *hdrs;
 	struct mlx5e_tc_act *tc_act;
-	bool ptype_host = false;
 	int err, i;
 
 	err = flow_action_supported(flow_action, extack);
@@ -3370,15 +3367,6 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 
 	flow_action_for_each(i, act, flow_action) {
 		switch (act->id) {
-		case FLOW_ACTION_PTYPE:
-			if (act->ptype != PACKET_HOST) {
-				NL_SET_ERR_MSG_MOD(extack,
-						   "skbedit ptype is only supported with type host");
-				return -EOPNOTSUPP;
-			}
-
-			ptype_host = true;
-			break;
 		case FLOW_ACTION_REDIRECT_INGRESS: {
 			struct net_device *out_dev;
 
@@ -3398,7 +3386,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 				return -EOPNOTSUPP;
 			}
 
-			if (!ptype_host) {
+			if (!parse_state->ptype_host) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "redirect to int port ingress requires ptype=host action");
 				return -EOPNOTSUPP;
@@ -3423,17 +3411,6 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 
 			break;
 		}
-		case FLOW_ACTION_SAMPLE:
-			if (flow_flag_test(flow, CT)) {
-				NL_SET_ERR_MSG_MOD(extack, "Sample action with connection tracking is not supported");
-				return -EOPNOTSUPP;
-			}
-			sample_attr.rate = act->sample.rate;
-			sample_attr.group_num = act->sample.psample_group->group_num;
-			if (act->sample.truncate)
-				sample_attr.trunc_size = act->sample.trunc_size;
-			flow_flag_set(flow, SAMPLE);
-			break;
 		default:
 			break;
 		}
@@ -3500,7 +3477,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 		attr->sample_attr = kzalloc(sizeof(*attr->sample_attr), GFP_KERNEL);
 		if (!attr->sample_attr)
 			return -ENOMEM;
-		*attr->sample_attr = sample_attr;
+		*attr->sample_attr = parse_state->sample_attr;
 	}
 
 	return 0;
