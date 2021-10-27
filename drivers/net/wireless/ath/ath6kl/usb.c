@@ -340,6 +340,11 @@ static int ath6kl_usb_setup_pipe_resources(struct ath6kl_usb *ar_usb)
 				   le16_to_cpu(endpoint->wMaxPacketSize),
 				   endpoint->bInterval);
 		}
+
+		/* Ignore broken descriptors. */
+		if (usb_endpoint_maxp(endpoint) == 0)
+			continue;
+
 		urbcount = 0;
 
 		pipe_num =
