@@ -3096,6 +3096,8 @@ static void svm_range_evict_svm_bo_worker(struct work_struct *work)
 		struct svm_range *prange =
 				list_first_entry(&svm_bo->range_list,
 						struct svm_range, svm_bo_list);
+		int retries = 3;
+
 		list_del_init(&prange->svm_bo_list);
 		spin_unlock(&svm_bo->list_lock);
 
@@ -3103,7 +3105,11 @@ static void svm_range_evict_svm_bo_worker(struct work_struct *work)
 			 prange->start, prange->last);
 
 		mutex_lock(&prange->migrate_mutex);
-		svm_migrate_vram_to_ram(prange, svm_bo->eviction_fence->mm);
+		do {
+			svm_migrate_vram_to_ram(prange,
+						svm_bo->eviction_fence->mm);
+		} while (prange->actual_loc && --retries);
+		WARN(prange->actual_loc, "Migration failed during eviction");
 
 		mutex_lock(&prange->lock);
 		prange->svm_bo = NULL;
