@@ -1291,7 +1291,7 @@ alloc_skb:
 		u64 snd_una = READ_ONCE(msk->snd_una);
 
 		if (snd_una != msk->snd_nxt) {
-			tcp_remove_empty_skb(ssk, tcp_write_queue_tail(ssk));
+			tcp_remove_empty_skb(ssk);
 			return 0;
 		}
 
@@ -1307,7 +1307,7 @@ alloc_skb:
 
 	copy = min_t(size_t, copy, info->limit - info->sent);
 	if (!sk_wmem_schedule(ssk, copy)) {
-		tcp_remove_empty_skb(ssk, tcp_write_queue_tail(ssk));
+		tcp_remove_empty_skb(ssk);
 		return -ENOMEM;
 	}
 
