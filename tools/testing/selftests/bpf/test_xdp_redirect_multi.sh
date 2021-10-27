@@ -31,6 +31,7 @@ IFACES=""
 DRV_MODE="xdpgeneric xdpdrv xdpegress"
 PASS=0
 FAIL=0
+LOG_DIR=$(mktemp -d)
 
 test_pass()
 {
@@ -100,17 +101,17 @@ do_egress_tests()
 	local mode=$1
 
 	# mac test
-	ip netns exec ns2 tcpdump -e -i veth0 -nn -l -e &> mac_ns1-2_${mode}.log &
-	ip netns exec ns3 tcpdump -e -i veth0 -nn -l -e &> mac_ns1-3_${mode}.log &
+	ip netns exec ns2 tcpdump -e -i veth0 -nn -l -e &> ${LOG_DIR}/mac_ns1-2_${mode}.log &
+	ip netns exec ns3 tcpdump -e -i veth0 -nn -l -e &> ${LOG_DIR}/mac_ns1-3_${mode}.log &
 	sleep 0.5
 	ip netns exec ns1 ping 192.0.2.254 -i 0.1 -c 4 &> /dev/null
 	sleep 0.5
 	pkill -9 tcpdump
 
 	# mac check
-	grep -q "${veth_mac[2]} > ff:ff:ff:ff:ff:ff" mac_ns1-2_${mode}.log && \
+	grep -q "${veth_mac[2]} > ff:ff:ff:ff:ff:ff" ${LOG_DIR}/mac_ns1-2_${mode}.log && \
 	       test_pass "$mode mac ns1-2" || test_fail "$mode mac ns1-2"
-	grep -q "${veth_mac[3]} > ff:ff:ff:ff:ff:ff" mac_ns1-3_${mode}.log && \
+	grep -q "${veth_mac[3]} > ff:ff:ff:ff:ff:ff" ${LOG_DIR}/mac_ns1-3_${mode}.log && \
 		test_pass "$mode mac ns1-3" || test_fail "$mode mac ns1-3"
 }
 
@@ -121,9 +122,9 @@ do_ping_tests()
 	# ping6 test: echo request should be redirect back to itself, not others
 	ip netns exec ns1 ip neigh add 2001:db8::2 dev veth0 lladdr 00:00:00:00:00:02
 
-	ip netns exec ns1 tcpdump -i veth0 -nn -l -e &> ns1-1_${mode}.log &
-	ip netns exec ns2 tcpdump -i veth0 -nn -l -e &> ns1-2_${mode}.log &
-	ip netns exec ns3 tcpdump -i veth0 -nn -l -e &> ns1-3_${mode}.log &
+	ip netns exec ns1 tcpdump -i veth0 -nn -l -e &> ${LOG_DIR}/ns1-1_${mode}.log &
+	ip netns exec ns2 tcpdump -i veth0 -nn -l -e &> ${LOG_DIR}/ns1-2_${mode}.log &
+	ip netns exec ns3 tcpdump -i veth0 -nn -l -e &> ${LOG_DIR}/ns1-3_${mode}.log &
 	sleep 0.5
 	# ARP test
 	ip netns exec ns1 ping 192.0.2.254 -i 0.1 -c 4 &> /dev/null
@@ -135,32 +136,32 @@ do_ping_tests()
 	pkill -9 tcpdump
 
 	# All netns should receive the redirect arp requests
-	[ $(grep -c "who-has 192.0.2.254" ns1-1_${mode}.log) -gt 4 ] && \
+	[ $(grep -c "who-has 192.0.2.254" ${LOG_DIR}/ns1-1_${mode}.log) -gt 4 ] && \
 		test_pass "$mode arp(F_BROADCAST) ns1-1" || \
 		test_fail "$mode arp(F_BROADCAST) ns1-1"
-	[ $(grep -c "who-has 192.0.2.254" ns1-2_${mode}.log) -le 4 ] && \
+	[ $(grep -c "who-has 192.0.2.254" ${LOG_DIR}/ns1-2_${mode}.log) -le 4 ] && \
 		test_pass "$mode arp(F_BROADCAST) ns1-2" || \
 		test_fail "$mode arp(F_BROADCAST) ns1-2"
-	[ $(grep -c "who-has 192.0.2.254" ns1-3_${mode}.log) -le 4 ] && \
+	[ $(grep -c "who-has 192.0.2.254" ${LOG_DIR}/ns1-3_${mode}.log) -le 4 ] && \
 		test_pass "$mode arp(F_BROADCAST) ns1-3" || \
 		test_fail "$mode arp(F_BROADCAST) ns1-3"
 
 	# ns1 should not receive the redirect echo request, others should
-	[ $(grep -c "ICMP echo request" ns1-1_${mode}.log) -eq 4 ] && \
+	[ $(grep -c "ICMP echo request" ${LOG_DIR}/ns1-1_${mode}.log) -eq 4 ] && \
 		test_pass "$mode IPv4 (F_BROADCAST|F_EXCLUDE_INGRESS) ns1-1" || \
 		test_fail "$mode IPv4 (F_BROADCAST|F_EXCLUDE_INGRESS) ns1-1"
-	[ $(grep -c "ICMP echo request" ns1-2_${mode}.log) -eq 4 ] && \
+	[ $(grep -c "ICMP echo request" ${LOG_DIR}/ns1-2_${mode}.log) -eq 4 ] && \
 		test_pass "$mode IPv4 (F_BROADCAST|F_EXCLUDE_INGRESS) ns1-2" || \
 		test_fail "$mode IPv4 (F_BROADCAST|F_EXCLUDE_INGRESS) ns1-2"
-	[ $(grep -c "ICMP echo request" ns1-3_${mode}.log) -eq 4 ] && \
+	[ $(grep -c "ICMP echo request" ${LOG_DIR}/ns1-3_${mode}.log) -eq 4 ] && \
 		test_pass "$mode IPv4 (F_BROADCAST|F_EXCLUDE_INGRESS) ns1-3" || \
 		test_fail "$mode IPv4 (F_BROADCAST|F_EXCLUDE_INGRESS) ns1-3"
 
 	# ns1 should receive the echo request, ns2 should not
-	[ $(grep -c "ICMP6, echo request" ns1-1_${mode}.log) -eq 4 ] && \
+	[ $(grep -c "ICMP6, echo request" ${LOG_DIR}/ns1-1_${mode}.log) -eq 4 ] && \
 		test_pass "$mode IPv6 (no flags) ns1-1" || \
 		test_fail "$mode IPv6 (no flags) ns1-1"
-	[ $(grep -c "ICMP6, echo request" ns1-2_${mode}.log) -eq 0 ] && \
+	[ $(grep -c "ICMP6, echo request" ${LOG_DIR}/ns1-2_${mode}.log) -eq 0 ] && \
 		test_pass "$mode IPv6 (no flags) ns1-2" || \
 		test_fail "$mode IPv6 (no flags) ns1-2"
 }
@@ -176,7 +177,7 @@ do_tests()
 		xdpgeneric) drv_p="-S";;
 	esac
 
-	./xdp_redirect_multi $drv_p $IFACES &> xdp_redirect_${mode}.log &
+	./xdp_redirect_multi $drv_p $IFACES &> ${LOG_DIR}/xdp_redirect_${mode}.log &
 	xdp_pid=$!
 	sleep 1
 
@@ -192,13 +193,13 @@ do_tests()
 trap clean_up 0 2 3 6 9
 
 check_env
-rm -f xdp_redirect_*.log ns*.log mac_ns*.log
 
 for mode in ${DRV_MODE}; do
 	setup_ns $mode
 	do_tests $mode
 	clean_up
 done
+rm -rf ${LOG_DIR}
 
 echo "Summary: PASS $PASS, FAIL $FAIL"
 [ $FAIL -eq 0 ] && exit 0 || exit 1
