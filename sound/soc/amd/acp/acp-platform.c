@@ -81,7 +81,7 @@ int acp_machine_select(struct acp_dev_data *adata)
 
 	adata->mach_dev = platform_device_register_data(adata->dev, mach->drv_name,
 							PLATFORM_DEVID_NONE, mach, size);
-	if (!adata->mach_dev)
+	if (IS_ERR(adata->mach_dev))
 		dev_warn(adata->dev, "Unable to register Machine device\n");
 
 	return 0;
