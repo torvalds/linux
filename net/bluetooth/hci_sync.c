@@ -189,9 +189,6 @@ struct sk_buff *__hci_cmd_sync_sk(struct hci_dev *hdev, u16 opcode, u32 plen,
 		return ERR_PTR(err);
 	}
 
-	if (!skb)
-		return ERR_PTR(-ENODATA);
-
 	return skb;
 }
 EXPORT_SYMBOL(__hci_cmd_sync_sk);
@@ -241,11 +238,18 @@ int __hci_cmd_sync_status_sk(struct hci_dev *hdev, u16 opcode, u32 plen,
 	u8 status;
 
 	skb = __hci_cmd_sync_sk(hdev, opcode, plen, param, event, timeout, sk);
-	if (IS_ERR_OR_NULL(skb)) {
+	if (IS_ERR(skb)) {
 		bt_dev_err(hdev, "Opcode 0x%4x failed: %ld", opcode,
 			   PTR_ERR(skb));
 		return PTR_ERR(skb);
 	}
+
+	/* If command return a status event skb will be set to NULL as there are
+	 * no parameters, in case of failure IS_ERR(skb) would have be set to
+	 * the actual error would be found with PTR_ERR(skb).
+	 */
+	if (!skb)
+		return 0;
 
 	status = skb->data[0];
 
@@ -1017,8 +1021,22 @@ int hci_enable_advertising_sync(struct hci_dev *hdev)
 				     sizeof(enable), &enable, HCI_CMD_TIMEOUT);
 }
 
-static int hci_remove_ext_adv_instance_sync(struct hci_dev *hdev, u8 instance,
-					    struct sock *sk)
+static int enable_advertising_sync(struct hci_dev *hdev, void *data)
+{
+	return hci_enable_advertising_sync(hdev);
+}
+
+int hci_enable_advertising(struct hci_dev *hdev)
+{
+	if (!hci_dev_test_flag(hdev, HCI_ADVERTISING) &&
+	    list_empty(&hdev->adv_instances))
+		return 0;
+
+	return hci_cmd_sync_queue(hdev, enable_advertising_sync, NULL, NULL);
+}
+
+int hci_remove_ext_adv_instance_sync(struct hci_dev *hdev, u8 instance,
+				     struct sock *sk)
 {
 	int err;
 
@@ -1622,7 +1640,7 @@ static int hci_pause_advertising_sync(struct hci_dev *hdev)
 	return 0;
 }
 
-/* This function disables all user advertising instances (excluding 0x00) */
+/* This function enables all user advertising instances (excluding 0x00) */
 static int hci_resume_advertising_sync(struct hci_dev *hdev)
 {
 	struct adv_info *adv, *tmp;
@@ -1870,7 +1888,8 @@ static int hci_le_set_scan_param_sync(struct hci_dev *hdev, u8 type,
 }
 
 static int hci_start_scan_sync(struct hci_dev *hdev, u8 type, u16 interval,
-			       u16 window, u8 own_addr_type, u8 filter_policy)
+			       u16 window, u8 own_addr_type, u8 filter_policy,
+			       u8 filter_dup)
 {
 	int err;
 
@@ -1884,8 +1903,7 @@ static int hci_start_scan_sync(struct hci_dev *hdev, u8 type, u16 interval,
 	if (err)
 		return err;
 
-	return hci_le_set_scan_enable_sync(hdev, LE_SCAN_ENABLE,
-					   LE_SCAN_FILTER_DUP_ENABLE);
+	return hci_le_set_scan_enable_sync(hdev, LE_SCAN_ENABLE, filter_dup);
 }
 
 int hci_passive_scan_sync(struct hci_dev *hdev)
@@ -1960,7 +1978,8 @@ int hci_passive_scan_sync(struct hci_dev *hdev)
 	bt_dev_dbg(hdev, "LE passive scan with acceptlist = %d", filter_policy);
 
 	return hci_start_scan_sync(hdev, LE_SCAN_PASSIVE, interval, window,
-				   own_addr_type, filter_policy);
+				   own_addr_type, filter_policy,
+				   LE_SCAN_FILTER_DUP_ENABLE);
 }
 
 /* This function controls the passive scanning based on hdev->pend_le_conns
@@ -2420,7 +2439,7 @@ static int hci_remote_name_cancel_sync(struct hci_dev *hdev, bdaddr_t *addr)
 				     sizeof(cp), &cp, HCI_CMD_TIMEOUT);
 }
 
-static int hci_stop_discovery_sync(struct hci_dev *hdev)
+int hci_stop_discovery_sync(struct hci_dev *hdev)
 {
 	struct discovery_state *d = &hdev->discovery;
 	struct inquiry_entry *e;
@@ -2450,6 +2469,10 @@ static int hci_stop_discovery_sync(struct hci_dev *hdev)
 		if (err)
 			return err;
 	}
+
+	/* Resume advertising if it was paused */
+	if (use_ll_privacy(hdev))
+		hci_resume_advertising_sync(hdev);
 
 	/* No further actions needed for LE-only discovery */
 	if (d->type == DISCOV_TYPE_LE)
@@ -2617,4 +2640,195 @@ int hci_set_powered_sync(struct hci_dev *hdev, u8 val)
 		return hci_power_on_sync(hdev);
 
 	return hci_power_off_sync(hdev);
+}
+
+static int hci_inquiry_sync(struct hci_dev *hdev, u8 length)
+{
+	const u8 giac[3] = { 0x33, 0x8b, 0x9e };
+	const u8 liac[3] = { 0x00, 0x8b, 0x9e };
+	struct hci_cp_inquiry cp;
+
+	bt_dev_dbg(hdev, "");
+
+	if (hci_dev_test_flag(hdev, HCI_INQUIRY))
+		return 0;
+
+	hci_dev_lock(hdev);
+	hci_inquiry_cache_flush(hdev);
+	hci_dev_unlock(hdev);
+
+	memset(&cp, 0, sizeof(cp));
+
+	if (hdev->discovery.limited)
+		memcpy(&cp.lap, liac, sizeof(cp.lap));
+	else
+		memcpy(&cp.lap, giac, sizeof(cp.lap));
+
+	cp.length = length;
+
+	return __hci_cmd_sync_status(hdev, HCI_OP_INQUIRY,
+				     sizeof(cp), &cp, HCI_CMD_TIMEOUT);
+}
+
+static int hci_active_scan_sync(struct hci_dev *hdev, uint16_t interval)
+{
+	u8 own_addr_type;
+	/* Accept list is not used for discovery */
+	u8 filter_policy = 0x00;
+	/* Default is to enable duplicates filter */
+	u8 filter_dup = LE_SCAN_FILTER_DUP_ENABLE;
+	int err;
+
+	bt_dev_dbg(hdev, "");
+
+	/* If controller is scanning, it means the passive scanning is
+	 * running. Thus, we should temporarily stop it in order to set the
+	 * discovery scanning parameters.
+	 */
+	err = hci_scan_disable_sync(hdev);
+	if (err) {
+		bt_dev_err(hdev, "Unable to disable scanning: %d", err);
+		return err;
+	}
+
+	cancel_interleave_scan(hdev);
+
+	/* Pause advertising since active scanning disables address resolution
+	 * which advertising depend on in order to generate its RPAs.
+	 */
+	if (use_ll_privacy(hdev)) {
+		err = hci_pause_advertising_sync(hdev);
+		if (err) {
+			bt_dev_err(hdev, "pause advertising failed: %d", err);
+			goto failed;
+		}
+	}
+
+	/* Disable address resolution while doing active scanning since the
+	 * accept list shall not be used and all reports shall reach the host
+	 * anyway.
+	 */
+	err = hci_le_set_addr_resolution_enable_sync(hdev, 0x00);
+	if (err) {
+		bt_dev_err(hdev, "Unable to disable Address Resolution: %d",
+			   err);
+		goto failed;
+	}
+
+	/* All active scans will be done with either a resolvable private
+	 * address (when privacy feature has been enabled) or non-resolvable
+	 * private address.
+	 */
+	err = hci_update_random_address_sync(hdev, true, scan_use_rpa(hdev),
+					     &own_addr_type);
+	if (err < 0)
+		own_addr_type = ADDR_LE_DEV_PUBLIC;
+
+	if (hci_is_adv_monitoring(hdev)) {
+		/* Duplicate filter should be disabled when some advertisement
+		 * monitor is activated, otherwise AdvMon can only receive one
+		 * advertisement for one peer(*) during active scanning, and
+		 * might report loss to these peers.
+		 *
+		 * Note that different controllers have different meanings of
+		 * |duplicate|. Some of them consider packets with the same
+		 * address as duplicate, and others consider packets with the
+		 * same address and the same RSSI as duplicate. Although in the
+		 * latter case we don't need to disable duplicate filter, but
+		 * it is common to have active scanning for a short period of
+		 * time, the power impact should be neglectable.
+		 */
+		filter_dup = LE_SCAN_FILTER_DUP_DISABLE;
+	}
+
+	err = hci_start_scan_sync(hdev, LE_SCAN_ACTIVE, interval,
+				  hdev->le_scan_window_discovery,
+				  own_addr_type, filter_policy, filter_dup);
+	if (!err)
+		return err;
+
+failed:
+	/* Resume advertising if it was paused */
+	if (use_ll_privacy(hdev))
+		hci_resume_advertising_sync(hdev);
+
+	/* Resume passive scanning */
+	hci_update_passive_scan_sync(hdev);
+	return err;
+}
+
+static int hci_start_interleaved_discovery_sync(struct hci_dev *hdev)
+{
+	int err;
+
+	bt_dev_dbg(hdev, "");
+
+	err = hci_active_scan_sync(hdev, hdev->le_scan_int_discovery * 2);
+	if (err)
+		return err;
+
+	return hci_inquiry_sync(hdev, DISCOV_BREDR_INQUIRY_LEN);
+}
+
+int hci_start_discovery_sync(struct hci_dev *hdev)
+{
+	unsigned long timeout;
+	int err;
+
+	bt_dev_dbg(hdev, "type %u", hdev->discovery.type);
+
+	switch (hdev->discovery.type) {
+	case DISCOV_TYPE_BREDR:
+		return hci_inquiry_sync(hdev, DISCOV_BREDR_INQUIRY_LEN);
+	case DISCOV_TYPE_INTERLEAVED:
+		/* When running simultaneous discovery, the LE scanning time
+		 * should occupy the whole discovery time sine BR/EDR inquiry
+		 * and LE scanning are scheduled by the controller.
+		 *
+		 * For interleaving discovery in comparison, BR/EDR inquiry
+		 * and LE scanning are done sequentially with separate
+		 * timeouts.
+		 */
+		if (test_bit(HCI_QUIRK_SIMULTANEOUS_DISCOVERY,
+			     &hdev->quirks)) {
+			timeout = msecs_to_jiffies(DISCOV_LE_TIMEOUT);
+			/* During simultaneous discovery, we double LE scan
+			 * interval. We must leave some time for the controller
+			 * to do BR/EDR inquiry.
+			 */
+			err = hci_start_interleaved_discovery_sync(hdev);
+			break;
+		}
+
+		timeout = msecs_to_jiffies(hdev->discov_interleaved_timeout);
+		err = hci_active_scan_sync(hdev, hdev->le_scan_int_discovery);
+		break;
+	case DISCOV_TYPE_LE:
+		timeout = msecs_to_jiffies(DISCOV_LE_TIMEOUT);
+		err = hci_active_scan_sync(hdev, hdev->le_scan_int_discovery);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (err)
+		return err;
+
+	bt_dev_dbg(hdev, "timeout %u ms", jiffies_to_msecs(timeout));
+
+	/* When service discovery is used and the controller has a
+	 * strict duplicate filter, it is important to remember the
+	 * start and duration of the scan. This is required for
+	 * restarting scanning during the discovery phase.
+	 */
+	if (test_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks) &&
+	    hdev->discovery.result_filtering) {
+		hdev->discovery.scan_start = jiffies;
+		hdev->discovery.scan_duration = timeout;
+	}
+
+	queue_delayed_work(hdev->req_workqueue, &hdev->le_scan_disable,
+			   timeout);
+
+	return 0;
 }

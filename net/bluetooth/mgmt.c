@@ -5111,6 +5111,32 @@ static bool discovery_type_is_valid(struct hci_dev *hdev, uint8_t type,
 	return true;
 }
 
+static void start_discovery_complete(struct hci_dev *hdev, void *data, int err)
+{
+	struct mgmt_pending_cmd *cmd = data;
+
+	bt_dev_dbg(hdev, "err %d", err);
+
+	mgmt_cmd_complete(cmd->sk, cmd->index, cmd->opcode, mgmt_status(err),
+			  cmd->param, 1);
+	mgmt_pending_free(cmd);
+
+	/* Handle suspend notifier */
+	if (test_and_clear_bit(SUSPEND_UNPAUSE_DISCOVERY,
+			       hdev->suspend_tasks)) {
+		bt_dev_dbg(hdev, "Unpaused discovery");
+		wake_up(&hdev->suspend_wait_q);
+	}
+
+	hci_discovery_set_state(hdev, err ? DISCOVERY_STOPPED :
+				DISCOVERY_FINDING);
+}
+
+static int start_discovery_sync(struct hci_dev *hdev, void *data)
+{
+	return hci_start_discovery_sync(hdev);
+}
+
 static int start_discovery_internal(struct sock *sk, struct hci_dev *hdev,
 				    u16 op, void *data, u16 len)
 {
@@ -5162,17 +5188,20 @@ static int start_discovery_internal(struct sock *sk, struct hci_dev *hdev,
 	else
 		hdev->discovery.limited = false;
 
-	cmd = mgmt_pending_add(sk, op, hdev, data, len);
+	cmd = mgmt_pending_new(sk, op, hdev, data, len);
 	if (!cmd) {
 		err = -ENOMEM;
 		goto failed;
 	}
 
-	cmd->cmd_complete = generic_cmd_complete;
+	err = hci_cmd_sync_queue(hdev, start_discovery_sync, cmd,
+				 start_discovery_complete);
+	if (err < 0) {
+		mgmt_pending_free(cmd);
+		goto failed;
+	}
 
 	hci_discovery_set_state(hdev, DISCOVERY_STARTING);
-	queue_work(hdev->req_workqueue, &hdev->discov_update);
-	err = 0;
 
 failed:
 	hci_dev_unlock(hdev);
@@ -5192,13 +5221,6 @@ static int start_limited_discovery(struct sock *sk, struct hci_dev *hdev,
 	return start_discovery_internal(sk, hdev,
 					MGMT_OP_START_LIMITED_DISCOVERY,
 					data, len);
-}
-
-static int service_discovery_cmd_complete(struct mgmt_pending_cmd *cmd,
-					  u8 status)
-{
-	return mgmt_cmd_complete(cmd->sk, cmd->index, cmd->opcode, status,
-				 cmd->param, 1);
 }
 
 static int start_service_discovery(struct sock *sk, struct hci_dev *hdev,
@@ -5269,14 +5291,12 @@ static int start_service_discovery(struct sock *sk, struct hci_dev *hdev,
 		goto failed;
 	}
 
-	cmd = mgmt_pending_add(sk, MGMT_OP_START_SERVICE_DISCOVERY,
+	cmd = mgmt_pending_new(sk, MGMT_OP_START_SERVICE_DISCOVERY,
 			       hdev, data, len);
 	if (!cmd) {
 		err = -ENOMEM;
 		goto failed;
 	}
-
-	cmd->cmd_complete = service_discovery_cmd_complete;
 
 	/* Clear the discovery filter first to free any previously
 	 * allocated memory for the UUID list.
@@ -5301,9 +5321,14 @@ static int start_service_discovery(struct sock *sk, struct hci_dev *hdev,
 		}
 	}
 
+	err = hci_cmd_sync_queue(hdev, start_discovery_sync, cmd,
+				 start_discovery_complete);
+	if (err < 0) {
+		mgmt_pending_free(cmd);
+		goto failed;
+	}
+
 	hci_discovery_set_state(hdev, DISCOVERY_STARTING);
-	queue_work(hdev->req_workqueue, &hdev->discov_update);
-	err = 0;
 
 failed:
 	hci_dev_unlock(hdev);
@@ -5333,6 +5358,31 @@ void mgmt_stop_discovery_complete(struct hci_dev *hdev, u8 status)
 	}
 }
 
+static void stop_discovery_complete(struct hci_dev *hdev, void *data, int err)
+{
+	struct mgmt_pending_cmd *cmd = data;
+
+	bt_dev_dbg(hdev, "err %d", err);
+
+	mgmt_cmd_complete(cmd->sk, cmd->index, cmd->opcode, mgmt_status(err),
+			  cmd->param, 1);
+	mgmt_pending_free(cmd);
+
+	/* Handle suspend notifier */
+	if (test_and_clear_bit(SUSPEND_PAUSE_DISCOVERY, hdev->suspend_tasks)) {
+		bt_dev_dbg(hdev, "Paused discovery");
+		wake_up(&hdev->suspend_wait_q);
+	}
+
+	if (!err)
+		hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
+}
+
+static int stop_discovery_sync(struct hci_dev *hdev, void *data)
+{
+	return hci_stop_discovery_sync(hdev);
+}
+
 static int stop_discovery(struct sock *sk, struct hci_dev *hdev, void *data,
 			  u16 len)
 {
@@ -5358,17 +5408,20 @@ static int stop_discovery(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto unlock;
 	}
 
-	cmd = mgmt_pending_add(sk, MGMT_OP_STOP_DISCOVERY, hdev, data, len);
+	cmd = mgmt_pending_new(sk, MGMT_OP_STOP_DISCOVERY, hdev, data, len);
 	if (!cmd) {
 		err = -ENOMEM;
 		goto unlock;
 	}
 
-	cmd->cmd_complete = generic_cmd_complete;
+	err = hci_cmd_sync_queue(hdev, stop_discovery_sync, cmd,
+				 stop_discovery_complete);
+	if (err < 0) {
+		mgmt_pending_free(cmd);
+		goto unlock;
+	}
 
 	hci_discovery_set_state(hdev, DISCOVERY_STOPPING);
-	queue_work(hdev->req_workqueue, &hdev->discov_update);
-	err = 0;
 
 unlock:
 	hci_dev_unlock(hdev);
@@ -5803,16 +5856,8 @@ static int set_scan_params(struct sock *sk, struct hci_dev *hdev,
 	 * loaded.
 	 */
 	if (hci_dev_test_flag(hdev, HCI_LE_SCAN) &&
-	    hdev->discovery.state == DISCOVERY_STOPPED) {
-		struct hci_request req;
-
-		hci_req_init(&req, hdev);
-
-		hci_req_add_le_scan_disable(&req, false);
-		hci_req_add_le_passive_scan(&req);
-
-		hci_req_run(&req, NULL);
-	}
+	    hdev->discovery.state == DISCOVERY_STOPPED)
+		hci_update_passive_scan(hdev);
 
 	hci_dev_unlock(hdev);
 

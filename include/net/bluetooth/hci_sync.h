@@ -59,6 +59,7 @@ int hci_setup_ext_adv_instance_sync(struct hci_dev *hdev, u8 instance);
 int hci_start_ext_adv_sync(struct hci_dev *hdev, u8 instance);
 int hci_enable_ext_advertising_sync(struct hci_dev *hdev, u8 instance);
 int hci_enable_advertising_sync(struct hci_dev *hdev);
+int hci_enable_advertising(struct hci_dev *hdev);
 
 int hci_remove_advertising_sync(struct hci_dev *hdev, struct sock *sk,
 				u8 instance, bool force);
@@ -72,3 +73,6 @@ int hci_dev_close_sync(struct hci_dev *hdev);
 
 int hci_powered_update_sync(struct hci_dev *hdev);
 int hci_set_powered_sync(struct hci_dev *hdev, u8 val);
+
+int hci_start_discovery_sync(struct hci_dev *hdev);
+int hci_stop_discovery_sync(struct hci_dev *hdev);

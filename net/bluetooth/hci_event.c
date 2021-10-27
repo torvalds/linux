@@ -1514,16 +1514,10 @@ static void le_set_scan_enable_complete(struct hci_dev *hdev, u8 enable)
 
 		/* The HCI_LE_SCAN_INTERRUPTED flag indicates that we
 		 * interrupted scanning due to a connect request. Mark
-		 * therefore discovery as stopped. If this was not
-		 * because of a connect request advertising might have
-		 * been disabled because of active scanning, so
-		 * re-enable it again if necessary.
+		 * therefore discovery as stopped.
 		 */
 		if (hci_dev_test_and_clear_flag(hdev, HCI_LE_SCAN_INTERRUPTED))
 			hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
-		else if (!hci_dev_test_flag(hdev, HCI_LE_ADV) &&
-			 hdev->discovery.state == DISCOVERY_FINDING)
-			hci_req_reenable_advertising(hdev);
 
 		break;
 
@@ -2440,7 +2434,7 @@ static void hci_cs_disconnect(struct hci_dev *hdev, u8 status)
 
 		if (conn->type == LE_LINK && conn->role == HCI_ROLE_SLAVE) {
 			hdev->cur_adv_instance = conn->adv_instance;
-			hci_req_reenable_advertising(hdev);
+			hci_enable_advertising(hdev);
 		}
 
 		/* If the disconnection failed for any reason, the upper layer
@@ -3050,7 +3044,7 @@ static void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	 */
 	if (conn->type == LE_LINK && conn->role == HCI_ROLE_SLAVE) {
 		hdev->cur_adv_instance = conn->adv_instance;
-		hci_req_reenable_advertising(hdev);
+		hci_enable_advertising(hdev);
 	}
 
 	hci_conn_del(conn);
@@ -5500,9 +5494,6 @@ static void hci_le_enh_conn_complete_evt(struct hci_dev *hdev,
 			     le16_to_cpu(ev->interval),
 			     le16_to_cpu(ev->latency),
 			     le16_to_cpu(ev->supervision_timeout));
-
-	if (hci_dev_test_flag(hdev, HCI_LL_RPA_RESOLUTION))
-		hci_req_disable_address_resolution(hdev);
 }
 
 static void hci_le_ext_adv_term_evt(struct hci_dev *hdev, struct sk_buff *skb)
