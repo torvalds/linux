@@ -2261,7 +2261,7 @@ svm_range_from_addr(struct svm_range_list *svms, unsigned long addr,
  * migration if actual loc is not best location, then update GPU page table
  * mapping to the best location.
  *
- * If vm fault gpu is range preferred loc, the best_loc is preferred loc.
+ * If the preferred loc is accessible by faulting GPU, use preferred loc.
  * If vm fault gpu idx is on range ACCESSIBLE bitmap, best_loc is vm fault gpu
  * If vm fault gpu idx is on range ACCESSIBLE_IN_PLACE bitmap, then
  *    if range actual loc is cpu, best_loc is cpu
@@ -2278,7 +2278,7 @@ svm_range_best_restore_location(struct svm_range *prange,
 				struct amdgpu_device *adev,
 				int32_t *gpuidx)
 {
-	struct amdgpu_device *bo_adev;
+	struct amdgpu_device *bo_adev, *preferred_adev;
 	struct kfd_process *p;
 	uint32_t gpuid;
 	int r;
@@ -2291,8 +2291,16 @@ svm_range_best_restore_location(struct svm_range *prange,
 		return -1;
 	}
 
-	if (prange->preferred_loc == gpuid)
+	if (prange->preferred_loc == gpuid ||
+	    prange->preferred_loc == KFD_IOCTL_SVM_LOCATION_SYSMEM) {
 		return prange->preferred_loc;
+	} else if (prange->preferred_loc != KFD_IOCTL_SVM_LOCATION_UNDEFINED) {
+		preferred_adev = svm_range_get_adev_by_id(prange,
+							prange->preferred_loc);
+		if (amdgpu_xgmi_same_hive(adev, preferred_adev))
+			return prange->preferred_loc;
+		/* fall through */
+	}
 
 	if (test_bit(*gpuidx, prange->bitmap_access))
 		return gpuid;
