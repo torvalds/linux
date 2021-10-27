@@ -360,7 +360,7 @@ static inline void tty_set_operations(struct tty_driver *driver,
  * 	Used for PTY's, in particular.
  * 
  * TTY_DRIVER_REAL_RAW --- if set, indicates that the driver will
- * 	guarantee never not to set any special character handling
+ * 	guarantee never to set any special character handling
  * 	flags if ((IGNBRK || (!BRKINT && !PARMRK)) && (IGNPAR ||
  * 	!INPCK)).  That is, if there is no reason for the driver to
  * 	send notifications of parity and break characters up to the
