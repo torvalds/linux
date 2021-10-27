@@ -69,6 +69,7 @@ static struct clflush *clflush_work_create(struct drm_i915_gem_object *obj)
 bool i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 			     unsigned int flags)
 {
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	struct clflush *clflush;
 
 	assert_object_held(obj);
@@ -80,7 +81,7 @@ bool i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 	 * anything not backed by physical memory we consider to be always
 	 * coherent and not need clflushing.
 	 */
-	if (!i915_gem_object_has_struct_page(obj)) {
+	if (!i915_gem_object_has_struct_page(obj) || IS_DGFX(i915)) {
 		obj->cache_dirty = false;
 		return false;
 	}
@@ -105,7 +106,7 @@ bool i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 	if (clflush) {
 		i915_sw_fence_await_reservation(&clflush->base.chain,
 						obj->base.resv, NULL, true,
-						i915_fence_timeout(to_i915(obj->base.dev)),
+						i915_fence_timeout(i915),
 						I915_FENCE_GFP);
 		dma_resv_add_excl_fence(obj->base.resv, &clflush->base.dma);
 		dma_fence_work_commit(&clflush->base);
