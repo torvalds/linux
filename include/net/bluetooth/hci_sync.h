@@ -68,6 +68,8 @@ int hci_disable_advertising_sync(struct hci_dev *hdev);
 int hci_update_passive_scan_sync(struct hci_dev *hdev);
 int hci_update_passive_scan(struct hci_dev *hdev);
 
+int hci_write_fast_connectable_sync(struct hci_dev *hdev, bool enable);
+
 int hci_dev_open_sync(struct hci_dev *hdev);
 int hci_dev_close_sync(struct hci_dev *hdev);
 
