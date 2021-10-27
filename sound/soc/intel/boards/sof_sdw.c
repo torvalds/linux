@@ -1203,7 +1203,7 @@ static int sof_card_dai_links_create(struct device *dev,
 					 &ignore_pch_dmic);
 		if (ret < 0) {
 			dev_err(dev, "failed to create dai link %d", be_id);
-			return -ENOMEM;
+			return ret;
 		}
 	}
 
