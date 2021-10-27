@@ -6261,32 +6261,13 @@ static void mvpp2_phylink_validate(struct phylink_config *config,
 	struct mvpp2_port *port = mvpp2_phylink_to_port(config);
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
 
-	/* Invalid combinations */
-	switch (state->interface) {
-	case PHY_INTERFACE_MODE_10GBASER:
-	case PHY_INTERFACE_MODE_XAUI:
-		if (!mvpp2_port_supports_xlg(port))
-			goto empty_set;
-		break;
-	case PHY_INTERFACE_MODE_RGMII:
-	case PHY_INTERFACE_MODE_RGMII_ID:
-	case PHY_INTERFACE_MODE_RGMII_RXID:
-	case PHY_INTERFACE_MODE_RGMII_TXID:
-		if (!mvpp2_port_supports_rgmii(port))
-			goto empty_set;
-		break;
-	case PHY_INTERFACE_MODE_1000BASEX:
-	case PHY_INTERFACE_MODE_2500BASEX:
-		/* When in 802.3z mode, we must have AN enabled:
-		 * Bit 2 Field InBandAnEn In-band Auto-Negotiation enable. ...
-		 * When <PortType> = 1 (1000BASE-X) this field must be set to 1.
-		 */
-		if (!phylink_test(state->advertising, Autoneg))
-			goto empty_set;
-		break;
-	default:
-		break;
-	}
+	/* When in 802.3z mode, we must have AN enabled:
+	 * Bit 2 Field InBandAnEn In-band Auto-Negotiation enable. ...
+	 * When <PortType> = 1 (1000BASE-X) this field must be set to 1.
+	 */
+	if (phy_interface_mode_is_8023z(state->interface) &&
+	    !phylink_test(state->advertising, Autoneg))
+		goto empty_set;
 
 	phylink_set(mask, Autoneg);
 	phylink_set_port_modes(mask);
