@@ -65,3 +65,4 @@ int hci_remove_advertising_sync(struct hci_dev *hdev, struct sock *sk,
 int hci_disable_advertising_sync(struct hci_dev *hdev);
 
 int hci_update_passive_scan_sync(struct hci_dev *hdev);
+int hci_update_passive_scan(struct hci_dev *hdev);
