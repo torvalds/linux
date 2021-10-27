@@ -51,6 +51,35 @@ void setup_libbpf()
 		fprintf(stderr, "failed to increase RLIMIT_MEMLOCK: %d", err);
 }
 
+void false_hits_report_progress(int iter, struct bench_res *res, long delta_ns)
+{
+	long total = res->false_hits  + res->hits + res->drops;
+
+	printf("Iter %3d (%7.3lfus): ",
+	       iter, (delta_ns - 1000000000) / 1000.0);
+
+	printf("%ld false hits of %ld total operations. Percentage = %2.2f %%\n",
+	       res->false_hits, total, ((float)res->false_hits / total) * 100);
+}
+
+void false_hits_report_final(struct bench_res res[], int res_cnt)
+{
+	long total_hits = 0, total_drops = 0, total_false_hits = 0, total_ops = 0;
+	int i;
+
+	for (i = 0; i < res_cnt; i++) {
+		total_hits += res[i].hits;
+		total_false_hits += res[i].false_hits;
+		total_drops += res[i].drops;
+	}
+	total_ops = total_hits + total_false_hits + total_drops;
+
+	printf("Summary: %ld false hits of %ld total operations. ",
+	       total_false_hits, total_ops);
+	printf("Percentage =  %2.2f %%\n",
+	       ((float)total_false_hits / total_ops) * 100);
+}
+
 void hits_drops_report_progress(int iter, struct bench_res *res, long delta_ns)
 {
 	double hits_per_sec, drops_per_sec;
@@ -132,9 +161,11 @@ static const struct argp_option opts[] = {
 };
 
 extern struct argp bench_ringbufs_argp;
+extern struct argp bench_bloom_map_argp;
 
 static const struct argp_child bench_parsers[] = {
 	{ &bench_ringbufs_argp, 0, "Ring buffers benchmark", 0 },
+	{ &bench_bloom_map_argp, 0, "Bloom filter map benchmark", 0 },
 	{},
 };
 
@@ -323,6 +354,9 @@ extern const struct bench bench_rb_libbpf;
 extern const struct bench bench_rb_custom;
 extern const struct bench bench_pb_libbpf;
 extern const struct bench bench_pb_custom;
+extern const struct bench bench_bloom_lookup;
+extern const struct bench bench_bloom_update;
+extern const struct bench bench_bloom_false_positive;
 
 static const struct bench *benchs[] = {
 	&bench_count_global,
@@ -344,6 +378,9 @@ static const struct bench *benchs[] = {
 	&bench_rb_custom,
 	&bench_pb_libbpf,
 	&bench_pb_custom,
+	&bench_bloom_lookup,
+	&bench_bloom_update,
+	&bench_bloom_false_positive,
 };
 
 static void setup_benchmark()
