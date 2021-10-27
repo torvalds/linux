@@ -381,7 +381,7 @@ static int dmic_clock_control(struct snd_soc_dapm_widget *w,
 			speed_selection = dmic_speed_sel[i].val;
 			break;
 		}
-	if (speed_selection < 0)
+	if (i == 4)
 		return -EINVAL;
 
 	dev_dbg(nau8821->dev,
@@ -1178,7 +1178,9 @@ static void nau8821_fll_apply(struct nau8821 *nau8821,
 
 /**
  * nau8821_set_fll - FLL configuration of nau8821
- * @codec:  codec component
+ * @component:  codec component
+ * @pll_id:  PLL requested
+ * @source:  clock source
  * @freq_in:  frequency of input clock source
  * @freq_out:  must be 256*Fs in order to achieve the best performance
  *

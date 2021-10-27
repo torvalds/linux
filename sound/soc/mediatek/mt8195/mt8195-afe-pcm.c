@@ -2232,7 +2232,7 @@ static const struct mtk_base_memif_data memif_data[MT8195_AFE_MEMIF_NUM] = {
 	},
 };
 
-static const struct mtk_base_irq_data irq_data[MT8195_AFE_IRQ_NUM] = {
+static const struct mtk_base_irq_data irq_data_array[MT8195_AFE_IRQ_NUM] = {
 	[MT8195_AFE_IRQ_1] = {
 		.id = MT8195_AFE_IRQ_1,
 		.irq_cnt_reg = -1,
@@ -3100,7 +3100,7 @@ static int mt8195_afe_pcm_dev_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	for (i = 0; i < afe->irqs_size; i++)
-		afe->irqs[i].irq_data = &irq_data[i];
+		afe->irqs[i].irq_data = &irq_data_array[i];
 
 	/* init memif */
 	afe->memif_size = MT8195_AFE_MEMIF_NUM;

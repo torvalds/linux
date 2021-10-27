@@ -596,7 +596,7 @@ static int rockchip_i2s_tdm_clk_set_rate(struct rk_i2s_tdm_dev *i2s_tdm,
 
 	i2s_tdm->clk_ppm = ppm;
 
-	return ret;
+	return 0;
 }
 
 static int rockchip_i2s_tdm_calibrate_mclk(struct rk_i2s_tdm_dev *i2s_tdm,

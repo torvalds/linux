@@ -1485,7 +1485,7 @@ static int soc_tplg_dapm_widget_create(struct soc_tplg *tplg,
 	if (!kcontrol_type)
 		goto err;
 
-	for (i = 0; i < w->num_kcontrols; i++) {
+	for (i = 0; i < le32_to_cpu(w->num_kcontrols); i++) {
 		control_hdr = (struct snd_soc_tplg_ctl_hdr *)tplg->pos;
 		switch (le32_to_cpu(control_hdr->ops.info)) {
 		case SND_SOC_TPLG_CTL_VOLSW:
