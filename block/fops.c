@@ -124,9 +124,8 @@ out:
 }
 
 enum {
-	DIO_MULTI_BIO		= 1,
-	DIO_SHOULD_DIRTY	= 2,
-	DIO_IS_SYNC		= 4,
+	DIO_SHOULD_DIRTY	= 1,
+	DIO_IS_SYNC		= 2,
 };
 
 struct blkdev_dio {
@@ -150,7 +149,7 @@ static void blkdev_bio_end_io(struct bio *bio)
 	if (bio->bi_status && !dio->bio.bi_status)
 		dio->bio.bi_status = bio->bi_status;
 
-	if (!(dio->flags & DIO_MULTI_BIO) || atomic_dec_and_test(&dio->ref)) {
+	if (atomic_dec_and_test(&dio->ref)) {
 		if (!(dio->flags & DIO_IS_SYNC)) {
 			struct kiocb *iocb = dio->iocb;
 			ssize_t ret;
@@ -165,8 +164,7 @@ static void blkdev_bio_end_io(struct bio *bio)
 			}
 
 			dio->iocb->ki_complete(iocb, ret, 0);
-			if (dio->flags & DIO_MULTI_BIO)
-				bio_put(&dio->bio);
+			bio_put(&dio->bio);
 		} else {
 			struct task_struct *waiter = dio->waiter;
 
@@ -201,11 +199,17 @@ static ssize_t __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 	bio = bio_alloc_kiocb(iocb, nr_pages, &blkdev_dio_pool);
 
 	dio = container_of(bio, struct blkdev_dio, bio);
+	atomic_set(&dio->ref, 1);
+	/*
+	 * Grab an extra reference to ensure the dio structure which is embedded
+	 * into the first bio stays around.
+	 */
+	bio_get(bio);
+
 	is_sync = is_sync_kiocb(iocb);
 	if (is_sync) {
 		dio->flags = DIO_IS_SYNC;
 		dio->waiter = current;
-		bio_get(bio);
 	} else {
 		dio->flags = 0;
 		dio->iocb = iocb;
@@ -251,20 +255,7 @@ static ssize_t __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 			submit_bio(bio);
 			break;
 		}
-		if (!(dio->flags & DIO_MULTI_BIO)) {
-			/*
-			 * AIO needs an extra reference to ensure the dio
-			 * structure which is embedded into the first bio
-			 * stays around.
-			 */
-			if (!is_sync)
-				bio_get(bio);
-			dio->flags |= DIO_MULTI_BIO;
-			atomic_set(&dio->ref, 2);
-		} else {
-			atomic_inc(&dio->ref);
-		}
-
+		atomic_inc(&dio->ref);
 		submit_bio(bio);
 		bio = bio_alloc(GFP_KERNEL, nr_pages);
 	}
