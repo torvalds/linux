@@ -106,7 +106,7 @@ do_egress_tests()
 	sleep 0.5
 	ip netns exec ns1 ping 192.0.2.254 -i 0.1 -c 4 &> /dev/null
 	sleep 0.5
-	pkill -9 tcpdump
+	pkill tcpdump
 
 	# mac check
 	grep -q "${veth_mac[2]} > ff:ff:ff:ff:ff:ff" ${LOG_DIR}/mac_ns1-2_${mode}.log && \
@@ -133,7 +133,7 @@ do_ping_tests()
 	# IPv6 test
 	ip netns exec ns1 ping6 2001:db8::2 -i 0.1 -c 2 &> /dev/null
 	sleep 0.5
-	pkill -9 tcpdump
+	pkill tcpdump
 
 	# All netns should receive the redirect arp requests
 	[ $(grep -cF "who-has 192.0.2.254" ${LOG_DIR}/ns1-1_${mode}.log) -eq 4 ] && \
