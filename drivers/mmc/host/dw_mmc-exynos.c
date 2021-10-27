@@ -442,14 +442,14 @@ static inline u8 dw_mci_exynos_move_next_clksmpl(struct dw_mci *host)
 	return sample;
 }
 
-static s8 dw_mci_exynos_get_best_clksmpl(u8 candiates)
+static s8 dw_mci_exynos_get_best_clksmpl(u8 candidates)
 {
 	const u8 iter = 8;
 	u8 __c;
 	s8 i, loc = -1;
 
 	for (i = 0; i < iter; i++) {
-		__c = ror8(candiates, i);
+		__c = ror8(candidates, i);
 		if ((__c & 0xc7) == 0xc7) {
 			loc = i;
 			goto out;
@@ -457,7 +457,7 @@ static s8 dw_mci_exynos_get_best_clksmpl(u8 candiates)
 	}
 
 	for (i = 0; i < iter; i++) {
-		__c = ror8(candiates, i);
+		__c = ror8(candidates, i);
 		if ((__c & 0x83) == 0x83) {
 			loc = i;
 			goto out;
@@ -466,11 +466,11 @@ static s8 dw_mci_exynos_get_best_clksmpl(u8 candiates)
 
 	/*
 	 * If there is no cadiates value, then it needs to return -EIO.
-	 * If there are candiates values and don't find bset clk sample value,
-	 * then use a first candiates clock sample value.
+	 * If there are candidates values and don't find bset clk sample value,
+	 * then use a first candidates clock sample value.
 	 */
 	for (i = 0; i < iter; i++) {
-		__c = ror8(candiates, i);
+		__c = ror8(candidates, i);
 		if ((__c & 0x1) == 0x1) {
 			loc = i;
 			goto out;
@@ -485,7 +485,7 @@ static int dw_mci_exynos_execute_tuning(struct dw_mci_slot *slot, u32 opcode)
 	struct dw_mci *host = slot->host;
 	struct dw_mci_exynos_priv_data *priv = host->priv;
 	struct mmc_host *mmc = slot->mmc;
-	u8 start_smpl, smpl, candiates = 0;
+	u8 start_smpl, smpl, candidates = 0;
 	s8 found;
 	int ret = 0;
 
@@ -496,18 +496,18 @@ static int dw_mci_exynos_execute_tuning(struct dw_mci_slot *slot, u32 opcode)
 		smpl = dw_mci_exynos_move_next_clksmpl(host);
 
 		if (!mmc_send_tuning(mmc, opcode, NULL))
-			candiates |= (1 << smpl);
+			candidates |= (1 << smpl);
 
 	} while (start_smpl != smpl);
 
-	found = dw_mci_exynos_get_best_clksmpl(candiates);
+	found = dw_mci_exynos_get_best_clksmpl(candidates);
 	if (found >= 0) {
 		dw_mci_exynos_set_clksmpl(host, found);
 		priv->tuned_sample = found;
 	} else {
 		ret = -EIO;
 		dev_warn(&mmc->class_dev,
-			"There is no candiates value about clksmpl!\n");
+			"There is no candidates value about clksmpl!\n");
 	}
 
 	return ret;
