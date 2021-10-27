@@ -164,7 +164,9 @@ actual number of cycles increases even though the cycles reported does not.
 The number of instructions is known, but if IPC is reported, cycles can be too
 low and so IPC is too high.  Note that inaccuracy decreases as the period of
 sampling increases i.e. if the number of cycles is too low by a small amount,
-that becomes less significant if the number of cycles is large.
+that becomes less significant if the number of cycles is large.  It may also be
+useful to use the 'A' option in conjunction with dlfilter-show-cycles.so to
+provide higher granularity cycle information.
 
 Also note that the IPC instruction count may or may not include the current
 instruction.  If the cycle count is associated with an asynchronous branch
@@ -1080,6 +1082,21 @@ What *will* be decoded with the qq option:
 The Z option is equivalent to having recorded a trace without TSC
 (i.e. config term tsc=0). It can be useful to avoid timestamp issues when
 decoding a trace of a virtual machine.
+
+
+dlfilter-show-cycles.so
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Cycles can be displayed using dlfilter-show-cycles.so in which case the itrace A
+option can be useful to provide higher granularity cycle information:
+
+	perf script --itrace=A --call-trace --dlfilter dlfilter-show-cycles.so
+
+To see a list of dlfilters:
+
+	perf script -v --list-dlfilters
+
+See also linkperf:perf-dlfilters[1]
 
 
 dump option
