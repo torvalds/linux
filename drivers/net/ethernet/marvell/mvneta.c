@@ -3832,15 +3832,8 @@ static void mvneta_validate(struct phylink_config *config,
 	 * "Bit 2 Field InBandAnEn In-band Auto-Negotiation enable. ...
 	 * When <PortType> = 1 (1000BASE-X) this field must be set to 1."
 	 */
-	if (phy_interface_mode_is_8023z(state->interface)) {
-		if (!phylink_test(state->advertising, Autoneg)) {
-			linkmode_zero(supported);
-			return;
-		}
-	} else if (state->interface != PHY_INTERFACE_MODE_NA &&
-		   state->interface != PHY_INTERFACE_MODE_QSGMII &&
-		   state->interface != PHY_INTERFACE_MODE_SGMII &&
-		   !phy_interface_mode_is_rgmii(state->interface)) {
+	if (phy_interface_mode_is_8023z(state->interface) &&
+	    !phylink_test(state->advertising, Autoneg)) {
 		linkmode_zero(supported);
 		return;
 	}
