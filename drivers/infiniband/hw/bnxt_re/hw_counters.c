@@ -58,6 +58,8 @@
 #include "hw_counters.h"
 
 static const struct rdma_stat_desc bnxt_re_stat_descs[] = {
+	[BNXT_RE_ACTIVE_PD].name		=  "active_pds",
+	[BNXT_RE_ACTIVE_AH].name		=  "active_ahs",
 	[BNXT_RE_ACTIVE_QP].name		=  "active_qps",
 	[BNXT_RE_ACTIVE_SRQ].name		=  "active_srqs",
 	[BNXT_RE_ACTIVE_CQ].name		=  "active_cqs",
