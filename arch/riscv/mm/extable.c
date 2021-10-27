@@ -11,14 +11,23 @@
 #include <linux/module.h>
 #include <linux/uaccess.h>
 
+#ifdef CONFIG_BPF_JIT
+int rv_bpf_fixup_exception(const struct exception_table_entry *ex, struct pt_regs *regs);
+#endif
+
 int fixup_exception(struct pt_regs *regs)
 {
 	const struct exception_table_entry *fixup;
 
 	fixup = search_exception_tables(regs->epc);
-	if (fixup) {
-		regs->epc = fixup->fixup;
-		return 1;
-	}
-	return 0;
+	if (!fixup)
+		return 0;
+
+#ifdef CONFIG_BPF_JIT
+	if (regs->epc >= BPF_JIT_REGION_START && regs->epc < BPF_JIT_REGION_END)
+		return rv_bpf_fixup_exception(fixup, regs);
+#endif
+
+	regs->epc = fixup->fixup;
+	return 1;
 }
