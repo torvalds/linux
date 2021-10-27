@@ -295,6 +295,7 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	if (ret) {
 		struct iwl_trans *trans = mvm->trans;
 
+		/* SecBoot info */
 		if (trans->trans_cfg->device_family >=
 					IWL_DEVICE_FAMILY_22000) {
 			IWL_ERR(mvm,
@@ -302,6 +303,17 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 				iwl_read_umac_prph(trans, UMAG_SB_CPU_1_STATUS),
 				iwl_read_umac_prph(trans,
 						   UMAG_SB_CPU_2_STATUS));
+		} else if (trans->trans_cfg->device_family >=
+			   IWL_DEVICE_FAMILY_8000) {
+			IWL_ERR(mvm,
+				"SecBoot CPU1 Status: 0x%x, CPU2 Status: 0x%x\n",
+				iwl_read_prph(trans, SB_CPU_1_STATUS),
+				iwl_read_prph(trans, SB_CPU_2_STATUS));
+		}
+
+		/* LMAC/UMAC PC info */
+		if (trans->trans_cfg->device_family >=
+					IWL_DEVICE_FAMILY_9000) {
 			IWL_ERR(mvm, "UMAC PC: 0x%x\n",
 				iwl_read_umac_prph(trans,
 						   UREG_UMAC_CURRENT_PC));
@@ -312,12 +324,6 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 				IWL_ERR(mvm, "LMAC2 PC: 0x%x\n",
 					iwl_read_umac_prph(trans,
 						UREG_LMAC2_CURRENT_PC));
-		} else if (trans->trans_cfg->device_family >=
-			   IWL_DEVICE_FAMILY_8000) {
-			IWL_ERR(mvm,
-				"SecBoot CPU1 Status: 0x%x, CPU2 Status: 0x%x\n",
-				iwl_read_prph(trans, SB_CPU_1_STATUS),
-				iwl_read_prph(trans, SB_CPU_2_STATUS));
 		}
 
 		if (ret == -ETIMEDOUT)
@@ -1133,7 +1139,7 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 {
 	int ret;
 	u32 value;
-	struct iwl_lari_config_change_cmd_v4 cmd = {};
+	struct iwl_lari_config_change_cmd_v5 cmd = {};
 
 	cmd.config_bitmap = iwl_acpi_get_lari_config_bitmap(&mvm->fwrt);
 
@@ -1149,14 +1155,23 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 	if (!ret)
 		cmd.oem_unii4_allow_bitmap = cpu_to_le32(value);
 
+	ret = iwl_acpi_get_dsm_u32((&mvm->fwrt)->dev, 0,
+				   DSM_FUNC_ACTIVATE_CHANNEL,
+				   &iwl_guid, &value);
+	if (!ret)
+		cmd.chan_state_active_bitmap = cpu_to_le32(value);
+
 	if (cmd.config_bitmap ||
 	    cmd.oem_11ax_allow_bitmap ||
-	    cmd.oem_unii4_allow_bitmap) {
+	    cmd.oem_unii4_allow_bitmap ||
+	    cmd.chan_state_active_bitmap) {
 		size_t cmd_size;
 		u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
 						   REGULATORY_AND_NVM_GROUP,
 						   LARI_CONFIG_CHANGE, 1);
-		if (cmd_ver == 4)
+		if (cmd_ver == 5)
+			cmd_size = sizeof(struct iwl_lari_config_change_cmd_v5);
+		else if (cmd_ver == 4)
 			cmd_size = sizeof(struct iwl_lari_config_change_cmd_v4);
 		else if (cmd_ver == 3)
 			cmd_size = sizeof(struct iwl_lari_config_change_cmd_v3);
@@ -1170,8 +1185,9 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 				le32_to_cpu(cmd.config_bitmap),
 				le32_to_cpu(cmd.oem_11ax_allow_bitmap));
 		IWL_DEBUG_RADIO(mvm,
-				"sending LARI_CONFIG_CHANGE, oem_unii4_allow_bitmap=0x%x, cmd_ver=%d\n",
+				"sending LARI_CONFIG_CHANGE, oem_unii4_allow_bitmap=0x%x, chan_state_active_bitmap=0x%x, cmd_ver=%d\n",
 				le32_to_cpu(cmd.oem_unii4_allow_bitmap),
+				le32_to_cpu(cmd.chan_state_active_bitmap),
 				cmd_ver);
 		ret = iwl_mvm_send_cmd_pdu(mvm,
 					   WIDE_ID(REGULATORY_AND_NVM_GROUP,

@@ -395,10 +395,9 @@ static ssize_t iwl_dbgfs_rs_data_read(struct file *file, char __user *user_buf,
 			  "A-MPDU size limit %d\n",
 			  lq_sta->pers.dbg_agg_frame_count_lim);
 	desc += scnprintf(buff + desc, bufsz - desc,
-			  "valid_tx_ant %s%s%s\n",
+			  "valid_tx_ant %s%s\n",
 		(iwl_mvm_get_valid_tx_ant(mvm) & ANT_A) ? "ANT_A," : "",
-		(iwl_mvm_get_valid_tx_ant(mvm) & ANT_B) ? "ANT_B," : "",
-		(iwl_mvm_get_valid_tx_ant(mvm) & ANT_C) ? "ANT_C" : "");
+		(iwl_mvm_get_valid_tx_ant(mvm) & ANT_B) ? "ANT_B," : "");
 	desc += scnprintf(buff + desc, bufsz - desc,
 			  "last tx rate=0x%X ",
 			  lq_sta->last_rate_n_flags);
@@ -986,8 +985,8 @@ static ssize_t iwl_dbgfs_frame_stats_read(struct iwl_mvm *mvm,
 			continue;
 		pos += scnprintf(pos, endpos - pos, "Rate[%d]: ",
 				 (int)(ARRAY_SIZE(stats->last_rates) - i));
-		pos += rs_pretty_print_rate(pos, endpos - pos,
-					    stats->last_rates[idx]);
+		pos += rs_pretty_print_rate_v1(pos, endpos - pos,
+					       stats->last_rates[idx]);
 		if (pos < endpos - 1)
 			*pos++ = '\n';
 	}
@@ -1060,8 +1059,6 @@ iwl_dbgfs_scan_ant_rxchain_read(struct file *file,
 		pos += scnprintf(buf + pos, bufsz - pos, "A");
 	if (mvm->scan_rx_ant & ANT_B)
 		pos += scnprintf(buf + pos, bufsz - pos, "B");
-	if (mvm->scan_rx_ant & ANT_C)
-		pos += scnprintf(buf + pos, bufsz - pos, "C");
 	pos += scnprintf(buf + pos, bufsz - pos, " (%hhx)\n", mvm->scan_rx_ant);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
@@ -1196,7 +1193,6 @@ static int _iwl_dbgfs_inject_beacon_ie(struct iwl_mvm *mvm, char *bin, int len)
 	struct ieee80211_tx_info *info;
 	struct iwl_mac_beacon_cmd beacon_cmd = {};
 	u8 rate;
-	u16 flags;
 	int i;
 
 	len /= 2;
@@ -1243,12 +1239,9 @@ static int _iwl_dbgfs_inject_beacon_ie(struct iwl_mvm *mvm, char *bin, int len)
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	info = IEEE80211_SKB_CB(beacon);
 	rate = iwl_mvm_mac_ctxt_get_lowest_rate(info, vif);
-	flags = iwl_mvm_mac80211_idx_to_hwrate(rate);
 
-	if (rate == IWL_FIRST_CCK_RATE)
-		flags |= IWL_MAC_BEACON_CCK;
-
-	beacon_cmd.flags = cpu_to_le16(flags);
+	beacon_cmd.flags =
+		cpu_to_le16(iwl_mvm_mac_ctxt_get_beacon_flags(mvm->fw, rate));
 	beacon_cmd.byte_cnt = cpu_to_le16((u16)beacon->len);
 	beacon_cmd.template_id = cpu_to_le32((u32)mvmvif->id);
 
