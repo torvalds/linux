@@ -17,6 +17,34 @@
 		hdptx1 = &hdptxphy1;
 		hdmi0 = &hdmi0;
 		hdmi1 = &hdmi1;
+		rkcif_mipi_lvds4= &rkcif_mipi_lvds4;
+		rkcif_mipi_lvds5= &rkcif_mipi_lvds5;
+	};
+
+	rkcif_mipi_lvds4: rkcif-mipi-lvds4 {
+		compatible = "rockchip,rkcif-mipi-lvds";
+		rockchip,hw = <&rkcif>;
+		iommus = <&rkcif_mmu>;
+		status = "disabled";
+	};
+
+	rkcif_mipi_lvds4_sditf: rkcif-mipi-lvds4-sditf {
+		compatible = "rockchip,rkcif-sditf";
+		rockchip,cif = <&rkcif_mipi_lvds4>;
+		status = "disabled";
+	};
+
+	rkcif_mipi_lvds5: rkcif-mipi-lvds5 {
+		compatible = "rockchip,rkcif-mipi-lvds";
+		rockchip,hw = <&rkcif>;
+		iommus = <&rkcif_mmu>;
+		status = "disabled";
+	};
+
+	rkcif_mipi_lvds5_sditf: rkcif-mipi-lvds5-sditf {
+		compatible = "rockchip,rkcif-sditf";
+		rockchip,cif = <&rkcif_mipi_lvds5>;
+		status = "disabled";
 	};
 
 	usbdrd3_1: usbdrd3_1 {
@@ -87,6 +115,36 @@
 	hdptxphy1_grf: syscon@fd5e4000 {
 		compatible = "rockchip,rk3588-hdptxphy-grf", "syscon";
 		reg = <0x0 0xfd5e4000 0x0 0x100>;
+	};
+
+	mipi4_csi2: mipi4-csi2@fdd50000 {
+		compatible = "rockchip,rk3588-mipi-csi2";
+		reg = <0x0 0xfdd50000 0x0 0x10000>;
+		reg-names = "csihost_regs";
+		interrupts = <GIC_SPI 151 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 152 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "csi-intr1", "csi-intr2";
+		clocks = <&cru PCLK_CSI_HOST_4>;
+		clock-names = "pclk_csi2host";
+		resets = <&cru SRST_P_CSI_HOST_4>, <&cru SRST_CSIHOST4_VICAP>;
+		reset-names = "srst_csihost_p", "srst_csihost_vicap";
+		power-domains = <&power RK3588_PD_VI>;
+		status = "disabled";
+	};
+
+	mipi5_csi2: mipi5-csi2@fdd60000 {
+		compatible = "rockchip,rk3588-mipi-csi2";
+		reg = <0x0 0xfdd60000 0x0 0x10000>;
+		reg-names = "csihost_regs";
+		interrupts = <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "csi-intr1", "csi-intr2";
+		clocks = <&cru PCLK_CSI_HOST_5>;
+		clock-names = "pclk_csi2host";
+		resets = <&cru SRST_P_CSI_HOST_5>, <&cru SRST_CSIHOST5_VICAP>;
+		reset-names = "srst_csihost_p", "srst_csihost_vicap";
+		power-domains = <&power RK3588_PD_VI>;
+		status = "disabled";
 	};
 
 	spdif_tx5: spdif-tx@fddb8000 {

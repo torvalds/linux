@@ -30,6 +30,10 @@
 		i2c6 = &i2c6;
 		i2c7 = &i2c7;
 		i2c8 = &i2c8;
+		rkcif_mipi_lvds0= &rkcif_mipi_lvds;
+		rkcif_mipi_lvds1= &rkcif_mipi_lvds1;
+		rkcif_mipi_lvds2= &rkcif_mipi_lvds2;
+		rkcif_mipi_lvds3= &rkcif_mipi_lvds3;
 		serial0 = &uart0;
 		serial1 = &uart1;
 		serial2 = &uart2;
@@ -313,6 +317,71 @@
 	psci {
 		compatible = "arm,psci-1.0";
 		method = "smc";
+	};
+
+	rkcif_dvp: rkcif-dvp {
+		compatible = "rockchip,rkcif-dvp";
+		rockchip,hw = <&rkcif>;
+		iommus = <&rkcif_mmu>;
+		status = "disabled";
+	};
+
+	rkcif_dvp_sditf: rkcif-dvp-sditf {
+		compatible = "rockchip,rkcif-sditf";
+		rockchip,cif = <&rkcif_dvp>;
+		status = "disabled";
+	};
+
+	rkcif_mipi_lvds: rkcif-mipi-lvds {
+		compatible = "rockchip,rkcif-mipi-lvds";
+		rockchip,hw = <&rkcif>;
+		iommus = <&rkcif_mmu>;
+		status = "disabled";
+	};
+
+	rkcif_mipi_lvds_sditf: rkcif-mipi-lvds_sditf {
+		compatible = "rockchip,rkcif-sditf";
+		rockchip,cif = <&rkcif_mipi_lvds>;
+		status = "disabled";
+	};
+
+	rkcif_mipi_lvds1: rkcif-mipi-lvds1 {
+		compatible = "rockchip,rkcif-mipi-lvds";
+		rockchip,hw = <&rkcif>;
+		iommus = <&rkcif_mmu>;
+		status = "disabled";
+	};
+
+	rkcif_mipi_lvds1_sditf: rkcif-mipi-lvds1-sditf {
+		compatible = "rockchip,rkcif-sditf";
+		rockchip,cif = <&rkcif_mipi_lvds1>;
+		status = "disabled";
+	};
+
+	rkcif_mipi_lvds2: rkcif-mipi-lvds2 {
+		compatible = "rockchip,rkcif-mipi-lvds";
+		rockchip,hw = <&rkcif>;
+		iommus = <&rkcif_mmu>;
+		status = "disabled";
+	};
+
+	rkcif_mipi_lvds2_sditf: rkcif-mipi-lvds2-sditf {
+		compatible = "rockchip,rkcif-sditf";
+		rockchip,cif = <&rkcif_mipi_lvds2>;
+		status = "disabled";
+	};
+
+	rkcif_mipi_lvds3: rkcif-mipi-lvds3 {
+		compatible = "rockchip,rkcif-mipi-lvds";
+		rockchip,hw = <&rkcif>;
+		iommus = <&rkcif_mmu>;
+		status = "disabled";
+	};
+
+	rkcif_mipi_lvds3_sditf: rkcif-mipi-lvds3-sditf {
+		compatible = "rockchip,rkcif-sditf";
+		rockchip,cif = <&rkcif_mipi_lvds3>;
+		status = "disabled";
 	};
 
 	rkisp0_vir0: rkisp0-vir0 {
@@ -1740,6 +1809,98 @@
 		clock-names = "aclk", "iface";
 		power-domains = <&power RK3588_PD_FEC>;
 		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
+	rkcif: rkcif@fdce0000 {
+		compatible = "rockchip,rk3588-cif";
+		reg = <0x0 0xfdce0000 0x0 0x20000>;
+		reg-names = "cif_regs";
+		interrupts = <GIC_SPI 155 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "cif-intr";
+		clocks = <&cru ACLK_VICAP>, <&cru HCLK_VICAP>, <&cru DCLK_VICAP>;
+		clock-names = "aclk_cif", "hclk_cif", "dclk_cif";
+		resets = <&cru SRST_A_VICAP>, <&cru SRST_H_VICAP>, <&cru SRST_D_VICAP>;
+		reset-names = "rst_cif_a", "rst_cif_h", "rst_cif_d";
+		assigned-clocks = <&cru DCLK_VICAP>;
+		assigned-clock-rates = <300000000>;
+		power-domains = <&power RK3588_PD_VI>;
+		rockchip,grf = <&sys_grf>;
+		iommus = <&rkcif_mmu>;
+		status = "disabled";
+	};
+
+	rkcif_mmu: iommu@fdce0800 {
+		compatible = "rockchip,iommu-v2";
+		reg = <0x0 0xfdce0800 0x0 0x100>,
+		      <0x0 0xfdce0900 0x0 0x100>;
+		interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "cif_mmu";
+		clocks = <&cru ACLK_VICAP>, <&cru HCLK_VICAP>;
+		clock-names = "aclk", "iface";
+		power-domains = <&power RK3588_PD_VI>;
+		rockchip,disable-mmu-reset;
+		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
+	mipi0_csi2: mipi0-csi2@fdd10000 {
+		compatible = "rockchip,rk3588-mipi-csi2";
+		reg = <0x0 0xfdd10000 0x0 0x10000>;
+		reg-names = "csihost_regs";
+		interrupts = <GIC_SPI 143 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "csi-intr1", "csi-intr2";
+		clocks = <&cru PCLK_CSI_HOST_0>, <&cru ICLK_CSIHOST0>;
+		clock-names = "pclk_csi2host", "iclk_csi2host";
+		resets = <&cru SRST_P_CSI_HOST_0>, <&cru SRST_CSIHOST0_VICAP>;
+		reset-names = "srst_csihost_p", "srst_csihost_vicap";
+		power-domains = <&power RK3588_PD_VI>;
+		status = "disabled";
+	};
+
+	mipi1_csi2: mipi1-csi2@fdd20000 {
+		compatible = "rockchip,rk3588-mipi-csi2";
+		reg = <0x0 0xfdd20000 0x0 0x10000>;
+		reg-names = "csihost_regs";
+		interrupts = <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "csi-intr1", "csi-intr2";
+		clocks = <&cru PCLK_CSI_HOST_1>, <&cru ICLK_CSIHOST1>;
+		clock-names = "pclk_csi2host", "iclk_csi2host";
+		resets = <&cru SRST_P_CSI_HOST_1>, <&cru SRST_CSIHOST1_VICAP>;
+		reset-names = "srst_csihost_p", "srst_csihost_vicap";
+		power-domains = <&power RK3588_PD_VI>;
+		status = "disabled";
+	};
+
+	mipi2_csi2: mipi2-csi2@fdd30000 {
+		compatible = "rockchip,rk3588-mipi-csi2";
+		reg = <0x0 0xfdd30000 0x0 0x10000>;
+		reg-names = "csihost_regs";
+		interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "csi-intr1", "csi-intr2";
+		clocks = <&cru PCLK_CSI_HOST_2>;
+		clock-names = "pclk_csi2host";
+		resets = <&cru SRST_P_CSI_HOST_2>, <&cru SRST_CSIHOST2_VICAP>;
+		reset-names = "srst_csihost_p", "srst_csihost_vicap";
+		power-domains = <&power RK3588_PD_VI>;
+		status = "disabled";
+	};
+
+	mipi3_csi2: mipi3-csi2@fdd40000 {
+		compatible = "rockchip,rk3588-mipi-csi2";
+		reg = <0x0 0xfdd40000 0x0 0x10000>;
+		reg-names = "csihost_regs";
+		interrupts = <GIC_SPI 149 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 150 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "csi-intr1", "csi-intr2";
+		clocks = <&cru PCLK_CSI_HOST_3>;
+		clock-names = "pclk_csi2host";
+		resets = <&cru SRST_P_CSI_HOST_3>, <&cru SRST_CSIHOST3_VICAP>;
+		reset-names = "srst_csihost_p", "srst_csihost_vicap";
+		power-domains = <&power RK3588_PD_VI>;
 		status = "disabled";
 	};
 
