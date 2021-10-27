@@ -969,7 +969,6 @@ static void tcp_v6_send_response(const struct sock *sk, struct sk_buff *skb, u32
 	fl6.flowlabel = label;
 
 	buff->ip_summed = CHECKSUM_PARTIAL;
-	buff->csum = 0;
 
 	__tcp_v6_send_check(buff, &fl6.saddr, &fl6.daddr);
 
