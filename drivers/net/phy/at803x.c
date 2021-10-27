@@ -484,7 +484,7 @@ static int at803x_set_wol(struct phy_device *phydev,
 static void at803x_get_wol(struct phy_device *phydev,
 			   struct ethtool_wolinfo *wol)
 {
-	u32 value;
+	int value;
 
 	wol->supported = WAKE_MAGIC;
 	wol->wolopts = 0;
