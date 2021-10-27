@@ -52,7 +52,6 @@ endmenu
 
 config MALI_CSF_SUPPORT
 	bool "Enable Mali CSF based GPU support"
-	depends on MALI_BIFROST=m
 	default n
 	help
 	  Enables support for CSF based GPUs.
