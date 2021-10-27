@@ -290,6 +290,7 @@ enum {
 	MLX5_UMR_INLINE			= (1 << 7),
 };
 
+#define MLX5_UMR_KLM_ALIGNMENT 4
 #define MLX5_UMR_MTT_ALIGNMENT 0x40
 #define MLX5_UMR_MTT_MASK      (MLX5_UMR_MTT_ALIGNMENT - 1)
 #define MLX5_UMR_MTT_MIN_CHUNK_SIZE MLX5_UMR_MTT_ALIGNMENT
@@ -799,10 +800,23 @@ struct mlx5_cqe64 {
 	u8		tls_outer_l3_tunneled;
 	u8		rsvd0;
 	__be16		wqe_id;
-	u8		lro_tcppsh_abort_dupack;
-	u8		lro_min_ttl;
-	__be16		lro_tcp_win;
-	__be32		lro_ack_seq_num;
+	union {
+		struct {
+			u8	tcppsh_abort_dupack;
+			u8	min_ttl;
+			__be16	tcp_win;
+			__be32	ack_seq_num;
+		} lro;
+		struct {
+			u8	reserved0:1;
+			u8	match:1;
+			u8	flush:1;
+			u8	reserved3:5;
+			u8	header_size;
+			__be16	header_entry_index;
+			__be32	data_offset;
+		} shampo;
+	};
 	__be32		rss_hash_result;
 	u8		rss_hash_type;
 	u8		ml_path;
@@ -872,7 +886,7 @@ static inline u8 get_cqe_opcode(struct mlx5_cqe64 *cqe)
 
 static inline u8 get_cqe_lro_tcppsh(struct mlx5_cqe64 *cqe)
 {
-	return (cqe->lro_tcppsh_abort_dupack >> 6) & 1;
+	return (cqe->lro.tcppsh_abort_dupack >> 6) & 1;
 }
 
 static inline u8 get_cqe_l4_hdr_type(struct mlx5_cqe64 *cqe)
@@ -1186,6 +1200,7 @@ enum mlx5_cap_type {
 	MLX5_CAP_VDPA_EMULATION = 0x13,
 	MLX5_CAP_DEV_EVENT = 0x14,
 	MLX5_CAP_IPSEC,
+	MLX5_CAP_DEV_SHAMPO = 0x1d,
 	MLX5_CAP_GENERAL_2 = 0x20,
 	MLX5_CAP_PORT_SELECTION = 0x25,
 	/* NUM OF CAP Types */
@@ -1430,6 +1445,9 @@ enum mlx5_qcam_feature_groups {
 
 #define MLX5_CAP_IPSEC(mdev, cap)\
 	MLX5_GET(ipsec_cap, (mdev)->caps.hca[MLX5_CAP_IPSEC]->cur, cap)
+
+#define MLX5_CAP_DEV_SHAMPO(mdev, cap)\
+	MLX5_GET(shampo_cap, mdev->caps.hca_cur[MLX5_CAP_DEV_SHAMPO], cap)
 
 enum {
 	MLX5_CMD_STAT_OK			= 0x0,

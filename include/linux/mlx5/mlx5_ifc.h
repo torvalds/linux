@@ -1350,7 +1350,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         reserved_at_b0[0x1];
 	u8         uplink_follow[0x1];
 	u8         ts_cqe_to_dest_cqn[0x1];
-	u8         reserved_at_b3[0xd];
+	u8         reserved_at_b3[0x7];
+	u8         shampo[0x1];
+	u8         reserved_at_bb[0x5];
 
 	u8         max_sgl_for_optimized_performance[0x8];
 	u8         log_max_cq_sz[0x8];
@@ -1893,7 +1895,21 @@ struct mlx5_ifc_wq_bits {
 	u8         reserved_at_139[0x4];
 	u8         log_wqe_stride_size[0x3];
 
-	u8         reserved_at_140[0x4c0];
+	u8         reserved_at_140[0x80];
+
+	u8         headers_mkey[0x20];
+
+	u8         shampo_enable[0x1];
+	u8         reserved_at_1e1[0x4];
+	u8         log_reservation_size[0x3];
+	u8         reserved_at_1e8[0x5];
+	u8         log_max_num_of_packets_per_reservation[0x3];
+	u8         reserved_at_1f0[0x6];
+	u8         log_headers_entry_size[0x2];
+	u8         reserved_at_1f8[0x4];
+	u8         log_headers_buffer_entry_num[0x4];
+
+	u8         reserved_at_200[0x400];
 
 	struct mlx5_ifc_cmd_pas_bits pas[];
 };
@@ -3169,6 +3185,20 @@ struct mlx5_ifc_roce_addr_layout_bits {
 	u8         reserved_at_e0[0x20];
 };
 
+struct mlx5_ifc_shampo_cap_bits {
+	u8    reserved_at_0[0x3];
+	u8    shampo_log_max_reservation_size[0x5];
+	u8    reserved_at_8[0x3];
+	u8    shampo_log_min_reservation_size[0x5];
+	u8    shampo_min_mss_size[0x10];
+
+	u8    reserved_at_20[0x3];
+	u8    shampo_max_log_headers_entry_size[0x5];
+	u8    reserved_at_28[0x18];
+
+	u8    reserved_at_40[0x7c0];
+};
+
 union mlx5_ifc_hca_cap_union_bits {
 	struct mlx5_ifc_cmd_hca_cap_bits cmd_hca_cap;
 	struct mlx5_ifc_cmd_hca_cap_2_bits cmd_hca_cap_2;
@@ -3187,6 +3217,7 @@ union mlx5_ifc_hca_cap_union_bits {
 	struct mlx5_ifc_tls_cap_bits tls_cap;
 	struct mlx5_ifc_device_mem_cap_bits device_mem_cap;
 	struct mlx5_ifc_virtio_emulation_cap_bits virtio_emulation_cap;
+	struct mlx5_ifc_shampo_cap_bits shampo_cap;
 	u8         reserved_at_0[0x8000];
 };
 
@@ -3361,8 +3392,9 @@ enum {
 };
 
 enum {
-	MLX5_TIRC_LRO_ENABLE_MASK_IPV4_LRO  = 0x1,
-	MLX5_TIRC_LRO_ENABLE_MASK_IPV6_LRO  = 0x2,
+	MLX5_TIRC_PACKET_MERGE_MASK_IPV4_LRO  = BIT(0),
+	MLX5_TIRC_PACKET_MERGE_MASK_IPV6_LRO  = BIT(1),
+	MLX5_TIRC_PACKET_MERGE_MASK_SHAMPO    = BIT(2),
 };
 
 enum {
@@ -3387,7 +3419,7 @@ struct mlx5_ifc_tirc_bits {
 
 	u8         reserved_at_80[0x4];
 	u8         lro_timeout_period_usecs[0x10];
-	u8         lro_enable_mask[0x4];
+	u8         packet_merge_mask[0x4];
 	u8         lro_max_ip_payload_size[0x8];
 
 	u8         reserved_at_a0[0x40];
@@ -3569,6 +3601,18 @@ enum {
 	MLX5_RQC_STATE_ERR  = 0x3,
 };
 
+enum {
+	MLX5_RQC_SHAMPO_NO_MATCH_ALIGNMENT_GRANULARITY_BYTE    = 0x0,
+	MLX5_RQC_SHAMPO_NO_MATCH_ALIGNMENT_GRANULARITY_STRIDE  = 0x1,
+	MLX5_RQC_SHAMPO_NO_MATCH_ALIGNMENT_GRANULARITY_PAGE    = 0x2,
+};
+
+enum {
+	MLX5_RQC_SHAMPO_MATCH_CRITERIA_TYPE_NO_MATCH    = 0x0,
+	MLX5_RQC_SHAMPO_MATCH_CRITERIA_TYPE_EXTENDED    = 0x1,
+	MLX5_RQC_SHAMPO_MATCH_CRITERIA_TYPE_FIVE_TUPLE  = 0x2,
+};
+
 struct mlx5_ifc_rqc_bits {
 	u8         rlky[0x1];
 	u8	   delay_drop_en[0x1];
@@ -3601,7 +3645,13 @@ struct mlx5_ifc_rqc_bits {
 	u8         reserved_at_c0[0x10];
 	u8         hairpin_peer_vhca[0x10];
 
-	u8         reserved_at_e0[0xa0];
+	u8         reserved_at_e0[0x46];
+	u8         shampo_no_match_alignment_granularity[0x2];
+	u8         reserved_at_128[0x6];
+	u8         shampo_match_criteria_type[0x2];
+	u8         reservation_timeout[0x10];
+
+	u8         reserved_at_140[0x40];
 
 	struct mlx5_ifc_wq_bits wq;
 };
@@ -6657,7 +6707,7 @@ struct mlx5_ifc_modify_tir_bitmask_bits {
 	u8         reserved_at_3c[0x1];
 	u8         hash[0x1];
 	u8         reserved_at_3e[0x1];
-	u8         lro[0x1];
+	u8         packet_merge[0x1];
 };
 
 struct mlx5_ifc_modify_tir_out_bits {
