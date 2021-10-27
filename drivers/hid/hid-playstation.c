@@ -882,6 +882,8 @@ static int dualsense_player_led_set_brightness(struct led_classdev *led, enum le
 	spin_unlock_irqrestore(&ds->base.lock, flags);
 
 	schedule_work(&ds->output_worker);
+
+	return 0;
 }
 
 static void dualsense_init_output_report(struct dualsense *ds, struct dualsense_output_report *rp,
