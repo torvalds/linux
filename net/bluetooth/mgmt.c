@@ -276,10 +276,39 @@ static const u8 mgmt_status_table[] = {
 	MGMT_STATUS_CONNECT_FAILED,	/* MAC Connection Failed */
 };
 
-static u8 mgmt_status(u8 hci_status)
+static u8 mgmt_errno_status(int err)
 {
-	if (hci_status < ARRAY_SIZE(mgmt_status_table))
-		return mgmt_status_table[hci_status];
+	switch (err) {
+	case 0:
+		return MGMT_STATUS_SUCCESS;
+	case -EPERM:
+		return MGMT_STATUS_REJECTED;
+	case -EINVAL:
+		return MGMT_STATUS_INVALID_PARAMS;
+	case -EOPNOTSUPP:
+		return MGMT_STATUS_NOT_SUPPORTED;
+	case -EBUSY:
+		return MGMT_STATUS_BUSY;
+	case -ETIMEDOUT:
+		return MGMT_STATUS_AUTH_FAILED;
+	case -ENOMEM:
+		return MGMT_STATUS_NO_RESOURCES;
+	case -EISCONN:
+		return MGMT_STATUS_ALREADY_CONNECTED;
+	case -ENOTCONN:
+		return MGMT_STATUS_DISCONNECTED;
+	}
+
+	return MGMT_STATUS_FAILED;
+}
+
+static u8 mgmt_status(int err)
+{
+	if (err < 0)
+		return mgmt_errno_status(err);
+
+	if (err < ARRAY_SIZE(mgmt_status_table))
+		return mgmt_status_table[err];
 
 	return MGMT_STATUS_FAILED;
 }
@@ -951,25 +980,23 @@ bool mgmt_get_connectable(struct hci_dev *hdev)
 	return hci_dev_test_flag(hdev, HCI_CONNECTABLE);
 }
 
+static int service_cache_sync(struct hci_dev *hdev, void *data)
+{
+	hci_update_eir_sync(hdev);
+	hci_update_class_sync(hdev);
+
+	return 0;
+}
+
 static void service_cache_off(struct work_struct *work)
 {
 	struct hci_dev *hdev = container_of(work, struct hci_dev,
 					    service_cache.work);
-	struct hci_request req;
 
 	if (!hci_dev_test_and_clear_flag(hdev, HCI_SERVICE_CACHE))
 		return;
 
-	hci_req_init(&req, hdev);
-
-	hci_dev_lock(hdev);
-
-	__hci_req_update_eir(&req);
-	__hci_req_update_class(&req);
-
-	hci_dev_unlock(hdev);
-
-	hci_req_run(&req, NULL);
+	hci_cmd_sync_queue(hdev, service_cache_sync, NULL, NULL);
 }
 
 static void rpa_expired(struct work_struct *work)
@@ -2075,37 +2102,33 @@ static u8 get_uuid_size(const u8 *uuid)
 	return 16;
 }
 
-static void mgmt_class_complete(struct hci_dev *hdev, u16 mgmt_op, u8 status)
+static void mgmt_class_complete(struct hci_dev *hdev, void *data, int err)
 {
-	struct mgmt_pending_cmd *cmd;
+	struct mgmt_pending_cmd *cmd = data;
 
-	hci_dev_lock(hdev);
-
-	cmd = pending_find(mgmt_op, hdev);
-	if (!cmd)
-		goto unlock;
+	bt_dev_dbg(hdev, "err %d", err);
 
 	mgmt_cmd_complete(cmd->sk, cmd->index, cmd->opcode,
-			  mgmt_status(status), hdev->dev_class, 3);
+			  mgmt_status(err), hdev->dev_class, 3);
 
-	mgmt_pending_remove(cmd);
-
-unlock:
-	hci_dev_unlock(hdev);
+	mgmt_pending_free(cmd);
 }
 
-static void add_uuid_complete(struct hci_dev *hdev, u8 status, u16 opcode)
+static int add_uuid_sync(struct hci_dev *hdev, void *data)
 {
-	bt_dev_dbg(hdev, "status 0x%02x", status);
+	int err;
 
-	mgmt_class_complete(hdev, MGMT_OP_ADD_UUID, status);
+	err = hci_update_class_sync(hdev);
+	if (err)
+		return err;
+
+	return hci_update_eir_sync(hdev);
 }
 
 static int add_uuid(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 {
 	struct mgmt_cp_add_uuid *cp = data;
 	struct mgmt_pending_cmd *cmd;
-	struct hci_request req;
 	struct bt_uuid *uuid;
 	int err;
 
@@ -2131,28 +2154,17 @@ static int add_uuid(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 
 	list_add_tail(&uuid->list, &hdev->uuids);
 
-	hci_req_init(&req, hdev);
-
-	__hci_req_update_class(&req);
-	__hci_req_update_eir(&req);
-
-	err = hci_req_run(&req, add_uuid_complete);
-	if (err < 0) {
-		if (err != -ENODATA)
-			goto failed;
-
-		err = mgmt_cmd_complete(sk, hdev->id, MGMT_OP_ADD_UUID, 0,
-					hdev->dev_class, 3);
-		goto failed;
-	}
-
-	cmd = mgmt_pending_add(sk, MGMT_OP_ADD_UUID, hdev, data, len);
+	cmd = mgmt_pending_new(sk, MGMT_OP_ADD_UUID, hdev, data, len);
 	if (!cmd) {
 		err = -ENOMEM;
 		goto failed;
 	}
 
-	err = 0;
+	err = hci_cmd_sync_queue(hdev, add_uuid_sync, cmd, mgmt_class_complete);
+	if (err < 0) {
+		mgmt_pending_free(cmd);
+		goto failed;
+	}
 
 failed:
 	hci_dev_unlock(hdev);
@@ -2173,11 +2185,15 @@ static bool enable_service_cache(struct hci_dev *hdev)
 	return false;
 }
 
-static void remove_uuid_complete(struct hci_dev *hdev, u8 status, u16 opcode)
+static int remove_uuid_sync(struct hci_dev *hdev, void *data)
 {
-	bt_dev_dbg(hdev, "status 0x%02x", status);
+	int err;
 
-	mgmt_class_complete(hdev, MGMT_OP_REMOVE_UUID, status);
+	err = hci_update_class_sync(hdev);
+	if (err)
+		return err;
+
+	return hci_update_eir_sync(hdev);
 }
 
 static int remove_uuid(struct sock *sk, struct hci_dev *hdev, void *data,
@@ -2187,7 +2203,6 @@ static int remove_uuid(struct sock *sk, struct hci_dev *hdev, void *data,
 	struct mgmt_pending_cmd *cmd;
 	struct bt_uuid *match, *tmp;
 	u8 bt_uuid_any[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-	struct hci_request req;
 	int err, found;
 
 	bt_dev_dbg(hdev, "sock %p", sk);
@@ -2231,39 +2246,35 @@ static int remove_uuid(struct sock *sk, struct hci_dev *hdev, void *data,
 	}
 
 update_class:
-	hci_req_init(&req, hdev);
-
-	__hci_req_update_class(&req);
-	__hci_req_update_eir(&req);
-
-	err = hci_req_run(&req, remove_uuid_complete);
-	if (err < 0) {
-		if (err != -ENODATA)
-			goto unlock;
-
-		err = mgmt_cmd_complete(sk, hdev->id, MGMT_OP_REMOVE_UUID, 0,
-					hdev->dev_class, 3);
-		goto unlock;
-	}
-
-	cmd = mgmt_pending_add(sk, MGMT_OP_REMOVE_UUID, hdev, data, len);
+	cmd = mgmt_pending_new(sk, MGMT_OP_REMOVE_UUID, hdev, data, len);
 	if (!cmd) {
 		err = -ENOMEM;
 		goto unlock;
 	}
 
-	err = 0;
+	err = hci_cmd_sync_queue(hdev, remove_uuid_sync, cmd,
+				 mgmt_class_complete);
+	if (err < 0)
+		mgmt_pending_free(cmd);
 
 unlock:
 	hci_dev_unlock(hdev);
 	return err;
 }
 
-static void set_class_complete(struct hci_dev *hdev, u8 status, u16 opcode)
+static int set_class_sync(struct hci_dev *hdev, void *data)
 {
-	bt_dev_dbg(hdev, "status 0x%02x", status);
+	int err = 0;
 
-	mgmt_class_complete(hdev, MGMT_OP_SET_DEV_CLASS, status);
+	if (hci_dev_test_and_clear_flag(hdev, HCI_SERVICE_CACHE)) {
+		cancel_delayed_work_sync(&hdev->service_cache);
+		err = hci_update_eir_sync(hdev);
+	}
+
+	if (err)
+		return err;
+
+	return hci_update_class_sync(hdev);
 }
 
 static int set_dev_class(struct sock *sk, struct hci_dev *hdev, void *data,
@@ -2271,7 +2282,6 @@ static int set_dev_class(struct sock *sk, struct hci_dev *hdev, void *data,
 {
 	struct mgmt_cp_set_dev_class *cp = data;
 	struct mgmt_pending_cmd *cmd;
-	struct hci_request req;
 	int err;
 
 	bt_dev_dbg(hdev, "sock %p", sk);
@@ -2303,34 +2313,16 @@ static int set_dev_class(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto unlock;
 	}
 
-	hci_req_init(&req, hdev);
-
-	if (hci_dev_test_and_clear_flag(hdev, HCI_SERVICE_CACHE)) {
-		hci_dev_unlock(hdev);
-		cancel_delayed_work_sync(&hdev->service_cache);
-		hci_dev_lock(hdev);
-		__hci_req_update_eir(&req);
-	}
-
-	__hci_req_update_class(&req);
-
-	err = hci_req_run(&req, set_class_complete);
-	if (err < 0) {
-		if (err != -ENODATA)
-			goto unlock;
-
-		err = mgmt_cmd_complete(sk, hdev->id, MGMT_OP_SET_DEV_CLASS, 0,
-					hdev->dev_class, 3);
-		goto unlock;
-	}
-
-	cmd = mgmt_pending_add(sk, MGMT_OP_SET_DEV_CLASS, hdev, data, len);
+	cmd = mgmt_pending_new(sk, MGMT_OP_SET_DEV_CLASS, hdev, data, len);
 	if (!cmd) {
 		err = -ENOMEM;
 		goto unlock;
 	}
 
-	err = 0;
+	err = hci_cmd_sync_queue(hdev, set_class_sync, cmd,
+				 mgmt_class_complete);
+	if (err < 0)
+		mgmt_pending_free(cmd);
 
 unlock:
 	hci_dev_unlock(hdev);
@@ -5494,11 +5486,15 @@ done:
 	return err;
 }
 
+static int set_device_id_sync(struct hci_dev *hdev, void *data)
+{
+	return hci_update_eir_sync(hdev);
+}
+
 static int set_device_id(struct sock *sk, struct hci_dev *hdev, void *data,
 			 u16 len)
 {
 	struct mgmt_cp_set_device_id *cp = data;
-	struct hci_request req;
 	int err;
 	__u16 source;
 
@@ -5520,9 +5516,7 @@ static int set_device_id(struct sock *sk, struct hci_dev *hdev, void *data,
 	err = mgmt_cmd_complete(sk, hdev->id, MGMT_OP_SET_DEVICE_ID, 0,
 				NULL, 0);
 
-	hci_req_init(&req, hdev);
-	__hci_req_update_eir(&req);
-	hci_req_run(&req, NULL);
+	hci_cmd_sync_queue(hdev, set_device_id_sync, NULL, NULL);
 
 	hci_dev_unlock(hdev);
 

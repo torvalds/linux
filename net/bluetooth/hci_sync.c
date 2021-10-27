@@ -11,6 +11,7 @@
 
 #include "hci_request.h"
 #include "smp.h"
+#include "eir.h"
 
 static void hci_cmd_sync_complete(struct hci_dev *hdev, u8 result, u16 opcode,
 				  struct sk_buff *skb)
@@ -328,3 +329,74 @@ int hci_cmd_sync_queue(struct hci_dev *hdev, hci_cmd_sync_work_func_t func,
 	return 0;
 }
 EXPORT_SYMBOL(hci_cmd_sync_queue);
+
+int hci_update_eir_sync(struct hci_dev *hdev)
+{
+	struct hci_cp_write_eir cp;
+
+	bt_dev_dbg(hdev, "");
+
+	if (!hdev_is_powered(hdev))
+		return 0;
+
+	if (!lmp_ext_inq_capable(hdev))
+		return 0;
+
+	if (!hci_dev_test_flag(hdev, HCI_SSP_ENABLED))
+		return 0;
+
+	if (hci_dev_test_flag(hdev, HCI_SERVICE_CACHE))
+		return 0;
+
+	memset(&cp, 0, sizeof(cp));
+
+	eir_create(hdev, cp.data);
+
+	if (memcmp(cp.data, hdev->eir, sizeof(cp.data)) == 0)
+		return 0;
+
+	memcpy(hdev->eir, cp.data, sizeof(cp.data));
+
+	return __hci_cmd_sync_status(hdev, HCI_OP_WRITE_EIR, sizeof(cp), &cp,
+				     HCI_CMD_TIMEOUT);
+}
+
+static u8 get_service_classes(struct hci_dev *hdev)
+{
+	struct bt_uuid *uuid;
+	u8 val = 0;
+
+	list_for_each_entry(uuid, &hdev->uuids, list)
+		val |= uuid->svc_hint;
+
+	return val;
+}
+
+int hci_update_class_sync(struct hci_dev *hdev)
+{
+	u8 cod[3];
+
+	bt_dev_dbg(hdev, "");
+
+	if (!hdev_is_powered(hdev))
+		return 0;
+
+	if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
+		return 0;
+
+	if (hci_dev_test_flag(hdev, HCI_SERVICE_CACHE))
+		return 0;
+
+	cod[0] = hdev->minor_class;
+	cod[1] = hdev->major_class;
+	cod[2] = get_service_classes(hdev);
+
+	if (hci_dev_test_flag(hdev, HCI_LIMITED_DISCOVERABLE))
+		cod[1] |= 0x20;
+
+	if (memcmp(cod, hdev->dev_class, 3) == 0)
+		return 0;
+
+	return __hci_cmd_sync_status(hdev, HCI_OP_WRITE_CLASS_OF_DEV,
+				     sizeof(cod), cod, HCI_CMD_TIMEOUT);
+}

@@ -227,7 +227,7 @@ void mgmt_pending_foreach(u16 opcode, struct hci_dev *hdev,
 	}
 }
 
-struct mgmt_pending_cmd *mgmt_pending_add(struct sock *sk, u16 opcode,
+struct mgmt_pending_cmd *mgmt_pending_new(struct sock *sk, u16 opcode,
 					  struct hci_dev *hdev,
 					  void *data, u16 len)
 {
@@ -250,6 +250,19 @@ struct mgmt_pending_cmd *mgmt_pending_add(struct sock *sk, u16 opcode,
 
 	cmd->sk = sk;
 	sock_hold(sk);
+
+	return cmd;
+}
+
+struct mgmt_pending_cmd *mgmt_pending_add(struct sock *sk, u16 opcode,
+					  struct hci_dev *hdev,
+					  void *data, u16 len)
+{
+	struct mgmt_pending_cmd *cmd;
+
+	cmd = mgmt_pending_new(sk, opcode, hdev, data, len);
+	if (!cmd)
+		return NULL;
 
 	list_add(&cmd->list, &hdev->mgmt_pending);
 
