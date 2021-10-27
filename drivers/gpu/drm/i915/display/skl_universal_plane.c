@@ -2016,6 +2016,28 @@ static bool gen12_plane_has_mc_ccs(struct drm_i915_private *i915,
 	return plane_id < PLANE_SPRITE4;
 }
 
+static u8 skl_get_plane_caps(struct drm_i915_private *i915,
+			     enum pipe pipe, enum plane_id plane_id)
+{
+	u8 caps = INTEL_PLANE_CAP_TILING_X;
+
+	if (DISPLAY_VER(i915) < 13 || IS_ALDERLAKE_P(i915))
+		caps |= INTEL_PLANE_CAP_TILING_Y;
+	if (DISPLAY_VER(i915) < 12)
+		caps |= INTEL_PLANE_CAP_TILING_Yf;
+
+	if (skl_plane_has_rc_ccs(i915, pipe, plane_id)) {
+		caps |= INTEL_PLANE_CAP_CCS_RC;
+		if (DISPLAY_VER(i915) >= 12)
+			caps |= INTEL_PLANE_CAP_CCS_RC_CC;
+	}
+
+	if (gen12_plane_has_mc_ccs(i915, plane_id))
+		caps |= INTEL_PLANE_CAP_CCS_MC;
+
+	return caps;
+}
+
 struct intel_plane *
 skl_universal_plane_create(struct drm_i915_private *dev_priv,
 			   enum pipe pipe, enum plane_id plane_id)
@@ -2023,7 +2045,6 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 	const struct drm_plane_funcs *plane_funcs;
 	struct intel_plane *plane;
 	enum drm_plane_type plane_type;
-	u8 plane_caps;
 	unsigned int supported_rotations;
 	unsigned int supported_csc;
 	const u64 *modifiers;
@@ -2095,14 +2116,8 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 	else
 		plane_type = DRM_PLANE_TYPE_OVERLAY;
 
-	plane_caps = PLANE_HAS_TILING;
-	if (skl_plane_has_rc_ccs(dev_priv, pipe, plane_id))
-		plane_caps |= PLANE_HAS_CCS_RC;
-
-	if (gen12_plane_has_mc_ccs(dev_priv, plane_id))
-		plane_caps |= PLANE_HAS_CCS_MC;
-
-	modifiers = intel_fb_plane_get_modifiers(dev_priv, plane_caps);
+	modifiers = intel_fb_plane_get_modifiers(dev_priv,
+						 skl_get_plane_caps(dev_priv, pipe, plane_id));
 
 	ret = drm_universal_plane_init(&dev_priv->drm, &plane->base,
 				       0, plane_funcs,

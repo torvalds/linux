@@ -20,12 +20,13 @@ struct intel_framebuffer;
 struct intel_plane;
 struct intel_plane_state;
 
-enum intel_plane_caps {
-	PLANE_HAS_NO_CAPS = 0,
-	PLANE_HAS_TILING = BIT(0),
-	PLANE_HAS_CCS_RC = BIT(1),
-	PLANE_HAS_CCS_MC = BIT(2),
-};
+#define INTEL_PLANE_CAP_NONE		0
+#define INTEL_PLANE_CAP_CCS_RC		BIT(0)
+#define INTEL_PLANE_CAP_CCS_RC_CC	BIT(1)
+#define INTEL_PLANE_CAP_CCS_MC		BIT(2)
+#define INTEL_PLANE_CAP_TILING_X	BIT(3)
+#define INTEL_PLANE_CAP_TILING_Y	BIT(4)
+#define INTEL_PLANE_CAP_TILING_Yf	BIT(5)
 
 bool intel_fb_is_ccs_modifier(u64 modifier);
 bool intel_fb_is_rc_ccs_cc_modifier(u64 modifier);
