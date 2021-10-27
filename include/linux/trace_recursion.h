@@ -155,6 +155,9 @@ extern void ftrace_record_recursion(unsigned long ip, unsigned long parent_ip);
 # define do_ftrace_record_recursion(ip, pip)	do { } while (0)
 #endif
 
+/*
+ * Preemption is promised to be disabled when return bit >= 0.
+ */
 static __always_inline int trace_test_and_set_recursion(unsigned long ip, unsigned long pip,
 							int start, int max)
 {
@@ -189,14 +192,20 @@ static __always_inline int trace_test_and_set_recursion(unsigned long ip, unsign
 	current->trace_recursion = val;
 	barrier();
 
+	preempt_disable_notrace();
+
 	return bit + 1;
 }
 
+/*
+ * Preemption will be enabled (if it was previously enabled).
+ */
 static __always_inline void trace_clear_recursion(int bit)
 {
 	if (!bit)
 		return;
 
+	preempt_enable_notrace();
 	barrier();
 	bit--;
 	trace_recursion_clear(bit);
@@ -209,7 +218,7 @@ static __always_inline void trace_clear_recursion(int bit)
  * tracing recursed in the same context (normal vs interrupt),
  *
  * Returns: -1 if a recursion happened.
- *           >= 0 if no recursion
+ *           >= 0 if no recursion.
  */
 static __always_inline int ftrace_test_recursion_trylock(unsigned long ip,
 							 unsigned long parent_ip)
