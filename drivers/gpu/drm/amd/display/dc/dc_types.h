@@ -653,6 +653,7 @@ enum dc_psr_state {
 	PSR_STATE1a,
 	PSR_STATE2,
 	PSR_STATE2a,
+	PSR_STATE2b,
 	PSR_STATE3,
 	PSR_STATE3Init,
 	PSR_STATE4,

@@ -674,13 +674,13 @@ static void query_hdcp_capability(enum signal_type signal, struct dc_link *link)
 
 static void read_current_link_settings_on_detect(struct dc_link *link)
 {
-	union lane_count_set lane_count_set = { {0} };
+	union lane_count_set lane_count_set = {0};
 	uint8_t link_bw_set;
 	uint8_t link_rate_set;
 	uint32_t read_dpcd_retry_cnt = 10;
 	enum dc_status status = DC_ERROR_UNEXPECTED;
 	int i;
-	union max_down_spread max_down_spread = { {0} };
+	union max_down_spread max_down_spread = {0};
 
 	// Read DPCD 00101h to find out the number of lanes currently set
 	for (i = 0; i < read_dpcd_retry_cnt; i++) {
@@ -1869,8 +1869,13 @@ static enum dc_status enable_link_dp(struct dc_state *state,
 		do_fallback = true;
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
+	/*
+	 * Temporary w/a to get DP2.0 link rates to work with SST.
+	 * TODO DP2.0 - Workaround: Remove w/a if and when the issue is resolved.
+	 */
 	if (dp_get_link_encoding_format(&link_settings) == DP_128b_132b_ENCODING &&
-			pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT) {
+			pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT &&
+			link->dc->debug.set_mst_en_for_sst) {
 		dp_enable_mst_on_sink(link, true);
 	}
 #endif
@@ -1981,51 +1986,6 @@ static enum dc_status enable_link_dp_mst(
 	dp_enable_mst_on_sink(link, true);
 
 	return enable_link_dp(state, pipe_ctx);
-}
-
-void blank_all_dp_displays(struct dc *dc, bool hw_init)
-{
-	unsigned int i, j, fe;
-	uint8_t dpcd_power_state = '\0';
-	enum dc_status status = DC_ERROR_UNEXPECTED;
-
-	for (i = 0; i < dc->link_count; i++) {
-		enum signal_type signal = dc->links[i]->connector_signal;
-
-		if ((signal == SIGNAL_TYPE_EDP) ||
-			(signal == SIGNAL_TYPE_DISPLAY_PORT)) {
-			if (hw_init && signal != SIGNAL_TYPE_EDP && dc->links[i]->priv != NULL) {
-				/* DP 2.0 spec requires that we read LTTPR caps first */
-				dp_retrieve_lttpr_cap(dc->links[i]);
-				/* if any of the displays are lit up turn them off */
-				status = core_link_read_dpcd(dc->links[i], DP_SET_POWER,
-							&dpcd_power_state, sizeof(dpcd_power_state));
-			}
-
-			if ((signal != SIGNAL_TYPE_EDP && status == DC_OK && dpcd_power_state == DP_POWER_STATE_D0) ||
-					(!hw_init && dc->links[i]->link_enc &&
-					dc->links[i]->link_enc->funcs->is_dig_enabled(dc->links[i]->link_enc))) {
-				if (dc->links[i]->link_enc->funcs->get_dig_frontend) {
-					fe = dc->links[i]->link_enc->funcs->get_dig_frontend(dc->links[i]->link_enc);
-					if (fe == ENGINE_ID_UNKNOWN)
-						continue;
-
-					for (j = 0; j < dc->res_pool->stream_enc_count; j++) {
-						if (fe == dc->res_pool->stream_enc[j]->id) {
-							dc->res_pool->stream_enc[j]->funcs->dp_blank(dc->links[i],
-									dc->res_pool->stream_enc[j]);
-							break;
-						}
-					}
-				}
-
-				if (!dc->links[i]->wa_flags.dp_keep_receiver_powered ||
-					(hw_init && signal != SIGNAL_TYPE_EDP && dc->links[i]->priv != NULL))
-					dp_receiver_power_ctrl(dc->links[i], false);
-			}
-		}
-	}
-
 }
 
 static bool get_ext_hdmi_settings(struct pipe_ctx *pipe_ctx,
@@ -3274,8 +3234,7 @@ static void update_mst_stream_alloc_table(
 	struct stream_encoder *stream_enc,
 	const struct dp_mst_stream_allocation_table *proposed_table)
 {
-	struct link_mst_stream_allocation work_table[MAX_CONTROLLER_NUM] = {
-			{ 0 } };
+	struct link_mst_stream_allocation work_table[MAX_CONTROLLER_NUM] = { 0 };
 	struct link_mst_stream_allocation *dc_alloc;
 
 	int i;
@@ -3434,7 +3393,7 @@ enum dc_status dc_link_allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	struct fixed31_32 avg_time_slots_per_mtp;
 	struct fixed31_32 pbn;
 	struct fixed31_32 pbn_per_slot;
-	uint8_t i;
+	int i;
 	enum act_return_status ret;
 	DC_LOGGER_INIT(link->ctx->logger);
 
@@ -3526,7 +3485,7 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	struct stream_encoder *stream_encoder = pipe_ctx->stream_res.stream_enc;
 	struct dp_mst_stream_allocation_table proposed_table = {0};
 	struct fixed31_32 avg_time_slots_per_mtp = dc_fixpt_from_int(0);
-	uint8_t i;
+	int i;
 	bool mst_mode = (link->type == dc_connection_mst_branch);
 	DC_LOGGER_INIT(link->ctx->logger);
 

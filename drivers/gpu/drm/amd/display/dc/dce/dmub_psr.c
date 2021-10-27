@@ -50,6 +50,8 @@ static enum dc_psr_state convert_psr_state(uint32_t raw_state)
 		state = PSR_STATE2;
 	else if (raw_state == 0x21)
 		state = PSR_STATE2a;
+	else if (raw_state == 0x22)
+		state = PSR_STATE2b;
 	else if (raw_state == 0x30)
 		state = PSR_STATE3;
 	else if (raw_state == 0x31)

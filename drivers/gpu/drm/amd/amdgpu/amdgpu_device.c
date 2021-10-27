@@ -2398,10 +2398,6 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 	if (!adev->gmc.xgmi.pending_reset)
 		amdgpu_amdkfd_device_init(adev);
 
-	r = amdgpu_amdkfd_resume_iommu(adev);
-	if (r)
-		goto init_failed;
-
 	amdgpu_fru_get_product_info(adev);
 
 init_failed:
@@ -3839,9 +3835,9 @@ void amdgpu_device_fini_hw(struct amdgpu_device *adev)
 
 	amdgpu_fbdev_fini(adev);
 
-	amdgpu_irq_fini_hw(adev);
-
 	amdgpu_device_ip_fini_early(adev);
+
+	amdgpu_irq_fini_hw(adev);
 
 	ttm_device_clear_dma_mappings(&adev->mman.bdev);
 
