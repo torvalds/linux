@@ -146,26 +146,30 @@ static int mdsc_show(struct seq_file *s, void *p)
 		   name, total, avg, _min, max, sum);			\
 }
 
-static int metric_show(struct seq_file *s, void *p)
+static int metrics_file_show(struct seq_file *s, void *p)
 {
 	struct ceph_fs_client *fsc = s->private;
-	struct ceph_mds_client *mdsc = fsc->mdsc;
-	struct ceph_client_metric *m = &mdsc->metric;
-	int nr_caps = 0;
-	s64 total, sum, avg, min, max, sq;
-	u64 sum_sz, avg_sz, min_sz, max_sz;
+	struct ceph_client_metric *m = &fsc->mdsc->metric;
 
-	sum = percpu_counter_sum(&m->total_inodes);
 	seq_printf(s, "item                               total\n");
 	seq_printf(s, "------------------------------------------\n");
-	seq_printf(s, "%-35s%lld / %lld\n", "opened files  / total inodes",
-		   atomic64_read(&m->opened_files), sum);
-	seq_printf(s, "%-35s%lld / %lld\n", "pinned i_caps / total inodes",
-		   atomic64_read(&m->total_caps), sum);
-	seq_printf(s, "%-35s%lld / %lld\n", "opened inodes / total inodes",
-		   percpu_counter_sum(&m->opened_inodes), sum);
+	seq_printf(s, "%-35s%lld\n", "total inodes",
+		   percpu_counter_sum(&m->total_inodes));
+	seq_printf(s, "%-35s%lld\n", "opened files",
+		   atomic64_read(&m->opened_files));
+	seq_printf(s, "%-35s%lld\n", "pinned i_caps",
+		   atomic64_read(&m->total_caps));
+	seq_printf(s, "%-35s%lld\n", "opened inodes",
+		   percpu_counter_sum(&m->opened_inodes));
+	return 0;
+}
 
-	seq_printf(s, "\n");
+static int metrics_latency_show(struct seq_file *s, void *p)
+{
+	struct ceph_fs_client *fsc = s->private;
+	struct ceph_client_metric *m = &fsc->mdsc->metric;
+	s64 total, sum, avg, min, max, sq;
+
 	seq_printf(s, "item          total       avg_lat(us)     min_lat(us)     max_lat(us)     stdev(us)\n");
 	seq_printf(s, "-----------------------------------------------------------------------------------\n");
 
@@ -199,7 +203,16 @@ static int metric_show(struct seq_file *s, void *p)
 	spin_unlock(&m->metadata_metric_lock);
 	CEPH_LAT_METRIC_SHOW("metadata", total, avg, min, max, sq);
 
-	seq_printf(s, "\n");
+	return 0;
+}
+
+static int metrics_size_show(struct seq_file *s, void *p)
+{
+	struct ceph_fs_client *fsc = s->private;
+	struct ceph_client_metric *m = &fsc->mdsc->metric;
+	s64 total;
+	u64 sum_sz, avg_sz, min_sz, max_sz;
+
 	seq_printf(s, "item          total       avg_sz(bytes)   min_sz(bytes)   max_sz(bytes)  total_sz(bytes)\n");
 	seq_printf(s, "----------------------------------------------------------------------------------------\n");
 
@@ -221,7 +234,15 @@ static int metric_show(struct seq_file *s, void *p)
 	spin_unlock(&m->write_metric_lock);
 	CEPH_SZ_METRIC_SHOW("write", total, avg_sz, min_sz, max_sz, sum_sz);
 
-	seq_printf(s, "\n");
+	return 0;
+}
+
+static int metrics_caps_show(struct seq_file *s, void *p)
+{
+	struct ceph_fs_client *fsc = s->private;
+	struct ceph_client_metric *m = &fsc->mdsc->metric;
+	int nr_caps = 0;
+
 	seq_printf(s, "item          total           miss            hit\n");
 	seq_printf(s, "-------------------------------------------------\n");
 
@@ -350,8 +371,11 @@ DEFINE_SHOW_ATTRIBUTE(mdsmap);
 DEFINE_SHOW_ATTRIBUTE(mdsc);
 DEFINE_SHOW_ATTRIBUTE(caps);
 DEFINE_SHOW_ATTRIBUTE(mds_sessions);
-DEFINE_SHOW_ATTRIBUTE(metric);
 DEFINE_SHOW_ATTRIBUTE(status);
+DEFINE_SHOW_ATTRIBUTE(metrics_file);
+DEFINE_SHOW_ATTRIBUTE(metrics_latency);
+DEFINE_SHOW_ATTRIBUTE(metrics_size);
+DEFINE_SHOW_ATTRIBUTE(metrics_caps);
 
 
 /*
@@ -385,8 +409,9 @@ void ceph_fs_debugfs_cleanup(struct ceph_fs_client *fsc)
 	debugfs_remove(fsc->debugfs_mdsmap);
 	debugfs_remove(fsc->debugfs_mds_sessions);
 	debugfs_remove(fsc->debugfs_caps);
-	debugfs_remove(fsc->debugfs_metric);
+	debugfs_remove(fsc->debugfs_status);
 	debugfs_remove(fsc->debugfs_mdsc);
+	debugfs_remove_recursive(fsc->debugfs_metrics_dir);
 }
 
 void ceph_fs_debugfs_init(struct ceph_fs_client *fsc)
@@ -426,12 +451,6 @@ void ceph_fs_debugfs_init(struct ceph_fs_client *fsc)
 						fsc,
 						&mdsc_fops);
 
-	fsc->debugfs_metric = debugfs_create_file("metrics",
-						  0400,
-						  fsc->client->debugfs_dir,
-						  fsc,
-						  &metric_fops);
-
 	fsc->debugfs_caps = debugfs_create_file("caps",
 						0400,
 						fsc->client->debugfs_dir,
@@ -443,6 +462,18 @@ void ceph_fs_debugfs_init(struct ceph_fs_client *fsc)
 						  fsc->client->debugfs_dir,
 						  fsc,
 						  &status_fops);
+
+	fsc->debugfs_metrics_dir = debugfs_create_dir("metrics",
+						      fsc->client->debugfs_dir);
+
+	debugfs_create_file("file", 0400, fsc->debugfs_metrics_dir, fsc,
+			    &metrics_file_fops);
+	debugfs_create_file("latency", 0400, fsc->debugfs_metrics_dir, fsc,
+			    &metrics_latency_fops);
+	debugfs_create_file("size", 0400, fsc->debugfs_metrics_dir, fsc,
+			    &metrics_size_fops);
+	debugfs_create_file("caps", 0400, fsc->debugfs_metrics_dir, fsc,
+			    &metrics_caps_fops);
 }
 
 

@@ -129,9 +129,9 @@ struct ceph_fs_client {
 	struct dentry *debugfs_congestion_kb;
 	struct dentry *debugfs_bdi;
 	struct dentry *debugfs_mdsc, *debugfs_mdsmap;
-	struct dentry *debugfs_metric;
 	struct dentry *debugfs_status;
 	struct dentry *debugfs_mds_sessions;
+	struct dentry *debugfs_metrics_dir;
 #endif
 
 #ifdef CONFIG_CEPH_FSCACHE
