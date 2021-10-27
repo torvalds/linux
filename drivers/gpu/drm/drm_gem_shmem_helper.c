@@ -777,4 +777,5 @@ drm_gem_shmem_prime_import_sg_table(struct drm_device *dev,
 EXPORT_SYMBOL_GPL(drm_gem_shmem_prime_import_sg_table);
 
 MODULE_DESCRIPTION("DRM SHMEM memory-management helpers");
+MODULE_IMPORT_NS(DMA_BUF);
 MODULE_LICENSE("GPL v2");
