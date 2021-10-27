@@ -15,6 +15,7 @@
 
 #define MAX_NO_PROPS 2
 #define MAX_HDMI_NUM 4
+#define SDW_AMP_DAI_ID 2
 #define SDW_DMIC_DAI_ID 4
 #define SDW_MAX_CPU_DAIS 16
 #define SDW_INTEL_BIDIR_PDI_BASE 2
@@ -52,9 +53,14 @@ enum {
 	(((quirk) << SOF_BT_OFFLOAD_SSP_SHIFT) & SOF_BT_OFFLOAD_SSP_MASK)
 #define SOF_SSP_BT_OFFLOAD_PRESENT	BIT(18)
 
+#define SOF_SDW_CODEC_TYPE_JACK		0
+#define SOF_SDW_CODEC_TYPE_AMP		1
+#define SOF_SDW_CODEC_TYPE_MIC		2
+
 struct sof_sdw_codec_info {
 	const int part_id;
 	const int version_id;
+	const int codec_type;
 	int amp_num;
 	const u8 acpi_id[ACPI_ID_LEN];
 	const bool direction[2]; // playback & capture support
