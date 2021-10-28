@@ -11291,7 +11291,6 @@ F:	Documentation/networking/device_drivers/ethernet/marvell/octeontx2.rst
 F:	drivers/net/ethernet/marvell/octeontx2/af/
 
 MARVELL PRESTERA ETHERNET SWITCH DRIVER
-M:	Vadym Kochan <vkochan@marvell.com>
 M:	Taras Chornyi <tchornyi@marvell.com>
 S:	Supported
 W:	https://github.com/Marvell-switching/switchdev-prestera
