@@ -215,8 +215,8 @@ static const struct regmap_config ti_sn65dsi86_regmap_config = {
 	.cache_type = REGCACHE_NONE,
 };
 
-static int ti_sn65dsi86_read_u16(struct ti_sn65dsi86 *pdata,
-				 unsigned int reg, u16 *val)
+static int __maybe_unused ti_sn65dsi86_read_u16(struct ti_sn65dsi86 *pdata,
+						unsigned int reg, u16 *val)
 {
 	u8 buf[2];
 	int ret;
