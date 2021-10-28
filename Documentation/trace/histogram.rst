@@ -1764,7 +1764,7 @@ using the same key and variable from yet another event::
   # echo 'hist:key=pid:wakeupswitch_lat=$wakeup_lat+$switchtime_lat ...' >> event3/trigger
 
 Expressions support the use of addition, subtraction, multiplication and
-division operators (+-*/).
+division operators (+-\*/).
 
 Note that division by zero always returns -1.
 
