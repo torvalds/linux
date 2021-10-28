@@ -435,6 +435,11 @@ static void hsw_power_well_enable(struct drm_i915_private *dev_priv,
 
 		pg = DISPLAY_VER(dev_priv) >= 11 ? ICL_PW_CTL_IDX_TO_PG(pw_idx) :
 						 SKL_PW_CTL_IDX_TO_PG(pw_idx);
+
+		/* Wa_16013190616:adlp */
+		if (IS_ALDERLAKE_P(dev_priv) && pg == SKL_PG1)
+			intel_de_rmw(dev_priv, GEN8_CHICKEN_DCPR_1, 0, DISABLE_FLR_SRC);
+
 		/*
 		 * For PW1 we have to wait both for the PW0/PG0 fuse state
 		 * before enabling the power well and PW1/PG1's own fuse
