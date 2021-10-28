@@ -544,7 +544,7 @@ static int mlx5e_build_shampo_hd_umr(struct mlx5e_rq *rq,
 {
 	struct mlx5e_shampo_hd *shampo = rq->mpwqe.shampo;
 	u16 entries, pi, i, header_offset, err, wqe_bbs, new_entries;
-	u32 lkey = rq->mdev->mlx5e_res.hw_objs.mkey.key;
+	u32 lkey = rq->mdev->mlx5e_res.hw_objs.mkey;
 	struct page *page = shampo->last_page;
 	u64 addr = shampo->last_addr;
 	struct mlx5e_dma_info *dma_info;
