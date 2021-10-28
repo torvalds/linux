@@ -29,12 +29,6 @@ static const struct ia_css_raw_configuration default_config = {
 	.pipe = (struct sh_css_sp_pipeline *)NULL,
 };
 
-static inline unsigned
-sh_css_elems_bytes_from_info(unsigned int raw_bit_depth)
-{
-	return CEIL_DIV(raw_bit_depth, 8);
-}
-
 /* MW: These areMIPI / ISYS properties, not camera function properties */
 static enum sh_stream_format
 css2isp_stream_format(enum atomisp_input_format from) {
