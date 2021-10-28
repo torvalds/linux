@@ -6147,8 +6147,7 @@ T:	git git://anongit.freedesktop.org/drm/drm
 F:	Documentation/devicetree/bindings/display/
 F:	Documentation/devicetree/bindings/gpu/
 F:	Documentation/gpu/
-F:	drivers/gpu/drm/
-F:	drivers/gpu/vga/
+F:	drivers/gpu/
 F:	include/drm/
 F:	include/linux/vga*
 F:	include/uapi/drm/
