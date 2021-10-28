@@ -301,7 +301,7 @@ static int init_output_elf(struct bpf_linker *linker, const char *file)
 	if (!linker->filename)
 		return -ENOMEM;
 
-	linker->fd = open(file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+	linker->fd = open(file, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
 	if (linker->fd < 0) {
 		err = -errno;
 		pr_warn("failed to create '%s': %d\n", file, err);
@@ -556,7 +556,7 @@ static int linker_load_obj_file(struct bpf_linker *linker, const char *filename,
 
 	obj->filename = filename;
 
-	obj->fd = open(filename, O_RDONLY);
+	obj->fd = open(filename, O_RDONLY | O_CLOEXEC);
 	if (obj->fd < 0) {
 		err = -errno;
 		pr_warn("failed to open file '%s': %d\n", filename, err);
