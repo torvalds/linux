@@ -173,6 +173,8 @@ static inline void cpuset_init_smp(void) {}
 
 static inline void cpuset_force_rebuild(void) { }
 
+static inline void cpuset_update_active_cpus_affine(int cpu) {}
+
 static inline void cpuset_update_active_cpus(void)
 {
 	partition_sched_domains(1, NULL, NULL);
