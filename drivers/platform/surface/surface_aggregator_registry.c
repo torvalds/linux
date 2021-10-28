@@ -283,8 +283,8 @@ static int ssam_hub_add_device(struct device *parent, struct ssam_controller *ct
 	return status;
 }
 
-static int ssam_hub_add_devices(struct device *parent, struct ssam_controller *ctrl,
-				struct fwnode_handle *node)
+static int ssam_hub_register_clients(struct device *parent, struct ssam_controller *ctrl,
+				     struct fwnode_handle *node)
 {
 	struct fwnode_handle *child;
 	int status;
@@ -398,7 +398,7 @@ static void ssam_base_hub_update_workfn(struct work_struct *work)
 	hub->state = state;
 
 	if (hub->state == SSAM_BASE_HUB_CONNECTED)
-		status = ssam_hub_add_devices(&hub->sdev->dev, hub->sdev->ctrl, node);
+		status = ssam_hub_register_clients(&hub->sdev->dev, hub->sdev->ctrl, node);
 	else
 		ssam_remove_clients(&hub->sdev->dev);
 
@@ -597,7 +597,7 @@ static int ssam_platform_hub_probe(struct platform_device *pdev)
 
 	set_secondary_fwnode(&pdev->dev, root);
 
-	status = ssam_hub_add_devices(&pdev->dev, ctrl, root);
+	status = ssam_hub_register_clients(&pdev->dev, ctrl, root);
 	if (status) {
 		set_secondary_fwnode(&pdev->dev, NULL);
 		software_node_unregister_node_group(nodes);
