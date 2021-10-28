@@ -269,7 +269,7 @@ bool sctp_transport_pl_send(struct sctp_transport *t)
 		if (t->pl.probe_size == SCTP_BASE_PLPMTU) { /* BASE_PLPMTU Confirmation Failed */
 			t->pl.state = SCTP_PL_ERROR; /* Base -> Error */
 
-			t->pl.pmtu = SCTP_MIN_PLPMTU;
+			t->pl.pmtu = SCTP_BASE_PLPMTU;
 			t->pathmtu = t->pl.pmtu + sctp_transport_pl_hlen(t);
 			sctp_assoc_sync_pmtu(t->asoc);
 		}
@@ -366,7 +366,7 @@ static bool sctp_transport_pl_toobig(struct sctp_transport *t, u32 pmtu)
 		if (pmtu >= SCTP_MIN_PLPMTU && pmtu < SCTP_BASE_PLPMTU) {
 			t->pl.state = SCTP_PL_ERROR; /* Base -> Error */
 
-			t->pl.pmtu = SCTP_MIN_PLPMTU;
+			t->pl.pmtu = SCTP_BASE_PLPMTU;
 			t->pathmtu = t->pl.pmtu + sctp_transport_pl_hlen(t);
 		}
 	} else if (t->pl.state == SCTP_PL_SEARCH) {
