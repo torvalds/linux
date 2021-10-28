@@ -97,9 +97,6 @@ config GENERIC_MSI_IRQ_DOMAIN
 config IRQ_MSI_IOMMU
 	bool
 
-config HANDLE_DOMAIN_IRQ
-	bool
-
 config IRQ_TIMINGS
 	bool
 

@@ -230,7 +230,7 @@ static void __exception_irq_entry mmp_handle_irq(struct pt_regs *regs)
 	if (!(hwirq & SEL_INT_PENDING))
 		return;
 	hwirq &= SEL_INT_NUM_MASK;
-	handle_domain_irq(icu_data[0].domain, hwirq, regs);
+	generic_handle_domain_irq(icu_data[0].domain, hwirq);
 }
 
 static void __exception_irq_entry mmp2_handle_irq(struct pt_regs *regs)
@@ -241,7 +241,7 @@ static void __exception_irq_entry mmp2_handle_irq(struct pt_regs *regs)
 	if (!(hwirq & SEL_INT_PENDING))
 		return;
 	hwirq &= SEL_INT_NUM_MASK;
-	handle_domain_irq(icu_data[0].domain, hwirq, regs);
+	generic_handle_domain_irq(icu_data[0].domain, hwirq);
 }
 
 /* MMP (ARMv5) */
