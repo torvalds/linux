@@ -228,6 +228,15 @@ static const struct software_node *ssam_node_group_sp7[] = {
 	NULL,
 };
 
+static const struct software_node *ssam_node_group_sp8[] = {
+	&ssam_node_root,
+	&ssam_node_bat_ac,
+	&ssam_node_bat_main,
+	&ssam_node_tmp_pprof,
+	/* TODO: Add support for keyboard cover. */
+	NULL,
+};
+
 
 /* -- Device registry helper functions. ------------------------------------- */
 
@@ -533,6 +542,9 @@ static const struct acpi_device_id ssam_platform_hub_match[] = {
 
 	/* Surface Pro 7+ */
 	{ "MSHW0119", (unsigned long)ssam_node_group_sp7 },
+
+	/* Surface Pro 8 */
+	{ "MSHW0263", (unsigned long)ssam_node_group_sp8 },
 
 	/* Surface Book 2 */
 	{ "MSHW0107", (unsigned long)ssam_node_group_gen5 },
