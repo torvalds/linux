@@ -1310,15 +1310,9 @@ static inline bool __sk_stream_memory_free(const struct sock *sk, int wake)
 	if (READ_ONCE(sk->sk_wmem_queued) >= READ_ONCE(sk->sk_sndbuf))
 		return false;
 
-#ifdef CONFIG_INET
 	return sk->sk_prot->stream_memory_free ?
-		INDIRECT_CALL_1(sk->sk_prot->stream_memory_free,
-			        tcp_stream_memory_free,
-				sk, wake) : true;
-#else
-	return sk->sk_prot->stream_memory_free ?
-		sk->sk_prot->stream_memory_free(sk, wake) : true;
-#endif
+		INDIRECT_CALL_INET_1(sk->sk_prot->stream_memory_free,
+				     tcp_stream_memory_free, sk, wake) : true;
 }
 
 static inline bool sk_stream_memory_free(const struct sock *sk)
