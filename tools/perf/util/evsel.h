@@ -484,4 +484,17 @@ struct evsel *evsel__leader(struct evsel *evsel);
 bool evsel__has_leader(struct evsel *evsel, struct evsel *leader);
 bool evsel__is_leader(struct evsel *evsel);
 void evsel__set_leader(struct evsel *evsel, struct evsel *leader);
+
+/*
+ * Macro to swap the bit-field postition and size.
+ * Used when,
+ * - dont need to swap the entire u64 &&
+ * - when u64 has variable bit-field sizes &&
+ * - when presented in a host endian which is different
+ *   than the source endian of the perf.data file
+ */
+#define bitfield_swap(src, pos, size)	\
+	((((src) >> (pos)) & ((1ull << (size)) - 1)) << (63 - ((pos) + (size) - 1)))
+
+u64 evsel__bitfield_swap_branch_flags(u64 value);
 #endif /* __PERF_EVSEL_H */

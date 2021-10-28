@@ -2238,6 +2238,54 @@ void __weak arch_perf_parse_sample_weight(struct perf_sample *data,
 	data->weight = *array;
 }
 
+u64 evsel__bitfield_swap_branch_flags(u64 value)
+{
+	u64 new_val = 0;
+
+	/*
+	 * branch_flags
+	 * union {
+	 * 	u64 values;
+	 * 	struct {
+	 * 		mispred:1	//target mispredicted
+	 * 		predicted:1	//target predicted
+	 * 		in_tx:1		//in transaction
+	 * 		abort:1		//transaction abort
+	 * 		cycles:16	//cycle count to last branch
+	 * 		type:4		//branch type
+	 * 		reserved:40
+	 * 	}
+	 * }
+	 *
+	 * Avoid bswap64() the entire branch_flag.value,
+	 * as it has variable bit-field sizes. Instead the
+	 * macro takes the bit-field position/size,
+	 * swaps it based on the host endianness.
+	 *
+	 * tep_is_bigendian() is used here instead of
+	 * bigendian() to avoid python test fails.
+	 */
+	if (tep_is_bigendian()) {
+		new_val = bitfield_swap(value, 0, 1);
+		new_val |= bitfield_swap(value, 1, 1);
+		new_val |= bitfield_swap(value, 2, 1);
+		new_val |= bitfield_swap(value, 3, 1);
+		new_val |= bitfield_swap(value, 4, 16);
+		new_val |= bitfield_swap(value, 20, 4);
+		new_val |= bitfield_swap(value, 24, 40);
+	} else {
+		new_val = bitfield_swap(value, 63, 1);
+		new_val |= bitfield_swap(value, 62, 1);
+		new_val |= bitfield_swap(value, 61, 1);
+		new_val |= bitfield_swap(value, 60, 1);
+		new_val |= bitfield_swap(value, 44, 16);
+		new_val |= bitfield_swap(value, 40, 4);
+		new_val |= bitfield_swap(value, 0, 40);
+	}
+
+	return new_val;
+}
+
 int evsel__parse_sample(struct evsel *evsel, union perf_event *event,
 			struct perf_sample *data)
 {
@@ -2425,6 +2473,8 @@ int evsel__parse_sample(struct evsel *evsel, union perf_event *event,
 	if (type & PERF_SAMPLE_BRANCH_STACK) {
 		const u64 max_branch_nr = UINT64_MAX /
 					  sizeof(struct branch_entry);
+		struct branch_entry *e;
+		unsigned int i;
 
 		OVERFLOW_CHECK_u64(array);
 		data->branch_stack = (struct branch_stack *)array++;
@@ -2433,10 +2483,33 @@ int evsel__parse_sample(struct evsel *evsel, union perf_event *event,
 			return -EFAULT;
 
 		sz = data->branch_stack->nr * sizeof(struct branch_entry);
-		if (evsel__has_branch_hw_idx(evsel))
+		if (evsel__has_branch_hw_idx(evsel)) {
 			sz += sizeof(u64);
-		else
+			e = &data->branch_stack->entries[0];
+		} else {
 			data->no_hw_idx = true;
+			/*
+			 * if the PERF_SAMPLE_BRANCH_HW_INDEX is not applied,
+			 * only nr and entries[] will be output by kernel.
+			 */
+			e = (struct branch_entry *)&data->branch_stack->hw_idx;
+		}
+
+		if (swapped) {
+			/*
+			 * struct branch_flag does not have endian
+			 * specific bit field definition. And bswap
+			 * will not resolve the issue, since these
+			 * are bit fields.
+			 *
+			 * evsel__bitfield_swap_branch_flags() uses a
+			 * bitfield_swap macro to swap the bit position
+			 * based on the host endians.
+			 */
+			for (i = 0; i < data->branch_stack->nr; i++, e++)
+				e->flags.value = evsel__bitfield_swap_branch_flags(e->flags.value);
+		}
+
 		OVERFLOW_CHECK(array, sz, max_size);
 		array = (void *)array + sz;
 	}
