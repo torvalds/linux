@@ -27,7 +27,6 @@
 #include <linux/export.h>
 #include <linux/mm.h>
 #include <linux/page-flags.h>
-#include <linux/highmem.h>
 #include <linux/pci.h>
 #include <linux/gfp.h>
 #include <linux/edd.h>
@@ -1228,12 +1227,6 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	/* Prevent unwanted bits from being set in PTEs. */
 	__supported_pte_mask &= ~_PAGE_GLOBAL;
 	__default_kernel_pte_mask &= ~_PAGE_GLOBAL;
-
-	/*
-	 * Prevent page tables from being allocated in highmem, even
-	 * if CONFIG_HIGHPTE is enabled.
-	 */
-	__userpte_alloc_gfp &= ~__GFP_HIGHMEM;
 
 	/* Get mfn list */
 	xen_build_dynamic_phys_to_machine();

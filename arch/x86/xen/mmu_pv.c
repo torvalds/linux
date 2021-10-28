@@ -41,7 +41,6 @@
  * Jeremy Fitzhardinge <jeremy@xensource.com>, XenSource Inc, 2007
  */
 #include <linux/sched/mm.h>
-#include <linux/highmem.h>
 #include <linux/debugfs.h>
 #include <linux/bug.h>
 #include <linux/vmalloc.h>
