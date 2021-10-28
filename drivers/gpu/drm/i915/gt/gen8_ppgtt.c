@@ -651,7 +651,7 @@ static int gen8_init_scratch(struct i915_address_space *vm)
 
 	vm->scratch[0]->encode =
 		gen8_pte_encode(px_dma(vm->scratch[0]),
-				I915_CACHE_LLC, pte_flags);
+				I915_CACHE_NONE, pte_flags);
 
 	for (i = 1; i <= vm->top; i++) {
 		struct drm_i915_gem_object *obj;
@@ -667,7 +667,7 @@ static int gen8_init_scratch(struct i915_address_space *vm)
 		}
 
 		fill_px(obj, vm->scratch[i - 1]->encode);
-		obj->encode = gen8_pde_encode(px_dma(obj), I915_CACHE_LLC);
+		obj->encode = gen8_pde_encode(px_dma(obj), I915_CACHE_NONE);
 
 		vm->scratch[i] = obj;
 	}
