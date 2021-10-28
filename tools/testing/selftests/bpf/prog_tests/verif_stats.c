@@ -8,11 +8,11 @@
 void test_verif_stats(void)
 {
 	__u32 len = sizeof(struct bpf_prog_info);
+	struct trace_vprintk_lskel *skel;
 	struct bpf_prog_info info = {};
-	struct trace_vprintk *skel;
 	int err;
 
-	skel = trace_vprintk__open_and_load();
+	skel = trace_vprintk_lskel__open_and_load();
 	if (!ASSERT_OK_PTR(skel, "trace_vprintk__open_and_load"))
 		goto cleanup;
 
@@ -24,5 +24,5 @@ void test_verif_stats(void)
 		goto cleanup;
 
 cleanup:
-	trace_vprintk__destroy(skel);
+	trace_vprintk_lskel__destroy(skel);
 }
