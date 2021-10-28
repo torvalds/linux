@@ -769,14 +769,18 @@ int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm)
 	int ret;
 	struct iwl_host_cmd cmd;
 	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, PHY_OPS_GROUP,
-					   GEO_TX_POWER_LIMIT,
+					   PER_CHAIN_LIMIT_OFFSET_CMD,
 					   IWL_FW_CMD_VER_UNKNOWN);
 
 	/* the ops field is at the same spot for all versions, so set in v1 */
 	geo_tx_cmd.v1.ops =
 		cpu_to_le32(IWL_PER_CHAIN_OFFSET_GET_CURRENT_TABLE);
 
-	if (cmd_ver == 3)
+	if (cmd_ver == 5)
+		len = sizeof(geo_tx_cmd.v5);
+	else if (cmd_ver == 4)
+		len = sizeof(geo_tx_cmd.v4);
+	else if (cmd_ver == 3)
 		len = sizeof(geo_tx_cmd.v3);
 	else if (fw_has_api(&mvm->fwrt.fw->ucode_capa,
 			    IWL_UCODE_TLV_API_SAR_TABLE_VER))
@@ -788,7 +792,7 @@ int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm)
 		return -EOPNOTSUPP;
 
 	cmd = (struct iwl_host_cmd){
-		.id =  WIDE_ID(PHY_OPS_GROUP, GEO_TX_POWER_LIMIT),
+		.id =  WIDE_ID(PHY_OPS_GROUP, PER_CHAIN_LIMIT_OFFSET_CMD),
 		.len = { len, },
 		.flags = CMD_WANT_SKB,
 		.data = { &geo_tx_cmd },
@@ -803,7 +807,7 @@ int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm)
 	resp = (void *)cmd.resp_pkt->data;
 	ret = le32_to_cpu(resp->profile_idx);
 
-	if (WARN_ON(ret > ACPI_NUM_GEO_PROFILES))
+	if (WARN_ON(ret > ACPI_NUM_GEO_PROFILES_REV3))
 		ret = -EIO;
 
 	iwl_free_resp(&cmd);
@@ -815,36 +819,58 @@ static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
 	union iwl_geo_tx_power_profiles_cmd cmd;
 	u16 len;
 	u32 n_bands;
+	u32 n_profiles;
 	int ret;
 	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, PHY_OPS_GROUP,
-					   GEO_TX_POWER_LIMIT,
+					   PER_CHAIN_LIMIT_OFFSET_CMD,
 					   IWL_FW_CMD_VER_UNKNOWN);
 
 	BUILD_BUG_ON(offsetof(struct iwl_geo_tx_power_profiles_cmd_v1, ops) !=
 		     offsetof(struct iwl_geo_tx_power_profiles_cmd_v2, ops) ||
 		     offsetof(struct iwl_geo_tx_power_profiles_cmd_v2, ops) !=
-		     offsetof(struct iwl_geo_tx_power_profiles_cmd_v3, ops));
+		     offsetof(struct iwl_geo_tx_power_profiles_cmd_v3, ops) ||
+		     offsetof(struct iwl_geo_tx_power_profiles_cmd_v3, ops) !=
+		     offsetof(struct iwl_geo_tx_power_profiles_cmd_v4, ops) ||
+		     offsetof(struct iwl_geo_tx_power_profiles_cmd_v4, ops) !=
+		     offsetof(struct iwl_geo_tx_power_profiles_cmd_v5, ops));
+
 	/* the ops field is at the same spot for all versions, so set in v1 */
 	cmd.v1.ops = cpu_to_le32(IWL_PER_CHAIN_OFFSET_SET_TABLES);
 
-	if (cmd_ver == 3) {
+	if (cmd_ver == 5) {
+		len = sizeof(cmd.v5);
+		n_bands = ARRAY_SIZE(cmd.v5.table[0]);
+		n_profiles = ACPI_NUM_GEO_PROFILES_REV3;
+	} else if (cmd_ver == 4) {
+		len = sizeof(cmd.v4);
+		n_bands = ARRAY_SIZE(cmd.v4.table[0]);
+		n_profiles = ACPI_NUM_GEO_PROFILES_REV3;
+	} else if (cmd_ver == 3) {
 		len = sizeof(cmd.v3);
 		n_bands = ARRAY_SIZE(cmd.v3.table[0]);
+		n_profiles = ACPI_NUM_GEO_PROFILES;
 	} else if (fw_has_api(&mvm->fwrt.fw->ucode_capa,
 			      IWL_UCODE_TLV_API_SAR_TABLE_VER)) {
 		len = sizeof(cmd.v2);
 		n_bands = ARRAY_SIZE(cmd.v2.table[0]);
+		n_profiles = ACPI_NUM_GEO_PROFILES;
 	} else {
 		len = sizeof(cmd.v1);
 		n_bands = ARRAY_SIZE(cmd.v1.table[0]);
+		n_profiles = ACPI_NUM_GEO_PROFILES;
 	}
 
 	BUILD_BUG_ON(offsetof(struct iwl_geo_tx_power_profiles_cmd_v1, table) !=
 		     offsetof(struct iwl_geo_tx_power_profiles_cmd_v2, table) ||
 		     offsetof(struct iwl_geo_tx_power_profiles_cmd_v2, table) !=
-		     offsetof(struct iwl_geo_tx_power_profiles_cmd_v3, table));
+		     offsetof(struct iwl_geo_tx_power_profiles_cmd_v3, table) ||
+		     offsetof(struct iwl_geo_tx_power_profiles_cmd_v3, table) !=
+		     offsetof(struct iwl_geo_tx_power_profiles_cmd_v4, table) ||
+		     offsetof(struct iwl_geo_tx_power_profiles_cmd_v4, table) !=
+		     offsetof(struct iwl_geo_tx_power_profiles_cmd_v5, table));
 	/* the table is at the same position for all versions, so set use v1 */
-	ret = iwl_sar_geo_init(&mvm->fwrt, &cmd.v1.table[0][0], n_bands);
+	ret = iwl_sar_geo_init(&mvm->fwrt, &cmd.v1.table[0][0],
+			       n_bands, n_profiles);
 
 	/*
 	 * It is a valid scenario to not support SAR, or miss wgds table,
@@ -857,14 +883,19 @@ static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
 	 * Set the revision on versions that contain it.
 	 * This must be done after calling iwl_sar_geo_init().
 	 */
-	if (cmd_ver == 3)
+	if (cmd_ver == 5)
+		cmd.v5.table_revision = cpu_to_le32(mvm->fwrt.geo_rev);
+	else if (cmd_ver == 4)
+		cmd.v4.table_revision = cpu_to_le32(mvm->fwrt.geo_rev);
+	else if (cmd_ver == 3)
 		cmd.v3.table_revision = cpu_to_le32(mvm->fwrt.geo_rev);
 	else if (fw_has_api(&mvm->fwrt.fw->ucode_capa,
 			    IWL_UCODE_TLV_API_SAR_TABLE_VER))
 		cmd.v2.table_revision = cpu_to_le32(mvm->fwrt.geo_rev);
 
 	return iwl_mvm_send_cmd_pdu(mvm,
-				    WIDE_ID(PHY_OPS_GROUP, GEO_TX_POWER_LIMIT),
+				    WIDE_ID(PHY_OPS_GROUP,
+					    PER_CHAIN_LIMIT_OFFSET_CMD),
 				    0, len, &cmd);
 }
 
@@ -1114,7 +1145,7 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 static u8 iwl_mvm_eval_dsm_rfi(struct iwl_mvm *mvm)
 {
 	u8 value;
-	int ret = iwl_acpi_get_dsm_u8((&mvm->fwrt)->dev, 0, DSM_RFI_FUNC_ENABLE,
+	int ret = iwl_acpi_get_dsm_u8(mvm->fwrt.dev, 0, DSM_RFI_FUNC_ENABLE,
 				      &iwl_rfi_guid, &value);
 
 	if (ret < 0) {
@@ -1143,25 +1174,31 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 
 	cmd.config_bitmap = iwl_acpi_get_lari_config_bitmap(&mvm->fwrt);
 
-	ret = iwl_acpi_get_dsm_u32((&mvm->fwrt)->dev, 0, DSM_FUNC_11AX_ENABLEMENT,
+	ret = iwl_acpi_get_dsm_u32(mvm->fwrt.dev, 0, DSM_FUNC_11AX_ENABLEMENT,
 				   &iwl_guid, &value);
 	if (!ret)
 		cmd.oem_11ax_allow_bitmap = cpu_to_le32(value);
-	/* apply more config masks here */
 
-	ret = iwl_acpi_get_dsm_u32((&mvm->fwrt)->dev, 0,
+	ret = iwl_acpi_get_dsm_u32(mvm->fwrt.dev, 0,
 				   DSM_FUNC_ENABLE_UNII4_CHAN,
 				   &iwl_guid, &value);
 	if (!ret)
 		cmd.oem_unii4_allow_bitmap = cpu_to_le32(value);
 
-	ret = iwl_acpi_get_dsm_u32((&mvm->fwrt)->dev, 0,
+	ret = iwl_acpi_get_dsm_u32(mvm->fwrt.dev, 0,
 				   DSM_FUNC_ACTIVATE_CHANNEL,
 				   &iwl_guid, &value);
 	if (!ret)
 		cmd.chan_state_active_bitmap = cpu_to_le32(value);
 
+	ret = iwl_acpi_get_dsm_u32(mvm->fwrt.dev, 0,
+				   DSM_FUNC_ENABLE_6E,
+				   &iwl_guid, &value);
+	if (!ret)
+		cmd.oem_uhb_allow_bitmap = cpu_to_le32(value);
+
 	if (cmd.config_bitmap ||
+	    cmd.oem_uhb_allow_bitmap ||
 	    cmd.oem_11ax_allow_bitmap ||
 	    cmd.oem_unii4_allow_bitmap ||
 	    cmd.chan_state_active_bitmap) {
@@ -1189,6 +1226,9 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 				le32_to_cpu(cmd.oem_unii4_allow_bitmap),
 				le32_to_cpu(cmd.chan_state_active_bitmap),
 				cmd_ver);
+		IWL_DEBUG_RADIO(mvm,
+				"sending LARI_CONFIG_CHANGE, oem_uhb_allow_bitmap=0x%x\n",
+				le32_to_cpu(cmd.oem_uhb_allow_bitmap));
 		ret = iwl_mvm_send_cmd_pdu(mvm,
 					   WIDE_ID(REGULATORY_AND_NVM_GROUP,
 						   LARI_CONFIG_CHANGE),
