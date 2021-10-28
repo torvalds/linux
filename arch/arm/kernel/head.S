@@ -253,7 +253,7 @@ __create_page_tables:
 	add	r0, r4, #KERNEL_OFFSET >> (SECTION_SHIFT - PMD_ORDER)
 	ldr	r6, =(_end - 1)
 	adr_l	r5, kernel_sec_start		@ _pa(kernel_sec_start)
-#ifdef CONFIG_CPU_ENDIAN_BE8
+#if defined CONFIG_CPU_ENDIAN_BE8 || defined CONFIG_CPU_ENDIAN_BE32
 	str	r8, [r5, #4]			@ Save physical start of kernel (BE)
 #else
 	str	r8, [r5]			@ Save physical start of kernel (LE)
@@ -266,7 +266,7 @@ __create_page_tables:
 	bls	1b
 	eor	r3, r3, r7			@ Remove the MMU flags
 	adr_l	r5, kernel_sec_end		@ _pa(kernel_sec_end)
-#ifdef CONFIG_CPU_ENDIAN_BE8
+#if defined CONFIG_CPU_ENDIAN_BE8 || defined CONFIG_CPU_ENDIAN_BE32
 	str	r3, [r5, #4]			@ Save physical end of kernel (BE)
 #else
 	str	r3, [r5]			@ Save physical end of kernel (LE)

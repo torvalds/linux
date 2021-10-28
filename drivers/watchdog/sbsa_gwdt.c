@@ -130,7 +130,7 @@ static u64 sbsa_gwdt_reg_read(struct sbsa_gwdt *gwdt)
 	if (gwdt->version == 0)
 		return readl(gwdt->control_base + SBSA_GWDT_WOR);
 	else
-		return readq(gwdt->control_base + SBSA_GWDT_WOR);
+		return lo_hi_readq(gwdt->control_base + SBSA_GWDT_WOR);
 }
 
 static void sbsa_gwdt_reg_write(u64 val, struct sbsa_gwdt *gwdt)
@@ -138,7 +138,7 @@ static void sbsa_gwdt_reg_write(u64 val, struct sbsa_gwdt *gwdt)
 	if (gwdt->version == 0)
 		writel((u32)val, gwdt->control_base + SBSA_GWDT_WOR);
 	else
-		writeq(val, gwdt->control_base + SBSA_GWDT_WOR);
+		lo_hi_writeq(val, gwdt->control_base + SBSA_GWDT_WOR);
 }
 
 /*
@@ -411,4 +411,3 @@ MODULE_AUTHOR("Suravee Suthikulpanit <Suravee.Suthikulpanit@amd.com>");
 MODULE_AUTHOR("Al Stone <al.stone@linaro.org>");
 MODULE_AUTHOR("Timur Tabi <timur@codeaurora.org>");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:" DRV_NAME);
