@@ -160,6 +160,7 @@ static int hidinput_setkeycode(struct input_dev *dev,
 	if (usage) {
 		*old_keycode = usage->type == EV_KEY ?
 				usage->code : KEY_RESERVED;
+		usage->type = EV_KEY;
 		usage->code = ke->keycode;
 
 		clear_bit(*old_keycode, dev->keybit);
