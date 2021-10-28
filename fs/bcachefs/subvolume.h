@@ -94,6 +94,16 @@ static inline int snapshots_seen_add(struct bch_fs *c, struct snapshots_seen *s,
 	return 0;
 }
 
+static inline bool snapshot_list_has_id(struct snapshot_id_list *s, u32 id)
+{
+	unsigned i;
+
+	for (i = 0; i < s->nr; i++)
+		if (id == s->d[i])
+			return true;
+	return false;
+}
+
 int bch2_fs_snapshots_check(struct bch_fs *);
 void bch2_fs_snapshots_exit(struct bch_fs *);
 int bch2_fs_snapshots_start(struct bch_fs *);

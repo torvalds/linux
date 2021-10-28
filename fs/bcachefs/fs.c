@@ -1292,12 +1292,6 @@ static int bch2_vfs_write_inode(struct inode *vinode,
 	return ret;
 }
 
-static int bch2_drop_inode(struct inode *vinode)
-{
-
-	return generic_drop_inode(vinode);
-}
-
 static void bch2_evict_inode(struct inode *vinode)
 {
 	struct bch_fs *c = vinode->i_sb->s_fs_info;
@@ -1316,6 +1310,53 @@ static void bch2_evict_inode(struct inode *vinode)
 				KEY_TYPE_QUOTA_WARN);
 		bch2_inode_rm(c, inode_inum(inode), true);
 	}
+}
+
+void bch2_evict_subvolume_inodes(struct bch_fs *c,
+				 struct snapshot_id_list *s)
+{
+	struct super_block *sb = c->vfs_sb;
+	struct inode *inode;
+
+	spin_lock(&sb->s_inode_list_lock);
+	list_for_each_entry(inode, &sb->s_inodes, i_sb_list) {
+		if (!snapshot_list_has_id(s, to_bch_ei(inode)->ei_subvol) ||
+		    (inode->i_state & I_FREEING))
+			continue;
+
+		d_mark_dontcache(inode);
+		d_prune_aliases(inode);
+	}
+	spin_unlock(&sb->s_inode_list_lock);
+again:
+	cond_resched();
+	spin_lock(&sb->s_inode_list_lock);
+	list_for_each_entry(inode, &sb->s_inodes, i_sb_list) {
+		if (!snapshot_list_has_id(s, to_bch_ei(inode)->ei_subvol) ||
+		    (inode->i_state & I_FREEING))
+			continue;
+
+		if (!(inode->i_state & I_DONTCACHE)) {
+			d_mark_dontcache(inode);
+			d_prune_aliases(inode);
+		}
+
+		spin_lock(&inode->i_lock);
+		if (snapshot_list_has_id(s, to_bch_ei(inode)->ei_subvol) &&
+		    !(inode->i_state & I_FREEING)) {
+			wait_queue_head_t *wq = bit_waitqueue(&inode->i_state, __I_NEW);
+			DEFINE_WAIT_BIT(wait, &inode->i_state, __I_NEW);
+			prepare_to_wait(wq, &wait.wq_entry, TASK_UNINTERRUPTIBLE);
+			spin_unlock(&inode->i_lock);
+			spin_unlock(&sb->s_inode_list_lock);
+			schedule();
+			finish_wait(wq, &wait.wq_entry);
+			goto again;
+		}
+
+		spin_unlock(&inode->i_lock);
+	}
+	spin_unlock(&sb->s_inode_list_lock);
 }
 
 static int bch2_statfs(struct dentry *dentry, struct kstatfs *buf)
@@ -1502,7 +1543,6 @@ static const struct super_operations bch_super_operations = {
 	.alloc_inode	= bch2_alloc_inode,
 	.destroy_inode	= bch2_destroy_inode,
 	.write_inode	= bch2_vfs_write_inode,
-	.drop_inode	= bch2_drop_inode,
 	.evict_inode	= bch2_evict_inode,
 	.sync_fs	= bch2_sync_fs,
 	.statfs		= bch2_statfs,
