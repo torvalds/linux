@@ -14,16 +14,16 @@ _GLOBAL(mcount)
 _GLOBAL(_mcount)
 	/*
 	 * It is required that _mcount on PPC32 must preserve the
-	 * link register. But we have r0 to play with. We use r0
+	 * link register. But we have r12 to play with. We use r12
 	 * to push the return address back to the caller of mcount
 	 * into the ctr register, restore the link register and
 	 * then jump back using the ctr register.
 	 */
-	mflr	r0
-	mtctr	r0
-	lwz	r0, 4(r1)
+	mflr	r12
+	mtctr	r12
 	mtlr	r0
 	bctr
+EXPORT_SYMBOL(_mcount)
 
 _GLOBAL(ftrace_caller)
 	MCOUNT_SAVE_FRAME
@@ -43,7 +43,6 @@ _GLOBAL(ftrace_graph_stub)
 	/* old link register ends up in ctr reg */
 	bctr
 
-EXPORT_SYMBOL(_mcount)
 
 _GLOBAL(ftrace_stub)
 	blr
