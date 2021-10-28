@@ -1084,11 +1084,15 @@ static int htb_init(struct Qdisc *sch, struct nlattr *opt,
 	offload = nla_get_flag(tb[TCA_HTB_OFFLOAD]);
 
 	if (offload) {
-		if (sch->parent != TC_H_ROOT)
+		if (sch->parent != TC_H_ROOT) {
+			NL_SET_ERR_MSG(extack, "HTB must be the root qdisc to use offload");
 			return -EOPNOTSUPP;
+		}
 
-		if (!tc_can_offload(dev) || !dev->netdev_ops->ndo_setup_tc)
+		if (!tc_can_offload(dev) || !dev->netdev_ops->ndo_setup_tc) {
+			NL_SET_ERR_MSG(extack, "hw-tc-offload ethtool feature flag must be on");
 			return -EOPNOTSUPP;
+		}
 
 		q->num_direct_qdiscs = dev->real_num_tx_queues;
 		q->direct_qdiscs = kcalloc(q->num_direct_qdiscs,
