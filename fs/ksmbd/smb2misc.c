@@ -358,12 +358,10 @@ int ksmbd_smb2_check_message(struct ksmbd_work *work)
 		hdr = &pdu->hdr;
 	}
 
-	if (le32_to_cpu(hdr->NextCommand) > 0) {
+	if (le32_to_cpu(hdr->NextCommand) > 0)
 		len = le32_to_cpu(hdr->NextCommand);
-	} else if (work->next_smb2_rcv_hdr_off) {
+	else if (work->next_smb2_rcv_hdr_off)
 		len -= work->next_smb2_rcv_hdr_off;
-		len = round_up(len, 8);
-	}
 
 	if (check_smb2_hdr(hdr))
 		return 1;
