@@ -84,21 +84,6 @@ EXPORT_SYMBOL(xen_start_flags);
  */
 struct shared_info *HYPERVISOR_shared_info = &xen_dummy_shared_info;
 
-/*
- * Flag to determine whether vcpu info placement is available on all
- * VCPUs.  We assume it is to start with, and then set it to zero on
- * the first failure.  This is because it can succeed on some VCPUs
- * and not others, since it can involve hypervisor memory allocation,
- * or because the guest failed to guarantee all the appropriate
- * constraints on all VCPUs (ie buffer can't cross a page boundary).
- *
- * Note that any particular CPU may be using a placed vcpu structure,
- * but we can only optimise if the all are.
- *
- * 0: not available, 1: available
- */
-int xen_have_vcpu_info_placement = 1;
-
 static int xen_cpu_up_online(unsigned int cpu)
 {
 	xen_init_lock_cpu(cpu);
@@ -124,10 +109,8 @@ int xen_cpuhp_setup(int (*cpu_up_prepare_cb)(unsigned int),
 	return rc >= 0 ? 0 : rc;
 }
 
-static int xen_vcpu_setup_restore(int cpu)
+static void xen_vcpu_setup_restore(int cpu)
 {
-	int rc = 0;
-
 	/* Any per_cpu(xen_vcpu) is stale, so reset it */
 	xen_vcpu_info_reset(cpu);
 
@@ -136,11 +119,8 @@ static int xen_vcpu_setup_restore(int cpu)
 	 * be handled by hotplug.
 	 */
 	if (xen_pv_domain() ||
-	    (xen_hvm_domain() && cpu_online(cpu))) {
-		rc = xen_vcpu_setup(cpu);
-	}
-
-	return rc;
+	    (xen_hvm_domain() && cpu_online(cpu)))
+		xen_vcpu_setup(cpu);
 }
 
 /*
@@ -150,7 +130,7 @@ static int xen_vcpu_setup_restore(int cpu)
  */
 void xen_vcpu_restore(void)
 {
-	int cpu, rc;
+	int cpu;
 
 	for_each_possible_cpu(cpu) {
 		bool other_cpu = (cpu != smp_processor_id());
@@ -170,20 +150,9 @@ void xen_vcpu_restore(void)
 		if (xen_pv_domain() || xen_feature(XENFEAT_hvm_safe_pvclock))
 			xen_setup_runstate_info(cpu);
 
-		rc = xen_vcpu_setup_restore(cpu);
-		if (rc)
-			pr_emerg_once("vcpu restore failed for cpu=%d err=%d. "
-					"System will hang.\n", cpu, rc);
-		/*
-		 * In case xen_vcpu_setup_restore() fails, do not bring up the
-		 * VCPU. This helps us avoid the resulting OOPS when the VCPU
-		 * accesses pvclock_vcpu_time via xen_vcpu (which is NULL.)
-		 * Note that this does not improve the situation much -- now the
-		 * VM hangs instead of OOPSing -- with the VCPUs that did not
-		 * fail, spinning in stop_machine(), waiting for the failed
-		 * VCPUs to come up.
-		 */
-		if (other_cpu && is_up && (rc == 0) &&
+		xen_vcpu_setup_restore(cpu);
+
+		if (other_cpu && is_up &&
 		    HYPERVISOR_vcpu_op(VCPUOP_up, xen_vcpu_nr(cpu), NULL))
 			BUG();
 	}
@@ -200,7 +169,7 @@ void xen_vcpu_info_reset(int cpu)
 	}
 }
 
-int xen_vcpu_setup(int cpu)
+void xen_vcpu_setup(int cpu)
 {
 	struct vcpu_register_vcpu_info info;
 	int err;
@@ -221,44 +190,26 @@ int xen_vcpu_setup(int cpu)
 	 */
 	if (xen_hvm_domain()) {
 		if (per_cpu(xen_vcpu, cpu) == &per_cpu(xen_vcpu_info, cpu))
-			return 0;
+			return;
 	}
 
-	if (xen_have_vcpu_info_placement) {
-		vcpup = &per_cpu(xen_vcpu_info, cpu);
-		info.mfn = arbitrary_virt_to_mfn(vcpup);
-		info.offset = offset_in_page(vcpup);
+	vcpup = &per_cpu(xen_vcpu_info, cpu);
+	info.mfn = arbitrary_virt_to_mfn(vcpup);
+	info.offset = offset_in_page(vcpup);
 
-		/*
-		 * Check to see if the hypervisor will put the vcpu_info
-		 * structure where we want it, which allows direct access via
-		 * a percpu-variable.
-		 * N.B. This hypercall can _only_ be called once per CPU.
-		 * Subsequent calls will error out with -EINVAL. This is due to
-		 * the fact that hypervisor has no unregister variant and this
-		 * hypercall does not allow to over-write info.mfn and
-		 * info.offset.
-		 */
-		err = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_info,
-					 xen_vcpu_nr(cpu), &info);
+	/*
+	 * N.B. This hypercall can _only_ be called once per CPU.
+	 * Subsequent calls will error out with -EINVAL. This is due to
+	 * the fact that hypervisor has no unregister variant and this
+	 * hypercall does not allow to over-write info.mfn and
+	 * info.offset.
+	 */
+	err = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_info, xen_vcpu_nr(cpu),
+				 &info);
+	if (err)
+		panic("register_vcpu_info failed: cpu=%d err=%d\n", cpu, err);
 
-		if (err) {
-			pr_warn_once("register_vcpu_info failed: cpu=%d err=%d\n",
-				     cpu, err);
-			xen_have_vcpu_info_placement = 0;
-		} else {
-			/*
-			 * This cpu is using the registered vcpu info, even if
-			 * later ones fail to.
-			 */
-			per_cpu(xen_vcpu, cpu) = vcpup;
-		}
-	}
-
-	if (!xen_have_vcpu_info_placement)
-		xen_vcpu_info_reset(cpu);
-
-	return ((per_cpu(xen_vcpu, cpu) == NULL) ? -ENODEV : 0);
+	per_cpu(xen_vcpu, cpu) = vcpup;
 }
 
 void __init xen_banner(void)
