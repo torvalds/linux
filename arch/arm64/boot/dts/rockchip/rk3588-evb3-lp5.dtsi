@@ -8,6 +8,42 @@
 #include "rk3588-evb.dtsi"
 #include "rk806-double.dtsi"
 
-&sdmmc {
+&i2c5 {
 	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c5m4_xfer>;
+
+	gt1x: gt1x@14 {
+		compatible = "goodix,gt1x";
+		reg = <0x14>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&touch_gpio>;
+		goodix,rst-gpio = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
+		goodix,irq-gpio = <&gpio4 RK_PB1 IRQ_TYPE_LEVEL_LOW>;
+	};
+};
+
+&i2c7 {
+	status = "okay";
+	es8388: es8388@10 {
+		status = "okay";
+		#sound-dai-cells = <0>;
+		compatible = "everest,es8388";
+		reg = <0x10>;
+		clocks = <&cru I2S0_8CH_MCLKOUT>;
+		clock-names = "mclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s0_mclk>;
+		spk-con-gpio = <&gpio1 RK_PD3 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&pinctrl {
+	touch {
+		touch_gpio: touch-gpio {
+			rockchip,pins =
+				<4 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>,
+				<4 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
 };
