@@ -35,9 +35,11 @@ notifications is Ext4.
 
 A FAN_FS_ERROR Notification has the following format::
 
-  [ Notification Metadata (Mandatory) ]
-  [ Generic Error Record  (Mandatory) ]
-  [ FID record            (Mandatory) ]
+  ::
+
+     [ Notification Metadata (Mandatory) ]
+     [ Generic Error Record  (Mandatory) ]
+     [ FID record            (Mandatory) ]
 
 The order of records is not guaranteed, and new records might be added
 in the future.  Therefore, applications must not rely on the order and
@@ -53,11 +55,13 @@ providing any additional details about the problem.  This record is
 identified by ``struct fanotify_event_info_header.info_type`` being set
 to FAN_EVENT_INFO_TYPE_ERROR.
 
-  struct fanotify_event_info_error {
-	struct fanotify_event_info_header hdr;
-	__s32 error;
-	__u32 error_count;
-  };
+  ::
+
+     struct fanotify_event_info_error {
+          struct fanotify_event_info_header hdr;
+         __s32 error;
+         __u32 error_count;
+     };
 
 The `error` field identifies the type of error using errno values.
 `error_count` tracks the number of errors that occurred and were
