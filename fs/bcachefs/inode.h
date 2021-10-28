@@ -134,6 +134,11 @@ static inline u8 mode_to_type(umode_t mode)
 	return (mode >> 12) & 15;
 }
 
+static inline u8 inode_d_type(struct bch_inode_unpacked *inode)
+{
+	return inode->bi_subvol ? DT_SUBVOL : mode_to_type(inode->bi_mode);
+}
+
 /* i_nlink: */
 
 static inline unsigned nlink_bias(umode_t mode)

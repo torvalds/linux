@@ -128,9 +128,7 @@ void bch2_dirent_to_text(struct printbuf *out, struct bch_fs *c,
 	       d.v->d_type != DT_SUBVOL
 	       ? le64_to_cpu(d.v->d_inum)
 	       : le32_to_cpu(d.v->d_child_subvol),
-	       d.v->d_type < BCH_DT_MAX
-	       ? bch2_d_types[d.v->d_type]
-	       : "(bad d_type)");
+	       bch2_d_type_str(d.v->d_type));
 }
 
 static struct bkey_i_dirent *dirent_create_key(struct btree_trans *trans,

@@ -20,6 +20,11 @@ extern const char * const bch2_cache_replacement_policies[];
 extern const char * const bch2_member_states[];
 extern const char * const bch2_d_types[];
 
+static inline const char *bch2_d_type_str(unsigned d_type)
+{
+	return (d_type < BCH_DT_MAX ? bch2_d_types[d_type] : NULL) ?: "(bad d_type)";
+}
+
 /*
  * Mount options; we also store defaults in the superblock.
  *
