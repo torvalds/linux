@@ -259,11 +259,9 @@ static int nsim_dev_debugfs_init(struct nsim_dev *nsim_dev)
 	debugfs_create_bool("fail_trap_policer_counter_get", 0600,
 			    nsim_dev->ddir,
 			    &nsim_dev->fail_trap_policer_counter_get);
-	nsim_dev->max_vfs = debugfs_create_file("max_vfs",
-						0600,
-						nsim_dev->ddir,
-						nsim_dev->nsim_bus_dev,
-						&nsim_dev_max_vfs_fops);
+	debugfs_create_file("max_vfs", 0600, nsim_dev->ddir,
+			    nsim_dev->nsim_bus_dev, &nsim_dev_max_vfs_fops);
+
 	nsim_dev->nodes_ddir = debugfs_create_dir("rate_nodes", nsim_dev->ddir);
 	if (IS_ERR(nsim_dev->nodes_ddir)) {
 		err = PTR_ERR(nsim_dev->nodes_ddir);
