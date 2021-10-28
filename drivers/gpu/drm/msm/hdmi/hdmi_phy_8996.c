@@ -682,7 +682,7 @@ static int hdmi_8996_pll_is_enabled(struct clk_hw *hw)
 	return pll_locked;
 }
 
-static struct clk_ops hdmi_8996_pll_ops = {
+static const struct clk_ops hdmi_8996_pll_ops = {
 	.set_rate = hdmi_8996_pll_set_clk_rate,
 	.round_rate = hdmi_8996_pll_round_rate,
 	.recalc_rate = hdmi_8996_pll_recalc_rate,
@@ -695,7 +695,7 @@ static const char * const hdmi_pll_parents[] = {
 	"xo",
 };
 
-static struct clk_init_data pll_init = {
+static const struct clk_init_data pll_init = {
 	.name = "hdmipll",
 	.ops = &hdmi_8996_pll_ops,
 	.parent_names = hdmi_pll_parents,
