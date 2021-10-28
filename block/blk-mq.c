@@ -822,7 +822,7 @@ static inline void blk_mq_flush_tag_batch(struct blk_mq_hw_ctx *hctx,
 void blk_mq_end_request_batch(struct io_comp_batch *iob)
 {
 	int tags[TAG_COMP_BATCH], nr_tags = 0;
-	struct blk_mq_hw_ctx *last_hctx = NULL;
+	struct blk_mq_hw_ctx *cur_hctx = NULL;
 	struct request *rq;
 	u64 now = 0;
 
@@ -845,17 +845,17 @@ void blk_mq_end_request_batch(struct io_comp_batch *iob)
 		blk_pm_mark_last_busy(rq);
 		rq_qos_done(rq->q, rq);
 
-		if (nr_tags == TAG_COMP_BATCH ||
-		    (last_hctx && last_hctx != rq->mq_hctx)) {
-			blk_mq_flush_tag_batch(last_hctx, tags, nr_tags);
+		if (nr_tags == TAG_COMP_BATCH || cur_hctx != rq->mq_hctx) {
+			if (cur_hctx)
+				blk_mq_flush_tag_batch(cur_hctx, tags, nr_tags);
 			nr_tags = 0;
+			cur_hctx = rq->mq_hctx;
 		}
 		tags[nr_tags++] = rq->tag;
-		last_hctx = rq->mq_hctx;
 	}
 
 	if (nr_tags)
-		blk_mq_flush_tag_batch(last_hctx, tags, nr_tags);
+		blk_mq_flush_tag_batch(cur_hctx, tags, nr_tags);
 }
 EXPORT_SYMBOL_GPL(blk_mq_end_request_batch);
 
