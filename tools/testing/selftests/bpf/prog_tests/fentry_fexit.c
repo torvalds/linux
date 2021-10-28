@@ -6,23 +6,23 @@
 
 void test_fentry_fexit(void)
 {
-	struct fentry_test *fentry_skel = NULL;
-	struct fexit_test *fexit_skel = NULL;
+	struct fentry_test_lskel *fentry_skel = NULL;
+	struct fexit_test_lskel *fexit_skel = NULL;
 	__u64 *fentry_res, *fexit_res;
 	__u32 duration = 0, retval;
 	int err, prog_fd, i;
 
-	fentry_skel = fentry_test__open_and_load();
+	fentry_skel = fentry_test_lskel__open_and_load();
 	if (CHECK(!fentry_skel, "fentry_skel_load", "fentry skeleton failed\n"))
 		goto close_prog;
-	fexit_skel = fexit_test__open_and_load();
+	fexit_skel = fexit_test_lskel__open_and_load();
 	if (CHECK(!fexit_skel, "fexit_skel_load", "fexit skeleton failed\n"))
 		goto close_prog;
 
-	err = fentry_test__attach(fentry_skel);
+	err = fentry_test_lskel__attach(fentry_skel);
 	if (CHECK(err, "fentry_attach", "fentry attach failed: %d\n", err))
 		goto close_prog;
-	err = fexit_test__attach(fexit_skel);
+	err = fexit_test_lskel__attach(fexit_skel);
 	if (CHECK(err, "fexit_attach", "fexit attach failed: %d\n", err))
 		goto close_prog;
 
@@ -44,6 +44,6 @@ void test_fentry_fexit(void)
 	}
 
 close_prog:
-	fentry_test__destroy(fentry_skel);
-	fexit_test__destroy(fexit_skel);
+	fentry_test_lskel__destroy(fentry_skel);
+	fexit_test_lskel__destroy(fexit_skel);
 }

@@ -7,6 +7,7 @@
 #include "test_ksyms_btf.skel.h"
 #include "test_ksyms_btf_null_check.skel.h"
 #include "test_ksyms_weak.skel.h"
+#include "test_ksyms_weak.lskel.h"
 
 static int duration;
 
@@ -89,11 +90,11 @@ static void test_weak_syms(void)
 	int err;
 
 	skel = test_ksyms_weak__open_and_load();
-	if (CHECK(!skel, "test_ksyms_weak__open_and_load", "failed\n"))
+	if (!ASSERT_OK_PTR(skel, "test_ksyms_weak__open_and_load"))
 		return;
 
 	err = test_ksyms_weak__attach(skel);
-	if (CHECK(err, "test_ksyms_weak__attach", "skeleton attach failed: %d\n", err))
+	if (!ASSERT_OK(err, "test_ksyms_weak__attach"))
 		goto cleanup;
 
 	/* trigger tracepoint */
@@ -107,6 +108,33 @@ static void test_weak_syms(void)
 
 cleanup:
 	test_ksyms_weak__destroy(skel);
+}
+
+static void test_weak_syms_lskel(void)
+{
+	struct test_ksyms_weak_lskel *skel;
+	struct test_ksyms_weak_lskel__data *data;
+	int err;
+
+	skel = test_ksyms_weak_lskel__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "test_ksyms_weak_lskel__open_and_load"))
+		return;
+
+	err = test_ksyms_weak_lskel__attach(skel);
+	if (!ASSERT_OK(err, "test_ksyms_weak_lskel__attach"))
+		goto cleanup;
+
+	/* trigger tracepoint */
+	usleep(1);
+
+	data = skel->data;
+	ASSERT_EQ(data->out__existing_typed, 0, "existing typed ksym");
+	ASSERT_NEQ(data->out__existing_typeless, -1, "existing typeless ksym");
+	ASSERT_EQ(data->out__non_existent_typeless, 0, "nonexistent typeless ksym");
+	ASSERT_EQ(data->out__non_existent_typed, 0, "nonexistent typed ksym");
+
+cleanup:
+	test_ksyms_weak_lskel__destroy(skel);
 }
 
 void test_ksyms_btf(void)
@@ -136,4 +164,7 @@ void test_ksyms_btf(void)
 
 	if (test__start_subtest("weak_ksyms"))
 		test_weak_syms();
+
+	if (test__start_subtest("weak_ksyms_lskel"))
+		test_weak_syms_lskel();
 }
