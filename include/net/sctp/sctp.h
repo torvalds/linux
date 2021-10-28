@@ -626,7 +626,8 @@ static inline __u32 sctp_min_frag_point(struct sctp_sock *sp, __u16 datasize)
 
 static inline int sctp_transport_pl_hlen(struct sctp_transport *t)
 {
-	return __sctp_mtu_payload(sctp_sk(t->asoc->base.sk), t, 0, 0);
+	return __sctp_mtu_payload(sctp_sk(t->asoc->base.sk), t, 0, 0) -
+	       sizeof(struct sctphdr);
 }
 
 static inline void sctp_transport_pl_reset(struct sctp_transport *t)
