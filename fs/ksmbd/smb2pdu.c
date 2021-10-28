@@ -7319,7 +7319,7 @@ static int fsctl_validate_negotiate_info(struct ksmbd_conn *conn,
 	int ret = 0;
 	int dialect;
 
-	if (in_buf_len < sizeof(struct validate_negotiate_info_req) +
+	if (in_buf_len < offsetof(struct validate_negotiate_info_req, Dialects) +
 			le16_to_cpu(neg_req->DialectCount) * sizeof(__le16))
 		return -EINVAL;
 
