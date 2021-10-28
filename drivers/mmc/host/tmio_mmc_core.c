@@ -195,6 +195,10 @@ static void tmio_mmc_reset(struct tmio_mmc_host *host)
 	sd_ctrl_write32_as_16_and_16(host, CTL_IRQ_MASK, host->sdcard_irq_mask_all);
 	host->sdcard_irq_mask = host->sdcard_irq_mask_all;
 
+	if (host->native_hotplug)
+		tmio_mmc_enable_mmc_irqs(host,
+				TMIO_STAT_CARD_REMOVE | TMIO_STAT_CARD_INSERT);
+
 	tmio_mmc_set_bus_width(host, host->mmc->ios.bus_width);
 
 	if (host->pdata->flags & TMIO_MMC_SDIO_IRQ) {
@@ -956,8 +960,15 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	case MMC_POWER_OFF:
 		tmio_mmc_power_off(host);
 		/* For R-Car Gen2+, we need to reset SDHI specific SCC */
-		if (host->pdata->flags & TMIO_MMC_MIN_RCAR2)
+		if (host->pdata->flags & TMIO_MMC_MIN_RCAR2) {
 			host->reset(host);
+
+			if (host->native_hotplug)
+				tmio_mmc_enable_mmc_irqs(host,
+						TMIO_STAT_CARD_REMOVE |
+						TMIO_STAT_CARD_INSERT);
+		}
+
 		host->set_clock(host, 0);
 		break;
 	case MMC_POWER_UP:
@@ -1184,10 +1195,6 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host)
 
 	_host->set_clock(_host, 0);
 	tmio_mmc_reset(_host);
-
-	if (_host->native_hotplug)
-		tmio_mmc_enable_mmc_irqs(_host,
-				TMIO_STAT_CARD_REMOVE | TMIO_STAT_CARD_INSERT);
 
 	spin_lock_init(&_host->lock);
 	mutex_init(&_host->ios_lock);
