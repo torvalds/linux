@@ -138,6 +138,8 @@ struct kvm_iommu_ops {
 				       phys_addr_t fault_pa, unsigned int len,
 				       bool is_write, int rd);
 	void (*host_stage2_set_owner)(phys_addr_t addr, size_t size, u32 owner_id);
+	int (*host_stage2_adjust_mmio_range)(phys_addr_t addr, phys_addr_t *start,
+					     phys_addr_t *end);
 };
 
 extern struct kvm_iommu_ops kvm_iommu_ops;

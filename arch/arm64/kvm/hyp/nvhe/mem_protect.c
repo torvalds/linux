@@ -624,6 +624,17 @@ static int host_stage2_idmap(u64 addr)
 
 	prot = is_memory ? PKVM_HOST_MEM_PROT : PKVM_HOST_MMIO_PROT;
 
+	/**
+	 * Let device drivers adjust the permitted range first.
+	 * host_stage2_adjust_range() should be last to also properly align it.
+	 */
+	if (!is_memory && kvm_iommu_ops.host_stage2_adjust_mmio_range) {
+		ret = kvm_iommu_ops.host_stage2_adjust_mmio_range(addr, &range.start,
+								  &range.end);
+		if (ret)
+			return ret;
+	}
+
 	host_lock_component();
 	ret = host_stage2_adjust_range(addr, &range);
 	if (ret)
