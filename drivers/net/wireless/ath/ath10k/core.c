@@ -12,6 +12,7 @@
 #include <linux/dmi.h>
 #include <linux/ctype.h>
 #include <linux/pm_qos.h>
+#include <linux/nvmem-consumer.h>
 #include <asm/byteorder.h>
 
 #include "core.h"
@@ -935,7 +936,8 @@ static int ath10k_core_get_board_id_from_otp(struct ath10k *ar)
 	}
 
 	if (ar->cal_mode == ATH10K_PRE_CAL_MODE_DT ||
-	    ar->cal_mode == ATH10K_PRE_CAL_MODE_FILE)
+	    ar->cal_mode == ATH10K_PRE_CAL_MODE_FILE ||
+	    ar->cal_mode == ATH10K_PRE_CAL_MODE_NVMEM)
 		bmi_board_id_param = BMI_PARAM_GET_FLASH_BOARD_ID;
 	else
 		bmi_board_id_param = BMI_PARAM_GET_EEPROM_BOARD_ID;
@@ -1726,7 +1728,8 @@ static int ath10k_download_and_run_otp(struct ath10k *ar)
 
 	/* As of now pre-cal is valid for 10_4 variants */
 	if (ar->cal_mode == ATH10K_PRE_CAL_MODE_DT ||
-	    ar->cal_mode == ATH10K_PRE_CAL_MODE_FILE)
+	    ar->cal_mode == ATH10K_PRE_CAL_MODE_FILE ||
+	    ar->cal_mode == ATH10K_PRE_CAL_MODE_NVMEM)
 		bmi_otp_exe_param = BMI_PARAM_FLASH_SECTION_ALL;
 
 	ret = ath10k_bmi_execute(ar, address, bmi_otp_exe_param, &result);
@@ -1849,6 +1852,39 @@ static int ath10k_download_cal_eeprom(struct ath10k *ar)
 
 out_free:
 	kfree(data);
+
+	return ret;
+}
+
+static int ath10k_download_cal_nvmem(struct ath10k *ar, const char *cell_name)
+{
+	struct nvmem_cell *cell;
+	void *buf;
+	size_t len;
+	int ret;
+
+	cell = devm_nvmem_cell_get(ar->dev, cell_name);
+	if (IS_ERR(cell)) {
+		ret = PTR_ERR(cell);
+		return ret;
+	}
+
+	buf = nvmem_cell_read(cell, &len);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
+
+	if (ar->hw_params.cal_data_len != len) {
+		kfree(buf);
+		ath10k_warn(ar, "invalid calibration data length in nvmem-cell '%s': %zu != %u\n",
+			    cell_name, len, ar->hw_params.cal_data_len);
+		return -EMSGSIZE;
+	}
+
+	ret = ath10k_download_board_data(ar, buf, len);
+	kfree(buf);
+	if (ret)
+		ath10k_warn(ar, "failed to download calibration data from nvmem-cell '%s': %d\n",
+			    cell_name, ret);
 
 	return ret;
 }
@@ -2087,6 +2123,18 @@ static int ath10k_core_pre_cal_download(struct ath10k *ar)
 {
 	int ret;
 
+	ret = ath10k_download_cal_nvmem(ar, "pre-calibration");
+	if (ret == 0) {
+		ar->cal_mode = ATH10K_PRE_CAL_MODE_NVMEM;
+		goto success;
+	} else if (ret == -EPROBE_DEFER) {
+		return ret;
+	}
+
+	ath10k_dbg(ar, ATH10K_DBG_BOOT,
+		   "boot did not find a pre-calibration nvmem-cell, try file next: %d\n",
+		   ret);
+
 	ret = ath10k_download_cal_file(ar, ar->pre_cal_file);
 	if (ret == 0) {
 		ar->cal_mode = ATH10K_PRE_CAL_MODE_FILE;
@@ -2151,6 +2199,18 @@ static int ath10k_download_cal_data(struct ath10k *ar)
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT,
 		   "pre cal download procedure failed, try cal file: %d\n",
+		   ret);
+
+	ret = ath10k_download_cal_nvmem(ar, "calibration");
+	if (ret == 0) {
+		ar->cal_mode = ATH10K_CAL_MODE_NVMEM;
+		goto done;
+	} else if (ret == -EPROBE_DEFER) {
+		return ret;
+	}
+
+	ath10k_dbg(ar, ATH10K_DBG_BOOT,
+		   "boot did not find a calibration nvmem-cell, try file next: %d\n",
 		   ret);
 
 	ret = ath10k_download_cal_file(ar, ar->cal_file);
