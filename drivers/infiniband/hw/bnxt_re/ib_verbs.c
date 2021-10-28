@@ -41,6 +41,7 @@
 #include <linux/pci.h>
 #include <linux/netdevice.h>
 #include <linux/if_ether.h>
+#include <net/addrconf.h>
 
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_user_verbs.h>
@@ -130,8 +131,8 @@ int bnxt_re_query_device(struct ib_device *ibdev,
 	memcpy(&ib_attr->fw_ver, dev_attr->fw_ver,
 	       min(sizeof(dev_attr->fw_ver),
 		   sizeof(ib_attr->fw_ver)));
-	bnxt_qplib_get_guid(rdev->netdev->dev_addr,
-			    (u8 *)&ib_attr->sys_image_guid);
+	addrconf_addr_eui48((u8 *)&ib_attr->sys_image_guid,
+			    rdev->netdev->dev_addr);
 	ib_attr->max_mr_size = BNXT_RE_MAX_MR_SIZE;
 	ib_attr->page_size_cap = BNXT_RE_PAGE_SIZE_SUPPORTED;
 

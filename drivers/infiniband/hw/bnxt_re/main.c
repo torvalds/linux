@@ -730,7 +730,7 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 		strlen(BNXT_RE_DESC) + 5);
 	ibdev->phys_port_cnt = 1;
 
-	bnxt_qplib_get_guid(rdev->netdev->dev_addr, (u8 *)&ibdev->node_guid);
+	addrconf_addr_eui48((u8 *)&ibdev->node_guid, rdev->netdev->dev_addr);
 
 	ibdev->num_comp_vectors	= rdev->num_msix - 1;
 	ibdev->dev.parent = &rdev->en_dev->pdev->dev;

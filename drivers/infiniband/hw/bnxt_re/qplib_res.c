@@ -572,23 +572,6 @@ fail:
 	return rc;
 }
 
-/* GUID */
-void bnxt_qplib_get_guid(const u8 *dev_addr, u8 *guid)
-{
-	u8 mac[ETH_ALEN];
-
-	/* MAC-48 to EUI-64 mapping */
-	memcpy(mac, dev_addr, ETH_ALEN);
-	guid[0] = mac[0] ^ 2;
-	guid[1] = mac[1];
-	guid[2] = mac[2];
-	guid[3] = 0xff;
-	guid[4] = 0xfe;
-	guid[5] = mac[3];
-	guid[6] = mac[4];
-	guid[7] = mac[5];
-}
-
 static void bnxt_qplib_free_sgid_tbl(struct bnxt_qplib_res *res,
 				     struct bnxt_qplib_sgid_tbl *sgid_tbl)
 {
