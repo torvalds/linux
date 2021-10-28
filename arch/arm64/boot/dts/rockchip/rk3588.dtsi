@@ -203,6 +203,35 @@
 		phys = <&usbdp_phy1_dp>;
 		power-domains = <&power RK3588_PD_VO0>;
 		status = "disabled";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dp1_in: port@0 {
+				reg = <0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				dp1_in_vp0: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&vp0_out_dp1>;
+					status = "disabled";
+				};
+
+				dp1_in_vp1: endpoint@1 {
+					reg = <1>;
+					remote-endpoint = <&vp1_out_dp1>;
+					status = "disabled";
+				};
+
+				dp1_in_vp2: endpoint@2 {
+					reg = <2>;
+					remote-endpoint = <&vp2_out_dp1>;
+					status = "disabled";
+				};
+			};
+		};
 	};
 
 	edp1: edp@fded0000 {
@@ -219,6 +248,35 @@
 		power-domains = <&power RK3588_PD_VO1>;
 		rockchip,grf = <&vo1_grf>;
 		status = "disabled";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			edp1_in: port@0 {
+				reg = <0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				edp1_in_vp0: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&vp0_out_edp1>;
+					status = "disabled";
+				};
+
+				edp1_in_vp1: endpoint@1 {
+					reg = <1>;
+					remote-endpoint = <&vp1_out_edp1>;
+					status = "disabled";
+				};
+
+				edp1_in_vp2: endpoint@2 {
+					reg = <2>;
+					remote-endpoint = <&vp2_out_edp1>;
+					status = "disabled";
+				};
+			};
+		};
 	};
 
 	pcie3x4: pcie@fe150000 {
@@ -509,4 +567,52 @@
 		status = "disabled";
 	};
 
+};
+
+&vp0 {
+	vp0_out_dp1: endpoint@3 {
+		reg = <3>;
+		remote-endpoint = <&dp1_in_vp0>;
+	};
+
+	vp0_out_edp1: endpoint@4 {
+		reg = <4>;
+		remote-endpoint = <&edp1_in_vp0>;
+	};
+
+	vp0_out_hdmi1: endpoint@5 {
+		reg = <5>;
+	};
+};
+
+&vp1 {
+	vp1_out_dp1: endpoint@3 {
+		reg = <3>;
+		remote-endpoint = <&dp1_in_vp1>;
+	};
+
+	vp1_out_edp1: endpoint@4 {
+		reg = <4>;
+		remote-endpoint = <&edp1_in_vp1>;
+	};
+
+	vp1_out_hdmi1: endpoint@5 {
+		reg = <5>;
+	};
+};
+
+&vp2 {
+	vp2_out_dp1: endpoint@5 {
+		reg = <5>;
+		remote-endpoint = <&dp1_in_vp2>;
+	};
+
+	vp2_out_edp1: endpoint@6 {
+		reg = <6>;
+		remote-endpoint = <&edp1_in_vp2>;
+	};
+
+	vp2_out_hdmi1: endpoint@7 {
+		reg = <7>;
+	};
 };

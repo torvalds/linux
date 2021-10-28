@@ -156,6 +156,11 @@
 				     <&cpu_b0>, <&cpu_b1>, <&cpu_b2>, <&cpu_b3>;
 	};
 
+	display_subsystem: display-subsystem {
+		compatible = "rockchip,display-subsystem";
+		ports = <&vop_out>;
+	};
+
 	firmware {
 		optee: optee {
 			compatible = "linaro,optee-tz";
@@ -1044,6 +1049,123 @@
 		status = "disabled";
 	};
 
+	vop: vop@fdd90000 {
+		compatible = "rockchip,rk3588-vop";
+		reg = <0x0 0xfdd90000 0x0 0x4200>;
+		reg-names = "regs";
+		interrupts = <GIC_SPI 156 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_VOP>,
+			 <&cru HCLK_VOP>,
+			 <&cru DCLK_VOP0>,
+			 <&cru DCLK_VOP1>,
+			 <&cru DCLK_VOP2>,
+			 <&cru DCLK_VOP3>;
+		clock-names = "aclk_vop",
+			      "hclk_vop",
+			      "dclk_vp0",
+			      "dclk_vp1",
+			      "dclk_vp2",
+			      "dclk_vp3";
+		iommus = <&vop_mmu>;
+		power-domains = <&power RK3588_PD_VOP>;
+		status = "disabled";
+
+		vop_out: ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			vp0: port@0 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0>;
+
+				vp0_out_dp0: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&dp0_in_vp0>;
+				};
+
+				vp0_out_edp0: endpoint@1 {
+					reg = <1>;
+					remote-endpoint = <&edp0_in_vp0>;
+				};
+
+				vp0_out_hdmi0: endpoint@2 {
+					reg = <2>;
+				};
+			};
+
+			vp1: port@1 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <1>;
+
+				vp1_out_dp0: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&dp0_in_vp1>;
+				};
+
+				vp1_out_edp0: endpoint@1 {
+					reg = <1>;
+					remote-endpoint = <&edp0_in_vp1>;
+				};
+
+				vp1_out_hdmi0: endpoint@2 {
+					reg = <2>;
+				};
+			};
+
+			vp2: port@2 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <2>;
+
+				vp2_out_dp0: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&dp0_in_vp2>;
+				};
+
+				vp2_out_edp0: endpoint@1 {
+					reg = <1>;
+					remote-endpoint = <&edp0_in_vp2>;
+				};
+
+				vp2_out_hdmi0: endpoint@2 {
+					reg = <2>;
+				};
+
+				vp2_out_dsi0: endpoint@3 {
+					reg = <3>;
+					remote-endpoint = <&dsi0_in_vp2>;
+				};
+
+				vp2_out_dsi1: endpoint@4 {
+					reg = <4>;
+					remote-endpoint = <&dsi1_in_vp2>;
+				};
+			};
+
+			vp3: port@3 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <3>;
+
+				vp3_out_dsi0: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&dsi0_in_vp3>;
+				};
+
+				vp3_out_dsi1: endpoint@1 {
+					reg = <1>;
+					remote-endpoint = <&dsi1_in_vp3>;
+				};
+
+				vp3_out_rgb: endpoint@2 {
+					reg = <2>;
+				};
+			};
+		};
+	};
+
 	vop_mmu: iommu@fdd97e00 {
 		compatible = "rockchip,iommu-v2";
 		reg = <0x0 0xfdd97e00 0x0 0x100>, <0x0 0xfdd97f00 0x0 0x100>;
@@ -1151,6 +1273,29 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		status = "disabled";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dsi0_in: port@0 {
+				reg = <0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				dsi0_in_vp2: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&vp2_out_dsi0>;
+					status = "disabled";
+				};
+
+				dsi0_in_vp3: endpoint@1 {
+					reg = <1>;
+					remote-endpoint = <&vp3_out_dsi0>;
+					status = "disabled";
+				};
+			};
+		};
 	};
 
 	dsi1: dsi@fde30000 {
@@ -1168,6 +1313,29 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		status = "disabled";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dsi1_in: port@0 {
+				reg = <0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				dsi1_in_vp2: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&vp2_out_dsi1>;
+					status = "disabled";
+				};
+
+				dsi1_in_vp3: endpoint@1 {
+					reg = <1>;
+					remote-endpoint = <&vp3_out_dsi1>;
+					status = "disabled";
+				};
+			};
+		};
 	};
 
 	dp0: dp@fde50000 {
@@ -1179,6 +1347,35 @@
 		phys = <&usbdp_phy0_dp>;
 		power-domains = <&power RK3588_PD_VO0>;
 		status = "disabled";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dp0_in: port@0 {
+				reg = <0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				dp0_in_vp0: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&vp0_out_dp0>;
+					status = "disabled";
+				};
+
+				dp0_in_vp1: endpoint@1 {
+					reg = <1>;
+					remote-endpoint = <&vp1_out_dp0>;
+					status = "disabled";
+				};
+
+				dp0_in_vp2: endpoint@2 {
+					reg = <2>;
+					remote-endpoint = <&vp2_out_dp0>;
+					status = "disabled";
+				};
+			};
+		};
 	};
 
 	edp0: edp@fdec0000 {
@@ -1195,6 +1392,35 @@
 		power-domains = <&power RK3588_PD_VO1>;
 		rockchip,grf = <&vo1_grf>;
 		status = "disabled";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			edp0_in: port@0 {
+				reg = <0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				edp0_in_vp0: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&vp0_out_edp0>;
+					status = "disabled";
+				};
+
+				edp0_in_vp1: endpoint@1 {
+					reg = <1>;
+					remote-endpoint = <&vp1_out_edp0>;
+					status = "disabled";
+				};
+
+				edp0_in_vp2: endpoint@2 {
+					reg = <2>;
+					remote-endpoint = <&vp2_out_edp0>;
+					status = "disabled";
+				};
+			};
+		};
 	};
 
 	pcie2x1l1: pcie@fe180000 {
