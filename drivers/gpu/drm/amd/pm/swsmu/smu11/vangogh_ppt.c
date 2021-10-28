@@ -683,6 +683,7 @@ static int vangogh_print_clk_levels(struct smu_context *smu,
 	int i, size = 0, ret = 0;
 	uint32_t cur_value = 0, value = 0, count = 0;
 	bool cur_value_match_level = false;
+	uint32_t min, max;
 
 	memset(&metrics, 0, sizeof(metrics));
 
@@ -743,6 +744,13 @@ static int vangogh_print_clk_levels(struct smu_context *smu,
 		if (ret)
 			return ret;
 		break;
+	case SMU_GFXCLK:
+	case SMU_SCLK:
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GetGfxclkFrequency, 0, &cur_value);
+		if (ret) {
+			return ret;
+		}
+		break;
 	default:
 		break;
 	}
@@ -767,6 +775,24 @@ static int vangogh_print_clk_levels(struct smu_context *smu,
 
 		if (!cur_value_match_level)
 			size += sysfs_emit_at(buf, size, "   %uMhz *\n", cur_value);
+		break;
+	case SMU_GFXCLK:
+	case SMU_SCLK:
+		min = (smu->gfx_actual_hard_min_freq > 0) ? smu->gfx_actual_hard_min_freq : smu->gfx_default_hard_min_freq;
+		max = (smu->gfx_actual_soft_max_freq > 0) ? smu->gfx_actual_soft_max_freq : smu->gfx_default_soft_max_freq;
+		if (cur_value  == max)
+			i = 2;
+		else if (cur_value == min)
+			i = 0;
+		else
+			i = 1;
+		size += sysfs_emit_at(buf, size, "0: %uMhz %s\n", min,
+				i == 0 ? "*" : "");
+		size += sysfs_emit_at(buf, size, "1: %uMhz %s\n",
+				i == 1 ? cur_value : VANGOGH_UMD_PSTATE_STANDARD_GFXCLK,
+				i == 1 ? "*" : "");
+		size += sysfs_emit_at(buf, size, "2: %uMhz %s\n", max,
+				i == 2 ? "*" : "");
 		break;
 	default:
 		break;
