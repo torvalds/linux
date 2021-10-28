@@ -5,10 +5,7 @@
  *
  */
 
-#include <linux/blkdev.h>
-#include <linux/buffer_head.h>
 #include <linux/fs.h>
-#include <linux/nls.h>
 
 #include "debug.h"
 #include "ntfs.h"

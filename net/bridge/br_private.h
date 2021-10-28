@@ -82,7 +82,7 @@ struct bridge_mcast_other_query {
 struct bridge_mcast_querier {
 	struct br_ip addr;
 	int port_ifidx;
-	seqcount_t seq;
+	seqcount_spinlock_t seq;
 };
 
 /* IGMP/MLD statistics */
@@ -1125,9 +1125,7 @@ static inline unsigned long br_multicast_lmqt(const struct net_bridge_mcast *brm
 
 static inline unsigned long br_multicast_gmi(const struct net_bridge_mcast *brmctx)
 {
-	/* use the RFC default of 2 for QRV */
-	return 2 * brmctx->multicast_query_interval +
-	       brmctx->multicast_query_response_interval;
+	return brmctx->multicast_membership_interval;
 }
 
 static inline bool

@@ -5518,7 +5518,7 @@ lpfc_cgn_update_stat(struct lpfc_hba *phba, uint32_t dtag)
 	if (phba->cgn_fpin_frequency &&
 	    phba->cgn_fpin_frequency != LPFC_FPIN_INIT_FREQ) {
 		value = LPFC_CGN_TIMER_TO_MIN / phba->cgn_fpin_frequency;
-		cp->cgn_stat_npm = cpu_to_le32(value);
+		cp->cgn_stat_npm = value;
 	}
 	value = lpfc_cgn_calc_crc32(cp, LPFC_CGN_INFO_SZ,
 				    LPFC_CGN_CRC32_SEED);
@@ -5547,9 +5547,9 @@ lpfc_cgn_save_evt_cnt(struct lpfc_hba *phba)
 	uint32_t mbps;
 	uint32_t dvalue, wvalue, lvalue, avalue;
 	uint64_t latsum;
-	uint16_t *ptr;
-	uint32_t *lptr;
-	uint16_t *mptr;
+	__le16 *ptr;
+	__le32 *lptr;
+	__le16 *mptr;
 
 	/* Make sure we have a congestion info buffer */
 	if (!phba->cgn_i)
@@ -5570,7 +5570,7 @@ lpfc_cgn_save_evt_cnt(struct lpfc_hba *phba)
 	if (phba->cgn_fpin_frequency &&
 	    phba->cgn_fpin_frequency != LPFC_FPIN_INIT_FREQ) {
 		value = LPFC_CGN_TIMER_TO_MIN / phba->cgn_fpin_frequency;
-		cp->cgn_stat_npm = cpu_to_le32(value);
+		cp->cgn_stat_npm = value;
 	}
 
 	/* Read and clear the latency counters for this minute */
@@ -5753,7 +5753,7 @@ lpfc_cgn_save_evt_cnt(struct lpfc_hba *phba)
 			dvalue += le32_to_cpu(cp->cgn_drvr_hr[i]);
 			wvalue += le32_to_cpu(cp->cgn_warn_hr[i]);
 			lvalue += le32_to_cpu(cp->cgn_latency_hr[i]);
-			mbps += le32_to_cpu(cp->cgn_bw_hr[i]);
+			mbps += le16_to_cpu(cp->cgn_bw_hr[i]);
 			avalue += le32_to_cpu(cp->cgn_alarm_hr[i]);
 		}
 		if (lvalue)		/* Avg of latency averages */
@@ -8277,11 +8277,11 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	return 0;
 
 out_free_hba_hdwq_info:
-	free_percpu(phba->sli4_hba.c_stat);
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	free_percpu(phba->sli4_hba.c_stat);
 out_free_hba_idle_stat:
-	kfree(phba->sli4_hba.idle_stat);
 #endif
+	kfree(phba->sli4_hba.idle_stat);
 out_free_hba_eq_info:
 	free_percpu(phba->sli4_hba.eq_info);
 out_free_hba_cpu_map:
@@ -13411,8 +13411,8 @@ lpfc_init_congestion_buf(struct lpfc_hba *phba)
 
 	/* last used Index initialized to 0xff already */
 
-	cp->cgn_warn_freq = LPFC_FPIN_INIT_FREQ;
-	cp->cgn_alarm_freq = LPFC_FPIN_INIT_FREQ;
+	cp->cgn_warn_freq = cpu_to_le16(LPFC_FPIN_INIT_FREQ);
+	cp->cgn_alarm_freq = cpu_to_le16(LPFC_FPIN_INIT_FREQ);
 	crc = lpfc_cgn_calc_crc32(cp, LPFC_CGN_INFO_SZ, LPFC_CGN_CRC32_SEED);
 	cp->cgn_info_crc = cpu_to_le32(crc);
 

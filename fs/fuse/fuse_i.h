@@ -1121,6 +1121,9 @@ int fuse_init_fs_context_submount(struct fs_context *fsc);
  */
 void fuse_conn_destroy(struct fuse_mount *fm);
 
+/* Drop the connection and free the fuse mount */
+void fuse_mount_destroy(struct fuse_mount *fm);
+
 /**
  * Add connection to control filesystem
  */

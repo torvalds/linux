@@ -7463,21 +7463,16 @@ static s32 brcmf_translate_country_code(struct brcmf_pub *drvr, char alpha2[2],
 	s32 found_index;
 	int i;
 
+	country_codes = drvr->settings->country_codes;
+	if (!country_codes) {
+		brcmf_dbg(TRACE, "No country codes configured for device\n");
+		return -EINVAL;
+	}
+
 	if ((alpha2[0] == ccreq->country_abbrev[0]) &&
 	    (alpha2[1] == ccreq->country_abbrev[1])) {
 		brcmf_dbg(TRACE, "Country code already set\n");
 		return -EAGAIN;
-	}
-
-	country_codes = drvr->settings->country_codes;
-	if (!country_codes) {
-		brcmf_dbg(TRACE, "No country codes configured for device, using ISO3166 code and 0 rev\n");
-		memset(ccreq, 0, sizeof(*ccreq));
-		ccreq->country_abbrev[0] = alpha2[0];
-		ccreq->country_abbrev[1] = alpha2[1];
-		ccreq->ccode[0] = alpha2[0];
-		ccreq->ccode[1] = alpha2[1];
-		return 0;
 	}
 
 	found_index = -1;

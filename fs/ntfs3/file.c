@@ -12,7 +12,6 @@
 #include <linux/compat.h>
 #include <linux/falloc.h>
 #include <linux/fiemap.h>
-#include <linux/nls.h>
 
 #include "debug.h"
 #include "ntfs.h"
@@ -588,8 +587,11 @@ static long ntfs_fallocate(struct file *file, int mode, loff_t vbo, loff_t len)
 		truncate_pagecache(inode, vbo_down);
 
 		if (!is_sparsed(ni) && !is_compressed(ni)) {
-			/* Normal file. */
-			err = ntfs_zero_range(inode, vbo, end);
+			/*
+			 * Normal file, can't make hole.
+			 * TODO: Try to find way to save info about hole.
+			 */
+			err = -EOPNOTSUPP;
 			goto out;
 		}
 
@@ -737,7 +739,7 @@ int ntfs3_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 	umode_t mode = inode->i_mode;
 	int err;
 
-	if (sbi->options.no_acs_rules) {
+	if (sbi->options->noacsrules) {
 		/* "No access rules" - Force any changes of time etc. */
 		attr->ia_valid |= ATTR_FORCE;
 		/* and disable for editing some attributes. */
@@ -1185,7 +1187,7 @@ static int ntfs_file_release(struct inode *inode, struct file *file)
 	int err = 0;
 
 	/* If we are last writer on the inode, drop the block reservation. */
-	if (sbi->options.prealloc && ((file->f_mode & FMODE_WRITE) &&
+	if (sbi->options->prealloc && ((file->f_mode & FMODE_WRITE) &&
 				      atomic_read(&inode->i_writecount) == 1)) {
 		ni_lock(ni);
 		down_write(&ni->file.run_lock);

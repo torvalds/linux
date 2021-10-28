@@ -20,7 +20,6 @@
 #define SUBMOD_NAME	"smb_direct"
 
 #include <linux/kthread.h>
-#include <linux/rwlock.h>
 #include <linux/list.h>
 #include <linux/mempool.h>
 #include <linux/highmem.h>
@@ -550,6 +549,10 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 
 	switch (recvmsg->type) {
 	case SMB_DIRECT_MSG_NEGOTIATE_REQ:
+		if (wc->byte_len < sizeof(struct smb_direct_negotiate_req)) {
+			put_empty_recvmsg(t, recvmsg);
+			return;
+		}
 		t->negotiation_requested = true;
 		t->full_packet_received = true;
 		wake_up_interruptible(&t->wait_status);
@@ -557,10 +560,23 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	case SMB_DIRECT_MSG_DATA_TRANSFER: {
 		struct smb_direct_data_transfer *data_transfer =
 			(struct smb_direct_data_transfer *)recvmsg->packet;
-		int data_length = le32_to_cpu(data_transfer->data_length);
+		unsigned int data_length;
 		int avail_recvmsg_count, receive_credits;
 
+		if (wc->byte_len <
+		    offsetof(struct smb_direct_data_transfer, padding)) {
+			put_empty_recvmsg(t, recvmsg);
+			return;
+		}
+
+		data_length = le32_to_cpu(data_transfer->data_length);
 		if (data_length) {
+			if (wc->byte_len < sizeof(struct smb_direct_data_transfer) +
+			    (u64)data_length) {
+				put_empty_recvmsg(t, recvmsg);
+				return;
+			}
+
 			if (t->full_packet_received)
 				recvmsg->first_segment = true;
 
@@ -569,7 +585,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 			else
 				t->full_packet_received = true;
 
-			enqueue_reassembly(t, recvmsg, data_length);
+			enqueue_reassembly(t, recvmsg, (int)data_length);
 			wake_up_interruptible(&t->wait_reassembly_queue);
 
 			spin_lock(&t->receive_credit_lock);

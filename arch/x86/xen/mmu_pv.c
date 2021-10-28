@@ -2398,7 +2398,7 @@ static int remap_area_pfn_pte_fn(pte_t *ptep, unsigned long addr, void *data)
 
 int xen_remap_pfn(struct vm_area_struct *vma, unsigned long addr,
 		  xen_pfn_t *pfn, int nr, int *err_ptr, pgprot_t prot,
-		  unsigned int domid, bool no_translate, struct page **pages)
+		  unsigned int domid, bool no_translate)
 {
 	int err = 0;
 	struct remap_data rmd;

@@ -2408,6 +2408,8 @@ int cmd_stat(int argc, const char **argv)
 			goto out;
 		} else if (verbose)
 			iostat_list(evsel_list, &stat_config);
+		if (iostat_mode == IOSTAT_RUN && !target__has_cpu(&target))
+			target.system_wide = true;
 	}
 
 	if (add_default_attributes())

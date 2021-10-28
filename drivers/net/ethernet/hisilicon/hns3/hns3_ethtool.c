@@ -334,7 +334,8 @@ static void hns3_selftest_prepare(struct net_device *ndev,
 
 #if IS_ENABLED(CONFIG_VLAN_8021Q)
 	/* Disable the vlan filter for selftest does not support it */
-	if (h->ae_algo->ops->enable_vlan_filter)
+	if (h->ae_algo->ops->enable_vlan_filter &&
+	    ndev->features & NETIF_F_HW_VLAN_CTAG_FILTER)
 		h->ae_algo->ops->enable_vlan_filter(h, false);
 #endif
 
@@ -359,7 +360,8 @@ static void hns3_selftest_restore(struct net_device *ndev, bool if_running)
 		h->ae_algo->ops->halt_autoneg(h, false);
 
 #if IS_ENABLED(CONFIG_VLAN_8021Q)
-	if (h->ae_algo->ops->enable_vlan_filter)
+	if (h->ae_algo->ops->enable_vlan_filter &&
+	    ndev->features & NETIF_F_HW_VLAN_CTAG_FILTER)
 		h->ae_algo->ops->enable_vlan_filter(h, true);
 #endif
 

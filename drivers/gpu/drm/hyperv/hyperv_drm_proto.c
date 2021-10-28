@@ -299,6 +299,55 @@ int hyperv_update_situation(struct hv_device *hdev, u8 active, u32 bpp,
 	return 0;
 }
 
+/*
+ * Hyper-V supports a hardware cursor feature. It's not used by Linux VM,
+ * but the Hyper-V host still draws a point as an extra mouse pointer,
+ * which is unwanted, especially when Xorg is running.
+ *
+ * The hyperv_fb driver uses synthvid_send_ptr() to hide the unwanted
+ * pointer, by setting msg.ptr_pos.is_visible = 1 and setting the
+ * msg.ptr_shape.data. Note: setting msg.ptr_pos.is_visible to 0 doesn't
+ * work in tests.
+ *
+ * Copy synthvid_send_ptr() to hyperv_drm and rename it to
+ * hyperv_hide_hw_ptr(). Note: hyperv_hide_hw_ptr() is also called in the
+ * handler of the SYNTHVID_FEATURE_CHANGE event, otherwise the host still
+ * draws an extra unwanted mouse pointer after the VM Connection window is
+ * closed and reopened.
+ */
+int hyperv_hide_hw_ptr(struct hv_device *hdev)
+{
+	struct synthvid_msg msg;
+
+	memset(&msg, 0, sizeof(struct synthvid_msg));
+	msg.vid_hdr.type = SYNTHVID_POINTER_POSITION;
+	msg.vid_hdr.size = sizeof(struct synthvid_msg_hdr) +
+		sizeof(struct synthvid_pointer_position);
+	msg.ptr_pos.is_visible = 1;
+	msg.ptr_pos.video_output = 0;
+	msg.ptr_pos.image_x = 0;
+	msg.ptr_pos.image_y = 0;
+	hyperv_sendpacket(hdev, &msg);
+
+	memset(&msg, 0, sizeof(struct synthvid_msg));
+	msg.vid_hdr.type = SYNTHVID_POINTER_SHAPE;
+	msg.vid_hdr.size = sizeof(struct synthvid_msg_hdr) +
+		sizeof(struct synthvid_pointer_shape);
+	msg.ptr_shape.part_idx = SYNTHVID_CURSOR_COMPLETE;
+	msg.ptr_shape.is_argb = 1;
+	msg.ptr_shape.width = 1;
+	msg.ptr_shape.height = 1;
+	msg.ptr_shape.hot_x = 0;
+	msg.ptr_shape.hot_y = 0;
+	msg.ptr_shape.data[0] = 0;
+	msg.ptr_shape.data[1] = 1;
+	msg.ptr_shape.data[2] = 1;
+	msg.ptr_shape.data[3] = 1;
+	hyperv_sendpacket(hdev, &msg);
+
+	return 0;
+}
+
 int hyperv_update_dirt(struct hv_device *hdev, struct drm_rect *rect)
 {
 	struct hyperv_drm_device *hv = hv_get_drvdata(hdev);
@@ -392,8 +441,11 @@ static void hyperv_receive_sub(struct hv_device *hdev)
 		return;
 	}
 
-	if (msg->vid_hdr.type == SYNTHVID_FEATURE_CHANGE)
+	if (msg->vid_hdr.type == SYNTHVID_FEATURE_CHANGE) {
 		hv->dirt_needed = msg->feature_chg.is_dirt_needed;
+		if (hv->dirt_needed)
+			hyperv_hide_hw_ptr(hv->hdev);
+	}
 }
 
 static void hyperv_receive(void *ctx)

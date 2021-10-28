@@ -3117,7 +3117,7 @@ static void sja1105_teardown(struct dsa_switch *ds)
 	sja1105_static_config_free(&priv->static_config);
 }
 
-const struct dsa_switch_ops sja1105_switch_ops = {
+static const struct dsa_switch_ops sja1105_switch_ops = {
 	.get_tag_protocol	= sja1105_get_tag_protocol,
 	.setup			= sja1105_setup,
 	.teardown		= sja1105_teardown,
@@ -3166,7 +3166,6 @@ const struct dsa_switch_ops sja1105_switch_ops = {
 	.port_bridge_tx_fwd_offload = dsa_tag_8021q_bridge_tx_fwd_offload,
 	.port_bridge_tx_fwd_unoffload = dsa_tag_8021q_bridge_tx_fwd_unoffload,
 };
-EXPORT_SYMBOL_GPL(sja1105_switch_ops);
 
 static const struct of_device_id sja1105_dt_ids[];
 
@@ -3335,11 +3334,27 @@ static int sja1105_probe(struct spi_device *spi)
 static int sja1105_remove(struct spi_device *spi)
 {
 	struct sja1105_private *priv = spi_get_drvdata(spi);
-	struct dsa_switch *ds = priv->ds;
 
-	dsa_unregister_switch(ds);
+	if (!priv)
+		return 0;
+
+	dsa_unregister_switch(priv->ds);
+
+	spi_set_drvdata(spi, NULL);
 
 	return 0;
+}
+
+static void sja1105_shutdown(struct spi_device *spi)
+{
+	struct sja1105_private *priv = spi_get_drvdata(spi);
+
+	if (!priv)
+		return;
+
+	dsa_switch_shutdown(priv->ds);
+
+	spi_set_drvdata(spi, NULL);
 }
 
 static const struct of_device_id sja1105_dt_ids[] = {
@@ -3365,6 +3380,7 @@ static struct spi_driver sja1105_driver = {
 	},
 	.probe  = sja1105_probe,
 	.remove = sja1105_remove,
+	.shutdown = sja1105_shutdown,
 };
 
 module_spi_driver(sja1105_driver);

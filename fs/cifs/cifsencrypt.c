@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: LGPL-2.1
 /*
- *   fs/cifs/cifsencrypt.c
  *
  *   Encryption and hashing operations relating to NTLM, NTLMv2.  See MS-NLMP
  *   for more detailed information

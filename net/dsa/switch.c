@@ -168,7 +168,7 @@ static int dsa_switch_bridge_leave(struct dsa_switch *ds,
 		if (extack._msg)
 			dev_err(ds->dev, "port %d: %s\n", info->port,
 				extack._msg);
-		if (err && err != EOPNOTSUPP)
+		if (err && err != -EOPNOTSUPP)
 			return err;
 	}
 

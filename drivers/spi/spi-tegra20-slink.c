@@ -204,9 +204,6 @@ struct tegra_slink_data {
 	struct dma_async_tx_descriptor		*tx_dma_desc;
 };
 
-static int tegra_slink_runtime_suspend(struct device *dev);
-static int tegra_slink_runtime_resume(struct device *dev);
-
 static inline u32 tegra_slink_readl(struct tegra_slink_data *tspi,
 		unsigned long reg)
 {

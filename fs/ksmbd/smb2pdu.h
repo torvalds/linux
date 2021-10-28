@@ -113,6 +113,8 @@
 #define SMB21_DEFAULT_IOSIZE	(1024 * 1024)
 #define SMB3_DEFAULT_IOSIZE	(4 * 1024 * 1024)
 #define SMB3_DEFAULT_TRANS_SIZE	(1024 * 1024)
+#define SMB3_MIN_IOSIZE	(64 * 1024)
+#define SMB3_MAX_IOSIZE	(8 * 1024 * 1024)
 
 /*
  * SMB2 Header Definition
@@ -1464,6 +1466,15 @@ struct smb2_file_all_info { /* data block encoding of response to level 18 */
 	char   FileName[1];
 } __packed; /* level 18 Query */
 
+struct smb2_file_basic_info { /* data block encoding of response to level 18 */
+	__le64 CreationTime;	/* Beginning of FILE_BASIC_INFO equivalent */
+	__le64 LastAccessTime;
+	__le64 LastWriteTime;
+	__le64 ChangeTime;
+	__le32 Attributes;
+	__u32  Pad1;		/* End of FILE_BASIC_INFO_INFO equivalent */
+} __packed;
+
 struct smb2_file_alt_name_info {
 	__le32 FileNameLength;
 	char FileName[0];
@@ -1628,7 +1639,6 @@ struct smb2_posix_info {
 } __packed;
 
 /* functions */
-int init_smb2_0_server(struct ksmbd_conn *conn);
 void init_smb2_1_server(struct ksmbd_conn *conn);
 void init_smb3_0_server(struct ksmbd_conn *conn);
 void init_smb3_02_server(struct ksmbd_conn *conn);
