@@ -421,6 +421,9 @@ extern const struct scmi_desc scmi_smc_desc;
 #ifdef CONFIG_ARM_SCMI_TRANSPORT_VIRTIO
 extern const struct scmi_desc scmi_virtio_desc;
 #endif
+#ifdef CONFIG_ARM_SCMI_TRANSPORT_OPTEE
+extern const struct scmi_desc scmi_optee_desc;
+#endif
 
 void scmi_rx_callback(struct scmi_chan_info *cinfo, u32 msg_hdr, void *priv);
 void scmi_free_channel(struct scmi_chan_info *cinfo, struct idr *idr, int id);

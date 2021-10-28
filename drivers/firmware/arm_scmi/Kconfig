@@ -54,6 +54,18 @@ config ARM_SCMI_TRANSPORT_MAILBOX
 	  If you want the ARM SCMI PROTOCOL stack to include support for a
 	  transport based on mailboxes, answer Y.
 
+config ARM_SCMI_TRANSPORT_OPTEE
+	bool "SCMI transport based on OP-TEE service"
+	depends on OPTEE=y || OPTEE=ARM_SCMI_PROTOCOL
+	select ARM_SCMI_HAVE_TRANSPORT
+	select ARM_SCMI_HAVE_SHMEM
+	default y
+	help
+	  This enables the OP-TEE service based transport for SCMI.
+
+	  If you want the ARM SCMI PROTOCOL stack to include support for a
+	  transport based on OP-TEE SCMI service, answer Y.
+
 config ARM_SCMI_TRANSPORT_SMC
 	bool "SCMI transport based on SMC"
 	depends on HAVE_ARM_SMCCC_DISCOVERY
