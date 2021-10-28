@@ -141,12 +141,15 @@ void snd_motu_command_dsp_message_parser_parse(struct snd_motu *motu, const stru
 					++parser->fragment_pos;
 
 					if (parser->fragment_pos == 4) {
+						// Skip the last two quadlets since they could be
+						// invalid value (0xffffffff) as floating point
+						// number.
 						if (parser->value_index <
-						    SNDRV_FIREWIRE_MOTU_COMMAND_DSP_METER_COUNT) {
+						    SNDRV_FIREWIRE_MOTU_COMMAND_DSP_METER_COUNT - 2) {
 							u32 val = (u32)(parser->value >> 32);
 							parser->meter.data[parser->value_index] = val;
-							++parser->value_index;
 						}
+						++parser->value_index;
 						parser->fragment_pos = 0;
 					}
 

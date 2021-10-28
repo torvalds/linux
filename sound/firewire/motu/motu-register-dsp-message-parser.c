@@ -335,11 +335,15 @@ void snd_motu_register_dsp_message_parser_parse(struct snd_motu *motu, const str
 				else
 					pos = b[MSG_METER_IDX_POS_4PRE_AE];
 
-				if (pos < 0x80)
-					pos &= 0x1f;
-				else
-					pos = (pos & 0x1f) + 20;
-				parser->meter.data[pos] = val;
+				if (pos < SNDRV_FIREWIRE_MOTU_REGISTER_DSP_METER_INPUT_COUNT) {
+					parser->meter.data[pos] = val;
+				} else if (pos >= 0x80) {
+					pos -= (0x80 - SNDRV_FIREWIRE_MOTU_REGISTER_DSP_METER_INPUT_COUNT);
+
+					if (pos < SNDRV_FIREWIRE_MOTU_REGISTER_DSP_METER_COUNT)
+						parser->meter.data[pos] = val;
+				}
+
 				// The message for meter is interruptible to the series of other
 				// types of messages. Don't cache it.
 				fallthrough;

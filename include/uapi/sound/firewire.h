@@ -141,7 +141,10 @@ struct snd_firewire_tascam_state {
  * up to 12.
  */
 
-#define SNDRV_FIREWIRE_MOTU_REGISTER_DSP_METER_COUNT	40
+#define SNDRV_FIREWIRE_MOTU_REGISTER_DSP_METER_INPUT_COUNT	24
+#define SNDRV_FIREWIRE_MOTU_REGISTER_DSP_METER_OUTPUT_COUNT	24
+#define SNDRV_FIREWIRE_MOTU_REGISTER_DSP_METER_COUNT \
+	(SNDRV_FIREWIRE_MOTU_REGISTER_DSP_METER_INPUT_COUNT + SNDRV_FIREWIRE_MOTU_REGISTER_DSP_METER_OUTPUT_COUNT)
 
 /**
  * struct snd_firewire_motu_register_dsp_meter - the container for meter information in DSP
@@ -245,12 +248,14 @@ struct snd_firewire_motu_register_dsp_parameter {
  *
  * The structure expresses the part of DSP status for hardware meter. The 32 bit storage is
  * estimated to include IEEE 764 32 bit single precision floating point (binary32) value. It is
- * expected to be linear value (not logarithm) for audio signal level between 0.0 and +1.0. However,
- * the last two quadlets (data[398] and data[399]) are filled with 0xffffffff since they are the
- * marker of one period.
+ * expected to be linear value (not logarithm) for audio signal level between 0.0 and +1.0.
  */
 struct snd_firewire_motu_command_dsp_meter {
+#ifdef __KERNEL__
 	__u32 data[SNDRV_FIREWIRE_MOTU_COMMAND_DSP_METER_COUNT];
+#else
+	float data[SNDRV_FIREWIRE_MOTU_COMMAND_DSP_METER_COUNT];
+#endif
 };
 
 #endif /* _UAPI_SOUND_FIREWIRE_H_INCLUDED */
