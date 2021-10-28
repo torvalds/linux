@@ -204,6 +204,7 @@ static int nv_query_video_codecs(struct amdgpu_device *adev, bool encode,
 			*codecs = &sc_video_codecs_decode;
 		return 0;
 	case IP_VERSION(3, 1, 1):
+	case IP_VERSION(3, 1, 2):
 		if (encode)
 			*codecs = &nv_video_codecs_encode;
 		else
