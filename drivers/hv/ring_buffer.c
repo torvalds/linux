@@ -223,6 +223,8 @@ int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info,
 		pages_wraparound = kcalloc(page_cnt * 2 - 1,
 					   sizeof(struct page *),
 					   GFP_KERNEL);
+		if (!pages_wraparound)
+			return -ENOMEM;
 
 		pages_wraparound[0] = pages;
 		for (i = 0; i < 2 * (page_cnt - 1); i++)
