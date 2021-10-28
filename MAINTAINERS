@@ -3623,6 +3623,8 @@ F:	arch/arm/mm/cache-b15-rac.c
 F:	drivers/bus/brcmstb_gisb.c
 F:	drivers/pci/controller/pcie-brcmstb.c
 N:	brcmstb
+N:	bcm7038
+N:	bcm7120
 
 BROADCOM BDC DRIVER
 M:	Al Cooper <alcooperx@gmail.com>
