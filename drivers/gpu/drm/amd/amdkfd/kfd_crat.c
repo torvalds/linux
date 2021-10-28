@@ -1377,67 +1377,71 @@ static int kfd_fill_gpu_cache_info(struct kfd_dev *kdev,
 		pcache_info = vegam_cache_info;
 		num_of_cache_types = ARRAY_SIZE(vegam_cache_info);
 		break;
-	case CHIP_VEGA10:
-		pcache_info = vega10_cache_info;
-		num_of_cache_types = ARRAY_SIZE(vega10_cache_info);
-		break;
-	case CHIP_VEGA12:
-		pcache_info = vega12_cache_info;
-		num_of_cache_types = ARRAY_SIZE(vega12_cache_info);
-		break;
-	case CHIP_VEGA20:
-	case CHIP_ARCTURUS:
-		pcache_info = vega20_cache_info;
-		num_of_cache_types = ARRAY_SIZE(vega20_cache_info);
-		break;
-	case CHIP_ALDEBARAN:
-		pcache_info = aldebaran_cache_info;
-		num_of_cache_types = ARRAY_SIZE(aldebaran_cache_info);
-		break;
-	case CHIP_RAVEN:
-		pcache_info = raven_cache_info;
-		num_of_cache_types = ARRAY_SIZE(raven_cache_info);
-		break;
-	case CHIP_RENOIR:
-		pcache_info = renoir_cache_info;
-		num_of_cache_types = ARRAY_SIZE(renoir_cache_info);
-		break;
-	case CHIP_NAVI10:
-	case CHIP_NAVI12:
-	case CHIP_CYAN_SKILLFISH:
-		pcache_info = navi10_cache_info;
-		num_of_cache_types = ARRAY_SIZE(navi10_cache_info);
-		break;
-	case CHIP_NAVI14:
-		pcache_info = navi14_cache_info;
-		num_of_cache_types = ARRAY_SIZE(navi14_cache_info);
-		break;
-	case CHIP_SIENNA_CICHLID:
-		pcache_info = sienna_cichlid_cache_info;
-		num_of_cache_types = ARRAY_SIZE(sienna_cichlid_cache_info);
-		break;
-	case CHIP_NAVY_FLOUNDER:
-		pcache_info = navy_flounder_cache_info;
-		num_of_cache_types = ARRAY_SIZE(navy_flounder_cache_info);
-		break;
-	case CHIP_DIMGREY_CAVEFISH:
-		pcache_info = dimgrey_cavefish_cache_info;
-		num_of_cache_types = ARRAY_SIZE(dimgrey_cavefish_cache_info);
-		break;
-	case CHIP_VANGOGH:
-		pcache_info = vangogh_cache_info;
-		num_of_cache_types = ARRAY_SIZE(vangogh_cache_info);
-		break;
-	case CHIP_BEIGE_GOBY:
-		pcache_info = beige_goby_cache_info;
-		num_of_cache_types = ARRAY_SIZE(beige_goby_cache_info);
-		break;
-	case CHIP_YELLOW_CARP:
-		pcache_info = yellow_carp_cache_info;
-		num_of_cache_types = ARRAY_SIZE(yellow_carp_cache_info);
-		break;
 	default:
-		return -EINVAL;
+		switch(KFD_GC_VERSION(kdev)) {
+		case IP_VERSION(9, 0, 1):
+			pcache_info = vega10_cache_info;
+			num_of_cache_types = ARRAY_SIZE(vega10_cache_info);
+			break;
+		case IP_VERSION(9, 2, 1):
+			pcache_info = vega12_cache_info;
+			num_of_cache_types = ARRAY_SIZE(vega12_cache_info);
+			break;
+		case IP_VERSION(9, 4, 0):
+		case IP_VERSION(9, 4, 1):
+			pcache_info = vega20_cache_info;
+			num_of_cache_types = ARRAY_SIZE(vega20_cache_info);
+			break;
+		case IP_VERSION(9, 4, 2):
+			pcache_info = aldebaran_cache_info;
+			num_of_cache_types = ARRAY_SIZE(aldebaran_cache_info);
+			break;
+		case IP_VERSION(9, 1, 0):
+		case IP_VERSION(9, 2, 2):
+			pcache_info = raven_cache_info;
+			num_of_cache_types = ARRAY_SIZE(raven_cache_info);
+			break;
+		case IP_VERSION(9, 3, 0):
+			pcache_info = renoir_cache_info;
+			num_of_cache_types = ARRAY_SIZE(renoir_cache_info);
+			break;
+		case IP_VERSION(10, 1, 10):
+		case IP_VERSION(10, 1, 2):
+		case IP_VERSION(10, 1, 3):
+			pcache_info = navi10_cache_info;
+			num_of_cache_types = ARRAY_SIZE(navi10_cache_info);
+			break;
+		case IP_VERSION(10, 1, 1):
+			pcache_info = navi14_cache_info;
+			num_of_cache_types = ARRAY_SIZE(navi14_cache_info);
+			break;
+		case IP_VERSION(10, 3, 0):
+			pcache_info = sienna_cichlid_cache_info;
+			num_of_cache_types = ARRAY_SIZE(sienna_cichlid_cache_info);
+			break;
+		case IP_VERSION(10, 3, 2):
+			pcache_info = navy_flounder_cache_info;
+			num_of_cache_types = ARRAY_SIZE(navy_flounder_cache_info);
+			break;
+		case IP_VERSION(10, 3, 4):
+			pcache_info = dimgrey_cavefish_cache_info;
+			num_of_cache_types = ARRAY_SIZE(dimgrey_cavefish_cache_info);
+			break;
+		case IP_VERSION(10, 3, 1):
+			pcache_info = vangogh_cache_info;
+			num_of_cache_types = ARRAY_SIZE(vangogh_cache_info);
+			break;
+		case IP_VERSION(10, 3, 5):
+			pcache_info = beige_goby_cache_info;
+			num_of_cache_types = ARRAY_SIZE(beige_goby_cache_info);
+			break;
+		case IP_VERSION(10, 3, 3):
+			pcache_info = yellow_carp_cache_info;
+			num_of_cache_types = ARRAY_SIZE(yellow_carp_cache_info);
+			break;
+		default:
+			return -EINVAL;
+		}
 	}
 
 	*size_filled = 0;

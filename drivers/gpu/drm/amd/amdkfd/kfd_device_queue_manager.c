@@ -1947,31 +1947,16 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 		device_queue_manager_init_vi_tonga(&dqm->asic_ops);
 		break;
 
-	case CHIP_VEGA10:
-	case CHIP_VEGA12:
-	case CHIP_VEGA20:
-	case CHIP_RAVEN:
-	case CHIP_RENOIR:
-	case CHIP_ARCTURUS:
-	case CHIP_ALDEBARAN:
-		device_queue_manager_init_v9(&dqm->asic_ops);
-		break;
-	case CHIP_NAVI10:
-	case CHIP_NAVI12:
-	case CHIP_NAVI14:
-	case CHIP_SIENNA_CICHLID:
-	case CHIP_NAVY_FLOUNDER:
-	case CHIP_VANGOGH:
-	case CHIP_DIMGREY_CAVEFISH:
-	case CHIP_BEIGE_GOBY:
-	case CHIP_YELLOW_CARP:
-	case CHIP_CYAN_SKILLFISH:
-		device_queue_manager_init_v10_navi10(&dqm->asic_ops);
-		break;
 	default:
-		WARN(1, "Unexpected ASIC family %u",
-		     dev->device_info->asic_family);
-		goto out_free;
+		if (KFD_GC_VERSION(dev) >= IP_VERSION(10, 1, 1))
+			device_queue_manager_init_v10_navi10(&dqm->asic_ops);
+		else if (KFD_GC_VERSION(dev) >= IP_VERSION(9, 0, 1))
+			device_queue_manager_init_v9(&dqm->asic_ops);
+		else {
+			WARN(1, "Unexpected ASIC family %u",
+			     dev->device_info->asic_family);
+			goto out_free;
+		}
 	}
 
 	if (init_mqd_managers(dqm))

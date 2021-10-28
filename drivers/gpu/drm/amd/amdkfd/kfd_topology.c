@@ -1425,30 +1425,14 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 			HSA_CAP_DOORBELL_TYPE_TOTALBITS_SHIFT) &
 			HSA_CAP_DOORBELL_TYPE_TOTALBITS_MASK);
 		break;
-	case CHIP_VEGA10:
-	case CHIP_VEGA12:
-	case CHIP_VEGA20:
-	case CHIP_RAVEN:
-	case CHIP_RENOIR:
-	case CHIP_ARCTURUS:
-	case CHIP_ALDEBARAN:
-	case CHIP_NAVI10:
-	case CHIP_NAVI12:
-	case CHIP_NAVI14:
-	case CHIP_SIENNA_CICHLID:
-	case CHIP_NAVY_FLOUNDER:
-	case CHIP_VANGOGH:
-	case CHIP_DIMGREY_CAVEFISH:
-	case CHIP_BEIGE_GOBY:
-	case CHIP_YELLOW_CARP:
-	case CHIP_CYAN_SKILLFISH:
-		dev->node_props.capability |= ((HSA_CAP_DOORBELL_TYPE_2_0 <<
-			HSA_CAP_DOORBELL_TYPE_TOTALBITS_SHIFT) &
-			HSA_CAP_DOORBELL_TYPE_TOTALBITS_MASK);
-		break;
 	default:
-		WARN(1, "Unexpected ASIC family %u",
-		     dev->gpu->device_info->asic_family);
+		if (KFD_GC_VERSION(dev->gpu) >= IP_VERSION(9, 0, 1))
+			dev->node_props.capability |= ((HSA_CAP_DOORBELL_TYPE_2_0 <<
+				HSA_CAP_DOORBELL_TYPE_TOTALBITS_SHIFT) &
+				HSA_CAP_DOORBELL_TYPE_TOTALBITS_MASK);
+		else
+			WARN(1, "Unexpected ASIC family %u",
+			     dev->gpu->device_info->asic_family);
 	}
 
 	/*
