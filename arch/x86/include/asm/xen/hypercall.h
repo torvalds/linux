@@ -323,9 +323,7 @@ HYPERVISOR_get_debugreg(int reg)
 static inline int
 HYPERVISOR_update_descriptor(u64 ma, u64 desc)
 {
-	if (sizeof(u64) == sizeof(long))
-		return _hypercall2(int, update_descriptor, ma, desc);
-	return _hypercall4(int, update_descriptor, ma, ma>>32, desc, desc>>32);
+	return _hypercall2(int, update_descriptor, ma, desc);
 }
 
 static inline long
@@ -344,12 +342,7 @@ static inline int
 HYPERVISOR_update_va_mapping(unsigned long va, pte_t new_val,
 			     unsigned long flags)
 {
-	if (sizeof(new_val) == sizeof(long))
-		return _hypercall3(int, update_va_mapping, va,
-				   new_val.pte, flags);
-	else
-		return _hypercall4(int, update_va_mapping, va,
-				   new_val.pte, new_val.pte >> 32, flags);
+	return _hypercall3(int, update_va_mapping, va, new_val.pte, flags);
 }
 
 static inline int
@@ -461,16 +454,10 @@ MULTI_update_va_mapping(struct multicall_entry *mcl, unsigned long va,
 {
 	mcl->op = __HYPERVISOR_update_va_mapping;
 	mcl->args[0] = va;
-	if (sizeof(new_val) == sizeof(long)) {
-		mcl->args[1] = new_val.pte;
-		mcl->args[2] = flags;
-	} else {
-		mcl->args[1] = new_val.pte;
-		mcl->args[2] = new_val.pte >> 32;
-		mcl->args[3] = flags;
-	}
+	mcl->args[1] = new_val.pte;
+	mcl->args[2] = flags;
 
-	trace_xen_mc_entry(mcl, sizeof(new_val) == sizeof(long) ? 3 : 4);
+	trace_xen_mc_entry(mcl, 3);
 }
 
 static inline void
@@ -478,19 +465,10 @@ MULTI_update_descriptor(struct multicall_entry *mcl, u64 maddr,
 			struct desc_struct desc)
 {
 	mcl->op = __HYPERVISOR_update_descriptor;
-	if (sizeof(maddr) == sizeof(long)) {
-		mcl->args[0] = maddr;
-		mcl->args[1] = *(unsigned long *)&desc;
-	} else {
-		u32 *p = (u32 *)&desc;
+	mcl->args[0] = maddr;
+	mcl->args[1] = *(unsigned long *)&desc;
 
-		mcl->args[0] = maddr;
-		mcl->args[1] = maddr >> 32;
-		mcl->args[2] = *p++;
-		mcl->args[3] = *p;
-	}
-
-	trace_xen_mc_entry(mcl, sizeof(maddr) == sizeof(long) ? 2 : 4);
+	trace_xen_mc_entry(mcl, 2);
 }
 
 static inline void
