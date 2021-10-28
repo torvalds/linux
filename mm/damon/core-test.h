@@ -219,14 +219,14 @@ static void damon_test_split_regions_of(struct kunit *test)
 	r = damon_new_region(0, 22);
 	damon_add_region(r, t);
 	damon_split_regions_of(c, t, 2);
-	KUNIT_EXPECT_EQ(test, damon_nr_regions(t), 2u);
+	KUNIT_EXPECT_LE(test, damon_nr_regions(t), 2u);
 	damon_free_target(t);
 
 	t = damon_new_target(42);
 	r = damon_new_region(0, 220);
 	damon_add_region(r, t);
 	damon_split_regions_of(c, t, 4);
-	KUNIT_EXPECT_EQ(test, damon_nr_regions(t), 4u);
+	KUNIT_EXPECT_LE(test, damon_nr_regions(t), 4u);
 	damon_free_target(t);
 	damon_destroy_ctx(c);
 }
