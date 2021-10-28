@@ -66,7 +66,7 @@ static int serdev_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 		return rc;
 
 	if (dev->parent->parent->bus == &platform_bus_type)
-		rc = dev->parent->parent->bus->uevent(dev->parent->parent, env);
+		rc = dev->parent->parent->bus->uevent(dev, env);
 
 	return rc;
 }
@@ -111,7 +111,7 @@ static int serdev_device_match(struct device *dev, struct device_driver *drv)
 		return 1;
 
 	if (dev->parent->parent->bus == &platform_bus_type &&
-	    dev->parent->parent->bus->match(dev->parent->parent, drv))
+	    dev->parent->parent->bus->match(dev, drv))
 		return 1;
 
 	return 0;
