@@ -2021,7 +2021,9 @@ err:
 inline bool bch2_btree_iter_advance(struct btree_iter *iter)
 {
 	struct bpos pos = iter->k.p;
-	bool ret = bpos_cmp(pos, SPOS_MAX) != 0;
+	bool ret = (iter->flags & BTREE_ITER_ALL_SNAPSHOTS
+		    ? bpos_cmp(pos, SPOS_MAX)
+		    : bkey_cmp(pos, SPOS_MAX)) != 0;
 
 	if (ret && !(iter->flags & BTREE_ITER_IS_EXTENTS))
 		pos = bkey_successor(iter, pos);
