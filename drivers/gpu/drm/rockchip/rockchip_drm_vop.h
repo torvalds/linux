@@ -33,7 +33,7 @@
 #define VOP_FEATURE_INTERNAL_RGB	BIT(1)
 #define VOP_FEATURE_ALPHA_SCALE		BIT(2)
 #define VOP_FEATURE_ALPHA_HDR10		BIT(3)
-#define VOP_FEATURE_ALPHA_DOLBY_HDR	BIT(4)
+#define VOP_FEATURE_ALPHA_NEXT_HDR	BIT(4)
 /* a feature to splice two windows and two vps to support resolution > 4096 */
 #define VOP_FEATURE_SPLICE	       BIT(5)
 

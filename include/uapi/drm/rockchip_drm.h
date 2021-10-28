@@ -82,7 +82,7 @@ enum drm_rockchip_gem_cpu_acquire_type {
 enum rockchip_crtc_feture {
 	ROCKCHIP_DRM_CRTC_FEATURE_ALPHA_SCALE,
 	ROCKCHIP_DRM_CRTC_FEATURE_HDR10,
-	ROCKCHIP_DRM_CRTC_FEATURE_DOLBY_HDR,
+	ROCKCHIP_DRM_CRTC_FEATURE_NEXT_HDR,
 };
 
 enum rockchip_plane_feture {
