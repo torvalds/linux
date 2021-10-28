@@ -650,10 +650,9 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 						code += KEY_MACRO1;
 					else
 						code += BTN_TRIGGER_HAPPY - 0x1e;
-				} else {
-					goto ignore;
+					break;
 				}
-				break;
+				fallthrough;
 		default:
 			switch (field->physical) {
 			case HID_GD_MOUSE:
