@@ -1367,20 +1367,27 @@ void intel_gt_handle_error(struct intel_gt *gt,
 	/* Make sure i915_reset_trylock() sees the I915_RESET_BACKOFF */
 	synchronize_rcu_expedited();
 
-	/* Prevent any other reset-engine attempt. */
-	for_each_engine(engine, gt, tmp) {
-		while (test_and_set_bit(I915_RESET_ENGINE + engine->id,
-					&gt->reset.flags))
-			wait_on_bit(&gt->reset.flags,
-				    I915_RESET_ENGINE + engine->id,
-				    TASK_UNINTERRUPTIBLE);
+	/*
+	 * Prevent any other reset-engine attempt. We don't do this for GuC
+	 * submission the GuC owns the per-engine reset, not the i915.
+	 */
+	if (!intel_uc_uses_guc_submission(&gt->uc)) {
+		for_each_engine(engine, gt, tmp) {
+			while (test_and_set_bit(I915_RESET_ENGINE + engine->id,
+						&gt->reset.flags))
+				wait_on_bit(&gt->reset.flags,
+					    I915_RESET_ENGINE + engine->id,
+					    TASK_UNINTERRUPTIBLE);
+		}
 	}
 
 	intel_gt_reset_global(gt, engine_mask, msg);
 
-	for_each_engine(engine, gt, tmp)
-		clear_bit_unlock(I915_RESET_ENGINE + engine->id,
-				 &gt->reset.flags);
+	if (!intel_uc_uses_guc_submission(&gt->uc)) {
+		for_each_engine(engine, gt, tmp)
+			clear_bit_unlock(I915_RESET_ENGINE + engine->id,
+					 &gt->reset.flags);
+	}
 	clear_bit_unlock(I915_RESET_BACKOFF, &gt->reset.flags);
 	smp_mb__after_atomic();
 	wake_up_all(&gt->reset.queue);
