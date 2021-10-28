@@ -1787,7 +1787,7 @@ void smc_llc_link_active(struct smc_link *link)
 			    link->smcibdev->ibdev->name, link->ibport);
 	link->state = SMC_LNK_ACTIVE;
 	if (link->lgr->llc_testlink_time) {
-		link->llc_testlink_time = link->lgr->llc_testlink_time * HZ;
+		link->llc_testlink_time = link->lgr->llc_testlink_time;
 		schedule_delayed_work(&link->llc_testlink_wrk,
 				      link->llc_testlink_time);
 	}
