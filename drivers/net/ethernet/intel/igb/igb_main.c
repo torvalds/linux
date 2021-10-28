@@ -6750,8 +6750,62 @@ static void igb_perout(struct igb_adapter *adapter, int tsintr_tt)
 		return;
 
 	spin_lock(&adapter->tmreg_lock);
-	ts = timespec64_add(adapter->perout[pin].start,
-			    adapter->perout[pin].period);
+
+	if (hw->mac.type == e1000_82580 ||
+	    hw->mac.type == e1000_i354 ||
+	    hw->mac.type == e1000_i350) {
+		s64 ns = timespec64_to_ns(&adapter->perout[pin].period);
+		u32 systiml, systimh, level_mask, level, rem;
+		u64 systim, now;
+
+		/* read systim registers in sequence */
+		rd32(E1000_SYSTIMR);
+		systiml = rd32(E1000_SYSTIML);
+		systimh = rd32(E1000_SYSTIMH);
+		systim = (((u64)(systimh & 0xFF)) << 32) | ((u64)systiml);
+		now = timecounter_cyc2time(&adapter->tc, systim);
+
+		if (pin < 2) {
+			level_mask = (tsintr_tt == 1) ? 0x80000 : 0x40000;
+			level = (rd32(E1000_CTRL) & level_mask) ? 1 : 0;
+		} else {
+			level_mask = (tsintr_tt == 1) ? 0x80 : 0x40;
+			level = (rd32(E1000_CTRL_EXT) & level_mask) ? 1 : 0;
+		}
+
+		div_u64_rem(now, ns, &rem);
+		systim = systim + (ns - rem);
+
+		/* synchronize pin level with rising/falling edges */
+		div_u64_rem(now, ns << 1, &rem);
+		if (rem < ns) {
+			/* first half of period */
+			if (level == 0) {
+				/* output is already low, skip this period */
+				systim += ns;
+				pr_notice("igb: periodic output on %s missed falling edge\n",
+					  adapter->sdp_config[pin].name);
+			}
+		} else {
+			/* second half of period */
+			if (level == 1) {
+				/* output is already high, skip this period */
+				systim += ns;
+				pr_notice("igb: periodic output on %s missed rising edge\n",
+					  adapter->sdp_config[pin].name);
+			}
+		}
+
+		/* for this chip family tv_sec is the upper part of the binary value,
+		 * so not seconds
+		 */
+		ts.tv_nsec = (u32)systim;
+		ts.tv_sec  = ((u32)(systim >> 32)) & 0xFF;
+	} else {
+		ts = timespec64_add(adapter->perout[pin].start,
+				    adapter->perout[pin].period);
+	}
+
 	/* u32 conversion of tv_sec is safe until y2106 */
 	wr32((tsintr_tt == 1) ? E1000_TRGTTIML1 : E1000_TRGTTIML0, ts.tv_nsec);
 	wr32((tsintr_tt == 1) ? E1000_TRGTTIMH1 : E1000_TRGTTIMH0, (u32)ts.tv_sec);
@@ -6759,6 +6813,7 @@ static void igb_perout(struct igb_adapter *adapter, int tsintr_tt)
 	tsauxc |= TSAUXC_EN_TT0;
 	wr32(E1000_TSAUXC, tsauxc);
 	adapter->perout[pin].start = ts;
+
 	spin_unlock(&adapter->tmreg_lock);
 }
 
