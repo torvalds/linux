@@ -48,3 +48,4 @@ parameters, info versions, and other features it supports.
    am65-nuss-cpsw-switch
    prestera
    iosm
+   octeontx2
