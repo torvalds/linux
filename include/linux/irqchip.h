@@ -48,8 +48,9 @@ static const struct of_device_id drv_name##_irqchip_match_table[] = {
 	{},								\
 };									\
 MODULE_DEVICE_TABLE(of, drv_name##_irqchip_match_table);		\
-static struct platform_driver drv_name##_driver = {		\
-	.probe  = platform_irqchip_probe,				\
+static struct platform_driver drv_name##_driver = {			\
+	.probe  = IS_ENABLED(CONFIG_IRQCHIP) ? 				\
+			platform_irqchip_probe : NULL,			\
 	.driver = {							\
 		.name = #drv_name,					\
 		.owner = THIS_MODULE,					\
