@@ -134,7 +134,10 @@ extern bool kvm_nvhe_sym(smccc_trng_available);
 struct kvm_iommu_ops {
 	int (*init)(void);
 	bool (*host_smc_handler)(struct kvm_cpu_context *host_ctxt);
-	void (*host_stage2_set_owner)(phys_addr_t addr, size_t size, u8 owner_id);
+	bool (*host_mmio_dabt_handler)(struct kvm_cpu_context *host_ctxt,
+				       phys_addr_t fault_pa, unsigned int len,
+				       bool is_write, int rd);
+	void (*host_stage2_set_owner)(phys_addr_t addr, size_t size, u32 owner_id);
 };
 
 extern struct kvm_iommu_ops kvm_iommu_ops;
