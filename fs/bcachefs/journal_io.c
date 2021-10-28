@@ -1512,7 +1512,7 @@ retry_alloc:
 
 	w->devs_written = bch2_bkey_devs(bkey_i_to_s_c(&w->key));
 
-	if (c->opts.nochanges)
+	if (test_bit(JOURNAL_NOCHANGES, &j->flags))
 		goto no_io;
 
 	for_each_rw_member(ca, c, i)

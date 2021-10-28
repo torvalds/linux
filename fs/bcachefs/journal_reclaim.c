@@ -34,8 +34,10 @@ unsigned bch2_journal_dev_buckets_available(struct journal *j,
 					    struct journal_device *ja,
 					    enum journal_space_from from)
 {
-	unsigned available = (journal_space_from(ja, from) -
-			      ja->cur_idx - 1 + ja->nr) % ja->nr;
+	unsigned available = !test_bit(JOURNAL_NOCHANGES, &j->flags)
+		? ((journal_space_from(ja, from) -
+		    ja->cur_idx - 1 + ja->nr) % ja->nr)
+		: ja->nr;
 
 	/*
 	 * Don't use the last bucket unless writing the new last_seq
