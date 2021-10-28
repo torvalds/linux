@@ -24,6 +24,7 @@ select:
           - samsung,exynos5420-pmu
           - samsung,exynos5433-pmu
           - samsung,exynos7-pmu
+          - samsung,exynos850-pmu
           - samsung-s5pv210-pmu
   required:
     - compatible
@@ -41,6 +42,7 @@ properties:
           - samsung,exynos5420-pmu
           - samsung,exynos5433-pmu
           - samsung,exynos7-pmu
+          - samsung,exynos850-pmu
           - samsung-s5pv210-pmu
       - const: syscon
 
