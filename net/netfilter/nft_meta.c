@@ -321,7 +321,7 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 		nft_reg_store8(dest, nft_pf(pkt));
 		break;
 	case NFT_META_L4PROTO:
-		if (!pkt->tprot_set)
+		if (!(pkt->flags & NFT_PKTINFO_L4PROTO))
 			goto err;
 		nft_reg_store8(dest, pkt->tprot);
 		break;
