@@ -561,6 +561,8 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	int err;
 	struct ppc_inst op;
 	u32 *ip = (u32 *)rec->ip;
+	struct module *mod = rec->arch.mod;
+	unsigned long tramp;
 
 	/* read where this goes */
 	if (copy_inst_from_kernel_nofault(&op, ip))
@@ -573,13 +575,23 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	}
 
 	/* If we never set up a trampoline to ftrace_caller, then bail */
-	if (!rec->arch.mod->arch.tramp) {
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+	if (!mod->arch.tramp || !mod->arch.tramp_regs) {
+#else
+	if (!mod->arch.tramp) {
+#endif
 		pr_err("No ftrace trampoline\n");
 		return -EINVAL;
 	}
 
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+	if (rec->flags & FTRACE_FL_REGS)
+		tramp = mod->arch.tramp_regs;
+	else
+#endif
+		tramp = mod->arch.tramp;
 	/* create the branch to the trampoline */
-	err = create_branch(&op, ip, rec->arch.mod->arch.tramp, BRANCH_SET_LINK);
+	err = create_branch(&op, ip, tramp, BRANCH_SET_LINK);
 	if (err) {
 		pr_err("REL24 out of range!\n");
 		return -EINVAL;

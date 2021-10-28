@@ -306,6 +306,14 @@ int module_finalize_ftrace(struct module *module, const Elf_Shdr *sechdrs)
 	if (!module->arch.tramp)
 		return -ENOENT;
 
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+	module->arch.tramp_regs = do_plt_call(module->core_layout.base,
+					      (unsigned long)ftrace_regs_caller,
+					      sechdrs, module);
+	if (!module->arch.tramp_regs)
+		return -ENOENT;
+#endif
+
 	return 0;
 }
 #endif
