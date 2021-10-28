@@ -1173,7 +1173,10 @@
   ioremap_cache
   iounmap
   __iowrite32_copy
+  ip6_local_out
+  ip6_route_me_harder
   ipi_desc_get
+  ip_local_out
   ip_route_me_harder
   iput
   ipv6_find_hdr
@@ -1526,6 +1529,7 @@
   net_namespace_list
   net_ns_type_operations
   net_ratelimit
+  nf_ct_attach
   nf_ct_delete
   nf_register_net_hooks
   nf_unregister_net_hooks
@@ -2254,6 +2258,7 @@
   si_swapinfo
   sk_alloc
   skb_add_rx_frag
+  __skb_checksum_complete
   skb_checksum_help
   skb_clone
   skb_clone_sk
@@ -2263,6 +2268,7 @@
   skb_copy_datagram_iter
   skb_copy_expand
   skb_dequeue
+  skb_dump
   skb_ensure_writable
   skb_free_datagram
   __skb_get_hash
