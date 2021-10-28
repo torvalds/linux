@@ -391,7 +391,7 @@ static int hclge_dbg_dump_mac(struct hclge_dev *hdev, char *buf, int len)
 static int hclge_dbg_dump_dcb_qset(struct hclge_dev *hdev, char *buf, int len,
 				   int *pos)
 {
-	struct hclge_dbg_bitmap_cmd *bitmap;
+	struct hclge_dbg_bitmap_cmd req;
 	struct hclge_desc desc;
 	u16 qset_id, qset_num;
 	int ret;
@@ -408,12 +408,12 @@ static int hclge_dbg_dump_dcb_qset(struct hclge_dev *hdev, char *buf, int len,
 		if (ret)
 			return ret;
 
-		bitmap = (struct hclge_dbg_bitmap_cmd *)&desc.data[1];
+		req.bitmap = (u8)le32_to_cpu(desc.data[1]);
 
 		*pos += scnprintf(buf + *pos, len - *pos,
 				  "%04u           %#x            %#x             %#x               %#x\n",
-				  qset_id, bitmap->bit0, bitmap->bit1,
-				  bitmap->bit2, bitmap->bit3);
+				  qset_id, req.bit0, req.bit1, req.bit2,
+				  req.bit3);
 	}
 
 	return 0;
@@ -422,7 +422,7 @@ static int hclge_dbg_dump_dcb_qset(struct hclge_dev *hdev, char *buf, int len,
 static int hclge_dbg_dump_dcb_pri(struct hclge_dev *hdev, char *buf, int len,
 				  int *pos)
 {
-	struct hclge_dbg_bitmap_cmd *bitmap;
+	struct hclge_dbg_bitmap_cmd req;
 	struct hclge_desc desc;
 	u8 pri_id, pri_num;
 	int ret;
@@ -439,12 +439,11 @@ static int hclge_dbg_dump_dcb_pri(struct hclge_dev *hdev, char *buf, int len,
 		if (ret)
 			return ret;
 
-		bitmap = (struct hclge_dbg_bitmap_cmd *)&desc.data[1];
+		req.bitmap = (u8)le32_to_cpu(desc.data[1]);
 
 		*pos += scnprintf(buf + *pos, len - *pos,
 				  "%03u       %#x           %#x                %#x\n",
-				  pri_id, bitmap->bit0, bitmap->bit1,
-				  bitmap->bit2);
+				  pri_id, req.bit0, req.bit1, req.bit2);
 	}
 
 	return 0;
@@ -453,7 +452,7 @@ static int hclge_dbg_dump_dcb_pri(struct hclge_dev *hdev, char *buf, int len,
 static int hclge_dbg_dump_dcb_pg(struct hclge_dev *hdev, char *buf, int len,
 				 int *pos)
 {
-	struct hclge_dbg_bitmap_cmd *bitmap;
+	struct hclge_dbg_bitmap_cmd req;
 	struct hclge_desc desc;
 	u8 pg_id;
 	int ret;
@@ -466,12 +465,11 @@ static int hclge_dbg_dump_dcb_pg(struct hclge_dev *hdev, char *buf, int len,
 		if (ret)
 			return ret;
 
-		bitmap = (struct hclge_dbg_bitmap_cmd *)&desc.data[1];
+		req.bitmap = (u8)le32_to_cpu(desc.data[1]);
 
 		*pos += scnprintf(buf + *pos, len - *pos,
 				  "%03u      %#x           %#x               %#x\n",
-				  pg_id, bitmap->bit0, bitmap->bit1,
-				  bitmap->bit2);
+				  pg_id, req.bit0, req.bit1, req.bit2);
 	}
 
 	return 0;
@@ -511,7 +509,7 @@ static int hclge_dbg_dump_dcb_queue(struct hclge_dev *hdev, char *buf, int len,
 static int hclge_dbg_dump_dcb_port(struct hclge_dev *hdev, char *buf, int len,
 				   int *pos)
 {
-	struct hclge_dbg_bitmap_cmd *bitmap;
+	struct hclge_dbg_bitmap_cmd req;
 	struct hclge_desc desc;
 	u8 port_id = 0;
 	int ret;
@@ -521,12 +519,12 @@ static int hclge_dbg_dump_dcb_port(struct hclge_dev *hdev, char *buf, int len,
 	if (ret)
 		return ret;
 
-	bitmap = (struct hclge_dbg_bitmap_cmd *)&desc.data[1];
+	req.bitmap = (u8)le32_to_cpu(desc.data[1]);
 
 	*pos += scnprintf(buf + *pos, len - *pos, "port_mask: %#x\n",
-			 bitmap->bit0);
+			 req.bit0);
 	*pos += scnprintf(buf + *pos, len - *pos, "port_shaping_pass: %#x\n",
-			 bitmap->bit1);
+			 req.bit1);
 
 	return 0;
 }
