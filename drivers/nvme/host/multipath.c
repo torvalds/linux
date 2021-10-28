@@ -562,7 +562,7 @@ static int nvme_parse_ana_log(struct nvme_ctrl *ctrl, void *data,
 			return -EINVAL;
 
 		nr_nsids = le32_to_cpu(desc->nnsids);
-		nsid_buf_size = nr_nsids * sizeof(__le32);
+		nsid_buf_size = flex_array_size(desc, nsids, nr_nsids);
 
 		if (WARN_ON_ONCE(desc->grpid == 0))
 			return -EINVAL;

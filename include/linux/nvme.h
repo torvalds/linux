@@ -27,8 +27,14 @@
 #define NVME_NSID_ALL		0xffffffff
 
 enum nvme_subsys_type {
-	NVME_NQN_DISC	= 1,		/* Discovery type target subsystem */
-	NVME_NQN_NVME	= 2,		/* NVME type target subsystem */
+	/* Referral to another discovery type target subsystem */
+	NVME_NQN_DISC	= 1,
+
+	/* NVME type target subsystem */
+	NVME_NQN_NVME	= 2,
+
+	/* Current discovery type target subsystem */
+	NVME_NQN_CURR	= 3,
 };
 
 enum nvme_ctrl_type {
@@ -1312,6 +1318,12 @@ struct nvmf_common_command {
 
 #define MAX_DISC_LOGS	255
 
+/* Discovery log page entry flags (EFLAGS): */
+enum {
+	NVME_DISC_EFLAGS_EPCSD		= (1 << 1),
+	NVME_DISC_EFLAGS_DUPRETINFO	= (1 << 0),
+};
+
 /* Discovery log page entry */
 struct nvmf_disc_rsp_page_entry {
 	__u8		trtype;
@@ -1321,7 +1333,8 @@ struct nvmf_disc_rsp_page_entry {
 	__le16		portid;
 	__le16		cntlid;
 	__le16		asqsz;
-	__u8		resv8[22];
+	__le16		eflags;
+	__u8		resv10[20];
 	char		trsvcid[NVMF_TRSVCID_SIZE];
 	__u8		resv64[192];
 	char		subnqn[NVMF_NQN_FIELD_LEN];
