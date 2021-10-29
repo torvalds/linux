@@ -1080,7 +1080,7 @@
 		};
 
 		usb3_0: usb3@100f8800 {
-			compatible = "qcom,dwc3", "syscon";
+			compatible = "qcom,ipq8064-dwc3", "qcom,dwc3";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			reg = <0x100f8800 0x8000>;
@@ -1122,7 +1122,7 @@
 		};
 
 		usb3_1: usb3@110f8800 {
-			compatible = "qcom,dwc3", "syscon";
+			compatible = "qcom,ipq8064-dwc3", "qcom,dwc3";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			reg = <0x110f8800 0x8000>;
