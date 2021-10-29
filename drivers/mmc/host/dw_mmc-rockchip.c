@@ -143,22 +143,29 @@ static int dw_mci_v2_execute_tuning(struct dw_mci_slot *slot, u32 opcode)
 	struct dw_mci *host = slot->host;
 	struct dw_mci_rockchip_priv_data *priv = host->priv;
 	struct mmc_host *mmc = slot->mmc;
-	u32 degrees[4] = {90, 180, 270, 360};
+	u32 degrees[4] = {0, 90, 180, 270}, degree;
 	int i;
 	static bool inherit = true;
 
 	if (inherit) {
 		inherit = false;
-		i = clk_get_phase(priv->sample_clk) / 90 - 1;
+		i = clk_get_phase(priv->sample_clk) / 90;
+		degree = degrees[i];
 		goto done;
 	}
 
-	/* v2 only support 4 degrees in theory */
+	/*
+	 * v2 only support 4 degrees in theory.
+	 * First we inherit sample phases from firmware, which should
+	 * be able work fine, at least in the first place.
+	 * If retune is needed, we search forward to pick the last
+	 * one phase from degree list and loop around until we get one.
+	 * It's impossible all 4 fixed phase won't be able to work.
+	 */
 	for (i = 0; i < ARRAY_SIZE(degrees); i++) {
-		if (degrees[i] == priv->last_degree)
-			continue;
-
-		clk_set_phase(priv->sample_clk, degrees[i]);
+		degree = degrees[i] + priv->last_degree;
+		degree = degree % 360;
+		clk_set_phase(priv->sample_clk, degree);
 		if (!mmc_send_tuning(mmc, opcode, NULL))
 			break;
 	}
@@ -170,7 +177,7 @@ static int dw_mci_v2_execute_tuning(struct dw_mci_slot *slot, u32 opcode)
 
 done:
 	dev_info(host->dev, "Successfully tuned phase to %d\n", degrees[i]);
-	priv->last_degree = degrees[i];
+	priv->last_degree = degree;
 	return 0;
 }
 
