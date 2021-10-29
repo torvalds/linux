@@ -42,6 +42,26 @@ bnxt_dl_flash_update(struct devlink *dl,
 	return rc;
 }
 
+static int bnxt_hwrm_remote_dev_reset_set(struct bnxt *bp, bool remote_reset)
+{
+	struct hwrm_func_cfg_input *req;
+	int rc;
+
+	if (~bp->fw_cap & BNXT_FW_CAP_HOT_RESET_IF)
+		return -EOPNOTSUPP;
+
+	rc = hwrm_req_init(bp, req, HWRM_FUNC_CFG);
+	if (rc)
+		return rc;
+
+	req->fid = cpu_to_le16(0xffff);
+	req->enables = cpu_to_le32(FUNC_CFG_REQ_ENABLES_HOT_RESET_IF_SUPPORT);
+	if (remote_reset)
+		req->flags = cpu_to_le32(FUNC_CFG_REQ_FLAGS_HOT_RESET_IF_EN_DIS);
+
+	return hwrm_req_send(bp, req);
+}
+
 static int bnxt_fw_reporter_diagnose(struct devlink_health_reporter *reporter,
 				     struct devlink_fmsg *fmsg,
 				     struct netlink_ext_ack *extack)
@@ -272,11 +292,13 @@ void bnxt_dl_health_status_update(struct bnxt *bp, bool healthy)
 void bnxt_dl_health_recovery_done(struct bnxt *bp)
 {
 	struct bnxt_fw_health *hlth = bp->fw_health;
+	struct bnxt_dl *dl = devlink_priv(bp->dl);
 
 	if (hlth->fatal)
 		devlink_health_reporter_recovery_done(hlth->fw_fatal_reporter);
 	else
 		devlink_health_reporter_recovery_done(hlth->fw_reset_reporter);
+	bnxt_hwrm_remote_dev_reset_set(bp, dl->remote_reset);
 }
 
 static int bnxt_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
@@ -331,6 +353,11 @@ static int bnxt_dl_reload_down(struct devlink *dl, bool netns_change,
 		if (~bp->fw_cap & BNXT_FW_CAP_HOT_RESET) {
 			NL_SET_ERR_MSG_MOD(extack, "Device not capable, requires reboot");
 			return -EOPNOTSUPP;
+		}
+		if (!bnxt_hwrm_reset_permitted(bp)) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Reset denied by firmware, it may be inhibited by remote driver");
+			return -EPERM;
 		}
 		rtnl_lock();
 		if (bp->dev->reg_state == NETREG_UNREGISTERED) {
@@ -863,6 +890,32 @@ static int bnxt_dl_msix_validate(struct devlink *dl, u32 id,
 	return 0;
 }
 
+static int bnxt_remote_dev_reset_get(struct devlink *dl, u32 id,
+				     struct devlink_param_gset_ctx *ctx)
+{
+	struct bnxt *bp = bnxt_get_bp_from_dl(dl);
+
+	if (~bp->fw_cap & BNXT_FW_CAP_HOT_RESET_IF)
+		return -EOPNOTSUPP;
+
+	ctx->val.vbool = bnxt_dl_get_remote_reset(dl);
+	return 0;
+}
+
+static int bnxt_remote_dev_reset_set(struct devlink *dl, u32 id,
+				     struct devlink_param_gset_ctx *ctx)
+{
+	struct bnxt *bp = bnxt_get_bp_from_dl(dl);
+	int rc;
+
+	rc = bnxt_hwrm_remote_dev_reset_set(bp, ctx->val.vbool);
+	if (rc)
+		return rc;
+
+	bnxt_dl_set_remote_reset(dl, ctx->val.vbool);
+	return rc;
+}
+
 static const struct devlink_param bnxt_dl_params[] = {
 	DEVLINK_PARAM_GENERIC(ENABLE_SRIOV,
 			      BIT(DEVLINK_PARAM_CMODE_PERMANENT),
@@ -885,17 +938,25 @@ static const struct devlink_param bnxt_dl_params[] = {
 			     BIT(DEVLINK_PARAM_CMODE_PERMANENT),
 			     bnxt_dl_nvm_param_get, bnxt_dl_nvm_param_set,
 			     NULL),
+	/* keep REMOTE_DEV_RESET last, it is excluded based on caps */
+	DEVLINK_PARAM_GENERIC(ENABLE_REMOTE_DEV_RESET,
+			      BIT(DEVLINK_PARAM_CMODE_RUNTIME),
+			      bnxt_remote_dev_reset_get,
+			      bnxt_remote_dev_reset_set, NULL),
 };
 
 static int bnxt_dl_params_register(struct bnxt *bp)
 {
+	int num_params = ARRAY_SIZE(bnxt_dl_params);
 	int rc;
 
 	if (bp->hwrm_spec_code < 0x10600)
 		return 0;
 
-	rc = devlink_params_register(bp->dl, bnxt_dl_params,
-				     ARRAY_SIZE(bnxt_dl_params));
+	if (~bp->fw_cap & BNXT_FW_CAP_HOT_RESET_IF)
+		num_params--;
+
+	rc = devlink_params_register(bp->dl, bnxt_dl_params, num_params);
 	if (rc)
 		netdev_warn(bp->dev, "devlink_params_register failed. rc=%d\n",
 			    rc);
@@ -904,11 +965,15 @@ static int bnxt_dl_params_register(struct bnxt *bp)
 
 static void bnxt_dl_params_unregister(struct bnxt *bp)
 {
+	int num_params = ARRAY_SIZE(bnxt_dl_params);
+
 	if (bp->hwrm_spec_code < 0x10600)
 		return;
 
-	devlink_params_unregister(bp->dl, bnxt_dl_params,
-				  ARRAY_SIZE(bnxt_dl_params));
+	if (~bp->fw_cap & BNXT_FW_CAP_HOT_RESET_IF)
+		num_params--;
+
+	devlink_params_unregister(bp->dl, bnxt_dl_params, num_params);
 }
 
 int bnxt_dl_register(struct bnxt *bp)
@@ -933,6 +998,7 @@ int bnxt_dl_register(struct bnxt *bp)
 	bp->dl = dl;
 	bp_dl = devlink_priv(dl);
 	bp_dl->bp = bp;
+	bnxt_dl_set_remote_reset(dl, true);
 
 	/* Add switchdev eswitch mode setting, if SRIOV supported */
 	if (pci_find_ext_capability(bp->pdev, PCI_EXT_CAP_ID_SRIOV) &&

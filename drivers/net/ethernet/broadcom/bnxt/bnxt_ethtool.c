@@ -2187,6 +2187,11 @@ int bnxt_hwrm_firmware_reset(struct net_device *dev, u8 proc_type,
 	struct hwrm_fw_reset_input *req;
 	int rc;
 
+	if (!bnxt_hwrm_reset_permitted(bp)) {
+		netdev_warn(bp->dev, "Reset denied by firmware, it may be inhibited by remote driver");
+		return -EPERM;
+	}
+
 	rc = hwrm_req_init(bp, req, HWRM_FW_RESET);
 	if (rc)
 		return rc;

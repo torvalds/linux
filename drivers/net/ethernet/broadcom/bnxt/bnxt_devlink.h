@@ -13,6 +13,7 @@
 /* Struct to hold housekeeping info needed by devlink interface */
 struct bnxt_dl {
 	struct bnxt *bp;	/* back ptr to the controlling dev */
+	bool remote_reset;
 };
 
 static inline struct bnxt *bnxt_get_bp_from_dl(struct devlink *dl)
@@ -25,6 +26,16 @@ static inline void bnxt_dl_remote_reload(struct bnxt *bp)
 	devlink_remote_reload_actions_performed(bp->dl, 0,
 						BIT(DEVLINK_RELOAD_ACTION_DRIVER_REINIT) |
 						BIT(DEVLINK_RELOAD_ACTION_FW_ACTIVATE));
+}
+
+static inline bool bnxt_dl_get_remote_reset(struct devlink *dl)
+{
+	return ((struct bnxt_dl *)devlink_priv(dl))->remote_reset;
+}
+
+static inline void bnxt_dl_set_remote_reset(struct devlink *dl, bool value)
+{
+	((struct bnxt_dl *)devlink_priv(dl))->remote_reset = value;
 }
 
 #define NVM_OFF_MSIX_VEC_PER_PF_MAX	108

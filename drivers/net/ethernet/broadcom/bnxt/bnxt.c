@@ -7476,6 +7476,8 @@ static int __bnxt_hwrm_func_qcaps(struct bnxt *bp)
 		bp->fw_cap |= BNXT_FW_CAP_EXT_HW_STATS_SUPPORTED;
 	if (BNXT_PF(bp) && (flags_ext & FUNC_QCAPS_RESP_FLAGS_EXT_PTP_PPS_SUPPORTED))
 		bp->fw_cap |= BNXT_FW_CAP_PTP_PPS;
+	if (BNXT_PF(bp) && (flags_ext & FUNC_QCAPS_RESP_FLAGS_EXT_HOT_RESET_IF_SUPPORT))
+		bp->fw_cap |= BNXT_FW_CAP_HOT_RESET_IF;
 
 	bp->tx_push_thresh = 0;
 	if ((flags & FUNC_QCAPS_RESP_FLAGS_PUSH_MODE_SUPPORTED) &&
@@ -12008,6 +12010,27 @@ static void bnxt_fw_reset_writel(struct bnxt *bp, int reg_idx)
 		pci_read_config_dword(bp->pdev, 0, &val);
 		msleep(delay_msecs);
 	}
+}
+
+bool bnxt_hwrm_reset_permitted(struct bnxt *bp)
+{
+	struct hwrm_func_qcfg_output *resp;
+	struct hwrm_func_qcfg_input *req;
+	bool result = true; /* firmware will enforce if unknown */
+
+	if (~bp->fw_cap & BNXT_FW_CAP_HOT_RESET_IF)
+		return result;
+
+	if (hwrm_req_init(bp, req, HWRM_FUNC_QCFG))
+		return result;
+
+	req->fid = cpu_to_le16(0xffff);
+	resp = hwrm_req_hold(bp, req);
+	if (!hwrm_req_send(bp, req))
+		result = !!(le16_to_cpu(resp->flags) &
+			    FUNC_QCFG_RESP_FLAGS_HOT_RESET_ALLOWED);
+	hwrm_req_drop(bp, req);
+	return result;
 }
 
 static void bnxt_reset_all(struct bnxt *bp)
