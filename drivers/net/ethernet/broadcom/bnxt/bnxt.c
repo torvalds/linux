@@ -7480,6 +7480,8 @@ static int __bnxt_hwrm_func_qcaps(struct bnxt *bp)
 		bp->fw_cap |= BNXT_FW_CAP_ERR_RECOVER_RELOAD;
 	if (!(flags & FUNC_QCAPS_RESP_FLAGS_VLAN_ACCELERATION_TX_DISABLED))
 		bp->fw_cap |= BNXT_FW_CAP_VLAN_TX_INSERT;
+	if (flags & FUNC_QCAPS_RESP_FLAGS_DBG_QCAPS_CMD_SUPPORTED)
+		bp->fw_cap |= BNXT_FW_CAP_DBG_QCAPS;
 
 	flags_ext = le32_to_cpu(resp->flags_ext);
 	if (flags_ext & FUNC_QCAPS_RESP_FLAGS_EXT_EXT_HW_STATS_SUPPORTED)
@@ -7543,6 +7545,32 @@ hwrm_func_qcaps_exit:
 	return rc;
 }
 
+static void bnxt_hwrm_dbg_qcaps(struct bnxt *bp)
+{
+	struct hwrm_dbg_qcaps_output *resp;
+	struct hwrm_dbg_qcaps_input *req;
+	int rc;
+
+	bp->fw_dbg_cap = 0;
+	if (!(bp->fw_cap & BNXT_FW_CAP_DBG_QCAPS))
+		return;
+
+	rc = hwrm_req_init(bp, req, HWRM_DBG_QCAPS);
+	if (rc)
+		return;
+
+	req->fid = cpu_to_le16(0xffff);
+	resp = hwrm_req_hold(bp, req);
+	rc = hwrm_req_send(bp, req);
+	if (rc)
+		goto hwrm_dbg_qcaps_exit;
+
+	bp->fw_dbg_cap = le32_to_cpu(resp->flags);
+
+hwrm_dbg_qcaps_exit:
+	hwrm_req_drop(bp, req);
+}
+
 static int bnxt_hwrm_queue_qportcfg(struct bnxt *bp);
 
 static int bnxt_hwrm_func_qcaps(struct bnxt *bp)
@@ -7552,6 +7580,9 @@ static int bnxt_hwrm_func_qcaps(struct bnxt *bp)
 	rc = __bnxt_hwrm_func_qcaps(bp);
 	if (rc)
 		return rc;
+
+	bnxt_hwrm_dbg_qcaps(bp);
+
 	rc = bnxt_hwrm_queue_qportcfg(bp);
 	if (rc) {
 		netdev_err(bp->dev, "hwrm query qportcfg failure rc: %d\n", rc);

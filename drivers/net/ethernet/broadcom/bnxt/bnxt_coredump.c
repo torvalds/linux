@@ -361,13 +361,60 @@ int bnxt_get_coredump(struct bnxt *bp, u16 dump_type, void *buf, u32 *dump_len)
 	}
 }
 
+static int bnxt_hwrm_get_dump_len(struct bnxt *bp, u16 dump_type, u32 *dump_len)
+{
+	struct hwrm_dbg_qcfg_output *resp;
+	struct hwrm_dbg_qcfg_input *req;
+	int rc, hdr_len = 0;
+
+	if (!(bp->fw_cap & BNXT_FW_CAP_DBG_QCAPS))
+		return -EOPNOTSUPP;
+
+	if (dump_type == BNXT_DUMP_CRASH &&
+	    !(bp->fw_dbg_cap & DBG_QCAPS_RESP_FLAGS_CRASHDUMP_SOC_DDR))
+		return -EOPNOTSUPP;
+
+	rc = hwrm_req_init(bp, req, HWRM_DBG_QCFG);
+	if (rc)
+		return rc;
+
+	req->fid = cpu_to_le16(0xffff);
+	if (dump_type == BNXT_DUMP_CRASH)
+		req->flags = cpu_to_le16(DBG_QCFG_REQ_FLAGS_CRASHDUMP_SIZE_FOR_DEST_DEST_SOC_DDR);
+
+	resp = hwrm_req_hold(bp, req);
+	rc = hwrm_req_send(bp, req);
+	if (rc)
+		goto get_dump_len_exit;
+
+	if (dump_type == BNXT_DUMP_CRASH) {
+		*dump_len = le32_to_cpu(resp->crashdump_size);
+	} else {
+		/* Driver adds coredump header and "HWRM_VER_GET response"
+		 * segment additionally to coredump.
+		 */
+		hdr_len = sizeof(struct bnxt_coredump_segment_hdr) +
+		sizeof(struct hwrm_ver_get_output) +
+		sizeof(struct bnxt_coredump_record);
+		*dump_len = le32_to_cpu(resp->coredump_size) + hdr_len;
+	}
+	if (*dump_len <= hdr_len)
+		rc = -EINVAL;
+
+get_dump_len_exit:
+	hwrm_req_drop(bp, req);
+	return rc;
+}
+
 u32 bnxt_get_coredump_length(struct bnxt *bp, u16 dump_type)
 {
 	u32 len = 0;
 
-	if (dump_type == BNXT_DUMP_CRASH)
-		len = BNXT_CRASH_DUMP_LEN;
-	else
-		__bnxt_get_coredump(bp, NULL, &len);
+	if (bnxt_hwrm_get_dump_len(bp, dump_type, &len)) {
+		if (dump_type == BNXT_DUMP_CRASH)
+			len = BNXT_CRASH_DUMP_LEN;
+		else
+			__bnxt_get_coredump(bp, NULL, &len);
+	}
 	return len;
 }
