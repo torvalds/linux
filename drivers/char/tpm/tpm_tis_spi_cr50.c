@@ -36,6 +36,9 @@
 #define TPM_CR50_FW_VER(l)			(0x0f90 | ((l) << 12))
 #define TPM_CR50_MAX_FW_VER_LEN			64
 
+/* Default quality for hwrng. */
+#define TPM_CR50_DEFAULT_RNG_QUALITY		700
+
 struct cr50_spi_phy {
 	struct tpm_tis_spi_phy spi_phy;
 
@@ -264,6 +267,7 @@ int cr50_spi_probe(struct spi_device *spi)
 	phy = &cr50_phy->spi_phy;
 	phy->flow_control = cr50_spi_flow_control;
 	phy->wake_after = jiffies;
+	phy->priv.rng_quality = TPM_CR50_DEFAULT_RNG_QUALITY;
 	init_completion(&phy->ready);
 
 	cr50_phy->access_delay = CR50_NOIRQ_ACCESS_DELAY;
