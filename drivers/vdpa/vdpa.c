@@ -26,7 +26,15 @@ static int vdpa_dev_probe(struct device *d)
 {
 	struct vdpa_device *vdev = dev_to_vdpa(d);
 	struct vdpa_driver *drv = drv_to_vdpa(vdev->dev.driver);
+	const struct vdpa_config_ops *ops = vdev->config;
+	u32 max_num, min_num = 1;
 	int ret = 0;
+
+	max_num = ops->get_vq_num_max(vdev);
+	if (ops->get_vq_num_min)
+		min_num = ops->get_vq_num_min(vdev);
+	if (max_num < min_num)
+		return -EINVAL;
 
 	if (drv && drv->probe)
 		ret = drv->probe(vdev);
