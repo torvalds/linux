@@ -42,10 +42,10 @@
 	pr_alert(SCFTORT_FLAG s, ## x)
 
 #define VERBOSE_SCFTORTOUT(s, x...) \
-	do { if (verbose) pr_alert(SCFTORT_FLAG s, ## x); } while (0)
+	do { if (verbose) pr_alert(SCFTORT_FLAG s "\n", ## x); } while (0)
 
 #define VERBOSE_SCFTORTOUT_ERRSTRING(s, x...) \
-	do { if (verbose) pr_alert(SCFTORT_FLAG "!!! " s, ## x); } while (0)
+	do { if (verbose) pr_alert(SCFTORT_FLAG "!!! " s "\n", ## x); } while (0)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Paul E. McKenney <paulmck@kernel.org>");
@@ -630,7 +630,7 @@ static int __init scf_torture_init(void)
 		goto unwind;
 	}
 
-	VERBOSE_SCFTORTOUT("Starting %d smp_call_function() threads\n", nthreads);
+	VERBOSE_SCFTORTOUT("Starting %d smp_call_function() threads", nthreads);
 
 	atomic_set(&n_started, nthreads);
 	for (i = 0; i < nthreads; i++) {
