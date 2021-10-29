@@ -328,30 +328,69 @@ nullb_device_##NAME##_store(struct config_item *item, const char *page,	\
 }									\
 CONFIGFS_ATTR(nullb_device_, NAME);
 
-static int nullb_apply_submit_queues(struct nullb_device *dev,
-				     unsigned int submit_queues)
-{
-	struct nullb *nullb = dev->nullb;
-	struct blk_mq_tag_set *set;
+static int nullb_update_nr_hw_queues(struct nullb_device *dev,
+				     unsigned int submit_queues,
+				     unsigned int poll_queues)
 
-	if (!nullb)
+{
+	struct blk_mq_tag_set *set;
+	int ret, nr_hw_queues;
+
+	if (!dev->nullb)
 		return 0;
+
+	/*
+	 * Make sure at least one queue exists for each of submit and poll.
+	 */
+	if (!submit_queues || !poll_queues)
+		return -EINVAL;
 
 	/*
 	 * Make sure that null_init_hctx() does not access nullb->queues[] past
 	 * the end of that array.
 	 */
-	if (submit_queues > nr_cpu_ids)
+	if (submit_queues > nr_cpu_ids || poll_queues > g_poll_queues)
 		return -EINVAL;
-	set = nullb->tag_set;
-	blk_mq_update_nr_hw_queues(set, submit_queues);
-	return set->nr_hw_queues == submit_queues ? 0 : -ENOMEM;
+
+	/*
+	 * Keep previous and new queue numbers in nullb_device for reference in
+	 * the call back function null_map_queues().
+	 */
+	dev->prev_submit_queues = dev->submit_queues;
+	dev->prev_poll_queues = dev->poll_queues;
+	dev->submit_queues = submit_queues;
+	dev->poll_queues = poll_queues;
+
+	set = dev->nullb->tag_set;
+	nr_hw_queues = submit_queues + poll_queues;
+	blk_mq_update_nr_hw_queues(set, nr_hw_queues);
+	ret = set->nr_hw_queues == nr_hw_queues ? 0 : -ENOMEM;
+
+	if (ret) {
+		/* on error, revert the queue numbers */
+		dev->submit_queues = dev->prev_submit_queues;
+		dev->poll_queues = dev->prev_poll_queues;
+	}
+
+	return ret;
+}
+
+static int nullb_apply_submit_queues(struct nullb_device *dev,
+				     unsigned int submit_queues)
+{
+	return nullb_update_nr_hw_queues(dev, submit_queues, dev->poll_queues);
+}
+
+static int nullb_apply_poll_queues(struct nullb_device *dev,
+				   unsigned int poll_queues)
+{
+	return nullb_update_nr_hw_queues(dev, dev->submit_queues, poll_queues);
 }
 
 NULLB_DEVICE_ATTR(size, ulong, NULL);
 NULLB_DEVICE_ATTR(completion_nsec, ulong, NULL);
 NULLB_DEVICE_ATTR(submit_queues, uint, nullb_apply_submit_queues);
-NULLB_DEVICE_ATTR(poll_queues, uint, nullb_apply_submit_queues);
+NULLB_DEVICE_ATTR(poll_queues, uint, nullb_apply_poll_queues);
 NULLB_DEVICE_ATTR(home_node, uint, NULL);
 NULLB_DEVICE_ATTR(queue_mode, uint, NULL);
 NULLB_DEVICE_ATTR(blocksize, uint, NULL);
@@ -599,7 +638,9 @@ static struct nullb_device *null_alloc_dev(void)
 	dev->size = g_gb * 1024;
 	dev->completion_nsec = g_completion_nsec;
 	dev->submit_queues = g_submit_queues;
+	dev->prev_submit_queues = g_submit_queues;
 	dev->poll_queues = g_poll_queues;
+	dev->prev_poll_queues = g_poll_queues;
 	dev->home_node = g_home_node;
 	dev->queue_mode = g_queue_mode;
 	dev->blocksize = g_bs;
@@ -1465,25 +1506,45 @@ static int null_map_queues(struct blk_mq_tag_set *set)
 {
 	struct nullb *nullb = set->driver_data;
 	int i, qoff;
+	unsigned int submit_queues = g_submit_queues;
+	unsigned int poll_queues = g_poll_queues;
+
+	if (nullb) {
+		struct nullb_device *dev = nullb->dev;
+
+		/*
+		 * Refer nr_hw_queues of the tag set to check if the expected
+		 * number of hardware queues are prepared. If block layer failed
+		 * to prepare them, use previous numbers of submit queues and
+		 * poll queues to map queues.
+		 */
+		if (set->nr_hw_queues ==
+		    dev->submit_queues + dev->poll_queues) {
+			submit_queues = dev->submit_queues;
+			poll_queues = dev->poll_queues;
+		} else if (set->nr_hw_queues ==
+			   dev->prev_submit_queues + dev->prev_poll_queues) {
+			submit_queues = dev->prev_submit_queues;
+			poll_queues = dev->prev_poll_queues;
+		} else {
+			pr_warn("tag set has unexpected nr_hw_queues: %d\n",
+				set->nr_hw_queues);
+			return -EINVAL;
+		}
+	}
 
 	for (i = 0, qoff = 0; i < set->nr_maps; i++) {
 		struct blk_mq_queue_map *map = &set->map[i];
 
 		switch (i) {
 		case HCTX_TYPE_DEFAULT:
-			if (nullb)
-				map->nr_queues = nullb->dev->submit_queues;
-			else
-				map->nr_queues = g_submit_queues;
+			map->nr_queues = submit_queues;
 			break;
 		case HCTX_TYPE_READ:
 			map->nr_queues = 0;
 			continue;
 		case HCTX_TYPE_POLL:
-			if (nullb)
-				map->nr_queues = nullb->dev->poll_queues;
-			else
-				map->nr_queues = g_poll_queues;
+			map->nr_queues = poll_queues;
 			break;
 		}
 		map->queue_offset = qoff;
@@ -1853,6 +1914,13 @@ static int null_validate_conf(struct nullb_device *dev)
 		dev->submit_queues = nr_cpu_ids;
 	else if (dev->submit_queues == 0)
 		dev->submit_queues = 1;
+	dev->prev_submit_queues = dev->submit_queues;
+
+	if (dev->poll_queues > g_poll_queues)
+		dev->poll_queues = g_poll_queues;
+	else if (dev->poll_queues == 0)
+		dev->poll_queues = 1;
+	dev->prev_poll_queues = dev->poll_queues;
 
 	dev->queue_mode = min_t(unsigned int, dev->queue_mode, NULL_Q_MQ);
 	dev->irqmode = min_t(unsigned int, dev->irqmode, NULL_IRQ_TIMER);
