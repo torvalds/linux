@@ -5,11 +5,8 @@
  *
  */
 
-#include <linux/blkdev.h>
-#include <linux/buffer_head.h>
 #include <linux/fiemap.h>
 #include <linux/fs.h>
-#include <linux/nls.h>
 #include <linux/vmalloc.h>
 
 #include "debug.h"
@@ -708,18 +705,35 @@ static int ni_try_remove_attr_list(struct ntfs_inode *ni)
 			continue;
 
 		mi = ni_find_mi(ni, ino_get(&le->ref));
+		if (!mi) {
+			/* Should never happened, 'cause already checked. */
+			goto bad;
+		}
 
 		attr = mi_find_attr(mi, NULL, le->type, le_name(le),
 				    le->name_len, &le->id);
+		if (!attr) {
+			/* Should never happened, 'cause already checked. */
+			goto bad;
+		}
 		asize = le32_to_cpu(attr->size);
 
 		/* Insert into primary record. */
 		attr_ins = mi_insert_attr(&ni->mi, le->type, le_name(le),
 					  le->name_len, asize,
 					  le16_to_cpu(attr->name_off));
-		id = attr_ins->id;
+		if (!attr_ins) {
+			/*
+			 * Internal error.
+			 * Either no space in primary record (already checked).
+			 * Either tried to insert another
+			 * non indexed attribute (logic error).
+			 */
+			goto bad;
+		}
 
 		/* Copy all except id. */
+		id = attr_ins->id;
 		memcpy(attr_ins, attr, asize);
 		attr_ins->id = id;
 
@@ -735,6 +749,10 @@ static int ni_try_remove_attr_list(struct ntfs_inode *ni)
 	ni->attr_list.dirty = false;
 
 	return 0;
+bad:
+	ntfs_inode_err(&ni->vfs_inode, "Internal error");
+	make_bad_inode(&ni->vfs_inode);
+	return -EINVAL;
 }
 
 /*
@@ -955,6 +973,13 @@ static int ni_ins_attr_ext(struct ntfs_inode *ni, struct ATTR_LIST_ENTRY *le,
 			/* Only indexed attributes can share same record. */
 			continue;
 		}
+
+		/*
+		 * Do not try to insert this attribute
+		 * if there is no room in record.
+		 */
+		if (le32_to_cpu(mi->mrec->used) + asize > sbi->record_size)
+			continue;
 
 		/* Try to insert attribute into this subrecord. */
 		attr = ni_ins_new_attr(ni, mi, le, type, name, name_len, asize,
@@ -1451,7 +1476,7 @@ int ni_insert_resident(struct ntfs_inode *ni, u32 data_size,
 		attr->res.flags = RESIDENT_FLAG_INDEXED;
 
 		/* is_attr_indexed(attr)) == true */
-		le16_add_cpu(&ni->mi.mrec->hard_links, +1);
+		le16_add_cpu(&ni->mi.mrec->hard_links, 1);
 		ni->mi.dirty = true;
 	}
 	attr->res.res = 0;
@@ -1606,7 +1631,7 @@ struct ATTR_FILE_NAME *ni_fname_type(struct ntfs_inode *ni, u8 name_type,
 
 	*le = NULL;
 
-	if (FILE_NAME_POSIX == name_type)
+	if (name_type == FILE_NAME_POSIX)
 		return NULL;
 
 	/* Enumerate all names. */
@@ -1706,17 +1731,15 @@ out:
 /*
  * ni_parse_reparse
  *
- * Buffer is at least 24 bytes.
+ * buffer - memory for reparse buffer header
  */
 enum REPARSE_SIGN ni_parse_reparse(struct ntfs_inode *ni, struct ATTRIB *attr,
-				   void *buffer)
+				   struct REPARSE_DATA_BUFFER *buffer)
 {
 	const struct REPARSE_DATA_BUFFER *rp = NULL;
 	u8 bits;
 	u16 len;
 	typeof(rp->CompressReparseBuffer) *cmpr;
-
-	static_assert(sizeof(struct REPARSE_DATA_BUFFER) <= 24);
 
 	/* Try to estimate reparse point. */
 	if (!attr->non_res) {
@@ -1802,6 +1825,9 @@ enum REPARSE_SIGN ni_parse_reparse(struct ntfs_inode *ni, struct ATTRIB *attr,
 
 		return REPARSE_NONE;
 	}
+
+	if (buffer != rp)
+		memcpy(buffer, rp, sizeof(struct REPARSE_DATA_BUFFER));
 
 	/* Looks like normal symlink. */
 	return REPARSE_LINK;
@@ -2906,9 +2932,8 @@ bool ni_remove_name_undo(struct ntfs_inode *dir_ni, struct ntfs_inode *ni,
 		memcpy(Add2Ptr(attr, SIZEOF_RESIDENT), de + 1, de_key_size);
 		mi_get_ref(&ni->mi, &de->ref);
 
-		if (indx_insert_entry(&dir_ni->dir, dir_ni, de, sbi, NULL, 1)) {
+		if (indx_insert_entry(&dir_ni->dir, dir_ni, de, sbi, NULL, 1))
 			return false;
-		}
 	}
 
 	return true;
@@ -3077,7 +3102,9 @@ static bool ni_update_parent(struct ntfs_inode *ni, struct NTFS_DUP_INFO *dup,
 			const struct EA_INFO *info;
 
 			info = resident_data_ex(attr, sizeof(struct EA_INFO));
-			dup->ea_size = info->size_pack;
+			/* If ATTR_EA_INFO exists 'info' can't be NULL. */
+			if (info)
+				dup->ea_size = info->size_pack;
 		}
 	}
 
@@ -3205,7 +3232,7 @@ int ni_write_inode(struct inode *inode, int sync, const char *hint)
 					goto out;
 			}
 
-			err = al_update(ni);
+			err = al_update(ni, sync);
 			if (err)
 				goto out;
 		}

@@ -23,7 +23,7 @@ struct fscache_netfs v9fs_cache_netfs = {
 	.version 	= 0,
 };
 
-/**
+/*
  * v9fs_random_cachetag - Generate a random tag to be associated
  *			  with a new cache session.
  *
@@ -233,7 +233,7 @@ static void v9fs_vfs_readpage_complete(struct page *page, void *data,
 	unlock_page(page);
 }
 
-/**
+/*
  * __v9fs_readpage_from_fscache - read a page from cache
  *
  * Returns 0 if the pages are in cache and a BIO is submitted,
@@ -268,7 +268,7 @@ int __v9fs_readpage_from_fscache(struct inode *inode, struct page *page)
 	}
 }
 
-/**
+/*
  * __v9fs_readpages_from_fscache - read multiple pages from cache
  *
  * Returns 0 if the pages are in cache and a BIO is submitted,
@@ -308,7 +308,7 @@ int __v9fs_readpages_from_fscache(struct inode *inode,
 	}
 }
 
-/**
+/*
  * __v9fs_readpage_to_fscache - write a page to the cache
  *
  */

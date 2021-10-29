@@ -1249,6 +1249,9 @@ static struct acpi_device *acpi_pci_find_companion(struct device *dev)
 	bool check_children;
 	u64 addr;
 
+	if (!dev->parent)
+		return NULL;
+
 	down_read(&pci_acpi_companion_lookup_sem);
 
 	adev = pci_acpi_find_companion_hook ?

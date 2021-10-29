@@ -261,7 +261,7 @@ COALESCE
 User can specify how to sort offsets for cacheline.
 
 Following fields are available and governs the final
-output fields set for caheline offsets output:
+output fields set for cacheline offsets output:
 
   tid   - coalesced by process TIDs
   pid   - coalesced by process PIDs

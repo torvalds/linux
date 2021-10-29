@@ -283,13 +283,22 @@ size_t get_backing_src_pagesz(uint32_t i)
 	}
 }
 
-void backing_src_help(void)
+static void print_available_backing_src_types(const char *prefix)
 {
 	int i;
 
-	printf("Available backing src types:\n");
+	printf("%sAvailable backing src types:\n", prefix);
+
 	for (i = 0; i < NUM_SRC_TYPES; i++)
-		printf("\t%s\n", vm_mem_backing_src_alias(i)->name);
+		printf("%s    %s\n", prefix, vm_mem_backing_src_alias(i)->name);
+}
+
+void backing_src_help(const char *flag)
+{
+	printf(" %s: specify the type of memory that should be used to\n"
+	       "     back the guest data region. (default: %s)\n",
+	       flag, vm_mem_backing_src_alias(DEFAULT_VM_MEM_SRC)->name);
+	print_available_backing_src_types("     ");
 }
 
 enum vm_mem_backing_src_type parse_backing_src_type(const char *type_name)
@@ -300,7 +309,7 @@ enum vm_mem_backing_src_type parse_backing_src_type(const char *type_name)
 		if (!strcmp(type_name, vm_mem_backing_src_alias(i)->name))
 			return i;
 
-	backing_src_help();
+	print_available_backing_src_types("");
 	TEST_FAIL("Unknown backing src type: %s", type_name);
 	return -1;
 }

@@ -689,6 +689,7 @@ static int rockchip_gpio_probe(struct platform_device *pdev)
 	struct device_node *pctlnp = of_get_parent(np);
 	struct pinctrl_dev *pctldev = NULL;
 	struct rockchip_pin_bank *bank = NULL;
+	struct rockchip_pin_output_deferred *cfg;
 	static int gpio;
 	int id, ret;
 
@@ -716,11 +717,32 @@ static int rockchip_gpio_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	/*
+	 * Prevent clashes with a deferred output setting
+	 * being added right at this moment.
+	 */
+	mutex_lock(&bank->deferred_lock);
+
 	ret = rockchip_gpiolib_register(bank);
 	if (ret) {
 		clk_disable_unprepare(bank->clk);
+		mutex_unlock(&bank->deferred_lock);
 		return ret;
 	}
+
+	while (!list_empty(&bank->deferred_output)) {
+		cfg = list_first_entry(&bank->deferred_output,
+				       struct rockchip_pin_output_deferred, head);
+		list_del(&cfg->head);
+
+		ret = rockchip_gpio_direction_output(&bank->gpio_chip, cfg->pin, cfg->arg);
+		if (ret)
+			dev_warn(dev, "setting output pin %u to %u failed\n", cfg->pin, cfg->arg);
+
+		kfree(cfg);
+	}
+
+	mutex_unlock(&bank->deferred_lock);
 
 	platform_set_drvdata(pdev, bank);
 	dev_info(dev, "probed %pOF\n", np);

@@ -584,10 +584,7 @@ loop:
 
 			if (!get_signal(&ksig))
 				continue;
-			if (fatal_signal_pending(current) ||
-			    signal_group_exit(current->signal))
-				break;
-			continue;
+			break;
 		}
 		last_timeout = !ret;
 	}

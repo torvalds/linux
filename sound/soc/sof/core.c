@@ -15,11 +15,11 @@
 #include "sof-priv.h"
 #include "ops.h"
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_PROBES)
-#include "probe.h"
+#include "sof-probes.h"
 #endif
 
 /* see SOF_DBG_ flags */
-int sof_core_debug;
+int sof_core_debug =  IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_FIRMWARE_TRACE);
 module_param_named(sof_debug, sof_core_debug, int, 0444);
 MODULE_PARM_DESC(sof_debug, "SOF core debug options (0x0 all off)");
 
@@ -67,7 +67,7 @@ void snd_sof_get_status(struct snd_sof_dev *sdev, u32 panic_code,
 
 	/* is firmware dead ? */
 	if ((panic_code & SOF_IPC_PANIC_MAGIC_MASK) != SOF_IPC_PANIC_MAGIC) {
-		dev_err(sdev->dev, "error: unexpected fault 0x%8.8x trace 0x%8.8x\n",
+		dev_err(sdev->dev, "unexpected fault %#010x trace %#010x\n",
 			panic_code, tracep_code);
 		return; /* no fault ? */
 	}
@@ -76,20 +76,20 @@ void snd_sof_get_status(struct snd_sof_dev *sdev, u32 panic_code,
 
 	for (i = 0; i < ARRAY_SIZE(panic_msg); i++) {
 		if (panic_msg[i].id == code) {
-			dev_err(sdev->dev, "error: %s\n", panic_msg[i].msg);
-			dev_err(sdev->dev, "error: trace point %8.8x\n",
-				tracep_code);
+			dev_err(sdev->dev, "reason: %s (%#x)\n", panic_msg[i].msg,
+				code & SOF_IPC_PANIC_CODE_MASK);
+			dev_err(sdev->dev, "trace point: %#010x\n", tracep_code);
 			goto out;
 		}
 	}
 
 	/* unknown error */
-	dev_err(sdev->dev, "error: unknown reason %8.8x\n", panic_code);
-	dev_err(sdev->dev, "error: trace point %8.8x\n", tracep_code);
+	dev_err(sdev->dev, "unknown panic code: %#x\n", code & SOF_IPC_PANIC_CODE_MASK);
+	dev_err(sdev->dev, "trace point: %#010x\n", tracep_code);
 
 out:
-	dev_err(sdev->dev, "error: panic at %s:%d\n",
-		panic_info->filename, panic_info->linenum);
+	dev_err(sdev->dev, "panic at %s:%d\n", panic_info->filename,
+		panic_info->linenum);
 	sof_oops(sdev, oops);
 	sof_stack(sdev, oops, stack, stack_words);
 }
@@ -147,7 +147,7 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 		return ret;
 	}
 
-	sdev->fw_state = SOF_FW_BOOT_PREPARE;
+	sof_set_fw_state(sdev, SOF_FW_BOOT_PREPARE);
 
 	/* check machine info */
 	ret = sof_machine_check(sdev);
@@ -189,7 +189,7 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 		goto fw_load_err;
 	}
 
-	sdev->fw_state = SOF_FW_BOOT_IN_PROGRESS;
+	sof_set_fw_state(sdev, SOF_FW_BOOT_IN_PROGRESS);
 
 	/*
 	 * Boot the firmware. The FW boot status will be modified
@@ -202,8 +202,7 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 		goto fw_run_err;
 	}
 
-	if (IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_FIRMWARE_TRACE) ||
-	    (sof_core_debug & SOF_DBG_ENABLE_TRACE)) {
+	if (sof_core_debug & SOF_DBG_ENABLE_TRACE) {
 		sdev->dtrace_is_supported = true;
 
 		/* init DMA trace */
@@ -266,7 +265,7 @@ dsp_err:
 	snd_sof_remove(sdev);
 
 	/* all resources freed, update state to match */
-	sdev->fw_state = SOF_FW_BOOT_NOT_STARTED;
+	sof_set_fw_state(sdev, SOF_FW_BOOT_NOT_STARTED);
 	sdev->first_boot = true;
 
 	return ret;
@@ -301,7 +300,7 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 
 	sdev->pdata = plat_data;
 	sdev->first_boot = true;
-	sdev->fw_state = SOF_FW_BOOT_NOT_STARTED;
+	sof_set_fw_state(sdev, SOF_FW_BOOT_NOT_STARTED);
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_PROBES)
 	sdev->extractor_stream_tag = SOF_PROBE_INVALID_NODE_ID;
 #endif
@@ -326,9 +325,6 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 	spin_lock_init(&sdev->hw_lock);
 	mutex_init(&sdev->power_state_access);
 
-	if (IS_ENABLED(CONFIG_SND_SOC_SOF_PROBE_WORK_QUEUE))
-		INIT_WORK(&sdev->probe_work, sof_probe_work);
-
 	/* set default timeouts if none provided */
 	if (plat_data->desc->ipc_timeout == 0)
 		sdev->ipc_timeout = TIMEOUT_DEFAULT_IPC_MS;
@@ -340,6 +336,7 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 		sdev->boot_timeout = plat_data->desc->boot_timeout;
 
 	if (IS_ENABLED(CONFIG_SND_SOC_SOF_PROBE_WORK_QUEUE)) {
+		INIT_WORK(&sdev->probe_work, sof_probe_work);
 		schedule_work(&sdev->probe_work);
 		return 0;
 	}

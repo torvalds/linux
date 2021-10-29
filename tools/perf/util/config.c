@@ -801,7 +801,7 @@ int perf_config_set(struct perf_config_set *set,
 				  section->name, item->name);
 			ret = fn(key, value, data);
 			if (ret < 0) {
-				pr_err("Error: wrong config key-value pair %s=%s\n",
+				pr_err("Error in the given config file: wrong config key-value pair %s=%s\n",
 				       key, value);
 				/*
 				 * Can't be just a 'break', as perf_config_set__for_each_entry()

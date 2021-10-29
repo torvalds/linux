@@ -42,12 +42,20 @@ static void update_sar_data(struct wwan_sar_context *context)
 
 	if (config->device_mode_info &&
 	    context->sar_data.device_mode < config->total_dev_mode) {
-		struct wwan_device_mode_info *dev_mode =
-			&config->device_mode_info[context->sar_data.device_mode];
+		int itr = 0;
 
-		context->sar_data.antennatable_index = dev_mode->antennatable_index;
-		context->sar_data.bandtable_index = dev_mode->bandtable_index;
-		context->sar_data.sartable_index = dev_mode->sartable_index;
+		for (itr = 0; itr < config->total_dev_mode; itr++) {
+			if (context->sar_data.device_mode ==
+				config->device_mode_info[itr].device_mode) {
+				struct wwan_device_mode_info *dev_mode =
+				&config->device_mode_info[itr];
+
+				context->sar_data.antennatable_index = dev_mode->antennatable_index;
+				context->sar_data.bandtable_index = dev_mode->bandtable_index;
+				context->sar_data.sartable_index = dev_mode->sartable_index;
+				break;
+			}
+		}
 	}
 }
 
@@ -305,7 +313,6 @@ static struct platform_driver sar_driver = {
 	.remove = sar_remove,
 	.driver = {
 		.name = DRVNAME,
-		.owner = THIS_MODULE,
 		.acpi_match_table = ACPI_PTR(sar_device_ids)
 	}
 };
@@ -313,4 +320,4 @@ module_platform_driver(sar_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Platform device driver for INTEL MODEM BIOS SAR");
-MODULE_AUTHOR("Shravan S <s.shravan@intel.com>");
+MODULE_AUTHOR("Shravan Sudhakar <s.shravan@intel.com>");

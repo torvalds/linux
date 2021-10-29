@@ -6,12 +6,8 @@
  */
 
 #include <linux/blkdev.h>
-#include <linux/buffer_head.h>
 #include <linux/fs.h>
-#include <linux/hash.h>
-#include <linux/nls.h>
 #include <linux/random.h>
-#include <linux/ratelimit.h>
 #include <linux/slab.h>
 
 #include "debug.h"
@@ -2219,7 +2215,7 @@ file_is_valid:
 
 			err = ntfs_sb_write_run(log->ni->mi.sbi,
 						&log->ni->file.run, off, page,
-						log->page_size);
+						log->page_size, 0);
 
 			if (err)
 				goto out;
@@ -3710,7 +3706,7 @@ move_data:
 
 	if (a_dirty) {
 		attr = oa->attr;
-		err = ntfs_sb_write_run(sbi, oa->run1, vbo, buffer_le, bytes);
+		err = ntfs_sb_write_run(sbi, oa->run1, vbo, buffer_le, bytes, 0);
 		if (err)
 			goto out;
 	}
@@ -5152,10 +5148,10 @@ end_reply:
 
 	ntfs_fix_pre_write(&rh->rhdr, log->page_size);
 
-	err = ntfs_sb_write_run(sbi, &ni->file.run, 0, rh, log->page_size);
+	err = ntfs_sb_write_run(sbi, &ni->file.run, 0, rh, log->page_size, 0);
 	if (!err)
 		err = ntfs_sb_write_run(sbi, &log->ni->file.run, log->page_size,
-					rh, log->page_size);
+					rh, log->page_size, 0);
 
 	kfree(rh);
 	if (err)

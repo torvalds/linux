@@ -405,9 +405,9 @@
 			interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
 			clock-frequency = <0>; /* fixed up by bootloader */
 			clocks = <&clockgen QORIQ_CLK_HWACCEL 1>;
-			voltage-ranges = <1800 1800 3300 3300>;
+			voltage-ranges = <1800 1800>;
 			sdhci,auto-cmd12;
-			broken-cd;
+			non-removable;
 			little-endian;
 			bus-width = <4>;
 			status = "disabled";

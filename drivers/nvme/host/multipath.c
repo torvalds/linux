@@ -431,8 +431,6 @@ static int nvme_add_ns_head_cdev(struct nvme_ns_head *head)
 		return ret;
 	ret = nvme_cdev_add(&head->cdev, &head->cdev_device,
 			    &nvme_ns_head_chr_fops, THIS_MODULE);
-	if (ret)
-		kfree_const(head->cdev_device.kobj.name);
 	return ret;
 }
 
