@@ -38,9 +38,6 @@
 #define SCFTORT_STRING "scftorture"
 #define SCFTORT_FLAG SCFTORT_STRING ": "
 
-#define SCFTORTOUT(s, x...) \
-	pr_alert(SCFTORT_FLAG s, ## x)
-
 #define VERBOSE_SCFTORTOUT(s, x...) \
 	do { if (verbose) pr_alert(SCFTORT_FLAG s "\n", ## x); } while (0)
 
