@@ -340,23 +340,6 @@ static inline int bch_strtoul_h(const char *cp, long *res)
 	_r;								\
 })
 
-#define snprint(buf, size, var)						\
-	snprintf(buf, size,						\
-		__builtin_types_compatible_p(typeof(var), int)		\
-		     ? "%i\n" :						\
-		__builtin_types_compatible_p(typeof(var), unsigned int)	\
-		     ? "%u\n" :						\
-		__builtin_types_compatible_p(typeof(var), long)		\
-		     ? "%li\n" :					\
-		__builtin_types_compatible_p(typeof(var), unsigned long)\
-		     ? "%lu\n" :					\
-		__builtin_types_compatible_p(typeof(var), int64_t)	\
-		     ? "%lli\n" :					\
-		__builtin_types_compatible_p(typeof(var), uint64_t)	\
-		     ? "%llu\n" :					\
-		__builtin_types_compatible_p(typeof(var), const char *)	\
-		     ? "%s\n" : "%i\n", var)
-
 ssize_t bch_hprint(char *buf, int64_t v);
 
 bool bch_is_zero(const char *p, size_t n);
