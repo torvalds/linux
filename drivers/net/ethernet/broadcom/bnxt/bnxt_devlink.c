@@ -16,6 +16,8 @@
 #include "bnxt_vfr.h"
 #include "bnxt_devlink.h"
 #include "bnxt_ethtool.h"
+#include "bnxt_ulp.h"
+#include "bnxt_ptp.h"
 
 static int
 bnxt_dl_flash_update(struct devlink *dl,
@@ -280,6 +282,98 @@ void bnxt_dl_health_recovery_done(struct bnxt *bp)
 static int bnxt_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
 			    struct netlink_ext_ack *extack);
 
+static int bnxt_dl_reload_down(struct devlink *dl, bool netns_change,
+			       enum devlink_reload_action action,
+			       enum devlink_reload_limit limit,
+			       struct netlink_ext_ack *extack)
+{
+	struct bnxt *bp = bnxt_get_bp_from_dl(dl);
+	int rc = 0;
+
+	switch (action) {
+	case DEVLINK_RELOAD_ACTION_DRIVER_REINIT: {
+		if (BNXT_PF(bp) && bp->pf.active_vfs) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "reload is unsupported when VFs are allocated\n");
+			return -EOPNOTSUPP;
+		}
+		rtnl_lock();
+		if (bp->dev->reg_state == NETREG_UNREGISTERED) {
+			rtnl_unlock();
+			return -ENODEV;
+		}
+		bnxt_ulp_stop(bp);
+		if (netif_running(bp->dev)) {
+			rc = bnxt_close_nic(bp, true, true);
+			if (rc) {
+				NL_SET_ERR_MSG_MOD(extack, "Failed to close");
+				dev_close(bp->dev);
+				rtnl_unlock();
+				break;
+			}
+		}
+		bnxt_vf_reps_free(bp);
+		rc = bnxt_hwrm_func_drv_unrgtr(bp);
+		if (rc) {
+			NL_SET_ERR_MSG_MOD(extack, "Failed to deregister");
+			if (netif_running(bp->dev))
+				dev_close(bp->dev);
+			rtnl_unlock();
+			break;
+		}
+		bnxt_cancel_reservations(bp, false);
+		bnxt_free_ctx_mem(bp);
+		kfree(bp->ctx);
+		bp->ctx = NULL;
+		break;
+	}
+	default:
+		rc = -EOPNOTSUPP;
+	}
+
+	return rc;
+}
+
+static int bnxt_dl_reload_up(struct devlink *dl, enum devlink_reload_action action,
+			     enum devlink_reload_limit limit, u32 *actions_performed,
+			     struct netlink_ext_ack *extack)
+{
+	struct bnxt *bp = bnxt_get_bp_from_dl(dl);
+	int rc = 0;
+
+	*actions_performed = 0;
+	switch (action) {
+	case DEVLINK_RELOAD_ACTION_DRIVER_REINIT: {
+		bnxt_fw_init_one(bp);
+		bnxt_vf_reps_alloc(bp);
+		if (netif_running(bp->dev))
+			rc = bnxt_open_nic(bp, true, true);
+		bnxt_ulp_start(bp, rc);
+		if (!rc) {
+			bnxt_reenable_sriov(bp);
+			bnxt_ptp_reapply_pps(bp);
+		}
+		break;
+	}
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	if (!rc) {
+		bnxt_print_device_info(bp);
+		if (netif_running(bp->dev)) {
+			mutex_lock(&bp->link_lock);
+			bnxt_report_link(bp);
+			mutex_unlock(&bp->link_lock);
+		}
+		*actions_performed |= BIT(action);
+	} else if (netif_running(bp->dev)) {
+		dev_close(bp->dev);
+	}
+	rtnl_unlock();
+	return rc;
+}
+
 static const struct devlink_ops bnxt_dl_ops = {
 #ifdef CONFIG_BNXT_SRIOV
 	.eswitch_mode_set = bnxt_dl_eswitch_mode_set,
@@ -287,6 +381,9 @@ static const struct devlink_ops bnxt_dl_ops = {
 #endif /* CONFIG_BNXT_SRIOV */
 	.info_get	  = bnxt_dl_info_get,
 	.flash_update	  = bnxt_dl_flash_update,
+	.reload_actions	  = BIT(DEVLINK_RELOAD_ACTION_DRIVER_REINIT),
+	.reload_down	  = bnxt_dl_reload_down,
+	.reload_up	  = bnxt_dl_reload_up,
 };
 
 static const struct devlink_ops bnxt_vf_dl_ops;

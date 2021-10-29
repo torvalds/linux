@@ -10,6 +10,9 @@
 #ifndef BNXT_PTP_H
 #define BNXT_PTP_H
 
+#include <linux/ptp_clock_kernel.h>
+#include <linux/timecounter.h>
+
 #define BNXT_PTP_GRC_WIN	6
 #define BNXT_PTP_GRC_WIN_BASE	0x6000
 
