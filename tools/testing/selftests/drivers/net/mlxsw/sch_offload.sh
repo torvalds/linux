@@ -6,7 +6,9 @@
 
 ALL_TESTS="
 	test_root
+	test_port_tbf
 	test_etsprio
+	test_etsprio_port_tbf
 "
 NUM_NETIFS=1
 lib_dir=$(dirname $0)/../../../net/forwarding
@@ -221,6 +223,12 @@ test_root()
 	do_test_combinations 1 0
 }
 
+test_port_tbf()
+{
+	with_tbf 1: root \
+		do_test_combinations 8 1
+}
+
 do_test_etsprio()
 {
 	local parent=$1; shift
@@ -262,6 +270,12 @@ do_test_etsprio()
 test_etsprio()
 {
 	do_test_etsprio root ""
+}
+
+test_etsprio_port_tbf()
+{
+	with_tbf 1: root \
+		do_test_etsprio "parent 1:1" "-TBF"
 }
 
 cleanup()
