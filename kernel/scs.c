@@ -78,6 +78,7 @@ void scs_free(void *s)
 		if (this_cpu_cmpxchg(scs_cache[i], 0, s) == NULL)
 			return;
 
+	kasan_unpoison_vmalloc(s, SCS_SIZE);
 	vfree_atomic(s);
 }
 
