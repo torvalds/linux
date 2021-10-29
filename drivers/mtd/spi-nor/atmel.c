@@ -48,13 +48,13 @@ static const struct spi_nor_locking_ops atmel_at25fs_locking_ops = {
 	.is_locked = atmel_at25fs_is_locked,
 };
 
-static void atmel_at25fs_default_init(struct spi_nor *nor)
+static void atmel_at25fs_late_init(struct spi_nor *nor)
 {
 	nor->params->locking_ops = &atmel_at25fs_locking_ops;
 }
 
 static const struct spi_nor_fixups atmel_at25fs_fixups = {
-	.default_init = atmel_at25fs_default_init,
+	.late_init = atmel_at25fs_late_init,
 };
 
 /**
@@ -146,13 +146,13 @@ static const struct spi_nor_locking_ops atmel_global_protection_ops = {
 	.is_locked = atmel_is_global_protected,
 };
 
-static void atmel_global_protection_default_init(struct spi_nor *nor)
+static void atmel_global_protection_late_init(struct spi_nor *nor)
 {
 	nor->params->locking_ops = &atmel_global_protection_ops;
 }
 
 static const struct spi_nor_fixups atmel_global_protection_fixups = {
-	.default_init = atmel_global_protection_default_init,
+	.late_init = atmel_global_protection_late_init,
 };
 
 static const struct flash_info atmel_parts[] = {
