@@ -1134,6 +1134,7 @@ static void xs_run_error_worker(struct sock_xprt *transport, unsigned int nr)
 
 static void xs_sock_reset_connection_flags(struct rpc_xprt *xprt)
 {
+	xprt->connect_cookie++;
 	smp_mb__before_atomic();
 	clear_bit(XPRT_CLOSE_WAIT, &xprt->state);
 	clear_bit(XPRT_CLOSING, &xprt->state);

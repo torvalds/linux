@@ -735,6 +735,8 @@ static void xprt_autoclose(struct work_struct *work)
 	unsigned int pflags = memalloc_nofs_save();
 
 	trace_xprt_disconnect_auto(xprt);
+	xprt->connect_cookie++;
+	smp_mb__before_atomic();
 	clear_bit(XPRT_CLOSE_WAIT, &xprt->state);
 	xprt->ops->close(xprt);
 	xprt_release_write(xprt, NULL);
