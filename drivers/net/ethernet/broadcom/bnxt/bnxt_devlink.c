@@ -327,6 +327,30 @@ static int bnxt_dl_reload_down(struct devlink *dl, bool netns_change,
 		bp->ctx = NULL;
 		break;
 	}
+	case DEVLINK_RELOAD_ACTION_FW_ACTIVATE: {
+		if (~bp->fw_cap & BNXT_FW_CAP_HOT_RESET) {
+			NL_SET_ERR_MSG_MOD(extack, "Device not capable, requires reboot");
+			return -EOPNOTSUPP;
+		}
+		rtnl_lock();
+		if (bp->dev->reg_state == NETREG_UNREGISTERED) {
+			rtnl_unlock();
+			return -ENODEV;
+		}
+		if (netif_running(bp->dev))
+			set_bit(BNXT_STATE_FW_ACTIVATE, &bp->state);
+		rc = bnxt_hwrm_firmware_reset(bp->dev,
+					      FW_RESET_REQ_EMBEDDED_PROC_TYPE_CHIP,
+					      FW_RESET_REQ_SELFRST_STATUS_SELFRSTASAP,
+					      FW_RESET_REQ_FLAGS_RESET_GRACEFUL |
+					      FW_RESET_REQ_FLAGS_FW_ACTIVATION);
+		if (rc) {
+			NL_SET_ERR_MSG_MOD(extack, "Failed to activate firmware");
+			clear_bit(BNXT_STATE_FW_ACTIVATE, &bp->state);
+			rtnl_unlock();
+		}
+		break;
+	}
 	default:
 		rc = -EOPNOTSUPP;
 	}
@@ -355,6 +379,35 @@ static int bnxt_dl_reload_up(struct devlink *dl, enum devlink_reload_action acti
 		}
 		break;
 	}
+	case DEVLINK_RELOAD_ACTION_FW_ACTIVATE: {
+		unsigned long start = jiffies;
+		unsigned long timeout = start + BNXT_DFLT_FW_RST_MAX_DSECS * HZ / 10;
+
+		if (bp->fw_cap & BNXT_FW_CAP_ERROR_RECOVERY)
+			timeout = start + bp->fw_health->normal_func_wait_dsecs * HZ / 10;
+		if (!netif_running(bp->dev))
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Device is closed, not waiting for reset notice that will never come");
+		rtnl_unlock();
+		while (test_bit(BNXT_STATE_FW_ACTIVATE, &bp->state)) {
+			if (time_after(jiffies, timeout)) {
+				NL_SET_ERR_MSG_MOD(extack, "Activation incomplete");
+				rc = -ETIMEDOUT;
+				break;
+			}
+			if (test_bit(BNXT_STATE_ABORT_ERR, &bp->state)) {
+				NL_SET_ERR_MSG_MOD(extack, "Activation aborted");
+				rc = -ENODEV;
+				break;
+			}
+			msleep(50);
+		}
+		rtnl_lock();
+		if (!rc)
+			*actions_performed |= BIT(DEVLINK_RELOAD_ACTION_DRIVER_REINIT);
+		clear_bit(BNXT_STATE_FW_ACTIVATE, &bp->state);
+		break;
+	}
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -381,7 +434,8 @@ static const struct devlink_ops bnxt_dl_ops = {
 #endif /* CONFIG_BNXT_SRIOV */
 	.info_get	  = bnxt_dl_info_get,
 	.flash_update	  = bnxt_dl_flash_update,
-	.reload_actions	  = BIT(DEVLINK_RELOAD_ACTION_DRIVER_REINIT),
+	.reload_actions	  = BIT(DEVLINK_RELOAD_ACTION_DRIVER_REINIT) |
+			    BIT(DEVLINK_RELOAD_ACTION_FW_ACTIVATE),
 	.reload_down	  = bnxt_dl_reload_down,
 	.reload_up	  = bnxt_dl_reload_up,
 };
