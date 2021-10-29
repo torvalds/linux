@@ -2158,7 +2158,6 @@ static void xs_tcp_set_connect_timeout(struct rpc_xprt *xprt,
 static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 {
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
-	int ret = -ENOTCONN;
 
 	if (!transport->inet) {
 		struct sock *sk = sock->sk;
@@ -2202,7 +2201,7 @@ static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 	}
 
 	if (!xprt_bound(xprt))
-		goto out;
+		return -ENOTCONN;
 
 	xs_set_memalloc(xprt);
 
@@ -2210,22 +2209,7 @@ static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 
 	/* Tell the socket layer to start connecting... */
 	set_bit(XPRT_SOCK_CONNECTING, &transport->sock_state);
-	ret = kernel_connect(sock, xs_addr(xprt), xprt->addrlen, O_NONBLOCK);
-	switch (ret) {
-	case 0:
-		xs_set_srcport(transport, sock);
-		fallthrough;
-	case -EINPROGRESS:
-		/* SYN_SENT! */
-		if (xprt->reestablish_timeout < XS_TCP_INIT_REEST_TO)
-			xprt->reestablish_timeout = XS_TCP_INIT_REEST_TO;
-		break;
-	case -EADDRNOTAVAIL:
-		/* Source port number is unavailable. Try a new one! */
-		transport->srcport = 0;
-	}
-out:
-	return ret;
+	return kernel_connect(sock, xs_addr(xprt), xprt->addrlen, O_NONBLOCK);
 }
 
 /**
@@ -2240,14 +2224,14 @@ static void xs_tcp_setup_socket(struct work_struct *work)
 		container_of(work, struct sock_xprt, connect_worker.work);
 	struct socket *sock = transport->sock;
 	struct rpc_xprt *xprt = &transport->xprt;
-	int status = -EIO;
+	int status;
 
 	if (!sock) {
 		sock = xs_create_sock(xprt, transport,
 				xs_addr(xprt)->sa_family, SOCK_STREAM,
 				IPPROTO_TCP, true);
 		if (IS_ERR(sock)) {
-			status = PTR_ERR(sock);
+			xprt_wake_pending_tasks(xprt, PTR_ERR(sock));
 			goto out;
 		}
 	}
@@ -2264,21 +2248,21 @@ static void xs_tcp_setup_socket(struct work_struct *work)
 			xprt, -status, xprt_connected(xprt),
 			sock->sk->sk_state);
 	switch (status) {
-	default:
-		printk("%s: connect returned unhandled error %d\n",
-			__func__, status);
-		fallthrough;
-	case -EADDRNOTAVAIL:
-		/* We're probably in TIME_WAIT. Get rid of existing socket,
-		 * and retry
-		 */
-		xs_tcp_force_close(xprt);
-		break;
 	case 0:
+		xs_set_srcport(transport, sock);
+		fallthrough;
 	case -EINPROGRESS:
+		/* SYN_SENT! */
+		if (xprt->reestablish_timeout < XS_TCP_INIT_REEST_TO)
+			xprt->reestablish_timeout = XS_TCP_INIT_REEST_TO;
+		fallthrough;
 	case -EALREADY:
-		xprt_unlock_connect(xprt, transport);
-		return;
+		goto out_unlock;
+	case -EADDRNOTAVAIL:
+		/* Source port number is unavailable. Try a new one! */
+		transport->srcport = 0;
+		status = -EAGAIN;
+		break;
 	case -EINVAL:
 		/* Happens, for instance, if the user specified a link
 		 * local IPv6 address without a scope-id.
@@ -2290,18 +2274,22 @@ static void xs_tcp_setup_socket(struct work_struct *work)
 	case -EHOSTUNREACH:
 	case -EADDRINUSE:
 	case -ENOBUFS:
-		/* xs_tcp_force_close() wakes tasks with a fixed error code.
-		 * We need to wake them first to ensure the correct error code.
-		 */
-		xprt_wake_pending_tasks(xprt, status);
-		xs_tcp_force_close(xprt);
-		goto out;
+		break;
+	default:
+		printk("%s: connect returned unhandled error %d\n",
+			__func__, status);
+		status = -EAGAIN;
 	}
-	status = -EAGAIN;
+
+	/* xs_tcp_force_close() wakes tasks with a fixed error code.
+	 * We need to wake them first to ensure the correct error code.
+	 */
+	xprt_wake_pending_tasks(xprt, status);
+	xs_tcp_force_close(xprt);
 out:
 	xprt_clear_connecting(xprt);
+out_unlock:
 	xprt_unlock_connect(xprt, transport);
-	xprt_wake_pending_tasks(xprt, status);
 }
 
 /**
