@@ -351,7 +351,7 @@ static int soc_tplg_add_kcontrol(struct soc_tplg *tplg,
 	struct snd_soc_component *comp = tplg->comp;
 
 	return soc_tplg_add_dcontrol(comp->card->snd_card,
-				comp->dev, k, comp->name_prefix, comp, kcontrol);
+				tplg->dev, k, comp->name_prefix, comp, kcontrol);
 }
 
 /* remove a mixer kcontrol */
@@ -1591,8 +1591,25 @@ static int soc_tplg_dapm_widget_elems_load(struct soc_tplg *tplg,
 		struct snd_soc_tplg_dapm_widget *widget = (struct snd_soc_tplg_dapm_widget *) tplg->pos;
 		int ret;
 
+		/*
+		 * check if widget itself fits within topology file
+		 * use sizeof instead of widget->size, as we can't be sure
+		 * it is set properly yet (file may end before it is present)
+		 */
+		if (soc_tplg_get_offset(tplg) + sizeof(*widget) >= tplg->fw->size) {
+			dev_err(tplg->dev, "ASoC: invalid widget data size\n");
+			return -EINVAL;
+		}
+
+		/* check if widget has proper size */
 		if (le32_to_cpu(widget->size) != sizeof(*widget)) {
 			dev_err(tplg->dev, "ASoC: invalid widget size\n");
+			return -EINVAL;
+		}
+
+		/* check if widget private data fits within topology file */
+		if (soc_tplg_get_offset(tplg) + le32_to_cpu(widget->priv.size) >= tplg->fw->size) {
+			dev_err(tplg->dev, "ASoC: invalid widget private data size\n");
 			return -EINVAL;
 		}
 
@@ -2438,6 +2455,7 @@ static int soc_tplg_manifest_load(struct soc_tplg *tplg,
 		_manifest = manifest;
 	} else {
 		abi_match = false;
+
 		ret = manifest_new_ver(tplg, manifest, &_manifest);
 		if (ret < 0)
 			return ret;
@@ -2465,6 +2483,14 @@ static int soc_valid_header(struct soc_tplg *tplg,
 			"ASoC: invalid header size for type %d at offset 0x%lx size 0x%zx.\n",
 			le32_to_cpu(hdr->type), soc_tplg_get_hdr_offset(tplg),
 			tplg->fw->size);
+		return -EINVAL;
+	}
+
+	if (soc_tplg_get_hdr_offset(tplg) + hdr->payload_size >= tplg->fw->size) {
+		dev_err(tplg->dev,
+			"ASoC: invalid header of type %d at offset %ld payload_size %d\n",
+			le32_to_cpu(hdr->type), soc_tplg_get_hdr_offset(tplg),
+			hdr->payload_size);
 		return -EINVAL;
 	}
 
@@ -2642,17 +2668,17 @@ int snd_soc_tplg_component_load(struct snd_soc_component *comp,
 	/*
 	 * check if we have sane parameters:
 	 * comp - needs to exist to keep and reference data while parsing
-	 * comp->dev - used for resource management and prints
 	 * comp->card - used for setting card related parameters
+	 * comp->card->dev - used for resource management and prints
 	 * fw - we need it, as it is the very thing we parse
 	 */
-	if (!comp || !comp->dev || !comp->card || !fw)
+	if (!comp || !comp->card || !comp->card->dev || !fw)
 		return -EINVAL;
 
 	/* setup parsing context */
 	memset(&tplg, 0, sizeof(tplg));
 	tplg.fw = fw;
-	tplg.dev = comp->dev;
+	tplg.dev = comp->card->dev;
 	tplg.comp = comp;
 	if (ops) {
 		tplg.ops = ops;
