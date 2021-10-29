@@ -189,6 +189,13 @@ static inline struct mctp_skb_cb *mctp_cb(struct sk_buff *skb)
 	return (void *)(skb->cb);
 }
 
+/* If CONFIG_MCTP_FLOWS, we may add one of these as a SKB extension,
+ * indicating the flow to the device driver.
+ */
+struct mctp_flow {
+	struct mctp_sk_key *key;
+};
+
 /* Route definition.
  *
  * These are held in the pernet->mctp.routes list, with RCU protection for
