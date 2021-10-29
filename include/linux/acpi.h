@@ -232,14 +232,22 @@ int acpi_locate_initial_tables (void);
 void acpi_reserve_initial_tables (void);
 void acpi_table_init_complete (void);
 int acpi_table_init (void);
+
+#ifdef CONFIG_ACPI_TABLE_LIB
+#define __init_or_acpilib
+#define __initdata_or_acpilib
+#else
+#define __init_or_acpilib __init
+#define __initdata_or_acpilib __initdata
+#endif
+
 int acpi_table_parse(char *id, acpi_tbl_table_handler handler);
-int __init acpi_table_parse_entries(char *id, unsigned long table_size,
-			      int entry_id,
-			      acpi_tbl_entry_handler handler,
-			      unsigned int max_entries);
-int __init acpi_table_parse_entries_array(char *id, unsigned long table_size,
-			      struct acpi_subtable_proc *proc, int proc_num,
-			      unsigned int max_entries);
+int __init_or_acpilib acpi_table_parse_entries(char *id,
+		unsigned long table_size, int entry_id,
+		acpi_tbl_entry_handler handler, unsigned int max_entries);
+int __init_or_acpilib acpi_table_parse_entries_array(char *id,
+		unsigned long table_size, struct acpi_subtable_proc *proc,
+		int proc_num, unsigned int max_entries);
 int acpi_table_parse_madt(enum acpi_madt_type id,
 			  acpi_tbl_entry_handler handler,
 			  unsigned int max_entries);
