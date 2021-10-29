@@ -1207,6 +1207,9 @@ void dolphin_fixups(struct hda_codec *codec, const struct hda_fixup *fix, int ac
 		snd_hda_jack_add_kctl(codec, DOLPHIN_LO_PIN_NID, "Line Out", true,
 				      SND_JACK_HEADPHONE, NULL);
 
+		snd_hda_jack_add_kctl(codec, DOLPHIN_AMIC_PIN_NID, "Microphone", true,
+				      SND_JACK_MICROPHONE, NULL);
+
 		cs8409_fix_caps(codec, DOLPHIN_HP_PIN_NID);
 		cs8409_fix_caps(codec, DOLPHIN_LO_PIN_NID);
 		cs8409_fix_caps(codec, DOLPHIN_AMIC_PIN_NID);

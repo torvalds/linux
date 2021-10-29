@@ -172,11 +172,6 @@ void intel_uc_driver_remove(struct intel_uc *uc)
 	__uc_free_load_err_log(uc);
 }
 
-static inline bool guc_communication_enabled(struct intel_guc *guc)
-{
-	return intel_guc_ct_enabled(&guc->ct);
-}
-
 /*
  * Events triggered while CT buffers are disabled are logged in the SCRATCH_15
  * register using the same bits used in the CT message payload. Since our
@@ -210,7 +205,7 @@ static void guc_get_mmio_msg(struct intel_guc *guc)
 static void guc_handle_mmio_msg(struct intel_guc *guc)
 {
 	/* we need communication to be enabled to reply to GuC */
-	GEM_BUG_ON(!guc_communication_enabled(guc));
+	GEM_BUG_ON(!intel_guc_ct_enabled(&guc->ct));
 
 	spin_lock_irq(&guc->irq_lock);
 	if (guc->mmio_msg) {
@@ -226,7 +221,7 @@ static int guc_enable_communication(struct intel_guc *guc)
 	struct drm_i915_private *i915 = gt->i915;
 	int ret;
 
-	GEM_BUG_ON(guc_communication_enabled(guc));
+	GEM_BUG_ON(intel_guc_ct_enabled(&guc->ct));
 
 	ret = i915_inject_probe_error(i915, -ENXIO);
 	if (ret)
@@ -662,7 +657,7 @@ static int __uc_resume(struct intel_uc *uc, bool enable_communication)
 		return 0;
 
 	/* Make sure we enable communication if and only if it's disabled */
-	GEM_BUG_ON(enable_communication == guc_communication_enabled(guc));
+	GEM_BUG_ON(enable_communication == intel_guc_ct_enabled(&guc->ct));
 
 	if (enable_communication)
 		guc_enable_communication(guc);

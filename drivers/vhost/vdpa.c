@@ -640,7 +640,7 @@ static int vhost_vdpa_va_map(struct vhost_vdpa *v,
 	u64 offset, map_size, map_iova = iova;
 	struct vdpa_map_file *map_file;
 	struct vm_area_struct *vma;
-	int ret;
+	int ret = 0;
 
 	mmap_read_lock(dev->mm);
 

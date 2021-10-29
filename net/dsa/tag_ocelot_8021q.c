@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright 2020-2021 NXP Semiconductors
+/* Copyright 2020-2021 NXP
  *
  * An implementation of the software-defined tag_8021q.c tagger format, which
  * also preserves full functionality under a vlan_filtering bridge. It does

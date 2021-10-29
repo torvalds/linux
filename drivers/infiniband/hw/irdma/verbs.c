@@ -535,8 +535,7 @@ static int irdma_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 	irdma_qp_rem_ref(&iwqp->ibqp);
 	wait_for_completion(&iwqp->free_qp);
 	irdma_free_lsmm_rsrc(iwqp);
-	if (!iwdev->reset)
-		irdma_cqp_qp_destroy_cmd(&iwdev->rf->sc_dev, &iwqp->sc_qp);
+	irdma_cqp_qp_destroy_cmd(&iwdev->rf->sc_dev, &iwqp->sc_qp);
 
 	if (!iwqp->user_mode) {
 		if (iwqp->iwscq) {
@@ -2035,7 +2034,7 @@ static int irdma_create_cq(struct ib_cq *ibcq,
 		/* Kmode allocations */
 		int rsize;
 
-		if (entries > rf->max_cqe) {
+		if (entries < 1 || entries > rf->max_cqe) {
 			err_code = -EINVAL;
 			goto cq_free_rsrc;
 		}
@@ -3353,6 +3352,10 @@ static enum ib_wc_status irdma_flush_err_to_ib_wc_status(enum irdma_flush_opcode
 		return IB_WC_LOC_LEN_ERR;
 	case FLUSH_GENERAL_ERR:
 		return IB_WC_WR_FLUSH_ERR;
+	case FLUSH_RETRY_EXC_ERR:
+		return IB_WC_RETRY_EXC_ERR;
+	case FLUSH_MW_BIND_ERR:
+		return IB_WC_MW_BIND_ERR;
 	case FLUSH_FATAL_ERR:
 	default:
 		return IB_WC_FATAL_ERR;

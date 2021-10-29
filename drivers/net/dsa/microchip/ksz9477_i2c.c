@@ -56,7 +56,10 @@ static int ksz9477_i2c_remove(struct i2c_client *i2c)
 {
 	struct ksz_device *dev = i2c_get_clientdata(i2c);
 
-	ksz_switch_remove(dev);
+	if (dev)
+		ksz_switch_remove(dev);
+
+	i2c_set_clientdata(i2c, NULL);
 
 	return 0;
 }
@@ -65,8 +68,15 @@ static void ksz9477_i2c_shutdown(struct i2c_client *i2c)
 {
 	struct ksz_device *dev = i2c_get_clientdata(i2c);
 
-	if (dev && dev->dev_ops->shutdown)
+	if (!dev)
+		return;
+
+	if (dev->dev_ops->shutdown)
 		dev->dev_ops->shutdown(dev);
+
+	dsa_switch_shutdown(dev->ds);
+
+	i2c_set_clientdata(i2c, NULL);
 }
 
 static const struct i2c_device_id ksz9477_i2c_id[] = {

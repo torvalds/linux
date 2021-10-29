@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: LGPL-2.1
 /*
- *   fs/cifs/sess.c
  *
  *   SMB/CIFS session setup handling routines
  *

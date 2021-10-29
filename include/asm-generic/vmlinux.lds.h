@@ -116,11 +116,7 @@
  * GCC 4.5 and later have a 32 bytes section alignment for structures.
  * Except GCC 4.9, that feels the need to align on 64 bytes.
  */
-#if __GNUC__ == 4 && __GNUC_MINOR__ == 9
-#define STRUCT_ALIGNMENT 64
-#else
 #define STRUCT_ALIGNMENT 32
-#endif
 #define STRUCT_ALIGN() . = ALIGN(STRUCT_ALIGNMENT)
 
 /*
