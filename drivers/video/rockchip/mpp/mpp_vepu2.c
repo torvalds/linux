@@ -121,6 +121,18 @@ struct vepu_dev {
 #endif
 	struct reset_control *rst_a;
 	struct reset_control *rst_h;
+	/* for ccu(central control unit) */
+	struct vepu_ccu *ccu;
+	struct list_head core_link;
+	bool disable_work;
+};
+
+struct vepu_ccu {
+	u32 core_num;
+	/* lock for core attach */
+	struct mutex lock;
+	struct list_head core_list;
+	struct mpp_dev *main_core;
 };
 
 static struct mpp_hw_info vepu_v2_hw_info = {
@@ -279,6 +291,52 @@ fail:
 	mpp_task_finalize(session, mpp_task);
 	kfree(task);
 	return NULL;
+}
+
+static struct vepu_dev *vepu_core_balance(struct vepu_ccu *ccu)
+{
+	struct vepu_dev *enc;
+	struct vepu_dev *core = NULL, *n;
+
+	mpp_debug_enter();
+
+	mutex_lock(&ccu->lock);
+	enc = list_first_entry(&ccu->core_list, struct vepu_dev, core_link);
+	list_for_each_entry_safe(core, n, &ccu->core_list, core_link) {
+		mpp_debug(DEBUG_DEVICE, "%s, disable_work=%d, task_count=%d, task_index=%d\n",
+			  dev_name(core->mpp.dev), core->disable_work,
+			  atomic_read(&core->mpp.task_count), atomic_read(&core->mpp.task_index));
+		/* if core (except main-core) disabled, skip it */
+		if (core->disable_work)
+			continue;
+		/* choose core with less task in queue */
+		if (atomic_read(&core->mpp.task_count) < atomic_read(&enc->mpp.task_count)) {
+			enc = core;
+			break;
+		}
+		/* choose core with less task which done */
+		if (atomic_read(&core->mpp.task_index) < atomic_read(&enc->mpp.task_index))
+			enc = core;
+	}
+	mutex_unlock(&ccu->lock);
+
+	mpp_debug_leave();
+
+	return enc;
+}
+
+static void *vepu_ccu_alloc_task(struct mpp_session *session,
+				 struct mpp_task_msgs *msgs)
+{
+	struct vepu_dev *enc = to_vepu_dev(session->mpp);
+
+	/* if multi-cores, choose one for current task */
+	if (enc->ccu) {
+		enc = vepu_core_balance(enc->ccu);
+		session->mpp = &enc->mpp;
+	}
+
+	return vepu_alloc_task(session, msgs);
 }
 
 static int vepu_run(struct mpp_dev *mpp,
@@ -588,6 +646,19 @@ static int vepu_procfs_init(struct mpp_dev *mpp)
 
 	return 0;
 }
+
+static int vepu_procfs_ccu_init(struct mpp_dev *mpp)
+{
+	struct vepu_dev *enc = to_vepu_dev(mpp);
+
+	if (!enc->procfs)
+		goto done;
+
+	mpp_procfs_create_u32("disable_work", 0644,
+			      enc->procfs, &enc->disable_work);
+done:
+	return 0;
+}
 #else
 static inline int vepu_procfs_remove(struct mpp_dev *mpp)
 {
@@ -595,6 +666,11 @@ static inline int vepu_procfs_remove(struct mpp_dev *mpp)
 }
 
 static inline int vepu_procfs_init(struct mpp_dev *mpp)
+{
+	return 0;
+}
+
+static inline int vepu_procfs_ccu_init(struct mpp_dev *mpp)
 {
 	return 0;
 }
@@ -771,6 +847,21 @@ static struct mpp_dev_ops vepu_v2_dev_ops = {
 	.dump_session = vepu_dump_session,
 };
 
+static struct mpp_dev_ops vepu_ccu_dev_ops = {
+	.alloc_task = vepu_ccu_alloc_task,
+	.run = vepu_run,
+	.irq = vepu_irq,
+	.isr = vepu_isr,
+	.finish = vepu_finish,
+	.result = vepu_result,
+	.free_task = vepu_free_task,
+	.ioctl = vepu_control,
+	.init_session = vepu_init_session,
+	.free_session = vepu_free_session,
+	.dump_session = vepu_dump_session,
+};
+
+
 static const struct mpp_dev_var vepu_v2_data = {
 	.device_type = MPP_DEVICE_VEPU2,
 	.hw_info = &vepu_v2_hw_info,
@@ -787,6 +878,14 @@ static const struct mpp_dev_var vepu_px30_data = {
 	.dev_ops = &vepu_v2_dev_ops,
 };
 
+static const struct mpp_dev_var vepu_ccu_data = {
+	.device_type = MPP_DEVICE_VEPU2,
+	.hw_info = &vepu_v2_hw_info,
+	.trans_info = trans_rk_vepu2,
+	.hw_ops = &vepu_v2_hw_ops,
+	.dev_ops = &vepu_ccu_dev_ops,
+};
+
 static const struct of_device_id mpp_vepu2_dt_match[] = {
 	{
 		.compatible = "rockchip,vpu-encoder-v2",
@@ -798,10 +897,83 @@ static const struct of_device_id mpp_vepu2_dt_match[] = {
 		.data = &vepu_px30_data,
 	},
 #endif
+#ifdef CONFIG_CPU_RK3588
+	{
+		.compatible = "rockchip,vpu-encoder-v2-core",
+		.data = &vepu_ccu_data,
+	},
+	{
+		.compatible = "rockchip,vpu-encoder-v2-ccu",
+	},
+#endif
 	{},
 };
 
-static int vepu_probe(struct platform_device *pdev)
+static int vepu_ccu_probe(struct platform_device *pdev)
+{
+	struct vepu_ccu *ccu;
+	struct device *dev = &pdev->dev;
+
+	ccu = devm_kzalloc(dev, sizeof(*ccu), GFP_KERNEL);
+	if (!ccu)
+		return -ENOMEM;
+
+	platform_set_drvdata(pdev, ccu);
+	mutex_init(&ccu->lock);
+	INIT_LIST_HEAD(&ccu->core_list);
+
+	return 0;
+}
+
+static int vepu_attach_ccu(struct device *dev, struct vepu_dev *enc)
+{
+	struct device_node *np;
+	struct platform_device *pdev;
+	struct vepu_ccu *ccu;
+
+	np = of_parse_phandle(dev->of_node, "rockchip,ccu", 0);
+	if (!np || !of_device_is_available(np))
+		return -ENODEV;
+
+	pdev = of_find_device_by_node(np);
+	of_node_put(np);
+	if (!pdev)
+		return -ENODEV;
+
+	ccu = platform_get_drvdata(pdev);
+	if (!ccu)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&enc->core_link);
+	mutex_lock(&ccu->lock);
+	ccu->core_num++;
+	list_add_tail(&enc->core_link, &ccu->core_list);
+	mutex_unlock(&ccu->lock);
+
+	/* attach the ccu-domain to current core */
+	if (!ccu->main_core) {
+		/**
+		 * set the first device for the main-core,
+		 * then the domain of the main-core named ccu-domain
+		 */
+		ccu->main_core = &enc->mpp;
+	} else {
+		struct mpp_iommu_info *ccu_info, *cur_info;
+
+		/* set the ccu domain for current device */
+		ccu_info = ccu->main_core->iommu_info;
+		cur_info = enc->mpp.iommu_info;
+
+		cur_info->domain = ccu_info->domain;
+		mpp_iommu_attach(cur_info);
+	}
+	enc->ccu = ccu;
+
+	dev_info(dev, "attach ccu success\n");
+	return 0;
+}
+
+static int vepu_core_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct vepu_dev *enc = NULL;
@@ -809,7 +981,57 @@ static int vepu_probe(struct platform_device *pdev)
 	const struct of_device_id *match = NULL;
 	int ret = 0;
 
-	dev_info(dev, "probe device\n");
+	enc = devm_kzalloc(dev, sizeof(struct vepu_dev), GFP_KERNEL);
+	if (!enc)
+		return -ENOMEM;
+
+	mpp = &enc->mpp;
+	platform_set_drvdata(pdev, enc);
+
+	if (pdev->dev.of_node) {
+		match = of_match_node(mpp_vepu2_dt_match, pdev->dev.of_node);
+		if (match)
+			mpp->var = (struct mpp_dev_var *)match->data;
+	}
+
+	ret = mpp_dev_probe(mpp, pdev);
+	if (ret) {
+		dev_err(dev, "probe sub driver failed\n");
+		return -EINVAL;
+	}
+	/* current device attach to ccu */
+	ret = vepu_attach_ccu(dev, enc);
+	if (ret)
+		return ret;
+
+	ret = devm_request_threaded_irq(dev, mpp->irq,
+					mpp_dev_irq,
+					mpp_dev_isr_sched,
+					IRQF_SHARED,
+					dev_name(dev), mpp);
+	if (ret) {
+		dev_err(dev, "register interrupter runtime failed\n");
+		return -EINVAL;
+	}
+
+	mpp->session_max_buffers = VEPU2_SESSION_MAX_BUFFERS;
+	vepu_procfs_init(mpp);
+	vepu_procfs_ccu_init(mpp);
+	/* if current is main-core, register current device to mpp service */
+	if (mpp == enc->ccu->main_core)
+		mpp_dev_register_srv(mpp, mpp->srv);
+
+	return 0;
+}
+
+static int vepu_probe_default(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct vepu_dev *enc = NULL;
+	struct mpp_dev *mpp = NULL;
+	const struct of_device_id *match = NULL;
+	int ret = 0;
+
 	enc = devm_kzalloc(dev, sizeof(struct vepu_dev), GFP_KERNEL);
 	if (!enc)
 		return -ENOMEM;
@@ -843,19 +1065,56 @@ static int vepu_probe(struct platform_device *pdev)
 	vepu_procfs_init(mpp);
 	/* register current device to mpp service */
 	mpp_dev_register_srv(mpp, mpp->srv);
-	dev_info(dev, "probing finish\n");
 
 	return 0;
+}
+
+static int vepu_probe(struct platform_device *pdev)
+{
+	int ret;
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
+
+	dev_info(dev, "probing start\n");
+
+	if (strstr(np->name, "ccu"))
+		ret = vepu_ccu_probe(pdev);
+	else if (strstr(np->name, "core"))
+		ret = vepu_core_probe(pdev);
+	else
+		ret = vepu_probe_default(pdev);
+
+	dev_info(dev, "probing finish\n");
+
+	return ret;
 }
 
 static int vepu_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct vepu_dev *enc = platform_get_drvdata(pdev);
+	struct device_node *np = dev->of_node;
 
-	dev_info(dev, "remove device\n");
-	mpp_dev_remove(&enc->mpp);
-	vepu_procfs_remove(&enc->mpp);
+	if (strstr(np->name, "ccu")) {
+		dev_info(dev, "remove ccu device\n");
+	} else if (strstr(np->name, "core")) {
+		struct vepu_dev *enc = platform_get_drvdata(pdev);
+
+		dev_info(dev, "remove core\n");
+		if (enc->ccu) {
+			mutex_lock(&enc->ccu->lock);
+			list_del_init(&enc->core_link);
+			enc->ccu->core_num--;
+			mutex_unlock(&enc->ccu->lock);
+		}
+		mpp_dev_remove(&enc->mpp);
+		vepu_procfs_remove(&enc->mpp);
+	} else {
+		struct vepu_dev *enc = platform_get_drvdata(pdev);
+
+		dev_info(dev, "remove device\n");
+		mpp_dev_remove(&enc->mpp);
+		vepu_procfs_remove(&enc->mpp);
+	}
 
 	return 0;
 }
