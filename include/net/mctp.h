@@ -152,6 +152,12 @@ struct mctp_sk_key {
 
 	/* expiry timeout; valid (above) cleared on expiry */
 	unsigned long	expiry;
+
+	/* free to use for device flow state tracking. Initialised to
+	 * zero on initial key creation
+	 */
+	unsigned long	dev_flow_state;
+	struct mctp_dev	*dev;
 };
 
 struct mctp_skb_cb {
