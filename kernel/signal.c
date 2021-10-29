@@ -1336,6 +1336,7 @@ force_sig_info_to_task(struct kernel_siginfo *info, struct task_struct *t, bool 
 	blocked = sigismember(&t->blocked, sig);
 	if (blocked || ignored || sigdfl) {
 		action->sa.sa_handler = SIG_DFL;
+		action->sa.sa_flags |= SA_IMMUTABLE;
 		if (blocked) {
 			sigdelset(&t->blocked, sig);
 			recalc_sigpending_and_wake(t);
@@ -2760,7 +2761,8 @@ relock:
 		if (!signr)
 			break; /* will return 0 */
 
-		if (unlikely(current->ptrace) && signr != SIGKILL) {
+		if (unlikely(current->ptrace) && (signr != SIGKILL) &&
+		    !(sighand->action[signr -1].sa.sa_flags & SA_IMMUTABLE)) {
 			signr = ptrace_signal(signr, &ksig->info);
 			if (!signr)
 				continue;
@@ -4110,6 +4112,10 @@ int do_sigaction(int sig, struct k_sigaction *act, struct k_sigaction *oact)
 	k = &p->sighand->action[sig-1];
 
 	spin_lock_irq(&p->sighand->siglock);
+	if (k->sa.sa_flags & SA_IMMUTABLE) {
+		spin_unlock_irq(&p->sighand->siglock);
+		return -EINVAL;
+	}
 	if (oact)
 		*oact = *k;
 
