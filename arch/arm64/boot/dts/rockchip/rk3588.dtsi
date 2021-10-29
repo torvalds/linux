@@ -198,7 +198,10 @@
 		compatible = "rockchip,rk3588-dp";
 		reg = <0x0 0xfde60000 0x0 0x4000>;
 		interrupts = <GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru PCLK_DP1>;
+		clocks = <&cru PCLK_DP1>, <&cru CLK_AUX16M_1>;
+		clock-names = "apb", "aux";
+		assigned-clocks = <&cru CLK_AUX16M_1>;
+		assigned-clock-rates = <16000000>;
 		resets = <&cru SRST_DP1>;
 		phys = <&usbdp_phy1_dp>;
 		power-domains = <&power RK3588_PD_VO0>;
