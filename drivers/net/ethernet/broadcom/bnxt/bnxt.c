@@ -85,55 +85,7 @@ MODULE_DESCRIPTION("Broadcom BCM573xx network driver");
 
 #define BNXT_TX_PUSH_THRESH 164
 
-enum board_idx {
-	BCM57301,
-	BCM57302,
-	BCM57304,
-	BCM57417_NPAR,
-	BCM58700,
-	BCM57311,
-	BCM57312,
-	BCM57402,
-	BCM57404,
-	BCM57406,
-	BCM57402_NPAR,
-	BCM57407,
-	BCM57412,
-	BCM57414,
-	BCM57416,
-	BCM57417,
-	BCM57412_NPAR,
-	BCM57314,
-	BCM57417_SFP,
-	BCM57416_SFP,
-	BCM57404_NPAR,
-	BCM57406_NPAR,
-	BCM57407_SFP,
-	BCM57407_NPAR,
-	BCM57414_NPAR,
-	BCM57416_NPAR,
-	BCM57452,
-	BCM57454,
-	BCM5745x_NPAR,
-	BCM57508,
-	BCM57504,
-	BCM57502,
-	BCM57508_NPAR,
-	BCM57504_NPAR,
-	BCM57502_NPAR,
-	BCM58802,
-	BCM58804,
-	BCM58808,
-	NETXTREME_E_VF,
-	NETXTREME_C_VF,
-	NETXTREME_S_VF,
-	NETXTREME_C_VF_HV,
-	NETXTREME_E_VF_HV,
-	NETXTREME_E_P5_VF,
-	NETXTREME_E_P5_VF_HV,
-};
-
-/* indexed by enum above */
+/* indexed by enum board_idx */
 static const struct {
 	char *name;
 } board_info[] = {
@@ -13186,6 +13138,15 @@ static int bnxt_map_db_bar(struct bnxt *bp)
 	return 0;
 }
 
+void bnxt_print_device_info(struct bnxt *bp)
+{
+	netdev_info(bp->dev, "%s found at mem %lx, node addr %pM\n",
+		    board_info[bp->board_idx].name,
+		    (long)pci_resource_start(bp->pdev, 0), bp->dev->dev_addr);
+
+	pcie_print_link_status(bp->pdev);
+}
+
 static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *dev;
@@ -13209,10 +13170,11 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENOMEM;
 
 	bp = netdev_priv(dev);
+	bp->board_idx = ent->driver_data;
 	bp->msg_enable = BNXT_DEF_MSG_ENABLE;
 	bnxt_set_max_func_irqs(bp, max_irqs);
 
-	if (bnxt_vf_pciid(ent->driver_data))
+	if (bnxt_vf_pciid(bp->board_idx))
 		bp->flags |= BNXT_FLAG_VF;
 
 	if (pdev->msix_cap)
@@ -13382,10 +13344,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		devlink_port_type_eth_set(&bp->dl_port, bp->dev);
 	bnxt_dl_fw_reporters_create(bp);
 
-	netdev_info(dev, "%s found at mem %lx, node addr %pM\n",
-		    board_info[ent->driver_data].name,
-		    (long)pci_resource_start(pdev, 0), dev->dev_addr);
-	pcie_print_link_status(pdev);
+	bnxt_print_device_info(bp);
 
 	pci_save_state(pdev);
 	return 0;

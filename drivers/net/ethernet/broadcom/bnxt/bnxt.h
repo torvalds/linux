@@ -1586,6 +1586,54 @@ struct bnxt_fw_reporter_ctx {
 #define BNXT_FW_RETRY			5
 #define BNXT_FW_IF_RETRY		10
 
+enum board_idx {
+	BCM57301,
+	BCM57302,
+	BCM57304,
+	BCM57417_NPAR,
+	BCM58700,
+	BCM57311,
+	BCM57312,
+	BCM57402,
+	BCM57404,
+	BCM57406,
+	BCM57402_NPAR,
+	BCM57407,
+	BCM57412,
+	BCM57414,
+	BCM57416,
+	BCM57417,
+	BCM57412_NPAR,
+	BCM57314,
+	BCM57417_SFP,
+	BCM57416_SFP,
+	BCM57404_NPAR,
+	BCM57406_NPAR,
+	BCM57407_SFP,
+	BCM57407_NPAR,
+	BCM57414_NPAR,
+	BCM57416_NPAR,
+	BCM57452,
+	BCM57454,
+	BCM5745x_NPAR,
+	BCM57508,
+	BCM57504,
+	BCM57502,
+	BCM57508_NPAR,
+	BCM57504_NPAR,
+	BCM57502_NPAR,
+	BCM58802,
+	BCM58804,
+	BCM58808,
+	NETXTREME_E_VF,
+	NETXTREME_C_VF,
+	NETXTREME_S_VF,
+	NETXTREME_C_VF_HV,
+	NETXTREME_E_VF_HV,
+	NETXTREME_E_P5_VF,
+	NETXTREME_E_P5_VF_HV,
+};
+
 struct bnxt {
 	void __iomem		*bar0;
 	void __iomem		*bar1;
@@ -2049,6 +2097,7 @@ struct bnxt {
 	struct list_head	tc_indr_block_list;
 	struct dentry		*debugfs_pdev;
 	struct device		*hwmon_dev;
+	enum board_idx		board_idx;
 };
 
 #define BNXT_NUM_RX_RING_STATS			8
@@ -2219,5 +2268,5 @@ int bnxt_get_port_parent_id(struct net_device *dev,
 			    struct netdev_phys_item_id *ppid);
 void bnxt_dim_work(struct work_struct *work);
 int bnxt_hwrm_set_ring_coal(struct bnxt *bp, struct bnxt_napi *bnapi);
-
+void bnxt_print_device_info(struct bnxt *bp);
 #endif
