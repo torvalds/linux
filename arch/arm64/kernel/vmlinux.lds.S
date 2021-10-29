@@ -57,7 +57,7 @@
 #define SBSS_ALIGN			0
 #endif
 
-#define RO_EXCEPTION_TABLE_ALIGN	8
+#define RO_EXCEPTION_TABLE_ALIGN	4
 #define RUNTIME_DISCARD_EXIT
 
 #include <asm-generic/vmlinux.lds.h>
@@ -161,7 +161,6 @@ SECTIONS
 			IDMAP_TEXT
 			HIBERNATE_TEXT
 			TRAMP_TEXT
-			*(.fixup)
 			*(.gnu.warning)
 		. = ALIGN(16);
 		*(.got)			/* Global offset table		*/

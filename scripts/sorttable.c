@@ -231,6 +231,34 @@ static void sort_relative_table(char *extab_image, int image_size)
 	}
 }
 
+static void arm64_sort_relative_table(char *extab_image, int image_size)
+{
+	int i = 0;
+
+	while (i < image_size) {
+		uint32_t *loc = (uint32_t *)(extab_image + i);
+
+		w(r(loc) + i, loc);
+		w(r(loc + 1) + i + 4, loc + 1);
+		/* Don't touch the fixup type or data */
+
+		i += sizeof(uint32_t) * 3;
+	}
+
+	qsort(extab_image, image_size / 12, 12, compare_relative_table);
+
+	i = 0;
+	while (i < image_size) {
+		uint32_t *loc = (uint32_t *)(extab_image + i);
+
+		w(r(loc) - i, loc);
+		w(r(loc + 1) - (i + 4), loc + 1);
+		/* Don't touch the fixup type or data */
+
+		i += sizeof(uint32_t) * 3;
+	}
+}
+
 static void x86_sort_relative_table(char *extab_image, int image_size)
 {
 	int i = 0;
@@ -343,6 +371,8 @@ static int do_file(char const *const fname, void *addr)
 		custom_sort = s390_sort_relative_table;
 		break;
 	case EM_AARCH64:
+		custom_sort = arm64_sort_relative_table;
+		break;
 	case EM_PARISC:
 	case EM_PPC:
 	case EM_PPC64:

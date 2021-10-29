@@ -18,6 +18,7 @@
 #include <linux/kasan-checks.h>
 #include <linux/string.h>
 
+#include <asm/asm-extable.h>
 #include <asm/cpufeature.h>
 #include <asm/mmu.h>
 #include <asm/mte.h>
@@ -69,12 +70,6 @@ static inline unsigned long __range_ok(const void __user *addr, unsigned long si
 }
 
 #define access_ok(addr, size)	__range_ok(addr, size)
-
-#define _ASM_EXTABLE(from, to)						\
-	"	.pushsection	__ex_table, \"a\"\n"			\
-	"	.align		3\n"					\
-	"	.long		(" #from " - .), (" #to " - .)\n"	\
-	"	.popsection\n"
 
 /*
  * User access enabling/disabling.
@@ -260,15 +255,9 @@ static inline void __user *__uaccess_mask_ptr(const void __user *ptr)
 	asm volatile(							\
 	"1:	" load "	" reg "1, [%2]\n"			\
 	"2:\n"								\
-	"	.section .fixup, \"ax\"\n"				\
-	"	.align	2\n"						\
-	"3:	mov	%w0, %3\n"					\
-	"	mov	%1, #0\n"					\
-	"	b	2b\n"						\
-	"	.previous\n"						\
-	_ASM_EXTABLE(1b, 3b)						\
+	_ASM_EXTABLE_UACCESS_ERR_ZERO(1b, 2b, %w0, %w1)			\
 	: "+r" (err), "=&r" (x)						\
-	: "r" (addr), "i" (-EFAULT))
+	: "r" (addr))
 
 #define __raw_get_mem(ldr, x, ptr, err)					\
 do {									\
@@ -337,14 +326,9 @@ do {									\
 	asm volatile(							\
 	"1:	" store "	" reg "1, [%2]\n"			\
 	"2:\n"								\
-	"	.section .fixup,\"ax\"\n"				\
-	"	.align	2\n"						\
-	"3:	mov	%w0, %3\n"					\
-	"	b	2b\n"						\
-	"	.previous\n"						\
-	_ASM_EXTABLE(1b, 3b)						\
+	_ASM_EXTABLE_UACCESS_ERR(1b, 2b, %w0)				\
 	: "+r" (err)							\
-	: "r" (x), "r" (addr), "i" (-EFAULT))
+	: "r" (x), "r" (addr))
 
 #define __raw_put_mem(str, x, ptr, err)					\
 do {									\
