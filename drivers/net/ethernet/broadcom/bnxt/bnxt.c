@@ -8210,6 +8210,10 @@ static int bnxt_hwrm_port_qstats_ext(struct bnxt *bp, u8 flags)
 	if (!rc) {
 		bp->fw_rx_stats_ext_size =
 			le16_to_cpu(resp_qs->rx_stat_size) / 8;
+		if (BNXT_FW_MAJ(bp) < 220 &&
+		    bp->fw_rx_stats_ext_size > BNXT_RX_STATS_EXT_NUM_LEGACY)
+			bp->fw_rx_stats_ext_size = BNXT_RX_STATS_EXT_NUM_LEGACY;
+
 		bp->fw_tx_stats_ext_size = tx_stat_size ?
 			le16_to_cpu(resp_qs->tx_stat_size) / 8 : 0;
 	} else {

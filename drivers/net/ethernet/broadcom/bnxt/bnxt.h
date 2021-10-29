@@ -2174,6 +2174,9 @@ struct bnxt {
 #define BNXT_RX_STATS_EXT_OFFSET(counter)		\
 	(offsetof(struct rx_port_stats_ext, counter) / 8)
 
+#define BNXT_RX_STATS_EXT_NUM_LEGACY                   \
+	BNXT_RX_STATS_EXT_OFFSET(rx_fec_corrected_blocks)
+
 #define BNXT_TX_STATS_EXT_OFFSET(counter)		\
 	(offsetof(struct tx_port_stats_ext, counter) / 8)
 
