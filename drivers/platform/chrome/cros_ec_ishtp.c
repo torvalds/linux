@@ -774,6 +774,12 @@ static struct ishtp_cl_driver	cros_ec_ishtp_driver = {
 	},
 };
 
+static const struct ishtp_device_id cros_ec_ishtp_id_table[] = {
+	{ cros_ish_guid },
+	{ }
+};
+MODULE_DEVICE_TABLE(ishtp, cros_ec_ishtp_id_table);
+
 static int __init cros_ec_ishtp_mod_init(void)
 {
 	return ishtp_cl_driver_register(&cros_ec_ishtp_driver, THIS_MODULE);
@@ -791,4 +797,3 @@ MODULE_DESCRIPTION("ChromeOS EC ISHTP Client Driver");
 MODULE_AUTHOR("Rushikesh S Kadam <rushikesh.s.kadam@intel.com>");
 
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("ishtp:*");
