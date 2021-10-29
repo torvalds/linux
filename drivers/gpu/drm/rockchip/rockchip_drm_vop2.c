@@ -5148,6 +5148,26 @@ static void vop2_crtc_enable_dsc(struct drm_crtc *crtc, struct drm_crtc_state *o
 	dsc->enabled = true;
 }
 
+/*
+ * MIPI port mux on rk3588:
+ * 0: Video Port2
+ * 1: Video Port3
+ * 3: Video Port 1(MIPI1 only)
+ */
+static int vop2_get_mipi_port_mux(struct vop2 *vop2, int vp_id)
+{
+	if (vop2->version == VOP_VERSION_RK3588) {
+		if (vp_id == 1)
+			return 3;
+		else if (vp_id == 3)
+			return 1;
+		else
+			return 0;
+	} else {
+		return vp_id;
+	}
+}
+
 static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state *old_state)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
@@ -5180,6 +5200,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	struct vop2_clk *if_dclk = NULL;
 	struct vop2_clk *dclk, *dclk_out, *dclk_core;
 	int splice_en = 0;
+	int port_mux;
 	int ret;
 
 	vop2->active_vp_mask |= BIT(vp->id);
@@ -5286,8 +5307,9 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 			goto out;
 		if (if_pixclk)
 			VOP_CTRL_SET(vop2, mipi0_pixclk_div, if_pixclk->div_val);
+		port_mux = vop2_get_mipi_port_mux(vop2, vp_data->id);
 		VOP_CTRL_SET(vop2, mipi0_en, 1);
-		VOP_CTRL_SET(vop2, mipi0_mux, vp_data->id);
+		VOP_CTRL_SET(vop2, mipi0_mux, port_mux);
 		VOP_CTRL_SET(vop2, mipi_pin_pol, val);
 		VOP_CTRL_SET(vop2, mipi_dclk_pol, dclk_inv);
 	}
@@ -5299,8 +5321,10 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 		if (if_pixclk)
 			VOP_CTRL_SET(vop2, mipi1_pixclk_div, if_pixclk->div_val);
 
+		port_mux = vop2_get_mipi_port_mux(vop2, vp_data->id);
+
 		VOP_CTRL_SET(vop2, mipi1_en, 1);
-		VOP_CTRL_SET(vop2, mipi1_mux, vp_data->id);
+		VOP_CTRL_SET(vop2, mipi1_mux, port_mux);
 		VOP_CTRL_SET(vop2, mipi_pin_pol, val);
 		VOP_CTRL_SET(vop2, mipi_dclk_pol, dclk_inv);
 	}
