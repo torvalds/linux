@@ -44,7 +44,10 @@
 	pr_alert("%s" SCALE_FLAG s, scale_type, ## x)
 
 #define VERBOSE_SCALEOUT(s, x...) \
-	do { if (verbose) pr_alert("%s" SCALE_FLAG s, scale_type, ## x); } while (0)
+	do { \
+		if (verbose) \
+			pr_alert("%s" SCALE_FLAG s "\n", scale_type, ## x); \
+	} while (0)
 
 static atomic_t verbose_batch_ctr;
 
@@ -54,11 +57,11 @@ do {											\
 	    (verbose_batched <= 0 ||							\
 	     !(atomic_inc_return(&verbose_batch_ctr) % verbose_batched))) {		\
 		schedule_timeout_uninterruptible(1);					\
-		pr_alert("%s" SCALE_FLAG s, scale_type, ## x);				\
+		pr_alert("%s" SCALE_FLAG s "\n", scale_type, ## x);			\
 	}										\
 } while (0)
 
-#define SCALEOUT_ERRSTRING(s, x...) pr_alert("%s" SCALE_FLAG "!!! " s, scale_type, ## x)
+#define SCALEOUT_ERRSTRING(s, x...) pr_alert("%s" SCALE_FLAG "!!! " s "\n", scale_type, ## x)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Joel Fernandes (Google) <joel@joelfernandes.org>");
@@ -841,7 +844,7 @@ ref_scale_init(void)
 		goto unwind;
 	}
 
-	VERBOSE_SCALEOUT("Starting %d reader threads\n", nreaders);
+	VERBOSE_SCALEOUT("Starting %d reader threads", nreaders);
 
 	for (i = 0; i < nreaders; i++) {
 		firsterr = torture_create_kthread(ref_scale_reader, (void *)i,
