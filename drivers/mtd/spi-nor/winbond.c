@@ -147,12 +147,17 @@ static const struct spi_nor_otp_ops winbond_otp_ops = {
 static void winbond_default_init(struct spi_nor *nor)
 {
 	nor->params->set_4byte_addr_mode = winbond_set_4byte_addr_mode;
+}
+
+static void winbond_late_init(struct spi_nor *nor)
+{
 	if (nor->params->otp.org->n_regions)
 		nor->params->otp.ops = &winbond_otp_ops;
 }
 
 static const struct spi_nor_fixups winbond_fixups = {
 	.default_init = winbond_default_init,
+	.late_init = winbond_late_init,
 };
 
 const struct spi_nor_manufacturer spi_nor_winbond = {
