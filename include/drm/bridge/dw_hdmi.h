@@ -199,6 +199,8 @@ struct dw_hdmi_plat_data {
 	int (*get_yuv422_format)(struct drm_connector *connector,
 				 struct edid *edid);
 	int (*get_edid_dsc_info)(void *data, struct edid *edid);
+	int (*get_next_hdr_data)(void *data, struct edid *edid,
+				 struct drm_connector *connector);
 
 	/* Vendor Property support */
 	const struct dw_hdmi_property_ops *property_ops;

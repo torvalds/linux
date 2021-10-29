@@ -131,10 +131,12 @@ struct rockchip_hdmi {
 	struct drm_property *colorimetry_property;
 	struct drm_property *quant_range;
 	struct drm_property *hdr_panel_metadata_property;
+	struct drm_property *next_hdr_sink_data_property;
 	struct drm_property *output_hdmi_dvi;
 	struct drm_property *output_type_capacity;
 
 	struct drm_property_blob *hdr_panel_blob_ptr;
+	struct drm_property_blob *next_hdr_data_ptr;
 
 	unsigned int colordepth;
 	unsigned int colorimetry;
@@ -146,6 +148,7 @@ struct rockchip_hdmi {
 	u8 max_frl_rate_per_lane;
 	u8 max_lanes;
 	struct rockchip_drm_dsc_cap dsc_cap;
+	struct next_hdr_sink_data next_hdr_data;
 };
 
 #define to_rockchip_hdmi(x)	container_of(x, struct rockchip_hdmi, x)
@@ -967,6 +970,28 @@ dw_hdmi_rockchip_get_edid_dsc_info(void *data, struct edid *edid)
 					  &hdmi->max_lanes, edid);
 }
 
+static int
+dw_hdmi_rockchip_get_next_hdr_data(void *data, struct edid *edid,
+				   struct drm_connector *connector)
+{
+	int ret;
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+	struct next_hdr_sink_data *sink_data = &hdmi->next_hdr_data;
+	size_t size = sizeof(*sink_data);
+	struct drm_property *property = hdmi->next_hdr_sink_data_property;
+	struct drm_property_blob *blob = hdmi->hdr_panel_blob_ptr;
+
+	if (!edid)
+		return -EINVAL;
+
+	rockchip_drm_parse_next_hdr(sink_data, edid);
+
+	ret = drm_property_replace_global_blob(connector->dev, &blob, size, sink_data,
+					       &connector->base, property);
+
+	return ret;
+}
+
 static const struct drm_prop_enum_list color_depth_enum_list[] = {
 	{ 0, "Automatic" }, /* Prefer highest color depth */
 	{ 8, "24bit" },
@@ -1125,6 +1150,15 @@ dw_hdmi_rockchip_attach_properties(struct drm_connector *connector,
 		drm_object_attach_property(&connector->base, prop, 0);
 	}
 
+	prop = drm_property_create(connector->dev,
+				   DRM_MODE_PROP_BLOB |
+				   DRM_MODE_PROP_IMMUTABLE,
+				   "NEXT_HDR_SINK_DATA", 0);
+	if (prop) {
+		hdmi->next_hdr_sink_data_property = prop;
+		drm_object_attach_property(&connector->base, prop, 0);
+	}
+
 	prop = drm_property_create_enum(connector->dev, 0,
 					"output_hdmi_dvi",
 					output_hdmi_dvi_enum_list,
@@ -1195,6 +1229,12 @@ dw_hdmi_rockchip_destroy_properties(struct drm_connector *connector,
 		drm_property_destroy(connector->dev,
 				     hdmi->hdr_panel_metadata_property);
 		hdmi->hdr_panel_metadata_property = NULL;
+	}
+
+	if (hdmi->next_hdr_sink_data_property) {
+		drm_property_destroy(connector->dev,
+				     hdmi->next_hdr_sink_data_property);
+		hdmi->next_hdr_sink_data_property = NULL;
 	}
 
 	if (hdmi->output_hdmi_dvi) {
@@ -1631,6 +1671,8 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 		dw_hdmi_rockchip_get_yuv422_format;
 	plat_data->get_edid_dsc_info =
 		dw_hdmi_rockchip_get_edid_dsc_info;
+	plat_data->get_next_hdr_data =
+		dw_hdmi_rockchip_get_next_hdr_data;
 	plat_data->property_ops = &dw_hdmi_rockchip_property_ops;
 
 	encoder = &hdmi->encoder;
