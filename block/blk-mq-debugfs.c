@@ -550,7 +550,7 @@ static int hctx_active_show(void *data, struct seq_file *m)
 {
 	struct blk_mq_hw_ctx *hctx = data;
 
-	seq_printf(m, "%d\n", atomic_read(&hctx->nr_active));
+	seq_printf(m, "%d\n", __blk_mq_active_requests(hctx));
 	return 0;
 }
 
