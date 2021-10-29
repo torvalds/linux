@@ -141,6 +141,9 @@ typedef int (*acpi_tbl_table_handler)(struct acpi_table_header *table);
 typedef int (*acpi_tbl_entry_handler)(union acpi_subtable_headers *header,
 				      const unsigned long end);
 
+typedef int (*acpi_tbl_entry_handler_arg)(union acpi_subtable_headers *header,
+					  void *arg, const unsigned long end);
+
 /* Debugger support */
 
 struct acpi_debugger_ops {
@@ -217,6 +220,8 @@ static inline int acpi_debugger_notify_command_complete(void)
 struct acpi_subtable_proc {
 	int id;
 	acpi_tbl_entry_handler handler;
+	acpi_tbl_entry_handler_arg handler_arg;
+	void *arg;
 	int count;
 };
 
@@ -235,9 +240,11 @@ void acpi_table_init_complete (void);
 int acpi_table_init (void);
 
 #ifdef CONFIG_ACPI_TABLE_LIB
+#define EXPORT_SYMBOL_ACPI_LIB(x) EXPORT_SYMBOL_NS_GPL(x, ACPI)
 #define __init_or_acpilib
 #define __initdata_or_acpilib
 #else
+#define EXPORT_SYMBOL_ACPI_LIB(x)
 #define __init_or_acpilib __init
 #define __initdata_or_acpilib __initdata
 #endif
@@ -252,6 +259,10 @@ int __init_or_acpilib acpi_table_parse_entries_array(char *id,
 int acpi_table_parse_madt(enum acpi_madt_type id,
 			  acpi_tbl_entry_handler handler,
 			  unsigned int max_entries);
+int __init_or_acpilib
+acpi_table_parse_cedt(enum acpi_cedt_type id,
+		      acpi_tbl_entry_handler_arg handler_arg, void *arg);
+
 int acpi_parse_mcfg (struct acpi_table_header *header);
 void acpi_table_print_madt_entry (struct acpi_subtable_header *madt);
 

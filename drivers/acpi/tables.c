@@ -277,6 +277,22 @@ acpi_get_subtable_type(char *id)
 	return ACPI_SUBTABLE_COMMON;
 }
 
+static __init_or_acpilib bool has_handler(struct acpi_subtable_proc *proc)
+{
+	return proc->handler || proc->handler_arg;
+}
+
+static __init_or_acpilib int call_handler(struct acpi_subtable_proc *proc,
+					  union acpi_subtable_headers *hdr,
+					  unsigned long end)
+{
+	if (proc->handler)
+		return proc->handler(hdr, end);
+	if (proc->handler_arg)
+		return proc->handler_arg(hdr, proc->arg, end);
+	return -EINVAL;
+}
+
 /**
  * acpi_parse_entries_array - for each proc_num find a suitable subtable
  *
@@ -327,8 +343,9 @@ static int __init_or_acpilib acpi_parse_entries_array(
 		for (i = 0; i < proc_num; i++) {
 			if (acpi_get_entry_type(&entry) != proc[i].id)
 				continue;
-			if (!proc[i].handler ||
-			     (!errs && proc[i].handler(entry.hdr, table_end))) {
+			if (!has_handler(&proc[i]) ||
+			    (!errs &&
+			     call_handler(&proc[i], entry.hdr, table_end))) {
 				errs++;
 				continue;
 			}
@@ -394,19 +411,39 @@ int __init_or_acpilib acpi_table_parse_entries_array(
 	return count;
 }
 
-int __init acpi_table_parse_entries(char *id,
-			unsigned long table_size,
-			int entry_id,
-			acpi_tbl_entry_handler handler,
-			unsigned int max_entries)
+static int __init_or_acpilib __acpi_table_parse_entries(
+	char *id, unsigned long table_size, int entry_id,
+	acpi_tbl_entry_handler handler, acpi_tbl_entry_handler_arg handler_arg,
+	void *arg, unsigned int max_entries)
 {
 	struct acpi_subtable_proc proc = {
 		.id		= entry_id,
 		.handler	= handler,
+		.handler_arg	= handler_arg,
+		.arg		= arg,
 	};
 
 	return acpi_table_parse_entries_array(id, table_size, &proc, 1,
 						max_entries);
+}
+
+int __init_or_acpilib
+acpi_table_parse_cedt(enum acpi_cedt_type id,
+		      acpi_tbl_entry_handler_arg handler_arg, void *arg)
+{
+	return __acpi_table_parse_entries(ACPI_SIG_CEDT,
+					  sizeof(struct acpi_table_cedt), id,
+					  NULL, handler_arg, arg, 0);
+}
+EXPORT_SYMBOL_ACPI_LIB(acpi_table_parse_cedt);
+
+int __init acpi_table_parse_entries(char *id, unsigned long table_size,
+				    int entry_id,
+				    acpi_tbl_entry_handler handler,
+				    unsigned int max_entries)
+{
+	return __acpi_table_parse_entries(id, table_size, entry_id, handler,
+					  NULL, NULL, max_entries);
 }
 
 int __init acpi_table_parse_madt(enum acpi_madt_type id,
