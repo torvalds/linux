@@ -2138,10 +2138,12 @@ static int bnxt_async_event_process(struct bnxt *bp,
 			set_bit(BNXT_STATE_FW_ACTIVATE_RESET, &bp->state);
 		} else if (EVENT_DATA1_RESET_NOTIFY_FATAL(data1)) {
 			type_str = "Fatal";
+			bp->fw_health->fatalities++;
 			set_bit(BNXT_STATE_FW_FATAL_COND, &bp->state);
 		} else if (data2 && BNXT_FW_STATUS_HEALTHY !=
 			   EVENT_DATA2_RESET_NOTIFY_FW_STATUS_CODE(data2)) {
 			type_str = "Non-fatal";
+			bp->fw_health->survivals++;
 			set_bit(BNXT_STATE_FW_NON_FATAL_COND, &bp->state);
 		}
 		netif_warn(bp, hw, bp->dev,
@@ -7604,6 +7606,7 @@ static int __bnxt_alloc_fw_health(struct bnxt *bp)
 	if (!bp->fw_health)
 		return -ENOMEM;
 
+	mutex_init(&bp->fw_health->lock);
 	return 0;
 }
 
@@ -7650,12 +7653,16 @@ static void bnxt_inv_fw_health_reg(struct bnxt *bp)
 	struct bnxt_fw_health *fw_health = bp->fw_health;
 	u32 reg_type;
 
-	if (!fw_health || !fw_health->status_reliable)
+	if (!fw_health)
 		return;
 
 	reg_type = BNXT_FW_HEALTH_REG_TYPE(fw_health->regs[BNXT_FW_HEALTH_REG]);
 	if (reg_type == BNXT_FW_HEALTH_REG_TYPE_GRC)
 		fw_health->status_reliable = false;
+
+	reg_type = BNXT_FW_HEALTH_REG_TYPE(fw_health->regs[BNXT_FW_RESET_CNT_REG]);
+	if (reg_type == BNXT_FW_HEALTH_REG_TYPE_GRC)
+		fw_health->resets_reliable = false;
 }
 
 static void bnxt_try_map_fw_health_reg(struct bnxt *bp)
@@ -7712,6 +7719,7 @@ static int bnxt_map_fw_health_regs(struct bnxt *bp)
 	int i;
 
 	bp->fw_health->status_reliable = false;
+	bp->fw_health->resets_reliable = false;
 	/* Only pre-map the monitoring GRC registers using window 3 */
 	for (i = 0; i < 4; i++) {
 		u32 reg = fw_health->regs[i];
@@ -7725,6 +7733,7 @@ static int bnxt_map_fw_health_regs(struct bnxt *bp)
 		fw_health->mapped_regs[i] = BNXT_FW_HEALTH_WIN_OFF(reg);
 	}
 	bp->fw_health->status_reliable = true;
+	bp->fw_health->resets_reliable = true;
 	if (reg_base == 0xffffffff)
 		return 0;
 
@@ -11264,14 +11273,18 @@ static void bnxt_fw_health_check(struct bnxt *bp)
 	}
 
 	val = bnxt_fw_health_readl(bp, BNXT_FW_HEARTBEAT_REG);
-	if (val == fw_health->last_fw_heartbeat)
+	if (val == fw_health->last_fw_heartbeat) {
+		fw_health->arrests++;
 		goto fw_reset;
+	}
 
 	fw_health->last_fw_heartbeat = val;
 
 	val = bnxt_fw_health_readl(bp, BNXT_FW_RESET_CNT_REG);
-	if (val != fw_health->last_fw_reset_cnt)
+	if (val != fw_health->last_fw_reset_cnt) {
+		fw_health->discoveries++;
 		goto fw_reset;
+	}
 
 	fw_health->tmr_counter = fw_health->tmr_multiplier;
 	return;

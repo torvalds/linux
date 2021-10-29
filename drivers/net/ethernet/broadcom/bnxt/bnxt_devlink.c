@@ -71,43 +71,110 @@ static int bnxt_hwrm_remote_dev_reset_set(struct bnxt *bp, bool remote_reset)
 	return hwrm_req_send(bp, req);
 }
 
+static char *bnxt_health_severity_str(enum bnxt_health_severity severity)
+{
+	switch (severity) {
+	case SEVERITY_NORMAL: return "normal";
+	case SEVERITY_WARNING: return "warning";
+	case SEVERITY_RECOVERABLE: return "recoverable";
+	case SEVERITY_FATAL: return "fatal";
+	default: return "unknown";
+	}
+}
+
+static char *bnxt_health_remedy_str(enum bnxt_health_remedy remedy)
+{
+	switch (remedy) {
+	case REMEDY_DEVLINK_RECOVER: return "devlink recover";
+	case REMEDY_POWER_CYCLE_DEVICE: return "device power cycle";
+	case REMEDY_POWER_CYCLE_HOST: return "host power cycle";
+	case REMEDY_FW_UPDATE: return "update firmware";
+	case REMEDY_HW_REPLACE: return "replace hardware";
+	default: return "unknown";
+	}
+}
+
 static int bnxt_fw_diagnose(struct devlink_health_reporter *reporter,
 			    struct devlink_fmsg *fmsg,
 			    struct netlink_ext_ack *extack)
 {
 	struct bnxt *bp = devlink_health_reporter_priv(reporter);
-	u32 val;
+	struct bnxt_fw_health *h = bp->fw_health;
+	u32 fw_status, fw_resets;
 	int rc;
 
 	if (test_bit(BNXT_STATE_IN_FW_RESET, &bp->state))
-		return 0;
+		return devlink_fmsg_string_pair_put(fmsg, "Status", "recovering");
 
-	val = bnxt_fw_health_readl(bp, BNXT_FW_HEALTH_REG);
+	if (!h->status_reliable)
+		return devlink_fmsg_string_pair_put(fmsg, "Status", "unknown");
 
-	if (BNXT_FW_IS_BOOTING(val)) {
-		rc = devlink_fmsg_string_pair_put(fmsg, "Description",
-						  "Not yet completed initialization");
+	mutex_lock(&h->lock);
+	fw_status = bnxt_fw_health_readl(bp, BNXT_FW_HEALTH_REG);
+	if (BNXT_FW_IS_BOOTING(fw_status)) {
+		rc = devlink_fmsg_string_pair_put(fmsg, "Status", "initializing");
 		if (rc)
-			return rc;
-	} else if (BNXT_FW_IS_ERR(val)) {
-		rc = devlink_fmsg_string_pair_put(fmsg, "Description",
-						  "Encountered fatal error and cannot recover");
+			goto unlock;
+	} else if (h->severity || fw_status != BNXT_FW_STATUS_HEALTHY) {
+		if (!h->severity) {
+			h->severity = SEVERITY_FATAL;
+			h->remedy = REMEDY_POWER_CYCLE_DEVICE;
+			h->diagnoses++;
+			devlink_health_report(h->fw_reporter,
+					      "FW error diagnosed", h);
+		}
+		rc = devlink_fmsg_string_pair_put(fmsg, "Status", "error");
 		if (rc)
-			return rc;
+			goto unlock;
+		rc = devlink_fmsg_u32_pair_put(fmsg, "Syndrome", fw_status);
+		if (rc)
+			goto unlock;
+	} else {
+		rc = devlink_fmsg_string_pair_put(fmsg, "Status", "healthy");
+		if (rc)
+			goto unlock;
 	}
 
-	if (val >> 16) {
-		rc = devlink_fmsg_u32_pair_put(fmsg, "Error code", val >> 16);
-		if (rc)
-			return rc;
-	}
-
-	val = bnxt_fw_health_readl(bp, BNXT_FW_RESET_CNT_REG);
-	rc = devlink_fmsg_u32_pair_put(fmsg, "Reset count", val);
+	rc = devlink_fmsg_string_pair_put(fmsg, "Severity",
+					  bnxt_health_severity_str(h->severity));
 	if (rc)
+		goto unlock;
+
+	if (h->severity) {
+		rc = devlink_fmsg_string_pair_put(fmsg, "Remedy",
+						  bnxt_health_remedy_str(h->remedy));
+		if (rc)
+			goto unlock;
+		if (h->remedy == REMEDY_DEVLINK_RECOVER) {
+			rc = devlink_fmsg_string_pair_put(fmsg, "Impact",
+							  "traffic+ntuple_cfg");
+			if (rc)
+				goto unlock;
+		}
+	}
+
+unlock:
+	mutex_unlock(&h->lock);
+	if (rc || !h->resets_reliable)
 		return rc;
 
-	return 0;
+	fw_resets = bnxt_fw_health_readl(bp, BNXT_FW_RESET_CNT_REG);
+	rc = devlink_fmsg_u32_pair_put(fmsg, "Resets", fw_resets);
+	if (rc)
+		return rc;
+	rc = devlink_fmsg_u32_pair_put(fmsg, "Arrests", h->arrests);
+	if (rc)
+		return rc;
+	rc = devlink_fmsg_u32_pair_put(fmsg, "Survivals", h->survivals);
+	if (rc)
+		return rc;
+	rc = devlink_fmsg_u32_pair_put(fmsg, "Discoveries", h->discoveries);
+	if (rc)
+		return rc;
+	rc = devlink_fmsg_u32_pair_put(fmsg, "Fatalities", h->fatalities);
+	if (rc)
+		return rc;
+	return devlink_fmsg_u32_pair_put(fmsg, "Diagnoses", h->diagnoses);
 }
 
 static int bnxt_fw_recover(struct devlink_health_reporter *reporter,
@@ -115,6 +182,9 @@ static int bnxt_fw_recover(struct devlink_health_reporter *reporter,
 			   struct netlink_ext_ack *extack)
 {
 	struct bnxt *bp = devlink_health_reporter_priv(reporter);
+
+	if (bp->fw_health->severity == SEVERITY_FATAL)
+		return -ENODEV;
 
 	set_bit(BNXT_STATE_RECOVER, &bp->state);
 	__bnxt_fw_recover(bp);
@@ -165,6 +235,7 @@ void bnxt_dl_fw_reporters_destroy(struct bnxt *bp, bool all)
 void bnxt_devlink_health_fw_report(struct bnxt *bp)
 {
 	struct bnxt_fw_health *fw_health = bp->fw_health;
+	int rc;
 
 	if (!fw_health)
 		return;
@@ -174,20 +245,32 @@ void bnxt_devlink_health_fw_report(struct bnxt *bp)
 		return;
 	}
 
-	devlink_health_report(fw_health->fw_reporter, "FW error reported", NULL);
+	mutex_lock(&fw_health->lock);
+	fw_health->severity = SEVERITY_RECOVERABLE;
+	fw_health->remedy = REMEDY_DEVLINK_RECOVER;
+	mutex_unlock(&fw_health->lock);
+	rc = devlink_health_report(fw_health->fw_reporter, "FW error reported",
+				   fw_health);
+	if (rc == -ECANCELED)
+		__bnxt_fw_recover(bp);
 }
 
 void bnxt_dl_health_fw_status_update(struct bnxt *bp, bool healthy)
 {
-	struct bnxt_fw_health *health = bp->fw_health;
+	struct bnxt_fw_health *fw_health = bp->fw_health;
 	u8 state;
 
-	if (healthy)
+	mutex_lock(&fw_health->lock);
+	if (healthy) {
+		fw_health->severity = SEVERITY_NORMAL;
 		state = DEVLINK_HEALTH_REPORTER_STATE_HEALTHY;
-	else
+	} else {
+		fw_health->severity = SEVERITY_FATAL;
+		fw_health->remedy = REMEDY_POWER_CYCLE_DEVICE;
 		state = DEVLINK_HEALTH_REPORTER_STATE_ERROR;
-
-	devlink_health_reporter_state_update(health->fw_reporter, state);
+	}
+	mutex_unlock(&fw_health->lock);
+	devlink_health_reporter_state_update(fw_health->fw_reporter, state);
 }
 
 void bnxt_dl_health_fw_recovery_done(struct bnxt *bp)
