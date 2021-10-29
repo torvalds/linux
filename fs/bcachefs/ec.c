@@ -1642,7 +1642,6 @@ static int bch2_stripes_read_fn(struct btree_trans *trans, struct bkey_s_c k)
 	if (k.k->type == KEY_TYPE_stripe)
 		ret = __ec_stripe_mem_alloc(c, k.k->p.offset, GFP_KERNEL) ?:
 			bch2_mark_key(trans, k,
-				      BTREE_TRIGGER_INSERT|
 				      BTREE_TRIGGER_NOATOMIC);
 
 	return ret;

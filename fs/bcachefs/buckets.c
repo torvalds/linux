@@ -929,7 +929,7 @@ static int bch2_mark_extent(struct btree_trans *trans,
 	bool gc = flags & BTREE_TRIGGER_GC;
 	u64 journal_seq = trans->journal_res.seq;
 	struct bch_fs *c = trans->c;
-	struct bkey_s_c k = flags & BTREE_TRIGGER_INSERT ? new : old;
+	struct bkey_s_c k = flags & BTREE_TRIGGER_OVERWRITE ? old: new;
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const union bch_extent_entry *entry;
 	struct extent_ptr_decoded p;
@@ -943,9 +943,6 @@ static int bch2_mark_extent(struct btree_trans *trans,
 	s64 dirty_sectors = 0;
 	bool stale;
 	int ret;
-
-	BUG_ON((flags & (BTREE_TRIGGER_INSERT|BTREE_TRIGGER_OVERWRITE)) ==
-	       (BTREE_TRIGGER_INSERT|BTREE_TRIGGER_OVERWRITE));
 
 	r.e.data_type	= data_type;
 	r.e.nr_devs	= 0;
@@ -1112,7 +1109,7 @@ static int bch2_mark_reservation(struct btree_trans *trans,
 				 unsigned flags)
 {
 	struct bch_fs *c = trans->c;
-	struct bkey_s_c k = flags & BTREE_TRIGGER_INSERT ? new : old;
+	struct bkey_s_c k = flags & BTREE_TRIGGER_OVERWRITE ? old: new;
 	struct bch_fs_usage __percpu *fs_usage;
 	unsigned replicas = bkey_s_c_to_reservation(k).v->nr_replicas;
 	s64 sectors = (s64) k.k->size;
@@ -1185,7 +1182,7 @@ static int bch2_mark_reflink_p(struct btree_trans *trans,
 			       unsigned flags)
 {
 	struct bch_fs *c = trans->c;
-	struct bkey_s_c k = flags & BTREE_TRIGGER_INSERT ? new : old;
+	struct bkey_s_c k = flags & BTREE_TRIGGER_OVERWRITE ? old: new;
 	struct bkey_s_c_reflink_p p = bkey_s_c_to_reflink_p(k);
 	struct reflink_gc *ref;
 	size_t l, r, m;
@@ -1193,9 +1190,6 @@ static int bch2_mark_reflink_p(struct btree_trans *trans,
 	u64 end_idx = le64_to_cpu(p.v->idx) + p.k->size +
 		le32_to_cpu(p.v->back_pad);
 	int ret = 0;
-
-	BUG_ON((flags & (BTREE_TRIGGER_INSERT|BTREE_TRIGGER_OVERWRITE)) ==
-	       (BTREE_TRIGGER_INSERT|BTREE_TRIGGER_OVERWRITE));
 
 	l = 0;
 	r = c->reflink_gc_nr;
@@ -1220,9 +1214,7 @@ static int bch2_mark_key_locked(struct btree_trans *trans,
 		   struct bkey_s_c new,
 		   unsigned flags)
 {
-	struct bkey_s_c k = flags & BTREE_TRIGGER_INSERT ? new : old;
-
-	BUG_ON(!(flags & (BTREE_TRIGGER_INSERT|BTREE_TRIGGER_OVERWRITE)));
+	struct bkey_s_c k = flags & BTREE_TRIGGER_OVERWRITE ? old: new;
 
 	switch (k.k->type) {
 	case KEY_TYPE_alloc:
@@ -1541,9 +1533,6 @@ static int bch2_trans_mark_extent(struct btree_trans *trans,
 	bool stale;
 	int ret;
 
-	BUG_ON((flags & (BTREE_TRIGGER_INSERT|BTREE_TRIGGER_OVERWRITE)) ==
-	       (BTREE_TRIGGER_INSERT|BTREE_TRIGGER_OVERWRITE));
-
 	r.e.data_type	= data_type;
 	r.e.nr_devs	= 0;
 	r.e.nr_required	= 1;
@@ -1715,9 +1704,6 @@ static int bch2_trans_mark_reservation(struct btree_trans *trans,
 	s64 sectors = (s64) k.k->size;
 	struct replicas_delta_list *d;
 
-	BUG_ON((flags & (BTREE_TRIGGER_INSERT|BTREE_TRIGGER_OVERWRITE)) ==
-	       (BTREE_TRIGGER_INSERT|BTREE_TRIGGER_OVERWRITE));
-
 	if (flags & BTREE_TRIGGER_OVERWRITE)
 		sectors = -sectors;
 	sectors *= replicas;
@@ -1837,9 +1823,7 @@ static int bch2_trans_mark_reflink_p(struct btree_trans *trans,
 int bch2_trans_mark_key(struct btree_trans *trans, struct bkey_s_c old,
 			struct bkey_s_c new, unsigned flags)
 {
-	struct bkey_s_c k = flags & BTREE_TRIGGER_INSERT ? new : old;
-
-	BUG_ON(!(flags & (BTREE_TRIGGER_INSERT|BTREE_TRIGGER_OVERWRITE)));
+	struct bkey_s_c k = flags & BTREE_TRIGGER_OVERWRITE ? old: new;
 
 	switch (k.k->type) {
 	case KEY_TYPE_btree_ptr:
