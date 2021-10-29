@@ -488,16 +488,19 @@ struct link_encoder *link_enc_cfg_get_link_enc_used_by_stream(
 	return link_enc;
 }
 
-bool link_enc_cfg_is_link_enc_avail(struct dc *dc, enum engine_id eng_id)
+bool link_enc_cfg_is_link_enc_avail(struct dc *dc, enum engine_id eng_id, struct dc_link *link)
 {
 	bool is_avail = true;
 	int i;
 
-	/* Add assigned encoders to list. */
+	/* An encoder is not available if it has already been assigned to a different endpoint. */
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct link_enc_assignment assignment = get_assignment(dc, i);
+		struct display_endpoint_id ep_id = (struct display_endpoint_id) {
+				.link_id = link->link_id,
+				.ep_type = link->ep_type};
 
-		if (assignment.valid && assignment.eng_id == eng_id) {
+		if (assignment.valid && assignment.eng_id == eng_id && !are_ep_ids_equal(&ep_id, &assignment.ep_id)) {
 			is_avail = false;
 			break;
 		}

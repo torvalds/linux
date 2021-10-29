@@ -403,7 +403,7 @@ static ssize_t diagc_attr_store(struct ib_device *ibdev, u32 port_num,
 }
 
 #define QIB_DIAGC_ATTR(N)                                                      \
-	static_assert(&((struct qib_ibport *)0)->rvp.n_##N != (u64 *)NULL);    \
+	static_assert(__same_type(((struct qib_ibport *)0)->rvp.n_##N, u64));  \
 	static struct qib_diagc_attr qib_diagc_attr_##N = {                    \
 		.attr = __ATTR(N, 0664, diagc_attr_show, diagc_attr_store),    \
 		.counter =                                                     \

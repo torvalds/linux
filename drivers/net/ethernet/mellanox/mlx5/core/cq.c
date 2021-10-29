@@ -155,6 +155,8 @@ int mlx5_core_destroy_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq)
 	u32 in[MLX5_ST_SZ_DW(destroy_cq_in)] = {};
 	int err;
 
+	mlx5_debug_cq_remove(dev, cq);
+
 	mlx5_eq_del_cq(mlx5_get_async_eq(dev), cq);
 	mlx5_eq_del_cq(&cq->eq->core, cq);
 
@@ -162,16 +164,13 @@ int mlx5_core_destroy_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq)
 	MLX5_SET(destroy_cq_in, in, cqn, cq->cqn);
 	MLX5_SET(destroy_cq_in, in, uid, cq->uid);
 	err = mlx5_cmd_exec_in(dev, destroy_cq, in);
-	if (err)
-		return err;
 
 	synchronize_irq(cq->irqn);
 
-	mlx5_debug_cq_remove(dev, cq);
 	mlx5_cq_put(cq);
 	wait_for_completion(&cq->free);
 
-	return 0;
+	return err;
 }
 EXPORT_SYMBOL(mlx5_core_destroy_cq);
 

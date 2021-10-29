@@ -175,9 +175,10 @@ for IRQ numbers that are passed to struct device registrations.  In that
 case the Linux IRQ numbers cannot be dynamically assigned and the legacy
 mapping should be used.
 
-As the name implies, the *_legacy() functions are deprecated and only
+As the name implies, the \*_legacy() functions are deprecated and only
 exist to ease the support of ancient platforms. No new users should be
-added.
+added. Same goes for the \*_simple() functions when their use results
+in the legacy behaviour.
 
 The legacy map assumes a contiguous range of IRQ numbers has already
 been allocated for the controller and that the IRQ number can be

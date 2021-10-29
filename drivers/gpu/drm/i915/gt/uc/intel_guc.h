@@ -46,6 +46,15 @@ struct intel_guc {
 	 * submitted until the stalled request is processed.
 	 */
 	struct i915_request *stalled_request;
+	/**
+	 * @submission_stall_reason: reason why submission is stalled
+	 */
+	enum {
+		STALL_NONE,
+		STALL_REGISTER_CONTEXT,
+		STALL_MOVE_LRC_TAIL,
+		STALL_ADD_REQUEST,
+	} submission_stall_reason;
 
 	/* intel_guc_recv interrupt related state */
 	/** @irq_lock: protects GuC irq state */
@@ -71,16 +80,41 @@ struct intel_guc {
 	} interrupts;
 
 	/**
-	 * @contexts_lock: protects guc_ids, guc_id_list, ce->guc_id.id, and
-	 * ce->guc_id.ref when transitioning in and out of zero
+	 * @submission_state: sub-structure for submission state protected by
+	 * single lock
 	 */
-	spinlock_t contexts_lock;
-	/** @guc_ids: used to allocate unique ce->guc_id.id values */
-	struct ida guc_ids;
-	/**
-	 * @guc_id_list: list of intel_context with valid guc_ids but no refs
-	 */
-	struct list_head guc_id_list;
+	struct {
+		/**
+		 * @lock: protects everything in submission_state,
+		 * ce->guc_id.id, and ce->guc_id.ref when transitioning in and
+		 * out of zero
+		 */
+		spinlock_t lock;
+		/**
+		 * @guc_ids: used to allocate new guc_ids, single-lrc
+		 */
+		struct ida guc_ids;
+		/**
+		 * @guc_ids_bitmap: used to allocate new guc_ids, multi-lrc
+		 */
+		unsigned long *guc_ids_bitmap;
+		/**
+		 * @guc_id_list: list of intel_context with valid guc_ids but no
+		 * refs
+		 */
+		struct list_head guc_id_list;
+		/**
+		 * @destroyed_contexts: list of contexts waiting to be destroyed
+		 * (deregistered with the GuC)
+		 */
+		struct list_head destroyed_contexts;
+		/**
+		 * @destroyed_worker: worker to deregister contexts, need as we
+		 * need to take a GT PM reference and can't from destroy
+		 * function as it might be in an atomic context (no sleeping)
+		 */
+		struct work_struct destroyed_worker;
+	} submission_state;
 
 	/**
 	 * @submission_supported: tracks whether we support GuC submission on
@@ -341,5 +375,7 @@ void intel_guc_submission_reset_finish(struct intel_guc *guc);
 void intel_guc_submission_cancel_requests(struct intel_guc *guc);
 
 void intel_guc_load_status(struct intel_guc *guc, struct drm_printer *p);
+
+void intel_guc_write_barrier(struct intel_guc *guc);
 
 #endif

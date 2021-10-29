@@ -1035,13 +1035,8 @@ void acpi_turn_off_unused_power_resources(void)
 	list_for_each_entry_reverse(resource, &acpi_power_resource_list, list_node) {
 		mutex_lock(&resource->resource_lock);
 
-		/*
-		 * Turn off power resources in an unknown state too, because the
-		 * platform firmware on some system expects the OS to turn off
-		 * power resources without any users unconditionally.
-		 */
 		if (!resource->ref_count &&
-		    resource->state != ACPI_POWER_RESOURCE_STATE_OFF) {
+		    resource->state == ACPI_POWER_RESOURCE_STATE_ON) {
 			acpi_handle_debug(resource->device.handle, "Turning OFF\n");
 			__acpi_power_off(resource);
 		}

@@ -207,6 +207,7 @@ static int ipq4019_mdio_probe(struct platform_device *pdev)
 {
 	struct ipq4019_mdio_data *priv;
 	struct mii_bus *bus;
+	struct resource *res;
 	int ret;
 
 	bus = devm_mdiobus_alloc_size(&pdev->dev, sizeof(*priv));
@@ -224,7 +225,10 @@ static int ipq4019_mdio_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->mdio_clk);
 
 	/* The platform resource is provided on the chipset IPQ5018 */
-	priv->eth_ldo_rdy = devm_platform_ioremap_resource(pdev, 1);
+	/* This resource is optional */
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (res)
+		priv->eth_ldo_rdy = devm_ioremap_resource(&pdev->dev, res);
 
 	bus->name = "ipq4019_mdio";
 	bus->read = ipq4019_mdio_read;

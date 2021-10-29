@@ -3839,9 +3839,9 @@ void amdgpu_device_fini_hw(struct amdgpu_device *adev)
 
 	amdgpu_fbdev_fini(adev);
 
-	amdgpu_irq_fini_hw(adev);
-
 	amdgpu_device_ip_fini_early(adev);
+
+	amdgpu_irq_fini_hw(adev);
 
 	ttm_device_clear_dma_mappings(&adev->mman.bdev);
 

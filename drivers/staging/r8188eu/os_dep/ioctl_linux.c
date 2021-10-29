@@ -5372,8 +5372,8 @@ static int rtw_mp_read_reg(struct net_device *dev,
 
 			pnext++;
 			if (*pnext != '\0') {
-				  strtout = simple_strtoul(pnext, &ptmp, 16);
-				  sprintf(extra, "%s %d", extra, strtout);
+				strtout = simple_strtoul(pnext, &ptmp, 16);
+				sprintf(extra + strlen(extra), " %d", strtout);
 			} else {
 				  break;
 			}
@@ -5405,7 +5405,7 @@ static int rtw_mp_read_reg(struct net_device *dev,
 			pnext++;
 			if (*pnext != '\0') {
 				strtout = simple_strtoul(pnext, &ptmp, 16);
-				sprintf(extra, "%s %d", extra, strtout);
+				sprintf(extra + strlen(extra), " %d", strtout);
 			} else {
 				break;
 			}
@@ -5512,7 +5512,7 @@ static int rtw_mp_read_rf(struct net_device *dev,
 		pnext++;
 		if (*pnext != '\0') {
 			  strtou = simple_strtoul(pnext, &ptmp, 16);
-			  sprintf(extra, "%s %d", extra, strtou);
+			  sprintf(extra + strlen(extra), " %d", strtou);
 		} else {
 			  break;
 		}

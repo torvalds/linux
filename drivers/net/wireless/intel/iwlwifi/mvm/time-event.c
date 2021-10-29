@@ -662,12 +662,13 @@ static bool __iwl_mvm_remove_time_event(struct iwl_mvm *mvm,
 					u32 *uid)
 {
 	u32 id;
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(te_data->vif);
+	struct iwl_mvm_vif *mvmvif;
 	enum nl80211_iftype iftype;
 
 	if (!te_data->vif)
 		return false;
 
+	mvmvif = iwl_mvm_vif_from_mac80211(te_data->vif);
 	iftype = te_data->vif->type;
 
 	/*

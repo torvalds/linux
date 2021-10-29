@@ -259,7 +259,7 @@ static void dpcd_set_training_pattern(
 	struct dc_link *link,
 	enum dc_dp_training_pattern training_pattern)
 {
-	union dpcd_training_pattern dpcd_pattern = { {0} };
+	union dpcd_training_pattern dpcd_pattern = {0};
 
 	dpcd_pattern.v1_4.TRAINING_PATTERN_SET =
 			dc_dp_training_pattern_to_dpcd_training_pattern(
@@ -401,8 +401,8 @@ enum dc_status dpcd_set_link_settings(
 	uint8_t rate;
 	enum dc_status status;
 
-	union down_spread_ctrl downspread = { {0} };
-	union lane_count_set lane_count_set = { {0} };
+	union down_spread_ctrl downspread = {0};
+	union lane_count_set lane_count_set = {0};
 
 	downspread.raw = (uint8_t)
 	(lt_settings->link_settings.link_spread);
@@ -520,7 +520,7 @@ static void dpcd_set_lt_pattern_and_lane_settings(
 	uint32_t dpcd_base_lt_offset;
 
 	uint8_t dpcd_lt_buffer[5] = {0};
-	union dpcd_training_pattern dpcd_pattern = { {0} };
+	union dpcd_training_pattern dpcd_pattern = { 0 };
 	uint32_t size_in_bytes;
 	bool edp_workaround = false; /* TODO link_prop.INTERNAL */
 	dpcd_base_lt_offset = DP_TRAINING_PATTERN_SET;
@@ -1266,8 +1266,8 @@ static enum link_training_result perform_channel_equalization_sequence(
 	uint32_t retries_ch_eq;
 	uint32_t wait_time_microsec;
 	enum dc_lane_count lane_count = lt_settings->link_settings.lane_count;
-	union lane_align_status_updated dpcd_lane_status_updated = { {0} };
-	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = { { {0} } };
+	union lane_align_status_updated dpcd_lane_status_updated = {0};
+	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = {0};
 
 	/* Note: also check that TPS4 is a supported feature*/
 
@@ -1487,7 +1487,7 @@ static inline enum link_training_result dp_transition_to_video_idle(
 	struct link_training_settings *lt_settings,
 	enum link_training_result status)
 {
-	union lane_count_set lane_count_set = { {0} };
+	union lane_count_set lane_count_set = {0};
 
 	/* 4. mainlink output idle pattern*/
 	dp_set_hw_test_pattern(link, DP_TEST_PATTERN_VIDEO_MODE, NULL, 0);
@@ -1800,7 +1800,7 @@ static enum dc_status configure_lttpr_mode_non_transparent(
 
 static void repeater_training_done(struct dc_link *link, uint32_t offset)
 {
-	union dpcd_training_pattern dpcd_pattern = { {0} };
+	union dpcd_training_pattern dpcd_pattern = {0};
 
 	const uint32_t dpcd_base_lt_offset =
 			DP_TRAINING_PATTERN_SET_PHY_REPEATER1 +
@@ -2078,8 +2078,8 @@ static enum link_training_result dp_perform_128b_132b_channel_eq_done_sequence(
 	uint32_t aux_rd_interval = 0;
 	uint32_t wait_time = 0;
 	struct link_training_settings req_settings;
-	union lane_align_status_updated dpcd_lane_status_updated = { {0} };
-	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = { { {0} } };
+	union lane_align_status_updated dpcd_lane_status_updated = {0};
+	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = {0};
 	enum link_training_result status = LINK_TRAINING_SUCCESS;
 
 	/* Transmit 128b/132b_TPS1 over Main-Link and Set TRAINING_PATTERN_SET to 01h */
@@ -2149,8 +2149,8 @@ static enum link_training_result dp_perform_128b_132b_cds_done_sequence(
 	/* Assumption: assume hardware has transmitted eq pattern */
 	enum link_training_result status = LINK_TRAINING_SUCCESS;
 	struct link_training_settings req_settings;
-	union lane_align_status_updated dpcd_lane_status_updated = { {0} };
-	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = { { {0} } };
+	union lane_align_status_updated dpcd_lane_status_updated = {0};
+	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = {0};
 	uint32_t wait_time = 0;
 
 	/* initiate CDS done sequence */
@@ -2863,7 +2863,7 @@ bool dp_verify_link_cap(
 		link->verified_link_cap = *known_limit_link_setting;
 		return true;
 	} else if (link->link_enc && link->dc->res_pool->funcs->link_encs_assign &&
-			!link_enc_cfg_is_link_enc_avail(link->ctx->dc, link->link_enc->preferred_engine)) {
+			!link_enc_cfg_is_link_enc_avail(link->ctx->dc, link->link_enc->preferred_engine, link)) {
 		link->verified_link_cap = initial_link_settings;
 		return true;
 	}
@@ -4065,8 +4065,8 @@ void dc_link_dp_handle_link_loss(struct dc_link *link)
 bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd_irq_dpcd_data, bool *out_link_loss,
 							bool defer_handling, bool *has_left_work)
 {
-	union hpd_irq_data hpd_irq_dpcd_data = { { { {0} } } };
-	union device_service_irq device_service_clear = { { 0 } };
+	union hpd_irq_data hpd_irq_dpcd_data = {0};
+	union device_service_irq device_service_clear = {0};
 	enum dc_status result;
 	bool status = false;
 
@@ -5939,7 +5939,7 @@ bool is_edp_ilr_optimization_required(struct dc_link *link, struct dc_crtc_timin
 	uint8_t link_bw_set;
 	uint8_t link_rate_set;
 	uint32_t req_bw;
-	union lane_count_set lane_count_set = { {0} };
+	union lane_count_set lane_count_set = {0};
 
 	ASSERT(link || crtc_timing); // invalid input
 
@@ -5993,6 +5993,25 @@ enum dp_link_encoding dp_get_link_encoding_format(const struct dc_link_settings 
 }
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
+enum dp_link_encoding dc_link_dp_mst_decide_link_encoding_format(const struct dc_link *link)
+{
+	struct dc_link_settings link_settings = {0};
+
+	if (!dc_is_dp_signal(link->connector_signal))
+		return DP_UNKNOWN_ENCODING;
+
+	if (link->preferred_link_setting.lane_count !=
+			LANE_COUNT_UNKNOWN &&
+			link->preferred_link_setting.link_rate !=
+					LINK_RATE_UNKNOWN) {
+		link_settings = link->preferred_link_setting;
+	} else {
+		decide_mst_link_settings(link, &link_settings);
+	}
+
+	return dp_get_link_encoding_format(&link_settings);
+}
+
 // TODO - DP2.0 Link: Fix get_lane_status to handle LTTPR offset (SST and MST)
 static void get_lane_status(
 	struct dc_link *link,
