@@ -2150,17 +2150,18 @@ static int bnxt_async_event_process(struct bnxt *bp,
 	}
 	case ASYNC_EVENT_CMPL_EVENT_ID_ERROR_RECOVERY: {
 		struct bnxt_fw_health *fw_health = bp->fw_health;
+		char *status_desc = "healthy";
+		u32 status;
 
 		if (!fw_health)
 			goto async_event_process_exit;
 
 		if (!EVENT_DATA1_RECOVERY_ENABLED(data1)) {
 			fw_health->enabled = false;
-			netif_info(bp, drv, bp->dev,
-				   "Error recovery info: error recovery[0]\n");
+			netif_info(bp, drv, bp->dev, "Driver recovery watchdog is disabled\n");
 			break;
 		}
-		fw_health->master = EVENT_DATA1_RECOVERY_MASTER_FUNC(data1);
+		fw_health->primary = EVENT_DATA1_RECOVERY_MASTER_FUNC(data1);
 		fw_health->tmr_multiplier =
 			DIV_ROUND_UP(fw_health->polling_dsecs * HZ,
 				     bp->current_interval * 10);
@@ -2170,10 +2171,13 @@ static int bnxt_async_event_process(struct bnxt *bp,
 				bnxt_fw_health_readl(bp, BNXT_FW_HEARTBEAT_REG);
 		fw_health->last_fw_reset_cnt =
 			bnxt_fw_health_readl(bp, BNXT_FW_RESET_CNT_REG);
+		status = bnxt_fw_health_readl(bp, BNXT_FW_HEALTH_REG);
+		if (status != BNXT_FW_STATUS_HEALTHY)
+			status_desc = "unhealthy";
 		netif_info(bp, drv, bp->dev,
-			   "Error recovery info: error recovery[1], master[%d], reset count[%u], health status: 0x%x\n",
-			   fw_health->master, fw_health->last_fw_reset_cnt,
-			   bnxt_fw_health_readl(bp, BNXT_FW_HEALTH_REG));
+			   "Driver recovery watchdog, role: %s, firmware status: 0x%x (%s), resets: %u\n",
+			   fw_health->primary ? "primary" : "backup", status,
+			   status_desc, fw_health->last_fw_reset_cnt);
 		if (!fw_health->enabled) {
 			/* Make sure tmr_counter is set and visible to
 			 * bnxt_health_check() before setting enabled to true.
@@ -11469,7 +11473,7 @@ static void bnxt_force_fw_reset(struct bnxt *bp)
 	}
 	bnxt_fw_reset_close(bp);
 	wait_dsecs = fw_health->master_func_wait_dsecs;
-	if (fw_health->master) {
+	if (fw_health->primary) {
 		if (fw_health->flags & ERROR_RECOVERY_QCFG_RESP_FLAGS_CO_CPU)
 			wait_dsecs = 0;
 		bp->fw_reset_state = BNXT_FW_RESET_STATE_RESET_FW;
@@ -12141,7 +12145,7 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 			return;
 		}
 
-		if (!bp->fw_health->master) {
+		if (!bp->fw_health->primary) {
 			u32 wait_dsecs = bp->fw_health->normal_func_wait_dsecs;
 
 			bp->fw_reset_state = BNXT_FW_RESET_STATE_ENABLE_DEV;
