@@ -1551,7 +1551,6 @@ struct bnxt_fw_health {
 	u32 echo_req_data1;
 	u32 echo_req_data2;
 	struct devlink_health_reporter	*fw_reporter;
-	struct devlink_health_reporter *fw_fatal_reporter;
 };
 
 #define BNXT_FW_HEALTH_REG_TYPE_MASK	3
