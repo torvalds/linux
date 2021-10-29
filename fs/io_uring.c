@@ -10056,12 +10056,11 @@ static __cold void __io_uring_show_fdinfo(struct io_ring_ctx *ctx,
 	struct io_overflow_cqe *ocqe;
 	struct io_rings *r = ctx->rings;
 	unsigned int sq_mask = ctx->sq_entries - 1, cq_mask = ctx->cq_entries - 1;
-	unsigned int cached_sq_head = ctx->cached_sq_head;
-	unsigned int cached_cq_tail = ctx->cached_cq_tail;
 	unsigned int sq_head = READ_ONCE(r->sq.head);
 	unsigned int sq_tail = READ_ONCE(r->sq.tail);
 	unsigned int cq_head = READ_ONCE(r->cq.head);
 	unsigned int cq_tail = READ_ONCE(r->cq.tail);
+	unsigned int sq_entries, cq_entries;
 	bool has_lock;
 	unsigned int i;
 
@@ -10071,29 +10070,37 @@ static __cold void __io_uring_show_fdinfo(struct io_ring_ctx *ctx,
 	 * and sq_tail and cq_head are changed by userspace. But it's ok since
 	 * we usually use these info when it is stuck.
 	 */
-	seq_printf(m, "SqHead:\t%u\n", sq_head & sq_mask);
-	seq_printf(m, "SqTail:\t%u\n", sq_tail & sq_mask);
-	seq_printf(m, "CachedSqHead:\t%u\n", cached_sq_head & sq_mask);
-	seq_printf(m, "CqHead:\t%u\n", cq_head & cq_mask);
-	seq_printf(m, "CqTail:\t%u\n", cq_tail & cq_mask);
-	seq_printf(m, "CachedCqTail:\t%u\n", cached_cq_tail & cq_mask);
-	seq_printf(m, "SQEs:\t%u\n", sq_tail - cached_sq_head);
-	for (i = cached_sq_head; i < sq_tail; i++) {
-		unsigned int sq_idx = READ_ONCE(ctx->sq_array[i & sq_mask]);
+	seq_printf(m, "SqMask:\t\t0x%x\n", sq_mask);
+	seq_printf(m, "SqHead:\t%u\n", sq_head);
+	seq_printf(m, "SqTail:\t%u\n", sq_tail);
+	seq_printf(m, "CachedSqHead:\t%u\n", ctx->cached_sq_head);
+	seq_printf(m, "CqMask:\t0x%x\n", cq_mask);
+	seq_printf(m, "CqHead:\t%u\n", cq_head);
+	seq_printf(m, "CqTail:\t%u\n", cq_tail);
+	seq_printf(m, "CachedCqTail:\t%u\n", ctx->cached_cq_tail);
+	seq_printf(m, "SQEs:\t%u\n", sq_tail - ctx->cached_sq_head);
+	sq_entries = min(sq_tail - sq_head, ctx->sq_entries);
+	for (i = 0; i < sq_entries; i++) {
+		unsigned int entry = i + sq_head;
+		unsigned int sq_idx = READ_ONCE(ctx->sq_array[entry & sq_mask]);
+		struct io_uring_sqe *sqe = &ctx->sq_sqes[sq_idx];
 
-		if (likely(sq_idx <= sq_mask)) {
-			struct io_uring_sqe *sqe = &ctx->sq_sqes[sq_idx];
-
-			seq_printf(m, "%5u: opcode:%d, fd:%d, flags:%x, user_data:%llu\n",
-				   sq_idx, sqe->opcode, sqe->fd, sqe->flags, sqe->user_data);
-		}
+		if (sq_idx > sq_mask)
+			continue;
+		sqe = &ctx->sq_sqes[sq_idx];
+		seq_printf(m, "%5u: opcode:%d, fd:%d, flags:%x, user_data:%llu\n",
+			   sq_idx, sqe->opcode, sqe->fd, sqe->flags,
+			   sqe->user_data);
 	}
-	seq_printf(m, "CQEs:\t%u\n", cached_cq_tail - cq_head);
-	for (i = cq_head; i < cached_cq_tail; i++) {
-		struct io_uring_cqe *cqe = &r->cqes[i & cq_mask];
+	seq_printf(m, "CQEs:\t%u\n", cq_tail - cq_head);
+	cq_entries = min(cq_tail - cq_head, ctx->cq_entries);
+	for (i = 0; i < cq_entries; i++) {
+		unsigned int entry = i + cq_head;
+		struct io_uring_cqe *cqe = &r->cqes[entry & cq_mask];
 
 		seq_printf(m, "%5u: user_data:%llu, res:%d, flag:%x\n",
-			   i & cq_mask, cqe->user_data, cqe->res, cqe->flags);
+			   entry & cq_mask, cqe->user_data, cqe->res,
+			   cqe->flags);
 	}
 
 	/*
