@@ -326,6 +326,111 @@ void bnxt_dl_health_fw_recovery_done(struct bnxt *bp)
 static int bnxt_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
 			    struct netlink_ext_ack *extack);
 
+static void
+bnxt_dl_livepatch_report_err(struct bnxt *bp, struct netlink_ext_ack *extack,
+			     struct hwrm_fw_livepatch_output *resp)
+{
+	int err = ((struct hwrm_err_output *)resp)->cmd_err;
+
+	switch (err) {
+	case FW_LIVEPATCH_CMD_ERR_CODE_INVALID_OPCODE:
+		netdev_err(bp->dev, "Illegal live patch opcode");
+		NL_SET_ERR_MSG_MOD(extack, "Invalid opcode");
+		break;
+	case FW_LIVEPATCH_CMD_ERR_CODE_NOT_SUPPORTED:
+		NL_SET_ERR_MSG_MOD(extack, "Live patch operation not supported");
+		break;
+	case FW_LIVEPATCH_CMD_ERR_CODE_NOT_INSTALLED:
+		NL_SET_ERR_MSG_MOD(extack, "Live patch not found");
+		break;
+	case FW_LIVEPATCH_CMD_ERR_CODE_NOT_PATCHED:
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Live patch deactivation failed. Firmware not patched.");
+		break;
+	case FW_LIVEPATCH_CMD_ERR_CODE_AUTH_FAIL:
+		NL_SET_ERR_MSG_MOD(extack, "Live patch not authenticated");
+		break;
+	case FW_LIVEPATCH_CMD_ERR_CODE_INVALID_HEADER:
+		NL_SET_ERR_MSG_MOD(extack, "Incompatible live patch");
+		break;
+	case FW_LIVEPATCH_CMD_ERR_CODE_INVALID_SIZE:
+		NL_SET_ERR_MSG_MOD(extack, "Live patch has invalid size");
+		break;
+	case FW_LIVEPATCH_CMD_ERR_CODE_ALREADY_PATCHED:
+		NL_SET_ERR_MSG_MOD(extack, "Live patch already applied");
+		break;
+	default:
+		netdev_err(bp->dev, "Unexpected live patch error: %hhd\n", err);
+		NL_SET_ERR_MSG_MOD(extack, "Failed to activate live patch");
+		break;
+	}
+}
+
+static int
+bnxt_dl_livepatch_activate(struct bnxt *bp, struct netlink_ext_ack *extack)
+{
+	struct hwrm_fw_livepatch_query_output *query_resp;
+	struct hwrm_fw_livepatch_query_input *query_req;
+	struct hwrm_fw_livepatch_output *patch_resp;
+	struct hwrm_fw_livepatch_input *patch_req;
+	u32 installed = 0;
+	u16 flags;
+	u8 target;
+	int rc;
+
+	if (~bp->fw_cap & BNXT_FW_CAP_LIVEPATCH) {
+		NL_SET_ERR_MSG_MOD(extack, "Device does not support live patch");
+		return -EOPNOTSUPP;
+	}
+
+	rc = hwrm_req_init(bp, query_req, HWRM_FW_LIVEPATCH_QUERY);
+	if (rc)
+		return rc;
+	query_resp = hwrm_req_hold(bp, query_req);
+
+	rc = hwrm_req_init(bp, patch_req, HWRM_FW_LIVEPATCH);
+	if (rc) {
+		hwrm_req_drop(bp, query_req);
+		return rc;
+	}
+	patch_req->opcode = FW_LIVEPATCH_REQ_OPCODE_ACTIVATE;
+	patch_req->loadtype = FW_LIVEPATCH_REQ_LOADTYPE_NVM_INSTALL;
+	patch_resp = hwrm_req_hold(bp, patch_req);
+
+	for (target = 1; target <= FW_LIVEPATCH_REQ_FW_TARGET_LAST; target++) {
+		query_req->fw_target = target;
+		rc = hwrm_req_send(bp, query_req);
+		if (rc) {
+			NL_SET_ERR_MSG_MOD(extack, "Failed to query packages");
+			break;
+		}
+
+		flags = le16_to_cpu(query_resp->status_flags);
+		if (~flags & FW_LIVEPATCH_QUERY_RESP_STATUS_FLAGS_INSTALL)
+			continue;
+		if ((flags & FW_LIVEPATCH_QUERY_RESP_STATUS_FLAGS_ACTIVE) &&
+		    !strncmp(query_resp->active_ver, query_resp->install_ver,
+			     sizeof(query_resp->active_ver)))
+			continue;
+
+		patch_req->fw_target = target;
+		rc = hwrm_req_send(bp, patch_req);
+		if (rc) {
+			bnxt_dl_livepatch_report_err(bp, extack, patch_resp);
+			break;
+		}
+		installed++;
+	}
+
+	if (!rc && !installed) {
+		NL_SET_ERR_MSG_MOD(extack, "No live patches found");
+		rc = -ENOENT;
+	}
+	hwrm_req_drop(bp, query_req);
+	hwrm_req_drop(bp, patch_req);
+	return rc;
+}
+
 static int bnxt_dl_reload_down(struct devlink *dl, bool netns_change,
 			       enum devlink_reload_action action,
 			       enum devlink_reload_limit limit,
@@ -372,6 +477,8 @@ static int bnxt_dl_reload_down(struct devlink *dl, bool netns_change,
 		break;
 	}
 	case DEVLINK_RELOAD_ACTION_FW_ACTIVATE: {
+		if (limit == DEVLINK_RELOAD_LIMIT_NO_RESET)
+			return bnxt_dl_livepatch_activate(bp, extack);
 		if (~bp->fw_cap & BNXT_FW_CAP_HOT_RESET) {
 			NL_SET_ERR_MSG_MOD(extack, "Device not capable, requires reboot");
 			return -EOPNOTSUPP;
@@ -432,6 +539,8 @@ static int bnxt_dl_reload_up(struct devlink *dl, enum devlink_reload_action acti
 		unsigned long start = jiffies;
 		unsigned long timeout = start + BNXT_DFLT_FW_RST_MAX_DSECS * HZ / 10;
 
+		if (limit == DEVLINK_RELOAD_LIMIT_NO_RESET)
+			break;
 		if (bp->fw_cap & BNXT_FW_CAP_ERROR_RECOVERY)
 			timeout = start + bp->fw_health->normal_func_wait_dsecs * HZ / 10;
 		if (!netif_running(bp->dev))
@@ -485,6 +594,7 @@ static const struct devlink_ops bnxt_dl_ops = {
 	.flash_update	  = bnxt_dl_flash_update,
 	.reload_actions	  = BIT(DEVLINK_RELOAD_ACTION_DRIVER_REINIT) |
 			    BIT(DEVLINK_RELOAD_ACTION_FW_ACTIVATE),
+	.reload_limits	  = BIT(DEVLINK_RELOAD_LIMIT_NO_RESET),
 	.reload_down	  = bnxt_dl_reload_down,
 	.reload_up	  = bnxt_dl_reload_up,
 };
@@ -628,6 +738,57 @@ static int bnxt_dl_info_put(struct bnxt *bp, struct devlink_info_req *req,
 		return devlink_info_version_stored_put(req, key, buf);
 	}
 	return 0;
+}
+
+#define BNXT_FW_SRT_PATCH	"fw.srt.patch"
+#define BNXT_FW_CRT_PATCH	"fw.crt.patch"
+
+static int bnxt_dl_livepatch_info_put(struct bnxt *bp,
+				      struct devlink_info_req *req,
+				      const char *key)
+{
+	struct hwrm_fw_livepatch_query_input *query;
+	struct hwrm_fw_livepatch_query_output *resp;
+	u16 flags;
+	int rc;
+
+	if (~bp->fw_cap & BNXT_FW_CAP_LIVEPATCH)
+		return 0;
+
+	rc = hwrm_req_init(bp, query, HWRM_FW_LIVEPATCH_QUERY);
+	if (rc)
+		return rc;
+
+	if (!strcmp(key, BNXT_FW_SRT_PATCH))
+		query->fw_target = FW_LIVEPATCH_QUERY_REQ_FW_TARGET_SECURE_FW;
+	else if (!strcmp(key, BNXT_FW_CRT_PATCH))
+		query->fw_target = FW_LIVEPATCH_QUERY_REQ_FW_TARGET_COMMON_FW;
+	else
+		goto exit;
+
+	resp = hwrm_req_hold(bp, query);
+	rc = hwrm_req_send(bp, query);
+	if (rc)
+		goto exit;
+
+	flags = le16_to_cpu(resp->status_flags);
+	if (flags & FW_LIVEPATCH_QUERY_RESP_STATUS_FLAGS_ACTIVE) {
+		resp->active_ver[sizeof(resp->active_ver) - 1] = '\0';
+		rc = devlink_info_version_running_put(req, key, resp->active_ver);
+		if (rc)
+			goto exit;
+	}
+
+	if (flags & FW_LIVEPATCH_QUERY_RESP_STATUS_FLAGS_INSTALL) {
+		resp->install_ver[sizeof(resp->install_ver) - 1] = '\0';
+		rc = devlink_info_version_stored_put(req, key, resp->install_ver);
+		if (rc)
+			goto exit;
+	}
+
+exit:
+	hwrm_req_drop(bp, query);
+	return rc;
 }
 
 #define HWRM_FW_VER_STR_LEN	16
@@ -783,8 +944,16 @@ static int bnxt_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
 	snprintf(roce_ver, FW_VER_STR_LEN, "%d.%d.%d.%d",
 		 nvm_dev_info.roce_fw_major, nvm_dev_info.roce_fw_minor,
 		 nvm_dev_info.roce_fw_build, nvm_dev_info.roce_fw_patch);
-	return bnxt_dl_info_put(bp, req, BNXT_VERSION_STORED,
-				DEVLINK_INFO_VERSION_GENERIC_FW_ROCE, roce_ver);
+	rc = bnxt_dl_info_put(bp, req, BNXT_VERSION_STORED,
+			      DEVLINK_INFO_VERSION_GENERIC_FW_ROCE, roce_ver);
+	if (rc)
+		return rc;
+
+	rc = bnxt_dl_livepatch_info_put(bp, req, BNXT_FW_SRT_PATCH);
+	if (rc)
+		return rc;
+	return bnxt_dl_livepatch_info_put(bp, req, BNXT_FW_CRT_PATCH);
+
 }
 
 static int bnxt_hwrm_nvm_req(struct bnxt *bp, u32 param_id, void *msg,
