@@ -61,10 +61,11 @@ const char *bch2_snapshot_invalid(const struct bch_fs *c, struct bkey_s_c k)
 	return NULL;
 }
 
-int bch2_mark_snapshot(struct bch_fs *c,
+int bch2_mark_snapshot(struct btree_trans *trans,
 		       struct bkey_s_c old, struct bkey_s_c new,
-		       u64 journal_seq, unsigned flags)
+		       unsigned flags)
 {
+	struct bch_fs *c = trans->c;
 	struct snapshot_t *t;
 
 	t = genradix_ptr_alloc(&c->snapshots,
@@ -308,7 +309,7 @@ int bch2_fs_snapshots_start(struct bch_fs *c)
 		if (BCH_SNAPSHOT_DELETED(bkey_s_c_to_snapshot(k).v))
 			have_deleted = true;
 
-		ret = bch2_mark_snapshot(c, bkey_s_c_null, k, 0, 0);
+		ret = bch2_mark_snapshot(&trans, bkey_s_c_null, k, 0);
 		if (ret)
 			break;
 	}
@@ -499,7 +500,7 @@ static int bch2_snapshot_node_create(struct btree_trans *trans, u32 parent,
 
 		bch2_trans_update(trans, &iter, &n->k_i, 0);
 
-		ret = bch2_mark_snapshot(trans->c, bkey_s_c_null, bkey_i_to_s_c(&n->k_i), 0, 0);
+		ret = bch2_mark_snapshot(trans, bkey_s_c_null, bkey_i_to_s_c(&n->k_i), 0);
 		if (ret)
 			break;
 

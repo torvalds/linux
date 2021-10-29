@@ -261,8 +261,9 @@ void bch2_alloc_to_text(struct printbuf *out, struct bch_fs *c,
 #undef  x
 }
 
-static int bch2_alloc_read_fn(struct bch_fs *c, struct bkey_s_c k)
+static int bch2_alloc_read_fn(struct btree_trans *trans, struct bkey_s_c k)
 {
+	struct bch_fs *c = trans->c;
 	struct bch_dev *ca;
 	struct bucket *g;
 	struct bkey_alloc_unpacked u;
@@ -289,11 +290,14 @@ static int bch2_alloc_read_fn(struct bch_fs *c, struct bkey_s_c k)
 
 int bch2_alloc_read(struct bch_fs *c)
 {
+	struct btree_trans trans;
 	int ret;
 
+	bch2_trans_init(&trans, c, 0, 0);
 	down_read(&c->gc_lock);
-	ret = bch2_btree_and_journal_walk(c, BTREE_ID_alloc, bch2_alloc_read_fn);
+	ret = bch2_btree_and_journal_walk(&trans, BTREE_ID_alloc, bch2_alloc_read_fn);
 	up_read(&c->gc_lock);
+	bch2_trans_exit(&trans);
 	if (ret) {
 		bch_err(c, "error reading alloc info: %i", ret);
 		return ret;

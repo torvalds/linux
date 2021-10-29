@@ -226,7 +226,7 @@ void bch2_mark_metadata_bucket(struct bch_fs *, struct bch_dev *,
 			       size_t, enum bch_data_type, unsigned,
 			       struct gc_pos, unsigned);
 
-int bch2_mark_key(struct bch_fs *, struct bkey_s_c, unsigned);
+int bch2_mark_key(struct btree_trans *, struct bkey_s_c, unsigned);
 
 int bch2_mark_update(struct btree_trans *, struct btree_path *,
 		     struct bkey_i *, unsigned);

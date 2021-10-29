@@ -337,10 +337,11 @@ static void btree_and_journal_iter_prefetch(struct bch_fs *c, struct btree *b,
 	bch2_bkey_buf_exit(&tmp, c);
 }
 
-static int bch2_btree_and_journal_walk_recurse(struct bch_fs *c, struct btree *b,
+static int bch2_btree_and_journal_walk_recurse(struct btree_trans *trans, struct btree *b,
 				enum btree_id btree_id,
 				btree_walk_key_fn key_fn)
 {
+	struct bch_fs *c = trans->c;
 	struct btree_and_journal_iter iter;
 	struct bkey_s_c k;
 	struct bkey_buf tmp;
@@ -364,11 +365,11 @@ static int bch2_btree_and_journal_walk_recurse(struct bch_fs *c, struct btree *b
 
 			btree_and_journal_iter_prefetch(c, b, iter);
 
-			ret = bch2_btree_and_journal_walk_recurse(c, child,
+			ret = bch2_btree_and_journal_walk_recurse(trans, child,
 					btree_id, key_fn);
 			six_unlock_read(&child->c.lock);
 		} else {
-			ret = key_fn(c, k);
+			ret = key_fn(trans, k);
 		}
 
 		if (ret)
@@ -382,9 +383,10 @@ static int bch2_btree_and_journal_walk_recurse(struct bch_fs *c, struct btree *b
 	return ret;
 }
 
-int bch2_btree_and_journal_walk(struct bch_fs *c, enum btree_id btree_id,
+int bch2_btree_and_journal_walk(struct btree_trans *trans, enum btree_id btree_id,
 				btree_walk_key_fn key_fn)
 {
+	struct bch_fs *c = trans->c;
 	struct btree *b = c->btree_roots[btree_id].b;
 	int ret = 0;
 
@@ -392,7 +394,7 @@ int bch2_btree_and_journal_walk(struct bch_fs *c, enum btree_id btree_id,
 		return 0;
 
 	six_lock_read(&b->c.lock, NULL, NULL);
-	ret = bch2_btree_and_journal_walk_recurse(c, b, btree_id, key_fn);
+	ret = bch2_btree_and_journal_walk_recurse(trans, b, btree_id, key_fn);
 	six_unlock_read(&b->c.lock);
 
 	return ret;

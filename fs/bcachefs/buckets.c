@@ -528,11 +528,13 @@ void bch2_mark_alloc_bucket(struct bch_fs *c, struct bch_dev *ca,
 	BUG_ON(owned_by_allocator == old.owned_by_allocator);
 }
 
-static int bch2_mark_alloc(struct bch_fs *c,
+static int bch2_mark_alloc(struct btree_trans *trans,
 			   struct bkey_s_c old, struct bkey_s_c new,
-			   u64 journal_seq, unsigned flags)
+			   unsigned flags)
 {
 	bool gc = flags & BTREE_TRIGGER_GC;
+	u64 journal_seq = trans->journal_res.seq;
+	struct bch_fs *c = trans->c;
 	struct bkey_alloc_unpacked u;
 	struct bch_dev *ca;
 	struct bucket *g;
@@ -677,7 +679,8 @@ static s64 ptr_disk_sectors(s64 sectors, struct extent_ptr_decoded p)
 		: sectors;
 }
 
-static int check_bucket_ref(struct bch_fs *c, struct bkey_s_c k,
+static int check_bucket_ref(struct bch_fs *c,
+			    struct bkey_s_c k,
 			    const struct bch_extent_ptr *ptr,
 			    s64 sectors, enum bch_data_type ptr_data_type,
 			    u8 bucket_gen, u8 bucket_data_type,
@@ -751,10 +754,12 @@ static int check_bucket_ref(struct bch_fs *c, struct bkey_s_c k,
 	return 0;
 }
 
-static int mark_stripe_bucket(struct bch_fs *c, struct bkey_s_c k,
-			     unsigned ptr_idx,
-			     u64 journal_seq, unsigned flags)
+static int mark_stripe_bucket(struct btree_trans *trans,
+			      struct bkey_s_c k,
+			      unsigned ptr_idx,
+			      u64 journal_seq, unsigned flags)
 {
+	struct bch_fs *c = trans->c;
 	const struct bch_stripe *s = bkey_s_c_to_stripe(k).v;
 	unsigned nr_data = s->nr_blocks - s->nr_redundant;
 	bool parity = ptr_idx >= nr_data;
@@ -798,7 +803,8 @@ static int mark_stripe_bucket(struct bch_fs *c, struct bkey_s_c k,
 	return 0;
 }
 
-static int __mark_pointer(struct bch_fs *c, struct bkey_s_c k,
+static int __mark_pointer(struct btree_trans *trans,
+			  struct bkey_s_c k,
 			  const struct bch_extent_ptr *ptr,
 			  s64 sectors, enum bch_data_type ptr_data_type,
 			  u8 bucket_gen, u8 *bucket_data_type,
@@ -807,7 +813,7 @@ static int __mark_pointer(struct bch_fs *c, struct bkey_s_c k,
 	u16 *dst_sectors = !ptr->cached
 		? dirty_sectors
 		: cached_sectors;
-	int ret = check_bucket_ref(c, k, ptr, sectors, ptr_data_type,
+	int ret = check_bucket_ref(trans->c, k, ptr, sectors, ptr_data_type,
 				   bucket_gen, *bucket_data_type,
 				   *dirty_sectors, *cached_sectors);
 
@@ -820,12 +826,15 @@ static int __mark_pointer(struct bch_fs *c, struct bkey_s_c k,
 	return 0;
 }
 
-static int bch2_mark_pointer(struct bch_fs *c, struct bkey_s_c k,
+static int bch2_mark_pointer(struct btree_trans *trans,
+			     struct bkey_s_c k,
 			     struct extent_ptr_decoded p,
 			     s64 sectors, enum bch_data_type data_type,
-			     u64 journal_seq, unsigned flags)
+			     unsigned flags)
 {
 	bool gc = flags & BTREE_TRIGGER_GC;
+	u64 journal_seq = trans->journal_res.seq;
+	struct bch_fs *c = trans->c;
 	struct bucket_mark old, new;
 	struct bch_dev *ca = bch_dev_bkey_exists(c, p.ptr.dev);
 	struct bucket *g = PTR_BUCKET(ca, &p.ptr, gc);
@@ -838,7 +847,8 @@ static int bch2_mark_pointer(struct bch_fs *c, struct bkey_s_c k,
 		new.v.counter = old.v.counter = v;
 		bucket_data_type = new.data_type;
 
-		ret = __mark_pointer(c, k, &p.ptr, sectors, data_type, new.gen,
+		ret = __mark_pointer(trans, k, &p.ptr, sectors,
+				     data_type, new.gen,
 				     &bucket_data_type,
 				     &new.dirty_sectors,
 				     &new.cached_sectors);
@@ -867,13 +877,14 @@ static int bch2_mark_pointer(struct bch_fs *c, struct bkey_s_c k,
 	return 0;
 }
 
-static int bch2_mark_stripe_ptr(struct bch_fs *c,
+static int bch2_mark_stripe_ptr(struct btree_trans *trans,
 				struct bch_extent_stripe_ptr p,
 				enum bch_data_type data_type,
 				s64 sectors,
-				unsigned journal_seq, unsigned flags)
+				unsigned flags)
 {
 	bool gc = flags & BTREE_TRIGGER_GC;
+	struct bch_fs *c = trans->c;
 	struct bch_replicas_padded r;
 	struct stripe *m;
 	unsigned i, blocks_nonempty = 0;
@@ -906,16 +917,18 @@ static int bch2_mark_stripe_ptr(struct bch_fs *c,
 	spin_unlock(&c->ec_stripes_heap_lock);
 
 	r.e.data_type = data_type;
-	update_replicas(c, &r.e, sectors, journal_seq, gc);
+	update_replicas(c, &r.e, sectors, trans->journal_res.seq, gc);
 
 	return 0;
 }
 
-static int bch2_mark_extent(struct bch_fs *c,
+static int bch2_mark_extent(struct btree_trans *trans,
 			    struct bkey_s_c old, struct bkey_s_c new,
-			    unsigned journal_seq, unsigned flags)
+			    unsigned flags)
 {
 	bool gc = flags & BTREE_TRIGGER_GC;
+	u64 journal_seq = trans->journal_res.seq;
+	struct bch_fs *c = trans->c;
 	struct bkey_s_c k = flags & BTREE_TRIGGER_INSERT ? new : old;
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const union bch_extent_entry *entry;
@@ -944,8 +957,8 @@ static int bch2_mark_extent(struct bch_fs *c,
 		if (flags & BTREE_TRIGGER_OVERWRITE)
 			disk_sectors = -disk_sectors;
 
-		ret = bch2_mark_pointer(c, k, p, disk_sectors, data_type,
-					journal_seq, flags);
+		ret = bch2_mark_pointer(trans, k, p, disk_sectors,
+					data_type, flags);
 		if (ret < 0)
 			return ret;
 
@@ -963,8 +976,8 @@ static int bch2_mark_extent(struct bch_fs *c,
 			dirty_sectors	       += disk_sectors;
 			r.e.devs[r.e.nr_devs++]	= p.ptr.dev;
 		} else {
-			ret = bch2_mark_stripe_ptr(c, p.ec, data_type,
-					disk_sectors, journal_seq, flags);
+			ret = bch2_mark_stripe_ptr(trans, p.ec, data_type,
+					disk_sectors, flags);
 			if (ret)
 				return ret;
 
@@ -990,11 +1003,13 @@ static int bch2_mark_extent(struct bch_fs *c,
 	return 0;
 }
 
-static int bch2_mark_stripe(struct bch_fs *c,
-			struct bkey_s_c old, struct bkey_s_c new,
-			u64 journal_seq, unsigned flags)
+static int bch2_mark_stripe(struct btree_trans *trans,
+			    struct bkey_s_c old, struct bkey_s_c new,
+			    unsigned flags)
 {
 	bool gc = flags & BTREE_TRIGGER_GC;
+	u64 journal_seq = trans->journal_res.seq;
+	struct bch_fs *c = trans->c;
 	size_t idx = new.k->p.offset;
 	const struct bch_stripe *old_s = old.k->type == KEY_TYPE_stripe
 		? bkey_s_c_to_stripe(old).v : NULL;
@@ -1058,7 +1073,7 @@ static int bch2_mark_stripe(struct bch_fs *c,
 		m->blocks_nonempty = 0;
 
 		for (i = 0; i < new_s->nr_blocks; i++) {
-			ret = mark_stripe_bucket(c, new, i, journal_seq, flags);
+			ret = mark_stripe_bucket(trans, new, i, journal_seq, flags);
 			if (ret)
 				return ret;
 		}
@@ -1077,24 +1092,26 @@ static int bch2_mark_stripe(struct bch_fs *c,
 	return 0;
 }
 
-static int bch2_mark_inode(struct bch_fs *c,
-			struct bkey_s_c old, struct bkey_s_c new,
-			u64 journal_seq, unsigned flags)
+static int bch2_mark_inode(struct btree_trans *trans,
+			   struct bkey_s_c old, struct bkey_s_c new,
+			   unsigned flags)
 {
+	struct bch_fs *c = trans->c;
 	struct bch_fs_usage __percpu *fs_usage;
 
 	preempt_disable();
-	fs_usage = fs_usage_ptr(c, journal_seq, flags & BTREE_TRIGGER_GC);
+	fs_usage = fs_usage_ptr(c, trans->journal_res.seq, flags & BTREE_TRIGGER_GC);
 	fs_usage->nr_inodes += new.k->type == KEY_TYPE_inode;
 	fs_usage->nr_inodes -= old.k->type == KEY_TYPE_inode;
 	preempt_enable();
 	return 0;
 }
 
-static int bch2_mark_reservation(struct bch_fs *c,
-			struct bkey_s_c old, struct bkey_s_c new,
-			u64 journal_seq, unsigned flags)
+static int bch2_mark_reservation(struct btree_trans *trans,
+				 struct bkey_s_c old, struct bkey_s_c new,
+				 unsigned flags)
 {
+	struct bch_fs *c = trans->c;
 	struct bkey_s_c k = flags & BTREE_TRIGGER_INSERT ? new : old;
 	struct bch_fs_usage __percpu *fs_usage;
 	unsigned replicas = bkey_s_c_to_reservation(k).v->nr_replicas;
@@ -1105,7 +1122,7 @@ static int bch2_mark_reservation(struct bch_fs *c,
 	sectors *= replicas;
 
 	preempt_disable();
-	fs_usage = fs_usage_ptr(c, journal_seq, flags & BTREE_TRIGGER_GC);
+	fs_usage = fs_usage_ptr(c, trans->journal_res.seq, flags & BTREE_TRIGGER_GC);
 	replicas = clamp_t(unsigned, replicas, 1,
 			   ARRAY_SIZE(fs_usage->persistent_reserved));
 
@@ -1163,10 +1180,11 @@ fsck_err:
 	return ret;
 }
 
-static int bch2_mark_reflink_p(struct bch_fs *c,
-			struct bkey_s_c old, struct bkey_s_c new,
-			u64 journal_seq, unsigned flags)
+static int bch2_mark_reflink_p(struct btree_trans *trans,
+			       struct bkey_s_c old, struct bkey_s_c new,
+			       unsigned flags)
 {
+	struct bch_fs *c = trans->c;
 	struct bkey_s_c k = flags & BTREE_TRIGGER_INSERT ? new : old;
 	struct bkey_s_c_reflink_p p = bkey_s_c_to_reflink_p(k);
 	struct reflink_gc *ref;
@@ -1197,10 +1215,10 @@ static int bch2_mark_reflink_p(struct bch_fs *c,
 	return ret;
 }
 
-static int bch2_mark_key_locked(struct bch_fs *c,
+static int bch2_mark_key_locked(struct btree_trans *trans,
 		   struct bkey_s_c old,
 		   struct bkey_s_c new,
-		   u64 journal_seq, unsigned flags)
+		   unsigned flags)
 {
 	struct bkey_s_c k = flags & BTREE_TRIGGER_INSERT ? new : old;
 
@@ -1209,29 +1227,30 @@ static int bch2_mark_key_locked(struct bch_fs *c,
 	switch (k.k->type) {
 	case KEY_TYPE_alloc:
 	case KEY_TYPE_alloc_v2:
-		return bch2_mark_alloc(c, old, new, journal_seq, flags);
+		return bch2_mark_alloc(trans, old, new, flags);
 	case KEY_TYPE_btree_ptr:
 	case KEY_TYPE_btree_ptr_v2:
 	case KEY_TYPE_extent:
 	case KEY_TYPE_reflink_v:
-		return bch2_mark_extent(c, old, new, journal_seq, flags);
+		return bch2_mark_extent(trans, old, new, flags);
 	case KEY_TYPE_stripe:
-		return bch2_mark_stripe(c, old, new, journal_seq, flags);
+		return bch2_mark_stripe(trans, old, new, flags);
 	case KEY_TYPE_inode:
-		return bch2_mark_inode(c, old, new, journal_seq, flags);
+		return bch2_mark_inode(trans, old, new, flags);
 	case KEY_TYPE_reservation:
-		return bch2_mark_reservation(c, old, new, journal_seq, flags);
+		return bch2_mark_reservation(trans, old, new, flags);
 	case KEY_TYPE_reflink_p:
-		return bch2_mark_reflink_p(c, old, new, journal_seq, flags);
+		return bch2_mark_reflink_p(trans, old, new, flags);
 	case KEY_TYPE_snapshot:
-		return bch2_mark_snapshot(c, old, new, journal_seq, flags);
+		return bch2_mark_snapshot(trans, old, new, flags);
 	default:
 		return 0;
 	}
 }
 
-int bch2_mark_key(struct bch_fs *c, struct bkey_s_c new, unsigned flags)
+int bch2_mark_key(struct btree_trans *trans, struct bkey_s_c new, unsigned flags)
 {
+	struct bch_fs *c = trans->c;
 	struct bkey deleted = KEY(0, 0, 0);
 	struct bkey_s_c old = (struct bkey_s_c) { &deleted, NULL };
 	int ret;
@@ -1239,7 +1258,7 @@ int bch2_mark_key(struct bch_fs *c, struct bkey_s_c new, unsigned flags)
 	deleted.p = new.k->p;
 
 	percpu_down_read(&c->mark_lock);
-	ret = bch2_mark_key_locked(c, old, new, 0, flags);
+	ret = bch2_mark_key_locked(trans, old, new, flags);
 	percpu_up_read(&c->mark_lock);
 
 	return ret;
@@ -1248,7 +1267,6 @@ int bch2_mark_key(struct bch_fs *c, struct bkey_s_c new, unsigned flags)
 int bch2_mark_update(struct btree_trans *trans, struct btree_path *path,
 		     struct bkey_i *new, unsigned flags)
 {
-	struct bch_fs		*c = trans->c;
 	struct bkey		_deleted = KEY(0, 0, 0);
 	struct bkey_s_c		deleted = (struct bkey_s_c) { &_deleted, NULL };
 	struct bkey_s_c		old;
@@ -1267,15 +1285,12 @@ int bch2_mark_update(struct btree_trans *trans, struct btree_path *path,
 
 	if (old.k->type == new->k.type &&
 	    ((1U << old.k->type) & BTREE_TRIGGER_WANTS_OLD_AND_NEW)) {
-		ret   = bch2_mark_key_locked(c, old, bkey_i_to_s_c(new),
-				trans->journal_res.seq,
+		ret   = bch2_mark_key_locked(trans, old, bkey_i_to_s_c(new),
 				BTREE_TRIGGER_INSERT|BTREE_TRIGGER_OVERWRITE|flags);
 	} else {
-		ret   = bch2_mark_key_locked(c, deleted, bkey_i_to_s_c(new),
-				trans->journal_res.seq,
+		ret   = bch2_mark_key_locked(trans, deleted, bkey_i_to_s_c(new),
 				BTREE_TRIGGER_INSERT|flags) ?:
-			bch2_mark_key_locked(c, old, deleted,
-				trans->journal_res.seq,
+			bch2_mark_key_locked(trans, old, deleted,
 				BTREE_TRIGGER_OVERWRITE|flags);
 	}
 
@@ -1440,7 +1455,8 @@ static int bch2_trans_mark_pointer(struct btree_trans *trans,
 	if (IS_ERR(a))
 		return PTR_ERR(a);
 
-	ret = __mark_pointer(c, k, &p.ptr, sectors, data_type, u.gen, &u.data_type,
+	ret = __mark_pointer(trans, k, &p.ptr, sectors, data_type,
+			     u.gen, &u.data_type,
 			     &u.dirty_sectors, &u.cached_sectors);
 	if (ret)
 		goto out;

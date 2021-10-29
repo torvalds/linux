@@ -12,8 +12,8 @@ const char *bch2_snapshot_invalid(const struct bch_fs *, struct bkey_s_c);
 	.val_to_text	= bch2_snapshot_to_text,		\
 }
 
-int bch2_mark_snapshot(struct bch_fs *, struct bkey_s_c,
-		       struct bkey_s_c, u64, unsigned);
+int bch2_mark_snapshot(struct btree_trans *, struct bkey_s_c,
+		       struct bkey_s_c, unsigned);
 
 static inline struct snapshot_t *snapshot_t(struct bch_fs *c, u32 id)
 {
