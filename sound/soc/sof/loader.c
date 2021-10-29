@@ -729,10 +729,10 @@ int snd_sof_load_firmware_raw(struct snd_sof_dev *sdev)
 	ret = request_firmware(&plat_data->fw, fw_filename, sdev->dev);
 
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: request firmware %s failed err: %d\n",
-			fw_filename, ret);
 		dev_err(sdev->dev,
-			"you may need to download the firmware from https://github.com/thesofproject/sof-bin/\n");
+			"error: sof firmware file is missing, you might need to\n");
+		dev_err(sdev->dev,
+			"       download it from https://github.com/thesofproject/sof-bin/\n");
 		goto err;
 	} else {
 		dev_dbg(sdev->dev, "request_firmware %s successful\n",
@@ -880,5 +880,7 @@ EXPORT_SYMBOL(snd_sof_run_firmware);
 void snd_sof_fw_unload(struct snd_sof_dev *sdev)
 {
 	/* TODO: support module unloading at runtime */
+	release_firmware(sdev->pdata->fw);
+	sdev->pdata->fw = NULL;
 }
 EXPORT_SYMBOL(snd_sof_fw_unload);
