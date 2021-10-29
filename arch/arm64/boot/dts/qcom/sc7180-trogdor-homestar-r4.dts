@@ -8,15 +8,10 @@
 /dts-v1/;
 
 #include "sc7180.dtsi"
-#include "sc7180-trogdor-ti-sn65dsi86.dtsi"
+#include "sc7180-trogdor-parade-ps8640.dtsi"
 #include "sc7180-trogdor-homestar.dtsi"
 
 / {
-	model = "Google Homestar (rev2)";
-	compatible = "google,homestar-rev2","google,homestar-rev23", "qcom,sc7180";
-};
-
-&panel {
-	/delete-property/hpd-gpios;
-	no-hpd;
+	model = "Google Homestar (rev4+)";
+	compatible = "google,homestar", "qcom,sc7180";
 };
