@@ -1463,6 +1463,7 @@ int dpm_suspend_late(pm_message_t state)
 	int error = 0;
 
 	trace_suspend_resume(TPS("dpm_suspend_late"), state.event, true);
+	wake_up_all_idle_cpus();
 	mutex_lock(&dpm_list_mtx);
 	pm_transition = state;
 	async_error = 0;
