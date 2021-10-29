@@ -3016,10 +3016,8 @@ static void nfp_net_rx_dim_work(struct work_struct *work)
 
 	/* copy RX interrupt coalesce parameters */
 	value = (moder.pkts << 16) | (factor * moder.usec);
-	rtnl_lock();
 	nn_writel(nn, NFP_NET_CFG_RXR_IRQ_MOD(r_vec->rx_ring->idx), value);
 	(void)nfp_net_reconfig(nn, NFP_NET_CFG_UPDATE_IRQMOD);
-	rtnl_unlock();
 
 	dim->state = DIM_START_MEASURE;
 }
@@ -3047,10 +3045,8 @@ static void nfp_net_tx_dim_work(struct work_struct *work)
 
 	/* copy TX interrupt coalesce parameters */
 	value = (moder.pkts << 16) | (factor * moder.usec);
-	rtnl_lock();
 	nn_writel(nn, NFP_NET_CFG_TXR_IRQ_MOD(r_vec->tx_ring->idx), value);
 	(void)nfp_net_reconfig(nn, NFP_NET_CFG_UPDATE_IRQMOD);
-	rtnl_unlock();
 
 	dim->state = DIM_START_MEASURE;
 }
