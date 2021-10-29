@@ -114,7 +114,7 @@ static int rk628_lvds_connector_get_modes(struct drm_connector *connector)
 	if (info->num_bus_formats)
 		lvds->format = rk628_lvds_get_format(info->bus_formats[0]);
 	else
-		lvds->format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG;
+		lvds->format = LVDS_FORMAT_VESA_24BIT;
 
 	return num_modes;
 }
