@@ -17,6 +17,10 @@ struct rkisp_bridge_ops {
 	int (*config)(struct rkisp_bridge_device *dev);
 	void (*disable)(struct rkisp_bridge_device *dev);
 	bool (*is_stopped)(struct rkisp_bridge_device *dev);
+	int (*start)(struct rkisp_bridge_device *dev);
+	int (*stop)(struct rkisp_bridge_device *dev);
+	void (*update_mi)(struct rkisp_bridge_device *dev);
+	int (*frame_end)(struct rkisp_bridge_device *dev, u32 state);
 };
 
 struct rkisp_bridge_config {
@@ -68,22 +72,34 @@ struct rkisp_bridge_device {
 	bool frame_early;
 };
 
-#if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V20)
+#if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V20) || IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V30)
 int rkisp_register_bridge_subdev(struct rkisp_device *dev,
 				 struct v4l2_device *v4l2_dev);
 void rkisp_unregister_bridge_subdev(struct rkisp_device *dev);
-int rkisp_bridge_get_fbcbuf_fd(struct rkisp_device *dev, struct isp2x_buf_idxfd *idxfd);
 void rkisp_bridge_isr(u32 *mis_val, struct rkisp_device *dev);
-void rkisp_bridge_sendtopp_buffer(struct rkisp_device *dev, u32 dev_id, u32 buf_idx);
-void rkisp_bridge_save_spbuf(struct rkisp_device *dev, struct rkisp_buffer *sp_buf);
-void rkisp_bridge_stop_spstream(struct rkisp_device *dev);
 void rkisp_bridge_update_mi(struct rkisp_device *dev, u32 isp_mis);
 void rkisp_get_bridge_sd(struct platform_device *dev, struct v4l2_subdev **sd);
 #else
 static inline int rkisp_register_bridge_subdev(struct rkisp_device *dev, struct v4l2_device *v4l2_dev) { return 0; }
 static inline void rkisp_unregister_bridge_subdev(struct rkisp_device *dev) {}
-static inline int rkisp_bridge_get_fbcbuf_fd(struct rkisp_device *dev, struct isp2x_buf_idxfd *idxfd) { return 0; }
 static inline void rkisp_bridge_update_mi(struct rkisp_device *dev, u32 isp_mis) {}
+#endif
+
+#if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V20)
+int rkisp_bridge_get_fbcbuf_fd(struct rkisp_device *dev, struct isp2x_buf_idxfd *idxfd);
+void rkisp_bridge_sendtopp_buffer(struct rkisp_device *dev, u32 dev_id, u32 buf_idx);
+void rkisp_bridge_save_spbuf(struct rkisp_device *dev, struct rkisp_buffer *sp_buf);
+void rkisp_bridge_stop_spstream(struct rkisp_device *dev);
+void rkisp_bridge_init_ops_v20(struct rkisp_bridge_device *dev);
+#else
+static inline int rkisp_bridge_get_fbcbuf_fd(struct rkisp_device *dev, struct isp2x_buf_idxfd *idxfd) { return 0; }
+static inline void rkisp_bridge_init_ops_v20(struct rkisp_bridge_device *dev) {}
+#endif
+
+#if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V30)
+void rkisp_bridge_init_ops_v30(struct rkisp_bridge_device *dev);
+#else
+static inline void rkisp_bridge_init_ops_v30(struct rkisp_bridge_device *dev) {}
 #endif
 
 #endif

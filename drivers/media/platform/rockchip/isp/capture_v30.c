@@ -1080,6 +1080,8 @@ static int rkisp_stream_init(struct rkisp_device *dev, u32 id)
 		strscpy(vdev->name, MP_VDEV_NAME, sizeof(vdev->name));
 		stream->ops = &rkisp_mp_streams_ops;
 		stream->config = &rkisp_mp_stream_config;
+		if (dev->br_dev.linked)
+			stream->linked = false;
 	}
 
 	node = vdev_to_node(vdev);
@@ -1156,6 +1158,8 @@ void rkisp_mi_v30_isr(u32 mis_val, struct rkisp_device *dev)
 
 	v4l2_dbg(3, rkisp_debug, &dev->v4l2_dev,
 		 "mi isr:0x%x\n", mis_val);
+
+	rkisp_bridge_isr(&mis_val, dev);
 
 	for (i = 0; i < RKISP_MAX_STREAM; ++i) {
 		stream = &dev->cap_dev.stream[i];

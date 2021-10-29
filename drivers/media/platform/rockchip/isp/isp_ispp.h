@@ -122,7 +122,7 @@ struct rkisp_ispp_buf {
 
 int __init rkispp_hw_drv_init(void);
 
-#if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V20)
+#if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V20) || IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V30)
 void rkisp_get_bridge_sd(struct platform_device *dev,
 			 struct v4l2_subdev **sd);
 #else

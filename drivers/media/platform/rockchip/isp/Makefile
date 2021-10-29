@@ -24,6 +24,7 @@ video_rkisp-$(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V20) += \
 		isp_params_v2x.o \
 		capture_v20.o \
 		bridge.o \
+		bridge_v20.o \
 		isp_mipi_luma.o
 
 video_rkisp-$(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V21) += \
@@ -34,6 +35,8 @@ video_rkisp-$(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V21) += \
 video_rkisp-$(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V30) += \
 		capture_v30.o \
 		isp_stats_v3x.o \
-		isp_params_v3x.o
+		isp_params_v3x.o \
+		bridge.o \
+		bridge_v30.o
 
 video_rkisp-$(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP) += rkisp_tb_helper.o
