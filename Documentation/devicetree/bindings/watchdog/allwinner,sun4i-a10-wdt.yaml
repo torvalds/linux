@@ -40,14 +40,12 @@ properties:
 
   clocks:
     minItems: 1
-    maxItems: 2
     items:
       - description: High-frequency oscillator input, divided internally
       - description: Low-frequency oscillator input, only found on some variants
 
   clock-names:
     minItems: 1
-    maxItems: 2
     items:
       - const: hosc
       - const: losc
