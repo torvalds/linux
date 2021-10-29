@@ -197,6 +197,122 @@ static SOC_ENUM_SINGLE_DECL(pcm_sft_ramp,
 			    CS35L41_AMP_DIG_VOL_CTRL, 0,
 			    cs35l41_pcm_sftramp_text);
 
+static int cs35l41_dsp_preload_ev(struct snd_soc_dapm_widget *w,
+				  struct snd_kcontrol *kcontrol, int event)
+{
+	int ret;
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		return wm_adsp_early_event(w, kcontrol, event);
+	case SND_SOC_DAPM_PRE_PMD:
+		ret = wm_adsp_early_event(w, kcontrol, event);
+		if (ret)
+			return ret;
+
+		return wm_adsp_event(w, kcontrol, event);
+	default:
+		return 0;
+	}
+}
+
+static bool cs35l41_check_cspl_mbox_sts(enum cs35l41_cspl_mbox_cmd cmd,
+					enum cs35l41_cspl_mbox_status sts)
+{
+	switch (cmd) {
+	case CSPL_MBOX_CMD_NONE:
+	case CSPL_MBOX_CMD_UNKNOWN_CMD:
+		return true;
+	case CSPL_MBOX_CMD_PAUSE:
+		return (sts == CSPL_MBOX_STS_PAUSED);
+	case CSPL_MBOX_CMD_RESUME:
+		return (sts == CSPL_MBOX_STS_RUNNING);
+	case CSPL_MBOX_CMD_REINIT:
+		return (sts == CSPL_MBOX_STS_RUNNING);
+	case CSPL_MBOX_CMD_STOP_PRE_REINIT:
+		return (sts == CSPL_MBOX_STS_RDY_FOR_REINIT);
+	default:
+		return false;
+	}
+}
+
+static int cs35l41_set_cspl_mbox_cmd(struct cs35l41_private *cs35l41,
+				     enum cs35l41_cspl_mbox_cmd cmd)
+{
+	unsigned int sts = 0, i;
+	int ret;
+
+	// Set mailbox cmd
+	ret = regmap_write(cs35l41->regmap, CS35L41_DSP_VIRT1_MBOX_1, cmd);
+	if (ret < 0) {
+		dev_err(cs35l41->dev, "Failed to write MBOX: %d\n", ret);
+		return ret;
+	}
+
+	// Read mailbox status and verify it is appropriate for the given cmd
+	for (i = 0; i < 5; i++) {
+		usleep_range(1000, 1100);
+
+		ret = regmap_read(cs35l41->regmap, CS35L41_DSP_MBOX_2, &sts);
+		if (ret < 0) {
+			dev_err(cs35l41->dev, "Failed to read MBOX STS: %d\n", ret);
+			continue;
+		}
+
+		if (!cs35l41_check_cspl_mbox_sts(cmd, sts)) {
+			dev_dbg(cs35l41->dev,
+				"[%u] cmd %u returned invalid sts %u",
+				i, cmd, sts);
+		} else {
+			return 0;
+		}
+	}
+
+	dev_err(cs35l41->dev,
+		"Failed to set mailbox cmd %u (status %u)\n",
+		cmd, sts);
+
+	return -ENOMSG;
+}
+
+static int cs35l41_dsp_audio_ev(struct snd_soc_dapm_widget *w,
+				struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct cs35l41_private *cs35l41 = snd_soc_component_get_drvdata(component);
+	unsigned int fw_status;
+	int ret;
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		if (!cs35l41->dsp.cs_dsp.running)
+			return wm_adsp_event(w, kcontrol, event);
+
+		ret = regmap_read(cs35l41->regmap, CS35L41_DSP_MBOX_2, &fw_status);
+		if (ret < 0) {
+			dev_err(cs35l41->dev,
+				"Failed to read firmware status: %d\n", ret);
+			return ret;
+		}
+
+		switch (fw_status) {
+		case CSPL_MBOX_STS_RUNNING:
+		case CSPL_MBOX_STS_PAUSED:
+			break;
+		default:
+			dev_err(cs35l41->dev, "Firmware status is invalid: %u\n",
+				fw_status);
+			return -EINVAL;
+		}
+
+		return cs35l41_set_cspl_mbox_cmd(cs35l41, CSPL_MBOX_CMD_RESUME);
+	case SND_SOC_DAPM_PRE_PMD:
+		return cs35l41_set_cspl_mbox_cmd(cs35l41, CSPL_MBOX_CMD_PAUSE);
+	default:
+		return 0;
+	}
+}
+
 static const char * const cs35l41_pcm_source_texts[] = {"ASP", "DSP"};
 static const unsigned int cs35l41_pcm_source_values[] = {0x08, 0x32};
 static SOC_VALUE_ENUM_SINGLE_DECL(cs35l41_pcm_source_enum,
@@ -255,6 +371,24 @@ static SOC_VALUE_ENUM_SINGLE_DECL(cs35l41_asptx4_enum,
 static const struct snd_kcontrol_new asp_tx4_mux =
 	SOC_DAPM_ENUM("ASPTX4 SRC", cs35l41_asptx4_enum);
 
+static SOC_VALUE_ENUM_SINGLE_DECL(cs35l41_dsprx1_enum,
+				  CS35L41_DSP1_RX1_SRC,
+				  0, CS35L41_ASP_SOURCE_MASK,
+				  cs35l41_tx_input_texts,
+				  cs35l41_tx_input_values);
+
+static const struct snd_kcontrol_new dsp_rx1_mux =
+	SOC_DAPM_ENUM("DSPRX1 SRC", cs35l41_dsprx1_enum);
+
+static SOC_VALUE_ENUM_SINGLE_DECL(cs35l41_dsprx2_enum,
+				  CS35L41_DSP1_RX2_SRC,
+				  0, CS35L41_ASP_SOURCE_MASK,
+				  cs35l41_tx_input_texts,
+				  cs35l41_tx_input_values);
+
+static const struct snd_kcontrol_new dsp_rx2_mux =
+	SOC_DAPM_ENUM("DSPRX2 SRC", cs35l41_dsprx2_enum);
+
 static const struct snd_kcontrol_new cs35l41_aud_controls[] = {
 	SOC_SINGLE_SX_TLV("Digital PCM Volume", CS35L41_AMP_DIG_VOL_CTRL,
 			  3, 0x4CF, 0x391, dig_vol_tlv),
@@ -282,6 +416,8 @@ static const struct snd_kcontrol_new cs35l41_aud_controls[] = {
 		   CS35L41_AMP_INV_PCM_SHIFT, 1, 0),
 	SOC_SINGLE("Amp Gain ZC", CS35L41_AMP_GAIN_CTRL,
 		   CS35L41_AMP_GAIN_ZC_SHIFT, 1, 0),
+	WM_ADSP2_PRELOAD_SWITCH("DSP1", 1),
+	WM_ADSP_FW_CONTROL("DSP1", 0),
 };
 
 static const struct cs35l41_otp_map_element_t *cs35l41_find_otp_map(u32 otp_id)
@@ -603,6 +739,14 @@ static int cs35l41_main_amp_event(struct snd_soc_dapm_widget *w,
 }
 
 static const struct snd_soc_dapm_widget cs35l41_dapm_widgets[] = {
+	SND_SOC_DAPM_SPK("DSP1 Preload", NULL),
+	SND_SOC_DAPM_SUPPLY_S("DSP1 Preloader", 100, SND_SOC_NOPM, 0, 0,
+			      cs35l41_dsp_preload_ev,
+			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD),
+	SND_SOC_DAPM_OUT_DRV_E("DSP1", SND_SOC_NOPM, 0, 0, NULL, 0,
+			       cs35l41_dsp_audio_ev,
+			       SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+
 	SND_SOC_DAPM_OUTPUT("SPK"),
 
 	SND_SOC_DAPM_AIF_IN("ASPRX1", NULL, 0, CS35L41_SP_ENABLES, 16, 0),
@@ -618,11 +762,18 @@ static const struct snd_soc_dapm_widget cs35l41_dapm_widgets[] = {
 	SND_SOC_DAPM_SIGGEN("VBST"),
 	SND_SOC_DAPM_SIGGEN("TEMP"),
 
-	SND_SOC_DAPM_ADC("VMON ADC", NULL, CS35L41_PWR_CTRL2, 12, 0),
-	SND_SOC_DAPM_ADC("IMON ADC", NULL, CS35L41_PWR_CTRL2, 13, 0),
-	SND_SOC_DAPM_ADC("VPMON ADC", NULL, CS35L41_PWR_CTRL2, 8, 0),
-	SND_SOC_DAPM_ADC("VBSTMON ADC", NULL, CS35L41_PWR_CTRL2, 9, 0),
-	SND_SOC_DAPM_ADC("TEMPMON ADC", NULL, CS35L41_PWR_CTRL2, 10, 0),
+	SND_SOC_DAPM_SUPPLY("VMON", CS35L41_PWR_CTRL2, 12, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("IMON", CS35L41_PWR_CTRL2, 13, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("VPMON", CS35L41_PWR_CTRL2, 8, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("VBSTMON", CS35L41_PWR_CTRL2, 9, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("TEMPMON", CS35L41_PWR_CTRL2, 10, 0, NULL, 0),
+
+	SND_SOC_DAPM_ADC("VMON ADC", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_ADC("IMON ADC", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_ADC("VPMON ADC", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_ADC("VBSTMON ADC", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_ADC("TEMPMON ADC", NULL, SND_SOC_NOPM, 0, 0),
+
 	SND_SOC_DAPM_ADC("CLASS H", NULL, CS35L41_PWR_CTRL3, 4, 0),
 
 	SND_SOC_DAPM_OUT_DRV_E("Main AMP", CS35L41_PWR_CTRL2, 0, 0, NULL, 0,
@@ -633,33 +784,51 @@ static const struct snd_soc_dapm_widget cs35l41_dapm_widgets[] = {
 	SND_SOC_DAPM_MUX("ASP TX2 Source", SND_SOC_NOPM, 0, 0, &asp_tx2_mux),
 	SND_SOC_DAPM_MUX("ASP TX3 Source", SND_SOC_NOPM, 0, 0, &asp_tx3_mux),
 	SND_SOC_DAPM_MUX("ASP TX4 Source", SND_SOC_NOPM, 0, 0, &asp_tx4_mux),
+	SND_SOC_DAPM_MUX("DSP RX1 Source", SND_SOC_NOPM, 0, 0, &dsp_rx1_mux),
+	SND_SOC_DAPM_MUX("DSP RX2 Source", SND_SOC_NOPM, 0, 0, &dsp_rx2_mux),
 	SND_SOC_DAPM_MUX("PCM Source", SND_SOC_NOPM, 0, 0, &pcm_source_mux),
 	SND_SOC_DAPM_SWITCH("DRE", SND_SOC_NOPM, 0, 0, &dre_ctrl),
 };
 
 static const struct snd_soc_dapm_route cs35l41_audio_map[] = {
+	{"DSP RX1 Source", "ASPRX1", "ASPRX1"},
+	{"DSP RX1 Source", "ASPRX2", "ASPRX2"},
+	{"DSP RX2 Source", "ASPRX1", "ASPRX1"},
+	{"DSP RX2 Source", "ASPRX2", "ASPRX2"},
+
+	{"DSP1", NULL, "DSP RX1 Source"},
+	{"DSP1", NULL, "DSP RX2 Source"},
+
 	{"ASP TX1 Source", "VMON", "VMON ADC"},
 	{"ASP TX1 Source", "IMON", "IMON ADC"},
 	{"ASP TX1 Source", "VPMON", "VPMON ADC"},
 	{"ASP TX1 Source", "VBSTMON", "VBSTMON ADC"},
+	{"ASP TX1 Source", "DSPTX1", "DSP1"},
+	{"ASP TX1 Source", "DSPTX2", "DSP1"},
 	{"ASP TX1 Source", "ASPRX1", "ASPRX1" },
 	{"ASP TX1 Source", "ASPRX2", "ASPRX2" },
 	{"ASP TX2 Source", "VMON", "VMON ADC"},
 	{"ASP TX2 Source", "IMON", "IMON ADC"},
 	{"ASP TX2 Source", "VPMON", "VPMON ADC"},
 	{"ASP TX2 Source", "VBSTMON", "VBSTMON ADC"},
+	{"ASP TX2 Source", "DSPTX1", "DSP1"},
+	{"ASP TX2 Source", "DSPTX2", "DSP1"},
 	{"ASP TX2 Source", "ASPRX1", "ASPRX1" },
 	{"ASP TX2 Source", "ASPRX2", "ASPRX2" },
 	{"ASP TX3 Source", "VMON", "VMON ADC"},
 	{"ASP TX3 Source", "IMON", "IMON ADC"},
 	{"ASP TX3 Source", "VPMON", "VPMON ADC"},
 	{"ASP TX3 Source", "VBSTMON", "VBSTMON ADC"},
+	{"ASP TX3 Source", "DSPTX1", "DSP1"},
+	{"ASP TX3 Source", "DSPTX2", "DSP1"},
 	{"ASP TX3 Source", "ASPRX1", "ASPRX1" },
 	{"ASP TX3 Source", "ASPRX2", "ASPRX2" },
 	{"ASP TX4 Source", "VMON", "VMON ADC"},
 	{"ASP TX4 Source", "IMON", "IMON ADC"},
 	{"ASP TX4 Source", "VPMON", "VPMON ADC"},
 	{"ASP TX4 Source", "VBSTMON", "VBSTMON ADC"},
+	{"ASP TX4 Source", "DSPTX1", "DSP1"},
+	{"ASP TX4 Source", "DSPTX2", "DSP1"},
 	{"ASP TX4 Source", "ASPRX1", "ASPRX1" },
 	{"ASP TX4 Source", "ASPRX2", "ASPRX2" },
 	{"ASPTX1", NULL, "ASP TX1 Source"},
@@ -671,11 +840,26 @@ static const struct snd_soc_dapm_route cs35l41_audio_map[] = {
 	{"AMP Capture", NULL, "ASPTX3"},
 	{"AMP Capture", NULL, "ASPTX4"},
 
+	{"DSP1", NULL, "VMON"},
+	{"DSP1", NULL, "IMON"},
+	{"DSP1", NULL, "VPMON"},
+	{"DSP1", NULL, "VBSTMON"},
+	{"DSP1", NULL, "TEMPMON"},
+
+	{"VMON ADC", NULL, "VMON"},
+	{"IMON ADC", NULL, "IMON"},
+	{"VPMON ADC", NULL, "VPMON"},
+	{"VBSTMON ADC", NULL, "VBSTMON"},
+	{"TEMPMON ADC", NULL, "TEMPMON"},
+
 	{"VMON ADC", NULL, "VSENSE"},
 	{"IMON ADC", NULL, "ISENSE"},
 	{"VPMON ADC", NULL, "VP"},
 	{"VBSTMON ADC", NULL, "VBST"},
 	{"TEMPMON ADC", NULL, "TEMP"},
+
+	{"DSP1 Preload", NULL, "DSP1 Preloader"},
+	{"DSP1", NULL, "DSP1 Preloader"},
 
 	{"ASPRX1", NULL, "AMP Playback"},
 	{"ASPRX2", NULL, "AMP Playback"},
@@ -685,7 +869,16 @@ static const struct snd_soc_dapm_route cs35l41_audio_map[] = {
 	{"SPK", NULL, "Main AMP"},
 
 	{"PCM Source", "ASP", "ASPRX1"},
+	{"PCM Source", "DSP", "DSP1"},
 	{"CLASS H", NULL, "PCM Source"},
+};
+
+static const struct cs_dsp_region cs35l41_dsp1_regions[] = {
+	{ .type = WMFW_HALO_PM_PACKED,	.base = CS35L41_DSP1_PMEM_0 },
+	{ .type = WMFW_HALO_XM_PACKED,	.base = CS35L41_DSP1_XMEM_PACK_0 },
+	{ .type = WMFW_HALO_YM_PACKED,	.base = CS35L41_DSP1_YMEM_PACK_0 },
+	{. type = WMFW_ADSP2_XM,	.base = CS35L41_DSP1_XMEM_UNPACK24_0},
+	{. type = WMFW_ADSP2_YM,	.base = CS35L41_DSP1_YMEM_UNPACK24_0},
 };
 
 static int cs35l41_set_channel_map(struct snd_soc_dai *dai, unsigned int tx_num,
@@ -1098,6 +1291,20 @@ static int cs35l41_irq_gpio_config(struct cs35l41_private *cs35l41)
 	return irq_pol;
 }
 
+static int cs35l41_component_probe(struct snd_soc_component *component)
+{
+	struct cs35l41_private *cs35l41 = snd_soc_component_get_drvdata(component);
+
+	return wm_adsp2_component_probe(&cs35l41->dsp, component);
+}
+
+static void cs35l41_component_remove(struct snd_soc_component *component)
+{
+	struct cs35l41_private *cs35l41 = snd_soc_component_get_drvdata(component);
+
+	wm_adsp2_component_remove(&cs35l41->dsp, component);
+}
+
 static const struct snd_soc_dai_ops cs35l41_ops = {
 	.startup = cs35l41_pcm_startup,
 	.set_fmt = cs35l41_set_dai_fmt,
@@ -1131,6 +1338,8 @@ static struct snd_soc_dai_driver cs35l41_dai[] = {
 
 static const struct snd_soc_component_driver soc_component_dev_cs35l41 = {
 	.name = "cs35l41-codec",
+	.probe = cs35l41_component_probe,
+	.remove = cs35l41_component_remove,
 
 	.dapm_widgets = cs35l41_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(cs35l41_dapm_widgets),
@@ -1236,6 +1445,90 @@ static const struct reg_sequence cs35l41_revb2_errata_patch[] = {
 	{ 0x00000040,			 0x0000CCCC },
 	{ 0x00000040,			 0x00003333 },
 };
+
+static const struct reg_sequence cs35l41_fs_errata_patch[] = {
+	{ CS35L41_DSP1_RX1_RATE,	0x00000001 },
+	{ CS35L41_DSP1_RX2_RATE,	0x00000001 },
+	{ CS35L41_DSP1_RX3_RATE,	0x00000001 },
+	{ CS35L41_DSP1_RX4_RATE,	0x00000001 },
+	{ CS35L41_DSP1_RX5_RATE,	0x00000001 },
+	{ CS35L41_DSP1_RX6_RATE,	0x00000001 },
+	{ CS35L41_DSP1_RX7_RATE,	0x00000001 },
+	{ CS35L41_DSP1_RX8_RATE,	0x00000001 },
+	{ CS35L41_DSP1_TX1_RATE,	0x00000001 },
+	{ CS35L41_DSP1_TX2_RATE,	0x00000001 },
+	{ CS35L41_DSP1_TX3_RATE,	0x00000001 },
+	{ CS35L41_DSP1_TX4_RATE,	0x00000001 },
+	{ CS35L41_DSP1_TX5_RATE,	0x00000001 },
+	{ CS35L41_DSP1_TX6_RATE,	0x00000001 },
+	{ CS35L41_DSP1_TX7_RATE,	0x00000001 },
+	{ CS35L41_DSP1_TX8_RATE,	0x00000001 },
+};
+
+static int cs35l41_dsp_init(struct cs35l41_private *cs35l41)
+{
+	struct wm_adsp *dsp;
+	int ret;
+
+	dsp = &cs35l41->dsp;
+	dsp->part = "cs35l41";
+	dsp->cs_dsp.num = 1;
+	dsp->cs_dsp.type = WMFW_HALO;
+	dsp->cs_dsp.rev = 0;
+	dsp->fw = 9; /* 9 is WM_ADSP_FW_SPK_PROT in wm_adsp.c */
+	dsp->cs_dsp.dev = cs35l41->dev;
+	dsp->cs_dsp.regmap = cs35l41->regmap;
+	dsp->cs_dsp.base = CS35L41_DSP1_CTRL_BASE;
+	dsp->cs_dsp.base_sysinfo = CS35L41_DSP1_SYS_ID;
+	dsp->cs_dsp.mem = cs35l41_dsp1_regions;
+	dsp->cs_dsp.num_mems = ARRAY_SIZE(cs35l41_dsp1_regions);
+	dsp->cs_dsp.lock_regions = 0xFFFFFFFF;
+
+	ret = regmap_multi_reg_write(cs35l41->regmap, cs35l41_fs_errata_patch,
+				     ARRAY_SIZE(cs35l41_fs_errata_patch));
+	if (ret < 0) {
+		dev_err(cs35l41->dev, "Failed to write fs errata: %d\n", ret);
+		return ret;
+	}
+
+	ret = wm_halo_init(dsp);
+	if (ret) {
+		dev_err(cs35l41->dev, "wm_halo_init failed: %d\n", ret);
+		return ret;
+	}
+
+	ret = regmap_write(cs35l41->regmap, CS35L41_DSP1_RX5_SRC,
+			   CS35L41_INPUT_SRC_VPMON);
+	if (ret < 0) {
+		dev_err(cs35l41->dev, "Write INPUT_SRC_VPMON failed: %d\n", ret);
+		goto err_dsp;
+	}
+	ret = regmap_write(cs35l41->regmap, CS35L41_DSP1_RX6_SRC,
+			   CS35L41_INPUT_SRC_CLASSH);
+	if (ret < 0) {
+		dev_err(cs35l41->dev, "Write INPUT_SRC_CLASSH failed: %d\n", ret);
+		goto err_dsp;
+	}
+	ret = regmap_write(cs35l41->regmap, CS35L41_DSP1_RX7_SRC,
+			   CS35L41_INPUT_SRC_TEMPMON);
+	if (ret < 0) {
+		dev_err(cs35l41->dev, "Write INPUT_SRC_TEMPMON failed: %d\n", ret);
+		goto err_dsp;
+	}
+	ret = regmap_write(cs35l41->regmap, CS35L41_DSP1_RX8_SRC,
+			   CS35L41_INPUT_SRC_RSVD);
+	if (ret < 0) {
+		dev_err(cs35l41->dev, "Write INPUT_SRC_RSVD failed: %d\n", ret);
+		goto err_dsp;
+	}
+
+	return 0;
+
+err_dsp:
+	wm_adsp2_remove(dsp);
+
+	return ret;
+}
 
 int cs35l41_probe(struct cs35l41_private *cs35l41,
 		  struct cs35l41_platform_data *pdata)
@@ -1413,12 +1706,16 @@ int cs35l41_probe(struct cs35l41_private *cs35l41,
 		goto err;
 	}
 
+	ret = cs35l41_dsp_init(cs35l41);
+	if (ret < 0)
+		goto err;
+
 	ret = devm_snd_soc_register_component(cs35l41->dev,
 					      &soc_component_dev_cs35l41,
 					      cs35l41_dai, ARRAY_SIZE(cs35l41_dai));
 	if (ret < 0) {
 		dev_err(cs35l41->dev, "Register codec failed: %d\n", ret);
-		goto err;
+		goto err_dsp;
 	}
 
 	dev_info(cs35l41->dev, "Cirrus Logic CS35L41 (%x), Revision: %02X\n",
@@ -1426,6 +1723,8 @@ int cs35l41_probe(struct cs35l41_private *cs35l41,
 
 	return 0;
 
+err_dsp:
+	wm_adsp2_remove(&cs35l41->dsp);
 err:
 	regulator_bulk_disable(CS35L41_NUM_SUPPLIES, cs35l41->supplies);
 	gpiod_set_value_cansleep(cs35l41->reset_gpio, 0);
@@ -1436,6 +1735,7 @@ err:
 void cs35l41_remove(struct cs35l41_private *cs35l41)
 {
 	regmap_write(cs35l41->regmap, CS35L41_IRQ1_MASK1, 0xFFFFFFFF);
+	wm_adsp2_remove(&cs35l41->dsp);
 	regulator_bulk_disable(CS35L41_NUM_SUPPLIES, cs35l41->supplies);
 	gpiod_set_value_cansleep(cs35l41->reset_gpio, 0);
 }
