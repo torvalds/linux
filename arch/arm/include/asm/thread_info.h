@@ -79,8 +79,19 @@ struct thread_info {
 
 #ifdef CONFIG_THREAD_INFO_IN_TASK
 #define INIT_THREAD_INFO_TASK(tsk)
+
+static inline struct task_struct *thread_task(struct thread_info* ti)
+{
+	return (struct task_struct *)ti;
+}
+
 #else
 #define INIT_THREAD_INFO_TASK(tsk)	.task = &(tsk),
+
+static inline struct task_struct *thread_task(struct thread_info* ti)
+{
+	return ti->task;
+}
 
 /*
  * how to get the thread information struct from C
