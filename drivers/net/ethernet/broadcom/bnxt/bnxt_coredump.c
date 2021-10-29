@@ -194,6 +194,30 @@ bnxt_fill_coredump_seg_hdr(struct bnxt *bp,
 	seg_hdr->instance = cpu_to_le32(instance);
 }
 
+static void bnxt_fill_cmdline(struct bnxt_coredump_record *record)
+{
+	struct mm_struct *mm = current->mm;
+	int i, len, last = 0;
+
+	if (mm) {
+		len = min_t(int, mm->arg_end - mm->arg_start,
+			    sizeof(record->commandline) - 1);
+		if (len && !copy_from_user(record->commandline,
+					   (char __user *)mm->arg_start, len)) {
+			for (i = 0; i < len; i++) {
+				if (record->commandline[i])
+					last = i;
+				else
+					record->commandline[i] = ' ';
+			}
+			record->commandline[last + 1] = 0;
+			return;
+		}
+	}
+
+	strscpy(record->commandline, current->comm, TASK_COMM_LEN);
+}
+
 static void
 bnxt_fill_coredump_record(struct bnxt *bp, struct bnxt_coredump_record *record,
 			  time64_t start, s16 start_utc, u16 total_segs,
@@ -219,7 +243,7 @@ bnxt_fill_coredump_record(struct bnxt *bp, struct bnxt_coredump_record *record,
 	record->minute = cpu_to_le16(tm.tm_min);
 	record->second = cpu_to_le16(tm.tm_sec);
 	record->utc_bias = cpu_to_le16(start_utc);
-	strcpy(record->commandline, "ethtool -w");
+	bnxt_fill_cmdline(record);
 	record->total_segments = cpu_to_le32(total_segs);
 
 	if (sscanf(utsname()->release, "%u.%u", &os_ver_major, &os_ver_minor) != 2)
