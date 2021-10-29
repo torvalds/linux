@@ -178,6 +178,7 @@ bnxt_fill_coredump_seg_hdr(struct bnxt *bp,
 		seg_hdr->segment_id = (__force __le32)seg_rec->segment_id;
 		seg_hdr->low_version = seg_rec->version_low;
 		seg_hdr->high_version = seg_rec->version_hi;
+		seg_hdr->flags = cpu_to_le32(seg_rec->compress_flags);
 	} else {
 		/* For hwrm_ver_get response Component id = 2
 		 * and Segment id = 0
