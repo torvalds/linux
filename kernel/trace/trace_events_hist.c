@@ -68,7 +68,8 @@
 	C(INVALID_SORT_FIELD,	"Sort field must be a key or a val"),	\
 	C(INVALID_STR_OPERAND,	"String type can not be an operand in expression"), \
 	C(EXPECT_NUMBER,	"Expecting numeric literal"),		\
-	C(UNARY_MINUS_SUBEXPR,	"Unary minus not supported in sub-expressions"),
+	C(UNARY_MINUS_SUBEXPR,	"Unary minus not supported in sub-expressions"), \
+	C(DIVISION_BY_ZERO,	"Division by zero"),
 
 #undef C
 #define C(a, b)		HIST_ERR_##a
@@ -92,6 +93,7 @@ typedef u64 (*hist_field_fn_t) (struct hist_field *field,
 #define HIST_FIELDS_MAX		(TRACING_MAP_FIELDS_MAX + TRACING_MAP_VARS_MAX)
 #define HIST_ACTIONS_MAX	8
 #define HIST_CONST_DIGITS_MAX	21
+#define HIST_DIV_SHIFT		20  /* For optimizing division by constants */
 
 enum field_op_id {
 	FIELD_OP_NONE,
@@ -160,6 +162,8 @@ struct hist_field {
 
 	/* Numeric literals are represented as u64 */
 	u64				constant;
+	/* Used to optimize division by constants */
+	u64				div_multiplier;
 };
 
 static u64 hist_field_none(struct hist_field *field,
@@ -309,6 +313,68 @@ static u64 hist_field_div(struct hist_field *hist_field,
 		return val1 >> __ffs64(val2);
 
 	return div64_u64(val1, val2);
+}
+
+static u64 div_by_power_of_two(struct hist_field *hist_field,
+				struct tracing_map_elt *elt,
+				struct trace_buffer *buffer,
+				struct ring_buffer_event *rbe,
+				void *event)
+{
+	struct hist_field *operand1 = hist_field->operands[0];
+	struct hist_field *operand2 = hist_field->operands[1];
+
+	u64 val1 = operand1->fn(operand1, elt, buffer, rbe, event);
+
+	return val1 >> __ffs64(operand2->constant);
+}
+
+static u64 div_by_not_power_of_two(struct hist_field *hist_field,
+				struct tracing_map_elt *elt,
+				struct trace_buffer *buffer,
+				struct ring_buffer_event *rbe,
+				void *event)
+{
+	struct hist_field *operand1 = hist_field->operands[0];
+	struct hist_field *operand2 = hist_field->operands[1];
+
+	u64 val1 = operand1->fn(operand1, elt, buffer, rbe, event);
+
+	return div64_u64(val1, operand2->constant);
+}
+
+static u64 div_by_mult_and_shift(struct hist_field *hist_field,
+				struct tracing_map_elt *elt,
+				struct trace_buffer *buffer,
+				struct ring_buffer_event *rbe,
+				void *event)
+{
+	struct hist_field *operand1 = hist_field->operands[0];
+	struct hist_field *operand2 = hist_field->operands[1];
+
+	u64 val1 = operand1->fn(operand1, elt, buffer, rbe, event);
+
+	/*
+	 * If the divisor is a constant, do a multiplication and shift instead.
+	 *
+	 * Choose Z = some power of 2. If Y <= Z, then:
+	 *     X / Y = (X * (Z / Y)) / Z
+	 *
+	 * (Z / Y) is a constant (mult) which is calculated at parse time, so:
+	 *     X / Y = (X * mult) / Z
+	 *
+	 * The division by Z can be replaced by a shift since Z is a power of 2:
+	 *     X / Y = (X * mult) >> HIST_DIV_SHIFT
+	 *
+	 * As long, as X < Z the results will not be off by more than 1.
+	 */
+	if (val1 < (1 << HIST_DIV_SHIFT)) {
+		u64 mult = operand2->div_multiplier;
+
+		return (val1 * mult + ((1 << HIST_DIV_SHIFT) - 1)) >> HIST_DIV_SHIFT;
+	}
+
+	return div64_u64(val1, operand2->constant);
 }
 
 static u64 hist_field_mult(struct hist_field *hist_field,
@@ -572,6 +638,25 @@ struct snapshot_context {
 	struct tracing_map_elt	*elt;
 	void			*key;
 };
+
+/*
+ * Returns the specific division function to use if the divisor
+ * is constant. This avoids extra branches when the trigger is hit.
+ */
+static hist_field_fn_t hist_field_get_div_fn(struct hist_field *divisor)
+{
+	u64 div = divisor->constant;
+
+	if (!(div & (div - 1)))
+		return div_by_power_of_two;
+
+	/* If the divisor is too large, do a regular division */
+	if (div > (1 << HIST_DIV_SHIFT))
+		return div_by_not_power_of_two;
+
+	divisor->div_multiplier = div64_u64((u64)(1 << HIST_DIV_SHIFT), div);
+	return div_by_mult_and_shift;
+}
 
 static void track_data_free(struct track_data *track_data)
 {
@@ -2574,6 +2659,24 @@ static struct hist_field *parse_expr(struct hist_trigger_data *hist_data,
 
 	expr->operands[0] = operand1;
 	expr->operands[1] = operand2;
+
+	if (field_op == FIELD_OP_DIV &&
+			operand2_flags & HIST_FIELD_FL_CONST) {
+		u64 divisor = var2 ? var2->constant : operand2->constant;
+
+		if (!divisor) {
+			hist_err(file->tr, HIST_ERR_DIVISION_BY_ZERO, errpos(str));
+			ret = -EDOM;
+			goto free;
+		}
+
+		/*
+		 * Copy the divisor here so we don't have to look it up
+		 * later if this is a var ref
+		 */
+		operand2->constant = divisor;
+		op_fn = hist_field_get_div_fn(operand2);
+	}
 
 	if (combine_consts) {
 		if (var1)
