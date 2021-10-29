@@ -193,8 +193,8 @@ struct ec_stripe_head {
 int bch2_ec_read_extent(struct bch_fs *, struct bch_read_bio *);
 
 void *bch2_writepoint_ec_buf(struct bch_fs *, struct write_point *);
-void bch2_ec_add_backpointer(struct bch_fs *, struct write_point *,
-			     struct bpos, unsigned);
+void bch2_ob_add_backpointer(struct bch_fs *, struct open_bucket *,
+			     struct bkey *);
 
 void bch2_ec_bucket_written(struct bch_fs *, struct open_bucket *);
 void bch2_ec_bucket_cancel(struct bch_fs *, struct open_bucket *);

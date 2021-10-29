@@ -837,8 +837,9 @@ static int ec_stripe_update_ptrs(struct bch_fs *c,
 	bch2_trans_iter_init(&trans, &iter, BTREE_ID_extents,
 			     bkey_start_pos(pos),
 			     BTREE_ITER_INTENT);
-
-	while ((k = bch2_btree_iter_peek(&iter)).k &&
+retry:
+	while (bch2_trans_begin(&trans),
+	       (k = bch2_btree_iter_peek(&iter)).k &&
 	       !(ret = bkey_err(k)) &&
 	       bkey_cmp(bkey_start_pos(k.k), pos->p) < 0) {
 		struct bch_extent_ptr *ptr, *ec_ptr = NULL;
@@ -874,11 +875,11 @@ static int ec_stripe_update_ptrs(struct bch_fs *c,
 					BTREE_INSERT_NOFAIL);
 		if (!ret)
 			bch2_btree_iter_set_pos(&iter, next_pos);
-		if (ret == -EINTR)
-			ret = 0;
 		if (ret)
 			break;
 	}
+	if (ret == -EINTR)
+		goto retry;
 	bch2_trans_iter_exit(&trans, &iter);
 
 	bch2_trans_exit(&trans);
@@ -1069,16 +1070,14 @@ void *bch2_writepoint_ec_buf(struct bch_fs *c, struct write_point *wp)
 	return ob->ec->new_stripe.data[ob->ec_idx] + (offset << 9);
 }
 
-void bch2_ec_add_backpointer(struct bch_fs *c, struct write_point *wp,
-			     struct bpos pos, unsigned sectors)
+void bch2_ob_add_backpointer(struct bch_fs *c, struct open_bucket *ob,
+			     struct bkey *k)
 {
-	struct open_bucket *ob = ec_open_bucket(c, &wp->ptrs);
-	struct ec_stripe_new *ec;
+	struct ec_stripe_new *ec = ob->ec;
 
-	if (!ob)
+	if (!ec)
 		return;
 
-	ec = ob->ec;
 	mutex_lock(&ec->lock);
 
 	if (bch2_keylist_realloc(&ec->keys, ec->inline_keys,
@@ -1088,8 +1087,8 @@ void bch2_ec_add_backpointer(struct bch_fs *c, struct write_point *wp,
 	}
 
 	bkey_init(&ec->keys.top->k);
-	ec->keys.top->k.p	= pos;
-	bch2_key_resize(&ec->keys.top->k, sectors);
+	ec->keys.top->k.p	= k->p;
+	ec->keys.top->k.size	= k->size;
 	bch2_keylist_push(&ec->keys);
 
 	mutex_unlock(&ec->lock);

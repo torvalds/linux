@@ -1007,8 +1007,13 @@ static int bch2_mark_stripe(struct bch_fs *c,
 	BUG_ON(gc && old_s);
 
 	if (!m || (old_s && !m->alive)) {
-		bch_err_ratelimited(c, "error marking nonexistent stripe %zu",
-				    idx);
+		char buf1[200], buf2[200];
+
+		bch2_bkey_val_to_text(&PBUF(buf1), c, old);
+		bch2_bkey_val_to_text(&PBUF(buf2), c, new);
+		bch_err_ratelimited(c, "error marking nonexistent stripe %zu while marking\n"
+				    "old %s\n"
+				    "new %s", idx, buf1, buf2);
 		bch2_inconsistent_error(c);
 		return -1;
 	}
