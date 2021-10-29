@@ -177,14 +177,14 @@ out:
 	return ret;
 }
 
-static void sst_post_sfdp_fixups(struct spi_nor *nor)
+static void sst_late_init(struct spi_nor *nor)
 {
 	if (nor->info->flags & SST_WRITE)
 		nor->mtd._write = sst_write;
 }
 
 static const struct spi_nor_fixups sst_fixups = {
-	.post_sfdp = sst_post_sfdp_fixups,
+	.late_init = sst_late_init,
 };
 
 const struct spi_nor_manufacturer spi_nor_sst = {
