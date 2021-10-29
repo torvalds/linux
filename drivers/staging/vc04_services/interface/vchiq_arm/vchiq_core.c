@@ -711,7 +711,7 @@ reserve_space(struct vchiq_state *state, size_t space, int is_blocking)
 }
 
 static void
-process_free_data_message(struct vchiq_state *state, BITSET_T *service_found,
+process_free_data_message(struct vchiq_state *state, u32 *service_found,
 			  struct vchiq_header *header)
 {
 	int msgid = header->msgid;
@@ -767,7 +767,7 @@ process_free_data_message(struct vchiq_state *state, BITSET_T *service_found,
 
 /* Called by the recycle thread. */
 static void
-process_free_queue(struct vchiq_state *state, BITSET_T *service_found,
+process_free_queue(struct vchiq_state *state, u32 *service_found,
 		   size_t length)
 {
 	struct vchiq_shared_state *local = state->local;
@@ -1981,7 +1981,7 @@ recycle_func(void *v)
 {
 	struct vchiq_state *state = v;
 	struct vchiq_shared_state *local = state->local;
-	BITSET_T *found;
+	u32 *found;
 	size_t length;
 
 	length = sizeof(*found) * BITSET_SIZE(VCHIQ_MAX_SERVICES);
