@@ -221,6 +221,83 @@ struct rockchip_drm_dsc_cap {
 	int clk_per_slice;
 };
 
+struct ver_26_v0 {
+	u8 yuv422_12bit;
+	u8 support_2160p_60;
+	u8 global_dimming;
+	u8 dm_major_ver;
+	u8 dm_minor_ver;
+	u16 t_min_pq;
+	u16 t_max_pq;
+	u16 rx;
+	u16 ry;
+	u16 gx;
+	u16 gy;
+	u16 bx;
+	u16 by;
+	u16 wx;
+	u16 wy;
+} __packed;
+
+struct ver_15_v1 {
+	u8 yuv422_12bit;
+	u8 support_2160p_60;
+	u8 global_dimming;
+	u8 dm_version;
+	u8 colorimetry;
+	u8 t_max_lum;
+	u8 t_min_lum;
+	u8 rx;
+	u8 ry;
+	u8 gx;
+	u8 gy;
+	u8 bx;
+	u8 by;
+} __packed;
+
+struct ver_12_v1 {
+	u8 yuv422_12bit;
+	u8 support_2160p_60;
+	u8 global_dimming;
+	u8 dm_version;
+	u8 colorimetry;
+	u8 low_latency;
+	u8 t_max_lum;
+	u8 t_min_lum;
+	u8 unique_rx;
+	u8 unique_ry;
+	u8 unique_gx;
+	u8 unique_gy;
+	u8 unique_bx;
+	u8 unique_by;
+} __packed;
+
+struct ver_12_v2 {
+	u8 yuv422_12bit;
+	u8 backlt_ctrl;
+	u8 global_dimming;
+	u8 dm_version;
+	u8 backlt_min_luma;
+	u8 interface;
+	u8 yuv444_10b_12b;
+	u8 t_min_pq_v2;
+	u8 t_max_pq_v2;
+	u8 unique_rx;
+	u8 unique_ry;
+	u8 unique_gx;
+	u8 unique_gy;
+	u8 unique_bx;
+	u8 unique_by;
+} __packed;
+
+struct next_hdr_sink_data {
+	u8 version;
+	struct ver_26_v0 ver_26_v0;
+	struct ver_15_v1 ver_15_v1;
+	struct ver_12_v1 ver_12_v1;
+	struct ver_12_v2 ver_12_v2;
+} __packed;
+
 /*
  * Rockchip drm private crtc funcs.
  * @loader_protect: protect loader logo crtc's power
@@ -341,6 +418,8 @@ int rockchip_drm_get_yuv422_format(struct drm_connector *connector,
 int rockchip_drm_parse_cea_ext(struct rockchip_drm_dsc_cap *dsc_cap,
 			       u8 *max_frl_rate_per_lane, u8 *max_lanes,
 			       const struct edid *edid);
+int rockchip_drm_parse_next_hdr(struct next_hdr_sink_data *sink_data,
+				const struct edid *edid);
 
 extern struct platform_driver cdn_dp_driver;
 extern struct platform_driver dw_hdmi_rockchip_pltfm_driver;
