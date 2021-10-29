@@ -424,8 +424,6 @@ static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
 		if (p->midi_ports)
 			write_midi_messages(s, buf, data_blocks);
 
-		// TODO: how to interact control messages between userspace?
-
 		write_sph(p->cache, buf, data_blocks, s->data_block_quadlets);
 	}
 
