@@ -2020,7 +2020,7 @@ static int i915_pmic_bus_access_notifier(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static int uncore_mmio_setup(struct intel_uncore *uncore)
+int intel_uncore_setup_mmio(struct intel_uncore *uncore)
 {
 	struct drm_i915_private *i915 = uncore->i915;
 	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
@@ -2053,7 +2053,7 @@ static int uncore_mmio_setup(struct intel_uncore *uncore)
 	return 0;
 }
 
-static void uncore_mmio_cleanup(struct intel_uncore *uncore)
+void intel_uncore_cleanup_mmio(struct intel_uncore *uncore)
 {
 	struct pci_dev *pdev = to_pci_dev(uncore->i915->drm.dev);
 
@@ -2146,10 +2146,6 @@ int intel_uncore_init_mmio(struct intel_uncore *uncore)
 	struct drm_i915_private *i915 = uncore->i915;
 	int ret;
 
-	ret = uncore_mmio_setup(uncore);
-	if (ret)
-		return ret;
-
 	/*
 	 * The boot firmware initializes local memory and assesses its health.
 	 * If memory training fails, the punit will have been instructed to
@@ -2170,7 +2166,7 @@ int intel_uncore_init_mmio(struct intel_uncore *uncore)
 	} else {
 		ret = uncore_forcewake_init(uncore);
 		if (ret)
-			goto out_mmio_cleanup;
+			return ret;
 	}
 
 	/* make sure fw funcs are set if and only if we have fw*/
@@ -2192,11 +2188,6 @@ int intel_uncore_init_mmio(struct intel_uncore *uncore)
 		drm_dbg(&i915->drm, "unclaimed mmio detected on uncore init, clearing\n");
 
 	return 0;
-
-out_mmio_cleanup:
-	uncore_mmio_cleanup(uncore);
-
-	return ret;
 }
 
 /*
@@ -2261,8 +2252,6 @@ void intel_uncore_fini_mmio(struct intel_uncore *uncore)
 		intel_uncore_fw_domains_fini(uncore);
 		iosf_mbi_punit_release();
 	}
-
-	uncore_mmio_cleanup(uncore);
 }
 
 static const struct reg_whitelist {

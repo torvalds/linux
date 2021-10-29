@@ -415,9 +415,13 @@ static int i915_driver_mmio_probe(struct drm_i915_private *dev_priv)
 	if (ret < 0)
 		return ret;
 
-	ret = intel_uncore_init_mmio(&dev_priv->uncore);
+	ret = intel_uncore_setup_mmio(&dev_priv->uncore);
 	if (ret < 0)
 		goto err_bridge;
+
+	ret = intel_uncore_init_mmio(&dev_priv->uncore);
+	if (ret)
+		goto err_mmio;
 
 	/* Try to make sure MCHBAR is enabled before poking at it */
 	intel_setup_mchbar(dev_priv);
@@ -435,6 +439,8 @@ static int i915_driver_mmio_probe(struct drm_i915_private *dev_priv)
 err_uncore:
 	intel_teardown_mchbar(dev_priv);
 	intel_uncore_fini_mmio(&dev_priv->uncore);
+err_mmio:
+	intel_uncore_cleanup_mmio(&dev_priv->uncore);
 err_bridge:
 	pci_dev_put(dev_priv->bridge_dev);
 
@@ -449,6 +455,7 @@ static void i915_driver_mmio_release(struct drm_i915_private *dev_priv)
 {
 	intel_teardown_mchbar(dev_priv);
 	intel_uncore_fini_mmio(&dev_priv->uncore);
+	intel_uncore_cleanup_mmio(&dev_priv->uncore);
 	pci_dev_put(dev_priv->bridge_dev);
 }
 
