@@ -43,7 +43,8 @@ void __init arm64_hugetlb_cma_reserve(void)
 	if (pud_sect_supported())
 		order = PUD_SHIFT - PAGE_SHIFT;
 	else
-		order = CONT_PMD_SHIFT + PMD_SHIFT - PAGE_SHIFT;
+		order = CONT_PMD_SHIFT - PAGE_SHIFT;
+
 	/*
 	 * HugeTLB CMA reservation is required for gigantic
 	 * huge pages which could not be allocated via the
