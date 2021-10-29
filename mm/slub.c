@@ -2005,35 +2005,34 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
 		flags & (GFP_RECLAIM_MASK | GFP_CONSTRAINT_MASK), node);
 }
 
-static void __free_slab(struct kmem_cache *s, struct page *page)
+static void __free_slab(struct kmem_cache *s, struct slab *slab)
 {
-	int order = compound_order(page);
+	struct folio *folio = slab_folio(slab);
+	int order = folio_order(folio);
 	int pages = 1 << order;
 
 	if (kmem_cache_debug_flags(s, SLAB_CONSISTENCY_CHECKS)) {
 		void *p;
 
-		slab_pad_check(s, page);
-		for_each_object(p, s, page_address(page),
-						page->objects)
-			check_object(s, page, p, SLUB_RED_INACTIVE);
+		slab_pad_check(s, folio_page(folio, 0));
+		for_each_object(p, s, slab_address(slab), slab->objects)
+			check_object(s, folio_page(folio, 0), p, SLUB_RED_INACTIVE);
 	}
 
-	__ClearPageSlabPfmemalloc(page);
-	__ClearPageSlab(page);
-	/* In union with page->mapping where page allocator expects NULL */
-	page->slab_cache = NULL;
+	__slab_clear_pfmemalloc(slab);
+	__folio_clear_slab(folio);
+	folio->mapping = NULL;
 	if (current->reclaim_state)
 		current->reclaim_state->reclaimed_slab += pages;
-	unaccount_slab(page_slab(page), order, s);
-	__free_pages(page, order);
+	unaccount_slab(slab, order, s);
+	__free_pages(folio_page(folio, 0), order);
 }
 
 static void rcu_free_slab(struct rcu_head *h)
 {
 	struct page *page = container_of(h, struct page, rcu_head);
 
-	__free_slab(page->slab_cache, page);
+	__free_slab(page->slab_cache, page_slab(page));
 }
 
 static void free_slab(struct kmem_cache *s, struct page *page)
@@ -2041,7 +2040,7 @@ static void free_slab(struct kmem_cache *s, struct page *page)
 	if (unlikely(s->flags & SLAB_TYPESAFE_BY_RCU)) {
 		call_rcu(&page->rcu_head, rcu_free_slab);
 	} else
-		__free_slab(s, page);
+		__free_slab(s, page_slab(page));
 }
 
 static void discard_slab(struct kmem_cache *s, struct page *page)
