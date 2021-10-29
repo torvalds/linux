@@ -806,7 +806,8 @@ static const struct vop2_video_port_data rk3568_vop_video_ports[] = {
 	{
 	 .id = 0,
 	 .soc_id = { 0x3568, 0x3566 },
-	 .feature = VOP_FEATURE_OUTPUT_10BIT | VOP_FEATURE_ALPHA_SCALE | VOP_FEATURE_ALPHA_HDR10,
+	 .feature = VOP_FEATURE_OUTPUT_10BIT | VOP_FEATURE_ALPHA_SCALE |
+			VOP_FEATURE_HDR10 | VOP_FEATURE_OVERSCAN,
 	 .gamma_lut_len = 1024,
 	 .cubic_lut_len = 729, /* 9x9x9 */
 	 .max_output = { 4096, 2304 },
@@ -818,7 +819,7 @@ static const struct vop2_video_port_data rk3568_vop_video_ports[] = {
 	{
 	 .id = 1,
 	 .soc_id = { 0x3568, 0x3566 },
-	 .feature = VOP_FEATURE_ALPHA_SCALE,
+	 .feature = VOP_FEATURE_ALPHA_SCALE | VOP_FEATURE_OVERSCAN,
 	 .gamma_lut_len = 1024,
 	 .max_output = { 2048, 1536 },
 	 .pre_scan_max_dly = { 40, 40, 40, 40 },
@@ -827,7 +828,7 @@ static const struct vop2_video_port_data rk3568_vop_video_ports[] = {
 	},
 	{
 	 .id = 2,
-	 .feature = VOP_FEATURE_ALPHA_SCALE,
+	 .feature = VOP_FEATURE_ALPHA_SCALE | VOP_FEATURE_OVERSCAN,
 	 .soc_id = { 0x3568, 0x3566 },
 	 .gamma_lut_len = 1024,
 	 .max_output = { 1920, 1080 },
@@ -1099,7 +1100,8 @@ static const struct vop2_video_port_data rk3588_vop_video_ports[] = {
 	 .id = 0,
 	 .splice_vp_id = 1,
 	 .soc_id = { 0x3588, 0x3588 },
-	 .feature = VOP_FEATURE_OUTPUT_10BIT,
+	 .feature = VOP_FEATURE_OUTPUT_10BIT | VOP_FEATURE_ALPHA_SCALE |
+			VOP_FEATURE_HDR10 | VOP_FEATURE_NEXT_HDR,
 	 .gamma_lut_len = 1024,
 	 .cubic_lut_len = 729, /* 9x9x9 */
 	 .dclk_max = 600000000,
@@ -1113,6 +1115,7 @@ static const struct vop2_video_port_data rk3588_vop_video_ports[] = {
 	{
 	 .id = 1,
 	 .soc_id = { 0x3588, 0x3588 },
+	 .feature = VOP_FEATURE_OUTPUT_10BIT | VOP_FEATURE_ALPHA_SCALE | VOP_FEATURE_HDR10,
 	 .gamma_lut_len = 1024,
 	 .dclk_max = 600000000,
 	 .max_output = { 4096, 2304 },
@@ -1125,6 +1128,7 @@ static const struct vop2_video_port_data rk3588_vop_video_ports[] = {
 	{
 	 .id = 2,
 	 .soc_id = { 0x3588, 0x3588 },
+	 .feature = VOP_FEATURE_OUTPUT_10BIT | VOP_FEATURE_ALPHA_SCALE,
 	 .gamma_lut_len = 1024,
 	 .dclk_max = 600000000,
 	 .max_output = { 4096, 2304 },
@@ -1135,6 +1139,7 @@ static const struct vop2_video_port_data rk3588_vop_video_ports[] = {
 	{
 	 .id = 3,
 	 .soc_id = { 0x3588, 0x3588 },
+	 .feature = VOP_FEATURE_ALPHA_SCALE,
 	 .gamma_lut_len = 1024,
 	 .dclk_max = 200000000,
 	 .max_output = { 2048, 1536 },
@@ -1142,7 +1147,6 @@ static const struct vop2_video_port_data rk3588_vop_video_ports[] = {
 	 .intr = &rk3588_vp3_intr,
 	 .regs = &rk3588_vop_vp3_regs,
 	},
-
 };
 
 /*

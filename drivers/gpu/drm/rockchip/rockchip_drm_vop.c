@@ -3686,6 +3686,7 @@ static void vop_cfg_update(struct drm_crtc *crtc,
 	struct rockchip_crtc_state *s =
 			to_rockchip_crtc_state(crtc->state);
 	struct vop *vop = to_vop(crtc);
+	const struct vop_data *vop_data = vop->data;
 
 	spin_lock(&vop->reg_lock);
 
@@ -3713,7 +3714,8 @@ static void vop_cfg_update(struct drm_crtc *crtc,
 	VOP_CTRL_SET(vop, afbdc_en, s->afbdc_en);
 
 	VOP_CTRL_SET(vop, dsp_layer_sel, s->dsp_layer_sel);
-	vop_post_config(crtc);
+	if (vop_data->feature & VOP_FEATURE_OVERSCAN)
+		vop_post_config(crtc);
 
 	spin_unlock(&vop->reg_lock);
 }
@@ -4409,9 +4411,9 @@ static int vop_crtc_create_feature_property(struct vop *vop, struct drm_crtc *cr
 
 	if (vop_data->feature & VOP_FEATURE_ALPHA_SCALE)
 		feature |= BIT(ROCKCHIP_DRM_CRTC_FEATURE_ALPHA_SCALE);
-	if (vop_data->feature & VOP_FEATURE_ALPHA_HDR10)
+	if (vop_data->feature & VOP_FEATURE_HDR10)
 		feature |= BIT(ROCKCHIP_DRM_CRTC_FEATURE_HDR10);
-	if (vop_data->feature & VOP_FEATURE_ALPHA_NEXT_HDR)
+	if (vop_data->feature & VOP_FEATURE_NEXT_HDR)
 		feature |= BIT(ROCKCHIP_DRM_CRTC_FEATURE_NEXT_HDR);
 
 	prop = drm_property_create_bitmask(vop->drm_dev,

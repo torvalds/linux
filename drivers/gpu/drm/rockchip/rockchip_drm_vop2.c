@@ -5476,7 +5476,8 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	else
 		clk_set_rate(vp->dclk, adjusted_mode->crtc_clock * 1000);
 
-	vop2_post_config(crtc);
+	if (vp_data->feature & VOP_FEATURE_OVERSCAN)
+		vop2_post_config(crtc);
 
 	if (vcstate->dsc_enable)
 		vop2_crtc_enable_dsc(crtc, old_state);
@@ -6357,6 +6358,8 @@ static void vop2_cfg_update(struct drm_crtc *crtc,
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 	struct vop2 *vop2 = vp->vop2;
+	const struct vop2_data *vop2_data = vop2->data;
+	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
 	uint32_t val;
 	uint32_t r, g, b;
 
@@ -6386,7 +6389,8 @@ static void vop2_cfg_update(struct drm_crtc *crtc,
 
 	vop2_tv_config_update(crtc, old_crtc_state);
 
-	vop2_post_config(crtc);
+	if (vp_data->feature & VOP_FEATURE_OVERSCAN)
+		vop2_post_config(crtc);
 
 	spin_unlock(&vop2->reg_lock);
 }
@@ -7259,9 +7263,9 @@ static int vop2_crtc_create_feature_property(struct vop2 *vop2, struct drm_crtc 
 
 	if (vp_data->feature & VOP_FEATURE_ALPHA_SCALE)
 		feature |= BIT(ROCKCHIP_DRM_CRTC_FEATURE_ALPHA_SCALE);
-	if (vp_data->feature & VOP_FEATURE_ALPHA_HDR10)
+	if (vp_data->feature & VOP_FEATURE_HDR10)
 		feature |= BIT(ROCKCHIP_DRM_CRTC_FEATURE_HDR10);
-	if (vp_data->feature & VOP_FEATURE_ALPHA_NEXT_HDR)
+	if (vp_data->feature & VOP_FEATURE_NEXT_HDR)
 		feature |= BIT(ROCKCHIP_DRM_CRTC_FEATURE_NEXT_HDR);
 
 	prop = drm_property_create_bitmask(vop2->drm_dev,
@@ -7443,14 +7447,16 @@ static int vop2_create_crtc(struct vop2 *vop2)
 		drm_object_attach_property(&crtc->base, private->aclk_prop, 0);
 		drm_object_attach_property(&crtc->base, private->bg_prop, 0);
 		drm_object_attach_property(&crtc->base, private->line_flag_prop, 0);
-		drm_object_attach_property(&crtc->base,
-					   drm_dev->mode_config.tv_left_margin_property, 100);
-		drm_object_attach_property(&crtc->base,
-					   drm_dev->mode_config.tv_right_margin_property, 100);
-		drm_object_attach_property(&crtc->base,
-					   drm_dev->mode_config.tv_top_margin_property, 100);
-		drm_object_attach_property(&crtc->base,
-					   drm_dev->mode_config.tv_bottom_margin_property, 100);
+		if (vp_data->feature & VOP_FEATURE_OVERSCAN) {
+			drm_object_attach_property(&crtc->base,
+						   drm_dev->mode_config.tv_left_margin_property, 100);
+			drm_object_attach_property(&crtc->base,
+						   drm_dev->mode_config.tv_right_margin_property, 100);
+			drm_object_attach_property(&crtc->base,
+						   drm_dev->mode_config.tv_top_margin_property, 100);
+			drm_object_attach_property(&crtc->base,
+						   drm_dev->mode_config.tv_bottom_margin_property, 100);
+		}
 		vop2_crtc_create_plane_mask_property(vop2, crtc);
 		vop2_crtc_create_feature_property(vop2, crtc);
 		registered_num_crtcs++;
