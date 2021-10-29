@@ -18,6 +18,7 @@
 #include "bnxt_ethtool.h"
 #include "bnxt_ulp.h"
 #include "bnxt_ptp.h"
+#include "bnxt_coredump.h"
 
 static void __bnxt_fw_recover(struct bnxt *bp)
 {
@@ -177,6 +178,46 @@ unlock:
 	return devlink_fmsg_u32_pair_put(fmsg, "Diagnoses", h->diagnoses);
 }
 
+static int bnxt_fw_dump(struct devlink_health_reporter *reporter,
+			struct devlink_fmsg *fmsg, void *priv_ctx,
+			struct netlink_ext_ack *extack)
+{
+	struct bnxt *bp = devlink_health_reporter_priv(reporter);
+	u32 dump_len;
+	void *data;
+	int rc;
+
+	/* TODO: no firmware dump support in devlink_health_report() context */
+	if (priv_ctx)
+		return -EOPNOTSUPP;
+
+	dump_len = bnxt_get_coredump_length(bp, BNXT_DUMP_LIVE);
+	if (!dump_len)
+		return -EIO;
+
+	data = vmalloc(dump_len);
+	if (!data)
+		return -ENOMEM;
+
+	rc = bnxt_get_coredump(bp, BNXT_DUMP_LIVE, data, &dump_len);
+	if (!rc) {
+		rc = devlink_fmsg_pair_nest_start(fmsg, "core");
+		if (rc)
+			goto exit;
+		rc = devlink_fmsg_binary_pair_put(fmsg, "data", data, dump_len);
+		if (rc)
+			goto exit;
+		rc = devlink_fmsg_u32_pair_put(fmsg, "size", dump_len);
+		if (rc)
+			goto exit;
+		rc = devlink_fmsg_pair_nest_end(fmsg);
+	}
+
+exit:
+	vfree(data);
+	return rc;
+}
+
 static int bnxt_fw_recover(struct devlink_health_reporter *reporter,
 			   void *priv_ctx,
 			   struct netlink_ext_ack *extack)
@@ -195,6 +236,7 @@ static int bnxt_fw_recover(struct devlink_health_reporter *reporter,
 static const struct devlink_health_reporter_ops bnxt_dl_fw_reporter_ops = {
 	.name = "fw",
 	.diagnose = bnxt_fw_diagnose,
+	.dump = bnxt_fw_dump,
 	.recover = bnxt_fw_recover,
 };
 
