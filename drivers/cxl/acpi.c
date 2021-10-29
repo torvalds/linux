@@ -283,6 +283,7 @@ static int add_host_bridge_uport(struct device *match, void *arg)
 }
 
 struct cxl_chbs_context {
+	struct device *dev;
 	unsigned long long uid;
 	resource_size_t chbcr;
 };
@@ -327,6 +328,7 @@ static int add_host_bridge_dport(struct device *match, void *arg)
 	}
 
 	ctx = (struct cxl_chbs_context) {
+		.dev = host,
 		.uid = uid,
 	};
 	acpi_table_parse_cedt(ACPI_CEDT_TYPE_CHBS, cxl_get_chbcr, &ctx);

@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
+ldflags-y += --wrap=acpi_table_parse_cedt
 ldflags-y += --wrap=is_acpi_device_node
-ldflags-y += --wrap=acpi_get_table
-ldflags-y += --wrap=acpi_put_table
 ldflags-y += --wrap=acpi_evaluate_integer
 ldflags-y += --wrap=acpi_pci_find_root
 ldflags-y += --wrap=pci_walk_bus

@@ -182,6 +182,13 @@ static struct {
 	},
 };
 
+struct acpi_cedt_cfmws *mock_cfmws[4] = {
+	[0] = &mock_cedt.cfmws0.cfmws,
+	[1] = &mock_cedt.cfmws1.cfmws,
+	[2] = &mock_cedt.cfmws2.cfmws,
+	[3] = &mock_cedt.cfmws3.cfmws,
+};
+
 struct cxl_mock_res {
 	struct list_head list;
 	struct range range;
@@ -232,12 +239,6 @@ static struct cxl_mock_res *alloc_mock_res(resource_size_t size)
 
 static int populate_cedt(void)
 {
-	struct acpi_cedt_cfmws *cfmws[4] = {
-		[0] = &mock_cedt.cfmws0.cfmws,
-		[1] = &mock_cedt.cfmws1.cfmws,
-		[2] = &mock_cedt.cfmws2.cfmws,
-		[3] = &mock_cedt.cfmws3.cfmws,
-	};
 	struct cxl_mock_res *res;
 	int i;
 
@@ -257,8 +258,8 @@ static int populate_cedt(void)
 		chbs->length = size;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(cfmws); i++) {
-		struct acpi_cedt_cfmws *window = cfmws[i];
+	for (i = 0; i < ARRAY_SIZE(mock_cfmws); i++) {
+		struct acpi_cedt_cfmws *window = mock_cfmws[i];
 
 		res = alloc_mock_res(window->window_size);
 		if (!res)
@@ -269,21 +270,44 @@ static int populate_cedt(void)
 	return 0;
 }
 
-static acpi_status mock_acpi_get_table(char *signature, u32 instance,
-				       struct acpi_table_header **out_table)
-{
-	if (instance < U32_MAX || strcmp(signature, ACPI_SIG_CEDT) != 0)
-		return acpi_get_table(signature, instance, out_table);
+/*
+ * WARNING, this hack assumes the format of 'struct
+ * cxl_cfmws_context' and 'struct cxl_chbs_context' share the property that
+ * the first struct member is the device being probed by the cxl_acpi
+ * driver.
+ */
+struct cxl_cedt_context {
+	struct device *dev;
+};
 
-	*out_table = (struct acpi_table_header *) &mock_cedt;
-	return AE_OK;
-}
-
-static void mock_acpi_put_table(struct acpi_table_header *table)
+static int mock_acpi_table_parse_cedt(enum acpi_cedt_type id,
+				      acpi_tbl_entry_handler_arg handler_arg,
+				      void *arg)
 {
-	if (table == (struct acpi_table_header *) &mock_cedt)
-		return;
-	acpi_put_table(table);
+	struct cxl_cedt_context *ctx = arg;
+	struct device *dev = ctx->dev;
+	union acpi_subtable_headers *h;
+	unsigned long end;
+	int i;
+
+	if (dev != &cxl_acpi->dev)
+		return acpi_table_parse_cedt(id, handler_arg, arg);
+
+	if (id == ACPI_CEDT_TYPE_CHBS)
+		for (i = 0; i < ARRAY_SIZE(mock_cedt.chbs); i++) {
+			h = (union acpi_subtable_headers *)&mock_cedt.chbs[i];
+			end = (unsigned long)&mock_cedt.chbs[i + 1];
+			handler_arg(h, arg, end);
+		}
+
+	if (id == ACPI_CEDT_TYPE_CFMWS)
+		for (i = 0; i < ARRAY_SIZE(mock_cfmws); i++) {
+			h = (union acpi_subtable_headers *) mock_cfmws[i];
+			end = (unsigned long) h + mock_cfmws[i]->header.length;
+			handler_arg(h, arg, end);
+		}
+
+	return 0;
 }
 
 static bool is_mock_bridge(struct device *dev)
@@ -388,8 +412,7 @@ static struct cxl_mock_ops cxl_mock_ops = {
 	.is_mock_port = is_mock_port,
 	.is_mock_dev = is_mock_dev,
 	.mock_port = mock_cxl_root_port,
-	.acpi_get_table = mock_acpi_get_table,
-	.acpi_put_table = mock_acpi_put_table,
+	.acpi_table_parse_cedt = mock_acpi_table_parse_cedt,
 	.acpi_evaluate_integer = mock_acpi_evaluate_integer,
 	.acpi_pci_find_root = mock_acpi_pci_find_root,
 	.list = LIST_HEAD_INIT(cxl_mock_ops.list),
@@ -574,3 +597,4 @@ static __exit void cxl_test_exit(void)
 module_init(cxl_test_init);
 module_exit(cxl_test_exit);
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(ACPI);
