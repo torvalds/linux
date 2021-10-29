@@ -267,6 +267,9 @@ static int ice_repr_add(struct ice_vf *vf)
 	if (err)
 		goto err_devlink;
 
+	repr->netdev->min_mtu = ETH_MIN_MTU;
+	repr->netdev->max_mtu = ICE_MAX_MTU;
+
 	err = ice_repr_reg_netdev(repr->netdev);
 	if (err)
 		goto err_netdev;

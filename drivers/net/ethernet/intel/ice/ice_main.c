@@ -58,6 +58,12 @@ static void ice_vsi_release_all(struct ice_pf *pf);
 static int ice_rebuild_channels(struct ice_pf *pf);
 static void ice_remove_q_channels(struct ice_vsi *vsi, bool rem_adv_fltr);
 
+static int
+ice_indr_setup_tc_cb(struct net_device *netdev, struct Qdisc *sch,
+		     void *cb_priv, enum tc_setup_type type, void *type_data,
+		     void *data,
+		     void (*cleanup)(struct flow_block_cb *block_cb));
+
 bool netif_is_ice(struct net_device *dev)
 {
 	return dev && (dev->netdev_ops == &ice_netdev_ops);
@@ -931,6 +937,29 @@ static void ice_set_dflt_mib(struct ice_pf *pf)
 }
 
 /**
+ * ice_check_phy_fw_load - check if PHY FW load failed
+ * @pf: pointer to PF struct
+ * @link_cfg_err: bitmap from the link info structure
+ *
+ * check if external PHY FW load failed and print an error message if it did
+ */
+static void ice_check_phy_fw_load(struct ice_pf *pf, u8 link_cfg_err)
+{
+	if (!(link_cfg_err & ICE_AQ_LINK_EXTERNAL_PHY_LOAD_FAILURE)) {
+		clear_bit(ICE_FLAG_PHY_FW_LOAD_FAILED, pf->flags);
+		return;
+	}
+
+	if (test_bit(ICE_FLAG_PHY_FW_LOAD_FAILED, pf->flags))
+		return;
+
+	if (link_cfg_err & ICE_AQ_LINK_EXTERNAL_PHY_LOAD_FAILURE) {
+		dev_err(ice_pf_to_dev(pf), "Device failed to load the FW for the external PHY. Please download and install the latest NVM for your device and try again\n");
+		set_bit(ICE_FLAG_PHY_FW_LOAD_FAILED, pf->flags);
+	}
+}
+
+/**
  * ice_check_module_power
  * @pf: pointer to PF struct
  * @link_cfg_err: bitmap from the link info structure
@@ -960,6 +989,20 @@ static void ice_check_module_power(struct ice_pf *pf, u8 link_cfg_err)
 		dev_err(ice_pf_to_dev(pf), "The module's power requirements exceed the device's power supply. Cannot start link\n");
 		set_bit(ICE_FLAG_MOD_POWER_UNSUPPORTED, pf->flags);
 	}
+}
+
+/**
+ * ice_check_link_cfg_err - check if link configuration failed
+ * @pf: pointer to the PF struct
+ * @link_cfg_err: bitmap from the link info structure
+ *
+ * print if any link configuration failure happens due to the value in the
+ * link_cfg_err parameter in the link info structure
+ */
+static void ice_check_link_cfg_err(struct ice_pf *pf, u8 link_cfg_err)
+{
+	ice_check_module_power(pf, link_cfg_err);
+	ice_check_phy_fw_load(pf, link_cfg_err);
 }
 
 /**
@@ -997,7 +1040,7 @@ ice_link_event(struct ice_pf *pf, struct ice_port_info *pi, bool link_up,
 			pi->lport, ice_stat_str(status),
 			ice_aq_str(pi->hw->adminq.sq_last_status));
 
-	ice_check_module_power(pf, pi->phy.link_info.link_cfg_err);
+	ice_check_link_cfg_err(pf, pi->phy.link_info.link_cfg_err);
 
 	/* Check if the link state is up after updating link info, and treat
 	 * this event as an UP event since the link is actually UP now.
@@ -1075,7 +1118,8 @@ static int ice_init_link_events(struct ice_port_info *pi)
 	u16 mask;
 
 	mask = ~((u16)(ICE_AQ_LINK_EVENT_UPDOWN | ICE_AQ_LINK_EVENT_MEDIA_NA |
-		       ICE_AQ_LINK_EVENT_MODULE_QUAL_FAIL));
+		       ICE_AQ_LINK_EVENT_MODULE_QUAL_FAIL |
+		       ICE_AQ_LINK_EVENT_PHY_FW_LOAD_FAIL));
 
 	if (ice_aq_set_event_mask(pi->hw, pi->lport, mask, NULL)) {
 		dev_dbg(ice_hw_to_dev(pi->hw), "Failed to set link event mask for port %d\n",
@@ -2146,7 +2190,7 @@ static void ice_check_media_subtask(struct ice_pf *pf)
 	if (err)
 		return;
 
-	ice_check_module_power(pf, pi->phy.link_info.link_cfg_err);
+	ice_check_link_cfg_err(pf, pi->phy.link_info.link_cfg_err);
 
 	if (pi->phy.link_info.link_info & ICE_AQ_MEDIA_AVAILABLE) {
 		if (!test_bit(ICE_PHY_INIT_COMPLETE, pf->state))
@@ -3394,6 +3438,63 @@ ice_vlan_rx_kill_vid(struct net_device *netdev, __always_unused __be16 proto,
 }
 
 /**
+ * ice_rep_indr_tc_block_unbind
+ * @cb_priv: indirection block private data
+ */
+static void ice_rep_indr_tc_block_unbind(void *cb_priv)
+{
+	struct ice_indr_block_priv *indr_priv = cb_priv;
+
+	list_del(&indr_priv->list);
+	kfree(indr_priv);
+}
+
+/**
+ * ice_tc_indir_block_unregister - Unregister TC indirect block notifications
+ * @vsi: VSI struct which has the netdev
+ */
+static void ice_tc_indir_block_unregister(struct ice_vsi *vsi)
+{
+	struct ice_netdev_priv *np = netdev_priv(vsi->netdev);
+
+	flow_indr_dev_unregister(ice_indr_setup_tc_cb, np,
+				 ice_rep_indr_tc_block_unbind);
+}
+
+/**
+ * ice_tc_indir_block_remove - clean indirect TC block notifications
+ * @pf: PF structure
+ */
+static void ice_tc_indir_block_remove(struct ice_pf *pf)
+{
+	struct ice_vsi *pf_vsi = ice_get_main_vsi(pf);
+
+	if (!pf_vsi)
+		return;
+
+	ice_tc_indir_block_unregister(pf_vsi);
+}
+
+/**
+ * ice_tc_indir_block_register - Register TC indirect block notifications
+ * @vsi: VSI struct which has the netdev
+ *
+ * Returns 0 on success, negative value on failure
+ */
+static int ice_tc_indir_block_register(struct ice_vsi *vsi)
+{
+	struct ice_netdev_priv *np;
+
+	if (!vsi || !vsi->netdev)
+		return -EINVAL;
+
+	np = netdev_priv(vsi->netdev);
+
+	INIT_LIST_HEAD(&np->tc_indr_block_priv_list);
+	return flow_indr_dev_register(ice_indr_setup_tc_cb, np);
+}
+
+/**
  * ice_setup_pf_sw - Setup the HW switch on startup or after reset
  * @pf: board private structure
  *
@@ -3401,6 +3502,7 @@ ice_vlan_rx_kill_vid(struct net_device *netdev, __always_unused __be16 proto,
  */
 static int ice_setup_pf_sw(struct ice_pf *pf)
 {
+	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_vsi *vsi;
 	int status = 0;
 
@@ -3422,6 +3524,13 @@ static int ice_setup_pf_sw(struct ice_pf *pf)
 	/* netdev has to be configured before setting frame size */
 	ice_vsi_cfg_frame_size(vsi);
 
+	/* init indirect block notifications */
+	status = ice_tc_indir_block_register(vsi);
+	if (status) {
+		dev_err(dev, "Failed to register netdev notifier\n");
+		goto unroll_cfg_netdev;
+	}
+
 	/* Setup DCB netlink interface */
 	ice_dcbnl_setup(vsi);
 
@@ -3433,7 +3542,7 @@ static int ice_setup_pf_sw(struct ice_pf *pf)
 
 	status = ice_set_cpu_rx_rmap(vsi);
 	if (status) {
-		dev_err(ice_pf_to_dev(pf), "Failed to set CPU Rx map VSI %d error %d\n",
+		dev_err(dev, "Failed to set CPU Rx map VSI %d error %d\n",
 			vsi->vsi_num, status);
 		status = -EINVAL;
 		goto unroll_napi_add;
@@ -3446,8 +3555,9 @@ static int ice_setup_pf_sw(struct ice_pf *pf)
 
 free_cpu_rx_map:
 	ice_free_cpu_rx_rmap(vsi);
-
 unroll_napi_add:
+	ice_tc_indir_block_unregister(vsi);
+unroll_cfg_netdev:
 	if (vsi) {
 		ice_napi_del(vsi);
 		if (vsi->netdev) {
@@ -4528,7 +4638,8 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 
 	ice_init_link_dflt_override(pf->hw.port_info);
 
-	ice_check_module_power(pf, pf->hw.port_info->phy.link_info.link_cfg_err);
+	ice_check_link_cfg_err(pf,
+			       pf->hw.port_info->phy.link_info.link_cfg_err);
 
 	/* if media available, initialize PHY settings */
 	if (pf->hw.port_info->phy.link_info.link_info &
@@ -4720,6 +4831,8 @@ static void ice_remove(struct pci_dev *pdev)
 			break;
 		msleep(100);
 	}
+
+	ice_tc_indir_block_remove(pf);
 
 	if (test_bit(ICE_FLAG_SRIOV_ENA, pf->flags)) {
 		set_bit(ICE_VF_RESETS_DISABLED, pf->state);
@@ -8155,6 +8268,121 @@ ice_setup_tc(struct net_device *netdev, enum tc_setup_type type,
 	return -EOPNOTSUPP;
 }
 
+static struct ice_indr_block_priv *
+ice_indr_block_priv_lookup(struct ice_netdev_priv *np,
+			   struct net_device *netdev)
+{
+	struct ice_indr_block_priv *cb_priv;
+
+	list_for_each_entry(cb_priv, &np->tc_indr_block_priv_list, list) {
+		if (!cb_priv->netdev)
+			return NULL;
+		if (cb_priv->netdev == netdev)
+			return cb_priv;
+	}
+	return NULL;
+}
+
+static int
+ice_indr_setup_block_cb(enum tc_setup_type type, void *type_data,
+			void *indr_priv)
+{
+	struct ice_indr_block_priv *priv = indr_priv;
+	struct ice_netdev_priv *np = priv->np;
+
+	switch (type) {
+	case TC_SETUP_CLSFLOWER:
+		return ice_setup_tc_cls_flower(np, priv->netdev,
+					       (struct flow_cls_offload *)
+					       type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int
+ice_indr_setup_tc_block(struct net_device *netdev, struct Qdisc *sch,
+			struct ice_netdev_priv *np,
+			struct flow_block_offload *f, void *data,
+			void (*cleanup)(struct flow_block_cb *block_cb))
+{
+	struct ice_indr_block_priv *indr_priv;
+	struct flow_block_cb *block_cb;
+
+	if (!ice_is_tunnel_supported(netdev) &&
+	    !(is_vlan_dev(netdev) &&
+	      vlan_dev_real_dev(netdev) == np->vsi->netdev))
+		return -EOPNOTSUPP;
+
+	if (f->binder_type != FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
+		return -EOPNOTSUPP;
+
+	switch (f->command) {
+	case FLOW_BLOCK_BIND:
+		indr_priv = ice_indr_block_priv_lookup(np, netdev);
+		if (indr_priv)
+			return -EEXIST;
+
+		indr_priv = kzalloc(sizeof(*indr_priv), GFP_KERNEL);
+		if (!indr_priv)
+			return -ENOMEM;
+
+		indr_priv->netdev = netdev;
+		indr_priv->np = np;
+		list_add(&indr_priv->list, &np->tc_indr_block_priv_list);
+
+		block_cb =
+			flow_indr_block_cb_alloc(ice_indr_setup_block_cb,
+						 indr_priv, indr_priv,
+						 ice_rep_indr_tc_block_unbind,
+						 f, netdev, sch, data, np,
+						 cleanup);
+
+		if (IS_ERR(block_cb)) {
+			list_del(&indr_priv->list);
+			kfree(indr_priv);
+			return PTR_ERR(block_cb);
+		}
+		flow_block_cb_add(block_cb, f);
+		list_add_tail(&block_cb->driver_list, &ice_block_cb_list);
+		break;
+	case FLOW_BLOCK_UNBIND:
+		indr_priv = ice_indr_block_priv_lookup(np, netdev);
+		if (!indr_priv)
+			return -ENOENT;
+
+		block_cb = flow_block_cb_lookup(f->block,
+						ice_indr_setup_block_cb,
+						indr_priv);
+		if (!block_cb)
+			return -ENOENT;
+
+		flow_indr_block_cb_remove(block_cb, f);
+
+		list_del(&block_cb->driver_list);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+	return 0;
+}
+
+static int
+ice_indr_setup_tc_cb(struct net_device *netdev, struct Qdisc *sch,
+		     void *cb_priv, enum tc_setup_type type, void *type_data,
+		     void *data,
+		     void (*cleanup)(struct flow_block_cb *block_cb))
+{
+	switch (type) {
+	case TC_SETUP_BLOCK:
+		return ice_indr_setup_tc_block(netdev, sch, cb_priv, type_data,
+					       data, cleanup);
+
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 /**
  * ice_open - Called when a network interface becomes active
  * @netdev: network interface device structure
@@ -8213,7 +8441,7 @@ int ice_open_internal(struct net_device *netdev)
 		return -EIO;
 	}
 
-	ice_check_module_power(pf, pi->phy.link_info.link_cfg_err);
+	ice_check_link_cfg_err(pf, pi->phy.link_info.link_cfg_err);
 
 	/* Set PHY if there is media, otherwise, turn off PHY */
 	if (pi->phy.link_info.link_info & ICE_AQ_MEDIA_AVAILABLE) {
