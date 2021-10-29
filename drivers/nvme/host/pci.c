@@ -903,23 +903,51 @@ static blk_status_t nvme_map_metadata(struct nvme_dev *dev, struct request *req,
 	return BLK_STS_OK;
 }
 
+static blk_status_t nvme_prep_rq(struct nvme_dev *dev, struct request *req)
+{
+	struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
+	blk_status_t ret;
+
+	iod->aborted = 0;
+	iod->npages = -1;
+	iod->nents = 0;
+
+	ret = nvme_setup_cmd(req->q->queuedata, req);
+	if (ret)
+		return ret;
+
+	if (blk_rq_nr_phys_segments(req)) {
+		ret = nvme_map_data(dev, req, &iod->cmd);
+		if (ret)
+			goto out_free_cmd;
+	}
+
+	if (blk_integrity_rq(req)) {
+		ret = nvme_map_metadata(dev, req, &iod->cmd);
+		if (ret)
+			goto out_unmap_data;
+	}
+
+	blk_mq_start_request(req);
+	return BLK_STS_OK;
+out_unmap_data:
+	nvme_unmap_data(dev, req);
+out_free_cmd:
+	nvme_cleanup_cmd(req);
+	return ret;
+}
+
 /*
  * NOTE: ns is NULL when called on the admin queue.
  */
 static blk_status_t nvme_queue_rq(struct blk_mq_hw_ctx *hctx,
 			 const struct blk_mq_queue_data *bd)
 {
-	struct nvme_ns *ns = hctx->queue->queuedata;
 	struct nvme_queue *nvmeq = hctx->driver_data;
 	struct nvme_dev *dev = nvmeq->dev;
 	struct request *req = bd->rq;
 	struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
-	struct nvme_command *cmnd = &iod->cmd;
 	blk_status_t ret;
-
-	iod->aborted = 0;
-	iod->npages = -1;
-	iod->nents = 0;
 
 	/*
 	 * We should not need to do this, but we're still using this to
@@ -928,36 +956,17 @@ static blk_status_t nvme_queue_rq(struct blk_mq_hw_ctx *hctx,
 	if (unlikely(!test_bit(NVMEQ_ENABLED, &nvmeq->flags)))
 		return BLK_STS_IOERR;
 
-	if (!nvme_check_ready(&dev->ctrl, req, true))
+	if (unlikely(!nvme_check_ready(&dev->ctrl, req, true)))
 		return nvme_fail_nonready_command(&dev->ctrl, req);
 
-	ret = nvme_setup_cmd(ns, req);
-	if (ret)
+	ret = nvme_prep_rq(dev, req);
+	if (unlikely(ret))
 		return ret;
-
-	if (blk_rq_nr_phys_segments(req)) {
-		ret = nvme_map_data(dev, req, cmnd);
-		if (ret)
-			goto out_free_cmd;
-	}
-
-	if (blk_integrity_rq(req)) {
-		ret = nvme_map_metadata(dev, req, cmnd);
-		if (ret)
-			goto out_unmap_data;
-	}
-
-	blk_mq_start_request(req);
 	spin_lock(&nvmeq->sq_lock);
 	nvme_sq_copy_cmd(nvmeq, &iod->cmd);
 	nvme_write_sq_db(nvmeq, bd->last);
 	spin_unlock(&nvmeq->sq_lock);
 	return BLK_STS_OK;
-out_unmap_data:
-	nvme_unmap_data(dev, req);
-out_free_cmd:
-	nvme_cleanup_cmd(req);
-	return ret;
 }
 
 static __always_inline void nvme_pci_unmap_rq(struct request *req)
