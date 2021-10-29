@@ -125,7 +125,8 @@ static int cxl_parse_cfmws(union acpi_subtable_headers *header, void *arg,
 			cfmws->base_hpa + cfmws->window_size - 1);
 		return 0;
 	}
-	dev_dbg(dev, "add: %s range %#llx-%#llx\n", dev_name(&cxld->dev),
+	dev_dbg(dev, "add: %s node: %d range %#llx-%#llx\n",
+		dev_name(&cxld->dev), phys_to_target_node(cxld->range.start),
 		cfmws->base_hpa, cfmws->base_hpa + cfmws->window_size - 1);
 
 	return 0;
