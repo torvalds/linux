@@ -29,6 +29,8 @@
 static const unsigned int mctp_message_maxlen = 64 * 1024;
 static const unsigned long mctp_key_lifetime = 6 * CONFIG_HZ;
 
+static void mctp_flow_prepare_output(struct sk_buff *skb, struct mctp_dev *dev);
+
 /* route output callbacks */
 static int mctp_route_discard(struct mctp_route *route, struct sk_buff *skb)
 {
@@ -152,8 +154,19 @@ static struct mctp_sk_key *mctp_key_alloc(struct mctp_sock *msk,
 
 void mctp_key_unref(struct mctp_sk_key *key)
 {
-	if (refcount_dec_and_test(&key->refs))
-		kfree(key);
+	unsigned long flags;
+
+	if (!refcount_dec_and_test(&key->refs))
+		return;
+
+	/* even though no refs exist here, the lock allows us to stay
+	 * consistent with the locking requirement of mctp_dev_release_key
+	 */
+	spin_lock_irqsave(&key->lock, flags);
+	mctp_dev_release_key(key->dev, key);
+	spin_unlock_irqrestore(&key->lock, flags);
+
+	kfree(key);
 }
 
 static int mctp_key_add(struct mctp_sk_key *key, struct mctp_sock *msk)
@@ -204,6 +217,7 @@ static void __mctp_key_unlock_drop(struct mctp_sk_key *key, struct net *net,
 	key->reasm_head = NULL;
 	key->reasm_dead = true;
 	key->valid = false;
+	mctp_dev_release_key(key->dev, key);
 	spin_unlock_irqrestore(&key->lock, flags);
 
 	spin_lock_irqsave(&net->mctp.keys_lock, flags);
@@ -221,6 +235,40 @@ static void __mctp_key_unlock_drop(struct mctp_sk_key *key, struct net *net,
 		kfree_skb(skb);
 
 }
+
+#ifdef CONFIG_MCTP_FLOWS
+static void mctp_skb_set_flow(struct sk_buff *skb, struct mctp_sk_key *key)
+{
+	struct mctp_flow *flow;
+
+	flow = skb_ext_add(skb, SKB_EXT_MCTP);
+	if (!flow)
+		return;
+
+	refcount_inc(&key->refs);
+	flow->key = key;
+}
+
+static void mctp_flow_prepare_output(struct sk_buff *skb, struct mctp_dev *dev)
+{
+	struct mctp_sk_key *key;
+	struct mctp_flow *flow;
+
+	flow = skb_ext_find(skb, SKB_EXT_MCTP);
+	if (!flow)
+		return;
+
+	key = flow->key;
+
+	if (WARN_ON(key->dev && key->dev != dev))
+		return;
+
+	mctp_dev_set_key(dev, key);
+}
+#else
+static void mctp_skb_set_flow(struct sk_buff *skb, struct mctp_sk_key *key) {}
+static void mctp_flow_prepare_output(struct sk_buff *skb, struct mctp_dev *dev) {}
+#endif
 
 static int mctp_frag_queue(struct mctp_sk_key *key, struct sk_buff *skb)
 {
@@ -464,6 +512,8 @@ static int mctp_route_output(struct mctp_route *route, struct sk_buff *skb)
 		kfree_skb(skb);
 		return -EHOSTUNREACH;
 	}
+
+	mctp_flow_prepare_output(skb, route->dev);
 
 	rc = dev_queue_xmit(skb);
 	if (rc)
@@ -803,6 +853,7 @@ int mctp_local_output(struct sock *sk, struct mctp_route *rt,
 			rc = PTR_ERR(key);
 			goto out_release;
 		}
+		mctp_skb_set_flow(skb, key);
 		/* done with the key in this scope */
 		mctp_key_unref(key);
 		tag |= MCTP_HDR_FLAG_TO;
