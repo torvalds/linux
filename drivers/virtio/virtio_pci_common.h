@@ -25,6 +25,7 @@
 #include <linux/virtio_config.h>
 #include <linux/virtio_ring.h>
 #include <linux/virtio_pci.h>
+#include <linux/virtio_pci_legacy.h>
 #include <linux/virtio_pci_modern.h>
 #include <linux/highmem.h>
 #include <linux/spinlock.h>
@@ -44,15 +45,13 @@ struct virtio_pci_vq_info {
 struct virtio_pci_device {
 	struct virtio_device vdev;
 	struct pci_dev *pci_dev;
+	struct virtio_pci_legacy_device ldev;
 	struct virtio_pci_modern_device mdev;
 
-	/* In legacy mode, these two point to within ->legacy. */
+	bool is_legacy;
+
 	/* Where to read and clear interrupt */
 	u8 __iomem *isr;
-
-	/* Legacy only field */
-	/* the IO mapping for the PCI config space */
-	void __iomem *ioaddr;
 
 	/* a list of queues so we can dispatch IRQs */
 	spinlock_t lock;
