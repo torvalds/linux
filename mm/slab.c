@@ -1367,57 +1367,60 @@ slab_out_of_memory(struct kmem_cache *cachep, gfp_t gfpflags, int nodeid)
  * did not request dmaable memory, we might get it, but that
  * would be relatively rare and ignorable.
  */
-static struct page *kmem_getpages(struct kmem_cache *cachep, gfp_t flags,
+static struct slab *kmem_getpages(struct kmem_cache *cachep, gfp_t flags,
 								int nodeid)
 {
-	struct page *page;
+	struct folio *folio;
+	struct slab *slab;
 
 	flags |= cachep->allocflags;
 
-	page = __alloc_pages_node(nodeid, flags, cachep->gfporder);
-	if (!page) {
+	folio = (struct folio *) __alloc_pages_node(nodeid, flags, cachep->gfporder);
+	if (!folio) {
 		slab_out_of_memory(cachep, flags, nodeid);
 		return NULL;
 	}
 
-	account_slab(page_slab(page), cachep->gfporder, cachep, flags);
-	__SetPageSlab(page);
-	/* Record if ALLOC_NO_WATERMARKS was set when allocating the slab */
-	if (sk_memalloc_socks() && page_is_pfmemalloc(page))
-		SetPageSlabPfmemalloc(page);
+	slab = folio_slab(folio);
 
-	return page;
+	account_slab(slab, cachep->gfporder, cachep, flags);
+	__folio_set_slab(folio);
+	/* Record if ALLOC_NO_WATERMARKS was set when allocating the slab */
+	if (sk_memalloc_socks() && page_is_pfmemalloc(folio_page(folio, 0)))
+		slab_set_pfmemalloc(slab);
+
+	return slab;
 }
 
 /*
  * Interface to system's page release.
  */
-static void kmem_freepages(struct kmem_cache *cachep, struct page *page)
+static void kmem_freepages(struct kmem_cache *cachep, struct slab *slab)
 {
 	int order = cachep->gfporder;
+	struct folio *folio = slab_folio(slab);
 
-	BUG_ON(!PageSlab(page));
-	__ClearPageSlabPfmemalloc(page);
-	__ClearPageSlab(page);
-	page_mapcount_reset(page);
-	/* In union with page->mapping where page allocator expects NULL */
-	page->slab_cache = NULL;
+	BUG_ON(!folio_test_slab(folio));
+	__slab_clear_pfmemalloc(slab);
+	__folio_clear_slab(folio);
+	page_mapcount_reset(folio_page(folio, 0));
+	folio->mapping = NULL;
 
 	if (current->reclaim_state)
 		current->reclaim_state->reclaimed_slab += 1 << order;
-	unaccount_slab(page_slab(page), order, cachep);
-	__free_pages(page, order);
+	unaccount_slab(slab, order, cachep);
+	__free_pages(folio_page(folio, 0), order);
 }
 
 static void kmem_rcu_free(struct rcu_head *head)
 {
 	struct kmem_cache *cachep;
-	struct page *page;
+	struct slab *slab;
 
-	page = container_of(head, struct page, rcu_head);
-	cachep = page->slab_cache;
+	slab = container_of(head, struct slab, rcu_head);
+	cachep = slab->slab_cache;
 
-	kmem_freepages(cachep, page);
+	kmem_freepages(cachep, slab);
 }
 
 #if DEBUG
@@ -1624,7 +1627,7 @@ static void slab_destroy(struct kmem_cache *cachep, struct page *page)
 	if (unlikely(cachep->flags & SLAB_TYPESAFE_BY_RCU))
 		call_rcu(&page->rcu_head, kmem_rcu_free);
 	else
-		kmem_freepages(cachep, page);
+		kmem_freepages(cachep, page_slab(page));
 
 	/*
 	 * From now on, we don't use freelist
@@ -2578,7 +2581,7 @@ static struct page *cache_grow_begin(struct kmem_cache *cachep,
 	 * Get mem for the objs.  Attempt to allocate a physical page from
 	 * 'nodeid'.
 	 */
-	page = kmem_getpages(cachep, local_flags, nodeid);
+	page = slab_page(kmem_getpages(cachep, local_flags, nodeid));
 	if (!page)
 		goto failed;
 
@@ -2620,7 +2623,7 @@ static struct page *cache_grow_begin(struct kmem_cache *cachep,
 	return page;
 
 opps1:
-	kmem_freepages(cachep, page);
+	kmem_freepages(cachep, page_slab(page));
 failed:
 	if (gfpflags_allow_blocking(local_flags))
 		local_irq_disable();
