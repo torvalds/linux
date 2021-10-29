@@ -345,7 +345,7 @@
 				regulator-max-microvolt = <2000000>;
 				regulator-name = "vdd_2v0_pldo_s3";
 				regulator-state-mem {
-				regulator-on-in-suspend;
+					regulator-on-in-suspend;
 					regulator-suspend-microvolt = <2000000>;
 				};
 			};
