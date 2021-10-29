@@ -41,6 +41,7 @@ enum acpi_subtable_type {
 	ACPI_SUBTABLE_COMMON,
 	ACPI_SUBTABLE_HMAT,
 	ACPI_SUBTABLE_PRMT,
+	ACPI_SUBTABLE_CEDT,
 };
 
 struct acpi_subtable_entry {
@@ -226,6 +227,8 @@ acpi_get_entry_type(struct acpi_subtable_entry *entry)
 		return entry->hdr->hmat.type;
 	case ACPI_SUBTABLE_PRMT:
 		return 0;
+	case ACPI_SUBTABLE_CEDT:
+		return entry->hdr->cedt.type;
 	}
 	return 0;
 }
@@ -240,6 +243,8 @@ acpi_get_entry_length(struct acpi_subtable_entry *entry)
 		return entry->hdr->hmat.length;
 	case ACPI_SUBTABLE_PRMT:
 		return entry->hdr->prmt.length;
+	case ACPI_SUBTABLE_CEDT:
+		return entry->hdr->cedt.length;
 	}
 	return 0;
 }
@@ -254,6 +259,8 @@ acpi_get_subtable_header_length(struct acpi_subtable_entry *entry)
 		return sizeof(entry->hdr->hmat);
 	case ACPI_SUBTABLE_PRMT:
 		return sizeof(entry->hdr->prmt);
+	case ACPI_SUBTABLE_CEDT:
+		return sizeof(entry->hdr->cedt);
 	}
 	return 0;
 }
@@ -265,6 +272,8 @@ acpi_get_subtable_type(char *id)
 		return ACPI_SUBTABLE_HMAT;
 	if (strncmp(id, ACPI_SIG_PRMT, 4) == 0)
 		return ACPI_SUBTABLE_PRMT;
+	if (strncmp(id, ACPI_SIG_CEDT, 4) == 0)
+		return ACPI_SUBTABLE_CEDT;
 	return ACPI_SUBTABLE_COMMON;
 }
 
