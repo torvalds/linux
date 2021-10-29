@@ -551,9 +551,9 @@ void spi_nor_try_unlock_all(struct spi_nor *nor);
 void spi_nor_register_locking_ops(struct spi_nor *nor);
 void spi_nor_otp_init(struct spi_nor *nor);
 
-static struct spi_nor __maybe_unused *mtd_to_spi_nor(struct mtd_info *mtd)
+static inline struct spi_nor *mtd_to_spi_nor(struct mtd_info *mtd)
 {
-	return mtd->priv;
+	return container_of(mtd, struct spi_nor, mtd);
 }
 
 #endif /* __LINUX_MTD_SPI_NOR_INTERNAL_H */
