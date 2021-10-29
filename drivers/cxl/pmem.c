@@ -149,14 +149,24 @@ static void cxl_nvb_update_state(struct work_struct *work)
 	put_device(&cxl_nvb->dev);
 }
 
+static void cxl_nvdimm_bridge_state_work(struct cxl_nvdimm_bridge *cxl_nvb)
+{
+	/*
+	 * Take a reference that the workqueue will drop if new work
+	 * gets queued.
+	 */
+	get_device(&cxl_nvb->dev);
+	if (!queue_work(cxl_pmem_wq, &cxl_nvb->state_work))
+		put_device(&cxl_nvb->dev);
+}
+
 static void cxl_nvdimm_bridge_remove(struct device *dev)
 {
 	struct cxl_nvdimm_bridge *cxl_nvb = to_cxl_nvdimm_bridge(dev);
 
 	if (cxl_nvb->state == CXL_NVB_ONLINE)
 		cxl_nvb->state = CXL_NVB_OFFLINE;
-	if (queue_work(cxl_pmem_wq, &cxl_nvb->state_work))
-		get_device(&cxl_nvb->dev);
+	cxl_nvdimm_bridge_state_work(cxl_nvb);
 }
 
 static int cxl_nvdimm_bridge_probe(struct device *dev)
@@ -177,8 +187,7 @@ static int cxl_nvdimm_bridge_probe(struct device *dev)
 	}
 
 	cxl_nvb->state = CXL_NVB_ONLINE;
-	if (queue_work(cxl_pmem_wq, &cxl_nvb->state_work))
-		get_device(&cxl_nvb->dev);
+	cxl_nvdimm_bridge_state_work(cxl_nvb);
 
 	return 0;
 }
