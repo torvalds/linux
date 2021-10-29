@@ -19,6 +19,15 @@
 #include "bnxt_ulp.h"
 #include "bnxt_ptp.h"
 
+static void __bnxt_fw_recover(struct bnxt *bp)
+{
+	if (test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state) ||
+	    test_bit(BNXT_STATE_FW_NON_FATAL_COND, &bp->state))
+		bnxt_fw_reset(bp);
+	else
+		bnxt_fw_exception(bp);
+}
+
 static int
 bnxt_dl_flash_update(struct devlink *dl,
 		     struct devlink_flash_update_params *params,
@@ -106,42 +115,14 @@ static const struct devlink_health_reporter_ops bnxt_dl_fw_reporter_ops = {
 	.diagnose = bnxt_fw_reporter_diagnose,
 };
 
-static int bnxt_fw_reset_recover(struct devlink_health_reporter *reporter,
-				 void *priv_ctx,
-				 struct netlink_ext_ack *extack)
-{
-	struct bnxt *bp = devlink_health_reporter_priv(reporter);
-
-	if (!priv_ctx)
-		return -EOPNOTSUPP;
-
-	bnxt_fw_reset(bp);
-	return -EINPROGRESS;
-}
-
-static const
-struct devlink_health_reporter_ops bnxt_dl_fw_reset_reporter_ops = {
-	.name = "fw_reset",
-	.recover = bnxt_fw_reset_recover,
-};
-
 static int bnxt_fw_fatal_recover(struct devlink_health_reporter *reporter,
 				 void *priv_ctx,
 				 struct netlink_ext_ack *extack)
 {
 	struct bnxt *bp = devlink_health_reporter_priv(reporter);
-	struct bnxt_fw_reporter_ctx *fw_reporter_ctx = priv_ctx;
-	unsigned long event;
 
-	if (!priv_ctx)
-		return -EOPNOTSUPP;
-
-	bp->fw_health->fatal = true;
-	event = fw_reporter_ctx->sp_event;
-	if (event == BNXT_FW_RESET_NOTIFY_SP_EVENT)
-		bnxt_fw_reset(bp);
-	else if (event == BNXT_FW_EXCEPTION_SP_EVENT)
-		bnxt_fw_exception(bp);
+	set_bit(BNXT_STATE_RECOVER, &bp->state);
+	__bnxt_fw_recover(bp);
 
 	return -EINPROGRESS;
 }
@@ -159,24 +140,6 @@ void bnxt_dl_fw_reporters_create(struct bnxt *bp)
 	if (!health)
 		return;
 
-	if (!(bp->fw_cap & BNXT_FW_CAP_HOT_RESET) || health->fw_reset_reporter)
-		goto err_recovery;
-
-	health->fw_reset_reporter =
-		devlink_health_reporter_create(bp->dl,
-					       &bnxt_dl_fw_reset_reporter_ops,
-					       0, bp);
-	if (IS_ERR(health->fw_reset_reporter)) {
-		netdev_warn(bp->dev, "Failed to create FW fatal health reporter, rc = %ld\n",
-			    PTR_ERR(health->fw_reset_reporter));
-		health->fw_reset_reporter = NULL;
-		bp->fw_cap &= ~BNXT_FW_CAP_HOT_RESET;
-	}
-
-err_recovery:
-	if (!(bp->fw_cap & BNXT_FW_CAP_ERROR_RECOVERY))
-		return;
-
 	if (!health->fw_reporter) {
 		health->fw_reporter =
 			devlink_health_reporter_create(bp->dl,
@@ -186,7 +149,6 @@ err_recovery:
 			netdev_warn(bp->dev, "Failed to create FW health reporter, rc = %ld\n",
 				    PTR_ERR(health->fw_reporter));
 			health->fw_reporter = NULL;
-			bp->fw_cap &= ~BNXT_FW_CAP_ERROR_RECOVERY;
 			return;
 		}
 	}
@@ -213,12 +175,6 @@ void bnxt_dl_fw_reporters_destroy(struct bnxt *bp, bool all)
 	if (!health)
 		return;
 
-	if ((all || !(bp->fw_cap & BNXT_FW_CAP_HOT_RESET)) &&
-	    health->fw_reset_reporter) {
-		devlink_health_reporter_destroy(health->fw_reset_reporter);
-		health->fw_reset_reporter = NULL;
-	}
-
 	if ((bp->fw_cap & BNXT_FW_CAP_ERROR_RECOVERY) && !all)
 		return;
 
@@ -233,43 +189,23 @@ void bnxt_dl_fw_reporters_destroy(struct bnxt *bp, bool all)
 	}
 }
 
-void bnxt_devlink_health_report(struct bnxt *bp, unsigned long event)
+void bnxt_devlink_health_fw_report(struct bnxt *bp)
 {
 	struct bnxt_fw_health *fw_health = bp->fw_health;
-	struct bnxt_fw_reporter_ctx fw_reporter_ctx;
 
-	fw_reporter_ctx.sp_event = event;
-	switch (event) {
-	case BNXT_FW_RESET_NOTIFY_SP_EVENT:
-		if (test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state)) {
-			if (!fw_health->fw_fatal_reporter)
-				return;
-
-			devlink_health_report(fw_health->fw_fatal_reporter,
-					      "FW fatal async event received",
-					      &fw_reporter_ctx);
-			return;
-		}
-		if (!fw_health->fw_reset_reporter)
-			return;
-
-		devlink_health_report(fw_health->fw_reset_reporter,
-				      "FW non-fatal reset event received",
-				      &fw_reporter_ctx);
+	if (!fw_health)
 		return;
 
-	case BNXT_FW_EXCEPTION_SP_EVENT:
-		if (!fw_health->fw_fatal_reporter)
-			return;
-
-		devlink_health_report(fw_health->fw_fatal_reporter,
-				      "FW fatal error reported",
-				      &fw_reporter_ctx);
+	if (!fw_health->fw_fatal_reporter) {
+		__bnxt_fw_recover(bp);
 		return;
 	}
+
+	devlink_health_report(fw_health->fw_fatal_reporter,
+			      "FW fatal error reported", NULL);
 }
 
-void bnxt_dl_health_status_update(struct bnxt *bp, bool healthy)
+void bnxt_dl_health_fw_status_update(struct bnxt *bp, bool healthy)
 {
 	struct bnxt_fw_health *health = bp->fw_health;
 	u8 state;
@@ -279,25 +215,15 @@ void bnxt_dl_health_status_update(struct bnxt *bp, bool healthy)
 	else
 		state = DEVLINK_HEALTH_REPORTER_STATE_ERROR;
 
-	if (health->fatal)
-		devlink_health_reporter_state_update(health->fw_fatal_reporter,
-						     state);
-	else
-		devlink_health_reporter_state_update(health->fw_reset_reporter,
-						     state);
-
-	health->fatal = false;
+	devlink_health_reporter_state_update(health->fw_fatal_reporter, state);
 }
 
-void bnxt_dl_health_recovery_done(struct bnxt *bp)
+void bnxt_dl_health_fw_recovery_done(struct bnxt *bp)
 {
 	struct bnxt_fw_health *hlth = bp->fw_health;
 	struct bnxt_dl *dl = devlink_priv(bp->dl);
 
-	if (hlth->fatal)
-		devlink_health_reporter_recovery_done(hlth->fw_fatal_reporter);
-	else
-		devlink_health_reporter_recovery_done(hlth->fw_reset_reporter);
+	devlink_health_reporter_recovery_done(hlth->fw_fatal_reporter);
 	bnxt_hwrm_remote_dev_reset_set(bp, dl->remote_reset);
 }
 

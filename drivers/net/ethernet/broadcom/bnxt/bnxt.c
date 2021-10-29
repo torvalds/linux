@@ -2122,7 +2122,7 @@ static int bnxt_async_event_process(struct bnxt *bp,
 		set_bit(BNXT_RESET_TASK_SILENT_SP_EVENT, &bp->sp_event);
 		break;
 	case ASYNC_EVENT_CMPL_EVENT_ID_RESET_NOTIFY: {
-		char *fatal_str = "non-fatal";
+		char *type_str = "Solicited";
 
 		if (!bp->fw_health)
 			goto async_event_process_exit;
@@ -2137,12 +2137,16 @@ static int bnxt_async_event_process(struct bnxt *bp,
 		if (EVENT_DATA1_RESET_NOTIFY_FW_ACTIVATION(data1)) {
 			set_bit(BNXT_STATE_FW_ACTIVATE_RESET, &bp->state);
 		} else if (EVENT_DATA1_RESET_NOTIFY_FATAL(data1)) {
-			fatal_str = "fatal";
+			type_str = "Fatal";
 			set_bit(BNXT_STATE_FW_FATAL_COND, &bp->state);
+		} else if (data2 && BNXT_FW_STATUS_HEALTHY !=
+			   EVENT_DATA2_RESET_NOTIFY_FW_STATUS_CODE(data2)) {
+			type_str = "Non-fatal";
+			set_bit(BNXT_STATE_FW_NON_FATAL_COND, &bp->state);
 		}
 		netif_warn(bp, hw, bp->dev,
-			   "Firmware %s reset event, data1: 0x%x, data2: 0x%x, min wait %u ms, max wait %u ms\n",
-			   fatal_str, data1, data2,
+			   "%s firmware reset event, data1: 0x%x, data2: 0x%x, min wait %u ms, max wait %u ms\n",
+			   type_str, data1, data2,
 			   bp->fw_reset_min_dsecs * 100,
 			   bp->fw_reset_max_dsecs * 100);
 		set_bit(BNXT_FW_RESET_NOTIFY_SP_EVENT, &bp->sp_event);
@@ -11737,13 +11741,17 @@ static void bnxt_sp_task(struct work_struct *work)
 	if (test_and_clear_bit(BNXT_RST_RING_SP_EVENT, &bp->sp_event))
 		bnxt_rx_ring_reset(bp);
 
-	if (test_and_clear_bit(BNXT_FW_RESET_NOTIFY_SP_EVENT, &bp->sp_event))
-		bnxt_devlink_health_report(bp, BNXT_FW_RESET_NOTIFY_SP_EVENT);
+	if (test_and_clear_bit(BNXT_FW_RESET_NOTIFY_SP_EVENT, &bp->sp_event)) {
+		if (test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state) ||
+		    test_bit(BNXT_STATE_FW_NON_FATAL_COND, &bp->state))
+			bnxt_devlink_health_fw_report(bp);
+		else
+			bnxt_fw_reset(bp);
+	}
 
 	if (test_and_clear_bit(BNXT_FW_EXCEPTION_SP_EVENT, &bp->sp_event)) {
 		if (!is_bnxt_fw_ok(bp))
-			bnxt_devlink_health_report(bp,
-						   BNXT_FW_EXCEPTION_SP_EVENT);
+			bnxt_devlink_health_fw_report(bp);
 	}
 
 	smp_mb__before_atomic();
@@ -12079,7 +12087,7 @@ static void bnxt_fw_reset_abort(struct bnxt *bp, int rc)
 	clear_bit(BNXT_STATE_IN_FW_RESET, &bp->state);
 	if (bp->fw_reset_state != BNXT_FW_RESET_STATE_POLL_VF) {
 		bnxt_ulp_start(bp, rc);
-		bnxt_dl_health_status_update(bp, false);
+		bnxt_dl_health_fw_status_update(bp, false);
 	}
 	bp->fw_reset_state = 0;
 	dev_close(bp->dev);
@@ -12178,6 +12186,7 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 			}
 		}
 		clear_bit(BNXT_STATE_FW_FATAL_COND, &bp->state);
+		clear_bit(BNXT_STATE_FW_NON_FATAL_COND, &bp->state);
 		if (test_and_clear_bit(BNXT_STATE_FW_ACTIVATE_RESET, &bp->state) &&
 		    !test_bit(BNXT_STATE_FW_ACTIVATE, &bp->state))
 			bnxt_dl_remote_reload(bp);
@@ -12230,9 +12239,11 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 		bnxt_vf_reps_alloc(bp);
 		bnxt_vf_reps_open(bp);
 		bnxt_ptp_reapply_pps(bp);
-		bnxt_dl_health_recovery_done(bp);
-		bnxt_dl_health_status_update(bp, true);
 		clear_bit(BNXT_STATE_FW_ACTIVATE, &bp->state);
+		if (test_and_clear_bit(BNXT_STATE_RECOVER, &bp->state)) {
+			bnxt_dl_health_fw_recovery_done(bp);
+			bnxt_dl_health_fw_status_update(bp, true);
+		}
 		rtnl_unlock();
 		break;
 	}
