@@ -2,17 +2,21 @@
 /*
  * Google Lazor Limozeen board device tree source
  *
- * Copyright 2020 Google LLC.
+ * Copyright 2021 Google LLC.
  */
 
 /dts-v1/;
 
+#include "sc7180.dtsi"
+#include "sc7180-trogdor-ti-sn65dsi86.dtsi"
 #include "sc7180-trogdor-lazor.dtsi"
 #include "sc7180-trogdor-lte-sku.dtsi"
 
 / {
-	model = "Google Lazor Limozeen";
-	compatible = "google,lazor-sku4", "qcom,sc7180";
+	model = "Google Lazor Limozeen (rev4 - rev8)";
+	compatible = "google,lazor-rev4-sku4", "google,lazor-rev5-sku4",
+		"google,lazor-rev6-sku4", "google,lazor-rev7-sku4",
+		"google,lazor-rev8-sku4", "qcom,sc7180";
 };
 
 /delete-node/&ap_ts;
