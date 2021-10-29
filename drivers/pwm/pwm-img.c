@@ -184,10 +184,33 @@ static void img_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	pm_runtime_put_autosuspend(chip->dev);
 }
 
+static int img_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
+			 const struct pwm_state *state)
+{
+	int err;
+
+	if (state->polarity != PWM_POLARITY_NORMAL)
+		return -EINVAL;
+
+	if (!state->enabled) {
+		if (pwm->state.enabled)
+			img_pwm_disable(chip, pwm);
+
+		return 0;
+	}
+
+	err = img_pwm_config(pwm->chip, pwm, state->duty_cycle, state->period);
+	if (err)
+		return err;
+
+	if (!pwm->state.enabled)
+		err = img_pwm_enable(chip, pwm);
+
+	return err;
+}
+
 static const struct pwm_ops img_pwm_ops = {
-	.config = img_pwm_config,
-	.enable = img_pwm_enable,
-	.disable = img_pwm_disable,
+	.apply = img_pwm_apply,
 	.owner = THIS_MODULE,
 };
 
