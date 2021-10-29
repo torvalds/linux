@@ -2657,41 +2657,48 @@ static int __get_frame_info(struct atomisp_sub_device *asd,
 	if (__destroy_pipes(asd, true))
 		dev_warn(isp->dev, "destroy pipe failed.\n");
 
-	if (__create_pipes(asd))
+	if (__create_pipes(asd)) {
+		dev_err(isp->dev, "can't create pipes\n");
 		return -EINVAL;
-
-	if (__create_streams(asd))
-		goto stream_err;
-
-	ret = ia_css_pipe_get_info(
-		  asd->stream_env[stream_index]
-		  .pipes[pipe_id], &p_info);
-	if (!ret) {
-		switch (type) {
-		case ATOMISP_CSS_VF_FRAME:
-			*info = p_info.vf_output_info[0];
-			dev_dbg(isp->dev, "getting vf frame info.\n");
-			break;
-		case ATOMISP_CSS_SECOND_VF_FRAME:
-			*info = p_info.vf_output_info[1];
-			dev_dbg(isp->dev, "getting second vf frame info.\n");
-			break;
-		case ATOMISP_CSS_OUTPUT_FRAME:
-			*info = p_info.output_info[0];
-			dev_dbg(isp->dev, "getting main frame info.\n");
-			break;
-		case ATOMISP_CSS_SECOND_OUTPUT_FRAME:
-			*info = p_info.output_info[1];
-			dev_dbg(isp->dev, "getting second main frame info.\n");
-			break;
-		case ATOMISP_CSS_RAW_FRAME:
-			*info = p_info.raw_output_info;
-			dev_dbg(isp->dev, "getting raw frame info.\n");
-		}
-		dev_dbg(isp->dev, "get frame info: w=%d, h=%d, num_invalid_frames %d.\n",
-			info->res.width, info->res.height, p_info.num_invalid_frames);
-		return 0;
 	}
+
+	if (__create_streams(asd)) {
+		dev_err(isp->dev, "can't create streams\n");
+		goto stream_err;
+	}
+
+	ret = ia_css_pipe_get_info(asd->stream_env[stream_index].pipes[pipe_id],
+				   &p_info);
+	if (ret) {
+		dev_err(isp->dev, "can't get info from pipe\n");
+		goto stream_err;
+	}
+
+	switch (type) {
+	case ATOMISP_CSS_VF_FRAME:
+		*info = p_info.vf_output_info[0];
+		dev_dbg(isp->dev, "getting vf frame info.\n");
+		break;
+	case ATOMISP_CSS_SECOND_VF_FRAME:
+		*info = p_info.vf_output_info[1];
+		dev_dbg(isp->dev, "getting second vf frame info.\n");
+		break;
+	case ATOMISP_CSS_OUTPUT_FRAME:
+		*info = p_info.output_info[0];
+		dev_dbg(isp->dev, "getting main frame info.\n");
+		break;
+	case ATOMISP_CSS_SECOND_OUTPUT_FRAME:
+		*info = p_info.output_info[1];
+		dev_dbg(isp->dev, "getting second main frame info.\n");
+		break;
+	case ATOMISP_CSS_RAW_FRAME:
+		*info = p_info.raw_output_info;
+		dev_dbg(isp->dev, "getting raw frame info.\n");
+	}
+	dev_dbg(isp->dev, "get frame info: w=%d, h=%d, num_invalid_frames %d.\n",
+		info->res.width, info->res.height, p_info.num_invalid_frames);
+
+	return 0;
 
 stream_err:
 	__destroy_pipes(asd, true);

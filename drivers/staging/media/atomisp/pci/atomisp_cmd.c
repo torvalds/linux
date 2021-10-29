@@ -5453,9 +5453,9 @@ static int atomisp_set_fmt_to_isp(struct video_device *vdev,
 	else
 		ret = get_frame_info(asd, output_info);
 	if (ret) {
-		dev_err(isp->dev, "get_frame_info %ux%u (padded to %u)\n",
-			pix->width, pix->height, pix->bytesperline);
-		return -EINVAL;
+		dev_err(isp->dev, "__get_frame_info %ux%u (padded to %u) returned %d\n",
+			pix->width, pix->height, pix->bytesperline, ret);
+		return ret;
 	}
 
 	atomisp_update_grid_info(asd, pipe_id, source_pad);
