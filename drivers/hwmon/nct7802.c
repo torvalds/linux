@@ -1152,8 +1152,10 @@ static int nct7802_configure_channels(struct device *dev,
 		for_each_child_of_node(dev->of_node, node) {
 			err = nct7802_get_channel_config(dev, node, &mode_mask,
 							 &mode_val);
-			if (err)
+			if (err) {
+				of_node_put(node);
 				return err;
+			}
 		}
 	}
 
