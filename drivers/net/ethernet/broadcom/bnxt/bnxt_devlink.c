@@ -915,8 +915,13 @@ static int bnxt_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
 
 	rc = bnxt_hwrm_nvm_get_dev_info(bp, &nvm_dev_info);
 	if (rc ||
-	    !(nvm_dev_info.flags & NVM_GET_DEV_INFO_RESP_FLAGS_FW_VER_VALID))
+	    !(nvm_dev_info.flags & NVM_GET_DEV_INFO_RESP_FLAGS_FW_VER_VALID)) {
+		if (!bnxt_get_pkginfo(bp->dev, buf, sizeof(buf)))
+			return bnxt_dl_info_put(bp, req, BNXT_VERSION_STORED,
+						DEVLINK_INFO_VERSION_GENERIC_FW,
+						buf);
 		return 0;
+	}
 
 	buf[0] = 0;
 	strncat(buf, nvm_dev_info.pkg_name, HWRM_FW_VER_STR_LEN);
