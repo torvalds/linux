@@ -46,13 +46,13 @@ static const struct spi_nor_locking_ops sst26vf_locking_ops = {
 	.is_locked = sst26vf_is_locked,
 };
 
-static void sst26vf_default_init(struct spi_nor *nor)
+static void sst26vf_late_init(struct spi_nor *nor)
 {
 	nor->params->locking_ops = &sst26vf_locking_ops;
 }
 
 static const struct spi_nor_fixups sst26vf_fixups = {
-	.default_init = sst26vf_default_init,
+	.late_init = sst26vf_late_init,
 };
 
 static const struct flash_info sst_parts[] = {
