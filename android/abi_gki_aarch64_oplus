@@ -2594,6 +2594,7 @@
   __traceiter_android_vh_commit_creds
   __traceiter_android_vh_cpu_idle_enter
   __traceiter_android_vh_cpu_idle_exit
+  __traceiter_android_vh_cpu_up
   __traceiter_android_vh_do_send_sig_info
   __traceiter_android_vh_em_cpu_energy
   __traceiter_android_vh_exclude_reserved_zone
@@ -2776,6 +2777,7 @@
   __tracepoint_android_vh_commit_creds
   __tracepoint_android_vh_cpu_idle_enter
   __tracepoint_android_vh_cpu_idle_exit
+  __tracepoint_android_vh_cpu_up
   __tracepoint_android_vh_do_send_sig_info
   __tracepoint_android_vh_em_cpu_energy
   __tracepoint_android_vh_exclude_reserved_zone
