@@ -702,6 +702,10 @@ static int map__process_kallsym_symbol(void *arg, const char *name,
 	if (!symbol_type__filter(type))
 		return 0;
 
+	/* Ignore local symbols for ARM modules */
+	if (name[0] == '$')
+		return 0;
+
 	/*
 	 * module symbols are not sorted so we add all
 	 * symbols, setting length to 0, and rely on
