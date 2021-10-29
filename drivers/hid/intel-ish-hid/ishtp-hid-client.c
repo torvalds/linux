@@ -952,6 +952,12 @@ static struct ishtp_cl_driver	hid_ishtp_cl_driver = {
 	.driver.pm = &hid_ishtp_pm_ops,
 };
 
+static const struct ishtp_device_id hid_ishtp_id_table[] = {
+	{ hid_ishtp_guid },
+	{ }
+};
+MODULE_DEVICE_TABLE(ishtp, hid_ishtp_id_table);
+
 static int __init ish_hid_init(void)
 {
 	int	rv;
@@ -981,4 +987,3 @@ MODULE_AUTHOR("Daniel Drubin <daniel.drubin@intel.com>");
 MODULE_AUTHOR("Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>");
 
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("ishtp:*");
