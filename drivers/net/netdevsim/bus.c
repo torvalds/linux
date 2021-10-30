@@ -24,6 +24,14 @@ static struct nsim_bus_dev *to_nsim_bus_dev(struct device *dev)
 	return container_of(dev, struct nsim_bus_dev, dev);
 }
 
+static void
+nsim_bus_dev_set_vfs(struct nsim_bus_dev *nsim_bus_dev, unsigned int num_vfs)
+{
+	rtnl_lock();
+	nsim_bus_dev->num_vfs = num_vfs;
+	rtnl_unlock();
+}
+
 static int nsim_bus_dev_vfs_enable(struct nsim_bus_dev *nsim_bus_dev,
 				   unsigned int num_vfs)
 {
@@ -35,13 +43,13 @@ static int nsim_bus_dev_vfs_enable(struct nsim_bus_dev *nsim_bus_dev,
 
 	if (!nsim_bus_dev->vfconfigs)
 		return -ENOMEM;
-	nsim_bus_dev->num_vfs = num_vfs;
+	nsim_bus_dev_set_vfs(nsim_bus_dev, num_vfs);
 
 	nsim_dev = dev_get_drvdata(&nsim_bus_dev->dev);
 	if (nsim_esw_mode_is_switchdev(nsim_dev)) {
 		err = nsim_esw_switchdev_enable(nsim_dev, NULL);
 		if (err)
-			nsim_bus_dev->num_vfs = 0;
+			nsim_bus_dev_set_vfs(nsim_bus_dev, 0);
 	}
 
 	return err;
@@ -51,7 +59,7 @@ void nsim_bus_dev_vfs_disable(struct nsim_bus_dev *nsim_bus_dev)
 {
 	struct nsim_dev *nsim_dev;
 
-	nsim_bus_dev->num_vfs = 0;
+	nsim_bus_dev_set_vfs(nsim_bus_dev, 0);
 	nsim_dev = dev_get_drvdata(&nsim_bus_dev->dev);
 	if (nsim_esw_mode_is_switchdev(nsim_dev))
 		nsim_esw_legacy_enable(nsim_dev, NULL);
