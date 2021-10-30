@@ -3039,24 +3039,6 @@ done:
 }
 
 /**
- * irdma_copy_sg_list - copy sg list for qp
- * @sg_list: copied into sg_list
- * @sgl: copy from sgl
- * @num_sges: count of sg entries
- */
-static void irdma_copy_sg_list(struct irdma_sge *sg_list, struct ib_sge *sgl,
-			       int num_sges)
-{
-	unsigned int i;
-
-	for (i = 0; (i < num_sges) && (i < IRDMA_MAX_WQ_FRAGMENT_COUNT); i++) {
-		sg_list[i].tag_off = sgl[i].addr;
-		sg_list[i].len = sgl[i].length;
-		sg_list[i].stag = sgl[i].lkey;
-	}
-}
-
-/**
  * irdma_post_send -  kernel application wr
  * @ibqp: qp ptr for wr
  * @ib_wr: work request ptr
@@ -3132,8 +3114,7 @@ static int irdma_post_send(struct ib_qp *ibqp,
 				ret = irdma_uk_inline_send(ukqp, &info, false);
 			} else {
 				info.op.send.num_sges = ib_wr->num_sge;
-				info.op.send.sg_list = (struct irdma_sge *)
-						       ib_wr->sg_list;
+				info.op.send.sg_list = ib_wr->sg_list;
 				if (iwqp->ibqp.qp_type == IB_QPT_UD ||
 				    iwqp->ibqp.qp_type == IB_QPT_GSI) {
 					ah = to_iwah(ud_wr(ib_wr)->ah);
@@ -3168,15 +3149,18 @@ static int irdma_post_send(struct ib_qp *ibqp,
 
 			if (ib_wr->send_flags & IB_SEND_INLINE) {
 				info.op.inline_rdma_write.data = (void *)(uintptr_t)ib_wr->sg_list[0].addr;
-				info.op.inline_rdma_write.len = ib_wr->sg_list[0].length;
-				info.op.inline_rdma_write.rem_addr.tag_off = rdma_wr(ib_wr)->remote_addr;
-				info.op.inline_rdma_write.rem_addr.stag = rdma_wr(ib_wr)->rkey;
+				info.op.inline_rdma_write.len =
+						ib_wr->sg_list[0].length;
+				info.op.inline_rdma_write.rem_addr.addr =
+						rdma_wr(ib_wr)->remote_addr;
+				info.op.inline_rdma_write.rem_addr.lkey =
+						rdma_wr(ib_wr)->rkey;
 				ret = irdma_uk_inline_rdma_write(ukqp, &info, false);
 			} else {
 				info.op.rdma_write.lo_sg_list = (void *)ib_wr->sg_list;
 				info.op.rdma_write.num_lo_sges = ib_wr->num_sge;
-				info.op.rdma_write.rem_addr.tag_off = rdma_wr(ib_wr)->remote_addr;
-				info.op.rdma_write.rem_addr.stag = rdma_wr(ib_wr)->rkey;
+				info.op.rdma_write.rem_addr.addr = rdma_wr(ib_wr)->remote_addr;
+				info.op.rdma_write.rem_addr.lkey = rdma_wr(ib_wr)->rkey;
 				ret = irdma_uk_rdma_write(ukqp, &info, false);
 			}
 
@@ -3197,8 +3181,8 @@ static int irdma_post_send(struct ib_qp *ibqp,
 				break;
 			}
 			info.op_type = IRDMA_OP_TYPE_RDMA_READ;
-			info.op.rdma_read.rem_addr.tag_off = rdma_wr(ib_wr)->remote_addr;
-			info.op.rdma_read.rem_addr.stag = rdma_wr(ib_wr)->rkey;
+			info.op.rdma_read.rem_addr.addr = rdma_wr(ib_wr)->remote_addr;
+			info.op.rdma_read.rem_addr.lkey = rdma_wr(ib_wr)->rkey;
 			info.op.rdma_read.lo_sg_list = (void *)ib_wr->sg_list;
 			info.op.rdma_read.num_lo_sges = ib_wr->num_sge;
 
@@ -3285,7 +3269,6 @@ static int irdma_post_recv(struct ib_qp *ibqp,
 	struct irdma_qp *iwqp;
 	struct irdma_qp_uk *ukqp;
 	struct irdma_post_rq_info post_recv = {};
-	struct irdma_sge sg_list[IRDMA_MAX_WQ_FRAGMENT_COUNT];
 	enum irdma_status_code ret = 0;
 	unsigned long flags;
 	int err = 0;
@@ -3300,8 +3283,7 @@ static int irdma_post_recv(struct ib_qp *ibqp,
 	while (ib_wr) {
 		post_recv.num_sges = ib_wr->num_sge;
 		post_recv.wr_id = ib_wr->wr_id;
-		irdma_copy_sg_list(sg_list, ib_wr->sg_list, ib_wr->num_sge);
-		post_recv.sg_list = sg_list;
+		post_recv.sg_list = ib_wr->sg_list;
 		ret = irdma_uk_post_receive(ukqp, &post_recv);
 		if (ret) {
 			ibdev_dbg(&iwqp->iwdev->ibdev,

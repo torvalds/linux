@@ -16,7 +16,6 @@
 #define irdma_access_privileges u32
 #define irdma_physical_fragment u64
 #define irdma_address_list u64 *
-#define irdma_sgl struct irdma_sge *
 
 #define	IRDMA_MAX_MR_SIZE       0x200000000000ULL
 
@@ -151,12 +150,6 @@ struct irdma_cq_uk;
 struct irdma_qp_uk_init_info;
 struct irdma_cq_uk_init_info;
 
-struct irdma_sge {
-	irdma_tagged_offset tag_off;
-	u32 len;
-	irdma_stag stag;
-};
-
 struct irdma_ring {
 	u32 head;
 	u32 tail;
@@ -172,7 +165,7 @@ struct irdma_extended_cqe {
 };
 
 struct irdma_post_send {
-	irdma_sgl sg_list;
+	struct ib_sge *sg_list;
 	u32 num_sges;
 	u32 qkey;
 	u32 dest_qp;
@@ -189,26 +182,26 @@ struct irdma_post_inline_send {
 
 struct irdma_post_rq_info {
 	u64 wr_id;
-	irdma_sgl sg_list;
+	struct ib_sge *sg_list;
 	u32 num_sges;
 };
 
 struct irdma_rdma_write {
-	irdma_sgl lo_sg_list;
+	struct ib_sge *lo_sg_list;
 	u32 num_lo_sges;
-	struct irdma_sge rem_addr;
+	struct ib_sge rem_addr;
 };
 
 struct irdma_inline_rdma_write {
 	void *data;
 	u32 len;
-	struct irdma_sge rem_addr;
+	struct ib_sge rem_addr;
 };
 
 struct irdma_rdma_read {
-	irdma_sgl lo_sg_list;
+	struct ib_sge *lo_sg_list;
 	u32 num_lo_sges;
-	struct irdma_sge rem_addr;
+	struct ib_sge rem_addr;
 };
 
 struct irdma_bind_window {
@@ -304,7 +297,7 @@ enum irdma_status_code irdma_uk_stag_local_invalidate(struct irdma_qp_uk *qp,
 struct irdma_wqe_uk_ops {
 	void (*iw_copy_inline_data)(u8 *dest, u8 *src, u32 len, u8 polarity);
 	u16 (*iw_inline_data_size_to_quanta)(u32 data_size);
-	void (*iw_set_fragment)(__le64 *wqe, u32 offset, struct irdma_sge *sge,
+	void (*iw_set_fragment)(__le64 *wqe, u32 offset, struct ib_sge *sge,
 				u8 valid);
 	void (*iw_set_mw_bind_wqe)(__le64 *wqe,
 				   struct irdma_bind_window *op_info);
