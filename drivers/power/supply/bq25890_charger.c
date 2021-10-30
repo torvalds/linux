@@ -682,16 +682,16 @@ static int bq25890_hw_init(struct bq25890_device *bq)
 		}
 	}
 
+	ret = bq25890_get_chip_state(bq, &bq->state);
+	if (ret < 0) {
+		dev_dbg(bq->dev, "Get state failed %d\n", ret);
+		return ret;
+	}
+
 	/* Configure ADC for continuous conversions when charging */
 	ret = bq25890_field_write(bq, F_CONV_RATE, !!bq->state.online);
 	if (ret < 0) {
 		dev_dbg(bq->dev, "Config ADC failed %d\n", ret);
-		return ret;
-	}
-
-	ret = bq25890_get_chip_state(bq, &bq->state);
-	if (ret < 0) {
-		dev_dbg(bq->dev, "Get state failed %d\n", ret);
 		return ret;
 	}
 
