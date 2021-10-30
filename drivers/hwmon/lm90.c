@@ -113,8 +113,10 @@ static const unsigned short normal_i2c[] = {
 	0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b, 0x48, 0x49, 0x4a, 0x4b, 0x4c,
 	0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
 
-enum chips { lm90, adm1032, lm99, lm86, max6657, max6659, adt7461, max6680,
-	max6646, w83l771, max6696, sa56004, g781, tmp451, tmp461, max6654 };
+enum chips { adm1032, adt7461, g781, lm86, lm90, lm99,
+	max6646, max6654, max6657, max6659, max6680, max6696,
+	sa56004, tmp451, tmp461, w83l771,
+};
 
 /*
  * The LM90 registers
