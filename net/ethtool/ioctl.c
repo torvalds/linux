@@ -2700,7 +2700,8 @@ static int ethtool_set_fecparam(struct net_device *dev, void __user *useraddr)
 
 /* The main entry point in this file.  Called from net/core/dev_ioctl.c */
 
-int dev_ethtool(struct net *net, struct ifreq *ifr, void __user *useraddr)
+static int
+__dev_ethtool(struct net *net, struct ifreq *ifr, void __user *useraddr)
 {
 	struct net_device *dev = __dev_get_by_name(net, ifr->ifr_name);
 	u32 ethcmd, sub_cmd;
@@ -2996,6 +2997,17 @@ int dev_ethtool(struct net *net, struct ifreq *ifr, void __user *useraddr)
 out:
 	if (dev->dev.parent)
 		pm_runtime_put(dev->dev.parent);
+
+	return rc;
+}
+
+int dev_ethtool(struct net *net, struct ifreq *ifr, void __user *useraddr)
+{
+	int rc;
+
+	rtnl_lock();
+	rc = __dev_ethtool(net, ifr, useraddr);
+	rtnl_unlock();
 
 	return rc;
 }
