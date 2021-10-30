@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2021 Qualcomm Innovation Center, Inc. All rights reserved.
+ */
+/dts-v1/;
+
+#include "qcom-sdx65.dtsi"
+
+/ {
+	model = "Qualcomm Technologies, Inc. SDX65 MTP";
+	compatible = "qcom,sdx65-mtp", "qcom,sdx65";
+	qcom,board-id = <0x2010008 0x302>;
+
+	aliases {
+		serial0 = &blsp1_uart3;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+};
+
+&blsp1_uart3 {
+	status = "ok";
+};
