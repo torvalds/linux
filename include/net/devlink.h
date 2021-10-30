@@ -1726,6 +1726,9 @@ devlink_trap_policers_unregister(struct devlink *devlink,
 
 #if IS_ENABLED(CONFIG_NET_DEVLINK)
 
+struct devlink *__must_check devlink_try_get(struct devlink *devlink);
+void devlink_put(struct devlink *devlink);
+
 void devlink_compat_running_version(struct net_device *dev,
 				    char *buf, size_t len);
 int devlink_compat_flash_update(struct net_device *dev, const char *file_name);
@@ -1735,6 +1738,15 @@ int devlink_compat_switch_id_get(struct net_device *dev,
 				 struct netdev_phys_item_id *ppid);
 
 #else
+
+static inline struct devlink *devlink_try_get(struct devlink *devlink)
+{
+	return NULL;
+}
+
+static inline void devlink_put(struct devlink *devlink)
+{
+}
 
 static inline void
 devlink_compat_running_version(struct net_device *dev, char *buf, size_t len)

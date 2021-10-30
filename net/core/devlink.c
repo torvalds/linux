@@ -182,15 +182,17 @@ struct net *devlink_net(const struct devlink *devlink)
 }
 EXPORT_SYMBOL_GPL(devlink_net);
 
-static void devlink_put(struct devlink *devlink)
+void devlink_put(struct devlink *devlink)
 {
 	if (refcount_dec_and_test(&devlink->refcount))
 		complete(&devlink->comp);
 }
 
-static bool __must_check devlink_try_get(struct devlink *devlink)
+struct devlink *__must_check devlink_try_get(struct devlink *devlink)
 {
-	return refcount_inc_not_zero(&devlink->refcount);
+	if (refcount_inc_not_zero(&devlink->refcount))
+		return devlink;
+	return NULL;
 }
 
 static struct devlink *devlink_get_from_attrs(struct net *net,
