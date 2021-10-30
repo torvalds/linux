@@ -1013,7 +1013,6 @@ static int ingenic_drm_bind(struct device *dev, bool has_components)
 	void __iomem *base;
 	long parent_rate;
 	unsigned int i, clone_mask = 0;
-	dma_addr_t dma_hwdesc_phys_f0, dma_hwdesc_phys_f1;
 	int ret, irq;
 
 	soc_info = of_device_get_match_data(dev);
@@ -1267,10 +1266,6 @@ static int ingenic_drm_bind(struct device *dev, bool has_components)
 			goto err_pixclk_disable;
 		}
 	}
-
-	/* Set address of our DMA descriptor chain */
-	regmap_write(priv->map, JZ_REG_LCD_DA0, dma_hwdesc_phys_f0);
-	regmap_write(priv->map, JZ_REG_LCD_DA1, dma_hwdesc_phys_f1);
 
 	/* Enable OSD if available */
 	if (soc_info->has_osd)
