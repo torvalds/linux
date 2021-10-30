@@ -1330,8 +1330,6 @@ static int mana_gd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 clean_up_gdma:
 	mana_hwc_destroy_channel(gc);
-	vfree(gc->cq_table);
-	gc->cq_table = NULL;
 remove_irq:
 	mana_gd_remove_irqs(pdev);
 unmap_bar:
@@ -1354,8 +1352,6 @@ static void mana_gd_remove(struct pci_dev *pdev)
 	mana_remove(&gc->mana);
 
 	mana_hwc_destroy_channel(gc);
-	vfree(gc->cq_table);
-	gc->cq_table = NULL;
 
 	mana_gd_remove_irqs(pdev);
 
