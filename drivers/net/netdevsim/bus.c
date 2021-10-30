@@ -8,7 +8,6 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
-#include <linux/rtnetlink.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 
@@ -24,50 +23,11 @@ static struct nsim_bus_dev *to_nsim_bus_dev(struct device *dev)
 	return container_of(dev, struct nsim_bus_dev, dev);
 }
 
-static void
-nsim_bus_dev_set_vfs(struct nsim_bus_dev *nsim_bus_dev, unsigned int num_vfs)
-{
-	rtnl_lock();
-	nsim_bus_dev->num_vfs = num_vfs;
-	rtnl_unlock();
-}
-
-static int nsim_bus_dev_vfs_enable(struct nsim_bus_dev *nsim_bus_dev,
-				   unsigned int num_vfs)
-{
-	struct nsim_dev *nsim_dev;
-	int err = 0;
-
-	if (nsim_bus_dev->max_vfs < num_vfs)
-		return -ENOMEM;
-	nsim_bus_dev_set_vfs(nsim_bus_dev, num_vfs);
-
-	nsim_dev = dev_get_drvdata(&nsim_bus_dev->dev);
-	if (nsim_esw_mode_is_switchdev(nsim_dev)) {
-		err = nsim_esw_switchdev_enable(nsim_dev, NULL);
-		if (err)
-			nsim_bus_dev_set_vfs(nsim_bus_dev, 0);
-	}
-
-	return err;
-}
-
-void nsim_bus_dev_vfs_disable(struct nsim_bus_dev *nsim_bus_dev)
-{
-	struct nsim_dev *nsim_dev;
-
-	nsim_bus_dev_set_vfs(nsim_bus_dev, 0);
-	nsim_dev = dev_get_drvdata(&nsim_bus_dev->dev);
-	if (nsim_esw_mode_is_switchdev(nsim_dev))
-		nsim_esw_legacy_enable(nsim_dev, NULL);
-}
-
 static ssize_t
 nsim_bus_dev_numvfs_store(struct device *dev, struct device_attribute *attr,
 			  const char *buf, size_t count)
 {
 	struct nsim_bus_dev *nsim_bus_dev = to_nsim_bus_dev(dev);
-	struct nsim_dev *nsim_dev = dev_get_drvdata(dev);
 	unsigned int num_vfs;
 	int ret;
 
@@ -76,33 +36,12 @@ nsim_bus_dev_numvfs_store(struct device *dev, struct device_attribute *attr,
 		return ret;
 
 	device_lock(dev);
-	if (!nsim_dev) {
-		ret = -ENOENT;
-		goto exit_unlock;
-	}
-
-	mutex_lock(&nsim_dev->vfs_lock);
-	if (nsim_bus_dev->num_vfs == num_vfs)
-		goto exit_good;
-	if (nsim_bus_dev->num_vfs && num_vfs) {
-		ret = -EBUSY;
-		goto exit_unlock;
-	}
-
-	if (num_vfs) {
-		ret = nsim_bus_dev_vfs_enable(nsim_bus_dev, num_vfs);
-		if (ret)
-			goto exit_unlock;
-	} else {
-		nsim_bus_dev_vfs_disable(nsim_bus_dev);
-	}
-exit_good:
-	ret = count;
-exit_unlock:
-	mutex_unlock(&nsim_dev->vfs_lock);
+	ret = -ENOENT;
+	if (dev_get_drvdata(dev))
+		ret = nsim_drv_configure_vfs(nsim_bus_dev, num_vfs);
 	device_unlock(dev);
 
-	return ret;
+	return ret ? ret : count;
 }
 
 static ssize_t

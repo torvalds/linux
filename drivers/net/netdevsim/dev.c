@@ -64,6 +64,14 @@ unsigned int nsim_dev_get_vfs(struct nsim_dev *nsim_dev)
 	return nsim_dev->nsim_bus_dev->num_vfs;
 }
 
+static void
+nsim_bus_dev_set_vfs(struct nsim_bus_dev *nsim_bus_dev, unsigned int num_vfs)
+{
+	rtnl_lock();
+	nsim_bus_dev->num_vfs = num_vfs;
+	rtnl_unlock();
+}
+
 #define NSIM_DEV_DUMMY_REGION_SIZE (1024 * 32)
 
 static int
@@ -496,7 +504,9 @@ static void nsim_dev_dummy_region_exit(struct nsim_dev *nsim_dev)
 }
 
 static void __nsim_dev_port_del(struct nsim_dev_port *nsim_dev_port);
-int nsim_esw_legacy_enable(struct nsim_dev *nsim_dev, struct netlink_ext_ack *extack)
+
+static int nsim_esw_legacy_enable(struct nsim_dev *nsim_dev,
+				  struct netlink_ext_ack *extack)
 {
 	struct devlink *devlink = priv_to_devlink(nsim_dev);
 	struct nsim_dev_port *nsim_dev_port, *tmp;
@@ -511,7 +521,8 @@ int nsim_esw_legacy_enable(struct nsim_dev *nsim_dev, struct netlink_ext_ack *ex
 	return 0;
 }
 
-int nsim_esw_switchdev_enable(struct nsim_dev *nsim_dev, struct netlink_ext_ack *extack)
+static int nsim_esw_switchdev_enable(struct nsim_dev *nsim_dev,
+				     struct netlink_ext_ack *extack)
 {
 	struct nsim_bus_dev *nsim_bus_dev = nsim_dev->nsim_bus_dev;
 	int i, err;
@@ -1565,8 +1576,11 @@ static void nsim_dev_reload_destroy(struct nsim_dev *nsim_dev)
 	debugfs_remove(nsim_dev->take_snapshot);
 
 	mutex_lock(&nsim_dev->vfs_lock);
-	if (nsim_dev_get_vfs(nsim_dev))
-		nsim_bus_dev_vfs_disable(nsim_dev->nsim_bus_dev);
+	if (nsim_dev_get_vfs(nsim_dev)) {
+		nsim_bus_dev_set_vfs(nsim_dev->nsim_bus_dev, 0);
+		if (nsim_esw_mode_is_switchdev(nsim_dev))
+			nsim_esw_legacy_enable(nsim_dev, NULL);
+	}
 	mutex_unlock(&nsim_dev->vfs_lock);
 
 	nsim_dev_port_del_all(nsim_dev);
@@ -1639,6 +1653,45 @@ int nsim_dev_port_del(struct nsim_bus_dev *nsim_bus_dev, enum nsim_dev_port_type
 		__nsim_dev_port_del(nsim_dev_port);
 	mutex_unlock(&nsim_dev->port_list_lock);
 	return err;
+}
+
+int nsim_drv_configure_vfs(struct nsim_bus_dev *nsim_bus_dev,
+			   unsigned int num_vfs)
+{
+	struct nsim_dev *nsim_dev = dev_get_drvdata(&nsim_bus_dev->dev);
+	int ret;
+
+	mutex_lock(&nsim_dev->vfs_lock);
+	if (nsim_bus_dev->num_vfs == num_vfs) {
+		ret = 0;
+		goto exit_unlock;
+	}
+	if (nsim_bus_dev->num_vfs && num_vfs) {
+		ret = -EBUSY;
+		goto exit_unlock;
+	}
+	if (nsim_bus_dev->max_vfs < num_vfs) {
+		ret = -ENOMEM;
+		goto exit_unlock;
+	}
+
+	nsim_bus_dev_set_vfs(nsim_bus_dev, num_vfs);
+	if (nsim_esw_mode_is_switchdev(nsim_dev)) {
+		if (num_vfs) {
+			ret = nsim_esw_switchdev_enable(nsim_dev, NULL);
+			if (ret) {
+				nsim_bus_dev_set_vfs(nsim_bus_dev, 0);
+				goto exit_unlock;
+			}
+		} else {
+			nsim_esw_legacy_enable(nsim_dev, NULL);
+		}
+	}
+
+exit_unlock:
+	mutex_unlock(&nsim_dev->vfs_lock);
+
+	return ret;
 }
 
 int nsim_dev_init(void)

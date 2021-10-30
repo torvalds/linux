@@ -281,9 +281,6 @@ struct nsim_dev {
 	u16 esw_mode;
 };
 
-int nsim_esw_legacy_enable(struct nsim_dev *nsim_dev, struct netlink_ext_ack *extack);
-int nsim_esw_switchdev_enable(struct nsim_dev *nsim_dev, struct netlink_ext_ack *extack);
-
 static inline bool nsim_esw_mode_is_legacy(struct nsim_dev *nsim_dev)
 {
 	return nsim_dev->esw_mode == DEVLINK_ESWITCH_MODE_LEGACY;
@@ -309,6 +306,8 @@ int nsim_dev_port_add(struct nsim_bus_dev *nsim_bus_dev,
 int nsim_dev_port_del(struct nsim_bus_dev *nsim_bus_dev,
 		      enum nsim_dev_port_type type,
 		      unsigned int port_index);
+int nsim_drv_configure_vfs(struct nsim_bus_dev *nsim_bus_dev,
+			   unsigned int num_vfs);
 
 unsigned int nsim_dev_get_vfs(struct nsim_dev *nsim_dev);
 
@@ -324,7 +323,6 @@ ssize_t nsim_bus_dev_max_vfs_read(struct file *file,
 ssize_t nsim_bus_dev_max_vfs_write(struct file *file,
 				   const char __user *data,
 				   size_t count, loff_t *ppos);
-void nsim_bus_dev_vfs_disable(struct nsim_bus_dev *nsim_bus_dev);
 
 static inline bool nsim_dev_port_is_pf(struct nsim_dev_port *nsim_dev_port)
 {
