@@ -80,18 +80,18 @@
  * concern all supported chipsets, unless mentioned otherwise.
  */
 
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/slab.h>
-#include <linux/jiffies.h>
-#include <linux/i2c.h>
-#include <linux/hwmon.h>
+#include <linux/device.h>
 #include <linux/err.h>
+#include <linux/i2c.h>
+#include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/jiffies.h>
+#include <linux/hwmon.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of_device.h>
-#include <linux/sysfs.h>
-#include <linux/interrupt.h>
 #include <linux/regulator/consumer.h>
+#include <linux/slab.h>
 #include <linux/workqueue.h>
 
 /*
