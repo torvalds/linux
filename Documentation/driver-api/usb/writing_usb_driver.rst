@@ -188,24 +188,26 @@ space, points the urb to the data and submits the urb to the USB
 subsystem. This can be seen in the following code::
 
     /* we can only write as much as 1 urb will hold */
-    bytes_written = (count > skel->bulk_out_size) ? skel->bulk_out_size : count;
+    size_t writesize = min_t(size_t, count, MAX_TRANSFER);
 
     /* copy the data from user space into our urb */
-    copy_from_user(skel->write_urb->transfer_buffer, buffer, bytes_written);
+    copy_from_user(buf, user_buffer, writesize);
 
     /* set up our urb */
-    usb_fill_bulk_urb(skel->write_urb,
-		      skel->dev,
-		      usb_sndbulkpipe(skel->dev, skel->bulk_out_endpointAddr),
-		      skel->write_urb->transfer_buffer,
-		      bytes_written,
+    usb_fill_bulk_urb(urb,
+		      dev->udev,
+		      usb_sndbulkpipe(dev->udev, dev->bulk_out_endpointAddr),
+		      buf,
+		      writesize,
 		      skel_write_bulk_callback,
-		      skel);
+		      dev);
 
     /* send the data out the bulk port */
-    result = usb_submit_urb(skel->write_urb);
-    if (result) {
-	    err("Failed submitting write urb, error %d", result);
+    retval = usb_submit_urb(urb, GFP_KERNEL);
+    if (retval) {
+	    dev_err(&dev->interface->dev,
+                "%s - failed submitting write urb, error %d\n",
+                __func__, retval);
     }
 
 
