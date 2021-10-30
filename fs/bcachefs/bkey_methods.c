@@ -113,6 +113,7 @@ static unsigned bch2_key_types_allowed[] = {
 		(1U << KEY_TYPE_deleted)|
 		(1U << KEY_TYPE_whiteout)|
 		(1U << KEY_TYPE_inode)|
+		(1U << KEY_TYPE_inode_v2)|
 		(1U << KEY_TYPE_inode_generation),
 	[BKEY_TYPE_dirents] =
 		(1U << KEY_TYPE_deleted)|
@@ -128,7 +129,8 @@ static unsigned bch2_key_types_allowed[] = {
 	[BKEY_TYPE_alloc] =
 		(1U << KEY_TYPE_deleted)|
 		(1U << KEY_TYPE_alloc)|
-		(1U << KEY_TYPE_alloc_v2),
+		(1U << KEY_TYPE_alloc_v2)|
+		(1U << KEY_TYPE_alloc_v3),
 	[BKEY_TYPE_quotas] =
 		(1U << KEY_TYPE_deleted)|
 		(1U << KEY_TYPE_quota),

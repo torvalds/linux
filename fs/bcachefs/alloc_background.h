@@ -9,6 +9,7 @@
 extern const char * const bch2_allocator_states[];
 
 struct bkey_alloc_unpacked {
+	u64		journal_seq;
 	u64		bucket;
 	u8		dev;
 	u8		gen;
@@ -21,19 +22,11 @@ struct bkey_alloc_unpacked {
 
 struct bkey_alloc_buf {
 	struct bkey_i	k;
+	struct bch_alloc_v3 v;
 
-	union {
-	struct {
 #define x(_name,  _bits)		+ _bits / 8
-	u8		_pad[8 + BCH_ALLOC_FIELDS_V1()];
+	u8		_pad[0 + BCH_ALLOC_FIELDS_V2()];
 #undef  x
-	} _v1;
-	struct {
-#define x(_name,  _bits)		+ 8 + _bits / 8
-	u8		_pad[8 + BCH_ALLOC_FIELDS_V2()];
-#undef  x
-	} _v2;
-	};
 } __attribute__((packed, aligned(8)));
 
 /* How out of date a pointer gen is allowed to be: */
@@ -79,6 +72,7 @@ alloc_mem_to_key(struct btree_iter *iter,
 
 const char *bch2_alloc_v1_invalid(const struct bch_fs *, struct bkey_s_c);
 const char *bch2_alloc_v2_invalid(const struct bch_fs *, struct bkey_s_c);
+const char *bch2_alloc_v3_invalid(const struct bch_fs *, struct bkey_s_c);
 void bch2_alloc_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
 #define bch2_bkey_ops_alloc (struct bkey_ops) {		\
@@ -89,6 +83,18 @@ void bch2_alloc_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 #define bch2_bkey_ops_alloc_v2 (struct bkey_ops) {	\
 	.key_invalid	= bch2_alloc_v2_invalid,	\
 	.val_to_text	= bch2_alloc_to_text,		\
+}
+
+#define bch2_bkey_ops_alloc_v3 (struct bkey_ops) {	\
+	.key_invalid	= bch2_alloc_v3_invalid,	\
+	.val_to_text	= bch2_alloc_to_text,		\
+}
+
+static inline bool bkey_is_alloc(const struct bkey *k)
+{
+	return  k->type == KEY_TYPE_alloc ||
+		k->type == KEY_TYPE_alloc_v2 ||
+		k->type == KEY_TYPE_alloc_v3;
 }
 
 int bch2_alloc_read(struct bch_fs *);

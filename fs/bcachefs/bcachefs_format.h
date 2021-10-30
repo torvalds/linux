@@ -348,7 +348,9 @@ static inline void bkey_init(struct bkey *k)
 	x(indirect_inline_data,	19)			\
 	x(alloc_v2,		20)			\
 	x(subvolume,		21)			\
-	x(snapshot,		22)
+	x(snapshot,		22)			\
+	x(inode_v2,		23)			\
+	x(alloc_v3,		24)
 
 enum bch_bkey_type {
 #define x(name, nr) KEY_TYPE_##name	= nr,
@@ -685,6 +687,16 @@ struct bch_inode {
 	__u8			fields[0];
 } __attribute__((packed, aligned(8)));
 
+struct bch_inode_v2 {
+	struct bch_val		v;
+
+	__le64			bi_journal_seq;
+	__le64			bi_hash_seed;
+	__le64			bi_flags;
+	__le16			bi_mode;
+	__u8			fields[0];
+} __attribute__((packed, aligned(8)));
+
 struct bch_inode_generation {
 	struct bch_val		v;
 
@@ -775,6 +787,9 @@ enum {
 LE32_BITMASK(INODE_STR_HASH,	struct bch_inode, bi_flags, 20, 24);
 LE32_BITMASK(INODE_NR_FIELDS,	struct bch_inode, bi_flags, 24, 31);
 LE32_BITMASK(INODE_NEW_VARINT,	struct bch_inode, bi_flags, 31, 32);
+
+LE64_BITMASK(INODEv2_STR_HASH,	struct bch_inode_v2, bi_flags, 20, 24);
+LE64_BITMASK(INODEv2_NR_FIELDS,	struct bch_inode_v2, bi_flags, 24, 31);
 
 /* Dirents */
 
@@ -869,6 +884,17 @@ struct bch_alloc_v2 {
 	x(cached_sectors,	16)		\
 	x(stripe,		32)		\
 	x(stripe_redundancy,	8)
+
+struct bch_alloc_v3 {
+	struct bch_val		v;
+	__le64			journal_seq;
+	__le32			flags;
+	__u8			nr_fields;
+	__u8			gen;
+	__u8			oldest_gen;
+	__u8			data_type;
+	__u8			data[];
+} __attribute__((packed, aligned(8)));
 
 enum {
 #define x(name, _bits) BCH_ALLOC_FIELD_V1_##name,
@@ -1276,7 +1302,8 @@ enum bcachefs_metadata_version {
 	bcachefs_metadata_version_snapshot_2		= 15,
 	bcachefs_metadata_version_reflink_p_fix		= 16,
 	bcachefs_metadata_version_subvol_dirent		= 17,
-	bcachefs_metadata_version_max			= 18,
+	bcachefs_metadata_version_inode_v2		= 18,
+	bcachefs_metadata_version_max			= 19,
 };
 
 #define bcachefs_metadata_version_current	(bcachefs_metadata_version_max - 1)

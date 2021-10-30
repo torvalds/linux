@@ -439,9 +439,8 @@ int bch2_fs_quota_read(struct bch_fs *c)
 
 	for_each_btree_key(&trans, iter, BTREE_ID_inodes, POS_MIN,
 			   BTREE_ITER_PREFETCH, k, ret) {
-		switch (k.k->type) {
-		case KEY_TYPE_inode:
-			ret = bch2_inode_unpack(bkey_s_c_to_inode(k), &u);
+		if (bkey_is_inode(k.k)) {
+			ret = bch2_inode_unpack(k, &u);
 			if (ret)
 				return ret;
 

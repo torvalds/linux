@@ -1207,7 +1207,7 @@ static void bch2_vfs_inode_init(struct bch_fs *c, subvol_inum inum,
 	inode->v.i_size		= bi->bi_size;
 
 	inode->ei_flags		= 0;
-	inode->ei_journal_seq	= 0;
+	inode->ei_journal_seq	= bi->bi_journal_seq;
 	inode->ei_quota_reserved = 0;
 	inode->ei_qid		= bch_qid(bi);
 	inode->ei_subvol	= inum.subvol;

@@ -147,10 +147,44 @@ static int bch2_alloc_unpack_v2(struct bkey_alloc_unpacked *out,
 	return 0;
 }
 
-static void bch2_alloc_pack_v2(struct bkey_alloc_buf *dst,
+static int bch2_alloc_unpack_v3(struct bkey_alloc_unpacked *out,
+				struct bkey_s_c k)
+{
+	struct bkey_s_c_alloc_v3 a = bkey_s_c_to_alloc_v3(k);
+	const u8 *in = a.v->data;
+	const u8 *end = bkey_val_end(a);
+	unsigned fieldnr = 0;
+	int ret;
+	u64 v;
+
+	out->gen	= a.v->gen;
+	out->oldest_gen	= a.v->oldest_gen;
+	out->data_type	= a.v->data_type;
+	out->journal_seq = le64_to_cpu(a.v->journal_seq);
+
+#define x(_name, _bits)							\
+	if (fieldnr < a.v->nr_fields) {					\
+		ret = bch2_varint_decode_fast(in, end, &v);		\
+		if (ret < 0)						\
+			return ret;					\
+		in += ret;						\
+	} else {							\
+		v = 0;							\
+	}								\
+	out->_name = v;							\
+	if (v != out->_name)						\
+		return -1;						\
+	fieldnr++;
+
+	BCH_ALLOC_FIELDS_V2()
+#undef  x
+	return 0;
+}
+
+static void bch2_alloc_pack_v3(struct bkey_alloc_buf *dst,
 			       const struct bkey_alloc_unpacked src)
 {
-	struct bkey_i_alloc_v2 *a = bkey_alloc_v2_init(&dst->k);
+	struct bkey_i_alloc_v3 *a = bkey_alloc_v3_init(&dst->k);
 	unsigned nr_fields = 0, last_nonzero_fieldnr = 0;
 	u8 *out = a->v.data;
 	u8 *end = (void *) &dst[1];
@@ -161,6 +195,7 @@ static void bch2_alloc_pack_v2(struct bkey_alloc_buf *dst,
 	a->v.gen	= src.gen;
 	a->v.oldest_gen	= src.oldest_gen;
 	a->v.data_type	= src.data_type;
+	a->v.journal_seq = cpu_to_le64(src.journal_seq);
 
 #define x(_name, _bits)							\
 	nr_fields++;							\
@@ -194,10 +229,17 @@ struct bkey_alloc_unpacked bch2_alloc_unpack(struct bkey_s_c k)
 		.gen	= 0,
 	};
 
-	if (k.k->type == KEY_TYPE_alloc_v2)
-		bch2_alloc_unpack_v2(&ret, k);
-	else if (k.k->type == KEY_TYPE_alloc)
+	switch (k.k->type) {
+	case KEY_TYPE_alloc:
 		bch2_alloc_unpack_v1(&ret, k);
+		break;
+	case KEY_TYPE_alloc_v2:
+		bch2_alloc_unpack_v2(&ret, k);
+		break;
+	case KEY_TYPE_alloc_v3:
+		bch2_alloc_unpack_v3(&ret, k);
+		break;
+	}
 
 	return ret;
 }
@@ -206,7 +248,7 @@ void bch2_alloc_pack(struct bch_fs *c,
 		     struct bkey_alloc_buf *dst,
 		     const struct bkey_alloc_unpacked src)
 {
-	bch2_alloc_pack_v2(dst, src);
+	bch2_alloc_pack_v3(dst, src);
 }
 
 static unsigned bch_alloc_v1_val_u64s(const struct bch_alloc *a)
@@ -249,13 +291,28 @@ const char *bch2_alloc_v2_invalid(const struct bch_fs *c, struct bkey_s_c k)
 	return NULL;
 }
 
+const char *bch2_alloc_v3_invalid(const struct bch_fs *c, struct bkey_s_c k)
+{
+	struct bkey_alloc_unpacked u;
+
+	if (k.k->p.inode >= c->sb.nr_devices ||
+	    !c->devs[k.k->p.inode])
+		return "invalid device";
+
+	if (bch2_alloc_unpack_v3(&u, k))
+		return "unpack error";
+
+	return NULL;
+}
+
 void bch2_alloc_to_text(struct printbuf *out, struct bch_fs *c,
 			   struct bkey_s_c k)
 {
 	struct bkey_alloc_unpacked u = bch2_alloc_unpack(k);
 
-	pr_buf(out, "gen %u oldest_gen %u data_type %s",
-	       u.gen, u.oldest_gen, bch2_data_types[u.data_type]);
+	pr_buf(out, "gen %u oldest_gen %u data_type %s journal_seq %llu",
+	       u.gen, u.oldest_gen, bch2_data_types[u.data_type],
+	       u.journal_seq);
 #define x(_name, ...)	pr_buf(out, " " #_name " %llu", (u64) u._name);
 	BCH_ALLOC_FIELDS_V2()
 #undef  x
@@ -268,8 +325,7 @@ static int bch2_alloc_read_fn(struct btree_trans *trans, struct bkey_s_c k)
 	struct bucket *g;
 	struct bkey_alloc_unpacked u;
 
-	if (k.k->type != KEY_TYPE_alloc &&
-	    k.k->type != KEY_TYPE_alloc_v2)
+	if (!bkey_is_alloc(k.k))
 		return 0;
 
 	ca = bch_dev_bkey_exists(c, k.k->p.inode);

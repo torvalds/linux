@@ -623,11 +623,11 @@ static int lookup_inode(struct btree_trans *trans, struct bpos pos,
 		goto err;
 	}
 
-	ret = k.k->type == KEY_TYPE_inode ? 0 : -EIO;
+	ret = bkey_is_inode(k.k) ? 0 : -EIO;
 	if (ret)
 		goto err;
 
-	ret = bch2_inode_unpack(bkey_s_c_to_inode(k), inode);
+	ret = bch2_inode_unpack(k, inode);
 	if (ret)
 		goto err;
 err:

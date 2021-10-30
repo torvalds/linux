@@ -337,12 +337,12 @@ int bch2_extent_update(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
-	ret = inode.k->type == KEY_TYPE_inode ? 0 : -ENOENT;
+	ret = bkey_is_inode(inode.k) ? 0 : -ENOENT;
 	if (ret)
 		goto err;
 
 	if (i_sectors_delta || new_i_size) {
-		ret = bch2_inode_unpack(bkey_s_c_to_inode(inode), &inode_u);
+		ret = bch2_inode_unpack(inode, &inode_u);
 		if (ret)
 			goto err;
 

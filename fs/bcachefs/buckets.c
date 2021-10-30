@@ -13,6 +13,7 @@
 #include "buckets.h"
 #include "ec.h"
 #include "error.h"
+#include "inode.h"
 #include "movinggc.h"
 #include "recovery.h"
 #include "reflink.h"
@@ -541,8 +542,7 @@ static int bch2_mark_alloc(struct btree_trans *trans,
 	struct bucket_mark old_m, m;
 
 	/* We don't do anything for deletions - do we?: */
-	if (new.k->type != KEY_TYPE_alloc &&
-	    new.k->type != KEY_TYPE_alloc_v2)
+	if (!bkey_is_alloc(new.k))
 		return 0;
 
 	/*
@@ -551,6 +551,15 @@ static int bch2_mark_alloc(struct btree_trans *trans,
 	if ((flags & BTREE_TRIGGER_GC) &&
 	    !(flags & BTREE_TRIGGER_BUCKET_INVALIDATE))
 		return 0;
+
+	if (flags & BTREE_TRIGGER_INSERT) {
+		struct bch_alloc_v3 *v = (struct bch_alloc_v3 *) new.v;
+
+		BUG_ON(!journal_seq);
+		BUG_ON(new.k->type != KEY_TYPE_alloc_v3);
+
+		v->journal_seq = cpu_to_le64(journal_seq);
+	}
 
 	ca = bch_dev_bkey_exists(c, new.k->p.inode);
 
@@ -1095,12 +1104,24 @@ static int bch2_mark_inode(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct bch_fs_usage __percpu *fs_usage;
+	u64 journal_seq = trans->journal_res.seq;
 
-	preempt_disable();
-	fs_usage = fs_usage_ptr(c, trans->journal_res.seq, flags & BTREE_TRIGGER_GC);
-	fs_usage->nr_inodes += new.k->type == KEY_TYPE_inode;
-	fs_usage->nr_inodes -= old.k->type == KEY_TYPE_inode;
-	preempt_enable();
+	if (flags & BTREE_TRIGGER_INSERT) {
+		struct bch_inode_v2 *v = (struct bch_inode_v2 *) new.v;
+
+		BUG_ON(!journal_seq);
+		BUG_ON(new.k->type != KEY_TYPE_inode_v2);
+
+		v->bi_journal_seq = cpu_to_le64(journal_seq);
+	}
+
+	if (flags & BTREE_TRIGGER_GC) {
+		preempt_disable();
+		fs_usage = fs_usage_ptr(c, journal_seq, flags & BTREE_TRIGGER_GC);
+		fs_usage->nr_inodes += bkey_is_inode(new.k);
+		fs_usage->nr_inodes -= bkey_is_inode(old.k);
+		preempt_enable();
+	}
 	return 0;
 }
 
@@ -1219,6 +1240,7 @@ static int bch2_mark_key_locked(struct btree_trans *trans,
 	switch (k.k->type) {
 	case KEY_TYPE_alloc:
 	case KEY_TYPE_alloc_v2:
+	case KEY_TYPE_alloc_v3:
 		return bch2_mark_alloc(trans, old, new, flags);
 	case KEY_TYPE_btree_ptr:
 	case KEY_TYPE_btree_ptr_v2:
@@ -1228,6 +1250,7 @@ static int bch2_mark_key_locked(struct btree_trans *trans,
 	case KEY_TYPE_stripe:
 		return bch2_mark_stripe(trans, old, new, flags);
 	case KEY_TYPE_inode:
+	case KEY_TYPE_inode_v2:
 		return bch2_mark_inode(trans, old, new, flags);
 	case KEY_TYPE_reservation:
 		return bch2_mark_reservation(trans, old, new, flags);
@@ -1685,8 +1708,7 @@ static int bch2_trans_mark_inode(struct btree_trans *trans,
 				 struct bkey_s_c new,
 				 unsigned flags)
 {
-	int nr = (new.k->type == KEY_TYPE_inode) -
-		(old.k->type == KEY_TYPE_inode);
+	int nr = bkey_is_inode(new.k) - bkey_is_inode(old.k);
 
 	if (nr) {
 		struct replicas_delta_list *d =
@@ -1834,6 +1856,7 @@ int bch2_trans_mark_key(struct btree_trans *trans, struct bkey_s_c old,
 	case KEY_TYPE_stripe:
 		return bch2_trans_mark_stripe(trans, old, new, flags);
 	case KEY_TYPE_inode:
+	case KEY_TYPE_inode_v2:
 		return bch2_trans_mark_inode(trans, old, new, flags);
 	case KEY_TYPE_reservation:
 		return bch2_trans_mark_reservation(trans, k, flags);

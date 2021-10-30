@@ -133,7 +133,7 @@ static int lookup_first_inode(struct btree_trans *trans, u64 inode_nr,
 		goto err;
 	}
 
-	ret = bch2_inode_unpack(bkey_s_c_to_inode(k), inode);
+	ret = bch2_inode_unpack(k, inode);
 err:
 	if (ret && ret != -EINTR)
 		bch_err(trans->c, "error %i fetching inode %llu",
@@ -157,8 +157,8 @@ static int __lookup_inode(struct btree_trans *trans, u64 inode_nr,
 	if (ret)
 		goto err;
 
-	ret = k.k->type == KEY_TYPE_inode
-		? bch2_inode_unpack(bkey_s_c_to_inode(k), inode)
+	ret = bkey_is_inode(k.k)
+		? bch2_inode_unpack(k, inode)
 		: -ENOENT;
 	if (!ret)
 		*snapshot = iter.pos.snapshot;
@@ -261,7 +261,7 @@ retry:
 	if (ret)
 		goto err;
 
-	if (k.k->type != KEY_TYPE_inode) {
+	if (!bkey_is_inode(k.k)) {
 		bch2_fs_inconsistent(trans->c,
 				     "inode %llu:%u not found when deleting",
 				     inum, snapshot);
@@ -269,7 +269,7 @@ retry:
 		goto err;
 	}
 
-	bch2_inode_unpack(bkey_s_c_to_inode(k), &inode_u);
+	bch2_inode_unpack(k, &inode_u);
 
 	/* Subvolume root? */
 	if (inode_u.bi_subvol) {
@@ -581,7 +581,7 @@ static int inode_walker_realloc(struct inode_walker *w)
 }
 
 static int add_inode(struct bch_fs *c, struct inode_walker *w,
-		     struct bkey_s_c_inode inode)
+		     struct bkey_s_c inode)
 {
 	struct bch_inode_unpacked u;
 	int ret;
@@ -623,8 +623,8 @@ static int __walk_inode(struct btree_trans *trans,
 		if (k.k->p.offset != pos.inode)
 			break;
 
-		if (k.k->type == KEY_TYPE_inode)
-			add_inode(c, w, bkey_s_c_to_inode(k));
+		if (bkey_is_inode(k.k))
+			add_inode(c, w, k);
 	}
 	bch2_trans_iter_exit(trans, &iter);
 
@@ -676,11 +676,11 @@ static int __get_visible_inodes(struct btree_trans *trans,
 		if (k.k->p.offset != inum)
 			break;
 
-		if (k.k->type != KEY_TYPE_inode)
+		if (!bkey_is_inode(k.k))
 			continue;
 
 		if (ref_visible(c, s, s->pos.snapshot, k.k->p.snapshot)) {
-			add_inode(c, w, bkey_s_c_to_inode(k));
+			add_inode(c, w, k);
 			if (k.k->p.snapshot >= s->pos.snapshot)
 				break;
 		}
@@ -805,7 +805,6 @@ static int check_inode(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct bkey_s_c k;
-	struct bkey_s_c_inode inode;
 	struct bch_inode_unpacked u;
 	bool do_update = false;
 	int ret;
@@ -830,18 +829,16 @@ static int check_inode(struct btree_trans *trans,
 	if (bch2_snapshot_internal_node(c, k.k->p.snapshot))
 		return 0;
 
-	if (k.k->type != KEY_TYPE_inode)
+	if (!bkey_is_inode(k.k))
 		return 0;
 
-	inode = bkey_s_c_to_inode(k);
+	BUG_ON(bch2_inode_unpack(k, &u));
 
 	if (!full &&
-	    !(inode.v->bi_flags & (BCH_INODE_I_SIZE_DIRTY|
-				   BCH_INODE_I_SECTORS_DIRTY|
-				   BCH_INODE_UNLINKED)))
+	    !(u.bi_flags & (BCH_INODE_I_SIZE_DIRTY|
+			    BCH_INODE_I_SECTORS_DIRTY|
+			    BCH_INODE_UNLINKED)))
 		return 0;
-
-	BUG_ON(bch2_inode_unpack(inode, &u));
 
 	if (prev->bi_inum != u.bi_inum)
 		*prev = u;
@@ -1963,10 +1960,10 @@ static int check_directory_structure(struct bch_fs *c)
 			   BTREE_ITER_INTENT|
 			   BTREE_ITER_PREFETCH|
 			   BTREE_ITER_ALL_SNAPSHOTS, k, ret) {
-		if (k.k->type != KEY_TYPE_inode)
+		if (!bkey_is_inode(k.k))
 			continue;
 
-		ret = bch2_inode_unpack(bkey_s_c_to_inode(k), &u);
+		ret = bch2_inode_unpack(k, &u);
 		if (ret) {
 			/* Should have been caught earlier in fsck: */
 			bch_err(c, "error unpacking inode %llu: %i", k.k->p.offset, ret);
@@ -2070,7 +2067,6 @@ static int check_nlinks_find_hardlinks(struct bch_fs *c,
 	struct btree_trans trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
-	struct bkey_s_c_inode inode;
 	struct bch_inode_unpacked u;
 	int ret = 0;
 
@@ -2081,20 +2077,18 @@ static int check_nlinks_find_hardlinks(struct bch_fs *c,
 			   BTREE_ITER_INTENT|
 			   BTREE_ITER_PREFETCH|
 			   BTREE_ITER_ALL_SNAPSHOTS, k, ret) {
-		if (k.k->type != KEY_TYPE_inode)
+		if (!bkey_is_inode(k.k))
 			continue;
 
-		inode = bkey_s_c_to_inode(k);
+		/* Should never fail, checked by bch2_inode_invalid: */
+		BUG_ON(bch2_inode_unpack(k, &u));
 
 		/*
 		 * Backpointer and directory structure checks are sufficient for
 		 * directories, since they can't have hardlinks:
 		 */
-		if (S_ISDIR(le16_to_cpu(inode.v->bi_mode)))
+		if (S_ISDIR(le16_to_cpu(u.bi_mode)))
 			continue;
-
-		/* Should never fail, checked by bch2_inode_invalid: */
-		BUG_ON(bch2_inode_unpack(inode, &u));
 
 		if (!u.bi_nlink)
 			continue;
@@ -2169,7 +2163,6 @@ static int check_nlinks_update_hardlinks(struct bch_fs *c,
 	struct btree_trans trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
-	struct bkey_s_c_inode inode;
 	struct bch_inode_unpacked u;
 	struct nlink *link = links->d;
 	int ret = 0;
@@ -2184,14 +2177,13 @@ static int check_nlinks_update_hardlinks(struct bch_fs *c,
 		if (k.k->p.offset >= range_end)
 			break;
 
-		if (k.k->type != KEY_TYPE_inode)
+		if (!bkey_is_inode(k.k))
 			continue;
 
-		inode = bkey_s_c_to_inode(k);
-		if (S_ISDIR(le16_to_cpu(inode.v->bi_mode)))
-			continue;
+		BUG_ON(bch2_inode_unpack(k, &u));
 
-		BUG_ON(bch2_inode_unpack(inode, &u));
+		if (S_ISDIR(le16_to_cpu(u.bi_mode)))
+			continue;
 
 		if (!u.bi_nlink)
 			continue;

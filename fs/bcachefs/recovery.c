@@ -1015,13 +1015,13 @@ static int bch2_fs_upgrade_for_subvolumes(struct btree_trans *trans)
 	if (ret)
 		goto err;
 
-	if (k.k->type != KEY_TYPE_inode) {
+	if (!bkey_is_inode(k.k)) {
 		bch_err(c, "root inode not found");
 		ret = -ENOENT;
 		goto err;
 	}
 
-	ret = bch2_inode_unpack(bkey_s_c_to_inode(k), &inode);
+	ret = bch2_inode_unpack(k, &inode);
 	BUG_ON(ret);
 
 	inode.bi_subvol = BCACHEFS_ROOT_SUBVOL;
@@ -1093,6 +1093,9 @@ int bch2_fs_recovery(struct bch_fs *c)
 			bch_info(c, "filesystem version is prior to subvol_dirent - upgrading");
 			c->opts.version_upgrade = true;
 			c->opts.fsck		= true;
+		} else if (c->sb.version < bcachefs_metadata_version_inode_v2) {
+			bch_info(c, "filesystem version is prior to inode_v2 - upgrading");
+			c->opts.version_upgrade = true;
 		}
 	}
 

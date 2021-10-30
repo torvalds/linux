@@ -606,6 +606,7 @@ static inline bool btree_node_is_extents(struct btree *b)
 
 #define BTREE_NODE_TYPE_HAS_MEM_TRIGGERS		\
 	((1U << BKEY_TYPE_alloc)|			\
+	 (1U << BKEY_TYPE_inodes)|			\
 	 (1U << BKEY_TYPE_stripes)|			\
 	 (1U << BKEY_TYPE_snapshots))
 
@@ -655,8 +656,12 @@ enum btree_update_flags {
 #define BTREE_TRIGGER_NOATOMIC		(1U << __BTREE_TRIGGER_NOATOMIC)
 
 #define BTREE_TRIGGER_WANTS_OLD_AND_NEW		\
-	((1U << KEY_TYPE_stripe)|		\
+	((1U << KEY_TYPE_alloc)|		\
+	 (1U << KEY_TYPE_alloc_v2)|		\
+	 (1U << KEY_TYPE_alloc_v3)|		\
+	 (1U << KEY_TYPE_stripe)|		\
 	 (1U << KEY_TYPE_inode)|		\
+	 (1U << KEY_TYPE_inode_v2)|		\
 	 (1U << KEY_TYPE_snapshot))
 
 static inline bool btree_node_type_needs_gc(enum btree_node_type type)
