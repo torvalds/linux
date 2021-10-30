@@ -6084,7 +6084,7 @@ static int event_hist_trigger_func(struct event_command *cmd_ops,
 	while (start) {
 		*(start + 4) = 'X';
 		start = strstr(start + 11, ".sym-offset");
-	};
+	}
 
 	attrs = parse_hist_trigger_attrs(file->tr, trigger);
 	if (IS_ERR(attrs))
