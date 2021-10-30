@@ -4916,6 +4916,13 @@ int atomisp_try_fmt(struct video_device *vdev, struct v4l2_pix_format *f,
 	}
 
 	f->pixelformat = fmt->pixelformat;
+	/*
+	 * FIXME: do we need to setup this differently, depending on the
+	 * sensor or the pipeline?
+	 */
+	f->colorspace = V4L2_COLORSPACE_REC709;
+	f->ycbcr_enc = V4L2_YCBCR_ENC_709;
+	f->xfer_func = V4L2_XFER_FUNC_709;
 
 	/*
 	 * If the format is jpeg or custom RAW, then the width and height will
@@ -6027,6 +6034,14 @@ done:
 	pipe->pix.width = f->fmt.pix.width;
 	pipe->pix.height = f->fmt.pix.height;
 	pipe->pix.pixelformat = f->fmt.pix.pixelformat;
+	/*
+	 * FIXME: do we need to setup this differently, depending on the
+	 * sensor or the pipeline?
+	 */
+	pipe->pix.colorspace = V4L2_COLORSPACE_REC709;
+	pipe->pix.ycbcr_enc = V4L2_YCBCR_ENC_709;
+	pipe->pix.xfer_func = V4L2_XFER_FUNC_709;
+
 	if (format_bridge->planar) {
 		pipe->pix.bytesperline = output_info.padded_width;
 		pipe->pix.sizeimage = PAGE_ALIGN(f->fmt.pix.height *
