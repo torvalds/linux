@@ -52,8 +52,6 @@ $(obj)/real2.o: $(obj)/real2.S
 $(obj)/real2.S: $(srctree)/arch/$(SRCARCH)/kernel/real2.S
 	$(call cmd,shipped)
 
-$(obj)/misc.o: $(obj)/sizes.h
-
 CPPFLAGS_vmlinux.lds += -I$(objtree)/$(obj) -DBOOTLOADER
 $(obj)/vmlinux.lds: $(obj)/sizes.h
 
