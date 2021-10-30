@@ -80,6 +80,7 @@
  * concern all supported chipsets, unless mentioned otherwise.
  */
 
+#include <linux/bits.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
@@ -182,36 +183,36 @@ enum chips { adm1032, adt7461, g781, lm86, lm90, lm99,
 /*
  * Device flags
  */
-#define LM90_FLAG_ADT7461_EXT	(1 << 0) /* ADT7461 extended mode	*/
+#define LM90_FLAG_ADT7461_EXT	BIT(0)	/* ADT7461 extended mode	*/
 /* Device features */
-#define LM90_HAVE_OFFSET	(1 << 1) /* temperature offset register	*/
-#define LM90_HAVE_REM_LIMIT_EXT	(1 << 3) /* extended remote limit	*/
-#define LM90_HAVE_EMERGENCY	(1 << 4) /* 3rd upper (emergency) limit	*/
-#define LM90_HAVE_EMERGENCY_ALARM (1 << 5)/* emergency alarm		*/
-#define LM90_HAVE_TEMP3		(1 << 6) /* 3rd temperature sensor	*/
-#define LM90_HAVE_BROKEN_ALERT	(1 << 7) /* Broken alert		*/
-#define LM90_HAVE_EXTENDED_TEMP	(1 << 8) /* extended temperature support*/
-#define LM90_PAUSE_FOR_CONFIG	(1 << 9) /* Pause conversion for config	*/
-#define LM90_HAVE_CRIT		(1 << 10)/* Chip supports CRIT/OVERT register	*/
-#define LM90_HAVE_CRIT_ALRM_SWP	(1 << 11)/* critical alarm bits swapped	*/
+#define LM90_HAVE_OFFSET	BIT(1)	/* temperature offset register	*/
+#define LM90_HAVE_REM_LIMIT_EXT	BIT(3)	/* extended remote limit	*/
+#define LM90_HAVE_EMERGENCY	BIT(4)	/* 3rd upper (emergency) limit	*/
+#define LM90_HAVE_EMERGENCY_ALARM BIT(5)/* emergency alarm		*/
+#define LM90_HAVE_TEMP3		BIT(6)	/* 3rd temperature sensor	*/
+#define LM90_HAVE_BROKEN_ALERT	BIT(7)	/* Broken alert			*/
+#define LM90_HAVE_EXTENDED_TEMP	BIT(8)	/* extended temperature support	*/
+#define LM90_PAUSE_FOR_CONFIG	BIT(9)	/* Pause conversion for config	*/
+#define LM90_HAVE_CRIT		BIT(10)	/* Chip supports CRIT/OVERT register	*/
+#define LM90_HAVE_CRIT_ALRM_SWP	BIT(11)	/* critical alarm bits swapped	*/
 
 /* LM90 status */
-#define LM90_STATUS_LTHRM	(1 << 0) /* local THERM limit tripped */
-#define LM90_STATUS_RTHRM	(1 << 1) /* remote THERM limit tripped */
-#define LM90_STATUS_ROPEN	(1 << 2) /* remote is an open circuit */
-#define LM90_STATUS_RLOW	(1 << 3) /* remote low temp limit tripped */
-#define LM90_STATUS_RHIGH	(1 << 4) /* remote high temp limit tripped */
-#define LM90_STATUS_LLOW	(1 << 5) /* local low temp limit tripped */
-#define LM90_STATUS_LHIGH	(1 << 6) /* local high temp limit tripped */
-#define LM90_STATUS_BUSY	(1 << 7) /* conversion is ongoing */
+#define LM90_STATUS_LTHRM	BIT(0)	/* local THERM limit tripped */
+#define LM90_STATUS_RTHRM	BIT(1)	/* remote THERM limit tripped */
+#define LM90_STATUS_ROPEN	BIT(2)	/* remote is an open circuit */
+#define LM90_STATUS_RLOW	BIT(3)	/* remote low temp limit tripped */
+#define LM90_STATUS_RHIGH	BIT(4)	/* remote high temp limit tripped */
+#define LM90_STATUS_LLOW	BIT(5)	/* local low temp limit tripped */
+#define LM90_STATUS_LHIGH	BIT(6)	/* local high temp limit tripped */
+#define LM90_STATUS_BUSY	BIT(7)	/* conversion is ongoing */
 
-#define MAX6696_STATUS2_R2THRM	(1 << 1) /* remote2 THERM limit tripped */
-#define MAX6696_STATUS2_R2OPEN	(1 << 2) /* remote2 is an open circuit */
-#define MAX6696_STATUS2_R2LOW	(1 << 3) /* remote2 low temp limit tripped */
-#define MAX6696_STATUS2_R2HIGH	(1 << 4) /* remote2 high temp limit tripped */
-#define MAX6696_STATUS2_ROT2	(1 << 5) /* remote emergency limit tripped */
-#define MAX6696_STATUS2_R2OT2	(1 << 6) /* remote2 emergency limit tripped */
-#define MAX6696_STATUS2_LOT2	(1 << 7) /* local emergency limit tripped */
+#define MAX6696_STATUS2_R2THRM	BIT(1)	/* remote2 THERM limit tripped */
+#define MAX6696_STATUS2_R2OPEN	BIT(2)	/* remote2 is an open circuit */
+#define MAX6696_STATUS2_R2LOW	BIT(3)	/* remote2 low temp limit tripped */
+#define MAX6696_STATUS2_R2HIGH	BIT(4)	/* remote2 high temp limit tripped */
+#define MAX6696_STATUS2_ROT2	BIT(5)	/* remote emergency limit tripped */
+#define MAX6696_STATUS2_R2OT2	BIT(6)	/* remote2 emergency limit tripped */
+#define MAX6696_STATUS2_LOT2	BIT(7)	/* local emergency limit tripped */
 
 /*
  * Driver data (common to all clients)
