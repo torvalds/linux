@@ -661,7 +661,8 @@ static void bch2_btree_path_verify(struct btree_trans *trans,
 
 	for (i = 0; i < (!path->cached ? BTREE_MAX_DEPTH : 1); i++) {
 		if (!path->l[i].b) {
-			BUG_ON(c->btree_roots[path->btree_id].b->c.level > i);
+			BUG_ON(!path->cached &&
+			       c->btree_roots[path->btree_id].b->c.level > i);
 			break;
 		}
 
