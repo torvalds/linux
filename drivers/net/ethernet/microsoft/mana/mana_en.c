@@ -1599,7 +1599,8 @@ static int mana_init_port(struct net_device *ndev)
 	err = mana_query_vport_cfg(apc, port_idx, &max_txq, &max_rxq,
 				   &num_indirect_entries);
 	if (err) {
-		netdev_err(ndev, "Failed to query info for vPort 0\n");
+		netdev_err(ndev, "Failed to query info for vPort %d\n",
+			   port_idx);
 		goto reset_apc;
 	}
 
