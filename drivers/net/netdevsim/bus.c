@@ -40,9 +40,6 @@ static int nsim_bus_dev_vfs_enable(struct nsim_bus_dev *nsim_bus_dev,
 
 	if (nsim_bus_dev->max_vfs < num_vfs)
 		return -ENOMEM;
-
-	if (!nsim_bus_dev->vfconfigs)
-		return -ENOMEM;
 	nsim_bus_dev_set_vfs(nsim_bus_dev, num_vfs);
 
 	nsim_dev = dev_get_drvdata(&nsim_bus_dev->dev);
@@ -70,6 +67,7 @@ nsim_bus_dev_numvfs_store(struct device *dev, struct device_attribute *attr,
 			  const char *buf, size_t count)
 {
 	struct nsim_bus_dev *nsim_bus_dev = to_nsim_bus_dev(dev);
+	struct nsim_dev *nsim_dev = dev_get_drvdata(dev);
 	unsigned int num_vfs;
 	int ret;
 
@@ -77,7 +75,13 @@ nsim_bus_dev_numvfs_store(struct device *dev, struct device_attribute *attr,
 	if (ret)
 		return ret;
 
-	mutex_lock(&nsim_bus_dev->vfs_lock);
+	device_lock(dev);
+	if (!nsim_dev) {
+		ret = -ENOENT;
+		goto exit_unlock;
+	}
+
+	mutex_lock(&nsim_dev->vfs_lock);
 	if (nsim_bus_dev->num_vfs == num_vfs)
 		goto exit_good;
 	if (nsim_bus_dev->num_vfs && num_vfs) {
@@ -95,7 +99,8 @@ nsim_bus_dev_numvfs_store(struct device *dev, struct device_attribute *attr,
 exit_good:
 	ret = count;
 exit_unlock:
-	mutex_unlock(&nsim_bus_dev->vfs_lock);
+	mutex_unlock(&nsim_dev->vfs_lock);
+	device_unlock(dev);
 
 	return ret;
 }
@@ -117,7 +122,8 @@ ssize_t nsim_bus_dev_max_vfs_read(struct file *file,
 				  char __user *data,
 				  size_t count, loff_t *ppos)
 {
-	struct nsim_bus_dev *nsim_bus_dev = file->private_data;
+	struct nsim_dev *nsim_dev = file->private_data;
+	struct nsim_bus_dev *nsim_bus_dev = nsim_dev->nsim_bus_dev;
 	char buf[11];
 	ssize_t len;
 
@@ -132,7 +138,8 @@ ssize_t nsim_bus_dev_max_vfs_write(struct file *file,
 				   const char __user *data,
 				   size_t count, loff_t *ppos)
 {
-	struct nsim_bus_dev *nsim_bus_dev = file->private_data;
+	struct nsim_dev *nsim_dev = file->private_data;
+	struct nsim_bus_dev *nsim_bus_dev = nsim_dev->nsim_bus_dev;
 	struct nsim_vf_config *vfconfigs;
 	ssize_t ret;
 	char buf[10];
@@ -144,7 +151,7 @@ ssize_t nsim_bus_dev_max_vfs_write(struct file *file,
 	if (count >= sizeof(buf))
 		return -ENOSPC;
 
-	mutex_lock(&nsim_bus_dev->vfs_lock);
+	mutex_lock(&nsim_dev->vfs_lock);
 	/* Reject if VFs are configured */
 	if (nsim_bus_dev->num_vfs) {
 		ret = -EBUSY;
@@ -176,13 +183,13 @@ ssize_t nsim_bus_dev_max_vfs_write(struct file *file,
 		goto unlock;
 	}
 
-	kfree(nsim_bus_dev->vfconfigs);
-	nsim_bus_dev->vfconfigs = vfconfigs;
+	kfree(nsim_dev->vfconfigs);
+	nsim_dev->vfconfigs = vfconfigs;
 	nsim_bus_dev->max_vfs = val;
 	*ppos += count;
 	ret = count;
 unlock:
-	mutex_unlock(&nsim_bus_dev->vfs_lock);
+	mutex_unlock(&nsim_dev->vfs_lock);
 	return ret;
 }
 
@@ -428,26 +435,15 @@ nsim_bus_dev_new(unsigned int id, unsigned int port_count, unsigned int num_queu
 	nsim_bus_dev->initial_net = current->nsproxy->net_ns;
 	nsim_bus_dev->max_vfs = NSIM_BUS_DEV_MAX_VFS;
 	mutex_init(&nsim_bus_dev->nsim_bus_reload_lock);
-	mutex_init(&nsim_bus_dev->vfs_lock);
 	/* Disallow using nsim_bus_dev */
 	smp_store_release(&nsim_bus_dev->init, false);
 
-	nsim_bus_dev->vfconfigs = kcalloc(nsim_bus_dev->max_vfs,
-					  sizeof(struct nsim_vf_config),
-					  GFP_KERNEL | __GFP_NOWARN);
-	if (!nsim_bus_dev->vfconfigs) {
-		err = -ENOMEM;
-		goto err_nsim_bus_dev_id_free;
-	}
-
 	err = device_register(&nsim_bus_dev->dev);
 	if (err)
-		goto err_nsim_vfs_free;
+		goto err_nsim_bus_dev_id_free;
 
 	return nsim_bus_dev;
 
-err_nsim_vfs_free:
-	kfree(nsim_bus_dev->vfconfigs);
 err_nsim_bus_dev_id_free:
 	ida_free(&nsim_bus_dev_ids, nsim_bus_dev->dev.id);
 err_nsim_bus_dev_free:
@@ -461,7 +457,6 @@ static void nsim_bus_dev_del(struct nsim_bus_dev *nsim_bus_dev)
 	smp_store_release(&nsim_bus_dev->init, false);
 	device_unregister(&nsim_bus_dev->dev);
 	ida_free(&nsim_bus_dev_ids, nsim_bus_dev->dev.id);
-	kfree(nsim_bus_dev->vfconfigs);
 	kfree(nsim_bus_dev);
 }
 
