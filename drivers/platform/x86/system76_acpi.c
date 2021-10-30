@@ -739,7 +739,6 @@ static int system76_add(struct acpi_device *acpi_dev)
 error:
 	kfree(data->ntmp);
 	kfree(data->nfan);
-	input_free_device(data->input);
 	return err;
 }
 
