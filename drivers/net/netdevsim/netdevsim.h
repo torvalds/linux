@@ -317,13 +317,6 @@ void nsim_fib_destroy(struct devlink *devlink, struct nsim_fib_data *fib_data);
 u64 nsim_fib_get_val(struct nsim_fib_data *fib_data,
 		     enum nsim_resource_id res_id, bool max);
 
-ssize_t nsim_bus_dev_max_vfs_read(struct file *file,
-				  char __user *data,
-				  size_t count, loff_t *ppos);
-ssize_t nsim_bus_dev_max_vfs_write(struct file *file,
-				   const char __user *data,
-				   size_t count, loff_t *ppos);
-
 static inline bool nsim_dev_port_is_pf(struct nsim_dev_port *nsim_dev_port)
 {
 	return nsim_dev_port->port_type == NSIM_DEV_PORT_TYPE_PF;

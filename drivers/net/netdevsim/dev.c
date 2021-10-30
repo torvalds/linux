@@ -227,6 +227,70 @@ static const struct file_operations nsim_dev_trap_fa_cookie_fops = {
 	.owner = THIS_MODULE,
 };
 
+static ssize_t nsim_bus_dev_max_vfs_read(struct file *file, char __user *data,
+					 size_t count, loff_t *ppos)
+{
+	struct nsim_dev *nsim_dev = file->private_data;
+	char buf[11];
+	ssize_t len;
+
+	len = scnprintf(buf, sizeof(buf), "%u\n",
+			READ_ONCE(nsim_dev->nsim_bus_dev->max_vfs));
+
+	return simple_read_from_buffer(data, count, ppos, buf, len);
+}
+
+static ssize_t nsim_bus_dev_max_vfs_write(struct file *file,
+					  const char __user *data,
+					  size_t count, loff_t *ppos)
+{
+	struct nsim_vf_config *vfconfigs;
+	struct nsim_dev *nsim_dev;
+	char buf[10];
+	ssize_t ret;
+	u32 val;
+
+	if (*ppos != 0)
+		return 0;
+
+	if (count >= sizeof(buf))
+		return -ENOSPC;
+
+	ret = copy_from_user(buf, data, count);
+	if (ret)
+		return -EFAULT;
+	buf[count] = '\0';
+
+	ret = kstrtouint(buf, 10, &val);
+	if (ret)
+		return -EINVAL;
+
+	/* max_vfs limited by the maximum number of provided port indexes */
+	if (val > NSIM_DEV_VF_PORT_INDEX_MAX - NSIM_DEV_VF_PORT_INDEX_BASE)
+		return -ERANGE;
+
+	vfconfigs = kcalloc(val, sizeof(struct nsim_vf_config),
+			    GFP_KERNEL | __GFP_NOWARN);
+	if (!vfconfigs)
+		return -ENOMEM;
+
+	nsim_dev = file->private_data;
+	mutex_lock(&nsim_dev->vfs_lock);
+	/* Reject if VFs are configured */
+	if (nsim_dev_get_vfs(nsim_dev)) {
+		ret = -EBUSY;
+	} else {
+		swap(nsim_dev->vfconfigs, vfconfigs);
+		WRITE_ONCE(nsim_dev->nsim_bus_dev->max_vfs, val);
+		*ppos += count;
+		ret = count;
+	}
+	mutex_unlock(&nsim_dev->vfs_lock);
+
+	kfree(vfconfigs);
+	return ret;
+}
+
 static const struct file_operations nsim_dev_max_vfs_fops = {
 	.open = simple_open,
 	.read = nsim_bus_dev_max_vfs_read,
