@@ -170,8 +170,8 @@ structure. This is done so that future calls to file operations will
 enable the driver to determine which device the user is addressing. All
 of this is done with the following code::
 
-    /* increment our usage count for the module */
-    ++skel->open_count;
+    /* increment our usage count for the device */
+    kref_get(&dev->kref);
 
     /* save our object in the file's private structure */
     file->private_data = dev;
