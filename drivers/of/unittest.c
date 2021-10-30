@@ -1129,6 +1129,12 @@ static void __init of_unittest_parse_interrupts_extended(void)
 			passed &= (args.args[1] == 14);
 			break;
 		case 6:
+			/*
+			 * Tests child node that is missing property
+			 * #address-cells.  See the comments in
+			 * drivers/of/unittest-data/tests-interrupts.dtsi
+			 * nodes intmap1 and interrupts-extended0
+			 */
 			passed &= !rc;
 			passed &= (args.args_count == 1);
 			passed &= (args.args[0] == 15);
