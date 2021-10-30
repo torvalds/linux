@@ -290,6 +290,13 @@ static inline bool tcp_out_of_memory(struct sock *sk)
 	return false;
 }
 
+static inline void tcp_wmem_free_skb(struct sock *sk, struct sk_buff *skb)
+{
+	sk_wmem_queued_add(sk, -skb->truesize);
+	sk_mem_uncharge(sk, skb->truesize);
+	__kfree_skb(skb);
+}
+
 void sk_forced_mem_schedule(struct sock *sk, int size);
 
 bool tcp_check_oom(struct sock *sk, int shift);
@@ -1875,7 +1882,7 @@ static inline void tcp_rtx_queue_unlink_and_free(struct sk_buff *skb, struct soc
 {
 	list_del(&skb->tcp_tsorted_anchor);
 	tcp_rtx_queue_unlink(skb, sk);
-	sk_wmem_free_skb(sk, skb);
+	tcp_wmem_free_skb(sk, skb);
 }
 
 static inline void tcp_push_pending_frames(struct sock *sk)
