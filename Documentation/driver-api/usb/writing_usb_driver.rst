@@ -94,8 +94,8 @@ usually in the driver's init function, as shown here::
 	    /* register this driver with the USB subsystem */
 	    result = usb_register(&skel_driver);
 	    if (result < 0) {
-		    err("usb_register failed for the "__FILE__ "driver."
-			"Error number %d", result);
+		    pr_err("usb_register failed for the %s driver. Error number %d\n",
+		           skel_driver.name, result);
 		    return -1;
 	    }
 
