@@ -1258,6 +1258,52 @@ static void mana_gd_remove_irqs(struct pci_dev *pdev)
 	gc->irq_contexts = NULL;
 }
 
+static int mana_gd_setup(struct pci_dev *pdev)
+{
+	struct gdma_context *gc = pci_get_drvdata(pdev);
+	int err;
+
+	mana_gd_init_registers(pdev);
+	mana_smc_init(&gc->shm_channel, gc->dev, gc->shm_base);
+
+	err = mana_gd_setup_irqs(pdev);
+	if (err)
+		return err;
+
+	err = mana_hwc_create_channel(gc);
+	if (err)
+		goto remove_irq;
+
+	err = mana_gd_verify_vf_version(pdev);
+	if (err)
+		goto destroy_hwc;
+
+	err = mana_gd_query_max_resources(pdev);
+	if (err)
+		goto destroy_hwc;
+
+	err = mana_gd_detect_devices(pdev);
+	if (err)
+		goto destroy_hwc;
+
+	return 0;
+
+destroy_hwc:
+	mana_hwc_destroy_channel(gc);
+remove_irq:
+	mana_gd_remove_irqs(pdev);
+	return err;
+}
+
+static void mana_gd_cleanup(struct pci_dev *pdev)
+{
+	struct gdma_context *gc = pci_get_drvdata(pdev);
+
+	mana_hwc_destroy_channel(gc);
+
+	mana_gd_remove_irqs(pdev);
+}
+
 static int mana_gd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct gdma_context *gc;
@@ -1287,6 +1333,9 @@ static int mana_gd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!gc)
 		goto release_region;
 
+	mutex_init(&gc->eq_test_event_mutex);
+	pci_set_drvdata(pdev, gc);
+
 	bar0_va = pci_iomap(pdev, bar, 0);
 	if (!bar0_va)
 		goto free_gc;
@@ -1294,47 +1343,23 @@ static int mana_gd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	gc->bar0_va = bar0_va;
 	gc->dev = &pdev->dev;
 
-	pci_set_drvdata(pdev, gc);
 
-	mana_gd_init_registers(pdev);
-
-	mana_smc_init(&gc->shm_channel, gc->dev, gc->shm_base);
-
-	err = mana_gd_setup_irqs(pdev);
+	err = mana_gd_setup(pdev);
 	if (err)
 		goto unmap_bar;
 
-	mutex_init(&gc->eq_test_event_mutex);
-
-	err = mana_hwc_create_channel(gc);
+	err = mana_probe(&gc->mana, false);
 	if (err)
-		goto remove_irq;
-
-	err = mana_gd_verify_vf_version(pdev);
-	if (err)
-		goto remove_irq;
-
-	err = mana_gd_query_max_resources(pdev);
-	if (err)
-		goto remove_irq;
-
-	err = mana_gd_detect_devices(pdev);
-	if (err)
-		goto remove_irq;
-
-	err = mana_probe(&gc->mana);
-	if (err)
-		goto clean_up_gdma;
+		goto cleanup_gd;
 
 	return 0;
 
-clean_up_gdma:
-	mana_hwc_destroy_channel(gc);
-remove_irq:
-	mana_gd_remove_irqs(pdev);
+cleanup_gd:
+	mana_gd_cleanup(pdev);
 unmap_bar:
 	pci_iounmap(pdev, bar0_va);
 free_gc:
+	pci_set_drvdata(pdev, NULL);
 	vfree(gc);
 release_region:
 	pci_release_regions(pdev);
@@ -1349,11 +1374,9 @@ static void mana_gd_remove(struct pci_dev *pdev)
 {
 	struct gdma_context *gc = pci_get_drvdata(pdev);
 
-	mana_remove(&gc->mana);
+	mana_remove(&gc->mana, false);
 
-	mana_hwc_destroy_channel(gc);
-
-	mana_gd_remove_irqs(pdev);
+	mana_gd_cleanup(pdev);
 
 	pci_iounmap(pdev, gc->bar0_va);
 
@@ -1361,6 +1384,52 @@ static void mana_gd_remove(struct pci_dev *pdev)
 
 	pci_release_regions(pdev);
 	pci_clear_master(pdev);
+	pci_disable_device(pdev);
+}
+
+/* The 'state' parameter is not used. */
+static int mana_gd_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	struct gdma_context *gc = pci_get_drvdata(pdev);
+
+	mana_remove(&gc->mana, true);
+
+	mana_gd_cleanup(pdev);
+
+	return 0;
+}
+
+/* In case the NIC hardware stops working, the suspend and resume callbacks will
+ * fail -- if this happens, it's safer to just report an error than try to undo
+ * what has been done.
+ */
+static int mana_gd_resume(struct pci_dev *pdev)
+{
+	struct gdma_context *gc = pci_get_drvdata(pdev);
+	int err;
+
+	err = mana_gd_setup(pdev);
+	if (err)
+		return err;
+
+	err = mana_probe(&gc->mana, true);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+/* Quiesce the device for kexec. This is also called upon reboot/shutdown. */
+static void mana_gd_shutdown(struct pci_dev *pdev)
+{
+	struct gdma_context *gc = pci_get_drvdata(pdev);
+
+	dev_info(&pdev->dev, "Shutdown was calledd\n");
+
+	mana_remove(&gc->mana, true);
+
+	mana_gd_cleanup(pdev);
+
 	pci_disable_device(pdev);
 }
 
@@ -1378,6 +1447,9 @@ static struct pci_driver mana_driver = {
 	.id_table	= mana_id_table,
 	.probe		= mana_gd_probe,
 	.remove		= mana_gd_remove,
+	.suspend	= mana_gd_suspend,
+	.resume		= mana_gd_resume,
+	.shutdown	= mana_gd_shutdown,
 };
 
 module_pci_driver(mana_driver);

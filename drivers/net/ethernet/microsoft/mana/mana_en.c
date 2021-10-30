@@ -1828,11 +1828,12 @@ free_net:
 	return err;
 }
 
-int mana_probe(struct gdma_dev *gd)
+int mana_probe(struct gdma_dev *gd, bool resuming)
 {
 	struct gdma_context *gc = gd->gdma_context;
+	struct mana_context *ac = gd->driver_data;
 	struct device *dev = gc->dev;
-	struct mana_context *ac;
+	u16 num_ports = 0;
 	int err;
 	int i;
 
@@ -1844,44 +1845,70 @@ int mana_probe(struct gdma_dev *gd)
 	if (err)
 		return err;
 
-	ac = kzalloc(sizeof(*ac), GFP_KERNEL);
-	if (!ac)
-		return -ENOMEM;
+	if (!resuming) {
+		ac = kzalloc(sizeof(*ac), GFP_KERNEL);
+		if (!ac)
+			return -ENOMEM;
 
-	ac->gdma_dev = gd;
-	ac->num_ports = 1;
-	gd->driver_data = ac;
+		ac->gdma_dev = gd;
+		gd->driver_data = ac;
+	}
 
 	err = mana_create_eq(ac);
 	if (err)
 		goto out;
 
 	err = mana_query_device_cfg(ac, MANA_MAJOR_VERSION, MANA_MINOR_VERSION,
-				    MANA_MICRO_VERSION, &ac->num_ports);
+				    MANA_MICRO_VERSION, &num_ports);
 	if (err)
 		goto out;
+
+	if (!resuming) {
+		ac->num_ports = num_ports;
+	} else {
+		if (ac->num_ports != num_ports) {
+			dev_err(dev, "The number of vPorts changed: %d->%d\n",
+				ac->num_ports, num_ports);
+			err = -EPROTO;
+			goto out;
+		}
+	}
+
+	if (ac->num_ports == 0)
+		dev_err(dev, "Failed to detect any vPort\n");
 
 	if (ac->num_ports > MAX_PORTS_IN_MANA_DEV)
 		ac->num_ports = MAX_PORTS_IN_MANA_DEV;
 
-	for (i = 0; i < ac->num_ports; i++) {
-		err = mana_probe_port(ac, i, &ac->ports[i]);
-		if (err)
-			break;
+	if (!resuming) {
+		for (i = 0; i < ac->num_ports; i++) {
+			err = mana_probe_port(ac, i, &ac->ports[i]);
+			if (err)
+				break;
+		}
+	} else {
+		for (i = 0; i < ac->num_ports; i++) {
+			rtnl_lock();
+			err = mana_attach(ac->ports[i]);
+			rtnl_unlock();
+			if (err)
+				break;
+		}
 	}
 out:
 	if (err)
-		mana_remove(gd);
+		mana_remove(gd, false);
 
 	return err;
 }
 
-void mana_remove(struct gdma_dev *gd)
+void mana_remove(struct gdma_dev *gd, bool suspending)
 {
 	struct gdma_context *gc = gd->gdma_context;
 	struct mana_context *ac = gd->driver_data;
 	struct device *dev = gc->dev;
 	struct net_device *ndev;
+	int err;
 	int i;
 
 	for (i = 0; i < ac->num_ports; i++) {
@@ -1897,7 +1924,16 @@ void mana_remove(struct gdma_dev *gd)
 		 */
 		rtnl_lock();
 
-		mana_detach(ndev, false);
+		err = mana_detach(ndev, false);
+		if (err)
+			netdev_err(ndev, "Failed to detach vPort %d: %d\n",
+				   i, err);
+
+		if (suspending) {
+			/* No need to unregister the ndev. */
+			rtnl_unlock();
+			continue;
+		}
 
 		unregister_netdevice(ndev);
 
@@ -1910,6 +1946,10 @@ void mana_remove(struct gdma_dev *gd)
 
 out:
 	mana_gd_deregister_device(gd);
+
+	if (suspending)
+		return;
+
 	gd->driver_data = NULL;
 	gd->gdma_context = NULL;
 	kfree(ac);

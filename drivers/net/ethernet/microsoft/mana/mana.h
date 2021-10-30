@@ -374,8 +374,8 @@ int mana_alloc_queues(struct net_device *ndev);
 int mana_attach(struct net_device *ndev);
 int mana_detach(struct net_device *ndev, bool from_close);
 
-int mana_probe(struct gdma_dev *gd);
-void mana_remove(struct gdma_dev *gd);
+int mana_probe(struct gdma_dev *gd, bool resuming);
+void mana_remove(struct gdma_dev *gd, bool suspending);
 
 extern const struct ethtool_ops mana_ethtool_ops;
 
