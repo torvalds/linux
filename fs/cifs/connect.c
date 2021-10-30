@@ -335,6 +335,7 @@ static int __cifs_reconnect(struct TCP_Server_Info *server,
 			spin_unlock(&cifs_tcp_ses_lock);
 			cifs_swn_reset_server_dstaddr(server);
 			mutex_unlock(&server->srv_mutex);
+			mod_delayed_work(cifsiod_wq, &server->reconnect, 0);
 		}
 	} while (server->tcpStatus == CifsNeedReconnect);
 
@@ -4404,9 +4405,22 @@ int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon, const stru
 	char *tree;
 	struct dfs_info3_param ref = {0};
 
+	/* only send once per connect */
+	spin_lock(&cifs_tcp_ses_lock);
+	if (tcon->ses->status != CifsGood ||
+	    (tcon->tidStatus != CifsNew &&
+	    tcon->tidStatus != CifsNeedTcon)) {
+		spin_unlock(&cifs_tcp_ses_lock);
+		return 0;
+	}
+	tcon->tidStatus = CifsInTcon;
+	spin_unlock(&cifs_tcp_ses_lock);
+
 	tree = kzalloc(MAX_TREE_SIZE, GFP_KERNEL);
-	if (!tree)
-		return -ENOMEM;
+	if (!tree) {
+		rc = -ENOMEM;
+		goto out;
+	}
 
 	if (tcon->ipc) {
 		scnprintf(tree, MAX_TREE_SIZE, "\\\\%s\\IPC$", server->hostname);
@@ -4438,11 +4452,18 @@ out:
 	kfree(tree);
 	cifs_put_tcp_super(sb);
 
+	if (rc) {
+		spin_lock(&cifs_tcp_ses_lock);
+		tcon->tidStatus = CifsNeedTcon;
+		spin_unlock(&cifs_tcp_ses_lock);
+	}
+
 	return rc;
 }
 #else
 int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon, const struct nls_table *nlsc)
 {
+	int rc;
 	const struct smb_version_operations *ops = tcon->ses->server->ops;
 
 	/* only send once per connect */
@@ -4456,6 +4477,13 @@ int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon, const stru
 	tcon->tidStatus = CifsInTcon;
 	spin_unlock(&cifs_tcp_ses_lock);
 
-	return ops->tree_connect(xid, tcon->ses, tcon->treeName, tcon, nlsc);
+	rc = ops->tree_connect(xid, tcon->ses, tcon->treeName, tcon, nlsc);
+	if (rc) {
+		spin_lock(&cifs_tcp_ses_lock);
+		tcon->tidStatus = CifsNeedTcon;
+		spin_unlock(&cifs_tcp_ses_lock);
+	}
+
+	return rc;
 }
 #endif

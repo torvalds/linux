@@ -117,6 +117,7 @@ enum statusEnum {
 	CifsInSessSetup,
 	CifsNeedTcon,
 	CifsInTcon,
+	CifsNeedFilesInvalidate,
 	CifsInFilesInvalidate
 };
 
@@ -923,6 +924,7 @@ struct cifs_chan {
  */
 struct cifs_ses {
 	struct list_head smb_ses_list;
+	struct list_head rlist; /* reconnect list */
 	struct list_head tcon_list;
 	struct cifs_tcon *tcon_ipc;
 	struct mutex session_mutex;
