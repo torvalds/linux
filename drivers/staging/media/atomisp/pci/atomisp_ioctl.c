@@ -829,8 +829,6 @@ static int atomisp_enum_fmt_cap(struct file *file, void *fh,
 		f->pixelformat = format->pixelformat;
 		return 0;
 	}
-	dev_err(isp->dev, "%s(): format for code %x not found.\n",
-		__func__, code.code);
 
 	return -EINVAL;
 }
