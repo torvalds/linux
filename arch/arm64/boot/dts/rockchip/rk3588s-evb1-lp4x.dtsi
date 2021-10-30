@@ -206,6 +206,18 @@
 			};
 		};
 	};
+
+	hym8563: hym8563@51 {
+		compatible = "haoyu,hym8563";
+		reg = <0x51>;
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+		clock-output-names = "hym8563";
+		pinctrl-names = "default";
+		pinctrl-0 = <&hym8563_int>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <RK_PC4 IRQ_TYPE_LEVEL_LOW>;
+	};
 };
 
 &pdm0 {
@@ -213,6 +225,12 @@
 };
 
 &pinctrl {
+	hym8563 {
+		hym8563_int: hym8563-int {
+			rockchip,pins = <0 RK_PC4 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
 	mpu6500 {
 		mpu6500_irq_gpio: mpu6500-irq-gpio {
 			rockchip,pins = <3 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;

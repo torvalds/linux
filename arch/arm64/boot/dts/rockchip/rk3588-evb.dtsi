@@ -14,7 +14,7 @@
 / {
 	adc_keys: adc-keys {
 		compatible = "adc-keys";
-		io-channels = <&saradc 0>;
+		io-channels = <&saradc 1>;
 		io-channel-names = "buttons";
 		keyup-threshold-microvolt = <1800000>;
 		poll-interval = <100>;

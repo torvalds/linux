@@ -14,7 +14,7 @@
 / {
 	adc_keys: adc-keys {
 		compatible = "adc-keys";
-		io-channels = <&saradc 0>;
+		io-channels = <&saradc 1>;
 		io-channel-names = "buttons";
 		keyup-threshold-microvolt = <1800000>;
 		poll-interval = <100>;
@@ -41,14 +41,6 @@
 			label = "back";
 			linux,code = <KEY_BACK>;
 			press-threshold-microvolt = <1305500>;
-		};
-	};
-
-	leds: leds {
-		compatible = "gpio-leds";
-		work_led: work {
-			gpios = <&gpio3 RK_PB7 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "heartbeat";
 		};
 	};
 
