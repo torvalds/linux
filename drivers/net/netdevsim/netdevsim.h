@@ -298,12 +298,12 @@ static inline struct net *nsim_dev_net(struct nsim_dev *nsim_dev)
 
 int nsim_dev_init(void);
 void nsim_dev_exit(void);
-int nsim_dev_probe(struct nsim_bus_dev *nsim_bus_dev);
-void nsim_dev_remove(struct nsim_bus_dev *nsim_bus_dev);
-int nsim_dev_port_add(struct nsim_bus_dev *nsim_bus_dev,
+int nsim_drv_probe(struct nsim_bus_dev *nsim_bus_dev);
+void nsim_drv_remove(struct nsim_bus_dev *nsim_bus_dev);
+int nsim_drv_port_add(struct nsim_bus_dev *nsim_bus_dev,
 		      enum nsim_dev_port_type type,
 		      unsigned int port_index);
-int nsim_dev_port_del(struct nsim_bus_dev *nsim_bus_dev,
+int nsim_drv_port_del(struct nsim_bus_dev *nsim_bus_dev,
 		      enum nsim_dev_port_type type,
 		      unsigned int port_index);
 int nsim_drv_configure_vfs(struct nsim_bus_dev *nsim_bus_dev,

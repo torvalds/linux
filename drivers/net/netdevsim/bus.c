@@ -80,7 +80,7 @@ new_port_store(struct device *dev, struct device_attribute *attr,
 		return -EBUSY;
 	}
 
-	ret = nsim_dev_port_add(nsim_bus_dev, NSIM_DEV_PORT_TYPE_PF, port_index);
+	ret = nsim_drv_port_add(nsim_bus_dev, NSIM_DEV_PORT_TYPE_PF, port_index);
 	mutex_unlock(&nsim_bus_dev->nsim_bus_reload_lock);
 	return ret ? ret : count;
 }
@@ -110,7 +110,7 @@ del_port_store(struct device *dev, struct device_attribute *attr,
 		return -EBUSY;
 	}
 
-	ret = nsim_dev_port_del(nsim_bus_dev, NSIM_DEV_PORT_TYPE_PF, port_index);
+	ret = nsim_drv_port_del(nsim_bus_dev, NSIM_DEV_PORT_TYPE_PF, port_index);
 	mutex_unlock(&nsim_bus_dev->nsim_bus_reload_lock);
 	return ret ? ret : count;
 }
@@ -250,14 +250,14 @@ static int nsim_bus_probe(struct device *dev)
 {
 	struct nsim_bus_dev *nsim_bus_dev = to_nsim_bus_dev(dev);
 
-	return nsim_dev_probe(nsim_bus_dev);
+	return nsim_drv_probe(nsim_bus_dev);
 }
 
 static void nsim_bus_remove(struct device *dev)
 {
 	struct nsim_bus_dev *nsim_bus_dev = to_nsim_bus_dev(dev);
 
-	nsim_dev_remove(nsim_bus_dev);
+	nsim_drv_remove(nsim_bus_dev);
 }
 
 static int nsim_num_vf(struct device *dev)
