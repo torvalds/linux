@@ -73,8 +73,8 @@ static struct cma *fadump_cma;
  * The total size of fadump reserved memory covers for boot memory size
  * + cpu data size + hpte size and metadata.
  * Initialize only the area equivalent to boot memory size for CMA use.
- * The reamining portion of fadump reserved memory will be not given
- * to CMA and pages for thoes will stay reserved. boot memory size is
+ * The remaining portion of fadump reserved memory will be not given
+ * to CMA and pages for those will stay reserved. boot memory size is
  * aligned per CMA requirement to satisy cma_init_reserved_mem() call.
  * But for some reason even if it fails we still have the memory reservation
  * with us and we can still continue doing fadump.
