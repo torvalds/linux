@@ -34,11 +34,26 @@
 
 /* State held across locks and calls for commands which have devlink fallback */
 struct ethtool_devlink_compat {
+	struct devlink *devlink;
 	union {
 		struct ethtool_flash efl;
 		struct ethtool_drvinfo info;
 	};
 };
+
+static struct devlink *netdev_to_devlink_get(struct net_device *dev)
+{
+	struct devlink_port *devlink_port;
+
+	if (!dev->netdev_ops->ndo_get_devlink_port)
+		return NULL;
+
+	devlink_port = dev->netdev_ops->ndo_get_devlink_port(dev);
+	if (!devlink_port)
+		return NULL;
+
+	return devlink_try_get(devlink_port->devlink);
+}
 
 /*
  * Some useful ethtool_ops methods that're device independent.
@@ -751,8 +766,8 @@ ethtool_get_drvinfo(struct net_device *dev, struct ethtool_devlink_compat *rsp)
 		rsp->info.eedump_len = ops->get_eeprom_len(dev);
 
 	if (!rsp->info.fw_version[0])
-		devlink_compat_running_version(dev, rsp->info.fw_version,
-					       sizeof(rsp->info.fw_version));
+		rsp->devlink = netdev_to_devlink_get(dev);
+
 	return 0;
 }
 
@@ -2184,8 +2199,10 @@ static int ethtool_set_value(struct net_device *dev, char __user *useraddr,
 static int
 ethtool_flash_device(struct net_device *dev, struct ethtool_devlink_compat *req)
 {
-	if (!dev->ethtool_ops->flash_device)
-		return devlink_compat_flash_update(dev, req->efl.data);
+	if (!dev->ethtool_ops->flash_device) {
+		req->devlink = netdev_to_devlink_get(dev);
+		return 0;
+	}
 
 	return dev->ethtool_ops->flash_device(dev, &req->efl);
 }
@@ -3027,7 +3044,16 @@ int dev_ethtool(struct net *net, struct ifreq *ifr, void __user *useraddr)
 		goto exit_free;
 
 	switch (ethcmd) {
+	case ETHTOOL_FLASHDEV:
+		if (state->devlink)
+			rc = devlink_compat_flash_update(state->devlink,
+							 state->efl.data);
+		break;
 	case ETHTOOL_GDRVINFO:
+		if (state->devlink)
+			devlink_compat_running_version(state->devlink,
+						       state->info.fw_version,
+						       sizeof(state->info.fw_version));
 		if (copy_to_user(useraddr, &state->info, sizeof(state->info))) {
 			rc = -EFAULT;
 			goto exit_free;
@@ -3036,6 +3062,8 @@ int dev_ethtool(struct net *net, struct ifreq *ifr, void __user *useraddr)
 	}
 
 exit_free:
+	if (state->devlink)
+		devlink_put(state->devlink);
 	kfree(state);
 	return rc;
 }

@@ -11283,55 +11283,28 @@ static struct devlink_port *netdev_to_devlink_port(struct net_device *dev)
 	return dev->netdev_ops->ndo_get_devlink_port(dev);
 }
 
-static struct devlink *netdev_to_devlink(struct net_device *dev)
-{
-	struct devlink_port *devlink_port = netdev_to_devlink_port(dev);
-
-	if (!devlink_port)
-		return NULL;
-
-	return devlink_port->devlink;
-}
-
-void devlink_compat_running_version(struct net_device *dev,
+void devlink_compat_running_version(struct devlink *devlink,
 				    char *buf, size_t len)
 {
-	struct devlink *devlink;
-
-	dev_hold(dev);
-	rtnl_unlock();
-
-	devlink = netdev_to_devlink(dev);
-	if (!devlink || !devlink->ops->info_get)
-		goto out;
+	if (!devlink->ops->info_get)
+		return;
 
 	mutex_lock(&devlink->lock);
 	__devlink_compat_running_version(devlink, buf, len);
 	mutex_unlock(&devlink->lock);
-
-out:
-	rtnl_lock();
-	dev_put(dev);
 }
 
-int devlink_compat_flash_update(struct net_device *dev, const char *file_name)
+int devlink_compat_flash_update(struct devlink *devlink, const char *file_name)
 {
 	struct devlink_flash_update_params params = {};
-	struct devlink *devlink;
 	int ret;
 
-	dev_hold(dev);
-	rtnl_unlock();
-
-	devlink = netdev_to_devlink(dev);
-	if (!devlink || !devlink->ops->flash_update) {
-		ret = -EOPNOTSUPP;
-		goto out;
-	}
+	if (!devlink->ops->flash_update)
+		return -EOPNOTSUPP;
 
 	ret = request_firmware(&params.fw, file_name, devlink->dev);
 	if (ret)
-		goto out;
+		return ret;
 
 	mutex_lock(&devlink->lock);
 	devlink_flash_update_begin_notify(devlink);
@@ -11340,10 +11313,6 @@ int devlink_compat_flash_update(struct net_device *dev, const char *file_name)
 	mutex_unlock(&devlink->lock);
 
 	release_firmware(params.fw);
-
-out:
-	rtnl_lock();
-	dev_put(dev);
 
 	return ret;
 }
