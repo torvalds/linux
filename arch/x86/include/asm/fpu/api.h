@@ -106,6 +106,4 @@ extern int cpu_has_xfeatures(u64 xfeatures_mask, const char **feature_name);
  */
 #define PASID_DISABLED	0
 
-static inline void update_pasid(void) { }
-
 #endif /* _ASM_X86_FPU_API_H */
