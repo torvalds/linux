@@ -154,6 +154,7 @@ Hardware Monitoring Kernel Drivers
    nsa320
    ntc_thermistor
    nzxt-kraken2
+   nzxt-smart2
    occ
    pc87360
    pc87427
