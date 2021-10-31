@@ -423,6 +423,6 @@ two transactions will typically mean twice as much delay waiting for
 transaction completion, effectively doubling the register cache refresh time.
 I guess reliability comes at a price, but it's quite expensive this time.
 
-So, as not everyone might enjoy the slowdown, PEC can be disabled through
-sysfs. Just write 0 to the "pec" file and PEC will be disabled. Write 1
-to that file to enable PEC again.
+So, as not everyone might enjoy the slowdown, PEC is disabled by default and
+can be enabled through sysfs. Just write 1 to the "pec" file and PEC will be
+enabled. Write 0 to that file to disable PEC again.

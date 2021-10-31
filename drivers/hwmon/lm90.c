@@ -179,6 +179,8 @@ enum chips { adm1032, adt7461, g781, lm86, lm90, lm99,
 #define LM90_PAUSE_FOR_CONFIG	BIT(9)	/* Pause conversion for config	*/
 #define LM90_HAVE_CRIT		BIT(10)	/* Chip supports CRIT/OVERT register	*/
 #define LM90_HAVE_CRIT_ALRM_SWP	BIT(11)	/* critical alarm bits swapped	*/
+#define LM90_HAVE_PEC		BIT(12)	/* Chip supports PEC		*/
+#define LM90_HAVE_PARTIAL_PEC	BIT(13)	/* Partial PEC support (adm1032)*/
 
 /* LM90 status */
 #define LM90_STATUS_LTHRM	BIT(0)	/* local THERM limit tripped */
@@ -346,7 +348,8 @@ struct lm90_params {
 static const struct lm90_params lm90_params[] = {
 	[adm1032] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
-		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_CRIT,
+		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_CRIT
+		  | LM90_HAVE_PARTIAL_PEC,
 		.alert_alarms = 0x7c,
 		.max_convrate = 10,
 	},
@@ -519,10 +522,10 @@ struct lm90_data {
  */
 
 /*
- * The ADM1032 supports PEC but not on write byte transactions, so we need
+ * If the chip supports PEC but not on write byte transactions, we need
  * to explicitly ask for a transaction without PEC.
  */
-static inline s32 adm1032_write_byte(struct i2c_client *client, u8 value)
+static inline s32 lm90_write_no_pec(struct i2c_client *client, u8 value)
 {
 	return i2c_smbus_xfer(client->adapter, client->addr,
 			      client->flags & ~I2C_CLIENT_PEC,
@@ -531,22 +534,24 @@ static inline s32 adm1032_write_byte(struct i2c_client *client, u8 value)
 
 /*
  * It is assumed that client->update_lock is held (unless we are in
- * detection or initialization steps). This matters when PEC is enabled,
- * because we don't want the address pointer to change between the write
- * byte and the read byte transactions.
+ * detection or initialization steps). This matters when PEC is enabled
+ * for chips with partial PEC support, because we don't want the address
+ * pointer to change between the write byte and the read byte transactions.
  */
 static int lm90_read_reg(struct i2c_client *client, u8 reg)
 {
+	struct lm90_data *data = i2c_get_clientdata(client);
+	bool partial_pec = (client->flags & I2C_CLIENT_PEC) &&
+			(data->flags & LM90_HAVE_PARTIAL_PEC);
 	int err;
 
-	if (client->flags & I2C_CLIENT_PEC) {
-		err = adm1032_write_byte(client, reg);
-		if (err >= 0)
-			err = i2c_smbus_read_byte(client);
-	} else
-		err = i2c_smbus_read_byte_data(client, reg);
-
-	return err;
+	if (partial_pec) {
+		err = lm90_write_no_pec(client, reg);
+		if (err)
+			return err;
+		return i2c_smbus_read_byte(client);
+	}
+	return i2c_smbus_read_byte_data(client, reg);
 }
 
 /*
@@ -1135,7 +1140,7 @@ static u16 temp_to_u16_adt7461(struct lm90_data *data, long val)
 	return (val + 125) / 250 * 64;
 }
 
-/* pec used for ADM1032 only */
+/* pec used for devices with PEC support */
 static ssize_t pec_show(struct device *dev, struct device_attribute *dummy,
 			char *buf)
 {
@@ -1675,13 +1680,6 @@ static int lm90_detect(struct i2c_client *client,
 		 && (config1 & 0x3F) == 0x00
 		 && convrate <= 0x0A) {
 			name = "adm1032";
-			/*
-			 * The ADM1032 supports PEC, but only if combined
-			 * transactions are not used.
-			 */
-			if (i2c_check_functionality(adapter,
-						    I2C_FUNC_SMBUS_BYTE))
-				info->flags |= I2C_CLIENT_PEC;
 		} else
 		if (chip_id == 0x51 /* ADT7461 */
 		 && (config1 & 0x1B) == 0x00
@@ -2005,10 +2003,6 @@ static int lm90_probe(struct i2c_client *client)
 		data->kind = (enum chips)of_device_get_match_data(&client->dev);
 	else
 		data->kind = i2c_match_id(lm90_id, client)->driver_data;
-	if (data->kind == adm1032) {
-		if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE))
-			client->flags &= ~I2C_CLIENT_PEC;
-	}
 
 	/*
 	 * Different devices have different alarm bits triggering the
@@ -2018,6 +2012,14 @@ static int lm90_probe(struct i2c_client *client)
 
 	/* Set chip capabilities */
 	data->flags = lm90_params[data->kind].flags;
+
+	if ((data->flags & (LM90_HAVE_PEC | LM90_HAVE_PARTIAL_PEC)) &&
+	    !i2c_check_functionality(adapter, I2C_FUNC_SMBUS_PEC))
+		data->flags &= ~(LM90_HAVE_PEC | LM90_HAVE_PARTIAL_PEC);
+
+	if ((data->flags & LM90_HAVE_PARTIAL_PEC) &&
+	    !i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE))
+		data->flags &= ~LM90_HAVE_PARTIAL_PEC;
 
 	data->chip.ops = &lm90_ops;
 	data->chip.info = data->info;
@@ -2081,7 +2083,7 @@ static int lm90_probe(struct i2c_client *client)
 	 * The 'pec' attribute is attached to the i2c device and thus created
 	 * separately.
 	 */
-	if (client->flags & I2C_CLIENT_PEC) {
+	if (data->flags & (LM90_HAVE_PEC | LM90_HAVE_PARTIAL_PEC)) {
 		err = device_create_file(dev, &dev_attr_pec);
 		if (err)
 			return err;
