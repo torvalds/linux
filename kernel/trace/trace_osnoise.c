@@ -1518,9 +1518,11 @@ static enum hrtimer_restart timerlat_irq(struct hrtimer *timer)
 	 * running, the thread needs to receive the softirq delta_start. The
 	 * reason being is that the softirq will be the last to be unfolded,
 	 * resseting the thread delay to zero.
+	 *
+	 * The PREEMPT_RT is a special case, though. As softirqs run as threads
+	 * on RT, moving the thread is enough.
 	 */
-#ifndef CONFIG_PREEMPT_RT
-	if (osn_var->softirq.delta_start) {
+	if (!IS_ENABLED(CONFIG_PREEMPT_RT) && osn_var->softirq.delta_start) {
 		copy_int_safe_time(osn_var, &osn_var->thread.delta_start,
 				   &osn_var->softirq.delta_start);
 
@@ -1530,13 +1532,6 @@ static enum hrtimer_restart timerlat_irq(struct hrtimer *timer)
 		copy_int_safe_time(osn_var, &osn_var->thread.delta_start,
 				    &osn_var->irq.delta_start);
 	}
-#else /* CONFIG_PREEMPT_RT */
-	/*
-	 * The sofirqs run as threads on RT, so there is not need
-	 * to keep track of it.
-	 */
-	copy_int_safe_time(osn_var, &osn_var->thread.delta_start, &osn_var->irq.delta_start);
-#endif /* CONFIG_PREEMPT_RT */
 
 	/*
 	 * Compute the current time with the expected time.
