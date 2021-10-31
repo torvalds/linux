@@ -349,6 +349,7 @@ struct amt_dev {
 
 #define AMT_TOS			0xc0
 #define AMT_IPHDR_OPTS		4
+#define AMT_IP6HDR_OPTS		8
 #define AMT_GC_INTERVAL		(30 * 1000)
 #define AMT_MAX_GROUP		32
 #define AMT_MAX_SOURCE		128
