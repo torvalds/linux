@@ -17,7 +17,6 @@
 #include <linux/soc/qcom/smd-rpm.h>
 
 #include <dt-bindings/clock/qcom,rpmcc.h>
-#include <dt-bindings/mfd/qcom-rpm.h>
 
 #define QCOM_RPM_KEY_SOFTWARE_ENABLE			0x6e657773
 #define QCOM_RPM_KEY_PIN_CTRL_CLK_BUFFER_ENABLE_KEY	0x62636370
@@ -152,7 +151,6 @@ struct clk_smd_rpm_req {
 };
 
 struct rpm_cc {
-	struct qcom_rpm *rpm;
 	struct clk_smd_rpm **clks;
 	size_t num_clks;
 };
