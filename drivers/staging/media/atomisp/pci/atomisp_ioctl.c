@@ -876,6 +876,20 @@ static int atomisp_g_fmt_cap(struct file *file, void *fh,
 		v4l2_fill_pix_format(&f->fmt.pix, &fmt.format);
 
 		f->fmt.pix.pixelformat = fmtdesc.pixelformat;
+
+		/*
+		 * HACK: The atomisp does something different here, as it
+		 * seems to set the sensor to a slightly higher resolution than
+		 * the visible ones. That seems to be needed by atomisp's ISP
+		 * in order to properly handle the frames. So, s_fmt adds 16
+		 * extra columns/lines. See atomisp_subdev_set_selection().
+		 *
+		 * Yet, the V4L2 userspace API doesn't expect those, so it
+		 * needs to be decremented when reporting the visible
+		 * resolution to userspace.
+		 */
+		f->fmt.pix.width -= pad_w;
+		f->fmt.pix.height -= pad_h;
 	}
 
 	depth = atomisp_get_pixel_depth(f->fmt.pix.pixelformat);
