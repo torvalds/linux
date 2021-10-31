@@ -1,0 +1,235 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
+/*
+ * Copyright (c) 2021 Taehee Yoo <ap420073@gmail.com>
+ */
+#ifndef _NET_AMT_H_
+#define _NET_AMT_H_
+
+#include <linux/siphash.h>
+#include <linux/jhash.h>
+
+enum amt_msg_type {
+	AMT_MSG_DISCOVERY = 1,
+	AMT_MSG_ADVERTISEMENT,
+	AMT_MSG_REQUEST,
+	AMT_MSG_MEMBERSHIP_QUERY,
+	AMT_MSG_MEMBERSHIP_UPDATE,
+	AMT_MSG_MULTICAST_DATA,
+	AMT_MSG_TEARDOWM,
+	__AMT_MSG_MAX,
+};
+
+#define AMT_MSG_MAX (__AMT_MSG_MAX - 1)
+
+enum amt_status {
+	AMT_STATUS_INIT,
+	AMT_STATUS_SENT_DISCOVERY,
+	AMT_STATUS_RECEIVED_DISCOVERY,
+	AMT_STATUS_SENT_ADVERTISEMENT,
+	AMT_STATUS_RECEIVED_ADVERTISEMENT,
+	AMT_STATUS_SENT_REQUEST,
+	AMT_STATUS_RECEIVED_REQUEST,
+	AMT_STATUS_SENT_QUERY,
+	AMT_STATUS_RECEIVED_QUERY,
+	AMT_STATUS_SENT_UPDATE,
+	AMT_STATUS_RECEIVED_UPDATE,
+	__AMT_STATUS_MAX,
+};
+
+#define AMT_STATUS_MAX (__AMT_STATUS_MAX - 1)
+
+struct amt_header_discovery {
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+	u32	type:4,
+		version:4,
+		reserved:24;
+#elif defined(__BIG_ENDIAN_BITFIELD)
+	u32	version:4,
+		type:4,
+		reserved:24;
+#else
+#error  "Please fix <asm/byteorder.h>"
+#endif
+	__be32	nonce;
+} __packed;
+
+struct amt_header_advertisement {
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+	u32	type:4,
+		version:4,
+		reserved:24;
+#elif defined(__BIG_ENDIAN_BITFIELD)
+	u32	version:4,
+		type:4,
+		reserved:24;
+#else
+#error  "Please fix <asm/byteorder.h>"
+#endif
+	__be32	nonce;
+	__be32	ip4;
+} __packed;
+
+struct amt_header_request {
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+	u32	type:4,
+		version:4,
+		reserved1:7,
+		p:1,
+		reserved2:16;
+#elif defined(__BIG_ENDIAN_BITFIELD)
+	u32	version:4,
+		type:4,
+		p:1,
+		reserved1:7,
+		reserved2:16;
+#else
+#error  "Please fix <asm/byteorder.h>"
+#endif
+	__be32	nonce;
+} __packed;
+
+struct amt_header_membership_query {
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+	u64	type:4,
+		version:4,
+		reserved:6,
+		l:1,
+		g:1,
+		response_mac:48;
+#elif defined(__BIG_ENDIAN_BITFIELD)
+	u64	version:4,
+		type:4,
+		g:1,
+		l:1,
+		reserved:6,
+		response_mac:48;
+#else
+#error  "Please fix <asm/byteorder.h>"
+#endif
+	__be32	nonce;
+} __packed;
+
+struct amt_header_membership_update {
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+	u64	type:4,
+		version:4,
+		reserved:8,
+		response_mac:48;
+#elif defined(__BIG_ENDIAN_BITFIELD)
+	u64	version:4,
+		type:4,
+		reserved:8,
+		response_mac:48;
+#else
+#error  "Please fix <asm/byteorder.h>"
+#endif
+	__be32	nonce;
+} __packed;
+
+struct amt_header_mcast_data {
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+	u16	type:4,
+		version:4,
+		reserved:8;
+#elif defined(__BIG_ENDIAN_BITFIELD)
+	u16	version:4,
+		type:4,
+		reserved:8;
+#else
+#error  "Please fix <asm/byteorder.h>"
+#endif
+} __packed;
+
+struct amt_gw_headers {
+	union {
+		struct amt_header_discovery discovery;
+		struct amt_header_request request;
+		struct amt_header_membership_update update;
+	};
+} __packed;
+
+struct amt_relay_headers {
+	union {
+		struct amt_header_advertisement advertisement;
+		struct amt_header_membership_query query;
+		struct amt_header_mcast_data data;
+	};
+} __packed;
+
+struct amt_dev {
+	struct net_device       *dev;
+	struct net_device       *stream_dev;
+	struct net		*net;
+	/* Global lock for amt device */
+	spinlock_t		lock;
+	/* Used only in relay mode */
+	struct list_head        tunnel_list;
+	struct gro_cells	gro_cells;
+
+	/* Protected by RTNL */
+	struct delayed_work     discovery_wq;
+	/* Protected by RTNL */
+	struct delayed_work     req_wq;
+	/* Protected by RTNL */
+	struct delayed_work     secret_wq;
+	/* AMT status */
+	enum amt_status		status;
+	/* Generated key */
+	siphash_key_t		key;
+	struct socket	  __rcu *sock;
+	u32			max_groups;
+	u32			max_sources;
+	u32			hash_buckets;
+	u32			hash_seed;
+	/* Default 128 */
+	u32                     max_tunnels;
+	/* Default 128 */
+	u32                     nr_tunnels;
+	/* Gateway or Relay mode */
+	u32                     mode;
+	/* Default 2268 */
+	__be16			relay_port;
+	/* Default 2268 */
+	__be16			gw_port;
+	/* Outer local ip */
+	__be32			local_ip;
+	/* Outer remote ip */
+	__be32			remote_ip;
+	/* Outer discovery ip */
+	__be32			discovery_ip;
+	/* Only used in gateway mode */
+	__be32			nonce;
+	/* Gateway sent request and received query */
+	bool			ready4;
+	bool			ready6;
+	u8			req_cnt;
+	u8			qi;
+	u64			qrv;
+	u64			qri;
+	/* Used only in gateway mode */
+	u64			mac:48,
+				reserved:16;
+};
+
+#define AMT_MAX_GROUP		32
+#define AMT_MAX_SOURCE		128
+#define AMT_HSIZE_SHIFT		8
+#define AMT_HSIZE		(1 << AMT_HSIZE_SHIFT)
+
+#define AMT_INIT_QUERY_INTERVAL	125
+#define IANA_AMT_UDP_PORT	2268
+#define AMT_MAX_TUNNELS         128
+#define AMT_MAX_REQS		128
+#define AMT_GW_HLEN (sizeof(struct iphdr) + \
+		     sizeof(struct udphdr) + \
+		     sizeof(struct amt_gw_headers))
+#define AMT_RELAY_HLEN (sizeof(struct iphdr) + \
+		     sizeof(struct udphdr) + \
+		     sizeof(struct amt_relay_headers))
+
+static inline bool netif_is_amt(const struct net_device *dev)
+{
+	return dev->rtnl_link_ops && !strcmp(dev->rtnl_link_ops->kind, "amt");
+}
+
+#endif /* _NET_AMT_H_ */
