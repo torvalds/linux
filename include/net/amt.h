@@ -21,6 +21,46 @@ enum amt_msg_type {
 
 #define AMT_MSG_MAX (__AMT_MSG_MAX - 1)
 
+enum amt_ops {
+	/* A*B */
+	AMT_OPS_INT,
+	/* A+B */
+	AMT_OPS_UNI,
+	/* A-B */
+	AMT_OPS_SUB,
+	/* B-A */
+	AMT_OPS_SUB_REV,
+	__AMT_OPS_MAX,
+};
+
+#define AMT_OPS_MAX (__AMT_OPS_MAX - 1)
+
+enum amt_filter {
+	AMT_FILTER_FWD,
+	AMT_FILTER_D_FWD,
+	AMT_FILTER_FWD_NEW,
+	AMT_FILTER_D_FWD_NEW,
+	AMT_FILTER_ALL,
+	AMT_FILTER_NONE_NEW,
+	AMT_FILTER_BOTH,
+	AMT_FILTER_BOTH_NEW,
+	__AMT_FILTER_MAX,
+};
+
+#define AMT_FILTER_MAX (__AMT_FILTER_MAX - 1)
+
+enum amt_act {
+	AMT_ACT_GMI,
+	AMT_ACT_GMI_ZERO,
+	AMT_ACT_GT,
+	AMT_ACT_STATUS_FWD_NEW,
+	AMT_ACT_STATUS_D_FWD_NEW,
+	AMT_ACT_STATUS_NONE_NEW,
+	__AMT_ACT_MAX,
+};
+
+#define AMT_ACT_MAX (__AMT_ACT_MAX - 1)
+
 enum amt_status {
 	AMT_STATUS_INIT,
 	AMT_STATUS_SENT_DISCOVERY,
@@ -152,6 +192,17 @@ struct amt_header_mcast_data {
 #endif
 } __packed;
 
+struct amt_headers {
+	union {
+		struct amt_header_discovery discovery;
+		struct amt_header_advertisement advertisement;
+		struct amt_header_request request;
+		struct amt_header_membership_query query;
+		struct amt_header_membership_update update;
+		struct amt_header_mcast_data data;
+	};
+} __packed;
+
 struct amt_gw_headers {
 	union {
 		struct amt_header_discovery discovery;
@@ -189,6 +240,56 @@ struct amt_tunnel_list {
 				reserved:16;
 	struct rcu_head		rcu;
 	struct hlist_head	groups[];
+};
+
+union amt_addr {
+	__be32			ip4;
+#if IS_ENABLED(CONFIG_IPV6)
+	struct in6_addr		ip6;
+#endif
+};
+
+/* RFC 3810
+ *
+ * When the router is in EXCLUDE mode, the router state is represented
+ * by the notation EXCLUDE (X,Y), where X is called the "Requested List"
+ * and Y is called the "Exclude List".  All sources, except those from
+ * the Exclude List, will be forwarded by the router
+ */
+enum amt_source_status {
+	AMT_SOURCE_STATUS_NONE,
+	/* Node of Requested List */
+	AMT_SOURCE_STATUS_FWD,
+	/* Node of Exclude List */
+	AMT_SOURCE_STATUS_D_FWD,
+};
+
+/* protected by gnode->lock */
+struct amt_source_node {
+	struct hlist_node	node;
+	struct amt_group_node	*gnode;
+	struct delayed_work     source_timer;
+	union amt_addr		source_addr;
+	enum amt_source_status	status;
+#define AMT_SOURCE_OLD	0
+#define AMT_SOURCE_NEW	1
+	u8			flags;
+	struct rcu_head		rcu;
+};
+
+/* Protected by amt_tunnel_list->lock */
+struct amt_group_node {
+	struct amt_dev		*amt;
+	union amt_addr		group_addr;
+	union amt_addr		host_addr;
+	bool			v6;
+	u8			filter_mode;
+	u32			nr_sources;
+	struct amt_tunnel_list	*tunnel_list;
+	struct hlist_node	node;
+	struct delayed_work     group_timer;
+	struct rcu_head		rcu;
+	struct hlist_head	sources[];
 };
 
 struct amt_dev {
@@ -246,8 +347,9 @@ struct amt_dev {
 				reserved:16;
 };
 
-#define AMT_TOS                 0xc0
+#define AMT_TOS			0xc0
 #define AMT_IPHDR_OPTS		4
+#define AMT_GC_INTERVAL		(30 * 1000)
 #define AMT_MAX_GROUP		32
 #define AMT_MAX_SOURCE		128
 #define AMT_HSIZE_SHIFT		8
