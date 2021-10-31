@@ -38,6 +38,18 @@ enum amt_status {
 
 #define AMT_STATUS_MAX (__AMT_STATUS_MAX - 1)
 
+struct amt_header {
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+	u8 type:4,
+	   version:4;
+#elif defined(__BIG_ENDIAN_BITFIELD)
+	u8 version:4,
+	   type:4;
+#else
+#error  "Please fix <asm/byteorder.h>"
+#endif
+} __packed;
+
 struct amt_header_discovery {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
 	u32	type:4,
@@ -156,6 +168,29 @@ struct amt_relay_headers {
 	};
 } __packed;
 
+struct amt_skb_cb {
+	struct amt_tunnel_list *tunnel;
+};
+
+struct amt_tunnel_list {
+	struct list_head	list;
+	/* Protect All resources under an amt_tunne_list */
+	spinlock_t		lock;
+	struct amt_dev		*amt;
+	u32			nr_groups;
+	u32			nr_sources;
+	enum amt_status		status;
+	struct delayed_work	gc_wq;
+	__be16			source_port;
+	__be32			ip4;
+	__be32			nonce;
+	siphash_key_t		key;
+	u64			mac:48,
+				reserved:16;
+	struct rcu_head		rcu;
+	struct hlist_head	groups[];
+};
+
 struct amt_dev {
 	struct net_device       *dev;
 	struct net_device       *stream_dev;
@@ -211,12 +246,19 @@ struct amt_dev {
 				reserved:16;
 };
 
+#define AMT_TOS                 0xc0
+#define AMT_IPHDR_OPTS		4
 #define AMT_MAX_GROUP		32
 #define AMT_MAX_SOURCE		128
 #define AMT_HSIZE_SHIFT		8
 #define AMT_HSIZE		(1 << AMT_HSIZE_SHIFT)
 
+#define AMT_DISCOVERY_TIMEOUT	5000
+#define AMT_INIT_REQ_TIMEOUT	1
 #define AMT_INIT_QUERY_INTERVAL	125
+#define AMT_MAX_REQ_TIMEOUT	120
+#define AMT_MAX_REQ_COUNT	3
+#define AMT_SECRET_TIMEOUT	60000
 #define IANA_AMT_UDP_PORT	2268
 #define AMT_MAX_TUNNELS         128
 #define AMT_MAX_REQS		128
@@ -230,6 +272,11 @@ struct amt_dev {
 static inline bool netif_is_amt(const struct net_device *dev)
 {
 	return dev->rtnl_link_ops && !strcmp(dev->rtnl_link_ops->kind, "amt");
+}
+
+static inline u64 amt_gmi(const struct amt_dev *amt)
+{
+	return ((amt->qrv * amt->qi) + amt->qri) * 1000;
 }
 
 #endif /* _NET_AMT_H_ */
