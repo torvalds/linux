@@ -189,10 +189,6 @@ static int clk_smd_rpm_set_rate_active(struct clk_smd_rpm *r,
 		.value = cpu_to_le32(DIV_ROUND_UP(rate, 1000)), /* to kHz */
 	};
 
-	/* Buffered clock needs a binary value */
-	if (r->rpm_res_type == QCOM_SMD_RPM_CLK_BUF_A)
-		req.value = cpu_to_le32(!!req.value);
-
 	return qcom_rpm_smd_write(r->rpm, QCOM_SMD_RPM_ACTIVE_STATE,
 				  r->rpm_res_type, r->rpm_clk_id, &req,
 				  sizeof(req));
@@ -206,10 +202,6 @@ static int clk_smd_rpm_set_rate_sleep(struct clk_smd_rpm *r,
 		.nbytes = cpu_to_le32(sizeof(u32)),
 		.value = cpu_to_le32(DIV_ROUND_UP(rate, 1000)), /* to kHz */
 	};
-
-	/* Buffered clock needs a binary value */
-	if (r->rpm_res_type == QCOM_SMD_RPM_CLK_BUF_A)
-		req.value = cpu_to_le32(!!req.value);
 
 	return qcom_rpm_smd_write(r->rpm, QCOM_SMD_RPM_SLEEP_STATE,
 				  r->rpm_res_type, r->rpm_clk_id, &req,
