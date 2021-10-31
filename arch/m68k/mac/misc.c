@@ -18,7 +18,6 @@
 
 #include <linux/uaccess.h>
 #include <asm/io.h>
-#include <asm/segment.h>
 #include <asm/setup.h>
 #include <asm/macintosh.h>
 #include <asm/mac_via.h>

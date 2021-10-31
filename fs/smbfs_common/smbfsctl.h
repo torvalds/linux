@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: LGPL-2.1+ */
 /*
- *   fs/cifs/smbfsctl.h: SMB, CIFS, SMB2 FSCTL definitions
+ *   SMB, CIFS, SMB2 FSCTL definitions
  *
  *   Copyright (c) International Business Machines  Corp., 2002,2013
  *   Author(s): Steve French (sfrench@us.ibm.com)

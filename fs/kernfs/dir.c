@@ -1116,8 +1116,13 @@ static struct dentry *kernfs_iop_lookup(struct inode *dir,
 		if (!inode)
 			inode = ERR_PTR(-ENOMEM);
 	}
-	/* Needed only for negative dentry validation */
-	if (!inode)
+	/*
+	 * Needed for negative dentry validation.
+	 * The negative dentry can be created in kernfs_iop_lookup()
+	 * or transforms from positive dentry in dentry_unlink_inode()
+	 * called from vfs_rmdir().
+	 */
+	if (!IS_ERR(inode))
 		kernfs_set_rev(parent, dentry);
 	up_read(&kernfs_rwsem);
 
