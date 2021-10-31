@@ -77,6 +77,11 @@ static int bloom_map_pop_elem(struct bpf_map *map, void *value)
 	return -EOPNOTSUPP;
 }
 
+static int bloom_map_delete_elem(struct bpf_map *map, void *value)
+{
+	return -EOPNOTSUPP;
+}
+
 static struct bpf_map *bloom_map_alloc(union bpf_attr *attr)
 {
 	u32 bitset_bytes, bitset_mask, nr_hash_funcs, nr_bits;
@@ -192,6 +197,7 @@ const struct bpf_map_ops bloom_filter_map_ops = {
 	.map_pop_elem = bloom_map_pop_elem,
 	.map_lookup_elem = bloom_map_lookup_elem,
 	.map_update_elem = bloom_map_update_elem,
+	.map_delete_elem = bloom_map_delete_elem,
 	.map_check_btf = bloom_map_check_btf,
 	.map_btf_name = "bpf_bloom_filter",
 	.map_btf_id = &bpf_bloom_map_btf_id,
