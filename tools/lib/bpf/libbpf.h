@@ -918,12 +918,15 @@ struct bpf_prog_info_linear {
 	__u8			data[];
 };
 
+LIBBPF_DEPRECATED_SINCE(0, 6, "use a custom linear prog_info wrapper")
 LIBBPF_API struct bpf_prog_info_linear *
 bpf_program__get_prog_info_linear(int fd, __u64 arrays);
 
+LIBBPF_DEPRECATED_SINCE(0, 6, "use a custom linear prog_info wrapper")
 LIBBPF_API void
 bpf_program__bpil_addr_to_offs(struct bpf_prog_info_linear *info_linear);
 
+LIBBPF_DEPRECATED_SINCE(0, 6, "use a custom linear prog_info wrapper")
 LIBBPF_API void
 bpf_program__bpil_offs_to_addr(struct bpf_prog_info_linear *info_linear);
 
