@@ -930,6 +930,7 @@ static int kmb_ocs_ecc_probe(struct platform_device *pdev)
 	ecc_dev->engine = crypto_engine_alloc_init(dev, 1);
 	if (!ecc_dev->engine) {
 		dev_err(dev, "Could not allocate crypto engine\n");
+		rc = -ENOMEM;
 		goto list_del;
 	}
 
