@@ -36,6 +36,7 @@
 
 #include "dw-hdmi-qp-audio.h"
 #include "dw-hdmi-qp.h"
+#include "dw-hdmi-qp-cec.h"
 
 #include <media/cec-notifier.h>
 
@@ -209,7 +210,7 @@ struct dw_hdmi_qp {
 	struct drm_bridge bridge;
 	struct platform_device *hdcp_dev;
 	struct platform_device *audio;
-
+	struct platform_device *cec;
 	struct device *dev;
 	struct dw_hdmi_qp_i2c *i2c;
 
@@ -236,7 +237,6 @@ struct dw_hdmi_qp {
 	void __iomem *regs;
 	bool sink_is_hdmi;
 	bool sink_has_audio;
-	bool hpd_state;
 
 	struct mutex mutex;		/* for state below and previous_mode */
 	struct drm_connector *curr_conn;/* current connector (only valid when !disabled) */
@@ -2128,15 +2128,33 @@ void dw_hdmi_qp_cec_set_hpd(struct dw_hdmi_qp *hdmi, bool plug_in, bool change)
 					   CEC_PHYS_ADDR_INVALID);
 
 	if (hdmi->bridge.dev) {
-		if (change && hdmi->cec_adap &&
-		    hdmi->cec_adap->devnode.registered)
-			cec_queue_pin_hpd_event(hdmi->cec_adap,
-						hdmi->hpd_state,
-						ktime_get());
+		if (change && hdmi->cec_adap && hdmi->cec_adap->devnode.registered)
+			cec_queue_pin_hpd_event(hdmi->cec_adap, plug_in, ktime_get());
 		drm_bridge_hpd_notify(&hdmi->bridge, status);
 	}
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_qp_cec_set_hpd);
+
+static void dw_hdmi_qp_cec_enable(struct dw_hdmi_qp *hdmi)
+{
+	mutex_lock(&hdmi->mutex);
+	hdmi_modb(hdmi, 0, CEC_SWDISABLE, GLOBAL_SWDISABLE);
+	mutex_unlock(&hdmi->mutex);
+}
+
+static void dw_hdmi_qp_cec_disable(struct dw_hdmi_qp *hdmi)
+{
+	mutex_lock(&hdmi->mutex);
+	hdmi_modb(hdmi, CEC_SWDISABLE, CEC_SWDISABLE, GLOBAL_SWDISABLE);
+	mutex_unlock(&hdmi->mutex);
+}
+
+static const struct dw_hdmi_qp_cec_ops dw_hdmi_qp_cec_ops = {
+	.enable = dw_hdmi_qp_cec_enable,
+	.disable = dw_hdmi_qp_cec_disable,
+	.write = hdmi_writel,
+	.read = hdmi_readl,
+};
 
 static const struct regmap_config hdmi_regmap_config = {
 	.reg_bits	= 32,
@@ -2155,6 +2173,7 @@ __dw_hdmi_probe(struct platform_device *pdev,
 	struct dw_hdmi_qp *hdmi;
 	struct dw_hdmi_qp_i2s_audio_data audio;
 	struct platform_device_info pdevinfo;
+	struct dw_hdmi_qp_cec_data cec;
 	struct resource *iores = NULL;
 	int irq;
 	int ret;
@@ -2230,6 +2249,14 @@ __dw_hdmi_probe(struct platform_device *pdev,
 					dev_name(dev), hdmi);
 	if (ret)
 		goto err_res;
+
+	irq = platform_get_irq(pdev, 1);
+	if (irq < 0) {
+		ret = irq;
+		goto err_res;
+	}
+
+	cec.irq = irq;
 
 	irq = platform_get_irq(pdev, 2);
 	if (irq < 0) {
@@ -2326,6 +2353,14 @@ __dw_hdmi_probe(struct platform_device *pdev,
 		goto err_res;
 	}
 
+	cec.hdmi = hdmi;
+	cec.ops = &dw_hdmi_qp_cec_ops;
+	pdevinfo.name = "dw-hdmi-qp-cec";
+	pdevinfo.data = &cec;
+	pdevinfo.size_data = sizeof(cec);
+	pdevinfo.dma_mask = 0;
+	hdmi->cec = platform_device_register_full(&pdevinfo);
+
 	/* Reset HDMI DDC I2C master controller and mute I2CM interrupts */
 	if (hdmi->i2c)
 		dw_hdmi_i2c_init(hdmi);
@@ -2366,7 +2401,8 @@ static void __dw_hdmi_remove(struct dw_hdmi_qp *hdmi)
 
 	if (hdmi->bridge.encoder)
 		hdmi->bridge.encoder->funcs->destroy(hdmi->bridge.encoder);
-
+	if (!IS_ERR(hdmi->cec))
+		platform_device_unregister(hdmi->cec);
 	if (hdmi->i2c)
 		i2c_del_adapter(&hdmi->i2c->adap);
 	else
