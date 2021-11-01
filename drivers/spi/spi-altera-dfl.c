@@ -134,7 +134,7 @@ static int dfl_spi_altera_probe(struct dfl_device *dfl_dev)
 	if (!master)
 		return -ENOMEM;
 
-	master->bus_num = dfl_dev->id;
+	master->bus_num = -1;
 
 	hw = spi_master_get_devdata(master);
 

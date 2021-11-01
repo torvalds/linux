@@ -147,8 +147,8 @@ config RESET_OXNAS
 	bool
 
 config RESET_PISTACHIO
-	bool "Pistachio Reset Driver" if COMPILE_TEST
-	default MACH_PISTACHIO
+	bool "Pistachio Reset Driver"
+	depends on MIPS || COMPILE_TEST
 	help
 	  This enables the reset driver for ImgTec Pistachio SoCs.
 
