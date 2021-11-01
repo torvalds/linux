@@ -29,6 +29,11 @@
 #define RKMODULE_CAMERA_MODULE_NAME	"rockchip,camera-module-name"
 #define RKMODULE_CAMERA_LENS_NAME	"rockchip,camera-module-lens-name"
 
+#define RKMODULE_CAMERA_SYNC_MODE	"rockchip,camera-module-sync-mode"
+#define RKMODULE_INTERNAL_MASTER_MODE	"internal_master"
+#define RKMODULE_EXTERNAL_MASTER_MODE	"external_master"
+#define RKMODULE_SLAVE_MODE		"slave"
+
 /* BT.656 & BT.1120 multi channel
  * On which channels it can send video data
  * related with struct rkmodule_bt656_mbus_info
@@ -110,6 +115,12 @@
 
 #define RKMODULE_GET_CHANNEL_INFO	\
 	_IOR('V', BASE_VIDIOC_PRIVATE + 20, struct rkmodule_channel_info)
+
+#define RKMODULE_GET_SYNC_MODE       \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 21, __u32)
+
+#define RKMODULE_SET_SYNC_MODE       \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 22, __u32)
 
 /**
  * struct rkmodule_base_inf - module base information
@@ -531,5 +542,15 @@ enum rkmodule_max_pad {
 	PAD2, /* link to csi wr1 | hdr      x3:L */
 	PAD3, /* link to csi wr2 | hdr x2:M x3:S */
 	PAD_MAX,
+};
+
+/*
+ * sensor exposure sync mode
+ */
+enum rkmodule_sync_mode {
+	NO_SYNC_MODE = 0,
+	EXTERNAL_MASTER_MODE,
+	INTERNAL_MASTER_MODE,
+	SLAVE_MODE,
 };
 #endif /* _UAPI_RKMODULE_CAMERA_H */
