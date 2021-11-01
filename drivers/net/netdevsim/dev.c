@@ -1723,13 +1723,11 @@ int nsim_drv_configure_vfs(struct nsim_bus_dev *nsim_bus_dev,
 			   unsigned int num_vfs)
 {
 	struct nsim_dev *nsim_dev = dev_get_drvdata(&nsim_bus_dev->dev);
-	int ret;
+	int ret = 0;
 
 	mutex_lock(&nsim_dev->vfs_lock);
-	if (nsim_bus_dev->num_vfs == num_vfs) {
-		ret = 0;
+	if (nsim_bus_dev->num_vfs == num_vfs)
 		goto exit_unlock;
-	}
 	if (nsim_bus_dev->num_vfs && num_vfs) {
 		ret = -EBUSY;
 		goto exit_unlock;
