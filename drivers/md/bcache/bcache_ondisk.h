@@ -43,9 +43,9 @@ static inline void SET_##name(struct bkey *k, unsigned int i, __u64 v)	\
 #define KEY_MAX_U64S		8
 
 KEY_FIELD(KEY_PTRS,	high, 60, 3)
-KEY_FIELD(HEADER_SIZE,	high, 58, 2)
+KEY_FIELD(__PAD0,	high, 58, 2)
 KEY_FIELD(KEY_CSUM,	high, 56, 2)
-KEY_FIELD(KEY_PINNED,	high, 55, 1)
+KEY_FIELD(__PAD1,	high, 55, 1)
 KEY_FIELD(KEY_DIRTY,	high, 36, 1)
 
 KEY_FIELD(KEY_SIZE,	high, 20, KEY_SIZE_BITS)
