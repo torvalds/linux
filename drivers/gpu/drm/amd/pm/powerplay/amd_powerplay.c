@@ -875,6 +875,7 @@ pp_dpm_get_vce_clock_state(void *handle, unsigned idx)
 static int pp_get_power_profile_mode(void *handle, char *buf)
 {
 	struct pp_hwmgr *hwmgr = handle;
+	int ret;
 
 	if (!hwmgr || !hwmgr->pm_en || !buf)
 		return -EINVAL;
@@ -884,7 +885,10 @@ static int pp_get_power_profile_mode(void *handle, char *buf)
 		return snprintf(buf, PAGE_SIZE, "\n");
 	}
 
-	return hwmgr->hwmgr_func->get_power_profile_mode(hwmgr, buf);
+	mutex_lock(&hwmgr->smu_lock);
+	ret = hwmgr->hwmgr_func->get_power_profile_mode(hwmgr, buf);
+	mutex_unlock(&hwmgr->smu_lock);
+	return ret;
 }
 
 static int pp_set_power_profile_mode(void *handle, long *input, uint32_t size)
