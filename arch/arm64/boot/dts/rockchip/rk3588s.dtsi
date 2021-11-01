@@ -292,6 +292,21 @@
 		};
 	};
 
+	gpu: gpu@fb000000 {
+		compatible = "arm,mali-bifrost";
+		reg = <0x0 0xfb000000 0x0 0x80000>;
+		interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "GPU", "MMU", "JOB";
+
+		clocks = <&cru CLK_GPU_COREGROUP>, <&cru CLK_GPU_STACKS>, <&cru CLK_GPU>;
+		clock-names = "clk_gpu_coregroup", "clk_gpu_stacks", "clk_gpu";
+		power-domains = <&power RK3588_PD_GPU>;
+
+		status = "disabled";
+	};
+
 	usbdrd3_0: usbdrd3_0 {
 		compatible = "rockchip,rk3588-dwc3", "rockchip,rk3399-dwc3";
 		clocks = <&cru REF_CLK_USB3OTG0>, <&cru SUSPEND_CLK_USB3OTG0>,
