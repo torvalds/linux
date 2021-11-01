@@ -2668,30 +2668,26 @@ ssize_t filemap_read(struct kiocb *iocb, struct iov_iter *iter,
 			mark_page_accessed(pvec.pages[0]);
 
 		for (i = 0; i < pagevec_count(&pvec); i++) {
-			struct page *page = pvec.pages[i];
-			size_t page_size = thp_size(page);
-			size_t offset = iocb->ki_pos & (page_size - 1);
+			struct folio *folio = page_folio(pvec.pages[i]);
+			size_t fsize = folio_size(folio);
+			size_t offset = iocb->ki_pos & (fsize - 1);
 			size_t bytes = min_t(loff_t, end_offset - iocb->ki_pos,
-					     page_size - offset);
+					     fsize - offset);
 			size_t copied;
 
-			if (end_offset < page_offset(page))
+			if (end_offset < folio_pos(folio))
 				break;
 			if (i > 0)
-				mark_page_accessed(page);
+				folio_mark_accessed(folio);
 			/*
-			 * If users can be writing to this page using arbitrary
-			 * virtual addresses, take care about potential aliasing
-			 * before reading the page on the kernel side.
+			 * If users can be writing to this folio using arbitrary
+			 * virtual addresses, take care of potential aliasing
+			 * before reading the folio on the kernel side.
 			 */
-			if (writably_mapped) {
-				int j;
+			if (writably_mapped)
+				flush_dcache_folio(folio);
 
-				for (j = 0; j < thp_nr_pages(page); j++)
-					flush_dcache_page(page + j);
-			}
-
-			copied = copy_page_to_iter(page, offset, bytes, iter);
+			copied = copy_folio_to_iter(folio, offset, bytes, iter);
 
 			already_read += copied;
 			iocb->ki_pos += copied;
