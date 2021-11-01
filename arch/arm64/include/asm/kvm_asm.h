@@ -263,9 +263,10 @@ extern u64 __kvm_get_mdcr_el2(void);
 
 /*
  * KVM extable for unexpected exceptions.
- * In the same format _asm_extable, but output to a different section so that
- * it can be mapped to EL2. The KVM version is not sorted. The caller must
- * ensure:
+ * Create a struct kvm_exception_table_entry output to a section that can be
+ * mapped by EL2. The table is not sorted.
+ *
+ * The caller must ensure:
  * x18 has the hypervisor value to allow any Shadow-Call-Stack instrumented
  * code to write to it, and that SPSR_EL2 and ELR_EL2 are restored by the fixup.
  */
