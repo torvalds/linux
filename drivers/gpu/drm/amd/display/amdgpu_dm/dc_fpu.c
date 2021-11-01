@@ -62,7 +62,7 @@ inline void dc_assert_fp_enabled(void)
 	depth = *pcpu;
 	put_cpu_ptr(&fpu_recursion_depth);
 
-	ASSERT(depth > 1);
+	ASSERT(depth >= 1);
 }
 
 /**

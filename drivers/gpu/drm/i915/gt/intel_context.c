@@ -362,8 +362,9 @@ static int __intel_context_active(struct i915_active *active)
 	return 0;
 }
 
-static int sw_fence_dummy_notify(struct i915_sw_fence *sf,
-				 enum i915_sw_fence_notify state)
+static int __i915_sw_fence_call
+sw_fence_dummy_notify(struct i915_sw_fence *sf,
+		      enum i915_sw_fence_notify state)
 {
 	return NOTIFY_DONE;
 }
@@ -420,6 +421,7 @@ void intel_context_fini(struct intel_context *ce)
 
 	mutex_destroy(&ce->pin_mutex);
 	i915_active_fini(&ce->active);
+	i915_sw_fence_fini(&ce->guc_blocked);
 }
 
 void i915_context_module_exit(void)

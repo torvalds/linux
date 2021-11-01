@@ -356,11 +356,8 @@ static void i915_ttm_delete_mem_notify(struct ttm_buffer_object *bo)
 {
 	struct drm_i915_gem_object *obj = i915_ttm_to_gem(bo);
 
-	if (likely(obj)) {
-		/* This releases all gem object bindings to the backend. */
+	if (likely(obj))
 		i915_ttm_free_cached_io_st(obj);
-		__i915_gem_free_object(obj);
-	}
 }
 
 static struct intel_memory_region *
@@ -875,8 +872,12 @@ void i915_ttm_bo_destroy(struct ttm_buffer_object *bo)
 {
 	struct drm_i915_gem_object *obj = i915_ttm_to_gem(bo);
 
+	/* This releases all gem object bindings to the backend. */
+	__i915_gem_free_object(obj);
+
 	i915_gem_object_release_memory_region(obj);
 	mutex_destroy(&obj->ttm.get_io_page.lock);
+
 	if (obj->ttm.created)
 		call_rcu(&obj->rcu, __i915_gem_free_object_rcu);
 }

@@ -8,7 +8,7 @@
 #include <linux/blkdev.h>
 #include <linux/buffer_head.h>
 #include <linux/fs.h>
-#include <linux/nls.h>
+#include <linux/kernel.h>
 
 #include "debug.h"
 #include "ntfs.h"
@@ -671,113 +671,17 @@ static struct NTFS_DE *hdr_find_e(const struct ntfs_index *indx,
 				  const struct INDEX_HDR *hdr, const void *key,
 				  size_t key_len, const void *ctx, int *diff)
 {
-	struct NTFS_DE *e;
+	struct NTFS_DE *e, *found = NULL;
 	NTFS_CMP_FUNC cmp = indx->cmp;
+	int min_idx = 0, mid_idx, max_idx = 0;
+	int diff2;
+	int table_size = 8;
 	u32 e_size, e_key_len;
 	u32 end = le32_to_cpu(hdr->used);
 	u32 off = le32_to_cpu(hdr->de_off);
+	u16 offs[128];
 
-#ifdef NTFS3_INDEX_BINARY_SEARCH
-	int max_idx = 0, fnd, min_idx;
-	int nslots = 64;
-	u16 *offs;
-
-	if (end > 0x10000)
-		goto next;
-
-	offs = kmalloc(sizeof(u16) * nslots, GFP_NOFS);
-	if (!offs)
-		goto next;
-
-	/* Use binary search algorithm. */
-next1:
-	if (off + sizeof(struct NTFS_DE) > end) {
-		e = NULL;
-		goto out1;
-	}
-	e = Add2Ptr(hdr, off);
-	e_size = le16_to_cpu(e->size);
-
-	if (e_size < sizeof(struct NTFS_DE) || off + e_size > end) {
-		e = NULL;
-		goto out1;
-	}
-
-	if (max_idx >= nslots) {
-		u16 *ptr;
-		int new_slots = ALIGN(2 * nslots, 8);
-
-		ptr = kmalloc(sizeof(u16) * new_slots, GFP_NOFS);
-		if (ptr)
-			memcpy(ptr, offs, sizeof(u16) * max_idx);
-		kfree(offs);
-		offs = ptr;
-		nslots = new_slots;
-		if (!ptr)
-			goto next;
-	}
-
-	/* Store entry table. */
-	offs[max_idx] = off;
-
-	if (!de_is_last(e)) {
-		off += e_size;
-		max_idx += 1;
-		goto next1;
-	}
-
-	/*
-	 * Table of pointers is created.
-	 * Use binary search to find entry that is <= to the search value.
-	 */
-	fnd = -1;
-	min_idx = 0;
-
-	while (min_idx <= max_idx) {
-		int mid_idx = min_idx + ((max_idx - min_idx) >> 1);
-		int diff2;
-
-		e = Add2Ptr(hdr, offs[mid_idx]);
-
-		e_key_len = le16_to_cpu(e->key_size);
-
-		diff2 = (*cmp)(key, key_len, e + 1, e_key_len, ctx);
-
-		if (!diff2) {
-			*diff = 0;
-			goto out1;
-		}
-
-		if (diff2 < 0) {
-			max_idx = mid_idx - 1;
-			fnd = mid_idx;
-			if (!fnd)
-				break;
-		} else {
-			min_idx = mid_idx + 1;
-		}
-	}
-
-	if (fnd == -1) {
-		e = NULL;
-		goto out1;
-	}
-
-	*diff = -1;
-	e = Add2Ptr(hdr, offs[fnd]);
-
-out1:
-	kfree(offs);
-
-	return e;
-#endif
-
-next:
-	/*
-	 * Entries index are sorted.
-	 * Enumerate all entries until we find entry
-	 * that is <= to the search value.
-	 */
+fill_table:
 	if (off + sizeof(struct NTFS_DE) > end)
 		return NULL;
 
@@ -787,22 +691,54 @@ next:
 	if (e_size < sizeof(struct NTFS_DE) || off + e_size > end)
 		return NULL;
 
-	off += e_size;
+	if (!de_is_last(e)) {
+		offs[max_idx] = off;
+		off += e_size;
 
+		max_idx++;
+		if (max_idx < table_size)
+			goto fill_table;
+
+		max_idx--;
+	}
+
+binary_search:
 	e_key_len = le16_to_cpu(e->key_size);
 
-	*diff = (*cmp)(key, key_len, e + 1, e_key_len, ctx);
-	if (!*diff)
-		return e;
+	diff2 = (*cmp)(key, key_len, e + 1, e_key_len, ctx);
+	if (diff2 > 0) {
+		if (found) {
+			min_idx = mid_idx + 1;
+		} else {
+			if (de_is_last(e))
+				return NULL;
 
-	if (*diff <= 0)
-		return e;
+			max_idx = 0;
+			table_size = min(table_size * 2,
+					 (int)ARRAY_SIZE(offs));
+			goto fill_table;
+		}
+	} else if (diff2 < 0) {
+		if (found)
+			max_idx = mid_idx - 1;
+		else
+			max_idx--;
 
-	if (de_is_last(e)) {
-		*diff = 1;
+		found = e;
+	} else {
+		*diff = 0;
 		return e;
 	}
-	goto next;
+
+	if (min_idx > max_idx) {
+		*diff = -1;
+		return found;
+	}
+
+	mid_idx = (min_idx + max_idx) >> 1;
+	e = Add2Ptr(hdr, offs[mid_idx]);
+
+	goto binary_search;
 }
 
 /*
@@ -1136,9 +1072,7 @@ int indx_find(struct ntfs_index *indx, struct ntfs_inode *ni,
 	if (!e)
 		return -EINVAL;
 
-	if (fnd)
-		fnd->root_de = e;
-
+	fnd->root_de = e;
 	err = 0;
 
 	for (;;) {
@@ -1401,7 +1335,7 @@ ok:
 static int indx_create_allocate(struct ntfs_index *indx, struct ntfs_inode *ni,
 				CLST *vbn)
 {
-	int err = -ENOMEM;
+	int err;
 	struct ntfs_sb_info *sbi = ni->mi.sbi;
 	struct ATTRIB *bitmap;
 	struct ATTRIB *alloc;

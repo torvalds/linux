@@ -12292,12 +12292,12 @@ void
 lpfc_ignore_els_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		     struct lpfc_iocbq *rspiocb)
 {
-	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *) cmdiocb->context1;
+	struct lpfc_nodelist *ndlp = NULL;
 	IOCB_t *irsp = &rspiocb->iocb;
 
 	/* ELS cmd tag <ulpIoTag> completes */
 	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
-			"0139 Ignoring ELS cmd tag x%x completion Data: "
+			"0139 Ignoring ELS cmd code x%x completion Data: "
 			"x%x x%x x%x\n",
 			irsp->ulpIoTag, irsp->ulpStatus,
 			irsp->un.ulpWord[4], irsp->ulpTimeout);
@@ -12305,10 +12305,13 @@ lpfc_ignore_els_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	 * Deref the ndlp after free_iocb. sli_release_iocb will access the ndlp
 	 * if exchange is busy.
 	 */
-	if (cmdiocb->iocb.ulpCommand == CMD_GEN_REQUEST64_CR)
+	if (cmdiocb->iocb.ulpCommand == CMD_GEN_REQUEST64_CR) {
+		ndlp = cmdiocb->context_un.ndlp;
 		lpfc_ct_free_iocb(phba, cmdiocb);
-	else
+	} else {
+		ndlp = (struct lpfc_nodelist *) cmdiocb->context1;
 		lpfc_els_free_iocb(phba, cmdiocb);
+	}
 
 	lpfc_nlp_put(ndlp);
 }
@@ -22090,6 +22093,7 @@ lpfc_read_object(struct lpfc_hba *phba, char *rdobject, uint32_t *datap,
 	uint32_t shdr_status, shdr_add_status;
 	union lpfc_sli4_cfg_shdr *shdr;
 	struct lpfc_dmabuf *pcmd;
+	u32 rd_object_name[LPFC_MBX_OBJECT_NAME_LEN_DW] = {0};
 
 	/* sanity check on queue memory */
 	if (!datap)
@@ -22113,10 +22117,10 @@ lpfc_read_object(struct lpfc_hba *phba, char *rdobject, uint32_t *datap,
 
 	memset((void *)read_object->u.request.rd_object_name, 0,
 	       LPFC_OBJ_NAME_SZ);
-	sprintf((uint8_t *)read_object->u.request.rd_object_name, rdobject);
+	scnprintf((char *)rd_object_name, sizeof(rd_object_name), rdobject);
 	for (j = 0; j < strlen(rdobject); j++)
 		read_object->u.request.rd_object_name[j] =
-			cpu_to_le32(read_object->u.request.rd_object_name[j]);
+			cpu_to_le32(rd_object_name[j]);
 
 	pcmd = kmalloc(sizeof(*pcmd), GFP_KERNEL);
 	if (pcmd)

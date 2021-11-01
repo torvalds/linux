@@ -16,18 +16,24 @@
 #ifdef CONFIG_MMU
 
 #include <linux/types.h>
-#include <generated/vdso-offsets.h>
+/*
+ * All systems with an MMU have a VDSO, but systems without an MMU don't
+ * support shared libraries and therefor don't have one.
+ */
+#ifdef CONFIG_MMU
 
-#ifndef CONFIG_GENERIC_TIME_VSYSCALL
-struct vdso_data {
-};
-#endif
+#define __VVAR_PAGES    1
+
+#ifndef __ASSEMBLY__
+#include <generated/vdso-offsets.h>
 
 #define VDSO_SYMBOL(base, name)							\
 	(void __user *)((unsigned long)(base) + __vdso_##name##_offset)
 
 #endif /* CONFIG_MMU */
 
-asmlinkage long sys_riscv_flush_icache(uintptr_t, uintptr_t, uintptr_t);
+#endif /* !__ASSEMBLY__ */
+
+#endif /* CONFIG_MMU */
 
 #endif /* _ASM_RISCV_VDSO_H */

@@ -85,13 +85,6 @@ cflags-$(CONFIG_CHECK_STACK) += -mstack-guard=$(CONFIG_STACK_GUARD)
 endif
 endif
 
-ifdef CONFIG_WARN_DYNAMIC_STACK
-  ifneq ($(call cc-option,-mwarn-dynamicstack),)
-    KBUILD_CFLAGS += -mwarn-dynamicstack
-    KBUILD_CFLAGS_DECOMPRESSOR += -mwarn-dynamicstack
-  endif
-endif
-
 ifdef CONFIG_EXPOLINE
   ifneq ($(call cc-option,$(CC_FLAGS_MARCH) -mindirect-branch=thunk),)
     CC_FLAGS_EXPOLINE := -mindirect-branch=thunk

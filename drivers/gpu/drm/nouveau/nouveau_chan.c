@@ -250,7 +250,8 @@ static int
 nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
 		    u64 runlist, bool priv, struct nouveau_channel **pchan)
 {
-	static const u16 oclasses[] = { TURING_CHANNEL_GPFIFO_A,
+	static const u16 oclasses[] = { AMPERE_CHANNEL_GPFIFO_B,
+					TURING_CHANNEL_GPFIFO_A,
 					VOLTA_CHANNEL_GPFIFO_A,
 					PASCAL_CHANNEL_GPFIFO_A,
 					MAXWELL_CHANNEL_GPFIFO_A,
@@ -386,7 +387,8 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 
 	nvif_object_map(&chan->user, NULL, 0);
 
-	if (chan->user.oclass >= FERMI_CHANNEL_GPFIFO) {
+	if (chan->user.oclass >= FERMI_CHANNEL_GPFIFO &&
+	    chan->user.oclass < AMPERE_CHANNEL_GPFIFO_B) {
 		ret = nvif_notify_ctor(&chan->user, "abi16ChanKilled",
 				       nouveau_channel_killed,
 				       true, NV906F_V0_NTFY_KILLED,

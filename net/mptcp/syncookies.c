@@ -108,17 +108,11 @@ bool mptcp_token_join_cookie_init_state(struct mptcp_subflow_request_sock *subfl
 
 	e->valid = 0;
 
-	msk = mptcp_token_get_sock(e->token);
+	msk = mptcp_token_get_sock(net, e->token);
 	if (!msk) {
 		spin_unlock_bh(&join_entry_locks[i]);
 		return false;
 	}
-
-	/* If this fails, the token got re-used in the mean time by another
-	 * mptcp socket in a different netns, i.e. entry is outdated.
-	 */
-	if (!net_eq(sock_net((struct sock *)msk), net))
-		goto err_put;
 
 	subflow_req->remote_nonce = e->remote_nonce;
 	subflow_req->local_nonce = e->local_nonce;
@@ -128,11 +122,6 @@ bool mptcp_token_join_cookie_init_state(struct mptcp_subflow_request_sock *subfl
 	subflow_req->msk = msk;
 	spin_unlock_bh(&join_entry_locks[i]);
 	return true;
-
-err_put:
-	spin_unlock_bh(&join_entry_locks[i]);
-	sock_put((struct sock *)msk);
-	return false;
 }
 
 void __init mptcp_join_cookie_init(void)

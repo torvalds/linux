@@ -361,9 +361,13 @@ config SERIAL_8250_BCM2835AUX
 	  If unsure, say N.
 
 config SERIAL_8250_FSL
-	bool
+	bool "Freescale 16550 UART support" if COMPILE_TEST && !(PPC || ARM || ARM64)
 	depends on SERIAL_8250_CONSOLE
-	default PPC || ARM || ARM64 || COMPILE_TEST
+	default PPC || ARM || ARM64
+	help
+	  Selecting this option enables a workaround for a break-detection
+	  erratum for Freescale 16550 UARTs in the 8250 driver. It also
+	  enables support for ACPI enumeration.
 
 config SERIAL_8250_DW
 	tristate "Support for Synopsys DesignWare 8250 quirks"

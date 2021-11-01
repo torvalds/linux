@@ -61,6 +61,8 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_CS35L34
 	imply SND_SOC_CS35L35
 	imply SND_SOC_CS35L36
+	imply SND_SOC_CS35L41_SPI
+	imply SND_SOC_CS35L41_I2C
 	imply SND_SOC_CS42L42
 	imply SND_SOC_CS42L51_I2C
 	imply SND_SOC_CS42L52
@@ -115,6 +117,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_MAX98357A
 	imply SND_SOC_MAX98371
 	imply SND_SOC_MAX98504
+	imply SND_SOC_MAX98520
 	imply SND_SOC_MAX9867
 	imply SND_SOC_MAX98925
 	imply SND_SOC_MAX98926
@@ -136,6 +139,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_NAU8315
 	imply SND_SOC_NAU8540
 	imply SND_SOC_NAU8810
+	imply SND_SOC_NAU8821
 	imply SND_SOC_NAU8822
 	imply SND_SOC_NAU8824
 	imply SND_SOC_NAU8825
@@ -180,6 +184,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_RT5677
 	imply SND_SOC_RT5682_I2C
 	imply SND_SOC_RT5682_SDW
+	imply SND_SOC_RT5682S
 	imply SND_SOC_RT700_SDW
 	imply SND_SOC_RT711_SDW
 	imply SND_SOC_RT711_SDCA_SDW
@@ -187,6 +192,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_RT715_SDCA_SDW
 	imply SND_SOC_RT1308_SDW
 	imply SND_SOC_RT1316_SDW
+	imply SND_SOC_RT9120
 	imply SND_SOC_SDW_MOCKUP
 	imply SND_SOC_SGTL5000
 	imply SND_SOC_SI476X
@@ -330,6 +336,7 @@ config SND_SOC_WM_HUBS
 
 config SND_SOC_WM_ADSP
 	tristate
+	select CS_DSP
 	select SND_SOC_COMPRESS
 	default y if SND_SOC_MADERA=y
 	default y if SND_SOC_CS47L24=y
@@ -601,6 +608,16 @@ config SND_SOC_CS35L35
 config SND_SOC_CS35L36
 	tristate "Cirrus Logic CS35L36 CODEC"
 	depends on I2C
+
+config SND_SOC_CS35L41_SPI
+	tristate "Cirrus Logic CS35L41 CODEC (SPI)"
+	depends on SPI_MASTER
+	select REGMAP_SPI
+
+config SND_SOC_CS35L41_I2C
+	tristate "Cirrus Logic CS35L41 CODEC (I2C)"
+	depends on I2C
+	select REGMAP_I2C
 
 config SND_SOC_CS42L42
 	tristate "Cirrus Logic CS42L42 CODEC"
@@ -921,6 +938,17 @@ config SND_SOC_MAX98926
 config SND_SOC_MAX98927
 	tristate "Maxim Integrated MAX98927 Speaker Amplifier"
 	depends on I2C
+
+config SND_SOC_MAX98520
+	tristate "Maxim Integrated MAX98520 Speaker Amplifier"
+	depends on I2C
+	help
+	  Enable support for Maxim Integrated MAX98520 audio
+	  amplifier, which implements a tripler charge pump
+	  based boost converter and supports sample rates of
+	  8KHz to 192KHz.
+
+	  To compile this driver as a module, choose M here.
 
 config SND_SOC_MAX98373
 	tristate
@@ -1249,6 +1277,10 @@ config SND_SOC_RT5682_SDW
 	select SND_SOC_RT5682
 	select REGMAP_SOUNDWIRE
 
+config SND_SOC_RT5682S
+	tristate
+	depends on I2C
+
 config SND_SOC_RT700
 	tristate
 
@@ -1287,6 +1319,15 @@ config SND_SOC_RT715_SDCA_SDW
 	depends on SOUNDWIRE
 	select REGMAP_SOUNDWIRE
 	select REGMAP_SOUNDWIRE_MBQ
+
+config SND_SOC_RT9120
+	tristate "Richtek RT9120 Stereo Class-D Amplifier"
+	depends on I2C
+	select REGMAP_I2C
+	select GPIOLIB
+	help
+	  Enable support for Richtek RT9120 20W, stereo, inductor-less,
+	  high-efficiency Class-D audio amplifier.
 
 config SND_SOC_SDW_MOCKUP
 	tristate "SoundWire mockup codec"
@@ -1903,6 +1944,10 @@ config SND_SOC_NAU8540
 
 config SND_SOC_NAU8810
 	tristate "Nuvoton Technology Corporation NAU88C10 CODEC"
+	depends on I2C
+
+config SND_SOC_NAU8821
+	tristate "Nuvoton Technology Corporation NAU88L21 CODEC"
 	depends on I2C
 
 config SND_SOC_NAU8822

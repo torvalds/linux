@@ -71,8 +71,10 @@ static int rnbd_clt_parse_map_options(const char *buf, size_t max_path_cnt,
 	int opt_mask = 0;
 	int token;
 	int ret = -EINVAL;
-	int i, dest_port, nr_poll_queues;
+	int nr_poll_queues = 0;
+	int dest_port = 0;
 	int p_cnt = 0;
+	int i;
 
 	options = kstrdup(buf, GFP_KERNEL);
 	if (!options)

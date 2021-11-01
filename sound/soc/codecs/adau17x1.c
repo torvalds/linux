@@ -556,12 +556,12 @@ static int adau17x1_set_dai_fmt(struct snd_soc_dai *dai,
 	unsigned int ctrl0_mask;
 	int lrclk_pol;
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
 		ctrl0 = ADAU17X1_SERIAL_PORT0_MASTER;
 		adau->master = true;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		ctrl0 = 0;
 		adau->master = false;
 		break;

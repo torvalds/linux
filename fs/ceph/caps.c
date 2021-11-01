@@ -2263,7 +2263,7 @@ retry:
 			list_for_each_entry(req, &ci->i_unsafe_dirops,
 					    r_unsafe_dir_item) {
 				s = req->r_session;
-				if (unlikely(s->s_mds > max)) {
+				if (unlikely(s->s_mds >= max)) {
 					spin_unlock(&ci->i_unsafe_lock);
 					goto retry;
 				}
@@ -2277,7 +2277,7 @@ retry:
 			list_for_each_entry(req, &ci->i_unsafe_iops,
 					    r_unsafe_target_item) {
 				s = req->r_session;
-				if (unlikely(s->s_mds > max)) {
+				if (unlikely(s->s_mds >= max)) {
 					spin_unlock(&ci->i_unsafe_lock);
 					goto retry;
 				}

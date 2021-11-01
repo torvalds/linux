@@ -233,9 +233,11 @@ static DEFINE_MUTEX(phy_fixup_lock);
 
 static bool mdio_bus_phy_may_suspend(struct phy_device *phydev)
 {
+	struct device_driver *drv = phydev->mdio.dev.driver;
+	struct phy_driver *phydrv = to_phy_driver(drv);
 	struct net_device *netdev = phydev->attached_dev;
 
-	if (!phydev->drv->suspend)
+	if (!drv || !phydrv->suspend)
 		return false;
 
 	/* PHY not attached? May suspend if the PHY has not already been
@@ -3122,6 +3124,9 @@ static int phy_remove(struct device *dev)
 static void phy_shutdown(struct device *dev)
 {
 	struct phy_device *phydev = to_phy_device(dev);
+
+	if (phydev->state == PHY_READY || !phydev->attached_dev)
+		return;
 
 	phy_disable_interrupts(phydev);
 }
