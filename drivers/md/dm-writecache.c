@@ -2341,7 +2341,7 @@ static int writecache_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		ti->error = "Cache data device lookup failed";
 		goto bad;
 	}
-	wc->memory_map_size = i_size_read(wc->ssd_dev->bdev->bd_inode);
+	wc->memory_map_size = bdev_nr_bytes(wc->ssd_dev->bdev);
 
 	/*
 	 * Parse the cache block size
