@@ -1397,7 +1397,7 @@ static int hci_le_set_addr_resolution_enable_sync(struct hci_dev *hdev, u8 val)
 				     sizeof(val), &val, HCI_CMD_TIMEOUT);
 }
 
-int hci_scan_disable_sync(struct hci_dev *hdev)
+static int hci_scan_disable_sync(struct hci_dev *hdev)
 {
 	int err;
 
@@ -1968,7 +1968,7 @@ static int hci_start_scan_sync(struct hci_dev *hdev, u8 type, u16 interval,
 	return hci_le_set_scan_enable_sync(hdev, LE_SCAN_ENABLE, filter_dup);
 }
 
-int hci_passive_scan_sync(struct hci_dev *hdev)
+static int hci_passive_scan_sync(struct hci_dev *hdev)
 {
 	u8 own_addr_type;
 	u8 filter_policy;
