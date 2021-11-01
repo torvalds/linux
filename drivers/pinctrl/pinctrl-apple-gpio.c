@@ -258,7 +258,7 @@ static void apple_gpio_irq_ack(struct irq_data *data)
 	       pctl->base + REG_IRQ(irqgrp, data->hwirq));
 }
 
-static int apple_gpio_irq_type(unsigned int type)
+static unsigned int apple_gpio_irq_type(unsigned int type)
 {
 	switch (type & IRQ_TYPE_SENSE_MASK) {
 	case IRQ_TYPE_EDGE_RISING:
@@ -272,7 +272,7 @@ static int apple_gpio_irq_type(unsigned int type)
 	case IRQ_TYPE_LEVEL_LOW:
 		return REG_GPIOx_IN_IRQ_LO;
 	default:
-		return -EINVAL;
+		return REG_GPIOx_IN_IRQ_OFF;
 	}
 }
 
@@ -288,7 +288,7 @@ static void apple_gpio_irq_unmask(struct irq_data *data)
 {
 	struct apple_gpio_pinctrl *pctl =
 		gpiochip_get_data(irq_data_get_irq_chip_data(data));
-	int irqtype = apple_gpio_irq_type(irqd_get_trigger_type(data));
+	unsigned int irqtype = apple_gpio_irq_type(irqd_get_trigger_type(data));
 
 	apple_gpio_set_reg(pctl, data->hwirq, REG_GPIOx_MODE,
 			   FIELD_PREP(REG_GPIOx_MODE, irqtype));
@@ -313,10 +313,10 @@ static int apple_gpio_irq_set_type(struct irq_data *data,
 {
 	struct apple_gpio_pinctrl *pctl =
 		gpiochip_get_data(irq_data_get_irq_chip_data(data));
-	int irqtype = apple_gpio_irq_type(type);
+	unsigned int irqtype = apple_gpio_irq_type(type);
 
-	if (irqtype < 0)
-		return irqtype;
+	if (irqtype == REG_GPIOx_IN_IRQ_OFF)
+		return -EINVAL;
 
 	apple_gpio_set_reg(pctl, data->hwirq, REG_GPIOx_MODE,
 			   FIELD_PREP(REG_GPIOx_MODE, irqtype));
