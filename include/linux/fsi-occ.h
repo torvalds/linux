@@ -19,6 +19,8 @@ struct device;
 #define OCC_RESP_CRIT_OCB		0xE3
 #define OCC_RESP_CRIT_HW		0xE4
 
+#define OCC_MAX_RESP_WORDS		2048
+
 int fsi_occ_submit(struct device *dev, const void *request, size_t req_len,
 		   void *response, size_t *resp_len);
 
