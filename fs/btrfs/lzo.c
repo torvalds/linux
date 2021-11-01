@@ -357,9 +357,10 @@ int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 		ASSERT(cur_in / sectorsize ==
 		       (cur_in + LZO_LEN - 1) / sectorsize);
 		cur_page = cb->compressed_pages[cur_in / PAGE_SIZE];
-		kaddr = kmap(cur_page);
 		ASSERT(cur_page);
+		kaddr = kmap(cur_page);
 		seg_len = read_compress_length(kaddr + offset_in_page(cur_in));
+		kunmap(cur_page);
 		cur_in += LZO_LEN;
 
 		/* Copy the compressed segment payload into workspace */
