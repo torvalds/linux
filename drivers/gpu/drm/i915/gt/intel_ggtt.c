@@ -116,17 +116,26 @@ static bool needs_idle_maps(struct drm_i915_private *i915)
 	return false;
 }
 
-void i915_ggtt_suspend(struct i915_ggtt *ggtt)
+/**
+ * i915_ggtt_suspend_vm - Suspend the memory mappings for a GGTT or DPT VM
+ * @vm: The VM to suspend the mappings for
+ *
+ * Suspend the memory mappings for all objects mapped to HW via the GGTT or a
+ * DPT page table.
+ */
+void i915_ggtt_suspend_vm(struct i915_address_space *vm)
 {
 	struct i915_vma *vma, *vn;
 	int open;
 
-	mutex_lock(&ggtt->vm.mutex);
+	drm_WARN_ON(&vm->i915->drm, !vm->is_ggtt && !vm->is_dpt);
+
+	mutex_lock(&vm->mutex);
 
 	/* Skip rewriting PTE on VMA unbind. */
-	open = atomic_xchg(&ggtt->vm.open, 0);
+	open = atomic_xchg(&vm->open, 0);
 
-	list_for_each_entry_safe(vma, vn, &ggtt->vm.bound_list, vm_link) {
+	list_for_each_entry_safe(vma, vn, &vm->bound_list, vm_link) {
 		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 		i915_vma_wait_for_bind(vma);
 
@@ -139,11 +148,17 @@ void i915_ggtt_suspend(struct i915_ggtt *ggtt)
 		}
 	}
 
-	ggtt->vm.clear_range(&ggtt->vm, 0, ggtt->vm.total);
-	ggtt->invalidate(ggtt);
-	atomic_set(&ggtt->vm.open, open);
+	vm->clear_range(vm, 0, vm->total);
 
-	mutex_unlock(&ggtt->vm.mutex);
+	atomic_set(&vm->open, open);
+
+	mutex_unlock(&vm->mutex);
+}
+
+void i915_ggtt_suspend(struct i915_ggtt *ggtt)
+{
+	i915_ggtt_suspend_vm(&ggtt->vm);
+	ggtt->invalidate(ggtt);
 
 	intel_gt_check_and_clear_faults(ggtt->vm.gt);
 }
@@ -1253,37 +1268,59 @@ void i915_ggtt_disable_guc(struct i915_ggtt *ggtt)
 	ggtt->invalidate(ggtt);
 }
 
-void i915_ggtt_resume(struct i915_ggtt *ggtt)
+/**
+ * i915_ggtt_resume_vm - Restore the memory mappings for a GGTT or DPT VM
+ * @vm: The VM to restore the mappings for
+ *
+ * Restore the memory mappings for all objects mapped to HW via the GGTT or a
+ * DPT page table.
+ *
+ * Returns %true if restoring the mapping for any object that was in a write
+ * domain before suspend.
+ */
+bool i915_ggtt_resume_vm(struct i915_address_space *vm)
 {
 	struct i915_vma *vma;
-	bool flush = false;
+	bool write_domain_objs = false;
 	int open;
 
-	intel_gt_check_and_clear_faults(ggtt->vm.gt);
+	drm_WARN_ON(&vm->i915->drm, !vm->is_ggtt && !vm->is_dpt);
 
 	/* First fill our portion of the GTT with scratch pages */
-	ggtt->vm.clear_range(&ggtt->vm, 0, ggtt->vm.total);
+	vm->clear_range(vm, 0, vm->total);
 
 	/* Skip rewriting PTE on VMA unbind. */
-	open = atomic_xchg(&ggtt->vm.open, 0);
+	open = atomic_xchg(&vm->open, 0);
 
 	/* clflush objects bound into the GGTT and rebind them. */
-	list_for_each_entry(vma, &ggtt->vm.bound_list, vm_link) {
+	list_for_each_entry(vma, &vm->bound_list, vm_link) {
 		struct drm_i915_gem_object *obj = vma->obj;
 		unsigned int was_bound =
 			atomic_read(&vma->flags) & I915_VMA_BIND_MASK;
 
 		GEM_BUG_ON(!was_bound);
-		vma->ops->bind_vma(&ggtt->vm, NULL, vma,
+		vma->ops->bind_vma(vm, NULL, vma,
 				   obj ? obj->cache_level : 0,
 				   was_bound);
 		if (obj) { /* only used during resume => exclusive access */
-			flush |= fetch_and_zero(&obj->write_domain);
+			write_domain_objs |= fetch_and_zero(&obj->write_domain);
 			obj->read_domains |= I915_GEM_DOMAIN_GTT;
 		}
 	}
 
-	atomic_set(&ggtt->vm.open, open);
+	atomic_set(&vm->open, open);
+
+	return write_domain_objs;
+}
+
+void i915_ggtt_resume(struct i915_ggtt *ggtt)
+{
+	bool flush;
+
+	intel_gt_check_and_clear_faults(ggtt->vm.gt);
+
+	flush = i915_ggtt_resume_vm(&ggtt->vm);
+
 	ggtt->invalidate(ggtt);
 
 	if (flush)
