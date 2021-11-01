@@ -12,7 +12,6 @@
 #include <sys/fanotify.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <sys/types.h>
 
 #ifndef FAN_FS_ERROR
 #define FAN_FS_ERROR		0x00008000
