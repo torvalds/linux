@@ -611,9 +611,7 @@ config X86_INTEL_MID
 	depends on X86_IO_APIC
 	select I2C
 	select DW_APB_TIMER
-	select APB_TIMER
 	select INTEL_SCU_PCI
-	select MFD_INTEL_MSIC
 	help
 	  Select to build a kernel capable of supporting Intel MID (Mobile
 	  Internet Device) platform systems which do not have the PCI legacy
