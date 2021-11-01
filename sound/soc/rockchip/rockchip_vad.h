@@ -224,4 +224,8 @@
 #define RK3568_I2S_2CH_3		0xfe430800
 #define RK3568_PDM			0xfe440400
 
+/* RK3588 SOC */
+#define RK3588_I2S1_8CH			0xfe480800
+#define RK3588_PDM0			0xfe4b0400
+
 #endif
