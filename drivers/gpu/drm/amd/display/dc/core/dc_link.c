@@ -3997,7 +3997,8 @@ static void update_psp_stream_config(struct pipe_ctx *pipe_ctx, bool dpms_off)
 			config.phy_idx = link_enc->transmitter - TRANSMITTER_UNIPHY_A;
 
 			// Add flag to guard new A0 DIG mapping
-			if (pipe_ctx->stream->ctx->dc->enable_c20_dtm_b0 == true) {
+			if (pipe_ctx->stream->ctx->dc->enable_c20_dtm_b0 == true &&
+					pipe_ctx->stream->link->dc->ctx->dce_version == DCN_VERSION_3_1) {
 				config.dig_be = link_enc->preferred_engine;
 				config.dio_output_type = pipe_ctx->stream->link->ep_type;
 				config.dio_output_idx = link_enc->transmitter - TRANSMITTER_UNIPHY_A;
