@@ -15,9 +15,9 @@
 static void mock_region_put_pages(struct drm_i915_gem_object *obj,
 				  struct sg_table *pages)
 {
+	i915_refct_sgt_put(obj->mm.rsgt);
+	obj->mm.rsgt = NULL;
 	intel_region_ttm_resource_free(obj->mm.region, obj->mm.res);
-	sg_free_table(pages);
-	kfree(pages);
 }
 
 static int mock_region_get_pages(struct drm_i915_gem_object *obj)
@@ -36,12 +36,14 @@ static int mock_region_get_pages(struct drm_i915_gem_object *obj)
 	if (IS_ERR(obj->mm.res))
 		return PTR_ERR(obj->mm.res);
 
-	pages = intel_region_ttm_resource_to_st(obj->mm.region, obj->mm.res);
-	if (IS_ERR(pages)) {
-		err = PTR_ERR(pages);
+	obj->mm.rsgt = intel_region_ttm_resource_to_rsgt(obj->mm.region,
+							 obj->mm.res);
+	if (IS_ERR(obj->mm.rsgt)) {
+		err = PTR_ERR(obj->mm.rsgt);
 		goto err_free_resource;
 	}
 
+	pages = &obj->mm.rsgt->table;
 	__i915_gem_object_set_pages(obj, pages, i915_sg_dma_sizes(pages->sgl));
 
 	return 0;

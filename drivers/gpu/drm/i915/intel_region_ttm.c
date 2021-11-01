@@ -115,8 +115,8 @@ void intel_region_ttm_fini(struct intel_memory_region *mem)
 }
 
 /**
- * intel_region_ttm_resource_to_st - Convert an opaque TTM resource manager resource
- * to an sg_table.
+ * intel_region_ttm_resource_to_rsgt -
+ * Convert an opaque TTM resource manager resource to a refcounted sg_table.
  * @mem: The memory region.
  * @res: The resource manager resource obtained from the TTM resource manager.
  *
@@ -126,17 +126,18 @@ void intel_region_ttm_fini(struct intel_memory_region *mem)
  *
  * Return: A malloced sg_table on success, an error pointer on failure.
  */
-struct sg_table *intel_region_ttm_resource_to_st(struct intel_memory_region *mem,
-						 struct ttm_resource *res)
+struct i915_refct_sgt *
+intel_region_ttm_resource_to_rsgt(struct intel_memory_region *mem,
+				  struct ttm_resource *res)
 {
 	if (mem->is_range_manager) {
 		struct ttm_range_mgr_node *range_node =
 			to_ttm_range_mgr_node(res);
 
-		return i915_sg_from_mm_node(&range_node->mm_nodes[0],
-					    mem->region.start);
+		return i915_rsgt_from_mm_node(&range_node->mm_nodes[0],
+					      mem->region.start);
 	} else {
-		return i915_sg_from_buddy_resource(res, mem->region.start);
+		return i915_rsgt_from_buddy_resource(res, mem->region.start);
 	}
 }
 

@@ -25,8 +25,8 @@ static void check_release_pagevec(struct pagevec *pvec)
 	cond_resched();
 }
 
-void shmem_free_st(struct sg_table *st, struct address_space *mapping,
-		   bool dirty, bool backup)
+void shmem_sg_free_table(struct sg_table *st, struct address_space *mapping,
+			 bool dirty, bool backup)
 {
 	struct sgt_iter sgt_iter;
 	struct pagevec pvec;
@@ -49,17 +49,15 @@ void shmem_free_st(struct sg_table *st, struct address_space *mapping,
 		check_release_pagevec(&pvec);
 
 	sg_free_table(st);
-	kfree(st);
 }
 
-struct sg_table *shmem_alloc_st(struct drm_i915_private *i915,
-				size_t size, struct intel_memory_region *mr,
-				struct address_space *mapping,
-				unsigned int max_segment)
+int shmem_sg_alloc_table(struct drm_i915_private *i915, struct sg_table *st,
+			 size_t size, struct intel_memory_region *mr,
+			 struct address_space *mapping,
+			 unsigned int max_segment)
 {
 	const unsigned long page_count = size / PAGE_SIZE;
 	unsigned long i;
-	struct sg_table *st;
 	struct scatterlist *sg;
 	struct page *page;
 	unsigned long last_pfn = 0;	/* suppress gcc warning */
@@ -71,16 +69,10 @@ struct sg_table *shmem_alloc_st(struct drm_i915_private *i915,
 	 * object, bail early.
 	 */
 	if (size > resource_size(&mr->region))
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
-	st = kmalloc(sizeof(*st), GFP_KERNEL);
-	if (!st)
-		return ERR_PTR(-ENOMEM);
-
-	if (sg_alloc_table(st, page_count, GFP_KERNEL)) {
-		kfree(st);
-		return ERR_PTR(-ENOMEM);
-	}
+	if (sg_alloc_table(st, page_count, GFP_KERNEL))
+		return -ENOMEM;
 
 	/*
 	 * Get the list of pages out of our struct file.  They'll be pinned
@@ -167,15 +159,14 @@ struct sg_table *shmem_alloc_st(struct drm_i915_private *i915,
 	/* Trim unused sg entries to avoid wasting memory. */
 	i915_sg_trim(st);
 
-	return st;
+	return 0;
 err_sg:
 	sg_mark_end(sg);
 	if (sg != st->sgl) {
-		shmem_free_st(st, mapping, false, false);
+		shmem_sg_free_table(st, mapping, false, false);
 	} else {
 		mapping_clear_unevictable(mapping);
 		sg_free_table(st);
-		kfree(st);
 	}
 
 	/*
@@ -190,7 +181,7 @@ err_sg:
 	if (ret == -ENOSPC)
 		ret = -ENOMEM;
 
-	return ERR_PTR(ret);
+	return ret;
 }
 
 static int shmem_get_pages(struct drm_i915_gem_object *obj)
@@ -214,11 +205,14 @@ static int shmem_get_pages(struct drm_i915_gem_object *obj)
 	GEM_BUG_ON(obj->write_domain & I915_GEM_GPU_DOMAINS);
 
 rebuild_st:
-	st = shmem_alloc_st(i915, obj->base.size, mem, mapping, max_segment);
-	if (IS_ERR(st)) {
-		ret = PTR_ERR(st);
+	st = kmalloc(sizeof(*st), GFP_KERNEL);
+	if (!st)
+		return -ENOMEM;
+
+	ret = shmem_sg_alloc_table(i915, st, obj->base.size, mem, mapping,
+				   max_segment);
+	if (ret)
 		goto err_st;
-	}
 
 	ret = i915_gem_gtt_prepare_pages(obj, st);
 	if (ret) {
@@ -254,7 +248,7 @@ rebuild_st:
 	return 0;
 
 err_pages:
-	shmem_free_st(st, mapping, false, false);
+	shmem_sg_free_table(st, mapping, false, false);
 	/*
 	 * shmemfs first checks if there is enough memory to allocate the page
 	 * and reports ENOSPC should there be insufficient, along with the usual
@@ -267,6 +261,8 @@ err_pages:
 err_st:
 	if (ret == -ENOSPC)
 		ret = -ENOMEM;
+
+	kfree(st);
 
 	return ret;
 }
@@ -374,8 +370,9 @@ void i915_gem_object_put_pages_shmem(struct drm_i915_gem_object *obj, struct sg_
 	if (i915_gem_object_needs_bit17_swizzle(obj))
 		i915_gem_object_save_bit_17_swizzle(obj, pages);
 
-	shmem_free_st(pages, file_inode(obj->base.filp)->i_mapping,
-		      obj->mm.dirty, obj->mm.madv == I915_MADV_WILLNEED);
+	shmem_sg_free_table(pages, file_inode(obj->base.filp)->i_mapping,
+			    obj->mm.dirty, obj->mm.madv == I915_MADV_WILLNEED);
+	kfree(pages);
 	obj->mm.dirty = false;
 }
 

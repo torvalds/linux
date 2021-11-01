@@ -34,7 +34,7 @@
  * struct i915_ttm_tt - TTM page vector with additional private information
  * @ttm: The base TTM page vector.
  * @dev: The struct device used for dma mapping and unmapping.
- * @cached_st: The cached scatter-gather table.
+ * @cached_rsgt: The cached scatter-gather table.
  * @is_shmem: Set if using shmem.
  * @filp: The shmem file, if using shmem backend.
  *
@@ -47,7 +47,7 @@
 struct i915_ttm_tt {
 	struct ttm_tt ttm;
 	struct device *dev;
-	struct sg_table *cached_st;
+	struct i915_refct_sgt cached_rsgt;
 
 	bool is_shmem;
 	struct file *filp;
@@ -217,18 +217,16 @@ static int i915_ttm_tt_shmem_populate(struct ttm_device *bdev,
 		i915_tt->filp = filp;
 	}
 
-	st = shmem_alloc_st(i915, size, mr, filp->f_mapping, max_segment);
-	if (IS_ERR(st))
-		return PTR_ERR(st);
+	st = &i915_tt->cached_rsgt.table;
+	err = shmem_sg_alloc_table(i915, st, size, mr, filp->f_mapping,
+				   max_segment);
+	if (err)
+		return err;
 
-	err = dma_map_sg_attrs(i915_tt->dev,
-			       st->sgl, st->nents,
-			       DMA_BIDIRECTIONAL,
-			       DMA_ATTR_SKIP_CPU_SYNC);
-	if (err <= 0) {
-		err = -EINVAL;
+	err = dma_map_sgtable(i915_tt->dev, st, DMA_BIDIRECTIONAL,
+			      DMA_ATTR_SKIP_CPU_SYNC);
+	if (err)
 		goto err_free_st;
-	}
 
 	i = 0;
 	for_each_sgt_page(page, sgt_iter, st)
@@ -237,11 +235,11 @@ static int i915_ttm_tt_shmem_populate(struct ttm_device *bdev,
 	if (ttm->page_flags & TTM_TT_FLAG_SWAPPED)
 		ttm->page_flags &= ~TTM_TT_FLAG_SWAPPED;
 
-	i915_tt->cached_st = st;
 	return 0;
 
 err_free_st:
-	shmem_free_st(st, filp->f_mapping, false, false);
+	shmem_sg_free_table(st, filp->f_mapping, false, false);
+
 	return err;
 }
 
@@ -249,15 +247,26 @@ static void i915_ttm_tt_shmem_unpopulate(struct ttm_tt *ttm)
 {
 	struct i915_ttm_tt *i915_tt = container_of(ttm, typeof(*i915_tt), ttm);
 	bool backup = ttm->page_flags & TTM_TT_FLAG_SWAPPED;
+	struct sg_table *st = &i915_tt->cached_rsgt.table;
 
-	dma_unmap_sg(i915_tt->dev, i915_tt->cached_st->sgl,
-		     i915_tt->cached_st->nents,
-		     DMA_BIDIRECTIONAL);
-
-	shmem_free_st(fetch_and_zero(&i915_tt->cached_st),
-		      file_inode(i915_tt->filp)->i_mapping,
-		      backup, backup);
+	shmem_sg_free_table(st, file_inode(i915_tt->filp)->i_mapping,
+			    backup, backup);
 }
+
+static void i915_ttm_tt_release(struct kref *ref)
+{
+	struct i915_ttm_tt *i915_tt =
+		container_of(ref, typeof(*i915_tt), cached_rsgt.kref);
+	struct sg_table *st = &i915_tt->cached_rsgt.table;
+
+	GEM_WARN_ON(st->sgl);
+
+	kfree(i915_tt);
+}
+
+static const struct i915_refct_sgt_ops tt_rsgt_ops = {
+	.release = i915_ttm_tt_release
+};
 
 static struct ttm_tt *i915_ttm_tt_create(struct ttm_buffer_object *bo,
 					 uint32_t page_flags)
@@ -287,6 +296,9 @@ static struct ttm_tt *i915_ttm_tt_create(struct ttm_buffer_object *bo,
 	if (ret)
 		goto err_free;
 
+	__i915_refct_sgt_init(&i915_tt->cached_rsgt, bo->base.size,
+			      &tt_rsgt_ops);
+
 	i915_tt->dev = obj->base.dev->dev;
 
 	return &i915_tt->ttm;
@@ -311,17 +323,15 @@ static int i915_ttm_tt_populate(struct ttm_device *bdev,
 static void i915_ttm_tt_unpopulate(struct ttm_device *bdev, struct ttm_tt *ttm)
 {
 	struct i915_ttm_tt *i915_tt = container_of(ttm, typeof(*i915_tt), ttm);
+	struct sg_table *st = &i915_tt->cached_rsgt.table;
+
+	if (st->sgl)
+		dma_unmap_sgtable(i915_tt->dev, st, DMA_BIDIRECTIONAL, 0);
 
 	if (i915_tt->is_shmem) {
 		i915_ttm_tt_shmem_unpopulate(ttm);
 	} else {
-		if (i915_tt->cached_st) {
-			dma_unmap_sgtable(i915_tt->dev, i915_tt->cached_st,
-					  DMA_BIDIRECTIONAL, 0);
-			sg_free_table(i915_tt->cached_st);
-			kfree(i915_tt->cached_st);
-			i915_tt->cached_st = NULL;
-		}
+		sg_free_table(st);
 		ttm_pool_free(&bdev->pool, ttm);
 	}
 }
@@ -334,7 +344,7 @@ static void i915_ttm_tt_destroy(struct ttm_device *bdev, struct ttm_tt *ttm)
 		fput(i915_tt->filp);
 
 	ttm_tt_fini(ttm);
-	kfree(i915_tt);
+	i915_refct_sgt_put(&i915_tt->cached_rsgt);
 }
 
 static bool i915_ttm_eviction_valuable(struct ttm_buffer_object *bo,
@@ -376,12 +386,12 @@ static int i915_ttm_move_notify(struct ttm_buffer_object *bo)
 	return 0;
 }
 
-static void i915_ttm_free_cached_io_st(struct drm_i915_gem_object *obj)
+static void i915_ttm_free_cached_io_rsgt(struct drm_i915_gem_object *obj)
 {
 	struct radix_tree_iter iter;
 	void __rcu **slot;
 
-	if (!obj->ttm.cached_io_st)
+	if (!obj->ttm.cached_io_rsgt)
 		return;
 
 	rcu_read_lock();
@@ -389,9 +399,8 @@ static void i915_ttm_free_cached_io_st(struct drm_i915_gem_object *obj)
 		radix_tree_delete(&obj->ttm.get_io_page.radix, iter.index);
 	rcu_read_unlock();
 
-	sg_free_table(obj->ttm.cached_io_st);
-	kfree(obj->ttm.cached_io_st);
-	obj->ttm.cached_io_st = NULL;
+	i915_refct_sgt_put(obj->ttm.cached_io_rsgt);
+	obj->ttm.cached_io_rsgt = NULL;
 }
 
 static void
@@ -477,7 +486,7 @@ static int i915_ttm_purge(struct drm_i915_gem_object *obj)
 	obj->write_domain = 0;
 	obj->read_domains = 0;
 	i915_ttm_adjust_gem_after_move(obj);
-	i915_ttm_free_cached_io_st(obj);
+	i915_ttm_free_cached_io_rsgt(obj);
 	obj->mm.madv = __I915_MADV_PURGED;
 	return 0;
 }
@@ -532,7 +541,7 @@ static void i915_ttm_swap_notify(struct ttm_buffer_object *bo)
 	int ret = i915_ttm_move_notify(bo);
 
 	GEM_WARN_ON(ret);
-	GEM_WARN_ON(obj->ttm.cached_io_st);
+	GEM_WARN_ON(obj->ttm.cached_io_rsgt);
 	if (!ret && obj->mm.madv != I915_MADV_WILLNEED)
 		i915_ttm_purge(obj);
 }
@@ -543,7 +552,7 @@ static void i915_ttm_delete_mem_notify(struct ttm_buffer_object *bo)
 
 	if (likely(obj)) {
 		__i915_gem_object_pages_fini(obj);
-		i915_ttm_free_cached_io_st(obj);
+		i915_ttm_free_cached_io_rsgt(obj);
 	}
 }
 
@@ -563,40 +572,35 @@ i915_ttm_region(struct ttm_device *bdev, int ttm_mem_type)
 					  ttm_mem_type - I915_PL_LMEM0);
 }
 
-static struct sg_table *i915_ttm_tt_get_st(struct ttm_tt *ttm)
+static struct i915_refct_sgt *i915_ttm_tt_get_st(struct ttm_tt *ttm)
 {
 	struct i915_ttm_tt *i915_tt = container_of(ttm, typeof(*i915_tt), ttm);
 	struct sg_table *st;
 	int ret;
 
-	if (i915_tt->cached_st)
-		return i915_tt->cached_st;
+	if (i915_tt->cached_rsgt.table.sgl)
+		return i915_refct_sgt_get(&i915_tt->cached_rsgt);
 
-	st = kzalloc(sizeof(*st), GFP_KERNEL);
-	if (!st)
-		return ERR_PTR(-ENOMEM);
-
+	st = &i915_tt->cached_rsgt.table;
 	ret = sg_alloc_table_from_pages_segment(st,
 			ttm->pages, ttm->num_pages,
 			0, (unsigned long)ttm->num_pages << PAGE_SHIFT,
 			i915_sg_segment_size(), GFP_KERNEL);
 	if (ret) {
-		kfree(st);
+		st->sgl = NULL;
 		return ERR_PTR(ret);
 	}
 
 	ret = dma_map_sgtable(i915_tt->dev, st, DMA_BIDIRECTIONAL, 0);
 	if (ret) {
 		sg_free_table(st);
-		kfree(st);
 		return ERR_PTR(ret);
 	}
 
-	i915_tt->cached_st = st;
-	return st;
+	return i915_refct_sgt_get(&i915_tt->cached_rsgt);
 }
 
-static struct sg_table *
+static struct i915_refct_sgt *
 i915_ttm_resource_get_st(struct drm_i915_gem_object *obj,
 			 struct ttm_resource *res)
 {
@@ -610,7 +614,21 @@ i915_ttm_resource_get_st(struct drm_i915_gem_object *obj,
 	 * the resulting st. Might make sense for GGTT.
 	 */
 	GEM_WARN_ON(!cpu_maps_iomem(res));
-	return intel_region_ttm_resource_to_st(obj->mm.region, res);
+	if (bo->resource == res) {
+		if (!obj->ttm.cached_io_rsgt) {
+			struct i915_refct_sgt *rsgt;
+
+			rsgt = intel_region_ttm_resource_to_rsgt(obj->mm.region,
+								 res);
+			if (IS_ERR(rsgt))
+				return rsgt;
+
+			obj->ttm.cached_io_rsgt = rsgt;
+		}
+		return i915_refct_sgt_get(obj->ttm.cached_io_rsgt);
+	}
+
+	return intel_region_ttm_resource_to_rsgt(obj->mm.region, res);
 }
 
 static int i915_ttm_accel_move(struct ttm_buffer_object *bo,
@@ -621,10 +639,7 @@ static int i915_ttm_accel_move(struct ttm_buffer_object *bo,
 {
 	struct drm_i915_private *i915 = container_of(bo->bdev, typeof(*i915),
 						     bdev);
-	struct ttm_resource_manager *src_man =
-		ttm_manager_type(bo->bdev, bo->resource->mem_type);
 	struct drm_i915_gem_object *obj = i915_ttm_to_gem(bo);
-	struct sg_table *src_st;
 	struct i915_request *rq;
 	struct ttm_tt *src_ttm = bo->ttm;
 	enum i915_cache_level src_level, dst_level;
@@ -650,17 +665,22 @@ static int i915_ttm_accel_move(struct ttm_buffer_object *bo,
 		}
 		intel_engine_pm_put(i915->gt.migrate.context->engine);
 	} else {
-		src_st = src_man->use_tt ? i915_ttm_tt_get_st(src_ttm) :
-			obj->ttm.cached_io_st;
+		struct i915_refct_sgt *src_rsgt =
+			i915_ttm_resource_get_st(obj, bo->resource);
+
+		if (IS_ERR(src_rsgt))
+			return PTR_ERR(src_rsgt);
 
 		src_level = i915_ttm_cache_level(i915, bo->resource, src_ttm);
 		intel_engine_pm_get(i915->gt.migrate.context->engine);
 		ret = intel_context_migrate_copy(i915->gt.migrate.context,
-						 NULL, src_st->sgl, src_level,
+						 NULL, src_rsgt->table.sgl,
+						 src_level,
 						 gpu_binds_iomem(bo->resource),
 						 dst_st->sgl, dst_level,
 						 gpu_binds_iomem(dst_mem),
 						 &rq);
+		i915_refct_sgt_put(src_rsgt);
 		if (!ret && rq) {
 			i915_request_wait(rq, 0, MAX_SCHEDULE_TIMEOUT);
 			i915_request_put(rq);
@@ -674,13 +694,14 @@ static int i915_ttm_accel_move(struct ttm_buffer_object *bo,
 static void __i915_ttm_move(struct ttm_buffer_object *bo, bool clear,
 			    struct ttm_resource *dst_mem,
 			    struct ttm_tt *dst_ttm,
-			    struct sg_table *dst_st,
+			    struct i915_refct_sgt *dst_rsgt,
 			    bool allow_accel)
 {
 	int ret = -EINVAL;
 
 	if (allow_accel)
-		ret = i915_ttm_accel_move(bo, clear, dst_mem, dst_ttm, dst_st);
+		ret = i915_ttm_accel_move(bo, clear, dst_mem, dst_ttm,
+					  &dst_rsgt->table);
 	if (ret) {
 		struct drm_i915_gem_object *obj = i915_ttm_to_gem(bo);
 		struct intel_memory_region *dst_reg, *src_reg;
@@ -697,12 +718,13 @@ static void __i915_ttm_move(struct ttm_buffer_object *bo, bool clear,
 		dst_iter = !cpu_maps_iomem(dst_mem) ?
 			ttm_kmap_iter_tt_init(&_dst_iter.tt, dst_ttm) :
 			ttm_kmap_iter_iomap_init(&_dst_iter.io, &dst_reg->iomap,
-						 dst_st, dst_reg->region.start);
+						 &dst_rsgt->table,
+						 dst_reg->region.start);
 
 		src_iter = !cpu_maps_iomem(bo->resource) ?
 			ttm_kmap_iter_tt_init(&_src_iter.tt, bo->ttm) :
 			ttm_kmap_iter_iomap_init(&_src_iter.io, &src_reg->iomap,
-						 obj->ttm.cached_io_st,
+						 &obj->ttm.cached_io_rsgt->table,
 						 src_reg->region.start);
 
 		ttm_move_memcpy(clear, dst_mem->num_pages, dst_iter, src_iter);
@@ -718,7 +740,7 @@ static int i915_ttm_move(struct ttm_buffer_object *bo, bool evict,
 	struct ttm_resource_manager *dst_man =
 		ttm_manager_type(bo->bdev, dst_mem->mem_type);
 	struct ttm_tt *ttm = bo->ttm;
-	struct sg_table *dst_st;
+	struct i915_refct_sgt *dst_rsgt;
 	bool clear;
 	int ret;
 
@@ -744,22 +766,24 @@ static int i915_ttm_move(struct ttm_buffer_object *bo, bool evict,
 			return ret;
 	}
 
-	dst_st = i915_ttm_resource_get_st(obj, dst_mem);
-	if (IS_ERR(dst_st))
-		return PTR_ERR(dst_st);
+	dst_rsgt = i915_ttm_resource_get_st(obj, dst_mem);
+	if (IS_ERR(dst_rsgt))
+		return PTR_ERR(dst_rsgt);
 
 	clear = !cpu_maps_iomem(bo->resource) && (!ttm || !ttm_tt_is_populated(ttm));
 	if (!(clear && ttm && !(ttm->page_flags & TTM_TT_FLAG_ZERO_ALLOC)))
-		__i915_ttm_move(bo, clear, dst_mem, bo->ttm, dst_st, true);
+		__i915_ttm_move(bo, clear, dst_mem, bo->ttm, dst_rsgt, true);
 
 	ttm_bo_move_sync_cleanup(bo, dst_mem);
 	i915_ttm_adjust_domains_after_move(obj);
-	i915_ttm_free_cached_io_st(obj);
+	i915_ttm_free_cached_io_rsgt(obj);
 
 	if (gpu_binds_iomem(dst_mem) || cpu_maps_iomem(dst_mem)) {
-		obj->ttm.cached_io_st = dst_st;
-		obj->ttm.get_io_page.sg_pos = dst_st->sgl;
+		obj->ttm.cached_io_rsgt = dst_rsgt;
+		obj->ttm.get_io_page.sg_pos = dst_rsgt->table.sgl;
 		obj->ttm.get_io_page.sg_idx = 0;
+	} else {
+		i915_refct_sgt_put(dst_rsgt);
 	}
 
 	i915_ttm_adjust_lru(obj);
@@ -825,7 +849,6 @@ static int __i915_ttm_get_pages(struct drm_i915_gem_object *obj,
 		.interruptible = true,
 		.no_wait_gpu = false,
 	};
-	struct sg_table *st;
 	int real_num_busy;
 	int ret;
 
@@ -862,12 +885,16 @@ static int __i915_ttm_get_pages(struct drm_i915_gem_object *obj,
 	}
 
 	if (!i915_gem_object_has_pages(obj)) {
-		/* Object either has a page vector or is an iomem object */
-		st = bo->ttm ? i915_ttm_tt_get_st(bo->ttm) : obj->ttm.cached_io_st;
-		if (IS_ERR(st))
-			return PTR_ERR(st);
+		struct i915_refct_sgt *rsgt =
+			i915_ttm_resource_get_st(obj, bo->resource);
 
-		__i915_gem_object_set_pages(obj, st, i915_sg_dma_sizes(st->sgl));
+		if (IS_ERR(rsgt))
+			return PTR_ERR(rsgt);
+
+		GEM_BUG_ON(obj->mm.rsgt);
+		obj->mm.rsgt = rsgt;
+		__i915_gem_object_set_pages(obj, &rsgt->table,
+					    i915_sg_dma_sizes(rsgt->table.sgl));
 	}
 
 	i915_ttm_adjust_lru(obj);
@@ -941,6 +968,9 @@ static void i915_ttm_put_pages(struct drm_i915_gem_object *obj,
 	 * If the object is not destroyed next, The TTM eviction logic
 	 * and shrinkers will move it out if needed.
 	 */
+
+	if (obj->mm.rsgt)
+		i915_refct_sgt_put(fetch_and_zero(&obj->mm.rsgt));
 }
 
 static void i915_ttm_adjust_lru(struct drm_i915_gem_object *obj)
@@ -1278,7 +1308,7 @@ int i915_gem_obj_copy_ttm(struct drm_i915_gem_object *dst,
 	struct ttm_operation_ctx ctx = {
 		.interruptible = intr,
 	};
-	struct sg_table *dst_st;
+	struct i915_refct_sgt *dst_rsgt;
 	int ret;
 
 	assert_object_held(dst);
@@ -1293,11 +1323,11 @@ int i915_gem_obj_copy_ttm(struct drm_i915_gem_object *dst,
 	if (ret)
 		return ret;
 
-	dst_st = gpu_binds_iomem(dst_bo->resource) ?
-		dst->ttm.cached_io_st : i915_ttm_tt_get_st(dst_bo->ttm);
-
+	dst_rsgt = i915_ttm_resource_get_st(dst, dst_bo->resource);
 	__i915_ttm_move(src_bo, false, dst_bo->resource, dst_bo->ttm,
-			dst_st, allow_accel);
+			dst_rsgt, allow_accel);
+
+	i915_refct_sgt_put(dst_rsgt);
 
 	return 0;
 }

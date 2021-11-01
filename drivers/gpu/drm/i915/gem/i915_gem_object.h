@@ -620,12 +620,12 @@ int i915_gem_object_wait_migration(struct drm_i915_gem_object *obj,
 bool i915_gem_object_placement_possible(struct drm_i915_gem_object *obj,
 					enum intel_memory_type type);
 
-struct sg_table *shmem_alloc_st(struct drm_i915_private *i915,
-				size_t size, struct intel_memory_region *mr,
-				struct address_space *mapping,
-				unsigned int max_segment);
-void shmem_free_st(struct sg_table *st, struct address_space *mapping,
-		   bool dirty, bool backup);
+int shmem_sg_alloc_table(struct drm_i915_private *i915, struct sg_table *st,
+			 size_t size, struct intel_memory_region *mr,
+			 struct address_space *mapping,
+			 unsigned int max_segment);
+void shmem_sg_free_table(struct sg_table *st, struct address_space *mapping,
+			 bool dirty, bool backup);
 void __shmem_writeback(size_t size, struct address_space *mapping);
 
 #ifdef CONFIG_MMU_NOTIFIER

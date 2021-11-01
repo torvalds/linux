@@ -544,6 +544,7 @@ struct drm_i915_gem_object {
 		 */
 		struct list_head region_link;
 
+		struct i915_refct_sgt *rsgt;
 		struct sg_table *pages;
 		void *mapping;
 
@@ -597,7 +598,7 @@ struct drm_i915_gem_object {
 	} mm;
 
 	struct {
-		struct sg_table *cached_io_st;
+		struct i915_refct_sgt *cached_io_rsgt;
 		struct i915_gem_object_page_iter get_io_page;
 		struct drm_i915_gem_object *backup;
 		bool created:1;
