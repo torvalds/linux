@@ -28,6 +28,11 @@
 #define LAN87XX_MASK_LINK_UP                    (0x0004)
 #define LAN87XX_MASK_LINK_DOWN                  (0x0002)
 
+/* MISC Control 1 Register */
+#define LAN87XX_CTRL_1                          (0x11)
+#define LAN87XX_MASK_RGMII_TXC_DLY_EN           (0x4000)
+#define LAN87XX_MASK_RGMII_RXC_DLY_EN           (0x2000)
+
 /* phyaccess nested types */
 #define	PHYACC_ATTR_MODE_READ		0
 #define	PHYACC_ATTR_MODE_WRITE		1
@@ -112,6 +117,43 @@ static int access_ereg_modify_changed(struct phy_device *phydev,
 	return rc;
 }
 
+static int lan87xx_config_rgmii_delay(struct phy_device *phydev)
+{
+	int rc;
+
+	if (!phy_interface_is_rgmii(phydev))
+		return 0;
+
+	rc = access_ereg(phydev, PHYACC_ATTR_MODE_READ,
+			 PHYACC_ATTR_BANK_MISC, LAN87XX_CTRL_1, 0);
+	if (rc < 0)
+		return rc;
+
+	switch (phydev->interface) {
+	case PHY_INTERFACE_MODE_RGMII:
+		rc &= ~LAN87XX_MASK_RGMII_TXC_DLY_EN;
+		rc &= ~LAN87XX_MASK_RGMII_RXC_DLY_EN;
+		break;
+	case PHY_INTERFACE_MODE_RGMII_ID:
+		rc |= LAN87XX_MASK_RGMII_TXC_DLY_EN;
+		rc |= LAN87XX_MASK_RGMII_RXC_DLY_EN;
+		break;
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+		rc &= ~LAN87XX_MASK_RGMII_TXC_DLY_EN;
+		rc |= LAN87XX_MASK_RGMII_RXC_DLY_EN;
+		break;
+	case PHY_INTERFACE_MODE_RGMII_TXID:
+		rc |= LAN87XX_MASK_RGMII_TXC_DLY_EN;
+		rc &= ~LAN87XX_MASK_RGMII_RXC_DLY_EN;
+		break;
+	default:
+		return 0;
+	}
+
+	return access_ereg(phydev, PHYACC_ATTR_MODE_WRITE,
+			   PHYACC_ATTR_BANK_MISC, LAN87XX_CTRL_1, rc);
+}
+
 static int lan87xx_phy_init(struct phy_device *phydev)
 {
 	static const struct access_ereg_val init[] = {
@@ -185,7 +227,7 @@ static int lan87xx_phy_init(struct phy_device *phydev)
 			return rc;
 	}
 
-	return 0;
+	return lan87xx_config_rgmii_delay(phydev);
 }
 
 static int lan87xx_phy_config_intr(struct phy_device *phydev)
