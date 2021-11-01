@@ -22,6 +22,7 @@
  *******************************************************************/
 
 #include <scsi/scsi_host.h>
+#include <linux/hashtable.h>
 #include <linux/ktime.h>
 #include <linux/workqueue.h>
 

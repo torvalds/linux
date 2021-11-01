@@ -58,7 +58,7 @@ struct nfhd_device {
 	struct gendisk *disk;
 };
 
-static blk_qc_t nfhd_submit_bio(struct bio *bio)
+static void nfhd_submit_bio(struct bio *bio)
 {
 	struct nfhd_device *dev = bio->bi_bdev->bd_disk->private_data;
 	struct bio_vec bvec;
@@ -76,7 +76,6 @@ static blk_qc_t nfhd_submit_bio(struct bio *bio)
 		sec += len;
 	}
 	bio_endio(bio);
-	return BLK_QC_T_NONE;
 }
 
 static int nfhd_getgeo(struct block_device *bdev, struct hd_geometry *geo)

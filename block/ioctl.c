@@ -538,12 +538,22 @@ static int blkdev_common_ioctl(struct block_device *bdev, fmode_t mode,
  *
  * New commands must be compatible and go into blkdev_common_ioctl
  */
-int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
-			unsigned long arg)
+long blkdev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 {
-	int ret;
-	loff_t size;
+	struct block_device *bdev = I_BDEV(file->f_mapping->host);
 	void __user *argp = (void __user *)arg;
+	fmode_t mode = file->f_mode;
+	loff_t size;
+	int ret;
+
+	/*
+	 * O_NDELAY can be altered using fcntl(.., F_SETFL, ..), so we have
+	 * to updated it before every ioctl.
+	 */
+	if (file->f_flags & O_NDELAY)
+		mode |= FMODE_NDELAY;
+	else
+		mode &= ~FMODE_NDELAY;
 
 	switch (cmd) {
 	/* These need separate implementations for the data structure */
@@ -588,7 +598,6 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 		return -ENOTTY;
 	return bdev->bd_disk->fops->ioctl(bdev, mode, cmd, arg);
 }
-EXPORT_SYMBOL_GPL(blkdev_ioctl); /* for /dev/raw */
 
 #ifdef CONFIG_COMPAT
 

@@ -84,7 +84,7 @@ static bool n64cart_do_bvec(struct device *dev, struct bio_vec *bv, u32 pos)
 	return true;
 }
 
-static blk_qc_t n64cart_submit_bio(struct bio *bio)
+static void n64cart_submit_bio(struct bio *bio)
 {
 	struct bio_vec bvec;
 	struct bvec_iter iter;
@@ -92,16 +92,14 @@ static blk_qc_t n64cart_submit_bio(struct bio *bio)
 	u32 pos = bio->bi_iter.bi_sector << SECTOR_SHIFT;
 
 	bio_for_each_segment(bvec, bio, iter) {
-		if (!n64cart_do_bvec(dev, &bvec, pos))
-			goto io_error;
+		if (!n64cart_do_bvec(dev, &bvec, pos)) {
+			bio_io_error(bio);
+			return;
+		}
 		pos += bvec.bv_len;
 	}
 
 	bio_endio(bio);
-	return BLK_QC_T_NONE;
-io_error:
-	bio_io_error(bio);
-	return BLK_QC_T_NONE;
 }
 
 static const struct block_device_operations n64cart_fops = {

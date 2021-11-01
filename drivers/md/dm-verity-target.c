@@ -18,6 +18,7 @@
 #include "dm-verity-verify-sig.h"
 #include <linux/module.h>
 #include <linux/reboot.h>
+#include <linux/scatterlist.h>
 
 #define DM_MSG_PREFIX			"verity"
 
