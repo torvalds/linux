@@ -2400,21 +2400,17 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha,
 
 	psataPayload = (struct sata_completion_resp *)(piomb + 4);
 	status = le32_to_cpu(psataPayload->status);
+	param = le32_to_cpu(psataPayload->param);
 	tag = le32_to_cpu(psataPayload->tag);
 
 	if (!tag) {
 		pm8001_dbg(pm8001_ha, FAIL, "tag null\n");
 		return;
 	}
+
 	ccb = &pm8001_ha->ccb_info[tag];
-	param = le32_to_cpu(psataPayload->param);
-	if (ccb) {
-		t = ccb->task;
-		pm8001_dev = ccb->device;
-	} else {
-		pm8001_dbg(pm8001_ha, FAIL, "ccb null\n");
-		return;
-	}
+	t = ccb->task;
+	pm8001_dev = ccb->device;
 
 	if (t) {
 		if (t->dev && (t->dev->lldd_dev))
@@ -2431,10 +2427,6 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha,
 	}
 
 	ts = &t->task_status;
-	if (!ts) {
-		pm8001_dbg(pm8001_ha, FAIL, "ts null\n");
-		return;
-	}
 
 	if (status != IO_SUCCESS) {
 		pm8001_dbg(pm8001_ha, FAIL,
@@ -2830,15 +2822,6 @@ static void mpi_sata_event(struct pm8001_hba_info *pm8001_ha,
 	u32 dev_id = le32_to_cpu(psataPayload->device_id);
 	unsigned long flags;
 
-	ccb = &pm8001_ha->ccb_info[tag];
-
-	if (ccb) {
-		t = ccb->task;
-		pm8001_dev = ccb->device;
-	} else {
-		pm8001_dbg(pm8001_ha, FAIL, "No CCB !!!. returning\n");
-		return;
-	}
 	if (event)
 		pm8001_dbg(pm8001_ha, FAIL, "SATA EVENT 0x%x\n", event);
 
@@ -2851,6 +2834,10 @@ static void mpi_sata_event(struct pm8001_hba_info *pm8001_ha,
 			pm80xx_send_read_log(pm8001_ha, pm8001_dev);
 		return;
 	}
+
+	ccb = &pm8001_ha->ccb_info[tag];
+	t = ccb->task;
+	pm8001_dev = ccb->device;
 
 	if (unlikely(!t || !t->lldd_task || !t->dev)) {
 		pm8001_dbg(pm8001_ha, FAIL, "task or dev null\n");
