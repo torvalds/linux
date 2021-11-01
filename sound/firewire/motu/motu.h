@@ -74,10 +74,13 @@ struct snd_motu {
 	int dev_lock_count;
 	bool dev_lock_changed;
 	wait_queue_head_t hwdep_wait;
+	struct snd_hwdep *hwdep;
 
 	struct amdtp_domain domain;
 
 	struct amdtp_motu_cache cache;
+
+	void *message_parser;
 };
 
 enum snd_motu_spec_flags {
@@ -85,6 +88,8 @@ enum snd_motu_spec_flags {
 	SND_MOTU_SPEC_RX_MIDI_3RD_Q	= 0x0002,
 	SND_MOTU_SPEC_TX_MIDI_2ND_Q	= 0x0004,
 	SND_MOTU_SPEC_TX_MIDI_3RD_Q	= 0x0008,
+	SND_MOTU_SPEC_REGISTER_DSP	= 0x0010,
+	SND_MOTU_SPEC_COMMAND_DSP	= 0x0020,
 };
 
 #define SND_MOTU_CLOCK_RATE_COUNT	6
@@ -269,5 +274,23 @@ static inline int snd_motu_protocol_cache_packet_formats(struct snd_motu *motu)
 	else
 		return -ENXIO;
 }
+
+int snd_motu_register_dsp_message_parser_new(struct snd_motu *motu);
+int snd_motu_register_dsp_message_parser_init(struct snd_motu *motu);
+void snd_motu_register_dsp_message_parser_parse(struct snd_motu *motu, const struct pkt_desc *descs,
+					unsigned int desc_count, unsigned int data_block_quadlets);
+void snd_motu_register_dsp_message_parser_copy_meter(struct snd_motu *motu,
+					struct snd_firewire_motu_register_dsp_meter *meter);
+void snd_motu_register_dsp_message_parser_copy_parameter(struct snd_motu *motu,
+					struct snd_firewire_motu_register_dsp_parameter *params);
+unsigned int snd_motu_register_dsp_message_parser_count_event(struct snd_motu *motu);
+bool snd_motu_register_dsp_message_parser_copy_event(struct snd_motu *motu, u32 *event);
+
+int snd_motu_command_dsp_message_parser_new(struct snd_motu *motu);
+int snd_motu_command_dsp_message_parser_init(struct snd_motu *motu, enum cip_sfc sfc);
+void snd_motu_command_dsp_message_parser_parse(struct snd_motu *motu, const struct pkt_desc *descs,
+					unsigned int desc_count, unsigned int data_block_quadlets);
+void snd_motu_command_dsp_message_parser_copy_meter(struct snd_motu *motu,
+					struct snd_firewire_motu_command_dsp_meter *meter);
 
 #endif
