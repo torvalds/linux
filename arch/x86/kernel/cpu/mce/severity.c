@@ -407,15 +407,14 @@ static int mce_severity_intel(struct mce *m, struct pt_regs *regs,
 	}
 }
 
-/* Default to mce_severity_intel */
-int (*mce_severity)(struct mce *m, struct pt_regs *regs, int tolerant, char **msg, bool is_excp) =
-		    mce_severity_intel;
-
-void __init mcheck_vendor_init_severity(void)
+int mce_severity(struct mce *m, struct pt_regs *regs, int tolerant, char **msg,
+		 bool is_excp)
 {
 	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD ||
 	    boot_cpu_data.x86_vendor == X86_VENDOR_HYGON)
-		mce_severity = mce_severity_amd;
+		return mce_severity_amd(m, regs, tolerant, msg, is_excp);
+	else
+		return mce_severity_intel(m, regs, tolerant, msg, is_excp);
 }
 
 #ifdef CONFIG_DEBUG_FS
