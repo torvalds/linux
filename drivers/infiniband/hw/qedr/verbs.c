@@ -1357,6 +1357,7 @@ static void qedr_set_common_qp_params(struct qedr_dev *dev,
 	if (rdma_protocol_iwarp(&dev->ibdev, 1)) {
 		kref_init(&qp->refcnt);
 		init_completion(&qp->iwarp_cm_comp);
+		init_completion(&qp->qp_rel_comp);
 	}
 
 	qp->pd = pd;
@@ -2857,8 +2858,10 @@ int qedr_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 
 	qedr_free_qp_resources(dev, qp, udata);
 
-	if (rdma_protocol_iwarp(&dev->ibdev, 1))
+	if (rdma_protocol_iwarp(&dev->ibdev, 1)) {
 		qedr_iw_qp_rem_ref(&qp->ibqp);
+		wait_for_completion(&qp->qp_rel_comp);
+	}
 
 	return 0;
 }

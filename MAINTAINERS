@@ -6160,8 +6160,7 @@ T:	git git://anongit.freedesktop.org/drm/drm
 F:	Documentation/devicetree/bindings/display/
 F:	Documentation/devicetree/bindings/gpu/
 F:	Documentation/gpu/
-F:	drivers/gpu/drm/
-F:	drivers/gpu/vga/
+F:	drivers/gpu/
 F:	include/drm/
 F:	include/linux/vga*
 F:	include/uapi/drm/
@@ -11298,7 +11297,6 @@ F:	Documentation/networking/device_drivers/ethernet/marvell/octeontx2.rst
 F:	drivers/net/ethernet/marvell/octeontx2/af/
 
 MARVELL PRESTERA ETHERNET SWITCH DRIVER
-M:	Vadym Kochan <vkochan@marvell.com>
 M:	Taras Chornyi <tchornyi@marvell.com>
 S:	Supported
 W:	https://github.com/Marvell-switching/switchdev-prestera

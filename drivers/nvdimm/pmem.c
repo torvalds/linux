@@ -333,26 +333,6 @@ static const struct attribute_group *pmem_attribute_groups[] = {
 	NULL,
 };
 
-static void pmem_pagemap_cleanup(struct dev_pagemap *pgmap)
-{
-	struct pmem_device *pmem = pgmap->owner;
-
-	blk_cleanup_disk(pmem->disk);
-}
-
-static void pmem_release_queue(void *pgmap)
-{
-	pmem_pagemap_cleanup(pgmap);
-}
-
-static void pmem_pagemap_kill(struct dev_pagemap *pgmap)
-{
-	struct request_queue *q =
-		container_of(pgmap->ref, struct request_queue, q_usage_counter);
-
-	blk_freeze_queue_start(q);
-}
-
 static void pmem_release_disk(void *__pmem)
 {
 	struct pmem_device *pmem = __pmem;
@@ -360,12 +340,9 @@ static void pmem_release_disk(void *__pmem)
 	kill_dax(pmem->dax_dev);
 	put_dax(pmem->dax_dev);
 	del_gendisk(pmem->disk);
-}
 
-static const struct dev_pagemap_ops fsdax_pagemap_ops = {
-	.kill			= pmem_pagemap_kill,
-	.cleanup		= pmem_pagemap_cleanup,
-};
+	blk_cleanup_disk(pmem->disk);
+}
 
 static int pmem_attach_disk(struct device *dev,
 		struct nd_namespace_common *ndns)
@@ -427,10 +404,8 @@ static int pmem_attach_disk(struct device *dev,
 	pmem->disk = disk;
 	pmem->pgmap.owner = pmem;
 	pmem->pfn_flags = PFN_DEV;
-	pmem->pgmap.ref = &q->q_usage_counter;
 	if (is_nd_pfn(dev)) {
 		pmem->pgmap.type = MEMORY_DEVICE_FS_DAX;
-		pmem->pgmap.ops = &fsdax_pagemap_ops;
 		addr = devm_memremap_pages(dev, &pmem->pgmap);
 		pfn_sb = nd_pfn->pfn_sb;
 		pmem->data_offset = le64_to_cpu(pfn_sb->dataoff);
@@ -444,16 +419,12 @@ static int pmem_attach_disk(struct device *dev,
 		pmem->pgmap.range.end = res->end;
 		pmem->pgmap.nr_range = 1;
 		pmem->pgmap.type = MEMORY_DEVICE_FS_DAX;
-		pmem->pgmap.ops = &fsdax_pagemap_ops;
 		addr = devm_memremap_pages(dev, &pmem->pgmap);
 		pmem->pfn_flags |= PFN_MAP;
 		bb_range = pmem->pgmap.range;
 	} else {
 		addr = devm_memremap(dev, pmem->phys_addr,
 				pmem->size, ARCH_MEMREMAP_PMEM);
-		if (devm_add_action_or_reset(dev, pmem_release_queue,
-					&pmem->pgmap))
-			return -ENOMEM;
 		bb_range.start =  res->start;
 		bb_range.end = res->end;
 	}
