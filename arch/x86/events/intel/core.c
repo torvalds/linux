@@ -243,7 +243,8 @@ static struct extra_reg intel_skl_extra_regs[] __read_mostly = {
 
 static struct event_constraint intel_icl_event_constraints[] = {
 	FIXED_EVENT_CONSTRAINT(0x00c0, 0),	/* INST_RETIRED.ANY */
-	FIXED_EVENT_CONSTRAINT(0x01c0, 0),	/* INST_RETIRED.PREC_DIST */
+	FIXED_EVENT_CONSTRAINT(0x01c0, 0),	/* old INST_RETIRED.PREC_DIST */
+	FIXED_EVENT_CONSTRAINT(0x0100, 0),	/* INST_RETIRED.PREC_DIST */
 	FIXED_EVENT_CONSTRAINT(0x003c, 1),	/* CPU_CLK_UNHALTED.CORE */
 	FIXED_EVENT_CONSTRAINT(0x0300, 2),	/* CPU_CLK_UNHALTED.REF */
 	FIXED_EVENT_CONSTRAINT(0x0400, 3),	/* SLOTS */
@@ -288,7 +289,7 @@ static struct extra_reg intel_spr_extra_regs[] __read_mostly = {
 
 static struct event_constraint intel_spr_event_constraints[] = {
 	FIXED_EVENT_CONSTRAINT(0x00c0, 0),	/* INST_RETIRED.ANY */
-	FIXED_EVENT_CONSTRAINT(0x01c0, 0),	/* INST_RETIRED.PREC_DIST */
+	FIXED_EVENT_CONSTRAINT(0x0100, 0),	/* INST_RETIRED.PREC_DIST */
 	FIXED_EVENT_CONSTRAINT(0x003c, 1),	/* CPU_CLK_UNHALTED.CORE */
 	FIXED_EVENT_CONSTRAINT(0x0300, 2),	/* CPU_CLK_UNHALTED.REF */
 	FIXED_EVENT_CONSTRAINT(0x0400, 3),	/* SLOTS */
@@ -2403,6 +2404,12 @@ static void intel_pmu_disable_event(struct perf_event *event)
 		intel_pmu_pebs_disable(event);
 }
 
+static void intel_pmu_assign_event(struct perf_event *event, int idx)
+{
+	if (is_pebs_pt(event))
+		perf_report_aux_output_id(event, idx);
+}
+
 static void intel_pmu_del_event(struct perf_event *event)
 {
 	if (needs_branch_stack(event))
@@ -4495,8 +4502,16 @@ static int intel_pmu_check_period(struct perf_event *event, u64 value)
 	return intel_pmu_has_bts_period(event, value) ? -EINVAL : 0;
 }
 
+static void intel_aux_output_init(void)
+{
+	/* Refer also intel_pmu_aux_output_match() */
+	if (x86_pmu.intel_cap.pebs_output_pt_available)
+		x86_pmu.assign = intel_pmu_assign_event;
+}
+
 static int intel_pmu_aux_output_match(struct perf_event *event)
 {
+	/* intel_pmu_assign_event() is needed, refer intel_aux_output_init() */
 	if (!x86_pmu.intel_cap.pebs_output_pt_available)
 		return 0;
 
@@ -6301,6 +6316,8 @@ __init int intel_pmu_init(void)
 
 	if (is_hybrid())
 		intel_pmu_check_hybrid_pmus((u64)fixed_mask);
+
+	intel_aux_output_init();
 
 	return 0;
 }

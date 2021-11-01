@@ -66,6 +66,8 @@ DEFINE_STATIC_CALL_NULL(x86_pmu_enable_all,  *x86_pmu.enable_all);
 DEFINE_STATIC_CALL_NULL(x86_pmu_enable,	     *x86_pmu.enable);
 DEFINE_STATIC_CALL_NULL(x86_pmu_disable,     *x86_pmu.disable);
 
+DEFINE_STATIC_CALL_NULL(x86_pmu_assign, *x86_pmu.assign);
+
 DEFINE_STATIC_CALL_NULL(x86_pmu_add,  *x86_pmu.add);
 DEFINE_STATIC_CALL_NULL(x86_pmu_del,  *x86_pmu.del);
 DEFINE_STATIC_CALL_NULL(x86_pmu_read, *x86_pmu.read);
@@ -1215,6 +1217,8 @@ static inline void x86_assign_hw_event(struct perf_event *event,
 	hwc->last_cpu = smp_processor_id();
 	hwc->last_tag = ++cpuc->tags[i];
 
+	static_call_cond(x86_pmu_assign)(event, idx);
+
 	switch (hwc->idx) {
 	case INTEL_PMC_IDX_FIXED_BTS:
 	case INTEL_PMC_IDX_FIXED_VLBR:
@@ -2004,6 +2008,8 @@ static void x86_pmu_static_call_update(void)
 	static_call_update(x86_pmu_enable_all, x86_pmu.enable_all);
 	static_call_update(x86_pmu_enable, x86_pmu.enable);
 	static_call_update(x86_pmu_disable, x86_pmu.disable);
+
+	static_call_update(x86_pmu_assign, x86_pmu.assign);
 
 	static_call_update(x86_pmu_add, x86_pmu.add);
 	static_call_update(x86_pmu_del, x86_pmu.del);
