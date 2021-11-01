@@ -36,6 +36,7 @@ void __flush_dcache_page(phys_addr_t paddr, unsigned long vaddr);
 #define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
 
 void flush_dcache_page(struct page *page);
+void flush_dcache_folio(struct folio *folio);
 
 void dma_cache_wback_inv(phys_addr_t start, unsigned long sz);
 void dma_cache_inv(phys_addr_t start, unsigned long sz);

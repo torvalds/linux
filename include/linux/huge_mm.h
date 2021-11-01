@@ -251,15 +251,6 @@ static inline spinlock_t *pud_trans_huge_lock(pud_t *pud,
 }
 
 /**
- * thp_head - Head page of a transparent huge page.
- * @page: Any page (tail, head or regular) found in the page cache.
- */
-static inline struct page *thp_head(struct page *page)
-{
-	return compound_head(page);
-}
-
-/**
  * thp_order - Order of a transparent huge page.
  * @page: Head page of a transparent huge page.
  */
@@ -335,12 +326,6 @@ static inline struct list_head *page_deferred_list(struct page *page)
 #define HPAGE_PUD_SHIFT ({ BUILD_BUG(); 0; })
 #define HPAGE_PUD_MASK ({ BUILD_BUG(); 0; })
 #define HPAGE_PUD_SIZE ({ BUILD_BUG(); 0; })
-
-static inline struct page *thp_head(struct page *page)
-{
-	VM_BUG_ON_PGFLAGS(PageTail(page), page);
-	return page;
-}
 
 static inline unsigned int thp_order(struct page *page)
 {
