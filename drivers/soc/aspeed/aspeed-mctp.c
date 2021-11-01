@@ -208,9 +208,10 @@ struct aspeed_mctp {
 	} pcie;
 	struct {
 		bool enable;
-		bool warmup;
+		bool first_loop;
 		int packet_counter;
 	} rx_runaway_wa;
+	bool rx_warmup;
 	u8 eid;
 	struct platform_device *peci_mctp;
 	/* Use the flag to identify RC or EP */
@@ -288,10 +289,15 @@ static void aspeed_mctp_rx_trigger(struct mctp_channel *rx)
 
 	/* After re-enabling RX we need to restart WA logic */
 	if (priv->rx_runaway_wa.enable) {
-		priv->rx_runaway_wa.warmup = true;
+		priv->rx_runaway_wa.first_loop = true;
 		priv->rx_runaway_wa.packet_counter = 0;
 		priv->rx.buffer_count = RX_PACKET_COUNT;
 	}
+	/*
+	 * When Rx warmup MCTP controller may store first packet into the 0th to the
+	 * 3rd cmd. It's independent from rx runaway.
+	 */
+	priv->rx_warmup = true;
 
 	regmap_update_bits(priv->map, ASPEED_MCTP_CTRL, RX_CMD_READY,
 			   RX_CMD_READY);
@@ -505,8 +511,7 @@ static void aspeed_mctp_rx_tasklet(unsigned long data)
 	 */
 	rx_buf = (struct mctp_pcie_packet_data *)rx->data.vaddr;
 	hdr = (u32 *)&rx_buf[rx->wr_ptr];
-
-	if (priv->rx_runaway_wa.warmup && !*hdr) {
+	if ((priv->rx_warmup || priv->rx_runaway_wa.first_loop) && !*hdr) {
 		u32 tmp_wr_ptr = rx->wr_ptr;
 
 		/*
@@ -525,22 +530,23 @@ static void aspeed_mctp_rx_tasklet(unsigned long data)
 				rx->wr_ptr, tmp_wr_ptr);
 			rx->wr_ptr = tmp_wr_ptr;
 		}
-
-		/*
-		 * Once we receive RX_PACKET_COUNT packets, hardware is
-		 * guaranteed to use (RX_PACKET_COUNT - 4) buffers. Decrease
-		 * buffer count by 4, then we can turn off scanning of RX
-		 * buffers. RX buffer scanning should be enabled every time
-		 * RX hardware is started.
-		 * This is just a performance optimization - we could keep
-		 * scanning RX buffers forever, but under heavy traffic it is
-		 * fairly common that rx_tasklet is executed while RX buffer
-		 * ring is empty.
-		 */
-		if (priv->rx_runaway_wa.packet_counter > RX_PACKET_COUNT) {
-			priv->rx_runaway_wa.warmup = false;
-			rx->buffer_count = RX_PACKET_COUNT - 4;
-		}
+		priv->rx_warmup = false;
+	}
+	/*
+	 * Once we receive RX_PACKET_COUNT packets, hardware is
+	 * guaranteed to use (RX_PACKET_COUNT - 4) buffers. Decrease
+	 * buffer count by 4, then we can turn off scanning of RX
+	 * buffers. RX buffer scanning should be enabled every time
+	 * RX hardware is started.
+	 * This is just a performance optimization - we could keep
+	 * scanning RX buffers forever, but under heavy traffic it is
+	 * fairly common that rx_tasklet is executed while RX buffer
+	 * ring is empty.
+	 */
+	if (priv->rx_runaway_wa.enable &&
+	    priv->rx_runaway_wa.packet_counter > RX_PACKET_COUNT) {
+		priv->rx_runaway_wa.first_loop = false;
+		rx->buffer_count = RX_PACKET_COUNT - 4;
 	}
 
 	while (*hdr != 0) {
