@@ -281,8 +281,8 @@ config BLK_DEV_RAM_SIZE
 config CDROM_PKTCDVD
 	tristate "Packet writing on CD/DVD media (DEPRECATED)"
 	depends on !UML
+	depends on SCSI
 	select CDROM
-	select SCSI_COMMON
 	help
 	  Note: This driver is deprecated and will be removed from the
 	  kernel in the near future!

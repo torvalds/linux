@@ -438,7 +438,7 @@ static int sg_io(struct scsi_device *sdev, struct gendisk *disk,
 		at_head = 1;
 
 	ret = -ENOMEM;
-	rq = blk_get_request(sdev->request_queue, writing ?
+	rq = scsi_alloc_request(sdev->request_queue, writing ?
 			     REQ_OP_DRV_OUT : REQ_OP_DRV_IN, 0);
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
@@ -490,7 +490,7 @@ static int sg_io(struct scsi_device *sdev, struct gendisk *disk,
 out_free_cdb:
 	scsi_req_free_cmd(req);
 out_put_request:
-	blk_put_request(rq);
+	blk_mq_free_request(rq);
 	return ret;
 }
 
@@ -561,7 +561,7 @@ static int sg_scsi_ioctl(struct request_queue *q, struct gendisk *disk,
 
 	}
 
-	rq = blk_get_request(q, in_len ? REQ_OP_DRV_OUT : REQ_OP_DRV_IN, 0);
+	rq = scsi_alloc_request(q, in_len ? REQ_OP_DRV_OUT : REQ_OP_DRV_IN, 0);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto error_free_buffer;
@@ -634,7 +634,7 @@ static int sg_scsi_ioctl(struct request_queue *q, struct gendisk *disk,
 	}
 
 error:
-	blk_put_request(rq);
+	blk_mq_free_request(rq);
 
 error_free_buffer:
 	kfree(buffer);

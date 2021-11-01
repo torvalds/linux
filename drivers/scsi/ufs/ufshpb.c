@@ -449,7 +449,7 @@ static struct ufshpb_req *ufshpb_get_req(struct ufshpb_lu *hpb,
 		return NULL;
 
 retry:
-	req = blk_get_request(hpb->sdev_ufs_lu->request_queue, dir,
+	req = blk_mq_alloc_request(hpb->sdev_ufs_lu->request_queue, dir,
 			      BLK_MQ_REQ_NOWAIT);
 
 	if (!atomic && (PTR_ERR(req) == -EWOULDBLOCK) && (--retries > 0)) {
@@ -473,7 +473,7 @@ free_rq:
 
 static void ufshpb_put_req(struct ufshpb_lu *hpb, struct ufshpb_req *rq)
 {
-	blk_put_request(rq->req);
+	blk_mq_free_request(rq->req);
 	kmem_cache_free(hpb->map_req_cache, rq);
 }
 

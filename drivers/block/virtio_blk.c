@@ -312,7 +312,7 @@ static int virtblk_get_id(struct gendisk *disk, char *id_str)
 	struct request *req;
 	int err;
 
-	req = blk_get_request(q, REQ_OP_DRV_IN, 0);
+	req = blk_mq_alloc_request(q, REQ_OP_DRV_IN, 0);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
@@ -323,7 +323,7 @@ static int virtblk_get_id(struct gendisk *disk, char *id_str)
 	blk_execute_rq(vblk->disk, req, false);
 	err = blk_status_to_errno(virtblk_result(blk_mq_rq_to_pdu(req)));
 out:
-	blk_put_request(req);
+	blk_mq_free_request(req);
 	return err;
 }
 
