@@ -75,6 +75,36 @@ DEFINE_EVENT(smc_msg_event, smc_rx_recvmsg,
 	     TP_ARGS(smc, len)
 );
 
+TRACE_EVENT(smcr_link_down,
+
+	    TP_PROTO(const struct smc_link *lnk, void *location),
+
+	    TP_ARGS(lnk, location),
+
+	    TP_STRUCT__entry(
+			     __field(const void *, lnk)
+			     __field(const void *, lgr)
+			     __field(int, state)
+			     __string(name, lnk->ibname)
+			     __field(void *, location)
+	    ),
+
+	    TP_fast_assign(
+			   const struct smc_link_group *lgr = lnk->lgr;
+
+			   __entry->lnk = lnk;
+			   __entry->lgr = lgr;
+			   __entry->state = lnk->state;
+			   __assign_str(name, lnk->ibname);
+			   __entry->location = location;
+	    ),
+
+	    TP_printk("lnk=%p lgr=%p state=%d dev=%s location=%p",
+		      __entry->lnk, __entry->lgr,
+		      __entry->state, __get_str(name),
+		      __entry->location)
+);
+
 #endif /* _TRACE_SMC_H */
 
 #undef TRACE_INCLUDE_PATH
