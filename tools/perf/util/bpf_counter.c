@@ -13,6 +13,7 @@
 #include <perf/bpf_perf.h>
 
 #include "bpf_counter.h"
+#include "bpf-utils.h"
 #include "counts.h"
 #include "debug.h"
 #include "evsel.h"
@@ -61,14 +62,13 @@ static int bpf_program_profiler__destroy(struct evsel *evsel)
 
 static char *bpf_target_prog_name(int tgt_fd)
 {
-	struct bpf_prog_info_linear *info_linear;
 	struct bpf_func_info *func_info;
+	struct perf_bpil *info_linear;
 	const struct btf_type *t;
 	struct btf *btf = NULL;
 	char *name = NULL;
 
-	info_linear = bpf_program__get_prog_info_linear(
-		tgt_fd, 1UL << BPF_PROG_INFO_FUNC_INFO);
+	info_linear = get_bpf_prog_info_linear(tgt_fd, 1UL << PERF_BPIL_FUNC_INFO);
 	if (IS_ERR_OR_NULL(info_linear)) {
 		pr_debug("failed to get info_linear for prog FD %d\n", tgt_fd);
 		return NULL;

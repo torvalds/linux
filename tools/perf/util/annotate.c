@@ -28,6 +28,7 @@
 #include "evsel.h"
 #include "evlist.h"
 #include "bpf-event.h"
+#include "bpf-utils.h"
 #include "block-range.h"
 #include "string2.h"
 #include "util/event.h"
@@ -1700,12 +1701,12 @@ static int symbol__disassemble_bpf(struct symbol *sym,
 {
 	struct annotation *notes = symbol__annotation(sym);
 	struct annotation_options *opts = args->options;
-	struct bpf_prog_info_linear *info_linear;
 	struct bpf_prog_linfo *prog_linfo = NULL;
 	struct bpf_prog_info_node *info_node;
 	int len = sym->end - sym->start;
 	disassembler_ftype disassemble;
 	struct map *map = args->ms.map;
+	struct perf_bpil *info_linear;
 	struct disassemble_info info;
 	struct dso *dso = map->dso;
 	int pc = 0, count, sub_id;
