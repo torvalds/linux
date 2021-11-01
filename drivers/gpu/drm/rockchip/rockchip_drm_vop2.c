@@ -3307,6 +3307,13 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_plane_sta
 			DRM_ERROR("Unsupported linear yuv format at %s\n", win->name);
 			return -EINVAL;
 		}
+
+		if (vop2_cluster_window(win) && !vpstate->afbc_en &&
+		    (win->supported_rotations & state->rotation)) {
+			DRM_ERROR("Unsupported linear rotation(%d) format at %s\n",
+				  state->rotation, win->name);
+			return -EINVAL;
+		}
 	}
 
 	/*
