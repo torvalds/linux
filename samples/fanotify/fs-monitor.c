@@ -65,7 +65,8 @@ static void handle_notifications(char *buffer, int len)
 	for (; FAN_EVENT_OK(event, len); event = FAN_EVENT_NEXT(event, len)) {
 
 		if (event->mask != FAN_FS_ERROR) {
-			printf("unexpected FAN MARK: %llx\n", event->mask);
+			printf("unexpected FAN MARK: %llx\n",
+							(unsigned long long)event->mask);
 			goto next_event;
 		}
 
