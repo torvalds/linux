@@ -52,7 +52,7 @@ static int dump_prog_id_as_func_ptr(const struct btf_dumper *d,
 
 	/* Get the bpf_prog's name.  Obtain from func_info. */
 	prog_fd = bpf_prog_get_fd_by_id(prog_id);
-	if (prog_fd == -1)
+	if (prog_fd < 0)
 		goto print;
 
 	prog_info = bpf_program__get_prog_info_linear(prog_fd,

@@ -252,7 +252,7 @@ static struct res do_one_id(const char *id_str, work_func func, void *data,
 	}
 
 	fd = bpf_map_get_fd_by_id(id);
-	if (fd == -1) {
+	if (fd < 0) {
 		p_err("can't get map by id (%lu): %s", id, strerror(errno));
 		res.nr_errs++;
 		return res;
