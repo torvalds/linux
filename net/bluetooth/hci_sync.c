@@ -895,7 +895,7 @@ int hci_enable_ext_advertising_sync(struct hci_dev *hdev, u8 instance)
 	/* Set duration per instance since controller is responsible for
 	 * scheduling it.
 	 */
-	if (adv && adv->duration) {
+	if (adv && adv->timeout) {
 		u16 duration = adv->timeout * MSEC_PER_SEC;
 
 		/* Time = N * 10 ms */
