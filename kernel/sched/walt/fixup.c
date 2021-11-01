@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2021 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <trace/hooks/cpufreq.h>
@@ -31,17 +32,12 @@ static bool is_sched_lib_based_app(pid_t pid)
 		return false;
 
 	rcu_read_lock();
-
-	p = pid ? get_pid_task(find_vpid(pid), PIDTYPE_PID) : current;
+	p = pid ? get_pid_task(find_vpid(pid), PIDTYPE_PID) : get_task_struct(current);
+	rcu_read_unlock();
 	if (!p) {
-		rcu_read_unlock();
 		kfree(tmp_lib_name);
 		return false;
 	}
-
-	/* Prevent p going away */
-	get_task_struct(p);
-	rcu_read_unlock();
 
 	mm = get_task_mm(p);
 	if (!mm)
