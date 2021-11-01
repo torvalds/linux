@@ -38,6 +38,43 @@ TRACE_EVENT(smc_switch_to_fallback,
 		      __entry->sk, __entry->clcsk, __entry->fallback_rsn)
 );
 
+DECLARE_EVENT_CLASS(smc_msg_event,
+
+		    TP_PROTO(const struct smc_sock *smc, size_t len),
+
+		    TP_ARGS(smc, len),
+
+		    TP_STRUCT__entry(
+				     __field(const void *, smc)
+				     __field(size_t, len)
+				     __string(name, smc->conn.lnk->ibname)
+		    ),
+
+		    TP_fast_assign(
+				   __entry->smc = smc;
+				   __entry->len = len;
+				   __assign_str(name, smc->conn.lnk->ibname);
+		    ),
+
+		    TP_printk("smc=%p len=%zu dev=%s",
+			      __entry->smc, __entry->len,
+			      __get_str(name))
+);
+
+DEFINE_EVENT(smc_msg_event, smc_tx_sendmsg,
+
+	     TP_PROTO(const struct smc_sock *smc, size_t len),
+
+	     TP_ARGS(smc, len)
+);
+
+DEFINE_EVENT(smc_msg_event, smc_rx_recvmsg,
+
+	     TP_PROTO(const struct smc_sock *smc, size_t len),
+
+	     TP_ARGS(smc, len)
+);
+
 #endif /* _TRACE_SMC_H */
 
 #undef TRACE_INCLUDE_PATH
