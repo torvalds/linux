@@ -1000,6 +1000,10 @@ bool bpf_struct_ops_get(const void *kdata);
 void bpf_struct_ops_put(const void *kdata);
 int bpf_struct_ops_map_sys_lookup_elem(struct bpf_map *map, void *key,
 				       void *value);
+int bpf_struct_ops_prepare_trampoline(struct bpf_tramp_progs *tprogs,
+				      struct bpf_prog *prog,
+				      const struct btf_func_model *model,
+				      void *image, void *image_end);
 static inline bool bpf_try_module_get(const void *data, struct module *owner)
 {
 	if (owner == BPF_MODULE_OWNER)
@@ -1014,6 +1018,22 @@ static inline void bpf_module_put(const void *data, struct module *owner)
 	else
 		module_put(owner);
 }
+
+#ifdef CONFIG_NET
+/* Define it here to avoid the use of forward declaration */
+struct bpf_dummy_ops_state {
+	int val;
+};
+
+struct bpf_dummy_ops {
+	int (*test_1)(struct bpf_dummy_ops_state *cb);
+	int (*test_2)(struct bpf_dummy_ops_state *cb, int a1, unsigned short a2,
+		      char a3, unsigned long a4);
+};
+
+int bpf_struct_ops_test_run(struct bpf_prog *prog, const union bpf_attr *kattr,
+			    union bpf_attr __user *uattr);
+#endif
 #else
 static inline const struct bpf_struct_ops *bpf_struct_ops_find(u32 type_id)
 {
@@ -1646,6 +1666,29 @@ bool bpf_prog_test_check_kfunc_call(u32 kfunc_id, struct module *owner);
 bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 		    const struct bpf_prog *prog,
 		    struct bpf_insn_access_aux *info);
+
+static inline bool bpf_tracing_ctx_access(int off, int size,
+					  enum bpf_access_type type)
+{
+	if (off < 0 || off >= sizeof(__u64) * MAX_BPF_FUNC_ARGS)
+		return false;
+	if (type != BPF_READ)
+		return false;
+	if (off % size != 0)
+		return false;
+	return true;
+}
+
+static inline bool bpf_tracing_btf_ctx_access(int off, int size,
+					      enum bpf_access_type type,
+					      const struct bpf_prog *prog,
+					      struct bpf_insn_access_aux *info)
+{
+	if (!bpf_tracing_ctx_access(off, size, type))
+		return false;
+	return btf_ctx_access(off, size, type, prog, info);
+}
+
 int btf_struct_access(struct bpf_verifier_log *log, const struct btf *btf,
 		      const struct btf_type *t, int off, int size,
 		      enum bpf_access_type atype,
