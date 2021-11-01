@@ -44,3 +44,28 @@
 		};
 	};
 };
+
+&usbdp_phy0 {
+	status = "disabled";
+};
+
+&usbdp_phy0_dp {
+	status = "disabled";
+};
+
+&usbdp_phy0_u3 {
+	status = "disabled";
+};
+
+&usbdrd_dwc3_0 {
+	dr_mode = "peripheral";
+	maximum-speed = "high-speed";
+};
+
+&usbhost3_0 {
+	status = "disabled";
+};
+
+&usbhost_dwc3_0 {
+	status = "disabled";
+};

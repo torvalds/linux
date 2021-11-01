@@ -8,6 +8,48 @@
 #include "rk3588s-evb.dtsi"
 #include "rk806-double.dtsi"
 
+/ {
+	vbus5v0_typec: vbus-typec-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vbus5v0_typec";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&gpio4 RK_PA0 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc5v0_usb>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&typec5v_pwren>;
+	};
+
+	vcc5v0_u2host: vcc5v0-u2host-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_u2host";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&gpio4 RK_PA1 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc5v0_usb>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vcc5v0_u2host_en>;
+	};
+
+	vcc5v0_u3host: vcc5v0-u3host-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_u3host";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&gpio4 RK_PA6 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc5v0_usb>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vcc5v0_u3host_en>;
+	};
+};
+
 &i2c6 {
 	status = "okay";
 	pinctrl-names = "default";
@@ -50,4 +92,34 @@
 				<4 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+
+	usb {
+		typec5v_pwren: typec5v-pwren {
+			rockchip,pins = <4 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		vcc5v0_u2host_en: vcc5v0-u2host-en {
+			rockchip,pins = <4 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		vcc5v0_u3host_en: vcc5v0-u3host-en {
+			rockchip,pins = <4 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+&u2phy0_otg {
+	vbus-supply = <&vbus5v0_typec>;
+};
+
+&u2phy2_host {
+	phy-supply = <&vcc5v0_u2host>;
+};
+
+&u2phy3_host {
+	phy-supply = <&vcc5v0_u3host>;
+};
+
+&usbdrd_dwc3_0 {
+	maximum-speed = "high-speed";
 };
