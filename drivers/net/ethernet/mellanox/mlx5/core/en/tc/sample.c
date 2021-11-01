@@ -631,6 +631,7 @@ mlx5e_tc_sample_unoffload(struct mlx5e_tc_psample *tc_psample,
 	/* The following delete order can't be changed, otherwise,
 	 * will hit fw syndromes.
 	 */
+	esw = tc_psample->esw;
 	sample_flow = attr->sample_attr->sample_flow;
 	mlx5_eswitch_del_offloaded_rule(esw, sample_flow->pre_rule, sample_flow->pre_attr);
 
