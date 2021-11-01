@@ -167,6 +167,58 @@ void intel_dpt_unpin(struct i915_address_space *vm)
 	i915_vma_put(dpt->vma);
 }
 
+/**
+ * intel_dpt_resume - restore the memory mapping for all DPT FBs during system resume
+ * @i915: device instance
+ *
+ * Restore the memory mapping during system resume for all framebuffers which
+ * are mapped to HW via a GGTT->DPT page table. The content of these page
+ * tables are not stored in the hibernation image during S4 and S3RST->S4
+ * transitions, so here we reprogram the PTE entries in those tables.
+ *
+ * This function must be called after the mappings in GGTT have been restored calling
+ * i915_ggtt_resume().
+ */
+void intel_dpt_resume(struct drm_i915_private *i915)
+{
+	struct drm_framebuffer *drm_fb;
+
+	mutex_lock(&i915->drm.mode_config.fb_lock);
+	drm_for_each_fb(drm_fb, &i915->drm) {
+		struct intel_framebuffer *fb = to_intel_framebuffer(drm_fb);
+
+		if (fb->dpt_vm)
+			i915_ggtt_resume_vm(fb->dpt_vm);
+	}
+	mutex_unlock(&i915->drm.mode_config.fb_lock);
+}
+
+/**
+ * intel_dpt_suspend - suspend the memory mapping for all DPT FBs during system suspend
+ * @i915: device instance
+ *
+ * Suspend the memory mapping during system suspend for all framebuffers which
+ * are mapped to HW via a GGTT->DPT page table.
+ *
+ * This function must be called before the mappings in GGTT are suspended calling
+ * i915_ggtt_suspend().
+ */
+void intel_dpt_suspend(struct drm_i915_private *i915)
+{
+	struct drm_framebuffer *drm_fb;
+
+	mutex_lock(&i915->drm.mode_config.fb_lock);
+
+	drm_for_each_fb(drm_fb, &i915->drm) {
+		struct intel_framebuffer *fb = to_intel_framebuffer(drm_fb);
+
+		if (fb->dpt_vm)
+			i915_ggtt_suspend_vm(fb->dpt_vm);
+	}
+
+	mutex_unlock(&i915->drm.mode_config.fb_lock);
+}
+
 struct i915_address_space *
 intel_dpt_create(struct intel_framebuffer *fb)
 {
