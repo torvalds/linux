@@ -84,6 +84,8 @@ struct send_ctx {
 	u64 total_send_size;
 	u64 cmd_send_size[BTRFS_SEND_C_MAX + 1];
 	u64 flags;	/* 'flags' member of btrfs_ioctl_send_args is u64 */
+	/* Protocol version compatibility requested */
+	u32 proto;
 
 	struct btrfs_root *send_root;
 	struct btrfs_root *parent_root;
@@ -310,6 +312,16 @@ static void inconsistent_snapshot_error(struct send_ctx *sctx,
 		  sctx->send_root->root_key.objectid,
 		  (sctx->parent_root ?
 		   sctx->parent_root->root_key.objectid : 0));
+}
+
+__maybe_unused
+static bool proto_cmd_ok(const struct send_ctx *sctx, int cmd)
+{
+	switch (sctx->proto) {
+	case 1:	 return cmd < __BTRFS_SEND_C_MAX_V1;
+	case 2:	 return cmd < __BTRFS_SEND_C_MAX_V2;
+	default: return false;
+	}
 }
 
 static int is_waiting_for_move(struct send_ctx *sctx, u64 ino);
@@ -2720,19 +2732,12 @@ static int send_create_inode_if_needed(struct send_ctx *sctx)
 	if (S_ISDIR(sctx->cur_inode_mode)) {
 		ret = did_create_dir(sctx, sctx->cur_ino);
 		if (ret < 0)
-			goto out;
-		if (ret) {
-			ret = 0;
-			goto out;
-		}
+			return ret;
+		else if (ret > 0)
+			return 0;
 	}
 
-	ret = send_create_inode(sctx, sctx->cur_ino);
-	if (ret < 0)
-		goto out;
-
-out:
-	return ret;
+	return send_create_inode(sctx, sctx->cur_ino);
 }
 
 struct recorded_ref {
@@ -7275,6 +7280,17 @@ long btrfs_ioctl_send(struct file *mnt_file, struct btrfs_ioctl_send_args *arg)
 	INIT_LIST_HEAD(&sctx->name_cache_list);
 
 	sctx->flags = arg->flags;
+
+	if (arg->flags & BTRFS_SEND_FLAG_VERSION) {
+		if (arg->version > BTRFS_SEND_STREAM_VERSION) {
+			ret = -EPROTO;
+			goto out;
+		}
+		/* Zero means "use the highest version" */
+		sctx->proto = arg->version ?: BTRFS_SEND_STREAM_VERSION;
+	} else {
+		sctx->proto = 1;
+	}
 
 	sctx->send_filp = fget(arg->send_fd);
 	if (!sctx->send_filp) {

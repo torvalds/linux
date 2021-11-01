@@ -30,25 +30,23 @@ static inline int nr_data_stripes(const struct map_lookup *map)
 struct btrfs_raid_bio;
 struct btrfs_device;
 
-int raid56_parity_recover(struct btrfs_fs_info *fs_info, struct bio *bio,
-			  struct btrfs_bio *bbio, u64 stripe_len,
-			  int mirror_num, int generic_io);
-int raid56_parity_write(struct btrfs_fs_info *fs_info, struct bio *bio,
-			       struct btrfs_bio *bbio, u64 stripe_len);
+int raid56_parity_recover(struct bio *bio, struct btrfs_io_context *bioc,
+			  u64 stripe_len, int mirror_num, int generic_io);
+int raid56_parity_write(struct bio *bio, struct btrfs_io_context *bioc,
+			u64 stripe_len);
 
 void raid56_add_scrub_pages(struct btrfs_raid_bio *rbio, struct page *page,
 			    u64 logical);
 
-struct btrfs_raid_bio *
-raid56_parity_alloc_scrub_rbio(struct btrfs_fs_info *fs_info, struct bio *bio,
-			       struct btrfs_bio *bbio, u64 stripe_len,
-			       struct btrfs_device *scrub_dev,
-			       unsigned long *dbitmap, int stripe_nsectors);
+struct btrfs_raid_bio *raid56_parity_alloc_scrub_rbio(struct bio *bio,
+				struct btrfs_io_context *bioc, u64 stripe_len,
+				struct btrfs_device *scrub_dev,
+				unsigned long *dbitmap, int stripe_nsectors);
 void raid56_parity_submit_scrub_rbio(struct btrfs_raid_bio *rbio);
 
 struct btrfs_raid_bio *
-raid56_alloc_missing_rbio(struct btrfs_fs_info *fs_info, struct bio *bio,
-			  struct btrfs_bio *bbio, u64 length);
+raid56_alloc_missing_rbio(struct bio *bio, struct btrfs_io_context *bioc,
+			  u64 length);
 void raid56_submit_missing_rbio(struct btrfs_raid_bio *rbio);
 
 int btrfs_alloc_stripe_hash_table(struct btrfs_fs_info *info);

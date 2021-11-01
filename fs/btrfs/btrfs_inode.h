@@ -138,17 +138,34 @@ struct btrfs_inode {
 	/* a local copy of root's last_log_commit */
 	int last_log_commit;
 
-	/* total number of bytes pending delalloc, used by stat to calc the
-	 * real block usage of the file
-	 */
-	u64 delalloc_bytes;
+	union {
+		/*
+		 * Total number of bytes pending delalloc, used by stat to
+		 * calculate the real block usage of the file. This is used
+		 * only for files.
+		 */
+		u64 delalloc_bytes;
+		/*
+		 * The offset of the last dir item key that was logged.
+		 * This is used only for directories.
+		 */
+		u64 last_dir_item_offset;
+	};
 
-	/*
-	 * Total number of bytes pending delalloc that fall within a file
-	 * range that is either a hole or beyond EOF (and no prealloc extent
-	 * exists in the range). This is always <= delalloc_bytes.
-	 */
-	u64 new_delalloc_bytes;
+	union {
+		/*
+		 * Total number of bytes pending delalloc that fall within a file
+		 * range that is either a hole or beyond EOF (and no prealloc extent
+		 * exists in the range). This is always <= delalloc_bytes and this
+		 * is used only for files.
+		 */
+		u64 new_delalloc_bytes;
+		/*
+		 * The offset of the last dir index key that was logged.
+		 * This is used only for directories.
+		 */
+		u64 last_dir_index_offset;
+	};
 
 	/*
 	 * total number of bytes pending defrag, used by stat to check whether
@@ -339,7 +356,12 @@ static inline bool btrfs_inode_in_log(struct btrfs_inode *inode, u64 generation)
 
 struct btrfs_dio_private {
 	struct inode *inode;
-	u64 logical_offset;
+
+	/*
+	 * Since DIO can use anonymous page, we cannot use page_offset() to
+	 * grab the file offset, thus need a dedicated member for file offset.
+	 */
+	u64 file_offset;
 	u64 disk_bytenr;
 	/* Used for bio::bi_size */
 	u32 bytes;
