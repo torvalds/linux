@@ -95,12 +95,30 @@
 #define VIDEO_PACKING_CONFIG0				0x81c
 /* Audio Interface Registers */
 #define AUDIO_INTERFACE_CONFIG0				0x820
-#define AUD_IF_SEL					0x3
-#define I2S_LINES_EN					0xf0
-#define SPDIF_LINES_EN					(0xf << 16)
-#define AUD_FORMAT					(0x7 << 24)
+#define AUD_IF_SEL_MSK					0x3
+#define AUD_IF_SPDIF					0x2
+#define AUD_IF_I2S					0x1
+#define AUD_IF_PAI					0x0
+#define AUD_FIFO_INIT_ON_OVF_MSK			BIT(2)
+#define AUD_FIFO_INIT_ON_OVF_EN				BIT(2)
+#define I2S_LINES_EN_MSK				GENMASK(7, 4)
+#define I2S_LINES_EN(x)					BIT(x + 4)
+#define I2S_BPCUV_RCV_MSK				BIT(12)
+#define I2S_BPCUV_RCV_EN				BIT(12)
+#define I2S_BPCUV_RCV_DIS				0
+#define SPDIF_LINES_EN					GENMASK(19, 16)
+#define AUD_FORMAT_MSK					GENMASK(26, 24)
+#define AUD_3DOBA					(0x7 << 24)
+#define AUD_3DASP					(0x6 << 24)
+#define AUD_MSOBA					(0x5 << 24)
+#define AUD_MSASP					(0x4 << 24)
+#define AUD_HBR						(0x3 << 24)
+#define AUD_DST						(0x2 << 24)
+#define AUD_OBA						(0x1 << 24)
+#define AUD_ASP						(0x0 << 24)
 #define AUDIO_INTERFACE_CONFIG1				0x824
 #define AUDIO_INTERFACE_CONTROL0			0x82c
+#define AUDIO_FIFO_CLR_P				BIT(0)
 #define AUDIO_INTERFACE_STATUS0				0x834
 /* Frame Composer Registers */
 #define FRAME_COMPOSER_CONFIG0				0x840
@@ -368,6 +386,9 @@
 #define AUDPKT_ACR_CONTROL0				0xe40
 #define AUDPKT_ACR_N_VALUE				0xfffff
 #define AUDPKT_ACR_CONTROL1				0xe44
+#define AUDPKT_ACR_CTS_OVR_VAL_MSK			GENMASK(23, 4)
+#define AUDPKT_ACR_CTS_OVR_VAL(x)			((x) << 4)
+#define AUDPKT_ACR_CTS_OVR_EN_MSK			BIT(1)
 #define AUDPKT_ACR_CTS_OVR_EN				BIT(1)
 #define AUDPKT_ACR_STATUS0				0xe4c
 #define AUDPKT_CHSTATUS_OVR0				0xe60

@@ -2921,7 +2921,8 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 		if (!hdmi->id) {
 			val = HIWORD_UPDATE(RK3588_SCLIN_MASK, RK3588_SCLIN_MASK) |
 			      HIWORD_UPDATE(RK3588_SDAIN_MASK, RK3588_SDAIN_MASK) |
-			      HIWORD_UPDATE(RK3588_MODE_MASK, RK3588_MODE_MASK);
+			      HIWORD_UPDATE(RK3588_MODE_MASK, RK3588_MODE_MASK) |
+			      HIWORD_UPDATE(RK3588_I2S_SEL_MASK, RK3588_I2S_SEL_MASK);
 			regmap_write(hdmi->vo1_regmap, RK3588_GRF_VO1_CON3, val);
 
 			val = HIWORD_UPDATE(RK3588_SET_HPD_PATH_MASK,
@@ -2934,7 +2935,8 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 		} else {
 			val = HIWORD_UPDATE(RK3588_SCLIN_MASK, RK3588_SCLIN_MASK) |
 			      HIWORD_UPDATE(RK3588_SDAIN_MASK, RK3588_SDAIN_MASK) |
-			      HIWORD_UPDATE(RK3588_MODE_MASK, RK3588_MODE_MASK);
+			      HIWORD_UPDATE(RK3588_MODE_MASK, RK3588_MODE_MASK) |
+			      HIWORD_UPDATE(RK3588_I2S_SEL_MASK, RK3588_I2S_SEL_MASK);
 			regmap_write(hdmi->vo1_regmap, RK3588_GRF_VO1_CON6, val);
 
 			val = HIWORD_UPDATE(RK3588_SET_HPD_PATH_MASK,
