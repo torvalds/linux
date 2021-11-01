@@ -37,7 +37,7 @@ struct virtio_gpio_config {
 	__le16 ngpio;
 	__u8 padding[2];
 	__le32 gpio_names_size;
-} __packed;
+};
 
 /* Virtio GPIO Request / Response */
 struct virtio_gpio_request {
