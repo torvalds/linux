@@ -1973,9 +1973,9 @@ int netdev_register_kobject(struct net_device *ndev)
 int netdev_change_owner(struct net_device *ndev, const struct net *net_old,
 			const struct net *net_new)
 {
+	kuid_t old_uid = GLOBAL_ROOT_UID, new_uid = GLOBAL_ROOT_UID;
+	kgid_t old_gid = GLOBAL_ROOT_GID, new_gid = GLOBAL_ROOT_GID;
 	struct device *dev = &ndev->dev;
-	kuid_t old_uid, new_uid;
-	kgid_t old_gid, new_gid;
 	int error;
 
 	net_ns_get_ownership(net_old, &old_uid, &old_gid);

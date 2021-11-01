@@ -5398,9 +5398,9 @@ void dml31_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 
 					v->MaximumReadBandwidthWithPrefetch =
 							v->MaximumReadBandwidthWithPrefetch
-									+ dml_max4(
-											v->VActivePixelBandwidth[i][j][k],
-											v->VActiveCursorBandwidth[i][j][k]
+									+ dml_max3(
+											v->VActivePixelBandwidth[i][j][k]
+													+ v->VActiveCursorBandwidth[i][j][k]
 													+ v->NoOfDPP[i][j][k]
 															* (v->meta_row_bandwidth[i][j][k]
 																	+ v->dpte_row_bandwidth[i][j][k]),

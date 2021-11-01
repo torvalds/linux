@@ -2507,6 +2507,9 @@ static void nix_free_tx_vtag_entries(struct rvu *rvu, u16 pcifunc)
 		return;
 
 	nix_hw = get_nix_hw(rvu->hw, blkaddr);
+	if (!nix_hw)
+		return;
+
 	vlan = &nix_hw->txvlan;
 
 	mutex_lock(&vlan->rsrc_lock);
