@@ -152,6 +152,32 @@
 #define MCTP_HDR_VENDOR_OFFSET		17
 #define MCTP_HDR_VDM_TYPE_OFFSET	19
 
+#define ASPEED_MCTP_2600		0
+#define ASPEED_MCTP_2600A3		1
+
+#define ASPEED_REVISION_ID0		0x04
+#define ASPEED_REVISION_ID1		0x14
+#define ID0_AST2600A0			0x05000303
+#define ID1_AST2600A0			0x05000303
+#define ID0_AST2600A1			0x05010303
+#define ID1_AST2600A1			0x05010303
+#define ID0_AST2600A2			0x05010303
+#define ID1_AST2600A2			0x05020303
+#define ID0_AST2600A3			0x05030303
+#define ID1_AST2600A3			0x05030303
+#define ID0_AST2620A1			0x05010203
+#define ID1_AST2620A1			0x05010203
+#define ID0_AST2620A2			0x05010203
+#define ID1_AST2620A2			0x05020203
+#define ID0_AST2620A3			0x05030203
+#define ID1_AST2620A3			0x05030203
+#define ID0_AST2605A2			0x05010103
+#define ID1_AST2605A2			0x05020103
+#define ID0_AST2605A3			0x05030103
+#define ID1_AST2605A3			0x05030103
+#define ID0_AST2625A3			0x05030403
+#define ID1_AST2625A3			0x05030403
+
 /* FIXME: ast2600 supports variable max transmission unit */
 #define ASPEED_MCTP_MTU 64
 
@@ -256,6 +282,34 @@ void aspeed_mctp_packet_free(void *packet)
 	kmem_cache_free(packet_cache, packet);
 }
 EXPORT_SYMBOL_GPL(aspeed_mctp_packet_free);
+
+static uint32_t chip_version(struct device *dev)
+{
+	struct regmap *scu;
+	u32 revid0, revid1;
+
+	scu = syscon_regmap_lookup_by_phandle(dev->of_node, "aspeed,scu");
+	if (IS_ERR(scu)) {
+		dev_err(dev, "failed to find 2600 SCU regmap\n");
+		return PTR_ERR(scu);
+	}
+	regmap_read(scu, ASPEED_REVISION_ID0, &revid0);
+	regmap_read(scu, ASPEED_REVISION_ID1, &revid1);
+	if (revid0 == ID0_AST2600A3 && revid1 == ID1_AST2600A3) {
+		/* AST2600-A3 */
+		return ASPEED_MCTP_2600A3;
+	} else if (revid0 == ID0_AST2620A3 && revid1 == ID1_AST2620A3) {
+		/* AST2620-A3 */
+		return ASPEED_MCTP_2600A3;
+	} else if (revid0 == ID0_AST2605A3 && revid1 == ID1_AST2605A3) {
+		/* AST2605-A3 */
+		return ASPEED_MCTP_2600A3;
+	} else if (revid0 == ID0_AST2625A3 && revid1 == ID1_AST2625A3) {
+		/* AST2605-A3 */
+		return ASPEED_MCTP_2600A3;
+	}
+	return ASPEED_MCTP_2600;
+}
 
 /*
  * HW produces and expects VDM header in little endian and payload in network order.
@@ -608,7 +662,8 @@ static void aspeed_mctp_rx_chan_init(struct mctp_channel *rx)
 	 * stepping then add chip revision detection and turn on this
 	 * workaround only when needed
 	 */
-	priv->rx_runaway_wa.enable = true;
+	priv->rx_runaway_wa.enable =
+		(chip_version(priv->dev) == ASPEED_MCTP_2600) ? true : false;
 
 	/*
 	 * Hardware does not wrap around ASPEED_MCTP_RX_BUF_SIZE
