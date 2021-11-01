@@ -451,7 +451,6 @@ static int ve_spc_cpufreq_init(struct cpufreq_policy *policy)
 static int ve_spc_cpufreq_exit(struct cpufreq_policy *policy)
 {
 	struct device *cpu_dev;
-	int cur_cluster = cpu_to_cluster(policy->cpu);
 
 	cpu_dev = get_cpu_device(policy->cpu);
 	if (!cpu_dev) {

@@ -106,9 +106,6 @@ static bool do_memsw_account(void)
 /* memcg and lruvec stats flushing */
 static void flush_memcg_stats_dwork(struct work_struct *w);
 static DECLARE_DEFERRABLE_WORK(stats_flush_dwork, flush_memcg_stats_dwork);
-static void flush_memcg_stats_work(struct work_struct *w);
-static DECLARE_WORK(stats_flush_work, flush_memcg_stats_work);
-static DEFINE_PER_CPU(unsigned int, stats_flush_threshold);
 static DEFINE_SPINLOCK(stats_flush_lock);
 
 #define THRESHOLDS_EVENTS_TARGET 128
@@ -682,8 +679,6 @@ void __mod_memcg_lruvec_state(struct lruvec *lruvec, enum node_stat_item idx,
 
 	/* Update lruvec */
 	__this_cpu_add(pn->lruvec_stats_percpu->state[idx], val);
-	if (!(__this_cpu_inc_return(stats_flush_threshold) % MEMCG_CHARGE_BATCH))
-		queue_work(system_unbound_wq, &stats_flush_work);
 }
 
 /**
@@ -5359,11 +5354,6 @@ static void flush_memcg_stats_dwork(struct work_struct *w)
 {
 	mem_cgroup_flush_stats();
 	queue_delayed_work(system_unbound_wq, &stats_flush_dwork, 2UL*HZ);
-}
-
-static void flush_memcg_stats_work(struct work_struct *w)
-{
-	mem_cgroup_flush_stats();
 }
 
 static void mem_cgroup_css_rstat_flush(struct cgroup_subsys_state *css, int cpu)

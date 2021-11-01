@@ -349,9 +349,6 @@ loop_out:
 	list_for_each_entry_safe(sync_item, spos, &sync_add_list, list) {
 		(void)ionic_lif_addr_add(lif, sync_item->f.cmd.mac.addr);
 
-		if (sync_item->f.state != IONIC_FILTER_STATE_SYNCED)
-			set_bit(IONIC_LIF_F_FILTER_SYNC_NEEDED, lif->state);
-
 		list_del(&sync_item->list);
 		devm_kfree(dev, sync_item);
 	}

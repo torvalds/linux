@@ -1477,8 +1477,10 @@ static struct mana_rxq *mana_create_rxq(struct mana_port_context *apc,
 	if (err)
 		goto out;
 
-	if (cq->gdma_id >= gc->max_num_cqs)
+	if (WARN_ON(cq->gdma_id >= gc->max_num_cqs)) {
+		err = -EINVAL;
 		goto out;
+	}
 
 	gc->cq_table[cq->gdma_id] = cq->gdma_cq;
 

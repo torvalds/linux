@@ -37,6 +37,7 @@
 
 #include "link_enc_cfg.h"
 #include "dc_dmub_srv.h"
+#include "dal_asic_id.h"
 
 #define CTX \
 	enc10->base.ctx
@@ -61,6 +62,10 @@
 
 #define AUX_REG_WRITE(reg_name, val) \
 			dm_write_reg(CTX, AUX_REG(reg_name), val)
+
+#ifndef MIN
+#define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
+#endif
 
 void dcn31_link_encoder_set_dio_phy_mux(
 	struct link_encoder *enc,
@@ -215,8 +220,8 @@ static const struct link_encoder_funcs dcn31_link_enc_funcs = {
 	.fec_is_active = enc2_fec_is_active,
 	.get_dig_frontend = dcn10_get_dig_frontend,
 	.get_dig_mode = dcn10_get_dig_mode,
-	.is_in_alt_mode = dcn20_link_encoder_is_in_alt_mode,
-	.get_max_link_cap = dcn20_link_encoder_get_max_link_cap,
+	.is_in_alt_mode = dcn31_link_encoder_is_in_alt_mode,
+	.get_max_link_cap = dcn31_link_encoder_get_max_link_cap,
 	.set_dio_phy_mux = dcn31_link_encoder_set_dio_phy_mux,
 };
 
@@ -404,3 +409,60 @@ void dcn31_link_encoder_disable_output(
 	}
 }
 
+bool dcn31_link_encoder_is_in_alt_mode(struct link_encoder *enc)
+{
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+	uint32_t dp_alt_mode_disable;
+	bool is_usb_c_alt_mode = false;
+
+	if (enc->features.flags.bits.DP_IS_USB_C) {
+		if (enc->ctx->asic_id.hw_internal_rev != YELLOW_CARP_B0) {
+			// [Note] no need to check hw_internal_rev once phy mux selection is ready
+			REG_GET(RDPCSTX_PHY_CNTL6, RDPCS_PHY_DPALT_DISABLE, &dp_alt_mode_disable);
+		} else {
+		/*
+		 * B0 phys use a new set of registers to check whether alt mode is disabled.
+		 * if value == 1 alt mode is disabled, otherwise it is enabled.
+		 */
+			if ((enc10->base.transmitter == TRANSMITTER_UNIPHY_A)
+					|| (enc10->base.transmitter == TRANSMITTER_UNIPHY_B)
+					|| (enc10->base.transmitter == TRANSMITTER_UNIPHY_E)) {
+				REG_GET(RDPCSTX_PHY_CNTL6, RDPCS_PHY_DPALT_DISABLE, &dp_alt_mode_disable);
+			} else {
+			// [Note] need to change TRANSMITTER_UNIPHY_C/D to F/G once phy mux selection is ready
+				REG_GET(RDPCSPIPE_PHY_CNTL6, RDPCS_PHY_DPALT_DISABLE, &dp_alt_mode_disable);
+			}
+		}
+
+		is_usb_c_alt_mode = (dp_alt_mode_disable == 0);
+	}
+
+	return is_usb_c_alt_mode;
+}
+
+void dcn31_link_encoder_get_max_link_cap(struct link_encoder *enc,
+										 struct dc_link_settings *link_settings)
+{
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+	uint32_t is_in_usb_c_dp4_mode = 0;
+
+	dcn10_link_encoder_get_max_link_cap(enc, link_settings);
+
+	/* in usb c dp2 mode, max lane count is 2 */
+	if (enc->funcs->is_in_alt_mode && enc->funcs->is_in_alt_mode(enc)) {
+		if (enc->ctx->asic_id.hw_internal_rev != YELLOW_CARP_B0) {
+			// [Note] no need to check hw_internal_rev once phy mux selection is ready
+			REG_GET(RDPCSTX_PHY_CNTL6, RDPCS_PHY_DPALT_DP4, &is_in_usb_c_dp4_mode);
+		} else {
+			if ((enc10->base.transmitter == TRANSMITTER_UNIPHY_A)
+					|| (enc10->base.transmitter == TRANSMITTER_UNIPHY_B)
+					|| (enc10->base.transmitter == TRANSMITTER_UNIPHY_E)) {
+				REG_GET(RDPCSTX_PHY_CNTL6, RDPCS_PHY_DPALT_DP4, &is_in_usb_c_dp4_mode);
+			} else {
+				REG_GET(RDPCSPIPE_PHY_CNTL6, RDPCS_PHY_DPALT_DP4, &is_in_usb_c_dp4_mode);
+			}
+		}
+		if (!is_in_usb_c_dp4_mode)
+			link_settings->lane_count = MIN(LANE_COUNT_TWO, link_settings->lane_count);
+	}
+}

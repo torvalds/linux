@@ -172,10 +172,10 @@ static int kmb_setup_mode_config(struct drm_device *drm)
 	ret = drmm_mode_config_init(drm);
 	if (ret)
 		return ret;
-	drm->mode_config.min_width = KMB_MIN_WIDTH;
-	drm->mode_config.min_height = KMB_MIN_HEIGHT;
-	drm->mode_config.max_width = KMB_MAX_WIDTH;
-	drm->mode_config.max_height = KMB_MAX_HEIGHT;
+	drm->mode_config.min_width = KMB_FB_MIN_WIDTH;
+	drm->mode_config.min_height = KMB_FB_MIN_HEIGHT;
+	drm->mode_config.max_width = KMB_FB_MAX_WIDTH;
+	drm->mode_config.max_height = KMB_FB_MAX_HEIGHT;
 	drm->mode_config.funcs = &kmb_mode_config_funcs;
 
 	ret = kmb_setup_crtc(drm);

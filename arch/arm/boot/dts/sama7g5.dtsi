@@ -75,6 +75,17 @@
 		#size-cells = <1>;
 		ranges;
 
+		securam: securam@e0000000 {
+			compatible = "microchip,sama7g5-securam", "atmel,sama5d2-securam", "mmio-sram";
+			reg = <0xe0000000 0x4000>;
+			clocks = <&pmc PMC_TYPE_PERIPHERAL 18>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0xe0000000 0x4000>;
+			no-memory-wc;
+			status = "okay";
+		};
+
 		secumod: secumod@e0004000 {
 			compatible = "microchip,sama7g5-secumod", "atmel,sama5d2-secumod", "syscon";
 			reg = <0xe0004000 0x4000>;
@@ -111,6 +122,17 @@
 			clock-names = "td_slck", "md_slck", "main_xtal";
 		};
 
+		shdwc: shdwc@e001d010 {
+			compatible = "microchip,sama7g5-shdwc", "syscon";
+			reg = <0xe001d010 0x10>;
+			clocks = <&clk32k 0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			atmel,wakeup-rtc-timer;
+			atmel,wakeup-rtt-timer;
+			status = "disabled";
+		};
+
 		rtt: rtt@e001d020 {
 			compatible = "microchip,sama7g5-rtt", "microchip,sam9x60-rtt", "atmel,at91sam9260-rtt";
 			reg = <0xe001d020 0x30>;
@@ -135,6 +157,11 @@
 			reg = <0xe001d180 0x24>;
 			interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk32k 0>;
+		};
+
+		chipid@e0020000 {
+			compatible = "microchip,sama7g5-chipid";
+			reg = <0xe0020000 0x8>;
 		};
 
 		sdmmc0: mmc@e1204000 {
@@ -513,6 +540,18 @@
 				dma-names = "rx", "tx";
 				status = "disabled";
 			};
+		};
+
+		uddrc: uddrc@e3800000 {
+			compatible = "microchip,sama7g5-uddrc";
+			reg = <0xe3800000 0x4000>;
+			status = "okay";
+		};
+
+		ddr3phy: ddr3phy@e3804000 {
+			compatible = "microchip,sama7g5-ddr3phy";
+			reg = <0xe3804000 0x1000>;
+			status = "okay";
 		};
 
 		gic: interrupt-controller@e8c11000 {

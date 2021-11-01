@@ -288,7 +288,6 @@ const struct snd_soc_dai_ops mtk_afe_fe_ops = {
 };
 EXPORT_SYMBOL_GPL(mtk_afe_fe_ops);
 
-static DEFINE_MUTEX(irqs_lock);
 int mtk_dynamic_irq_acquire(struct mtk_base_afe *afe)
 {
 	int i;
@@ -351,7 +350,7 @@ int mtk_afe_resume(struct snd_soc_component *component)
 	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
 	struct device *dev = afe->dev;
 	struct regmap *regmap = afe->regmap;
-	int i = 0;
+	int i;
 
 	if (pm_runtime_status_suspended(dev) || !afe->suspended)
 		return 0;

@@ -1083,8 +1083,10 @@ static void __net_exit mctp_routes_net_exit(struct net *net)
 {
 	struct mctp_route *rt;
 
+	rcu_read_lock();
 	list_for_each_entry_rcu(rt, &net->mctp.routes, list)
 		mctp_route_release(rt);
+	rcu_read_unlock();
 }
 
 static struct pernet_operations mctp_net_ops = {

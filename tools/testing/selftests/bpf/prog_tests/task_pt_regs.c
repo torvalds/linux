@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #define _GNU_SOURCE
 #include <test_progs.h>
-#include <linux/ptrace.h>
 #include "test_task_pt_regs.skel.h"
 
 void test_task_pt_regs(void)

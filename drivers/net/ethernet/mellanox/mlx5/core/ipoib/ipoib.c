@@ -113,7 +113,7 @@ static void mlx5i_grp_sw_update_stats(struct mlx5e_priv *priv)
 	struct mlx5e_sw_stats s = { 0 };
 	int i, j;
 
-	for (i = 0; i < priv->max_nch; i++) {
+	for (i = 0; i < priv->stats_nch; i++) {
 		struct mlx5e_channel_stats *channel_stats;
 		struct mlx5e_rq_stats *rq_stats;
 
@@ -711,7 +711,7 @@ static int mlx5_rdma_setup_rn(struct ib_device *ibdev, u32 port_num,
 			goto destroy_ht;
 	}
 
-	err = mlx5e_priv_init(epriv, netdev, mdev);
+	err = mlx5e_priv_init(epriv, prof, netdev, mdev);
 	if (err)
 		goto destroy_mdev_resources;
 
