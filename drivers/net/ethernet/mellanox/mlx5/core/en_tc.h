@@ -242,6 +242,10 @@ struct mlx5e_tc_attr_to_reg_mapping {
 
 extern struct mlx5e_tc_attr_to_reg_mapping mlx5e_tc_attr_to_reg_mappings[];
 
+#define MLX5_REG_MAPPING_MOFFSET(reg_id) (mlx5e_tc_attr_to_reg_mappings[reg_id].moffset)
+#define MLX5_REG_MAPPING_MBITS(reg_id) (mlx5e_tc_attr_to_reg_mappings[reg_id].mlen)
+#define MLX5_REG_MAPPING_MASK(reg_id) (GENMASK(mlx5e_tc_attr_to_reg_mappings[reg_id].mlen - 1, 0))
+
 bool mlx5e_is_valid_eswitch_fwd_dev(struct mlx5e_priv *priv,
 				    struct net_device *out_dev);
 
