@@ -2,7 +2,7 @@
 #ifndef _ASM_X86_PKRU_H
 #define _ASM_X86_PKRU_H
 
-#include <asm/fpu/xstate.h>
+#include <asm/cpufeature.h>
 
 #define PKRU_AD_BIT 0x1
 #define PKRU_WD_BIT 0x2
