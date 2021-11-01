@@ -474,12 +474,12 @@
 				};
 			};
 
-			vdd_0v75_s0: NLDO_REG3 {
+			avdd_0v75_s0: NLDO_REG3 {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <750000>;
 				regulator-max-microvolt = <750000>;
-				regulator-name = "vdd_0v75_s0";
+				regulator-name = "avdd_0v75_s0";
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
