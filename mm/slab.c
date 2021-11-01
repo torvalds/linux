@@ -2547,18 +2547,6 @@ static void slab_put_obj(struct kmem_cache *cachep,
 }
 
 /*
- * Map pages beginning at addr to the given cache and slab. This is required
- * for the slab allocator to be able to lookup the cache and slab of a
- * virtual address for kfree, ksize, and slab debugging.
- */
-static void slab_map_pages(struct kmem_cache *cache, struct page *page,
-			   void *freelist)
-{
-	page->slab_cache = cache;
-	page->freelist = freelist;
-}
-
-/*
  * Grow (by 1) the number of slabs within a cache.  This is called by
  * kmem_cache_alloc() when there are no active objs left in a cache.
  */
@@ -2621,7 +2609,8 @@ static struct page *cache_grow_begin(struct kmem_cache *cachep,
 	if (OFF_SLAB(cachep) && !freelist)
 		goto opps1;
 
-	slab_map_pages(cachep, page, freelist);
+	page->slab_cache = cachep;
+	page->freelist = freelist;
 
 	cache_init_objs(cachep, page);
 
