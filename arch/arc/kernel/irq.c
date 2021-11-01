@@ -6,6 +6,8 @@
 #include <linux/interrupt.h>
 #include <linux/irqchip.h>
 #include <asm/mach_desc.h>
+
+#include <asm/irq_regs.h>
 #include <asm/smp.h>
 
 /*
@@ -39,5 +41,11 @@ void __init init_IRQ(void)
  */
 void arch_do_IRQ(unsigned int hwirq, struct pt_regs *regs)
 {
-	handle_domain_irq(NULL, hwirq, regs);
+	struct pt_regs *old_regs;
+
+	irq_enter();
+	old_regs = set_irq_regs(regs);
+	generic_handle_domain_irq(NULL, hwirq);
+	set_irq_regs(old_regs);
+	irq_exit();
 }

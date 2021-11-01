@@ -132,16 +132,12 @@ static void bcm6345_l1_irq_handle(struct irq_desc *desc)
 		int base = idx * IRQS_PER_WORD;
 		unsigned long pending;
 		irq_hw_number_t hwirq;
-		unsigned int irq;
 
 		pending = __raw_readl(cpu->map_base + reg_status(intc, idx));
 		pending &= __raw_readl(cpu->map_base + reg_enable(intc, idx));
 
 		for_each_set_bit(hwirq, &pending, IRQS_PER_WORD) {
-			irq = irq_linear_revmap(intc->domain, base + hwirq);
-			if (irq)
-				do_IRQ(irq);
-			else
+			if (generic_handle_domain_irq(intc->domain, base + hwirq))
 				spurious_interrupt();
 		}
 	}

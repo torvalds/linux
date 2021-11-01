@@ -38,14 +38,11 @@
  */
 	.macro	irq_handler
 #ifdef CONFIG_GENERIC_IRQ_MULTI_HANDLER
-	ldr	r1, =handle_arch_irq
 	mov	r0, sp
-	badr	lr, 9997f
-	ldr	pc, [r1]
+	bl	generic_handle_arch_irq
 #else
 	arch_irq_handler_default
 #endif
-9997:
 	.endm
 
 	.macro	pabt_helper
