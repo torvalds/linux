@@ -1735,10 +1735,22 @@ static int remove_sysfs_interfaces(struct device *dev)
 }
 #endif
 
+static int IMX464_get_channel_info(struct IMX464 *IMX464, struct rkmodule_channel_info *ch_info)
+{
+	if (ch_info->index < PAD0 || ch_info->index >= PAD_MAX)
+		return -EINVAL;
+	ch_info->vc = IMX464->cur_mode->vc[ch_info->index];
+	ch_info->width = IMX464->cur_mode->width;
+	ch_info->height = IMX464->cur_mode->height;
+	ch_info->bus_fmt = IMX464->cur_mode->bus_fmt;
+	return 0;
+}
+
 static long IMX464_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct IMX464 *IMX464 = to_IMX464(sd);
 	struct rkmodule_hdr_cfg *hdr;
+	struct rkmodule_channel_info *ch_info;
 	u32 i, h, w, stream;
 	long ret = 0;
 
@@ -1812,6 +1824,10 @@ static long IMX464_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 				IMX464_REG_VALUE_08BIT, IMX464_MODE_SW_STANDBY);
 		}
 		break;
+	case RKMODULE_GET_CHANNEL_INFO:
+		ch_info = (struct rkmodule_channel_info *)arg;
+		ret = IMX464_get_channel_info(IMX464, ch_info);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -1829,6 +1845,7 @@ static long IMX464_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkmodule_awb_cfg *cfg;
 	struct rkmodule_hdr_cfg *hdr;
 	struct preisp_hdrae_exp_s *hdrae;
+	struct rkmodule_channel_info *ch_info;
 	long ret;
 	u32 cg = 0;
 	u32  stream;
@@ -1842,8 +1859,11 @@ static long IMX464_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = IMX464_ioctl(sd, cmd, inf);
-		if (!ret)
+		if (!ret) {
 			ret = copy_to_user(up, inf, sizeof(*inf));
+			if (ret)
+				ret = -EFAULT;
+		}
 		kfree(inf);
 		break;
 	case RKMODULE_AWB_CFG:
@@ -1856,6 +1876,8 @@ static long IMX464_compat_ioctl32(struct v4l2_subdev *sd,
 		ret = copy_from_user(cfg, up, sizeof(*cfg));
 		if (!ret)
 			ret = IMX464_ioctl(sd, cmd, cfg);
+		else
+			ret = -EFAULT;
 		kfree(cfg);
 		break;
 	case RKMODULE_GET_HDR_CFG:
@@ -1866,8 +1888,11 @@ static long IMX464_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = IMX464_ioctl(sd, cmd, hdr);
-		if (!ret)
+		if (!ret) {
 			ret = copy_to_user(up, hdr, sizeof(*hdr));
+			if (ret)
+				ret = -EFAULT;
+		}
 		kfree(hdr);
 		break;
 	case RKMODULE_SET_HDR_CFG:
@@ -1880,6 +1905,8 @@ static long IMX464_compat_ioctl32(struct v4l2_subdev *sd,
 		ret = copy_from_user(hdr, up, sizeof(*hdr));
 		if (!ret)
 			ret = IMX464_ioctl(sd, cmd, hdr);
+		else
+			ret = -EFAULT;
 		kfree(hdr);
 		break;
 	case PREISP_CMD_SET_HDRAE_EXP:
@@ -1892,18 +1919,39 @@ static long IMX464_compat_ioctl32(struct v4l2_subdev *sd,
 		ret = copy_from_user(hdrae, up, sizeof(*hdrae));
 		if (!ret)
 			ret = IMX464_ioctl(sd, cmd, hdrae);
+		else
+			ret = -EFAULT;
 		kfree(hdrae);
 		break;
 	case RKMODULE_SET_CONVERSION_GAIN:
 		ret = copy_from_user(&cg, up, sizeof(cg));
 		if (!ret)
 			ret = IMX464_ioctl(sd, cmd, &cg);
+		else
+			ret = -EFAULT;
 		break;
 	case RKMODULE_SET_QUICK_STREAM:
 		ret = copy_from_user(&stream, up, sizeof(u32));
 		if (!ret)
 			ret = IMX464_ioctl(sd, cmd, &stream);
+		else
+			ret = -EFAULT;
 
+		break;
+	case RKMODULE_GET_CHANNEL_INFO:
+		ch_info = kzalloc(sizeof(*ch_info), GFP_KERNEL);
+		if (!ch_info) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = IMX464_ioctl(sd, cmd, ch_info);
+		if (!ret) {
+			ret = copy_to_user(up, ch_info, sizeof(*ch_info));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(ch_info);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
