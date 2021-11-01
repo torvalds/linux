@@ -108,6 +108,11 @@
 /* HW buffer sizes */
 #define TX_PACKET_COUNT		48
 #define RX_PACKET_COUNT		96
+#if (RX_PACKET_COUNT % 4 != 0)
+#error The Rx buffer size should be 4-aligned.
+#error 1.Make runaway wrap boundary can be determined in Ast2600 A1/A2.
+#error 2.Fix the runaway read pointer bug in Ast2600 A3.
+#endif
 #define TX_MAX_PACKET_COUNT	(TX_BUF_RD_PTR_MASK + 1)
 #define RX_MAX_PACKET_COUNT	(RX_BUF_RD_PTR_MASK + 1)
 
