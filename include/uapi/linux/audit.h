@@ -119,6 +119,7 @@
 #define AUDIT_BPF		1334	/* BPF subsystem */
 #define AUDIT_EVENT_LISTENER	1335	/* Task joined multicast read socket */
 #define AUDIT_URINGOP		1336	/* io_uring operation */
+#define AUDIT_OPENAT2		1337	/* Record showing openat2 how args */
 
 #define AUDIT_AVC		1400	/* SE Linux avc denial or grant */
 #define AUDIT_SELINUX_ERR	1401	/* Internal SE Linux Errors */
