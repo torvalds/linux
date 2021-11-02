@@ -730,7 +730,9 @@ __intel_engine_init_ctx_wa(struct intel_engine_cs *engine,
 	if (engine->class != RENDER_CLASS)
 		goto done;
 
-	if (IS_DG1(i915))
+	if (IS_XEHPSDV(i915))
+		; /* noop; none at this time */
+	else if (IS_DG1(i915))
 		dg1_ctx_workarounds_init(engine, wal);
 	else if (GRAPHICS_VER(i915) == 12)
 		gen12_ctx_workarounds_init(engine, wal);
@@ -1277,7 +1279,68 @@ dg1_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 static void
 xehpsdv_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 {
+	struct drm_i915_private *i915 = gt->i915;
+
 	xehp_init_mcr(gt, wal);
+
+	/* Wa_1409757795:xehpsdv */
+	wa_write_or(wal, SCCGCTL94DC, CG3DDISURB);
+
+	/* Wa_18011725039:xehpsdv */
+	if (IS_XEHPSDV_GRAPHICS_STEP(i915, STEP_A1, STEP_B0)) {
+		wa_masked_dis(wal, MLTICTXCTL, TDONRENDER);
+		wa_write_or(wal, L3SQCREG1_CCS0, FLUSHALLNONCOH);
+	}
+
+	/* Wa_16011155590:xehpsdv */
+	if (IS_XEHPSDV_GRAPHICS_STEP(i915, STEP_A0, STEP_B0))
+		wa_write_or(wal, UNSLICE_UNIT_LEVEL_CLKGATE,
+			    TSGUNIT_CLKGATE_DIS);
+
+	/* Wa_14011780169:xehpsdv */
+	if (IS_XEHPSDV_GRAPHICS_STEP(i915, STEP_B0, STEP_FOREVER)) {
+		wa_write_or(wal, UNSLCGCTL9440, GAMTLBOACS_CLKGATE_DIS |
+			    GAMTLBVDBOX7_CLKGATE_DIS |
+			    GAMTLBVDBOX6_CLKGATE_DIS |
+			    GAMTLBVDBOX5_CLKGATE_DIS |
+			    GAMTLBVDBOX4_CLKGATE_DIS |
+			    GAMTLBVDBOX3_CLKGATE_DIS |
+			    GAMTLBVDBOX2_CLKGATE_DIS |
+			    GAMTLBVDBOX1_CLKGATE_DIS |
+			    GAMTLBVDBOX0_CLKGATE_DIS |
+			    GAMTLBKCR_CLKGATE_DIS |
+			    GAMTLBGUC_CLKGATE_DIS |
+			    GAMTLBBLT_CLKGATE_DIS);
+		wa_write_or(wal, UNSLCGCTL9444, GAMTLBGFXA0_CLKGATE_DIS |
+			    GAMTLBGFXA1_CLKGATE_DIS |
+			    GAMTLBCOMPA0_CLKGATE_DIS |
+			    GAMTLBCOMPA1_CLKGATE_DIS |
+			    GAMTLBCOMPB0_CLKGATE_DIS |
+			    GAMTLBCOMPB1_CLKGATE_DIS |
+			    GAMTLBCOMPC0_CLKGATE_DIS |
+			    GAMTLBCOMPC1_CLKGATE_DIS |
+			    GAMTLBCOMPD0_CLKGATE_DIS |
+			    GAMTLBCOMPD1_CLKGATE_DIS |
+			    GAMTLBMERT_CLKGATE_DIS   |
+			    GAMTLBVEBOX3_CLKGATE_DIS |
+			    GAMTLBVEBOX2_CLKGATE_DIS |
+			    GAMTLBVEBOX1_CLKGATE_DIS |
+			    GAMTLBVEBOX0_CLKGATE_DIS);
+	}
+
+	/* Wa_14012362059:xehpsdv */
+	wa_write_or(wal, GEN12_MERT_MOD_CTRL, FORCE_MISS_FTLB);
+
+	/* Wa_16012725990:xehpsdv */
+	if (IS_XEHPSDV_GRAPHICS_STEP(i915, STEP_A1, STEP_FOREVER))
+		wa_write_or(wal, UNSLICE_UNIT_LEVEL_CLKGATE, VFUNIT_CLKGATE_DIS);
+
+	/* Wa_14011060649:xehpsdv */
+	wa_14011060649(gt, wal);
+
+	/* Wa_14014368820:xehpsdv */
+	wa_write_or(wal, GEN12_GAMCNTRL_CTRL, INVALIDATION_BROADCAST_MODE_DIS |
+		    GLOBAL_INVALIDATION_MODE);
 }
 
 static void
@@ -1559,7 +1622,7 @@ static void cfl_whitelist_build(struct intel_engine_cs *engine)
 			  RING_FORCE_TO_NONPRIV_RANGE_4);
 }
 
-static void cml_whitelist_build(struct intel_engine_cs *engine)
+static void allow_read_ctx_timestamp(struct intel_engine_cs *engine)
 {
 	struct i915_wa_list *w = &engine->whitelist;
 
@@ -1567,6 +1630,11 @@ static void cml_whitelist_build(struct intel_engine_cs *engine)
 		whitelist_reg_ext(w,
 				  RING_CTX_TIMESTAMP(engine->mmio_base),
 				  RING_FORCE_TO_NONPRIV_ACCESS_RD);
+}
+
+static void cml_whitelist_build(struct intel_engine_cs *engine)
+{
+	allow_read_ctx_timestamp(engine);
 
 	cfl_whitelist_build(engine);
 }
@@ -1574,6 +1642,8 @@ static void cml_whitelist_build(struct intel_engine_cs *engine)
 static void icl_whitelist_build(struct intel_engine_cs *engine)
 {
 	struct i915_wa_list *w = &engine->whitelist;
+
+	allow_read_ctx_timestamp(engine);
 
 	switch (engine->class) {
 	case RENDER_CLASS:
@@ -1610,15 +1680,9 @@ static void icl_whitelist_build(struct intel_engine_cs *engine)
 		/* hucStatus2RegOffset */
 		whitelist_reg_ext(w, _MMIO(0x23B0 + engine->mmio_base),
 				  RING_FORCE_TO_NONPRIV_ACCESS_RD);
-		whitelist_reg_ext(w,
-				  RING_CTX_TIMESTAMP(engine->mmio_base),
-				  RING_FORCE_TO_NONPRIV_ACCESS_RD);
 		break;
 
 	default:
-		whitelist_reg_ext(w,
-				  RING_CTX_TIMESTAMP(engine->mmio_base),
-				  RING_FORCE_TO_NONPRIV_ACCESS_RD);
 		break;
 	}
 }
@@ -1626,6 +1690,8 @@ static void icl_whitelist_build(struct intel_engine_cs *engine)
 static void tgl_whitelist_build(struct intel_engine_cs *engine)
 {
 	struct i915_wa_list *w = &engine->whitelist;
+
+	allow_read_ctx_timestamp(engine);
 
 	switch (engine->class) {
 	case RENDER_CLASS:
@@ -1650,9 +1716,6 @@ static void tgl_whitelist_build(struct intel_engine_cs *engine)
 		whitelist_reg(w, HIZ_CHICKEN);
 		break;
 	default:
-		whitelist_reg_ext(w,
-				  RING_CTX_TIMESTAMP(engine->mmio_base),
-				  RING_FORCE_TO_NONPRIV_ACCESS_RD);
 		break;
 	}
 }
@@ -1671,6 +1734,11 @@ static void dg1_whitelist_build(struct intel_engine_cs *engine)
 				  RING_FORCE_TO_NONPRIV_ACCESS_RD);
 }
 
+static void xehpsdv_whitelist_build(struct intel_engine_cs *engine)
+{
+	allow_read_ctx_timestamp(engine);
+}
+
 void intel_engine_init_whitelist(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *i915 = engine->i915;
@@ -1678,7 +1746,9 @@ void intel_engine_init_whitelist(struct intel_engine_cs *engine)
 
 	wa_init_start(w, "whitelist", engine->name);
 
-	if (IS_DG1(i915))
+	if (IS_XEHPSDV(i915))
+		xehpsdv_whitelist_build(engine);
+	else if (IS_DG1(i915))
 		dg1_whitelist_build(engine);
 	else if (GRAPHICS_VER(i915) == 12)
 		tgl_whitelist_build(engine);

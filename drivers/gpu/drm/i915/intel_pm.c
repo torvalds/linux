@@ -7466,6 +7466,13 @@ static void dg1_init_clock_gating(struct drm_i915_private *dev_priv)
 			   DPT_GATING_DIS);
 }
 
+static void xehpsdv_init_clock_gating(struct drm_i915_private *dev_priv)
+{
+	/* Wa_22010146351:xehpsdv */
+	if (IS_XEHPSDV_GRAPHICS_STEP(dev_priv, STEP_A0, STEP_B0))
+		intel_uncore_rmw(&dev_priv->uncore, XEHP_CLOCK_GATE_DIS, 0, SGR_DIS);
+}
+
 static void cnp_init_clock_gating(struct drm_i915_private *dev_priv)
 {
 	if (!HAS_PCH_CNP(dev_priv))
@@ -7876,6 +7883,7 @@ static const struct drm_i915_clock_gating_funcs platform##_clock_gating_funcs = 
 	.init_clock_gating = platform##_init_clock_gating,		\
 }
 
+CG_FUNCS(xehpsdv);
 CG_FUNCS(adlp);
 CG_FUNCS(dg1);
 CG_FUNCS(gen12lp);
@@ -7912,7 +7920,9 @@ CG_FUNCS(nop);
  */
 void intel_init_clock_gating_hooks(struct drm_i915_private *dev_priv)
 {
-	if (IS_ALDERLAKE_P(dev_priv))
+	if (IS_XEHPSDV(dev_priv))
+		dev_priv->clock_gating_funcs = &xehpsdv_clock_gating_funcs;
+	else if (IS_ALDERLAKE_P(dev_priv))
 		dev_priv->clock_gating_funcs = &adlp_clock_gating_funcs;
 	else if (IS_DG1(dev_priv))
 		dev_priv->clock_gating_funcs = &dg1_clock_gating_funcs;
