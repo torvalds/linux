@@ -103,6 +103,11 @@ struct rockchip_pmu {
 };
 
 static struct rockchip_pmu *g_pmu;
+static bool pm_domain_always_on;
+
+module_param_named(always_on, pm_domain_always_on, bool, 0644);
+MODULE_PARM_DESC(always_on,
+		 "Always keep pm domains power on except for system suspend.");
 
 static void rockchip_pmu_lock(struct rockchip_pm_domain *pd)
 {
@@ -905,7 +910,7 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 	if (pd_info->active_wakeup)
 		pd->genpd.flags |= GENPD_FLAG_ACTIVE_WAKEUP;
 #ifndef MODULE
-	if (pd_info->keepon_startup) {
+	if (pd_info->keepon_startup || pm_domain_always_on) {
 		pd->genpd.flags |= GENPD_FLAG_ALWAYS_ON;
 		if (!rockchip_pmu_domain_is_on(pd)) {
 			error = rockchip_pd_power(pd, true);
@@ -1083,7 +1088,7 @@ static int __init rockchip_pd_keepon_release(void)
 	struct rockchip_pm_domain *pd;
 	int i;
 
-	if (!g_pmu)
+	if (!g_pmu || pm_domain_always_on)
 		return 0;
 
 	for (i = 0; i < g_pmu->genpd_data.num_domains; i++) {
