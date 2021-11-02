@@ -1231,7 +1231,7 @@ void dlm_midcomms_add_member(int nodeid)
 	}
 
 	node->users++;
-	pr_debug("users inc count %d\n", node->users);
+	pr_debug("node %d users inc count %d\n", nodeid, node->users);
 	spin_unlock(&node->state_lock);
 
 	srcu_read_unlock(&nodes_srcu, idx);
@@ -1254,7 +1254,7 @@ void dlm_midcomms_remove_member(int nodeid)
 
 	spin_lock(&node->state_lock);
 	node->users--;
-	pr_debug("users dec count %d\n", node->users);
+	pr_debug("node %d users dec count %d\n", nodeid, node->users);
 
 	/* hitting users count to zero means the
 	 * other side is running dlm_midcomms_stop()
