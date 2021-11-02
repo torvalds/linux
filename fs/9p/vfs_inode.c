@@ -108,7 +108,7 @@ static int p9mode2perm(struct v9fs_session_info *v9ses,
 static umode_t p9mode2unixmode(struct v9fs_session_info *v9ses,
 			       struct p9_wstat *stat, dev_t *rdev)
 {
-	int res;
+	int res, r;
 	u32 mode = stat->mode;
 
 	*rdev = 0;
@@ -126,11 +126,16 @@ static umode_t p9mode2unixmode(struct v9fs_session_info *v9ses,
 		res |= S_IFIFO;
 	else if ((mode & P9_DMDEVICE) && (v9fs_proto_dotu(v9ses))
 		 && (v9ses->nodev == 0)) {
-		char type = 0, ext[32];
+		char type = 0;
 		int major = -1, minor = -1;
 
-		strlcpy(ext, stat->extension, sizeof(ext));
-		sscanf(ext, "%c %i %i", &type, &major, &minor);
+		r = sscanf(stat->extension, "%c %i %i", &type, &major, &minor);
+		if (r != 3) {
+			p9_debug(P9_DEBUG_ERROR,
+				 "invalid device string, umode will be bogus: %s\n",
+				 stat->extension);
+			return res;
+		}
 		switch (type) {
 		case 'c':
 			res |= S_IFCHR;
