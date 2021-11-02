@@ -2,6 +2,7 @@
 /* Copyright (c) 2017 Facebook
  */
 #include <linux/bpf.h>
+#include <linux/btf.h>
 #include <linux/btf_ids.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
@@ -241,9 +242,11 @@ BTF_ID(func, bpf_kfunc_call_test2)
 BTF_ID(func, bpf_kfunc_call_test3)
 BTF_SET_END(test_sk_kfunc_ids)
 
-bool bpf_prog_test_check_kfunc_call(u32 kfunc_id)
+bool bpf_prog_test_check_kfunc_call(u32 kfunc_id, struct module *owner)
 {
-	return btf_id_set_contains(&test_sk_kfunc_ids, kfunc_id);
+	if (btf_id_set_contains(&test_sk_kfunc_ids, kfunc_id))
+		return true;
+	return bpf_check_mod_kfunc_call(&prog_test_kfunc_list, kfunc_id, owner);
 }
 
 static void *bpf_test_init(const union bpf_attr *kattr, u32 size,
@@ -355,13 +358,9 @@ int bpf_prog_test_run_raw_tp(struct bpf_prog *prog,
 		return -EINVAL;
 
 	if (ctx_size_in) {
-		info.ctx = kzalloc(ctx_size_in, GFP_USER);
-		if (!info.ctx)
-			return -ENOMEM;
-		if (copy_from_user(info.ctx, ctx_in, ctx_size_in)) {
-			err = -EFAULT;
-			goto out;
-		}
+		info.ctx = memdup_user(ctx_in, ctx_size_in);
+		if (IS_ERR(info.ctx))
+			return PTR_ERR(info.ctx);
 	} else {
 		info.ctx = NULL;
 	}
@@ -389,7 +388,6 @@ int bpf_prog_test_run_raw_tp(struct bpf_prog *prog,
 	    copy_to_user(&uattr->test.retval, &info.retval, sizeof(u32)))
 		err = -EFAULT;
 
-out:
 	kfree(info.ctx);
 	return err;
 }
@@ -1049,13 +1047,9 @@ int bpf_prog_test_run_syscall(struct bpf_prog *prog,
 		return -EINVAL;
 
 	if (ctx_size_in) {
-		ctx = kzalloc(ctx_size_in, GFP_USER);
-		if (!ctx)
-			return -ENOMEM;
-		if (copy_from_user(ctx, ctx_in, ctx_size_in)) {
-			err = -EFAULT;
-			goto out;
-		}
+		ctx = memdup_user(ctx_in, ctx_size_in);
+		if (IS_ERR(ctx))
+			return PTR_ERR(ctx);
 	}
 
 	rcu_read_lock_trace();

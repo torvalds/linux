@@ -2134,7 +2134,7 @@ static int bpf_fill_atomic32_cmpxchg_reg_pairs(struct bpf_test *self)
  * of the immediate value. This is often the case if the native instruction
  * immediate field width is narrower than 32 bits.
  */
-static int bpf_fill_ld_imm64(struct bpf_test *self)
+static int bpf_fill_ld_imm64_magn(struct bpf_test *self)
 {
 	int block = 64; /* Increase for more tests per MSB position */
 	int len = 3 + 8 * 63 * block * 2;
@@ -2178,6 +2178,88 @@ static int bpf_fill_ld_imm64(struct bpf_test *self)
 	BUG_ON(i != len);
 
 	return 0;
+}
+
+/*
+ * Test the two-instruction 64-bit immediate load operation for different
+ * combinations of bytes. Each byte in the 64-bit word is constructed as
+ * (base & mask) | (rand() & ~mask), where rand() is a deterministic LCG.
+ * All patterns (base1, mask1) and (base2, mask2) bytes are tested.
+ */
+static int __bpf_fill_ld_imm64_bytes(struct bpf_test *self,
+				     u8 base1, u8 mask1,
+				     u8 base2, u8 mask2)
+{
+	struct bpf_insn *insn;
+	int len = 3 + 8 * BIT(8);
+	int pattern, index;
+	u32 rand = 1;
+	int i = 0;
+
+	insn = kmalloc_array(len, sizeof(*insn), GFP_KERNEL);
+	if (!insn)
+		return -ENOMEM;
+
+	insn[i++] = BPF_ALU64_IMM(BPF_MOV, R0, 0);
+
+	for (pattern = 0; pattern < BIT(8); pattern++) {
+		u64 imm = 0;
+
+		for (index = 0; index < 8; index++) {
+			int byte;
+
+			if (pattern & BIT(index))
+				byte = (base1 & mask1) | (rand & ~mask1);
+			else
+				byte = (base2 & mask2) | (rand & ~mask2);
+			imm = (imm << 8) | byte;
+		}
+
+		/* Update our LCG */
+		rand = rand * 1664525 + 1013904223;
+
+		/* Perform operation */
+		i += __bpf_ld_imm64(&insn[i], R1, imm);
+
+		/* Load reference */
+		insn[i++] = BPF_ALU32_IMM(BPF_MOV, R2, imm);
+		insn[i++] = BPF_ALU32_IMM(BPF_MOV, R3, (u32)(imm >> 32));
+		insn[i++] = BPF_ALU64_IMM(BPF_LSH, R3, 32);
+		insn[i++] = BPF_ALU64_REG(BPF_OR, R2, R3);
+
+		/* Check result */
+		insn[i++] = BPF_JMP_REG(BPF_JEQ, R1, R2, 1);
+		insn[i++] = BPF_EXIT_INSN();
+	}
+
+	insn[i++] = BPF_ALU64_IMM(BPF_MOV, R0, 1);
+	insn[i++] = BPF_EXIT_INSN();
+
+	self->u.ptr.insns = insn;
+	self->u.ptr.len = len;
+	BUG_ON(i != len);
+
+	return 0;
+}
+
+static int bpf_fill_ld_imm64_checker(struct bpf_test *self)
+{
+	return __bpf_fill_ld_imm64_bytes(self, 0, 0xff, 0xff, 0xff);
+}
+
+static int bpf_fill_ld_imm64_pos_neg(struct bpf_test *self)
+{
+	return __bpf_fill_ld_imm64_bytes(self, 1, 0x81, 0x80, 0x80);
+}
+
+static int bpf_fill_ld_imm64_pos_zero(struct bpf_test *self)
+{
+	return __bpf_fill_ld_imm64_bytes(self, 1, 0x81, 0, 0xff);
+}
+
+static int bpf_fill_ld_imm64_neg_zero(struct bpf_test *self)
+{
+	return __bpf_fill_ld_imm64_bytes(self, 0x80, 0x80, 0, 0xff);
 }
 
 /*
@@ -12401,14 +12483,46 @@ static struct bpf_test tests[] = {
 		.fill_helper = bpf_fill_alu32_mod_reg,
 		.nr_testruns = NR_PATTERN_RUNS,
 	},
-	/* LD_IMM64 immediate magnitudes */
+	/* LD_IMM64 immediate magnitudes and byte patterns */
 	{
 		"LD_IMM64: all immediate value magnitudes",
 		{ },
 		INTERNAL | FLAG_NO_DATA,
 		{ },
 		{ { 0, 1 } },
-		.fill_helper = bpf_fill_ld_imm64,
+		.fill_helper = bpf_fill_ld_imm64_magn,
+	},
+	{
+		"LD_IMM64: checker byte patterns",
+		{ },
+		INTERNAL | FLAG_NO_DATA,
+		{ },
+		{ { 0, 1 } },
+		.fill_helper = bpf_fill_ld_imm64_checker,
+	},
+	{
+		"LD_IMM64: random positive and zero byte patterns",
+		{ },
+		INTERNAL | FLAG_NO_DATA,
+		{ },
+		{ { 0, 1 } },
+		.fill_helper = bpf_fill_ld_imm64_pos_zero,
+	},
+	{
+		"LD_IMM64: random negative and zero byte patterns",
+		{ },
+		INTERNAL | FLAG_NO_DATA,
+		{ },
+		{ { 0, 1 } },
+		.fill_helper = bpf_fill_ld_imm64_neg_zero,
+	},
+	{
+		"LD_IMM64: random positive and negative byte patterns",
+		{ },
+		INTERNAL | FLAG_NO_DATA,
+		{ },
+		{ { 0, 1 } },
+		.fill_helper = bpf_fill_ld_imm64_pos_neg,
 	},
 	/* 64-bit ATOMIC register combinations */
 	{
@@ -14202,71 +14316,8 @@ module_param_string(test_name, test_name, sizeof(test_name), 0);
 static int test_id = -1;
 module_param(test_id, int, 0);
 
-static int test_range[2] = { 0, ARRAY_SIZE(tests) - 1 };
+static int test_range[2] = { 0, INT_MAX };
 module_param_array(test_range, int, NULL, 0);
-
-static __init int find_test_index(const char *test_name)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(tests); i++) {
-		if (!strcmp(tests[i].descr, test_name))
-			return i;
-	}
-	return -1;
-}
-
-static __init int prepare_bpf_tests(void)
-{
-	if (test_id >= 0) {
-		/*
-		 * if a test_id was specified, use test_range to
-		 * cover only that test.
-		 */
-		if (test_id >= ARRAY_SIZE(tests)) {
-			pr_err("test_bpf: invalid test_id specified.\n");
-			return -EINVAL;
-		}
-
-		test_range[0] = test_id;
-		test_range[1] = test_id;
-	} else if (*test_name) {
-		/*
-		 * if a test_name was specified, find it and setup
-		 * test_range to cover only that test.
-		 */
-		int idx = find_test_index(test_name);
-
-		if (idx < 0) {
-			pr_err("test_bpf: no test named '%s' found.\n",
-			       test_name);
-			return -EINVAL;
-		}
-		test_range[0] = idx;
-		test_range[1] = idx;
-	} else {
-		/*
-		 * check that the supplied test_range is valid.
-		 */
-		if (test_range[0] >= ARRAY_SIZE(tests) ||
-		    test_range[1] >= ARRAY_SIZE(tests) ||
-		    test_range[0] < 0 || test_range[1] < 0) {
-			pr_err("test_bpf: test_range is out of bound.\n");
-			return -EINVAL;
-		}
-
-		if (test_range[1] < test_range[0]) {
-			pr_err("test_bpf: test_range is ending before it starts.\n");
-			return -EINVAL;
-		}
-	}
-
-	return 0;
-}
-
-static __init void destroy_bpf_tests(void)
-{
-}
 
 static bool exclude_test(int test_id)
 {
@@ -14438,6 +14489,10 @@ static __init int test_skb_segment(void)
 
 	for (i = 0; i < ARRAY_SIZE(skb_segment_tests); i++) {
 		const struct skb_segment_test *test = &skb_segment_tests[i];
+
+		cond_resched();
+		if (exclude_test(i))
+			continue;
 
 		pr_info("#%d %s ", i, test->descr);
 
@@ -14820,6 +14875,8 @@ static __init int test_tail_calls(struct bpf_array *progs)
 		int ret;
 
 		cond_resched();
+		if (exclude_test(i))
+			continue;
 
 		pr_info("#%d %s ", i, test->descr);
 		if (!fp) {
@@ -14852,29 +14909,144 @@ static __init int test_tail_calls(struct bpf_array *progs)
 	return err_cnt ? -EINVAL : 0;
 }
 
+static char test_suite[32];
+module_param_string(test_suite, test_suite, sizeof(test_suite), 0);
+
+static __init int find_test_index(const char *test_name)
+{
+	int i;
+
+	if (!strcmp(test_suite, "test_bpf")) {
+		for (i = 0; i < ARRAY_SIZE(tests); i++) {
+			if (!strcmp(tests[i].descr, test_name))
+				return i;
+		}
+	}
+
+	if (!strcmp(test_suite, "test_tail_calls")) {
+		for (i = 0; i < ARRAY_SIZE(tail_call_tests); i++) {
+			if (!strcmp(tail_call_tests[i].descr, test_name))
+				return i;
+		}
+	}
+
+	if (!strcmp(test_suite, "test_skb_segment")) {
+		for (i = 0; i < ARRAY_SIZE(skb_segment_tests); i++) {
+			if (!strcmp(skb_segment_tests[i].descr, test_name))
+				return i;
+		}
+	}
+
+	return -1;
+}
+
+static __init int prepare_test_range(void)
+{
+	int valid_range;
+
+	if (!strcmp(test_suite, "test_bpf"))
+		valid_range = ARRAY_SIZE(tests);
+	else if (!strcmp(test_suite, "test_tail_calls"))
+		valid_range = ARRAY_SIZE(tail_call_tests);
+	else if (!strcmp(test_suite, "test_skb_segment"))
+		valid_range = ARRAY_SIZE(skb_segment_tests);
+	else
+		return 0;
+
+	if (test_id >= 0) {
+		/*
+		 * if a test_id was specified, use test_range to
+		 * cover only that test.
+		 */
+		if (test_id >= valid_range) {
+			pr_err("test_bpf: invalid test_id specified for '%s' suite.\n",
+			       test_suite);
+			return -EINVAL;
+		}
+
+		test_range[0] = test_id;
+		test_range[1] = test_id;
+	} else if (*test_name) {
+		/*
+		 * if a test_name was specified, find it and setup
+		 * test_range to cover only that test.
+		 */
+		int idx = find_test_index(test_name);
+
+		if (idx < 0) {
+			pr_err("test_bpf: no test named '%s' found for '%s' suite.\n",
+			       test_name, test_suite);
+			return -EINVAL;
+		}
+		test_range[0] = idx;
+		test_range[1] = idx;
+	} else if (test_range[0] != 0 || test_range[1] != INT_MAX) {
+		/*
+		 * check that the supplied test_range is valid.
+		 */
+		if (test_range[0] < 0 || test_range[1] >= valid_range) {
+			pr_err("test_bpf: test_range is out of bound for '%s' suite.\n",
+			       test_suite);
+			return -EINVAL;
+		}
+
+		if (test_range[1] < test_range[0]) {
+			pr_err("test_bpf: test_range is ending before it starts.\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int __init test_bpf_init(void)
 {
 	struct bpf_array *progs = NULL;
 	int ret;
 
-	ret = prepare_bpf_tests();
+	if (strlen(test_suite) &&
+	    strcmp(test_suite, "test_bpf") &&
+	    strcmp(test_suite, "test_tail_calls") &&
+	    strcmp(test_suite, "test_skb_segment")) {
+		pr_err("test_bpf: invalid test_suite '%s' specified.\n", test_suite);
+		return -EINVAL;
+	}
+
+	/*
+	 * if test_suite is not specified, but test_id, test_name or test_range
+	 * is specified, set 'test_bpf' as the default test suite.
+	 */
+	if (!strlen(test_suite) &&
+	    (test_id != -1 || strlen(test_name) ||
+	    (test_range[0] != 0 || test_range[1] != INT_MAX))) {
+		pr_info("test_bpf: set 'test_bpf' as the default test_suite.\n");
+		strscpy(test_suite, "test_bpf", sizeof(test_suite));
+	}
+
+	ret = prepare_test_range();
 	if (ret < 0)
 		return ret;
 
-	ret = test_bpf();
-	destroy_bpf_tests();
-	if (ret)
-		return ret;
+	if (!strlen(test_suite) || !strcmp(test_suite, "test_bpf")) {
+		ret = test_bpf();
+		if (ret)
+			return ret;
+	}
 
-	ret = prepare_tail_call_tests(&progs);
-	if (ret)
-		return ret;
-	ret = test_tail_calls(progs);
-	destroy_tail_call_tests(progs);
-	if (ret)
-		return ret;
+	if (!strlen(test_suite) || !strcmp(test_suite, "test_tail_calls")) {
+		ret = prepare_tail_call_tests(&progs);
+		if (ret)
+			return ret;
+		ret = test_tail_calls(progs);
+		destroy_tail_call_tests(progs);
+		if (ret)
+			return ret;
+	}
 
-	return test_skb_segment();
+	if (!strlen(test_suite) || !strcmp(test_suite, "test_skb_segment"))
+		return test_skb_segment();
+
+	return 0;
 }
 
 static void __exit test_bpf_exit(void)

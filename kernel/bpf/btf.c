@@ -281,7 +281,7 @@ static const char * const btf_kind_str[NR_BTF_KINDS] = {
 	[BTF_KIND_VAR]		= "VAR",
 	[BTF_KIND_DATASEC]	= "DATASEC",
 	[BTF_KIND_FLOAT]	= "FLOAT",
-	[BTF_KIND_TAG]		= "TAG",
+	[BTF_KIND_DECL_TAG]	= "DECL_TAG",
 };
 
 const char *btf_type_str(const struct btf_type *t)
@@ -460,15 +460,15 @@ static bool btf_type_is_datasec(const struct btf_type *t)
 	return BTF_INFO_KIND(t->info) == BTF_KIND_DATASEC;
 }
 
-static bool btf_type_is_tag(const struct btf_type *t)
+static bool btf_type_is_decl_tag(const struct btf_type *t)
 {
-	return BTF_INFO_KIND(t->info) == BTF_KIND_TAG;
+	return BTF_INFO_KIND(t->info) == BTF_KIND_DECL_TAG;
 }
 
-static bool btf_type_is_tag_target(const struct btf_type *t)
+static bool btf_type_is_decl_tag_target(const struct btf_type *t)
 {
 	return btf_type_is_func(t) || btf_type_is_struct(t) ||
-	       btf_type_is_var(t);
+	       btf_type_is_var(t) || btf_type_is_typedef(t);
 }
 
 u32 btf_nr_types(const struct btf *btf)
@@ -549,7 +549,7 @@ const struct btf_type *btf_type_resolve_func_ptr(const struct btf *btf,
 static bool btf_type_is_resolve_source_only(const struct btf_type *t)
 {
 	return btf_type_is_var(t) ||
-	       btf_type_is_tag(t) ||
+	       btf_type_is_decl_tag(t) ||
 	       btf_type_is_datasec(t);
 }
 
@@ -576,7 +576,7 @@ static bool btf_type_needs_resolve(const struct btf_type *t)
 	       btf_type_is_struct(t) ||
 	       btf_type_is_array(t) ||
 	       btf_type_is_var(t) ||
-	       btf_type_is_tag(t) ||
+	       btf_type_is_decl_tag(t) ||
 	       btf_type_is_datasec(t);
 }
 
@@ -630,9 +630,9 @@ static const struct btf_var *btf_type_var(const struct btf_type *t)
 	return (const struct btf_var *)(t + 1);
 }
 
-static const struct btf_tag *btf_type_tag(const struct btf_type *t)
+static const struct btf_decl_tag *btf_type_decl_tag(const struct btf_type *t)
 {
-	return (const struct btf_tag *)(t + 1);
+	return (const struct btf_decl_tag *)(t + 1);
 }
 
 static const struct btf_kind_operations *btf_type_ops(const struct btf_type *t)
@@ -3820,11 +3820,11 @@ static const struct btf_kind_operations float_ops = {
 	.show = btf_df_show,
 };
 
-static s32 btf_tag_check_meta(struct btf_verifier_env *env,
+static s32 btf_decl_tag_check_meta(struct btf_verifier_env *env,
 			      const struct btf_type *t,
 			      u32 meta_left)
 {
-	const struct btf_tag *tag;
+	const struct btf_decl_tag *tag;
 	u32 meta_needed = sizeof(*tag);
 	s32 component_idx;
 	const char *value;
@@ -3852,7 +3852,7 @@ static s32 btf_tag_check_meta(struct btf_verifier_env *env,
 		return -EINVAL;
 	}
 
-	component_idx = btf_type_tag(t)->component_idx;
+	component_idx = btf_type_decl_tag(t)->component_idx;
 	if (component_idx < -1) {
 		btf_verifier_log_type(env, t, "Invalid component_idx");
 		return -EINVAL;
@@ -3863,7 +3863,7 @@ static s32 btf_tag_check_meta(struct btf_verifier_env *env,
 	return meta_needed;
 }
 
-static int btf_tag_resolve(struct btf_verifier_env *env,
+static int btf_decl_tag_resolve(struct btf_verifier_env *env,
 			   const struct resolve_vertex *v)
 {
 	const struct btf_type *next_type;
@@ -3874,7 +3874,7 @@ static int btf_tag_resolve(struct btf_verifier_env *env,
 	u32 vlen;
 
 	next_type = btf_type_by_id(btf, next_type_id);
-	if (!next_type || !btf_type_is_tag_target(next_type)) {
+	if (!next_type || !btf_type_is_decl_tag_target(next_type)) {
 		btf_verifier_log_type(env, v->t, "Invalid type_id");
 		return -EINVAL;
 	}
@@ -3883,9 +3883,9 @@ static int btf_tag_resolve(struct btf_verifier_env *env,
 	    !env_type_is_resolved(env, next_type_id))
 		return env_stack_push(env, next_type, next_type_id);
 
-	component_idx = btf_type_tag(t)->component_idx;
+	component_idx = btf_type_decl_tag(t)->component_idx;
 	if (component_idx != -1) {
-		if (btf_type_is_var(next_type)) {
+		if (btf_type_is_var(next_type) || btf_type_is_typedef(next_type)) {
 			btf_verifier_log_type(env, v->t, "Invalid component_idx");
 			return -EINVAL;
 		}
@@ -3909,18 +3909,18 @@ static int btf_tag_resolve(struct btf_verifier_env *env,
 	return 0;
 }
 
-static void btf_tag_log(struct btf_verifier_env *env, const struct btf_type *t)
+static void btf_decl_tag_log(struct btf_verifier_env *env, const struct btf_type *t)
 {
 	btf_verifier_log(env, "type=%u component_idx=%d", t->type,
-			 btf_type_tag(t)->component_idx);
+			 btf_type_decl_tag(t)->component_idx);
 }
 
-static const struct btf_kind_operations tag_ops = {
-	.check_meta = btf_tag_check_meta,
-	.resolve = btf_tag_resolve,
+static const struct btf_kind_operations decl_tag_ops = {
+	.check_meta = btf_decl_tag_check_meta,
+	.resolve = btf_decl_tag_resolve,
 	.check_member = btf_df_check_member,
 	.check_kflag_member = btf_df_check_kflag_member,
-	.log_details = btf_tag_log,
+	.log_details = btf_decl_tag_log,
 	.show = btf_df_show,
 };
 
@@ -4058,7 +4058,7 @@ static const struct btf_kind_operations * const kind_ops[NR_BTF_KINDS] = {
 	[BTF_KIND_VAR] = &var_ops,
 	[BTF_KIND_DATASEC] = &datasec_ops,
 	[BTF_KIND_FLOAT] = &float_ops,
-	[BTF_KIND_TAG] = &tag_ops,
+	[BTF_KIND_DECL_TAG] = &decl_tag_ops,
 };
 
 static s32 btf_check_meta(struct btf_verifier_env *env,
@@ -4143,7 +4143,7 @@ static bool btf_resolve_valid(struct btf_verifier_env *env,
 		return !btf_resolved_type_id(btf, type_id) &&
 		       !btf_resolved_type_size(btf, type_id);
 
-	if (btf_type_is_tag(t))
+	if (btf_type_is_decl_tag(t))
 		return btf_resolved_type_id(btf, type_id) &&
 		       !btf_resolved_type_size(btf, type_id);
 
@@ -6343,3 +6343,58 @@ const struct bpf_func_proto bpf_btf_find_by_name_kind_proto = {
 };
 
 BTF_ID_LIST_GLOBAL_SINGLE(btf_task_struct_ids, struct, task_struct)
+
+/* BTF ID set registration API for modules */
+
+struct kfunc_btf_id_list {
+	struct list_head list;
+	struct mutex mutex;
+};
+
+#ifdef CONFIG_DEBUG_INFO_BTF_MODULES
+
+void register_kfunc_btf_id_set(struct kfunc_btf_id_list *l,
+			       struct kfunc_btf_id_set *s)
+{
+	mutex_lock(&l->mutex);
+	list_add(&s->list, &l->list);
+	mutex_unlock(&l->mutex);
+}
+EXPORT_SYMBOL_GPL(register_kfunc_btf_id_set);
+
+void unregister_kfunc_btf_id_set(struct kfunc_btf_id_list *l,
+				 struct kfunc_btf_id_set *s)
+{
+	mutex_lock(&l->mutex);
+	list_del_init(&s->list);
+	mutex_unlock(&l->mutex);
+}
+EXPORT_SYMBOL_GPL(unregister_kfunc_btf_id_set);
+
+bool bpf_check_mod_kfunc_call(struct kfunc_btf_id_list *klist, u32 kfunc_id,
+			      struct module *owner)
+{
+	struct kfunc_btf_id_set *s;
+
+	if (!owner)
+		return false;
+	mutex_lock(&klist->mutex);
+	list_for_each_entry(s, &klist->list, list) {
+		if (s->owner == owner && btf_id_set_contains(s->set, kfunc_id)) {
+			mutex_unlock(&klist->mutex);
+			return true;
+		}
+	}
+	mutex_unlock(&klist->mutex);
+	return false;
+}
+
+#endif
+
+#define DEFINE_KFUNC_BTF_ID_LIST(name)                                         \
+	struct kfunc_btf_id_list name = { LIST_HEAD_INIT(name.list),           \
+					  __MUTEX_INITIALIZER(name.mutex) };   \
+	EXPORT_SYMBOL_GPL(name)
+
+DEFINE_KFUNC_BTF_ID_LIST(bpf_tcp_ca_kfunc_list);
+DEFINE_KFUNC_BTF_ID_LIST(prog_test_kfunc_list);

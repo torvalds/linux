@@ -906,6 +906,7 @@ enum bpf_map_type {
 	BPF_MAP_TYPE_RINGBUF,
 	BPF_MAP_TYPE_INODE_STORAGE,
 	BPF_MAP_TYPE_TASK_STORAGE,
+	BPF_MAP_TYPE_BLOOM_FILTER,
 };
 
 /* Note that tracing related programs such as
@@ -1274,6 +1275,13 @@ union bpf_attr {
 						   * struct stored as the
 						   * map value
 						   */
+		/* Any per-map-type extra fields
+		 *
+		 * BPF_MAP_TYPE_BLOOM_FILTER - the lowest 4 bits indicate the
+		 * number of hash functions (if 0, the bloom filter will default
+		 * to using 5 hash functions).
+		 */
+		__u64	map_extra;
 	};
 
 	struct { /* anonymous struct used by BPF_MAP_*_ELEM commands */
@@ -4909,6 +4917,27 @@ union bpf_attr {
  *	Return
  *		The number of bytes written to the buffer, or a negative error
  *		in case of failure.
+ *
+ * struct unix_sock *bpf_skc_to_unix_sock(void *sk)
+ * 	Description
+ *		Dynamically cast a *sk* pointer to a *unix_sock* pointer.
+ *	Return
+ *		*sk* if casting is valid, or **NULL** otherwise.
+ *
+ * long bpf_kallsyms_lookup_name(const char *name, int name_sz, int flags, u64 *res)
+ *	Description
+ *		Get the address of a kernel symbol, returned in *res*. *res* is
+ *		set to 0 if the symbol is not found.
+ *	Return
+ *		On success, zero. On error, a negative value.
+ *
+ *		**-EINVAL** if *flags* is not zero.
+ *
+ *		**-EINVAL** if string *name* is not the same size as *name_sz*.
+ *
+ *		**-ENOENT** if symbol is not found.
+ *
+ *		**-EPERM** if caller does not have permission to obtain kernel address.
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -5089,6 +5118,8 @@ union bpf_attr {
 	FN(task_pt_regs),		\
 	FN(get_branch_snapshot),	\
 	FN(trace_vprintk),		\
+	FN(skc_to_unix_sock),		\
+	FN(kallsyms_lookup_name),	\
 	/* */
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
@@ -5613,6 +5644,7 @@ struct bpf_prog_info {
 	__u64 run_time_ns;
 	__u64 run_cnt;
 	__u64 recursion_misses;
+	__u32 verified_insns;
 } __attribute__((aligned(8)));
 
 struct bpf_map_info {
@@ -5630,6 +5662,8 @@ struct bpf_map_info {
 	__u32 btf_id;
 	__u32 btf_key_type_id;
 	__u32 btf_value_type_id;
+	__u32 :32;	/* alignment pad */
+	__u64 map_extra;
 } __attribute__((aligned(8)));
 
 struct bpf_btf_info {

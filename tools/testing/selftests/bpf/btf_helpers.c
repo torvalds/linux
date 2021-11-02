@@ -24,12 +24,12 @@ static const char * const btf_kind_str_mapping[] = {
 	[BTF_KIND_VAR]		= "VAR",
 	[BTF_KIND_DATASEC]	= "DATASEC",
 	[BTF_KIND_FLOAT]	= "FLOAT",
-	[BTF_KIND_TAG]		= "TAG",
+	[BTF_KIND_DECL_TAG]	= "DECL_TAG",
 };
 
 static const char *btf_kind_str(__u16 kind)
 {
-	if (kind > BTF_KIND_TAG)
+	if (kind > BTF_KIND_DECL_TAG)
 		return "UNKNOWN";
 	return btf_kind_str_mapping[kind];
 }
@@ -178,9 +178,9 @@ int fprintf_btf_type_raw(FILE *out, const struct btf *btf, __u32 id)
 	case BTF_KIND_FLOAT:
 		fprintf(out, " size=%u", t->size);
 		break;
-	case BTF_KIND_TAG:
+	case BTF_KIND_DECL_TAG:
 		fprintf(out, " type_id=%u component_idx=%d",
-			t->type, btf_tag(t)->component_idx);
+			t->type, btf_decl_tag(t)->component_idx);
 		break;
 	default:
 		break;
@@ -215,7 +215,7 @@ int btf_validate_raw(struct btf *btf, int nr_types, const char *exp_types[])
 	int i;
 	bool ok = true;
 
-	ASSERT_EQ(btf__get_nr_types(btf), nr_types, "btf_nr_types");
+	ASSERT_EQ(btf__type_cnt(btf) - 1, nr_types, "btf_nr_types");
 
 	for (i = 1; i <= nr_types; i++) {
 		if (!ASSERT_STREQ(btf_type_raw_dump(btf, i), exp_types[i - 1], "raw_dump"))
@@ -254,7 +254,7 @@ const char *btf_type_c_dump(const struct btf *btf)
 		return NULL;
 	}
 
-	for (i = 1; i <= btf__get_nr_types(btf); i++) {
+	for (i = 1; i < btf__type_cnt(btf); i++) {
 		err = btf_dump__dump_type(d, i);
 		if (err) {
 			fprintf(stderr, "Failed to dump type [%d]: %d\n", i, err);

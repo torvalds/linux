@@ -33,6 +33,7 @@ struct env {
 struct bench_res {
 	long hits;
 	long drops;
+	long false_hits;
 };
 
 struct bench {
@@ -56,6 +57,8 @@ extern const struct bench *bench;
 void setup_libbpf();
 void hits_drops_report_progress(int iter, struct bench_res *res, long delta_ns);
 void hits_drops_report_final(struct bench_res res[], int res_cnt);
+void false_hits_report_progress(int iter, struct bench_res *res, long delta_ns);
+void false_hits_report_final(struct bench_res res[], int res_cnt);
 
 static inline __u64 get_time_ns() {
 	struct timespec t;

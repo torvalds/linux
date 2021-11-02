@@ -8,13 +8,14 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-#include <bpf/bpf.h>
-#include <bpf/btf.h>
-#include <bpf/libbpf.h>
 #include <linux/btf.h>
-#include <linux/hashtable.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+
+#include <bpf/bpf.h>
+#include <bpf/btf.h>
+#include <bpf/hashmap.h>
+#include <bpf/libbpf.h>
 
 #include "json_writer.h"
 #include "main.h"
@@ -37,17 +38,12 @@ static const char * const btf_kind_str[NR_BTF_KINDS] = {
 	[BTF_KIND_VAR]		= "VAR",
 	[BTF_KIND_DATASEC]	= "DATASEC",
 	[BTF_KIND_FLOAT]	= "FLOAT",
-	[BTF_KIND_TAG]		= "TAG",
-};
-
-struct btf_attach_table {
-	DECLARE_HASHTABLE(table, 16);
+	[BTF_KIND_DECL_TAG]	= "DECL_TAG",
 };
 
 struct btf_attach_point {
 	__u32 obj_id;
 	__u32 btf_id;
-	struct hlist_node hash;
 };
 
 static const char *btf_int_enc_str(__u8 encoding)
@@ -329,7 +325,7 @@ static int dump_btf_type(const struct btf *btf, __u32 id,
 				printf("\n\ttype_id=%u offset=%u size=%u",
 				       v->type, v->offset, v->size);
 
-				if (v->type <= btf__get_nr_types(btf)) {
+				if (v->type < btf__type_cnt(btf)) {
 					vt = btf__type_by_id(btf, v->type);
 					printf(" (%s '%s')",
 					       btf_kind_str[btf_kind_safe(btf_kind(vt))],
@@ -348,8 +344,8 @@ static int dump_btf_type(const struct btf *btf, __u32 id,
 			printf(" size=%u", t->size);
 		break;
 	}
-	case BTF_KIND_TAG: {
-		const struct btf_tag *tag = (const void *)(t + 1);
+	case BTF_KIND_DECL_TAG: {
+		const struct btf_decl_tag *tag = (const void *)(t + 1);
 
 		if (json_output) {
 			jsonw_uint_field(w, "type_id", t->type);
@@ -390,14 +386,14 @@ static int dump_btf_raw(const struct btf *btf,
 		}
 	} else {
 		const struct btf *base;
-		int cnt = btf__get_nr_types(btf);
+		int cnt = btf__type_cnt(btf);
 		int start_id = 1;
 
 		base = btf__base_btf(btf);
 		if (base)
-			start_id = btf__get_nr_types(base) + 1;
+			start_id = btf__type_cnt(base);
 
-		for (i = start_id; i <= cnt; i++) {
+		for (i = start_id; i < cnt; i++) {
 			t = btf__type_by_id(btf, i);
 			dump_btf_type(btf, i, t);
 		}
@@ -440,9 +436,9 @@ static int dump_btf_c(const struct btf *btf,
 				goto done;
 		}
 	} else {
-		int cnt = btf__get_nr_types(btf);
+		int cnt = btf__type_cnt(btf);
 
-		for (i = 1; i <= cnt; i++) {
+		for (i = 1; i < cnt; i++) {
 			err = btf_dump__dump_type(d, i);
 			if (err)
 				goto done;
@@ -645,21 +641,8 @@ static int btf_parse_fd(int *argc, char ***argv)
 	return fd;
 }
 
-static void delete_btf_table(struct btf_attach_table *tab)
-{
-	struct btf_attach_point *obj;
-	struct hlist_node *tmp;
-
-	unsigned int bkt;
-
-	hash_for_each_safe(tab->table, bkt, tmp, obj, hash) {
-		hash_del(&obj->hash);
-		free(obj);
-	}
-}
-
 static int
-build_btf_type_table(struct btf_attach_table *tab, enum bpf_obj_type type,
+build_btf_type_table(struct hashmap *tab, enum bpf_obj_type type,
 		     void *info, __u32 *len)
 {
 	static const char * const names[] = {
@@ -667,7 +650,6 @@ build_btf_type_table(struct btf_attach_table *tab, enum bpf_obj_type type,
 		[BPF_OBJ_PROG]		= "prog",
 		[BPF_OBJ_MAP]		= "map",
 	};
-	struct btf_attach_point *obj_node;
 	__u32 btf_id, id = 0;
 	int err;
 	int fd;
@@ -741,28 +723,25 @@ build_btf_type_table(struct btf_attach_table *tab, enum bpf_obj_type type,
 		if (!btf_id)
 			continue;
 
-		obj_node = calloc(1, sizeof(*obj_node));
-		if (!obj_node) {
-			p_err("failed to allocate memory: %s", strerror(errno));
-			err = -ENOMEM;
+		err = hashmap__append(tab, u32_as_hash_field(btf_id),
+				      u32_as_hash_field(id));
+		if (err) {
+			p_err("failed to append entry to hashmap for BTF ID %u, object ID %u: %s",
+			      btf_id, id, strerror(errno));
 			goto err_free;
 		}
-
-		obj_node->obj_id = id;
-		obj_node->btf_id = btf_id;
-		hash_add(tab->table, &obj_node->hash, obj_node->btf_id);
 	}
 
 	return 0;
 
 err_free:
-	delete_btf_table(tab);
+	hashmap__free(tab);
 	return err;
 }
 
 static int
-build_btf_tables(struct btf_attach_table *btf_prog_table,
-		 struct btf_attach_table *btf_map_table)
+build_btf_tables(struct hashmap *btf_prog_table,
+		 struct hashmap *btf_map_table)
 {
 	struct bpf_prog_info prog_info;
 	__u32 prog_len = sizeof(prog_info);
@@ -778,7 +757,7 @@ build_btf_tables(struct btf_attach_table *btf_prog_table,
 	err = build_btf_type_table(btf_map_table, BPF_OBJ_MAP, &map_info,
 				   &map_len);
 	if (err) {
-		delete_btf_table(btf_prog_table);
+		hashmap__free(btf_prog_table);
 		return err;
 	}
 
@@ -787,10 +766,10 @@ build_btf_tables(struct btf_attach_table *btf_prog_table,
 
 static void
 show_btf_plain(struct bpf_btf_info *info, int fd,
-	       struct btf_attach_table *btf_prog_table,
-	       struct btf_attach_table *btf_map_table)
+	       struct hashmap *btf_prog_table,
+	       struct hashmap *btf_map_table)
 {
-	struct btf_attach_point *obj;
+	struct hashmap_entry *entry;
 	const char *name = u64_to_ptr(info->name);
 	int n;
 
@@ -804,29 +783,30 @@ show_btf_plain(struct bpf_btf_info *info, int fd,
 	printf("size %uB", info->btf_size);
 
 	n = 0;
-	hash_for_each_possible(btf_prog_table->table, obj, hash, info->id) {
-		if (obj->btf_id == info->id)
-			printf("%s%u", n++ == 0 ? "  prog_ids " : ",",
-			       obj->obj_id);
+	hashmap__for_each_key_entry(btf_prog_table, entry,
+				    u32_as_hash_field(info->id)) {
+		printf("%s%u", n++ == 0 ? "  prog_ids " : ",",
+		       hash_field_as_u32(entry->value));
 	}
 
 	n = 0;
-	hash_for_each_possible(btf_map_table->table, obj, hash, info->id) {
-		if (obj->btf_id == info->id)
-			printf("%s%u", n++ == 0 ? "  map_ids " : ",",
-			       obj->obj_id);
+	hashmap__for_each_key_entry(btf_map_table, entry,
+				    u32_as_hash_field(info->id)) {
+		printf("%s%u", n++ == 0 ? "  map_ids " : ",",
+		       hash_field_as_u32(entry->value));
 	}
-	emit_obj_refs_plain(&refs_table, info->id, "\n\tpids ");
+
+	emit_obj_refs_plain(refs_table, info->id, "\n\tpids ");
 
 	printf("\n");
 }
 
 static void
 show_btf_json(struct bpf_btf_info *info, int fd,
-	      struct btf_attach_table *btf_prog_table,
-	      struct btf_attach_table *btf_map_table)
+	      struct hashmap *btf_prog_table,
+	      struct hashmap *btf_map_table)
 {
-	struct btf_attach_point *obj;
+	struct hashmap_entry *entry;
 	const char *name = u64_to_ptr(info->name);
 
 	jsonw_start_object(json_wtr);	/* btf object */
@@ -835,23 +815,21 @@ show_btf_json(struct bpf_btf_info *info, int fd,
 
 	jsonw_name(json_wtr, "prog_ids");
 	jsonw_start_array(json_wtr);	/* prog_ids */
-	hash_for_each_possible(btf_prog_table->table, obj, hash,
-			       info->id) {
-		if (obj->btf_id == info->id)
-			jsonw_uint(json_wtr, obj->obj_id);
+	hashmap__for_each_key_entry(btf_prog_table, entry,
+				    u32_as_hash_field(info->id)) {
+		jsonw_uint(json_wtr, hash_field_as_u32(entry->value));
 	}
 	jsonw_end_array(json_wtr);	/* prog_ids */
 
 	jsonw_name(json_wtr, "map_ids");
 	jsonw_start_array(json_wtr);	/* map_ids */
-	hash_for_each_possible(btf_map_table->table, obj, hash,
-			       info->id) {
-		if (obj->btf_id == info->id)
-			jsonw_uint(json_wtr, obj->obj_id);
+	hashmap__for_each_key_entry(btf_map_table, entry,
+				    u32_as_hash_field(info->id)) {
+		jsonw_uint(json_wtr, hash_field_as_u32(entry->value));
 	}
 	jsonw_end_array(json_wtr);	/* map_ids */
 
-	emit_obj_refs_json(&refs_table, info->id, json_wtr); /* pids */
+	emit_obj_refs_json(refs_table, info->id, json_wtr); /* pids */
 
 	jsonw_bool_field(json_wtr, "kernel", info->kernel_btf);
 
@@ -862,8 +840,8 @@ show_btf_json(struct bpf_btf_info *info, int fd,
 }
 
 static int
-show_btf(int fd, struct btf_attach_table *btf_prog_table,
-	 struct btf_attach_table *btf_map_table)
+show_btf(int fd, struct hashmap *btf_prog_table,
+	 struct hashmap *btf_map_table)
 {
 	struct bpf_btf_info info;
 	__u32 len = sizeof(info);
@@ -900,8 +878,8 @@ show_btf(int fd, struct btf_attach_table *btf_prog_table,
 
 static int do_show(int argc, char **argv)
 {
-	struct btf_attach_table btf_prog_table;
-	struct btf_attach_table btf_map_table;
+	struct hashmap *btf_prog_table;
+	struct hashmap *btf_map_table;
 	int err, fd = -1;
 	__u32 id = 0;
 
@@ -917,9 +895,19 @@ static int do_show(int argc, char **argv)
 		return BAD_ARG();
 	}
 
-	hash_init(btf_prog_table.table);
-	hash_init(btf_map_table.table);
-	err = build_btf_tables(&btf_prog_table, &btf_map_table);
+	btf_prog_table = hashmap__new(hash_fn_for_key_as_id,
+				      equal_fn_for_key_as_id, NULL);
+	btf_map_table = hashmap__new(hash_fn_for_key_as_id,
+				     equal_fn_for_key_as_id, NULL);
+	if (!btf_prog_table || !btf_map_table) {
+		hashmap__free(btf_prog_table);
+		hashmap__free(btf_map_table);
+		if (fd >= 0)
+			close(fd);
+		p_err("failed to create hashmap for object references");
+		return -1;
+	}
+	err = build_btf_tables(btf_prog_table, btf_map_table);
 	if (err) {
 		if (fd >= 0)
 			close(fd);
@@ -928,7 +916,7 @@ static int do_show(int argc, char **argv)
 	build_obj_refs_table(&refs_table, BPF_OBJ_BTF);
 
 	if (fd >= 0) {
-		err = show_btf(fd, &btf_prog_table, &btf_map_table);
+		err = show_btf(fd, btf_prog_table, btf_map_table);
 		close(fd);
 		goto exit_free;
 	}
@@ -960,7 +948,7 @@ static int do_show(int argc, char **argv)
 			break;
 		}
 
-		err = show_btf(fd, &btf_prog_table, &btf_map_table);
+		err = show_btf(fd, btf_prog_table, btf_map_table);
 		close(fd);
 		if (err)
 			break;
@@ -970,9 +958,9 @@ static int do_show(int argc, char **argv)
 		jsonw_end_array(json_wtr);	/* root array */
 
 exit_free:
-	delete_btf_table(&btf_prog_table);
-	delete_btf_table(&btf_map_table);
-	delete_obj_refs_table(&refs_table);
+	hashmap__free(btf_prog_table);
+	hashmap__free(btf_map_table);
+	delete_obj_refs_table(refs_table);
 
 	return err;
 }

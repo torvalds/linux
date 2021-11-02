@@ -6,6 +6,30 @@
 static int *pfd_array;
 static int cpu_cnt;
 
+static bool is_hypervisor(void)
+{
+	char *line = NULL;
+	bool ret = false;
+	size_t len;
+	FILE *fp;
+
+	fp = fopen("/proc/cpuinfo", "r");
+	if (!fp)
+		return false;
+
+	while (getline(&line, &len, fp) != -1) {
+		if (!strncmp(line, "flags", 5)) {
+			if (strstr(line, "hypervisor") != NULL)
+				ret = true;
+			break;
+		}
+	}
+
+	free(line);
+	fclose(fp);
+	return ret;
+}
+
 static int create_perf_events(void)
 {
 	struct perf_event_attr attr = {0};
@@ -49,10 +73,16 @@ static void close_perf_events(void)
 	free(pfd_array);
 }
 
-void test_get_branch_snapshot(void)
+void serial_test_get_branch_snapshot(void)
 {
 	struct get_branch_snapshot *skel = NULL;
 	int err;
+
+	/* Skip the test before we fix LBR snapshot for hypervisor. */
+	if (is_hypervisor()) {
+		test__skip();
+		return;
+	}
 
 	if (create_perf_events()) {
 		test__skip();  /* system doesn't support LBR */
@@ -67,9 +97,10 @@ void test_get_branch_snapshot(void)
 	if (!ASSERT_OK(err, "kallsyms_find"))
 		goto cleanup;
 
-	err = kallsyms_find_next("bpf_testmod_loop_test", &skel->bss->address_high);
-	if (!ASSERT_OK(err, "kallsyms_find_next"))
-		goto cleanup;
+	/* Just a guess for the end of this function, as module functions
+	 * in /proc/kallsyms could come in any order.
+	 */
+	skel->bss->address_high = skel->bss->address_low + 128;
 
 	err = get_branch_snapshot__attach(skel);
 	if (!ASSERT_OK(err, "get_branch_snapshot__attach"))
