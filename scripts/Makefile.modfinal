@@ -12,6 +12,8 @@ include $(srctree)/scripts/Kbuild.include
 # for c_flags and mod-prelink-ext
 include $(srctree)/scripts/Makefile.lib
 
+mixed-build-prefix = $(if $(KBUILD_MIXED_TREE),$(KBUILD_MIXED_TREE)/)
+
 # find all modules listed in modules.order
 modules := $(sort $(shell cat $(MODORDER)))
 
@@ -39,10 +41,10 @@ quiet_cmd_ld_ko_o = LD [M]  $@
 
 quiet_cmd_btf_ko = BTF [M] $@
       cmd_btf_ko = 							\
-	if [ -f vmlinux ]; then						\
-		LLVM_OBJCOPY="$(OBJCOPY)" $(PAHOLE) -J --btf_base vmlinux $@; \
+	if [ -f $(mixed-build-prefix)vmlinux ]; then						\
+		LLVM_OBJCOPY="$(OBJCOPY)" $(PAHOLE) -J --btf_base $(mixed-build-prefix)vmlinux $@; \
 	else								\
-		printf "Skipping BTF generation for %s due to unavailability of vmlinux\n" $@ 1>&2; \
+		printf "Skipping BTF generation for %s due to unavailability of $(mixed-build-prefix)vmlinux\n" $@ 1>&2; \
 	fi;
 
 # Same as newer-prereqs, but allows to exclude specified extra dependencies
@@ -55,8 +57,8 @@ if_changed_except = $(if $(call newer_prereqs_except,$(2))$(cmd-check),      \
 
 
 # Re-generate module BTFs if either module's .ko or vmlinux changed
-$(modules): %.ko: %$(mod-prelink-ext).o %.mod.o scripts/module.lds $(if $(KBUILD_BUILTIN),vmlinux) FORCE
-	+$(call if_changed_except,ld_ko_o,vmlinux)
+$(modules): %.ko: %$(mod-prelink-ext).o %.mod.o scripts/module.lds $(if $(KBUILD_BUILTIN),$(mixed-build-prefix)vmlinux) FORCE
+	+$(call if_changed_except,ld_ko_o,$(mixed-build-prefix)vmlinux)
 ifdef CONFIG_DEBUG_INFO_BTF_MODULES
 	+$(if $(newer-prereqs),$(call cmd,btf_ko))
 endif
