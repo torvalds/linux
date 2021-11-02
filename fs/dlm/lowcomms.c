@@ -1775,7 +1775,7 @@ static int dlm_listen_for_all(void)
 	result = sock_create_kern(&init_net, dlm_local_addr[0]->ss_family,
 				  SOCK_STREAM, dlm_proto_ops->proto, &sock);
 	if (result < 0) {
-		log_print("Can't create comms socket, check SCTP is loaded");
+		log_print("Can't create comms socket: %d", result);
 		goto out;
 	}
 
