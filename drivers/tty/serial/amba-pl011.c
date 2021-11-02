@@ -188,38 +188,6 @@ static struct vendor_data vendor_st = {
 	.get_fifosize		= get_fifosize_st,
 };
 
-static const u16 pl011_zte_offsets[REG_ARRAY_SIZE] = {
-	[REG_DR] = ZX_UART011_DR,
-	[REG_FR] = ZX_UART011_FR,
-	[REG_LCRH_RX] = ZX_UART011_LCRH,
-	[REG_LCRH_TX] = ZX_UART011_LCRH,
-	[REG_IBRD] = ZX_UART011_IBRD,
-	[REG_FBRD] = ZX_UART011_FBRD,
-	[REG_CR] = ZX_UART011_CR,
-	[REG_IFLS] = ZX_UART011_IFLS,
-	[REG_IMSC] = ZX_UART011_IMSC,
-	[REG_RIS] = ZX_UART011_RIS,
-	[REG_MIS] = ZX_UART011_MIS,
-	[REG_ICR] = ZX_UART011_ICR,
-	[REG_DMACR] = ZX_UART011_DMACR,
-};
-
-static unsigned int get_fifosize_zte(struct amba_device *dev)
-{
-	return 16;
-}
-
-static struct vendor_data vendor_zte = {
-	.reg_offset		= pl011_zte_offsets,
-	.access_32b		= true,
-	.ifls			= UART011_IFLS_RX4_8|UART011_IFLS_TX4_8,
-	.fr_busy		= ZX_UART01x_FR_BUSY,
-	.fr_dsr			= ZX_UART01x_FR_DSR,
-	.fr_cts			= ZX_UART01x_FR_CTS,
-	.fr_ri			= ZX_UART011_FR_RI,
-	.get_fifosize		= get_fifosize_zte,
-};
-
 /* Deals with DMA transactions */
 
 struct pl011_sgbuf {
@@ -2973,11 +2941,6 @@ static const struct amba_id pl011_ids[] = {
 		.id	= 0x00380802,
 		.mask	= 0x00ffffff,
 		.data	= &vendor_st,
-	},
-	{
-		.id	= AMBA_LINUX_ID(0x00, 0x1, 0xffe),
-		.mask	= 0x00ffffff,
-		.data	= &vendor_zte,
 	},
 	{ 0, 0 },
 };
