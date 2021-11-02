@@ -1408,9 +1408,7 @@ iomap_do_writepage(struct page *page, struct writeback_control *wbc, void *data)
 {
 	struct iomap_writepage_ctx *wpc = data;
 	struct inode *inode = page->mapping->host;
-	pgoff_t end_index;
-	u64 end_offset;
-	loff_t offset;
+	u64 end_pos, isize;
 
 	trace_iomap_writepage(inode, page_offset(page), PAGE_SIZE);
 
@@ -1441,11 +1439,9 @@ iomap_do_writepage(struct page *page, struct writeback_control *wbc, void *data)
 	 * |     desired writeback range    |      see else    |
 	 * ---------------------------------^------------------|
 	 */
-	offset = i_size_read(inode);
-	end_index = offset >> PAGE_SHIFT;
-	if (page->index < end_index)
-		end_offset = (loff_t)(page->index + 1) << PAGE_SHIFT;
-	else {
+	isize = i_size_read(inode);
+	end_pos = page_offset(page) + PAGE_SIZE;
+	if (end_pos > isize) {
 		/*
 		 * Check whether the page to write out is beyond or straddles
 		 * i_size or not.
@@ -1457,7 +1453,8 @@ iomap_do_writepage(struct page *page, struct writeback_control *wbc, void *data)
 		 * |				    |      Straddles     |
 		 * ---------------------------------^-----------|--------|
 		 */
-		unsigned offset_into_page = offset & (PAGE_SIZE - 1);
+		size_t poff = offset_in_page(isize);
+		pgoff_t end_index = isize >> PAGE_SHIFT;
 
 		/*
 		 * Skip the page if it's fully outside i_size, e.g. due to a
@@ -1477,7 +1474,7 @@ iomap_do_writepage(struct page *page, struct writeback_control *wbc, void *data)
 		 * offset is just equal to the EOF.
 		 */
 		if (page->index > end_index ||
-		    (page->index == end_index && offset_into_page == 0))
+		    (page->index == end_index && poff == 0))
 			goto redirty;
 
 		/*
@@ -1488,13 +1485,13 @@ iomap_do_writepage(struct page *page, struct writeback_control *wbc, void *data)
 		 * memory is zeroed when mapped, and writes to that region are
 		 * not written out to the file."
 		 */
-		zero_user_segment(page, offset_into_page, PAGE_SIZE);
+		zero_user_segment(page, poff, PAGE_SIZE);
 
 		/* Adjust the end_offset to the end of file */
-		end_offset = offset;
+		end_pos = isize;
 	}
 
-	return iomap_writepage_map(wpc, wbc, inode, page, end_offset);
+	return iomap_writepage_map(wpc, wbc, inode, page, end_pos);
 
 redirty:
 	redirty_page_for_writepage(wbc, page);
