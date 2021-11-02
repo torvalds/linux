@@ -1180,7 +1180,8 @@ static void detach_lkb(struct dlm_lkb *lkb)
 	}
 }
 
-static int create_lkb(struct dlm_ls *ls, struct dlm_lkb **lkb_ret)
+static int _create_lkb(struct dlm_ls *ls, struct dlm_lkb **lkb_ret,
+		       int start, int end)
 {
 	struct dlm_lkb *lkb;
 	int rv;
@@ -1201,7 +1202,7 @@ static int create_lkb(struct dlm_ls *ls, struct dlm_lkb **lkb_ret)
 
 	idr_preload(GFP_NOFS);
 	spin_lock(&ls->ls_lkbidr_spin);
-	rv = idr_alloc(&ls->ls_lkbidr, lkb, 1, 0, GFP_NOWAIT);
+	rv = idr_alloc(&ls->ls_lkbidr, lkb, start, end, GFP_NOWAIT);
 	if (rv >= 0)
 		lkb->lkb_id = rv;
 	spin_unlock(&ls->ls_lkbidr_spin);
@@ -1215,6 +1216,11 @@ static int create_lkb(struct dlm_ls *ls, struct dlm_lkb **lkb_ret)
 
 	*lkb_ret = lkb;
 	return 0;
+}
+
+static int create_lkb(struct dlm_ls *ls, struct dlm_lkb **lkb_ret)
+{
+	return _create_lkb(ls, lkb_ret, 1, 0);
 }
 
 static int find_lkb(struct dlm_ls *ls, uint32_t lkid, struct dlm_lkb **lkb_ret)
