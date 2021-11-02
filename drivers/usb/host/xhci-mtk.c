@@ -437,11 +437,8 @@ static int xhci_mtk_setup(struct usb_hcd *hcd)
 	if (ret)
 		return ret;
 
-	if (usb_hcd_is_primary_hcd(hcd)) {
+	if (usb_hcd_is_primary_hcd(hcd))
 		ret = xhci_mtk_sch_init(mtk);
-		if (ret)
-			return ret;
-	}
 
 	return ret;
 }
