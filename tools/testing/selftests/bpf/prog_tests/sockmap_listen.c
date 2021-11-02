@@ -949,7 +949,6 @@ static void redir_to_connected(int family, int sotype, int sock_mapfd,
 	int err, n;
 	u32 key;
 	char b;
-	int retries = 100;
 
 	zero_verdict_count(verd_mapfd);
 
@@ -1002,17 +1001,11 @@ static void redir_to_connected(int family, int sotype, int sock_mapfd,
 		goto close_peer1;
 	if (pass != 1)
 		FAIL("%s: want pass count 1, have %d", log_prefix, pass);
-again:
-	n = read(c0, &b, 1);
-	if (n < 0) {
-		if (errno == EAGAIN && retries--) {
-			usleep(1000);
-			goto again;
-		}
-		FAIL_ERRNO("%s: read", log_prefix);
-	}
+	n = recv_timeout(c0, &b, 1, 0, IO_TIMEOUT_SEC);
+	if (n < 0)
+		FAIL_ERRNO("%s: recv_timeout", log_prefix);
 	if (n == 0)
-		FAIL("%s: incomplete read", log_prefix);
+		FAIL("%s: incomplete recv", log_prefix);
 
 close_peer1:
 	xclose(p1);
@@ -1571,7 +1564,6 @@ static void unix_redir_to_connected(int sotype, int sock_mapfd,
 	const char *log_prefix = redir_mode_str(mode);
 	int c0, c1, p0, p1;
 	unsigned int pass;
-	int retries = 100;
 	int err, n;
 	int sfd[2];
 	u32 key;
@@ -1606,17 +1598,11 @@ static void unix_redir_to_connected(int sotype, int sock_mapfd,
 	if (pass != 1)
 		FAIL("%s: want pass count 1, have %d", log_prefix, pass);
 
-again:
-	n = read(mode == REDIR_INGRESS ? p0 : c0, &b, 1);
-	if (n < 0) {
-		if (errno == EAGAIN && retries--) {
-			usleep(1000);
-			goto again;
-		}
-		FAIL_ERRNO("%s: read", log_prefix);
-	}
+	n = recv_timeout(mode == REDIR_INGRESS ? p0 : c0, &b, 1, 0, IO_TIMEOUT_SEC);
+	if (n < 0)
+		FAIL_ERRNO("%s: recv_timeout", log_prefix);
 	if (n == 0)
-		FAIL("%s: incomplete read", log_prefix);
+		FAIL("%s: incomplete recv", log_prefix);
 
 close:
 	xclose(c1);
@@ -1748,7 +1734,6 @@ static void udp_redir_to_connected(int family, int sock_mapfd, int verd_mapfd,
 	const char *log_prefix = redir_mode_str(mode);
 	int c0, c1, p0, p1;
 	unsigned int pass;
-	int retries = 100;
 	int err, n;
 	u32 key;
 	char b;
@@ -1781,17 +1766,11 @@ static void udp_redir_to_connected(int family, int sock_mapfd, int verd_mapfd,
 	if (pass != 1)
 		FAIL("%s: want pass count 1, have %d", log_prefix, pass);
 
-again:
-	n = read(mode == REDIR_INGRESS ? p0 : c0, &b, 1);
-	if (n < 0) {
-		if (errno == EAGAIN && retries--) {
-			usleep(1000);
-			goto again;
-		}
-		FAIL_ERRNO("%s: read", log_prefix);
-	}
+	n = recv_timeout(mode == REDIR_INGRESS ? p0 : c0, &b, 1, 0, IO_TIMEOUT_SEC);
+	if (n < 0)
+		FAIL_ERRNO("%s: recv_timeout", log_prefix);
 	if (n == 0)
-		FAIL("%s: incomplete read", log_prefix);
+		FAIL("%s: incomplete recv", log_prefix);
 
 close_cli1:
 	xclose(c1);
@@ -1841,7 +1820,6 @@ static void inet_unix_redir_to_connected(int family, int type, int sock_mapfd,
 	const char *log_prefix = redir_mode_str(mode);
 	int c0, c1, p0, p1;
 	unsigned int pass;
-	int retries = 100;
 	int err, n;
 	int sfd[2];
 	u32 key;
@@ -1876,17 +1854,11 @@ static void inet_unix_redir_to_connected(int family, int type, int sock_mapfd,
 	if (pass != 1)
 		FAIL("%s: want pass count 1, have %d", log_prefix, pass);
 
-again:
-	n = read(mode == REDIR_INGRESS ? p0 : c0, &b, 1);
-	if (n < 0) {
-		if (errno == EAGAIN && retries--) {
-			usleep(1000);
-			goto again;
-		}
-		FAIL_ERRNO("%s: read", log_prefix);
-	}
+	n = recv_timeout(mode == REDIR_INGRESS ? p0 : c0, &b, 1, 0, IO_TIMEOUT_SEC);
+	if (n < 0)
+		FAIL_ERRNO("%s: recv_timeout", log_prefix);
 	if (n == 0)
-		FAIL("%s: incomplete read", log_prefix);
+		FAIL("%s: incomplete recv", log_prefix);
 
 close_cli1:
 	xclose(c1);
@@ -1932,7 +1904,6 @@ static void unix_inet_redir_to_connected(int family, int type, int sock_mapfd,
 	int sfd[2];
 	u32 key;
 	char b;
-	int retries = 100;
 
 	zero_verdict_count(verd_mapfd);
 
@@ -1963,17 +1934,11 @@ static void unix_inet_redir_to_connected(int family, int type, int sock_mapfd,
 	if (pass != 1)
 		FAIL("%s: want pass count 1, have %d", log_prefix, pass);
 
-again:
-	n = read(mode == REDIR_INGRESS ? p0 : c0, &b, 1);
-	if (n < 0) {
-		if (errno == EAGAIN && retries--) {
-			usleep(1000);
-			goto again;
-		}
-		FAIL_ERRNO("%s: read", log_prefix);
-	}
+	n = recv_timeout(mode == REDIR_INGRESS ? p0 : c0, &b, 1, 0, IO_TIMEOUT_SEC);
+	if (n < 0)
+		FAIL_ERRNO("%s: recv_timeout", log_prefix);
 	if (n == 0)
-		FAIL("%s: incomplete read", log_prefix);
+		FAIL("%s: incomplete recv", log_prefix);
 
 close:
 	xclose(c1);

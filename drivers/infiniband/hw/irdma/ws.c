@@ -330,8 +330,10 @@ enum irdma_status_code irdma_ws_add(struct irdma_sc_vsi *vsi, u8 user_pri)
 
 		tc_node->enable = true;
 		ret = irdma_ws_cqp_cmd(vsi, tc_node, IRDMA_OP_WS_MODIFY_NODE);
-		if (ret)
+		if (ret) {
+			vsi->unregister_qset(vsi, tc_node);
 			goto reg_err;
+		}
 	}
 	ibdev_dbg(to_ibdev(vsi->dev),
 		  "WS: Using node %d which represents VSI %d TC %d\n",
@@ -350,6 +352,10 @@ enum irdma_status_code irdma_ws_add(struct irdma_sc_vsi *vsi, u8 user_pri)
 	}
 	goto exit;
 
+reg_err:
+	irdma_ws_cqp_cmd(vsi, tc_node, IRDMA_OP_WS_DELETE_NODE);
+	list_del(&tc_node->siblings);
+	irdma_free_node(vsi, tc_node);
 leaf_add_err:
 	if (list_empty(&vsi_node->child_list_head)) {
 		if (irdma_ws_cqp_cmd(vsi, vsi_node, IRDMA_OP_WS_DELETE_NODE))
@@ -368,11 +374,6 @@ vsi_add_err:
 
 exit:
 	mutex_unlock(&vsi->dev->ws_mutex);
-	return ret;
-
-reg_err:
-	mutex_unlock(&vsi->dev->ws_mutex);
-	irdma_ws_remove(vsi, user_pri);
 	return ret;
 }
 
