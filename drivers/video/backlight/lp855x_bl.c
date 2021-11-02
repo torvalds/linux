@@ -5,6 +5,7 @@
  *			Copyright (C) 2011 Texas Instruments
  */
 
+#include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
@@ -330,17 +331,13 @@ static int lp855x_parse_dt(struct lp855x *lp)
 {
 	struct device *dev = lp->dev;
 	struct device_node *node = dev->of_node;
-	struct lp855x_platform_data *pdata;
+	struct lp855x_platform_data *pdata = lp->pdata;
 	int rom_length;
 
 	if (!node) {
 		dev_err(dev, "no platform data\n");
 		return -EINVAL;
 	}
-
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata)
-		return -ENOMEM;
 
 	of_property_read_string(node, "bl-name", &pdata->name);
 	of_property_read_u8(node, "dev-ctrl", &pdata->device_control);
@@ -368,8 +365,6 @@ static int lp855x_parse_dt(struct lp855x *lp)
 		pdata->rom_data = &rom[0];
 	}
 
-	lp->pdata = pdata;
-
 	return 0;
 }
 #else
@@ -379,8 +374,32 @@ static int lp855x_parse_dt(struct lp855x *lp)
 }
 #endif
 
+static int lp855x_parse_acpi(struct lp855x *lp)
+{
+	int ret;
+
+	/*
+	 * On ACPI the device has already been initialized by the firmware
+	 * and is in register mode, so we can read back the settings from
+	 * the registers.
+	 */
+	ret = i2c_smbus_read_byte_data(lp->client, lp->cfg->reg_brightness);
+	if (ret < 0)
+		return ret;
+
+	lp->pdata->initial_brightness = ret;
+
+	ret = i2c_smbus_read_byte_data(lp->client, lp->cfg->reg_devicectrl);
+	if (ret < 0)
+		return ret;
+
+	lp->pdata->device_control = ret;
+	return 0;
+}
+
 static int lp855x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 {
+	const struct acpi_device_id *acpi_id = NULL;
 	struct device *dev = &cl->dev;
 	struct lp855x *lp;
 	int ret;
@@ -394,9 +413,19 @@ static int lp855x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 
 	lp->client = cl;
 	lp->dev = dev;
-	lp->chipname = id->name;
-	lp->chip_id = id->driver_data;
 	lp->pdata = dev_get_platdata(dev);
+
+	if (id) {
+		lp->chipname = id->name;
+		lp->chip_id = id->driver_data;
+	} else {
+		acpi_id = acpi_match_device(dev->driver->acpi_match_table, dev);
+		if (!acpi_id)
+			return -ENODEV;
+
+		lp->chipname = acpi_id->id;
+		lp->chip_id = acpi_id->driver_data;
+	}
 
 	switch (lp->chip_id) {
 	case LP8550:
@@ -415,9 +444,19 @@ static int lp855x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 	}
 
 	if (!lp->pdata) {
-		ret = lp855x_parse_dt(lp);
-		if (ret < 0)
-			return ret;
+		lp->pdata = devm_kzalloc(dev, sizeof(*lp->pdata), GFP_KERNEL);
+		if (!lp->pdata)
+			return -ENOMEM;
+
+		if (id) {
+			ret = lp855x_parse_dt(lp);
+			if (ret < 0)
+				return ret;
+		} else {
+			ret = lp855x_parse_acpi(lp);
+			if (ret < 0)
+				return ret;
+		}
 	}
 
 	if (lp->pdata->period_ns > 0)
@@ -537,10 +576,20 @@ static const struct i2c_device_id lp855x_ids[] = {
 };
 MODULE_DEVICE_TABLE(i2c, lp855x_ids);
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id lp855x_acpi_match[] = {
+	/* Xiaomi specific HID used for the LP8556 on the Mi Pad 2 */
+	{ "XMCC0001", LP8556 },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, lp855x_acpi_match);
+#endif
+
 static struct i2c_driver lp855x_driver = {
 	.driver = {
 		   .name = "lp855x",
 		   .of_match_table = of_match_ptr(lp855x_dt_ids),
+		   .acpi_match_table = ACPI_PTR(lp855x_acpi_match),
 		   },
 	.probe = lp855x_probe,
 	.remove = lp855x_remove,
