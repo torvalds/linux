@@ -750,7 +750,7 @@ static ssize_t lpss_ltr_show(struct device *dev, struct device_attribute *attr,
 	if (ret)
 		return ret;
 
-	return snprintf(buf, PAGE_SIZE, "%08x\n", ltr_value);
+	return sysfs_emit(buf, "%08x\n", ltr_value);
 }
 
 static ssize_t lpss_ltr_mode_show(struct device *dev,
