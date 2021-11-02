@@ -27,8 +27,6 @@
 		power-supply = <&bl_fixed_reg>;
 		enable-gpios = <&pio 95 GPIO_ACTIVE_HIGH>;
 
-		pinctrl-names = "default";
-		pinctrl-0 = <&disp_pwm0_pins>;
 		status = "okay";
 	};
 
@@ -901,6 +899,8 @@
 };
 
 &pwm0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&disp_pwm0_pins>;
 	status = "okay";
 };
 
