@@ -36,6 +36,7 @@
 #include <asm/mmu_context.h>
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
+#include <asm/set_memory.h>
 #include <asm/system_info.h>
 
 #include <asm/mach/map.h>
@@ -399,6 +400,11 @@ __arm_ioremap_exec(phys_addr_t phys_addr, size_t size, bool cached)
 
 	return __arm_ioremap_caller(phys_addr, size, mtype,
 			__builtin_return_address(0));
+}
+
+void __arm_iomem_set_ro(void __iomem *ptr, size_t size)
+{
+	set_memory_ro((unsigned long)ptr, PAGE_ALIGN(size) / PAGE_SIZE);
 }
 
 void *arch_memremap_wb(phys_addr_t phys_addr, size_t size)

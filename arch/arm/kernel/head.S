@@ -424,8 +424,9 @@ ENDPROC(secondary_startup)
 ENDPROC(secondary_startup_arm)
 
 ENTRY(__secondary_switched)
-	ldr_l	r7, secondary_data + 12		@ get secondary_data.stack
-	mov	sp, r7
+	adr_l	r7, secondary_data + 12		@ get secondary_data.stack
+	ldr	sp, [r7]
+	ldr	r0, [r7, #4]			@ get secondary_data.task
 	mov	fp, #0
 	b	secondary_start_kernel
 ENDPROC(__secondary_switched)
