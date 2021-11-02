@@ -40,14 +40,16 @@ struct p9_trans_module {
 	int maxsize;		/* max message size of transport */
 	int def;		/* this transport should be default */
 	struct module *owner;
-	int (*create)(struct p9_client *, const char *, char *);
-	void (*close) (struct p9_client *);
-	int (*request) (struct p9_client *, struct p9_req_t *req);
-	int (*cancel) (struct p9_client *, struct p9_req_t *req);
-	int (*cancelled)(struct p9_client *, struct p9_req_t *req);
-	int (*zc_request)(struct p9_client *, struct p9_req_t *,
-			  struct iov_iter *, struct iov_iter *, int , int, int);
-	int (*show_options)(struct seq_file *, struct p9_client *);
+	int (*create)(struct p9_client *client,
+		      const char *devname, char *args);
+	void (*close)(struct p9_client *client);
+	int (*request)(struct p9_client *client, struct p9_req_t *req);
+	int (*cancel)(struct p9_client *client, struct p9_req_t *req);
+	int (*cancelled)(struct p9_client *client, struct p9_req_t *req);
+	int (*zc_request)(struct p9_client *client, struct p9_req_t *req,
+			  struct iov_iter *uidata, struct iov_iter *uodata,
+			  int inlen, int outlen, int in_hdr_len);
+	int (*show_options)(struct seq_file *m, struct p9_client *client);
 };
 
 void v9fs_register_trans(struct p9_trans_module *m);

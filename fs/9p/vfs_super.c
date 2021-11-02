@@ -112,7 +112,7 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 	struct inode *inode = NULL;
 	struct dentry *root = NULL;
 	struct v9fs_session_info *v9ses = NULL;
-	umode_t mode = S_IRWXUGO | S_ISVTX;
+	umode_t mode = 0777 | S_ISVTX;
 	struct p9_fid *fid;
 	int retval = 0;
 
@@ -156,6 +156,7 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 	sb->s_root = root;
 	if (v9fs_proto_dotl(v9ses)) {
 		struct p9_stat_dotl *st = NULL;
+
 		st = p9_client_getattr_dotl(fid, P9_STATS_BASIC);
 		if (IS_ERR(st)) {
 			retval = PTR_ERR(st);
@@ -166,6 +167,7 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 		kfree(st);
 	} else {
 		struct p9_wstat *st = NULL;
+
 		st = p9_client_stat(fid);
 		if (IS_ERR(st)) {
 			retval = PTR_ERR(st);
@@ -274,12 +276,13 @@ done:
 static int v9fs_drop_inode(struct inode *inode)
 {
 	struct v9fs_session_info *v9ses;
+
 	v9ses = v9fs_inode2v9ses(inode);
 	if (v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE)
 		return generic_drop_inode(inode);
 	/*
 	 * in case of non cached mode always drop the
-	 * the inode because we want the inode attribute
+	 * inode because we want the inode attribute
 	 * to always match that on the server.
 	 */
 	return 1;

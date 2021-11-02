@@ -14,13 +14,14 @@ extern const struct xattr_handler *v9fs_xattr_handlers[];
 extern const struct xattr_handler v9fs_xattr_acl_access_handler;
 extern const struct xattr_handler v9fs_xattr_acl_default_handler;
 
-extern ssize_t v9fs_fid_xattr_get(struct p9_fid *, const char *,
-				  void *, size_t);
-extern ssize_t v9fs_xattr_get(struct dentry *, const char *,
-			      void *, size_t);
-extern int v9fs_fid_xattr_set(struct p9_fid *, const char *,
-			  const void *, size_t, int);
-extern int v9fs_xattr_set(struct dentry *, const char *,
-			  const void *, size_t, int);
-extern ssize_t v9fs_listxattr(struct dentry *, char *, size_t);
+ssize_t v9fs_fid_xattr_get(struct p9_fid *fid, const char *name,
+			   void *buffer, size_t buffer_size);
+ssize_t v9fs_xattr_get(struct dentry *dentry, const char *name,
+		       void *buffer, size_t buffer_size);
+int v9fs_fid_xattr_set(struct p9_fid *fid, const char *name,
+		       const void *value, size_t value_len, int flags);
+int v9fs_xattr_set(struct dentry *dentry, const char *name,
+		   const void *value, size_t value_len, int flags);
+ssize_t v9fs_listxattr(struct dentry *dentry, char *buffer,
+		       size_t buffer_size);
 #endif /* FS_9P_XATTR_H */

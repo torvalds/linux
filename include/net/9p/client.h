@@ -21,7 +21,7 @@
  * @p9_proto_2000L: 9P2000.L extension
  */
 
-enum p9_proto_versions{
+enum p9_proto_versions {
 	p9_proto_legacy,
 	p9_proto_2000u,
 	p9_proto_2000L,
@@ -217,13 +217,13 @@ struct p9_stat_dotl *p9_client_getattr_dotl(struct p9_fid *fid,
 							u64 request_mask);
 
 int p9_client_mknod_dotl(struct p9_fid *oldfid, const char *name, int mode,
-			dev_t rdev, kgid_t gid, struct p9_qid *);
+			dev_t rdev, kgid_t gid, struct p9_qid *qid);
 int p9_client_mkdir_dotl(struct p9_fid *fid, const char *name, int mode,
-				kgid_t gid, struct p9_qid *);
+				kgid_t gid, struct p9_qid *qid);
 int p9_client_lock_dotl(struct p9_fid *fid, struct p9_flock *flock, u8 *status);
 int p9_client_getlock_dotl(struct p9_fid *fid, struct p9_getlock *fl);
 void p9_fcall_fini(struct p9_fcall *fc);
-struct p9_req_t *p9_tag_lookup(struct p9_client *, u16);
+struct p9_req_t *p9_tag_lookup(struct p9_client *c, u16 tag);
 
 static inline void p9_req_get(struct p9_req_t *r)
 {
@@ -239,14 +239,18 @@ int p9_req_put(struct p9_req_t *r);
 
 void p9_client_cb(struct p9_client *c, struct p9_req_t *req, int status);
 
-int p9_parse_header(struct p9_fcall *, int32_t *, int8_t *, int16_t *, int);
-int p9stat_read(struct p9_client *, char *, int, struct p9_wstat *);
-void p9stat_free(struct p9_wstat *);
+int p9_parse_header(struct p9_fcall *pdu, int32_t *size, int8_t *type,
+		    int16_t *tag, int rewind);
+int p9stat_read(struct p9_client *clnt, char *buf, int len,
+		struct p9_wstat *st);
+void p9stat_free(struct p9_wstat *stbuf);
 
 int p9_is_proto_dotu(struct p9_client *clnt);
 int p9_is_proto_dotl(struct p9_client *clnt);
-struct p9_fid *p9_client_xattrwalk(struct p9_fid *, const char *, u64 *);
-int p9_client_xattrcreate(struct p9_fid *, const char *, u64, int);
+struct p9_fid *p9_client_xattrwalk(struct p9_fid *file_fid,
+				   const char *attr_name, u64 *attr_size);
+int p9_client_xattrcreate(struct p9_fid *fid, const char *name,
+			  u64 attr_size, int flags);
 int p9_client_readlink(struct p9_fid *fid, char **target);
 
 int p9_client_init(void);
