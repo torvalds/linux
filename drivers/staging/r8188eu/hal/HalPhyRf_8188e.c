@@ -626,13 +626,11 @@ _PHY_ReloadMACRegisters(
 	)
 {
 	u32 i;
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
-	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
 
 	for (i = 0; i < (IQK_MAC_REG_NUM - 1); i++)
 		rtw_write8(adapt, MACReg[i], (u8)MACBackup[i]);
 
-	ODM_Write4Byte(dm_odm, MACReg[i], MACBackup[i]);
+	rtw_write32(adapt, MACReg[i], MACBackup[i]);
 }
 
 void

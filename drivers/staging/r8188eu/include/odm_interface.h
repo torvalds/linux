@@ -19,8 +19,6 @@ typedef void (*RT_WORKITEM_CALL_BACK)(void *pContext);
 
 /*  =========== EXtern Function Prototype */
 
-void ODM_Write4Byte(struct odm_dm_struct *pDM_Odm, u32 RegAddr, u32 Data);
-
 void ODM_SetMACReg(struct odm_dm_struct *pDM_Odm, u32 RegAddr,
 		   u32 BitMask, u32 Data);
 
