@@ -33,17 +33,6 @@
 #define SMB302_VERSION_STRING	"3.02"
 #define SMB311_VERSION_STRING	"3.1.1"
 
-/* Dialects */
-#define SMB10_PROT_ID		0x00
-#define SMB20_PROT_ID		0x0202
-#define SMB21_PROT_ID		0x0210
-/* multi-protocol negotiate request */
-#define SMB2X_PROT_ID		0x02FF
-#define SMB30_PROT_ID		0x0300
-#define SMB302_PROT_ID		0x0302
-#define SMB311_PROT_ID		0x0311
-#define BAD_PROT_ID		0xFFFF
-
 #define SMB_ECHO_INTERVAL	(60 * HZ)
 
 #define CIFS_DEFAULT_IOSIZE	(64 * 1024)
