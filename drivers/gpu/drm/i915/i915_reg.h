@@ -731,6 +731,9 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 
 #define GEN12_OA_TLB_INV_CR _MMIO(0xceec)
 
+#define GEN12_SQCM		_MMIO(0x8724)
+#define   EN_32B_ACCESS		REG_BIT(30)
+
 /* Gen12 OAR unit */
 #define GEN12_OAR_OACONTROL _MMIO(0x2960)
 #define  GEN12_OAR_OACONTROL_COUNTER_FORMAT_SHIFT 1
@@ -8504,6 +8507,12 @@ enum {
 #define  GEN8_LQSC_RO_PERF_DIS			(1 << 27)
 #define  GEN8_LQSC_FLUSH_COHERENT_LINES		(1 << 21)
 #define  GEN8_LQSQ_NONIA_COHERENT_ATOMICS_ENABLE REG_BIT(22)
+
+#define GEN11_L3SQCREG5				_MMIO(0xb158)
+#define   L3_PWM_TIMER_INIT_VAL_MASK		REG_GENMASK(9, 0)
+
+#define XEHP_L3SCQREG7				_MMIO(0xb188)
+#define   BLEND_FILL_CACHING_OPT_DIS		REG_BIT(3)
 
 /* GEN8 chicken */
 #define HDC_CHICKEN0				_MMIO(0x7300)

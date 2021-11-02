@@ -560,6 +560,22 @@ static void icl_ctx_workarounds_init(struct intel_engine_cs *engine,
 
 /*
  * These settings aren't actually workarounds, but general tuning settings that
+ * need to be programmed on dg2 platform.
+ */
+static void dg2_ctx_gt_tuning_init(struct intel_engine_cs *engine,
+				   struct i915_wa_list *wal)
+{
+	wa_write_clr_set(wal, GEN11_L3SQCREG5, L3_PWM_TIMER_INIT_VAL_MASK,
+			 REG_FIELD_PREP(L3_PWM_TIMER_INIT_VAL_MASK, 0x7f));
+	wa_add(wal,
+	       FF_MODE2,
+	       FF_MODE2_TDS_TIMER_MASK,
+	       FF_MODE2_TDS_TIMER_128,
+	       0, false);
+}
+
+/*
+ * These settings aren't actually workarounds, but general tuning settings that
  * need to be programmed on several platforms.
  */
 static void gen12_ctx_gt_tuning_init(struct intel_engine_cs *engine,
@@ -647,7 +663,7 @@ static void dg1_ctx_workarounds_init(struct intel_engine_cs *engine,
 static void dg2_ctx_workarounds_init(struct intel_engine_cs *engine,
 				     struct i915_wa_list *wal)
 {
-	gen12_ctx_gt_tuning_init(engine, wal);
+	dg2_ctx_gt_tuning_init(engine, wal);
 
 	/* Wa_16011186671:dg2_g11 */
 	if (IS_DG2_GRAPHICS_STEP(engine->i915, G11, STEP_A0, STEP_B0)) {
@@ -1482,6 +1498,14 @@ dg2_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 
 	/* Wa_14014830051:dg2 */
 	wa_write_clr(wal, SARB_CHICKEN1, COMP_CKN_IN);
+
+	/*
+	 * The following are not actually "workarounds" but rather
+	 * recommended tuning settings documented in the bspec's
+	 * performance guide section.
+	 */
+	wa_write_or(wal, XEHP_L3SCQREG7, BLEND_FILL_CACHING_OPT_DIS);
+	wa_write_or(wal, GEN12_SQCM, EN_32B_ACCESS);
 }
 
 static void
