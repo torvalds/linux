@@ -754,10 +754,35 @@ static ssize_t waiters_read(struct file *file, char __user *userbuf,
 	return rv;
 }
 
+static ssize_t waiters_write(struct file *file, const char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	struct dlm_ls *ls = file->private_data;
+	int mstype, to_nodeid;
+	char buf[128] = {};
+	uint32_t lkb_id;
+	int n, error;
+
+	if (copy_from_user(buf, user_buf,
+			   min_t(size_t, sizeof(buf) - 1, count)))
+		return -EFAULT;
+
+	n = sscanf(buf, "%x %d %d", &lkb_id, &mstype, &to_nodeid);
+	if (n != 3)
+		return -EINVAL;
+
+	error = dlm_debug_add_lkb_to_waiters(ls, lkb_id, mstype, to_nodeid);
+	if (error)
+		return error;
+
+	return count;
+}
+
 static const struct file_operations waiters_fops = {
 	.owner   = THIS_MODULE,
 	.open    = simple_open,
 	.read    = waiters_read,
+	.write   = waiters_write,
 	.llseek  = default_llseek,
 };
 
@@ -907,7 +932,7 @@ void dlm_create_debug_file(struct dlm_ls *ls)
 	snprintf(name, DLM_LOCKSPACE_LEN + 8, "%s_waiters", ls->ls_name);
 
 	ls->ls_debug_waiters_dentry = debugfs_create_file(name,
-							  S_IFREG | S_IRUGO,
+							  0644,
 							  dlm_root,
 							  ls,
 							  &waiters_fops);

@@ -6363,3 +6363,18 @@ int dlm_debug_add_lkb(struct dlm_ls *ls, uint32_t lkb_id, char *name, int len,
 	return 0;
 }
 
+int dlm_debug_add_lkb_to_waiters(struct dlm_ls *ls, uint32_t lkb_id,
+				 int mstype, int to_nodeid)
+{
+	struct dlm_lkb *lkb;
+	int error;
+
+	error = find_lkb(ls, lkb_id, &lkb);
+	if (error)
+		return error;
+
+	error = add_to_waiters(lkb, mstype, to_nodeid);
+	dlm_put_lkb(lkb);
+	return error;
+}
+
