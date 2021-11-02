@@ -570,7 +570,6 @@ struct acpi_bus_type {
 	bool (*match)(struct device *dev);
 	struct acpi_device * (*find_companion)(struct device *);
 	void (*setup)(struct device *);
-	void (*cleanup)(struct device *);
 };
 int register_acpi_bus_type(struct acpi_bus_type *);
 int unregister_acpi_bus_type(struct acpi_bus_type *);
