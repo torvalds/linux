@@ -67,6 +67,55 @@ void ttm_resource_free(struct ttm_buffer_object *bo, struct ttm_resource **res)
 }
 EXPORT_SYMBOL(ttm_resource_free);
 
+static bool ttm_resource_places_compat(struct ttm_resource *res,
+				       const struct ttm_place *places,
+				       unsigned num_placement)
+{
+	unsigned i;
+
+	if (res->placement & TTM_PL_FLAG_TEMPORARY)
+		return false;
+
+	for (i = 0; i < num_placement; i++) {
+		const struct ttm_place *heap = &places[i];
+
+		if (res->start < heap->fpfn || (heap->lpfn &&
+		    (res->start + res->num_pages) > heap->lpfn))
+			continue;
+
+		if ((res->mem_type == heap->mem_type) &&
+		    (!(heap->flags & TTM_PL_FLAG_CONTIGUOUS) ||
+		     (res->placement & TTM_PL_FLAG_CONTIGUOUS)))
+			return true;
+	}
+	return false;
+}
+
+/**
+ * ttm_resource_compat - check if resource is compatible with placement
+ *
+ * @res: the resource to check
+ * @placement: the placement to check against
+ *
+ * Returns true if the placement is compatible.
+ */
+bool ttm_resource_compat(struct ttm_resource *res,
+			 struct ttm_placement *placement)
+{
+	if (ttm_resource_places_compat(res, placement->placement,
+				       placement->num_placement))
+		return true;
+
+	if ((placement->busy_placement != placement->placement ||
+	     placement->num_busy_placement > placement->num_placement) &&
+	    ttm_resource_places_compat(res, placement->busy_placement,
+				       placement->num_busy_placement))
+		return true;
+
+	return false;
+}
+EXPORT_SYMBOL(ttm_resource_compat);
+
 /**
  * ttm_resource_manager_init
  *

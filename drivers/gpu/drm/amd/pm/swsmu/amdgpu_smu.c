@@ -455,7 +455,11 @@ static int smu_get_power_num_states(void *handle,
 
 bool is_support_sw_smu(struct amdgpu_device *adev)
 {
-	if (adev->asic_type >= CHIP_ARCTURUS)
+	/* vega20 is 11.0.2, but it's supported via the powerplay code */
+	if (adev->asic_type == CHIP_VEGA20)
+		return false;
+
+	if (adev->ip_versions[MP1_HWIP][0] >= IP_VERSION(11, 0, 0))
 		return true;
 
 	return false;
@@ -575,40 +579,42 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 	if (adev->pm.pp_feature & PP_OVERDRIVE_MASK)
 		smu->od_enabled = true;
 
-	switch (adev->asic_type) {
-	case CHIP_NAVI10:
-	case CHIP_NAVI14:
-	case CHIP_NAVI12:
+	switch (adev->ip_versions[MP1_HWIP][0]) {
+	case IP_VERSION(11, 0, 0):
+	case IP_VERSION(11, 0, 5):
+	case IP_VERSION(11, 0, 9):
 		navi10_set_ppt_funcs(smu);
 		break;
-	case CHIP_ARCTURUS:
+	case IP_VERSION(11, 0, 7):
+	case IP_VERSION(11, 0, 11):
+	case IP_VERSION(11, 0, 12):
+	case IP_VERSION(11, 0, 13):
+		sienna_cichlid_set_ppt_funcs(smu);
+		break;
+	case IP_VERSION(12, 0, 0):
+	case IP_VERSION(12, 0, 1):
+		renoir_set_ppt_funcs(smu);
+		break;
+	case IP_VERSION(11, 5, 0):
+		vangogh_set_ppt_funcs(smu);
+		break;
+	case IP_VERSION(13, 0, 1):
+	case IP_VERSION(13, 0, 3):
+		yellow_carp_set_ppt_funcs(smu);
+		break;
+	case IP_VERSION(11, 0, 8):
+		cyan_skillfish_set_ppt_funcs(smu);
+		break;
+	case IP_VERSION(11, 0, 2):
 		adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
 		arcturus_set_ppt_funcs(smu);
 		/* OD is not supported on Arcturus */
 		smu->od_enabled =false;
 		break;
-	case CHIP_SIENNA_CICHLID:
-	case CHIP_NAVY_FLOUNDER:
-	case CHIP_DIMGREY_CAVEFISH:
-	case CHIP_BEIGE_GOBY:
-		sienna_cichlid_set_ppt_funcs(smu);
-		break;
-	case CHIP_ALDEBARAN:
+	case IP_VERSION(13, 0, 2):
 		aldebaran_set_ppt_funcs(smu);
 		/* Enable pp_od_clk_voltage node */
 		smu->od_enabled = true;
-		break;
-	case CHIP_RENOIR:
-		renoir_set_ppt_funcs(smu);
-		break;
-	case CHIP_VANGOGH:
-		vangogh_set_ppt_funcs(smu);
-		break;
-	case CHIP_YELLOW_CARP:
-		yellow_carp_set_ppt_funcs(smu);
-		break;
-	case CHIP_CYAN_SKILLFISH:
-		cyan_skillfish_set_ppt_funcs(smu);
 		break;
 	default:
 		return -EINVAL;
@@ -694,7 +700,8 @@ static int smu_late_init(void *handle)
 		return ret;
 	}
 
-	if (adev->asic_type == CHIP_YELLOW_CARP)
+	if ((adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 1)) ||
+	    (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 3)))
 		return 0;
 
 	if (!amdgpu_sriov_vf(adev) || smu->od_enabled) {
@@ -1140,9 +1147,16 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 	if (adev->in_suspend && smu_is_dpm_running(smu)) {
 		dev_info(adev->dev, "dpm has been enabled\n");
 		/* this is needed specifically */
-		if ((adev->asic_type >= CHIP_SIENNA_CICHLID) &&
-		    (adev->asic_type <= CHIP_DIMGREY_CAVEFISH))
+		switch (adev->ip_versions[MP1_HWIP][0]) {
+		case IP_VERSION(11, 0, 7):
+		case IP_VERSION(11, 0, 11):
+		case IP_VERSION(11, 5, 0):
+		case IP_VERSION(11, 0, 12):
 			ret = smu_system_features_control(smu, true);
+			break;
+		default:
+			break;
+		}
 		return ret;
 	}
 
@@ -1284,7 +1298,7 @@ static int smu_start_smc_engine(struct smu_context *smu)
 	int ret = 0;
 
 	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
-		if (adev->asic_type < CHIP_NAVI10) {
+		if (adev->ip_versions[MP1_HWIP][0] < IP_VERSION(11, 0, 0)) {
 			if (smu->ppt_funcs->load_microcode) {
 				ret = smu->ppt_funcs->load_microcode(smu);
 				if (ret)
@@ -1402,23 +1416,41 @@ static int smu_disable_dpms(struct smu_context *smu)
 	 *   - SMU firmware can handle the DPM reenablement
 	 *     properly.
 	 */
-	if (smu->uploading_custom_pp_table &&
-	    (adev->asic_type >= CHIP_NAVI10) &&
-	    (adev->asic_type <= CHIP_BEIGE_GOBY))
-		return smu_disable_all_features_with_exception(smu,
-							       true,
-							       SMU_FEATURE_COUNT);
+	if (smu->uploading_custom_pp_table) {
+		switch (adev->ip_versions[MP1_HWIP][0]) {
+		case IP_VERSION(11, 0, 0):
+		case IP_VERSION(11, 0, 5):
+		case IP_VERSION(11, 0, 9):
+		case IP_VERSION(11, 0, 7):
+		case IP_VERSION(11, 0, 11):
+		case IP_VERSION(11, 5, 0):
+		case IP_VERSION(11, 0, 12):
+		case IP_VERSION(11, 0, 13):
+			return smu_disable_all_features_with_exception(smu,
+								       true,
+								       SMU_FEATURE_COUNT);
+		default:
+			break;
+		}
+	}
 
 	/*
 	 * For Sienna_Cichlid, PMFW will handle the features disablement properly
 	 * on BACO in. Driver involvement is unnecessary.
 	 */
-	if (((adev->asic_type == CHIP_SIENNA_CICHLID) ||
-	     ((adev->asic_type >= CHIP_NAVI10) && (adev->asic_type <= CHIP_NAVI12))) &&
-	     use_baco)
-		return smu_disable_all_features_with_exception(smu,
-							       true,
-							       SMU_FEATURE_BACO_BIT);
+	if (use_baco) {
+		switch (adev->ip_versions[MP1_HWIP][0]) {
+		case IP_VERSION(11, 0, 7):
+		case IP_VERSION(11, 0, 0):
+		case IP_VERSION(11, 0, 5):
+		case IP_VERSION(11, 0, 9):
+			return smu_disable_all_features_with_exception(smu,
+								       true,
+								       SMU_FEATURE_BACO_BIT);
+		default:
+			break;
+		}
+	}
 
 	/*
 	 * For gpu reset, runpm and hibernation through BACO,
@@ -1436,7 +1468,7 @@ static int smu_disable_dpms(struct smu_context *smu)
 			dev_err(adev->dev, "Failed to disable smu features.\n");
 	}
 
-	if (adev->asic_type >= CHIP_NAVI10 &&
+	if (adev->ip_versions[MP1_HWIP][0] >= IP_VERSION(11, 0, 0) &&
 	    adev->gfx.rlc.funcs->stop)
 		adev->gfx.rlc.funcs->stop(adev);
 
@@ -2229,6 +2261,7 @@ int smu_get_power_limit(void *handle,
 			enum pp_power_type pp_power_type)
 {
 	struct smu_context *smu = handle;
+	struct amdgpu_device *adev = smu->adev;
 	enum smu_ppt_limit_level limit_level;
 	uint32_t limit_type;
 	int ret = 0;
@@ -2272,15 +2305,20 @@ int smu_get_power_limit(void *handle,
 	} else {
 		switch (limit_level) {
 		case SMU_PPT_LIMIT_CURRENT:
-			if ((smu->adev->asic_type == CHIP_ALDEBARAN) ||
-			     (smu->adev->asic_type == CHIP_SIENNA_CICHLID) ||
-			     (smu->adev->asic_type == CHIP_NAVY_FLOUNDER) ||
-			     (smu->adev->asic_type == CHIP_DIMGREY_CAVEFISH) ||
-			     (smu->adev->asic_type == CHIP_BEIGE_GOBY))
+			switch (adev->ip_versions[MP1_HWIP][0]) {
+			case IP_VERSION(13, 0, 2):
+			case IP_VERSION(11, 0, 7):
+			case IP_VERSION(11, 0, 11):
+			case IP_VERSION(11, 0, 12):
+			case IP_VERSION(11, 0, 13):
 				ret = smu_get_asic_power_limits(smu,
 								&smu->current_power_limit,
 								NULL,
 								NULL);
+				break;
+			default:
+				break;
+			}
 			*limit = smu->current_power_limit;
 			break;
 		case SMU_PPT_LIMIT_DEFAULT:
@@ -2310,9 +2348,10 @@ static int smu_set_power_limit(void *handle, uint32_t limit)
 
 	mutex_lock(&smu->mutex);
 
+	limit &= (1<<24)-1;
 	if (limit_type != SMU_DEFAULT_PPT_LIMIT)
 		if (smu->ppt_funcs->set_power_limit) {
-			ret = smu->ppt_funcs->set_power_limit(smu, limit);
+			ret = smu->ppt_funcs->set_power_limit(smu, limit_type, limit);
 			goto out;
 		}
 
@@ -2328,7 +2367,7 @@ static int smu_set_power_limit(void *handle, uint32_t limit)
 		limit = smu->current_power_limit;
 
 	if (smu->ppt_funcs->set_power_limit) {
-		ret = smu->ppt_funcs->set_power_limit(smu, limit);
+		ret = smu->ppt_funcs->set_power_limit(smu, limit_type, limit);
 		if (!ret && !(smu->user_dpm_profile.flags & SMU_DPM_USER_PROFILE_RESTORE))
 			smu->user_dpm_profile.power_limit = limit;
 	}

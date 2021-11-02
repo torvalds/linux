@@ -112,6 +112,13 @@ struct msm_gpu_devfreq {
 	 * it is inactive.
 	 */
 	unsigned long idle_freq;
+
+	/**
+	 * idle_work:
+	 *
+	 * Used to delay clamping to idle freq on active->idle transition.
+	 */
+	struct msm_hrtimer_work idle_work;
 };
 
 struct msm_gpu {

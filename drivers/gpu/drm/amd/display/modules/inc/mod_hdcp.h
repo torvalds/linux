@@ -249,6 +249,8 @@ struct mod_hdcp_link {
 	uint8_t ddc_line;
 	uint8_t link_enc_idx;
 	uint8_t phy_idx;
+	uint8_t dio_output_type;
+	uint8_t dio_output_id;
 	uint8_t hdcp_supported_informational;
 	union {
 		struct mod_hdcp_displayport dp;

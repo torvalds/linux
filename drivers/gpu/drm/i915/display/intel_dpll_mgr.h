@@ -256,16 +256,6 @@ struct intel_shared_dpll_state {
  */
 struct intel_shared_dpll_funcs {
 	/**
-	 * @prepare:
-	 *
-	 * Optional hook to perform operations prior to enabling the PLL.
-	 * Called from intel_prepare_shared_dpll() function unless the PLL
-	 * is already enabled.
-	 */
-	void (*prepare)(struct drm_i915_private *dev_priv,
-			struct intel_shared_dpll *pll);
-
-	/**
 	 * @enable:
 	 *
 	 * Hook for enabling the pll, called from intel_enable_shared_dpll()
@@ -404,7 +394,6 @@ int intel_dpll_get_freq(struct drm_i915_private *i915,
 bool intel_dpll_get_hw_state(struct drm_i915_private *i915,
 			     struct intel_shared_dpll *pll,
 			     struct intel_dpll_hw_state *hw_state);
-void intel_prepare_shared_dpll(const struct intel_crtc_state *crtc_state);
 void intel_enable_shared_dpll(const struct intel_crtc_state *crtc_state);
 void intel_disable_shared_dpll(const struct intel_crtc_state *crtc_state);
 void intel_shared_dpll_swap_state(struct intel_atomic_state *state);

@@ -285,3 +285,49 @@ void intel_acpi_device_id_update(struct drm_i915_private *dev_priv)
 	}
 	drm_connector_list_iter_end(&conn_iter);
 }
+
+/* NOTE: The connector order must be final before this is called. */
+void intel_acpi_assign_connector_fwnodes(struct drm_i915_private *i915)
+{
+	struct drm_connector_list_iter conn_iter;
+	struct drm_device *drm_dev = &i915->drm;
+	struct fwnode_handle *fwnode = NULL;
+	struct drm_connector *connector;
+	struct acpi_device *adev;
+
+	drm_connector_list_iter_begin(drm_dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
+		/* Always getting the next, even when the last was not used. */
+		fwnode = device_get_next_child_node(drm_dev->dev, fwnode);
+		if (!fwnode)
+			break;
+
+		switch (connector->connector_type) {
+		case DRM_MODE_CONNECTOR_LVDS:
+		case DRM_MODE_CONNECTOR_eDP:
+		case DRM_MODE_CONNECTOR_DSI:
+			/*
+			 * Integrated displays have a specific address 0x1f on
+			 * most Intel platforms, but not on all of them.
+			 */
+			adev = acpi_find_child_device(ACPI_COMPANION(drm_dev->dev),
+						      0x1f, 0);
+			if (adev) {
+				connector->fwnode =
+					fwnode_handle_get(acpi_fwnode_handle(adev));
+				break;
+			}
+			fallthrough;
+		default:
+			connector->fwnode = fwnode_handle_get(fwnode);
+			break;
+		}
+	}
+	drm_connector_list_iter_end(&conn_iter);
+	/*
+	 * device_get_next_child_node() takes a reference on the fwnode, if
+	 * we stopped iterating because we are out of connectors we need to
+	 * put this, otherwise fwnode is NULL and the put is a no-op.
+	 */
+	fwnode_handle_put(fwnode);
+}

@@ -132,6 +132,8 @@ static inline int arch_phys_wc_index(int handle)
 #endif
 #endif
 
+int devm_arch_phys_wc_add(struct device *dev, unsigned long base, unsigned long size);
+
 enum {
 	/* See memremap() kernel-doc for usage description... */
 	MEMREMAP_WB = 1 << 0,
@@ -165,5 +167,8 @@ static inline void arch_io_free_memtype_wc(resource_size_t base,
 {
 }
 #endif
+
+int devm_arch_io_reserve_memtype_wc(struct device *dev, resource_size_t start,
+				    resource_size_t size);
 
 #endif /* _LINUX_IO_H */

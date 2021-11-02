@@ -28,7 +28,8 @@ struct drm_i915_gem_object *alloc_pt_lmem(struct i915_address_space *vm, int sz)
 	 * used the passed in size for the page size, which should ensure it
 	 * also has the same alignment.
 	 */
-	obj = __i915_gem_object_create_lmem_with_ps(vm->i915, sz, sz, 0);
+	obj = __i915_gem_object_create_lmem_with_ps(vm->i915, sz, sz,
+						    vm->lmem_pt_obj_flags);
 	/*
 	 * Ensure all paging structures for this vm share the same dma-resv
 	 * object underneath, with the idea that one object_lock() will lock
@@ -155,7 +156,7 @@ void i915_vm_resv_release(struct kref *kref)
 static void __i915_vm_release(struct work_struct *work)
 {
 	struct i915_address_space *vm =
-		container_of(work, struct i915_address_space, rcu.work);
+		container_of(work, struct i915_address_space, release_work);
 
 	vm->cleanup(vm);
 	i915_address_space_fini(vm);
@@ -171,7 +172,7 @@ void i915_vm_release(struct kref *kref)
 	GEM_BUG_ON(i915_is_ggtt(vm));
 	trace_i915_ppgtt_release(vm);
 
-	queue_rcu_work(vm->i915->wq, &vm->rcu);
+	queue_work(vm->i915->wq, &vm->release_work);
 }
 
 void i915_address_space_init(struct i915_address_space *vm, int subclass)
@@ -185,7 +186,7 @@ void i915_address_space_init(struct i915_address_space *vm, int subclass)
 	if (!kref_read(&vm->resv_ref))
 		kref_init(&vm->resv_ref);
 
-	INIT_RCU_WORK(&vm->rcu, __i915_vm_release);
+	INIT_WORK(&vm->release_work, __i915_vm_release);
 	atomic_set(&vm->open, 1);
 
 	/*

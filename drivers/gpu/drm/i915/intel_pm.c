@@ -47,8 +47,9 @@
 #include "i915_fixed.h"
 #include "i915_irq.h"
 #include "i915_trace.h"
+#include "intel_pcode.h"
 #include "intel_pm.h"
-#include "intel_sideband.h"
+#include "vlv_sideband.h"
 #include "../../../platform/x86/intel_ips.h"
 
 /* Stores plane specific WM parameters */
@@ -893,9 +894,8 @@ static struct intel_crtc *single_enabled_crtc(struct drm_i915_private *dev_priv)
 	return enabled;
 }
 
-static void pnv_update_wm(struct intel_crtc *unused_crtc)
+static void pnv_update_wm(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(unused_crtc->base.dev);
 	struct intel_crtc *crtc;
 	const struct cxsr_latency *latency;
 	u32 reg;
@@ -1164,17 +1164,13 @@ static u16 g4x_compute_wm(const struct intel_crtc_state *crtc_state,
 	cpp = plane_state->hw.fb->format->cpp[0];
 
 	/*
-	 * Not 100% sure which way ELK should go here as the
-	 * spec only says CL/CTG should assume 32bpp and BW
-	 * doesn't need to. But as these things followed the
-	 * mobile vs. desktop lines on gen3 as well, let's
-	 * assume ELK doesn't need this.
+	 * WaUse32BppForSRWM:ctg,elk
 	 *
-	 * The spec also fails to list such a restriction for
-	 * the HPLL watermark, which seems a little strange.
+	 * The spec fails to list this restriction for the
+	 * HPLL watermark, which seems a little strange.
 	 * Let's use 32bpp for the HPLL watermark as well.
 	 */
-	if (IS_GM45(dev_priv) && plane->id == PLANE_PRIMARY &&
+	if (plane->id == PLANE_PRIMARY &&
 	    level != G4X_WM_LEVEL_NORMAL)
 		cpp = max(cpp, 4u);
 
@@ -1388,8 +1384,7 @@ static int g4x_compute_pipe_wm(struct intel_atomic_state *state,
 	struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
 	struct g4x_wm_state *wm_state = &crtc_state->wm.g4x.optimal;
-	int num_active_planes = hweight8(crtc_state->active_planes &
-					 ~BIT(PLANE_CURSOR));
+	u8 active_planes = crtc_state->active_planes & ~BIT(PLANE_CURSOR);
 	const struct g4x_pipe_wm *raw;
 	const struct intel_plane_state *old_plane_state;
 	const struct intel_plane_state *new_plane_state;
@@ -1429,7 +1424,7 @@ static int g4x_compute_pipe_wm(struct intel_atomic_state *state,
 	wm_state->sr.cursor = raw->plane[PLANE_CURSOR];
 	wm_state->sr.fbc = raw->fbc;
 
-	wm_state->cxsr = num_active_planes == BIT(PLANE_PRIMARY);
+	wm_state->cxsr = active_planes == BIT(PLANE_PRIMARY);
 
 	level = G4X_WM_LEVEL_HPLL;
 	if (!g4x_raw_crtc_wm_is_valid(crtc_state, level))
@@ -1720,7 +1715,7 @@ static int vlv_compute_fifo(struct intel_crtc_state *crtc_state)
 	const struct g4x_pipe_wm *raw =
 		&crtc_state->wm.vlv.raw[VLV_WM_LEVEL_PM2];
 	struct vlv_fifo_state *fifo_state = &crtc_state->wm.vlv.fifo_state;
-	unsigned int active_planes = crtc_state->active_planes & ~BIT(PLANE_CURSOR);
+	u8 active_planes = crtc_state->active_planes & ~BIT(PLANE_CURSOR);
 	int num_active_planes = hweight8(active_planes);
 	const int fifo_size = 511;
 	int fifo_extra, fifo_left = fifo_size;
@@ -1912,8 +1907,8 @@ static int vlv_compute_pipe_wm(struct intel_atomic_state *state,
 	struct vlv_wm_state *wm_state = &crtc_state->wm.vlv.optimal;
 	const struct vlv_fifo_state *fifo_state =
 		&crtc_state->wm.vlv.fifo_state;
-	int num_active_planes = hweight8(crtc_state->active_planes &
-					 ~BIT(PLANE_CURSOR));
+	u8 active_planes = crtc_state->active_planes & ~BIT(PLANE_CURSOR);
+	int num_active_planes = hweight8(active_planes);
 	bool needs_modeset = drm_atomic_crtc_needs_modeset(&crtc_state->uapi);
 	const struct intel_plane_state *old_plane_state;
 	const struct intel_plane_state *new_plane_state;
@@ -2265,9 +2260,8 @@ static void vlv_optimize_watermarks(struct intel_atomic_state *state,
 	mutex_unlock(&dev_priv->wm.wm_mutex);
 }
 
-static void i965_update_wm(struct intel_crtc *unused_crtc)
+static void i965_update_wm(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(unused_crtc->base.dev);
 	struct intel_crtc *crtc;
 	int srwm = 1;
 	int cursor_sr = 16;
@@ -2341,9 +2335,8 @@ static void i965_update_wm(struct intel_crtc *unused_crtc)
 
 #undef FW_WM
 
-static void i9xx_update_wm(struct intel_crtc *unused_crtc)
+static void i9xx_update_wm(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(unused_crtc->base.dev);
 	const struct intel_watermark_params *wm_info;
 	u32 fwater_lo;
 	u32 fwater_hi;
@@ -2359,7 +2352,10 @@ static void i9xx_update_wm(struct intel_crtc *unused_crtc)
 	else
 		wm_info = &i830_a_wm_info;
 
-	fifo_size = dev_priv->display.get_fifo_size(dev_priv, PLANE_A);
+	if (DISPLAY_VER(dev_priv) == 2)
+		fifo_size = i830_get_fifo_size(dev_priv, PLANE_A);
+	else
+		fifo_size = i9xx_get_fifo_size(dev_priv, PLANE_A);
 	crtc = intel_get_crtc_for_plane(dev_priv, PLANE_A);
 	if (intel_crtc_active(crtc)) {
 		const struct drm_display_mode *pipe_mode =
@@ -2386,7 +2382,10 @@ static void i9xx_update_wm(struct intel_crtc *unused_crtc)
 	if (DISPLAY_VER(dev_priv) == 2)
 		wm_info = &i830_bc_wm_info;
 
-	fifo_size = dev_priv->display.get_fifo_size(dev_priv, PLANE_B);
+	if (DISPLAY_VER(dev_priv) == 2)
+		fifo_size = i830_get_fifo_size(dev_priv, PLANE_B);
+	else
+		fifo_size = i9xx_get_fifo_size(dev_priv, PLANE_B);
 	crtc = intel_get_crtc_for_plane(dev_priv, PLANE_B);
 	if (intel_crtc_active(crtc)) {
 		const struct drm_display_mode *pipe_mode =
@@ -2487,9 +2486,8 @@ static void i9xx_update_wm(struct intel_crtc *unused_crtc)
 		intel_set_memory_cxsr(dev_priv, true);
 }
 
-static void i845_update_wm(struct intel_crtc *unused_crtc)
+static void i845_update_wm(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(unused_crtc->base.dev);
 	struct intel_crtc *crtc;
 	const struct drm_display_mode *pipe_mode;
 	u32 fwater_lo;
@@ -2502,7 +2500,7 @@ static void i845_update_wm(struct intel_crtc *unused_crtc)
 	pipe_mode = &crtc->config->hw.pipe_mode;
 	planea_wm = intel_calculate_wm(pipe_mode->crtc_clock,
 				       &i845_wm_info,
-				       dev_priv->display.get_fifo_size(dev_priv, PLANE_A),
+				       i845_get_fifo_size(dev_priv, PLANE_A),
 				       4, pessimal_latency_ns);
 	fwater_lo = intel_uncore_read(&dev_priv->uncore, FW_BLC) & ~0xfff;
 	fwater_lo |= (3<<8) | planea_wm;
@@ -2871,6 +2869,7 @@ static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
 		u32 val;
 		int ret, i;
 		int level, max_level = ilk_wm_max_level(dev_priv);
+		int mult = IS_DG2(dev_priv) ? 2 : 1;
 
 		/* read the first set of memory latencies[0:3] */
 		val = 0; /* data0 to be programmed to 0 for first set */
@@ -2884,13 +2883,13 @@ static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
 			return;
 		}
 
-		wm[0] = val & GEN9_MEM_LATENCY_LEVEL_MASK;
-		wm[1] = (val >> GEN9_MEM_LATENCY_LEVEL_1_5_SHIFT) &
-				GEN9_MEM_LATENCY_LEVEL_MASK;
-		wm[2] = (val >> GEN9_MEM_LATENCY_LEVEL_2_6_SHIFT) &
-				GEN9_MEM_LATENCY_LEVEL_MASK;
-		wm[3] = (val >> GEN9_MEM_LATENCY_LEVEL_3_7_SHIFT) &
-				GEN9_MEM_LATENCY_LEVEL_MASK;
+		wm[0] = (val & GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
+		wm[1] = ((val >> GEN9_MEM_LATENCY_LEVEL_1_5_SHIFT) &
+				GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
+		wm[2] = ((val >> GEN9_MEM_LATENCY_LEVEL_2_6_SHIFT) &
+				GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
+		wm[3] = ((val >> GEN9_MEM_LATENCY_LEVEL_3_7_SHIFT) &
+				GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
 
 		/* read the second set of memory latencies[4:7] */
 		val = 1; /* data0 to be programmed to 1 for second set */
@@ -2903,13 +2902,13 @@ static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
 			return;
 		}
 
-		wm[4] = val & GEN9_MEM_LATENCY_LEVEL_MASK;
-		wm[5] = (val >> GEN9_MEM_LATENCY_LEVEL_1_5_SHIFT) &
-				GEN9_MEM_LATENCY_LEVEL_MASK;
-		wm[6] = (val >> GEN9_MEM_LATENCY_LEVEL_2_6_SHIFT) &
-				GEN9_MEM_LATENCY_LEVEL_MASK;
-		wm[7] = (val >> GEN9_MEM_LATENCY_LEVEL_3_7_SHIFT) &
-				GEN9_MEM_LATENCY_LEVEL_MASK;
+		wm[4] = (val & GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
+		wm[5] = ((val >> GEN9_MEM_LATENCY_LEVEL_1_5_SHIFT) &
+				GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
+		wm[6] = ((val >> GEN9_MEM_LATENCY_LEVEL_2_6_SHIFT) &
+				GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
+		wm[7] = ((val >> GEN9_MEM_LATENCY_LEVEL_3_7_SHIFT) &
+				GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
 
 		/*
 		 * If a level n (n > 1) has a 0us latency, all levels m (m >= n)
@@ -6844,7 +6843,8 @@ void g4x_wm_get_hw_state(struct drm_i915_private *dev_priv)
 		for_each_plane_id_on_crtc(crtc, plane_id)
 			raw->plane[plane_id] = active->wm.plane[plane_id];
 
-		if (++level > max_level)
+		level = G4X_WM_LEVEL_SR;
+		if (level > max_level)
 			goto out;
 
 		raw = &crtc_state->wm.g4x.raw[level];
@@ -6853,7 +6853,8 @@ void g4x_wm_get_hw_state(struct drm_i915_private *dev_priv)
 		raw->plane[PLANE_SPRITE0] = 0;
 		raw->fbc = active->sr.fbc;
 
-		if (++level > max_level)
+		level = G4X_WM_LEVEL_HPLL;
+		if (level > max_level)
 			goto out;
 
 		raw = &crtc_state->wm.g4x.raw[level];
@@ -6862,6 +6863,7 @@ void g4x_wm_get_hw_state(struct drm_i915_private *dev_priv)
 		raw->plane[PLANE_SPRITE0] = 0;
 		raw->fbc = active->hpll.fbc;
 
+		level++;
 	out:
 		for_each_plane_id_on_crtc(crtc, plane_id)
 			g4x_raw_plane_wm_set(crtc_state, level,
@@ -7139,47 +7141,6 @@ void ilk_wm_get_hw_state(struct drm_i915_private *dev_priv)
 
 	hw->enable_fbc_wm =
 		!(intel_uncore_read(&dev_priv->uncore, DISP_ARB_CTL) & DISP_FBC_WM_DIS);
-}
-
-/**
- * intel_update_watermarks - update FIFO watermark values based on current modes
- * @crtc: the #intel_crtc on which to compute the WM
- *
- * Calculate watermark values for the various WM regs based on current mode
- * and plane configuration.
- *
- * There are several cases to deal with here:
- *   - normal (i.e. non-self-refresh)
- *   - self-refresh (SR) mode
- *   - lines are large relative to FIFO size (buffer can hold up to 2)
- *   - lines are small relative to FIFO size (buffer can hold more than 2
- *     lines), so need to account for TLB latency
- *
- *   The normal calculation is:
- *     watermark = dotclock * bytes per pixel * latency
- *   where latency is platform & configuration dependent (we assume pessimal
- *   values here).
- *
- *   The SR calculation is:
- *     watermark = (trunc(latency/line time)+1) * surface width *
- *       bytes per pixel
- *   where
- *     line time = htotal / dotclock
- *     surface width = hdisplay for normal plane and 64 for cursor
- *   and latency is assumed to be high, as above.
- *
- * The final value programmed to the register should always be rounded up,
- * and include an extra 2 entries to account for clock crossings.
- *
- * We don't use the sprite, so we can ignore that.  And on Crestline we have
- * to set the non-SR watermarks to 8.
- */
-void intel_update_watermarks(struct intel_crtc *crtc)
-{
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-
-	if (dev_priv->display.update_wm)
-		dev_priv->display.update_wm(crtc);
 }
 
 void intel_enable_ipc(struct drm_i915_private *dev_priv)
@@ -7639,11 +7600,6 @@ static void bdw_init_clock_gating(struct drm_i915_private *dev_priv)
 		intel_uncore_write(&dev_priv->uncore, CHICKEN_PIPESL_1(pipe),
 			   intel_uncore_read(&dev_priv->uncore, CHICKEN_PIPESL_1(pipe)) |
 			   BDW_DPRS_MASK_VBLANK_SRD);
-
-		/* Undocumented but fixes async flip + VT-d corruption */
-		if (intel_vtd_active())
-			intel_uncore_rmw(&dev_priv->uncore, CHICKEN_PIPESL_1(pipe),
-					 HSW_PRI_STRETCH_MAX_MASK, HSW_PRI_STRETCH_MAX_X1);
 	}
 
 	/* WaVSRefCountFullforceMissDisable:bdw */
@@ -7679,19 +7635,10 @@ static void bdw_init_clock_gating(struct drm_i915_private *dev_priv)
 
 static void hsw_init_clock_gating(struct drm_i915_private *dev_priv)
 {
-	enum pipe pipe;
-
 	/* WaFbcAsynchFlipDisableFbcQueue:hsw,bdw */
 	intel_uncore_write(&dev_priv->uncore, CHICKEN_PIPESL_1(PIPE_A),
 		   intel_uncore_read(&dev_priv->uncore, CHICKEN_PIPESL_1(PIPE_A)) |
 		   HSW_FBCQ_DIS);
-
-	for_each_pipe(dev_priv, pipe) {
-		/* Undocumented but fixes async flip + VT-d corruption */
-		if (intel_vtd_active())
-			intel_uncore_rmw(&dev_priv->uncore, CHICKEN_PIPESL_1(pipe),
-					 HSW_PRI_STRETCH_MAX_MASK, HSW_PRI_STRETCH_MAX_X1);
-	}
 
 	/* This is required by WaCatErrorRejectionIssue:hsw */
 	intel_uncore_write(&dev_priv->uncore, GEN7_SQ_CHICKEN_MBCUNIT_CONFIG,
@@ -7921,7 +7868,7 @@ static void i830_init_clock_gating(struct drm_i915_private *dev_priv)
 
 void intel_init_clock_gating(struct drm_i915_private *dev_priv)
 {
-	dev_priv->display.init_clock_gating(dev_priv);
+	dev_priv->clock_gating_funcs->init_clock_gating(dev_priv);
 }
 
 void intel_suspend_hw(struct drm_i915_private *dev_priv)
@@ -7936,6 +7883,36 @@ static void nop_init_clock_gating(struct drm_i915_private *dev_priv)
 		    "No clock gating settings or workarounds applied.\n");
 }
 
+#define CG_FUNCS(platform)						\
+static const struct drm_i915_clock_gating_funcs platform##_clock_gating_funcs = { \
+	.init_clock_gating = platform##_init_clock_gating,		\
+}
+
+CG_FUNCS(adlp);
+CG_FUNCS(dg1);
+CG_FUNCS(gen12lp);
+CG_FUNCS(icl);
+CG_FUNCS(cfl);
+CG_FUNCS(skl);
+CG_FUNCS(kbl);
+CG_FUNCS(bxt);
+CG_FUNCS(glk);
+CG_FUNCS(bdw);
+CG_FUNCS(chv);
+CG_FUNCS(hsw);
+CG_FUNCS(ivb);
+CG_FUNCS(vlv);
+CG_FUNCS(gen6);
+CG_FUNCS(ilk);
+CG_FUNCS(g4x);
+CG_FUNCS(i965gm);
+CG_FUNCS(i965g);
+CG_FUNCS(gen3);
+CG_FUNCS(i85x);
+CG_FUNCS(i830);
+CG_FUNCS(nop);
+#undef CG_FUNCS
+
 /**
  * intel_init_clock_gating_hooks - setup the clock gating hooks
  * @dev_priv: device private
@@ -7948,54 +7925,99 @@ static void nop_init_clock_gating(struct drm_i915_private *dev_priv)
 void intel_init_clock_gating_hooks(struct drm_i915_private *dev_priv)
 {
 	if (IS_ALDERLAKE_P(dev_priv))
-		dev_priv->display.init_clock_gating = adlp_init_clock_gating;
+		dev_priv->clock_gating_funcs = &adlp_clock_gating_funcs;
 	else if (IS_DG1(dev_priv))
-		dev_priv->display.init_clock_gating = dg1_init_clock_gating;
+		dev_priv->clock_gating_funcs = &dg1_clock_gating_funcs;
 	else if (GRAPHICS_VER(dev_priv) == 12)
-		dev_priv->display.init_clock_gating = gen12lp_init_clock_gating;
+		dev_priv->clock_gating_funcs = &gen12lp_clock_gating_funcs;
 	else if (GRAPHICS_VER(dev_priv) == 11)
-		dev_priv->display.init_clock_gating = icl_init_clock_gating;
+		dev_priv->clock_gating_funcs = &icl_clock_gating_funcs;
 	else if (IS_COFFEELAKE(dev_priv) || IS_COMETLAKE(dev_priv))
-		dev_priv->display.init_clock_gating = cfl_init_clock_gating;
+		dev_priv->clock_gating_funcs = &cfl_clock_gating_funcs;
 	else if (IS_SKYLAKE(dev_priv))
-		dev_priv->display.init_clock_gating = skl_init_clock_gating;
+		dev_priv->clock_gating_funcs = &skl_clock_gating_funcs;
 	else if (IS_KABYLAKE(dev_priv))
-		dev_priv->display.init_clock_gating = kbl_init_clock_gating;
+		dev_priv->clock_gating_funcs = &kbl_clock_gating_funcs;
 	else if (IS_BROXTON(dev_priv))
-		dev_priv->display.init_clock_gating = bxt_init_clock_gating;
+		dev_priv->clock_gating_funcs = &bxt_clock_gating_funcs;
 	else if (IS_GEMINILAKE(dev_priv))
-		dev_priv->display.init_clock_gating = glk_init_clock_gating;
+		dev_priv->clock_gating_funcs = &glk_clock_gating_funcs;
 	else if (IS_BROADWELL(dev_priv))
-		dev_priv->display.init_clock_gating = bdw_init_clock_gating;
+		dev_priv->clock_gating_funcs = &bdw_clock_gating_funcs;
 	else if (IS_CHERRYVIEW(dev_priv))
-		dev_priv->display.init_clock_gating = chv_init_clock_gating;
+		dev_priv->clock_gating_funcs = &chv_clock_gating_funcs;
 	else if (IS_HASWELL(dev_priv))
-		dev_priv->display.init_clock_gating = hsw_init_clock_gating;
+		dev_priv->clock_gating_funcs = &hsw_clock_gating_funcs;
 	else if (IS_IVYBRIDGE(dev_priv))
-		dev_priv->display.init_clock_gating = ivb_init_clock_gating;
+		dev_priv->clock_gating_funcs = &ivb_clock_gating_funcs;
 	else if (IS_VALLEYVIEW(dev_priv))
-		dev_priv->display.init_clock_gating = vlv_init_clock_gating;
+		dev_priv->clock_gating_funcs = &vlv_clock_gating_funcs;
 	else if (GRAPHICS_VER(dev_priv) == 6)
-		dev_priv->display.init_clock_gating = gen6_init_clock_gating;
+		dev_priv->clock_gating_funcs = &gen6_clock_gating_funcs;
 	else if (GRAPHICS_VER(dev_priv) == 5)
-		dev_priv->display.init_clock_gating = ilk_init_clock_gating;
+		dev_priv->clock_gating_funcs = &ilk_clock_gating_funcs;
 	else if (IS_G4X(dev_priv))
-		dev_priv->display.init_clock_gating = g4x_init_clock_gating;
+		dev_priv->clock_gating_funcs = &g4x_clock_gating_funcs;
 	else if (IS_I965GM(dev_priv))
-		dev_priv->display.init_clock_gating = i965gm_init_clock_gating;
+		dev_priv->clock_gating_funcs = &i965gm_clock_gating_funcs;
 	else if (IS_I965G(dev_priv))
-		dev_priv->display.init_clock_gating = i965g_init_clock_gating;
+		dev_priv->clock_gating_funcs = &i965g_clock_gating_funcs;
 	else if (GRAPHICS_VER(dev_priv) == 3)
-		dev_priv->display.init_clock_gating = gen3_init_clock_gating;
+		dev_priv->clock_gating_funcs = &gen3_clock_gating_funcs;
 	else if (IS_I85X(dev_priv) || IS_I865G(dev_priv))
-		dev_priv->display.init_clock_gating = i85x_init_clock_gating;
+		dev_priv->clock_gating_funcs = &i85x_clock_gating_funcs;
 	else if (GRAPHICS_VER(dev_priv) == 2)
-		dev_priv->display.init_clock_gating = i830_init_clock_gating;
+		dev_priv->clock_gating_funcs = &i830_clock_gating_funcs;
 	else {
 		MISSING_CASE(INTEL_DEVID(dev_priv));
-		dev_priv->display.init_clock_gating = nop_init_clock_gating;
+		dev_priv->clock_gating_funcs = &nop_clock_gating_funcs;
 	}
 }
+
+static const struct drm_i915_wm_disp_funcs skl_wm_funcs = {
+	.compute_global_watermarks = skl_compute_wm,
+};
+
+static const struct drm_i915_wm_disp_funcs ilk_wm_funcs = {
+	.compute_pipe_wm = ilk_compute_pipe_wm,
+	.compute_intermediate_wm = ilk_compute_intermediate_wm,
+	.initial_watermarks = ilk_initial_watermarks,
+	.optimize_watermarks = ilk_optimize_watermarks,
+};
+
+static const struct drm_i915_wm_disp_funcs vlv_wm_funcs = {
+	.compute_pipe_wm = vlv_compute_pipe_wm,
+	.compute_intermediate_wm = vlv_compute_intermediate_wm,
+	.initial_watermarks = vlv_initial_watermarks,
+	.optimize_watermarks = vlv_optimize_watermarks,
+	.atomic_update_watermarks = vlv_atomic_update_fifo,
+};
+
+static const struct drm_i915_wm_disp_funcs g4x_wm_funcs = {
+	.compute_pipe_wm = g4x_compute_pipe_wm,
+	.compute_intermediate_wm = g4x_compute_intermediate_wm,
+	.initial_watermarks = g4x_initial_watermarks,
+	.optimize_watermarks = g4x_optimize_watermarks,
+};
+
+static const struct drm_i915_wm_disp_funcs pnv_wm_funcs = {
+	.update_wm = pnv_update_wm,
+};
+
+static const struct drm_i915_wm_disp_funcs i965_wm_funcs = {
+	.update_wm = i965_update_wm,
+};
+
+static const struct drm_i915_wm_disp_funcs i9xx_wm_funcs = {
+	.update_wm = i9xx_update_wm,
+};
+
+static const struct drm_i915_wm_disp_funcs i845_wm_funcs = {
+	.update_wm = i845_update_wm,
+};
+
+static const struct drm_i915_wm_disp_funcs nop_funcs = {
+};
 
 /* Set up chip specific power management-related functions */
 void intel_init_pm(struct drm_i915_private *dev_priv)
@@ -8012,7 +8034,7 @@ void intel_init_pm(struct drm_i915_private *dev_priv)
 	/* For FIFO watermark updates */
 	if (DISPLAY_VER(dev_priv) >= 9) {
 		skl_setup_wm_latency(dev_priv);
-		dev_priv->display.compute_global_watermarks = skl_compute_wm;
+		dev_priv->wm_disp = &skl_wm_funcs;
 	} else if (HAS_PCH_SPLIT(dev_priv)) {
 		ilk_setup_wm_latency(dev_priv);
 
@@ -8020,31 +8042,19 @@ void intel_init_pm(struct drm_i915_private *dev_priv)
 		     dev_priv->wm.spr_latency[1] && dev_priv->wm.cur_latency[1]) ||
 		    (DISPLAY_VER(dev_priv) != 5 && dev_priv->wm.pri_latency[0] &&
 		     dev_priv->wm.spr_latency[0] && dev_priv->wm.cur_latency[0])) {
-			dev_priv->display.compute_pipe_wm = ilk_compute_pipe_wm;
-			dev_priv->display.compute_intermediate_wm =
-				ilk_compute_intermediate_wm;
-			dev_priv->display.initial_watermarks =
-				ilk_initial_watermarks;
-			dev_priv->display.optimize_watermarks =
-				ilk_optimize_watermarks;
+			dev_priv->wm_disp = &ilk_wm_funcs;
 		} else {
 			drm_dbg_kms(&dev_priv->drm,
 				    "Failed to read display plane latency. "
 				    "Disable CxSR\n");
+			dev_priv->wm_disp = &nop_funcs;
 		}
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		vlv_setup_wm_latency(dev_priv);
-		dev_priv->display.compute_pipe_wm = vlv_compute_pipe_wm;
-		dev_priv->display.compute_intermediate_wm = vlv_compute_intermediate_wm;
-		dev_priv->display.initial_watermarks = vlv_initial_watermarks;
-		dev_priv->display.optimize_watermarks = vlv_optimize_watermarks;
-		dev_priv->display.atomic_update_watermarks = vlv_atomic_update_fifo;
+		dev_priv->wm_disp = &vlv_wm_funcs;
 	} else if (IS_G4X(dev_priv)) {
 		g4x_setup_wm_latency(dev_priv);
-		dev_priv->display.compute_pipe_wm = g4x_compute_pipe_wm;
-		dev_priv->display.compute_intermediate_wm = g4x_compute_intermediate_wm;
-		dev_priv->display.initial_watermarks = g4x_initial_watermarks;
-		dev_priv->display.optimize_watermarks = g4x_optimize_watermarks;
+		dev_priv->wm_disp = &g4x_wm_funcs;
 	} else if (IS_PINEVIEW(dev_priv)) {
 		if (!intel_get_cxsr_latency(!IS_MOBILE(dev_priv),
 					    dev_priv->is_ddr3,
@@ -8058,25 +8068,22 @@ void intel_init_pm(struct drm_i915_private *dev_priv)
 				 dev_priv->fsb_freq, dev_priv->mem_freq);
 			/* Disable CxSR and never update its watermark again */
 			intel_set_memory_cxsr(dev_priv, false);
-			dev_priv->display.update_wm = NULL;
+			dev_priv->wm_disp = &nop_funcs;
 		} else
-			dev_priv->display.update_wm = pnv_update_wm;
+			dev_priv->wm_disp = &pnv_wm_funcs;
 	} else if (DISPLAY_VER(dev_priv) == 4) {
-		dev_priv->display.update_wm = i965_update_wm;
+		dev_priv->wm_disp = &i965_wm_funcs;
 	} else if (DISPLAY_VER(dev_priv) == 3) {
-		dev_priv->display.update_wm = i9xx_update_wm;
-		dev_priv->display.get_fifo_size = i9xx_get_fifo_size;
+		dev_priv->wm_disp = &i9xx_wm_funcs;
 	} else if (DISPLAY_VER(dev_priv) == 2) {
-		if (INTEL_NUM_PIPES(dev_priv) == 1) {
-			dev_priv->display.update_wm = i845_update_wm;
-			dev_priv->display.get_fifo_size = i845_get_fifo_size;
-		} else {
-			dev_priv->display.update_wm = i9xx_update_wm;
-			dev_priv->display.get_fifo_size = i830_get_fifo_size;
-		}
+		if (INTEL_NUM_PIPES(dev_priv) == 1)
+			dev_priv->wm_disp = &i845_wm_funcs;
+		else
+			dev_priv->wm_disp = &i9xx_wm_funcs;
 	} else {
 		drm_err(&dev_priv->drm,
 			"unexpected fall-through in %s\n", __func__);
+		dev_priv->wm_disp = &nop_funcs;
 	}
 }
 

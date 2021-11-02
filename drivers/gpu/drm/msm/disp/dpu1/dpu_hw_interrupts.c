@@ -3,12 +3,15 @@
  */
 
 #include <linux/bitops.h>
+#include <linux/debugfs.h>
 #include <linux/slab.h>
 
+#include "dpu_core_irq.h"
 #include "dpu_kms.h"
 #include "dpu_hw_interrupts.h"
 #include "dpu_hw_util.h"
 #include "dpu_hw_mdss.h"
+#include "dpu_trace.h"
 
 /**
  * Register offsets in MDSS register file for the interrupt registers
@@ -117,25 +120,33 @@ static const struct dpu_intr_reg dpu_intr_set[] = {
 #define DPU_IRQ_REG(irq_idx)	(irq_idx / 32)
 #define DPU_IRQ_MASK(irq_idx)	(BIT(irq_idx % 32))
 
-static void dpu_hw_intr_clear_intr_status_nolock(struct dpu_hw_intr *intr,
-		int irq_idx)
+/**
+ * dpu_core_irq_callback_handler - dispatch core interrupts
+ * @arg:		private data of callback handler
+ * @irq_idx:		interrupt index
+ */
+static void dpu_core_irq_callback_handler(struct dpu_kms *dpu_kms, int irq_idx)
 {
-	int reg_idx;
+	struct dpu_irq_callback *cb;
 
-	if (!intr)
-		return;
+	VERB("irq_idx=%d\n", irq_idx);
 
-	reg_idx = DPU_IRQ_REG(irq_idx);
-	DPU_REG_WRITE(&intr->hw, dpu_intr_set[reg_idx].clr_off, DPU_IRQ_MASK(irq_idx));
+	if (list_empty(&dpu_kms->hw_intr->irq_cb_tbl[irq_idx]))
+		DRM_ERROR("no registered cb, idx:%d\n", irq_idx);
 
-	/* ensure register writes go through */
-	wmb();
+	atomic_inc(&dpu_kms->hw_intr->irq_counts[irq_idx]);
+
+	/*
+	 * Perform registered function callback
+	 */
+	list_for_each_entry(cb, &dpu_kms->hw_intr->irq_cb_tbl[irq_idx], list)
+		if (cb->func)
+			cb->func(cb->arg, irq_idx);
 }
 
-static void dpu_hw_intr_dispatch_irq(struct dpu_hw_intr *intr,
-		void (*cbfunc)(void *, int),
-		void *arg)
+irqreturn_t dpu_core_irq(struct dpu_kms *dpu_kms)
 {
+	struct dpu_hw_intr *intr = dpu_kms->hw_intr;
 	int reg_idx;
 	int irq_idx;
 	u32 irq_status;
@@ -144,13 +155,8 @@ static void dpu_hw_intr_dispatch_irq(struct dpu_hw_intr *intr,
 	unsigned long irq_flags;
 
 	if (!intr)
-		return;
+		return IRQ_NONE;
 
-	/*
-	 * The dispatcher will save the IRQ status before calling here.
-	 * Now need to go through each IRQ status and find matching
-	 * irq lookup index.
-	 */
 	spin_lock_irqsave(&intr->irq_lock, irq_flags);
 	for (reg_idx = 0; reg_idx < ARRAY_SIZE(dpu_intr_set); reg_idx++) {
 		if (!test_bit(reg_idx, &intr->irq_mask))
@@ -178,17 +184,8 @@ static void dpu_hw_intr_dispatch_irq(struct dpu_hw_intr *intr,
 		 */
 		while ((bit = ffs(irq_status)) != 0) {
 			irq_idx = DPU_IRQ_IDX(reg_idx, bit - 1);
-			/*
-			 * Once a match on irq mask, perform a callback
-			 * to the given cbfunc. cbfunc will take care
-			 * the interrupt status clearing. If cbfunc is
-			 * not provided, then the interrupt clearing
-			 * is here.
-			 */
-			if (cbfunc)
-				cbfunc(arg, irq_idx);
 
-			dpu_hw_intr_clear_intr_status_nolock(intr, irq_idx);
+			dpu_core_irq_callback_handler(dpu_kms, irq_idx);
 
 			/*
 			 * When callback finish, clear the irq_status
@@ -203,6 +200,8 @@ static void dpu_hw_intr_dispatch_irq(struct dpu_hw_intr *intr,
 	wmb();
 
 	spin_unlock_irqrestore(&intr->irq_lock, irq_flags);
+
+	return IRQ_HANDLED;
 }
 
 static int dpu_hw_intr_enable_irq_locked(struct dpu_hw_intr *intr, int irq_idx)
@@ -303,12 +302,13 @@ static int dpu_hw_intr_disable_irq_locked(struct dpu_hw_intr *intr, int irq_idx)
 	return 0;
 }
 
-static int dpu_hw_intr_clear_irqs(struct dpu_hw_intr *intr)
+static void dpu_clear_irqs(struct dpu_kms *dpu_kms)
 {
+	struct dpu_hw_intr *intr = dpu_kms->hw_intr;
 	int i;
 
 	if (!intr)
-		return -EINVAL;
+		return;
 
 	for (i = 0; i < ARRAY_SIZE(dpu_intr_set); i++) {
 		if (test_bit(i, &intr->irq_mask))
@@ -318,16 +318,15 @@ static int dpu_hw_intr_clear_irqs(struct dpu_hw_intr *intr)
 
 	/* ensure register writes go through */
 	wmb();
-
-	return 0;
 }
 
-static int dpu_hw_intr_disable_irqs(struct dpu_hw_intr *intr)
+static void dpu_disable_all_irqs(struct dpu_kms *dpu_kms)
 {
+	struct dpu_hw_intr *intr = dpu_kms->hw_intr;
 	int i;
 
 	if (!intr)
-		return -EINVAL;
+		return;
 
 	for (i = 0; i < ARRAY_SIZE(dpu_intr_set); i++) {
 		if (test_bit(i, &intr->irq_mask))
@@ -337,19 +336,23 @@ static int dpu_hw_intr_disable_irqs(struct dpu_hw_intr *intr)
 
 	/* ensure register writes go through */
 	wmb();
-
-	return 0;
 }
 
-static u32 dpu_hw_intr_get_interrupt_status(struct dpu_hw_intr *intr,
-		int irq_idx, bool clear)
+u32 dpu_core_irq_read(struct dpu_kms *dpu_kms, int irq_idx, bool clear)
 {
+	struct dpu_hw_intr *intr = dpu_kms->hw_intr;
 	int reg_idx;
 	unsigned long irq_flags;
 	u32 intr_status;
 
 	if (!intr)
 		return 0;
+
+	if (irq_idx < 0) {
+		DPU_ERROR("[%pS] invalid irq_idx=%d\n",
+				__builtin_return_address(0), irq_idx);
+		return 0;
+	}
 
 	if (irq_idx < 0 || irq_idx >= intr->total_irqs) {
 		pr_err("invalid IRQ index: [%d]\n", irq_idx);
@@ -374,32 +377,6 @@ static u32 dpu_hw_intr_get_interrupt_status(struct dpu_hw_intr *intr,
 	return intr_status;
 }
 
-static unsigned long dpu_hw_intr_lock(struct dpu_hw_intr *intr)
-{
-	unsigned long irq_flags;
-
-	spin_lock_irqsave(&intr->irq_lock, irq_flags);
-
-	return irq_flags;
-}
-
-static void dpu_hw_intr_unlock(struct dpu_hw_intr *intr, unsigned long irq_flags)
-{
-	spin_unlock_irqrestore(&intr->irq_lock, irq_flags);
-}
-
-static void __setup_intr_ops(struct dpu_hw_intr_ops *ops)
-{
-	ops->enable_irq_locked = dpu_hw_intr_enable_irq_locked;
-	ops->disable_irq_locked = dpu_hw_intr_disable_irq_locked;
-	ops->dispatch_irqs = dpu_hw_intr_dispatch_irq;
-	ops->clear_all_irqs = dpu_hw_intr_clear_irqs;
-	ops->disable_all_irqs = dpu_hw_intr_disable_irqs;
-	ops->get_interrupt_status = dpu_hw_intr_get_interrupt_status;
-	ops->lock = dpu_hw_intr_lock;
-	ops->unlock = dpu_hw_intr_unlock;
-}
-
 static void __intr_offset(struct dpu_mdss_cfg *m,
 		void __iomem *addr, struct dpu_hw_blk_reg_map *hw)
 {
@@ -421,7 +398,6 @@ struct dpu_hw_intr *dpu_hw_intr_init(void __iomem *addr,
 		return ERR_PTR(-ENOMEM);
 
 	__intr_offset(m, addr, &intr->hw);
-	__setup_intr_ops(&intr->ops);
 
 	intr->total_irqs = ARRAY_SIZE(dpu_intr_set) * 32;
 
@@ -443,7 +419,168 @@ void dpu_hw_intr_destroy(struct dpu_hw_intr *intr)
 {
 	if (intr) {
 		kfree(intr->cache_irq_mask);
+
+		kfree(intr->irq_cb_tbl);
+		kfree(intr->irq_counts);
+
 		kfree(intr);
 	}
 }
 
+int dpu_core_irq_register_callback(struct dpu_kms *dpu_kms, int irq_idx,
+		struct dpu_irq_callback *register_irq_cb)
+{
+	unsigned long irq_flags;
+
+	if (!dpu_kms->hw_intr->irq_cb_tbl) {
+		DPU_ERROR("invalid params\n");
+		return -EINVAL;
+	}
+
+	if (!register_irq_cb || !register_irq_cb->func) {
+		DPU_ERROR("invalid irq_cb:%d func:%d\n",
+				register_irq_cb != NULL,
+				register_irq_cb ?
+					register_irq_cb->func != NULL : -1);
+		return -EINVAL;
+	}
+
+	if (irq_idx < 0 || irq_idx >= dpu_kms->hw_intr->total_irqs) {
+		DPU_ERROR("invalid IRQ index: [%d]\n", irq_idx);
+		return -EINVAL;
+	}
+
+	VERB("[%pS] irq_idx=%d\n", __builtin_return_address(0), irq_idx);
+
+	spin_lock_irqsave(&dpu_kms->hw_intr->irq_lock, irq_flags);
+	trace_dpu_core_irq_register_callback(irq_idx, register_irq_cb);
+	list_del_init(&register_irq_cb->list);
+	list_add_tail(&register_irq_cb->list,
+			&dpu_kms->hw_intr->irq_cb_tbl[irq_idx]);
+	if (list_is_first(&register_irq_cb->list,
+			&dpu_kms->hw_intr->irq_cb_tbl[irq_idx])) {
+		int ret = dpu_hw_intr_enable_irq_locked(
+				dpu_kms->hw_intr,
+				irq_idx);
+		if (ret)
+			DPU_ERROR("Fail to enable IRQ for irq_idx:%d\n",
+					irq_idx);
+	}
+	spin_unlock_irqrestore(&dpu_kms->hw_intr->irq_lock, irq_flags);
+
+	return 0;
+}
+
+int dpu_core_irq_unregister_callback(struct dpu_kms *dpu_kms, int irq_idx,
+		struct dpu_irq_callback *register_irq_cb)
+{
+	unsigned long irq_flags;
+
+	if (!dpu_kms->hw_intr->irq_cb_tbl) {
+		DPU_ERROR("invalid params\n");
+		return -EINVAL;
+	}
+
+	if (!register_irq_cb || !register_irq_cb->func) {
+		DPU_ERROR("invalid irq_cb:%d func:%d\n",
+				register_irq_cb != NULL,
+				register_irq_cb ?
+					register_irq_cb->func != NULL : -1);
+		return -EINVAL;
+	}
+
+	if (irq_idx < 0 || irq_idx >= dpu_kms->hw_intr->total_irqs) {
+		DPU_ERROR("invalid IRQ index: [%d]\n", irq_idx);
+		return -EINVAL;
+	}
+
+	VERB("[%pS] irq_idx=%d\n", __builtin_return_address(0), irq_idx);
+
+	spin_lock_irqsave(&dpu_kms->hw_intr->irq_lock, irq_flags);
+	trace_dpu_core_irq_unregister_callback(irq_idx, register_irq_cb);
+	list_del_init(&register_irq_cb->list);
+	/* empty callback list but interrupt is still enabled */
+	if (list_empty(&dpu_kms->hw_intr->irq_cb_tbl[irq_idx])) {
+		int ret = dpu_hw_intr_disable_irq_locked(
+				dpu_kms->hw_intr,
+				irq_idx);
+		if (ret)
+			DPU_ERROR("Fail to disable IRQ for irq_idx:%d\n",
+					irq_idx);
+		VERB("irq_idx=%d ret=%d\n", irq_idx, ret);
+	}
+	spin_unlock_irqrestore(&dpu_kms->hw_intr->irq_lock, irq_flags);
+
+	return 0;
+}
+
+#ifdef CONFIG_DEBUG_FS
+static int dpu_debugfs_core_irq_show(struct seq_file *s, void *v)
+{
+	struct dpu_kms *dpu_kms = s->private;
+	struct dpu_irq_callback *cb;
+	unsigned long irq_flags;
+	int i, irq_count, cb_count;
+
+	if (WARN_ON(!dpu_kms->hw_intr->irq_cb_tbl))
+		return 0;
+
+	for (i = 0; i < dpu_kms->hw_intr->total_irqs; i++) {
+		spin_lock_irqsave(&dpu_kms->hw_intr->irq_lock, irq_flags);
+		cb_count = 0;
+		irq_count = atomic_read(&dpu_kms->hw_intr->irq_counts[i]);
+		list_for_each_entry(cb, &dpu_kms->hw_intr->irq_cb_tbl[i], list)
+			cb_count++;
+		spin_unlock_irqrestore(&dpu_kms->hw_intr->irq_lock, irq_flags);
+
+		if (irq_count || cb_count)
+			seq_printf(s, "idx:%d irq:%d cb:%d\n",
+					i, irq_count, cb_count);
+	}
+
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(dpu_debugfs_core_irq);
+
+void dpu_debugfs_core_irq_init(struct dpu_kms *dpu_kms,
+		struct dentry *parent)
+{
+	debugfs_create_file("core_irq", 0600, parent, dpu_kms,
+		&dpu_debugfs_core_irq_fops);
+}
+#endif
+
+void dpu_core_irq_preinstall(struct dpu_kms *dpu_kms)
+{
+	int i;
+
+	pm_runtime_get_sync(&dpu_kms->pdev->dev);
+	dpu_clear_irqs(dpu_kms);
+	dpu_disable_all_irqs(dpu_kms);
+	pm_runtime_put_sync(&dpu_kms->pdev->dev);
+
+	/* Create irq callbacks for all possible irq_idx */
+	dpu_kms->hw_intr->irq_cb_tbl = kcalloc(dpu_kms->hw_intr->total_irqs,
+			sizeof(struct list_head), GFP_KERNEL);
+	dpu_kms->hw_intr->irq_counts = kcalloc(dpu_kms->hw_intr->total_irqs,
+			sizeof(atomic_t), GFP_KERNEL);
+	for (i = 0; i < dpu_kms->hw_intr->total_irqs; i++) {
+		INIT_LIST_HEAD(&dpu_kms->hw_intr->irq_cb_tbl[i]);
+		atomic_set(&dpu_kms->hw_intr->irq_counts[i], 0);
+	}
+}
+
+void dpu_core_irq_uninstall(struct dpu_kms *dpu_kms)
+{
+	int i;
+
+	pm_runtime_get_sync(&dpu_kms->pdev->dev);
+	for (i = 0; i < dpu_kms->hw_intr->total_irqs; i++)
+		if (!list_empty(&dpu_kms->hw_intr->irq_cb_tbl[i]))
+			DPU_ERROR("irq_idx=%d still enabled/registered\n", i);
+
+	dpu_clear_irqs(dpu_kms);
+	dpu_disable_all_irqs(dpu_kms);
+	pm_runtime_put_sync(&dpu_kms->pdev->dev);
+}

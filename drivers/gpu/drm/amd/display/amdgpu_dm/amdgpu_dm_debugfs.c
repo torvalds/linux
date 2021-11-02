@@ -247,6 +247,7 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 {
 	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
 	struct dc_link *link = connector->dc_link;
+	struct dc *dc = (struct dc *)link->dc;
 	struct dc_link_settings prefer_link_settings;
 	char *wr_buf = NULL;
 	const uint32_t wr_buf_size = 40;
@@ -293,6 +294,9 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 	case LINK_RATE_RBR2:
 	case LINK_RATE_HIGH2:
 	case LINK_RATE_HIGH3:
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	case LINK_RATE_UHBR10:
+#endif
 		break;
 	default:
 		valid_input = false;
@@ -313,7 +317,7 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 	prefer_link_settings.lane_count = param[0];
 	prefer_link_settings.link_rate = param[1];
 
-	dp_retrain_link_dp_test(link, &prefer_link_settings, false);
+	dc_link_set_preferred_training_settings(dc, &prefer_link_settings, NULL, link, true);
 
 	kfree(wr_buf);
 	return size;
@@ -378,9 +382,9 @@ static ssize_t dp_phy_settings_read(struct file *f, char __user *buf,
 		return -EINVAL;
 
 	snprintf(rd_buf, rd_buf_size, "  %d  %d  %d\n",
-			link->cur_lane_setting.VOLTAGE_SWING,
-			link->cur_lane_setting.PRE_EMPHASIS,
-			link->cur_lane_setting.POST_CURSOR2);
+			link->cur_lane_setting[0].VOLTAGE_SWING,
+			link->cur_lane_setting[0].PRE_EMPHASIS,
+			link->cur_lane_setting[0].POST_CURSOR2);
 
 	while (size) {
 		if (*pos >= rd_buf_size)
@@ -732,7 +736,7 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 	}
 
 	for (i = 0; i < (unsigned int)(link_training_settings.link_settings.lane_count); i++)
-		link_training_settings.lane_settings[i] = link->cur_lane_setting;
+		link_training_settings.lane_settings[i] = link->cur_lane_setting[i];
 
 	dc_link_set_test_pattern(
 		link,
