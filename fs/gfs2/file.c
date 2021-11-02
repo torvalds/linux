@@ -213,11 +213,9 @@ void gfs2_set_inode_flags(struct inode *inode)
  * @inode: The inode
  * @reqflags: The flags to set
  * @mask: Indicates which flags are valid
- * @fsflags: The FS_* inode flags passed in
  *
  */
-static int do_gfs2_set_flags(struct inode *inode, u32 reqflags, u32 mask,
-			     const u32 fsflags)
+static int do_gfs2_set_flags(struct inode *inode, u32 reqflags, u32 mask)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
@@ -236,11 +234,6 @@ static int do_gfs2_set_flags(struct inode *inode, u32 reqflags, u32 mask,
 	if ((new_flags ^ flags) == 0)
 		goto out;
 
-	error = -EPERM;
-	if (IS_IMMUTABLE(inode) && (new_flags & GFS2_DIF_IMMUTABLE))
-		goto out;
-	if (IS_APPEND(inode) && (new_flags & GFS2_DIF_APPENDONLY))
-		goto out;
 	if (!IS_IMMUTABLE(inode)) {
 		error = gfs2_permission(&init_user_ns, inode, MAY_WRITE);
 		if (error)
@@ -313,7 +306,7 @@ int gfs2_fileattr_set(struct user_namespace *mnt_userns,
 		mask &= ~(GFS2_DIF_TOPDIR | GFS2_DIF_INHERIT_JDATA);
 	}
 
-	return do_gfs2_set_flags(inode, gfsflags, mask, fsflags);
+	return do_gfs2_set_flags(inode, gfsflags, mask);
 }
 
 static int gfs2_getlabel(struct file *filp, char __user *label)

@@ -1244,8 +1244,8 @@ static enum dinode_demise evict_should_delete(struct inode *inode,
 	if (ret)
 		return SHOULD_NOT_DELETE_DINODE;
 
-	if (test_bit(GIF_INVALID, &ip->i_flags)) {
-		ret = gfs2_inode_refresh(ip);
+	if (test_bit(GLF_INSTANTIATE_NEEDED, &ip->i_gl->gl_flags)) {
+		ret = gfs2_instantiate(gh);
 		if (ret)
 			return SHOULD_NOT_DELETE_DINODE;
 	}
