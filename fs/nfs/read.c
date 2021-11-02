@@ -404,7 +404,7 @@ int nfs_readpages(struct file *file, struct address_space *mapping,
 	struct inode *inode = mapping->host;
 	int ret;
 
-	trace_nfs_aop_readahead(inode, nr_pages);
+	trace_nfs_aop_readahead(inode, lru_to_page(pages), nr_pages);
 	nfs_inc_stats(inode, NFSIOS_VFSREADPAGES);
 
 	ret = -ESTALE;
