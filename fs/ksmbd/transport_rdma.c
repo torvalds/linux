@@ -484,7 +484,7 @@ static int smb_direct_check_recvmsg(struct smb_direct_recvmsg *recvmsg)
 		struct smb_direct_data_transfer *req =
 			(struct smb_direct_data_transfer *)recvmsg->packet;
 		struct smb2_hdr *hdr = (struct smb2_hdr *)(recvmsg->packet
-				+ le32_to_cpu(req->data_offset) - 4);
+				+ le32_to_cpu(req->data_offset));
 		ksmbd_debug(RDMA,
 			    "CreditGranted: %u, CreditRequested: %u, DataLength: %u, RemainingDataLength: %u, SMB: %x, Command: %u\n",
 			    le16_to_cpu(req->credits_granted),

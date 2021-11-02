@@ -130,11 +130,6 @@
 	cpu_to_le16(__SMB2_HEADER_STRUCTURE_SIZE)
 
 struct smb2_hdr {
-	__be32 smb2_buf_length;	/* big endian on wire */
-				/*
-				 * length is only two or three bytes - with
-				 * one or two byte type preceding it that MBZ
-				 */
 	__le32 ProtocolId;	/* 0xFE 'S' 'M' 'B' */
 	__le16 StructureSize;	/* 64 */
 	__le16 CreditCharge;	/* MBZ */
@@ -253,14 +248,14 @@ struct preauth_integrity_info {
 	__u8			Preauth_HashValue[PREAUTH_HASHVALUE_SIZE];
 };
 
-/* offset is sizeof smb2_negotiate_rsp - 4 but rounded up to 8 bytes. */
+/* offset is sizeof smb2_negotiate_rsp but rounded up to 8 bytes. */
 #ifdef CONFIG_SMB_SERVER_KERBEROS5
-/* sizeof(struct smb2_negotiate_rsp) - 4 =
+/* sizeof(struct smb2_negotiate_rsp) =
  * header(64) + response(64) + GSS_LENGTH(96) + GSS_PADDING(0)
  */
 #define OFFSET_OF_NEG_CONTEXT	0xe0
 #else
-/* sizeof(struct smb2_negotiate_rsp) - 4 =
+/* sizeof(struct smb2_negotiate_rsp) =
  * header(64) + response(64) + GSS_LENGTH(74) + GSS_PADDING(6)
  */
 #define OFFSET_OF_NEG_CONTEXT	0xd0
@@ -1704,5 +1699,14 @@ int smb2_lock(struct ksmbd_work *work);
 int smb2_ioctl(struct ksmbd_work *work);
 int smb2_oplock_break(struct ksmbd_work *work);
 int smb2_notify(struct ksmbd_work *ksmbd_work);
+
+/*
+ * Get the body of the smb2 message excluding the 4 byte rfc1002 headers
+ * from request/response buffer.
+ */
+static inline void *smb2_get_msg(void *buf)
+{
+	return buf + 4;
+}
 
 #endif	/* _SMB2PDU_H */

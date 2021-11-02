@@ -477,12 +477,6 @@ struct smb_version_cmds {
 	int (*proc)(struct ksmbd_work *swork);
 };
 
-static inline size_t
-smb2_hdr_size_no_buflen(struct smb_version_values *vals)
-{
-	return vals->header_size - 4;
-}
-
 int ksmbd_min_protocol(void);
 int ksmbd_max_protocol(void);
 
