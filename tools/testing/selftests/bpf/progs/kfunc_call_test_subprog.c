@@ -33,7 +33,7 @@ int __noinline f1(struct __sk_buff *skb)
 	return (__u32)bpf_kfunc_call_test1((struct sock *)sk, 1, 2, 3, 4);
 }
 
-SEC("classifier")
+SEC("tc")
 int kfunc_call_test1(struct __sk_buff *skb)
 {
 	return f1(skb);

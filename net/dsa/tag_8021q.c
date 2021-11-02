@@ -6,7 +6,6 @@
  * dsa_8021q_netdev_ops is registered for API compliance and not used
  * directly by callers.
  */
-#include <linux/if_bridge.h>
 #include <linux/if_vlan.h>
 #include <linux/dsa/8021q.h>
 
@@ -78,22 +77,22 @@ EXPORT_SYMBOL_GPL(dsa_8021q_bridge_tx_fwd_offload_vid);
 /* Returns the VID to be inserted into the frame from xmit for switch steering
  * instructions on egress. Encodes switch ID and port ID.
  */
-u16 dsa_8021q_tx_vid(struct dsa_switch *ds, int port)
+u16 dsa_tag_8021q_tx_vid(const struct dsa_port *dp)
 {
-	return DSA_8021Q_DIR_TX | DSA_8021Q_SWITCH_ID(ds->index) |
-	       DSA_8021Q_PORT(port);
+	return DSA_8021Q_DIR_TX | DSA_8021Q_SWITCH_ID(dp->ds->index) |
+	       DSA_8021Q_PORT(dp->index);
 }
-EXPORT_SYMBOL_GPL(dsa_8021q_tx_vid);
+EXPORT_SYMBOL_GPL(dsa_tag_8021q_tx_vid);
 
 /* Returns the VID that will be installed as pvid for this switch port, sent as
  * tagged egress towards the CPU port and decoded by the rcv function.
  */
-u16 dsa_8021q_rx_vid(struct dsa_switch *ds, int port)
+u16 dsa_tag_8021q_rx_vid(const struct dsa_port *dp)
 {
-	return DSA_8021Q_DIR_RX | DSA_8021Q_SWITCH_ID(ds->index) |
-	       DSA_8021Q_PORT(port);
+	return DSA_8021Q_DIR_RX | DSA_8021Q_SWITCH_ID(dp->ds->index) |
+	       DSA_8021Q_PORT(dp->index);
 }
-EXPORT_SYMBOL_GPL(dsa_8021q_rx_vid);
+EXPORT_SYMBOL_GPL(dsa_tag_8021q_rx_vid);
 
 /* Returns the decoded switch ID from the RX VID. */
 int dsa_8021q_rx_switch_id(u16 vid)
@@ -139,12 +138,13 @@ dsa_tag_8021q_vlan_find(struct dsa_8021q_context *ctx, int port, u16 vid)
 	return NULL;
 }
 
-static int dsa_switch_do_tag_8021q_vlan_add(struct dsa_switch *ds, int port,
-					    u16 vid, u16 flags)
+static int dsa_port_do_tag_8021q_vlan_add(struct dsa_port *dp, u16 vid,
+					  u16 flags)
 {
-	struct dsa_8021q_context *ctx = ds->tag_8021q_ctx;
-	struct dsa_port *dp = dsa_to_port(ds, port);
+	struct dsa_8021q_context *ctx = dp->ds->tag_8021q_ctx;
+	struct dsa_switch *ds = dp->ds;
 	struct dsa_tag_8021q_vlan *v;
+	int port = dp->index;
 	int err;
 
 	/* No need to bother with refcounting for user ports */
@@ -175,12 +175,12 @@ static int dsa_switch_do_tag_8021q_vlan_add(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-static int dsa_switch_do_tag_8021q_vlan_del(struct dsa_switch *ds, int port,
-					    u16 vid)
+static int dsa_port_do_tag_8021q_vlan_del(struct dsa_port *dp, u16 vid)
 {
-	struct dsa_8021q_context *ctx = ds->tag_8021q_ctx;
-	struct dsa_port *dp = dsa_to_port(ds, port);
+	struct dsa_8021q_context *ctx = dp->ds->tag_8021q_ctx;
+	struct dsa_switch *ds = dp->ds;
 	struct dsa_tag_8021q_vlan *v;
+	int port = dp->index;
 	int err;
 
 	/* No need to bother with refcounting for user ports */
@@ -207,14 +207,16 @@ static int dsa_switch_do_tag_8021q_vlan_del(struct dsa_switch *ds, int port,
 }
 
 static bool
-dsa_switch_tag_8021q_vlan_match(struct dsa_switch *ds, int port,
-				struct dsa_notifier_tag_8021q_vlan_info *info)
+dsa_port_tag_8021q_vlan_match(struct dsa_port *dp,
+			      struct dsa_notifier_tag_8021q_vlan_info *info)
 {
-	if (dsa_is_dsa_port(ds, port) || dsa_is_cpu_port(ds, port))
+	struct dsa_switch *ds = dp->ds;
+
+	if (dsa_port_is_dsa(dp) || dsa_port_is_cpu(dp))
 		return true;
 
 	if (ds->dst->index == info->tree_index && ds->index == info->sw_index)
-		return port == info->port;
+		return dp->index == info->port;
 
 	return false;
 }
@@ -222,7 +224,8 @@ dsa_switch_tag_8021q_vlan_match(struct dsa_switch *ds, int port,
 int dsa_switch_tag_8021q_vlan_add(struct dsa_switch *ds,
 				  struct dsa_notifier_tag_8021q_vlan_info *info)
 {
-	int port, err;
+	struct dsa_port *dp;
+	int err;
 
 	/* Since we use dsa_broadcast(), there might be other switches in other
 	 * trees which don't support tag_8021q, so don't return an error.
@@ -232,21 +235,20 @@ int dsa_switch_tag_8021q_vlan_add(struct dsa_switch *ds,
 	if (!ds->ops->tag_8021q_vlan_add || !ds->tag_8021q_ctx)
 		return 0;
 
-	for (port = 0; port < ds->num_ports; port++) {
-		if (dsa_switch_tag_8021q_vlan_match(ds, port, info)) {
+	dsa_switch_for_each_port(dp, ds) {
+		if (dsa_port_tag_8021q_vlan_match(dp, info)) {
 			u16 flags = 0;
 
-			if (dsa_is_user_port(ds, port))
+			if (dsa_port_is_user(dp))
 				flags |= BRIDGE_VLAN_INFO_UNTAGGED;
 
 			if (vid_is_dsa_8021q_rxvlan(info->vid) &&
 			    dsa_8021q_rx_switch_id(info->vid) == ds->index &&
-			    dsa_8021q_rx_source_port(info->vid) == port)
+			    dsa_8021q_rx_source_port(info->vid) == dp->index)
 				flags |= BRIDGE_VLAN_INFO_PVID;
 
-			err = dsa_switch_do_tag_8021q_vlan_add(ds, port,
-							       info->vid,
-							       flags);
+			err = dsa_port_do_tag_8021q_vlan_add(dp, info->vid,
+							     flags);
 			if (err)
 				return err;
 		}
@@ -258,15 +260,15 @@ int dsa_switch_tag_8021q_vlan_add(struct dsa_switch *ds,
 int dsa_switch_tag_8021q_vlan_del(struct dsa_switch *ds,
 				  struct dsa_notifier_tag_8021q_vlan_info *info)
 {
-	int port, err;
+	struct dsa_port *dp;
+	int err;
 
 	if (!ds->ops->tag_8021q_vlan_del || !ds->tag_8021q_ctx)
 		return 0;
 
-	for (port = 0; port < ds->num_ports; port++) {
-		if (dsa_switch_tag_8021q_vlan_match(ds, port, info)) {
-			err = dsa_switch_do_tag_8021q_vlan_del(ds, port,
-							       info->vid);
+	dsa_switch_for_each_port(dp, ds) {
+		if (dsa_port_tag_8021q_vlan_match(dp, info)) {
+			err = dsa_port_do_tag_8021q_vlan_del(dp, info->vid);
 			if (err)
 				return err;
 		}
@@ -322,15 +324,14 @@ int dsa_switch_tag_8021q_vlan_del(struct dsa_switch *ds,
  * +-+-----+-+-----+-+-----+-+-----+-+    +-+-----+-+-----+-+-----+-+-----+-+
  *   swp0    swp1    swp2    swp3           swp0    swp1    swp2    swp3
  */
-static bool dsa_tag_8021q_bridge_match(struct dsa_switch *ds, int port,
-				       struct dsa_notifier_bridge_info *info)
+static bool
+dsa_port_tag_8021q_bridge_match(struct dsa_port *dp,
+				struct dsa_notifier_bridge_info *info)
 {
-	struct dsa_port *dp = dsa_to_port(ds, port);
-
 	/* Don't match on self */
-	if (ds->dst->index == info->tree_index &&
-	    ds->index == info->sw_index &&
-	    port == info->port)
+	if (dp->ds->dst->index == info->tree_index &&
+	    dp->ds->index == info->sw_index &&
+	    dp->index == info->port)
 		return false;
 
 	if (dsa_port_is_user(dp))
@@ -344,21 +345,21 @@ int dsa_tag_8021q_bridge_join(struct dsa_switch *ds,
 {
 	struct dsa_switch *targeted_ds;
 	struct dsa_port *targeted_dp;
+	struct dsa_port *dp;
 	u16 targeted_rx_vid;
-	int err, port;
+	int err;
 
 	if (!ds->tag_8021q_ctx)
 		return 0;
 
 	targeted_ds = dsa_switch_find(info->tree_index, info->sw_index);
 	targeted_dp = dsa_to_port(targeted_ds, info->port);
-	targeted_rx_vid = dsa_8021q_rx_vid(targeted_ds, info->port);
+	targeted_rx_vid = dsa_tag_8021q_rx_vid(targeted_dp);
 
-	for (port = 0; port < ds->num_ports; port++) {
-		struct dsa_port *dp = dsa_to_port(ds, port);
-		u16 rx_vid = dsa_8021q_rx_vid(ds, port);
+	dsa_switch_for_each_port(dp, ds) {
+		u16 rx_vid = dsa_tag_8021q_rx_vid(dp);
 
-		if (!dsa_tag_8021q_bridge_match(ds, port, info))
+		if (!dsa_port_tag_8021q_bridge_match(dp, info))
 			continue;
 
 		/* Install the RX VID of the targeted port in our VLAN table */
@@ -380,21 +381,20 @@ int dsa_tag_8021q_bridge_leave(struct dsa_switch *ds,
 {
 	struct dsa_switch *targeted_ds;
 	struct dsa_port *targeted_dp;
+	struct dsa_port *dp;
 	u16 targeted_rx_vid;
-	int port;
 
 	if (!ds->tag_8021q_ctx)
 		return 0;
 
 	targeted_ds = dsa_switch_find(info->tree_index, info->sw_index);
 	targeted_dp = dsa_to_port(targeted_ds, info->port);
-	targeted_rx_vid = dsa_8021q_rx_vid(targeted_ds, info->port);
+	targeted_rx_vid = dsa_tag_8021q_rx_vid(targeted_dp);
 
-	for (port = 0; port < ds->num_ports; port++) {
-		struct dsa_port *dp = dsa_to_port(ds, port);
-		u16 rx_vid = dsa_8021q_rx_vid(ds, port);
+	dsa_switch_for_each_port(dp, ds) {
+		u16 rx_vid = dsa_tag_8021q_rx_vid(dp);
 
-		if (!dsa_tag_8021q_bridge_match(ds, port, info))
+		if (!dsa_port_tag_8021q_bridge_match(dp, info))
 			continue;
 
 		/* Remove the RX VID of the targeted port from our VLAN table */
@@ -433,8 +433,8 @@ static int dsa_tag_8021q_port_setup(struct dsa_switch *ds, int port)
 {
 	struct dsa_8021q_context *ctx = ds->tag_8021q_ctx;
 	struct dsa_port *dp = dsa_to_port(ds, port);
-	u16 rx_vid = dsa_8021q_rx_vid(ds, port);
-	u16 tx_vid = dsa_8021q_tx_vid(ds, port);
+	u16 rx_vid = dsa_tag_8021q_rx_vid(dp);
+	u16 tx_vid = dsa_tag_8021q_tx_vid(dp);
 	struct net_device *master;
 	int err;
 
@@ -478,8 +478,8 @@ static void dsa_tag_8021q_port_teardown(struct dsa_switch *ds, int port)
 {
 	struct dsa_8021q_context *ctx = ds->tag_8021q_ctx;
 	struct dsa_port *dp = dsa_to_port(ds, port);
-	u16 rx_vid = dsa_8021q_rx_vid(ds, port);
-	u16 tx_vid = dsa_8021q_tx_vid(ds, port);
+	u16 rx_vid = dsa_tag_8021q_rx_vid(dp);
+	u16 tx_vid = dsa_tag_8021q_tx_vid(dp);
 	struct net_device *master;
 
 	/* The CPU port is implicitly configured by

@@ -69,7 +69,6 @@ struct sja1105_port {
 	struct kthread_work xmit_work;
 	struct sk_buff_head xmit_queue;
 	struct sja1105_tagger_data *data;
-	struct dsa_port *dp;
 	bool hwts_tx_en;
 };
 

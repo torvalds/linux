@@ -51,6 +51,7 @@ NUM_NETIFS=8
 CAPTURE_FILE=$(mktemp)
 source $lib_dir/lib.sh
 source $lib_dir/devlink_lib.sh
+source mlxsw_lib.sh
 
 # Available at https://github.com/Mellanox/libpsample
 require_command psample
@@ -431,7 +432,7 @@ tc_sample_md_out_tc_test()
 	RET=0
 
 	# Output traffic class is not supported on Spectrum-1.
-	[[ "$DEVLINK_VIDDID" == "15b3:cb84" ]] && return
+	mlxsw_only_on_spectrum 2+ || return
 
 	tc filter add dev $rp1 ingress protocol all pref 1 handle 101 matchall \
 		skip_sw action sample rate 5 group 1
@@ -477,7 +478,7 @@ tc_sample_md_out_tc_occ_test()
 	RET=0
 
 	# Output traffic class occupancy is not supported on Spectrum-1.
-	[[ "$DEVLINK_VIDDID" == "15b3:cb84" ]] && return
+	mlxsw_only_on_spectrum 2+ || return
 
 	tc filter add dev $rp1 ingress protocol all pref 1 handle 101 matchall \
 		skip_sw action sample rate 1024 group 1
@@ -521,7 +522,7 @@ tc_sample_md_latency_test()
 	RET=0
 
 	# Egress sampling not supported on Spectrum-1.
-	[[ "$DEVLINK_VIDDID" == "15b3:cb84" ]] && return
+	mlxsw_only_on_spectrum 2+ || return
 
 	tc filter add dev $rp2 egress protocol all pref 1 handle 101 matchall \
 		skip_sw action sample rate 5 group 1
@@ -550,7 +551,7 @@ tc_sample_acl_group_conflict_test()
 	# port with different groups.
 
 	# Policy-based sampling is not supported on Spectrum-1.
-	[[ "$DEVLINK_VIDDID" == "15b3:cb84" ]] && return
+	mlxsw_only_on_spectrum 2+ || return
 
 	tc filter add dev $rp1 ingress protocol ip pref 1 handle 101 flower \
 		skip_sw action sample rate 1024 group 1
@@ -579,7 +580,7 @@ __tc_sample_acl_rate_test()
 	RET=0
 
 	# Policy-based sampling is not supported on Spectrum-1.
-	[[ "$DEVLINK_VIDDID" == "15b3:cb84" ]] && return
+	mlxsw_only_on_spectrum 2+ || return
 
 	tc filter add dev $port $bind protocol ip pref 1 handle 101 flower \
 		skip_sw dst_ip 198.51.100.1 action sample rate 32 group 1
@@ -631,7 +632,7 @@ tc_sample_acl_max_rate_test()
 	RET=0
 
 	# Policy-based sampling is not supported on Spectrum-1.
-	[[ "$DEVLINK_VIDDID" == "15b3:cb84" ]] && return
+	mlxsw_only_on_spectrum 2+ || return
 
 	tc filter add dev $rp1 ingress protocol ip pref 1 handle 101 flower \
 		skip_sw action sample rate $((2 ** 24 - 1)) group 1
