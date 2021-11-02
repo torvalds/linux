@@ -279,7 +279,7 @@ static ssize_t gt_boost_freq_mhz_show(struct device *kdev, struct device_attribu
 	struct drm_i915_private *i915 = kdev_minor_to_i915(kdev);
 	struct intel_rps *rps = &i915->gt.rps;
 
-	return sysfs_emit(buf, "%d\n", intel_gpu_freq(rps, rps->boost_freq));
+	return sysfs_emit(buf, "%d\n", intel_rps_get_boost_frequency(rps));
 }
 
 static ssize_t gt_boost_freq_mhz_store(struct device *kdev,
@@ -288,7 +288,6 @@ static ssize_t gt_boost_freq_mhz_store(struct device *kdev,
 {
 	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
 	struct intel_rps *rps = &dev_priv->gt.rps;
-	bool boost = false;
 	ssize_t ret;
 	u32 val;
 
@@ -296,21 +295,9 @@ static ssize_t gt_boost_freq_mhz_store(struct device *kdev,
 	if (ret)
 		return ret;
 
-	/* Validate against (static) hardware limits */
-	val = intel_freq_opcode(rps, val);
-	if (val < rps->min_freq || val > rps->max_freq)
-		return -EINVAL;
+	ret = intel_rps_set_boost_frequency(rps, val);
 
-	mutex_lock(&rps->lock);
-	if (val != rps->boost_freq) {
-		rps->boost_freq = val;
-		boost = atomic_read(&rps->num_waiters);
-	}
-	mutex_unlock(&rps->lock);
-	if (boost)
-		schedule_work(&rps->work);
-
-	return count;
+	return ret ?: count;
 }
 
 static ssize_t vlv_rpe_freq_mhz_show(struct device *kdev,

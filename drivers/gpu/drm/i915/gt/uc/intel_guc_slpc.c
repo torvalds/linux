@@ -650,6 +650,33 @@ int intel_guc_slpc_enable(struct intel_guc_slpc *slpc)
 	return 0;
 }
 
+int intel_guc_slpc_set_boost_freq(struct intel_guc_slpc *slpc, u32 val)
+{
+	int ret = 0;
+
+	if (val < slpc->min_freq || val > slpc->rp0_freq)
+		return -EINVAL;
+
+	mutex_lock(&slpc->lock);
+
+	if (slpc->boost_freq != val) {
+		/* Apply only if there are active waiters */
+		if (atomic_read(&slpc->num_waiters)) {
+			ret = slpc_force_min_freq(slpc, val);
+			if (ret) {
+				ret = -EIO;
+				goto done;
+			}
+		}
+
+		slpc->boost_freq = val;
+	}
+
+done:
+	mutex_unlock(&slpc->lock);
+	return ret;
+}
+
 void intel_guc_slpc_dec_waiters(struct intel_guc_slpc *slpc)
 {
 	/*
@@ -687,6 +714,8 @@ int intel_guc_slpc_print_info(struct intel_guc_slpc *slpc, struct drm_printer *p
 				   slpc_decode_max_freq(slpc));
 			drm_printf(p, "\tMin freq: %u MHz\n",
 				   slpc_decode_min_freq(slpc));
+			drm_printf(p, "\twaitboosts: %u\n",
+				   slpc->num_boosts);
 		}
 	}
 
