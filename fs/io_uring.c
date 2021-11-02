@@ -79,6 +79,8 @@
 #include <linux/pagemap.h>
 #include <linux/io_uring.h>
 #include <linux/tracehook.h>
+#include <linux/audit.h>
+#include <linux/security.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/io_uring.h>
@@ -912,6 +914,8 @@ struct io_op_def {
 	unsigned		needs_async_setup : 1;
 	/* opcode is not supported by this kernel */
 	unsigned		not_supported : 1;
+	/* skip auditing */
+	unsigned		audit_skip : 1;
 	/* size of async data needed, if any */
 	unsigned short		async_size;
 };
@@ -925,6 +929,7 @@ static const struct io_op_def io_op_defs[] = {
 		.buffer_select		= 1,
 		.needs_async_setup	= 1,
 		.plug			= 1,
+		.audit_skip		= 1,
 		.async_size		= sizeof(struct io_async_rw),
 	},
 	[IORING_OP_WRITEV] = {
@@ -934,16 +939,19 @@ static const struct io_op_def io_op_defs[] = {
 		.pollout		= 1,
 		.needs_async_setup	= 1,
 		.plug			= 1,
+		.audit_skip		= 1,
 		.async_size		= sizeof(struct io_async_rw),
 	},
 	[IORING_OP_FSYNC] = {
 		.needs_file		= 1,
+		.audit_skip		= 1,
 	},
 	[IORING_OP_READ_FIXED] = {
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollin			= 1,
 		.plug			= 1,
+		.audit_skip		= 1,
 		.async_size		= sizeof(struct io_async_rw),
 	},
 	[IORING_OP_WRITE_FIXED] = {
@@ -952,15 +960,20 @@ static const struct io_op_def io_op_defs[] = {
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
 		.plug			= 1,
+		.audit_skip		= 1,
 		.async_size		= sizeof(struct io_async_rw),
 	},
 	[IORING_OP_POLL_ADD] = {
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
+		.audit_skip		= 1,
 	},
-	[IORING_OP_POLL_REMOVE] = {},
+	[IORING_OP_POLL_REMOVE] = {
+		.audit_skip		= 1,
+	},
 	[IORING_OP_SYNC_FILE_RANGE] = {
 		.needs_file		= 1,
+		.audit_skip		= 1,
 	},
 	[IORING_OP_SENDMSG] = {
 		.needs_file		= 1,
@@ -978,18 +991,23 @@ static const struct io_op_def io_op_defs[] = {
 		.async_size		= sizeof(struct io_async_msghdr),
 	},
 	[IORING_OP_TIMEOUT] = {
+		.audit_skip		= 1,
 		.async_size		= sizeof(struct io_timeout_data),
 	},
 	[IORING_OP_TIMEOUT_REMOVE] = {
 		/* used by timeout updates' prep() */
+		.audit_skip		= 1,
 	},
 	[IORING_OP_ACCEPT] = {
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollin			= 1,
 	},
-	[IORING_OP_ASYNC_CANCEL] = {},
+	[IORING_OP_ASYNC_CANCEL] = {
+		.audit_skip		= 1,
+	},
 	[IORING_OP_LINK_TIMEOUT] = {
+		.audit_skip		= 1,
 		.async_size		= sizeof(struct io_timeout_data),
 	},
 	[IORING_OP_CONNECT] = {
@@ -1004,14 +1022,19 @@ static const struct io_op_def io_op_defs[] = {
 	},
 	[IORING_OP_OPENAT] = {},
 	[IORING_OP_CLOSE] = {},
-	[IORING_OP_FILES_UPDATE] = {},
-	[IORING_OP_STATX] = {},
+	[IORING_OP_FILES_UPDATE] = {
+		.audit_skip		= 1,
+	},
+	[IORING_OP_STATX] = {
+		.audit_skip		= 1,
+	},
 	[IORING_OP_READ] = {
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollin			= 1,
 		.buffer_select		= 1,
 		.plug			= 1,
+		.audit_skip		= 1,
 		.async_size		= sizeof(struct io_async_rw),
 	},
 	[IORING_OP_WRITE] = {
@@ -1020,39 +1043,50 @@ static const struct io_op_def io_op_defs[] = {
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
 		.plug			= 1,
+		.audit_skip		= 1,
 		.async_size		= sizeof(struct io_async_rw),
 	},
 	[IORING_OP_FADVISE] = {
 		.needs_file		= 1,
+		.audit_skip		= 1,
 	},
 	[IORING_OP_MADVISE] = {},
 	[IORING_OP_SEND] = {
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
+		.audit_skip		= 1,
 	},
 	[IORING_OP_RECV] = {
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollin			= 1,
 		.buffer_select		= 1,
+		.audit_skip		= 1,
 	},
 	[IORING_OP_OPENAT2] = {
 	},
 	[IORING_OP_EPOLL_CTL] = {
 		.unbound_nonreg_file	= 1,
+		.audit_skip		= 1,
 	},
 	[IORING_OP_SPLICE] = {
 		.needs_file		= 1,
 		.hash_reg_file		= 1,
 		.unbound_nonreg_file	= 1,
+		.audit_skip		= 1,
 	},
-	[IORING_OP_PROVIDE_BUFFERS] = {},
-	[IORING_OP_REMOVE_BUFFERS] = {},
+	[IORING_OP_PROVIDE_BUFFERS] = {
+		.audit_skip		= 1,
+	},
+	[IORING_OP_REMOVE_BUFFERS] = {
+		.audit_skip		= 1,
+	},
 	[IORING_OP_TEE] = {
 		.needs_file		= 1,
 		.hash_reg_file		= 1,
 		.unbound_nonreg_file	= 1,
+		.audit_skip		= 1,
 	},
 	[IORING_OP_SHUTDOWN] = {
 		.needs_file		= 1,
@@ -6581,6 +6615,9 @@ static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
 	if (unlikely((req->flags & REQ_F_CREDS) && req->creds != current_cred()))
 		creds = override_creds(req->creds);
 
+	if (!io_op_defs[req->opcode].audit_skip)
+		audit_uring_entry(req->opcode);
+
 	switch (req->opcode) {
 	case IORING_OP_NOP:
 		ret = io_nop(req, issue_flags);
@@ -6695,6 +6732,9 @@ static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
 		ret = -EINVAL;
 		break;
 	}
+
+	if (!io_op_defs[req->opcode].audit_skip)
+		audit_uring_exit(!ret, ret);
 
 	if (creds)
 		revert_creds(creds);
@@ -7090,10 +7130,17 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 
 	personality = READ_ONCE(sqe->personality);
 	if (personality) {
+		int ret;
+
 		req->creds = xa_load(&ctx->personalities, personality);
 		if (!req->creds)
 			return -EINVAL;
 		get_cred(req->creds);
+		ret = security_uring_override_creds(req->creds);
+		if (ret) {
+			put_cred(req->creds);
+			return ret;
+		}
 		req->flags |= REQ_F_CREDS;
 	}
 
@@ -7400,6 +7447,8 @@ static int io_sq_thread(void *data)
 		set_cpus_allowed_ptr(current, cpu_online_mask);
 	current->flags |= PF_NO_SETAFFINITY;
 
+	audit_alloc_kernel(current);
+
 	mutex_lock(&sqd->lock);
 	while (1) {
 		bool cap_entries, sqt_spin = false;
@@ -7464,6 +7513,8 @@ static int io_sq_thread(void *data)
 		io_ring_set_wakeup_flag(ctx);
 	io_run_task_work();
 	mutex_unlock(&sqd->lock);
+
+	audit_free(current);
 
 	complete(&sqd->exited);
 	do_exit(0);
@@ -8621,6 +8672,10 @@ static __cold int io_sq_offload_create(struct io_ring_ctx *ctx,
 		struct task_struct *tsk;
 		struct io_sq_data *sqd;
 		bool attached;
+
+		ret = security_uring_sqpoll();
+		if (ret)
+			return ret;
 
 		sqd = io_get_sq_data(p, &attached);
 		if (IS_ERR(sqd)) {
@@ -10276,8 +10331,8 @@ static struct file *io_uring_get_file(struct io_ring_ctx *ctx)
 		return ERR_PTR(ret);
 #endif
 
-	file = anon_inode_getfile("[io_uring]", &io_uring_fops, ctx,
-					O_RDWR | O_CLOEXEC);
+	file = anon_inode_getfile_secure("[io_uring]", &io_uring_fops, ctx,
+					 O_RDWR | O_CLOEXEC, NULL);
 #if defined(CONFIG_UNIX)
 	if (IS_ERR(file)) {
 		sock_release(ctx->ring_sock);
