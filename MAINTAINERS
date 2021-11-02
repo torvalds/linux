@@ -334,7 +334,7 @@ F:	drivers/platform/x86/acer-wmi.c
 
 ACPI
 M:	"Rafael J. Wysocki" <rafael@kernel.org>
-M:	Len Brown <lenb@kernel.org>
+R:	Len Brown <lenb@kernel.org>
 L:	linux-acpi@vger.kernel.org
 S:	Supported
 W:	https://01.org/linux-acpi
@@ -355,7 +355,7 @@ F:	tools/power/acpi/
 
 ACPI APEI
 M:	"Rafael J. Wysocki" <rafael@kernel.org>
-M:	Len Brown <lenb@kernel.org>
+R:	Len Brown <lenb@kernel.org>
 R:	James Morse <james.morse@arm.com>
 R:	Tony Luck <tony.luck@intel.com>
 R:	Borislav Petkov <bp@alien8.de>
@@ -377,14 +377,6 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm
 F:	drivers/acpi/acpica/
 F:	include/acpi/
 F:	tools/power/acpi/
-
-ACPI FAN DRIVER
-M:	Zhang Rui <rui.zhang@intel.com>
-L:	linux-acpi@vger.kernel.org
-S:	Supported
-W:	https://01.org/linux-acpi
-B:	https://bugzilla.kernel.org
-F:	drivers/acpi/fan.c
 
 ACPI FOR ARM64 (ACPI/arm64)
 M:	Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>
@@ -427,14 +419,6 @@ S:	Supported
 W:	https://01.org/linux-acpi
 B:	https://bugzilla.kernel.org
 F:	drivers/acpi/*thermal*
-
-ACPI VIDEO DRIVER
-M:	Zhang Rui <rui.zhang@intel.com>
-L:	linux-acpi@vger.kernel.org
-S:	Supported
-W:	https://01.org/linux-acpi
-B:	https://bugzilla.kernel.org
-F:	drivers/acpi/acpi_video.c
 
 ACPI VIOT DRIVER
 M:	Jean-Philippe Brucker <jean-philippe@linaro.org>

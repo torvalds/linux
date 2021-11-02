@@ -52,7 +52,6 @@ struct acpi_power_resource {
 	u32 order;
 	unsigned int ref_count;
 	u8 state;
-	bool wakeup_enabled;
 	struct mutex resource_lock;
 	struct list_head dependents;
 };
@@ -615,20 +614,19 @@ int acpi_power_wakeup_list_init(struct list_head *list, int *system_level_p)
 
 	list_for_each_entry(entry, list, node) {
 		struct acpi_power_resource *resource = entry->resource;
-		int result;
 		u8 state;
 
 		mutex_lock(&resource->resource_lock);
 
-		result = acpi_power_get_state(resource, &state);
-		if (result) {
-			mutex_unlock(&resource->resource_lock);
-			return result;
-		}
-		if (state == ACPI_POWER_RESOURCE_STATE_ON) {
-			resource->ref_count++;
-			resource->wakeup_enabled = true;
-		}
+		/*
+		 * Make sure that the power resource state and its reference
+		 * counter value are consistent with each other.
+		 */
+		if (!resource->ref_count &&
+		    !acpi_power_get_state(resource, &state) &&
+		    state == ACPI_POWER_RESOURCE_STATE_ON)
+			__acpi_power_off(resource);
+
 		if (system_level > resource->system_level)
 			system_level = resource->system_level;
 
@@ -711,7 +709,6 @@ int acpi_device_sleep_wake(struct acpi_device *dev,
  */
 int acpi_enable_wakeup_device_power(struct acpi_device *dev, int sleep_state)
 {
-	struct acpi_power_resource_entry *entry;
 	int err = 0;
 
 	if (!dev || !dev->wakeup.flags.valid)
@@ -722,33 +719,22 @@ int acpi_enable_wakeup_device_power(struct acpi_device *dev, int sleep_state)
 	if (dev->wakeup.prepare_count++)
 		goto out;
 
-	list_for_each_entry(entry, &dev->wakeup.resources, node) {
-		struct acpi_power_resource *resource = entry->resource;
-
-		mutex_lock(&resource->resource_lock);
-
-		if (!resource->wakeup_enabled) {
-			err = acpi_power_on_unlocked(resource);
-			if (!err)
-				resource->wakeup_enabled = true;
-		}
-
-		mutex_unlock(&resource->resource_lock);
-
-		if (err) {
-			dev_err(&dev->dev,
-				"Cannot turn wakeup power resources on\n");
-			dev->wakeup.flags.valid = 0;
-			goto out;
-		}
+	err = acpi_power_on_list(&dev->wakeup.resources);
+	if (err) {
+		dev_err(&dev->dev, "Cannot turn on wakeup power resources\n");
+		dev->wakeup.flags.valid = 0;
+		goto out;
 	}
+
 	/*
 	 * Passing 3 as the third argument below means the device may be
 	 * put into arbitrary power state afterward.
 	 */
 	err = acpi_device_sleep_wake(dev, 1, sleep_state, 3);
-	if (err)
+	if (err) {
+		acpi_power_off_list(&dev->wakeup.resources);
 		dev->wakeup.prepare_count = 0;
+	}
 
  out:
 	mutex_unlock(&acpi_device_lock);
@@ -771,39 +757,33 @@ int acpi_disable_wakeup_device_power(struct acpi_device *dev)
 
 	mutex_lock(&acpi_device_lock);
 
-	if (--dev->wakeup.prepare_count > 0)
+	if (dev->wakeup.prepare_count > 1) {
+		dev->wakeup.prepare_count--;
 		goto out;
+	}
 
-	/*
-	 * Executing the code below even if prepare_count is already zero when
-	 * the function is called may be useful, for example for initialisation.
-	 */
-	if (dev->wakeup.prepare_count < 0)
-		dev->wakeup.prepare_count = 0;
+	/* Do nothing if wakeup power has not been enabled for this device. */
+	if (!dev->wakeup.prepare_count)
+		goto out;
 
 	err = acpi_device_sleep_wake(dev, 0, 0, 0);
 	if (err)
 		goto out;
 
+	/*
+	 * All of the power resources in the list need to be turned off even if
+	 * there are errors.
+	 */
 	list_for_each_entry(entry, &dev->wakeup.resources, node) {
-		struct acpi_power_resource *resource = entry->resource;
+		int ret;
 
-		mutex_lock(&resource->resource_lock);
-
-		if (resource->wakeup_enabled) {
-			err = acpi_power_off_unlocked(resource);
-			if (!err)
-				resource->wakeup_enabled = false;
-		}
-
-		mutex_unlock(&resource->resource_lock);
-
-		if (err) {
-			dev_err(&dev->dev,
-				"Cannot turn wakeup power resources off\n");
-			dev->wakeup.flags.valid = 0;
-			break;
-		}
+		ret = acpi_power_off(entry->resource);
+		if (ret && !err)
+			err = ret;
+	}
+	if (err) {
+		dev_err(&dev->dev, "Cannot turn off wakeup power resources\n");
+		dev->wakeup.flags.valid = 0;
 	}
 
  out:
@@ -943,6 +923,7 @@ struct acpi_device *acpi_add_power_resource(acpi_handle handle)
 	union acpi_object acpi_object;
 	struct acpi_buffer buffer = { sizeof(acpi_object), &acpi_object };
 	acpi_status status;
+	u8 state_dummy;
 	int result;
 
 	acpi_bus_get_device(handle, &device);
@@ -970,6 +951,10 @@ struct acpi_device *acpi_add_power_resource(acpi_handle handle)
 	resource->system_level = acpi_object.power_resource.system_level;
 	resource->order = acpi_object.power_resource.resource_order;
 	resource->state = ACPI_POWER_RESOURCE_STATE_UNKNOWN;
+
+	/* Get the initial state or just flip it on if that fails. */
+	if (acpi_power_get_state(resource, &state_dummy))
+		__acpi_power_on(resource);
 
 	pr_info("%s [%s]\n", acpi_device_name(device), acpi_device_bid(device));
 

@@ -1356,13 +1356,9 @@ static void pci_acpi_set_external_facing(struct pci_dev *dev)
 		dev->external_facing = 1;
 }
 
-static void pci_acpi_setup(struct device *dev)
+void pci_acpi_setup(struct device *dev, struct acpi_device *adev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
-	struct acpi_device *adev = ACPI_COMPANION(dev);
-
-	if (!adev)
-		return;
 
 	pci_acpi_optimize_delay(pci_dev, adev->handle);
 	pci_acpi_set_external_facing(pci_dev);
@@ -1386,13 +1382,9 @@ static void pci_acpi_setup(struct device *dev)
 	acpi_device_power_add_dependent(adev, dev);
 }
 
-static void pci_acpi_cleanup(struct device *dev)
+void pci_acpi_cleanup(struct device *dev, struct acpi_device *adev)
 {
-	struct acpi_device *adev = ACPI_COMPANION(dev);
 	struct pci_dev *pci_dev = to_pci_dev(dev);
-
-	if (!adev)
-		return;
 
 	pci_acpi_remove_edr_notifier(pci_dev);
 	pci_acpi_remove_pm_notifier(adev);
@@ -1404,20 +1396,6 @@ static void pci_acpi_cleanup(struct device *dev)
 		device_set_wakeup_capable(dev, false);
 	}
 }
-
-static bool pci_acpi_bus_match(struct device *dev)
-{
-	return dev_is_pci(dev);
-}
-
-static struct acpi_bus_type acpi_pci_bus = {
-	.name = "PCI",
-	.match = pci_acpi_bus_match,
-	.find_companion = acpi_pci_find_companion,
-	.setup = pci_acpi_setup,
-	.cleanup = pci_acpi_cleanup,
-};
-
 
 static struct fwnode_handle *(*pci_msi_get_fwnode_cb)(struct device *dev);
 
@@ -1460,8 +1438,6 @@ struct irq_domain *pci_host_bridge_acpi_msi_domain(struct pci_bus *bus)
 
 static int __init acpi_pci_init(void)
 {
-	int ret;
-
 	if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_MSI) {
 		pr_info("ACPI FADT declares the system doesn't support MSI, so disable it\n");
 		pci_no_msi();
@@ -1472,8 +1448,7 @@ static int __init acpi_pci_init(void)
 		pcie_no_aspm();
 	}
 
-	ret = register_acpi_bus_type(&acpi_pci_bus);
-	if (ret)
+	if (acpi_pci_disabled)
 		return 0;
 
 	pci_set_platform_pm(&acpi_pci_platform_pm);
