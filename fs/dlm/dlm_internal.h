@@ -548,8 +548,9 @@ struct dlm_ls {
 	uint32_t		ls_generation;
 	uint32_t		ls_exflags;
 	int			ls_lvblen;
-	int			ls_count;	/* refcount of processes in
+	atomic_t		ls_count;	/* refcount of processes in
 						   the dlm using this ls */
+	wait_queue_head_t	ls_count_wait;
 	int			ls_create_count; /* create/release refcount */
 	unsigned long		ls_flags;	/* LSFL_ */
 	unsigned long		ls_scan_time;

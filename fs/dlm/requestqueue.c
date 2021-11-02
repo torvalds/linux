@@ -127,7 +127,7 @@ static int purge_request(struct dlm_ls *ls, struct dlm_message *ms, int nodeid)
 	uint32_t type = ms->m_type;
 
 	/* the ls is being cleaned up and freed by release_lockspace */
-	if (!ls->ls_count)
+	if (!atomic_read(&ls->ls_count))
 		return 1;
 
 	if (dlm_is_removed(ls, nodeid))

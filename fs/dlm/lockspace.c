@@ -314,7 +314,7 @@ struct dlm_ls *dlm_find_lockspace_global(uint32_t id)
 
 	list_for_each_entry(ls, &lslist, ls_list) {
 		if (ls->ls_global_id == id) {
-			ls->ls_count++;
+			atomic_inc(&ls->ls_count);
 			goto out;
 		}
 	}
@@ -331,7 +331,7 @@ struct dlm_ls *dlm_find_lockspace_local(dlm_lockspace_t *lockspace)
 	spin_lock(&lslist_lock);
 	list_for_each_entry(ls, &lslist, ls_list) {
 		if (ls->ls_local_handle == lockspace) {
-			ls->ls_count++;
+			atomic_inc(&ls->ls_count);
 			goto out;
 		}
 	}
@@ -348,7 +348,7 @@ struct dlm_ls *dlm_find_lockspace_device(int minor)
 	spin_lock(&lslist_lock);
 	list_for_each_entry(ls, &lslist, ls_list) {
 		if (ls->ls_device.minor == minor) {
-			ls->ls_count++;
+			atomic_inc(&ls->ls_count);
 			goto out;
 		}
 	}
@@ -360,24 +360,24 @@ struct dlm_ls *dlm_find_lockspace_device(int minor)
 
 void dlm_put_lockspace(struct dlm_ls *ls)
 {
-	spin_lock(&lslist_lock);
-	ls->ls_count--;
-	spin_unlock(&lslist_lock);
+	if (atomic_dec_and_test(&ls->ls_count))
+		wake_up(&ls->ls_count_wait);
 }
 
 static void remove_lockspace(struct dlm_ls *ls)
 {
-	for (;;) {
-		spin_lock(&lslist_lock);
-		if (ls->ls_count == 0) {
-			WARN_ON(ls->ls_create_count != 0);
-			list_del(&ls->ls_list);
-			spin_unlock(&lslist_lock);
-			return;
-		}
+retry:
+	wait_event(ls->ls_count_wait, atomic_read(&ls->ls_count) == 0);
+
+	spin_lock(&lslist_lock);
+	if (atomic_read(&ls->ls_count) != 0) {
 		spin_unlock(&lslist_lock);
-		ssleep(1);
+		goto retry;
 	}
+
+	WARN_ON(ls->ls_create_count != 0);
+	list_del(&ls->ls_list);
+	spin_unlock(&lslist_lock);
 }
 
 static int threads_start(void)
@@ -481,7 +481,8 @@ static int new_lockspace(const char *name, const char *cluster,
 	memcpy(ls->ls_name, name, namelen);
 	ls->ls_namelen = namelen;
 	ls->ls_lvblen = lvblen;
-	ls->ls_count = 0;
+	atomic_set(&ls->ls_count, 0);
+	init_waitqueue_head(&ls->ls_count_wait);
 	ls->ls_flags = 0;
 	ls->ls_scan_time = jiffies;
 
