@@ -601,12 +601,11 @@ static void _PHY_SaveMACRegisters(
 	)
 {
 	u32 i;
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
-	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
+
 	for (i = 0; i < (IQK_MAC_REG_NUM - 1); i++)
 		MACBackup[i] = rtw_read8(adapt, MACReg[i]);
 
-	MACBackup[i] = ODM_Read4Byte(dm_odm, MACReg[i]);
+	MACBackup[i] = rtw_read32(adapt, MACReg[i]);
 }
 
 static void reload_adda_reg(struct adapter *adapt, u32 *ADDAReg, u32 *ADDABackup, u32 RegiesterNum)
