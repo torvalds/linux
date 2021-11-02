@@ -444,6 +444,8 @@ void gspca_frame_add(struct gspca_dev *gspca_dev,
 	 * next first packet, wake up the application and advance
 	 * in the queue */
 	if (packet_type == LAST_PACKET) {
+		if (gspca_dev->image_len > gspca_dev->pixfmt.sizeimage)
+			gspca_dev->image_len = gspca_dev->pixfmt.sizeimage;
 		spin_lock_irqsave(&gspca_dev->qlock, flags);
 		list_del(&buf->list);
 		spin_unlock_irqrestore(&gspca_dev->qlock, flags);
