@@ -10,6 +10,30 @@
 #include "rk806-double.dtsi"
 
 / {
+	es8388_sound: es8388-sound {
+		status = "okay";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,name = "rockchip,es8388-codec";
+		simple-audio-card,dai-link@0 {
+			format = "i2s";
+			cpu {
+				sound-dai = <&i2s0_8ch>;
+			};
+			codec {
+				sound-dai = <&es8388>;
+			};
+		};
+	};
+
+	rk_headset {
+		status = "disabled";
+		compatible = "rockchip_headset";
+		headset_gpio = <&gpio1 RK_PD5 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&hp_det>;
+		io-channels = <&saradc 3>;
+	};
+
 	vbus5v0_typec: vbus-typec-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vbus5v0_typec";
@@ -103,11 +127,11 @@
 
 &i2c7 {
 	status = "okay";
-	es8388: es8388@10 {
+	es8388: es8388@11 {
 		status = "okay";
 		#sound-dai-cells = <0>;
-		compatible = "everest,es8388";
-		reg = <0x10>;
+		compatible = "everest,es8388", "everest,es8323";
+		reg = <0x11>;
 		clocks = <&cru I2S0_8CH_MCLKOUT>;
 		clock-names = "mclk";
 		pinctrl-names = "default";

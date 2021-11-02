@@ -56,30 +56,6 @@
 		status = "okay";
 	};
 
-	rk_headset {
-		status = "disabled";
-		compatible = "rockchip_headset";
-		headset_gpio = <&gpio1 RK_PD5 GPIO_ACTIVE_LOW>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&hp_det>;
-		io-channels = <&saradc 3>;
-	};
-
-	es8388_sound: es8388-sound {
-		status = "okay";
-		simple-audio-card,format = "i2s";
-		simple-audio-card,name = "rockchip,es8388-codec";
-		simple-audio-card,dai-link@0 {
-			format = "i2s";
-			cpu {
-				sound-dai = <&i2s0_8ch>;
-			};
-			codec {
-				sound-dai = <&es8388>;
-			};
-		};
-	};
-
 	vcc12v_dcin: vcc12v-dcin {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc12v_dcin";
@@ -122,6 +98,7 @@
 
 &i2s0_8ch {
 	status = "okay";
+	rockchip,clk-trcm = <1>;
 	pinctrl-0 = <&i2s0_lrck_tx
 		     &i2s0_sclk_tx
 		     &i2s0_sdi0

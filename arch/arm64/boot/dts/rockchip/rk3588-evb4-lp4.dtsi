@@ -49,21 +49,6 @@
 	};
 };
 
-&i2c7 {
-	status = "okay";
-	es8388: es8388@10 {
-		status = "okay";
-		#sound-dai-cells = <0>;
-		compatible = "everest,es8388";
-		reg = <0x10>;
-		clocks = <&cru I2S0_8CH_MCLKOUT>;
-		clock-names = "mclk";
-		pinctrl-names = "default";
-		pinctrl-0 = <&i2s0_mclk>;
-		spk-con-gpio = <&gpio1 RK_PD3 GPIO_ACTIVE_HIGH>;
-	};
-};
-
 &i2c8 {
 	status = "okay";
 	pinctrl-names = "default";
