@@ -24,6 +24,8 @@
 #define ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE	BIT(0)
 #define ROCKCHIP_OUTPUT_DUAL_CHANNEL_ODD_EVEN_MODE	BIT(1)
 #define ROCKCHIP_OUTPUT_DATA_SWAP			BIT(2)
+/* MIPI DSI DataStream(cmd) mode on rk3588 */
+#define ROCKCHIP_OUTPUT_MIPI_DS_MODE			BIT(3)
 
 #define AFBDC_FMT_RGB565	0x0
 #define AFBDC_FMT_U8U8U8U8	0x5
@@ -970,6 +972,8 @@ struct vop2_ctrl {
 
 	struct vop_reg mipi0_pixclk_div;
 	struct vop_reg mipi1_pixclk_div;
+	struct vop_reg mipi0_ds_mode;
+	struct vop_reg mipi1_ds_mode;
 
 	struct vop_reg cluster0_src_color_ctrl;
 	struct vop_reg cluster0_dst_color_ctrl;

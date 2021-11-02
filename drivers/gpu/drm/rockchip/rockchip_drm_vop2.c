@@ -5094,6 +5094,7 @@ static void vop2_crtc_enable_dsc(struct drm_crtc *crtc, struct drm_crtc_state *o
 	struct vop2_clk *dsc_cds_clk, *dsc_pxl_clk, *dsc_txp_clk;
 	const struct vop2_data *vop2_data = vop2->data;
 	const struct vop2_dsc_data *dsc_data = &vop2_data->dsc[vcstate->dsc_id];
+	bool mipi_ds_mode = false;
 
 	if (!vop2->data->nr_dscs) {
 		DRM_WARN("Unsupported DSC\n");
@@ -5112,7 +5113,8 @@ static void vop2_crtc_enable_dsc(struct drm_crtc *crtc, struct drm_crtc_state *o
 	if (vcstate->output_if & (VOP_OUTPUT_IF_HDMI0 | VOP_OUTPUT_IF_HDMI1)) {
 		dsc_interface_mode = VOP_DSC_IF_HDMI;
 	} else {
-		if (vcstate->hold_mode)
+		mipi_ds_mode = !!(vcstate->output_flags & ROCKCHIP_OUTPUT_MIPI_DS_MODE);
+		if (mipi_ds_mode)
 			dsc_interface_mode = VOP_DSC_IF_MIPI_DS_MODE;
 		else
 			dsc_interface_mode = VOP_DSC_IF_MIPI_VIDEO_MODE;
@@ -5128,10 +5130,10 @@ static void vop2_crtc_enable_dsc(struct drm_crtc *crtc, struct drm_crtc_state *o
 	VOP_MODULE_SET(vop2, dsc, dsc_cds_clk_div, dsc_cds_clk->div_val);
 	VOP_MODULE_SET(vop2, dsc, dsc_txp_clk_div, dsc_txp_clk->div_val);
 	VOP_MODULE_SET(vop2, dsc, dsc_init_dly_mode, 4);
-	VOP_MODULE_SET(vop2, dsc, dsc_scan_en, !vcstate->hold_mode);
-	VOP_MODULE_SET(vop2, dsc, dsc_halt_en, vcstate->hold_mode);
+	VOP_MODULE_SET(vop2, dsc, dsc_scan_en, !mipi_ds_mode);
+	VOP_MODULE_SET(vop2, dsc, dsc_halt_en, mipi_ds_mode);
 
-	if (!vcstate->hold_mode) {
+	if (!mipi_ds_mode) {
 		VOP_MODULE_SET(vop2, dsc, dsc_htotal_pw, htotal << 16 | hsync_len);
 		VOP_MODULE_SET(vop2, dsc, dsc_hact_st_end, hact_end << 16 | hact_st);
 		VOP_MODULE_SET(vop2, dsc, dsc_vtotal_pw, vtotal << 16 | vsync_len);
@@ -5314,6 +5316,10 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 			goto out;
 		if (if_pixclk)
 			VOP_CTRL_SET(vop2, mipi0_pixclk_div, if_pixclk->div_val);
+
+		if (vcstate->output_flags & ROCKCHIP_OUTPUT_MIPI_DS_MODE)
+			VOP_CTRL_SET(vop2, mipi0_ds_mode, 1);
+
 		port_mux = vop2_get_mipi_port_mux(vop2, vp_data->id);
 		VOP_CTRL_SET(vop2, mipi0_en, 1);
 		VOP_CTRL_SET(vop2, mipi0_mux, port_mux);
@@ -5327,6 +5333,9 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 			goto out;
 		if (if_pixclk)
 			VOP_CTRL_SET(vop2, mipi1_pixclk_div, if_pixclk->div_val);
+
+		if (vcstate->output_flags & ROCKCHIP_OUTPUT_MIPI_DS_MODE)
+			VOP_CTRL_SET(vop2, mipi1_ds_mode, 1);
 
 		port_mux = vop2_get_mipi_port_mux(vop2, vp_data->id);
 
