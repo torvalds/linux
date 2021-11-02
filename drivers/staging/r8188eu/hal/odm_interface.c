@@ -4,12 +4,6 @@
 #include "../include/odm_precomp.h"
 /*  ODM IO Relative API. */
 
-void ODM_Write2Byte(struct odm_dm_struct *pDM_Odm, u32 RegAddr, u16 Data)
-{
-	struct adapter *Adapter = pDM_Odm->Adapter;
-	rtw_write16(Adapter, RegAddr, Data);
-}
-
 void ODM_Write4Byte(struct odm_dm_struct *pDM_Odm, u32 RegAddr, u32 Data)
 {
 	struct adapter *Adapter = pDM_Odm->Adapter;
