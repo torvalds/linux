@@ -644,6 +644,42 @@ static void dg1_ctx_workarounds_init(struct intel_engine_cs *engine,
 		     DG1_HZ_READ_SUPPRESSION_OPTIMIZATION_DISABLE);
 }
 
+static void dg2_ctx_workarounds_init(struct intel_engine_cs *engine,
+				     struct i915_wa_list *wal)
+{
+	gen12_ctx_gt_tuning_init(engine, wal);
+
+	/* Wa_16011186671:dg2_g11 */
+	if (IS_DG2_GRAPHICS_STEP(engine->i915, G11, STEP_A0, STEP_B0)) {
+		wa_masked_dis(wal, VFLSKPD, DIS_MULT_MISS_RD_SQUASH);
+		wa_masked_en(wal, VFLSKPD, DIS_OVER_FETCH_CACHE);
+	}
+
+	if (IS_DG2_GRAPHICS_STEP(engine->i915, G10, STEP_A0, STEP_B0)) {
+		/* Wa_14010469329:dg2_g10 */
+		wa_masked_en(wal, GEN11_COMMON_SLICE_CHICKEN3,
+			     XEHP_DUAL_SIMD8_SEQ_MERGE_DISABLE);
+
+		/*
+		 * Wa_22010465075:dg2_g10
+		 * Wa_22010613112:dg2_g10
+		 * Wa_14010698770:dg2_g10
+		 */
+		wa_masked_en(wal, GEN11_COMMON_SLICE_CHICKEN3,
+			     GEN12_DISABLE_CPS_AWARE_COLOR_PIPE);
+	}
+
+	/* Wa_16013271637:dg2 */
+	wa_masked_en(wal, SLICE_COMMON_ECO_CHICKEN1,
+		     MSC_MSAA_REODER_BUF_BYPASS_DISABLE);
+
+	/* Wa_22012532006:dg2 */
+	if (IS_DG2_GRAPHICS_STEP(engine->i915, G10, STEP_A0, STEP_C0) ||
+	    IS_DG2_GRAPHICS_STEP(engine->i915, G11, STEP_A0, STEP_B0))
+		wa_masked_en(wal, GEN9_HALF_SLICE_CHICKEN7,
+			     DG2_DISABLE_ROUND_ENABLE_ALLOW_FOR_SSLA);
+}
+
 static void fakewa_disable_nestedbb_mode(struct intel_engine_cs *engine,
 					 struct i915_wa_list *wal)
 {
@@ -730,7 +766,9 @@ __intel_engine_init_ctx_wa(struct intel_engine_cs *engine,
 	if (engine->class != RENDER_CLASS)
 		goto done;
 
-	if (IS_XEHPSDV(i915))
+	if (IS_DG2(i915))
+		dg2_ctx_workarounds_init(engine, wal);
+	else if (IS_XEHPSDV(i915))
 		; /* noop; none at this time */
 	else if (IS_DG1(i915))
 		dg1_ctx_workarounds_init(engine, wal);
@@ -1344,11 +1382,116 @@ xehpsdv_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 }
 
 static void
+dg2_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
+{
+	struct intel_engine_cs *engine;
+	int id;
+
+	xehp_init_mcr(gt, wal);
+
+	/* Wa_14011060649:dg2 */
+	wa_14011060649(gt, wal);
+
+	/*
+	 * Although there are per-engine instances of these registers,
+	 * they technically exist outside the engine itself and are not
+	 * impacted by engine resets.  Furthermore, they're part of the
+	 * GuC blacklist so trying to treat them as engine workarounds
+	 * will result in GuC initialization failure and a wedged GPU.
+	 */
+	for_each_engine(engine, gt, id) {
+		if (engine->class != VIDEO_DECODE_CLASS)
+			continue;
+
+		/* Wa_16010515920:dg2_g10 */
+		if (IS_DG2_GRAPHICS_STEP(gt->i915, G10, STEP_A0, STEP_B0))
+			wa_write_or(wal, VDBOX_CGCTL3F18(engine->mmio_base),
+				    ALNUNIT_CLKGATE_DIS);
+	}
+
+	if (IS_DG2_G10(gt->i915)) {
+		/* Wa_22010523718:dg2 */
+		wa_write_or(wal, UNSLICE_UNIT_LEVEL_CLKGATE,
+			    CG3DDISCFEG_CLKGATE_DIS);
+
+		/* Wa_14011006942:dg2 */
+		wa_write_or(wal, SUBSLICE_UNIT_LEVEL_CLKGATE,
+			    DSS_ROUTER_CLKGATE_DIS);
+	}
+
+	if (IS_DG2_GRAPHICS_STEP(gt->i915, G10, STEP_A0, STEP_B0)) {
+		/* Wa_14010680813:dg2_g10 */
+		wa_write_or(wal, GEN12_GAMSTLB_CTRL, CONTROL_BLOCK_CLKGATE_DIS |
+			    EGRESS_BLOCK_CLKGATE_DIS | TAG_BLOCK_CLKGATE_DIS);
+
+		/* Wa_14010948348:dg2_g10 */
+		wa_write_or(wal, UNSLCGCTL9430, MSQDUNIT_CLKGATE_DIS);
+
+		/* Wa_14011037102:dg2_g10 */
+		wa_write_or(wal, UNSLCGCTL9444, LTCDD_CLKGATE_DIS);
+
+		/* Wa_14011371254:dg2_g10 */
+		wa_write_or(wal, SLICE_UNIT_LEVEL_CLKGATE, NODEDSS_CLKGATE_DIS);
+
+		/* Wa_14011431319:dg2_g10 */
+		wa_write_or(wal, UNSLCGCTL9440, GAMTLBOACS_CLKGATE_DIS |
+			    GAMTLBVDBOX7_CLKGATE_DIS |
+			    GAMTLBVDBOX6_CLKGATE_DIS |
+			    GAMTLBVDBOX5_CLKGATE_DIS |
+			    GAMTLBVDBOX4_CLKGATE_DIS |
+			    GAMTLBVDBOX3_CLKGATE_DIS |
+			    GAMTLBVDBOX2_CLKGATE_DIS |
+			    GAMTLBVDBOX1_CLKGATE_DIS |
+			    GAMTLBVDBOX0_CLKGATE_DIS |
+			    GAMTLBKCR_CLKGATE_DIS |
+			    GAMTLBGUC_CLKGATE_DIS |
+			    GAMTLBBLT_CLKGATE_DIS);
+		wa_write_or(wal, UNSLCGCTL9444, GAMTLBGFXA0_CLKGATE_DIS |
+			    GAMTLBGFXA1_CLKGATE_DIS |
+			    GAMTLBCOMPA0_CLKGATE_DIS |
+			    GAMTLBCOMPA1_CLKGATE_DIS |
+			    GAMTLBCOMPB0_CLKGATE_DIS |
+			    GAMTLBCOMPB1_CLKGATE_DIS |
+			    GAMTLBCOMPC0_CLKGATE_DIS |
+			    GAMTLBCOMPC1_CLKGATE_DIS |
+			    GAMTLBCOMPD0_CLKGATE_DIS |
+			    GAMTLBCOMPD1_CLKGATE_DIS |
+			    GAMTLBMERT_CLKGATE_DIS   |
+			    GAMTLBVEBOX3_CLKGATE_DIS |
+			    GAMTLBVEBOX2_CLKGATE_DIS |
+			    GAMTLBVEBOX1_CLKGATE_DIS |
+			    GAMTLBVEBOX0_CLKGATE_DIS);
+
+		/* Wa_14010569222:dg2_g10 */
+		wa_write_or(wal, UNSLICE_UNIT_LEVEL_CLKGATE,
+			    GAMEDIA_CLKGATE_DIS);
+
+		/* Wa_14011028019:dg2_g10 */
+		wa_write_or(wal, SSMCGCTL9530, RTFUNIT_CLKGATE_DIS);
+	}
+
+	if (IS_DG2_GRAPHICS_STEP(gt->i915, G10, STEP_A0, STEP_B0) ||
+	    IS_DG2_GRAPHICS_STEP(gt->i915, G11, STEP_A0, STEP_B0)) {
+		/* Wa_14012362059:dg2 */
+		wa_write_or(wal, GEN12_MERT_MOD_CTRL, FORCE_MISS_FTLB);
+	}
+
+	/* Wa_1509235366:dg2 */
+	wa_write_or(wal, GEN12_GAMCNTRL_CTRL, INVALIDATION_BROADCAST_MODE_DIS |
+		    GLOBAL_INVALIDATION_MODE);
+
+	/* Wa_14014830051:dg2 */
+	wa_write_clr(wal, SARB_CHICKEN1, COMP_CKN_IN);
+}
+
+static void
 gt_init_workarounds(struct intel_gt *gt, struct i915_wa_list *wal)
 {
 	struct drm_i915_private *i915 = gt->i915;
 
-	if (IS_XEHPSDV(i915))
+	if (IS_DG2(i915))
+		dg2_gt_workarounds_init(gt, wal);
+	else if (IS_XEHPSDV(i915))
 		xehpsdv_gt_workarounds_init(gt, wal);
 	else if (IS_DG1(i915))
 		dg1_gt_workarounds_init(gt, wal);
@@ -1739,6 +1882,34 @@ static void xehpsdv_whitelist_build(struct intel_engine_cs *engine)
 	allow_read_ctx_timestamp(engine);
 }
 
+static void dg2_whitelist_build(struct intel_engine_cs *engine)
+{
+	struct i915_wa_list *w = &engine->whitelist;
+
+	allow_read_ctx_timestamp(engine);
+
+	switch (engine->class) {
+	case RENDER_CLASS:
+		/*
+		 * Wa_1507100340:dg2_g10
+		 *
+		 * This covers 4 registers which are next to one another :
+		 *   - PS_INVOCATION_COUNT
+		 *   - PS_INVOCATION_COUNT_UDW
+		 *   - PS_DEPTH_COUNT
+		 *   - PS_DEPTH_COUNT_UDW
+		 */
+		if (IS_DG2_GRAPHICS_STEP(engine->i915, G10, STEP_A0, STEP_B0))
+			whitelist_reg_ext(w, PS_INVOCATION_COUNT,
+					  RING_FORCE_TO_NONPRIV_ACCESS_RD |
+					  RING_FORCE_TO_NONPRIV_RANGE_4);
+
+		break;
+	default:
+		break;
+	}
+}
+
 void intel_engine_init_whitelist(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *i915 = engine->i915;
@@ -1746,7 +1917,9 @@ void intel_engine_init_whitelist(struct intel_engine_cs *engine)
 
 	wa_init_start(w, "whitelist", engine->name);
 
-	if (IS_XEHPSDV(i915))
+	if (IS_DG2(i915))
+		dg2_whitelist_build(engine);
+	else if (IS_XEHPSDV(i915))
 		xehpsdv_whitelist_build(engine);
 	else if (IS_DG1(i915))
 		dg1_whitelist_build(engine);
@@ -1826,6 +1999,105 @@ static void
 rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 {
 	struct drm_i915_private *i915 = engine->i915;
+	u64 dss_mask = intel_sseu_get_subslices(&engine->gt->info.sseu, 0);
+
+	if (IS_DG2_GRAPHICS_STEP(engine->i915, G11, STEP_A0, STEP_B0)) {
+		/* Wa_14013392000:dg2_g11 */
+		wa_masked_en(wal, GEN7_ROW_CHICKEN2, GEN12_ENABLE_LARGE_GRF_MODE);
+
+		/* Wa_16011620976:dg2_g11 */
+		wa_write_or(wal, LSC_CHICKEN_BIT_0_UDW, DIS_CHAIN_2XSIMD8);
+	}
+
+	if (IS_DG2_GRAPHICS_STEP(engine->i915, G10, STEP_A0, STEP_B0) ||
+	    IS_DG2_GRAPHICS_STEP(engine->i915, G11, STEP_A0, STEP_B0)) {
+		/* Wa_14012419201:dg2 */
+		wa_masked_en(wal, GEN9_ROW_CHICKEN4,
+			     GEN12_DISABLE_HDR_PAST_PAYLOAD_HOLD_FIX);
+	}
+
+	if (IS_DG2_GRAPHICS_STEP(engine->i915, G10, STEP_B0, STEP_C0) ||
+	    IS_DG2_G11(engine->i915)) {
+		/*
+		 * Wa_22012826095:dg2
+		 * Wa_22013059131:dg2
+		 */
+		wa_write_clr_set(wal, LSC_CHICKEN_BIT_0_UDW,
+				 MAXREQS_PER_BANK,
+				 REG_FIELD_PREP(MAXREQS_PER_BANK, 2));
+
+		/* Wa_22013059131:dg2 */
+		wa_write_or(wal, LSC_CHICKEN_BIT_0,
+			    FORCE_1_SUB_MESSAGE_PER_FRAGMENT);
+	}
+
+	/* Wa_1308578152:dg2_g10 when first gslice is fused off */
+	if (IS_DG2_GRAPHICS_STEP(engine->i915, G10, STEP_B0, STEP_C0) &&
+	    (dss_mask & GENMASK(GEN_DSS_PER_GSLICE - 1, 0)) == 0) {
+		wa_masked_dis(wal, GEN12_CS_DEBUG_MODE1_CCCSUNIT_BE_COMMON,
+			      GEN12_REPLAY_MODE_GRANULARITY);
+	}
+
+	if (IS_DG2_GRAPHICS_STEP(engine->i915, G10, STEP_B0, STEP_FOREVER) ||
+	    IS_DG2_G11(engine->i915)) {
+		/* Wa_22013037850:dg2 */
+		wa_write_or(wal, LSC_CHICKEN_BIT_0_UDW,
+			    DISABLE_128B_EVICTION_COMMAND_UDW);
+
+		/* Wa_22012856258:dg2 */
+		wa_masked_en(wal, GEN7_ROW_CHICKEN2,
+			     GEN12_DISABLE_READ_SUPPRESSION);
+
+		/*
+		 * Wa_22010960976:dg2
+		 * Wa_14013347512:dg2
+		 */
+		wa_masked_dis(wal, GEN12_HDC_CHICKEN0,
+			      LSC_L1_FLUSH_CTL_3D_DATAPORT_FLUSH_EVENTS_MASK);
+	}
+
+	if (IS_DG2_GRAPHICS_STEP(engine->i915, G10, STEP_A0, STEP_B0)) {
+		/*
+		 * Wa_1608949956:dg2_g10
+		 * Wa_14010198302:dg2_g10
+		 */
+		wa_masked_en(wal, GEN8_ROW_CHICKEN,
+			     MDQ_ARBITRATION_MODE | UGM_BACKUP_MODE);
+
+		/*
+		 * Wa_14010918519:dg2_g10
+		 *
+		 * LSC_CHICKEN_BIT_0 always reads back as 0 is this stepping,
+		 * so ignoring verification.
+		 */
+		wa_add(wal, LSC_CHICKEN_BIT_0_UDW, 0,
+		       FORCE_SLM_FENCE_SCOPE_TO_TILE | FORCE_UGM_FENCE_SCOPE_TO_TILE,
+		       0, false);
+	}
+
+	if (IS_DG2_GRAPHICS_STEP(engine->i915, G10, STEP_A0, STEP_B0)) {
+		/* Wa_22010430635:dg2 */
+		wa_masked_en(wal,
+			     GEN9_ROW_CHICKEN4,
+			     GEN12_DISABLE_GRF_CLEAR);
+
+		/* Wa_14010648519:dg2 */
+		wa_write_or(wal, XEHP_L3NODEARBCFG, XEHP_LNESPARE);
+	}
+
+	if (IS_DG2_GRAPHICS_STEP(engine->i915, G10, STEP_A0, STEP_C0) ||
+	    IS_DG2_G11(engine->i915)) {
+		/* Wa_22012654132:dg2 */
+		wa_add(wal, GEN10_CACHE_MODE_SS, 0,
+		       _MASKED_BIT_ENABLE(ENABLE_PREFETCH_INTO_IC),
+		       0 /* write-only, so skip validation */,
+		       true);
+	}
+
+	/* Wa_14013202645:dg2 */
+	if (IS_DG2_GRAPHICS_STEP(engine->i915, G10, STEP_B0, STEP_C0) ||
+	    IS_DG2_GRAPHICS_STEP(engine->i915, G11, STEP_A0, STEP_B0))
+		wa_write_or(wal, RT_CTRL, DIS_NULL_QUERY);
 
 	if (IS_DG1_GRAPHICS_STEP(i915, STEP_A0, STEP_B0) ||
 	    IS_TGL_UY_GRAPHICS_STEP(i915, STEP_A0, STEP_B0)) {
