@@ -214,6 +214,46 @@ TRACE_EVENT(dlm_unlock_end,
 
 );
 
+TRACE_EVENT(dlm_send,
+
+	TP_PROTO(int nodeid, int ret),
+
+	TP_ARGS(nodeid, ret),
+
+	TP_STRUCT__entry(
+		__field(int, nodeid)
+		__field(int, ret)
+	),
+
+	TP_fast_assign(
+		__entry->nodeid = nodeid;
+		__entry->ret = ret;
+	),
+
+	TP_printk("nodeid=%d ret=%d", __entry->nodeid, __entry->ret)
+
+);
+
+TRACE_EVENT(dlm_recv,
+
+	TP_PROTO(int nodeid, int ret),
+
+	TP_ARGS(nodeid, ret),
+
+	TP_STRUCT__entry(
+		__field(int, nodeid)
+		__field(int, ret)
+	),
+
+	TP_fast_assign(
+		__entry->nodeid = nodeid;
+		__entry->ret = ret;
+	),
+
+	TP_printk("nodeid=%d ret=%d", __entry->nodeid, __entry->ret)
+
+);
+
 #endif /* if !defined(_TRACE_DLM_H) || defined(TRACE_HEADER_MULTI_READ) */
 
 /* This part must be outside protection */
