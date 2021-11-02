@@ -189,6 +189,7 @@ struct prestera_msg_switch_attr_req {
 	struct prestera_msg_cmd cmd;
 	__le32 attr;
 	union prestera_msg_switch_param param;
+	u8 pad[2];
 };
 
 struct prestera_msg_switch_init_resp {
@@ -313,6 +314,7 @@ struct prestera_msg_port_info_resp {
 	__le32 hw_id;
 	__le32 dev_id;
 	__le16 fp_id;
+	u8 pad[2];
 };
 
 struct prestera_msg_vlan_req {
@@ -345,11 +347,13 @@ struct prestera_msg_bridge_req {
 	__le32 port;
 	__le32 dev;
 	__le16 bridge;
+	u8 pad[2];
 };
 
 struct prestera_msg_bridge_resp {
 	struct prestera_msg_ret ret;
 	__le16 bridge;
+	u8 pad[2];
 };
 
 struct prestera_msg_acl_action {
@@ -408,16 +412,19 @@ struct prestera_msg_acl_ruleset_bind_req {
 	__le32 port;
 	__le32 dev;
 	__le16 ruleset_id;
+	u8 pad[2];
 };
 
 struct prestera_msg_acl_ruleset_req {
 	struct prestera_msg_cmd cmd;
 	__le16 id;
+	u8 pad[2];
 };
 
 struct prestera_msg_acl_ruleset_resp {
 	struct prestera_msg_ret ret;
 	__le16 id;
+	u8 pad[2];
 };
 
 struct prestera_msg_span_req {
@@ -425,11 +432,13 @@ struct prestera_msg_span_req {
 	__le32 port;
 	__le32 dev;
 	u8 id;
+	u8 pad[3];
 };
 
 struct prestera_msg_span_resp {
 	struct prestera_msg_ret ret;
 	u8 id;
+	u8 pad[3];
 };
 
 struct prestera_msg_stp_req {
@@ -443,6 +452,7 @@ struct prestera_msg_stp_req {
 struct prestera_msg_rxtx_req {
 	struct prestera_msg_cmd cmd;
 	u8 use_sdma;
+	u8 pad[3];
 };
 
 struct prestera_msg_rxtx_resp {
@@ -455,12 +465,14 @@ struct prestera_msg_lag_req {
 	__le32 port;
 	__le32 dev;
 	__le16 lag_id;
+	u8 pad[2];
 };
 
 struct prestera_msg_cpu_code_counter_req {
 	struct prestera_msg_cmd cmd;
 	u8 counter_type;
 	u8 code;
+	u8 pad[2];
 };
 
 struct mvsw_msg_cpu_code_counter_ret {
