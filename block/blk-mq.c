@@ -419,7 +419,6 @@ __blk_mq_alloc_requests_batch(struct blk_mq_alloc_data *data,
 static struct request *__blk_mq_alloc_requests(struct blk_mq_alloc_data *data)
 {
 	struct request_queue *q = data->q;
-	struct elevator_queue *e = q->elevator;
 	u64 alloc_time_ns = 0;
 	struct request *rq;
 	unsigned int tag;
@@ -431,7 +430,11 @@ static struct request *__blk_mq_alloc_requests(struct blk_mq_alloc_data *data)
 	if (data->cmd_flags & REQ_NOWAIT)
 		data->flags |= BLK_MQ_REQ_NOWAIT;
 
-	if (e) {
+	if (q->elevator) {
+		struct elevator_queue *e = q->elevator;
+
+		data->rq_flags |= RQF_ELV;
+
 		/*
 		 * Flush/passthrough requests are special and go directly to the
 		 * dispatch list. Don't include reserved tags in the
@@ -447,7 +450,7 @@ static struct request *__blk_mq_alloc_requests(struct blk_mq_alloc_data *data)
 retry:
 	data->ctx = blk_mq_get_ctx(q);
 	data->hctx = blk_mq_map_queue(q, data->cmd_flags, data->ctx);
-	if (!e)
+	if (!(data->rq_flags & RQF_ELV))
 		blk_mq_tag_busy(data->hctx);
 
 	/*
@@ -490,7 +493,6 @@ struct request *blk_mq_alloc_request(struct request_queue *q, unsigned int op,
 		.q		= q,
 		.flags		= flags,
 		.cmd_flags	= op,
-		.rq_flags	= q->elevator ? RQF_ELV : 0,
 		.nr_tags	= 1,
 	};
 	struct request *rq;
@@ -520,7 +522,6 @@ struct request *blk_mq_alloc_request_hctx(struct request_queue *q,
 		.q		= q,
 		.flags		= flags,
 		.cmd_flags	= op,
-		.rq_flags	= q->elevator ? RQF_ELV : 0,
 		.nr_tags	= 1,
 	};
 	u64 alloc_time_ns = 0;
@@ -561,6 +562,8 @@ struct request *blk_mq_alloc_request_hctx(struct request_queue *q,
 
 	if (!q->elevator)
 		blk_mq_tag_busy(data.hctx);
+	else
+		data.rq_flags |= RQF_ELV;
 
 	ret = -EWOULDBLOCK;
 	tag = blk_mq_get_tag(&data);
@@ -2515,7 +2518,6 @@ void blk_mq_submit_bio(struct bio *bio)
 			.q		= q,
 			.nr_tags	= 1,
 			.cmd_flags	= bio->bi_opf,
-			.rq_flags	= q->elevator ? RQF_ELV : 0,
 		};
 
 		if (plug) {
