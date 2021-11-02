@@ -151,7 +151,6 @@ extern cpumask_t __read_mostly **cpu_array;
 extern int cpu_l2_sibling[WALT_NR_CPUS];
 extern void sched_update_nr_prod(int cpu, int enq);
 extern unsigned int walt_big_tasks(int cpu);
-extern void walt_rotate_work_init(void);
 extern void walt_rotation_checkpoint(int nr_big);
 extern void walt_fill_ta_data(struct core_ctl_notif_data *data);
 extern int sched_set_group_id(struct task_struct *p, unsigned int group_id);
@@ -159,38 +158,20 @@ extern unsigned int sched_get_group_id(struct task_struct *p);
 extern void core_ctl_check(u64 wallclock);
 extern int sched_set_boost(int enable);
 extern void walt_boost_init(void);
-extern int sched_wake_up_idle_show(struct seq_file *m, void *v);
-extern ssize_t sched_wake_up_idle_write(struct file *file,
-		const char __user *buf, size_t count, loff_t *offset);
-extern int sched_wake_up_idle_open(struct inode *inode,	struct file *filp);
-extern int sched_init_task_load_show(struct seq_file *m, void *v);
-extern ssize_t sched_init_task_load_write(struct file *file, const char __user *buf,
-					size_t count, loff_t *offset);
-extern int sched_init_task_load_open(struct inode *inode, struct file *filp);
-extern int sched_group_id_show(struct seq_file *m, void *v);
-extern ssize_t sched_group_id_write(struct file *file, const char __user *buf,
-					size_t count, loff_t *offset);
-extern int sched_group_id_open(struct inode *inode, struct file *filp);
 extern int sched_pause_cpus(struct cpumask *pause_cpus);
 extern int sched_unpause_cpus(struct cpumask *unpause_cpus);
 
 extern unsigned int sched_get_cpu_util(int cpu);
 extern void sched_update_hyst_times(void);
-extern int
-sched_updown_migrate_handler(struct ctl_table *table, int write,
-			void __user *buffer, size_t *lenp, loff_t *ppos);
 extern int sched_boost_handler(struct ctl_table *table, int write,
 			void __user *buffer, size_t *lenp, loff_t *ppos);
 extern int sched_busy_hyst_handler(struct ctl_table *table, int write,
 			void __user *buffer, size_t *lenp, loff_t *ppos);
 extern u64 walt_ktime_get_ns(void);
-extern void clear_walt_request(int cpu);
 extern void walt_init_tg(struct task_group *tg);
 extern void walt_init_topapp_tg(struct task_group *tg);
 extern void walt_init_foreground_tg(struct task_group *tg);
 extern int register_walt_callback(void);
-extern void set_cpu_array(void);
-extern int core_ctl_init(void);
 extern int input_boost_init(void);
 extern int core_ctl_init(void);
 

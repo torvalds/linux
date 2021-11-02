@@ -502,7 +502,7 @@ unsigned int walt_big_tasks(int cpu)
 	return wrq->walt_stats.nr_big_tasks;
 }
 
-void clear_walt_request(int cpu)
+static void clear_walt_request(int cpu)
 {
 	struct rq *rq = cpu_rq(cpu);
 	unsigned long flags;
@@ -2197,7 +2197,7 @@ done:
 	run_walt_irq_work(old_window_start, rq);
 }
 
-static void __sched_fork_init(struct task_struct *p)
+static inline void __sched_fork_init(struct task_struct *p)
 {
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 
