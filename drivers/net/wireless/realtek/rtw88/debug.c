@@ -904,6 +904,39 @@ static int rtw_debugfs_get_fw_crash(struct seq_file *m, void *v)
 	return 0;
 }
 
+static ssize_t rtw_debugfs_set_force_lowest_basic_rate(struct file *filp,
+						       const char __user *buffer,
+						       size_t count, loff_t *loff)
+{
+	struct seq_file *seqpriv = (struct seq_file *)filp->private_data;
+	struct rtw_debugfs_priv *debugfs_priv = seqpriv->private;
+	struct rtw_dev *rtwdev = debugfs_priv->rtwdev;
+	bool input;
+	int err;
+
+	err = kstrtobool_from_user(buffer, count, &input);
+	if (err)
+		return err;
+
+	if (input)
+		set_bit(RTW_FLAG_FORCE_LOWEST_RATE, rtwdev->flags);
+	else
+		clear_bit(RTW_FLAG_FORCE_LOWEST_RATE, rtwdev->flags);
+
+	return count;
+}
+
+static int rtw_debugfs_get_force_lowest_basic_rate(struct seq_file *m, void *v)
+{
+	struct rtw_debugfs_priv *debugfs_priv = m->private;
+	struct rtw_dev *rtwdev = debugfs_priv->rtwdev;
+
+	seq_printf(m, "force lowest basic rate: %d\n",
+		   test_bit(RTW_FLAG_FORCE_LOWEST_RATE, rtwdev->flags));
+
+	return 0;
+}
+
 static ssize_t rtw_debugfs_set_dm_cap(struct file *filp,
 				      const char __user *buffer,
 				      size_t count, loff_t *loff)
@@ -1094,6 +1127,11 @@ static struct rtw_debugfs_priv rtw_debug_priv_fw_crash = {
 	.cb_read = rtw_debugfs_get_fw_crash,
 };
 
+static struct rtw_debugfs_priv rtw_debug_priv_force_lowest_basic_rate = {
+	.cb_write = rtw_debugfs_set_force_lowest_basic_rate,
+	.cb_read = rtw_debugfs_get_force_lowest_basic_rate,
+};
+
 static struct rtw_debugfs_priv rtw_debug_priv_dm_cap = {
 	.cb_write = rtw_debugfs_set_dm_cap,
 	.cb_read = rtw_debugfs_get_dm_cap,
@@ -1174,6 +1212,7 @@ void rtw_debugfs_init(struct rtw_dev *rtwdev)
 	rtw_debugfs_add_r(tx_pwr_tbl);
 	rtw_debugfs_add_rw(edcca_enable);
 	rtw_debugfs_add_rw(fw_crash);
+	rtw_debugfs_add_rw(force_lowest_basic_rate);
 	rtw_debugfs_add_rw(dm_cap);
 }
 
