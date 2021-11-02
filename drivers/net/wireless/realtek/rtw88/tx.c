@@ -233,17 +233,33 @@ void rtw_tx_report_handle(struct rtw_dev *rtwdev, struct sk_buff *skb, int src)
 	spin_unlock_irqrestore(&tx_report->q_lock, flags);
 }
 
+static u8 rtw_get_mgmt_rate(struct rtw_dev *rtwdev, struct sk_buff *skb,
+			    u8 lowest_rate, bool ignore_rate)
+{
+	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_vif *vif = tx_info->control.vif;
+
+	if (!vif || !vif->bss_conf.basic_rates || ignore_rate)
+		return lowest_rate;
+
+	return __ffs(vif->bss_conf.basic_rates) + lowest_rate;
+}
+
 static void rtw_tx_pkt_info_update_rate(struct rtw_dev *rtwdev,
 					struct rtw_tx_pkt_info *pkt_info,
-					struct sk_buff *skb)
+					struct sk_buff *skb,
+					bool ignore_rate)
 {
 	if (rtwdev->hal.current_band_type == RTW_BAND_2G) {
 		pkt_info->rate_id = RTW_RATEID_B_20M;
-		pkt_info->rate = DESC_RATE1M;
+		pkt_info->rate = rtw_get_mgmt_rate(rtwdev, skb, DESC_RATE1M,
+						   ignore_rate);
 	} else {
 		pkt_info->rate_id = RTW_RATEID_G;
-		pkt_info->rate = DESC_RATE6M;
+		pkt_info->rate = rtw_get_mgmt_rate(rtwdev, skb, DESC_RATE6M,
+						   ignore_rate);
 	}
+
 	pkt_info->use_rate = true;
 	pkt_info->dis_rate_fallback = true;
 }
@@ -280,7 +296,7 @@ static void rtw_tx_mgmt_pkt_info_update(struct rtw_dev *rtwdev,
 					struct ieee80211_sta *sta,
 					struct sk_buff *skb)
 {
-	rtw_tx_pkt_info_update_rate(rtwdev, pkt_info, skb);
+	rtw_tx_pkt_info_update_rate(rtwdev, pkt_info, skb, false);
 	pkt_info->dis_qselseq = true;
 	pkt_info->en_hwseq = true;
 	pkt_info->hw_ssn_sel = 0;
@@ -404,7 +420,7 @@ void rtw_tx_rsvd_page_pkt_info_update(struct rtw_dev *rtwdev,
 	if (type != RSVD_BEACON && type != RSVD_DUMMY)
 		pkt_info->qsel = TX_DESC_QSEL_MGMT;
 
-	rtw_tx_pkt_info_update_rate(rtwdev, pkt_info, skb);
+	rtw_tx_pkt_info_update_rate(rtwdev, pkt_info, skb, true);
 
 	bmc = is_broadcast_ether_addr(hdr->addr1) ||
 	      is_multicast_ether_addr(hdr->addr1);
