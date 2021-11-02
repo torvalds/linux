@@ -171,6 +171,27 @@ bool fips140_is_approved_service(const char *name)
 }
 EXPORT_SYMBOL_GPL(fips140_is_approved_service);
 
+/*
+ * FIPS 140-3 requires that modules provide a "service" that outputs "the name
+ * or module identifier and the versioning information that can be correlated
+ * with a validation record".  This function meets that requirement.
+ *
+ * Note: the module also prints this same information to the kernel log when it
+ * is loaded.  That might meet the requirement by itself.  However, given the
+ * vagueness of what counts as a "service", we provide this function too, just
+ * in case the certification lab or CMVP is happier with an explicit function.
+ *
+ * Note: /sys/modules/fips140/scmversion also provides versioning information
+ * about the module.  However that file just shows the bare git commit ID, so it
+ * probably isn't sufficient to meet the FIPS requirement, which seems to want
+ * the "official" module name and version number used in the FIPS certificate.
+ */
+const char *fips140_module_version(void)
+{
+	return FIPS140_MODULE_NAME " " FIPS140_MODULE_VERSION;
+}
+EXPORT_SYMBOL_GPL(fips140_module_version);
+
 static LIST_HEAD(existing_live_algos);
 
 /*
@@ -478,7 +499,7 @@ fips140_init(void)
 {
 	const u32 *initcall;
 
-	pr_info("loading module\n");
+	pr_info("loading " FIPS140_MODULE_NAME " " FIPS140_MODULE_VERSION "\n");
 	fips140_init_thread = current;
 
 	unregister_existing_fips140_algos();
