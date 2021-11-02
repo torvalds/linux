@@ -2845,6 +2845,106 @@ static int hl_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 }
 
 static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
+				struct hl_cb_mgr *cb_mgr, u64 timeout_us,
+				u64 cq_counters_handle,	u64 cq_counters_offset,
+				u64 target_value, struct hl_user_interrupt *interrupt,
+				u32 *status,
+				u64 *timestamp)
+{
+	struct hl_user_pending_interrupt *pend;
+	unsigned long timeout, flags;
+	long completion_rc;
+	struct hl_cb *cb;
+	int rc = 0;
+	u32 handle;
+
+	timeout = hl_usecs64_to_jiffies(timeout_us);
+
+	hl_ctx_get(hdev, ctx);
+
+	cq_counters_handle >>= PAGE_SHIFT;
+	handle = (u32) cq_counters_handle;
+
+	cb = hl_cb_get(hdev, cb_mgr, handle);
+	if (!cb) {
+		hl_ctx_put(ctx);
+		return -EINVAL;
+	}
+
+	pend = kzalloc(sizeof(*pend), GFP_KERNEL);
+	if (!pend) {
+		hl_cb_put(cb);
+		hl_ctx_put(ctx);
+		return -ENOMEM;
+	}
+
+	hl_fence_init(&pend->fence, ULONG_MAX);
+
+	pend->cq_kernel_addr = (u64 *) cb->kernel_address + cq_counters_offset;
+	pend->cq_target_value = target_value;
+
+	/* We check for completion value as interrupt could have been received
+	 * before we added the node to the wait list
+	 */
+	if (*pend->cq_kernel_addr >= target_value) {
+		*status = HL_WAIT_CS_STATUS_COMPLETED;
+		/* There was no interrupt, we assume the completion is now. */
+		pend->fence.timestamp = ktime_get();
+	}
+
+	if (!timeout_us || (*status == HL_WAIT_CS_STATUS_COMPLETED))
+		goto set_timestamp;
+
+	/* Add pending user interrupt to relevant list for the interrupt
+	 * handler to monitor
+	 */
+	spin_lock_irqsave(&interrupt->wait_list_lock, flags);
+	list_add_tail(&pend->wait_list_node, &interrupt->wait_list_head);
+	spin_unlock_irqrestore(&interrupt->wait_list_lock, flags);
+
+	/* Wait for interrupt handler to signal completion */
+	completion_rc = wait_for_completion_interruptible_timeout(&pend->fence.completion,
+								timeout);
+	if (completion_rc > 0) {
+		*status = HL_WAIT_CS_STATUS_COMPLETED;
+	} else {
+		if (completion_rc == -ERESTARTSYS) {
+			dev_err_ratelimited(hdev->dev,
+					"user process got signal while waiting for interrupt ID %d\n",
+					interrupt->interrupt_id);
+			rc = -EINTR;
+			*status = HL_WAIT_CS_STATUS_ABORTED;
+		} else {
+			if (pend->fence.error == -EIO) {
+				dev_err_ratelimited(hdev->dev,
+						"interrupt based wait ioctl aborted(error:%d) due to a reset cycle initiated\n",
+						pend->fence.error);
+				rc = -EIO;
+				*status = HL_WAIT_CS_STATUS_ABORTED;
+			} else {
+				dev_err_ratelimited(hdev->dev, "Waiting for interrupt ID %d timedout\n",
+						interrupt->interrupt_id);
+				rc = -ETIMEDOUT;
+			}
+			*status = HL_WAIT_CS_STATUS_BUSY;
+		}
+	}
+
+	spin_lock_irqsave(&interrupt->wait_list_lock, flags);
+	list_del(&pend->wait_list_node);
+	spin_unlock_irqrestore(&interrupt->wait_list_lock, flags);
+
+set_timestamp:
+	*timestamp = ktime_to_ns(pend->fence.timestamp);
+
+	kfree(pend);
+	hl_cb_put(cb);
+	hl_ctx_put(ctx);
+
+	return rc;
+}
+
+static int _hl_interrupt_wait_ioctl_user_addr(struct hl_device *hdev, struct hl_ctx *ctx,
 				u64 timeout_us, u64 user_address,
 				u64 target_value, struct hl_user_interrupt *interrupt,
 
@@ -2861,7 +2961,7 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 
 	hl_ctx_get(hdev, ctx);
 
-	pend = kmalloc(sizeof(*pend), GFP_KERNEL);
+	pend = kzalloc(sizeof(*pend), GFP_KERNEL);
 	if (!pend) {
 		hl_ctx_put(ctx);
 		return -ENOMEM;
@@ -2990,7 +3090,14 @@ static int hl_interrupt_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 	else
 		interrupt = &hdev->user_interrupt[interrupt_id - first_interrupt];
 
-	rc = _hl_interrupt_wait_ioctl(hdev, hpriv->ctx,
+	if (args->in.flags & HL_WAIT_CS_FLAGS_INTERRUPT_KERNEL_CQ)
+		rc = _hl_interrupt_wait_ioctl(hdev, hpriv->ctx, &hpriv->cb_mgr,
+				args->in.interrupt_timeout_us, args->in.cq_counters_handle,
+				args->in.cq_counters_offset,
+				args->in.target, interrupt, &status,
+				&timestamp);
+	else
+		rc = _hl_interrupt_wait_ioctl_user_addr(hdev, hpriv->ctx,
 				args->in.interrupt_timeout_us, args->in.addr,
 				args->in.target, interrupt, &status,
 				&timestamp);

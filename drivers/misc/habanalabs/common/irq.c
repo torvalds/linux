@@ -145,8 +145,12 @@ static void handle_user_cq(struct hl_device *hdev,
 
 	spin_lock(&user_cq->wait_list_lock);
 	list_for_each_entry(pend, &user_cq->wait_list_head, wait_list_node) {
-		pend->fence.timestamp = now;
-		complete_all(&pend->fence.completion);
+		if ((pend->cq_kernel_addr &&
+				*(pend->cq_kernel_addr) >= pend->cq_target_value) ||
+				!pend->cq_kernel_addr) {
+			pend->fence.timestamp = now;
+			complete_all(&pend->fence.completion);
+		}
 	}
 	spin_unlock(&user_cq->wait_list_lock);
 }

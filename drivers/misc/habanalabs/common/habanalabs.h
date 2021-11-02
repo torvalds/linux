@@ -876,10 +876,15 @@ struct hl_user_interrupt {
  *                                    pending on an interrupt
  * @wait_list_node: node in the list of user threads pending on an interrupt
  * @fence: hl fence object for interrupt completion
+ * @cq_target_value: CQ target value
+ * @cq_kernel_addr: CQ kernel address, to be used in the cq interrupt
+ *                  handler for taget value comparison
  */
 struct hl_user_pending_interrupt {
 	struct list_head	wait_list_node;
 	struct hl_fence		fence;
+	u64			cq_target_value;
+	u64			*cq_kernel_addr;
 };
 
 /**

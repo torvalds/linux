@@ -380,8 +380,9 @@ int hl_cb_destroy(struct hl_device *hdev, struct hl_cb_mgr *mgr, u64 cb_handle)
 }
 
 static int hl_cb_info(struct hl_device *hdev, struct hl_cb_mgr *mgr,
-			u64 cb_handle, u32 *usage_cnt)
+			u64 cb_handle, u32 flags, u32 *usage_cnt, u64 *device_va)
 {
+	struct hl_vm_va_block *va_block;
 	struct hl_cb *cb;
 	u32 handle;
 	int rc = 0;
@@ -402,7 +403,18 @@ static int hl_cb_info(struct hl_device *hdev, struct hl_cb_mgr *mgr,
 		goto out;
 	}
 
-	*usage_cnt = atomic_read(&cb->cs_cnt);
+	if (flags & HL_CB_FLAGS_GET_DEVICE_VA) {
+		va_block = list_first_entry(&cb->va_block_list, struct hl_vm_va_block, node);
+		if (va_block) {
+			*device_va = va_block->start;
+		} else {
+			dev_err(hdev->dev, "CB is not mapped to the device's MMU\n");
+			rc = -EINVAL;
+			goto out;
+		}
+	} else {
+		*usage_cnt = atomic_read(&cb->cs_cnt);
+	}
 
 out:
 	spin_unlock(&mgr->cb_lock);
@@ -414,7 +426,7 @@ int hl_cb_ioctl(struct hl_fpriv *hpriv, void *data)
 	union hl_cb_args *args = data;
 	struct hl_device *hdev = hpriv->hdev;
 	enum hl_device_status status;
-	u64 handle = 0;
+	u64 handle = 0, device_va;
 	u32 usage_cnt = 0;
 	int rc;
 
@@ -450,9 +462,16 @@ int hl_cb_ioctl(struct hl_fpriv *hpriv, void *data)
 
 	case HL_CB_OP_INFO:
 		rc = hl_cb_info(hdev, &hpriv->cb_mgr, args->in.cb_handle,
-				&usage_cnt);
-		memset(args, 0, sizeof(*args));
-		args->out.usage_cnt = usage_cnt;
+				args->in.flags,
+				&usage_cnt,
+				&device_va);
+
+		memset(&args->out, 0, sizeof(args->out));
+
+		if (args->in.flags & HL_CB_FLAGS_GET_DEVICE_VA)
+			args->out.device_va = device_va;
+		else
+			args->out.usage_cnt = usage_cnt;
 		break;
 
 	default:

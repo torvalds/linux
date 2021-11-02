@@ -680,7 +680,10 @@ struct hl_info_args {
 #define HL_MAX_CB_SIZE		(0x200000 - 32)
 
 /* Indicates whether the command buffer should be mapped to the device's MMU */
-#define HL_CB_FLAGS_MAP		0x1
+#define HL_CB_FLAGS_MAP			0x1
+
+/* Used with HL_CB_OP_INFO opcode to get the device va address for kernel mapped CB */
+#define HL_CB_FLAGS_GET_DEVICE_VA	0x2
 
 struct hl_cb_in {
 	/* Handle of CB or 0 if we want to create one */
@@ -702,11 +705,16 @@ struct hl_cb_out {
 		/* Handle of CB */
 		__u64 cb_handle;
 
-		/* Information about CB */
-		struct {
-			/* Usage count of CB */
-			__u32 usage_cnt;
-			__u32 pad;
+		union {
+			/* Information about CB */
+			struct {
+				/* Usage count of CB */
+				__u32 usage_cnt;
+				__u32 pad;
+			};
+
+			/* CB mapped address to device MMU */
+			__u64 device_va;
 		};
 	};
 };
@@ -947,9 +955,10 @@ union hl_cs_args {
 	struct hl_cs_out out;
 };
 
-#define HL_WAIT_CS_FLAGS_INTERRUPT	0x2
-#define HL_WAIT_CS_FLAGS_INTERRUPT_MASK 0xFFF00000
-#define HL_WAIT_CS_FLAGS_MULTI_CS	0x4
+#define HL_WAIT_CS_FLAGS_INTERRUPT		0x2
+#define HL_WAIT_CS_FLAGS_INTERRUPT_MASK		0xFFF00000
+#define HL_WAIT_CS_FLAGS_MULTI_CS		0x4
+#define HL_WAIT_CS_FLAGS_INTERRUPT_KERNEL_CQ	0x10
 
 #define HL_WAIT_MULTI_CS_LIST_MAX_LEN	32
 
@@ -969,14 +978,23 @@ struct hl_wait_cs_in {
 		};
 
 		struct {
-			/* User address for completion comparison.
-			 * upon interrupt, driver will compare the value pointed
-			 * by this address with the supplied target value.
-			 * in order not to perform any comparison, set address
-			 * to all 1s.
-			 * Relevant only when HL_WAIT_CS_FLAGS_INTERRUPT is set
-			 */
-			__u64 addr;
+			union {
+				/* User address for completion comparison.
+				 * upon interrupt, driver will compare the value pointed
+				 * by this address with the supplied target value.
+				 * in order not to perform any comparison, set address
+				 * to all 1s.
+				 * Relevant only when HL_WAIT_CS_FLAGS_INTERRUPT is set
+				 */
+				__u64 addr;
+
+				/* cq_counters_handle to a kernel mapped cb which contains
+				 * cq counters.
+				 * Relevant only when HL_WAIT_CS_FLAGS_INTERRUPT_KERNEL_CQ is set
+				 */
+				__u64 cq_counters_handle;
+			};
+
 			/* Target value for completion comparison */
 			__u64 target;
 		};
@@ -1004,6 +1022,15 @@ struct hl_wait_cs_in {
 		 */
 		__u64 interrupt_timeout_us;
 	};
+
+	/*
+	 * cq counter offset inside the counters cb pointed by cq_counters_handle above.
+	 * upon interrupt, driver will compare the value pointed
+	 * by this address (cq_counters_handle + cq_counters_offset)
+	 * with the supplied target value.
+	 * relevant only when HL_WAIT_CS_FLAGS_INTERRUPT_KERNEL_CQ is set
+	 */
+	__u64 cq_counters_offset;
 };
 
 #define HL_WAIT_CS_STATUS_COMPLETED	0
