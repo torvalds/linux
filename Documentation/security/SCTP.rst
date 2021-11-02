@@ -26,11 +26,11 @@ described in the `SCTP SELinux Support`_ chapter.
 
 security_sctp_assoc_request()
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Passes the ``@ep`` and ``@chunk->skb`` of the association INIT packet to the
+Passes the ``@asoc`` and ``@chunk->skb`` of the association INIT packet to the
 security module. Returns 0 on success, error on failure.
 ::
 
-    @ep - pointer to sctp endpoint structure.
+    @asoc - pointer to sctp association structure.
     @skb - pointer to skbuff of association packet.
 
 
@@ -117,9 +117,9 @@ Called whenever a new socket is created by **accept**\(2)
 calls **sctp_peeloff**\(3).
 ::
 
-    @ep - pointer to current sctp endpoint structure.
+    @asoc - pointer to current sctp association structure.
     @sk - pointer to current sock structure.
-    @sk - pointer to new sock structure.
+    @newsk - pointer to new sock structure.
 
 
 security_inet_conn_established()
@@ -200,22 +200,22 @@ hooks with the SELinux specifics expanded below::
 
 security_sctp_assoc_request()
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Passes the ``@ep`` and ``@chunk->skb`` of the association INIT packet to the
+Passes the ``@asoc`` and ``@chunk->skb`` of the association INIT packet to the
 security module. Returns 0 on success, error on failure.
 ::
 
-    @ep - pointer to sctp endpoint structure.
+    @asoc - pointer to sctp association structure.
     @skb - pointer to skbuff of association packet.
 
 The security module performs the following operations:
-     IF this is the first association on ``@ep->base.sk``, then set the peer
+     IF this is the first association on ``@asoc->base.sk``, then set the peer
      sid to that in ``@skb``. This will ensure there is only one peer sid
-     assigned to ``@ep->base.sk`` that may support multiple associations.
+     assigned to ``@asoc->base.sk`` that may support multiple associations.
 
-     ELSE validate the ``@ep->base.sk peer_sid`` against the ``@skb peer sid``
+     ELSE validate the ``@asoc->base.sk peer_sid`` against the ``@skb peer sid``
      to determine whether the association should be allowed or denied.
 
-     Set the sctp ``@ep sid`` to socket's sid (from ``ep->base.sk``) with
+     Set the sctp ``@asoc sid`` to socket's sid (from ``asoc->base.sk``) with
      MLS portion taken from ``@skb peer sid``. This will be used by SCTP
      TCP style sockets and peeled off connections as they cause a new socket
      to be generated.
@@ -259,13 +259,13 @@ security_sctp_sk_clone()
 Called whenever a new socket is created by **accept**\(2) (i.e. a TCP style
 socket) or when a socket is 'peeled off' e.g userspace calls
 **sctp_peeloff**\(3). ``security_sctp_sk_clone()`` will set the new
-sockets sid and peer sid to that contained in the ``@ep sid`` and
-``@ep peer sid`` respectively.
+sockets sid and peer sid to that contained in the ``@asoc sid`` and
+``@asoc peer sid`` respectively.
 ::
 
-    @ep - pointer to current sctp endpoint structure.
+    @asoc - pointer to current sctp association structure.
     @sk - pointer to current sock structure.
-    @sk - pointer to new sock structure.
+    @newsk - pointer to new sock structure.
 
 
 security_inet_conn_established()
