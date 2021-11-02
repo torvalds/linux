@@ -446,7 +446,11 @@ int intel_guc_slpc_set_min_freq(struct intel_guc_slpc *slpc, u32 val)
 	    val > slpc->max_freq_softlimit)
 		return -EINVAL;
 
+	/* Need a lock now since waitboost can be modifying min as well */
+	mutex_lock(&slpc->lock);
+
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
+
 		ret = slpc_set_param(slpc,
 				     SLPC_PARAM_GLOBAL_MIN_GT_UNSLICE_FREQ_MHZ,
 				     val);
@@ -458,6 +462,8 @@ int intel_guc_slpc_set_min_freq(struct intel_guc_slpc *slpc, u32 val)
 
 	if (!ret)
 		slpc->min_freq_softlimit = val;
+
+	mutex_unlock(&slpc->lock);
 
 	return ret;
 }
@@ -642,6 +648,20 @@ int intel_guc_slpc_enable(struct intel_guc_slpc *slpc)
 	}
 
 	return 0;
+}
+
+void intel_guc_slpc_dec_waiters(struct intel_guc_slpc *slpc)
+{
+	/*
+	 * Return min back to the softlimit.
+	 * This is called during request retire,
+	 * so we don't need to fail that if the
+	 * set_param fails.
+	 */
+	mutex_lock(&slpc->lock);
+	if (atomic_dec_and_test(&slpc->num_waiters))
+		slpc_force_min_freq(slpc, slpc->min_freq_softlimit);
+	mutex_unlock(&slpc->lock);
 }
 
 int intel_guc_slpc_print_info(struct intel_guc_slpc *slpc, struct drm_printer *p)
