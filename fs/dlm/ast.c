@@ -9,6 +9,8 @@
 *******************************************************************************
 ******************************************************************************/
 
+#include <trace/events/dlm.h>
+
 #include "dlm_internal.h"
 #include "lock.h"
 #include "user.h"
@@ -254,10 +256,12 @@ void dlm_callback_work(struct work_struct *work)
 			continue;
 		} else if (callbacks[i].flags & DLM_CB_BAST) {
 			bastfn(lkb->lkb_astparam, callbacks[i].mode);
+			trace_dlm_bast(ls, lkb, callbacks[i].mode);
 		} else if (callbacks[i].flags & DLM_CB_CAST) {
 			lkb->lkb_lksb->sb_status = callbacks[i].sb_status;
 			lkb->lkb_lksb->sb_flags = callbacks[i].sb_flags;
 			castfn(lkb->lkb_astparam);
+			trace_dlm_ast(ls, lkb, lkb->lkb_lksb);
 		}
 	}
 

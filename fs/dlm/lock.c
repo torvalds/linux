@@ -53,6 +53,8 @@
                                    R: do_xxxx()
    L: receive_xxxx_reply()     <-  R: send_xxxx_reply()
 */
+#include <trace/events/dlm.h>
+
 #include <linux/types.h>
 #include <linux/rbtree.h>
 #include <linux/slab.h>
@@ -3437,6 +3439,8 @@ int dlm_lock(dlm_lockspace_t *lockspace,
 	if (error)
 		goto out;
 
+	trace_dlm_lock_start(ls, lkb, mode, flags);
+
 	error = set_lock_args(mode, lksb, flags, namelen, 0, ast,
 			      astarg, bast, &args);
 	if (error)
@@ -3450,6 +3454,8 @@ int dlm_lock(dlm_lockspace_t *lockspace,
 	if (error == -EINPROGRESS)
 		error = 0;
  out_put:
+	trace_dlm_lock_end(ls, lkb, mode, flags, error);
+
 	if (convert || error)
 		__put_lkb(ls, lkb);
 	if (error == -EAGAIN || error == -EDEADLK)
@@ -3481,6 +3487,8 @@ int dlm_unlock(dlm_lockspace_t *lockspace,
 	if (error)
 		goto out;
 
+	trace_dlm_unlock_start(ls, lkb, flags);
+
 	error = set_unlock_args(flags, astarg, &args);
 	if (error)
 		goto out_put;
@@ -3495,6 +3503,8 @@ int dlm_unlock(dlm_lockspace_t *lockspace,
 	if (error == -EBUSY && (flags & (DLM_LKF_CANCEL | DLM_LKF_FORCEUNLOCK)))
 		error = 0;
  out_put:
+	trace_dlm_unlock_end(ls, lkb, flags, error);
+
 	dlm_put_lkb(lkb);
  out:
 	dlm_unlock_recovery(ls);
