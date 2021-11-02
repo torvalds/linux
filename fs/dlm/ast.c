@@ -295,7 +295,7 @@ void dlm_callback_suspend(struct dlm_ls *ls)
 void dlm_callback_resume(struct dlm_ls *ls)
 {
 	struct dlm_lkb *lkb, *safe;
-	int count = 0;
+	int count = 0, sum = 0;
 
 	clear_bit(LSFL_CB_DELAY, &ls->ls_flags);
 
@@ -313,12 +313,14 @@ more:
 	}
 	mutex_unlock(&ls->ls_cb_mutex);
 
-	if (count)
-		log_rinfo(ls, "dlm_callback_resume %d", count);
+	sum += count;
 	if (count == MAX_CB_QUEUE) {
 		count = 0;
 		cond_resched();
 		goto more;
 	}
+
+	if (sum)
+		log_rinfo(ls, "%s %d", __func__, sum);
 }
 
