@@ -793,16 +793,16 @@ static int __cache_free_alien(struct kmem_cache *cachep, void *objp,
 
 static inline int cache_free_alien(struct kmem_cache *cachep, void *objp)
 {
-	int page_node = page_to_nid(virt_to_page(objp));
+	int slab_node = slab_nid(virt_to_slab(objp));
 	int node = numa_mem_id();
 	/*
 	 * Make sure we are not freeing a object from another node to the array
 	 * cache on this cpu.
 	 */
-	if (likely(node == page_node))
+	if (likely(node == slab_node))
 		return 0;
 
-	return __cache_free_alien(cachep, objp, node, page_node);
+	return __cache_free_alien(cachep, objp, node, slab_node);
 }
 
 /*
@@ -1612,10 +1612,10 @@ static void slab_destroy_debugcheck(struct kmem_cache *cachep,
 /**
  * slab_destroy - destroy and release all objects in a slab
  * @cachep: cache pointer being destroyed
- * @page: page pointer being destroyed
+ * @slab: slab being destroyed
  *
- * Destroy all the objs in a slab page, and release the mem back to the system.
- * Before calling the slab page must have been unlinked from the cache. The
+ * Destroy all the objs in a slab, and release the mem back to the system.
+ * Before calling the slab must have been unlinked from the cache. The
  * kmem_cache_node ->list_lock is not held/needed.
  */
 static void slab_destroy(struct kmem_cache *cachep, struct slab *slab)
@@ -2559,7 +2559,7 @@ static struct slab *cache_grow_begin(struct kmem_cache *cachep,
 	void *freelist;
 	size_t offset;
 	gfp_t local_flags;
-	int page_node;
+	int slab_node;
 	struct kmem_cache_node *n;
 	struct slab *slab;
 
@@ -2585,8 +2585,8 @@ static struct slab *cache_grow_begin(struct kmem_cache *cachep,
 	if (!slab)
 		goto failed;
 
-	page_node = slab_nid(slab);
-	n = get_node(cachep, page_node);
+	slab_node = slab_nid(slab);
+	n = get_node(cachep, slab_node);
 
 	/* Get colour for the slab, and cal the next value. */
 	n->colour_next++;
@@ -2608,7 +2608,7 @@ static struct slab *cache_grow_begin(struct kmem_cache *cachep,
 
 	/* Get slab management. */
 	freelist = alloc_slabmgmt(cachep, slab, offset,
-			local_flags & ~GFP_CONSTRAINT_MASK, page_node);
+			local_flags & ~GFP_CONSTRAINT_MASK, slab_node);
 	if (OFF_SLAB(cachep) && !freelist)
 		goto opps1;
 
