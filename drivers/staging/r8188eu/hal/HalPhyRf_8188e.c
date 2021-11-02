@@ -629,9 +629,9 @@ _PHY_ReloadMACRegisters(
 	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
 	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
 
-	for (i = 0; i < (IQK_MAC_REG_NUM - 1); i++) {
-		ODM_Write1Byte(dm_odm, MACReg[i], (u8)MACBackup[i]);
-	}
+	for (i = 0; i < (IQK_MAC_REG_NUM - 1); i++)
+		rtw_write8(adapt, MACReg[i], (u8)MACBackup[i]);
+
 	ODM_Write4Byte(dm_odm, MACReg[i], MACBackup[i]);
 }
 
@@ -668,15 +668,13 @@ _PHY_MACSettingCalibration(
 	)
 {
 	u32 i = 0;
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
-	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
 
-	ODM_Write1Byte(dm_odm, MACReg[i], 0x3F);
+	rtw_write8(adapt, MACReg[i], 0x3F);
 
-	for (i = 1; i < (IQK_MAC_REG_NUM - 1); i++) {
-		ODM_Write1Byte(dm_odm, MACReg[i], (u8)(MACBackup[i] & (~BIT(3))));
-	}
-	ODM_Write1Byte(dm_odm, MACReg[i], (u8)(MACBackup[i] & (~BIT(5))));
+	for (i = 1; i < (IQK_MAC_REG_NUM - 1); i++)
+		rtw_write8(adapt, MACReg[i], (u8)(MACBackup[i] & (~BIT(3))));
+
+	rtw_write8(adapt, MACReg[i], (u8)(MACBackup[i] & (~BIT(5))));
 }
 
 void
@@ -940,9 +938,9 @@ static void phy_LCCalibrate_8188E(struct adapter *adapt, bool is2t)
 	tmpreg = rtw_read8(adapt, 0xd03);
 
 	if ((tmpreg & 0x70) != 0)			/* Deal with contisuous TX case */
-		ODM_Write1Byte(dm_odm, 0xd03, tmpreg & 0x8F);	/* disable all continuous TX */
+		rtw_write8(adapt, 0xd03, tmpreg & 0x8F);	/* disable all continuous TX */
 	else							/*  Deal with Packet TX case */
-		ODM_Write1Byte(dm_odm, REG_TXPAUSE, 0xFF);			/*  block all queues */
+		rtw_write8(adapt, REG_TXPAUSE, 0xFF);		/*  block all queues */
 
 	if ((tmpreg & 0x70) != 0) {
 		/* 1. Read original RF mode */
@@ -974,7 +972,7 @@ static void phy_LCCalibrate_8188E(struct adapter *adapt, bool is2t)
 	if ((tmpreg & 0x70) != 0) {
 		/* Deal with continuous TX case */
 		/* Path-A */
-		ODM_Write1Byte(dm_odm, 0xd03, tmpreg);
+		rtw_write8(adapt, 0xd03, tmpreg);
 		ODM_SetRFReg(dm_odm, RF_PATH_A, RF_AC, bMask12Bits, RF_Amode);
 
 		/* Path-B */
@@ -982,7 +980,7 @@ static void phy_LCCalibrate_8188E(struct adapter *adapt, bool is2t)
 			ODM_SetRFReg(dm_odm, RF_PATH_B, RF_AC, bMask12Bits, RF_Bmode);
 	} else {
 		/*  Deal with Packet TX case */
-		ODM_Write1Byte(dm_odm, REG_TXPAUSE, 0x00);
+		rtw_write8(adapt, REG_TXPAUSE, 0x00);
 	}
 }
 
