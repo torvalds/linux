@@ -49,21 +49,6 @@
 /*
  * File Attribute flags
  */
-#define ATTR_READONLY			0x0001
-#define ATTR_HIDDEN			0x0002
-#define ATTR_SYSTEM			0x0004
-#define ATTR_VOLUME			0x0008
-#define ATTR_DIRECTORY			0x0010
-#define ATTR_ARCHIVE			0x0020
-#define ATTR_DEVICE			0x0040
-#define ATTR_NORMAL			0x0080
-#define ATTR_TEMPORARY			0x0100
-#define ATTR_SPARSE			0x0200
-#define ATTR_REPARSE			0x0400
-#define ATTR_COMPRESSED			0x0800
-#define ATTR_OFFLINE			0x1000
-#define ATTR_NOT_CONTENT_INDEXED	0x2000
-#define ATTR_ENCRYPTED			0x4000
 #define ATTR_POSIX_SEMANTICS		0x01000000
 #define ATTR_BACKUP_SEMANTICS		0x02000000
 #define ATTR_DELETE_ON_CLOSE		0x04000000
@@ -71,23 +56,6 @@
 #define ATTR_RANDOM_ACCESS		0x10000000
 #define ATTR_NO_BUFFERING		0x20000000
 #define ATTR_WRITE_THROUGH		0x80000000
-
-#define ATTR_READONLY_LE		cpu_to_le32(ATTR_READONLY)
-#define ATTR_HIDDEN_LE			cpu_to_le32(ATTR_HIDDEN)
-#define ATTR_SYSTEM_LE			cpu_to_le32(ATTR_SYSTEM)
-#define ATTR_DIRECTORY_LE		cpu_to_le32(ATTR_DIRECTORY)
-#define ATTR_ARCHIVE_LE			cpu_to_le32(ATTR_ARCHIVE)
-#define ATTR_NORMAL_LE			cpu_to_le32(ATTR_NORMAL)
-#define ATTR_TEMPORARY_LE		cpu_to_le32(ATTR_TEMPORARY)
-#define ATTR_SPARSE_FILE_LE		cpu_to_le32(ATTR_SPARSE)
-#define ATTR_REPARSE_POINT_LE		cpu_to_le32(ATTR_REPARSE)
-#define ATTR_COMPRESSED_LE		cpu_to_le32(ATTR_COMPRESSED)
-#define ATTR_OFFLINE_LE			cpu_to_le32(ATTR_OFFLINE)
-#define ATTR_NOT_CONTENT_INDEXED_LE	cpu_to_le32(ATTR_NOT_CONTENT_INDEXED)
-#define ATTR_ENCRYPTED_LE		cpu_to_le32(ATTR_ENCRYPTED)
-#define ATTR_INTEGRITY_STREAML_LE	cpu_to_le32(0x00008000)
-#define ATTR_NO_SCRUB_DATA_LE		cpu_to_le32(0x00020000)
-#define ATTR_MASK_LE			cpu_to_le32(0x00007FB7)
 
 /* List of FileSystemAttributes - see 2.5.1 of MS-FSCC */
 #define FILE_SUPPORTS_SPARSE_VDL	0x10000000 /* faster nonsparse extend */
@@ -149,11 +117,6 @@
 /* file_read_data, file_write_data  */
 /* file_execute, file_read_attributes*/
 /* write_dac, and delete.           */
-
-#define FILE_READ_RIGHTS (FILE_READ_DATA | FILE_READ_EA | FILE_READ_ATTRIBUTES)
-#define FILE_WRITE_RIGHTS (FILE_WRITE_DATA | FILE_APPEND_DATA \
-		| FILE_WRITE_EA | FILE_WRITE_ATTRIBUTES)
-#define FILE_EXEC_RIGHTS (FILE_EXECUTE)
 
 #define SET_FILE_READ_RIGHTS (FILE_READ_DATA | FILE_READ_EA \
 		| FILE_READ_ATTRIBUTES \
