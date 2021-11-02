@@ -46,10 +46,10 @@
 
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0xd146258f
+#define DMUB_FW_VERSION_GIT_HASH 0x9525efb5
 #define DMUB_FW_VERSION_MAJOR 0
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 88
+#define DMUB_FW_VERSION_REVISION 90
 #define DMUB_FW_VERSION_TEST 0
 #define DMUB_FW_VERSION_VBIOS 0
 #define DMUB_FW_VERSION_HOTFIX 0
@@ -370,8 +370,13 @@ union dmub_fw_boot_options {
 		uint32_t z10_disable: 1; /**< 1 to disable z10 */
 		uint32_t enable_dpia: 1; /**< 1 if DPIA should be enabled */
 		uint32_t invalid_vbios_data: 1; /**< 1 if VBIOS data table is invalid */
-		uint32_t reserved_unreleased2: 1; /**< reserved for an unreleased feature */
-		uint32_t reserved : 22; /**< reserved */
+		uint32_t dpia_supported: 1; /**< 1 if DPIA is supported on this platform */
+		uint32_t sel_mux_phy_c_d_phy_f_g: 1; /**< 1 if PHYF/PHYG should be enabled */
+		/**< 1 if all root clock gating is enabled and low power memory is enabled*/
+		uint32_t power_optimization: 1;
+		uint32_t diag_env: 1; /* 1 if diagnostic environment */
+
+		uint32_t reserved : 19; /**< reserved */
 	} bits; /**< boot bits */
 	uint32_t all; /**< 32-bit access to bits */
 };
@@ -692,6 +697,7 @@ enum dmub_out_cmd_type {
 enum dmub_cmd_dpia_type {
 	DMUB_CMD__DPIA_DIG1_DPIA_CONTROL = 0,
 	DMUB_CMD__DPIA_SET_CONFIG_ACCESS = 1,
+	DMUB_CMD__DPIA_MST_ALLOC_SLOTS = 2,
 };
 
 #pragma pack(push, 1)
@@ -1067,6 +1073,24 @@ struct dmub_rb_cmd_set_config_access {
 };
 
 /**
+ * Data passed from driver to FW in a DMUB_CMD__DPIA_MST_ALLOC_SLOTS command.
+ */
+struct dmub_cmd_mst_alloc_slots_control_data {
+	uint8_t mst_alloc_slots; /* mst slots to be allotted */
+	uint8_t instance; /* DPIA instance */
+	uint8_t immed_status; /* Immediate status returned as there is no outbox msg posted */
+	uint8_t mst_slots_in_use; /* returns slots in use for error cases */
+};
+
+/**
+ * DMUB command structure for SET_ command.
+ */
+struct dmub_rb_cmd_set_mst_alloc_slots {
+	struct dmub_cmd_header header; /* header */
+	struct dmub_cmd_mst_alloc_slots_control_data mst_slots_control; /* mst slots control */
+};
+
+/**
  * struct dmub_rb_cmd_dpphy_init - DPPHY init.
  */
 struct dmub_rb_cmd_dpphy_init {
@@ -1378,6 +1402,10 @@ enum dmub_cmd_psr_type {
 	 * Forces PSR enabled until an explicit PSR disable call.
 	 */
 	DMUB_CMD__PSR_FORCE_STATIC		= 5,
+	/**
+	 * Set PSR power option
+	 */
+	DMUB_CMD__SET_PSR_POWER_OPT = 7,
 };
 
 /**
@@ -1673,6 +1701,44 @@ struct dmub_rb_cmd_psr_force_static {
 	 * Data passed from driver to FW in a DMUB_CMD__PSR_FORCE_STATIC command.
 	 */
 	struct dmub_cmd_psr_force_static_data psr_force_static_data;
+};
+
+/**
+ * Data passed from driver to FW in a DMUB_CMD__SET_PSR_POWER_OPT command.
+ */
+struct dmub_cmd_psr_set_power_opt_data {
+	/**
+	 * PSR control version.
+	 */
+	uint8_t cmd_version;
+	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which psr_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad[2];
+	/**
+	 * PSR power option
+	 */
+	uint32_t power_opt;
+};
+
+/**
+ * Definition of a DMUB_CMD__SET_PSR_POWER_OPT command.
+ */
+struct dmub_rb_cmd_psr_set_power_opt {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+	/**
+	 * Definition of a DMUB_CMD__SET_PSR_POWER_OPT command.
+	 */
+	struct dmub_cmd_psr_set_power_opt_data psr_set_power_opt_data;
 };
 
 /**
@@ -2459,6 +2525,10 @@ union dmub_rb_cmd {
 	 */
 	struct dmub_rb_cmd_psr_force_static psr_force_static;
 	/**
+	 * Definition of a DMUB_CMD__SET_PSR_POWER_OPT command.
+	 */
+	struct dmub_rb_cmd_psr_set_power_opt psr_set_power_opt;
+	/**
 	 * Definition of a DMUB_CMD__PLAT_54186_WA command.
 	 */
 	struct dmub_rb_cmd_PLAT_54186_wa PLAT_54186_wa;
@@ -2542,6 +2612,10 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__DPIA_SET_CONFIG_ACCESS command.
 	 */
 	struct dmub_rb_cmd_set_config_access set_config_access;
+	/**
+	 * Definition of a DMUB_CMD__DPIA_MST_ALLOC_SLOTS command.
+	 */
+	struct dmub_rb_cmd_set_mst_alloc_slots set_mst_alloc_slots;
 	/**
 	 * Definition of a DMUB_CMD__EDID_CEA command.
 	 */

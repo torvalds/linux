@@ -85,6 +85,7 @@ struct psr_settings {
 	 */
 	bool psr_frame_capture_indication_req;
 	unsigned int psr_sdp_transmit_line_num_deadline;
+	unsigned int psr_power_opt;
 };
 
 /*
@@ -123,6 +124,10 @@ struct dc_link {
 	struct dc_link_settings cur_link_settings;
 	struct dc_lane_settings cur_lane_setting[LANE_COUNT_DP_MAX];
 	struct dc_link_settings preferred_link_setting;
+	/* preferred_training_settings are override values that
+	 * come from DM. DM is responsible for the memory
+	 * management of the override pointers.
+	 */
 	struct dc_link_training_overrides preferred_training_settings;
 	struct dp_audio_test_data audio_test_data;
 
@@ -177,11 +182,15 @@ struct dc_link {
 
 	struct psr_settings psr_settings;
 
+	/* Drive settings read from integrated info table */
+	struct dc_lane_settings bios_forced_drive_settings;
+
 	/* MST record stream using this link */
 	struct link_flags {
 		bool dp_keep_receiver_powered;
 		bool dp_skip_DID2;
 		bool dp_skip_reset_segment;
+		bool dp_mot_reset_segment;
 	} wa_flags;
 	struct link_mst_stream_allocation_table mst_stream_alloc_table;
 
@@ -267,8 +276,8 @@ int dc_link_get_backlight_level(const struct dc_link *dc_link);
 
 int dc_link_get_target_backlight_pwm(const struct dc_link *link);
 
-bool dc_link_set_psr_allow_active(struct dc_link *dc_link, bool enable,
-		bool wait, bool force_static);
+bool dc_link_set_psr_allow_active(struct dc_link *dc_link, const bool *enable,
+		bool wait, bool force_static, const unsigned int *power_opts);
 
 bool dc_link_get_psr_state(const struct dc_link *dc_link, enum dc_psr_state *state);
 

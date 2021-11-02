@@ -1660,6 +1660,14 @@ static bool dc_link_construct_legacy(struct dc_link *link,
 				DC_LOG_DC("BIOS object table - ddi_channel_mapping: 0x%04X", link->ddi_channel_mapping.raw);
 				DC_LOG_DC("BIOS object table - chip_caps: %d", link->chip_caps);
 			}
+
+			if (link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) {
+				link->bios_forced_drive_settings.VOLTAGE_SWING =
+						(info->ext_disp_conn_info.fixdpvoltageswing & 0x3);
+				link->bios_forced_drive_settings.PRE_EMPHASIS =
+						((info->ext_disp_conn_info.fixdpvoltageswing >> 2) & 0x3);
+			}
+
 			break;
 		}
 	}
@@ -1756,6 +1764,9 @@ static bool dc_link_construct_dpia(struct dc_link *link,
 	/* TODO: Create link encoder */
 
 	link->psr_settings.psr_version = DC_PSR_VERSION_UNSUPPORTED;
+
+	/* Some docks seem to NAK I2C writes to segment pointer with mot=0. */
+	link->wa_flags.dp_mot_reset_segment = true;
 
 	return true;
 
@@ -2916,8 +2927,8 @@ bool dc_link_set_backlight_level(const struct dc_link *link,
 	return true;
 }
 
-bool dc_link_set_psr_allow_active(struct dc_link *link, bool allow_active,
-		bool wait, bool force_static)
+bool dc_link_set_psr_allow_active(struct dc_link *link, const bool *allow_active,
+		bool wait, bool force_static, const unsigned int *power_opts)
 {
 	struct dc  *dc = link->ctx->dc;
 	struct dmcu *dmcu = dc->res_pool->dmcu;
@@ -2930,20 +2941,33 @@ bool dc_link_set_psr_allow_active(struct dc_link *link, bool allow_active,
 	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
 		return false;
 
-	link->psr_settings.psr_allow_active = allow_active;
+	/* Set power optimization flag */
+	if (power_opts && link->psr_settings.psr_power_opt != *power_opts) {
+		link->psr_settings.psr_power_opt = *power_opts;
+
+		if (psr != NULL && link->psr_settings.psr_feature_enabled && psr->funcs->psr_set_power_opt)
+			psr->funcs->psr_set_power_opt(psr, link->psr_settings.psr_power_opt);
+	}
+
+	/* Enable or Disable PSR */
+	if (allow_active && link->psr_settings.psr_allow_active != *allow_active) {
+		link->psr_settings.psr_allow_active = *allow_active;
+
 #if defined(CONFIG_DRM_AMD_DC_DCN)
-	if (!allow_active)
-		dc_z10_restore(dc);
+		if (!link->psr_settings.psr_allow_active)
+			dc_z10_restore(dc);
 #endif
 
-	if (psr != NULL && link->psr_settings.psr_feature_enabled) {
-		if (force_static && psr->funcs->psr_force_static)
-			psr->funcs->psr_force_static(psr, panel_inst);
-		psr->funcs->psr_enable(psr, allow_active, wait, panel_inst);
-	} else if ((dmcu != NULL && dmcu->funcs->is_dmcu_initialized(dmcu)) && link->psr_settings.psr_feature_enabled)
-		dmcu->funcs->set_psr_enable(dmcu, allow_active, wait);
-	else
-		return false;
+		if (psr != NULL && link->psr_settings.psr_feature_enabled) {
+			if (force_static && psr->funcs->psr_force_static)
+				psr->funcs->psr_force_static(psr, panel_inst);
+			psr->funcs->psr_enable(psr, link->psr_settings.psr_allow_active, wait, panel_inst);
+		} else if ((dmcu != NULL && dmcu->funcs->is_dmcu_initialized(dmcu)) &&
+			link->psr_settings.psr_feature_enabled)
+			dmcu->funcs->set_psr_enable(dmcu, link->psr_settings.psr_allow_active, wait);
+		else
+			return false;
+	}
 
 	return true;
 }
@@ -3475,6 +3499,20 @@ enum dc_status dc_link_allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 
 	ASSERT(proposed_table.stream_count > 0);
 
+	if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) {
+		static enum dc_status status;
+		uint8_t mst_alloc_slots = 0, prev_mst_slots_in_use = 0xFF;
+
+		for (i = 0; i < link->mst_stream_alloc_table.stream_count; i++)
+			mst_alloc_slots += link->mst_stream_alloc_table.stream_allocations[i].slot_count;
+
+		status = dc_process_dmub_set_mst_slots(link->dc, link->link_index,
+			mst_alloc_slots, &prev_mst_slots_in_use);
+		ASSERT(status == DC_OK);
+		DC_LOG_MST("dpia : status[%d]: alloc_slots[%d]: used_slots[%d]\n",
+				status, mst_alloc_slots, prev_mst_slots_in_use);
+	}
+
 	/* program DP source TX for payload */
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	switch (dp_get_link_encoding_format(&link->cur_link_settings)) {
@@ -3818,6 +3856,20 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 #endif
 	}
 
+	if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) {
+		enum dc_status status;
+		uint8_t mst_alloc_slots = 0, prev_mst_slots_in_use = 0xFF;
+
+		for (i = 0; i < link->mst_stream_alloc_table.stream_count; i++)
+			mst_alloc_slots += link->mst_stream_alloc_table.stream_allocations[i].slot_count;
+
+		status = dc_process_dmub_set_mst_slots(link->dc, link->link_index,
+			mst_alloc_slots, &prev_mst_slots_in_use);
+		ASSERT(status != DC_NOT_SUPPORTED);
+		DC_LOG_MST("dpia : status[%d]: alloc_slots[%d]: used_slots[%d]\n",
+				status, mst_alloc_slots, prev_mst_slots_in_use);
+	}
+
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	switch (dp_get_link_encoding_format(&link->cur_link_settings)) {
 	case DP_8b_10b_ENCODING:
@@ -3861,6 +3913,9 @@ static void update_psp_stream_config(struct pipe_ctx *pipe_ctx, bool dpms_off)
 	struct cp_psp *cp_psp = &pipe_ctx->stream->ctx->cp_psp;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	struct link_encoder *link_enc = NULL;
+	struct dc_state *state = pipe_ctx->stream->ctx->dc->current_state;
+	struct link_enc_assignment link_enc_assign;
+	int i;
 #endif
 
 	if (cp_psp && cp_psp->funcs.update_stream_config) {
@@ -3874,9 +3929,72 @@ static void update_psp_stream_config(struct pipe_ctx *pipe_ctx, bool dpms_off)
 		config.dig_be = pipe_ctx->stream->link->link_enc_hw_inst;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 		config.stream_enc_idx = pipe_ctx->stream_res.stream_enc->id - ENGINE_ID_DIGA;
-		if (pipe_ctx->stream->link->ep_type == DISPLAY_ENDPOINT_PHY) {
+		
+		if (pipe_ctx->stream->link->ep_type == DISPLAY_ENDPOINT_PHY ||
+				pipe_ctx->stream->link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) {
 			link_enc = pipe_ctx->stream->link->link_enc;
+			config.dio_output_type = pipe_ctx->stream->link->ep_type;
+			config.dio_output_idx = link_enc->transmitter - TRANSMITTER_UNIPHY_A;
+			if (pipe_ctx->stream->link->ep_type == DISPLAY_ENDPOINT_PHY)
+				link_enc = pipe_ctx->stream->link->link_enc;
+			else if (pipe_ctx->stream->link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA)
+				if (pipe_ctx->stream->link->dc->res_pool->funcs->link_encs_assign) {
+					link_enc = link_enc_cfg_get_link_enc_used_by_stream(
+							pipe_ctx->stream->ctx->dc,
+							pipe_ctx->stream);
+			}
+			// Initialize PHY ID with ABCDE - 01234 mapping except when it is B0
 			config.phy_idx = link_enc->transmitter - TRANSMITTER_UNIPHY_A;
+
+			//look up the link_enc_assignment for the current pipe_ctx
+			for (i = 0; i < state->stream_count; i++) {
+				if (pipe_ctx->stream == state->streams[i]) {
+					link_enc_assign = state->res_ctx.link_enc_cfg_ctx.link_enc_assignments[i];
+				}
+			}
+			// Add flag to guard new A0 DIG mapping
+			if (pipe_ctx->stream->ctx->dc->enable_c20_dtm_b0 == true) {
+				config.dig_be = link_enc_assign.eng_id;
+				config.dio_output_type = pipe_ctx->stream->link->ep_type;
+				config.dio_output_idx = link_enc->transmitter - TRANSMITTER_UNIPHY_A;
+			} else {
+				config.dio_output_type = 0;
+				config.dio_output_idx = 0;
+			}
+
+			// Add flag to guard B0 implementation
+			if (pipe_ctx->stream->ctx->dc->enable_c20_dtm_b0 == true &&
+					link_enc->ctx->asic_id.hw_internal_rev == YELLOW_CARP_B0) {
+				if (pipe_ctx->stream->link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) {
+					link_enc = link_enc_assign.stream->link_enc;
+
+					// enum ID 1-4 maps to DPIA PHY ID 0-3
+					config.phy_idx = link_enc_assign.ep_id.link_id.enum_id - ENUM_ID_1;
+				} else {  // for non DPIA mode over B0, ABCDE maps to 01564
+
+					switch (link_enc->transmitter) {
+					case TRANSMITTER_UNIPHY_A:
+						config.phy_idx = 0;
+						break;
+					case TRANSMITTER_UNIPHY_B:
+						config.phy_idx = 1;
+						break;
+					case TRANSMITTER_UNIPHY_C:
+						config.phy_idx = 5;
+						break;
+					case TRANSMITTER_UNIPHY_D:
+						config.phy_idx = 6;
+						break;
+					case TRANSMITTER_UNIPHY_E:
+						config.phy_idx = 4;
+						break;
+					default:
+						config.phy_idx = 0;
+						break;
+					}
+
+				}
+			}
 		} else if (pipe_ctx->stream->link->dc->res_pool->funcs->link_encs_assign) {
 			link_enc = link_enc_cfg_get_link_enc_used_by_stream(
 					pipe_ctx->stream->ctx->dc,

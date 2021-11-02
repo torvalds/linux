@@ -174,11 +174,6 @@ struct dc_lane_settings {
 #endif
 };
 
-struct dc_link_training_settings {
-	struct dc_link_settings link;
-	struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX];
-};
-
 struct dc_link_training_overrides {
 	enum dc_voltage_swing *voltage_swing;
 	enum dc_pre_emphasis *pre_emphasis;

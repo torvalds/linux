@@ -47,7 +47,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.157"
+#define DC_VER "3.2.159"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -211,12 +211,12 @@ struct dc_dcc_setting {
 	unsigned int max_uncompressed_blk_size;
 	bool independent_64b_blks;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
-	//These bitfields to be used starting with DCN 3.0
+	//These bitfields to be used starting with DCN
 	struct {
-		uint32_t dcc_256_64_64 : 1;//available in ASICs before DCN 3.0 (the worst compression case)
-		uint32_t dcc_128_128_uncontrained : 1;  //available in ASICs before DCN 3.0
-		uint32_t dcc_256_128_128 : 1;		//available starting with DCN 3.0
-		uint32_t dcc_256_256_unconstrained : 1;  //available in ASICs before DCN 3.0 (the best compression case)
+		uint32_t dcc_256_64_64 : 1;//available in ASICs before DCN (the worst compression case)
+		uint32_t dcc_128_128_uncontrained : 1;  //available in ASICs before DCN
+		uint32_t dcc_256_128_128 : 1;		//available starting with DCN
+		uint32_t dcc_256_256_unconstrained : 1;  //available in ASICs before DCN (the best compression case)
 	} dcc_controls;
 #endif
 };
@@ -323,6 +323,7 @@ struct dc_config {
 	bool multi_mon_pp_mclk_switch;
 	bool disable_dmcu;
 	bool enable_4to1MPC;
+	bool enable_windowed_mpo_odm;
 	bool allow_edp_hotplug_detection;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool clamp_min_dcfclk;
@@ -340,6 +341,12 @@ enum visual_confirm {
 	VISUAL_CONFIRM_MPCTREE = 4,
 	VISUAL_CONFIRM_PSR = 5,
 	VISUAL_CONFIRM_SWIZZLE = 9,
+};
+
+enum dc_psr_power_opts {
+	psr_power_opt_invalid = 0x0,
+	psr_power_opt_smu_opt_static_screen = 0x1,
+	psr_power_opt_z10_static_screen = 0x10,
 };
 
 enum dcc_option {
@@ -725,6 +732,9 @@ struct dc {
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool idle_optimizations_allowed;
 #endif
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	bool enable_c20_dtm_b0;
+#endif
 
 	/* Require to maintain clocks and bandwidth for UEFI enabled HW */
 
@@ -931,6 +941,7 @@ union surface_update_flags {
 		uint32_t bandwidth_change:1;
 		uint32_t clock_change:1;
 		uint32_t stereo_format_change:1;
+		uint32_t lut_3d:1;
 		uint32_t full_update:1;
 	} bits;
 
@@ -1417,6 +1428,12 @@ bool dc_process_dmub_set_config_async(struct dc *dc,
 				uint32_t link_index,
 				struct set_config_cmd_payload *payload,
 				struct dmub_notification *notify);
+
+enum dc_status dc_process_dmub_set_mst_slots(const struct dc *dc,
+				uint32_t link_index,
+				uint8_t mst_alloc_slots,
+				uint8_t *mst_slots_in_use);
+
 /*******************************************************************************
  * DSC Interfaces
  ******************************************************************************/

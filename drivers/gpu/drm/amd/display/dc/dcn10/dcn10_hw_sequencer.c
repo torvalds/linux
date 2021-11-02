@@ -1378,6 +1378,12 @@ void dcn10_init_hw(struct dc *dc)
 	if (dc->clk_mgr && dc->clk_mgr->funcs->init_clocks)
 		dc->clk_mgr->funcs->init_clocks(dc->clk_mgr);
 
+	/* Align bw context with hw config when system resume. */
+	if (dc->clk_mgr->clks.dispclk_khz != 0 && dc->clk_mgr->clks.dppclk_khz != 0) {
+		dc->current_state->bw_ctx.bw.dcn.clk.dispclk_khz = dc->clk_mgr->clks.dispclk_khz;
+		dc->current_state->bw_ctx.bw.dcn.clk.dppclk_khz = dc->clk_mgr->clks.dppclk_khz;
+	}
+
 	// Initialize the dccg
 	if (dc->res_pool->dccg && dc->res_pool->dccg->funcs->dccg_init)
 		dc->res_pool->dccg->funcs->dccg_init(res_pool->dccg);
