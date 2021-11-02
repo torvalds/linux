@@ -1427,3 +1427,51 @@ int dlm_midcomms_close(int nodeid)
 
 	return ret;
 }
+
+/* debug functionality to send raw dlm msg from user space */
+struct dlm_rawmsg_data {
+	struct midcomms_node *node;
+	void *buf;
+};
+
+static void midcomms_new_rawmsg_cb(void *data)
+{
+	struct dlm_rawmsg_data *rd = data;
+	struct dlm_header *h = rd->buf;
+
+	switch (h->h_version) {
+	case cpu_to_le32(DLM_VERSION_3_1):
+		break;
+	default:
+		switch (h->h_cmd) {
+		case DLM_OPTS:
+			if (!h->u.h_seq)
+				h->u.h_seq = rd->node->seq_send++;
+			break;
+		default:
+			break;
+		}
+		break;
+	}
+}
+
+int dlm_midcomms_rawmsg_send(struct midcomms_node *node, void *buf,
+			     int buflen)
+{
+	struct dlm_rawmsg_data rd;
+	struct dlm_msg *msg;
+	char *msgbuf;
+
+	rd.node = node;
+	rd.buf = buf;
+
+	msg = dlm_lowcomms_new_msg(node->nodeid, buflen, GFP_NOFS,
+				   &msgbuf, midcomms_new_rawmsg_cb, &rd);
+	if (!msg)
+		return -ENOMEM;
+
+	memcpy(msgbuf, buf, buflen);
+	dlm_lowcomms_commit_msg(msg);
+	return 0;
+}
+

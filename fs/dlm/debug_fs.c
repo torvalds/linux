@@ -768,6 +768,42 @@ static int dlm_version_show(struct seq_file *file, void *offset)
 }
 DEFINE_SHOW_ATTRIBUTE(dlm_version);
 
+static ssize_t dlm_rawmsg_write(struct file *fp, const char __user *user_buf,
+				size_t count, loff_t *ppos)
+{
+	void *buf;
+	int ret;
+
+	if (count > PAGE_SIZE || count < sizeof(struct dlm_header))
+		return -EINVAL;
+
+	buf = kmalloc(PAGE_SIZE, GFP_NOFS);
+	if (!buf)
+		return -ENOMEM;
+
+	if (copy_from_user(buf, user_buf, count)) {
+		ret = -EFAULT;
+		goto out;
+	}
+
+	ret = dlm_midcomms_rawmsg_send(fp->private_data, buf, count);
+	if (ret)
+		goto out;
+
+	kfree(buf);
+	return count;
+
+out:
+	kfree(buf);
+	return ret;
+}
+
+static const struct file_operations dlm_rawmsg_fops = {
+	.open	= simple_open,
+	.write	= dlm_rawmsg_write,
+	.llseek	= no_llseek,
+};
+
 void *dlm_create_debug_comms_file(int nodeid, void *data)
 {
 	struct dentry *d_node;
@@ -782,6 +818,7 @@ void *dlm_create_debug_comms_file(int nodeid, void *data)
 	debugfs_create_file("send_queue_count", 0444, d_node, data,
 			    &dlm_send_queue_cnt_fops);
 	debugfs_create_file("version", 0444, d_node, data, &dlm_version_fops);
+	debugfs_create_file("rawmsg", 0200, d_node, data, &dlm_rawmsg_fops);
 
 	return d_node;
 }
