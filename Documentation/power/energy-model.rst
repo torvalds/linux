@@ -84,6 +84,16 @@ CONFIG_ENERGY_MODEL must be enabled to use the EM framework.
 2.2 Registration of performance domains
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Registration of 'advanced' EM
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The 'advanced' EM gets it's name due to the fact that the driver is allowed
+to provide more precised power model. It's not limited to some implemented math
+formula in the framework (like it's in 'simple' EM case). It can better reflect
+the real power measurements performed for each performance state. Thus, this
+registration method should be preferred in case considering EM static power
+(leakage) is important.
+
 Drivers are expected to register performance domains into the EM framework by
 calling the following API::
 
@@ -102,6 +112,18 @@ the same scale. If there are different scales, these subsystems might decide
 to: return warning/error, stop working or panic.
 See Section 3. for an example of driver implementing this
 callback, or Section 2.4 for further documentation on this API
+
+Registration of 'simple' EM
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The 'simple' EM is registered using the framework helper function
+cpufreq_register_em_with_opp(). It implements a power model which is tight to
+math formula::
+
+	Power = C * V^2 * f
+
+The EM which is registered using this method might not reflect correctly the
+physics of a real device, e.g. when static power (leakage) is important.
 
 
 2.3 Accessing performance domains
