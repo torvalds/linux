@@ -199,14 +199,43 @@
 	.endm
 	.endr
 
+	.macro	get_current, rd
+#ifdef CONFIG_CURRENT_POINTER_IN_TPIDRURO
+	mrc	p15, 0, \rd, c13, c0, 3		@ get TPIDRURO register
+#else
+	get_thread_info \rd
+	ldr	\rd, [\rd, #TI_TASK]
+#endif
+	.endm
+
+	.macro	set_current, rn
+#ifdef CONFIG_CURRENT_POINTER_IN_TPIDRURO
+	mcr	p15, 0, \rn, c13, c0, 3		@ set TPIDRURO register
+#endif
+	.endm
+
+	.macro	reload_current, t1:req, t2:req
+#ifdef CONFIG_CURRENT_POINTER_IN_TPIDRURO
+	adr_l	\t1, __entry_task		@ get __entry_task base address
+	mrc	p15, 0, \t2, c13, c0, 4		@ get per-CPU offset
+	ldr	\t1, [\t1, \t2]			@ load variable
+	mcr	p15, 0, \t1, c13, c0, 3		@ store in TPIDRURO
+#endif
+	.endm
+
 /*
  * Get current thread_info.
  */
 	.macro	get_thread_info, rd
+#ifdef CONFIG_THREAD_INFO_IN_TASK
+	/* thread_info is the first member of struct task_struct */
+	get_current \rd
+#else
  ARM(	mov	\rd, sp, lsr #THREAD_SIZE_ORDER + PAGE_SHIFT	)
  THUMB(	mov	\rd, sp			)
  THUMB(	lsr	\rd, \rd, #THREAD_SIZE_ORDER + PAGE_SHIFT	)
 	mov	\rd, \rd, lsl #THREAD_SIZE_ORDER + PAGE_SHIFT
+#endif
 	.endm
 
 /*

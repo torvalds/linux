@@ -115,6 +115,7 @@ ENTRY(secondary_startup)
 	ret	r12
 1:	bl	__after_proc_init
 	ldr	sp, [r7, #12]			@ set up the stack pointer
+	ldr	r0, [r7, #16]			@ set up task pointer
 	mov	fp, #0
 	b	secondary_start_kernel
 ENDPROC(secondary_startup)
