@@ -504,7 +504,7 @@ static inline void xfs_setup_existing_inode(struct xfs_inode *ip)
 
 void xfs_irele(struct xfs_inode *ip);
 
-extern struct kmem_zone	*xfs_inode_zone;
+extern struct kmem_cache	*xfs_inode_cache;
 
 /* The default CoW extent size hint. */
 #define XFS_DEFAULT_COWEXTSZ_HINT 32

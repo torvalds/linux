@@ -20,7 +20,7 @@
 #include "xfs_ialloc.h"
 #include "xfs_trace.h"
 
-kmem_zone_t	*xfs_icreate_zone;		/* inode create item zone */
+struct kmem_cache	*xfs_icreate_cache;		/* inode create item */
 
 static inline struct xfs_icreate_item *ICR_ITEM(struct xfs_log_item *lip)
 {
@@ -63,7 +63,7 @@ STATIC void
 xfs_icreate_item_release(
 	struct xfs_log_item	*lip)
 {
-	kmem_cache_free(xfs_icreate_zone, ICR_ITEM(lip));
+	kmem_cache_free(xfs_icreate_cache, ICR_ITEM(lip));
 }
 
 static const struct xfs_item_ops xfs_icreate_item_ops = {
@@ -97,7 +97,7 @@ xfs_icreate_log(
 {
 	struct xfs_icreate_item	*icp;
 
-	icp = kmem_cache_zalloc(xfs_icreate_zone, GFP_KERNEL | __GFP_NOFAIL);
+	icp = kmem_cache_zalloc(xfs_icreate_cache, GFP_KERNEL | __GFP_NOFAIL);
 
 	xfs_log_item_init(tp->t_mountp, &icp->ic_item, XFS_LI_ICREATE,
 			  &xfs_icreate_item_ops);

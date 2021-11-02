@@ -18,6 +18,12 @@
 #include "xfs_trace.h"
 #include "xfs_icache.h"
 #include "xfs_log.h"
+#include "xfs_rmap.h"
+#include "xfs_refcount.h"
+#include "xfs_bmap.h"
+#include "xfs_alloc.h"
+
+static struct kmem_cache	*xfs_defer_pending_cache;
 
 /*
  * Deferred Operations in XFS
@@ -232,23 +238,20 @@ xfs_defer_trans_abort(
 	}
 }
 
-/* Roll a transaction so we can do some deferred op processing. */
-STATIC int
-xfs_defer_trans_roll(
-	struct xfs_trans		**tpp)
+/*
+ * Capture resources that the caller said not to release ("held") when the
+ * transaction commits.  Caller is responsible for zero-initializing @dres.
+ */
+static int
+xfs_defer_save_resources(
+	struct xfs_defer_resources	*dres,
+	struct xfs_trans		*tp)
 {
-	struct xfs_trans		*tp = *tpp;
 	struct xfs_buf_log_item		*bli;
 	struct xfs_inode_log_item	*ili;
 	struct xfs_log_item		*lip;
-	struct xfs_buf			*bplist[XFS_DEFER_OPS_NR_BUFS];
-	struct xfs_inode		*iplist[XFS_DEFER_OPS_NR_INODES];
-	unsigned int			ordered = 0; /* bitmap */
-	int				bpcount = 0, ipcount = 0;
-	int				i;
-	int				error;
 
-	BUILD_BUG_ON(NBBY * sizeof(ordered) < XFS_DEFER_OPS_NR_BUFS);
+	BUILD_BUG_ON(NBBY * sizeof(dres->dr_ordered) < XFS_DEFER_OPS_NR_BUFS);
 
 	list_for_each_entry(lip, &tp->t_items, li_trans) {
 		switch (lip->li_type) {
@@ -256,28 +259,29 @@ xfs_defer_trans_roll(
 			bli = container_of(lip, struct xfs_buf_log_item,
 					   bli_item);
 			if (bli->bli_flags & XFS_BLI_HOLD) {
-				if (bpcount >= XFS_DEFER_OPS_NR_BUFS) {
+				if (dres->dr_bufs >= XFS_DEFER_OPS_NR_BUFS) {
 					ASSERT(0);
 					return -EFSCORRUPTED;
 				}
 				if (bli->bli_flags & XFS_BLI_ORDERED)
-					ordered |= (1U << bpcount);
+					dres->dr_ordered |=
+							(1U << dres->dr_bufs);
 				else
 					xfs_trans_dirty_buf(tp, bli->bli_buf);
-				bplist[bpcount++] = bli->bli_buf;
+				dres->dr_bp[dres->dr_bufs++] = bli->bli_buf;
 			}
 			break;
 		case XFS_LI_INODE:
 			ili = container_of(lip, struct xfs_inode_log_item,
 					   ili_item);
 			if (ili->ili_lock_flags == 0) {
-				if (ipcount >= XFS_DEFER_OPS_NR_INODES) {
+				if (dres->dr_inos >= XFS_DEFER_OPS_NR_INODES) {
 					ASSERT(0);
 					return -EFSCORRUPTED;
 				}
 				xfs_trans_log_inode(tp, ili->ili_inode,
 						    XFS_ILOG_CORE);
-				iplist[ipcount++] = ili->ili_inode;
+				dres->dr_ip[dres->dr_inos++] = ili->ili_inode;
 			}
 			break;
 		default:
@@ -285,7 +289,43 @@ xfs_defer_trans_roll(
 		}
 	}
 
-	trace_xfs_defer_trans_roll(tp, _RET_IP_);
+	return 0;
+}
+
+/* Attach the held resources to the transaction. */
+static void
+xfs_defer_restore_resources(
+	struct xfs_trans		*tp,
+	struct xfs_defer_resources	*dres)
+{
+	unsigned short			i;
+
+	/* Rejoin the joined inodes. */
+	for (i = 0; i < dres->dr_inos; i++)
+		xfs_trans_ijoin(tp, dres->dr_ip[i], 0);
+
+	/* Rejoin the buffers and dirty them so the log moves forward. */
+	for (i = 0; i < dres->dr_bufs; i++) {
+		xfs_trans_bjoin(tp, dres->dr_bp[i]);
+		if (dres->dr_ordered & (1U << i))
+			xfs_trans_ordered_buf(tp, dres->dr_bp[i]);
+		xfs_trans_bhold(tp, dres->dr_bp[i]);
+	}
+}
+
+/* Roll a transaction so we can do some deferred op processing. */
+STATIC int
+xfs_defer_trans_roll(
+	struct xfs_trans		**tpp)
+{
+	struct xfs_defer_resources	dres = { };
+	int				error;
+
+	error = xfs_defer_save_resources(&dres, *tpp);
+	if (error)
+		return error;
+
+	trace_xfs_defer_trans_roll(*tpp, _RET_IP_);
 
 	/*
 	 * Roll the transaction.  Rolling always given a new transaction (even
@@ -295,22 +335,11 @@ xfs_defer_trans_roll(
 	 * happened.
 	 */
 	error = xfs_trans_roll(tpp);
-	tp = *tpp;
 
-	/* Rejoin the joined inodes. */
-	for (i = 0; i < ipcount; i++)
-		xfs_trans_ijoin(tp, iplist[i], 0);
-
-	/* Rejoin the buffers and dirty them so the log moves forward. */
-	for (i = 0; i < bpcount; i++) {
-		xfs_trans_bjoin(tp, bplist[i]);
-		if (ordered & (1U << i))
-			xfs_trans_ordered_buf(tp, bplist[i]);
-		xfs_trans_bhold(tp, bplist[i]);
-	}
+	xfs_defer_restore_resources(*tpp, &dres);
 
 	if (error)
-		trace_xfs_defer_trans_roll_error(tp, error);
+		trace_xfs_defer_trans_roll_error(*tpp, error);
 	return error;
 }
 
@@ -342,7 +371,7 @@ xfs_defer_cancel_list(
 			ops->cancel_item(pwi);
 		}
 		ASSERT(dfp->dfp_count == 0);
-		kmem_free(dfp);
+		kmem_cache_free(xfs_defer_pending_cache, dfp);
 	}
 }
 
@@ -439,7 +468,7 @@ xfs_defer_finish_one(
 
 	/* Done with the dfp, free it. */
 	list_del(&dfp->dfp_list);
-	kmem_free(dfp);
+	kmem_cache_free(xfs_defer_pending_cache, dfp);
 out:
 	if (ops->finish_cleanup)
 		ops->finish_cleanup(tp, state, error);
@@ -573,8 +602,8 @@ xfs_defer_add(
 			dfp = NULL;
 	}
 	if (!dfp) {
-		dfp = kmem_alloc(sizeof(struct xfs_defer_pending),
-				KM_NOFS);
+		dfp = kmem_cache_zalloc(xfs_defer_pending_cache,
+				GFP_NOFS | __GFP_NOFAIL);
 		dfp->dfp_type = type;
 		dfp->dfp_intent = NULL;
 		dfp->dfp_done = NULL;
@@ -627,10 +656,11 @@ xfs_defer_move(
  */
 static struct xfs_defer_capture *
 xfs_defer_ops_capture(
-	struct xfs_trans		*tp,
-	struct xfs_inode		*capture_ip)
+	struct xfs_trans		*tp)
 {
 	struct xfs_defer_capture	*dfc;
+	unsigned short			i;
+	int				error;
 
 	if (list_empty(&tp->t_dfops))
 		return NULL;
@@ -654,27 +684,48 @@ xfs_defer_ops_capture(
 	/* Preserve the log reservation size. */
 	dfc->dfc_logres = tp->t_log_res;
 
-	/*
-	 * Grab an extra reference to this inode and attach it to the capture
-	 * structure.
-	 */
-	if (capture_ip) {
-		ihold(VFS_I(capture_ip));
-		dfc->dfc_capture_ip = capture_ip;
+	error = xfs_defer_save_resources(&dfc->dfc_held, tp);
+	if (error) {
+		/*
+		 * Resource capture should never fail, but if it does, we
+		 * still have to shut down the log and release things
+		 * properly.
+		 */
+		xfs_force_shutdown(tp->t_mountp, SHUTDOWN_CORRUPT_INCORE);
 	}
+
+	/*
+	 * Grab extra references to the inodes and buffers because callers are
+	 * expected to release their held references after we commit the
+	 * transaction.
+	 */
+	for (i = 0; i < dfc->dfc_held.dr_inos; i++) {
+		ASSERT(xfs_isilocked(dfc->dfc_held.dr_ip[i], XFS_ILOCK_EXCL));
+		ihold(VFS_I(dfc->dfc_held.dr_ip[i]));
+	}
+
+	for (i = 0; i < dfc->dfc_held.dr_bufs; i++)
+		xfs_buf_hold(dfc->dfc_held.dr_bp[i]);
 
 	return dfc;
 }
 
 /* Release all resources that we used to capture deferred ops. */
 void
-xfs_defer_ops_release(
+xfs_defer_ops_capture_free(
 	struct xfs_mount		*mp,
 	struct xfs_defer_capture	*dfc)
 {
+	unsigned short			i;
+
 	xfs_defer_cancel_list(mp, &dfc->dfc_dfops);
-	if (dfc->dfc_capture_ip)
-		xfs_irele(dfc->dfc_capture_ip);
+
+	for (i = 0; i < dfc->dfc_held.dr_bufs; i++)
+		xfs_buf_relse(dfc->dfc_held.dr_bp[i]);
+
+	for (i = 0; i < dfc->dfc_held.dr_inos; i++)
+		xfs_irele(dfc->dfc_held.dr_ip[i]);
+
 	kmem_free(dfc);
 }
 
@@ -689,24 +740,21 @@ xfs_defer_ops_release(
 int
 xfs_defer_ops_capture_and_commit(
 	struct xfs_trans		*tp,
-	struct xfs_inode		*capture_ip,
 	struct list_head		*capture_list)
 {
 	struct xfs_mount		*mp = tp->t_mountp;
 	struct xfs_defer_capture	*dfc;
 	int				error;
 
-	ASSERT(!capture_ip || xfs_isilocked(capture_ip, XFS_ILOCK_EXCL));
-
 	/* If we don't capture anything, commit transaction and exit. */
-	dfc = xfs_defer_ops_capture(tp, capture_ip);
+	dfc = xfs_defer_ops_capture(tp);
 	if (!dfc)
 		return xfs_trans_commit(tp);
 
 	/* Commit the transaction and add the capture structure to the list. */
 	error = xfs_trans_commit(tp);
 	if (error) {
-		xfs_defer_ops_release(mp, dfc);
+		xfs_defer_ops_capture_free(mp, dfc);
 		return error;
 	}
 
@@ -724,21 +772,102 @@ void
 xfs_defer_ops_continue(
 	struct xfs_defer_capture	*dfc,
 	struct xfs_trans		*tp,
-	struct xfs_inode		**captured_ipp)
+	struct xfs_defer_resources	*dres)
 {
 	ASSERT(tp->t_flags & XFS_TRANS_PERM_LOG_RES);
 	ASSERT(!(tp->t_flags & XFS_TRANS_DIRTY));
 
 	/* Lock and join the captured inode to the new transaction. */
-	if (dfc->dfc_capture_ip) {
-		xfs_ilock(dfc->dfc_capture_ip, XFS_ILOCK_EXCL);
-		xfs_trans_ijoin(tp, dfc->dfc_capture_ip, 0);
-	}
-	*captured_ipp = dfc->dfc_capture_ip;
+	if (dfc->dfc_held.dr_inos == 2)
+		xfs_lock_two_inodes(dfc->dfc_held.dr_ip[0], XFS_ILOCK_EXCL,
+				    dfc->dfc_held.dr_ip[1], XFS_ILOCK_EXCL);
+	else if (dfc->dfc_held.dr_inos == 1)
+		xfs_ilock(dfc->dfc_held.dr_ip[0], XFS_ILOCK_EXCL);
+	xfs_defer_restore_resources(tp, &dfc->dfc_held);
+	memcpy(dres, &dfc->dfc_held, sizeof(struct xfs_defer_resources));
 
 	/* Move captured dfops chain and state to the transaction. */
 	list_splice_init(&dfc->dfc_dfops, &tp->t_dfops);
 	tp->t_flags |= dfc->dfc_tpflags;
 
 	kmem_free(dfc);
+}
+
+/* Release the resources captured and continued during recovery. */
+void
+xfs_defer_resources_rele(
+	struct xfs_defer_resources	*dres)
+{
+	unsigned short			i;
+
+	for (i = 0; i < dres->dr_inos; i++) {
+		xfs_iunlock(dres->dr_ip[i], XFS_ILOCK_EXCL);
+		xfs_irele(dres->dr_ip[i]);
+		dres->dr_ip[i] = NULL;
+	}
+
+	for (i = 0; i < dres->dr_bufs; i++) {
+		xfs_buf_relse(dres->dr_bp[i]);
+		dres->dr_bp[i] = NULL;
+	}
+
+	dres->dr_inos = 0;
+	dres->dr_bufs = 0;
+	dres->dr_ordered = 0;
+}
+
+static inline int __init
+xfs_defer_init_cache(void)
+{
+	xfs_defer_pending_cache = kmem_cache_create("xfs_defer_pending",
+			sizeof(struct xfs_defer_pending),
+			0, 0, NULL);
+
+	return xfs_defer_pending_cache != NULL ? 0 : -ENOMEM;
+}
+
+static inline void
+xfs_defer_destroy_cache(void)
+{
+	kmem_cache_destroy(xfs_defer_pending_cache);
+	xfs_defer_pending_cache = NULL;
+}
+
+/* Set up caches for deferred work items. */
+int __init
+xfs_defer_init_item_caches(void)
+{
+	int				error;
+
+	error = xfs_defer_init_cache();
+	if (error)
+		return error;
+	error = xfs_rmap_intent_init_cache();
+	if (error)
+		goto err;
+	error = xfs_refcount_intent_init_cache();
+	if (error)
+		goto err;
+	error = xfs_bmap_intent_init_cache();
+	if (error)
+		goto err;
+	error = xfs_extfree_intent_init_cache();
+	if (error)
+		goto err;
+
+	return 0;
+err:
+	xfs_defer_destroy_item_caches();
+	return error;
+}
+
+/* Destroy all the deferred work item caches, if they've been allocated. */
+void
+xfs_defer_destroy_item_caches(void)
+{
+	xfs_extfree_intent_destroy_cache();
+	xfs_bmap_intent_destroy_cache();
+	xfs_refcount_intent_destroy_cache();
+	xfs_rmap_intent_destroy_cache();
+	xfs_defer_destroy_cache();
 }

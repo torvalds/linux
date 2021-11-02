@@ -22,6 +22,8 @@
 #include "xfs_ag.h"
 #include "xfs_ag_resv.h"
 
+static struct kmem_cache	*xfs_rmapbt_cur_cache;
+
 /*
  * Reverse map btree.
  *
@@ -451,13 +453,10 @@ xfs_rmapbt_init_common(
 {
 	struct xfs_btree_cur	*cur;
 
-	cur = kmem_cache_zalloc(xfs_btree_cur_zone, GFP_NOFS | __GFP_NOFAIL);
-	cur->bc_tp = tp;
-	cur->bc_mp = mp;
 	/* Overlapping btree; 2 keys per pointer. */
-	cur->bc_btnum = XFS_BTNUM_RMAP;
+	cur = xfs_btree_alloc_cursor(mp, tp, XFS_BTNUM_RMAP,
+			mp->m_rmap_maxlevels, xfs_rmapbt_cur_cache);
 	cur->bc_flags = XFS_BTREE_CRC_BLOCKS | XFS_BTREE_OVERLAPPING;
-	cur->bc_blocklog = mp->m_sb.sb_blocklog;
 	cur->bc_statoff = XFS_STATS_CALC_INDEX(xs_rmap_2);
 	cur->bc_ops = &xfs_rmapbt_ops;
 
@@ -522,6 +521,18 @@ xfs_rmapbt_commit_staged_btree(
 	xfs_btree_commit_afakeroot(cur, tp, agbp, &xfs_rmapbt_ops);
 }
 
+/* Calculate number of records in a reverse mapping btree block. */
+static inline unsigned int
+xfs_rmapbt_block_maxrecs(
+	unsigned int		blocklen,
+	bool			leaf)
+{
+	if (leaf)
+		return blocklen / sizeof(struct xfs_rmap_rec);
+	return blocklen /
+		(2 * sizeof(struct xfs_rmap_key) + sizeof(xfs_rmap_ptr_t));
+}
+
 /*
  * Calculate number of records in an rmap btree block.
  */
@@ -531,11 +542,33 @@ xfs_rmapbt_maxrecs(
 	int			leaf)
 {
 	blocklen -= XFS_RMAP_BLOCK_LEN;
+	return xfs_rmapbt_block_maxrecs(blocklen, leaf);
+}
 
-	if (leaf)
-		return blocklen / sizeof(struct xfs_rmap_rec);
-	return blocklen /
-		(2 * sizeof(struct xfs_rmap_key) + sizeof(xfs_rmap_ptr_t));
+/* Compute the max possible height for reverse mapping btrees. */
+unsigned int
+xfs_rmapbt_maxlevels_ondisk(void)
+{
+	unsigned int		minrecs[2];
+	unsigned int		blocklen;
+
+	blocklen = XFS_MIN_CRC_BLOCKSIZE - XFS_BTREE_SBLOCK_CRC_LEN;
+
+	minrecs[0] = xfs_rmapbt_block_maxrecs(blocklen, true) / 2;
+	minrecs[1] = xfs_rmapbt_block_maxrecs(blocklen, false) / 2;
+
+	/*
+	 * Compute the asymptotic maxlevels for an rmapbt on any reflink fs.
+	 *
+	 * On a reflink filesystem, each AG block can have up to 2^32 (per the
+	 * refcount record format) owners, which means that theoretically we
+	 * could face up to 2^64 rmap records.  However, we're likely to run
+	 * out of blocks in the AG long before that happens, which means that
+	 * we must compute the max height based on what the btree will look
+	 * like if it consumes almost all the blocks in the AG due to maximal
+	 * sharing factor.
+	 */
+	return xfs_btree_space_to_height(minrecs, XFS_MAX_CRC_AG_BLOCKS);
 }
 
 /* Compute the maximum height of an rmap btree. */
@@ -543,26 +576,36 @@ void
 xfs_rmapbt_compute_maxlevels(
 	struct xfs_mount		*mp)
 {
-	/*
-	 * On a non-reflink filesystem, the maximum number of rmap
-	 * records is the number of blocks in the AG, hence the max
-	 * rmapbt height is log_$maxrecs($agblocks).  However, with
-	 * reflink each AG block can have up to 2^32 (per the refcount
-	 * record format) owners, which means that theoretically we
-	 * could face up to 2^64 rmap records.
-	 *
-	 * That effectively means that the max rmapbt height must be
-	 * XFS_BTREE_MAXLEVELS.  "Fortunately" we'll run out of AG
-	 * blocks to feed the rmapbt long before the rmapbt reaches
-	 * maximum height.  The reflink code uses ag_resv_critical to
-	 * disallow reflinking when less than 10% of the per-AG metadata
-	 * block reservation since the fallback is a regular file copy.
-	 */
-	if (xfs_has_reflink(mp))
-		mp->m_rmap_maxlevels = XFS_BTREE_MAXLEVELS;
-	else
+	if (!xfs_has_rmapbt(mp)) {
+		mp->m_rmap_maxlevels = 0;
+		return;
+	}
+
+	if (xfs_has_reflink(mp)) {
+		/*
+		 * Compute the asymptotic maxlevels for an rmap btree on a
+		 * filesystem that supports reflink.
+		 *
+		 * On a reflink filesystem, each AG block can have up to 2^32
+		 * (per the refcount record format) owners, which means that
+		 * theoretically we could face up to 2^64 rmap records.
+		 * However, we're likely to run out of blocks in the AG long
+		 * before that happens, which means that we must compute the
+		 * max height based on what the btree will look like if it
+		 * consumes almost all the blocks in the AG due to maximal
+		 * sharing factor.
+		 */
+		mp->m_rmap_maxlevels = xfs_btree_space_to_height(mp->m_rmap_mnr,
+				mp->m_sb.sb_agblocks);
+	} else {
+		/*
+		 * If there's no block sharing, compute the maximum rmapbt
+		 * height assuming one rmap record per AG block.
+		 */
 		mp->m_rmap_maxlevels = xfs_btree_compute_maxlevels(
 				mp->m_rmap_mnr, mp->m_sb.sb_agblocks);
+	}
+	ASSERT(mp->m_rmap_maxlevels <= xfs_rmapbt_maxlevels_ondisk());
 }
 
 /* Calculate the refcount btree size for some records. */
@@ -632,4 +675,23 @@ xfs_rmapbt_calc_reserves(
 	*used += tree_len;
 
 	return error;
+}
+
+int __init
+xfs_rmapbt_init_cur_cache(void)
+{
+	xfs_rmapbt_cur_cache = kmem_cache_create("xfs_rmapbt_cur",
+			xfs_btree_cur_sizeof(xfs_rmapbt_maxlevels_ondisk()),
+			0, 0, NULL);
+
+	if (!xfs_rmapbt_cur_cache)
+		return -ENOMEM;
+	return 0;
+}
+
+void
+xfs_rmapbt_destroy_cur_cache(void)
+{
+	kmem_cache_destroy(xfs_rmapbt_cur_cache);
+	xfs_rmapbt_cur_cache = NULL;
 }

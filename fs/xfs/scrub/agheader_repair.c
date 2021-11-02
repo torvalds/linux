@@ -122,7 +122,7 @@ xrep_check_btree_root(
 	xfs_agnumber_t			agno = sc->sm->sm_agno;
 
 	return xfs_verify_agbno(mp, agno, fab->root) &&
-	       fab->height <= XFS_BTREE_MAXLEVELS;
+	       fab->height <= fab->maxlevels;
 }
 
 /*
@@ -339,18 +339,22 @@ xrep_agf(
 		[XREP_AGF_BNOBT] = {
 			.rmap_owner = XFS_RMAP_OWN_AG,
 			.buf_ops = &xfs_bnobt_buf_ops,
+			.maxlevels = sc->mp->m_alloc_maxlevels,
 		},
 		[XREP_AGF_CNTBT] = {
 			.rmap_owner = XFS_RMAP_OWN_AG,
 			.buf_ops = &xfs_cntbt_buf_ops,
+			.maxlevels = sc->mp->m_alloc_maxlevels,
 		},
 		[XREP_AGF_RMAPBT] = {
 			.rmap_owner = XFS_RMAP_OWN_AG,
 			.buf_ops = &xfs_rmapbt_buf_ops,
+			.maxlevels = sc->mp->m_rmap_maxlevels,
 		},
 		[XREP_AGF_REFCOUNTBT] = {
 			.rmap_owner = XFS_RMAP_OWN_REFC,
 			.buf_ops = &xfs_refcountbt_buf_ops,
+			.maxlevels = sc->mp->m_refc_maxlevels,
 		},
 		[XREP_AGF_END] = {
 			.buf_ops = NULL,
@@ -881,10 +885,12 @@ xrep_agi(
 		[XREP_AGI_INOBT] = {
 			.rmap_owner = XFS_RMAP_OWN_INOBT,
 			.buf_ops = &xfs_inobt_buf_ops,
+			.maxlevels = M_IGEO(sc->mp)->inobt_maxlevels,
 		},
 		[XREP_AGI_FINOBT] = {
 			.rmap_owner = XFS_RMAP_OWN_INOBT,
 			.buf_ops = &xfs_finobt_buf_ops,
+			.maxlevels = M_IGEO(sc->mp)->inobt_maxlevels,
 		},
 		[XREP_AGI_END] = {
 			.buf_ops = NULL
