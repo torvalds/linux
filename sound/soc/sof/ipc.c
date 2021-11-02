@@ -173,7 +173,22 @@ static void ipc_log_header(struct device *dev, u8 *text, u32 cmd)
 		}
 		break;
 	case SOF_IPC_GLB_TRACE_MSG:
-		str = "GLB_TRACE_MSG"; break;
+		str = "GLB_TRACE_MSG";
+		switch (type) {
+		case SOF_IPC_TRACE_DMA_PARAMS:
+			str2 = "DMA_PARAMS"; break;
+		case SOF_IPC_TRACE_DMA_POSITION:
+			str2 = "DMA_POSITION"; break;
+		case SOF_IPC_TRACE_DMA_PARAMS_EXT:
+			str2 = "DMA_PARAMS_EXT"; break;
+		case SOF_IPC_TRACE_FILTER_UPDATE:
+			str2 = "FILTER_UPDATE"; break;
+		case SOF_IPC_TRACE_DMA_FREE:
+			str2 = "DMA_FREE"; break;
+		default:
+			str2 = "unknown type"; break;
+		}
+		break;
 	case SOF_IPC_GLB_TEST_MSG:
 		str = "GLB_TEST_MSG";
 		switch (type) {
