@@ -190,7 +190,7 @@ struct kvmppc_spapr_tce_table {
 	u64 size;		/* window size in pages */
 	struct list_head iommu_tables;
 	struct mutex alloc_lock;
-	struct page *pages[0];
+	struct page *pages[];
 };
 
 /* XICS components, defined in book3s_xics.c */
