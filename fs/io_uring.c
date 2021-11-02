@@ -10794,7 +10794,6 @@ static __cold int io_register_iowq_max_workers(struct io_ring_ctx *ctx,
 	memcpy(ctx->iowq_limits, new_count, sizeof(new_count));
 	ctx->iowq_limits_set = true;
 
-	ret = -EINVAL;
 	if (tctx && tctx->io_wq) {
 		ret = io_wq_max_workers(tctx->io_wq, new_count);
 		if (ret)
