@@ -200,6 +200,7 @@ extern int __get_user_64t_4(void *);
 		register unsigned long __l asm("r1") = __limit;		\
 		register int __e asm("r0");				\
 		unsigned int __ua_flags = uaccess_save_and_enable();	\
+		int __tmp_e;						\
 		switch (sizeof(*(__p))) {				\
 		case 1:							\
 			if (sizeof((x)) >= 8)				\
@@ -227,9 +228,10 @@ extern int __get_user_64t_4(void *);
 			break;						\
 		default: __e = __get_user_bad(); break;			\
 		}							\
+		__tmp_e = __e;						\
 		uaccess_restore(__ua_flags);				\
 		x = (typeof(*(p))) __r2;				\
-		__e;							\
+		__tmp_e;						\
 	})
 
 #define get_user(x, p)							\
