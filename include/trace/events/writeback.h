@@ -52,11 +52,11 @@ WB_WORK_REASON
 
 struct wb_writeback_work;
 
-DECLARE_EVENT_CLASS(writeback_page_template,
+DECLARE_EVENT_CLASS(writeback_folio_template,
 
-	TP_PROTO(struct page *page, struct address_space *mapping),
+	TP_PROTO(struct folio *folio, struct address_space *mapping),
 
-	TP_ARGS(page, mapping),
+	TP_ARGS(folio, mapping),
 
 	TP_STRUCT__entry (
 		__array(char, name, 32)
@@ -69,7 +69,7 @@ DECLARE_EVENT_CLASS(writeback_page_template,
 			    bdi_dev_name(mapping ? inode_to_bdi(mapping->host) :
 					 NULL), 32);
 		__entry->ino = mapping ? mapping->host->i_ino : 0;
-		__entry->index = page->index;
+		__entry->index = folio->index;
 	),
 
 	TP_printk("bdi %s: ino=%lu index=%lu",
@@ -79,18 +79,18 @@ DECLARE_EVENT_CLASS(writeback_page_template,
 	)
 );
 
-DEFINE_EVENT(writeback_page_template, writeback_dirty_page,
+DEFINE_EVENT(writeback_folio_template, writeback_dirty_folio,
 
-	TP_PROTO(struct page *page, struct address_space *mapping),
+	TP_PROTO(struct folio *folio, struct address_space *mapping),
 
-	TP_ARGS(page, mapping)
+	TP_ARGS(folio, mapping)
 );
 
-DEFINE_EVENT(writeback_page_template, wait_on_page_writeback,
+DEFINE_EVENT(writeback_folio_template, folio_wait_writeback,
 
-	TP_PROTO(struct page *page, struct address_space *mapping),
+	TP_PROTO(struct folio *folio, struct address_space *mapping),
 
-	TP_ARGS(page, mapping)
+	TP_ARGS(folio, mapping)
 );
 
 DECLARE_EVENT_CLASS(writeback_dirty_inode_template,
@@ -236,9 +236,9 @@ TRACE_EVENT(inode_switch_wbs,
 
 TRACE_EVENT(track_foreign_dirty,
 
-	TP_PROTO(struct page *page, struct bdi_writeback *wb),
+	TP_PROTO(struct folio *folio, struct bdi_writeback *wb),
 
-	TP_ARGS(page, wb),
+	TP_ARGS(folio, wb),
 
 	TP_STRUCT__entry(
 		__array(char,		name, 32)
@@ -250,7 +250,7 @@ TRACE_EVENT(track_foreign_dirty,
 	),
 
 	TP_fast_assign(
-		struct address_space *mapping = page_mapping(page);
+		struct address_space *mapping = folio_mapping(folio);
 		struct inode *inode = mapping ? mapping->host : NULL;
 
 		strscpy_pad(__entry->name, bdi_dev_name(wb->bdi), 32);
@@ -258,7 +258,7 @@ TRACE_EVENT(track_foreign_dirty,
 		__entry->ino		= inode ? inode->i_ino : 0;
 		__entry->memcg_id	= wb->memcg_css->id;
 		__entry->cgroup_ino	= __trace_wb_assign_cgroup(wb);
-		__entry->page_cgroup_ino = cgroup_ino(page_memcg(page)->css.cgroup);
+		__entry->page_cgroup_ino = cgroup_ino(folio_memcg(folio)->css.cgroup);
 	),
 
 	TP_printk("bdi %s[%llu]: ino=%lu memcg_id=%u cgroup_ino=%lu page_cgroup_ino=%lu",

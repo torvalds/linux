@@ -120,7 +120,8 @@ void flush_cache_page(struct vm_area_struct*,
 #define flush_cache_vunmap(start,end)	flush_cache_all()
 
 #define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
-extern void flush_dcache_page(struct page*);
+void flush_dcache_page(struct page *);
+void flush_dcache_folio(struct folio *);
 
 void local_flush_cache_range(struct vm_area_struct *vma,
 		unsigned long start, unsigned long end);
@@ -137,7 +138,9 @@ void local_flush_cache_page(struct vm_area_struct *vma,
 #define flush_cache_vunmap(start,end)			do { } while (0)
 
 #define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 0
+#define ARCH_IMPLEMENTS_FLUSH_DCACHE_FOLIO
 #define flush_dcache_page(page)				do { } while (0)
+static inline void flush_dcache_folio(struct folio *folio) { }
 
 #define flush_icache_range local_flush_icache_range
 #define flush_cache_page(vma, addr, pfn)		do { } while (0)
