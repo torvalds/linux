@@ -8,6 +8,7 @@ menuconfig ARCH_DOVE
 	select PINCTRL_DOVE
 	select PLAT_ORION_LEGACY
 	select PM_GENERIC_DOMAINS if PM
+	select PCI_QUIRKS if PCI
 	help
 	  Support for the Marvell Dove SoC 88AP510
 
