@@ -411,6 +411,7 @@ struct dmub_srv {
 	struct dmub_srv_base_funcs funcs;
 	struct dmub_srv_hw_funcs hw_funcs;
 	struct dmub_rb inbox1_rb;
+	uint32_t inbox1_last_wptr;
 	/**
 	 * outbox1_rb is accessed without locks (dal & dc)
 	 * and to be used only in dmub_srv_stat_get_notification()
