@@ -138,6 +138,10 @@ or in Section 2.4
 3. Example driver
 -----------------
 
+The CPUFreq framework supports dedicated callback for registering
+the EM for a given CPU(s) 'policy' object: cpufreq_driver::register_em().
+That callback has to be implemented properly for a given driver,
+because the framework would call it at the right time during setup.
 This section provides a simple example of a CPUFreq driver registering a
 performance domain in the Energy Model framework using the (fake) 'foo'
 protocol. The driver implements an est_power() function to be provided to the
@@ -167,25 +171,22 @@ EM framework::
   20		return 0;
   21	}
   22
-  23	static int foo_cpufreq_init(struct cpufreq_policy *policy)
+  23	static void foo_cpufreq_register_em(struct cpufreq_policy *policy)
   24	{
   25		struct em_data_callback em_cb = EM_DATA_CB(est_power);
   26		struct device *cpu_dev;
-  27		int nr_opp, ret;
+  27		int nr_opp;
   28
   29		cpu_dev = get_cpu_device(cpumask_first(policy->cpus));
   30
-  31     	/* Do the actual CPUFreq init work ... */
-  32     	ret = do_foo_cpufreq_init(policy);
-  33     	if (ret)
-  34     		return ret;
-  35
-  36     	/* Find the number of OPPs for this policy */
-  37     	nr_opp = foo_get_nr_opp(policy);
+  31     	/* Find the number of OPPs for this policy */
+  32     	nr_opp = foo_get_nr_opp(policy);
+  33
+  34     	/* And register the new performance domain */
+  35     	em_dev_register_perf_domain(cpu_dev, nr_opp, &em_cb, policy->cpus,
+  36					    true);
+  37	}
   38
-  39     	/* And register the new performance domain */
-  40     	em_dev_register_perf_domain(cpu_dev, nr_opp, &em_cb, policy->cpus,
-  41					    true);
-  42
-  43	        return 0;
-  44	}
+  39	static struct cpufreq_driver foo_cpufreq_driver = {
+  40		.register_em = foo_cpufreq_register_em,
+  41	};
