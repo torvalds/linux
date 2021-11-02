@@ -580,7 +580,8 @@ void balloon_set_new_target(unsigned long target)
 }
 EXPORT_SYMBOL_GPL(balloon_set_new_target);
 
-static int add_ballooned_pages(int nr_pages)
+#ifndef CONFIG_XEN_UNPOPULATED_ALLOC
+static int add_ballooned_pages(unsigned int nr_pages)
 {
 	enum bp_state st;
 
@@ -608,14 +609,14 @@ static int add_ballooned_pages(int nr_pages)
 }
 
 /**
- * alloc_xenballooned_pages - get pages that have been ballooned out
+ * xen_alloc_unpopulated_pages - get pages that have been ballooned out
  * @nr_pages: Number of pages to get
  * @pages: pages returned
  * @return 0 on success, error otherwise
  */
-int alloc_xenballooned_pages(int nr_pages, struct page **pages)
+int xen_alloc_unpopulated_pages(unsigned int nr_pages, struct page **pages)
 {
-	int pgno = 0;
+	unsigned int pgno = 0;
 	struct page *page;
 	int ret;
 
@@ -650,7 +651,7 @@ int alloc_xenballooned_pages(int nr_pages, struct page **pages)
 	return 0;
  out_undo:
 	mutex_unlock(&balloon_mutex);
-	free_xenballooned_pages(pgno, pages);
+	xen_free_unpopulated_pages(pgno, pages);
 	/*
 	 * NB: free_xenballooned_pages will only subtract pgno pages, but since
 	 * target_unpopulated is incremented with nr_pages at the start we need
@@ -659,16 +660,16 @@ int alloc_xenballooned_pages(int nr_pages, struct page **pages)
 	balloon_stats.target_unpopulated -= nr_pages - pgno;
 	return ret;
 }
-EXPORT_SYMBOL(alloc_xenballooned_pages);
+EXPORT_SYMBOL(xen_alloc_unpopulated_pages);
 
 /**
- * free_xenballooned_pages - return pages retrieved with get_ballooned_pages
+ * xen_free_unpopulated_pages - return pages retrieved with get_ballooned_pages
  * @nr_pages: Number of pages
  * @pages: pages to return
  */
-void free_xenballooned_pages(int nr_pages, struct page **pages)
+void xen_free_unpopulated_pages(unsigned int nr_pages, struct page **pages)
 {
-	int i;
+	unsigned int i;
 
 	mutex_lock(&balloon_mutex);
 
@@ -685,9 +686,9 @@ void free_xenballooned_pages(int nr_pages, struct page **pages)
 
 	mutex_unlock(&balloon_mutex);
 }
-EXPORT_SYMBOL(free_xenballooned_pages);
+EXPORT_SYMBOL(xen_free_unpopulated_pages);
 
-#if defined(CONFIG_XEN_PV) && !defined(CONFIG_XEN_UNPOPULATED_ALLOC)
+#if defined(CONFIG_XEN_PV)
 static void __init balloon_add_region(unsigned long start_pfn,
 				      unsigned long pages)
 {
@@ -709,6 +710,7 @@ static void __init balloon_add_region(unsigned long start_pfn,
 
 	balloon_stats.total_pages += extra_pfn_end - start_pfn;
 }
+#endif
 #endif
 
 static int __init balloon_init(void)
