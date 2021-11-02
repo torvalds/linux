@@ -362,7 +362,7 @@ static void hclge_set_default_capability(struct hclge_dev *hdev)
 	}
 }
 
-const struct hclge_caps_bit_map hclge_cmd_caps_bit_map0[] = {
+static const struct hclge_caps_bit_map hclge_cmd_caps_bit_map0[] = {
 	{HCLGE_CAP_UDP_GSO_B, HNAE3_DEV_SUPPORT_UDP_GSO_B},
 	{HCLGE_CAP_PTP_B, HNAE3_DEV_SUPPORT_PTP_B},
 	{HCLGE_CAP_INT_QL_B, HNAE3_DEV_SUPPORT_INT_QL_B},

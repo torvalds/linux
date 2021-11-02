@@ -468,14 +468,18 @@ bool amdgpu_atomfirmware_dynamic_boot_config_supported(struct amdgpu_device *ade
 	return (fw_cap & ATOM_FIRMWARE_CAP_DYNAMIC_BOOT_CFG_ENABLE) ? true : false;
 }
 
-/*
- * Helper function to query RAS EEPROM address
+/**
+ * amdgpu_atomfirmware_ras_rom_addr -- Get the RAS EEPROM addr from VBIOS
+ * adev: amdgpu_device pointer
+ * i2c_address: pointer to u8; if not NULL, will contain
+ *    the RAS EEPROM address if the function returns true
  *
- * @adev: amdgpu_device pointer
- *
- * Return true if vbios supports ras rom address reporting
+ * Return true if VBIOS supports RAS EEPROM address reporting,
+ * else return false. If true and @i2c_address is not NULL,
+ * will contain the RAS ROM address.
  */
-bool amdgpu_atomfirmware_ras_rom_addr(struct amdgpu_device *adev, uint8_t* i2c_address)
+bool amdgpu_atomfirmware_ras_rom_addr(struct amdgpu_device *adev,
+				      u8 *i2c_address)
 {
 	struct amdgpu_mode_info *mode_info = &adev->mode_info;
 	int index;
@@ -483,26 +487,38 @@ bool amdgpu_atomfirmware_ras_rom_addr(struct amdgpu_device *adev, uint8_t* i2c_a
 	union firmware_info *firmware_info;
 	u8 frev, crev;
 
-	if (i2c_address == NULL)
-		return false;
-
-	*i2c_address = 0;
-
 	index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
-			firmwareinfo);
+					    firmwareinfo);
 
 	if (amdgpu_atom_parse_data_header(adev->mode_info.atom_context,
-				index, &size, &frev, &crev, &data_offset)) {
+					  index, &size, &frev, &crev,
+					  &data_offset)) {
 		/* support firmware_info 3.4 + */
 		if ((frev == 3 && crev >=4) || (frev > 3)) {
 			firmware_info = (union firmware_info *)
 				(mode_info->atom_context->bios + data_offset);
-			*i2c_address = firmware_info->v34.ras_rom_i2c_slave_addr;
+			/* The ras_rom_i2c_slave_addr should ideally
+			 * be a 19-bit EEPROM address, which would be
+			 * used as is by the driver; see top of
+			 * amdgpu_eeprom.c.
+			 *
+			 * When this is the case, 0 is of course a
+			 * valid RAS EEPROM address, in which case,
+			 * we'll drop the first "if (firm...)" and only
+			 * leave the check for the pointer.
+			 *
+			 * The reason this works right now is because
+			 * ras_rom_i2c_slave_addr contains the EEPROM
+			 * device type qualifier 1010b in the top 4
+			 * bits.
+			 */
+			if (firmware_info->v34.ras_rom_i2c_slave_addr) {
+				if (i2c_address)
+					*i2c_address = firmware_info->v34.ras_rom_i2c_slave_addr;
+				return true;
+			}
 		}
 	}
-
-	if (*i2c_address != 0)
-		return true;
 
 	return false;
 }

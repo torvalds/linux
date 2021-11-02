@@ -1356,8 +1356,8 @@ static int mld_process_v1(struct inet6_dev *idev, struct mld_msg *mld,
 	return 0;
 }
 
-static int mld_process_v2(struct inet6_dev *idev, struct mld2_query *mld,
-			  unsigned long *max_delay)
+static void mld_process_v2(struct inet6_dev *idev, struct mld2_query *mld,
+			   unsigned long *max_delay)
 {
 	*max_delay = max(msecs_to_jiffies(mldv2_mrc(mld)), 1UL);
 
@@ -1367,7 +1367,7 @@ static int mld_process_v2(struct inet6_dev *idev, struct mld2_query *mld,
 
 	idev->mc_maxdelay = *max_delay;
 
-	return 0;
+	return;
 }
 
 /* called with rcu_read_lock() */
@@ -1454,9 +1454,7 @@ static void __mld_query_work(struct sk_buff *skb)
 
 		mlh2 = (struct mld2_query *)skb_transport_header(skb);
 
-		err = mld_process_v2(idev, mlh2, &max_delay);
-		if (err < 0)
-			goto out;
+		mld_process_v2(idev, mlh2, &max_delay);
 
 		if (group_type == IPV6_ADDR_ANY) { /* general query */
 			if (mlh2->mld2q_nsrcs)

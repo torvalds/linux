@@ -16,8 +16,8 @@
 #include "otx2_common.h"
 #include "otx2_ptp.h"
 
-#define DRV_NAME	"octeontx2-nicpf"
-#define DRV_VF_NAME	"octeontx2-nicvf"
+#define DRV_NAME	"rvu-nicpf"
+#define DRV_VF_NAME	"rvu-nicvf"
 
 struct otx2_stat {
 	char name[ETH_GSTRING_LEN];

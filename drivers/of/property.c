@@ -1444,6 +1444,9 @@ static int of_fwnode_add_links(struct fwnode_handle *fwnode)
 	struct property *p;
 	struct device_node *con_np = to_of_node(fwnode);
 
+	if (IS_ENABLED(CONFIG_X86))
+		return 0;
+
 	if (!con_np)
 		return -EINVAL;
 

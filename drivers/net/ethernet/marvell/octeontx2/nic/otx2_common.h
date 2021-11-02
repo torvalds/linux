@@ -53,6 +53,10 @@ enum arua_mapped_qtypes {
 /* Send skid of 2000 packets required for CQ size of 4K CQEs. */
 #define SEND_CQ_SKID	2000
 
+struct otx2_lmt_info {
+	u64 lmt_addr;
+	u16 lmt_id;
+};
 /* RSS configuration */
 struct otx2_rss_ctx {
 	u8  ind_tbl[MAX_RSS_INDIR_TBL_SIZE];
@@ -224,8 +228,7 @@ struct otx2_hw {
 #define LMT_LINE_SIZE		128
 #define LMT_BURST_SIZE		32 /* 32 LMTST lines for burst SQE flush */
 	u64			*lmt_base;
-	u64			*npa_lmt_base;
-	u64			*nix_lmt_base;
+	struct otx2_lmt_info	__percpu *lmt_info;
 };
 
 enum vfperm {
@@ -407,17 +410,18 @@ static inline bool is_96xx_B0(struct pci_dev *pdev)
  */
 #define PCI_REVISION_ID_96XX		0x00
 #define PCI_REVISION_ID_95XX		0x10
-#define PCI_REVISION_ID_LOKI		0x20
+#define PCI_REVISION_ID_95XXN		0x20
 #define PCI_REVISION_ID_98XX		0x30
 #define PCI_REVISION_ID_95XXMM		0x40
+#define PCI_REVISION_ID_95XXO		0xE0
 
 static inline bool is_dev_otx2(struct pci_dev *pdev)
 {
 	u8 midr = pdev->revision & 0xF0;
 
 	return (midr == PCI_REVISION_ID_96XX || midr == PCI_REVISION_ID_95XX ||
-		midr == PCI_REVISION_ID_LOKI || midr == PCI_REVISION_ID_98XX ||
-		midr == PCI_REVISION_ID_95XXMM);
+		midr == PCI_REVISION_ID_95XXN || midr == PCI_REVISION_ID_98XX ||
+		midr == PCI_REVISION_ID_95XXMM || midr == PCI_REVISION_ID_95XXO);
 }
 
 static inline void otx2_setup_dev_hw_settings(struct otx2_nic *pfvf)
@@ -562,15 +566,16 @@ static inline u64 otx2_atomic64_add(u64 incr, u64 *ptr)
 #endif
 
 static inline void __cn10k_aura_freeptr(struct otx2_nic *pfvf, u64 aura,
-					u64 *ptrs, u64 num_ptrs,
-					u64 *lmt_addr)
+					u64 *ptrs, u64 num_ptrs)
 {
+	struct otx2_lmt_info *lmt_info;
 	u64 size = 0, count_eot = 0;
 	u64 tar_addr, val = 0;
 
+	lmt_info = per_cpu_ptr(pfvf->hw.lmt_info, smp_processor_id());
 	tar_addr = (__force u64)otx2_get_regaddr(pfvf, NPA_LF_AURA_BATCH_FREE0);
 	/* LMTID is same as AURA Id */
-	val = (aura & 0x7FF) | BIT_ULL(63);
+	val = (lmt_info->lmt_id & 0x7FF) | BIT_ULL(63);
 	/* Set if [127:64] of last 128bit word has a valid pointer */
 	count_eot = (num_ptrs % 2) ? 0ULL : 1ULL;
 	/* Set AURA ID to free pointer */
@@ -586,7 +591,7 @@ static inline void __cn10k_aura_freeptr(struct otx2_nic *pfvf, u64 aura,
 			size++;
 		tar_addr |=  ((size - 1) & 0x7) << 4;
 	}
-	memcpy(lmt_addr, ptrs, sizeof(u64) * num_ptrs);
+	memcpy((u64 *)lmt_info->lmt_addr, ptrs, sizeof(u64) * num_ptrs);
 	/* Perform LMTST flush */
 	cn10k_lmt_flush(val, tar_addr);
 }
@@ -594,12 +599,11 @@ static inline void __cn10k_aura_freeptr(struct otx2_nic *pfvf, u64 aura,
 static inline void cn10k_aura_freeptr(void *dev, int aura, u64 buf)
 {
 	struct otx2_nic *pfvf = dev;
-	struct otx2_pool *pool;
 	u64 ptrs[2];
 
-	pool = &pfvf->qset.pool[aura];
 	ptrs[1] = buf;
-	__cn10k_aura_freeptr(pfvf, aura, ptrs, 2, pool->lmt_addr);
+	/* Free only one buffer at time during init and teardown */
+	__cn10k_aura_freeptr(pfvf, aura, ptrs, 2);
 }
 
 /* Alloc pointer from pool/aura */

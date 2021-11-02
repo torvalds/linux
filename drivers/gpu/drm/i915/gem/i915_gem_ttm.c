@@ -382,7 +382,6 @@ i915_ttm_region(struct ttm_device *bdev, int ttm_mem_type)
 static struct sg_table *i915_ttm_tt_get_st(struct ttm_tt *ttm)
 {
 	struct i915_ttm_tt *i915_tt = container_of(ttm, typeof(*i915_tt), ttm);
-	struct scatterlist *sg;
 	struct sg_table *st;
 	int ret;
 
@@ -393,13 +392,13 @@ static struct sg_table *i915_ttm_tt_get_st(struct ttm_tt *ttm)
 	if (!st)
 		return ERR_PTR(-ENOMEM);
 
-	sg = __sg_alloc_table_from_pages
-		(st, ttm->pages, ttm->num_pages, 0,
-		 (unsigned long)ttm->num_pages << PAGE_SHIFT,
-		 i915_sg_segment_size(), NULL, 0, GFP_KERNEL);
-	if (IS_ERR(sg)) {
+	ret = sg_alloc_table_from_pages_segment(st,
+			ttm->pages, ttm->num_pages,
+			0, (unsigned long)ttm->num_pages << PAGE_SHIFT,
+			i915_sg_segment_size(), GFP_KERNEL);
+	if (ret) {
 		kfree(st);
-		return ERR_CAST(sg);
+		return ERR_PTR(ret);
 	}
 
 	ret = dma_map_sgtable(i915_tt->dev, st, DMA_BIDIRECTIONAL, 0);

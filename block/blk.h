@@ -373,4 +373,6 @@ static inline void bio_clear_hipri(struct bio *bio)
 	bio->bi_opf &= ~REQ_HIPRI;
 }
 
+extern const struct address_space_operations def_blk_aops;
+
 #endif /* BLK_INTERNAL_H */

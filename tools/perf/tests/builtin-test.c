@@ -361,6 +361,10 @@ static struct test generic_tests[] = {
 		.is_supported = test__tsc_is_supported,
 	},
 	{
+		.desc = "dlfilter C API",
+		.func = test__dlfilter,
+	},
+	{
 		.func = NULL,
 	},
 };
@@ -594,7 +598,8 @@ static int shell_test__run(struct test *test, int subdir __maybe_unused)
 	return WEXITSTATUS(err) == 2 ? TEST_SKIP : TEST_FAIL;
 }
 
-static int run_shell_tests(int argc, const char *argv[], int i, int width)
+static int run_shell_tests(int argc, const char *argv[], int i, int width,
+				struct intlist *skiplist)
 {
 	struct dirent **entlist;
 	struct dirent *ent;
@@ -628,6 +633,12 @@ static int run_shell_tests(int argc, const char *argv[], int i, int width)
 
 		st.file = ent->d_name;
 		pr_info("%2d: %-*s:", i, width, test.desc);
+
+		if (intlist__find(skiplist, i)) {
+			color_fprintf(stderr, PERF_COLOR_YELLOW, " Skip (user override)\n");
+			continue;
+		}
+
 		test_and_print(&test, false, -1);
 	}
 
@@ -727,7 +738,7 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 		}
 	}
 
-	return run_shell_tests(argc, argv, i, width);
+	return run_shell_tests(argc, argv, i, width, skiplist);
 }
 
 static int perf_test__list_shell(int argc, const char **argv, int i)

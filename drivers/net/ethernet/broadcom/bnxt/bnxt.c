@@ -305,13 +305,15 @@ static bool bnxt_vf_pciid(enum board_idx idx)
 	writel(DB_CP_FLAGS | RING_CMP(idx), (db)->doorbell)
 
 #define BNXT_DB_NQ_P5(db, idx)						\
-	writeq((db)->db_key64 | DBR_TYPE_NQ | RING_CMP(idx), (db)->doorbell)
+	bnxt_writeq(bp, (db)->db_key64 | DBR_TYPE_NQ | RING_CMP(idx),	\
+		    (db)->doorbell)
 
 #define BNXT_DB_CQ_ARM(db, idx)						\
 	writel(DB_CP_REARM_FLAGS | RING_CMP(idx), (db)->doorbell)
 
 #define BNXT_DB_NQ_ARM_P5(db, idx)					\
-	writeq((db)->db_key64 | DBR_TYPE_NQ_ARM | RING_CMP(idx), (db)->doorbell)
+	bnxt_writeq(bp, (db)->db_key64 | DBR_TYPE_NQ_ARM | RING_CMP(idx),\
+		    (db)->doorbell)
 
 static void bnxt_db_nq(struct bnxt *bp, struct bnxt_db_info *db, u32 idx)
 {
@@ -332,8 +334,8 @@ static void bnxt_db_nq_arm(struct bnxt *bp, struct bnxt_db_info *db, u32 idx)
 static void bnxt_db_cq(struct bnxt *bp, struct bnxt_db_info *db, u32 idx)
 {
 	if (bp->flags & BNXT_FLAG_CHIP_P5)
-		writeq(db->db_key64 | DBR_TYPE_CQ_ARMALL | RING_CMP(idx),
-		       db->doorbell);
+		bnxt_writeq(bp, db->db_key64 | DBR_TYPE_CQ_ARMALL |
+			    RING_CMP(idx), db->doorbell);
 	else
 		BNXT_DB_CQ(db, idx);
 }
@@ -2200,25 +2202,34 @@ static int bnxt_async_event_process(struct bnxt *bp,
 		if (!fw_health)
 			goto async_event_process_exit;
 
-		fw_health->enabled = EVENT_DATA1_RECOVERY_ENABLED(data1);
-		fw_health->master = EVENT_DATA1_RECOVERY_MASTER_FUNC(data1);
-		if (!fw_health->enabled) {
+		if (!EVENT_DATA1_RECOVERY_ENABLED(data1)) {
+			fw_health->enabled = false;
 			netif_info(bp, drv, bp->dev,
 				   "Error recovery info: error recovery[0]\n");
 			break;
 		}
+		fw_health->master = EVENT_DATA1_RECOVERY_MASTER_FUNC(data1);
 		fw_health->tmr_multiplier =
 			DIV_ROUND_UP(fw_health->polling_dsecs * HZ,
 				     bp->current_interval * 10);
 		fw_health->tmr_counter = fw_health->tmr_multiplier;
-		fw_health->last_fw_heartbeat =
-			bnxt_fw_health_readl(bp, BNXT_FW_HEARTBEAT_REG);
-		fw_health->last_fw_reset_cnt =
-			bnxt_fw_health_readl(bp, BNXT_FW_RESET_CNT_REG);
+		if (!fw_health->enabled) {
+			fw_health->last_fw_heartbeat =
+				bnxt_fw_health_readl(bp, BNXT_FW_HEARTBEAT_REG);
+			fw_health->last_fw_reset_cnt =
+				bnxt_fw_health_readl(bp, BNXT_FW_RESET_CNT_REG);
+		}
 		netif_info(bp, drv, bp->dev,
 			   "Error recovery info: error recovery[1], master[%d], reset count[%u], health status: 0x%x\n",
 			   fw_health->master, fw_health->last_fw_reset_cnt,
 			   bnxt_fw_health_readl(bp, BNXT_FW_HEALTH_REG));
+		if (!fw_health->enabled) {
+			/* Make sure tmr_counter is set and visible to
+			 * bnxt_health_check() before setting enabled to true.
+			 */
+			smp_wmb();
+			fw_health->enabled = true;
+		}
 		goto async_event_process_exit;
 	}
 	case ASYNC_EVENT_CMPL_EVENT_ID_DEBUG_NOTIFICATION:
@@ -2638,8 +2649,8 @@ static void __bnxt_poll_cqs_done(struct bnxt *bp, struct bnxt_napi *bnapi,
 
 		if (cpr2 && cpr2->had_work_done) {
 			db = &cpr2->cp_db;
-			writeq(db->db_key64 | dbr_type |
-			       RING_CMP(cpr2->cp_raw_cons), db->doorbell);
+			bnxt_writeq(bp, db->db_key64 | dbr_type |
+				    RING_CMP(cpr2->cp_raw_cons), db->doorbell);
 			cpr2->had_work_done = 0;
 		}
 	}
@@ -4639,6 +4650,13 @@ static int bnxt_hwrm_tunnel_dst_port_free(struct bnxt *bp, u8 tunnel_type)
 	struct hwrm_tunnel_dst_port_free_input *req;
 	int rc;
 
+	if (tunnel_type == TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_VXLAN &&
+	    bp->vxlan_fw_dst_port_id == INVALID_HW_RING_ID)
+		return 0;
+	if (tunnel_type == TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_GENEVE &&
+	    bp->nge_fw_dst_port_id == INVALID_HW_RING_ID)
+		return 0;
+
 	rc = hwrm_req_init(bp, req, HWRM_TUNNEL_DST_PORT_FREE);
 	if (rc)
 		return rc;
@@ -4648,10 +4666,12 @@ static int bnxt_hwrm_tunnel_dst_port_free(struct bnxt *bp, u8 tunnel_type)
 	switch (tunnel_type) {
 	case TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_VXLAN:
 		req->tunnel_dst_port_id = cpu_to_le16(bp->vxlan_fw_dst_port_id);
+		bp->vxlan_port = 0;
 		bp->vxlan_fw_dst_port_id = INVALID_HW_RING_ID;
 		break;
 	case TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_GENEVE:
 		req->tunnel_dst_port_id = cpu_to_le16(bp->nge_fw_dst_port_id);
+		bp->nge_port = 0;
 		bp->nge_fw_dst_port_id = INVALID_HW_RING_ID;
 		break;
 	default:
@@ -4689,10 +4709,12 @@ static int bnxt_hwrm_tunnel_dst_port_alloc(struct bnxt *bp, __be16 port,
 
 	switch (tunnel_type) {
 	case TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_VXLAN:
+		bp->vxlan_port = port;
 		bp->vxlan_fw_dst_port_id =
 			le16_to_cpu(resp->tunnel_dst_port_id);
 		break;
 	case TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_GENEVE:
+		bp->nge_port = port;
 		bp->nge_fw_dst_port_id = le16_to_cpu(resp->tunnel_dst_port_id);
 		break;
 	default:
@@ -8221,12 +8243,10 @@ static int bnxt_hwrm_port_qstats_ext(struct bnxt *bp, u8 flags)
 
 static void bnxt_hwrm_free_tunnel_ports(struct bnxt *bp)
 {
-	if (bp->vxlan_fw_dst_port_id != INVALID_HW_RING_ID)
-		bnxt_hwrm_tunnel_dst_port_free(
-			bp, TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_VXLAN);
-	if (bp->nge_fw_dst_port_id != INVALID_HW_RING_ID)
-		bnxt_hwrm_tunnel_dst_port_free(
-			bp, TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_GENEVE);
+	bnxt_hwrm_tunnel_dst_port_free(bp,
+		TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_VXLAN);
+	bnxt_hwrm_tunnel_dst_port_free(bp,
+		TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_GENEVE);
 }
 
 static int bnxt_set_tpa(struct bnxt *bp, bool set_tpa)
@@ -11247,6 +11267,8 @@ static void bnxt_fw_health_check(struct bnxt *bp)
 	if (!fw_health->enabled || test_bit(BNXT_STATE_IN_FW_RESET, &bp->state))
 		return;
 
+	/* Make sure it is enabled before checking the tmr_counter. */
+	smp_rmb();
 	if (fw_health->tmr_counter) {
 		fw_health->tmr_counter--;
 		return;
@@ -12625,13 +12647,10 @@ static int bnxt_udp_tunnel_sync(struct net_device *netdev, unsigned int table)
 	unsigned int cmd;
 
 	udp_tunnel_nic_get_port(netdev, table, 0, &ti);
-	if (ti.type == UDP_TUNNEL_TYPE_VXLAN) {
-		bp->vxlan_port = ti.port;
+	if (ti.type == UDP_TUNNEL_TYPE_VXLAN)
 		cmd = TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_VXLAN;
-	} else {
-		bp->nge_port = ti.port;
+	else
 		cmd = TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_GENEVE;
-	}
 
 	if (ti.port)
 		return bnxt_hwrm_tunnel_dst_port_alloc(bp, ti.port, cmd);
@@ -13081,66 +13100,35 @@ static int bnxt_init_mac_addr(struct bnxt *bp)
 	return rc;
 }
 
-#define BNXT_VPD_LEN	512
 static void bnxt_vpd_read_info(struct bnxt *bp)
 {
 	struct pci_dev *pdev = bp->pdev;
-	int i, len, pos, ro_size, size;
-	ssize_t vpd_size;
+	unsigned int vpd_size, kw_len;
+	int pos, size;
 	u8 *vpd_data;
 
-	vpd_data = kmalloc(BNXT_VPD_LEN, GFP_KERNEL);
-	if (!vpd_data)
+	vpd_data = pci_vpd_alloc(pdev, &vpd_size);
+	if (IS_ERR(vpd_data)) {
+		pci_warn(pdev, "Unable to read VPD\n");
 		return;
-
-	vpd_size = pci_read_vpd(pdev, 0, BNXT_VPD_LEN, vpd_data);
-	if (vpd_size <= 0) {
-		netdev_err(bp->dev, "Unable to read VPD\n");
-		goto exit;
 	}
 
-	i = pci_vpd_find_tag(vpd_data, vpd_size, PCI_VPD_LRDT_RO_DATA);
-	if (i < 0) {
-		netdev_err(bp->dev, "VPD READ-Only not found\n");
-		goto exit;
-	}
-
-	i = pci_vpd_find_tag(vpd_data, vpd_size, PCI_VPD_LRDT_RO_DATA);
-	if (i < 0) {
-		netdev_err(bp->dev, "VPD READ-Only not found\n");
-		goto exit;
-	}
-
-	ro_size = pci_vpd_lrdt_size(&vpd_data[i]);
-	i += PCI_VPD_LRDT_TAG_SIZE;
-	if (i + ro_size > vpd_size)
-		goto exit;
-
-	pos = pci_vpd_find_info_keyword(vpd_data, i, ro_size,
-					PCI_VPD_RO_KEYWORD_PARTNO);
+	pos = pci_vpd_find_ro_info_keyword(vpd_data, vpd_size,
+					   PCI_VPD_RO_KEYWORD_PARTNO, &kw_len);
 	if (pos < 0)
 		goto read_sn;
 
-	len = pci_vpd_info_field_size(&vpd_data[pos]);
-	pos += PCI_VPD_INFO_FLD_HDR_SIZE;
-	if (len + pos > vpd_size)
-		goto read_sn;
-
-	size = min(len, BNXT_VPD_FLD_LEN - 1);
+	size = min_t(int, kw_len, BNXT_VPD_FLD_LEN - 1);
 	memcpy(bp->board_partno, &vpd_data[pos], size);
 
 read_sn:
-	pos = pci_vpd_find_info_keyword(vpd_data, i, ro_size,
-					PCI_VPD_RO_KEYWORD_SERIALNO);
+	pos = pci_vpd_find_ro_info_keyword(vpd_data, vpd_size,
+					   PCI_VPD_RO_KEYWORD_SERIALNO,
+					   &kw_len);
 	if (pos < 0)
 		goto exit;
 
-	len = pci_vpd_info_field_size(&vpd_data[pos]);
-	pos += PCI_VPD_INFO_FLD_HDR_SIZE;
-	if (len + pos > vpd_size)
-		goto exit;
-
-	size = min(len, BNXT_VPD_FLD_LEN - 1);
+	size = min_t(int, kw_len, BNXT_VPD_FLD_LEN - 1);
 	memcpy(bp->board_serialno, &vpd_data[pos], size);
 exit:
 	kfree(vpd_data);
