@@ -1410,7 +1410,15 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 		switch (adev->ip_versions[DCE_HWIP][0]) {
 		case IP_VERSION(2, 1, 0):
 			init_data.flags.gpu_vm_support = true;
-			init_data.flags.disable_dmcu = true;
+			switch (adev->dm.dmcub_fw_version) {
+			case 0: /* development */
+			case 0x1: /* linux-firmware.git hash 6d9f399 */
+			case 0x01000000: /* linux-firmware.git hash 9a0b0f4 */
+				init_data.flags.disable_dmcu = false;
+				break;
+			default:
+				init_data.flags.disable_dmcu = true;
+			}
 			break;
 		case IP_VERSION(1, 0, 0):
 		case IP_VERSION(1, 0, 1):
