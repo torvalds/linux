@@ -705,10 +705,8 @@ static enum cpuhp_state hp_state;
 static int __init powerclamp_init(void)
 {
 	int retval;
-	int bitmap_size;
 
-	bitmap_size = BITS_TO_LONGS(num_possible_cpus()) * sizeof(long);
-	cpu_clamping_mask = kzalloc(bitmap_size, GFP_KERNEL);
+	cpu_clamping_mask = bitmap_zalloc(num_possible_cpus(), GFP_KERNEL);
 	if (!cpu_clamping_mask)
 		return -ENOMEM;
 
@@ -753,7 +751,7 @@ exit_free_thread:
 exit_unregister:
 	cpuhp_remove_state_nocalls(hp_state);
 exit_free:
-	kfree(cpu_clamping_mask);
+	bitmap_free(cpu_clamping_mask);
 	return retval;
 }
 module_init(powerclamp_init);
@@ -764,7 +762,7 @@ static void __exit powerclamp_exit(void)
 	cpuhp_remove_state_nocalls(hp_state);
 	free_percpu(worker_data);
 	thermal_cooling_device_unregister(cooling_dev);
-	kfree(cpu_clamping_mask);
+	bitmap_free(cpu_clamping_mask);
 
 	cancel_delayed_work_sync(&poll_pkg_cstate_work);
 	debugfs_remove_recursive(debug_dir);
