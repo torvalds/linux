@@ -118,6 +118,7 @@ static void enter_smm(struct kvm_vcpu *vcpu);
 static void __kvm_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags);
 static void store_regs(struct kvm_vcpu *vcpu);
 static int sync_regs(struct kvm_vcpu *vcpu);
+static int kvm_vcpu_do_singlestep(struct kvm_vcpu *vcpu);
 
 static int __set_sregs2(struct kvm_vcpu *vcpu, struct kvm_sregs2 *sregs2);
 static void __get_sregs2(struct kvm_vcpu *vcpu, struct kvm_sregs2 *sregs2);
@@ -709,6 +710,17 @@ int kvm_complete_insn_gp(struct kvm_vcpu *vcpu, int err)
 	return 1;
 }
 EXPORT_SYMBOL_GPL(kvm_complete_insn_gp);
+
+static int complete_emulated_insn_gp(struct kvm_vcpu *vcpu, int err)
+{
+	if (err) {
+		kvm_inject_gp(vcpu, 0);
+		return 1;
+	}
+
+	return kvm_emulate_instruction(vcpu, EMULTYPE_NO_DECODE | EMULTYPE_SKIP |
+				       EMULTYPE_COMPLETE_USER_EXIT);
+}
 
 void kvm_inject_page_fault(struct kvm_vcpu *vcpu, struct x86_exception *fault)
 {
@@ -1815,20 +1827,34 @@ int kvm_set_msr(struct kvm_vcpu *vcpu, u32 index, u64 data)
 }
 EXPORT_SYMBOL_GPL(kvm_set_msr);
 
-static int complete_emulated_rdmsr(struct kvm_vcpu *vcpu)
+static void complete_userspace_rdmsr(struct kvm_vcpu *vcpu)
 {
-	int err = vcpu->run->msr.error;
-	if (!err) {
+	if (!vcpu->run->msr.error) {
 		kvm_rax_write(vcpu, (u32)vcpu->run->msr.data);
 		kvm_rdx_write(vcpu, vcpu->run->msr.data >> 32);
 	}
-
-	return static_call(kvm_x86_complete_emulated_msr)(vcpu, err);
 }
 
-static int complete_emulated_wrmsr(struct kvm_vcpu *vcpu)
+static int complete_emulated_msr_access(struct kvm_vcpu *vcpu)
+{
+	return complete_emulated_insn_gp(vcpu, vcpu->run->msr.error);
+}
+
+static int complete_emulated_rdmsr(struct kvm_vcpu *vcpu)
+{
+	complete_userspace_rdmsr(vcpu);
+	return complete_emulated_msr_access(vcpu);
+}
+
+static int complete_fast_msr_access(struct kvm_vcpu *vcpu)
 {
 	return static_call(kvm_x86_complete_emulated_msr)(vcpu, vcpu->run->msr.error);
+}
+
+static int complete_fast_rdmsr(struct kvm_vcpu *vcpu)
+{
+	complete_userspace_rdmsr(vcpu);
+	return complete_fast_msr_access(vcpu);
 }
 
 static u64 kvm_msr_reason(int r)
@@ -1865,18 +1891,6 @@ static int kvm_msr_user_space(struct kvm_vcpu *vcpu, u32 index,
 	return 1;
 }
 
-static int kvm_get_msr_user_space(struct kvm_vcpu *vcpu, u32 index, int r)
-{
-	return kvm_msr_user_space(vcpu, index, KVM_EXIT_X86_RDMSR, 0,
-				   complete_emulated_rdmsr, r);
-}
-
-static int kvm_set_msr_user_space(struct kvm_vcpu *vcpu, u32 index, u64 data, int r)
-{
-	return kvm_msr_user_space(vcpu, index, KVM_EXIT_X86_WRMSR, data,
-				   complete_emulated_wrmsr, r);
-}
-
 int kvm_emulate_rdmsr(struct kvm_vcpu *vcpu)
 {
 	u32 ecx = kvm_rcx_read(vcpu);
@@ -1885,18 +1899,16 @@ int kvm_emulate_rdmsr(struct kvm_vcpu *vcpu)
 
 	r = kvm_get_msr(vcpu, ecx, &data);
 
-	/* MSR read failed? See if we should ask user space */
-	if (r && kvm_get_msr_user_space(vcpu, ecx, r)) {
-		/* Bounce to user space */
-		return 0;
-	}
-
 	if (!r) {
 		trace_kvm_msr_read(ecx, data);
 
 		kvm_rax_write(vcpu, data & -1u);
 		kvm_rdx_write(vcpu, (data >> 32) & -1u);
 	} else {
+		/* MSR read failed? See if we should ask user space */
+		if (kvm_msr_user_space(vcpu, ecx, KVM_EXIT_X86_RDMSR, 0,
+				       complete_fast_rdmsr, r))
+			return 0;
 		trace_kvm_msr_read_ex(ecx);
 	}
 
@@ -1912,19 +1924,18 @@ int kvm_emulate_wrmsr(struct kvm_vcpu *vcpu)
 
 	r = kvm_set_msr(vcpu, ecx, data);
 
-	/* MSR write failed? See if we should ask user space */
-	if (r && kvm_set_msr_user_space(vcpu, ecx, data, r))
-		/* Bounce to user space */
-		return 0;
-
-	/* Signal all other negative errors to userspace */
-	if (r < 0)
-		return r;
-
-	if (!r)
+	if (!r) {
 		trace_kvm_msr_write(ecx, data);
-	else
+	} else {
+		/* MSR write failed? See if we should ask user space */
+		if (kvm_msr_user_space(vcpu, ecx, KVM_EXIT_X86_WRMSR, data,
+				       complete_fast_msr_access, r))
+			return 0;
+		/* Signal all other negative errors to userspace */
+		if (r < 0)
+			return r;
 		trace_kvm_msr_write_ex(ecx, data);
+	}
 
 	return static_call(kvm_x86_complete_emulated_msr)(vcpu, r);
 }
@@ -7400,7 +7411,8 @@ static int emulator_get_msr(struct x86_emulate_ctxt *ctxt,
 
 	r = kvm_get_msr(vcpu, msr_index, pdata);
 
-	if (r && kvm_get_msr_user_space(vcpu, msr_index, r)) {
+	if (r && kvm_msr_user_space(vcpu, msr_index, KVM_EXIT_X86_RDMSR, 0,
+				    complete_emulated_rdmsr, r)) {
 		/* Bounce to user space */
 		return X86EMUL_IO_NEEDED;
 	}
@@ -7416,7 +7428,8 @@ static int emulator_set_msr(struct x86_emulate_ctxt *ctxt,
 
 	r = kvm_set_msr(vcpu, msr_index, data);
 
-	if (r && kvm_set_msr_user_space(vcpu, msr_index, data, r)) {
+	if (r && kvm_msr_user_space(vcpu, msr_index, KVM_EXIT_X86_WRMSR, data,
+				    complete_emulated_msr_access, r)) {
 		/* Bounce to user space */
 		return X86EMUL_IO_NEEDED;
 	}
