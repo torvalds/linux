@@ -12,6 +12,7 @@
 struct ocelot_skb_cb {
 	struct sk_buff *clone;
 	unsigned int ptp_class; /* valid only for clones */
+	u32 tstamp_lo;
 	u8 ptp_cmd;
 	u8 ts_id;
 };
