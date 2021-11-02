@@ -10,60 +10,6 @@
 #include "ntlmssp.h"
 #include "smbacl.h"
 
-/*
- * Note that, due to trying to use names similar to the protocol specifications,
- * there are many mixed case field names in the structures below.  Although
- * this does not match typical Linux kernel style, it is necessary to be
- * able to match against the protocol specfication.
- *
- * SMB2 commands
- * Some commands have minimal (wct=0,bcc=0), or uninteresting, responses
- * (ie no useful data other than the SMB error code itself) and are marked such.
- * Knowing this helps avoid response buffer allocations and copy in some cases.
- */
-
-/* List of commands in host endian */
-#define SMB2_NEGOTIATE_HE	0x0000
-#define SMB2_SESSION_SETUP_HE	0x0001
-#define SMB2_LOGOFF_HE		0x0002 /* trivial request/resp */
-#define SMB2_TREE_CONNECT_HE	0x0003
-#define SMB2_TREE_DISCONNECT_HE	0x0004 /* trivial req/resp */
-#define SMB2_CREATE_HE		0x0005
-#define SMB2_CLOSE_HE		0x0006
-#define SMB2_FLUSH_HE		0x0007 /* trivial resp */
-#define SMB2_READ_HE		0x0008
-#define SMB2_WRITE_HE		0x0009
-#define SMB2_LOCK_HE		0x000A
-#define SMB2_IOCTL_HE		0x000B
-#define SMB2_CANCEL_HE		0x000C
-#define SMB2_ECHO_HE		0x000D
-#define SMB2_QUERY_DIRECTORY_HE	0x000E
-#define SMB2_CHANGE_NOTIFY_HE	0x000F
-#define SMB2_QUERY_INFO_HE	0x0010
-#define SMB2_SET_INFO_HE	0x0011
-#define SMB2_OPLOCK_BREAK_HE	0x0012
-
-/* The same list in little endian */
-#define SMB2_NEGOTIATE		cpu_to_le16(SMB2_NEGOTIATE_HE)
-#define SMB2_SESSION_SETUP	cpu_to_le16(SMB2_SESSION_SETUP_HE)
-#define SMB2_LOGOFF		cpu_to_le16(SMB2_LOGOFF_HE)
-#define SMB2_TREE_CONNECT	cpu_to_le16(SMB2_TREE_CONNECT_HE)
-#define SMB2_TREE_DISCONNECT	cpu_to_le16(SMB2_TREE_DISCONNECT_HE)
-#define SMB2_CREATE		cpu_to_le16(SMB2_CREATE_HE)
-#define SMB2_CLOSE		cpu_to_le16(SMB2_CLOSE_HE)
-#define SMB2_FLUSH		cpu_to_le16(SMB2_FLUSH_HE)
-#define SMB2_READ		cpu_to_le16(SMB2_READ_HE)
-#define SMB2_WRITE		cpu_to_le16(SMB2_WRITE_HE)
-#define SMB2_LOCK		cpu_to_le16(SMB2_LOCK_HE)
-#define SMB2_IOCTL		cpu_to_le16(SMB2_IOCTL_HE)
-#define SMB2_CANCEL		cpu_to_le16(SMB2_CANCEL_HE)
-#define SMB2_ECHO		cpu_to_le16(SMB2_ECHO_HE)
-#define SMB2_QUERY_DIRECTORY	cpu_to_le16(SMB2_QUERY_DIRECTORY_HE)
-#define SMB2_CHANGE_NOTIFY	cpu_to_le16(SMB2_CHANGE_NOTIFY_HE)
-#define SMB2_QUERY_INFO		cpu_to_le16(SMB2_QUERY_INFO_HE)
-#define SMB2_SET_INFO		cpu_to_le16(SMB2_SET_INFO_HE)
-#define SMB2_OPLOCK_BREAK	cpu_to_le16(SMB2_OPLOCK_BREAK_HE)
-
 /*Create Action Flags*/
 #define FILE_SUPERSEDED                0x00000000
 #define FILE_OPENED            0x00000001
@@ -107,76 +53,11 @@
 /* BB FIXME - analyze following length BB */
 #define MAX_SMB2_HDR_SIZE 0x78 /* 4 len + 64 hdr + (2*24 wct) + 2 bct + 2 pad */
 
-#define SMB2_PROTO_NUMBER cpu_to_le32(0x424d53fe) /* 'B''M''S' */
-#define SMB2_TRANSFORM_PROTO_NUM cpu_to_le32(0x424d53fd)
-
 #define SMB21_DEFAULT_IOSIZE	(1024 * 1024)
 #define SMB3_DEFAULT_IOSIZE	(4 * 1024 * 1024)
 #define SMB3_DEFAULT_TRANS_SIZE	(1024 * 1024)
 #define SMB3_MIN_IOSIZE	(64 * 1024)
 #define SMB3_MAX_IOSIZE	(8 * 1024 * 1024)
-
-/*
- * SMB2 Header Definition
- *
- * "MBZ" :  Must be Zero
- * "BB"  :  BugBug, Something to check/review/analyze later
- * "PDU" :  "Protocol Data Unit" (ie a network "frame")
- *
- */
-
-#define __SMB2_HEADER_STRUCTURE_SIZE	64
-#define SMB2_HEADER_STRUCTURE_SIZE				\
-	cpu_to_le16(__SMB2_HEADER_STRUCTURE_SIZE)
-
-struct smb2_hdr {
-	__le32 ProtocolId;	/* 0xFE 'S' 'M' 'B' */
-	__le16 StructureSize;	/* 64 */
-	__le16 CreditCharge;	/* MBZ */
-	__le32 Status;		/* Error from server */
-	__le16 Command;
-	__le16 CreditRequest;	/* CreditResponse */
-	__le32 Flags;
-	__le32 NextCommand;
-	__le64 MessageId;
-	union {
-		struct {
-			__le32 ProcessId;
-			__le32  TreeId;
-		} __packed SyncId;
-		__le64  AsyncId;
-	} __packed Id;
-	__le64  SessionId;
-	__u8   Signature[16];
-} __packed;
-
-struct smb2_pdu {
-	struct smb2_hdr hdr;
-	__le16 StructureSize2; /* size of wct area (varies, request specific) */
-} __packed;
-
-#define SMB3_AES_CCM_NONCE 11
-#define SMB3_AES_GCM_NONCE 12
-
-struct smb2_transform_hdr {
-	__le32 ProtocolId;      /* 0xFD 'S' 'M' 'B' */
-	__u8   Signature[16];
-	__u8   Nonce[16];
-	__le32 OriginalMessageSize;
-	__u16  Reserved1;
-	__le16 Flags; /* EncryptionAlgorithm */
-	__le64  SessionId;
-} __packed;
-
-/*
- *	SMB2 flag definitions
- */
-#define SMB2_FLAGS_SERVER_TO_REDIR	cpu_to_le32(0x00000001)
-#define SMB2_FLAGS_ASYNC_COMMAND	cpu_to_le32(0x00000002)
-#define SMB2_FLAGS_RELATED_OPERATIONS	cpu_to_le32(0x00000004)
-#define SMB2_FLAGS_SIGNED		cpu_to_le32(0x00000008)
-#define SMB2_FLAGS_DFS_OPERATIONS	cpu_to_le32(0x10000000)
-#define SMB2_FLAGS_REPLAY_OPERATIONS	cpu_to_le32(0x20000000)
 
 /*
  *	Definitions for SMB2 Protocol Data Units (network frames)
@@ -405,63 +286,6 @@ struct smb2_logoff_req {
 } __packed;
 
 struct smb2_logoff_rsp {
-	struct smb2_hdr hdr;
-	__le16 StructureSize;	/* Must be 4 */
-	__le16 Reserved;
-} __packed;
-
-struct smb2_tree_connect_req {
-	struct smb2_hdr hdr;
-	__le16 StructureSize;	/* Must be 9 */
-	__le16 Reserved;	/* Flags in SMB3.1.1 */
-	__le16 PathOffset;
-	__le16 PathLength;
-	__u8   Buffer[1];	/* variable length */
-} __packed;
-
-struct smb2_tree_connect_rsp {
-	struct smb2_hdr hdr;
-	__le16 StructureSize;	/* Must be 16 */
-	__u8   ShareType;  /* see below */
-	__u8   Reserved;
-	__le32 ShareFlags; /* see below */
-	__le32 Capabilities; /* see below */
-	__le32 MaximalAccess;
-} __packed;
-
-/* Possible ShareType values */
-#define SMB2_SHARE_TYPE_DISK	0x01
-#define SMB2_SHARE_TYPE_PIPE	0x02
-#define	SMB2_SHARE_TYPE_PRINT	0x03
-
-/*
- * Possible ShareFlags - exactly one and only one of the first 4 caching flags
- * must be set (any of the remaining, SHI1005, flags may be set individually
- * or in combination.
- */
-#define SMB2_SHAREFLAG_MANUAL_CACHING			0x00000000
-#define SMB2_SHAREFLAG_AUTO_CACHING			0x00000010
-#define SMB2_SHAREFLAG_VDO_CACHING			0x00000020
-#define SMB2_SHAREFLAG_NO_CACHING			0x00000030
-#define SHI1005_FLAGS_DFS				0x00000001
-#define SHI1005_FLAGS_DFS_ROOT				0x00000002
-#define SHI1005_FLAGS_RESTRICT_EXCLUSIVE_OPENS		0x00000100
-#define SHI1005_FLAGS_FORCE_SHARED_DELETE		0x00000200
-#define SHI1005_FLAGS_ALLOW_NAMESPACE_CACHING		0x00000400
-#define SHI1005_FLAGS_ACCESS_BASED_DIRECTORY_ENUM	0x00000800
-#define SHI1005_FLAGS_FORCE_LEVELII_OPLOCK		0x00001000
-#define SHI1005_FLAGS_ENABLE_HASH			0x00002000
-
-/* Possible share capabilities */
-#define SMB2_SHARE_CAP_DFS	cpu_to_le32(0x00000008)
-
-struct smb2_tree_disconnect_req {
-	struct smb2_hdr hdr;
-	__le16 StructureSize;	/* Must be 4 */
-	__le16 Reserved;
-} __packed;
-
-struct smb2_tree_disconnect_rsp {
 	struct smb2_hdr hdr;
 	__le16 StructureSize;	/* Must be 4 */
 	__le16 Reserved;

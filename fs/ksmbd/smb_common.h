@@ -10,6 +10,7 @@
 
 #include "glob.h"
 #include "nterr.h"
+#include "../smbfs_common/smb2pdu.h"
 #include "smb2pdu.h"
 
 /* ksmbd's Specific ERRNO */
