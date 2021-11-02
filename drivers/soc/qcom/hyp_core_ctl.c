@@ -29,6 +29,8 @@
 
 #include <linux/sched/walt.h>
 
+#include <linux/sched/walt.h>
+
 #define MAX_RESERVE_CPUS (num_possible_cpus()/2)
 
 static DEFINE_PER_CPU(struct freq_qos_request, qos_min_req);

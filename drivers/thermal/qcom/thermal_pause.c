@@ -23,14 +23,18 @@ enum thermal_pause_levels {
 	MAX_THERMAL_PAUSE_LEVEL
 };
 
+#define THERMAL_PAUSE_RETRY_COUNT 5
+
 struct thermal_pause_cdev {
 	struct list_head		node;
 	cpumask_t			cpu_mask;
-	bool				thermal_pause_level;
+	enum thermal_pause_levels	thermal_pause_level;
+	enum thermal_pause_levels	thermal_pause_req;
 	struct thermal_cooling_device	*cdev;
 	struct device_node		*np;
 	char				cdev_name[THERMAL_NAME_LENGTH];
 	struct work_struct		reg_work;
+	struct work_struct		pause_update_work;
 };
 
 static DEFINE_MUTEX(cpus_pause_lock);
@@ -39,22 +43,25 @@ static LIST_HEAD(thermal_pause_cdev_list);
 static struct cpumask cpus_in_max_cooling_level;
 static enum cpuhp_state cpu_hp_online;
 
-static BLOCKING_NOTIFIER_HEAD(multi_max_cooling_level_notifer);
+static BLOCKING_NOTIFIER_HEAD(thermal_pause_notifier);
 
-void cpu_cooling_multi_max_level_notifier_register(struct notifier_block *n)
+void thermal_pause_notifier_register(struct notifier_block *n)
 {
-	blocking_notifier_chain_register(&multi_max_cooling_level_notifer, n);
+	blocking_notifier_chain_register(&thermal_pause_notifier, n);
 }
+EXPORT_SYMBOL(thermal_pause_notifier_register);
 
-void cpu_cooling_multi_max_level_notifier_unregister(struct notifier_block *n)
+void thermal_pause_notifier_unregister(struct notifier_block *n)
 {
-	blocking_notifier_chain_unregister(&multi_max_cooling_level_notifer, n);
+	blocking_notifier_chain_unregister(&thermal_pause_notifier, n);
 }
+EXPORT_SYMBOL(thermal_pause_notifier_unregister);
 
-const struct cpumask *cpu_cooling_multi_get_max_level_cpumask(void)
+const struct cpumask *thermal_paused_cpumask(void)
 {
 	return &cpus_in_max_cooling_level;
 }
+EXPORT_SYMBOL(thermal_paused_cpumask);
 
 static int thermal_pause_hp_online(unsigned int online_cpu)
 {
@@ -76,25 +83,20 @@ static int thermal_pause_hp_online(unsigned int online_cpu)
 }
 
 /**
- * thermal_pause_cpus_pause - function to pause a group of cpus at
- *                         the specified level.
+ * thermal_pause_work - work function to pause a group of cpus at
+ *       the specified level.
  *
- * @thermal_pause_cdev: the pause device
+ * @thermal_pasue_cdev: the cdev currently being processed
  *
- * function to handle setting the current cpus paused by
+ * Function to handle setting the current cpus paused by
  * this driver for the mask specified in the device.
- * it assumes the mutex is locked.
- *
- * Returns 0 if CPUs were paused, error otherwise
+ * it assumes the mutex is locked upon entrance.
  */
-static int thermal_pause_cpus_pause(struct thermal_pause_cdev *thermal_pause_cdev)
+static int thermal_pause_work(struct thermal_pause_cdev *thermal_pause_cdev)
 {
 	int cpu = 0;
 	int ret = -EBUSY;
 	cpumask_t cpus_to_pause, cpus_to_notify;
-
-	if (thermal_pause_cdev->thermal_pause_level)
-		return ret;
 
 	cpumask_copy(&cpus_to_pause, &thermal_pause_cdev->cpu_mask);
 	pr_debug("Pause:%*pbl\n", cpumask_pr_args(&thermal_pause_cdev->cpu_mask));
@@ -120,32 +122,28 @@ static int thermal_pause_cpus_pause(struct thermal_pause_cdev *thermal_pause_cde
 		/* Failure. These cpus not paused by thermal */
 		pr_err("Error pausing CPU:%*pbl. err:%d\n",
 		       cpumask_pr_args(&thermal_pause_cdev->cpu_mask), ret);
-		return ret;
 	}
 
 	return ret;
 }
 
 /**
- * thermal_pause_cpus_unpause - function to unpause a
+ * thermal_resume_work - work function to unpause a
  *       group of cpus in the mask for this cdev
  *
- * @thermal_pause_cdev: the pause device
+ * @thermal_pasue_cdev: the cdev currently being processed
  *
- * function to handle enabling the group of cpus in the cdev
- *
- * Returns 0 if CPUs were unpaused,
+ * Function to handle enabling the group of cpus in the cdev.
+ * This is performed as a work function to avoid conflicts
+ * between a hotplug event invoking a pause cooling device,
+ * and a thermal event invoking a pause cooling device.
  */
-static int thermal_pause_cpus_unpause(struct thermal_pause_cdev *thermal_pause_cdev)
+static int thermal_resume_work(struct thermal_pause_cdev *thermal_pause_cdev)
 {
 	int cpu = 0;
 	int ret = -ENODEV;
 	cpumask_t cpus_to_unpause, new_paused_cpus, cpus_to_notify;
 	struct thermal_pause_cdev *cdev;
-
-	/* do not unpause a cooling device not paused */
-	if (!thermal_pause_cdev->thermal_pause_level)
-		return ret;
 
 	cpumask_copy(&cpus_to_unpause, &thermal_pause_cdev->cpu_mask);
 	pr_debug("Unpause:%*pbl\n", cpumask_pr_args(&cpus_to_unpause));
@@ -177,10 +175,71 @@ static int thermal_pause_cpus_unpause(struct thermal_pause_cdev *thermal_pause_c
 		/* Failure. Ref-count for cpus controlled by thermal still set */
 		pr_err("Error resuming CPU:%*pbl. err:%d\n",
 		       cpumask_pr_args(&thermal_pause_cdev->cpu_mask), ret);
-		return ret;
 	}
 
 	return ret;
+}
+
+/**
+ * thermal_pause_set_update_work: Enforce Requested State
+ *
+ * @work: the work structure for this work
+ *
+ * Enforce the most recent requested cooling state, if
+ * it is a mismatch with the current state. Since the
+ * request is made in a different context from the
+ * enforcement, it is possible to have an updated request
+ * after completing the resume/pause request.
+ *
+ * Handle a post-operation mismatch between the cooling state
+ * and the requested state.
+ *
+ * This is performed as a work function to avoid conflicts
+ * between a hotplug event invoking a pause cooling device,
+ * and a thermal event invoking a pause cooling device.
+ */
+static void thermal_pause_update_work(struct work_struct *work)
+{
+	int ret = 0;
+	int retcnt = THERMAL_PAUSE_RETRY_COUNT;
+	struct thermal_pause_cdev *thermal_pause_cdev =
+		container_of(work, struct thermal_pause_cdev, pause_update_work);
+
+	mutex_lock(&cpus_pause_lock);
+
+retry:
+	if (thermal_pause_cdev->thermal_pause_req != thermal_pause_cdev->thermal_pause_level) {
+		if (thermal_pause_cdev->thermal_pause_req == THERMAL_NO_CPU_PAUSE) {
+			ret = thermal_resume_work(thermal_pause_cdev);
+			if (ret >= 0)
+				thermal_pause_cdev->thermal_pause_level = THERMAL_NO_CPU_PAUSE;
+		} else {
+			ret = thermal_pause_work(thermal_pause_cdev);
+			if (ret >= 0)
+				thermal_pause_cdev->thermal_pause_level = THERMAL_GROUP_CPU_PAUSE;
+		}
+		if (ret < 0 && retcnt > 0) {
+			retcnt--;
+			goto retry;
+		}
+	}
+
+	/*
+	 * if the pause/resume operation itself failed (and failed THERMAL_PAUSE_RETRY_COUNT
+	 * times) then ret will be negative here. Do not repeatedly retry if pause itself
+	 * failed, because this can happen indefinitely.
+	 *
+	 * If instead the pause request has been toggled back and forth many times by
+	 * the thermal framework, this can be handled here.
+	 */
+	if (ret >= 0 &&
+	    thermal_pause_cdev->thermal_pause_req != thermal_pause_cdev->thermal_pause_level) {
+		pr_debug("Pause: requested state changed while workfn running\n");
+		retcnt = THERMAL_PAUSE_RETRY_COUNT;
+		goto retry;
+	}
+
+	mutex_unlock(&cpus_pause_lock);
 }
 
 /**
@@ -190,7 +249,8 @@ static int thermal_pause_cpus_unpause(struct thermal_pause_cdev *thermal_pause_c
  * @level: set this variable to the current cooling level.
  *
  * Callback for the thermal cooling device to change the cpu pause
- * current cooling level.
+ * current cooling level, by making a requested and queueing the
+ * work to be done.
  *
  * Return: 0 on success, an error code otherwise.
  */
@@ -198,29 +258,22 @@ static int thermal_pause_set_cur_state(struct thermal_cooling_device *cdev,
 				   unsigned long level)
 {
 	struct thermal_pause_cdev *thermal_pause_cdev = cdev->devdata;
-	int ret = 0;
 
 	if (level >= MAX_THERMAL_PAUSE_LEVEL)
 		return -EINVAL;
 
-	if (thermal_pause_cdev->thermal_pause_level == level)
-		return 0;
-
 	mutex_lock(&cpus_pause_lock);
-	if (level == THERMAL_GROUP_CPU_PAUSE)
-		ret = thermal_pause_cpus_pause(thermal_pause_cdev);
+
+	if (level)
+		thermal_pause_cdev->thermal_pause_req = THERMAL_GROUP_CPU_PAUSE;
 	else
-		ret = thermal_pause_cpus_unpause(thermal_pause_cdev);
-	/*
-	 * only change the pause level if things were successful.  Otherwise
-	 * an unsuccessful pause operation can be followed by a resume
-	 * operation, resuming cpus not paused by this cooling device.
-	 */
-	if (ret == 0)
-		thermal_pause_cdev->thermal_pause_level = level;
+		thermal_pause_cdev->thermal_pause_req = THERMAL_NO_CPU_PAUSE;
+
+	queue_work(system_highpri_wq, &thermal_pause_cdev->pause_update_work);
 
 	mutex_unlock(&cpus_pause_lock);
-	return ret;
+
+	return 0;
 }
 
 /**
@@ -307,6 +360,7 @@ static int thermal_pause_probe(struct platform_device *pdev)
 	struct of_phandle_iterator it;
 	cpumask_t cpu_mask;
 	unsigned long mask = 0;
+	const char *alias;
 
 	INIT_LIST_HEAD(&thermal_pause_cdev_list);
 	cpumask_clear(&cpus_in_max_cooling_level);
@@ -339,17 +393,22 @@ static int thermal_pause_probe(struct platform_device *pdev)
 			of_node_put(subsys_np);
 			return -ENOMEM;
 		}
-
-		snprintf(thermal_pause_cdev->cdev_name, THERMAL_NAME_LENGTH,
+		ret = of_property_read_string(subsys_np,
+				"qcom,cdev-alias", &alias);
+		if (ret)
+			snprintf(thermal_pause_cdev->cdev_name, THERMAL_NAME_LENGTH,
 				"thermal-pause-%X", mask);
+		else
+			strscpy(thermal_pause_cdev->cdev_name, alias,
+					THERMAL_NAME_LENGTH);
 
 		thermal_pause_cdev->thermal_pause_level = false;
 		thermal_pause_cdev->cdev = NULL;
 		thermal_pause_cdev->np = subsys_np;
 		cpumask_copy(&thermal_pause_cdev->cpu_mask, &cpu_mask);
 
-		INIT_WORK(&thermal_pause_cdev->reg_work,
-				thermal_pause_register_cdev);
+		INIT_WORK(&thermal_pause_cdev->reg_work, thermal_pause_register_cdev);
+		INIT_WORK(&thermal_pause_cdev->pause_update_work, thermal_pause_update_work);
 		list_add(&thermal_pause_cdev->node, &thermal_pause_cdev_list);
 	}
 
@@ -378,13 +437,8 @@ static int thermal_pause_remove(struct platform_device *pdev)
 
 		/* for each asserted cooling device, resume the CPUs */
 		if (thermal_pause_cdev->thermal_pause_level) {
-			mutex_unlock(&cpus_pause_lock);
-			ret = walt_resume_cpus(&thermal_pause_cdev->cpu_mask);
-
-			if (ret < 0)
-				pr_err("Error resuming CPU:%*pbl. err:%d\n",
-				       cpumask_pr_args(&thermal_pause_cdev->cpu_mask), ret);
-			mutex_lock(&cpus_pause_lock);
+			thermal_pause_cdev->thermal_pause_req = THERMAL_NO_CPU_PAUSE;
+			queue_work(system_highpri_wq, &thermal_pause_cdev->pause_update_work);
 		}
 
 		if (thermal_pause_cdev->cdev)

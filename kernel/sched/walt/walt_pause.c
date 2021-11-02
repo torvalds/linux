@@ -66,7 +66,7 @@ int walt_pause_cpus(struct cpumask *cpus)
 		goto unlock;
 	}
 
-	ret = pause_cpus(cpus);
+	// ret = pause_cpus(cpus);
 	if (ret < 0)
 		pr_debug("pause_cpus failure ret=%d cpus=%*pbl\n", ret,
 			 cpumask_pr_args(&requested_cpus));
@@ -95,7 +95,7 @@ int walt_resume_cpus(struct cpumask *cpus)
 	if (cpumask_empty(cpus))
 		goto unlock;
 
-	ret = resume_cpus(cpus);
+	// ret = resume_cpus(cpus);
 	if (ret < 0) {
 		pr_debug("resume_cpus failure ret=%d cpus=%*pbl\n", ret,
 			 cpumask_pr_args(&requested_cpus));
@@ -156,7 +156,7 @@ static void walt_pause_online_workfn(struct work_struct *work)
 	if (cpumask_empty(&re_pause_cpus))
 		goto unlock;
 
-	ret = pause_cpus(&re_pause_cpus);
+	//ret = pause_cpus(&re_pause_cpus);
 
 unlock:
 	mutex_unlock(&pause_lock);
