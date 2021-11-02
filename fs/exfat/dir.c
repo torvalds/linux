@@ -656,8 +656,8 @@ static int exfat_walk_fat_chain(struct super_block *sb,
 	return 0;
 }
 
-int exfat_find_location(struct super_block *sb, struct exfat_chain *p_dir,
-		int entry, sector_t *sector, int *offset)
+static int exfat_find_location(struct super_block *sb, struct exfat_chain *p_dir,
+			       int entry, sector_t *sector, int *offset)
 {
 	int ret;
 	unsigned int off, clu = 0;
