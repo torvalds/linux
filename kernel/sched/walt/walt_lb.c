@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2020-2021, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <trace/hooks/sched.h>
@@ -39,10 +40,11 @@ static int walt_lb_active_migration(void *data)
 	int target_cpu = busiest_rq->push_cpu;
 	struct rq *target_rq = cpu_rq(target_cpu);
 	struct walt_rq *wrq = (struct walt_rq *) busiest_rq->android_vendor_data1;
-	struct task_struct *push_task = wrq->push_task;
+	struct task_struct *push_task;
 	int push_task_detached = 0;
 
 	raw_spin_lock_irq(&busiest_rq->__lock);
+	push_task = wrq->push_task;
 
 	/* sanity checks before initiating the pull */
 	if (!cpu_active(busiest_cpu) || !cpu_active(target_cpu) || !push_task)
