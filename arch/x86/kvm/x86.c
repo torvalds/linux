@@ -8134,15 +8134,21 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 	}
 
 	/*
-	 * Note, EMULTYPE_SKIP is intended for use *only* by vendor callbacks
-	 * for kvm_skip_emulated_instruction().  The caller is responsible for
-	 * updating interruptibility state and injecting single-step #DBs.
+	 * EMULTYPE_SKIP without EMULTYPE_COMPLETE_USER_EXIT is intended for
+	 * use *only* by vendor callbacks for kvm_skip_emulated_instruction().
+	 * The caller is responsible for updating interruptibility state and
+	 * injecting single-step #DBs.
 	 */
 	if (emulation_type & EMULTYPE_SKIP) {
 		if (ctxt->mode != X86EMUL_MODE_PROT64)
 			ctxt->eip = (u32)ctxt->_eip;
 		else
 			ctxt->eip = ctxt->_eip;
+
+		if (emulation_type & EMULTYPE_COMPLETE_USER_EXIT) {
+			r = 1;
+			goto writeback;
+		}
 
 		kvm_rip_write(vcpu, ctxt->eip);
 		if (ctxt->eflags & X86_EFLAGS_RF)
@@ -8213,6 +8219,7 @@ restart:
 	else
 		r = 1;
 
+writeback:
 	if (writeback) {
 		unsigned long rflags = static_call(kvm_x86_get_rflags)(vcpu);
 		toggle_interruptibility(vcpu, ctxt->interruptibility);
