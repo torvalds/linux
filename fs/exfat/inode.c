@@ -31,7 +31,7 @@ static int __exfat_write_inode(struct inode *inode, int sync)
 		return 0;
 
 	/*
-	 * If the indode is already unlinked, there is no need for updating it.
+	 * If the inode is already unlinked, there is no need for updating it.
 	 */
 	if (ei->dir.dir == DIR_DELETED)
 		return 0;
