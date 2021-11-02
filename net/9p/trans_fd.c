@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * linux/fs/9p/trans_fd.c
- *
  * Fd transport layer.  Includes deprecated socket layer.
  *
  *  Copyright (C) 2006 by Russ Cox <rsc@swtch.com>

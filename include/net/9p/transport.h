@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * include/net/9p/transport.h
- *
  * Transport Definition
  *
  *  Copyright (C) 2005 by Latchesar Ionkov <lucho@ionkov.net>

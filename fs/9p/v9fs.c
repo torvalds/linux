@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/fs/9p/v9fs.c
- *
  *  This file contains functions assisting in mapping VFS to 9P2000
  *
  *  Copyright (C) 2004-2008 by Eric Van Hensbergen <ericvh@gmail.com>

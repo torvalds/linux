@@ -1,9 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/fs/9p/vfs_super.c
- *
- * This file contians superblock ops for 9P2000. It is intended that
- * you mount this file system on directories.
  *
  *  Copyright (C) 2004 by Eric Van Hensbergen <ericvh@gmail.com>
  *  Copyright (C) 2002 by Ron Minnich <rminnich@lanl.gov>

@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * net/9p/protocol.c
- *
  * 9P Protocol Support Code
  *
  *  Copyright (C) 2008 by Eric Van Hensbergen <ericvh@gmail.com>

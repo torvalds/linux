@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * include/net/9p/client.h
- *
  * 9P Client Definitions
  *
  *  Copyright (C) 2008 by Eric Van Hensbergen <ericvh@gmail.com>

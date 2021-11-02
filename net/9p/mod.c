@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  net/9p/9p.c
- *
  *  9P entry point
  *
  *  Copyright (C) 2007 by Latchesar Ionkov <lucho@ionkov.net>

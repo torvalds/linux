@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * include/net/9p/9p.h
- *
  * 9P protocol definitions.
  *
  *  Copyright (C) 2005 by Latchesar Ionkov <lucho@ionkov.net>

@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * linux/fs/9p/trans_rdma.c
- *
  * RDMA transport layer based on the trans_fd.c implementation.
  *
  *  Copyright (C) 2008 by Tom Tucker <tom@opengridcomputing.com>
