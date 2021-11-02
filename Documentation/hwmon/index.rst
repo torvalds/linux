@@ -76,6 +76,7 @@ Hardware Monitoring Kernel Drivers
    ibmpowernv
    ina209
    ina2xx
+   ina238
    ina3221
    intel-m10-bmc-hwmon
    ir35221
