@@ -603,9 +603,9 @@ static void _PHY_SaveMACRegisters(
 	u32 i;
 	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
 	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
-	for (i = 0; i < (IQK_MAC_REG_NUM - 1); i++) {
-		MACBackup[i] = ODM_Read1Byte(dm_odm, MACReg[i]);
-	}
+	for (i = 0; i < (IQK_MAC_REG_NUM - 1); i++)
+		MACBackup[i] = rtw_read8(adapt, MACReg[i]);
+
 	MACBackup[i] = ODM_Read4Byte(dm_odm, MACReg[i]);
 }
 
@@ -938,7 +938,7 @@ static void phy_LCCalibrate_8188E(struct adapter *adapt, bool is2t)
 	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
 
 	/* Check continuous TX and Packet TX */
-	tmpreg = ODM_Read1Byte(dm_odm, 0xd03);
+	tmpreg = rtw_read8(adapt, 0xd03);
 
 	if ((tmpreg & 0x70) != 0)			/* Deal with contisuous TX case */
 		ODM_Write1Byte(dm_odm, 0xd03, tmpreg & 0x8F);	/* disable all continuous TX */
