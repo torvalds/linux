@@ -909,11 +909,11 @@ int dlm_process_incoming_buffer(int nodeid, unsigned char *buf, int len)
 		if (msglen > len)
 			break;
 
-		switch (le32_to_cpu(hd->h_version)) {
-		case DLM_VERSION_3_1:
+		switch (hd->h_version) {
+		case cpu_to_le32(DLM_VERSION_3_1):
 			dlm_midcomms_receive_buffer_3_1((union dlm_packet *)ptr, nodeid);
 			break;
-		case DLM_VERSION_3_2:
+		case cpu_to_le32(DLM_VERSION_3_2):
 			dlm_midcomms_receive_buffer_3_2((union dlm_packet *)ptr, nodeid);
 			break;
 		default:
