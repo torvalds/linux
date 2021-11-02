@@ -21,4 +21,6 @@ extern struct task_struct *fips140_init_thread;
 
 bool __init __must_check fips140_run_selftests(void);
 
+bool fips140_is_approved_service(const char *name);
+
 #endif /* _CRYPTO_FIPS140_MODULE_H */
