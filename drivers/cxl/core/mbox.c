@@ -148,8 +148,6 @@ static struct cxl_mem_command *cxl_mem_find_command(u16 opcode)
  * Mailbox commands may execute successfully yet the device itself reported an
  * error. While this distinction can be useful for commands from userspace, the
  * kernel will only be able to use results when both are successful.
- *
- * See __cxl_mem_mbox_send_cmd()
  */
 int cxl_mem_mbox_send_cmd(struct cxl_mem *cxlm, u16 opcode, void *in,
 			  size_t in_size, void *out, size_t out_size)
