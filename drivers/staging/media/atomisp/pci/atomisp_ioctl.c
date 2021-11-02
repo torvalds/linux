@@ -892,8 +892,8 @@ static int atomisp_g_fmt_cap(struct file *file, void *fh,
 	}
 
 	depth = atomisp_get_pixel_depth(f->fmt.pix.pixelformat);
-	f->fmt.pix.bytesperline = (f->fmt.pix.width * depth) >> 3;
-	f->fmt.pix.sizeimage = f->fmt.pix.height * f->fmt.pix.bytesperline;
+	f->fmt.pix.bytesperline = DIV_ROUND_UP(f->fmt.pix.width * depth, 8);
+	f->fmt.pix.sizeimage = PAGE_ALIGN(f->fmt.pix.height * f->fmt.pix.bytesperline);
 
 	/*
 	 * FIXME: do we need to setup this differently, depending on the
