@@ -58,6 +58,7 @@
 #include <linux/percpu-defs.h>
 #include <linux/slab.h>
 #include <linux/sysctl.h>
+#include <linux/moduleparam.h>
 
 #include <asm/page.h>
 #include <asm/tlb.h>
@@ -72,6 +73,12 @@
 #include <xen/features.h>
 #include <xen/page.h>
 #include <xen/mem-reservation.h>
+
+#undef MODULE_PARAM_PREFIX
+#define MODULE_PARAM_PREFIX "xen."
+
+static uint __read_mostly balloon_boot_timeout = 180;
+module_param(balloon_boot_timeout, uint, 0444);
 
 static int xen_hotplug_unpopulated;
 
@@ -125,12 +132,12 @@ static struct ctl_table xen_root[] = {
  * BP_ECANCELED: error, balloon operation canceled.
  */
 
-enum bp_state {
+static enum bp_state {
 	BP_DONE,
 	BP_WAIT,
 	BP_EAGAIN,
 	BP_ECANCELED
-};
+} balloon_state = BP_DONE;
 
 /* Main waiting point for xen-balloon thread. */
 static DECLARE_WAIT_QUEUE_HEAD(balloon_thread_wq);
@@ -199,18 +206,15 @@ static struct page *balloon_next_page(struct page *page)
 	return list_entry(next, struct page, lru);
 }
 
-static enum bp_state update_schedule(enum bp_state state)
+static void update_schedule(void)
 {
-	if (state == BP_WAIT)
-		return BP_WAIT;
+	if (balloon_state == BP_WAIT || balloon_state == BP_ECANCELED)
+		return;
 
-	if (state == BP_ECANCELED)
-		return BP_ECANCELED;
-
-	if (state == BP_DONE) {
+	if (balloon_state == BP_DONE) {
 		balloon_stats.schedule_delay = 1;
 		balloon_stats.retry_count = 1;
-		return BP_DONE;
+		return;
 	}
 
 	++balloon_stats.retry_count;
@@ -219,7 +223,8 @@ static enum bp_state update_schedule(enum bp_state state)
 			balloon_stats.retry_count > balloon_stats.max_retry_count) {
 		balloon_stats.schedule_delay = 1;
 		balloon_stats.retry_count = 1;
-		return BP_ECANCELED;
+		balloon_state = BP_ECANCELED;
+		return;
 	}
 
 	balloon_stats.schedule_delay <<= 1;
@@ -227,7 +232,7 @@ static enum bp_state update_schedule(enum bp_state state)
 	if (balloon_stats.schedule_delay > balloon_stats.max_schedule_delay)
 		balloon_stats.schedule_delay = balloon_stats.max_schedule_delay;
 
-	return BP_EAGAIN;
+	balloon_state = BP_EAGAIN;
 }
 
 #ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
@@ -494,9 +499,9 @@ static enum bp_state decrease_reservation(unsigned long nr_pages, gfp_t gfp)
  * Stop waiting if either state is BP_DONE and ballooning action is
  * needed, or if the credit has changed while state is not BP_DONE.
  */
-static bool balloon_thread_cond(enum bp_state state, long credit)
+static bool balloon_thread_cond(long credit)
 {
-	if (state == BP_DONE)
+	if (balloon_state == BP_DONE)
 		credit = 0;
 
 	return current_credit() != credit || kthread_should_stop();
@@ -510,13 +515,12 @@ static bool balloon_thread_cond(enum bp_state state, long credit)
  */
 static int balloon_thread(void *unused)
 {
-	enum bp_state state = BP_DONE;
 	long credit;
 	unsigned long timeout;
 
 	set_freezable();
 	for (;;) {
-		switch (state) {
+		switch (balloon_state) {
 		case BP_DONE:
 		case BP_ECANCELED:
 			timeout = 3600 * HZ;
@@ -532,7 +536,7 @@ static int balloon_thread(void *unused)
 		credit = current_credit();
 
 		wait_event_freezable_timeout(balloon_thread_wq,
-			balloon_thread_cond(state, credit), timeout);
+			balloon_thread_cond(credit), timeout);
 
 		if (kthread_should_stop())
 			return 0;
@@ -543,22 +547,23 @@ static int balloon_thread(void *unused)
 
 		if (credit > 0) {
 			if (balloon_is_inflated())
-				state = increase_reservation(credit);
+				balloon_state = increase_reservation(credit);
 			else
-				state = reserve_additional_memory();
+				balloon_state = reserve_additional_memory();
 		}
 
 		if (credit < 0) {
 			long n_pages;
 
 			n_pages = min(-credit, si_mem_available());
-			state = decrease_reservation(n_pages, GFP_BALLOON);
-			if (state == BP_DONE && n_pages != -credit &&
+			balloon_state = decrease_reservation(n_pages,
+							     GFP_BALLOON);
+			if (balloon_state == BP_DONE && n_pages != -credit &&
 			    n_pages < totalreserve_pages)
-				state = BP_EAGAIN;
+				balloon_state = BP_EAGAIN;
 		}
 
-		state = update_schedule(state);
+		update_schedule();
 
 		mutex_unlock(&balloon_mutex);
 
@@ -765,3 +770,38 @@ static int __init balloon_init(void)
 	return 0;
 }
 subsys_initcall(balloon_init);
+
+static int __init balloon_wait_finish(void)
+{
+	long credit, last_credit = 0;
+	unsigned long last_changed = 0;
+
+	if (!xen_domain())
+		return -ENODEV;
+
+	/* PV guests don't need to wait. */
+	if (xen_pv_domain() || !current_credit())
+		return 0;
+
+	pr_notice("Waiting for initial ballooning down having finished.\n");
+
+	while ((credit = current_credit()) < 0) {
+		if (credit != last_credit) {
+			last_changed = jiffies;
+			last_credit = credit;
+		}
+		if (balloon_state == BP_ECANCELED) {
+			pr_warn_once("Initial ballooning failed, %ld pages need to be freed.\n",
+				     -credit);
+			if (jiffies - last_changed >= HZ * balloon_boot_timeout)
+				panic("Initial ballooning failed!\n");
+		}
+
+		schedule_timeout_interruptible(HZ / 10);
+	}
+
+	pr_notice("Initial ballooning down finished.\n");
+
+	return 0;
+}
+late_initcall_sync(balloon_wait_finish);
