@@ -151,9 +151,9 @@ establishing an association.
          INIT --------------------------------------------->
                                                    sctp_sf_do_5_1B_init()
                                                  Respond to an INIT chunk.
-                                             SCTP peer endpoint "A" is
-                                             asking for an association. Call
-                                             security_sctp_assoc_request()
+                                             SCTP peer endpoint "A" is asking
+                                             for a temporary association.
+                                             Call security_sctp_assoc_request()
                                              to set the peer label if first
                                              association.
                                              If not first association, check
@@ -163,9 +163,12 @@ establishing an association.
           |                                       discard the packet.
           |
     COOKIE ECHO ------------------------------------------>
-                                                          |
-                                                          |
-                                                          |
+                                                  sctp_sf_do_5_1D_ce()
+                                             Respond to an COOKIE ECHO chunk.
+                                             Confirm the cookie and create a
+                                             permanent association.
+                                             Call security_sctp_assoc_request() to
+                                             do the same as for INIT chunk Response.
           <------------------------------------------- COOKIE ACK
           |                                               |
     sctp_sf_do_5_1E_ca                                    |
