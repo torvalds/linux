@@ -362,6 +362,13 @@ int snd_sof_device_remove(struct device *dev)
 	if (IS_ENABLED(CONFIG_SND_SOC_SOF_PROBE_WORK_QUEUE))
 		cancel_work_sync(&sdev->probe_work);
 
+	/*
+	 * Unregister machine driver. This will unbind the snd_card which
+	 * will remove the component driver and unload the topology
+	 * before freeing the snd_card.
+	 */
+	snd_sof_machine_unregister(sdev, pdata);
+
 	if (sdev->fw_state > SOF_FW_BOOT_NOT_STARTED) {
 		snd_sof_free_trace(sdev);
 		ret = snd_sof_dsp_power_down_notify(sdev);
@@ -372,13 +379,6 @@ int snd_sof_device_remove(struct device *dev)
 		snd_sof_ipc_free(sdev);
 		snd_sof_free_debug(sdev);
 	}
-
-	/*
-	 * Unregister machine driver. This will unbind the snd_card which
-	 * will remove the component driver and unload the topology
-	 * before freeing the snd_card.
-	 */
-	snd_sof_machine_unregister(sdev, pdata);
 
 	/*
 	 * Unregistering the machine driver results in unloading the topology.
