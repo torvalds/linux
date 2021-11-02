@@ -409,7 +409,7 @@ static void __init setup_boot_config(void)
 	const char *msg;
 	int pos;
 	u32 size, csum;
-	char *data, *copy, *err;
+	char *data, *err;
 	int ret;
 
 	/* Cut out the bootconfig data even if we have no bootconfig option */
@@ -442,16 +442,7 @@ static void __init setup_boot_config(void)
 		return;
 	}
 
-	copy = memblock_alloc(size + 1, SMP_CACHE_BYTES);
-	if (!copy) {
-		pr_err("Failed to allocate memory for bootconfig\n");
-		return;
-	}
-
-	memcpy(copy, data, size);
-	copy[size] = '\0';
-
-	ret = xbc_init(copy, &msg, &pos);
+	ret = xbc_init(data, size, &msg, &pos);
 	if (ret < 0) {
 		if (pos < 0)
 			pr_err("Failed to init bootconfig: %s.\n", msg);
@@ -459,6 +450,7 @@ static void __init setup_boot_config(void)
 			pr_err("Failed to parse bootconfig: %s at %d.\n",
 				msg, pos);
 	} else {
+		xbc_get_info(&ret, NULL);
 		pr_info("Load bootconfig: %d bytes %d nodes\n", size, ret);
 		/* keys starting with "kernel." are passed via cmdline */
 		extra_command_line = xbc_make_cmdline("kernel");
@@ -470,7 +462,7 @@ static void __init setup_boot_config(void)
 
 static void __init exit_boot_config(void)
 {
-	xbc_destroy_all();
+	xbc_exit();
 }
 
 #else	/* !CONFIG_BOOT_CONFIG */

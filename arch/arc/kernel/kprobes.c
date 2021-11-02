@@ -363,8 +363,9 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 
 static void __used kretprobe_trampoline_holder(void)
 {
-	__asm__ __volatile__(".global kretprobe_trampoline\n"
-			     "kretprobe_trampoline:\n" "nop\n");
+	__asm__ __volatile__(".global __kretprobe_trampoline\n"
+			     "__kretprobe_trampoline:\n"
+			     "nop\n");
 }
 
 void __kprobes arch_prepare_kretprobe(struct kretprobe_instance *ri,
@@ -375,13 +376,13 @@ void __kprobes arch_prepare_kretprobe(struct kretprobe_instance *ri,
 	ri->fp = NULL;
 
 	/* Replace the return addr with trampoline addr */
-	regs->blink = (unsigned long)&kretprobe_trampoline;
+	regs->blink = (unsigned long)&__kretprobe_trampoline;
 }
 
 static int __kprobes trampoline_probe_handler(struct kprobe *p,
 					      struct pt_regs *regs)
 {
-	regs->ret = __kretprobe_trampoline_handler(regs, &kretprobe_trampoline, NULL);
+	regs->ret = __kretprobe_trampoline_handler(regs, NULL);
 
 	/* By returning a non zero value, we are telling the kprobe handler
 	 * that we don't want the post_handler to run
@@ -390,7 +391,7 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 }
 
 static struct kprobe trampoline_p = {
-	.addr = (kprobe_opcode_t *) &kretprobe_trampoline,
+	.addr = (kprobe_opcode_t *) &__kretprobe_trampoline,
 	.pre_handler = trampoline_probe_handler
 };
 
@@ -402,7 +403,7 @@ int __init arch_init_kprobes(void)
 
 int __kprobes arch_trampoline_kprobe(struct kprobe *p)
 {
-	if (p->addr == (kprobe_opcode_t *) &kretprobe_trampoline)
+	if (p->addr == (kprobe_opcode_t *) &__kretprobe_trampoline)
 		return 1;
 
 	return 0;
