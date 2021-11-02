@@ -140,6 +140,8 @@ struct vcpu_svm {
 	u64 next_rip;
 
 	u64 spec_ctrl;
+
+	u64 tsc_ratio_msr;
 	/*
 	 * Contains guest-controlled bits of VIRT_SPEC_CTRL, which will be
 	 * translated into the appropriate L2_CFG bits on the host to
@@ -160,7 +162,8 @@ struct vcpu_svm {
 	unsigned long int3_rip;
 
 	/* cached guest cpuid flags for faster access */
-	bool nrips_enabled	: 1;
+	bool nrips_enabled                : 1;
+	bool tsc_scaling_enabled          : 1;
 
 	u32 ldr_reg;
 	u32 dfr_reg;
@@ -483,6 +486,8 @@ int nested_svm_check_permissions(struct kvm_vcpu *vcpu);
 int nested_svm_check_exception(struct vcpu_svm *svm, unsigned nr,
 			       bool has_error_code, u32 error_code);
 int nested_svm_exit_special(struct vcpu_svm *svm);
+void nested_svm_update_tsc_ratio_msr(struct kvm_vcpu *vcpu);
+void svm_write_tsc_multiplier(struct kvm_vcpu *vcpu, u64 multiplier);
 void nested_load_control_from_vmcb12(struct vcpu_svm *svm,
 				     struct vmcb_control_area *control);
 void nested_sync_control_from_vmcb02(struct vcpu_svm *svm);
@@ -562,7 +567,7 @@ void sev_free_vcpu(struct kvm_vcpu *vcpu);
 int sev_handle_vmgexit(struct kvm_vcpu *vcpu);
 int sev_es_string_io(struct vcpu_svm *svm, int size, unsigned int port, int in);
 void sev_es_init_vmcb(struct vcpu_svm *svm);
-void sev_es_create_vcpu(struct vcpu_svm *svm);
+void sev_es_vcpu_reset(struct vcpu_svm *svm);
 void sev_vcpu_deliver_sipi_vector(struct kvm_vcpu *vcpu, u8 vector);
 void sev_es_prepare_guest_switch(struct vcpu_svm *svm, unsigned int cpu);
 void sev_es_unmap_ghcb(struct vcpu_svm *svm);

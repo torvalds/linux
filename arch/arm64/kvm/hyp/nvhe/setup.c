@@ -10,6 +10,7 @@
 #include <asm/kvm_pgtable.h>
 
 #include <nvhe/early_alloc.h>
+#include <nvhe/fixed_config.h>
 #include <nvhe/gfp.h>
 #include <nvhe/memory.h>
 #include <nvhe/mem_protect.h>
@@ -259,6 +260,8 @@ int __pkvm_init(phys_addr_t phys, unsigned long size, unsigned long nr_cpus,
 	void *virt = hyp_phys_to_virt(phys);
 	void (*fn)(phys_addr_t params_pa, void *finalize_fn_va);
 	int ret;
+
+	BUG_ON(kvm_check_pvm_sysreg_table());
 
 	if (!PAGE_ALIGNED(phys) || !PAGE_ALIGNED(size))
 		return -EINVAL;

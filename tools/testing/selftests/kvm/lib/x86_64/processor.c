@@ -660,6 +660,7 @@ void vm_vcpu_add_default(struct kvm_vm *vm, uint32_t vcpuid, void *guest_code)
 
 	/* Create VCPU */
 	vm_vcpu_add(vm, vcpuid);
+	vcpu_set_cpuid(vm, vcpuid, kvm_get_supported_cpuid());
 	vcpu_setup(vm, vcpuid);
 
 	/* Setup guest general purpose registers */
@@ -672,9 +673,6 @@ void vm_vcpu_add_default(struct kvm_vm *vm, uint32_t vcpuid, void *guest_code)
 	/* Setup the MP state */
 	mp_state.mp_state = 0;
 	vcpu_set_mp_state(vm, vcpuid, &mp_state);
-
-	/* Setup supported CPUIDs */
-	vcpu_set_cpuid(vm, vcpuid, kvm_get_supported_cpuid());
 }
 
 /*
