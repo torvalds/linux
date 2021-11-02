@@ -6317,3 +6317,49 @@ int dlm_user_purge(struct dlm_ls *ls, struct dlm_user_proc *proc,
 	return error;
 }
 
+/* debug functionality */
+int dlm_debug_add_lkb(struct dlm_ls *ls, uint32_t lkb_id, char *name, int len,
+		      int lkb_nodeid, unsigned int lkb_flags, int lkb_status)
+{
+	struct dlm_lksb *lksb;
+	struct dlm_lkb *lkb;
+	struct dlm_rsb *r;
+	int error;
+
+	/* we currently can't set a valid user lock */
+	if (lkb_flags & DLM_IFL_USER)
+		return -EOPNOTSUPP;
+
+	lksb = kzalloc(sizeof(*lksb), GFP_NOFS);
+	if (!lksb)
+		return -ENOMEM;
+
+	error = _create_lkb(ls, &lkb, lkb_id, lkb_id + 1);
+	if (error) {
+		kfree(lksb);
+		return error;
+	}
+
+	lkb->lkb_flags = lkb_flags;
+	lkb->lkb_nodeid = lkb_nodeid;
+	lkb->lkb_lksb = lksb;
+	/* user specific pointer, just don't have it NULL for kernel locks */
+	if (~lkb_flags & DLM_IFL_USER)
+		lkb->lkb_astparam = (void *)0xDEADBEEF;
+
+	error = find_rsb(ls, name, len, 0, R_REQUEST, &r);
+	if (error) {
+		kfree(lksb);
+		__put_lkb(ls, lkb);
+		return error;
+	}
+
+	lock_rsb(r);
+	attach_lkb(r, lkb);
+	add_lkb(r, lkb, lkb_status);
+	unlock_rsb(r);
+	put_rsb(r);
+
+	return 0;
+}
+
