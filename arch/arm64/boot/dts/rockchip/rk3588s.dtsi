@@ -1181,6 +1181,7 @@
 		dma-names = "tx";
 		clock-names = "mclk", "hclk";
 		clocks = <&cru MCLK_SPDIF2_DP0>, <&cru HCLK_SPDIF2_DP0>;
+		power-domains = <&power RK3588_PD_VO0>;
 		#sound-dai-cells = <0>;
 		status = "disabled";
 	};
@@ -1193,6 +1194,7 @@
 		clock-names = "mclk_tx", "hclk";
 		dmas = <&dmac2 0>;
 		dma-names = "tx";
+		power-domains = <&power RK3588_PD_VO0>;
 		resets = <&cru SRST_M_I2S4_8CH_TX>;
 		reset-names = "tx-m";
 		rockchip,playback-only;
@@ -1208,6 +1210,7 @@
 		dma-names = "tx";
 		clock-names = "mclk", "hclk";
 		clocks = <&cru MCLK_SPDIF3>, <&cru HCLK_SPDIF3>;
+		power-domains = <&power RK3588_PD_VO1>;
 		#sound-dai-cells = <0>;
 		status = "disabled";
 	};
@@ -1220,6 +1223,7 @@
 		clock-names = "mclk_tx", "hclk";
 		dmas = <&dmac2 2>;
 		dma-names = "tx";
+		power-domains = <&power RK3588_PD_VO1>;
 		resets = <&cru SRST_M_I2S5_8CH_TX>;
 		reset-names = "tx-m";
 		rockchip,playback-only;
@@ -1235,6 +1239,7 @@
 		clock-names = "mclk_rx", "hclk";
 		dmas = <&dmac2 23>;
 		dma-names = "rx";
+		power-domains = <&power RK3588_PD_VO1>;
 		resets = <&cru SRST_M_I2S9_8CH_RX>;
 		reset-names = "rx-m";
 		rockchip,capture-only;
@@ -1250,6 +1255,7 @@
 		clock-names = "mclk", "hclk";
 		dmas = <&dmac0 21>;
 		dma-names = "rx";
+		power-domains = <&power RK3588_PD_VO1>;
 		resets = <&cru SRST_M_SPDIFRX0>;
 		reset-names = "spdifrx-m";
 		#sound-dai-cells = <0>;
@@ -1688,6 +1694,7 @@
 		clock-names = "mclk_tx", "mclk_rx", "hclk";
 		dmas = <&dmac0 0>, <&dmac0 1>;
 		dma-names = "tx", "rx";
+		power-domains = <&power RK3588_PD_AUDIO>;
 		resets = <&cru SRST_M_I2S0_8CH_TX>, <&cru SRST_M_I2S0_8CH_RX>;
 		reset-names = "tx-m", "rx-m";
 		pinctrl-names = "default";
@@ -1742,6 +1749,7 @@
 		clock-names = "i2s_clk", "i2s_hclk";
 		dmas = <&dmac1 0>, <&dmac1 1>;
 		dma-names = "tx", "rx";
+		power-domains = <&power RK3588_PD_AUDIO>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s2m1_lrck_rx
 			     &i2s2m1_lrck_tx
@@ -1761,6 +1769,7 @@
 		clock-names = "i2s_clk", "i2s_hclk";
 		dmas = <&dmac1 2>, <&dmac1 3>;
 		dma-names = "tx", "rx";
+		power-domains = <&power RK3588_PD_AUDIO>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s3_lrck
 			     &i2s3_sclk
@@ -1795,6 +1804,7 @@
 		clock-names = "pdm_clk", "pdm_hclk";
 		dmas = <&dmac1 4>;
 		dma-names = "rx";
+		power-domains = <&power RK3588_PD_AUDIO>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pdm1m0_clk
 			     &pdm1m0_clk1
@@ -1828,6 +1838,7 @@
 		dma-names = "tx";
 		clock-names = "mclk", "hclk";
 		clocks = <&cru MCLK_SPDIF0>, <&cru HCLK_SPDIF0>;
+		power-domains = <&power RK3588_PD_AUDIO>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&spdif0m0_tx>;
 		#sound-dai-cells = <0>;
@@ -1842,6 +1853,7 @@
 		dma-names = "tx";
 		clock-names = "mclk", "hclk";
 		clocks = <&cru MCLK_SPDIF1>, <&cru HCLK_SPDIF1>;
+		power-domains = <&power RK3588_PD_AUDIO>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&spdif1m0_tx>;
 		#sound-dai-cells = <0>;
@@ -1853,6 +1865,7 @@
 		reg = <0x0 0xfe500000 0x0 0x1000>;
 		clocks = <&cru CLK_DAC_ACDCDIG>, <&cru PCLK_ACDCDIG>;
 		clock-names = "dac", "pclk";
+		power-domains = <&power RK3588_PD_AUDIO>;
 		resets = <&cru SRST_DAC_ACDCDIG>;
 		reset-names = "reset" ;
 		rockchip,grf = <&sys_grf>;
