@@ -1272,7 +1272,7 @@ static int tegra_channel_init(struct tegra_vi_channel *chan)
 	}
 
 	if (!IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG))
-		v4l2_async_notifier_init(&chan->notifier);
+		v4l2_async_nf_init(&chan->notifier);
 
 	return 0;
 
@@ -1811,8 +1811,8 @@ static int tegra_vi_graph_parse_one(struct tegra_vi_channel *chan,
 			continue;
 		}
 
-		tvge = v4l2_async_notifier_add_fwnode_subdev(&chan->notifier, remote,
-							     struct tegra_vi_graph_entity);
+		tvge = v4l2_async_nf_add_fwnode(&chan->notifier, remote,
+						struct tegra_vi_graph_entity);
 		if (IS_ERR(tvge)) {
 			ret = PTR_ERR(tvge);
 			dev_err(vi->dev,
@@ -1834,7 +1834,7 @@ static int tegra_vi_graph_parse_one(struct tegra_vi_channel *chan,
 
 cleanup:
 	dev_err(vi->dev, "failed parsing the graph: %d\n", ret);
-	v4l2_async_notifier_cleanup(&chan->notifier);
+	v4l2_async_nf_cleanup(&chan->notifier);
 	of_node_put(node);
 	return ret;
 }
@@ -1868,13 +1868,12 @@ static int tegra_vi_graph_init(struct tegra_vi *vi)
 			continue;
 
 		chan->notifier.ops = &tegra_vi_async_ops;
-		ret = v4l2_async_notifier_register(&vid->v4l2_dev,
-						   &chan->notifier);
+		ret = v4l2_async_nf_register(&vid->v4l2_dev, &chan->notifier);
 		if (ret < 0) {
 			dev_err(vi->dev,
 				"failed to register channel %d notifier: %d\n",
 				chan->portnos[0], ret);
-			v4l2_async_notifier_cleanup(&chan->notifier);
+			v4l2_async_nf_cleanup(&chan->notifier);
 		}
 	}
 
@@ -1887,8 +1886,8 @@ static void tegra_vi_graph_cleanup(struct tegra_vi *vi)
 
 	list_for_each_entry(chan, &vi->vi_chans, list) {
 		vb2_video_unregister_device(&chan->video);
-		v4l2_async_notifier_unregister(&chan->notifier);
-		v4l2_async_notifier_cleanup(&chan->notifier);
+		v4l2_async_nf_unregister(&chan->notifier);
+		v4l2_async_nf_cleanup(&chan->notifier);
 	}
 }
 

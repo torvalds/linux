@@ -876,11 +876,10 @@ static int mipid02_parse_rx_ep(struct mipid02_dev *bridge)
 	bridge->rx = ep;
 
 	/* register async notifier so we get noticed when sensor is connected */
-	v4l2_async_notifier_init(&bridge->notifier);
-	asd = v4l2_async_notifier_add_fwnode_remote_subdev(
-					&bridge->notifier,
-					of_fwnode_handle(ep_node),
-					struct v4l2_async_subdev);
+	v4l2_async_nf_init(&bridge->notifier);
+	asd = v4l2_async_nf_add_fwnode_remote(&bridge->notifier,
+					      of_fwnode_handle(ep_node),
+					      struct v4l2_async_subdev);
 	of_node_put(ep_node);
 
 	if (IS_ERR(asd)) {
@@ -890,10 +889,9 @@ static int mipid02_parse_rx_ep(struct mipid02_dev *bridge)
 	}
 	bridge->notifier.ops = &mipid02_notifier_ops;
 
-	ret = v4l2_async_subdev_notifier_register(&bridge->sd,
-						  &bridge->notifier);
+	ret = v4l2_async_subdev_nf_register(&bridge->sd, &bridge->notifier);
 	if (ret)
-		v4l2_async_notifier_cleanup(&bridge->notifier);
+		v4l2_async_nf_cleanup(&bridge->notifier);
 
 	return ret;
 
@@ -1031,8 +1029,8 @@ static int mipid02_probe(struct i2c_client *client)
 	return 0;
 
 unregister_notifier:
-	v4l2_async_notifier_unregister(&bridge->notifier);
-	v4l2_async_notifier_cleanup(&bridge->notifier);
+	v4l2_async_nf_unregister(&bridge->notifier);
+	v4l2_async_nf_cleanup(&bridge->notifier);
 power_off:
 	mipid02_set_power_off(bridge);
 entity_cleanup:
@@ -1048,8 +1046,8 @@ static int mipid02_remove(struct i2c_client *client)
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct mipid02_dev *bridge = to_mipid02_dev(sd);
 
-	v4l2_async_notifier_unregister(&bridge->notifier);
-	v4l2_async_notifier_cleanup(&bridge->notifier);
+	v4l2_async_nf_unregister(&bridge->notifier);
+	v4l2_async_nf_cleanup(&bridge->notifier);
 	v4l2_async_unregister_subdev(&bridge->sd);
 	mipid02_set_power_off(bridge);
 	media_entity_cleanup(&bridge->sd.entity);

@@ -1,4 +1,27 @@
 {
+	"calls: invalid kfunc call not eliminated",
+	.insns = {
+	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, BPF_PSEUDO_KFUNC_CALL, 0, 0),
+	BPF_MOV64_IMM(BPF_REG_0, 1),
+	BPF_EXIT_INSN(),
+	},
+	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	.result  = REJECT,
+	.errstr = "invalid kernel function call not eliminated in verifier pass",
+},
+{
+	"calls: invalid kfunc call unreachable",
+	.insns = {
+	BPF_MOV64_IMM(BPF_REG_0, 1),
+	BPF_JMP_IMM(BPF_JGT, BPF_REG_0, 0, 2),
+	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, BPF_PSEUDO_KFUNC_CALL, 0, 0),
+	BPF_MOV64_IMM(BPF_REG_0, 1),
+	BPF_EXIT_INSN(),
+	},
+	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	.result  = ACCEPT,
+},
+{
 	"calls: basic sanity",
 	.insns = {
 	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 1, 0, 2),

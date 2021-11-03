@@ -162,7 +162,7 @@ static int nsblk_do_bvec(struct nd_namespace_blk *nsblk,
 	return err;
 }
 
-static blk_qc_t nd_blk_submit_bio(struct bio *bio)
+static void nd_blk_submit_bio(struct bio *bio)
 {
 	struct bio_integrity_payload *bip;
 	struct nd_namespace_blk *nsblk = bio->bi_bdev->bd_disk->private_data;
@@ -173,7 +173,7 @@ static blk_qc_t nd_blk_submit_bio(struct bio *bio)
 	bool do_acct;
 
 	if (!bio_integrity_prep(bio))
-		return BLK_QC_T_NONE;
+		return;
 
 	bip = bio_integrity(bio);
 	rw = bio_data_dir(bio);
@@ -199,7 +199,6 @@ static blk_qc_t nd_blk_submit_bio(struct bio *bio)
 		bio_end_io_acct(bio, start);
 
 	bio_endio(bio);
-	return BLK_QC_T_NONE;
 }
 
 static int nsblk_rw_bytes(struct nd_namespace_common *ndns,

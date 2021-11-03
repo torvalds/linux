@@ -578,7 +578,7 @@ out:
 	return next;
 }
 
-static blk_qc_t ps3vram_submit_bio(struct bio *bio)
+static void ps3vram_submit_bio(struct bio *bio)
 {
 	struct ps3_system_bus_device *dev = bio->bi_bdev->bd_disk->private_data;
 	struct ps3vram_priv *priv = ps3_system_bus_get_drvdata(dev);
@@ -594,13 +594,11 @@ static blk_qc_t ps3vram_submit_bio(struct bio *bio)
 	spin_unlock_irq(&priv->lock);
 
 	if (busy)
-		return BLK_QC_T_NONE;
+		return;
 
 	do {
 		bio = ps3vram_do_bio(dev, bio);
 	} while (bio);
-
-	return BLK_QC_T_NONE;
 }
 
 static const struct block_device_operations ps3vram_fops = {

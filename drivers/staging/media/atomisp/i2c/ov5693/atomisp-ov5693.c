@@ -1714,6 +1714,8 @@ static int ov5693_detect(struct i2c_client *client)
 	}
 	ret = ov5693_read_reg(client, OV5693_8BIT,
 			      OV5693_SC_CMMN_CHIP_ID_L, &low);
+	if (ret)
+		return ret;
 	id = ((((u16)high) << 8) | (u16)low);
 
 	if (id != OV5693_ID) {

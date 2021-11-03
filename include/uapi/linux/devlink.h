@@ -551,6 +551,8 @@ enum devlink_attr {
 	DEVLINK_ATTR_RATE_NODE_NAME,		/* string */
 	DEVLINK_ATTR_RATE_PARENT_NODE_NAME,	/* string */
 
+	DEVLINK_ATTR_REGION_MAX_SNAPSHOTS,	/* u32 */
+
 	/* add new attributes above here, update the policy in devlink.c */
 
 	__DEVLINK_ATTR_MAX,

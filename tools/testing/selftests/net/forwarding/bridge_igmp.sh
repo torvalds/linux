@@ -482,10 +482,15 @@ v3exc_timeout_test()
 	local X=("192.0.2.20" "192.0.2.30")
 
 	# GMI should be 3 seconds
-	ip link set dev br0 type bridge mcast_query_interval 100 mcast_query_response_interval 100
+	ip link set dev br0 type bridge mcast_query_interval 100 \
+					mcast_query_response_interval 100 \
+					mcast_membership_interval 300
 
 	v3exclude_prepare $h1 $ALL_MAC $ALL_GROUP
-	ip link set dev br0 type bridge mcast_query_interval 500 mcast_query_response_interval 500
+	ip link set dev br0 type bridge mcast_query_interval 500 \
+					mcast_query_response_interval 500 \
+					mcast_membership_interval 1500
+
 	$MZ $h1 -c 1 -b $ALL_MAC -B $ALL_GROUP -t ip "proto=2,p=$MZPKT_ALLOW2" -q
 	sleep 3
 	bridge -j -d -s mdb show dev br0 \
@@ -517,7 +522,8 @@ v3exc_timeout_test()
 	log_test "IGMPv3 group $TEST_GROUP exclude timeout"
 
 	ip link set dev br0 type bridge mcast_query_interval 12500 \
-					mcast_query_response_interval 1000
+					mcast_query_response_interval 1000 \
+					mcast_membership_interval 26000
 
 	v3cleanup $swp1 $TEST_GROUP
 }

@@ -584,7 +584,7 @@ static void qedf_build_fcp_cmnd(struct qedf_ioreq *io_req,
 }
 
 static void  qedf_init_task(struct qedf_rport *fcport, struct fc_lport *lport,
-	struct qedf_ioreq *io_req, struct e4_fcoe_task_context *task_ctx,
+	struct qedf_ioreq *io_req, struct fcoe_task_context *task_ctx,
 	struct fcoe_wqe *sqe)
 {
 	enum fcoe_task_type task_type;
@@ -602,7 +602,7 @@ static void  qedf_init_task(struct qedf_rport *fcport, struct fc_lport *lport,
 
 	/* Note init_initiator_rw_fcoe_task memsets the task context */
 	io_req->task = task_ctx;
-	memset(task_ctx, 0, sizeof(struct e4_fcoe_task_context));
+	memset(task_ctx, 0, sizeof(struct fcoe_task_context));
 	memset(io_req->task_params, 0, sizeof(struct fcoe_task_params));
 	memset(io_req->sgl_task_params, 0, sizeof(struct scsi_sgl_task_params));
 
@@ -674,7 +674,7 @@ static void  qedf_init_task(struct qedf_rport *fcport, struct fc_lport *lport,
 }
 
 void qedf_init_mp_task(struct qedf_ioreq *io_req,
-	struct e4_fcoe_task_context *task_ctx, struct fcoe_wqe *sqe)
+	struct fcoe_task_context *task_ctx, struct fcoe_wqe *sqe)
 {
 	struct qedf_mp_req *mp_req = &(io_req->mp_req);
 	struct qedf_rport *fcport = io_req->fcport;
@@ -692,7 +692,7 @@ void qedf_init_mp_task(struct qedf_ioreq *io_req,
 
 	memset(&tx_sgl_task_params, 0, sizeof(struct scsi_sgl_task_params));
 	memset(&rx_sgl_task_params, 0, sizeof(struct scsi_sgl_task_params));
-	memset(task_ctx, 0, sizeof(struct e4_fcoe_task_context));
+	memset(task_ctx, 0, sizeof(struct fcoe_task_context));
 	memset(&task_fc_hdr, 0, sizeof(struct fcoe_tx_mid_path_params));
 
 	/* Setup the task from io_req for easy reference */
@@ -850,7 +850,7 @@ int qedf_post_io_req(struct qedf_rport *fcport, struct qedf_ioreq *io_req)
 	struct Scsi_Host *host = sc_cmd->device->host;
 	struct fc_lport *lport = shost_priv(host);
 	struct qedf_ctx *qedf = lport_priv(lport);
-	struct e4_fcoe_task_context *task_ctx;
+	struct fcoe_task_context *task_ctx;
 	u16 xid;
 	struct fcoe_wqe *sqe;
 	u16 sqe_idx;
@@ -2293,7 +2293,7 @@ static int qedf_execute_tmf(struct qedf_rport *fcport, struct scsi_cmnd *sc_cmd,
 	uint8_t tm_flags)
 {
 	struct qedf_ioreq *io_req;
-	struct e4_fcoe_task_context *task;
+	struct fcoe_task_context *task;
 	struct qedf_ctx *qedf = fcport->qedf;
 	struct fc_lport *lport = qedf->lport;
 	int rc = 0;

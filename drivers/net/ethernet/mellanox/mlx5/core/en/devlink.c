@@ -24,7 +24,7 @@ int mlx5e_devlink_port_register(struct mlx5e_priv *priv)
 
 	if (mlx5_core_is_pf(priv->mdev)) {
 		attrs.flavour = DEVLINK_PORT_FLAVOUR_PHYSICAL;
-		attrs.phys.port_number = PCI_FUNC(priv->mdev->pdev->devfn);
+		attrs.phys.port_number = mlx5_get_dev_index(priv->mdev);
 		if (MLX5_ESWITCH_MANAGER(priv->mdev)) {
 			mlx5e_devlink_get_port_parent_id(priv->mdev, &ppid);
 			memcpy(attrs.switch_id.id, ppid.id, ppid.id_len);

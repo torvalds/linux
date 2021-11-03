@@ -29,6 +29,7 @@
 #define QBMAN_CINH_SWP_EQCR_AM_RT   0x980
 #define QBMAN_CINH_SWP_RCR_AM_RT    0x9c0
 #define QBMAN_CINH_SWP_DQPI    0xa00
+#define QBMAN_CINH_SWP_DQRR_ITR     0xa80
 #define QBMAN_CINH_SWP_DCAP    0xac0
 #define QBMAN_CINH_SWP_SDQCR   0xb00
 #define QBMAN_CINH_SWP_EQCR_AM_RT2  0xb40
@@ -38,6 +39,7 @@
 #define QBMAN_CINH_SWP_IER     0xe40
 #define QBMAN_CINH_SWP_ISDR    0xe80
 #define QBMAN_CINH_SWP_IIR     0xec0
+#define QBMAN_CINH_SWP_ITPR    0xf40
 
 /* CENA register offsets */
 #define QBMAN_CENA_SWP_EQCR(n) (0x000 + ((u32)(n) << 6))
@@ -354,6 +356,9 @@ struct qbman_swp *qbman_swp_init(const struct qbman_swp_desc *d)
 	p->eqcr.ci = qbman_read_register(p, QBMAN_CINH_SWP_EQCR_CI)
 			& p->eqcr.pi_ci_mask;
 	p->eqcr.available = p->eqcr.pi_ring_size;
+
+	/* Initialize the software portal with a irq timeout period of 0us */
+	qbman_swp_set_irq_coalescing(p, p->dqrr.dqrr_size - 1, 0);
 
 	return p;
 }
@@ -1795,4 +1800,57 @@ int qbman_bp_query(struct qbman_swp *s, u16 bpid,
 u32 qbman_bp_info_num_free_bufs(struct qbman_bp_query_rslt *a)
 {
 	return le32_to_cpu(a->fill);
+}
+
+/**
+ * qbman_swp_set_irq_coalescing() - Set new IRQ coalescing values
+ * @p: the software portal object
+ * @irq_threshold: interrupt threshold
+ * @irq_holdoff: interrupt holdoff (timeout) period in us
+ *
+ * Return 0 for success, or negative error code on error.
+ */
+int qbman_swp_set_irq_coalescing(struct qbman_swp *p, u32 irq_threshold,
+				 u32 irq_holdoff)
+{
+	u32 itp, max_holdoff;
+
+	/* Convert irq_holdoff value from usecs to 256 QBMAN clock cycles
+	 * increments. This depends on the QBMAN internal frequency.
+	 */
+	itp = (irq_holdoff * 1000) / p->desc->qman_256_cycles_per_ns;
+	if (itp > 4096) {
+		max_holdoff = (p->desc->qman_256_cycles_per_ns * 4096) / 1000;
+		pr_err("irq_holdoff must be <= %uus\n", max_holdoff);
+		return -EINVAL;
+	}
+
+	if (irq_threshold >= p->dqrr.dqrr_size) {
+		pr_err("irq_threshold must be < %u\n", p->dqrr.dqrr_size - 1);
+		return -EINVAL;
+	}
+
+	p->irq_threshold = irq_threshold;
+	p->irq_holdoff = irq_holdoff;
+
+	qbman_write_register(p, QBMAN_CINH_SWP_DQRR_ITR, irq_threshold);
+	qbman_write_register(p, QBMAN_CINH_SWP_ITPR, itp);
+
+	return 0;
+}
+
+/**
+ * qbman_swp_get_irq_coalescing() - Get the current IRQ coalescing parameters
+ * @p: the software portal object
+ * @irq_threshold: interrupt threshold (an IRQ is generated when there are more
+ * DQRR entries in the portal than the threshold)
+ * @irq_holdoff: interrupt holdoff (timeout) period in us
+ */
+void qbman_swp_get_irq_coalescing(struct qbman_swp *p, u32 *irq_threshold,
+				  u32 *irq_holdoff)
+{
+	if (irq_threshold)
+		*irq_threshold = p->irq_threshold;
+	if (irq_holdoff)
+		*irq_holdoff = p->irq_holdoff;
 }

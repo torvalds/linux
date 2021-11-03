@@ -192,7 +192,6 @@ static int shmob_drm_probe(struct platform_device *pdev)
 	struct shmob_drm_platform_data *pdata = pdev->dev.platform_data;
 	struct shmob_drm_device *sdev;
 	struct drm_device *ddev;
-	struct resource *res;
 	unsigned int i;
 	int ret;
 
@@ -215,8 +214,7 @@ static int shmob_drm_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, sdev);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	sdev->mmio = devm_ioremap_resource(&pdev->dev, res);
+	sdev->mmio = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(sdev->mmio))
 		return PTR_ERR(sdev->mmio);
 

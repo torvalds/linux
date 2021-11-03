@@ -749,9 +749,9 @@ static int read_file_misc(struct seq_file *file, void *data)
 
 static int read_file_reset(struct seq_file *file, void *data)
 {
-	struct ieee80211_hw *hw = dev_get_drvdata(file->private);
-	struct ath_softc *sc = hw->priv;
+	struct ath_softc *sc = file->private;
 	static const char * const reset_cause[__RESET_TYPE_MAX] = {
+		[RESET_TYPE_USER] = "User reset",
 		[RESET_TYPE_BB_HANG] = "Baseband Hang",
 		[RESET_TYPE_BB_WATCHDOG] = "Baseband Watchdog",
 		[RESET_TYPE_FATAL_INT] = "Fatal HW Error",
@@ -778,6 +778,55 @@ static int read_file_reset(struct seq_file *file, void *data)
 
 	return 0;
 }
+
+static int open_file_reset(struct inode *inode, struct file *f)
+{
+	return single_open(f, read_file_reset, inode->i_private);
+}
+
+static ssize_t write_file_reset(struct file *file,
+				const char __user *user_buf,
+				size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file_inode(file)->i_private;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
+	unsigned long val;
+	char buf[32];
+	ssize_t len;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+	if (kstrtoul(buf, 0, &val))
+		return -EINVAL;
+
+	if (val != 1)
+		return -EINVAL;
+
+	/* avoid rearming hw_reset_work on shutdown */
+	mutex_lock(&sc->mutex);
+	if (test_bit(ATH_OP_INVALID, &common->op_flags)) {
+		mutex_unlock(&sc->mutex);
+		return -EBUSY;
+	}
+
+	ath9k_queue_reset(sc, RESET_TYPE_USER);
+	mutex_unlock(&sc->mutex);
+
+	return count;
+}
+
+static const struct file_operations fops_reset = {
+	.read = seq_read,
+	.write = write_file_reset,
+	.open = open_file_reset,
+	.owner = THIS_MODULE,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
 
 void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
 		       struct ath_tx_status *ts, struct ath_txq *txq,
@@ -1393,8 +1442,8 @@ int ath9k_init_debug(struct ath_hw *ah)
 				    read_file_queues);
 	debugfs_create_devm_seqfile(sc->dev, "misc", sc->debug.debugfs_phy,
 				    read_file_misc);
-	debugfs_create_devm_seqfile(sc->dev, "reset", sc->debug.debugfs_phy,
-				    read_file_reset);
+	debugfs_create_file("reset", 0600, sc->debug.debugfs_phy,
+			    sc, &fops_reset);
 
 	ath9k_cmn_debug_recv(sc->debug.debugfs_phy, &sc->debug.stats.rxstats);
 	ath9k_cmn_debug_phy_err(sc->debug.debugfs_phy, &sc->debug.stats.rxstats);

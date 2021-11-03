@@ -5,6 +5,7 @@
  * Copyright (C) 2020 Christoph Hellwig
  */
 #include <linux/fs.h>
+#include <linux/major.h>
 #include <linux/slab.h>
 #include <linux/ctype.h>
 #include <linux/genhd.h>
@@ -90,6 +91,7 @@ static void bdev_set_nr_sectors(struct block_device *bdev, sector_t sectors)
 {
 	spin_lock(&bdev->bd_size_lock);
 	i_size_write(bdev->bd_inode, (loff_t)sectors << SECTOR_SHIFT);
+	bdev->bd_nr_sectors = sectors;
 	spin_unlock(&bdev->bd_size_lock);
 }
 
@@ -203,7 +205,7 @@ static ssize_t part_alignment_offset_show(struct device *dev,
 	struct block_device *bdev = dev_to_bdev(dev);
 
 	return sprintf(buf, "%u\n",
-		queue_limit_alignment_offset(&bdev->bd_disk->queue->limits,
+		queue_limit_alignment_offset(&bdev_get_queue(bdev)->limits,
 				bdev->bd_start_sect));
 }
 
@@ -213,7 +215,7 @@ static ssize_t part_discard_alignment_show(struct device *dev,
 	struct block_device *bdev = dev_to_bdev(dev);
 
 	return sprintf(buf, "%u\n",
-		queue_limit_discard_alignment(&bdev->bd_disk->queue->limits,
+		queue_limit_discard_alignment(&bdev_get_queue(bdev)->limits,
 				bdev->bd_start_sect));
 }
 

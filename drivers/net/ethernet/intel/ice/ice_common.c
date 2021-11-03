@@ -72,6 +72,27 @@ bool ice_is_e810(struct ice_hw *hw)
 }
 
 /**
+ * ice_is_e810t
+ * @hw: pointer to the hardware structure
+ *
+ * returns true if the device is E810T based, false if not.
+ */
+bool ice_is_e810t(struct ice_hw *hw)
+{
+	switch (hw->device_id) {
+	case ICE_DEV_ID_E810C_SFP:
+		if (hw->subsystem_device_id == ICE_SUBDEV_ID_E810T ||
+		    hw->subsystem_device_id == ICE_SUBDEV_ID_E810T2)
+			return true;
+		break;
+	default:
+		break;
+	}
+
+	return false;
+}
+
+/**
  * ice_clear_pf_cfg - Clear PF configuration
  * @hw: pointer to the hardware structure
  *
@@ -242,11 +263,13 @@ ice_aq_get_link_topo_handle(struct ice_port_info *pi, u8 node_type,
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_get_link_topo);
 
-	cmd->addr.node_type_ctx = (ICE_AQC_LINK_TOPO_NODE_CTX_PORT <<
-				   ICE_AQC_LINK_TOPO_NODE_CTX_S);
+	cmd->addr.topo_params.node_type_ctx =
+		(ICE_AQC_LINK_TOPO_NODE_CTX_PORT <<
+		 ICE_AQC_LINK_TOPO_NODE_CTX_S);
 
 	/* set node type */
-	cmd->addr.node_type_ctx |= (ICE_AQC_LINK_TOPO_NODE_TYPE_M & node_type);
+	cmd->addr.topo_params.node_type_ctx |=
+		(ICE_AQC_LINK_TOPO_NODE_TYPE_M & node_type);
 
 	return ice_aq_send_cmd(pi->hw, &desc, NULL, 0, cd);
 }
@@ -570,6 +593,7 @@ static enum ice_status ice_init_fltr_mgmt_struct(struct ice_hw *hw)
 		return ICE_ERR_NO_MEMORY;
 
 	INIT_LIST_HEAD(&sw->vsi_list_map_head);
+	sw->prof_res_bm_init = 0;
 
 	status = ice_init_def_sw_recp(hw);
 	if (status) {
@@ -596,17 +620,42 @@ static void ice_cleanup_fltr_mgmt_struct(struct ice_hw *hw)
 		list_del(&v_pos_map->list_entry);
 		devm_kfree(ice_hw_to_dev(hw), v_pos_map);
 	}
-	recps = hw->switch_info->recp_list;
-	for (i = 0; i < ICE_SW_LKUP_LAST; i++) {
-		struct ice_fltr_mgmt_list_entry *lst_itr, *tmp_entry;
+	recps = sw->recp_list;
+	for (i = 0; i < ICE_MAX_NUM_RECIPES; i++) {
+		struct ice_recp_grp_entry *rg_entry, *tmprg_entry;
 
 		recps[i].root_rid = i;
-		mutex_destroy(&recps[i].filt_rule_lock);
-		list_for_each_entry_safe(lst_itr, tmp_entry,
-					 &recps[i].filt_rules, list_entry) {
-			list_del(&lst_itr->list_entry);
-			devm_kfree(ice_hw_to_dev(hw), lst_itr);
+		list_for_each_entry_safe(rg_entry, tmprg_entry,
+					 &recps[i].rg_list, l_entry) {
+			list_del(&rg_entry->l_entry);
+			devm_kfree(ice_hw_to_dev(hw), rg_entry);
 		}
+
+		if (recps[i].adv_rule) {
+			struct ice_adv_fltr_mgmt_list_entry *tmp_entry;
+			struct ice_adv_fltr_mgmt_list_entry *lst_itr;
+
+			mutex_destroy(&recps[i].filt_rule_lock);
+			list_for_each_entry_safe(lst_itr, tmp_entry,
+						 &recps[i].filt_rules,
+						 list_entry) {
+				list_del(&lst_itr->list_entry);
+				devm_kfree(ice_hw_to_dev(hw), lst_itr->lkups);
+				devm_kfree(ice_hw_to_dev(hw), lst_itr);
+			}
+		} else {
+			struct ice_fltr_mgmt_list_entry *lst_itr, *tmp_entry;
+
+			mutex_destroy(&recps[i].filt_rule_lock);
+			list_for_each_entry_safe(lst_itr, tmp_entry,
+						 &recps[i].filt_rules,
+						 list_entry) {
+				list_del(&lst_itr->list_entry);
+				devm_kfree(ice_hw_to_dev(hw), lst_itr);
+			}
+		}
+		if (recps[i].root_buf)
+			devm_kfree(ice_hw_to_dev(hw), recps[i].root_buf);
 	}
 	ice_rm_all_sw_replay_rule_info(hw);
 	devm_kfree(ice_hw_to_dev(hw), sw->recp_list);
@@ -4765,6 +4814,64 @@ ice_aq_get_driver_param(struct ice_hw *hw, enum ice_aqc_driver_params idx,
 
 	*value = le32_to_cpu(cmd->param_val);
 
+	return 0;
+}
+
+/**
+ * ice_aq_set_gpio
+ * @hw: pointer to the hw struct
+ * @gpio_ctrl_handle: GPIO controller node handle
+ * @pin_idx: IO Number of the GPIO that needs to be set
+ * @value: SW provide IO value to set in the LSB
+ * @cd: pointer to command details structure or NULL
+ *
+ * Sends 0x06EC AQ command to set the GPIO pin state that's part of the topology
+ */
+int
+ice_aq_set_gpio(struct ice_hw *hw, u16 gpio_ctrl_handle, u8 pin_idx, bool value,
+		struct ice_sq_cd *cd)
+{
+	struct ice_aqc_gpio *cmd;
+	struct ice_aq_desc desc;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_set_gpio);
+	cmd = &desc.params.read_write_gpio;
+	cmd->gpio_ctrl_handle = cpu_to_le16(gpio_ctrl_handle);
+	cmd->gpio_num = pin_idx;
+	cmd->gpio_val = value ? 1 : 0;
+
+	return ice_status_to_errno(ice_aq_send_cmd(hw, &desc, NULL, 0, cd));
+}
+
+/**
+ * ice_aq_get_gpio
+ * @hw: pointer to the hw struct
+ * @gpio_ctrl_handle: GPIO controller node handle
+ * @pin_idx: IO Number of the GPIO that needs to be set
+ * @value: IO value read
+ * @cd: pointer to command details structure or NULL
+ *
+ * Sends 0x06ED AQ command to get the value of a GPIO signal which is part of
+ * the topology
+ */
+int
+ice_aq_get_gpio(struct ice_hw *hw, u16 gpio_ctrl_handle, u8 pin_idx,
+		bool *value, struct ice_sq_cd *cd)
+{
+	struct ice_aqc_gpio *cmd;
+	struct ice_aq_desc desc;
+	enum ice_status status;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_get_gpio);
+	cmd = &desc.params.read_write_gpio;
+	cmd->gpio_ctrl_handle = cpu_to_le16(gpio_ctrl_handle);
+	cmd->gpio_num = pin_idx;
+
+	status = ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
+	if (status)
+		return ice_status_to_errno(status);
+
+	*value = !!cmd->gpio_val;
 	return 0;
 }
 

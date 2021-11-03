@@ -2,29 +2,20 @@
 #ifndef _ASM_PARISC_THREAD_INFO_H
 #define _ASM_PARISC_THREAD_INFO_H
 
-#ifdef __KERNEL__
-
 #ifndef __ASSEMBLY__
 #include <asm/processor.h>
 #include <asm/special_insns.h>
 
 struct thread_info {
-	struct task_struct *task;	/* main task structure */
 	unsigned long flags;		/* thread_info flags (see TIF_*) */
-	__u32 cpu;			/* current CPU */
 	int preempt_count;		/* 0=premptable, <0=BUG; will also serve as bh-counter */
 };
 
 #define INIT_THREAD_INFO(tsk)			\
 {						\
-	.task		= &tsk,			\
 	.flags		= 0,			\
-	.cpu		= 0,			\
 	.preempt_count	= INIT_PREEMPT_COUNT,	\
 }
-
-/* how to get the thread information struct from C */
-#define current_thread_info()	((struct thread_info *)mfctl(30))
 
 #endif /* !__ASSEMBLY */
 
@@ -57,6 +48,7 @@ struct thread_info {
 #define TIF_BLOCKSTEP		10	/* branch stepping? */
 #define TIF_SECCOMP		11	/* secure computing */
 #define TIF_SYSCALL_TRACEPOINT	12	/* syscall tracepoint instrumentation */
+#define TIF_NONBLOCK_WARNING	13	/* warned about wrong O_NONBLOCK usage */
 
 #define _TIF_SYSCALL_TRACE	(1 << TIF_SYSCALL_TRACE)
 #define _TIF_SIGPENDING		(1 << TIF_SIGPENDING)
@@ -86,7 +78,5 @@ struct thread_info {
 #else
 # define is_32bit_task()	(1)
 #endif
-
-#endif /* __KERNEL__ */
 
 #endif /* _ASM_PARISC_THREAD_INFO_H */

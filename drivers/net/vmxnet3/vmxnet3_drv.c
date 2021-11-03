@@ -46,7 +46,7 @@ MODULE_DEVICE_TABLE(pci, vmxnet3_pciid_table);
 static int enable_mq = 1;
 
 static void
-vmxnet3_write_mac_addr(struct vmxnet3_adapter *adapter, u8 *mac);
+vmxnet3_write_mac_addr(struct vmxnet3_adapter *adapter, const u8 *mac);
 
 /*
  *    Enable/Disable the given intr
@@ -2806,7 +2806,7 @@ vmxnet3_quiesce_dev(struct vmxnet3_adapter *adapter)
 
 
 static void
-vmxnet3_write_mac_addr(struct vmxnet3_adapter *adapter, u8 *mac)
+vmxnet3_write_mac_addr(struct vmxnet3_adapter *adapter, const u8 *mac)
 {
 	u32 tmp;
 
@@ -2824,7 +2824,7 @@ vmxnet3_set_mac_addr(struct net_device *netdev, void *p)
 	struct sockaddr *addr = p;
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 
-	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
+	dev_addr_set(netdev, addr->sa_data);
 	vmxnet3_write_mac_addr(adapter, addr->sa_data);
 
 	return 0;
@@ -3638,7 +3638,7 @@ vmxnet3_probe_device(struct pci_dev *pdev,
 #endif
 
 	vmxnet3_read_mac_addr(adapter, mac);
-	memcpy(netdev->dev_addr,  mac, netdev->addr_len);
+	dev_addr_set(netdev, mac);
 
 	netdev->netdev_ops = &vmxnet3_netdev_ops;
 	vmxnet3_set_ethtool_ops(netdev);

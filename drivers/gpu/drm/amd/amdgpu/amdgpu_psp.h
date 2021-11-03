@@ -34,16 +34,19 @@
 
 #define PSP_FENCE_BUFFER_SIZE	0x1000
 #define PSP_CMD_BUFFER_SIZE	0x1000
-#define PSP_XGMI_SHARED_MEM_SIZE 0x4000
-#define PSP_RAS_SHARED_MEM_SIZE 0x4000
 #define PSP_1_MEG		0x100000
 #define PSP_TMR_SIZE(adev)	((adev)->asic_type == CHIP_ALDEBARAN ? 0x800000 : 0x400000)
-#define PSP_HDCP_SHARED_MEM_SIZE	0x4000
-#define PSP_DTM_SHARED_MEM_SIZE	0x4000
-#define PSP_RAP_SHARED_MEM_SIZE	0x4000
-#define PSP_SECUREDISPLAY_SHARED_MEM_SIZE	0x4000
-#define PSP_SHARED_MEM_SIZE		0x4000
 #define PSP_FW_NAME_LEN		0x24
+
+enum psp_shared_mem_size {
+	PSP_ASD_SHARED_MEM_SIZE				= 0x0,
+	PSP_XGMI_SHARED_MEM_SIZE			= 0x4000,
+	PSP_RAS_SHARED_MEM_SIZE				= 0x4000,
+	PSP_HDCP_SHARED_MEM_SIZE			= 0x4000,
+	PSP_DTM_SHARED_MEM_SIZE				= 0x4000,
+	PSP_RAP_SHARED_MEM_SIZE				= 0x4000,
+	PSP_SECUREDISPLAY_SHARED_MEM_SIZE	= 0x4000,
+};
 
 struct psp_context;
 struct psp_xgmi_node_info;
@@ -131,21 +134,26 @@ struct psp_xgmi_topology_info {
 	struct psp_xgmi_node_info	nodes[AMDGPU_XGMI_MAX_CONNECTED_NODES];
 };
 
-struct psp_asd_context {
-	bool			asd_initialized;
-	uint32_t		session_id;
+struct psp_bin_desc {
+	uint32_t fw_version;
+	uint32_t feature_version;
+	uint32_t size_bytes;
+	uint8_t *start_addr;
 };
 
 struct ta_mem_context {
 	struct amdgpu_bo		*shared_bo;
 	uint64_t		shared_mc_addr;
 	void			*shared_buf;
+	enum psp_shared_mem_size	shared_mem_size;
 };
 
 struct ta_context {
 	bool			initialized;
 	uint32_t		session_id;
 	struct ta_mem_context	mem_context;
+	struct psp_bin_desc		bin_desc;
+	enum psp_gfx_cmd_id		ta_load_type;
 };
 
 struct ta_cp_context {
@@ -263,13 +271,6 @@ struct psp_runtime_boot_cfg_entry {
 	uint32_t reserved;
 };
 
-struct psp_bin_desc {
-	uint32_t fw_version;
-	uint32_t feature_version;
-	uint32_t size_bytes;
-	uint8_t *start_addr;
-};
-
 struct psp_context
 {
 	struct amdgpu_device            *adev;
@@ -301,7 +302,6 @@ struct psp_context
 
 	/* asd firmware */
 	const struct firmware	*asd_fw;
-	struct psp_bin_desc		asd;
 
 	/* toc firmware */
 	const struct firmware		*toc_fw;
@@ -326,14 +326,8 @@ struct psp_context
 	/* xgmi ta firmware and buffer */
 	const struct firmware		*ta_fw;
 	uint32_t			ta_fw_version;
-	struct psp_bin_desc		xgmi;
-	struct psp_bin_desc		ras;
-	struct psp_bin_desc		hdcp;
-	struct psp_bin_desc		dtm;
-	struct psp_bin_desc		rap;
-	struct psp_bin_desc		securedisplay;
 
-	struct psp_asd_context		asd_context;
+	struct ta_context		asd_context;
 	struct psp_xgmi_context		xgmi_context;
 	struct psp_ras_context		ras_context;
 	struct ta_cp_context		hdcp_context;

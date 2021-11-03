@@ -294,19 +294,19 @@ static void print_osnoise_headers(struct seq_file *s)
 	seq_puts(s, "#                                _-----=> irqs-off\n");
 	seq_puts(s, "#                               / _----=> need-resched\n");
 	seq_puts(s, "#                              | / _---=> hardirq/softirq\n");
-	seq_puts(s, "#                              || / _--=> preempt-depth     ");
-	seq_puts(s, "                       MAX\n");
-
-	seq_puts(s, "#                              || /                         ");
+	seq_puts(s, "#                              || / _--=> preempt-depth\n");
+	seq_puts(s, "#                              ||| / _-=> migrate-disable     ");
+	seq_puts(s, "                    MAX\n");
+	seq_puts(s, "#                              |||| /     delay               ");
 	seq_puts(s, "                    SINGLE      Interference counters:\n");
 
-	seq_puts(s, "#                              ||||               RUNTIME   ");
+	seq_puts(s, "#                              |||||               RUNTIME   ");
 	seq_puts(s, "   NOISE  %% OF CPU  NOISE    +-----------------------------+\n");
 
-	seq_puts(s, "#           TASK-PID      CPU# ||||   TIMESTAMP    IN US    ");
+	seq_puts(s, "#           TASK-PID      CPU# |||||   TIMESTAMP    IN US    ");
 	seq_puts(s, "   IN US  AVAILABLE  IN US     HW    NMI    IRQ   SIRQ THREAD\n");
 
-	seq_puts(s, "#              | |         |   ||||      |           |      ");
+	seq_puts(s, "#              | |         |   |||||      |           |      ");
 	seq_puts(s, "       |    |            |      |      |      |      |      |\n");
 }
 #endif /* CONFIG_PREEMPT_RT */
@@ -378,11 +378,12 @@ static void print_timerlat_headers(struct seq_file *s)
 	seq_puts(s, "#                               / _----=> need-resched\n");
 	seq_puts(s, "#                              | / _---=> hardirq/softirq\n");
 	seq_puts(s, "#                              || / _--=> preempt-depth\n");
-	seq_puts(s, "#                              || /\n");
-	seq_puts(s, "#                              ||||             ACTIVATION\n");
-	seq_puts(s, "#           TASK-PID      CPU# ||||   TIMESTAMP    ID     ");
-	seq_puts(s, "       CONTEXT                LATENCY\n");
-	seq_puts(s, "#              | |         |   ||||      |         |      ");
+	seq_puts(s, "#                              ||| / _-=> migrate-disable\n");
+	seq_puts(s, "#                              |||| /     delay\n");
+	seq_puts(s, "#                              |||||            ACTIVATION\n");
+	seq_puts(s, "#           TASK-PID      CPU# |||||   TIMESTAMP   ID      ");
+	seq_puts(s, "      CONTEXT                 LATENCY\n");
+	seq_puts(s, "#              | |         |   |||||      |         |      ");
 	seq_puts(s, "            |                       |\n");
 }
 #endif /* CONFIG_PREEMPT_RT */
@@ -1856,38 +1857,38 @@ static int init_tracefs(void)
 	if (!top_dir)
 		return 0;
 
-	tmp = tracefs_create_file("period_us", 0640, top_dir,
+	tmp = tracefs_create_file("period_us", TRACE_MODE_WRITE, top_dir,
 				  &osnoise_period, &trace_min_max_fops);
 	if (!tmp)
 		goto err;
 
-	tmp = tracefs_create_file("runtime_us", 0644, top_dir,
+	tmp = tracefs_create_file("runtime_us", TRACE_MODE_WRITE, top_dir,
 				  &osnoise_runtime, &trace_min_max_fops);
 	if (!tmp)
 		goto err;
 
-	tmp = tracefs_create_file("stop_tracing_us", 0640, top_dir,
+	tmp = tracefs_create_file("stop_tracing_us", TRACE_MODE_WRITE, top_dir,
 				  &osnoise_stop_tracing_in, &trace_min_max_fops);
 	if (!tmp)
 		goto err;
 
-	tmp = tracefs_create_file("stop_tracing_total_us", 0640, top_dir,
+	tmp = tracefs_create_file("stop_tracing_total_us", TRACE_MODE_WRITE, top_dir,
 				  &osnoise_stop_tracing_total, &trace_min_max_fops);
 	if (!tmp)
 		goto err;
 
-	tmp = trace_create_file("cpus", 0644, top_dir, NULL, &cpus_fops);
+	tmp = trace_create_file("cpus", TRACE_MODE_WRITE, top_dir, NULL, &cpus_fops);
 	if (!tmp)
 		goto err;
 #ifdef CONFIG_TIMERLAT_TRACER
 #ifdef CONFIG_STACKTRACE
-	tmp = tracefs_create_file("print_stack", 0640, top_dir,
+	tmp = tracefs_create_file("print_stack", TRACE_MODE_WRITE, top_dir,
 				  &osnoise_print_stack, &trace_min_max_fops);
 	if (!tmp)
 		goto err;
 #endif
 
-	tmp = tracefs_create_file("timerlat_period_us", 0640, top_dir,
+	tmp = tracefs_create_file("timerlat_period_us", TRACE_MODE_WRITE, top_dir,
 				  &timerlat_period, &trace_min_max_fops);
 	if (!tmp)
 		goto err;

@@ -491,9 +491,10 @@ static int lan743x_ptp_perout(struct lan743x_adapter *adapter, int on,
 	int perout_pin = 0;
 	unsigned int index = perout_request->index;
 	struct lan743x_ptp_perout *perout = &ptp->perout[index];
+	int ret = 0;
 
 	/* Reject requests with unsupported flags */
-	if (perout_request->flags)
+	if (perout_request->flags & ~PTP_PEROUT_DUTY_CYCLE)
 		return -EOPNOTSUPP;
 
 	if (on) {
@@ -518,6 +519,7 @@ static int lan743x_ptp_perout(struct lan743x_adapter *adapter, int on,
 		netif_warn(adapter, drv, adapter->netdev,
 			   "Failed to reserve event channel %d for PEROUT\n",
 			   index);
+		ret = -EBUSY;
 		goto failed;
 	}
 
@@ -529,6 +531,7 @@ static int lan743x_ptp_perout(struct lan743x_adapter *adapter, int on,
 		netif_warn(adapter, drv, adapter->netdev,
 			   "Failed to reserve gpio %d for PEROUT\n",
 			   perout_pin);
+		ret = -EBUSY;
 		goto failed;
 	}
 
@@ -540,27 +543,93 @@ static int lan743x_ptp_perout(struct lan743x_adapter *adapter, int on,
 	period_sec += perout_request->period.nsec / 1000000000;
 	period_nsec = perout_request->period.nsec % 1000000000;
 
-	if (period_sec == 0) {
-		if (period_nsec >= 400000000) {
+	if (perout_request->flags & PTP_PEROUT_DUTY_CYCLE) {
+		struct timespec64 ts_on, ts_period;
+		s64 wf_high, period64, half;
+		s32 reminder;
+
+		ts_on.tv_sec = perout_request->on.sec;
+		ts_on.tv_nsec = perout_request->on.nsec;
+		wf_high = timespec64_to_ns(&ts_on);
+		ts_period.tv_sec = perout_request->period.sec;
+		ts_period.tv_nsec = perout_request->period.nsec;
+		period64 = timespec64_to_ns(&ts_period);
+
+		if (period64 < 200) {
+			netif_warn(adapter, drv, adapter->netdev,
+				   "perout period too small, minimum is 200nS\n");
+			ret = -EOPNOTSUPP;
+			goto failed;
+		}
+		if (wf_high >= period64) {
+			netif_warn(adapter, drv, adapter->netdev,
+				   "pulse width must be smaller than period\n");
+			ret = -EINVAL;
+			goto failed;
+		}
+
+		/* Check if we can do 50% toggle on an even value of period.
+		 * If the period number is odd, then check if the requested
+		 * pulse width is the same as one of pre-defined width values.
+		 * Otherwise, return failure.
+		 */
+		half = div_s64_rem(period64, 2, &reminder);
+		if (!reminder) {
+			if (half == wf_high) {
+				/* It's 50% match. Use the toggle option */
+				pulse_width = PTP_GENERAL_CONFIG_CLOCK_EVENT_TOGGLE_;
+				/* In this case, devide period value by 2 */
+				ts_period = ns_to_timespec64(div_s64(period64, 2));
+				period_sec = ts_period.tv_sec;
+				period_nsec = ts_period.tv_nsec;
+
+				goto program;
+			}
+		}
+		/* if we can't do toggle, then the width option needs to be the exact match */
+		if (wf_high == 200000000) {
 			pulse_width = PTP_GENERAL_CONFIG_CLOCK_EVENT_200MS_;
-		} else if (period_nsec >= 20000000) {
+		} else if (wf_high == 10000000) {
 			pulse_width = PTP_GENERAL_CONFIG_CLOCK_EVENT_10MS_;
-		} else if (period_nsec >= 2000000) {
+		} else if (wf_high == 1000000) {
 			pulse_width = PTP_GENERAL_CONFIG_CLOCK_EVENT_1MS_;
-		} else if (period_nsec >= 200000) {
+		} else if (wf_high == 100000) {
 			pulse_width = PTP_GENERAL_CONFIG_CLOCK_EVENT_100US_;
-		} else if (period_nsec >= 20000) {
+		} else if (wf_high == 10000) {
 			pulse_width = PTP_GENERAL_CONFIG_CLOCK_EVENT_10US_;
-		} else if (period_nsec >= 200) {
+		} else if (wf_high == 100) {
 			pulse_width = PTP_GENERAL_CONFIG_CLOCK_EVENT_100NS_;
 		} else {
 			netif_warn(adapter, drv, adapter->netdev,
-				   "perout period too small, minimum is 200nS\n");
+				   "duty cycle specified is not supported\n");
+			ret = -EOPNOTSUPP;
 			goto failed;
 		}
 	} else {
-		pulse_width = PTP_GENERAL_CONFIG_CLOCK_EVENT_200MS_;
+		if (period_sec == 0) {
+			if (period_nsec >= 400000000) {
+				pulse_width = PTP_GENERAL_CONFIG_CLOCK_EVENT_200MS_;
+			} else if (period_nsec >= 20000000) {
+				pulse_width = PTP_GENERAL_CONFIG_CLOCK_EVENT_10MS_;
+			} else if (period_nsec >= 2000000) {
+				pulse_width = PTP_GENERAL_CONFIG_CLOCK_EVENT_1MS_;
+			} else if (period_nsec >= 200000) {
+				pulse_width = PTP_GENERAL_CONFIG_CLOCK_EVENT_100US_;
+			} else if (period_nsec >= 20000) {
+				pulse_width = PTP_GENERAL_CONFIG_CLOCK_EVENT_10US_;
+			} else if (period_nsec >= 200) {
+				pulse_width = PTP_GENERAL_CONFIG_CLOCK_EVENT_100NS_;
+			} else {
+				netif_warn(adapter, drv, adapter->netdev,
+					   "perout period too small, minimum is 200nS\n");
+				ret = -EOPNOTSUPP;
+				goto failed;
+			}
+		} else {
+			pulse_width = PTP_GENERAL_CONFIG_CLOCK_EVENT_200MS_;
+		}
 	}
+program:
 
 	/* turn off by setting target far in future */
 	lan743x_csr_write(adapter,
@@ -599,7 +668,7 @@ static int lan743x_ptp_perout(struct lan743x_adapter *adapter, int on,
 
 failed:
 	lan743x_ptp_perout_off(adapter, index);
-	return -ENODEV;
+	return ret;
 }
 
 static int lan743x_ptpci_enable(struct ptp_clock_info *ptpci,

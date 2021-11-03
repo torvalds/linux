@@ -72,12 +72,10 @@ static void pt_gpio_free(struct gpio_chip *gc, unsigned offset)
 static int pt_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct acpi_device *acpi_dev;
-	acpi_handle handle = ACPI_HANDLE(dev);
 	struct pt_gpio_chip *pt_gpio;
 	int ret = 0;
 
-	if (acpi_bus_get_device(handle, &acpi_dev)) {
+	if (!ACPI_COMPANION(dev)) {
 		dev_err(dev, "PT GPIO device node not found\n");
 		return -ENODEV;
 	}
