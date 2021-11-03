@@ -8,6 +8,7 @@
 
 #include "bpf_rlimit.h"
 #include "cgroup_helpers.h"
+#include "testing_helpers.h"
 
 char bpf_log_buf[BPF_LOG_BUF_SIZE];
 
@@ -66,7 +67,7 @@ int main(int argc, char **argv)
 
 	prog[0].imm = percpu_map_fd;
 	prog[7].imm = map_fd;
-	prog_fd = bpf_load_program(BPF_PROG_TYPE_CGROUP_SKB,
+	prog_fd = bpf_test_load_program(BPF_PROG_TYPE_CGROUP_SKB,
 				   prog, insns_cnt, "GPL", 0,
 				   bpf_log_buf, BPF_LOG_BUF_SIZE);
 	if (prog_fd < 0) {
