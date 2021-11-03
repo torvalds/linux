@@ -809,7 +809,8 @@ int bch2_write_super(struct bch_fs *c)
 				 !can_mount_with_written ||
 				 (can_mount_without_written &&
 				  !can_mount_with_written), c,
-		"Unable to write superblock to sufficient devices"))
+		"Unable to write superblock to sufficient devices (from %ps)",
+		(void *) _RET_IP_))
 		ret = -1;
 out:
 	/* Make new options visible after they're persistent: */
