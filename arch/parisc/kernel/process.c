@@ -240,14 +240,11 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 }
 
 unsigned long
-get_wchan(struct task_struct *p)
+__get_wchan(struct task_struct *p)
 {
 	struct unwind_frame_info info;
 	unsigned long ip;
 	int count = 0;
-
-	if (!p || p == current || task_is_running(p))
-		return 0;
 
 	/*
 	 * These bracket the sleeping functions..
