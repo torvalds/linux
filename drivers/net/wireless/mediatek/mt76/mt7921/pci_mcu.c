@@ -4,7 +4,7 @@
 #include "mt7921.h"
 #include "mcu.h"
 
-static int mt7921e_driver_own(struct mt7921_dev *dev)
+int mt7921e_driver_own(struct mt7921_dev *dev)
 {
 	u32 reg = mt7921_reg_map_l1(dev, MT_TOP_LPCR_HOST_BAND0);
 
