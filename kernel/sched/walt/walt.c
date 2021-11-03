@@ -3823,9 +3823,9 @@ static void android_rvh_update_cpu_capacity(void *unused, int cpu, unsigned long
 {
 	unsigned long fmax_capacity = arch_scale_cpu_capacity(cpu);
 	unsigned long thermal_pressure = arch_scale_thermal_pressure(cpu);
-	unsigned long thermal_cap;
-	struct walt_sched_cluster *cluster;
+	unsigned long thermal_cap, old;
 	unsigned long rt_pressure = fmax_capacity - *capacity;
+	struct walt_sched_cluster *cluster;
 	struct rq *rq = cpu_rq(cpu);
 
 	if (unlikely(walt_disabled))
@@ -3845,7 +3845,12 @@ static void android_rvh_update_cpu_capacity(void *unused, int cpu, unsigned long
 		fmax_capacity = mult_frac(fmax_capacity, cluster->max_freq,
 					 cluster->max_possible_freq);
 
+	old = rq->cpu_capacity_orig;
 	rq->cpu_capacity_orig = min(fmax_capacity, thermal_cap);
+
+	if (old != rq->cpu_capacity_orig)
+		trace_update_cpu_capacity(cpu, rt_pressure, *capacity);
+
 	*capacity = max(rq->cpu_capacity_orig - rt_pressure, 1UL);
 }
 

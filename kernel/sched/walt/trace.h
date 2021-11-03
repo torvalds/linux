@@ -1371,7 +1371,42 @@ TRACE_EVENT(halt_cpus,
 	    TP_printk("req_cpus=0x%x halt_cpus=0x%x time=%u us halt=%d success=%d",
 		      __entry->cpus, __entry->halted_cpus,
 		      __entry->time, __entry->halt, __entry->success)
+);
 
+TRACE_EVENT(update_cpu_capacity,
+
+	TP_PROTO(int cpu, unsigned long rt_pressure, unsigned long capacity),
+
+	TP_ARGS(cpu, rt_pressure, capacity),
+
+	TP_STRUCT__entry(
+		__field(int, cpu)
+		__field(unsigned long, rt_pressure)
+		__field(unsigned long, capacity)
+		__field(unsigned long, arch_capacity)
+		__field(unsigned long, thermal_cap)
+		__field(unsigned long, max_possible_freq)
+		__field(unsigned long, max_freq)
+	),
+
+	TP_fast_assign(
+		struct walt_sched_cluster *cluster = cpu_cluster(cpu);
+
+		__entry->cpu = cpu;
+		__entry->rt_pressure = rt_pressure;
+		__entry->capacity = capacity;
+		__entry->arch_capacity = arch_scale_cpu_capacity(cpu);
+		__entry->thermal_cap = arch_scale_cpu_capacity(cpu) -
+					arch_scale_thermal_pressure(cpu);
+		__entry->max_freq = cluster->max_freq;
+		__entry->max_possible_freq = cluster->max_possible_freq;
+	),
+
+	TP_printk("cpu=%d arch_capacity=%lu thermal_cap=%lu rt_pressure=%lu max_freq=%lu max_possible_freq=%lu capacity=%lu",
+			__entry->cpu, __entry->arch_capacity,
+			__entry->thermal_cap, __entry->rt_pressure,
+			__entry->max_freq, __entry->max_possible_freq,
+			__entry->capacity)
 );
 
 #endif /* _TRACE_WALT_H */
