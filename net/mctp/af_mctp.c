@@ -30,6 +30,12 @@ static int mctp_release(struct socket *sock)
 	return 0;
 }
 
+/* Generic sockaddr checks, padding checks only so far */
+static bool mctp_sockaddr_is_ok(const struct sockaddr_mctp *addr)
+{
+	return !addr->__smctp_pad0 && !addr->__smctp_pad1;
+}
+
 static int mctp_bind(struct socket *sock, struct sockaddr *addr, int addrlen)
 {
 	struct sock *sk = sock->sk;
@@ -48,6 +54,9 @@ static int mctp_bind(struct socket *sock, struct sockaddr *addr, int addrlen)
 
 	/* it's a valid sockaddr for MCTP, cast and do protocol checks */
 	smctp = (struct sockaddr_mctp *)addr;
+
+	if (!mctp_sockaddr_is_ok(smctp))
+		return -EINVAL;
 
 	lock_sock(sk);
 
@@ -82,6 +91,8 @@ static int mctp_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 		if (addrlen < sizeof(struct sockaddr_mctp))
 			return -EINVAL;
 		if (addr->smctp_family != AF_MCTP)
+			return -EINVAL;
+		if (!mctp_sockaddr_is_ok(addr))
 			return -EINVAL;
 		if (addr->smctp_tag & ~(MCTP_TAG_MASK | MCTP_TAG_OWNER))
 			return -EINVAL;
@@ -172,11 +183,13 @@ static int mctp_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 
 		addr = msg->msg_name;
 		addr->smctp_family = AF_MCTP;
+		addr->__smctp_pad0 = 0;
 		addr->smctp_network = cb->net;
 		addr->smctp_addr.s_addr = hdr->src;
 		addr->smctp_type = type;
 		addr->smctp_tag = hdr->flags_seq_tag &
 					(MCTP_HDR_TAG_MASK | MCTP_HDR_FLAG_TO);
+		addr->__smctp_pad1 = 0;
 		msg->msg_namelen = sizeof(*addr);
 	}
 
