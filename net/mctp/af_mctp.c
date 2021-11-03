@@ -39,6 +39,13 @@ static bool mctp_sockaddr_is_ok(const struct sockaddr_mctp *addr)
 	return !addr->__smctp_pad0 && !addr->__smctp_pad1;
 }
 
+static bool mctp_sockaddr_ext_is_ok(const struct sockaddr_mctp_ext *addr)
+{
+	return !addr->__smctp_pad0[0] &&
+	       !addr->__smctp_pad0[1] &&
+	       !addr->__smctp_pad0[2];
+}
+
 static int mctp_bind(struct socket *sock, struct sockaddr *addr, int addrlen)
 {
 	struct sock *sk = sock->sk;
@@ -135,7 +142,8 @@ static int mctp_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 		DECLARE_SOCKADDR(struct sockaddr_mctp_ext *,
 				 extaddr, msg->msg_name);
 
-		if (extaddr->smctp_halen > sizeof(cb->haddr)) {
+		if (!mctp_sockaddr_ext_is_ok(extaddr) ||
+		    extaddr->smctp_halen > sizeof(cb->haddr)) {
 			rc = -EINVAL;
 			goto err_free;
 		}
@@ -224,6 +232,7 @@ static int mctp_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 			msg->msg_namelen = sizeof(*ae);
 			ae->smctp_ifindex = cb->ifindex;
 			ae->smctp_halen = cb->halen;
+			memset(ae->__smctp_pad0, 0x0, sizeof(ae->__smctp_pad0));
 			memset(ae->smctp_haddr, 0x0, sizeof(ae->smctp_haddr));
 			memcpy(ae->smctp_haddr, cb->haddr, cb->halen);
 		}
