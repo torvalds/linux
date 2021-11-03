@@ -216,6 +216,7 @@ static int panel_simple_xfer_dsi_cmd_seq(struct panel_simple *panel,
 {
 	struct device *dev = panel->base.dev;
 	struct mipi_dsi_device *dsi = panel->dsi;
+	struct drm_dsc_picture_parameter_set *pps = NULL;
 	unsigned int i;
 	int err;
 
@@ -228,6 +229,9 @@ static int panel_simple_xfer_dsi_cmd_seq(struct panel_simple *panel,
 		struct panel_cmd_desc *cmd = &seq->cmds[i];
 
 		switch (cmd->header.data_type) {
+		case MIPI_DSI_COMPRESSION_MODE:
+			err = mipi_dsi_compression_mode(dsi, cmd->payload[0]);
+			break;
 		case MIPI_DSI_GENERIC_SHORT_WRITE_0_PARAM:
 		case MIPI_DSI_GENERIC_SHORT_WRITE_1_PARAM:
 		case MIPI_DSI_GENERIC_SHORT_WRITE_2_PARAM:
@@ -240,6 +244,10 @@ static int panel_simple_xfer_dsi_cmd_seq(struct panel_simple *panel,
 		case MIPI_DSI_DCS_LONG_WRITE:
 			err = mipi_dsi_dcs_write_buffer(dsi, cmd->payload,
 							cmd->header.payload_length);
+			break;
+		case MIPI_DSI_PICTURE_PARAMETER_SET:
+			pps = (struct drm_dsc_picture_parameter_set *)cmd->payload;
+			err = mipi_dsi_picture_parameter_set(dsi, pps);
 			break;
 		default:
 			return -EINVAL;
