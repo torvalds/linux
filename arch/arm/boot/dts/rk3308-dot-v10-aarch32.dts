@@ -166,7 +166,7 @@
 		clock-names = "clk_wifi";
 		ref-clock-frequency = <24000000>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_wake_host>;
+		pinctrl-0 = <&wifi_wake_host>, <&rtc_32k>;
 		wifi_chip_type = "rtl8723ds";
 		WIFI,host_wake_irq = <&gpio0 RK_PA0 GPIO_ACTIVE_LOW>;
 		status = "okay";
