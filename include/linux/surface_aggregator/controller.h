@@ -792,8 +792,8 @@ enum ssam_event_mask {
 #define SSAM_EVENT_REGISTRY_KIP	\
 	SSAM_EVENT_REGISTRY(SSAM_SSH_TC_KIP, 0x02, 0x27, 0x28)
 
-#define SSAM_EVENT_REGISTRY_REG \
-	SSAM_EVENT_REGISTRY(SSAM_SSH_TC_REG, 0x02, 0x01, 0x02)
+#define SSAM_EVENT_REGISTRY_REG(tid)\
+	SSAM_EVENT_REGISTRY(SSAM_SSH_TC_REG, tid, 0x01, 0x02)
 
 /**
  * enum ssam_event_notifier_flags - Flags for event notifiers.

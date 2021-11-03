@@ -77,6 +77,42 @@ static const struct software_node ssam_node_bas_dtx = {
 	.parent = &ssam_node_root,
 };
 
+/* HID keyboard (TID1). */
+static const struct software_node ssam_node_hid_tid1_keyboard = {
+	.name = "ssam:01:15:01:01:00",
+	.parent = &ssam_node_root,
+};
+
+/* HID pen stash (TID1; pen taken / stashed away evens). */
+static const struct software_node ssam_node_hid_tid1_penstash = {
+	.name = "ssam:01:15:01:02:00",
+	.parent = &ssam_node_root,
+};
+
+/* HID touchpad (TID1). */
+static const struct software_node ssam_node_hid_tid1_touchpad = {
+	.name = "ssam:01:15:01:03:00",
+	.parent = &ssam_node_root,
+};
+
+/* HID device instance 6 (TID1, unknown HID device). */
+static const struct software_node ssam_node_hid_tid1_iid6 = {
+	.name = "ssam:01:15:01:06:00",
+	.parent = &ssam_node_root,
+};
+
+/* HID device instance 7 (TID1, unknown HID device). */
+static const struct software_node ssam_node_hid_tid1_iid7 = {
+	.name = "ssam:01:15:01:07:00",
+	.parent = &ssam_node_root,
+};
+
+/* HID system controls (TID1). */
+static const struct software_node ssam_node_hid_tid1_sysctrl = {
+	.name = "ssam:01:15:01:08:00",
+	.parent = &ssam_node_root,
+};
+
 /* HID keyboard. */
 static const struct software_node ssam_node_hid_main_keyboard = {
 	.name = "ssam:01:15:02:01:00",
@@ -159,6 +195,21 @@ static const struct software_node *ssam_node_group_sl3[] = {
 	NULL,
 };
 
+/* Devices for Surface Laptop Studio. */
+static const struct software_node *ssam_node_group_sls[] = {
+	&ssam_node_root,
+	&ssam_node_bat_ac,
+	&ssam_node_bat_main,
+	&ssam_node_tmp_pprof,
+	&ssam_node_hid_tid1_keyboard,
+	&ssam_node_hid_tid1_penstash,
+	&ssam_node_hid_tid1_touchpad,
+	&ssam_node_hid_tid1_iid6,
+	&ssam_node_hid_tid1_iid7,
+	&ssam_node_hid_tid1_sysctrl,
+	NULL,
+};
+
 /* Devices for Surface Laptop Go. */
 static const struct software_node *ssam_node_group_slg1[] = {
 	&ssam_node_root,
@@ -174,6 +225,15 @@ static const struct software_node *ssam_node_group_sp7[] = {
 	&ssam_node_bat_ac,
 	&ssam_node_bat_main,
 	&ssam_node_tmp_pprof,
+	NULL,
+};
+
+static const struct software_node *ssam_node_group_sp8[] = {
+	&ssam_node_root,
+	&ssam_node_bat_ac,
+	&ssam_node_bat_main,
+	&ssam_node_tmp_pprof,
+	/* TODO: Add support for keyboard cover. */
 	NULL,
 };
 
@@ -483,6 +543,9 @@ static const struct acpi_device_id ssam_platform_hub_match[] = {
 	/* Surface Pro 7+ */
 	{ "MSHW0119", (unsigned long)ssam_node_group_sp7 },
 
+	/* Surface Pro 8 */
+	{ "MSHW0263", (unsigned long)ssam_node_group_sp8 },
+
 	/* Surface Book 2 */
 	{ "MSHW0107", (unsigned long)ssam_node_group_gen5 },
 
@@ -506,6 +569,9 @@ static const struct acpi_device_id ssam_platform_hub_match[] = {
 
 	/* Surface Laptop Go 1 */
 	{ "MSHW0118", (unsigned long)ssam_node_group_slg1 },
+
+	/* Surface Laptop Studio */
+	{ "MSHW0123", (unsigned long)ssam_node_group_sls },
 
 	{ },
 };
