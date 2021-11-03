@@ -18,6 +18,8 @@
 	#size-cells = <2>;
 
 	aliases {
+		csi2dcphy0 = &csi2_dcphy0;
+		csi2dcphy1 = &csi2_dcphy1;
 		dsi0 = &dsi0;
 		dsi1 = &dsi1;
 		ethernet1 = &gmac1;
@@ -268,6 +270,18 @@
 		interrupts = <GIC_PPI 8 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-affinity = <&cpu_l0>, <&cpu_l1>, <&cpu_l2>, <&cpu_l3>,
 				     <&cpu_b0>, <&cpu_b1>, <&cpu_b2>, <&cpu_b3>;
+	};
+
+	csi2_dcphy0: csi2-dcphy0 {
+		compatible = "rockchip,rk3588-csi2-dcphy";
+		rockchip,hw = <&csi2_dcphy0_hw>;
+		status = "disabled";
+	};
+
+	csi2_dcphy1: csi2-dcphy1 {
+		compatible = "rockchip,rk3588-csi2-dcphy";
+		rockchip,hw = <&csi2_dcphy1_hw>;
+		status = "disabled";
 	};
 
 	display_subsystem: display-subsystem {
@@ -3823,6 +3837,17 @@
 		status = "disabled";
 	};
 
+	csi2_dcphy0_hw: csi2-dcphy0-hw@feda0000 {
+		compatible = "rockchip,rk3588-csi2-dcphy-hw";
+		reg = <0x0 0xfeda0000 0x0 0x10000>;
+		clocks = <&cru PCLK_MIPI_DCPHY0>;
+		clock-names = "pclk";
+		resets = <&cru SRST_S_MIPI_DCPHY0>;
+		reset-names = "phy";
+		rockchip,grf = <&mipidcphy0_grf>;
+		status = "disabled";
+	};
+
 	mipi_dcphy1: phy@fedb0000 {
 		compatible = "rockchip,rk3588-mipi-dcphy";
 		reg = <0x0 0xfedb0000 0x0 0x10000>;
@@ -3835,6 +3860,17 @@
 			 <&cru SRST_P_MIPI_DCPHY1_GRF>;
 		reset-names = "phy", "apb", "grf";
 		#phy-cells = <0>;
+		status = "disabled";
+	};
+
+	csi2_dcphy1_hw: csi2-dcphy1-hw@fedb0000 {
+		compatible = "rockchip,rk3588-csi2-dcphy-hw";
+		reg = <0x0 0xfedb0000 0x0 0x10000>;
+		clocks = <&cru PCLK_MIPI_DCPHY1>;
+		clock-names = "pclk";
+		resets = <&cru SRST_S_MIPI_DCPHY1>;
+		reset-names = "phy";
+		rockchip,grf = <&mipidcphy1_grf>;
 		status = "disabled";
 	};
 
