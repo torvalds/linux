@@ -687,8 +687,10 @@ static void cpumf_pmu_stop(struct perf_event *event, int flags)
 						      false);
 			if (cfdiag_diffctr(cpuhw, event->hw.config_base))
 				cfdiag_push_sample(event, cpuhw);
-		} else
+		} else if (cpuhw->flags & PMU_F_RESERVED) {
+			/* Only update when PMU not hotplugged off */
 			hw_perf_event_update(event);
+		}
 		hwc->state |= PERF_HES_UPTODATE;
 	}
 }
