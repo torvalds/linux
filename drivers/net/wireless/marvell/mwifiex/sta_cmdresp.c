@@ -711,8 +711,9 @@ static int mwifiex_ret_ver_ext(struct mwifiex_private *priv,
 	if (version_ext) {
 		version_ext->version_str_sel = ver_ext->version_str_sel;
 		memcpy(version_ext->version_str, ver_ext->version_str,
-		       sizeof(char) * 128);
-		memcpy(priv->version_str, ver_ext->version_str, 128);
+		       MWIFIEX_VERSION_STR_LENGTH);
+		memcpy(priv->version_str, ver_ext->version_str,
+		       MWIFIEX_VERSION_STR_LENGTH);
 	}
 	return 0;
 }

@@ -646,7 +646,7 @@ struct mwifiex_private {
 	struct wireless_dev wdev;
 	struct mwifiex_chan_freq_power cfp;
 	u32 versionstrsel;
-	char version_str[128];
+	char version_str[MWIFIEX_VERSION_STR_LENGTH];
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *dfs_dev_dir;
 #endif
