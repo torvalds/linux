@@ -24,7 +24,7 @@
 		};
 	};
 
-	rk_headset {
+	rk_headset: rk-headset {
 		status = "disabled";
 		compatible = "rockchip_headset";
 		headset_gpio = <&gpio1 RK_PD2 GPIO_ACTIVE_LOW>;

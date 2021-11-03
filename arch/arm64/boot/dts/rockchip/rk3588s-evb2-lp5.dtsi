@@ -41,7 +41,7 @@
 		};
 	};
 
-	rk_headset {
+	rk_headset: rk-headset {
 		status = "okay";
 		compatible = "rockchip_headset";
 		headset_gpio = <&gpio1 RK_PD0 GPIO_ACTIVE_LOW>;
@@ -50,7 +50,7 @@
 		io-channels = <&saradc 3>;
 	};
 
-	vbus5v0_typec: vbus-typec-regulator {
+	vbus5v0_typec: vbus5v0-typec {
 		compatible = "regulator-fixed";
 		regulator-name = "vbus5v0_typec";
 		regulator-min-microvolt = <5000000>;
@@ -62,7 +62,7 @@
 		pinctrl-0 = <&typec5v_pwren>;
 	};
 
-	vcc5v0_u2host: vcc5v0-u2host-regulator {
+	vcc5v0_u2host: vcc5v0-u2host {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_u2host";
 		regulator-boot-on;
@@ -76,7 +76,7 @@
 		pinctrl-0 = <&vcc5v0_u2host_en>;
 	};
 
-	vcc5v0_u3host: vcc5v0-u3host-regulator {
+	vcc5v0_u3host: vcc5v0-u3host {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_u3host";
 		regulator-boot-on;

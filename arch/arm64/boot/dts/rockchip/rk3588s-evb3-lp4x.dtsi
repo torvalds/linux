@@ -10,7 +10,7 @@
 #include "rk806-double.dtsi"
 
 / {
-	vbus5v0_typec: vbus-typec-regulator {
+	vbus5v0_typec: vbus5v0-typec {
 		compatible = "regulator-fixed";
 		regulator-name = "vbus5v0_typec";
 		regulator-min-microvolt = <5000000>;

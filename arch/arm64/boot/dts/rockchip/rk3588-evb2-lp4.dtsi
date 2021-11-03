@@ -41,7 +41,7 @@
 		};
 	};
 
-	rk_headset {
+	rk_headset: rk-headset {
 		status = "disabled";
 		compatible = "rockchip_headset";
 		headset_gpio = <&gpio1 RK_PA4 GPIO_ACTIVE_LOW>;
@@ -50,7 +50,7 @@
 		io-channels = <&saradc 3>;
 	};
 
-	vcc5v0_host: vcc5v0-host-regulator {
+	vcc5v0_host: vcc5v0-host {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_host";
 		regulator-boot-on;
