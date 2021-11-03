@@ -6428,12 +6428,12 @@ static int libbpf_preload_prog(struct bpf_program *prog,
 	return 0;
 }
 
-static int
-load_program(struct bpf_program *prog, struct bpf_insn *insns, int insns_cnt,
-	     char *license, __u32 kern_version, int *pfd)
+static int bpf_object_load_prog_instance(struct bpf_object *obj, struct bpf_program *prog,
+					 struct bpf_insn *insns, int insns_cnt,
+					 const char *license, __u32 kern_version,
+					 int *prog_fd)
 {
 	struct bpf_prog_load_params load_attr = {};
-	struct bpf_object *obj = prog->obj;
 	char *cp, errmsg[STRERR_BUFSIZE];
 	size_t log_buf_size = 0;
 	char *log_buf = NULL;
@@ -6494,7 +6494,7 @@ load_program(struct bpf_program *prog, struct bpf_insn *insns, int insns_cnt,
 	if (obj->gen_loader) {
 		bpf_gen__prog_load(obj->gen_loader, &load_attr,
 				   prog - obj->programs);
-		*pfd = -1;
+		*prog_fd = -1;
 		return 0;
 	}
 retry_load:
@@ -6532,7 +6532,7 @@ retry_load:
 			}
 		}
 
-		*pfd = ret;
+		*prog_fd = ret;
 		ret = 0;
 		goto out;
 	}
@@ -6608,11 +6608,12 @@ static int bpf_program__record_externs(struct bpf_program *prog)
 	return 0;
 }
 
-int bpf_program__load(struct bpf_program *prog, char *license, __u32 kern_ver)
+static int bpf_object_load_prog(struct bpf_object *obj, struct bpf_program *prog,
+				const char *license, __u32 kern_ver)
 {
 	int err = 0, fd, i;
 
-	if (prog->obj->loaded) {
+	if (obj->loaded) {
 		pr_warn("prog '%s': can't load after object was loaded\n", prog->name);
 		return libbpf_err(-EINVAL);
 	}
@@ -6638,10 +6639,11 @@ int bpf_program__load(struct bpf_program *prog, char *license, __u32 kern_ver)
 			pr_warn("prog '%s': inconsistent nr(%d) != 1\n",
 				prog->name, prog->instances.nr);
 		}
-		if (prog->obj->gen_loader)
+		if (obj->gen_loader)
 			bpf_program__record_externs(prog);
-		err = load_program(prog, prog->insns, prog->insns_cnt,
-				   license, kern_ver, &fd);
+		err = bpf_object_load_prog_instance(obj, prog,
+						    prog->insns, prog->insns_cnt,
+						    license, kern_ver, &fd);
 		if (!err)
 			prog->instances.fds[0] = fd;
 		goto out;
@@ -6669,8 +6671,9 @@ int bpf_program__load(struct bpf_program *prog, char *license, __u32 kern_ver)
 			continue;
 		}
 
-		err = load_program(prog, result.new_insn_ptr,
-				   result.new_insn_cnt, license, kern_ver, &fd);
+		err = bpf_object_load_prog_instance(obj, prog,
+						    result.new_insn_ptr, result.new_insn_cnt,
+						    license, kern_ver, &fd);
 		if (err) {
 			pr_warn("Loading the %dth instance of program '%s' failed\n",
 				i, prog->name);
@@ -6685,6 +6688,11 @@ out:
 	if (err)
 		pr_warn("failed to load program '%s'\n", prog->name);
 	return libbpf_err(err);
+}
+
+int bpf_program__load(struct bpf_program *prog, const char *license, __u32 kern_ver)
+{
+	return bpf_object_load_prog(prog->obj, prog, license, kern_ver);
 }
 
 static int
@@ -6710,7 +6718,7 @@ bpf_object__load_progs(struct bpf_object *obj, int log_level)
 			continue;
 		}
 		prog->log_level |= log_level;
-		err = bpf_program__load(prog, obj->license, obj->kern_version);
+		err = bpf_object_load_prog(obj, prog, obj->license, obj->kern_version);
 		if (err)
 			return err;
 	}

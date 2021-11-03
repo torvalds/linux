@@ -262,8 +262,8 @@ LIBBPF_API const struct bpf_insn *bpf_program__insns(const struct bpf_program *p
  */
 LIBBPF_API size_t bpf_program__insn_cnt(const struct bpf_program *prog);
 
-LIBBPF_API int bpf_program__load(struct bpf_program *prog, char *license,
-				 __u32 kern_version);
+LIBBPF_DEPRECATED_SINCE(0, 6, "use bpf_object__load() instead")
+LIBBPF_API int bpf_program__load(struct bpf_program *prog, const char *license, __u32 kern_version);
 LIBBPF_API int bpf_program__fd(const struct bpf_program *prog);
 LIBBPF_DEPRECATED_SINCE(0, 7, "multi-instance bpf_program support is deprecated")
 LIBBPF_API int bpf_program__pin_instance(struct bpf_program *prog,
