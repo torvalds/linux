@@ -90,6 +90,7 @@ struct dphy_hw_drv_data {
 struct csi2_dphy_hw {
 	struct device *dev;
 	struct regmap *regmap_grf;
+	struct regmap *regmap_sys_grf;
 	const struct grf_reg *grf_regs;
 	const struct txrx_reg *txrx_regs;
 	const struct csi2dphy_reg *csi2dphy_regs;
@@ -109,7 +110,5 @@ struct csi2_dphy_hw {
 	int (*stream_on)(struct csi2_dphy *dphy, struct v4l2_subdev *sd);
 	int (*stream_off)(struct csi2_dphy *dphy, struct v4l2_subdev *sd);
 };
-
-extern struct platform_driver rockchip_csi2_dphy_driver;
 
 #endif

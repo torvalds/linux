@@ -470,7 +470,7 @@ static int rockchip_csi2_dphy_attach_hw(struct csi2_dphy *dphy)
 	enum csi2_dphy_lane_mode target_mode;
 	int i;
 
-	if (dphy->phy_index == 0)
+	if (dphy->phy_index % 3 == 0)
 		target_mode = LANE_MODE_FULL;
 	else
 		target_mode = LANE_MODE_SPLIT;

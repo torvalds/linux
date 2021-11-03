@@ -28,11 +28,16 @@
 #define GRF_VI_CON0	(0x0340)
 #define GRF_VI_CON1	(0x0344)
 
+/*RK3588 DPHY GRF REG OFFSET */
+#define GRF_DPHY_CON0	(0x0)
+#define GRF_SOC_CON2	(0x0308)
+
 /*GRF REG BIT DEFINE */
 #define GRF_CSI2PHY_LANE_SEL_SPLIT	(0x1)
 #define GRF_CSI2PHY_SEL_SPLIT_0_1	(0x0)
 #define GRF_CSI2PHY_SEL_SPLIT_2_3	BIT(0)
 
+/*RK3588 DCPHY GRF REG OFFSET */
 #define GRF_DCPHY_CON0			(0x0)
 
 /* PHY REG OFFSET */
@@ -40,6 +45,7 @@
 #define CSI2_DPHY_CTRL_PWRCTL	\
 				CSI2_DPHY_CTRL_INVALID_OFFSET
 #define CSI2_DPHY_CTRL_LANE_ENABLE	(0x00)
+#define CSI2_DPHY_CLK1_LANE_EN		(0x2C)
 #define CSI2_DPHY_DUAL_CAL_EN		(0x80)
 #define CSI2_DPHY_CLK_WR_THS_SETTLE	(0x160)
 #define CSI2_DPHY_CLK_CALIB_EN		(0x168)
@@ -54,7 +60,7 @@
 #define CSI2_DPHY_CLK1_WR_THS_SETTLE	(0x3e0)
 #define CSI2_DPHY_CLK1_CALIB_EN		(0x3e8)
 
-#define CSI2_DCPHY_CLK_WR_THS_SETTLE		(0xB20)
+#define CSI2_DCPHY_CLK_WR_THS_SETTLE		(0xB30)
 #define CSI2_DCPHY_LANE0_WR_THS_SETTLE		(0xC30)
 #define CSI2_DCPHY_LANE0_WR_ERR_SOT_SYNC	(0xC34)
 #define CSI2_DCPHY_LANE1_WR_THS_SETTLE		(0xD30)
@@ -146,9 +152,14 @@ enum grf_reg_id {
 	GRF_DPHY_ISP_CSI2PHY_SEL,
 	GRF_DPHY_CIF_CSI2PHY_SEL,
 	GRF_DPHY_CSI2PHY_LANE_SEL,
+	GRF_DPHY_CSI2PHY1_LANE_SEL,
 	GRF_DPHY_CSI2PHY_DATALANE_EN0,
 	GRF_DPHY_CSI2PHY_DATALANE_EN1,
 	GRF_CPHY_MODE,
+	GRF_DPHY_CSIHOST2_SEL,
+	GRF_DPHY_CSIHOST3_SEL,
+	GRF_DPHY_CSIHOST4_SEL,
+	GRF_DPHY_CSIHOST5_SEL,
 };
 
 enum csi2dphy_reg_id {
@@ -174,6 +185,7 @@ enum csi2dphy_reg_id {
 	CSI2PHY_CLK1_CALIB_ENABLE,
 	//rk3588
 	CSI2PHY_CLK_LANE_ENABLE,
+	CSI2PHY_CLK1_LANE_ENABLE,
 	CSI2PHY_DATA_LANE0_ENABLE,
 	CSI2PHY_DATA_LANE1_ENABLE,
 	CSI2PHY_DATA_LANE2_ENABLE,
@@ -198,13 +210,23 @@ struct hsfreq_range {
 	u16 cfg_bit;
 };
 
+static inline void write_sys_grf_reg(struct csi2_dphy_hw *hw,
+				     int index, u8 value)
+{
+	const struct grf_reg *reg = &hw->grf_regs[index];
+	unsigned int val = HIWORD_UPDATE(value, reg->mask, reg->shift);
+
+	if (reg->shift)
+		regmap_write(hw->regmap_sys_grf, reg->offset, val);
+}
+
 static inline void write_grf_reg(struct csi2_dphy_hw *hw,
 				     int index, u8 value)
 {
 	const struct grf_reg *reg = &hw->grf_regs[index];
 	unsigned int val = HIWORD_UPDATE(value, reg->mask, reg->shift);
 
-	if (reg->offset)
+	if (reg->shift)
 		regmap_write(hw->regmap_grf, reg->offset, val);
 }
 
@@ -213,7 +235,7 @@ static inline u32 read_grf_reg(struct csi2_dphy_hw *hw, int index)
 	const struct grf_reg *reg = &hw->grf_regs[index];
 	unsigned int val = 0;
 
-	if (reg->offset) {
+	if (reg->shift) {
 		regmap_read(hw->regmap_grf, reg->offset, &val);
 		val = (val >> reg->shift) & reg->mask;
 	}
@@ -321,6 +343,41 @@ static const struct csi2dphy_reg rk3568_csi2dphy_regs[] = {
 	[CSI2PHY_CLK1_CALIB_ENABLE] = CSI2PHY_REG(CSI2_DPHY_CLK1_CALIB_EN),
 };
 
+static const struct grf_reg rk3588_grf_dphy_regs[] = {
+	[GRF_DPHY_CSI2PHY_FORCERXMODE] = GRF_REG(GRF_DPHY_CON0, 4, 0),
+	[GRF_DPHY_CSI2PHY_DATALANE_EN] = GRF_REG(GRF_DPHY_CON0, 4, 4),
+	[GRF_DPHY_CSI2PHY_DATALANE_EN0] = GRF_REG(GRF_DPHY_CON0, 2, 4),
+	[GRF_DPHY_CSI2PHY_DATALANE_EN1] = GRF_REG(GRF_DPHY_CON0, 2, 6),
+	[GRF_DPHY_CSI2PHY_CLKLANE_EN] = GRF_REG(GRF_DPHY_CON0, 1, 8),
+	[GRF_DPHY_CLK_INV_SEL] = GRF_REG(GRF_DPHY_CON0, 1, 9),
+	[GRF_DPHY_CSI2PHY_CLKLANE1_EN] = GRF_REG(GRF_DPHY_CON0, 1, 10),
+	[GRF_DPHY_CLK1_INV_SEL] = GRF_REG(GRF_DPHY_CON0, 1, 11),
+	[GRF_DPHY_CSI2PHY_LANE_SEL] = GRF_REG(GRF_SOC_CON2, 1, 6),
+	[GRF_DPHY_CSI2PHY1_LANE_SEL] = GRF_REG(GRF_SOC_CON2, 1, 7),
+	[GRF_DPHY_CSIHOST2_SEL] = GRF_REG(GRF_SOC_CON2, 1, 8),
+	[GRF_DPHY_CSIHOST3_SEL] = GRF_REG(GRF_SOC_CON2, 1, 9),
+	[GRF_DPHY_CSIHOST4_SEL] = GRF_REG(GRF_SOC_CON2, 1, 10),
+	[GRF_DPHY_CSIHOST5_SEL] = GRF_REG(GRF_SOC_CON2, 1, 11),
+};
+
+static const struct csi2dphy_reg rk3588_csi2dphy_regs[] = {
+	[CSI2PHY_REG_CTRL_LANE_ENABLE] = CSI2PHY_REG(CSI2_DPHY_CTRL_LANE_ENABLE),
+	[CSI2PHY_DUAL_CLK_EN] = CSI2PHY_REG(CSI2_DPHY_DUAL_CAL_EN),
+	[CSI2PHY_CLK_THS_SETTLE] = CSI2PHY_REG(CSI2_DPHY_CLK_WR_THS_SETTLE),
+	[CSI2PHY_CLK_CALIB_ENABLE] = CSI2PHY_REG(CSI2_DPHY_CLK_CALIB_EN),
+	[CSI2PHY_LANE0_THS_SETTLE] = CSI2PHY_REG(CSI2_DPHY_LANE0_WR_THS_SETTLE),
+	[CSI2PHY_LANE0_CALIB_ENABLE] = CSI2PHY_REG(CSI2_DPHY_LANE0_CALIB_EN),
+	[CSI2PHY_LANE1_THS_SETTLE] = CSI2PHY_REG(CSI2_DPHY_LANE1_WR_THS_SETTLE),
+	[CSI2PHY_LANE1_CALIB_ENABLE] = CSI2PHY_REG(CSI2_DPHY_LANE1_CALIB_EN),
+	[CSI2PHY_LANE2_THS_SETTLE] = CSI2PHY_REG(CSI2_DPHY_LANE2_WR_THS_SETTLE),
+	[CSI2PHY_LANE2_CALIB_ENABLE] = CSI2PHY_REG(CSI2_DPHY_LANE2_CALIB_EN),
+	[CSI2PHY_LANE3_THS_SETTLE] = CSI2PHY_REG(CSI2_DPHY_LANE3_WR_THS_SETTLE),
+	[CSI2PHY_LANE3_CALIB_ENABLE] = CSI2PHY_REG(CSI2_DPHY_LANE3_CALIB_EN),
+	[CSI2PHY_CLK1_THS_SETTLE] = CSI2PHY_REG(CSI2_DPHY_CLK1_WR_THS_SETTLE),
+	[CSI2PHY_CLK1_CALIB_ENABLE] = CSI2PHY_REG(CSI2_DPHY_CLK1_CALIB_EN),
+	[CSI2PHY_CLK1_LANE_ENABLE] = CSI2PHY_REG(CSI2_DPHY_CLK1_LANE_EN),
+};
+
 static const struct grf_reg rk3588_grf_dcphy_regs[] = {
 	[GRF_CPHY_MODE] = GRF_REG(GRF_DCPHY_CON0, 9, 0),
 };
@@ -410,6 +467,17 @@ static struct csi2_sensor *sd_to_sensor(struct csi2_dphy *dphy,
 	return NULL;
 }
 
+static void csi2_dphy_hw_do_reset(struct csi2_dphy_hw *hw)
+{
+	if (hw->rsts_bulk)
+		reset_control_assert(hw->rsts_bulk);
+
+	udelay(5);
+
+	if (hw->rsts_bulk)
+		reset_control_deassert(hw->rsts_bulk);
+}
+
 static void csi2_dphy_config_dual_mode(struct csi2_dphy *dphy,
 					       struct csi2_sensor *sensor)
 {
@@ -427,37 +495,78 @@ static void csi2_dphy_config_dual_mode(struct csi2_dphy *dphy,
 
 	if (hw->lane_mode == LANE_MODE_FULL) {
 		val = ~GRF_CSI2PHY_LANE_SEL_SPLIT;
-		write_grf_reg(hw, GRF_DPHY_CSI2PHY_LANE_SEL, val);
-		write_grf_reg(hw, GRF_DPHY_CSI2PHY_DATALANE_EN,
-			      GENMASK(sensor->lanes - 1, 0));
-		write_grf_reg(hw, GRF_DPHY_CSI2PHY_CLKLANE_EN, 0x1);
+		if (dphy->phy_index < 3) {
+			write_grf_reg(hw, GRF_DPHY_CSI2PHY_DATALANE_EN,
+				      GENMASK(sensor->lanes - 1, 0));
+			write_grf_reg(hw, GRF_DPHY_CSI2PHY_CLKLANE_EN, 0x1);
+			if (hw->drv_data->chip_id < CHIP_ID_RK3588)
+				write_grf_reg(hw, GRF_DPHY_CSI2PHY_LANE_SEL, val);
+			else
+				write_sys_grf_reg(hw, GRF_DPHY_CSI2PHY_LANE_SEL, val);
+		} else {
+			write_grf_reg(hw, GRF_DPHY_CSI2PHY_DATALANE_EN,
+				      GENMASK(sensor->lanes - 1, 0));
+			write_grf_reg(hw, GRF_DPHY_CSI2PHY_CLKLANE_EN, 0x1);
+			if (hw->drv_data->chip_id < CHIP_ID_RK3588)
+				write_grf_reg(hw, GRF_DPHY_CSI2PHY1_LANE_SEL, val);
+			else
+				write_sys_grf_reg(hw, GRF_DPHY_CSI2PHY1_LANE_SEL, val);
+		}
 	} else {
 		val = GRF_CSI2PHY_LANE_SEL_SPLIT;
-		write_grf_reg(hw, GRF_DPHY_CSI2PHY_LANE_SEL, val);
 
-		if (dphy->phy_index == DPHY1) {
+		switch (dphy->phy_index) {
+		case 1:
 			write_grf_reg(hw, GRF_DPHY_CSI2PHY_DATALANE_EN0,
 				      GENMASK(sensor->lanes - 1, 0));
 			write_grf_reg(hw, GRF_DPHY_CSI2PHY_CLKLANE_EN, 0x1);
-			if (is_cif)
-				write_grf_reg(hw, GRF_DPHY_CIF_CSI2PHY_SEL,
-					      GRF_CSI2PHY_SEL_SPLIT_0_1);
-			else
-				write_grf_reg(hw, GRF_DPHY_ISP_CSI2PHY_SEL,
-					      GRF_CSI2PHY_SEL_SPLIT_0_1);
-		}
-
-		if (dphy->phy_index == DPHY2) {
+			if (hw->drv_data->chip_id < CHIP_ID_RK3588) {
+				write_grf_reg(hw, GRF_DPHY_CSI2PHY_LANE_SEL, val);
+				if (is_cif)
+					write_grf_reg(hw, GRF_DPHY_CIF_CSI2PHY_SEL,
+						      GRF_CSI2PHY_SEL_SPLIT_0_1);
+				else
+					write_grf_reg(hw, GRF_DPHY_ISP_CSI2PHY_SEL,
+						      GRF_CSI2PHY_SEL_SPLIT_0_1);
+			} else {
+				write_sys_grf_reg(hw, GRF_DPHY_CSIHOST2_SEL, 0x0);
+				write_sys_grf_reg(hw, GRF_DPHY_CSI2PHY_LANE_SEL, val);
+			}
+			break;
+		case 2:
 			write_grf_reg(hw, GRF_DPHY_CSI2PHY_DATALANE_EN1,
 				      GENMASK(sensor->lanes - 1, 0));
 			write_grf_reg(hw, GRF_DPHY_CSI2PHY_CLKLANE1_EN, 0x1);
-			if (is_cif)
-				write_grf_reg(hw, GRF_DPHY_CIF_CSI2PHY_SEL,
-					      GRF_CSI2PHY_SEL_SPLIT_2_3);
-			else
-				write_grf_reg(hw, GRF_DPHY_ISP_CSI2PHY_SEL,
-					      GRF_CSI2PHY_SEL_SPLIT_2_3);
-		}
+			if (hw->drv_data->chip_id < CHIP_ID_RK3588) {
+				write_grf_reg(hw, GRF_DPHY_CSI2PHY_LANE_SEL, val);
+				if (is_cif)
+					write_grf_reg(hw, GRF_DPHY_CIF_CSI2PHY_SEL,
+						GRF_CSI2PHY_SEL_SPLIT_2_3);
+				else
+					write_grf_reg(hw, GRF_DPHY_ISP_CSI2PHY_SEL,
+						GRF_CSI2PHY_SEL_SPLIT_2_3);
+			} else {
+				write_sys_grf_reg(hw, GRF_DPHY_CSIHOST3_SEL, 0x1);
+				write_sys_grf_reg(hw, GRF_DPHY_CSI2PHY_LANE_SEL, val);
+			}
+			break;
+		case 4:
+			write_sys_grf_reg(hw, GRF_DPHY_CSI2PHY1_LANE_SEL, val);
+			write_sys_grf_reg(hw, GRF_DPHY_CSIHOST4_SEL, 0x0);
+			write_grf_reg(hw, GRF_DPHY_CSI2PHY_DATALANE_EN0,
+				      GENMASK(sensor->lanes - 1, 0));
+			write_grf_reg(hw, GRF_DPHY_CSI2PHY_CLKLANE_EN, 0x1);
+			break;
+		case 5:
+			write_sys_grf_reg(hw, GRF_DPHY_CSI2PHY1_LANE_SEL, val);
+			write_sys_grf_reg(hw, GRF_DPHY_CSIHOST5_SEL, 0x1);
+			write_grf_reg(hw, GRF_DPHY_CSI2PHY_DATALANE_EN1,
+				      GENMASK(sensor->lanes - 1, 0));
+			write_grf_reg(hw, GRF_DPHY_CSI2PHY_CLKLANE1_EN, 0x1);
+			break;
+		default:
+			break;
+		};
 	}
 }
 
@@ -490,13 +599,15 @@ static int csi2_dphy_hw_stream_on(struct csi2_dphy *dphy,
 		if (!(pre_val & (0x1 << CSI2_DPHY_CTRL_CLKLANE_ENABLE_OFFSET_BIT)))
 			val |= (0x1 << CSI2_DPHY_CTRL_CLKLANE_ENABLE_OFFSET_BIT);
 
-		if (dphy->phy_index == DPHY1)
+		if (dphy->phy_index % 3 == DPHY1)
 			val |= (GENMASK(sensor->lanes - 1, 0) <<
 				CSI2_DPHY_CTRL_DATALANE_ENABLE_OFFSET_BIT);
 
-		if (dphy->phy_index == DPHY2)
+		if (dphy->phy_index % 3 == DPHY2) {
 			val |= (GENMASK(sensor->lanes - 1, 0) <<
 				CSI2_DPHY_CTRL_DATALANE_SPLIT_LANE2_3_OFFSET_BIT);
+			write_csi2_dphy_reg(hw, CSI2PHY_CLK1_LANE_ENABLE, BIT(6));
+		}
 	}
 	val |= pre_val;
 	write_csi2_dphy_reg(hw, CSI2PHY_REG_CTRL_LANE_ENABLE, val);
@@ -532,7 +643,7 @@ static int csi2_dphy_hw_stream_on(struct csi2_dphy *dphy,
 			if (sensor->lanes > 0x03)
 				write_csi2_dphy_reg(hw, CSI2PHY_LANE3_CALIB_ENABLE, 0x80);
 		} else {
-			if (dphy->phy_index == DPHY1) {
+			if (dphy->phy_index % 3 == DPHY1) {
 				write_csi2_dphy_reg(hw, CSI2PHY_CLK_CALIB_ENABLE, 0x80);
 				if (sensor->lanes > 0x00)
 					write_csi2_dphy_reg(hw, CSI2PHY_LANE0_CALIB_ENABLE, 0x80);
@@ -540,7 +651,7 @@ static int csi2_dphy_hw_stream_on(struct csi2_dphy *dphy,
 					write_csi2_dphy_reg(hw, CSI2PHY_LANE1_CALIB_ENABLE, 0x80);
 			}
 
-			if (dphy->phy_index == DPHY2) {
+			if (dphy->phy_index % 3 == DPHY2) {
 				write_csi2_dphy_reg(hw, CSI2PHY_CLK1_CALIB_ENABLE, 0x80);
 				if (sensor->lanes > 0x00)
 					write_csi2_dphy_reg(hw, CSI2PHY_LANE2_CALIB_ENABLE, 0x80);
@@ -576,13 +687,13 @@ static int csi2_dphy_hw_stream_on(struct csi2_dphy *dphy,
 		if (sensor->lanes > 0x03)
 			csi_mipidphy_wr_ths_settle(hw, hsfreq, CSI2_DPHY_LANE_DATA3);
 	} else {
-		if (dphy->phy_index == DPHY1) {
+		if (dphy->phy_index % 3 == DPHY1) {
 			csi_mipidphy_wr_ths_settle(hw, hsfreq, CSI2_DPHY_LANE_CLOCK);
 			csi_mipidphy_wr_ths_settle(hw, hsfreq, CSI2_DPHY_LANE_DATA0);
 			csi_mipidphy_wr_ths_settle(hw, hsfreq, CSI2_DPHY_LANE_DATA1);
 		}
 
-		if (dphy->phy_index == DPHY2) {
+		if (dphy->phy_index % 3 == DPHY2) {
 			csi_mipidphy_wr_ths_settle(hw, hsfreq, CSI2_DPHY_LANE_CLOCK1);
 			csi_mipidphy_wr_ths_settle(hw, hsfreq, CSI2_DPHY_LANE_DATA2);
 			csi_mipidphy_wr_ths_settle(hw, hsfreq, CSI2_DPHY_LANE_DATA3);
@@ -607,6 +718,7 @@ static int csi2_dphy_hw_stream_off(struct csi2_dphy *dphy,
 	mutex_lock(&hw->mutex);
 
 	write_csi2_dphy_reg(hw, CSI2PHY_REG_CTRL_LANE_ENABLE, 0x01);
+	csi2_dphy_hw_do_reset(hw);
 	usleep_range(500, 1000);
 
 	mutex_unlock(&hw->mutex);
@@ -774,6 +886,11 @@ static void rk3568_csi2_dphy_hw_individual_init(struct csi2_dphy_hw *hw)
 	hw->grf_regs = rk3568_grf_dphy_regs;
 }
 
+static void rk3588_csi2_dphy_hw_individual_init(struct csi2_dphy_hw *hw)
+{
+	hw->grf_regs = rk3588_grf_dphy_regs;
+}
+
 static void rk3588_csi2_dcphy_hw_individual_init(struct csi2_dphy_hw *hw)
 {
 	hw->grf_regs = rk3588_grf_dcphy_regs;
@@ -786,6 +903,17 @@ static const struct dphy_hw_drv_data rk3568_csi2_dphy_hw_drv_data = {
 	.grf_regs = rk3568_grf_dphy_regs,
 	.individual_init = rk3568_csi2_dphy_hw_individual_init,
 	.chip_id = CHIP_ID_RK3568,
+	.stream_on = csi2_dphy_hw_stream_on,
+	.stream_off = csi2_dphy_hw_stream_off,
+};
+
+static const struct dphy_hw_drv_data rk3588_csi2_dphy_hw_drv_data = {
+	.hsfreq_ranges = rk3568_csi2_dphy_hw_hsfreq_ranges,
+	.num_hsfreq_ranges = ARRAY_SIZE(rk3568_csi2_dphy_hw_hsfreq_ranges),
+	.csi2dphy_regs = rk3588_csi2dphy_regs,
+	.grf_regs = rk3588_grf_dphy_regs,
+	.individual_init = rk3588_csi2_dphy_hw_individual_init,
+	.chip_id = CHIP_ID_RK3588,
 	.stream_on = csi2_dphy_hw_stream_on,
 	.stream_off = csi2_dphy_hw_stream_off,
 };
@@ -807,6 +935,10 @@ static const struct of_device_id rockchip_csi2_dphy_hw_match_id[] = {
 	{
 		.compatible = "rockchip,rk3568-csi2-dphy-hw",
 		.data = &rk3568_csi2_dphy_hw_drv_data,
+	},
+	{
+		.compatible = "rockchip,rk3588-csi2-dphy-hw",
+		.data = &rk3588_csi2_dphy_hw_drv_data,
 	},
 	{
 		.compatible = "rockchip,rk3588-csi2-dcphy-hw",
@@ -836,16 +968,23 @@ static int rockchip_csi2_dphy_hw_probe(struct platform_device *pdev)
 
 	drv_data = of_id->data;
 
-	grf = syscon_node_to_regmap(dev->parent->of_node);
+	grf = syscon_regmap_lookup_by_phandle(dev->of_node,
+					      "rockchip,grf");
 	if (IS_ERR(grf)) {
-		grf = syscon_regmap_lookup_by_phandle(dev->of_node,
-						      "rockchip,grf");
-		if (IS_ERR(grf)) {
-			dev_err(dev, "Can't find GRF syscon\n");
-			return -ENODEV;
-		}
+		dev_err(dev, "Can't find GRF syscon\n");
+		return -ENODEV;
 	}
 	dphy_hw->regmap_grf = grf;
+
+	if (drv_data->chip_id == CHIP_ID_RK3588) {
+		grf = syscon_regmap_lookup_by_phandle(dev->of_node,
+						      "rockchip,sys_grf");
+		if (IS_ERR(grf)) {
+			dev_err(dev, "Can't find SYS GRF syscon\n");
+			return -ENODEV;
+		}
+		dphy_hw->regmap_sys_grf = grf;
+	}
 
 	dphy_hw->num_clks = devm_clk_bulk_get_all(dev, &dphy_hw->clks_bulk);
 	if (dphy_hw->num_clks < 0)
