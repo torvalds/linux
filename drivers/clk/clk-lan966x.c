@@ -48,6 +48,20 @@ static struct clk_init_data init = {
 	.num_parents = ARRAY_SIZE(lan966x_gck_pdata),
 };
 
+struct clk_gate_soc_desc {
+	const char *name;
+	int bit_idx;
+};
+
+static const struct clk_gate_soc_desc clk_gate_desc[] = {
+	{ "uhphs", 11 },
+	{ "udphs", 10 },
+	{ "mcramc", 9 },
+	{ "hmatrix", 8 },
+	{ }
+};
+
+static DEFINE_SPINLOCK(clk_gate_lock);
 static void __iomem *base;
 
 static int lan966x_gck_enable(struct clk_hw *hw)
@@ -188,11 +202,37 @@ static struct clk_hw *lan966x_gck_clk_register(struct device *dev, int i)
 	return &priv->hw;
 };
 
+static int lan966x_gate_clk_register(struct device *dev,
+				     struct clk_hw_onecell_data *hw_data,
+				     void __iomem *gate_base)
+{
+	int i;
+
+	for (i = GCK_GATE_UHPHS; i < N_CLOCKS; ++i) {
+		int idx = i - GCK_GATE_UHPHS;
+
+		hw_data->hws[i] =
+			devm_clk_hw_register_gate(dev, clk_gate_desc[idx].name,
+						  "lan966x", 0, base,
+						  clk_gate_desc[idx].bit_idx,
+						  0, &clk_gate_lock);
+
+		if (IS_ERR(hw_data->hws[i]))
+			return dev_err_probe(dev, PTR_ERR(hw_data->hws[i]),
+					     "failed to register %s clock\n",
+					     clk_gate_desc[idx].name);
+	}
+
+	return 0;
+}
+
 static int lan966x_clk_probe(struct platform_device *pdev)
 {
 	struct clk_hw_onecell_data *hw_data;
 	struct device *dev = &pdev->dev;
-	int i;
+	void __iomem *gate_base;
+	struct resource *res;
+	int i, ret;
 
 	hw_data = devm_kzalloc(dev, struct_size(hw_data, hws, N_CLOCKS),
 			       GFP_KERNEL);
@@ -205,9 +245,9 @@ static int lan966x_clk_probe(struct platform_device *pdev)
 
 	init.ops = &lan966x_gck_ops;
 
-	hw_data->num = N_CLOCKS;
+	hw_data->num = GCK_GATE_UHPHS;
 
-	for (i = 0; i < N_CLOCKS; i++) {
+	for (i = 0; i < GCK_GATE_UHPHS; i++) {
 		init.name = clk_names[i];
 		hw_data->hws[i] = lan966x_gck_clk_register(dev, i);
 		if (IS_ERR(hw_data->hws[i])) {
@@ -215,6 +255,19 @@ static int lan966x_clk_probe(struct platform_device *pdev)
 				init.name);
 			return PTR_ERR(hw_data->hws[i]);
 		}
+	}
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (res) {
+		gate_base = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(gate_base))
+			return PTR_ERR(gate_base);
+
+		hw_data->num = N_CLOCKS;
+
+		ret = lan966x_gate_clk_register(dev, hw_data, gate_base);
+		if (ret)
+			return ret;
 	}
 
 	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get, hw_data);
