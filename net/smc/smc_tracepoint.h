@@ -99,7 +99,7 @@ TRACE_EVENT(smcr_link_down,
 			   __entry->location = location;
 	    ),
 
-	    TP_printk("lnk=%p lgr=%p state=%d dev=%s location=%p",
+	    TP_printk("lnk=%p lgr=%p state=%d dev=%s location=%pS",
 		      __entry->lnk, __entry->lgr,
 		      __entry->state, __get_str(name),
 		      __entry->location)
