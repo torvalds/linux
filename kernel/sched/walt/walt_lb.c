@@ -205,7 +205,9 @@ static void walt_lb_check_for_rotation(struct rq *src_rq)
 
 	double_rq_lock(src_rq, dst_rq);
 	if (walt_fair_task(dst_rq->curr) &&
-		!src_rq->active_balance && !dst_rq->active_balance) {
+		!src_rq->active_balance && !dst_rq->active_balance &&
+		cpumask_test_cpu(dst_cpu, src_rq->curr->cpus_ptr) &&
+		cpumask_test_cpu(src_cpu, dst_rq->curr->cpus_ptr)) {
 		get_task_struct(src_rq->curr);
 		get_task_struct(dst_rq->curr);
 
