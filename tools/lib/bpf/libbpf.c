@@ -2752,13 +2752,12 @@ static int btf_fixup_datasec(struct bpf_object *obj, struct btf *btf,
 
 	for (i = 0, vsi = btf_var_secinfos(t); i < vars; i++, vsi++) {
 		t_var = btf__type_by_id(btf, vsi->type);
-		var = btf_var(t_var);
-
-		if (!btf_is_var(t_var)) {
+		if (!t_var || !btf_is_var(t_var)) {
 			pr_debug("Non-VAR type seen in section %s\n", name);
 			return -EINVAL;
 		}
 
+		var = btf_var(t_var);
 		if (var->linkage == BTF_VAR_STATIC)
 			continue;
 
@@ -3191,11 +3190,11 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 	Elf_Scn *scn;
 	Elf64_Shdr *sh;
 
-	/* ELF section indices are 1-based, so allocate +1 element to keep
-	 * indexing simple. Also include 0th invalid section into sec_cnt for
-	 * simpler and more traditional iteration logic.
+	/* ELF section indices are 0-based, but sec #0 is special "invalid"
+	 * section. e_shnum does include sec #0, so e_shnum is the necessary
+	 * size of an array to keep all the sections.
 	 */
-	obj->efile.sec_cnt = 1 + obj->efile.ehdr->e_shnum;
+	obj->efile.sec_cnt = obj->efile.ehdr->e_shnum;
 	obj->efile.secs = calloc(obj->efile.sec_cnt, sizeof(*obj->efile.secs));
 	if (!obj->efile.secs)
 		return -ENOMEM;
@@ -3271,8 +3270,12 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 		} else if (strcmp(name, MAPS_ELF_SEC) == 0) {
 			obj->efile.btf_maps_shndx = idx;
 		} else if (strcmp(name, BTF_ELF_SEC) == 0) {
+			if (sh->sh_type != SHT_PROGBITS)
+				return -LIBBPF_ERRNO__FORMAT;
 			btf_data = data;
 		} else if (strcmp(name, BTF_EXT_ELF_SEC) == 0) {
+			if (sh->sh_type != SHT_PROGBITS)
+				return -LIBBPF_ERRNO__FORMAT;
 			btf_ext_data = data;
 		} else if (sh->sh_type == SHT_SYMTAB) {
 			/* already processed during the first pass above */
@@ -3302,6 +3305,10 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 			}
 		} else if (sh->sh_type == SHT_REL) {
 			int targ_sec_idx = sh->sh_info; /* points to other section */
+
+			if (sh->sh_entsize != sizeof(Elf64_Rel) ||
+			    targ_sec_idx >= obj->efile.sec_cnt)
+				return -LIBBPF_ERRNO__FORMAT;
 
 			/* Only do relo for section with exec instructions */
 			if (!section_have_execinstr(obj, targ_sec_idx) &&
@@ -3555,7 +3562,7 @@ static int bpf_object__collect_externs(struct bpf_object *obj)
 
 	scn = elf_sec_by_idx(obj, obj->efile.symbols_shndx);
 	sh = elf_sec_hdr(obj, scn);
-	if (!sh)
+	if (!sh || sh->sh_entsize != sizeof(Elf64_Sym))
 		return -LIBBPF_ERRNO__FORMAT;
 
 	dummy_var_btf_id = add_dummy_ksym_var(obj->btf);
@@ -4022,7 +4029,7 @@ static int
 bpf_object__collect_prog_relos(struct bpf_object *obj, Elf64_Shdr *shdr, Elf_Data *data)
 {
 	const char *relo_sec_name, *sec_name;
-	size_t sec_idx = shdr->sh_info;
+	size_t sec_idx = shdr->sh_info, sym_idx;
 	struct bpf_program *prog;
 	struct reloc_desc *relos;
 	int err, i, nrels;
@@ -4032,6 +4039,9 @@ bpf_object__collect_prog_relos(struct bpf_object *obj, Elf64_Shdr *shdr, Elf_Dat
 	Elf_Data *scn_data;
 	Elf64_Sym *sym;
 	Elf64_Rel *rel;
+
+	if (sec_idx >= obj->efile.sec_cnt)
+		return -EINVAL;
 
 	scn = elf_sec_by_idx(obj, sec_idx);
 	scn_data = elf_sec_data(obj, scn);
@@ -4052,16 +4062,23 @@ bpf_object__collect_prog_relos(struct bpf_object *obj, Elf64_Shdr *shdr, Elf_Dat
 			return -LIBBPF_ERRNO__FORMAT;
 		}
 
-		sym = elf_sym_by_idx(obj, ELF64_R_SYM(rel->r_info));
+		sym_idx = ELF64_R_SYM(rel->r_info);
+		sym = elf_sym_by_idx(obj, sym_idx);
 		if (!sym) {
-			pr_warn("sec '%s': symbol 0x%zx not found for relo #%d\n",
-				relo_sec_name, (size_t)ELF64_R_SYM(rel->r_info), i);
+			pr_warn("sec '%s': symbol #%zu not found for relo #%d\n",
+				relo_sec_name, sym_idx, i);
+			return -LIBBPF_ERRNO__FORMAT;
+		}
+
+		if (sym->st_shndx >= obj->efile.sec_cnt) {
+			pr_warn("sec '%s': corrupted symbol #%zu pointing to invalid section #%zu for relo #%d\n",
+				relo_sec_name, sym_idx, (size_t)sym->st_shndx, i);
 			return -LIBBPF_ERRNO__FORMAT;
 		}
 
 		if (rel->r_offset % BPF_INSN_SZ || rel->r_offset >= scn_data->d_size) {
 			pr_warn("sec '%s': invalid offset 0x%zx for relo #%d\n",
-				relo_sec_name, (size_t)ELF64_R_SYM(rel->r_info), i);
+				relo_sec_name, (size_t)rel->r_offset, i);
 			return -LIBBPF_ERRNO__FORMAT;
 		}
 
