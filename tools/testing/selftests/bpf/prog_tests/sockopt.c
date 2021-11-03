@@ -852,22 +852,21 @@ static struct sockopt_test {
 static int load_prog(const struct bpf_insn *insns,
 		     enum bpf_attach_type expected_attach_type)
 {
-	struct bpf_load_program_attr attr = {
-		.prog_type = BPF_PROG_TYPE_CGROUP_SOCKOPT,
+	LIBBPF_OPTS(bpf_prog_load_opts, opts,
 		.expected_attach_type = expected_attach_type,
-		.insns = insns,
-		.license = "GPL",
 		.log_level = 2,
-	};
-	int fd;
+		.log_buf = bpf_log_buf,
+		.log_size = sizeof(bpf_log_buf),
+	);
+	int fd, insns_cnt = 0;
 
 	for (;
-	     insns[attr.insns_cnt].code != (BPF_JMP | BPF_EXIT);
-	     attr.insns_cnt++) {
+	     insns[insns_cnt].code != (BPF_JMP | BPF_EXIT);
+	     insns_cnt++) {
 	}
-	attr.insns_cnt++;
+	insns_cnt++;
 
-	fd = bpf_load_program_xattr(&attr, bpf_log_buf, sizeof(bpf_log_buf));
+	fd = bpf_prog_load(BPF_PROG_TYPE_CGROUP_SOCKOPT, NULL, "GPL", insns, insns_cnt, &opts);
 	if (verbose && fd < 0)
 		fprintf(stderr, "%s\n", bpf_log_buf);
 
