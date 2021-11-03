@@ -1,0 +1,85 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/display/media-bus-format.h>
+#include "rk3588s-evb3-lp4x.dtsi"
+#include "rk3588-android.dtsi"
+
+/ {
+	model = "Rockchip RK3588S EVB3 LP4 V10 Board + Rockchip RK3588S EVB V10 Extboard2";
+	compatible = "rockchip,rk3588s-evb3-lp4x-v10-sii9022-bt1120-to-hdmi", "rockchip,rk3588";
+};
+
+&dsi0_in_vp3 {
+	status = "disabled";
+};
+
+&i2c4 {
+	clock-frequency = <400000>;
+	status = "okay";
+
+	sii9022: sii9022@39 {
+		compatible = "sil,sii9022";
+		reg = <0x39>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sii902x_hdmi_int>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <RK_PC0 IRQ_TYPE_LEVEL_HIGH>;
+		reset-gpio = <&gpio1 RK_PA7 GPIO_ACTIVE_LOW>;
+		enable-gpio = <&gpio1 RK_PB5 GPIO_ACTIVE_HIGH>;
+		bus-format = <MEDIA_BUS_FMT_UYVY8_1X16>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				sii9022_in_rgb: endpoint {
+					remote-endpoint = <&rgb_out_sii9022>;
+				};
+			};
+		};
+	};
+};
+
+&pinctrl {
+	sii902x {
+		sii902x_hdmi_int: sii902x-hdmi-int {
+			rockchip,pins = <3 RK_PC0 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};
+
+&rgb {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&bt1120_pins>;
+
+	ports {
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			rgb_out_sii9022: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&sii9022_in_rgb>;
+			};
+		};
+	};
+};
+
+&rgb_in_vp3 {
+	status = "okay";
+};
+
+&vop {
+	status = "okay";
+};
