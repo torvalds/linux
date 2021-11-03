@@ -20,6 +20,9 @@
 	aliases {
 		csi2dcphy0 = &csi2_dcphy0;
 		csi2dcphy1 = &csi2_dcphy1;
+		csi2dphy0 = &csi2_dphy0;
+		csi2dphy1 = &csi2_dphy1;
+		csi2dphy2 = &csi2_dphy2;
 		dsi0 = &dsi0;
 		dsi1 = &dsi1;
 		ethernet1 = &gmac1;
@@ -281,6 +284,26 @@
 	csi2_dcphy1: csi2-dcphy1 {
 		compatible = "rockchip,rk3588-csi2-dcphy";
 		rockchip,hw = <&csi2_dcphy1_hw>;
+	};
+
+	/* dphy0 full mode */
+	csi2_dphy0: csi2-dphy0 {
+		compatible = "rockchip,rk3568-csi2-dphy";
+		rockchip,hw = <&csi2_dphy0_hw>;
+		status = "disabled";
+	};
+
+	/* dphy0 split mode 01 */
+	csi2_dphy1: csi2-dphy1 {
+		compatible = "rockchip,rk3568-csi2-dphy";
+		rockchip,hw = <&csi2_dphy0_hw>;
+		status = "disabled";
+	};
+
+	/* dphy0 split mode 23 */
+	csi2_dphy2: csi2-dphy2 {
+		compatible = "rockchip,rk3568-csi2-dphy";
+		rockchip,hw = <&csi2_dphy0_hw>;
 		status = "disabled";
 	};
 
@@ -742,6 +765,16 @@
 	php_grf: syscon@fd5b0000 {
 		compatible = "rockchip,rk3588-php-grf", "syscon";
 		reg = <0x0 0xfd5b0000 0x0 0x1000>;
+	};
+
+	mipidphy0_grf: syscon@fd5b4000 {
+		compatible = "rockchip,mipi-dphy-grf", "syscon";
+		reg = <0x0 0xfd5b4000 0x0 0x1000>;
+	};
+
+	mipidphy1_grf: syscon@fd5b5000 {
+		compatible = "rockchip,mipi-dphy-grf", "syscon";
+		reg = <0x0 0xfd5b5000 0x0 0x1000>;
 	};
 
 	pipe_phy0_grf: syscon@fd5bc000 {
@@ -3871,6 +3904,18 @@
 		resets = <&cru SRST_S_MIPI_DCPHY1>;
 		reset-names = "phy";
 		rockchip,grf = <&mipidcphy1_grf>;
+		status = "disabled";
+	};
+
+	csi2_dphy0_hw: csi2-dphy0-hw@fedc0000 {
+		compatible = "rockchip,rk3588-csi2-dphy-hw";
+		reg = <0x0 0xfedc0000 0x0 0x8000>;
+		clocks = <&cru PCLK_CSIPHY0>;
+		clock-names = "pclk";
+		resets = <&cru SRST_CSIPHY0>, <&cru SRST_P_CSIPHY0>;
+		reset-names = "srst_csiphy0", "srst_p_csiphy0";
+		rockchip,grf = <&mipidphy0_grf>;
+		rockchip,sys_grf = <&sys_grf>;
 		status = "disabled";
 	};
 

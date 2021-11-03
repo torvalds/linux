@@ -8,6 +8,9 @@
 
 / {
 	aliases {
+		csi2dphy3 = &csi2_dphy3;
+		csi2dphy4 = &csi2_dphy4;
+		csi2dphy5 = &csi2_dphy5;
 		dp0 = &dp0;
 		dp1 = &dp1;
 		edp0 = &edp0;
@@ -19,6 +22,27 @@
 		hdmi1 = &hdmi1;
 		rkcif_mipi_lvds4= &rkcif_mipi_lvds4;
 		rkcif_mipi_lvds5= &rkcif_mipi_lvds5;
+	};
+
+	/* dphy1 full mode */
+	csi2_dphy3: csi2-dphy3 {
+		compatible = "rockchip,rk3568-csi2-dphy";
+		rockchip,hw = <&csi2_dphy1_hw>;
+		status = "disabled";
+	};
+
+	/* dphy1 split mode 01 */
+	csi2_dphy4: csi2-dphy4 {
+		compatible = "rockchip,rk3568-csi2-dphy";
+		rockchip,hw = <&csi2_dphy1_hw>;
+		status = "disabled";
+	};
+
+	/* dphy1 split mode 23 */
+	csi2_dphy5: csi2-dphy5 {
+		compatible = "rockchip,rk3568-csi2-dphy";
+		rockchip,hw = <&csi2_dphy1_hw>;
+		status = "disabled";
 	};
 
 	rkcif_mipi_lvds4: rkcif-mipi-lvds4 {
@@ -673,6 +697,18 @@
 			#phy-cells = <0>;
 			status = "disabled";
 		};
+	};
+
+	csi2_dphy1_hw: csi2-dphy1-hw@fedc8000 {
+		compatible = "rockchip,rk3588-csi2-dphy-hw";
+		reg = <0x0 0xfedc8000 0x0 0x8000>;
+		clocks = <&cru PCLK_CSIPHY1>;
+		clock-names = "pclk";
+		resets = <&cru SRST_CSIPHY1>, <&cru SRST_P_CSIPHY1>;
+		reset-names = "srst_csiphy1", "srst_p_csiphy1";
+		rockchip,grf = <&mipidphy1_grf>;
+		rockchip,sys_grf = <&sys_grf>;
+		status = "disabled";
 	};
 
 	combphy1_ps: phy@fee10000 {
