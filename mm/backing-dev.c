@@ -2,8 +2,9 @@
 
 #include <linux/wait.h>
 #include <linux/rbtree.h>
-#include <linux/backing-dev.h>
 #include <linux/kthread.h>
+#include <linux/backing-dev.h>
+#include <linux/blk-cgroup.h>
 #include <linux/freezer.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
@@ -976,6 +977,22 @@ void bdi_put(struct backing_dev_info *bdi)
 	kref_put(&bdi->refcnt, release_bdi);
 }
 EXPORT_SYMBOL(bdi_put);
+
+struct backing_dev_info *inode_to_bdi(struct inode *inode)
+{
+	struct super_block *sb;
+
+	if (!inode)
+		return &noop_backing_dev_info;
+
+	sb = inode->i_sb;
+#ifdef CONFIG_BLOCK
+	if (sb_is_blkdev_sb(sb))
+		return I_BDEV(inode)->bd_disk->bdi;
+#endif
+	return sb->s_bdi;
+}
+EXPORT_SYMBOL(inode_to_bdi);
 
 const char *bdi_dev_name(struct backing_dev_info *bdi)
 {

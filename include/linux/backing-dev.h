@@ -12,12 +12,12 @@
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/sched.h>
-#include <linux/blkdev.h>
 #include <linux/device.h>
 #include <linux/writeback.h>
-#include <linux/blk-cgroup.h>
 #include <linux/backing-dev-defs.h>
 #include <linux/slab.h>
+
+struct blkcg;
 
 static inline struct backing_dev_info *bdi_get(struct backing_dev_info *bdi)
 {
@@ -133,20 +133,7 @@ static inline bool writeback_in_progress(struct bdi_writeback *wb)
 	return test_bit(WB_writeback_running, &wb->state);
 }
 
-static inline struct backing_dev_info *inode_to_bdi(struct inode *inode)
-{
-	struct super_block *sb;
-
-	if (!inode)
-		return &noop_backing_dev_info;
-
-	sb = inode->i_sb;
-#ifdef CONFIG_BLOCK
-	if (sb_is_blkdev_sb(sb))
-		return I_BDEV(inode)->bd_disk->bdi;
-#endif
-	return sb->s_bdi;
-}
+struct backing_dev_info *inode_to_bdi(struct inode *inode);
 
 static inline int wb_congested(struct bdi_writeback *wb, int cong_bits)
 {

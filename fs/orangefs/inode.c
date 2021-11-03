@@ -10,7 +10,7 @@
  *  Linux VFS inode operations.
  */
 
-#include <linux/bvec.h>
+#include <linux/blkdev.h>
 #include <linux/fileattr.h>
 #include "protocol.h"
 #include "orangefs-kernel.h"

@@ -50,7 +50,7 @@ struct rsxx_bio_meta {
 
 static struct kmem_cache *bio_meta_pool;
 
-static blk_qc_t rsxx_submit_bio(struct bio *bio);
+static void rsxx_submit_bio(struct bio *bio);
 
 /*----------------- Block Device Operations -----------------*/
 static int rsxx_blkdev_ioctl(struct block_device *bdev,
@@ -120,7 +120,7 @@ static void bio_dma_done_cb(struct rsxx_cardinfo *card,
 	}
 }
 
-static blk_qc_t rsxx_submit_bio(struct bio *bio)
+static void rsxx_submit_bio(struct bio *bio)
 {
 	struct rsxx_cardinfo *card = bio->bi_bdev->bd_disk->private_data;
 	struct rsxx_bio_meta *bio_meta;
@@ -169,7 +169,7 @@ static blk_qc_t rsxx_submit_bio(struct bio *bio)
 	if (st)
 		goto queue_err;
 
-	return BLK_QC_T_NONE;
+	return;
 
 queue_err:
 	kmem_cache_free(bio_meta_pool, bio_meta);
@@ -177,7 +177,6 @@ req_err:
 	if (st)
 		bio->bi_status = st;
 	bio_endio(bio);
-	return BLK_QC_T_NONE;
 }
 
 /*----------------- Device Setup -------------------*/

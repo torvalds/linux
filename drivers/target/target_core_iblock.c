@@ -16,12 +16,14 @@
 #include <linux/timer.h>
 #include <linux/fs.h>
 #include <linux/blkdev.h>
+#include <linux/blk-integrity.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/bio.h>
 #include <linux/genhd.h>
 #include <linux/file.h>
 #include <linux/module.h>
+#include <linux/scatterlist.h>
 #include <scsi/scsi_proto.h>
 #include <asm/unaligned.h>
 

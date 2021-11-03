@@ -12,7 +12,6 @@
 #include <linux/dax.h>
 #include <linux/gfp.h>
 #include <linux/export.h>
-#include <linux/blkdev.h>
 #include <linux/backing-dev.h>
 #include <linux/task_io_accounting_ops.h>
 #include <linux/pagevec.h>

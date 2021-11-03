@@ -10,7 +10,7 @@
 #define RNBD_PROTO_H
 
 #include <linux/types.h>
-#include <linux/blkdev.h>
+#include <linux/blk-mq.h>
 #include <linux/limits.h>
 #include <linux/inet.h>
 #include <linux/in.h>

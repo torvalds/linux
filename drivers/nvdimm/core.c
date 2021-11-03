@@ -7,6 +7,7 @@
 #include <linux/export.h>
 #include <linux/module.h>
 #include <linux/blkdev.h>
+#include <linux/blk-integrity.h>
 #include <linux/device.h>
 #include <linux/ctype.h>
 #include <linux/ndctl.h>
