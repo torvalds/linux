@@ -43,7 +43,6 @@
 #include <asm/futex.h>
 
 #include "locking/rtmutex_common.h"
-#include <trace/hooks/futex.h>
 
 /*
  * READ this before attempting to hack on futexes!
@@ -2476,7 +2475,6 @@ queue_unlock(struct futex_hash_bucket *hb)
 static inline void __queue_me(struct futex_q *q, struct futex_hash_bucket *hb)
 {
 	int prio;
-	bool already_on_hb = false;
 
 	/*
 	 * The priority used to register this element is
@@ -2489,9 +2487,7 @@ static inline void __queue_me(struct futex_q *q, struct futex_hash_bucket *hb)
 	prio = min(current->normal_prio, MAX_RT_PRIO);
 
 	plist_node_init(&q->list, prio);
-	trace_android_vh_alter_futex_plist_add(&q->list, &hb->chain, &already_on_hb);
-	if (!already_on_hb)
-		plist_add(&q->list, &hb->chain);
+	plist_add(&q->list, &hb->chain);
 	q->task = current;
 }
 
