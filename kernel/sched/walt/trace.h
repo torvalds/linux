@@ -903,9 +903,9 @@ TRACE_EVENT(sched_cpu_util,
 		__field(unsigned int,	nr_running)
 		__field(long,		cpu_util)
 		__field(long,		cpu_util_cum)
-		__field(unsigned int,	capacity_curr)
-		__field(unsigned int,	capacity)
-		__field(unsigned int,	capacity_orig)
+		__field(unsigned long,	capacity_curr)
+		__field(unsigned long,	capacity)
+		__field(unsigned long,	capacity_orig)
 		__field(unsigned int,	idle_exit_latency)
 		__field(u64,		irqload)
 		__field(int,		online)
@@ -935,7 +935,7 @@ TRACE_EVENT(sched_cpu_util,
 		__entry->prs_gprs	= wrq->prev_runnable_sum + wrq->grp_time.prev_runnable_sum;
 	),
 
-	TP_printk("cpu=%d nr_running=%d cpu_util=%ld cpu_util_cum=%ld capacity_curr=%u capacity=%u capacity_orig=%u idle_exit_latency=%u irqload=%llu online=%u, inactive=%u, reserved=%u, high_irq_load=%u nr_rtg_hp=%u prs_gprs=%llu",
+	TP_printk("cpu=%d nr_running=%d cpu_util=%ld cpu_util_cum=%ld capacity_curr=%lu capacity=%lu capacity_orig=%lu idle_exit_latency=%u irqload=%llu online=%u, inactive=%u, reserved=%u, high_irq_load=%u nr_rtg_hp=%u prs_gprs=%llu",
 		__entry->cpu, __entry->nr_running, __entry->cpu_util,
 		__entry->cpu_util_cum, __entry->capacity_curr,
 		__entry->capacity, __entry->capacity_orig,
