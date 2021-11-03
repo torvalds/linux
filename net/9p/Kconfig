@@ -15,6 +15,13 @@ menuconfig NET_9P
 
 if NET_9P
 
+config NET_9P_FD
+	default NET_9P
+	tristate "9P FD Transport"
+	help
+	  This builds support for transports over TCP, Unix sockets and
+	  filedescriptors.
+
 config NET_9P_VIRTIO
 	depends on VIRTIO
 	tristate "9P Virtio Transport"
