@@ -822,6 +822,7 @@ config MESON_WATCHDOG
 config MEDIATEK_WATCHDOG
 	tristate "Mediatek SoCs watchdog support"
 	depends on ARCH_MEDIATEK || COMPILE_TEST
+	default ARCH_MEDIATEK
 	select WATCHDOG_CORE
 	select RESET_CONTROLLER
 	help
