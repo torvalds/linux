@@ -1405,7 +1405,6 @@ static void send_to_sock(struct connection *con)
 		if (!e)
 			break;
 
-		e = list_first_entry(&con->writequeue, struct writequeue_entry, list);
 		len = e->len;
 		offset = e->offset;
 		BUG_ON(len == 0 && e->users == 0);
