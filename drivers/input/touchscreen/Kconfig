@@ -514,6 +514,10 @@ config TOUCHSCREEN_ELAN
 	  To compile this driver as a module, choose M here: the
 	  module will be called elants_i2c.
 
+config TOUCHSCREEN_ELAN5515
+	tristate "Elan5515 touchscreen"
+	depends on I2C
+
 config TOUCHSCREEN_ELO
 	tristate "Elo serial touchscreens"
 	select SERIO
