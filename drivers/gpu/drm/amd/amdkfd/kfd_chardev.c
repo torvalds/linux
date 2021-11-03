@@ -2196,7 +2196,9 @@ static int criu_checkpoint(struct file *filep,
 		if (ret)
 			goto close_bo_fds;
 
-		/* TODO: Dump SVM-Ranges */
+		ret = kfd_criu_checkpoint_svm(p, (uint8_t __user *)args->priv_data, &priv_offset);
+		if (ret)
+			goto close_bo_fds;
 	}
 
 close_bo_fds:

@@ -3540,6 +3540,101 @@ int svm_range_get_info(struct kfd_process *p, uint32_t *num_svm_ranges,
 	return 0;
 }
 
+int kfd_criu_checkpoint_svm(struct kfd_process *p,
+			    uint8_t __user *user_priv_data,
+			    uint64_t *priv_data_offset)
+{
+	struct kfd_criu_svm_range_priv_data *svm_priv = NULL;
+	struct kfd_ioctl_svm_attribute *query_attr = NULL;
+	uint64_t svm_priv_data_size, query_attr_size = 0;
+	int index, nattr_common = 4, ret = 0;
+	struct svm_range_list *svms;
+	int num_devices = p->n_pdds;
+	struct svm_range *prange;
+	struct mm_struct *mm;
+
+	svms = &p->svms;
+	if (!svms)
+		return -EINVAL;
+
+	mm = get_task_mm(p->lead_thread);
+	if (!mm) {
+		pr_err("failed to get mm for the target process\n");
+		return -ESRCH;
+	}
+
+	query_attr_size = sizeof(struct kfd_ioctl_svm_attribute) *
+				(nattr_common + num_devices);
+
+	query_attr = kzalloc(query_attr_size, GFP_KERNEL);
+	if (!query_attr) {
+		ret = -ENOMEM;
+		goto exit;
+	}
+
+	query_attr[0].type = KFD_IOCTL_SVM_ATTR_PREFERRED_LOC;
+	query_attr[1].type = KFD_IOCTL_SVM_ATTR_PREFETCH_LOC;
+	query_attr[2].type = KFD_IOCTL_SVM_ATTR_SET_FLAGS;
+	query_attr[3].type = KFD_IOCTL_SVM_ATTR_GRANULARITY;
+
+	for (index = 0; index < num_devices; index++) {
+		struct kfd_process_device *pdd = p->pdds[index];
+
+		query_attr[index + nattr_common].type =
+			KFD_IOCTL_SVM_ATTR_ACCESS;
+		query_attr[index + nattr_common].value = pdd->user_gpu_id;
+	}
+
+	svm_priv_data_size = sizeof(*svm_priv) + query_attr_size;
+
+	svm_priv = kzalloc(svm_priv_data_size, GFP_KERNEL);
+	if (!svm_priv) {
+		ret = -ENOMEM;
+		goto exit_query;
+	}
+
+	index = 0;
+	list_for_each_entry(prange, &svms->list, list) {
+
+		svm_priv->object_type = KFD_CRIU_OBJECT_TYPE_SVM_RANGE;
+		svm_priv->start_addr = prange->start;
+		svm_priv->size = prange->npages;
+		memcpy(&svm_priv->attrs, query_attr, query_attr_size);
+		pr_debug("CRIU: prange: 0x%p start: 0x%lx\t npages: 0x%llx end: 0x%llx\t size: 0x%llx\n",
+			 prange, prange->start, prange->npages,
+			 prange->start + prange->npages - 1,
+			 prange->npages * PAGE_SIZE);
+
+		ret = svm_range_get_attr(p, mm, svm_priv->start_addr,
+					 svm_priv->size,
+					 (nattr_common + num_devices),
+					 svm_priv->attrs);
+		if (ret) {
+			pr_err("CRIU: failed to obtain range attributes\n");
+			goto exit_priv;
+		}
+
+		ret = copy_to_user(user_priv_data + *priv_data_offset,
+				   svm_priv, svm_priv_data_size);
+		if (ret) {
+			pr_err("Failed to copy svm priv to user\n");
+			goto exit_priv;
+		}
+
+		*priv_data_offset += svm_priv_data_size;
+
+	}
+
+
+exit_priv:
+	kfree(svm_priv);
+exit_query:
+	kfree(query_attr);
+exit:
+	mmput(mm);
+	return ret;
+}
+
 int
 svm_ioctl(struct kfd_process *p, enum kfd_ioctl_svm_op op, uint64_t start,
 	  uint64_t size, uint32_t nattrs, struct kfd_ioctl_svm_attribute *attrs)
