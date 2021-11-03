@@ -420,7 +420,7 @@
 		sound-dai = <&i2s3_2ch>;
 	};
 	simple-audio-card,codec {
-		sound-dai = <&rk809_codec>;
+		sound-dai = <&rk809_codec 0>;
 	};
 };
 

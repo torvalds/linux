@@ -202,7 +202,7 @@
 			sound-dai = <&i2s1_8ch>;
 		};
 		simple-audio-card,codec {
-			sound-dai = <&rk809_codec>;
+			sound-dai = <&rk809_codec 0>;
 		};
 	};
 
@@ -1354,7 +1354,7 @@
 		};
 
 		rk809_codec: codec {
-			#sound-dai-cells = <0>;
+			#sound-dai-cells = <1>;
 			compatible = "rockchip,rk809-codec", "rockchip,rk817-codec";
 			clocks = <&cru I2S1_MCLKOUT>;
 			clock-names = "mclk";
