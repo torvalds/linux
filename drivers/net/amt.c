@@ -12,7 +12,6 @@
 #include <linux/igmp.h>
 #include <linux/workqueue.h>
 #include <net/net_namespace.h>
-#include <net/protocol.h>
 #include <net/ip.h>
 #include <net/udp.h>
 #include <net/udp_tunnel.h>
