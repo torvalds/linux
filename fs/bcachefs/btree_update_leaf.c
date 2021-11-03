@@ -569,7 +569,8 @@ static inline bool have_conflicting_read_lock(struct btree_trans *trans, struct 
 		//if (path == pos)
 		//	break;
 
-		if (path->nodes_locked != path->nodes_intent_locked)
+		if (path->nodes_locked != path->nodes_intent_locked &&
+		    !bch2_btree_path_upgrade(trans, path, path->level + 1))
 			return true;
 	}
 
