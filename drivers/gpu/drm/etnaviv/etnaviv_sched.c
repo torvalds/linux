@@ -39,31 +39,21 @@ etnaviv_sched_dependency(struct drm_sched_job *sched_job,
 		struct etnaviv_gem_submit_bo *bo = &submit->bos[i];
 		int j;
 
-		if (bo->excl) {
-			fence = bo->excl;
-			bo->excl = NULL;
-
-			if (!dma_fence_is_signaled(fence))
-				return fence;
-
-			dma_fence_put(fence);
-		}
-
-		for (j = 0; j < bo->nr_shared; j++) {
-			if (!bo->shared[j])
+		for (j = 0; j < bo->nr_fences; j++) {
+			if (!bo->fences[j])
 				continue;
 
-			fence = bo->shared[j];
-			bo->shared[j] = NULL;
+			fence = bo->fences[j];
+			bo->fences[j] = NULL;
 
 			if (!dma_fence_is_signaled(fence))
 				return fence;
 
 			dma_fence_put(fence);
 		}
-		kfree(bo->shared);
-		bo->nr_shared = 0;
-		bo->shared = NULL;
+		kfree(bo->fences);
+		bo->nr_fences = 0;
+		bo->fences = NULL;
 	}
 
 	return NULL;
