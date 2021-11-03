@@ -603,6 +603,7 @@ static int iomap_write_begin(const struct iomap_iter *iter, loff_t pos,
 	const struct iomap_page_ops *page_ops = iter->iomap.page_ops;
 	const struct iomap *srcmap = iomap_iter_srcmap(iter);
 	struct page *page;
+	struct folio *folio;
 	int status = 0;
 
 	BUG_ON(pos + len > iter->iomap.offset + iter->iomap.length);
@@ -624,11 +625,12 @@ static int iomap_write_begin(const struct iomap_iter *iter, loff_t pos,
 		status = -ENOMEM;
 		goto out_no_page;
 	}
+	folio = page_folio(page);
 
 	if (srcmap->type == IOMAP_INLINE)
 		status = iomap_write_begin_inline(iter, page);
 	else if (srcmap->flags & IOMAP_F_BUFFER_HEAD)
-		status = __block_write_begin_int(page, pos, len, NULL, srcmap);
+		status = __block_write_begin_int(folio, pos, len, NULL, srcmap);
 	else
 		status = __iomap_write_begin(iter, pos, len, page);
 
@@ -960,11 +962,12 @@ EXPORT_SYMBOL_GPL(iomap_truncate_page);
 static loff_t iomap_page_mkwrite_iter(struct iomap_iter *iter,
 		struct page *page)
 {
+	struct folio *folio = page_folio(page);
 	loff_t length = iomap_length(iter);
 	int ret;
 
 	if (iter->iomap.flags & IOMAP_F_BUFFER_HEAD) {
-		ret = __block_write_begin_int(page, iter->pos, length, NULL,
+		ret = __block_write_begin_int(folio, iter->pos, length, NULL,
 					      &iter->iomap);
 		if (ret)
 			return ret;
