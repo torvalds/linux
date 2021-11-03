@@ -5305,6 +5305,13 @@ struct wireless_dev {
 	u32 identifier;
 
 	struct list_head mgmt_registrations;
+	/*
+	 * ANDROID: mgmt_registrations_lock was restored to preserve ABI in
+	 * 5.10.77 due to backport of 09b1d5dc6ce1 ("cfg80211: fix management
+	 * registrations locking") but it is not used for anything so do not
+	 * touch this variable!
+	 */
+	spinlock_t mgmt_registrations_lock;
 	u8 mgmt_registrations_need_update:1;
 
 	struct mutex mtx;
