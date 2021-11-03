@@ -907,12 +907,9 @@ mlx5_tc_ct_shared_counter_get(struct mlx5_tc_ct_priv *ct_priv,
 	struct mlx5_ct_tuple rev_tuple = entry->tuple;
 	struct mlx5_ct_counter *shared_counter;
 	struct mlx5_ct_entry *rev_entry;
-	__be16 tmp_port;
 
 	/* get the reversed tuple */
-	tmp_port = rev_tuple.port.src;
-	rev_tuple.port.src = rev_tuple.port.dst;
-	rev_tuple.port.dst = tmp_port;
+	swap(rev_tuple.port.src, rev_tuple.port.dst);
 
 	if (rev_tuple.addr_type == FLOW_DISSECTOR_KEY_IPV4_ADDRS) {
 		__be32 tmp_addr = rev_tuple.ip.src_v4;
