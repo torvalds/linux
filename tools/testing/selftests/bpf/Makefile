@@ -178,10 +178,6 @@ $(OUTPUT)/bpf_testmod.ko: $(VMLINUX_BTF) $(wildcard bpf_testmod/Makefile bpf_tes
 	$(Q)$(MAKE) $(submake_extras) -C bpf_testmod
 	$(Q)cp bpf_testmod/bpf_testmod.ko $@
 
-$(OUTPUT)/test_stub.o: test_stub.c $(BPFOBJ)
-	$(call msg,CC,,$@)
-	$(Q)$(CC) -c $(CFLAGS) -o $@ $<
-
 DEFAULT_BPFTOOL := $(HOST_SCRATCH_DIR)/sbin/bpftool
 
 $(OUTPUT)/runqslower: $(BPFOBJ) | $(DEFAULT_BPFTOOL) $(RUNQSLOWER_OUTPUT)
@@ -194,18 +190,23 @@ $(OUTPUT)/runqslower: $(BPFOBJ) | $(DEFAULT_BPFTOOL) $(RUNQSLOWER_OUTPUT)
 
 TEST_GEN_PROGS_EXTENDED += $(DEFAULT_BPFTOOL)
 
-$(TEST_GEN_PROGS) $(TEST_GEN_PROGS_EXTENDED): $(OUTPUT)/test_stub.o $(BPFOBJ)
+$(TEST_GEN_PROGS) $(TEST_GEN_PROGS_EXTENDED): $(BPFOBJ)
 
-$(OUTPUT)/test_dev_cgroup: cgroup_helpers.c
-$(OUTPUT)/test_skb_cgroup_id_user: cgroup_helpers.c
-$(OUTPUT)/test_sock: cgroup_helpers.c
-$(OUTPUT)/test_sock_addr: cgroup_helpers.c
-$(OUTPUT)/test_sockmap: cgroup_helpers.c
-$(OUTPUT)/test_tcpnotify_user: cgroup_helpers.c trace_helpers.c
-$(OUTPUT)/get_cgroup_id_user: cgroup_helpers.c
-$(OUTPUT)/test_cgroup_storage: cgroup_helpers.c
-$(OUTPUT)/test_sock_fields: cgroup_helpers.c
-$(OUTPUT)/test_sysctl: cgroup_helpers.c
+$(OUTPUT)/test_dev_cgroup: cgroup_helpers.c testing_helpers.o
+$(OUTPUT)/test_skb_cgroup_id_user: cgroup_helpers.c testing_helpers.o
+$(OUTPUT)/test_sock: cgroup_helpers.c testing_helpers.o
+$(OUTPUT)/test_sock_addr: cgroup_helpers.c testing_helpers.o
+$(OUTPUT)/test_sockmap: cgroup_helpers.c testing_helpers.o
+$(OUTPUT)/test_tcpnotify_user: cgroup_helpers.c trace_helpers.c testing_helpers.o
+$(OUTPUT)/get_cgroup_id_user: cgroup_helpers.c testing_helpers.o
+$(OUTPUT)/test_cgroup_storage: cgroup_helpers.c testing_helpers.o
+$(OUTPUT)/test_sock_fields: cgroup_helpers.c testing_helpers.o
+$(OUTPUT)/test_sysctl: cgroup_helpers.c testing_helpers.o
+$(OUTPUT)/test_tag: testing_helpers.o
+$(OUTPUT)/test_lirc_mode2_user: testing_helpers.o
+$(OUTPUT)/xdping: testing_helpers.o
+$(OUTPUT)/flow_dissector_load: testing_helpers.o
+$(OUTPUT)/test_maps: testing_helpers.o
 
 BPFTOOL ?= $(DEFAULT_BPFTOOL)
 $(DEFAULT_BPFTOOL): $(wildcard $(BPFTOOLDIR)/*.[ch] $(BPFTOOLDIR)/Makefile)    \
