@@ -4087,7 +4087,7 @@ TEST(user_notification_addfd)
 	 * lowest available fd to be assigned here.
 	 */
 	EXPECT_EQ(fd, nextfd++);
-	EXPECT_EQ(filecmp(getpid(), pid, memfd, fd), 0);
+	ASSERT_EQ(filecmp(getpid(), pid, memfd, fd), 0);
 
 	/*
 	 * This sets the ID of the ADD FD to the last request plus 1. The
