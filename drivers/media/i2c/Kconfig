@@ -941,6 +941,14 @@ config VIDEO_IMX258
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx258.
 
+config VIDEO_IMX258_EEPROM
+	tristate "Sony imx258 sensor otp from eeprom support"
+	depends on VIDEO_V4L2 && I2C
+	depends on VIDEO_IMX258
+	select V4L2_FWNODE
+	help
+	  This driver supports IMX258 OTP load from eeprom.
+
 config VIDEO_IMX274
 	tristate "Sony IMX274 sensor support"
 	depends on I2C && VIDEO_V4L2
