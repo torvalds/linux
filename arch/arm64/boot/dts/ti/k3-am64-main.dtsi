@@ -973,4 +973,284 @@
 		clocks = <&k3_clks 53 0>;
 		clock-names = "fck";
 	};
+
+	icssg0: icssg@30000000 {
+		compatible = "ti,am642-icssg";
+		reg = <0x00 0x30000000 0x00 0x80000>;
+		power-domains = <&k3_pds 81 TI_SCI_PD_EXCLUSIVE>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0x00 0x30000000 0x80000>;
+
+		icssg0_mem: memories@0 {
+			reg = <0x0 0x2000>,
+			      <0x2000 0x2000>,
+			      <0x10000 0x10000>;
+			reg-names = "dram0", "dram1", "shrdram2";
+		};
+
+		icssg0_cfg: cfg@26000 {
+			compatible = "ti,pruss-cfg", "syscon";
+			reg = <0x26000 0x200>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x26000 0x2000>;
+
+			clocks {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				icssg0_coreclk_mux: coreclk-mux@3c {
+					reg = <0x3c>;
+					#clock-cells = <0>;
+					clocks = <&k3_clks 81 0>,  /* icssg0_core_clk */
+						 <&k3_clks 81 20>; /* icssg0_iclk */
+					assigned-clocks = <&icssg0_coreclk_mux>;
+					assigned-clock-parents = <&k3_clks 81 20>;
+				};
+
+				icssg0_iepclk_mux: iepclk-mux@30 {
+					reg = <0x30>;
+					#clock-cells = <0>;
+					clocks = <&k3_clks 81 3>,	/* icssg0_iep_clk */
+						 <&icssg0_coreclk_mux>;	/* icssg0_coreclk_mux */
+					assigned-clocks = <&icssg0_iepclk_mux>;
+					assigned-clock-parents = <&icssg0_coreclk_mux>;
+				};
+			};
+		};
+
+		icssg0_mii_rt: mii-rt@32000 {
+			compatible = "ti,pruss-mii", "syscon";
+			reg = <0x32000 0x100>;
+		};
+
+		icssg0_mii_g_rt: mii-g-rt@33000 {
+			compatible = "ti,pruss-mii-g", "syscon";
+			reg = <0x33000 0x1000>;
+		};
+
+		icssg0_intc: interrupt-controller@20000 {
+			compatible = "ti,icssg-intc";
+			reg = <0x20000 0x2000>;
+			interrupt-controller;
+			#interrupt-cells = <3>;
+			interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "host_intr0", "host_intr1",
+					  "host_intr2", "host_intr3",
+					  "host_intr4", "host_intr5",
+					  "host_intr6", "host_intr7";
+		};
+
+		pru0_0: pru@34000 {
+			compatible = "ti,am642-pru";
+			reg = <0x34000 0x3000>,
+			      <0x22000 0x100>,
+			      <0x22400 0x100>;
+			reg-names = "iram", "control", "debug";
+			firmware-name = "am64x-pru0_0-fw";
+		};
+
+		rtu0_0: rtu@4000 {
+			compatible = "ti,am642-rtu";
+			reg = <0x4000 0x2000>,
+			      <0x23000 0x100>,
+			      <0x23400 0x100>;
+			reg-names = "iram", "control", "debug";
+			firmware-name = "am64x-rtu0_0-fw";
+		};
+
+		tx_pru0_0: txpru@a000 {
+			compatible = "ti,am642-tx-pru";
+			reg = <0xa000 0x1800>,
+			      <0x25000 0x100>,
+			      <0x25400 0x100>;
+			reg-names = "iram", "control", "debug";
+			firmware-name = "am64x-txpru0_0-fw";
+		};
+
+		pru0_1: pru@38000 {
+			compatible = "ti,am642-pru";
+			reg = <0x38000 0x3000>,
+			      <0x24000 0x100>,
+			      <0x24400 0x100>;
+			reg-names = "iram", "control", "debug";
+			firmware-name = "am64x-pru0_1-fw";
+		};
+
+		rtu0_1: rtu@6000 {
+			compatible = "ti,am642-rtu";
+			reg = <0x6000 0x2000>,
+			      <0x23800 0x100>,
+			      <0x23c00 0x100>;
+			reg-names = "iram", "control", "debug";
+			firmware-name = "am64x-rtu0_1-fw";
+		};
+
+		tx_pru0_1: txpru@c000 {
+			compatible = "ti,am642-tx-pru";
+			reg = <0xc000 0x1800>,
+			      <0x25800 0x100>,
+			      <0x25c00 0x100>;
+			reg-names = "iram", "control", "debug";
+			firmware-name = "am64x-txpru0_1-fw";
+		};
+
+		icssg0_mdio: mdio@32400 {
+			compatible = "ti,davinci_mdio";
+			reg = <0x32400 0x100>;
+			clocks = <&k3_clks 62 3>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			bus_freq = <1000000>;
+		};
+	};
+
+	icssg1: icssg@30080000 {
+		compatible = "ti,am642-icssg";
+		reg = <0x00 0x30080000 0x00 0x80000>;
+		power-domains = <&k3_pds 82 TI_SCI_PD_EXCLUSIVE>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0x00 0x30080000 0x80000>;
+
+		icssg1_mem: memories@0 {
+			reg = <0x0 0x2000>,
+			      <0x2000 0x2000>,
+			      <0x10000 0x10000>;
+			reg-names = "dram0", "dram1", "shrdram2";
+		};
+
+		icssg1_cfg: cfg@26000 {
+			compatible = "ti,pruss-cfg", "syscon";
+			reg = <0x26000 0x200>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x26000 0x2000>;
+
+			clocks {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				icssg1_coreclk_mux: coreclk-mux@3c {
+					reg = <0x3c>;
+					#clock-cells = <0>;
+					clocks = <&k3_clks 82 0>,   /* icssg1_core_clk */
+						 <&k3_clks 82 20>;  /* icssg1_iclk */
+					assigned-clocks = <&icssg1_coreclk_mux>;
+					assigned-clock-parents = <&k3_clks 82 20>;
+				};
+
+				icssg1_iepclk_mux: iepclk-mux@30 {
+					reg = <0x30>;
+					#clock-cells = <0>;
+					clocks = <&k3_clks 82 3>,	/* icssg1_iep_clk */
+						 <&icssg1_coreclk_mux>;	/* icssg1_coreclk_mux */
+					assigned-clocks = <&icssg1_iepclk_mux>;
+					assigned-clock-parents = <&icssg1_coreclk_mux>;
+				};
+			};
+		};
+
+		icssg1_mii_rt: mii-rt@32000 {
+			compatible = "ti,pruss-mii", "syscon";
+			reg = <0x32000 0x100>;
+		};
+
+		icssg1_mii_g_rt: mii-g-rt@33000 {
+			compatible = "ti,pruss-mii-g", "syscon";
+			reg = <0x33000 0x1000>;
+		};
+
+		icssg1_intc: interrupt-controller@20000 {
+			compatible = "ti,icssg-intc";
+			reg = <0x20000 0x2000>;
+			interrupt-controller;
+			#interrupt-cells = <3>;
+			interrupts = <GIC_SPI 216 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 217 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 218 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 219 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 220 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 221 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 222 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 223 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "host_intr0", "host_intr1",
+					  "host_intr2", "host_intr3",
+					  "host_intr4", "host_intr5",
+					  "host_intr6", "host_intr7";
+		};
+
+		pru1_0: pru@34000 {
+			compatible = "ti,am642-pru";
+			reg = <0x34000 0x4000>,
+			      <0x22000 0x100>,
+			      <0x22400 0x100>;
+			reg-names = "iram", "control", "debug";
+			firmware-name = "am64x-pru1_0-fw";
+		};
+
+		rtu1_0: rtu@4000 {
+			compatible = "ti,am642-rtu";
+			reg = <0x4000 0x2000>,
+			      <0x23000 0x100>,
+			      <0x23400 0x100>;
+			reg-names = "iram", "control", "debug";
+			firmware-name = "am64x-rtu1_0-fw";
+		};
+
+		tx_pru1_0: txpru@a000 {
+			compatible = "ti,am642-tx-pru";
+			reg = <0xa000 0x1800>,
+			      <0x25000 0x100>,
+			      <0x25400 0x100>;
+			reg-names = "iram", "control", "debug";
+			firmware-name = "am64x-txpru1_0-fw";
+		};
+
+		pru1_1: pru@38000 {
+			compatible = "ti,am642-pru";
+			reg = <0x38000 0x4000>,
+			      <0x24000 0x100>,
+			      <0x24400 0x100>;
+			reg-names = "iram", "control", "debug";
+			firmware-name = "am64x-pru1_1-fw";
+		};
+
+		rtu1_1: rtu@6000 {
+			compatible = "ti,am642-rtu";
+			reg = <0x6000 0x2000>,
+			      <0x23800 0x100>,
+			      <0x23c00 0x100>;
+			reg-names = "iram", "control", "debug";
+			firmware-name = "am64x-rtu1_1-fw";
+		};
+
+		tx_pru1_1: txpru@c000 {
+			compatible = "ti,am642-tx-pru";
+			reg = <0xc000 0x1800>,
+			      <0x25800 0x100>,
+			      <0x25c00 0x100>;
+			reg-names = "iram", "control", "debug";
+			firmware-name = "am64x-txpru1_1-fw";
+		};
+
+		icssg1_mdio: mdio@32400 {
+			compatible = "ti,davinci_mdio";
+			reg = <0x32400 0x100>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&k3_clks 82 0>;
+			clock-names = "fck";
+			bus_freq = <1000000>;
+		};
+	};
 };

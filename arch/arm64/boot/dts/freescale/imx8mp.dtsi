@@ -785,7 +785,7 @@
 				interrupts = <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk IMX8MP_CLK_QSPI_ROOT>,
 					 <&clk IMX8MP_CLK_QSPI_ROOT>;
-				clock-names = "fspi", "fspi_en";
+				clock-names = "fspi_en", "fspi";
 				assigned-clock-rates = <80000000>;
 				assigned-clocks = <&clk IMX8MP_CLK_QSPI>;
 				#address-cells = <1>;

@@ -307,8 +307,11 @@
 };
 
 &i2c0 { /* mikrobus i2c */
-	pinctrl-names = "default";
+	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_mikrobus_i2c>;
+	pinctrl-1 = <&pinctrl_i2c0_gpio>;
+	sda-gpios = <&pioA PIN_PD21 GPIO_ACTIVE_HIGH>;
+	scl-gpios = <&pioA PIN_PD22 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	i2c-digital-filter;
 	i2c-digital-filter-width-ns = <35>;
 	status = "okay";
@@ -316,8 +319,11 @@
 
 &i2c1 {
 	dmas = <0>, <0>;
-	pinctrl-names = "default";
+	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c1_default>;
+	pinctrl-1 = <&pinctrl_i2c1_gpio>;
+	sda-gpios = <&pioA PIN_PD19 GPIO_ACTIVE_HIGH>;
+	scl-gpios = <&pioA PIN_PD20 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	i2c-digital-filter;
 	i2c-digital-filter-width-ns = <35>;
 	status = "okay";
@@ -402,6 +408,12 @@
 		bias-disable;
 	};
 
+	pinctrl_i2c1_gpio: i2c1_gpio {
+                pinmux = <PIN_PD19__GPIO>,
+                         <PIN_PD20__GPIO>;
+                bias-disable;
+        };
+
 	pinctrl_key_gpio_default: key_gpio_default {
 		pinmux = <PIN_PD0__GPIO>;
 		bias-pull-up;
@@ -460,6 +472,12 @@
 	pinctrl_mikrobus_i2c: mikrobus_i2c {
 		pinmux = <PIN_PD22__TWCK0>,
 			 <PIN_PD21__TWD0>;
+		bias-disable;
+	};
+
+	pinctrl_i2c0_gpio: i2c0_gpio {
+		pinmux = <PIN_PD21__GPIO>,
+			 <PIN_PD22__GPIO>;
 		bias-disable;
 	};
 
