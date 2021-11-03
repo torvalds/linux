@@ -23,6 +23,12 @@
 #define GCK_ID_TIMER		12
 #define GCK_ID_USB_REFCLK	13
 
-#define N_CLOCKS		14
+/* Gate clocks */
+#define GCK_GATE_UHPHS		14
+#define GCK_GATE_UDPHS		15
+#define GCK_GATE_MCRAMC		16
+#define GCK_GATE_HMATRIX	17
+
+#define N_CLOCKS		18
 
 #endif
