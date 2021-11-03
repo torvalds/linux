@@ -818,11 +818,10 @@ table $family raw {
 	chain prerouting {
 		type filter hook prerouting priority -300; policy accept;
 		meta iif veth0 udp dport 1405 notrack
-		udp dport 1405 notrack
 	}
 	chain output {
 		type filter hook output priority -300; policy accept;
-		udp sport 1405 notrack
+		meta oif veth0 udp sport 1405 notrack
 	}
 }
 EOF
