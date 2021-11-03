@@ -214,7 +214,6 @@ static int pf_getgeo(struct block_device *bdev, struct hd_geometry *geo);
 
 static void pf_release(struct gendisk *disk, fmode_t mode);
 
-static int pf_detect(void);
 static void do_pf_read(void);
 static void do_pf_read_start(void);
 static void do_pf_write(void);
@@ -284,45 +283,6 @@ static const struct block_device_operations pf_fops = {
 static const struct blk_mq_ops pf_mq_ops = {
 	.queue_rq	= pf_queue_rq,
 };
-
-static void __init pf_init_units(void)
-{
-	struct pf_unit *pf;
-	int unit;
-
-	pf_drive_count = 0;
-	for (unit = 0, pf = units; unit < PF_UNITS; unit++, pf++) {
-		struct gendisk *disk;
-
-		if (blk_mq_alloc_sq_tag_set(&pf->tag_set, &pf_mq_ops, 1,
-				BLK_MQ_F_SHOULD_MERGE))
-			continue;
-
-		disk = blk_mq_alloc_disk(&pf->tag_set, pf);
-		if (IS_ERR(disk)) {
-			blk_mq_free_tag_set(&pf->tag_set);
-			continue;
-		}
-
-		INIT_LIST_HEAD(&pf->rq_list);
-		blk_queue_max_segments(disk->queue, cluster);
-		blk_queue_bounce_limit(disk->queue, BLK_BOUNCE_HIGH);
-		pf->disk = disk;
-		pf->pi = &pf->pia;
-		pf->media_status = PF_NM;
-		pf->drive = (*drives[unit])[D_SLV];
-		pf->lun = (*drives[unit])[D_LUN];
-		snprintf(pf->name, PF_NAMELEN, "%s%d", name, unit);
-		disk->major = major;
-		disk->first_minor = unit;
-		disk->minors = 1;
-		strcpy(disk->disk_name, pf->name);
-		disk->fops = &pf_fops;
-		disk->events = DISK_EVENT_MEDIA_CHANGE;
-		if (!(*drives[unit])[D_PRT])
-			pf_drive_count++;
-	}
-}
 
 static int pf_open(struct block_device *bdev, fmode_t mode)
 {
@@ -691,9 +651,9 @@ static int pf_identify(struct pf_unit *pf)
 	return 0;
 }
 
-/*	returns  0, with id set if drive is detected
-	        -1, if drive detection failed
-*/
+/*
+ * returns 0, with id set if drive is detected, otherwise an error code.
+ */
 static int pf_probe(struct pf_unit *pf)
 {
 	if (pf->drive == -1) {
@@ -715,60 +675,7 @@ static int pf_probe(struct pf_unit *pf)
 			if (!pf_identify(pf))
 				return 0;
 	}
-	return -1;
-}
-
-static int pf_detect(void)
-{
-	struct pf_unit *pf = units;
-	int k, unit;
-
-	printk("%s: %s version %s, major %d, cluster %d, nice %d\n",
-	       name, name, PF_VERSION, major, cluster, nice);
-
-	par_drv = pi_register_driver(name);
-	if (!par_drv) {
-		pr_err("failed to register %s driver\n", name);
-		return -1;
-	}
-	k = 0;
-	if (pf_drive_count == 0) {
-		if (pi_init(pf->pi, 1, -1, -1, -1, -1, -1, pf_scratch, PI_PF,
-			    verbose, pf->name)) {
-			if (!pf_probe(pf) && pf->disk) {
-				pf->present = 1;
-				k++;
-			} else
-				pi_release(pf->pi);
-		}
-
-	} else
-		for (unit = 0; unit < PF_UNITS; unit++, pf++) {
-			int *conf = *drives[unit];
-			if (!conf[D_PRT])
-				continue;
-			if (pi_init(pf->pi, 0, conf[D_PRT], conf[D_MOD],
-				    conf[D_UNI], conf[D_PRO], conf[D_DLY],
-				    pf_scratch, PI_PF, verbose, pf->name)) {
-				if (pf->disk && !pf_probe(pf)) {
-					pf->present = 1;
-					k++;
-				} else
-					pi_release(pf->pi);
-			}
-		}
-	if (k)
-		return 0;
-
-	printk("%s: No ATAPI disk detected\n", name);
-	for (pf = units, unit = 0; unit < PF_UNITS; pf++, unit++) {
-		if (!pf->disk)
-			continue;
-		blk_cleanup_disk(pf->disk);
-		blk_mq_free_tag_set(&pf->tag_set);
-	}
-	pi_unregister_driver(par_drv);
-	return -1;
+	return -ENODEV;
 }
 
 /* The i/o request engine */
@@ -1014,61 +921,134 @@ static void do_pf_write_done(void)
 	next_request(0);
 }
 
+static int __init pf_init_unit(struct pf_unit *pf, bool autoprobe, int port,
+		int mode, int unit, int protocol, int delay, int ms)
+{
+	struct gendisk *disk;
+	int ret;
+
+	ret = blk_mq_alloc_sq_tag_set(&pf->tag_set, &pf_mq_ops, 1,
+				      BLK_MQ_F_SHOULD_MERGE);
+	if (ret)
+		return ret;
+
+	disk = blk_mq_alloc_disk(&pf->tag_set, pf);
+	if (IS_ERR(disk)) {
+		ret = PTR_ERR(disk);
+		goto out_free_tag_set;
+	}
+	disk->major = major;
+	disk->first_minor = pf - units;
+	disk->minors = 1;
+	strcpy(disk->disk_name, pf->name);
+	disk->fops = &pf_fops;
+	disk->events = DISK_EVENT_MEDIA_CHANGE;
+	disk->private_data = pf;
+
+	blk_queue_max_segments(disk->queue, cluster);
+	blk_queue_bounce_limit(disk->queue, BLK_BOUNCE_HIGH);
+
+	INIT_LIST_HEAD(&pf->rq_list);
+	pf->disk = disk;
+	pf->pi = &pf->pia;
+	pf->media_status = PF_NM;
+	pf->drive = (*drives[disk->first_minor])[D_SLV];
+	pf->lun = (*drives[disk->first_minor])[D_LUN];
+	snprintf(pf->name, PF_NAMELEN, "%s%d", name, disk->first_minor);
+
+	if (!pi_init(pf->pi, autoprobe, port, mode, unit, protocol, delay,
+			pf_scratch, PI_PF, verbose, pf->name)) {
+		ret = -ENODEV;
+		goto out_free_disk;
+	}
+	ret = pf_probe(pf);
+	if (ret)
+		goto out_pi_release;
+
+	ret = add_disk(disk);
+	if (ret)
+		goto out_pi_release;
+	pf->present = 1;
+	return 0;
+
+out_pi_release:
+	pi_release(pf->pi);
+out_free_disk:
+	blk_cleanup_disk(pf->disk);
+out_free_tag_set:
+	blk_mq_free_tag_set(&pf->tag_set);
+	return ret;
+}
+
 static int __init pf_init(void)
 {				/* preliminary initialisation */
 	struct pf_unit *pf;
-	int unit;
+	int found = 0, unit;
 
 	if (disable)
 		return -EINVAL;
 
-	pf_init_units();
-
-	if (pf_detect())
-		return -ENODEV;
-	pf_busy = 0;
-
-	if (register_blkdev(major, name)) {
-		for (pf = units, unit = 0; unit < PF_UNITS; pf++, unit++) {
-			if (!pf->disk)
-				continue;
-			blk_cleanup_queue(pf->disk->queue);
-			blk_mq_free_tag_set(&pf->tag_set);
-			put_disk(pf->disk);
-		}
+	if (register_blkdev(major, name))
 		return -EBUSY;
+
+	printk("%s: %s version %s, major %d, cluster %d, nice %d\n",
+	       name, name, PF_VERSION, major, cluster, nice);
+
+	par_drv = pi_register_driver(name);
+	if (!par_drv) {
+		pr_err("failed to register %s driver\n", name);
+		goto out_unregister_blkdev;
 	}
 
-	for (pf = units, unit = 0; unit < PF_UNITS; pf++, unit++) {
-		struct gendisk *disk = pf->disk;
-
-		if (!pf->present)
-			continue;
-		disk->private_data = pf;
-		add_disk(disk);
+	for (unit = 0; unit < PF_UNITS; unit++) {
+		if (!(*drives[unit])[D_PRT])
+			pf_drive_count++;
 	}
+
+	pf = units;
+	if (pf_drive_count == 0) {
+		if (pf_init_unit(pf, 1, -1, -1, -1, -1, -1, verbose))
+			found++;
+	} else {
+		for (unit = 0; unit < PF_UNITS; unit++, pf++) {
+			int *conf = *drives[unit];
+			if (!conf[D_PRT])
+				continue;
+			if (pf_init_unit(pf, 0, conf[D_PRT], conf[D_MOD],
+				    conf[D_UNI], conf[D_PRO], conf[D_DLY],
+				    verbose))
+				found++;
+		}
+	}
+	if (!found) {
+		printk("%s: No ATAPI disk detected\n", name);
+		goto out_unregister_pi_driver;
+	}
+	pf_busy = 0;
 	return 0;
+
+out_unregister_pi_driver:
+	pi_unregister_driver(par_drv);
+out_unregister_blkdev:
+	unregister_blkdev(major, name);
+	return -ENODEV;
 }
 
 static void __exit pf_exit(void)
 {
 	struct pf_unit *pf;
 	int unit;
-	unregister_blkdev(major, name);
+
 	for (pf = units, unit = 0; unit < PF_UNITS; pf++, unit++) {
-		if (!pf->disk)
+		if (!pf->present)
 			continue;
-
-		if (pf->present)
-			del_gendisk(pf->disk);
-
-		blk_cleanup_queue(pf->disk->queue);
+		del_gendisk(pf->disk);
+		blk_cleanup_disk(pf->disk);
 		blk_mq_free_tag_set(&pf->tag_set);
-		put_disk(pf->disk);
-
-		if (pf->present)
-			pi_release(pf->pi);
+		pi_release(pf->pi);
 	}
+
+	unregister_blkdev(major, name);
 }
 
 MODULE_LICENSE("GPL");

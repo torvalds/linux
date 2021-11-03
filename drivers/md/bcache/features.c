@@ -6,7 +6,7 @@
  * Copyright 2020 Coly Li <colyli@suse.de>
  *
  */
-#include <linux/bcache.h>
+#include "bcache_ondisk.h"
 #include "bcache.h"
 #include "features.h"
 

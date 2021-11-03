@@ -650,8 +650,8 @@ int dasd_ioctl(struct block_device *bdev, fmode_t mode,
 
 /**
  * dasd_biodasdinfo() - fill out the dasd information structure
- * @disk [in]: pointer to gendisk structure that references a DASD
- * @info [out]: pointer to the dasd_information2_t structure
+ * @disk: [in] pointer to gendisk structure that references a DASD
+ * @info: [out] pointer to the dasd_information2_t structure
  *
  * Provide access to DASD specific information.
  * The gendisk structure is checked if it belongs to the DASD driver by

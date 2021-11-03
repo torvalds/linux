@@ -1525,7 +1525,7 @@ EXPORT_SYMBOL_GPL(dm_bufio_get_block_size);
 
 sector_t dm_bufio_get_device_size(struct dm_bufio_client *c)
 {
-	sector_t s = i_size_read(c->bdev->bd_inode) >> SECTOR_SHIFT;
+	sector_t s = bdev_nr_sectors(c->bdev);
 	if (s >= c->start)
 		s -= c->start;
 	else

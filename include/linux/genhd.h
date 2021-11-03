@@ -245,12 +245,23 @@ static inline sector_t get_start_sect(struct block_device *bdev)
 
 static inline sector_t bdev_nr_sectors(struct block_device *bdev)
 {
-	return i_size_read(bdev->bd_inode) >> 9;
+	return bdev->bd_nr_sectors;
+}
+
+static inline loff_t bdev_nr_bytes(struct block_device *bdev)
+{
+	return bdev_nr_sectors(bdev) << SECTOR_SHIFT;
 }
 
 static inline sector_t get_capacity(struct gendisk *disk)
 {
 	return bdev_nr_sectors(disk->part0);
+}
+
+static inline u64 sb_bdev_nr_blocks(struct super_block *sb)
+{
+	return bdev_nr_sectors(sb->s_bdev) >>
+		(sb->s_blocksize_bits - SECTOR_SHIFT);
 }
 
 int bdev_disk_changed(struct gendisk *disk, bool invalidate);

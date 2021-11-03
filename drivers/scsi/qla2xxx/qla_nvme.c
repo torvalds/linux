@@ -8,6 +8,8 @@
 #include <linux/delay.h>
 #include <linux/nvme.h>
 #include <linux/nvme-fc.h>
+#include <linux/blk-mq-pci.h>
+#include <linux/blk-mq.h>
 
 static struct nvme_fc_port_template qla_nvme_fc_transport;
 
@@ -642,6 +644,18 @@ static int qla_nvme_post_cmd(struct nvme_fc_local_port *lport,
 	return rval;
 }
 
+static void qla_nvme_map_queues(struct nvme_fc_local_port *lport,
+		struct blk_mq_queue_map *map)
+{
+	struct scsi_qla_host *vha = lport->private;
+	int rc;
+
+	rc = blk_mq_pci_map_queues(map, vha->hw->pdev, vha->irq_offset);
+	if (rc)
+		ql_log(ql_log_warn, vha, 0x21de,
+		       "pci map queue failed 0x%x", rc);
+}
+
 static void qla_nvme_localport_delete(struct nvme_fc_local_port *lport)
 {
 	struct scsi_qla_host *vha = lport->private;
@@ -676,6 +690,7 @@ static struct nvme_fc_port_template qla_nvme_fc_transport = {
 	.ls_abort	= qla_nvme_ls_abort,
 	.fcp_io		= qla_nvme_post_cmd,
 	.fcp_abort	= qla_nvme_fcp_abort,
+	.map_queues	= qla_nvme_map_queues,
 	.max_hw_queues  = 8,
 	.max_sgl_segments = 1024,
 	.max_dif_sgl_segments = 64,

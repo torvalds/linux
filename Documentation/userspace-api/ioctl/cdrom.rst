@@ -13,61 +13,64 @@ in drivers/cdrom/cdrom.c and drivers/block/scsi_ioctl.c
 ioctl values are listed in <linux/cdrom.h>.  As of this writing, they
 are as follows:
 
-	======================	===============================================
-	CDROMPAUSE		Pause Audio Operation
-	CDROMRESUME		Resume paused Audio Operation
-	CDROMPLAYMSF		Play Audio MSF (struct cdrom_msf)
-	CDROMPLAYTRKIND		Play Audio Track/index (struct cdrom_ti)
-	CDROMREADTOCHDR		Read TOC header (struct cdrom_tochdr)
-	CDROMREADTOCENTRY	Read TOC entry (struct cdrom_tocentry)
-	CDROMSTOP		Stop the cdrom drive
-	CDROMSTART		Start the cdrom drive
-	CDROMEJECT		Ejects the cdrom media
-	CDROMVOLCTRL		Control output volume (struct cdrom_volctrl)
-	CDROMSUBCHNL		Read subchannel data (struct cdrom_subchnl)
-	CDROMREADMODE2		Read CDROM mode 2 data (2336 Bytes)
-				(struct cdrom_read)
-	CDROMREADMODE1		Read CDROM mode 1 data (2048 Bytes)
-				(struct cdrom_read)
-	CDROMREADAUDIO		(struct cdrom_read_audio)
-	CDROMEJECT_SW		enable(1)/disable(0) auto-ejecting
-	CDROMMULTISESSION	Obtain the start-of-last-session
-				address of multi session disks
-				(struct cdrom_multisession)
-	CDROM_GET_MCN		Obtain the "Universal Product Code"
-				if available (struct cdrom_mcn)
-	CDROM_GET_UPC		Deprecated, use CDROM_GET_MCN instead.
-	CDROMRESET		hard-reset the drive
-	CDROMVOLREAD		Get the drive's volume setting
-				(struct cdrom_volctrl)
-	CDROMREADRAW		read data in raw mode (2352 Bytes)
-				(struct cdrom_read)
-	CDROMREADCOOKED		read data in cooked mode
-	CDROMSEEK		seek msf address
-	CDROMPLAYBLK		scsi-cd only, (struct cdrom_blk)
-	CDROMREADALL		read all 2646 bytes
-	CDROMGETSPINDOWN	return 4-bit spindown value
-	CDROMSETSPINDOWN	set 4-bit spindown value
-	CDROMCLOSETRAY		pendant of CDROMEJECT
-	CDROM_SET_OPTIONS	Set behavior options
-	CDROM_CLEAR_OPTIONS	Clear behavior options
-	CDROM_SELECT_SPEED	Set the CD-ROM speed
-	CDROM_SELECT_DISC	Select disc (for juke-boxes)
-	CDROM_MEDIA_CHANGED	Check is media changed
-	CDROM_DRIVE_STATUS	Get tray position, etc.
-	CDROM_DISC_STATUS	Get disc type, etc.
-	CDROM_CHANGER_NSLOTS	Get number of slots
-	CDROM_LOCKDOOR		lock or unlock door
-	CDROM_DEBUG		Turn debug messages on/off
-	CDROM_GET_CAPABILITY	get capabilities
-	CDROMAUDIOBUFSIZ	set the audio buffer size
-	DVD_READ_STRUCT		Read structure
-	DVD_WRITE_STRUCT	Write structure
-	DVD_AUTH		Authentication
-	CDROM_SEND_PACKET	send a packet to the drive
-	CDROM_NEXT_WRITABLE	get next writable block
-	CDROM_LAST_WRITTEN	get last block written on disc
-	======================	===============================================
+	========================  ===============================================
+	CDROMPAUSE		  Pause Audio Operation
+	CDROMRESUME		  Resume paused Audio Operation
+	CDROMPLAYMSF		  Play Audio MSF (struct cdrom_msf)
+	CDROMPLAYTRKIND		  Play Audio Track/index (struct cdrom_ti)
+	CDROMREADTOCHDR		  Read TOC header (struct cdrom_tochdr)
+	CDROMREADTOCENTRY	  Read TOC entry (struct cdrom_tocentry)
+	CDROMSTOP		  Stop the cdrom drive
+	CDROMSTART		  Start the cdrom drive
+	CDROMEJECT		  Ejects the cdrom media
+	CDROMVOLCTRL		  Control output volume (struct cdrom_volctrl)
+	CDROMSUBCHNL		  Read subchannel data (struct cdrom_subchnl)
+	CDROMREADMODE2		  Read CDROM mode 2 data (2336 Bytes)
+				  (struct cdrom_read)
+	CDROMREADMODE1		  Read CDROM mode 1 data (2048 Bytes)
+				  (struct cdrom_read)
+	CDROMREADAUDIO		  (struct cdrom_read_audio)
+	CDROMEJECT_SW		  enable(1)/disable(0) auto-ejecting
+	CDROMMULTISESSION	  Obtain the start-of-last-session
+				  address of multi session disks
+				  (struct cdrom_multisession)
+	CDROM_GET_MCN		  Obtain the "Universal Product Code"
+				  if available (struct cdrom_mcn)
+	CDROM_GET_UPC		  Deprecated, use CDROM_GET_MCN instead.
+	CDROMRESET		  hard-reset the drive
+	CDROMVOLREAD		  Get the drive's volume setting
+				  (struct cdrom_volctrl)
+	CDROMREADRAW		  read data in raw mode (2352 Bytes)
+				  (struct cdrom_read)
+	CDROMREADCOOKED		  read data in cooked mode
+	CDROMSEEK		  seek msf address
+	CDROMPLAYBLK		  scsi-cd only, (struct cdrom_blk)
+	CDROMREADALL		  read all 2646 bytes
+	CDROMGETSPINDOWN	  return 4-bit spindown value
+	CDROMSETSPINDOWN	  set 4-bit spindown value
+	CDROMCLOSETRAY		  pendant of CDROMEJECT
+	CDROM_SET_OPTIONS	  Set behavior options
+	CDROM_CLEAR_OPTIONS	  Clear behavior options
+	CDROM_SELECT_SPEED	  Set the CD-ROM speed
+	CDROM_SELECT_DISC	  Select disc (for juke-boxes)
+	CDROM_MEDIA_CHANGED	  Check is media changed
+	CDROM_TIMED_MEDIA_CHANGE  Check if media changed
+				  since given time
+				  (struct cdrom_timed_media_change_info)
+	CDROM_DRIVE_STATUS	  Get tray position, etc.
+	CDROM_DISC_STATUS	  Get disc type, etc.
+	CDROM_CHANGER_NSLOTS	  Get number of slots
+	CDROM_LOCKDOOR		  lock or unlock door
+	CDROM_DEBUG		  Turn debug messages on/off
+	CDROM_GET_CAPABILITY	  get capabilities
+	CDROMAUDIOBUFSIZ	  set the audio buffer size
+	DVD_READ_STRUCT		  Read structure
+	DVD_WRITE_STRUCT	  Write structure
+	DVD_AUTH		  Authentication
+	CDROM_SEND_PACKET	  send a packet to the drive
+	CDROM_NEXT_WRITABLE	  get next writable block
+	CDROM_LAST_WRITTEN	  get last block written on disc
+	========================  ===============================================
 
 
 The information that follows was determined from reading kernel source

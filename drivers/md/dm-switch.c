@@ -529,7 +529,7 @@ static int switch_prepare_ioctl(struct dm_target *ti, struct block_device **bdev
 	 * Only pass ioctls through if the device sizes match exactly.
 	 */
 	if (ti->len + sctx->path_list[path_nr].start !=
-	    i_size_read((*bdev)->bd_inode) >> SECTOR_SHIFT)
+	    bdev_nr_sectors((*bdev)))
 		return 1;
 	return 0;
 }

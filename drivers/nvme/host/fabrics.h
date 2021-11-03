@@ -67,6 +67,7 @@ enum {
 	NVMF_OPT_TOS		= 1 << 19,
 	NVMF_OPT_FAIL_FAST_TMO	= 1 << 20,
 	NVMF_OPT_HOST_IFACE	= 1 << 21,
+	NVMF_OPT_DISCOVERY	= 1 << 22,
 };
 
 /**
@@ -176,6 +177,13 @@ nvmf_ctlr_matches_baseopts(struct nvme_ctrl *ctrl,
 		return false;
 
 	return true;
+}
+
+static inline char *nvmf_ctrl_subsysnqn(struct nvme_ctrl *ctrl)
+{
+	if (!ctrl->subsys)
+		return ctrl->opts->subsysnqn;
+	return ctrl->subsys->subnqn;
 }
 
 int nvmf_reg_read32(struct nvme_ctrl *ctrl, u32 off, u32 *val);
