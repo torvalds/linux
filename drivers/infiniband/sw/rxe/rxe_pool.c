@@ -5,7 +5,6 @@
  */
 
 #include "rxe.h"
-#include "rxe_loc.h"
 
 static const struct rxe_type_info {
 	const char *name;
