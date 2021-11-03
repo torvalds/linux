@@ -3076,9 +3076,7 @@ static int handle_truncate(struct user_namespace *mnt_userns, struct file *filp)
 	int error = get_write_access(inode);
 	if (error)
 		return error;
-	/*
-	 * Refuse to truncate files with mandatory locks held on them.
-	 */
+
 	error = security_path_truncate(path);
 	if (!error) {
 		error = do_truncate(mnt_userns, path->dentry, 0,
