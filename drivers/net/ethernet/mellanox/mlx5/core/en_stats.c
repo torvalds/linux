@@ -2076,7 +2076,7 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STRS(ptp)
 
 	for (i = 0; i < NUM_PTP_CH_STATS; i++)
 		sprintf(data + (idx++) * ETH_GSTRING_LEN,
-			ptp_ch_stats_desc[i].format);
+			"%s", ptp_ch_stats_desc[i].format);
 
 	if (priv->tx_ptp_opened) {
 		for (tc = 0; tc < priv->max_opened_tc; tc++)
