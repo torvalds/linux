@@ -620,8 +620,8 @@ struct vop2_video_port_regs {
 
 	struct vop_reg core_dclk_div;
 	struct vop_reg p2i_en;
-	struct vop_reg mipi_dual_en;
-	struct vop_reg mipi_dual_channel_swap;
+	struct vop_reg dual_channel_en;
+	struct vop_reg dual_channel_swap;
 	struct vop_reg dsp_lut_en;
 
 	struct vop_reg dclk_div2;
@@ -959,6 +959,10 @@ struct vop2_ctrl {
 	struct vop_reg lvds_dual_en;
 	struct vop_reg lvds_dual_mode;
 	struct vop_reg lvds_dual_channel_swap;
+
+	struct vop_reg dp_dual_en;
+	struct vop_reg edp_dual_en;
+	struct vop_reg hdmi_dual_en;
 
 	struct vop_reg hdmi0_dclk_div;
 	struct vop_reg hdmi0_pixclk_div;
