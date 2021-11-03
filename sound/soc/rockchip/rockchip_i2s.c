@@ -701,24 +701,6 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 		i2s->pins = of_id->data;
 	}
 
-	/* try to prepare related clocks */
-	i2s->hclk = devm_clk_get(&pdev->dev, "i2s_hclk");
-	if (IS_ERR(i2s->hclk)) {
-		dev_err(&pdev->dev, "Can't retrieve i2s bus clock\n");
-		return PTR_ERR(i2s->hclk);
-	}
-	ret = clk_prepare_enable(i2s->hclk);
-	if (ret) {
-		dev_err(i2s->dev, "hclock enable failed %d\n", ret);
-		return ret;
-	}
-
-	i2s->mclk = devm_clk_get(&pdev->dev, "i2s_clk");
-	if (IS_ERR(i2s->mclk)) {
-		dev_err(&pdev->dev, "Can't retrieve i2s master clock\n");
-		return PTR_ERR(i2s->mclk);
-	}
-
 	regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
@@ -734,6 +716,24 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 	i2s->bclk_ratio = 64;
 
 	dev_set_drvdata(&pdev->dev, i2s);
+
+	i2s->mclk = devm_clk_get(&pdev->dev, "i2s_clk");
+	if (IS_ERR(i2s->mclk)) {
+		dev_err(&pdev->dev, "Can't retrieve i2s master clock\n");
+		return PTR_ERR(i2s->mclk);
+	}
+
+	/* try to prepare related clocks */
+	i2s->hclk = devm_clk_get(&pdev->dev, "i2s_hclk");
+	if (IS_ERR(i2s->hclk)) {
+		dev_err(&pdev->dev, "Can't retrieve i2s bus clock\n");
+		return PTR_ERR(i2s->hclk);
+	}
+	ret = clk_prepare_enable(i2s->hclk);
+	if (ret) {
+		dev_err(i2s->dev, "hclock enable failed %d\n", ret);
+		return ret;
+	}
 
 	pm_runtime_enable(&pdev->dev);
 	if (!pm_runtime_enabled(&pdev->dev)) {
@@ -768,6 +768,8 @@ err_suspend:
 		i2s_runtime_suspend(&pdev->dev);
 err_pm_disable:
 	pm_runtime_disable(&pdev->dev);
+
+	clk_disable_unprepare(i2s->hclk);
 
 	return ret;
 }
