@@ -134,7 +134,7 @@ asmlinkage void __exception_irq_entry ft010_irqchip_handle_irq(struct pt_regs *r
 
 	while ((status = readl(FT010_IRQ_STATUS(f->base)))) {
 		irq = ffs(status) - 1;
-		handle_domain_irq(f->domain, irq, regs);
+		generic_handle_domain_irq(f->domain, irq);
 	}
 }
 
