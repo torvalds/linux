@@ -340,6 +340,46 @@ kill_orphaned_pgrp(struct task_struct *tsk, struct task_struct *parent)
 	}
 }
 
+static void coredump_task_exit(struct task_struct *tsk)
+{
+	struct core_state *core_state;
+
+	/*
+	 * Serialize with any possible pending coredump.
+	 * We must hold siglock around checking core_state
+	 * and setting PF_POSTCOREDUMP.  The core-inducing thread
+	 * will increment ->nr_threads for each thread in the
+	 * group without PF_POSTCOREDUMP set.
+	 */
+	spin_lock_irq(&tsk->sighand->siglock);
+	tsk->flags |= PF_POSTCOREDUMP;
+	core_state = tsk->signal->core_state;
+	spin_unlock_irq(&tsk->sighand->siglock);
+	if (core_state) {
+		struct core_thread self;
+
+		self.task = current;
+		if (self.task->flags & PF_SIGNALED)
+			self.next = xchg(&core_state->dumper.next, &self);
+		else
+			self.task = NULL;
+		/*
+		 * Implies mb(), the result of xchg() must be visible
+		 * to core_state->dumper.
+		 */
+		if (atomic_dec_and_test(&core_state->nr_threads))
+			complete(&core_state->startup);
+
+		for (;;) {
+			set_current_state(TASK_UNINTERRUPTIBLE);
+			if (!self.task) /* see coredump_finish() */
+				break;
+			freezable_schedule();
+		}
+		__set_current_state(TASK_RUNNING);
+	}
+}
+
 #ifdef CONFIG_MEMCG
 /*
  * A task is exiting.   If it owned this mm, find a new owner for the mm.
@@ -435,47 +475,12 @@ assign_new_owner:
 static void exit_mm(void)
 {
 	struct mm_struct *mm = current->mm;
-	struct core_state *core_state;
 
 	exit_mm_release(current, mm);
 	if (!mm)
 		return;
 	sync_mm_rss(mm);
-	/*
-	 * Serialize with any possible pending coredump.
-	 * We must hold mmap_lock around checking core_state
-	 * and clearing tsk->mm.  The core-inducing thread
-	 * will increment ->nr_threads for each thread in the
-	 * group with ->mm != NULL.
-	 */
 	mmap_read_lock(mm);
-	core_state = mm->core_state;
-	if (core_state) {
-		struct core_thread self;
-
-		mmap_read_unlock(mm);
-
-		self.task = current;
-		if (self.task->flags & PF_SIGNALED)
-			self.next = xchg(&core_state->dumper.next, &self);
-		else
-			self.task = NULL;
-		/*
-		 * Implies mb(), the result of xchg() must be visible
-		 * to core_state->dumper.
-		 */
-		if (atomic_dec_and_test(&core_state->nr_threads))
-			complete(&core_state->startup);
-
-		for (;;) {
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			if (!self.task) /* see coredump_finish() */
-				break;
-			freezable_schedule();
-		}
-		__set_current_state(TASK_RUNNING);
-		mmap_read_lock(mm);
-	}
 	mmgrab(mm);
 	BUG_ON(mm != current->active_mm);
 	/* more a memory barrier than a real lock */
@@ -763,6 +768,7 @@ void __noreturn do_exit(long code)
 	profile_task_exit(tsk);
 	kcov_task_exit(tsk);
 
+	coredump_task_exit(tsk);
 	ptrace_event(PTRACE_EVENT_EXIT, code);
 
 	validate_creds_for_do_exit(tsk);

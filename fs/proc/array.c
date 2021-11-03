@@ -408,9 +408,9 @@ static void task_cpus_allowed(struct seq_file *m, struct task_struct *task)
 		   cpumask_pr_args(&task->cpus_mask));
 }
 
-static inline void task_core_dumping(struct seq_file *m, struct mm_struct *mm)
+static inline void task_core_dumping(struct seq_file *m, struct task_struct *task)
 {
-	seq_put_decimal_ull(m, "CoreDumping:\t", !!mm->core_state);
+	seq_put_decimal_ull(m, "CoreDumping:\t", !!task->signal->core_state);
 	seq_putc(m, '\n');
 }
 
@@ -436,7 +436,7 @@ int proc_pid_status(struct seq_file *m, struct pid_namespace *ns,
 
 	if (mm) {
 		task_mem(m, mm);
-		task_core_dumping(m, mm);
+		task_core_dumping(m, task);
 		task_thp_status(m, mm);
 		mmput(mm);
 	}
