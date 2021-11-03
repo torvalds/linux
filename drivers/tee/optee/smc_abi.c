@@ -732,16 +732,9 @@ static void optee_rpc_finalize_call(struct optee_call_ctx *call_ctx)
 }
 
 static void handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee,
-				struct tee_shm *shm,
+				struct optee_msg_arg *arg,
 				struct optee_call_ctx *call_ctx)
 {
-	struct optee_msg_arg *arg;
-
-	arg = tee_shm_get_va(shm, 0);
-	if (IS_ERR(arg)) {
-		pr_err("%s: tee_shm_get_va %p failed\n", __func__, shm);
-		return;
-	}
 
 	switch (arg->cmd) {
 	case OPTEE_RPC_CMD_SHM_ALLOC:
@@ -765,11 +758,13 @@ static void handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee,
  * Result of RPC is written back into @param.
  */
 static void optee_handle_rpc(struct tee_context *ctx,
+			     struct optee_msg_arg *rpc_arg,
 			     struct optee_rpc_param *param,
 			     struct optee_call_ctx *call_ctx)
 {
 	struct tee_device *teedev = ctx->teedev;
 	struct optee *optee = tee_get_drvdata(teedev);
+	struct optee_msg_arg *arg;
 	struct tee_shm *shm;
 	phys_addr_t pa;
 
@@ -801,8 +796,19 @@ static void optee_handle_rpc(struct tee_context *ctx,
 		 */
 		break;
 	case OPTEE_SMC_RPC_FUNC_CMD:
-		shm = reg_pair_to_ptr(param->a1, param->a2);
-		handle_rpc_func_cmd(ctx, optee, shm, call_ctx);
+		if (rpc_arg) {
+			arg = rpc_arg;
+		} else {
+			shm = reg_pair_to_ptr(param->a1, param->a2);
+			arg = tee_shm_get_va(shm, 0);
+			if (IS_ERR(arg)) {
+				pr_err("%s: tee_shm_get_va %p failed\n",
+				       __func__, shm);
+				break;
+			}
+		}
+
+		handle_rpc_func_cmd(ctx, optee, arg, call_ctx);
 		break;
 	default:
 		pr_warn("Unknown RPC func 0x%x\n",
@@ -816,7 +822,7 @@ static void optee_handle_rpc(struct tee_context *ctx,
 /**
  * optee_smc_do_call_with_arg() - Do an SMC to OP-TEE in secure world
  * @ctx:	calling context
- * @arg:	shared memory holding the message to pass to secure world
+ * @shm:	shared memory holding the message to pass to secure world
  *
  * Does and SMC to OP-TEE in secure world and handles eventual resulting
  * Remote Procedure Calls (RPC) from OP-TEE.
@@ -824,21 +830,46 @@ static void optee_handle_rpc(struct tee_context *ctx,
  * Returns return code from secure world, 0 is OK
  */
 static int optee_smc_do_call_with_arg(struct tee_context *ctx,
-				      struct tee_shm *arg)
+				      struct tee_shm *shm)
 {
 	struct optee *optee = tee_get_drvdata(ctx->teedev);
 	struct optee_call_waiter w;
 	struct optee_rpc_param param = { };
 	struct optee_call_ctx call_ctx = { };
-	phys_addr_t parg;
+	struct optee_msg_arg *rpc_arg = NULL;
 	int rc;
 
-	rc = tee_shm_get_pa(arg, 0, &parg);
-	if (rc)
-		return rc;
+	if (optee->rpc_param_count) {
+		struct optee_msg_arg *arg;
+		unsigned int rpc_arg_offs;
 
-	param.a0 = OPTEE_SMC_CALL_WITH_ARG;
-	reg_pair_from_64(&param.a1, &param.a2, parg);
+		arg = tee_shm_get_va(shm, 0);
+		if (IS_ERR(arg))
+			return PTR_ERR(arg);
+
+		rpc_arg_offs = OPTEE_MSG_GET_ARG_SIZE(arg->num_params);
+		rpc_arg = tee_shm_get_va(shm, rpc_arg_offs);
+		if (IS_ERR(arg))
+			return PTR_ERR(arg);
+	}
+
+	if  (rpc_arg && tee_shm_is_dynamic(shm)) {
+		param.a0 = OPTEE_SMC_CALL_WITH_REGD_ARG;
+		reg_pair_from_64(&param.a1, &param.a2, (u_long)shm);
+		param.a3 = 0;
+	} else {
+		phys_addr_t parg;
+
+		rc = tee_shm_get_pa(shm, 0, &parg);
+		if (rc)
+			return rc;
+
+		if (rpc_arg)
+			param.a0 = OPTEE_SMC_CALL_WITH_RPC_ARG;
+		else
+			param.a0 = OPTEE_SMC_CALL_WITH_ARG;
+		reg_pair_from_64(&param.a1, &param.a2, parg);
+	}
 	/* Initialize waiter */
 	optee_cq_wait_init(&optee->call_queue, &w);
 	while (true) {
@@ -862,7 +893,7 @@ static int optee_smc_do_call_with_arg(struct tee_context *ctx,
 			param.a1 = res.a1;
 			param.a2 = res.a2;
 			param.a3 = res.a3;
-			optee_handle_rpc(ctx, &param, &call_ctx);
+			optee_handle_rpc(ctx, rpc_arg, &param, &call_ctx);
 		} else {
 			rc = res.a0;
 			break;
@@ -1118,7 +1149,8 @@ static bool optee_msg_api_revision_is_compatible(optee_invoke_fn *invoke_fn)
 }
 
 static bool optee_msg_exchange_capabilities(optee_invoke_fn *invoke_fn,
-					    u32 *sec_caps, u32 *max_notif_value)
+					    u32 *sec_caps, u32 *max_notif_value,
+					    unsigned int *rpc_param_count)
 {
 	union {
 		struct arm_smccc_res smccc;
@@ -1145,6 +1177,10 @@ static bool optee_msg_exchange_capabilities(optee_invoke_fn *invoke_fn,
 		*max_notif_value = res.result.max_notif_value;
 	else
 		*max_notif_value = OPTEE_DEFAULT_MAX_NOTIF_VALUE;
+	if (*sec_caps & OPTEE_SMC_SEC_CAP_RPC_ARG)
+		*rpc_param_count = (u8)res.result.data;
+	else
+		*rpc_param_count = 0;
 
 	return true;
 }
@@ -1251,7 +1287,8 @@ static int optee_smc_remove(struct platform_device *pdev)
 	 * reference counters and also avoid wild pointers in secure world
 	 * into the old shared memory range.
 	 */
-	optee_disable_shm_cache(optee);
+	if (!optee->rpc_param_count)
+		optee_disable_shm_cache(optee);
 
 	optee_smc_notif_uninit_irq(optee);
 
@@ -1274,7 +1311,10 @@ static int optee_smc_remove(struct platform_device *pdev)
  */
 static void optee_shutdown(struct platform_device *pdev)
 {
-	optee_disable_shm_cache(platform_get_drvdata(pdev));
+	struct optee *optee = platform_get_drvdata(pdev);
+
+	if (!optee->rpc_param_count)
+		optee_disable_shm_cache(optee);
 }
 
 static int optee_probe(struct platform_device *pdev)
@@ -1283,6 +1323,7 @@ static int optee_probe(struct platform_device *pdev)
 	struct tee_shm_pool *pool = ERR_PTR(-EINVAL);
 	struct optee *optee = NULL;
 	void *memremaped_shm = NULL;
+	unsigned int rpc_param_count;
 	struct tee_device *teedev;
 	struct tee_context *ctx;
 	u32 max_notif_value;
@@ -1306,7 +1347,8 @@ static int optee_probe(struct platform_device *pdev)
 	}
 
 	if (!optee_msg_exchange_capabilities(invoke_fn, &sec_caps,
-					     &max_notif_value)) {
+					     &max_notif_value,
+					     &rpc_param_count)) {
 		pr_warn("capabilities mismatch\n");
 		return -EINVAL;
 	}
@@ -1335,6 +1377,7 @@ static int optee_probe(struct platform_device *pdev)
 	optee->ops = &optee_ops;
 	optee->smc.invoke_fn = invoke_fn;
 	optee->smc.sec_caps = sec_caps;
+	optee->rpc_param_count = rpc_param_count;
 
 	teedev = tee_device_alloc(&optee_clnt_desc, NULL, pool, optee);
 	if (IS_ERR(teedev)) {
@@ -1403,7 +1446,12 @@ static int optee_probe(struct platform_device *pdev)
 	 */
 	optee_disable_unmapped_shm_cache(optee);
 
-	optee_enable_shm_cache(optee);
+	/*
+	 * Only enable the shm cache in case we're not able to pass the RPC
+	 * arg struct right after the normal arg struct.
+	 */
+	if (!optee->rpc_param_count)
+		optee_enable_shm_cache(optee);
 
 	if (optee->smc.sec_caps & OPTEE_SMC_SEC_CAP_DYNAMIC_SHM)
 		pr_info("dynamic shared memory is enabled\n");
@@ -1416,7 +1464,8 @@ static int optee_probe(struct platform_device *pdev)
 	return 0;
 
 err_disable_shm_cache:
-	optee_disable_shm_cache(optee);
+	if (!optee->rpc_param_count)
+		optee_disable_shm_cache(optee);
 	optee_smc_notif_uninit_irq(optee);
 	optee_unregister_devices();
 err_notif_uninit:

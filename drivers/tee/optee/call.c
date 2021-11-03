@@ -130,7 +130,7 @@ struct tee_shm *optee_get_msg_arg(struct tee_context *ctx, size_t num_params,
 		return (void *)ma;
 	}
 
-	memset(ma, 0, OPTEE_MSG_GET_ARG_SIZE(num_params));
+	memset(ma, 0, sz);
 	ma->num_params = num_params;
 	*msg_arg = ma;
 
