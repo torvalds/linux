@@ -107,6 +107,168 @@
 	};
 };
 
+&backlight {
+	pwms = <&pwm13 0 25000 0>;
+	status = "okay";
+};
+
+/*
+ * mipi_dcphy0 needs to be enabled
+ * when dsi0 is enabled
+ */
+&dsi0 {
+	status = "okay";
+};
+
+&dsi0_in_vp2 {
+	status = "disabled";
+};
+
+&dsi0_in_vp3 {
+	status = "okay";
+};
+
+&dsi0_panel {
+	power-supply = <&vcc3v3_lcd_n>;
+	reset-gpios = <&gpio1 RK_PA4 GPIO_ACTIVE_LOW>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&lcd_rst_gpio>;
+};
+
+/*
+ * mipi_dcphy1 needs to be enabled
+ * when dsi1 is enabled
+ */
+&dsi1 {
+	status = "disabled";
+};
+
+&dsi1_in_vp2 {
+	status = "disabled";
+};
+
+&dsi1_in_vp3 {
+	status = "disabled";
+};
+
+&dsi1_panel {
+	power-supply = <&vcc3v3_lcd_n>;
+
+	/*
+	 * because in hardware, the two screens share the reset pin,
+	 * so reset-gpios need only in dsi1 enable and dsi0 disabled
+	 * case.
+	 */
+
+	//reset-gpios = <&gpio1 RK_PA4 GPIO_ACTIVE_LOW>;
+	//pinctrl-names = "default";
+	//pinctrl-0 = <&lcd_rst_gpio>;
+
+	dsi,flags = <(MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_EOT_PACKET)>;
+
+	slice-width = <720>;
+	slice-height = <65>;
+	version-major = <1>;
+	version-minor = <1>;
+
+	panel-init-sequence = [
+		29 10 03 f0 5a 5a
+		/*
+		* DSC Setting
+		* Compression Enable
+		*/
+		07 10 01 00
+		/* Scaler Enable x4 */
+		15 10 02 c3 11
+		/* PPS Setting */
+		0a 31 58 11 00 00 89 30 80 06 18 02 d0 00 34 01 68 01 68 02 00 01 b4 00 20 04 04 00 05 00 0C 01 e2 02 ef 18 00 10 F0 03 0C 20 00 06 0B 0B 33 0E 1C 2A 38 46 54 62 69 70 77 79 7B 7D 7E 01 02 01 00 09 40 09 BE 19 FC 19 FA 19 F8 1A 38 1A 78 1A B6 2A F6 2B 34 2B 74 3B 74 6B F4
+		29 10 03 f0 a5 a5
+		/* Sleep Out */
+		05 00 01 11
+		/* 4 Common Setting */
+		/* 4.1 TE(Vync) ON/OFF */
+		15 00 02 35 00
+		/* 4.2 CASET/PASET Setting */
+		39 00 05 2a 00 00 02 cf
+		39 00 05 2b 00 00 06 17
+		/* 4.3 TSP SYNC Setting */
+		39 00 03 f0 5a 5a
+		39 00 0a B9 01 c0 3c 0b 00 00 00 11 03
+		39 00 03 f0 a5 a5
+		/* FD(Fast Discharge) Setting */
+		39 00 03 F0 5A 5A
+		15 00 02 b0 45
+		15 00 02 b5 48
+		39 00 03 F0 A5 A5
+		/* 4.6 FFC Setting (MIPI CLK 529MHz) */
+		39 00 03 f0 5a 5a
+		39 00 03 fc 5a 5a
+		15 00 02 b0 1E
+		39 00 06 c5 09 10 b4 24 fb
+		39 00 03 f0 a5 a5
+		39 00 03 fc a5 a5
+		/* OSC Spread Setting */
+		39 00 03 f0 5a 5a
+		39 00 03 fc 5a 5a
+		15 00 02 b0 37
+		39 00 06 c5 04 ff 00 01 64
+		39 00 03 f0 a5 a5
+		39 00 03 fc a5 a5
+		/* Memory access & Image Data Write(2Ch/3Ch) */
+		/* Dither IP Setting */
+		39 00 03 fc 5a 5a
+		15 00 02 b0 b6
+		15 00 02 eb 01
+		39 00 03 fc a5 a5
+		/* 5 Brightness Control */
+		/* 5.1 Dimming Setting */
+		39 10 03 f0 5a 5a
+		23 10 02 b0 05
+		23 10 02 b1 01
+		23 10 02 b0 02
+		15 10 02 b5 d3
+		15 10 02 53 20
+		39 10 03 f0 a5 a5
+		39 10 03 51 02 ff
+		/* Scaler Enable x4 */
+		15 10 02 c3 11
+		/* Display On */
+		05 78 01 11
+		05 32 01 29
+	];
+
+	panel-exit-sequence = [
+		/* Display Off */
+		05 14 01 28
+		/* Sleep In */
+		05 00 01 10
+		/* VCI stabilization Setting */
+		39 00 03 f0 5a 5a
+		15 00 02 b0 05
+		15 00 02 f4 01
+		39 a0 03 f0 a5 a5
+	];
+
+	disp_timings1: display-timings {
+		native-mode = <&dsi1_timing0>;
+		dsi1_timing0: timing0 {
+			clock-frequency = <72000000>;
+			hactive = <720>;
+			vactive = <1560>;
+			hfront-porch = <10>;
+			hsync-len = <10>;
+			hback-porch = <10>;
+			vfront-porch = <10>;
+			vsync-len = <10>;
+			vback-porch = <10>;
+			hsync-active = <0>;
+			vsync-active = <0>;
+			de-active = <0>;
+			pixelclk-active = <0>;
+		};
+	};
+};
+
 &i2c3 {
 	status = "okay";
 
@@ -249,6 +411,14 @@
 	};
 };
 
+&mipi_dcphy0 {
+	status = "okay";
+};
+
+&mipi_dcphy1 {
+	status = "disabled";
+};
+
 &pcie2x1l1 {
 	reset-gpios = <&gpio4 RK_PA2 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc3v3_pcie20>;
@@ -268,6 +438,12 @@
 	hym8563 {
 		hym8563_int: hym8563-int {
 			rockchip,pins = <0 RK_PC4 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	lcd {
+		lcd_rst_gpio: lcd-rst-gpio {
+			rockchip,pins = <1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
@@ -300,6 +476,10 @@
 			rockchip,pins = <1 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+};
+
+&pwm13 {
+	status = "okay";
 };
 
 &spdif_tx1 {
@@ -354,4 +534,9 @@
 
 &usbhost_dwc3_0 {
 	status = "disabled";
+};
+
+&vcc3v3_lcd_n {
+	gpio = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
+	enable-active-high;
 };

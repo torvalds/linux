@@ -64,6 +64,34 @@
 	};
 };
 
+&backlight {
+	pwms = <&pwm3 0 25000 0>;
+	status = "okay";
+};
+
+/*
+ * mipi_dcphy0 needs to be enabled
+ * when dsi0 is enabled
+ */
+&dsi0 {
+	status = "okay";
+};
+
+&dsi0_in_vp2 {
+	status = "disabled";
+};
+
+&dsi0_in_vp3 {
+	status = "okay";
+};
+
+&dsi0_panel {
+	power-supply = <&vcc3v3_lcd_n>;
+	reset-gpios = <&gpio2 RK_PB4 GPIO_ACTIVE_LOW>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&lcd_rst_gpio>;
+};
+
 &i2c6 {
 	status = "okay";
 	gt1x: gt1x@14 {
@@ -130,6 +158,10 @@
 	};
 };
 
+&mipi_dcphy0 {
+	status = "okay";
+};
+
 &pcie3x4 {
 	compatible = "rockchip,rk3588-pcie-ep";
 	memory-region = <&dma_trans>;
@@ -137,6 +169,12 @@
 };
 
 &pinctrl {
+	lcd {
+		lcd_rst_gpio: lcd-rst-gpio {
+			rockchip,pins = <2 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
 	touch {
 		touch_gpio: touch-gpio {
 			rockchip,pins =
@@ -160,6 +198,10 @@
 			rockchip,pins = <4 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+};
+
+&pwm3 {
+	status = "okay";
 };
 
 &u2phy2 {
@@ -228,4 +270,9 @@
 
 &usbhost_dwc3_0 {
 	status = "disabled";
+};
+
+&vcc3v3_lcd_n {
+	gpio = <&gpio0 RK_PA0 GPIO_ACTIVE_HIGH>;
+	enable-active-high;
 };

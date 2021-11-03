@@ -112,6 +112,35 @@
 	};
 };
 
+&backlight {
+	pwms = <&pwm3 0 25000 0>;
+	status = "okay";
+};
+
+/*
+ * mipi_dcphy1 needs to be enabled
+ * when dsi1 is enabled
+ */
+&dsi1 {
+	status = "okay";
+};
+
+&dsi1_in_vp2 {
+	status = "disabled";
+};
+
+&dsi1_in_vp3 {
+	status = "okay";
+};
+
+&dsi1_panel {
+	power-supply = <&vcc3v3_lcd_n>;
+
+	reset-gpios = <&gpio4 RK_PA0 GPIO_ACTIVE_LOW>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&lcd_rst_gpio>;
+};
+
 &i2c2 {
 	status = "okay";
 
@@ -163,6 +192,10 @@
 	};
 };
 
+&mipi_dcphy1 {
+	status = "okay";
+};
+
 &pcie3x4 {
 	reset-gpios = <&gpio4 RK_PB6 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc3v3_pcie30>;
@@ -177,6 +210,12 @@
 	hym8563 {
 		hym8563_int: hym8563-int {
 			rockchip,pins = <0 RK_PC4 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	lcd {
+		lcd_rst_gpio: lcd-rst-gpio {
+			rockchip,pins = <4 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
@@ -195,6 +234,10 @@
 	};
 };
 
+&pwm3 {
+	status = "okay";
+};
+
 &u2phy0_otg {
 	phy-supply = <&vcc5v0_host>;
 };
@@ -209,4 +252,9 @@
 
 &u2phy3_host {
 	phy-supply = <&vcc5v0_host>;
+};
+
+&vcc3v3_lcd_n {
+	gpio = <&gpio1 RK_PC4 GPIO_ACTIVE_HIGH>;
+	enable-active-high;
 };

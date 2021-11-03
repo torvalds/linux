@@ -107,6 +107,163 @@
 	};
 };
 
+&backlight {
+	pwms = <&pwm13 0 25000 0>;
+	status = "okay";
+};
+
+/*
+ * mipi_dcphy0 needs to be enabled
+ * when dsi0 is enabled
+ */
+&dsi0 {
+	status = "okay";
+};
+
+&dsi0_in_vp2 {
+	status = "disabled";
+};
+
+&dsi0_in_vp3 {
+	status = "okay";
+};
+
+&dsi0_panel {
+	power-supply = <&vcc3v3_lcd_n>;
+	reset-gpios = <&gpio1 RK_PA4 GPIO_ACTIVE_LOW>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&lcd_rst_gpio>;
+};
+
+/*
+ * mipi_dcphy1 needs to be enabled
+ * when dsi1 is enabled
+ */
+&dsi1 {
+	//rockchip,lane-rate = <650>;
+	status = "disabled";
+};
+
+&dsi1_in_vp2 {
+	status = "disabled";
+};
+
+&dsi1_in_vp3 {
+	status = "disabled";
+};
+
+&dsi1_panel {
+	power-supply = <&vcc3v3_lcd_n>;
+	compressed-data;
+	/*
+	 * because in hardware, the two screens share the reset pin,
+	 * so reset-gpios need only in dsi1 enable and dsi0 disabled
+	 * case.
+	 */
+
+	//reset-gpios = <&gpio1 RK_PA4 GPIO_ACTIVE_LOW>;
+	//pinctrl-names = "default";
+	//pinctrl-0 = <&lcd_rst_gpio>;
+
+	dsi,flags = <(MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_EOT_PACKET)>;
+
+	slice-width = <720>;
+	slice-height = <65>;
+	version-major = <1>;
+	version-minor = <1>;
+
+	panel-init-sequence = [
+		29 10 03 f0 5a 5a
+		/* Dsc Setting */
+		/* Compression Enable */
+		07 10 01 01
+		/* Scaler Disable */
+		15 10 02 c3 00
+		/* PPS Setting */
+		0a 31 59 10 00 00 89 30 80 0c 30 05 a0 00 41 02 d0 02 d0 02 00 02 c2 00 20 06 58 00 0a 00 0f 01 e0 01 2d 18 00 10 f0 03 0c 20 00 06 0b 0b 33 0e 1c 2a 38 46 54 62 69 70 77 79 7b 7d 7e 01 02 01 00 09 40 09 be 19 fc 19 fa 19 f8 1a 38 1a 78 1a b6 2a b6 2a f4 2a f4 4b 34 63 74 00
+		29 10 03 f0 a5 a5
+		/** Sleep Out */
+		05 00 01 11
+		/* 4. Common Setting */
+		/* 4.1 TE(Vync) ON/OFF */
+		15 00 02 35 00
+		/* 4.2 CASET/PASET Setting */
+		39 00 05 2a 00 00 05 9F
+		39 00 05 2b 00 00 0c 2f
+		/* 4.3 TSP SYNC Setting */
+		39 00 03 f0 5a 5a
+		39 00 0a B9 01 c0 3c 0b 00 00 00 11 03
+		39 00 03 f0 a5 a5
+		/* FD(Fast Discharge) Setting */
+		39 00 03 f0 5a 5a
+		15 00 02 b0 45
+		15 00 02 b5 48
+		39 00 03 f0 a5 a5
+		/* 4.6 FFC Setting (MIPI CLK 529MHz) */
+		39 00 03 f0 5a 5a
+		39 00 03 fc 5a 5a
+		15 00 02 b0 1E
+		39 00 06 c5 09 10 b4 24 fb
+		39 00 03 f0 a5 a5
+		39 00 03 fc a5 a5
+		/* OSC Spread Setting */
+		39 00 03 f0 5a 5a
+		39 00 03 fc 5a 5a
+		15 00 02 b0 37
+		/* FFC Setting; 0x04 : Disable */
+		39 00 06 c5 04 ff 00 01 64
+		39 00 03 f0 a5 a5
+		39 00 03 fc a5 a5
+		/* Dither IP Setting */
+		39 00 03 FC 5A 5A
+		15 00 02 b0 86
+		15 00 02 eb 01
+		39 00 03 FC a5 a5
+		/* 5 Brightness Control */
+		/* 5.1 Dimming Setting */
+		39 10 03 f0 5a 5a
+		15 10 02 b0 05
+		15 10 02 b1 01
+		15 10 02 b0 02
+		15 10 02 b5 d3
+		15 10 02 53 20
+		39 10 03 f0 a5 a5
+		39 10 03 51 02 ff
+		05 32 01 29
+	];
+
+	panel-exit-sequence = [
+		/* Display off */
+		05 14 01 28
+		/* Sleep In */
+		05 00 01 10
+		/* VCI stabilization setting */
+		39 00 03 f0 5a 5a
+		15 00 02 b0 05
+		15 00 02 f4 01
+		39 a0 03 f0 a5 a5
+	];
+
+	disp_timings1: display-timings {
+		native-mode = <&dsi1_timing0>;
+		dsi1_timing0: timing0 {
+			clock-frequency = <280000000>;
+			hactive = <1140>;
+			vactive = <3120>;
+			hfront-porch = <16>;
+			hsync-len = <8>;
+			hback-porch = <8>;
+			vfront-porch = <4>;
+			vsync-len = <2>;
+			vback-porch = <16>;
+			hsync-active = <0>;
+			vsync-active = <0>;
+			de-active = <0>;
+			pixelclk-active = <0>;
+		};
+	};
+};
+
 &i2c4 {
 	status = "okay";
 	pinctrl-names = "default";
@@ -211,6 +368,14 @@
 	};
 };
 
+&mipi_dcphy0 {
+	status = "okay";
+};
+
+&mipi_dcphy1 {
+	status = "disabled";
+};
+
 &sdmmc {
 	status = "okay";
 };
@@ -237,6 +402,12 @@
 		};
 	};
 
+	lcd {
+		lcd_rst_gpio: lcd-rst-gpio {
+			rockchip,pins = <1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
 	touch {
 		touch_gpio: touch-gpio {
 			rockchip,pins =
@@ -260,6 +431,10 @@
 			rockchip,pins = <1 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+};
+
+&pwm13 {
+	status = "okay";
 };
 
 &spdif_tx1 {
@@ -314,4 +489,9 @@
 
 &usbhost_dwc3_0 {
 	status = "disabled";
+};
+
+&vcc3v3_lcd_n {
+	gpio = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
+	enable-active-high;
 };
