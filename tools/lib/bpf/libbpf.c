@@ -3555,7 +3555,7 @@ static int bpf_object__collect_externs(struct bpf_object *obj)
 
 	scn = elf_sec_by_idx(obj, obj->efile.symbols_shndx);
 	sh = elf_sec_hdr(obj, scn);
-	if (!sh)
+	if (!sh || sh->sh_entsize != sizeof(Elf64_Sym))
 		return -LIBBPF_ERRNO__FORMAT;
 
 	dummy_var_btf_id = add_dummy_ksym_var(obj->btf);
