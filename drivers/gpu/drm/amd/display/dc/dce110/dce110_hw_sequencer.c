@@ -1833,7 +1833,7 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 			}
 		}
 		// We are trying to enable eDP, don't power down VDD
-		if (edp_stream_num)
+		if (edp_stream_num && can_apply_edp_fast_boot)
 			keep_edp_vdd_on = true;
 	}
 

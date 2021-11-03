@@ -6045,7 +6045,10 @@ bool is_edp_ilr_optimization_required(struct dc_link *link, struct dc_crtc_timin
 
 	req_bw = dc_bandwidth_in_kbps_from_timing(crtc_timing);
 
-	decide_edp_link_settings(link, &link_setting, req_bw);
+	if (!crtc_timing->flags.DSC)
+		decide_edp_link_settings(link, &link_setting, req_bw);
+	else
+		decide_edp_link_settings_with_dsc(link, &link_setting, req_bw, LINK_RATE_UNKNOWN);
 
 	if (link->dpcd_caps.edp_supported_link_rates[link_rate_set] != link_setting.link_rate ||
 			lane_count_set.bits.LANE_COUNT_SET != link_setting.lane_count) {
