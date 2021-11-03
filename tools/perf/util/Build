@@ -201,6 +201,7 @@ endif
 perf-y += perf-hooks.o
 
 perf-$(CONFIG_LIBBPF) += bpf-event.o
+perf-$(CONFIG_LIBBPF) += bpf-utils.o
 
 perf-$(CONFIG_CXX) += c++/
 
