@@ -775,14 +775,14 @@ static int pd_special_command(struct pd_unit *disk,
 	struct request *rq;
 	struct pd_req *req;
 
-	rq = blk_get_request(disk->gd->queue, REQ_OP_DRV_IN, 0);
+	rq = blk_mq_alloc_request(disk->gd->queue, REQ_OP_DRV_IN, 0);
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
 	req = blk_mq_rq_to_pdu(rq);
 
 	req->func = func;
 	blk_execute_rq(disk->gd, rq, 0);
-	blk_put_request(rq);
+	blk_mq_free_request(rq);
 	return 0;
 }
 
