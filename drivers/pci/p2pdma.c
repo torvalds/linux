@@ -710,7 +710,7 @@ void *pci_alloc_p2pmem(struct pci_dev *pdev, size_t size)
 	if (!ret)
 		goto out;
 
-	if (unlikely(!percpu_ref_tryget_live(ref))) {
+	if (unlikely(!percpu_ref_tryget_live_rcu(ref))) {
 		gen_pool_free(p2pdma->pool, (unsigned long) ret, size);
 		ret = NULL;
 		goto out;
