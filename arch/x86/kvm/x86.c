@@ -68,7 +68,9 @@
 #include <asm/mce.h>
 #include <asm/pkru.h>
 #include <linux/kernel_stat.h>
-#include <asm/fpu/internal.h> /* Ugh! */
+#include <asm/fpu/api.h>
+#include <asm/fpu/xcr.h>
+#include <asm/fpu/xstate.h>
 #include <asm/pvclock.h>
 #include <asm/div64.h>
 #include <asm/irq_remapping.h>
@@ -292,8 +294,6 @@ const struct kvm_stats_header kvm_vcpu_stats_header = {
 u64 __read_mostly host_xcr0;
 u64 __read_mostly supported_xcr0;
 EXPORT_SYMBOL_GPL(supported_xcr0);
-
-static struct kmem_cache *x86_fpu_cache;
 
 static struct kmem_cache *x86_emulator_cache;
 
@@ -4700,144 +4700,27 @@ static int kvm_vcpu_ioctl_x86_set_debugregs(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
-#define XSTATE_COMPACTION_ENABLED (1ULL << 63)
-
-static void fill_xsave(u8 *dest, struct kvm_vcpu *vcpu)
-{
-	struct xregs_state *xsave = &vcpu->arch.guest_fpu->state.xsave;
-	u64 xstate_bv = xsave->header.xfeatures;
-	u64 valid;
-
-	/*
-	 * Copy legacy XSAVE area, to avoid complications with CPUID
-	 * leaves 0 and 1 in the loop below.
-	 */
-	memcpy(dest, xsave, XSAVE_HDR_OFFSET);
-
-	/* Set XSTATE_BV */
-	xstate_bv &= vcpu->arch.guest_supported_xcr0 | XFEATURE_MASK_FPSSE;
-	*(u64 *)(dest + XSAVE_HDR_OFFSET) = xstate_bv;
-
-	/*
-	 * Copy each region from the possibly compacted offset to the
-	 * non-compacted offset.
-	 */
-	valid = xstate_bv & ~XFEATURE_MASK_FPSSE;
-	while (valid) {
-		u32 size, offset, ecx, edx;
-		u64 xfeature_mask = valid & -valid;
-		int xfeature_nr = fls64(xfeature_mask) - 1;
-		void *src;
-
-		cpuid_count(XSTATE_CPUID, xfeature_nr,
-			    &size, &offset, &ecx, &edx);
-
-		if (xfeature_nr == XFEATURE_PKRU) {
-			memcpy(dest + offset, &vcpu->arch.pkru,
-			       sizeof(vcpu->arch.pkru));
-		} else {
-			src = get_xsave_addr(xsave, xfeature_nr);
-			if (src)
-				memcpy(dest + offset, src, size);
-		}
-
-		valid -= xfeature_mask;
-	}
-}
-
-static void load_xsave(struct kvm_vcpu *vcpu, u8 *src)
-{
-	struct xregs_state *xsave = &vcpu->arch.guest_fpu->state.xsave;
-	u64 xstate_bv = *(u64 *)(src + XSAVE_HDR_OFFSET);
-	u64 valid;
-
-	/*
-	 * Copy legacy XSAVE area, to avoid complications with CPUID
-	 * leaves 0 and 1 in the loop below.
-	 */
-	memcpy(xsave, src, XSAVE_HDR_OFFSET);
-
-	/* Set XSTATE_BV and possibly XCOMP_BV.  */
-	xsave->header.xfeatures = xstate_bv;
-	if (boot_cpu_has(X86_FEATURE_XSAVES))
-		xsave->header.xcomp_bv = host_xcr0 | XSTATE_COMPACTION_ENABLED;
-
-	/*
-	 * Copy each region from the non-compacted offset to the
-	 * possibly compacted offset.
-	 */
-	valid = xstate_bv & ~XFEATURE_MASK_FPSSE;
-	while (valid) {
-		u32 size, offset, ecx, edx;
-		u64 xfeature_mask = valid & -valid;
-		int xfeature_nr = fls64(xfeature_mask) - 1;
-
-		cpuid_count(XSTATE_CPUID, xfeature_nr,
-			    &size, &offset, &ecx, &edx);
-
-		if (xfeature_nr == XFEATURE_PKRU) {
-			memcpy(&vcpu->arch.pkru, src + offset,
-			       sizeof(vcpu->arch.pkru));
-		} else {
-			void *dest = get_xsave_addr(xsave, xfeature_nr);
-
-			if (dest)
-				memcpy(dest, src + offset, size);
-		}
-
-		valid -= xfeature_mask;
-	}
-}
-
 static void kvm_vcpu_ioctl_x86_get_xsave(struct kvm_vcpu *vcpu,
 					 struct kvm_xsave *guest_xsave)
 {
-	if (!vcpu->arch.guest_fpu)
+	if (fpstate_is_confidential(&vcpu->arch.guest_fpu))
 		return;
 
-	if (boot_cpu_has(X86_FEATURE_XSAVE)) {
-		memset(guest_xsave, 0, sizeof(struct kvm_xsave));
-		fill_xsave((u8 *) guest_xsave->region, vcpu);
-	} else {
-		memcpy(guest_xsave->region,
-			&vcpu->arch.guest_fpu->state.fxsave,
-			sizeof(struct fxregs_state));
-		*(u64 *)&guest_xsave->region[XSAVE_HDR_OFFSET / sizeof(u32)] =
-			XFEATURE_MASK_FPSSE;
-	}
+	fpu_copy_guest_fpstate_to_uabi(&vcpu->arch.guest_fpu,
+				       guest_xsave->region,
+				       sizeof(guest_xsave->region),
+				       vcpu->arch.pkru);
 }
-
-#define XSAVE_MXCSR_OFFSET 24
 
 static int kvm_vcpu_ioctl_x86_set_xsave(struct kvm_vcpu *vcpu,
 					struct kvm_xsave *guest_xsave)
 {
-	u64 xstate_bv;
-	u32 mxcsr;
-
-	if (!vcpu->arch.guest_fpu)
+	if (fpstate_is_confidential(&vcpu->arch.guest_fpu))
 		return 0;
 
-	xstate_bv = *(u64 *)&guest_xsave->region[XSAVE_HDR_OFFSET / sizeof(u32)];
-	mxcsr = *(u32 *)&guest_xsave->region[XSAVE_MXCSR_OFFSET / sizeof(u32)];
-
-	if (boot_cpu_has(X86_FEATURE_XSAVE)) {
-		/*
-		 * Here we allow setting states that are not present in
-		 * CPUID leaf 0xD, index 0, EDX:EAX.  This is for compatibility
-		 * with old userspace.
-		 */
-		if (xstate_bv & ~supported_xcr0 || mxcsr & ~mxcsr_feature_mask)
-			return -EINVAL;
-		load_xsave(vcpu, (u8 *)guest_xsave->region);
-	} else {
-		if (xstate_bv & ~XFEATURE_MASK_FPSSE ||
-			mxcsr & ~mxcsr_feature_mask)
-			return -EINVAL;
-		memcpy(&vcpu->arch.guest_fpu->state.fxsave,
-			guest_xsave->region, sizeof(struct fxregs_state));
-	}
-	return 0;
+	return fpu_copy_uabi_to_guest_fpstate(&vcpu->arch.guest_fpu,
+					      guest_xsave->region,
+					      supported_xcr0, &vcpu->arch.pkru);
 }
 
 static void kvm_vcpu_ioctl_x86_get_xcrs(struct kvm_vcpu *vcpu,
@@ -8434,18 +8317,11 @@ int kvm_arch_init(void *opaque)
 	}
 
 	r = -ENOMEM;
-	x86_fpu_cache = kmem_cache_create("x86_fpu", sizeof(struct fpu),
-					  __alignof__(struct fpu), SLAB_ACCOUNT,
-					  NULL);
-	if (!x86_fpu_cache) {
-		printk(KERN_ERR "kvm: failed to allocate cache for x86 fpu\n");
-		goto out;
-	}
 
 	x86_emulator_cache = kvm_alloc_emulator_cache();
 	if (!x86_emulator_cache) {
 		pr_err("kvm: failed to allocate cache for x86 emulator\n");
-		goto out_free_x86_fpu_cache;
+		goto out;
 	}
 
 	user_return_msrs = alloc_percpu(struct kvm_user_return_msrs);
@@ -8483,8 +8359,6 @@ out_free_percpu:
 	free_percpu(user_return_msrs);
 out_free_x86_emulator_cache:
 	kmem_cache_destroy(x86_emulator_cache);
-out_free_x86_fpu_cache:
-	kmem_cache_destroy(x86_fpu_cache);
 out:
 	return r;
 }
@@ -8511,7 +8385,6 @@ void kvm_arch_exit(void)
 	kvm_mmu_module_exit();
 	free_percpu(user_return_msrs);
 	kmem_cache_destroy(x86_emulator_cache);
-	kmem_cache_destroy(x86_fpu_cache);
 #ifdef CONFIG_KVM_XEN
 	static_key_deferred_flush(&kvm_xen_enabled);
 	WARN_ON(static_branch_unlikely(&kvm_xen_enabled.key));
@@ -9938,58 +9811,21 @@ static int complete_emulated_mmio(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-static void kvm_save_current_fpu(struct fpu *fpu)
-{
-	/*
-	 * If the target FPU state is not resident in the CPU registers, just
-	 * memcpy() from current, else save CPU state directly to the target.
-	 */
-	if (test_thread_flag(TIF_NEED_FPU_LOAD))
-		memcpy(&fpu->state, &current->thread.fpu.state,
-		       fpu_kernel_xstate_size);
-	else
-		save_fpregs_to_fpstate(fpu);
-}
-
 /* Swap (qemu) user FPU context for the guest FPU context. */
 static void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
 {
-	fpregs_lock();
-
-	kvm_save_current_fpu(vcpu->arch.user_fpu);
-
 	/*
-	 * Guests with protected state can't have it set by the hypervisor,
-	 * so skip trying to set it.
+	 * Exclude PKRU from restore as restored separately in
+	 * kvm_x86_ops.run().
 	 */
-	if (vcpu->arch.guest_fpu)
-		/* PKRU is separately restored in kvm_x86_ops.run. */
-		__restore_fpregs_from_fpstate(&vcpu->arch.guest_fpu->state,
-					~XFEATURE_MASK_PKRU);
-
-	fpregs_mark_activate();
-	fpregs_unlock();
-
+	fpu_swap_kvm_fpstate(&vcpu->arch.guest_fpu, true);
 	trace_kvm_fpu(1);
 }
 
 /* When vcpu_run ends, restore user space FPU context. */
 static void kvm_put_guest_fpu(struct kvm_vcpu *vcpu)
 {
-	fpregs_lock();
-
-	/*
-	 * Guests with protected state can't have it read by the hypervisor,
-	 * so skip trying to save it.
-	 */
-	if (vcpu->arch.guest_fpu)
-		kvm_save_current_fpu(vcpu->arch.guest_fpu);
-
-	restore_fpregs_from_fpstate(&vcpu->arch.user_fpu->state);
-
-	fpregs_mark_activate();
-	fpregs_unlock();
-
+	fpu_swap_kvm_fpstate(&vcpu->arch.guest_fpu, false);
 	++vcpu->stat.fpu_reload;
 	trace_kvm_fpu(0);
 }
@@ -10570,12 +10406,12 @@ int kvm_arch_vcpu_ioctl_get_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 {
 	struct fxregs_state *fxsave;
 
-	if (!vcpu->arch.guest_fpu)
+	if (fpstate_is_confidential(&vcpu->arch.guest_fpu))
 		return 0;
 
 	vcpu_load(vcpu);
 
-	fxsave = &vcpu->arch.guest_fpu->state.fxsave;
+	fxsave = &vcpu->arch.guest_fpu.fpstate->regs.fxsave;
 	memcpy(fpu->fpr, fxsave->st_space, 128);
 	fpu->fcw = fxsave->cwd;
 	fpu->fsw = fxsave->swd;
@@ -10593,12 +10429,12 @@ int kvm_arch_vcpu_ioctl_set_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 {
 	struct fxregs_state *fxsave;
 
-	if (!vcpu->arch.guest_fpu)
+	if (fpstate_is_confidential(&vcpu->arch.guest_fpu))
 		return 0;
 
 	vcpu_load(vcpu);
 
-	fxsave = &vcpu->arch.guest_fpu->state.fxsave;
+	fxsave = &vcpu->arch.guest_fpu.fpstate->regs.fxsave;
 
 	memcpy(fxsave->st_space, fpu->fpr, 128);
 	fxsave->cwd = fpu->fcw;
@@ -10651,14 +10487,6 @@ static int sync_regs(struct kvm_vcpu *vcpu)
 
 static void fx_init(struct kvm_vcpu *vcpu)
 {
-	if (!vcpu->arch.guest_fpu)
-		return;
-
-	fpstate_init(&vcpu->arch.guest_fpu->state);
-	if (boot_cpu_has(X86_FEATURE_XSAVES))
-		vcpu->arch.guest_fpu->state.xsave.header.xcomp_bv =
-			host_xcr0 | XSTATE_COMPACTION_ENABLED;
-
 	/*
 	 * Ensure guest xcr0 is valid for loading
 	 */
@@ -10666,15 +10494,6 @@ static void fx_init(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.cr0 |= X86_CR0_ET;
 }
-
-void kvm_free_guest_fpu(struct kvm_vcpu *vcpu)
-{
-	if (vcpu->arch.guest_fpu) {
-		kmem_cache_free(x86_fpu_cache, vcpu->arch.guest_fpu);
-		vcpu->arch.guest_fpu = NULL;
-	}
-}
-EXPORT_SYMBOL_GPL(kvm_free_guest_fpu);
 
 int kvm_arch_vcpu_precreate(struct kvm *kvm, unsigned int id)
 {
@@ -10732,19 +10551,11 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 	if (!alloc_emulate_ctxt(vcpu))
 		goto free_wbinvd_dirty_mask;
 
-	vcpu->arch.user_fpu = kmem_cache_zalloc(x86_fpu_cache,
-						GFP_KERNEL_ACCOUNT);
-	if (!vcpu->arch.user_fpu) {
-		pr_err("kvm: failed to allocate userspace's fpu\n");
+	if (!fpu_alloc_guest_fpstate(&vcpu->arch.guest_fpu)) {
+		pr_err("kvm: failed to allocate vcpu's fpu\n");
 		goto free_emulate_ctxt;
 	}
 
-	vcpu->arch.guest_fpu = kmem_cache_zalloc(x86_fpu_cache,
-						 GFP_KERNEL_ACCOUNT);
-	if (!vcpu->arch.guest_fpu) {
-		pr_err("kvm: failed to allocate vcpu's fpu\n");
-		goto free_user_fpu;
-	}
 	fx_init(vcpu);
 
 	vcpu->arch.maxphyaddr = cpuid_query_maxphyaddr(vcpu);
@@ -10777,9 +10588,7 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 	return 0;
 
 free_guest_fpu:
-	kvm_free_guest_fpu(vcpu);
-free_user_fpu:
-	kmem_cache_free(x86_fpu_cache, vcpu->arch.user_fpu);
+	fpu_free_guest_fpstate(&vcpu->arch.guest_fpu);
 free_emulate_ctxt:
 	kmem_cache_free(x86_emulator_cache, vcpu->arch.emulate_ctxt);
 free_wbinvd_dirty_mask:
@@ -10828,8 +10637,7 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 
 	kmem_cache_free(x86_emulator_cache, vcpu->arch.emulate_ctxt);
 	free_cpumask_var(vcpu->arch.wbinvd_dirty_mask);
-	kmem_cache_free(x86_fpu_cache, vcpu->arch.user_fpu);
-	kvm_free_guest_fpu(vcpu);
+	fpu_free_guest_fpstate(&vcpu->arch.guest_fpu);
 
 	kvm_hv_vcpu_uninit(vcpu);
 	kvm_pmu_destroy(vcpu);
@@ -10881,8 +10689,8 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 	kvm_async_pf_hash_reset(vcpu);
 	vcpu->arch.apf.halted = false;
 
-	if (vcpu->arch.guest_fpu && kvm_mpx_supported()) {
-		void *mpx_state_buffer;
+	if (vcpu->arch.guest_fpu.fpstate && kvm_mpx_supported()) {
+		struct fpstate *fpstate = vcpu->arch.guest_fpu.fpstate;
 
 		/*
 		 * To avoid have the INIT path from kvm_apic_has_events() that be
@@ -10890,14 +10698,10 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 		 */
 		if (init_event)
 			kvm_put_guest_fpu(vcpu);
-		mpx_state_buffer = get_xsave_addr(&vcpu->arch.guest_fpu->state.xsave,
-					XFEATURE_BNDREGS);
-		if (mpx_state_buffer)
-			memset(mpx_state_buffer, 0, sizeof(struct mpx_bndreg_state));
-		mpx_state_buffer = get_xsave_addr(&vcpu->arch.guest_fpu->state.xsave,
-					XFEATURE_BNDCSR);
-		if (mpx_state_buffer)
-			memset(mpx_state_buffer, 0, sizeof(struct mpx_bndcsr));
+
+		fpstate_clear_xstate_component(fpstate, XFEATURE_BNDREGS);
+		fpstate_clear_xstate_component(fpstate, XFEATURE_BNDCSR);
+
 		if (init_event)
 			kvm_load_guest_fpu(vcpu);
 	}

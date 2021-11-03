@@ -58,7 +58,7 @@
  *     the output constraints to make the compiler aware that R11 cannot be
  *     reused after the asm() statement.
  *
- *     For builds with CONFIG_UNWIND_FRAME_POINTER ASM_CALL_CONSTRAINT is
+ *     For builds with CONFIG_UNWINDER_FRAME_POINTER, ASM_CALL_CONSTRAINT is
  *     required as well as this prevents certain creative GCC variants from
  *     misplacing the ASM code.
  *

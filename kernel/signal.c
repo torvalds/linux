@@ -4138,11 +4138,29 @@ int do_sigaction(int sig, struct k_sigaction *act, struct k_sigaction *oact)
 	return 0;
 }
 
+#ifdef CONFIG_DYNAMIC_SIGFRAME
+static inline void sigaltstack_lock(void)
+	__acquires(&current->sighand->siglock)
+{
+	spin_lock_irq(&current->sighand->siglock);
+}
+
+static inline void sigaltstack_unlock(void)
+	__releases(&current->sighand->siglock)
+{
+	spin_unlock_irq(&current->sighand->siglock);
+}
+#else
+static inline void sigaltstack_lock(void) { }
+static inline void sigaltstack_unlock(void) { }
+#endif
+
 static int
 do_sigaltstack (const stack_t *ss, stack_t *oss, unsigned long sp,
 		size_t min_ss_size)
 {
 	struct task_struct *t = current;
+	int ret = 0;
 
 	if (oss) {
 		memset(oss, 0, sizeof(stack_t));
@@ -4166,19 +4184,24 @@ do_sigaltstack (const stack_t *ss, stack_t *oss, unsigned long sp,
 				ss_mode != 0))
 			return -EINVAL;
 
+		sigaltstack_lock();
 		if (ss_mode == SS_DISABLE) {
 			ss_size = 0;
 			ss_sp = NULL;
 		} else {
 			if (unlikely(ss_size < min_ss_size))
-				return -ENOMEM;
+				ret = -ENOMEM;
+			if (!sigaltstack_size_valid(ss_size))
+				ret = -ENOMEM;
 		}
-
-		t->sas_ss_sp = (unsigned long) ss_sp;
-		t->sas_ss_size = ss_size;
-		t->sas_ss_flags = ss_flags;
+		if (!ret) {
+			t->sas_ss_sp = (unsigned long) ss_sp;
+			t->sas_ss_size = ss_size;
+			t->sas_ss_flags = ss_flags;
+		}
+		sigaltstack_unlock();
 	}
-	return 0;
+	return ret;
 }
 
 SYSCALL_DEFINE2(sigaltstack,const stack_t __user *,uss, stack_t __user *,uoss)

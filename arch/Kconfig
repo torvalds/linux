@@ -1234,6 +1234,9 @@ config RELR
 config ARCH_HAS_MEM_ENCRYPT
 	bool
 
+config ARCH_HAS_CC_PLATFORM
+	bool
+
 config HAVE_SPARSE_SYSCALL_NR
        bool
        help
@@ -1286,6 +1289,9 @@ config ARCH_HAS_ELFCORE_COMPAT
 	bool
 
 config ARCH_HAS_PARANOID_L1D_FLUSH
+	bool
+
+config DYNAMIC_SIGFRAME
 	bool
 
 source "kernel/gcov/Kconfig"

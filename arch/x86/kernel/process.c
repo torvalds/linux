@@ -30,7 +30,9 @@
 #include <asm/apic.h>
 #include <linux/uaccess.h>
 #include <asm/mwait.h>
-#include <asm/fpu/internal.h>
+#include <asm/fpu/api.h>
+#include <asm/fpu/sched.h>
+#include <asm/fpu/xstate.h>
 #include <asm/debugreg.h>
 #include <asm/nmi.h>
 #include <asm/tlbflush.h>
@@ -88,8 +90,19 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 #ifdef CONFIG_VM86
 	dst->thread.vm86 = NULL;
 #endif
-	return fpu_clone(dst);
+	/* Drop the copied pointer to current's fpstate */
+	dst->thread.fpu.fpstate = NULL;
+
+	return 0;
 }
+
+#ifdef CONFIG_X86_64
+void arch_release_task_struct(struct task_struct *tsk)
+{
+	if (fpu_state_size_dynamic())
+		fpstate_free(&tsk->thread.fpu);
+}
+#endif
 
 /*
  * Free thread data structures etc..
@@ -154,6 +167,8 @@ int copy_thread(unsigned long clone_flags, unsigned long sp, unsigned long arg,
 	 */
 	frame->flags = X86_EFLAGS_FIXED;
 #endif
+
+	fpu_clone(p, clone_flags);
 
 	/* Kernel thread ? */
 	if (unlikely(p->flags & PF_KTHREAD)) {
@@ -962,13 +977,17 @@ unsigned long __get_wchan(struct task_struct *p)
 }
 
 long do_arch_prctl_common(struct task_struct *task, int option,
-			  unsigned long cpuid_enabled)
+			  unsigned long arg2)
 {
 	switch (option) {
 	case ARCH_GET_CPUID:
 		return get_cpuid_mode();
 	case ARCH_SET_CPUID:
-		return set_cpuid_mode(task, cpuid_enabled);
+		return set_cpuid_mode(task, arg2);
+	case ARCH_GET_XCOMP_SUPP:
+	case ARCH_GET_XCOMP_PERM:
+	case ARCH_REQ_XCOMP_PERM:
+		return fpu_xstate_prctl(task, option, arg2);
 	}
 
 	return -EINVAL;
