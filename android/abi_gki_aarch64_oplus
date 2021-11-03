@@ -2689,9 +2689,11 @@
   __traceiter_sched_overutilized_tp
   __traceiter_sched_stat_blocked
   __traceiter_sched_stat_iowait
+  __traceiter_sched_stat_sleep
   __traceiter_sched_stat_wait
   __traceiter_sched_switch
   __traceiter_sched_update_nr_running_tp
+  __traceiter_sched_waking
   __traceiter_suspend_resume
   __traceiter_task_newtask
   __traceiter_task_rename
@@ -2876,9 +2878,11 @@
   __tracepoint_sched_overutilized_tp
   __tracepoint_sched_stat_blocked
   __tracepoint_sched_stat_iowait
+  __tracepoint_sched_stat_sleep
   __tracepoint_sched_stat_wait
   __tracepoint_sched_switch
   __tracepoint_sched_update_nr_running_tp
+  __tracepoint_sched_waking
   tracepoint_srcu
   __tracepoint_suspend_resume
   __tracepoint_task_newtask
