@@ -32,6 +32,7 @@ enum rxe_elem_type {
 
 struct rxe_pool_elem {
 	struct rxe_pool		*pool;
+	void			*obj;
 	struct kref		ref_cnt;
 	struct list_head	list;
 

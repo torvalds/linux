@@ -225,7 +225,8 @@ static int rxe_insert_key(struct rxe_pool *pool, struct rxe_pool_elem *new)
 		elem = rb_entry(parent, struct rxe_pool_elem, key_node);
 
 		cmp = memcmp((u8 *)elem + pool->key.key_offset,
-			     (u8 *)new + pool->key.key_offset, pool->key.key_size);
+			     (u8 *)new + pool->key.key_offset,
+			     pool->key.key_size);
 
 		if (cmp == 0) {
 			pr_warn("key already exists!\n");
@@ -326,7 +327,7 @@ void __rxe_drop_index(struct rxe_pool_elem *elem)
 void *rxe_alloc_locked(struct rxe_pool *pool)
 {
 	struct rxe_pool_elem *elem;
-	u8 *obj;
+	void *obj;
 
 	if (atomic_inc_return(&pool->num_elem) > pool->max_elem)
 		goto out_cnt;
@@ -335,9 +336,10 @@ void *rxe_alloc_locked(struct rxe_pool *pool)
 	if (!obj)
 		goto out_cnt;
 
-	elem = (struct rxe_pool_elem *)(obj + pool->elem_offset);
+	elem = (struct rxe_pool_elem *)((u8 *)obj + pool->elem_offset);
 
 	elem->pool = pool;
+	elem->obj = obj;
 	kref_init(&elem->ref_cnt);
 
 	return obj;
@@ -350,7 +352,7 @@ out_cnt:
 void *rxe_alloc(struct rxe_pool *pool)
 {
 	struct rxe_pool_elem *elem;
-	u8 *obj;
+	void *obj;
 
 	if (atomic_inc_return(&pool->num_elem) > pool->max_elem)
 		goto out_cnt;
@@ -359,9 +361,10 @@ void *rxe_alloc(struct rxe_pool *pool)
 	if (!obj)
 		goto out_cnt;
 
-	elem = (struct rxe_pool_elem *)(obj + pool->elem_offset);
+	elem = (struct rxe_pool_elem *)((u8 *)obj + pool->elem_offset);
 
 	elem->pool = pool;
+	elem->obj = obj;
 	kref_init(&elem->ref_cnt);
 
 	return obj;
@@ -377,6 +380,7 @@ int __rxe_add_to_pool(struct rxe_pool *pool, struct rxe_pool_elem *elem)
 		goto out_cnt;
 
 	elem->pool = pool;
+	elem->obj = (u8 *)elem - pool->elem_offset;
 	kref_init(&elem->ref_cnt);
 
 	return 0;
@@ -391,13 +395,13 @@ void rxe_elem_release(struct kref *kref)
 	struct rxe_pool_elem *elem =
 		container_of(kref, struct rxe_pool_elem, ref_cnt);
 	struct rxe_pool *pool = elem->pool;
-	u8 *obj;
+	void *obj;
 
 	if (pool->cleanup)
 		pool->cleanup(elem);
 
 	if (!(pool->flags & RXE_POOL_NO_ALLOC)) {
-		obj = (u8 *)elem - pool->elem_offset;
+		obj = elem->obj;
 		kfree(obj);
 	}
 
@@ -408,7 +412,7 @@ void *rxe_pool_get_index_locked(struct rxe_pool *pool, u32 index)
 {
 	struct rb_node *node;
 	struct rxe_pool_elem *elem;
-	u8 *obj;
+	void *obj;
 
 	node = pool->index.tree.rb_node;
 
@@ -425,7 +429,7 @@ void *rxe_pool_get_index_locked(struct rxe_pool *pool, u32 index)
 
 	if (node) {
 		kref_get(&elem->ref_cnt);
-		obj = (u8 *)elem - pool->elem_offset;
+		obj = elem->obj;
 	} else {
 		obj = NULL;
 	}
@@ -435,7 +439,7 @@ void *rxe_pool_get_index_locked(struct rxe_pool *pool, u32 index)
 
 void *rxe_pool_get_index(struct rxe_pool *pool, u32 index)
 {
-	u8 *obj;
+	void *obj;
 
 	read_lock_bh(&pool->pool_lock);
 	obj = rxe_pool_get_index_locked(pool, index);
@@ -448,7 +452,7 @@ void *rxe_pool_get_key_locked(struct rxe_pool *pool, void *key)
 {
 	struct rb_node *node;
 	struct rxe_pool_elem *elem;
-	u8 *obj;
+	void *obj;
 	int cmp;
 
 	node = pool->key.tree.rb_node;
@@ -469,7 +473,7 @@ void *rxe_pool_get_key_locked(struct rxe_pool *pool, void *key)
 
 	if (node) {
 		kref_get(&elem->ref_cnt);
-		obj = (u8 *)elem - pool->elem_offset;
+		obj = elem->obj;
 	} else {
 		obj = NULL;
 	}
@@ -479,7 +483,7 @@ void *rxe_pool_get_key_locked(struct rxe_pool *pool, void *key)
 
 void *rxe_pool_get_key(struct rxe_pool *pool, void *key)
 {
-	u8 *obj;
+	void *obj;
 
 	read_lock_bh(&pool->pool_lock);
 	obj = rxe_pool_get_key_locked(pool, key);
