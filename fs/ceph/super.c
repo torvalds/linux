@@ -1461,6 +1461,14 @@ bool disable_send_metrics = false;
 module_param_cb(disable_send_metrics, &param_ops_metrics, &disable_send_metrics, 0644);
 MODULE_PARM_DESC(disable_send_metrics, "Enable sending perf metrics to ceph cluster (default: on)");
 
+/* for both v1 and v2 syntax */
+static bool mount_support = true;
+static const struct kernel_param_ops param_ops_mount_syntax = {
+	.get = param_get_bool,
+};
+module_param_cb(mount_syntax_v1, &param_ops_mount_syntax, &mount_support, 0444);
+module_param_cb(mount_syntax_v2, &param_ops_mount_syntax, &mount_support, 0444);
+
 module_init(init_ceph);
 module_exit(exit_ceph);
 
