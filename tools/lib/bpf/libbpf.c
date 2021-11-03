@@ -4282,30 +4282,20 @@ int bpf_map__resize(struct bpf_map *map, __u32 max_entries)
 static int
 bpf_object__probe_loading(struct bpf_object *obj)
 {
-	struct bpf_load_program_attr attr;
 	char *cp, errmsg[STRERR_BUFSIZE];
 	struct bpf_insn insns[] = {
 		BPF_MOV64_IMM(BPF_REG_0, 0),
 		BPF_EXIT_INSN(),
 	};
-	int ret;
+	int ret, insn_cnt = ARRAY_SIZE(insns);
 
 	if (obj->gen_loader)
 		return 0;
 
 	/* make sure basic loading works */
-
-	memset(&attr, 0, sizeof(attr));
-	attr.prog_type = BPF_PROG_TYPE_SOCKET_FILTER;
-	attr.insns = insns;
-	attr.insns_cnt = ARRAY_SIZE(insns);
-	attr.license = "GPL";
-
-	ret = bpf_load_program_xattr(&attr, NULL, 0);
-	if (ret < 0) {
-		attr.prog_type = BPF_PROG_TYPE_TRACEPOINT;
-		ret = bpf_load_program_xattr(&attr, NULL, 0);
-	}
+	ret = bpf_prog_load(BPF_PROG_TYPE_SOCKET_FILTER, NULL, "GPL", insns, insn_cnt, NULL);
+	if (ret < 0)
+		ret = bpf_prog_load(BPF_PROG_TYPE_TRACEPOINT, NULL, "GPL", insns, insn_cnt, NULL);
 	if (ret < 0) {
 		ret = errno;
 		cp = libbpf_strerror_r(ret, errmsg, sizeof(errmsg));
@@ -4329,28 +4319,19 @@ static int probe_fd(int fd)
 
 static int probe_kern_prog_name(void)
 {
-	struct bpf_load_program_attr attr;
 	struct bpf_insn insns[] = {
 		BPF_MOV64_IMM(BPF_REG_0, 0),
 		BPF_EXIT_INSN(),
 	};
-	int ret;
+	int ret, insn_cnt = ARRAY_SIZE(insns);
 
 	/* make sure loading with name works */
-
-	memset(&attr, 0, sizeof(attr));
-	attr.prog_type = BPF_PROG_TYPE_SOCKET_FILTER;
-	attr.insns = insns;
-	attr.insns_cnt = ARRAY_SIZE(insns);
-	attr.license = "GPL";
-	attr.name = "test";
-	ret = bpf_load_program_xattr(&attr, NULL, 0);
+	ret = bpf_prog_load(BPF_PROG_TYPE_SOCKET_FILTER, "test", "GPL", insns, insn_cnt, NULL);
 	return probe_fd(ret);
 }
 
 static int probe_kern_global_data(void)
 {
-	struct bpf_load_program_attr prg_attr;
 	struct bpf_create_map_attr map_attr;
 	char *cp, errmsg[STRERR_BUFSIZE];
 	struct bpf_insn insns[] = {
@@ -4359,7 +4340,7 @@ static int probe_kern_global_data(void)
 		BPF_MOV64_IMM(BPF_REG_0, 0),
 		BPF_EXIT_INSN(),
 	};
-	int ret, map;
+	int ret, map, insn_cnt = ARRAY_SIZE(insns);
 
 	memset(&map_attr, 0, sizeof(map_attr));
 	map_attr.map_type = BPF_MAP_TYPE_ARRAY;
@@ -4378,13 +4359,7 @@ static int probe_kern_global_data(void)
 
 	insns[0].imm = map;
 
-	memset(&prg_attr, 0, sizeof(prg_attr));
-	prg_attr.prog_type = BPF_PROG_TYPE_SOCKET_FILTER;
-	prg_attr.insns = insns;
-	prg_attr.insns_cnt = ARRAY_SIZE(insns);
-	prg_attr.license = "GPL";
-
-	ret = bpf_load_program_xattr(&prg_attr, NULL, 0);
+	ret = bpf_prog_load(BPF_PROG_TYPE_SOCKET_FILTER, NULL, "GPL", insns, insn_cnt, NULL);
 	close(map);
 	return probe_fd(ret);
 }
@@ -4500,30 +4475,24 @@ static int probe_kern_array_mmap(void)
 
 static int probe_kern_exp_attach_type(void)
 {
-	struct bpf_load_program_attr attr;
+	LIBBPF_OPTS(bpf_prog_load_opts, opts, .expected_attach_type = BPF_CGROUP_INET_SOCK_CREATE);
 	struct bpf_insn insns[] = {
 		BPF_MOV64_IMM(BPF_REG_0, 0),
 		BPF_EXIT_INSN(),
 	};
+	int fd, insn_cnt = ARRAY_SIZE(insns);
 
-	memset(&attr, 0, sizeof(attr));
 	/* use any valid combination of program type and (optional)
 	 * non-zero expected attach type (i.e., not a BPF_CGROUP_INET_INGRESS)
 	 * to see if kernel supports expected_attach_type field for
 	 * BPF_PROG_LOAD command
 	 */
-	attr.prog_type = BPF_PROG_TYPE_CGROUP_SOCK;
-	attr.expected_attach_type = BPF_CGROUP_INET_SOCK_CREATE;
-	attr.insns = insns;
-	attr.insns_cnt = ARRAY_SIZE(insns);
-	attr.license = "GPL";
-
-	return probe_fd(bpf_load_program_xattr(&attr, NULL, 0));
+	fd = bpf_prog_load(BPF_PROG_TYPE_CGROUP_SOCK, NULL, "GPL", insns, insn_cnt, &opts);
+	return probe_fd(fd);
 }
 
 static int probe_kern_probe_read_kernel(void)
 {
-	struct bpf_load_program_attr attr;
 	struct bpf_insn insns[] = {
 		BPF_MOV64_REG(BPF_REG_1, BPF_REG_10),	/* r1 = r10 (fp) */
 		BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, -8),	/* r1 += -8 */
@@ -4532,26 +4501,21 @@ static int probe_kern_probe_read_kernel(void)
 		BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_probe_read_kernel),
 		BPF_EXIT_INSN(),
 	};
+	int fd, insn_cnt = ARRAY_SIZE(insns);
 
-	memset(&attr, 0, sizeof(attr));
-	attr.prog_type = BPF_PROG_TYPE_KPROBE;
-	attr.insns = insns;
-	attr.insns_cnt = ARRAY_SIZE(insns);
-	attr.license = "GPL";
-
-	return probe_fd(bpf_load_program_xattr(&attr, NULL, 0));
+	fd = bpf_prog_load(BPF_PROG_TYPE_KPROBE, NULL, "GPL", insns, insn_cnt, NULL);
+	return probe_fd(fd);
 }
 
 static int probe_prog_bind_map(void)
 {
-	struct bpf_load_program_attr prg_attr;
 	struct bpf_create_map_attr map_attr;
 	char *cp, errmsg[STRERR_BUFSIZE];
 	struct bpf_insn insns[] = {
 		BPF_MOV64_IMM(BPF_REG_0, 0),
 		BPF_EXIT_INSN(),
 	};
-	int ret, map, prog;
+	int ret, map, prog, insn_cnt = ARRAY_SIZE(insns);
 
 	memset(&map_attr, 0, sizeof(map_attr));
 	map_attr.map_type = BPF_MAP_TYPE_ARRAY;
@@ -4568,13 +4532,7 @@ static int probe_prog_bind_map(void)
 		return ret;
 	}
 
-	memset(&prg_attr, 0, sizeof(prg_attr));
-	prg_attr.prog_type = BPF_PROG_TYPE_SOCKET_FILTER;
-	prg_attr.insns = insns;
-	prg_attr.insns_cnt = ARRAY_SIZE(insns);
-	prg_attr.license = "GPL";
-
-	prog = bpf_load_program_xattr(&prg_attr, NULL, 0);
+	prog = bpf_prog_load(BPF_PROG_TYPE_SOCKET_FILTER, NULL, "GPL", insns, insn_cnt, NULL);
 	if (prog < 0) {
 		close(map);
 		return 0;
@@ -4619,19 +4577,14 @@ static int probe_module_btf(void)
 
 static int probe_perf_link(void)
 {
-	struct bpf_load_program_attr attr;
 	struct bpf_insn insns[] = {
 		BPF_MOV64_IMM(BPF_REG_0, 0),
 		BPF_EXIT_INSN(),
 	};
 	int prog_fd, link_fd, err;
 
-	memset(&attr, 0, sizeof(attr));
-	attr.prog_type = BPF_PROG_TYPE_TRACEPOINT;
-	attr.insns = insns;
-	attr.insns_cnt = ARRAY_SIZE(insns);
-	attr.license = "GPL";
-	prog_fd = bpf_load_program_xattr(&attr, NULL, 0);
+	prog_fd = bpf_prog_load(BPF_PROG_TYPE_TRACEPOINT, NULL, "GPL",
+				insns, ARRAY_SIZE(insns), NULL);
 	if (prog_fd < 0)
 		return -errno;
 
@@ -9168,22 +9121,12 @@ long libbpf_get_error(const void *ptr)
 	return -errno;
 }
 
-COMPAT_VERSION(bpf_prog_load_deprecated, bpf_prog_load, LIBBPF_0.0.1)
-int bpf_prog_load_deprecated(const char *file, enum bpf_prog_type type,
-			     struct bpf_object **pobj, int *prog_fd)
-{
-	struct bpf_prog_load_attr attr;
-
-	memset(&attr, 0, sizeof(struct bpf_prog_load_attr));
-	attr.file = file;
-	attr.prog_type = type;
-	attr.expected_attach_type = 0;
-
-	return bpf_prog_load_xattr(&attr, pobj, prog_fd);
-}
-
+__attribute__((alias("bpf_prog_load_xattr2")))
 int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
-			struct bpf_object **pobj, int *prog_fd)
+			struct bpf_object **pobj, int *prog_fd);
+
+static int bpf_prog_load_xattr2(const struct bpf_prog_load_attr *attr,
+				struct bpf_object **pobj, int *prog_fd)
 {
 	struct bpf_object_open_attr open_attr = {};
 	struct bpf_program *prog, *first_prog = NULL;
@@ -9252,6 +9195,20 @@ int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 	*pobj = obj;
 	*prog_fd = bpf_program__fd(first_prog);
 	return 0;
+}
+
+COMPAT_VERSION(bpf_prog_load_deprecated, bpf_prog_load, LIBBPF_0.0.1)
+int bpf_prog_load_deprecated(const char *file, enum bpf_prog_type type,
+			     struct bpf_object **pobj, int *prog_fd)
+{
+	struct bpf_prog_load_attr attr;
+
+	memset(&attr, 0, sizeof(struct bpf_prog_load_attr));
+	attr.file = file;
+	attr.prog_type = type;
+	attr.expected_attach_type = 0;
+
+	return bpf_prog_load_xattr2(&attr, pobj, prog_fd);
 }
 
 struct bpf_link {

@@ -68,21 +68,21 @@ static void
 probe_load(enum bpf_prog_type prog_type, const struct bpf_insn *insns,
 	   size_t insns_cnt, char *buf, size_t buf_len, __u32 ifindex)
 {
-	struct bpf_load_program_attr xattr = {};
+	LIBBPF_OPTS(bpf_prog_load_opts, opts);
 	int fd;
 
 	switch (prog_type) {
 	case BPF_PROG_TYPE_CGROUP_SOCK_ADDR:
-		xattr.expected_attach_type = BPF_CGROUP_INET4_CONNECT;
+		opts.expected_attach_type = BPF_CGROUP_INET4_CONNECT;
 		break;
 	case BPF_PROG_TYPE_CGROUP_SOCKOPT:
-		xattr.expected_attach_type = BPF_CGROUP_GETSOCKOPT;
+		opts.expected_attach_type = BPF_CGROUP_GETSOCKOPT;
 		break;
 	case BPF_PROG_TYPE_SK_LOOKUP:
-		xattr.expected_attach_type = BPF_SK_LOOKUP;
+		opts.expected_attach_type = BPF_SK_LOOKUP;
 		break;
 	case BPF_PROG_TYPE_KPROBE:
-		xattr.kern_version = get_kernel_version();
+		opts.kern_version = get_kernel_version();
 		break;
 	case BPF_PROG_TYPE_UNSPEC:
 	case BPF_PROG_TYPE_SOCKET_FILTER:
@@ -115,13 +115,11 @@ probe_load(enum bpf_prog_type prog_type, const struct bpf_insn *insns,
 		break;
 	}
 
-	xattr.prog_type = prog_type;
-	xattr.insns = insns;
-	xattr.insns_cnt = insns_cnt;
-	xattr.license = "GPL";
-	xattr.prog_ifindex = ifindex;
+	opts.prog_ifindex = ifindex;
+	opts.log_buf = buf;
+	opts.log_size = buf_len;
 
-	fd = bpf_load_program_xattr(&xattr, buf, buf_len);
+	fd = bpf_prog_load(prog_type, NULL, "GPL", insns, insns_cnt, NULL);
 	if (fd >= 0)
 		close(fd);
 }

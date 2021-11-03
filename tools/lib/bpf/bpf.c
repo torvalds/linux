@@ -401,8 +401,12 @@ done:
 	return libbpf_err_errno(fd);
 }
 
+__attribute__((alias("bpf_load_program_xattr2")))
 int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
-			   char *log_buf, size_t log_buf_sz)
+			   char *log_buf, size_t log_buf_sz);
+
+static int bpf_load_program_xattr2(const struct bpf_load_program_attr *load_attr,
+				   char *log_buf, size_t log_buf_sz)
 {
 	LIBBPF_OPTS(bpf_prog_load_opts, p);
 
@@ -456,7 +460,7 @@ int bpf_load_program(enum bpf_prog_type type, const struct bpf_insn *insns,
 	load_attr.license = license;
 	load_attr.kern_version = kern_version;
 
-	return bpf_load_program_xattr(&load_attr, log_buf, log_buf_sz);
+	return bpf_load_program_xattr2(&load_attr, log_buf, log_buf_sz);
 }
 
 int bpf_verify_program(enum bpf_prog_type type, const struct bpf_insn *insns,
