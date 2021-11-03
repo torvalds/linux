@@ -1276,6 +1276,7 @@ static int gaudi_collective_wait_init_cs(struct hl_cs *cs)
 		container_of(cs->signal_fence, struct hl_cs_compl, base_fence);
 	struct hl_cs_compl *cs_cmpl =
 		container_of(cs->fence, struct hl_cs_compl, base_fence);
+	struct hl_cs_encaps_sig_handle *handle = cs->encaps_sig_hdl;
 	struct gaudi_collective_properties *cprop;
 	u32 stream, queue_id, sob_group_offset;
 	struct gaudi_device *gaudi;
@@ -1288,10 +1289,16 @@ static int gaudi_collective_wait_init_cs(struct hl_cs *cs)
 	gaudi = hdev->asic_specific;
 	cprop = &gaudi->collective_props;
 
-	/* In encaps signals case the SOB info will be retrieved from
-	 * the handle in gaudi_collective_slave_init_job.
-	 */
-	if (!cs->encaps_signals) {
+	if (cs->encaps_signals) {
+		cs_cmpl->hw_sob = handle->hw_sob;
+		/* at this checkpoint we only need the hw_sob pointer
+		 * for the completion check before start going over the jobs
+		 * of the master/slaves, the sob_value will be taken later on
+		 * in gaudi_collective_slave_init_job depends on each
+		 * job wait offset value.
+		 */
+		cs_cmpl->sob_val = 0;
+	} else {
 		/* copy the SOB id and value of the signal CS */
 		cs_cmpl->hw_sob = signal_cs_cmpl->hw_sob;
 		cs_cmpl->sob_val = signal_cs_cmpl->sob_val;
