@@ -496,7 +496,7 @@ again:
 	 * Since we unlock the lockref lock, we set a flag to indicate
 	 * instantiate is in progress.
 	 */
-	if (test_bit(GLF_INSTANTIATE_IN_PROG, &gl->gl_flags)) {
+	if (test_and_set_bit(GLF_INSTANTIATE_IN_PROG, &gl->gl_flags)) {
 		wait_on_bit(&gl->gl_flags, GLF_INSTANTIATE_IN_PROG,
 			    TASK_UNINTERRUPTIBLE);
 		/*
@@ -509,14 +509,10 @@ again:
 		goto again;
 	}
 
-	set_bit(GLF_INSTANTIATE_IN_PROG, &gl->gl_flags);
-
 	ret = glops->go_instantiate(gh);
 	if (!ret)
 		clear_bit(GLF_INSTANTIATE_NEEDED, &gl->gl_flags);
-	clear_bit(GLF_INSTANTIATE_IN_PROG, &gl->gl_flags);
-	smp_mb__after_atomic();
-	wake_up_bit(&gl->gl_flags, GLF_INSTANTIATE_IN_PROG);
+	clear_and_wake_up_bit(GLF_INSTANTIATE_IN_PROG, &gl->gl_flags);
 	return ret;
 }
 
