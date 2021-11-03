@@ -540,6 +540,57 @@ static int dram_replaced_rows_info(struct hl_fpriv *hpriv, struct hl_info_args *
 	return copy_to_user(out, &info, min_t(size_t, max_size, sizeof(info))) ? -EFAULT : 0;
 }
 
+static int last_err_open_dev_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	struct hl_info_last_err_open_dev_time info = {0};
+	struct hl_device *hdev = hpriv->hdev;
+	u32 max_size = args->return_size;
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	info.timestamp = ktime_to_ns(hdev->last_error.open_dev_timestamp);
+
+	return copy_to_user(out, &info, min_t(size_t, max_size, sizeof(info))) ? -EFAULT : 0;
+}
+
+static int cs_timeout_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	struct hl_info_cs_timeout_event info = {0};
+	struct hl_device *hdev = hpriv->hdev;
+	u32 max_size = args->return_size;
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	info.seq = hdev->last_error.cs_timeout_seq;
+	info.timestamp = ktime_to_ns(hdev->last_error.cs_timeout_timestamp);
+
+	return copy_to_user(out, &info, min_t(size_t, max_size, sizeof(info))) ? -EFAULT : 0;
+}
+
+static int razwi_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	struct hl_device *hdev = hpriv->hdev;
+	u32 max_size = args->return_size;
+	struct hl_info_razwi_event info = {0};
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	info.timestamp = ktime_to_ns(hdev->last_error.razwi_timestamp);
+	info.addr = hdev->last_error.razwi_addr;
+	info.engine_id_1 = hdev->last_error.razwi_engine_id_1;
+	info.engine_id_2 = hdev->last_error.razwi_engine_id_2;
+	info.no_engine_id = hdev->last_error.razwi_non_engine_initiator;
+	info.error_type = hdev->last_error.razwi_type;
+
+	return copy_to_user(out, &info, min_t(size_t, max_size, sizeof(info))) ? -EFAULT : 0;
+}
+
 static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 				struct device *dev)
 {
@@ -631,6 +682,15 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 
 	case HL_INFO_DRAM_PENDING_ROWS:
 		return dram_pending_rows_info(hpriv, args);
+
+	case HL_INFO_LAST_ERR_OPEN_DEV_TIME:
+		return last_err_open_dev_info(hpriv, args);
+
+	case HL_INFO_CS_TIMEOUT_EVENT:
+		return cs_timeout_info(hpriv, args);
+
+	case HL_INFO_RAZWI_EVENT:
+		return razwi_info(hpriv, args);
 
 	default:
 		dev_err(dev, "Invalid request %d\n", args->op);

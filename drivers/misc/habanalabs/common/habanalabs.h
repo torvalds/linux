@@ -2406,6 +2406,40 @@ struct hl_clk_throttle {
 };
 
 /**
+ * struct last_error_session_info - info about last session in which CS timeout or
+ *                                    razwi error occurred.
+ * @open_dev_timestamp: device open timestamp.
+ * @cs_timeout_timestamp: CS timeout timestamp.
+ * @razwi_timestamp: razwi timestamp.
+ * @cs_write_disable: if set writing to CS parameters in the structure is disabled so the
+ *                    first (root cause) CS timeout will not be overwritten.
+ * @razwi_write_disable: if set writing to razwi parameters in the structure is disabled so the
+ *                       first (root cause) razwi will not be overwritten.
+ * @cs_timeout_seq: CS timeout sequence number.
+ * @razwi_addr: address that caused razwi.
+ * @razwi_engine_id_1: engine id of the razwi initiator, if it was initiated by engine that does
+ *                     not have engine id it will be set to U16_MAX.
+ * @razwi_engine_id_2: second engine id of razwi initiator. Might happen that razwi have 2 possible
+ *                     engines which one them caused the razwi. In that case, it will contain the
+ *                     second possible engine id, otherwise it will be set to U16_MAX.
+ * @razwi_non_engine_initiator: in case the initiator of the razwi does not have engine id.
+ * @razwi_type: cause of razwi, page fault or access error, otherwise it will be set to U8_MAX.
+ */
+struct last_error_session_info {
+	ktime_t		open_dev_timestamp;
+	ktime_t		cs_timeout_timestamp;
+	ktime_t		razwi_timestamp;
+	atomic_t	cs_write_disable;
+	atomic_t	razwi_write_disable;
+	u64		cs_timeout_seq;
+	u64		razwi_addr;
+	u16		razwi_engine_id_1;
+	u16		razwi_engine_id_2;
+	u8		razwi_non_engine_initiator;
+	u8		razwi_type;
+};
+
+/**
  * struct hl_device - habanalabs device structure.
  * @pdev: pointer to PCI device, can be NULL in case of simulator device.
  * @pcie_bar_phys: array of available PCIe bars physical addresses.
@@ -2488,6 +2522,7 @@ struct hl_clk_throttle {
  *                          device initialization. Mainly used to debug and
  *                          workaround firmware bugs
  * @dram_pci_bar_start: start bus address of PCIe bar towards DRAM.
+ * @last_successful_open_ktime: timestamp (ktime) of the last successful device open.
  * @last_successful_open_jif: timestamp (jiffies) of the last successful
  *                            device open.
  * @last_open_session_duration_jif: duration (jiffies) of the last device open
@@ -2632,6 +2667,7 @@ struct hl_device {
 	struct multi_cs_completion	multi_cs_completion[
 							MULTI_CS_MAX_USER_CTX];
 	struct hl_clk_throttle		clk_throttling;
+	struct last_error_session_info	last_error;
 
 	u32				*stream_master_qid_arr;
 	atomic64_t			dram_used_mem;
@@ -2645,6 +2681,7 @@ struct hl_device {
 	u64				open_counter;
 	u64				fw_poll_interval_usec;
 	atomic_t			in_reset;
+	ktime_t				last_successful_open_ktime;
 	enum hl_pll_frequency		curr_pll_profile;
 	enum cpucp_card_types		card_type;
 	u32				major;

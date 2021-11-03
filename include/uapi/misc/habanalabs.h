@@ -336,6 +336,14 @@ enum hl_server_type {
  * HL_INFO_OPEN_STATS    - Retrieve info regarding recent device open calls
  * HL_INFO_DRAM_REPLACED_ROWS - Retrieve DRAM replaced rows info
  * HL_INFO_DRAM_PENDING_ROWS - Retrieve DRAM pending rows num
+ * HL_INFO_LAST_ERR_OPEN_DEV_TIME - Retrieve timestamp of the last time the device was opened
+ *                                  and CS timeout or razwi error occurred.
+ * HL_INFO_CS_TIMEOUT_EVENT - Retrieve CS timeout timestamp and its related CS sequence number.
+ * HL_INFO_RAZWI_EVENT - Retrieve parameters of razwi:
+ *                            Timestamp of razwi.
+ *                            The address which accessing it caused the razwi.
+ *                            Razwi initiator.
+ *                            Razwi cause, was it a page fault or MMU access error.
  */
 #define HL_INFO_HW_IP_INFO		0
 #define HL_INFO_HW_EVENTS		1
@@ -357,8 +365,11 @@ enum hl_server_type {
 #define HL_INFO_OPEN_STATS		18
 #define HL_INFO_DRAM_REPLACED_ROWS	21
 #define HL_INFO_DRAM_PENDING_ROWS	22
+#define HL_INFO_LAST_ERR_OPEN_DEV_TIME	23
+#define HL_INFO_CS_TIMEOUT_EVENT	24
+#define HL_INFO_RAZWI_EVENT		25
 
-#define HL_INFO_VERSION_MAX_LEN	128
+#define HL_INFO_VERSION_MAX_LEN		128
 #define HL_INFO_CARD_NAME_MAX_LEN	16
 
 /**
@@ -573,6 +584,51 @@ struct hl_info_cs_counters {
 	__u64 ctx_max_cs_in_flight_drop_cnt;
 	__u64 total_validation_drop_cnt;
 	__u64 ctx_validation_drop_cnt;
+};
+
+/**
+ * struct hl_info_last_err_open_dev_time - last error boot information.
+ * @timestamp: timestamp of last time the device was opened and error occurred.
+ */
+struct hl_info_last_err_open_dev_time {
+	__s64 timestamp;
+};
+
+/**
+ * struct hl_info_cs_timeout_event - last CS timeout information.
+ * @timestamp: timestamp when last CS timeout event occurred.
+ * @seq: sequence number of last CS timeout event.
+ */
+struct hl_info_cs_timeout_event {
+	__s64 timestamp;
+	__u64 seq;
+};
+
+#define HL_RAZWI_PAGE_FAULT 0
+#define HL_RAZWI_MMU_ACCESS_ERROR 1
+
+/**
+ * struct hl_info_razwi_event - razwi information.
+ * @timestamp: timestamp of razwi.
+ * @addr: address which accessing it caused razwi.
+ * @engine_id_1: engine id of the razwi initiator, if it was initiated by engine that does not
+ *               have engine id it will be set to U16_MAX.
+ * @engine_id_2: second engine id of razwi initiator. Might happen that razwi have 2 possible
+ *               engines which one them caused the razwi. In that case, it will contain the
+ *               second possible engine id, otherwise it will be set to U16_MAX.
+ * @no_engine_id: if razwi initiator does not have engine id, this field will be set to 1,
+ *                otherwise 0.
+ * @error_type: cause of razwi, page fault or access error, otherwise it will be set to U8_MAX.
+ * @pad: padding to 64 bit.
+ */
+struct hl_info_razwi_event {
+	__s64 timestamp;
+	__u64 addr;
+	__u16 engine_id_1;
+	__u16 engine_id_2;
+	__u8 no_engine_id;
+	__u8 error_type;
+	__u8 pad[2];
 };
 
 enum gaudi_dcores {

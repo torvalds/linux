@@ -6970,8 +6970,9 @@ event_not_supported:
 	snprintf(desc, size, "N/A");
 }
 
-static const char *gaudi_get_razwi_initiator_dma_name(struct hl_device *hdev,
-							u32 x_y, bool is_write)
+static const char *gaudi_get_razwi_initiator_dma_name(struct hl_device *hdev, u32 x_y,
+							bool is_write, s32 *engine_id_1,
+							s32 *engine_id_2)
 {
 	u32 dma_id[2], dma_offset, err_cause[2], mask, i;
 
@@ -7011,44 +7012,64 @@ static const char *gaudi_get_razwi_initiator_dma_name(struct hl_device *hdev,
 	switch (x_y) {
 	case RAZWI_INITIATOR_ID_X_Y_DMA_IF_W_S_0:
 	case RAZWI_INITIATOR_ID_X_Y_DMA_IF_W_S_1:
-		if ((err_cause[0] & mask) && !(err_cause[1] & mask))
+		if ((err_cause[0] & mask) && !(err_cause[1] & mask)) {
+			*engine_id_1 = GAUDI_ENGINE_ID_DMA_0;
 			return "DMA0";
-		else if (!(err_cause[0] & mask) && (err_cause[1] & mask))
+		} else if (!(err_cause[0] & mask) && (err_cause[1] & mask)) {
+			*engine_id_1 = GAUDI_ENGINE_ID_DMA_2;
 			return "DMA2";
-		else
+		} else {
+			*engine_id_1 = GAUDI_ENGINE_ID_DMA_0;
+			*engine_id_2 = GAUDI_ENGINE_ID_DMA_2;
 			return "DMA0 or DMA2";
+		}
 	case RAZWI_INITIATOR_ID_X_Y_DMA_IF_E_S_0:
 	case RAZWI_INITIATOR_ID_X_Y_DMA_IF_E_S_1:
-		if ((err_cause[0] & mask) && !(err_cause[1] & mask))
+		if ((err_cause[0] & mask) && !(err_cause[1] & mask)) {
+			*engine_id_1 = GAUDI_ENGINE_ID_DMA_1;
 			return "DMA1";
-		else if (!(err_cause[0] & mask) && (err_cause[1] & mask))
+		} else if (!(err_cause[0] & mask) && (err_cause[1] & mask)) {
+			*engine_id_1 = GAUDI_ENGINE_ID_DMA_3;
 			return "DMA3";
-		else
+		} else {
+			*engine_id_1 = GAUDI_ENGINE_ID_DMA_1;
+			*engine_id_2 = GAUDI_ENGINE_ID_DMA_3;
 			return "DMA1 or DMA3";
+		}
 	case RAZWI_INITIATOR_ID_X_Y_DMA_IF_W_N_0:
 	case RAZWI_INITIATOR_ID_X_Y_DMA_IF_W_N_1:
-		if ((err_cause[0] & mask) && !(err_cause[1] & mask))
+		if ((err_cause[0] & mask) && !(err_cause[1] & mask)) {
+			*engine_id_1 = GAUDI_ENGINE_ID_DMA_4;
 			return "DMA4";
-		else if (!(err_cause[0] & mask) && (err_cause[1] & mask))
+		} else if (!(err_cause[0] & mask) && (err_cause[1] & mask)) {
+			*engine_id_1 = GAUDI_ENGINE_ID_DMA_6;
 			return "DMA6";
-		else
+		} else {
+			*engine_id_1 = GAUDI_ENGINE_ID_DMA_4;
+			*engine_id_2 = GAUDI_ENGINE_ID_DMA_6;
 			return "DMA4 or DMA6";
+		}
 	case RAZWI_INITIATOR_ID_X_Y_DMA_IF_E_N_0:
 	case RAZWI_INITIATOR_ID_X_Y_DMA_IF_E_N_1:
-		if ((err_cause[0] & mask) && !(err_cause[1] & mask))
+		if ((err_cause[0] & mask) && !(err_cause[1] & mask)) {
+			*engine_id_1 = GAUDI_ENGINE_ID_DMA_5;
 			return "DMA5";
-		else if (!(err_cause[0] & mask) && (err_cause[1] & mask))
+		} else if (!(err_cause[0] & mask) && (err_cause[1] & mask)) {
+			*engine_id_1 = GAUDI_ENGINE_ID_DMA_7;
 			return "DMA7";
-		else
+		} else {
+			*engine_id_1 = GAUDI_ENGINE_ID_DMA_5;
+			*engine_id_2 = GAUDI_ENGINE_ID_DMA_7;
 			return "DMA5 or DMA7";
+		}
 	}
 
 unknown_initiator:
 	return "unknown initiator";
 }
 
-static const char *gaudi_get_razwi_initiator_name(struct hl_device *hdev,
-							bool is_write)
+static const char *gaudi_get_razwi_initiator_name(struct hl_device *hdev, bool is_write,
+							u32 *engine_id_1, u32 *engine_id_2)
 {
 	u32 val, x_y, axi_id;
 
@@ -7061,24 +7082,35 @@ static const char *gaudi_get_razwi_initiator_name(struct hl_device *hdev,
 
 	switch (x_y) {
 	case RAZWI_INITIATOR_ID_X_Y_TPC0_NIC0:
-		if (axi_id == RAZWI_INITIATOR_ID_AXI_ID(AXI_ID_TPC))
+		if (axi_id == RAZWI_INITIATOR_ID_AXI_ID(AXI_ID_TPC)) {
+			*engine_id_1 = GAUDI_ENGINE_ID_TPC_0;
 			return "TPC0";
-		if (axi_id == RAZWI_INITIATOR_ID_AXI_ID(AXI_ID_NIC))
+		}
+		if (axi_id == RAZWI_INITIATOR_ID_AXI_ID(AXI_ID_NIC)) {
+			*engine_id_1 = GAUDI_ENGINE_ID_NIC_0;
 			return "NIC0";
+		}
 		break;
 	case RAZWI_INITIATOR_ID_X_Y_TPC1:
+		*engine_id_1 = GAUDI_ENGINE_ID_TPC_1;
 		return "TPC1";
 	case RAZWI_INITIATOR_ID_X_Y_MME0_0:
 	case RAZWI_INITIATOR_ID_X_Y_MME0_1:
+		*engine_id_1 = GAUDI_ENGINE_ID_MME_0;
 		return "MME0";
 	case RAZWI_INITIATOR_ID_X_Y_MME1_0:
 	case RAZWI_INITIATOR_ID_X_Y_MME1_1:
+		*engine_id_1 = GAUDI_ENGINE_ID_MME_1;
 		return "MME1";
 	case RAZWI_INITIATOR_ID_X_Y_TPC2:
+		*engine_id_1 = GAUDI_ENGINE_ID_TPC_2;
 		return "TPC2";
 	case RAZWI_INITIATOR_ID_X_Y_TPC3_PCI_CPU_PSOC:
-		if (axi_id == RAZWI_INITIATOR_ID_AXI_ID(AXI_ID_TPC))
+		if (axi_id == RAZWI_INITIATOR_ID_AXI_ID(AXI_ID_TPC)) {
+			*engine_id_1 = GAUDI_ENGINE_ID_TPC_3;
 			return "TPC3";
+		}
+		/* PCI, CPU or PSOC does not have engine id*/
 		if (axi_id == RAZWI_INITIATOR_ID_AXI_ID(AXI_ID_PCI))
 			return "PCI";
 		if (axi_id == RAZWI_INITIATOR_ID_AXI_ID(AXI_ID_CPU))
@@ -7094,32 +7126,49 @@ static const char *gaudi_get_razwi_initiator_name(struct hl_device *hdev,
 	case RAZWI_INITIATOR_ID_X_Y_DMA_IF_W_N_1:
 	case RAZWI_INITIATOR_ID_X_Y_DMA_IF_E_N_0:
 	case RAZWI_INITIATOR_ID_X_Y_DMA_IF_E_N_1:
-		return gaudi_get_razwi_initiator_dma_name(hdev, x_y, is_write);
+		return gaudi_get_razwi_initiator_dma_name(hdev, x_y, is_write,
+				engine_id_1, engine_id_2);
 	case RAZWI_INITIATOR_ID_X_Y_TPC4_NIC1_NIC2:
-		if (axi_id == RAZWI_INITIATOR_ID_AXI_ID(AXI_ID_TPC))
+		if (axi_id == RAZWI_INITIATOR_ID_AXI_ID(AXI_ID_TPC)) {
+			*engine_id_1 = GAUDI_ENGINE_ID_TPC_4;
 			return "TPC4";
-		if (axi_id == RAZWI_INITIATOR_ID_AXI_ID(AXI_ID_NIC))
+		}
+		if (axi_id == RAZWI_INITIATOR_ID_AXI_ID(AXI_ID_NIC)) {
+			*engine_id_1 = GAUDI_ENGINE_ID_NIC_1;
 			return "NIC1";
-		if (axi_id == RAZWI_INITIATOR_ID_AXI_ID(AXI_ID_NIC_FT))
+		}
+		if (axi_id == RAZWI_INITIATOR_ID_AXI_ID(AXI_ID_NIC_FT)) {
+			*engine_id_1 = GAUDI_ENGINE_ID_NIC_2;
 			return "NIC2";
+		}
 		break;
 	case RAZWI_INITIATOR_ID_X_Y_TPC5:
+		*engine_id_1 = GAUDI_ENGINE_ID_TPC_5;
 		return "TPC5";
 	case RAZWI_INITIATOR_ID_X_Y_MME2_0:
 	case RAZWI_INITIATOR_ID_X_Y_MME2_1:
+		*engine_id_1 = GAUDI_ENGINE_ID_MME_2;
 		return "MME2";
 	case RAZWI_INITIATOR_ID_X_Y_MME3_0:
 	case RAZWI_INITIATOR_ID_X_Y_MME3_1:
+		*engine_id_1 = GAUDI_ENGINE_ID_MME_3;
 		return "MME3";
 	case RAZWI_INITIATOR_ID_X_Y_TPC6:
+		*engine_id_1 = GAUDI_ENGINE_ID_TPC_6;
 		return "TPC6";
 	case RAZWI_INITIATOR_ID_X_Y_TPC7_NIC4_NIC5:
-		if (axi_id == RAZWI_INITIATOR_ID_AXI_ID(AXI_ID_TPC))
+		if (axi_id == RAZWI_INITIATOR_ID_AXI_ID(AXI_ID_TPC)) {
+			*engine_id_1 = GAUDI_ENGINE_ID_TPC_7;
 			return "TPC7";
-		if (axi_id == RAZWI_INITIATOR_ID_AXI_ID(AXI_ID_NIC))
+		}
+		if (axi_id == RAZWI_INITIATOR_ID_AXI_ID(AXI_ID_NIC)) {
+			*engine_id_1 = GAUDI_ENGINE_ID_NIC_4;
 			return "NIC4";
-		if (axi_id == RAZWI_INITIATOR_ID_AXI_ID(AXI_ID_NIC_FT))
+		}
+		if (axi_id == RAZWI_INITIATOR_ID_AXI_ID(AXI_ID_NIC_FT)) {
+			*engine_id_1 = GAUDI_ENGINE_ID_NIC_5;
 			return "NIC5";
+		}
 		break;
 	default:
 		break;
@@ -7136,27 +7185,28 @@ static const char *gaudi_get_razwi_initiator_name(struct hl_device *hdev,
 	return "unknown initiator";
 }
 
-static void gaudi_print_razwi_info(struct hl_device *hdev)
+static void gaudi_print_and_get_razwi_info(struct hl_device *hdev, u32 *engine_id_1,
+						u32 *engine_id_2)
 {
+
 	if (RREG32(mmMMU_UP_RAZWI_WRITE_VLD)) {
 		dev_err_ratelimited(hdev->dev,
 			"RAZWI event caused by illegal write of %s\n",
-			gaudi_get_razwi_initiator_name(hdev, true));
+			gaudi_get_razwi_initiator_name(hdev, true, engine_id_1, engine_id_2));
 		WREG32(mmMMU_UP_RAZWI_WRITE_VLD, 0);
 	}
 
 	if (RREG32(mmMMU_UP_RAZWI_READ_VLD)) {
 		dev_err_ratelimited(hdev->dev,
 			"RAZWI event caused by illegal read of %s\n",
-			gaudi_get_razwi_initiator_name(hdev, false));
+			gaudi_get_razwi_initiator_name(hdev, false, engine_id_1, engine_id_2));
 		WREG32(mmMMU_UP_RAZWI_READ_VLD, 0);
 	}
 }
 
-static void gaudi_print_mmu_error_info(struct hl_device *hdev)
+static void gaudi_print_and_get_mmu_error_info(struct hl_device *hdev, u64 *addr, u8 *type)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
-	u64 addr;
 	u32 val;
 
 	if (!(gaudi->hw_cap_initialized & HW_CAP_MMU))
@@ -7164,24 +7214,24 @@ static void gaudi_print_mmu_error_info(struct hl_device *hdev)
 
 	val = RREG32(mmMMU_UP_PAGE_ERROR_CAPTURE);
 	if (val & MMU_UP_PAGE_ERROR_CAPTURE_ENTRY_VALID_MASK) {
-		addr = val & MMU_UP_PAGE_ERROR_CAPTURE_VA_49_32_MASK;
-		addr <<= 32;
-		addr |= RREG32(mmMMU_UP_PAGE_ERROR_CAPTURE_VA);
+		*addr = val & MMU_UP_PAGE_ERROR_CAPTURE_VA_49_32_MASK;
+		*addr <<= 32;
+		*addr |= RREG32(mmMMU_UP_PAGE_ERROR_CAPTURE_VA);
 
-		dev_err_ratelimited(hdev->dev, "MMU page fault on va 0x%llx\n",
-					addr);
+		dev_err_ratelimited(hdev->dev, "MMU page fault on va 0x%llx\n", *addr);
+		*type = HL_RAZWI_PAGE_FAULT;
 
 		WREG32(mmMMU_UP_PAGE_ERROR_CAPTURE, 0);
 	}
 
 	val = RREG32(mmMMU_UP_ACCESS_ERROR_CAPTURE);
 	if (val & MMU_UP_ACCESS_ERROR_CAPTURE_ENTRY_VALID_MASK) {
-		addr = val & MMU_UP_ACCESS_ERROR_CAPTURE_VA_49_32_MASK;
-		addr <<= 32;
-		addr |= RREG32(mmMMU_UP_ACCESS_ERROR_CAPTURE_VA);
+		*addr = val & MMU_UP_ACCESS_ERROR_CAPTURE_VA_49_32_MASK;
+		*addr <<= 32;
+		*addr |= RREG32(mmMMU_UP_ACCESS_ERROR_CAPTURE_VA);
 
-		dev_err_ratelimited(hdev->dev,
-				"MMU access error on va 0x%llx\n", addr);
+		dev_err_ratelimited(hdev->dev, "MMU access error on va 0x%llx\n", *addr);
+		*type = HL_RAZWI_MMU_ACCESS_ERROR;
 
 		WREG32(mmMMU_UP_ACCESS_ERROR_CAPTURE, 0);
 	}
@@ -7700,15 +7750,46 @@ static void gaudi_handle_qman_err(struct hl_device *hdev, u16 event_type)
 static void gaudi_print_irq_info(struct hl_device *hdev, u16 event_type,
 					bool razwi)
 {
+	u32 engine_id_1, engine_id_2;
 	char desc[64] = "";
+	u64 razwi_addr = 0;
+	u8 razwi_type;
+	int rc;
+
+	/*
+	 * Init engine id by default as not valid and only if razwi initiated from engine with
+	 * engine id it will get valid value.
+	 * Init razwi type to default, will be changed only if razwi caused by page fault of
+	 * MMU access error
+	 */
+	engine_id_1 = U16_MAX;
+	engine_id_2 = U16_MAX;
+	razwi_type = U8_MAX;
 
 	gaudi_get_event_desc(event_type, desc, sizeof(desc));
 	dev_err_ratelimited(hdev->dev, "Received H/W interrupt %d [\"%s\"]\n",
 		event_type, desc);
 
 	if (razwi) {
-		gaudi_print_razwi_info(hdev);
-		gaudi_print_mmu_error_info(hdev);
+		gaudi_print_and_get_razwi_info(hdev, &engine_id_1, &engine_id_2);
+		gaudi_print_and_get_mmu_error_info(hdev, &razwi_addr, &razwi_type);
+
+		/* In case it's the first razwi, save its parameters*/
+		rc = atomic_cmpxchg(&hdev->last_error.razwi_write_disable, 0, 1);
+		if (!rc) {
+			hdev->last_error.open_dev_timestamp = hdev->last_successful_open_ktime;
+			hdev->last_error.razwi_timestamp = ktime_get();
+			hdev->last_error.razwi_addr = razwi_addr;
+			hdev->last_error.razwi_engine_id_1 = engine_id_1;
+			hdev->last_error.razwi_engine_id_2 = engine_id_2;
+			/*
+			 * If first engine id holds non valid value the razwi initiator
+			 * does not have engine id
+			 */
+			hdev->last_error.razwi_non_engine_initiator = (engine_id_1 == U16_MAX);
+			hdev->last_error.razwi_type = razwi_type;
+
+		}
 	}
 }
 

@@ -733,6 +733,14 @@ static void cs_timedout(struct work_struct *work)
 
 	hdev = cs->ctx->hdev;
 
+	/* Save only the first CS timeout parameters */
+	rc = atomic_cmpxchg(&hdev->last_error.cs_write_disable, 0, 1);
+	if (!rc) {
+		hdev->last_error.open_dev_timestamp = hdev->last_successful_open_ktime;
+		hdev->last_error.cs_timeout_timestamp = ktime_get();
+		hdev->last_error.cs_timeout_seq = cs->sequence;
+	}
+
 	switch (cs->type) {
 	case CS_TYPE_SIGNAL:
 		dev_err(hdev->dev,
