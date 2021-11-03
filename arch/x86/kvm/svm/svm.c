@@ -4435,6 +4435,7 @@ static int svm_leave_smm(struct kvm_vcpu *vcpu, const char *smstate)
 
 	vmcb12 = map.hva;
 	nested_load_control_from_vmcb12(svm, &vmcb12->control);
+	nested_copy_vmcb_save_to_cache(svm, &vmcb12->save);
 	ret = enter_svm_guest_mode(vcpu, vmcb12_gpa, vmcb12, false);
 
 unmap_save:

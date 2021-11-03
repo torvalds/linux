@@ -105,6 +105,15 @@ struct kvm_vmcb_info {
 	uint64_t asid_generation;
 };
 
+struct vmcb_save_area_cached {
+	u64 efer;
+	u64 cr4;
+	u64 cr3;
+	u64 cr0;
+	u64 dr7;
+	u64 dr6;
+};
+
 struct svm_nested_state {
 	struct kvm_vmcb_info vmcb02;
 	u64 hsave_msr;
@@ -121,6 +130,12 @@ struct svm_nested_state {
 
 	/* cache for control fields of the guest */
 	struct vmcb_control_area ctl;
+
+	/*
+	 * Note: this struct is not kept up-to-date while L2 runs; it is only
+	 * valid within nested_svm_vmrun.
+	 */
+	struct vmcb_save_area_cached save;
 
 	bool initialized;
 };
@@ -496,6 +511,8 @@ void nested_svm_update_tsc_ratio_msr(struct kvm_vcpu *vcpu);
 void svm_write_tsc_multiplier(struct kvm_vcpu *vcpu, u64 multiplier);
 void nested_load_control_from_vmcb12(struct vcpu_svm *svm,
 				     struct vmcb_control_area *control);
+void nested_copy_vmcb_save_to_cache(struct vcpu_svm *svm,
+				    struct vmcb_save_area *save);
 void nested_sync_control_from_vmcb02(struct vcpu_svm *svm);
 void nested_vmcb02_compute_g_pat(struct vcpu_svm *svm);
 void svm_switch_vmcb(struct vcpu_svm *svm, struct kvm_vmcb_info *target_vmcb);

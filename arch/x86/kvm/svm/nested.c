@@ -328,6 +328,28 @@ void nested_load_control_from_vmcb12(struct vcpu_svm *svm,
 	svm->nested.ctl.iopm_base_pa  &= ~0x0fffULL;
 }
 
+static void __nested_copy_vmcb_save_to_cache(struct vmcb_save_area_cached *to,
+					     struct vmcb_save_area *from)
+{
+	/*
+	 * Copy only fields that are validated, as we need them
+	 * to avoid TOC/TOU races.
+	 */
+	to->efer = from->efer;
+	to->cr0 = from->cr0;
+	to->cr3 = from->cr3;
+	to->cr4 = from->cr4;
+
+	to->dr6 = from->dr6;
+	to->dr7 = from->dr7;
+}
+
+void nested_copy_vmcb_save_to_cache(struct vcpu_svm *svm,
+				    struct vmcb_save_area *save)
+{
+	__nested_copy_vmcb_save_to_cache(&svm->nested.save, save);
+}
+
 /*
  * Synchronize fields that are written by the processor, so that
  * they can be copied back into the vmcb12.
@@ -670,6 +692,7 @@ int nested_svm_vmrun(struct kvm_vcpu *vcpu)
 		return -EINVAL;
 
 	nested_load_control_from_vmcb12(svm, &vmcb12->control);
+	nested_copy_vmcb_save_to_cache(svm, &vmcb12->save);
 
 	if (!nested_vmcb_valid_sregs(vcpu, &vmcb12->save) ||
 	    !nested_vmcb_check_controls(vcpu, &svm->nested.ctl)) {
