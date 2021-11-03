@@ -96,11 +96,6 @@ static const struct rxe_type_info {
 	},
 };
 
-static inline const char *pool_name(struct rxe_pool *pool)
-{
-	return rxe_type_info[pool->type].name;
-}
-
 static int rxe_pool_init_index(struct rxe_pool *pool, u32 max, u32 min)
 {
 	int err = 0;
@@ -130,35 +125,36 @@ int rxe_pool_init(
 	enum rxe_elem_type	type,
 	unsigned int		max_elem)
 {
+	const struct rxe_type_info *info = &rxe_type_info[type];
 	int			err = 0;
-	size_t			size = rxe_type_info[type].size;
 
 	memset(pool, 0, sizeof(*pool));
 
 	pool->rxe		= rxe;
+	pool->name		= info->name;
 	pool->type		= type;
 	pool->max_elem		= max_elem;
-	pool->elem_size		= ALIGN(size, RXE_POOL_ALIGN);
-	pool->flags		= rxe_type_info[type].flags;
-	pool->index.tree	= RB_ROOT;
-	pool->key.tree		= RB_ROOT;
-	pool->cleanup		= rxe_type_info[type].cleanup;
+	pool->elem_size		= ALIGN(info->size, RXE_POOL_ALIGN);
+	pool->elem_offset	= info->elem_offset;
+	pool->flags		= info->flags;
+	pool->cleanup		= info->cleanup;
 
 	atomic_set(&pool->num_elem, 0);
 
 	rwlock_init(&pool->pool_lock);
 
-	if (rxe_type_info[type].flags & RXE_POOL_INDEX) {
-		err = rxe_pool_init_index(pool,
-					  rxe_type_info[type].max_index,
-					  rxe_type_info[type].min_index);
+	if (pool->flags & RXE_POOL_INDEX) {
+		pool->index.tree = RB_ROOT;
+		err = rxe_pool_init_index(pool, info->max_index,
+					  info->min_index);
 		if (err)
 			goto out;
 	}
 
-	if (rxe_type_info[type].flags & RXE_POOL_KEY) {
-		pool->key.key_offset = rxe_type_info[type].key_offset;
-		pool->key.key_size = rxe_type_info[type].key_size;
+	if (pool->flags & RXE_POOL_KEY) {
+		pool->key.tree = RB_ROOT;
+		pool->key.key_offset = info->key_offset;
+		pool->key.key_size = info->key_size;
 	}
 
 out:
@@ -169,9 +165,10 @@ void rxe_pool_cleanup(struct rxe_pool *pool)
 {
 	if (atomic_read(&pool->num_elem) > 0)
 		pr_warn("%s pool destroyed with unfree'd elem\n",
-			pool_name(pool));
+			pool->name);
 
-	bitmap_free(pool->index.table);
+	if (pool->flags & RXE_POOL_INDEX)
+		bitmap_free(pool->index.table);
 }
 
 static u32 alloc_index(struct rxe_pool *pool)
@@ -328,18 +325,17 @@ void __rxe_drop_index(struct rxe_pool_elem *elem)
 
 void *rxe_alloc_locked(struct rxe_pool *pool)
 {
-	const struct rxe_type_info *info = &rxe_type_info[pool->type];
 	struct rxe_pool_elem *elem;
 	u8 *obj;
 
 	if (atomic_inc_return(&pool->num_elem) > pool->max_elem)
 		goto out_cnt;
 
-	obj = kzalloc(info->size, GFP_ATOMIC);
+	obj = kzalloc(pool->elem_size, GFP_ATOMIC);
 	if (!obj)
 		goto out_cnt;
 
-	elem = (struct rxe_pool_elem *)(obj + info->elem_offset);
+	elem = (struct rxe_pool_elem *)(obj + pool->elem_offset);
 
 	elem->pool = pool;
 	kref_init(&elem->ref_cnt);
@@ -353,18 +349,17 @@ out_cnt:
 
 void *rxe_alloc(struct rxe_pool *pool)
 {
-	const struct rxe_type_info *info = &rxe_type_info[pool->type];
 	struct rxe_pool_elem *elem;
 	u8 *obj;
 
 	if (atomic_inc_return(&pool->num_elem) > pool->max_elem)
 		goto out_cnt;
 
-	obj = kzalloc(info->size, GFP_KERNEL);
+	obj = kzalloc(pool->elem_size, GFP_KERNEL);
 	if (!obj)
 		goto out_cnt;
 
-	elem = (struct rxe_pool_elem *)(obj + info->elem_offset);
+	elem = (struct rxe_pool_elem *)(obj + pool->elem_offset);
 
 	elem->pool = pool;
 	kref_init(&elem->ref_cnt);
@@ -396,14 +391,13 @@ void rxe_elem_release(struct kref *kref)
 	struct rxe_pool_elem *elem =
 		container_of(kref, struct rxe_pool_elem, ref_cnt);
 	struct rxe_pool *pool = elem->pool;
-	const struct rxe_type_info *info = &rxe_type_info[pool->type];
 	u8 *obj;
 
 	if (pool->cleanup)
 		pool->cleanup(elem);
 
 	if (!(pool->flags & RXE_POOL_NO_ALLOC)) {
-		obj = (u8 *)elem - info->elem_offset;
+		obj = (u8 *)elem - pool->elem_offset;
 		kfree(obj);
 	}
 
@@ -412,7 +406,6 @@ void rxe_elem_release(struct kref *kref)
 
 void *rxe_pool_get_index_locked(struct rxe_pool *pool, u32 index)
 {
-	const struct rxe_type_info *info = &rxe_type_info[pool->type];
 	struct rb_node *node;
 	struct rxe_pool_elem *elem;
 	u8 *obj;
@@ -432,7 +425,7 @@ void *rxe_pool_get_index_locked(struct rxe_pool *pool, u32 index)
 
 	if (node) {
 		kref_get(&elem->ref_cnt);
-		obj = (u8 *)elem - info->elem_offset;
+		obj = (u8 *)elem - pool->elem_offset;
 	} else {
 		obj = NULL;
 	}
@@ -453,7 +446,6 @@ void *rxe_pool_get_index(struct rxe_pool *pool, u32 index)
 
 void *rxe_pool_get_key_locked(struct rxe_pool *pool, void *key)
 {
-	const struct rxe_type_info *info = &rxe_type_info[pool->type];
 	struct rb_node *node;
 	struct rxe_pool_elem *elem;
 	u8 *obj;
@@ -477,7 +469,7 @@ void *rxe_pool_get_key_locked(struct rxe_pool *pool, void *key)
 
 	if (node) {
 		kref_get(&elem->ref_cnt);
-		obj = (u8 *)elem - info->elem_offset;
+		obj = (u8 *)elem - pool->elem_offset;
 	} else {
 		obj = NULL;
 	}
