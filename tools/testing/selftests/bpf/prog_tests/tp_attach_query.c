@@ -35,7 +35,7 @@ void serial_test_tp_attach_query(void)
 
 	query = malloc(sizeof(*query) + sizeof(__u32) * num_progs);
 	for (i = 0; i < num_progs; i++) {
-		err = bpf_prog_load(file, BPF_PROG_TYPE_TRACEPOINT, &obj[i],
+		err = bpf_prog_test_load(file, BPF_PROG_TYPE_TRACEPOINT, &obj[i],
 				    &prog_fd[i]);
 		if (CHECK(err, "prog_load", "err %d errno %d\n", err, errno))
 			goto cleanup1;

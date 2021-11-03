@@ -65,7 +65,7 @@ static void test_fexit_bpf2bpf_common(const char *obj_file,
 	int err, tgt_fd, i;
 	struct btf *btf;
 
-	err = bpf_prog_load(target_obj_file, BPF_PROG_TYPE_UNSPEC,
+	err = bpf_prog_test_load(target_obj_file, BPF_PROG_TYPE_UNSPEC,
 			    &tgt_obj, &tgt_fd);
 	if (!ASSERT_OK(err, "tgt_prog_load"))
 		return;
@@ -224,7 +224,7 @@ static int test_second_attach(struct bpf_object *obj)
 	if (CHECK(!prog, "find_prog", "prog %s not found\n", prog_name))
 		return -ENOENT;
 
-	err = bpf_prog_load(tgt_obj_file, BPF_PROG_TYPE_UNSPEC,
+	err = bpf_prog_test_load(tgt_obj_file, BPF_PROG_TYPE_UNSPEC,
 			    &tgt_obj, &tgt_fd);
 	if (CHECK(err, "second_prog_load", "file %s err %d errno %d\n",
 		  tgt_obj_file, err, errno))
@@ -274,7 +274,7 @@ static void test_fmod_ret_freplace(void)
 	__u32 duration = 0;
 	int err, pkt_fd, attach_prog_fd;
 
-	err = bpf_prog_load(tgt_name, BPF_PROG_TYPE_UNSPEC,
+	err = bpf_prog_test_load(tgt_name, BPF_PROG_TYPE_UNSPEC,
 			    &pkt_obj, &pkt_fd);
 	/* the target prog should load fine */
 	if (CHECK(err, "tgt_prog_load", "file %s err %d errno %d\n",
@@ -341,7 +341,7 @@ static void test_obj_load_failure_common(const char *obj_file,
 	int err, pkt_fd;
 	__u32 duration = 0;
 
-	err = bpf_prog_load(target_obj_file, BPF_PROG_TYPE_UNSPEC,
+	err = bpf_prog_test_load(target_obj_file, BPF_PROG_TYPE_UNSPEC,
 			    &pkt_obj, &pkt_fd);
 	/* the target prog should load fine */
 	if (CHECK(err, "tgt_prog_load", "file %s err %d errno %d\n",

@@ -24,7 +24,6 @@ SAN_CFLAGS	?=
 CFLAGS += -g -O0 -rdynamic -Wall $(GENFLAGS) $(SAN_CFLAGS)		\
 	  -I$(CURDIR) -I$(INCLUDE_DIR) -I$(GENDIR) -I$(LIBDIR)		\
 	  -I$(TOOLSINCDIR) -I$(APIDIR) -I$(OUTPUT)			\
-	  -Dbpf_prog_load_deprecated=bpf_prog_test_load			\
 	  -Dbpf_load_program=bpf_test_load_program
 LDLIBS += -lcap -lelf -lz -lrt -lpthread
 
@@ -207,6 +206,7 @@ $(OUTPUT)/test_lirc_mode2_user: testing_helpers.o
 $(OUTPUT)/xdping: testing_helpers.o
 $(OUTPUT)/flow_dissector_load: testing_helpers.o
 $(OUTPUT)/test_maps: testing_helpers.o
+$(OUTPUT)/test_verifier: testing_helpers.o
 
 BPFTOOL ?= $(DEFAULT_BPFTOOL)
 $(DEFAULT_BPFTOOL): $(wildcard $(BPFTOOLDIR)/*.[ch] $(BPFTOOLDIR)/Makefile)    \
