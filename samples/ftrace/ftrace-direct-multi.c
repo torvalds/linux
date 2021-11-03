@@ -5,6 +5,8 @@
 #include <linux/ftrace.h>
 #include <linux/sched/stat.h>
 
+extern void my_direct_func(unsigned long ip);
+
 void my_direct_func(unsigned long ip)
 {
 	trace_printk("ip %lx\n", ip);
