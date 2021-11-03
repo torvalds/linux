@@ -119,22 +119,6 @@ properties:
           - const: arm,foundation-aarch64
           - const: arm,vexpress
 
-  arm,hbi:
-    $ref: '/schemas/types.yaml#/definitions/uint32'
-    description: This indicates the ARM HBI (Hardware Board ID), this is
-      ARM's unique board model ID, visible on the PCB's silkscreen.
-
-  arm,vexpress,site:
-    description: As Versatile Express can be configured in number of physically
-      different setups, the device tree should describe platform topology.
-      For this reason the root node and main motherboard node must define this
-      property, describing the physical location of the children nodes.
-      0 means motherboard site, while 1 and 2 are daughterboard sites, and
-      0xf means "sisterboard" which is the site containing the main CPU tile.
-    $ref: '/schemas/types.yaml#/definitions/uint32'
-    minimum: 0
-    maximum: 15
-
   arm,vexpress,position:
     description: When daughterboards are stacked on one site, their position
       in the stack be be described this attribute.
@@ -154,9 +138,9 @@ patternProperties:
     description: Static Memory Bus (SMB) node, if this exists it describes
       the connection between the motherboard and any tiles. Sometimes the
       compatible is placed directly under this node, sometimes it is placed
-      in a subnode named "motherboard". Sometimes the compatible includes
+      in a subnode named "motherboard-bus". Sometimes the compatible includes
       "arm,vexpress,v2?-p1" sometimes (on software models) is is just
-      "simple-bus". If the compatible is placed in the "motherboard" node,
+      "simple-bus". If the compatible is placed in the "motherboard-bus" node,
       it is stricter and always has two compatibles.
     type: object
     $ref: '/schemas/simple-bus.yaml'
@@ -170,7 +154,9 @@ patternProperties:
                   - arm,vexpress,v2p-p1
               - const: simple-bus
           - const: simple-bus
-      motherboard:
+
+    patternProperties:
+      '^motherboard-bus@':
         type: object
         description: The motherboard description provides a single "motherboard"
           node using 2 address cells corresponding to the Static Memory Bus
@@ -183,6 +169,8 @@ patternProperties:
             const: 2
           "#size-cells":
             const: 1
+          ranges: true
+
           compatible:
             items:
               - enum:
@@ -196,8 +184,28 @@ patternProperties:
               - rs1
               - rs2
 
+          arm,hbi:
+            $ref: '/schemas/types.yaml#/definitions/uint32'
+            description: This indicates the ARM HBI (Hardware Board ID), this is
+              ARM's unique board model ID, visible on the PCB's silkscreen.
+
+          arm,vexpress,site:
+            description: As Versatile Express can be configured in number of physically
+              different setups, the device tree should describe platform topology.
+              For this reason the root node and main motherboard node must define this
+              property, describing the physical location of the children nodes.
+              0 means motherboard site, while 1 and 2 are daughterboard sites, and
+              0xf means "sisterboard" which is the site containing the main CPU tile.
+            $ref: '/schemas/types.yaml#/definitions/uint32'
+            minimum: 0
+            maximum: 15
+
         required:
           - compatible
+
+        additionalProperties:
+          type: object
+
     required:
       - compatible
 

@@ -15,7 +15,7 @@ properties:
     oneOf:
       - const: allwinner,sun8i-a83t-emac
       - const: allwinner,sun8i-h3-emac
-      - const: allwinner,sun8i-r40-emac
+      - const: allwinner,sun8i-r40-gmac
       - const: allwinner,sun8i-v3s-emac
       - const: allwinner,sun50i-a64-emac
       - items:
@@ -93,7 +93,7 @@ allOf:
         compatible:
           contains:
             enum:
-              - allwinner,sun8i-r40-emac
+              - allwinner,sun8i-r40-gmac
 
     then:
       properties:

@@ -1,0 +1,134 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/wireless/ti,wlcore.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments Wilink 6/7/8 (wl12xx/wl18xx) Wireless LAN Controller
+
+maintainers:
+  - Tony Lindgren <tony@atomide.com>
+
+description:
+  The wl12xx/wl18xx chips can be connected via SPI or via SDIO.
+  Note that the *-clock-frequency properties assume internal clocks.  In case
+  of external clocks, new bindings (for parsing the clock nodes) have to be
+  added.
+
+properties:
+  compatible:
+    enum:
+      - ti,wl1271
+      - ti,wl1273
+      - ti,wl1281
+      - ti,wl1283
+      - ti,wl1285
+      - ti,wl1801
+      - ti,wl1805
+      - ti,wl1807
+      - ti,wl1831
+      - ti,wl1835
+      - ti,wl1837
+
+  reg:
+    maxItems: 1
+    description:
+      This is required when connected via SPI, and optional when connected via
+      SDIO.
+
+  spi-max-frequency: true
+
+  interrupts:
+    minItems: 1
+    maxItems: 2
+
+  interrupt-names:
+    items:
+      - const: irq
+      - const: wakeup
+
+  vwlan-supply:
+    description:
+      Points to the node of the regulator that powers/enable the wl12xx/wl18xx
+      chip.  This is required when connected via SPI.
+
+
+  ref-clock-frequency:
+    description: Reference clock frequency.
+
+  tcxo-clock-frequency:
+    description: TCXO clock frequency.
+
+  clock-xtal:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: Indicates that the clock is generated from XTAL.
+
+required:
+  - compatible
+  - interrupts
+
+if:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - ti,wl1271
+          - ti,wl1273
+          - ti,wl1281
+          - ti,wl1283
+then:
+  required:
+    - ref-clock-frequency
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    // For wl12xx family:
+    spi1 {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            wlcore1: wlcore@1 {
+                    compatible = "ti,wl1271";
+                    reg = <1>;
+                    spi-max-frequency = <48000000>;
+                    interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
+                    vwlan-supply = <&vwlan_fixed>;
+                    clock-xtal;
+                    ref-clock-frequency = <38400000>;
+            };
+    };
+
+    // For wl18xx family:
+    spi2 {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            wlcore2: wlcore@0 {
+                    compatible = "ti,wl1835";
+                    reg = <0>;
+                    spi-max-frequency = <48000000>;
+                    interrupts = <27 IRQ_TYPE_EDGE_RISING>;
+                    vwlan-supply = <&vwlan_fixed>;
+            };
+    };
+
+    // SDIO example:
+    mmc3 {
+            vmmc-supply = <&wlan_en_reg>;
+            bus-width = <4>;
+            cap-power-off-card;
+            keep-power-in-suspend;
+
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            wlcore3: wlcore@2 {
+                    compatible = "ti,wl1835";
+                    reg = <2>;
+                    interrupts = <19 IRQ_TYPE_LEVEL_HIGH>;
+            };
+    };

@@ -31,15 +31,19 @@ properties:
               - sifive,bullet0
               - sifive,e5
               - sifive,e7
-              - sifive,e51
               - sifive,e71
-              - sifive,u54-mc
               - sifive,u74-mc
               - sifive,u54
               - sifive,u74
               - sifive,u5
               - sifive,u7
               - canaan,k210
+          - const: riscv
+      - items:
+          - enum:
+              - sifive,e51
+              - sifive,u54-mc
+          - const: sifive,rocket0
           - const: riscv
       - const: riscv    # Simulator only
     description:

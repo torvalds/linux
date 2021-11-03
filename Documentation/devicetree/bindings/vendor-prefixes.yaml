@@ -1104,6 +1104,8 @@ patternProperties:
     description: Spansion Inc.
   "^sparkfun,.*":
     description: SparkFun Electronics
+  "^spinalhdl,.*":
+    description: SpinalHDL
   "^sprd,.*":
     description: Spreadtrum Communications Inc.
   "^sst,.*":
