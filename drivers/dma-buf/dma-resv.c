@@ -140,6 +140,12 @@ void dma_resv_fini(struct dma_resv *obj)
 }
 EXPORT_SYMBOL(dma_resv_fini);
 
+static inline struct dma_fence *
+dma_resv_excl_fence(struct dma_resv *obj)
+{
+       return rcu_dereference_check(obj->fence_excl, dma_resv_held(obj));
+}
+
 static inline struct dma_resv_list *dma_resv_shared_list(struct dma_resv *obj)
 {
 	return rcu_dereference_check(obj->fence, dma_resv_held(obj));
