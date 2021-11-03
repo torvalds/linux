@@ -154,6 +154,14 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 		DMI_MATCH(DMI_PRODUCT_NAME, "VPCEH3U1E"),
 		},
 	},
+	{
+	.callback = video_detect_force_vendor,
+	/* Xiaomi Mi Pad 2 */
+	.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Xiaomi Inc"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Mipad2"),
+		},
+	},
 
 	/*
 	 * These models have a working acpi_video backlight control, and using
