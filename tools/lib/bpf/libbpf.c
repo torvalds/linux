@@ -3306,6 +3306,10 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 		} else if (sh->sh_type == SHT_REL) {
 			int targ_sec_idx = sh->sh_info; /* points to other section */
 
+			if (sh->sh_entsize != sizeof(Elf64_Rel) ||
+			    targ_sec_idx >= obj->efile.sec_cnt)
+				return -LIBBPF_ERRNO__FORMAT;
+
 			/* Only do relo for section with exec instructions */
 			if (!section_have_execinstr(obj, targ_sec_idx) &&
 			    strcmp(name, ".rel" STRUCT_OPS_SEC) &&
@@ -4025,7 +4029,7 @@ static int
 bpf_object__collect_prog_relos(struct bpf_object *obj, Elf64_Shdr *shdr, Elf_Data *data)
 {
 	const char *relo_sec_name, *sec_name;
-	size_t sec_idx = shdr->sh_info;
+	size_t sec_idx = shdr->sh_info, sym_idx;
 	struct bpf_program *prog;
 	struct reloc_desc *relos;
 	int err, i, nrels;
@@ -4035,6 +4039,9 @@ bpf_object__collect_prog_relos(struct bpf_object *obj, Elf64_Shdr *shdr, Elf_Dat
 	Elf_Data *scn_data;
 	Elf64_Sym *sym;
 	Elf64_Rel *rel;
+
+	if (sec_idx >= obj->efile.sec_cnt)
+		return -EINVAL;
 
 	scn = elf_sec_by_idx(obj, sec_idx);
 	scn_data = elf_sec_data(obj, scn);
@@ -4055,16 +4062,23 @@ bpf_object__collect_prog_relos(struct bpf_object *obj, Elf64_Shdr *shdr, Elf_Dat
 			return -LIBBPF_ERRNO__FORMAT;
 		}
 
-		sym = elf_sym_by_idx(obj, ELF64_R_SYM(rel->r_info));
+		sym_idx = ELF64_R_SYM(rel->r_info);
+		sym = elf_sym_by_idx(obj, sym_idx);
 		if (!sym) {
-			pr_warn("sec '%s': symbol 0x%zx not found for relo #%d\n",
-				relo_sec_name, (size_t)ELF64_R_SYM(rel->r_info), i);
+			pr_warn("sec '%s': symbol #%zu not found for relo #%d\n",
+				relo_sec_name, sym_idx, i);
+			return -LIBBPF_ERRNO__FORMAT;
+		}
+
+		if (sym->st_shndx >= obj->efile.sec_cnt) {
+			pr_warn("sec '%s': corrupted symbol #%zu pointing to invalid section #%zu for relo #%d\n",
+				relo_sec_name, sym_idx, (size_t)sym->st_shndx, i);
 			return -LIBBPF_ERRNO__FORMAT;
 		}
 
 		if (rel->r_offset % BPF_INSN_SZ || rel->r_offset >= scn_data->d_size) {
 			pr_warn("sec '%s': invalid offset 0x%zx for relo #%d\n",
-				relo_sec_name, (size_t)ELF64_R_SYM(rel->r_info), i);
+				relo_sec_name, (size_t)rel->r_offset, i);
 			return -LIBBPF_ERRNO__FORMAT;
 		}
 
