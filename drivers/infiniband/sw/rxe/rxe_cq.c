@@ -146,9 +146,9 @@ void rxe_cq_disable(struct rxe_cq *cq)
 	spin_unlock_bh(&cq->cq_lock);
 }
 
-void rxe_cq_cleanup(struct rxe_pool_entry *arg)
+void rxe_cq_cleanup(struct rxe_pool_elem *elem)
 {
-	struct rxe_cq *cq = container_of(arg, typeof(*cq), pelem);
+	struct rxe_cq *cq = container_of(elem, typeof(*cq), elem);
 
 	if (cq->queue)
 		rxe_queue_cleanup(cq->queue);

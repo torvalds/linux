@@ -182,7 +182,7 @@ static int rxe_create_ah(struct ib_ah *ibah,
 
 	/* create index > 0 */
 	rxe_add_index(ah);
-	ah->ah_num = ah->pelem.index;
+	ah->ah_num = ah->elem.index;
 
 	if (uresp) {
 		/* only if new user provider */
