@@ -107,7 +107,7 @@ comportamento.
 Se la patch corregge un baco conosciuto, fare riferimento a quel baco inserendo
 il suo numero o il suo URL.  Se la patch è la conseguenza di una discussione
 su una lista di discussione, allora fornite l'URL all'archivio di quella
-discussione;  usate i collegamenti a https://lkml.kernel.org/ con il
+discussione;  usate i collegamenti a https://lore.kernel.org/ con il
 ``Message-Id``, in questo modo vi assicurerete che il collegamento non diventi
 invalido nel tempo.
 
@@ -772,7 +772,7 @@ che lo riportava.  Tuttavia, per serie di patch multiple è generalmente
 sconsigliato l'uso di In-Reply-To: per collegare precedenti versioni.
 In questo modo versioni multiple di una patch non diventeranno un'ingestibile
 giungla di riferimenti all'interno dei programmi di posta.  Se un collegamento
-è utile, potete usare https://lkml.kernel.org/ per ottenere i collegamenti
+è utile, potete usare https://lore.kernel.org/ per ottenere i collegamenti
 ad una versione precedente di una serie di patch (per esempio, potete usarlo
 per l'email introduttiva alla serie).
 

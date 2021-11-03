@@ -8,7 +8,7 @@ This file documents some of the kernel entries in
 arch/x86/entry/entry_64.S.  A lot of this explanation is adapted from
 an email from Ingo Molnar:
 
-http://lkml.kernel.org/r/<20110529191055.GC9835%40elte.hu>
+https://lore.kernel.org/r/20110529191055.GC9835%40elte.hu
 
 The x86 architecture has quite a few different ways to jump into
 kernel code.  Most of these entry points are registered in
