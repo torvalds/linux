@@ -2478,6 +2478,51 @@ static inline unsigned short blk_plug_max_rq_count(struct blk_plug *plug)
 	return BLK_MAX_REQUEST_COUNT;
 }
 
+static struct request *blk_mq_get_new_requests(struct request_queue *q,
+					       struct blk_plug *plug,
+					       struct bio *bio)
+{
+	struct blk_mq_alloc_data data = {
+		.q		= q,
+		.nr_tags	= 1,
+		.cmd_flags	= bio->bi_opf,
+	};
+	struct request *rq;
+
+	if (plug) {
+		data.nr_tags = plug->nr_ios;
+		plug->nr_ios = 1;
+		data.cached_rq = &plug->cached_rq;
+	}
+
+	rq = __blk_mq_alloc_requests(&data);
+	if (rq)
+		return rq;
+
+	rq_qos_cleanup(q, bio);
+	if (bio->bi_opf & REQ_NOWAIT)
+		bio_wouldblock_error(bio);
+	return NULL;
+}
+
+static inline struct request *blk_mq_get_request(struct request_queue *q,
+						 struct blk_plug *plug,
+						 struct bio *bio)
+{
+	if (plug) {
+		struct request *rq;
+
+		rq = rq_list_peek(&plug->cached_rq);
+		if (rq) {
+			plug->cached_rq = rq_list_next(rq);
+			INIT_LIST_HEAD(&rq->queuelist);
+			return rq;
+		}
+	}
+
+	return blk_mq_get_new_requests(q, plug, bio);
+}
+
 /**
  * blk_mq_submit_bio - Create and send a request to block device.
  * @bio: Bio pointer.
@@ -2518,29 +2563,9 @@ void blk_mq_submit_bio(struct bio *bio)
 	rq_qos_throttle(q, bio);
 
 	plug = blk_mq_plug(q, bio);
-	if (plug && plug->cached_rq) {
-		rq = rq_list_pop(&plug->cached_rq);
-		INIT_LIST_HEAD(&rq->queuelist);
-	} else {
-		struct blk_mq_alloc_data data = {
-			.q		= q,
-			.nr_tags	= 1,
-			.cmd_flags	= bio->bi_opf,
-		};
-
-		if (plug) {
-			data.nr_tags = plug->nr_ios;
-			plug->nr_ios = 1;
-			data.cached_rq = &plug->cached_rq;
-		}
-		rq = __blk_mq_alloc_requests(&data);
-		if (unlikely(!rq)) {
-			rq_qos_cleanup(q, bio);
-			if (bio->bi_opf & REQ_NOWAIT)
-				bio_wouldblock_error(bio);
-			goto queue_exit;
-		}
-	}
+	rq = blk_mq_get_request(q, plug, bio);
+	if (unlikely(!rq))
+		goto queue_exit;
 
 	trace_block_getrq(bio);
 
