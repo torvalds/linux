@@ -734,6 +734,9 @@ static int mwifiex_ret_ver_ext(struct mwifiex_private *priv,
 		       MWIFIEX_VERSION_STR_LENGTH);
 		memcpy(priv->version_str, ver_ext->version_str,
 		       MWIFIEX_VERSION_STR_LENGTH);
+
+		/* Ensure the version string from the firmware is 0-terminated */
+		priv->version_str[MWIFIEX_VERSION_STR_LENGTH - 1] = '\0';
 	}
 	return 0;
 }
