@@ -507,6 +507,15 @@ err:
 	return ret;
 }
 
+static inline void path_upgrade_readers(struct btree_trans *trans, struct btree_path *path)
+{
+	unsigned l;
+
+	for (l = 0; l < BTREE_MAX_DEPTH; l++)
+		if (btree_node_read_locked(path, l))
+			BUG_ON(!bch2_btree_node_upgrade(trans, path, l));
+}
+
 static inline void upgrade_readers(struct btree_trans *trans, struct btree_path *path)
 {
 	struct btree *b = path_l(path)->b;
@@ -514,7 +523,7 @@ static inline void upgrade_readers(struct btree_trans *trans, struct btree_path 
 	do {
 		if (path->nodes_locked &&
 		    path->nodes_locked != path->nodes_intent_locked)
-			BUG_ON(!bch2_btree_path_upgrade(trans, path, path->level + 1));
+			path_upgrade_readers(trans, path);
 	} while ((path = prev_btree_path(trans, path)) &&
 		 path_l(path)->b == b);
 }

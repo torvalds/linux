@@ -180,8 +180,8 @@ bool __bch2_btree_node_relock(struct btree_trans *trans,
 	}
 }
 
-static bool bch2_btree_node_upgrade(struct btree_trans *trans,
-				    struct btree_path *path, unsigned level)
+bool bch2_btree_node_upgrade(struct btree_trans *trans,
+			     struct btree_path *path, unsigned level)
 {
 	struct btree *b = path->l[level].b;
 

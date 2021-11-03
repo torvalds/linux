@@ -192,6 +192,9 @@ static inline int btree_trans_restart(struct btree_trans *trans)
 	return -EINTR;
 }
 
+bool bch2_btree_node_upgrade(struct btree_trans *,
+			     struct btree_path *, unsigned);
+
 bool __bch2_btree_path_upgrade(struct btree_trans *,
 			       struct btree_path *, unsigned);
 
