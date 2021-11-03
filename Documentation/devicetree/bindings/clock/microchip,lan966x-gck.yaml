@@ -19,7 +19,10 @@ properties:
     const: microchip,lan966x-gck
 
   reg:
-    maxItems: 1
+    minItems: 1
+    items:
+      - description: Generic clock registers
+      - description: Optional gate clock registers
 
   clocks:
     items:
