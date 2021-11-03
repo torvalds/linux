@@ -2099,10 +2099,9 @@ static int criu_get_process_object_info(struct kfd_process *p,
 					uint32_t *num_objects,
 					uint64_t *objs_priv_size)
 {
-	int ret;
-	uint64_t priv_size;
+	uint64_t queues_priv_data_size, svm_priv_data_size, priv_size;
 	uint32_t num_queues, num_events, num_svm_ranges;
-	uint64_t queues_priv_data_size;
+	int ret;
 
 	*num_devices = p->n_pdds;
 	*num_bos = get_process_num_bos(p);
@@ -2112,7 +2111,10 @@ static int criu_get_process_object_info(struct kfd_process *p,
 		return ret;
 
 	num_events = kfd_get_num_events(p);
-	num_svm_ranges = 0; /* TODO: Implement SVM-Ranges */
+
+	ret = svm_range_get_info(p, &num_svm_ranges, &svm_priv_data_size);
+	if (ret)
+		return ret;
 
 	*num_objects = num_queues + num_events + num_svm_ranges;
 
@@ -2122,7 +2124,7 @@ static int criu_get_process_object_info(struct kfd_process *p,
 		priv_size += *num_bos * sizeof(struct kfd_criu_bo_priv_data);
 		priv_size += queues_priv_data_size;
 		priv_size += num_events * sizeof(struct kfd_criu_event_priv_data);
-		/* TODO: Add SVM ranges priv size */
+		priv_size += svm_priv_data_size;
 		*objs_priv_size = priv_size;
 	}
 	return 0;
