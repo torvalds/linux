@@ -97,7 +97,6 @@ struct cxl_mbox_cmd {
  * Currently only memory devices are represented.
  *
  * @dev: The device associated with this CXL state
- * @cxlmd: Logical memory device chardev / interface
  * @regs: Parsed register blocks
  * @payload_size: Size of space for payload
  *                (CXL 2.0 8.2.8.4.3 Mailbox Capabilities Register)
@@ -124,7 +123,6 @@ struct cxl_mbox_cmd {
  */
 struct cxl_dev_state {
 	struct device *dev;
-	struct cxl_memdev *cxlmd;
 
 	struct cxl_regs regs;
 
