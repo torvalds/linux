@@ -172,11 +172,10 @@ struct ov2680_device {
 	struct v4l2_mbus_framefmt format;
 	struct mutex input_lock;
 	struct v4l2_ctrl_handler ctrl_handler;
+	struct ov2680_resolution *res;
 	struct camera_sensor_platform_data *platform_data;
 	int vt_pix_clk_freq_mhz;
-	int fmt_idx;
 	int run_mode;
-	u8 res;
 	u8 type;
 };
 
