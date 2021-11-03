@@ -7,9 +7,6 @@
 #ifndef RXE_POOL_H
 #define RXE_POOL_H
 
-#define RXE_POOL_ALIGN		(16)
-#define RXE_POOL_CACHE_FLAGS	(0)
-
 enum rxe_pool_flags {
 	RXE_POOL_INDEX		= BIT(1),
 	RXE_POOL_KEY		= BIT(2),

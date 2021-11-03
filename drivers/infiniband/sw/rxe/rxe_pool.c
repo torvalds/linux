@@ -6,6 +6,8 @@
 
 #include "rxe.h"
 
+#define RXE_POOL_ALIGN		(16)
+
 static const struct rxe_type_info {
 	const char *name;
 	size_t size;
