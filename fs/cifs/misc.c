@@ -139,9 +139,6 @@ tconInfoFree(struct cifs_tcon *buf_to_free)
 	kfree(buf_to_free->nativeFileSystem);
 	kfree_sensitive(buf_to_free->password);
 	kfree(buf_to_free->crfid.fid);
-#ifdef CONFIG_CIFS_DFS_UPCALL
-	kfree(buf_to_free->dfs_path);
-#endif
 	kfree(buf_to_free);
 }
 
@@ -1288,69 +1285,20 @@ out:
 	return rc;
 }
 
-static void tcon_super_cb(struct super_block *sb, void *arg)
+int cifs_update_super_prepath(struct cifs_sb_info *cifs_sb, char *prefix)
 {
-	struct super_cb_data *sd = arg;
-	struct cifs_tcon *tcon = sd->data;
-	struct cifs_sb_info *cifs_sb;
-
-	if (sd->sb)
-		return;
-
-	cifs_sb = CIFS_SB(sb);
-	if (tcon->dfs_path && cifs_sb->origin_fullpath &&
-	    !strcasecmp(tcon->dfs_path, cifs_sb->origin_fullpath))
-		sd->sb = sb;
-}
-
-static inline struct super_block *cifs_get_tcon_super(struct cifs_tcon *tcon)
-{
-	return __cifs_get_super(tcon_super_cb, tcon);
-}
-
-static inline void cifs_put_tcon_super(struct super_block *sb)
-{
-	__cifs_put_super(sb);
-}
-#else
-static inline struct super_block *cifs_get_tcon_super(struct cifs_tcon *tcon)
-{
-	return ERR_PTR(-EOPNOTSUPP);
-}
-
-static inline void cifs_put_tcon_super(struct super_block *sb)
-{
-}
-#endif
-
-int update_super_prepath(struct cifs_tcon *tcon, char *prefix)
-{
-	struct super_block *sb;
-	struct cifs_sb_info *cifs_sb;
-	int rc = 0;
-
-	sb = cifs_get_tcon_super(tcon);
-	if (IS_ERR(sb))
-		return PTR_ERR(sb);
-
-	cifs_sb = CIFS_SB(sb);
-
 	kfree(cifs_sb->prepath);
 
 	if (prefix && *prefix) {
 		cifs_sb->prepath = kstrdup(prefix, GFP_ATOMIC);
-		if (!cifs_sb->prepath) {
-			rc = -ENOMEM;
-			goto out;
-		}
+		if (!cifs_sb->prepath)
+			return -ENOMEM;
 
 		convert_delimiter(cifs_sb->prepath, CIFS_DIR_SEP(cifs_sb));
 	} else
 		cifs_sb->prepath = NULL;
 
 	cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_USE_PREFIX_PATH;
-
-out:
-	cifs_put_tcon_super(sb);
-	return rc;
+	return 0;
 }
+#endif
