@@ -218,12 +218,12 @@ DECLARE_PER_CPU(struct svm_cpu_data *, svm_data);
 
 void recalc_intercepts(struct vcpu_svm *svm);
 
-static inline struct kvm_svm *to_kvm_svm(struct kvm *kvm)
+static __always_inline struct kvm_svm *to_kvm_svm(struct kvm *kvm)
 {
 	return container_of(kvm, struct kvm_svm, kvm);
 }
 
-static inline bool sev_guest(struct kvm *kvm)
+static __always_inline bool sev_guest(struct kvm *kvm)
 {
 #ifdef CONFIG_KVM_AMD_SEV
 	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
@@ -234,7 +234,7 @@ static inline bool sev_guest(struct kvm *kvm)
 #endif
 }
 
-static inline bool sev_es_guest(struct kvm *kvm)
+static __always_inline bool sev_es_guest(struct kvm *kvm)
 {
 #ifdef CONFIG_KVM_AMD_SEV
 	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
@@ -271,7 +271,7 @@ static inline bool vmcb_is_dirty(struct vmcb *vmcb, int bit)
         return !test_bit(bit, (unsigned long *)&vmcb->control.clean);
 }
 
-static inline struct vcpu_svm *to_svm(struct kvm_vcpu *vcpu)
+static __always_inline struct vcpu_svm *to_svm(struct kvm_vcpu *vcpu)
 {
 	return container_of(vcpu, struct vcpu_svm, vcpu);
 }

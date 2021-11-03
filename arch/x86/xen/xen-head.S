@@ -20,6 +20,23 @@
 #include <xen/interface/xen-mca.h>
 #include <asm/xen/interface.h>
 
+.pushsection .noinstr.text, "ax"
+	.balign PAGE_SIZE
+SYM_CODE_START(hypercall_page)
+	.rept (PAGE_SIZE / 32)
+		UNWIND_HINT_FUNC
+		.skip 31, 0x90
+		ret
+	.endr
+
+#define HYPERCALL(n) \
+	.equ xen_hypercall_##n, hypercall_page + __HYPERVISOR_##n * 32; \
+	.type xen_hypercall_##n, @function; .size xen_hypercall_##n, 32
+#include <asm/xen-hypercalls.h>
+#undef HYPERCALL
+SYM_CODE_END(hypercall_page)
+.popsection
+
 #ifdef CONFIG_XEN_PV
 	__INIT
 SYM_CODE_START(startup_xen)
@@ -63,23 +80,6 @@ SYM_CODE_END(asm_cpu_bringup_and_idle)
 .popsection
 #endif
 #endif
-
-.pushsection .text
-	.balign PAGE_SIZE
-SYM_CODE_START(hypercall_page)
-	.rept (PAGE_SIZE / 32)
-		UNWIND_HINT_FUNC
-		.skip 31, 0x90
-		ret
-	.endr
-
-#define HYPERCALL(n) \
-	.equ xen_hypercall_##n, hypercall_page + __HYPERVISOR_##n * 32; \
-	.type xen_hypercall_##n, @function; .size xen_hypercall_##n, 32
-#include <asm/xen-hypercalls.h>
-#undef HYPERCALL
-SYM_CODE_END(hypercall_page)
-.popsection
 
 	ELFNOTE(Xen, XEN_ELFNOTE_GUEST_OS,       .asciz "linux")
 	ELFNOTE(Xen, XEN_ELFNOTE_GUEST_VERSION,  .asciz "2.6")
