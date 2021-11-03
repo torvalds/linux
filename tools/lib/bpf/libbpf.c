@@ -221,7 +221,7 @@ struct reloc_desc {
 struct bpf_sec_def;
 
 typedef int (*init_fn_t)(struct bpf_program *prog, long cookie);
-typedef int (*preload_fn_t)(struct bpf_program *prog, struct bpf_prog_load_params *attr, long cookie);
+typedef int (*preload_fn_t)(struct bpf_program *prog, struct bpf_prog_load_opts *opts, long cookie);
 typedef struct bpf_link *(*attach_fn_t)(const struct bpf_program *prog, long cookie);
 
 /* stored as sec_def->cookie for all libbpf-supported SEC()s */
@@ -6391,16 +6391,16 @@ static int libbpf_find_attach_btf_id(struct bpf_program *prog, const char *attac
 
 /* this is called as prog->sec_def->preload_fn for libbpf-supported sec_defs */
 static int libbpf_preload_prog(struct bpf_program *prog,
-			       struct bpf_prog_load_params *attr, long cookie)
+			       struct bpf_prog_load_opts *opts, long cookie)
 {
 	enum sec_def_flags def = cookie;
 
 	/* old kernels might not support specifying expected_attach_type */
 	if ((def & SEC_EXP_ATTACH_OPT) && !kernel_supports(prog->obj, FEAT_EXP_ATTACH_TYPE))
-		attr->expected_attach_type = 0;
+		opts->expected_attach_type = 0;
 
 	if (def & SEC_SLEEPABLE)
-		attr->prog_flags |= BPF_F_SLEEPABLE;
+		opts->prog_flags |= BPF_F_SLEEPABLE;
 
 	if ((prog->type == BPF_PROG_TYPE_TRACING ||
 	     prog->type == BPF_PROG_TYPE_LSM ||
@@ -6419,11 +6419,11 @@ static int libbpf_preload_prog(struct bpf_program *prog,
 
 		/* but by now libbpf common logic is not utilizing
 		 * prog->atach_btf_obj_fd/prog->attach_btf_id anymore because
-		 * this callback is called after attrs were populated by
-		 * libbpf, so this callback has to update attr explicitly here
+		 * this callback is called after opts were populated by
+		 * libbpf, so this callback has to update opts explicitly here
 		 */
-		attr->attach_btf_obj_fd = btf_obj_fd;
-		attr->attach_btf_id = btf_type_id;
+		opts->attach_btf_obj_fd = btf_obj_fd;
+		opts->attach_btf_id = btf_type_id;
 	}
 	return 0;
 }
@@ -6433,7 +6433,8 @@ static int bpf_object_load_prog_instance(struct bpf_object *obj, struct bpf_prog
 					 const char *license, __u32 kern_version,
 					 int *prog_fd)
 {
-	struct bpf_prog_load_params load_attr = {};
+	LIBBPF_OPTS(bpf_prog_load_opts, load_attr);
+	const char *prog_name = NULL;
 	char *cp, errmsg[STRERR_BUFSIZE];
 	size_t log_buf_size = 0;
 	char *log_buf = NULL;
@@ -6452,13 +6453,9 @@ static int bpf_object_load_prog_instance(struct bpf_object *obj, struct bpf_prog
 	if (!insns || !insns_cnt)
 		return -EINVAL;
 
-	load_attr.prog_type = prog->type;
 	load_attr.expected_attach_type = prog->expected_attach_type;
 	if (kernel_supports(obj, FEAT_PROG_NAME))
-		load_attr.name = prog->name;
-	load_attr.insns = insns;
-	load_attr.insn_cnt = insns_cnt;
-	load_attr.license = license;
+		prog_name = prog->name;
 	load_attr.attach_btf_id = prog->attach_btf_id;
 	load_attr.attach_prog_fd = prog->attach_prog_fd;
 	load_attr.attach_btf_obj_fd = prog->attach_btf_obj_fd;
@@ -6492,7 +6489,8 @@ static int bpf_object_load_prog_instance(struct bpf_object *obj, struct bpf_prog
 	}
 
 	if (obj->gen_loader) {
-		bpf_gen__prog_load(obj->gen_loader, &load_attr,
+		bpf_gen__prog_load(obj->gen_loader, prog->type, prog->name,
+				   license, insns, insns_cnt, &load_attr,
 				   prog - obj->programs);
 		*prog_fd = -1;
 		return 0;
@@ -6507,8 +6505,8 @@ retry_load:
 	}
 
 	load_attr.log_buf = log_buf;
-	load_attr.log_buf_sz = log_buf_size;
-	ret = libbpf__bpf_prog_load(&load_attr);
+	load_attr.log_size = log_buf_size;
+	ret = bpf_prog_load(prog->type, prog_name, license, insns, insns_cnt, &load_attr);
 
 	if (ret >= 0) {
 		if (log_buf && load_attr.log_level)
@@ -6554,19 +6552,19 @@ retry_load:
 		pr_warn("-- BEGIN DUMP LOG ---\n");
 		pr_warn("\n%s\n", log_buf);
 		pr_warn("-- END LOG --\n");
-	} else if (load_attr.insn_cnt >= BPF_MAXINSNS) {
-		pr_warn("Program too large (%zu insns), at most %d insns\n",
-			load_attr.insn_cnt, BPF_MAXINSNS);
+	} else if (insns_cnt >= BPF_MAXINSNS) {
+		pr_warn("Program too large (%d insns), at most %d insns\n",
+			insns_cnt, BPF_MAXINSNS);
 		ret = -LIBBPF_ERRNO__PROG2BIG;
-	} else if (load_attr.prog_type != BPF_PROG_TYPE_KPROBE) {
+	} else if (prog->type != BPF_PROG_TYPE_KPROBE) {
 		/* Wrong program type? */
 		int fd;
 
-		load_attr.prog_type = BPF_PROG_TYPE_KPROBE;
 		load_attr.expected_attach_type = 0;
 		load_attr.log_buf = NULL;
-		load_attr.log_buf_sz = 0;
-		fd = libbpf__bpf_prog_load(&load_attr);
+		load_attr.log_size = 0;
+		fd = bpf_prog_load(BPF_PROG_TYPE_KPROBE, prog_name, license,
+				   insns, insns_cnt, &load_attr);
 		if (fd >= 0) {
 			close(fd);
 			ret = -LIBBPF_ERRNO__PROGTYPE;
@@ -9170,8 +9168,9 @@ long libbpf_get_error(const void *ptr)
 	return -errno;
 }
 
-int bpf_prog_load(const char *file, enum bpf_prog_type type,
-		  struct bpf_object **pobj, int *prog_fd)
+COMPAT_VERSION(bpf_prog_load_deprecated, bpf_prog_load, LIBBPF_0.0.1)
+int bpf_prog_load_deprecated(const char *file, enum bpf_prog_type type,
+			     struct bpf_object **pobj, int *prog_fd)
 {
 	struct bpf_prog_load_attr attr;
 

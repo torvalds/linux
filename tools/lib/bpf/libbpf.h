@@ -676,8 +676,9 @@ struct bpf_prog_load_attr {
 
 LIBBPF_API int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 				   struct bpf_object **pobj, int *prog_fd);
-LIBBPF_API int bpf_prog_load(const char *file, enum bpf_prog_type type,
-			     struct bpf_object **pobj, int *prog_fd);
+LIBBPF_DEPRECATED_SINCE(0, 7, "use bpf_object__open() and bpf_object__load() instead")
+LIBBPF_API int bpf_prog_load_deprecated(const char *file, enum bpf_prog_type type,
+					struct bpf_object **pobj, int *prog_fd);
 
 /* XDP related API */
 struct xdp_link_info {

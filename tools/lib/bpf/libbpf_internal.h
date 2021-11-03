@@ -276,37 +276,6 @@ int parse_cpu_mask_file(const char *fcpu, bool **mask, int *mask_sz);
 int libbpf__load_raw_btf(const char *raw_types, size_t types_len,
 			 const char *str_sec, size_t str_len);
 
-struct bpf_prog_load_params {
-	enum bpf_prog_type prog_type;
-	enum bpf_attach_type expected_attach_type;
-	const char *name;
-	const struct bpf_insn *insns;
-	size_t insn_cnt;
-	const char *license;
-	__u32 kern_version;
-	__u32 attach_prog_fd;
-	__u32 attach_btf_obj_fd;
-	__u32 attach_btf_id;
-	__u32 prog_ifindex;
-	__u32 prog_btf_fd;
-	__u32 prog_flags;
-
-	__u32 func_info_rec_size;
-	const void *func_info;
-	__u32 func_info_cnt;
-
-	__u32 line_info_rec_size;
-	const void *line_info;
-	__u32 line_info_cnt;
-
-	__u32 log_level;
-	char *log_buf;
-	size_t log_buf_sz;
-	int *fd_array;
-};
-
-int libbpf__bpf_prog_load(const struct bpf_prog_load_params *load_attr);
-
 struct bpf_create_map_params {
 	const char *name;
 	enum bpf_map_type map_type;
