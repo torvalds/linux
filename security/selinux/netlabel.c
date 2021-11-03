@@ -261,30 +261,30 @@ skbuff_setsid_return:
 
 /**
  * selinux_netlbl_sctp_assoc_request - Label an incoming sctp association.
- * @ep: incoming association endpoint.
+ * @asoc: incoming association.
  * @skb: the packet.
  *
  * Description:
- * A new incoming connection is represented by @ep, ......
+ * A new incoming connection is represented by @asoc, ......
  * Returns zero on success, negative values on failure.
  *
  */
-int selinux_netlbl_sctp_assoc_request(struct sctp_endpoint *ep,
+int selinux_netlbl_sctp_assoc_request(struct sctp_association *asoc,
 				     struct sk_buff *skb)
 {
 	int rc;
 	struct netlbl_lsm_secattr secattr;
-	struct sk_security_struct *sksec = ep->base.sk->sk_security;
+	struct sk_security_struct *sksec = asoc->base.sk->sk_security;
 	struct sockaddr_in addr4;
 	struct sockaddr_in6 addr6;
 
-	if (ep->base.sk->sk_family != PF_INET &&
-				ep->base.sk->sk_family != PF_INET6)
+	if (asoc->base.sk->sk_family != PF_INET &&
+	    asoc->base.sk->sk_family != PF_INET6)
 		return 0;
 
 	netlbl_secattr_init(&secattr);
 	rc = security_netlbl_sid_to_secattr(&selinux_state,
-					    ep->secid, &secattr);
+					    asoc->secid, &secattr);
 	if (rc != 0)
 		goto assoc_request_return;
 
@@ -294,11 +294,11 @@ int selinux_netlbl_sctp_assoc_request(struct sctp_endpoint *ep,
 	if (ip_hdr(skb)->version == 4) {
 		addr4.sin_family = AF_INET;
 		addr4.sin_addr.s_addr = ip_hdr(skb)->saddr;
-		rc = netlbl_conn_setattr(ep->base.sk, (void *)&addr4, &secattr);
+		rc = netlbl_conn_setattr(asoc->base.sk, (void *)&addr4, &secattr);
 	} else if (IS_ENABLED(CONFIG_IPV6) && ip_hdr(skb)->version == 6) {
 		addr6.sin6_family = AF_INET6;
 		addr6.sin6_addr = ipv6_hdr(skb)->saddr;
-		rc = netlbl_conn_setattr(ep->base.sk, (void *)&addr6, &secattr);
+		rc = netlbl_conn_setattr(asoc->base.sk, (void *)&addr6, &secattr);
 	} else {
 		rc = -EAFNOSUPPORT;
 	}
