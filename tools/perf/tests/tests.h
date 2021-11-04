@@ -43,9 +43,6 @@ struct test_suite {
 	test_fnptr func;
 	struct {
 		bool skip_if_fail;
-		int (*get_nr)(void);
-		const char *(*get_desc)(int subtest);
-		const char *(*skip_reason)(int subtest);
 	} subtest;
 	struct test_case *test_cases;
 	bool (*is_supported)(void);

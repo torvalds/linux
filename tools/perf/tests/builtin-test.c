@@ -119,9 +119,6 @@ static int num_subtests(const struct test_suite *t)
 {
 	int num;
 
-	if (t->subtest.get_nr)
-		return t->subtest.get_nr();
-
 	if (!t->test_cases)
 		return 0;
 
@@ -134,14 +131,11 @@ static int num_subtests(const struct test_suite *t)
 
 static bool has_subtests(const struct test_suite *t)
 {
-	return t->subtest.get_nr || num_subtests(t) > 1;
+	return num_subtests(t) > 1;
 }
 
 static const char *skip_reason(const struct test_suite *t, int subtest)
 {
-	if (t->subtest.skip_reason)
-		return t->subtest.skip_reason(subtest);
-
 	if (t->test_cases && subtest >= 0)
 		return t->test_cases[subtest].skip_reason;
 
@@ -152,9 +146,6 @@ static const char *test_description(const struct test_suite *t, int subtest)
 {
 	if (t->test_cases && subtest >= 0)
 		return t->test_cases[subtest].desc;
-
-	if (t->subtest.get_desc && subtest >= 0)
-		return t->subtest.get_desc(subtest);
 
 	return t->desc;
 }
