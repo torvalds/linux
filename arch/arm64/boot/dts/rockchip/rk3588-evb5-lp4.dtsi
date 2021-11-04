@@ -9,6 +9,21 @@
 #include "rk806-double.dtsi"
 
 / {
+	dsm_sound: dsm-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,dsm-sound";
+		simple-audio-card,bitclock-master = <&sndcodec>;
+		simple-audio-card,frame-master = <&sndcodec>;
+		sndcpu: simple-audio-card,cpu {
+			sound-dai = <&i2s3_2ch>;
+		};
+		sndcodec: simple-audio-card,codec {
+			sound-dai = <&acdcdig_dsm>;
+		};
+	};
+
 	pcie20_avdd0v85: pcie20-avdd0v85 {
 		compatible = "regulator-fixed";
 		regulator-name = "pcie20_avdd0v85";
@@ -57,6 +72,10 @@
 	};
 };
 
+&acdcdig_dsm {
+	status = "okay";
+};
+
 &i2c6 {
 	status = "okay";
 	gt1x: gt1x@14 {
@@ -67,6 +86,12 @@
 		goodix,rst-gpio = <&gpio0 RK_PD2 GPIO_ACTIVE_HIGH>;
 		goodix,irq-gpio = <&gpio0 RK_PD3 IRQ_TYPE_LEVEL_LOW>;
 	};
+};
+
+&i2s3_2ch {
+	status = "okay";
+	/delete-property/ pinctrl-names;
+	/delete-property/ pinctrl-0;
 };
 
 &pcie2x1l0 {
@@ -108,6 +133,20 @@
 				<0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+};
+
+&spdif_tx1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spdif1m0_tx>;
+};
+
+&spdif_tx1_dc {
+	status = "okay";
+};
+
+&spdif_tx1_sound {
+	status = "okay";
 };
 
 &usbdp_phy0 {

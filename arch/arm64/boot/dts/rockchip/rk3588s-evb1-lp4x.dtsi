@@ -302,6 +302,20 @@
 	};
 };
 
+&spdif_tx1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spdif1m1_tx>;
+};
+
+&spdif_tx1_dc {
+	status = "okay";
+};
+
+&spdif_tx1_sound {
+	status = "okay";
+};
+
 &u2phy2_host {
 	phy-supply = <&vcc5v0_host>;
 };
