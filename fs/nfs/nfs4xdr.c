@@ -3168,20 +3168,23 @@ static int decode_opaque_inline(struct xdr_stream *xdr, unsigned int *len, char 
 
 static int decode_compound_hdr(struct xdr_stream *xdr, struct compound_hdr *hdr)
 {
-	__be32 *p;
+	ssize_t ret;
+	void *ptr;
+	u32 tmp;
 
-	p = xdr_inline_decode(xdr, 8);
-	if (unlikely(!p))
+	if (xdr_stream_decode_u32(xdr, &tmp) < 0)
 		return -EIO;
-	hdr->status = be32_to_cpup(p++);
-	hdr->taglen = be32_to_cpup(p);
+	hdr->status = tmp;
 
-	p = xdr_inline_decode(xdr, hdr->taglen + 4);
-	if (unlikely(!p))
+	ret = xdr_stream_decode_opaque_inline(xdr, &ptr, NFS4_OPAQUE_LIMIT);
+	if (ret < 0)
 		return -EIO;
-	hdr->tag = (char *)p;
-	p += XDR_QUADLEN(hdr->taglen);
-	hdr->nops = be32_to_cpup(p);
+	hdr->taglen = ret;
+	hdr->tag = ptr;
+
+	if (xdr_stream_decode_u32(xdr, &tmp) < 0)
+		return -EIO;
+	hdr->nops = tmp;
 	if (unlikely(hdr->nops < 1))
 		return nfs4_stat_to_errno(hdr->status);
 	return 0;
