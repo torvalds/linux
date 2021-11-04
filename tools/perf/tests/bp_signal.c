@@ -161,7 +161,7 @@ static long long bp_count(int fd)
 	return count;
 }
 
-static int test__bp_signal(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__bp_signal(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct sigaction sa;
 	long long count1, count2, count3;
@@ -312,7 +312,7 @@ bool test__bp_signal_is_supported(void)
 #endif
 }
 
-struct test suite__bp_signal = {
+struct test_suite suite__bp_signal = {
 	.desc = "Breakpoint overflow signal handler",
 	.func = test__bp_signal,
 	.is_supported = test__bp_signal_is_supported,

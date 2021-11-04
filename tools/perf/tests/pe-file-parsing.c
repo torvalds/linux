@@ -68,7 +68,7 @@ static int run_dir(const char *d)
 	return TEST_OK;
 }
 
-static int test__pe_file_parsing(struct test *test __maybe_unused,
+static int test__pe_file_parsing(struct test_suite *test __maybe_unused,
 			  int subtest __maybe_unused)
 {
 	struct stat st;
@@ -89,7 +89,7 @@ static int test__pe_file_parsing(struct test *test __maybe_unused,
 
 #else
 
-static int test__pe_file_parsing(struct test *test __maybe_unused,
+static int test__pe_file_parsing(struct test_suite *test __maybe_unused,
 			  int subtest __maybe_unused)
 {
 	return TEST_SKIP;

@@ -131,7 +131,7 @@ out:
 	return pass;
 }
 
-static int test__time_utils(struct test *t __maybe_unused, int subtest __maybe_unused)
+static int test__time_utils(struct test_suite *t __maybe_unused, int subtest __maybe_unused)
 {
 	bool pass = true;
 

@@ -1113,7 +1113,7 @@ static int test__pmu_events_subtest_get_nr(void)
 	return (int)ARRAY_SIZE(pmu_events_testcase_table);
 }
 
-static int test__pmu_events(struct test *test __maybe_unused, int subtest)
+static int test__pmu_events(struct test_suite *test __maybe_unused, int subtest)
 {
 	if (subtest < 0 ||
 	    subtest >= (int)ARRAY_SIZE(pmu_events_testcase_table))
@@ -1121,7 +1121,7 @@ static int test__pmu_events(struct test *test __maybe_unused, int subtest)
 	return pmu_events_testcase_table[subtest].func();
 }
 
-struct test suite__pmu_events = {
+struct test_suite suite__pmu_events = {
 	.desc = "PMU events",
 	.func = test__pmu_events,
 	.subtest = {

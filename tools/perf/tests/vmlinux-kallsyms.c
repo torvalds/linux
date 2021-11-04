@@ -111,7 +111,7 @@ static bool is_ignored_symbol(const char *name, char type)
 	return false;
 }
 
-static int test__vmlinux_matches_kallsyms(struct test *test __maybe_unused,
+static int test__vmlinux_matches_kallsyms(struct test_suite *test __maybe_unused,
 					int subtest __maybe_unused)
 {
 	int err = -1;

@@ -178,7 +178,7 @@ static int run_dir(const char *d, const char *perf)
 	return system(cmd) ? TEST_FAIL : TEST_OK;
 }
 
-static int test__attr(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__attr(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct stat st;
 	char path_perf[PATH_MAX];

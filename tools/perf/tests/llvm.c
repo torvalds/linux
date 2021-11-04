@@ -124,7 +124,7 @@ out:
 	return ret;
 }
 
-static int test__llvm(struct test *test __maybe_unused, int subtest)
+static int test__llvm(struct test_suite *test __maybe_unused, int subtest)
 {
 	int ret;
 	void *obj_buf = NULL;
@@ -162,7 +162,7 @@ static const char *test__llvm_subtest_get_desc(int subtest)
 	return bpf_source_table[subtest].desc;
 }
 #else //HAVE_LIBBPF_SUPPORT
-static int test__llvm(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__llvm(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	return TEST_SKIP;
 }
@@ -178,7 +178,7 @@ static const char *test__llvm_subtest_get_desc(int subtest __maybe_unused)
 }
 #endif // HAVE_LIBBPF_SUPPORT
 
-struct test suite__llvm = {
+struct test_suite suite__llvm = {
 	.desc = "LLVM search and compile",
 	.func = test__llvm,
 	.subtest = {

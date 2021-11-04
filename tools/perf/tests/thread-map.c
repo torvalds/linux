@@ -19,7 +19,7 @@ struct machine;
 #define NAME	(const char *) "perf"
 #define NAMEUL	(unsigned long) NAME
 
-static int test__thread_map(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__thread_map(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct perf_thread_map *map;
 
@@ -86,7 +86,7 @@ static int process_event(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
-static int test__thread_map_synthesize(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__thread_map_synthesize(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct perf_thread_map *threads;
 
@@ -106,7 +106,7 @@ static int test__thread_map_synthesize(struct test *test __maybe_unused, int sub
 	return 0;
 }
 
-static int test__thread_map_remove(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__thread_map_remove(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct perf_thread_map *threads;
 	char *str;

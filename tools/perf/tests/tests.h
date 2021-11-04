@@ -27,9 +27,9 @@ enum {
 	TEST_SKIP = -2,
 };
 
-struct test {
+struct test_suite {
 	const char *desc;
-	int (*func)(struct test *test, int subtest);
+	int (*func)(struct test_suite *test, int subtest);
 	struct {
 		bool skip_if_fail;
 		int (*get_nr)(void);
@@ -41,10 +41,10 @@ struct test {
 };
 
 #define DECLARE_SUITE(name) \
-	extern struct test suite__##name;
+	extern struct test_suite suite__##name;
 
 #define DEFINE_SUITE(description, name)		\
-	struct test suite__##name = {		\
+	struct test_suite suite__##name = {		\
 		.desc = description,		\
 		.func = test__##name,		\
 	}

@@ -325,7 +325,7 @@ static int check_env(void)
 	return 0;
 }
 
-static int test__bpf(struct test *test __maybe_unused, int i)
+static int test__bpf(struct test_suite *test __maybe_unused, int i)
 {
 	int err;
 
@@ -355,14 +355,14 @@ static const char *test__bpf_subtest_get_desc(int i __maybe_unused)
 	return NULL;
 }
 
-static int test__bpf(struct test *test __maybe_unused, int i __maybe_unused)
+static int test__bpf(struct test_suite *test __maybe_unused, int i __maybe_unused)
 {
 	pr_debug("Skip BPF test because BPF support is not compiled\n");
 	return TEST_SKIP;
 }
 #endif
 
-struct test suite__bpf = {
+struct test_suite suite__bpf = {
 	.desc = "BPF filter",
 	.func = test__bpf,
 	.subtest = {

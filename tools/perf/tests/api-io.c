@@ -289,7 +289,7 @@ static int test_get_dec(void)
 	return ret;
 }
 
-static int test__api_io(struct test *test __maybe_unused,
+static int test__api_io(struct test_suite *test __maybe_unused,
 			int subtest __maybe_unused)
 {
 	int ret = 0;

@@ -62,7 +62,7 @@ static int test(struct expr_parse_ctx *ctx, const char *e, double val2)
 	return 0;
 }
 
-static int test__expr(struct test *t __maybe_unused, int subtest __maybe_unused)
+static int test__expr(struct test_suite *t __maybe_unused, int subtest __maybe_unused)
 {
 	struct expr_id_data *val_ptr;
 	const char *p;

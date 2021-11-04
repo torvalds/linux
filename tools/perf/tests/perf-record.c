@@ -41,7 +41,7 @@ realloc:
 	return cpu;
 }
 
-static int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__PERF_RECORD(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct record_opts opts = {
 		.target = {

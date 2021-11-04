@@ -59,7 +59,7 @@ static long long bp_count(int fd)
 #define EXECUTIONS 10000
 #define THRESHOLD  100
 
-static int test__bp_signal_overflow(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__bp_signal_overflow(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct perf_event_attr pe;
 	struct sigaction sa;
@@ -134,7 +134,7 @@ static int test__bp_signal_overflow(struct test *test __maybe_unused, int subtes
 	return fails ? TEST_FAIL : TEST_OK;
 }
 
-struct test suite__bp_signal_overflow = {
+struct test_suite suite__bp_signal_overflow = {
 	.desc = "Breakpoint overflow sampling",
 	.func = test__bp_signal_overflow,
 	.is_supported = test__bp_signal_is_supported,

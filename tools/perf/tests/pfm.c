@@ -201,7 +201,7 @@ static int test__pfm_subtest_get_nr(void)
 	return (int)ARRAY_SIZE(pfm_testcase_table);
 }
 
-static int test__pfm(struct test *test __maybe_unused, int i __maybe_unused)
+static int test__pfm(struct test_suite *test __maybe_unused, int i __maybe_unused)
 {
 #ifdef HAVE_LIBPFM
 	if (i < 0 || i >= (int)ARRAY_SIZE(pfm_testcase_table))
@@ -212,7 +212,7 @@ static int test__pfm(struct test *test __maybe_unused, int i __maybe_unused)
 #endif
 }
 
-struct test suite__pfm = {
+struct test_suite suite__pfm = {
 	.desc = "Test libpfm4 support",
 	.func = test__pfm,
 	.subtest = {

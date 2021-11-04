@@ -30,11 +30,11 @@
 
 static bool dont_fork;
 
-struct test *__weak arch_tests[] = {
+struct test_suite *__weak arch_tests[] = {
 	NULL,
 };
 
-static struct test *generic_tests[] = {
+static struct test_suite *generic_tests[] = {
 	&suite__vmlinux_matches_kallsyms,
 	&suite__openat_syscall_event,
 	&suite__openat_syscall_event_on_all_cpus,
@@ -110,7 +110,7 @@ static struct test *generic_tests[] = {
 	NULL,
 };
 
-static struct test **tests[] = {
+static struct test_suite **tests[] = {
 	generic_tests,
 	arch_tests,
 };
@@ -139,7 +139,7 @@ static bool perf_test__matches(const char *desc, int curr, int argc, const char 
 	return false;
 }
 
-static int run_test(struct test *test, int subtest)
+static int run_test(struct test_suite *test, int subtest)
 {
 	int status, err = -1, child = dont_fork ? 0 : fork();
 	char sbuf[STRERR_BUFSIZE];
@@ -195,7 +195,7 @@ static int run_test(struct test *test, int subtest)
 	for (j = 0; j < ARRAY_SIZE(tests); j++)	\
 		for (k = 0, t = tests[j][k]; tests[j][k]; k++, t = tests[j][k])
 
-static int test_and_print(struct test *t, bool force_skip, int subtest)
+static int test_and_print(struct test_suite *t, bool force_skip, int subtest)
 {
 	int err;
 
@@ -321,7 +321,7 @@ struct shell_test {
 	const char *file;
 };
 
-static int shell_test__run(struct test *test, int subdir __maybe_unused)
+static int shell_test__run(struct test_suite *test, int subdir __maybe_unused)
 {
 	int err;
 	char script[PATH_MAX];
@@ -363,7 +363,7 @@ static int run_shell_tests(int argc, const char *argv[], int i, int width,
 	for_each_shell_test(entlist, n_dirs, st.dir, ent) {
 		int curr = i++;
 		char desc[256];
-		struct test test = {
+		struct test_suite test = {
 			.desc = shell_test__description(desc, sizeof(desc), st.dir, ent->d_name),
 			.func = shell_test__run,
 			.priv = &st,
@@ -391,7 +391,7 @@ static int run_shell_tests(int argc, const char *argv[], int i, int width,
 
 static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 {
-	struct test *t;
+	struct test_suite *t;
 	unsigned int j, k;
 	int i = 0;
 	int width = shell_tests__max_desc_width();
@@ -500,7 +500,7 @@ static int perf_test__list_shell(int argc, const char **argv, int i)
 	for_each_shell_test(entlist, n_dirs, path, ent) {
 		int curr = i++;
 		char bf[256];
-		struct test t = {
+		struct test_suite t = {
 			.desc = shell_test__description(bf, sizeof(bf), path, ent->d_name),
 		};
 
@@ -520,7 +520,7 @@ static int perf_test__list_shell(int argc, const char **argv, int i)
 static int perf_test__list(int argc, const char **argv)
 {
 	unsigned int j, k;
-	struct test *t;
+	struct test_suite *t;
 	int i = 0;
 
 	for_each_test(j, k, t) {

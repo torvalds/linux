@@ -43,7 +43,7 @@ static unsigned long *get_bitmap(const char *str, int nbits)
 	return bm && map ? bm : NULL;
 }
 
-static int test__mem2node(struct test *t __maybe_unused, int subtest __maybe_unused)
+static int test__mem2node(struct test_suite *t __maybe_unused, int subtest __maybe_unused)
 {
 	struct mem2node map;
 	struct memory_node nodes[3];

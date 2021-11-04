@@ -221,7 +221,7 @@ out:
 	return ret;
 }
 
-static int test__expand_cgroup_events(struct test *test __maybe_unused,
+static int test__expand_cgroup_events(struct test_suite *test __maybe_unused,
 				      int subtest __maybe_unused)
 {
 	int ret;

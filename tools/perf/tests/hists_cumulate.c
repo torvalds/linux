@@ -689,7 +689,7 @@ out:
 	return err;
 }
 
-static int test__hists_cumulate(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__hists_cumulate(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	int err = TEST_FAIL;
 	struct machines machines;

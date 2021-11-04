@@ -82,7 +82,7 @@ static int do_test(struct evlist *evlist, int mmap_pages,
 }
 
 
-static int test__backward_ring_buffer(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__backward_ring_buffer(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	int ret = TEST_SKIP, err, sample_count = 0, comm_count = 0;
 	char pid[16], sbuf[STRERR_BUFSIZE];

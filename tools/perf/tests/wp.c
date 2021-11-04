@@ -230,7 +230,7 @@ static const char *test__wp_subtest_skip_reason(int i)
 	return wp_testcase_table[i].skip_msg();
 }
 
-static int test__wp(struct test *test __maybe_unused, int i)
+static int test__wp(struct test_suite *test __maybe_unused, int i)
 {
 	if (i < 0 || i >= (int)ARRAY_SIZE(wp_testcase_table))
 		return TEST_FAIL;
@@ -254,7 +254,7 @@ static bool test__wp_is_supported(void)
 #endif
 }
 
-struct test suite__wp = {
+struct test_suite suite__wp = {
 	.desc = "Watchpoint",
 	.func = test__wp,
 	.is_supported = test__wp_is_supported,

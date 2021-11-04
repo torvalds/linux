@@ -16,7 +16,7 @@
 
 #define TEMPL "/tmp/perf-test-XXXXXX"
 
-static int test__jit_write_elf(struct test *test __maybe_unused,
+static int test__jit_write_elf(struct test_suite *test __maybe_unused,
 			       int subtest __maybe_unused)
 {
 #ifdef HAVE_JITDUMP

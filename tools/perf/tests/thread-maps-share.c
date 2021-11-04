@@ -4,7 +4,7 @@
 #include "thread.h"
 #include "debug.h"
 
-static int test__thread_maps_share(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__thread_maps_share(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct machines machines;
 	struct machine *machine;

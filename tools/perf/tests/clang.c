@@ -32,12 +32,12 @@ static const char *test__clang_subtest_get_desc(int i)
 }
 
 #ifndef HAVE_LIBCLANGLLVM_SUPPORT
-static int test__clang(struct test *test __maybe_unused, int i __maybe_unused)
+static int test__clang(struct test_suite *test __maybe_unused, int i __maybe_unused)
 {
 	return TEST_SKIP;
 }
 #else
-static int test__clang(struct test *test __maybe_unused, int i)
+static int test__clang(struct test_suite *test __maybe_unused, int i)
 {
 	if (i < 0 || i >= (int)ARRAY_SIZE(clang_testcase_table))
 		return TEST_FAIL;
@@ -45,7 +45,7 @@ static int test__clang(struct test *test __maybe_unused, int i)
 }
 #endif
 
-struct test suite__clang = {
+struct test_suite suite__clang = {
 	.desc = "builtin clang support",
 	.func = test__clang,
 	.subtest = {

@@ -173,7 +173,7 @@ static int detect_share(int wp_cnt, int bp_cnt)
  *     we create another watchpoint to ensure
  *     the slot accounting is correct
  */
-static int test__bp_accounting(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__bp_accounting(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	int has_ioctl = detect_ioctl();
 	int wp_cnt = detect_cnt(false);
@@ -205,7 +205,7 @@ static bool test__bp_account_is_supported(void)
 #endif
 }
 
-struct test suite__bp_accounting = {
+struct test_suite suite__bp_accounting = {
 	.desc = "Breakpoint accounting",
 	.func = test__bp_accounting,
 	.is_supported = test__bp_account_is_supported,

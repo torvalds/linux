@@ -61,7 +61,7 @@ static int find_comm(struct evlist *evlist, const char *comm)
  * when an event is disabled but a dummy software event is not disabled.  If the
  * test passes %0 is returned, otherwise %-1 is returned.
  */
-static int test__keep_tracking(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__keep_tracking(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct record_opts opts = {
 		.mmap_pages	     = UINT_MAX,

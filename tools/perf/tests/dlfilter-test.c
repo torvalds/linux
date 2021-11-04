@@ -398,7 +398,7 @@ static void test_data__free(struct test_data *td)
 	}
 }
 
-static int test__dlfilter(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__dlfilter(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct test_data td = {.fd = -1};
 	int pid = getpid();
