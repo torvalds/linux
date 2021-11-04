@@ -142,6 +142,48 @@ static unsigned int intel_fbc_cfb_size(struct drm_i915_private *dev_priv,
 	return lines * intel_fbc_cfb_stride(dev_priv, cache);
 }
 
+static u32 i8xx_fbc_ctl(struct drm_i915_private *i915)
+{
+	struct intel_fbc *fbc = &i915->fbc;
+	const struct intel_fbc_reg_params *params = &fbc->params;
+	unsigned int cfb_stride;
+	u32 fbc_ctl;
+
+	cfb_stride = params->cfb_stride / fbc->limit;
+
+	/* FBC_CTL wants 32B or 64B units */
+	if (DISPLAY_VER(i915) == 2)
+		cfb_stride = (cfb_stride / 32) - 1;
+	else
+		cfb_stride = (cfb_stride / 64) - 1;
+
+	fbc_ctl = FBC_CTL_PERIODIC |
+		FBC_CTL_INTERVAL(params->interval) |
+		FBC_CTL_STRIDE(cfb_stride);
+
+	if (IS_I945GM(i915))
+		fbc_ctl |= FBC_CTL_C3_IDLE; /* 945 needs special SR handling */
+
+	if (params->fence_id >= 0)
+		fbc_ctl |= FBC_CTL_FENCENO(params->fence_id);
+
+	return fbc_ctl;
+}
+
+static u32 i965_fbc_ctl2(struct drm_i915_private *i915)
+{
+	const struct intel_fbc_reg_params *params = &i915->fbc.params;
+	u32 fbc_ctl2;
+
+	fbc_ctl2 = FBC_CTL_FENCE_DBL | FBC_CTL_IDLE_IMM |
+		FBC_CTL_PLANE(params->crtc.i9xx_plane);
+
+	if (params->fence_id >= 0)
+		fbc_ctl2 |= FBC_CTL_CPU_FENCE;
+
+	return fbc_ctl2;
+}
+
 static void i8xx_fbc_deactivate(struct drm_i915_private *dev_priv)
 {
 	u32 fbc_ctl;
@@ -166,44 +208,21 @@ static void i8xx_fbc_activate(struct drm_i915_private *dev_priv)
 {
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	const struct intel_fbc_reg_params *params = &fbc->params;
-	int cfb_pitch;
 	int i;
-	u32 fbc_ctl;
-
-	cfb_pitch = params->cfb_stride / fbc->limit;
-
-	/* FBC_CTL wants 32B or 64B units */
-	if (DISPLAY_VER(dev_priv) == 2)
-		cfb_pitch = (cfb_pitch / 32) - 1;
-	else
-		cfb_pitch = (cfb_pitch / 64) - 1;
 
 	/* Clear old tags */
 	for (i = 0; i < (FBC_LL_SIZE / 32) + 1; i++)
 		intel_de_write(dev_priv, FBC_TAG(i), 0);
 
 	if (DISPLAY_VER(dev_priv) == 4) {
-		u32 fbc_ctl2;
-
-		/* Set it up... */
-		fbc_ctl2 = FBC_CTL_FENCE_DBL | FBC_CTL_IDLE_IMM;
-		fbc_ctl2 |= FBC_CTL_PLANE(params->crtc.i9xx_plane);
-		if (params->fence_id >= 0)
-			fbc_ctl2 |= FBC_CTL_CPU_FENCE;
-		intel_de_write(dev_priv, FBC_CONTROL2, fbc_ctl2);
+		intel_de_write(dev_priv, FBC_CONTROL2,
+			       i965_fbc_ctl2(dev_priv));
 		intel_de_write(dev_priv, FBC_FENCE_OFF,
 			       params->fence_y_offset);
 	}
 
-	/* enable it... */
-	fbc_ctl = FBC_CTL_INTERVAL(params->interval);
-	fbc_ctl |= FBC_CTL_EN | FBC_CTL_PERIODIC;
-	if (IS_I945GM(dev_priv))
-		fbc_ctl |= FBC_CTL_C3_IDLE; /* 945 needs special SR handling */
-	fbc_ctl |= FBC_CTL_STRIDE(cfb_pitch & 0xff);
-	if (params->fence_id >= 0)
-		fbc_ctl |= FBC_CTL_FENCENO(params->fence_id);
-	intel_de_write(dev_priv, FBC_CONTROL, fbc_ctl);
+	intel_de_write(dev_priv, FBC_CONTROL,
+		       FBC_CTL_EN | i8xx_fbc_ctl(dev_priv));
 }
 
 static bool i8xx_fbc_is_active(struct drm_i915_private *dev_priv)
@@ -232,23 +251,36 @@ static u32 g4x_dpfc_ctl_limit(struct drm_i915_private *i915)
 	}
 }
 
-static void g4x_fbc_activate(struct drm_i915_private *dev_priv)
+static u32 g4x_dpfc_ctl(struct drm_i915_private *i915)
 {
-	struct intel_fbc_reg_params *params = &dev_priv->fbc.params;
+	const struct intel_fbc_reg_params *params = &i915->fbc.params;
 	u32 dpfc_ctl;
 
-	dpfc_ctl = DPFC_CTL_PLANE(params->crtc.i9xx_plane) | DPFC_SR_EN;
+	dpfc_ctl = g4x_dpfc_ctl_limit(i915) |
+		DPFC_CTL_PLANE(params->crtc.i9xx_plane);
 
-	dpfc_ctl |= g4x_dpfc_ctl_limit(dev_priv);
+	if (IS_G4X(i915))
+		dpfc_ctl |= DPFC_SR_EN;
 
-	if (params->fence_id >= 0)
-		dpfc_ctl |= DPFC_CTL_FENCE_EN | params->fence_id;
+	if (params->fence_id >= 0) {
+		dpfc_ctl |= DPFC_CTL_FENCE_EN;
+
+		if (DISPLAY_VER(i915) < 6)
+			dpfc_ctl |= params->fence_id;
+	}
+
+	return dpfc_ctl;
+}
+
+static void g4x_fbc_activate(struct drm_i915_private *dev_priv)
+{
+	const struct intel_fbc_reg_params *params = &dev_priv->fbc.params;
 
 	intel_de_write(dev_priv, DPFC_FENCE_YOFF,
 		       params->fence_y_offset);
 
-	/* enable it... */
-	intel_de_write(dev_priv, DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
+	intel_de_write(dev_priv, DPFC_CONTROL,
+		       DPFC_CTL_EN | g4x_dpfc_ctl(dev_priv));
 }
 
 static void g4x_fbc_deactivate(struct drm_i915_private *dev_priv)
@@ -331,25 +363,15 @@ static void snb_fbc_program_fence(struct drm_i915_private *i915)
 static void ilk_fbc_activate(struct drm_i915_private *dev_priv)
 {
 	struct intel_fbc_reg_params *params = &dev_priv->fbc.params;
-	u32 dpfc_ctl;
-
-	dpfc_ctl = DPFC_CTL_PLANE(params->crtc.i9xx_plane);
-
-	dpfc_ctl |= g4x_dpfc_ctl_limit(dev_priv);
-
-	if (params->fence_id >= 0) {
-		dpfc_ctl |= DPFC_CTL_FENCE_EN;
-		if (IS_IRONLAKE(dev_priv))
-			dpfc_ctl |= params->fence_id;
-	}
 
 	if (IS_SANDYBRIDGE(dev_priv))
 		snb_fbc_program_fence(dev_priv);
 
 	intel_de_write(dev_priv, ILK_DPFC_FENCE_YOFF,
 		       params->fence_y_offset);
-	/* enable it... */
-	intel_de_write(dev_priv, ILK_DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
+
+	intel_de_write(dev_priv, ILK_DPFC_CONTROL,
+		       DPFC_CTL_EN | g4x_dpfc_ctl(dev_priv));
 }
 
 static void ilk_fbc_deactivate(struct drm_i915_private *dev_priv)
@@ -403,33 +425,37 @@ static void skl_fbc_program_cfb_stride(struct drm_i915_private *i915)
 		     CHICKEN_FBC_STRIDE_MASK, val);
 }
 
-static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
+static u32 gen7_dpfc_ctl(struct drm_i915_private *i915)
 {
-	struct intel_fbc *fbc = &dev_priv->fbc;
-	const struct intel_fbc_reg_params *params = &fbc->params;
+	const struct intel_fbc_reg_params *params = &i915->fbc.params;
 	u32 dpfc_ctl;
 
+	dpfc_ctl = g4x_dpfc_ctl_limit(i915);
+
+	if (IS_IVYBRIDGE(i915))
+		dpfc_ctl |= IVB_DPFC_CTL_PLANE(params->crtc.i9xx_plane);
+
+	if (params->fence_id >= 0)
+		dpfc_ctl |= IVB_DPFC_CTL_FENCE_EN;
+
+	if (i915->fbc.false_color)
+		dpfc_ctl |= FBC_CTL_FALSE_COLOR;
+
+	return dpfc_ctl;
+}
+
+static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
+{
 	if (DISPLAY_VER(dev_priv) >= 10)
 		glk_fbc_program_cfb_stride(dev_priv);
 	else if (DISPLAY_VER(dev_priv) == 9)
 		skl_fbc_program_cfb_stride(dev_priv);
 
-	dpfc_ctl = 0;
-	if (IS_IVYBRIDGE(dev_priv))
-		dpfc_ctl |= IVB_DPFC_CTL_PLANE(params->crtc.i9xx_plane);
-
-	dpfc_ctl |= g4x_dpfc_ctl_limit(dev_priv);
-
-	if (params->fence_id >= 0)
-		dpfc_ctl |= IVB_DPFC_CTL_FENCE_EN;
-
-	if (dev_priv->fbc.false_color)
-		dpfc_ctl |= FBC_CTL_FALSE_COLOR;
-
 	if (dev_priv->ggtt.num_fences)
 		snb_fbc_program_fence(dev_priv);
 
-	intel_de_write(dev_priv, ILK_DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
+	intel_de_write(dev_priv, ILK_DPFC_CONTROL,
+		       DPFC_CTL_EN | gen7_dpfc_ctl(dev_priv));
 }
 
 static bool gen7_fbc_is_compressing(struct drm_i915_private *i915)
