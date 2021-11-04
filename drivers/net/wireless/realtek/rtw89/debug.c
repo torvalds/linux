@@ -814,7 +814,7 @@ rtw89_debug_priv_mac_dbg_port_dump_select(struct file *filp,
 		return -EINVAL;
 	}
 
-	enable = set == 0 ? false : true;
+	enable = set != 0;
 	switch (sel) {
 	case 0:
 		debugfs_priv->dbgpkg_en.ss_dbg = enable;

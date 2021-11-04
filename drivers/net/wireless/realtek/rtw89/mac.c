@@ -3695,7 +3695,7 @@ void _rtw89_mac_bf_monitor_track(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_traffic_stats *stats = &rtwdev->stats;
 	struct rtw89_vif *rtwvif;
-	bool en = stats->tx_tfc_lv > stats->rx_tfc_lv ? false : true;
+	bool en = stats->tx_tfc_lv <= stats->rx_tfc_lv;
 	bool old = test_bit(RTW89_FLAG_BFEE_EN, rtwdev->flags);
 
 	if (en == old)
