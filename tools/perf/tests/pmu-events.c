@@ -418,7 +418,8 @@ static int compare_alias_to_test_event(struct perf_pmu_alias *alias,
 }
 
 /* Verify generated events from pmu-events.c are as expected */
-static int test_pmu_event_table(void)
+static int test__pmu_event_table(struct test_suite *test __maybe_unused,
+				 int subtest __maybe_unused)
 {
 	const struct pmu_event *sys_event_tables = __test_pmu_get_sys_events_table();
 	const struct pmu_events_map *map = __test_pmu_get_events_map();
@@ -705,7 +706,8 @@ static struct perf_pmu_test_pmu test_pmus[] = {
 };
 
 /* Test that aliases generated are as expected */
-static int test_aliases(void)
+static int test__aliases(struct test_suite *test __maybe_unused,
+			int subtest __maybe_unused)
 {
 	struct perf_pmu *pmu = NULL;
 	unsigned long i;
@@ -892,7 +894,8 @@ out_err:
 
 }
 
-static int test_parsing(void)
+static int test__parsing(struct test_suite *test __maybe_unused,
+			 int subtest __maybe_unused)
 {
 	const struct pmu_events_map *cpus_map = pmu_events_map__find();
 	const struct pmu_events_map *map;
@@ -1034,7 +1037,8 @@ out:
  * or all defined cpus via the 'fake_pmu'
  * in parse_events.
  */
-static int test_parsing_fake(void)
+static int test__parsing_fake(struct test_suite *test __maybe_unused,
+			      int subtest __maybe_unused)
 {
 	const struct pmu_events_map *map;
 	const struct pmu_event *pe;
@@ -1068,66 +1072,16 @@ static int test_parsing_fake(void)
 	return 0;
 }
 
-static const struct {
-	int (*func)(void);
-	const char *desc;
-} pmu_events_testcase_table[] = {
-	{
-		.func = test_pmu_event_table,
-		.desc = "PMU event table sanity",
-	},
-	{
-		.func = test_aliases,
-		.desc = "PMU event map aliases",
-	},
-	{
-		.func = test_parsing,
-		.desc = "Parsing of PMU event table metrics",
-	},
-	{
-		.func = test_parsing_fake,
-		.desc = "Parsing of PMU event table metrics with fake PMUs",
-	},
+static struct test_case pmu_events_tests[] = {
+	TEST_CASE("PMU event table sanity", pmu_event_table),
+	TEST_CASE("PMU event map aliases", aliases),
+	TEST_CASE_REASON("Parsing of PMU event table metrics", parsing,
+			 "some metrics failed"),
+	TEST_CASE("Parsing of PMU event table metrics with fake PMUs", parsing_fake),
+	{ .name = NULL, }
 };
-
-static const char *test__pmu_events_subtest_get_desc(int subtest)
-{
-	if (subtest < 0 ||
-	    subtest >= (int)ARRAY_SIZE(pmu_events_testcase_table))
-		return NULL;
-	return pmu_events_testcase_table[subtest].desc;
-}
-
-static const char *test__pmu_events_subtest_skip_reason(int subtest)
-{
-	if (subtest < 0 ||
-	    subtest >= (int)ARRAY_SIZE(pmu_events_testcase_table))
-		return NULL;
-	if (pmu_events_testcase_table[subtest].func != test_parsing)
-		return NULL;
-	return "some metrics failed";
-}
-
-static int test__pmu_events_subtest_get_nr(void)
-{
-	return (int)ARRAY_SIZE(pmu_events_testcase_table);
-}
-
-static int test__pmu_events(struct test_suite *test __maybe_unused, int subtest)
-{
-	if (subtest < 0 ||
-	    subtest >= (int)ARRAY_SIZE(pmu_events_testcase_table))
-		return TEST_FAIL;
-	return pmu_events_testcase_table[subtest].func();
-}
 
 struct test_suite suite__pmu_events = {
 	.desc = "PMU events",
-	.func = test__pmu_events,
-	.subtest = {
-		.skip_if_fail	= false,
-		.get_nr		= test__pmu_events_subtest_get_nr,
-		.get_desc	= test__pmu_events_subtest_get_desc,
-		.skip_reason	= test__pmu_events_subtest_skip_reason,
-	},
+	.test_cases = pmu_events_tests,
 };
