@@ -322,16 +322,16 @@ static u32 g4x_dpfc_ctl(struct drm_i915_private *i915)
 	u32 dpfc_ctl;
 
 	dpfc_ctl = g4x_dpfc_ctl_limit(i915) |
-		DPFC_CTL_PLANE(params->crtc.i9xx_plane);
+		DPFC_CTL_PLANE_G4X(params->crtc.i9xx_plane);
 
 	if (IS_G4X(i915))
-		dpfc_ctl |= DPFC_SR_EN;
+		dpfc_ctl |= DPFC_CTL_SR_EN;
 
 	if (params->fence_id >= 0) {
-		dpfc_ctl |= DPFC_CTL_FENCE_EN;
+		dpfc_ctl |= DPFC_CTL_FENCE_EN_G4X;
 
 		if (DISPLAY_VER(i915) < 6)
-			dpfc_ctl |= params->fence_id;
+			dpfc_ctl |= DPFC_CTL_FENCENO(params->fence_id);
 	}
 
 	return dpfc_ctl;
@@ -416,7 +416,7 @@ static bool ilk_fbc_is_active(struct drm_i915_private *dev_priv)
 
 static bool ilk_fbc_is_compressing(struct drm_i915_private *i915)
 {
-	return intel_de_read(i915, ILK_DPFC_STATUS) & ILK_DPFC_COMP_SEG_MASK;
+	return intel_de_read(i915, ILK_DPFC_STATUS) & DPFC_COMP_SEG_MASK;
 }
 
 static void ilk_fbc_program_cfb(struct drm_i915_private *i915)
@@ -441,10 +441,10 @@ static void snb_fbc_program_fence(struct drm_i915_private *i915)
 	u32 ctl = 0;
 
 	if (params->fence_id >= 0)
-		ctl = SNB_CPU_FENCE_ENABLE | params->fence_id;
+		ctl = SNB_DPFC_FENCE_EN | SNB_DPFC_FENCENO(params->fence_id);
 
 	intel_de_write(i915, SNB_DPFC_CTL_SA, ctl);
-	intel_de_write(i915, DPFC_CPU_FENCE_OFFSET, params->fence_y_offset);
+	intel_de_write(i915, SNB_DPFC_CPU_FENCE_OFFSET, params->fence_y_offset);
 }
 
 static void snb_fbc_activate(struct drm_i915_private *dev_priv)
@@ -506,13 +506,13 @@ static u32 ivb_dpfc_ctl(struct drm_i915_private *i915)
 	dpfc_ctl = g4x_dpfc_ctl_limit(i915);
 
 	if (IS_IVYBRIDGE(i915))
-		dpfc_ctl |= IVB_DPFC_CTL_PLANE(params->crtc.i9xx_plane);
+		dpfc_ctl |= DPFC_CTL_PLANE_IVB(params->crtc.i9xx_plane);
 
 	if (params->fence_id >= 0)
-		dpfc_ctl |= IVB_DPFC_CTL_FENCE_EN;
+		dpfc_ctl |= DPFC_CTL_FENCE_EN_IVB;
 
 	if (i915->fbc.false_color)
-		dpfc_ctl |= FBC_CTL_FALSE_COLOR;
+		dpfc_ctl |= DPFC_CTL_FALSE_COLOR;
 
 	return dpfc_ctl;
 }
@@ -533,14 +533,14 @@ static void ivb_fbc_activate(struct drm_i915_private *dev_priv)
 
 static bool ivb_fbc_is_compressing(struct drm_i915_private *i915)
 {
-	return intel_de_read(i915, IVB_FBC_STATUS2) & IVB_FBC_COMP_SEG_MASK;
+	return intel_de_read(i915, ILK_DPFC_STATUS2) & DPFC_COMP_SEG_MASK_IVB;
 }
 
 static void ivb_fbc_set_false_color(struct drm_i915_private *i915,
 				    bool enable)
 {
 	intel_de_rmw(i915, ILK_DPFC_CONTROL,
-		     FBC_CTL_FALSE_COLOR, enable ? FBC_CTL_FALSE_COLOR : 0);
+		     DPFC_CTL_FALSE_COLOR, enable ? DPFC_CTL_FALSE_COLOR : 0);
 }
 
 static const struct intel_fbc_funcs ivb_fbc_funcs = {
