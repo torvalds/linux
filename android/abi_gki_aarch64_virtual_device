@@ -693,9 +693,7 @@
   led_set_brightness_nosleep
   led_trigger_event
   led_trigger_register
-  led_trigger_register_simple
   led_trigger_unregister
-  led_trigger_unregister_simple
 
 # required by lzo-rle.ko
   lzorle1x_1_compress
@@ -1349,6 +1347,7 @@
 # required by virtio_pci.ko
   irq_set_affinity_hint
   pci_alloc_irq_vectors_affinity
+  pci_device_is_present
   pci_disable_sriov
   pci_enable_sriov
   pci_find_capability
@@ -1383,8 +1382,6 @@
   wait_for_completion_interruptible_timeout
 
 # required by vmw_vsock_virtio_transport.ko
-  lock_sock_nested
-  release_sock
   virtio_transport_connect
   virtio_transport_deliver_tap_pkt
   virtio_transport_destruct

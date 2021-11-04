@@ -56,7 +56,11 @@
   __clk_get_name
   clk_get_parent
   clk_get_rate
+  clk_hw_get_flags
   clk_hw_get_name
+  clk_hw_get_parent
+  clk_hw_get_rate
+  __clk_mux_determine_rate
   clk_notifier_register
   clk_notifier_unregister
   clk_prepare
@@ -109,6 +113,7 @@
   del_gendisk
   del_timer
   del_timer_sync
+  desc_to_gpio
   destroy_workqueue
   dev_driver_string
   _dev_err
@@ -140,9 +145,10 @@
   devm_devfreq_register_opp_notifier
   devm_extcon_dev_allocate
   devm_extcon_dev_register
-  devm_extcon_register_notifier
   devm_free_irq
   devm_fwnode_gpiod_get_index
+  devm_get_clk_from_child
+  devm_gpiochip_add_data_with_key
   devm_gpiod_get
   devm_gpiod_get_index
   devm_gpiod_get_index_optional
@@ -156,18 +162,21 @@
   devm_kmemdup
   devm_kstrdup
   devm_led_classdev_register_ext
+  devm_mfd_add_devices
   devm_nvmem_register
   devm_of_clk_add_hw_provider
   __devm_of_phy_provider_register
   devm_phy_create
   devm_phy_get
   devm_pinctrl_get
+  devm_pinctrl_register
   devm_platform_get_and_ioremap_resource
   devm_platform_ioremap_resource
   devm_platform_ioremap_resource_byname
   devm_power_supply_register
   devm_pwm_get
   devm_regmap_field_alloc
+  __devm_regmap_init
   __devm_regmap_init_i2c
   __devm_regmap_init_mmio_clk
   devm_regulator_bulk_get
@@ -294,7 +303,6 @@
   dummy_irq_chip
   enable_irq
   extcon_get_edev_by_phandle
-  extcon_get_property
   extcon_get_state
   extcon_register_notifier
   extcon_set_state_sync
@@ -308,6 +316,7 @@
   flush_workqueue
   fpsimd_context_busy
   frame_vector_to_pages
+  free_irq
   __free_pages
   free_pages
   fwnode_handle_put
@@ -340,6 +349,7 @@
   gpiod_set_value_cansleep
   gpiod_to_irq
   gpio_to_desc
+  handle_nested_irq
   handle_simple_irq
   hid_debug
   hid_hw_close
@@ -358,6 +368,7 @@
   i2c_get_adapter
   i2c_put_adapter
   i2c_register_driver
+  i2c_smbus_read_byte_data
   __i2c_smbus_xfer
   i2c_smbus_xfer
   i2c_transfer
@@ -383,11 +394,14 @@
   iommu_get_domain_for_dev
   __ioremap
   iounmap
+  irq_create_mapping_affinity
   __irq_domain_add
   irq_domain_remove
   irq_find_mapping
   irq_get_irq_data
+  irq_modify_status
   irq_set_chained_handler_and_data
+  irq_set_chip
   irq_set_chip_and_handler_name
   irq_set_chip_data
   irq_set_irq_type
@@ -449,7 +463,9 @@
   memdup_user
   memset
   memstart_addr
+  mfd_remove_devices
   mmc_of_parse
+  mod_delayed_work_on
   mod_timer
   module_layout
   module_put
@@ -471,6 +487,7 @@
   of_clk_del_provider
   of_clk_get
   of_clk_get_by_name
+  of_clk_src_onecell_get
   of_clk_src_simple_get
   of_count_phandle_with_args
   of_devfreq_cooling_register_power
@@ -522,11 +539,15 @@
   phy_power_off
   phy_power_on
   phy_set_mode_ext
+  pinconf_generic_dt_node_to_map
   pinctrl_dev_get_drvdata
+  pinctrl_gpio_direction_input
+  pinctrl_gpio_direction_output
   pinctrl_lookup_state
   pinctrl_pm_select_default_state
   pinctrl_pm_select_sleep_state
   pinctrl_select_state
+  pinctrl_utils_free_map
   platform_bus_type
   platform_device_put
   platform_device_register_full
@@ -593,7 +614,9 @@
   regmap_bulk_write
   regmap_field_read
   regmap_field_update_bits_base
+  regmap_irq_get_domain
   regmap_irq_get_virq
+  regmap_raw_write
   regmap_read
   regmap_update_bits_base
   regmap_write
@@ -616,6 +639,7 @@
   regulator_set_voltage_time_sel
   remap_pfn_range
   remove_proc_entry
+  request_threaded_irq
   reset_control_assert
   reset_control_deassert
   revalidate_disk_size
@@ -624,6 +648,7 @@
   rtc_tm_to_time64
   rtc_valid_tm
   scatterwalk_map_and_copy
+  sched_clock
   schedule
   schedule_timeout
   scnprintf
@@ -676,6 +701,8 @@
   snd_soc_put_enum_double
   snd_soc_put_volsw
   snprintf
+  __spi_register_driver
+  spi_sync
   sprintf
   sscanf
   __stack_chk_fail
@@ -694,6 +721,7 @@
   sysfs_create_file_ns
   sysfs_create_group
   sysfs_create_link
+  __sysfs_match_string
   sysfs_remove_group
   sysfs_remove_link
   system_unbound_wq
@@ -714,6 +742,7 @@
   update_devfreq
   up_read
   up_write
+  usb_debug_root
   usleep_range
   uuid_null
   v4l2_async_notifier_cleanup
@@ -826,7 +855,6 @@
   drm_dp_dpcd_write
   drm_dp_start_crc
   drm_dp_stop_crc
-  irq_modify_status
 
 # required by ch.ko
   param_array_ops
@@ -839,6 +867,15 @@
   of_clk_add_hw_provider
   of_clk_hw_simple_get
 
+# required by clk-rk628.ko
+  devm_reset_controller_register
+
+# required by clk-rockchip-regmap.ko
+  clk_hw_get_num_parents
+  clk_hw_get_parent_by_index
+  divider_recalc_rate
+  divider_round_rate_parent
+
 # required by clk-rockchip.ko
   clk_divider_ops
   clk_divider_ro_ops
@@ -846,12 +883,8 @@
   clk_fractional_divider_ops
   clk_gate_ops
   __clk_get_hw
-  clk_hw_get_flags
-  clk_hw_get_parent
-  clk_hw_get_rate
   clk_hw_register_composite
   clk_hw_round_rate
-  __clk_mux_determine_rate
   clk_mux_ops
   clk_mux_ro_ops
   clk_register_composite
@@ -861,7 +894,6 @@
   clk_register_mux_table
   divider_get_val
   match_string
-  of_clk_src_onecell_get
   register_restart_handler
   reset_controller_register
   __udelay
@@ -922,7 +954,6 @@
   power_supply_get_battery_info
   power_supply_put_battery_info
   regmap_raw_read
-  regmap_raw_write
 
 # required by dw-hdmi-cec.ko
   cec_allocate_adapter
@@ -968,7 +999,6 @@
   extcon_set_property_capability
   hdmi_drm_infoframe_pack
   hdmi_vendor_infoframe_pack
-  mod_delayed_work_on
   of_get_i2c_adapter_by_node
 
 # required by dw-mipi-dsi.ko
@@ -1031,7 +1061,6 @@
   usb_add_hcd
   usb_calc_bus_time
   usb_create_hcd
-  usb_debug_root
   usb_del_gadget_udc
   usb_disabled
   usb_ep_set_maxpacket_limit
@@ -1060,6 +1089,23 @@
 # required by fan53555.ko
   gpiod_set_raw_value
 
+# required by fusb302.ko
+  device_get_named_child_node
+  disable_irq_nosync
+  extcon_get_extcon_dev
+  fwnode_create_software_node
+  i2c_smbus_read_i2c_block_data
+  i2c_smbus_write_byte_data
+  i2c_smbus_write_i2c_block_data
+  tcpm_cc_change
+  tcpm_pd_hard_reset
+  tcpm_pd_receive
+  tcpm_pd_transmit_complete
+  tcpm_register_port
+  tcpm_unregister_port
+  tcpm_vbus_change
+  vsnprintf
+
 # required by ghash-ce.ko
   aes_expandkey
   gf128mul_lle
@@ -1073,7 +1119,6 @@
   handle_edge_irq
   handle_level_irq
   __irq_alloc_domain_generic_chips
-  irq_create_mapping_affinity
   irq_gc_ack_set_bit
   irq_gc_mask_clr_bit
   irq_gc_mask_set_bit
@@ -1114,19 +1159,16 @@
   i2c_verify_client
 
 # required by i2c-gpio.ko
-  desc_to_gpio
   i2c_bit_add_numbered_bus
 
 # required by i2c-hid.ko
   dev_printk
-  free_irq
   hid_add_device
   hid_allocate_device
   hid_destroy_device
   hid_input_report
   hid_parse_report
   i2c_smbus_read_byte
-  request_threaded_irq
 
 # required by i2c-mux.ko
   i2c_add_numbered_adapter
@@ -1381,6 +1423,7 @@
   nvmem_cell_get
 
 # required by phy-rockchip-inno-usb2.ko
+  devm_extcon_register_notifier
   extcon_set_state
   extcon_sync
   wakeup_source_remove
@@ -1389,16 +1432,24 @@
   strcasecmp
   usb_add_phy
 
+# required by phy-rockchip-typec.ko
+  extcon_get_property
+
 # required by phy-rockchip-usb.ko
   __of_reset_control_get
 
-# required by pinctrl-rk805.ko
-  devm_gpiochip_add_data_with_key
-  devm_pinctrl_register
-  pinconf_generic_dt_node_to_map
-  pinctrl_gpio_direction_input
-  pinctrl_gpio_direction_output
-  pinctrl_utils_free_map
+# required by pinctrl-rk628.ko
+  irq_domain_xlate_twocell
+  pinctrl_add_gpio_range
+  pinctrl_find_gpio_range_from_pin
+
+# required by pinctrl-rockchip.ko
+  of_find_node_by_phandle
+  of_platform_populate
+  pinconf_generic_parse_dt_config
+  pinctrl_force_default
+  pinctrl_force_sleep
+  pin_get_name
 
 # required by pl330.ko
   amba_driver_register
@@ -1448,22 +1499,35 @@
   devres_release
   kernel_kobj
 
+# required by rk628.ko
+  irq_dispose_mapping
+  irq_domain_xlate_onetwocell
+  irq_set_parent
+  mfd_add_devices
+
 # required by rk805-pwrkey.ko
   devm_request_any_context_irq
   input_set_capability
+
+# required by rk806-core.ko
+  devm_regmap_add_irq_chip
+
+# required by rk806-spi.ko
+  spi_write_then_read
 
 # required by rk808-regulator.ko
   gpiod_is_active_low
 
 # required by rk808.ko
-  devm_mfd_add_devices
-  i2c_smbus_read_byte_data
   kobject_create_and_add
   platform_device_add
   platform_device_alloc
+  pm_power_off_prepare
+  register_syscore_ops
   regmap_add_irq_chip
   regmap_del_irq_chip
-  regmap_irq_get_domain
+  system_state
+  unregister_syscore_ops
 
 # required by rk818_battery.ko
   blocking_notifier_call_chain
@@ -1570,9 +1634,6 @@
   iio_get_time_ns
   iio_push_to_buffers
   iio_trigger_notify_done
-
-# required by rockchip_sip.ko
-  sched_clock
 
 # required by rockchip_thermal.ko
   devm_thermal_zone_of_sensor_register
@@ -1719,6 +1780,7 @@
   drm_property_create_range
   drm_property_destroy
   __drm_puts_seq_file
+  drm_rect_calc_hscale
   drm_send_event_locked
   drm_simple_encoder_init
   drm_universal_plane_init
@@ -1822,7 +1884,6 @@
   of_property_read_variable_u8_array
 
 # required by snd-soc-cx2072x.ko
-  __devm_regmap_init
   regmap_multi_reg_write
   snd_soc_params_to_frame_size
 
@@ -1840,8 +1901,13 @@
   snd_pcm_hw_constraint_eld
   snd_soc_dapm_add_routes
 
+# required by snd-soc-rk817.ko
+  snd_soc_add_component_controls
+  snd_soc_component_exit_regmap
+  snd_soc_component_init_regmap
+  snd_soc_unregister_component
+
 # required by snd-soc-simple-card-utils.ko
-  devm_get_clk_from_child
   devm_kasprintf
   devm_kvasprintf
   snd_soc_card_jack_new
@@ -1874,9 +1940,7 @@
   spi_finalize_current_transfer
 
 # required by spidev.ko
-  __spi_register_driver
   spi_setup
-  spi_sync
   stream_open
 
 # required by system_heap.ko
@@ -1888,6 +1952,12 @@
   dma_heap_get_dev
   __sg_page_iter_next
   __sg_page_iter_start
+
+# required by tcpci_husb311.ko
+  i2c_smbus_read_word_data
+  tcpci_irq
+  tcpci_register_port
+  tcpci_unregister_port
 
 # required by tee.ko
   bus_register
@@ -1912,6 +1982,19 @@
 
 # required by tps65132-regulator.ko
   regulator_set_active_discharge_regmap
+
+# required by typec_displayport.ko
+  fwnode_find_reference
+  sysfs_notify
+  typec_altmode2port
+  typec_altmode_enter
+  typec_altmode_exit
+  typec_altmode_get_partner
+  typec_altmode_notify
+  __typec_altmode_register_driver
+  typec_altmode_unregister_driver
+  typec_altmode_vdm
+  typec_get_negotiated_svdm_version
 
 # required by v4l2-fwnode.ko
   fwnode_device_is_available
@@ -1970,7 +2053,6 @@
   page_endio
   register_blkdev
   strcpy
-  __sysfs_match_string
   sysfs_streq
   unregister_blkdev
   vzalloc

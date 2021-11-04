@@ -26,6 +26,7 @@
 #include <sound/soc-dpcm.h>
 #include <sound/soc-link.h>
 #include <sound/initval.h>
+#include <trace/hooks/sound.h>
 
 #define DPCM_MAX_BE_USERS	8
 
@@ -1274,8 +1275,8 @@ int dpcm_path_get(struct snd_soc_pcm_runtime *fe,
 	int stream, struct snd_soc_dapm_widget_list **list)
 {
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(fe, 0);
-	struct snd_soc_card_ext *card_ext;
 	int paths;
+	bool chaining = false;
 
 	if (fe->num_cpus > 1) {
 		dev_err(fe->dev,
@@ -1283,12 +1284,11 @@ int dpcm_path_get(struct snd_soc_pcm_runtime *fe,
 		return -EINVAL;
 	}
 
-	card_ext = container_of(fe->card, struct snd_soc_card_ext, card);
+	trace_android_vh_snd_soc_card_get_comp_chain(&chaining);
 
 	/* get number of valid DAI paths and their widgets */
 	paths = snd_soc_dapm_dai_get_connected_widgets(cpu_dai, stream, list,
-			card_ext->component_chaining ?
-					NULL : dpcm_end_walk_at_be);
+			chaining ? NULL : dpcm_end_walk_at_be);
 
 	dev_dbg(fe->dev, "ASoC: found %d audio %s paths\n", paths,
 			stream ? "capture" : "playback");

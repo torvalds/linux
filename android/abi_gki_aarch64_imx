@@ -133,6 +133,7 @@
   devm_extcon_dev_allocate
   devm_extcon_dev_register
   devm_free_irq
+  devm_get_clk_from_child
   devm_gpiochip_add_data_with_key
   devm_gpiod_get
   devm_gpiod_get_index
@@ -148,7 +149,6 @@
   devm_phy_create
   devm_phy_get
   devm_pinctrl_get
-  devm_pinctrl_put
   devm_platform_ioremap_resource
   __devm_regmap_init
   __devm_regmap_init_i2c
@@ -307,6 +307,7 @@
   drm_mode_duplicate
   drm_mode_equal
   drm_mode_find_dmt
+  drm_mode_is_420_also
   drm_mode_is_420_only
   drm_mode_probed_add
   drm_mode_set_name
@@ -337,7 +338,6 @@
   eth_validate_addr
   event_triggers_call
   extcon_set_state_sync
-  filp_close
   find_next_bit
   finish_wait
   flush_work
@@ -433,7 +433,6 @@
   kobject_put
   kobject_uevent_env
   kthread_create_on_node
-  kthread_should_stop
   ktime_get
   ktime_get_mono_fast_ns
   ktime_get_real_ts64
@@ -500,6 +499,7 @@
   netif_device_attach
   netif_device_detach
   netif_napi_add
+  netif_receive_skb
   netif_rx
   netif_rx_ni
   netif_tx_stop_all_queues
@@ -652,6 +652,8 @@
   regcache_mark_dirty
   regcache_sync
   __register_chrdev
+  register_inet6addr_notifier
+  register_inetaddr_notifier
   register_netdev
   register_netdevice
   register_netdevice_notifier
@@ -818,10 +820,11 @@
   trace_raw_output_prep
   trace_seq_printf
   try_module_get
-  tty_flip_buffer_push
   __udelay
   __unregister_chrdev
   unregister_chrdev_region
+  unregister_inet6addr_notifier
+  unregister_inetaddr_notifier
   unregister_netdev
   unregister_netdevice_notifier
   unregister_netdevice_queue
@@ -877,6 +880,7 @@
   v4l2_m2m_job_finish
   v4l2_m2m_next_buf
   v4l2_m2m_release
+  v4l2_src_change_event_subscribe
   v4l2_subdev_call_wrappers
   v4l2_subdev_init
   v4l2_subdev_link_validate
@@ -1140,7 +1144,6 @@
   drm_atomic_get_new_connector_for_encoder
   drm_connector_attach_max_bpc_property
   drm_connector_init_with_ddc
-  drm_mode_is_420_also
   drm_scdc_read
   drm_scdc_set_high_tmds_clock_ratio
   drm_scdc_set_scrambling
@@ -1258,8 +1261,6 @@
   __put_page
   reset_control_reset
   schedule_hrtimeout
-  set_user_nice
-  si_meminfo
   sync_file_create
   sync_file_get_fence
   __task_pid_nr_ns
@@ -1268,6 +1269,7 @@
   up_write
   vm_mmap
   vm_munmap
+  vm_zone_stat
 
 # required by gmsl-max9286.ko
   i2c_smbus_read_byte_data
@@ -1402,6 +1404,7 @@
   rational_best_approximation
   _raw_spin_trylock
   sysrq_mask
+  tty_flip_buffer_push
   __tty_insert_flip_char
   tty_insert_flip_string_fixed_flag
   tty_termios_encode_baud_rate
@@ -1533,13 +1536,10 @@
   kvfree
   kvmalloc_node
   netdev_set_default_ethtool_ops
-  netif_receive_skb
   netif_receive_skb_list
   prandom_bytes
   ___pskb_trim
   rcu_barrier
-  register_inet6addr_notifier
-  register_inetaddr_notifier
   rhashtable_free_and_destroy
   rhashtable_insert_slow
   rhltable_init
@@ -1560,14 +1560,10 @@
   __skb_gso_segment
   skb_queue_head
   system_freezable_wq
-  unregister_inet6addr_notifier
-  unregister_inetaddr_notifier
   unregister_netdevice_many
   __usecs_to_jiffies
 
 # required by moal.ko
-  bitmap_parse
-  cpumask_next_and
   default_wake_function
   hex_dump_to_buffer
   in4_pton
@@ -1579,6 +1575,7 @@
   iw_handler_get_thrspy
   iw_handler_set_spy
   iw_handler_set_thrspy
+  kthread_should_stop
   ktime_get_raw_ts64
   mmc_hw_reset
   mmc_set_data_timeout
@@ -1609,7 +1606,7 @@
   proc_create_data
   proc_mkdir
   remove_proc_entry
-  rps_needed
+  request_firmware_direct
   sdio_claim_host
   sdio_claim_irq
   sdio_disable_func
@@ -1629,8 +1626,6 @@
   sdio_writesb
   skb_realloc_headroom
   sort
-  static_key_slow_dec
-  static_key_slow_inc
   strcat
   strchr
   strim
@@ -1680,7 +1675,6 @@
 # required by mxc-jpeg-encdec.ko
   v4l2_m2m_dqbuf
   v4l2_m2m_qbuf
-  v4l2_src_change_event_subscribe
 
 # required by mxs-dma.ko
   dmaenginem_async_device_register
@@ -1719,6 +1713,9 @@
   v4l2_ctrl_subdev_subscribe_event
   v4l2_event_subdev_unsubscribe
   __v4l2_find_nearest_size
+
+# required by ov5640_camera_mipi_v2.ko
+  devm_pinctrl_put
 
 # required by panel-raydium-rm67191.ko
   devm_backlight_device_register
@@ -1836,7 +1833,6 @@
   backlight_device_register
   backlight_device_unregister
   devm_pwm_get
-  gpiod_get_direction
   pwm_apply_state
   pwm_free
   pwm_request
@@ -1995,7 +1991,6 @@
   snd_soc_dapm_put_enum_double
 
 # required by snd-soc-simple-card-utils.ko
-  devm_get_clk_from_child
   devm_kvasprintf
   of_property_read_string_helper
   snd_soc_dapm_get_pin_switch
@@ -2056,6 +2051,8 @@
 
 # required by trusty-ipc.ko
   _copy_from_iter
+  dma_buf_vmap
+  dma_buf_vunmap
   fget
   import_iovec
   strncpy_from_user
@@ -2117,6 +2114,7 @@
 # required by vsiv4l2.ko
   devm_device_add_group
   v4l2_event_dequeue
+  vb2_create_bufs
   vb2_prepare_buf
 
 # required by vvcam-video.ko

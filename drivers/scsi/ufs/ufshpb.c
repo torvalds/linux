@@ -329,15 +329,19 @@ ufshpb_get_pos_from_lpn(struct ufshpb_lu *hpb, unsigned long lpn, int *rgn_idx,
 }
 
 static void
-ufshpb_set_hpb_read_to_upiu(struct ufshpb_lu *hpb, struct ufshcd_lrb *lrbp,
-			    u32 lpn, __be64 ppn, u8 transfer_len, int read_id)
+ufshpb_set_hpb_read_to_upiu(struct ufs_hba *hba, struct ufshpb_lu *hpb,
+			    struct ufshcd_lrb *lrbp, u32 lpn, __be64 ppn,
+			    u8 transfer_len, int read_id)
 {
 	unsigned char *cdb = lrbp->cmd->cmnd;
-
+	__be64 ppn_tmp = ppn;
 	cdb[0] = UFSHPB_READ;
 
+	if (hba->dev_quirks & UFS_DEVICE_QUIRK_SWAP_L2P_ENTRY_FOR_HPB_READ)
+		ppn_tmp = swab64(ppn);
+
 	/* ppn value is stored as big-endian in the host memory */
-	memcpy(&cdb[6], &ppn, sizeof(__be64));
+	memcpy(&cdb[6], &ppn_tmp, sizeof(__be64));
 	cdb[14] = transfer_len;
 	cdb[15] = read_id;
 
@@ -696,7 +700,8 @@ int ufshpb_prep(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 		}
 	}
 
-	ufshpb_set_hpb_read_to_upiu(hpb, lrbp, lpn, ppn, transfer_len, read_id);
+	ufshpb_set_hpb_read_to_upiu(hba, hpb, lrbp, lpn, ppn, transfer_len,
+				    read_id);
 
 	hpb->stats.hit_cnt++;
 	return 0;

@@ -14,6 +14,8 @@
  * don't need to meet these requirements.
  */
 
+#undef __DISABLE_EXPORTS
+
 #include <linux/ctype.h>
 #include <linux/module.h>
 #include <crypto/aead.h>
@@ -66,34 +68,57 @@ const u8 *__rodata_start = &__fips140_rodata_start;
 /*
  * The list of the crypto API algorithms (by cra_name) that will be unregistered
  * by this module, in preparation for the module registering its own
- * implementation(s) of them.  When adding a new algorithm here, make sure to
- * consider whether it needs a self-test added to fips140_selftests[] as well.
+ * implementation(s) of them.
+ *
+ * All algorithms that will be declared as FIPS-approved in the module
+ * certification must be listed here, to ensure that the non-FIPS-approved
+ * implementations of these algorithms in the kernel image aren't used.
+ *
+ * For every algorithm in this list, the module should contain all the "same"
+ * implementations that the kernel image does, including the C implementation as
+ * well as any architecture-specific implementations.  This is needed to avoid
+ * performance regressions as well as the possibility of an algorithm being
+ * unavailable on some CPUs.  E.g., "xcbc(aes)" isn't in this list, as the
+ * module doesn't have a C implementation of it (and it won't be FIPS-approved).
+ *
+ * Due to a quirk in the FIPS requirements, "gcm(aes)" isn't actually able to be
+ * FIPS-approved.  However, we otherwise treat it the same as the algorithms
+ * that will be FIPS-approved, and therefore it's included in this list.
+ *
+ * When adding a new algorithm here, make sure to consider whether it needs a
+ * self-test added to fips140_selftests[] as well.
  */
-static const char * const fips140_algorithms[] __initconst = {
-	"aes",
+static const struct {
+	const char *name;
+	bool approved;
+} fips140_algs_to_replace[] = {
+	{"aes", true},
 
-	"gcm(aes)",
+	{"cmac(aes)", true},
+	{"ecb(aes)", true},
 
-	"ecb(aes)",
-	"cbc(aes)",
-	"ctr(aes)",
-	"xts(aes)",
+	{"cbc(aes)", true},
+	{"cts(cbc(aes))", true},
+	{"ctr(aes)", true},
+	{"xts(aes)", true},
+	{"gcm(aes)", false},
 
-	"hmac(sha1)",
-	"hmac(sha224)",
-	"hmac(sha256)",
-	"hmac(sha384)",
-	"hmac(sha512)",
-	"sha1",
-	"sha224",
-	"sha256",
-	"sha384",
-	"sha512",
+	{"hmac(sha1)", true},
+	{"hmac(sha224)", true},
+	{"hmac(sha256)", true},
+	{"hmac(sha384)", true},
+	{"hmac(sha512)", true},
+	{"sha1", true},
+	{"sha224", true},
+	{"sha256", true},
+	{"sha384", true},
+	{"sha512", true},
 
-	"stdrng",
+	{"stdrng", true},
+	{"jitterentropy_rng", false},
 };
 
-static bool __init is_fips140_algo(struct crypto_alg *alg)
+static bool __init fips140_should_unregister_alg(struct crypto_alg *alg)
 {
 	int i;
 
@@ -104,13 +129,70 @@ static bool __init is_fips140_algo(struct crypto_alg *alg)
 	if (alg->cra_flags & CRYPTO_ALG_ASYNC)
 		return false;
 
-	for (i = 0; i < ARRAY_SIZE(fips140_algorithms); i++)
-		if (!strcmp(alg->cra_name, fips140_algorithms[i]))
+	for (i = 0; i < ARRAY_SIZE(fips140_algs_to_replace); i++) {
+		if (!strcmp(alg->cra_name, fips140_algs_to_replace[i].name))
 			return true;
+	}
 	return false;
 }
 
-static LIST_HEAD(unchecked_fips140_algos);
+/*
+ * FIPS 140-3 service indicators.  FIPS 140-3 requires that all services
+ * "provide an indicator when the service utilises an approved cryptographic
+ * algorithm, security function or process in an approved manner".  What this
+ * means is very debatable, even with the help of the FIPS 140-3 Implementation
+ * Guidance document.  However, it was decided that a function that takes in an
+ * algorithm name and returns whether that algorithm is approved or not will
+ * meet this requirement.  Note, this relies on some properties of the module:
+ *
+ *   - The module doesn't distinguish between "services" and "algorithms"; its
+ *     services are simply its algorithms.
+ *
+ *   - The status of an approved algorithm is never non-approved, since (a) the
+ *     module doesn't support operating in a non-approved mode, such as a mode
+ *     where the self-tests are skipped; (b) there are no cases where the module
+ *     supports non-approved settings for approved algorithms, e.g.
+ *     non-approved key sizes; and (c) this function isn't available to be
+ *     called until the module_init function has completed, so it's guaranteed
+ *     that the self-tests and integrity check have already passed.
+ *
+ *   - The module does support some non-approved algorithms, so a single static
+ *     indicator ("return true;") would not be acceptable.
+ */
+bool fips140_is_approved_service(const char *name)
+{
+	size_t i;
+
+	for (i = 0; i < ARRAY_SIZE(fips140_algs_to_replace); i++) {
+		if (!strcmp(name, fips140_algs_to_replace[i].name))
+			return fips140_algs_to_replace[i].approved;
+	}
+	return false;
+}
+EXPORT_SYMBOL_GPL(fips140_is_approved_service);
+
+/*
+ * FIPS 140-3 requires that modules provide a "service" that outputs "the name
+ * or module identifier and the versioning information that can be correlated
+ * with a validation record".  This function meets that requirement.
+ *
+ * Note: the module also prints this same information to the kernel log when it
+ * is loaded.  That might meet the requirement by itself.  However, given the
+ * vagueness of what counts as a "service", we provide this function too, just
+ * in case the certification lab or CMVP is happier with an explicit function.
+ *
+ * Note: /sys/modules/fips140/scmversion also provides versioning information
+ * about the module.  However that file just shows the bare git commit ID, so it
+ * probably isn't sufficient to meet the FIPS requirement, which seems to want
+ * the "official" module name and version number used in the FIPS certificate.
+ */
+const char *fips140_module_version(void)
+{
+	return FIPS140_MODULE_NAME " " FIPS140_MODULE_VERSION;
+}
+EXPORT_SYMBOL_GPL(fips140_module_version);
+
+static LIST_HEAD(existing_live_algos);
 
 /*
  * Release a list of algorithms which have been removed from crypto_alg_list.
@@ -153,38 +235,53 @@ static void __init unregister_existing_fips140_algos(void)
 	down_write(&crypto_alg_sem);
 
 	/*
-	 * Find all registered algorithms that we care about, and move them to
-	 * a private list so that they are no longer exposed via the algo
-	 * lookup API. Subsequently, we will unregister them if they are not in
-	 * active use. If they are, we cannot simply remove them but we can
-	 * adapt them later to use our integrity checked backing code.
+	 * Find all registered algorithms that we care about, and move them to a
+	 * private list so that they are no longer exposed via the algo lookup
+	 * API. Subsequently, we will unregister them if they are not in active
+	 * use. If they are, we can't fully unregister them but we can ensure
+	 * that new users won't use them.
 	 */
 	list_for_each_entry_safe(alg, tmp, &crypto_alg_list, cra_list) {
-		if (is_fips140_algo(alg)) {
-			if (refcount_read(&alg->cra_refcnt) == 1) {
-				/*
-				 * This algorithm is not currently in use, but
-				 * there may be template instances holding
-				 * references to it via spawns. So let's tear
-				 * it down like crypto_unregister_alg() would,
-				 * but without releasing the lock, to prevent
-				 * races with concurrent TFM allocations.
-				 */
-				alg->cra_flags |= CRYPTO_ALG_DEAD;
-				list_move(&alg->cra_list, &remove_list);
-				crypto_remove_spawns(alg, &spawns, NULL);
-			} else {
-				/*
-				 * This algorithm is live, i.e., there are TFMs
-				 * allocated that rely on it for its crypto
-				 * transformations. We will swap these out
-				 * later with integrity checked versions.
-				 */
-				pr_info("found already-live algorithm '%s' ('%s')\n",
-					alg->cra_name, alg->cra_driver_name);
-				list_move(&alg->cra_list,
-					  &unchecked_fips140_algos);
-			}
+		if (!fips140_should_unregister_alg(alg))
+			continue;
+		if (refcount_read(&alg->cra_refcnt) == 1) {
+			/*
+			 * This algorithm is not currently in use, but there may
+			 * be template instances holding references to it via
+			 * spawns. So let's tear it down like
+			 * crypto_unregister_alg() would, but without releasing
+			 * the lock, to prevent races with concurrent TFM
+			 * allocations.
+			 */
+			alg->cra_flags |= CRYPTO_ALG_DEAD;
+			list_move(&alg->cra_list, &remove_list);
+			crypto_remove_spawns(alg, &spawns, NULL);
+		} else {
+			/*
+			 * This algorithm is live, i.e. it has TFMs allocated,
+			 * so we can't fully unregister it.  It's not necessary
+			 * to dynamically redirect existing users to the FIPS
+			 * code, given that they can't be relying on FIPS
+			 * certified crypto in the first place.  However, we do
+			 * need to ensure that new users will get the FIPS code.
+			 *
+			 * In most cases, setting alg->cra_priority to 0
+			 * achieves this.  However, that isn't enough for
+			 * algorithms like "hmac(sha256)" that need to be
+			 * instantiated from a template, since existing
+			 * algorithms always take priority over a template being
+			 * instantiated.  Therefore, we move the algorithm to
+			 * a private list so that algorithm lookups won't find
+			 * it anymore.  To further distinguish it from the FIPS
+			 * algorithms, we also append "+orig" to its name.
+			 */
+			pr_info("found already-live algorithm '%s' ('%s')\n",
+				alg->cra_name, alg->cra_driver_name);
+			alg->cra_priority = 0;
+			strlcat(alg->cra_name, "+orig", CRYPTO_MAX_ALG_NAME);
+			strlcat(alg->cra_driver_name, "+orig",
+				CRYPTO_MAX_ALG_NAME);
+			list_move(&alg->cra_list, &existing_live_algos);
 		}
 	}
 	up_write(&crypto_alg_sem);
@@ -259,12 +356,19 @@ static void __init unapply_rodata_relocations(void *section, int section_size,
 	}
 }
 
+extern struct {
+	u32	offset;
+	u32	count;
+} fips140_rela_text, fips140_rela_rodata;
+
 static bool __init check_fips140_module_hmac(void)
 {
+	struct crypto_shash *tfm = NULL;
 	SHASH_DESC_ON_STACK(desc, dontcare);
 	u8 digest[SHA256_DIGEST_SIZE];
 	void *textcopy, *rodatacopy;
 	int textsize, rodatasize;
+	bool ok = false;
 	int err;
 
 	textsize	= &__fips140_text_end - &__fips140_text_start;
@@ -276,7 +380,7 @@ static bool __init check_fips140_module_hmac(void)
 	textcopy = kmalloc(textsize + rodatasize, GFP_KERNEL);
 	if (!textcopy) {
 		pr_err("Failed to allocate memory for copy of .text\n");
-		return false;
+		goto out;
 	}
 
 	rodatacopy = textcopy + textsize;
@@ -286,38 +390,36 @@ static bool __init check_fips140_module_hmac(void)
 
 	// apply the relocations in reverse on the copies of .text  and .rodata
 	unapply_text_relocations(textcopy, textsize,
-				 __this_module.arch.text_relocations,
-				 __this_module.arch.num_text_relocations);
+				 offset_to_ptr(&fips140_rela_text.offset),
+				 fips140_rela_text.count);
 
 	unapply_rodata_relocations(rodatacopy, rodatasize,
-				   __this_module.arch.rodata_relocations,
-				   __this_module.arch.num_rodata_relocations);
+				  offset_to_ptr(&fips140_rela_rodata.offset),
+				  fips140_rela_rodata.count);
 
-	kfree(__this_module.arch.text_relocations);
-	kfree(__this_module.arch.rodata_relocations);
-
-	desc->tfm = crypto_alloc_shash("hmac(sha256)", 0, 0);
-	if (IS_ERR(desc->tfm)) {
-		pr_err("failed to allocate hmac tfm (%ld)\n", PTR_ERR(desc->tfm));
-		kfree(textcopy);
-		return false;
+	tfm = crypto_alloc_shash("hmac(sha256)", 0, 0);
+	if (IS_ERR(tfm)) {
+		pr_err("failed to allocate hmac tfm (%ld)\n", PTR_ERR(tfm));
+		tfm = NULL;
+		goto out;
 	}
+	desc->tfm = tfm;
 
 	pr_info("using '%s' for integrity check\n",
-		crypto_shash_driver_name(desc->tfm));
+		crypto_shash_driver_name(tfm));
 
-	err = crypto_shash_setkey(desc->tfm, fips140_integ_hmac_key,
+	err = crypto_shash_setkey(tfm, fips140_integ_hmac_key,
 				  strlen(fips140_integ_hmac_key)) ?:
 	      crypto_shash_init(desc) ?:
 	      crypto_shash_update(desc, textcopy, textsize) ?:
 	      crypto_shash_finup(desc, rodatacopy, rodatasize, digest);
 
-	crypto_free_shash(desc->tfm);
-	kfree(textcopy);
+	/* Zeroizing this is important; see the comment below. */
+	shash_desc_zero(desc);
 
 	if (err) {
 		pr_err("failed to calculate hmac shash (%d)\n", err);
-		return false;
+		goto out;
 	}
 
 	if (memcmp(digest, fips140_integ_hmac_digest, sizeof(digest))) {
@@ -326,171 +428,20 @@ static bool __init check_fips140_module_hmac(void)
 
 		pr_err("calculated digest: %*phN\n", (int)sizeof(digest),
 		       digest);
-
-		return false;
+		goto out;
 	}
-
-	return true;
-}
-
-static bool __init update_live_fips140_algos(void)
-{
-	struct crypto_alg *alg, *new_alg, *tmp;
-
+	ok = true;
+out:
 	/*
-	 * Find all algorithms that we could not unregister the last time
-	 * around, due to the fact that they were already in use.
+	 * FIPS 140-3 requires that all "temporary value(s) generated during the
+	 * integrity test" be zeroized (ref: FIPS 140-3 IG 9.7.B).  There is no
+	 * technical reason to do this given that these values are public
+	 * information, but this is the requirement so we follow it.
 	 */
-	down_write(&crypto_alg_sem);
-	list_for_each_entry_safe(alg, tmp, &unchecked_fips140_algos, cra_list) {
-
-		/*
-		 * Take this algo off the list before releasing the lock. This
-		 * ensures that a concurrent invocation of
-		 * crypto_unregister_alg() observes a consistent state, i.e.,
-		 * the algo is still on the list, and crypto_unregister_alg()
-		 * will release it, or it is not, and crypto_unregister_alg()
-		 * will issue a warning but ignore this condition otherwise.
-		 */
-		list_del_init(&alg->cra_list);
-		up_write(&crypto_alg_sem);
-
-		/*
-		 * Grab the algo that will replace the live one.
-		 * Note that this will instantiate template based instances as
-		 * well, as long as their driver name uses the conventional
-		 * pattern of "template(algo)". In this case, we are relying on
-		 * the fact that the templates carried by this module will
-		 * supersede the builtin ones, due to the fact that they were
-		 * registered later, and therefore appear first in the linked
-		 * list. For example, "hmac(sha1-ce)" constructed using the
-		 * builtin hmac template and the builtin SHA1 driver will be
-		 * superseded by the integrity checked versions of HMAC and
-		 * SHA1-ce carried in this module.
-		 *
-		 * Note that this takes a reference to the new algorithm which
-		 * will never get released. This is intentional: once we copy
-		 * the function pointers from the new algo into the old one, we
-		 * cannot drop the new algo unless we are sure that the old one
-		 * has been released, and this is someting we don't keep track
-		 * of at the moment.
-		 */
-		new_alg = crypto_alg_mod_lookup(alg->cra_driver_name,
-						alg->cra_flags & CRYPTO_ALG_TYPE_MASK,
-						CRYPTO_ALG_TYPE_MASK | CRYPTO_NOLOAD);
-
-		if (IS_ERR(new_alg)) {
-			pr_crit("Failed to allocate '%s' for updating live algo (%ld)\n",
-				alg->cra_driver_name, PTR_ERR(new_alg));
-			return false;
-		}
-
-		/*
-		 * The FIPS module's algorithms are expected to be built from
-		 * the same source code as the in-kernel ones so that they are
-		 * fully compatible. In general, there's no way to verify full
-		 * compatibility at runtime, but we can at least verify that
-		 * the algorithm properties match.
-		 */
-		if (alg->cra_ctxsize != new_alg->cra_ctxsize ||
-		    alg->cra_alignmask != new_alg->cra_alignmask) {
-			pr_crit("Failed to update live algo '%s' due to mismatch:\n"
-				"cra_ctxsize   : %u vs %u\n"
-				"cra_alignmask : 0x%x vs 0x%x\n",
-				alg->cra_driver_name,
-				alg->cra_ctxsize, new_alg->cra_ctxsize,
-				alg->cra_alignmask, new_alg->cra_alignmask);
-			return false;
-		}
-
-		/*
-		 * Update the name and priority so the algorithm stands out as
-		 * one that was updated in order to comply with FIPS140, and
-		 * that it is not the preferred version for further use.
-		 */
-		strlcat(alg->cra_name, "+orig", CRYPTO_MAX_ALG_NAME);
-		alg->cra_priority = 0;
-
-		switch (alg->cra_flags & CRYPTO_ALG_TYPE_MASK) {
-			struct aead_alg *old_aead, *new_aead;
-			struct skcipher_alg *old_skcipher, *new_skcipher;
-			struct shash_alg *old_shash, *new_shash;
-			struct rng_alg *old_rng, *new_rng;
-
-		case CRYPTO_ALG_TYPE_CIPHER:
-			alg->cra_u.cipher = new_alg->cra_u.cipher;
-			break;
-
-		case CRYPTO_ALG_TYPE_AEAD:
-			old_aead = container_of(alg, struct aead_alg, base);
-			new_aead = container_of(new_alg, struct aead_alg, base);
-
-			old_aead->setkey	= new_aead->setkey;
-			old_aead->setauthsize	= new_aead->setauthsize;
-			old_aead->encrypt	= new_aead->encrypt;
-			old_aead->decrypt	= new_aead->decrypt;
-			old_aead->init		= new_aead->init;
-			old_aead->exit		= new_aead->exit;
-			break;
-
-		case CRYPTO_ALG_TYPE_SKCIPHER:
-			old_skcipher = container_of(alg, struct skcipher_alg, base);
-			new_skcipher = container_of(new_alg, struct skcipher_alg, base);
-
-			old_skcipher->setkey	= new_skcipher->setkey;
-			old_skcipher->encrypt	= new_skcipher->encrypt;
-			old_skcipher->decrypt	= new_skcipher->decrypt;
-			old_skcipher->init	= new_skcipher->init;
-			old_skcipher->exit	= new_skcipher->exit;
-			break;
-
-		case CRYPTO_ALG_TYPE_SHASH:
-			old_shash = container_of(alg, struct shash_alg, base);
-			new_shash = container_of(new_alg, struct shash_alg, base);
-
-			old_shash->init		= new_shash->init;
-			old_shash->update	= new_shash->update;
-			old_shash->final	= new_shash->final;
-			old_shash->finup	= new_shash->finup;
-			old_shash->digest	= new_shash->digest;
-			old_shash->export	= new_shash->export;
-			old_shash->import	= new_shash->import;
-			old_shash->setkey	= new_shash->setkey;
-			old_shash->init_tfm	= new_shash->init_tfm;
-			old_shash->exit_tfm	= new_shash->exit_tfm;
-			break;
-
-		case CRYPTO_ALG_TYPE_RNG:
-			old_rng = container_of(alg, struct rng_alg, base);
-			new_rng = container_of(new_alg, struct rng_alg, base);
-
-			old_rng->generate	= new_rng->generate;
-			old_rng->seed		= new_rng->seed;
-			old_rng->set_ent	= new_rng->set_ent;
-			break;
-		default:
-			/*
-			 * This should never happen: every item on the
-			 * fips140_algorithms list should match one of the
-			 * cases above, so if we end up here, something is
-			 * definitely wrong.
-			 */
-			pr_crit("Unexpected type %u for algo %s, giving up ...\n",
-				alg->cra_flags & CRYPTO_ALG_TYPE_MASK,
-				alg->cra_driver_name);
-			return false;
-		}
-
-		/*
-		 * Move the algorithm back to the algorithm list, so it is
-		 * visible in /proc/crypto et al.
-		 */
-		down_write(&crypto_alg_sem);
-		list_add_tail(&alg->cra_list, &crypto_alg_list);
-	}
-	up_write(&crypto_alg_sem);
-
-	return true;
+	crypto_free_shash(tfm);
+	memzero_explicit(digest, sizeof(digest));
+	kfree_sensitive(textcopy);
+	return ok;
 }
 
 static void fips140_sha256(void *p, const u8 *data, unsigned int len, u8 *out,
@@ -548,7 +499,8 @@ fips140_init(void)
 {
 	const u32 *initcall;
 
-	pr_info("loading module\n");
+	pr_info("loading " FIPS140_MODULE_NAME " " FIPS140_MODULE_VERSION "\n");
+	fips140_init_thread = current;
 
 	unregister_existing_fips140_algos();
 
@@ -570,19 +522,6 @@ fips140_init(void)
 		}
 	}
 
-	if (!update_live_fips140_algos())
-		goto panic;
-
-	if (!update_fips140_library_routines())
-		goto panic;
-
-	/*
-	 * Wait until all tasks have at least been scheduled once and preempted
-	 * voluntarily. This ensures that none of the superseded algorithms that
-	 * were already in use will still be live.
-	 */
-	synchronize_rcu_tasks();
-
 	if (!fips140_run_selftests())
 		goto panic;
 
@@ -600,6 +539,11 @@ fips140_init(void)
 		goto panic;
 	}
 	pr_info("integrity check passed\n");
+
+	complete_all(&fips140_tests_done);
+
+	if (!update_fips140_library_routines())
+		goto panic;
 
 	pr_info("module successfully loaded\n");
 	return 0;

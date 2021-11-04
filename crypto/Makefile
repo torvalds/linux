@@ -200,14 +200,19 @@ obj-$(CONFIG_CRYPTO_SIMD) += crypto_simd.o
 
 ifneq ($(CONFIG_CRYPTO_FIPS140_MOD),)
 
-FIPS140_CFLAGS := -D__DISABLE_EXPORTS -DBUILD_FIPS140_KO
+FIPS140_CFLAGS := -D__DISABLE_EXPORTS -DBUILD_FIPS140_KO -include fips140-defs.h
+
+CFLAGS_jitterentropy-fips.o := -O0
+KASAN_SANITIZE_jitterentropy-fips.o = n
+UBSAN_SANITIZE_jitterentropy-fips.o = n
 
 #
 # Create a separate FIPS archive containing a duplicate of each builtin generic
 # module that is in scope for FIPS 140-2 certification
 #
-crypto-fips-objs := drbg.o ecb.o cbc.o ctr.o gcm.o xts.o hmac.o memneq.o \
-		    gf128mul.o aes_generic.o lib-crypto-aes.o \
+crypto-fips-objs := drbg.o ecb.o cbc.o ctr.o cts.o gcm.o xts.o hmac.o cmac.o \
+		    memneq.o gf128mul.o aes_generic.o lib-crypto-aes.o \
+		    jitterentropy.o jitterentropy-kcapi.o \
 		    sha1_generic.o sha256_generic.o sha512_generic.o \
 		    lib-sha1.o lib-crypto-sha256.o
 crypto-fips-objs := $(foreach o,$(crypto-fips-objs),$(o:.o=-fips.o))
@@ -228,10 +233,17 @@ $(obj)/lib-crypto-%-fips.o: $(srctree)/lib/crypto/%.c FORCE
 $(obj)/crypto-fips.a: $(addprefix $(obj)/,$(crypto-fips-objs)) FORCE
 	$(call if_changed,ar_and_symver)
 
-fips140-objs		:= fips140-module.o fips140-selftests.o crypto-fips.a
-obj-m			+= fips140.o
+fips140-objs := \
+	fips140-alg-registration.o \
+	fips140-module.o \
+	fips140-refs.o \
+	fips140-selftests.o \
+	crypto-fips.a
+obj-m += fips140.o
 
+CFLAGS_fips140-alg-registration.o += $(FIPS140_CFLAGS)
 CFLAGS_fips140-module.o += $(FIPS140_CFLAGS)
+CFLAGS_fips140-selftests.o += $(FIPS140_CFLAGS)
 
 hostprogs-always-y := fips140_gen_hmac
 HOSTLDLIBS_fips140_gen_hmac := -lcrypto -lelf

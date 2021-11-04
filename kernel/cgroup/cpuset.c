@@ -3289,6 +3289,11 @@ void cpuset_update_active_cpus(void)
 	schedule_work(&cpuset_hotplug_work);
 }
 
+void cpuset_update_active_cpus_affine(int cpu)
+{
+	schedule_work_on(cpu, &cpuset_hotplug_work);
+}
+
 void cpuset_wait_for_hotplug(void)
 {
 	flush_work(&cpuset_hotplug_work);

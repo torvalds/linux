@@ -2175,16 +2175,8 @@ EXPORT_SYMBOL_GPL(snd_soc_add_dai_controls);
  */
 int snd_soc_register_card(struct snd_soc_card *card)
 {
-	struct snd_soc_card_ext *card_ext;
-
 	if (!card->name || !card->dev)
 		return -EINVAL;
-
-	card_ext = devm_kzalloc(card->dev,
-				sizeof(struct snd_soc_card_ext), GFP_KERNEL);
-
-	memcpy(&card_ext->card, card, sizeof(struct snd_soc_card));
-	card = &card_ext->card;
 
 	dev_set_drvdata(card->dev, card);
 

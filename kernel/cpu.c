@@ -1361,11 +1361,11 @@ int resume_cpus(struct cpumask *cpus)
 
 	prev_prio = pause_reduce_prio();
 
-	/* Lazy Resume.  Build domains immediately instead of scheduling
-	 * a workqueue.  This is so that the cpu can pull load when
-	 * sent a load balancing kick.
+	/* Lazy Resume. Build domains through schedule a workqueue on
+	 * resuming cpu. This is so that the resuming cpu can work more
+	 * early, and cannot add additional load to other busy cpu.
 	 */
-	cpuset_hotplug_workfn(NULL);
+	cpuset_update_active_cpus_affine(cpumask_first(cpus));
 
 	cpus_write_lock();
 

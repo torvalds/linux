@@ -56,21 +56,22 @@ SECTIONS {
 		*(.rodata.._end)
 	}
 
-#ifdef CONFIG_CFI_CLANG
-	/*
-	 * With CFI_CLANG, ensure __cfi_check is at the beginning of the
-	 * .text section, and that the section is aligned to page size.
-	 */
 	.text : ALIGN(PAGE_SIZE) {
 		*(.text.._start)
+#ifdef CONFIG_CFI_CLANG
+		/*
+		 * With CFI_CLANG, ensure __cfi_check is at the beginning of
+		 * the .text section, and that the section is aligned to page
+		 * size.
+		 */
 		*(.text.__cfi_check)
+#endif
 		*(.text .text.[0-9a-zA-Z_]*)
 		__cfi_jt_start = .;
 		*(.text..L.cfi.jumptable .text..L.cfi.jumptable.*)
 		__cfi_jt_end = .;
 		*(.text.._end)
 	}
-#endif
 #endif
 }
 

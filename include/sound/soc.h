@@ -1105,12 +1105,6 @@ struct snd_soc_card {
 	ANDROID_KABI_RESERVE(3);
 	ANDROID_KABI_RESERVE(4);
 };
-
-struct snd_soc_card_ext {
-	struct snd_soc_card card;
-	unsigned int component_chaining:1;
-};
-
 #define for_each_card_prelinks(card, i, link)				\
 	for ((i) = 0;							\
 	     ((i) < (card)->num_links) && ((link) = &(card)->dai_link[i]); \
