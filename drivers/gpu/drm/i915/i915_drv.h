@@ -1215,27 +1215,25 @@ struct drm_i915_private {
 
 	struct {
 		/* Display internal audio functions */
-		const struct intel_audio_funcs *audio_funcs;
+		const struct intel_audio_funcs *funcs;
 
 		/* hda/i915 audio component */
-		struct i915_audio_component *audio_component;
-		bool audio_component_registered;
-		/**
-		 * av_mutex - mutex for audio/video sync
-		 */
-		struct mutex av_mutex;
-		int audio_power_refcount;
-		u32 audio_freq_cntrl;
+		struct i915_audio_component *component;
+		bool component_registered;
+		/* mutex for audio/video sync */
+		struct mutex mutex;
+		int power_refcount;
+		u32 freq_cntrl;
 
 		/* Used to save the pipe-to-encoder mapping for audio */
-		struct intel_encoder *av_enc_map[I915_MAX_PIPES];
+		struct intel_encoder *encoder_map[I915_MAX_PIPES];
 
 		/* necessary resource sharing with HDMI LPE audio driver. */
 		struct {
 			struct platform_device *platdev;
 			int irq;
-		} lpe_audio;
-	};
+		} lpe;
+	} audio;
 
 	struct i915_pmu pmu;
 
