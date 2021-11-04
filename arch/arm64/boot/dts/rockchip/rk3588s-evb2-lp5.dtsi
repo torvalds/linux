@@ -96,6 +96,10 @@
 	status = "okay";
 };
 
+&combphy0_ps {
+	status = "okay";
+};
+
 /*
  * mipi_dcphy0 needs to be enabled
  * when dsi0 is enabled
@@ -781,6 +785,10 @@
 };
 
 &pwm7 {
+	status = "okay";
+};
+
+&sata0 {
 	status = "okay";
 };
 

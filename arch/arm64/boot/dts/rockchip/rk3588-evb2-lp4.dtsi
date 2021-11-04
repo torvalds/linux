@@ -254,6 +254,10 @@
 	status = "okay";
 };
 
+&sata0 {
+	status = "okay";
+};
+
 &u2phy0_otg {
 	phy-supply = <&vcc5v0_host>;
 };

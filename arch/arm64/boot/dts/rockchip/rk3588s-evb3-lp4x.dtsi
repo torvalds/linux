@@ -52,6 +52,10 @@
 	};
 };
 
+&combphy2_psu {
+	status = "okay";
+};
+
 /*
  * mipi_dcphy0 needs to be enabled
  * when dsi0 is enabled
@@ -211,6 +215,10 @@
 			rockchip,pins = <1 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+};
+
+&sata2 {
+	status = "okay";
 };
 
 &u2phy2 {
