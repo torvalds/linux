@@ -934,75 +934,25 @@ static int atomisp_try_fmt_cap(struct file *file, void *fh,
 static int atomisp_g_fmt_cap(struct file *file, void *fh,
 			     struct v4l2_format *f)
 {
-	struct v4l2_subdev_format fmt = {
-		.which = V4L2_SUBDEV_FORMAT_ACTIVE
-	};
 	struct video_device *vdev = video_devdata(file);
 	struct atomisp_device *isp = video_get_drvdata(vdev);
-	struct v4l2_fmtdesc fmtdesc = { 0 };
 	struct atomisp_video_pipe *pipe;
-	struct atomisp_sub_device *asd;
-	struct v4l2_subdev *camera;
-	u32 depth;
-	int ret;
 
 	rt_mutex_lock(&isp->mutex);
 	pipe = atomisp_to_video_pipe(vdev);
 	rt_mutex_unlock(&isp->mutex);
 
 	f->fmt.pix = pipe->pix;
-	if (!f->fmt.pix.width) {
-		asd = atomisp_to_video_pipe(vdev)->asd;
-		if (!asd)
-		    return -EINVAL;
 
-		camera = isp->inputs[asd->input_curr].camera;
-		if(!camera)
-			return -EINVAL;
+	/* If s_fmt was issued, just return whatever is was previouly set */
+	if (f->fmt.pix.sizeimage)
+		return 0;
 
-		ret = atomisp_enum_fmt_cap(file, fh, &fmtdesc);
-		if (ret)
-			return ret;
+	f->fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
+	f->fmt.pix.width = 10000;
+	f->fmt.pix.height = 10000;
 
-		rt_mutex_lock(&isp->mutex);
-		ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
-				       pad, get_fmt, NULL, &fmt);
-		rt_mutex_unlock(&isp->mutex);
-		if (ret)
-			return ret;
-
-		v4l2_fill_pix_format(&f->fmt.pix, &fmt.format);
-
-		f->fmt.pix.pixelformat = fmtdesc.pixelformat;
-
-		/*
-		 * HACK: The atomisp does something different here, as it
-		 * seems to set the sensor to a slightly higher resolution than
-		 * the visible ones. That seems to be needed by atomisp's ISP
-		 * in order to properly handle the frames. So, s_fmt adds 16
-		 * extra columns/lines. See atomisp_subdev_set_selection().
-		 *
-		 * Yet, the V4L2 userspace API doesn't expect those, so it
-		 * needs to be decremented when reporting the visible
-		 * resolution to userspace.
-		 */
-		f->fmt.pix.width -= pad_w;
-		f->fmt.pix.height -= pad_h;
-	}
-
-	depth = atomisp_get_pixel_depth(f->fmt.pix.pixelformat);
-	f->fmt.pix.bytesperline = DIV_ROUND_UP(f->fmt.pix.width * depth, 8);
-	f->fmt.pix.sizeimage = PAGE_ALIGN(f->fmt.pix.height * f->fmt.pix.bytesperline);
-
-	/*
-	 * FIXME: do we need to setup this differently, depending on the
-	 * sensor or the pipeline?
-	 */
-	f->fmt.pix.colorspace = V4L2_COLORSPACE_REC709;
-	f->fmt.pix.ycbcr_enc = V4L2_YCBCR_ENC_709;
-	f->fmt.pix.xfer_func = V4L2_XFER_FUNC_709;
-
-	return 0;
+	return atomisp_try_fmt_cap(file, fh, f);
 }
 
 static int atomisp_s_fmt_cap(struct file *file, void *fh,
