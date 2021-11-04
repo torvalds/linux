@@ -23,6 +23,11 @@ static int dev = -EINVAL;
 module_param(dev, int, S_IRUGO);
 MODULE_PARM_DESC(dev, "MTD device number to use");
 
+static unsigned int cycles_count = 1;
+module_param(cycles_count, uint, S_IRUGO);
+MODULE_PARM_DESC(cycles_count, "how many erase cycles to do "
+			       "(infinite by default)");
+
 static struct mtd_info *mtd;
 static unsigned char *iobuf;
 static unsigned char *iobuf1;
@@ -167,22 +172,25 @@ static int __init mtd_readtest_init(void)
 
 	/* Read all eraseblocks 1 page at a time */
 	pr_info("testing page read\n");
-	for (i = 0; i < ebcnt; ++i) {
-		int ret;
+	while (cycles_count--) {
+		pr_info("Number of remaining cycles %d\n", cycles_count);
+		for (i = 0; i < ebcnt; ++i) {
+			int ret;
 
-		if (bbt[i])
-			continue;
-		ret = read_eraseblock_by_page(i);
-		if (ret) {
-			dump_eraseblock(i);
-			if (!err)
+			if (bbt[i])
+				continue;
+			ret = read_eraseblock_by_page(i);
+			if (ret) {
+				dump_eraseblock(i);
+				if (!err)
+					err = ret;
+			}
+
+			ret = mtdtest_relax();
+			if (ret) {
 				err = ret;
-		}
-
-		ret = mtdtest_relax();
-		if (ret) {
-			err = ret;
-			goto out;
+				goto out;
+			}
 		}
 	}
 
