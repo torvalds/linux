@@ -41,6 +41,10 @@ struct analogix_dp_plat_data {
 	bool skip_connector;
 	bool ssc;
 
+	bool split_mode;
+	struct analogix_dp_device *left;
+	struct analogix_dp_device *right;
+
 	int (*power_on_start)(struct analogix_dp_plat_data *);
 	int (*power_on_end)(struct analogix_dp_plat_data *);
 	int (*power_off)(struct analogix_dp_plat_data *);
@@ -49,6 +53,8 @@ struct analogix_dp_plat_data {
 	void (*detach)(struct analogix_dp_plat_data *, struct drm_bridge *);
 	int (*get_modes)(struct analogix_dp_plat_data *,
 			 struct drm_connector *);
+	void (*convert_to_split_mode)(struct drm_display_mode *);
+	void (*convert_to_origin_mode)(struct drm_display_mode *);
 };
 
 int analogix_dp_runtime_resume(struct analogix_dp_device *dp);

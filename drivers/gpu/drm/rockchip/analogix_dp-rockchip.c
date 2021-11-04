@@ -59,6 +59,7 @@ struct rockchip_grf_reg_field {
  * @chip_type: specific chip type
  * @ssc: check if SSC is supported by source
  * @audio: check if audio is supported by source
+ * @split_mode: check if split mode is supported
  */
 struct rockchip_dp_chip_data {
 	const struct rockchip_grf_reg_field lcdc_sel;
@@ -68,6 +69,7 @@ struct rockchip_dp_chip_data {
 	u32	chip_type;
 	bool	ssc;
 	bool	audio;
+	bool	split_mode;
 };
 
 struct rockchip_dp_device {
@@ -156,6 +158,26 @@ static const struct hdmi_codec_ops rockchip_dp_audio_codec_ops = {
 	.audio_shutdown = rockchip_dp_audio_shutdown,
 	.get_eld = rockchip_dp_audio_get_eld,
 };
+
+static int rockchip_dp_match_by_id(struct device *dev, const void *data)
+{
+	struct rockchip_dp_device *dp = dev_get_drvdata(dev);
+	const unsigned int *id = data;
+
+	return dp->id == *id;
+}
+
+static struct rockchip_dp_device *
+rockchip_dp_find_by_id(struct device_driver *drv, unsigned int id)
+{
+	struct device *dev;
+
+	dev = driver_find_device(drv, NULL, &id, rockchip_dp_match_by_id);
+	if (!dev)
+		return NULL;
+
+	return dev_get_drvdata(dev);
+}
 
 static int rockchip_dp_pre_init(struct rockchip_dp_device *dp)
 {
@@ -367,7 +389,13 @@ rockchip_dp_drm_encoder_atomic_check(struct drm_encoder *encoder,
 
 	s->output_mode = ROCKCHIP_OUT_MODE_AAAA;
 	s->output_type = DRM_MODE_CONNECTOR_eDP;
-	s->output_if |= dp->id ? VOP_OUTPUT_IF_eDP1 : VOP_OUTPUT_IF_eDP0;
+	if (dp->plat_data.split_mode) {
+		s->output_flags |= ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE;
+		s->output_flags |= dp->id ? ROCKCHIP_OUTPUT_DATA_SWAP : 0;
+		s->output_if |= VOP_OUTPUT_IF_eDP0 | VOP_OUTPUT_IF_eDP1;
+	} else {
+		s->output_if |= dp->id ? VOP_OUTPUT_IF_eDP1 : VOP_OUTPUT_IF_eDP0;
+	}
 	s->output_bpc = di->bpc;
 	s->bus_flags = di->bus_flags;
 	s->tv_state = &conn_state->tv;
@@ -445,13 +473,15 @@ static int rockchip_dp_bind(struct device *dev, struct device *master,
 
 	dp->drm_dev = drm_dev;
 
-	ret = rockchip_dp_drm_create_encoder(dp);
-	if (ret) {
-		DRM_ERROR("failed to create drm encoder\n");
-		return ret;
-	}
+	if (!dp->plat_data.left) {
+		ret = rockchip_dp_drm_create_encoder(dp);
+		if (ret) {
+			DRM_ERROR("failed to create drm encoder\n");
+			return ret;
+		}
 
-	dp->plat_data.encoder = &dp->encoder;
+		dp->plat_data.encoder = &dp->encoder;
+	}
 
 	if (dp->data->audio) {
 		struct hdmi_codec_pdata codec_data = {
@@ -548,6 +578,8 @@ static int rockchip_dp_probe(struct platform_device *pdev)
 	dp->plat_data.get_modes = rockchip_dp_get_modes;
 	dp->plat_data.attach = rockchip_dp_bridge_attach;
 	dp->plat_data.detach = rockchip_dp_bridge_detach;
+	dp->plat_data.convert_to_split_mode = drm_mode_convert_to_split_mode;
+	dp->plat_data.convert_to_origin_mode = drm_mode_convert_to_origin_mode;
 	dp->plat_data.skip_connector = !!bridge;
 	dp->bridge = bridge;
 
@@ -560,6 +592,18 @@ static int rockchip_dp_probe(struct platform_device *pdev)
 	dp->adp = analogix_dp_probe(dev, &dp->plat_data);
 	if (IS_ERR(dp->adp))
 		return PTR_ERR(dp->adp);
+
+	if (dp->data->split_mode && device_property_read_bool(dev, "split-mode")) {
+		struct rockchip_dp_device *secondary =
+				rockchip_dp_find_by_id(dev->driver, !dp->id);
+		if (!secondary)
+			return -EPROBE_DEFER;
+
+		dp->plat_data.right = secondary->adp;
+		dp->plat_data.split_mode = true;
+		secondary->plat_data.left = dp->adp;
+		secondary->plat_data.split_mode = true;
+	}
 
 	return component_add(dev, &rockchip_dp_component_ops);
 }
@@ -634,6 +678,7 @@ static const struct rockchip_dp_chip_data rk3588_edp[] = {
 		.edp_mode = GRF_REG_FIELD(0x0000, 0, 0),
 		.ssc = true,
 		.audio = true,
+		.split_mode = true,
 	},
 	{
 		.chip_type = RK3588_EDP,
@@ -642,6 +687,7 @@ static const struct rockchip_dp_chip_data rk3588_edp[] = {
 		.edp_mode = GRF_REG_FIELD(0x0004, 0, 0),
 		.ssc = true,
 		.audio = true,
+		.split_mode = true,
 	},
 	{ /* sentinel */ }
 };
