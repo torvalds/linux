@@ -1581,8 +1581,10 @@ struct nfs_fattr *nfs_alloc_fattr(void)
 	struct nfs_fattr *fattr;
 
 	fattr = kmalloc(sizeof(*fattr), GFP_NOFS);
-	if (fattr != NULL)
+	if (fattr != NULL) {
 		nfs_fattr_init(fattr);
+		fattr->label = NULL;
+	}
 	return fattr;
 }
 EXPORT_SYMBOL_GPL(nfs_alloc_fattr);
