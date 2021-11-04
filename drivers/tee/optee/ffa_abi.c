@@ -810,10 +810,9 @@ static int optee_ffa_probe(struct ffa_device *ffa_dev)
 		return -EINVAL;
 
 	optee = kzalloc(sizeof(*optee), GFP_KERNEL);
-	if (!optee) {
-		rc = -ENOMEM;
-		goto err;
-	}
+	if (!optee)
+		return -ENOMEM;
+
 	optee->pool = optee_ffa_config_dyn_shm();
 	if (IS_ERR(optee->pool)) {
 		rc = PTR_ERR(optee->pool);
