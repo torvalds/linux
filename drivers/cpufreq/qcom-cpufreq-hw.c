@@ -491,7 +491,7 @@ static int qcom_cpufreq_hw_lmh_init(struct cpufreq_policy *policy, int index)
 	data->policy = policy;
 
 	mutex_init(&data->throttle_lock);
-	INIT_DEFERRABLE_WORK(&data->throttle_work, qcom_lmh_dcvs_poll);
+	INIT_DELAYED_WORK(&data->throttle_work, qcom_lmh_dcvs_poll);
 
 	snprintf(data->irq_name, sizeof(data->irq_name), "dcvsh-irq-%u", policy->cpu);
 	ret = request_threaded_irq(data->throttle_irq, NULL, qcom_lmh_dcvs_handle_irq,
