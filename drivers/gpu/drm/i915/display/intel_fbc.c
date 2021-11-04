@@ -307,6 +307,18 @@ static void intel_fbc_recompress(struct drm_i915_private *dev_priv)
 		i8xx_fbc_recompress(dev_priv);
 }
 
+static void snb_fbc_program_fence(struct drm_i915_private *i915)
+{
+	const struct intel_fbc_reg_params *params = &i915->fbc.params;
+	u32 ctl = 0;
+
+	if (params->fence_id >= 0)
+		ctl = SNB_CPU_FENCE_ENABLE | params->fence_id;
+
+	intel_de_write(i915, SNB_DPFC_CTL_SA, ctl);
+	intel_de_write(i915, DPFC_CPU_FENCE_OFFSET, params->fence_y_offset);
+}
+
 static void ilk_fbc_activate(struct drm_i915_private *dev_priv)
 {
 	struct intel_fbc_reg_params *params = &dev_priv->fbc.params;
@@ -320,18 +332,10 @@ static void ilk_fbc_activate(struct drm_i915_private *dev_priv)
 		dpfc_ctl |= DPFC_CTL_FENCE_EN;
 		if (IS_IRONLAKE(dev_priv))
 			dpfc_ctl |= params->fence_id;
-		if (IS_SANDYBRIDGE(dev_priv)) {
-			intel_de_write(dev_priv, SNB_DPFC_CTL_SA,
-				       SNB_CPU_FENCE_ENABLE | params->fence_id);
-			intel_de_write(dev_priv, DPFC_CPU_FENCE_OFFSET,
-				       params->fence_y_offset);
-		}
-	} else {
-		if (IS_SANDYBRIDGE(dev_priv)) {
-			intel_de_write(dev_priv, SNB_DPFC_CTL_SA, 0);
-			intel_de_write(dev_priv, DPFC_CPU_FENCE_OFFSET, 0);
-		}
 	}
+
+	if (IS_SANDYBRIDGE(dev_priv))
+		snb_fbc_program_fence(dev_priv);
 
 	intel_de_write(dev_priv, ILK_DPFC_FENCE_YOFF,
 		       params->fence_y_offset);
@@ -389,19 +393,14 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 
 	dpfc_ctl |= g4x_dpfc_ctl_limit(dev_priv);
 
-	if (params->fence_id >= 0) {
+	if (params->fence_id >= 0)
 		dpfc_ctl |= IVB_DPFC_CTL_FENCE_EN;
-		intel_de_write(dev_priv, SNB_DPFC_CTL_SA,
-			       SNB_CPU_FENCE_ENABLE | params->fence_id);
-		intel_de_write(dev_priv, DPFC_CPU_FENCE_OFFSET,
-			       params->fence_y_offset);
-	} else if (dev_priv->ggtt.num_fences) {
-		intel_de_write(dev_priv, SNB_DPFC_CTL_SA, 0);
-		intel_de_write(dev_priv, DPFC_CPU_FENCE_OFFSET, 0);
-	}
 
 	if (dev_priv->fbc.false_color)
 		dpfc_ctl |= FBC_CTL_FALSE_COLOR;
+
+	if (dev_priv->ggtt.num_fences)
+		snb_fbc_program_fence(dev_priv);
 
 	intel_de_write(dev_priv, ILK_DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
 }
