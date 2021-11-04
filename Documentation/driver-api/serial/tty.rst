@@ -58,7 +58,7 @@ close()			This is called on a terminal when the line
 hangup()		Called when the tty line is hung up.
 			The line discipline should cease I/O to the tty.
 			No further calls into the ldisc code will occur.
-			The return value is ignored. Can sleep.
+			Can sleep.
 
 read()			(optional) A process requests reading data from
 			the line. Multiple read calls may occur in parallel

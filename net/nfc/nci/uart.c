@@ -337,7 +337,7 @@ static int nci_uart_tty_ioctl(struct tty_struct *tty, struct file *file,
 			return -EBUSY;
 		break;
 	default:
-		err = n_tty_ioctl_helper(tty, file, cmd, arg);
+		err = n_tty_ioctl_helper(tty, cmd, arg);
 		break;
 	}
 
