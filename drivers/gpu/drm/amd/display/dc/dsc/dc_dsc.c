@@ -574,7 +574,7 @@ static bool decide_dsc_target_bpp_x16(
 	return *target_bpp_x16 != 0;
 }
 
-#define MIN_AVAILABLE_SLICES_SIZE  4
+#define MIN_AVAILABLE_SLICES_SIZE  6
 
 static int get_available_dsc_slices(union dsc_enc_slice_caps slice_caps, int *available_slices)
 {
@@ -860,6 +860,10 @@ static bool setup_dsc_config(
 		min_slices_h = 0; // DSC TODO: Maybe try increasing the number of slices first?
 
 	is_dsc_possible = (min_slices_h <= max_slices_h);
+
+	if (min_slices_h == 0 && max_slices_h == 0)
+		is_dsc_possible = false;
+
 	if (!is_dsc_possible)
 		goto done;
 
