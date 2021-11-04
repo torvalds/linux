@@ -113,6 +113,35 @@ static int subvol_lookup(struct btree_trans *trans, u32 subvol,
 	return lockrestart_do(trans, __subvol_lookup(trans, subvol, snapshot, inum));
 }
 
+static int lookup_first_inode(struct btree_trans *trans, u64 inode_nr,
+			      struct bch_inode_unpacked *inode)
+{
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	int ret;
+
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_inodes,
+			     POS(0, inode_nr),
+			     BTREE_ITER_ALL_SNAPSHOTS);
+	k = bch2_btree_iter_peek(&iter);
+	ret = bkey_err(k);
+	if (ret)
+		goto err;
+
+	if (!k.k || bkey_cmp(k.k->p, POS(0, inode_nr))) {
+		ret = -ENOENT;
+		goto err;
+	}
+
+	ret = bch2_inode_unpack(bkey_s_c_to_inode(k), inode);
+err:
+	if (ret && ret != -EINTR)
+		bch_err(trans->c, "error %i fetching inode %llu",
+			ret, inode_nr);
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
 static int __lookup_inode(struct btree_trans *trans, u64 inode_nr,
 			  struct bch_inode_unpacked *inode,
 			  u32 *snapshot)
@@ -272,7 +301,7 @@ static int __remove_dirent(struct btree_trans *trans, struct bpos pos)
 	struct bch_hash_info dir_hash_info;
 	int ret;
 
-	ret = __lookup_inode(trans, pos.inode, &dir_inode, NULL);
+	ret = lookup_first_inode(trans, pos.inode, &dir_inode);
 	if (ret)
 		return ret;
 
