@@ -40,7 +40,6 @@ struct test_case {
 
 struct test_suite {
 	const char *desc;
-	test_fnptr func;
 	struct {
 		bool skip_if_fail;
 	} subtest;

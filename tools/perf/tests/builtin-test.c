@@ -157,9 +157,6 @@ static bool is_supported(const struct test_suite *t)
 
 static test_fnptr test_function(const struct test_suite *t, int subtest)
 {
-	if (t->func)
-		return t->func;
-
 	if (subtest <= 0)
 		return t->test_cases[0].run_case;
 
@@ -413,24 +410,34 @@ static int run_shell_tests(int argc, const char *argv[], int i, int width,
 	for_each_shell_test(entlist, n_dirs, st.dir, ent) {
 		int curr = i++;
 		char desc[256];
-		struct test_suite test = {
-			.desc = shell_test__description(desc, sizeof(desc), st.dir, ent->d_name),
-			.func = shell_test__run,
+		struct test_case test_cases[] = {
+			{
+				.desc = shell_test__description(desc,
+								sizeof(desc),
+								st.dir,
+								ent->d_name),
+				.run_case = shell_test__run,
+			},
+			{ .name = NULL, }
+		};
+		struct test_suite test_suite = {
+			.desc = test_cases[0].desc,
+			.test_cases = test_cases,
 			.priv = &st,
 		};
 
-		if (!perf_test__matches(test.desc, curr, argc, argv))
+		if (!perf_test__matches(test_suite.desc, curr, argc, argv))
 			continue;
 
 		st.file = ent->d_name;
-		pr_info("%2d: %-*s:", i, width, test.desc);
+		pr_info("%2d: %-*s:", i, width, test_suite.desc);
 
 		if (intlist__find(skiplist, i)) {
 			color_fprintf(stderr, PERF_COLOR_YELLOW, " Skip (user override)\n");
 			continue;
 		}
 
-		test_and_print(&test, false, -1);
+		test_and_print(&test_suite, false, 0);
 	}
 
 	for (e = 0; e < n_dirs; e++)
