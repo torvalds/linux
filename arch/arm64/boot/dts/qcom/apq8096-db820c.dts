@@ -166,6 +166,7 @@
 
 &adsp_pil {
 	status = "okay";
+	firmware-name = "qcom/apq8096/adsp.mbn";
 };
 
 &blsp2_i2c1 {
