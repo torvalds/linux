@@ -55,6 +55,7 @@ struct intel_fbc_funcs {
 	bool (*is_compressing)(struct drm_i915_private *i915);
 	void (*nuke)(struct drm_i915_private *i915);
 	void (*program_cfb)(struct drm_i915_private *i915);
+	void (*set_false_color)(struct drm_i915_private *i915, bool enable);
 };
 
 /*
@@ -538,6 +539,13 @@ static bool ivb_fbc_is_compressing(struct drm_i915_private *i915)
 		return intel_de_read(i915, IVB_FBC_STATUS2) & IVB_FBC_COMP_SEG_MASK;
 }
 
+static void ivb_fbc_set_false_color(struct drm_i915_private *i915,
+				    bool enable)
+{
+	intel_de_rmw(i915, ILK_DPFC_CONTROL,
+		     FBC_CTL_FALSE_COLOR, enable ? FBC_CTL_FALSE_COLOR : 0);
+}
+
 static const struct intel_fbc_funcs ivb_fbc_funcs = {
 	.activate = ivb_fbc_activate,
 	.deactivate = ilk_fbc_deactivate,
@@ -545,6 +553,7 @@ static const struct intel_fbc_funcs ivb_fbc_funcs = {
 	.is_compressing = ivb_fbc_is_compressing,
 	.nuke = snb_fbc_nuke,
 	.program_cfb = ilk_fbc_program_cfb,
+	.set_false_color = ivb_fbc_set_false_color,
 };
 
 static bool intel_fbc_hw_is_active(struct drm_i915_private *dev_priv)
@@ -591,6 +600,24 @@ static void intel_fbc_nuke(struct drm_i915_private *i915)
 	trace_intel_fbc_nuke(fbc->crtc);
 
 	fbc->funcs->nuke(i915);
+}
+
+int intel_fbc_set_false_color(struct drm_i915_private *i915, bool enable)
+{
+	struct intel_fbc *fbc = &i915->fbc;
+
+	if (!fbc->funcs || !fbc->funcs->set_false_color)
+		return -ENODEV;
+
+	mutex_lock(&fbc->lock);
+
+	fbc->false_color = enable;
+
+	fbc->funcs->set_false_color(i915, enable);
+
+	mutex_unlock(&fbc->lock);
+
+	return 0;
 }
 
 /**

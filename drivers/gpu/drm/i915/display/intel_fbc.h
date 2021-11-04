@@ -37,5 +37,7 @@ void intel_fbc_flush(struct drm_i915_private *dev_priv,
 void intel_fbc_cleanup_cfb(struct drm_i915_private *dev_priv);
 void intel_fbc_handle_fifo_underrun_irq(struct drm_i915_private *dev_priv);
 int intel_fbc_reset_underrun(struct drm_i915_private *dev_priv);
+int intel_fbc_set_false_color(struct drm_i915_private *i915,
+			      bool enable);
 
 #endif /* __INTEL_FBC_H__ */
