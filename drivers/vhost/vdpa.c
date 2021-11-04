@@ -170,7 +170,7 @@ static long vhost_vdpa_set_status(struct vhost_vdpa *v, u8 __user *statusp)
 	 * Userspace shouldn't remove status bits unless reset the
 	 * status to 0.
 	 */
-	if (status != 0 && (ops->get_status(vdpa) & ~status) != 0)
+	if (status != 0 && (status_old & ~status) != 0)
 		return -EINVAL;
 
 	if ((status_old & VIRTIO_CONFIG_S_DRIVER_OK) && !(status & VIRTIO_CONFIG_S_DRIVER_OK))
