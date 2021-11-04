@@ -198,8 +198,13 @@ static bool test__tsc_is_supported(void)
 #endif
 }
 
+static struct test_case perf_time_to_tsc_tests[] = {
+	TEST_CASE("Convert perf time to TSC", perf_time_to_tsc),
+	{ .name = NULL, }
+};
+
 struct test_suite suite__perf_time_to_tsc = {
 	.desc = "Convert perf time to TSC",
-	.func = test__perf_time_to_tsc,
+	.test_cases = perf_time_to_tsc_tests,
 	.is_supported = test__tsc_is_supported,
 };
