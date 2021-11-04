@@ -348,6 +348,10 @@ static void gfxhub_v1_0_gart_disable(struct amdgpu_device *adev)
 		WREG32_SOC15_OFFSET(GC, 0, mmVM_CONTEXT0_CNTL,
 				    i * hub->ctx_distance, 0);
 
+	if (amdgpu_sriov_vf(adev))
+		/* Avoid write to GMC registers */
+		return;
+
 	/* Setup TLB control */
 	tmp = RREG32_SOC15(GC, 0, mmMC_VM_MX_L1_TLB_CNTL);
 	tmp = REG_SET_FIELD(tmp, MC_VM_MX_L1_TLB_CNTL, ENABLE_L1_TLB, 0);
