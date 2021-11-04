@@ -470,11 +470,10 @@ static int mmc_busy_cb(void *cb_data, bool *busy)
 	return 0;
 }
 
-int __mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
+int __mmc_poll_for_busy(struct mmc_host *host, unsigned int timeout_ms,
 			int (*busy_cb)(void *cb_data, bool *busy),
 			void *cb_data)
 {
-	struct mmc_host *host = card->host;
 	int err;
 	unsigned long timeout;
 	unsigned int udelay = 32, udelay_max = 32768;
@@ -515,13 +514,14 @@ EXPORT_SYMBOL_GPL(__mmc_poll_for_busy);
 int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
 		      bool retry_crc_err, enum mmc_busy_cmd busy_cmd)
 {
+	struct mmc_host *host = card->host;
 	struct mmc_busy_data cb_data;
 
 	cb_data.card = card;
 	cb_data.retry_crc_err = retry_crc_err;
 	cb_data.busy_cmd = busy_cmd;
 
-	return __mmc_poll_for_busy(card, timeout_ms, &mmc_busy_cb, &cb_data);
+	return __mmc_poll_for_busy(host, timeout_ms, &mmc_busy_cb, &cb_data);
 }
 EXPORT_SYMBOL_GPL(mmc_poll_for_busy);
 
