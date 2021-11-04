@@ -1739,6 +1739,10 @@ static inline bool vop2_has_feature(struct vop2 *vop2, uint64_t feature)
 	return (vop2->data->feature & feature);
 }
 
+/*
+ * 0: Full mode, 16 lines for one tail
+ * 1: half block mode
+ */
 static int vop2_afbc_half_block_enable(struct vop2_plane_state *vpstate)
 {
 	if (vpstate->rotate_270_en || vpstate->rotate_90_en)
@@ -3149,6 +3153,45 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 	}
 }
 
+static int vop2_cluster_two_win_mode_check(struct drm_plane_state *pstate)
+{
+	struct drm_atomic_state *state = pstate->state;
+	struct drm_plane *plane = pstate->plane;
+	struct vop2_win *win = to_vop2_win(plane);
+	struct vop2 *vop2 = win->vop2;
+	struct vop2_win *main_win = vop2_find_win_by_phys_id(vop2, win->phys_id);
+	struct drm_plane_state *main_pstate;
+	int actual_w = drm_rect_width(&pstate->src) >> 16;
+	int xoffset;
+
+	if (pstate->fb->modifier == DRM_FORMAT_MOD_LINEAR)
+		xoffset = 0;
+	else
+		xoffset = pstate->src.x1 >> 16;
+
+	if ((actual_w + xoffset % 16) > 2048) {
+		DRM_ERROR("%s act_w(%d) + xoffset(%d) / 16  << 2048 in two win mode\n",
+				  win->name, actual_w, xoffset);
+		return -EINVAL;
+	}
+
+	main_pstate = drm_atomic_get_new_plane_state(state, &main_win->base);
+
+	if (pstate->fb->modifier == DRM_FORMAT_MOD_LINEAR)
+		xoffset = 0;
+	else
+		xoffset = main_pstate->src.x1 >> 16;
+	actual_w = drm_rect_width(&main_pstate->src) >> 16;
+
+	if ((actual_w + xoffset % 16) > 2048) {
+		DRM_ERROR("%s act_w(%d) + xoffset(%d) / 16  << 2048 in two win mode\n",
+				  main_win->name, actual_w, xoffset);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int vop2_cluter_splice_scale_check(struct vop2_win *win, struct drm_plane_state *pstate,
 					  u16 hdisplay)
 {
@@ -3342,6 +3385,12 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_plane_sta
 				  state->rotation, win->name);
 			return -EINVAL;
 		}
+	}
+
+	if (win->feature & WIN_FEATURE_CLUSTER_SUB) {
+		ret = vop2_cluster_two_win_mode_check(state);
+		if (ret < 0)
+			return ret;
 	}
 
 	/*
