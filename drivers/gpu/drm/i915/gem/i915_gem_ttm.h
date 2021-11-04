@@ -5,6 +5,8 @@
 #ifndef _I915_GEM_TTM_H_
 #define _I915_GEM_TTM_H_
 
+#include <drm/ttm/ttm_placement.h>
+
 #include "gem/i915_gem_object_types.h"
 
 /**
@@ -60,4 +62,37 @@ int i915_gem_obj_copy_ttm(struct drm_i915_gem_object *dst,
 
 struct ttm_placement *i915_ttm_sys_placement(void);
 
+void i915_ttm_free_cached_io_rsgt(struct drm_i915_gem_object *obj);
+
+struct i915_refct_sgt *
+i915_ttm_resource_get_st(struct drm_i915_gem_object *obj,
+			 struct ttm_resource *res);
+
+void i915_ttm_adjust_lru(struct drm_i915_gem_object *obj);
+
+int i915_ttm_purge(struct drm_i915_gem_object *obj);
+
+/**
+ * i915_ttm_gtt_binds_lmem - Should the memory be viewed as LMEM by the GTT?
+ * @mem: struct ttm_resource representing the memory.
+ *
+ * Return: true if memory should be viewed as LMEM for GTT binding purposes,
+ * false otherwise.
+ */
+static inline bool i915_ttm_gtt_binds_lmem(struct ttm_resource *mem)
+{
+	return mem->mem_type != I915_PL_SYSTEM;
+}
+
+/**
+ * i915_ttm_cpu_maps_iomem - Should the memory be viewed as IOMEM by the CPU?
+ * @mem: struct ttm_resource representing the memory.
+ *
+ * Return: true if memory should be viewed as IOMEM for CPU mapping purposes.
+ */
+static inline bool i915_ttm_cpu_maps_iomem(struct ttm_resource *mem)
+{
+	/* Once / if we support GGTT, this is also false for cached ttm_tts */
+	return mem->mem_type != I915_PL_SYSTEM;
+}
 #endif
