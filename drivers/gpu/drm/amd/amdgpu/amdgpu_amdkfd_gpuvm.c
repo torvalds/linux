@@ -207,7 +207,7 @@ static void unreserve_mem_limit(struct amdgpu_device *adev,
 	spin_unlock(&kfd_mem_limit.mem_limit_lock);
 }
 
-void amdgpu_amdkfd_unreserve_memory_limit(struct amdgpu_bo *bo)
+void amdgpu_amdkfd_release_notify(struct amdgpu_bo *bo)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	u32 domain = bo->preferred_domains;
@@ -219,6 +219,8 @@ void amdgpu_amdkfd_unreserve_memory_limit(struct amdgpu_bo *bo)
 	}
 
 	unreserve_mem_limit(adev, amdgpu_bo_size(bo), domain, sg);
+
+	kfree(bo->kfd_bo);
 }
 
 
@@ -1607,9 +1609,13 @@ int amdgpu_amdkfd_gpuvm_free_memory_of_gpu(
 	drm_vma_node_revoke(&mem->bo->tbo.base.vma_node, drm_priv);
 	if (mem->dmabuf)
 		dma_buf_put(mem->dmabuf);
-	drm_gem_object_put(&mem->bo->tbo.base);
 	mutex_destroy(&mem->lock);
-	kfree(mem);
+
+	/* If this releases the last reference, it will end up calling
+	 * amdgpu_amdkfd_release_notify and kfree the mem struct. That's why
+	 * this needs to be the last call here.
+	 */
+	drm_gem_object_put(&mem->bo->tbo.base);
 
 	return ret;
 }
