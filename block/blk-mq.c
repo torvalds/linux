@@ -2540,7 +2540,7 @@ static inline struct request *blk_mq_get_request(struct request_queue *q,
 		struct request *rq;
 
 		rq = rq_list_peek(&plug->cached_rq);
-		if (rq) {
+		if (rq && rq->q == q) {
 			if (unlikely(!submit_bio_checks(bio)))
 				return NULL;
 			if (blk_attempt_bio_merge(q, bio, nsegs, same_queue_rq))
