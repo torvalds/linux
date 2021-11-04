@@ -669,10 +669,7 @@ void dmub_hpd_callback(struct amdgpu_device *adev, struct dmub_notification *not
 		return;
 	}
 
-	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
-
 	link_index = notify->link_index;
-
 	link = adev->dm.dc->links[link_index];
 
 	drm_connector_list_iter_begin(dev, &iter);
@@ -685,7 +682,6 @@ void dmub_hpd_callback(struct amdgpu_device *adev, struct dmub_notification *not
 		}
 	}
 	drm_connector_list_iter_end(&iter);
-	drm_modeset_unlock(&dev->mode_config.connection_mutex);
 
 	if (hpd_aconnector)
 		handle_hpd_irq_helper(hpd_aconnector);
