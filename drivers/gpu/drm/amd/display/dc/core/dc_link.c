@@ -270,10 +270,10 @@ bool dc_link_detect_sink(struct dc_link *link, enum dc_connection_type *type)
 
 	/* Link may not have physical HPD pin. */
 	if (link->ep_type != DISPLAY_ENDPOINT_PHY) {
-		if (link->hpd_status)
-			*type = dc_connection_single;
-		else
+		if (link->is_hpd_pending || !link->hpd_status)
 			*type = dc_connection_none;
+		else
+			*type = dc_connection_single;
 
 		return true;
 	}
