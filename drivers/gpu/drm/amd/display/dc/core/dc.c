@@ -1016,8 +1016,6 @@ static bool dc_construct(struct dc *dc,
 		goto fail;
 	}
 
-	dc_resource_state_construct(dc, dc->current_state);
-
 	if (!create_links(dc, init_params->num_virtual_links))
 		goto fail;
 
@@ -1027,8 +1025,7 @@ static bool dc_construct(struct dc *dc,
 	if (!create_link_encoders(dc))
 		goto fail;
 
-	/* Initialise DIG link encoder resource tracking variables. */
-	link_enc_cfg_init(dc, dc->current_state);
+	dc_resource_state_construct(dc, dc->current_state);
 
 	return true;
 

@@ -2224,6 +2224,9 @@ void dc_resource_state_construct(
 		struct dc_state *dst_ctx)
 {
 	dst_ctx->clk_mgr = dc->clk_mgr;
+
+	/* Initialise DIG link encoder resource tracking variables. */
+	link_enc_cfg_init(dc, dst_ctx);
 }
 
 
