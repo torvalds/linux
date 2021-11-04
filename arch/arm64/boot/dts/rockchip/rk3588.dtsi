@@ -455,12 +455,15 @@
 		interrupt-names = "macirq", "eth_wake_irq";
 		rockchip,grf = <&sys_grf>;
 		rockchip,php_grf = <&php_grf>;
-		clocks = <&cru CLK_GMAC0>, <&cru ACLK_GMAC0>,
-			 <&cru PCLK_GMAC0>, <&cru CLK_GMAC0_PTP_REF>;
-		clock-names = "stmmaceth", "aclk_mac",
-			      "pclk_mac", "ptp_ref";
+		clocks = <&cru CLK_GMAC_125M>, <&cru CLK_GMAC_50M>,
+			 <&cru ACLK_GMAC0>, <&cru PCLK_GMAC0>,
+			 <&cru CLK_GMAC0_PTP_REF>;
+		clock-names = "stmmaceth", "clk_mac_ref",
+			      "aclk_mac", "pclk_mac",
+			      "ptp_ref";
 		resets = <&cru SRST_A_GMAC0>;
 		reset-names = "stmmaceth";
+		power-domains = <&power RK3588_PD_GMAC>;
 
 		snps,mixed-burst;
 		snps,tso;
