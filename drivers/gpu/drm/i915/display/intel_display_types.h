@@ -51,6 +51,7 @@
 struct drm_printer;
 struct __intel_global_objs_state;
 struct intel_ddi_buf_trans;
+struct intel_fbc;
 
 /*
  * Display related stuff
@@ -1339,13 +1340,14 @@ struct intel_plane {
 	enum i9xx_plane_id i9xx_plane;
 	enum plane_id id;
 	enum pipe pipe;
-	bool has_fbc;
 	bool need_async_flip_disable_wa;
 	u32 frontbuffer_bit;
 
 	struct {
 		u32 base, cntl, size;
 	} cursor;
+
+	struct intel_fbc *fbc;
 
 	/*
 	 * NOTE: Do not place new plane state fields here (e.g., when adding

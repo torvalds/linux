@@ -645,7 +645,7 @@ bool intel_plane_uses_fence(const struct intel_plane_state *plane_state)
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 
 	return DISPLAY_VER(dev_priv) < 4 ||
-		(plane->has_fbc &&
+		(plane->fbc &&
 		 plane_state->view.gtt.type == I915_GGTT_VIEW_NORMAL);
 }
 

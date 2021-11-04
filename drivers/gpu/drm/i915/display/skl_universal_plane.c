@@ -2101,12 +2101,10 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 	plane->id = plane_id;
 	plane->frontbuffer_bit = INTEL_FRONTBUFFER(pipe, plane_id);
 
-	plane->has_fbc = skl_plane_has_fbc(dev_priv, pipe, plane_id);
-	if (plane->has_fbc) {
-		struct intel_fbc *fbc = &dev_priv->fbc;
-
-		fbc->possible_framebuffer_bits |= plane->frontbuffer_bit;
-	}
+	if (skl_plane_has_fbc(dev_priv, pipe, plane_id))
+		plane->fbc = &dev_priv->fbc;
+	if (plane->fbc)
+		plane->fbc->possible_framebuffer_bits |= plane->frontbuffer_bit;
 
 	if (DISPLAY_VER(dev_priv) >= 11) {
 		plane->min_width = icl_plane_min_width;

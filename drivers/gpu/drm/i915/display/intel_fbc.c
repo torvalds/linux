@@ -1217,11 +1217,11 @@ bool intel_fbc_pre_update(struct intel_atomic_state *state,
 	const struct intel_plane_state *plane_state =
 		intel_atomic_get_new_plane_state(state, plane);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
-	struct intel_fbc *fbc = &i915->fbc;
+	struct intel_fbc *fbc = plane->fbc;
 	const char *reason = "update pending";
 	bool need_vblank_wait = false;
 
-	if (!plane->has_fbc || !plane_state)
+	if (!fbc || !plane_state)
 		return need_vblank_wait;
 
 	mutex_lock(&fbc->lock);
@@ -1309,13 +1309,12 @@ static void __intel_fbc_post_update(struct intel_crtc *crtc)
 void intel_fbc_post_update(struct intel_atomic_state *state,
 			   struct intel_crtc *crtc)
 {
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	struct intel_plane *plane = to_intel_plane(crtc->base.primary);
 	const struct intel_plane_state *plane_state =
 		intel_atomic_get_new_plane_state(state, plane);
-	struct intel_fbc *fbc = &i915->fbc;
+	struct intel_fbc *fbc = plane->fbc;
 
-	if (!plane->has_fbc || !plane_state)
+	if (!fbc || !plane_state)
 		return;
 
 	mutex_lock(&fbc->lock);
@@ -1419,7 +1418,7 @@ void intel_fbc_choose_crtc(struct drm_i915_private *i915,
 		struct intel_crtc_state *crtc_state;
 		struct intel_crtc *crtc = to_intel_crtc(plane_state->hw.crtc);
 
-		if (!plane->has_fbc)
+		if (plane->fbc != fbc)
 			continue;
 
 		if (!plane_state->uapi.visible)
@@ -1458,12 +1457,14 @@ static void intel_fbc_enable(struct intel_atomic_state *state,
 		intel_atomic_get_new_crtc_state(state, crtc);
 	const struct intel_plane_state *plane_state =
 		intel_atomic_get_new_plane_state(state, plane);
-	struct intel_fbc *fbc = &i915->fbc;
-	struct intel_fbc_state_cache *cache = &fbc->state_cache;
+	struct intel_fbc *fbc = plane->fbc;
+	struct intel_fbc_state_cache *cache;
 	int min_limit;
 
-	if (!plane->has_fbc || !plane_state)
+	if (!fbc || !plane_state)
 		return;
+
+	cache = &fbc->state_cache;
 
 	min_limit = intel_fbc_min_limit(plane_state->hw.fb ?
 					plane_state->hw.fb->format->cpp[0] : 0);
@@ -1514,11 +1515,10 @@ out:
  */
 void intel_fbc_disable(struct intel_crtc *crtc)
 {
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	struct intel_plane *plane = to_intel_plane(crtc->base.primary);
-	struct intel_fbc *fbc = &i915->fbc;
+	struct intel_fbc *fbc = plane->fbc;
 
-	if (!plane->has_fbc)
+	if (!fbc)
 		return;
 
 	mutex_lock(&fbc->lock);

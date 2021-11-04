@@ -807,12 +807,10 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 	plane->id = PLANE_PRIMARY;
 	plane->frontbuffer_bit = INTEL_FRONTBUFFER(pipe, plane->id);
 
-	plane->has_fbc = i9xx_plane_has_fbc(dev_priv, plane->i9xx_plane);
-	if (plane->has_fbc) {
-		struct intel_fbc *fbc = &dev_priv->fbc;
-
-		fbc->possible_framebuffer_bits |= plane->frontbuffer_bit;
-	}
+	if (i9xx_plane_has_fbc(dev_priv, plane->i9xx_plane))
+		plane->fbc = &dev_priv->fbc;
+	if (plane->fbc)
+		plane->fbc->possible_framebuffer_bits |= plane->frontbuffer_bit;
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		formats = vlv_primary_formats;
