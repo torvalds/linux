@@ -266,7 +266,7 @@ static int gc0310_g_bin_factor_x(struct v4l2_subdev *sd, s32 *val)
 {
 	struct gc0310_device *dev = to_gc0310_sensor(sd);
 
-	*val = gc0310_res[dev->fmt_idx].bin_factor_x;
+	*val = dev->res->bin_factor_x;
 
 	return 0;
 }
@@ -275,7 +275,7 @@ static int gc0310_g_bin_factor_y(struct v4l2_subdev *sd, s32 *val)
 {
 	struct gc0310_device *dev = to_gc0310_sensor(sd);
 
-	*val = gc0310_res[dev->fmt_idx].bin_factor_y;
+	*val = dev->res->bin_factor_y;
 
 	return 0;
 }
@@ -878,76 +878,6 @@ static int gc0310_s_power(struct v4l2_subdev *sd, int on)
 	return gc0310_init(sd);
 }
 
-/*
- * distance - calculate the distance
- * @res: resolution
- * @w: width
- * @h: height
- *
- * Get the gap between resolution and w/h.
- * res->width/height smaller than w/h wouldn't be considered.
- * Returns the value of gap or -1 if fail.
- */
-#define LARGEST_ALLOWED_RATIO_MISMATCH 800
-static int distance(struct gc0310_resolution *res, u32 w, u32 h)
-{
-	unsigned int w_ratio = (res->width << 13) / w;
-	unsigned int h_ratio;
-	int match;
-
-	if (h == 0)
-		return -1;
-	h_ratio = (res->height << 13) / h;
-	if (h_ratio == 0)
-		return -1;
-	match   = abs(((w_ratio << 13) / h_ratio) - 8192);
-
-	if ((w_ratio < 8192) || (h_ratio < 8192)  ||
-	    (match > LARGEST_ALLOWED_RATIO_MISMATCH))
-		return -1;
-
-	return w_ratio + h_ratio;
-}
-
-/* Return the nearest higher resolution index */
-static int nearest_resolution_index(int w, int h)
-{
-	int i;
-	int idx = -1;
-	int dist;
-	int min_dist = INT_MAX;
-	struct gc0310_resolution *tmp_res = NULL;
-
-	for (i = 0; i < N_RES; i++) {
-		tmp_res = &gc0310_res[i];
-		dist = distance(tmp_res, w, h);
-		if (dist == -1)
-			continue;
-		if (dist < min_dist) {
-			min_dist = dist;
-			idx = i;
-		}
-	}
-
-	return idx;
-}
-
-static int get_resolution_index(int w, int h)
-{
-	int i;
-
-	for (i = 0; i < N_RES; i++) {
-		if (w != gc0310_res[i].width)
-			continue;
-		if (h != gc0310_res[i].height)
-			continue;
-
-		return i;
-	}
-
-	return -1;
-}
-
 /* TODO: remove it. */
 static int startup(struct v4l2_subdev *sd)
 {
@@ -955,7 +885,7 @@ static int startup(struct v4l2_subdev *sd)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
-	ret = gc0310_write_reg_array(client, gc0310_res[dev->fmt_idx].regs);
+	ret = gc0310_write_reg_array(client, dev->res->regs);
 	if (ret) {
 		dev_err(&client->dev, "gc0310 write register err.\n");
 		return ret;
@@ -972,8 +902,8 @@ static int gc0310_set_fmt(struct v4l2_subdev *sd,
 	struct gc0310_device *dev = to_gc0310_sensor(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct camera_mipi_info *gc0310_info = NULL;
+	struct gc0310_resolution *res;
 	int ret = 0;
-	int idx = 0;
 
 	if (format->pad)
 		return -EINVAL;
@@ -987,15 +917,16 @@ static int gc0310_set_fmt(struct v4l2_subdev *sd,
 
 	mutex_lock(&dev->input_lock);
 
-	idx = nearest_resolution_index(fmt->width, fmt->height);
-	if (idx == -1) {
-		/* return the largest resolution */
-		fmt->width = gc0310_res[N_RES - 1].width;
-		fmt->height = gc0310_res[N_RES - 1].height;
-	} else {
-		fmt->width = gc0310_res[idx].width;
-		fmt->height = gc0310_res[idx].height;
-	}
+	res = v4l2_find_nearest_size(gc0310_res_preview,
+				     ARRAY_SIZE(gc0310_res_preview), width,
+				     height, fmt->width, fmt->height);
+	if (!res)
+		res = &gc0310_res_preview[N_RES - 1];
+
+	fmt->width = res->width;
+	fmt->height = res->height;
+	dev->res = res;
+
 	fmt->code = MEDIA_BUS_FMT_SGRBG8_1X8;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
@@ -1004,23 +935,15 @@ static int gc0310_set_fmt(struct v4l2_subdev *sd,
 		return 0;
 	}
 
-	dev->fmt_idx = get_resolution_index(fmt->width, fmt->height);
-	if (dev->fmt_idx == -1) {
-		dev_err(&client->dev, "get resolution fail\n");
-		mutex_unlock(&dev->input_lock);
-		return -EINVAL;
-	}
-
 	dev_dbg(&client->dev, "%s: before gc0310_write_reg_array %s\n",
-		__func__, gc0310_res[dev->fmt_idx].desc);
+		__func__, dev->res->desc);
 	ret = startup(sd);
 	if (ret) {
 		dev_err(&client->dev, "gc0310 startup err\n");
 		goto err;
 	}
 
-	ret = gc0310_get_intg_factor(client, gc0310_info,
-				     &gc0310_res[dev->fmt_idx]);
+	ret = gc0310_get_intg_factor(client, gc0310_info, dev->res);
 	if (ret) {
 		dev_err(&client->dev, "failed to get integration_factor\n");
 		goto err;
@@ -1044,8 +967,8 @@ static int gc0310_get_fmt(struct v4l2_subdev *sd,
 	if (!fmt)
 		return -EINVAL;
 
-	fmt->width = gc0310_res[dev->fmt_idx].width;
-	fmt->height = gc0310_res[dev->fmt_idx].height;
+	fmt->width = dev->res->width;
+	fmt->height = dev->res->height;
 	fmt->code = MEDIA_BUS_FMT_SGRBG8_1X8;
 
 	return 0;
@@ -1199,7 +1122,7 @@ static int gc0310_g_frame_interval(struct v4l2_subdev *sd,
 	struct gc0310_device *dev = to_gc0310_sensor(sd);
 
 	interval->interval.numerator = 1;
-	interval->interval.denominator = gc0310_res[dev->fmt_idx].fps;
+	interval->interval.denominator = dev->res->fps;
 
 	return 0;
 }
@@ -1237,7 +1160,7 @@ static int gc0310_g_skip_frames(struct v4l2_subdev *sd, u32 *frames)
 	struct gc0310_device *dev = to_gc0310_sensor(sd);
 
 	mutex_lock(&dev->input_lock);
-	*frames = gc0310_res[dev->fmt_idx].skip_frames;
+	*frames = dev->res->skip_frames;
 	mutex_unlock(&dev->input_lock);
 
 	return 0;
@@ -1301,7 +1224,7 @@ static int gc0310_probe(struct i2c_client *client)
 
 	mutex_init(&dev->input_lock);
 
-	dev->fmt_idx = 0;
+	dev->res = &gc0310_res_preview[0];
 	v4l2_i2c_subdev_init(&dev->sd, client, &gc0310_ops);
 
 	pdata = gmin_camera_platform_data(&dev->sd,
