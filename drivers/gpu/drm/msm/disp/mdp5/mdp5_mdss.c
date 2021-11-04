@@ -16,8 +16,6 @@ struct mdp5_mdss {
 
 	void __iomem *mmio, *vbif;
 
-	struct regulator *vdd;
-
 	struct clk *ahb_clk;
 	struct clk *axi_clk;
 	struct clk *vsync_clk;
@@ -185,8 +183,6 @@ static void mdp5_mdss_destroy(struct drm_device *dev)
 	irq_domain_remove(mdp5_mdss->irqcontroller.domain);
 	mdp5_mdss->irqcontroller.domain = NULL;
 
-	regulator_disable(mdp5_mdss->vdd);
-
 	pm_runtime_disable(dev->dev);
 }
 
@@ -234,31 +230,17 @@ int mdp5_mdss_init(struct drm_device *dev)
 		goto fail;
 	}
 
-	/* Regulator to enable GDSCs in downstream kernels */
-	mdp5_mdss->vdd = devm_regulator_get(dev->dev, "vdd");
-	if (IS_ERR(mdp5_mdss->vdd)) {
-		ret = PTR_ERR(mdp5_mdss->vdd);
-		goto fail;
-	}
-
-	ret = regulator_enable(mdp5_mdss->vdd);
-	if (ret) {
-		DRM_DEV_ERROR(dev->dev, "failed to enable regulator vdd: %d\n",
-			ret);
-		goto fail;
-	}
-
 	ret = devm_request_irq(dev->dev, platform_get_irq(pdev, 0),
 			       mdss_irq, 0, "mdss_isr", mdp5_mdss);
 	if (ret) {
 		DRM_DEV_ERROR(dev->dev, "failed to init irq: %d\n", ret);
-		goto fail_irq;
+		goto fail;
 	}
 
 	ret = mdss_irq_domain_init(mdp5_mdss);
 	if (ret) {
 		DRM_DEV_ERROR(dev->dev, "failed to init sub-block irqs: %d\n", ret);
-		goto fail_irq;
+		goto fail;
 	}
 
 	mdp5_mdss->base.funcs = &mdss_funcs;
@@ -267,8 +249,6 @@ int mdp5_mdss_init(struct drm_device *dev)
 	pm_runtime_enable(dev->dev);
 
 	return 0;
-fail_irq:
-	regulator_disable(mdp5_mdss->vdd);
 fail:
 	return ret;
 }
