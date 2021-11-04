@@ -2304,6 +2304,10 @@ static ssize_t ceph_do_objects_copy(struct ceph_inode_info *src_ci, u64 *src_off
 		else {
 			ceph_osdc_start_request(osdc, req, false);
 			ret = ceph_osdc_wait_request(osdc, req);
+			ceph_update_copyfrom_metrics(&fsc->mdsc->metric,
+						     req->r_start_latency,
+						     req->r_end_latency,
+						     object_size, ret);
 			ceph_osdc_put_request(req);
 		}
 		if (ret) {

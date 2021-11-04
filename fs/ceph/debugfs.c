@@ -167,7 +167,8 @@ static int metrics_file_show(struct seq_file *s, void *p)
 static const char * const metric_str[] = {
 	"read",
 	"write",
-	"metadata"
+	"metadata",
+	"copyfrom"
 };
 static int metrics_latency_show(struct seq_file *s, void *p)
 {

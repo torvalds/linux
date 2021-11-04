@@ -129,6 +129,7 @@ enum metric_type {
 	METRIC_READ,
 	METRIC_WRITE,
 	METRIC_METADATA,
+	METRIC_COPYFROM,
 	METRIC_MAX
 };
 
@@ -213,5 +214,12 @@ static inline void ceph_update_metadata_metrics(struct ceph_client_metric *m,
 {
 	ceph_update_metrics(&m->metric[METRIC_METADATA],
 			    r_start, r_end, 0, rc);
+}
+static inline void ceph_update_copyfrom_metrics(struct ceph_client_metric *m,
+						ktime_t r_start, ktime_t r_end,
+						unsigned int size, int rc)
+{
+	ceph_update_metrics(&m->metric[METRIC_COPYFROM],
+			    r_start, r_end, size, rc);
 }
 #endif /* _FS_CEPH_MDS_METRIC_H */
