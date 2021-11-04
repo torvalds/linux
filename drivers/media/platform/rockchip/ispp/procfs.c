@@ -119,12 +119,11 @@ static int ispp_open(struct inode *inode, struct file *file)
 	return single_open(file, ispp_show, data);
 }
 
-static const struct file_operations ops = {
-	.owner		= THIS_MODULE,
-	.open		= ispp_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
+static const struct proc_ops ops = {
+	.proc_open		= ispp_open,
+	.proc_read		= seq_read,
+	.proc_lseek		= seq_lseek,
+	.proc_release		= single_release,
 };
 
 int rkispp_proc_init(struct rkispp_device *dev)

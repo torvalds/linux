@@ -14,6 +14,7 @@
 #include <media/videobuf2-dma-contig.h>
 #include <media/videobuf2-dma-sg.h>
 #include <linux/rkisp1-config.h>
+#include <uapi/linux/rk-video-format.h>
 
 #include "dev.h"
 #include "regs.h"
@@ -2094,7 +2095,7 @@ static int rkispp_fh_open(struct file *filp)
 
 	ret = v4l2_fh_open(filp);
 	if (!ret) {
-		ret = v4l2_pipeline_pm_use(&stream->vnode.vdev.entity, 1);
+		ret = v4l2_pipeline_pm_get(&stream->vnode.vdev.entity);
 		if (ret < 0) {
 			v4l2_err(&isppdev->v4l2_dev,
 				 "pipeline power on failed %d\n", ret);
@@ -2107,16 +2108,11 @@ static int rkispp_fh_open(struct file *filp)
 static int rkispp_fh_release(struct file *filp)
 {
 	struct rkispp_stream *stream = video_drvdata(filp);
-	struct rkispp_device *isppdev = stream->isppdev;
 	int ret;
 
 	ret = vb2_fop_release(filp);
-	if (!ret) {
-		ret = v4l2_pipeline_pm_use(&stream->vnode.vdev.entity, 0);
-		if (ret < 0)
-			v4l2_err(&isppdev->v4l2_dev,
-				 "pipeline power off failed %d\n", ret);
-	}
+	if (!ret)
+		v4l2_pipeline_pm_put(&stream->vnode.vdev.entity);
 	return ret;
 }
 
@@ -2219,11 +2215,10 @@ static const struct v4l2_ioctl_ops rkispp_v4l2_ioctl_ops = {
 	.vidioc_streamoff = vb2_ioctl_streamoff,
 	.vidioc_enum_input = rkispp_enum_input,
 	.vidioc_try_fmt_vid_cap_mplane = rkispp_try_fmt_vid_mplane,
-	.vidioc_enum_fmt_vid_cap_mplane = rkispp_enum_fmt_vid_mplane,
+	.vidioc_enum_fmt_vid_cap = rkispp_enum_fmt_vid_mplane,
 	.vidioc_s_fmt_vid_cap_mplane = rkispp_s_fmt_vid_mplane,
 	.vidioc_g_fmt_vid_cap_mplane = rkispp_g_fmt_vid_mplane,
 	.vidioc_try_fmt_vid_out_mplane = rkispp_try_fmt_vid_mplane,
-	.vidioc_enum_fmt_vid_out_mplane = rkispp_enum_fmt_vid_mplane,
 	.vidioc_s_fmt_vid_out_mplane = rkispp_s_fmt_vid_mplane,
 	.vidioc_g_fmt_vid_out_mplane = rkispp_g_fmt_vid_mplane,
 	.vidioc_querycap = rkispp_querycap,
@@ -2270,7 +2265,7 @@ static int rkispp_register_stream_video(struct rkispp_stream *stream)
 	rkispp_init_vb2_queue(&node->buf_queue, stream, buf_type);
 	vdev->queue = &node->buf_queue;
 
-	ret = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	if (ret < 0) {
 		v4l2_err(v4l2_dev,
 			 "video register failed with error %d\n", ret);
@@ -2325,8 +2320,8 @@ static void dump_file(struct rkispp_device *dev, u32 restart_module)
 			kernel_write(fp, buf->vaddr[0], vdev->tnr.cur_rd->dbuf[0]->size, &fp->f_pos);
 			filp_close(fp, NULL);
 			v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
-				 "dump tnr cur_rd dma:0x%x vaddr:%p\n",
-				 buf->dma[0], buf->vaddr[0]);
+				 "dump tnr cur_rd dma:%pad vaddr:%p\n",
+				 &buf->dma[0], buf->vaddr[0]);
 		}
 
 		if (vdev->tnr.nxt_rd && vdev->tnr.nxt_rd != vdev->tnr.cur_rd) {
@@ -2342,8 +2337,8 @@ static void dump_file(struct rkispp_device *dev, u32 restart_module)
 			kernel_write(fp, buf->vaddr[0], vdev->tnr.nxt_rd->dbuf[0]->size, &fp->f_pos);
 			filp_close(fp, NULL);
 			v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
-				 "dump tnr nxt_rd dma:0x%x vaddr:%p\n",
-				 buf->dma[0], buf->vaddr[0]);
+				 "dump tnr nxt_rd dma:%pad vaddr:%p\n",
+				 &buf->dma[0], buf->vaddr[0]);
 		}
 	}
 
@@ -2363,8 +2358,8 @@ static void dump_file(struct rkispp_device *dev, u32 restart_module)
 			kernel_write(fp, dummy->vaddr, dummy->size, &fp->f_pos);
 			filp_close(fp, NULL);
 			v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
-				 "dump tnr wr dma:0x%x vaddr:%p\n",
-				 dummy->dma_addr, dummy->vaddr);
+				 "dump tnr wr dma:%pad vaddr:%p\n",
+				 &dummy->dma_addr, dummy->vaddr);
 		}
 	}
 }

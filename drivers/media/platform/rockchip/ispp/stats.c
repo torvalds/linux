@@ -9,6 +9,7 @@
 #include <media/videobuf2-dma-contig.h>
 #include <media/videobuf2-dma-sg.h>
 #include <media/v4l2-mc.h>
+#include <uapi/linux/rk-video-format.h>
 #include "dev.h"
 #include "regs.h"
 #include "stats.h"
@@ -134,7 +135,7 @@ static int rkispp_stats_fh_open(struct file *filp)
 
 	ret = v4l2_fh_open(filp);
 	if (!ret) {
-		ret = v4l2_pipeline_pm_use(&stats->vnode.vdev.entity, 1);
+		ret = v4l2_pipeline_pm_get(&stats->vnode.vdev.entity);
 		if (ret < 0) {
 			v4l2_err(&isppdev->v4l2_dev,
 				 "pipeline power on failed %d\n", ret);
@@ -147,16 +148,11 @@ static int rkispp_stats_fh_open(struct file *filp)
 static int rkispp_stats_fh_release(struct file *filp)
 {
 	struct rkispp_stats_vdev *stats = video_drvdata(filp);
-	struct rkispp_device *isppdev = stats->dev;
 	int ret;
 
 	ret = vb2_fop_release(filp);
-	if (!ret) {
-		ret = v4l2_pipeline_pm_use(&stats->vnode.vdev.entity, 0);
-		if (ret < 0)
-			v4l2_err(&isppdev->v4l2_dev,
-				 "pipeline power off failed %d\n", ret);
-	}
+	if (!ret)
+		v4l2_pipeline_pm_put(&stats->vnode.vdev.entity);
 	return ret;
 }
 
@@ -363,7 +359,7 @@ int rkispp_register_stats_vdev(struct rkispp_device *dev)
 	if (ret < 0)
 		goto err_release_queue;
 
-	ret = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	if (ret < 0) {
 		dev_err(&vdev->dev,
 			"could not register Video for Linux device\n");

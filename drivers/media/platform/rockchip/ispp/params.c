@@ -8,6 +8,7 @@
 #include <media/v4l2-event.h>
 #include <media/v4l2-mc.h>
 #include <linux/rkisp1-config.h>
+#include <uapi/linux/rk-video-format.h>
 #include "dev.h"
 #include "regs.h"
 
@@ -743,10 +744,10 @@ rkispp_param_init_fecbuf(struct rkispp_params_vdev *params,
 			rkispp_write(pp_dev, RKISPP_FEC_MESH_YINT_BASE, val);
 		}
 		v4l2_dbg(1, rkispp_debug, &pp_dev->v4l2_dev,
-			 "%s idx:%d fd:%d dma:0x%x offset xf:0x%x yf:0x%x xi:0x%x yi:0x%x\n",
-			 __func__, i, params->buf_fec[i].dma_fd, params->buf_fec[i].dma_addr,
-			fec_data->meshxf_oft, fec_data->meshyf_oft,
-			fec_data->meshxi_oft, fec_data->meshyi_oft);
+			 "%s idx:%d fd:%d dma:%pad offset xf:0x%x yf:0x%x xi:0x%x yi:0x%x\n",
+			 __func__, i, params->buf_fec[i].dma_fd, &params->buf_fec[i].dma_addr,
+			 fec_data->meshxf_oft, fec_data->meshyf_oft,
+			 fec_data->meshxi_oft, fec_data->meshyi_oft);
 	}
 
 	return 0;
@@ -878,7 +879,7 @@ rkispp_param_fh_open(struct file *filp)
 
 	ret = v4l2_fh_open(filp);
 	if (!ret) {
-		ret = v4l2_pipeline_pm_use(&params->vnode.vdev.entity, 1);
+		ret = v4l2_pipeline_pm_get(&params->vnode.vdev.entity);
 		if (ret < 0) {
 			v4l2_err(&isppdev->v4l2_dev,
 				 "pipeline power on failed %d\n", ret);
@@ -898,19 +899,14 @@ rkispp_param_fh_release(struct file *filp)
 {
 	struct rkispp_params_vdev *params = video_drvdata(filp);
 	struct video_device *vdev = video_devdata(filp);
-	struct rkispp_device *isppdev = params->dev;
 	int ret;
 
 	if (filp->private_data == vdev->queue->owner)
 		rkispp_param_deinit_fecbuf(params);
 
 	ret = vb2_fop_release(filp);
-	if (!ret) {
-		ret = v4l2_pipeline_pm_use(&params->vnode.vdev.entity, 0);
-		if (ret < 0)
-			v4l2_err(&isppdev->v4l2_dev,
-				 "pipeline power off failed %d\n", ret);
-	}
+	if (!ret)
+		v4l2_pipeline_pm_put(&params->vnode.vdev.entity);
 	return ret;
 }
 
@@ -1115,7 +1111,7 @@ int rkispp_register_params_vdev(struct rkispp_device *dev)
 	ret = media_entity_pads_init(&vdev->entity, 1, &node->pad);
 	if (ret < 0)
 		goto err_release_queue;
-	ret = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	if (ret < 0) {
 		dev_err(&vdev->dev,
 			"could not register Video for Linux device\n");

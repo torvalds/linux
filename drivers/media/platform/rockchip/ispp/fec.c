@@ -454,7 +454,7 @@ int rkispp_register_fec(struct rkispp_hw_dev *hw)
 	vfd = &fec->vfd;
 	vfd->lock = &fec->apilock;
 	vfd->v4l2_dev = v4l2_dev;
-	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
+	ret = video_register_device(vfd, VFL_TYPE_VIDEO, 0);
 	if (ret) {
 		v4l2_err(v4l2_dev, "Failed to register video device\n");
 		goto unreg_v4l2;
