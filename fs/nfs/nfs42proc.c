@@ -367,6 +367,7 @@ static ssize_t _nfs42_proc_copy(struct file *src,
 
 	status = nfs4_call_sync(dst_server->client, dst_server, &msg,
 				&args->seq_args, &res->seq_res, 0);
+	trace_nfs4_copy(src_inode, dst_inode, args, res, nss, status);
 	if (status == -ENOTSUPP)
 		dst_server->caps &= ~NFS_CAP_COPY;
 	if (status)
