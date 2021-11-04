@@ -13,6 +13,7 @@
 #include <linux/ktime.h>
 #include <linux/qcom-cpufreq-hw.h>
 #include <linux/cpumask.h>
+#include <linux/arch_topology.h>
 
 #include <trace/hooks/sched.h>
 #include <trace/hooks/cpufreq.h>
@@ -4307,6 +4308,8 @@ static void walt_init(struct work_struct *work)
 		static_key_disable(&sched_feat_keys[i]);
 		sysctl_sched_features &= ~(1UL << i);
 	}
+
+	topology_clear_scale_freq_source(SCALE_FREQ_SOURCE_ARCH, cpu_online_mask);
 }
 
 static DECLARE_WORK(walt_init_work, walt_init);
