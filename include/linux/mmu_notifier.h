@@ -6,6 +6,8 @@
 #include <linux/spinlock.h>
 #include <linux/mm_types.h>
 #include <linux/mmap_lock.h>
+#include <linux/percpu-rwsem.h>
+#include <linux/slab.h>
 #include <linux/srcu.h>
 #include <linux/interval_tree.h>
 #include <linux/android_kabi.h>
@@ -502,9 +504,50 @@ static inline void mmu_notifier_invalidate_range(struct mm_struct *mm,
 		__mmu_notifier_invalidate_range(mm, start, end);
 }
 
-static inline void mmu_notifier_subscriptions_init(struct mm_struct *mm)
+#ifdef CONFIG_SPECULATIVE_PAGE_FAULT
+
+static inline bool mmu_notifier_subscriptions_init(struct mm_struct *mm)
+{
+	mm->mmu_notifier_lock = kzalloc(sizeof(struct percpu_rw_semaphore), GFP_KERNEL);
+	if (!mm->mmu_notifier_lock)
+		return false;
+
+	percpu_init_rwsem(mm->mmu_notifier_lock);
+	mm->notifier_subscriptions = NULL;
+
+	return true;
+}
+
+static inline void mmu_notifier_subscriptions_destroy(struct mm_struct *mm)
+{
+	if (mm_has_notifiers(mm))
+		__mmu_notifier_subscriptions_destroy(mm);
+
+	if (in_atomic()) {
+		percpu_rwsem_async_destroy(mm->mmu_notifier_lock);
+	} else {
+		percpu_free_rwsem(mm->mmu_notifier_lock);
+		kfree(mm->mmu_notifier_lock);
+	}
+	mm->mmu_notifier_lock = NULL;
+}
+
+static inline bool mmu_notifier_trylock(struct mm_struct *mm)
+{
+	return percpu_down_read_trylock(mm->mmu_notifier_lock);
+}
+
+static inline void mmu_notifier_unlock(struct mm_struct *mm)
+{
+	percpu_up_read(mm->mmu_notifier_lock);
+}
+
+#else /* CONFIG_SPECULATIVE_PAGE_FAULT */
+
+static inline bool mmu_notifier_subscriptions_init(struct mm_struct *mm)
 {
 	mm->notifier_subscriptions = NULL;
+	return true;
 }
 
 static inline void mmu_notifier_subscriptions_destroy(struct mm_struct *mm)
@@ -513,6 +556,16 @@ static inline void mmu_notifier_subscriptions_destroy(struct mm_struct *mm)
 		__mmu_notifier_subscriptions_destroy(mm);
 }
 
+static inline bool mmu_notifier_trylock(struct mm_struct *mm)
+{
+	return true;
+}
+
+static inline void mmu_notifier_unlock(struct mm_struct *mm)
+{
+}
+
+#endif /* CONFIG_SPECULATIVE_PAGE_FAULT */
 
 static inline void mmu_notifier_range_init(struct mmu_notifier_range *range,
 					   enum mmu_notifier_event event,
@@ -727,11 +780,20 @@ static inline void mmu_notifier_invalidate_range(struct mm_struct *mm,
 {
 }
 
-static inline void mmu_notifier_subscriptions_init(struct mm_struct *mm)
+static inline bool mmu_notifier_subscriptions_init(struct mm_struct *mm)
 {
+	return true;
 }
 
 static inline void mmu_notifier_subscriptions_destroy(struct mm_struct *mm)
+{
+}
+
+static inline void mmu_notifier_lock(struct mm_struct *mm)
+{
+}
+
+static inline void mmu_notifier_unlock(struct mm_struct *mm)
 {
 }
 

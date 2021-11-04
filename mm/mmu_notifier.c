@@ -621,6 +621,25 @@ void __mmu_notifier_invalidate_range(struct mm_struct *mm,
 	srcu_read_unlock(&srcu, id);
 }
 
+#ifdef CONFIG_SPECULATIVE_PAGE_FAULT
+
+static inline void mmu_notifier_write_lock(struct mm_struct *mm)
+{
+	percpu_down_write(mm->mmu_notifier_lock);
+}
+
+static inline void mmu_notifier_write_unlock(struct mm_struct *mm)
+{
+	percpu_up_write(mm->mmu_notifier_lock);
+}
+
+#else /* CONFIG_SPECULATIVE_PAGE_FAULT */
+
+static inline void mmu_notifier_write_lock(struct mm_struct *mm) {}
+static inline void mmu_notifier_write_unlock(struct mm_struct *mm) {}
+
+#endif /* CONFIG_SPECULATIVE_PAGE_FAULT */
+
 /*
  * Same as mmu_notifier_register but here the caller must hold the mmap_lock in
  * write mode. A NULL mn signals the notifier is being registered for itree
@@ -661,9 +680,13 @@ int __mmu_notifier_register(struct mmu_notifier *subscription,
 		INIT_HLIST_HEAD(&subscriptions->deferred_list);
 	}
 
+	mmu_notifier_write_lock(mm);
+
 	ret = mm_take_all_locks(mm);
-	if (unlikely(ret))
+	if (unlikely(ret)) {
+		mmu_notifier_write_unlock(mm);
 		goto out_clean;
+	}
 
 	/*
 	 * Serialize the update against mmu_notifier_unregister. A
@@ -698,6 +721,7 @@ int __mmu_notifier_register(struct mmu_notifier *subscription,
 		mm->notifier_subscriptions->has_itree = true;
 
 	mm_drop_all_locks(mm);
+	mmu_notifier_write_unlock(mm);
 	BUG_ON(atomic_read(&mm->mm_users) <= 0);
 	return 0;
 
