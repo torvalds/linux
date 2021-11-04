@@ -157,7 +157,7 @@ struct vdpa_map_file {
  *				@vdev: vdpa device
  *				@idx: virtqueue index
  *				@state: pointer to returned state (last_avail_idx)
- * @get_vq_notification:	Get the notification area for a virtqueue
+ * @get_vq_notification:	Get the notification area for a virtqueue (optional)
  *				@vdev: vdpa device
  *				@idx: virtqueue index
  *				Returns the notifcation area
