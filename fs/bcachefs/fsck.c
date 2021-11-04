@@ -669,7 +669,7 @@ static int check_key_has_snapshot(struct btree_trans *trans,
 	char buf[200];
 	int ret = 0;
 
-	if (fsck_err_on(!snapshot_t(c, k.k->p.snapshot)->equiv, c,
+	if (mustfix_fsck_err_on(!snapshot_t(c, k.k->p.snapshot)->equiv, c,
 			"key in missing snapshot: %s",
 			(bch2_bkey_val_to_text(&PBUF(buf), c, k), buf)))
 		return bch2_btree_delete_at(trans, iter,
@@ -918,8 +918,7 @@ static int check_inodes(struct bch_fs *c, bool full)
 
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
-	bch2_trans_iter_init(&trans, &iter, BTREE_ID_inodes,
-			     POS(BCACHEFS_ROOT_INO, 0),
+	bch2_trans_iter_init(&trans, &iter, BTREE_ID_inodes, POS_MIN,
 			     BTREE_ITER_INTENT|
 			     BTREE_ITER_PREFETCH|
 			     BTREE_ITER_ALL_SNAPSHOTS);
