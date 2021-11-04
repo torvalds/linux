@@ -115,7 +115,7 @@ static int reconn_set_ipaddr_from_hostname(struct TCP_Server_Info *server)
 			 * To make sure we don't use the cached entry, retry 1s
 			 * after expiry.
 			 */
-			ttl = (expiry - now + 1);
+			ttl = max_t(unsigned long, expiry - now, SMB_DNS_RESOLVE_INTERVAL_MIN) + 1;
 	}
 	rc = !rc ? -1 : 0;
 
