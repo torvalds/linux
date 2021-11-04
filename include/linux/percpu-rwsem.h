@@ -13,7 +13,14 @@ struct percpu_rw_semaphore {
 	struct rcu_sync		rss;
 	unsigned int __percpu	*read_count;
 	struct rcuwait		writer;
-	wait_queue_head_t	waiters;
+	/*
+	 * destroy_list_entry is used during object destruction when waiters
+	 * can't be used, therefore reusing the same space.
+	 */
+	union {
+		wait_queue_head_t	waiters;
+		struct list_head	destroy_list_entry;
+	};
 	atomic_t		block;
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map	dep_map;
@@ -127,7 +134,11 @@ extern void percpu_up_write(struct percpu_rw_semaphore *);
 extern int __percpu_init_rwsem(struct percpu_rw_semaphore *,
 				const char *, struct lock_class_key *);
 
+/* Can't be called in atomic context. */
 extern void percpu_free_rwsem(struct percpu_rw_semaphore *);
+
+/* Invokes percpu_free_rwsem and frees the semaphore from a worker thread. */
+extern void percpu_rwsem_async_destroy(struct percpu_rw_semaphore *sem);
 
 #define percpu_init_rwsem(sem)					\
 ({								\
