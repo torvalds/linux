@@ -235,13 +235,11 @@ static void g4x_fbc_activate(struct drm_i915_private *dev_priv)
 
 	dpfc_ctl |= g4x_dpfc_ctl_limit(dev_priv);
 
-	if (params->fence_id >= 0) {
+	if (params->fence_id >= 0)
 		dpfc_ctl |= DPFC_CTL_FENCE_EN | params->fence_id;
-		intel_de_write(dev_priv, DPFC_FENCE_YOFF,
-			       params->fence_y_offset);
-	} else {
-		intel_de_write(dev_priv, DPFC_FENCE_YOFF, 0);
-	}
+
+	intel_de_write(dev_priv, DPFC_FENCE_YOFF,
+		       params->fence_y_offset);
 
 	/* enable it... */
 	intel_de_write(dev_priv, DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
