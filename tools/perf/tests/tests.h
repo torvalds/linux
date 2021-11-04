@@ -31,6 +31,12 @@ struct test_suite;
 
 typedef int (*test_fnptr)(struct test_suite *, int);
 
+struct test_case {
+	const char *name;
+	const char *desc;
+	test_fnptr run_case;
+};
+
 struct test_suite {
 	const char *desc;
 	test_fnptr func;
@@ -40,6 +46,7 @@ struct test_suite {
 		const char *(*get_desc)(int subtest);
 		const char *(*skip_reason)(int subtest);
 	} subtest;
+	struct test_case *test_cases;
 	bool (*is_supported)(void);
 	void *priv;
 };
@@ -47,10 +54,21 @@ struct test_suite {
 #define DECLARE_SUITE(name) \
 	extern struct test_suite suite__##name;
 
-#define DEFINE_SUITE(description, name)		\
-	struct test_suite suite__##name = {		\
-		.desc = description,		\
-		.func = test__##name,		\
+#define TEST_CASE(description, _name)			\
+	{						\
+		.name = #_name,				\
+		.desc = description,			\
+		.run_case = test__##_name,		\
+	}
+
+#define DEFINE_SUITE(description, _name)			\
+	struct test_case tests__##_name[] = {           \
+		TEST_CASE(description, _name),		\
+		{	.name = NULL, }			\
+	};						\
+	struct test_suite suite__##_name = {		\
+		.desc = description,			\
+		.test_cases = tests__##_name,		\
 	}
 
 /* Tests */

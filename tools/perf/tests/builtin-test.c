@@ -117,10 +117,19 @@ static struct test_suite **tests[] = {
 
 static int num_subtests(const struct test_suite *t)
 {
+	int num;
+
 	if (t->subtest.get_nr)
 		return t->subtest.get_nr();
 
-	return 0;
+	if (!t->test_cases)
+		return 0;
+
+	num = 0;
+	while (t->test_cases[num].name)
+		num++;
+
+	return num;
 }
 
 static bool has_subtests(const struct test_suite *t)
@@ -138,10 +147,13 @@ static const char *skip_reason(const struct test_suite *t, int subtest)
 
 static const char *test_description(const struct test_suite *t, int subtest)
 {
-	if (subtest < 0 || !t->subtest.get_desc)
-		return t->desc;
+	if (t->test_cases && subtest >= 0)
+		return t->test_cases[subtest].desc;
 
-	return t->subtest.get_desc(subtest);
+	if (t->subtest.get_desc && subtest >= 0)
+		return t->subtest.get_desc(subtest);
+
+	return t->desc;
 }
 
 static bool is_supported(const struct test_suite *t)
@@ -149,9 +161,15 @@ static bool is_supported(const struct test_suite *t)
 	return !t->is_supported || t->is_supported();
 }
 
-static test_fnptr test_function(const struct test_suite *t, int subtest __maybe_unused)
+static test_fnptr test_function(const struct test_suite *t, int subtest)
 {
-	return t->func;
+	if (t->func)
+		return t->func;
+
+	if (subtest <= 0)
+		return t->test_cases[0].run_case;
+
+	return t->test_cases[subtest].run_case;
 }
 
 static bool perf_test__matches(const char *desc, int curr, int argc, const char *argv[])
