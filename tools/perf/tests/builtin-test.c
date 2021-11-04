@@ -142,6 +142,9 @@ static const char *skip_reason(const struct test_suite *t, int subtest)
 	if (t->subtest.skip_reason)
 		return t->subtest.skip_reason(subtest);
 
+	if (t->test_cases && subtest >= 0)
+		return t->test_cases[subtest].skip_reason;
+
 	return NULL;
 }
 

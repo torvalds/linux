@@ -34,6 +34,7 @@ typedef int (*test_fnptr)(struct test_suite *, int);
 struct test_case {
 	const char *name;
 	const char *desc;
+	const char *skip_reason;
 	test_fnptr run_case;
 };
 
@@ -61,7 +62,15 @@ struct test_suite {
 		.run_case = test__##_name,		\
 	}
 
-#define DEFINE_SUITE(description, _name)			\
+#define TEST_CASE_REASON(description, _name, _reason)	\
+	{						\
+		.name = #_name,				\
+		.desc = description,			\
+		.run_case = test__##_name,		\
+		.skip_reason = _reason,			\
+	}
+
+#define DEFINE_SUITE(description, _name)		\
 	struct test_case tests__##_name[] = {           \
 		TEST_CASE(description, _name),		\
 		{	.name = NULL, }			\
