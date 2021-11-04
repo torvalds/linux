@@ -940,10 +940,10 @@ static const struct intel_audio_funcs hsw_audio_funcs = {
 };
 
 /**
- * intel_init_audio_hooks - Set up chip specific audio hooks
+ * intel_audio_hooks_init - Set up chip specific audio hooks
  * @dev_priv: device private
  */
-void intel_init_audio_hooks(struct drm_i915_private *dev_priv)
+void intel_audio_hooks_init(struct drm_i915_private *dev_priv)
 {
 	if (IS_G4X(dev_priv)) {
 		dev_priv->audio.funcs = &g4x_audio_funcs;

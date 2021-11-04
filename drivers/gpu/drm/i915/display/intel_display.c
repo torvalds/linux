@@ -9494,7 +9494,7 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 		return;
 
 	intel_init_cdclk_hooks(dev_priv);
-	intel_init_audio_hooks(dev_priv);
+	intel_audio_hooks_init(dev_priv);
 
 	intel_dpll_init_clock_hook(dev_priv);
 
