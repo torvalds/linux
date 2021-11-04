@@ -9,6 +9,9 @@
 struct thread_info {
 	unsigned long flags;		/* thread_info flags (see TIF_*) */
 	int preempt_count;		/* 0=premptable, <0=BUG; will also serve as bh-counter */
+#ifdef CONFIG_SMP
+	unsigned int cpu;
+#endif
 };
 
 #define INIT_THREAD_INFO(tsk)			\
