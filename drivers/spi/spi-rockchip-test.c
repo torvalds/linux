@@ -7,33 +7,6 @@
  * GNU General Public License for more details.
  */
 
-/* dts config
-&spi0 {
-	status = "okay";
-	max-freq = <48000000>;   //spi internal clk, don't modify
-	//dma-names = "tx", "rx";   //enable dma
-	pinctrl-names = "default";  //pinctrl according to you board
-	pinctrl-0 = <&spi0_clk &spi0_tx &spi0_rx &spi0_cs0 &spi0_cs1>;
-	spi_test@00 {
-		compatible = "rockchip,spi_test_bus0_cs0";
-		reg = <0>;   //chip select  0:cs0  1:cs1
-		id = <0>;
-		spi-max-frequency = <24000000>;   //spi output clock
-		//spi-cpha;      not support
-		//spi-cpol; 	//if the property is here it is 1:clk is high, else 0:clk is low  when idle
-	};
-
-	spi_test@01 {
-		compatible = "rockchip,spi_test_bus0_cs1";
-		reg = <1>;
-		id = <1>;
-		spi-max-frequency = <24000000>;
-		spi-cpha;
-		spi-cpol;
-	};
-};
-*/
-
 /* how to test spi
 * echo write 0 10 255 > /dev/spi_misc_test
 * echo write 0 10 255 init.rc > /dev/spi_misc_test
@@ -50,7 +23,6 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
-#include <linux/fs.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/platform_device.h>
@@ -225,17 +197,9 @@ static ssize_t spi_test_write(struct file *file,
 		}
 		spi->max_speed_hz = val;
 	} else if (!strcmp(cmd, "write")) {
-		char name[64];
-		int fd;
-		mm_segment_t old_fs = get_fs();
-
 		sscanf(argv[0], "%d", &id);
 		sscanf(argv[1], "%d", &times);
 		sscanf(argv[2], "%d", &size);
-		if (argc > 3) {
-			sscanf(argv[3], "%s", name);
-			set_fs(KERNEL_DS);
-		}
 
 		txbuf = kzalloc(size, GFP_KERNEL);
 		if (!txbuf) {
@@ -243,19 +207,8 @@ static ssize_t spi_test_write(struct file *file,
 			return n;
 		}
 
-		if (argc > 3) {
-			fd = ksys_open(name, O_RDONLY, 0);
-			if (fd < 0) {
-				printk("open %s fail\n", name);
-			} else {
-				ksys_read(fd, (char __user *)txbuf, size);
-				ksys_close(fd);
-			}
-			set_fs(old_fs);
-		} else {
-			for (i = 0; i < size; i++)
-				txbuf[i] = i % 256;
-		}
+		for (i = 0; i < size; i++)
+			txbuf[i] = i % 256;
 
 		start_time = ktime_get();
 		for (i = 0; i < times; i++)
