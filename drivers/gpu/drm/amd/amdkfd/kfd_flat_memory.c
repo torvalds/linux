@@ -308,7 +308,7 @@
  * 16MB are reserved for kernel use (CWSR trap handler and kernel IB
  * for now).
  */
-#define SVM_USER_BASE 0x1000000ull
+#define SVM_USER_BASE (u64)(KFD_CWSR_TBA_TMA_SIZE + 2*PAGE_SIZE)
 #define SVM_CWSR_BASE (SVM_USER_BASE - KFD_CWSR_TBA_TMA_SIZE)
 #define SVM_IB_BASE   (SVM_CWSR_BASE - PAGE_SIZE)
 
