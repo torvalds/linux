@@ -7489,6 +7489,19 @@ int btrfs_read_chunk_tree(struct btrfs_fs_info *fs_info)
 	fs_info->fs_devices->total_rw_bytes = 0;
 
 	/*
+	 * Lockdep complains about possible circular locking dependency between
+	 * a disk's open_mutex (struct gendisk.open_mutex), the rw semaphores
+	 * used for freeze procection of a fs (struct super_block.s_writers),
+	 * which we take when starting a transaction, and extent buffers of the
+	 * chunk tree if we call read_one_dev() while holding a lock on an
+	 * extent buffer of the chunk tree. Since we are mounting the filesystem
+	 * and at this point there can't be any concurrent task modifying the
+	 * chunk tree, to keep it simple, just skip locking on the chunk tree.
+	 */
+	ASSERT(!test_bit(BTRFS_FS_OPEN, &fs_info->flags));
+	path->skip_locking = 1;
+
+	/*
 	 * Read all device items, and then all the chunk items. All
 	 * device items are found before any chunk item (their object id
 	 * is smaller than the lowest possible object id for a chunk
@@ -7513,10 +7526,6 @@ int btrfs_read_chunk_tree(struct btrfs_fs_info *fs_info)
 				goto error;
 			break;
 		}
-		/*
-		 * The nodes on level 1 are not locked but we don't need to do
-		 * that during mount time as nothing else can access the tree
-		 */
 		node = path->nodes[1];
 		if (node) {
 			if (last_ra_node != node->start) {
@@ -7544,7 +7553,6 @@ int btrfs_read_chunk_tree(struct btrfs_fs_info *fs_info)
 			 * requirement for chunk allocation, see the comment on
 			 * top of btrfs_chunk_alloc() for details.
 			 */
-			ASSERT(!test_bit(BTRFS_FS_OPEN, &fs_info->flags));
 			chunk = btrfs_item_ptr(leaf, slot, struct btrfs_chunk);
 			ret = read_one_chunk(&found_key, leaf, chunk);
 			if (ret)
