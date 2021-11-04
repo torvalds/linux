@@ -2,8 +2,9 @@
 
 menu "Clock driver for ARM Reference designs"
 	depends on HAS_IOMEM
+	depends on ARM || ARM64 || COMPILE_TEST
 
-config ICST
+config CLK_ICST
 	bool "Clock driver for ARM Reference designs ICST"
 	select REGMAP_MMIO
 	help

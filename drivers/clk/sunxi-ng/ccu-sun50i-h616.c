@@ -1141,9 +1141,7 @@ static void __init sun50i_h616_ccu_setup(struct device_node *node)
 	val |= BIT(24);
 	writel(val, reg + SUN50I_H616_HDMI_CEC_CLK_REG);
 
-	i = sunxi_ccu_probe(node, reg, &sun50i_h616_ccu_desc);
-	if (i)
-		pr_err("%pOF: probing clocks fails: %d\n", node, i);
+	of_sunxi_ccu_probe(node, reg, &sun50i_h616_ccu_desc);
 }
 
 CLK_OF_DECLARE(sun50i_h616_ccu, "allwinner,sun50i-h616-ccu",

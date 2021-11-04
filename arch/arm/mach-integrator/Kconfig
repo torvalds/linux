@@ -6,7 +6,7 @@ menuconfig ARCH_INTEGRATOR
 	select CMA
 	select DMA_CMA
 	select HAVE_TCM
-	select ICST
+	select CLK_ICST
 	select MFD_SYSCON
 	select PLAT_VERSATILE
 	select POWER_RESET

@@ -44,8 +44,7 @@ static struct clk_branch gpucc_cxo_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gpucc_cxo_clk",
 			.parent_data = &(const struct clk_parent_data){
-				.fw_name = "xo",
-				.name = "xo"
+				.fw_name = "xo"
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -101,7 +100,7 @@ static const struct clk_parent_data gpucc_parent_data_1[] = {
 	{ .hw = &gpucc_cxo_clk.clkr.hw },
 	{ .hw = &gpu_pll0_pll_out_main.clkr.hw },
 	{ .hw = &gpu_pll1_pll_out_main.clkr.hw },
-	{ .fw_name = "gcc_gpu_gpll0_clk", .name = "gcc_gpu_gpll0_clk" },
+	{ .fw_name = "gcc_gpu_gpll0_clk" },
 };
 
 static struct clk_rcg2_gfx3d gfx3d_clk_src = {
@@ -114,7 +113,7 @@ static struct clk_rcg2_gfx3d gfx3d_clk_src = {
 		.clkr.hw.init = &(struct clk_init_data){
 			.name = "gfx3d_clk_src",
 			.parent_data = gpucc_parent_data_1,
-			.num_parents = 4,
+			.num_parents = ARRAY_SIZE(gpucc_parent_data_1),
 			.ops = &clk_gfx3d_ops,
 			.flags = CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE,
 		},
@@ -154,8 +153,8 @@ static const struct parent_map gpucc_parent_map_0[] = {
 
 static const struct clk_parent_data gpucc_parent_data_0[] = {
 	{ .hw = &gpucc_cxo_clk.clkr.hw },
-	{ .fw_name = "gcc_gpu_gpll0_clk", .name = "gcc_gpu_gpll0_clk" },
-	{ .fw_name = "gcc_gpu_gpll0_div_clk", .name = "gcc_gpu_gpll0_div_clk" },
+	{ .fw_name = "gcc_gpu_gpll0_clk" },
+	{ .fw_name = "gcc_gpu_gpll0_div_clk" },
 };
 
 static const struct freq_tbl ftbl_rbbmtimer_clk_src[] = {
@@ -172,7 +171,7 @@ static struct clk_rcg2 rbbmtimer_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "rbbmtimer_clk_src",
 		.parent_data = gpucc_parent_data_0,
-		.num_parents = 3,
+		.num_parents = ARRAY_SIZE(gpucc_parent_data_0),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -192,7 +191,7 @@ static struct clk_rcg2 rbcpr_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "rbcpr_clk_src",
 		.parent_data = gpucc_parent_data_0,
-		.num_parents = 3,
+		.num_parents = ARRAY_SIZE(gpucc_parent_data_0),
 		.ops = &clk_rcg2_ops,
 	},
 };

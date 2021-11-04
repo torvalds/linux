@@ -37,6 +37,7 @@ struct clk_sam9x5_peripheral {
 	u32 id;
 	u32 div;
 	const struct clk_pcr_layout *layout;
+	struct at91_clk_pms pms;
 	bool auto_div;
 	int chg_pid;
 };
@@ -155,10 +156,11 @@ static void clk_sam9x5_peripheral_autodiv(struct clk_sam9x5_peripheral *periph)
 	periph->div = shift;
 }
 
-static int clk_sam9x5_peripheral_enable(struct clk_hw *hw)
+static int clk_sam9x5_peripheral_set(struct clk_sam9x5_peripheral *periph,
+				     unsigned int status)
 {
-	struct clk_sam9x5_peripheral *periph = to_clk_sam9x5_peripheral(hw);
 	unsigned long flags;
+	unsigned int enable = status ? AT91_PMC_PCR_EN : 0;
 
 	if (periph->id < PERIPHERAL_ID_MIN)
 		return 0;
@@ -168,13 +170,19 @@ static int clk_sam9x5_peripheral_enable(struct clk_hw *hw)
 		     (periph->id & periph->layout->pid_mask));
 	regmap_update_bits(periph->regmap, periph->layout->offset,
 			   periph->layout->div_mask | periph->layout->cmd |
-			   AT91_PMC_PCR_EN,
+			   enable,
 			   field_prep(periph->layout->div_mask, periph->div) |
-			   periph->layout->cmd |
-			   AT91_PMC_PCR_EN);
+			   periph->layout->cmd | enable);
 	spin_unlock_irqrestore(periph->lock, flags);
 
 	return 0;
+}
+
+static int clk_sam9x5_peripheral_enable(struct clk_hw *hw)
+{
+	struct clk_sam9x5_peripheral *periph = to_clk_sam9x5_peripheral(hw);
+
+	return clk_sam9x5_peripheral_set(periph, 1);
 }
 
 static void clk_sam9x5_peripheral_disable(struct clk_hw *hw)
@@ -393,6 +401,23 @@ static int clk_sam9x5_peripheral_set_rate(struct clk_hw *hw,
 	return -EINVAL;
 }
 
+static int clk_sam9x5_peripheral_save_context(struct clk_hw *hw)
+{
+	struct clk_sam9x5_peripheral *periph = to_clk_sam9x5_peripheral(hw);
+
+	periph->pms.status = clk_sam9x5_peripheral_is_enabled(hw);
+
+	return 0;
+}
+
+static void clk_sam9x5_peripheral_restore_context(struct clk_hw *hw)
+{
+	struct clk_sam9x5_peripheral *periph = to_clk_sam9x5_peripheral(hw);
+
+	if (periph->pms.status)
+		clk_sam9x5_peripheral_set(periph, periph->pms.status);
+}
+
 static const struct clk_ops sam9x5_peripheral_ops = {
 	.enable = clk_sam9x5_peripheral_enable,
 	.disable = clk_sam9x5_peripheral_disable,
@@ -400,6 +425,8 @@ static const struct clk_ops sam9x5_peripheral_ops = {
 	.recalc_rate = clk_sam9x5_peripheral_recalc_rate,
 	.round_rate = clk_sam9x5_peripheral_round_rate,
 	.set_rate = clk_sam9x5_peripheral_set_rate,
+	.save_context = clk_sam9x5_peripheral_save_context,
+	.restore_context = clk_sam9x5_peripheral_restore_context,
 };
 
 static const struct clk_ops sam9x5_peripheral_chg_ops = {
@@ -409,6 +436,8 @@ static const struct clk_ops sam9x5_peripheral_chg_ops = {
 	.recalc_rate = clk_sam9x5_peripheral_recalc_rate,
 	.determine_rate = clk_sam9x5_peripheral_determine_rate,
 	.set_rate = clk_sam9x5_peripheral_set_rate,
+	.save_context = clk_sam9x5_peripheral_save_context,
+	.restore_context = clk_sam9x5_peripheral_restore_context,
 };
 
 struct clk_hw * __init
@@ -460,7 +489,6 @@ at91_clk_register_sam9x5_peripheral(struct regmap *regmap, spinlock_t *lock,
 		hw = ERR_PTR(ret);
 	} else {
 		clk_sam9x5_peripheral_autodiv(periph);
-		pmc_register_id(id);
 	}
 
 	return hw;
