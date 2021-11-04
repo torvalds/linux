@@ -27,6 +27,19 @@
 	ti,termination-current = <144000>;  /* uA */
 };
 
+&camera_front {
+	pinctrl-0 = <&pinctrl_csi1>, <&pinctrl_r3_camera_pwr>;
+	shutdown-gpios = <&gpio5 4 GPIO_ACTIVE_LOW>;
+};
+
+&iomuxc {
+	pinctrl_r3_camera_pwr: r3camerapwrgrp {
+		fsl,pins = <
+			MX8MQ_IOMUXC_SPDIF_RX_GPIO5_IO4		0x83
+		>;
+	};
+};
+
 &proximity {
 	proximity-near-level = <25>;
 };
