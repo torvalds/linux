@@ -44,7 +44,6 @@ struct test_suite {
 		bool skip_if_fail;
 	} subtest;
 	struct test_case *test_cases;
-	bool (*is_supported)(void);
 	void *priv;
 };
 

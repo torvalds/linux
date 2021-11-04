@@ -150,11 +150,6 @@ static const char *test_description(const struct test_suite *t, int subtest)
 	return t->desc;
 }
 
-static bool is_supported(const struct test_suite *t)
-{
-	return !t->is_supported || t->is_supported();
-}
-
 static test_fnptr test_function(const struct test_suite *t, int subtest)
 {
 	if (subtest <= 0)
@@ -480,12 +475,6 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 				continue;
 		}
 
-		if (!is_supported(t)) {
-			pr_debug("%2d: %-*s: Disabled\n", i, width,
-				 test_description(t, -1));
-			continue;
-		}
-
 		pr_info("%2d: %-*s:", i, width, test_description(t, -1));
 
 		if (intlist__find(skiplist, i)) {
@@ -583,8 +572,7 @@ static int perf_test__list(int argc, const char **argv)
 	for_each_test(j, k, t) {
 		int curr = i++;
 
-		if (!perf_test__matches(test_description(t, -1), curr, argc, argv) ||
-		    !is_supported(t))
+		if (!perf_test__matches(test_description(t, -1), curr, argc, argv))
 			continue;
 
 		pr_info("%2d: %s\n", i, test_description(t, -1));
