@@ -155,11 +155,6 @@ read_attribute(congested);
 
 read_attribute(btree_avg_write_size);
 
-read_attribute(bucket_quantiles_last_read);
-read_attribute(bucket_quantiles_last_write);
-read_attribute(bucket_quantiles_fragmentation);
-read_attribute(bucket_quantiles_oldest_gen);
-
 read_attribute(reserve_stats);
 read_attribute(btree_cache_size);
 read_attribute(compression_stats);
@@ -751,76 +746,6 @@ struct attribute *bch2_fs_time_stats_files[] = {
 	NULL
 };
 
-typedef unsigned (bucket_map_fn)(struct bch_fs *, struct bch_dev *,
-				 size_t, void *);
-
-static unsigned bucket_last_io_fn(struct bch_fs *c, struct bch_dev *ca,
-				  size_t b, void *private)
-{
-	int rw = (private ? 1 : 0);
-
-	return atomic64_read(&c->io_clock[rw].now) - bucket(ca, b)->io_time[rw];
-}
-
-static unsigned bucket_sectors_used_fn(struct bch_fs *c, struct bch_dev *ca,
-				       size_t b, void *private)
-{
-	struct bucket *g = bucket(ca, b);
-	return bucket_sectors_used(g->mark);
-}
-
-static unsigned bucket_oldest_gen_fn(struct bch_fs *c, struct bch_dev *ca,
-				     size_t b, void *private)
-{
-	return bucket_gc_gen(bucket(ca, b));
-}
-
-static int unsigned_cmp(const void *_l, const void *_r)
-{
-	const unsigned *l = _l;
-	const unsigned *r = _r;
-
-	return cmp_int(*l, *r);
-}
-
-static int quantiles_to_text(struct printbuf *out,
-			     struct bch_fs *c, struct bch_dev *ca,
-			     bucket_map_fn *fn, void *private)
-{
-	size_t i, n;
-	/* Compute 31 quantiles */
-	unsigned q[31], *p;
-
-	down_read(&ca->bucket_lock);
-	n = ca->mi.nbuckets;
-
-	p = vzalloc(n * sizeof(unsigned));
-	if (!p) {
-		up_read(&ca->bucket_lock);
-		return -ENOMEM;
-	}
-
-	for (i = ca->mi.first_bucket; i < n; i++)
-		p[i] = fn(c, ca, i, private);
-
-	sort(p, n, sizeof(unsigned), unsigned_cmp, NULL);
-	up_read(&ca->bucket_lock);
-
-	while (n &&
-	       !p[n - 1])
-		--n;
-
-	for (i = 0; i < ARRAY_SIZE(q); i++)
-		q[i] = p[n * (i + 1) / (ARRAY_SIZE(q) + 1)];
-
-	vfree(p);
-
-	for (i = 0; i < ARRAY_SIZE(q); i++)
-		pr_buf(out, "%u ", q[i]);
-	pr_buf(out, "\n");
-	return 0;
-}
-
 static void reserve_stats_to_text(struct printbuf *out, struct bch_dev *ca)
 {
 	enum alloc_reserve i;
@@ -982,15 +907,6 @@ SHOW(bch2_dev)
 		     clamp(atomic_read(&ca->congested), 0, CONGESTED_MAX)
 		     * 100 / CONGESTED_MAX);
 
-	if (attr == &sysfs_bucket_quantiles_last_read)
-		return quantiles_to_text(&out, c, ca, bucket_last_io_fn, (void *) 0) ?: out.pos - buf;
-	if (attr == &sysfs_bucket_quantiles_last_write)
-		return quantiles_to_text(&out, c, ca, bucket_last_io_fn, (void *) 1) ?: out.pos - buf;
-	if (attr == &sysfs_bucket_quantiles_fragmentation)
-		return quantiles_to_text(&out, c, ca, bucket_sectors_used_fn, NULL)  ?: out.pos - buf;
-	if (attr == &sysfs_bucket_quantiles_oldest_gen)
-		return quantiles_to_text(&out, c, ca, bucket_oldest_gen_fn, NULL)    ?: out.pos - buf;
-
 	if (attr == &sysfs_reserve_stats) {
 		reserve_stats_to_text(&out, ca);
 		return out.pos - buf;
@@ -1081,12 +997,6 @@ struct attribute *bch2_dev_files[] = {
 	&sysfs_io_latency_stats_read,
 	&sysfs_io_latency_stats_write,
 	&sysfs_congested,
-
-	/* alloc info - other stats: */
-	&sysfs_bucket_quantiles_last_read,
-	&sysfs_bucket_quantiles_last_write,
-	&sysfs_bucket_quantiles_fragmentation,
-	&sysfs_bucket_quantiles_oldest_gen,
 
 	&sysfs_reserve_stats,
 
