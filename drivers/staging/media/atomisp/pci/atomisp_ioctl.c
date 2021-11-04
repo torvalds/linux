@@ -775,6 +775,7 @@ static int atomisp_enum_fmt_cap(struct file *file, void *fh,
 	struct v4l2_subdev_mbus_code_enum code = {
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
 	};
+	const struct atomisp_format_bridge *format;
 	struct v4l2_subdev *camera;
 	unsigned int i, fi = 0;
 	int rval;
@@ -806,15 +807,15 @@ static int atomisp_enum_fmt_cap(struct file *file, void *fh,
 		return rval;
 
 	for (i = 0; i < ARRAY_SIZE(atomisp_output_fmts); i++) {
-		const struct atomisp_format_bridge *format =
-			    &atomisp_output_fmts[i];
+		format = &atomisp_output_fmts[i];
 
 		/*
 		 * Is the atomisp-supported format is valid for the
 		 * sensor (configuration)? If not, skip it.
+		 *
+		 * FIXME: fix the pipeline to allow sensor format too.
 		 */
-		if (format->sh_fmt == IA_CSS_FRAME_FORMAT_RAW
-		    && format->mbus_code != code.code)
+		if (format->sh_fmt == IA_CSS_FRAME_FORMAT_RAW)
 			continue;
 
 		/* Found a match. Now let's pick f->index'th one. */
