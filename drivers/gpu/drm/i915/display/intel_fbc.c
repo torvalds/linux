@@ -360,32 +360,45 @@ static bool ilk_fbc_is_active(struct drm_i915_private *dev_priv)
 	return intel_de_read(dev_priv, ILK_DPFC_CONTROL) & DPFC_CTL_EN;
 }
 
+static void glk_fbc_program_cfb_stride(struct drm_i915_private *i915)
+{
+	struct intel_fbc *fbc = &i915->fbc;
+	const struct intel_fbc_reg_params *params = &fbc->params;
+	u32 val = 0;
+
+	if (params->override_cfb_stride)
+		val |= FBC_STRIDE_OVERRIDE |
+			FBC_STRIDE(params->override_cfb_stride / fbc->limit);
+
+	intel_de_write(i915, GLK_FBC_STRIDE, val);
+}
+
+static void skl_fbc_program_cfb_stride(struct drm_i915_private *i915)
+{
+	struct intel_fbc *fbc = &i915->fbc;
+	const struct intel_fbc_reg_params *params = &fbc->params;
+	u32 val = 0;
+
+	/* Display WA #0529: skl, kbl, bxt. */
+	if (params->override_cfb_stride)
+		val |= CHICKEN_FBC_STRIDE_OVERRIDE |
+			CHICKEN_FBC_STRIDE(params->override_cfb_stride / fbc->limit);
+
+	intel_de_rmw(i915, CHICKEN_MISC_4,
+		     CHICKEN_FBC_STRIDE_OVERRIDE |
+		     CHICKEN_FBC_STRIDE_MASK, val);
+}
+
 static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 {
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	const struct intel_fbc_reg_params *params = &fbc->params;
 	u32 dpfc_ctl;
 
-	if (DISPLAY_VER(dev_priv) >= 10) {
-		u32 val = 0;
-
-		if (params->override_cfb_stride)
-			val |= FBC_STRIDE_OVERRIDE |
-				FBC_STRIDE(params->override_cfb_stride / fbc->limit);
-
-		intel_de_write(dev_priv, GLK_FBC_STRIDE, val);
-	} else if (DISPLAY_VER(dev_priv) == 9) {
-		u32 val = 0;
-
-		/* Display WA #0529: skl, kbl, bxt. */
-		if (params->override_cfb_stride)
-			val |= CHICKEN_FBC_STRIDE_OVERRIDE |
-				CHICKEN_FBC_STRIDE(params->override_cfb_stride / fbc->limit);
-
-		intel_de_rmw(dev_priv, CHICKEN_MISC_4,
-			     CHICKEN_FBC_STRIDE_OVERRIDE |
-			     CHICKEN_FBC_STRIDE_MASK, val);
-	}
+	if (DISPLAY_VER(dev_priv) >= 10)
+		glk_fbc_program_cfb_stride(dev_priv);
+	else if (DISPLAY_VER(dev_priv) == 9)
+		skl_fbc_program_cfb_stride(dev_priv);
 
 	dpfc_ctl = 0;
 	if (IS_IVYBRIDGE(dev_priv))
