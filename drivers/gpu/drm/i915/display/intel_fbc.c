@@ -533,10 +533,7 @@ static void ivb_fbc_activate(struct drm_i915_private *dev_priv)
 
 static bool ivb_fbc_is_compressing(struct drm_i915_private *i915)
 {
-	if (DISPLAY_VER(i915) >= 8)
-		return intel_de_read(i915, IVB_FBC_STATUS2) & BDW_FBC_COMP_SEG_MASK;
-	else
-		return intel_de_read(i915, IVB_FBC_STATUS2) & IVB_FBC_COMP_SEG_MASK;
+	return intel_de_read(i915, IVB_FBC_STATUS2) & IVB_FBC_COMP_SEG_MASK;
 }
 
 static void ivb_fbc_set_false_color(struct drm_i915_private *i915,

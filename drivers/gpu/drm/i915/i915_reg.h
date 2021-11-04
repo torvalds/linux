@@ -3380,8 +3380,7 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define ILK_DPFC_STATUS		_MMIO(0x43210)
 #define  ILK_DPFC_COMP_SEG_MASK	0x7ff
 #define IVB_FBC_STATUS2		_MMIO(0x43214)
-#define  IVB_FBC_COMP_SEG_MASK	0x7ff
-#define  BDW_FBC_COMP_SEG_MASK	0xfff
+#define  IVB_FBC_COMP_SEG_MASK	0xfff
 #define ILK_DPFC_FENCE_YOFF	_MMIO(0x43218)
 #define ILK_DPFC_CHICKEN	_MMIO(0x43224)
 #define   ILK_DPFC_DISABLE_DUMMY0 (1 << 8)
