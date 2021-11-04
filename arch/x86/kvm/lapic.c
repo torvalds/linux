@@ -673,15 +673,6 @@ static inline bool pv_eoi_enabled(struct kvm_vcpu *vcpu)
 	return vcpu->arch.pv_eoi.msr_val & KVM_MSR_ENABLED;
 }
 
-static bool pv_eoi_get_pending(struct kvm_vcpu *vcpu)
-{
-	u8 val;
-	if (pv_eoi_get_user(vcpu, &val) < 0)
-		return false;
-
-	return val & KVM_PV_EOI_ENABLED;
-}
-
 static void pv_eoi_set_pending(struct kvm_vcpu *vcpu)
 {
 	if (pv_eoi_put_user(vcpu, KVM_PV_EOI_ENABLED) < 0)
@@ -690,12 +681,26 @@ static void pv_eoi_set_pending(struct kvm_vcpu *vcpu)
 	__set_bit(KVM_APIC_PV_EOI_PENDING, &vcpu->arch.apic_attention);
 }
 
-static void pv_eoi_clr_pending(struct kvm_vcpu *vcpu)
+static bool pv_eoi_test_and_clr_pending(struct kvm_vcpu *vcpu)
 {
-	if (pv_eoi_put_user(vcpu, KVM_PV_EOI_DISABLED) < 0)
-		return;
+	u8 val;
 
+	if (pv_eoi_get_user(vcpu, &val) < 0)
+		return false;
+
+	val &= KVM_PV_EOI_ENABLED;
+
+	if (val && pv_eoi_put_user(vcpu, KVM_PV_EOI_DISABLED) < 0)
+		return false;
+
+	/*
+	 * Clear pending bit in any case: it will be set again on vmentry.
+	 * While this might not be ideal from performance point of view,
+	 * this makes sure pv eoi is only enabled when we know it's safe.
+	 */
 	__clear_bit(KVM_APIC_PV_EOI_PENDING, &vcpu->arch.apic_attention);
+
+	return val;
 }
 
 static int apic_has_interrupt_for_ppr(struct kvm_lapic *apic, u32 ppr)
@@ -2671,7 +2676,6 @@ void __kvm_migrate_apic_timer(struct kvm_vcpu *vcpu)
 static void apic_sync_pv_eoi_from_guest(struct kvm_vcpu *vcpu,
 					struct kvm_lapic *apic)
 {
-	bool pending;
 	int vector;
 	/*
 	 * PV EOI state is derived from KVM_APIC_PV_EOI_PENDING in host
@@ -2685,14 +2689,8 @@ static void apic_sync_pv_eoi_from_guest(struct kvm_vcpu *vcpu,
 	 * 	-> host enabled PV EOI, guest executed EOI.
 	 */
 	BUG_ON(!pv_eoi_enabled(vcpu));
-	pending = pv_eoi_get_pending(vcpu);
-	/*
-	 * Clear pending bit in any case: it will be set again on vmentry.
-	 * While this might not be ideal from performance point of view,
-	 * this makes sure pv eoi is only enabled when we know it's safe.
-	 */
-	pv_eoi_clr_pending(vcpu);
-	if (pending)
+
+	if (pv_eoi_test_and_clr_pending(vcpu))
 		return;
 	vector = apic_set_eoi(apic);
 	trace_kvm_pv_eoi(apic, vector);
