@@ -3392,7 +3392,6 @@ decode_session6(struct sk_buff *skb, struct flowi *fl, bool reverse)
 		case NEXTHDR_DEST:
 			offset += ipv6_optlen(exthdr);
 			nexthdr = exthdr->nexthdr;
-			exthdr = (struct ipv6_opt_hdr *)(nh + offset);
 			break;
 		case IPPROTO_UDP:
 		case IPPROTO_UDPLITE:
