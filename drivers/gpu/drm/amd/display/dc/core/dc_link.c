@@ -1999,6 +1999,57 @@ static enum dc_status enable_link_dp_mst(
 	return enable_link_dp(state, pipe_ctx);
 }
 
+void dc_link_blank_all_dp_displays(struct dc *dc)
+{
+	unsigned int i;
+	uint8_t dpcd_power_state = '\0';
+	enum dc_status status = DC_ERROR_UNEXPECTED;
+
+	for (i = 0; i < dc->link_count; i++) {
+		if ((dc->links[i]->connector_signal != SIGNAL_TYPE_DISPLAY_PORT) ||
+			(dc->links[i]->priv == NULL) || (dc->links[i]->local_sink == NULL))
+			continue;
+
+		/* DP 2.0 spec requires that we read LTTPR caps first */
+		dp_retrieve_lttpr_cap(dc->links[i]);
+		/* if any of the displays are lit up turn them off */
+		status = core_link_read_dpcd(dc->links[i], DP_SET_POWER,
+							&dpcd_power_state, sizeof(dpcd_power_state));
+
+		if (status == DC_OK && dpcd_power_state == DP_POWER_STATE_D0)
+			dc_link_blank_dp_stream(dc->links[i], true);
+	}
+
+}
+
+void dc_link_blank_dp_stream(struct dc_link *link, bool hw_init)
+{
+	unsigned int j;
+	struct dc  *dc = link->ctx->dc;
+	enum signal_type signal = link->connector_signal;
+
+	if ((signal == SIGNAL_TYPE_EDP) ||
+		(signal == SIGNAL_TYPE_DISPLAY_PORT)) {
+		if (link->ep_type == DISPLAY_ENDPOINT_PHY &&
+			link->link_enc->funcs->get_dig_frontend &&
+			link->link_enc->funcs->is_dig_enabled(link->link_enc)) {
+			unsigned int fe = link->link_enc->funcs->get_dig_frontend(link->link_enc);
+
+			if (fe != ENGINE_ID_UNKNOWN)
+				for (j = 0; j < dc->res_pool->stream_enc_count; j++) {
+					if (fe == dc->res_pool->stream_enc[j]->id) {
+						dc->res_pool->stream_enc[j]->funcs->dp_blank(link,
+									dc->res_pool->stream_enc[j]);
+						break;
+					}
+				}
+		}
+
+		if ((!link->wa_flags.dp_keep_receiver_powered) || hw_init)
+			dp_receiver_power_ctrl(link, false);
+	}
+}
+
 static bool get_ext_hdmi_settings(struct pipe_ctx *pipe_ctx,
 		enum engine_id eng_id,
 		struct ext_hdmi_settings *settings)
