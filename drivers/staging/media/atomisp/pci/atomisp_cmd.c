@@ -5583,6 +5583,10 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev,
 				       pad, set_fmt, &pad_state, &vformat);
 		if (ret)
 			return ret;
+
+		dev_dbg(isp->dev, "video dis: sensor width: %d, height: %d\n",
+			ffmt->width, ffmt->height);
+
 		if (ffmt->width < req_ffmt->width ||
 		    ffmt->height < req_ffmt->height) {
 			req_ffmt->height -= dvs_env_h;
@@ -5593,8 +5597,6 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev,
 			asd->params.video_dis_en = false;
 		}
 	}
-	dev_dbg(isp->dev, "sensor width: %d, height: %d\n",
-		ffmt->width, ffmt->height);
 	vformat.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera, pad,
 			       set_fmt, NULL, &vformat);
