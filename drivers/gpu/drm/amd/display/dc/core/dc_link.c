@@ -3964,9 +3964,6 @@ static void update_psp_stream_config(struct pipe_ctx *pipe_ctx, bool dpms_off)
 	struct cp_psp *cp_psp = &pipe_ctx->stream->ctx->cp_psp;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	struct link_encoder *link_enc = NULL;
-	struct dc_state *state = pipe_ctx->stream->ctx->dc->current_state;
-	struct link_enc_assignment link_enc_assign;
-	int i;
 #endif
 
 	if (cp_psp && cp_psp->funcs.update_stream_config) {
@@ -3994,18 +3991,14 @@ static void update_psp_stream_config(struct pipe_ctx *pipe_ctx, bool dpms_off)
 							pipe_ctx->stream->ctx->dc,
 							pipe_ctx->stream);
 			}
+			ASSERT(link_enc);
+
 			// Initialize PHY ID with ABCDE - 01234 mapping except when it is B0
 			config.phy_idx = link_enc->transmitter - TRANSMITTER_UNIPHY_A;
 
-			//look up the link_enc_assignment for the current pipe_ctx
-			for (i = 0; i < state->stream_count; i++) {
-				if (pipe_ctx->stream == state->streams[i]) {
-					link_enc_assign = state->res_ctx.link_enc_cfg_ctx.link_enc_assignments[i];
-				}
-			}
 			// Add flag to guard new A0 DIG mapping
 			if (pipe_ctx->stream->ctx->dc->enable_c20_dtm_b0 == true) {
-				config.dig_be = link_enc_assign.eng_id;
+				config.dig_be = link_enc->preferred_engine;
 				config.dio_output_type = pipe_ctx->stream->link->ep_type;
 				config.dio_output_idx = link_enc->transmitter - TRANSMITTER_UNIPHY_A;
 			} else {
@@ -4017,10 +4010,8 @@ static void update_psp_stream_config(struct pipe_ctx *pipe_ctx, bool dpms_off)
 			if (pipe_ctx->stream->ctx->dc->enable_c20_dtm_b0 == true &&
 					link_enc->ctx->asic_id.hw_internal_rev == YELLOW_CARP_B0) {
 				if (pipe_ctx->stream->link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) {
-					link_enc = link_enc_assign.stream->link_enc;
-
 					// enum ID 1-4 maps to DPIA PHY ID 0-3
-					config.phy_idx = link_enc_assign.ep_id.link_id.enum_id - ENUM_ID_1;
+					config.phy_idx = pipe_ctx->stream->link->link_id.enum_id - ENUM_ID_1;
 				} else {  // for non DPIA mode over B0, ABCDE maps to 01564
 
 					switch (link_enc->transmitter) {
