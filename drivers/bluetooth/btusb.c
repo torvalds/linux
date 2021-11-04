@@ -2565,6 +2565,7 @@ static int btusb_mtk_setup(struct hci_dev *hdev)
 		}
 
 		hci_set_msft_opcode(hdev, 0xFD30);
+		hci_set_aosp_capable(hdev);
 		goto done;
 	default:
 		bt_dev_err(hdev, "Unsupported hardware variant (%08x)",
