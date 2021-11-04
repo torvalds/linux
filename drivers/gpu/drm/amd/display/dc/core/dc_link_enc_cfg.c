@@ -232,7 +232,7 @@ static struct link_encoder *get_link_enc_used_by_link(
 		.link_id = link->link_id,
 		.ep_type = link->ep_type};
 
-	for (i = 0; i < state->stream_count; i++) {
+	for (i = 0; i < MAX_PIPES; i++) {
 		struct link_enc_assignment assignment = state->res_ctx.link_enc_cfg_ctx.link_enc_assignments[i];
 
 		if (assignment.valid == true && are_ep_ids_equal(&assignment.ep_id, &ep_id))
@@ -538,6 +538,7 @@ bool link_enc_cfg_validate(struct dc *dc, struct dc_state *state)
 	uint8_t dig_stream_count = 0;
 	int matching_stream_ptrs = 0;
 	int eng_ids_per_ep_id[MAX_PIPES] = {0};
+	int valid_bitmap = 0;
 
 	/* (1) No. valid entries same as stream count. */
 	for (i = 0; i < MAX_PIPES; i++) {
@@ -618,6 +619,16 @@ bool link_enc_cfg_validate(struct dc *dc, struct dc_state *state)
 
 	is_valid = valid_entries && valid_stream_ptrs && valid_uniqueness && valid_avail && valid_streams;
 	ASSERT(is_valid);
+
+	if (is_valid == false) {
+		valid_bitmap =
+			(valid_entries & 0x1) |
+			((valid_stream_ptrs & 0x1) << 1) |
+			((valid_uniqueness & 0x1) << 2) |
+			((valid_avail & 0x1) << 3) |
+			((valid_streams & 0x1) << 4);
+		dm_error("Invalid link encoder assignments: 0x%x\n", valid_bitmap);
+	}
 
 	return is_valid;
 }
