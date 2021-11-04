@@ -151,7 +151,26 @@ DECLARE_SUITE(expand_cgroup_events);
 DECLARE_SUITE(perf_time_to_tsc);
 DECLARE_SUITE(dlfilter);
 
-bool test__bp_signal_is_supported(void);
+/*
+ * PowerPC and S390 do not support creation of instruction breakpoints using the
+ * perf_event interface.
+ *
+ * ARM requires explicit rounding down of the instruction pointer in Thumb mode,
+ * and then requires the single-step to be handled explicitly in the overflow
+ * handler to avoid stepping into the SIGIO handler and getting stuck on the
+ * breakpointed instruction.
+ *
+ * Since arm64 has the same issue with arm for the single-step handling, this
+ * case also gets stuck on the breakpointed instruction.
+ *
+ * Just disable the test for these architectures until these issues are
+ * resolved.
+ */
+#if defined(__powerpc__) || defined(__s390x__) || defined(__arm__) || defined(__aarch64__)
+#define BP_SIGNAL_IS_SUPPORTED 0
+#else
+#define BP_SIGNAL_IS_SUPPORTED 1
+#endif
 
 #ifdef HAVE_DWARF_UNWIND_SUPPORT
 struct thread;

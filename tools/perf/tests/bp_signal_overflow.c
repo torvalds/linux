@@ -66,6 +66,11 @@ static int test__bp_signal_overflow(struct test_suite *test __maybe_unused, int 
 	long long count;
 	int fd, i, fails = 0;
 
+	if (!BP_SIGNAL_IS_SUPPORTED) {
+		pr_debug("Test not supported on this architecture");
+		return TEST_SKIP;
+	}
+
 	/* setup SIGIO signal handler */
 	memset(&sa, 0, sizeof(struct sigaction));
 	sa.sa_sigaction = (void *) sig_handler;
@@ -134,13 +139,4 @@ static int test__bp_signal_overflow(struct test_suite *test __maybe_unused, int 
 	return fails ? TEST_FAIL : TEST_OK;
 }
 
-static struct test_case bp_signal_overflow_tests[] = {
-	TEST_CASE("Breakpoint overflow sampling", bp_signal_overflow),
-	{ .name = NULL, }
-};
-
-struct test_suite suite__bp_signal_overflow = {
-	.desc = "Breakpoint overflow sampling",
-	.test_cases = bp_signal_overflow_tests,
-	.is_supported = test__bp_signal_is_supported,
-};
+DEFINE_SUITE("Breakpoint overflow sampling", bp_signal_overflow);

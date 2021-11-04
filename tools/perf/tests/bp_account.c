@@ -19,6 +19,19 @@
 #include "../perf-sys.h"
 #include "cloexec.h"
 
+/*
+ * PowerPC and S390 do not support creation of instruction breakpoints using the
+ * perf_event interface.
+ *
+ * Just disable the test for these architectures until these issues are
+ * resolved.
+ */
+#if defined(__powerpc__) || defined(__s390x__)
+#define BP_ACCOUNT_IS_SUPPORTED 0
+#else
+#define BP_ACCOUNT_IS_SUPPORTED 1
+#endif
+
 static volatile long the_var;
 
 static noinline int test_function(void)
@@ -180,6 +193,11 @@ static int test__bp_accounting(struct test_suite *test __maybe_unused, int subte
 	int bp_cnt = detect_cnt(true);
 	int share  = detect_share(wp_cnt, bp_cnt);
 
+	if (!BP_ACCOUNT_IS_SUPPORTED) {
+		pr_debug("Test not supported on this architecture");
+		return TEST_SKIP;
+	}
+
 	pr_debug("watchpoints count %d, breakpoints count %d, has_ioctl %d, share %d\n",
 		 wp_cnt, bp_cnt, has_ioctl, share);
 
@@ -189,29 +207,4 @@ static int test__bp_accounting(struct test_suite *test __maybe_unused, int subte
 	return bp_accounting(wp_cnt, share);
 }
 
-static bool test__bp_account_is_supported(void)
-{
-	/*
-	 * PowerPC and S390 do not support creation of instruction
-	 * breakpoints using the perf_event interface.
-	 *
-	 * Just disable the test for these architectures until these
-	 * issues are resolved.
-	 */
-#if defined(__powerpc__) || defined(__s390x__)
-	return false;
-#else
-	return true;
-#endif
-}
-
-static struct test_case bp_accounting_tests[] = {
-	TEST_CASE("Breakpoint accounting", bp_accounting),
-	{ .name = NULL, }
-};
-
-struct test_suite suite__bp_accounting = {
-	.desc = "Breakpoint accounting",
-	.test_cases = bp_accounting_tests,
-	.is_supported = test__bp_account_is_supported,
-};
+DEFINE_SUITE("Breakpoint accounting", bp_accounting);
