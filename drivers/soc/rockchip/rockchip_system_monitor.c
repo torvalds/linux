@@ -941,17 +941,32 @@ rockchip_system_monitor_wide_temp_init(struct monitor_dev_info *info)
 	}
 }
 
+static const char *get_rdev_name(struct regulator_dev *rdev)
+{
+	if (rdev->constraints && rdev->constraints->name)
+		return rdev->constraints->name;
+	else if (rdev->desc->name)
+		return rdev->desc->name;
+	else
+		return "";
+}
+
 static void
 rockchip_system_monitor_early_regulator_init(struct monitor_dev_info *info)
 {
-	struct regulator *reg = info->early_reg;
+	struct regulator *reg;
 	struct regulator_dev *rdev;
 
-	if (!info->early_min_volt || !reg)
+	if (!info->early_min_volt || !info->regulators)
 		return;
-	rdev = reg->rdev;
-	reg->voltage[PM_SUSPEND_ON].min_uV = info->early_min_volt;
-	reg->voltage[PM_SUSPEND_ON].max_uV = rdev->constraints->max_uV;
+
+	rdev = info->regulators[0]->rdev;
+	reg = regulator_get(NULL, get_rdev_name(rdev));
+	if (!IS_ERR_OR_NULL(reg)) {
+		info->early_reg = reg;
+		reg->voltage[PM_SUSPEND_ON].min_uV = info->early_min_volt;
+		reg->voltage[PM_SUSPEND_ON].max_uV = rdev->constraints->max_uV;
+	}
 }
 
 static int
@@ -1014,22 +1029,10 @@ rockchip_system_monitor_freq_qos_requset(struct monitor_dev_info *info)
 	return 0;
 }
 
-static const char *get_rdev_name(struct regulator_dev *rdev)
-{
-	if (rdev->constraints && rdev->constraints->name)
-		return rdev->constraints->name;
-	else if (rdev->desc->name)
-		return rdev->desc->name;
-	else
-		return "";
-}
-
 static int rockchip_system_monitor_parse_supplies(struct device *dev,
 						  struct monitor_dev_info *info)
 {
 	struct opp_table *opp_table;
-	struct regulator_dev *rdev;
-	struct regulator *reg;
 
 	opp_table = dev_pm_opp_get_opp_table(dev);
 	if (IS_ERR(opp_table))
@@ -1037,13 +1040,8 @@ static int rockchip_system_monitor_parse_supplies(struct device *dev,
 
 	if (opp_table->clk)
 		info->clk = opp_table->clk;
-	if (opp_table->regulators) {
+	if (opp_table->regulators)
 		info->regulators = opp_table->regulators;
-		rdev = opp_table->regulators[0]->rdev;
-		reg = regulator_get(NULL, get_rdev_name(rdev));
-		if (!IS_ERR_OR_NULL(reg))
-			info->early_reg = reg;
-	}
 
 	dev_pm_opp_put_opp_table(opp_table);
 
