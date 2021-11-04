@@ -5635,13 +5635,17 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 	const struct atomisp_format_bridge *format_bridge;
 	const struct atomisp_format_bridge *snr_format_bridge;
 	struct ia_css_frame_info output_info, raw_output_info;
-	struct v4l2_pix_format snr_fmt = f->fmt.pix;
-	struct v4l2_pix_format backup_fmt = snr_fmt, s_fmt;
+	struct v4l2_pix_format snr_fmt;
+	struct v4l2_pix_format backup_fmt, s_fmt;
 	unsigned int dvs_env_w = 0, dvs_env_h = 0;
 	unsigned int padding_w = pad_w, padding_h = pad_h;
 	bool res_overflow = false, crop_needs_override = false;
 	struct v4l2_mbus_framefmt *isp_sink_fmt;
 	struct v4l2_mbus_framefmt isp_source_fmt = {0};
+	struct v4l2_subdev_format vformat = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
+	struct v4l2_mbus_framefmt *ffmt = &vformat.format;
 	struct v4l2_rect isp_sink_crop;
 	u16 source_pad = atomisp_subdev_source_pad(vdev);
 	struct v4l2_subdev_fh fh;
@@ -5672,8 +5676,37 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 	if (!format_bridge)
 		return -EINVAL;
 
+	/* Currently, raw formats are broken!!! */
+
+	if (format_bridge->sh_fmt == IA_CSS_FRAME_FORMAT_RAW) {
+		f->fmt.pix.pixelformat = V4L2_PIX_FMT_YUV420;
+
+		format_bridge = atomisp_get_format_bridge(f->fmt.pix.pixelformat);
+		if (!format_bridge)
+			return -EINVAL;
+	}
 	pipe->sh_fmt = format_bridge->sh_fmt;
 	pipe->pix.pixelformat = f->fmt.pix.pixelformat;
+
+	/* Ensure that the resolution is equal or below the maximum supported */
+
+	vformat.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+	v4l2_fill_mbus_format(ffmt, &f->fmt.pix, format_bridge->mbus_code);
+	ffmt->height += padding_h;
+	ffmt->width += padding_w;
+
+	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera, pad,
+			       set_fmt, NULL, &vformat);
+	if (ret)
+		return ret;
+
+	f->fmt.pix.width = ffmt->width - padding_w;
+	f->fmt.pix.height = ffmt->height - padding_h;
+
+	snr_fmt = f->fmt.pix;
+	backup_fmt = snr_fmt;
+
+	/**********************************************************************/
 
 	if (source_pad == ATOMISP_SUBDEV_PAD_SOURCE_VF ||
 	    (source_pad == ATOMISP_SUBDEV_PAD_SOURCE_PREVIEW
@@ -6079,6 +6112,15 @@ done:
 		isp->need_gfx_throttle = false;
 	else
 		isp->need_gfx_throttle = true;
+
+	/* Report the needed sizes */
+	f->fmt.pix.sizeimage = pipe->pix.sizeimage;
+	f->fmt.pix.bytesperline = pipe->pix.bytesperline;
+
+	dev_dbg(isp->dev, "%s: %dx%d, image size: %d, %d bytes per line\n",
+		__func__,
+		f->fmt.pix.width, f->fmt.pix.height,
+		f->fmt.pix.sizeimage, f->fmt.pix.bytesperline);
 
 	return 0;
 }
