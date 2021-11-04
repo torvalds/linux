@@ -1,4 +1,4 @@
-What:		/sys/fs/o2cb/
+What:		/sys/o2cb
 Date:		Dec 2005
 KernelVersion:	2.6.16
 Contact:	ocfs2-devel@oss.oracle.com
@@ -6,5 +6,6 @@ Description:	Ocfs2-tools looks at 'interface-revision' for versioning
 		information. Each logmask/ file controls a set of debug prints
 		and can be written into with the strings "allow", "deny", or
 		"off". Reading the file returns the current state.
+		Was renamed to /sys/fs/u2cb/
 Users:		ocfs2-tools. It's sufficient to mail proposed changes to
 		ocfs2-devel@oss.oracle.com.
