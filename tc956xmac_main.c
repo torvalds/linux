@@ -65,6 +65,8 @@
 		  3. Changed IRQF_SHARED to IRQF_NO_SUSPEND and added WOL Interrupt Handler support.
 		  4. Added Platform Apis.
  *  VERSION     : 01-00-19
+ *  04 Nov 2021 : 1. Stopped disabling/enabling of MAC TX during Link down/up.
+ *  VERSION     : 01-00-20
  */
 
 #include <linux/clk.h>
@@ -1781,7 +1783,7 @@ static void tc956xmac_mac_link_down(struct phylink_config *config,
 {
 	struct tc956xmac_priv *priv = netdev_priv(to_net_dev(config->dev));
 
-	tc956xmac_mac_set(priv, priv->ioaddr, false);
+	tc956xmac_mac_set_rx(priv, priv->ioaddr, false);
 #ifdef EEE
 	priv->eee_active = false;
 	priv->eee_enabled = tc956xmac_eee_init(priv);
@@ -1875,7 +1877,7 @@ static void tc956xmac_mac_link_up(struct phylink_config *config,
 {
 	struct tc956xmac_priv *priv = netdev_priv(to_net_dev(config->dev));
 
-	tc956xmac_mac_set(priv, priv->ioaddr, true);
+	tc956xmac_mac_set_rx(priv, priv->ioaddr, true);
 #ifdef EEE
 	if (phy && priv->dma_cap.eee) {
 #ifdef TC956X_5_G_2_5_G_EEE_SUPPORT

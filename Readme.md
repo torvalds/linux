@@ -1,7 +1,7 @@
 # Toshiba Electronic Devices & Storage Corporation TC956X PCIe Ethernet Host Driver
-Release Date: 26 Oct 2021
+Release Date: 04 Nov 2021
 
-Release Version: V_01-00-19 : Limited-tested version
+Release Version: V_01-00-20 : Limited-tested version
 
 TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
@@ -282,3 +282,9 @@ ethtool -s eth0 wol pg
 1. Added PM support for suspend-resume.
 2. Added WOL Interrupt Handler and ethtool Support.
 3. Updated EEE support for PHY and MAC Control. (EEE macros are not enabled as EEE LPI interrupts disable are still under validation)
+
+## TC956X_Host_Driver_20211104_V_01-00-20:
+
+1. Added separate control functions for MAC TX and RX start/stop.
+2. Stopped disabling/enabling of MAC TX during Link down/up.
+3. Disabled link state latency configuration for all PCIe ports by default 

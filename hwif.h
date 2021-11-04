@@ -37,6 +37,8 @@
  * 		  3. Removed IOCTL TC956XMAC_VLAN_STRIP_CONFIG.
  * 		  4. Removed "Disable VLAN Filter" option in IOCTL TC956XMAC_VLAN_FILTERING.
  *  VERSION     : 01-00-13
+ *  04 Nov 2021 : 1. Added separate control functons for MAC TX and RX start/stop
+ *  VERSION     : 01-00-20
  */
 
 #ifndef __TC956XMAC_HWIF_H__
@@ -338,6 +340,10 @@ struct tc956xmac_ops {
 	void (*core_init)(struct tc956xmac_priv *priv, struct mac_device_info *hw, struct net_device *dev);
 	/* Enable the MAC RX/TX */
 	void (*set_mac)(struct tc956xmac_priv *priv, void __iomem *ioaddr, bool enable);
+	/* Start/Stop the MAC TX */
+	void (*set_mac_tx)(struct tc956xmac_priv *priv, void __iomem *ioaddr, bool enable);
+	/* Start/Stop the MAC RX */
+	void (*set_mac_rx)(struct tc956xmac_priv *priv, void __iomem *ioaddr, bool enable);
 	/* Enable and verify that the IPC module is supported */
 	int (*rx_ipc)(struct tc956xmac_priv *priv, struct mac_device_info *hw);
 	/* Enable RX Queues */
@@ -458,6 +464,10 @@ struct tc956xmac_ops {
 	tc956xmac_do_void_callback(__priv, mac, core_init, __args)
 #define tc956xmac_mac_set(__priv, __args...) \
 	tc956xmac_do_void_callback(__priv, mac, set_mac, __args)
+#define tc956xmac_mac_set_tx(__priv, __args...) \
+	tc956xmac_do_void_callback(__priv, mac, set_mac_tx, __args)
+#define tc956xmac_mac_set_rx(__priv, __args...) \
+	tc956xmac_do_void_callback(__priv, mac, set_mac_rx, __args)
 #define tc956xmac_rx_ipc(__priv, __args...) \
 	tc956xmac_do_callback(__priv, mac, rx_ipc, __args)
 #define tc956xmac_rx_queue_enable(__priv, __args...) \

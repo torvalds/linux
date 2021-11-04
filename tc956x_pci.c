@@ -78,6 +78,8 @@
 		  3. Added platform api calls.
 		  4. Version update
  *  VERSION     : 01-00-19
+ *  04 Nov 2021 : 1. Version update
+ *  VERSION     : 01-00-20
  */
 
 #include <linux/clk-provider.h>
@@ -110,7 +112,7 @@ static unsigned int tc956x_port1_interface = ENABLE_SGMII_INTERFACE;
 unsigned int tc956x_port0_filter_phy_pause_frames = DISABLE;
 unsigned int tc956x_port1_filter_phy_pause_frames = DISABLE;
 
-static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 1, 9};
+static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 2, 0};
 
 enum TC956X_INDEPENDENT_PORT_PM_SUSPEND tc956xmac_pm_suspend_counter = NO_PORT_SUSPENDED;
 struct mutex tc956x_pm_suspend_lock;
