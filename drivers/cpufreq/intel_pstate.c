@@ -1627,6 +1627,9 @@ static void intel_pstate_disable_hwp_interrupt(struct cpudata *cpudata)
 {
 	unsigned long flags;
 
+	if (!boot_cpu_has(X86_FEATURE_HWP_NOTIFY))
+		return;
+
 	/* wrmsrl_on_cpu has to be outside spinlock as this can result in IPC */
 	wrmsrl_on_cpu(cpudata->cpu, MSR_HWP_INTERRUPT, 0x00);
 
