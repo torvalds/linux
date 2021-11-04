@@ -2054,6 +2054,80 @@ TRACE_EVENT(ff_layout_commit_error,
 		)
 );
 
+TRACE_DEFINE_ENUM(NFS4_CONTENT_DATA);
+TRACE_DEFINE_ENUM(NFS4_CONTENT_HOLE);
+
+#define show_llseek_mode(what)			\
+	__print_symbolic(what,			\
+		{ NFS4_CONTENT_DATA, "DATA" },		\
+		{ NFS4_CONTENT_HOLE, "HOLE" })
+
+#ifdef CONFIG_NFS_V4_2
+TRACE_EVENT(nfs4_llseek,
+		TP_PROTO(
+			const struct inode *inode,
+			const struct nfs42_seek_args *args,
+			const struct nfs42_seek_res *res,
+			int error
+		),
+
+		TP_ARGS(inode, args, res, error),
+
+		TP_STRUCT__entry(
+			__field(unsigned long, error)
+			__field(u32, fhandle)
+			__field(u32, fileid)
+			__field(dev_t, dev)
+			__field(int, stateid_seq)
+			__field(u32, stateid_hash)
+			__field(loff_t, offset_s)
+			__field(u32, what)
+			__field(loff_t, offset_r)
+			__field(u32, eof)
+		),
+
+		TP_fast_assign(
+			const struct nfs_inode *nfsi = NFS_I(inode);
+			const struct nfs_fh *fh = args->sa_fh;
+
+			__entry->fileid = nfsi->fileid;
+			__entry->dev = inode->i_sb->s_dev;
+			__entry->fhandle = nfs_fhandle_hash(fh);
+			__entry->offset_s = args->sa_offset;
+			__entry->stateid_seq =
+				be32_to_cpu(args->sa_stateid.seqid);
+			__entry->stateid_hash =
+				nfs_stateid_hash(&args->sa_stateid);
+			__entry->what = args->sa_what;
+			if (error) {
+				__entry->error = -error;
+				__entry->offset_r = 0;
+				__entry->eof = 0;
+			} else {
+				__entry->error = 0;
+				__entry->offset_r = res->sr_offset;
+				__entry->eof = res->sr_eof;
+			}
+		),
+
+		TP_printk(
+			"error=%ld (%s) fileid=%02x:%02x:%llu fhandle=0x%08x "
+			"stateid=%d:0x%08x offset_s=%llu what=%s "
+			"offset_r=%llu eof=%u",
+			-__entry->error,
+			show_nfs4_status(__entry->error),
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->fileid,
+			__entry->fhandle,
+			__entry->stateid_seq, __entry->stateid_hash,
+			__entry->offset_s,
+			show_llseek_mode(__entry->what),
+			__entry->offset_r,
+			__entry->eof
+		)
+);
+
+#endif /* CONFIG_NFS_V4_2 */
 
 #endif /* CONFIG_NFS_V4_1 */
 
