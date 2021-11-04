@@ -205,8 +205,13 @@ static bool test__bp_account_is_supported(void)
 #endif
 }
 
+static struct test_case bp_accounting_tests[] = {
+	TEST_CASE("Breakpoint accounting", bp_accounting),
+	{ .name = NULL, }
+};
+
 struct test_suite suite__bp_accounting = {
 	.desc = "Breakpoint accounting",
-	.func = test__bp_accounting,
+	.test_cases = bp_accounting_tests,
 	.is_supported = test__bp_account_is_supported,
 };

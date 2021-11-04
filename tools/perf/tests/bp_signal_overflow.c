@@ -134,8 +134,13 @@ static int test__bp_signal_overflow(struct test_suite *test __maybe_unused, int 
 	return fails ? TEST_FAIL : TEST_OK;
 }
 
+static struct test_case bp_signal_overflow_tests[] = {
+	TEST_CASE("Breakpoint overflow sampling", bp_signal_overflow),
+	{ .name = NULL, }
+};
+
 struct test_suite suite__bp_signal_overflow = {
 	.desc = "Breakpoint overflow sampling",
-	.func = test__bp_signal_overflow,
+	.test_cases = bp_signal_overflow_tests,
 	.is_supported = test__bp_signal_is_supported,
 };

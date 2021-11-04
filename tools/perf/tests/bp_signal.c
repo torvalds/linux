@@ -312,8 +312,13 @@ bool test__bp_signal_is_supported(void)
 #endif
 }
 
+static struct test_case bp_signal_tests[] = {
+	TEST_CASE("Breakpoint overflow signal handler", bp_signal),
+	{ .name = NULL, }
+};
+
 struct test_suite suite__bp_signal = {
 	.desc = "Breakpoint overflow signal handler",
-	.func = test__bp_signal,
+	.test_cases = bp_signal_tests,
 	.is_supported = test__bp_signal_is_supported,
 };
