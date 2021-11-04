@@ -646,12 +646,15 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	struct bch_fs *c;
 	unsigned i, iter_size;
 	const char *err;
+	int ret = 0;
 
 	pr_verbose_init(opts, "");
 
 	c = kvpmalloc(sizeof(struct bch_fs), GFP_KERNEL|__GFP_ZERO);
-	if (!c)
+	if (!c) {
+		c = ERR_PTR(-ENOMEM);
 		goto out;
+	}
 
 	__module_get(THIS_MODULE);
 
@@ -732,13 +735,16 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 
 	mutex_init(&c->sectors_available_lock);
 
-	if (percpu_init_rwsem(&c->mark_lock))
+	if (percpu_init_rwsem(&c->mark_lock)) {
+		ret = -ENOMEM;
 		goto err;
+	}
 
 	mutex_lock(&c->sb_lock);
 
 	if (bch2_sb_to_fs(c, sb)) {
 		mutex_unlock(&c->sb_lock);
+		ret = -ENOMEM;
 		goto err;
 	}
 
@@ -753,8 +759,10 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	c->block_bits		= ilog2(c->opts.block_size);
 	c->btree_foreground_merge_threshold = BTREE_FOREGROUND_MERGE_THRESHOLD(c);
 
-	if (bch2_fs_init_fault("fs_alloc"))
+	if (bch2_fs_init_fault("fs_alloc")) {
+		ret = -ENOMEM;
 		goto err;
+	}
 
 	iter_size = sizeof(struct sort_iter) +
 		(btree_blocks(c) + 1) * 2 *
@@ -795,10 +803,15 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	    bch2_fs_btree_interior_update_init(c) ||
 	    bch2_fs_subvolumes_init(c) ||
 	    bch2_fs_io_init(c) ||
-	    bch2_fs_encryption_init(c) ||
 	    bch2_fs_compress_init(c) ||
 	    bch2_fs_ec_init(c) ||
-	    bch2_fs_fsio_init(c))
+	    bch2_fs_fsio_init(c)) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	ret = bch2_fs_encryption_init(c);
+	if (ret)
 		goto err;
 
 	if (c->opts.nochanges)
@@ -807,8 +820,10 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	mi = bch2_sb_get_members(c->disk_sb.sb);
 	for (i = 0; i < c->sb.nr_devices; i++)
 		if (bch2_dev_exists(c->disk_sb.sb, mi, i) &&
-		    bch2_dev_alloc(c, i))
+		    bch2_dev_alloc(c, i)) {
+			ret = -ENOMEM;
 			goto err;
+		}
 
 	bch2_journal_entry_res_resize(&c->journal,
 			&c->btree_root_journal_res,
@@ -823,14 +838,15 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	mutex_unlock(&bch_fs_list_lock);
 	if (err) {
 		bch_err(c, "bch2_fs_online() error: %s", err);
+		ret = -ENOMEM;
 		goto err;
 	}
 out:
-	pr_verbose_init(opts, "ret %i", c ? 0 : -ENOMEM);
+	pr_verbose_init(opts, "ret %i", PTR_ERR_OR_ZERO(c));
 	return c;
 err:
 	bch2_fs_free(c);
-	c = NULL;
+	c = ERR_PTR(ret);
 	goto out;
 }
 
@@ -1943,10 +1959,11 @@ struct bch_fs *bch2_fs_open(char * const *devices, unsigned nr_devices,
 		i++;
 	}
 
-	ret = -ENOMEM;
 	c = bch2_fs_alloc(sb[best_sb].sb, opts);
-	if (!c)
+	if (IS_ERR(c)) {
+		ret = PTR_ERR(c);
 		goto err;
+	}
 
 	err = "bch2_dev_online() error";
 	down_write(&c->state_lock);
@@ -1977,7 +1994,7 @@ err_print:
 	       devices[0], err);
 	ret = -EINVAL;
 err:
-	if (c)
+	if (!IS_ERR_OR_NULL(c))
 		bch2_fs_stop(c);
 	for (i = 0; i < nr_devices; i++)
 		bch2_free_super(&sb[i]);
@@ -2006,12 +2023,12 @@ static const char *__bch2_fs_open_incremental(struct bch_sb_handle *sb,
 		if (err)
 			goto err;
 	} else {
-		c = bch2_fs_alloc(sb->sb, opts);
-		err = "cannot allocate memory";
-		if (!c)
-			goto err;
-
 		allocated_fs = true;
+		c = bch2_fs_alloc(sb->sb, opts);
+
+		err = "bch2_fs_alloc() error";
+		if (IS_ERR(c))
+			goto err;
 	}
 
 	err = "bch2_dev_online() error";
@@ -2037,7 +2054,7 @@ static const char *__bch2_fs_open_incremental(struct bch_sb_handle *sb,
 err:
 	mutex_unlock(&bch_fs_list_lock);
 
-	if (allocated_fs)
+	if (allocated_fs && !IS_ERR(c))
 		bch2_fs_stop(c);
 	else if (c)
 		closure_put(&c->cl);
