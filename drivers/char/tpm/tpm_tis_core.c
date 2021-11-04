@@ -178,8 +178,12 @@ again:
 	} else {
 		/* wait for burstcount */
 		do {
-			if (check_locality(chip, l))
+			if (check_locality(chip, l)) {
+				if (tpm_tis_wait_for_stat(chip, TPM_STS_GO, 0, chip->timeout_c,
+							  &priv->int_queue, false) < 0)
+					return -ETIME;
 				return l;
+			}
 			tpm_msleep(TPM_TIMEOUT);
 		} while (time_before(jiffies, stop));
 	}
