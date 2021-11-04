@@ -746,7 +746,6 @@ static bool ext4_fc_add_dentry_tlv(struct super_block *sb, u32 *crc,
 	ext4_fc_memcpy(sb, dst, &fcd, sizeof(fcd), crc);
 	dst += sizeof(fcd);
 	ext4_fc_memcpy(sb, dst, fc_dentry->fcd_name.name, dlen, crc);
-	dst += dlen;
 
 	return true;
 }
