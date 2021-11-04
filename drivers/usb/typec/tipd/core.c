@@ -9,6 +9,7 @@
 #include <linux/i2c.h>
 #include <linux/acpi.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/power_supply.h>
 #include <linux/regmap.h>
 #include <linux/interrupt.h>
@@ -29,6 +30,7 @@
 #define TPS_REG_INT_MASK2		0x17
 #define TPS_REG_INT_CLEAR1		0x18
 #define TPS_REG_INT_CLEAR2		0x19
+#define TPS_REG_SYSTEM_POWER_STATE	0x20
 #define TPS_REG_STATUS			0x1a
 #define TPS_REG_SYSTEM_CONF		0x28
 #define TPS_REG_CTRL_CONF		0x29
@@ -117,13 +119,13 @@ tps6598x_block_read(struct tps6598x *tps, u8 reg, void *val, size_t len)
 	u8 data[TPS_MAX_LEN + 1];
 	int ret;
 
-	if (WARN_ON(len + 1 > sizeof(data)))
+	if (len + 1 > sizeof(data))
 		return -EINVAL;
 
 	if (!tps->i2c_protocol)
 		return regmap_raw_read(tps->regmap, reg, val, len);
 
-	ret = regmap_raw_read(tps->regmap, reg, data, sizeof(data));
+	ret = regmap_raw_read(tps->regmap, reg, data, len + 1);
 	if (ret)
 		return ret;
 
@@ -139,13 +141,21 @@ static int tps6598x_block_write(struct tps6598x *tps, u8 reg,
 {
 	u8 data[TPS_MAX_LEN + 1];
 
+	if (len + 1 > sizeof(data))
+		return -EINVAL;
+
 	if (!tps->i2c_protocol)
 		return regmap_raw_write(tps->regmap, reg, val, len);
 
 	data[0] = len;
 	memcpy(&data[1], val, len);
 
-	return regmap_raw_write(tps->regmap, reg, data, sizeof(data));
+	return regmap_raw_write(tps->regmap, reg, data, len + 1);
+}
+
+static inline int tps6598x_read8(struct tps6598x *tps, u8 reg, u8 *val)
+{
+	return tps6598x_block_read(tps, reg, val, sizeof(u8));
 }
 
 static inline int tps6598x_read16(struct tps6598x *tps, u8 reg, u16 *val)
@@ -401,13 +411,114 @@ static const struct typec_operations tps6598x_ops = {
 	.pr_set = tps6598x_pr_set,
 };
 
+static bool tps6598x_read_status(struct tps6598x *tps, u32 *status)
+{
+	int ret;
+
+	ret = tps6598x_read32(tps, TPS_REG_STATUS, status);
+	if (ret) {
+		dev_err(tps->dev, "%s: failed to read status\n", __func__);
+		return false;
+	}
+	trace_tps6598x_status(*status);
+
+	return true;
+}
+
+static bool tps6598x_read_data_status(struct tps6598x *tps)
+{
+	u32 data_status;
+	int ret;
+
+	ret = tps6598x_read32(tps, TPS_REG_DATA_STATUS, &data_status);
+	if (ret < 0) {
+		dev_err(tps->dev, "failed to read data status: %d\n", ret);
+		return false;
+	}
+	trace_tps6598x_data_status(data_status);
+
+	return true;
+}
+
+static bool tps6598x_read_power_status(struct tps6598x *tps)
+{
+	u16 pwr_status;
+	int ret;
+
+	ret = tps6598x_read16(tps, TPS_REG_POWER_STATUS, &pwr_status);
+	if (ret < 0) {
+		dev_err(tps->dev, "failed to read power status: %d\n", ret);
+		return false;
+	}
+	trace_tps6598x_power_status(pwr_status);
+
+	return true;
+}
+
+static void tps6598x_handle_plug_event(struct tps6598x *tps, u32 status)
+{
+	int ret;
+
+	if (status & TPS_STATUS_PLUG_PRESENT) {
+		ret = tps6598x_connect(tps, status);
+		if (ret)
+			dev_err(tps->dev, "failed to register partner\n");
+	} else {
+		tps6598x_disconnect(tps, status);
+	}
+}
+
+static irqreturn_t cd321x_interrupt(int irq, void *data)
+{
+	struct tps6598x *tps = data;
+	u64 event;
+	u32 status;
+	int ret;
+
+	mutex_lock(&tps->lock);
+
+	ret = tps6598x_read64(tps, TPS_REG_INT_EVENT1, &event);
+	if (ret) {
+		dev_err(tps->dev, "%s: failed to read events\n", __func__);
+		goto err_unlock;
+	}
+	trace_cd321x_irq(event);
+
+	if (!event)
+		goto err_unlock;
+
+	if (!tps6598x_read_status(tps, &status))
+		goto err_clear_ints;
+
+	if (event & APPLE_CD_REG_INT_POWER_STATUS_UPDATE)
+		if (!tps6598x_read_power_status(tps))
+			goto err_clear_ints;
+
+	if (event & APPLE_CD_REG_INT_DATA_STATUS_UPDATE)
+		if (!tps6598x_read_data_status(tps))
+			goto err_clear_ints;
+
+	/* Handle plug insert or removal */
+	if (event & APPLE_CD_REG_INT_PLUG_EVENT)
+		tps6598x_handle_plug_event(tps, status);
+
+err_clear_ints:
+	tps6598x_write64(tps, TPS_REG_INT_CLEAR1, event);
+
+err_unlock:
+	mutex_unlock(&tps->lock);
+
+	if (event)
+		return IRQ_HANDLED;
+	return IRQ_NONE;
+}
+
 static irqreturn_t tps6598x_interrupt(int irq, void *data)
 {
 	struct tps6598x *tps = data;
 	u64 event1;
 	u64 event2;
-	u32 status, data_status;
-	u16 pwr_status;
+	u32 status;
 	int ret;
 
 	mutex_lock(&tps->lock);
@@ -420,42 +531,23 @@ static irqreturn_t tps6598x_interrupt(int irq, void *data)
 	}
 	trace_tps6598x_irq(event1, event2);
 
-	ret = tps6598x_read32(tps, TPS_REG_STATUS, &status);
-	if (ret) {
-		dev_err(tps->dev, "%s: failed to read status\n", __func__);
+	if (!(event1 | event2))
+		goto err_unlock;
+
+	if (!tps6598x_read_status(tps, &status))
 		goto err_clear_ints;
-	}
-	trace_tps6598x_status(status);
 
-	if ((event1 | event2) & TPS_REG_INT_POWER_STATUS_UPDATE) {
-		ret = tps6598x_read16(tps, TPS_REG_POWER_STATUS, &pwr_status);
-		if (ret < 0) {
-			dev_err(tps->dev, "failed to read power status: %d\n", ret);
+	if ((event1 | event2) & TPS_REG_INT_POWER_STATUS_UPDATE)
+		if (!tps6598x_read_power_status(tps))
 			goto err_clear_ints;
-		}
-		trace_tps6598x_power_status(pwr_status);
-	}
 
-	if ((event1 | event2) & TPS_REG_INT_DATA_STATUS_UPDATE) {
-		ret = tps6598x_read32(tps, TPS_REG_DATA_STATUS, &data_status);
-		if (ret < 0) {
-			dev_err(tps->dev, "failed to read data status: %d\n", ret);
+	if ((event1 | event2) & TPS_REG_INT_DATA_STATUS_UPDATE)
+		if (!tps6598x_read_data_status(tps))
 			goto err_clear_ints;
-		}
-		trace_tps6598x_data_status(data_status);
-	}
 
 	/* Handle plug insert or removal */
-	if ((event1 | event2) & TPS_REG_INT_PLUG_EVENT) {
-		if (status & TPS_STATUS_PLUG_PRESENT) {
-			ret = tps6598x_connect(tps, status);
-			if (ret)
-				dev_err(tps->dev,
-					"failed to register partner\n");
-		} else {
-			tps6598x_disconnect(tps, status);
-		}
-	}
+	if ((event1 | event2) & TPS_REG_INT_PLUG_EVENT)
+		tps6598x_handle_plug_event(tps, status);
 
 err_clear_ints:
 	tps6598x_write64(tps, TPS_REG_INT_CLEAR1, event1);
@@ -464,7 +556,9 @@ err_clear_ints:
 err_unlock:
 	mutex_unlock(&tps->lock);
 
-	return IRQ_HANDLED;
+	if (event1 | event2)
+		return IRQ_HANDLED;
+	return IRQ_NONE;
 }
 
 static int tps6598x_check_mode(struct tps6598x *tps)
@@ -547,6 +641,32 @@ static int tps6598x_psy_get_prop(struct power_supply *psy,
 	return ret;
 }
 
+static int cd321x_switch_power_state(struct tps6598x *tps, u8 target_state)
+{
+	u8 state;
+	int ret;
+
+	ret = tps6598x_read8(tps, TPS_REG_SYSTEM_POWER_STATE, &state);
+	if (ret)
+		return ret;
+
+	if (state == target_state)
+		return 0;
+
+	ret = tps6598x_exec_cmd(tps, "SPSS", sizeof(u8), &target_state, 0, NULL);
+	if (ret)
+		return ret;
+
+	ret = tps6598x_read8(tps, TPS_REG_SYSTEM_POWER_STATE, &state);
+	if (ret)
+		return ret;
+
+	if (state != target_state)
+		return -EINVAL;
+
+	return 0;
+}
+
 static int devm_tps6598_psy_register(struct tps6598x *tps)
 {
 	struct power_supply_config psy_cfg = {};
@@ -578,6 +698,8 @@ static int devm_tps6598_psy_register(struct tps6598x *tps)
 
 static int tps6598x_probe(struct i2c_client *client)
 {
+	irq_handler_t irq_handler = tps6598x_interrupt;
+	struct device_node *np = client->dev.of_node;
 	struct typec_capability typec_cap = { };
 	struct tps6598x *tps;
 	struct fwnode_handle *fwnode;
@@ -604,9 +726,6 @@ static int tps6598x_probe(struct i2c_client *client)
 	/*
 	 * Checking can the adapter handle SMBus protocol. If it can not, the
 	 * driver needs to take care of block reads separately.
-	 *
-	 * FIXME: Testing with I2C_FUNC_I2C. regmap-i2c uses I2C protocol
-	 * unconditionally if the adapter has I2C_FUNC_I2C set.
 	 */
 	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		tps->i2c_protocol = true;
@@ -615,6 +734,31 @@ static int tps6598x_probe(struct i2c_client *client)
 	ret = tps6598x_check_mode(tps);
 	if (ret)
 		return ret;
+
+	if (np && of_device_is_compatible(np, "apple,cd321x")) {
+		/* Switch CD321X chips to the correct system power state */
+		ret = cd321x_switch_power_state(tps, TPS_SYSTEM_POWER_STATE_S0);
+		if (ret)
+			return ret;
+
+		/* CD321X chips have all interrupts masked initially */
+		ret = tps6598x_write64(tps, TPS_REG_INT_MASK1,
+					APPLE_CD_REG_INT_POWER_STATUS_UPDATE |
+					APPLE_CD_REG_INT_DATA_STATUS_UPDATE |
+					APPLE_CD_REG_INT_PLUG_EVENT);
+		if (ret)
+			return ret;
+
+		irq_handler = cd321x_interrupt;
+	} else {
+		/* Enable power status, data status and plug event interrupts */
+		ret = tps6598x_write64(tps, TPS_REG_INT_MASK1,
+				       TPS_REG_INT_POWER_STATUS_UPDATE |
+				       TPS_REG_INT_DATA_STATUS_UPDATE |
+				       TPS_REG_INT_PLUG_EVENT);
+		if (ret)
+			return ret;
+	}
 
 	ret = tps6598x_read32(tps, TPS_REG_STATUS, &status);
 	if (ret < 0)
@@ -695,7 +839,7 @@ static int tps6598x_probe(struct i2c_client *client)
 	}
 
 	ret = devm_request_threaded_irq(&client->dev, client->irq, NULL,
-					tps6598x_interrupt,
+					irq_handler,
 					IRQF_SHARED | IRQF_ONESHOT,
 					dev_name(&client->dev), tps);
 	if (ret) {
@@ -729,6 +873,7 @@ static int tps6598x_remove(struct i2c_client *client)
 
 static const struct of_device_id tps6598x_of_match[] = {
 	{ .compatible = "ti,tps6598x", },
+	{ .compatible = "apple,cd321x", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, tps6598x_of_match);

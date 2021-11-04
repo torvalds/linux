@@ -12,10 +12,14 @@ maintainers:
 description: |
   Texas Instruments 6598x Type-C Port Switch and Power Delivery controller
 
+  A variant of this controller known as Apple CD321x or Apple ACE is also
+  present on hardware with Apple SoCs such as the M1.
+
 properties:
   compatible:
     enum:
       - ti,tps6598x
+      - apple,cd321x
   reg:
     maxItems: 1
 

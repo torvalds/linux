@@ -36,6 +36,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/usb/of.h>
 
 #include "core.h"
 
@@ -53,7 +54,8 @@ static void dwc2_set_his_params(struct dwc2_hsotg *hsotg)
 {
 	struct dwc2_core_params *p = &hsotg->params;
 
-	p->otg_cap = DWC2_CAP_PARAM_NO_HNP_SRP_CAPABLE;
+	p->otg_caps.hnp_support = false;
+	p->otg_caps.srp_support = false;
 	p->speed = DWC2_SPEED_PARAM_HIGH;
 	p->host_rx_fifo_size = 512;
 	p->host_nperio_tx_fifo_size = 512;
@@ -84,7 +86,8 @@ static void dwc2_set_rk_params(struct dwc2_hsotg *hsotg)
 {
 	struct dwc2_core_params *p = &hsotg->params;
 
-	p->otg_cap = DWC2_CAP_PARAM_NO_HNP_SRP_CAPABLE;
+	p->otg_caps.hnp_support = false;
+	p->otg_caps.srp_support = false;
 	p->host_rx_fifo_size = 525;
 	p->host_nperio_tx_fifo_size = 128;
 	p->host_perio_tx_fifo_size = 256;
@@ -97,7 +100,8 @@ static void dwc2_set_ltq_params(struct dwc2_hsotg *hsotg)
 {
 	struct dwc2_core_params *p = &hsotg->params;
 
-	p->otg_cap = 2;
+	p->otg_caps.hnp_support = false;
+	p->otg_caps.srp_support = false;
 	p->host_rx_fifo_size = 288;
 	p->host_nperio_tx_fifo_size = 128;
 	p->host_perio_tx_fifo_size = 96;
@@ -111,7 +115,8 @@ static void dwc2_set_amlogic_params(struct dwc2_hsotg *hsotg)
 {
 	struct dwc2_core_params *p = &hsotg->params;
 
-	p->otg_cap = DWC2_CAP_PARAM_NO_HNP_SRP_CAPABLE;
+	p->otg_caps.hnp_support = false;
+	p->otg_caps.srp_support = false;
 	p->speed = DWC2_SPEED_PARAM_HIGH;
 	p->host_rx_fifo_size = 512;
 	p->host_nperio_tx_fifo_size = 500;
@@ -144,7 +149,8 @@ static void dwc2_set_stm32f4x9_fsotg_params(struct dwc2_hsotg *hsotg)
 {
 	struct dwc2_core_params *p = &hsotg->params;
 
-	p->otg_cap = DWC2_CAP_PARAM_NO_HNP_SRP_CAPABLE;
+	p->otg_caps.hnp_support = false;
+	p->otg_caps.srp_support = false;
 	p->speed = DWC2_SPEED_PARAM_FULL;
 	p->host_rx_fifo_size = 128;
 	p->host_nperio_tx_fifo_size = 96;
@@ -168,7 +174,9 @@ static void dwc2_set_stm32mp15_fsotg_params(struct dwc2_hsotg *hsotg)
 {
 	struct dwc2_core_params *p = &hsotg->params;
 
-	p->otg_cap = DWC2_CAP_PARAM_NO_HNP_SRP_CAPABLE;
+	p->otg_caps.hnp_support = false;
+	p->otg_caps.srp_support = false;
+	p->otg_caps.otg_rev = 0x200;
 	p->speed = DWC2_SPEED_PARAM_FULL;
 	p->host_rx_fifo_size = 128;
 	p->host_nperio_tx_fifo_size = 96;
@@ -188,7 +196,9 @@ static void dwc2_set_stm32mp15_hsotg_params(struct dwc2_hsotg *hsotg)
 {
 	struct dwc2_core_params *p = &hsotg->params;
 
-	p->otg_cap = DWC2_CAP_PARAM_NO_HNP_SRP_CAPABLE;
+	p->otg_caps.hnp_support = false;
+	p->otg_caps.srp_support = false;
+	p->otg_caps.otg_rev = 0x200;
 	p->activate_stm_id_vb_detection = !device_property_read_bool(hsotg->dev, "usb-role-switch");
 	p->host_rx_fifo_size = 440;
 	p->host_nperio_tx_fifo_size = 256;
@@ -241,23 +251,22 @@ MODULE_DEVICE_TABLE(acpi, dwc2_acpi_match);
 
 static void dwc2_set_param_otg_cap(struct dwc2_hsotg *hsotg)
 {
-	u8 val;
-
 	switch (hsotg->hw_params.op_mode) {
 	case GHWCFG2_OP_MODE_HNP_SRP_CAPABLE:
-		val = DWC2_CAP_PARAM_HNP_SRP_CAPABLE;
+		hsotg->params.otg_caps.hnp_support = true;
+		hsotg->params.otg_caps.srp_support = true;
 		break;
 	case GHWCFG2_OP_MODE_SRP_ONLY_CAPABLE:
 	case GHWCFG2_OP_MODE_SRP_CAPABLE_DEVICE:
 	case GHWCFG2_OP_MODE_SRP_CAPABLE_HOST:
-		val = DWC2_CAP_PARAM_SRP_ONLY_CAPABLE;
+		hsotg->params.otg_caps.hnp_support = false;
+		hsotg->params.otg_caps.srp_support = true;
 		break;
 	default:
-		val = DWC2_CAP_PARAM_NO_HNP_SRP_CAPABLE;
+		hsotg->params.otg_caps.hnp_support = false;
+		hsotg->params.otg_caps.srp_support = false;
 		break;
 	}
-
-	hsotg->params.otg_cap = val;
 }
 
 static void dwc2_set_param_phy_type(struct dwc2_hsotg *hsotg)
@@ -463,6 +472,8 @@ static void dwc2_get_device_properties(struct dwc2_hsotg *hsotg)
 						       &p->g_tx_fifo_size[1],
 						       num);
 		}
+
+		of_usb_update_otg_caps(hsotg->dev->of_node, &p->otg_caps);
 	}
 
 	if (of_find_property(hsotg->dev->of_node, "disable-over-current", NULL))
@@ -473,29 +484,27 @@ static void dwc2_check_param_otg_cap(struct dwc2_hsotg *hsotg)
 {
 	int valid = 1;
 
-	switch (hsotg->params.otg_cap) {
-	case DWC2_CAP_PARAM_HNP_SRP_CAPABLE:
+	if (hsotg->params.otg_caps.hnp_support && hsotg->params.otg_caps.srp_support) {
+		/* check HNP && SRP capable */
 		if (hsotg->hw_params.op_mode != GHWCFG2_OP_MODE_HNP_SRP_CAPABLE)
 			valid = 0;
-		break;
-	case DWC2_CAP_PARAM_SRP_ONLY_CAPABLE:
-		switch (hsotg->hw_params.op_mode) {
-		case GHWCFG2_OP_MODE_HNP_SRP_CAPABLE:
-		case GHWCFG2_OP_MODE_SRP_ONLY_CAPABLE:
-		case GHWCFG2_OP_MODE_SRP_CAPABLE_DEVICE:
-		case GHWCFG2_OP_MODE_SRP_CAPABLE_HOST:
-			break;
-		default:
-			valid = 0;
-			break;
+	} else if (!hsotg->params.otg_caps.hnp_support) {
+		/* check SRP only capable */
+		if (hsotg->params.otg_caps.srp_support) {
+			switch (hsotg->hw_params.op_mode) {
+			case GHWCFG2_OP_MODE_HNP_SRP_CAPABLE:
+			case GHWCFG2_OP_MODE_SRP_ONLY_CAPABLE:
+			case GHWCFG2_OP_MODE_SRP_CAPABLE_DEVICE:
+			case GHWCFG2_OP_MODE_SRP_CAPABLE_HOST:
+				break;
+			default:
+				valid = 0;
+				break;
+			}
 		}
-		break;
-	case DWC2_CAP_PARAM_NO_HNP_SRP_CAPABLE:
-		/* always valid */
-		break;
-	default:
+		/* else: NO HNP && NO SRP capable: always valid */
+	} else {
 		valid = 0;
-		break;
 	}
 
 	if (!valid)
