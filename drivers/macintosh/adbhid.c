@@ -816,9 +816,7 @@ adbhid_input_register(int id, int default_id, int original_handler_id,
 		case 0xC4: case 0xC7:
 			keyboard_type = "ISO, swapping keys";
 			input_dev->id.version = ADB_KEYBOARD_ISO;
-			i = hid->keycode[10];
-			hid->keycode[10] = hid->keycode[50];
-			hid->keycode[50] = i;
+			swap(hid->keycode[10], hid->keycode[50]);
 			break;
 
 		case 0x12: case 0x15: case 0x16: case 0x17: case 0x1A:
