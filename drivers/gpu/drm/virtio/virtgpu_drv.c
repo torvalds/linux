@@ -163,10 +163,11 @@ static __poll_t virtio_gpu_poll(struct file *filp,
 	struct drm_file *drm_file = filp->private_data;
 	struct virtio_gpu_fpriv *vfpriv = drm_file->driver_priv;
 	struct drm_device *dev = drm_file->minor->dev;
+	struct virtio_gpu_device *vgdev = dev->dev_private;
 	struct drm_pending_event *e = NULL;
 	__poll_t mask = 0;
 
-	if (!vfpriv->ring_idx_mask)
+	if (!vgdev->has_virgl_3d || !vfpriv || !vfpriv->ring_idx_mask)
 		return drm_poll(filp, wait);
 
 	poll_wait(filp, &drm_file->event_wait, wait);
