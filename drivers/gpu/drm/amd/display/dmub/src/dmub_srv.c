@@ -100,24 +100,9 @@ void dmub_flush_buffer_mem(const struct dmub_fb *fb)
 }
 
 static const struct dmub_fw_meta_info *
-dmub_get_fw_meta_info(const struct dmub_srv_region_params *params)
+dmub_get_fw_meta_info_from_blob(const uint8_t *blob, uint32_t blob_size, uint32_t meta_offset)
 {
 	const union dmub_fw_meta *meta;
-	const uint8_t *blob = NULL;
-	uint32_t blob_size = 0;
-	uint32_t meta_offset = 0;
-
-	if (params->fw_bss_data && params->bss_data_size) {
-		/* Legacy metadata region. */
-		blob = params->fw_bss_data;
-		blob_size = params->bss_data_size;
-		meta_offset = DMUB_FW_META_OFFSET;
-	} else if (params->fw_inst_const && params->inst_const_size) {
-		/* Combined metadata region. */
-		blob = params->fw_inst_const;
-		blob_size = params->inst_const_size;
-		meta_offset = 0;
-	}
 
 	if (!blob || !blob_size)
 		return NULL;
@@ -132,6 +117,32 @@ dmub_get_fw_meta_info(const struct dmub_srv_region_params *params)
 		return NULL;
 
 	return &meta->info;
+}
+
+static const struct dmub_fw_meta_info *
+dmub_get_fw_meta_info(const struct dmub_srv_region_params *params)
+{
+	const struct dmub_fw_meta_info *info = NULL;
+
+	if (params->fw_bss_data && params->bss_data_size) {
+		/* Legacy metadata region. */
+		info = dmub_get_fw_meta_info_from_blob(params->fw_bss_data,
+						       params->bss_data_size,
+						       DMUB_FW_META_OFFSET);
+	} else if (params->fw_inst_const && params->inst_const_size) {
+		/* Combined metadata region - can be aligned to 16-bytes. */
+		uint32_t i;
+
+		for (i = 0; i < 16; ++i) {
+			info = dmub_get_fw_meta_info_from_blob(
+				params->fw_inst_const, params->inst_const_size, i);
+
+			if (info)
+				break;
+		}
+	}
+
+	return info;
 }
 
 static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
