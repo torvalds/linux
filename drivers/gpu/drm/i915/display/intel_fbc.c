@@ -54,6 +54,7 @@ struct intel_fbc_funcs {
 	bool (*is_active)(struct drm_i915_private *i915);
 	bool (*is_compressing)(struct drm_i915_private *i915);
 	void (*nuke)(struct drm_i915_private *i915);
+	void (*program_cfb)(struct drm_i915_private *i915);
 };
 
 /*
@@ -255,12 +256,28 @@ static void i8xx_fbc_nuke(struct drm_i915_private *dev_priv)
 	spin_unlock_irq(&dev_priv->uncore.lock);
 }
 
+static void i8xx_fbc_program_cfb(struct drm_i915_private *i915)
+{
+	struct intel_fbc *fbc = &i915->fbc;
+
+	GEM_BUG_ON(range_overflows_end_t(u64, i915->dsm.start,
+					 fbc->compressed_fb.start, U32_MAX));
+	GEM_BUG_ON(range_overflows_end_t(u64, i915->dsm.start,
+					 fbc->compressed_llb.start, U32_MAX));
+
+	intel_de_write(i915, FBC_CFB_BASE,
+		       i915->dsm.start + fbc->compressed_fb.start);
+	intel_de_write(i915, FBC_LL_BASE,
+		       i915->dsm.start + fbc->compressed_llb.start);
+}
+
 static const struct intel_fbc_funcs i8xx_fbc_funcs = {
 	.activate = i8xx_fbc_activate,
 	.deactivate = i8xx_fbc_deactivate,
 	.is_active = i8xx_fbc_is_active,
 	.is_compressing = i8xx_fbc_is_compressing,
 	.nuke = i8xx_fbc_nuke,
+	.program_cfb = i8xx_fbc_program_cfb,
 };
 
 static void i965_fbc_nuke(struct drm_i915_private *dev_priv)
@@ -280,6 +297,7 @@ static const struct intel_fbc_funcs i965_fbc_funcs = {
 	.is_active = i8xx_fbc_is_active,
 	.is_compressing = i8xx_fbc_is_compressing,
 	.nuke = i965_fbc_nuke,
+	.program_cfb = i8xx_fbc_program_cfb,
 };
 
 static u32 g4x_dpfc_ctl_limit(struct drm_i915_private *i915)
@@ -351,12 +369,20 @@ static bool g4x_fbc_is_compressing(struct drm_i915_private *i915)
 	return intel_de_read(i915, DPFC_STATUS) & DPFC_COMP_SEG_MASK;
 }
 
+static void g4x_fbc_program_cfb(struct drm_i915_private *i915)
+{
+	struct intel_fbc *fbc = &i915->fbc;
+
+	intel_de_write(i915, DPFC_CB_BASE, fbc->compressed_fb.start);
+}
+
 static const struct intel_fbc_funcs g4x_fbc_funcs = {
 	.activate = g4x_fbc_activate,
 	.deactivate = g4x_fbc_deactivate,
 	.is_active = g4x_fbc_is_active,
 	.is_compressing = g4x_fbc_is_compressing,
 	.nuke = i965_fbc_nuke,
+	.program_cfb = g4x_fbc_program_cfb,
 };
 
 static void ilk_fbc_activate(struct drm_i915_private *dev_priv)
@@ -392,12 +418,20 @@ static bool ilk_fbc_is_compressing(struct drm_i915_private *i915)
 	return intel_de_read(i915, ILK_DPFC_STATUS) & ILK_DPFC_COMP_SEG_MASK;
 }
 
+static void ilk_fbc_program_cfb(struct drm_i915_private *i915)
+{
+	struct intel_fbc *fbc = &i915->fbc;
+
+	intel_de_write(i915, ILK_DPFC_CB_BASE, fbc->compressed_fb.start);
+}
+
 static const struct intel_fbc_funcs ilk_fbc_funcs = {
 	.activate = ilk_fbc_activate,
 	.deactivate = ilk_fbc_deactivate,
 	.is_active = ilk_fbc_is_active,
 	.is_compressing = ilk_fbc_is_compressing,
 	.nuke = i965_fbc_nuke,
+	.program_cfb = ilk_fbc_program_cfb,
 };
 
 static void snb_fbc_program_fence(struct drm_i915_private *i915)
@@ -431,6 +465,7 @@ static const struct intel_fbc_funcs snb_fbc_funcs = {
 	.is_active = ilk_fbc_is_active,
 	.is_compressing = ilk_fbc_is_compressing,
 	.nuke = snb_fbc_nuke,
+	.program_cfb = ilk_fbc_program_cfb,
 };
 
 static void glk_fbc_program_cfb_stride(struct drm_i915_private *i915)
@@ -509,6 +544,7 @@ static const struct intel_fbc_funcs ivb_fbc_funcs = {
 	.is_active = ilk_fbc_is_active,
 	.is_compressing = ivb_fbc_is_compressing,
 	.nuke = snb_fbc_nuke,
+	.program_cfb = ilk_fbc_program_cfb,
 };
 
 static bool intel_fbc_hw_is_active(struct drm_i915_private *dev_priv)
@@ -704,25 +740,7 @@ static void intel_fbc_program_cfb(struct drm_i915_private *dev_priv)
 {
 	struct intel_fbc *fbc = &dev_priv->fbc;
 
-	if (DISPLAY_VER(dev_priv) >= 5) {
-		intel_de_write(dev_priv, ILK_DPFC_CB_BASE,
-			       fbc->compressed_fb.start);
-	} else if (IS_GM45(dev_priv)) {
-		intel_de_write(dev_priv, DPFC_CB_BASE,
-			       fbc->compressed_fb.start);
-	} else {
-		GEM_BUG_ON(range_overflows_end_t(u64, dev_priv->dsm.start,
-						 fbc->compressed_fb.start,
-						 U32_MAX));
-		GEM_BUG_ON(range_overflows_end_t(u64, dev_priv->dsm.start,
-						 fbc->compressed_llb.start,
-						 U32_MAX));
-
-		intel_de_write(dev_priv, FBC_CFB_BASE,
-			       dev_priv->dsm.start + fbc->compressed_fb.start);
-		intel_de_write(dev_priv, FBC_LL_BASE,
-			       dev_priv->dsm.start + fbc->compressed_llb.start);
-	}
+	fbc->funcs->program_cfb(dev_priv);
 }
 
 static void __intel_fbc_cleanup_cfb(struct drm_i915_private *dev_priv)
