@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright 2016-2019 HabanaLabs, Ltd.
+ * Copyright 2016-2021 HabanaLabs, Ltd.
  * All Rights Reserved.
  *
  */
@@ -263,6 +263,7 @@ out_err:
 
 static void set_driver_behavior_per_device(struct hl_device *hdev)
 {
+	hdev->pldm = 0;
 	hdev->fw_components = FW_TYPE_ALL_TYPES;
 	hdev->cpu_queues_enable = 1;
 	hdev->heartbeat = 1;
@@ -279,23 +280,53 @@ static void set_driver_behavior_per_device(struct hl_device *hdev)
 	hdev->axi_drain = 0;
 }
 
-/*
+static void copy_kernel_module_params_to_device(struct hl_device *hdev)
+{
+	hdev->major = hl_major;
+	hdev->memory_scrub = memory_scrub;
+	hdev->reset_on_lockup = reset_on_lockup;
+	hdev->boot_error_status_mask = boot_error_status_mask;
+
+	if (timeout_locked)
+		hdev->timeout_jiffies = msecs_to_jiffies(timeout_locked * 1000);
+	else
+		hdev->timeout_jiffies = MAX_SCHEDULE_TIMEOUT;
+
+}
+
+static int fixup_device_params(struct hl_device *hdev)
+{
+	hdev->asic_prop.fw_security_enabled = is_asic_secured(hdev->asic_type);
+
+	hdev->fw_poll_interval_usec = HL_FW_STATUS_POLL_INTERVAL_USEC;
+
+	hdev->stop_on_err = true;
+	hdev->curr_reset_cause = HL_RESET_CAUSE_UNKNOWN;
+	hdev->prev_reset_trigger = HL_RESET_TRIGGER_DEFAULT;
+
+	/* Enable only after the initialization of the device */
+	hdev->disabled = true;
+
+	/* Set default DMA mask to 32 bits */
+	hdev->dma_mask = 32;
+
+	return 0;
+}
+
+/**
  * create_hdev - create habanalabs device instance
  *
  * @dev: will hold the pointer to the new habanalabs device structure
  * @pdev: pointer to the pci device
- * @asic_type: in case of simulator device, which device is it
- * @minor: in case of simulator device, the minor of the device
  *
  * Allocate memory for habanalabs device and initialize basic fields
  * Identify the ASIC type
  * Allocate ID (minor) for the device (only for real devices)
  */
-int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
-		enum hl_asic_type asic_type, int minor)
+static int create_hdev(struct hl_device **dev, struct pci_dev *pdev)
 {
+	int main_id, ctrl_id = 0, rc = 0;
 	struct hl_device *hdev;
-	int rc, main_id, ctrl_id = 0;
 
 	*dev = NULL;
 
@@ -303,72 +334,39 @@ int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 	if (!hdev)
 		return -ENOMEM;
 
-	/* First, we must find out which ASIC are we handling. This is needed
-	 * to configure the behavior of the driver (kernel parameters)
-	 */
-	if (pdev) {
-		hdev->asic_type = get_asic_type(pdev->device);
-		if (hdev->asic_type == ASIC_INVALID) {
-			dev_err(&pdev->dev, "Unsupported ASIC\n");
-			rc = -ENODEV;
-			goto free_hdev;
-		}
-	} else {
-		hdev->asic_type = asic_type;
-	}
-
-	if (pdev)
-		hdev->asic_prop.fw_security_enabled =
-					is_asic_secured(hdev->asic_type);
-	else
-		hdev->asic_prop.fw_security_enabled = false;
+	/* can be NULL in case of simulator device */
+	hdev->pdev = pdev;
 
 	/* Assign status description string */
-	strncpy(hdev->status[HL_DEVICE_STATUS_OPERATIONAL],
-					"operational", HL_STR_MAX);
-	strncpy(hdev->status[HL_DEVICE_STATUS_IN_RESET],
-					"in reset", HL_STR_MAX);
-	strncpy(hdev->status[HL_DEVICE_STATUS_MALFUNCTION],
-					"disabled", HL_STR_MAX);
-	strncpy(hdev->status[HL_DEVICE_STATUS_NEEDS_RESET],
-					"needs reset", HL_STR_MAX);
+	strncpy(hdev->status[HL_DEVICE_STATUS_OPERATIONAL], "operational", HL_STR_MAX);
+	strncpy(hdev->status[HL_DEVICE_STATUS_IN_RESET], "in reset", HL_STR_MAX);
+	strncpy(hdev->status[HL_DEVICE_STATUS_MALFUNCTION], "disabled", HL_STR_MAX);
+	strncpy(hdev->status[HL_DEVICE_STATUS_NEEDS_RESET], "needs reset", HL_STR_MAX);
 	strncpy(hdev->status[HL_DEVICE_STATUS_IN_DEVICE_CREATION],
 					"in device creation", HL_STR_MAX);
 
-	hdev->major = hl_major;
-	hdev->reset_on_lockup = reset_on_lockup;
-	hdev->memory_scrub = memory_scrub;
-	hdev->boot_error_status_mask = boot_error_status_mask;
-	hdev->stop_on_err = true;
+	/* First, we must find out which ASIC are we handling. This is needed
+	 * to configure the behavior of the driver (kernel parameters)
+	 */
+	hdev->asic_type = get_asic_type(pdev->device);
+	if (hdev->asic_type == ASIC_INVALID) {
+		dev_err(&pdev->dev, "Unsupported ASIC\n");
+		rc = -ENODEV;
+		goto free_hdev;
+	}
 
-	hdev->pldm = 0;
+	copy_kernel_module_params_to_device(hdev);
 
 	set_driver_behavior_per_device(hdev);
 
-	hdev->fw_poll_interval_usec = hdev->pldm ? HL_FW_STATUS_PLDM_POLL_INTERVAL_USEC :
-							HL_FW_STATUS_POLL_INTERVAL_USEC;
-
-	hdev->curr_reset_cause = HL_RESET_CAUSE_UNKNOWN;
-	hdev->prev_reset_trigger = HL_RESET_TRIGGER_DEFAULT;
-
-	if (timeout_locked)
-		hdev->timeout_jiffies = msecs_to_jiffies(timeout_locked * 1000);
-	else
-		hdev->timeout_jiffies = MAX_SCHEDULE_TIMEOUT;
-
-	hdev->disabled = true;
-	hdev->pdev = pdev; /* can be NULL in case of simulator device */
-
-	/* Set default DMA mask to 32 bits */
-	hdev->dma_mask = 32;
+	fixup_device_params(hdev);
 
 	mutex_lock(&hl_devs_idr_lock);
 
 	/* Always save 2 numbers, 1 for main device and 1 for control.
 	 * They must be consecutive
 	 */
-	main_id = idr_alloc(&hl_devs_idr, hdev, 0, HL_MAX_MINORS,
-				GFP_KERNEL);
+	main_id = idr_alloc(&hl_devs_idr, hdev, 0, HL_MAX_MINORS, GFP_KERNEL);
 
 	if (main_id >= 0)
 		ctrl_id = idr_alloc(&hl_devs_idr, hdev, main_id + 1,
@@ -408,7 +406,7 @@ free_hdev:
  * @dev: pointer to the habanalabs device structure
  *
  */
-void destroy_hdev(struct hl_device *hdev)
+static void destroy_hdev(struct hl_device *hdev)
 {
 	/* Remove device from the device list */
 	mutex_lock(&hl_devs_idr_lock);
@@ -447,7 +445,7 @@ static int hl_pmops_resume(struct device *dev)
 	return hl_device_resume(hdev);
 }
 
-/*
+/**
  * hl_pci_probe - probe PCI habanalabs devices
  *
  * @pdev: pointer to pci device
@@ -457,8 +455,7 @@ static int hl_pmops_resume(struct device *dev)
  * Create a new habanalabs device and initialize it according to the
  * device's type
  */
-static int hl_pci_probe(struct pci_dev *pdev,
-				const struct pci_device_id *id)
+static int hl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct hl_device *hdev;
 	int rc;
@@ -467,7 +464,7 @@ static int hl_pci_probe(struct pci_dev *pdev,
 		 " device found [%04x:%04x] (rev %x)\n",
 		 (int)pdev->vendor, (int)pdev->device, (int)pdev->revision);
 
-	rc = create_hdev(&hdev, pdev, ASIC_INVALID, -1);
+	rc = create_hdev(&hdev, pdev);
 	if (rc)
 		return rc;
 
