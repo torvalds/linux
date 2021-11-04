@@ -1449,9 +1449,7 @@ static bool dcn301_resource_construct(
 	dc->caps.post_blend_color_processing = true;
 	dc->caps.force_dp_tps4_for_cp2520 = true;
 	dc->caps.extended_aux_timeout_support = true;
-#ifdef CONFIG_DRM_AMD_DC_DMUB
 	dc->caps.dmcub_support = true;
-#endif
 
 	/* Color pipeline capabilities */
 	dc->caps.color.dpp.dcn_arch = 1;
