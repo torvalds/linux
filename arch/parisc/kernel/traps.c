@@ -481,7 +481,7 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 
 	if (code == 1)
 	    pdc_console_restart();  /* switch back to pdc if HPMC */
-	else
+	else if (!irqs_disabled_flags(regs->gr[0]))
 	    local_irq_enable();
 
 	/* Security check:

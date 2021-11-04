@@ -14,8 +14,6 @@
  *    Copyright (C) 2003 James Bottomley <jejb at parisc-linux.org>
  */
 
-#define GENERATING_ASM_OFFSETS /* asm/smp.h */
-
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/thread_info.h>
@@ -39,9 +37,6 @@ int main(void)
 {
 	DEFINE(TASK_TI_FLAGS, offsetof(struct task_struct, thread_info.flags));
 	DEFINE(TASK_STACK, offsetof(struct task_struct, stack));
-#ifdef CONFIG_SMP
-	DEFINE(TASK_CPU, offsetof(struct task_struct, cpu));
-#endif
 	BLANK();
 	DEFINE(TASK_REGS, offsetof(struct task_struct, thread.regs));
 	DEFINE(TASK_PT_PSW, offsetof(struct task_struct, thread.regs.gr[ 0]));
