@@ -173,7 +173,7 @@ static int detect_share(int wp_cnt, int bp_cnt)
  *     we create another watchpoint to ensure
  *     the slot accounting is correct
  */
-int test__bp_accounting(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__bp_accounting(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	int has_ioctl = detect_ioctl();
 	int wp_cnt = detect_cnt(false);
@@ -189,7 +189,7 @@ int test__bp_accounting(struct test *test __maybe_unused, int subtest __maybe_un
 	return bp_accounting(wp_cnt, share);
 }
 
-bool test__bp_account_is_supported(void)
+static bool test__bp_account_is_supported(void)
 {
 	/*
 	 * PowerPC and S390 do not support creation of instruction
@@ -204,3 +204,9 @@ bool test__bp_account_is_supported(void)
 	return true;
 #endif
 }
+
+struct test suite__bp_accounting = {
+	.desc = "Breakpoint accounting",
+	.func = test__bp_accounting,
+	.is_supported = test__bp_account_is_supported,
+};

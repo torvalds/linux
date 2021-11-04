@@ -34,220 +34,79 @@ struct test *__weak arch_tests[] = {
 	NULL,
 };
 
-DEFINE_SUITE("vmlinux symtab matches kallsyms", vmlinux_matches_kallsyms);
-DEFINE_SUITE("Detect openat syscall event", openat_syscall_event);
-DEFINE_SUITE("Detect openat syscall event on all cpus", openat_syscall_event_on_all_cpus);
-DEFINE_SUITE("Read samples using the mmap interface", basic_mmap);
-DEFINE_SUITE("Test data source output", mem);
-DEFINE_SUITE("Parse event definition strings", parse_events);
-DEFINE_SUITE("Simple expression parser", expr);
-DEFINE_SUITE("PERF_RECORD_* events & perf_sample fields", PERF_RECORD);
-DEFINE_SUITE("Parse perf pmu format", pmu);
-static struct test pmu_events = {
-	.desc = "PMU events",
-	.func = test__pmu_events,
-	.subtest = {
-		.skip_if_fail	= false,
-		.get_nr		= test__pmu_events_subtest_get_nr,
-		.get_desc	= test__pmu_events_subtest_get_desc,
-		.skip_reason	= test__pmu_events_subtest_skip_reason,
-	},
-};
-DEFINE_SUITE("DSO data read", dso_data);
-DEFINE_SUITE("DSO data cache", dso_data_cache);
-DEFINE_SUITE("DSO data reopen", dso_data_reopen);
-DEFINE_SUITE("Roundtrip evsel->name", perf_evsel__roundtrip_name_test);
-DEFINE_SUITE("Parse sched tracepoints fields", perf_evsel__tp_sched_test);
-DEFINE_SUITE("syscalls:sys_enter_openat event fields", syscall_openat_tp_fields);
-DEFINE_SUITE("Setup struct perf_event_attr", attr);
-DEFINE_SUITE("Match and link multiple hists", hists_link);
-DEFINE_SUITE("'import perf' in python", python_use);
-static struct test bp_signal = {
-	.desc = "Breakpoint overflow signal handler",
-	.func = test__bp_signal,
-	.is_supported = test__bp_signal_is_supported,
-};
-static struct test bp_signal_overflow = {
-	.desc = "Breakpoint overflow sampling",
-	.func = test__bp_signal_overflow,
-	.is_supported = test__bp_signal_is_supported,
-};
-static struct test bp_accounting = {
-	.desc = "Breakpoint accounting",
-	.func = test__bp_accounting,
-	.is_supported = test__bp_account_is_supported,
-};
-static struct test wp = {
-	.desc = "Watchpoint",
-	.func = test__wp,
-	.is_supported = test__wp_is_supported,
-	.subtest = {
-		.skip_if_fail	= false,
-		.get_nr		= test__wp_subtest_get_nr,
-		.get_desc	= test__wp_subtest_get_desc,
-		.skip_reason    = test__wp_subtest_skip_reason,
-	},
-};
-DEFINE_SUITE("Number of exit events of a simple workload", task_exit);
-DEFINE_SUITE("Software clock events period values", sw_clock_freq);
-DEFINE_SUITE("Object code reading", code_reading);
-DEFINE_SUITE("Sample parsing", sample_parsing);
-DEFINE_SUITE("Use a dummy software event to keep tracking", keep_tracking);
-DEFINE_SUITE("Parse with no sample_id_all bit set", parse_no_sample_id_all);
-DEFINE_SUITE("Filter hist entries", hists_filter);
-DEFINE_SUITE("Lookup mmap thread", mmap_thread_lookup);
-DEFINE_SUITE("Share thread maps", thread_maps_share);
-DEFINE_SUITE("Sort output of hist entries", hists_output);
-DEFINE_SUITE("Cumulate child hist entries", hists_cumulate);
-DEFINE_SUITE("Track with sched_switch", switch_tracking);
-DEFINE_SUITE("Filter fds with revents mask in a fdarray", fdarray__filter);
-DEFINE_SUITE("Add fd to a fdarray, making it autogrow", fdarray__add);
-DEFINE_SUITE("kmod_path__parse", kmod_path__parse);
-DEFINE_SUITE("Thread map", thread_map);
-static struct test llvm = {
-	.desc = "LLVM search and compile",
-	.func = test__llvm,
-	.subtest = {
-		.skip_if_fail	= true,
-		.get_nr		= test__llvm_subtest_get_nr,
-		.get_desc	= test__llvm_subtest_get_desc,
-	},
-};
-DEFINE_SUITE("Session topology", session_topology);
-static struct test bpf = {
-	.desc = "BPF filter",
-	.func = test__bpf,
-	.subtest = {
-		.skip_if_fail	= true,
-		.get_nr		= test__bpf_subtest_get_nr,
-		.get_desc	= test__bpf_subtest_get_desc,
-	},
-};
-DEFINE_SUITE("Synthesize thread map", thread_map_synthesize);
-DEFINE_SUITE("Remove thread map", thread_map_remove);
-DEFINE_SUITE("Synthesize cpu map", cpu_map_synthesize);
-DEFINE_SUITE("Synthesize stat config", synthesize_stat_config);
-DEFINE_SUITE("Synthesize stat", synthesize_stat);
-DEFINE_SUITE("Synthesize stat round", synthesize_stat_round);
-DEFINE_SUITE("Synthesize attr update", event_update);
-DEFINE_SUITE("Event times", event_times);
-DEFINE_SUITE("Read backward ring buffer", backward_ring_buffer);
-DEFINE_SUITE("Print cpu map", cpu_map_print);
-DEFINE_SUITE("Merge cpu map", cpu_map_merge);
-DEFINE_SUITE("Probe SDT events", sdt_event);
-DEFINE_SUITE("is_printable_array", is_printable_array);
-DEFINE_SUITE("Print bitmap", bitmap_print);
-DEFINE_SUITE("perf hooks", perf_hooks);
-static struct test clang = {
-	.desc = "builtin clang support",
-	.func = test__clang,
-	.subtest = {
-		.skip_if_fail	= true,
-		.get_nr		= test__clang_subtest_get_nr,
-		.get_desc	= test__clang_subtest_get_desc,
-	}
-};
-DEFINE_SUITE("unit_number__scnprintf", unit_number__scnprint);
-DEFINE_SUITE("mem2node", mem2node);
-DEFINE_SUITE("time utils", time_utils);
-DEFINE_SUITE("Test jit_write_elf", jit_write_elf);
-static struct test pfm = {
-	.desc = "Test libpfm4 support",
-	.func = test__pfm,
-	.subtest = {
-		.skip_if_fail	= true,
-		.get_nr		= test__pfm_subtest_get_nr,
-		.get_desc	= test__pfm_subtest_get_desc,
-	}
-};
-DEFINE_SUITE("Test api io", api_io);
-DEFINE_SUITE("maps__merge_in", maps__merge_in);
-DEFINE_SUITE("Demangle Java", demangle_java);
-DEFINE_SUITE("Demangle OCaml", demangle_ocaml);
-DEFINE_SUITE("Parse and process metrics", parse_metric);
-DEFINE_SUITE("PE file support", pe_file_parsing);
-DEFINE_SUITE("Event expansion for cgroups", expand_cgroup_events);
-static struct test perf_time_to_tsc = {
-	.desc = "Convert perf time to TSC",
-	.func = test__perf_time_to_tsc,
-	.is_supported = test__tsc_is_supported,
-};
-DEFINE_SUITE("dlfilter C API", dlfilter);
-
-
 static struct test *generic_tests[] = {
-	&vmlinux_matches_kallsyms,
-	&openat_syscall_event,
-	&openat_syscall_event_on_all_cpus,
-	&basic_mmap,
-	&mem,
-	&parse_events,
-	&expr,
-	&PERF_RECORD,
-	&pmu,
-	&pmu_events,
-	&dso_data,
-	&dso_data_cache,
-	&dso_data_reopen,
-	&perf_evsel__roundtrip_name_test,
-	&perf_evsel__tp_sched_test,
-	&syscall_openat_tp_fields,
-	&attr,
-	&hists_link,
-	&python_use,
-	&bp_signal,
-	&bp_signal_overflow,
-	&bp_accounting,
-	&wp,
-	&task_exit,
-	&sw_clock_freq,
-	&code_reading,
-	&sample_parsing,
-	&keep_tracking,
-	&parse_no_sample_id_all,
-	&hists_filter,
-	&mmap_thread_lookup,
-	&thread_maps_share,
-	&hists_output,
-	&hists_cumulate,
-	&switch_tracking,
-	&fdarray__filter,
-	&fdarray__add,
-	&kmod_path__parse,
-	&thread_map,
-	&llvm,
-	&session_topology,
-	&bpf,
-	&thread_map_synthesize,
-	&thread_map_remove,
-	&cpu_map_synthesize,
-	&synthesize_stat_config,
-	&synthesize_stat,
-	&synthesize_stat_round,
-	&event_update,
-	&event_times,
-	&backward_ring_buffer,
-	&cpu_map_print,
-	&cpu_map_merge,
-	&sdt_event,
-	&is_printable_array,
-	&bitmap_print,
-	&perf_hooks,
-	&clang,
-	&unit_number__scnprint,
-	&mem2node,
-	&time_utils,
-	&jit_write_elf,
-	&pfm,
-	&api_io,
-	&maps__merge_in,
-	&demangle_java,
-	&demangle_ocaml,
-	&parse_metric,
-	&pe_file_parsing,
-	&expand_cgroup_events,
-	&perf_time_to_tsc,
-	&dlfilter,
+	&suite__vmlinux_matches_kallsyms,
+	&suite__openat_syscall_event,
+	&suite__openat_syscall_event_on_all_cpus,
+	&suite__basic_mmap,
+	&suite__mem,
+	&suite__parse_events,
+	&suite__expr,
+	&suite__PERF_RECORD,
+	&suite__pmu,
+	&suite__pmu_events,
+	&suite__dso_data,
+	&suite__dso_data_cache,
+	&suite__dso_data_reopen,
+	&suite__perf_evsel__roundtrip_name_test,
+	&suite__perf_evsel__tp_sched_test,
+	&suite__syscall_openat_tp_fields,
+	&suite__attr,
+	&suite__hists_link,
+	&suite__python_use,
+	&suite__bp_signal,
+	&suite__bp_signal_overflow,
+	&suite__bp_accounting,
+	&suite__wp,
+	&suite__task_exit,
+	&suite__sw_clock_freq,
+	&suite__code_reading,
+	&suite__sample_parsing,
+	&suite__keep_tracking,
+	&suite__parse_no_sample_id_all,
+	&suite__hists_filter,
+	&suite__mmap_thread_lookup,
+	&suite__thread_maps_share,
+	&suite__hists_output,
+	&suite__hists_cumulate,
+	&suite__switch_tracking,
+	&suite__fdarray__filter,
+	&suite__fdarray__add,
+	&suite__kmod_path__parse,
+	&suite__thread_map,
+	&suite__llvm,
+	&suite__session_topology,
+	&suite__bpf,
+	&suite__thread_map_synthesize,
+	&suite__thread_map_remove,
+	&suite__cpu_map_synthesize,
+	&suite__synthesize_stat_config,
+	&suite__synthesize_stat,
+	&suite__synthesize_stat_round,
+	&suite__event_update,
+	&suite__event_times,
+	&suite__backward_ring_buffer,
+	&suite__cpu_map_print,
+	&suite__cpu_map_merge,
+	&suite__sdt_event,
+	&suite__is_printable_array,
+	&suite__bitmap_print,
+	&suite__perf_hooks,
+	&suite__clang,
+	&suite__unit_number__scnprint,
+	&suite__mem2node,
+	&suite__time_utils,
+	&suite__jit_write_elf,
+	&suite__pfm,
+	&suite__api_io,
+	&suite__maps__merge_in,
+	&suite__demangle_java,
+	&suite__demangle_ocaml,
+	&suite__parse_metric,
+	&suite__pe_file_parsing,
+	&suite__expand_cgroup_events,
+	&suite__perf_time_to_tsc,
+	&suite__dlfilter,
 	NULL,
 };
 

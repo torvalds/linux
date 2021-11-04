@@ -283,12 +283,12 @@ out:
 	return ret;
 }
 
-int test__bpf_subtest_get_nr(void)
+static int test__bpf_subtest_get_nr(void)
 {
 	return (int)ARRAY_SIZE(bpf_testcase_table);
 }
 
-const char *test__bpf_subtest_get_desc(int i)
+static const char *test__bpf_subtest_get_desc(int i)
 {
 	if (i < 0 || i >= (int)ARRAY_SIZE(bpf_testcase_table))
 		return NULL;
@@ -325,7 +325,7 @@ static int check_env(void)
 	return 0;
 }
 
-int test__bpf(struct test *test __maybe_unused, int i)
+static int test__bpf(struct test *test __maybe_unused, int i)
 {
 	int err;
 
@@ -345,19 +345,29 @@ int test__bpf(struct test *test __maybe_unused, int i)
 }
 
 #else
-int test__bpf_subtest_get_nr(void)
+static int test__bpf_subtest_get_nr(void)
 {
 	return 0;
 }
 
-const char *test__bpf_subtest_get_desc(int i __maybe_unused)
+static const char *test__bpf_subtest_get_desc(int i __maybe_unused)
 {
 	return NULL;
 }
 
-int test__bpf(struct test *test __maybe_unused, int i __maybe_unused)
+static int test__bpf(struct test *test __maybe_unused, int i __maybe_unused)
 {
 	pr_debug("Skip BPF test because BPF support is not compiled\n");
 	return TEST_SKIP;
 }
 #endif
+
+struct test suite__bpf = {
+	.desc = "BPF filter",
+	.func = test__bpf,
+	.subtest = {
+		.skip_if_fail	= true,
+		.get_nr		= test__bpf_subtest_get_nr,
+		.get_desc	= test__bpf_subtest_get_desc,
+	},
+};

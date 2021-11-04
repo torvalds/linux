@@ -209,19 +209,19 @@ static struct {
 	},
 };
 
-int test__wp_subtest_get_nr(void)
+static int test__wp_subtest_get_nr(void)
 {
 	return (int)ARRAY_SIZE(wp_testcase_table);
 }
 
-const char *test__wp_subtest_get_desc(int i)
+static const char *test__wp_subtest_get_desc(int i)
 {
 	if (i < 0 || i >= (int)ARRAY_SIZE(wp_testcase_table))
 		return NULL;
 	return wp_testcase_table[i].desc;
 }
 
-const char *test__wp_subtest_skip_reason(int i)
+static const char *test__wp_subtest_skip_reason(int i)
 {
 	if (i < 0 || i >= (int)ARRAY_SIZE(wp_testcase_table))
 		return NULL;
@@ -230,7 +230,7 @@ const char *test__wp_subtest_skip_reason(int i)
 	return wp_testcase_table[i].skip_msg();
 }
 
-int test__wp(struct test *test __maybe_unused, int i)
+static int test__wp(struct test *test __maybe_unused, int i)
 {
 	if (i < 0 || i >= (int)ARRAY_SIZE(wp_testcase_table))
 		return TEST_FAIL;
@@ -245,7 +245,7 @@ int test__wp(struct test *test __maybe_unused, int i)
 /* The s390 so far does not have support for
  * instruction breakpoint using the perf_event_open() system call.
  */
-bool test__wp_is_supported(void)
+static bool test__wp_is_supported(void)
 {
 #if defined(__s390x__)
 	return false;
@@ -253,3 +253,15 @@ bool test__wp_is_supported(void)
 	return true;
 #endif
 }
+
+struct test suite__wp = {
+	.desc = "Watchpoint",
+	.func = test__wp,
+	.is_supported = test__wp_is_supported,
+	.subtest = {
+		.skip_if_fail	= false,
+		.get_nr		= test__wp_subtest_get_nr,
+		.get_desc	= test__wp_subtest_get_desc,
+		.skip_reason    = test__wp_subtest_skip_reason,
+	},
+};

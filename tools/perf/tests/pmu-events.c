@@ -1090,7 +1090,7 @@ static const struct {
 	},
 };
 
-const char *test__pmu_events_subtest_get_desc(int subtest)
+static const char *test__pmu_events_subtest_get_desc(int subtest)
 {
 	if (subtest < 0 ||
 	    subtest >= (int)ARRAY_SIZE(pmu_events_testcase_table))
@@ -1098,7 +1098,7 @@ const char *test__pmu_events_subtest_get_desc(int subtest)
 	return pmu_events_testcase_table[subtest].desc;
 }
 
-const char *test__pmu_events_subtest_skip_reason(int subtest)
+static const char *test__pmu_events_subtest_skip_reason(int subtest)
 {
 	if (subtest < 0 ||
 	    subtest >= (int)ARRAY_SIZE(pmu_events_testcase_table))
@@ -1108,15 +1108,26 @@ const char *test__pmu_events_subtest_skip_reason(int subtest)
 	return "some metrics failed";
 }
 
-int test__pmu_events_subtest_get_nr(void)
+static int test__pmu_events_subtest_get_nr(void)
 {
 	return (int)ARRAY_SIZE(pmu_events_testcase_table);
 }
 
-int test__pmu_events(struct test *test __maybe_unused, int subtest)
+static int test__pmu_events(struct test *test __maybe_unused, int subtest)
 {
 	if (subtest < 0 ||
 	    subtest >= (int)ARRAY_SIZE(pmu_events_testcase_table))
 		return TEST_FAIL;
 	return pmu_events_testcase_table[subtest].func();
 }
+
+struct test suite__pmu_events = {
+	.desc = "PMU events",
+	.func = test__pmu_events,
+	.subtest = {
+		.skip_if_fail	= false,
+		.get_nr		= test__pmu_events_subtest_get_nr,
+		.get_desc	= test__pmu_events_subtest_get_desc,
+		.skip_reason	= test__pmu_events_subtest_skip_reason,
+	},
+};

@@ -189,19 +189,19 @@ static int test__pfm_group(void)
 }
 #endif
 
-const char *test__pfm_subtest_get_desc(int i)
+static const char *test__pfm_subtest_get_desc(int i)
 {
 	if (i < 0 || i >= (int)ARRAY_SIZE(pfm_testcase_table))
 		return NULL;
 	return pfm_testcase_table[i].desc;
 }
 
-int test__pfm_subtest_get_nr(void)
+static int test__pfm_subtest_get_nr(void)
 {
 	return (int)ARRAY_SIZE(pfm_testcase_table);
 }
 
-int test__pfm(struct test *test __maybe_unused, int i __maybe_unused)
+static int test__pfm(struct test *test __maybe_unused, int i __maybe_unused)
 {
 #ifdef HAVE_LIBPFM
 	if (i < 0 || i >= (int)ARRAY_SIZE(pfm_testcase_table))
@@ -211,3 +211,13 @@ int test__pfm(struct test *test __maybe_unused, int i __maybe_unused)
 	return TEST_SKIP;
 #endif
 }
+
+struct test suite__pfm = {
+	.desc = "Test libpfm4 support",
+	.func = test__pfm,
+	.subtest = {
+		.skip_if_fail	= true,
+		.get_nr		= test__pfm_subtest_get_nr,
+		.get_desc	= test__pfm_subtest_get_desc,
+	}
+};

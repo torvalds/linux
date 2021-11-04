@@ -716,7 +716,7 @@ out_err:
 	return err;
 }
 
-int test__code_reading(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__code_reading(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	int ret;
 
@@ -743,3 +743,5 @@ int test__code_reading(struct test *test __maybe_unused, int subtest __maybe_unu
 		return -1;
 	};
 }
+
+DEFINE_SUITE("Object code reading", code_reading);

@@ -124,7 +124,7 @@ out:
 	return ret;
 }
 
-int test__llvm(struct test *test __maybe_unused, int subtest)
+static int test__llvm(struct test *test __maybe_unused, int subtest)
 {
 	int ret;
 	void *obj_buf = NULL;
@@ -149,12 +149,12 @@ int test__llvm(struct test *test __maybe_unused, int subtest)
 	return ret;
 }
 
-int test__llvm_subtest_get_nr(void)
+static int test__llvm_subtest_get_nr(void)
 {
 	return __LLVM_TESTCASE_MAX;
 }
 
-const char *test__llvm_subtest_get_desc(int subtest)
+static const char *test__llvm_subtest_get_desc(int subtest)
 {
 	if ((subtest < 0) || (subtest >= __LLVM_TESTCASE_MAX))
 		return NULL;
@@ -162,18 +162,28 @@ const char *test__llvm_subtest_get_desc(int subtest)
 	return bpf_source_table[subtest].desc;
 }
 #else //HAVE_LIBBPF_SUPPORT
-int test__llvm(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__llvm(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	return TEST_SKIP;
 }
 
-int test__llvm_subtest_get_nr(void)
+static int test__llvm_subtest_get_nr(void)
 {
 	return 0;
 }
 
-const char *test__llvm_subtest_get_desc(int subtest __maybe_unused)
+static const char *test__llvm_subtest_get_desc(int subtest __maybe_unused)
 {
 	return NULL;
 }
 #endif // HAVE_LIBBPF_SUPPORT
+
+struct test suite__llvm = {
+	.desc = "LLVM search and compile",
+	.func = test__llvm,
+	.subtest = {
+		.skip_if_fail	= true,
+		.get_nr		= test__llvm_subtest_get_nr,
+		.get_desc	= test__llvm_subtest_get_desc,
+	},
+};

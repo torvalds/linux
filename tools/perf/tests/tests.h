@@ -41,10 +41,10 @@ struct test {
 };
 
 #define DECLARE_SUITE(name) \
-	int test__##name(struct test *test, int subtest)
+	extern struct test suite__##name;
 
 #define DEFINE_SUITE(description, name)		\
-	static struct test name = {		\
+	struct test suite__##name = {		\
 		.desc = description,		\
 		.func = test__##name,		\
 	}
@@ -60,9 +60,6 @@ DECLARE_SUITE(perf_evsel__tp_sched_test);
 DECLARE_SUITE(syscall_openat_tp_fields);
 DECLARE_SUITE(pmu);
 DECLARE_SUITE(pmu_events);
-const char *test__pmu_events_subtest_get_desc(int subtest);
-const char *test__pmu_events_subtest_skip_reason(int subtest);
-int test__pmu_events_subtest_get_nr(void);
 DECLARE_SUITE(attr);
 DECLARE_SUITE(dso_data);
 DECLARE_SUITE(dso_data_cache);
@@ -74,9 +71,6 @@ DECLARE_SUITE(bp_signal);
 DECLARE_SUITE(bp_signal_overflow);
 DECLARE_SUITE(bp_accounting);
 DECLARE_SUITE(wp);
-const char *test__wp_subtest_get_desc(int subtest);
-const char *test__wp_subtest_skip_reason(int subtest);
-int test__wp_subtest_get_nr(void);
 DECLARE_SUITE(task_exit);
 DECLARE_SUITE(mem);
 DECLARE_SUITE(sw_clock_freq);
@@ -84,7 +78,7 @@ DECLARE_SUITE(code_reading);
 DECLARE_SUITE(sample_parsing);
 DECLARE_SUITE(keep_tracking);
 DECLARE_SUITE(parse_no_sample_id_all);
-extern struct test dwarf_unwind;
+DECLARE_SUITE(dwarf_unwind);
 DECLARE_SUITE(expr);
 DECLARE_SUITE(hists_filter);
 DECLARE_SUITE(mmap_thread_lookup);
@@ -97,11 +91,7 @@ DECLARE_SUITE(fdarray__add);
 DECLARE_SUITE(kmod_path__parse);
 DECLARE_SUITE(thread_map);
 DECLARE_SUITE(llvm);
-const char *test__llvm_subtest_get_desc(int subtest);
-int test__llvm_subtest_get_nr(void);
 DECLARE_SUITE(bpf);
-const char *test__bpf_subtest_get_desc(int subtest);
-int test__bpf_subtest_get_nr(void);
 DECLARE_SUITE(session_topology);
 DECLARE_SUITE(thread_map_synthesize);
 DECLARE_SUITE(thread_map_remove);
@@ -119,8 +109,6 @@ DECLARE_SUITE(is_printable_array);
 DECLARE_SUITE(bitmap_print);
 DECLARE_SUITE(perf_hooks);
 DECLARE_SUITE(clang);
-const char *test__clang_subtest_get_desc(int subtest);
-int test__clang_subtest_get_nr(void);
 DECLARE_SUITE(unit_number__scnprint);
 DECLARE_SUITE(mem2node);
 DECLARE_SUITE(maps__merge_in);
@@ -130,8 +118,6 @@ DECLARE_SUITE(api_io);
 DECLARE_SUITE(demangle_java);
 DECLARE_SUITE(demangle_ocaml);
 DECLARE_SUITE(pfm);
-const char *test__pfm_subtest_get_desc(int subtest);
-int test__pfm_subtest_get_nr(void);
 DECLARE_SUITE(parse_metric);
 DECLARE_SUITE(pe_file_parsing);
 DECLARE_SUITE(expand_cgroup_events);
@@ -139,9 +125,6 @@ DECLARE_SUITE(perf_time_to_tsc);
 DECLARE_SUITE(dlfilter);
 
 bool test__bp_signal_is_supported(void);
-bool test__bp_account_is_supported(void);
-bool test__wp_is_supported(void);
-bool test__tsc_is_supported(void);
 
 #ifdef HAVE_DWARF_UNWIND_SUPPORT
 struct thread;

@@ -5,7 +5,7 @@
 
 struct test *arch_tests[] = {
 #ifdef HAVE_DWARF_UNWIND_SUPPORT
-	&dwarf_unwind,
+	&suite__dwarf_unwind,
 #endif
 	NULL,
 };

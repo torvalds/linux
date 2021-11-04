@@ -45,7 +45,7 @@
  * %0 is returned, otherwise %-1 is returned.  If TSC conversion is not
  * supported then then the test passes but " (not supported)" is printed.
  */
-int test__perf_time_to_tsc(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__perf_time_to_tsc(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct record_opts opts = {
 		.mmap_pages	     = UINT_MAX,
@@ -185,7 +185,7 @@ out_err:
 	return err;
 }
 
-bool test__tsc_is_supported(void)
+static bool test__tsc_is_supported(void)
 {
 	/*
 	 * Except x86_64/i386 and Arm64, other archs don't support TSC in perf.
@@ -197,3 +197,9 @@ bool test__tsc_is_supported(void)
 	return false;
 #endif
 }
+
+struct test suite__perf_time_to_tsc = {
+	.desc = "Convert perf time to TSC",
+	.func = test__perf_time_to_tsc,
+	.is_supported = test__tsc_is_supported,
+};

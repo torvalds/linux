@@ -62,7 +62,7 @@ static int test(struct expr_parse_ctx *ctx, const char *e, double val2)
 	return 0;
 }
 
-int test__expr(struct test *t __maybe_unused, int subtest __maybe_unused)
+static int test__expr(struct test *t __maybe_unused, int subtest __maybe_unused)
 {
 	struct expr_id_data *val_ptr;
 	const char *p;
@@ -155,3 +155,5 @@ int test__expr(struct test *t __maybe_unused, int subtest __maybe_unused)
 
 	return 0;
 }
+
+DEFINE_SUITE("Simple expression parser", expr);

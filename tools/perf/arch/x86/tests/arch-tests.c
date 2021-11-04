@@ -14,17 +14,17 @@ DEFINE_SUITE("x86 bp modify", bp_modify);
 DEFINE_SUITE("x86 Sample parsing", x86_sample_parsing);
 
 struct test *arch_tests[] = {
-	&rdpmc,
+	&suite__rdpmc,
 #ifdef HAVE_DWARF_UNWIND_SUPPORT
-	&dwarf_unwind,
+	&suite__dwarf_unwind,
 #endif
 #ifdef HAVE_AUXTRACE_SUPPORT
-	&insn_x86,
-	&intel_pt_pkt_decoder,
+	&suite__insn_x86,
+	&suite__intel_pt_pkt_decoder,
 #endif
 #if defined(__x86_64__)
-	&bp_modify,
+	&suite__bp_modify,
 #endif
-	&x86_sample_parsing,
+	&suite__x86_sample_parsing,
 	NULL,
 };

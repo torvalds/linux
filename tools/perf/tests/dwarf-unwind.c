@@ -238,7 +238,4 @@ static int test__dwarf_unwind(struct test *test __maybe_unused, int subtest __ma
 	return err;
 }
 
-struct test dwarf_unwind = {
-	.desc = "Test dwarf unwind",
-	.func = test__dwarf_unwind,
-};
+DEFINE_SUITE("Test dwarf unwind", dwarf_unwind);

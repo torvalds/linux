@@ -19,12 +19,12 @@ static struct {
 #endif
 };
 
-int test__clang_subtest_get_nr(void)
+static int test__clang_subtest_get_nr(void)
 {
 	return (int)ARRAY_SIZE(clang_testcase_table);
 }
 
-const char *test__clang_subtest_get_desc(int i)
+static const char *test__clang_subtest_get_desc(int i)
 {
 	if (i < 0 || i >= (int)ARRAY_SIZE(clang_testcase_table))
 		return NULL;
@@ -32,15 +32,25 @@ const char *test__clang_subtest_get_desc(int i)
 }
 
 #ifndef HAVE_LIBCLANGLLVM_SUPPORT
-int test__clang(struct test *test __maybe_unused, int i __maybe_unused)
+static int test__clang(struct test *test __maybe_unused, int i __maybe_unused)
 {
 	return TEST_SKIP;
 }
 #else
-int test__clang(struct test *test __maybe_unused, int i)
+static int test__clang(struct test *test __maybe_unused, int i)
 {
 	if (i < 0 || i >= (int)ARRAY_SIZE(clang_testcase_table))
 		return TEST_FAIL;
 	return clang_testcase_table[i].func();
 }
 #endif
+
+struct test suite__clang = {
+	.desc = "builtin clang support",
+	.func = test__clang,
+	.subtest = {
+		.skip_if_fail	= true,
+		.get_nr		= test__clang_subtest_get_nr,
+		.get_desc	= test__clang_subtest_get_desc,
+	}
+};
