@@ -539,6 +539,10 @@ static const struct usbmix_ctl_map usbmix_ctl_maps[] = {
 		.map = scms_usb3318_map,
 	},
 	{
+		.id = USB_ID(0x30be, 0x0101), /*  Schiit Hel */
+		.ignore_ctl_error = 1,
+	},
+	{
 		/* Bose Companion 5 */
 		.id = USB_ID(0x05a7, 0x1020),
 		.map = bose_companion5_map,
