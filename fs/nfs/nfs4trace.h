@@ -200,6 +200,50 @@ TRACE_EVENT(nfs4_cb_seqid_err,
 		)
 );
 
+TRACE_EVENT(nfs4_cb_offload,
+		TP_PROTO(
+			const struct nfs_fh *cb_fh,
+			const nfs4_stateid *cb_stateid,
+			uint64_t cb_count,
+			int cb_error,
+			int cb_how_stable
+		),
+
+		TP_ARGS(cb_fh, cb_stateid, cb_count, cb_error,
+			cb_how_stable),
+
+		TP_STRUCT__entry(
+			__field(unsigned long, error)
+			__field(u32, fhandle)
+			__field(loff_t, cb_count)
+			__field(int, cb_how)
+			__field(int, cb_stateid_seq)
+			__field(u32, cb_stateid_hash)
+		),
+
+		TP_fast_assign(
+			__entry->error = cb_error < 0 ? -cb_error : 0;
+			__entry->fhandle = nfs_fhandle_hash(cb_fh);
+			__entry->cb_stateid_seq =
+				be32_to_cpu(cb_stateid->seqid);
+			__entry->cb_stateid_hash =
+				nfs_stateid_hash(cb_stateid);
+			__entry->cb_count = cb_count;
+			__entry->cb_how = cb_how_stable;
+		),
+
+		TP_printk(
+			"error=%ld (%s) fhandle=0x%08x cb_stateid=%d:0x%08x "
+			"cb_count=%llu cb_how=%s",
+			-__entry->error,
+			show_nfs4_status(__entry->error),
+			__entry->fhandle,
+			__entry->cb_stateid_seq, __entry->cb_stateid_hash,
+			__entry->cb_count,
+			show_nfs_stable_how(__entry->cb_how)
+		)
+);
+
 #endif /* CONFIG_NFS_V4_1 */
 
 TRACE_EVENT(nfs4_setup_sequence,
