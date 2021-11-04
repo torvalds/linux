@@ -10815,7 +10815,7 @@ void intel_modeset_driver_remove_noirq(struct drm_i915_private *i915)
 	destroy_workqueue(i915->flip_wq);
 	destroy_workqueue(i915->modeset_wq);
 
-	intel_fbc_cleanup_cfb(i915);
+	intel_fbc_cleanup(i915);
 }
 
 /* part #3: call after gem init */

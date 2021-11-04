@@ -407,6 +407,7 @@ struct intel_fbc_funcs;
 #define I915_COLOR_UNEVICTABLE (-1) /* a non-vma sharing the address space */
 
 struct intel_fbc {
+	struct drm_i915_private *i915;
 	const struct intel_fbc_funcs *funcs;
 
 	/* This is always the inner lock when overlapping with struct_mutex and

@@ -52,10 +52,10 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 	mutex_lock(&fbc->lock);
 
-	if (intel_fbc_is_active(dev_priv)) {
+	if (intel_fbc_is_active(fbc)) {
 		seq_puts(m, "FBC enabled\n");
 		seq_printf(m, "Compressing: %s\n",
-			   yesno(intel_fbc_is_compressing(dev_priv)));
+			   yesno(intel_fbc_is_compressing(fbc)));
 	} else {
 		seq_printf(m, "FBC disabled: %s\n", fbc->no_fbc_reason);
 	}
@@ -79,7 +79,7 @@ static int i915_fbc_false_color_set(void *data, u64 val)
 {
 	struct drm_i915_private *dev_priv = data;
 
-	return intel_fbc_set_false_color(dev_priv, val);
+	return intel_fbc_set_false_color(&dev_priv->fbc, val);
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(i915_fbc_false_color_fops,
@@ -2063,7 +2063,7 @@ i915_fifo_underrun_reset_write(struct file *filp,
 			return ret;
 	}
 
-	ret = intel_fbc_reset_underrun(dev_priv);
+	ret = intel_fbc_reset_underrun(&dev_priv->fbc);
 	if (ret)
 		return ret;
 

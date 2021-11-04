@@ -3375,7 +3375,7 @@ static void ilk_wm_merge(struct drm_i915_private *dev_priv,
 	 * enabled sometime later.
 	 */
 	if (DISPLAY_VER(dev_priv) == 5 && !merged->fbc_wm_enabled &&
-	    intel_fbc_is_active(dev_priv)) {
+	    intel_fbc_is_active(&dev_priv->fbc)) {
 		for (level = 2; level <= max_level; level++) {
 			struct intel_wm_level *wm = &merged->wm[level];
 
