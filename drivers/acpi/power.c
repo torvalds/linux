@@ -757,13 +757,11 @@ int acpi_disable_wakeup_device_power(struct acpi_device *dev)
 
 	mutex_lock(&acpi_device_lock);
 
-	if (dev->wakeup.prepare_count > 1) {
-		dev->wakeup.prepare_count--;
-		goto out;
-	}
-
 	/* Do nothing if wakeup power has not been enabled for this device. */
-	if (!dev->wakeup.prepare_count)
+	if (dev->wakeup.prepare_count <= 0)
+		goto out;
+
+	if (--dev->wakeup.prepare_count > 0)
 		goto out;
 
 	err = acpi_device_sleep_wake(dev, 0, 0, 0);
