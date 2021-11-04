@@ -4918,13 +4918,6 @@ int atomisp_try_fmt(struct video_device *vdev, struct v4l2_pix_format *f,
 	}
 
 	f->pixelformat = fmt->pixelformat;
-	/*
-	 * FIXME: do we need to setup this differently, depending on the
-	 * sensor or the pipeline?
-	 */
-	f->colorspace = V4L2_COLORSPACE_REC709;
-	f->ycbcr_enc = V4L2_YCBCR_ENC_709;
-	f->xfer_func = V4L2_XFER_FUNC_709;
 
 	/*
 	 * If the format is jpeg or custom RAW, then the width and height will
