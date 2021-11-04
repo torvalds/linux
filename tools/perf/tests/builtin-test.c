@@ -115,6 +115,45 @@ static struct test_suite **tests[] = {
 	arch_tests,
 };
 
+static int num_subtests(const struct test_suite *t)
+{
+	if (t->subtest.get_nr)
+		return t->subtest.get_nr();
+
+	return 0;
+}
+
+static bool has_subtests(const struct test_suite *t)
+{
+	return t->subtest.get_nr || num_subtests(t) > 1;
+}
+
+static const char *skip_reason(const struct test_suite *t, int subtest)
+{
+	if (t->subtest.skip_reason)
+		return t->subtest.skip_reason(subtest);
+
+	return NULL;
+}
+
+static const char *test_description(const struct test_suite *t, int subtest)
+{
+	if (subtest < 0 || !t->subtest.get_desc)
+		return t->desc;
+
+	return t->subtest.get_desc(subtest);
+}
+
+static bool is_supported(const struct test_suite *t)
+{
+	return !t->is_supported || t->is_supported();
+}
+
+static test_fnptr test_function(const struct test_suite *t, int subtest __maybe_unused)
+{
+	return t->func;
+}
+
 static bool perf_test__matches(const char *desc, int curr, int argc, const char *argv[])
 {
 	int i;
@@ -171,7 +210,7 @@ static int run_test(struct test_suite *test, int subtest)
 			}
 		}
 
-		err = test->func(test, subtest);
+		err = test_function(test, subtest)(test, subtest);
 		if (!dont_fork)
 			exit(err);
 	}
@@ -208,7 +247,7 @@ static int test_and_print(struct test_suite *t, bool force_skip, int subtest)
 		err = TEST_SKIP;
 	}
 
-	if (!t->subtest.get_nr)
+	if (!has_subtests(t))
 		pr_debug("%s:", t->desc);
 	else
 		pr_debug("%s subtest %d:", t->desc, subtest + 1);
@@ -218,11 +257,10 @@ static int test_and_print(struct test_suite *t, bool force_skip, int subtest)
 		pr_info(" Ok\n");
 		break;
 	case TEST_SKIP: {
-		const char *skip_reason = NULL;
-		if (t->subtest.skip_reason)
-			skip_reason = t->subtest.skip_reason(subtest);
-		if (skip_reason)
-			color_fprintf(stderr, PERF_COLOR_YELLOW, " Skip (%s)\n", skip_reason);
+		const char *reason = skip_reason(t, subtest);
+
+		if (reason)
+			color_fprintf(stderr, PERF_COLOR_YELLOW, " Skip (%s)\n", reason);
 		else
 			color_fprintf(stderr, PERF_COLOR_YELLOW, " Skip\n");
 	}
@@ -397,7 +435,7 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 	int width = shell_tests__max_desc_width();
 
 	for_each_test(j, k, t) {
-		int len = strlen(t->desc);
+		int len = strlen(test_description(t, -1));
 
 		if (width < len)
 			width = len;
@@ -407,17 +445,15 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 		int curr = i++, err;
 		int subi;
 
-		if (!perf_test__matches(t->desc, curr, argc, argv)) {
+		if (!perf_test__matches(test_description(t, -1), curr, argc, argv)) {
 			bool skip = true;
 			int subn;
 
-			if (!t->subtest.get_nr)
-				continue;
-
-			subn = t->subtest.get_nr();
+			subn = num_subtests(t);
 
 			for (subi = 0; subi < subn; subi++) {
-				if (perf_test__matches(t->subtest.get_desc(subi), curr, argc, argv))
+				if (perf_test__matches(test_description(t, subi),
+							curr, argc, argv))
 					skip = false;
 			}
 
@@ -425,22 +461,23 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 				continue;
 		}
 
-		if (t->is_supported && !t->is_supported()) {
-			pr_debug("%2d: %-*s: Disabled\n", i, width, t->desc);
+		if (!is_supported(t)) {
+			pr_debug("%2d: %-*s: Disabled\n", i, width,
+				 test_description(t, -1));
 			continue;
 		}
 
-		pr_info("%2d: %-*s:", i, width, t->desc);
+		pr_info("%2d: %-*s:", i, width, test_description(t, -1));
 
 		if (intlist__find(skiplist, i)) {
 			color_fprintf(stderr, PERF_COLOR_YELLOW, " Skip (user override)\n");
 			continue;
 		}
 
-		if (!t->subtest.get_nr) {
+		if (!has_subtests(t)) {
 			test_and_print(t, false, -1);
 		} else {
-			int subn = t->subtest.get_nr();
+			int subn = num_subtests(t);
 			/*
 			 * minus 2 to align with normal testcases.
 			 * For subtest we print additional '.x' in number.
@@ -460,18 +497,19 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 			pr_info("\n");
 
 			for (subi = 0; subi < subn; subi++) {
-				int len = strlen(t->subtest.get_desc(subi));
+				int len = strlen(test_description(t, subi));
 
 				if (subw < len)
 					subw = len;
 			}
 
 			for (subi = 0; subi < subn; subi++) {
-				if (!perf_test__matches(t->subtest.get_desc(subi), curr, argc, argv))
+				if (!perf_test__matches(test_description(t, subi),
+							curr, argc, argv))
 					continue;
 
 				pr_info("%2d.%1d: %-*s:", i, subi + 1, subw,
-					t->subtest.get_desc(subi));
+					test_description(t, subi));
 				err = test_and_print(t, skip, subi);
 				if (err != TEST_OK && t->subtest.skip_if_fail)
 					skip = true;
@@ -526,19 +564,19 @@ static int perf_test__list(int argc, const char **argv)
 	for_each_test(j, k, t) {
 		int curr = i++;
 
-		if (!perf_test__matches(t->desc, curr, argc, argv) ||
-		    (t->is_supported && !t->is_supported()))
+		if (!perf_test__matches(test_description(t, -1), curr, argc, argv) ||
+		    !is_supported(t))
 			continue;
 
-		pr_info("%2d: %s\n", i, t->desc);
+		pr_info("%2d: %s\n", i, test_description(t, -1));
 
-		if (t->subtest.get_nr) {
-			int subn = t->subtest.get_nr();
+		if (has_subtests(t)) {
+			int subn = num_subtests(t);
 			int subi;
 
 			for (subi = 0; subi < subn; subi++)
 				pr_info("%2d:%1d: %s\n", i, subi + 1,
-					t->subtest.get_desc(subi));
+					test_description(t, subi));
 		}
 	}
 

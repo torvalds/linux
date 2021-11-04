@@ -27,9 +27,13 @@ enum {
 	TEST_SKIP = -2,
 };
 
+struct test_suite;
+
+typedef int (*test_fnptr)(struct test_suite *, int);
+
 struct test_suite {
 	const char *desc;
-	int (*func)(struct test_suite *test, int subtest);
+	test_fnptr func;
 	struct {
 		bool skip_if_fail;
 		int (*get_nr)(void);
