@@ -11508,6 +11508,27 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/iio/proximity/maxbotix,mb1232.yaml
 F:	drivers/iio/proximity/mb1232.c
 
+MAXIM MAX17040 FAMILY FUEL GAUGE DRIVERS
+R:	Iskren Chernev <iskren.chernev@gmail.com>
+R:	Krzysztof Kozlowski <krzysztof.kozlowski@canonical.com>
+R:	Marek Szyprowski <m.szyprowski@samsung.com>
+R:	Matheus Castello <matheus@castello.eng.br>
+L:	linux-pm@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/power/supply/maxim,max17040.yaml
+F:	drivers/power/supply/max17040_battery.c
+
+MAXIM MAX17042 FAMILY FUEL GAUGE DRIVERS
+R:	Hans de Goede <hdegoede@redhat.com>
+R:	Krzysztof Kozlowski <krzysztof.kozlowski@canonical.com>
+R:	Marek Szyprowski <m.szyprowski@samsung.com>
+R:	Sebastian Krzyszkowiak <sebastian.krzyszkowiak@puri.sm>
+R:	Purism Kernel Team <kernel@puri.sm>
+L:	linux-pm@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/power/supply/maxim,max17042.yaml
+F:	drivers/power/supply/max17042_battery.c
+
 MAXIM MAX77650 PMIC MFD DRIVER
 M:	Bartosz Golaszewski <brgl@bgdev.pl>
 L:	linux-kernel@vger.kernel.org
