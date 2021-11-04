@@ -2463,6 +2463,39 @@ TRACE_EVENT(nfs4_copy_notify,
 			__entry->res_stateid_seq, __entry->res_stateid_hash
 		)
 );
+
+TRACE_EVENT(nfs4_offload_cancel,
+		TP_PROTO(
+			const struct nfs42_offload_status_args *args,
+			int error
+		),
+
+		TP_ARGS(args, error),
+
+		TP_STRUCT__entry(
+			__field(unsigned long, error)
+			__field(u32, fhandle)
+			__field(int, stateid_seq)
+			__field(u32, stateid_hash)
+		),
+
+		TP_fast_assign(
+			__entry->fhandle = nfs_fhandle_hash(args->osa_src_fh);
+			__entry->error = error < 0 ? -error : 0;
+			__entry->stateid_seq =
+				be32_to_cpu(args->osa_stateid.seqid);
+			__entry->stateid_hash =
+				nfs_stateid_hash(&args->osa_stateid);
+		),
+
+		TP_printk(
+			"error=%ld (%s) fhandle=0x%08x stateid=%d:0x%08x",
+			-__entry->error,
+			show_nfs4_status(__entry->error),
+			__entry->fhandle,
+			__entry->stateid_seq, __entry->stateid_hash
+		)
+);
 #endif /* CONFIG_NFS_V4_2 */
 
 #endif /* CONFIG_NFS_V4_1 */
