@@ -279,7 +279,10 @@ int bch2_extent_update(struct btree_trans *trans,
 {
 	/* this must live until after bch2_trans_commit(): */
 	struct bkey_inode_buf inode_p;
+	struct btree_iter inode_iter = { NULL };
+	struct bch_inode_unpacked inode_u;
 	struct bpos next_pos;
+	struct bkey_s_c inode;
 	bool extending = false, usage_increasing;
 	s64 i_sectors_delta = 0, disk_sectors_delta = 0;
 	int ret;
@@ -298,6 +301,9 @@ int bch2_extent_update(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
+	new_i_size = min(k->k.p.offset << 9, new_i_size);
+	next_pos = k->k.p;
+
 	ret = bch2_sum_sector_overwrites(trans, iter, k,
 			&extending,
 			&usage_increasing,
@@ -306,14 +312,11 @@ int bch2_extent_update(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	if (!usage_increasing)
-		check_enospc = false;
-
 	if (disk_res &&
 	    disk_sectors_delta > (s64) disk_res->sectors) {
 		ret = bch2_disk_reservation_add(trans->c, disk_res,
 					disk_sectors_delta - disk_res->sectors,
-					!check_enospc
+					!check_enospc || !usage_increasing
 					? BCH_DISK_RESERVATION_NOFAIL : 0);
 		if (ret)
 			return ret;
@@ -323,26 +326,25 @@ int bch2_extent_update(struct btree_trans *trans,
 		? min(k->k.p.offset << 9, new_i_size)
 		: 0;
 
+	bch2_trans_iter_init(trans, &inode_iter, BTREE_ID_inodes,
+			     SPOS(0, inum.inum, iter->snapshot),
+			     BTREE_ITER_INTENT|
+			     (trans->c->opts.inodes_use_key_cache
+			      ? BTREE_ITER_CACHED
+			      : 0));
+	inode = bch2_btree_iter_peek_slot(&inode_iter);
+	ret = bkey_err(inode);
+	if (ret)
+		goto err;
+
+	ret = inode.k->type == KEY_TYPE_inode ? 0 : -ENOENT;
+	if (ret)
+		goto err;
+
 	if (i_sectors_delta || new_i_size) {
-		struct btree_iter inode_iter;
-		struct bch_inode_unpacked inode_u;
-
-		ret = bch2_inode_peek(trans, &inode_iter, &inode_u, inum,
-				      BTREE_ITER_INTENT);
+		ret = bch2_inode_unpack(bkey_s_c_to_inode(inode), &inode_u);
 		if (ret)
-			return ret;
-
-		/*
-		 * XXX:
-		 * writeback can race a bit with truncate, because truncate
-		 * first updates the inode then truncates the pagecache. This is
-		 * ugly, but lets us preserve the invariant that the in memory
-		 * i_size is always >= the on disk i_size.
-		 *
-		BUG_ON(new_i_size > inode_u.bi_size &&
-		       (inode_u.bi_flags & BCH_INODE_I_SIZE_DIRTY));
-		 */
-		BUG_ON(new_i_size > inode_u.bi_size && !extending);
+			goto err;
 
 		if (!(inode_u.bi_flags & BCH_INODE_I_SIZE_DIRTY) &&
 		    new_i_size > inode_u.bi_size)
@@ -351,36 +353,38 @@ int bch2_extent_update(struct btree_trans *trans,
 			new_i_size = 0;
 
 		inode_u.bi_sectors += i_sectors_delta;
-
-		if (i_sectors_delta || new_i_size) {
-			bch2_inode_pack(trans->c, &inode_p, &inode_u);
-
-			inode_p.inode.k.p.snapshot = iter->snapshot;
-
-			ret = bch2_trans_update(trans, &inode_iter,
-					  &inode_p.inode.k_i, 0);
-		}
-
-		bch2_trans_iter_exit(trans, &inode_iter);
-
-		if (ret)
-			return ret;
 	}
 
-	next_pos = k->k.p;
+	if (i_sectors_delta || new_i_size) {
+		bch2_inode_pack(trans->c, &inode_p, &inode_u);
+
+		inode_p.inode.k.p.snapshot = iter->snapshot;
+
+		ret = bch2_trans_update(trans, &inode_iter,
+				  &inode_p.inode.k_i, 0);
+	} else {
+		bkey_reassemble(&inode_p.inode.k_i, inode);
+
+		ret = bch2_trans_update(trans, &inode_iter,
+					&inode_p.inode.k_i,
+					BTREE_UPDATE_NOJOURNAL);
+		if (ret)
+			goto err;
+	}
 
 	ret =   bch2_trans_update(trans, iter, k, 0) ?:
 		bch2_trans_commit(trans, disk_res, journal_seq,
 				BTREE_INSERT_NOCHECK_RW|
 				BTREE_INSERT_NOFAIL);
-	BUG_ON(ret == -ENOSPC);
+err:
+	bch2_trans_iter_exit(trans, &inode_iter);
 	if (ret)
 		return ret;
 
-	bch2_btree_iter_set_pos(iter, next_pos);
-
 	if (i_sectors_delta_total)
 		*i_sectors_delta_total += i_sectors_delta;
+	bch2_btree_iter_set_pos(iter, next_pos);
+
 	return 0;
 }
 
