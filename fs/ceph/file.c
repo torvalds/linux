@@ -2211,6 +2211,54 @@ static int is_file_size_ok(struct inode *src_inode, struct inode *dst_inode,
 	return 0;
 }
 
+static struct ceph_osd_request *
+ceph_alloc_copyfrom_request(struct ceph_osd_client *osdc,
+			    u64 src_snapid,
+			    struct ceph_object_id *src_oid,
+			    struct ceph_object_locator *src_oloc,
+			    struct ceph_object_id *dst_oid,
+			    struct ceph_object_locator *dst_oloc,
+			    u32 truncate_seq, u64 truncate_size)
+{
+	struct ceph_osd_request *req;
+	int ret;
+	u32 src_fadvise_flags =
+		CEPH_OSD_OP_FLAG_FADVISE_SEQUENTIAL |
+		CEPH_OSD_OP_FLAG_FADVISE_NOCACHE;
+	u32 dst_fadvise_flags =
+		CEPH_OSD_OP_FLAG_FADVISE_SEQUENTIAL |
+		CEPH_OSD_OP_FLAG_FADVISE_DONTNEED;
+
+	req = ceph_osdc_alloc_request(osdc, NULL, 1, false, GFP_KERNEL);
+	if (!req)
+		return ERR_PTR(-ENOMEM);
+
+	req->r_flags = CEPH_OSD_FLAG_WRITE;
+
+	ceph_oloc_copy(&req->r_t.base_oloc, dst_oloc);
+	ceph_oid_copy(&req->r_t.base_oid, dst_oid);
+
+	ret = osd_req_op_copy_from_init(req, src_snapid, 0,
+					src_oid, src_oloc,
+					src_fadvise_flags,
+					dst_fadvise_flags,
+					truncate_seq,
+					truncate_size,
+					CEPH_OSD_COPY_FROM_FLAG_TRUNCATE_SEQ);
+	if (ret)
+		goto out;
+
+	ret = ceph_osdc_alloc_messages(req, GFP_KERNEL);
+	if (ret)
+		goto out;
+
+	return req;
+
+out:
+	ceph_osdc_put_request(req);
+	return ERR_PTR(ret);
+}
+
 static ssize_t ceph_do_objects_copy(struct ceph_inode_info *src_ci, u64 *src_off,
 				    struct ceph_inode_info *dst_ci, u64 *dst_off,
 				    struct ceph_fs_client *fsc,
@@ -2218,6 +2266,8 @@ static ssize_t ceph_do_objects_copy(struct ceph_inode_info *src_ci, u64 *src_off
 {
 	struct ceph_object_locator src_oloc, dst_oloc;
 	struct ceph_object_id src_oid, dst_oid;
+	struct ceph_osd_client *osdc;
+	struct ceph_osd_request *req;
 	size_t bytes = 0;
 	u64 src_objnum, src_objoff, dst_objnum, dst_objoff;
 	u32 src_objlen, dst_objlen;
@@ -2228,6 +2278,7 @@ static ssize_t ceph_do_objects_copy(struct ceph_inode_info *src_ci, u64 *src_off
 	src_oloc.pool_ns = ceph_try_get_string(src_ci->i_layout.pool_ns);
 	dst_oloc.pool = dst_ci->i_layout.pool_id;
 	dst_oloc.pool_ns = ceph_try_get_string(dst_ci->i_layout.pool_ns);
+	osdc = &fsc->client->osdc;
 
 	while (len >= object_size) {
 		ceph_calc_file_object_mapping(&src_ci->i_layout, *src_off,
@@ -2243,17 +2294,18 @@ static ssize_t ceph_do_objects_copy(struct ceph_inode_info *src_ci, u64 *src_off
 		ceph_oid_printf(&dst_oid, "%llx.%08llx",
 				dst_ci->i_vino.ino, dst_objnum);
 		/* Do an object remote copy */
-		ret = ceph_osdc_copy_from(&fsc->client->osdc,
-					  src_ci->i_vino.snap, 0,
-					  &src_oid, &src_oloc,
-					  CEPH_OSD_OP_FLAG_FADVISE_SEQUENTIAL |
-					  CEPH_OSD_OP_FLAG_FADVISE_NOCACHE,
-					  &dst_oid, &dst_oloc,
-					  CEPH_OSD_OP_FLAG_FADVISE_SEQUENTIAL |
-					  CEPH_OSD_OP_FLAG_FADVISE_DONTNEED,
-					  dst_ci->i_truncate_seq,
-					  dst_ci->i_truncate_size,
-					  CEPH_OSD_COPY_FROM_FLAG_TRUNCATE_SEQ);
+		req = ceph_alloc_copyfrom_request(osdc, src_ci->i_vino.snap,
+						  &src_oid, &src_oloc,
+						  &dst_oid, &dst_oloc,
+						  dst_ci->i_truncate_seq,
+						  dst_ci->i_truncate_size);
+		if (IS_ERR(req))
+			ret = PTR_ERR(req);
+		else {
+			ceph_osdc_start_request(osdc, req, false);
+			ret = ceph_osdc_wait_request(osdc, req);
+			ceph_osdc_put_request(req);
+		}
 		if (ret) {
 			if (ret == -EOPNOTSUPP) {
 				fsc->have_copy_from2 = false;
