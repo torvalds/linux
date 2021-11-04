@@ -311,10 +311,23 @@ unsigned long *page_table_alloc(struct mm_struct *mm)
 	return table;
 }
 
+static void page_table_release_check(struct page *page, void *table,
+				     unsigned int half, unsigned int mask)
+{
+	char msg[128];
+
+	if (!IS_ENABLED(CONFIG_DEBUG_VM) || !mask)
+		return;
+	snprintf(msg, sizeof(msg),
+		 "Invalid pgtable %p release half 0x%02x mask 0x%02x",
+		 table, half, mask);
+	dump_page(page, msg);
+}
+
 void page_table_free(struct mm_struct *mm, unsigned long *table)
 {
+	unsigned int mask, bit, half;
 	struct page *page;
-	unsigned int bit, mask;
 
 	page = virt_to_page(table);
 	if (!mm_alloc_pgste(mm)) {
@@ -337,10 +350,14 @@ void page_table_free(struct mm_struct *mm, unsigned long *table)
 		mask >>= 24;
 		if (mask != 0x00U)
 			return;
+		half = 0x01U << bit;
 	} else {
-		atomic_xor_bits(&page->_refcount, 0x03U << 24);
+		half = 0x03U;
+		mask = atomic_xor_bits(&page->_refcount, 0x03U << 24);
+		mask >>= 24;
 	}
 
+	page_table_release_check(page, table, half, mask);
 	pgtable_pte_page_dtor(page);
 	__free_page(page);
 }
@@ -380,28 +397,30 @@ void page_table_free_rcu(struct mmu_gather *tlb, unsigned long *table,
 
 void __tlb_remove_table(void *_table)
 {
-	unsigned int mask = (unsigned long) _table & 0x03U;
+	unsigned int mask = (unsigned long) _table & 0x03U, half = mask;
 	void *table = (void *)((unsigned long) _table ^ mask);
 	struct page *page = virt_to_page(table);
 
-	switch (mask) {
+	switch (half) {
 	case 0x00U:	/* pmd, pud, or p4d */
 		free_pages((unsigned long) table, 2);
-		break;
+		return;
 	case 0x01U:	/* lower 2K of a 4K page table */
 	case 0x02U:	/* higher 2K of a 4K page table */
 		mask = atomic_xor_bits(&page->_refcount, mask << (4 + 24));
 		mask >>= 24;
 		if (mask != 0x00U)
-			break;
-		fallthrough;
+			return;
+		break;
 	case 0x03U:	/* 4K page table with pgstes */
-		if (mask & 0x03U)
-			atomic_xor_bits(&page->_refcount, 0x03U << 24);
-		pgtable_pte_page_dtor(page);
-		__free_page(page);
+		mask = atomic_xor_bits(&page->_refcount, 0x03U << 24);
+		mask >>= 24;
 		break;
 	}
+
+	page_table_release_check(page, table, half, mask);
+	pgtable_pte_page_dtor(page);
+	__free_page(page);
 }
 
 /*
