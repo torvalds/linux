@@ -944,7 +944,7 @@ static int xadc_read_raw(struct iio_dev *indio_dev,
 				*val = 1000;
 				break;
 			}
-			*val2 = chan->scan_type.realbits;
+			*val2 = bits;
 			return IIO_VAL_FRACTIONAL_LOG2;
 		case IIO_TEMP:
 			/* Temp in C = (val * 503.975) / 2**bits - 273.15 */
