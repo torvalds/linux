@@ -211,6 +211,12 @@ static bool i8xx_fbc_is_active(struct drm_i915_private *dev_priv)
 	return intel_de_read(dev_priv, FBC_CONTROL) & FBC_CTL_EN;
 }
 
+static bool i8xx_fbc_is_compressing(struct drm_i915_private *i915)
+{
+	return intel_de_read(i915, FBC_STATUS) &
+		(FBC_STAT_COMPRESSING | FBC_STAT_COMPRESSED);
+}
+
 static u32 g4x_dpfc_ctl_limit(struct drm_i915_private *i915)
 {
 	switch (i915->fbc.limit) {
@@ -260,6 +266,11 @@ static void g4x_fbc_deactivate(struct drm_i915_private *dev_priv)
 static bool g4x_fbc_is_active(struct drm_i915_private *dev_priv)
 {
 	return intel_de_read(dev_priv, DPFC_CONTROL) & DPFC_CTL_EN;
+}
+
+static bool g4x_fbc_is_compressing(struct drm_i915_private *i915)
+{
+	return intel_de_read(i915, DPFC_STATUS) & DPFC_COMP_SEG_MASK;
 }
 
 static void i8xx_fbc_recompress(struct drm_i915_private *dev_priv)
@@ -358,6 +369,11 @@ static bool ilk_fbc_is_active(struct drm_i915_private *dev_priv)
 	return intel_de_read(dev_priv, ILK_DPFC_CONTROL) & DPFC_CTL_EN;
 }
 
+static bool ilk_fbc_is_compressing(struct drm_i915_private *i915)
+{
+	return intel_de_read(i915, ILK_DPFC_STATUS) & ILK_DPFC_COMP_SEG_MASK;
+}
+
 static void glk_fbc_program_cfb_stride(struct drm_i915_private *i915)
 {
 	struct intel_fbc *fbc = &i915->fbc;
@@ -416,6 +432,14 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 	intel_de_write(dev_priv, ILK_DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
 }
 
+static bool gen7_fbc_is_compressing(struct drm_i915_private *i915)
+{
+	if (DISPLAY_VER(i915) >= 8)
+		return intel_de_read(i915, IVB_FBC_STATUS2) & BDW_FBC_COMP_SEG_MASK;
+	else
+		return intel_de_read(i915, IVB_FBC_STATUS2) & IVB_FBC_COMP_SEG_MASK;
+}
+
 static bool intel_fbc_hw_is_active(struct drm_i915_private *dev_priv)
 {
 	if (DISPLAY_VER(dev_priv) >= 5)
@@ -459,6 +483,18 @@ static void intel_fbc_hw_deactivate(struct drm_i915_private *dev_priv)
 		g4x_fbc_deactivate(dev_priv);
 	else
 		i8xx_fbc_deactivate(dev_priv);
+}
+
+bool intel_fbc_is_compressing(struct drm_i915_private *i915)
+{
+	if (DISPLAY_VER(i915) >= 7)
+		return gen7_fbc_is_compressing(i915);
+	else if (DISPLAY_VER(i915) >= 5)
+		return ilk_fbc_is_compressing(i915);
+	else if (IS_G4X(i915))
+		return g4x_fbc_is_compressing(i915);
+	else
+		return i8xx_fbc_is_compressing(i915);
 }
 
 /**
