@@ -633,6 +633,8 @@
 
 &pm8994_spmi_regulators {
 	qcom,saw-reg = <&saw3>;
+	vdd_s11-supply = <&vph_pwr>;
+
 	s9 {
 		qcom,saw-slave;
 	};
@@ -641,6 +643,7 @@
 	};
 	s11 {
 		qcom,saw-leader;
+		regulator-name = "VDD_APCC";
 		regulator-always-on;
 		regulator-min-microvolt = <980000>;
 		regulator-max-microvolt = <980000>;
@@ -673,6 +676,8 @@
 };
 
 &pmi8994_spmi_regulators {
+	vdd_s2-supply = <&vph_pwr>;
+
 	vdd_gfx: s2@1700 {
 		reg = <0x1700 0x100>;
 		regulator-name = "VDD_GFX";
