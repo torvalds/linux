@@ -189,7 +189,7 @@ static u32 i965_fbc_ctl2(struct drm_i915_private *i915)
 		FBC_CTL_PLANE(params->crtc.i9xx_plane);
 
 	if (params->fence_id >= 0)
-		fbc_ctl2 |= FBC_CTL_CPU_FENCE;
+		fbc_ctl2 |= FBC_CTL_CPU_FENCE_EN;
 
 	return fbc_ctl2;
 }
