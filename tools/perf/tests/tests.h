@@ -43,6 +43,12 @@ struct test {
 #define DECLARE_SUITE(name) \
 	int test__##name(struct test *test, int subtest)
 
+#define DEFINE_SUITE(description, name)		\
+	static struct test name = {		\
+		.desc = description,		\
+		.func = test__##name,		\
+	}
+
 /* Tests */
 DECLARE_SUITE(vmlinux_matches_kallsyms);
 DECLARE_SUITE(openat_syscall_event);
@@ -78,7 +84,7 @@ DECLARE_SUITE(code_reading);
 DECLARE_SUITE(sample_parsing);
 DECLARE_SUITE(keep_tracking);
 DECLARE_SUITE(parse_no_sample_id_all);
-DECLARE_SUITE(dwarf_unwind);
+extern struct test dwarf_unwind;
 DECLARE_SUITE(expr);
 DECLARE_SUITE(hists_filter);
 DECLARE_SUITE(mmap_thread_lookup);
