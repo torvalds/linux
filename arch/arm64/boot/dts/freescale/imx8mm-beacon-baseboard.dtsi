@@ -43,6 +43,17 @@
 		enable-active-high;
 	};
 
+	reg_usbotg1: regulator-usbotg1 {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_reg_usb_otg1>;
+		regulator-name = "usb_otg_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpio4 29 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
 	reg_usdhc2_vmmc: regulator-usdhc2 {
 		compatible = "regulator-fixed";
 		regulator-name = "VSD_3V3";
@@ -169,6 +180,24 @@
 	status = "okay";
 };
 
+&usbotg1 {
+	vbus-supply = <&reg_usbotg1>;
+	disable-over-current;
+	dr_mode="otg";
+	status = "okay";
+};
+
+&usbotg2 {
+	pinctrl-names = "default";
+	disable-over-current;
+	dr_mode="host";
+	status = "okay";
+};
+
+&usbphynop2 {
+	reset-gpios = <&pca6416_1 7 GPIO_ACTIVE_HIGH>;
+};
+
 &usdhc2 {
 	pinctrl-names = "default", "state_100mhz", "state_200mhz";
 	pinctrl-0 = <&pinctrl_usdhc2>, <&pinctrl_usdhc2_gpio>;
@@ -212,6 +241,12 @@
 	pinctrl_pcal6414: pcal6414-gpiogrp {
 		fsl,pins = <
 			MX8MM_IOMUXC_SAI2_MCLK_GPIO4_IO27		0x19
+		>;
+	};
+
+	pinctrl_reg_usb_otg1: usbotg1grp {
+		fsl,pins = <
+			MX8MM_IOMUXC_SAI3_RXC_GPIO4_IO29     0x19
 		>;
 	};
 
