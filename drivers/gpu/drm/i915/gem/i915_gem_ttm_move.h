@@ -7,6 +7,8 @@
 
 #include <linux/types.h>
 
+#include "i915_selftest.h"
+
 struct ttm_buffer_object;
 struct ttm_operation_ctx;
 struct ttm_place;
@@ -17,6 +19,9 @@ struct drm_i915_gem_object;
 struct i915_refct_sgt;
 
 int i915_ttm_move_notify(struct ttm_buffer_object *bo);
+
+I915_SELFTEST_DECLARE(void i915_ttm_migrate_set_failure_modes(bool gpu_migration,
+							      bool work_allocation));
 
 /* Internal I915 TTM declarations and definitions below. */
 

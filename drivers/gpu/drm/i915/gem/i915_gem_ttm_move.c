@@ -18,6 +18,29 @@
 #include "gt/intel_gt.h"
 #include "gt/intel_migrate.h"
 
+/**
+ * DOC: Selftest failure modes for failsafe migration:
+ *
+ * For fail_gpu_migration, the gpu blit scheduled is always a clear blit
+ * rather than a copy blit, and then we force the failure paths as if
+ * the blit fence returned an error.
+ *
+ * For fail_work_allocation we fail the kmalloc of the async worker, we
+ * sync the gpu blit. If it then fails, or fail_gpu_migration is set to
+ * true, then a memcpy operation is performed sync.
+ */
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+static bool fail_gpu_migration;
+static bool fail_work_allocation;
+
+void i915_ttm_migrate_set_failure_modes(bool gpu_migration,
+					bool work_allocation)
+{
+	fail_gpu_migration = gpu_migration;
+	fail_work_allocation = work_allocation;
+}
+#endif
+
 static enum i915_cache_level
 i915_ttm_cache_level(struct drm_i915_private *i915, struct ttm_resource *res,
 		     struct ttm_tt *ttm)
@@ -129,11 +152,11 @@ int i915_ttm_move_notify(struct ttm_buffer_object *bo)
 	return 0;
 }
 
-static int i915_ttm_accel_move(struct ttm_buffer_object *bo,
-			       bool clear,
-			       struct ttm_resource *dst_mem,
-			       struct ttm_tt *dst_ttm,
-			       struct sg_table *dst_st)
+static struct dma_fence *i915_ttm_accel_move(struct ttm_buffer_object *bo,
+					     bool clear,
+					     struct ttm_resource *dst_mem,
+					     struct ttm_tt *dst_ttm,
+					     struct sg_table *dst_st)
 {
 	struct drm_i915_private *i915 = container_of(bo->bdev, typeof(*i915),
 						     bdev);
@@ -144,30 +167,29 @@ static int i915_ttm_accel_move(struct ttm_buffer_object *bo,
 	int ret;
 
 	if (!i915->gt.migrate.context || intel_gt_is_wedged(&i915->gt))
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
+
+	/* With fail_gpu_migration, we always perform a GPU clear. */
+	if (I915_SELFTEST_ONLY(fail_gpu_migration))
+		clear = true;
 
 	dst_level = i915_ttm_cache_level(i915, dst_mem, dst_ttm);
 	if (clear) {
-		if (bo->type == ttm_bo_type_kernel)
-			return -EINVAL;
+		if (bo->type == ttm_bo_type_kernel &&
+		    !I915_SELFTEST_ONLY(fail_gpu_migration))
+			return ERR_PTR(-EINVAL);
 
 		intel_engine_pm_get(i915->gt.migrate.context->engine);
 		ret = intel_context_migrate_clear(i915->gt.migrate.context, NULL,
 						  dst_st->sgl, dst_level,
 						  i915_ttm_gtt_binds_lmem(dst_mem),
 						  0, &rq);
-
-		if (!ret && rq) {
-			i915_request_wait(rq, 0, MAX_SCHEDULE_TIMEOUT);
-			i915_request_put(rq);
-		}
-		intel_engine_pm_put(i915->gt.migrate.context->engine);
 	} else {
 		struct i915_refct_sgt *src_rsgt =
 			i915_ttm_resource_get_st(obj, bo->resource);
 
 		if (IS_ERR(src_rsgt))
-			return PTR_ERR(src_rsgt);
+			return ERR_CAST(src_rsgt);
 
 		src_level = i915_ttm_cache_level(i915, bo->resource, src_ttm);
 		intel_engine_pm_get(i915->gt.migrate.context->engine);
@@ -178,15 +200,182 @@ static int i915_ttm_accel_move(struct ttm_buffer_object *bo,
 						 dst_st->sgl, dst_level,
 						 i915_ttm_gtt_binds_lmem(dst_mem),
 						 &rq);
+
 		i915_refct_sgt_put(src_rsgt);
-		if (!ret && rq) {
-			i915_request_wait(rq, 0, MAX_SCHEDULE_TIMEOUT);
-			i915_request_put(rq);
-		}
-		intel_engine_pm_put(i915->gt.migrate.context->engine);
 	}
 
-	return ret;
+	intel_engine_pm_put(i915->gt.migrate.context->engine);
+
+	if (ret && rq) {
+		i915_request_wait(rq, 0, MAX_SCHEDULE_TIMEOUT);
+		i915_request_put(rq);
+	}
+
+	return ret ? ERR_PTR(ret) : &rq->fence;
+}
+
+/**
+ * struct i915_ttm_memcpy_arg - argument for the bo memcpy functionality.
+ * @_dst_iter: Storage space for the destination kmap iterator.
+ * @_src_iter: Storage space for the source kmap iterator.
+ * @dst_iter: Pointer to the destination kmap iterator.
+ * @src_iter: Pointer to the source kmap iterator.
+ * @clear: Whether to clear instead of copy.
+ * @src_rsgt: Refcounted scatter-gather list of source memory.
+ * @dst_rsgt: Refcounted scatter-gather list of destination memory.
+ */
+struct i915_ttm_memcpy_arg {
+	union {
+		struct ttm_kmap_iter_tt tt;
+		struct ttm_kmap_iter_iomap io;
+	} _dst_iter,
+	_src_iter;
+	struct ttm_kmap_iter *dst_iter;
+	struct ttm_kmap_iter *src_iter;
+	unsigned long num_pages;
+	bool clear;
+	struct i915_refct_sgt *src_rsgt;
+	struct i915_refct_sgt *dst_rsgt;
+};
+
+/**
+ * struct i915_ttm_memcpy_work - Async memcpy worker under a dma-fence.
+ * @fence: The dma-fence.
+ * @work: The work struct use for the memcpy work.
+ * @lock: The fence lock. Not used to protect anything else ATM.
+ * @irq_work: Low latency worker to signal the fence since it can't be done
+ * from the callback for lockdep reasons.
+ * @cb: Callback for the accelerated migration fence.
+ * @arg: The argument for the memcpy functionality.
+ */
+struct i915_ttm_memcpy_work {
+	struct dma_fence fence;
+	struct work_struct work;
+	/* The fence lock */
+	spinlock_t lock;
+	struct irq_work irq_work;
+	struct dma_fence_cb cb;
+	struct i915_ttm_memcpy_arg arg;
+};
+
+static void i915_ttm_move_memcpy(struct i915_ttm_memcpy_arg *arg)
+{
+	ttm_move_memcpy(arg->clear, arg->num_pages,
+			arg->dst_iter, arg->src_iter);
+}
+
+static void i915_ttm_memcpy_init(struct i915_ttm_memcpy_arg *arg,
+				 struct ttm_buffer_object *bo, bool clear,
+				 struct ttm_resource *dst_mem,
+				 struct ttm_tt *dst_ttm,
+				 struct i915_refct_sgt *dst_rsgt)
+{
+	struct drm_i915_gem_object *obj = i915_ttm_to_gem(bo);
+	struct intel_memory_region *dst_reg, *src_reg;
+
+	dst_reg = i915_ttm_region(bo->bdev, dst_mem->mem_type);
+	src_reg = i915_ttm_region(bo->bdev, bo->resource->mem_type);
+	GEM_BUG_ON(!dst_reg || !src_reg);
+
+	arg->dst_iter = !i915_ttm_cpu_maps_iomem(dst_mem) ?
+		ttm_kmap_iter_tt_init(&arg->_dst_iter.tt, dst_ttm) :
+		ttm_kmap_iter_iomap_init(&arg->_dst_iter.io, &dst_reg->iomap,
+					 &dst_rsgt->table, dst_reg->region.start);
+
+	arg->src_iter = !i915_ttm_cpu_maps_iomem(bo->resource) ?
+		ttm_kmap_iter_tt_init(&arg->_src_iter.tt, bo->ttm) :
+		ttm_kmap_iter_iomap_init(&arg->_src_iter.io, &src_reg->iomap,
+					 &obj->ttm.cached_io_rsgt->table,
+					 src_reg->region.start);
+	arg->clear = clear;
+	arg->num_pages = bo->base.size >> PAGE_SHIFT;
+
+	arg->dst_rsgt = i915_refct_sgt_get(dst_rsgt);
+	arg->src_rsgt = clear ? NULL :
+		i915_ttm_resource_get_st(obj, bo->resource);
+}
+
+static void i915_ttm_memcpy_release(struct i915_ttm_memcpy_arg *arg)
+{
+	i915_refct_sgt_put(arg->src_rsgt);
+	i915_refct_sgt_put(arg->dst_rsgt);
+}
+
+static void __memcpy_work(struct work_struct *work)
+{
+	struct i915_ttm_memcpy_work *copy_work =
+		container_of(work, typeof(*copy_work), work);
+	struct i915_ttm_memcpy_arg *arg = &copy_work->arg;
+	bool cookie = dma_fence_begin_signalling();
+
+	i915_ttm_move_memcpy(arg);
+	dma_fence_end_signalling(cookie);
+
+	dma_fence_signal(&copy_work->fence);
+
+	i915_ttm_memcpy_release(arg);
+	dma_fence_put(&copy_work->fence);
+}
+
+static void __memcpy_irq_work(struct irq_work *irq_work)
+{
+	struct i915_ttm_memcpy_work *copy_work =
+		container_of(irq_work, typeof(*copy_work), irq_work);
+	struct i915_ttm_memcpy_arg *arg = &copy_work->arg;
+
+	dma_fence_signal(&copy_work->fence);
+	i915_ttm_memcpy_release(arg);
+	dma_fence_put(&copy_work->fence);
+}
+
+static void __memcpy_cb(struct dma_fence *fence, struct dma_fence_cb *cb)
+{
+	struct i915_ttm_memcpy_work *copy_work =
+		container_of(cb, typeof(*copy_work), cb);
+
+	if (unlikely(fence->error || I915_SELFTEST_ONLY(fail_gpu_migration))) {
+		INIT_WORK(&copy_work->work, __memcpy_work);
+		queue_work(system_unbound_wq, &copy_work->work);
+	} else {
+		init_irq_work(&copy_work->irq_work, __memcpy_irq_work);
+		irq_work_queue(&copy_work->irq_work);
+	}
+}
+
+static const char *get_driver_name(struct dma_fence *fence)
+{
+	return "i915_ttm_memcpy_work";
+}
+
+static const char *get_timeline_name(struct dma_fence *fence)
+{
+	return "unbound";
+}
+
+static const struct dma_fence_ops dma_fence_memcpy_ops = {
+	.get_driver_name = get_driver_name,
+	.get_timeline_name = get_timeline_name,
+};
+
+static struct dma_fence *
+i915_ttm_memcpy_work_arm(struct i915_ttm_memcpy_work *work,
+			 struct dma_fence *dep)
+{
+	int ret;
+
+	spin_lock_init(&work->lock);
+	dma_fence_init(&work->fence, &dma_fence_memcpy_ops, &work->lock, 0, 0);
+	dma_fence_get(&work->fence);
+	ret = dma_fence_add_callback(dep, &work->cb, __memcpy_cb);
+	if (ret) {
+		if (ret != -ENOENT)
+			dma_fence_wait(dep, false);
+
+		return ERR_PTR(I915_SELFTEST_ONLY(fail_gpu_migration) ? -EINVAL :
+			       dep->error);
+	}
+
+	return &work->fence;
 }
 
 /**
@@ -199,42 +388,68 @@ static int i915_ttm_accel_move(struct ttm_buffer_object *bo,
  * @allow_accel: Whether to allow acceleration.
  */
 void __i915_ttm_move(struct ttm_buffer_object *bo, bool clear,
-		     struct ttm_resource *dst_mem,
-		     struct ttm_tt *dst_ttm,
-		     struct i915_refct_sgt *dst_rsgt,
-		     bool allow_accel)
+		     struct ttm_resource *dst_mem, struct ttm_tt *dst_ttm,
+		     struct i915_refct_sgt *dst_rsgt, bool allow_accel)
 {
-	int ret = -EINVAL;
+	struct i915_ttm_memcpy_work *copy_work = NULL;
+	struct i915_ttm_memcpy_arg _arg, *arg = &_arg;
+	struct dma_fence *fence = ERR_PTR(-EINVAL);
 
-	if (allow_accel)
-		ret = i915_ttm_accel_move(bo, clear, dst_mem, dst_ttm,
-					  &dst_rsgt->table);
-	if (ret) {
-		struct drm_i915_gem_object *obj = i915_ttm_to_gem(bo);
-		struct intel_memory_region *dst_reg, *src_reg;
-		union {
-			struct ttm_kmap_iter_tt tt;
-			struct ttm_kmap_iter_iomap io;
-		} _dst_iter, _src_iter;
-		struct ttm_kmap_iter *dst_iter, *src_iter;
+	if (allow_accel) {
+		fence = i915_ttm_accel_move(bo, clear, dst_mem, dst_ttm,
+					    &dst_rsgt->table);
 
-		dst_reg = i915_ttm_region(bo->bdev, dst_mem->mem_type);
-		src_reg = i915_ttm_region(bo->bdev, bo->resource->mem_type);
-		GEM_BUG_ON(!dst_reg || !src_reg);
+		/*
+		 * We only need to intercept the error when moving to lmem.
+		 * When moving to system, TTM or shmem will provide us with
+		 * cleared pages.
+		 */
+		if (!IS_ERR(fence) && !i915_ttm_gtt_binds_lmem(dst_mem) &&
+		    !I915_SELFTEST_ONLY(fail_gpu_migration ||
+					fail_work_allocation))
+			goto out;
+	}
 
-		dst_iter = !i915_ttm_cpu_maps_iomem(dst_mem) ?
-			ttm_kmap_iter_tt_init(&_dst_iter.tt, dst_ttm) :
-			ttm_kmap_iter_iomap_init(&_dst_iter.io, &dst_reg->iomap,
-						 &dst_rsgt->table,
-						 dst_reg->region.start);
+	/* If we've scheduled gpu migration. Try to arm error intercept. */
+	if (!IS_ERR(fence)) {
+		struct dma_fence *dep = fence;
 
-		src_iter = !i915_ttm_cpu_maps_iomem(bo->resource) ?
-			ttm_kmap_iter_tt_init(&_src_iter.tt, bo->ttm) :
-			ttm_kmap_iter_iomap_init(&_src_iter.io, &src_reg->iomap,
-						 &obj->ttm.cached_io_rsgt->table,
-						 src_reg->region.start);
+		if (!I915_SELFTEST_ONLY(fail_work_allocation))
+			copy_work = kzalloc(sizeof(*copy_work), GFP_KERNEL);
 
-		ttm_move_memcpy(clear, dst_mem->num_pages, dst_iter, src_iter);
+		if (copy_work) {
+			arg = &copy_work->arg;
+			i915_ttm_memcpy_init(arg, bo, clear, dst_mem, dst_ttm,
+					     dst_rsgt);
+			fence = i915_ttm_memcpy_work_arm(copy_work, dep);
+		} else {
+			dma_fence_wait(dep, false);
+			fence = ERR_PTR(I915_SELFTEST_ONLY(fail_gpu_migration) ?
+					-EINVAL : fence->error);
+		}
+		dma_fence_put(dep);
+
+		if (!IS_ERR(fence))
+			goto out;
+	}
+
+	/* Error intercept failed or no accelerated migration to start with */
+	if (!copy_work)
+		i915_ttm_memcpy_init(arg, bo, clear, dst_mem, dst_ttm,
+				     dst_rsgt);
+	i915_ttm_move_memcpy(arg);
+	i915_ttm_memcpy_release(arg);
+	kfree(copy_work);
+
+	return;
+out:
+	/* Sync here for now, forward the fence to caller when fully async. */
+	if (fence) {
+		dma_fence_wait(fence, false);
+		dma_fence_put(fence);
+	} else if (copy_work) {
+		i915_ttm_memcpy_release(arg);
+		kfree(copy_work);
 	}
 }
 
