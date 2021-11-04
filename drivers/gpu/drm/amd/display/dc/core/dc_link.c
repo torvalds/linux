@@ -2997,7 +2997,7 @@ bool dc_link_set_psr_allow_active(struct dc_link *link, const bool *allow_active
 		link->psr_settings.psr_power_opt = *power_opts;
 
 		if (psr != NULL && link->psr_settings.psr_feature_enabled && psr->funcs->psr_set_power_opt)
-			psr->funcs->psr_set_power_opt(psr, link->psr_settings.psr_power_opt);
+			psr->funcs->psr_set_power_opt(psr, link->psr_settings.psr_power_opt, panel_inst);
 	}
 
 	/* Enable or Disable PSR */

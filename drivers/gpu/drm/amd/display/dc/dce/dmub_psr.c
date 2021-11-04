@@ -230,7 +230,7 @@ static void dmub_psr_set_level(struct dmub_psr *dmub, uint16_t psr_level, uint8_
 /**
  * Set PSR power optimization flags.
  */
-static void dmub_psr_set_power_opt(struct dmub_psr *dmub, unsigned int power_opt)
+static void dmub_psr_set_power_opt(struct dmub_psr *dmub, unsigned int power_opt, uint8_t panel_inst)
 {
 	union dmub_rb_cmd cmd;
 	struct dc_context *dc = dmub->ctx;
@@ -239,7 +239,9 @@ static void dmub_psr_set_power_opt(struct dmub_psr *dmub, unsigned int power_opt
 	cmd.psr_set_power_opt.header.type = DMUB_CMD__PSR;
 	cmd.psr_set_power_opt.header.sub_type = DMUB_CMD__SET_PSR_POWER_OPT;
 	cmd.psr_set_power_opt.header.payload_bytes = sizeof(struct dmub_cmd_psr_set_power_opt_data);
+	cmd.psr_set_power_opt.psr_set_power_opt_data.cmd_version = DMUB_CMD_PSR_CONTROL_VERSION_1;
 	cmd.psr_set_power_opt.psr_set_power_opt_data.power_opt = power_opt;
+	cmd.psr_set_power_opt.psr_set_power_opt_data.panel_inst = panel_inst;
 
 	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd);
 	dc_dmub_srv_cmd_execute(dc->dmub_srv);
