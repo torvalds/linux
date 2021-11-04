@@ -1114,11 +1114,13 @@ static int ax88796c_remove(struct spi_device *spi)
 	return 0;
 }
 
+#ifdef CONFIG_OF
 static const struct of_device_id ax88796c_dt_ids[] = {
 	{ .compatible = "asix,ax88796c" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, ax88796c_dt_ids);
+#endif
 
 static const struct spi_device_id asix_id[] = {
 	{ "ax88796c", 0 },
