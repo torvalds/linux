@@ -83,6 +83,10 @@ static int _nfs42_proc_fallocate(struct rpc_message *msg, struct file *filep,
 		status = nfs_post_op_update_inode_force_wcc(inode,
 							    res.falloc_fattr);
 
+	if (msg->rpc_proc == &nfs4_procedures[NFSPROC4_CLNT_ALLOCATE])
+		trace_nfs4_fallocate(inode, &args, status);
+	else
+		trace_nfs4_deallocate(inode, &args, status);
 	kfree(res.falloc_fattr);
 	return status;
 }

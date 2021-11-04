@@ -2127,6 +2127,62 @@ TRACE_EVENT(nfs4_llseek,
 		)
 );
 
+DECLARE_EVENT_CLASS(nfs4_sparse_event,
+		TP_PROTO(
+			const struct inode *inode,
+			const struct nfs42_falloc_args *args,
+			int error
+		),
+
+		TP_ARGS(inode, args, error),
+
+		TP_STRUCT__entry(
+			__field(unsigned long, error)
+			__field(loff_t, offset)
+			__field(loff_t, len)
+			__field(dev_t, dev)
+			__field(u32, fhandle)
+			__field(u64, fileid)
+			__field(int, stateid_seq)
+			__field(u32, stateid_hash)
+		),
+
+		TP_fast_assign(
+			__entry->error = error < 0 ? -error : 0;
+			__entry->offset = args->falloc_offset;
+			__entry->len = args->falloc_length;
+			__entry->dev = inode->i_sb->s_dev;
+			__entry->fileid = NFS_FILEID(inode);
+			__entry->fhandle = nfs_fhandle_hash(NFS_FH(inode));
+			__entry->stateid_seq =
+				be32_to_cpu(args->falloc_stateid.seqid);
+			__entry->stateid_hash =
+				nfs_stateid_hash(&args->falloc_stateid);
+		),
+
+		TP_printk(
+			"error=%ld (%s) fileid=%02x:%02x:%llu fhandle=0x%08x "
+			"stateid=%d:0x%08x offset=%llu len=%llu",
+			-__entry->error,
+			show_nfs4_status(__entry->error),
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->fileid,
+			__entry->fhandle,
+			__entry->stateid_seq, __entry->stateid_hash,
+			(long long)__entry->offset,
+			(long long)__entry->len
+		)
+);
+#define DEFINE_NFS4_SPARSE_EVENT(name) \
+	DEFINE_EVENT(nfs4_sparse_event, name, \
+			TP_PROTO( \
+				const struct inode *inode, \
+				const struct nfs42_falloc_args *args, \
+				int error \
+			), \
+			TP_ARGS(inode, args, error))
+DEFINE_NFS4_SPARSE_EVENT(nfs4_fallocate);
+DEFINE_NFS4_SPARSE_EVENT(nfs4_deallocate);
 #endif /* CONFIG_NFS_V4_2 */
 
 #endif /* CONFIG_NFS_V4_1 */
