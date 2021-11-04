@@ -828,6 +828,29 @@ struct i915_selftest_stash {
 	struct ida mock_region_instances;
 };
 
+/* intel_audio.c private */
+struct intel_audio_private {
+	/* Display internal audio functions */
+	const struct intel_audio_funcs *funcs;
+
+	/* hda/i915 audio component */
+	struct i915_audio_component *component;
+	bool component_registered;
+	/* mutex for audio/video sync */
+	struct mutex mutex;
+	int power_refcount;
+	u32 freq_cntrl;
+
+	/* Used to save the pipe-to-encoder mapping for audio */
+	struct intel_encoder *encoder_map[I915_MAX_PIPES];
+
+	/* necessary resource sharing with HDMI LPE audio driver. */
+	struct {
+		struct platform_device *platdev;
+		int irq;
+	} lpe;
+};
+
 struct drm_i915_private {
 	struct drm_device drm;
 
@@ -1213,27 +1236,7 @@ struct drm_i915_private {
 
 	bool ipc_enabled;
 
-	struct {
-		/* Display internal audio functions */
-		const struct intel_audio_funcs *funcs;
-
-		/* hda/i915 audio component */
-		struct i915_audio_component *component;
-		bool component_registered;
-		/* mutex for audio/video sync */
-		struct mutex mutex;
-		int power_refcount;
-		u32 freq_cntrl;
-
-		/* Used to save the pipe-to-encoder mapping for audio */
-		struct intel_encoder *encoder_map[I915_MAX_PIPES];
-
-		/* necessary resource sharing with HDMI LPE audio driver. */
-		struct {
-			struct platform_device *platdev;
-			int irq;
-		} lpe;
-	} audio;
+	struct intel_audio_private audio;
 
 	struct i915_pmu pmu;
 
