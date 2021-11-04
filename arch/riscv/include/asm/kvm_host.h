@@ -77,13 +77,6 @@ struct kvm_sbi_context {
 	int return_handled;
 };
 
-#define KVM_MMU_PAGE_CACHE_NR_OBJS	32
-
-struct kvm_mmu_page_cache {
-	int nobjs;
-	void *objects[KVM_MMU_PAGE_CACHE_NR_OBJS];
-};
-
 struct kvm_cpu_trap {
 	unsigned long sepc;
 	unsigned long scause;
@@ -193,7 +186,7 @@ struct kvm_vcpu_arch {
 	struct kvm_sbi_context sbi_context;
 
 	/* Cache pages needed to program page tables with spinlock held */
-	struct kvm_mmu_page_cache mmu_page_cache;
+	struct kvm_mmu_memory_cache mmu_page_cache;
 
 	/* VCPU power-off state */
 	bool power_off;
@@ -220,7 +213,6 @@ void __kvm_riscv_hfence_gvma_all(void);
 int kvm_riscv_stage2_map(struct kvm_vcpu *vcpu,
 			 struct kvm_memory_slot *memslot,
 			 gpa_t gpa, unsigned long hva, bool is_write);
-void kvm_riscv_stage2_flush_cache(struct kvm_vcpu *vcpu);
 int kvm_riscv_stage2_alloc_pgd(struct kvm *kvm);
 void kvm_riscv_stage2_free_pgd(struct kvm *kvm);
 void kvm_riscv_stage2_update_hgatp(struct kvm_vcpu *vcpu);
