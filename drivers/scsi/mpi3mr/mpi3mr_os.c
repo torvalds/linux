@@ -3736,7 +3736,7 @@ mpi3mr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	shost->max_lun = -1;
 	shost->unique_id = mrioc->id;
 
-	shost->max_channel = 1;
+	shost->max_channel = 0;
 	shost->max_id = 0xFFFFFFFF;
 
 	if (prot_mask >= 0)

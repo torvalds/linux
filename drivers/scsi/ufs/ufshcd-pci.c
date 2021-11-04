@@ -370,20 +370,6 @@ static void ufs_intel_common_exit(struct ufs_hba *hba)
 
 static int ufs_intel_resume(struct ufs_hba *hba, enum ufs_pm_op op)
 {
-	/*
-	 * To support S4 (suspend-to-disk) with spm_lvl other than 5, the base
-	 * address registers must be restored because the restore kernel can
-	 * have used different addresses.
-	 */
-	ufshcd_writel(hba, lower_32_bits(hba->utrdl_dma_addr),
-		      REG_UTP_TRANSFER_REQ_LIST_BASE_L);
-	ufshcd_writel(hba, upper_32_bits(hba->utrdl_dma_addr),
-		      REG_UTP_TRANSFER_REQ_LIST_BASE_H);
-	ufshcd_writel(hba, lower_32_bits(hba->utmrdl_dma_addr),
-		      REG_UTP_TASK_REQ_LIST_BASE_L);
-	ufshcd_writel(hba, upper_32_bits(hba->utmrdl_dma_addr),
-		      REG_UTP_TASK_REQ_LIST_BASE_H);
-
 	if (ufshcd_is_link_hibern8(hba)) {
 		int ret = ufshcd_uic_hibern8_exit(hba);
 
@@ -462,6 +448,18 @@ static struct ufs_hba_variant_ops ufs_intel_lkf_hba_vops = {
 	.resume			= ufs_intel_resume,
 	.device_reset		= ufs_intel_device_reset,
 };
+
+#ifdef CONFIG_PM_SLEEP
+static int ufshcd_pci_restore(struct device *dev)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+
+	/* Force a full reset and restore */
+	ufshcd_set_link_off(hba);
+
+	return ufshcd_system_resume(dev);
+}
+#endif
 
 /**
  * ufshcd_pci_shutdown - main function to put the controller in reset state
@@ -546,9 +544,14 @@ ufshcd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 }
 
 static const struct dev_pm_ops ufshcd_pci_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(ufshcd_system_suspend, ufshcd_system_resume)
 	SET_RUNTIME_PM_OPS(ufshcd_runtime_suspend, ufshcd_runtime_resume, NULL)
 #ifdef CONFIG_PM_SLEEP
+	.suspend	= ufshcd_system_suspend,
+	.resume		= ufshcd_system_resume,
+	.freeze		= ufshcd_system_suspend,
+	.thaw		= ufshcd_system_resume,
+	.poweroff	= ufshcd_system_suspend,
+	.restore	= ufshcd_pci_restore,
 	.prepare	= ufshcd_suspend_prepare,
 	.complete	= ufshcd_resume_complete,
 #endif

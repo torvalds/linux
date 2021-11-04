@@ -5065,9 +5065,12 @@ _scsih_setup_eedp(struct MPT3SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
 	if (scmd->prot_flags & SCSI_PROT_GUARD_CHECK)
 		eedp_flags |= MPI2_SCSIIO_EEDPFLAGS_CHECK_GUARD;
 
-	if (scmd->prot_flags & SCSI_PROT_REF_CHECK) {
-		eedp_flags |= MPI2_SCSIIO_EEDPFLAGS_INC_PRI_REFTAG |
-			MPI2_SCSIIO_EEDPFLAGS_CHECK_REFTAG;
+	if (scmd->prot_flags & SCSI_PROT_REF_CHECK)
+		eedp_flags |= MPI2_SCSIIO_EEDPFLAGS_CHECK_REFTAG;
+
+	if (scmd->prot_flags & SCSI_PROT_REF_INCREMENT) {
+		eedp_flags |= MPI2_SCSIIO_EEDPFLAGS_INC_PRI_REFTAG;
+
 		mpi_request->CDB.EEDP32.PrimaryReferenceTag =
 			cpu_to_be32(scsi_prot_ref_tag(scmd));
 	}

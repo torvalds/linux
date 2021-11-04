@@ -1285,11 +1285,15 @@ static void storvsc_on_channel_callback(void *context)
 	foreach_vmbus_pkt(desc, channel) {
 		struct vstor_packet *packet = hv_pkt_data(desc);
 		struct storvsc_cmd_request *request = NULL;
+		u32 pktlen = hv_pkt_datalen(desc);
 		u64 rqst_id = desc->trans_id;
+		u32 minlen = rqst_id ? sizeof(struct vstor_packet) -
+			stor_device->vmscsi_size_delta : sizeof(enum vstor_packet_operation);
 
-		if (hv_pkt_datalen(desc) < sizeof(struct vstor_packet) -
-				stor_device->vmscsi_size_delta) {
-			dev_err(&device->device, "Invalid packet len\n");
+		if (pktlen < minlen) {
+			dev_err(&device->device,
+				"Invalid pkt: id=%llu, len=%u, minlen=%u\n",
+				rqst_id, pktlen, minlen);
 			continue;
 		}
 
@@ -1302,13 +1306,23 @@ static void storvsc_on_channel_callback(void *context)
 			if (rqst_id == 0) {
 				/*
 				 * storvsc_on_receive() looks at the vstor_packet in the message
-				 * from the ring buffer.  If the operation in the vstor_packet is
-				 * COMPLETE_IO, then we call storvsc_on_io_completion(), and
-				 * dereference the guest memory address.  Make sure we don't call
-				 * storvsc_on_io_completion() with a guest memory address that is
-				 * zero if Hyper-V were to construct and send such a bogus packet.
+				 * from the ring buffer.
+				 *
+				 * - If the operation in the vstor_packet is COMPLETE_IO, then
+				 *   we call storvsc_on_io_completion(), and dereference the
+				 *   guest memory address.  Make sure we don't call
+				 *   storvsc_on_io_completion() with a guest memory address
+				 *   that is zero if Hyper-V were to construct and send such
+				 *   a bogus packet.
+				 *
+				 * - If the operation in the vstor_packet is FCHBA_DATA, then
+				 *   we call cache_wwn(), and access the data payload area of
+				 *   the packet (wwn_packet); however, there is no guarantee
+				 *   that the packet is big enough to contain such area.
+				 *   Future-proof the code by rejecting such a bogus packet.
 				 */
-				if (packet->operation == VSTOR_OPERATION_COMPLETE_IO) {
+				if (packet->operation == VSTOR_OPERATION_COMPLETE_IO ||
+				    packet->operation == VSTOR_OPERATION_FCHBA_DATA) {
 					dev_err(&device->device, "Invalid packet with ID of 0\n");
 					continue;
 				}

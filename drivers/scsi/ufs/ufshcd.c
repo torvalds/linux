@@ -2767,12 +2767,7 @@ static int ufshcd_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 
 	lrbp->req_abort_skip = false;
 
-	err = ufshpb_prep(hba, lrbp);
-	if (err == -EAGAIN) {
-		lrbp->cmd = NULL;
-		ufshcd_release(hba);
-		goto out;
-	}
+	ufshpb_prep(hba, lrbp);
 
 	ufshcd_comp_scsi_upiu(hba, lrbp);
 
