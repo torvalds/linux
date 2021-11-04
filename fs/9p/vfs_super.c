@@ -79,6 +79,9 @@ v9fs_fill_super(struct super_block *sb, struct v9fs_session_info *v9ses,
 	if (!v9ses->cache) {
 		sb->s_bdi->ra_pages = 0;
 		sb->s_bdi->io_pages = 0;
+	} else {
+		sb->s_bdi->ra_pages = v9ses->maxdata >> PAGE_SHIFT;
+		sb->s_bdi->io_pages = v9ses->maxdata >> PAGE_SHIFT;
 	}
 
 	sb->s_flags |= SB_ACTIVE | SB_DIRSYNC;
