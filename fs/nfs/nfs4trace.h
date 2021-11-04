@@ -2290,6 +2290,79 @@ TRACE_EVENT(nfs4_copy,
 			__entry->res_count
 		)
 );
+
+TRACE_EVENT(nfs4_clone,
+		TP_PROTO(
+			const struct inode *src_inode,
+			const struct inode *dst_inode,
+			const struct nfs42_clone_args *args,
+			int error
+		),
+
+		TP_ARGS(src_inode, dst_inode, args, error),
+
+		TP_STRUCT__entry(
+			__field(unsigned long, error)
+			__field(u32, src_fhandle)
+			__field(u32, src_fileid)
+			__field(u32, dst_fhandle)
+			__field(u32, dst_fileid)
+			__field(dev_t, src_dev)
+			__field(dev_t, dst_dev)
+			__field(loff_t, src_offset)
+			__field(loff_t, dst_offset)
+			__field(int, src_stateid_seq)
+			__field(u32, src_stateid_hash)
+			__field(int, dst_stateid_seq)
+			__field(u32, dst_stateid_hash)
+			__field(loff_t, len)
+		),
+
+		TP_fast_assign(
+			const struct nfs_inode *src_nfsi = NFS_I(src_inode);
+			const struct nfs_inode *dst_nfsi = NFS_I(dst_inode);
+
+			__entry->src_fileid = src_nfsi->fileid;
+			__entry->src_dev = src_inode->i_sb->s_dev;
+			__entry->src_fhandle = nfs_fhandle_hash(args->src_fh);
+			__entry->src_offset = args->src_offset;
+			__entry->dst_fileid = dst_nfsi->fileid;
+			__entry->dst_dev = dst_inode->i_sb->s_dev;
+			__entry->dst_fhandle = nfs_fhandle_hash(args->dst_fh);
+			__entry->dst_offset = args->dst_offset;
+			__entry->len = args->count;
+			__entry->error = error < 0 ? -error : 0;
+			__entry->src_stateid_seq =
+				be32_to_cpu(args->src_stateid.seqid);
+			__entry->src_stateid_hash =
+				nfs_stateid_hash(&args->src_stateid);
+			__entry->dst_stateid_seq =
+				be32_to_cpu(args->dst_stateid.seqid);
+			__entry->dst_stateid_hash =
+				nfs_stateid_hash(&args->dst_stateid);
+		),
+
+		TP_printk(
+			"error=%ld (%s) src_fileid=%02x:%02x:%llu "
+			"src_fhandle=0x%08x dst_fileid=%02x:%02x:%llu "
+			"dst_fhandle=0x%08x src_stateid=%d:0x%08x "
+			"dst_stateid=%d:0x%08x src_offset=%llu "
+			"dst_offset=%llu len=%llu",
+			-__entry->error,
+			show_nfs4_status(__entry->error),
+			MAJOR(__entry->src_dev), MINOR(__entry->src_dev),
+			(unsigned long long)__entry->src_fileid,
+			__entry->src_fhandle,
+			MAJOR(__entry->dst_dev), MINOR(__entry->dst_dev),
+			(unsigned long long)__entry->dst_fileid,
+			__entry->dst_fhandle,
+			__entry->src_stateid_seq, __entry->src_stateid_hash,
+			__entry->dst_stateid_seq, __entry->dst_stateid_hash,
+			__entry->src_offset,
+			__entry->dst_offset,
+			__entry->len
+		)
+);
 #endif /* CONFIG_NFS_V4_2 */
 
 #endif /* CONFIG_NFS_V4_1 */
