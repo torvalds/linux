@@ -833,6 +833,34 @@ static int atomisp_enum_fmt_cap(struct file *file, void *fh,
 	return -EINVAL;
 }
 
+static int atomisp_g_fmt_file(struct file *file, void *fh,
+			      struct v4l2_format *f)
+{
+	struct video_device *vdev = video_devdata(file);
+	struct atomisp_device *isp = video_get_drvdata(vdev);
+	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
+
+	rt_mutex_lock(&isp->mutex);
+	f->fmt.pix = pipe->pix;
+	rt_mutex_unlock(&isp->mutex);
+
+	return 0;
+}
+
+/* This function looks up the closest available resolution. */
+static int atomisp_try_fmt_cap(struct file *file, void *fh,
+			       struct v4l2_format *f)
+{
+	struct video_device *vdev = video_devdata(file);
+	struct atomisp_device *isp = video_get_drvdata(vdev);
+	int ret;
+
+	rt_mutex_lock(&isp->mutex);
+	ret = atomisp_try_fmt(vdev, &f->fmt.pix, NULL);
+	rt_mutex_unlock(&isp->mutex);
+	return ret;
+}
+
 static int atomisp_g_fmt_cap(struct file *file, void *fh,
 			     struct v4l2_format *f)
 {
@@ -905,34 +933,6 @@ static int atomisp_g_fmt_cap(struct file *file, void *fh,
 	f->fmt.pix.xfer_func = V4L2_XFER_FUNC_709;
 
 	return 0;
-}
-
-static int atomisp_g_fmt_file(struct file *file, void *fh,
-			      struct v4l2_format *f)
-{
-	struct video_device *vdev = video_devdata(file);
-	struct atomisp_device *isp = video_get_drvdata(vdev);
-	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
-
-	rt_mutex_lock(&isp->mutex);
-	f->fmt.pix = pipe->pix;
-	rt_mutex_unlock(&isp->mutex);
-
-	return 0;
-}
-
-/* This function looks up the closest available resolution. */
-static int atomisp_try_fmt_cap(struct file *file, void *fh,
-			       struct v4l2_format *f)
-{
-	struct video_device *vdev = video_devdata(file);
-	struct atomisp_device *isp = video_get_drvdata(vdev);
-	int ret;
-
-	rt_mutex_lock(&isp->mutex);
-	ret = atomisp_try_fmt(vdev, &f->fmt.pix, NULL);
-	rt_mutex_unlock(&isp->mutex);
-	return ret;
 }
 
 static int atomisp_s_fmt_cap(struct file *file, void *fh,
