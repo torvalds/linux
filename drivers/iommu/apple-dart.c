@@ -15,7 +15,6 @@
 #include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/dev_printk.h>
-#include <linux/dma-iommu.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
@@ -69,6 +68,8 @@
 
 #define DART_ERROR_ADDR_HI 0x54
 #define DART_ERROR_ADDR_LO 0x50
+
+#define DART_STREAMS_ENABLE 0xfc
 
 #define DART_TCR(sid) (0x100 + 4 * (sid))
 #define DART_TCR_TRANSLATE_ENABLE BIT(7)
@@ -300,6 +301,9 @@ static int apple_dart_hw_reset(struct apple_dart *dart)
 	stream_map.sidmap = DART_STREAM_ALL;
 	apple_dart_hw_disable_dma(&stream_map);
 	apple_dart_hw_clear_all_ttbrs(&stream_map);
+
+	/* enable all streams globally since TCR is used to control isolation */
+	writel(DART_STREAM_ALL, dart->regs + DART_STREAMS_ENABLE);
 
 	/* clear any pending errors before the interrupt is unmasked */
 	writel(readl(dart->regs + DART_ERROR), dart->regs + DART_ERROR);
@@ -578,7 +582,6 @@ static struct iommu_domain *apple_dart_domain_alloc(unsigned int type)
 	if (!dart_domain)
 		return NULL;
 
-	iommu_get_dma_cookie(&dart_domain->domain);
 	mutex_init(&dart_domain->init_lock);
 
 	/* no need to allocate pgtbl_ops or do any other finalization steps */
@@ -702,13 +705,12 @@ static struct iommu_group *apple_dart_device_group(struct device *dev)
 	if (!group)
 		goto out;
 
-	group_master_cfg = kzalloc(sizeof(*group_master_cfg), GFP_KERNEL);
+	group_master_cfg = kmemdup(cfg, sizeof(*group_master_cfg), GFP_KERNEL);
 	if (!group_master_cfg) {
 		iommu_group_put(group);
 		goto out;
 	}
 
-	memcpy(group_master_cfg, cfg, sizeof(*group_master_cfg));
 	iommu_group_set_iommudata(group, group_master_cfg,
 		apple_dart_release_group);
 
