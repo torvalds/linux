@@ -705,7 +705,7 @@ static int ice_ptp_adjfine(struct ptp_clock_info *info, long scaled_ppm)
 		scaled_ppm = -scaled_ppm;
 	}
 
-	while ((u64)scaled_ppm > div_u64(U64_MAX, incval)) {
+	while ((u64)scaled_ppm > div64_u64(U64_MAX, incval)) {
 		/* handle overflow by scaling down the scaled_ppm and
 		 * the divisor, losing some precision
 		 */
