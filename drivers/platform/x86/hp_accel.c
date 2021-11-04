@@ -349,7 +349,8 @@ static int lis3lv02d_remove(struct platform_device *device)
 	led_classdev_unregister(&hpled_led.led_classdev);
 	flush_work(&hpled_led.work);
 
-	return lis3lv02d_remove_fs(&lis3_dev);
+	lis3lv02d_remove_fs(&lis3_dev);
+	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

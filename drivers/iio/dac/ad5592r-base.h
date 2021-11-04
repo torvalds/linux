@@ -71,6 +71,6 @@ struct ad5592r_state {
 
 int ad5592r_probe(struct device *dev, const char *name,
 		const struct ad5592r_rw_ops *ops);
-int ad5592r_remove(struct device *dev);
+void ad5592r_remove(struct device *dev);
 
 #endif /* __DRIVERS_IIO_DAC_AD5592R_BASE_H__ */

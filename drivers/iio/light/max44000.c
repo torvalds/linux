@@ -540,7 +540,6 @@ static int max44000_probe(struct i2c_client *client,
 		return PTR_ERR(data->regmap);
 	}
 
-	i2c_set_clientdata(client, indio_dev);
 	mutex_init(&data->lock);
 	indio_dev->info = &max44000_info;
 	indio_dev->name = MAX44000_DRV_NAME;
@@ -589,23 +588,14 @@ static int max44000_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	ret = iio_triggered_buffer_setup(indio_dev, NULL, max44000_trigger_handler, NULL);
+	ret = devm_iio_triggered_buffer_setup(&client->dev, indio_dev, NULL,
+					      max44000_trigger_handler, NULL);
 	if (ret < 0) {
 		dev_err(&client->dev, "iio triggered buffer setup failed\n");
 		return ret;
 	}
 
-	return iio_device_register(indio_dev);
-}
-
-static int max44000_remove(struct i2c_client *client)
-{
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-
-	iio_device_unregister(indio_dev);
-	iio_triggered_buffer_cleanup(indio_dev);
-
-	return 0;
+	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
 static const struct i2c_device_id max44000_id[] = {
@@ -628,7 +618,6 @@ static struct i2c_driver max44000_driver = {
 		.acpi_match_table = ACPI_PTR(max44000_acpi_match),
 	},
 	.probe		= max44000_probe,
-	.remove		= max44000_remove,
 	.id_table	= max44000_id,
 };
 

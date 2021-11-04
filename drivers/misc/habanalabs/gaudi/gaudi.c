@@ -661,6 +661,9 @@ static int gaudi_set_fixed_properties(struct hl_device *hdev)
 
 	prop->server_type = HL_SERVER_TYPE_UNKNOWN;
 
+	prop->clk_pll_index = HL_GAUDI_MME_PLL;
+	prop->max_freq_value = GAUDI_MAX_CLK_FREQ;
+
 	return 0;
 }
 
@@ -795,6 +798,7 @@ static int gaudi_early_init(struct hl_device *hdev)
 	}
 
 	prop->dram_pci_bar_size = pci_resource_len(pdev, HBM_BAR_ID);
+	hdev->dram_pci_bar_start = pci_resource_start(pdev, HBM_BAR_ID);
 
 	/* If FW security is enabled at this point it means no access to ELBI */
 	if (hdev->asic_prop.fw_security_enabled) {
@@ -1837,8 +1841,6 @@ static int gaudi_sw_init(struct hl_device *hdev)
 
 	gaudi->cpucp_info_get = gaudi_cpucp_info_get;
 
-	gaudi->max_freq_value = GAUDI_MAX_CLK_FREQ;
-
 	hdev->asic_specific = gaudi;
 
 	/* Create DMA pool for small allocations */
@@ -2616,7 +2618,7 @@ static void gaudi_init_e2e(struct hl_device *hdev)
 
 static void gaudi_init_hbm_cred(struct hl_device *hdev)
 {
-	uint32_t hbm0_wr, hbm1_wr, hbm0_rd, hbm1_rd;
+	u32 hbm0_wr, hbm1_wr, hbm0_rd, hbm1_rd;
 
 	if (hdev->asic_prop.fw_security_enabled)
 		return;
@@ -7932,6 +7934,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
 	u32 ctl = le32_to_cpu(eq_entry->hdr.ctl);
+	u32 fw_fatal_err_flag = 0;
 	u16 event_type = ((ctl & EQ_CTL_EVENT_TYPE_MASK)
 			>> EQ_CTL_EVENT_TYPE_SHIFT);
 	bool reset_required;
@@ -7972,6 +7975,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 	case GAUDI_EVENT_NIC0_CS_DBG_DERR ... GAUDI_EVENT_NIC4_CS_DBG_DERR:
 		gaudi_print_irq_info(hdev, event_type, true);
 		gaudi_handle_ecc_event(hdev, event_type, &eq_entry->ecc_data);
+		fw_fatal_err_flag = HL_RESET_FW_FATAL_ERR;
 		goto reset_device;
 
 	case GAUDI_EVENT_GIC500:
@@ -7979,6 +7983,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 	case GAUDI_EVENT_L2_RAM_ECC:
 	case GAUDI_EVENT_PLL0 ... GAUDI_EVENT_PLL17:
 		gaudi_print_irq_info(hdev, event_type, false);
+		fw_fatal_err_flag = HL_RESET_FW_FATAL_ERR;
 		goto reset_device;
 
 	case GAUDI_EVENT_HBM0_SPI_0:
@@ -7989,6 +7994,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 		gaudi_hbm_read_interrupts(hdev,
 				gaudi_hbm_event_to_dev(event_type),
 				&eq_entry->hbm_ecc_data);
+		fw_fatal_err_flag = HL_RESET_FW_FATAL_ERR;
 		goto reset_device;
 
 	case GAUDI_EVENT_HBM0_SPI_1:
@@ -8171,9 +8177,9 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 
 reset_device:
 	if (hdev->asic_prop.fw_security_enabled)
-		hl_device_reset(hdev, HL_RESET_HARD | HL_RESET_FW);
+		hl_device_reset(hdev, HL_RESET_HARD | HL_RESET_FW | fw_fatal_err_flag);
 	else if (hdev->hard_reset_on_fw_events)
-		hl_device_reset(hdev, HL_RESET_HARD);
+		hl_device_reset(hdev, HL_RESET_HARD | fw_fatal_err_flag);
 	else
 		hl_fw_unmask_irq(hdev, event_type);
 }
@@ -9439,9 +9445,9 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.debugfs_read64 = gaudi_debugfs_read64,
 	.debugfs_write64 = gaudi_debugfs_write64,
 	.debugfs_read_dma = gaudi_debugfs_read_dma,
-	.add_device_attr = gaudi_add_device_attr,
+	.add_device_attr = hl_add_device_attr,
 	.handle_eqe = gaudi_handle_eqe,
-	.set_pll_profile = gaudi_set_pll_profile,
+	.set_pll_profile = hl_set_pll_profile,
 	.get_events_stat = gaudi_get_events_stat,
 	.read_pte = gaudi_read_pte,
 	.write_pte = gaudi_write_pte,
@@ -9465,7 +9471,7 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.halt_coresight = gaudi_halt_coresight,
 	.ctx_init = gaudi_ctx_init,
 	.ctx_fini = gaudi_ctx_fini,
-	.get_clk_rate = gaudi_get_clk_rate,
+	.get_clk_rate = hl_get_clk_rate,
 	.get_queue_id_for_cq = gaudi_get_queue_id_for_cq,
 	.load_firmware_to_device = gaudi_load_firmware_to_device,
 	.load_boot_fit_to_device = gaudi_load_boot_fit_to_device,

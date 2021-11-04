@@ -1275,6 +1275,11 @@ static int ltc2983_parse_dt(struct ltc2983_data *st)
 			     &st->filter_notch_freq);
 
 	st->num_channels = of_get_available_child_count(dev->of_node);
+	if (!st->num_channels) {
+		dev_err(&st->spi->dev, "At least one channel must be given!");
+		return -EINVAL;
+	}
+
 	st->sensors = devm_kcalloc(dev, st->num_channels, sizeof(*st->sensors),
 				   GFP_KERNEL);
 	if (!st->sensors)
@@ -1470,6 +1475,7 @@ static int ltc2983_probe(struct spi_device *spi)
 {
 	struct ltc2983_data *st;
 	struct iio_dev *indio_dev;
+	struct gpio_desc *gpio;
 	const char *name = spi_get_device_id(spi)->name;
 	int ret;
 
@@ -1493,6 +1499,16 @@ static int ltc2983_probe(struct spi_device *spi)
 	ret = ltc2983_parse_dt(st);
 	if (ret)
 		return ret;
+
+	gpio = devm_gpiod_get_optional(&st->spi->dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(gpio))
+		return PTR_ERR(gpio);
+
+	if (gpio) {
+		/* bring the device out of reset */
+		usleep_range(1000, 1200);
+		gpiod_set_value_cansleep(gpio, 0);
+	}
 
 	ret = ltc2983_setup(st, true);
 	if (ret)

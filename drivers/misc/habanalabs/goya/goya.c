@@ -471,6 +471,8 @@ int goya_set_fixed_properties(struct hl_device *hdev)
 
 	prop->server_type = HL_SERVER_TYPE_UNKNOWN;
 
+	prop->clk_pll_index = HL_GOYA_MME_PLL;
+
 	return 0;
 }
 
@@ -622,6 +624,7 @@ static int goya_early_init(struct hl_device *hdev)
 	}
 
 	prop->dram_pci_bar_size = pci_resource_len(pdev, DDR_BAR_ID);
+	hdev->dram_pci_bar_start = pci_resource_start(pdev, DDR_BAR_ID);
 
 	/* If FW security is enabled at this point it means no access to ELBI */
 	if (hdev->asic_prop.fw_security_enabled) {
@@ -959,7 +962,7 @@ static int goya_sw_init(struct hl_device *hdev)
 	spin_lock_init(&goya->hw_queues_lock);
 	hdev->supports_coresight = true;
 	hdev->supports_soft_reset = true;
-	hdev->allow_external_soft_reset = true;
+	hdev->allow_inference_soft_reset = true;
 	hdev->supports_wait_for_multi_cs = false;
 
 	hdev->asic_funcs->set_pci_memory_regions(hdev);
@@ -4829,6 +4832,12 @@ void goya_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entry)
 	case GOYA_ASYNC_EVENT_ID_PLL0 ... GOYA_ASYNC_EVENT_ID_PLL6:
 	case GOYA_ASYNC_EVENT_ID_AXI_ECC:
 	case GOYA_ASYNC_EVENT_ID_L2_RAM_ECC:
+		goya_print_irq_info(hdev, event_type, false);
+		if (hdev->hard_reset_on_fw_events)
+			hl_device_reset(hdev, (HL_RESET_HARD |
+						HL_RESET_FW_FATAL_ERR));
+		break;
+
 	case GOYA_ASYNC_EVENT_ID_PSOC_GPIO_05_SW_RESET:
 		goya_print_irq_info(hdev, event_type, false);
 		if (hdev->hard_reset_on_fw_events)
@@ -5649,7 +5658,7 @@ static const struct hl_asic_funcs goya_funcs = {
 	.halt_coresight = goya_halt_coresight,
 	.ctx_init = goya_ctx_init,
 	.ctx_fini = goya_ctx_fini,
-	.get_clk_rate = goya_get_clk_rate,
+	.get_clk_rate = hl_get_clk_rate,
 	.get_queue_id_for_cq = goya_get_queue_id_for_cq,
 	.load_firmware_to_device = goya_load_firmware_to_device,
 	.load_boot_fit_to_device = goya_load_boot_fit_to_device,

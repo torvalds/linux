@@ -68,12 +68,15 @@ __poll_t iio_buffer_poll_wrapper(struct file *filp,
 				 struct poll_table_struct *wait);
 ssize_t iio_buffer_read_wrapper(struct file *filp, char __user *buf,
 				size_t n, loff_t *f_ps);
+ssize_t iio_buffer_write_wrapper(struct file *filp, const char __user *buf,
+				 size_t n, loff_t *f_ps);
 
 int iio_buffers_alloc_sysfs_and_mask(struct iio_dev *indio_dev);
 void iio_buffers_free_sysfs_and_mask(struct iio_dev *indio_dev);
 
 #define iio_buffer_poll_addr (&iio_buffer_poll_wrapper)
 #define iio_buffer_read_outer_addr (&iio_buffer_read_wrapper)
+#define iio_buffer_write_outer_addr (&iio_buffer_write_wrapper)
 
 void iio_disable_all_buffers(struct iio_dev *indio_dev);
 void iio_buffer_wakeup_poll(struct iio_dev *indio_dev);
@@ -83,6 +86,7 @@ void iio_device_detach_buffers(struct iio_dev *indio_dev);
 
 #define iio_buffer_poll_addr NULL
 #define iio_buffer_read_outer_addr NULL
+#define iio_buffer_write_outer_addr NULL
 
 static inline int iio_buffers_alloc_sysfs_and_mask(struct iio_dev *indio_dev)
 {

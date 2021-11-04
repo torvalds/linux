@@ -48,7 +48,10 @@
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/atomic.h>
+#include <linux/module.h>
 #include "ttm_object.h"
+
+MODULE_IMPORT_NS(DMA_BUF);
 
 /**
  * struct ttm_object_file

@@ -474,13 +474,11 @@ err_fini:
 }
 EXPORT_SYMBOL(ms5611_probe);
 
-int ms5611_remove(struct iio_dev *indio_dev)
+void ms5611_remove(struct iio_dev *indio_dev)
 {
 	iio_device_unregister(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
 	ms5611_fini(indio_dev);
-
-	return 0;
 }
 EXPORT_SYMBOL(ms5611_remove);
 

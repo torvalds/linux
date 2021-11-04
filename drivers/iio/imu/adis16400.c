@@ -641,13 +641,23 @@ static irqreturn_t adis16400_trigger_handler(int irq, void *p)
 	if (ret)
 		dev_err(&adis->spi->dev, "Failed to read data: %d\n", ret);
 
-	if (st->variant->flags & ADIS16400_BURST_DIAG_STAT)
+	if (st->variant->flags & ADIS16400_BURST_DIAG_STAT) {
 		buffer = adis->buffer + sizeof(u16);
-	else
-		buffer = adis->buffer;
+		/*
+		 * The size here is always larger than, or equal to the true
+		 * size of the channel data. This may result in a larger copy
+		 * than necessary, but as the target buffer will be
+		 * buffer->scan_bytes this will be safe.
+		 */
+		iio_push_to_buffers_with_ts_unaligned(indio_dev, buffer,
+						      indio_dev->scan_bytes - sizeof(pf->timestamp),
+						      pf->timestamp);
+	} else {
+		iio_push_to_buffers_with_timestamp(indio_dev,
+						   adis->buffer,
+						   pf->timestamp);
+	}
 
-	iio_push_to_buffers_with_timestamp(indio_dev, buffer,
-		pf->timestamp);
 
 	iio_trigger_notify_done(indio_dev->trig);
 

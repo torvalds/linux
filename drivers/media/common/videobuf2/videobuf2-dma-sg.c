@@ -675,3 +675,4 @@ EXPORT_SYMBOL_GPL(vb2_dma_sg_memops);
 MODULE_DESCRIPTION("dma scatter/gather memory handling routines for videobuf2");
 MODULE_AUTHOR("Andrzej Pietrasiewicz");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(DMA_BUF);

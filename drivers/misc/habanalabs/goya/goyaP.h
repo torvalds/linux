@@ -235,7 +235,6 @@ void goya_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size,
 					void *vaddr);
 void goya_mmu_remove_device_cpu_mappings(struct hl_device *hdev);
 
-int goya_get_clk_rate(struct hl_device *hdev, u32 *cur_clk, u32 *max_clk);
 u32 goya_get_queue_id_for_cq(struct hl_device *hdev, u32 cq_idx);
 u64 goya_get_device_time(struct hl_device *hdev);
 

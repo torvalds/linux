@@ -611,7 +611,8 @@ EXPORT_SYMBOL(st_magn_get_settings);
 int st_magn_common_probe(struct iio_dev *indio_dev)
 {
 	struct st_sensor_data *mdata = iio_priv(indio_dev);
-	struct st_sensors_platform_data *pdata = dev_get_platdata(mdata->dev);
+	struct device *parent = indio_dev->dev.parent;
+	struct st_sensors_platform_data *pdata = dev_get_platdata(parent);
 	int err;
 
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -625,7 +626,7 @@ int st_magn_common_probe(struct iio_dev *indio_dev)
 	indio_dev->channels = mdata->sensor_settings->ch;
 	indio_dev->num_channels = ST_SENSORS_NUMBER_ALL_CHANNELS;
 
-	err = iio_read_mount_matrix(mdata->dev, &mdata->mount_matrix);
+	err = iio_read_mount_matrix(parent, &mdata->mount_matrix);
 	if (err)
 		return err;
 
@@ -650,31 +651,9 @@ int st_magn_common_probe(struct iio_dev *indio_dev)
 			return err;
 	}
 
-	err = iio_device_register(indio_dev);
-	if (err)
-		goto st_magn_device_register_error;
-
-	dev_info(&indio_dev->dev, "registered magnetometer %s\n",
-		 indio_dev->name);
-
-	return 0;
-
-st_magn_device_register_error:
-	if (mdata->irq > 0)
-		st_sensors_deallocate_trigger(indio_dev);
-	return err;
+	return devm_iio_device_register(parent, indio_dev);
 }
 EXPORT_SYMBOL(st_magn_common_probe);
-
-void st_magn_common_remove(struct iio_dev *indio_dev)
-{
-	struct st_sensor_data *mdata = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	if (mdata->irq > 0)
-		st_sensors_deallocate_trigger(indio_dev);
-}
-EXPORT_SYMBOL(st_magn_common_remove);
 
 MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");
 MODULE_DESCRIPTION("STMicroelectronics magnetometers driver");
