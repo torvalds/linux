@@ -11,8 +11,6 @@
 #define	MAIN_ANT_CGCS_RX	0
 #define	AUX_ANT_CGCS_RX	1
 
-void ODM_DIG_LowerBound_88E(struct odm_dm_struct *pDM_Odm);
-
 void ODM_AntennaDiversityInit_88E(struct odm_dm_struct *pDM_Odm);
 
 void ODM_AntennaDiversity_88E(struct odm_dm_struct *pDM_Odm);

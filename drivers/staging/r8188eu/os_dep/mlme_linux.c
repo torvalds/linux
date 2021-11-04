@@ -25,8 +25,6 @@ static void _dynamic_check_timer_handlder(struct timer_list *t)
 {
 	struct adapter *adapter = from_timer(adapter, t, mlmepriv.dynamic_chk_timer);
 
-	if (adapter->registrypriv.mp_mode == 1)
-		return;
 	rtw_dynamic_check_timer_handlder(adapter);
 	_set_timer(&adapter->mlmepriv.dynamic_chk_timer, 2000);
 }
@@ -165,8 +163,6 @@ void init_mlme_ext_timer(struct adapter *padapter)
 	timer_setup(&pmlmeext->link_timer, _link_timer_hdl, 0);
 }
 
-#ifdef CONFIG_88EU_AP_MODE
-
 void rtw_indicate_sta_assoc_event(struct adapter *padapter, struct sta_info *psta)
 {
 	union iwreq_data wrqu;
@@ -212,5 +208,3 @@ void rtw_indicate_sta_disassoc_event(struct adapter *padapter, struct sta_info *
 
 	wireless_send_event(padapter->pnetdev, IWEVEXPIRED, &wrqu, NULL);
 }
-
-#endif

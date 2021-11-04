@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * O(1) TX queue with built-in allocator.
+ * Queue between the tx operation and the bh workqueue.
  *
  * Copyright (c) 2017-2020, Silicon Laboratories, Inc.
  * Copyright (c) 2010, ST-Ericsson
@@ -32,7 +32,7 @@ void wfx_tx_flush(struct wfx_dev *wdev)
 {
 	int ret;
 
-	// Do not wait for any reply if chip is frozen
+	/* Do not wait for any reply if chip is frozen */
 	if (wdev->chip_frozen)
 		return;
 
@@ -45,7 +45,7 @@ void wfx_tx_flush(struct wfx_dev *wdev)
 		dev_warn(wdev->dev, "cannot flush tx buffers (%d still busy)\n",
 			 wdev->hif.tx_buffers_used);
 		wfx_pending_dump_old_frames(wdev, 3000);
-		// FIXME: drop pending frames here
+		/* FIXME: drop pending frames here */
 		wdev->chip_frozen = true;
 	}
 	mutex_unlock(&wdev->hif_cmd.lock);
@@ -60,9 +60,10 @@ void wfx_tx_lock_flush(struct wfx_dev *wdev)
 
 void wfx_tx_queues_init(struct wfx_vif *wvif)
 {
-	// The device is in charge to respect the details of the QoS parameters.
-	// The driver just ensure that it roughtly respect the priorities to
-	// avoid any shortage.
+	/* The device is in charge to respect the details of the QoS parameters.
+	 * The driver just ensure that it roughtly respect the priorities to
+	 * avoid any shortage.
+	 */
 	const int priorities[IEEE80211_NUM_ACS] = { 1, 2, 64, 128 };
 	int i;
 
@@ -73,20 +74,20 @@ void wfx_tx_queues_init(struct wfx_vif *wvif)
 	}
 }
 
+bool wfx_tx_queue_empty(struct wfx_vif *wvif, struct wfx_queue *queue)
+{
+	return skb_queue_empty_lockless(&queue->normal) &&
+	       skb_queue_empty_lockless(&queue->cab);
+}
+
 void wfx_tx_queues_check_empty(struct wfx_vif *wvif)
 {
 	int i;
 
 	for (i = 0; i < IEEE80211_NUM_ACS; ++i) {
 		WARN_ON(atomic_read(&wvif->tx_queue[i].pending_frames));
-		WARN_ON(!skb_queue_empty_lockless(&wvif->tx_queue[i].normal));
-		WARN_ON(!skb_queue_empty_lockless(&wvif->tx_queue[i].cab));
+		WARN_ON(!wfx_tx_queue_empty(wvif, &wvif->tx_queue[i]));
 	}
-}
-
-bool wfx_tx_queue_empty(struct wfx_vif *wvif, struct wfx_queue *queue)
-{
-	return skb_queue_empty(&queue->normal) && skb_queue_empty(&queue->cab);
 }
 
 static void __wfx_tx_queue_drop(struct wfx_vif *wvif,
@@ -217,8 +218,9 @@ bool wfx_tx_queues_has_cab(struct wfx_vif *wvif)
 	if (wvif->vif->type != NL80211_IFTYPE_AP)
 		return false;
 	for (i = 0; i < IEEE80211_NUM_ACS; ++i)
-		// Note: since only AP can have mcast frames in queue and only
-		// one vif can be AP, all queued frames has same interface id
+		/* Note: since only AP can have mcast frames in queue and only
+		 * one vif can be AP, all queued frames has same interface id
+		 */
 		if (!skb_queue_empty_lockless(&wvif->tx_queue[i].cab))
 			return true;
 	return false;
@@ -237,7 +239,7 @@ static struct sk_buff *wfx_tx_queues_get_skb(struct wfx_dev *wdev)
 	struct hif_msg *hif;
 	struct sk_buff *skb;
 
-	// sort the queues
+	/* sort the queues */
 	wvif = NULL;
 	while ((wvif = wvif_iterate(wdev, wvif)) != NULL) {
 		for (i = 0; i < IEEE80211_NUM_ACS; i++) {
@@ -259,9 +261,10 @@ static struct sk_buff *wfx_tx_queues_get_skb(struct wfx_dev *wdev)
 			skb = skb_dequeue(&queues[i]->cab);
 			if (!skb)
 				continue;
-			// Note: since only AP can have mcast frames in queue
-			// and only one vif can be AP, all queued frames has
-			// same interface id
+			/* Note: since only AP can have mcast frames in queue
+			 * and only one vif can be AP, all queued frames has
+			 * same interface id
+			 */
 			hif = (struct hif_msg *)skb->data;
 			WARN_ON(hif->interface != wvif->id);
 			WARN_ON(queues[i] !=
@@ -270,7 +273,7 @@ static struct sk_buff *wfx_tx_queues_get_skb(struct wfx_dev *wdev)
 			trace_queues_stats(wdev, queues[i]);
 			return skb;
 		}
-		// No more multicast to sent
+		/* No more multicast to sent */
 		wvif->after_dtim_tx_allowed = false;
 		schedule_work(&wvif->update_tim_work);
 	}

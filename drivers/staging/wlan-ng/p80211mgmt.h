@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0 OR MPL-1.1) */
-/* p80211mgmt.h
+/*
  *
  * Macros, types, and functions to handle 802.11 mgmt frames
  *

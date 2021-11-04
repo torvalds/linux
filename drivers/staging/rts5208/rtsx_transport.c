@@ -326,7 +326,7 @@ static int rtsx_transfer_sglist_adma_partial(struct rtsx_chip *chip, u8 card,
 	struct scatterlist *sg_ptr;
 	u32 val = TRIG_DMA;
 
-	if (!sg || (num_sg <= 0) || !offset || !index)
+	if (!sg || num_sg <= 0 || !offset || !index)
 		return -EIO;
 
 	if (dma_dir == DMA_TO_DEVICE)
@@ -489,7 +489,7 @@ static int rtsx_transfer_sglist_adma(struct rtsx_chip *chip, u8 card,
 	long timeleft;
 	struct scatterlist *sg_ptr;
 
-	if (!sg || (num_sg <= 0))
+	if (!sg || num_sg <= 0)
 		return -EIO;
 
 	if (dma_dir == DMA_TO_DEVICE)
@@ -635,7 +635,7 @@ static int rtsx_transfer_buf(struct rtsx_chip *chip, u8 card, void *buf,
 	u32 val = BIT(31);
 	long timeleft;
 
-	if (!buf || (len <= 0))
+	if (!buf || len <= 0)
 		return -EIO;
 
 	if (dma_dir == DMA_TO_DEVICE)

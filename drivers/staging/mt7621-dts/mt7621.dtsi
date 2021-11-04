@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 #include <dt-bindings/interrupt-controller/mips-gic.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/clock/mt7621-clk.h>
@@ -8,12 +9,19 @@
 	compatible = "mediatek,mt7621-soc";
 
 	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
 		cpu@0 {
+			device_type = "cpu";
 			compatible = "mips,mips1004Kc";
+			reg = <0>;
 		};
 
 		cpu@1 {
+			device_type = "cpu";
 			compatible = "mips,mips1004Kc";
+			reg = <1>;
 		};
 	};
 
@@ -47,10 +55,10 @@
 		regulator-always-on;
 	};
 
-	palmbus: palmbus@1E000000 {
+	palmbus: palmbus@1e000000 {
 		compatible = "palmbus";
-		reg = <0x1E000000 0x100000>;
-		ranges = <0x0 0x1E000000 0x0FFFFF>;
+		reg = <0x1e000000 0x100000>;
+		ranges = <0x0 0x1e000000 0x0fffff>;
 
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -100,41 +108,9 @@
 			pinctrl-0 = <&i2c_pins>;
 		};
 
-		i2s: i2s@a00 {
-			compatible = "mediatek,mt7621-i2s";
-			reg = <0xa00 0x100>;
-
-			clocks = <&sysc MT7621_CLK_I2S>;
-			clock-names = "i2s";
-			resets = <&rstctrl 17>;
-			reset-names = "i2s";
-
-			interrupt-parent = <&gic>;
-			interrupts = <GIC_SHARED 16 IRQ_TYPE_LEVEL_HIGH>;
-
-			txdma-req = <2>;
-			rxdma-req = <3>;
-
-			dmas = <&gdma 4>,
-				<&gdma 6>;
-			dma-names = "tx", "rx";
-
-			status = "disabled";
-		};
-
 		memc: syscon@5000 {
 			compatible = "mediatek,mt7621-memc", "syscon";
 			reg = <0x5000 0x1000>;
-		};
-
-		cpc: cpc@1fbf0000 {
-			     compatible = "mediatek,mt7621-cpc";
-			     reg = <0x1fbf0000 0x8000>;
-		};
-
-		mc: mc@1fbf8000 {
-			    compatible = "mediatek,mt7621-mc";
-			    reg = <0x1fbf8000 0x8000>;
 		};
 
 		uartlite: uartlite@c00 {
@@ -181,7 +157,7 @@
 			reset-names = "dma";
 
 			interrupt-parent = <&gic>;
-			interrupts = <0 13 4>;
+			interrupts = <0 13 IRQ_TYPE_LEVEL_HIGH>;
 
 			#dma-cells = <1>;
 			#dma-channels = <16>;
@@ -200,7 +176,7 @@
 			reset-names = "hsdma";
 
 			interrupt-parent = <&gic>;
-			interrupts = <0 11 4>;
+			interrupts = <0 11 IRQ_TYPE_LEVEL_HIGH>;
 
 			#dma-cells = <1>;
 			#dma-channels = <1>;
@@ -301,11 +277,11 @@
 		#reset-cells = <1>;
 	};
 
-	sdhci: sdhci@1E130000 {
+	sdhci: sdhci@1e130000 {
 		status = "disabled";
 
 		compatible = "mediatek,mt7620-mmc";
-		reg = <0x1E130000 0x4000>;
+		reg = <0x1e130000 0x4000>;
 
 		bus-width = <4>;
 		max-frequency = <48000000>;
@@ -327,7 +303,7 @@
 		interrupts = <GIC_SHARED 20 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
-	xhci: xhci@1E1C0000 {
+	xhci: xhci@1e1c0000 {
 		status = "okay";
 
 		compatible = "mediatek,mt8173-xhci";
@@ -358,18 +334,14 @@
 		};
 	};
 
-	nand: nand@1e003000 {
-		status = "disabled";
+	cpc: cpc@1fbf0000 {
+		compatible = "mti,mips-cpc";
+		reg = <0x1fbf0000 0x8000>;
+	};
 
-		compatible = "mediatek,mt7621-nand";
-		bank-width = <2>;
-		reg = <0x1e003000 0x800
-			0x1e003800 0x800>;
-		#address-cells = <1>;
-		#size-cells = <1>;
-
-		clocks = <&sysc MT7621_CLK_NAND>;
-		clock-names = "nand";
+	cdmm: cdmm@1fbf8000 {
+		compatible = "mti,mips-cdmm";
+		reg = <0x1fbf8000 0x8000>;
 	};
 
 	ethernet: ethernet@1e100000 {

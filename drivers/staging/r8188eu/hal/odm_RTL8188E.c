@@ -3,25 +3,9 @@
 
 #include "../include/odm_precomp.h"
 
-void ODM_DIG_LowerBound_88E(struct odm_dm_struct *dm_odm)
-{
-	struct rtw_dig *pDM_DigTable = &dm_odm->DM_DigTable;
-
-	if (dm_odm->AntDivType == CG_TRX_HW_ANTDIV)
-		pDM_DigTable->rx_gain_range_min = (u8)pDM_DigTable->AntDiv_RSSI_max;
-	/* If only one Entry connected */
-}
-
 static void odm_RX_HWAntDivInit(struct odm_dm_struct *dm_odm)
 {
 	u32	value32;
-
-	if (*dm_odm->mp_mode == 1) {
-		dm_odm->AntDivType = CGCS_RX_SW_ANTDIV;
-		ODM_SetBBReg(dm_odm, ODM_REG_IGI_A_11N, BIT(7), 0); /*  disable HW AntDiv */
-		ODM_SetBBReg(dm_odm, ODM_REG_LNA_SWITCH_11N, BIT(31), 1);  /*  1:CG, 0:CS */
-		return;
-	}
 
 	/* MAC Setting */
 	value32 = ODM_GetMACReg(dm_odm, ODM_REG_ANTSEL_PIN_11N, bMaskDWord);
@@ -43,13 +27,6 @@ static void odm_RX_HWAntDivInit(struct odm_dm_struct *dm_odm)
 static void odm_TRX_HWAntDivInit(struct odm_dm_struct *dm_odm)
 {
 	u32	value32;
-
-	if (*dm_odm->mp_mode == 1) {
-		dm_odm->AntDivType = CGCS_RX_SW_ANTDIV;
-		ODM_SetBBReg(dm_odm, ODM_REG_IGI_A_11N, BIT(7), 0); /*  disable HW AntDiv */
-		ODM_SetBBReg(dm_odm, ODM_REG_RX_ANT_CTRL_11N, BIT(5) | BIT(4) | BIT(3), 0); /* Default RX   (0/1) */
-		return;
-	}
 
 	/* MAC Setting */
 	value32 = ODM_GetMACReg(dm_odm, ODM_REG_ANTSEL_PIN_11N, bMaskDWord);
@@ -82,9 +59,6 @@ static void odm_FastAntTrainingInit(struct odm_dm_struct *dm_odm)
 	u32	value32, i;
 	struct fast_ant_train *dm_fat_tbl = &dm_odm->DM_FatTable;
 	u32	AntCombination = 2;
-
-	if (*dm_odm->mp_mode == 1)
-		return;
 
 	for (i = 0; i < 6; i++) {
 		dm_fat_tbl->Bssid[i] = 0;
@@ -155,9 +129,6 @@ static void odm_FastAntTrainingInit(struct odm_dm_struct *dm_odm)
 
 void ODM_AntennaDiversityInit_88E(struct odm_dm_struct *dm_odm)
 {
-	if (dm_odm->SupportICType != ODM_RTL8188E)
-		return;
-
 	if (dm_odm->AntDivType == CGCS_RX_HW_ANTDIV)
 		odm_RX_HWAntDivInit(dm_odm);
 	else if (dm_odm->AntDivType == CG_TRX_HW_ANTDIV)
@@ -296,7 +267,7 @@ static void odm_HWAntDiv(struct odm_dm_struct *dm_odm)
 void ODM_AntennaDiversity_88E(struct odm_dm_struct *dm_odm)
 {
 	struct fast_ant_train *dm_fat_tbl = &dm_odm->DM_FatTable;
-	if ((dm_odm->SupportICType != ODM_RTL8188E) || (!(dm_odm->SupportAbility & ODM_BB_ANT_DIV)))
+	if (!(dm_odm->SupportAbility & ODM_BB_ANT_DIV))
 		return;
 	if (!dm_odm->bLinked) {
 		if (dm_fat_tbl->bBecomeLinked) {
