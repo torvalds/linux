@@ -40,9 +40,6 @@ struct test_case {
 
 struct test_suite {
 	const char *desc;
-	struct {
-		bool skip_if_fail;
-	} subtest;
 	struct test_case *test_cases;
 	void *priv;
 };

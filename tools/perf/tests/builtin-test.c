@@ -238,18 +238,13 @@ static int run_test(struct test_suite *test, int subtest)
 	for (j = 0; j < ARRAY_SIZE(tests); j++)	\
 		for (k = 0, t = tests[j][k]; tests[j][k]; k++, t = tests[j][k])
 
-static int test_and_print(struct test_suite *t, bool force_skip, int subtest)
+static int test_and_print(struct test_suite *t, int subtest)
 {
 	int err;
 
-	if (!force_skip) {
-		pr_debug("\n--- start ---\n");
-		err = run_test(t, subtest);
-		pr_debug("---- end ----\n");
-	} else {
-		pr_debug("\n--- force skipped ---\n");
-		err = TEST_SKIP;
-	}
+	pr_debug("\n--- start ---\n");
+	err = run_test(t, subtest);
+	pr_debug("---- end ----\n");
 
 	if (!has_subtests(t))
 		pr_debug("%s:", t->desc);
@@ -432,7 +427,7 @@ static int run_shell_tests(int argc, const char *argv[], int i, int width,
 			continue;
 		}
 
-		test_and_print(&test_suite, false, 0);
+		test_and_print(&test_suite, 0);
 	}
 
 	for (e = 0; e < n_dirs; e++)
@@ -456,7 +451,7 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 	}
 
 	for_each_test(j, k, t) {
-		int curr = i++, err;
+		int curr = i++;
 		int subi;
 
 		if (!perf_test__matches(test_description(t, -1), curr, argc, argv)) {
@@ -483,7 +478,7 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 		}
 
 		if (!has_subtests(t)) {
-			test_and_print(t, false, -1);
+			test_and_print(t, -1);
 		} else {
 			int subn = num_subtests(t);
 			/*
@@ -495,7 +490,6 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 			 * 35.1: Basic BPF llvm compiling test                          : Ok
 			 */
 			int subw = width > 2 ? width - 2 : width;
-			bool skip = false;
 
 			if (subn <= 0) {
 				color_fprintf(stderr, PERF_COLOR_YELLOW,
@@ -518,9 +512,7 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 
 				pr_info("%2d.%1d: %-*s:", i, subi + 1, subw,
 					test_description(t, subi));
-				err = test_and_print(t, skip, subi);
-				if (err != TEST_OK && t->subtest.skip_if_fail)
-					skip = true;
+				test_and_print(t, subi);
 			}
 		}
 	}

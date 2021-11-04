@@ -216,5 +216,4 @@ static struct test_case llvm_tests[] = {
 struct test_suite suite__llvm = {
 	.desc = "LLVM search and compile",
 	.test_cases = llvm_tests,
-	.subtest = { .skip_if_fail = true, },
 };

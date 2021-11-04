@@ -383,5 +383,4 @@ static struct test_case bpf_tests[] = {
 struct test_suite suite__bpf = {
 	.desc = "BPF filter",
 	.test_cases = bpf_tests,
-	.subtest = { .skip_if_fail = true, },
 };

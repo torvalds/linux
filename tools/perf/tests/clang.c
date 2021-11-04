@@ -29,5 +29,4 @@ static struct test_case clang_tests[] = {
 struct test_suite suite__clang = {
 	.desc = "builtin clang support",
 	.test_cases = clang_tests,
-	.subtest = { .skip_if_fail = true, },
 };

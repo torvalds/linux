@@ -191,5 +191,4 @@ static struct test_case pfm_tests[] = {
 struct test_suite suite__pfm = {
 	.desc = "Test libpfm4 support",
 	.test_cases = pfm_tests,
-	.subtest = { .skip_if_fail   = true }
 };
