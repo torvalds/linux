@@ -16,10 +16,12 @@
 #include <linux/bitops.h>
 #include <linux/kvm_host.h>
 #include <linux/module.h>
+#include <linux/uuid.h>
 #include <asm/kvm.h>
 #include <asm/zcrypt.h>
 
 #include "vfio_ap_private.h"
+#include "vfio_ap_debug.h"
 
 #define VFIO_AP_MDEV_TYPE_HWVIRT "passthrough"
 #define VFIO_AP_MDEV_NAME_HWVIRT "VFIO AP Passthrough Device"
@@ -257,6 +259,48 @@ static struct ap_queue_status vfio_ap_irq_enable(struct vfio_ap_queue *q,
 }
 
 /**
+ * vfio_ap_le_guid_to_be_uuid - convert a little endian guid array into an array
+ *				of big endian elements that can be passed by
+ *				value to an s390dbf sprintf event function to
+ *				format a UUID string.
+ *
+ * @guid: the object containing the little endian guid
+ * @uuid: a six-element array of long values that can be passed by value as
+ *	  arguments for a formatting string specifying a UUID.
+ *
+ * The S390 Debug Feature (s390dbf) allows the use of "%s" in the sprintf
+ * event functions if the memory for the passed string is available as long as
+ * the debug feature exists. Since a mediated device can be removed at any
+ * time, it's name can not be used because %s passes the reference to the string
+ * in memory and the reference will go stale once the device is removed .
+ *
+ * The s390dbf string formatting function allows a maximum of 9 arguments for a
+ * message to be displayed in the 'sprintf' view. In order to use the bytes
+ * comprising the mediated device's UUID to display the mediated device name,
+ * they will have to be converted into an array whose elements can be passed by
+ * value to sprintf. For example:
+ *
+ * guid array: { 83, 78, 17, 62, bb, f1, f0, 47, 91, 4d, 32, a2, 2e, 3a, 88, 04 }
+ * mdev name: 62177883-f1bb-47f0-914d-32a22e3a8804
+ * array returned: { 62177883, f1bb, 47f0, 914d, 32a2, 2e3a8804 }
+ * formatting string: "%08lx-%04lx-%04lx-%04lx-%02lx%04lx"
+ */
+static void vfio_ap_le_guid_to_be_uuid(guid_t *guid, unsigned long *uuid)
+{
+	/*
+	 * The input guid is ordered in little endian, so it needs to be
+	 * reordered for displaying a UUID as a string. This specifies the
+	 * guid indices in proper order.
+	 */
+	uuid[0] = le32_to_cpup((__le32 *)guid);
+	uuid[1] = le16_to_cpup((__le16 *)&guid->b[4]);
+	uuid[2] = le16_to_cpup((__le16 *)&guid->b[6]);
+	uuid[3] = *((__u16 *)&guid->b[8]);
+	uuid[4] = *((__u16 *)&guid->b[10]);
+	uuid[5] = *((__u32 *)&guid->b[12]);
+}
+
+/**
  * handle_pqap - PQAP instruction callback
  *
  * @vcpu: The vcpu on which we received the PQAP instruction
@@ -281,30 +325,48 @@ static int handle_pqap(struct kvm_vcpu *vcpu)
 {
 	uint64_t status;
 	uint16_t apqn;
+	unsigned long uuid[6];
 	struct vfio_ap_queue *q;
 	struct ap_queue_status qstatus = {
 			       .response_code = AP_RESPONSE_Q_NOT_AVAIL, };
 	struct ap_matrix_mdev *matrix_mdev;
 
-	/* If we do not use the AIV facility just go to userland */
-	if (!(vcpu->arch.sie_block->eca & ECA_AIV))
-		return -EOPNOTSUPP;
-
 	apqn = vcpu->run->s.regs.gprs[0] & 0xffff;
-	mutex_lock(&matrix_dev->lock);
 
-	if (!vcpu->kvm->arch.crypto.pqap_hook)
+	/* If we do not use the AIV facility just go to userland */
+	if (!(vcpu->arch.sie_block->eca & ECA_AIV)) {
+		VFIO_AP_DBF_WARN("%s: AIV facility not installed: apqn=0x%04x, eca=0x%04x\n",
+				 __func__, apqn, vcpu->arch.sie_block->eca);
+
+		return -EOPNOTSUPP;
+	}
+
+	mutex_lock(&matrix_dev->lock);
+	if (!vcpu->kvm->arch.crypto.pqap_hook) {
+		VFIO_AP_DBF_WARN("%s: PQAP(AQIC) hook not registered with the vfio_ap driver: apqn=0x%04x\n",
+				 __func__, apqn);
 		goto out_unlock;
+	}
+
 	matrix_mdev = container_of(vcpu->kvm->arch.crypto.pqap_hook,
 				   struct ap_matrix_mdev, pqap_hook);
 
 	/* If the there is no guest using the mdev, there is nothing to do */
-	if (!matrix_mdev->kvm)
+	if (!matrix_mdev->kvm) {
+		vfio_ap_le_guid_to_be_uuid(&matrix_mdev->mdev->uuid, uuid);
+		VFIO_AP_DBF_WARN("%s: mdev %08lx-%04lx-%04lx-%04lx-%04lx%08lx not in use: apqn=0x%04x\n",
+				 __func__, uuid[0],  uuid[1], uuid[2],
+				 uuid[3], uuid[4], uuid[5], apqn);
 		goto out_unlock;
+	}
 
 	q = vfio_ap_get_queue(matrix_mdev, apqn);
-	if (!q)
+	if (!q) {
+		VFIO_AP_DBF_WARN("%s: Queue %02x.%04x not bound to the vfio_ap driver\n",
+				 __func__, AP_QID_CARD(apqn),
+				 AP_QID_QUEUE(apqn));
 		goto out_unlock;
+	}
 
 	status = vcpu->run->s.regs.gprs[1];
 
