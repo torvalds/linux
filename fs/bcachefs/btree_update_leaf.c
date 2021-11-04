@@ -363,9 +363,6 @@ static inline void do_btree_insert_one(struct btree_trans *trans,
 				      i->level,
 				      i->k);
 
-		bch2_journal_set_has_inode(j, &trans->journal_res,
-					   i->k->k.p.inode);
-
 		if (trans->journal_seq)
 			*trans->journal_seq = trans->journal_res.seq;
 	}

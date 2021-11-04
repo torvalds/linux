@@ -58,8 +58,6 @@ static void journal_seq_copy(struct bch_fs *c,
 		if (old >= journal_seq)
 			break;
 	} while ((v = atomic64_cmpxchg(dst_seq, old, journal_seq)) != old);
-
-	bch2_journal_set_has_inum(&c->journal, dst->v.i_ino, journal_seq);
 }
 
 static void __pagecache_lock_put(struct pagecache_lock *lock, long i)
@@ -257,8 +255,6 @@ struct inode *bch2_vfs_inode_get(struct bch_fs *c, subvol_inum inum)
 	}
 
 	bch2_vfs_inode_init(c, inum, inode, &inode_u);
-
-	inode->ei_journal_seq = bch2_inode_journal_seq(&c->journal, inum.inum);
 
 	unlock_new_inode(&inode->v);
 

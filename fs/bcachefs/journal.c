@@ -87,8 +87,6 @@ static void bch2_journal_buf_init(struct journal *j)
 	buf->must_flush	= false;
 	buf->separate_flush = false;
 
-	memset(buf->has_inode, 0, sizeof(buf->has_inode));
-
 	memset(buf->data, 0, sizeof(*buf->data));
 	buf->data->seq	= cpu_to_le64(journal_cur_seq(j));
 	buf->data->u64s	= 0;
@@ -332,55 +330,6 @@ static void journal_write_work(struct work_struct *work)
 	struct journal *j = container_of(work, struct journal, write_work.work);
 
 	journal_entry_close(j);
-}
-
-/*
- * Given an inode number, if that inode number has data in the journal that
- * hasn't yet been flushed, return the journal sequence number that needs to be
- * flushed:
- */
-u64 bch2_inode_journal_seq(struct journal *j, u64 inode)
-{
-	size_t h = hash_64(inode, ilog2(sizeof(j->buf[0].has_inode) * 8));
-	union journal_res_state s;
-	unsigned i;
-	u64 seq;
-
-
-	spin_lock(&j->lock);
-	seq = journal_cur_seq(j);
-	s = READ_ONCE(j->reservations);
-	i = s.idx;
-
-	while (1) {
-		if (test_bit(h, j->buf[i].has_inode))
-			goto out;
-
-		if (i == s.unwritten_idx)
-			break;
-
-		i = (i - 1) & JOURNAL_BUF_MASK;
-		seq--;
-	}
-
-	seq = 0;
-out:
-	spin_unlock(&j->lock);
-
-	return seq;
-}
-
-void bch2_journal_set_has_inum(struct journal *j, u64 inode, u64 seq)
-{
-	size_t h = hash_64(inode, ilog2(sizeof(j->buf[0].has_inode) * 8));
-	struct journal_buf *buf;
-
-	spin_lock(&j->lock);
-
-	if ((buf = journal_seq_to_buf(j, seq)))
-		set_bit(h, buf->has_inode);
-
-	spin_unlock(&j->lock);
 }
 
 static int __journal_res_get(struct journal *j, struct journal_res *res,

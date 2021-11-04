@@ -141,9 +141,6 @@ static inline u64 journal_cur_seq(struct journal *j)
 	return j->pin.back - 1;
 }
 
-u64 bch2_inode_journal_seq(struct journal *, u64);
-void bch2_journal_set_has_inum(struct journal *, u64, u64);
-
 static inline int journal_state_count(union journal_res_state s, int idx)
 {
 	switch (idx) {
@@ -161,18 +158,6 @@ static inline void journal_state_inc(union journal_res_state *s)
 	s->buf1_count += s->idx == 1;
 	s->buf2_count += s->idx == 2;
 	s->buf3_count += s->idx == 3;
-}
-
-static inline void bch2_journal_set_has_inode(struct journal *j,
-					      struct journal_res *res,
-					      u64 inum)
-{
-	struct journal_buf *buf = &j->buf[res->idx];
-	unsigned long bit = hash_64(inum, ilog2(sizeof(buf->has_inode) * 8));
-
-	/* avoid atomic op if possible */
-	if (unlikely(!test_bit(bit, buf->has_inode)))
-		set_bit(bit, buf->has_inode);
 }
 
 /*
