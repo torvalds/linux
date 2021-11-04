@@ -243,7 +243,6 @@ TRACE_EVENT(nfs4_cb_offload,
 			show_nfs_stable_how(__entry->cb_how)
 		)
 );
-
 #endif /* CONFIG_NFS_V4_1 */
 
 TRACE_EVENT(nfs4_setup_sequence,
@@ -2405,6 +2404,63 @@ TRACE_EVENT(nfs4_clone,
 			__entry->src_offset,
 			__entry->dst_offset,
 			__entry->len
+		)
+);
+
+TRACE_EVENT(nfs4_copy_notify,
+		TP_PROTO(
+			const struct inode *inode,
+			const struct nfs42_copy_notify_args *args,
+			const struct nfs42_copy_notify_res *res,
+			int error
+		),
+
+		TP_ARGS(inode, args, res, error),
+
+		TP_STRUCT__entry(
+			__field(unsigned long, error)
+			__field(u32, fhandle)
+			__field(u32, fileid)
+			__field(dev_t, dev)
+			__field(int, stateid_seq)
+			__field(u32, stateid_hash)
+			__field(int, res_stateid_seq)
+			__field(u32, res_stateid_hash)
+		),
+
+		TP_fast_assign(
+			const struct nfs_inode *nfsi = NFS_I(inode);
+
+			__entry->fileid = nfsi->fileid;
+			__entry->dev = inode->i_sb->s_dev;
+			__entry->fhandle = nfs_fhandle_hash(args->cna_src_fh);
+			__entry->stateid_seq =
+				be32_to_cpu(args->cna_src_stateid.seqid);
+			__entry->stateid_hash =
+				nfs_stateid_hash(&args->cna_src_stateid);
+			if (error) {
+				__entry->error = -error;
+				__entry->res_stateid_seq = 0;
+				__entry->res_stateid_hash = 0;
+			} else {
+				__entry->error = 0;
+				__entry->res_stateid_seq =
+					be32_to_cpu(res->cnr_stateid.seqid);
+				__entry->res_stateid_hash =
+					nfs_stateid_hash(&res->cnr_stateid);
+			}
+		),
+
+		TP_printk(
+			"error=%ld (%s) fileid=%02x:%02x:%llu fhandle=0x%08x "
+			"stateid=%d:0x%08x res_stateid=%d:0x%08x",
+			-__entry->error,
+			show_nfs4_status(__entry->error),
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->fileid,
+			__entry->fhandle,
+			__entry->stateid_seq, __entry->stateid_hash,
+			__entry->res_stateid_seq, __entry->res_stateid_hash
 		)
 );
 #endif /* CONFIG_NFS_V4_2 */

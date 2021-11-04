@@ -603,6 +603,7 @@ static int _nfs42_proc_copy_notify(struct file *src, struct file *dst,
 
 	status = nfs4_call_sync(src_server->client, src_server, &msg,
 				&args->cna_seq_args, &res->cnr_seq_res, 0);
+	trace_nfs4_copy_notify(file_inode(src), args, res, status);
 	if (status == -ENOTSUPP)
 		src_server->caps &= ~NFS_CAP_COPY_NOTIFY;
 
