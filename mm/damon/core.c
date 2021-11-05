@@ -85,6 +85,50 @@ void damon_destroy_region(struct damon_region *r, struct damon_target *t)
 	damon_free_region(r);
 }
 
+struct damos *damon_new_scheme(
+		unsigned long min_sz_region, unsigned long max_sz_region,
+		unsigned int min_nr_accesses, unsigned int max_nr_accesses,
+		unsigned int min_age_region, unsigned int max_age_region,
+		enum damos_action action)
+{
+	struct damos *scheme;
+
+	scheme = kmalloc(sizeof(*scheme), GFP_KERNEL);
+	if (!scheme)
+		return NULL;
+	scheme->min_sz_region = min_sz_region;
+	scheme->max_sz_region = max_sz_region;
+	scheme->min_nr_accesses = min_nr_accesses;
+	scheme->max_nr_accesses = max_nr_accesses;
+	scheme->min_age_region = min_age_region;
+	scheme->max_age_region = max_age_region;
+	scheme->action = action;
+	INIT_LIST_HEAD(&scheme->list);
+
+	return scheme;
+}
+
+void damon_add_scheme(struct damon_ctx *ctx, struct damos *s)
+{
+	list_add_tail(&s->list, &ctx->schemes);
+}
+
+static void damon_del_scheme(struct damos *s)
+{
+	list_del(&s->list);
+}
+
+static void damon_free_scheme(struct damos *s)
+{
+	kfree(s);
+}
+
+void damon_destroy_scheme(struct damos *s)
+{
+	damon_del_scheme(s);
+	damon_free_scheme(s);
+}
+
 /*
  * Construct a damon_target struct
  *
@@ -156,6 +200,7 @@ struct damon_ctx *damon_new_ctx(void)
 	ctx->max_nr_regions = 1000;
 
 	INIT_LIST_HEAD(&ctx->adaptive_targets);
+	INIT_LIST_HEAD(&ctx->schemes);
 
 	return ctx;
 }
@@ -175,7 +220,13 @@ static void damon_destroy_targets(struct damon_ctx *ctx)
 
 void damon_destroy_ctx(struct damon_ctx *ctx)
 {
+	struct damos *s, *next_s;
+
 	damon_destroy_targets(ctx);
+
+	damon_for_each_scheme_safe(s, next_s, ctx)
+		damon_destroy_scheme(s);
+
 	kfree(ctx);
 }
 
@@ -247,6 +298,30 @@ int damon_set_attrs(struct damon_ctx *ctx, unsigned long sample_int,
 	ctx->min_nr_regions = min_nr_reg;
 	ctx->max_nr_regions = max_nr_reg;
 
+	return 0;
+}
+
+/**
+ * damon_set_schemes() - Set data access monitoring based operation schemes.
+ * @ctx:	monitoring context
+ * @schemes:	array of the schemes
+ * @nr_schemes:	number of entries in @schemes
+ *
+ * This function should not be called while the kdamond of the context is
+ * running.
+ *
+ * Return: 0 if success, or negative error code otherwise.
+ */
+int damon_set_schemes(struct damon_ctx *ctx, struct damos **schemes,
+			ssize_t nr_schemes)
+{
+	struct damos *s, *next;
+	ssize_t i;
+
+	damon_for_each_scheme_safe(s, next, ctx)
+		damon_destroy_scheme(s);
+	for (i = 0; i < nr_schemes; i++)
+		damon_add_scheme(ctx, schemes[i]);
 	return 0;
 }
 
@@ -450,6 +525,39 @@ static void kdamond_reset_aggregated(struct damon_ctx *c)
 			r->last_nr_accesses = r->nr_accesses;
 			r->nr_accesses = 0;
 		}
+	}
+}
+
+static void damon_do_apply_schemes(struct damon_ctx *c,
+				   struct damon_target *t,
+				   struct damon_region *r)
+{
+	struct damos *s;
+	unsigned long sz;
+
+	damon_for_each_scheme(s, c) {
+		sz = r->ar.end - r->ar.start;
+		if (sz < s->min_sz_region || s->max_sz_region < sz)
+			continue;
+		if (r->nr_accesses < s->min_nr_accesses ||
+				s->max_nr_accesses < r->nr_accesses)
+			continue;
+		if (r->age < s->min_age_region || s->max_age_region < r->age)
+			continue;
+		if (c->primitive.apply_scheme)
+			c->primitive.apply_scheme(c, t, r, s);
+		r->age = 0;
+	}
+}
+
+static void kdamond_apply_schemes(struct damon_ctx *c)
+{
+	struct damon_target *t;
+	struct damon_region *r;
+
+	damon_for_each_target(t, c) {
+		damon_for_each_region(r, t)
+			damon_do_apply_schemes(c, t, r);
 	}
 }
 
@@ -693,6 +801,7 @@ static int kdamond_fn(void *data)
 			if (ctx->callback.after_aggregation &&
 					ctx->callback.after_aggregation(ctx))
 				set_kdamond_stop(ctx);
+			kdamond_apply_schemes(ctx);
 			kdamond_reset_aggregated(ctx);
 			kdamond_split_regions(ctx);
 			if (ctx->primitive.reset_aggregated)
