@@ -404,7 +404,7 @@ int pwm_set_chip_data(struct pwm_device *pwm, void *data);
 void *pwm_get_chip_data(struct pwm_device *pwm);
 
 int pwmchip_add(struct pwm_chip *chip);
-int pwmchip_remove(struct pwm_chip *chip);
+void pwmchip_remove(struct pwm_chip *chip);
 
 int devm_pwmchip_add(struct device *dev, struct pwm_chip *chip);
 

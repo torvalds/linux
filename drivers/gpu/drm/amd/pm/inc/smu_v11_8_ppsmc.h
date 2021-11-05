@@ -65,6 +65,13 @@
 #define PPSMC_MSG_SetDriverTableVMID                    0x34
 #define PPSMC_MSG_SetSoftMinCclk                        0x35
 #define PPSMC_MSG_SetSoftMaxCclk                        0x36
-#define PPSMC_Message_Count                             0x37
+#define PPSMC_MSG_GetGfxFrequency                       0x37
+#define PPSMC_MSG_GetGfxVid                             0x38
+#define PPSMC_MSG_ForceGfxFreq                          0x39
+#define PPSMC_MSG_UnForceGfxFreq                        0x3A
+#define PPSMC_MSG_ForceGfxVid                           0x3B
+#define PPSMC_MSG_UnforceGfxVid                         0x3C
+#define PPSMC_MSG_GetEnabledSmuFeatures                 0x3D
+#define PPSMC_Message_Count                             0x3E
 
 #endif

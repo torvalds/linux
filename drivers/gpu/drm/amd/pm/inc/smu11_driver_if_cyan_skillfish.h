@@ -33,63 +33,47 @@
 #define TABLE_PMSTATUSLOG        3 // Called by Tools for Agm logging
 #define TABLE_DPMCLOCKS          4 // Called by Driver; defined here, but not used, for backward compatible
 #define TABLE_MOMENTARY_PM       5 // Called by Tools; defined here, but not used, for backward compatible
-#define TABLE_COUNT              6
+#define TABLE_SMU_METRICS        6 // Called by Driver
+#define TABLE_COUNT              7
 
-#define NUM_DSPCLK_LEVELS		8
-#define NUM_SOCCLK_DPM_LEVELS	8
-#define NUM_DCEFCLK_DPM_LEVELS	4
-#define NUM_FCLK_DPM_LEVELS		4
-#define NUM_MEMCLK_DPM_LEVELS	4
+typedef struct SmuMetricsTable_t {
+	//CPU status
+	uint16_t CoreFrequency[6];              //[MHz]
+	uint32_t CorePower[6];                  //[mW]
+	uint16_t CoreTemperature[6];            //[centi-Celsius]
+	uint16_t L3Frequency[2];                //[MHz]
+	uint16_t L3Temperature[2];              //[centi-Celsius]
+	uint16_t C0Residency[6];                //Percentage
 
-#define NUMBER_OF_PSTATES		8
-#define NUMBER_OF_CORES			8
+	// GFX status
+	uint16_t GfxclkFrequency;               //[MHz]
+	uint16_t GfxTemperature;                //[centi-Celsius]
 
-typedef enum {
-	S3_TYPE_ENTRY,
-	S5_TYPE_ENTRY,
-} Sleep_Type_e;
+	// SOC IP info
+	uint16_t SocclkFrequency;               //[MHz]
+	uint16_t VclkFrequency;                 //[MHz]
+	uint16_t DclkFrequency;                 //[MHz]
+	uint16_t MemclkFrequency;               //[MHz]
 
-typedef enum {
-	GFX_OFF = 0,
-	GFX_ON  = 1,
-} GFX_Mode_e;
+	// power, VF info for CPU/GFX telemetry rails, and then socket power total
+	uint32_t Voltage[2];                    //[mV] indices: VDDCR_VDD, VDDCR_GFX
+	uint32_t Current[2];                    //[mA] indices: VDDCR_VDD, VDDCR_GFX
+	uint32_t Power[2];                      //[mW] indices: VDDCR_VDD, VDDCR_GFX
+	uint32_t CurrentSocketPower;            //[mW]
 
-typedef enum {
-	CPU_P0 = 0,
-	CPU_P1,
-	CPU_P2,
-	CPU_P3,
-	CPU_P4,
-	CPU_P5,
-	CPU_P6,
-	CPU_P7
-} CPU_PState_e;
+	uint16_t SocTemperature;                //[centi-Celsius]
+	uint16_t EdgeTemperature;
+	uint16_t ThrottlerStatus;
+	uint16_t Spare;
 
-typedef enum {
-	CPU_CORE0 = 0,
-	CPU_CORE1,
-	CPU_CORE2,
-	CPU_CORE3,
-	CPU_CORE4,
-	CPU_CORE5,
-	CPU_CORE6,
-	CPU_CORE7
-} CORE_ID_e;
+} SmuMetricsTable_t;
 
-typedef enum {
-	DF_DPM0 = 0,
-	DF_DPM1,
-	DF_DPM2,
-	DF_DPM3,
-	DF_PState_Count
-} DF_PState_e;
-
-typedef enum {
-	GFX_DPM0 = 0,
-	GFX_DPM1,
-	GFX_DPM2,
-	GFX_DPM3,
-	GFX_PState_Count
-} GFX_PState_e;
+typedef struct SmuMetrics_t {
+	SmuMetricsTable_t Current;
+	SmuMetricsTable_t Average;
+	uint32_t SampleStartTime;
+	uint32_t SampleStopTime;
+	uint32_t Accnt;
+} SmuMetrics_t;
 
 #endif

@@ -377,6 +377,102 @@ else
 	exitcode=1
 fi
 
+echo "-------------------------------------------------------"
+echo "running KSM MADV_MERGEABLE test with 10 identical pages"
+echo "-------------------------------------------------------"
+./ksm_tests -M -p 10
+ret_val=$?
+
+if [ $ret_val -eq 0 ]; then
+	echo "[PASS]"
+elif [ $ret_val -eq $ksft_skip ]; then
+	 echo "[SKIP]"
+	 exitcode=$ksft_skip
+else
+	echo "[FAIL]"
+	exitcode=1
+fi
+
+echo "------------------------"
+echo "running KSM unmerge test"
+echo "------------------------"
+./ksm_tests -U
+ret_val=$?
+
+if [ $ret_val -eq 0 ]; then
+	echo "[PASS]"
+elif [ $ret_val -eq $ksft_skip ]; then
+	 echo "[SKIP]"
+	 exitcode=$ksft_skip
+else
+	echo "[FAIL]"
+	exitcode=1
+fi
+
+echo "----------------------------------------------------------"
+echo "running KSM test with 10 zero pages and use_zero_pages = 0"
+echo "----------------------------------------------------------"
+./ksm_tests -Z -p 10 -z 0
+ret_val=$?
+
+if [ $ret_val -eq 0 ]; then
+	echo "[PASS]"
+elif [ $ret_val -eq $ksft_skip ]; then
+	 echo "[SKIP]"
+	 exitcode=$ksft_skip
+else
+	echo "[FAIL]"
+	exitcode=1
+fi
+
+echo "----------------------------------------------------------"
+echo "running KSM test with 10 zero pages and use_zero_pages = 1"
+echo "----------------------------------------------------------"
+./ksm_tests -Z -p 10 -z 1
+ret_val=$?
+
+if [ $ret_val -eq 0 ]; then
+	echo "[PASS]"
+elif [ $ret_val -eq $ksft_skip ]; then
+	 echo "[SKIP]"
+	 exitcode=$ksft_skip
+else
+	echo "[FAIL]"
+	exitcode=1
+fi
+
+echo "-------------------------------------------------------------"
+echo "running KSM test with 2 NUMA nodes and merge_across_nodes = 1"
+echo "-------------------------------------------------------------"
+./ksm_tests -N -m 1
+ret_val=$?
+
+if [ $ret_val -eq 0 ]; then
+	echo "[PASS]"
+elif [ $ret_val -eq $ksft_skip ]; then
+	 echo "[SKIP]"
+	 exitcode=$ksft_skip
+else
+	echo "[FAIL]"
+	exitcode=1
+fi
+
+echo "-------------------------------------------------------------"
+echo "running KSM test with 2 NUMA nodes and merge_across_nodes = 0"
+echo "-------------------------------------------------------------"
+./ksm_tests -N -m 0
+ret_val=$?
+
+if [ $ret_val -eq 0 ]; then
+	echo "[PASS]"
+elif [ $ret_val -eq $ksft_skip ]; then
+	 echo "[SKIP]"
+	 exitcode=$ksft_skip
+else
+	echo "[FAIL]"
+	exitcode=1
+fi
+
 exit $exitcode
 
 exit $exitcode

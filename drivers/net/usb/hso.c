@@ -2535,13 +2535,17 @@ static struct hso_device *hso_create_net_device(struct usb_interface *interface,
 	if (!hso_net->mux_bulk_tx_buf)
 		goto err_free_tx_urb;
 
-	add_net_device(hso_dev);
+	result = add_net_device(hso_dev);
+	if (result) {
+		dev_err(&interface->dev, "Failed to add net device\n");
+		goto err_free_tx_buf;
+	}
 
 	/* registering our net device */
 	result = register_netdev(net);
 	if (result) {
 		dev_err(&interface->dev, "Failed to register device\n");
-		goto err_free_tx_buf;
+		goto err_rmv_ndev;
 	}
 
 	hso_log_port(hso_dev);
@@ -2550,8 +2554,9 @@ static struct hso_device *hso_create_net_device(struct usb_interface *interface,
 
 	return hso_dev;
 
-err_free_tx_buf:
+err_rmv_ndev:
 	remove_net_device(hso_dev);
+err_free_tx_buf:
 	kfree(hso_net->mux_bulk_tx_buf);
 err_free_tx_urb:
 	usb_free_urb(hso_net->mux_bulk_tx_urb);
@@ -2714,14 +2719,14 @@ struct hso_device *hso_create_mux_serial_device(struct usb_interface *interface,
 
 	serial = kzalloc(sizeof(*serial), GFP_KERNEL);
 	if (!serial)
-		goto exit;
+		goto err_free_dev;
 
 	hso_dev->port_data.dev_serial = serial;
 	serial->parent = hso_dev;
 
 	if (hso_serial_common_create
 	    (serial, 1, CTRL_URB_RX_SIZE, CTRL_URB_TX_SIZE))
-		goto exit;
+		goto err_free_serial;
 
 	serial->tx_data_length--;
 	serial->write_data = hso_mux_serial_write_data;
@@ -2737,11 +2742,9 @@ struct hso_device *hso_create_mux_serial_device(struct usb_interface *interface,
 	/* done, return it */
 	return hso_dev;
 
-exit:
-	if (serial) {
-		tty_unregister_device(tty_drv, serial->minor);
-		kfree(serial);
-	}
+err_free_serial:
+	kfree(serial);
+err_free_dev:
 	kfree(hso_dev);
 	return NULL;
 

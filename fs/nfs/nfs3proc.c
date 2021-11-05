@@ -49,8 +49,7 @@ nfs3_async_handle_jukebox(struct rpc_task *task, struct inode *inode)
 {
 	if (task->tk_status != -EJUKEBOX)
 		return 0;
-	if (task->tk_status == -EJUKEBOX)
-		nfs_inc_stats(inode, NFSIOS_DELAY);
+	nfs_inc_stats(inode, NFSIOS_DELAY);
 	task->tk_status = 0;
 	rpc_restart_call(task);
 	rpc_delay(task, NFS_JUKEBOX_RETRY_TIME);

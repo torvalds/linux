@@ -220,16 +220,4 @@ static struct parport_driver parkbd_parport_driver = {
 	.detach = parkbd_detach,
 	.devmodel = true,
 };
-
-static int __init parkbd_init(void)
-{
-	return parport_register_driver(&parkbd_parport_driver);
-}
-
-static void __exit parkbd_exit(void)
-{
-	parport_unregister_driver(&parkbd_parport_driver);
-}
-
-module_init(parkbd_init);
-module_exit(parkbd_exit);
+module_parport_driver(parkbd_parport_driver);

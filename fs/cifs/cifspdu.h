@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: LGPL-2.1 */
 /*
- *   fs/cifs/cifspdu.h
  *
  *   Copyright (c) International Business Machines  Corp., 2002,2009
  *   Author(s): Steve French (sfrench@us.ibm.com)
@@ -12,7 +11,7 @@
 
 #include <net/sock.h>
 #include <asm/unaligned.h>
-#include "smbfsctl.h"
+#include "../smbfs_common/smbfsctl.h"
 
 #define CIFS_PROT   0
 #define POSIX_PROT  (CIFS_PROT+1)

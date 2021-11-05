@@ -197,6 +197,9 @@ config HAVE_FUNCTION_ERROR_INJECTION
 config HAVE_NMI
 	bool
 
+config TRACE_IRQFLAGS_SUPPORT
+	bool
+
 #
 # An arch should select this if it provides all these things:
 #
@@ -886,7 +889,7 @@ config HAVE_SOFTIRQ_ON_OWN_STACK
 	bool
 	help
 	  Architecture provides a function to run __do_softirq() on a
-	  seperate stack.
+	  separate stack.
 
 config PGTABLE_LEVELS
 	int

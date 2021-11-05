@@ -124,6 +124,18 @@ static void *trigger_next(struct seq_file *m, void *t, loff_t *pos)
 	return seq_list_next(t, &event_file->triggers, pos);
 }
 
+static bool check_user_trigger(struct trace_event_file *file)
+{
+	struct event_trigger_data *data;
+
+	list_for_each_entry_rcu(data, &file->triggers, list) {
+		if (data->flags & EVENT_TRIGGER_FL_PROBE)
+			continue;
+		return true;
+	}
+	return false;
+}
+
 static void *trigger_start(struct seq_file *m, loff_t *pos)
 {
 	struct trace_event_file *event_file;
@@ -134,7 +146,7 @@ static void *trigger_start(struct seq_file *m, loff_t *pos)
 	if (unlikely(!event_file))
 		return ERR_PTR(-ENODEV);
 
-	if (list_empty(&event_file->triggers))
+	if (list_empty(&event_file->triggers) || !check_user_trigger(event_file))
 		return *pos == 0 ? SHOW_AVAILABLE_TRIGGERS : NULL;
 
 	return seq_list_start(&event_file->triggers, *pos);
@@ -1334,7 +1346,7 @@ void event_enable_trigger_free(struct event_trigger_ops *ops,
 	if (!data->ref) {
 		/* Remove the SOFT_MODE flag */
 		trace_event_enable_disable(enable_data->file, 0, 1);
-		module_put(enable_data->file->event_call->mod);
+		trace_event_put_ref(enable_data->file->event_call);
 		trigger_data_free(data);
 		kfree(enable_data);
 	}
@@ -1481,7 +1493,7 @@ int event_enable_trigger_func(struct event_command *cmd_ops,
 
  out_reg:
 	/* Don't let event modules unload while probe registered */
-	ret = try_module_get(event_enable_file->event_call->mod);
+	ret = trace_event_try_get_ref(event_enable_file->event_call);
 	if (!ret) {
 		ret = -EBUSY;
 		goto out_free;
@@ -1510,7 +1522,7 @@ int event_enable_trigger_func(struct event_command *cmd_ops,
  out_disable:
 	trace_event_enable_disable(event_enable_file, 0, 1);
  out_put:
-	module_put(event_enable_file->event_call->mod);
+	trace_event_put_ref(event_enable_file->event_call);
  out_free:
 	if (cmd_ops->set_filter)
 		cmd_ops->set_filter(NULL, trigger_data, NULL);

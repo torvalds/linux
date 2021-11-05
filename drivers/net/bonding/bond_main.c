@@ -2169,7 +2169,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev,
 			res = -EOPNOTSUPP;
 			goto err_sysfs_del;
 		}
-	} else {
+	} else if (bond->xdp_prog) {
 		struct netdev_bpf xdp = {
 			.command = XDP_SETUP_PROG,
 			.flags   = 0,
@@ -2910,9 +2910,9 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 			 * probe to generate any traffic (arp_validate=0)
 			 */
 			if (bond->params.arp_validate)
-				net_warn_ratelimited("%s: no route to arp_ip_target %pI4 and arp_validate is set\n",
-						     bond->dev->name,
-						     &targets[i]);
+				pr_warn_once("%s: no route to arp_ip_target %pI4 and arp_validate is set\n",
+					     bond->dev->name,
+					     &targets[i]);
 			bond_arp_send(slave, ARPOP_REQUEST, targets[i],
 				      0, tags);
 			continue;
@@ -5224,13 +5224,12 @@ static int bond_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 			bpf_prog_inc(prog);
 	}
 
-	if (old_prog)
-		bpf_prog_put(old_prog);
-
-	if (prog)
+	if (prog) {
 		static_branch_inc(&bpf_master_redirect_enabled_key);
-	else
+	} else if (old_prog) {
+		bpf_prog_put(old_prog);
 		static_branch_dec(&bpf_master_redirect_enabled_key);
+	}
 
 	return 0;
 

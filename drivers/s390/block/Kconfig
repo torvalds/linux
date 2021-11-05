@@ -2,17 +2,6 @@
 comment "S/390 block device drivers"
 	depends on S390 && BLOCK
 
-config BLK_DEV_XPRAM
-	def_tristate m
-	prompt "XPRAM disk support"
-	depends on S390 && BLOCK
-	help
-	  Select this option if you want to use your expanded storage on S/390
-	  or zSeries as a disk.  This is useful as a _fast_ swap device if you
-	  want to access more than 2G of memory when running in 31 bit mode.
-	  This option is also available as a module which will be called
-	  xpram.  If unsure, say "N".
-
 config DCSSBLK
 	def_tristate m
 	select FS_DAX_LIMITED

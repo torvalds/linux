@@ -44,7 +44,7 @@ extern struct perf_test_args perf_test_args;
 extern uint64_t guest_test_phys_mem;
 
 struct kvm_vm *perf_test_create_vm(enum vm_guest_mode mode, int vcpus,
-				   uint64_t vcpu_memory_bytes,
+				   uint64_t vcpu_memory_bytes, int slots,
 				   enum vm_mem_backing_src_type backing_src);
 void perf_test_destroy_vm(struct kvm_vm *vm);
 void perf_test_setup_vcpus(struct kvm_vm *vm, int vcpus,

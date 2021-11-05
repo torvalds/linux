@@ -394,7 +394,7 @@ static const struct attribute_group ep11_queue_attr_grp = {
 	.attrs = ep11_queue_attrs,
 };
 
-/**
+/*
  * Probe function for CEX4/CEX5/CEX6/CEX7 card device. It always
  * accepts the AP device since the bus_match already checked
  * the hardware type.
@@ -562,7 +562,7 @@ static int zcrypt_cex4_card_probe(struct ap_device *ap_dev)
 	return rc;
 }
 
-/**
+/*
  * This is called to remove the CEX4/CEX5/CEX6/CEX7 card driver
  * information if an AP card device is removed.
  */
@@ -586,7 +586,7 @@ static struct ap_driver zcrypt_cex4_card_driver = {
 	.flags = AP_DRIVER_FLAG_DEFAULT,
 };
 
-/**
+/*
  * Probe function for CEX4/CEX5/CEX6/CEX7 queue device. It always
  * accepts the AP device since the bus_match already checked
  * the hardware type.
@@ -652,7 +652,7 @@ static int zcrypt_cex4_queue_probe(struct ap_device *ap_dev)
 	return rc;
 }
 
-/**
+/*
  * This is called to remove the CEX4/CEX5/CEX6/CEX7 queue driver
  * information if an AP queue device is removed.
  */

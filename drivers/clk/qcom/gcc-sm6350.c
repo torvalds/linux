@@ -176,10 +176,6 @@ static const struct parent_map gcc_parent_map_2[] = {
 	{ P_GPLL0_OUT_ODD, 2 },
 };
 
-static const struct clk_parent_data gcc_parent_data_2[] = {
-	{ .fw_name = "bi_tcxo" },
-	{ .hw = &gpll0_out_odd.clkr.hw },
-};
 static const struct clk_parent_data gcc_parent_data_2_ao[] = {
 	{ .fw_name = "bi_tcxo_ao" },
 	{ .hw = &gpll0_out_odd.clkr.hw },

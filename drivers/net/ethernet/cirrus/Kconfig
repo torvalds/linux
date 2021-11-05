@@ -38,7 +38,7 @@ config CS89x0_ISA
 
 config CS89x0_PLATFORM
 	tristate "CS89x0 platform driver support"
-	depends on ARM || COMPILE_TEST
+	depends on ARM || (COMPILE_TEST && !PPC)
 	select CS89x0
 	help
 	  Say Y to compile the cs89x0 platform driver. This makes this driver

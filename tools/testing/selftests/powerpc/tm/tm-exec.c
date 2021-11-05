@@ -27,6 +27,7 @@ static char *path;
 static int test_exec(void)
 {
 	SKIP_IF(!have_htm());
+	SKIP_IF(htm_is_synthetic());
 
 	asm __volatile__(
 		"tbegin.;"

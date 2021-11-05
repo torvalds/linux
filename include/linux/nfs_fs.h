@@ -41,6 +41,11 @@
 #include <linux/mempool.h>
 
 /*
+ * These are the default for number of transports to different server IPs
+ */
+#define NFS_MAX_TRANSPORTS 16
+
+/*
  * These are the default flags for swap requests
  */
 #define NFS_RPC_SWAPFLAGS		(RPC_TASK_SWAPPER|RPC_TASK_ROOTCREDS)

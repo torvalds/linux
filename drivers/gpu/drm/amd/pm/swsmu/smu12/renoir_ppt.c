@@ -426,7 +426,7 @@ static int renoir_od_edit_dpm_table(struct smu_context *smu,
 		} else {
 			if (smu->gfx_actual_hard_min_freq > smu->gfx_actual_soft_max_freq) {
 				dev_err(smu->adev->dev,
-					"The setting minimun sclk (%d) MHz is greater than the setting maximum sclk (%d) MHz\n",
+					"The setting minimum sclk (%d) MHz is greater than the setting maximum sclk (%d) MHz\n",
 					smu->gfx_actual_hard_min_freq,
 					smu->gfx_actual_soft_max_freq);
 				return -EINVAL;
@@ -496,6 +496,8 @@ static int renoir_print_clk_levels(struct smu_context *smu,
 	ret = smu_cmn_get_metrics_table(smu, &metrics, false);
 	if (ret)
 		return ret;
+
+	smu_cmn_get_sysfs_buf(&buf, &size);
 
 	switch (clk_type) {
 	case SMU_OD_RANGE:

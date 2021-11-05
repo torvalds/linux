@@ -2577,6 +2577,7 @@ static const struct ib_device_ops mlx4_ib_dev_ops = {
 	INIT_RDMA_OBJ_SIZE(ib_ah, mlx4_ib_ah, ibah),
 	INIT_RDMA_OBJ_SIZE(ib_cq, mlx4_ib_cq, ibcq),
 	INIT_RDMA_OBJ_SIZE(ib_pd, mlx4_ib_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_qp, mlx4_ib_qp, ibqp),
 	INIT_RDMA_OBJ_SIZE(ib_srq, mlx4_ib_srq, ibsrq),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, mlx4_ib_ucontext, ibucontext),
 };

@@ -259,6 +259,7 @@ config X86
 	select STACK_VALIDATION			if HAVE_STACK_VALIDATION && (HAVE_STATIC_CALL_INLINE || RETPOLINE)
 	select SYSCTL_EXCEPTION_TRACE
 	select THREAD_INFO_IN_TASK
+	select TRACE_IRQFLAGS_SUPPORT
 	select USER_STACKTRACE_SUPPORT
 	select VIRT_TO_BUS
 	select HAVE_ARCH_KCSAN			if X86_64
@@ -337,6 +338,11 @@ config NEED_PER_CPU_PAGE_FIRST_CHUNK
 
 config ARCH_HIBERNATION_POSSIBLE
 	def_bool y
+
+config ARCH_NR_GPIO
+	int
+	default 1024 if X86_64
+	default 512
 
 config ARCH_SUSPEND_POSSIBLE
 	def_bool y
@@ -2604,7 +2610,6 @@ config PCI_OLPC
 config PCI_XEN
 	def_bool y
 	depends on PCI && XEN
-	select SWIOTLB_XEN
 
 config MMCONF_FAM10H
 	def_bool y

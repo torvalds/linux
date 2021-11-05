@@ -297,6 +297,7 @@ static const struct ib_device_ops siw_device_ops = {
 
 	INIT_RDMA_OBJ_SIZE(ib_cq, siw_cq, base_cq),
 	INIT_RDMA_OBJ_SIZE(ib_pd, siw_pd, base_pd),
+	INIT_RDMA_OBJ_SIZE(ib_qp, siw_qp, base_qp),
 	INIT_RDMA_OBJ_SIZE(ib_srq, siw_srq, base_srq),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, siw_ucontext, base_ucontext),
 };

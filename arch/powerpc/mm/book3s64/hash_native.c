@@ -787,7 +787,7 @@ static void hpte_decode(struct hash_pte *hpte, unsigned long slot,
  * TODO: add batching support when enabled.  remember, no dynamic memory here,
  * although there is the control page available...
  */
-static void native_hpte_clear(void)
+static notrace void native_hpte_clear(void)
 {
 	unsigned long vpn = 0;
 	unsigned long slot, slots;

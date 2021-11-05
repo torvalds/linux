@@ -36,7 +36,7 @@ patternProperties:
   "^mode-.*$":
     $ref: /schemas/types.yaml#/definitions/uint32
 
-additionalProperties: false
+additionalProperties: true
 
 examples:
   - |

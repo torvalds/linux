@@ -94,6 +94,8 @@ static int hw_ip_info(struct hl_device *hdev, struct hl_info_args *args)
 
 	hw_ip.first_available_interrupt_id =
 			prop->first_available_user_msix_interrupt;
+	hw_ip.server_type = prop->server_type;
+
 	return copy_to_user(out, &hw_ip,
 		min((size_t) size, sizeof(hw_ip))) ? -EFAULT : 0;
 }

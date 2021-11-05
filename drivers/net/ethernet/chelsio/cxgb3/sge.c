@@ -3301,6 +3301,9 @@ void t3_sge_stop(struct adapter *adap)
 
 	t3_sge_stop_dma(adap);
 
+	/* workqueues aren't initialized otherwise */
+	if (!(adap->flags & FULL_INIT_DONE))
+		return;
 	for (i = 0; i < SGE_QSETS; ++i) {
 		struct sge_qset *qs = &adap->sge.qs[i];
 

@@ -53,13 +53,18 @@ patternProperties:
 
     properties:
       compatible:
-        const: qcom,pm8008-gpio
+        items:
+          - const: qcom,pm8008-gpio
+          - const: qcom,spmi-gpio
 
       reg:
         description: Peripheral address of one of the two GPIO peripherals.
         maxItems: 1
 
       gpio-controller: true
+
+      gpio-ranges:
+        maxItems: 1
 
       interrupt-controller: true
 
@@ -75,6 +80,7 @@ patternProperties:
       - gpio-controller
       - interrupt-controller
       - "#gpio-cells"
+      - gpio-ranges
       - "#interrupt-cells"
 
     additionalProperties: false
@@ -107,10 +113,11 @@ examples:
         interrupt-parent = <&tlmm>;
         interrupts = <32 IRQ_TYPE_EDGE_RISING>;
 
-        gpio@c000 {
-          compatible = "qcom,pm8008-gpio";
+        pm8008_gpios: gpio@c000 {
+          compatible = "qcom,pm8008-gpio", "qcom,spmi-gpio";
           reg = <0xc000>;
           gpio-controller;
+          gpio-ranges = <&pm8008_gpios 0 0 2>;
           #gpio-cells = <2>;
           interrupt-controller;
           #interrupt-cells = <2>;

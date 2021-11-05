@@ -318,7 +318,7 @@ void ionic_rx_filter_sync(struct ionic_lif *lif)
 			if (f->state == IONIC_FILTER_STATE_NEW ||
 			    f->state == IONIC_FILTER_STATE_OLD) {
 				sync_item = devm_kzalloc(dev, sizeof(*sync_item),
-							 GFP_KERNEL);
+							 GFP_ATOMIC);
 				if (!sync_item)
 					goto loop_out;
 

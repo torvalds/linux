@@ -13,6 +13,20 @@
 #include <sys/types.h>
 #include <linux/futex.h>
 
+struct bench_futex_parameters {
+	bool silent;
+	bool fshared;
+	bool mlockall;
+	bool multi; /* lock-pi */
+	bool pi; /* requeue-pi */
+	bool broadcast; /* requeue */
+	unsigned int runtime; /* seconds*/
+	unsigned int nthreads;
+	unsigned int nfutexes;
+	unsigned int nwakes;
+	unsigned int nrequeue;
+};
+
 /**
  * futex() - SYS_futex syscall wrapper
  * @uaddr:	address of first futex
@@ -20,7 +34,7 @@
  * @val:	typically expected value of uaddr, but varies by op
  * @timeout:	typically an absolute struct timespec (except where noted
  *		otherwise). Overloaded by some ops
- * @uaddr2:	address of second futex for some ops\
+ * @uaddr2:	address of second futex for some ops
  * @val3:	varies by op
  * @opflags:	flags to be bitwise OR'd with op, such as FUTEX_PRIVATE_FLAG
  *
@@ -77,7 +91,7 @@ futex_unlock_pi(u_int32_t *uaddr, int opflags)
 /**
 * futex_cmp_requeue() - requeue tasks from uaddr to uaddr2
 * @nr_wake:        wake up to this many tasks
-* @nr_requeue:        requeue up to this many tasks
+* @nr_requeue:     requeue up to this many tasks
 */
 static inline int
 futex_cmp_requeue(u_int32_t *uaddr, u_int32_t val, u_int32_t *uaddr2, int nr_wake,
@@ -86,4 +100,38 @@ futex_cmp_requeue(u_int32_t *uaddr, u_int32_t val, u_int32_t *uaddr2, int nr_wak
 	return futex(uaddr, FUTEX_CMP_REQUEUE, nr_wake, nr_requeue, uaddr2,
 		 val, opflags);
 }
+
+/**
+ * futex_wait_requeue_pi() - block on uaddr and prepare to requeue to uaddr2
+ * @uaddr:	non-PI futex source
+ * @uaddr2:	PI futex target
+ *
+ * This is the first half of the requeue_pi mechanism. It shall always be
+ * paired with futex_cmp_requeue_pi().
+ */
+static inline int
+futex_wait_requeue_pi(u_int32_t *uaddr, u_int32_t val, u_int32_t *uaddr2,
+		      struct timespec *timeout, int opflags)
+{
+	return futex(uaddr, FUTEX_WAIT_REQUEUE_PI, val, timeout, uaddr2, 0,
+		     opflags);
+}
+
+/**
+ * futex_cmp_requeue_pi() - requeue tasks from uaddr to uaddr2
+ * @uaddr:	non-PI futex source
+ * @uaddr2:	PI futex target
+ * @nr_requeue:	requeue up to this many tasks
+ *
+ * This is the second half of the requeue_pi mechanism. It shall always be
+ * paired with futex_wait_requeue_pi(). The first waker is always awoken.
+ */
+static inline int
+futex_cmp_requeue_pi(u_int32_t *uaddr, u_int32_t val, u_int32_t *uaddr2,
+		     int nr_requeue, int opflags)
+{
+	return futex(uaddr, FUTEX_CMP_REQUEUE_PI, 1, nr_requeue, uaddr2,
+		     val, opflags);
+}
+
 #endif /* _FUTEX_H */

@@ -32,7 +32,7 @@ The API for filtering consists of the following:
 ----
 #include <perf/perf_dlfilter.h>
 
-const struct perf_dlfilter_fns perf_dlfilter_fns;
+struct perf_dlfilter_fns perf_dlfilter_fns;
 
 int start(void **data, void *ctx);
 int stop(void *data, void *ctx);
@@ -214,7 +214,7 @@ Filter out everything except branches from "foo" to "bar":
 #include <perf/perf_dlfilter.h>
 #include <string.h>
 
-const struct perf_dlfilter_fns perf_dlfilter_fns;
+struct perf_dlfilter_fns perf_dlfilter_fns;
 
 int filter_event(void *data, const struct perf_dlfilter_sample *sample, void *ctx)
 {
@@ -245,6 +245,14 @@ i.e. perf_dlfilter.h is in ~/include/perf :
 To use the filter with perf script:
 
 	perf script --dlfilter dlfilter-example.so
+
+NOTES
+-----
+
+The dlfilter .so file will be dependent on shared libraries. If those change,
+it may be necessary to rebuild the .so. Also there may be unexpected results
+if the .so uses different versions of the shared libraries that perf uses.
+Versions can be checked using the ldd command.
 
 SEE ALSO
 --------

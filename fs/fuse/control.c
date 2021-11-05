@@ -328,7 +328,7 @@ void fuse_ctl_remove_conn(struct fuse_conn *fc)
 	drop_nlink(d_inode(fuse_control_sb->s_root));
 }
 
-static int fuse_ctl_fill_super(struct super_block *sb, struct fs_context *fctx)
+static int fuse_ctl_fill_super(struct super_block *sb, struct fs_context *fsc)
 {
 	static const struct tree_descr empty_descr = {""};
 	struct fuse_conn *fc;
@@ -354,18 +354,18 @@ static int fuse_ctl_fill_super(struct super_block *sb, struct fs_context *fctx)
 	return 0;
 }
 
-static int fuse_ctl_get_tree(struct fs_context *fc)
+static int fuse_ctl_get_tree(struct fs_context *fsc)
 {
-	return get_tree_single(fc, fuse_ctl_fill_super);
+	return get_tree_single(fsc, fuse_ctl_fill_super);
 }
 
 static const struct fs_context_operations fuse_ctl_context_ops = {
 	.get_tree	= fuse_ctl_get_tree,
 };
 
-static int fuse_ctl_init_fs_context(struct fs_context *fc)
+static int fuse_ctl_init_fs_context(struct fs_context *fsc)
 {
-	fc->ops = &fuse_ctl_context_ops;
+	fsc->ops = &fuse_ctl_context_ops;
 	return 0;
 }
 

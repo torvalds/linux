@@ -44,6 +44,7 @@ config MICROBLAZE
 	select SPARSE_IRQ
 	select SET_FS
 	select ZONE_DMA
+	select TRACE_IRQFLAGS_SUPPORT
 
 # Endianness selection
 choice

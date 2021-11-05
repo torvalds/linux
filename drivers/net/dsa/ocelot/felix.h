@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright 2019 NXP Semiconductors
+/* Copyright 2019 NXP
  */
 #ifndef _MSCC_FELIX_H
 #define _MSCC_FELIX_H

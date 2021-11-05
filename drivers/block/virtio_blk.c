@@ -762,7 +762,7 @@ static int virtblk_probe(struct virtio_device *vdev)
 		goto out_free_vblk;
 
 	/* Default queue sizing is to fill the ring. */
-	if (likely(!virtblk_queue_depth)) {
+	if (!virtblk_queue_depth) {
 		queue_depth = vblk->vqs[0].vq->num_free;
 		/* ... but without indirect descs, we use 2 descs per req */
 		if (!virtio_has_feature(vdev, VIRTIO_RING_F_INDIRECT_DESC))
@@ -836,7 +836,7 @@ static int virtblk_probe(struct virtio_device *vdev)
 	else
 		blk_size = queue_logical_block_size(q);
 
-	if (unlikely(blk_size < SECTOR_SIZE || blk_size > PAGE_SIZE)) {
+	if (blk_size < SECTOR_SIZE || blk_size > PAGE_SIZE) {
 		dev_err(&vdev->dev,
 			"block size is changed unexpectedly, now is %u\n",
 			blk_size);

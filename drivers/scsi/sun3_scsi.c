@@ -336,7 +336,7 @@ static int sun3scsi_dma_xfer_len(struct NCR5380_hostdata *hostdata,
 {
 	int wanted_len = cmd->SCp.this_residual;
 
-	if (wanted_len < DMA_MIN_SIZE || blk_rq_is_passthrough(cmd->request))
+	if (wanted_len < DMA_MIN_SIZE || blk_rq_is_passthrough(scsi_cmd_to_rq(cmd)))
 		return 0;
 
 	return wanted_len;
@@ -366,8 +366,9 @@ static inline int sun3scsi_dma_start(unsigned long count, unsigned char *data)
 }
 
 /* clean up after our dma is done */
-static int sun3scsi_dma_finish(int write_flag)
+static int sun3scsi_dma_finish(enum dma_data_direction data_dir)
 {
+	const bool write_flag = data_dir == DMA_TO_DEVICE;
 	unsigned short __maybe_unused count;
 	unsigned short fifo;
 	int ret = 0;

@@ -1640,6 +1640,7 @@ static inline void unlock_sock_fast(struct sock *sk, bool slow)
 		release_sock(sk);
 		__release(&sk->sk_lock.slock);
 	} else {
+		mutex_release(&sk->sk_lock.dep_map, _RET_IP_);
 		spin_unlock_bh(&sk->sk_lock.slock);
 	}
 }

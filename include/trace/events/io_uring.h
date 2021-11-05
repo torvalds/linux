@@ -295,14 +295,14 @@ TRACE_EVENT(io_uring_fail_link,
  */
 TRACE_EVENT(io_uring_complete,
 
-	TP_PROTO(void *ctx, u64 user_data, long res, unsigned cflags),
+	TP_PROTO(void *ctx, u64 user_data, int res, unsigned cflags),
 
 	TP_ARGS(ctx, user_data, res, cflags),
 
 	TP_STRUCT__entry (
 		__field(  void *,	ctx		)
 		__field(  u64,		user_data	)
-		__field(  long,		res		)
+		__field(  int,		res		)
 		__field(  unsigned,	cflags		)
 	),
 
@@ -313,7 +313,7 @@ TRACE_EVENT(io_uring_complete,
 		__entry->cflags		= cflags;
 	),
 
-	TP_printk("ring %p, user_data 0x%llx, result %ld, cflags %x",
+	TP_printk("ring %p, user_data 0x%llx, result %d, cflags %x",
 			  __entry->ctx, (unsigned long long)__entry->user_data,
 			  __entry->res, __entry->cflags)
 );

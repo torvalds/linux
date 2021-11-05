@@ -171,7 +171,7 @@ enum tcm_sense_reason_table {
 	TCM_WRITE_PROTECTED			= R(0x0c),
 	TCM_CHECK_CONDITION_ABORT_CMD		= R(0x0d),
 	TCM_CHECK_CONDITION_UNIT_ATTENTION	= R(0x0e),
-	TCM_CHECK_CONDITION_NOT_READY		= R(0x0f),
+
 	TCM_RESERVATION_CONFLICT		= R(0x10),
 	TCM_ADDRESS_OUT_OF_RANGE		= R(0x11),
 	TCM_OUT_OF_RESOURCES			= R(0x12),
@@ -188,6 +188,10 @@ enum tcm_sense_reason_table {
 	TCM_INSUFFICIENT_REGISTRATION_RESOURCES	= R(0x1d),
 	TCM_LUN_BUSY				= R(0x1e),
 	TCM_INVALID_FIELD_IN_COMMAND_IU         = R(0x1f),
+	TCM_ALUA_TG_PT_STANDBY			= R(0x20),
+	TCM_ALUA_TG_PT_UNAVAILABLE		= R(0x21),
+	TCM_ALUA_STATE_TRANSITION		= R(0x22),
+	TCM_ALUA_OFFLINE			= R(0x23),
 #undef R
 };
 
@@ -453,10 +457,10 @@ enum target_core_dif_check {
 #define TCM_ACA_TAG	0x24
 
 struct se_cmd {
+	/* Used for fail with specific sense codes */
+	sense_reason_t		sense_reason;
 	/* SAM response code being sent to initiator */
 	u8			scsi_status;
-	u8			scsi_asc;
-	u8			scsi_ascq;
 	u16			scsi_sense_length;
 	unsigned		unknown_data_length:1;
 	bool			state_active:1;

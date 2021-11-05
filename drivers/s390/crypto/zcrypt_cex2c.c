@@ -171,7 +171,7 @@ static const struct attribute_group cca_queue_attr_grp = {
 	.attrs = cca_queue_attrs,
 };
 
-/**
+/*
  * Large random number detection function. Its sends a message to a CEX2C/CEX3C
  * card to find out if large random numbers are supported.
  * @ap_dev: pointer to the AP device.
@@ -237,7 +237,7 @@ out_free:
 	return rc;
 }
 
-/**
+/*
  * Probe function for CEX2C/CEX3C card devices. It always accepts the
  * AP device since the bus_match already checked the hardware type.
  * @ap_dev: pointer to the AP card device.
@@ -303,7 +303,7 @@ static int zcrypt_cex2c_card_probe(struct ap_device *ap_dev)
 	return rc;
 }
 
-/**
+/*
  * This is called to remove the CEX2C/CEX3C card driver information
  * if an AP card device is removed.
  */
@@ -325,7 +325,7 @@ static struct ap_driver zcrypt_cex2c_card_driver = {
 	.flags = AP_DRIVER_FLAG_DEFAULT,
 };
 
-/**
+/*
  * Probe function for CEX2C/CEX3C queue devices. It always accepts the
  * AP device since the bus_match already checked the hardware type.
  * @ap_dev: pointer to the AP card device.
@@ -376,7 +376,7 @@ static int zcrypt_cex2c_queue_probe(struct ap_device *ap_dev)
 	return rc;
 }
 
-/**
+/*
  * This is called to remove the CEX2C/CEX3C queue driver information
  * if an AP queue device is removed.
  */

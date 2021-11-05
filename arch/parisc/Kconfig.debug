@@ -1,4 +1,1 @@
 # SPDX-License-Identifier: GPL-2.0
-
-config TRACE_IRQFLAGS_SUPPORT
-	def_bool y

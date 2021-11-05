@@ -1,10 +1,12 @@
 .. include:: ../../disclaimer-zh_CN.rst
 
-:Original: :doc:`../../../../core-api/irq/irq-domain`
-:Translator: Yanteng Si <siyanteng@loongson.cn>
+:Original: Documentation/core-api/irq/irq-domain.rst
+
+:翻译:
+
+ 司延腾 Yanteng Si <siyanteng@loongson.cn>
 
 .. _cn_irq-domain.rst:
-
 
 =======================
 irq_domain 中断号映射库

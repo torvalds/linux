@@ -176,8 +176,6 @@ static int lgm_pwm_probe(struct platform_device *pdev)
 	if (!pc)
 		return -ENOMEM;
 
-	platform_set_drvdata(pdev, pc);
-
 	io_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(io_base))
 		return PTR_ERR(io_base);
@@ -210,18 +208,11 @@ static int lgm_pwm_probe(struct platform_device *pdev)
 
 	lgm_pwm_init(pc);
 
-	ret = pwmchip_add(&pc->chip);
+	ret = devm_pwmchip_add(dev, &pc->chip);
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "failed to add PWM chip\n");
 
 	return 0;
-}
-
-static int lgm_pwm_remove(struct platform_device *pdev)
-{
-	struct lgm_pwm_chip *pc = platform_get_drvdata(pdev);
-
-	return pwmchip_remove(&pc->chip);
 }
 
 static const struct of_device_id lgm_pwm_of_match[] = {
@@ -236,7 +227,6 @@ static struct platform_driver lgm_pwm_driver = {
 		.of_match_table = lgm_pwm_of_match,
 	},
 	.probe = lgm_pwm_probe,
-	.remove = lgm_pwm_remove,
 };
 module_platform_driver(lgm_pwm_driver);
 

@@ -92,7 +92,8 @@ static void rvu_setup_hw_capabilities(struct rvu *rvu)
  */
 int rvu_poll_reg(struct rvu *rvu, u64 block, u64 offset, u64 mask, bool zero)
 {
-	unsigned long timeout = jiffies + usecs_to_jiffies(10000);
+	unsigned long timeout = jiffies + usecs_to_jiffies(20000);
+	bool twice = false;
 	void __iomem *reg;
 	u64 reg_val;
 
@@ -105,6 +106,15 @@ again:
 		return 0;
 	if (time_before(jiffies, timeout)) {
 		usleep_range(1, 5);
+		goto again;
+	}
+	/* In scenarios where CPU is scheduled out before checking
+	 * 'time_before' (above) and gets scheduled in such that
+	 * jiffies are beyond timeout value, then check again if HW is
+	 * done with the operation in the meantime.
+	 */
+	if (!twice) {
+		twice = true;
 		goto again;
 	}
 	return -EBUSY;
@@ -199,6 +209,11 @@ int rvu_alloc_bitmap(struct rsrc_bmap *rsrc)
 	if (!rsrc->bmap)
 		return -ENOMEM;
 	return 0;
+}
+
+void rvu_free_bitmap(struct rsrc_bmap *rsrc)
+{
+	kfree(rsrc->bmap);
 }
 
 /* Get block LF's HW index from a PF_FUNC's block slot number */

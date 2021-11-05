@@ -25,11 +25,11 @@ int affinity__setup(struct affinity *a)
 {
 	int cpu_set_size = get_cpu_set_size();
 
-	a->orig_cpus = bitmap_alloc(cpu_set_size * 8);
+	a->orig_cpus = bitmap_zalloc(cpu_set_size * 8);
 	if (!a->orig_cpus)
 		return -1;
 	sched_getaffinity(0, cpu_set_size, (cpu_set_t *)a->orig_cpus);
-	a->sched_cpus = bitmap_alloc(cpu_set_size * 8);
+	a->sched_cpus = bitmap_zalloc(cpu_set_size * 8);
 	if (!a->sched_cpus) {
 		zfree(&a->orig_cpus);
 		return -1;

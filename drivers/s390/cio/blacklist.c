@@ -262,7 +262,10 @@ static int blacklist_parse_proc_parameters(char *buf)
 
 	if (strcmp("free", parm) == 0) {
 		rc = blacklist_parse_parameters(buf, free, 0);
-		css_schedule_eval_all_unreg(0);
+		/* There could be subchannels without proper devices connected.
+		 * evaluate all the entries
+		 */
+		css_schedule_eval_all();
 	} else if (strcmp("add", parm) == 0)
 		rc = blacklist_parse_parameters(buf, add, 0);
 	else if (strcmp("purge", parm) == 0)

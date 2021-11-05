@@ -176,7 +176,7 @@ static struct page *erofs_read_inode(struct inode *inode,
 	}
 
 	if (vi->datalayout == EROFS_INODE_CHUNK_BASED) {
-		if (!(vi->chunkformat & EROFS_CHUNK_FORMAT_ALL)) {
+		if (vi->chunkformat & ~EROFS_CHUNK_FORMAT_ALL) {
 			erofs_err(inode->i_sb,
 				  "unsupported chunk format %x of nid %llu",
 				  vi->chunkformat, vi->nid);

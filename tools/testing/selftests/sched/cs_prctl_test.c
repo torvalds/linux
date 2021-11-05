@@ -25,8 +25,6 @@
 #include <sys/types.h>
 #include <sched.h>
 #include <sys/prctl.h>
-#include <sys/types.h>
-#include <sys/wait.h>
 #include <unistd.h>
 #include <time.h>
 #include <stdio.h>

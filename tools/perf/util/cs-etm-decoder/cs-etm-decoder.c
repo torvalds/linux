@@ -13,8 +13,6 @@
 #include <linux/zalloc.h>
 #include <stdlib.h>
 #include <opencsd/c_api/opencsd_c_api.h>
-#include <opencsd/etmv4/trc_pkt_types_etmv4.h>
-#include <opencsd/ocsd_if_types.h>
 
 #include "cs-etm.h"
 #include "cs-etm-decoder.h"
@@ -35,9 +33,11 @@
 struct cs_etm_decoder {
 	void *data;
 	void (*packet_printer)(const char *msg);
+	bool suppress_printing;
 	dcd_tree_handle_t dcd_tree;
 	cs_etm_mem_cb_type mem_access;
 	ocsd_datapath_resp_t prev_return;
+	const char *decoder_name;
 };
 
 static u32
@@ -74,9 +74,10 @@ int cs_etm_decoder__reset(struct cs_etm_decoder *decoder)
 	ocsd_datapath_resp_t dp_ret;
 
 	decoder->prev_return = OCSD_RESP_CONT;
-
+	decoder->suppress_printing = true;
 	dp_ret = ocsd_dt_process_data(decoder->dcd_tree, OCSD_OP_RESET,
 				      0, 0, NULL, NULL);
+	decoder->suppress_printing = false;
 	if (OCSD_DATA_RESP_IS_FATAL(dp_ret))
 		return -1;
 
@@ -124,6 +125,21 @@ static int cs_etm_decoder__gen_etmv3_config(struct cs_etm_trace_params *params,
 	return 0;
 }
 
+#define TRCIDR1_TRCARCHMIN_SHIFT 4
+#define TRCIDR1_TRCARCHMIN_MASK  GENMASK(7, 4)
+#define TRCIDR1_TRCARCHMIN(x)    (((x) & TRCIDR1_TRCARCHMIN_MASK) >> TRCIDR1_TRCARCHMIN_SHIFT)
+
+static enum _ocsd_arch_version cs_etm_decoder__get_etmv4_arch_ver(u32 reg_idr1)
+{
+	/*
+	 * For ETMv4 if the trace minor version is 4 or more then we can assume
+	 * the architecture is ARCH_AA64 rather than just V8.
+	 * ARCH_V8 = V8 architecture
+	 * ARCH_AA64 = Min v8r3 plus additional AA64 PE features
+	 */
+	return TRCIDR1_TRCARCHMIN(reg_idr1) >= 4 ? ARCH_AA64 : ARCH_V8;
+}
+
 static void cs_etm_decoder__gen_etmv4_config(struct cs_etm_trace_params *params,
 					     ocsd_etmv4_cfg *config)
 {
@@ -138,7 +154,21 @@ static void cs_etm_decoder__gen_etmv4_config(struct cs_etm_trace_params *params,
 	config->reg_idr11 = 0;
 	config->reg_idr12 = 0;
 	config->reg_idr13 = 0;
-	config->arch_ver = ARCH_V8;
+	config->arch_ver = cs_etm_decoder__get_etmv4_arch_ver(params->etmv4.reg_idr1);
+	config->core_prof = profile_CortexA;
+}
+
+static void cs_etm_decoder__gen_ete_config(struct cs_etm_trace_params *params,
+					   ocsd_ete_cfg *config)
+{
+	config->reg_configr = params->ete.reg_configr;
+	config->reg_traceidr = params->ete.reg_traceidr;
+	config->reg_idr0 = params->ete.reg_idr0;
+	config->reg_idr1 = params->ete.reg_idr1;
+	config->reg_idr2 = params->ete.reg_idr2;
+	config->reg_idr8 = params->ete.reg_idr8;
+	config->reg_devarch = params->ete.reg_devarch;
+	config->arch_ver = ARCH_AA64;
 	config->core_prof = profile_CortexA;
 }
 
@@ -146,8 +176,10 @@ static void cs_etm_decoder__print_str_cb(const void *p_context,
 					 const char *msg,
 					 const int str_len)
 {
-	if (p_context && str_len)
-		((struct cs_etm_decoder *)p_context)->packet_printer(msg);
+	const struct cs_etm_decoder *decoder = p_context;
+
+	if (p_context && str_len && !decoder->suppress_printing)
+		decoder->packet_printer(msg);
 }
 
 static int
@@ -223,55 +255,6 @@ cs_etm_decoder__init_raw_frame_logging(
 }
 #endif
 
-static int cs_etm_decoder__create_packet_printer(struct cs_etm_decoder *decoder,
-						 const char *decoder_name,
-						 void *trace_config)
-{
-	u8 csid;
-
-	if (ocsd_dt_create_decoder(decoder->dcd_tree, decoder_name,
-				   OCSD_CREATE_FLG_PACKET_PROC,
-				   trace_config, &csid))
-		return -1;
-
-	if (ocsd_dt_set_pkt_protocol_printer(decoder->dcd_tree, csid, 0))
-		return -1;
-
-	return 0;
-}
-
-static int
-cs_etm_decoder__create_etm_packet_printer(struct cs_etm_trace_params *t_params,
-					  struct cs_etm_decoder *decoder)
-{
-	const char *decoder_name;
-	ocsd_etmv3_cfg config_etmv3;
-	ocsd_etmv4_cfg trace_config_etmv4;
-	void *trace_config;
-
-	switch (t_params->protocol) {
-	case CS_ETM_PROTO_ETMV3:
-	case CS_ETM_PROTO_PTM:
-		cs_etm_decoder__gen_etmv3_config(t_params, &config_etmv3);
-		decoder_name = (t_params->protocol == CS_ETM_PROTO_ETMV3) ?
-							OCSD_BUILTIN_DCD_ETMV3 :
-							OCSD_BUILTIN_DCD_PTM;
-		trace_config = &config_etmv3;
-		break;
-	case CS_ETM_PROTO_ETMV4i:
-		cs_etm_decoder__gen_etmv4_config(t_params, &trace_config_etmv4);
-		decoder_name = OCSD_BUILTIN_DCD_ETMV4I;
-		trace_config = &trace_config_etmv4;
-		break;
-	default:
-		return -1;
-	}
-
-	return cs_etm_decoder__create_packet_printer(decoder,
-						     decoder_name,
-						     trace_config);
-}
-
 static ocsd_datapath_resp_t
 cs_etm_decoder__do_soft_timestamp(struct cs_etm_queue *etmq,
 				  struct cs_etm_packet_queue *packet_queue,
@@ -324,8 +307,11 @@ cs_etm_decoder__do_hard_timestamp(struct cs_etm_queue *etmq,
 		 * underflow.
 		 */
 		packet_queue->cs_timestamp = 0;
-		WARN_ONCE(true, "Zero Coresight timestamp found at Idx:%" OCSD_TRC_IDX_STR
-				". Decoding may be improved with --itrace=Z...\n", indx);
+		if (!cs_etm__etmq_is_timeless(etmq))
+			pr_warning_once("Zero Coresight timestamp found at Idx:%" OCSD_TRC_IDX_STR
+					". Decoding may be improved by prepending 'Z' to your current --itrace arguments.\n",
+					indx);
+
 	} else if (packet_queue->instr_count > elem->timestamp) {
 		/*
 		 * Sanity check that the elem->timestamp - packet_queue->instr_count would not
@@ -625,13 +611,14 @@ static ocsd_datapath_resp_t cs_etm_decoder__gen_trace_elem_printer(
 	return resp;
 }
 
-static int cs_etm_decoder__create_etm_packet_decoder(
-					struct cs_etm_trace_params *t_params,
-					struct cs_etm_decoder *decoder)
+static int
+cs_etm_decoder__create_etm_decoder(struct cs_etm_decoder_params *d_params,
+				   struct cs_etm_trace_params *t_params,
+				   struct cs_etm_decoder *decoder)
 {
-	const char *decoder_name;
 	ocsd_etmv3_cfg config_etmv3;
 	ocsd_etmv4_cfg trace_config_etmv4;
+	ocsd_ete_cfg trace_config_ete;
 	void *trace_config;
 	u8 csid;
 
@@ -639,51 +626,55 @@ static int cs_etm_decoder__create_etm_packet_decoder(
 	case CS_ETM_PROTO_ETMV3:
 	case CS_ETM_PROTO_PTM:
 		cs_etm_decoder__gen_etmv3_config(t_params, &config_etmv3);
-		decoder_name = (t_params->protocol == CS_ETM_PROTO_ETMV3) ?
+		decoder->decoder_name = (t_params->protocol == CS_ETM_PROTO_ETMV3) ?
 							OCSD_BUILTIN_DCD_ETMV3 :
 							OCSD_BUILTIN_DCD_PTM;
 		trace_config = &config_etmv3;
 		break;
 	case CS_ETM_PROTO_ETMV4i:
 		cs_etm_decoder__gen_etmv4_config(t_params, &trace_config_etmv4);
-		decoder_name = OCSD_BUILTIN_DCD_ETMV4I;
+		decoder->decoder_name = OCSD_BUILTIN_DCD_ETMV4I;
 		trace_config = &trace_config_etmv4;
+		break;
+	case CS_ETM_PROTO_ETE:
+		cs_etm_decoder__gen_ete_config(t_params, &trace_config_ete);
+		decoder->decoder_name = OCSD_BUILTIN_DCD_ETE;
+		trace_config = &trace_config_ete;
 		break;
 	default:
 		return -1;
 	}
 
-	if (ocsd_dt_create_decoder(decoder->dcd_tree,
-				     decoder_name,
-				     OCSD_CREATE_FLG_FULL_DECODER,
-				     trace_config, &csid))
-		return -1;
+	if (d_params->operation == CS_ETM_OPERATION_DECODE) {
+		if (ocsd_dt_create_decoder(decoder->dcd_tree,
+					   decoder->decoder_name,
+					   OCSD_CREATE_FLG_FULL_DECODER,
+					   trace_config, &csid))
+			return -1;
 
-	if (ocsd_dt_set_gen_elem_outfn(decoder->dcd_tree,
-				       cs_etm_decoder__gen_trace_elem_printer,
-				       decoder))
-		return -1;
+		if (ocsd_dt_set_gen_elem_outfn(decoder->dcd_tree,
+					       cs_etm_decoder__gen_trace_elem_printer,
+					       decoder))
+			return -1;
 
-	return 0;
-}
+		return 0;
+	} else if (d_params->operation == CS_ETM_OPERATION_PRINT) {
+		if (ocsd_dt_create_decoder(decoder->dcd_tree, decoder->decoder_name,
+					   OCSD_CREATE_FLG_PACKET_PROC,
+					   trace_config, &csid))
+			return -1;
 
-static int
-cs_etm_decoder__create_etm_decoder(struct cs_etm_decoder_params *d_params,
-				   struct cs_etm_trace_params *t_params,
-				   struct cs_etm_decoder *decoder)
-{
-	if (d_params->operation == CS_ETM_OPERATION_PRINT)
-		return cs_etm_decoder__create_etm_packet_printer(t_params,
-								 decoder);
-	else if (d_params->operation == CS_ETM_OPERATION_DECODE)
-		return cs_etm_decoder__create_etm_packet_decoder(t_params,
-								 decoder);
+		if (ocsd_dt_set_pkt_protocol_printer(decoder->dcd_tree, csid, 0))
+			return -1;
+
+		return 0;
+	}
 
 	return -1;
 }
 
 struct cs_etm_decoder *
-cs_etm_decoder__new(int num_cpu, struct cs_etm_decoder_params *d_params,
+cs_etm_decoder__new(int decoders, struct cs_etm_decoder_params *d_params,
 		    struct cs_etm_trace_params t_params[])
 {
 	struct cs_etm_decoder *decoder;
@@ -728,7 +719,7 @@ cs_etm_decoder__new(int num_cpu, struct cs_etm_decoder_params *d_params,
 	/* init raw frame logging if required */
 	cs_etm_decoder__init_raw_frame_logging(d_params, decoder);
 
-	for (i = 0; i < num_cpu; i++) {
+	for (i = 0; i < decoders; i++) {
 		ret = cs_etm_decoder__create_etm_decoder(d_params,
 							 &t_params[i],
 							 decoder);
@@ -799,4 +790,9 @@ void cs_etm_decoder__free(struct cs_etm_decoder *decoder)
 	ocsd_destroy_dcd_tree(decoder->dcd_tree);
 	decoder->dcd_tree = NULL;
 	free(decoder);
+}
+
+const char *cs_etm_decoder__get_name(struct cs_etm_decoder *decoder)
+{
+	return decoder->decoder_name;
 }

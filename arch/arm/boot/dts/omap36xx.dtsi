@@ -29,7 +29,6 @@
 		};
 	};
 
-	/* see Documentation/devicetree/bindings/opp/opp.txt */
 	cpu0_opp_table: opp-table {
 		compatible = "operating-points-v2-ti-cpu";
 		syscon = <&scm_conf>;

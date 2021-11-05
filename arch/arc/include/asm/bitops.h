@@ -14,188 +14,6 @@
 
 #include <linux/types.h>
 #include <linux/compiler.h>
-#include <asm/barrier.h>
-#ifndef CONFIG_ARC_HAS_LLSC
-#include <asm/smp.h>
-#endif
-
-#ifdef CONFIG_ARC_HAS_LLSC
-
-/*
- * Hardware assisted Atomic-R-M-W
- */
-
-#define BIT_OP(op, c_op, asm_op)					\
-static inline void op##_bit(unsigned long nr, volatile unsigned long *m)\
-{									\
-	unsigned int temp;						\
-									\
-	m += nr >> 5;							\
-									\
-	nr &= 0x1f;							\
-									\
-	__asm__ __volatile__(						\
-	"1:	llock       %0, [%1]		\n"			\
-	"	" #asm_op " %0, %0, %2	\n"				\
-	"	scond       %0, [%1]		\n"			\
-	"	bnz         1b			\n"			\
-	: "=&r"(temp)	/* Early clobber, to prevent reg reuse */	\
-	: "r"(m),	/* Not "m": llock only supports reg direct addr mode */	\
-	  "ir"(nr)							\
-	: "cc");							\
-}
-
-/*
- * Semantically:
- *    Test the bit
- *    if clear
- *        set it and return 0 (old value)
- *    else
- *        return 1 (old value).
- *
- * Since ARC lacks a equivalent h/w primitive, the bit is set unconditionally
- * and the old value of bit is returned
- */
-#define TEST_N_BIT_OP(op, c_op, asm_op)					\
-static inline int test_and_##op##_bit(unsigned long nr, volatile unsigned long *m)\
-{									\
-	unsigned long old, temp;					\
-									\
-	m += nr >> 5;							\
-									\
-	nr &= 0x1f;							\
-									\
-	/*								\
-	 * Explicit full memory barrier needed before/after as		\
-	 * LLOCK/SCOND themselves don't provide any such smenatic	\
-	 */								\
-	smp_mb();							\
-									\
-	__asm__ __volatile__(						\
-	"1:	llock       %0, [%2]	\n"				\
-	"	" #asm_op " %1, %0, %3	\n"				\
-	"	scond       %1, [%2]	\n"				\
-	"	bnz         1b		\n"				\
-	: "=&r"(old), "=&r"(temp)					\
-	: "r"(m), "ir"(nr)						\
-	: "cc");							\
-									\
-	smp_mb();							\
-									\
-	return (old & (1 << nr)) != 0;					\
-}
-
-#else /* !CONFIG_ARC_HAS_LLSC */
-
-/*
- * Non hardware assisted Atomic-R-M-W
- * Locking would change to irq-disabling only (UP) and spinlocks (SMP)
- *
- * There's "significant" micro-optimization in writing our own variants of
- * bitops (over generic variants)
- *
- * (1) The generic APIs have "signed" @nr while we have it "unsigned"
- *     This avoids extra code to be generated for pointer arithmatic, since
- *     is "not sure" that index is NOT -ve
- * (2) Utilize the fact that ARCompact bit fidding insn (BSET/BCLR/ASL) etc
- *     only consider bottom 5 bits of @nr, so NO need to mask them off.
- *     (GCC Quirk: however for constant @nr we still need to do the masking
- *             at compile time)
- */
-
-#define BIT_OP(op, c_op, asm_op)					\
-static inline void op##_bit(unsigned long nr, volatile unsigned long *m)\
-{									\
-	unsigned long temp, flags;					\
-	m += nr >> 5;							\
-									\
-	/*								\
-	 * spin lock/unlock provide the needed smp_mb() before/after	\
-	 */								\
-	bitops_lock(flags);						\
-									\
-	temp = *m;							\
-	*m = temp c_op (1UL << (nr & 0x1f));					\
-									\
-	bitops_unlock(flags);						\
-}
-
-#define TEST_N_BIT_OP(op, c_op, asm_op)					\
-static inline int test_and_##op##_bit(unsigned long nr, volatile unsigned long *m)\
-{									\
-	unsigned long old, flags;					\
-	m += nr >> 5;							\
-									\
-	bitops_lock(flags);						\
-									\
-	old = *m;							\
-	*m = old c_op (1UL << (nr & 0x1f));				\
-									\
-	bitops_unlock(flags);						\
-									\
-	return (old & (1UL << (nr & 0x1f))) != 0;			\
-}
-
-#endif
-
-/***************************************
- * Non atomic variants
- **************************************/
-
-#define __BIT_OP(op, c_op, asm_op)					\
-static inline void __##op##_bit(unsigned long nr, volatile unsigned long *m)	\
-{									\
-	unsigned long temp;						\
-	m += nr >> 5;							\
-									\
-	temp = *m;							\
-	*m = temp c_op (1UL << (nr & 0x1f));				\
-}
-
-#define __TEST_N_BIT_OP(op, c_op, asm_op)				\
-static inline int __test_and_##op##_bit(unsigned long nr, volatile unsigned long *m)\
-{									\
-	unsigned long old;						\
-	m += nr >> 5;							\
-									\
-	old = *m;							\
-	*m = old c_op (1UL << (nr & 0x1f));				\
-									\
-	return (old & (1UL << (nr & 0x1f))) != 0;			\
-}
-
-#define BIT_OPS(op, c_op, asm_op)					\
-									\
-	/* set_bit(), clear_bit(), change_bit() */			\
-	BIT_OP(op, c_op, asm_op)					\
-									\
-	/* test_and_set_bit(), test_and_clear_bit(), test_and_change_bit() */\
-	TEST_N_BIT_OP(op, c_op, asm_op)					\
-									\
-	/* __set_bit(), __clear_bit(), __change_bit() */		\
-	__BIT_OP(op, c_op, asm_op)					\
-									\
-	/* __test_and_set_bit(), __test_and_clear_bit(), __test_and_change_bit() */\
-	__TEST_N_BIT_OP(op, c_op, asm_op)
-
-BIT_OPS(set, |, bset)
-BIT_OPS(clear, & ~, bclr)
-BIT_OPS(change, ^, bxor)
-
-/*
- * This routine doesn't need to be atomic.
- */
-static inline int
-test_bit(unsigned int nr, const volatile unsigned long *addr)
-{
-	unsigned long mask;
-
-	addr += nr >> 5;
-
-	mask = 1UL << (nr & 0x1f);
-
-	return ((mask & *addr) != 0);
-}
 
 #ifdef CONFIG_ISA_ARCOMPACT
 
@@ -296,7 +114,7 @@ static inline __attribute__ ((const)) unsigned long __ffs(unsigned long word)
  * @result: [1-32]
  * fls(1) = 1, fls(0x80000000) = 32, fls(0) = 0
  */
-static inline __attribute__ ((const)) int fls(unsigned long x)
+static inline __attribute__ ((const)) int fls(unsigned int x)
 {
 	int n;
 
@@ -323,7 +141,7 @@ static inline __attribute__ ((const)) int __fls(unsigned long x)
  * ffs = Find First Set in word (LSB to MSB)
  * @result: [1-32], 0 if all 0's
  */
-static inline __attribute__ ((const)) int ffs(unsigned long x)
+static inline __attribute__ ((const)) int ffs(unsigned int x)
 {
 	int n;
 
@@ -368,6 +186,8 @@ static inline __attribute__ ((const)) unsigned long __ffs(unsigned long x)
 #include <asm-generic/bitops/fls64.h>
 #include <asm-generic/bitops/sched.h>
 #include <asm-generic/bitops/lock.h>
+#include <asm-generic/bitops/atomic.h>
+#include <asm-generic/bitops/non-atomic.h>
 
 #include <asm-generic/bitops/find.h>
 #include <asm-generic/bitops/le.h>

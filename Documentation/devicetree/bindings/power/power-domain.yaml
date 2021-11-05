@@ -46,7 +46,7 @@ properties:
       Phandles to the OPP tables of power domains provided by a power domain
       provider. If the provider provides a single power domain only or all
       the power domains provided by the provider have identical OPP tables,
-      then this shall contain a single phandle. Refer to ../opp/opp.txt
+      then this shall contain a single phandle. Refer to ../opp/opp-v2-base.yaml
       for more information.
 
   "#power-domain-cells":

@@ -904,14 +904,7 @@ static bool vi_asic_supports_baco(struct amdgpu_device *adev)
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS12:
 	case CHIP_TOPAZ:
-		/* Disable BACO support for the specific polaris12 SKU temporarily */
-		if ((adev->pdev->device == 0x699F) &&
-		     (adev->pdev->revision == 0xC7) &&
-		     (adev->pdev->subsystem_vendor == 0x1028) &&
-		     (adev->pdev->subsystem_device == 0x0039))
-			return false;
-		else
-			return amdgpu_dpm_is_baco_supported(adev);
+		return amdgpu_dpm_is_baco_supported(adev);
 	default:
 		return false;
 	}

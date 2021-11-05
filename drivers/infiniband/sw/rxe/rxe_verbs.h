@@ -210,8 +210,8 @@ struct rxe_resp_info {
 };
 
 struct rxe_qp {
-	struct rxe_pool_entry	pelem;
 	struct ib_qp		ibqp;
+	struct rxe_pool_entry	pelem;
 	struct ib_qp_attr	attr;
 	unsigned int		valid;
 	unsigned int		mtu;

@@ -352,13 +352,16 @@ static void bnxt_copy_from_nvm_data(union devlink_param_value *dst,
 		dst->vu8 = (u8)val32;
 }
 
-static int bnxt_hwrm_get_nvm_cfg_ver(struct bnxt *bp,
-				     union devlink_param_value *nvm_cfg_ver)
+static int bnxt_hwrm_get_nvm_cfg_ver(struct bnxt *bp, u32 *nvm_cfg_ver)
 {
 	struct hwrm_nvm_get_variable_input *req;
+	u16 bytes = BNXT_NVM_CFG_VER_BYTES;
+	u16 bits = BNXT_NVM_CFG_VER_BITS;
+	union devlink_param_value ver;
 	union bnxt_nvm_data *data;
 	dma_addr_t data_dma_addr;
-	int rc;
+	int rc, i = 2;
+	u16 dim = 1;
 
 	rc = hwrm_req_init(bp, req, HWRM_NVM_GET_VARIABLE);
 	if (rc)
@@ -370,16 +373,34 @@ static int bnxt_hwrm_get_nvm_cfg_ver(struct bnxt *bp,
 		goto exit;
 	}
 
+	/* earlier devices present as an array of raw bytes */
+	if (!BNXT_CHIP_P5(bp)) {
+		dim = 0;
+		i = 0;
+		bits *= 3;  /* array of 3 version components */
+		bytes *= 4; /* copy whole word */
+	}
+
 	hwrm_req_hold(bp, req);
 	req->dest_data_addr = cpu_to_le64(data_dma_addr);
-	req->data_len = cpu_to_le16(BNXT_NVM_CFG_VER_BITS);
+	req->data_len = cpu_to_le16(bits);
 	req->option_num = cpu_to_le16(NVM_OFF_NVM_CFG_VER);
+	req->dimensions = cpu_to_le16(dim);
 
-	rc = hwrm_req_send_silent(bp, req);
-	if (!rc)
-		bnxt_copy_from_nvm_data(nvm_cfg_ver, data,
-					BNXT_NVM_CFG_VER_BITS,
-					BNXT_NVM_CFG_VER_BYTES);
+	while (i >= 0) {
+		req->index_0 = cpu_to_le16(i--);
+		rc = hwrm_req_send_silent(bp, req);
+		if (rc)
+			goto exit;
+		bnxt_copy_from_nvm_data(&ver, data, bits, bytes);
+
+		if (BNXT_CHIP_P5(bp)) {
+			*nvm_cfg_ver <<= 8;
+			*nvm_cfg_ver |= ver.vu8;
+		} else {
+			*nvm_cfg_ver = ver.vu32;
+		}
+	}
 
 exit:
 	hwrm_req_drop(bp, req);
@@ -416,12 +437,12 @@ static int bnxt_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
 {
 	struct hwrm_nvm_get_dev_info_output nvm_dev_info;
 	struct bnxt *bp = bnxt_get_bp_from_dl(dl);
-	union devlink_param_value nvm_cfg_ver;
 	struct hwrm_ver_get_output *ver_resp;
 	char mgmt_ver[FW_VER_STR_LEN];
 	char roce_ver[FW_VER_STR_LEN];
 	char ncsi_ver[FW_VER_STR_LEN];
 	char buf[32];
+	u32 ver = 0;
 	int rc;
 
 	rc = devlink_info_driver_name_put(req, DRV_MODULE_NAME);
@@ -456,7 +477,7 @@ static int bnxt_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
 		return rc;
 
 	ver_resp = &bp->ver_resp;
-	sprintf(buf, "%X", ver_resp->chip_rev);
+	sprintf(buf, "%c%d", 'A' + ver_resp->chip_rev, ver_resp->chip_metal);
 	rc = bnxt_dl_info_put(bp, req, BNXT_VERSION_FIXED,
 			      DEVLINK_INFO_VERSION_GENERIC_ASIC_REV, buf);
 	if (rc)
@@ -475,11 +496,9 @@ static int bnxt_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
 	if (rc)
 		return rc;
 
-	if (BNXT_PF(bp) && !bnxt_hwrm_get_nvm_cfg_ver(bp, &nvm_cfg_ver)) {
-		u32 ver = nvm_cfg_ver.vu32;
-
-		sprintf(buf, "%d.%d.%d", (ver >> 16) & 0xf, (ver >> 8) & 0xf,
-			ver & 0xf);
+	if (BNXT_PF(bp) && !bnxt_hwrm_get_nvm_cfg_ver(bp, &ver)) {
+		sprintf(buf, "%d.%d.%d", (ver >> 16) & 0xff, (ver >> 8) & 0xff,
+			ver & 0xff);
 		rc = bnxt_dl_info_put(bp, req, BNXT_VERSION_STORED,
 				      DEVLINK_INFO_VERSION_GENERIC_FW_PSID,
 				      buf);

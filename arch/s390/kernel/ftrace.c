@@ -341,13 +341,13 @@ NOKPROBE_SYMBOL(prepare_ftrace_return);
  */
 int ftrace_enable_ftrace_graph_caller(void)
 {
-	brcl_disable(__va(ftrace_graph_caller));
+	brcl_disable(ftrace_graph_caller);
 	return 0;
 }
 
 int ftrace_disable_ftrace_graph_caller(void)
 {
-	brcl_enable(__va(ftrace_graph_caller));
+	brcl_enable(ftrace_graph_caller);
 	return 0;
 }
 

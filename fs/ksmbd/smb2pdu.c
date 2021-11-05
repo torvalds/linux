@@ -433,7 +433,7 @@ static void init_chained_smb2_rsp(struct ksmbd_work *work)
 		work->compound_pfid = KSMBD_NO_FID;
 	}
 	memset((char *)rsp_hdr + 4, 0, sizeof(struct smb2_hdr) + 2);
-	rsp_hdr->ProtocolId = rcv_hdr->ProtocolId;
+	rsp_hdr->ProtocolId = SMB2_PROTO_NUMBER;
 	rsp_hdr->StructureSize = SMB2_HEADER_STRUCTURE_SIZE;
 	rsp_hdr->Command = rcv_hdr->Command;
 
@@ -634,7 +634,7 @@ static char *
 smb2_get_name(struct ksmbd_share_config *share, const char *src,
 	      const int maxlen, struct nls_table *local_nls)
 {
-	char *name, *unixname;
+	char *name;
 
 	name = smb_strndup_from_utf16(src, maxlen, 1, local_nls);
 	if (IS_ERR(name)) {
@@ -642,19 +642,9 @@ smb2_get_name(struct ksmbd_share_config *share, const char *src,
 		return name;
 	}
 
-	/* change it to absolute unix name */
 	ksmbd_conv_path_to_unix(name);
 	ksmbd_strip_last_slash(name);
-
-	unixname = convert_to_unix_name(share, name);
-	kfree(name);
-	if (!unixname) {
-		pr_err("can not convert absolute name\n");
-		return ERR_PTR(-ENOMEM);
-	}
-
-	ksmbd_debug(SMB, "absolute name = %s\n", unixname);
-	return unixname;
+	return name;
 }
 
 int setup_async_work(struct ksmbd_work *work, void (*fn)(void **), void **arg)
@@ -2348,7 +2338,7 @@ static int smb2_creat(struct ksmbd_work *work, struct path *path, char *name,
 			return rc;
 	}
 
-	rc = ksmbd_vfs_kern_path(name, 0, path, 0);
+	rc = ksmbd_vfs_kern_path(work, name, 0, path, 0);
 	if (rc) {
 		pr_err("cannot get linux path (%s), err = %d\n",
 		       name, rc);
@@ -2381,10 +2371,12 @@ static int smb2_create_sd_buffer(struct ksmbd_work *work,
 			    le32_to_cpu(sd_buf->ccontext.DataLength), true);
 }
 
-static void ksmbd_acls_fattr(struct smb_fattr *fattr, struct inode *inode)
+static void ksmbd_acls_fattr(struct smb_fattr *fattr,
+			     struct user_namespace *mnt_userns,
+			     struct inode *inode)
 {
-	fattr->cf_uid = inode->i_uid;
-	fattr->cf_gid = inode->i_gid;
+	fattr->cf_uid = i_uid_into_mnt(mnt_userns, inode);
+	fattr->cf_gid = i_gid_into_mnt(mnt_userns, inode);
 	fattr->cf_mode = inode->i_mode;
 	fattr->cf_acls = NULL;
 	fattr->cf_dacls = NULL;
@@ -2421,7 +2413,7 @@ int smb2_open(struct ksmbd_work *work)
 	struct oplock_info *opinfo;
 	__le32 *next_ptr = NULL;
 	int req_op_level = 0, open_flags = 0, may_flags = 0, file_info = 0;
-	int rc = 0, len = 0;
+	int rc = 0;
 	int contxt_cnt = 0, query_disk_id = 0;
 	int maximal_access_ctxt = 0, posix_ctxt = 0;
 	int s_type = 0;
@@ -2493,17 +2485,11 @@ int smb2_open(struct ksmbd_work *work)
 			goto err_out1;
 		}
 	} else {
-		len = strlen(share->path);
-		ksmbd_debug(SMB, "share path len %d\n", len);
-		name = kmalloc(len + 1, GFP_KERNEL);
+		name = kstrdup("", GFP_KERNEL);
 		if (!name) {
-			rsp->hdr.Status = STATUS_NO_MEMORY;
 			rc = -ENOMEM;
 			goto err_out1;
 		}
-
-		memcpy(name, share->path, len);
-		*(name + len) = '\0';
 	}
 
 	req_op_level = req->RequestedOplockLevel;
@@ -2626,13 +2612,9 @@ int smb2_open(struct ksmbd_work *work)
 		goto err_out1;
 	}
 
-	if (req->CreateOptions & FILE_DELETE_ON_CLOSE_LE) {
-		/*
-		 * On delete request, instead of following up, need to
-		 * look the current entity
-		 */
-		rc = ksmbd_vfs_kern_path(name, 0, &path, 1);
-		if (!rc) {
+	rc = ksmbd_vfs_kern_path(work, name, LOOKUP_NO_SYMLINKS, &path, 1);
+	if (!rc) {
+		if (req->CreateOptions & FILE_DELETE_ON_CLOSE_LE) {
 			/*
 			 * If file exists with under flags, return access
 			 * denied error.
@@ -2651,34 +2633,16 @@ int smb2_open(struct ksmbd_work *work)
 				path_put(&path);
 				goto err_out;
 			}
-		}
-	} else {
-		if (test_share_config_flag(work->tcon->share_conf,
-					   KSMBD_SHARE_FLAG_FOLLOW_SYMLINKS)) {
-			/*
-			 * Use LOOKUP_FOLLOW to follow the path of
-			 * symlink in path buildup
-			 */
-			rc = ksmbd_vfs_kern_path(name, LOOKUP_FOLLOW, &path, 1);
-			if (rc) { /* Case for broken link ?*/
-				rc = ksmbd_vfs_kern_path(name, 0, &path, 1);
-			}
-		} else {
-			rc = ksmbd_vfs_kern_path(name, 0, &path, 1);
-			if (!rc && d_is_symlink(path.dentry)) {
-				rc = -EACCES;
-				path_put(&path);
-				goto err_out;
-			}
+		} else if (d_is_symlink(path.dentry)) {
+			rc = -EACCES;
+			path_put(&path);
+			goto err_out;
 		}
 	}
 
 	if (rc) {
-		if (rc == -EACCES) {
-			ksmbd_debug(SMB,
-				    "User does not have right permission\n");
+		if (rc != -ENOENT)
 			goto err_out;
-		}
 		ksmbd_debug(SMB, "can not get linux path for %s, rc = %d\n",
 			    name, rc);
 		rc = 0;
@@ -2893,7 +2857,7 @@ int smb2_open(struct ksmbd_work *work)
 					struct smb_ntsd *pntsd;
 					int pntsd_size, ace_num = 0;
 
-					ksmbd_acls_fattr(&fattr, inode);
+					ksmbd_acls_fattr(&fattr, user_ns, inode);
 					if (fattr.cf_acls)
 						ace_num = fattr.cf_acls->a_count;
 					if (fattr.cf_dacls)
@@ -3174,7 +3138,7 @@ err_out1:
 			rsp->hdr.Status = STATUS_INVALID_PARAMETER;
 		else if (rc == -EOPNOTSUPP)
 			rsp->hdr.Status = STATUS_NOT_SUPPORTED;
-		else if (rc == -EACCES || rc == -ESTALE)
+		else if (rc == -EACCES || rc == -ESTALE || rc == -EXDEV)
 			rsp->hdr.Status = STATUS_ACCESS_DENIED;
 		else if (rc == -ENOENT)
 			rsp->hdr.Status = STATUS_OBJECT_NAME_INVALID;
@@ -3324,7 +3288,6 @@ static int dentry_name(struct ksmbd_dir_info *d_info, int info_level)
  */
 static int smb2_populate_readdir_entry(struct ksmbd_conn *conn, int info_level,
 				       struct ksmbd_dir_info *d_info,
-				       struct user_namespace *user_ns,
 				       struct ksmbd_kstat *ksmbd_kstat)
 {
 	int next_entry_offset = 0;
@@ -3478,9 +3441,9 @@ static int smb2_populate_readdir_entry(struct ksmbd_conn *conn, int info_level,
 			S_ISDIR(ksmbd_kstat->kstat->mode) ? ATTR_DIRECTORY_LE : ATTR_ARCHIVE_LE;
 		if (d_info->hide_dot_file && d_info->name[0] == '.')
 			posix_info->DosAttributes |= ATTR_HIDDEN_LE;
-		id_to_sid(from_kuid(user_ns, ksmbd_kstat->kstat->uid),
+		id_to_sid(from_kuid_munged(&init_user_ns, ksmbd_kstat->kstat->uid),
 			  SIDNFS_USER, (struct smb_sid *)&posix_info->SidBuffer[0]);
-		id_to_sid(from_kgid(user_ns, ksmbd_kstat->kstat->gid),
+		id_to_sid(from_kgid_munged(&init_user_ns, ksmbd_kstat->kstat->gid),
 			  SIDNFS_GROUP, (struct smb_sid *)&posix_info->SidBuffer[20]);
 		memcpy(posix_info->name, conv_name, conv_len);
 		posix_info->name_len = cpu_to_le32(conv_len);
@@ -3543,9 +3506,9 @@ static int process_query_dir_entries(struct smb2_query_dir_private *priv)
 			return -EINVAL;
 
 		lock_dir(priv->dir_fp);
-		dent = lookup_one_len(priv->d_info->name,
-				      priv->dir_fp->filp->f_path.dentry,
-				      priv->d_info->name_len);
+		dent = lookup_one(user_ns, priv->d_info->name,
+				  priv->dir_fp->filp->f_path.dentry,
+				  priv->d_info->name_len);
 		unlock_dir(priv->dir_fp);
 
 		if (IS_ERR(dent)) {
@@ -3571,7 +3534,6 @@ static int process_query_dir_entries(struct smb2_query_dir_private *priv)
 		rc = smb2_populate_readdir_entry(priv->work->conn,
 						 priv->info_level,
 						 priv->d_info,
-						 user_ns,
 						 &ksmbd_kstat);
 		dput(dent);
 		if (rc)
@@ -4041,6 +4003,10 @@ static int smb2_get_ea(struct ksmbd_work *work, struct ksmbd_file *fp,
 	path = &fp->filp->f_path;
 	/* single EA entry is requested with given user.* name */
 	if (req->InputBufferLength) {
+		if (le32_to_cpu(req->InputBufferLength) <
+		    sizeof(struct smb2_ea_info_req))
+			return -EINVAL;
+
 		ea_req = (struct smb2_ea_info_req *)req->Buffer;
 	} else {
 		/* need to send all EAs, if no specific EA is requested*/
@@ -4288,8 +4254,7 @@ static int get_file_all_info(struct ksmbd_work *work,
 		return -EACCES;
 	}
 
-	filename = convert_to_nt_pathname(fp->filename,
-					  work->tcon->share_conf->path);
+	filename = convert_to_nt_pathname(fp->filename);
 	if (!filename)
 		return -ENOMEM;
 
@@ -4420,17 +4385,15 @@ static void get_file_stream_info(struct ksmbd_work *work,
 		file_info->NextEntryOffset = cpu_to_le32(next);
 	}
 
-	if (nbytes) {
+	if (!S_ISDIR(stat.mode)) {
 		file_info = (struct smb2_file_stream_info *)
 			&rsp->Buffer[nbytes];
 		streamlen = smbConvertToUTF16((__le16 *)file_info->StreamName,
 					      "::$DATA", 7, conn->local_nls, 0);
 		streamlen *= 2;
 		file_info->StreamNameLength = cpu_to_le32(streamlen);
-		file_info->StreamSize = S_ISDIR(stat.mode) ? 0 :
-			cpu_to_le64(stat.size);
-		file_info->StreamAllocationSize = S_ISDIR(stat.mode) ? 0 :
-			cpu_to_le64(stat.size);
+		file_info->StreamSize = 0;
+		file_info->StreamAllocationSize = 0;
 		nbytes += sizeof(struct smb2_file_stream_info) + streamlen;
 	}
 
@@ -4745,12 +4708,8 @@ static int smb2_get_info_filesystem(struct ksmbd_work *work,
 	struct path path;
 	int rc = 0, len;
 	int fs_infoclass_size = 0;
-	int lookup_flags = 0;
 
-	if (test_share_config_flag(share, KSMBD_SHARE_FLAG_FOLLOW_SYMLINKS))
-		lookup_flags = LOOKUP_FOLLOW;
-
-	rc = ksmbd_vfs_kern_path(share->path, lookup_flags, &path, 0);
+	rc = kern_path(share->path, LOOKUP_NO_SYMLINKS, &path);
 	if (rc) {
 		pr_err("cannot create vfs path\n");
 		return -EIO;
@@ -5008,7 +4967,7 @@ static int smb2_get_info_sec(struct ksmbd_work *work,
 
 	user_ns = file_mnt_user_ns(fp->filp);
 	inode = file_inode(fp->filp);
-	ksmbd_acls_fattr(&fattr, inode);
+	ksmbd_acls_fattr(&fattr, user_ns, inode);
 
 	if (test_share_config_flag(work->tcon->share_conf,
 				   KSMBD_SHARE_FLAG_ACL_XATTR))
@@ -5246,7 +5205,9 @@ int smb2_echo(struct ksmbd_work *work)
 	return 0;
 }
 
-static int smb2_rename(struct ksmbd_work *work, struct ksmbd_file *fp,
+static int smb2_rename(struct ksmbd_work *work,
+		       struct ksmbd_file *fp,
+		       struct user_namespace *user_ns,
 		       struct smb2_file_rename_info *file_info,
 		       struct nls_table *local_nls)
 {
@@ -5297,7 +5258,7 @@ static int smb2_rename(struct ksmbd_work *work, struct ksmbd_file *fp,
 			goto out;
 
 		len = strlen(new_name);
-		if (new_name[len - 1] != '/') {
+		if (len > 0 && new_name[len - 1] != '/') {
 			pr_err("not allow base filename in rename\n");
 			rc = -ESHARE;
 			goto out;
@@ -5310,7 +5271,7 @@ static int smb2_rename(struct ksmbd_work *work, struct ksmbd_file *fp,
 		if (rc)
 			goto out;
 
-		rc = ksmbd_vfs_setxattr(file_mnt_user_ns(fp->filp),
+		rc = ksmbd_vfs_setxattr(user_ns,
 					fp->filp->f_path.dentry,
 					xattr_stream_name,
 					NULL, 0, 0);
@@ -5325,11 +5286,14 @@ static int smb2_rename(struct ksmbd_work *work, struct ksmbd_file *fp,
 	}
 
 	ksmbd_debug(SMB, "new name %s\n", new_name);
-	rc = ksmbd_vfs_kern_path(new_name, 0, &path, 1);
-	if (rc)
+	rc = ksmbd_vfs_kern_path(work, new_name, LOOKUP_NO_SYMLINKS, &path, 1);
+	if (rc) {
+		if (rc != -ENOENT)
+			goto out;
 		file_present = false;
-	else
+	} else {
 		path_put(&path);
+	}
 
 	if (ksmbd_share_veto_filename(share, new_name)) {
 		rc = -ENOENT;
@@ -5399,11 +5363,14 @@ static int smb2_create_link(struct ksmbd_work *work,
 	}
 
 	ksmbd_debug(SMB, "target name is %s\n", target_name);
-	rc = ksmbd_vfs_kern_path(link_name, 0, &path, 0);
-	if (rc)
+	rc = ksmbd_vfs_kern_path(work, link_name, LOOKUP_NO_SYMLINKS, &path, 0);
+	if (rc) {
+		if (rc != -ENOENT)
+			goto out;
 		file_present = false;
-	else
+	} else {
 		path_put(&path);
+	}
 
 	if (file_info->ReplaceIfExists) {
 		if (file_present) {
@@ -5438,11 +5405,11 @@ static int set_file_basic_info(struct ksmbd_file *fp, char *buf,
 {
 	struct smb2_file_all_info *file_info;
 	struct iattr attrs;
-	struct iattr temp_attrs;
+	struct timespec64 ctime;
 	struct file *filp;
 	struct inode *inode;
 	struct user_namespace *user_ns;
-	int rc;
+	int rc = 0;
 
 	if (!(fp->daccess & FILE_WRITE_ATTRIBUTES_LE))
 		return -EACCES;
@@ -5462,11 +5429,11 @@ static int set_file_basic_info(struct ksmbd_file *fp, char *buf,
 	}
 
 	if (file_info->ChangeTime) {
-		temp_attrs.ia_ctime = ksmbd_NTtimeToUnix(file_info->ChangeTime);
-		attrs.ia_ctime = temp_attrs.ia_ctime;
+		attrs.ia_ctime = ksmbd_NTtimeToUnix(file_info->ChangeTime);
+		ctime = attrs.ia_ctime;
 		attrs.ia_valid |= ATTR_CTIME;
 	} else {
-		temp_attrs.ia_ctime = inode->i_ctime;
+		ctime = inode->i_ctime;
 	}
 
 	if (file_info->LastWriteTime) {
@@ -5505,13 +5472,6 @@ static int set_file_basic_info(struct ksmbd_file *fp, char *buf,
 		rc = 0;
 	}
 
-	/*
-	 * HACK : set ctime here to avoid ctime changed
-	 * when file_info->ChangeTime is zero.
-	 */
-	attrs.ia_ctime = temp_attrs.ia_ctime;
-	attrs.ia_valid |= ATTR_CTIME;
-
 	if (attrs.ia_valid) {
 		struct dentry *dentry = filp->f_path.dentry;
 		struct inode *inode = d_inode(dentry);
@@ -5519,17 +5479,15 @@ static int set_file_basic_info(struct ksmbd_file *fp, char *buf,
 		if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
 			return -EACCES;
 
-		rc = setattr_prepare(user_ns, dentry, &attrs);
-		if (rc)
-			return -EINVAL;
-
 		inode_lock(inode);
-		setattr_copy(user_ns, inode, &attrs);
-		attrs.ia_valid &= ~ATTR_CTIME;
 		rc = notify_change(user_ns, dentry, &attrs, NULL);
+		if (!rc) {
+			inode->i_ctime = ctime;
+			mark_inode_dirty(inode);
+		}
 		inode_unlock(inode);
 	}
-	return 0;
+	return rc;
 }
 
 static int set_file_allocation_info(struct ksmbd_work *work,
@@ -5572,7 +5530,7 @@ static int set_file_allocation_info(struct ksmbd_work *work,
 		 * inode size is retained by backup inode size.
 		 */
 		size = i_size_read(inode);
-		rc = ksmbd_vfs_truncate(work, NULL, fp, alloc_blks * 512);
+		rc = ksmbd_vfs_truncate(work, fp, alloc_blks * 512);
 		if (rc) {
 			pr_err("truncate failed! filename : %s, err %d\n",
 			       fp->filename, rc);
@@ -5609,7 +5567,7 @@ static int set_end_of_file_info(struct ksmbd_work *work, struct ksmbd_file *fp,
 	if (inode->i_sb->s_magic != MSDOS_SUPER_MAGIC) {
 		ksmbd_debug(SMB, "filename : %s truncated to newsize %lld\n",
 			    fp->filename, newsize);
-		rc = ksmbd_vfs_truncate(work, NULL, fp, newsize);
+		rc = ksmbd_vfs_truncate(work, fp, newsize);
 		if (rc) {
 			ksmbd_debug(SMB, "truncate failed! filename : %s err %d\n",
 				    fp->filename, rc);
@@ -5624,6 +5582,7 @@ static int set_end_of_file_info(struct ksmbd_work *work, struct ksmbd_file *fp,
 static int set_rename_info(struct ksmbd_work *work, struct ksmbd_file *fp,
 			   char *buf)
 {
+	struct user_namespace *user_ns;
 	struct ksmbd_file *parent_fp;
 	struct dentry *parent;
 	struct dentry *dentry = fp->filp->f_path.dentry;
@@ -5634,11 +5593,12 @@ static int set_rename_info(struct ksmbd_work *work, struct ksmbd_file *fp,
 		return -EACCES;
 	}
 
+	user_ns = file_mnt_user_ns(fp->filp);
 	if (ksmbd_stream_fd(fp))
 		goto next;
 
 	parent = dget_parent(dentry);
-	ret = ksmbd_vfs_lock_parent(parent, dentry);
+	ret = ksmbd_vfs_lock_parent(user_ns, parent, dentry);
 	if (ret) {
 		dput(parent);
 		return ret;
@@ -5655,7 +5615,7 @@ static int set_rename_info(struct ksmbd_work *work, struct ksmbd_file *fp,
 		}
 	}
 next:
-	return smb2_rename(work, fp,
+	return smb2_rename(work, fp, user_ns,
 			   (struct smb2_file_rename_info *)buf,
 			   work->sess->conn->local_nls);
 }
@@ -5884,7 +5844,7 @@ int smb2_set_info(struct ksmbd_work *work)
 	return 0;
 
 err_out:
-	if (rc == -EACCES || rc == -EPERM)
+	if (rc == -EACCES || rc == -EPERM || rc == -EXDEV)
 		rsp->hdr.Status = STATUS_ACCESS_DENIED;
 	else if (rc == -EINVAL)
 		rsp->hdr.Status = STATUS_INVALID_PARAMETER;
@@ -7116,8 +7076,8 @@ static int fsctl_query_iface_info_ioctl(struct ksmbd_conn *conn,
 			netdev->ethtool_ops->get_link_ksettings(netdev, &cmd);
 			speed = cmd.base.speed;
 		} else {
-			pr_err("%s %s\n", netdev->name,
-			       "speed is unknown, defaulting to 1Gb/sec");
+			ksmbd_debug(SMB, "%s %s\n", netdev->name,
+				    "speed is unknown, defaulting to 1Gb/sec");
 			speed = SPEED_1000;
 		}
 

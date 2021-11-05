@@ -204,69 +204,6 @@ unsigned long raw_copy_to_user(void __user *to, const void *from, unsigned long 
 }
 EXPORT_SYMBOL(raw_copy_to_user);
 
-static inline unsigned long copy_in_user_mvcos(void __user *to, const void __user *from,
-					       unsigned long size)
-{
-	unsigned long tmp1, tmp2;
-
-	tmp1 = -4096UL;
-	/* FIXME: copy with reduced length. */
-	asm volatile(
-		"   lgr	  0,%[spec]\n"
-		"0: .insn ss,0xc80000000000,0(%0,%1),0(%2),0\n"
-		"   jz	  2f\n"
-		"1: algr  %0,%3\n"
-		"   slgr  %1,%3\n"
-		"   slgr  %2,%3\n"
-		"   j	  0b\n"
-		"2:slgr  %0,%0\n"
-		"3: \n"
-		EX_TABLE(0b,3b)
-		: "+a" (size), "+a" (to), "+a" (from), "+a" (tmp1), "=a" (tmp2)
-		: [spec] "d" (0x810081UL)
-		: "cc", "memory", "0");
-	return size;
-}
-
-static inline unsigned long copy_in_user_mvc(void __user *to, const void __user *from,
-					     unsigned long size)
-{
-	unsigned long tmp1;
-
-	asm volatile(
-		"   sacf  256\n"
-		"   aghi  %0,-1\n"
-		"   jo	  5f\n"
-		"   bras  %3,3f\n"
-		"0: aghi  %0,257\n"
-		"1: mvc	  0(1,%1),0(%2)\n"
-		"   la	  %1,1(%1)\n"
-		"   la	  %2,1(%2)\n"
-		"   aghi  %0,-1\n"
-		"   jnz	  1b\n"
-		"   j	  5f\n"
-		"2: mvc	  0(256,%1),0(%2)\n"
-		"   la	  %1,256(%1)\n"
-		"   la	  %2,256(%2)\n"
-		"3: aghi  %0,-256\n"
-		"   jnm	  2b\n"
-		"4: ex	  %0,1b-0b(%3)\n"
-		"5: slgr  %0,%0\n"
-		"6: sacf  768\n"
-		EX_TABLE(1b,6b) EX_TABLE(2b,0b) EX_TABLE(4b,0b)
-		: "+a" (size), "+a" (to), "+a" (from), "=a" (tmp1)
-		: : "cc", "memory");
-	return size;
-}
-
-unsigned long raw_copy_in_user(void __user *to, const void __user *from, unsigned long n)
-{
-	if (copy_with_mvcos())
-		return copy_in_user_mvcos(to, from, n);
-	return copy_in_user_mvc(to, from, n);
-}
-EXPORT_SYMBOL(raw_copy_in_user);
-
 static inline unsigned long clear_user_mvcos(void __user *to, unsigned long size)
 {
 	unsigned long tmp1, tmp2;

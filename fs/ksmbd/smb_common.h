@@ -210,6 +210,7 @@
 		FILE_READ_ATTRIBUTES | FILE_WRITE_ATTRIBUTES)
 
 #define SMB1_PROTO_NUMBER		cpu_to_le32(0x424d53ff)
+#define SMB_COM_NEGOTIATE		0x72
 
 #define SMB1_CLIENT_GUID_SIZE		(16)
 struct smb_hdr {
@@ -511,7 +512,6 @@ int ksmbd_populate_dot_dotdot_entries(struct ksmbd_work *work,
 				      int (*fn)(struct ksmbd_conn *,
 						int,
 						struct ksmbd_dir_info *,
-						struct user_namespace *,
 						struct ksmbd_kstat *));
 
 int ksmbd_extract_shortname(struct ksmbd_conn *conn,

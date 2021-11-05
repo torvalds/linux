@@ -3179,17 +3179,15 @@ EXPORT_SYMBOL(sock_init_data);
 
 void lock_sock_nested(struct sock *sk, int subclass)
 {
+	/* The sk_lock has mutex_lock() semantics here. */
+	mutex_acquire(&sk->sk_lock.dep_map, subclass, 0, _RET_IP_);
+
 	might_sleep();
 	spin_lock_bh(&sk->sk_lock.slock);
 	if (sk->sk_lock.owned)
 		__lock_sock(sk);
 	sk->sk_lock.owned = 1;
-	spin_unlock(&sk->sk_lock.slock);
-	/*
-	 * The sk_lock has mutex_lock() semantics here:
-	 */
-	mutex_acquire(&sk->sk_lock.dep_map, subclass, 0, _RET_IP_);
-	local_bh_enable();
+	spin_unlock_bh(&sk->sk_lock.slock);
 }
 EXPORT_SYMBOL(lock_sock_nested);
 
@@ -3227,24 +3225,35 @@ EXPORT_SYMBOL(release_sock);
  */
 bool lock_sock_fast(struct sock *sk) __acquires(&sk->sk_lock.slock)
 {
+	/* The sk_lock has mutex_lock() semantics here. */
+	mutex_acquire(&sk->sk_lock.dep_map, 0, 0, _RET_IP_);
+
 	might_sleep();
 	spin_lock_bh(&sk->sk_lock.slock);
 
-	if (!sk->sk_lock.owned)
+	if (!sk->sk_lock.owned) {
 		/*
-		 * Note : We must disable BH
+		 * Fast path return with bottom halves disabled and
+		 * sock::sk_lock.slock held.
+		 *
+		 * The 'mutex' is not contended and holding
+		 * sock::sk_lock.slock prevents all other lockers to
+		 * proceed so the corresponding unlock_sock_fast() can
+		 * avoid the slow path of release_sock() completely and
+		 * just release slock.
+		 *
+		 * From a semantical POV this is equivalent to 'acquiring'
+		 * the 'mutex', hence the corresponding lockdep
+		 * mutex_release() has to happen in the fast path of
+		 * unlock_sock_fast().
 		 */
 		return false;
+	}
 
 	__lock_sock(sk);
 	sk->sk_lock.owned = 1;
-	spin_unlock(&sk->sk_lock.slock);
-	/*
-	 * The sk_lock has mutex_lock() semantics here:
-	 */
-	mutex_acquire(&sk->sk_lock.dep_map, 0, 0, _RET_IP_);
 	__acquire(&sk->sk_lock.slock);
-	local_bh_enable();
+	spin_unlock_bh(&sk->sk_lock.slock);
 	return true;
 }
 EXPORT_SYMBOL(lock_sock_fast);

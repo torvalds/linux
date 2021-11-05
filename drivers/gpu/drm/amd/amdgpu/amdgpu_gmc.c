@@ -598,7 +598,7 @@ void amdgpu_gmc_tmz_set(struct amdgpu_device *adev)
 		break;
 	default:
 		adev->gmc.tmz_enabled = false;
-		dev_warn(adev->dev,
+		dev_info(adev->dev,
 			 "Trusted Memory Zone (TMZ) feature not supported\n");
 		break;
 	}

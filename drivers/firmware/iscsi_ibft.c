@@ -86,10 +86,6 @@ MODULE_VERSION(IBFT_ISCSI_VERSION);
 
 static struct acpi_table_ibft *ibft_addr;
 
-#ifndef CONFIG_ISCSI_IBFT_FIND
-phys_addr_t ibft_phys_addr;
-#endif
-
 struct ibft_hdr {
 	u8 id;
 	u8 version;
@@ -851,7 +847,21 @@ static void __init acpi_find_ibft_region(void)
 {
 }
 #endif
-
+#ifdef CONFIG_ISCSI_IBFT_FIND
+static int __init acpi_find_isa_region(void)
+{
+	if (ibft_phys_addr) {
+		ibft_addr = isa_bus_to_virt(ibft_phys_addr);
+		return 0;
+	}
+	return -ENODEV;
+}
+#else
+static int __init acpi_find_isa_region(void)
+{
+	return -ENODEV;
+}
+#endif
 /*
  * ibft_init() - creates sysfs tree entries for the iBFT data.
  */
@@ -864,9 +874,7 @@ static int __init ibft_init(void)
 	   is called before ACPI tables are parsed and it only does
 	   legacy finding.
 	*/
-	if (ibft_phys_addr)
-		ibft_addr = isa_bus_to_virt(ibft_phys_addr);
-	else
+	if (acpi_find_isa_region())
 		acpi_find_ibft_region();
 
 	if (ibft_addr) {

@@ -62,7 +62,6 @@ struct cs_etm_auxtrace {
 	u64 instructions_sample_period;
 	u64 instructions_id;
 	u64 **metadata;
-	u64 kernel_start;
 	unsigned int pmu_type;
 };
 
@@ -97,7 +96,6 @@ struct cs_etm_queue {
 /* RB tree for quick conversion between traceID and metadata pointers */
 static struct intlist *traceid_list;
 
-static int cs_etm__update_queues(struct cs_etm_auxtrace *etm);
 static int cs_etm__process_queues(struct cs_etm_auxtrace *etm);
 static int cs_etm__process_timeless_queues(struct cs_etm_auxtrace *etm,
 					   pid_t tid);
@@ -462,14 +460,30 @@ static void cs_etm__set_trace_param_etmv4(struct cs_etm_trace_params *t_params,
 	t_params[idx].etmv4.reg_traceidr = metadata[idx][CS_ETMV4_TRCTRACEIDR];
 }
 
+static void cs_etm__set_trace_param_ete(struct cs_etm_trace_params *t_params,
+					  struct cs_etm_auxtrace *etm, int idx)
+{
+	u64 **metadata = etm->metadata;
+
+	t_params[idx].protocol = CS_ETM_PROTO_ETE;
+	t_params[idx].ete.reg_idr0 = metadata[idx][CS_ETMV4_TRCIDR0];
+	t_params[idx].ete.reg_idr1 = metadata[idx][CS_ETMV4_TRCIDR1];
+	t_params[idx].ete.reg_idr2 = metadata[idx][CS_ETMV4_TRCIDR2];
+	t_params[idx].ete.reg_idr8 = metadata[idx][CS_ETMV4_TRCIDR8];
+	t_params[idx].ete.reg_configr = metadata[idx][CS_ETMV4_TRCCONFIGR];
+	t_params[idx].ete.reg_traceidr = metadata[idx][CS_ETMV4_TRCTRACEIDR];
+	t_params[idx].ete.reg_devarch = metadata[idx][CS_ETE_TRCDEVARCH];
+}
+
 static int cs_etm__init_trace_params(struct cs_etm_trace_params *t_params,
-				     struct cs_etm_auxtrace *etm)
+				     struct cs_etm_auxtrace *etm,
+				     int decoders)
 {
 	int i;
 	u32 etmidr;
 	u64 architecture;
 
-	for (i = 0; i < etm->num_cpu; i++) {
+	for (i = 0; i < decoders; i++) {
 		architecture = etm->metadata[i][CS_ETM_MAGIC];
 
 		switch (architecture) {
@@ -479,6 +493,9 @@ static int cs_etm__init_trace_params(struct cs_etm_trace_params *t_params,
 			break;
 		case __perf_cs_etmv4_magic:
 			cs_etm__set_trace_param_etmv4(t_params, etm, i);
+			break;
+		case __perf_cs_ete_magic:
+			cs_etm__set_trace_param_ete(t_params, etm, i);
 			break;
 		default:
 			return -EINVAL;
@@ -490,7 +507,8 @@ static int cs_etm__init_trace_params(struct cs_etm_trace_params *t_params,
 
 static int cs_etm__init_decoder_params(struct cs_etm_decoder_params *d_params,
 				       struct cs_etm_queue *etmq,
-				       enum cs_etm_decoder_operation mode)
+				       enum cs_etm_decoder_operation mode,
+				       bool formatted)
 {
 	int ret = -EINVAL;
 
@@ -500,7 +518,7 @@ static int cs_etm__init_decoder_params(struct cs_etm_decoder_params *d_params,
 	d_params->packet_printer = cs_etm__packet_dump;
 	d_params->operation = mode;
 	d_params->data = etmq;
-	d_params->formatted = true;
+	d_params->formatted = formatted;
 	d_params->fsyncs = false;
 	d_params->hsyncs = false;
 	d_params->frame_aligned = true;
@@ -510,44 +528,23 @@ out:
 	return ret;
 }
 
-static void cs_etm__dump_event(struct cs_etm_auxtrace *etm,
+static void cs_etm__dump_event(struct cs_etm_queue *etmq,
 			       struct auxtrace_buffer *buffer)
 {
 	int ret;
 	const char *color = PERF_COLOR_BLUE;
-	struct cs_etm_decoder_params d_params;
-	struct cs_etm_trace_params *t_params;
-	struct cs_etm_decoder *decoder;
 	size_t buffer_used = 0;
 
 	fprintf(stdout, "\n");
 	color_fprintf(stdout, color,
-		     ". ... CoreSight ETM Trace data: size %zu bytes\n",
-		     buffer->size);
+		     ". ... CoreSight %s Trace data: size %zu bytes\n",
+		     cs_etm_decoder__get_name(etmq->decoder), buffer->size);
 
-	/* Use metadata to fill in trace parameters for trace decoder */
-	t_params = zalloc(sizeof(*t_params) * etm->num_cpu);
-
-	if (!t_params)
-		return;
-
-	if (cs_etm__init_trace_params(t_params, etm))
-		goto out_free;
-
-	/* Set decoder parameters to simply print the trace packets */
-	if (cs_etm__init_decoder_params(&d_params, NULL,
-					CS_ETM_OPERATION_PRINT))
-		goto out_free;
-
-	decoder = cs_etm_decoder__new(etm->num_cpu, &d_params, t_params);
-
-	if (!decoder)
-		goto out_free;
 	do {
 		size_t consumed;
 
 		ret = cs_etm_decoder__process_data_block(
-				decoder, buffer->offset,
+				etmq->decoder, buffer->offset,
 				&((u8 *)buffer->data)[buffer_used],
 				buffer->size - buffer_used, &consumed);
 		if (ret)
@@ -556,16 +553,12 @@ static void cs_etm__dump_event(struct cs_etm_auxtrace *etm,
 		buffer_used += consumed;
 	} while (buffer_used < buffer->size);
 
-	cs_etm_decoder__free(decoder);
-
-out_free:
-	zfree(&t_params);
+	cs_etm_decoder__reset(etmq->decoder);
 }
 
 static int cs_etm__flush_events(struct perf_session *session,
 				struct perf_tool *tool)
 {
-	int ret;
 	struct cs_etm_auxtrace *etm = container_of(session->auxtrace,
 						   struct cs_etm_auxtrace,
 						   auxtrace);
@@ -574,11 +567,6 @@ static int cs_etm__flush_events(struct perf_session *session,
 
 	if (!tool->ordered_events)
 		return -EINVAL;
-
-	ret = cs_etm__update_queues(etm);
-
-	if (ret < 0)
-		return ret;
 
 	if (etm->timeless_decoding)
 		return cs_etm__process_timeless_queues(etm, -1);
@@ -691,7 +679,7 @@ static u8 cs_etm__cpu_mode(struct cs_etm_queue *etmq, u64 address)
 
 	machine = etmq->etm->machine;
 
-	if (address >= etmq->etm->kernel_start) {
+	if (address >= machine__kernel_start(machine)) {
 		if (machine__is_host(machine))
 			return PERF_RECORD_MISC_KERNEL;
 		else
@@ -746,17 +734,32 @@ static u32 cs_etm__mem_access(struct cs_etm_queue *etmq, u8 trace_chan_id,
 
 	len = dso__data_read_offset(al.map->dso, machine, offset, buffer, size);
 
-	if (len <= 0)
+	if (len <= 0) {
+		ui__warning_once("CS ETM Trace: Missing DSO. Use 'perf archive' or debuginfod to export data from the traced system.\n"
+				 "              Enable CONFIG_PROC_KCORE or use option '-k /path/to/vmlinux' for kernel symbols.\n");
+		if (!al.map->dso->auxtrace_warned) {
+			pr_err("CS ETM Trace: Debug data not found for address %#"PRIx64" in %s\n",
+				    address,
+				    al.map->dso->long_name ? al.map->dso->long_name : "Unknown");
+			al.map->dso->auxtrace_warned = true;
+		}
 		return 0;
+	}
 
 	return len;
 }
 
-static struct cs_etm_queue *cs_etm__alloc_queue(struct cs_etm_auxtrace *etm)
+static struct cs_etm_queue *cs_etm__alloc_queue(struct cs_etm_auxtrace *etm,
+						bool formatted)
 {
 	struct cs_etm_decoder_params d_params;
 	struct cs_etm_trace_params  *t_params = NULL;
 	struct cs_etm_queue *etmq;
+	/*
+	 * Each queue can only contain data from one CPU when unformatted, so only one decoder is
+	 * needed.
+	 */
+	int decoders = formatted ? etm->num_cpu : 1;
 
 	etmq = zalloc(sizeof(*etmq));
 	if (!etmq)
@@ -767,20 +770,23 @@ static struct cs_etm_queue *cs_etm__alloc_queue(struct cs_etm_auxtrace *etm)
 		goto out_free;
 
 	/* Use metadata to fill in trace parameters for trace decoder */
-	t_params = zalloc(sizeof(*t_params) * etm->num_cpu);
+	t_params = zalloc(sizeof(*t_params) * decoders);
 
 	if (!t_params)
 		goto out_free;
 
-	if (cs_etm__init_trace_params(t_params, etm))
+	if (cs_etm__init_trace_params(t_params, etm, decoders))
 		goto out_free;
 
 	/* Set decoder parameters to decode trace packets */
 	if (cs_etm__init_decoder_params(&d_params, etmq,
-					CS_ETM_OPERATION_DECODE))
+					dump_trace ? CS_ETM_OPERATION_PRINT :
+						     CS_ETM_OPERATION_DECODE,
+					formatted))
 		goto out_free;
 
-	etmq->decoder = cs_etm_decoder__new(etm->num_cpu, &d_params, t_params);
+	etmq->decoder = cs_etm_decoder__new(decoders, &d_params,
+					    t_params);
 
 	if (!etmq->decoder)
 		goto out_free;
@@ -808,31 +814,35 @@ out_free:
 
 static int cs_etm__setup_queue(struct cs_etm_auxtrace *etm,
 			       struct auxtrace_queue *queue,
-			       unsigned int queue_nr)
+			       unsigned int queue_nr,
+			       bool formatted)
 {
-	int ret = 0;
-	unsigned int cs_queue_nr;
-	u8 trace_chan_id;
-	u64 cs_timestamp;
 	struct cs_etm_queue *etmq = queue->priv;
 
 	if (list_empty(&queue->head) || etmq)
-		goto out;
+		return 0;
 
-	etmq = cs_etm__alloc_queue(etm);
+	etmq = cs_etm__alloc_queue(etm, formatted);
 
-	if (!etmq) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!etmq)
+		return -ENOMEM;
 
 	queue->priv = etmq;
 	etmq->etm = etm;
 	etmq->queue_nr = queue_nr;
 	etmq->offset = 0;
 
-	if (etm->timeless_decoding)
-		goto out;
+	return 0;
+}
+
+static int cs_etm__queue_first_cs_timestamp(struct cs_etm_auxtrace *etm,
+					    struct cs_etm_queue *etmq,
+					    unsigned int queue_nr)
+{
+	int ret = 0;
+	unsigned int cs_queue_nr;
+	u8 trace_chan_id;
+	u64 cs_timestamp;
 
 	/*
 	 * We are under a CPU-wide trace scenario.  As such we need to know
@@ -894,33 +904,6 @@ static int cs_etm__setup_queue(struct cs_etm_auxtrace *etm,
 	ret = auxtrace_heap__add(&etm->heap, cs_queue_nr, cs_timestamp);
 out:
 	return ret;
-}
-
-static int cs_etm__setup_queues(struct cs_etm_auxtrace *etm)
-{
-	unsigned int i;
-	int ret;
-
-	if (!etm->kernel_start)
-		etm->kernel_start = machine__kernel_start(etm->machine);
-
-	for (i = 0; i < etm->queues.nr_queues; i++) {
-		ret = cs_etm__setup_queue(etm, &etm->queues.queue_array[i], i);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
-static int cs_etm__update_queues(struct cs_etm_auxtrace *etm)
-{
-	if (etm->queues.new_data) {
-		etm->queues.new_data = false;
-		return cs_etm__setup_queues(etm);
-	}
-
-	return 0;
 }
 
 static inline
@@ -2222,12 +2205,26 @@ static int cs_etm__process_timeless_queues(struct cs_etm_auxtrace *etm,
 static int cs_etm__process_queues(struct cs_etm_auxtrace *etm)
 {
 	int ret = 0;
-	unsigned int cs_queue_nr, queue_nr;
+	unsigned int cs_queue_nr, queue_nr, i;
 	u8 trace_chan_id;
 	u64 cs_timestamp;
 	struct auxtrace_queue *queue;
 	struct cs_etm_queue *etmq;
 	struct cs_etm_traceid_queue *tidq;
+
+	/*
+	 * Pre-populate the heap with one entry from each queue so that we can
+	 * start processing in time order across all queues.
+	 */
+	for (i = 0; i < etm->queues.nr_queues; i++) {
+		etmq = etm->queues.queue_array[i].priv;
+		if (!etmq)
+			continue;
+
+		ret = cs_etm__queue_first_cs_timestamp(etm, etmq, i);
+		if (ret)
+			return ret;
+	}
 
 	while (1) {
 		if (!etm->heap.heap_cnt)
@@ -2382,7 +2379,6 @@ static int cs_etm__process_event(struct perf_session *session,
 				 struct perf_sample *sample,
 				 struct perf_tool *tool)
 {
-	int err = 0;
 	u64 sample_kernel_timestamp;
 	struct cs_etm_auxtrace *etm = container_of(session->auxtrace,
 						   struct cs_etm_auxtrace,
@@ -2400,12 +2396,6 @@ static int cs_etm__process_event(struct perf_session *session,
 		sample_kernel_timestamp = sample->time;
 	else
 		sample_kernel_timestamp = 0;
-
-	if (sample_kernel_timestamp || etm->timeless_decoding) {
-		err = cs_etm__update_queues(etm);
-		if (err)
-			return err;
-	}
 
 	/*
 	 * Don't wait for cs_etm__flush_events() in per-thread/timeless mode to start the decode. We
@@ -2447,7 +2437,7 @@ static void dump_queued_data(struct cs_etm_auxtrace *etm,
 	for (i = 0; i < etm->queues.nr_queues; ++i)
 		list_for_each_entry(buf, &etm->queues.queue_array[i].head, list)
 			if (buf->reference == event->reference)
-				cs_etm__dump_event(etm, buf);
+				cs_etm__dump_event(etm->queues.queue_array[i].priv, buf);
 }
 
 static int cs_etm__process_auxtrace_event(struct perf_session *session,
@@ -2463,6 +2453,7 @@ static int cs_etm__process_auxtrace_event(struct perf_session *session,
 		int fd = perf_data__fd(session->data);
 		bool is_pipe = perf_data__is_pipe(session->data);
 		int err;
+		int idx = event->auxtrace.idx;
 
 		if (is_pipe)
 			data_offset = 0;
@@ -2477,9 +2468,20 @@ static int cs_etm__process_auxtrace_event(struct perf_session *session,
 		if (err)
 			return err;
 
+		/*
+		 * Knowing if the trace is formatted or not requires a lookup of
+		 * the aux record so only works in non-piped mode where data is
+		 * queued in cs_etm__queue_aux_records(). Always assume
+		 * formatted in piped mode (true).
+		 */
+		err = cs_etm__setup_queue(etm, &etm->queues.queue_array[idx],
+					  idx, true);
+		if (err)
+			return err;
+
 		if (dump_trace)
 			if (auxtrace_buffer__get_data(buffer, fd)) {
-				cs_etm__dump_event(etm, buffer);
+				cs_etm__dump_event(etm->queues.queue_array[idx].priv, buffer);
 				auxtrace_buffer__put_data(buffer);
 			}
 	} else if (dump_trace)
@@ -2537,6 +2539,7 @@ static const char * const cs_etmv4_priv_fmts[] = {
 	[CS_ETMV4_TRCIDR2]	= "	TRCIDR2			       %llx\n",
 	[CS_ETMV4_TRCIDR8]	= "	TRCIDR8			       %llx\n",
 	[CS_ETMV4_TRCAUTHSTATUS] = "	TRCAUTHSTATUS		       %llx\n",
+	[CS_ETE_TRCDEVARCH]	= "	TRCDEVARCH                     %llx\n"
 };
 
 static const char * const param_unk_fmt =
@@ -2596,10 +2599,15 @@ static int cs_etm__print_cpu_metadata_v1(__u64 *val, int *offset)
 			else
 				fprintf(stdout, cs_etm_priv_fmts[j], val[i]);
 		}
-	} else if (magic == __perf_cs_etmv4_magic) {
+	} else if (magic == __perf_cs_etmv4_magic || magic == __perf_cs_ete_magic) {
+		/*
+		 * ETE and ETMv4 can be printed in the same block because the number of parameters
+		 * is saved and they share the list of parameter names. ETE is also only supported
+		 * in V1 files.
+		 */
 		for (j = 0; j < total_params; j++, i++) {
 			/* if newer record - could be excess params */
-			if (j >= CS_ETMV4_PRIV_MAX)
+			if (j >= CS_ETE_PRIV_MAX)
 				fprintf(stdout, param_unk_fmt, j, val[i]);
 			else
 				fprintf(stdout, cs_etmv4_priv_fmts[j], val[i]);
@@ -2719,6 +2727,8 @@ static int cs_etm__queue_aux_fragment(struct perf_session *session, off_t file_o
 	struct perf_record_auxtrace *auxtrace_event;
 	union perf_event auxtrace_fragment;
 	__u64 aux_offset, aux_size;
+	__u32 idx;
+	bool formatted;
 
 	struct cs_etm_auxtrace *etm = container_of(session->auxtrace,
 						   struct cs_etm_auxtrace,
@@ -2780,8 +2790,15 @@ static int cs_etm__queue_aux_fragment(struct perf_session *session, off_t file_o
 
 		pr_debug3("CS ETM: Queue buffer size: %#"PRI_lx64" offset: %#"PRI_lx64
 			  " tid: %d cpu: %d\n", aux_size, aux_offset, sample->tid, sample->cpu);
-		return auxtrace_queues__add_event(&etm->queues, session, &auxtrace_fragment,
-						  file_offset, NULL);
+		err = auxtrace_queues__add_event(&etm->queues, session, &auxtrace_fragment,
+						 file_offset, NULL);
+		if (err)
+			return err;
+
+		idx = auxtrace_event->idx;
+		formatted = !(aux_event->flags & PERF_AUX_FLAG_CORESIGHT_FORMAT_RAW);
+		return cs_etm__setup_queue(etm, &etm->queues.queue_array[idx],
+					   idx, formatted);
 	}
 
 	/* Wasn't inside this buffer, but there were no parse errors. 1 == 'not found' */
@@ -2959,6 +2976,16 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 
 			/* The traceID is our handle */
 			trcidr_idx = CS_ETMV4_TRCTRACEIDR;
+		} else if (ptr[i] == __perf_cs_ete_magic) {
+			metadata[j] = cs_etm__create_meta_blk(ptr, &i, CS_ETE_PRIV_MAX, -1);
+
+			/* ETE shares first part of metadata with ETMv4 */
+			trcidr_idx = CS_ETMV4_TRCTRACEIDR;
+		} else {
+			ui__error("CS ETM Trace: Unrecognised magic number %#"PRIx64". File could be from a newer version of perf.\n",
+				  ptr[i]);
+			err = -EINVAL;
+			goto err_free_metadata;
 		}
 
 		if (!metadata[j]) {
@@ -3070,6 +3097,13 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 		goto err_delete_thread;
 
 	etm->data_queued = etm->queues.populated;
+	/*
+	 * Print warning in pipe mode, see cs_etm__process_auxtrace_event() and
+	 * cs_etm__queue_aux_fragment() for details relating to limitations.
+	 */
+	if (!etm->data_queued)
+		pr_warning("CS ETM warning: Coresight decode and TRBE support requires random file access.\n"
+			   "Continuing with best effort decoding in piped mode.\n\n");
 
 	return 0;
 

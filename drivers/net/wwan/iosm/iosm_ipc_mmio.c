@@ -69,7 +69,7 @@ void ipc_mmio_update_cp_capability(struct iosm_mmio *ipc_mmio)
 	unsigned int ver;
 
 	ver = ipc_mmio_get_cp_version(ipc_mmio);
-	cp_cap = readl(ipc_mmio->base + ipc_mmio->offset.cp_capability);
+	cp_cap = ioread32(ipc_mmio->base + ipc_mmio->offset.cp_capability);
 
 	ipc_mmio->has_mux_lite = (ver >= IOSM_CP_VERSION) &&
 				 !(cp_cap & DL_AGGR) && !(cp_cap & UL_AGGR);
@@ -150,8 +150,8 @@ enum ipc_mem_exec_stage ipc_mmio_get_exec_stage(struct iosm_mmio *ipc_mmio)
 	if (!ipc_mmio)
 		return IPC_MEM_EXEC_STAGE_INVALID;
 
-	return (enum ipc_mem_exec_stage)readl(ipc_mmio->base +
-					      ipc_mmio->offset.exec_stage);
+	return (enum ipc_mem_exec_stage)ioread32(ipc_mmio->base +
+						 ipc_mmio->offset.exec_stage);
 }
 
 void ipc_mmio_copy_chip_info(struct iosm_mmio *ipc_mmio, void *dest,
@@ -167,8 +167,8 @@ enum ipc_mem_device_ipc_state ipc_mmio_get_ipc_state(struct iosm_mmio *ipc_mmio)
 	if (!ipc_mmio)
 		return IPC_MEM_DEVICE_IPC_INVALID;
 
-	return (enum ipc_mem_device_ipc_state)
-		readl(ipc_mmio->base + ipc_mmio->offset.ipc_status);
+	return (enum ipc_mem_device_ipc_state)ioread32(ipc_mmio->base +
+						       ipc_mmio->offset.ipc_status);
 }
 
 enum rom_exit_code ipc_mmio_get_rom_exit_code(struct iosm_mmio *ipc_mmio)
@@ -176,8 +176,8 @@ enum rom_exit_code ipc_mmio_get_rom_exit_code(struct iosm_mmio *ipc_mmio)
 	if (!ipc_mmio)
 		return IMEM_ROM_EXIT_FAIL;
 
-	return (enum rom_exit_code)readl(ipc_mmio->base +
-					 ipc_mmio->offset.rom_exit_code);
+	return (enum rom_exit_code)ioread32(ipc_mmio->base +
+					    ipc_mmio->offset.rom_exit_code);
 }
 
 void ipc_mmio_config(struct iosm_mmio *ipc_mmio)
@@ -188,10 +188,10 @@ void ipc_mmio_config(struct iosm_mmio *ipc_mmio)
 	/* AP memory window (full window is open and active so that modem checks
 	 * each AP address) 0 means don't check on modem side.
 	 */
-	iowrite64_lo_hi(0, ipc_mmio->base + ipc_mmio->offset.ap_win_base);
-	iowrite64_lo_hi(0, ipc_mmio->base + ipc_mmio->offset.ap_win_end);
+	iowrite64(0, ipc_mmio->base + ipc_mmio->offset.ap_win_base);
+	iowrite64(0, ipc_mmio->base + ipc_mmio->offset.ap_win_end);
 
-	iowrite64_lo_hi(ipc_mmio->context_info_addr,
+	iowrite64(ipc_mmio->context_info_addr,
 			ipc_mmio->base + ipc_mmio->offset.context_info);
 }
 
@@ -201,8 +201,8 @@ void ipc_mmio_set_psi_addr_and_size(struct iosm_mmio *ipc_mmio, dma_addr_t addr,
 	if (!ipc_mmio)
 		return;
 
-	iowrite64_lo_hi(addr, ipc_mmio->base + ipc_mmio->offset.psi_address);
-	writel(size, ipc_mmio->base + ipc_mmio->offset.psi_size);
+	iowrite64(addr, ipc_mmio->base + ipc_mmio->offset.psi_address);
+	iowrite32(size, ipc_mmio->base + ipc_mmio->offset.psi_size);
 }
 
 void ipc_mmio_set_contex_info_addr(struct iosm_mmio *ipc_mmio, phys_addr_t addr)
@@ -218,6 +218,8 @@ void ipc_mmio_set_contex_info_addr(struct iosm_mmio *ipc_mmio, phys_addr_t addr)
 
 int ipc_mmio_get_cp_version(struct iosm_mmio *ipc_mmio)
 {
-	return ipc_mmio ? readl(ipc_mmio->base + ipc_mmio->offset.cp_version) :
-			  -EFAULT;
+	if (ipc_mmio)
+		return ioread32(ipc_mmio->base + ipc_mmio->offset.cp_version);
+
+	return -EFAULT;
 }

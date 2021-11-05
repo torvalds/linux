@@ -130,36 +130,34 @@ additionalProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/mt8195-clk.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     #include <dt-bindings/interrupt-controller/irq.h>
-    #include <dt-bindings/power/mt8195-power.h>
 
     afe: mt8195-afe-pcm@10890000 {
         compatible = "mediatek,mt8195-audio";
         reg = <0x10890000 0x10000>;
         interrupts = <GIC_SPI 822 IRQ_TYPE_LEVEL_HIGH 0>;
         mediatek,topckgen = <&topckgen>;
-        power-domains = <&spm MT8195_POWER_DOMAIN_AUDIO>;
+        power-domains = <&spm 7>; //MT8195_POWER_DOMAIN_AUDIO
         clocks = <&clk26m>,
-                 <&topckgen CLK_TOP_APLL1>,
-                 <&topckgen CLK_TOP_APLL2>,
-                 <&topckgen CLK_TOP_APLL12_DIV0>,
-                 <&topckgen CLK_TOP_APLL12_DIV1>,
-                 <&topckgen CLK_TOP_APLL12_DIV2>,
-                 <&topckgen CLK_TOP_APLL12_DIV3>,
-                 <&topckgen CLK_TOP_APLL12_DIV9>,
-                 <&topckgen CLK_TOP_A1SYS_HP_SEL>,
-                 <&topckgen CLK_TOP_AUD_INTBUS_SEL>,
-                 <&topckgen CLK_TOP_AUDIO_H_SEL>,
-                 <&topckgen CLK_TOP_AUDIO_LOCAL_BUS_SEL>,
-                 <&topckgen CLK_TOP_DPTX_M_SEL>,
-                 <&topckgen CLK_TOP_I2SO1_M_SEL>,
-                 <&topckgen CLK_TOP_I2SO2_M_SEL>,
-                 <&topckgen CLK_TOP_I2SI1_M_SEL>,
-                 <&topckgen CLK_TOP_I2SI2_M_SEL>,
-                 <&infracfg_ao CLK_INFRA_AO_AUDIO_26M_B>,
-                 <&scp_adsp CLK_SCP_ADSP_AUDIODSP>;
+                 <&topckgen 163>, //CLK_TOP_APLL1
+                 <&topckgen 166>, //CLK_TOP_APLL2
+                 <&topckgen 233>, //CLK_TOP_APLL12_DIV0
+                 <&topckgen 234>, //CLK_TOP_APLL12_DIV1
+                 <&topckgen 235>, //CLK_TOP_APLL12_DIV2
+                 <&topckgen 236>, //CLK_TOP_APLL12_DIV3
+                 <&topckgen 238>, //CLK_TOP_APLL12_DIV9
+                 <&topckgen 100>, //CLK_TOP_A1SYS_HP_SEL
+                 <&topckgen 33>, //CLK_TOP_AUD_INTBUS_SEL
+                 <&topckgen 34>, //CLK_TOP_AUDIO_H_SEL
+                 <&topckgen 107>, //CLK_TOP_AUDIO_LOCAL_BUS_SEL
+                 <&topckgen 98>, //CLK_TOP_DPTX_M_SEL
+                 <&topckgen 94>, //CLK_TOP_I2SO1_M_SEL
+                 <&topckgen 95>, //CLK_TOP_I2SO2_M_SEL
+                 <&topckgen 96>, //CLK_TOP_I2SI1_M_SEL
+                 <&topckgen 97>, //CLK_TOP_I2SI2_M_SEL
+                 <&infracfg_ao 50>, //CLK_INFRA_AO_AUDIO_26M_B
+                 <&scp_adsp 0>; //CLK_SCP_ADSP_AUDIODSP
         clock-names = "clk26m",
                       "apll1_ck",
                       "apll2_ck",

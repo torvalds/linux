@@ -158,6 +158,14 @@ static size_t cfdiag_getctrset(struct cf_ctrset_entry *ctrdata, int ctrset,
 	return need;
 }
 
+static const u64 cpumf_ctr_ctl[CPUMF_CTR_SET_MAX] = {
+	[CPUMF_CTR_SET_BASIC]	= 0x02,
+	[CPUMF_CTR_SET_USER]	= 0x04,
+	[CPUMF_CTR_SET_CRYPTO]	= 0x08,
+	[CPUMF_CTR_SET_EXT]	= 0x01,
+	[CPUMF_CTR_SET_MT_DIAG] = 0x20,
+};
+
 /* Read out all counter sets and save them in the provided data buffer.
  * The last 64 byte host an artificial trailer entry.
  */

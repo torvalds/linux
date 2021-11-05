@@ -130,10 +130,7 @@ static inline void flush_anon_page(struct vm_area_struct *vma, struct page *page
 }
 #endif
 
-#ifndef ARCH_HAS_FLUSH_KERNEL_DCACHE_PAGE
-static inline void flush_kernel_dcache_page(struct page *page)
-{
-}
+#ifndef ARCH_IMPLEMENTS_FLUSH_KERNEL_VMAP_RANGE
 static inline void flush_kernel_vmap_range(void *vaddr, int size)
 {
 }

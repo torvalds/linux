@@ -12,7 +12,8 @@ static inline void membarrier_arch_switch_mm(struct mm_struct *prev,
 	 * when switching from userspace to kernel is not needed after
 	 * store to rq->curr.
 	 */
-	if (likely(!(atomic_read(&next->membarrier_state) &
+	if (IS_ENABLED(CONFIG_SMP) &&
+	    likely(!(atomic_read(&next->membarrier_state) &
 		     (MEMBARRIER_STATE_PRIVATE_EXPEDITED |
 		      MEMBARRIER_STATE_GLOBAL_EXPEDITED)) || !prev))
 		return;

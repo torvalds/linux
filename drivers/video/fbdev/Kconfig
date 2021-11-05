@@ -582,7 +582,9 @@ config FB_HP300
 
 config FB_TGA
 	tristate "TGA/SFB+ framebuffer support"
-	depends on FB && (ALPHA || TC)
+	depends on FB
+	depends on PCI || TC
+	depends on ALPHA || TC
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT

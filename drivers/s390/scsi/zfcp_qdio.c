@@ -384,7 +384,7 @@ free_req_q:
 }
 
 /**
- * zfcp_close_qdio - close qdio queues for an adapter
+ * zfcp_qdio_close - close qdio queues for an adapter
  * @qdio: pointer to structure zfcp_qdio
  */
 void zfcp_qdio_close(struct zfcp_qdio *qdio)

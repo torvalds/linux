@@ -9,7 +9,7 @@ SYNOPSIS
 --------
 [verse]
 'perf c2c record' [<options>] <command>
-'perf c2c record' [<options>] -- [<record command options>] <command>
+'perf c2c record' [<options>] \-- [<record command options>] <command>
 'perf c2c report' [<options>]
 
 DESCRIPTION

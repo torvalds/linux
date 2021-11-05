@@ -125,13 +125,7 @@ static inline void kunmap_noncoherent(void)
 	kunmap_coherent();
 }
 
-#define ARCH_HAS_FLUSH_KERNEL_DCACHE_PAGE
-static inline void flush_kernel_dcache_page(struct page *page)
-{
-	BUG_ON(cpu_has_dc_aliases && PageHighMem(page));
-	flush_dcache_page(page);
-}
-
+#define ARCH_IMPLEMENTS_FLUSH_KERNEL_VMAP_RANGE 1
 /*
  * For now flush_kernel_vmap_range and invalidate_kernel_vmap_range both do a
  * cache writeback and invalidate operation.

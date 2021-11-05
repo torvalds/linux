@@ -911,7 +911,7 @@ static int omap_correct_data(struct nand_chip *chip, u_char *dat,
 }
 
 /**
- * omap_calcuate_ecc - Generate non-inverted ECC bytes.
+ * omap_calculate_ecc - Generate non-inverted ECC bytes.
  * @chip: NAND chip object
  * @dat: The pointer to data on which ecc is computed
  * @ecc_code: The ecc_code buffer

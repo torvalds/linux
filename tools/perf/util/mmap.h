@@ -6,6 +6,7 @@
 #include <linux/refcount.h>
 #include <linux/types.h>
 #include <linux/ring_buffer.h>
+#include <linux/bitops.h>
 #include <stdbool.h>
 #include <pthread.h> // for cpu_set_t
 #ifdef HAVE_AIO_SUPPORT

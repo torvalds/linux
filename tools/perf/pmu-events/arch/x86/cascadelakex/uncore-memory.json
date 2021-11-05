@@ -65,15 +65,6 @@
         "Unit": "iMC"
     },
     {
-        "BriefDescription": "Pre-charge for writes",
-        "Counter": "0,1,2,3",
-        "EventCode": "0x2",
-        "EventName": "UNC_M_PRE_COUNT.WR",
-        "PerPkg": "1",
-        "UMask": "0x8",
-        "Unit": "iMC"
-    },
-    {
         "BriefDescription": "Write requests allocated in the PMM Write Pending Queue for Intel Optane DC persistent memory",
         "Counter": "0,1,2,3",
         "EventCode": "0xE3",
@@ -90,32 +81,32 @@
         "Unit": "iMC"
     },
     {
-        "BriefDescription": "Intel Optane DC persistent memory bandwidth read (MB). Derived from unc_m_pmm_rpq_inserts",
+        "BriefDescription": "Intel Optane DC persistent memory bandwidth read (MB/sec). Derived from unc_m_pmm_rpq_inserts",
         "Counter": "0,1,2,3",
         "EventCode": "0xE3",
         "EventName": "UNC_M_PMM_BANDWIDTH.READ",
         "PerPkg": "1",
-        "ScaleUnit": "6.103515625E-5MB",
+        "ScaleUnit": "6.103515625E-5MB/sec",
         "Unit": "iMC"
     },
     {
-        "BriefDescription": "Intel Optane DC persistent memory bandwidth write (MB). Derived from unc_m_pmm_wpq_inserts",
+        "BriefDescription": "Intel Optane DC persistent memory bandwidth write (MB/sec). Derived from unc_m_pmm_wpq_inserts",
         "Counter": "0,1,2,3",
         "EventCode": "0xE7",
         "EventName": "UNC_M_PMM_BANDWIDTH.WRITE",
         "PerPkg": "1",
-        "ScaleUnit": "6.103515625E-5MB",
+        "ScaleUnit": "6.103515625E-5MB/sec",
         "Unit": "iMC"
     },
     {
-        "BriefDescription": "Intel Optane DC persistent memory bandwidth total (MB). Derived from unc_m_pmm_rpq_inserts",
+        "BriefDescription": "Intel Optane DC persistent memory bandwidth total (MB/sec). Derived from unc_m_pmm_rpq_inserts",
         "Counter": "0,1,2,3",
         "EventCode": "0xE3",
         "EventName": "UNC_M_PMM_BANDWIDTH.TOTAL",
         "MetricExpr": "UNC_M_PMM_RPQ_INSERTS + UNC_M_PMM_WPQ_INSERTS",
         "MetricName": "UNC_M_PMM_BANDWIDTH.TOTAL",
         "PerPkg": "1",
-        "ScaleUnit": "6.103515625E-5MB",
+        "ScaleUnit": "6.103515625E-5MB/sec",
         "Unit": "iMC"
     },
     {

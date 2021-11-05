@@ -42,6 +42,7 @@ config XTENSA
 	select MODULES_USE_ELF_RELA
 	select PERF_USE_VMALLOC
 	select SET_FS
+	select TRACE_IRQFLAGS_SUPPORT
 	select VIRT_TO_BUS
 	help
 	  Xtensa processors are 32-bit RISC machines designed by Tensilica
@@ -71,9 +72,6 @@ config LOCKDEP_SUPPORT
 	def_bool y
 
 config STACKTRACE_SUPPORT
-	def_bool y
-
-config TRACE_IRQFLAGS_SUPPORT
 	def_bool y
 
 config MMU

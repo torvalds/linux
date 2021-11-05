@@ -271,8 +271,9 @@ main(int argc, char **argv)
 	read_oob(pfd, &oob);
 
 	if (!signal_recvd || len != 127 || oob != '%' || atmark != 1) {
-		fprintf(stderr, "Test 3 failed, sigurg %d len %d OOB %c ",
-		"atmark %d\n", signal_recvd, len, oob, atmark);
+		fprintf(stderr,
+			"Test 3 failed, sigurg %d len %d OOB %c atmark %d\n",
+			signal_recvd, len, oob, atmark);
 		die(1);
 	}
 

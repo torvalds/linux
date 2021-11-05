@@ -32,6 +32,7 @@ config HEXAGON
 	select GENERIC_CPU_DEVICES
 	select SET_FS
 	select ARCH_WANT_LD_ORPHAN_WARN
+	select TRACE_IRQFLAGS_SUPPORT
 	help
 	  Qualcomm Hexagon is a processor architecture designed for high
 	  performance and low power across a wide variety of applications.
@@ -51,9 +52,6 @@ config EARLY_PRINTK
 	def_bool y
 
 config MMU
-	def_bool y
-
-config TRACE_IRQFLAGS_SUPPORT
 	def_bool y
 
 config GENERIC_CSUM

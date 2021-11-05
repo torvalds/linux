@@ -44,7 +44,7 @@ static struct cvmx_bootmem_desc *cvmx_bootmem_desc;
 
 /* See header file for descriptions of functions */
 
-/**
+/*
  * This macro returns a member of the
  * cvmx_bootmem_named_block_desc_t structure. These members can't
  * be directly addressed as they might be in memory not directly
@@ -60,7 +60,7 @@ static struct cvmx_bootmem_desc *cvmx_bootmem_desc;
 		offsetof(struct cvmx_bootmem_named_block_desc, field),	\
 		sizeof_field(struct cvmx_bootmem_named_block_desc, field))
 
-/**
+/*
  * This function is the implementation of the get macros defined
  * for individual structure members. The argument are generated
  * by the macros inorder to read only the needed memory.
@@ -115,7 +115,7 @@ static uint64_t cvmx_bootmem_phy_get_next(uint64_t addr)
 	return cvmx_read64_uint64((addr + NEXT_OFFSET) | (1ull << 63));
 }
 
-/**
+/*
  * Allocate a block of memory from the free list that was
  * passed to the application by the bootloader within a specified
  * address range. This is an allocate-only algorithm, so
@@ -550,7 +550,7 @@ bootmem_free_done:
 
 }
 
-/**
+/*
  * Finds a named memory block by name.
  * Also used for finding an unused entry in the named block table.
  *
@@ -657,7 +657,7 @@ struct cvmx_bootmem_named_block_desc *cvmx_bootmem_find_named_block(char *name)
 }
 EXPORT_SYMBOL(cvmx_bootmem_find_named_block);
 
-/**
+/*
  * Frees a named block.
  *
  * @name:   name of block to free

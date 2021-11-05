@@ -314,7 +314,7 @@ static int __init sun3_82586_probe(void)
 	err = register_netdev(dev);
 	if (err)
 		goto out2;
-	return dev;
+	return 0;
 
 out2:
 	release_region(ioaddr, SUN3_82586_TOTAL_SIZE);

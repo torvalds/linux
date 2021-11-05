@@ -103,7 +103,6 @@ struct kvm_vcpu_stat {
 	u64 emulated_inst_exits;
 	u64 dec_exits;
 	u64 ext_intr_exits;
-	u64 halt_wait_ns;
 	u64 halt_successful_wait;
 	u64 dbell_exits;
 	u64 gdbell_exits;
@@ -810,6 +809,8 @@ struct kvm_vcpu_arch {
 	u32 emul_inst;
 
 	u32 online;
+
+	u64 hfscr_permitted;	/* A mask of permitted HFSCR facilities */
 
 	/* For support of nested guests */
 	struct kvm_nested_guest *nested;

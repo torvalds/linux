@@ -691,10 +691,14 @@ static void msgdma_tasklet(struct tasklet_struct *t)
 
 	spin_lock_irqsave(&mdev->lock, flags);
 
-	/* Read number of responses that are available */
-	count = ioread32(mdev->csr + MSGDMA_CSR_RESP_FILL_LEVEL);
-	dev_dbg(mdev->dev, "%s (%d): response count=%d\n",
-		__func__, __LINE__, count);
+	if (mdev->resp) {
+		/* Read number of responses that are available */
+		count = ioread32(mdev->csr + MSGDMA_CSR_RESP_FILL_LEVEL);
+		dev_dbg(mdev->dev, "%s (%d): response count=%d\n",
+			__func__, __LINE__, count);
+	} else {
+		count = 1;
+	}
 
 	while (count--) {
 		/*
@@ -703,8 +707,12 @@ static void msgdma_tasklet(struct tasklet_struct *t)
 		 * have any real values, like transferred bytes or error
 		 * bits. So we need to just drop these values.
 		 */
-		size = ioread32(mdev->resp + MSGDMA_RESP_BYTES_TRANSFERRED);
-		status = ioread32(mdev->resp + MSGDMA_RESP_STATUS);
+		if (mdev->resp) {
+			size = ioread32(mdev->resp +
+					MSGDMA_RESP_BYTES_TRANSFERRED);
+			status = ioread32(mdev->resp +
+					MSGDMA_RESP_STATUS);
+		}
 
 		msgdma_complete_descriptor(mdev);
 		msgdma_chan_desc_cleanup(mdev);
@@ -757,14 +765,21 @@ static void msgdma_dev_remove(struct msgdma_device *mdev)
 }
 
 static int request_and_map(struct platform_device *pdev, const char *name,
-			   struct resource **res, void __iomem **ptr)
+			   struct resource **res, void __iomem **ptr,
+			   bool optional)
 {
 	struct resource *region;
 	struct device *device = &pdev->dev;
 
 	*res = platform_get_resource_byname(pdev, IORESOURCE_MEM, name);
 	if (*res == NULL) {
-		dev_err(device, "resource %s not defined\n", name);
+		if (optional) {
+			*ptr = NULL;
+			dev_info(device, "optional resource %s not defined\n",
+				 name);
+			return 0;
+		}
+		dev_err(device, "mandatory resource %s not defined\n", name);
 		return -ENODEV;
 	}
 
@@ -805,17 +820,17 @@ static int msgdma_probe(struct platform_device *pdev)
 	mdev->dev = &pdev->dev;
 
 	/* Map CSR space */
-	ret = request_and_map(pdev, "csr", &dma_res, &mdev->csr);
+	ret = request_and_map(pdev, "csr", &dma_res, &mdev->csr, false);
 	if (ret)
 		return ret;
 
 	/* Map (extended) descriptor space */
-	ret = request_and_map(pdev, "desc", &dma_res, &mdev->desc);
+	ret = request_and_map(pdev, "desc", &dma_res, &mdev->desc, false);
 	if (ret)
 		return ret;
 
 	/* Map response space */
-	ret = request_and_map(pdev, "resp", &dma_res, &mdev->resp);
+	ret = request_and_map(pdev, "resp", &dma_res, &mdev->resp, true);
 	if (ret)
 		return ret;
 

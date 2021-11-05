@@ -531,6 +531,7 @@ static int fsnotify_attach_connector_to_object(fsnotify_connp_t *connp,
 		/* Someone else created list structure for us */
 		if (inode)
 			fsnotify_put_inode_ref(inode);
+		fsnotify_put_sb_connectors(conn);
 		kmem_cache_free(fsnotify_mark_connector_cachep, conn);
 	}
 

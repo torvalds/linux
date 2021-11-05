@@ -183,19 +183,11 @@ static int ep93xx_pwm_probe(struct platform_device *pdev)
 	ep93xx_pwm->chip.ops = &ep93xx_pwm_ops;
 	ep93xx_pwm->chip.npwm = 1;
 
-	ret = pwmchip_add(&ep93xx_pwm->chip);
+	ret = devm_pwmchip_add(&pdev->dev, &ep93xx_pwm->chip);
 	if (ret < 0)
 		return ret;
 
-	platform_set_drvdata(pdev, ep93xx_pwm);
 	return 0;
-}
-
-static int ep93xx_pwm_remove(struct platform_device *pdev)
-{
-	struct ep93xx_pwm *ep93xx_pwm = platform_get_drvdata(pdev);
-
-	return pwmchip_remove(&ep93xx_pwm->chip);
 }
 
 static struct platform_driver ep93xx_pwm_driver = {
@@ -203,7 +195,6 @@ static struct platform_driver ep93xx_pwm_driver = {
 		.name = "ep93xx-pwm",
 	},
 	.probe = ep93xx_pwm_probe,
-	.remove = ep93xx_pwm_remove,
 };
 module_platform_driver(ep93xx_pwm_driver);
 
