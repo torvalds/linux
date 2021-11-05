@@ -6,7 +6,9 @@ Getting Started
 
 This document briefly describes how you can use DAMON by demonstrating its
 default user space tool.  Please note that this document describes only a part
-of its features for brevity.  Please refer to :doc:`usage` for more details.
+of its features for brevity.  Please refer to the usage `doc
+<https://github.com/awslabs/damo/blob/next/USAGE.md>`_ of the tool for more
+details.
 
 
 TL; DR
