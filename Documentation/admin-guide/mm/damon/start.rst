@@ -11,38 +11,6 @@ of its features for brevity.  Please refer to the usage `doc
 details.
 
 
-TL; DR
-======
-
-Follow the commands below to monitor and visualize the memory access pattern of
-your workload. ::
-
-    # # build the kernel with CONFIG_DAMON_*=y, install it, and reboot
-    # mount -t debugfs none /sys/kernel/debug/
-    # git clone https://github.com/awslabs/damo
-    # ./damo/damo record $(pidof <your workload>)
-    # ./damo/damo report heats --heatmap stdout
-
-The final command draws the access heatmap of ``<your workload>``.  The heatmap
-shows which memory region (x-axis) is accessed when (y-axis) and how frequently
-(number; the higher the more accesses have been observed). ::
-
-    111111111111111111111111111111111111111111111111111111110000
-    111121111111111111111111111111211111111111111111111111110000
-    000000000000000000000000000000000000000000000000001555552000
-    000000000000000000000000000000000000000000000222223555552000
-    000000000000000000000000000000000000000011111677775000000000
-    000000000000000000000000000000000000000488888000000000000000
-    000000000000000000000000000000000177888400000000000000000000
-    000000000000000000000000000046666522222100000000000000000000
-    000000000000000000000014444344444300000000000000000000000000
-    000000000000000002222245555510000000000000000000000000000000
-    # access_frequency:  0  1  2  3  4  5  6  7  8  9
-    # x-axis: space (140286319947776-140286426374096: 101.496 MiB)
-    # y-axis: time (605442256436361-605479951866441: 37.695430s)
-    # resolution: 60x10 (1.692 MiB and 3.770s for each character)
-
-
 Prerequisites
 =============
 
@@ -93,22 +61,66 @@ pattern in the ``damon.data`` file.
 Visualizing Recorded Patterns
 =============================
 
-The following three commands visualize the recorded access patterns and save
-the results as separate image files. ::
+You can visualize the pattern in a heatmap, showing which memory region
+(x-axis) got accessed when (y-axis) and how frequently (number).::
 
-    $ sudo damo report heats --heatmap access_pattern_heatmap.png
-    $ sudo damo report wss --range 0 101 1 --plot wss_dist.png
-    $ sudo damo report wss --range 0 101 1 --sortby time --plot wss_chron_change.png
+    $ sudo damo report heats --heatmap stdout
+    22222222222222222222222222222222222222211111111111111111111111111111111111111100
+    44444444444444444444444444444444444444434444444444444444444444444444444444443200
+    44444444444444444444444444444444444444433444444444444444444444444444444444444200
+    33333333333333333333333333333333333333344555555555555555555555555555555555555200
+    33333333333333333333333333333333333344444444444444444444444444444444444444444200
+    22222222222222222222222222222222222223355555555555555555555555555555555555555200
+    00000000000000000000000000000000000000288888888888888888888888888888888888888400
+    00000000000000000000000000000000000000288888888888888888888888888888888888888400
+    33333333333333333333333333333333333333355555555555555555555555555555555555555200
+    88888888888888888888888888888888888888600000000000000000000000000000000000000000
+    88888888888888888888888888888888888888600000000000000000000000000000000000000000
+    33333333333333333333333333333333333333444444444444444444444444444444444444443200
+    00000000000000000000000000000000000000288888888888888888888888888888888888888400
+    [...]
+    # access_frequency:  0  1  2  3  4  5  6  7  8  9
+    # x-axis: space (139728247021568-139728453431248: 196.848 MiB)
+    # y-axis: time (15256597248362-15326899978162: 1 m 10.303 s)
+    # resolution: 80x40 (2.461 MiB and 1.758 s for each character)
 
-- ``access_pattern_heatmap.png`` will visualize the data access pattern in a
-  heatmap, showing which memory region (y-axis) got accessed when (x-axis)
-  and how frequently (color).
-- ``wss_dist.png`` will show the distribution of the working set size.
-- ``wss_chron_change.png`` will show how the working set size has
-  chronologically changed.
+You can also visualize the distribution of the working set size, sorted by the
+size.::
 
-You can view the visualizations of this example workload at [1]_.
-Visualizations of other realistic workloads are available at [2]_ [3]_ [4]_.
+    $ sudo damo report wss --range 0 101 10
+    # <percentile> <wss>
+    # target_id     18446632103789443072
+    # avr:  107.708 MiB
+      0             0 B |                                                           |
+     10      95.328 MiB |****************************                               |
+     20      95.332 MiB |****************************                               |
+     30      95.340 MiB |****************************                               |
+     40      95.387 MiB |****************************                               |
+     50      95.387 MiB |****************************                               |
+     60      95.398 MiB |****************************                               |
+     70      95.398 MiB |****************************                               |
+     80      95.504 MiB |****************************                               |
+     90     190.703 MiB |*********************************************************  |
+    100     196.875 MiB |***********************************************************|
+
+Using ``--sortby`` option with the above command, you can show how the working
+set size has chronologically changed.::
+
+    $ sudo damo report wss --range 0 101 10 --sortby time
+    # <percentile> <wss>
+    # target_id     18446632103789443072
+    # avr:  107.708 MiB
+      0       3.051 MiB |                                                           |
+     10     190.703 MiB |***********************************************************|
+     20      95.336 MiB |*****************************                              |
+     30      95.328 MiB |*****************************                              |
+     40      95.387 MiB |*****************************                              |
+     50      95.332 MiB |*****************************                              |
+     60      95.320 MiB |*****************************                              |
+     70      95.398 MiB |*****************************                              |
+     80      95.398 MiB |*****************************                              |
+     90      95.340 MiB |*****************************                              |
+    100      95.398 MiB |*****************************                              |
 
 
 Data Access Pattern Aware Memory Management
@@ -120,8 +132,3 @@ accessed for >=60 seconds in your workload to be swapped out. ::
     $ echo "#min-size max-size min-acc max-acc min-age max-age action" > test_scheme
     $ echo "4K        max      0       0       60s     max     pageout" >> test_scheme
     $ damo schemes -c test_scheme <pid of your workload>
-
-.. [1] https://damonitor.github.io/doc/html/v17/admin-guide/mm/damon/start.html#visualizing-recorded-patterns
-.. [2] https://damonitor.github.io/test/result/visual/latest/rec.heatmap.1.png.html
-.. [3] https://damonitor.github.io/test/result/visual/latest/rec.wss_sz.png.html
-.. [4] https://damonitor.github.io/test/result/visual/latest/rec.wss_time.png.html
