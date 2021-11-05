@@ -51,11 +51,9 @@ ia_css_fpn_dump(
 			    "fpn_enabled", fpn->enabled);
 }
 
-void
-ia_css_fpn_config(
-    struct sh_css_isp_fpn_isp_config *to,
-    const struct ia_css_fpn_configuration *from,
-    unsigned int size)
+int ia_css_fpn_config(struct sh_css_isp_fpn_isp_config *to,
+		      const struct ia_css_fpn_configuration *from,
+		      unsigned int size)
 {
 	unsigned int elems_a = ISP_VEC_NELEMS;
 
@@ -65,6 +63,7 @@ ia_css_fpn_config(
 
 	/* Assume divisiblity here, may need to generalize to fixed point. */
 	assert(elems_a % to->port_b.elems == 0);
+	return 0;
 }
 
 int ia_css_fpn_configure(const struct ia_css_binary     *binary,

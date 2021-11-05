@@ -28,11 +28,9 @@ static const struct ia_css_qplane_configuration default_config = {
 	.pipe = (struct sh_css_sp_pipeline *)NULL,
 };
 
-void
-ia_css_qplane_config(
-    struct sh_css_isp_qplane_isp_config *to,
-    const struct ia_css_qplane_configuration  *from,
-    unsigned int size)
+int ia_css_qplane_config(struct sh_css_isp_qplane_isp_config *to,
+			 const struct ia_css_qplane_configuration  *from,
+			 unsigned int size)
 {
 	unsigned int elems_a = ISP_VEC_NELEMS;
 
@@ -45,6 +43,7 @@ ia_css_qplane_config(
 
 	to->inout_port_config = from->pipe->inout_port_config;
 	to->format = from->info->format;
+	return 0;
 }
 
 int ia_css_qplane_configure(const struct sh_css_sp_pipeline *pipe,

@@ -26,11 +26,9 @@
 
 #include "isp.h"
 
-void
-ia_css_vf_config(
-    struct sh_css_isp_vf_isp_config      *to,
-    const struct ia_css_vf_configuration *from,
-    unsigned int size)
+int ia_css_vf_config(struct sh_css_isp_vf_isp_config      *to,
+		    const struct ia_css_vf_configuration *from,
+		    unsigned int size)
 {
 	unsigned int elems_a = ISP_VEC_NELEMS;
 
@@ -46,6 +44,7 @@ ia_css_vf_config(
 		/* Assume divisiblity here, may need to generalize to fixed point. */
 		assert(elems_a % to->dma.port_b.elems == 0);
 	}
+	return 0;
 }
 
 /* compute the log2 of the downscale factor needed to get closest

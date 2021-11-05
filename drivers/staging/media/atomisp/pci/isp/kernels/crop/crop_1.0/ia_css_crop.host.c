@@ -36,11 +36,9 @@ ia_css_crop_encode(
 	to->crop_pos = from->crop_pos;
 }
 
-void
-ia_css_crop_config(
-    struct sh_css_isp_crop_isp_config *to,
-    const struct ia_css_crop_configuration  *from,
-    unsigned int size)
+int ia_css_crop_config(struct sh_css_isp_crop_isp_config *to,
+		       const struct ia_css_crop_configuration *from,
+		       unsigned int size)
 {
 	unsigned int elems_a = ISP_VEC_NELEMS;
 
@@ -50,6 +48,7 @@ ia_css_crop_config(
 
 	/* Assume divisiblity here, may need to generalize to fixed point. */
 	assert(elems_a % to->port_b.elems == 0);
+	return 0;
 }
 
 int ia_css_crop_configure(const struct ia_css_binary     *binary,

@@ -64,11 +64,9 @@ css2isp_stream_format(enum atomisp_input_format from) {
 	}
 }
 
-void
-ia_css_raw_config(
-    struct sh_css_isp_raw_isp_config *to,
-    const struct ia_css_raw_configuration  *from,
-    unsigned int size)
+int ia_css_raw_config(struct sh_css_isp_raw_isp_config *to,
+		      const struct ia_css_raw_configuration  *from,
+		      unsigned int size)
 {
 	unsigned int elems_a = ISP_VEC_NELEMS;
 	const struct ia_css_frame_info *in_info = from->in_info;
@@ -104,6 +102,8 @@ ia_css_raw_config(
 	to->start_line          = in_info->crop_info.start_line;
 	to->enable_left_padding = from->enable_left_padding;
 #endif
+
+	return 0;
 }
 
 int ia_css_raw_configure(const struct sh_css_sp_pipeline *pipe,

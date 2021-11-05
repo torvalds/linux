@@ -22,11 +22,9 @@
 #include "isp.h"
 #include "ia_css_ref.host.h"
 
-void
-ia_css_ref_config(
-    struct sh_css_isp_ref_isp_config *to,
-    const struct ia_css_ref_configuration  *from,
-    unsigned int size)
+int ia_css_ref_config(struct sh_css_isp_ref_isp_config *to,
+		      const struct ia_css_ref_configuration  *from,
+		      unsigned int size)
 {
 	unsigned int elems_a = ISP_VEC_NELEMS, i;
 
@@ -53,6 +51,7 @@ ia_css_ref_config(
 
 	/* Assume divisiblity here, may need to generalize to fixed point. */
 	assert(elems_a % to->port_b.elems == 0);
+	return 0;
 }
 
 int ia_css_ref_configure(const struct ia_css_binary        *binary,

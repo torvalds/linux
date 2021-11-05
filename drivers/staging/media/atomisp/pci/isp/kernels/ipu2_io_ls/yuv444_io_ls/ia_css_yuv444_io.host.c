@@ -22,10 +22,8 @@ more details.
 #include "ia_css_isp_params.h"
 #include "ia_css_frame.h"
 
-void
-ia_css_yuv444_io_config(
-    const struct ia_css_binary      *binary,
-    const struct sh_css_binary_args *args)
+int ia_css_yuv444_io_config(const struct ia_css_binary      *binary,
+			    const struct sh_css_binary_args *args)
 {
 	const struct ia_css_frame *in_frame = args->in_frame;
 	const struct ia_css_frame **out_frames = (const struct ia_css_frame **)
@@ -91,4 +89,5 @@ ia_css_yuv444_io_config(
 				    "ia_css_yuv444_io_config() put part leave:\n");
 #endif
 	}
+	return 0;
 }

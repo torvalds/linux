@@ -52,11 +52,9 @@ ia_css_output_encode(
 	to->enable_vflip = from->enable_vflip;
 }
 
-void
-ia_css_output_config(
-    struct sh_css_isp_output_isp_config *to,
-    const struct ia_css_output_configuration  *from,
-    unsigned int size)
+int ia_css_output_config(struct sh_css_isp_output_isp_config *to,
+			 const struct ia_css_output_configuration  *from,
+			 unsigned int size)
 {
 	unsigned int elems_a = ISP_VEC_NELEMS;
 
@@ -69,26 +67,21 @@ ia_css_output_config(
 
 	/* Assume divisiblity here, may need to generalize to fixed point. */
 	assert(elems_a % to->port_b.elems == 0);
+	return 0;
 }
 
-void
-ia_css_output0_config(
-    struct sh_css_isp_output_isp_config       *to,
-    const struct ia_css_output0_configuration *from,
-    unsigned int size)
+int ia_css_output0_config(struct sh_css_isp_output_isp_config       *to,
+			  const struct ia_css_output0_configuration *from,
+			  unsigned int size)
 {
-	ia_css_output_config(
-	    to, (const struct ia_css_output_configuration *)from, size);
+	return ia_css_output_config(to, (const struct ia_css_output_configuration *)from, size);
 }
 
-void
-ia_css_output1_config(
-    struct sh_css_isp_output_isp_config       *to,
-    const struct ia_css_output1_configuration *from,
-    unsigned int size)
+int ia_css_output1_config(struct sh_css_isp_output_isp_config       *to,
+		          const struct ia_css_output1_configuration *from,
+			  unsigned int size)
 {
-	ia_css_output_config(
-	    to, (const struct ia_css_output_configuration *)from, size);
+	return ia_css_output_config(to, (const struct ia_css_output_configuration *)from, size);
 }
 
 int ia_css_output_configure(const struct ia_css_binary     *binary,

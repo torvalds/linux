@@ -594,10 +594,8 @@ bool ia_css_frame_is_same_type(const struct ia_css_frame *frame_a,
 	return is_equal;
 }
 
-void
-ia_css_dma_configure_from_info(
-    struct dma_port_config *config,
-    const struct ia_css_frame_info *info)
+int ia_css_dma_configure_from_info(struct dma_port_config *config,
+				   const struct ia_css_frame_info *info)
 {
 	unsigned int is_raw_packed = info->format == IA_CSS_FRAME_FORMAT_RAW_PACKED;
 	unsigned int bits_per_pixel = is_raw_packed ? info->raw_bit_depth :
@@ -611,6 +609,7 @@ ia_css_dma_configure_from_info(
 	config->width  = (uint16_t)info->res.width;
 	config->crop   = 0;
 	assert(config->width <= info->padded_width);
+	return 0;
 }
 
 /**************************************************************************

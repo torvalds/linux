@@ -138,9 +138,8 @@ bool ia_css_frame_is_same_type(
  * @param[in]	info           The frame info
  * @return
  */
-void ia_css_dma_configure_from_info(
-    struct dma_port_config *config,
-    const struct ia_css_frame_info *info);
+int ia_css_dma_configure_from_info(struct dma_port_config *config,
+				   const struct ia_css_frame_info *info);
 
 /* ISP2401 */
 /* @brief Finds the cropping resolution

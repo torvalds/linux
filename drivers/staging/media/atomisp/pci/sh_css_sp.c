@@ -870,8 +870,7 @@ static int configure_isp_from_args(const struct sh_css_sp_pipeline *pipeline,
 	ret = ia_css_tnr_configure(binary, args->tnr_frames);
 	if (ret)
 		return ret;
-	ia_css_bayer_io_config(binary, args);
-	return 0;
+	return ia_css_bayer_io_config(binary, args);
 }
 
 static void
