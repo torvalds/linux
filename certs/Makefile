@@ -50,9 +50,6 @@ ifdef SIGN_KEY
 # fail and that the kernel may be used afterwards.
 #
 ###############################################################################
-ifndef CONFIG_MODULE_SIG_HASH
-$(error Could not determine digest type to use from kernel config)
-endif
 
 redirect_openssl	= 2>&1
 quiet_redirect_openssl	= 2>&1
