@@ -51,6 +51,7 @@ struct arm_spe {
 	u8				timeless_decoding;
 	u8				data_queued;
 
+	u64				sample_type;
 	u8				sample_flc;
 	u8				sample_llc;
 	u8				sample_tlb;
@@ -248,6 +249,12 @@ static void arm_spe_prep_sample(struct arm_spe *spe,
 	event->sample.header.size = sizeof(struct perf_event_header);
 }
 
+static int arm_spe__inject_event(union perf_event *event, struct perf_sample *sample, u64 type)
+{
+	event->header.size = perf_event__sample_event_size(sample, type, 0);
+	return perf_event__synthesize_sample(event, type, 0, sample);
+}
+
 static inline int
 arm_spe_deliver_synth_event(struct arm_spe *spe,
 			    struct arm_spe_queue *speq __maybe_unused,
@@ -255,6 +262,12 @@ arm_spe_deliver_synth_event(struct arm_spe *spe,
 			    struct perf_sample *sample)
 {
 	int ret;
+
+	if (spe->synth_opts.inject) {
+		ret = arm_spe__inject_event(event, sample, spe->sample_type);
+		if (ret)
+			return ret;
+	}
 
 	ret = perf_session__deliver_synth_event(spe->session, event, sample);
 	if (ret)
@@ -919,6 +932,8 @@ arm_spe_synth_events(struct arm_spe *spe, struct perf_session *session)
 		attr.sample_type &= ~(u64)PERF_SAMPLE_TIME;
 	else
 		attr.sample_type |= PERF_SAMPLE_TIME;
+
+	spe->sample_type = attr.sample_type;
 
 	attr.exclude_user = evsel->core.attr.exclude_user;
 	attr.exclude_kernel = evsel->core.attr.exclude_kernel;
