@@ -1880,50 +1880,14 @@ int btrfs_transaction_blocked(struct btrfs_fs_info *info)
 	return ret;
 }
 
-/*
- * commit transactions asynchronously. once btrfs_commit_transaction_async
- * returns, any subsequent transaction will not be allowed to join.
- */
-struct btrfs_async_commit {
-	struct btrfs_trans_handle *newtrans;
-	struct work_struct work;
-};
-
-static void do_async_commit(struct work_struct *work)
-{
-	struct btrfs_async_commit *ac =
-		container_of(work, struct btrfs_async_commit, work);
-
-	/*
-	 * We've got freeze protection passed with the transaction.
-	 * Tell lockdep about it.
-	 */
-	if (ac->newtrans->type & __TRANS_FREEZABLE)
-		__sb_writers_acquired(ac->newtrans->fs_info->sb, SB_FREEZE_FS);
-
-	current->journal_info = ac->newtrans;
-
-	btrfs_commit_transaction(ac->newtrans);
-	kfree(ac);
-}
-
-int btrfs_commit_transaction_async(struct btrfs_trans_handle *trans)
+void btrfs_commit_transaction_async(struct btrfs_trans_handle *trans)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
-	struct btrfs_async_commit *ac;
 	struct btrfs_transaction *cur_trans;
 
-	ac = kmalloc(sizeof(*ac), GFP_NOFS);
-	if (!ac)
-		return -ENOMEM;
-
-	INIT_WORK(&ac->work, do_async_commit);
-	ac->newtrans = btrfs_join_transaction(trans->root);
-	if (IS_ERR(ac->newtrans)) {
-		int err = PTR_ERR(ac->newtrans);
-		kfree(ac);
-		return err;
-	}
+	/* Kick the transaction kthread. */
+	set_bit(BTRFS_FS_COMMIT_TRANS, &fs_info->flags);
+	wake_up_process(fs_info->transaction_kthread);
 
 	/* take transaction reference */
 	cur_trans = trans->transaction;
@@ -1932,27 +1896,14 @@ int btrfs_commit_transaction_async(struct btrfs_trans_handle *trans)
 	btrfs_end_transaction(trans);
 
 	/*
-	 * Tell lockdep we've released the freeze rwsem, since the
-	 * async commit thread will be the one to unlock it.
-	 */
-	if (ac->newtrans->type & __TRANS_FREEZABLE)
-		__sb_writers_release(fs_info->sb, SB_FREEZE_FS);
-
-	schedule_work(&ac->work);
-	/*
 	 * Wait for the current transaction commit to start and block
 	 * subsequent transaction joins
 	 */
 	wait_event(fs_info->transaction_blocked_wait,
 		   cur_trans->state >= TRANS_STATE_COMMIT_START ||
 		   TRANS_ABORTED(cur_trans));
-	if (current->journal_info == trans)
-		current->journal_info = NULL;
-
 	btrfs_put_transaction(cur_trans);
-	return 0;
 }
-
 
 static void cleanup_transaction(struct btrfs_trans_handle *trans, int err)
 {
@@ -2218,6 +2169,13 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	spin_unlock(&fs_info->trans_lock);
 	wait_event(cur_trans->writer_wait,
 		   atomic_read(&cur_trans->num_writers) == 1);
+
+	/*
+	 * We've started the commit, clear the flag in case we were triggered to
+	 * do an async commit but somebody else started before the transaction
+	 * kthread could do the work.
+	 */
+	clear_bit(BTRFS_FS_COMMIT_TRANS, &fs_info->flags);
 
 	if (TRANS_ABORTED(cur_trans)) {
 		ret = cur_trans->aborted;

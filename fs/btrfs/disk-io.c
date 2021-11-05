@@ -1934,7 +1934,8 @@ static int transaction_kthread(void *arg)
 		}
 
 		delta = ktime_get_seconds() - cur->start_time;
-		if (cur->state < TRANS_STATE_COMMIT_START &&
+		if (!test_and_clear_bit(BTRFS_FS_COMMIT_TRANS, &fs_info->flags) &&
+		    cur->state < TRANS_STATE_COMMIT_START &&
 		    delta < fs_info->commit_interval) {
 			spin_unlock(&fs_info->trans_lock);
 			delay -= msecs_to_jiffies((delta - 1) * 1000);
