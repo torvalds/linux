@@ -10140,7 +10140,7 @@ static __cold void __io_uring_show_fdinfo(struct io_ring_ctx *ctx,
 	for (i = 0; i < sq_entries; i++) {
 		unsigned int entry = i + sq_head;
 		unsigned int sq_idx = READ_ONCE(ctx->sq_array[entry & sq_mask]);
-		struct io_uring_sqe *sqe = &ctx->sq_sqes[sq_idx];
+		struct io_uring_sqe *sqe;
 
 		if (sq_idx > sq_mask)
 			continue;
