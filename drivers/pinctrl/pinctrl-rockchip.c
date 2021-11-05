@@ -2331,10 +2331,8 @@ static int rockchip_pinctrl_parse_groups(struct device_node *np,
 	list = of_get_property(np, "rockchip,pins", &size);
 	/* we do not check return since it's safe node passed down */
 	size /= sizeof(*list);
-	if (!size || size % 4) {
-		dev_err(dev, "wrong pins number or pins and configs should be by 4\n");
-		return -EINVAL;
-	}
+	if (!size || size % 4)
+		return dev_err_probe(dev, -EINVAL, "wrong pins number or pins and configs should be by 4\n");
 
 	grp->npins = size / 4;
 
@@ -2489,10 +2487,8 @@ static int rockchip_pinctrl_register(struct platform_device *pdev,
 		return ret;
 
 	info->pctl_dev = devm_pinctrl_register(dev, ctrldesc, info);
-	if (IS_ERR(info->pctl_dev)) {
-		dev_err(dev, "could not register pinctrl driver\n");
-		return PTR_ERR(info->pctl_dev);
-	}
+	if (IS_ERR(info->pctl_dev))
+		return dev_err_probe(dev, PTR_ERR(info->pctl_dev), "could not register pinctrl driver\n");
 
 	return 0;
 }
@@ -2673,10 +2669,8 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 	void __iomem *base;
 	int ret;
 
-	if (!dev->of_node) {
-		dev_err(dev, "device tree node not found\n");
-		return -ENODEV;
-	}
+	if (!dev->of_node)
+		return dev_err_probe(dev, -ENODEV, "device tree node not found\n");
 
 	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
@@ -2685,10 +2679,8 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 	info->dev = dev;
 
 	ctrl = rockchip_pinctrl_get_soc_data(info, pdev);
-	if (!ctrl) {
-		dev_err(dev, "driver data not available\n");
-		return -EINVAL;
-	}
+	if (!ctrl)
+		return dev_err_probe(dev, -EINVAL, "driver data not available\n");
 	info->ctrl = ctrl;
 
 	node = of_parse_phandle(np, "rockchip,grf", 0);
@@ -2737,10 +2729,8 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, info);
 
 	ret = of_platform_populate(np, rockchip_bank_match, NULL, NULL);
-	if (ret) {
-		dev_err(dev, "failed to register gpio device\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to register gpio device\n");
 
 	return 0;
 }
