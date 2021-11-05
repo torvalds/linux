@@ -1049,12 +1049,12 @@ static int add_inline_refs(const struct btrfs_fs_info *fs_info,
  *
  * Returns 0 on success, <0 on error, or BACKREF_FOUND_SHARED.
  */
-static int add_keyed_refs(struct btrfs_fs_info *fs_info,
+static int add_keyed_refs(struct btrfs_root *extent_root,
 			  struct btrfs_path *path, u64 bytenr,
 			  int info_level, struct preftrees *preftrees,
 			  struct share_check *sc)
 {
-	struct btrfs_root *extent_root = fs_info->extent_root;
+	struct btrfs_fs_info *fs_info = extent_root->fs_info;
 	int ret;
 	int slot;
 	struct extent_buffer *leaf;
@@ -1170,6 +1170,7 @@ static int find_parent_nodes(struct btrfs_trans_handle *trans,
 			     struct ulist *roots, const u64 *extent_item_pos,
 			     struct share_check *sc, bool ignore_offset)
 {
+	struct btrfs_root *root = fs_info->extent_root;
 	struct btrfs_key key;
 	struct btrfs_path *path;
 	struct btrfs_delayed_ref_root *delayed_refs = NULL;
@@ -1211,7 +1212,7 @@ static int find_parent_nodes(struct btrfs_trans_handle *trans,
 again:
 	head = NULL;
 
-	ret = btrfs_search_slot(NULL, fs_info->extent_root, &key, path, 0, 0);
+	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	if (ret < 0)
 		goto out;
 	BUG_ON(ret == 0);
@@ -1271,7 +1272,7 @@ again:
 					      &info_level, &preftrees, sc);
 			if (ret)
 				goto out;
-			ret = add_keyed_refs(fs_info, path, bytenr, info_level,
+			ret = add_keyed_refs(root, path, bytenr, info_level,
 					     &preftrees, sc);
 			if (ret)
 				goto out;
