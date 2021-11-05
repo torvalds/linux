@@ -1606,7 +1606,7 @@ static inline bool mem_cgroup_under_socket_pressure(struct mem_cgroup *memcg)
 	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys) && memcg->tcpmem_pressure)
 		return true;
 	do {
-		if (time_before(jiffies, memcg->socket_pressure))
+		if (time_before(jiffies, READ_ONCE(memcg->socket_pressure)))
 			return true;
 	} while ((memcg = parent_mem_cgroup(memcg)));
 	return false;
