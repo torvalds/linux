@@ -23,6 +23,7 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
+#include <linux/string_helpers.h>
 
 #include "../pinctrl-utils.h"
 
@@ -951,6 +952,7 @@ static int armada_37xx_pinctrl_register(struct platform_device *pdev,
 	struct pinctrl_desc *ctrldesc = &info->pctl;
 	struct pinctrl_pin_desc *pindesc, *pdesc;
 	struct device *dev = &pdev->dev;
+	char **pin_names;
 	int pin, ret;
 
 	info->groups = pin_data->groups;
@@ -969,11 +971,14 @@ static int armada_37xx_pinctrl_register(struct platform_device *pdev,
 	ctrldesc->pins = pindesc;
 	ctrldesc->npins = pin_data->nr_pins;
 
+	pin_names = devm_kasprintf_strarray(dev, pin_data->name, pin_data->nr_pins);
+	if (IS_ERR(pin_names))
+		return PTR_ERR(pin_names);
+
 	pdesc = pindesc;
 	for (pin = 0; pin < pin_data->nr_pins; pin++) {
 		pdesc->number = pin;
-		pdesc->name = kasprintf(GFP_KERNEL, "%s-%d",
-					pin_data->name, pin);
+		pdesc->name = pin_names[pin];
 		pdesc++;
 	}
 
