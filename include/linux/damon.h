@@ -107,6 +107,8 @@ struct damos_quota {
 /* private: For charging the quota */
 	unsigned long charged_sz;
 	unsigned long charged_from;
+	struct damon_target *charge_target_from;
+	unsigned long charge_addr_from;
 };
 
 /**
@@ -306,6 +308,9 @@ struct damon_ctx {
 
 #define damon_prev_region(r) \
 	(container_of(r->list.prev, struct damon_region, list))
+
+#define damon_last_region(t) \
+	(list_last_entry(&t->regions_list, struct damon_region, list))
 
 #define damon_for_each_region(r, t) \
 	list_for_each_entry(r, &t->regions_list, list)
