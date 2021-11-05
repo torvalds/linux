@@ -227,6 +227,19 @@ static void xive_esb_write(struct xive_irq_data *xd, u32 offset, u64 data)
 		out_be64(xd->eoi_mmio + offset, data);
 }
 
+static void xive_irq_data_dump(struct xive_irq_data *xd, char *buffer, size_t size)
+{
+	u64 val = xive_esb_read(xd, XIVE_ESB_GET);
+
+	snprintf(buffer, size, "flags=%c%c%c PQ=%c%c 0x%016llx 0x%016llx",
+		 xd->flags & XIVE_IRQ_FLAG_STORE_EOI ? 'S' : ' ',
+		 xd->flags & XIVE_IRQ_FLAG_LSI ? 'L' : ' ',
+		 xd->flags & XIVE_IRQ_FLAG_H_INT_ESB ? 'H' : ' ',
+		 val & XIVE_ESB_VAL_P ? 'P' : '-',
+		 val & XIVE_ESB_VAL_Q ? 'Q' : '-',
+		 xd->trig_page, xd->eoi_page);
+}
+
 #ifdef CONFIG_XMON
 static notrace void xive_dump_eq(const char *name, struct xive_q *q)
 {
@@ -252,11 +265,10 @@ notrace void xmon_xive_do_dump(int cpu)
 
 #ifdef CONFIG_SMP
 		{
-			u64 val = xive_esb_read(&xc->ipi_data, XIVE_ESB_GET);
+			char buffer[128];
 
-			xmon_printf("IPI=0x%08x PQ=%c%c ", xc->hw_ipi,
-				    val & XIVE_ESB_VAL_P ? 'P' : '-',
-				    val & XIVE_ESB_VAL_Q ? 'Q' : '-');
+			xive_irq_data_dump(&xc->ipi_data, buffer, sizeof(buffer));
+			xmon_printf("IPI=0x%08x %s", xc->hw_ipi, buffer);
 		}
 #endif
 		xive_dump_eq("EQ", &xc->queue[xive_irq_priority]);
@@ -291,15 +303,11 @@ int xmon_xive_get_irq_config(u32 hw_irq, struct irq_data *d)
 		d = xive_get_irq_data(hw_irq);
 
 	if (d) {
-		struct xive_irq_data *xd = irq_data_get_irq_handler_data(d);
-		u64 val = xive_esb_read(xd, XIVE_ESB_GET);
+		char buffer[128];
 
-		xmon_printf("flags=%c%c%c PQ=%c%c",
-			    xd->flags & XIVE_IRQ_FLAG_STORE_EOI ? 'S' : ' ',
-			    xd->flags & XIVE_IRQ_FLAG_LSI ? 'L' : ' ',
-			    xd->flags & XIVE_IRQ_FLAG_H_INT_ESB ? 'H' : ' ',
-			    val & XIVE_ESB_VAL_P ? 'P' : '-',
-			    val & XIVE_ESB_VAL_Q ? 'Q' : '-');
+		xive_irq_data_dump(irq_data_get_irq_handler_data(d),
+				   buffer, sizeof(buffer));
+		xmon_printf("%s", buffer);
 	}
 
 	xmon_printf("\n");
@@ -1702,11 +1710,10 @@ static void xive_debug_show_cpu(struct seq_file *m, int cpu)
 
 #ifdef CONFIG_SMP
 		{
-			u64 val = xive_esb_read(&xc->ipi_data, XIVE_ESB_GET);
+			char buffer[128];
 
-			seq_printf(m, "IPI=0x%08x PQ=%c%c ", xc->hw_ipi,
-				   val & XIVE_ESB_VAL_P ? 'P' : '-',
-				   val & XIVE_ESB_VAL_Q ? 'Q' : '-');
+			xive_irq_data_dump(&xc->ipi_data, buffer, sizeof(buffer));
+			seq_printf(m, "IPI=0x%08x %s", xc->hw_ipi, buffer);
 		}
 #endif
 		{
@@ -1733,8 +1740,7 @@ static void xive_debug_show_irq(struct seq_file *m, struct irq_data *d)
 	u32 target;
 	u8 prio;
 	u32 lirq;
-	struct xive_irq_data *xd;
-	u64 val;
+	char buffer[128];
 
 	rc = xive_ops->get_irq_config(hw_irq, &target, &prio, &lirq);
 	if (rc) {
@@ -1745,14 +1751,8 @@ static void xive_debug_show_irq(struct seq_file *m, struct irq_data *d)
 	seq_printf(m, "IRQ 0x%08x : target=0x%x prio=%02x lirq=0x%x ",
 		   hw_irq, target, prio, lirq);
 
-	xd = irq_data_get_irq_handler_data(d);
-	val = xive_esb_read(xd, XIVE_ESB_GET);
-	seq_printf(m, "flags=%c%c%c PQ=%c%c",
-		   xd->flags & XIVE_IRQ_FLAG_STORE_EOI ? 'S' : ' ',
-		   xd->flags & XIVE_IRQ_FLAG_LSI ? 'L' : ' ',
-		   xd->flags & XIVE_IRQ_FLAG_H_INT_ESB ? 'H' : ' ',
-		   val & XIVE_ESB_VAL_P ? 'P' : '-',
-		   val & XIVE_ESB_VAL_Q ? 'Q' : '-');
+	xive_irq_data_dump(irq_data_get_irq_handler_data(d), buffer, sizeof(buffer));
+	seq_puts(m, buffer);
 	seq_puts(m, "\n");
 }
 
