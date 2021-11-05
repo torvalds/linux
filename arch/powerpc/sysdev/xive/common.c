@@ -1703,11 +1703,11 @@ static int __init xive_off(char *arg)
 __setup("xive=off", xive_off);
 
 #ifdef CONFIG_DEBUG_FS
-static void xive_debug_show_cpu(struct seq_file *m, int cpu)
+static void xive_debug_show_ipi(struct seq_file *m, int cpu)
 {
 	struct xive_cpu *xc = per_cpu(xive_cpu, cpu);
 
-	seq_printf(m, "CPU %d:", cpu);
+	seq_printf(m, "CPU %d: ", cpu);
 	if (xc) {
 		seq_printf(m, "pp=%02x CPPR=%02x ", xc->pending_prio, xc->cppr);
 
@@ -1719,19 +1719,6 @@ static void xive_debug_show_cpu(struct seq_file *m, int cpu)
 			seq_printf(m, "IPI=0x%08x %s", xc->hw_ipi, buffer);
 		}
 #endif
-		{
-			struct xive_q *q = &xc->queue[xive_irq_priority];
-			u32 i0, i1, idx;
-
-			if (q->qpage) {
-				idx = q->idx;
-				i0 = be32_to_cpup(q->qpage + idx);
-				idx = (idx + 1) & q->msk;
-				i1 = be32_to_cpup(q->qpage + idx);
-				seq_printf(m, "EQ idx=%d T=%d %08x %08x ...",
-					   q->idx, q->toggle, i0, i1);
-			}
-		}
 	}
 	seq_puts(m, "\n");
 }
@@ -1774,7 +1761,7 @@ static int xive_irq_debug_show(struct seq_file *m, void *private)
 }
 DEFINE_SHOW_ATTRIBUTE(xive_irq_debug);
 
-static int xive_cpu_debug_show(struct seq_file *m, void *private)
+static int xive_ipi_debug_show(struct seq_file *m, void *private)
 {
 	int cpu;
 
@@ -1782,10 +1769,10 @@ static int xive_cpu_debug_show(struct seq_file *m, void *private)
 		xive_ops->debug_show(m, private);
 
 	for_each_possible_cpu(cpu)
-		xive_debug_show_cpu(m, cpu);
+		xive_debug_show_ipi(m, cpu);
 	return 0;
 }
-DEFINE_SHOW_ATTRIBUTE(xive_cpu_debug);
+DEFINE_SHOW_ATTRIBUTE(xive_ipi_debug);
 
 static void xive_core_debugfs_create(void)
 {
@@ -1795,8 +1782,8 @@ static void xive_core_debugfs_create(void)
 	if (IS_ERR(xive_dir))
 		return;
 
-	debugfs_create_file("cpus", 0400, xive_dir,
-			    NULL, &xive_cpu_debug_fops);
+	debugfs_create_file("ipis", 0400, xive_dir,
+			    NULL, &xive_ipi_debug_fops);
 	debugfs_create_file("interrupts", 0400, xive_dir,
 			    NULL, &xive_irq_debug_fops);
 }
