@@ -50,8 +50,6 @@
  * @work: The workqueue callback for the shrink queue.
  * @lock: Lock to protect the @shrink - and the memory accounting members,
  * that is, essentially the whole structure with some exceptions.
- * @lower_mem_limit: include lower limit of swap space and lower limit of
- * system memory.
  * @zones: Array of pointers to accounting zones.
  * @num_zones: Number of populated entries in the @zones array.
  * @zone_kernel: Pointer to the kernel zone.
@@ -69,7 +67,6 @@ extern struct ttm_mem_global {
 	struct workqueue_struct *swap_queue;
 	struct work_struct work;
 	spinlock_t lock;
-	uint64_t lower_mem_limit;
 	struct ttm_mem_zone *zones[TTM_MEM_MAX_ZONES];
 	unsigned int num_zones;
 	struct ttm_mem_zone *zone_kernel;
@@ -91,6 +88,5 @@ int ttm_mem_global_alloc_page(struct ttm_mem_global *glob,
 void ttm_mem_global_free_page(struct ttm_mem_global *glob,
 			      struct page *page, uint64_t size);
 size_t ttm_round_pot(size_t size);
-bool ttm_check_under_lowerlimit(struct ttm_mem_global *glob, uint64_t num_pages,
-				struct ttm_operation_ctx *ctx);
+
 #endif

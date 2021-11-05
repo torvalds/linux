@@ -34,7 +34,6 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/swap.h>
 
 #include <drm/drm_device.h>
 #include <drm/drm_file.h>
@@ -173,69 +172,7 @@ static struct kobj_type ttm_mem_zone_kobj_type = {
 	.sysfs_ops = &ttm_mem_zone_ops,
 	.default_attrs = ttm_mem_zone_attrs,
 };
-
-static struct attribute ttm_mem_global_lower_mem_limit = {
-	.name = "lower_mem_limit",
-	.mode = S_IRUGO | S_IWUSR
-};
-
-static ssize_t ttm_mem_global_show(struct kobject *kobj,
-				 struct attribute *attr,
-				 char *buffer)
-{
-	struct ttm_mem_global *glob =
-		container_of(kobj, struct ttm_mem_global, kobj);
-	uint64_t val = 0;
-
-	spin_lock(&glob->lock);
-	val = glob->lower_mem_limit;
-	spin_unlock(&glob->lock);
-	/* convert from number of pages to KB */
-	val <<= (PAGE_SHIFT - 10);
-	return snprintf(buffer, PAGE_SIZE, "%llu\n",
-			(unsigned long long) val);
-}
-
-static ssize_t ttm_mem_global_store(struct kobject *kobj,
-				  struct attribute *attr,
-				  const char *buffer,
-				  size_t size)
-{
-	int chars;
-	uint64_t val64;
-	unsigned long val;
-	struct ttm_mem_global *glob =
-		container_of(kobj, struct ttm_mem_global, kobj);
-
-	chars = sscanf(buffer, "%lu", &val);
-	if (chars == 0)
-		return size;
-
-	val64 = val;
-	/* convert from KB to number of pages */
-	val64 >>= (PAGE_SHIFT - 10);
-
-	spin_lock(&glob->lock);
-	glob->lower_mem_limit = val64;
-	spin_unlock(&glob->lock);
-
-	return size;
-}
-
-static struct attribute *ttm_mem_global_attrs[] = {
-	&ttm_mem_global_lower_mem_limit,
-	NULL
-};
-
-static const struct sysfs_ops ttm_mem_global_ops = {
-	.show = &ttm_mem_global_show,
-	.store = &ttm_mem_global_store,
-};
-
-static struct kobj_type ttm_mem_glob_kobj_type = {
-	.sysfs_ops = &ttm_mem_global_ops,
-	.default_attrs = ttm_mem_global_attrs,
-};
+static struct kobj_type ttm_mem_glob_kobj_type = {0};
 
 static bool ttm_zones_above_swap_target(struct ttm_mem_global *glob,
 					bool from_wq, uint64_t extra)
@@ -435,11 +372,6 @@ int ttm_mem_global_init(struct ttm_mem_global *glob, struct device *dev)
 
 	si_meminfo(&si);
 
-	spin_lock(&glob->lock);
-	/* set it as 0 by default to keep original behavior of OOM */
-	glob->lower_mem_limit = 0;
-	spin_unlock(&glob->lock);
-
 	ret = ttm_mem_init_kernel_zone(glob, &si);
 	if (unlikely(ret != 0))
 		goto out_no_zone;
@@ -526,35 +458,6 @@ void ttm_mem_global_free(struct ttm_mem_global *glob,
 	return ttm_mem_global_free_zone(glob, glob->zone_kernel, amount);
 }
 EXPORT_SYMBOL(ttm_mem_global_free);
-
-/*
- * check if the available mem is under lower memory limit
- *
- * a. if no swap disk at all or free swap space is under swap_mem_limit
- * but available system mem is bigger than sys_mem_limit, allow TTM
- * allocation;
- *
- * b. if the available system mem is less than sys_mem_limit but free
- * swap disk is bigger than swap_mem_limit, allow TTM allocation.
- */
-bool
-ttm_check_under_lowerlimit(struct ttm_mem_global *glob,
-			uint64_t num_pages,
-			struct ttm_operation_ctx *ctx)
-{
-	int64_t available;
-
-	/* We allow over commit during suspend */
-	if (ctx->force_alloc)
-		return false;
-
-	available = get_nr_swap_pages() + si_mem_available();
-	available -= num_pages;
-	if (available < glob->lower_mem_limit)
-		return true;
-
-	return false;
-}
 
 static int ttm_mem_global_reserve(struct ttm_mem_global *glob,
 				  struct ttm_mem_zone *single_zone,
