@@ -841,7 +841,7 @@ static int remove_block_group_item(struct btrfs_trans_handle *trans,
 	struct btrfs_key key;
 	int ret;
 
-	root = fs_info->extent_root;
+	root = btrfs_block_group_root(fs_info);
 	key.objectid = block_group->start;
 	key.type = BTRFS_BLOCK_GROUP_ITEM_KEY;
 	key.offset = block_group->length;
@@ -1106,6 +1106,7 @@ out:
 struct btrfs_trans_handle *btrfs_start_trans_remove_block_group(
 		struct btrfs_fs_info *fs_info, const u64 chunk_offset)
 {
+	struct btrfs_root *root = btrfs_block_group_root(fs_info);
 	struct extent_map_tree *em_tree = &fs_info->mapping_tree;
 	struct extent_map *em;
 	struct map_lookup *map;
@@ -1139,8 +1140,7 @@ struct btrfs_trans_handle *btrfs_start_trans_remove_block_group(
 	num_items = 3 + map->num_stripes;
 	free_extent_map(em);
 
-	return btrfs_start_transaction_fallback_global_rsv(fs_info->extent_root,
-							   num_items);
+	return btrfs_start_transaction_fallback_global_rsv(root, num_items);
 }
 
 /*
@@ -1678,7 +1678,7 @@ static int find_first_block_group(struct btrfs_fs_info *fs_info,
 				  struct btrfs_path *path,
 				  struct btrfs_key *key)
 {
-	struct btrfs_root *root = fs_info->extent_root;
+	struct btrfs_root *root = btrfs_block_group_root(fs_info);
 	int ret;
 	struct btrfs_key found_key;
 	struct extent_buffer *leaf;
@@ -2165,6 +2165,7 @@ static int fill_dummy_bgs(struct btrfs_fs_info *fs_info)
 
 int btrfs_read_block_groups(struct btrfs_fs_info *info)
 {
+	struct btrfs_root *root = btrfs_block_group_root(info);
 	struct btrfs_path *path;
 	int ret;
 	struct btrfs_block_group *cache;
@@ -2173,7 +2174,7 @@ int btrfs_read_block_groups(struct btrfs_fs_info *info)
 	int need_clear = 0;
 	u64 cache_gen;
 
-	if (!info->extent_root)
+	if (!root)
 		return fill_dummy_bgs(info);
 
 	key.objectid = 0;
@@ -2276,7 +2277,7 @@ static int insert_block_group_item(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_block_group_item bgi;
-	struct btrfs_root *root;
+	struct btrfs_root *root = btrfs_block_group_root(fs_info);
 	struct btrfs_key key;
 
 	spin_lock(&block_group->lock);
@@ -2289,7 +2290,6 @@ static int insert_block_group_item(struct btrfs_trans_handle *trans,
 	key.offset = block_group->length;
 	spin_unlock(&block_group->lock);
 
-	root = fs_info->extent_root;
 	return btrfs_insert_item(trans, root, &key, &bgi, sizeof(bgi));
 }
 
@@ -2543,12 +2543,13 @@ int btrfs_inc_block_group_ro(struct btrfs_block_group *cache,
 {
 	struct btrfs_fs_info *fs_info = cache->fs_info;
 	struct btrfs_trans_handle *trans;
+	struct btrfs_root *root = btrfs_block_group_root(fs_info);
 	u64 alloc_flags;
 	int ret;
 	bool dirty_bg_running;
 
 	do {
-		trans = btrfs_join_transaction(fs_info->extent_root);
+		trans = btrfs_join_transaction(root);
 		if (IS_ERR(trans))
 			return PTR_ERR(trans);
 
@@ -2653,7 +2654,7 @@ static int update_block_group_item(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	int ret;
-	struct btrfs_root *root = fs_info->extent_root;
+	struct btrfs_root *root = btrfs_block_group_root(fs_info);
 	unsigned long bi;
 	struct extent_buffer *leaf;
 	struct btrfs_block_group_item bgi;
