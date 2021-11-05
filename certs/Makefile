@@ -80,23 +80,12 @@ endif
 endif # CONFIG_MODULE_SIG_KEY_TYPE_RSA
 
 $(obj)/signing_key.pem: $(obj)/x509.genkey
-	@$(kecho) "###"
-	@$(kecho) "### Now generating an X.509 key pair to be used for signing modules."
-	@$(kecho) "###"
-	@$(kecho) "### If this takes a long time, you might wish to run rngd in the"
-	@$(kecho) "### background to keep the supply of entropy topped up.  It"
-	@$(kecho) "### needs to be run as root, and uses a hardware random"
-	@$(kecho) "### number generator if one is available."
-	@$(kecho) "###"
 	$(Q)openssl req -new -nodes -utf8 -$(CONFIG_MODULE_SIG_HASH) -days 36500 \
 		-batch -x509 -config $(obj)/x509.genkey \
 		-outform PEM -out $(obj)/signing_key.pem \
 		-keyout $(obj)/signing_key.pem \
 		$(keytype_openssl) \
 		$($(quiet)redirect_openssl)
-	@$(kecho) "###"
-	@$(kecho) "### Key pair generated."
-	@$(kecho) "###"
 
 quiet_cmd_copy_x509_config = COPY    $@
       cmd_copy_x509_config = cat $(srctree)/$(src)/default_x509.genkey > $@
