@@ -782,6 +782,14 @@ static int atomisp_open(struct file *file)
 	 * FIXME: revisit this with a better check once the code structure
 	 * is cleaned up a bit more
 	 */
+	ret = v4l2_fh_open(file);
+	if (ret) {
+		dev_err(isp->dev,
+			"%s: v4l2_fh_open() returned error %d\n",
+		       __func__, ret);
+		rt_mutex_unlock(&isp->loading);
+		return ret;
+	}
 	if (!isp->ready) {
 		rt_mutex_unlock(&isp->loading);
 		return -ENXIO;
@@ -1041,7 +1049,7 @@ done:
 	rt_mutex_unlock(&isp->mutex);
 	mutex_unlock(&isp->streamoff_mutex);
 
-	return 0;
+	return v4l2_fh_release(file);
 }
 
 /*
