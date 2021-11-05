@@ -455,7 +455,7 @@ int btrfs_test_qgroups(u32 sectorsize, u32 nodesize)
 	}
 
 	/* We are using this root as our extent root */
-	root->fs_info->extent_root = root;
+	root->fs_info->_extent_root = root;
 
 	/*
 	 * Some of the paths we test assume we have a filled out fs_info, so we

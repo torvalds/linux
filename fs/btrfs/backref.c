@@ -1170,7 +1170,7 @@ static int find_parent_nodes(struct btrfs_trans_handle *trans,
 			     struct ulist *roots, const u64 *extent_item_pos,
 			     struct share_check *sc, bool ignore_offset)
 {
-	struct btrfs_root *root = fs_info->extent_root;
+	struct btrfs_root *root = btrfs_extent_root(fs_info, bytenr);
 	struct btrfs_key key;
 	struct btrfs_path *path;
 	struct btrfs_delayed_ref_root *delayed_refs = NULL;
@@ -1747,6 +1747,7 @@ int extent_from_logical(struct btrfs_fs_info *fs_info, u64 logical,
 			struct btrfs_path *path, struct btrfs_key *found_key,
 			u64 *flags_ret)
 {
+	struct btrfs_root *extent_root = btrfs_extent_root(fs_info, logical);
 	int ret;
 	u64 flags;
 	u64 size = 0;
@@ -1762,11 +1763,11 @@ int extent_from_logical(struct btrfs_fs_info *fs_info, u64 logical,
 	key.objectid = logical;
 	key.offset = (u64)-1;
 
-	ret = btrfs_search_slot(NULL, fs_info->extent_root, &key, path, 0, 0);
+	ret = btrfs_search_slot(NULL, extent_root, &key, path, 0, 0);
 	if (ret < 0)
 		return ret;
 
-	ret = btrfs_previous_extent_item(fs_info->extent_root, path, 0);
+	ret = btrfs_previous_extent_item(extent_root, path, 0);
 	if (ret) {
 		if (ret > 0)
 			ret = -ENOENT;
@@ -2335,6 +2336,7 @@ struct btrfs_backref_iter *btrfs_backref_iter_alloc(
 int btrfs_backref_iter_start(struct btrfs_backref_iter *iter, u64 bytenr)
 {
 	struct btrfs_fs_info *fs_info = iter->fs_info;
+	struct btrfs_root *extent_root = btrfs_extent_root(fs_info, bytenr);
 	struct btrfs_path *path = iter->path;
 	struct btrfs_extent_item *ei;
 	struct btrfs_key key;
@@ -2345,7 +2347,7 @@ int btrfs_backref_iter_start(struct btrfs_backref_iter *iter, u64 bytenr)
 	key.offset = (u64)-1;
 	iter->bytenr = bytenr;
 
-	ret = btrfs_search_slot(NULL, fs_info->extent_root, &key, path, 0, 0);
+	ret = btrfs_search_slot(NULL, extent_root, &key, path, 0, 0);
 	if (ret < 0)
 		return ret;
 	if (ret == 0) {
@@ -2388,7 +2390,7 @@ int btrfs_backref_iter_start(struct btrfs_backref_iter *iter, u64 bytenr)
 
 	/* If there is no inline backref, go search for keyed backref */
 	if (iter->cur_ptr >= iter->end_ptr) {
-		ret = btrfs_next_item(fs_info->extent_root, path);
+		ret = btrfs_next_item(extent_root, path);
 
 		/* No inline nor keyed ref */
 		if (ret > 0) {
@@ -2432,6 +2434,7 @@ release:
 int btrfs_backref_iter_next(struct btrfs_backref_iter *iter)
 {
 	struct extent_buffer *eb = btrfs_backref_get_eb(iter);
+	struct btrfs_root *extent_root;
 	struct btrfs_path *path = iter->path;
 	struct btrfs_extent_inline_ref *iref;
 	int ret;
@@ -2462,7 +2465,8 @@ int btrfs_backref_iter_next(struct btrfs_backref_iter *iter)
 	}
 
 	/* We're at keyed items, there is no inline item, go to the next one */
-	ret = btrfs_next_item(iter->fs_info->extent_root, iter->path);
+	extent_root = btrfs_extent_root(iter->fs_info, iter->bytenr);
+	ret = btrfs_next_item(extent_root, iter->path);
 	if (ret)
 		return ret;
 

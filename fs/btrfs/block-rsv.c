@@ -6,6 +6,7 @@
 #include "space-info.h"
 #include "transaction.h"
 #include "block-group.h"
+#include "disk-io.h"
 
 /*
  * HOW DO BLOCK RESERVES WORK
@@ -351,6 +352,7 @@ void btrfs_update_global_block_rsv(struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_block_rsv *block_rsv = &fs_info->global_block_rsv;
 	struct btrfs_space_info *sinfo = block_rsv->space_info;
+	struct btrfs_root *extent_root = btrfs_extent_root(fs_info, 0);
 	u64 num_bytes;
 	unsigned min_items;
 
@@ -359,7 +361,7 @@ void btrfs_update_global_block_rsv(struct btrfs_fs_info *fs_info)
 	 * checksum tree and the root tree.  If the fs is empty we want to set
 	 * it to a minimal amount for safety.
 	 */
-	num_bytes = btrfs_root_used(&fs_info->extent_root->root_item) +
+	num_bytes = btrfs_root_used(&extent_root->root_item) +
 		btrfs_root_used(&fs_info->csum_root->root_item) +
 		btrfs_root_used(&fs_info->tree_root->root_item);
 

@@ -1036,7 +1036,7 @@ int btrfs_test_free_space_cache(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 
-	root->fs_info->extent_root = root;
+	root->fs_info->_extent_root = root;
 
 	ret = test_extents(cache);
 	if (ret)

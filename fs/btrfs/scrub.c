@@ -2897,7 +2897,7 @@ static noinline_for_stack int scrub_raid56_parity(struct scrub_ctx *sctx,
 						  u64 logic_end)
 {
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
-	struct btrfs_root *root = fs_info->extent_root;
+	struct btrfs_root *root = btrfs_extent_root(fs_info, logic_start);
 	struct btrfs_root *csum_root = fs_info->csum_root;
 	struct btrfs_extent_item *extent;
 	struct btrfs_io_context *bioc = NULL;
@@ -3168,7 +3168,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 {
 	struct btrfs_path *path, *ppath;
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
-	struct btrfs_root *root = fs_info->extent_root;
+	struct btrfs_root *root;
 	struct btrfs_root *csum_root = fs_info->csum_root;
 	struct btrfs_extent_item *extent;
 	struct blk_plug plug;
@@ -3261,6 +3261,8 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	wait_event(sctx->list_wait,
 		   atomic_read(&sctx->bios_in_flight) == 0);
 	scrub_blocked_if_needed(fs_info);
+
+	root = btrfs_extent_root(fs_info, logical);
 
 	/* FIXME it might be better to start readahead at commit root */
 	key.objectid = logical;
