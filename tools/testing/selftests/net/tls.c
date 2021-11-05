@@ -654,7 +654,6 @@ TEST_F(tls, recvmsg_single_max)
 TEST_F(tls, recvmsg_multiple)
 {
 	unsigned int msg_iovlen = 1024;
-	unsigned int len_compared = 0;
 	struct iovec vec[1024];
 	char *iov_base[1024];
 	unsigned int iov_len = 16;
@@ -675,8 +674,6 @@ TEST_F(tls, recvmsg_multiple)
 	hdr.msg_iovlen = msg_iovlen;
 	hdr.msg_iov = vec;
 	EXPECT_NE(recvmsg(self->cfd, &hdr, 0), -1);
-	for (i = 0; i < msg_iovlen; i++)
-		len_compared += iov_len;
 
 	for (i = 0; i < msg_iovlen; i++)
 		free(iov_base[i]);
