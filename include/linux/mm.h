@@ -875,6 +875,8 @@ void put_pages_list(struct list_head *pages);
 void split_page(struct page *page, unsigned int order);
 void copy_huge_page(struct page *dst, struct page *src);
 
+unsigned long nr_free_buffer_pages(void);
+
 /*
  * Compound pages have a destructor function.  Provide a
  * prototype for that function and accessor functions.

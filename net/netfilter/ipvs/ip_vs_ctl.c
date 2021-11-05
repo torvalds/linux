@@ -24,7 +24,6 @@
 #include <linux/sysctl.h>
 #include <linux/proc_fs.h>
 #include <linux/workqueue.h>
-#include <linux/swap.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 
