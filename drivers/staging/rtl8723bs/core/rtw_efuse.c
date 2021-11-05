@@ -43,10 +43,7 @@ Efuse_Read1ByteFromFakeContent(u16 Offset, u8 *Value)
 }
 
 static bool
-Efuse_Write1ByteToFakeContent(
-	struct adapter *padapter,
-	u16 	Offset,
-	u8 Value)
+Efuse_Write1ByteToFakeContent(u16 Offset, u8 Value)
 {
 	if (Offset >= EFUSE_MAX_HW_SIZE)
 		return false;
@@ -288,7 +285,7 @@ u8 efuse_OneByteWrite(struct adapter *padapter, u16 addr, u8 data, bool bPseudoT
 	u32 efuseValue = 0;
 
 	if (bPseudoTest)
-		return Efuse_Write1ByteToFakeContent(padapter, addr, data);
+		return Efuse_Write1ByteToFakeContent(addr, data);
 
 
 	/*  -----------------e-fuse reg ctrl --------------------------------- */
