@@ -6446,6 +6446,12 @@
 				  controller on both pseries and powernv
 				  platforms. Only useful on POWER9 and above.
 
+	xive.store-eoi=off	[PPC]
+			By default on POWER10 and above, the kernel will use
+			stores for EOI handling when the XIVE interrupt mode
+			is active. This option allows the XIVE driver to use
+			loads instead, as on POWER9.
+
 	xhci-hcd.quirks		[USB,KNL]
 			A hex value specifying bitmask with supplemental xhci
 			host controller quirks. Meaning of each bit can be

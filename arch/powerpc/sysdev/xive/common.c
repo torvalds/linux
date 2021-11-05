@@ -1712,6 +1712,19 @@ static int __init xive_off(char *arg)
 }
 __setup("xive=off", xive_off);
 
+static int __init xive_store_eoi_cmdline(char *arg)
+{
+	if (!arg)
+		return -EINVAL;
+
+	if (strncmp(arg, "off", 3) == 0) {
+		pr_info("StoreEOI disabled on kernel command line\n");
+		xive_store_eoi = false;
+	}
+	return 0;
+}
+__setup("xive.store-eoi=", xive_store_eoi_cmdline);
+
 #ifdef CONFIG_DEBUG_FS
 static void xive_debug_show_ipi(struct seq_file *m, int cpu)
 {
