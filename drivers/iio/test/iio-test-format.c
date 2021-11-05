@@ -197,12 +197,66 @@ static void iio_test_iio_format_value_multiple(struct kunit *test)
 	IIO_TEST_FORMAT_EXPECT_EQ(test, buf, ret, "1 -2 3 -4 5 \n");
 }
 
+static void iio_test_iio_format_value_integer_64(struct kunit *test)
+{
+	int values[2];
+	s64 value;
+	char *buf;
+	int ret;
+
+	buf = kunit_kmalloc(test, PAGE_SIZE, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buf);
+
+	value = 24;
+	values[0] = lower_32_bits(value);
+	values[1] = upper_32_bits(value);
+	ret = iio_format_value(buf, IIO_VAL_INT_64, ARRAY_SIZE(values), values);
+	IIO_TEST_FORMAT_EXPECT_EQ(test, buf, ret, "24\n");
+
+	value = -24;
+	values[0] = lower_32_bits(value);
+	values[1] = upper_32_bits(value);
+	ret = iio_format_value(buf, IIO_VAL_INT_64, ARRAY_SIZE(values), values);
+	IIO_TEST_FORMAT_EXPECT_EQ(test, buf, ret, "-24\n");
+
+	value = 0;
+	values[0] = lower_32_bits(value);
+	values[1] = upper_32_bits(value);
+	ret = iio_format_value(buf, IIO_VAL_INT_64, ARRAY_SIZE(values), values);
+	IIO_TEST_FORMAT_EXPECT_EQ(test, buf, ret, "0\n");
+
+	value = UINT_MAX;
+	values[0] = lower_32_bits(value);
+	values[1] = upper_32_bits(value);
+	ret = iio_format_value(buf, IIO_VAL_INT_64, ARRAY_SIZE(values), values);
+	IIO_TEST_FORMAT_EXPECT_EQ(test, buf, ret, "4294967295\n");
+
+	value = -((s64)UINT_MAX);
+	values[0] = lower_32_bits(value);
+	values[1] = upper_32_bits(value);
+	ret = iio_format_value(buf, IIO_VAL_INT_64, ARRAY_SIZE(values), values);
+	IIO_TEST_FORMAT_EXPECT_EQ(test, buf, ret, "-4294967295\n");
+
+	value = LLONG_MAX;
+	values[0] = lower_32_bits(value);
+	values[1] = upper_32_bits(value);
+	ret = iio_format_value(buf, IIO_VAL_INT_64, ARRAY_SIZE(values), values);
+	IIO_TEST_FORMAT_EXPECT_EQ(test, buf, ret, "9223372036854775807\n");
+
+	value = LLONG_MIN;
+	values[0] = lower_32_bits(value);
+	values[1] = upper_32_bits(value);
+	ret = iio_format_value(buf, IIO_VAL_INT_64, ARRAY_SIZE(values), values);
+	IIO_TEST_FORMAT_EXPECT_EQ(test, buf, ret, "-9223372036854775808\n");
+}
+
 static struct kunit_case iio_format_test_cases[] = {
 		KUNIT_CASE(iio_test_iio_format_value_integer),
 		KUNIT_CASE(iio_test_iio_format_value_fixedpoint),
 		KUNIT_CASE(iio_test_iio_format_value_fractional),
 		KUNIT_CASE(iio_test_iio_format_value_fractional_log2),
 		KUNIT_CASE(iio_test_iio_format_value_multiple),
+		KUNIT_CASE(iio_test_iio_format_value_integer_64),
 		{}
 };
 
