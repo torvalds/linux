@@ -1583,7 +1583,6 @@ static int st_pctl_probe_dt(struct platform_device *pdev,
 	struct device_node *child;
 	int grp_index = 0;
 	int irq = 0;
-	struct resource *res;
 
 	st_pctl_dt_child_count(info, np);
 	if (!info->nbanks) {
@@ -1614,16 +1613,12 @@ static int st_pctl_probe_dt(struct platform_device *pdev,
 	irq = platform_get_irq(pdev, 0);
 
 	if (irq > 0) {
-		res = platform_get_resource_byname(pdev,
-					IORESOURCE_MEM, "irqmux");
-		info->irqmux_base = devm_ioremap_resource(dev, res);
-
+		info->irqmux_base = devm_platform_ioremap_resource_byname(pdev, "irqmux");
 		if (IS_ERR(info->irqmux_base))
 			return PTR_ERR(info->irqmux_base);
 
 		irq_set_chained_handler_and_data(irq, st_gpio_irqmux_handler,
 						 info);
-
 	}
 
 	pctl_desc->npins = info->nbanks * ST_GPIO_PINS_PER_BANK;
