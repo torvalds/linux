@@ -224,12 +224,6 @@ int amdgpu_amdkfd_get_dmabuf_info(struct amdgpu_device *adev, int dma_buf_fd,
 				  size_t buffer_size, uint32_t *metadata_size,
 				  uint32_t *flags);
 uint64_t amdgpu_amdkfd_get_vram_usage(struct amdgpu_device *adev);
-uint64_t amdgpu_amdkfd_get_hive_id(struct amdgpu_device *adev);
-uint64_t amdgpu_amdkfd_get_unique_id(struct amdgpu_device *adev);
-uint64_t amdgpu_amdkfd_get_mmio_remap_phys_addr(struct amdgpu_device *adev);
-uint32_t amdgpu_amdkfd_get_num_gws(struct amdgpu_device *adev);
-uint32_t amdgpu_amdkfd_get_asic_rev_id(struct amdgpu_device *adev);
-int amdgpu_amdkfd_get_noretry(struct amdgpu_device *adev);
 uint8_t amdgpu_amdkfd_get_xgmi_hops_count(struct amdgpu_device *dst,
 					  struct amdgpu_device *src);
 int amdgpu_amdkfd_get_xgmi_bandwidth_mbytes(struct amdgpu_device *dst,

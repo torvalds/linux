@@ -531,7 +531,7 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 		sysfs_show_32bit_prop(buffer, offs, "sdma_fw_version",
 				      dev->gpu->sdma_fw_version);
 		sysfs_show_64bit_prop(buffer, offs, "unique_id",
-				      amdgpu_amdkfd_get_unique_id(dev->gpu->adev));
+				      dev->gpu->adev->unique_id);
 
 	}
 
@@ -1381,8 +1381,7 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	dev->node_props.vendor_id = gpu->pdev->vendor;
 	dev->node_props.device_id = gpu->pdev->device;
 	dev->node_props.capability |=
-		((amdgpu_amdkfd_get_asic_rev_id(dev->gpu->adev) <<
-			HSA_CAP_ASIC_REVISION_SHIFT) &
+		((dev->gpu->adev->rev_id << HSA_CAP_ASIC_REVISION_SHIFT) &
 			HSA_CAP_ASIC_REVISION_MASK);
 	dev->node_props.location_id = pci_dev_id(gpu->pdev);
 	dev->node_props.domain = pci_domain_nr(gpu->pdev->bus);
@@ -1401,7 +1400,7 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 				gpu->device_info->num_sdma_queues_per_engine;
 	dev->node_props.num_gws = (dev->gpu->gws &&
 		dev->gpu->dqm->sched_policy != KFD_SCHED_POLICY_NO_HWS) ?
-		amdgpu_amdkfd_get_num_gws(dev->gpu->adev) : 0;
+		dev->gpu->adev->gds.gws_size : 0;
 	dev->node_props.num_cp_queues = get_cp_queues_num(dev->gpu->dqm);
 
 	kfd_fill_mem_clk_max_info(dev);

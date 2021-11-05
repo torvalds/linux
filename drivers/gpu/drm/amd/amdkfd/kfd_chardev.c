@@ -1313,7 +1313,7 @@ static int kfd_ioctl_alloc_memory_of_gpu(struct file *filep,
 			err = -EINVAL;
 			goto err_unlock;
 		}
-		offset = amdgpu_amdkfd_get_mmio_remap_phys_addr(dev->adev);
+		offset = dev->adev->rmmio_remap.bus_addr;
 		if (!offset) {
 			err = -ENOMEM;
 			goto err_unlock;
@@ -2066,7 +2066,7 @@ static int kfd_mmio_mmap(struct kfd_dev *dev, struct kfd_process *process,
 	if (vma->vm_end - vma->vm_start != PAGE_SIZE)
 		return -EINVAL;
 
-	address = amdgpu_amdkfd_get_mmio_remap_phys_addr(dev->adev);
+	address = dev->adev->rmmio_remap.bus_addr;
 
 	vma->vm_flags |= VM_IO | VM_DONTCOPY | VM_DONTEXPAND | VM_NORESERVE |
 				VM_DONTDUMP | VM_PFNMAP;

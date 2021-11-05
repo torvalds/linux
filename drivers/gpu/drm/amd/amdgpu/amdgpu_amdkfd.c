@@ -521,16 +521,6 @@ uint64_t amdgpu_amdkfd_get_vram_usage(struct amdgpu_device *adev)
 	return amdgpu_vram_mgr_usage(vram_man);
 }
 
-uint64_t amdgpu_amdkfd_get_hive_id(struct amdgpu_device *adev)
-{
-	return adev->gmc.xgmi.hive_id;
-}
-
-uint64_t amdgpu_amdkfd_get_unique_id(struct amdgpu_device *adev)
-{
-	return adev->unique_id;
-}
-
 uint8_t amdgpu_amdkfd_get_xgmi_hops_count(struct amdgpu_device *dst,
 					  struct amdgpu_device *src)
 {
@@ -628,26 +618,6 @@ int amdgpu_amdkfd_get_pcie_bandwidth_mbytes(struct amdgpu_device *adev, bool is_
 	}
 
 	return (num_lanes_factor * gen_speed_mbits_factor)/BITS_PER_BYTE;
-}
-
-uint64_t amdgpu_amdkfd_get_mmio_remap_phys_addr(struct amdgpu_device *adev)
-{
-	return adev->rmmio_remap.bus_addr;
-}
-
-uint32_t amdgpu_amdkfd_get_num_gws(struct amdgpu_device *adev)
-{
-	return adev->gds.gws_size;
-}
-
-uint32_t amdgpu_amdkfd_get_asic_rev_id(struct amdgpu_device *adev)
-{
-	return adev->rev_id;
-}
-
-int amdgpu_amdkfd_get_noretry(struct amdgpu_device *adev)
-{
-	return adev->gmc.noretry;
 }
 
 int amdgpu_amdkfd_submit_ib(struct amdgpu_device *adev,
