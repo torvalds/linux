@@ -1210,7 +1210,12 @@ again:
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	if (ret < 0)
 		goto out;
-	BUG_ON(ret == 0);
+	if (ret == 0) {
+		/* This shouldn't happen, indicates a bug or fs corruption. */
+		ASSERT(ret != 0);
+		ret = -EUCLEAN;
+		goto out;
+	}
 
 	if (trans && likely(trans->type != __TRANS_DUMMY) &&
 	    time_seq != BTRFS_SEQ_LAST) {
