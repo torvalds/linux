@@ -1624,6 +1624,8 @@ static int st_pctl_probe_dt(struct platform_device *pdev,
 	for_each_child_of_node(np, child) {
 		if (of_property_read_bool(child, "gpio-controller")) {
 			const char *bank_name = NULL;
+			char **pin_names;
+
 			ret = st_gpiolib_register_bank(info, bank, child);
 			if (ret) {
 				of_node_put(child);
@@ -1632,10 +1634,16 @@ static int st_pctl_probe_dt(struct platform_device *pdev,
 
 			k = info->banks[bank].range.pin_base;
 			bank_name = info->banks[bank].range.name;
+
+			pin_names = devm_kasprintf_strarray(dev, bank_name, ST_GPIO_PINS_PER_BANK);
+			if (IS_ERR(pin_names)) {
+				of_node_put(child);
+				return PTR_ERR(pin_names);
+			}
+
 			for (j = 0; j < ST_GPIO_PINS_PER_BANK; j++, k++) {
 				pdesc->number = k;
-				pdesc->name = kasprintf(GFP_KERNEL, "%s[%d]",
-							bank_name, j);
+				pdesc->name = pin_names[j];
 				pdesc++;
 			}
 			st_parse_syscfgs(info, bank, child);
