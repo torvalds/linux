@@ -235,7 +235,7 @@ struct prctl_mm_map {
 #define PR_GET_TAGGED_ADDR_CTRL		56
 # define PR_TAGGED_ADDR_ENABLE		(1UL << 0)
 /* MTE tag check fault modes */
-# define PR_MTE_TCF_NONE		0
+# define PR_MTE_TCF_NONE		0UL
 # define PR_MTE_TCF_SYNC		(1UL << 1)
 # define PR_MTE_TCF_ASYNC		(1UL << 2)
 # define PR_MTE_TCF_MASK		(PR_MTE_TCF_SYNC | PR_MTE_TCF_ASYNC)
