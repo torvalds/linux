@@ -1071,6 +1071,12 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 				 "3D will be disabled.\n");
 			dev_priv->has_mob = false;
 		}
+		if (vmw_sys_man_init(dev_priv) != 0) {
+			drm_info(&dev_priv->drm,
+				 "No MOB page table memory available. "
+				 "3D will be disabled.\n");
+			dev_priv->has_mob = false;
+		}
 	}
 
 	if (dev_priv->has_mob && (dev_priv->capabilities & SVGA_CAP_DX)) {
@@ -1121,8 +1127,10 @@ out_no_fifo:
 	vmw_overlay_close(dev_priv);
 	vmw_kms_close(dev_priv);
 out_no_kms:
-	if (dev_priv->has_mob)
+	if (dev_priv->has_mob) {
 		vmw_gmrid_man_fini(dev_priv, VMW_PL_MOB);
+		vmw_sys_man_fini(dev_priv);
+	}
 	if (dev_priv->has_gmr)
 		vmw_gmrid_man_fini(dev_priv, VMW_PL_GMR);
 	vmw_devcaps_destroy(dev_priv);
@@ -1172,8 +1180,10 @@ static void vmw_driver_unload(struct drm_device *dev)
 		vmw_gmrid_man_fini(dev_priv, VMW_PL_GMR);
 
 	vmw_release_device_early(dev_priv);
-	if (dev_priv->has_mob)
+	if (dev_priv->has_mob) {
 		vmw_gmrid_man_fini(dev_priv, VMW_PL_MOB);
+		vmw_sys_man_fini(dev_priv);
+	}
 	vmw_devcaps_destroy(dev_priv);
 	vmw_vram_manager_fini(dev_priv);
 	ttm_device_fini(&dev_priv->bdev);
