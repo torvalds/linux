@@ -33,6 +33,8 @@
 #include <linux/clk.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
+#include <linux/string_helpers.h>
+
 #include <dt-bindings/pinctrl/rockchip.h>
 
 #include "core.h"
@@ -2452,6 +2454,7 @@ static int rockchip_pinctrl_register(struct platform_device *pdev,
 	struct pinctrl_pin_desc *pindesc, *pdesc;
 	struct rockchip_pin_bank *pin_bank;
 	struct device *dev = &pdev->dev;
+	char **pin_names;
 	int pin, bank, ret;
 	int k;
 
@@ -2471,10 +2474,14 @@ static int rockchip_pinctrl_register(struct platform_device *pdev,
 	pdesc = pindesc;
 	for (bank = 0, k = 0; bank < info->ctrl->nr_banks; bank++) {
 		pin_bank = &info->ctrl->pin_banks[bank];
+
+		pin_names = devm_kasprintf_strarray(dev, pin_bank->name, pin_bank->nr_pins);
+		if (IS_ERR(pin_names))
+			return PTR_ERR(pin_names);
+
 		for (pin = 0; pin < pin_bank->nr_pins; pin++, k++) {
 			pdesc->number = k;
-			pdesc->name = kasprintf(GFP_KERNEL, "%s-%d",
-						pin_bank->name, pin);
+			pdesc->name = pin_names[pin];
 			pdesc++;
 		}
 
