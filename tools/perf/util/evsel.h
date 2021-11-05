@@ -22,6 +22,7 @@ struct target;
 struct hashmap;
 struct bperf_leader_bpf;
 struct bperf_follower_bpf;
+struct perf_pmu;
 
 typedef int (evsel__sb_cb_t)(union perf_event *event, void *data);
 
@@ -153,6 +154,9 @@ struct evsel {
 	};
 	unsigned long		open_flags;
 	int			precise_ip_original;
+
+	/* for missing_features */
+	struct perf_pmu		*pmu;
 };
 
 struct perf_missing_features {

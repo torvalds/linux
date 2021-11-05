@@ -49,6 +49,10 @@ struct perf_pmu {
 	struct list_head caps;    /* HEAD struct perf_pmu_caps -> list */
 	struct list_head list;    /* ELEM */
 	struct list_head hybrid_list;
+
+	struct {
+		bool exclude_guest;
+	} missing_features;
 };
 
 extern struct perf_pmu perf_pmu__fake;

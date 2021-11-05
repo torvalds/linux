@@ -1824,7 +1824,7 @@ static void evsel__disable_missing_features(struct evsel *evsel)
 		evsel->open_flags &= ~(unsigned long)PERF_FLAG_FD_CLOEXEC;
 	if (perf_missing_features.mmap2)
 		evsel->core.attr.mmap2 = 0;
-	if (perf_missing_features.exclude_guest)
+	if (evsel->pmu && evsel->pmu->missing_features.exclude_guest)
 		evsel->core.attr.exclude_guest = evsel->core.attr.exclude_host = 0;
 	if (perf_missing_features.lbr_flags)
 		evsel->core.attr.branch_sample_type &= ~(PERF_SAMPLE_BRANCH_NO_FLAGS |
@@ -1917,10 +1917,27 @@ bool evsel__detect_missing_features(struct evsel *evsel)
 		perf_missing_features.mmap2 = true;
 		pr_debug2_peo("switching off mmap2\n");
 		return true;
-	} else if (!perf_missing_features.exclude_guest &&
-		   (evsel->core.attr.exclude_guest || evsel->core.attr.exclude_host)) {
-		perf_missing_features.exclude_guest = true;
-		pr_debug2_peo("switching off exclude_guest, exclude_host\n");
+	} else if ((evsel->core.attr.exclude_guest || evsel->core.attr.exclude_host) &&
+		   (evsel->pmu == NULL || evsel->pmu->missing_features.exclude_guest)) {
+		if (evsel->pmu == NULL) {
+			evsel->pmu = evsel__find_pmu(evsel);
+			if (evsel->pmu)
+				evsel->pmu->missing_features.exclude_guest = true;
+			else {
+				/* we cannot find PMU, disable attrs now */
+				evsel->core.attr.exclude_host = false;
+				evsel->core.attr.exclude_guest = false;
+			}
+		}
+
+		if (evsel->exclude_GH) {
+			pr_debug2_peo("PMU has no exclude_host/guest support, bailing out\n");
+			return false;
+		}
+		if (!perf_missing_features.exclude_guest) {
+			perf_missing_features.exclude_guest = true;
+			pr_debug2_peo("switching off exclude_guest, exclude_host\n");
+		}
 		return true;
 	} else if (!perf_missing_features.sample_id_all) {
 		perf_missing_features.sample_id_all = true;
