@@ -390,7 +390,7 @@ static void show_page_range(unsigned long voffset, unsigned long offset,
 		if (opt_pid)
 			printf("%lx\t", voff);
 		if (opt_file)
-			printf("%lu\t", voff);
+			printf("%lx\t", voff);
 		if (opt_list_cgroup)
 			printf("@%llu\t", (unsigned long long)cgroup0);
 		if (opt_list_mapcnt)
@@ -418,7 +418,7 @@ static void show_page(unsigned long voffset, unsigned long offset,
 	if (opt_pid)
 		printf("%lx\t", voffset);
 	if (opt_file)
-		printf("%lu\t", voffset);
+		printf("%lx\t", voffset);
 	if (opt_list_cgroup)
 		printf("@%llu\t", (unsigned long long)cgroup);
 	if (opt_list_mapcnt)
