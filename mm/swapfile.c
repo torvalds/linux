@@ -3118,7 +3118,7 @@ static bool swap_discardable(struct swap_info_struct *si)
 {
 	struct request_queue *q = bdev_get_queue(si->bdev);
 
-	if (!q || !blk_queue_discard(q))
+	if (!blk_queue_discard(q))
 		return false;
 
 	return true;
