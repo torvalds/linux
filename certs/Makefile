@@ -51,9 +51,6 @@ ifdef SIGN_KEY
 #
 ###############################################################################
 
-redirect_openssl	= 2>&1
-quiet_redirect_openssl	= 2>&1
-silent_redirect_openssl = 2>/dev/null
 openssl_available       = $(shell openssl help 2>/dev/null && echo yes)
 
 # We do it this way rather than having a boolean option for enabling an
@@ -79,13 +76,16 @@ $(if $(findstring rsaEncryption,$(X509TEXT)),,$(shell rm -f "certs/signing_key.p
 endif
 endif # CONFIG_MODULE_SIG_KEY_TYPE_RSA
 
-$(obj)/signing_key.pem: $(obj)/x509.genkey
-	$(Q)openssl req -new -nodes -utf8 -$(CONFIG_MODULE_SIG_HASH) -days 36500 \
+quiet_cmd_gen_key = GENKEY  $@
+      cmd_gen_key = openssl req -new -nodes -utf8 -$(CONFIG_MODULE_SIG_HASH) -days 36500 \
 		-batch -x509 -config $(obj)/x509.genkey \
 		-outform PEM -out $(obj)/signing_key.pem \
 		-keyout $(obj)/signing_key.pem \
 		$(keytype_openssl) \
-		$($(quiet)redirect_openssl)
+		2>&1
+
+$(obj)/signing_key.pem: $(obj)/x509.genkey
+	$(call cmd,gen_key)
 
 quiet_cmd_copy_x509_config = COPY    $@
       cmd_copy_x509_config = cat $(srctree)/$(src)/default_x509.genkey > $@
