@@ -599,18 +599,85 @@ int decode_ntlmssp_challenge(char *bcc_ptr, int blob_len,
 	return 0;
 }
 
+static int size_of_ntlmssp_blob(struct cifs_ses *ses, int base_size)
+{
+	int sz = base_size + ses->auth_key.len
+		- CIFS_SESS_KEY_SIZE + CIFS_CPHTXT_SIZE + 2;
+
+	if (ses->domainName)
+		sz += sizeof(__le16) * strnlen(ses->domainName, CIFS_MAX_DOMAINNAME_LEN);
+	else
+		sz += sizeof(__le16);
+
+	if (ses->user_name)
+		sz += sizeof(__le16) * strnlen(ses->user_name, CIFS_MAX_USERNAME_LEN);
+	else
+		sz += sizeof(__le16);
+
+	sz += sizeof(__le16) * strnlen(ses->workstation_name, CIFS_MAX_WORKSTATION_LEN);
+
+	return sz;
+}
+
+static inline void cifs_security_buffer_from_str(SECURITY_BUFFER *pbuf,
+						 char *str_value,
+						 int str_length,
+						 unsigned char *pstart,
+						 unsigned char **pcur,
+						 const struct nls_table *nls_cp)
+{
+	unsigned char *tmp = pstart;
+	int len;
+
+	if (!pbuf)
+		return;
+
+	if (!pcur)
+		pcur = &tmp;
+
+	if (!str_value) {
+		pbuf->BufferOffset = cpu_to_le32(*pcur - pstart);
+		pbuf->Length = 0;
+		pbuf->MaximumLength = 0;
+		*pcur += sizeof(__le16);
+	} else {
+		len = cifs_strtoUTF16((__le16 *)*pcur,
+				      str_value,
+				      str_length,
+				      nls_cp);
+		len *= sizeof(__le16);
+		pbuf->BufferOffset = cpu_to_le32(*pcur - pstart);
+		pbuf->Length = cpu_to_le16(len);
+		pbuf->MaximumLength = cpu_to_le16(len);
+		*pcur += len;
+	}
+}
+
 /* BB Move to ntlmssp.c eventually */
 
-/* We do not malloc the blob, it is passed in pbuffer, because
-   it is fixed size, and small, making this approach cleaner */
-void build_ntlmssp_negotiate_blob(unsigned char *pbuffer,
-					 struct cifs_ses *ses)
+int build_ntlmssp_negotiate_blob(unsigned char **pbuffer,
+				 u16 *buflen,
+				 struct cifs_ses *ses,
+				 const struct nls_table *nls_cp)
 {
+	int rc = 0;
 	struct TCP_Server_Info *server = cifs_ses_server(ses);
-	NEGOTIATE_MESSAGE *sec_blob = (NEGOTIATE_MESSAGE *)pbuffer;
+	NEGOTIATE_MESSAGE *sec_blob;
 	__u32 flags;
+	unsigned char *tmp;
+	int len;
 
-	memset(pbuffer, 0, sizeof(NEGOTIATE_MESSAGE));
+	len = size_of_ntlmssp_blob(ses, sizeof(NEGOTIATE_MESSAGE));
+	*pbuffer = kmalloc(len, GFP_KERNEL);
+	if (!*pbuffer) {
+		rc = -ENOMEM;
+		cifs_dbg(VFS, "Error %d during NTLMSSP allocation\n", rc);
+		*buflen = 0;
+		goto setup_ntlm_neg_ret;
+	}
+	sec_blob = (NEGOTIATE_MESSAGE *)*pbuffer;
+
+	memset(*pbuffer, 0, sizeof(NEGOTIATE_MESSAGE));
 	memcpy(sec_blob->Signature, NTLMSSP_SIGNATURE, 8);
 	sec_blob->MessageType = NtLmNegotiate;
 
@@ -624,34 +691,25 @@ void build_ntlmssp_negotiate_blob(unsigned char *pbuffer,
 	if (!server->session_estab || ses->ntlmssp->sesskey_per_smbsess)
 		flags |= NTLMSSP_NEGOTIATE_KEY_XCH;
 
+	tmp = *pbuffer + sizeof(NEGOTIATE_MESSAGE);
 	sec_blob->NegotiateFlags = cpu_to_le32(flags);
 
-	sec_blob->WorkstationName.BufferOffset = 0;
-	sec_blob->WorkstationName.Length = 0;
-	sec_blob->WorkstationName.MaximumLength = 0;
+	/* these fields should be null in negotiate phase MS-NLMP 3.1.5.1.1 */
+	cifs_security_buffer_from_str(&sec_blob->DomainName,
+				      NULL,
+				      CIFS_MAX_DOMAINNAME_LEN,
+				      *pbuffer, &tmp,
+				      nls_cp);
 
-	/* Domain name is sent on the Challenge not Negotiate NTLMSSP request */
-	sec_blob->DomainName.BufferOffset = 0;
-	sec_blob->DomainName.Length = 0;
-	sec_blob->DomainName.MaximumLength = 0;
-}
+	cifs_security_buffer_from_str(&sec_blob->WorkstationName,
+				      NULL,
+				      CIFS_MAX_WORKSTATION_LEN,
+				      *pbuffer, &tmp,
+				      nls_cp);
 
-static int size_of_ntlmssp_blob(struct cifs_ses *ses)
-{
-	int sz = sizeof(AUTHENTICATE_MESSAGE) + ses->auth_key.len
-		- CIFS_SESS_KEY_SIZE + CIFS_CPHTXT_SIZE + 2;
-
-	if (ses->domainName)
-		sz += 2 * strnlen(ses->domainName, CIFS_MAX_DOMAINNAME_LEN);
-	else
-		sz += 2;
-
-	if (ses->user_name)
-		sz += 2 * strnlen(ses->user_name, CIFS_MAX_USERNAME_LEN);
-	else
-		sz += 2;
-
-	return sz;
+	*buflen = tmp - *pbuffer;
+setup_ntlm_neg_ret:
+	return rc;
 }
 
 int build_ntlmssp_auth_blob(unsigned char **pbuffer,
@@ -663,6 +721,7 @@ int build_ntlmssp_auth_blob(unsigned char **pbuffer,
 	AUTHENTICATE_MESSAGE *sec_blob;
 	__u32 flags;
 	unsigned char *tmp;
+	int len;
 
 	rc = setup_ntlmv2_rsp(ses, nls_cp);
 	if (rc) {
@@ -670,7 +729,9 @@ int build_ntlmssp_auth_blob(unsigned char **pbuffer,
 		*buflen = 0;
 		goto setup_ntlmv2_ret;
 	}
-	*pbuffer = kmalloc(size_of_ntlmssp_blob(ses), GFP_KERNEL);
+
+	len = size_of_ntlmssp_blob(ses, sizeof(AUTHENTICATE_MESSAGE));
+	*pbuffer = kmalloc(len, GFP_KERNEL);
 	if (!*pbuffer) {
 		rc = -ENOMEM;
 		cifs_dbg(VFS, "Error %d during NTLMSSP allocation\n", rc);
@@ -686,7 +747,7 @@ int build_ntlmssp_auth_blob(unsigned char **pbuffer,
 		NTLMSSP_REQUEST_TARGET | NTLMSSP_NEGOTIATE_TARGET_INFO |
 		NTLMSSP_NEGOTIATE_128 | NTLMSSP_NEGOTIATE_UNICODE |
 		NTLMSSP_NEGOTIATE_NTLM | NTLMSSP_NEGOTIATE_EXTENDED_SEC |
-		NTLMSSP_NEGOTIATE_SEAL;
+		NTLMSSP_NEGOTIATE_SEAL | NTLMSSP_NEGOTIATE_WORKSTATION_SUPPLIED;
 	if (ses->server->sign)
 		flags |= NTLMSSP_NEGOTIATE_SIGN;
 	if (!ses->server->session_estab || ses->ntlmssp->sesskey_per_smbsess)
@@ -719,42 +780,23 @@ int build_ntlmssp_auth_blob(unsigned char **pbuffer,
 		sec_blob->NtChallengeResponse.MaximumLength = 0;
 	}
 
-	if (ses->domainName == NULL) {
-		sec_blob->DomainName.BufferOffset = cpu_to_le32(tmp - *pbuffer);
-		sec_blob->DomainName.Length = 0;
-		sec_blob->DomainName.MaximumLength = 0;
-		tmp += 2;
-	} else {
-		int len;
-		len = cifs_strtoUTF16((__le16 *)tmp, ses->domainName,
-				      CIFS_MAX_DOMAINNAME_LEN, nls_cp);
-		len *= 2; /* unicode is 2 bytes each */
-		sec_blob->DomainName.BufferOffset = cpu_to_le32(tmp - *pbuffer);
-		sec_blob->DomainName.Length = cpu_to_le16(len);
-		sec_blob->DomainName.MaximumLength = cpu_to_le16(len);
-		tmp += len;
-	}
+	cifs_security_buffer_from_str(&sec_blob->DomainName,
+				      ses->domainName,
+				      CIFS_MAX_DOMAINNAME_LEN,
+				      *pbuffer, &tmp,
+				      nls_cp);
 
-	if (ses->user_name == NULL) {
-		sec_blob->UserName.BufferOffset = cpu_to_le32(tmp - *pbuffer);
-		sec_blob->UserName.Length = 0;
-		sec_blob->UserName.MaximumLength = 0;
-		tmp += 2;
-	} else {
-		int len;
-		len = cifs_strtoUTF16((__le16 *)tmp, ses->user_name,
-				      CIFS_MAX_USERNAME_LEN, nls_cp);
-		len *= 2; /* unicode is 2 bytes each */
-		sec_blob->UserName.BufferOffset = cpu_to_le32(tmp - *pbuffer);
-		sec_blob->UserName.Length = cpu_to_le16(len);
-		sec_blob->UserName.MaximumLength = cpu_to_le16(len);
-		tmp += len;
-	}
+	cifs_security_buffer_from_str(&sec_blob->UserName,
+				      ses->user_name,
+				      CIFS_MAX_USERNAME_LEN,
+				      *pbuffer, &tmp,
+				      nls_cp);
 
-	sec_blob->WorkstationName.BufferOffset = cpu_to_le32(tmp - *pbuffer);
-	sec_blob->WorkstationName.Length = 0;
-	sec_blob->WorkstationName.MaximumLength = 0;
-	tmp += 2;
+	cifs_security_buffer_from_str(&sec_blob->WorkstationName,
+				      ses->workstation_name,
+				      CIFS_MAX_WORKSTATION_LEN,
+				      *pbuffer, &tmp,
+				      nls_cp);
 
 	if (((ses->ntlmssp->server_flags & NTLMSSP_NEGOTIATE_KEY_XCH) ||
 		(ses->ntlmssp->server_flags & NTLMSSP_NEGOTIATE_EXTENDED_SEC))
@@ -1230,6 +1272,7 @@ sess_auth_rawntlmssp_negotiate(struct sess_data *sess_data)
 	struct cifs_ses *ses = sess_data->ses;
 	__u16 bytes_remaining;
 	char *bcc_ptr;
+	unsigned char *ntlmsspblob = NULL;
 	u16 blob_len;
 
 	cifs_dbg(FYI, "rawntlmssp session setup negotiate phase\n");
@@ -1253,10 +1296,15 @@ sess_auth_rawntlmssp_negotiate(struct sess_data *sess_data)
 	pSMB = (SESSION_SETUP_ANDX *)sess_data->iov[0].iov_base;
 
 	/* Build security blob before we assemble the request */
-	build_ntlmssp_negotiate_blob(pSMB->req.SecurityBlob, ses);
-	sess_data->iov[1].iov_len = sizeof(NEGOTIATE_MESSAGE);
-	sess_data->iov[1].iov_base = pSMB->req.SecurityBlob;
-	pSMB->req.SecurityBlobLength = cpu_to_le16(sizeof(NEGOTIATE_MESSAGE));
+	rc = build_ntlmssp_negotiate_blob(&ntlmsspblob,
+				     &blob_len, ses,
+				     sess_data->nls_cp);
+	if (rc)
+		goto out;
+
+	sess_data->iov[1].iov_len = blob_len;
+	sess_data->iov[1].iov_base = ntlmsspblob;
+	pSMB->req.SecurityBlobLength = cpu_to_le16(blob_len);
 
 	rc = _sess_auth_rawntlmssp_assemble_req(sess_data);
 	if (rc)

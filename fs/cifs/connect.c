@@ -1948,6 +1948,12 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb3_fs_context *ctx)
 		if (!ses->domainName)
 			goto get_ses_fail;
 	}
+	if (ctx->workstation_name) {
+		ses->workstation_name = kstrdup(ctx->workstation_name,
+						GFP_KERNEL);
+		if (!ses->workstation_name)
+			goto get_ses_fail;
+	}
 	if (ctx->domainauto)
 		ses->domainAuto = ctx->domainauto;
 	ses->cred_uid = ctx->cred_uid;

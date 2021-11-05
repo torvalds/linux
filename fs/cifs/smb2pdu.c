@@ -1456,7 +1456,7 @@ SMB2_sess_auth_rawntlmssp_negotiate(struct SMB2_sess_data *sess_data)
 	int rc;
 	struct cifs_ses *ses = sess_data->ses;
 	struct smb2_sess_setup_rsp *rsp = NULL;
-	char *ntlmssp_blob = NULL;
+	unsigned char *ntlmssp_blob = NULL;
 	bool use_spnego = false; /* else use raw ntlmssp */
 	u16 blob_length = 0;
 
@@ -1475,22 +1475,17 @@ SMB2_sess_auth_rawntlmssp_negotiate(struct SMB2_sess_data *sess_data)
 	if (rc)
 		goto out_err;
 
-	ntlmssp_blob = kmalloc(sizeof(struct _NEGOTIATE_MESSAGE),
-			       GFP_KERNEL);
-	if (ntlmssp_blob == NULL) {
-		rc = -ENOMEM;
-		goto out;
-	}
+	rc = build_ntlmssp_negotiate_blob(&ntlmssp_blob,
+					  &blob_length, ses,
+					  sess_data->nls_cp);
+	if (rc)
+		goto out_err;
 
-	build_ntlmssp_negotiate_blob(ntlmssp_blob, ses);
 	if (use_spnego) {
 		/* BB eventually need to add this */
 		cifs_dbg(VFS, "spnego not supported for SMB2 yet\n");
 		rc = -EOPNOTSUPP;
 		goto out;
-	} else {
-		blob_length = sizeof(struct _NEGOTIATE_MESSAGE);
-		/* with raw NTLMSSP we don't encapsulate in SPNEGO */
 	}
 	sess_data->iov[1].iov_base = ntlmssp_blob;
 	sess_data->iov[1].iov_len = blob_length;
