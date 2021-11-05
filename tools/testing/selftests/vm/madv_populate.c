@@ -14,11 +14,10 @@
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <linux/mman.h>
 #include <sys/mman.h>
 
 #include "../kselftest.h"
-
-#if defined(MADV_POPULATE_READ) && defined(MADV_POPULATE_WRITE)
 
 /*
  * For now, we're using 2 MiB of private anonymous memory for all tests.
@@ -328,15 +327,3 @@ int main(int argc, char **argv)
 				   err, ksft_test_num());
 	return ksft_exit_pass();
 }
-
-#else /* defined(MADV_POPULATE_READ) && defined(MADV_POPULATE_WRITE) */
-
-#warning "missing MADV_POPULATE_READ or MADV_POPULATE_WRITE definition"
-
-int main(int argc, char **argv)
-{
-	ksft_print_header();
-	ksft_exit_skip("MADV_POPULATE_READ or MADV_POPULATE_WRITE not defined\n");
-}
-
-#endif /* defined(MADV_POPULATE_READ) && defined(MADV_POPULATE_WRITE) */
