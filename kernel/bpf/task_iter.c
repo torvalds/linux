@@ -8,6 +8,7 @@
 #include <linux/fdtable.h>
 #include <linux/filter.h>
 #include <linux/btf_ids.h>
+#include "mmap_unlock_work.h"
 
 struct bpf_iter_seq_task_common {
 	struct pid_namespace *ns;
@@ -524,10 +525,6 @@ static const struct seq_operations task_vma_seq_ops = {
 	.show	= task_vma_seq_show,
 };
 
-BTF_ID_LIST(btf_task_file_ids)
-BTF_ID(struct, file)
-BTF_ID(struct, vm_area_struct)
-
 static const struct bpf_iter_seq_info task_seq_info = {
 	.seq_ops		= &task_seq_ops,
 	.init_seq_private	= init_seq_pidns,
@@ -586,9 +583,74 @@ static struct bpf_iter_reg task_vma_reg_info = {
 	.seq_info		= &task_vma_seq_info,
 };
 
+BPF_CALL_5(bpf_find_vma, struct task_struct *, task, u64, start,
+	   bpf_callback_t, callback_fn, void *, callback_ctx, u64, flags)
+{
+	struct mmap_unlock_irq_work *work = NULL;
+	struct vm_area_struct *vma;
+	bool irq_work_busy = false;
+	struct mm_struct *mm;
+	int ret = -ENOENT;
+
+	if (flags)
+		return -EINVAL;
+
+	if (!task)
+		return -ENOENT;
+
+	mm = task->mm;
+	if (!mm)
+		return -ENOENT;
+
+	irq_work_busy = bpf_mmap_unlock_get_irq_work(&work);
+
+	if (irq_work_busy || !mmap_read_trylock(mm))
+		return -EBUSY;
+
+	vma = find_vma(mm, start);
+
+	if (vma && vma->vm_start <= start && vma->vm_end > start) {
+		callback_fn((u64)(long)task, (u64)(long)vma,
+			    (u64)(long)callback_ctx, 0, 0);
+		ret = 0;
+	}
+	bpf_mmap_unlock_mm(work, mm);
+	return ret;
+}
+
+const struct bpf_func_proto bpf_find_vma_proto = {
+	.func		= bpf_find_vma,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_BTF_ID,
+	.arg1_btf_id	= &btf_task_struct_ids[0],
+	.arg2_type	= ARG_ANYTHING,
+	.arg3_type	= ARG_PTR_TO_FUNC,
+	.arg4_type	= ARG_PTR_TO_STACK_OR_NULL,
+	.arg5_type	= ARG_ANYTHING,
+};
+
+DEFINE_PER_CPU(struct mmap_unlock_irq_work, mmap_unlock_work);
+
+static void do_mmap_read_unlock(struct irq_work *entry)
+{
+	struct mmap_unlock_irq_work *work;
+
+	if (WARN_ON_ONCE(IS_ENABLED(CONFIG_PREEMPT_RT)))
+		return;
+
+	work = container_of(entry, struct mmap_unlock_irq_work, irq_work);
+	mmap_read_unlock_non_owner(work->mm);
+}
+
 static int __init task_iter_init(void)
 {
-	int ret;
+	struct mmap_unlock_irq_work *work;
+	int ret, cpu;
+
+	for_each_possible_cpu(cpu) {
+		work = per_cpu_ptr(&mmap_unlock_work, cpu);
+		init_irq_work(&work->irq_work, do_mmap_read_unlock);
+	}
 
 	task_reg_info.ctx_arg_info[0].btf_id = btf_task_struct_ids[0];
 	ret = bpf_iter_reg_target(&task_reg_info);
@@ -596,13 +658,13 @@ static int __init task_iter_init(void)
 		return ret;
 
 	task_file_reg_info.ctx_arg_info[0].btf_id = btf_task_struct_ids[0];
-	task_file_reg_info.ctx_arg_info[1].btf_id = btf_task_file_ids[0];
+	task_file_reg_info.ctx_arg_info[1].btf_id = btf_task_struct_ids[1];
 	ret =  bpf_iter_reg_target(&task_file_reg_info);
 	if (ret)
 		return ret;
 
 	task_vma_reg_info.ctx_arg_info[0].btf_id = btf_task_struct_ids[0];
-	task_vma_reg_info.ctx_arg_info[1].btf_id = btf_task_file_ids[1];
+	task_vma_reg_info.ctx_arg_info[1].btf_id = btf_task_struct_ids[2];
 	return bpf_iter_reg_target(&task_vma_reg_info);
 }
 late_initcall(task_iter_init);
