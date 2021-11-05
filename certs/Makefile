@@ -51,41 +51,23 @@ ifdef SIGN_KEY
 #
 ###############################################################################
 
-openssl_available       = $(shell openssl help 2>/dev/null && echo yes)
-
 # We do it this way rather than having a boolean option for enabling an
 # external private key, because 'make randconfig' might enable such a
 # boolean option and we unfortunately can't make it depend on !RANDCONFIG.
 ifeq ($(CONFIG_MODULE_SIG_KEY),"certs/signing_key.pem")
 
-ifeq ($(openssl_available),yes)
-X509TEXT=$(shell openssl x509 -in "certs/signing_key.pem" -text 2>/dev/null)
-endif
-
-# Support user changing key type
-ifdef CONFIG_MODULE_SIG_KEY_TYPE_ECDSA
-keytype_openssl = -newkey ec -pkeyopt ec_paramgen_curve:secp384r1
-ifeq ($(openssl_available),yes)
-$(if $(findstring id-ecPublicKey,$(X509TEXT)),,$(shell rm -f "certs/signing_key.pem"))
-endif
-endif # CONFIG_MODULE_SIG_KEY_TYPE_ECDSA
-
-ifdef CONFIG_MODULE_SIG_KEY_TYPE_RSA
-ifeq ($(openssl_available),yes)
-$(if $(findstring rsaEncryption,$(X509TEXT)),,$(shell rm -f "certs/signing_key.pem"))
-endif
-endif # CONFIG_MODULE_SIG_KEY_TYPE_RSA
+keytype-$(CONFIG_MODULE_SIG_KEY_TYPE_ECDSA) := -newkey ec -pkeyopt ec_paramgen_curve:secp384r1
 
 quiet_cmd_gen_key = GENKEY  $@
       cmd_gen_key = openssl req -new -nodes -utf8 -$(CONFIG_MODULE_SIG_HASH) -days 36500 \
 		-batch -x509 -config $(obj)/x509.genkey \
 		-outform PEM -out $(obj)/signing_key.pem \
-		-keyout $(obj)/signing_key.pem \
-		$(keytype_openssl) \
-		2>&1
+		-keyout $(obj)/signing_key.pem $(keytype-y) 2>&1
 
-$(obj)/signing_key.pem: $(obj)/x509.genkey
-	$(call cmd,gen_key)
+$(obj)/signing_key.pem: $(obj)/x509.genkey FORCE
+	$(call if_changed,gen_key)
+
+targets += signing_key.pem
 
 quiet_cmd_copy_x509_config = COPY    $@
       cmd_copy_x509_config = cat $(srctree)/$(src)/default_x509.genkey > $@
