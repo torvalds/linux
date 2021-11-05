@@ -2688,12 +2688,85 @@ static void io_mem_free(void *ptr)
 		free_compound_page(page);
 }
 
+static void io_pages_free(struct page ***pages, int npages)
+{
+	struct page **page_array;
+	int i;
+
+	if (!pages)
+		return;
+	page_array = *pages;
+	for (i = 0; i < npages; i++)
+		unpin_user_page(page_array[i]);
+	kvfree(page_array);
+	*pages = NULL;
+}
+
+static void *__io_uaddr_map(struct page ***pages, unsigned short *npages,
+			    unsigned long uaddr, size_t size)
+{
+	struct page **page_array;
+	unsigned int nr_pages;
+	int ret;
+
+	*npages = 0;
+
+	if (uaddr & (PAGE_SIZE - 1) || !size)
+		return ERR_PTR(-EINVAL);
+
+	nr_pages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	if (nr_pages > USHRT_MAX)
+		return ERR_PTR(-EINVAL);
+	page_array = kvmalloc_array(nr_pages, sizeof(struct page *), GFP_KERNEL);
+	if (!page_array)
+		return ERR_PTR(-ENOMEM);
+
+	ret = pin_user_pages_fast(uaddr, nr_pages, FOLL_WRITE | FOLL_LONGTERM,
+					page_array);
+	if (ret != nr_pages) {
+err:
+		io_pages_free(&page_array, ret > 0 ? ret : 0);
+		return ret < 0 ? ERR_PTR(ret) : ERR_PTR(-EFAULT);
+	}
+	/*
+	 * Should be a single page. If the ring is small enough that we can
+	 * use a normal page, that is fine. If we need multiple pages, then
+	 * userspace should use a huge page. That's the only way to guarantee
+	 * that we get contigious memory, outside of just being lucky or
+	 * (currently) having low memory fragmentation.
+	 */
+	if (page_array[0] != page_array[ret - 1])
+		goto err;
+	*pages = page_array;
+	*npages = nr_pages;
+	return page_to_virt(page_array[0]);
+}
+
+static void *io_rings_map(struct io_ring_ctx *ctx, unsigned long uaddr,
+			  size_t size)
+{
+	return __io_uaddr_map(&ctx->ring_pages, &ctx->n_ring_pages, uaddr,
+				size);
+}
+
+static void *io_sqes_map(struct io_ring_ctx *ctx, unsigned long uaddr,
+			 size_t size)
+{
+	return __io_uaddr_map(&ctx->sqe_pages, &ctx->n_sqe_pages, uaddr,
+				size);
+}
+
 static void io_rings_free(struct io_ring_ctx *ctx)
 {
-	io_mem_free(ctx->rings);
-	io_mem_free(ctx->sq_sqes);
-	ctx->rings = NULL;
-	ctx->sq_sqes = NULL;
+	if (!(ctx->flags & IORING_SETUP_NO_MMAP)) {
+		io_mem_free(ctx->rings);
+		io_mem_free(ctx->sq_sqes);
+		ctx->rings = NULL;
+		ctx->sq_sqes = NULL;
+	} else {
+		io_pages_free(&ctx->ring_pages, ctx->n_ring_pages);
+		io_pages_free(&ctx->sqe_pages, ctx->n_sqe_pages);
+	}
 }
 
 static void *io_mem_alloc(size_t size)
@@ -3338,6 +3411,10 @@ static void *io_uring_validate_mmap_request(struct file *file,
 	struct page *page;
 	void *ptr;
 
+	/* Don't allow mmap if the ring was setup without it */
+	if (ctx->flags & IORING_SETUP_NO_MMAP)
+		return ERR_PTR(-EINVAL);
+
 	switch (offset & IORING_OFF_MMAP_MASK) {
 	case IORING_OFF_SQ_RING:
 	case IORING_OFF_CQ_RING:
@@ -3673,7 +3750,11 @@ static __cold int io_allocate_scq_urings(struct io_ring_ctx *ctx,
 	if (size == SIZE_MAX)
 		return -EOVERFLOW;
 
-	rings = io_mem_alloc(size);
+	if (!(ctx->flags & IORING_SETUP_NO_MMAP))
+		rings = io_mem_alloc(size);
+	else
+		rings = io_rings_map(ctx, p->cq_off.user_addr, size);
+
 	if (IS_ERR(rings))
 		return PTR_ERR(rings);
 
@@ -3693,7 +3774,11 @@ static __cold int io_allocate_scq_urings(struct io_ring_ctx *ctx,
 		return -EOVERFLOW;
 	}
 
-	ptr = io_mem_alloc(size);
+	if (!(ctx->flags & IORING_SETUP_NO_MMAP))
+		ptr = io_mem_alloc(size);
+	else
+		ptr = io_sqes_map(ctx, p->sq_off.user_addr, size);
+
 	if (IS_ERR(ptr)) {
 		io_rings_free(ctx);
 		return PTR_ERR(ptr);
@@ -3885,7 +3970,8 @@ static __cold int io_uring_create(unsigned entries, struct io_uring_params *p,
 	p->sq_off.dropped = offsetof(struct io_rings, sq_dropped);
 	p->sq_off.array = (char *)ctx->sq_array - (char *)ctx->rings;
 	p->sq_off.resv1 = 0;
-	p->sq_off.resv2 = 0;
+	if (!(ctx->flags & IORING_SETUP_NO_MMAP))
+		p->sq_off.user_addr = 0;
 
 	p->cq_off.head = offsetof(struct io_rings, cq.head);
 	p->cq_off.tail = offsetof(struct io_rings, cq.tail);
@@ -3895,7 +3981,8 @@ static __cold int io_uring_create(unsigned entries, struct io_uring_params *p,
 	p->cq_off.cqes = offsetof(struct io_rings, cqes);
 	p->cq_off.flags = offsetof(struct io_rings, cq_flags);
 	p->cq_off.resv1 = 0;
-	p->cq_off.resv2 = 0;
+	if (!(ctx->flags & IORING_SETUP_NO_MMAP))
+		p->cq_off.user_addr = 0;
 
 	p->features = IORING_FEAT_SINGLE_MMAP | IORING_FEAT_NODROP |
 			IORING_FEAT_SUBMIT_STABLE | IORING_FEAT_RW_CUR_POS |
@@ -3961,7 +4048,8 @@ static long io_uring_setup(u32 entries, struct io_uring_params __user *params)
 			IORING_SETUP_R_DISABLED | IORING_SETUP_SUBMIT_ALL |
 			IORING_SETUP_COOP_TASKRUN | IORING_SETUP_TASKRUN_FLAG |
 			IORING_SETUP_SQE128 | IORING_SETUP_CQE32 |
-			IORING_SETUP_SINGLE_ISSUER | IORING_SETUP_DEFER_TASKRUN))
+			IORING_SETUP_SINGLE_ISSUER | IORING_SETUP_DEFER_TASKRUN |
+			IORING_SETUP_NO_MMAP))
 		return -EINVAL;
 
 	return io_uring_create(entries, &p, params);
