@@ -1807,6 +1807,7 @@ static bool try_to_migrate_one(struct page *page, struct vm_area_struct *vma,
 		update_hiwater_rss(mm);
 
 		if (is_zone_device_page(page)) {
+			unsigned long pfn = page_to_pfn(page);
 			swp_entry_t entry;
 			pte_t swp_pte;
 
@@ -1815,8 +1816,11 @@ static bool try_to_migrate_one(struct page *page, struct vm_area_struct *vma,
 			 * pte. do_swap_page() will wait until the migration
 			 * pte is removed and then restart fault handling.
 			 */
-			entry = make_readable_migration_entry(
-							page_to_pfn(page));
+			entry = pte_to_swp_entry(pteval);
+			if (is_writable_device_private_entry(entry))
+				entry = make_writable_migration_entry(pfn);
+			else
+				entry = make_readable_migration_entry(pfn);
 			swp_pte = swp_entry_to_pte(entry);
 
 			/*
