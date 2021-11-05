@@ -653,7 +653,7 @@ static int kdamond_fn(void *data)
 	unsigned long sz_limit = 0;
 
 	mutex_lock(&ctx->kdamond_lock);
-	pr_info("kdamond (%d) starts\n", ctx->kdamond->pid);
+	pr_debug("kdamond (%d) starts\n", ctx->kdamond->pid);
 	mutex_unlock(&ctx->kdamond_lock);
 
 	if (ctx->primitive.init)
