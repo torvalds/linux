@@ -71,8 +71,8 @@ int ia_css_raw_config(struct sh_css_isp_raw_isp_config *to,
 	unsigned int elems_a = ISP_VEC_NELEMS;
 	const struct ia_css_frame_info *in_info = from->in_info;
 	const struct ia_css_frame_info *internal_info = from->internal_info;
+	int ret;
 
-	(void)size;
 #if !defined(ISP2401)
 	/* 2401 input system uses input width width */
 	in_info = internal_info;
@@ -84,7 +84,9 @@ int ia_css_raw_config(struct sh_css_isp_raw_isp_config *to,
 		in_info = internal_info;
 
 #endif
-	ia_css_dma_configure_from_info(&to->port_b, in_info);
+	ret = ia_css_dma_configure_from_info(&to->port_b, in_info);
+	if (ret)
+		return ret;
 
 	/* Assume divisiblity here, may need to generalize to fixed point. */
 	assert((in_info->format == IA_CSS_FRAME_FORMAT_RAW_PACKED) ||

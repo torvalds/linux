@@ -36,6 +36,7 @@ int ia_css_yuv444_io_config(const struct ia_css_binary      *binary,
 						ddr_bits_per_element);
 	unsigned int size_get = 0, size_put = 0;
 	unsigned int offset = 0;
+	int ret;
 
 	if (binary->info->mem_offsets.offsets.param) {
 		size_get = binary->info->mem_offsets.offsets.param->dmem.get.size;
@@ -51,7 +52,10 @@ int ia_css_yuv444_io_config(const struct ia_css_binary      *binary,
 				    "ia_css_yuv444_io_config() get part enter:\n");
 #endif
 
-		ia_css_dma_configure_from_info(&config, in_frame_info);
+		ret = ia_css_dma_configure_from_info(&config, in_frame_info);
+		if (ret)
+			return ret;
+
 		// The base_address of the input frame will be set in the ISP
 		to->width = in_frame_info->res.width;
 		to->height = in_frame_info->res.height;
@@ -77,7 +81,10 @@ int ia_css_yuv444_io_config(const struct ia_css_binary      *binary,
 				    "ia_css_yuv444_io_config() put part enter:\n");
 #endif
 
-		ia_css_dma_configure_from_info(&config, &out_frames[0]->info);
+		ret = ia_css_dma_configure_from_info(&config, &out_frames[0]->info);
+		if (ret)
+			return ret;
+
 		to->base_address = out_frames[0]->data;
 		to->width = out_frames[0]->info.res.width;
 		to->height = out_frames[0]->info.res.height;

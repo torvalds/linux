@@ -77,9 +77,11 @@ int ia_css_tnr_config(struct sh_css_isp_tnr_isp_config *to,
 {
 	unsigned int elems_a = ISP_VEC_NELEMS;
 	unsigned int i;
+	int ret;
 
-	(void)size;
-	ia_css_dma_configure_from_info(&to->port_b, &from->tnr_frames[0]->info);
+	ret = ia_css_dma_configure_from_info(&to->port_b, &from->tnr_frames[0]->info);
+	if (ret)
+		return ret;
 	to->width_a_over_b = elems_a / to->port_b.elems;
 	to->frame_height = from->tnr_frames[0]->info.res.height;
 	for (i = 0; i < NUM_TNR_FRAMES; i++) {
@@ -88,7 +90,9 @@ int ia_css_tnr_config(struct sh_css_isp_tnr_isp_config *to,
 	}
 
 	/* Assume divisiblity here, may need to generalize to fixed point. */
-	assert(elems_a % to->port_b.elems == 0);
+	if (elems_a % to->port_b.elems != 0)
+		return -EINVAL;
+
 	return 0;
 }
 

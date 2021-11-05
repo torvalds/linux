@@ -27,9 +27,12 @@ int ia_css_ref_config(struct sh_css_isp_ref_isp_config *to,
 		      unsigned int size)
 {
 	unsigned int elems_a = ISP_VEC_NELEMS, i;
+	int ret;
 
 	if (from->ref_frames[0]) {
-		ia_css_dma_configure_from_info(&to->port_b, &from->ref_frames[0]->info);
+		ret = ia_css_dma_configure_from_info(&to->port_b, &from->ref_frames[0]->info);
+		if (ret)
+			return ret;
 		to->width_a_over_b = elems_a / to->port_b.elems;
 		to->dvs_frame_delay = from->dvs_frame_delay;
 	} else {
@@ -50,7 +53,9 @@ int ia_css_ref_config(struct sh_css_isp_ref_isp_config *to,
 	}
 
 	/* Assume divisiblity here, may need to generalize to fixed point. */
-	assert(elems_a % to->port_b.elems == 0);
+	if (elems_a % to->port_b.elems != 0)
+		return -EINVAL;
+
 	return 0;
 }
 

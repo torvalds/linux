@@ -57,16 +57,21 @@ int ia_css_output_config(struct sh_css_isp_output_isp_config *to,
 			 unsigned int size)
 {
 	unsigned int elems_a = ISP_VEC_NELEMS;
+	int ret;
 
-	(void)size;
-	ia_css_dma_configure_from_info(&to->port_b, from->info);
+	ret = ia_css_dma_configure_from_info(&to->port_b, from->info);
+	if (ret)
+		return ret;
+
 	to->width_a_over_b = elems_a / to->port_b.elems;
 	to->height = from->info ? from->info->res.height : 0;
 	to->enable = from->info != NULL;
 	ia_css_frame_info_to_frame_sp_info(&to->info, from->info);
 
 	/* Assume divisiblity here, may need to generalize to fixed point. */
-	assert(elems_a % to->port_b.elems == 0);
+	if (elems_a % to->port_b.elems != 0)
+		return -EINVAL;
+
 	return 0;
 }
 

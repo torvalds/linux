@@ -608,7 +608,12 @@ int ia_css_dma_configure_from_info(struct dma_port_config *config,
 	config->elems  = (uint8_t)elems_b;
 	config->width  = (uint16_t)info->res.width;
 	config->crop   = 0;
-	assert(config->width <= info->padded_width);
+
+	if (config->width > info->padded_width) {
+		dev_err(atomisp_dev, "internal error: padded_width is too small!\n");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
