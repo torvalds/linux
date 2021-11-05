@@ -35,6 +35,10 @@ struct mctp_protocol_hdr {
 
 #define PCIE_MCTP_MIN_PACKET_SIZE (PCIE_VDM_HDR_SIZE + 4)
 
+struct mctp_pcie_packet_data_2500 {
+	u32 data[32];
+};
+
 struct mctp_pcie_packet_data {
 	u32 hdr[PCIE_VDM_HDR_SIZE_DW];
 	u32 payload[PCIE_VDM_DATA_SIZE_DW];
