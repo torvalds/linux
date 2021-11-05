@@ -574,6 +574,8 @@ struct dc_debug_options {
 	bool native422_support;
 	bool disable_dsc;
 	enum visual_confirm visual_confirm;
+	int visual_confirm_rect_height;
+
 	bool sanity_checks;
 	bool max_disp_clk;
 	bool surface_trace;
