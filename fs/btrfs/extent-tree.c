@@ -2947,6 +2947,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 	bool skinny_metadata = btrfs_fs_incompat(info, SKINNY_METADATA);
 
 	extent_root = btrfs_extent_root(info, bytenr);
+	ASSERT(extent_root);
 
 	path = btrfs_alloc_path();
 	if (!path)

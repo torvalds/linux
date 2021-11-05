@@ -19,7 +19,13 @@ static int __add_block_group_free_space(struct btrfs_trans_handle *trans,
 static struct btrfs_root *btrfs_free_space_root(
 				struct btrfs_block_group *block_group)
 {
-	return block_group->fs_info->_free_space_root;
+	struct btrfs_key key = {
+		.objectid = BTRFS_FREE_SPACE_TREE_OBJECTID,
+		.type = BTRFS_ROOT_ITEM_KEY,
+		.offset = 0,
+	};
+
+	return btrfs_global_root(block_group->fs_info, &key);
 }
 
 void set_free_space_tree_thresholds(struct btrfs_block_group *cache)
@@ -1164,7 +1170,11 @@ int btrfs_create_free_space_tree(struct btrfs_fs_info *fs_info)
 		ret = PTR_ERR(free_space_root);
 		goto abort;
 	}
-	fs_info->_free_space_root = free_space_root;
+	ret = btrfs_global_root_insert(free_space_root);
+	if (ret) {
+		btrfs_put_root(free_space_root);
+		goto abort;
+	}
 
 	node = rb_first(&fs_info->block_group_cache_tree);
 	while (node) {
@@ -1239,7 +1249,12 @@ int btrfs_clear_free_space_tree(struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *tree_root = fs_info->tree_root;
-	struct btrfs_root *free_space_root = fs_info->_free_space_root;
+	struct btrfs_key key = {
+		.objectid = BTRFS_FREE_SPACE_TREE_OBJECTID,
+		.type = BTRFS_ROOT_ITEM_KEY,
+		.offset = 0,
+	};
+	struct btrfs_root *free_space_root = btrfs_global_root(fs_info, &key);
 	int ret;
 
 	trans = btrfs_start_transaction(tree_root, 0);
@@ -1248,7 +1263,6 @@ int btrfs_clear_free_space_tree(struct btrfs_fs_info *fs_info)
 
 	btrfs_clear_fs_compat_ro(fs_info, FREE_SPACE_TREE);
 	btrfs_clear_fs_compat_ro(fs_info, FREE_SPACE_TREE_VALID);
-	fs_info->_free_space_root = NULL;
 
 	ret = clear_free_space_tree(trans, free_space_root);
 	if (ret)
@@ -1258,6 +1272,7 @@ int btrfs_clear_free_space_tree(struct btrfs_fs_info *fs_info)
 	if (ret)
 		goto abort;
 
+	btrfs_global_root_delete(free_space_root);
 	list_del(&free_space_root->dirty_list);
 
 	btrfs_tree_lock(free_space_root->node);

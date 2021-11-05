@@ -623,19 +623,20 @@ enum btrfs_exclusive_operation {
 struct btrfs_fs_info {
 	u8 chunk_tree_uuid[BTRFS_UUID_SIZE];
 	unsigned long flags;
-	struct btrfs_root *_extent_root;
 	struct btrfs_root *tree_root;
 	struct btrfs_root *chunk_root;
 	struct btrfs_root *dev_root;
 	struct btrfs_root *fs_root;
-	struct btrfs_root *_csum_root;
 	struct btrfs_root *quota_root;
 	struct btrfs_root *uuid_root;
-	struct btrfs_root *_free_space_root;
 	struct btrfs_root *data_reloc_root;
 
 	/* the log root tree is a directory of all the other log roots */
 	struct btrfs_root *log_root_tree;
+
+	/* The tree that holds the global roots (csum, extent, etc) */
+	rwlock_t global_root_lock;
+	struct rb_root global_root_tree;
 
 	spinlock_t fs_roots_radix_lock;
 	struct radix_tree_root fs_roots_radix;
@@ -1129,6 +1130,8 @@ struct btrfs_qgroup_swapped_blocks {
  * and for the extent tree extent_root root.
  */
 struct btrfs_root {
+	struct rb_node rb_node;
+
 	struct extent_buffer *node;
 
 	struct extent_buffer *commit_root;
