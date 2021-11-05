@@ -393,7 +393,7 @@ err:
  */
 int bch2_fpunch_at(struct btree_trans *trans, struct btree_iter *iter,
 		   subvol_inum inum, u64 end,
-		   u64 *journal_seq, s64 *i_sectors_delta)
+		   s64 *i_sectors_delta)
 {
 	struct bch_fs *c	= trans->c;
 	unsigned max_sectors	= KEY_SIZE_MAX & (~0 << c->block_bits);
@@ -431,7 +431,7 @@ int bch2_fpunch_at(struct btree_trans *trans, struct btree_iter *iter,
 		bch2_cut_back(end_pos, &delete);
 
 		ret = bch2_extent_update(trans, inum, iter, &delete,
-				&disk_res, journal_seq,
+				&disk_res, NULL,
 				0, i_sectors_delta, false);
 		bch2_disk_reservation_put(c, &disk_res);
 btree_err:
@@ -450,7 +450,7 @@ btree_err:
 }
 
 int bch2_fpunch(struct bch_fs *c, subvol_inum inum, u64 start, u64 end,
-		u64 *journal_seq, s64 *i_sectors_delta)
+		s64 *i_sectors_delta)
 {
 	struct btree_trans trans;
 	struct btree_iter iter;
@@ -461,8 +461,7 @@ int bch2_fpunch(struct bch_fs *c, subvol_inum inum, u64 start, u64 end,
 			     POS(inum.inum, start),
 			     BTREE_ITER_INTENT);
 
-	ret = bch2_fpunch_at(&trans, &iter, inum, end,
-			     journal_seq, i_sectors_delta);
+	ret = bch2_fpunch_at(&trans, &iter, inum, end, i_sectors_delta);
 
 	bch2_trans_iter_exit(&trans, &iter);
 	bch2_trans_exit(&trans);

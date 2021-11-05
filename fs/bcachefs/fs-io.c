@@ -1096,7 +1096,6 @@ static void bch2_writepage_io_alloc(struct bch_fs *c,
 	op			= &w->io->op;
 	bch2_write_op_init(op, c, w->opts);
 	op->target		= w->opts.foreground_target;
-	op_journal_seq_set(op, &inode->ei_journal_seq);
 	op->nr_replicas		= nr_replicas;
 	op->res.nr_replicas	= nr_replicas;
 	op->write_point		= writepoint_hashed(inode->ei_last_dirtied);
@@ -1947,7 +1946,6 @@ static long bch2_dio_write_loop(struct dio_write *dio)
 		bch2_write_op_init(&dio->op, c, io_opts(c, &inode->ei_inode));
 		dio->op.end_io		= bch2_dio_write_loop_async;
 		dio->op.target		= dio->op.opts.foreground_target;
-		op_journal_seq_set(&dio->op, &inode->ei_journal_seq);
 		dio->op.write_point	= writepoint_hashed((unsigned long) current);
 		dio->op.nr_replicas	= dio->op.opts.data_replicas;
 		dio->op.subvol		= inode->ei_subvol;
@@ -2164,29 +2162,36 @@ unlock:
 
 /* fsync: */
 
+/*
+ * inode->ei_inode.bi_journal_seq won't be up to date since it's set in an
+ * insert trigger: look up the btree inode instead
+ */
+static int bch2_flush_inode(struct bch_fs *c, subvol_inum inum)
+{
+	struct bch_inode_unpacked inode;
+	int ret;
+
+	if (c->opts.journal_flush_disabled)
+		return 0;
+
+	ret = bch2_inode_find_by_inum(c, inum, &inode);
+	if (ret)
+		return ret;
+
+	return bch2_journal_flush_seq(&c->journal, inode.bi_journal_seq);
+}
+
 int bch2_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	struct bch_inode_info *inode = file_bch_inode(file);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-	int ret, ret2;
+	int ret, ret2, ret3;
 
 	ret = file_write_and_wait_range(file, start, end);
-	if (ret)
-		return ret;
+	ret2 = sync_inode_metadata(&inode->v, 1);
+	ret3 = bch2_flush_inode(c, inode_inum(inode));
 
-	if (datasync && !(inode->v.i_state & I_DIRTY_DATASYNC))
-		goto out;
-
-	ret = sync_inode_metadata(&inode->v, 1);
-	if (ret)
-		return ret;
-out:
-	if (!c->opts.journal_flush_disabled)
-		ret = bch2_journal_flush_seq(&c->journal,
-					     inode->ei_journal_seq);
-	ret2 = file_check_and_advance_wb_err(file);
-
-	return ret ?: ret2;
+	return ret ?: ret2 ?: ret3;
 }
 
 /* truncate: */
@@ -2448,7 +2453,7 @@ int bch2_truncate(struct mnt_idmap *idmap,
 
 	ret = bch2_fpunch(c, inode_inum(inode),
 			round_up(iattr->ia_size, block_bytes(c)) >> 9,
-			U64_MAX, &inode->ei_journal_seq, &i_sectors_delta);
+			U64_MAX, &i_sectors_delta);
 	i_sectors_acct(c, inode, NULL, i_sectors_delta);
 
 	if (unlikely(ret))
@@ -2508,7 +2513,6 @@ static long bchfs_fpunch(struct bch_inode_info *inode, loff_t offset, loff_t len
 
 		ret = bch2_fpunch(c, inode_inum(inode),
 				  discard_start, discard_end,
-				  &inode->ei_journal_seq,
 				  &i_sectors_delta);
 		i_sectors_acct(c, inode, NULL, i_sectors_delta);
 	}
@@ -2587,7 +2591,6 @@ static long bchfs_fcollapse_finsert(struct bch_inode_info *inode,
 
 		ret = bch2_fpunch(c, inode_inum(inode),
 				  offset >> 9, (offset + len) >> 9,
-				  &inode->ei_journal_seq,
 				  &i_sectors_delta);
 		i_sectors_acct(c, inode, NULL, i_sectors_delta);
 
@@ -2691,8 +2694,7 @@ reassemble:
 		ret =   bch2_btree_iter_traverse(&del) ?:
 			bch2_trans_update(&trans, &del, &delete, trigger_flags) ?:
 			bch2_trans_update(&trans, &dst, copy.k, trigger_flags) ?:
-			bch2_trans_commit(&trans, &disk_res,
-					  &inode->ei_journal_seq,
+			bch2_trans_commit(&trans, &disk_res, NULL,
 					  BTREE_INSERT_NOFAIL);
 		bch2_disk_reservation_put(c, &disk_res);
 
@@ -2803,7 +2805,7 @@ static int __bchfs_fallocate(struct bch_inode_info *inode, int mode,
 
 		ret = bch2_extent_update(&trans, inode_inum(inode), &iter,
 					 &reservation.k_i,
-				&disk_res, &inode->ei_journal_seq,
+				&disk_res, NULL,
 				0, &i_sectors_delta, true);
 		i_sectors_acct(c, inode, &quota_res, i_sectors_delta);
 bkey_err:
@@ -3003,7 +3005,6 @@ loff_t bch2_remap_file_range(struct file *file_src, loff_t pos_src,
 			       inode_inum(dst), pos_dst >> 9,
 			       inode_inum(src), pos_src >> 9,
 			       aligned_len >> 9,
-			       &dst->ei_journal_seq,
 			       pos_dst + len, &i_sectors_delta);
 	if (ret < 0)
 		goto err;
@@ -3021,10 +3022,9 @@ loff_t bch2_remap_file_range(struct file *file_src, loff_t pos_src,
 		i_size_write(&dst->v, pos_dst + ret);
 	spin_unlock(&dst->v.i_lock);
 
-	if (((file_dst->f_flags & (__O_SYNC | O_DSYNC)) ||
-	     IS_SYNC(file_inode(file_dst))) &&
-	    !c->opts.journal_flush_disabled)
-		ret = bch2_journal_flush_seq(&c->journal, dst->ei_journal_seq);
+	if ((file_dst->f_flags & (__O_SYNC | O_DSYNC)) ||
+	    IS_SYNC(file_inode(file_dst)))
+		ret = bch2_flush_inode(c, inode_inum(dst));
 err:
 	bch2_unlock_inodes(INODE_LOCK|INODE_PAGECACHE_BLOCK, src, dst);
 

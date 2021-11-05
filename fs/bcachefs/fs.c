@@ -41,25 +41,6 @@ static void bch2_vfs_inode_init(struct bch_fs *, subvol_inum,
 				struct bch_inode_info *,
 				struct bch_inode_unpacked *);
 
-static void journal_seq_copy(struct bch_fs *c,
-			     struct bch_inode_info *dst,
-			     u64 journal_seq)
-{
-	/*
-	 * atomic64_cmpxchg has a fallback for archs that don't support it,
-	 * cmpxchg does not:
-	 */
-	atomic64_t *dst_seq = (void *) &dst->ei_journal_seq;
-	u64 old, v = READ_ONCE(dst->ei_journal_seq);
-
-	do {
-		old = v;
-
-		if (old >= journal_seq)
-			break;
-	} while ((v = atomic64_cmpxchg(dst_seq, old, journal_seq)) != old);
-}
-
 static void __pagecache_lock_put(struct pagecache_lock *lock, long i)
 {
 	BUG_ON(atomic_long_read(&lock->v) == 0);
@@ -152,9 +133,7 @@ retry:
 				BTREE_ITER_INTENT) ?:
 		(set ? set(inode, &inode_u, p) : 0) ?:
 		bch2_inode_write(&trans, &iter, &inode_u) ?:
-		bch2_trans_commit(&trans, NULL,
-				  &inode->ei_journal_seq,
-				  BTREE_INSERT_NOFAIL);
+		bch2_trans_commit(&trans, NULL, NULL, BTREE_INSERT_NOFAIL);
 
 	/*
 	 * the btree node lock protects inode->ei_inode, not ei_update_lock;
@@ -329,7 +308,6 @@ err_before_quota:
 	if (!(flags & BCH_CREATE_TMPFILE)) {
 		bch2_inode_update_after_write(c, dir, &dir_u,
 					      ATTR_MTIME|ATTR_CTIME);
-		journal_seq_copy(c, dir, journal_seq);
 		mutex_unlock(&dir->ei_update_lock);
 	}
 
@@ -337,7 +315,6 @@ err_before_quota:
 	inum.inum = inode_u.bi_inum;
 
 	bch2_vfs_inode_init(c, inum, inode, &inode_u);
-	journal_seq_copy(c, inode, journal_seq);
 
 	set_cached_acl(&inode->v, ACL_TYPE_ACCESS, acl);
 	set_cached_acl(&inode->v, ACL_TYPE_DEFAULT, default_acl);
@@ -362,7 +339,6 @@ err_before_quota:
 		 * We raced, another process pulled the new inode into cache
 		 * before us:
 		 */
-		journal_seq_copy(c, old, journal_seq);
 		make_bad_inode(&inode->v);
 		iput(&inode->v);
 
@@ -446,7 +422,7 @@ static int __bch2_link(struct bch_fs *c,
 	mutex_lock(&inode->ei_update_lock);
 	bch2_trans_init(&trans, c, 4, 1024);
 
-	ret = __bch2_trans_do(&trans, NULL, &inode->ei_journal_seq, 0,
+	ret = __bch2_trans_do(&trans, NULL, NULL, 0,
 			bch2_link_trans(&trans,
 					inode_inum(dir),   &dir_u,
 					inode_inum(inode), &inode_u,
@@ -455,7 +431,6 @@ static int __bch2_link(struct bch_fs *c,
 	if (likely(!ret)) {
 		BUG_ON(inode_u.bi_inum != inode->v.i_ino);
 
-		journal_seq_copy(c, inode, dir->ei_journal_seq);
 		bch2_inode_update_after_write(c, dir, &dir_u,
 					      ATTR_MTIME|ATTR_CTIME);
 		bch2_inode_update_after_write(c, inode, &inode_u, ATTR_CTIME);
@@ -498,7 +473,7 @@ int __bch2_unlink(struct inode *vdir, struct dentry *dentry,
 	bch2_lock_inodes(INODE_UPDATE_LOCK, dir, inode);
 	bch2_trans_init(&trans, c, 4, 1024);
 
-	ret = __bch2_trans_do(&trans, NULL, &dir->ei_journal_seq,
+	ret = __bch2_trans_do(&trans, NULL, NULL,
 			      BTREE_INSERT_NOFAIL,
 			bch2_unlink_trans(&trans,
 					  inode_inum(dir), &dir_u,
@@ -508,7 +483,6 @@ int __bch2_unlink(struct inode *vdir, struct dentry *dentry,
 	if (likely(!ret)) {
 		BUG_ON(inode_u.bi_inum != inode->v.i_ino);
 
-		journal_seq_copy(c, inode, dir->ei_journal_seq);
 		bch2_inode_update_after_write(c, dir, &dir_u,
 					      ATTR_MTIME|ATTR_CTIME);
 		bch2_inode_update_after_write(c, inode, &inode_u,
@@ -550,8 +524,6 @@ static int bch2_symlink(struct mnt_idmap *idmap,
 	if (unlikely(ret))
 		goto err;
 
-	journal_seq_copy(c, dir, inode->ei_journal_seq);
-
 	ret = __bch2_link(c, inode, dir, dentry);
 	if (unlikely(ret))
 		goto err;
@@ -586,7 +558,6 @@ static int bch2_rename2(struct mnt_idmap *idmap,
 		? BCH_RENAME_EXCHANGE
 		: dst_dentry->d_inode
 		? BCH_RENAME_OVERWRITE : BCH_RENAME;
-	u64 journal_seq = 0;
 	int ret;
 
 	if (flags & ~(RENAME_NOREPLACE|RENAME_EXCHANGE))
@@ -626,7 +597,7 @@ static int bch2_rename2(struct mnt_idmap *idmap,
 			goto err;
 	}
 
-	ret = __bch2_trans_do(&trans, NULL, &journal_seq, 0,
+	ret = __bch2_trans_do(&trans, NULL, NULL, 0,
 			bch2_rename_trans(&trans,
 					  inode_inum(src_dir), &src_dir_u,
 					  inode_inum(dst_dir), &dst_dir_u,
@@ -644,23 +615,17 @@ static int bch2_rename2(struct mnt_idmap *idmap,
 
 	bch2_inode_update_after_write(c, src_dir, &src_dir_u,
 				      ATTR_MTIME|ATTR_CTIME);
-	journal_seq_copy(c, src_dir, journal_seq);
 
-	if (src_dir != dst_dir) {
+	if (src_dir != dst_dir)
 		bch2_inode_update_after_write(c, dst_dir, &dst_dir_u,
 					      ATTR_MTIME|ATTR_CTIME);
-		journal_seq_copy(c, dst_dir, journal_seq);
-	}
 
 	bch2_inode_update_after_write(c, src_inode, &src_inode_u,
 				      ATTR_CTIME);
-	journal_seq_copy(c, src_inode, journal_seq);
 
-	if (dst_inode) {
+	if (dst_inode)
 		bch2_inode_update_after_write(c, dst_inode, &dst_inode_u,
 					      ATTR_CTIME);
-		journal_seq_copy(c, dst_inode, journal_seq);
-	}
 err:
 	bch2_trans_exit(&trans);
 
@@ -767,8 +732,7 @@ retry:
 	}
 
 	ret =   bch2_inode_write(&trans, &inode_iter, &inode_u) ?:
-		bch2_trans_commit(&trans, NULL,
-				  &inode->ei_journal_seq,
+		bch2_trans_commit(&trans, NULL, NULL,
 				  BTREE_INSERT_NOFAIL);
 btree_err:
 	bch2_trans_iter_exit(&trans, &inode_iter);
@@ -1203,7 +1167,6 @@ static void bch2_vfs_inode_init(struct bch_fs *c, subvol_inum inum,
 	inode->v.i_size		= bi->bi_size;
 
 	inode->ei_flags		= 0;
-	inode->ei_journal_seq	= bi->bi_journal_seq;
 	inode->ei_quota_reserved = 0;
 	inode->ei_qid		= bch_qid(bi);
 	inode->ei_subvol	= inum.subvol;
@@ -1242,7 +1205,6 @@ static struct inode *bch2_alloc_inode(struct super_block *sb)
 	mutex_init(&inode->ei_update_lock);
 	pagecache_lock_init(&inode->ei_pagecache_lock);
 	mutex_init(&inode->ei_quota_lock);
-	inode->ei_journal_seq = 0;
 
 	return &inode->v;
 }

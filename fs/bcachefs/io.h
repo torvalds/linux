@@ -68,12 +68,6 @@ static inline u64 *op_journal_seq(struct bch_write_op *op)
 		? op->journal_seq_p : &op->journal_seq;
 }
 
-static inline void op_journal_seq_set(struct bch_write_op *op, u64 *journal_seq)
-{
-	op->journal_seq_p = journal_seq;
-	op->flags |= BCH_WRITE_JOURNAL_SEQ_PTR;
-}
-
 static inline struct workqueue_struct *index_update_wq(struct bch_write_op *op)
 {
 	return op->alloc_reserve == RESERVE_MOVINGGC
@@ -88,8 +82,8 @@ int bch2_extent_update(struct btree_trans *, subvol_inum,
 		       struct disk_reservation *, u64 *, u64, s64 *, bool);
 
 int bch2_fpunch_at(struct btree_trans *, struct btree_iter *,
-		   subvol_inum, u64, u64 *, s64 *);
-int bch2_fpunch(struct bch_fs *c, subvol_inum, u64, u64, u64 *, s64 *);
+		   subvol_inum, u64, s64 *);
+int bch2_fpunch(struct bch_fs *c, subvol_inum, u64, u64, s64 *);
 
 static inline void bch2_write_op_init(struct bch_write_op *op, struct bch_fs *c,
 				      struct bch_io_opts opts)

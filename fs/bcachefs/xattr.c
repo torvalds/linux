@@ -165,7 +165,23 @@ int bch2_xattr_set(struct btree_trans *trans, subvol_inum inum,
 		   const char *name, const void *value, size_t size,
 		   int type, int flags)
 {
+	struct btree_iter inode_iter = { NULL };
+	struct bch_inode_unpacked inode_u;
 	int ret;
+
+	/*
+	 * We need to do an inode update so that bi_journal_sync gets updated
+	 * and fsync works:
+	 *
+	 * Perhaps we should be updating bi_mtime too?
+	 */
+
+	ret   = bch2_inode_peek(trans, &inode_iter, &inode_u, inum, BTREE_ITER_INTENT) ?:
+		bch2_inode_write(trans, &inode_iter, &inode_u);
+	bch2_trans_iter_exit(trans, &inode_iter);
+
+	if (ret)
+		return ret;
 
 	if (value) {
 		struct bkey_i_xattr *xattr;
@@ -352,7 +368,7 @@ static int bch2_xattr_set_handler(const struct xattr_handler *handler,
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch_hash_info hash = bch2_hash_info_init(c, &inode->ei_inode);
 
-	return bch2_trans_do(c, NULL, &inode->ei_journal_seq, 0,
+	return bch2_trans_do(c, NULL, NULL, 0,
 			bch2_xattr_set(&trans, inode_inum(inode), &hash,
 				       name, value, size,
 				       handler->flags, flags));

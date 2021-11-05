@@ -36,7 +36,6 @@ struct bch_inode_info {
 	unsigned long		ei_flags;
 
 	struct mutex		ei_update_lock;
-	u64			ei_journal_seq;
 	u64			ei_quota_reserved;
 	unsigned long		ei_last_dirtied;
 	struct pagecache_lock	ei_pagecache_lock;

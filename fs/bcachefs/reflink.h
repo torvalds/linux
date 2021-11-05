@@ -58,6 +58,6 @@ static inline __le64 *bkey_refcount(struct bkey_i *k)
 }
 
 s64 bch2_remap_range(struct bch_fs *, subvol_inum, u64,
-		     subvol_inum, u64, u64, u64 *, u64, s64 *);
+		     subvol_inum, u64, u64, u64, s64 *);
 
 #endif /* _BCACHEFS_REFLINK_H */

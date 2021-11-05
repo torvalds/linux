@@ -330,8 +330,7 @@ retry:
 	inode_u.bi_mode		= mode;
 
 	ret =   bch2_inode_write(&trans, &inode_iter, &inode_u) ?:
-		bch2_trans_commit(&trans, NULL,
-				  &inode->ei_journal_seq, 0);
+		bch2_trans_commit(&trans, NULL, NULL, 0);
 btree_err:
 	bch2_trans_iter_exit(&trans, &inode_iter);
 

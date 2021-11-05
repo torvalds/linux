@@ -210,7 +210,7 @@ static struct bkey_s_c get_next_src(struct btree_iter *iter, struct bpos end)
 s64 bch2_remap_range(struct bch_fs *c,
 		     subvol_inum dst_inum, u64 dst_offset,
 		     subvol_inum src_inum, u64 src_offset,
-		     u64 remap_sectors, u64 *journal_seq,
+		     u64 remap_sectors,
 		     u64 new_i_size, s64 *i_sectors_delta)
 {
 	struct btree_trans trans;
@@ -281,7 +281,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 					min(dst_end.offset,
 					    dst_iter.pos.offset +
 					    src_iter.pos.offset - src_want.offset),
-					journal_seq, i_sectors_delta);
+					i_sectors_delta);
 			continue;
 		}
 
@@ -320,7 +320,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 				    dst_end.offset - dst_iter.pos.offset));
 
 		ret = bch2_extent_update(&trans, dst_inum, &dst_iter,
-					 new_dst.k, &disk_res, journal_seq,
+					 new_dst.k, &disk_res, NULL,
 					 new_i_size, i_sectors_delta,
 					 true);
 		bch2_disk_reservation_put(c, &disk_res);
@@ -347,7 +347,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 		    inode_u.bi_size < new_i_size) {
 			inode_u.bi_size = new_i_size;
 			ret2  = bch2_inode_write(&trans, &inode_iter, &inode_u) ?:
-				bch2_trans_commit(&trans, NULL, journal_seq, 0);
+				bch2_trans_commit(&trans, NULL, NULL, 0);
 		}
 
 		bch2_trans_iter_exit(&trans, &inode_iter);
