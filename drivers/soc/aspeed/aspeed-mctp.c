@@ -118,11 +118,6 @@
 
 #define TX_CMD_BUF_SIZE \
 	PAGE_ALIGN(TX_PACKET_COUNT * sizeof(struct aspeed_mctp_tx_cmd))
-#define TX_DATA_BUF_SIZE \
-	 PAGE_ALIGN(TX_PACKET_COUNT * sizeof(struct mctp_pcie_packet_data))
-#define RX_CMD_BUF_SIZE PAGE_ALIGN(RX_PACKET_COUNT * sizeof(u32))
-#define RX_DATA_BUF_SIZE \
-	PAGE_ALIGN(RX_PACKET_COUNT * sizeof(struct mctp_pcie_packet_data))
 
 /* Per client packet cache sizes */
 #define RX_RING_COUNT		64
@@ -1648,32 +1643,43 @@ static int aspeed_mctp_dma_init(struct aspeed_mctp *priv)
 	if (!tx->cmd.vaddr)
 		return ret;
 
-	tx->data.vaddr = dma_alloc_coherent(priv->dev, TX_DATA_BUF_SIZE,
-					    &tx->data.dma_handle, GFP_KERNEL);
+	tx->data.vaddr = dma_alloc_coherent(
+		priv->dev,
+		PAGE_ALIGN(TX_PACKET_COUNT *
+			   priv->match_data->packet_unit_size),
+		&tx->data.dma_handle, GFP_KERNEL);
 
 	if (!tx->data.vaddr)
 		goto out_tx_data;
 
-	rx->cmd.vaddr = dma_alloc_coherent(priv->dev, RX_CMD_BUF_SIZE,
-					   &rx->cmd.dma_handle, GFP_KERNEL);
+	rx->cmd.vaddr = dma_alloc_coherent(
+		priv->dev,
+		PAGE_ALIGN(RX_PACKET_COUNT * priv->match_data->rx_cmd_size),
+		&rx->cmd.dma_handle, GFP_KERNEL);
 
 	if (!rx->cmd.vaddr)
 		goto out_tx_cmd;
 
-	rx->data.vaddr = dma_alloc_coherent(priv->dev, RX_DATA_BUF_SIZE,
-					    &rx->data.dma_handle, GFP_KERNEL);
+	rx->data.vaddr = dma_alloc_coherent(
+		priv->dev,
+		PAGE_ALIGN(RX_PACKET_COUNT * priv->match_data->packet_unit_size),
+		&rx->data.dma_handle, GFP_KERNEL);
 
 	if (!rx->data.vaddr)
 		goto out_rx_data;
 
 	return 0;
 out_rx_data:
-	dma_free_coherent(priv->dev, RX_CMD_BUF_SIZE, rx->cmd.vaddr,
-			  rx->cmd.dma_handle);
+	dma_free_coherent(
+		priv->dev,
+		PAGE_ALIGN(RX_PACKET_COUNT * priv->match_data->rx_cmd_size),
+		rx->cmd.vaddr, rx->cmd.dma_handle);
 
 out_tx_cmd:
-	dma_free_coherent(priv->dev, TX_DATA_BUF_SIZE, tx->data.vaddr,
-			  tx->data.dma_handle);
+	dma_free_coherent(priv->dev,
+			  PAGE_ALIGN(TX_PACKET_COUNT *
+				     priv->match_data->packet_unit_size),
+			  tx->data.vaddr, tx->data.dma_handle);
 
 out_tx_data:
 	dma_free_coherent(priv->dev, TX_CMD_BUF_SIZE, tx->cmd.vaddr,
@@ -1689,14 +1695,20 @@ static void aspeed_mctp_dma_fini(struct aspeed_mctp *priv)
 	dma_free_coherent(priv->dev, TX_CMD_BUF_SIZE, tx->cmd.vaddr,
 			  tx->cmd.dma_handle);
 
-	dma_free_coherent(priv->dev, RX_CMD_BUF_SIZE, rx->cmd.vaddr,
-			  rx->cmd.dma_handle);
+	dma_free_coherent(
+		priv->dev,
+		PAGE_ALIGN(RX_PACKET_COUNT * priv->match_data->rx_cmd_size),
+		rx->cmd.vaddr, rx->cmd.dma_handle);
 
-	dma_free_coherent(priv->dev, TX_DATA_BUF_SIZE, tx->data.vaddr,
-			  tx->data.dma_handle);
+	dma_free_coherent(priv->dev,
+			  PAGE_ALIGN(TX_PACKET_COUNT *
+				     priv->match_data->packet_unit_size),
+			  tx->data.vaddr, tx->data.dma_handle);
 
-	dma_free_coherent(priv->dev, RX_DATA_BUF_SIZE, rx->data.vaddr,
-			  rx->data.dma_handle);
+	dma_free_coherent(priv->dev,
+			  PAGE_ALIGN(RX_PACKET_COUNT *
+				     priv->match_data->packet_unit_size),
+			  rx->data.vaddr, rx->data.dma_handle);
 }
 
 static int aspeed_mctp_irq_init(struct aspeed_mctp *priv)
