@@ -5487,9 +5487,38 @@ static void tcpm_pd_event_handler(struct kthread_work *work)
 		}
 		if (events & TCPM_CC_EVENT) {
 			enum typec_cc_status cc1, cc2;
+			bool modified = false;
 
 			if (port->tcpc->get_cc(port->tcpc, &cc1, &cc2) == 0)
 				_tcpm_cc_change(port, cc1, cc2);
+
+			trace_android_vh_typec_tcpm_modify_src_caps(&port->nr_src_pdo,
+								    &port->src_pdo, &modified);
+			if (modified) {
+				int ret;
+
+				switch (port->state) {
+				case SRC_UNATTACHED:
+				case SRC_ATTACH_WAIT:
+				case SRC_TRYWAIT:
+					tcpm_set_cc(port, tcpm_rp_cc(port));
+					break;
+				case SRC_SEND_CAPABILITIES:
+				case SRC_SEND_CAPABILITIES_TIMEOUT:
+				case SRC_NEGOTIATE_CAPABILITIES:
+				case SRC_READY:
+				case SRC_WAIT_NEW_CAPABILITIES:
+					port->caps_count = 0;
+					port->upcoming_state = SRC_SEND_CAPABILITIES;
+					ret = tcpm_ams_start(port, POWER_NEGOTIATION);
+					if (ret == -EAGAIN)
+						port->upcoming_state = INVALID_STATE;
+					break;
+				default:
+					break;
+				}
+			}
+
 		}
 		if (events & TCPM_FRS_EVENT) {
 			if (port->state == SNK_READY) {

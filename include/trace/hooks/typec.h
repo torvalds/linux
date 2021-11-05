@@ -46,6 +46,10 @@ DECLARE_HOOK(android_vh_typec_store_partner_src_caps,
 	TP_PROTO(unsigned int *nr_source_caps, u32 (*source_caps)[]),
 	TP_ARGS(nr_source_caps, source_caps));
 
-#endif /* _TRACE_HOOK_UFSHCD_H */
+DECLARE_HOOK(android_vh_typec_tcpm_modify_src_caps,
+	TP_PROTO(unsigned int *nr_src_pdo, u32 (*src_pdo)[], bool *modified),
+	TP_ARGS(nr_src_pdo, src_pdo, modified));
+
+#endif /* _TRACE_HOOK_TYPEC_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>
