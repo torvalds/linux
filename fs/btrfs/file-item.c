@@ -801,7 +801,7 @@ int btrfs_del_csums(struct btrfs_trans_handle *trans,
 	const u32 csum_size = fs_info->csum_size;
 	u32 blocksize_bits = fs_info->sectorsize_bits;
 
-	ASSERT(root == fs_info->csum_root ||
+	ASSERT(root->root_key.objectid == BTRFS_CSUM_TREE_OBJECTID ||
 	       root->root_key.objectid == BTRFS_TREE_LOG_OBJECTID);
 
 	path = btrfs_alloc_path();
