@@ -675,6 +675,39 @@ char *kstrdup_quotable_file(struct file *file, gfp_t gfp)
 EXPORT_SYMBOL_GPL(kstrdup_quotable_file);
 
 /**
+ * kasprintf_strarray - allocate and fill array of sequential strings
+ * @gfp: flags for the slab allocator
+ * @prefix: prefix to be used
+ * @n: amount of lines to be allocated and filled
+ *
+ * Allocates and fills @n strings using pattern "%s-%zu", where prefix
+ * is provided by caller. The caller is responsible to free them with
+ * kfree_strarray() after use.
+ *
+ * Returns array of strings or NULL when memory can't be allocated.
+ */
+char **kasprintf_strarray(gfp_t gfp, const char *prefix, size_t n)
+{
+	char **names;
+	size_t i;
+
+	names = kcalloc(n + 1, sizeof(char *), gfp);
+	if (!names)
+		return NULL;
+
+	for (i = 0; i < n; i++) {
+		names[i] = kasprintf(gfp, "%s-%zu", prefix, i);
+		if (!names[i]) {
+			kfree_strarray(names, i);
+			return NULL;
+		}
+	}
+
+	return names;
+}
+EXPORT_SYMBOL_GPL(kasprintf_strarray);
+
+/**
  * kfree_strarray - free a number of dynamically allocated strings contained
  *                  in an array and the array itself
  *
