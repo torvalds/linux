@@ -351,13 +351,12 @@ static struct file *__nfs42_ssc_open(struct vfsmount *ss_mnt,
 		goto out_free_name;
 	}
 
-	filep = alloc_file_pseudo(r_ino, ss_mnt, read_name, FMODE_READ,
+	filep = alloc_file_pseudo(r_ino, ss_mnt, read_name, O_RDONLY,
 				     r_ino->i_fop);
 	if (IS_ERR(filep)) {
 		res = ERR_CAST(filep);
 		goto out_free_name;
 	}
-	filep->f_mode |= FMODE_READ;
 
 	ctx = alloc_nfs_open_context(filep->f_path.dentry, filep->f_mode,
 					filep);
