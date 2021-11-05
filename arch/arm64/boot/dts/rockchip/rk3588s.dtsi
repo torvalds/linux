@@ -205,6 +205,11 @@
 	rkisp0_vir0: rkisp0-vir0 {
 		compatible = "rockchip,rkisp-vir";
 		rockchip,hw = <&rkisp0>;
+		/*
+		 * dual isp process image case
+		 * other rkisp hw and virtual nodes should disabled
+		 * rockchip,hw = <&rkisp_unite>;
+		 */
 		status = "disabled";
 	};
 
@@ -1174,6 +1179,28 @@
 		status = "disabled";
 	};
 
+	rkisp_unite: rkisp-unite@fdcb0000 {
+		compatible = "rockchip,rk3588-rkisp-unite";
+		reg = <0x0 0xfdcb0000 0x0 0x10000>,
+		      <0x0 0xfdcc0000 0x0 0x10000>;
+		interrupts = <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "isp_irq", "mi_irq", "mipi_irq";
+		clocks = <&cru ACLK_ISP0>, <&cru HCLK_ISP0>,
+			 <&cru CLK_ISP0_CORE>, <&cru CLK_ISP0_CORE_MARVIN>,
+			 <&cru CLK_ISP0_CORE_VICAP>, <&cru ACLK_ISP1>,
+			 <&cru HCLK_ISP1>, <&cru CLK_ISP1_CORE>,
+			 <&cru CLK_ISP1_CORE_MARVIN>, <&cru CLK_ISP1_CORE_VICAP>;
+		clock-names = "aclk_isp0", "hclk_isp0", "clk_isp_core0",
+			      "clk_isp_core_marvin0", "clk_isp_core_vicap0",
+			      "aclk_isp1", "hclk_isp1", "clk_isp_core1",
+			      "clk_isp_core_marvin1", "clk_isp_core_vicap1";
+		power-domains = <&power RK3588_PD_ISP1>;
+		iommus = <&rkisp_unite_mmu>;
+		status = "disabled";
+	};
+
 	rkisp0: rkisp@fdcb0000 {
 		compatible = "rockchip,rk3588-rkisp";
 		reg = <0x0 0xfdcb0000 0x0 0x7f00>;
@@ -1188,6 +1215,21 @@
 			      "clk_isp_core_marvin", "clk_isp_core_vicap";
 		power-domains = <&power RK3588_PD_VI>;
 		iommus = <&isp0_mmu>;
+		status = "disabled";
+	};
+
+	rkisp_unite_mmu: rkisp-unite-mmu@fdcb7f00 {
+		compatible = "rockchip,iommu-v2";
+		reg = <0x0 0xfdcb7f00 0x0 0x100>, <0x0 0xfdcc7f00 0x0 0x100>;
+		interrupts = <GIC_SPI 132 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "isp0_mmu", "isp1_mmu";
+		clocks = <&cru ACLK_ISP0>, <&cru HCLK_ISP0>,
+			 <&cru ACLK_ISP1>, <&cru HCLK_ISP1>;
+		clock-names = "aclk0", "iface0", "aclk1", "iface1";
+		power-domains = <&power RK3588_PD_ISP1>;
+		#iommu-cells = <0>;
+		rockchip,disable-mmu-reset;
 		status = "disabled";
 	};
 
