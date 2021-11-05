@@ -1278,9 +1278,8 @@ again:
 		root = list_entry(next, struct btrfs_root, dirty_list);
 		clear_bit(BTRFS_ROOT_DIRTY, &root->state);
 
-		if (root != fs_info->extent_root)
-			list_add_tail(&root->dirty_list,
-				      &trans->transaction->switch_commits);
+		list_add_tail(&root->dirty_list,
+			      &trans->transaction->switch_commits);
 		ret = update_cowonly_root(trans, root);
 		if (ret)
 			return ret;
@@ -1309,9 +1308,6 @@ again:
 
 	if (!list_empty(&fs_info->dirty_cowonly_roots))
 		goto again;
-
-	list_add_tail(&fs_info->extent_root->dirty_list,
-		      &trans->transaction->switch_commits);
 
 	/* Update dev-replace pointer once everything is committed */
 	fs_info->dev_replace.committed_cursor_left =
