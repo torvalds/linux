@@ -101,6 +101,7 @@ struct monitor_dev_info {
 	unsigned int status_min_limit;
 	unsigned int status_max_limit;
 	unsigned int early_min_volt;
+	unsigned int regulator_count;
 	int low_temp;
 	int high_temp;
 	int temp_hysteresis;
@@ -112,6 +113,7 @@ struct monitor_dev_info {
 struct monitor_dev_profile {
 	enum monitor_dev_type type;
 	void *data;
+	bool is_checked;
 	int (*low_temp_adjust)(struct monitor_dev_info *info, bool is_low);
 	int (*high_temp_adjust)(struct monitor_dev_info *info, bool is_low);
 	int (*update_volt)(struct monitor_dev_info *info);

@@ -27,6 +27,7 @@
 #include <linux/thermal.h>
 #include <linux/uaccess.h>
 #include <linux/version.h>
+#include <linux/delay.h>
 #include <soc/rockchip/rockchip_system_monitor.h>
 #include <soc/rockchip/rockchip-system-status.h>
 
@@ -1042,6 +1043,7 @@ static int rockchip_system_monitor_parse_supplies(struct device *dev,
 		info->clk = opp_table->clk;
 	if (opp_table->regulators)
 		info->regulators = opp_table->regulators;
+	info->regulator_count = opp_table->regulator_count;
 
 	dev_pm_opp_put_opp_table(opp_table);
 
@@ -1065,9 +1067,11 @@ EXPORT_SYMBOL(rockchip_monitor_volt_adjust_unlock);
 int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info)
 {
 	struct device *dev = info->dev;
+	struct regulator *vdd_reg = NULL;
+	struct regulator *mem_reg = NULL;
 	struct dev_pm_opp *opp;
-	unsigned long old_rate, new_rate, new_volt;
-	int old_volt;
+	unsigned long old_rate, new_rate, new_volt, new_mem_volt;
+	int old_volt, old_mem_volt;
 	int ret = 0;
 
 	if (!info->regulators || !info->clk)
@@ -1075,8 +1079,13 @@ int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info)
 
 	mutex_lock(&info->volt_adjust_mutex);
 
+	vdd_reg = info->regulators[0];
 	old_rate = clk_get_rate(info->clk);
-	old_volt = regulator_get_voltage(info->regulators[0]);
+	old_volt = regulator_get_voltage(vdd_reg);
+	if (info->regulator_count > 1) {
+		mem_reg = info->regulators[1];
+		old_mem_volt = regulator_get_voltage(mem_reg);
+	}
 
 	new_rate = old_rate;
 	opp = dev_pm_opp_find_freq_ceil(dev, &new_rate);
@@ -1084,46 +1093,85 @@ int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info)
 		opp = dev_pm_opp_find_freq_floor(dev, &new_rate);
 		if (IS_ERR(opp)) {
 			ret = PTR_ERR(opp);
-			goto out;
+			goto unlock;
 		}
 	}
 	new_volt = opp->supplies[0].u_volt;
+	if (info->regulator_count > 1)
+		new_mem_volt = opp->supplies[1].u_volt;
 	dev_pm_opp_put(opp);
 
-	if (old_rate == new_rate && old_volt == new_volt)
-		goto out;
-	dev_dbg(dev, "%s: %lu Hz %d uV --> %lu Hz %lu uV\n",
-		__func__, old_rate, old_volt, new_rate, new_volt);
+
+	if (old_rate == new_rate) {
+		if (info->regulator_count > 1) {
+			if (old_volt == new_volt &&
+			    new_mem_volt == old_mem_volt)
+				goto unlock;
+		} else if (old_volt == new_volt) {
+			goto unlock;
+		}
+	}
+	if (!new_volt || (info->regulator_count > 1 && !new_mem_volt))
+		goto unlock;
+
+	dev_dbg(dev, "%s: %lu Hz --> %lu Hz\n", __func__, old_rate, new_rate);
 	if (new_rate >= old_rate) {
-		ret = regulator_set_voltage(info->regulators[0], new_volt,
-					    INT_MAX);
+		if (info->regulator_count > 1) {
+			ret = regulator_set_voltage(mem_reg, new_mem_volt,
+						    INT_MAX);
+			if (ret) {
+				dev_err(dev, "%s: failed to set volt: %lu\n",
+					__func__, new_mem_volt);
+				goto restore_voltage;
+			}
+		}
+		ret = regulator_set_voltage(vdd_reg, new_volt, INT_MAX);
 		if (ret) {
 			dev_err(dev, "%s: failed to set volt: %lu\n",
 				__func__, new_volt);
-			goto out;
+			goto restore_voltage;
 		}
 		if (new_rate == old_rate)
-			goto out;
+			goto unlock;
 	}
 
 	ret = clk_set_rate(info->clk, new_rate);
 	if (ret) {
 		dev_err(dev, "%s: failed to set clock rate: %lu\n",
 			__func__, new_rate);
-		goto out;
+		goto restore_voltage;
 	}
 
 	if (new_rate < old_rate) {
-		ret = regulator_set_voltage(info->regulators[0], new_volt,
+		ret = regulator_set_voltage(vdd_reg, new_volt,
 					    INT_MAX);
 		if (ret) {
 			dev_err(dev, "%s: failed to set volt: %lu\n",
 				__func__, new_volt);
-			goto out;
+			goto restore_freq;
+		}
+		if (info->regulator_count > 1) {
+			ret = regulator_set_voltage(mem_reg, new_mem_volt,
+						    INT_MAX);
+			if (ret) {
+				dev_err(dev, "%s: failed to set volt: %lu\n",
+					__func__, new_mem_volt);
+				goto restore_freq;
+			}
 		}
 	}
+	goto unlock;
 
-out:
+restore_freq:
+	if (clk_set_rate(info->clk, old_rate))
+		dev_err(dev, "%s: failed to restore old-freq (%lu Hz)\n",
+			__func__, old_rate);
+restore_voltage:
+	if (info->regulator_count > 1)
+		regulator_set_voltage(mem_reg, old_mem_volt, INT_MAX);
+	regulator_set_voltage(vdd_reg, old_volt, INT_MAX);
+
+unlock:
 	mutex_unlock(&info->volt_adjust_mutex);
 
 	return ret;
@@ -1157,6 +1205,7 @@ rockchip_system_monitor_register(struct device *dev,
 	rockchip_system_monitor_early_regulator_init(info);
 	rockchip_system_monitor_wide_temp_init(info);
 	rockchip_monitor_check_rate_volt(info);
+	devp->is_checked = true;
 	rockchip_system_monitor_freq_qos_requset(info);
 
 	down_write(&mdev_list_sem);
