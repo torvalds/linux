@@ -381,7 +381,6 @@ struct damon_ctx {
 
 /* public: */
 	struct task_struct *kdamond;
-	bool kdamond_stop;
 	struct mutex kdamond_lock;
 
 	struct damon_primitive primitive;
