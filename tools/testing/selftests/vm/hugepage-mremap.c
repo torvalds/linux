@@ -15,7 +15,6 @@
 #include <errno.h>
 #include <fcntl.h> /* Definition of O_* constants */
 #include <sys/syscall.h> /* Definition of SYS_* constants */
-#include <unistd.h>
 #include <linux/userfaultfd.h>
 #include <sys/ioctl.h>
 
