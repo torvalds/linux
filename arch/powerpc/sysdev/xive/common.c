@@ -1759,17 +1759,10 @@ static void xive_debug_show_irq(struct seq_file *m, struct irq_data *d)
 	seq_puts(m, "\n");
 }
 
-static int xive_core_debug_show(struct seq_file *m, void *private)
+static int xive_irq_debug_show(struct seq_file *m, void *private)
 {
 	unsigned int i;
 	struct irq_desc *desc;
-	int cpu;
-
-	if (xive_ops->debug_show)
-		xive_ops->debug_show(m, private);
-
-	for_each_possible_cpu(cpu)
-		xive_debug_show_cpu(m, cpu);
 
 	for_each_irq_desc(i, desc) {
 		struct irq_data *d = irq_domain_get_irq_data(xive_irq_domain, i);
@@ -1779,12 +1772,33 @@ static int xive_core_debug_show(struct seq_file *m, void *private)
 	}
 	return 0;
 }
-DEFINE_SHOW_ATTRIBUTE(xive_core_debug);
+DEFINE_SHOW_ATTRIBUTE(xive_irq_debug);
+
+static int xive_cpu_debug_show(struct seq_file *m, void *private)
+{
+	int cpu;
+
+	if (xive_ops->debug_show)
+		xive_ops->debug_show(m, private);
+
+	for_each_possible_cpu(cpu)
+		xive_debug_show_cpu(m, cpu);
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(xive_cpu_debug);
 
 static void xive_core_debugfs_create(void)
 {
-	debugfs_create_file("xive", 0400, arch_debugfs_dir,
-			    NULL, &xive_core_debug_fops);
+	struct dentry *xive_dir;
+
+	xive_dir = debugfs_create_dir("xive", arch_debugfs_dir);
+	if (IS_ERR(xive_dir))
+		return;
+
+	debugfs_create_file("cpus", 0400, xive_dir,
+			    NULL, &xive_cpu_debug_fops);
+	debugfs_create_file("interrupts", 0400, xive_dir,
+			    NULL, &xive_irq_debug_fops);
 }
 #else
 static inline void xive_core_debugfs_create(void) { }
