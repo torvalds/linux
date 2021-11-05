@@ -90,6 +90,26 @@ enum damos_action {
 };
 
 /**
+ * struct damos_quota - Controls the aggressiveness of the given scheme.
+ * @sz:			Maximum bytes of memory that the action can be applied.
+ * @reset_interval:	Charge reset interval in milliseconds.
+ *
+ * To avoid consuming too much CPU time or IO resources for applying the
+ * &struct damos->action to large memory, DAMON allows users to set a size
+ * quota.  The quota can be set by writing non-zero values to &sz.  If the size
+ * quota is set, DAMON tries to apply the action only up to &sz bytes within
+ * &reset_interval.
+ */
+struct damos_quota {
+	unsigned long sz;
+	unsigned long reset_interval;
+
+/* private: For charging the quota */
+	unsigned long charged_sz;
+	unsigned long charged_from;
+};
+
+/**
  * struct damos - Represents a Data Access Monitoring-based Operation Scheme.
  * @min_sz_region:	Minimum size of target regions.
  * @max_sz_region:	Maximum size of target regions.
@@ -98,13 +118,20 @@ enum damos_action {
  * @min_age_region:	Minimum age of target regions.
  * @max_age_region:	Maximum age of target regions.
  * @action:		&damo_action to be applied to the target regions.
+ * @quota:		Control the aggressiveness of this scheme.
  * @stat_count:		Total number of regions that this scheme is applied.
  * @stat_sz:		Total size of regions that this scheme is applied.
  * @list:		List head for siblings.
  *
- * For each aggregation interval, DAMON applies @action to monitoring target
- * regions fit in the condition and updates the statistics.  Note that both
- * the minimums and the maximums are inclusive.
+ * For each aggregation interval, DAMON finds regions which fit in the
+ * condition (&min_sz_region, &max_sz_region, &min_nr_accesses,
+ * &max_nr_accesses, &min_age_region, &max_age_region) and applies &action to
+ * those.  To avoid consuming too much CPU time or IO resources for the
+ * &action, &quota is used.
+ *
+ * After applying the &action to each region, &stat_count and &stat_sz is
+ * updated to reflect the number of regions and total size of regions that the
+ * &action is applied.
  */
 struct damos {
 	unsigned long min_sz_region;
@@ -114,6 +141,7 @@ struct damos {
 	unsigned int min_age_region;
 	unsigned int max_age_region;
 	enum damos_action action;
+	struct damos_quota quota;
 	unsigned long stat_count;
 	unsigned long stat_sz;
 	struct list_head list;
@@ -310,7 +338,7 @@ struct damos *damon_new_scheme(
 		unsigned long min_sz_region, unsigned long max_sz_region,
 		unsigned int min_nr_accesses, unsigned int max_nr_accesses,
 		unsigned int min_age_region, unsigned int max_age_region,
-		enum damos_action action);
+		enum damos_action action, struct damos_quota *quota);
 void damon_add_scheme(struct damon_ctx *ctx, struct damos *s);
 void damon_destroy_scheme(struct damos *s);
 

@@ -89,7 +89,7 @@ struct damos *damon_new_scheme(
 		unsigned long min_sz_region, unsigned long max_sz_region,
 		unsigned int min_nr_accesses, unsigned int max_nr_accesses,
 		unsigned int min_age_region, unsigned int max_age_region,
-		enum damos_action action)
+		enum damos_action action, struct damos_quota *quota)
 {
 	struct damos *scheme;
 
@@ -106,6 +106,11 @@ struct damos *damon_new_scheme(
 	scheme->stat_count = 0;
 	scheme->stat_sz = 0;
 	INIT_LIST_HEAD(&scheme->list);
+
+	scheme->quota.sz = quota->sz;
+	scheme->quota.reset_interval = quota->reset_interval;
+	scheme->quota.charged_sz = 0;
+	scheme->quota.charged_from = 0;
 
 	return scheme;
 }
@@ -530,15 +535,25 @@ static void kdamond_reset_aggregated(struct damon_ctx *c)
 	}
 }
 
+static void damon_split_region_at(struct damon_ctx *ctx,
+		struct damon_target *t, struct damon_region *r,
+		unsigned long sz_r);
+
 static void damon_do_apply_schemes(struct damon_ctx *c,
 				   struct damon_target *t,
 				   struct damon_region *r)
 {
 	struct damos *s;
-	unsigned long sz;
 
 	damon_for_each_scheme(s, c) {
-		sz = r->ar.end - r->ar.start;
+		struct damos_quota *quota = &s->quota;
+		unsigned long sz = r->ar.end - r->ar.start;
+
+		/* Check the quota */
+		if (quota->sz && quota->charged_sz >= quota->sz)
+			continue;
+
+		/* Check the target regions condition */
 		if (sz < s->min_sz_region || s->max_sz_region < sz)
 			continue;
 		if (r->nr_accesses < s->min_nr_accesses ||
@@ -546,22 +561,51 @@ static void damon_do_apply_schemes(struct damon_ctx *c,
 			continue;
 		if (r->age < s->min_age_region || s->max_age_region < r->age)
 			continue;
-		s->stat_count++;
-		s->stat_sz += sz;
-		if (c->primitive.apply_scheme)
+
+		/* Apply the scheme */
+		if (c->primitive.apply_scheme) {
+			if (quota->sz && quota->charged_sz + sz > quota->sz) {
+				sz = ALIGN_DOWN(quota->sz - quota->charged_sz,
+						DAMON_MIN_REGION);
+				if (!sz)
+					goto update_stat;
+				damon_split_region_at(c, t, r, sz);
+			}
 			c->primitive.apply_scheme(c, t, r, s);
+			quota->charged_sz += sz;
+		}
 		if (s->action != DAMOS_STAT)
 			r->age = 0;
+
+update_stat:
+		s->stat_count++;
+		s->stat_sz += sz;
 	}
 }
 
 static void kdamond_apply_schemes(struct damon_ctx *c)
 {
 	struct damon_target *t;
-	struct damon_region *r;
+	struct damon_region *r, *next_r;
+	struct damos *s;
+
+	damon_for_each_scheme(s, c) {
+		struct damos_quota *quota = &s->quota;
+
+		if (!quota->sz)
+			continue;
+
+		/* New charge window starts */
+		if (time_after_eq(jiffies, quota->charged_from +
+					msecs_to_jiffies(
+						quota->reset_interval))) {
+			quota->charged_from = jiffies;
+			quota->charged_sz = 0;
+		}
+	}
 
 	damon_for_each_target(t, c) {
-		damon_for_each_region(r, t)
+		damon_for_each_region_safe(r, next_r, t)
 			damon_do_apply_schemes(c, t, r);
 	}
 }
