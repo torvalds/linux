@@ -57,6 +57,19 @@ test_write_fail "$file" "1 2 3 5 4" "$orig_content" \
 test_content "$file" "$orig_content" "1 2 3 4 5" "successfully written"
 echo "$orig_content" > "$file"
 
+# Test schemes file
+# =================
+
+file="$DBGFS/schemes"
+orig_content=$(cat "$file")
+
+test_write_succ "$file" "1 2 3 4 5 6 4" \
+	"$orig_content" "valid input"
+test_write_fail "$file" "1 2
+3 4 5 6 3" "$orig_content" "multi lines"
+test_write_succ "$file" "" "$orig_content" "disabling"
+echo "$orig_content" > "$file"
+
 # Test target_ids file
 # ====================
 
