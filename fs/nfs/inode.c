@@ -378,14 +378,10 @@ void nfs_setsecurity(struct inode *inode, struct nfs_fattr *fattr,
 
 struct nfs4_label *nfs4_label_alloc(struct nfs_server *server, gfp_t flags)
 {
-	struct nfs4_label *label = NULL;
-	int minor_version = server->nfs_client->cl_minorversion;
-
-	if (minor_version < 2)
-		return label;
+	struct nfs4_label *label;
 
 	if (!(server->caps & NFS_CAP_SECURITY_LABEL))
-		return label;
+		return NULL;
 
 	label = kzalloc(sizeof(struct nfs4_label), flags);
 	if (label == NULL)
