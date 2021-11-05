@@ -93,10 +93,8 @@ ia_css_tnr_config(
 	assert(elems_a % to->port_b.elems == 0);
 }
 
-void
-ia_css_tnr_configure(
-    const struct ia_css_binary     *binary,
-    const struct ia_css_frame * const *frames)
+int ia_css_tnr_configure(const struct ia_css_binary     *binary,
+			 const struct ia_css_frame * const *frames)
 {
 	struct ia_css_tnr_configuration config;
 	unsigned int i;
@@ -104,7 +102,7 @@ ia_css_tnr_configure(
 	for (i = 0; i < NUM_TNR_FRAMES; i++)
 		config.tnr_frames[i] = frames[i];
 
-	ia_css_configure_tnr(binary, &config);
+	return ia_css_configure_tnr(binary, &config);
 }
 
 void

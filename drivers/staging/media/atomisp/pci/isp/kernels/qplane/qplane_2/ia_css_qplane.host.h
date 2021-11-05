@@ -35,10 +35,8 @@ ia_css_qplane_config(
     const struct ia_css_qplane_configuration *from,
     unsigned int size);
 
-void
-ia_css_qplane_configure(
-    const struct sh_css_sp_pipeline *pipe,
-    const struct ia_css_binary     *binary,
-    const struct ia_css_frame_info *from);
+int ia_css_qplane_configure(const struct sh_css_sp_pipeline *pipe,
+			    const struct ia_css_binary      *binary,
+			    const struct ia_css_frame_info  *from);
 
 #endif /* __IA_CSS_QPLANE_HOST_H */

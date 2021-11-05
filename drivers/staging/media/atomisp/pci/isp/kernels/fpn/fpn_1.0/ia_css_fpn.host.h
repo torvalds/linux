@@ -37,9 +37,7 @@ ia_css_fpn_config(
     const struct ia_css_fpn_configuration *from,
     unsigned int size);
 
-void
-ia_css_fpn_configure(
-    const struct ia_css_binary     *binary,
-    const struct ia_css_frame_info *from);
+int ia_css_fpn_configure(const struct ia_css_binary     *binary,
+			 const struct ia_css_frame_info *from);
 
 #endif /* __IA_CSS_FPN_HOST_H */

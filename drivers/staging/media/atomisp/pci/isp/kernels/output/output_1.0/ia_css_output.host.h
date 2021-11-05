@@ -48,20 +48,14 @@ ia_css_output1_config(
     const struct ia_css_output1_configuration *from,
     unsigned int size);
 
-void
-ia_css_output_configure(
-    const struct ia_css_binary     *binary,
-    const struct ia_css_frame_info *from);
+int ia_css_output_configure(const struct ia_css_binary     *binary,
+			    const struct ia_css_frame_info *from);
 
-void
-ia_css_output0_configure(
-    const struct ia_css_binary     *binary,
-    const struct ia_css_frame_info *from);
+int ia_css_output0_configure(const struct ia_css_binary     *binary,
+			     const struct ia_css_frame_info *from);
 
-void
-ia_css_output1_configure(
-    const struct ia_css_binary     *binary,
-    const struct ia_css_frame_info *from);
+int ia_css_output1_configure(const struct ia_css_binary     *binary,
+			     const struct ia_css_frame_info *from);
 
 void
 ia_css_output_dump(

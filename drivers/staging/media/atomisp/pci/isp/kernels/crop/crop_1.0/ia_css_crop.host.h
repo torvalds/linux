@@ -34,9 +34,7 @@ ia_css_crop_config(
     const struct ia_css_crop_configuration *from,
     unsigned int size);
 
-void
-ia_css_crop_configure(
-    const struct ia_css_binary     *binary,
-    const struct ia_css_frame_info *from);
+int ia_css_crop_configure(const struct ia_css_binary     *binary,
+			  const struct ia_css_frame_info *from);
 
 #endif /* __IA_CSS_CROP_HOST_H */

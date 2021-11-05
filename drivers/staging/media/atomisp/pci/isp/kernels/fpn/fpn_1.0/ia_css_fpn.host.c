@@ -67,10 +67,8 @@ ia_css_fpn_config(
 	assert(elems_a % to->port_b.elems == 0);
 }
 
-void
-ia_css_fpn_configure(
-    const struct ia_css_binary     *binary,
-    const struct ia_css_frame_info *info)
+int ia_css_fpn_configure(const struct ia_css_binary     *binary,
+			 const struct ia_css_frame_info *info)
 {
 	struct ia_css_frame_info my_info = IA_CSS_BINARY_DEFAULT_FRAME_INFO;
 	const struct ia_css_fpn_configuration config = {
@@ -85,5 +83,5 @@ ia_css_fpn_configure(
 	my_info.raw_bayer_order = info->raw_bayer_order;
 	my_info.crop_info       = info->crop_info;
 
-	ia_css_configure_fpn(binary, &config);
+	return ia_css_configure_fpn(binary, &config);
 }

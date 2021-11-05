@@ -106,14 +106,12 @@ ia_css_raw_config(
 #endif
 }
 
-void
-ia_css_raw_configure(
-    const struct sh_css_sp_pipeline *pipe,
-    const struct ia_css_binary      *binary,
-    const struct ia_css_frame_info  *in_info,
-    const struct ia_css_frame_info  *internal_info,
-    bool two_ppc,
-    bool deinterleaved)
+int ia_css_raw_configure(const struct sh_css_sp_pipeline *pipe,
+			 const struct ia_css_binary      *binary,
+			 const struct ia_css_frame_info  *in_info,
+			 const struct ia_css_frame_info  *internal_info,
+			 bool two_ppc,
+			 bool deinterleaved)
 {
 	u8 enable_left_padding = (uint8_t)((binary->left_padding) ? 1 : 0);
 	struct ia_css_raw_configuration config = default_config;
@@ -126,5 +124,5 @@ ia_css_raw_configure(
 	config.deinterleaved       = deinterleaved;
 	config.enable_left_padding = enable_left_padding;
 
-	ia_css_configure_raw(binary, &config);
+	return ia_css_configure_raw(binary, &config);
 }

@@ -47,16 +47,14 @@ ia_css_qplane_config(
 	to->format = from->info->format;
 }
 
-void
-ia_css_qplane_configure(
-    const struct sh_css_sp_pipeline *pipe,
-    const struct ia_css_binary      *binary,
-    const struct ia_css_frame_info  *info)
+int ia_css_qplane_configure(const struct sh_css_sp_pipeline *pipe,
+			    const struct ia_css_binary      *binary,
+			    const struct ia_css_frame_info  *info)
 {
 	struct ia_css_qplane_configuration config = default_config;
 
 	config.pipe = pipe;
 	config.info = info;
 
-	ia_css_configure_qplane(binary, &config);
+	return ia_css_configure_qplane(binary, &config);
 }

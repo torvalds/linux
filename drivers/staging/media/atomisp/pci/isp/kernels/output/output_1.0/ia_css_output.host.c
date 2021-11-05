@@ -91,10 +91,8 @@ ia_css_output1_config(
 	    to, (const struct ia_css_output_configuration *)from, size);
 }
 
-void
-ia_css_output_configure(
-    const struct ia_css_binary     *binary,
-    const struct ia_css_frame_info *info)
+int ia_css_output_configure(const struct ia_css_binary     *binary,
+			    const struct ia_css_frame_info *info)
 {
 	if (info) {
 		struct ia_css_output_configuration config =
@@ -102,14 +100,13 @@ ia_css_output_configure(
 
 		config.info = info;
 
-		ia_css_configure_output(binary, &config);
+		return ia_css_configure_output(binary, &config);
 	}
+	return 0;
 }
 
-void
-ia_css_output0_configure(
-    const struct ia_css_binary     *binary,
-    const struct ia_css_frame_info *info)
+int ia_css_output0_configure(const struct ia_css_binary    *binary,
+			    const struct ia_css_frame_info *info)
 {
 	if (info) {
 		struct ia_css_output0_configuration config =
@@ -117,14 +114,13 @@ ia_css_output0_configure(
 
 		config.info = info;
 
-		ia_css_configure_output0(binary, &config);
+		return ia_css_configure_output0(binary, &config);
 	}
+	return 0;
 }
 
-void
-ia_css_output1_configure(
-    const struct ia_css_binary     *binary,
-    const struct ia_css_frame_info *info)
+int ia_css_output1_configure(const struct ia_css_binary     *binary,
+			     const struct ia_css_frame_info *info)
 {
 	if (info) {
 		struct ia_css_output1_configuration config =
@@ -132,8 +128,9 @@ ia_css_output1_configure(
 
 		config.info = info;
 
-		ia_css_configure_output1(binary, &config);
+		return ia_css_configure_output1(binary, &config);
 	}
+	return 0;
 }
 
 void

@@ -55,19 +55,19 @@ ia_css_ref_config(
 	assert(elems_a % to->port_b.elems == 0);
 }
 
-void
-ia_css_ref_configure(
-    const struct ia_css_binary     *binary,
-    const struct ia_css_frame * const *ref_frames,
-    const uint32_t dvs_frame_delay)
+int ia_css_ref_configure(const struct ia_css_binary        *binary,
+			 const struct ia_css_frame * const *ref_frames,
+			 const uint32_t dvs_frame_delay)
 {
 	struct ia_css_ref_configuration config;
 	unsigned int i;
 
 	for (i = 0; i < MAX_NUM_VIDEO_DELAY_FRAMES; i++)
 		config.ref_frames[i] = ref_frames[i];
+
 	config.dvs_frame_delay = dvs_frame_delay;
-	ia_css_configure_ref(binary, &config);
+
+	return ia_css_configure_ref(binary, &config);
 }
 
 void

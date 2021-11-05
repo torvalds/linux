@@ -120,12 +120,11 @@ configure_dma(
 	config->info = vf_info;
 }
 
-int
-ia_css_vf_configure(
-    const struct ia_css_binary *binary,
-    const struct ia_css_frame_info *out_info,
-    struct ia_css_frame_info *vf_info,
-    unsigned int *downscale_log2) {
+int ia_css_vf_configure(const struct ia_css_binary *binary,
+		        const struct ia_css_frame_info *out_info,
+			struct ia_css_frame_info *vf_info,
+			unsigned int *downscale_log2)
+{
 	int err;
 	struct ia_css_vf_configuration config;
 	const struct ia_css_binary_info *info = &binary->info->sp;
@@ -138,7 +137,6 @@ ia_css_vf_configure(
 
 	if (vf_info)
 		vf_info->raw_bit_depth = info->dma.vfdec_bits_per_pixel;
-	ia_css_configure_vf(binary, &config);
 
-	return 0;
+	return ia_css_configure_vf(binary, &config);
 }

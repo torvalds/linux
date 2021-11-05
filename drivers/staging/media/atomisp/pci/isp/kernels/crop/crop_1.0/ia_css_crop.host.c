@@ -52,14 +52,12 @@ ia_css_crop_config(
 	assert(elems_a % to->port_b.elems == 0);
 }
 
-void
-ia_css_crop_configure(
-    const struct ia_css_binary     *binary,
-    const struct ia_css_frame_info *info)
+int ia_css_crop_configure(const struct ia_css_binary     *binary,
+			  const struct ia_css_frame_info *info)
 {
 	struct ia_css_crop_configuration config = default_config;
 
 	config.info = info;
 
-	ia_css_configure_crop(binary, &config);
+	return ia_css_configure_crop(binary, &config);
 }
