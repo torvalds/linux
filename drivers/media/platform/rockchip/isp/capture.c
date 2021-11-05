@@ -1137,6 +1137,125 @@ static int rkisp_enum_framesizes(struct file *file, void *prov,
 	return 0;
 }
 
+static int rkisp_get_cmsk(struct rkisp_stream *stream, struct rkisp_cmsk_cfg *cfg)
+{
+	struct rkisp_device *dev = stream->ispdev;
+	unsigned long lock_flags = 0;
+	u32 i, win_en, mode;
+
+	if (dev->isp_ver != ISP_V30 || stream->id == RKISP_STREAM_FBC) {
+		v4l2_err(&dev->v4l2_dev, "%s not support\n", __func__);
+		return -EINVAL;
+	}
+
+	spin_lock_irqsave(&dev->cmsk_lock, lock_flags);
+	*cfg = dev->cmsk_cfg;
+	spin_unlock_irqrestore(&dev->cmsk_lock, lock_flags);
+
+	switch (stream->id) {
+	case RKISP_STREAM_MP:
+		win_en = cfg->win[0].win_en;
+		mode = cfg->win[0].mode;
+		break;
+	case RKISP_STREAM_SP:
+		win_en = cfg->win[1].win_en;
+		mode = cfg->win[1].mode;
+		break;
+	case RKISP_STREAM_BP:
+	default:
+		win_en = cfg->win[2].win_en;
+		mode = cfg->win[2].mode;
+		break;
+	}
+
+	cfg->width_ro = dev->isp_sdev.out_crop.width;
+	cfg->height_ro = dev->isp_sdev.out_crop.height;
+	for (i = 0; i < RKISP_CMSK_WIN_MAX; i++) {
+		cfg->win[i].win_en = !!(win_en & BIT(i));
+		cfg->win[i].mode = !!(mode & BIT(i));
+	}
+
+	return 0;
+}
+
+static int rkisp_set_cmsk(struct rkisp_stream *stream, struct rkisp_cmsk_cfg *cfg)
+{
+	struct rkisp_device *dev = stream->ispdev;
+	unsigned long lock_flags = 0;
+	u8 i, win_en = 0, mode = 0;
+	u16 h_offs, v_offs, h_size, v_size;
+	u32 width = dev->isp_sdev.out_crop.width;
+	u32 height = dev->isp_sdev.out_crop.height;
+	bool warn = false;
+
+	if (dev->isp_ver != ISP_V30 || stream->id == RKISP_STREAM_FBC) {
+		v4l2_err(&dev->v4l2_dev, "%s not support\n", __func__);
+		return -EINVAL;
+	}
+
+	spin_lock_irqsave(&dev->cmsk_lock, lock_flags);
+	dev->is_cmsk_upd = true;
+	for (i = 0; i < RKISP_CMSK_WIN_MAX; i++) {
+		win_en |= cfg->win[i].win_en ? BIT(i) : 0;
+		mode |= cfg->win[i].mode ? BIT(i) : 0;
+
+		if (cfg->win[i].win_en) {
+			if (cfg->win[i].mode) {
+				dev->cmsk_cfg.win[i].cover_color_y = cfg->win[i].cover_color_y;
+				dev->cmsk_cfg.win[i].cover_color_u = cfg->win[i].cover_color_u;
+				dev->cmsk_cfg.win[i].cover_color_v = cfg->win[i].cover_color_v;
+			}
+			h_offs = cfg->win[i].h_offs & ~0x1;
+			v_offs = cfg->win[i].v_offs & ~0x1;
+			h_size = cfg->win[i].h_size & ~0x7;
+			v_size = cfg->win[i].v_size & ~0x7;
+			if (h_offs != cfg->win[i].h_offs ||
+			    v_offs != cfg->win[i].v_offs ||
+			    h_size != cfg->win[i].h_size ||
+			    v_size != cfg->win[i].v_size)
+				warn = true;
+			if (h_offs + h_size > width) {
+				h_size = (width - h_offs) & ~0x7;
+				warn = true;
+			}
+			if (v_offs + v_size > height) {
+				v_size = (height - v_offs) & ~0x7;
+				warn = true;
+			}
+			if (warn) {
+				warn = false;
+				v4l2_warn(&dev->v4l2_dev,
+					  "%s cmsk offs 2 align, size 8 align and offs + size < resolution\n"
+					  "\t cmsk win%d result to offs:%d %d, size:%d %d\n",
+					  stream->vnode.vdev.name, i, h_offs, v_offs, h_size, v_size);
+			}
+			dev->cmsk_cfg.win[i].h_offs = h_offs;
+			dev->cmsk_cfg.win[i].v_offs = v_offs;
+			dev->cmsk_cfg.win[i].h_size = h_size;
+			dev->cmsk_cfg.win[i].v_size = v_size;
+		}
+	}
+
+	switch (stream->id) {
+	case RKISP_STREAM_MP:
+		dev->cmsk_cfg.win[0].win_en = win_en;
+		dev->cmsk_cfg.win[0].mode = mode;
+		break;
+	case RKISP_STREAM_SP:
+		dev->cmsk_cfg.win[1].win_en = win_en;
+		dev->cmsk_cfg.win[1].mode = mode;
+		break;
+	case RKISP_STREAM_BP:
+	default:
+		dev->cmsk_cfg.win[2].win_en = win_en;
+		dev->cmsk_cfg.win[2].mode = mode;
+		break;
+	}
+	spin_unlock_irqrestore(&dev->cmsk_lock, lock_flags);
+	return 0;
+
+}
+
 static long rkisp_ioctl_default(struct file *file, void *fh,
 				bool valid_prio, unsigned int cmd, void *arg)
 {
@@ -1173,6 +1292,12 @@ static long rkisp_ioctl_default(struct file *file, void *fh,
 		else
 			stream->memory =
 				SW_CSI_RWA_WR_SIMG_SWP | SW_CSI_RAW_WR_SIMG_MODE;
+		break;
+	case RKISP_CMD_GET_CMSK:
+		ret = rkisp_get_cmsk(stream, arg);
+		break;
+	case RKISP_CMD_SET_CMSK:
+		ret = rkisp_set_cmsk(stream, arg);
 		break;
 	default:
 		ret = -EINVAL;

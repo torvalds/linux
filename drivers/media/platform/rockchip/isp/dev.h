@@ -230,5 +230,9 @@ struct rkisp_device {
 	u8 filt_state[RDBK_F_MAX];
 
 	struct rkisp_rx_buf_pool pv_pool[RKISP_RX_BUF_POOL_MAX];
+
+	spinlock_t cmsk_lock;
+	struct rkisp_cmsk_cfg cmsk_cfg;
+	bool is_cmsk_upd;
 };
 #endif

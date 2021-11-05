@@ -49,6 +49,12 @@
 #define RKISP_CMD_SET_CSI_MEMORY_MODE \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 101, int)
 
+#define RKISP_CMD_GET_CMSK \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 102, struct rkisp_cmsk_cfg)
+
+#define RKISP_CMD_SET_CMSK \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 103, struct rkisp_cmsk_cfg)
+
 /*************************************************************/
 
 #define ISP2X_ID_DPCC			(0)
@@ -241,6 +247,50 @@ struct rkisp_meshbuf_size {
 struct isp2x_mesh_head {
 	enum isp2x_mesh_buf_stat stat;
 	u32 data_oft;
+} __attribute__ ((packed));
+
+#define RKISP_CMSK_WIN_MAX 8
+#define RKISP_CMSK_MOSAIC_MODE 0
+#define RKISP_CMSK_COVER_MODE 1
+
+/* struct rkisp_cmsk_win
+ * Priacy Mask Window configture, support 8 windows, and
+ * support for mainpath and selfpath output stream channel.
+ *
+ * mode: 0:mosaic mode, 1:cover mode
+ * win_index: window index 0~7. windows overlap, priority win7 > win0.
+ * cover_color_y: cover mode effective, share for stream channel when same win_index.
+ * cover_color_u: cover mode effective, share for stream channel when same win_index.
+ * cover_color_v: cover mode effective, share for stream channel when same win_index.
+ *
+ * h_offs: window horizontal offset, share for stream channel when same win_index. 2 align.
+ * v_offs: window vertical offset, share for stream channel when same win_index. 2 align.
+ * h_size: window horizontal size, share for stream channel when same win_index. 8 align.
+ * v_size: window vertical size, share for stream channel when same win_index. 8 align.
+ */
+struct rkisp_cmsk_win {
+	unsigned char mode;
+	unsigned char win_en;
+
+	unsigned char cover_color_y;
+	unsigned char cover_color_u;
+	unsigned char cover_color_v;
+
+	unsigned short h_offs;
+	unsigned short v_offs;
+	unsigned short h_size;
+	unsigned short v_size;
+} __attribute__ ((packed));
+
+/* struct rkisp_cmsk_cfg
+ * win: priacy mask window
+ * width_ro: isp full resolution, h_offs + h_size <= width_ro.
+ * height_ro: isp full resolution, v_offs + v_size <= height_ro.
+ */
+struct rkisp_cmsk_cfg {
+	struct rkisp_cmsk_win win[RKISP_CMSK_WIN_MAX];
+	unsigned int width_ro;
+	unsigned int height_ro;
 } __attribute__ ((packed));
 
 /* trigger event mode

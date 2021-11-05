@@ -459,8 +459,10 @@ static int _set_pipeline_default_fmt(struct rkisp_device *dev)
 			rkisp_dmarx_set_fmt(&dev->dmarx_dev.stream[i], pixm);
 		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_FBC,
 					 width, height, V4L2_PIX_FMT_FBC0);
+#ifdef RKISP_STREAM_BP_EN
 		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_BP,
 					 width, height, V4L2_PIX_FMT_NV12);
+#endif
 	}
 	return 0;
 }

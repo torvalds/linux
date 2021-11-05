@@ -83,6 +83,8 @@
  * +---------------------------------------------------------+
  */
 
+static void rkisp_config_cmsk(struct rkisp_device *dev);
+
 struct backup_reg {
 	const u32 base;
 	const u32 shd;
@@ -559,7 +561,7 @@ void rkisp_trigger_read_back(struct rkisp_device *dev, u8 dma2frm, u32 mode, boo
 				       &dev->isp_sdev.in_fmt,
 				       dev->isp_sdev.quantization);
 	rkisp_params_cfg(params_vdev, cur_frame_id);
-
+	rkisp_config_cmsk(dev);
 	if (!hw->is_single && !is_try) {
 		rkisp_update_regs(dev, CTRL_VI_ISP_PATH, SUPER_IMP_COLOR_CR);
 		rkisp_update_regs(dev, DUAL_CROP_M_H_OFFS, DUAL_CROP_S_V_SIZE);
@@ -1126,6 +1128,73 @@ static void rkisp_config_color_space(struct rkisp_device *dev)
 				 CIF_ISP_CTRL_ISP_CSM_C_FULL_ENA, false);
 }
 
+static void rkisp_config_cmsk(struct rkisp_device *dev)
+{
+	unsigned long lock_flags = 0;
+	u32 i, val, mp_en, sp_en, bp_en, ctrl = 0;
+	struct rkisp_cmsk_cfg cfg;
+
+	if (dev->isp_ver != ISP_V30)
+		return;
+
+	spin_lock_irqsave(&dev->cmsk_lock, lock_flags);
+	if (!dev->is_cmsk_upd) {
+		spin_unlock_irqrestore(&dev->cmsk_lock, lock_flags);
+		return;
+	}
+	dev->is_cmsk_upd = false;
+	cfg = dev->cmsk_cfg;
+	spin_unlock_irqrestore(&dev->cmsk_lock, lock_flags);
+
+	mp_en = cfg.win[0].win_en;
+	if (mp_en) {
+		ctrl |= ISP3X_SW_CMSK_EN_MP;
+		rkisp_write(dev, ISP3X_CMSK_CTRL1, mp_en, false);
+		val = cfg.win[0].mode;
+		rkisp_write(dev, ISP3X_CMSK_CTRL4, val, false);
+	}
+
+	sp_en = cfg.win[1].win_en;
+	if (sp_en) {
+		ctrl |= ISP3X_SW_CMSK_EN_SP;
+		rkisp_write(dev, ISP3X_CMSK_CTRL2, sp_en, false);
+		val = cfg.win[1].mode;
+		rkisp_write(dev, ISP3X_CMSK_CTRL5, val, false);
+	}
+
+	bp_en = cfg.win[2].win_en;
+	if (bp_en) {
+		ctrl |= ISP3X_SW_CMSK_EN_BP;
+		rkisp_write(dev, ISP3X_CMSK_CTRL3, bp_en, false);
+		val = cfg.win[2].mode;
+		rkisp_write(dev, ISP3X_CMSK_CTRL6, val, false);
+	}
+
+	for (i = 0; i < RKISP_CMSK_WIN_MAX; i++) {
+		if (!(mp_en & BIT(i)) && !(sp_en & BIT(i)) && !(bp_en & BIT(i)))
+			continue;
+
+		val = ISP3X_SW_CMSK_YUV(cfg.win[i].cover_color_y,
+					cfg.win[i].cover_color_u,
+					cfg.win[i].cover_color_v);
+		rkisp_write(dev, ISP3X_CMSK_YUV0 + i * 4, val, false);
+
+		val = ISP_PACK_2SHORT(cfg.win[i].h_offs, cfg.win[i].v_offs);
+		rkisp_write(dev, ISP3X_CMSK_OFFS0 + i * 8, val, false);
+
+		val = ISP_PACK_2SHORT(cfg.win[i].h_size, cfg.win[i].v_size);
+		rkisp_write(dev, ISP3X_CMSK_SIZE0 + i * 8, val, false);
+	}
+
+	if (ctrl) {
+		val = ISP_PACK_2SHORT(dev->isp_sdev.out_crop.width,
+				      dev->isp_sdev.out_crop.height);
+		rkisp_write(dev, ISP3X_CMSK_PIC_SIZE, val, false);
+		ctrl |= ISP3X_SW_CMSK_EN | ISP3X_SW_CMSK_ORDER_MODE;
+	}
+	rkisp_write(dev, ISP3X_CMSK_CTRL0, ctrl, false);
+}
+
 /*
  * configure isp blocks with input format, size......
  */
@@ -1281,6 +1350,8 @@ static int rkisp_config_isp(struct rkisp_device *dev)
 		rkisp_update_regs(dev, CIF_ISP_ACQ_H_OFFS, CIF_ISP_ACQ_V_SIZE);
 		rkisp_update_regs(dev, CIF_ISP_OUT_H_SIZE, CIF_ISP_OUT_V_SIZE);
 	}
+
+	rkisp_config_cmsk(dev);
 	return 0;
 }
 
@@ -1623,6 +1694,8 @@ end:
 	    dev->isp_ver == ISP_V21 ||
 	    dev->isp_ver == ISP_V30)
 		kfifo_reset(&dev->rdbk_kfifo);
+	if (dev->isp_ver == ISP_V30)
+		memset(&dev->cmsk_cfg, 0, sizeof(dev->cmsk_cfg));
 	if (dev->emd_vc <= CIF_ISP_ADD_DATA_VC_MAX) {
 		for (i = 0; i < RKISP_EMDDATA_FIFO_MAX; i++)
 			kfifo_free(&dev->emd_data_fifo[i].mipi_kfifo);
@@ -2890,6 +2963,7 @@ int rkisp_register_isp_subdev(struct rkisp_device *isp_dev,
 	struct v4l2_subdev *sd = &isp_sdev->sd;
 	int ret;
 
+	spin_lock_init(&isp_dev->cmsk_lock);
 	spin_lock_init(&isp_dev->rdbk_lock);
 	ret = kfifo_alloc(&isp_dev->rdbk_kfifo,
 		16 * sizeof(struct isp2x_csi_trigger), GFP_KERNEL);
@@ -3295,6 +3369,9 @@ vs_skip:
 
 		if ((isp_mis & CIF_ISP_FRAME) && dev->stats_vdev.rdbk_mode)
 			rkisp_stats_rdbk_enable(&dev->stats_vdev, false);
+
+		if (!IS_HDR_RDBK(dev->hdr.op_mode))
+			rkisp_config_cmsk(dev);
 	}
 
 	/*
