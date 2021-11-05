@@ -1370,7 +1370,7 @@ int __ref add_memory_resource(int nid, struct resource *res, mhp_t mhp_flags)
 	mem_hotplug_begin();
 
 	if (IS_ENABLED(CONFIG_ARCH_KEEP_MEMBLOCK)) {
-		ret = memblock_add_node(start, size, nid);
+		ret = memblock_add_node(start, size, nid, MEMBLOCK_NONE);
 		if (ret)
 			goto error_mem_hotplug_end;
 	}
