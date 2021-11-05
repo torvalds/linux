@@ -145,7 +145,7 @@ static void damon_dbgfs_test_set_init_regions(struct kunit *test)
 
 		KUNIT_EXPECT_STREQ(test, (char *)buf, expect);
 	}
-	/* Put invlid inputs and check the return error code */
+	/* Put invalid inputs and check the return error code */
 	for (i = 0; i < ARRAY_SIZE(invalid_inputs); i++) {
 		input = invalid_inputs[i];
 		pr_info("input: %s\n", input);
