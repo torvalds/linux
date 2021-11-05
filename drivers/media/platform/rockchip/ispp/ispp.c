@@ -424,6 +424,7 @@ static long rkispp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		rkispp_reg_withstream = arg;
 		*rkispp_reg_withstream = rkispp_is_reg_withstream_global();
 		break;
+	#if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISPP_VERSION_V10)
 	case RKISPP_CMD_TRIGGER_YNRRUN:
 		rkispp_sendbuf_to_nr(ispp_dev, (struct rkispp_tnr_inf *)arg);
 		break;
@@ -433,6 +434,7 @@ static long rkispp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	case RKISPP_CMD_TRIGGER_MODE:
 		rkispp_set_trigger_mode(ispp_dev, (struct rkispp_trigger_mode *)arg);
 		break;
+	#endif
 	default:
 		ret = -ENOIOCTLCMD;
 	}

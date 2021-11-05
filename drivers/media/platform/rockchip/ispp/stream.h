@@ -5,6 +5,7 @@
 #define _RKISPP_STREAM_H
 
 #include "common.h"
+#include "params.h"
 
 struct rkispp_stream;
 
@@ -121,7 +122,9 @@ struct nr_module {
 
 struct fec_module {
 	struct list_head list_rd;
-	struct rkispp_dummy_buffer *cur_rd;
+	struct list_head list_wr;
+	struct rkisp_ispp_buf *cur_rd;
+	struct rkispp_dummy_buffer *dummy_cur_rd;
 	struct rkisp_ispp_reg *reg_buf;
 	struct frame_debug_info dbg;
 	spinlock_t buf_lock;
@@ -200,6 +203,21 @@ struct rkispp_monitor {
 	bool is_en;
 };
 
+
+struct rkispp_stream_ops {
+	int (*config_modules)(struct rkispp_device *dev);
+	void (*destroy_buf)(struct rkispp_stream *stream);
+	void (*fec_work_event)(struct rkispp_device *dev, void *buf_rd,
+			       bool is_isr, bool is_quick);
+	int (*start_isp)(struct rkispp_device *dev);
+	void (*check_to_force_update)(struct rkispp_device *dev, u32 mis_val);
+	void (*update_mi)(struct rkispp_stream *stream);
+	enum hrtimer_restart (*rkispp_frame_done_early)(struct hrtimer *timer);
+	void (*rkispp_module_work_event)(struct rkispp_device *dev,
+					 void *buf_rd, void *buf_wr,
+					 u32 module, bool is_isr);
+};
+
 struct rkispp_vir_cpy {
 	struct work_struct work;
 	struct completion cmpl;
@@ -216,6 +234,7 @@ struct rkispp_stream_vdev {
 	struct fec_module fec;
 	struct frame_debug_info dbg;
 	struct rkispp_monitor monitor;
+	struct rkispp_stream_ops *stream_ops;
 	struct rkispp_vir_cpy vir_cpy;
 	struct rkisp_ispp_buf input[VIDEO_MAX_FRAME];
 	struct hrtimer fec_qst;
@@ -232,10 +251,30 @@ void rkispp_sendbuf_to_nr(struct rkispp_device *dev,
 			  struct rkispp_tnr_inf *tnr_inf);
 void rkispp_set_trigger_mode(struct rkispp_device *dev,
 			     struct rkispp_trigger_mode *mode);
-void rkispp_module_work_event(struct rkispp_device *dev,
-			      void *buf_rd, void *buf_wr,
-			      u32 module, bool is_isr);
 void rkispp_isr(u32 mis_val, struct rkispp_device *dev);
 void rkispp_unregister_stream_vdevs(struct rkispp_device *dev);
 int rkispp_register_stream_vdevs(struct rkispp_device *dev);
+void *get_pool_buf(struct rkispp_device *dev, struct rkisp_ispp_buf *dbufs);
+void *dbuf_to_dummy(struct dma_buf *dbuf, struct rkispp_dummy_buffer *pool, int num);
+void *get_list_buf(struct list_head *list, bool is_isp_ispp);
+void get_stream_buf(struct rkispp_stream *stream);
+void secure_config_mb(struct rkispp_stream *stream);
+
+#if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISPP_VERSION_V10)
+void rkispp_stream_init_ops_v10(struct rkispp_stream_vdev *stream_vdev);
+void rkispp_params_init_ops_v10(struct rkispp_params_vdev *params_vdev);
+#else
+static inline void rkispp_stream_init_ops_v10(struct rkispp_stream_vdev *stream_vdev) {}
+static inline void rkispp_params_init_ops_v10(struct rkispp_params_vdev *params_vdev) {}
+#endif
+
+#if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISPP_VERSION_V20)
+void rkispp_stream_init_ops_v20(struct rkispp_stream_vdev *stream_vdev);
+void rkispp_params_init_ops_v20(struct rkispp_params_vdev *params_vdev);
+#else
+static inline void rkispp_stream_init_ops_v20(struct rkispp_stream_vdev *stream_vdev) {}
+static inline void rkispp_params_init_ops_v20(struct rkispp_params_vdev *params_vdev) {}
+#endif
+int rkispp_frame_end(struct rkispp_stream *stream, u32 state);
+void rkispp_start_3a_run(struct rkispp_device *dev);
 #endif

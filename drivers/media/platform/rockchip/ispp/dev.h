@@ -54,7 +54,7 @@ struct rkispp_device {
 	u32 mis_val;
 	wait_queue_head_t sync_onoff;
 	bool stream_sync;
-
+	u8 stream_max;
 	void (*irq_hdl)(u32 mis, struct rkispp_device *dev);
 };
 #endif

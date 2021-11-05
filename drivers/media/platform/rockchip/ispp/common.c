@@ -269,7 +269,7 @@ static void rkispp_free_pool(struct rkispp_hw_dev *hw)
 		if (rkispp_debug)
 			dev_info(hw->dev, "%s dbufs[%d]:0x%p\n",
 				 __func__, i, buf->dbufs);
-		for (j = 0; j < GROUP_BUF_MAX; j++) {
+		for (j = 0; j < hw->pool[0].group_buf_max; j++) {
 			if (buf->mem_priv[j]) {
 				g_ops->unmap_dmabuf(buf->mem_priv[j]);
 				g_ops->detach_dmabuf(buf->mem_priv[j]);
@@ -304,7 +304,7 @@ static int rkispp_init_pool(struct rkispp_hw_dev *hw, struct rkisp_ispp_buf *dbu
 	if (rkispp_debug)
 		dev_info(hw->dev, "%s dbufs[%d]:0x%p\n",
 			 __func__, i, dbufs);
-	for (i = 0; i < GROUP_BUF_MAX; i++) {
+	for (i = 0; i < hw->pool[0].group_buf_max; i++) {
 		mem = g_ops->attach_dmabuf(hw->dev, dbufs->dbuf[i],
 			dbufs->dbuf[i]->size, DMA_BIDIRECTIONAL);
 		if (IS_ERR(mem)) {
@@ -370,9 +370,10 @@ static void rkispp_queue_dmabuf(struct rkispp_hw_dev *hw, struct rkisp_ispp_buf 
 		hw->cur_dev_id = buf->index;
 		ispp = hw->ispp[buf->index];
 		vdev = &ispp->stream_vdev;
-		val = (vdev->module_ens & ISPP_MODULE_TNR) ? ISPP_MODULE_TNR : ISPP_MODULE_NR;
-		rkispp_params_cfg(&ispp->params_vdev, buf->frame_id);
-		rkispp_module_work_event(ispp, buf, NULL, val, false);
+		val = (vdev->module_ens & ISPP_MODULE_TNR) ? ISPP_MODULE_TNR :
+		((vdev->module_ens & ISPP_MODULE_NR) ? ISPP_MODULE_NR : ISPP_MODULE_FEC);
+		ispp->params_vdev.params_ops->rkispp_params_cfg(&ispp->params_vdev, buf->frame_id);
+		vdev->stream_ops->rkispp_module_work_event(ispp, buf, NULL, val, false);
 	}
 
 	spin_unlock_irqrestore(&hw->buf_lock, lock_flags);

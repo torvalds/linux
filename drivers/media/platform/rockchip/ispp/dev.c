@@ -144,17 +144,53 @@ static int rkispp_create_links(struct rkispp_device *ispp_dev)
 				    RKISPP_PAD_SINK_PARAMS, flags);
 	if (ret < 0)
 		return ret;
+	ispp_dev->stream_vdev.module_ens = ISPP_MODULE_FEC;
+	if (ispp_dev->ispp_ver == ISPP_V10) {
+		/* stats links */
+		flags = MEDIA_LNK_FL_ENABLED;
+		source = &ispp_dev->ispp_sdev.sd.entity;
+		sink = &ispp_dev->stats_vdev.vnode.vdev.entity;
+		ret = media_create_pad_link(source, RKISPP_PAD_SOURCE_STATS,
+					    sink, 0, flags);
+		if (ret < 0)
+			return ret;
 
-	/* stats links */
-	flags = MEDIA_LNK_FL_ENABLED;
-	source = &ispp_dev->ispp_sdev.sd.entity;
-	sink = &ispp_dev->stats_vdev.vnode.vdev.entity;
-	ret = media_create_pad_link(source, RKISPP_PAD_SOURCE_STATS,
-				    sink, 0, flags);
-	if (ret < 0)
-		return ret;
+		/* output stream links */
+		stream = &stream_vdev->stream[STREAM_S0];
+		stream->linked = flags;
+		sink = &stream->vnode.vdev.entity;
+		ret = media_create_pad_link(source, RKISPP_PAD_SOURCE,
+					    sink, 0, flags);
+		if (ret < 0)
+			return ret;
 
-	/* output stream links */
+		stream = &stream_vdev->stream[STREAM_S1];
+		stream->linked = flags;
+		sink = &stream->vnode.vdev.entity;
+		ret = media_create_pad_link(source, RKISPP_PAD_SOURCE,
+					    sink, 0, flags);
+		if (ret < 0)
+			return ret;
+
+		stream = &stream_vdev->stream[STREAM_S2];
+		stream->linked = flags;
+		sink = &stream->vnode.vdev.entity;
+		ret = media_create_pad_link(source, RKISPP_PAD_SOURCE,
+					    sink, 0, flags);
+		if (ret < 0)
+			return ret;
+
+		stream = &stream_vdev->stream[STREAM_VIR];
+		stream->linked = flags;
+		sink = &stream->vnode.vdev.entity;
+		ret = media_create_pad_link(source, RKISPP_PAD_SOURCE,
+					    sink, 0, flags);
+		if (ret < 0)
+			return ret;
+
+		ispp_dev->stream_vdev.module_ens = ISPP_MODULE_NR | ISPP_MODULE_SHP;
+	}
+
 	flags = rkispp_stream_sync ? 0 : MEDIA_LNK_FL_ENABLED;
 	stream = &stream_vdev->stream[STREAM_MB];
 	stream->linked = flags;
@@ -165,40 +201,7 @@ static int rkispp_create_links(struct rkispp_device *ispp_dev)
 	if (ret < 0)
 		return ret;
 
-	stream = &stream_vdev->stream[STREAM_S0];
-	stream->linked = flags;
-	sink = &stream->vnode.vdev.entity;
-	ret = media_create_pad_link(source, RKISPP_PAD_SOURCE,
-				    sink, 0, flags);
-	if (ret < 0)
-		return ret;
-
-	stream = &stream_vdev->stream[STREAM_S1];
-	stream->linked = flags;
-	sink = &stream->vnode.vdev.entity;
-	ret = media_create_pad_link(source, RKISPP_PAD_SOURCE,
-				    sink, 0, flags);
-	if (ret < 0)
-		return ret;
-
-	stream = &stream_vdev->stream[STREAM_S2];
-	stream->linked = flags;
-	sink = &stream->vnode.vdev.entity;
-	ret = media_create_pad_link(source, RKISPP_PAD_SOURCE,
-				    sink, 0, flags);
-	if (ret < 0)
-		return ret;
-
-	stream = &stream_vdev->stream[STREAM_VIR];
-	stream->linked = flags;
-	sink = &stream->vnode.vdev.entity;
-	ret = media_create_pad_link(source, RKISPP_PAD_SOURCE,
-				    sink, 0, flags);
-	if (ret < 0)
-		return ret;
-
 	/* default enable */
-	ispp_dev->stream_vdev.module_ens = ISPP_MODULE_NR | ISPP_MODULE_SHP;
 	return 0;
 }
 
@@ -240,6 +243,8 @@ err_unreg_stream_vdevs:
 static const struct of_device_id rkispp_plat_of_match[] = {
 	{
 		.compatible = "rockchip,rv1126-rkispp-vir",
+	}, {
+		.compatible = "rockchip,rk3588-rkispp-vir",
 	},
 	{},
 };

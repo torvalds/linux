@@ -11,6 +11,7 @@
 #include <media/videobuf2-v4l2.h>
 #include <linux/pm_runtime.h>
 #include <linux/rkispp-config.h>
+#include <uapi/linux/rk-video-format.h>
 
 #include "hw.h"
 #include "ispp.h"
@@ -270,7 +271,8 @@ static int fec_running(struct rkispp_fec_dev *fec,
 	val = ALIGN(buf->width * out_mult, 16) >> 2;
 	writel(val, base + RKISPP_FEC_WR_VIR_STRIDE);
 	val = buf->height << 16 | buf->width;
-	writel(val, base + RKISPP_FEC_PIC_SIZE);
+	writel(val, base + RKISPP_FEC_DST_SIZE);
+	writel(val, base + RKISPP_FEC_SRC_SIZE);
 	writel(mesh_size, base + RKISPP_FEC_MESH_SIZE);
 	val = SW_FEC_EN | density;
 	writel(val, base + RKISPP_FEC_CORE_CTRL);
@@ -293,7 +295,8 @@ static int fec_running(struct rkispp_fec_dev *fec,
 		 RKISPP_FEC_WR_Y_BASE_SHD, readl(base + RKISPP_FEC_WR_Y_BASE_SHD),
 		 RKISPP_FEC_WR_UV_BASE_SHD, readl(base + RKISPP_FEC_WR_UV_BASE_SHD),
 		 RKISPP_FEC_CORE_CTRL, readl(base + RKISPP_FEC_CORE_CTRL),
-		 RKISPP_FEC_PIC_SIZE, readl(base + RKISPP_FEC_PIC_SIZE),
+		 RKISPP_FEC_DST_SIZE, readl(base + RKISPP_FEC_DST_SIZE),
+		 RKISPP_FEC_SRC_SIZE, readl(base + RKISPP_FEC_SRC_SIZE),
 		 RKISPP_FEC_MESH_SIZE, readl(base + RKISPP_FEC_MESH_SIZE));
 	if (!fec->hw->is_shutdown)
 		writel(FEC_ST, base + RKISPP_CTRL_STRT);
@@ -452,6 +455,7 @@ int rkispp_register_fec(struct rkispp_hw_dev *hw)
 
 	fec->vfd = fec_videodev;
 	vfd = &fec->vfd;
+	vfd->device_caps = V4L2_CAP_STREAMING;
 	vfd->lock = &fec->apilock;
 	vfd->v4l2_dev = v4l2_dev;
 	ret = video_register_device(vfd, VFL_TYPE_VIDEO, 0);
