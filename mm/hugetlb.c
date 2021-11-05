@@ -445,7 +445,6 @@ static long add_reservation_in_range(struct resv_map *resv, long f, long t,
 		add += hugetlb_resv_map_add(resv, rg, last_accounted_offset,
 					    t, h, h_cg, regions_needed);
 
-	VM_BUG_ON(add < 0);
 	return add;
 }
 
