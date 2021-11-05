@@ -1571,8 +1571,8 @@ static struct btrfs_root *btrfs_get_global_root(struct btrfs_fs_info *fs_info,
 		return btrfs_grab_root(fs_info->uuid_root) ?
 			fs_info->uuid_root : ERR_PTR(-ENOENT);
 	if (objectid == BTRFS_FREE_SPACE_TREE_OBJECTID)
-		return btrfs_grab_root(fs_info->free_space_root) ?
-			fs_info->free_space_root : ERR_PTR(-ENOENT);
+		return btrfs_grab_root(fs_info->_free_space_root) ?
+			fs_info->_free_space_root : ERR_PTR(-ENOENT);
 	return NULL;
 }
 
@@ -1637,7 +1637,7 @@ void btrfs_free_fs_info(struct btrfs_fs_info *fs_info)
 	btrfs_put_root(fs_info->_csum_root);
 	btrfs_put_root(fs_info->quota_root);
 	btrfs_put_root(fs_info->uuid_root);
-	btrfs_put_root(fs_info->free_space_root);
+	btrfs_put_root(fs_info->_free_space_root);
 	btrfs_put_root(fs_info->fs_root);
 	btrfs_put_root(fs_info->data_reloc_root);
 	btrfs_check_leaked_roots(fs_info);
@@ -2176,7 +2176,7 @@ static void free_root_pointers(struct btrfs_fs_info *info, bool free_chunk_root)
 	free_root_extent_buffers(info->data_reloc_root);
 	if (free_chunk_root)
 		free_root_extent_buffers(info->chunk_root);
-	free_root_extent_buffers(info->free_space_root);
+	free_root_extent_buffers(info->_free_space_root);
 }
 
 void btrfs_put_root(struct btrfs_root *root)
@@ -2542,7 +2542,7 @@ static int btrfs_read_roots(struct btrfs_fs_info *fs_info)
 			}
 		}  else {
 			set_bit(BTRFS_ROOT_TRACK_DIRTY, &root->state);
-			fs_info->free_space_root = root;
+			fs_info->_free_space_root = root;
 		}
 	}
 

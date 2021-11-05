@@ -446,7 +446,7 @@ static int run_test(test_func_t test_func, int bitmaps, u32 sectorsize,
 
 	btrfs_set_super_compat_ro_flags(root->fs_info->super_copy,
 					BTRFS_FEATURE_COMPAT_RO_FREE_SPACE_TREE);
-	root->fs_info->free_space_root = root;
+	root->fs_info->_free_space_root = root;
 	root->fs_info->tree_root = root;
 
 	root->node = alloc_test_extent_buffer(root->fs_info, nodesize);

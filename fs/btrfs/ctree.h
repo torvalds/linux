@@ -631,7 +631,7 @@ struct btrfs_fs_info {
 	struct btrfs_root *_csum_root;
 	struct btrfs_root *quota_root;
 	struct btrfs_root *uuid_root;
-	struct btrfs_root *free_space_root;
+	struct btrfs_root *_free_space_root;
 	struct btrfs_root *data_reloc_root;
 
 	/* the log root tree is a directory of all the other log roots */
