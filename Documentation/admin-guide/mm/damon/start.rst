@@ -19,7 +19,7 @@ your workload. ::
     # mount -t debugfs none /sys/kernel/debug/
     # git clone https://github.com/awslabs/damo
     # ./damo/damo record $(pidof <your workload>)
-    # ./damo/damo report heat --plot_ascii
+    # ./damo/damo report heats --heatmap stdout
 
 The final command draws the access heatmap of ``<your workload>``.  The heatmap
 shows which memory region (x-axis) is accessed when (y-axis) and how frequently
@@ -94,9 +94,9 @@ Visualizing Recorded Patterns
 The following three commands visualize the recorded access patterns and save
 the results as separate image files. ::
 
-    $ damo report heats --heatmap access_pattern_heatmap.png
-    $ damo report wss --range 0 101 1 --plot wss_dist.png
-    $ damo report wss --range 0 101 1 --sortby time --plot wss_chron_change.png
+    $ sudo damo report heats --heatmap access_pattern_heatmap.png
+    $ sudo damo report wss --range 0 101 1 --plot wss_dist.png
+    $ sudo damo report wss --range 0 101 1 --sortby time --plot wss_chron_change.png
 
 - ``access_pattern_heatmap.png`` will visualize the data access pattern in a
   heatmap, showing which memory region (y-axis) got accessed when (x-axis)
@@ -115,9 +115,9 @@ Data Access Pattern Aware Memory Management
 Below three commands make every memory region of size >=4K that doesn't
 accessed for >=60 seconds in your workload to be swapped out. ::
 
-    $ echo "#min-size max-size min-acc max-acc min-age max-age action" > scheme
-    $ echo "4K        max      0       0       60s     max     pageout" >> scheme
-    $ damo schemes -c my_thp_scheme <pid of your workload>
+    $ echo "#min-size max-size min-acc max-acc min-age max-age action" > test_scheme
+    $ echo "4K        max      0       0       60s     max     pageout" >> test_scheme
+    $ damo schemes -c test_scheme <pid of your workload>
 
 .. [1] https://damonitor.github.io/doc/html/v17/admin-guide/mm/damon/start.html#visualizing-recorded-patterns
 .. [2] https://damonitor.github.io/test/result/visual/latest/rec.heatmap.1.png.html
