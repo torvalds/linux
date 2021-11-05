@@ -53,6 +53,7 @@ atomisp-objs += \
 	pci/hmm/hmm.o \
 	pci/hmm/hmm_reserved_pool.o \
 	pci/ia_css_device_access.o \
+	pci/ia_css_isp_configs.o \
 	pci/isp/kernels/aa/aa_2/ia_css_aa2.host.o \
 	pci/isp/kernels/anr/anr_1.0/ia_css_anr.host.o \
 	pci/isp/kernels/anr/anr_2/ia_css_anr2.host.o \
@@ -157,7 +158,6 @@ atomisp-objs += \
 	pci/system_local.o \
 
 obj-byt = \
-	pci/css_2400_system/hive/ia_css_isp_configs.o \
 	pci/css_2400_system/hive/ia_css_isp_params.o \
 	pci/css_2400_system/hive/ia_css_isp_states.o \
 
@@ -166,7 +166,6 @@ obj-byt = \
 #
 
 obj-cht = \
-	pci/css_2401_system/hive/ia_css_isp_configs.o \
 	pci/css_2401_system/hive/ia_css_isp_params.o \
 	pci/css_2401_system/hive/ia_css_isp_states.o \
 	pci/css_2401_system/host/csi_rx.o \
