@@ -1154,7 +1154,7 @@ static void storvsc_command_completion(struct storvsc_cmd_request *cmd_request,
 	scsi_set_resid(scmnd,
 		cmd_request->payload->range.len - data_transfer_length);
 
-	scmnd->scsi_done(scmnd);
+	scsi_done(scmnd);
 
 	if (payload_sz >
 		sizeof(struct vmbus_channel_packet_multipage_buffer))
@@ -1767,7 +1767,7 @@ static int storvsc_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scmnd)
 		 * future versions of the host.
 		 */
 		if (!storvsc_scsi_cmd_ok(scmnd)) {
-			scmnd->scsi_done(scmnd);
+			scsi_done(scmnd);
 			return 0;
 		}
 	}

@@ -1176,9 +1176,13 @@ static void exynos_ufs_hibern8_notify(struct ufs_hba *hba,
 	}
 }
 
-static int exynos_ufs_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
+static int exynos_ufs_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op,
+	enum ufs_notify_change_status status)
 {
 	struct exynos_ufs *ufs = ufshcd_get_variant(hba);
+
+	if (status == PRE_CHANGE)
+		return 0;
 
 	if (!ufshcd_is_link_active(hba))
 		phy_power_off(ufs->phy);

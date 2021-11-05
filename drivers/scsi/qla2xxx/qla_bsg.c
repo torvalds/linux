@@ -2877,6 +2877,9 @@ qla2x00_process_vendor_specific(struct scsi_qla_host *vha, struct bsg_job *bsg_j
 	case QL_VND_MANAGE_HOST_PORT:
 		return qla2x00_manage_host_port(bsg_job);
 
+	case QL_VND_MBX_PASSTHRU:
+		return qla2x00_mailbox_passthru(bsg_job);
+
 	default:
 		return -ENOSYS;
 	}
@@ -3012,4 +3015,49 @@ done:
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	sp->free(sp);
 	return 0;
+}
+
+int qla2x00_mailbox_passthru(struct bsg_job *bsg_job)
+{
+	struct fc_bsg_reply *bsg_reply = bsg_job->reply;
+	scsi_qla_host_t *vha = shost_priv(fc_bsg_to_shost(bsg_job));
+	int ret = -EINVAL;
+	int ptsize = sizeof(struct qla_mbx_passthru);
+	struct qla_mbx_passthru *req_data = NULL;
+	uint32_t req_data_len;
+
+	req_data_len = bsg_job->request_payload.payload_len;
+	if (req_data_len != ptsize) {
+		ql_log(ql_log_warn, vha, 0xf0a3, "req_data_len invalid.\n");
+		return -EIO;
+	}
+	req_data = kzalloc(ptsize, GFP_KERNEL);
+	if (!req_data) {
+		ql_log(ql_log_warn, vha, 0xf0a4,
+		       "req_data memory allocation failure.\n");
+		return -ENOMEM;
+	}
+
+	/* Copy the request buffer in req_data */
+	sg_copy_to_buffer(bsg_job->request_payload.sg_list,
+			  bsg_job->request_payload.sg_cnt, req_data, ptsize);
+	ret = qla_mailbox_passthru(vha, req_data->mbx_in, req_data->mbx_out);
+
+	/* Copy the req_data in  request buffer */
+	sg_copy_from_buffer(bsg_job->reply_payload.sg_list,
+			    bsg_job->reply_payload.sg_cnt, req_data, ptsize);
+
+	bsg_reply->reply_payload_rcv_len = ptsize;
+	if (ret == QLA_SUCCESS)
+		bsg_reply->reply_data.vendor_reply.vendor_rsp[0] = EXT_STATUS_OK;
+	else
+		bsg_reply->reply_data.vendor_reply.vendor_rsp[0] = EXT_STATUS_ERR;
+
+	bsg_job->reply_len = sizeof(*bsg_job->reply);
+	bsg_reply->result = DID_OK << 16;
+	bsg_job_done(bsg_job, bsg_reply->result, bsg_reply->reply_payload_rcv_len);
+
+	kfree(req_data);
+
+	return ret;
 }

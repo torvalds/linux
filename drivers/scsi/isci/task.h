@@ -182,8 +182,4 @@ void *isci_task_ssp_request_get_response_data_address(
 u32 isci_task_ssp_request_get_response_data_length(
 	struct isci_request *request);
 
-int isci_queuecommand(
-	struct scsi_cmnd *scsi_cmd,
-	void (*donefunc)(struct scsi_cmnd *));
-
 #endif /* !defined(_SCI_TASK_H_) */

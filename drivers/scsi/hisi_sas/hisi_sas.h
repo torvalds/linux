@@ -35,7 +35,7 @@
 #define HISI_SAS_QUEUE_SLOTS	4096
 #define HISI_SAS_MAX_ITCT_ENTRIES 1024
 #define HISI_SAS_MAX_DEVICES HISI_SAS_MAX_ITCT_ENTRIES
-#define HISI_SAS_RESET_BIT	0
+#define HISI_SAS_RESETTING_BIT	0
 #define HISI_SAS_REJECT_CMD_BIT	1
 #define HISI_SAS_PM_BIT		2
 #define HISI_SAS_HW_FAULT_BIT	3
@@ -649,6 +649,7 @@ extern int hisi_sas_probe(struct platform_device *pdev,
 extern int hisi_sas_remove(struct platform_device *pdev);
 
 extern int hisi_sas_slave_configure(struct scsi_device *sdev);
+extern int hisi_sas_slave_alloc(struct scsi_device *sdev);
 extern int hisi_sas_scan_finished(struct Scsi_Host *shost, unsigned long time);
 extern void hisi_sas_scan_start(struct Scsi_Host *shost);
 extern int hisi_sas_host_reset(struct Scsi_Host *shost, int reset_type);

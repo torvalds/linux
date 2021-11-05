@@ -3018,11 +3018,10 @@ static const struct {
 static void
 mpi3mr_print_ioc_info(struct mpi3mr_ioc *mrioc)
 {
-	int i = 0, bytes_wrote = 0;
+	int i = 0, bytes_written = 0;
 	char personality[16];
 	char protocol[50] = {0};
 	char capabilities[100] = {0};
-	bool is_string_nonempty = false;
 	struct mpi3mr_compimg_ver *fwver = &mrioc->facts.fw_ver;
 
 	switch (mrioc->facts.personality) {
@@ -3046,39 +3045,26 @@ mpi3mr_print_ioc_info(struct mpi3mr_ioc *mrioc)
 	for (i = 0; i < ARRAY_SIZE(mpi3mr_protocols); i++) {
 		if (mrioc->facts.protocol_flags &
 		    mpi3mr_protocols[i].protocol) {
-			if (is_string_nonempty &&
-			    (bytes_wrote < sizeof(protocol)))
-				bytes_wrote += snprintf(protocol + bytes_wrote,
-				    (sizeof(protocol) - bytes_wrote), ",");
-
-			if (bytes_wrote < sizeof(protocol))
-				bytes_wrote += snprintf(protocol + bytes_wrote,
-				    (sizeof(protocol) - bytes_wrote), "%s",
+			bytes_written += scnprintf(protocol + bytes_written,
+				    sizeof(protocol) - bytes_written, "%s%s",
+				    bytes_written ? "," : "",
 				    mpi3mr_protocols[i].name);
-			is_string_nonempty = true;
 		}
 	}
 
-	bytes_wrote = 0;
-	is_string_nonempty = false;
+	bytes_written = 0;
 	for (i = 0; i < ARRAY_SIZE(mpi3mr_capabilities); i++) {
 		if (mrioc->facts.protocol_flags &
 		    mpi3mr_capabilities[i].capability) {
-			if (is_string_nonempty &&
-			    (bytes_wrote < sizeof(capabilities)))
-				bytes_wrote += snprintf(capabilities + bytes_wrote,
-				    (sizeof(capabilities) - bytes_wrote), ",");
-
-			if (bytes_wrote < sizeof(capabilities))
-				bytes_wrote += snprintf(capabilities + bytes_wrote,
-				    (sizeof(capabilities) - bytes_wrote), "%s",
+			bytes_written += scnprintf(capabilities + bytes_written,
+				    sizeof(capabilities) - bytes_written, "%s%s",
+				    bytes_written ? "," : "",
 				    mpi3mr_capabilities[i].name);
-			is_string_nonempty = true;
 		}
 	}
 
 	ioc_info(mrioc, "Protocol=(%s), Capabilities=(%s)\n",
-	    protocol, capabilities);
+		 protocol, capabilities);
 }
 
 /**

@@ -689,15 +689,13 @@ qla1280_info(struct Scsi_Host *host)
  * handling).   Unfortunately, it sometimes calls the scheduler in interrupt
  * context which is a big NO! NO!.
  **************************************************************************/
-static int
-qla1280_queuecommand_lck(struct scsi_cmnd *cmd, void (*fn)(struct scsi_cmnd *))
+static int qla1280_queuecommand_lck(struct scsi_cmnd *cmd)
 {
 	struct Scsi_Host *host = cmd->device->host;
 	struct scsi_qla_host *ha = (struct scsi_qla_host *)host->hostdata;
 	struct srb *sp = (struct srb *)CMD_SP(cmd);
 	int status;
 
-	cmd->scsi_done = fn;
 	sp->cmd = cmd;
 	sp->flags = 0;
 	sp->wait = NULL;
@@ -755,7 +753,7 @@ _qla1280_wait_for_single_command(struct scsi_qla_host *ha, struct srb *sp,
 	sp->wait = NULL;
 	if(CMD_HANDLE(cmd) == COMPLETED_HANDLE) {
 		status = SUCCESS;
-		(*cmd->scsi_done)(cmd);
+		scsi_done(cmd);
 	}
 	return status;
 }
@@ -1277,7 +1275,7 @@ qla1280_done(struct scsi_qla_host *ha)
 		ha->actthreads--;
 
 		if (sp->wait == NULL)
-			(*(cmd)->scsi_done)(cmd);
+			scsi_done(cmd);
 		else
 			complete(sp->wait);
 	}
