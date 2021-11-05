@@ -18,6 +18,8 @@ clk-rockchip-y += clk-dclk-divider.o
 clk-rockchip-y += clk-pvtm.o
 clk-rockchip-$(CONFIG_RESET_CONTROLLER) += softrst.o
 
+obj-$(CONFIG_ROCKCHIP_CLK_LINK)	+= clk-link.o
+
 obj-$(CONFIG_CLK_PX30)          += clk-px30.o
 obj-$(CONFIG_CLK_RV110X)        += clk-rv1108.o
 obj-$(CONFIG_CLK_RV1126)	+= clk-rv1126.o
