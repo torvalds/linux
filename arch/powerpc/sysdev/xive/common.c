@@ -1774,9 +1774,40 @@ static int xive_ipi_debug_show(struct seq_file *m, void *private)
 }
 DEFINE_SHOW_ATTRIBUTE(xive_ipi_debug);
 
+static void xive_eq_debug_show_one(struct seq_file *m, struct xive_q *q, u8 prio)
+{
+	int i;
+
+	seq_printf(m, "EQ%d idx=%d T=%d\n", prio, q->idx, q->toggle);
+	if (q->qpage) {
+		for (i = 0; i < q->msk + 1; i++) {
+			if (!(i % 8))
+				seq_printf(m, "%05d ", i);
+			seq_printf(m, "%08x%s", be32_to_cpup(q->qpage + i),
+				   (i + 1) % 8 ? " " : "\n");
+		}
+	}
+	seq_puts(m, "\n");
+}
+
+static int xive_eq_debug_show(struct seq_file *m, void *private)
+{
+	int cpu = (long)m->private;
+	struct xive_cpu *xc = per_cpu(xive_cpu, cpu);
+
+	if (xc)
+		xive_eq_debug_show_one(m, &xc->queue[xive_irq_priority],
+				       xive_irq_priority);
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(xive_eq_debug);
+
 static void xive_core_debugfs_create(void)
 {
 	struct dentry *xive_dir;
+	struct dentry *xive_eq_dir;
+	long cpu;
+	char name[16];
 
 	xive_dir = debugfs_create_dir("xive", arch_debugfs_dir);
 	if (IS_ERR(xive_dir))
@@ -1786,6 +1817,12 @@ static void xive_core_debugfs_create(void)
 			    NULL, &xive_ipi_debug_fops);
 	debugfs_create_file("interrupts", 0400, xive_dir,
 			    NULL, &xive_irq_debug_fops);
+	xive_eq_dir = debugfs_create_dir("eqs", xive_dir);
+	for_each_possible_cpu(cpu) {
+		snprintf(name, sizeof(name), "cpu%ld", cpu);
+		debugfs_create_file(name, 0400, xive_eq_dir, (void *)cpu,
+				    &xive_eq_debug_fops);
+	}
 }
 #else
 static inline void xive_core_debugfs_create(void) { }
