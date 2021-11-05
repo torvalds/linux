@@ -876,6 +876,14 @@ struct vop_grf_ctrl {
 	struct vop_reg grf_dclk_inv;
 	struct vop_reg grf_bt1120_clk_inv;
 	struct vop_reg grf_bt656_clk_inv;
+	struct vop_reg grf_edp0_en;
+	struct vop_reg grf_edp1_en;
+	struct vop_reg grf_hdmi0_en;
+	struct vop_reg grf_hdmi1_en;
+	struct vop_reg grf_hdmi0_dsc_en;
+	struct vop_reg grf_hdmi1_dsc_en;
+	struct vop_reg grf_hdmi0_pin_pol;
+	struct vop_reg grf_hdmi1_pin_pol;
 };
 
 struct vop_data {
@@ -936,8 +944,10 @@ struct vop2_ctrl {
 	struct vop_reg edp_pin_pol;
 	struct vop_reg mipi_dclk_pol;
 	struct vop_reg mipi_pin_pol;
-	struct vop_reg dp_dclk_pol;
-	struct vop_reg dp_pin_pol;
+	struct vop_reg dp0_dclk_pol;
+	struct vop_reg dp0_pin_pol;
+	struct vop_reg dp1_dclk_pol;
+	struct vop_reg dp1_pin_pol;
 
 	/* This will be reference by win_phy_id */
 	struct vop_reg win_vp_id[16];
@@ -1030,7 +1040,10 @@ struct vop2_data {
 	const struct vop2_power_domain_data *pd;
 	const struct vop_csc_table *csc_table;
 	const struct vop_hdr_table *hdr_table;
-	const struct vop_grf_ctrl *grf_ctrl;
+	const struct vop_grf_ctrl *sys_grf;
+	const struct vop_grf_ctrl *grf;
+	const struct vop_grf_ctrl *vo0_grf;
+	const struct vop_grf_ctrl *vo1_grf;
 	struct vop_rect max_input;
 	struct vop_rect max_output;
 

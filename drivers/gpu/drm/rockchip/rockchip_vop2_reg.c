@@ -2288,7 +2288,7 @@ static const struct vop2_win_data rk3588_vop_win_data[] = {
 	},
 };
 
-static const struct vop_grf_ctrl rk3568_grf_ctrl = {
+static const struct vop_grf_ctrl rk3568_sys_grf_ctrl = {
 	.grf_bt656_clk_inv = VOP_REG(RK3568_GRF_VO_CON1, 0x1, 1),
 	.grf_bt1120_clk_inv = VOP_REG(RK3568_GRF_VO_CON1, 0x1, 2),
 	.grf_dclk_inv = VOP_REG(RK3568_GRF_VO_CON1, 0x1, 3),
@@ -2359,6 +2359,26 @@ static const struct vop2_ctrl rk3568_vop_ctrl = {
 	.otp_en = VOP_REG(RK3568_OTP_WIN_EN, 0x1, 0),
 };
 
+static const struct vop_grf_ctrl rk3588_sys_grf_ctrl = {
+	.grf_bt656_clk_inv = VOP_REG(RK3588_GRF_SOC_CON1, 0x1, 14),
+	.grf_bt1120_clk_inv = VOP_REG(RK3588_GRF_SOC_CON1, 0x1, 14),
+	.grf_dclk_inv = VOP_REG(RK3588_GRF_SOC_CON1, 0x1, 14),
+};
+
+static const struct vop_grf_ctrl rk3588_vop_grf_ctrl = {
+	.grf_edp0_en = VOP_REG(RK3588_GRF_VOP_CON2, 0x1, 0),
+	.grf_hdmi0_en = VOP_REG(RK3588_GRF_VOP_CON2, 0x1, 1),
+	.grf_hdmi0_dsc_en = VOP_REG(RK3588_GRF_VOP_CON2, 0x1, 2),
+	.grf_edp1_en = VOP_REG(RK3588_GRF_VOP_CON2, 0x1, 3),
+	.grf_hdmi1_en = VOP_REG(RK3588_GRF_VOP_CON2, 0x1, 4),
+	.grf_hdmi1_dsc_en = VOP_REG(RK3588_GRF_VOP_CON2, 0x1, 4),
+};
+
+static const struct vop_grf_ctrl rk3588_vo1_grf_ctrl = {
+	.grf_hdmi0_pin_pol = VOP_REG(RK3588_GRF_VO1_CON0, 0x3, 5),
+	.grf_hdmi1_pin_pol = VOP_REG(RK3588_GRF_VO1_CON0, 0x3, 7),
+};
+
 static const struct vop2_ctrl rk3588_vop_ctrl = {
 	.cfg_done_en = VOP_REG(RK3568_REG_CFG_DONE, 0x1, 15),
 	.wb_cfg_done = VOP_REG_MASK(RK3568_REG_CFG_DONE, 0x1, 14),
@@ -2414,11 +2434,14 @@ static const struct vop2_ctrl rk3588_vop_ctrl = {
 
 	.mipi0_pixclk_div = VOP_REG(RK3568_DSP_IF_CTRL, 0x3, 24),
 	.mipi1_pixclk_div = VOP_REG(RK3568_DSP_IF_CTRL, 0x3, 26),
-	.hdmi_pin_pol = VOP_REG(RK3568_DSP_IF_POL, 0x7, 4),
-	.hdmi_dclk_pol = VOP_REG(RK3568_DSP_IF_POL, 0x1, 7),
-	.edp_pin_pol = VOP_REG(RK3568_DSP_IF_POL, 0x3, 12),
-	.edp_dclk_pol = VOP_REG(RK3568_DSP_IF_POL, 0x1, 15),
-	.mipi_pin_pol = VOP_REG(RK3568_DSP_IF_POL, 0x7, 16),
+	/* HDMI pol control by GRF_VO1_CON0
+	 * DP0/1 clk pol is fixed
+	 * MIPI/eDP pol is fixed
+	 */
+	.rgb_pin_pol = VOP_REG(RK3568_DSP_IF_POL, 0x7, 0),
+	.rgb_dclk_pol = VOP_REG(RK3568_DSP_IF_POL, 0x1, 3),
+	.dp0_pin_pol = VOP_REG(RK3568_DSP_IF_POL, 0x7, 8),
+	.dp1_pin_pol = VOP_REG(RK3568_DSP_IF_POL, 0x7, 12),
 	.mipi_dclk_pol = VOP_REG(RK3568_DSP_IF_POL, 0x1, 19),
 	.win_vp_id[ROCKCHIP_VOP2_CLUSTER0] = VOP_REG(RK3568_OVL_PORT_SEL, 0x3, 16),
 	.win_vp_id[ROCKCHIP_VOP2_CLUSTER1] = VOP_REG(RK3568_OVL_PORT_SEL, 0x3, 18),
@@ -2447,7 +2470,7 @@ static const struct vop2_data rk3568_vop = {
 	.max_input = { 4096, 2304 },
 	.max_output = { 4096, 2304 },
 	.ctrl = &rk3568_vop_ctrl,
-	.grf_ctrl = &rk3568_grf_ctrl,
+	.sys_grf = &rk3568_sys_grf_ctrl,
 	.axi_intr = rk3568_vop_axi_intr,
 	.nr_axi_intr = ARRAY_SIZE(rk3568_vop_axi_intr),
 	.vp = rk3568_vop_video_ports,
@@ -2470,6 +2493,9 @@ static const struct vop2_data rk3588_vop = {
 	.max_input = { 8192, 4320 },
 	.max_output = { 4096, 2304 },
 	.ctrl = &rk3588_vop_ctrl,
+	.grf = &rk3588_vop_grf_ctrl,
+	.sys_grf = &rk3588_sys_grf_ctrl,
+	.vo1_grf = &rk3588_vo1_grf_ctrl,
 	.axi_intr = rk3568_vop_axi_intr,
 	.nr_axi_intr = ARRAY_SIZE(rk3568_vop_axi_intr),
 	.dsc = rk3588_vop_dsc_data,

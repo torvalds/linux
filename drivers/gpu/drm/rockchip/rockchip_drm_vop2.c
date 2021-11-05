@@ -120,10 +120,10 @@
 #define VOP_WIN_TO_INDEX(vop2_win) \
 	((vop2_win) - (vop2_win)->vop2->win)
 
-#define VOP_GRF_SET(vop2, reg, v) \
+#define VOP_GRF_SET(vop2, grf, reg, v) \
 	do { \
-		if (vop2->data->grf_ctrl) { \
-			vop2_grf_writel(vop2, vop2->data->grf_ctrl->reg, v); \
+		if (vop2->data->grf) { \
+			vop2_grf_writel(vop2->grf, vop2->data->grf->reg, v); \
 		} \
 	} while (0)
 
@@ -544,6 +544,12 @@ struct vop2_video_port {
 	uint8_t nr_layers;
 
 	int cursor_win_id;
+	/**
+	 * @output_if: output connector attached to the video port,
+	 * this flag is maintained in vop driver, updated in crtc_atomic_enable,
+	 * cleared in crtc_atomic_disable;
+	 */
+	u32 output_if;
 
 	/**
 	 * @active_tv_state: TV connector related states
@@ -646,6 +652,9 @@ struct vop2 {
 	uint32_t *regsbak;
 	void __iomem *regs;
 	struct regmap *grf;
+	struct regmap *sys_grf;
+	struct regmap *vo0_grf;
+	struct regmap *vo1_grf;
 
 	/* physical map length of vop2 register */
 	uint32_t len;
@@ -740,16 +749,16 @@ static void vop2_unlock(struct vop2 *vop2)
 	mutex_unlock(&vop2->vop2_lock);
 }
 
-static inline void vop2_grf_writel(struct vop2 *vop2, struct vop_reg reg, u32 v)
+static inline void vop2_grf_writel(struct regmap *regmap, struct vop_reg reg, u32 v)
 {
 	u32 val = 0;
 
-	if (IS_ERR_OR_NULL(vop2->grf))
+	if (IS_ERR_OR_NULL(regmap))
 		return;
 
 	if (reg.mask) {
 		val = (v << reg.shift) | (reg.mask << (reg.shift + 16));
-		regmap_write(vop2->grf, reg.offset, val);
+		regmap_write(regmap, reg.offset, val);
 	}
 }
 
@@ -3081,6 +3090,25 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 		dsc->enabled = false;
 		vcstate->dsc_enable = false;
 	}
+
+	if (vp->output_if & VOP_OUTPUT_IF_eDP0)
+		VOP_GRF_SET(vop2, grf, grf_edp0_en, 0);
+
+	if (vp->output_if & VOP_OUTPUT_IF_eDP1)
+		VOP_GRF_SET(vop2, grf, grf_edp1_en, 0);
+
+	if (vp->output_if & VOP_OUTPUT_IF_HDMI0) {
+		VOP_GRF_SET(vop2, grf, grf_hdmi0_dsc_en, 0);
+		VOP_GRF_SET(vop2, grf, grf_hdmi0_en, 0);
+	}
+
+	if (vp->output_if & VOP_OUTPUT_IF_HDMI1) {
+		VOP_GRF_SET(vop2, grf, grf_hdmi1_dsc_en, 0);
+		VOP_GRF_SET(vop2, grf, grf_hdmi1_en, 0);
+	}
+
+	vp->output_if = 0;
+
 	/*
 	 * Vop standby will take effect at end of current frame,
 	 * if dsp hold valid irq happen, it means standby complete.
@@ -5278,6 +5306,8 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	val = (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC) ? 0 : BIT(HSYNC_POSITIVE);
 	val |= (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC) ? 0 : BIT(VSYNC_POSITIVE);
 
+	vp->output_if = vcstate->output_if;
+
 	if (vcstate->output_if & VOP_OUTPUT_IF_RGB) {
 		ret = vop2_calc_cru_cfg(crtc, VOP_OUTPUT_IF_RGB, &if_pixclk, &if_dclk);
 		if (ret < 0)
@@ -5285,7 +5315,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 
 		VOP_CTRL_SET(vop2, rgb_en, 1);
 		VOP_CTRL_SET(vop2, rgb_mux, vp_data->id);
-		VOP_GRF_SET(vop2, grf_dclk_inv, dclk_inv);
+		VOP_GRF_SET(vop2, sys_grf, grf_dclk_inv, dclk_inv);
 	}
 
 	if (vcstate->output_if & VOP_OUTPUT_IF_BT1120) {
@@ -5296,7 +5326,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 		VOP_CTRL_SET(vop2, rgb_en, 1);
 		VOP_CTRL_SET(vop2, bt1120_en, 1);
 		VOP_CTRL_SET(vop2, rgb_mux, vp_data->id);
-		VOP_GRF_SET(vop2, grf_bt1120_clk_inv, !dclk_inv);
+		VOP_GRF_SET(vop2, sys_grf, grf_bt1120_clk_inv, !dclk_inv);
 		yc_swap = vop2_output_yc_swap(vcstate->bus_format);
 		VOP_CTRL_SET(vop2, bt1120_yc_swap, yc_swap);
 	}
@@ -5308,7 +5338,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 
 		VOP_CTRL_SET(vop2, bt656_en, 1);
 		VOP_CTRL_SET(vop2, rgb_mux, vp_data->id);
-		VOP_GRF_SET(vop2, grf_bt656_clk_inv, !dclk_inv);
+		VOP_GRF_SET(vop2, sys_grf, grf_bt656_clk_inv, !dclk_inv);
 		yc_swap = vop2_output_yc_swap(vcstate->bus_format);
 		VOP_CTRL_SET(vop2, bt656_yc_swap, yc_swap);
 	}
@@ -5387,6 +5417,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 		VOP_CTRL_SET(vop2, edp0_mux, vp_data->id);
 		VOP_CTRL_SET(vop2, edp_pin_pol, val);
 		VOP_CTRL_SET(vop2, edp_dclk_pol, dclk_inv);
+		VOP_GRF_SET(vop2, grf, grf_edp0_en, 1);
 	}
 
 	if (vcstate->output_if & VOP_OUTPUT_IF_eDP1) {
@@ -5402,6 +5433,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 		VOP_CTRL_SET(vop2, edp1_mux, vp_data->id);
 		VOP_CTRL_SET(vop2, edp_pin_pol, val);
 		VOP_CTRL_SET(vop2, edp_dclk_pol, dclk_inv);
+		VOP_GRF_SET(vop2, grf, grf_edp1_en, 1);
 	}
 
 	if (vcstate->output_if & VOP_OUTPUT_IF_DP0) {
@@ -5410,8 +5442,8 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 			goto out;
 		VOP_CTRL_SET(vop2, dp0_en, 1);
 		VOP_CTRL_SET(vop2, dp0_mux, vp_data->id);
-		VOP_CTRL_SET(vop2, dp_dclk_pol, 0);
-		VOP_CTRL_SET(vop2, dp_pin_pol, val);
+		VOP_CTRL_SET(vop2, dp0_dclk_pol, 0);
+		VOP_CTRL_SET(vop2, dp0_pin_pol, val);
 	}
 
 	if (vcstate->output_if & VOP_OUTPUT_IF_DP1) {
@@ -5421,8 +5453,8 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 
 		VOP_CTRL_SET(vop2, dp1_en, 1);
 		VOP_CTRL_SET(vop2, dp1_mux, vp_data->id);
-		VOP_CTRL_SET(vop2, dp_dclk_pol, 0);
-		VOP_CTRL_SET(vop2, dp_pin_pol, val);
+		VOP_CTRL_SET(vop2, dp1_dclk_pol, 0);
+		VOP_CTRL_SET(vop2, dp1_pin_pol, val);
 	}
 
 	if (vcstate->output_if & VOP_OUTPUT_IF_HDMI0) {
@@ -5433,6 +5465,12 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 			VOP_CTRL_SET(vop2, hdmi0_pixclk_div, if_pixclk->div_val);
 			VOP_CTRL_SET(vop2, hdmi0_dclk_div, if_dclk->div_val);
 		}
+
+		if (vcstate->dsc_enable)
+			VOP_GRF_SET(vop2, grf, grf_hdmi0_dsc_en, 1);
+
+		VOP_GRF_SET(vop2, grf, grf_hdmi0_en, 1);
+		VOP_GRF_SET(vop2, vo1_grf, grf_hdmi0_pin_pol, val);
 
 		VOP_CTRL_SET(vop2, hdmi0_en, 1);
 		VOP_CTRL_SET(vop2, hdmi0_en, 1);
@@ -5450,6 +5488,12 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 			VOP_CTRL_SET(vop2, hdmi1_pixclk_div, if_pixclk->div_val);
 			VOP_CTRL_SET(vop2, hdmi1_dclk_div, if_dclk->div_val);
 		}
+
+		if (vcstate->dsc_enable)
+			VOP_GRF_SET(vop2, grf, grf_hdmi1_dsc_en, 1);
+
+		VOP_GRF_SET(vop2, grf, grf_hdmi1_en, 1);
+		VOP_GRF_SET(vop2, vo1_grf, grf_hdmi1_pin_pol, val);
 
 		VOP_CTRL_SET(vop2, hdmi1_en, 1);
 		VOP_CTRL_SET(vop2, hdmi1_mux, vp_data->id);
@@ -7810,7 +7854,9 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 			return PTR_ERR(vop2->lut_regs);
 	}
 
-	vop2->grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,grf");
+	vop2->sys_grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,grf");
+	vop2->grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,vop-grf");
+	vop2->vo1_grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,vo1-grf");
 
 	vop2->hclk = devm_clk_get(vop2->dev, "hclk_vop");
 	if (IS_ERR(vop2->hclk)) {

@@ -1609,4 +1609,8 @@
 #define RK3588_DSC_4K_STS0				0x41A8
 #define RK3588_DSC_4K_ERS				0x41C4
 
+#define RK3588_GRF_SOC_CON1				0x0304
+#define RK3588_GRF_VOP_CON2				0x08
+#define RK3588_GRF_VO1_CON0				0x00
+
 #endif /* _ROCKCHIP_VOP_REG_H */
