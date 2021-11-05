@@ -487,8 +487,8 @@ v3d_job_init(struct v3d_dev *v3d, struct drm_file *file_priv,
 			for (i = 0; i < se->in_sync_count; i++) {
 				struct drm_v3d_sem in;
 
-				ret = copy_from_user(&in, handle++, sizeof(in));
-				if (ret) {
+				if (copy_from_user(&in, handle++, sizeof(in))) {
+					ret = -EFAULT;
 					DRM_DEBUG("Failed to copy wait dep handle.\n");
 					goto fail_deps;
 				}
@@ -609,8 +609,8 @@ v3d_get_multisync_post_deps(struct drm_file *file_priv,
 	for (i = 0; i < count; i++) {
 		struct drm_v3d_sem out;
 
-		ret = copy_from_user(&out, post_deps++, sizeof(out));
-		if (ret) {
+		if (copy_from_user(&out, post_deps++, sizeof(out))) {
+			ret = -EFAULT;
 			DRM_DEBUG("Failed to copy post dep handles\n");
 			goto fail;
 		}
@@ -646,9 +646,8 @@ v3d_get_multisync_submit_deps(struct drm_file *file_priv,
 	struct v3d_submit_ext *se = data;
 	int ret;
 
-	ret = copy_from_user(&multisync, ext, sizeof(multisync));
-	if (ret)
-		return ret;
+	if (copy_from_user(&multisync, ext, sizeof(multisync)))
+		return -EFAULT;
 
 	if (multisync.pad)
 		return -EINVAL;
