@@ -1255,10 +1255,8 @@ static int st_pctl_parse_functions(struct device_node *np,
 	func = &info->functions[index];
 	func->name = np->name;
 	func->ngroups = of_get_child_count(np);
-	if (func->ngroups == 0) {
-		dev_err(dev, "No groups defined\n");
-		return -EINVAL;
-	}
+	if (func->ngroups == 0)
+		return dev_err_probe(dev, -EINVAL, "No groups defined\n");
 	func->groups = devm_kcalloc(dev, func->ngroups, sizeof(*func->groups), GFP_KERNEL);
 	if (!func->groups)
 		return -ENOMEM;
@@ -1555,10 +1553,8 @@ static int st_gpiolib_register_bank(struct st_pinctrl *info,
 
 skip_irq:
 	err  = gpiochip_add_data(&bank->gpio_chip, bank);
-	if (err) {
-		dev_err(dev, "Failed to add gpiochip(%d)!\n", bank_num);
-		return err;
-	}
+	if (err)
+		return dev_err_probe(dev, err, "Failed to add gpiochip(%d)!\n", bank_num);
 	dev_info(dev, "%s bank added.\n", range->name);
 
 	return 0;
@@ -1585,10 +1581,8 @@ static int st_pctl_probe_dt(struct platform_device *pdev,
 	int irq = 0;
 
 	st_pctl_dt_child_count(info, np);
-	if (!info->nbanks) {
-		dev_err(dev, "you need at least one gpio bank\n");
-		return -EINVAL;
-	}
+	if (!info->nbanks)
+		return dev_err_probe(dev, -EINVAL, "you need at least one gpio bank\n");
 
 	dev_info(dev, "nbanks = %d\n", info->nbanks);
 	dev_info(dev, "nfunctions = %d\n", info->nfunctions);
@@ -1604,10 +1598,8 @@ static int st_pctl_probe_dt(struct platform_device *pdev,
 		return -ENOMEM;
 
 	info->regmap = syscon_regmap_lookup_by_phandle(np, "st,syscfg");
-	if (IS_ERR(info->regmap)) {
-		dev_err(dev, "No syscfg phandle specified\n");
-		return PTR_ERR(info->regmap);
-	}
+	if (IS_ERR(info->regmap))
+		return dev_err_probe(dev, PTR_ERR(info->regmap), "No syscfg phandle specified\n");
 	info->data = of_match_node(st_pctl_of_match, np)->data;
 
 	irq = platform_get_irq(pdev, 0);
@@ -1695,10 +1687,8 @@ static int st_pctl_probe(struct platform_device *pdev)
 	pctl_desc->name		= dev_name(dev);
 
 	info->pctl = devm_pinctrl_register(dev, pctl_desc, info);
-	if (IS_ERR(info->pctl)) {
-		dev_err(dev, "Failed pinctrl registration\n");
-		return PTR_ERR(info->pctl);
-	}
+	if (IS_ERR(info->pctl))
+		return dev_err_probe(dev, PTR_ERR(info->pctl), "Failed pinctrl registration\n");
 
 	for (i = 0; i < info->nbanks; i++)
 		pinctrl_add_gpio_range(info->pctl, &info->banks[i].range);
