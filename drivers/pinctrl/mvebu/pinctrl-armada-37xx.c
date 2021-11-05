@@ -736,10 +736,8 @@ static int armada_37xx_irqchip_register(struct platform_device *pdev,
 			break;
 		}
 	}
-	if (ret) {
-		dev_err(dev, "no gpio-controller child node\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "no gpio-controller child node\n");
 
 	nr_irq_parent = of_irq_count(np);
 	spin_lock_init(&info->irq_lock);
@@ -996,10 +994,8 @@ static int armada_37xx_pinctrl_register(struct platform_device *pdev,
 		return ret;
 
 	info->pctl_dev = devm_pinctrl_register(dev, ctrldesc, info);
-	if (IS_ERR(info->pctl_dev)) {
-		dev_err(dev, "could not register pinctrl driver\n");
-		return PTR_ERR(info->pctl_dev);
-	}
+	if (IS_ERR(info->pctl_dev))
+		return dev_err_probe(dev, PTR_ERR(info->pctl_dev), "could not register pinctrl driver\n");
 
 	return 0;
 }
@@ -1135,10 +1131,8 @@ static int __init armada_37xx_pinctrl_probe(struct platform_device *pdev)
 	info->dev = dev;
 
 	regmap = syscon_node_to_regmap(np);
-	if (IS_ERR(regmap)) {
-		dev_err(dev, "cannot get regmap\n");
-		return PTR_ERR(regmap);
-	}
+	if (IS_ERR(regmap))
+		return dev_err_probe(dev, PTR_ERR(regmap), "cannot get regmap\n");
 	info->regmap = regmap;
 
 	info->data = of_device_get_match_data(dev);
