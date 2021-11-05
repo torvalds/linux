@@ -1034,7 +1034,6 @@ got_sigbus:
 			if (first && opt_list) {
 				first = 0;
 				flush_page_range();
-				show_file(name, st);
 			}
 			add_page(off / page_size + i, pfn,
 				 flags, cgroup, mapcnt, buf[i]);
@@ -1074,10 +1073,10 @@ int walk_tree(const char *name, const struct stat *st, int type, struct FTW *f)
 	return 0;
 }
 
+struct stat st;
+
 static void walk_page_cache(void)
 {
-	struct stat st;
-
 	kpageflags_fd = checked_open(opt_kpageflags, O_RDONLY);
 	pagemap_fd = checked_open("/proc/self/pagemap", O_RDONLY);
 	sigaction(SIGBUS, &sigbus_action, NULL);
@@ -1373,6 +1372,11 @@ int main(int argc, char *argv[])
 
 	if (opt_list)
 		printf("\n\n");
+
+	if (opt_file) {
+		show_file(opt_file, &st);
+		printf("\n");
+	}
 
 	show_summary();
 
