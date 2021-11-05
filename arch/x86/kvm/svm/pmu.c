@@ -181,14 +181,13 @@ static struct kvm_pmc *amd_pmc_idx_to_pmc(struct kvm_pmu *pmu, int pmc_idx)
 	return get_gp_pmc_amd(pmu, base + pmc_idx, PMU_TYPE_COUNTER);
 }
 
-/* returns 0 if idx's corresponding MSR exists; otherwise returns 1. */
-static int amd_is_valid_rdpmc_ecx(struct kvm_vcpu *vcpu, unsigned int idx)
+static bool amd_is_valid_rdpmc_ecx(struct kvm_vcpu *vcpu, unsigned int idx)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 
 	idx &= ~(3u << 30);
 
-	return (idx >= pmu->nr_arch_gp_counters);
+	return idx < pmu->nr_arch_gp_counters;
 }
 
 /* idx is the ECX register of RDPMC instruction */
