@@ -314,7 +314,7 @@ static int __damon_start(struct damon_ctx *ctx)
 				nr_running_ctxs);
 		if (IS_ERR(ctx->kdamond)) {
 			err = PTR_ERR(ctx->kdamond);
-			ctx->kdamond = 0;
+			ctx->kdamond = NULL;
 		}
 	}
 	mutex_unlock(&ctx->kdamond_lock);
