@@ -181,6 +181,13 @@
 /* FIXME: ast2600 supports variable max transmission unit */
 #define ASPEED_MCTP_MTU 64
 
+struct aspeed_mctp_match_data {
+	u32 rx_cmd_size;
+	u32 packet_unit_size;
+	bool need_address_mapping;
+	bool vdm_hdr_direct_xfer;
+	bool fifo_auto_surround;
+};
 struct aspeed_mctp_tx_cmd {
 	u32 tx_lo;
 	u32 tx_hi;
@@ -203,6 +210,7 @@ struct mctp_channel {
 
 struct aspeed_mctp {
 	struct device *dev;
+	const struct aspeed_mctp_match_data *match_data;
 	struct regmap *map;
 	struct reset_control *reset;
 	/*
@@ -1767,6 +1775,7 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 	priv->dev = &pdev->dev;
 	priv->rc_f =
 		of_find_property(priv->dev->of_node, "pcie_rc", NULL) ? 1 : 0;
+	priv->match_data = of_device_get_match_data(priv->dev);
 
 	aspeed_mctp_drv_init(priv);
 
@@ -1839,8 +1848,16 @@ static int aspeed_mctp_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct aspeed_mctp_match_data ast2600_mctp_match_data = {
+	.rx_cmd_size = sizeof(u32),
+	.packet_unit_size = sizeof(struct mctp_pcie_packet_data),
+	.need_address_mapping = false,
+	.vdm_hdr_direct_xfer = true,
+	.fifo_auto_surround = true,
+};
+
 static const struct of_device_id aspeed_mctp_match_table[] = {
-	{ .compatible = "aspeed,ast2600-mctp" },
+	{ .compatible = "aspeed,ast2600-mctp", .data = &ast2600_mctp_match_data},
 	{ }
 };
 
