@@ -61,6 +61,8 @@ struct dcn_dsc_state {
 	uint32_t dsc_pic_height;
 	uint32_t dsc_slice_bpg_offset;
 	uint32_t dsc_chunk_size;
+	uint32_t dsc_fw_en;
+	uint32_t dsc_opp_source;
 };
 
 
