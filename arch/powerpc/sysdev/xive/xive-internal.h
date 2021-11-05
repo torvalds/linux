@@ -72,5 +72,6 @@ static inline u32 xive_alloc_order(u32 queue_shift)
 }
 
 extern bool xive_cmdline_disabled;
+extern bool xive_has_save_restore;
 
 #endif /*  __XIVE_INTERNAL_H */

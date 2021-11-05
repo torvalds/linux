@@ -1847,6 +1847,7 @@ static void xive_core_debugfs_create(void)
 				    &xive_eq_debug_fops);
 	}
 	debugfs_create_bool("store-eoi", 0600, xive_dir, &xive_store_eoi);
+	debugfs_create_bool("save-restore", 0600, xive_dir, &xive_has_save_restore);
 }
 #else
 static inline void xive_core_debugfs_create(void) { }
