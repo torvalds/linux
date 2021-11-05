@@ -104,10 +104,11 @@ struct kfence_metadata kfence_metadata[CONFIG_KFENCE_NUM_OBJECTS];
 static struct list_head kfence_freelist = LIST_HEAD_INIT(kfence_freelist);
 static DEFINE_RAW_SPINLOCK(kfence_freelist_lock); /* Lock protecting freelist. */
 
-#ifdef CONFIG_KFENCE_STATIC_KEYS
-/* The static key to set up a KFENCE allocation. */
+/*
+ * The static key to set up a KFENCE allocation; or if static keys are not used
+ * to gate allocations, to avoid a load and compare if KFENCE is disabled.
+ */
 DEFINE_STATIC_KEY_FALSE(kfence_allocation_key);
-#endif
 
 /* Gates the allocation, ensuring only one succeeds in a given period. */
 atomic_t kfence_allocation_gate = ATOMIC_INIT(1);
@@ -774,6 +775,8 @@ void __init kfence_init(void)
 		return;
 	}
 
+	if (!IS_ENABLED(CONFIG_KFENCE_STATIC_KEYS))
+		static_branch_enable(&kfence_allocation_key);
 	WRITE_ONCE(kfence_enabled, true);
 	queue_delayed_work(system_unbound_wq, &kfence_timer, 0);
 	pr_info("initialized - using %lu bytes for %d objects at 0x%p-0x%p\n", KFENCE_POOL_SIZE,
@@ -866,12 +869,7 @@ void *__kfence_alloc(struct kmem_cache *s, size_t size, gfp_t flags)
 		return NULL;
 	}
 
-	/*
-	 * allocation_gate only needs to become non-zero, so it doesn't make
-	 * sense to continue writing to it and pay the associated contention
-	 * cost, in case we have a large number of concurrent allocations.
-	 */
-	if (atomic_read(&kfence_allocation_gate) || atomic_inc_return(&kfence_allocation_gate) > 1)
+	if (atomic_inc_return(&kfence_allocation_gate) > 1)
 		return NULL;
 #ifdef CONFIG_KFENCE_STATIC_KEYS
 	/*
