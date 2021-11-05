@@ -460,6 +460,8 @@ static int emit_call(bool fixed, u64 addr, struct rv_jit_context *ctx)
 #define BPF_FIXUP_REG_MASK      GENMASK(31, 27)
 
 int rv_bpf_fixup_exception(const struct exception_table_entry *ex,
+				struct pt_regs *regs);
+int rv_bpf_fixup_exception(const struct exception_table_entry *ex,
 				struct pt_regs *regs)
 {
 	off_t offset = FIELD_GET(BPF_FIXUP_OFFSET_MASK, ex->fixup);

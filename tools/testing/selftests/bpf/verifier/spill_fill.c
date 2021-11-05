@@ -265,3 +265,20 @@
 	.result = ACCEPT,
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 },
+{
+	"Spill a u32 scalar at fp-4 and then at fp-8",
+	.insns = {
+	/* r4 = 4321 */
+	BPF_MOV32_IMM(BPF_REG_4, 4321),
+	/* *(u32 *)(r10 -4) = r4 */
+	BPF_STX_MEM(BPF_W, BPF_REG_10, BPF_REG_4, -4),
+	/* *(u32 *)(r10 -8) = r4 */
+	BPF_STX_MEM(BPF_W, BPF_REG_10, BPF_REG_4, -8),
+	/* r4 = *(u64 *)(r10 -8) */
+	BPF_LDX_MEM(BPF_DW, BPF_REG_4, BPF_REG_10, -8),
+	BPF_MOV64_IMM(BPF_REG_0, 0),
+	BPF_EXIT_INSN(),
+	},
+	.result = ACCEPT,
+	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+},
