@@ -146,8 +146,12 @@ EXPORT_SYMBOL_GPL(pnv_get_supported_cpuidle_states);
 static void pnv_fastsleep_workaround_apply(void *info)
 
 {
+	int cpu = smp_processor_id();
 	int rc;
 	int *err = info;
+
+	if (cpu_first_thread_sibling(cpu) != cpu)
+		return;
 
 	rc = opal_config_cpu_idle_state(OPAL_CONFIG_IDLE_FASTSLEEP,
 					OPAL_CONFIG_IDLE_APPLY);
@@ -175,7 +179,6 @@ static ssize_t store_fastsleep_workaround_applyonce(struct device *dev,
 		struct device_attribute *attr, const char *buf,
 		size_t count)
 {
-	cpumask_t primary_thread_mask;
 	int err;
 	u8 val;
 
@@ -200,10 +203,7 @@ static ssize_t store_fastsleep_workaround_applyonce(struct device *dev,
 	power7_fastsleep_workaround_exit = false;
 
 	cpus_read_lock();
-	primary_thread_mask = cpu_online_cores_map();
-	on_each_cpu_mask(&primary_thread_mask,
-				pnv_fastsleep_workaround_apply,
-				&err, 1);
+	on_each_cpu(pnv_fastsleep_workaround_apply, &err, 1);
 	cpus_read_unlock();
 	if (err) {
 		pr_err("fastsleep_workaround_applyonce change failed while running pnv_fastsleep_workaround_apply");
