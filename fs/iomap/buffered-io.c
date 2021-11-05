@@ -893,19 +893,23 @@ EXPORT_SYMBOL_GPL(iomap_file_unshare);
 
 static s64 __iomap_zero_iter(struct iomap_iter *iter, loff_t pos, u64 length)
 {
+	struct folio *folio;
 	struct page *page;
 	int status;
-	unsigned offset = offset_in_page(pos);
+	size_t offset;
 	unsigned bytes = min_t(u64, UINT_MAX, length);
 
 	status = iomap_write_begin(iter, pos, bytes, &page);
 	if (status)
 		return status;
-	if (bytes > PAGE_SIZE - offset)
-		bytes = PAGE_SIZE - offset;
+	folio = page_folio(page);
 
-	zero_user(page, offset, bytes);
-	mark_page_accessed(page);
+	offset = offset_in_folio(folio, pos);
+	if (bytes > folio_size(folio) - offset)
+		bytes = folio_size(folio) - offset;
+
+	folio_zero_range(folio, offset, bytes);
+	folio_mark_accessed(folio);
 
 	return iomap_write_end(iter, pos, bytes, bytes, page);
 }
