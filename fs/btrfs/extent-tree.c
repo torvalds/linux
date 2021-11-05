@@ -3977,7 +3977,7 @@ static int find_free_extent_update_loop(struct btrfs_fs_info *fs_info,
 					struct find_free_extent_ctl *ffe_ctl,
 					bool full_search)
 {
-	struct btrfs_root *root = fs_info->extent_root;
+	struct btrfs_root *root = fs_info->chunk_root;
 	int ret;
 
 	if ((ffe_ctl->loop == LOOP_CACHING_NOWAIT) &&
