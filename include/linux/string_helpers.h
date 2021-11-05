@@ -7,6 +7,7 @@
 #include <linux/string.h>
 #include <linux/types.h>
 
+struct device;
 struct file;
 struct task_struct;
 
@@ -102,5 +103,7 @@ char *kstrdup_quotable_file(struct file *file, gfp_t gfp);
 
 char **kasprintf_strarray(gfp_t gfp, const char *prefix, size_t n);
 void kfree_strarray(char **array, size_t n);
+
+char **devm_kasprintf_strarray(struct device *dev, const char *prefix, size_t n);
 
 #endif
