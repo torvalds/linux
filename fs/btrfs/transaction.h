@@ -135,7 +135,6 @@ struct btrfs_trans_handle {
 	bool removing_chunk;
 	bool reloc_reserved;
 	bool in_fsync;
-	struct btrfs_root *root;
 	struct btrfs_fs_info *fs_info;
 	struct list_head new_bgs;
 };

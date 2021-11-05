@@ -698,7 +698,6 @@ again:
 
 	h->transid = cur_trans->transid;
 	h->transaction = cur_trans;
-	h->root = root;
 	refcount_set(&h->use_count, 1);
 	h->fs_info = root->fs_info;
 
