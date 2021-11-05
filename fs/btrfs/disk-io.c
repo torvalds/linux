@@ -2482,11 +2482,16 @@ static int btrfs_read_roots(struct btrfs_fs_info *fs_info)
 			if (!btrfs_test_opt(fs_info, IGNOREBADROOTS)) {
 				ret = PTR_ERR(root);
 				goto out;
+			} else {
+				set_bit(BTRFS_FS_STATE_NO_CSUMS,
+					&fs_info->fs_state);
 			}
 		} else {
 			set_bit(BTRFS_ROOT_TRACK_DIRTY, &root->state);
 			fs_info->csum_root = root;
 		}
+	} else {
+		set_bit(BTRFS_FS_STATE_NO_CSUMS, &fs_info->fs_state);
 	}
 
 	/*

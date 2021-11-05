@@ -2516,7 +2516,7 @@ blk_status_t btrfs_submit_data_bio(struct inode *inode, struct bio *bio,
 	int async = !atomic_read(&BTRFS_I(inode)->sync_writers);
 
 	skip_sum = (BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM) ||
-		   !fs_info->csum_root;
+		test_bit(BTRFS_FS_STATE_NO_CSUMS, &fs_info->fs_state);
 
 	if (btrfs_is_free_space_inode(BTRFS_I(inode)))
 		metadata = BTRFS_WQ_ENDIO_FREE_SPACE;
@@ -3314,7 +3314,7 @@ unsigned int btrfs_verify_data_csum(struct btrfs_bio *bbio,
 	if (BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM)
 		return 0;
 
-	if (!root->fs_info->csum_root)
+	if (unlikely(test_bit(BTRFS_FS_STATE_NO_CSUMS, &fs_info->fs_state)))
 		return 0;
 
 	ASSERT(page_offset(page) <= start &&
