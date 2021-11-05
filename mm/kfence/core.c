@@ -309,12 +309,19 @@ static inline bool set_canary_byte(u8 *addr)
 /* Check canary byte at @addr. */
 static inline bool check_canary_byte(u8 *addr)
 {
+	struct kfence_metadata *meta;
+	unsigned long flags;
+
 	if (likely(*addr == KFENCE_CANARY_PATTERN(addr)))
 		return true;
 
 	atomic_long_inc(&counters[KFENCE_COUNTER_BUGS]);
-	kfence_report_error((unsigned long)addr, false, NULL, addr_to_metadata((unsigned long)addr),
-			    KFENCE_ERROR_CORRUPTION);
+
+	meta = addr_to_metadata((unsigned long)addr);
+	raw_spin_lock_irqsave(&meta->lock, flags);
+	kfence_report_error((unsigned long)addr, false, NULL, meta, KFENCE_ERROR_CORRUPTION);
+	raw_spin_unlock_irqrestore(&meta->lock, flags);
+
 	return false;
 }
 
@@ -323,8 +330,6 @@ static __always_inline void for_each_canary(const struct kfence_metadata *meta, 
 {
 	const unsigned long pageaddr = ALIGN_DOWN(meta->addr, PAGE_SIZE);
 	unsigned long addr;
-
-	lockdep_assert_held(&meta->lock);
 
 	/*
 	 * We'll iterate over each canary byte per-side until fn() returns
@@ -414,8 +419,9 @@ static void *kfence_guarded_alloc(struct kmem_cache *cache, size_t size, gfp_t g
 	WRITE_ONCE(meta->cache, cache);
 	meta->size = size;
 	meta->alloc_stack_hash = alloc_stack_hash;
+	raw_spin_unlock_irqrestore(&meta->lock, flags);
 
-	for_each_canary(meta, set_canary_byte);
+	alloc_covered_add(alloc_stack_hash, 1);
 
 	/* Set required struct page fields. */
 	page = virt_to_page(meta->addr);
@@ -425,11 +431,8 @@ static void *kfence_guarded_alloc(struct kmem_cache *cache, size_t size, gfp_t g
 	if (IS_ENABLED(CONFIG_SLAB))
 		page->s_mem = addr;
 
-	raw_spin_unlock_irqrestore(&meta->lock, flags);
-
-	alloc_covered_add(alloc_stack_hash, 1);
-
 	/* Memory initialization. */
+	for_each_canary(meta, set_canary_byte);
 
 	/*
 	 * We check slab_want_init_on_alloc() ourselves, rather than letting
@@ -454,6 +457,7 @@ static void kfence_guarded_free(void *addr, struct kfence_metadata *meta, bool z
 {
 	struct kcsan_scoped_access assert_page_exclusive;
 	unsigned long flags;
+	bool init;
 
 	raw_spin_lock_irqsave(&meta->lock, flags);
 
@@ -481,6 +485,13 @@ static void kfence_guarded_free(void *addr, struct kfence_metadata *meta, bool z
 		meta->unprotected_page = 0;
 	}
 
+	/* Mark the object as freed. */
+	metadata_update_state(meta, KFENCE_OBJECT_FREED, NULL, 0);
+	init = slab_want_init_on_free(meta->cache);
+	raw_spin_unlock_irqrestore(&meta->lock, flags);
+
+	alloc_covered_add(meta->alloc_stack_hash, -1);
+
 	/* Check canary bytes for memory corruption. */
 	for_each_canary(meta, check_canary_byte);
 
@@ -489,15 +500,8 @@ static void kfence_guarded_free(void *addr, struct kfence_metadata *meta, bool z
 	 * data is still there, and after a use-after-free is detected, we
 	 * unprotect the page, so the data is still accessible.
 	 */
-	if (!zombie && unlikely(slab_want_init_on_free(meta->cache)))
+	if (!zombie && unlikely(init))
 		memzero_explicit(addr, meta->size);
-
-	/* Mark the object as freed. */
-	metadata_update_state(meta, KFENCE_OBJECT_FREED, NULL, 0);
-
-	raw_spin_unlock_irqrestore(&meta->lock, flags);
-
-	alloc_covered_add(meta->alloc_stack_hash, -1);
 
 	/* Protect to detect use-after-frees. */
 	kfence_protect((unsigned long)addr);
