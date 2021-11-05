@@ -721,6 +721,31 @@ static int apple_dart_def_domain_type(struct device *dev)
 	return 0;
 }
 
+#ifndef CONFIG_PCIE_APPLE_MSI_DOORBELL_ADDR
+/* Keep things compiling when CONFIG_PCI_APPLE isn't selected */
+#define CONFIG_PCIE_APPLE_MSI_DOORBELL_ADDR	0
+#endif
+#define DOORBELL_ADDR	(CONFIG_PCIE_APPLE_MSI_DOORBELL_ADDR & PAGE_MASK)
+
+static void apple_dart_get_resv_regions(struct device *dev,
+					struct list_head *head)
+{
+	if (IS_ENABLED(CONFIG_PCIE_APPLE) && dev_is_pci(dev)) {
+		struct iommu_resv_region *region;
+		int prot = IOMMU_WRITE | IOMMU_NOEXEC | IOMMU_MMIO;
+
+		region = iommu_alloc_resv_region(DOORBELL_ADDR,
+						 PAGE_SIZE, prot,
+						 IOMMU_RESV_MSI);
+		if (!region)
+			return;
+
+		list_add_tail(&region->list, head);
+	}
+
+	iommu_dma_get_resv_regions(dev, head);
+}
+
 static const struct iommu_ops apple_dart_iommu_ops = {
 	.domain_alloc = apple_dart_domain_alloc,
 	.domain_free = apple_dart_domain_free,
@@ -737,6 +762,8 @@ static const struct iommu_ops apple_dart_iommu_ops = {
 	.device_group = apple_dart_device_group,
 	.of_xlate = apple_dart_of_xlate,
 	.def_domain_type = apple_dart_def_domain_type,
+	.get_resv_regions = apple_dart_get_resv_regions,
+	.put_resv_regions = generic_iommu_put_resv_regions,
 	.pgsize_bitmap = -1UL, /* Restricted during dart probe */
 };
 

@@ -312,6 +312,24 @@ config PCIE_HISI_ERR
 	  Say Y here if you want error handling support
 	  for the PCIe controller's errors on HiSilicon HIP SoCs
 
+config PCIE_APPLE_MSI_DOORBELL_ADDR
+	hex
+	default 0xfffff000
+	depends on PCIE_APPLE
+
+config PCIE_APPLE
+	tristate "Apple PCIe controller"
+	depends on ARCH_APPLE || COMPILE_TEST
+	depends on OF
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCI_HOST_COMMON
+	help
+	  Say Y here if you want to enable PCIe controller support on Apple
+	  system-on-chips, like the Apple M1. This is required for the USB
+	  type-A ports, Ethernet, Wi-Fi, and Bluetooth.
+
+	  If unsure, say Y if you have an Apple Silicon system.
+
 source "drivers/pci/controller/dwc/Kconfig"
 source "drivers/pci/controller/mobiveil/Kconfig"
 source "drivers/pci/controller/cadence/Kconfig"
