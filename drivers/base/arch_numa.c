@@ -166,7 +166,7 @@ static void * __init pcpu_fc_alloc(unsigned int cpu, size_t size,
 
 static void __init pcpu_fc_free(void *ptr, size_t size)
 {
-	memblock_phys_free(__pa(ptr), size);
+	memblock_free(ptr, size);
 }
 
 #ifdef CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK
@@ -326,7 +326,7 @@ void __init numa_free_distance(void)
 	size = numa_distance_cnt * numa_distance_cnt *
 		sizeof(numa_distance[0]);
 
-	memblock_free_ptr(numa_distance, size);
+	memblock_free(numa_distance, size);
 	numa_distance_cnt = 0;
 	numa_distance = NULL;
 }

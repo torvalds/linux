@@ -825,7 +825,7 @@ static void __init smp_setup_pacas(void)
 		set_hard_smp_processor_id(cpu, cpu_to_phys_id[cpu]);
 	}
 
-	memblock_phys_free(__pa(cpu_to_phys_id), nr_cpu_ids * sizeof(u32));
+	memblock_free(cpu_to_phys_id, nr_cpu_ids * sizeof(u32));
 	cpu_to_phys_id = NULL;
 }
 #endif
