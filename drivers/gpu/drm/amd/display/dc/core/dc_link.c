@@ -4279,6 +4279,8 @@ void core_link_enable_stream(
 			 */
 			if (status != DC_FAIL_DP_LINK_TRAINING ||
 					pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
+				if (false == stream->link->link_status.link_active)
+					disable_link(stream->link, pipe_ctx->stream->signal);
 				BREAK_TO_DEBUGGER();
 				return;
 			}

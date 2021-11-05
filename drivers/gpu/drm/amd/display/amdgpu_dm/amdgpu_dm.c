@@ -1410,7 +1410,15 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 		switch (adev->ip_versions[DCE_HWIP][0]) {
 		case IP_VERSION(2, 1, 0):
 			init_data.flags.gpu_vm_support = true;
-			init_data.flags.disable_dmcu = true;
+			switch (adev->dm.dmcub_fw_version) {
+			case 0: /* development */
+			case 0x1: /* linux-firmware.git hash 6d9f399 */
+			case 0x01000000: /* linux-firmware.git hash 9a0b0f4 */
+				init_data.flags.disable_dmcu = false;
+				break;
+			default:
+				init_data.flags.disable_dmcu = true;
+			}
 			break;
 		case IP_VERSION(1, 0, 0):
 		case IP_VERSION(1, 0, 1):
@@ -7241,8 +7249,8 @@ static int dm_update_mst_vcpi_slots_for_dsc(struct drm_atomic_state *state,
 	struct drm_connector_state *new_con_state;
 	struct amdgpu_dm_connector *aconnector;
 	struct dm_connector_state *dm_conn_state;
-	int i, j, clock;
-	int vcpi, pbn_div, pbn = 0;
+	int i, j;
+	int vcpi, pbn_div, pbn, slot_num = 0;
 
 	for_each_new_connector_in_state(state, connector, new_con_state, i) {
 
@@ -7270,23 +7278,30 @@ static int dm_update_mst_vcpi_slots_for_dsc(struct drm_atomic_state *state,
 		if (!stream)
 			continue;
 
-		if (stream->timing.flags.DSC != 1) {
-			drm_dp_mst_atomic_enable_dsc(state,
-						     aconnector->port,
-						     dm_conn_state->pbn,
-						     0,
-						     false);
-			continue;
-		}
-
 		pbn_div = dm_mst_get_pbn_divider(stream->link);
-		clock = stream->timing.pix_clk_100hz / 10;
 		/* pbn is calculated by compute_mst_dsc_configs_for_state*/
 		for (j = 0; j < dc_state->stream_count; j++) {
 			if (vars[j].aconnector == aconnector) {
 				pbn = vars[j].pbn;
 				break;
 			}
+		}
+
+		if (j == dc_state->stream_count)
+			continue;
+
+		slot_num = DIV_ROUND_UP(pbn, pbn_div);
+
+		if (stream->timing.flags.DSC != 1) {
+			dm_conn_state->pbn = pbn;
+			dm_conn_state->vcpi_slots = slot_num;
+
+			drm_dp_mst_atomic_enable_dsc(state,
+						     aconnector->port,
+						     dm_conn_state->pbn,
+						     0,
+						     false);
+			continue;
 		}
 
 		vcpi = drm_dp_mst_atomic_enable_dsc(state,

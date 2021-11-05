@@ -2534,13 +2534,15 @@ static int smu_get_power_profile_mode(void *handle, char *buf)
 	struct smu_context *smu = handle;
 	int ret = 0;
 
-	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
+	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled ||
+	    !smu->ppt_funcs->get_power_profile_mode)
 		return -EOPNOTSUPP;
+	if (!buf)
+		return -EINVAL;
 
 	mutex_lock(&smu->mutex);
 
-	if (smu->ppt_funcs->get_power_profile_mode)
-		ret = smu->ppt_funcs->get_power_profile_mode(smu, buf);
+	ret = smu->ppt_funcs->get_power_profile_mode(smu, buf);
 
 	mutex_unlock(&smu->mutex);
 
@@ -2554,7 +2556,8 @@ static int smu_set_power_profile_mode(void *handle,
 	struct smu_context *smu = handle;
 	int ret = 0;
 
-	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
+	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled ||
+	    !smu->ppt_funcs->set_power_profile_mode)
 		return -EOPNOTSUPP;
 
 	mutex_lock(&smu->mutex);

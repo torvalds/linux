@@ -281,6 +281,19 @@ static unsigned long svm_migrate_successful_pages(struct migrate_vma *migrate)
 	return cpages;
 }
 
+static unsigned long svm_migrate_unsuccessful_pages(struct migrate_vma *migrate)
+{
+	unsigned long upages = 0;
+	unsigned long i;
+
+	for (i = 0; i < migrate->npages; i++) {
+		if (migrate->src[i] & MIGRATE_PFN_VALID &&
+		    !(migrate->src[i] & MIGRATE_PFN_MIGRATE))
+			upages++;
+	}
+	return upages;
+}
+
 static int
 svm_migrate_copy_to_vram(struct amdgpu_device *adev, struct svm_range *prange,
 			 struct migrate_vma *migrate, struct dma_fence **mfence,
@@ -634,10 +647,11 @@ svm_migrate_vma_to_ram(struct amdgpu_device *adev, struct svm_range *prange,
 		       struct vm_area_struct *vma, uint64_t start, uint64_t end)
 {
 	uint64_t npages = (end - start) >> PAGE_SHIFT;
+	unsigned long upages = npages;
+	unsigned long cpages = 0;
 	struct kfd_process_device *pdd;
 	struct dma_fence *mfence = NULL;
 	struct migrate_vma migrate;
-	unsigned long cpages = 0;
 	dma_addr_t *scratch;
 	size_t size;
 	void *buf;
@@ -671,6 +685,7 @@ svm_migrate_vma_to_ram(struct amdgpu_device *adev, struct svm_range *prange,
 	if (!cpages) {
 		pr_debug("failed collect migrate device pages [0x%lx 0x%lx]\n",
 			 prange->start, prange->last);
+		upages = svm_migrate_unsuccessful_pages(&migrate);
 		goto out_free;
 	}
 	if (cpages != npages)
@@ -683,8 +698,9 @@ svm_migrate_vma_to_ram(struct amdgpu_device *adev, struct svm_range *prange,
 				    scratch, npages);
 	migrate_vma_pages(&migrate);
 
-	pr_debug("successful/cpages/npages 0x%lx/0x%lx/0x%lx\n",
-		svm_migrate_successful_pages(&migrate), cpages, migrate.npages);
+	upages = svm_migrate_unsuccessful_pages(&migrate);
+	pr_debug("unsuccessful/cpages/npages 0x%lx/0x%lx/0x%lx\n",
+		 upages, cpages, migrate.npages);
 
 	svm_migrate_copy_done(adev, mfence);
 	migrate_vma_finalize(&migrate);
@@ -698,9 +714,9 @@ out:
 		if (pdd)
 			WRITE_ONCE(pdd->page_out, pdd->page_out + cpages);
 
-		return cpages;
+		return upages;
 	}
-	return r;
+	return r ? r : upages;
 }
 
 /**
@@ -720,7 +736,7 @@ int svm_migrate_vram_to_ram(struct svm_range *prange, struct mm_struct *mm)
 	unsigned long addr;
 	unsigned long start;
 	unsigned long end;
-	unsigned long cpages = 0;
+	unsigned long upages = 0;
 	long r = 0;
 
 	if (!prange->actual_loc) {
@@ -756,12 +772,12 @@ int svm_migrate_vram_to_ram(struct svm_range *prange, struct mm_struct *mm)
 			pr_debug("failed %ld to migrate\n", r);
 			break;
 		} else {
-			cpages += r;
+			upages += r;
 		}
 		addr = next;
 	}
 
-	if (cpages) {
+	if (!upages) {
 		svm_range_vram_node_free(prange);
 		prange->actual_loc = 0;
 	}
@@ -784,7 +800,7 @@ static int
 svm_migrate_vram_to_vram(struct svm_range *prange, uint32_t best_loc,
 			 struct mm_struct *mm)
 {
-	int r;
+	int r, retries = 3;
 
 	/*
 	 * TODO: for both devices with PCIe large bar or on same xgmi hive, skip
@@ -793,9 +809,14 @@ svm_migrate_vram_to_vram(struct svm_range *prange, uint32_t best_loc,
 
 	pr_debug("from gpu 0x%x to gpu 0x%x\n", prange->actual_loc, best_loc);
 
-	r = svm_migrate_vram_to_ram(prange, mm);
-	if (r)
-		return r;
+	do {
+		r = svm_migrate_vram_to_ram(prange, mm);
+		if (r)
+			return r;
+	} while (prange->actual_loc && --retries);
+
+	if (prange->actual_loc)
+		return -EDEADLK;
 
 	return svm_migrate_ram_to_vram(prange, best_loc, mm);
 }

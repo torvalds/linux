@@ -367,6 +367,7 @@ struct mpc_funcs {
 	void (*set_bg_color)(struct mpc *mpc,
 			struct tg_color *bg_color,
 			int mpcc_id);
+	void (*set_mpc_mem_lp_mode)(struct mpc *mpc);
 };
 
 #endif
