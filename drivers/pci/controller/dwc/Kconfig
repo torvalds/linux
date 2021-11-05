@@ -178,6 +178,16 @@ config PCIE_QCOM
 	  PCIe controller uses the DesignWare core plus Qualcomm-specific
 	  hardware wrappers.
 
+config PCIE_QCOM_EP
+	tristate "Qualcomm PCIe controller - Endpoint mode"
+	depends on OF && (ARCH_QCOM || COMPILE_TEST)
+	depends on PCI_ENDPOINT
+	select PCIE_DW_EP
+	help
+	  Say Y here to enable support for the PCIe controllers on Qualcomm SoCs
+	  to work in endpoint mode. The PCIe controller uses the DesignWare core
+	  plus Qualcomm-specific hardware wrappers.
+
 config PCIE_ARMADA_8K
 	bool "Marvell Armada-8K PCIe controller"
 	depends on ARCH_MVEBU || COMPILE_TEST
