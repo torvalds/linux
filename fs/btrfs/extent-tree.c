@@ -593,6 +593,7 @@ fail:
 }
 
 static noinline int remove_extent_data_ref(struct btrfs_trans_handle *trans,
+					   struct btrfs_root *root,
 					   struct btrfs_path *path,
 					   int refs_to_drop, int *last_ref)
 {
@@ -626,7 +627,7 @@ static noinline int remove_extent_data_ref(struct btrfs_trans_handle *trans,
 	num_refs -= refs_to_drop;
 
 	if (num_refs == 0) {
-		ret = btrfs_del_item(trans, trans->fs_info->extent_root, path);
+		ret = btrfs_del_item(trans, root, path);
 		*last_ref = 1;
 	} else {
 		if (key.type == BTRFS_EXTENT_DATA_REF_KEY)
@@ -1174,6 +1175,7 @@ int insert_inline_extent_backref(struct btrfs_trans_handle *trans,
 }
 
 static int remove_extent_backref(struct btrfs_trans_handle *trans,
+				 struct btrfs_root *root,
 				 struct btrfs_path *path,
 				 struct btrfs_extent_inline_ref *iref,
 				 int refs_to_drop, int is_data, int *last_ref)
@@ -1185,11 +1187,11 @@ static int remove_extent_backref(struct btrfs_trans_handle *trans,
 		update_inline_extent_backref(path, iref, -refs_to_drop, NULL,
 					     last_ref);
 	} else if (is_data) {
-		ret = remove_extent_data_ref(trans, path, refs_to_drop,
+		ret = remove_extent_data_ref(trans, root, path, refs_to_drop,
 					     last_ref);
 	} else {
 		*last_ref = 1;
-		ret = btrfs_del_item(trans, trans->fs_info->extent_root, path);
+		ret = btrfs_del_item(trans, root, path);
 	}
 	return ret;
 }
@@ -2996,9 +2998,9 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 				goto err_dump;
 			}
 			/* Must be SHARED_* item, remove the backref first */
-			ret = remove_extent_backref(trans, path, NULL,
-						    refs_to_drop,
-						    is_data, &last_ref);
+			ret = remove_extent_backref(trans, extent_root, path,
+						    NULL, refs_to_drop, is_data,
+						    &last_ref);
 			if (ret) {
 				btrfs_abort_transaction(trans, ret);
 				goto out;
@@ -3122,8 +3124,8 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 			btrfs_mark_buffer_dirty(leaf);
 		}
 		if (found_extent) {
-			ret = remove_extent_backref(trans, path, iref,
-						    refs_to_drop, is_data,
+			ret = remove_extent_backref(trans, extent_root, path,
+						    iref, refs_to_drop, is_data,
 						    &last_ref);
 			if (ret) {
 				btrfs_abort_transaction(trans, ret);
