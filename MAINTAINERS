@@ -10388,11 +10388,8 @@ F:	arch/mips/include/uapi/asm/kvm*
 F:	arch/mips/kvm/
 
 KERNEL VIRTUAL MACHINE FOR POWERPC (KVM/powerpc)
-M:	Paul Mackerras <paulus@ozlabs.org>
-L:	kvm-ppc@vger.kernel.org
-S:	Supported
-W:	http://www.linux-kvm.org/
-T:	git git://github.com/agraf/linux-2.6.git
+L:	linuxppc-dev@lists.ozlabs.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/powerpc/linux.git topic/ppc-kvm
 F:	arch/powerpc/include/asm/kvm*
 F:	arch/powerpc/include/uapi/asm/kvm*
 F:	arch/powerpc/kernel/kvm*

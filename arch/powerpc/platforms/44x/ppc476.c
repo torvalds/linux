@@ -219,7 +219,7 @@ static int board_rev = -1;
 static int __init ppc47x_get_board_rev(void)
 {
 	int reg;
-	u8 *fpga;
+	u8 __iomem *fpga;
 	struct device_node *np = NULL;
 
 	if (of_machine_is_compatible("ibm,currituck")) {
@@ -233,7 +233,7 @@ static int __init ppc47x_get_board_rev(void)
 	if (!np)
 		goto fail;
 
-	fpga = (u8 *) of_iomap(np, 0);
+	fpga = of_iomap(np, 0);
 	of_node_put(np);
 	if (!fpga)
 		goto fail;

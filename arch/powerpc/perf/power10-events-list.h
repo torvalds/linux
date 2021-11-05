@@ -9,10 +9,10 @@
 /*
  * Power10 event codes.
  */
-EVENT(PM_RUN_CYC,				0x600f4);
+EVENT(PM_CYC,				0x600f4);
 EVENT(PM_DISP_STALL_CYC,			0x100f8);
 EVENT(PM_EXEC_STALL,				0x30008);
-EVENT(PM_RUN_INST_CMPL,				0x500fa);
+EVENT(PM_INST_CMPL,				0x500fa);
 EVENT(PM_BR_CMPL,                               0x4d05e);
 EVENT(PM_BR_MPRED_CMPL,                         0x400f6);
 EVENT(PM_BR_FIN,				0x2f04a);
@@ -50,8 +50,8 @@ EVENT(PM_DTLB_MISS,				0x300fc);
 /* ITLB Reloaded */
 EVENT(PM_ITLB_MISS,				0x400fc);
 
-EVENT(PM_RUN_CYC_ALT,				0x0001e);
-EVENT(PM_RUN_INST_CMPL_ALT,			0x00002);
+EVENT(PM_CYC_ALT,				0x0001e);
+EVENT(PM_INST_CMPL_ALT,				0x00002);
 
 /*
  * Memory Access Events
