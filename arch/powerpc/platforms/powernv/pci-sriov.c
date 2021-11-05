@@ -54,7 +54,7 @@
  * to "new_size", calculated above. Implementing this is a convoluted process
  * which requires several hooks in the PCI core:
  *
- * 1. In pcibios_add_device() we call pnv_pci_ioda_fixup_iov().
+ * 1. In pcibios_device_add() we call pnv_pci_ioda_fixup_iov().
  *
  *    At this point the device has been probed and the device's BARs are sized,
  *    but no resource allocations have been done. The SR-IOV BARs are sized

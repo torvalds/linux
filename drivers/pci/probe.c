@@ -2462,7 +2462,7 @@ static struct irq_domain *pci_dev_msi_domain(struct pci_dev *dev)
 	struct irq_domain *d;
 
 	/*
-	 * If a domain has been set through the pcibios_add_device()
+	 * If a domain has been set through the pcibios_device_add()
 	 * callback, then this is the one (platform code knows best).
 	 */
 	d = dev_get_msi_domain(&dev->dev);
@@ -2530,7 +2530,7 @@ void pci_device_add(struct pci_dev *dev, struct pci_bus *bus)
 	list_add_tail(&dev->bus_list, &bus->devices);
 	up_write(&pci_bus_sem);
 
-	ret = pcibios_add_device(dev);
+	ret = pcibios_device_add(dev);
 	WARN_ON(ret < 0);
 
 	/* Set up MSI IRQ domain */
