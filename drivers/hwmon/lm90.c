@@ -602,29 +602,34 @@ static int lm90_write_reg(struct i2c_client *client, u8 reg, u8 val)
 	return i2c_smbus_write_byte_data(client, lm90_write_reg_addr(reg), val);
 }
 
-static int lm90_read16(struct i2c_client *client, u8 regh, u8 regl)
+static int lm90_read16(struct i2c_client *client, u8 regh, u8 regl,
+		       bool is_volatile)
 {
 	int oldh, newh, l;
 
-	/*
-	 * There is a trick here. We have to read two registers to have the
-	 * sensor temperature, but we have to beware a conversion could occur
-	 * between the readings. The datasheet says we should either use
-	 * the one-shot conversion register, which we don't want to do
-	 * (disables hardware monitoring) or monitor the busy bit, which is
-	 * impossible (we can't read the values and monitor that bit at the
-	 * exact same time). So the solution used here is to read the high
-	 * byte once, then the low byte, then the high byte again. If the new
-	 * high byte matches the old one, then we have a valid reading. Else
-	 * we have to read the low byte again, and now we believe we have a
-	 * correct reading.
-	 */
 	oldh = lm90_read_reg(client, regh);
 	if (oldh < 0)
 		return oldh;
 	l = lm90_read_reg(client, regl);
 	if (l < 0)
 		return l;
+
+	if (!is_volatile)
+		return (oldh << 8) | l;
+
+	/*
+	 * For volatile registers we have to use a trick.
+	 * We have to read two registers to have the sensor temperature,
+	 * but we have to beware a conversion could occur between the
+	 * readings. The datasheet says we should either use
+	 * the one-shot conversion register, which we don't want to do
+	 * (disables hardware monitoring) or monitor the busy bit, which is
+	 * impossible (we can't read the values and monitor that bit at the
+	 * exact same time). So the solution used here is to read the high
+	 * the high byte again. If the new high byte matches the old one,
+	 * then we have a valid reading. Otherwise we have to read the low
+	 * byte again, and now we believe we have a correct reading.
+	 */
 	newh = lm90_read_reg(client, regh);
 	if (newh < 0)
 		return newh;
@@ -766,7 +771,7 @@ static int lm90_update_limits(struct device *dev)
 
 	if (data->flags & LM90_HAVE_OFFSET) {
 		val = lm90_read16(client, LM90_REG_REMOTE_OFFSH,
-				  LM90_REG_REMOTE_OFFSL);
+				  LM90_REG_REMOTE_OFFSL, false);
 		if (val < 0)
 			return val;
 		data->temp11[REMOTE_OFFSET] = val;
@@ -999,7 +1004,7 @@ static int lm90_update_device(struct device *dev)
 
 		if (data->reg_local_ext) {
 			val = lm90_read16(client, LM90_REG_LOCAL_TEMP,
-					  data->reg_local_ext);
+					  data->reg_local_ext, true);
 			if (val < 0)
 				return val;
 			data->temp11[LOCAL_TEMP] = val;
@@ -1010,7 +1015,7 @@ static int lm90_update_device(struct device *dev)
 			data->temp11[LOCAL_TEMP] = val << 8;
 		}
 		val = lm90_read16(client, LM90_REG_REMOTE_TEMPH,
-				  LM90_REG_REMOTE_TEMPL);
+				  LM90_REG_REMOTE_TEMPL, true);
 		if (val < 0)
 			return val;
 		data->temp11[REMOTE_TEMP] = val;
@@ -1021,7 +1026,7 @@ static int lm90_update_device(struct device *dev)
 				return val;
 
 			val = lm90_read16(client, LM90_REG_REMOTE_TEMPH,
-					  LM90_REG_REMOTE_TEMPL);
+					  LM90_REG_REMOTE_TEMPL, true);
 			if (val < 0) {
 				lm90_select_remote_channel(data, 0);
 				return val;
