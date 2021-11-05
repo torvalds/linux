@@ -1744,7 +1744,7 @@ union bpf_attr {
  * 		if the maximum number of tail calls has been reached for this
  * 		chain of programs. This limit is defined in the kernel by the
  * 		macro **MAX_TAIL_CALL_CNT** (not accessible to user space),
- * 		which is currently set to 32.
+ *		which is currently set to 33.
  * 	Return
  * 		0 on success, or a negative error in case of failure.
  *
