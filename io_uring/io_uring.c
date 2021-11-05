@@ -2688,6 +2688,14 @@ static void io_mem_free(void *ptr)
 		free_compound_page(page);
 }
 
+static void io_rings_free(struct io_ring_ctx *ctx)
+{
+	io_mem_free(ctx->rings);
+	io_mem_free(ctx->sq_sqes);
+	ctx->rings = NULL;
+	ctx->sq_sqes = NULL;
+}
+
 static void *io_mem_alloc(size_t size)
 {
 	gfp_t gfp = GFP_KERNEL_ACCOUNT | __GFP_ZERO | __GFP_NOWARN | __GFP_COMP;
@@ -2852,8 +2860,7 @@ static __cold void io_ring_ctx_free(struct io_ring_ctx *ctx)
 		mmdrop(ctx->mm_account);
 		ctx->mm_account = NULL;
 	}
-	io_mem_free(ctx->rings);
-	io_mem_free(ctx->sq_sqes);
+	io_rings_free(ctx);
 
 	percpu_ref_exit(&ctx->refs);
 	free_uid(ctx->user);
@@ -3682,15 +3689,13 @@ static __cold int io_allocate_scq_urings(struct io_ring_ctx *ctx,
 	else
 		size = array_size(sizeof(struct io_uring_sqe), p->sq_entries);
 	if (size == SIZE_MAX) {
-		io_mem_free(ctx->rings);
-		ctx->rings = NULL;
+		io_rings_free(ctx);
 		return -EOVERFLOW;
 	}
 
 	ptr = io_mem_alloc(size);
 	if (IS_ERR(ptr)) {
-		io_mem_free(ctx->rings);
-		ctx->rings = NULL;
+		io_rings_free(ctx);
 		return PTR_ERR(ptr);
 	}
 
