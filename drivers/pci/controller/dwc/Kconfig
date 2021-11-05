@@ -8,22 +8,20 @@ config PCIE_DW
 
 config PCIE_DW_HOST
 	bool
-	depends on PCI_MSI_IRQ_DOMAIN
 	select PCIE_DW
 
 config PCIE_DW_EP
 	bool
-	depends on PCI_ENDPOINT
 	select PCIE_DW
 
 config PCI_DRA7XX
-	bool
+	tristate
 
 config PCI_DRA7XX_HOST
-	bool "TI DRA7xx PCIe controller Host Mode"
+	tristate "TI DRA7xx PCIe controller Host Mode"
 	depends on SOC_DRA7XX || COMPILE_TEST
-	depends on PCI_MSI_IRQ_DOMAIN
 	depends on OF && HAS_IOMEM && TI_PIPE3
+	depends on PCI_MSI_IRQ_DOMAIN
 	select PCIE_DW_HOST
 	select PCI_DRA7XX
 	default y if SOC_DRA7XX
@@ -36,10 +34,10 @@ config PCI_DRA7XX_HOST
 	  This uses the DesignWare core.
 
 config PCI_DRA7XX_EP
-	bool "TI DRA7xx PCIe controller Endpoint Mode"
+	tristate "TI DRA7xx PCIe controller Endpoint Mode"
 	depends on SOC_DRA7XX || COMPILE_TEST
-	depends on PCI_ENDPOINT
 	depends on OF && HAS_IOMEM && TI_PIPE3
+	depends on PCI_ENDPOINT
 	select PCIE_DW_EP
 	select PCI_DRA7XX
 	help
@@ -55,7 +53,7 @@ config PCIE_DW_PLAT
 
 config PCIE_DW_PLAT_HOST
 	bool "Platform bus based DesignWare PCIe Controller - Host mode"
-	depends on PCI && PCI_MSI_IRQ_DOMAIN
+	depends on PCI_MSI_IRQ_DOMAIN
 	select PCIE_DW_HOST
 	select PCIE_DW_PLAT
 	help
@@ -138,8 +136,8 @@ config PCI_LAYERSCAPE
 	bool "Freescale Layerscape PCIe controller - Host mode"
 	depends on OF && (ARM || ARCH_LAYERSCAPE || COMPILE_TEST)
 	depends on PCI_MSI_IRQ_DOMAIN
-	select MFD_SYSCON
 	select PCIE_DW_HOST
+	select MFD_SYSCON
 	help
 	  Say Y here if you want to enable PCIe controller support on Layerscape
 	  SoCs to work in Host mode.
@@ -283,8 +281,8 @@ config PCIE_HISI_STB
 
 config PCI_MESON
 	tristate "MESON PCIe controller"
-	depends on PCI_MSI_IRQ_DOMAIN
 	default m if ARCH_MESON
+	depends on PCI_MSI_IRQ_DOMAIN
 	select PCIE_DW_HOST
 	help
 	  Say Y here if you want to enable PCI controller support on Amlogic
