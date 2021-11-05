@@ -451,6 +451,8 @@ static void xive_do_source_set_mask(struct xive_irq_data *xd,
 {
 	u64 val;
 
+	pr_debug("%s: HW 0x%x %smask\n", __func__, xd->hw_irq, mask ? "" : "un");
+
 	/*
 	 * If the interrupt had P set, it may be in a queue.
 	 *
@@ -612,8 +614,8 @@ static unsigned int xive_irq_startup(struct irq_data *d)
 
 	xd->saved_p = false;
 	xd->stale_p = false;
-	pr_devel("xive_irq_startup: irq %d [0x%x] data @%p\n",
-		 d->irq, hw_irq, d);
+
+	pr_debug("%s: irq %d [0x%x] data @%p\n", __func__, d->irq, hw_irq, d);
 
 	/* Pick a target */
 	target = xive_pick_irq_target(d, irq_data_get_affinity_mask(d));
@@ -654,8 +656,7 @@ static void xive_irq_shutdown(struct irq_data *d)
 	struct xive_irq_data *xd = irq_data_get_irq_handler_data(d);
 	unsigned int hw_irq = (unsigned int)irqd_to_hwirq(d);
 
-	pr_devel("xive_irq_shutdown: irq %d [0x%x] data @%p\n",
-		 d->irq, hw_irq, d);
+	pr_debug("%s: irq %d [0x%x] data @%p\n", __func__, d->irq, hw_irq, d);
 
 	if (WARN_ON(xd->target == XIVE_INVALID_TARGET))
 		return;
@@ -679,7 +680,7 @@ static void xive_irq_unmask(struct irq_data *d)
 {
 	struct xive_irq_data *xd = irq_data_get_irq_handler_data(d);
 
-	pr_devel("xive_irq_unmask: irq %d data @%p\n", d->irq, xd);
+	pr_debug("%s: irq %d data @%p\n", __func__, d->irq, xd);
 
 	xive_do_source_set_mask(xd, false);
 }
@@ -688,7 +689,7 @@ static void xive_irq_mask(struct irq_data *d)
 {
 	struct xive_irq_data *xd = irq_data_get_irq_handler_data(d);
 
-	pr_devel("xive_irq_mask: irq %d data @%p\n", d->irq, xd);
+	pr_debug("%s: irq %d data @%p\n", __func__, d->irq, xd);
 
 	xive_do_source_set_mask(xd, true);
 }
@@ -702,7 +703,7 @@ static int xive_irq_set_affinity(struct irq_data *d,
 	u32 target, old_target;
 	int rc = 0;
 
-	pr_debug("%s: irq %d/%x\n", __func__, d->irq, hw_irq);
+	pr_debug("%s: irq %d/0x%x\n", __func__, d->irq, hw_irq);
 
 	/* Is this valid ? */
 	if (cpumask_any_and(cpumask, cpu_online_mask) >= nr_cpu_ids)
@@ -975,7 +976,7 @@ EXPORT_SYMBOL_GPL(is_xive_irq);
 
 void xive_cleanup_irq_data(struct xive_irq_data *xd)
 {
-	pr_debug("%s for HW %x\n", __func__, xd->hw_irq);
+	pr_debug("%s for HW 0x%x\n", __func__, xd->hw_irq);
 
 	if (xd->eoi_mmio) {
 		iounmap(xd->eoi_mmio);
@@ -1211,8 +1212,8 @@ static int xive_setup_cpu_ipi(unsigned int cpu)
 		pr_err("Failed to map IPI CPU %d\n", cpu);
 		return -EIO;
 	}
-	pr_devel("CPU %d HW IPI %x, virq %d, trig_mmio=%p\n", cpu,
-	    xc->hw_ipi, xive_ipi_irq, xc->ipi_data.trig_mmio);
+	pr_debug("CPU %d HW IPI 0x%x, virq %d, trig_mmio=%p\n", cpu,
+		 xc->hw_ipi, xive_ipi_irq, xc->ipi_data.trig_mmio);
 
 	/* Unmask it */
 	xive_do_source_set_mask(&xc->ipi_data, false);
@@ -1390,7 +1391,7 @@ static int xive_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 	if (rc)
 		return rc;
 
-	pr_debug("%s %d/%lx #%d\n", __func__, virq, hwirq, nr_irqs);
+	pr_debug("%s %d/0x%lx #%d\n", __func__, virq, hwirq, nr_irqs);
 
 	for (i = 0; i < nr_irqs; i++) {
 		/* TODO: call xive_irq_domain_map() */
@@ -1504,7 +1505,7 @@ static void xive_setup_cpu(void)
 #ifdef CONFIG_SMP
 void xive_smp_setup_cpu(void)
 {
-	pr_devel("SMP setup CPU %d\n", smp_processor_id());
+	pr_debug("SMP setup CPU %d\n", smp_processor_id());
 
 	/* This will have already been done on the boot CPU */
 	if (smp_processor_id() != boot_cpuid)
@@ -1650,10 +1651,10 @@ bool __init xive_core_init(struct device_node *np, const struct xive_ops *ops,
 	ppc_md.get_irq = xive_get_irq;
 	__xive_enabled = true;
 
-	pr_devel("Initializing host..\n");
+	pr_debug("Initializing host..\n");
 	xive_init_host(np);
 
-	pr_devel("Initializing boot CPU..\n");
+	pr_debug("Initializing boot CPU..\n");
 
 	/* Allocate per-CPU data and queues */
 	xive_prepare_cpu(smp_processor_id());
