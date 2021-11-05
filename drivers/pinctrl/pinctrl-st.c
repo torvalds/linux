@@ -55,7 +55,7 @@
 #define ST_GPIO_DIRECTION_OUT	0x2
 #define ST_GPIO_DIRECTION_IN	0x4
 
-/**
+/*
  *  Packed style retime configuration.
  *  There are two registers cfg0 and cfg1 in this style for each bank.
  *  Each field in this register is 8 bit corresponding to 8 pins in the bank.
@@ -69,7 +69,7 @@
 #define RT_P_CFG1_CLKNOTDATA_FIELD(reg)		REG_FIELD(reg, 16, 23)
 #define RT_P_CFG1_DOUBLE_EDGE_FIELD(reg)	REG_FIELD(reg, 24, 31)
 
-/**
+/*
  * Dedicated style retime Configuration register
  * each register is dedicated per pin.
  */
