@@ -275,6 +275,7 @@ enum lru_list {
 
 enum vmscan_throttle_state {
 	VMSCAN_THROTTLE_WRITEBACK,
+	VMSCAN_THROTTLE_ISOLATED,
 	NR_VMSCAN_THROTTLE,
 };
 
