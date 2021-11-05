@@ -227,6 +227,7 @@ static void xive_esb_write(struct xive_irq_data *xd, u32 offset, u64 data)
 		out_be64(xd->eoi_mmio + offset, data);
 }
 
+#if defined(CONFIG_XMON) || defined(CONFIG_DEBUG_FS)
 static void xive_irq_data_dump(struct xive_irq_data *xd, char *buffer, size_t size)
 {
 	u64 val = xive_esb_read(xd, XIVE_ESB_GET);
@@ -239,6 +240,7 @@ static void xive_irq_data_dump(struct xive_irq_data *xd, char *buffer, size_t si
 		 val & XIVE_ESB_VAL_Q ? 'Q' : '-',
 		 xd->trig_page, xd->eoi_page);
 }
+#endif
 
 #ifdef CONFIG_XMON
 static notrace void xive_dump_eq(const char *name, struct xive_q *q)
@@ -1700,6 +1702,7 @@ static int __init xive_off(char *arg)
 }
 __setup("xive=off", xive_off);
 
+#ifdef CONFIG_DEBUG_FS
 static void xive_debug_show_cpu(struct seq_file *m, int cpu)
 {
 	struct xive_cpu *xc = per_cpu(xive_cpu, cpu);
@@ -1778,10 +1781,19 @@ static int xive_core_debug_show(struct seq_file *m, void *private)
 }
 DEFINE_SHOW_ATTRIBUTE(xive_core_debug);
 
+static void xive_core_debugfs_create(void)
+{
+	debugfs_create_file("xive", 0400, arch_debugfs_dir,
+			    NULL, &xive_core_debug_fops);
+}
+#else
+static inline void xive_core_debugfs_create(void) { }
+#endif /* CONFIG_DEBUG_FS */
+
 int xive_core_debug_init(void)
 {
-	if (xive_enabled())
-		debugfs_create_file("xive", 0400, arch_debugfs_dir,
-				    NULL, &xive_core_debug_fops);
+	if (xive_enabled() && IS_ENABLED(CONFIG_DEBUG_FS))
+		xive_core_debugfs_create();
+
 	return 0;
 }
