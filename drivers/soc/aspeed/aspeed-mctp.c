@@ -78,7 +78,7 @@
 #define ASPEED_MCTP_TX_BUF_WR_PTR	0x03c
 #define  TX_BUF_WR_PTR_MASK		GENMASK(11, 0)
 
-#define ADDR_LEN	(BIT(26) - 1)
+#define ADDR_LEN	GENMASK(26, 0)
 #define DATA_ADDR(x)	(((x) >> 4) & ADDR_LEN)
 
 /* TX command */
