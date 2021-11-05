@@ -4,7 +4,6 @@
 # CONFIG_BITS_TEST is not set
 CONFIG_BOOTPARAM_SOFTLOCKUP_PANIC=y
 CONFIG_BOOTPARAM_SOFTLOCKUP_PANIC_VALUE=1
-CONFIG_CMA_DEBUG=y
 CONFIG_CMDLINE="kasan.stacktrace=off stack_depot_disable=off page_owner=on no_hash_pointers panic_on_taint=0x20"
 CONFIG_DEBUG_KMEMLEAK=y
 # CONFIG_DEBUG_KMEMLEAK_AUTO_SCAN is not set
