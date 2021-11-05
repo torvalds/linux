@@ -2871,6 +2871,9 @@ vm_area_alloc_pages(gfp_t gfp, int nid,
 	/* High-order pages or fallback path if "bulk" fails. */
 
 	while (nr_allocated < nr_pages) {
+		if (fatal_signal_pending(current))
+			break;
+
 		if (nid == NUMA_NO_NODE)
 			page = alloc_pages(gfp, order);
 		else
