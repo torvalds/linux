@@ -934,7 +934,7 @@ static const struct net_device_ops ax88796c_netdev_ops = {
 	.ndo_stop		= ax88796c_close,
 	.ndo_start_xmit		= ax88796c_start_xmit,
 	.ndo_get_stats64	= ax88796c_get_stats64,
-	.ndo_do_ioctl		= ax88796c_ioctl,
+	.ndo_eth_ioctl		= ax88796c_ioctl,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_set_features	= ax88796c_set_features,
 };
