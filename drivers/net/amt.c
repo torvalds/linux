@@ -22,7 +22,6 @@
 #include <linux/security.h>
 #include <net/gro_cells.h>
 #include <net/ipv6.h>
-#include <net/protocol.h>
 #include <net/if_inet6.h>
 #include <net/ndisc.h>
 #include <net/addrconf.h>
