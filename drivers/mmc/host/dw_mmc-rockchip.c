@@ -46,8 +46,10 @@ static void dw_mci_rk3288_set_ios(struct dw_mci *host, struct mmc_ios *ios)
 	 * Note: div can only be 0 or 1, but div must be set to 1 for eMMC
 	 * DDR52 8-bit mode.
 	 */
-	if (ios->clock < priv->f_min)
+	if (ios->clock < priv->f_min) {
 		ios->clock = priv->f_min;
+		host->slot->clock = ios->clock;
+	}
 
 	if (ios->bus_width == MMC_BUS_WIDTH_8 &&
 	    ios->timing == MMC_TIMING_MMC_DDR52)
