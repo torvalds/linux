@@ -6923,13 +6923,12 @@ static int ocfs2_grab_eof_pages(struct inode *inode, loff_t start, loff_t end,
 }
 
 /*
- * Zero the area past i_size but still within an allocated
- * cluster. This avoids exposing nonzero data on subsequent file
- * extends.
+ * Zero partial cluster for a hole punch or truncate. This avoids exposing
+ * nonzero data on subsequent file extends.
  *
  * We need to call this before i_size is updated on the inode because
  * otherwise block_write_full_page() will skip writeout of pages past
- * i_size. The new_i_size parameter is passed for this reason.
+ * i_size.
  */
 int ocfs2_zero_range_for_truncate(struct inode *inode, handle_t *handle,
 				  u64 range_start, u64 range_end)
@@ -6947,6 +6946,15 @@ int ocfs2_zero_range_for_truncate(struct inode *inode, handle_t *handle,
 	if (!ocfs2_sparse_alloc(OCFS2_SB(sb)))
 		return 0;
 
+	/*
+	 * Avoid zeroing pages fully beyond current i_size. It is pointless as
+	 * underlying blocks of those pages should be already zeroed out and
+	 * page writeback will skip them anyway.
+	 */
+	range_end = min_t(u64, range_end, i_size_read(inode));
+	if (range_start >= range_end)
+		return 0;
+
 	pages = kcalloc(ocfs2_pages_per_cluster(sb),
 			sizeof(struct page *), GFP_NOFS);
 	if (pages == NULL) {
@@ -6954,9 +6962,6 @@ int ocfs2_zero_range_for_truncate(struct inode *inode, handle_t *handle,
 		mlog_errno(ret);
 		goto out;
 	}
-
-	if (range_start == range_end)
-		goto out;
 
 	ret = ocfs2_extent_map_get_blocks(inode,
 					  range_start >> sb->s_blocksize_bits,
