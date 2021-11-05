@@ -3140,8 +3140,14 @@ intel_ddi_update_prepare(struct intel_atomic_state *state,
 
 	intel_tc_port_get_link(enc_to_dig_port(encoder),
 		               required_lanes);
-	if (crtc_state && crtc_state->hw.active)
+	if (crtc_state && crtc_state->hw.active) {
+		struct intel_crtc *slave_crtc = crtc_state->bigjoiner_linked_crtc;
+
 		intel_update_active_dpll(state, crtc, encoder);
+
+		if (slave_crtc)
+			intel_update_active_dpll(state, slave_crtc, encoder);
+	}
 }
 
 static void
