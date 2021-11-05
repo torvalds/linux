@@ -91,6 +91,14 @@ config ASPEED_UDMA
 	  SOCs. The UDMA engine can perform UART DMA operations between the memory
 	  buffer and the UART/VUART devices.
 
+config ASPEED_LPC_PCC
+	tristate "Aspeed Post Code Capture support"
+	depends on SOC_ASPEED && REGMAP && MFD_SYSCON
+	help
+	  Provides a driver to control the LPC PCC interface,
+	  allowing the BMC to snoop data bytes written by the
+	  the host to an arbitrary LPC I/O port.
+
 endmenu
 
 endif
