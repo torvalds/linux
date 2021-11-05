@@ -1212,12 +1212,8 @@ again:
 		goto out;
 	BUG_ON(ret == 0);
 
-#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 	if (trans && likely(trans->type != __TRANS_DUMMY) &&
 	    time_seq != BTRFS_SEQ_LAST) {
-#else
-	if (trans && time_seq != BTRFS_SEQ_LAST) {
-#endif
 		/*
 		 * We have a specific time_seq we care about and trans which
 		 * means we have the path lock, we need to grab the ref head and
