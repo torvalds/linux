@@ -419,7 +419,6 @@ static int record_root_in_trans(struct btrfs_trans_handle *trans,
 
 	if ((test_bit(BTRFS_ROOT_SHAREABLE, &root->state) &&
 	    root->last_trans < trans->transid) || force) {
-		WARN_ON(root == fs_info->_extent_root);
 		WARN_ON(!force && root->commit_root != root->node);
 
 		/*
