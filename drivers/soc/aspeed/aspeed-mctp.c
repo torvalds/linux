@@ -105,6 +105,34 @@
 #define RX_DATA_ADDR(x) \
 	((DATA_ADDR(x) << RX_DATA_ADDR_SHIFT) & RX_DATA_ADDR_MASK)
 
+#define ADDR_LEN_2500	GENMASK(23, 0)
+#define DATA_ADDR_2500(x)	(((x) >> 7) & ADDR_LEN_2500)
+
+/* TX command for ast2500 */
+#define TX_DATA_ADDR_MASK_2500	GENMASK(30, 8)
+#define TX_DATA_ADDR_2500(x) \
+	FIELD_PREP(TX_DATA_ADDR_MASK_2500, DATA_ADDR_2500(x))
+#define TX_PACKET_DEST_EID	GENMASK(7, 0)
+#define TX_PACKET_TARGET_ID	GENMASK(31, 16)
+#define TX_PACKET_ROUTING_TYPE	BIT(14)
+#define TX_PACKET_TAG_OWNER	BIT(13)
+#define TX_PACKET_PADDING_LEN	GENMASK(1, 0)
+
+/* Rx command for ast2500 */
+#define RX_LAST_CMD		BIT(31)
+#define RX_DATA_ADDR_MASK_2500	GENMASK(29, 7)
+#define RX_DATA_ADDR_2500(x) \
+	FIELD_PREP(RX_DATA_ADDR_MASK_2500, DATA_ADDR_2500(x))
+#define RX_PACKET_SIZE		GENMASK(30, 24)
+#define RX_PACKET_SRC_EID	GENMASK(23, 16)
+#define RX_PACKET_ROUTING_TYPE	GENMASK(15, 14)
+#define RX_PACKET_TAG_OWNER	BIT(13)
+#define RX_PACKET_SEQ_NUMBER	GENMASK(12, 11)
+#define RX_PACKET_MSG_TAG	GENMASK(10, 8)
+#define RX_PACKET_SOM		BIT(7)
+#define RX_PACKET_EOM		BIT(6)
+#define RX_PACKET_PADDING_LEN	GENMASK(5, 4)
+
 /* HW buffer sizes */
 #define TX_PACKET_COUNT		48
 #define RX_PACKET_COUNT		96
@@ -147,6 +175,18 @@
 #define MCTP_HDR_VENDOR_OFFSET		17
 #define MCTP_HDR_VDM_TYPE_OFFSET	19
 
+/* MCTP header DW little endian mask definitions */
+/* 0th DW */
+#define MCTP_HDR_DW_LE_ROUTING_TYPE	GENMASK(26, 24)
+#define MCTP_HDR_DW_LE_PACKET_SIZE	GENMASK(9, 0)
+/* 1st DW */
+#define MCTP_HDR_DW_LE_PADDING_LEN	GENMASK(13, 12)
+/* 2nd DW */
+#define MCTP_HDR_DW_LE_TARGET_ID	GENMASK(31, 16)
+/* 3rd DW */
+#define MCTP_HDR_DW_LE_TAG_OWNER	BIT(3)
+#define MCTP_HDR_DW_LE_DEST_EID		GENMASK(23, 16)
+
 #define ASPEED_MCTP_2600		0
 #define ASPEED_MCTP_2600A3		1
 
@@ -183,6 +223,12 @@ struct aspeed_mctp_match_data {
 	bool vdm_hdr_direct_xfer;
 	bool fifo_auto_surround;
 };
+
+struct aspeed_mctp_rx_cmd {
+	u32 rx_lo;
+	u32 rx_hi;
+};
+
 struct aspeed_mctp_tx_cmd {
 	u32 tx_lo;
 	u32 tx_hi;
@@ -286,6 +332,22 @@ void aspeed_mctp_packet_free(void *packet)
 }
 EXPORT_SYMBOL_GPL(aspeed_mctp_packet_free);
 
+static u16 _get_bdf(struct aspeed_mctp *priv)
+{
+	u16 bdf;
+
+	bdf = READ_ONCE(priv->pcie.bdf);
+	smp_rmb(); /* enforce ordering between flush and producer */
+
+	return bdf;
+}
+
+static void _set_bdf(struct aspeed_mctp *priv, u16 bdf)
+{
+	smp_wmb(); /* enforce ordering between flush and producer */
+	WRITE_ONCE(priv->pcie.bdf, bdf);
+}
+
 static uint32_t chip_version(struct device *dev)
 {
 	struct regmap *scu;
@@ -375,6 +437,28 @@ static void aspeed_mctp_tx_trigger(struct mctp_channel *tx, bool notify)
 	regmap_write(priv->map, ASPEED_MCTP_TX_BUF_WR_PTR, tx->wr_ptr);
 	regmap_update_bits(priv->map, ASPEED_MCTP_CTRL, TX_CMD_TRIGGER,
 			   TX_CMD_TRIGGER);
+}
+
+static void aspeed_mctp_tx_cmd_prep(u32 *tx_hdr, struct aspeed_mctp_tx_cmd *tx_cmd)
+{
+	u32 packet_size, target_id;
+	u8 dest_eid, padding_len, routing_type, tag_owner;
+
+	packet_size = FIELD_GET(MCTP_HDR_DW_LE_PACKET_SIZE, tx_hdr[0]);
+	routing_type = FIELD_GET(MCTP_HDR_DW_LE_ROUTING_TYPE, tx_hdr[0]);
+	routing_type = routing_type ? routing_type - 1 : 0;
+	padding_len = FIELD_GET(MCTP_HDR_DW_LE_PADDING_LEN, tx_hdr[1]);
+	target_id = FIELD_GET(MCTP_HDR_DW_LE_TARGET_ID, tx_hdr[2]);
+	tag_owner = FIELD_GET(MCTP_HDR_DW_LE_TAG_OWNER, tx_hdr[3]);
+	dest_eid = FIELD_GET(MCTP_HDR_DW_LE_DEST_EID, tx_hdr[3]);
+
+	tx_cmd->tx_hi = FIELD_PREP(TX_PACKET_DEST_EID, dest_eid);
+	tx_cmd->tx_lo = FIELD_PREP(TX_PACKET_TARGET_ID, target_id) |
+			TX_INTERRUPT_AFTER_CMD |
+			FIELD_PREP(TX_PACKET_ROUTING_TYPE, routing_type) |
+			FIELD_PREP(TX_PACKET_TAG_OWNER, tag_owner) |
+			TX_PACKET_SIZE(packet_size) |
+			FIELD_PREP(TX_PACKET_PADDING_LEN, padding_len);
 }
 
 static void aspeed_mctp_emit_tx_cmd(struct mctp_channel *tx,
@@ -547,6 +631,55 @@ static void aspeed_mctp_tx_tasklet(unsigned long data)
 
 	if (trigger)
 		aspeed_mctp_tx_trigger(tx, full);
+}
+
+void aspeed_mctp_rx_hdr_prep(struct aspeed_mctp *priv, u8 *hdr, u32 rx_lo)
+{
+	u16 bdf;
+	u8 routing_type;
+
+	/*
+	 * MCTP controller will map the routing type to reduce one bit
+	 * 0 (Route to RC) -> 0,
+	 * 2(Route by ID) -> 1,
+	 * 3(Broadcast from RC) -> 2
+	 */
+	routing_type = FIELD_GET(RX_PACKET_ROUTING_TYPE, rx_lo);
+	routing_type = routing_type ? routing_type + 1 : 0;
+	bdf = _get_bdf(priv);
+	/* Length[7:0] */
+	hdr[0] = FIELD_GET(RX_PACKET_SIZE, rx_lo);
+	/* TD:EP:ATTR[1:0]:R or AT[1:0]:Length[9:8] */
+	hdr[1] = 0;
+	/* R or T9:TC[2:0]:R[3:0] */
+	hdr[2] = 0;
+	/* R or Fmt[2]:Fmt[1:0]=b'11:Type[4:3]=b'10:Type[2:0] */
+	hdr[3] = 0x70 | routing_type;
+	/* VDM message code = 0x7f */
+	hdr[4] = 0x7f;
+	/* R[1:0]:Pad len[1:0]:MCTP VDM Code[3:0] */
+	hdr[5] = FIELD_GET(RX_PACKET_PADDING_LEN, rx_lo) << 4;
+	/* TODO: PCI Requester ID: HW didn't get this information */
+	hdr[6] = 0;
+	hdr[7] = 5;
+	/* Vendor ID: 0x1AB4 */
+	hdr[8] = 0xb4;
+	hdr[9] = 0x1a;
+	/* PCI Target ID */
+	hdr[10] = bdf & 0xff;
+	hdr[11] = bdf >> 8 & 0xff;
+	/* SOM:EOM:Pkt Seq#[1:0]:TO:Msg Tag[2:0]*/
+	hdr[12] = FIELD_GET(RX_PACKET_SOM, rx_lo) << 7 |
+		  FIELD_GET(RX_PACKET_EOM, rx_lo) << 6 |
+		  FIELD_GET(RX_PACKET_SEQ_NUMBER, rx_lo) << 4 |
+		  FIELD_GET(RX_PACKET_TAG_OWNER, rx_lo) << 3 |
+		  FIELD_GET(RX_PACKET_MSG_TAG, rx_lo);
+	/* Source Endpoint ID */
+	hdr[13] = FIELD_GET(RX_PACKET_SRC_EID, rx_lo);
+	/* Destination Endpoint ID: HW didn't get this information*/
+	hdr[14] = priv->eid;
+	/* TODO: R[3:0]: header version[3:0] */
+	hdr[15] = 1;
 }
 
 static void aspeed_mctp_rx_tasklet(unsigned long data)
@@ -758,22 +891,6 @@ static int aspeed_mctp_release(struct inode *inode, struct file *file)
 	aspeed_mctp_delete_client(client);
 
 	return 0;
-}
-
-static u16 _get_bdf(struct aspeed_mctp *priv)
-{
-	u16 bdf;
-
-	bdf = READ_ONCE(priv->pcie.bdf);
-	smp_rmb(); /* enforce ordering between flush and producer */
-
-	return bdf;
-}
-
-static void _set_bdf(struct aspeed_mctp *priv, u16 bdf)
-{
-	smp_wmb(); /* enforce ordering between flush and producer */
-	WRITE_ONCE(priv->pcie.bdf, bdf);
 }
 
 #define LEN_MASK_HI GENMASK(9, 8)
