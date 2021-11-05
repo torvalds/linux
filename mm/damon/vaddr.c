@@ -394,7 +394,7 @@ out:
 	return 0;
 }
 
-static struct mm_walk_ops damon_mkold_ops = {
+static const struct mm_walk_ops damon_mkold_ops = {
 	.pmd_entry = damon_mkold_pmd_entry,
 };
 
@@ -490,7 +490,7 @@ out:
 	return 0;
 }
 
-static struct mm_walk_ops damon_young_ops = {
+static const struct mm_walk_ops damon_young_ops = {
 	.pmd_entry = damon_young_pmd_entry,
 };
 
