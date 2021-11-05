@@ -83,6 +83,14 @@ config ASPEED_ESPI
 	  the eSPI interface. The four eSPI channels, namely peripheral,
 	  virtual wire, out-of-band, and flash are supported.
 
+config ASPEED_UDMA
+	tristate "Aspeed UDMA Engine Driver"
+	depends on SOC_ASPEED && REGMAP && MFD_SYSCON && HAS_DMA
+	help
+	  Enable support for the Aspeed UDMA Engine found on the Aspeed AST2XXX
+	  SOCs. The UDMA engine can perform UART DMA operations between the memory
+	  buffer and the UART/VUART devices.
+
 endmenu
 
 endif
