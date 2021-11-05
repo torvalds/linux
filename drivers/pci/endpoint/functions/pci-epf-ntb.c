@@ -1947,11 +1947,9 @@ static ssize_t epf_ntb_##_name##_store(struct config_item *item,	\
 	struct config_group *group = to_config_group(item);		\
 	struct epf_ntb *ntb = to_epf_ntb(group);			\
 	u32 val;							\
-	int ret;							\
 									\
-	ret = kstrtou32(page, 0, &val);					\
-	if (ret)							\
-		return ret;						\
+	if (kstrtou32(page, 0, &val) < 0)				\
+		return -EINVAL;						\
 									\
 	ntb->_name = val;						\
 									\
@@ -1980,11 +1978,9 @@ static ssize_t epf_ntb_##_name##_store(struct config_item *item,	\
 	struct device *dev = &ntb->epf->dev;				\
 	int win_no;							\
 	u64 val;							\
-	int ret;							\
 									\
-	ret = kstrtou64(page, 0, &val);					\
-	if (ret)							\
-		return ret;						\
+	if (kstrtou64(page, 0, &val) < 0)				\
+		return -EINVAL;						\
 									\
 	if (sscanf(#_name, "mw%d", &win_no) != 1)			\
 		return -EINVAL;						\
@@ -2005,11 +2001,9 @@ static ssize_t epf_ntb_num_mws_store(struct config_item *item,
 	struct config_group *group = to_config_group(item);
 	struct epf_ntb *ntb = to_epf_ntb(group);
 	u32 val;
-	int ret;
 
-	ret = kstrtou32(page, 0, &val);
-	if (ret)
-		return ret;
+	if (kstrtou32(page, 0, &val) < 0)
+		return -EINVAL;
 
 	if (val > MAX_MW)
 		return -EINVAL;

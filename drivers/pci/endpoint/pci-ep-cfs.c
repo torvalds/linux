@@ -175,9 +175,8 @@ static ssize_t pci_epc_start_store(struct config_item *item, const char *page,
 
 	epc = epc_group->epc;
 
-	ret = kstrtobool(page, &start);
-	if (ret)
-		return ret;
+	if (kstrtobool(page, &start) < 0)
+		return -EINVAL;
 
 	if (!start) {
 		pci_epc_stop(epc);
@@ -329,13 +328,11 @@ static ssize_t pci_epf_##_name##_store(struct config_item *item,	       \
 				       const char *page, size_t len)	       \
 {									       \
 	u32 val;							       \
-	int ret;							       \
 	struct pci_epf *epf = to_pci_epf_group(item)->epf;		       \
 	if (WARN_ON_ONCE(!epf->header))					       \
 		return -EINVAL;						       \
-	ret = kstrtou32(page, 0, &val);					       \
-	if (ret)							       \
-		return ret;						       \
+	if (kstrtou32(page, 0, &val) < 0)				       \
+		return -EINVAL;						       \
 	epf->header->_name = val;					       \
 	return len;							       \
 }
@@ -345,13 +342,11 @@ static ssize_t pci_epf_##_name##_store(struct config_item *item,	       \
 				       const char *page, size_t len)	       \
 {									       \
 	u16 val;							       \
-	int ret;							       \
 	struct pci_epf *epf = to_pci_epf_group(item)->epf;		       \
 	if (WARN_ON_ONCE(!epf->header))					       \
 		return -EINVAL;						       \
-	ret = kstrtou16(page, 0, &val);					       \
-	if (ret)							       \
-		return ret;						       \
+	if (kstrtou16(page, 0, &val) < 0)				       \
+		return -EINVAL;						       \
 	epf->header->_name = val;					       \
 	return len;							       \
 }
@@ -361,13 +356,11 @@ static ssize_t pci_epf_##_name##_store(struct config_item *item,	       \
 				       const char *page, size_t len)	       \
 {									       \
 	u8 val;								       \
-	int ret;							       \
 	struct pci_epf *epf = to_pci_epf_group(item)->epf;		       \
 	if (WARN_ON_ONCE(!epf->header))					       \
 		return -EINVAL;						       \
-	ret = kstrtou8(page, 0, &val);					       \
-	if (ret)							       \
-		return ret;						       \
+	if (kstrtou8(page, 0, &val) < 0)				       \
+		return -EINVAL;						       \
 	epf->header->_name = val;					       \
 	return len;							       \
 }
@@ -376,11 +369,9 @@ static ssize_t pci_epf_msi_interrupts_store(struct config_item *item,
 					    const char *page, size_t len)
 {
 	u8 val;
-	int ret;
 
-	ret = kstrtou8(page, 0, &val);
-	if (ret)
-		return ret;
+	if (kstrtou8(page, 0, &val) < 0)
+		return -EINVAL;
 
 	to_pci_epf_group(item)->epf->msi_interrupts = val;
 
@@ -398,11 +389,9 @@ static ssize_t pci_epf_msix_interrupts_store(struct config_item *item,
 					     const char *page, size_t len)
 {
 	u16 val;
-	int ret;
 
-	ret = kstrtou16(page, 0, &val);
-	if (ret)
-		return ret;
+	if (kstrtou16(page, 0, &val) < 0)
+		return -EINVAL;
 
 	to_pci_epf_group(item)->epf->msix_interrupts = val;
 
