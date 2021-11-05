@@ -85,6 +85,16 @@ static DEFINE_PER_CPU(struct xive_cpu *, xive_cpu);
 #define XIVE_INVALID_TARGET	(-1)
 
 /*
+ * Global toggle to switch on/off StoreEOI
+ */
+static bool xive_store_eoi = true;
+
+static bool xive_is_store_eoi(struct xive_irq_data *xd)
+{
+	return xd->flags & XIVE_IRQ_FLAG_STORE_EOI && xive_store_eoi;
+}
+
+/*
  * Read the next entry in a queue, return its content if it's valid
  * or 0 if there is no new entry.
  *
@@ -208,7 +218,7 @@ static notrace u8 xive_esb_read(struct xive_irq_data *xd, u32 offset)
 {
 	u64 val;
 
-	if (offset == XIVE_ESB_SET_PQ_10 && xd->flags & XIVE_IRQ_FLAG_STORE_EOI)
+	if (offset == XIVE_ESB_SET_PQ_10 && xive_is_store_eoi(xd))
 		offset |= XIVE_ESB_LD_ST_MO;
 
 	if ((xd->flags & XIVE_IRQ_FLAG_H_INT_ESB) && xive_ops->esb_rw)
@@ -233,7 +243,7 @@ static void xive_irq_data_dump(struct xive_irq_data *xd, char *buffer, size_t si
 	u64 val = xive_esb_read(xd, XIVE_ESB_GET);
 
 	snprintf(buffer, size, "flags=%c%c%c PQ=%c%c 0x%016llx 0x%016llx",
-		 xd->flags & XIVE_IRQ_FLAG_STORE_EOI ? 'S' : ' ',
+		 xive_is_store_eoi(xd) ? 'S' : ' ',
 		 xd->flags & XIVE_IRQ_FLAG_LSI ? 'L' : ' ',
 		 xd->flags & XIVE_IRQ_FLAG_H_INT_ESB ? 'H' : ' ',
 		 val & XIVE_ESB_VAL_P ? 'P' : '-',
@@ -395,7 +405,7 @@ static void xive_do_source_eoi(struct xive_irq_data *xd)
 	xd->stale_p = false;
 
 	/* If the XIVE supports the new "store EOI facility, use it */
-	if (xd->flags & XIVE_IRQ_FLAG_STORE_EOI) {
+	if (xive_is_store_eoi(xd)) {
 		xive_esb_write(xd, XIVE_ESB_STORE_EOI, 0);
 		return;
 	}
@@ -1823,6 +1833,7 @@ static void xive_core_debugfs_create(void)
 		debugfs_create_file(name, 0400, xive_eq_dir, (void *)cpu,
 				    &xive_eq_debug_fops);
 	}
+	debugfs_create_bool("store-eoi", 0600, xive_dir, &xive_store_eoi);
 }
 #else
 static inline void xive_core_debugfs_create(void) { }
