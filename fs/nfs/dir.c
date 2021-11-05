@@ -1814,7 +1814,7 @@ no_entry:
 	}
 	nfs_set_verifier(dentry, dir_verifier);
 out_label:
-	trace_nfs_lookup_exit(dir, dentry, flags, error);
+	trace_nfs_lookup_exit(dir, dentry, flags, PTR_ERR_OR_ZERO(res));
 	nfs4_label_free(label);
 out:
 	nfs_free_fattr(fattr);
