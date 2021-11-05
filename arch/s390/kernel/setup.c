@@ -693,7 +693,7 @@ static void __init reserve_crashkernel(void)
 	}
 
 	if (register_memory_notifier(&kdump_mem_nb)) {
-		memblock_free(crash_base, crash_size);
+		memblock_phys_free(crash_base, crash_size);
 		return;
 	}
 
@@ -748,7 +748,7 @@ static void __init free_mem_detect_info(void)
 
 	get_mem_detect_reserved(&start, &size);
 	if (size)
-		memblock_free(start, size);
+		memblock_phys_free(start, size);
 }
 
 static const char * __init get_mem_info_source(void)
@@ -793,7 +793,7 @@ static void __init check_initrd(void)
 	if (initrd_data.start && initrd_data.size &&
 	    !memblock_is_region_memory(initrd_data.start, initrd_data.size)) {
 		pr_err("The initial RAM disk does not fit into the memory\n");
-		memblock_free(initrd_data.start, initrd_data.size);
+		memblock_phys_free(initrd_data.start, initrd_data.size);
 		initrd_start = initrd_end = 0;
 	}
 #endif
@@ -890,7 +890,7 @@ static void __init setup_randomness(void)
 
 	if (stsi(vmms, 3, 2, 2) == 0 && vmms->count)
 		add_device_randomness(&vmms->vm, sizeof(vmms->vm[0]) * vmms->count);
-	memblock_free((unsigned long) vmms, PAGE_SIZE);
+	memblock_phys_free((unsigned long)vmms, PAGE_SIZE);
 }
 
 /*

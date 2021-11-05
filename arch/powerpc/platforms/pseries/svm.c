@@ -56,7 +56,8 @@ void __init svm_swiotlb_init(void)
 		return;
 
 
-	memblock_free(__pa(vstart), PAGE_ALIGN(io_tlb_nslabs << IO_TLB_SHIFT));
+	memblock_phys_free(__pa(vstart),
+			   PAGE_ALIGN(io_tlb_nslabs << IO_TLB_SHIFT));
 	panic("SVM: Cannot allocate SWIOTLB buffer");
 }
 

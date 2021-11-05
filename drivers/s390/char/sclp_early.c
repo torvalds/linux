@@ -139,7 +139,7 @@ int __init sclp_early_get_core_info(struct sclp_core_info *info)
 	}
 	sclp_fill_core_info(info, sccb);
 out:
-	memblock_free((unsigned long)sccb, length);
+	memblock_phys_free((unsigned long)sccb, length);
 	return rc;
 }
 

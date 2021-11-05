@@ -378,7 +378,7 @@ int __init cma_declare_contiguous_nid(phys_addr_t base,
 	return 0;
 
 free_mem:
-	memblock_free(base, size);
+	memblock_phys_free(base, size);
 err:
 	pr_err("Failed to reserve %ld MiB\n", (unsigned long)size / SZ_1M);
 	return ret;

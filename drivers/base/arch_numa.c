@@ -166,7 +166,7 @@ static void * __init pcpu_fc_alloc(unsigned int cpu, size_t size,
 
 static void __init pcpu_fc_free(void *ptr, size_t size)
 {
-	memblock_free(__pa(ptr), size);
+	memblock_phys_free(__pa(ptr), size);
 }
 
 #ifdef CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK

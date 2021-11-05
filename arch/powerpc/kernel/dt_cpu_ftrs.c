@@ -1095,8 +1095,8 @@ static int __init dt_cpu_ftrs_scan_callback(unsigned long node, const char
 
 	cpufeatures_setup_finished();
 
-	memblock_free(__pa(dt_cpu_features),
-			sizeof(struct dt_cpu_feature)*nr_dt_cpu_features);
+	memblock_phys_free(__pa(dt_cpu_features),
+			   sizeof(struct dt_cpu_feature) * nr_dt_cpu_features);
 
 	return 0;
 }

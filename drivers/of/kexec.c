@@ -171,8 +171,7 @@ int ima_free_kexec_buffer(void)
 	if (ret)
 		return ret;
 
-	return memblock_free(addr, size);
-
+	return memblock_phys_free(addr, size);
 }
 
 /**

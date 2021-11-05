@@ -247,7 +247,7 @@ swiotlb_init(int verbose)
 	return;
 
 fail_free_mem:
-	memblock_free(__pa(tlb), bytes);
+	memblock_phys_free(__pa(tlb), bytes);
 fail:
 	pr_warn("Cannot allocate buffer");
 }

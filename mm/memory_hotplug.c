@@ -2204,7 +2204,7 @@ static int __ref try_remove_memory(u64 start, u64 size)
 	arch_remove_memory(start, size, altmap);
 
 	if (IS_ENABLED(CONFIG_ARCH_KEEP_MEMBLOCK)) {
-		memblock_free(start, size);
+		memblock_phys_free(start, size);
 		memblock_remove(start, size);
 	}
 
