@@ -548,7 +548,6 @@ struct btrfs_swapfile_pin {
 bool btrfs_pinned_by_swapfile(struct btrfs_fs_info *fs_info, void *ptr);
 
 enum {
-	BTRFS_FS_BARRIER,
 	BTRFS_FS_CLOSING_START,
 	BTRFS_FS_CLOSING_DONE,
 	BTRFS_FS_LOG_RECOVERING,
