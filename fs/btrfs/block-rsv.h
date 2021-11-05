@@ -50,6 +50,7 @@ struct btrfs_block_rsv {
 };
 
 void btrfs_init_block_rsv(struct btrfs_block_rsv *rsv, unsigned short type);
+void btrfs_init_root_block_rsv(struct btrfs_root *root);
 struct btrfs_block_rsv *btrfs_alloc_block_rsv(struct btrfs_fs_info *fs_info,
 					      unsigned short type);
 void btrfs_init_metadata_block_rsv(struct btrfs_fs_info *fs_info,

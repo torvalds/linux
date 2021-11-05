@@ -412,6 +412,29 @@ void btrfs_update_global_block_rsv(struct btrfs_fs_info *fs_info)
 	spin_unlock(&sinfo->lock);
 }
 
+void btrfs_init_root_block_rsv(struct btrfs_root *root)
+{
+	struct btrfs_fs_info *fs_info = root->fs_info;
+
+	switch (root->root_key.objectid) {
+	case BTRFS_CSUM_TREE_OBJECTID:
+	case BTRFS_EXTENT_TREE_OBJECTID:
+		root->block_rsv = &fs_info->delayed_refs_rsv;
+		break;
+	case BTRFS_ROOT_TREE_OBJECTID:
+	case BTRFS_DEV_TREE_OBJECTID:
+	case BTRFS_QUOTA_TREE_OBJECTID:
+		root->block_rsv = &fs_info->global_block_rsv;
+		break;
+	case BTRFS_CHUNK_TREE_OBJECTID:
+		root->block_rsv = &fs_info->chunk_block_rsv;
+		break;
+	default:
+		root->block_rsv = NULL;
+		break;
+	}
+}
+
 void btrfs_init_global_block_rsv(struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_space_info *space_info;
@@ -425,22 +448,6 @@ void btrfs_init_global_block_rsv(struct btrfs_fs_info *fs_info)
 	fs_info->empty_block_rsv.space_info = space_info;
 	fs_info->delayed_block_rsv.space_info = space_info;
 	fs_info->delayed_refs_rsv.space_info = space_info;
-
-	/*
-	 * Our various recovery options can leave us with NULL roots, so check
-	 * here and just bail before we go dereferencing NULLs everywhere.
-	 */
-	if (!fs_info->extent_root || !fs_info->csum_root ||
-	    !fs_info->dev_root || !fs_info->chunk_root || !fs_info->tree_root)
-		return;
-
-	fs_info->extent_root->block_rsv = &fs_info->delayed_refs_rsv;
-	fs_info->csum_root->block_rsv = &fs_info->delayed_refs_rsv;
-	fs_info->dev_root->block_rsv = &fs_info->global_block_rsv;
-	fs_info->tree_root->block_rsv = &fs_info->global_block_rsv;
-	if (fs_info->quota_root)
-		fs_info->quota_root->block_rsv = &fs_info->global_block_rsv;
-	fs_info->chunk_root->block_rsv = &fs_info->chunk_block_rsv;
 
 	btrfs_update_global_block_rsv(fs_info);
 }
