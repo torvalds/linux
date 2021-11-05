@@ -84,6 +84,7 @@ else
 endif
 
 # Append required CFLAGS
+override CFLAGS += -std=gnu89
 override CFLAGS += $(EXTRA_WARNINGS) -Wno-switch-enum
 override CFLAGS += -Werror -Wall
 override CFLAGS += $(INCLUDES)
