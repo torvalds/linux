@@ -501,7 +501,7 @@ static void quirk_s3_64M(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_S3,	PCI_DEVICE_ID_S3_868,		quirk_s3_64M);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_S3,	PCI_DEVICE_ID_S3_968,		quirk_s3_64M);
 
-static void quirk_io(struct pci_dev *dev, int pos, unsigned size,
+static void quirk_io(struct pci_dev *dev, int pos, unsigned int size,
 		     const char *name)
 {
 	u32 region;
@@ -552,7 +552,7 @@ static void quirk_cs5536_vsa(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_CS5536_ISA, quirk_cs5536_vsa);
 
 static void quirk_io_region(struct pci_dev *dev, int port,
-				unsigned size, int nr, const char *name)
+			    unsigned int size, int nr, const char *name)
 {
 	u16 region;
 	struct pci_bus_region bus_region;
@@ -666,7 +666,7 @@ static void piix4_io_quirk(struct pci_dev *dev, const char *name, unsigned int p
 	base = devres & 0xffff;
 	size = 16;
 	for (;;) {
-		unsigned bit = size >> 1;
+		unsigned int bit = size >> 1;
 		if ((bit & mask) == bit)
 			break;
 		size = bit;
@@ -692,7 +692,7 @@ static void piix4_mem_quirk(struct pci_dev *dev, const char *name, unsigned int 
 	mask = (devres & 0x3f) << 16;
 	size = 128 << 16;
 	for (;;) {
-		unsigned bit = size >> 1;
+		unsigned int bit = size >> 1;
 		if ((bit & mask) == bit)
 			break;
 		size = bit;
@@ -806,7 +806,7 @@ static void ich6_lpc_acpi_gpio(struct pci_dev *dev)
 				"ICH6 GPIO");
 }
 
-static void ich6_lpc_generic_decode(struct pci_dev *dev, unsigned reg,
+static void ich6_lpc_generic_decode(struct pci_dev *dev, unsigned int reg,
 				    const char *name, int dynsize)
 {
 	u32 val;
@@ -850,7 +850,7 @@ static void quirk_ich6_lpc(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_ICH6_0, quirk_ich6_lpc);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_ICH6_1, quirk_ich6_lpc);
 
-static void ich7_lpc_generic_decode(struct pci_dev *dev, unsigned reg,
+static void ich7_lpc_generic_decode(struct pci_dev *dev, unsigned int reg,
 				    const char *name)
 {
 	u32 val;
@@ -2700,7 +2700,7 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_NVIDIA,
  * then the device can't use INTx interrupts. Tegra's PCIe root ports don't
  * generate MSI interrupts for PME and AER events instead only INTx interrupts
  * are generated. Though Tegra's PCIe root ports can generate MSI interrupts
- * for other events, since PCIe specificiation doesn't support using a mix of
+ * for other events, since PCIe specification doesn't support using a mix of
  * INTx and MSI/MSI-X, it is required to disable MSI interrupts to avoid port
  * service drivers registering their respective ISRs for MSIs.
  */

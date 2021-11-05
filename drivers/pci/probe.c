@@ -2585,11 +2585,12 @@ struct pci_dev *pci_scan_single_device(struct pci_bus *bus, int devfn)
 }
 EXPORT_SYMBOL(pci_scan_single_device);
 
-static unsigned next_fn(struct pci_bus *bus, struct pci_dev *dev, unsigned fn)
+static unsigned int next_fn(struct pci_bus *bus, struct pci_dev *dev,
+			    unsigned int fn)
 {
 	int pos;
 	u16 cap = 0;
-	unsigned next_fn;
+	unsigned int next_fn;
 
 	if (pci_ari_enabled(bus)) {
 		if (!dev)
@@ -2648,7 +2649,7 @@ static int only_one_child(struct pci_bus *bus)
  */
 int pci_scan_slot(struct pci_bus *bus, int devfn)
 {
-	unsigned fn, nr = 0;
+	unsigned int fn, nr = 0;
 	struct pci_dev *dev;
 
 	if (only_one_child(bus) && (devfn > 0))

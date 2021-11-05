@@ -57,7 +57,7 @@ struct aer_stats {
 	 * "as seen by this device". Note that this may mean that if an
 	 * end point is causing problems, the AER counters may increment
 	 * at its link partner (e.g. root port) because the errors will be
-	 * "seen" by the link partner and not the the problematic end point
+	 * "seen" by the link partner and not the problematic end point
 	 * itself (which may report all counters as 0 as it never saw any
 	 * problems).
 	 */
