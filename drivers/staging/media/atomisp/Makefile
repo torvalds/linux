@@ -55,6 +55,7 @@ atomisp-objs += \
 	pci/ia_css_device_access.o \
 	pci/ia_css_isp_configs.o \
 	pci/ia_css_isp_states.o \
+	pci/ia_css_isp_params.o \
 	pci/isp/kernels/aa/aa_2/ia_css_aa2.host.o \
 	pci/isp/kernels/anr/anr_1.0/ia_css_anr.host.o \
 	pci/isp/kernels/anr/anr_2/ia_css_anr2.host.o \
@@ -156,17 +157,13 @@ atomisp-objs += \
 	pci/hive_isp_css_common/host/timed_ctrl.o \
 	pci/hive_isp_css_common/host/vmem.o \
 	pci/hive_isp_css_shared/host/tag.o \
-	pci/system_local.o \
-
-obj-byt = \
-	pci/css_2400_system/hive/ia_css_isp_params.o
+	pci/system_local.o
 
 # These will be needed when clean merge CHT support nicely into the driver
 # Keep them here handy for when we get to that point
 #
 
 obj-cht = \
-	pci/css_2401_system/hive/ia_css_isp_params.o \
 	pci/css_2401_system/host/csi_rx.o \
 	pci/css_2401_system/host/ibuf_ctrl.o \
 	pci/css_2401_system/host/isys_dma.o \
@@ -322,10 +319,7 @@ ifeq ($(CONFIG_VIDEO_ATOMISP_ISP2401),y)
 atomisp-objs += \
 	$(obj-cht) \
 	pci/runtime/isys/src/ibuf_ctrl_rmgr.o
-DEFINES += -DISP2401 -DISP2401_NEW_INPUT_SYSTEM -DSYSTEM_hive_isp_css_2401_system
-else
-atomisp-objs += $(obj-byt)
-DEFINES += -DISP2400 -DSYSTEM_hive_isp_css_2400_system
+DEFINES += -DISP2401 -DISP2401_NEW_INPUT_SYSTEM
 endif
 
 ccflags-y += $(INCLUDES) $(DEFINES) -fno-common
