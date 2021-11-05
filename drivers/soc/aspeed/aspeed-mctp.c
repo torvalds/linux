@@ -46,6 +46,7 @@
 #define  RX_CMD_NO_MORE_INT	BIT(9)
 
 #define ASPEED_MCTP_EID		0x014
+#define  MEMORY_SPACE_MAPPING	GENMASK(31, 28)
 #define ASPEED_MCTP_OBFF_CTRL	0x018
 
 #define ASPEED_MCTP_ENGINE_CTRL		0x01c
@@ -433,8 +434,8 @@ static void aspeed_mctp_tx_trigger(struct mctp_channel *tx, bool notify)
 			   (tx->wr_ptr - 1) % TX_PACKET_COUNT;
 		last_cmd->tx_lo |= TX_INTERRUPT_AFTER_CMD;
 	}
-
-	regmap_write(priv->map, ASPEED_MCTP_TX_BUF_WR_PTR, tx->wr_ptr);
+	if (priv->match_data->fifo_auto_surround)
+		regmap_write(priv->map, ASPEED_MCTP_TX_BUF_WR_PTR, tx->wr_ptr);
 	regmap_update_bits(priv->map, ASPEED_MCTP_CTRL, TX_CMD_TRIGGER,
 			   TX_CMD_TRIGGER);
 }
@@ -464,20 +465,32 @@ static void aspeed_mctp_tx_cmd_prep(u32 *tx_hdr, struct aspeed_mctp_tx_cmd *tx_c
 static void aspeed_mctp_emit_tx_cmd(struct mctp_channel *tx,
 				    struct mctp_pcie_packet *packet)
 {
+	struct aspeed_mctp *priv = container_of(tx, typeof(*priv), tx);
 	struct aspeed_mctp_tx_cmd *tx_cmd =
 		(struct aspeed_mctp_tx_cmd *)tx->cmd.vaddr + tx->wr_ptr;
 	u32 packet_sz_dw = packet->size / sizeof(u32) -
 		sizeof(packet->data.hdr) / sizeof(u32);
-	u32 offset = tx->wr_ptr * sizeof(packet->data);
+	u32 offset;
 
 	aspeed_mctp_swap_pcie_vdm_hdr(&packet->data);
 
-	memcpy((u8 *)tx->data.vaddr + offset, &packet->data,
-	       sizeof(packet->data));
+	if (priv->match_data->vdm_hdr_direct_xfer) {
+		offset = tx->wr_ptr * sizeof(packet->data);
+		memcpy((u8 *)tx->data.vaddr + offset, &packet->data,
+		       sizeof(packet->data));
 
-	tx_cmd->tx_lo = TX_PACKET_SIZE(packet_sz_dw);
-	tx_cmd->tx_hi = TX_RESERVED_1;
-	tx_cmd->tx_hi |= TX_DATA_ADDR(tx->data.dma_handle + offset);
+		tx_cmd->tx_lo = TX_PACKET_SIZE(packet_sz_dw);
+		tx_cmd->tx_hi = TX_RESERVED_1;
+		tx_cmd->tx_hi |= TX_DATA_ADDR(tx->data.dma_handle + offset);
+	} else {
+		offset = tx->wr_ptr * sizeof(struct mctp_pcie_packet_data_2500);
+		memcpy((u8 *)tx->data.vaddr + offset, packet->data.payload,
+		       sizeof(packet->data.payload));
+		aspeed_mctp_tx_cmd_prep(packet->data.hdr, tx_cmd);
+		tx_cmd->tx_hi |= TX_DATA_ADDR_2500(tx->data.dma_handle + offset);
+		if (tx->wr_ptr == TX_PACKET_COUNT - 1)
+			tx_cmd->tx_hi |= TX_LAST_CMD;
+	}
 
 	tx->wr_ptr = (tx->wr_ptr + 1) % TX_PACKET_COUNT;
 }
@@ -607,9 +620,13 @@ static void aspeed_mctp_tx_tasklet(unsigned long data)
 	bool full = false;
 	u32 rd_ptr;
 
-	regmap_write(priv->map, ASPEED_MCTP_TX_BUF_RD_PTR, UPDATE_RX_RD_PTR);
-	regmap_read(priv->map, ASPEED_MCTP_TX_BUF_RD_PTR, &rd_ptr);
-	rd_ptr &= TX_BUF_RD_PTR_MASK;
+	if (priv->match_data->fifo_auto_surround) {
+		regmap_write(priv->map, ASPEED_MCTP_TX_BUF_RD_PTR, UPDATE_RX_RD_PTR);
+		regmap_read(priv->map, ASPEED_MCTP_TX_BUF_RD_PTR, &rd_ptr);
+		rd_ptr &= TX_BUF_RD_PTR_MASK;
+	} else {
+		rd_ptr = tx->rd_ptr;
+	}
 
 	spin_lock(&priv->clients_lock);
 
@@ -687,87 +704,118 @@ static void aspeed_mctp_rx_tasklet(unsigned long data)
 	struct mctp_channel *rx = (struct mctp_channel *)data;
 	struct aspeed_mctp *priv = container_of(rx, typeof(*priv), rx);
 	struct mctp_pcie_packet *rx_packet;
-	struct mctp_pcie_packet_data *rx_buf;
+	struct aspeed_mctp_rx_cmd *rx_cmd;
 	u32 hw_read_ptr;
-	u32 *hdr;
+	u32 *hdr, *payload;
 
-	/* Trigger HW read pointer update, must be done before RX loop */
-	regmap_write(priv->map, ASPEED_MCTP_RX_BUF_RD_PTR, UPDATE_RX_RD_PTR);
+	if (priv->match_data->vdm_hdr_direct_xfer && priv->match_data->fifo_auto_surround) {
+		struct mctp_pcie_packet_data *rx_buf;
 
-	/*
-	 * XXX: Using rd_ptr obtained from HW is unreliable so we need to
-	 * maintain the state of buffer on our own by peeking into the buffer
-	 * and checking where the packet was written.
-	 */
-	rx_buf = (struct mctp_pcie_packet_data *)rx->data.vaddr;
-	hdr = (u32 *)&rx_buf[rx->wr_ptr];
-	if ((priv->rx_warmup || priv->rx_runaway_wa.first_loop) && !*hdr) {
-		u32 tmp_wr_ptr = rx->wr_ptr;
+		/* Trigger HW read pointer update, must be done before RX loop */
+		regmap_write(priv->map, ASPEED_MCTP_RX_BUF_RD_PTR, UPDATE_RX_RD_PTR);
 
 		/*
-		 * HACK: Right after start the RX hardware can put received
-		 * packet into an unexpected offset - in order to locate
-		 * received packet driver has to scan all RX data buffers.
+		 * XXX: Using rd_ptr obtained from HW is unreliable so we need to
+		 * maintain the state of buffer on our own by peeking into the buffer
+		 * and checking where the packet was written.
 		 */
-		do {
-			tmp_wr_ptr = (tmp_wr_ptr + 1) % RX_PACKET_COUNT;
-
-			hdr = (u32 *)&rx_buf[tmp_wr_ptr];
-		} while (!*hdr && tmp_wr_ptr != rx->wr_ptr);
-
-		if (tmp_wr_ptr != rx->wr_ptr) {
-			dev_dbg(priv->dev, "Runaway RX packet found %d -> %d\n",
-				rx->wr_ptr, tmp_wr_ptr);
-			rx->wr_ptr = tmp_wr_ptr;
-		}
-		priv->rx_warmup = false;
-	}
-	/*
-	 * Once we receive RX_PACKET_COUNT packets, hardware is
-	 * guaranteed to use (RX_PACKET_COUNT - 4) buffers. Decrease
-	 * buffer count by 4, then we can turn off scanning of RX
-	 * buffers. RX buffer scanning should be enabled every time
-	 * RX hardware is started.
-	 * This is just a performance optimization - we could keep
-	 * scanning RX buffers forever, but under heavy traffic it is
-	 * fairly common that rx_tasklet is executed while RX buffer
-	 * ring is empty.
-	 */
-	if (priv->rx_runaway_wa.enable &&
-	    priv->rx_runaway_wa.packet_counter > RX_PACKET_COUNT) {
-		priv->rx_runaway_wa.first_loop = false;
-		rx->buffer_count = RX_PACKET_COUNT - 4;
-	}
-
-	while (*hdr != 0) {
-		rx_packet = aspeed_mctp_packet_alloc(GFP_ATOMIC);
-		if (rx_packet) {
-			memcpy(&rx_packet->data, hdr, sizeof(rx_packet->data));
-
-			aspeed_mctp_swap_pcie_vdm_hdr(&rx_packet->data);
-
-			aspeed_mctp_dispatch_packet(priv, rx_packet);
-		} else {
-			dev_dbg(priv->dev, "Failed to allocate RX packet\n");
-		}
-
-		*hdr = 0;
-		rx->wr_ptr = (rx->wr_ptr + 1) % rx->buffer_count;
+		rx_buf = (struct mctp_pcie_packet_data *)rx->data.vaddr;
 		hdr = (u32 *)&rx_buf[rx->wr_ptr];
+		if ((priv->rx_warmup || priv->rx_runaway_wa.first_loop) && !*hdr) {
+			u32 tmp_wr_ptr = rx->wr_ptr;
 
-		priv->rx_runaway_wa.packet_counter++;
+			/*
+			 * HACK: Right after start the RX hardware can put received
+			 * packet into an unexpected offset - in order to locate
+			 * received packet driver has to scan all RX data buffers.
+			 */
+			do {
+				tmp_wr_ptr = (tmp_wr_ptr + 1) % RX_PACKET_COUNT;
+
+				hdr = (u32 *)&rx_buf[tmp_wr_ptr];
+			} while (!*hdr && tmp_wr_ptr != rx->wr_ptr);
+
+			if (tmp_wr_ptr != rx->wr_ptr) {
+				dev_dbg(priv->dev, "Runaway RX packet found %d -> %d\n",
+					rx->wr_ptr, tmp_wr_ptr);
+				rx->wr_ptr = tmp_wr_ptr;
+			}
+			priv->rx_warmup = false;
+		}
+		/*
+		 * Once we receive RX_PACKET_COUNT packets, hardware is
+		 * guaranteed to use (RX_PACKET_COUNT - 4) buffers. Decrease
+		 * buffer count by 4, then we can turn off scanning of RX
+		 * buffers. RX buffer scanning should be enabled every time
+		 * RX hardware is started.
+		 * This is just a performance optimization - we could keep
+		 * scanning RX buffers forever, but under heavy traffic it is
+		 * fairly common that rx_tasklet is executed while RX buffer
+		 * ring is empty.
+		 */
+		if (priv->rx_runaway_wa.enable &&
+		    priv->rx_runaway_wa.packet_counter > RX_PACKET_COUNT) {
+			priv->rx_runaway_wa.first_loop = false;
+			rx->buffer_count = RX_PACKET_COUNT - 4;
+		}
+
+		while (*hdr != 0) {
+			rx_packet = aspeed_mctp_packet_alloc(GFP_ATOMIC);
+			if (rx_packet) {
+				memcpy(&rx_packet->data, hdr, sizeof(rx_packet->data));
+
+				aspeed_mctp_swap_pcie_vdm_hdr(&rx_packet->data);
+
+				aspeed_mctp_dispatch_packet(priv, rx_packet);
+			} else {
+				dev_dbg(priv->dev, "Failed to allocate RX packet\n");
+			}
+
+			*hdr = 0;
+			rx->wr_ptr = (rx->wr_ptr + 1) % rx->buffer_count;
+			hdr = (u32 *)&rx_buf[rx->wr_ptr];
+
+			priv->rx_runaway_wa.packet_counter++;
+		}
+
+		/*
+		 * Update HW write pointer, this can be done only after driver consumes
+		 * packets from RX ring.
+		 */
+		regmap_read(priv->map, ASPEED_MCTP_RX_BUF_RD_PTR, &hw_read_ptr);
+		hw_read_ptr &= RX_BUF_RD_PTR_MASK;
+		regmap_write(priv->map, ASPEED_MCTP_RX_BUF_WR_PTR, (hw_read_ptr));
+
+		dev_dbg(priv->dev, "RX hw ptr %02d, sw ptr %2d\n",
+			hw_read_ptr, rx->wr_ptr);
+	} else {
+		struct mctp_pcie_packet_data_2500 *rx_buf;
+
+		rx_buf = (struct mctp_pcie_packet_data_2500 *)rx->data.vaddr;
+		payload = (u32 *)&rx_buf[rx->wr_ptr];
+		rx_cmd = (struct aspeed_mctp_rx_cmd *)rx->cmd.vaddr;
+		hdr = (u32 *)&((rx_cmd + rx->wr_ptr)->rx_lo);
+
+		while (*hdr != 0) {
+			rx_packet = aspeed_mctp_packet_alloc(GFP_ATOMIC);
+			if (rx_packet) {
+				memcpy(rx_packet->data.payload, payload,
+				       sizeof(rx_packet->data.payload));
+
+				aspeed_mctp_rx_hdr_prep(priv, (u8 *)rx_packet->data.hdr, *hdr);
+
+				aspeed_mctp_swap_pcie_vdm_hdr(&rx_packet->data);
+
+				aspeed_mctp_dispatch_packet(priv, rx_packet);
+			} else {
+				dev_dbg(priv->dev, "Failed to allocate RX packet\n");
+			}
+			*hdr = 0;
+			rx->wr_ptr = (rx->wr_ptr + 1) % rx->buffer_count;
+			payload = (u32 *)&rx_buf[rx->wr_ptr];
+			hdr = (u32 *)&((rx_cmd + rx->wr_ptr)->rx_lo);
+		}
 	}
-
-	/*
-	 * Update HW write pointer, this can be done only after driver consumes
-	 * packets from RX ring.
-	 */
-	regmap_read(priv->map, ASPEED_MCTP_RX_BUF_RD_PTR, &hw_read_ptr);
-	hw_read_ptr &= RX_BUF_RD_PTR_MASK;
-	regmap_write(priv->map, ASPEED_MCTP_RX_BUF_WR_PTR, (hw_read_ptr));
-
-	dev_dbg(priv->dev, "RX hw ptr %02d, sw ptr %2d\n",
-		hw_read_ptr, rx->wr_ptr);
 
 	/* Kick RX if it was stopped due to ring full condition */
 	if (rx->stopped) {
@@ -781,34 +829,47 @@ static void aspeed_mctp_rx_chan_init(struct mctp_channel *rx)
 {
 	struct aspeed_mctp *priv = container_of(rx, typeof(*priv), rx);
 	u32 *rx_cmd = (u32 *)rx->cmd.vaddr;
-	u32 data_size = sizeof(struct mctp_pcie_packet_data);
+	struct aspeed_mctp_rx_cmd *rx_cmd_64 =
+		(struct aspeed_mctp_rx_cmd *)rx->cmd.vaddr;
+	u32 data_size = priv->match_data->packet_unit_size;
 	u32 hw_rx_count = RX_PACKET_COUNT;
 	int i;
 
-	for (i = 0; i < RX_PACKET_COUNT; i++) {
-		*rx_cmd = RX_DATA_ADDR(rx->data.dma_handle + data_size * i);
-		*rx_cmd |= RX_INTERRUPT_AFTER_CMD;
-		rx_cmd++;
+	if (priv->match_data->vdm_hdr_direct_xfer) {
+		for (i = 0; i < RX_PACKET_COUNT; i++) {
+			*rx_cmd = RX_DATA_ADDR(rx->data.dma_handle + data_size * i);
+			*rx_cmd |= RX_INTERRUPT_AFTER_CMD;
+			rx_cmd++;
+		}
+	} else {
+		for (i = 0; i < RX_PACKET_COUNT; i++) {
+			rx_cmd_64->rx_hi = RX_DATA_ADDR_2500(rx->data.dma_handle + data_size * i);
+			rx_cmd_64->rx_lo = 0;
+			if (i == RX_PACKET_COUNT - 1)
+				rx_cmd_64->rx_hi |= RX_LAST_CMD;
+			rx_cmd_64++;
+		}
+		rx->wr_ptr = 0;
 	}
-
 	rx->buffer_count = RX_PACKET_COUNT;
+	if (priv->match_data->fifo_auto_surround) {
+		/*
+		 * TODO: Once read pointer runaway bug is fixed in some future AST2x00
+		 * stepping then add chip revision detection and turn on this
+		 * workaround only when needed
+		 */
+		priv->rx_runaway_wa.enable =
+			(chip_version(priv->dev) == ASPEED_MCTP_2600) ? true : false;
 
-	/*
-	 * TODO: Once read pointer runaway bug is fixed in some future AST2x00
-	 * stepping then add chip revision detection and turn on this
-	 * workaround only when needed
-	 */
-	priv->rx_runaway_wa.enable =
-		(chip_version(priv->dev) == ASPEED_MCTP_2600) ? true : false;
+		/*
+		 * Hardware does not wrap around ASPEED_MCTP_RX_BUF_SIZE
+		 * correctly - we have to set number of buffers to n/4 -1
+		 */
+		if (priv->rx_runaway_wa.enable)
+			hw_rx_count = (RX_PACKET_COUNT / 4 - 1);
 
-	/*
-	 * Hardware does not wrap around ASPEED_MCTP_RX_BUF_SIZE
-	 * correctly - we have to set number of buffers to n/4 -1
-	 */
-	if (priv->rx_runaway_wa.enable)
-		hw_rx_count = (RX_PACKET_COUNT / 4 - 1);
-
-	regmap_write(priv->map, ASPEED_MCTP_RX_BUF_SIZE, hw_rx_count);
+		regmap_write(priv->map, ASPEED_MCTP_RX_BUF_SIZE, hw_rx_count);
+	}
 }
 
 static void aspeed_mctp_tx_chan_init(struct mctp_channel *tx)
@@ -816,10 +877,13 @@ static void aspeed_mctp_tx_chan_init(struct mctp_channel *tx)
 	struct aspeed_mctp *priv = container_of(tx, typeof(*priv), tx);
 
 	tx->wr_ptr = 0;
+	tx->rd_ptr = 0;
 	regmap_update_bits(priv->map, ASPEED_MCTP_CTRL, TX_CMD_TRIGGER, 0);
-	regmap_write(priv->map, ASPEED_MCTP_TX_BUF_SIZE, TX_PACKET_COUNT);
-	regmap_write(priv->map, ASPEED_MCTP_TX_BUF_WR_PTR, 0);
 	regmap_write(priv->map, ASPEED_MCTP_TX_BUF_ADDR, tx->cmd.dma_handle);
+	if (priv->match_data->fifo_auto_surround) {
+		regmap_write(priv->map, ASPEED_MCTP_TX_BUF_SIZE, TX_PACKET_COUNT);
+		regmap_write(priv->map, ASPEED_MCTP_TX_BUF_WR_PTR, 0);
+	}
 }
 
 struct mctp_client *aspeed_mctp_create_client(struct aspeed_mctp *priv)
@@ -1603,6 +1667,9 @@ static void aspeed_mctp_reset_work(struct work_struct *work)
 
 	bdf = aspeed_mctp_pcie_setup(priv);
 	if (bdf) {
+		if (priv->match_data->need_address_mapping)
+			regmap_update_bits(priv->map, ASPEED_MCTP_EID,
+					   MEMORY_SPACE_MAPPING, BIT(31));
 		aspeed_mctp_flush_all_tx_queues(priv);
 		if (!priv->miss_mctp_int)
 			aspeed_mctp_irq_enable(priv);
@@ -1629,7 +1696,8 @@ static irqreturn_t aspeed_mctp_irq_handler(int irq, void *arg)
 
 	if (status & TX_CMD_SENT_INT) {
 		tasklet_hi_schedule(&priv->tx.tasklet);
-
+		if (!priv->match_data->fifo_auto_surround)
+			priv->tx.rd_ptr = priv->tx.rd_ptr + 1 % TX_PACKET_COUNT;
 		handled |= TX_CMD_SENT_INT;
 	}
 
@@ -1938,8 +2006,12 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 		goto out_dma;
 	}
 	bdf = aspeed_mctp_pcie_setup(priv);
-	if (bdf != 0)
+	if (bdf != 0) {
+		if (priv->match_data->need_address_mapping)
+			regmap_update_bits(priv->map, ASPEED_MCTP_EID,
+					   MEMORY_SPACE_MAPPING, BIT(31));
 		_set_bdf(priv, bdf);
+	}
 
 	priv->peci_mctp =
 		platform_device_register_data(priv->dev, "peci-mctp",
@@ -1977,6 +2049,14 @@ static int aspeed_mctp_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct aspeed_mctp_match_data ast2500_mctp_match_data = {
+	.rx_cmd_size = sizeof(struct aspeed_mctp_rx_cmd),
+	.packet_unit_size = 128,
+	.need_address_mapping = true,
+	.vdm_hdr_direct_xfer = false,
+	.fifo_auto_surround = false,
+};
+
 static const struct aspeed_mctp_match_data ast2600_mctp_match_data = {
 	.rx_cmd_size = sizeof(u32),
 	.packet_unit_size = sizeof(struct mctp_pcie_packet_data),
@@ -1986,6 +2066,7 @@ static const struct aspeed_mctp_match_data ast2600_mctp_match_data = {
 };
 
 static const struct of_device_id aspeed_mctp_match_table[] = {
+	{ .compatible = "aspeed,ast2500-mctp", .data = &ast2500_mctp_match_data},
 	{ .compatible = "aspeed,ast2600-mctp", .data = &ast2600_mctp_match_data},
 	{ }
 };
