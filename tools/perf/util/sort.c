@@ -1325,45 +1325,35 @@ struct sort_entry sort_mispredict = {
 	.se_width_idx	= HISTC_MISPREDICT,
 };
 
-static u64 he_weight(struct hist_entry *he)
-{
-	return he->stat.nr_events ? he->stat.weight / he->stat.nr_events : 0;
-}
-
 static int64_t
-sort__local_weight_cmp(struct hist_entry *left, struct hist_entry *right)
+sort__weight_cmp(struct hist_entry *left, struct hist_entry *right)
 {
-	return he_weight(left) - he_weight(right);
+	return left->weight - right->weight;
 }
 
 static int hist_entry__local_weight_snprintf(struct hist_entry *he, char *bf,
 				    size_t size, unsigned int width)
 {
-	return repsep_snprintf(bf, size, "%-*llu", width, he_weight(he));
+	return repsep_snprintf(bf, size, "%-*llu", width, he->weight);
 }
 
 struct sort_entry sort_local_weight = {
 	.se_header	= "Local Weight",
-	.se_cmp		= sort__local_weight_cmp,
+	.se_cmp		= sort__weight_cmp,
 	.se_snprintf	= hist_entry__local_weight_snprintf,
 	.se_width_idx	= HISTC_LOCAL_WEIGHT,
 };
 
-static int64_t
-sort__global_weight_cmp(struct hist_entry *left, struct hist_entry *right)
-{
-	return left->stat.weight - right->stat.weight;
-}
-
 static int hist_entry__global_weight_snprintf(struct hist_entry *he, char *bf,
 					      size_t size, unsigned int width)
 {
-	return repsep_snprintf(bf, size, "%-*llu", width, he->stat.weight);
+	return repsep_snprintf(bf, size, "%-*llu", width,
+			       he->weight * he->stat.nr_events);
 }
 
 struct sort_entry sort_global_weight = {
 	.se_header	= "Weight",
-	.se_cmp		= sort__global_weight_cmp,
+	.se_cmp		= sort__weight_cmp,
 	.se_snprintf	= hist_entry__global_weight_snprintf,
 	.se_width_idx	= HISTC_GLOBAL_WEIGHT,
 };
