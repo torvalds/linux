@@ -959,7 +959,7 @@ static unsigned long damos_wmark_wait_us(struct damos *scheme)
 	/* higher than high watermark or lower than low watermark */
 	if (metric > scheme->wmarks.high || scheme->wmarks.low > metric) {
 		if (scheme->wmarks.activated)
-			pr_debug("inactivate a scheme (%d) for %s wmark\n",
+			pr_debug("deactivate a scheme (%d) for %s wmark\n",
 					scheme->action,
 					metric > scheme->wmarks.high ?
 					"high" : "low");
