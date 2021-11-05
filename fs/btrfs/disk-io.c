@@ -1563,7 +1563,7 @@ static struct btrfs_root *btrfs_get_global_root(struct btrfs_fs_info *fs_info,
 	if (objectid == BTRFS_DEV_TREE_OBJECTID)
 		return btrfs_grab_root(fs_info->dev_root);
 	if (objectid == BTRFS_CSUM_TREE_OBJECTID)
-		return btrfs_grab_root(fs_info->csum_root);
+		return btrfs_grab_root(fs_info->_csum_root);
 	if (objectid == BTRFS_QUOTA_TREE_OBJECTID)
 		return btrfs_grab_root(fs_info->quota_root) ?
 			fs_info->quota_root : ERR_PTR(-ENOENT);
@@ -1634,7 +1634,7 @@ void btrfs_free_fs_info(struct btrfs_fs_info *fs_info)
 	btrfs_put_root(fs_info->tree_root);
 	btrfs_put_root(fs_info->chunk_root);
 	btrfs_put_root(fs_info->dev_root);
-	btrfs_put_root(fs_info->csum_root);
+	btrfs_put_root(fs_info->_csum_root);
 	btrfs_put_root(fs_info->quota_root);
 	btrfs_put_root(fs_info->uuid_root);
 	btrfs_put_root(fs_info->free_space_root);
@@ -2009,6 +2009,7 @@ static void backup_super_roots(struct btrfs_fs_info *info)
 	const int next_backup = info->backup_root_index;
 	struct btrfs_root_backup *root_backup;
 	struct btrfs_root *extent_root = btrfs_extent_root(info, 0);
+	struct btrfs_root *csum_root = btrfs_csum_root(info, 0);
 
 	root_backup = info->super_for_commit->super_roots + next_backup;
 
@@ -2058,11 +2059,11 @@ static void backup_super_roots(struct btrfs_fs_info *info)
 	btrfs_set_backup_dev_root_level(root_backup,
 				       btrfs_header_level(info->dev_root->node));
 
-	btrfs_set_backup_csum_root(root_backup, info->csum_root->node->start);
+	btrfs_set_backup_csum_root(root_backup, csum_root->node->start);
 	btrfs_set_backup_csum_root_gen(root_backup,
-			       btrfs_header_generation(info->csum_root->node));
+				       btrfs_header_generation(csum_root->node));
 	btrfs_set_backup_csum_root_level(root_backup,
-			       btrfs_header_level(info->csum_root->node));
+					 btrfs_header_level(csum_root->node));
 
 	btrfs_set_backup_total_bytes(root_backup,
 			     btrfs_super_total_bytes(info->super_copy));
@@ -2168,7 +2169,7 @@ static void free_root_pointers(struct btrfs_fs_info *info, bool free_chunk_root)
 
 	free_root_extent_buffers(info->dev_root);
 	free_root_extent_buffers(info->_extent_root);
-	free_root_extent_buffers(info->csum_root);
+	free_root_extent_buffers(info->_csum_root);
 	free_root_extent_buffers(info->quota_root);
 	free_root_extent_buffers(info->uuid_root);
 	free_root_extent_buffers(info->fs_root);
@@ -2488,7 +2489,7 @@ static int btrfs_read_roots(struct btrfs_fs_info *fs_info)
 			}
 		} else {
 			set_bit(BTRFS_ROOT_TRACK_DIRTY, &root->state);
-			fs_info->csum_root = root;
+			fs_info->_csum_root = root;
 		}
 	} else {
 		set_bit(BTRFS_FS_STATE_NO_CSUMS, &fs_info->fs_state);

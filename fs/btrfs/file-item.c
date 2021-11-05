@@ -257,6 +257,7 @@ static int search_csum_tree(struct btrfs_fs_info *fs_info,
 			    struct btrfs_path *path, u64 disk_bytenr,
 			    u64 len, u8 *dst)
 {
+	struct btrfs_root *csum_root;
 	struct btrfs_csum_item *item = NULL;
 	struct btrfs_key key;
 	const u32 sectorsize = fs_info->sectorsize;
@@ -285,7 +286,8 @@ static int search_csum_tree(struct btrfs_fs_info *fs_info,
 
 	/* Current item doesn't contain the desired range, search again */
 	btrfs_release_path(path);
-	item = btrfs_lookup_csum(NULL, fs_info->csum_root, path, disk_bytenr, 0);
+	csum_root = btrfs_csum_root(fs_info, disk_bytenr);
+	item = btrfs_lookup_csum(NULL, csum_root, path, disk_bytenr, 0);
 	if (IS_ERR(item)) {
 		ret = PTR_ERR(item);
 		goto out;

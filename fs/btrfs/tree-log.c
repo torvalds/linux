@@ -872,17 +872,21 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 			 */
 			while (!list_empty(&ordered_sums)) {
 				struct btrfs_ordered_sum *sums;
+				struct btrfs_root *csum_root;
+
 				sums = list_entry(ordered_sums.next,
 						struct btrfs_ordered_sum,
 						list);
+				csum_root = btrfs_csum_root(fs_info,
+							    sums->bytenr);
 				if (!ret)
-					ret = btrfs_del_csums(trans,
-							      fs_info->csum_root,
+					ret = btrfs_del_csums(trans, csum_root,
 							      sums->bytenr,
 							      sums->len);
 				if (!ret)
 					ret = btrfs_csum_file_blocks(trans,
-						fs_info->csum_root, sums);
+								     csum_root,
+								     sums);
 				list_del(&sums->list);
 				kfree(sums);
 			}
@@ -4340,6 +4344,7 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 
 			found_type = btrfs_file_extent_type(src, extent);
 			if (found_type == BTRFS_FILE_EXTENT_REG) {
+				struct btrfs_root *csum_root;
 				u64 ds, dl, cs, cl;
 				ds = btrfs_file_extent_disk_bytenr(src,
 								extent);
@@ -4358,8 +4363,8 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 					cl = dl;
 				}
 
-				ret = btrfs_lookup_csums_range(
-						fs_info->csum_root,
+				csum_root = btrfs_csum_root(fs_info, ds);
+				ret = btrfs_lookup_csums_range(csum_root,
 						ds + cs, ds + cs + cl - 1,
 						&ordered_sums, 0);
 				if (ret)
@@ -4411,6 +4416,7 @@ static int log_extent_csums(struct btrfs_trans_handle *trans,
 			    struct btrfs_log_ctx *ctx)
 {
 	struct btrfs_ordered_extent *ordered;
+	struct btrfs_root *csum_root;
 	u64 csum_offset;
 	u64 csum_len;
 	u64 mod_start = em->mod_start;
@@ -4491,7 +4497,8 @@ static int log_extent_csums(struct btrfs_trans_handle *trans,
 	}
 
 	/* block start is already adjusted for the file extent offset. */
-	ret = btrfs_lookup_csums_range(trans->fs_info->csum_root,
+	csum_root = btrfs_csum_root(trans->fs_info, em->block_start);
+	ret = btrfs_lookup_csums_range(csum_root,
 				       em->block_start + csum_offset,
 				       em->block_start + csum_offset +
 				       csum_len - 1, &ordered_sums, 0);

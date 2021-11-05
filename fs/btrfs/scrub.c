@@ -2898,7 +2898,7 @@ static noinline_for_stack int scrub_raid56_parity(struct scrub_ctx *sctx,
 {
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
 	struct btrfs_root *root = btrfs_extent_root(fs_info, logic_start);
-	struct btrfs_root *csum_root = fs_info->csum_root;
+	struct btrfs_root *csum_root;
 	struct btrfs_extent_item *extent;
 	struct btrfs_io_context *bioc = NULL;
 	u64 flags;
@@ -3060,6 +3060,7 @@ again:
 			extent_dev = bioc->stripes[0].dev;
 			btrfs_put_bioc(bioc);
 
+			csum_root = btrfs_csum_root(fs_info, extent_logical);
 			ret = btrfs_lookup_csums_range(csum_root,
 						extent_logical,
 						extent_logical + extent_len - 1,
@@ -3169,7 +3170,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	struct btrfs_path *path, *ppath;
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
 	struct btrfs_root *root;
-	struct btrfs_root *csum_root = fs_info->csum_root;
+	struct btrfs_root *csum_root;
 	struct btrfs_extent_item *extent;
 	struct blk_plug plug;
 	u64 flags;
@@ -3272,6 +3273,8 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	key_end.type = BTRFS_METADATA_ITEM_KEY;
 	key_end.offset = (u64)-1;
 	reada1 = btrfs_reada_add(root, &key, &key_end);
+
+	csum_root = btrfs_csum_root(fs_info, logical);
 
 	if (cache->flags & BTRFS_BLOCK_GROUP_DATA) {
 		key.objectid = BTRFS_EXTENT_CSUM_OBJECTID;

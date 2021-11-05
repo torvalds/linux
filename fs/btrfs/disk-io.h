@@ -109,6 +109,12 @@ static inline struct btrfs_root *btrfs_extent_root(struct btrfs_fs_info *fs_info
 	return fs_info->_extent_root;
 }
 
+static inline struct btrfs_root *btrfs_csum_root(struct btrfs_fs_info *fs_info,
+						 u64 bytenr)
+{
+	return fs_info->_csum_root;
+}
+
 static inline struct btrfs_root *btrfs_block_group_root(struct btrfs_fs_info *fs_info)
 {
 	return btrfs_extent_root(fs_info, 0);

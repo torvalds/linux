@@ -353,6 +353,7 @@ void btrfs_update_global_block_rsv(struct btrfs_fs_info *fs_info)
 	struct btrfs_block_rsv *block_rsv = &fs_info->global_block_rsv;
 	struct btrfs_space_info *sinfo = block_rsv->space_info;
 	struct btrfs_root *extent_root = btrfs_extent_root(fs_info, 0);
+	struct btrfs_root *csum_root = btrfs_csum_root(fs_info, 0);
 	u64 num_bytes;
 	unsigned min_items;
 
@@ -362,7 +363,7 @@ void btrfs_update_global_block_rsv(struct btrfs_fs_info *fs_info)
 	 * it to a minimal amount for safety.
 	 */
 	num_bytes = btrfs_root_used(&extent_root->root_item) +
-		btrfs_root_used(&fs_info->csum_root->root_item) +
+		btrfs_root_used(&csum_root->root_item) +
 		btrfs_root_used(&fs_info->tree_root->root_item);
 
 	/*
@@ -476,8 +477,9 @@ static struct btrfs_block_rsv *get_block_rsv(
 	struct btrfs_block_rsv *block_rsv = NULL;
 
 	if (test_bit(BTRFS_ROOT_SHAREABLE, &root->state) ||
-	    (root == fs_info->csum_root && trans->adding_csums) ||
-	    (root == fs_info->uuid_root))
+	    (root == fs_info->uuid_root) ||
+	    (trans->adding_csums &&
+	     root->root_key.objectid == BTRFS_CSUM_TREE_OBJECTID))
 		block_rsv = trans->block_rsv;
 
 	if (!block_rsv)

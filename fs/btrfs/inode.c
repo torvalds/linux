@@ -1530,11 +1530,12 @@ static noinline int run_delalloc_zoned(struct btrfs_inode *inode,
 static noinline int csum_exist_in_range(struct btrfs_fs_info *fs_info,
 					u64 bytenr, u64 num_bytes)
 {
-	int ret;
+	struct btrfs_root *csum_root = btrfs_csum_root(fs_info, bytenr);
 	struct btrfs_ordered_sum *sums;
+	int ret;
 	LIST_HEAD(list);
 
-	ret = btrfs_lookup_csums_range(fs_info->csum_root, bytenr,
+	ret = btrfs_lookup_csums_range(csum_root, bytenr,
 				       bytenr + num_bytes - 1, &list, 0);
 	if (ret == 0 && list_empty(&list))
 		return 0;
@@ -2584,11 +2585,15 @@ static int add_pending_csums(struct btrfs_trans_handle *trans,
 			     struct list_head *list)
 {
 	struct btrfs_ordered_sum *sum;
+	struct btrfs_root *csum_root = NULL;
 	int ret;
 
 	list_for_each_entry(sum, list, list) {
 		trans->adding_csums = true;
-		ret = btrfs_csum_file_blocks(trans, trans->fs_info->csum_root, sum);
+		if (!csum_root)
+			csum_root = btrfs_csum_root(trans->fs_info,
+						    sum->bytenr);
+		ret = btrfs_csum_file_blocks(trans, csum_root, sum);
 		trans->adding_csums = false;
 		if (ret)
 			return ret;
