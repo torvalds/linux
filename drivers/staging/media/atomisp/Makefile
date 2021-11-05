@@ -54,6 +54,7 @@ atomisp-objs += \
 	pci/hmm/hmm_reserved_pool.o \
 	pci/ia_css_device_access.o \
 	pci/ia_css_isp_configs.o \
+	pci/ia_css_isp_states.o \
 	pci/isp/kernels/aa/aa_2/ia_css_aa2.host.o \
 	pci/isp/kernels/anr/anr_1.0/ia_css_anr.host.o \
 	pci/isp/kernels/anr/anr_2/ia_css_anr2.host.o \
@@ -158,8 +159,7 @@ atomisp-objs += \
 	pci/system_local.o \
 
 obj-byt = \
-	pci/css_2400_system/hive/ia_css_isp_params.o \
-	pci/css_2400_system/hive/ia_css_isp_states.o \
+	pci/css_2400_system/hive/ia_css_isp_params.o
 
 # These will be needed when clean merge CHT support nicely into the driver
 # Keep them here handy for when we get to that point
@@ -167,7 +167,6 @@ obj-byt = \
 
 obj-cht = \
 	pci/css_2401_system/hive/ia_css_isp_params.o \
-	pci/css_2401_system/hive/ia_css_isp_states.o \
 	pci/css_2401_system/host/csi_rx.o \
 	pci/css_2401_system/host/ibuf_ctrl.o \
 	pci/css_2401_system/host/isys_dma.o \
