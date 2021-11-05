@@ -96,6 +96,17 @@ Description:
 		This attribute indicates the mode that the irq vector named by
 		the file is in (msi vs. msix)
 
+What:		/sys/bus/pci/devices/.../irq
+Date:		August 2021
+Contact:	Linux PCI developers <linux-pci@vger.kernel.org>
+Description:
+		If a driver has enabled MSI (not MSI-X), "irq" contains the
+		IRQ of the first MSI vector. Otherwise "irq" contains the
+		IRQ of the legacy INTx interrupt.
+
+		"irq" being set to 0 indicates that the device isn't
+		capable of generating legacy INTx interrupts.
+
 What:		/sys/bus/pci/devices/.../remove
 Date:		January 2009
 Contact:	Linux PCI developers <linux-pci@vger.kernel.org>
