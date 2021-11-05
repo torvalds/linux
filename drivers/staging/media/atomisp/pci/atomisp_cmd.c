@@ -5156,11 +5156,11 @@ static int css_input_resolution_changed(struct atomisp_sub_device *asd,
 	dev_dbg(asd->isp->dev, "css_input_resolution_changed to %ux%u\n",
 		ffmt->width, ffmt->height);
 
-#if defined(ISP2401_NEW_INPUT_SYSTEM)
-	atomisp_css_input_set_two_pixels_per_clock(asd, false);
-#else
-	atomisp_css_input_set_two_pixels_per_clock(asd, true);
-#endif
+	if (IS_ISP2401)
+		atomisp_css_input_set_two_pixels_per_clock(asd, false);
+	else
+		atomisp_css_input_set_two_pixels_per_clock(asd, true);
+
 	if (asd->continuous_mode->val) {
 		/* Note for all checks: ffmt includes pad_w+pad_h */
 		if (asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO ||
@@ -5494,8 +5494,13 @@ static void atomisp_get_dis_envelop(struct atomisp_sub_device *asd,
 static void atomisp_check_copy_mode(struct atomisp_sub_device *asd,
 				    int source_pad, struct v4l2_pix_format *f)
 {
-#if defined(ISP2401_NEW_INPUT_SYSTEM)
 	struct v4l2_mbus_framefmt *sink, *src;
+
+	if (!IS_ISP2401) {
+		/* Only used for the new input system */
+		asd->copy_mode = false;
+		return;
+	}
 
 	sink = atomisp_subdev_get_ffmt(&asd->subdev, NULL,
 				       V4L2_SUBDEV_FORMAT_ACTIVE, ATOMISP_SUBDEV_PAD_SINK);
@@ -5510,8 +5515,6 @@ static void atomisp_check_copy_mode(struct atomisp_sub_device *asd,
 	      sensor[asd->sensor_curr].stream_num > 1)))
 		asd->copy_mode = true;
 	else
-#endif
-		/* Only used for the new input system */
 		asd->copy_mode = false;
 
 	dev_dbg(asd->isp->dev, "copy_mode: %d\n", asd->copy_mode);

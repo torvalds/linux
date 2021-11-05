@@ -1635,12 +1635,7 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 		pdev->d3cold_delay = 0;
 		break;
 	case ATOMISP_PCI_DEVICE_SOC_ANN:
-		isp->media_dev.hw_revision = (
-#ifdef ISP2401_NEW_INPUT_SYSTEM
-						 ATOMISP_HW_REVISION_ISP2401
-#else
-						 ATOMISP_HW_REVISION_ISP2401_LEGACY
-#endif
+		isp->media_dev.hw_revision = (	 ATOMISP_HW_REVISION_ISP2401
 						 << ATOMISP_HW_REVISION_SHIFT);
 		isp->media_dev.hw_revision |= pdev->revision < 2 ?
 					      ATOMISP_HW_STEPPING_A0 : ATOMISP_HW_STEPPING_B0;
@@ -1648,12 +1643,7 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 		isp->hpll_freq = HPLL_FREQ_1600MHZ;
 		break;
 	case ATOMISP_PCI_DEVICE_SOC_CHT:
-		isp->media_dev.hw_revision = (
-#ifdef ISP2401_NEW_INPUT_SYSTEM
-						 ATOMISP_HW_REVISION_ISP2401
-#else
-						 ATOMISP_HW_REVISION_ISP2401_LEGACY
-#endif
+		isp->media_dev.hw_revision = (	 ATOMISP_HW_REVISION_ISP2401
 						 << ATOMISP_HW_REVISION_SHIFT);
 		isp->media_dev.hw_revision |= pdev->revision < 2 ?
 					      ATOMISP_HW_STEPPING_A0 : ATOMISP_HW_STEPPING_B0;

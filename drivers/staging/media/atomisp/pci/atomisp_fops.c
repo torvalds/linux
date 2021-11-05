@@ -464,13 +464,11 @@ int atomisp_qbuffers_to_css(struct atomisp_sub_device *asd)
 		css_capture_pipe_id = IA_CSS_PIPE_ID_CAPTURE;
 	}
 
-#ifdef ISP2401_NEW_INPUT_SYSTEM
-	if (asd->copy_mode) {
+	if (IS_ISP2401 && asd->copy_mode) {
 		css_capture_pipe_id = IA_CSS_PIPE_ID_COPY;
 		css_preview_pipe_id = IA_CSS_PIPE_ID_COPY;
 		css_video_pipe_id = IA_CSS_PIPE_ID_COPY;
 	}
-#endif
 
 	if (asd->yuvpp_mode) {
 		capture_pipe = &asd->video_out_capture;
