@@ -265,6 +265,8 @@ void intel_pmu_lbr_reset(void)
 
 	cpuc->last_task_ctx = NULL;
 	cpuc->last_log_id = 0;
+	if (!static_cpu_has(X86_FEATURE_ARCH_LBR) && cpuc->lbr_select)
+		wrmsrl(MSR_LBR_SELECT, 0);
 }
 
 /*
