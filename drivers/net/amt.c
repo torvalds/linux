@@ -2766,7 +2766,7 @@ static int amt_err_lookup(struct sock *sk, struct sk_buff *skb)
 	rcu_read_lock_bh();
 	amt = rcu_dereference_sk_user_data(sk);
 	if (!amt)
-		goto drop;
+		goto out;
 
 	if (amt->mode != AMT_MODE_GATEWAY)
 		goto drop;
@@ -2788,6 +2788,7 @@ static int amt_err_lookup(struct sock *sk, struct sk_buff *skb)
 	default:
 		goto drop;
 	}
+out:
 	rcu_read_unlock_bh();
 	return 0;
 drop:
