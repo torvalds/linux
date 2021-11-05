@@ -1394,13 +1394,13 @@ struct sort_entry sort_global_ins_lat = {
 static int64_t
 sort__global_p_stage_cyc_cmp(struct hist_entry *left, struct hist_entry *right)
 {
-	return left->stat.p_stage_cyc - right->stat.p_stage_cyc;
+	return left->p_stage_cyc - right->p_stage_cyc;
 }
 
 static int hist_entry__p_stage_cyc_snprintf(struct hist_entry *he, char *bf,
 					size_t size, unsigned int width)
 {
-	return repsep_snprintf(bf, size, "%-*u", width, he->stat.p_stage_cyc);
+	return repsep_snprintf(bf, size, "%-*u", width, he->p_stage_cyc);
 }
 
 struct sort_entry sort_p_stage_cyc = {
