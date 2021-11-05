@@ -584,8 +584,9 @@ void bpf_gen__record_extern(struct bpf_gen *gen, const char *name, bool is_weak,
 static struct ksym_desc *get_ksym_desc(struct bpf_gen *gen, struct ksym_relo_desc *relo)
 {
 	struct ksym_desc *kdesc;
+	int i;
 
-	for (int i = 0; i < gen->nr_ksyms; i++) {
+	for (i = 0; i < gen->nr_ksyms; i++) {
 		if (!strcmp(gen->ksyms[i].name, relo->name)) {
 			gen->ksyms[i].ref++;
 			return &gen->ksyms[i];
