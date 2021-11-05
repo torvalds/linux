@@ -117,6 +117,18 @@
 	status = "okay";
 };
 
+&combphy0_ps {
+	status = "okay";
+};
+
+&combphy1_ps {
+	status = "okay";
+};
+
+&combphy2_psu {
+	status = "okay";
+};
+
 /*
  * mipi_dcphy1 needs to be enabled
  * when dsi1 is enabled
@@ -193,6 +205,10 @@
 };
 
 &mipi_dcphy1 {
+	status = "okay";
+};
+
+&pcie30phy {
 	status = "okay";
 };
 

@@ -125,6 +125,18 @@
 	};
 };
 
+&combphy0_ps {
+	status = "okay";
+};
+
+&combphy1_ps {
+	status = "okay";
+};
+
+&combphy2_psu {
+	status = "okay";
+};
+
 &backlight {
 	pwms = <&pwm15 0 25000 0>;
 	status = "okay";
@@ -817,6 +829,10 @@
 
 &mipi_dcphy1 {
 	status = "disabled";
+};
+
+&pcie30phy {
+	status = "okay";
 };
 
 &pcie3x4 {

@@ -76,6 +76,18 @@
 	status = "okay";
 };
 
+&combphy0_ps {
+	status = "okay";
+};
+
+&combphy1_ps {
+	status = "okay";
+};
+
+&combphy2_psu {
+	status = "okay";
+};
+
 /*
  * mipi_dcphy0 needs to be enabled
  * when dsi0 is enabled
@@ -149,6 +161,10 @@
 &pcie2x1l2 {
 	reset-gpios = <&gpio4 RK_PC1 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc3v3_pcie30>;
+	status = "okay";
+};
+
+&pcie30phy {
 	status = "okay";
 };
 

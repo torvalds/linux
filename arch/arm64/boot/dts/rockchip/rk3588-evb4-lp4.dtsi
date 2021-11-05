@@ -162,6 +162,10 @@
 	status = "okay";
 };
 
+&pcie30phy {
+	status = "okay";
+};
+
 &pcie3x4 {
 	compatible = "rockchip,rk3588-pcie-ep";
 	memory-region = <&dma_trans>;
