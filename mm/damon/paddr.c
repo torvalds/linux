@@ -11,7 +11,9 @@
 #include <linux/page_idle.h>
 #include <linux/pagemap.h>
 #include <linux/rmap.h>
+#include <linux/swap.h>
 
+#include "../internal.h"
 #include "prmtv-common.h"
 
 static bool __damon_pa_mkold(struct page *page, struct vm_area_struct *vma,
@@ -211,6 +213,39 @@ bool damon_pa_target_valid(void *t)
 	return true;
 }
 
+int damon_pa_apply_scheme(struct damon_ctx *ctx, struct damon_target *t,
+		struct damon_region *r, struct damos *scheme)
+{
+	unsigned long addr;
+	LIST_HEAD(page_list);
+
+	if (scheme->action != DAMOS_PAGEOUT)
+		return -EINVAL;
+
+	for (addr = r->ar.start; addr < r->ar.end; addr += PAGE_SIZE) {
+		struct page *page = damon_get_page(PHYS_PFN(addr));
+
+		if (!page)
+			continue;
+
+		ClearPageReferenced(page);
+		test_and_clear_page_young(page);
+		if (isolate_lru_page(page)) {
+			put_page(page);
+			continue;
+		}
+		if (PageUnevictable(page)) {
+			putback_lru_page(page);
+		} else {
+			list_add(&page->lru, &page_list);
+			put_page(page);
+		}
+	}
+	reclaim_pages(&page_list);
+	cond_resched();
+	return 0;
+}
+
 void damon_pa_set_primitives(struct damon_ctx *ctx)
 {
 	ctx->primitive.init = NULL;
@@ -220,5 +255,5 @@ void damon_pa_set_primitives(struct damon_ctx *ctx)
 	ctx->primitive.reset_aggregated = NULL;
 	ctx->primitive.target_valid = damon_pa_target_valid;
 	ctx->primitive.cleanup = NULL;
-	ctx->primitive.apply_scheme = NULL;
+	ctx->primitive.apply_scheme = damon_pa_apply_scheme;
 }
