@@ -68,6 +68,13 @@ properties:
       clock, and larger than zero.
     default: 12500000
 
+  resets:
+    maxItems: 1
+
+  reset-names:
+    items:
+      - const: switch
+
 patternProperties:
   "^gpio@[0-1]$":
     type: object
