@@ -166,9 +166,6 @@ static int pcie_init_service_irqs(struct pci_dev *dev, int *irqs, int mask)
 {
 	int ret, i;
 
-	for (i = 0; i < PCIE_PORT_DEVICE_MAXSERVICES; i++)
-		irqs[i] = -1;
-
 	/*
 	 * If we support PME but can't use MSI/MSI-X for it, we have to
 	 * fall back to INTx or other interrupts, e.g., a system shared
@@ -317,8 +314,10 @@ static int pcie_device_init(struct pci_dev *pdev, int service, int irq)
  */
 int pcie_port_device_register(struct pci_dev *dev)
 {
-	int status, capabilities, i, nr_service;
-	int irqs[PCIE_PORT_DEVICE_MAXSERVICES];
+	int status, capabilities, irq_services, i, nr_service;
+	int irqs[PCIE_PORT_DEVICE_MAXSERVICES] = {
+		[0 ... PCIE_PORT_DEVICE_MAXSERVICES-1] = -1
+	};
 
 	/* Enable PCI Express port device */
 	status = pci_enable_device(dev);
@@ -331,18 +330,32 @@ int pcie_port_device_register(struct pci_dev *dev)
 		return 0;
 
 	pci_set_master(dev);
-	/*
-	 * Initialize service irqs. Don't use service devices that
-	 * require interrupts if there is no way to generate them.
-	 * However, some drivers may have a polling mode (e.g. pciehp_poll_mode)
-	 * that can be used in the absence of irqs.  Allow them to determine
-	 * if that is to be used.
-	 */
-	status = pcie_init_service_irqs(dev, irqs, capabilities);
-	if (status) {
-		capabilities &= PCIE_PORT_SERVICE_HP;
-		if (!capabilities)
-			goto error_disable;
+
+	irq_services = 0;
+	if (IS_ENABLED(CONFIG_PCIE_PME))
+		irq_services |= PCIE_PORT_SERVICE_PME;
+	if (IS_ENABLED(CONFIG_PCIEAER))
+		irq_services |= PCIE_PORT_SERVICE_AER;
+	if (IS_ENABLED(CONFIG_HOTPLUG_PCI_PCIE))
+		irq_services |= PCIE_PORT_SERVICE_HP;
+	if (IS_ENABLED(CONFIG_PCIE_DPC))
+		irq_services |= PCIE_PORT_SERVICE_DPC;
+	irq_services &= capabilities;
+
+	if (irq_services) {
+		/*
+		 * Initialize service IRQs. Don't use service devices that
+		 * require interrupts if there is no way to generate them.
+		 * However, some drivers may have a polling mode (e.g.
+		 * pciehp_poll_mode) that can be used in the absence of IRQs.
+		 * Allow them to determine if that is to be used.
+		 */
+		status = pcie_init_service_irqs(dev, irqs, irq_services);
+		if (status) {
+			irq_services &= PCIE_PORT_SERVICE_HP;
+			if (!irq_services)
+				goto error_disable;
+		}
 	}
 
 	/* Allocate child services if any */
@@ -367,24 +380,24 @@ error_disable:
 	return status;
 }
 
-#ifdef CONFIG_PM
-typedef int (*pcie_pm_callback_t)(struct pcie_device *);
+typedef int (*pcie_callback_t)(struct pcie_device *);
 
-static int pm_iter(struct device *dev, void *data)
+int pcie_port_device_iter(struct device *dev, void *data)
 {
 	struct pcie_port_service_driver *service_driver;
 	size_t offset = *(size_t *)data;
-	pcie_pm_callback_t cb;
+	pcie_callback_t cb;
 
 	if ((dev->bus == &pcie_port_bus_type) && dev->driver) {
 		service_driver = to_service_driver(dev->driver);
-		cb = *(pcie_pm_callback_t *)((void *)service_driver + offset);
+		cb = *(pcie_callback_t *)((void *)service_driver + offset);
 		if (cb)
 			return cb(to_pcie_device(dev));
 	}
 	return 0;
 }
 
+#ifdef CONFIG_PM
 /**
  * pcie_port_device_suspend - suspend port services associated with a PCIe port
  * @dev: PCI Express port to handle
@@ -392,13 +405,13 @@ static int pm_iter(struct device *dev, void *data)
 int pcie_port_device_suspend(struct device *dev)
 {
 	size_t off = offsetof(struct pcie_port_service_driver, suspend);
-	return device_for_each_child(dev, &off, pm_iter);
+	return device_for_each_child(dev, &off, pcie_port_device_iter);
 }
 
 int pcie_port_device_resume_noirq(struct device *dev)
 {
 	size_t off = offsetof(struct pcie_port_service_driver, resume_noirq);
-	return device_for_each_child(dev, &off, pm_iter);
+	return device_for_each_child(dev, &off, pcie_port_device_iter);
 }
 
 /**
@@ -408,7 +421,7 @@ int pcie_port_device_resume_noirq(struct device *dev)
 int pcie_port_device_resume(struct device *dev)
 {
 	size_t off = offsetof(struct pcie_port_service_driver, resume);
-	return device_for_each_child(dev, &off, pm_iter);
+	return device_for_each_child(dev, &off, pcie_port_device_iter);
 }
 
 /**
@@ -418,7 +431,7 @@ int pcie_port_device_resume(struct device *dev)
 int pcie_port_device_runtime_suspend(struct device *dev)
 {
 	size_t off = offsetof(struct pcie_port_service_driver, runtime_suspend);
-	return device_for_each_child(dev, &off, pm_iter);
+	return device_for_each_child(dev, &off, pcie_port_device_iter);
 }
 
 /**
@@ -428,7 +441,7 @@ int pcie_port_device_runtime_suspend(struct device *dev)
 int pcie_port_device_runtime_resume(struct device *dev)
 {
 	size_t off = offsetof(struct pcie_port_service_driver, runtime_resume);
-	return device_for_each_child(dev, &off, pm_iter);
+	return device_for_each_child(dev, &off, pcie_port_device_iter);
 }
 #endif /* PM */
 

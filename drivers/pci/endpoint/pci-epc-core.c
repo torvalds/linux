@@ -700,7 +700,7 @@ EXPORT_SYMBOL_GPL(pci_epc_linkup);
 /**
  * pci_epc_init_notify() - Notify the EPF device that EPC device's core
  *			   initialization is completed.
- * @epc: the EPC device whose core initialization is completeds
+ * @epc: the EPC device whose core initialization is completed
  *
  * Invoke to Notify the EPF device that the EPC device's initialization
  * is completed.

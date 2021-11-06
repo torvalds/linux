@@ -156,10 +156,14 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 
 	/* Now start the actual "proper" walk of the interrupt tree */
 	while (ipar != NULL) {
-		/* Now check if cursor is an interrupt-controller and if it is
-		 * then we are done
+		/*
+		 * Now check if cursor is an interrupt-controller and
+		 * if it is then we are done, unless there is an
+		 * interrupt-map which takes precedence.
 		 */
-		if (of_property_read_bool(ipar, "interrupt-controller")) {
+		imap = of_get_property(ipar, "interrupt-map", &imaplen);
+		if (imap == NULL &&
+		    of_property_read_bool(ipar, "interrupt-controller")) {
 			pr_debug(" -> got it !\n");
 			return 0;
 		}
@@ -173,8 +177,6 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 			goto fail;
 		}
 
-		/* Now look for an interrupt-map */
-		imap = of_get_property(ipar, "interrupt-map", &imaplen);
 		/* No interrupt map, check for an interrupt parent */
 		if (imap == NULL) {
 			pr_debug(" -> no map, getting parent\n");
@@ -254,6 +256,11 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 			out_irq->args[i] = be32_to_cpup(imap - newintsize + i);
 		out_irq->args_count = intsize = newintsize;
 		addrsize = newaddrsize;
+
+		if (ipar == newpar) {
+			pr_debug("%pOF interrupt-map entry to self\n", ipar);
+			return 0;
+		}
 
 	skiplevel:
 		/* Iterate again with new parent */
