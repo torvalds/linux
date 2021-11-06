@@ -399,5 +399,5 @@ void __init kasan_copy_shadow_mapping(void)
 
 void __init kasan_free_early_identity(void)
 {
-	memblock_free(pgalloc_pos, pgalloc_freeable - pgalloc_pos);
+	memblock_phys_free(pgalloc_pos, pgalloc_freeable - pgalloc_pos);
 }

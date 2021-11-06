@@ -1492,7 +1492,6 @@ static int			sched_domains_curr_level;
 int				sched_max_numa_distance;
 static int			*sched_domains_numa_distance;
 static struct cpumask		***sched_domains_numa_masks;
-int __read_mostly		node_reclaim_distance = RECLAIM_DISTANCE;
 
 static unsigned long __read_mostly *sched_numa_onlined_nodes;
 #endif

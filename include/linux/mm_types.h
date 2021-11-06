@@ -114,10 +114,8 @@ struct page {
 					struct page *next;
 #ifdef CONFIG_64BIT
 					int pages;	/* Nr of pages left */
-					int pobjects;	/* Approximate count */
 #else
 					short int pages;
-					short int pobjects;
 #endif
 				};
 			};

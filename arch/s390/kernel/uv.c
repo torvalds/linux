@@ -64,7 +64,7 @@ void __init setup_uv(void)
 	}
 
 	if (uv_init(uv_stor_base, uv_info.uv_base_stor_len)) {
-		memblock_free(uv_stor_base, uv_info.uv_base_stor_len);
+		memblock_phys_free(uv_stor_base, uv_info.uv_base_stor_len);
 		goto fail;
 	}
 

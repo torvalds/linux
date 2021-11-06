@@ -50,7 +50,7 @@ static inline void * __init xbc_alloc_mem(size_t size)
 
 static inline void __init xbc_free_mem(void *addr, size_t size)
 {
-	memblock_free_ptr(addr, size);
+	memblock_free(addr, size);
 }
 
 #else /* !__KERNEL__ */

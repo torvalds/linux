@@ -1166,9 +1166,9 @@ void __init setup_log_buf(int early)
 	return;
 
 err_free_descs:
-	memblock_free_ptr(new_descs, new_descs_size);
+	memblock_free(new_descs, new_descs_size);
 err_free_log_buf:
-	memblock_free_ptr(new_log_buf, new_log_buf_len);
+	memblock_free(new_log_buf, new_log_buf_len);
 }
 
 static bool __read_mostly ignore_loglevel;

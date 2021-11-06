@@ -381,7 +381,7 @@ static char * __init xbc_make_cmdline(const char *key)
 	ret = xbc_snprint_cmdline(new_cmdline, len + 1, root);
 	if (ret < 0 || ret > len) {
 		pr_err("Failed to print extra kernel cmdline.\n");
-		memblock_free_ptr(new_cmdline, len + 1);
+		memblock_free(new_cmdline, len + 1);
 		return NULL;
 	}
 
@@ -916,7 +916,7 @@ static void __init print_unknown_bootoptions(void)
 		end += sprintf(end, " %s", *p);
 
 	pr_notice("Unknown command line parameters:%s\n", unknown_options);
-	memblock_free_ptr(unknown_options, len);
+	memblock_free(unknown_options, len);
 }
 
 asmlinkage __visible void __init __no_sanitize_address start_kernel(void)
@@ -1497,6 +1497,8 @@ static int __ref kernel_init(void *unused)
 	kernel_init_freeable();
 	/* need to finish all async __init code before freeing the memory */
 	async_synchronize_full();
+
+	system_state = SYSTEM_FREEING_INITMEM;
 	kprobe_free_init_mem();
 	ftrace_free_init_mem();
 	kgdb_free_init_mem();

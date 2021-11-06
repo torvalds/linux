@@ -3,6 +3,7 @@
 
 #include <linux/device.h>
 #include <linux/errno.h>
+#include <linux/slab.h>
 #include <linux/fsi-occ.h>
 #include <linux/mm.h>
 #include <linux/module.h>

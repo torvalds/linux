@@ -141,7 +141,6 @@ static inline int wb_congested(struct bdi_writeback *wb, int cong_bits)
 }
 
 long congestion_wait(int sync, long timeout);
-long wait_iff_congested(int sync, long timeout);
 
 static inline bool mapping_can_writeback(struct address_space *mapping)
 {

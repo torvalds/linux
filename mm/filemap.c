@@ -638,6 +638,30 @@ static bool mapping_needs_writeback(struct address_space *mapping)
 	return mapping->nrpages;
 }
 
+static bool filemap_range_has_writeback(struct address_space *mapping,
+					loff_t start_byte, loff_t end_byte)
+{
+	XA_STATE(xas, &mapping->i_pages, start_byte >> PAGE_SHIFT);
+	pgoff_t max = end_byte >> PAGE_SHIFT;
+	struct page *page;
+
+	if (end_byte < start_byte)
+		return false;
+
+	rcu_read_lock();
+	xas_for_each(&xas, page, max) {
+		if (xas_retry(&xas, page))
+			continue;
+		if (xa_is_value(page))
+			continue;
+		if (PageDirty(page) || PageLocked(page) || PageWriteback(page))
+			break;
+	}
+	rcu_read_unlock();
+	return page != NULL;
+
+}
+
 /**
  * filemap_range_needs_writeback - check if range potentially needs writeback
  * @mapping:           address space within which to check
@@ -655,29 +679,12 @@ static bool mapping_needs_writeback(struct address_space *mapping)
 bool filemap_range_needs_writeback(struct address_space *mapping,
 				   loff_t start_byte, loff_t end_byte)
 {
-	XA_STATE(xas, &mapping->i_pages, start_byte >> PAGE_SHIFT);
-	pgoff_t max = end_byte >> PAGE_SHIFT;
-	struct page *page;
-
 	if (!mapping_needs_writeback(mapping))
 		return false;
 	if (!mapping_tagged(mapping, PAGECACHE_TAG_DIRTY) &&
 	    !mapping_tagged(mapping, PAGECACHE_TAG_WRITEBACK))
 		return false;
-	if (end_byte < start_byte)
-		return false;
-
-	rcu_read_lock();
-	xas_for_each(&xas, page, max) {
-		if (xas_retry(&xas, page))
-			continue;
-		if (xa_is_value(page))
-			continue;
-		if (PageDirty(page) || PageLocked(page) || PageWriteback(page))
-			break;
-	}
-	rcu_read_unlock();
-	return page != NULL;
+	return filemap_range_has_writeback(mapping, start_byte, end_byte);
 }
 EXPORT_SYMBOL_GPL(filemap_range_needs_writeback);
 
@@ -1592,6 +1599,7 @@ void folio_end_writeback(struct folio *folio)
 
 	smp_mb__after_atomic();
 	folio_wake(folio, PG_writeback);
+	acct_reclaim_writeback(folio);
 	folio_put(folio);
 }
 EXPORT_SYMBOL(folio_end_writeback);
@@ -2088,7 +2096,6 @@ unsigned find_lock_entries(struct address_space *mapping, pgoff_t start,
 		if (!xa_is_value(page)) {
 			if (page->index < start)
 				goto put;
-			VM_BUG_ON_PAGE(page->index != xas.xa_index, page);
 			if (page->index + thp_nr_pages(page) - 1 > end)
 				goto put;
 			if (!trylock_page(page))
@@ -2621,6 +2628,9 @@ ssize_t filemap_read(struct kiocb *iocb, struct iov_iter *iter,
 		if ((iocb->ki_flags & IOCB_WAITQ) && already_read)
 			iocb->ki_flags |= IOCB_NOWAIT;
 
+		if (unlikely(iocb->ki_pos >= i_size_read(inode)))
+			break;
+
 		error = filemap_get_pages(iocb, iter, &pvec);
 		if (error < 0)
 			break;
@@ -2733,9 +2743,7 @@ generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 		struct file *file = iocb->ki_filp;
 		struct address_space *mapping = file->f_mapping;
 		struct inode *inode = mapping->host;
-		loff_t size;
 
-		size = i_size_read(inode);
 		if (iocb->ki_flags & IOCB_NOWAIT) {
 			if (filemap_range_needs_writeback(mapping, iocb->ki_pos,
 						iocb->ki_pos + count - 1))
@@ -2767,8 +2775,9 @@ generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 		 * the rest of the read.  Buffered reads will not work for
 		 * DAX files, so don't bother trying.
 		 */
-		if (retval < 0 || !count || iocb->ki_pos >= size ||
-		    IS_DAX(inode))
+		if (retval < 0 || !count || IS_DAX(inode))
+			return retval;
+		if (iocb->ki_pos >= i_size_read(inode))
 			return retval;
 	}
 
@@ -3193,23 +3202,16 @@ static bool filemap_map_pmd(struct vm_fault *vmf, struct page *page)
 	}
 
 	if (pmd_none(*vmf->pmd) && PageTransHuge(page)) {
-	    vm_fault_t ret = do_set_pmd(vmf, page);
-	    if (!ret) {
-		    /* The page is mapped successfully, reference consumed. */
-		    unlock_page(page);
-		    return true;
-	    }
+		vm_fault_t ret = do_set_pmd(vmf, page);
+		if (!ret) {
+			/* The page is mapped successfully, reference consumed. */
+			unlock_page(page);
+			return true;
+		}
 	}
 
-	if (pmd_none(*vmf->pmd)) {
-		vmf->ptl = pmd_lock(mm, vmf->pmd);
-		if (likely(pmd_none(*vmf->pmd))) {
-			mm_inc_nr_ptes(mm);
-			pmd_populate(mm, vmf->pmd, vmf->prealloc_pte);
-			vmf->prealloc_pte = NULL;
-		}
-		spin_unlock(vmf->ptl);
-	}
+	if (pmd_none(*vmf->pmd))
+		pmd_install(mm, vmf->pmd, &vmf->prealloc_pte);
 
 	/* See comment in handle_pte_fault() */
 	if (pmd_devmap_trans_unstable(vmf->pmd)) {

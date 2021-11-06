@@ -153,7 +153,7 @@ static void __init xen_del_extra_mem(unsigned long start_pfn,
 			break;
 		}
 	}
-	memblock_free(PFN_PHYS(start_pfn), PFN_PHYS(n_pfns));
+	memblock_phys_free(PFN_PHYS(start_pfn), PFN_PHYS(n_pfns));
 }
 
 /*
@@ -719,7 +719,7 @@ static void __init xen_reserve_xen_mfnlist(void)
 		return;
 
 	xen_relocate_p2m();
-	memblock_free(start, size);
+	memblock_phys_free(start, size);
 }
 
 /**
@@ -885,7 +885,7 @@ char * __init xen_memory_setup(void)
 		xen_phys_memcpy(new_area, start, size);
 		pr_info("initrd moved from [mem %#010llx-%#010llx] to [mem %#010llx-%#010llx]\n",
 			start, start + size, new_area, new_area + size);
-		memblock_free(start, size);
+		memblock_phys_free(start, size);
 		boot_params.hdr.ramdisk_image = new_area;
 		boot_params.ext_ramdisk_image = new_area >> 32;
 	}
