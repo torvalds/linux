@@ -163,7 +163,7 @@ static inline void sclp_trace_req(int prio, char *id, struct sclp_req *req,
 	summary.timeout = (u16)req->queue_timeout;
 	summary.start_count = (u16)req->start_count;
 
-	sclp_trace(prio, id, (u32)(addr_t)sccb, summary.b, err);
+	sclp_trace(prio, id, __pa(sccb), summary.b, err);
 }
 
 static inline void sclp_trace_register(int prio, char *id, u32 a, u64 b,
@@ -502,7 +502,7 @@ sclp_add_request(struct sclp_req *req)
 	}
 
 	/* RQAD: Request was added (a=sccb, b=caller) */
-	sclp_trace(2, "RQAD", (u32)(addr_t)req->sccb, _RET_IP_, false);
+	sclp_trace(2, "RQAD", __pa(req->sccb), _RET_IP_, false);
 
 	req->status = SCLP_REQ_QUEUED;
 	req->start_count = 0;
@@ -617,15 +617,15 @@ __sclp_find_req(u32 sccb)
 
 	list_for_each(l, &sclp_req_queue) {
 		req = list_entry(l, struct sclp_req, list);
-		if (sccb == (u32) (addr_t) req->sccb)
-				return req;
+		if (sccb == __pa(req->sccb))
+			return req;
 	}
 	return NULL;
 }
 
 static bool ok_response(u32 sccb_int, sclp_cmdw_t cmd)
 {
-	struct sccb_header *sccb = (struct sccb_header *)(addr_t)sccb_int;
+	struct sccb_header *sccb = (struct sccb_header *)__va(sccb_int);
 	struct evbuf_header *evbuf;
 	u16 response;
 
@@ -664,7 +664,7 @@ static void sclp_interrupt_handler(struct ext_code ext_code,
 
 	/* INT: Interrupt received (a=intparm, b=cmd) */
 	sclp_trace_sccb(0, "INT", param32, active_cmd, active_cmd,
-			(struct sccb_header *)(addr_t)finished_sccb,
+			(struct sccb_header *)__va(finished_sccb),
 			!ok_response(finished_sccb, active_cmd));
 
 	if (finished_sccb) {
@@ -1110,7 +1110,7 @@ static void sclp_check_handler(struct ext_code ext_code,
 	/* Is this the interrupt we are waiting for? */
 	if (finished_sccb == 0)
 		return;
-	if (finished_sccb != (u32) (addr_t) sclp_init_sccb)
+	if (finished_sccb != __pa(sclp_init_sccb))
 		panic("sclp: unsolicited interrupt for buffer at 0x%x\n",
 		      finished_sccb);
 	spin_lock(&sclp_lock);
