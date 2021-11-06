@@ -32,6 +32,7 @@
 #include <linux/psi.h>
 #include "blk.h"
 #include "blk-ioprio.h"
+#include "blk-throttle.h"
 
 /*
  * blkcg_pol_mutex protects blkcg_policy[] and policy [de]activation.
@@ -620,7 +621,7 @@ struct block_device *blkcg_conf_open_bdev(char **inputp)
  */
 int blkg_conf_prep(struct blkcg *blkcg, const struct blkcg_policy *pol,
 		   char *input, struct blkg_conf_ctx *ctx)
-	__acquires(rcu) __acquires(&bdev->bd_disk->queue->queue_lock)
+	__acquires(rcu) __acquires(&bdev->bd_queue->queue_lock)
 {
 	struct block_device *bdev;
 	struct request_queue *q;
@@ -631,7 +632,15 @@ int blkg_conf_prep(struct blkcg *blkcg, const struct blkcg_policy *pol,
 	if (IS_ERR(bdev))
 		return PTR_ERR(bdev);
 
-	q = bdev->bd_disk->queue;
+	q = bdev_get_queue(bdev);
+
+	/*
+	 * blkcg_deactivate_policy() requires queue to be frozen, we can grab
+	 * q_usage_counter to prevent concurrent with blkcg_deactivate_policy().
+	 */
+	ret = blk_queue_enter(q, 0);
+	if (ret)
+		return ret;
 
 	rcu_read_lock();
 	spin_lock_irq(&q->queue_lock);
@@ -702,6 +711,7 @@ int blkg_conf_prep(struct blkcg *blkcg, const struct blkcg_policy *pol,
 			goto success;
 	}
 success:
+	blk_queue_exit(q);
 	ctx->bdev = bdev;
 	ctx->blkg = blkg;
 	ctx->body = input;
@@ -714,6 +724,7 @@ fail_unlock:
 	rcu_read_unlock();
 fail:
 	blkdev_put_no_open(bdev);
+	blk_queue_exit(q);
 	/*
 	 * If queue was bypassing, we should retry.  Do so after a
 	 * short msleep().  It isn't strictly necessary but queue
@@ -736,9 +747,9 @@ EXPORT_SYMBOL_GPL(blkg_conf_prep);
  * with blkg_conf_prep().
  */
 void blkg_conf_finish(struct blkg_conf_ctx *ctx)
-	__releases(&ctx->bdev->bd_disk->queue->queue_lock) __releases(rcu)
+	__releases(&ctx->bdev->bd_queue->queue_lock) __releases(rcu)
 {
-	spin_unlock_irq(&ctx->bdev->bd_disk->queue->queue_lock);
+	spin_unlock_irq(&bdev_get_queue(ctx->bdev)->queue_lock);
 	rcu_read_unlock();
 	blkdev_put_no_open(ctx->bdev);
 }
@@ -841,7 +852,7 @@ static void blkcg_fill_root_iostats(void)
 	while ((dev = class_dev_iter_next(&iter))) {
 		struct block_device *bdev = dev_to_bdev(dev);
 		struct blkcg_gq *blkg =
-			blk_queue_root_blkg(bdev->bd_disk->queue);
+			blk_queue_root_blkg(bdev_get_queue(bdev));
 		struct blkg_iostat tmp;
 		int cpu;
 
@@ -1800,7 +1811,7 @@ static inline struct blkcg_gq *blkg_tryget_closest(struct bio *bio,
 
 	rcu_read_lock();
 	blkg = blkg_lookup_create(css_to_blkcg(css),
-				  bio->bi_bdev->bd_disk->queue);
+				  bdev_get_queue(bio->bi_bdev));
 	while (blkg) {
 		if (blkg_tryget(blkg)) {
 			ret_blkg = blkg;
@@ -1836,8 +1847,8 @@ void bio_associate_blkg_from_css(struct bio *bio,
 	if (css && css->parent) {
 		bio->bi_blkg = blkg_tryget_closest(bio, css);
 	} else {
-		blkg_get(bio->bi_bdev->bd_disk->queue->root_blkg);
-		bio->bi_blkg = bio->bi_bdev->bd_disk->queue->root_blkg;
+		blkg_get(bdev_get_queue(bio->bi_bdev)->root_blkg);
+		bio->bi_blkg = bdev_get_queue(bio->bi_bdev)->root_blkg;
 	}
 }
 EXPORT_SYMBOL_GPL(bio_associate_blkg_from_css);

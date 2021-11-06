@@ -142,6 +142,7 @@ struct efc_nport {
 	bool			is_vport;
 	bool			free_req_pending;
 	bool			attached;
+	bool			attaching;
 	bool			p2p_winner;
 	struct efc_domain	*domain;
 	u64			wwpn;

@@ -267,9 +267,7 @@ void mlx5e_ethtool_get_strings(struct mlx5e_priv *priv, u32 stringset, u8 *data)
 		break;
 
 	case ETH_SS_TEST:
-		for (i = 0; i < mlx5e_self_test_num(priv); i++)
-			strcpy(data + i * ETH_GSTRING_LEN,
-			       mlx5e_self_tests[i]);
+		mlx5e_self_test_fill_strings(priv, data);
 		break;
 
 	case ETH_SS_STATS:
@@ -1902,6 +1900,11 @@ int mlx5e_modify_rx_cqe_compression_locked(struct mlx5e_priv *priv, bool new_val
 		return -EINVAL;
 	}
 
+	if (priv->channels.params.packet_merge.type == MLX5E_PACKET_MERGE_SHAMPO) {
+		netdev_warn(priv->netdev, "Can't set CQE compression with HW-GRO, disable it first.\n");
+		return -EINVAL;
+	}
+
 	new_params = priv->channels.params;
 	MLX5E_SET_PFLAG(&new_params, MLX5E_PFLAG_RX_CQE_COMPRESS, new_val);
 	if (rx_filter)
@@ -1954,8 +1957,8 @@ static int set_pflag_rx_striding_rq(struct net_device *netdev, bool enable)
 			return -EOPNOTSUPP;
 		if (!mlx5e_striding_rq_possible(mdev, &priv->channels.params))
 			return -EINVAL;
-	} else if (priv->channels.params.lro_en) {
-		netdev_warn(netdev, "Can't set legacy RQ with LRO, disable LRO first\n");
+	} else if (priv->channels.params.packet_merge.type != MLX5E_PACKET_MERGE_NONE) {
+		netdev_warn(netdev, "Can't set legacy RQ with HW-GRO/LRO, disable them first\n");
 		return -EINVAL;
 	}
 
@@ -2139,12 +2142,14 @@ int mlx5e_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 		return 0;
 	}
 
-	return mlx5e_ethtool_get_rxnfc(dev, info, rule_locs);
+	return mlx5e_ethtool_get_rxnfc(priv, info, rule_locs);
 }
 
 int mlx5e_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 {
-	return mlx5e_ethtool_set_rxnfc(dev, cmd);
+	struct mlx5e_priv *priv = netdev_priv(dev);
+
+	return mlx5e_ethtool_set_rxnfc(priv, cmd);
 }
 
 static int query_port_status_opcode(struct mlx5_core_dev *mdev, u32 *status_opcode)

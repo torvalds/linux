@@ -403,8 +403,13 @@ struct hclge_tm_info {
 	u8 pfc_en;	/* PFC enabled or not for user priority */
 };
 
+/* max number of mac statistics on each version */
+#define HCLGE_MAC_STATS_MAX_NUM_V1		84
+#define HCLGE_MAC_STATS_MAX_NUM_V2		105
+
 struct hclge_comm_stats_str {
 	char desc[ETH_GSTRING_LEN];
+	u32 stats_num;
 	unsigned long offset;
 };
 
@@ -412,6 +417,7 @@ struct hclge_comm_stats_str {
 struct hclge_mac_stats {
 	u64 mac_tx_mac_pause_num;
 	u64 mac_rx_mac_pause_num;
+	u64 rsv0;
 	u64 mac_tx_pfc_pri0_pkt_num;
 	u64 mac_tx_pfc_pri1_pkt_num;
 	u64 mac_tx_pfc_pri2_pkt_num;
@@ -448,7 +454,7 @@ struct hclge_mac_stats {
 	u64 mac_tx_1519_2047_oct_pkt_num;
 	u64 mac_tx_2048_4095_oct_pkt_num;
 	u64 mac_tx_4096_8191_oct_pkt_num;
-	u64 rsv0;
+	u64 rsv1;
 	u64 mac_tx_8192_9216_oct_pkt_num;
 	u64 mac_tx_9217_12287_oct_pkt_num;
 	u64 mac_tx_12288_16383_oct_pkt_num;
@@ -475,7 +481,7 @@ struct hclge_mac_stats {
 	u64 mac_rx_1519_2047_oct_pkt_num;
 	u64 mac_rx_2048_4095_oct_pkt_num;
 	u64 mac_rx_4096_8191_oct_pkt_num;
-	u64 rsv1;
+	u64 rsv2;
 	u64 mac_rx_8192_9216_oct_pkt_num;
 	u64 mac_rx_9217_12287_oct_pkt_num;
 	u64 mac_rx_12288_16383_oct_pkt_num;
@@ -498,6 +504,28 @@ struct hclge_mac_stats {
 	u64 mac_rx_pfc_pause_pkt_num;
 	u64 mac_tx_ctrl_pkt_num;
 	u64 mac_rx_ctrl_pkt_num;
+
+	/* duration of pfc */
+	u64 mac_tx_pfc_pri0_xoff_time;
+	u64 mac_tx_pfc_pri1_xoff_time;
+	u64 mac_tx_pfc_pri2_xoff_time;
+	u64 mac_tx_pfc_pri3_xoff_time;
+	u64 mac_tx_pfc_pri4_xoff_time;
+	u64 mac_tx_pfc_pri5_xoff_time;
+	u64 mac_tx_pfc_pri6_xoff_time;
+	u64 mac_tx_pfc_pri7_xoff_time;
+	u64 mac_rx_pfc_pri0_xoff_time;
+	u64 mac_rx_pfc_pri1_xoff_time;
+	u64 mac_rx_pfc_pri2_xoff_time;
+	u64 mac_rx_pfc_pri3_xoff_time;
+	u64 mac_rx_pfc_pri4_xoff_time;
+	u64 mac_rx_pfc_pri5_xoff_time;
+	u64 mac_rx_pfc_pri6_xoff_time;
+	u64 mac_rx_pfc_pri7_xoff_time;
+
+	/* duration of pause */
+	u64 mac_tx_pause_xoff_time;
+	u64 mac_rx_pause_xoff_time;
 };
 
 #define HCLGE_STATS_TIMER_INTERVAL	300UL
@@ -938,6 +966,8 @@ struct hclge_dev {
 	u16 priv_umv_size;
 	/* unicast mac vlan space shared by PF and its VFs */
 	u16 share_umv_size;
+	/* multicast mac address number used by PF and its VFs */
+	u16 used_mc_mac_num;
 
 	DECLARE_KFIFO(mac_tnl_log, struct hclge_mac_tnl_stats,
 		      HCLGE_MAC_TNL_LOG_SIZE);

@@ -10,6 +10,7 @@ struct snd_malloc_ops {
 	unsigned int (*get_chunk_size)(struct snd_dma_buffer *dmab,
 				       unsigned int ofs, unsigned int size);
 	int (*mmap)(struct snd_dma_buffer *dmab, struct vm_area_struct *area);
+	void (*sync)(struct snd_dma_buffer *dmab, enum snd_dma_sync_mode mode);
 };
 
 #ifdef CONFIG_SND_DMA_SGBUF

@@ -80,27 +80,76 @@ struct prestera_port *prestera_find_port(struct prestera_switch *sw, u32 id)
 	return port;
 }
 
-static int prestera_port_open(struct net_device *dev)
+int prestera_port_cfg_mac_read(struct prestera_port *port,
+			       struct prestera_port_mac_config *cfg)
 {
-	struct prestera_port *port = netdev_priv(dev);
+	*cfg = port->cfg_mac;
+	return 0;
+}
+
+int prestera_port_cfg_mac_write(struct prestera_port *port,
+				struct prestera_port_mac_config *cfg)
+{
 	int err;
 
-	err = prestera_hw_port_state_set(port, true);
+	err = prestera_hw_port_mac_mode_set(port, cfg->admin,
+					    cfg->mode, cfg->inband, cfg->speed,
+					    cfg->duplex, cfg->fec);
 	if (err)
 		return err;
 
+	port->cfg_mac = *cfg;
+	return 0;
+}
+
+static int prestera_port_open(struct net_device *dev)
+{
+	struct prestera_port *port = netdev_priv(dev);
+	struct prestera_port_mac_config cfg_mac;
+	int err = 0;
+
+	if (port->caps.transceiver == PRESTERA_PORT_TCVR_SFP) {
+		err = prestera_port_cfg_mac_read(port, &cfg_mac);
+		if (!err) {
+			cfg_mac.admin = true;
+			err = prestera_port_cfg_mac_write(port, &cfg_mac);
+		}
+	} else {
+		port->cfg_phy.admin = true;
+		err = prestera_hw_port_phy_mode_set(port, true, port->autoneg,
+						    port->cfg_phy.mode,
+						    port->adver_link_modes,
+						    port->cfg_phy.mdix);
+	}
+
 	netif_start_queue(dev);
 
-	return 0;
+	return err;
 }
 
 static int prestera_port_close(struct net_device *dev)
 {
 	struct prestera_port *port = netdev_priv(dev);
+	struct prestera_port_mac_config cfg_mac;
+	int err = 0;
 
 	netif_stop_queue(dev);
 
-	return prestera_hw_port_state_set(port, false);
+	if (port->caps.transceiver == PRESTERA_PORT_TCVR_SFP) {
+		err = prestera_port_cfg_mac_read(port, &cfg_mac);
+		if (!err) {
+			cfg_mac.admin = false;
+			prestera_port_cfg_mac_write(port, &cfg_mac);
+		}
+	} else {
+		port->cfg_phy.admin = false;
+		err = prestera_hw_port_phy_mode_set(port, false, port->autoneg,
+						    port->cfg_phy.mode,
+						    port->adver_link_modes,
+						    port->cfg_phy.mdix);
+	}
+
+	return err;
 }
 
 static netdev_tx_t prestera_port_xmit(struct sk_buff *skb,
@@ -137,7 +186,7 @@ static int prestera_port_set_mac_address(struct net_device *dev, void *p)
 	if (err)
 		return err;
 
-	ether_addr_copy(dev->dev_addr, addr->sa_data);
+	eth_hw_addr_set(dev, addr->sa_data);
 
 	return 0;
 }
@@ -228,46 +277,23 @@ static const struct net_device_ops prestera_netdev_ops = {
 	.ndo_get_devlink_port = prestera_devlink_get_port,
 };
 
-int prestera_port_autoneg_set(struct prestera_port *port, bool enable,
-			      u64 adver_link_modes, u8 adver_fec)
+int prestera_port_autoneg_set(struct prestera_port *port, u64 link_modes)
 {
-	bool refresh = false;
-	u64 link_modes;
 	int err;
-	u8 fec;
 
-	if (port->caps.type != PRESTERA_PORT_TYPE_TP)
-		return enable ? -EINVAL : 0;
-
-	if (!enable)
-		goto set_autoneg;
-
-	link_modes = port->caps.supp_link_modes & adver_link_modes;
-	fec = port->caps.supp_fec & adver_fec;
-
-	if (!link_modes && !fec)
-		return -EOPNOTSUPP;
-
-	if (link_modes && port->adver_link_modes != link_modes) {
-		port->adver_link_modes = link_modes;
-		refresh = true;
-	}
-
-	if (fec && port->adver_fec != fec) {
-		port->adver_fec = fec;
-		refresh = true;
-	}
-
-set_autoneg:
-	if (port->autoneg == enable && !refresh)
+	if (port->autoneg && port->adver_link_modes == link_modes)
 		return 0;
 
-	err = prestera_hw_port_autoneg_set(port, enable, port->adver_link_modes,
-					   port->adver_fec);
+	err = prestera_hw_port_phy_mode_set(port, port->cfg_phy.admin,
+					    true, 0, link_modes,
+					    port->cfg_phy.mdix);
 	if (err)
 		return err;
 
-	port->autoneg = enable;
+	port->adver_fec = BIT(PRESTERA_PORT_FEC_OFF);
+	port->adver_link_modes = link_modes;
+	port->cfg_phy.mode = 0;
+	port->autoneg = true;
 
 	return 0;
 }
@@ -288,6 +314,7 @@ static void prestera_port_list_del(struct prestera_port *port)
 
 static int prestera_port_create(struct prestera_switch *sw, u32 id)
 {
+	struct prestera_port_mac_config cfg_mac;
 	struct prestera_port *port;
 	struct net_device *dev;
 	int err;
@@ -338,11 +365,14 @@ static int prestera_port_create(struct prestera_switch *sw, u32 id)
 		goto err_port_init;
 	}
 
+	eth_hw_addr_gen(dev, sw->base_mac, port->fp_id);
 	/* firmware requires that port's MAC address consist of the first
 	 * 5 bytes of the base MAC address
 	 */
-	memcpy(dev->dev_addr, sw->base_mac, dev->addr_len - 1);
-	dev->dev_addr[dev->addr_len - 1] = port->fp_id;
+	if (memcmp(dev->dev_addr, sw->base_mac, ETH_ALEN - 1)) {
+		dev_warn(prestera_dev(sw), "Port MAC address wraps for port(%u)\n", id);
+		dev_addr_mod(dev, 0, sw->base_mac, ETH_ALEN - 1);
+	}
 
 	err = prestera_hw_port_mac_set(port, dev->dev_addr);
 	if (err) {
@@ -356,14 +386,41 @@ static int prestera_port_create(struct prestera_switch *sw, u32 id)
 		goto err_port_init;
 	}
 
-	port->adver_fec = BIT(PRESTERA_PORT_FEC_OFF);
-	prestera_port_autoneg_set(port, true, port->caps.supp_link_modes,
-				  port->caps.supp_fec);
+	port->adver_link_modes = port->caps.supp_link_modes;
+	port->adver_fec = 0;
+	port->autoneg = true;
 
-	err = prestera_hw_port_state_set(port, false);
+	/* initialize config mac */
+	if (port->caps.transceiver != PRESTERA_PORT_TCVR_SFP) {
+		cfg_mac.admin = true;
+		cfg_mac.mode = PRESTERA_MAC_MODE_INTERNAL;
+	} else {
+		cfg_mac.admin = false;
+		cfg_mac.mode = PRESTERA_MAC_MODE_MAX;
+	}
+	cfg_mac.inband = false;
+	cfg_mac.speed = 0;
+	cfg_mac.duplex = DUPLEX_UNKNOWN;
+	cfg_mac.fec = PRESTERA_PORT_FEC_OFF;
+
+	err = prestera_port_cfg_mac_write(port, &cfg_mac);
 	if (err) {
-		dev_err(prestera_dev(sw), "Failed to set port(%u) down\n", id);
+		dev_err(prestera_dev(sw), "Failed to set port(%u) mac mode\n", id);
 		goto err_port_init;
+	}
+
+	/* initialize config phy (if this is inegral) */
+	if (port->caps.transceiver != PRESTERA_PORT_TCVR_SFP) {
+		port->cfg_phy.mdix = ETH_TP_MDI_AUTO;
+		port->cfg_phy.admin = false;
+		err = prestera_hw_port_phy_mode_set(port,
+						    port->cfg_phy.admin,
+						    false, 0, 0,
+						    port->cfg_phy.mdix);
+		if (err) {
+			dev_err(prestera_dev(sw), "Failed to set port(%u) phy mode\n", id);
+			goto err_port_init;
+		}
 	}
 
 	err = prestera_rxtx_port_init(port);
@@ -446,8 +503,10 @@ static void prestera_port_handle_event(struct prestera_switch *sw,
 
 	caching_dw = &port->cached_hw_stats.caching_dw;
 
-	if (evt->id == PRESTERA_PORT_EVENT_STATE_CHANGED) {
-		if (evt->port_evt.data.oper_state) {
+	prestera_ethtool_port_state_changed(port, &evt->port_evt);
+
+	if (evt->id == PRESTERA_PORT_EVENT_MAC_STATE_CHANGED) {
+		if (port->state_mac.oper) {
 			netif_carrier_on(port->dev);
 			if (!delayed_work_pending(caching_dw))
 				queue_delayed_work(prestera_wq, caching_dw, 0);
@@ -851,7 +910,7 @@ static int prestera_switch_init(struct prestera_switch *sw)
 	if (err)
 		goto err_span_init;
 
-	err = prestera_devlink_register(sw);
+	err = prestera_devlink_traps_register(sw);
 	if (err)
 		goto err_dl_register;
 
@@ -863,12 +922,13 @@ static int prestera_switch_init(struct prestera_switch *sw)
 	if (err)
 		goto err_ports_create;
 
+	prestera_devlink_register(sw);
 	return 0;
 
 err_ports_create:
 	prestera_lag_fini(sw);
 err_lag_init:
-	prestera_devlink_unregister(sw);
+	prestera_devlink_traps_unregister(sw);
 err_dl_register:
 	prestera_span_fini(sw);
 err_span_init:
@@ -888,9 +948,10 @@ err_swdev_register:
 
 static void prestera_switch_fini(struct prestera_switch *sw)
 {
+	prestera_devlink_unregister(sw);
 	prestera_destroy_ports(sw);
 	prestera_lag_fini(sw);
-	prestera_devlink_unregister(sw);
+	prestera_devlink_traps_unregister(sw);
 	prestera_span_fini(sw);
 	prestera_acl_fini(sw);
 	prestera_event_handlers_unregister(sw);

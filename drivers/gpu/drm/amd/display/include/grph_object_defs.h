@@ -140,6 +140,18 @@ enum sync_source {
 	SYNC_SOURCE_DUAL_GPU_PIN
 };
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+enum tx_ffe_id {
+	TX_FFE0 = 0,
+	TX_FFE1,
+	TX_FFE2,
+	TX_FFE3,
+	TX_FFE_DeEmphasis_Only,
+	TX_FFE_PreShoot_Only,
+	TX_FFE_No_FFE,
+};
+#endif
+
 /* connector sizes in millimeters - from BiosParserTypes.hpp */
 #define CONNECTOR_SIZE_DVI			40
 #define CONNECTOR_SIZE_VGA			32

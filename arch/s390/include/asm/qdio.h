@@ -349,8 +349,6 @@ extern int qdio_allocate(struct ccw_device *cdev, unsigned int no_input_qs,
 extern int qdio_establish(struct ccw_device *cdev,
 			  struct qdio_initialize *init_data);
 extern int qdio_activate(struct ccw_device *);
-extern struct qaob *qdio_allocate_aob(void);
-extern void qdio_release_aob(struct qaob *);
 extern int do_QDIO(struct ccw_device *cdev, unsigned int callflags, int q_nr,
 		   unsigned int bufnr, unsigned int count, struct qaob *aob);
 extern int qdio_start_irq(struct ccw_device *cdev);

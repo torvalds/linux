@@ -191,21 +191,21 @@ registered this way are stored in a global list of subdevices, ready to be
 picked up by bridge drivers.
 
 Bridge drivers in turn have to register a notifier object. This is
-performed using the :c:func:`v4l2_async_notifier_register` call. To
+performed using the :c:func:`v4l2_async_nf_register` call. To
 unregister the notifier the driver has to call
-:c:func:`v4l2_async_notifier_unregister`. The former of the two functions
+:c:func:`v4l2_async_nf_unregister`. The former of the two functions
 takes two arguments: a pointer to struct :c:type:`v4l2_device` and a
 pointer to struct :c:type:`v4l2_async_notifier`.
 
 Before registering the notifier, bridge drivers must do two things: first, the
-notifier must be initialized using the :c:func:`v4l2_async_notifier_init`.
+notifier must be initialized using the :c:func:`v4l2_async_nf_init`.
 Second, bridge drivers can then begin to form a list of subdevice descriptors
 that the bridge device needs for its operation. Several functions are available
 to add subdevice descriptors to a notifier, depending on the type of device and
 the needs of the driver.
 
-:c:func:`v4l2_async_notifier_add_fwnode_remote_subdev` and
-:c:func:`v4l2_async_notifier_add_i2c_subdev` are for bridge and ISP drivers for
+:c:func:`v4l2_async_nf_add_fwnode_remote` and
+:c:func:`v4l2_async_nf_add_i2c` are for bridge and ISP drivers for
 registering their async sub-devices with the notifier.
 
 :c:func:`v4l2_async_register_subdev_sensor` is a helper function for
@@ -230,8 +230,8 @@ These functions allocate an async sub-device descriptor which is of type struct
 
 	...
 
-	my_asd = v4l2_async_notifier_add_fwnode_remote_subdev(&notifier, ep,
-							      struct my_async_subdev);
+	my_asd = v4l2_async_nf_add_fwnode_remote(&notifier, ep,
+						 struct my_async_subdev);
 	fwnode_handle_put(ep);
 
 	if (IS_ERR(asd))

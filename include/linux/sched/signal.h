@@ -72,6 +72,17 @@ struct multiprocess_signals {
 	struct hlist_node node;
 };
 
+struct core_thread {
+	struct task_struct *task;
+	struct core_thread *next;
+};
+
+struct core_state {
+	atomic_t nr_threads;
+	struct core_thread dumper;
+	struct completion startup;
+};
+
 /*
  * NOTE! "signal_struct" does not have its own
  * locking, because a shared signal_struct always
@@ -109,6 +120,8 @@ struct signal_struct {
 	/* thread group stop support, overloads group_exit_code too */
 	int			group_stop_count;
 	unsigned int		flags; /* see SIGNAL_* flags below */
+
+	struct core_state *core_state; /* coredumping support */
 
 	/*
 	 * PR_SET_CHILD_SUBREAPER marks a process, like a service

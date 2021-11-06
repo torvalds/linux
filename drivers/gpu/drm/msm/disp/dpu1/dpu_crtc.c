@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2021 The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  */
@@ -70,17 +70,147 @@ static struct drm_encoder *get_encoder_from_crtc(struct drm_crtc *crtc)
 	return NULL;
 }
 
-static u32 dpu_crtc_get_vblank_counter(struct drm_crtc *crtc)
+static enum dpu_crtc_crc_source dpu_crtc_parse_crc_source(const char *src_name)
 {
-	struct drm_encoder *encoder;
+	if (!src_name ||
+	    !strcmp(src_name, "none"))
+		return DPU_CRTC_CRC_SOURCE_NONE;
+	if (!strcmp(src_name, "auto") ||
+	    !strcmp(src_name, "lm"))
+		return DPU_CRTC_CRC_SOURCE_LAYER_MIXER;
 
-	encoder = get_encoder_from_crtc(crtc);
-	if (!encoder) {
-		DRM_ERROR("no encoder found for crtc %d\n", crtc->index);
-		return false;
+	return DPU_CRTC_CRC_SOURCE_INVALID;
+}
+
+static int dpu_crtc_verify_crc_source(struct drm_crtc *crtc,
+		const char *src_name, size_t *values_cnt)
+{
+	enum dpu_crtc_crc_source source = dpu_crtc_parse_crc_source(src_name);
+	struct dpu_crtc_state *crtc_state = to_dpu_crtc_state(crtc->state);
+
+	if (source < 0) {
+		DRM_DEBUG_DRIVER("Invalid source %s for CRTC%d\n", src_name, crtc->index);
+		return -EINVAL;
 	}
 
-	return dpu_encoder_get_frame_count(encoder);
+	if (source == DPU_CRTC_CRC_SOURCE_LAYER_MIXER)
+		*values_cnt = crtc_state->num_mixers;
+
+	return 0;
+}
+
+static int dpu_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
+{
+	enum dpu_crtc_crc_source source = dpu_crtc_parse_crc_source(src_name);
+	enum dpu_crtc_crc_source current_source;
+	struct dpu_crtc_state *crtc_state;
+	struct drm_device *drm_dev = crtc->dev;
+	struct dpu_crtc_mixer *m;
+
+	bool was_enabled;
+	bool enable = false;
+	int i, ret = 0;
+
+	if (source < 0) {
+		DRM_DEBUG_DRIVER("Invalid CRC source %s for CRTC%d\n", src_name, crtc->index);
+		return -EINVAL;
+	}
+
+	ret = drm_modeset_lock(&crtc->mutex, NULL);
+
+	if (ret)
+		return ret;
+
+	enable = (source != DPU_CRTC_CRC_SOURCE_NONE);
+	crtc_state = to_dpu_crtc_state(crtc->state);
+
+	spin_lock_irq(&drm_dev->event_lock);
+	current_source = crtc_state->crc_source;
+	spin_unlock_irq(&drm_dev->event_lock);
+
+	was_enabled = (current_source != DPU_CRTC_CRC_SOURCE_NONE);
+
+	if (!was_enabled && enable) {
+		ret = drm_crtc_vblank_get(crtc);
+
+		if (ret)
+			goto cleanup;
+
+	} else if (was_enabled && !enable) {
+		drm_crtc_vblank_put(crtc);
+	}
+
+	spin_lock_irq(&drm_dev->event_lock);
+	crtc_state->crc_source = source;
+	spin_unlock_irq(&drm_dev->event_lock);
+
+	crtc_state->crc_frame_skip_count = 0;
+
+	for (i = 0; i < crtc_state->num_mixers; ++i) {
+		m = &crtc_state->mixers[i];
+
+		if (!m->hw_lm || !m->hw_lm->ops.setup_misr)
+			continue;
+
+		/* Calculate MISR over 1 frame */
+		m->hw_lm->ops.setup_misr(m->hw_lm, true, 1);
+	}
+
+
+cleanup:
+	drm_modeset_unlock(&crtc->mutex);
+
+	return ret;
+}
+
+static u32 dpu_crtc_get_vblank_counter(struct drm_crtc *crtc)
+{
+	struct drm_encoder *encoder = get_encoder_from_crtc(crtc);
+	if (!encoder) {
+		DRM_ERROR("no encoder found for crtc %d\n", crtc->index);
+		return 0;
+	}
+
+	return dpu_encoder_get_vsync_count(encoder);
+}
+
+
+static int dpu_crtc_get_crc(struct drm_crtc *crtc)
+{
+	struct dpu_crtc_state *crtc_state;
+	struct dpu_crtc_mixer *m;
+	u32 crcs[CRTC_DUAL_MIXERS];
+
+	int i = 0;
+	int rc = 0;
+
+	crtc_state = to_dpu_crtc_state(crtc->state);
+
+	BUILD_BUG_ON(ARRAY_SIZE(crcs) != ARRAY_SIZE(crtc_state->mixers));
+
+	/* Skip first 2 frames in case of "uncooked" CRCs */
+	if (crtc_state->crc_frame_skip_count < 2) {
+		crtc_state->crc_frame_skip_count++;
+		return 0;
+	}
+
+	for (i = 0; i < crtc_state->num_mixers; ++i) {
+
+		m = &crtc_state->mixers[i];
+
+		if (!m->hw_lm || !m->hw_lm->ops.collect_misr)
+			continue;
+
+		rc = m->hw_lm->ops.collect_misr(m->hw_lm, &crcs[i]);
+
+		if (rc) {
+			DRM_DEBUG_DRIVER("MISR read failed\n");
+			return rc;
+		}
+	}
+
+	return drm_crtc_add_crc_entry(crtc, true,
+			drm_crtc_accurate_vblank_count(crtc), crcs);
 }
 
 static bool dpu_crtc_get_scanout_position(struct drm_crtc *crtc,
@@ -389,6 +519,9 @@ void dpu_crtc_vblank_callback(struct drm_crtc *crtc)
 		dpu_crtc->vblank_cb_time = ktime_get();
 	else
 		dpu_crtc->vblank_cb_count++;
+
+	dpu_crtc_get_crc(crtc);
+
 	drm_crtc_handle_vblank(crtc);
 	trace_dpu_crtc_vblank_cb(DRMID(crtc));
 }
@@ -1332,6 +1465,8 @@ static const struct drm_crtc_funcs dpu_crtc_funcs = {
 	.atomic_destroy_state = dpu_crtc_destroy_state,
 	.late_register = dpu_crtc_late_register,
 	.early_unregister = dpu_crtc_early_unregister,
+	.verify_crc_source = dpu_crtc_verify_crc_source,
+	.set_crc_source = dpu_crtc_set_crc_source,
 	.enable_vblank  = msm_crtc_enable_vblank,
 	.disable_vblank = msm_crtc_disable_vblank,
 	.get_vblank_timestamp = drm_crtc_vblank_helper_get_vblank_timestamp,

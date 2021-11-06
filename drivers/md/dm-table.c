@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/vmalloc.h>
 #include <linux/blkdev.h>
+#include <linux/blk-integrity.h>
 #include <linux/namei.h>
 #include <linux/ctype.h>
 #include <linux/string.h>
@@ -169,7 +170,7 @@ static void free_devices(struct list_head *devices, struct mapped_device *md)
 	}
 }
 
-static void dm_table_destroy_keyslot_manager(struct dm_table *t);
+static void dm_table_destroy_crypto_profile(struct dm_table *t);
 
 void dm_table_destroy(struct dm_table *t)
 {
@@ -199,7 +200,7 @@ void dm_table_destroy(struct dm_table *t)
 
 	dm_free_md_mempools(t->mempools);
 
-	dm_table_destroy_keyslot_manager(t);
+	dm_table_destroy_crypto_profile(t);
 
 	kfree(t);
 }
@@ -226,8 +227,7 @@ static int device_area_is_invalid(struct dm_target *ti, struct dm_dev *dev,
 {
 	struct queue_limits *limits = data;
 	struct block_device *bdev = dev->bdev;
-	sector_t dev_size =
-		i_size_read(bdev->bd_inode) >> SECTOR_SHIFT;
+	sector_t dev_size = bdev_nr_sectors(bdev);
 	unsigned short logical_block_size_sectors =
 		limits->logical_block_size >> SECTOR_SHIFT;
 	char b[BDEVNAME_SIZE];
@@ -1186,8 +1186,8 @@ static int dm_table_register_integrity(struct dm_table *t)
 
 #ifdef CONFIG_BLK_INLINE_ENCRYPTION
 
-struct dm_keyslot_manager {
-	struct blk_keyslot_manager ksm;
+struct dm_crypto_profile {
+	struct blk_crypto_profile profile;
 	struct mapped_device *md;
 };
 
@@ -1213,13 +1213,11 @@ static int dm_keyslot_evict_callback(struct dm_target *ti, struct dm_dev *dev,
  * When an inline encryption key is evicted from a device-mapper device, evict
  * it from all the underlying devices.
  */
-static int dm_keyslot_evict(struct blk_keyslot_manager *ksm,
+static int dm_keyslot_evict(struct blk_crypto_profile *profile,
 			    const struct blk_crypto_key *key, unsigned int slot)
 {
-	struct dm_keyslot_manager *dksm = container_of(ksm,
-						       struct dm_keyslot_manager,
-						       ksm);
-	struct mapped_device *md = dksm->md;
+	struct mapped_device *md =
+		container_of(profile, struct dm_crypto_profile, profile)->md;
 	struct dm_keyslot_evict_args args = { key };
 	struct dm_table *t;
 	int srcu_idx;
@@ -1239,150 +1237,148 @@ static int dm_keyslot_evict(struct blk_keyslot_manager *ksm,
 	return args.err;
 }
 
-static const struct blk_ksm_ll_ops dm_ksm_ll_ops = {
-	.keyslot_evict = dm_keyslot_evict,
-};
-
-static int device_intersect_crypto_modes(struct dm_target *ti,
-					 struct dm_dev *dev, sector_t start,
-					 sector_t len, void *data)
+static int
+device_intersect_crypto_capabilities(struct dm_target *ti, struct dm_dev *dev,
+				     sector_t start, sector_t len, void *data)
 {
-	struct blk_keyslot_manager *parent = data;
-	struct blk_keyslot_manager *child = bdev_get_queue(dev->bdev)->ksm;
+	struct blk_crypto_profile *parent = data;
+	struct blk_crypto_profile *child =
+		bdev_get_queue(dev->bdev)->crypto_profile;
 
-	blk_ksm_intersect_modes(parent, child);
+	blk_crypto_intersect_capabilities(parent, child);
 	return 0;
 }
 
-void dm_destroy_keyslot_manager(struct blk_keyslot_manager *ksm)
+void dm_destroy_crypto_profile(struct blk_crypto_profile *profile)
 {
-	struct dm_keyslot_manager *dksm = container_of(ksm,
-						       struct dm_keyslot_manager,
-						       ksm);
+	struct dm_crypto_profile *dmcp = container_of(profile,
+						      struct dm_crypto_profile,
+						      profile);
 
-	if (!ksm)
+	if (!profile)
 		return;
 
-	blk_ksm_destroy(ksm);
-	kfree(dksm);
+	blk_crypto_profile_destroy(profile);
+	kfree(dmcp);
 }
 
-static void dm_table_destroy_keyslot_manager(struct dm_table *t)
+static void dm_table_destroy_crypto_profile(struct dm_table *t)
 {
-	dm_destroy_keyslot_manager(t->ksm);
-	t->ksm = NULL;
+	dm_destroy_crypto_profile(t->crypto_profile);
+	t->crypto_profile = NULL;
 }
 
 /*
- * Constructs and initializes t->ksm with a keyslot manager that
- * represents the common set of crypto capabilities of the devices
- * described by the dm_table. However, if the constructed keyslot
- * manager does not support a superset of the crypto capabilities
- * supported by the current keyslot manager of the mapped_device,
- * it returns an error instead, since we don't support restricting
- * crypto capabilities on table changes. Finally, if the constructed
- * keyslot manager doesn't actually support any crypto modes at all,
- * it just returns NULL.
+ * Constructs and initializes t->crypto_profile with a crypto profile that
+ * represents the common set of crypto capabilities of the devices described by
+ * the dm_table.  However, if the constructed crypto profile doesn't support all
+ * crypto capabilities that are supported by the current mapped_device, it
+ * returns an error instead, since we don't support removing crypto capabilities
+ * on table changes.  Finally, if the constructed crypto profile is "empty" (has
+ * no crypto capabilities at all), it just sets t->crypto_profile to NULL.
  */
-static int dm_table_construct_keyslot_manager(struct dm_table *t)
+static int dm_table_construct_crypto_profile(struct dm_table *t)
 {
-	struct dm_keyslot_manager *dksm;
-	struct blk_keyslot_manager *ksm;
+	struct dm_crypto_profile *dmcp;
+	struct blk_crypto_profile *profile;
 	struct dm_target *ti;
 	unsigned int i;
-	bool ksm_is_empty = true;
+	bool empty_profile = true;
 
-	dksm = kmalloc(sizeof(*dksm), GFP_KERNEL);
-	if (!dksm)
+	dmcp = kmalloc(sizeof(*dmcp), GFP_KERNEL);
+	if (!dmcp)
 		return -ENOMEM;
-	dksm->md = t->md;
+	dmcp->md = t->md;
 
-	ksm = &dksm->ksm;
-	blk_ksm_init_passthrough(ksm);
-	ksm->ksm_ll_ops = dm_ksm_ll_ops;
-	ksm->max_dun_bytes_supported = UINT_MAX;
-	memset(ksm->crypto_modes_supported, 0xFF,
-	       sizeof(ksm->crypto_modes_supported));
+	profile = &dmcp->profile;
+	blk_crypto_profile_init(profile, 0);
+	profile->ll_ops.keyslot_evict = dm_keyslot_evict;
+	profile->max_dun_bytes_supported = UINT_MAX;
+	memset(profile->modes_supported, 0xFF,
+	       sizeof(profile->modes_supported));
 
 	for (i = 0; i < dm_table_get_num_targets(t); i++) {
 		ti = dm_table_get_target(t, i);
 
 		if (!dm_target_passes_crypto(ti->type)) {
-			blk_ksm_intersect_modes(ksm, NULL);
+			blk_crypto_intersect_capabilities(profile, NULL);
 			break;
 		}
 		if (!ti->type->iterate_devices)
 			continue;
-		ti->type->iterate_devices(ti, device_intersect_crypto_modes,
-					  ksm);
+		ti->type->iterate_devices(ti,
+					  device_intersect_crypto_capabilities,
+					  profile);
 	}
 
-	if (t->md->queue && !blk_ksm_is_superset(ksm, t->md->queue->ksm)) {
+	if (t->md->queue &&
+	    !blk_crypto_has_capabilities(profile,
+					 t->md->queue->crypto_profile)) {
 		DMWARN("Inline encryption capabilities of new DM table were more restrictive than the old table's. This is not supported!");
-		dm_destroy_keyslot_manager(ksm);
+		dm_destroy_crypto_profile(profile);
 		return -EINVAL;
 	}
 
 	/*
-	 * If the new KSM doesn't actually support any crypto modes, we may as
-	 * well represent it with a NULL ksm.
+	 * If the new profile doesn't actually support any crypto capabilities,
+	 * we may as well represent it with a NULL profile.
 	 */
-	ksm_is_empty = true;
-	for (i = 0; i < ARRAY_SIZE(ksm->crypto_modes_supported); i++) {
-		if (ksm->crypto_modes_supported[i]) {
-			ksm_is_empty = false;
+	for (i = 0; i < ARRAY_SIZE(profile->modes_supported); i++) {
+		if (profile->modes_supported[i]) {
+			empty_profile = false;
 			break;
 		}
 	}
 
-	if (ksm_is_empty) {
-		dm_destroy_keyslot_manager(ksm);
-		ksm = NULL;
+	if (empty_profile) {
+		dm_destroy_crypto_profile(profile);
+		profile = NULL;
 	}
 
 	/*
-	 * t->ksm is only set temporarily while the table is being set
-	 * up, and it gets set to NULL after the capabilities have
-	 * been transferred to the request_queue.
+	 * t->crypto_profile is only set temporarily while the table is being
+	 * set up, and it gets set to NULL after the profile has been
+	 * transferred to the request_queue.
 	 */
-	t->ksm = ksm;
+	t->crypto_profile = profile;
 
 	return 0;
 }
 
-static void dm_update_keyslot_manager(struct request_queue *q,
-				      struct dm_table *t)
+static void dm_update_crypto_profile(struct request_queue *q,
+				     struct dm_table *t)
 {
-	if (!t->ksm)
+	if (!t->crypto_profile)
 		return;
 
-	/* Make the ksm less restrictive */
-	if (!q->ksm) {
-		blk_ksm_register(t->ksm, q);
+	/* Make the crypto profile less restrictive. */
+	if (!q->crypto_profile) {
+		blk_crypto_register(t->crypto_profile, q);
 	} else {
-		blk_ksm_update_capabilities(q->ksm, t->ksm);
-		dm_destroy_keyslot_manager(t->ksm);
+		blk_crypto_update_capabilities(q->crypto_profile,
+					       t->crypto_profile);
+		dm_destroy_crypto_profile(t->crypto_profile);
 	}
-	t->ksm = NULL;
+	t->crypto_profile = NULL;
 }
 
 #else /* CONFIG_BLK_INLINE_ENCRYPTION */
 
-static int dm_table_construct_keyslot_manager(struct dm_table *t)
+static int dm_table_construct_crypto_profile(struct dm_table *t)
 {
 	return 0;
 }
 
-void dm_destroy_keyslot_manager(struct blk_keyslot_manager *ksm)
+void dm_destroy_crypto_profile(struct blk_crypto_profile *profile)
 {
 }
 
-static void dm_table_destroy_keyslot_manager(struct dm_table *t)
+static void dm_table_destroy_crypto_profile(struct dm_table *t)
 {
 }
 
-static void dm_update_keyslot_manager(struct request_queue *q,
-				      struct dm_table *t)
+static void dm_update_crypto_profile(struct request_queue *q,
+				     struct dm_table *t)
 {
 }
 
@@ -1414,9 +1410,9 @@ int dm_table_complete(struct dm_table *t)
 		return r;
 	}
 
-	r = dm_table_construct_keyslot_manager(t);
+	r = dm_table_construct_crypto_profile(t);
 	if (r) {
-		DMERR("could not construct keyslot manager.");
+		DMERR("could not construct crypto profile.");
 		return r;
 	}
 
@@ -2070,7 +2066,7 @@ int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 			return r;
 	}
 
-	dm_update_keyslot_manager(q, t);
+	dm_update_crypto_profile(q, t);
 	disk_update_readahead(t->md->disk);
 
 	return 0;

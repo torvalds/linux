@@ -663,7 +663,7 @@ error_disable_reg:
 }
 EXPORT_SYMBOL_GPL(ad5592r_probe);
 
-int ad5592r_remove(struct device *dev)
+void ad5592r_remove(struct device *dev)
 {
 	struct iio_dev *iio_dev = dev_get_drvdata(dev);
 	struct ad5592r_state *st = iio_priv(iio_dev);
@@ -674,8 +674,6 @@ int ad5592r_remove(struct device *dev)
 
 	if (st->reg)
 		regulator_disable(st->reg);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(ad5592r_remove);
 

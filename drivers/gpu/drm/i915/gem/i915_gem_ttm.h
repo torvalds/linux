@@ -46,4 +46,18 @@ int __i915_gem_ttm_object_init(struct intel_memory_region *mem,
 			       resource_size_t size,
 			       resource_size_t page_size,
 			       unsigned int flags);
+
+int i915_gem_obj_copy_ttm(struct drm_i915_gem_object *dst,
+			  struct drm_i915_gem_object *src,
+			  bool allow_accel, bool intr);
+
+/* Internal I915 TTM declarations and definitions below. */
+
+#define I915_PL_LMEM0 TTM_PL_PRIV
+#define I915_PL_SYSTEM TTM_PL_SYSTEM
+#define I915_PL_STOLEN TTM_PL_VRAM
+#define I915_PL_GGTT TTM_PL_TT
+
+struct ttm_placement *i915_ttm_sys_placement(void);
+
 #endif

@@ -300,7 +300,7 @@ static int fm10k_handle_reset(struct fm10k_intfc *interface)
 		if (is_valid_ether_addr(hw->mac.perm_addr)) {
 			ether_addr_copy(hw->mac.addr, hw->mac.perm_addr);
 			ether_addr_copy(netdev->perm_addr, hw->mac.perm_addr);
-			ether_addr_copy(netdev->dev_addr, hw->mac.perm_addr);
+			eth_hw_addr_set(netdev, hw->mac.perm_addr);
 			netdev->addr_assign_type &= ~NET_ADDR_RANDOM;
 		}
 
@@ -2045,7 +2045,7 @@ static int fm10k_sw_init(struct fm10k_intfc *interface,
 		netdev->addr_assign_type |= NET_ADDR_RANDOM;
 	}
 
-	ether_addr_copy(netdev->dev_addr, hw->mac.addr);
+	eth_hw_addr_set(netdev, hw->mac.addr);
 	ether_addr_copy(netdev->perm_addr, hw->mac.addr);
 
 	if (!is_valid_ether_addr(netdev->perm_addr)) {

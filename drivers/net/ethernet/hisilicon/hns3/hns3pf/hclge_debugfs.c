@@ -1990,6 +1990,9 @@ static int hclge_dbg_dump_umv_info(struct hclge_dev *hdev, char *buf, int len)
 	}
 	mutex_unlock(&hdev->vport_lock);
 
+	pos += scnprintf(buf + pos, len - pos, "used_mc_mac_num  : %u\n",
+			 hdev->used_mc_mac_num);
+
 	return 0;
 }
 

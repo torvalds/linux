@@ -71,5 +71,6 @@ void amdgpu_vce_ring_begin_use(struct amdgpu_ring *ring);
 void amdgpu_vce_ring_end_use(struct amdgpu_ring *ring);
 unsigned amdgpu_vce_ring_get_emit_ib_size(struct amdgpu_ring *ring);
 unsigned amdgpu_vce_ring_get_dma_frame_size(struct amdgpu_ring *ring);
+enum amdgpu_ring_priority_level amdgpu_vce_get_ring_prio(int ring);
 
 #endif

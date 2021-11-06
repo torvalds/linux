@@ -73,7 +73,7 @@ static unsigned int sel_netport_hashfn(u16 pnum)
 /**
  * sel_netport_find - Search for a port record
  * @protocol: protocol
- * @port: pnum
+ * @pnum: port
  *
  * Description:
  * Search the network port table and return the matching record.  If an entry

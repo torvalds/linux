@@ -547,6 +547,7 @@ static inline struct avc_node *avc_search_node(struct selinux_avc *avc,
 
 /**
  * avc_lookup - Look up an AVC entry.
+ * @avc: the access vector cache
  * @ssid: source security identifier
  * @tsid: target security identifier
  * @tclass: target security class
@@ -597,6 +598,7 @@ static int avc_latest_notif_update(struct selinux_avc *avc,
 
 /**
  * avc_insert - Insert an AVC entry.
+ * @avc: the access vector cache
  * @ssid: source security identifier
  * @tsid: target security identifier
  * @tclass: target security class
@@ -825,9 +827,14 @@ out:
 
 /**
  * avc_update_node - Update an AVC entry
+ * @avc: the access vector cache
  * @event : Updating event
  * @perms : Permission mask bits
- * @ssid,@tsid,@tclass : identifier of an AVC entry
+ * @driver: xperm driver information
+ * @xperm: xperm permissions
+ * @ssid: AVC entry source sid
+ * @tsid: AVC entry target sid
+ * @tclass : AVC entry target object class
  * @seqno : sequence number when decision was made
  * @xpd: extended_perms_decision to be added to the node
  * @flags: the AVC_* flags, e.g. AVC_EXTENDED_PERMS, or 0.
@@ -928,6 +935,7 @@ out:
 
 /**
  * avc_flush - Flush the cache
+ * @avc: the access vector cache
  */
 static void avc_flush(struct selinux_avc *avc)
 {
@@ -956,6 +964,7 @@ static void avc_flush(struct selinux_avc *avc)
 
 /**
  * avc_ss_reset - Flush the cache and revalidate migrated permissions.
+ * @avc: the access vector cache
  * @seqno: policy sequence number
  */
 int avc_ss_reset(struct selinux_avc *avc, u32 seqno)
@@ -1105,6 +1114,7 @@ decision:
 
 /**
  * avc_has_perm_noaudit - Check permissions but perform no auditing.
+ * @state: SELinux state
  * @ssid: source security identifier
  * @tsid: target security identifier
  * @tclass: target security class
@@ -1156,6 +1166,7 @@ inline int avc_has_perm_noaudit(struct selinux_state *state,
 
 /**
  * avc_has_perm - Check permissions and perform any appropriate auditing.
+ * @state: SELinux state
  * @ssid: source security identifier
  * @tsid: target security identifier
  * @tclass: target security class

@@ -964,7 +964,7 @@ static ssize_t sony_nc_sysfs_show(struct device *dev, struct device_attribute *a
 	if (item->validate)
 		value = item->validate(SNC_VALIDATE_OUT, value);
 
-	return snprintf(buffer, PAGE_SIZE, "%d\n", value);
+	return sysfs_emit(buffer, "%d\n", value);
 }
 
 static ssize_t sony_nc_sysfs_store(struct device *dev,
@@ -1811,9 +1811,7 @@ static ssize_t sony_nc_kbd_backlight_mode_store(struct device *dev,
 static ssize_t sony_nc_kbd_backlight_mode_show(struct device *dev,
 		struct device_attribute *attr, char *buffer)
 {
-	ssize_t count = 0;
-	count = snprintf(buffer, PAGE_SIZE, "%d\n", kbdbl_ctl->mode);
-	return count;
+	return sysfs_emit(buffer, "%d\n", kbdbl_ctl->mode);
 }
 
 static int __sony_nc_kbd_backlight_timeout_set(u8 value)
@@ -1855,9 +1853,7 @@ static ssize_t sony_nc_kbd_backlight_timeout_store(struct device *dev,
 static ssize_t sony_nc_kbd_backlight_timeout_show(struct device *dev,
 		struct device_attribute *attr, char *buffer)
 {
-	ssize_t count = 0;
-	count = snprintf(buffer, PAGE_SIZE, "%d\n", kbdbl_ctl->timeout);
-	return count;
+	return sysfs_emit(buffer, "%d\n", kbdbl_ctl->timeout);
 }
 
 static int sony_nc_kbd_backlight_setup(struct platform_device *pd,
@@ -2051,21 +2047,18 @@ static ssize_t sony_nc_battery_care_limit_show(struct device *dev,
 		break;
 	}
 
-	return snprintf(buffer, PAGE_SIZE, "%d\n", status);
+	return sysfs_emit(buffer, "%d\n", status);
 }
 
 static ssize_t sony_nc_battery_care_health_show(struct device *dev,
 		struct device_attribute *attr, char *buffer)
 {
-	ssize_t count = 0;
 	unsigned int health;
 
 	if (sony_call_snc_handle(bcare_ctl->handle, 0x0200, &health))
 		return -EIO;
 
-	count = snprintf(buffer, PAGE_SIZE, "%d\n", health & 0xff);
-
-	return count;
+	return sysfs_emit(buffer, "%d\n", health & 0xff);
 }
 
 static int sony_nc_battery_care_setup(struct platform_device *pd,
@@ -2215,15 +2208,12 @@ static ssize_t sony_nc_thermal_mode_store(struct device *dev,
 static ssize_t sony_nc_thermal_mode_show(struct device *dev,
 		struct device_attribute *attr, char *buffer)
 {
-	ssize_t count = 0;
 	int mode = sony_nc_thermal_mode_get();
 
 	if (mode < 0)
 		return mode;
 
-	count = snprintf(buffer, PAGE_SIZE, "%s\n", snc_thermal_profiles[mode]);
-
-	return count;
+	return sysfs_emit(buffer, "%s\n", snc_thermal_profiles[mode]);
 }
 
 static int sony_nc_thermal_setup(struct platform_device *pd)
@@ -2361,7 +2351,7 @@ static ssize_t sony_nc_lid_resume_show(struct device *dev,
 
 	while (pos < LID_RESUME_MAX) {
 		if (&lid_ctl->attrs[pos].attr == &attr->attr)
-			return snprintf(buffer, PAGE_SIZE, "%d\n",
+			return sysfs_emit(buffer, "%d\n",
 					(lid_ctl->status >> pos) & 0x01);
 		pos++;
 	}
@@ -2493,7 +2483,7 @@ static ssize_t sony_nc_gfx_switch_status_show(struct device *dev,
 	if (pos < 0)
 		return pos;
 
-	return snprintf(buffer, PAGE_SIZE, "%s\n",
+	return sysfs_emit(buffer, "%s\n",
 					pos == SPEED ? "speed" :
 					pos == STAMINA ? "stamina" :
 					pos == AUTO ? "auto" : "unknown");
@@ -2568,7 +2558,7 @@ static ssize_t sony_nc_highspeed_charging_show(struct device *dev,
 	if (sony_call_snc_handle(0x0131, 0x0100, &result))
 		return -EIO;
 
-	return snprintf(buffer, PAGE_SIZE, "%d\n", result & 0x01);
+	return sysfs_emit(buffer, "%d\n", result & 0x01);
 }
 
 static int sony_nc_highspeed_charging_setup(struct platform_device *pd)
@@ -2642,7 +2632,7 @@ static ssize_t sony_nc_lowbatt_show(struct device *dev,
 	if (sony_call_snc_handle(0x0121, 0x0200, &result))
 		return -EIO;
 
-	return snprintf(buffer, PAGE_SIZE, "%d\n", result & 1);
+	return sysfs_emit(buffer, "%d\n", result & 1);
 }
 
 static int sony_nc_lowbatt_setup(struct platform_device *pd)
@@ -2708,7 +2698,7 @@ static ssize_t sony_nc_hsfan_show(struct device *dev,
 	if (sony_call_snc_handle(0x0149, 0x0100, &result))
 		return -EIO;
 
-	return snprintf(buffer, PAGE_SIZE, "%d\n", result & 0x01);
+	return sysfs_emit(buffer, "%d\n", result & 0x01);
 }
 
 static ssize_t sony_nc_fanspeed_show(struct device *dev,
@@ -2719,7 +2709,7 @@ static ssize_t sony_nc_fanspeed_show(struct device *dev,
 	if (sony_call_snc_handle(0x0149, 0x0300, &result))
 		return -EIO;
 
-	return snprintf(buffer, PAGE_SIZE, "%d\n", result & 0xff);
+	return sysfs_emit(buffer, "%d\n", result & 0xff);
 }
 
 static int sony_nc_fanspeed_setup(struct platform_device *pd)
@@ -2815,7 +2805,7 @@ static ssize_t sony_nc_usb_charge_show(struct device *dev,
 	if (sony_call_snc_handle(0x0155, 0x0000, &result))
 		return -EIO;
 
-	return snprintf(buffer, PAGE_SIZE, "%d\n", result & 0x01);
+	return sysfs_emit(buffer, "%d\n", result & 0x01);
 }
 
 static int sony_nc_usb_charge_setup(struct platform_device *pd)
@@ -2870,7 +2860,7 @@ static ssize_t sony_nc_panelid_show(struct device *dev,
 	if (sony_call_snc_handle(0x011D, 0x0000, &result))
 		return -EIO;
 
-	return snprintf(buffer, PAGE_SIZE, "%d\n", result);
+	return sysfs_emit(buffer, "%d\n", result);
 }
 
 static int sony_nc_panelid_setup(struct platform_device *pd)
@@ -2998,7 +2988,7 @@ static ssize_t sony_nc_touchpad_show(struct device *dev,
 	if (sony_call_snc_handle(tp_ctl->handle, 0x000, &result))
 		return -EINVAL;
 
-	return snprintf(buffer, PAGE_SIZE, "%d\n", !(result & 0x01));
+	return sysfs_emit(buffer, "%d\n", !(result & 0x01));
 }
 
 static int sony_nc_touchpad_setup(struct platform_device *pd,
@@ -3915,7 +3905,7 @@ static ssize_t sony_pic_wwanpower_show(struct device *dev,
 {
 	ssize_t count;
 	mutex_lock(&spic_dev.lock);
-	count = snprintf(buffer, PAGE_SIZE, "%d\n", spic_dev.wwan_power);
+	count = sysfs_emit(buffer, "%d\n", spic_dev.wwan_power);
 	mutex_unlock(&spic_dev.lock);
 	return count;
 }
@@ -3954,7 +3944,7 @@ static ssize_t sony_pic_bluetoothpower_show(struct device *dev,
 {
 	ssize_t count = 0;
 	mutex_lock(&spic_dev.lock);
-	count = snprintf(buffer, PAGE_SIZE, "%d\n", spic_dev.bluetooth_power);
+	count = sysfs_emit(buffer, "%d\n", spic_dev.bluetooth_power);
 	mutex_unlock(&spic_dev.lock);
 	return count;
 }
@@ -3996,7 +3986,7 @@ static ssize_t sony_pic_fanspeed_show(struct device *dev,
 	if (sony_pic_get_fanspeed(&value))
 		return -EIO;
 
-	return snprintf(buffer, PAGE_SIZE, "%d\n", value);
+	return sysfs_emit(buffer, "%d\n", value);
 }
 
 #define SPIC_ATTR(_name, _mode)					\

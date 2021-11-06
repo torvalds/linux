@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
- * Copyright 2018-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2021 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef _EFA_REGS_H_
@@ -42,6 +42,7 @@ enum efa_regs_reset_reason_types {
 #define EFA_REGS_MMIO_REG_READ_OFF                          0x5c
 #define EFA_REGS_MMIO_RESP_LO_OFF                           0x60
 #define EFA_REGS_MMIO_RESP_HI_OFF                           0x64
+#define EFA_REGS_EQ_DB_OFF                                  0x68
 
 /* version register */
 #define EFA_REGS_VERSION_MINOR_VERSION_MASK                 0xff
@@ -92,5 +93,9 @@ enum efa_regs_reset_reason_types {
 /* mmio_reg_read register */
 #define EFA_REGS_MMIO_REG_READ_REQ_ID_MASK                  0xffff
 #define EFA_REGS_MMIO_REG_READ_REG_OFF_MASK                 0xffff0000
+
+/* eq_db register */
+#define EFA_REGS_EQ_DB_EQN_MASK                             0xffff
+#define EFA_REGS_EQ_DB_ARM_MASK                             0x80000000
 
 #endif /* _EFA_REGS_H_ */

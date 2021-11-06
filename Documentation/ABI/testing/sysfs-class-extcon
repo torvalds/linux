@@ -65,19 +65,19 @@ Description:
 		interface associated with each cable cannot update
 		multiple cable states of an extcon device simultaneously.
 
-What:		/sys/class/extcon/.../cable.x/name
+What:		/sys/class/extcon/.../cable.X/name
 Date:		February 2012
 Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
 Description:
-		The /sys/class/extcon/.../cable.x/name shows the name of cable
-		"x" (integer between 0 and 31) of an extcon device.
+		The /sys/class/extcon/.../cable.X/name shows the name of cable
+		"X" (integer between 0 and 31) of an extcon device.
 
-What:		/sys/class/extcon/.../cable.x/state
+What:		/sys/class/extcon/.../cable.X/state
 Date:		February 2012
 Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
 Description:
-		The /sys/class/extcon/.../cable.x/state shows and stores the
-		state of cable "x" (integer between 0 and 31) of an extcon
+		The /sys/class/extcon/.../cable.X/state shows and stores the
+		state of cable "X" (integer between 0 and 31) of an extcon
 		device. The state value is either 0 (detached) or 1
 		(attached).
 

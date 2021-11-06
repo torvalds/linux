@@ -6,10 +6,38 @@
 #include <linux/spinlock.h>
 
 /*
- * Maximum page size we support is 64K, minimum sector size is 4K, u16 bitmap
- * is sufficient. Regular bitmap_* is not used due to size reasons.
+ * Extra info for subpapge bitmap.
+ *
+ * For subpage we pack all uptodate/error/dirty/writeback/ordered bitmaps into
+ * one larger bitmap.
+ *
+ * This structure records how they are organized in the bitmap:
+ *
+ * /- uptodate_offset	/- error_offset	/- dirty_offset
+ * |			|		|
+ * v			v		v
+ * |u|u|u|u|........|u|u|e|e|.......|e|e| ...	|o|o|
+ * |<- bitmap_nr_bits ->|
+ * |<--------------- total_nr_bits ---------------->|
  */
-#define BTRFS_SUBPAGE_BITMAP_SIZE	16
+struct btrfs_subpage_info {
+	/* Number of bits for each bitmap */
+	unsigned int bitmap_nr_bits;
+
+	/* Total number of bits for the whole bitmap */
+	unsigned int total_nr_bits;
+
+	/*
+	 * *_start indicates where the bitmap starts, the length is always
+	 * @bitmap_size, which is calculated from PAGE_SIZE / sectorsize.
+	 */
+	unsigned int uptodate_offset;
+	unsigned int error_offset;
+	unsigned int dirty_offset;
+	unsigned int writeback_offset;
+	unsigned int ordered_offset;
+	unsigned int checked_offset;
+};
 
 /*
  * Structure to trace status of each sector inside a page, attached to
@@ -18,10 +46,6 @@
 struct btrfs_subpage {
 	/* Common members for both data and metadata pages */
 	spinlock_t lock;
-	u16 uptodate_bitmap;
-	u16 error_bitmap;
-	u16 dirty_bitmap;
-	u16 writeback_bitmap;
 	/*
 	 * Both data and metadata needs to track how many readers are for the
 	 * page.
@@ -38,14 +62,11 @@ struct btrfs_subpage {
 		 * manages whether the subpage can be detached.
 		 */
 		atomic_t eb_refs;
-		/* Structures only used by data */
-		struct {
-			atomic_t writers;
 
-			/* Tracke pending ordered extent in this sector */
-			u16 ordered_bitmap;
-		};
+		/* Structures only used by data */
+		atomic_t writers;
 	};
+	unsigned long bitmaps[];
 };
 
 enum btrfs_subpage_type {
@@ -53,15 +74,15 @@ enum btrfs_subpage_type {
 	BTRFS_SUBPAGE_DATA,
 };
 
+void btrfs_init_subpage_info(struct btrfs_subpage_info *subpage_info, u32 sectorsize);
 int btrfs_attach_subpage(const struct btrfs_fs_info *fs_info,
 			 struct page *page, enum btrfs_subpage_type type);
 void btrfs_detach_subpage(const struct btrfs_fs_info *fs_info,
 			  struct page *page);
 
 /* Allocate additional data where page represents more than one sector */
-int btrfs_alloc_subpage(const struct btrfs_fs_info *fs_info,
-			struct btrfs_subpage **ret,
-			enum btrfs_subpage_type type);
+struct btrfs_subpage *btrfs_alloc_subpage(const struct btrfs_fs_info *fs_info,
+					  enum btrfs_subpage_type type);
 void btrfs_free_subpage(struct btrfs_subpage *subpage);
 
 void btrfs_page_inc_eb_refs(const struct btrfs_fs_info *fs_info,
@@ -122,11 +143,14 @@ DECLARE_BTRFS_SUBPAGE_OPS(error);
 DECLARE_BTRFS_SUBPAGE_OPS(dirty);
 DECLARE_BTRFS_SUBPAGE_OPS(writeback);
 DECLARE_BTRFS_SUBPAGE_OPS(ordered);
+DECLARE_BTRFS_SUBPAGE_OPS(checked);
 
 bool btrfs_subpage_clear_and_test_dirty(const struct btrfs_fs_info *fs_info,
 		struct page *page, u64 start, u32 len);
 
 void btrfs_page_assert_not_dirty(const struct btrfs_fs_info *fs_info,
 				 struct page *page);
+void btrfs_page_unlock_writer(struct btrfs_fs_info *fs_info, struct page *page,
+			      u64 start, u32 len);
 
 #endif

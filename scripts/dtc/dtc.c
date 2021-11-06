@@ -12,7 +12,7 @@
  * Command line options
  */
 int quiet;		/* Level of quietness */
-int reservenum;		/* Number of memory reservation slots */
+unsigned int reservenum;/* Number of memory reservation slots */
 int minsize;		/* Minimum blob size */
 int padsize;		/* Additional padding to blob */
 int alignsize;		/* Additional padding to blob accroding to the alignsize */
@@ -197,7 +197,7 @@ int main(int argc, char *argv[])
 			depname = optarg;
 			break;
 		case 'R':
-			reservenum = strtol(optarg, NULL, 0);
+			reservenum = strtoul(optarg, NULL, 0);
 			break;
 		case 'S':
 			minsize = strtol(optarg, NULL, 0);
@@ -358,8 +358,6 @@ int main(int argc, char *argv[])
 		dt_to_yaml(outf, dti);
 #endif
 	} else if (streq(outform, "dtb")) {
-		dt_to_blob(outf, dti, outversion);
-	} else if (streq(outform, "dtbo")) {
 		dt_to_blob(outf, dti, outversion);
 	} else if (streq(outform, "asm")) {
 		dt_to_asm(outf, dti, outversion);

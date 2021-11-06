@@ -162,7 +162,7 @@ static int ipvtap_device_event(struct notifier_block *unused,
 
 		devt = MKDEV(MAJOR(ipvtap_major), vlantap->tap.minor);
 		classdev = device_create(&ipvtap_class, &dev->dev, devt,
-					 dev, tap_name);
+					 dev, "%s", tap_name);
 		if (IS_ERR(classdev)) {
 			tap_free_minor(ipvtap_major, &vlantap->tap);
 			return notifier_from_errno(PTR_ERR(classdev));

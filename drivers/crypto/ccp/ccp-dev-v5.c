@@ -950,8 +950,8 @@ static int ccp5_init(struct ccp_device *ccp)
 
 		cmd_q = &ccp->cmd_q[i];
 
-		kthread = kthread_create(ccp_cmd_queue_thread, cmd_q,
-					 "%s-q%u", ccp->name, cmd_q->id);
+		kthread = kthread_run(ccp_cmd_queue_thread, cmd_q,
+				      "%s-q%u", ccp->name, cmd_q->id);
 		if (IS_ERR(kthread)) {
 			dev_err(dev, "error creating queue thread (%ld)\n",
 				PTR_ERR(kthread));
@@ -960,7 +960,6 @@ static int ccp5_init(struct ccp_device *ccp)
 		}
 
 		cmd_q->kthread = kthread;
-		wake_up_process(kthread);
 	}
 
 	dev_dbg(dev, "Enabling interrupts...\n");

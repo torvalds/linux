@@ -74,8 +74,8 @@ static void csky_mpintc_handler(struct pt_regs *regs)
 {
 	void __iomem *reg_base = this_cpu_read(intcl_reg);
 
-	handle_domain_irq(root_domain,
-		readl_relaxed(reg_base + INTCL_RDYIR), regs);
+	generic_handle_domain_irq(root_domain,
+		readl_relaxed(reg_base + INTCL_RDYIR));
 }
 
 static void csky_mpintc_enable(struct irq_data *d)

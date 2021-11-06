@@ -23,6 +23,7 @@ struct clk_utmi {
 	struct clk_hw hw;
 	struct regmap *regmap_pmc;
 	struct regmap *regmap_sfr;
+	struct at91_clk_pms pms;
 };
 
 #define to_clk_utmi(hw) container_of(hw, struct clk_utmi, hw)
@@ -113,11 +114,30 @@ static unsigned long clk_utmi_recalc_rate(struct clk_hw *hw,
 	return UTMI_RATE;
 }
 
+static int clk_utmi_save_context(struct clk_hw *hw)
+{
+	struct clk_utmi *utmi = to_clk_utmi(hw);
+
+	utmi->pms.status = clk_utmi_is_prepared(hw);
+
+	return 0;
+}
+
+static void clk_utmi_restore_context(struct clk_hw *hw)
+{
+	struct clk_utmi *utmi = to_clk_utmi(hw);
+
+	if (utmi->pms.status)
+		clk_utmi_prepare(hw);
+}
+
 static const struct clk_ops utmi_ops = {
 	.prepare = clk_utmi_prepare,
 	.unprepare = clk_utmi_unprepare,
 	.is_prepared = clk_utmi_is_prepared,
 	.recalc_rate = clk_utmi_recalc_rate,
+	.save_context = clk_utmi_save_context,
+	.restore_context = clk_utmi_restore_context,
 };
 
 static struct clk_hw * __init
@@ -232,10 +252,29 @@ static int clk_utmi_sama7g5_is_prepared(struct clk_hw *hw)
 	return 0;
 }
 
+static int clk_utmi_sama7g5_save_context(struct clk_hw *hw)
+{
+	struct clk_utmi *utmi = to_clk_utmi(hw);
+
+	utmi->pms.status = clk_utmi_sama7g5_is_prepared(hw);
+
+	return 0;
+}
+
+static void clk_utmi_sama7g5_restore_context(struct clk_hw *hw)
+{
+	struct clk_utmi *utmi = to_clk_utmi(hw);
+
+	if (utmi->pms.status)
+		clk_utmi_sama7g5_prepare(hw);
+}
+
 static const struct clk_ops sama7g5_utmi_ops = {
 	.prepare = clk_utmi_sama7g5_prepare,
 	.is_prepared = clk_utmi_sama7g5_is_prepared,
 	.recalc_rate = clk_utmi_recalc_rate,
+	.save_context = clk_utmi_sama7g5_save_context,
+	.restore_context = clk_utmi_sama7g5_restore_context,
 };
 
 struct clk_hw * __init

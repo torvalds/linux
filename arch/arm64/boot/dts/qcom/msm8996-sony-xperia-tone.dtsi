@@ -620,6 +620,7 @@
 &pmi8994_wled {
 	status = "okay";
 	default-brightness = <512>;
+	qcom,num-strings = <3>;
 };
 
 &rpm_requests {

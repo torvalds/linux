@@ -5,6 +5,7 @@
 / {
 	compatible = "samsung,n710x", "samsung,midas", "samsung,exynos4412", "samsung,exynos4";
 	model = "Samsung Galaxy Note 2 (GT-N7100, GT-N7105) based on Exynos4412";
+	chassis-type = "handset";
 
 	memory@40000000 {
 		device_type = "memory";

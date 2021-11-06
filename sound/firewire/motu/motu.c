@@ -112,6 +112,16 @@ static int motu_probe(struct fw_unit *unit, const struct ieee1394_device_id *ent
 	if (err < 0)
 		goto error;
 
+	if (motu->spec->flags & SND_MOTU_SPEC_REGISTER_DSP) {
+		err = snd_motu_register_dsp_message_parser_new(motu);
+		if (err < 0)
+			goto error;
+	} else if (motu->spec->flags & SND_MOTU_SPEC_COMMAND_DSP) {
+		err = snd_motu_command_dsp_message_parser_new(motu);
+		if (err < 0)
+			goto error;
+	}
+
 	err = snd_card_register(card);
 	if (err < 0)
 		goto error;

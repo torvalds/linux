@@ -82,9 +82,11 @@ struct pqi_ctrl_registers {
 	__le32  sis_product_identifier;			/* B4h */
 	u8	reserved5[0xbc - (0xb4 + sizeof(__le32))];
 	__le32	sis_firmware_status;			/* BCh */
-	u8	reserved6[0x1000 - (0xbc + sizeof(__le32))];
+	u8	reserved6[0xcc - (0xbc + sizeof(__le32))];
+	__le32	sis_ctrl_shutdown_reason_code;		/* CCh */
+	u8	reserved7[0x1000 - (0xcc + sizeof(__le32))];
 	__le32	sis_mailbox[8];				/* 1000h */
-	u8	reserved7[0x4000 - (0x1000 + (sizeof(__le32) * 8))];
+	u8	reserved8[0x4000 - (0x1000 + (sizeof(__le32) * 8))];
 	/*
 	 * The PQI spec states that the PQI registers should be at
 	 * offset 0 from the PCIe BAR 0.  However, we can't map
@@ -101,6 +103,21 @@ struct pqi_ctrl_registers {
 #endif
 
 #define PQI_DEVICE_REGISTERS_OFFSET	0x4000
+
+/* shutdown reasons for taking the controller offline */
+enum pqi_ctrl_shutdown_reason {
+	PQI_IQ_NOT_DRAINED_TIMEOUT = 1,
+	PQI_LUN_RESET_TIMEOUT = 2,
+	PQI_IO_PENDING_POST_LUN_RESET_TIMEOUT = 3,
+	PQI_NO_HEARTBEAT = 4,
+	PQI_FIRMWARE_KERNEL_NOT_UP = 5,
+	PQI_OFA_RESPONSE_TIMEOUT = 6,
+	PQI_INVALID_REQ_ID = 7,
+	PQI_UNMATCHED_REQ_ID = 8,
+	PQI_IO_PI_OUT_OF_RANGE = 9,
+	PQI_EVENT_PI_OUT_OF_RANGE = 10,
+	PQI_UNEXPECTED_IU_TYPE = 11
+};
 
 enum pqi_io_path {
 	RAID_PATH = 0,
@@ -850,7 +867,9 @@ struct pqi_config_table_firmware_features {
 #define PQI_FIRMWARE_FEATURE_TMF_IU_TIMEOUT			14
 #define PQI_FIRMWARE_FEATURE_RAID_BYPASS_ON_ENCRYPTED_NVME	15
 #define PQI_FIRMWARE_FEATURE_UNIQUE_WWID_IN_REPORT_PHYS_LUN	16
-#define PQI_FIRMWARE_FEATURE_MAXIMUM				16
+#define PQI_FIRMWARE_FEATURE_FW_TRIAGE				17
+#define PQI_FIRMWARE_FEATURE_RPL_EXTENDED_FORMAT_4_5		18
+#define PQI_FIRMWARE_FEATURE_MAXIMUM				18
 
 struct pqi_config_table_debug {
 	struct pqi_config_table_section_header header;
@@ -925,21 +944,33 @@ struct report_lun_header {
 #define CISS_REPORT_LOG_FLAG_QUEUE_DEPTH	(1 << 5)
 #define CISS_REPORT_LOG_FLAG_DRIVE_TYPE_MIX	(1 << 6)
 
-#define CISS_REPORT_PHYS_FLAG_OTHER		(1 << 1)
+#define CISS_REPORT_PHYS_FLAG_EXTENDED_FORMAT_2		0x2
+#define CISS_REPORT_PHYS_FLAG_EXTENDED_FORMAT_4		0x4
+#define CISS_REPORT_PHYS_FLAG_EXTENDED_FORMAT_MASK	0xf
 
-struct report_log_lun_extended_entry {
+struct report_log_lun {
 	u8	lunid[8];
 	u8	volume_id[16];
 };
 
-struct report_log_lun_extended {
+struct report_log_lun_list {
 	struct report_lun_header header;
-	struct report_log_lun_extended_entry lun_entries[1];
+	struct report_log_lun lun_entries[1];
 };
 
-struct report_phys_lun_extended_entry {
+struct report_phys_lun_8byte_wwid {
 	u8	lunid[8];
 	__be64	wwid;
+	u8	device_type;
+	u8	device_flags;
+	u8	lun_count;	/* number of LUNs in a multi-LUN device */
+	u8	redundant_paths;
+	u32	aio_handle;
+};
+
+struct report_phys_lun_16byte_wwid {
+	u8	lunid[8];
+	u8	wwid[16];
 	u8	device_type;
 	u8	device_flags;
 	u8	lun_count;	/* number of LUNs in a multi-LUN device */
@@ -950,9 +981,14 @@ struct report_phys_lun_extended_entry {
 /* for device_flags field of struct report_phys_lun_extended_entry */
 #define CISS_REPORT_PHYS_DEV_FLAG_AIO_ENABLED	0x8
 
-struct report_phys_lun_extended {
+struct report_phys_lun_8byte_wwid_list {
 	struct report_lun_header header;
-	struct report_phys_lun_extended_entry lun_entries[1];
+	struct report_phys_lun_8byte_wwid lun_entries[1];
+};
+
+struct report_phys_lun_16byte_wwid_list {
+	struct report_lun_header header;
+	struct report_phys_lun_16byte_wwid lun_entries[1];
 };
 
 struct raid_map_disk_data {
@@ -1059,7 +1095,7 @@ struct pqi_scsi_dev {
 	int	target;
 	int	lun;
 	u8	scsi3addr[8];
-	__be64	wwid;
+	u8	wwid[16];
 	u8	volume_id[16];
 	u8	is_physical_device : 1;
 	u8	is_external_raid_device : 1;
@@ -1070,6 +1106,7 @@ struct pqi_scsi_dev {
 	u8	keep_device : 1;
 	u8	volume_offline : 1;
 	u8	rescan : 1;
+	u8	ignore_device : 1;
 	bool	aio_enabled;		/* only valid for physical disks */
 	bool	in_remove;
 	bool	device_offline;
@@ -1297,6 +1334,8 @@ struct pqi_ctrl_info {
 	u8		raid_iu_timeout_supported : 1;
 	u8		tmf_iu_timeout_supported : 1;
 	u8		unique_wwid_in_report_phys_lun_supported : 1;
+	u8		firmware_triage_supported : 1;
+	u8		rpl_extended_format_4_5_supported : 1;
 	u8		enable_r1_writes : 1;
 	u8		enable_r5_writes : 1;
 	u8		enable_r6_writes : 1;

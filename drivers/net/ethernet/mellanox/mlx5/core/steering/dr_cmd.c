@@ -195,6 +195,8 @@ int mlx5dr_cmd_query_device(struct mlx5_core_dev *mdev,
 
 	caps->roce_min_src_udp = MLX5_CAP_ROCE(mdev, r_roce_min_src_udp_port);
 
+	caps->is_ecpf = mlx5_core_is_ecpf_esw_manager(mdev);
+
 	return 0;
 }
 
@@ -272,7 +274,7 @@ int mlx5dr_cmd_set_fte_modify_and_vport(struct mlx5_core_dev *mdev,
 					u32 table_id,
 					u32 group_id,
 					u32 modify_header_id,
-					u32 vport_id)
+					u16 vport)
 {
 	u32 out[MLX5_ST_SZ_DW(set_fte_out)] = {};
 	void *in_flow_context;
@@ -303,7 +305,7 @@ int mlx5dr_cmd_set_fte_modify_and_vport(struct mlx5_core_dev *mdev,
 	in_dests = MLX5_ADDR_OF(flow_context, in_flow_context, destination);
 	MLX5_SET(dest_format_struct, in_dests, destination_type,
 		 MLX5_FLOW_DESTINATION_TYPE_VPORT);
-	MLX5_SET(dest_format_struct, in_dests, destination_id, vport_id);
+	MLX5_SET(dest_format_struct, in_dests, destination_id, vport);
 
 	err = mlx5_cmd_exec(mdev, in, inlen, out, sizeof(out));
 	kvfree(in);

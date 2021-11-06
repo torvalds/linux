@@ -146,7 +146,7 @@ struct ld_semaphore {
 #endif
 };
 
-extern void __init_ldsem(struct ld_semaphore *sem, const char *name,
+void __init_ldsem(struct ld_semaphore *sem, const char *name,
 			 struct lock_class_key *key);
 
 #define init_ldsem(sem)						\
@@ -157,18 +157,18 @@ do {								\
 } while (0)
 
 
-extern int ldsem_down_read(struct ld_semaphore *sem, long timeout);
-extern int ldsem_down_read_trylock(struct ld_semaphore *sem);
-extern int ldsem_down_write(struct ld_semaphore *sem, long timeout);
-extern int ldsem_down_write_trylock(struct ld_semaphore *sem);
-extern void ldsem_up_read(struct ld_semaphore *sem);
-extern void ldsem_up_write(struct ld_semaphore *sem);
+int ldsem_down_read(struct ld_semaphore *sem, long timeout);
+int ldsem_down_read_trylock(struct ld_semaphore *sem);
+int ldsem_down_write(struct ld_semaphore *sem, long timeout);
+int ldsem_down_write_trylock(struct ld_semaphore *sem);
+void ldsem_up_read(struct ld_semaphore *sem);
+void ldsem_up_write(struct ld_semaphore *sem);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
-extern int ldsem_down_read_nested(struct ld_semaphore *sem, int subclass,
-				  long timeout);
-extern int ldsem_down_write_nested(struct ld_semaphore *sem, int subclass,
-				   long timeout);
+int ldsem_down_read_nested(struct ld_semaphore *sem, int subclass,
+		long timeout);
+int ldsem_down_write_nested(struct ld_semaphore *sem, int subclass,
+		long timeout);
 #else
 # define ldsem_down_read_nested(sem, subclass, timeout)		\
 		ldsem_down_read(sem, timeout)
@@ -180,7 +180,6 @@ extern int ldsem_down_write_nested(struct ld_semaphore *sem, int subclass,
 struct tty_ldisc_ops {
 	char	*name;
 	int	num;
-	int	flags;
 
 	/*
 	 * The following routines are called from above.
@@ -200,7 +199,7 @@ struct tty_ldisc_ops {
 	void	(*set_termios)(struct tty_struct *tty, struct ktermios *old);
 	__poll_t (*poll)(struct tty_struct *, struct file *,
 			     struct poll_table_struct *);
-	int	(*hangup)(struct tty_struct *tty);
+	void	(*hangup)(struct tty_struct *tty);
 
 	/*
 	 * The following routines are called from below.
@@ -219,8 +218,6 @@ struct tty_ldisc {
 	struct tty_ldisc_ops *ops;
 	struct tty_struct *tty;
 };
-
-#define LDISC_FLAG_DEFINED	0x00000001
 
 #define MODULE_ALIAS_LDISC(ldisc) \
 	MODULE_ALIAS("tty-ldisc-" __stringify(ldisc))

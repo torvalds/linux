@@ -19,12 +19,12 @@
  * callback mask. We do this in a very simple manner, by making a call
  * down into Xen. The pending flag will be checked by Xen on return.
  */
-void xen_force_evtchn_callback(void)
+noinstr void xen_force_evtchn_callback(void)
 {
 	(void)HYPERVISOR_xen_version(0, NULL);
 }
 
-asmlinkage __visible unsigned long xen_save_fl(void)
+asmlinkage __visible noinstr unsigned long xen_save_fl(void)
 {
 	struct vcpu_info *vcpu;
 	unsigned long flags;
@@ -40,9 +40,9 @@ asmlinkage __visible unsigned long xen_save_fl(void)
 	*/
 	return (-flags) & X86_EFLAGS_IF;
 }
-PV_CALLEE_SAVE_REGS_THUNK(xen_save_fl);
+__PV_CALLEE_SAVE_REGS_THUNK(xen_save_fl, ".noinstr.text");
 
-asmlinkage __visible void xen_irq_disable(void)
+asmlinkage __visible noinstr void xen_irq_disable(void)
 {
 	/* There's a one instruction preempt window here.  We need to
 	   make sure we're don't switch CPUs between getting the vcpu
@@ -51,9 +51,9 @@ asmlinkage __visible void xen_irq_disable(void)
 	this_cpu_read(xen_vcpu)->evtchn_upcall_mask = 1;
 	preempt_enable_no_resched();
 }
-PV_CALLEE_SAVE_REGS_THUNK(xen_irq_disable);
+__PV_CALLEE_SAVE_REGS_THUNK(xen_irq_disable, ".noinstr.text");
 
-asmlinkage __visible void xen_irq_enable(void)
+asmlinkage __visible noinstr void xen_irq_enable(void)
 {
 	struct vcpu_info *vcpu;
 
@@ -76,7 +76,7 @@ asmlinkage __visible void xen_irq_enable(void)
 
 	preempt_enable();
 }
-PV_CALLEE_SAVE_REGS_THUNK(xen_irq_enable);
+__PV_CALLEE_SAVE_REGS_THUNK(xen_irq_enable, ".noinstr.text");
 
 static void xen_safe_halt(void)
 {
@@ -94,17 +94,20 @@ static void xen_halt(void)
 		xen_safe_halt();
 }
 
-static const struct pv_irq_ops xen_irq_ops __initconst = {
-	.save_fl = PV_CALLEE_SAVE(xen_save_fl),
-	.irq_disable = PV_CALLEE_SAVE(xen_irq_disable),
-	.irq_enable = PV_CALLEE_SAVE(xen_irq_enable),
+static const typeof(pv_ops) xen_irq_ops __initconst = {
+	.irq = {
 
-	.safe_halt = xen_safe_halt,
-	.halt = xen_halt,
+		.save_fl = PV_CALLEE_SAVE(xen_save_fl),
+		.irq_disable = PV_CALLEE_SAVE(xen_irq_disable),
+		.irq_enable = PV_CALLEE_SAVE(xen_irq_enable),
+
+		.safe_halt = xen_safe_halt,
+		.halt = xen_halt,
+	},
 };
 
 void __init xen_init_irq_ops(void)
 {
-	pv_ops.irq = xen_irq_ops;
+	pv_ops.irq = xen_irq_ops.irq;
 	x86_init.irqs.intr_init = xen_init_IRQ;
 }

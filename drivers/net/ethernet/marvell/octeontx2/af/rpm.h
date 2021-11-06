@@ -14,6 +14,8 @@
 #define PCI_DEVID_CN10K_RPM		0xA060
 
 /* Registers */
+#define RPMX_CMRX_CFG			0x00
+#define RPMX_RX_TS_PREPEND              BIT_ULL(22)
 #define RPMX_CMRX_SW_INT                0x180
 #define RPMX_CMRX_SW_INT_W1S            0x188
 #define RPMX_CMRX_SW_INT_ENA_W1S        0x198
@@ -54,4 +56,5 @@ int rpm_lmac_enadis_pause_frm(void *rpmd, int lmac_id, u8 tx_pause,
 			      u8 rx_pause);
 int rpm_get_tx_stats(void *rpmd, int lmac_id, int idx, u64 *tx_stat);
 int rpm_get_rx_stats(void *rpmd, int lmac_id, int idx, u64 *rx_stat);
+void rpm_lmac_ptp_config(void *rpmd, int lmac_id, bool enable);
 #endif /* RPM_H */

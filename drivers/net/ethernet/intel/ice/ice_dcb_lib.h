@@ -15,7 +15,7 @@
 #define ICE_DCB_HW_CHG		2 /* DCB configuration changed, no reset */
 
 void ice_dcb_rebuild(struct ice_pf *pf);
-u8 ice_dcb_get_ena_tc(struct ice_dcbx_cfg *dcbcfg);
+int ice_dcb_sw_dflt_cfg(struct ice_pf *pf, bool ets_willing, bool locked);
 u8 ice_dcb_get_num_tc(struct ice_dcbx_cfg *dcbcfg);
 void ice_vsi_set_dcb_tc_cfg(struct ice_vsi *vsi);
 bool ice_is_pfc_causing_hung_q(struct ice_pf *pf, unsigned int txqueue);
@@ -28,13 +28,11 @@ void ice_vsi_cfg_dcb_rings(struct ice_vsi *vsi);
 int ice_init_pf_dcb(struct ice_pf *pf, bool locked);
 void ice_update_dcb_stats(struct ice_pf *pf);
 void
-ice_tx_prepare_vlan_flags_dcb(struct ice_ring *tx_ring,
+ice_tx_prepare_vlan_flags_dcb(struct ice_tx_ring *tx_ring,
 			      struct ice_tx_buf *first);
 void
 ice_dcb_process_lldp_set_mib_change(struct ice_pf *pf,
 				    struct ice_rq_event_info *event);
-void ice_vsi_cfg_netdev_tc(struct ice_vsi *vsi, u8 ena_tc);
-
 /**
  * ice_find_q_in_range
  * @low: start of queue range for a TC i.e. offset of TC
@@ -49,9 +47,9 @@ static inline bool ice_find_q_in_range(u16 low, u16 high, unsigned int tx_q)
 }
 
 static inline void
-ice_set_cgd_num(struct ice_tlan_ctx *tlan_ctx, struct ice_ring *ring)
+ice_set_cgd_num(struct ice_tlan_ctx *tlan_ctx, u8 dcb_tc)
 {
-	tlan_ctx->cgd_num = ring->dcb_tc;
+	tlan_ctx->cgd_num = dcb_tc;
 }
 
 static inline bool ice_is_dcb_active(struct ice_pf *pf)
@@ -59,8 +57,20 @@ static inline bool ice_is_dcb_active(struct ice_pf *pf)
 	return (test_bit(ICE_FLAG_FW_LLDP_AGENT, pf->flags) ||
 		test_bit(ICE_FLAG_DCB_ENA, pf->flags));
 }
+
+static inline u8 ice_get_pfc_mode(struct ice_pf *pf)
+{
+	return pf->hw.port_info->qos_cfg.local_dcbx_cfg.pfc_mode;
+}
+
 #else
 static inline void ice_dcb_rebuild(struct ice_pf *pf) { }
+
+static inline void ice_vsi_set_dcb_tc_cfg(struct ice_vsi *vsi)
+{
+	vsi->tc_cfg.ena_tc = ICE_DFLT_TRAFFIC_CLASS;
+	vsi->tc_cfg.numtc = 1;
+}
 
 static inline u8 ice_dcb_get_ena_tc(struct ice_dcbx_cfg __always_unused *dcbcfg)
 {
@@ -95,7 +105,7 @@ ice_pf_dcb_cfg(struct ice_pf __always_unused *pf,
 }
 
 static inline int
-ice_tx_prepare_vlan_flags_dcb(struct ice_ring __always_unused *tx_ring,
+ice_tx_prepare_vlan_flags_dcb(struct ice_tx_ring __always_unused *tx_ring,
 			      struct ice_tx_buf __always_unused *first)
 {
 	return 0;
@@ -113,12 +123,16 @@ ice_is_pfc_causing_hung_q(struct ice_pf __always_unused *pf,
 	return false;
 }
 
+static inline u8 ice_get_pfc_mode(struct ice_pf *pf)
+{
+	return 0;
+}
+
 static inline void ice_pf_dcb_recfg(struct ice_pf *pf) { }
 static inline void ice_vsi_cfg_dcb_rings(struct ice_vsi *vsi) { }
 static inline void ice_update_dcb_stats(struct ice_pf *pf) { }
 static inline void
 ice_dcb_process_lldp_set_mib_change(struct ice_pf *pf, struct ice_rq_event_info *event) { }
-static inline void ice_vsi_cfg_netdev_tc(struct ice_vsi *vsi, u8 ena_tc) { }
-static inline void ice_set_cgd_num(struct ice_tlan_ctx *tlan_ctx, struct ice_ring *ring) { }
+static inline void ice_set_cgd_num(struct ice_tlan_ctx *tlan_ctx, u8 dcb_tc) { }
 #endif /* CONFIG_DCB */
 #endif /* _ICE_DCB_LIB_H_ */

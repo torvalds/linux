@@ -1021,7 +1021,7 @@ static int max98390_i2c_probe(struct i2c_client *i2c,
 	int reg = 0;
 
 	struct max98390_priv *max98390 = NULL;
-	struct i2c_adapter *adapter = to_i2c_adapter(i2c->dev.parent);
+	struct i2c_adapter *adapter = i2c->adapter;
 
 	ret = i2c_check_functionality(adapter,
 		I2C_FUNC_SMBUS_BYTE

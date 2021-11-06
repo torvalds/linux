@@ -27,6 +27,7 @@ void flush_cache_vunmap(unsigned long start, unsigned long end);
 
 #define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
 void flush_dcache_page(struct page *page);
+void flush_dcache_folio(struct folio *folio);
 void copy_to_user_page(struct vm_area_struct *vma, struct page *page,
 		       unsigned long vaddr, void *dst, void *src, int len);
 void copy_from_user_page(struct vm_area_struct *vma, struct page *page,

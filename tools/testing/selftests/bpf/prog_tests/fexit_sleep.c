@@ -10,7 +10,7 @@
 
 static int do_sleep(void *skel)
 {
-	struct fexit_sleep *fexit_skel = skel;
+	struct fexit_sleep_lskel *fexit_skel = skel;
 	struct timespec ts1 = { .tv_nsec = 1 };
 	struct timespec ts2 = { .tv_sec = 10 };
 
@@ -25,16 +25,16 @@ static char child_stack[STACK_SIZE];
 
 void test_fexit_sleep(void)
 {
-	struct fexit_sleep *fexit_skel = NULL;
+	struct fexit_sleep_lskel *fexit_skel = NULL;
 	int wstatus, duration = 0;
 	pid_t cpid;
 	int err, fexit_cnt;
 
-	fexit_skel = fexit_sleep__open_and_load();
+	fexit_skel = fexit_sleep_lskel__open_and_load();
 	if (CHECK(!fexit_skel, "fexit_skel_load", "fexit skeleton failed\n"))
 		goto cleanup;
 
-	err = fexit_sleep__attach(fexit_skel);
+	err = fexit_sleep_lskel__attach(fexit_skel);
 	if (CHECK(err, "fexit_attach", "fexit attach failed: %d\n", err))
 		goto cleanup;
 
@@ -60,7 +60,7 @@ void test_fexit_sleep(void)
 	 */
 	close(fexit_skel->progs.nanosleep_fentry.prog_fd);
 	close(fexit_skel->progs.nanosleep_fexit.prog_fd);
-	fexit_sleep__detach(fexit_skel);
+	fexit_sleep_lskel__detach(fexit_skel);
 
 	/* kill the thread to unwind sys_nanosleep stack through the trampoline */
 	kill(cpid, 9);
@@ -78,5 +78,5 @@ void test_fexit_sleep(void)
 		goto cleanup;
 
 cleanup:
-	fexit_sleep__destroy(fexit_skel);
+	fexit_sleep_lskel__destroy(fexit_skel);
 }

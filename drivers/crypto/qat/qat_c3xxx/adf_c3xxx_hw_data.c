@@ -48,34 +48,6 @@ static u32 get_ae_mask(struct adf_hw_device_data *self)
 	return ~(fuses | straps) & ADF_C3XXX_ACCELENGINES_MASK;
 }
 
-static u32 get_num_accels(struct adf_hw_device_data *self)
-{
-	u32 i, ctr = 0;
-
-	if (!self || !self->accel_mask)
-		return 0;
-
-	for (i = 0; i < ADF_C3XXX_MAX_ACCELERATORS; i++) {
-		if (self->accel_mask & (1 << i))
-			ctr++;
-	}
-	return ctr;
-}
-
-static u32 get_num_aes(struct adf_hw_device_data *self)
-{
-	u32 i, ctr = 0;
-
-	if (!self || !self->ae_mask)
-		return 0;
-
-	for (i = 0; i < ADF_C3XXX_MAX_ACCELENGINES; i++) {
-		if (self->ae_mask & (1 << i))
-			ctr++;
-	}
-	return ctr;
-}
-
 static u32 get_misc_bar_id(struct adf_hw_device_data *self)
 {
 	return ADF_C3XXX_PMISC_BAR;
@@ -88,12 +60,12 @@ static u32 get_etr_bar_id(struct adf_hw_device_data *self)
 
 static u32 get_sram_bar_id(struct adf_hw_device_data *self)
 {
-	return 0;
+	return ADF_C3XXX_SRAM_BAR;
 }
 
 static enum dev_sku_info get_sku(struct adf_hw_device_data *self)
 {
-	int aes = get_num_aes(self);
+	int aes = self->get_num_aes(self);
 
 	if (aes == 6)
 		return DEV_SKU_4;
@@ -104,41 +76,6 @@ static enum dev_sku_info get_sku(struct adf_hw_device_data *self)
 static const u32 *adf_get_arbiter_mapping(void)
 {
 	return thrd_to_arb_map;
-}
-
-static u32 get_pf2vf_offset(u32 i)
-{
-	return ADF_C3XXX_PF2VF_OFFSET(i);
-}
-
-static void adf_enable_error_correction(struct adf_accel_dev *accel_dev)
-{
-	struct adf_hw_device_data *hw_device = accel_dev->hw_device;
-	struct adf_bar *misc_bar = &GET_BARS(accel_dev)[ADF_C3XXX_PMISC_BAR];
-	unsigned long accel_mask = hw_device->accel_mask;
-	unsigned long ae_mask = hw_device->ae_mask;
-	void __iomem *csr = misc_bar->virt_addr;
-	unsigned int val, i;
-
-	/* Enable Accel Engine error detection & correction */
-	for_each_set_bit(i, &ae_mask, GET_MAX_ACCELENGINES(accel_dev)) {
-		val = ADF_CSR_RD(csr, ADF_C3XXX_AE_CTX_ENABLES(i));
-		val |= ADF_C3XXX_ENABLE_AE_ECC_ERR;
-		ADF_CSR_WR(csr, ADF_C3XXX_AE_CTX_ENABLES(i), val);
-		val = ADF_CSR_RD(csr, ADF_C3XXX_AE_MISC_CONTROL(i));
-		val |= ADF_C3XXX_ENABLE_AE_ECC_PARITY_CORR;
-		ADF_CSR_WR(csr, ADF_C3XXX_AE_MISC_CONTROL(i), val);
-	}
-
-	/* Enable shared memory error detection & correction */
-	for_each_set_bit(i, &accel_mask, ADF_C3XXX_MAX_ACCELERATORS) {
-		val = ADF_CSR_RD(csr, ADF_C3XXX_UERRSSMSH(i));
-		val |= ADF_C3XXX_ERRSSMSH_EN;
-		ADF_CSR_WR(csr, ADF_C3XXX_UERRSSMSH(i), val);
-		val = ADF_CSR_RD(csr, ADF_C3XXX_CERRSSMSH(i));
-		val |= ADF_C3XXX_ERRSSMSH_EN;
-		ADF_CSR_WR(csr, ADF_C3XXX_CERRSSMSH(i), val);
-	}
 }
 
 static void adf_enable_ints(struct adf_accel_dev *accel_dev)
@@ -152,13 +89,6 @@ static void adf_enable_ints(struct adf_accel_dev *accel_dev)
 		   ADF_C3XXX_SMIA0_MASK);
 	ADF_CSR_WR(addr, ADF_C3XXX_SMIAPF1_MASK_OFFSET,
 		   ADF_C3XXX_SMIA1_MASK);
-}
-
-static int adf_enable_pf2vf_comms(struct adf_accel_dev *accel_dev)
-{
-	spin_lock_init(&accel_dev->pf.vf2pf_ints_lock);
-
-	return 0;
 }
 
 static void configure_iov_threads(struct adf_accel_dev *accel_dev, bool enable)
@@ -177,16 +107,16 @@ void adf_init_hw_data_c3xxx(struct adf_hw_device_data *hw_data)
 	hw_data->num_accel = ADF_C3XXX_MAX_ACCELERATORS;
 	hw_data->num_logical_accel = 1;
 	hw_data->num_engines = ADF_C3XXX_MAX_ACCELENGINES;
-	hw_data->tx_rx_gap = ADF_C3XXX_RX_RINGS_OFFSET;
-	hw_data->tx_rings_mask = ADF_C3XXX_TX_RINGS_MASK;
+	hw_data->tx_rx_gap = ADF_GEN2_RX_RINGS_OFFSET;
+	hw_data->tx_rings_mask = ADF_GEN2_TX_RINGS_MASK;
 	hw_data->alloc_irq = adf_isr_resource_alloc;
 	hw_data->free_irq = adf_isr_resource_free;
-	hw_data->enable_error_correction = adf_enable_error_correction;
+	hw_data->enable_error_correction = adf_gen2_enable_error_correction;
 	hw_data->get_accel_mask = get_accel_mask;
 	hw_data->get_ae_mask = get_ae_mask;
 	hw_data->get_accel_cap = adf_gen2_get_accel_cap;
-	hw_data->get_num_accels = get_num_accels;
-	hw_data->get_num_aes = get_num_aes;
+	hw_data->get_num_accels = adf_gen2_get_num_accels;
+	hw_data->get_num_aes = adf_gen2_get_num_aes;
 	hw_data->get_sram_bar_id = get_sram_bar_id;
 	hw_data->get_etr_bar_id = get_etr_bar_id;
 	hw_data->get_misc_bar_id = get_misc_bar_id;
@@ -205,7 +135,10 @@ void adf_init_hw_data_c3xxx(struct adf_hw_device_data *hw_data)
 	hw_data->enable_ints = adf_enable_ints;
 	hw_data->reset_device = adf_reset_flr;
 	hw_data->set_ssm_wdtimer = adf_gen2_set_ssm_wdtimer;
-	hw_data->get_pf2vf_offset = get_pf2vf_offset;
+	hw_data->get_pf2vf_offset = adf_gen2_get_pf2vf_offset;
+	hw_data->get_vf2pf_sources = adf_gen2_get_vf2pf_sources;
+	hw_data->enable_vf2pf_interrupts = adf_gen2_enable_vf2pf_interrupts;
+	hw_data->disable_vf2pf_interrupts = adf_gen2_disable_vf2pf_interrupts;
 	hw_data->enable_pfvf_comms = adf_enable_pf2vf_comms;
 	hw_data->disable_iov = adf_disable_sriov;
 	hw_data->min_iov_compat_ver = ADF_PFVF_COMPAT_THIS_VERSION;

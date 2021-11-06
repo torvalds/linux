@@ -3108,4 +3108,13 @@
 				<4 RK_PA0 3 &pcfg_pull_none_drv_level_2>;
 		};
 	};
+
+	tsadc {
+		/omit-if-no-ref/
+		tsadc_pin: tsadc-pin {
+			rockchip,pins =
+				/* tsadc_pin */
+				<0 RK_PA1 0 &pcfg_pull_none>;
+		};
+	};
 };

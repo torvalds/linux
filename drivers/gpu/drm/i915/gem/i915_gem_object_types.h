@@ -288,17 +288,23 @@ struct drm_i915_gem_object {
 	I915_SELFTEST_DECLARE(struct list_head st_link);
 
 	unsigned long flags;
-#define I915_BO_ALLOC_CONTIGUOUS BIT(0)
-#define I915_BO_ALLOC_VOLATILE   BIT(1)
-#define I915_BO_ALLOC_CPU_CLEAR  BIT(2)
-#define I915_BO_ALLOC_USER       BIT(3)
+#define I915_BO_ALLOC_CONTIGUOUS  BIT(0)
+#define I915_BO_ALLOC_VOLATILE    BIT(1)
+#define I915_BO_ALLOC_CPU_CLEAR   BIT(2)
+#define I915_BO_ALLOC_USER        BIT(3)
+/* Object is allowed to lose its contents on suspend / resume, even if pinned */
+#define I915_BO_ALLOC_PM_VOLATILE BIT(4)
+/* Object needs to be restored early using memcpy during resume */
+#define I915_BO_ALLOC_PM_EARLY    BIT(5)
 #define I915_BO_ALLOC_FLAGS (I915_BO_ALLOC_CONTIGUOUS | \
 			     I915_BO_ALLOC_VOLATILE | \
 			     I915_BO_ALLOC_CPU_CLEAR | \
-			     I915_BO_ALLOC_USER)
-#define I915_BO_READONLY         BIT(4)
-#define I915_TILING_QUIRK_BIT    5 /* unknown swizzling; do not release! */
-
+			     I915_BO_ALLOC_USER | \
+			     I915_BO_ALLOC_PM_VOLATILE | \
+			     I915_BO_ALLOC_PM_EARLY)
+#define I915_BO_READONLY          BIT(6)
+#define I915_TILING_QUIRK_BIT     7 /* unknown swizzling; do not release! */
+#define I915_BO_PROTECTED         BIT(8)
 	/**
 	 * @mem_flags - Mutable placement-related flags
 	 *
@@ -421,6 +427,33 @@ struct drm_i915_gem_object {
 	 * can freely bypass the CPU cache when touching the pages with the GPU,
 	 * where the kernel is completely unaware. On such platform we need
 	 * apply the sledgehammer-on-acquire regardless of the @cache_coherent.
+	 *
+	 * Special care is taken on non-LLC platforms, to prevent potential
+	 * information leak. The driver currently ensures:
+	 *
+	 *   1. All userspace objects, by default, have @cache_level set as
+	 *   I915_CACHE_NONE. The only exception is userptr objects, where we
+	 *   instead force I915_CACHE_LLC, but we also don't allow userspace to
+	 *   ever change the @cache_level for such objects. Another special case
+	 *   is dma-buf, which doesn't rely on @cache_dirty,  but there we
+	 *   always do a forced flush when acquiring the pages, if there is a
+	 *   chance that the pages can be read directly from main memory with
+	 *   the GPU.
+	 *
+	 *   2. All I915_CACHE_NONE objects have @cache_dirty initially true.
+	 *
+	 *   3. All swapped-out objects(i.e shmem) have @cache_dirty set to
+	 *   true.
+	 *
+	 *   4. The @cache_dirty is never freely reset before the initial
+	 *   flush, even if userspace adjusts the @cache_level through the
+	 *   i915_gem_set_caching_ioctl.
+	 *
+	 *   5. All @cache_dirty objects(including swapped-in) are initially
+	 *   flushed with a synchronous call to drm_clflush_sg in
+	 *   __i915_gem_object_set_pages. The @cache_dirty can be freely reset
+	 *   at this point. All further asynchronous clfushes are never security
+	 *   critical, i.e userspace is free to race against itself.
 	 */
 	unsigned int cache_dirty:1;
 
@@ -534,8 +567,16 @@ struct drm_i915_gem_object {
 	struct {
 		struct sg_table *cached_io_st;
 		struct i915_gem_object_page_iter get_io_page;
+		struct drm_i915_gem_object *backup;
 		bool created:1;
 	} ttm;
+
+	/*
+	 * Record which PXP key instance this object was created against (if
+	 * any), so we can use it to determine if the encryption is valid by
+	 * comparing against the current key instance.
+	 */
+	u32 pxp_key_instance;
 
 	/** Record of address bit 17 of each page at last unbind. */
 	unsigned long *bit_17;

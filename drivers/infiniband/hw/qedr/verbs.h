@@ -53,7 +53,6 @@ int qedr_alloc_xrcd(struct ib_xrcd *ibxrcd, struct ib_udata *udata);
 int qedr_dealloc_xrcd(struct ib_xrcd *ibxrcd, struct ib_udata *udata);
 int qedr_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		   struct ib_udata *udata);
-int qedr_resize_cq(struct ib_cq *, int cqe, struct ib_udata *);
 int qedr_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata);
 int qedr_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
 int qedr_create_qp(struct ib_qp *qp, struct ib_qp_init_attr *attrs,

@@ -62,7 +62,7 @@ struct pt_ctx {
 
 struct pt_desc {
 	u64 ctl_bitmask;
-	u32 addr_range;
+	u32 num_address_ranges;
 	u32 caps[PT_CPUID_REGS_NUM * PT_CPUID_LEAVES];
 	struct pt_ctx host;
 	struct pt_ctx guest;

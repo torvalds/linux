@@ -6,25 +6,16 @@
  * Added /proc/sys/net/ipv4 directory entry (empty =) ). [MS]
  */
 
-#include <linux/mm.h>
-#include <linux/module.h>
 #include <linux/sysctl.h>
-#include <linux/igmp.h>
-#include <linux/inetdevice.h>
 #include <linux/seqlock.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/nsproxy.h>
-#include <linux/swap.h>
-#include <net/snmp.h>
 #include <net/icmp.h>
 #include <net/ip.h>
 #include <net/ip_fib.h>
-#include <net/route.h>
 #include <net/tcp.h>
 #include <net/udp.h>
 #include <net/cipso_ipv4.h>
-#include <net/inet_frag.h>
 #include <net/ping.h>
 #include <net/protocol.h>
 #include <net/netevent.h>
@@ -593,18 +584,6 @@ static struct ctl_table ipv4_table[] = {
 		.proc_handler	= proc_douintvec_minmax,
 		.extra1		= &sysctl_fib_sync_mem_min,
 		.extra2		= &sysctl_fib_sync_mem_max,
-	},
-	{
-		.procname	= "tcp_rx_skb_cache",
-		.data		= &tcp_rx_skb_cache_key.key,
-		.mode		= 0644,
-		.proc_handler	= proc_do_static_key,
-	},
-	{
-		.procname	= "tcp_tx_skb_cache",
-		.data		= &tcp_tx_skb_cache_key.key,
-		.mode		= 0644,
-		.proc_handler	= proc_do_static_key,
 	},
 	{ }
 };

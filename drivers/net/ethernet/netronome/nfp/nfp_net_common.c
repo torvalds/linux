@@ -2067,7 +2067,7 @@ static int nfp_net_poll(struct napi_struct *napi, int budget)
 		if (napi_complete_done(napi, pkts_polled))
 			nfp_net_irq_unmask(r_vec->nfp_net, r_vec->irq_entry);
 
-	if (r_vec->nfp_net->rx_coalesce_adapt_on) {
+	if (r_vec->nfp_net->rx_coalesce_adapt_on && r_vec->rx_ring) {
 		struct dim_sample dim_sample = {};
 		unsigned int start;
 		u64 pkts, bytes;
@@ -2082,7 +2082,7 @@ static int nfp_net_poll(struct napi_struct *napi, int budget)
 		net_dim(&r_vec->rx_dim, dim_sample);
 	}
 
-	if (r_vec->nfp_net->tx_coalesce_adapt_on) {
+	if (r_vec->nfp_net->tx_coalesce_adapt_on && r_vec->tx_ring) {
 		struct dim_sample dim_sample = {};
 		unsigned int start;
 		u64 pkts, bytes;
@@ -3016,10 +3016,8 @@ static void nfp_net_rx_dim_work(struct work_struct *work)
 
 	/* copy RX interrupt coalesce parameters */
 	value = (moder.pkts << 16) | (factor * moder.usec);
-	rtnl_lock();
 	nn_writel(nn, NFP_NET_CFG_RXR_IRQ_MOD(r_vec->rx_ring->idx), value);
 	(void)nfp_net_reconfig(nn, NFP_NET_CFG_UPDATE_IRQMOD);
-	rtnl_unlock();
 
 	dim->state = DIM_START_MEASURE;
 }
@@ -3047,10 +3045,8 @@ static void nfp_net_tx_dim_work(struct work_struct *work)
 
 	/* copy TX interrupt coalesce parameters */
 	value = (moder.pkts << 16) | (factor * moder.usec);
-	rtnl_lock();
 	nn_writel(nn, NFP_NET_CFG_TXR_IRQ_MOD(r_vec->tx_ring->idx), value);
 	(void)nfp_net_reconfig(nn, NFP_NET_CFG_UPDATE_IRQMOD);
-	rtnl_unlock();
 
 	dim->state = DIM_START_MEASURE;
 }

@@ -18,7 +18,7 @@
 
 static int psb_output_init(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	psb_intel_lvds_init(dev, &dev_priv->mode_dev);
 	psb_intel_sdvo_init(dev, SDVOB);
 	return 0;
@@ -55,7 +55,7 @@ static int psb_get_brightness(struct backlight_device *bd)
 
 static int psb_backlight_setup(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	unsigned long core_clock;
 	/* u32 bl_max_freq; */
 	/* unsigned long value; */
@@ -110,7 +110,7 @@ static const struct backlight_ops psb_ops = {
 
 static int psb_backlight_init(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	int ret;
 	struct backlight_properties props;
 
@@ -149,7 +149,7 @@ static int psb_backlight_init(struct drm_device *dev)
 
 static void psb_init_pm(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 
 	u32 gating = PSB_RSGX32(PSB_CR_CLKGATECTL);
 	gating &= ~3;	/* Disable 2D clock gating */
@@ -167,7 +167,7 @@ static void psb_init_pm(struct drm_device *dev)
  */
 static int psb_save_display_registers(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct drm_crtc *crtc;
 	struct gma_connector *connector;
 	struct psb_state *regs = &dev_priv->regs.psb;
@@ -205,7 +205,7 @@ static int psb_save_display_registers(struct drm_device *dev)
  */
 static int psb_restore_display_registers(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct drm_crtc *crtc;
 	struct gma_connector *connector;
 	struct psb_state *regs = &dev_priv->regs.psb;
@@ -300,7 +300,7 @@ static const struct psb_offset psb_regmap[2] = {
 
 static int psb_chip_setup(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	dev_priv->regmap = psb_regmap;
 	gma_get_core_freq(dev);
 	gma_intel_setup_gmbus(dev);
@@ -311,7 +311,7 @@ static int psb_chip_setup(struct drm_device *dev)
 
 static void psb_chip_teardown(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	psb_lid_timer_takedown(dev_priv);
 	gma_intel_teardown_gmbus(dev);
 }

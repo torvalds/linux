@@ -304,7 +304,7 @@ struct via686a_data {
 	const char *name;
 	struct device *hwmon_dev;
 	struct mutex update_lock;
-	char valid;		/* !=0 if following fields are valid */
+	bool valid;		/* true if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 
 	u8 in[5];		/* Register value */
@@ -800,7 +800,7 @@ static struct via686a_data *via686a_update_device(struct device *dev)
 				       VIA686A_REG_ALARM1) |
 		    (via686a_read_value(data, VIA686A_REG_ALARM2) << 8);
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->update_lock);

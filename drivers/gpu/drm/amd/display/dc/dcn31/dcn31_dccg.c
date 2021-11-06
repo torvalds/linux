@@ -26,6 +26,7 @@
 #include "reg_helper.h"
 #include "core_types.h"
 #include "dcn31_dccg.h"
+#include "dal_asic_id.h"
 
 #define TO_DCN_DCCG(dccg)\
 	container_of(dccg, struct dcn_dccg, base)
@@ -41,6 +42,358 @@
 	dccg_dcn->base.ctx
 #define DC_LOGGER \
 	dccg->ctx->logger
+
+static void dccg31_update_dpp_dto(struct dccg *dccg, int dpp_inst, int req_dppclk)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	if (dccg->ref_dppclk && req_dppclk) {
+		int ref_dppclk = dccg->ref_dppclk;
+		int modulo, phase;
+
+		// phase / modulo = dpp pipe clk / dpp global clk
+		modulo = 0xff;   // use FF at the end
+		phase = ((modulo * req_dppclk) + ref_dppclk - 1) / ref_dppclk;
+
+		if (phase > 0xff) {
+			ASSERT(false);
+			phase = 0xff;
+		}
+
+		REG_SET_2(DPPCLK_DTO_PARAM[dpp_inst], 0,
+				DPPCLK0_DTO_PHASE, phase,
+				DPPCLK0_DTO_MODULO, modulo);
+		REG_UPDATE(DPPCLK_DTO_CTRL,
+				DPPCLK_DTO_ENABLE[dpp_inst], 1);
+	} else {
+		//DTO must be enabled to generate a 0Hz clock output
+		if (dccg->ctx->dc->debug.root_clock_optimization.bits.dpp) {
+			REG_UPDATE(DPPCLK_DTO_CTRL,
+					DPPCLK_DTO_ENABLE[dpp_inst], 1);
+			REG_SET_2(DPPCLK_DTO_PARAM[dpp_inst], 0,
+					DPPCLK0_DTO_PHASE, 0,
+					DPPCLK0_DTO_MODULO, 1);
+		} else {
+			REG_UPDATE(DPPCLK_DTO_CTRL,
+					DPPCLK_DTO_ENABLE[dpp_inst], 0);
+		}
+	}
+	dccg->pipe_dppclk_khz[dpp_inst] = req_dppclk;
+}
+
+static enum phyd32clk_clock_source get_phy_mux_symclk(
+		struct dcn_dccg *dccg_dcn,
+		enum phyd32clk_clock_source src)
+{
+	if (dccg_dcn->base.ctx->asic_id.hw_internal_rev == YELLOW_CARP_B0) {
+		if (src == PHYD32CLKC)
+			src = PHYD32CLKF;
+		if (src == PHYD32CLKD)
+			src = PHYD32CLKG;
+	}
+	return src;
+}
+
+static void dccg31_enable_dpstreamclk(struct dccg *dccg, int otg_inst)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	/* enabled to select one of the DTBCLKs for pipe */
+	switch (otg_inst) {
+	case 0:
+		REG_UPDATE(DPSTREAMCLK_CNTL,
+				DPSTREAMCLK_PIPE0_EN, 1);
+		break;
+	case 1:
+		REG_UPDATE(DPSTREAMCLK_CNTL,
+				DPSTREAMCLK_PIPE1_EN, 1);
+		break;
+	case 2:
+		REG_UPDATE(DPSTREAMCLK_CNTL,
+				DPSTREAMCLK_PIPE2_EN, 1);
+		break;
+	case 3:
+		REG_UPDATE(DPSTREAMCLK_CNTL,
+				DPSTREAMCLK_PIPE3_EN, 1);
+		break;
+	default:
+		BREAK_TO_DEBUGGER();
+		return;
+	}
+	if (dccg->ctx->dc->debug.root_clock_optimization.bits.dpstream)
+		REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
+			DPSTREAMCLK_ROOT_GATE_DISABLE, 1);
+}
+
+static void dccg31_disable_dpstreamclk(struct dccg *dccg, int otg_inst)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	if (dccg->ctx->dc->debug.root_clock_optimization.bits.dpstream)
+		REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
+				DPSTREAMCLK_ROOT_GATE_DISABLE, 0);
+
+	switch (otg_inst) {
+	case 0:
+		REG_UPDATE(DPSTREAMCLK_CNTL,
+				DPSTREAMCLK_PIPE0_EN, 0);
+		break;
+	case 1:
+		REG_UPDATE(DPSTREAMCLK_CNTL,
+				DPSTREAMCLK_PIPE1_EN, 0);
+		break;
+	case 2:
+		REG_UPDATE(DPSTREAMCLK_CNTL,
+				DPSTREAMCLK_PIPE2_EN, 0);
+		break;
+	case 3:
+		REG_UPDATE(DPSTREAMCLK_CNTL,
+				DPSTREAMCLK_PIPE3_EN, 0);
+		break;
+	default:
+		BREAK_TO_DEBUGGER();
+		return;
+	}
+}
+
+void dccg31_set_dpstreamclk(
+		struct dccg *dccg,
+		enum hdmistreamclk_source src,
+		int otg_inst)
+{
+	if (src == REFCLK)
+		dccg31_disable_dpstreamclk(dccg, otg_inst);
+	else
+		dccg31_enable_dpstreamclk(dccg, otg_inst);
+}
+
+void dccg31_enable_symclk32_se(
+		struct dccg *dccg,
+		int hpo_se_inst,
+		enum phyd32clk_clock_source phyd32clk)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	phyd32clk = get_phy_mux_symclk(dccg_dcn, phyd32clk);
+
+	/* select one of the PHYD32CLKs as the source for symclk32_se */
+	switch (hpo_se_inst) {
+	case 0:
+		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_se)
+			REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
+					SYMCLK32_ROOT_SE0_GATE_DISABLE, 1);
+		REG_UPDATE_2(SYMCLK32_SE_CNTL,
+				SYMCLK32_SE0_SRC_SEL, phyd32clk,
+				SYMCLK32_SE0_EN, 1);
+		break;
+	case 1:
+		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_se)
+			REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
+					SYMCLK32_ROOT_SE1_GATE_DISABLE, 1);
+		REG_UPDATE_2(SYMCLK32_SE_CNTL,
+				SYMCLK32_SE1_SRC_SEL, phyd32clk,
+				SYMCLK32_SE1_EN, 1);
+		break;
+	case 2:
+		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_se)
+			REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
+					SYMCLK32_ROOT_SE2_GATE_DISABLE, 1);
+		REG_UPDATE_2(SYMCLK32_SE_CNTL,
+				SYMCLK32_SE2_SRC_SEL, phyd32clk,
+				SYMCLK32_SE2_EN, 1);
+		break;
+	case 3:
+		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_se)
+			REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
+					SYMCLK32_ROOT_SE3_GATE_DISABLE, 1);
+		REG_UPDATE_2(SYMCLK32_SE_CNTL,
+				SYMCLK32_SE3_SRC_SEL, phyd32clk,
+				SYMCLK32_SE3_EN, 1);
+		break;
+	default:
+		BREAK_TO_DEBUGGER();
+		return;
+	}
+}
+
+void dccg31_disable_symclk32_se(
+		struct dccg *dccg,
+		int hpo_se_inst)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	/* set refclk as the source for symclk32_se */
+	switch (hpo_se_inst) {
+	case 0:
+		REG_UPDATE_2(SYMCLK32_SE_CNTL,
+				SYMCLK32_SE0_SRC_SEL, 0,
+				SYMCLK32_SE0_EN, 0);
+		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_se)
+			REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
+					SYMCLK32_ROOT_SE0_GATE_DISABLE, 0);
+		break;
+	case 1:
+		REG_UPDATE_2(SYMCLK32_SE_CNTL,
+				SYMCLK32_SE1_SRC_SEL, 0,
+				SYMCLK32_SE1_EN, 0);
+		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_se)
+			REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
+					SYMCLK32_ROOT_SE1_GATE_DISABLE, 0);
+		break;
+	case 2:
+		REG_UPDATE_2(SYMCLK32_SE_CNTL,
+				SYMCLK32_SE2_SRC_SEL, 0,
+				SYMCLK32_SE2_EN, 0);
+		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_se)
+			REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
+					SYMCLK32_ROOT_SE2_GATE_DISABLE, 0);
+		break;
+	case 3:
+		REG_UPDATE_2(SYMCLK32_SE_CNTL,
+				SYMCLK32_SE3_SRC_SEL, 0,
+				SYMCLK32_SE3_EN, 0);
+		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_se)
+			REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
+					SYMCLK32_ROOT_SE3_GATE_DISABLE, 0);
+		break;
+	default:
+		BREAK_TO_DEBUGGER();
+		return;
+	}
+}
+
+void dccg31_enable_symclk32_le(
+		struct dccg *dccg,
+		int hpo_le_inst,
+		enum phyd32clk_clock_source phyd32clk)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	phyd32clk = get_phy_mux_symclk(dccg_dcn, phyd32clk);
+
+	/* select one of the PHYD32CLKs as the source for symclk32_le */
+	switch (hpo_le_inst) {
+	case 0:
+		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_le)
+			REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
+					SYMCLK32_ROOT_LE0_GATE_DISABLE, 1);
+		REG_UPDATE_2(SYMCLK32_LE_CNTL,
+				SYMCLK32_LE0_SRC_SEL, phyd32clk,
+				SYMCLK32_LE0_EN, 1);
+		break;
+	case 1:
+		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_le)
+			REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
+					SYMCLK32_ROOT_LE1_GATE_DISABLE, 1);
+		REG_UPDATE_2(SYMCLK32_LE_CNTL,
+				SYMCLK32_LE1_SRC_SEL, phyd32clk,
+				SYMCLK32_LE1_EN, 1);
+		break;
+	default:
+		BREAK_TO_DEBUGGER();
+		return;
+	}
+}
+
+void dccg31_disable_symclk32_le(
+		struct dccg *dccg,
+		int hpo_le_inst)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	/* set refclk as the source for symclk32_le */
+	switch (hpo_le_inst) {
+	case 0:
+		REG_UPDATE_2(SYMCLK32_LE_CNTL,
+				SYMCLK32_LE0_SRC_SEL, 0,
+				SYMCLK32_LE0_EN, 0);
+		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_le)
+			REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
+					SYMCLK32_ROOT_LE0_GATE_DISABLE, 0);
+		break;
+	case 1:
+		REG_UPDATE_2(SYMCLK32_LE_CNTL,
+				SYMCLK32_LE1_SRC_SEL, 0,
+				SYMCLK32_LE1_EN, 0);
+		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_le)
+			REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
+					SYMCLK32_ROOT_LE1_GATE_DISABLE, 0);
+		break;
+	default:
+		BREAK_TO_DEBUGGER();
+		return;
+	}
+}
+
+static void dccg31_disable_dscclk(struct dccg *dccg, int inst)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	if (!dccg->ctx->dc->debug.root_clock_optimization.bits.dsc)
+		return;
+	//DTO must be enabled to generate a 0 Hz clock output
+	switch (inst) {
+	case 0:
+		REG_UPDATE(DSCCLK_DTO_CTRL,
+				DSCCLK0_DTO_ENABLE, 1);
+		REG_UPDATE_2(DSCCLK0_DTO_PARAM,
+				DSCCLK0_DTO_PHASE, 0,
+				DSCCLK0_DTO_MODULO, 1);
+		break;
+	case 1:
+		REG_UPDATE(DSCCLK_DTO_CTRL,
+				DSCCLK1_DTO_ENABLE, 1);
+		REG_UPDATE_2(DSCCLK1_DTO_PARAM,
+				DSCCLK1_DTO_PHASE, 0,
+				DSCCLK1_DTO_MODULO, 1);
+		break;
+	case 2:
+		REG_UPDATE(DSCCLK_DTO_CTRL,
+				DSCCLK2_DTO_ENABLE, 1);
+		REG_UPDATE_2(DSCCLK2_DTO_PARAM,
+				DSCCLK2_DTO_PHASE, 0,
+				DSCCLK2_DTO_MODULO, 1);
+		break;
+	default:
+		BREAK_TO_DEBUGGER();
+		return;
+	}
+}
+
+static void dccg31_enable_dscclk(struct dccg *dccg, int inst)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	if (!dccg->ctx->dc->debug.root_clock_optimization.bits.dsc)
+		return;
+	//Disable DTO
+	switch (inst) {
+	case 0:
+		REG_UPDATE_2(DSCCLK0_DTO_PARAM,
+				DSCCLK0_DTO_PHASE, 0,
+				DSCCLK0_DTO_MODULO, 0);
+		REG_UPDATE(DSCCLK_DTO_CTRL,
+				DSCCLK0_DTO_ENABLE, 0);
+		break;
+	case 1:
+		REG_UPDATE_2(DSCCLK1_DTO_PARAM,
+				DSCCLK1_DTO_PHASE, 0,
+				DSCCLK1_DTO_MODULO, 0);
+		REG_UPDATE(DSCCLK_DTO_CTRL,
+				DSCCLK1_DTO_ENABLE, 0);
+		break;
+	case 2:
+		REG_UPDATE_2(DSCCLK2_DTO_PARAM,
+				DSCCLK2_DTO_PHASE, 0,
+				DSCCLK2_DTO_MODULO, 0);
+		REG_UPDATE(DSCCLK_DTO_CTRL,
+				DSCCLK2_DTO_ENABLE, 0);
+		break;
+	default:
+		BREAK_TO_DEBUGGER();
+		return;
+	}
+}
 
 void dccg31_set_physymclk(
 		struct dccg *dccg,
@@ -241,16 +594,44 @@ static void dccg31_set_dispclk_change_mode(
 
 void dccg31_init(struct dccg *dccg)
 {
+	/* Set HPO stream encoder to use refclk to avoid case where PHY is
+	 * disabled and SYMCLK32 for HPO SE is sourced from PHYD32CLK which
+	 * will cause DCN to hang.
+	 */
+	dccg31_disable_symclk32_se(dccg, 0);
+	dccg31_disable_symclk32_se(dccg, 1);
+	dccg31_disable_symclk32_se(dccg, 2);
+	dccg31_disable_symclk32_se(dccg, 3);
+
+	if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_le) {
+		dccg31_disable_symclk32_le(dccg, 0);
+		dccg31_disable_symclk32_le(dccg, 1);
+	}
+
+	if (dccg->ctx->dc->debug.root_clock_optimization.bits.dpstream) {
+		dccg31_disable_dpstreamclk(dccg, 0);
+		dccg31_disable_dpstreamclk(dccg, 1);
+		dccg31_disable_dpstreamclk(dccg, 2);
+		dccg31_disable_dpstreamclk(dccg, 3);
+	}
+
 }
 
 static const struct dccg_funcs dccg31_funcs = {
-	.update_dpp_dto = dccg2_update_dpp_dto,
+	.update_dpp_dto = dccg31_update_dpp_dto,
 	.get_dccg_ref_freq = dccg31_get_dccg_ref_freq,
 	.dccg_init = dccg31_init,
+	.set_dpstreamclk = dccg31_set_dpstreamclk,
+	.enable_symclk32_se = dccg31_enable_symclk32_se,
+	.disable_symclk32_se = dccg31_disable_symclk32_se,
+	.enable_symclk32_le = dccg31_enable_symclk32_le,
+	.disable_symclk32_le = dccg31_disable_symclk32_le,
 	.set_physymclk = dccg31_set_physymclk,
 	.set_dtbclk_dto = dccg31_set_dtbclk_dto,
 	.set_audio_dtbclk_dto = dccg31_set_audio_dtbclk_dto,
 	.set_dispclk_change_mode = dccg31_set_dispclk_change_mode,
+	.disable_dsc = dccg31_disable_dscclk,
+	.enable_dsc = dccg31_enable_dscclk,
 };
 
 struct dccg *dccg31_create(

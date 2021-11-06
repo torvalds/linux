@@ -56,19 +56,6 @@ static inline struct list_head *get_list_head(struct __queue *queue)
 	return (&(queue->queue));
 }
 
-static inline int _enter_critical_mutex(struct mutex *pmutex, unsigned long *pirqL)
-{
-	int ret;
-
-	ret = mutex_lock_interruptible(pmutex);
-	return ret;
-}
-
-static inline void _exit_critical_mutex(struct mutex *pmutex, unsigned long *pirqL)
-{
-		mutex_unlock(pmutex);
-}
-
 static inline void rtw_list_delete(struct list_head *plist)
 {
 	list_del_init(plist);
@@ -154,11 +141,11 @@ extern unsigned char RSN_TKIP_CIPHER[4];
 
 void *rtw_malloc2d(int h, int w, int size);
 
-u32  _rtw_down_sema(struct semaphore *sema);
-void _rtw_mutex_init(struct mutex *pmutex);
-void _rtw_mutex_free(struct mutex *pmutex);
-
-void _rtw_init_queue(struct __queue *pqueue);
+#define rtw_init_queue(q)					\
+	do {							\
+		INIT_LIST_HEAD(&((q)->queue));			\
+		spin_lock_init(&((q)->lock));			\
+	} while (0)
 
 u32  rtw_systime_to_ms(u32 systime);
 u32  rtw_ms_to_systime(u32 ms);
@@ -166,30 +153,15 @@ s32  rtw_get_passing_time_ms(u32 start);
 
 void rtw_usleep_os(int us);
 
-u32  rtw_atoi(u8 *s);
-
 static inline unsigned char _cancel_timer_ex(struct timer_list *ptimer)
 {
 	return del_timer_sync(ptimer);
-}
-
-static __inline void thread_enter(char *name)
-{
-#ifdef daemonize
-	daemonize("%s", name);
-#endif
-	allow_signal(SIGTERM);
 }
 
 static inline void flush_signals_thread(void)
 {
 	if (signal_pending (current))
 		flush_signals(current);
-}
-
-static inline int res_to_status(int res)
-{
-	return res;
 }
 
 #define _RND(sz, r) ((((sz)+((r)-1))/(r))*(r))
@@ -302,12 +274,10 @@ struct rtw_cbuf {
 	u32 write;
 	u32 read;
 	u32 size;
-	void *bufs[0];
+	void *bufs[];
 };
 
-bool rtw_cbuf_full(struct rtw_cbuf *cbuf);
 bool rtw_cbuf_empty(struct rtw_cbuf *cbuf);
-bool rtw_cbuf_push(struct rtw_cbuf *cbuf, void *buf);
 void *rtw_cbuf_pop(struct rtw_cbuf *cbuf);
 struct rtw_cbuf *rtw_cbuf_alloc(u32 size);
 int wifirate2_ratetbl_inx(unsigned char rate);

@@ -1318,7 +1318,7 @@ static int tegra_qspi_probe(struct platform_device *pdev)
 exit_free_irq:
 	free_irq(qspi_irq, tqspi);
 exit_pm_disable:
-	pm_runtime_disable(&pdev->dev);
+	pm_runtime_force_suspend(&pdev->dev);
 	tegra_qspi_deinit_dma(tqspi);
 	return ret;
 }
@@ -1330,7 +1330,7 @@ static int tegra_qspi_remove(struct platform_device *pdev)
 
 	spi_unregister_master(master);
 	free_irq(tqspi->irq, tqspi);
-	pm_runtime_disable(&pdev->dev);
+	pm_runtime_force_suspend(&pdev->dev);
 	tegra_qspi_deinit_dma(tqspi);
 
 	return 0;

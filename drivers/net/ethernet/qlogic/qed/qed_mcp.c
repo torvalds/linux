@@ -17,6 +17,7 @@
 #include "qed_cxt.h"
 #include "qed_dcbx.h"
 #include "qed_hsi.h"
+#include "qed_mfw_hsi.h"
 #include "qed_hw.h"
 #include "qed_mcp.h"
 #include "qed_reg_addr.h"
@@ -30,11 +31,11 @@
 #define QED_MCP_RESET_RETRIES	(50 * 1000)	/* Account for 500 msec */
 
 #define DRV_INNER_WR(_p_hwfn, _p_ptt, _ptr, _offset, _val)	     \
-	qed_wr(_p_hwfn, _p_ptt, (_p_hwfn->mcp_info->_ptr + _offset), \
+	qed_wr(_p_hwfn, _p_ptt, (_p_hwfn->mcp_info->_ptr + (_offset)), \
 	       _val)
 
 #define DRV_INNER_RD(_p_hwfn, _p_ptt, _ptr, _offset) \
-	qed_rd(_p_hwfn, _p_ptt, (_p_hwfn->mcp_info->_ptr + _offset))
+	qed_rd(_p_hwfn, _p_ptt, (_p_hwfn->mcp_info->_ptr + (_offset)))
 
 #define DRV_MB_WR(_p_hwfn, _p_ptt, _field, _val)  \
 	DRV_INNER_WR(p_hwfn, _p_ptt, drv_mb_addr, \
@@ -384,7 +385,7 @@ qed_mcp_update_pending_cmd(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	p_mb_params->mcp_param = DRV_MB_RD(p_hwfn, p_ptt, fw_mb_param);
 
 	/* Get the union data */
-	if (p_mb_params->p_data_dst != NULL && p_mb_params->data_dst_size) {
+	if (p_mb_params->p_data_dst && p_mb_params->data_dst_size) {
 		u32 union_data_addr = p_hwfn->mcp_info->drv_mb_addr +
 				      offsetof(struct public_drv_mb,
 					       union_data);
@@ -410,7 +411,7 @@ static void __qed_mcp_cmd_and_union(struct qed_hwfn *p_hwfn,
 	union_data_addr = p_hwfn->mcp_info->drv_mb_addr +
 			  offsetof(struct public_drv_mb, union_data);
 	memset(&union_data, 0, sizeof(union_data));
-	if (p_mb_params->p_data_src != NULL && p_mb_params->data_src_size)
+	if (p_mb_params->p_data_src && p_mb_params->data_src_size)
 		memcpy(&union_data, p_mb_params->p_data_src,
 		       p_mb_params->data_src_size);
 	qed_memcpy_to(p_hwfn, p_ptt, union_data_addr, &union_data,
@@ -671,7 +672,8 @@ int qed_mcp_nvm_rd_cmd(struct qed_hwfn *p_hwfn,
 		       u32 cmd,
 		       u32 param,
 		       u32 *o_mcp_resp,
-		       u32 *o_mcp_param, u32 *o_txn_size, u32 *o_buf)
+		       u32 *o_mcp_param,
+		       u32 *o_txn_size, u32 *o_buf, bool b_can_sleep)
 {
 	struct qed_mcp_mb_params mb_params;
 	u8 raw_data[MCP_DRV_NVM_BUF_LEN];
@@ -684,6 +686,8 @@ int qed_mcp_nvm_rd_cmd(struct qed_hwfn *p_hwfn,
 
 	/* Use the maximal value since the actual one is part of the response */
 	mb_params.data_dst_size = MCP_DRV_NVM_BUF_LEN;
+	if (b_can_sleep)
+		mb_params.flags = QED_MB_FLAG_CAN_SLEEP;
 
 	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
 	if (rc)
@@ -916,7 +920,6 @@ enum qed_load_req_force {
 };
 
 static void qed_get_mfw_force_cmd(struct qed_hwfn *p_hwfn,
-
 				  enum qed_load_req_force force_cmd,
 				  u8 *p_mfw_force_cmd)
 {
@@ -1526,15 +1529,13 @@ int qed_mcp_set_link(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, bool b_up)
 	    FW_MB_PARAM_FEATURE_SUPPORT_EXT_SPEED_FEC_CONTROL) {
 		ext_speed = 0;
 		if (params->ext_speed.autoneg)
-			ext_speed |= ETH_EXT_SPEED_AN;
+			ext_speed |= ETH_EXT_SPEED_NONE;
 
 		val = params->ext_speed.forced_speed;
 		if (val & QED_EXT_SPEED_1G)
 			ext_speed |= ETH_EXT_SPEED_1G;
 		if (val & QED_EXT_SPEED_10G)
 			ext_speed |= ETH_EXT_SPEED_10G;
-		if (val & QED_EXT_SPEED_20G)
-			ext_speed |= ETH_EXT_SPEED_20G;
 		if (val & QED_EXT_SPEED_25G)
 			ext_speed |= ETH_EXT_SPEED_25G;
 		if (val & QED_EXT_SPEED_40G)
@@ -1560,8 +1561,6 @@ int qed_mcp_set_link(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, bool b_up)
 			ext_speed |= ETH_EXT_ADV_SPEED_1G;
 		if (val & QED_EXT_SPEED_MASK_10G)
 			ext_speed |= ETH_EXT_ADV_SPEED_10G;
-		if (val & QED_EXT_SPEED_MASK_20G)
-			ext_speed |= ETH_EXT_ADV_SPEED_20G;
 		if (val & QED_EXT_SPEED_MASK_25G)
 			ext_speed |= ETH_EXT_ADV_SPEED_25G;
 		if (val & QED_EXT_SPEED_MASK_40G)
@@ -2081,7 +2080,7 @@ int qed_mcp_get_mfw_ver(struct qed_hwfn *p_hwfn,
 			struct qed_ptt *p_ptt,
 			u32 *p_mfw_ver, u32 *p_running_bundle_id)
 {
-	u32 global_offsize;
+	u32 global_offsize, public_base;
 
 	if (IS_VF(p_hwfn->cdev)) {
 		if (p_hwfn->vf_iov_info) {
@@ -2098,16 +2097,16 @@ int qed_mcp_get_mfw_ver(struct qed_hwfn *p_hwfn,
 		}
 	}
 
+	public_base = p_hwfn->mcp_info->public_base;
 	global_offsize = qed_rd(p_hwfn, p_ptt,
-				SECTION_OFFSIZE_ADDR(p_hwfn->
-						     mcp_info->public_base,
+				SECTION_OFFSIZE_ADDR(public_base,
 						     PUBLIC_GLOBAL));
 	*p_mfw_ver =
 	    qed_rd(p_hwfn, p_ptt,
 		   SECTION_ADDR(global_offsize,
 				0) + offsetof(struct public_global, mfw_ver));
 
-	if (p_running_bundle_id != NULL) {
+	if (p_running_bundle_id) {
 		*p_running_bundle_id = qed_rd(p_hwfn, p_ptt,
 					      SECTION_ADDR(global_offsize, 0) +
 					      offsetof(struct public_global,
@@ -2209,6 +2208,7 @@ int qed_mcp_get_transceiver_data(struct qed_hwfn *p_hwfn,
 
 	return 0;
 }
+
 static bool qed_is_transceiver_ready(u32 transceiver_state,
 				     u32 transceiver_type)
 {
@@ -2378,7 +2378,7 @@ qed_mcp_get_shmem_proto_legacy(struct qed_hwfn *p_hwfn,
 
 	DP_VERBOSE(p_hwfn, NETIF_MSG_IFUP,
 		   "According to Legacy capabilities, L2 personality is %08x\n",
-		   (u32) *p_proto);
+		   (u32)*p_proto);
 }
 
 static int
@@ -2423,7 +2423,7 @@ qed_mcp_get_shmem_proto_mfw(struct qed_hwfn *p_hwfn,
 	DP_VERBOSE(p_hwfn,
 		   NETIF_MSG_IFUP,
 		   "According to capabilities, L2 personality is %08x [resp %08x param %08x]\n",
-		   (u32) *p_proto, resp, param);
+		   (u32)*p_proto, resp, param);
 	return 0;
 }
 
@@ -2444,9 +2444,6 @@ qed_mcp_get_shmem_proto(struct qed_hwfn *p_hwfn,
 		break;
 	case FUNC_MF_CFG_PROTOCOL_ISCSI:
 		*p_proto = QED_PCI_ISCSI;
-		break;
-	case FUNC_MF_CFG_PROTOCOL_NVMETCP:
-		*p_proto = QED_PCI_NVMETCP;
 		break;
 	case FUNC_MF_CFG_PROTOCOL_FCOE:
 		*p_proto = QED_PCI_FCOE;
@@ -2854,7 +2851,7 @@ int qed_mcp_ov_update_mtu(struct qed_hwfn *p_hwfn,
 }
 
 int qed_mcp_ov_update_mac(struct qed_hwfn *p_hwfn,
-			  struct qed_ptt *p_ptt, u8 *mac)
+			  struct qed_ptt *p_ptt, const u8 *mac)
 {
 	struct qed_mcp_mb_params mb_params;
 	u32 mfw_mac[2];
@@ -3026,7 +3023,7 @@ int qed_mcp_nvm_read(struct qed_dev *cdev, u32 addr, u8 *p_buf, u32 len)
 					 DRV_MB_PARAM_NVM_LEN_OFFSET),
 					&resp, &resp_param,
 					&read_len,
-					(u32 *)(p_buf + offset));
+					(u32 *)(p_buf + offset), false);
 
 		if (rc || (resp != FW_MSG_CODE_NVM_OK)) {
 			DP_NOTICE(cdev, "MCP command rc = %d\n", rc);
@@ -3034,7 +3031,7 @@ int qed_mcp_nvm_read(struct qed_dev *cdev, u32 addr, u8 *p_buf, u32 len)
 		}
 
 		/* This can be a lengthy process, and it's possible scheduler
-		 * isn't preemptable. Sleep a bit to prevent CPU hogging.
+		 * isn't preemptible. Sleep a bit to prevent CPU hogging.
 		 */
 		if (bytes_left % 0x1000 <
 		    (bytes_left - read_len) % 0x1000)
@@ -3129,10 +3126,12 @@ int qed_mcp_nvm_write(struct qed_dev *cdev,
 		 * to be delivered to MFW.
 		 */
 		if (param && cmd == QED_PUT_FILE_DATA) {
-			buf_idx = QED_MFW_GET_FIELD(param,
-					FW_MB_PARAM_NVM_PUT_FILE_REQ_OFFSET);
-			buf_size = QED_MFW_GET_FIELD(param,
-					 FW_MB_PARAM_NVM_PUT_FILE_REQ_SIZE);
+			buf_idx =
+			QED_MFW_GET_FIELD(param,
+					  FW_MB_PARAM_NVM_PUT_FILE_REQ_OFFSET);
+			buf_size =
+			QED_MFW_GET_FIELD(param,
+					  FW_MB_PARAM_NVM_PUT_FILE_REQ_SIZE);
 		} else {
 			buf_idx += buf_size;
 			buf_size = min_t(u32, (len - buf_idx),
@@ -3176,7 +3175,7 @@ int qed_mcp_phy_sfp_read(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 		rc = qed_mcp_nvm_rd_cmd(p_hwfn, p_ptt,
 					DRV_MSG_CODE_TRANSCEIVER_READ,
 					nvm_offset, &resp, &param, &buf_size,
-					(u32 *)(p_buf + offset));
+					(u32 *)(p_buf + offset), true);
 		if (rc) {
 			DP_NOTICE(p_hwfn,
 				  "Failed to send a transceiver read command to the MFW. rc = %d.\n",
@@ -3275,7 +3274,7 @@ int qed_mcp_bist_nvm_get_image_att(struct qed_hwfn *p_hwfn,
 				DRV_MSG_CODE_BIST_TEST, param,
 				&resp, &resp_param,
 				&buf_size,
-				(u32 *)p_image_att);
+				(u32 *)p_image_att, false);
 	if (rc)
 		return rc;
 
@@ -3388,7 +3387,7 @@ qed_mcp_get_nvm_image_att(struct qed_hwfn *p_hwfn,
 		type = NVM_TYPE_DEFAULT_CFG;
 		break;
 	case QED_NVM_IMAGE_NVM_META:
-		type = NVM_TYPE_META;
+		type = NVM_TYPE_NVM_META;
 		break;
 	default:
 		DP_NOTICE(p_hwfn, "Unknown request of image_id %08x\n",
@@ -3905,10 +3904,6 @@ int qed_mcp_set_capabilities(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		   DRV_MB_PARAM_FEATURE_SUPPORT_FUNC_VLINK |
 		   DRV_MB_PARAM_FEATURE_SUPPORT_PORT_FEC_CONTROL;
 
-	if (QED_IS_E5(p_hwfn->cdev))
-		features |=
-		    DRV_MB_PARAM_FEATURE_SUPPORT_PORT_EXT_SPEED_FEC_CONTROL;
-
 	return qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_FEATURE_SUPPORT,
 			   features, &mcp_resp, &mcp_param);
 }
@@ -4002,7 +3997,8 @@ int qed_mcp_nvm_get_cfg(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 
 	rc = qed_mcp_nvm_rd_cmd(p_hwfn, p_ptt,
 				DRV_MSG_CODE_GET_NVM_CFG_OPTION,
-				mb_param, &resp, &param, p_len, (u32 *)p_buf);
+				mb_param, &resp, &param, p_len,
+				(u32 *)p_buf, false);
 
 	return rc;
 }

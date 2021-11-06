@@ -46,7 +46,7 @@ void test_cgroup_v1v2(void)
 {
 	struct network_helper_opts opts = {};
 	int server_fd, client_fd, cgroup_fd;
-	static const int port = 60123;
+	static const int port = 60120;
 
 	/* Step 1: Check base connectivity works without any BPF. */
 	server_fd = start_server(AF_INET, SOCK_STREAM, NULL, port, 0);

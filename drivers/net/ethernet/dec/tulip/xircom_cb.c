@@ -1015,12 +1015,14 @@ static void read_mac_address(struct xircom_private *card)
 		xw32(CSR10, i + 3);
 		data_count = xr32(CSR9);
 		if ((tuple == 0x22) && (data_id == 0x04) && (data_count == 0x06)) {
+			u8 addr[ETH_ALEN];
 			int j;
 
 			for (j = 0; j < 6; j++) {
 				xw32(CSR10, i + j + 4);
-				card->dev->dev_addr[j] = xr32(CSR9) & 0xff;
+				addr[j] = xr32(CSR9) & 0xff;
 			}
+			eth_hw_addr_set(card->dev, addr);
 			break;
 		} else if (link == 0) {
 			break;

@@ -34,6 +34,18 @@ config MLXREG_IO
 	  to system resets operation, system reset causes monitoring and some
 	  kinds of mux selection.
 
+config MLXREG_LC
+	tristate "Mellanox line card platform driver support"
+	depends on REGMAP
+	depends on HWMON
+	depends on I2C
+	help
+	  This driver provides support for the Mellanox MSN4800-XX line cards,
+	  which are the part of MSN4800 Ethernet modular switch systems
+	  providing a high performance switching solution for Enterprise Data
+	  Centers (EDC) for building Ethernet based clusters, High-Performance
+	  Computing (HPC) and embedded environments.
+
 config MLXBF_TMFIFO
 	tristate "Mellanox BlueField SoC TmFifo platform driver"
 	depends on ARM64

@@ -11,6 +11,7 @@
 
 #include <linux/parser.h>
 #include <linux/hashtable.h>
+#include <linux/seq_file.h>
 
 /* a cache for orangefs-inode objects (i.e. orangefs inode private data) */
 static struct kmem_cache *orangefs_inode_cache;

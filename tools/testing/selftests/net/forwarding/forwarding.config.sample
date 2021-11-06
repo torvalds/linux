@@ -39,5 +39,9 @@ NETIF_CREATE=yes
 # Timeout (in seconds) before ping exits regardless of how many packets have
 # been sent or received
 PING_TIMEOUT=5
+# Flag for tc match, supposed to be skip_sw/skip_hw which means do not process
+# filter by software/hardware
+TC_FLAG=skip_hw
 # IPv6 traceroute utility name.
 TROUTE6=traceroute6
+

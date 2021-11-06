@@ -390,7 +390,7 @@ static int ne2k_pci_init_one(struct pci_dev *pdev,
 	dev->ethtool_ops = &ne2k_pci_ethtool_ops;
 	NS8390_init(dev, 0);
 
-	memcpy(dev->dev_addr, SA_prom, dev->addr_len);
+	eth_hw_addr_set(dev, SA_prom);
 
 	i = register_netdev(dev);
 	if (i)

@@ -33,6 +33,7 @@
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/eswitch.h>
 #include <linux/mlx5/mlx5_ifc_vdpa.h>
+#include <linux/mlx5/vport.h>
 #include "mlx5_core.h"
 
 /* intf dev list mutex */
@@ -537,6 +538,16 @@ int mlx5_rescan_drivers_locked(struct mlx5_core_dev *dev)
 	return add_drivers(dev);
 }
 
+static bool mlx5_same_hw_devs(struct mlx5_core_dev *dev, struct mlx5_core_dev *peer_dev)
+{
+	u64 fsystem_guid, psystem_guid;
+
+	fsystem_guid = mlx5_query_nic_system_image_guid(dev);
+	psystem_guid = mlx5_query_nic_system_image_guid(peer_dev);
+
+	return (fsystem_guid && psystem_guid && fsystem_guid == psystem_guid);
+}
+
 static u32 mlx5_gen_pci_id(const struct mlx5_core_dev *dev)
 {
 	return (u32)((pci_domain_nr(dev->pdev->bus) << 16) |
@@ -556,7 +567,8 @@ static int next_phys_dev(struct device *dev, const void *data)
 	if (mdev == curr)
 		return 0;
 
-	if (mlx5_gen_pci_id(mdev) != mlx5_gen_pci_id(curr))
+	if (!mlx5_same_hw_devs(mdev, (struct mlx5_core_dev *)curr) &&
+	    mlx5_gen_pci_id(mdev) != mlx5_gen_pci_id(curr))
 		return 0;
 
 	return 1;

@@ -20,6 +20,10 @@
 		stdout-path = &serial2;
 	};
 
+	battery: battery {
+		compatible = "samsung,eb485159lu";
+	};
+
 	/* TI TXS0206 level translator for 2.9 V */
 	sd_level_translator: regulator-gpio {
 		compatible = "regulator-fixed";
@@ -222,7 +226,9 @@
 			};
 		};
 
-		// eMMC
+		/*
+		 * eMMC seems to be mostly Samsung KLM4G1YE4C "4YMD1R"
+		 */
 		mmc@80005000 {
 			arm,primecell-periphid = <0x10480180>;
 		        max-frequency = <100000000>;
@@ -232,6 +238,8 @@
 			mmc-ddr-1_8v;
 			no-sdio;
 			no-sd;
+			/* From datasheet page 26 figure 9: 300 ms set-up time for 4GB */
+			post-power-on-delay-ms = <300>;
 			vmmc-supply = <&ldo_3v3_reg>;
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&mc2_a_1_default>;
@@ -292,10 +300,10 @@
 					};
 
 					ab8500_ldo_aux2 {
-						/* Supplies the Cypress TMA140 touchscreen only with 3.3V */
+						/* Supplies the Cypress TMA140 touchscreen only with 3.0V */
 						regulator-name = "AUX2";
-						regulator-min-microvolt = <3300000>;
-						regulator-max-microvolt = <3300000>;
+						regulator-min-microvolt = <3000000>;
+						regulator-max-microvolt = <3000000>;
 					};
 
 					ab8500_ldo_aux3 {
@@ -314,9 +322,9 @@
 
 					ab8500_ldo_aux5 {
 						regulator-name = "AUX5";
+						/* Intended for 1V8 for touchscreen but actually left unused */
 						regulator-min-microvolt = <1050000>;
 						regulator-max-microvolt = <2790000>;
-						regulator-always-on;
 					};
 
 					ab8500_ldo_aux6 {
@@ -444,31 +452,21 @@
 };
 
 &pinctrl {
-	/*
-	 * This extends the MC0 default config to include DAT32DIR
-	 * which is used by this machine. If we don't do this the
-	 * SD card does not work.
-	 */
 	sdi0 {
 		mc0_a_1_default {
-			default_mux {
-				function = "mc0";
-				/* This machine uses the DAT31 pin */
-				groups = "mc0_a_1", "mc0dat31dir_a_1";
-			};
-			default_cfg5 {
-				pins = "GPIO21_AB3"; /* DAT31DIR */
-				ste,config = <&out_hi>;
+			default_cfg1 {
+				/* GPIO18, 19 & 20 unused so pull down */
+				ste,config = <&gpio_in_pd>;
 			};
 		};
 	};
 
-	/* The unused FBCLK needs to be pulled down on this machine */
+	/* This is a reset line for the eMMC */
 	sdi2 {
 		mc2_a_1_default {
 			default_cfg2 {
 				pins = "GPIO130_C8"; /* FBCLK */
-				ste,config = <&in_pd>;
+				ste,config = <&gpio_in_pd>;
 			};
 		};
 	};

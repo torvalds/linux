@@ -21,7 +21,7 @@
 #include "xfs_sb.h"
 #include "xfs_health.h"
 
-kmem_zone_t	*xfs_log_ticket_zone;
+struct kmem_cache	*xfs_log_ticket_cache;
 
 /* Local miscellaneous function prototypes */
 STATIC struct xlog *
@@ -3487,7 +3487,7 @@ xfs_log_ticket_put(
 {
 	ASSERT(atomic_read(&ticket->t_ref) > 0);
 	if (atomic_dec_and_test(&ticket->t_ref))
-		kmem_cache_free(xfs_log_ticket_zone, ticket);
+		kmem_cache_free(xfs_log_ticket_cache, ticket);
 }
 
 xlog_ticket_t *
@@ -3611,7 +3611,7 @@ xlog_ticket_alloc(
 	struct xlog_ticket	*tic;
 	int			unit_res;
 
-	tic = kmem_cache_zalloc(xfs_log_ticket_zone, GFP_NOFS | __GFP_NOFAIL);
+	tic = kmem_cache_zalloc(xfs_log_ticket_cache, GFP_NOFS | __GFP_NOFAIL);
 
 	unit_res = xlog_calc_unit_res(log, unit_bytes);
 

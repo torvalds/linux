@@ -265,7 +265,7 @@ static struct smm665_data *smm665_update_device(struct device *dev)
 			data->adc[i] = val;
 		}
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 abort:
 	mutex_unlock(&data->update_lock);

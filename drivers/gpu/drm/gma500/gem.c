@@ -147,7 +147,7 @@ static vm_fault_t psb_gem_fault(struct vm_fault *vmf)
 
 	obj = vma->vm_private_data;	/* GEM object */
 	dev = obj->dev;
-	dev_priv = dev->dev_private;
+	dev_priv = to_drm_psb_private(dev);
 
 	r = container_of(obj, struct gtt_range, gem);	/* Get the gtt range */
 

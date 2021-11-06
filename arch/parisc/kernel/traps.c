@@ -30,6 +30,7 @@
 #include <linux/ratelimit.h>
 #include <linux/uaccess.h>
 #include <linux/kdebug.h>
+#include <linux/kfence.h>
 
 #include <asm/assembly.h>
 #include <asm/io.h>
@@ -143,7 +144,7 @@ void show_regs(struct pt_regs *regs)
 	printk("%s IIR: %08lx    ISR: " RFMT "  IOR: " RFMT "\n",
 	       level, regs->iir, regs->isr, regs->ior);
 	printk("%s CPU: %8d   CR30: " RFMT " CR31: " RFMT "\n",
-	       level, current_thread_info()->cpu, cr30, cr31);
+	       level, task_cpu(current), cr30, cr31);
 	printk("%s ORIG_R28: " RFMT "\n", level, regs->orig_r28);
 
 	if (user) {
@@ -480,7 +481,7 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 
 	if (code == 1)
 	    pdc_console_restart();  /* switch back to pdc if HPMC */
-	else
+	else if (!irqs_disabled_flags(regs->gr[0]))
 	    local_irq_enable();
 
 	/* Security check:
@@ -786,6 +787,10 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 	    {
 		/* Clean up and return if in exception table. */
 		if (fixup_exception(regs))
+			return;
+		/* Clean up and return if handled by kfence. */
+		if (kfence_handle_page_fault(fault_address,
+			parisc_acctyp(code, regs->iir) == VM_WRITE, regs))
 			return;
 		pdc_chassis_send_status(PDC_CHASSIS_DIRECT_PANIC);
 		parisc_terminate("Kernel Fault", regs, code, fault_address);

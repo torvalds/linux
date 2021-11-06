@@ -24,7 +24,7 @@
 #define SDSP_DOMAIN_ID (2)
 #define CDSP_DOMAIN_ID (3)
 #define FASTRPC_DEV_MAX		4 /* adsp, mdsp, slpi, cdsp*/
-#define FASTRPC_MAX_SESSIONS	9 /*8 compute, 1 cpz*/
+#define FASTRPC_MAX_SESSIONS	13 /*12 compute, 1 cpz*/
 #define FASTRPC_ALIGN		128
 #define FASTRPC_MAX_FDLIST	16
 #define FASTRPC_MAX_CRCLIST	64
@@ -892,15 +892,17 @@ static int fastrpc_put_args(struct fastrpc_invoke_ctx *ctx,
 	inbufs = REMOTE_SCALARS_INBUFS(ctx->sc);
 
 	for (i = inbufs; i < ctx->nbufs; ++i) {
-		void *src = (void *)(uintptr_t)rpra[i].pv;
-		void *dst = (void *)(uintptr_t)ctx->args[i].ptr;
-		u64 len = rpra[i].len;
+		if (!ctx->maps[i]) {
+			void *src = (void *)(uintptr_t)rpra[i].pv;
+			void *dst = (void *)(uintptr_t)ctx->args[i].ptr;
+			u64 len = rpra[i].len;
 
-		if (!kernel) {
-			if (copy_to_user((void __user *)dst, src, len))
-				return -EFAULT;
-		} else {
-			memcpy(dst, src, len);
+			if (!kernel) {
+				if (copy_to_user((void __user *)dst, src, len))
+					return -EFAULT;
+			} else {
+				memcpy(dst, src, len);
+			}
 		}
 	}
 
@@ -1765,3 +1767,4 @@ static void fastrpc_exit(void)
 module_exit(fastrpc_exit);
 
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(DMA_BUF);

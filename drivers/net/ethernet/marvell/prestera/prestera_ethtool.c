@@ -323,7 +323,6 @@ static int prestera_port_type_set(const struct ethtool_link_ksettings *ecmd,
 {
 	u32 new_mode = PRESTERA_LINK_MODE_MAX;
 	u32 type, mode;
-	int err;
 
 	for (type = 0; type < PRESTERA_PORT_TYPE_MAX; type++) {
 		if (port_types[type].eth_type == ecmd->base.port &&
@@ -348,13 +347,8 @@ static int prestera_port_type_set(const struct ethtool_link_ksettings *ecmd,
 		}
 	}
 
-	if (new_mode < PRESTERA_LINK_MODE_MAX)
-		err = prestera_hw_port_link_mode_set(port, new_mode);
-	else
-		err = -EINVAL;
-
-	if (err)
-		return err;
+	if (new_mode >= PRESTERA_LINK_MODE_MAX)
+		return -EINVAL;
 
 	port->caps.type = type;
 	port->autoneg = false;
@@ -434,27 +428,33 @@ static void prestera_port_supp_types_get(struct ethtool_link_ksettings *ecmd,
 static void prestera_port_remote_cap_get(struct ethtool_link_ksettings *ecmd,
 					 struct prestera_port *port)
 {
+	struct prestera_port_phy_state *state = &port->state_phy;
 	bool asym_pause;
 	bool pause;
 	u64 bitmap;
 	int err;
 
-	err = prestera_hw_port_remote_cap_get(port, &bitmap);
-	if (!err) {
-		prestera_modes_to_eth(ecmd->link_modes.lp_advertising,
-				      bitmap, 0, PRESTERA_PORT_TYPE_NONE);
+	err = prestera_hw_port_phy_mode_get(port, NULL, &state->lmode_bmap,
+					    &state->remote_fc.pause,
+					    &state->remote_fc.asym_pause);
+	if (err)
+		netdev_warn(port->dev, "Remote link caps get failed %d",
+			    port->caps.transceiver);
 
-		if (!bitmap_empty(ecmd->link_modes.lp_advertising,
-				  __ETHTOOL_LINK_MODE_MASK_NBITS)) {
-			ethtool_link_ksettings_add_link_mode(ecmd,
-							     lp_advertising,
-							     Autoneg);
-		}
+	bitmap = state->lmode_bmap;
+
+	prestera_modes_to_eth(ecmd->link_modes.lp_advertising,
+			      bitmap, 0, PRESTERA_PORT_TYPE_NONE);
+
+	if (!bitmap_empty(ecmd->link_modes.lp_advertising,
+			  __ETHTOOL_LINK_MODE_MASK_NBITS)) {
+		ethtool_link_ksettings_add_link_mode(ecmd,
+						     lp_advertising,
+						     Autoneg);
 	}
 
-	err = prestera_hw_port_remote_fc_get(port, &pause, &asym_pause);
-	if (err)
-		return;
+	pause = state->remote_fc.pause;
+	asym_pause = state->remote_fc.asym_pause;
 
 	if (pause)
 		ethtool_link_ksettings_add_link_mode(ecmd,
@@ -466,30 +466,46 @@ static void prestera_port_remote_cap_get(struct ethtool_link_ksettings *ecmd,
 						     Asym_Pause);
 }
 
-static void prestera_port_speed_get(struct ethtool_link_ksettings *ecmd,
-				    struct prestera_port *port)
+static void prestera_port_link_mode_get(struct ethtool_link_ksettings *ecmd,
+					struct prestera_port *port)
 {
+	struct prestera_port_mac_state *state = &port->state_mac;
 	u32 speed;
-	int err;
-
-	err = prestera_hw_port_speed_get(port, &speed);
-	ecmd->base.speed = err ? SPEED_UNKNOWN : speed;
-}
-
-static void prestera_port_duplex_get(struct ethtool_link_ksettings *ecmd,
-				     struct prestera_port *port)
-{
 	u8 duplex;
 	int err;
 
-	err = prestera_hw_port_duplex_get(port, &duplex);
-	if (err) {
-		ecmd->base.duplex = DUPLEX_UNKNOWN;
+	if (!port->state_mac.oper)
 		return;
+
+	if (state->speed == SPEED_UNKNOWN || state->duplex == DUPLEX_UNKNOWN) {
+		err = prestera_hw_port_mac_mode_get(port, NULL, &speed,
+						    &duplex, NULL);
+		if (err) {
+			state->speed = SPEED_UNKNOWN;
+			state->duplex = DUPLEX_UNKNOWN;
+		} else {
+			state->speed = speed;
+			state->duplex = duplex == PRESTERA_PORT_DUPLEX_FULL ?
+					  DUPLEX_FULL : DUPLEX_HALF;
+		}
 	}
 
-	ecmd->base.duplex = duplex == PRESTERA_PORT_DUPLEX_FULL ?
-			    DUPLEX_FULL : DUPLEX_HALF;
+	ecmd->base.speed = port->state_mac.speed;
+	ecmd->base.duplex = port->state_mac.duplex;
+}
+
+static void prestera_port_mdix_get(struct ethtool_link_ksettings *ecmd,
+				   struct prestera_port *port)
+{
+	struct prestera_port_phy_state *state = &port->state_phy;
+
+	if (prestera_hw_port_phy_mode_get(port, &state->mdix, NULL, NULL, NULL)) {
+		netdev_warn(port->dev, "MDIX params get failed");
+		state->mdix = ETH_TP_MDI_INVALID;
+	}
+
+	ecmd->base.eth_tp_mdix = port->state_phy.mdix;
+	ecmd->base.eth_tp_mdix_ctrl = port->cfg_phy.mdix;
 }
 
 static int
@@ -501,6 +517,8 @@ prestera_ethtool_get_link_ksettings(struct net_device *dev,
 	ethtool_link_ksettings_zero_link_mode(ecmd, supported);
 	ethtool_link_ksettings_zero_link_mode(ecmd, advertising);
 	ethtool_link_ksettings_zero_link_mode(ecmd, lp_advertising);
+	ecmd->base.speed = SPEED_UNKNOWN;
+	ecmd->base.duplex = DUPLEX_UNKNOWN;
 
 	ecmd->base.autoneg = port->autoneg ? AUTONEG_ENABLE : AUTONEG_DISABLE;
 
@@ -521,13 +539,8 @@ prestera_ethtool_get_link_ksettings(struct net_device *dev,
 
 	prestera_port_supp_types_get(ecmd, port);
 
-	if (netif_carrier_ok(dev)) {
-		prestera_port_speed_get(ecmd, port);
-		prestera_port_duplex_get(ecmd, port);
-	} else {
-		ecmd->base.speed = SPEED_UNKNOWN;
-		ecmd->base.duplex = DUPLEX_UNKNOWN;
-	}
+	if (netif_carrier_ok(dev))
+		prestera_port_link_mode_get(ecmd, port);
 
 	ecmd->base.port = prestera_port_type_get(port);
 
@@ -545,8 +558,7 @@ prestera_ethtool_get_link_ksettings(struct net_device *dev,
 
 	if (port->caps.type == PRESTERA_PORT_TYPE_TP &&
 	    port->caps.transceiver == PRESTERA_PORT_TCVR_COPPER)
-		prestera_hw_port_mdix_get(port, &ecmd->base.eth_tp_mdix,
-					  &ecmd->base.eth_tp_mdix_ctrl);
+		prestera_port_mdix_get(ecmd, port);
 
 	return 0;
 }
@@ -555,12 +567,17 @@ static int prestera_port_mdix_set(const struct ethtool_link_ksettings *ecmd,
 				  struct prestera_port *port)
 {
 	if (ecmd->base.eth_tp_mdix_ctrl != ETH_TP_MDI_INVALID &&
-	    port->caps.transceiver == PRESTERA_PORT_TCVR_COPPER &&
-	    port->caps.type == PRESTERA_PORT_TYPE_TP)
-		return prestera_hw_port_mdix_set(port,
-						 ecmd->base.eth_tp_mdix_ctrl);
-
+	    port->caps.transceiver ==  PRESTERA_PORT_TCVR_COPPER &&
+	    port->caps.type == PRESTERA_PORT_TYPE_TP) {
+		port->cfg_phy.mdix = ecmd->base.eth_tp_mdix_ctrl;
+		return prestera_hw_port_phy_mode_set(port, port->cfg_phy.admin,
+						     port->autoneg,
+						     port->cfg_phy.mode,
+						     port->adver_link_modes,
+						     port->cfg_phy.mdix);
+	}
 	return 0;
+
 }
 
 static int prestera_port_link_mode_set(struct prestera_port *port,
@@ -568,12 +585,15 @@ static int prestera_port_link_mode_set(struct prestera_port *port,
 {
 	u32 new_mode = PRESTERA_LINK_MODE_MAX;
 	u32 mode;
+	int err;
 
 	for (mode = 0; mode < PRESTERA_LINK_MODE_MAX; mode++) {
-		if (speed != port_link_modes[mode].speed)
+		if (speed != SPEED_UNKNOWN &&
+		    speed != port_link_modes[mode].speed)
 			continue;
 
-		if (duplex != port_link_modes[mode].duplex)
+		if (duplex != DUPLEX_UNKNOWN &&
+		    duplex != port_link_modes[mode].duplex)
 			continue;
 
 		if (!(port_link_modes[mode].pr_mask &
@@ -590,36 +610,31 @@ static int prestera_port_link_mode_set(struct prestera_port *port,
 	if (new_mode == PRESTERA_LINK_MODE_MAX)
 		return -EOPNOTSUPP;
 
-	return prestera_hw_port_link_mode_set(port, new_mode);
+	err = prestera_hw_port_phy_mode_set(port, port->cfg_phy.admin,
+					    false, new_mode, 0,
+					    port->cfg_phy.mdix);
+	if (err)
+		return err;
+
+	port->adver_fec = BIT(PRESTERA_PORT_FEC_OFF);
+	port->adver_link_modes = 0;
+	port->cfg_phy.mode = new_mode;
+	port->autoneg = false;
+
+	return 0;
 }
 
 static int
 prestera_port_speed_duplex_set(const struct ethtool_link_ksettings *ecmd,
 			       struct prestera_port *port)
 {
-	u32 curr_mode;
-	u8 duplex;
-	u32 speed;
-	int err;
-
-	err = prestera_hw_port_link_mode_get(port, &curr_mode);
-	if (err)
-		return err;
-	if (curr_mode >= PRESTERA_LINK_MODE_MAX)
-		return -EINVAL;
+	u8 duplex = DUPLEX_UNKNOWN;
 
 	if (ecmd->base.duplex != DUPLEX_UNKNOWN)
 		duplex = ecmd->base.duplex == DUPLEX_FULL ?
 			 PRESTERA_PORT_DUPLEX_FULL : PRESTERA_PORT_DUPLEX_HALF;
-	else
-		duplex = port_link_modes[curr_mode].duplex;
 
-	if (ecmd->base.speed != SPEED_UNKNOWN)
-		speed = ecmd->base.speed;
-	else
-		speed = port_link_modes[curr_mode].speed;
-
-	return prestera_port_link_mode_set(port, speed, duplex,
+	return prestera_port_link_mode_set(port, ecmd->base.speed, duplex,
 					   port->caps.type);
 }
 
@@ -645,19 +660,12 @@ prestera_ethtool_set_link_ksettings(struct net_device *dev,
 	prestera_modes_from_eth(ecmd->link_modes.advertising, &adver_modes,
 				&adver_fec, port->caps.type);
 
-	err = prestera_port_autoneg_set(port,
-					ecmd->base.autoneg == AUTONEG_ENABLE,
-					adver_modes, adver_fec);
-	if (err)
-		return err;
-
-	if (ecmd->base.autoneg == AUTONEG_DISABLE) {
+	if (ecmd->base.autoneg == AUTONEG_ENABLE)
+		err = prestera_port_autoneg_set(port, adver_modes);
+	else
 		err = prestera_port_speed_duplex_set(ecmd, port);
-		if (err)
-			return err;
-	}
 
-	return 0;
+	return err;
 }
 
 static int prestera_ethtool_get_fecparam(struct net_device *dev,
@@ -668,7 +676,7 @@ static int prestera_ethtool_get_fecparam(struct net_device *dev,
 	u32 mode;
 	int err;
 
-	err = prestera_hw_port_fec_get(port, &active);
+	err = prestera_hw_port_mac_mode_get(port, NULL, NULL, NULL, &active);
 	if (err)
 		return err;
 
@@ -693,18 +701,19 @@ static int prestera_ethtool_set_fecparam(struct net_device *dev,
 					 struct ethtool_fecparam *fecparam)
 {
 	struct prestera_port *port = netdev_priv(dev);
-	u8 fec, active;
+	struct prestera_port_mac_config cfg_mac;
 	u32 mode;
-	int err;
+	u8 fec;
 
 	if (port->autoneg) {
 		netdev_err(dev, "FEC set is not allowed while autoneg is on\n");
 		return -EINVAL;
 	}
 
-	err = prestera_hw_port_fec_get(port, &active);
-	if (err)
-		return err;
+	if (port->caps.transceiver == PRESTERA_PORT_TCVR_SFP) {
+		netdev_err(dev, "FEC set is not allowed on non-SFP ports\n");
+		return -EINVAL;
+	}
 
 	fec = PRESTERA_PORT_FEC_MAX;
 	for (mode = 0; mode < PRESTERA_PORT_FEC_MAX; mode++) {
@@ -715,13 +724,19 @@ static int prestera_ethtool_set_fecparam(struct net_device *dev,
 		}
 	}
 
-	if (fec == active)
+	prestera_port_cfg_mac_read(port, &cfg_mac);
+
+	if (fec == cfg_mac.fec)
 		return 0;
 
-	if (fec == PRESTERA_PORT_FEC_MAX)
-		return -EOPNOTSUPP;
+	if (fec == PRESTERA_PORT_FEC_MAX) {
+		netdev_err(dev, "Unsupported FEC requested");
+		return -EINVAL;
+	}
 
-	return prestera_hw_port_fec_set(port, fec);
+	cfg_mac.fec = fec;
+
+	return prestera_port_cfg_mac_write(port, &cfg_mac);
 }
 
 static int prestera_ethtool_get_sset_count(struct net_device *dev, int sset)
@@ -764,6 +779,28 @@ static int prestera_ethtool_nway_reset(struct net_device *dev)
 		return prestera_hw_port_autoneg_restart(port);
 
 	return -EINVAL;
+}
+
+void prestera_ethtool_port_state_changed(struct prestera_port *port,
+					 struct prestera_port_event *evt)
+{
+	struct prestera_port_mac_state *smac = &port->state_mac;
+
+	smac->oper = evt->data.mac.oper;
+
+	if (smac->oper) {
+		smac->mode = evt->data.mac.mode;
+		smac->speed = evt->data.mac.speed;
+		smac->duplex = evt->data.mac.duplex;
+		smac->fc = evt->data.mac.fc;
+		smac->fec = evt->data.mac.fec;
+	} else {
+		smac->mode = PRESTERA_MAC_MODE_MAX;
+		smac->speed = SPEED_UNKNOWN;
+		smac->duplex = DUPLEX_UNKNOWN;
+		smac->fc = 0;
+		smac->fec = 0;
+	}
 }
 
 const struct ethtool_ops prestera_ethtool_ops = {

@@ -8,9 +8,11 @@
 #include <linux/etherdevice.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/net_tstamp.h>
 
 #include "otx2_common.h"
 #include "otx2_reg.h"
+#include "otx2_ptp.h"
 #include "cn10k.h"
 
 #define DRV_NAME	"rvu_nicvf"
@@ -277,7 +279,6 @@ static void otx2vf_vfaf_mbox_destroy(struct otx2_nic *vf)
 	struct mbox *mbox = &vf->mbox;
 
 	if (vf->mbox_wq) {
-		flush_workqueue(vf->mbox_wq);
 		destroy_workqueue(vf->mbox_wq);
 		vf->mbox_wq = NULL;
 	}
@@ -500,6 +501,7 @@ static const struct net_device_ops otx2vf_netdev_ops = {
 	.ndo_set_features = otx2vf_set_features,
 	.ndo_get_stats64 = otx2_get_stats64,
 	.ndo_tx_timeout = otx2_tx_timeout,
+	.ndo_do_ioctl	= otx2_ioctl,
 };
 
 static int otx2_wq_init(struct otx2_nic *vf)
@@ -583,6 +585,7 @@ static int otx2vf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	hw->rx_queues = qcount;
 	hw->tx_queues = qcount;
 	hw->max_queues = qcount;
+	hw->tot_tx_queues = qcount;
 
 	hw->irq_name = devm_kmalloc_array(&hw->pdev->dev, num_vec, NAME_SIZE,
 					  GFP_KERNEL);
@@ -639,6 +642,9 @@ static int otx2vf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	err = cn10k_lmtst_init(vf);
 	if (err)
 		goto err_detach_rsrc;
+
+	/* Don't check for error.  Proceed without ptp */
+	otx2_ptp_init(vf);
 
 	/* Assign default mac address */
 	otx2_get_mac_from_af(netdev);

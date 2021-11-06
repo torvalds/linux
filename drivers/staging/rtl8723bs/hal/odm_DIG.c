@@ -544,7 +544,7 @@ void odm_DIG(void *pDM_VOID)
 	/* 1 Adjust initial gain by false alarm */
 	if (pDM_Odm->bLinked && bPerformance) {
 
-		if (bFirstTpTarget || (FirstConnect && bPerformance)) {
+		if (bFirstTpTarget || FirstConnect) {
 			pDM_DigTable->LargeFAHit = 0;
 
 			if (pDM_Odm->RSSI_Min < DIG_MaxOfMin) {

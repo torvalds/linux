@@ -142,6 +142,10 @@ Users can request an immediate capture of a snapshot via the
 
 .. code:: shell
 
+    $ devlink region show
+    pci/0000:01:00.0/nvm-flash: size 10485760 snapshot [] max 1
+    pci/0000:01:00.0/device-caps: size 4096 snapshot [] max 10
+
     $ devlink region new pci/0000:01:00.0/nvm-flash snapshot 1
     $ devlink region dump pci/0000:01:00.0/nvm-flash snapshot 1
 

@@ -188,7 +188,7 @@ err:
 
 static int btf_dump_resize(struct btf_dump *d)
 {
-	int err, last_id = btf__get_nr_types(d->btf);
+	int err, last_id = btf__type_cnt(d->btf) - 1;
 
 	if (last_id <= d->last_id)
 		return 0;
@@ -262,7 +262,7 @@ int btf_dump__dump_type(struct btf_dump *d, __u32 id)
 {
 	int err, i;
 
-	if (id > btf__get_nr_types(d->btf))
+	if (id >= btf__type_cnt(d->btf))
 		return libbpf_err(-EINVAL);
 
 	err = btf_dump_resize(d);
@@ -294,11 +294,11 @@ int btf_dump__dump_type(struct btf_dump *d, __u32 id)
  */
 static int btf_dump_mark_referenced(struct btf_dump *d)
 {
-	int i, j, n = btf__get_nr_types(d->btf);
+	int i, j, n = btf__type_cnt(d->btf);
 	const struct btf_type *t;
 	__u16 vlen;
 
-	for (i = d->last_id + 1; i <= n; i++) {
+	for (i = d->last_id + 1; i < n; i++) {
 		t = btf__type_by_id(d->btf, i);
 		vlen = btf_vlen(t);
 
@@ -316,6 +316,7 @@ static int btf_dump_mark_referenced(struct btf_dump *d)
 		case BTF_KIND_TYPEDEF:
 		case BTF_KIND_FUNC:
 		case BTF_KIND_VAR:
+		case BTF_KIND_DECL_TAG:
 			d->type_states[t->type].referenced = 1;
 			break;
 
@@ -583,6 +584,7 @@ static int btf_dump_order_type(struct btf_dump *d, __u32 id, bool through_ptr)
 	case BTF_KIND_FUNC:
 	case BTF_KIND_VAR:
 	case BTF_KIND_DATASEC:
+	case BTF_KIND_DECL_TAG:
 		d->type_states[id].order_state = ORDERED;
 		return 0;
 
@@ -1560,29 +1562,28 @@ static int btf_dump_get_bitfield_value(struct btf_dump *d,
 				       __u64 *value)
 {
 	__u16 left_shift_bits, right_shift_bits;
-	__u8 nr_copy_bits, nr_copy_bytes;
 	const __u8 *bytes = data;
-	int sz = t->size;
+	__u8 nr_copy_bits;
 	__u64 num = 0;
 	int i;
 
 	/* Maximum supported bitfield size is 64 bits */
-	if (sz > 8) {
-		pr_warn("unexpected bitfield size %d\n", sz);
+	if (t->size > 8) {
+		pr_warn("unexpected bitfield size %d\n", t->size);
 		return -EINVAL;
 	}
 
 	/* Bitfield value retrieval is done in two steps; first relevant bytes are
 	 * stored in num, then we left/right shift num to eliminate irrelevant bits.
 	 */
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+	for (i = t->size - 1; i >= 0; i--)
+		num = num * 256 + bytes[i];
 	nr_copy_bits = bit_sz + bits_offset;
-	nr_copy_bytes = t->size;
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-	for (i = nr_copy_bytes - 1; i >= 0; i--)
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+	for (i = 0; i < t->size; i++)
 		num = num * 256 + bytes[i];
-#elif __BYTE_ORDER == __BIG_ENDIAN
-	for (i = 0; i < nr_copy_bytes; i++)
-		num = num * 256 + bytes[i];
+	nr_copy_bits = t->size * 8 - bits_offset;
 #else
 # error "Unrecognized __BYTE_ORDER__"
 #endif
@@ -1656,9 +1657,15 @@ static int btf_dump_base_type_check_zero(struct btf_dump *d,
 	return 0;
 }
 
-static bool ptr_is_aligned(const void *data, int data_sz)
+static bool ptr_is_aligned(const struct btf *btf, __u32 type_id,
+			   const void *data)
 {
-	return ((uintptr_t)data) % data_sz == 0;
+	int alignment = btf__align_of(btf, type_id);
+
+	if (alignment == 0)
+		return false;
+
+	return ((uintptr_t)data) % alignment == 0;
 }
 
 static int btf_dump_int_data(struct btf_dump *d,
@@ -1669,9 +1676,10 @@ static int btf_dump_int_data(struct btf_dump *d,
 {
 	__u8 encoding = btf_int_encoding(t);
 	bool sign = encoding & BTF_INT_SIGNED;
+	char buf[16] __attribute__((aligned(16)));
 	int sz = t->size;
 
-	if (sz == 0) {
+	if (sz == 0 || sz > sizeof(buf)) {
 		pr_warn("unexpected size %d for id [%u]\n", sz, type_id);
 		return -EINVAL;
 	}
@@ -1679,8 +1687,10 @@ static int btf_dump_int_data(struct btf_dump *d,
 	/* handle packed int data - accesses of integers not aligned on
 	 * int boundaries can cause problems on some platforms.
 	 */
-	if (!ptr_is_aligned(data, sz))
-		return btf_dump_bitfield_data(d, t, data, 0, 0);
+	if (!ptr_is_aligned(d->btf, type_id, data)) {
+		memcpy(buf, data, sz);
+		data = buf;
+	}
 
 	switch (sz) {
 	case 16: {
@@ -1690,10 +1700,10 @@ static int btf_dump_int_data(struct btf_dump *d,
 		/* avoid use of __int128 as some 32-bit platforms do not
 		 * support it.
 		 */
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 		lsi = ints[0];
 		msi = ints[1];
-#elif __BYTE_ORDER == __BIG_ENDIAN
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 		lsi = ints[1];
 		msi = ints[0];
 #else
@@ -1766,7 +1776,7 @@ static int btf_dump_float_data(struct btf_dump *d,
 	int sz = t->size;
 
 	/* handle unaligned data; copy to local union */
-	if (!ptr_is_aligned(data, sz)) {
+	if (!ptr_is_aligned(d->btf, type_id, data)) {
 		memcpy(&fl, data, sz);
 		flp = &fl;
 	}
@@ -1929,7 +1939,7 @@ static int btf_dump_ptr_data(struct btf_dump *d,
 			      __u32 id,
 			      const void *data)
 {
-	if (ptr_is_aligned(data, d->ptr_sz) && d->ptr_sz == sizeof(void *)) {
+	if (ptr_is_aligned(d->btf, id, data) && d->ptr_sz == sizeof(void *)) {
 		btf_dump_type_values(d, "%p", *(void **)data);
 	} else {
 		union ptr_data pt;
@@ -1949,10 +1959,8 @@ static int btf_dump_get_enum_value(struct btf_dump *d,
 				   __u32 id,
 				   __s64 *value)
 {
-	int sz = t->size;
-
 	/* handle unaligned enum value */
-	if (!ptr_is_aligned(data, sz)) {
+	if (!ptr_is_aligned(d->btf, id, data)) {
 		__u64 val;
 		int err;
 
@@ -2215,6 +2223,7 @@ static int btf_dump_dump_type_data(struct btf_dump *d,
 	case BTF_KIND_FWD:
 	case BTF_KIND_FUNC:
 	case BTF_KIND_FUNC_PROTO:
+	case BTF_KIND_DECL_TAG:
 		err = btf_dump_unsupported_data(d, t, id);
 		break;
 	case BTF_KIND_INT:

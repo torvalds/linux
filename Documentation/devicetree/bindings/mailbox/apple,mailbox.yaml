@@ -1,0 +1,77 @@
+# SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mailbox/apple,mailbox.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Apple Mailbox Controller
+
+maintainers:
+  - Hector Martin <marcan@marcan.st>
+  - Sven Peter <sven@svenpeter.dev>
+
+description:
+  The Apple mailbox consists of two FIFOs used to exchange 64+32 bit
+  messages between the main CPU and a co-processor. Multiple instances
+  of this mailbox can be found on Apple SoCs.
+  One of the two FIFOs is used to send data to a co-processor while the other
+  FIFO is used for the other direction.
+  Various clients implement different IPC protocols based on these simple
+  messages and shared memory buffers.
+
+properties:
+  compatible:
+    oneOf:
+      - description:
+          ASC mailboxes are the most common variant found on the M1 used
+          for example for the display controller, the system management
+          controller and the NVMe coprocessor.
+        items:
+          - const: apple,t8103-asc-mailbox
+
+      - description:
+          M3 mailboxes are an older variant with a slightly different MMIO
+          interface still found on the M1. It is used for the Thunderbolt
+          co-processors.
+        items:
+          - const: apple,t8103-m3-mailbox
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    items:
+      - description: send fifo is empty interrupt
+      - description: send fifo is not empty interrupt
+      - description: receive fifo is empty interrupt
+      - description: receive fifo is not empty interrupt
+
+  interrupt-names:
+    items:
+      - const: send-empty
+      - const: send-not-empty
+      - const: recv-empty
+      - const: recv-not-empty
+
+  "#mbox-cells":
+    const: 0
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - interrupt-names
+  - "#mbox-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+        mailbox@77408000 {
+                compatible = "apple,t8103-asc-mailbox";
+                reg = <0x77408000 0x4000>;
+                interrupts = <1 583 4>, <1 584 4>, <1 585 4>, <1 586 4>;
+                interrupt-names = "send-empty", "send-not-empty",
+                 "recv-empty", "recv-not-empty";
+                #mbox-cells = <0>;
+        };

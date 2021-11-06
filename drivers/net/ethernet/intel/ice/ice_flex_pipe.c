@@ -735,7 +735,7 @@ static void ice_release_global_cfg_lock(struct ice_hw *hw)
  *
  * This function will request ownership of the change lock.
  */
-static enum ice_status
+enum ice_status
 ice_acquire_change_lock(struct ice_hw *hw, enum ice_aq_res_access_type access)
 {
 	return ice_acquire_res(hw, ICE_CHANGE_LOCK_RES_ID, access,
@@ -748,7 +748,7 @@ ice_acquire_change_lock(struct ice_hw *hw, enum ice_aq_res_access_type access)
  *
  * This function will release the change lock using the proper Admin Command.
  */
-static void ice_release_change_lock(struct ice_hw *hw)
+void ice_release_change_lock(struct ice_hw *hw)
 {
 	ice_release_res(hw, ICE_CHANGE_LOCK_RES_ID);
 }
@@ -1330,6 +1330,86 @@ fw_ddp_compat_free_alloc:
 }
 
 /**
+ * ice_sw_fv_handler
+ * @sect_type: section type
+ * @section: pointer to section
+ * @index: index of the field vector entry to be returned
+ * @offset: ptr to variable that receives the offset in the field vector table
+ *
+ * This is a callback function that can be passed to ice_pkg_enum_entry.
+ * This function treats the given section as of type ice_sw_fv_section and
+ * enumerates offset field. "offset" is an index into the field vector table.
+ */
+static void *
+ice_sw_fv_handler(u32 sect_type, void *section, u32 index, u32 *offset)
+{
+	struct ice_sw_fv_section *fv_section = section;
+
+	if (!section || sect_type != ICE_SID_FLD_VEC_SW)
+		return NULL;
+	if (index >= le16_to_cpu(fv_section->count))
+		return NULL;
+	if (offset)
+		/* "index" passed in to this function is relative to a given
+		 * 4k block. To get to the true index into the field vector
+		 * table need to add the relative index to the base_offset
+		 * field of this section
+		 */
+		*offset = le16_to_cpu(fv_section->base_offset) + index;
+	return fv_section->fv + index;
+}
+
+/**
+ * ice_get_prof_index_max - get the max profile index for used profile
+ * @hw: pointer to the HW struct
+ *
+ * Calling this function will get the max profile index for used profile
+ * and store the index number in struct ice_switch_info *switch_info
+ * in HW for following use.
+ */
+static enum ice_status ice_get_prof_index_max(struct ice_hw *hw)
+{
+	u16 prof_index = 0, j, max_prof_index = 0;
+	struct ice_pkg_enum state;
+	struct ice_seg *ice_seg;
+	bool flag = false;
+	struct ice_fv *fv;
+	u32 offset;
+
+	memset(&state, 0, sizeof(state));
+
+	if (!hw->seg)
+		return ICE_ERR_PARAM;
+
+	ice_seg = hw->seg;
+
+	do {
+		fv = ice_pkg_enum_entry(ice_seg, &state, ICE_SID_FLD_VEC_SW,
+					&offset, ice_sw_fv_handler);
+		if (!fv)
+			break;
+		ice_seg = NULL;
+
+		/* in the profile that not be used, the prot_id is set to 0xff
+		 * and the off is set to 0x1ff for all the field vectors.
+		 */
+		for (j = 0; j < hw->blk[ICE_BLK_SW].es.fvw; j++)
+			if (fv->ew[j].prot_id != ICE_PROT_INVALID ||
+			    fv->ew[j].off != ICE_FV_OFFSET_INVAL)
+				flag = true;
+		if (flag && prof_index > max_prof_index)
+			max_prof_index = prof_index;
+
+		prof_index++;
+		flag = false;
+	} while (fv);
+
+	hw->switch_info->max_used_prof_index = max_prof_index;
+
+	return 0;
+}
+
+/**
  * ice_init_pkg - initialize/download package
  * @hw: pointer to the hardware structure
  * @buf: pointer to the package buffer
@@ -1408,6 +1488,7 @@ enum ice_status ice_init_pkg(struct ice_hw *hw, u8 *buf, u32 len)
 		 */
 		ice_init_pkg_regs(hw);
 		ice_fill_blk_tbls(hw);
+		ice_get_prof_index_max(hw);
 	} else {
 		ice_debug(hw, ICE_DBG_INIT, "package load failed, %d\n",
 			  status);
@@ -1482,6 +1563,195 @@ static struct ice_buf_build *ice_pkg_buf_alloc(struct ice_hw *hw)
 	buf->data_end = cpu_to_le16(offsetof(struct ice_buf_hdr,
 					     section_entry));
 	return bld;
+}
+
+/**
+ * ice_get_sw_prof_type - determine switch profile type
+ * @hw: pointer to the HW structure
+ * @fv: pointer to the switch field vector
+ */
+static enum ice_prof_type
+ice_get_sw_prof_type(struct ice_hw *hw, struct ice_fv *fv)
+{
+	u16 i;
+
+	for (i = 0; i < hw->blk[ICE_BLK_SW].es.fvw; i++) {
+		/* UDP tunnel will have UDP_OF protocol ID and VNI offset */
+		if (fv->ew[i].prot_id == (u8)ICE_PROT_UDP_OF &&
+		    fv->ew[i].off == ICE_VNI_OFFSET)
+			return ICE_PROF_TUN_UDP;
+
+		/* GRE tunnel will have GRE protocol */
+		if (fv->ew[i].prot_id == (u8)ICE_PROT_GRE_OF)
+			return ICE_PROF_TUN_GRE;
+	}
+
+	return ICE_PROF_NON_TUN;
+}
+
+/**
+ * ice_get_sw_fv_bitmap - Get switch field vector bitmap based on profile type
+ * @hw: pointer to hardware structure
+ * @req_profs: type of profiles requested
+ * @bm: pointer to memory for returning the bitmap of field vectors
+ */
+void
+ice_get_sw_fv_bitmap(struct ice_hw *hw, enum ice_prof_type req_profs,
+		     unsigned long *bm)
+{
+	struct ice_pkg_enum state;
+	struct ice_seg *ice_seg;
+	struct ice_fv *fv;
+
+	if (req_profs == ICE_PROF_ALL) {
+		bitmap_set(bm, 0, ICE_MAX_NUM_PROFILES);
+		return;
+	}
+
+	memset(&state, 0, sizeof(state));
+	bitmap_zero(bm, ICE_MAX_NUM_PROFILES);
+	ice_seg = hw->seg;
+	do {
+		enum ice_prof_type prof_type;
+		u32 offset;
+
+		fv = ice_pkg_enum_entry(ice_seg, &state, ICE_SID_FLD_VEC_SW,
+					&offset, ice_sw_fv_handler);
+		ice_seg = NULL;
+
+		if (fv) {
+			/* Determine field vector type */
+			prof_type = ice_get_sw_prof_type(hw, fv);
+
+			if (req_profs & prof_type)
+				set_bit((u16)offset, bm);
+		}
+	} while (fv);
+}
+
+/**
+ * ice_get_sw_fv_list
+ * @hw: pointer to the HW structure
+ * @prot_ids: field vector to search for with a given protocol ID
+ * @ids_cnt: lookup/protocol count
+ * @bm: bitmap of field vectors to consider
+ * @fv_list: Head of a list
+ *
+ * Finds all the field vector entries from switch block that contain
+ * a given protocol ID and returns a list of structures of type
+ * "ice_sw_fv_list_entry". Every structure in the list has a field vector
+ * definition and profile ID information
+ * NOTE: The caller of the function is responsible for freeing the memory
+ * allocated for every list entry.
+ */
+enum ice_status
+ice_get_sw_fv_list(struct ice_hw *hw, u8 *prot_ids, u16 ids_cnt,
+		   unsigned long *bm, struct list_head *fv_list)
+{
+	struct ice_sw_fv_list_entry *fvl;
+	struct ice_sw_fv_list_entry *tmp;
+	struct ice_pkg_enum state;
+	struct ice_seg *ice_seg;
+	struct ice_fv *fv;
+	u32 offset;
+
+	memset(&state, 0, sizeof(state));
+
+	if (!ids_cnt || !hw->seg)
+		return ICE_ERR_PARAM;
+
+	ice_seg = hw->seg;
+	do {
+		u16 i;
+
+		fv = ice_pkg_enum_entry(ice_seg, &state, ICE_SID_FLD_VEC_SW,
+					&offset, ice_sw_fv_handler);
+		if (!fv)
+			break;
+		ice_seg = NULL;
+
+		/* If field vector is not in the bitmap list, then skip this
+		 * profile.
+		 */
+		if (!test_bit((u16)offset, bm))
+			continue;
+
+		for (i = 0; i < ids_cnt; i++) {
+			int j;
+
+			/* This code assumes that if a switch field vector line
+			 * has a matching protocol, then this line will contain
+			 * the entries necessary to represent every field in
+			 * that protocol header.
+			 */
+			for (j = 0; j < hw->blk[ICE_BLK_SW].es.fvw; j++)
+				if (fv->ew[j].prot_id == prot_ids[i])
+					break;
+			if (j >= hw->blk[ICE_BLK_SW].es.fvw)
+				break;
+			if (i + 1 == ids_cnt) {
+				fvl = devm_kzalloc(ice_hw_to_dev(hw),
+						   sizeof(*fvl), GFP_KERNEL);
+				if (!fvl)
+					goto err;
+				fvl->fv_ptr = fv;
+				fvl->profile_id = offset;
+				list_add(&fvl->list_entry, fv_list);
+				break;
+			}
+		}
+	} while (fv);
+	if (list_empty(fv_list))
+		return ICE_ERR_CFG;
+	return 0;
+
+err:
+	list_for_each_entry_safe(fvl, tmp, fv_list, list_entry) {
+		list_del(&fvl->list_entry);
+		devm_kfree(ice_hw_to_dev(hw), fvl);
+	}
+
+	return ICE_ERR_NO_MEMORY;
+}
+
+/**
+ * ice_init_prof_result_bm - Initialize the profile result index bitmap
+ * @hw: pointer to hardware structure
+ */
+void ice_init_prof_result_bm(struct ice_hw *hw)
+{
+	struct ice_pkg_enum state;
+	struct ice_seg *ice_seg;
+	struct ice_fv *fv;
+
+	memset(&state, 0, sizeof(state));
+
+	if (!hw->seg)
+		return;
+
+	ice_seg = hw->seg;
+	do {
+		u32 off;
+		u16 i;
+
+		fv = ice_pkg_enum_entry(ice_seg, &state, ICE_SID_FLD_VEC_SW,
+					&off, ice_sw_fv_handler);
+		ice_seg = NULL;
+		if (!fv)
+			break;
+
+		bitmap_zero(hw->switch_info->prof_res_bm[off],
+			    ICE_MAX_FV_WORDS);
+
+		/* Determine empty field vector indices, these can be
+		 * used for recipe results. Skip index 0, since it is
+		 * always used for Switch ID.
+		 */
+		for (i = 1; i < ICE_MAX_FV_WORDS; i++)
+			if (fv->ew[i].prot_id == ICE_PROT_INVALID &&
+			    fv->ew[i].off == ICE_FV_OFFSET_INVAL)
+				set_bit(i, hw->switch_info->prof_res_bm[off]);
+	} while (fv);
 }
 
 /**
@@ -1859,6 +2129,35 @@ int ice_udp_tunnel_unset_port(struct net_device *netdev, unsigned int table,
 			   ice_stat_str(status));
 		return -EIO;
 	}
+
+	return 0;
+}
+
+/**
+ * ice_find_prot_off - find prot ID and offset pair, based on prof and FV index
+ * @hw: pointer to the hardware structure
+ * @blk: hardware block
+ * @prof: profile ID
+ * @fv_idx: field vector word index
+ * @prot: variable to receive the protocol ID
+ * @off: variable to receive the protocol offset
+ */
+enum ice_status
+ice_find_prot_off(struct ice_hw *hw, enum ice_block blk, u8 prof, u16 fv_idx,
+		  u8 *prot, u16 *off)
+{
+	struct ice_fv_word *fv_ext;
+
+	if (prof >= hw->blk[blk].es.count)
+		return ICE_ERR_PARAM;
+
+	if (fv_idx >= hw->blk[blk].es.fvw)
+		return ICE_ERR_PARAM;
+
+	fv_ext = hw->blk[blk].es.t + (prof * hw->blk[blk].es.fvw);
+
+	*prot = fv_ext[fv_idx].prot_id;
+	*off = fv_ext[fv_idx].off;
 
 	return 0;
 }

@@ -784,6 +784,6 @@ References
 
 For additional information on Kprobes, refer to the following URLs:
 
-- https://www.ibm.com/developerworks/library/l-kprobes/index.html
+- https://lwn.net/Articles/132196/
 - https://www.kernel.org/doc/ols/2006/ols2006v2-pages-109-124.pdf
 

@@ -19,6 +19,7 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/kmod.h>
+#include <linux/major.h>
 #include <linux/mutex.h>
 #include <linux/idr.h>
 #include <linux/log2.h>
@@ -57,6 +58,7 @@ void set_capacity(struct gendisk *disk, sector_t sectors)
 
 	spin_lock(&bdev->bd_size_lock);
 	i_size_write(bdev->bd_inode, (loff_t)sectors << SECTOR_SHIFT);
+	bdev->bd_nr_sectors = sectors;
 	spin_unlock(&bdev->bd_size_lock);
 }
 EXPORT_SYMBOL(set_capacity);
@@ -625,6 +627,26 @@ void del_gendisk(struct gendisk *disk)
 }
 EXPORT_SYMBOL(del_gendisk);
 
+/**
+ * invalidate_disk - invalidate the disk
+ * @disk: the struct gendisk to invalidate
+ *
+ * A helper to invalidates the disk. It will clean the disk's associated
+ * buffer/page caches and reset its internal states so that the disk
+ * can be reused by the drivers.
+ *
+ * Context: can sleep
+ */
+void invalidate_disk(struct gendisk *disk)
+{
+	struct block_device *bdev = disk->part0;
+
+	invalidate_bdev(bdev);
+	bdev->bd_inode->i_mapping->wb_err = 0;
+	set_capacity(disk, 0);
+}
+EXPORT_SYMBOL(invalidate_disk);
+
 /* sysfs access to bad-blocks list. */
 static ssize_t disk_badblocks_show(struct device *dev,
 					struct device_attribute *attr,
@@ -884,7 +906,7 @@ ssize_t part_stat_show(struct device *dev,
 		       struct device_attribute *attr, char *buf)
 {
 	struct block_device *bdev = dev_to_bdev(dev);
-	struct request_queue *q = bdev->bd_disk->queue;
+	struct request_queue *q = bdev_get_queue(bdev);
 	struct disk_stats stat;
 	unsigned int inflight;
 
@@ -928,7 +950,7 @@ ssize_t part_inflight_show(struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
 	struct block_device *bdev = dev_to_bdev(dev);
-	struct request_queue *q = bdev->bd_disk->queue;
+	struct request_queue *q = bdev_get_queue(bdev);
 	unsigned int inflight[2];
 
 	if (queue_is_mq(q))
@@ -1268,6 +1290,9 @@ struct gendisk *__alloc_disk_node(struct request_queue *q, int node_id,
 	if (!disk->bdi)
 		goto out_free_disk;
 
+	/* bdev_alloc() might need the queue, set before the first call */
+	disk->queue = q;
+
 	disk->part0 = bdev_alloc(disk, 0);
 	if (!disk->part0)
 		goto out_free_bdi;
@@ -1283,7 +1308,6 @@ struct gendisk *__alloc_disk_node(struct request_queue *q, int node_id,
 	disk_to_dev(disk)->type = &disk_type;
 	device_initialize(disk_to_dev(disk));
 	inc_diskseq(disk);
-	disk->queue = q;
 	q->disk = disk;
 	lockdep_init_map(&disk->lockdep_map, "(bio completion)", lkclass, 0);
 #ifdef CONFIG_BLOCK_HOLDER_DEPRECATED
@@ -1387,12 +1411,6 @@ void set_disk_ro(struct gendisk *disk, bool read_only)
 	set_disk_ro_uevent(disk, read_only);
 }
 EXPORT_SYMBOL(set_disk_ro);
-
-int bdev_read_only(struct block_device *bdev)
-{
-	return bdev->bd_read_only || get_disk_ro(bdev->bd_disk);
-}
-EXPORT_SYMBOL(bdev_read_only);
 
 void inc_diskseq(struct gendisk *disk)
 {

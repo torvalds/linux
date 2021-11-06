@@ -12,8 +12,11 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
+#include <linux/module.h>
 
 #include "vde.h"
+
+MODULE_IMPORT_NS(DMA_BUF);
 
 struct tegra_vde_cache_entry {
 	enum dma_data_direction dma_dir;

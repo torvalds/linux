@@ -1349,7 +1349,7 @@ static void hclgevf_get_mac_addr(struct hnae3_handle *handle, u8 *p)
 		ether_addr_copy(p, hdev->hw.mac.mac_addr);
 }
 
-static int hclgevf_set_mac_addr(struct hnae3_handle *handle, void *p,
+static int hclgevf_set_mac_addr(struct hnae3_handle *handle, const void *p,
 				bool is_first)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);

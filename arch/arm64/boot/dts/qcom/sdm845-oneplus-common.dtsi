@@ -7,7 +7,6 @@
 
 /dts-v1/;
 
-#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/linux-event-codes.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 
@@ -93,7 +92,6 @@
 			console-size = <0x40000>;
 			ftrace-size = <0x40000>;
 			pmsg-size = <0x200000>;
-			devinfo-size = <0x1000>;
 			ecc-size = <16>;
 		};
 	};
@@ -248,6 +246,12 @@
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
+		vreg_l23a_3p3: ldo23 {
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3312000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+
 		vdda_qusb_hs0_3p1:
 		vreg_l24a_3p075: ldo24 {
 			regulator-min-microvolt = <3088000>;
@@ -315,9 +319,6 @@
 	status = "okay";
 	vdda-supply = <&vdda_mipi_dsi0_1p2>;
 
-	#address-cells = <1>;
-	#size-cells = <0>;
-
 	/*
 	 * Both devices use different panels but all other properties
 	 * are common. Compatible line is declared in device dts.
@@ -362,7 +363,13 @@
 				<GCC_LPASS_SWAY_CLK>;
 };
 
+&gmu {
+	status = "okay";
+};
+
 &gpu {
+	status = "okay";
+
 	zap-shader {
 		memory-region = <&gpu_mem>;
 		firmware-name = "qcom/sdm845/oneplus6/a630_zap.mbn";
@@ -412,10 +419,6 @@
 };
 
 &mdss {
-	status = "okay";
-};
-
-&mdss_mdp {
 	status = "okay";
 };
 
@@ -641,12 +644,17 @@
 	};
 };
 
+&venus {
+	status = "okay";
+};
+
 &wifi {
 	status = "okay";
 	vdd-0.8-cx-mx-supply = <&vreg_l5a_0p8>;
 	vdd-1.8-xo-supply = <&vreg_l7a_1p8>;
 	vdd-1.3-rfa-supply = <&vreg_l17a_1p3>;
 	vdd-3.3-ch0-supply = <&vreg_l25a_3p3>;
+	vdd-3.3-ch1-supply = <&vreg_l23a_3p3>;
 
 	qcom,snoc-host-cap-8bit-quirk;
 };

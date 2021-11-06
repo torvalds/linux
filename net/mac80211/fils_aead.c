@@ -219,7 +219,8 @@ int fils_encrypt_assoc_req(struct sk_buff *skb,
 {
 	struct ieee80211_mgmt *mgmt = (void *)skb->data;
 	u8 *capab, *ies, *encr;
-	const u8 *addr[5 + 1], *session;
+	const u8 *addr[5 + 1];
+	const struct element *session;
 	size_t len[5 + 1];
 	size_t crypt_len;
 
@@ -231,12 +232,12 @@ int fils_encrypt_assoc_req(struct sk_buff *skb,
 		ies = mgmt->u.assoc_req.variable;
 	}
 
-	session = cfg80211_find_ext_ie(WLAN_EID_EXT_FILS_SESSION,
-				       ies, skb->data + skb->len - ies);
-	if (!session || session[1] != 1 + 8)
+	session = cfg80211_find_ext_elem(WLAN_EID_EXT_FILS_SESSION,
+					 ies, skb->data + skb->len - ies);
+	if (!session || session->datalen != 1 + 8)
 		return -EINVAL;
 	/* encrypt after FILS Session element */
-	encr = (u8 *)session + 2 + 1 + 8;
+	encr = (u8 *)session->data + 1 + 8;
 
 	/* AES-SIV AAD vectors */
 
@@ -270,7 +271,8 @@ int fils_decrypt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_mgmt *mgmt = (void *)frame;
 	u8 *capab, *ies, *encr;
-	const u8 *addr[5 + 1], *session;
+	const u8 *addr[5 + 1];
+	const struct element *session;
 	size_t len[5 + 1];
 	int res;
 	size_t crypt_len;
@@ -280,16 +282,16 @@ int fils_decrypt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 
 	capab = (u8 *)&mgmt->u.assoc_resp.capab_info;
 	ies = mgmt->u.assoc_resp.variable;
-	session = cfg80211_find_ext_ie(WLAN_EID_EXT_FILS_SESSION,
-				       ies, frame + *frame_len - ies);
-	if (!session || session[1] != 1 + 8) {
+	session = cfg80211_find_ext_elem(WLAN_EID_EXT_FILS_SESSION,
+					 ies, frame + *frame_len - ies);
+	if (!session || session->datalen != 1 + 8) {
 		mlme_dbg(sdata,
 			 "No (valid) FILS Session element in (Re)Association Response frame from %pM",
 			 mgmt->sa);
 		return -EINVAL;
 	}
 	/* decrypt after FILS Session element */
-	encr = (u8 *)session + 2 + 1 + 8;
+	encr = (u8 *)session->data + 1 + 8;
 
 	/* AES-SIV AAD vectors */
 

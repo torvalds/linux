@@ -1248,6 +1248,8 @@ SYSCALL_DEFINE4(openat2, int, dfd, const char __user *, filename,
 	if (err)
 		return err;
 
+	audit_openat2_how(&tmp);
+
 	/* O_LARGEFILE is only allowed for non-O_PATH. */
 	if (!(tmp.flags & O_PATH) && force_o_largefile())
 		tmp.flags |= O_LARGEFILE;

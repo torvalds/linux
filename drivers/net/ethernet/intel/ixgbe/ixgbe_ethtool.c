@@ -467,9 +467,8 @@ static int ixgbe_set_link_ksettings(struct net_device *netdev,
 		 * this function does not support duplex forcing, but can
 		 * limit the advertising of the adapter to the specified speed
 		 */
-		if (!bitmap_subset(cmd->link_modes.advertising,
-				   cmd->link_modes.supported,
-				   __ETHTOOL_LINK_MODE_MASK_NBITS))
+		if (!linkmode_subset(cmd->link_modes.advertising,
+				     cmd->link_modes.supported))
 			return -EINVAL;
 
 		/* only allow one speed at a time if no autoneg */

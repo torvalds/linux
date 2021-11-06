@@ -57,6 +57,10 @@ properties:
           - const: st,stm32h750
       - items:
           - enum:
+              - st,stm32mp135f-dk
+          - const: st,stm32mp135
+      - items:
+          - enum:
               - shiratech,stm32mp157a-iot-box # IoT Box
               - shiratech,stm32mp157a-stinger96 # Stinger96
               - st,stm32mp157c-ed1

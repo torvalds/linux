@@ -2,10 +2,10 @@
 #ifndef _BCACHE_BSET_H
 #define _BCACHE_BSET_H
 
-#include <linux/bcache.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 
+#include "bcache_ondisk.h"
 #include "util.h" /* for time_stats */
 
 /*

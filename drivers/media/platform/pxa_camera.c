@@ -2249,10 +2249,9 @@ static int pxa_camera_pdata_from_dt(struct device *dev,
 	if (ep.bus.parallel.flags & V4L2_MBUS_PCLK_SAMPLE_FALLING)
 		pcdev->platform_flags |= PXA_CAMERA_PCLK_EN;
 
-	asd = v4l2_async_notifier_add_fwnode_remote_subdev(
-				&pcdev->notifier,
-				of_fwnode_handle(np),
-				struct v4l2_async_subdev);
+	asd = v4l2_async_nf_add_fwnode_remote(&pcdev->notifier,
+					      of_fwnode_handle(np),
+					      struct v4l2_async_subdev);
 	if (IS_ERR(asd))
 		err = PTR_ERR(asd);
 out:
@@ -2289,7 +2288,7 @@ static int pxa_camera_probe(struct platform_device *pdev)
 	if (IS_ERR(pcdev->clk))
 		return PTR_ERR(pcdev->clk);
 
-	v4l2_async_notifier_init(&pcdev->notifier);
+	v4l2_async_nf_init(&pcdev->notifier);
 	pcdev->res = res;
 	pcdev->pdata = pdev->dev.platform_data;
 	if (pcdev->pdata) {
@@ -2297,11 +2296,10 @@ static int pxa_camera_probe(struct platform_device *pdev)
 
 		pcdev->platform_flags = pcdev->pdata->flags;
 		pcdev->mclk = pcdev->pdata->mclk_10khz * 10000;
-		asd = v4l2_async_notifier_add_i2c_subdev(
-				&pcdev->notifier,
-				pcdev->pdata->sensor_i2c_adapter_id,
-				pcdev->pdata->sensor_i2c_address,
-				struct v4l2_async_subdev);
+		asd = v4l2_async_nf_add_i2c(&pcdev->notifier,
+					    pcdev->pdata->sensor_i2c_adapter_id,
+					    pcdev->pdata->sensor_i2c_address,
+					    struct v4l2_async_subdev);
 		if (IS_ERR(asd))
 			err = PTR_ERR(asd);
 	} else if (pdev->dev.of_node) {
@@ -2402,13 +2400,13 @@ static int pxa_camera_probe(struct platform_device *pdev)
 		goto exit_notifier_cleanup;
 
 	pcdev->notifier.ops = &pxa_camera_sensor_ops;
-	err = v4l2_async_notifier_register(&pcdev->v4l2_dev, &pcdev->notifier);
+	err = v4l2_async_nf_register(&pcdev->v4l2_dev, &pcdev->notifier);
 	if (err)
 		goto exit_notifier_cleanup;
 
 	return 0;
 exit_notifier_cleanup:
-	v4l2_async_notifier_cleanup(&pcdev->notifier);
+	v4l2_async_nf_cleanup(&pcdev->notifier);
 	v4l2_device_unregister(&pcdev->v4l2_dev);
 exit_deactivate:
 	pxa_camera_deactivate(pcdev);
@@ -2432,8 +2430,8 @@ static int pxa_camera_remove(struct platform_device *pdev)
 	dma_release_channel(pcdev->dma_chans[1]);
 	dma_release_channel(pcdev->dma_chans[2]);
 
-	v4l2_async_notifier_unregister(&pcdev->notifier);
-	v4l2_async_notifier_cleanup(&pcdev->notifier);
+	v4l2_async_nf_unregister(&pcdev->notifier);
+	v4l2_async_nf_cleanup(&pcdev->notifier);
 
 	v4l2_device_unregister(&pcdev->v4l2_dev);
 

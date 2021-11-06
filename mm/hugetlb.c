@@ -5302,7 +5302,7 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
 			*pagep = NULL;
 			goto out;
 		}
-		copy_huge_page(page, *pagep);
+		folio_copy(page_folio(page), page_folio(*pagep));
 		put_page(*pagep);
 		*pagep = NULL;
 	}

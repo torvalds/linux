@@ -1886,87 +1886,6 @@ static inline void cpu_probe_ingenic(struct cpuinfo_mips *c, unsigned int cpu)
 	}
 }
 
-static inline void cpu_probe_netlogic(struct cpuinfo_mips *c, int cpu)
-{
-	decode_configs(c);
-
-	if ((c->processor_id & PRID_IMP_MASK) == PRID_IMP_NETLOGIC_AU13XX) {
-		c->cputype = CPU_ALCHEMY;
-		__cpu_name[cpu] = "Au1300";
-		/* following stuff is not for Alchemy */
-		return;
-	}
-
-	c->options = (MIPS_CPU_TLB	 |
-			MIPS_CPU_4KEX	 |
-			MIPS_CPU_COUNTER |
-			MIPS_CPU_DIVEC	 |
-			MIPS_CPU_WATCH	 |
-			MIPS_CPU_EJTAG	 |
-			MIPS_CPU_LLSC);
-
-	switch (c->processor_id & PRID_IMP_MASK) {
-	case PRID_IMP_NETLOGIC_XLP2XX:
-	case PRID_IMP_NETLOGIC_XLP9XX:
-	case PRID_IMP_NETLOGIC_XLP5XX:
-		c->cputype = CPU_XLP;
-		__cpu_name[cpu] = "Broadcom XLPII";
-		break;
-
-	case PRID_IMP_NETLOGIC_XLP8XX:
-	case PRID_IMP_NETLOGIC_XLP3XX:
-		c->cputype = CPU_XLP;
-		__cpu_name[cpu] = "Netlogic XLP";
-		break;
-
-	case PRID_IMP_NETLOGIC_XLR732:
-	case PRID_IMP_NETLOGIC_XLR716:
-	case PRID_IMP_NETLOGIC_XLR532:
-	case PRID_IMP_NETLOGIC_XLR308:
-	case PRID_IMP_NETLOGIC_XLR532C:
-	case PRID_IMP_NETLOGIC_XLR516C:
-	case PRID_IMP_NETLOGIC_XLR508C:
-	case PRID_IMP_NETLOGIC_XLR308C:
-		c->cputype = CPU_XLR;
-		__cpu_name[cpu] = "Netlogic XLR";
-		break;
-
-	case PRID_IMP_NETLOGIC_XLS608:
-	case PRID_IMP_NETLOGIC_XLS408:
-	case PRID_IMP_NETLOGIC_XLS404:
-	case PRID_IMP_NETLOGIC_XLS208:
-	case PRID_IMP_NETLOGIC_XLS204:
-	case PRID_IMP_NETLOGIC_XLS108:
-	case PRID_IMP_NETLOGIC_XLS104:
-	case PRID_IMP_NETLOGIC_XLS616B:
-	case PRID_IMP_NETLOGIC_XLS608B:
-	case PRID_IMP_NETLOGIC_XLS416B:
-	case PRID_IMP_NETLOGIC_XLS412B:
-	case PRID_IMP_NETLOGIC_XLS408B:
-	case PRID_IMP_NETLOGIC_XLS404B:
-		c->cputype = CPU_XLR;
-		__cpu_name[cpu] = "Netlogic XLS";
-		break;
-
-	default:
-		pr_info("Unknown Netlogic chip id [%02x]!\n",
-		       c->processor_id);
-		c->cputype = CPU_XLR;
-		break;
-	}
-
-	if (c->cputype == CPU_XLP) {
-		set_isa(c, MIPS_CPU_ISA_M64R2);
-		c->options |= (MIPS_CPU_FPU | MIPS_CPU_ULRI | MIPS_CPU_MCHECK);
-		/* This will be updated again after all threads are woken up */
-		c->tlbsize = ((read_c0_config6() >> 16) & 0xffff) + 1;
-	} else {
-		set_isa(c, MIPS_CPU_ISA_M64R1);
-		c->tlbsize = ((read_c0_config1() >> 25) & 0x3f) + 1;
-	}
-	c->kscratch_mask = 0xf;
-}
-
 #ifdef CONFIG_64BIT
 /* For use by uaccess.h */
 u64 __ua_limit;
@@ -2030,9 +1949,6 @@ void cpu_probe(void)
 	case PRID_COMP_INGENIC_D1:
 	case PRID_COMP_INGENIC_E1:
 		cpu_probe_ingenic(c, cpu);
-		break;
-	case PRID_COMP_NETLOGIC:
-		cpu_probe_netlogic(c, cpu);
 		break;
 	}
 
