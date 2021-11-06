@@ -68,6 +68,7 @@ struct rfkill_rk_platform_data {
 };
 
 int rfkill_get_bt_power_state(int *power, bool *toggle);
+void rfkill_rk_sleep_bt(bool sleep);
 
 #endif /* __RFKILL_GPIO_H */
 
