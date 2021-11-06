@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * ltr501.c - Support for Lite-On LTR501 ambient light and proximity sensor
+ * Support for Lite-On LTR501 and similar ambient light and proximity sensors.
  *
  * Copyright 2014 Peter Meerwald <pmeerw@pmeerw.net>
  *
@@ -98,6 +98,7 @@ enum {
 	ltr501 = 0,
 	ltr559,
 	ltr301,
+	ltr303,
 };
 
 struct ltr501_gain {
@@ -1231,6 +1232,18 @@ static const struct ltr501_chip_info ltr501_chip_info_tbl[] = {
 		.channels = ltr301_channels,
 		.no_channels = ARRAY_SIZE(ltr301_channels),
 	},
+	[ltr303] = {
+		.partid = 0x0A,
+		.als_gain = ltr559_als_gain_tbl,
+		.als_gain_tbl_size = ARRAY_SIZE(ltr559_als_gain_tbl),
+		.als_mode_active = BIT(0),
+		.als_gain_mask = BIT(2) | BIT(3) | BIT(4),
+		.als_gain_shift = 2,
+		.info = &ltr301_info,
+		.info_no_irq = &ltr301_info_no_irq,
+		.channels = ltr301_channels,
+		.no_channels = ARRAY_SIZE(ltr301_channels),
+	},
 };
 
 static int ltr501_write_contr(struct ltr501_data *data, u8 als_val, u8 ps_val)
@@ -1605,6 +1618,7 @@ static const struct i2c_device_id ltr501_id[] = {
 	{ "ltr501", ltr501},
 	{ "ltr559", ltr559},
 	{ "ltr301", ltr301},
+	{ "ltr303", ltr303},
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ltr501_id);
@@ -1613,6 +1627,7 @@ static const struct of_device_id ltr501_of_match[] = {
 	{ .compatible = "liteon,ltr501", },
 	{ .compatible = "liteon,ltr559", },
 	{ .compatible = "liteon,ltr301", },
+	{ .compatible = "liteon,ltr303", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, ltr501_of_match);
