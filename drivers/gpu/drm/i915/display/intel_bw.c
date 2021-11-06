@@ -147,7 +147,7 @@ static int icl_get_qgv_points(struct drm_i915_private *dev_priv,
 	qi->num_points = dram_info->num_qgv_points;
 	qi->num_psf_points = dram_info->num_psf_gv_points;
 
-	if (DISPLAY_VER(dev_priv) == 12)
+	if (DISPLAY_VER(dev_priv) >= 12)
 		switch (dram_info->type) {
 		case INTEL_DRAM_DDR4:
 			qi->t_bl = is_y_tile ? 8 : 4;
