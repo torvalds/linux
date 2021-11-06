@@ -115,7 +115,7 @@ static const unsigned short normal_i2c[] = {
 	0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
 
 enum chips { adm1032, adt7461, adt7461a, g781, lm86, lm90, lm99,
-	max6646, max6654, max6657, max6659, max6680, max6696,
+	max6646, max6648, max6654, max6657, max6659, max6680, max6696,
 	sa56004, tmp451, tmp461, w83l771,
 };
 
@@ -179,6 +179,7 @@ enum chips { adm1032, adt7461, adt7461a, g781, lm86, lm90, lm99,
 #define LM90_HAVE_PEC		BIT(11)	/* Chip supports PEC		*/
 #define LM90_HAVE_PARTIAL_PEC	BIT(12)	/* Partial PEC support (adm1032)*/
 #define LM90_HAVE_ALARMS	BIT(13)	/* Create 'alarms' attribute	*/
+#define LM90_HAVE_EXT_UNSIGNED	BIT(14)	/* extended unsigned temperature*/
 
 /* LM90 status */
 #define LM90_STATUS_LTHRM	BIT(0)	/* local THERM limit tripped */
@@ -213,6 +214,7 @@ static const struct i2c_device_id lm90_id[] = {
 	{ "lm99", lm99 },
 	{ "max6646", max6646 },
 	{ "max6647", max6646 },
+	{ "max6648", max6648 },
 	{ "max6649", max6646 },
 	{ "max6654", max6654 },
 	{ "max6657", max6657 },
@@ -220,6 +222,7 @@ static const struct i2c_device_id lm90_id[] = {
 	{ "max6659", max6659 },
 	{ "max6680", max6680 },
 	{ "max6681", max6680 },
+	{ "max6692", max6648 },
 	{ "max6695", max6696 },
 	{ "max6696", max6696 },
 	{ "nct1008", adt7461a },
@@ -400,7 +403,14 @@ static const struct lm90_params lm90_params[] = {
 	},
 	[max6646] = {
 		.flags = LM90_HAVE_CRIT | LM90_HAVE_BROKEN_ALERT
-		  | LM90_HAVE_UNSIGNED_TEMP | LM90_HAVE_ALARMS,
+		  | LM90_HAVE_EXT_UNSIGNED | LM90_HAVE_ALARMS,
+		.alert_alarms = 0x7c,
+		.max_convrate = 6,
+		.reg_local_ext = MAX6657_REG_LOCAL_TEMPL,
+	},
+	[max6648] = {
+		.flags = LM90_HAVE_UNSIGNED_TEMP | LM90_HAVE_CRIT
+		  | LM90_HAVE_BROKEN_ALERT,
 		.alert_alarms = 0x7c,
 		.max_convrate = 6,
 		.reg_local_ext = MAX6657_REG_LOCAL_TEMPL,
@@ -1119,7 +1129,7 @@ static int lm90_temp_from_reg(u32 flags, u16 regval, u8 resolution)
 
 	if (flags & LM90_HAVE_EXTENDED_TEMP)
 		val = regval - 0x4000;
-	else if (flags & LM90_HAVE_UNSIGNED_TEMP)
+	else if (flags & (LM90_HAVE_UNSIGNED_TEMP | LM90_HAVE_EXT_UNSIGNED))
 		val = regval;
 	else
 		val = (s16)regval;
@@ -1147,6 +1157,8 @@ static u16 lm90_temp_to_reg(u32 flags, long val, u8 resolution)
 	if (flags & LM90_HAVE_EXTENDED_TEMP) {
 		val = clamp_val(val, -64000, 191000 + fraction);
 		val += 64000;
+	} else if (flags & LM90_HAVE_EXT_UNSIGNED) {
+		val = clamp_val(val, 0, 255000 + fraction);
 	} else if (flags & LM90_HAVE_UNSIGNED_TEMP) {
 		val = clamp_val(val, 0, 127000 + fraction);
 	} else {
@@ -1675,11 +1687,32 @@ static const char *lm90_detect_maxim(struct i2c_client *client, int chip_id,
 		 * The chip_id register of the MAX6646/6647/6649 holds the
 		 * revision of the chip. The lowest 6 bits of the config1
 		 * register are unused and should return zero when read.
+		 * The I2C address of MAX6648/6692 is fixed at 0x4c.
+		 * MAX6646 is at address 0x4d, MAX6647 is at address 0x4e,
+		 * and MAX6649 is at address 0x4c. A slight difference between
+		 * the two sets of chips is that the remote temperature register
+		 * reports different values if the DXP pin is open or shorted.
+		 * We can use that information to help distinguish between the
+		 * chips. MAX6648 will be mis-detected as MAX6649 if the remote
+		 * diode is connected, but there isn't really anything we can
+		 * do about that.
 		 */
 		if (!(config1 & 0x3f) && convrate <= 0x07) {
+			int temp;
+
 			switch (address) {
 			case 0x4c:
-				name = "max6649";
+				/*
+				 * MAX6649 reports an external temperature
+				 * value of 0xff if DXP is open or shorted.
+				 * MAX6648 reports 0x80 in that case.
+				 */
+				temp = i2c_smbus_read_byte_data(client,
+								LM90_REG_REMOTE_TEMPH);
+				if (temp == 0x80)
+					name = "max6648";
+				else
+					name = "max6649";
 				break;
 			case 0x4d:
 				name = "max6646";

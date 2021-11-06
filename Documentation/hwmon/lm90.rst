@@ -105,7 +105,7 @@ Supported chips:
 
   * Maxim MAX6648
 
-    Prefix: 'max6646'
+    Prefix: 'max6648'
 
     Addresses scanned: I2C 0x4c
 
@@ -191,7 +191,7 @@ Supported chips:
 
   * Maxim MAX6692
 
-    Prefix: 'max6646'
+    Prefix: 'max6648'
 
     Addresses scanned: I2C 0x4c
 
@@ -323,6 +323,14 @@ ADT7461, ADT7461A, NCT1008:
   * Extended temperature range (breaks compatibility)
   * Lower resolution for remote temperature
   * SMBus PEC support for Write Byte and Receive Byte transactions.
+
+MAX6646, MAX6647, MAX6649:
+  * Better local resolution
+  * Extended range unsigned external temperature
+
+MAX6648, MAX6692:
+  * Better local resolution
+  * Unsigned temperature
 
 MAX6654:
   * Better local resolution
