@@ -15,6 +15,7 @@
 #include <linux/uaccess.h>
 #include <linux/kprobes.h>
 #include <linux/ptrace.h>
+#include <linux/jump_label.h>
 
 #include <asm/assembly.h>
 #include <asm/sections.h>
@@ -24,6 +25,8 @@
 #define __hot __section(".text.hot")
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
+static DEFINE_STATIC_KEY_FALSE(ftrace_graph_enable);
+
 /*
  * Hook the return address and push it in the stack of return addrs
  * in current thread info.
@@ -48,25 +51,19 @@ static void __hot prepare_ftrace_return(unsigned long *parent,
 }
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
+static ftrace_func_t ftrace_func;
+
 void notrace __hot ftrace_function_trampoline(unsigned long parent,
 				unsigned long self_addr,
 				unsigned long org_sp_gr3,
 				struct ftrace_regs *fregs)
 {
-#ifndef CONFIG_DYNAMIC_FTRACE
-	extern ftrace_func_t ftrace_trace_function;
-#endif
 	extern struct ftrace_ops *function_trace_op;
 
-	if (function_trace_op->flags & FTRACE_OPS_FL_ENABLED &&
-	    ftrace_trace_function != ftrace_stub)
-		ftrace_trace_function(self_addr, parent,
-				function_trace_op, fregs);
+	ftrace_func(self_addr, parent, function_trace_op, fregs);
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	if (dereference_function_descriptor(ftrace_graph_return) !=
-	    dereference_function_descriptor(ftrace_stub) ||
-	    ftrace_graph_entry != ftrace_graph_entry_stub) {
+	if (static_branch_unlikely(&ftrace_graph_enable)) {
 		unsigned long *parent_rp;
 
 		/* calculate pointer to %rp in stack */
@@ -84,11 +81,13 @@ void notrace __hot ftrace_function_trampoline(unsigned long parent,
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 int ftrace_enable_ftrace_graph_caller(void)
 {
+	static_key_enable(&ftrace_graph_enable.key);
 	return 0;
 }
 
 int ftrace_disable_ftrace_graph_caller(void)
 {
+	static_key_enable(&ftrace_graph_enable.key);
 	return 0;
 }
 #endif
@@ -99,8 +98,10 @@ int __init ftrace_dyn_arch_init(void)
 {
 	return 0;
 }
+
 int ftrace_update_ftrace_func(ftrace_func_t func)
 {
+	ftrace_func = func;
 	return 0;
 }
 

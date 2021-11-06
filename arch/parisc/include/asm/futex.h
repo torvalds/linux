@@ -2,8 +2,6 @@
 #ifndef _ASM_PARISC_FUTEX_H
 #define _ASM_PARISC_FUTEX_H
 
-#ifdef __KERNEL__
-
 #include <linux/futex.h>
 #include <linux/uaccess.h>
 #include <asm/atomic.h>
@@ -119,5 +117,4 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 	return 0;
 }
 
-#endif /*__KERNEL__*/
 #endif /*_ASM_PARISC_FUTEX_H*/
