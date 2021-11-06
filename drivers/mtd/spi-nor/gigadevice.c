@@ -19,7 +19,7 @@ static void gd25q256_default_init(struct spi_nor *nor)
 	nor->params->quad_enable = spi_nor_sr1_bit6_quad_enable;
 }
 
-static struct spi_nor_fixups gd25q256_fixups = {
+static const struct spi_nor_fixups gd25q256_fixups = {
 	.default_init = gd25q256_default_init,
 };
 

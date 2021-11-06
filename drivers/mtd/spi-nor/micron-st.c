@@ -113,7 +113,7 @@ static void mt35xu512aba_post_sfdp_fixup(struct spi_nor *nor)
 	nor->params->quad_enable = NULL;
 }
 
-static struct spi_nor_fixups mt35xu512aba_fixups = {
+static const struct spi_nor_fixups mt35xu512aba_fixups = {
 	.default_init = mt35xu512aba_default_init,
 	.post_sfdp = mt35xu512aba_post_sfdp_fixup,
 };
