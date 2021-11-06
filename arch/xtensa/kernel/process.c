@@ -211,11 +211,18 @@ int copy_thread(unsigned long clone_flags, unsigned long usp_thread_fn,
 	struct thread_info *ti;
 #endif
 
+#if defined(__XTENSA_WINDOWED_ABI__)
 	/* Create a call4 dummy-frame: a0 = 0, a1 = childregs. */
 	SPILL_SLOT(childregs, 1) = (unsigned long)childregs;
 	SPILL_SLOT(childregs, 0) = 0;
 
 	p->thread.sp = (unsigned long)childregs;
+#elif defined(__XTENSA_CALL0_ABI__)
+	/* Reserve 16 bytes for the _switch_to stack frame. */
+	p->thread.sp = (unsigned long)childregs - 16;
+#else
+#error Unsupported Xtensa ABI
+#endif
 
 	if (!(p->flags & (PF_KTHREAD | PF_IO_WORKER))) {
 		struct pt_regs *regs = current_pt_regs();
@@ -272,11 +279,25 @@ int copy_thread(unsigned long clone_flags, unsigned long usp_thread_fn,
 		p->thread.ra = MAKE_RA_FOR_CALL(
 				(unsigned long)ret_from_kernel_thread, 1);
 
-		/* pass parameters to ret_from_kernel_thread:
-		 * a2 = thread_fn, a3 = thread_fn arg
+		/* pass parameters to ret_from_kernel_thread: */
+#if defined(__XTENSA_WINDOWED_ABI__)
+		/*
+		 * a2 = thread_fn, a3 = thread_fn arg.
+		 * Window underflow will load registers from the
+		 * spill slots on the stack on return from _switch_to.
 		 */
-		SPILL_SLOT(childregs, 3) = thread_fn_arg;
 		SPILL_SLOT(childregs, 2) = usp_thread_fn;
+		SPILL_SLOT(childregs, 3) = thread_fn_arg;
+#elif defined(__XTENSA_CALL0_ABI__)
+		/*
+		 * a12 = thread_fn, a13 = thread_fn arg.
+		 * _switch_to epilogue will load registers from the stack.
+		 */
+		((unsigned long *)p->thread.sp)[0] = usp_thread_fn;
+		((unsigned long *)p->thread.sp)[1] = thread_fn_arg;
+#else
+#error Unsupported Xtensa ABI
+#endif
 
 		/* Childregs are only used when we're going to userspace
 		 * in which case start_thread will set them up.

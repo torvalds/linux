@@ -37,14 +37,15 @@
 #include <asm/bootparam.h>
 #include <asm/kasan.h>
 #include <asm/mmu_context.h>
-#include <asm/processor.h>
-#include <asm/timex.h>
-#include <asm/platform.h>
 #include <asm/page.h>
-#include <asm/setup.h>
 #include <asm/param.h>
+#include <asm/platform.h>
+#include <asm/processor.h>
+#include <asm/sections.h>
+#include <asm/setup.h>
 #include <asm/smp.h>
 #include <asm/sysmem.h>
+#include <asm/timex.h>
 
 #if defined(CONFIG_VGA_CONSOLE) || defined(CONFIG_DUMMY_CONSOLE)
 struct screen_info screen_info = {
@@ -271,49 +272,6 @@ void __init init_arch(bp_tag_t *bp_start)
  * Initialize system. Setup memory and reserve regions.
  */
 
-extern char _end[];
-extern char _stext[];
-extern char _WindowVectors_text_start;
-extern char _WindowVectors_text_end;
-extern char _DebugInterruptVector_text_start;
-extern char _DebugInterruptVector_text_end;
-extern char _KernelExceptionVector_text_start;
-extern char _KernelExceptionVector_text_end;
-extern char _UserExceptionVector_text_start;
-extern char _UserExceptionVector_text_end;
-extern char _DoubleExceptionVector_text_start;
-extern char _DoubleExceptionVector_text_end;
-extern char _exception_text_start;
-extern char _exception_text_end;
-#if XCHAL_EXCM_LEVEL >= 2
-extern char _Level2InterruptVector_text_start;
-extern char _Level2InterruptVector_text_end;
-#endif
-#if XCHAL_EXCM_LEVEL >= 3
-extern char _Level3InterruptVector_text_start;
-extern char _Level3InterruptVector_text_end;
-#endif
-#if XCHAL_EXCM_LEVEL >= 4
-extern char _Level4InterruptVector_text_start;
-extern char _Level4InterruptVector_text_end;
-#endif
-#if XCHAL_EXCM_LEVEL >= 5
-extern char _Level5InterruptVector_text_start;
-extern char _Level5InterruptVector_text_end;
-#endif
-#if XCHAL_EXCM_LEVEL >= 6
-extern char _Level6InterruptVector_text_start;
-extern char _Level6InterruptVector_text_end;
-#endif
-#ifdef CONFIG_SMP
-extern char _SecondaryResetVector_text_start;
-extern char _SecondaryResetVector_text_end;
-#endif
-#ifdef CONFIG_XIP_KERNEL
-extern char _xip_start[];
-extern char _xip_end[];
-#endif
-
 static inline int __init_memblock mem_reserve(unsigned long start,
 					      unsigned long end)
 {
@@ -349,49 +307,51 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 #ifdef CONFIG_VECTORS_ADDR
-	mem_reserve(__pa(&_WindowVectors_text_start),
-		    __pa(&_WindowVectors_text_end));
+#ifdef SUPPORT_WINDOWED
+	mem_reserve(__pa(_WindowVectors_text_start),
+		    __pa(_WindowVectors_text_end));
+#endif
 
-	mem_reserve(__pa(&_DebugInterruptVector_text_start),
-		    __pa(&_DebugInterruptVector_text_end));
+	mem_reserve(__pa(_DebugInterruptVector_text_start),
+		    __pa(_DebugInterruptVector_text_end));
 
-	mem_reserve(__pa(&_KernelExceptionVector_text_start),
-		    __pa(&_KernelExceptionVector_text_end));
+	mem_reserve(__pa(_KernelExceptionVector_text_start),
+		    __pa(_KernelExceptionVector_text_end));
 
-	mem_reserve(__pa(&_UserExceptionVector_text_start),
-		    __pa(&_UserExceptionVector_text_end));
+	mem_reserve(__pa(_UserExceptionVector_text_start),
+		    __pa(_UserExceptionVector_text_end));
 
-	mem_reserve(__pa(&_DoubleExceptionVector_text_start),
-		    __pa(&_DoubleExceptionVector_text_end));
+	mem_reserve(__pa(_DoubleExceptionVector_text_start),
+		    __pa(_DoubleExceptionVector_text_end));
 
-	mem_reserve(__pa(&_exception_text_start),
-		    __pa(&_exception_text_end));
+	mem_reserve(__pa(_exception_text_start),
+		    __pa(_exception_text_end));
 #if XCHAL_EXCM_LEVEL >= 2
-	mem_reserve(__pa(&_Level2InterruptVector_text_start),
-		    __pa(&_Level2InterruptVector_text_end));
+	mem_reserve(__pa(_Level2InterruptVector_text_start),
+		    __pa(_Level2InterruptVector_text_end));
 #endif
 #if XCHAL_EXCM_LEVEL >= 3
-	mem_reserve(__pa(&_Level3InterruptVector_text_start),
-		    __pa(&_Level3InterruptVector_text_end));
+	mem_reserve(__pa(_Level3InterruptVector_text_start),
+		    __pa(_Level3InterruptVector_text_end));
 #endif
 #if XCHAL_EXCM_LEVEL >= 4
-	mem_reserve(__pa(&_Level4InterruptVector_text_start),
-		    __pa(&_Level4InterruptVector_text_end));
+	mem_reserve(__pa(_Level4InterruptVector_text_start),
+		    __pa(_Level4InterruptVector_text_end));
 #endif
 #if XCHAL_EXCM_LEVEL >= 5
-	mem_reserve(__pa(&_Level5InterruptVector_text_start),
-		    __pa(&_Level5InterruptVector_text_end));
+	mem_reserve(__pa(_Level5InterruptVector_text_start),
+		    __pa(_Level5InterruptVector_text_end));
 #endif
 #if XCHAL_EXCM_LEVEL >= 6
-	mem_reserve(__pa(&_Level6InterruptVector_text_start),
-		    __pa(&_Level6InterruptVector_text_end));
+	mem_reserve(__pa(_Level6InterruptVector_text_start),
+		    __pa(_Level6InterruptVector_text_end));
 #endif
 
 #endif /* CONFIG_VECTORS_ADDR */
 
 #ifdef CONFIG_SMP
-	mem_reserve(__pa(&_SecondaryResetVector_text_start),
-		    __pa(&_SecondaryResetVector_text_end));
+	mem_reserve(__pa(_SecondaryResetVector_text_start),
+		    __pa(_SecondaryResetVector_text_end));
 #endif
 	parse_early_param();
 	bootmem_init();
