@@ -23,10 +23,7 @@ int wcn36xx_pmc_enter_bmps_state(struct wcn36xx *wcn,
 {
 	int ret = 0;
 	struct wcn36xx_vif *vif_priv = wcn36xx_vif_to_priv(vif);
-
-	if (!vif_priv->allow_bmps)
-		return -ENOTSUPP;
-
+	/* TODO: Make sure the TX chain clean */
 	ret = wcn36xx_smd_enter_bmps(wcn, vif);
 	if (!ret) {
 		wcn36xx_dbg(WCN36XX_DBG_PMC, "Entered BMPS\n");
