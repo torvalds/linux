@@ -7,7 +7,6 @@ config DRM_RCAR_DU
 	imply DRM_RCAR_CMM
 	imply DRM_RCAR_LVDS
 	select DRM_KMS_HELPER
-	select DRM_KMS_CMA_HELPER
 	select DRM_GEM_CMA_HELPER
 	select VIDEOMODE_HELPERS
 	help
