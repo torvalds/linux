@@ -856,12 +856,8 @@ void dwc2_hc_halt(struct dwc2_hsotg *hsotg, struct dwc2_host_chan *chan,
 		chan->halt_status = halt_status;
 
 		hcchar = dwc2_readl(hsotg, HCCHAR(chan->hc_num));
-		if (!(hcchar & HCCHAR_CHENA) ||
-		    (!chan->do_split &&
-		     (chan->ep_type == USB_ENDPOINT_XFER_ISOC ||
-		      chan->ep_type == USB_ENDPOINT_XFER_INT))){
+		if (!(hcchar & HCCHAR_CHENA)) {
 			/*
-			 * HCCHARn.ChEna 0 means that:
 			 * The channel is either already halted or it hasn't
 			 * started yet. In DMA mode, the transfer may halt if
 			 * it finishes normally or a condition occurs that
@@ -871,16 +867,7 @@ void dwc2_hc_halt(struct dwc2_hsotg *hsotg, struct dwc2_host_chan *chan,
 			 * to a channel, but not started yet when an URB is
 			 * dequeued. Don't want to halt a channel that hasn't
 			 * started yet.
-			 * If channel is used for non-split periodic transfer
-			 * according to DWC Programming Guide:
-			 * '3.5 Halting a Channel': Channel disable must not
-			 * be programmed for non-split periodic channels. At
-			 * the end of the next uframe/frame (in the worst
-			 * case), the core generates a channel halted and
-			 * disables the channel automatically.
 			 */
-			dev_info(hsotg->dev, "hcchar 0x%08x, ep_type %d\n",
-				 hcchar, chan->ep_type);
 			return;
 		}
 	}
