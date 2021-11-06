@@ -7341,6 +7341,15 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/nvidia/*
 
+FORTIFY_SOURCE
+M:	Kees Cook <keescook@chromium.org>
+L:	linux-hardening@vger.kernel.org
+S:	Supported
+F:	include/linux/fortify-string.h
+F:	lib/test_fortify/*
+F:	scripts/test_fortify.sh
+K:	\b__NO_FORTIFY\b
+
 FPGA DFL DRIVERS
 M:	Wu Hao <hao.wu@intel.com>
 R:	Tom Rix <trix@redhat.com>

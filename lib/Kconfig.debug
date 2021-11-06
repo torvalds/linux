@@ -2452,6 +2452,17 @@ config RATIONAL_KUNIT_TEST
 
 	  If unsure, say N.
 
+config MEMCPY_KUNIT_TEST
+	tristate "Test memcpy(), memmove(), and memset() functions at runtime" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  Builds unit tests for memcpy(), memmove(), and memset() functions.
+	  For more information on KUnit and unit tests in general please refer
+	  to the KUnit documentation in Documentation/dev-tools/kunit/.
+
+	  If unsure, say N.
+
 config TEST_UDELAY
 	tristate "udelay test driver"
 	help
