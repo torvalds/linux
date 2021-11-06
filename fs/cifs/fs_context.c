@@ -116,6 +116,7 @@ const struct fs_parameter_spec smb3_fs_parameters[] = {
 	fsparam_flag("nosharesock", Opt_nosharesock),
 	fsparam_flag_no("persistenthandles", Opt_persistent),
 	fsparam_flag_no("resilienthandles", Opt_resilient),
+	fsparam_flag_no("tcpnodelay", Opt_tcp_nodelay),
 	fsparam_flag("domainauto", Opt_domainauto),
 	fsparam_flag("rdma", Opt_rdma),
 	fsparam_flag("modesid", Opt_modesid),
@@ -318,6 +319,7 @@ smb3_fs_context_dup(struct smb3_fs_context *new_ctx, struct smb3_fs_context *ctx
 	DUP_CTX_STR(mount_options);
 	DUP_CTX_STR(username);
 	DUP_CTX_STR(password);
+	DUP_CTX_STR(server_hostname);
 	DUP_CTX_STR(UNC);
 	DUP_CTX_STR(source);
 	DUP_CTX_STR(domainname);
@@ -455,6 +457,11 @@ smb3_parse_devname(const char *devname, struct smb3_fs_context *ctx)
 	pos = strpbrk(devname + 2, delims);
 	if (!pos)
 		return -EINVAL;
+
+	/* record the server hostname */
+	ctx->server_hostname = kstrndup(devname + 2, pos - devname - 2, GFP_KERNEL);
+	if (!ctx->server_hostname)
+		return -ENOMEM;
 
 	/* skip past delimiter */
 	++pos;
@@ -1383,6 +1390,13 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 			}
 		}
 		break;
+	case Opt_tcp_nodelay:
+		/* tcp nodelay should not usually be needed since we CORK/UNCORK the socket */
+		if (result.negated)
+			ctx->sockopt_tcp_nodelay = false;
+		else
+			ctx->sockopt_tcp_nodelay = true;
+		break;
 	case Opt_domainauto:
 		ctx->domainauto = true;
 		break;
@@ -1496,6 +1510,8 @@ smb3_cleanup_fs_context_contents(struct smb3_fs_context *ctx)
 	ctx->username = NULL;
 	kfree_sensitive(ctx->password);
 	ctx->password = NULL;
+	kfree(ctx->server_hostname);
+	ctx->server_hostname = NULL;
 	kfree(ctx->UNC);
 	ctx->UNC = NULL;
 	kfree(ctx->source);
