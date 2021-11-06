@@ -20,11 +20,21 @@ typedef void (*holdouts_func_t)(struct list_head *hop, bool ndrpt, bool *frptp);
 typedef void (*postgp_func_t)(struct rcu_tasks *rtp);
 
 /**
- * struct rcu_tasks - Definition for a Tasks-RCU-like mechanism.
+ * struct rcu_tasks_percpu - Per-CPU component of definition for a Tasks-RCU-like mechanism.
  * @cbs_head: Head of callback list.
  * @cbs_tail: Tail pointer for callback list.
+ * @cbs_pcpu_lock: Lock protecting per-CPU callback list.
+ */
+struct rcu_tasks_percpu {
+	struct rcu_head *cbs_head;
+	struct rcu_head **cbs_tail;
+	raw_spinlock_t cbs_pcpu_lock;
+};
+
+/**
+ * struct rcu_tasks - Definition for a Tasks-RCU-like mechanism.
  * @cbs_wq: Wait queue allowing new callback to get kthread's attention.
- * @cbs_lock: Lock protecting callback list.
+ * @cbs_gbl_lock: Lock protecting callback list.
  * @kthread_ptr: This flavor's grace-period/callback-invocation kthread.
  * @gp_func: This flavor's grace-period-wait function.
  * @gp_state: Grace period's most recent state transition (debugging).
@@ -41,14 +51,13 @@ typedef void (*postgp_func_t)(struct rcu_tasks *rtp);
  * @holdouts_func: This flavor's holdout-list scan function (optional).
  * @postgp_func: This flavor's post-grace-period function (optional).
  * @call_func: This flavor's call_rcu()-equivalent function.
+ * @rtpcpu: This flavor's rcu_tasks_percpu structure.
  * @name: This flavor's textual name.
  * @kname: This flavor's kthread name.
  */
 struct rcu_tasks {
-	struct rcu_head *cbs_head;
-	struct rcu_head **cbs_tail;
 	struct wait_queue_head cbs_wq;
-	raw_spinlock_t cbs_lock;
+	raw_spinlock_t cbs_gbl_lock;
 	int gp_state;
 	int gp_sleep;
 	int init_fract;
@@ -65,20 +74,24 @@ struct rcu_tasks {
 	holdouts_func_t holdouts_func;
 	postgp_func_t postgp_func;
 	call_rcu_func_t call_func;
+	struct rcu_tasks_percpu __percpu *rtpcpu;
 	char *name;
 	char *kname;
 };
 
-#define DEFINE_RCU_TASKS(rt_name, gp, call, n)				\
-static struct rcu_tasks rt_name =					\
-{									\
-	.cbs_tail = &rt_name.cbs_head,					\
-	.cbs_wq = __WAIT_QUEUE_HEAD_INITIALIZER(rt_name.cbs_wq),	\
-	.cbs_lock = __RAW_SPIN_LOCK_UNLOCKED(rt_name.cbs_lock),		\
-	.gp_func = gp,							\
-	.call_func = call,						\
-	.name = n,							\
-	.kname = #rt_name,						\
+#define DEFINE_RCU_TASKS(rt_name, gp, call, n)						\
+static DEFINE_PER_CPU(struct rcu_tasks_percpu, rt_name ## __percpu) = {			\
+	.cbs_pcpu_lock = __RAW_SPIN_LOCK_UNLOCKED(rt_name ## __percpu.cbs_pcpu_lock),	\
+};											\
+static struct rcu_tasks rt_name =							\
+{											\
+	.cbs_wq = __WAIT_QUEUE_HEAD_INITIALIZER(rt_name.cbs_wq),			\
+	.cbs_gbl_lock = __RAW_SPIN_LOCK_UNLOCKED(rt_name.cbs_gbl_lock),			\
+	.gp_func = gp,									\
+	.call_func = call,								\
+	.rtpcpu = &rt_name ## __percpu,							\
+	.name = n,									\
+	.kname = #rt_name,								\
 }
 
 /* Track exiting tasks in order to allow them to be waited for. */
@@ -148,20 +161,51 @@ static const char *tasks_gp_state_getname(struct rcu_tasks *rtp)
 }
 #endif /* #ifndef CONFIG_TINY_RCU */
 
+// Initialize per-CPU callback lists for the specified flavor of
+// Tasks RCU.
+static void cblist_init_generic(struct rcu_tasks *rtp)
+{
+	int cpu;
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&rtp->cbs_gbl_lock, flags);
+	for_each_possible_cpu(cpu) {
+		struct rcu_tasks_percpu *rtpcp = per_cpu_ptr(rtp->rtpcpu, cpu);
+
+		WARN_ON_ONCE(!rtpcp);
+		if (cpu)
+			raw_spin_lock_init(&rtpcp->cbs_pcpu_lock);
+		raw_spin_lock(&rtpcp->cbs_pcpu_lock); // irqs already disabled.
+		if (!WARN_ON_ONCE(rtpcp->cbs_tail))
+			rtpcp->cbs_tail = &rtpcp->cbs_head;
+		raw_spin_unlock(&rtpcp->cbs_pcpu_lock); // irqs remain disabled.
+	}
+	raw_spin_unlock_irqrestore(&rtp->cbs_gbl_lock, flags);
+
+}
+
 // Enqueue a callback for the specified flavor of Tasks RCU.
 static void call_rcu_tasks_generic(struct rcu_head *rhp, rcu_callback_t func,
 				   struct rcu_tasks *rtp)
 {
 	unsigned long flags;
 	bool needwake;
+	struct rcu_tasks_percpu *rtpcp;
 
 	rhp->next = NULL;
 	rhp->func = func;
-	raw_spin_lock_irqsave(&rtp->cbs_lock, flags);
-	needwake = !rtp->cbs_head;
-	WRITE_ONCE(*rtp->cbs_tail, rhp);
-	rtp->cbs_tail = &rhp->next;
-	raw_spin_unlock_irqrestore(&rtp->cbs_lock, flags);
+	local_irq_save(flags);
+	rtpcp = per_cpu_ptr(rtp->rtpcpu, 0 /* smp_processor_id() */);
+	raw_spin_lock(&rtpcp->cbs_pcpu_lock);
+	if (!rtpcp->cbs_tail) {
+		raw_spin_unlock(&rtpcp->cbs_pcpu_lock); // irqs remain disabled.
+		cblist_init_generic(rtp);
+		raw_spin_lock(&rtpcp->cbs_pcpu_lock); // irqs already disabled.
+	}
+	needwake = !rtpcp->cbs_head;
+	WRITE_ONCE(*rtpcp->cbs_tail, rhp);
+	rtpcp->cbs_tail = &rhp->next;
+	raw_spin_unlock_irqrestore(&rtpcp->cbs_pcpu_lock, flags);
 	/* We can't create the thread unless interrupts are enabled. */
 	if (needwake && READ_ONCE(rtp->kthread_ptr))
 		wake_up(&rtp->cbs_wq);
@@ -197,21 +241,23 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 	 * This loop is terminated by the system going down.  ;-)
 	 */
 	for (;;) {
+		struct rcu_tasks_percpu *rtpcp = per_cpu_ptr(rtp->rtpcpu, 0);  // for_each...
+
 		set_tasks_gp_state(rtp, RTGS_WAIT_CBS);
 
 		/* Pick up any new callbacks. */
-		raw_spin_lock_irqsave(&rtp->cbs_lock, flags);
+		raw_spin_lock_irqsave(&rtpcp->cbs_pcpu_lock, flags);
 		smp_mb__after_spinlock(); // Order updates vs. GP.
-		list = rtp->cbs_head;
-		rtp->cbs_head = NULL;
-		rtp->cbs_tail = &rtp->cbs_head;
-		raw_spin_unlock_irqrestore(&rtp->cbs_lock, flags);
+		list = rtpcp->cbs_head;
+		rtpcp->cbs_head = NULL;
+		rtpcp->cbs_tail = &rtpcp->cbs_head;
+		raw_spin_unlock_irqrestore(&rtpcp->cbs_pcpu_lock, flags);
 
 		/* If there were none, wait a bit and start over. */
 		if (!list) {
 			wait_event_interruptible(rtp->cbs_wq,
-						 READ_ONCE(rtp->cbs_head));
-			if (!rtp->cbs_head) {
+						 READ_ONCE(rtpcp->cbs_head));
+			if (!rtpcp->cbs_head) {
 				WARN_ON(signal_pending(current));
 				set_tasks_gp_state(rtp, RTGS_WAIT_WAIT_CBS);
 				schedule_timeout_idle(HZ/10);
@@ -279,6 +325,7 @@ static void __init rcu_tasks_bootup_oddness(void)
 /* Dump out rcutorture-relevant state common to all RCU-tasks flavors. */
 static void show_rcu_tasks_generic_gp_kthread(struct rcu_tasks *rtp, char *s)
 {
+	struct rcu_tasks_percpu *rtpcp = per_cpu_ptr(rtp->rtpcpu, 0); // for_each...
 	pr_info("%s: %s(%d) since %lu g:%lu i:%lu/%lu %c%c %s\n",
 		rtp->kname,
 		tasks_gp_state_getname(rtp), data_race(rtp->gp_state),
@@ -286,7 +333,7 @@ static void show_rcu_tasks_generic_gp_kthread(struct rcu_tasks *rtp, char *s)
 		data_race(rtp->n_gps),
 		data_race(rtp->n_ipis_fails), data_race(rtp->n_ipis),
 		".k"[!!data_race(rtp->kthread_ptr)],
-		".C"[!!data_race(rtp->cbs_head)],
+		".C"[!!data_race(rtpcp->cbs_head)],
 		s);
 }
 #endif // #ifndef CONFIG_TINY_RCU
@@ -593,6 +640,7 @@ EXPORT_SYMBOL_GPL(rcu_barrier_tasks);
 
 static int __init rcu_spawn_tasks_kthread(void)
 {
+	cblist_init_generic(&rcu_tasks);
 	rcu_tasks.gp_sleep = HZ / 10;
 	rcu_tasks.init_fract = HZ / 10;
 	rcu_tasks.pregp_func = rcu_tasks_pregp_step;
@@ -731,6 +779,7 @@ EXPORT_SYMBOL_GPL(rcu_barrier_tasks_rude);
 
 static int __init rcu_spawn_tasks_rude_kthread(void)
 {
+	cblist_init_generic(&rcu_tasks_rude);
 	rcu_tasks_rude.gp_sleep = HZ / 10;
 	rcu_spawn_tasks_kthread_generic(&rcu_tasks_rude);
 	return 0;
@@ -1264,6 +1313,7 @@ EXPORT_SYMBOL_GPL(rcu_barrier_tasks_trace);
 
 static int __init rcu_spawn_tasks_trace_kthread(void)
 {
+	cblist_init_generic(&rcu_tasks_trace);
 	if (IS_ENABLED(CONFIG_TASKS_TRACE_RCU_READ_MB)) {
 		rcu_tasks_trace.gp_sleep = HZ / 10;
 		rcu_tasks_trace.init_fract = HZ / 10;
