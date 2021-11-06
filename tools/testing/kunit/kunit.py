@@ -280,6 +280,10 @@ def add_common_opts(parser) -> None:
 			     ' If given a directory, (e.g. lib/kunit), "/.kunitconfig" '
 			     'will get  automatically appended.',
 			     metavar='kunitconfig')
+	parser.add_argument('--kconfig_add',
+			     help='Additional Kconfig options to append to the '
+			     '.kunitconfig, e.g. CONFIG_KASAN=y. Can be repeated.',
+			    action='append')
 
 	parser.add_argument('--arch',
 			    help=('Specifies the architecture to run tests under. '
@@ -398,6 +402,7 @@ def main(argv, linux=None):
 		if not linux:
 			linux = kunit_kernel.LinuxSourceTree(cli_args.build_dir,
 					kunitconfig_path=cli_args.kunitconfig,
+					kconfig_add=cli_args.kconfig_add,
 					arch=cli_args.arch,
 					cross_compile=cli_args.cross_compile,
 					qemu_config_path=cli_args.qemu_config)
@@ -423,6 +428,7 @@ def main(argv, linux=None):
 		if not linux:
 			linux = kunit_kernel.LinuxSourceTree(cli_args.build_dir,
 					kunitconfig_path=cli_args.kunitconfig,
+					kconfig_add=cli_args.kconfig_add,
 					arch=cli_args.arch,
 					cross_compile=cli_args.cross_compile,
 					qemu_config_path=cli_args.qemu_config)
@@ -439,6 +445,7 @@ def main(argv, linux=None):
 		if not linux:
 			linux = kunit_kernel.LinuxSourceTree(cli_args.build_dir,
 					kunitconfig_path=cli_args.kunitconfig,
+					kconfig_add=cli_args.kconfig_add,
 					arch=cli_args.arch,
 					cross_compile=cli_args.cross_compile,
 					qemu_config_path=cli_args.qemu_config)
@@ -457,6 +464,7 @@ def main(argv, linux=None):
 		if not linux:
 			linux = kunit_kernel.LinuxSourceTree(cli_args.build_dir,
 					kunitconfig_path=cli_args.kunitconfig,
+					kconfig_add=cli_args.kconfig_add,
 					arch=cli_args.arch,
 					cross_compile=cli_args.cross_compile,
 					qemu_config_path=cli_args.qemu_config)

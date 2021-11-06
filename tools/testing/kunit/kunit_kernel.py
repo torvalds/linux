@@ -224,6 +224,7 @@ class LinuxSourceTree(object):
 	      build_dir: str,
 	      load_config=True,
 	      kunitconfig_path='',
+	      kconfig_add: Optional[List[str]]=None,
 	      arch=None,
 	      cross_compile=None,
 	      qemu_config_path=None) -> None:
@@ -249,6 +250,10 @@ class LinuxSourceTree(object):
 				shutil.copyfile(DEFAULT_KUNITCONFIG_PATH, kunitconfig_path)
 
 		self._kconfig = kunit_config.parse_file(kunitconfig_path)
+		if kconfig_add:
+			kconfig = kunit_config.parse_from_string('\n'.join(kconfig_add))
+			self._kconfig.merge_in_entries(kconfig)
+
 
 	def clean(self) -> bool:
 		try:
