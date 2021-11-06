@@ -116,8 +116,7 @@ class LinuxSourceTreeOperationsQemu(LinuxSourceTreeOperations):
 		self._extra_qemu_params = qemu_arch_params.extra_qemu_params
 
 	def make_arch_qemuconfig(self, base_kunitconfig: kunit_config.Kconfig) -> None:
-		kconfig = kunit_config.Kconfig()
-		kconfig.parse_from_string(self._kconfig)
+		kconfig = kunit_config.parse_from_string(self._kconfig)
 		base_kunitconfig.merge_in_entries(kconfig)
 
 	def start(self, params: List[str], build_dir: str) -> subprocess.Popen:
@@ -249,8 +248,7 @@ class LinuxSourceTree(object):
 			if not os.path.exists(kunitconfig_path):
 				shutil.copyfile(DEFAULT_KUNITCONFIG_PATH, kunitconfig_path)
 
-		self._kconfig = kunit_config.Kconfig()
-		self._kconfig.read_from_file(kunitconfig_path)
+		self._kconfig = kunit_config.parse_file(kunitconfig_path)
 
 	def clean(self) -> bool:
 		try:
@@ -262,8 +260,7 @@ class LinuxSourceTree(object):
 
 	def validate_config(self, build_dir) -> bool:
 		kconfig_path = get_kconfig_path(build_dir)
-		validated_kconfig = kunit_config.Kconfig()
-		validated_kconfig.read_from_file(kconfig_path)
+		validated_kconfig = kunit_config.parse_file(kconfig_path)
 		if not self._kconfig.is_subset_of(validated_kconfig):
 			invalid = self._kconfig.entries() - validated_kconfig.entries()
 			message = 'Provided Kconfig is not contained in validated .config. Following fields found in kunitconfig, ' \
@@ -291,8 +288,7 @@ class LinuxSourceTree(object):
 		"""Creates a new .config if it is not a subset of the .kunitconfig."""
 		kconfig_path = get_kconfig_path(build_dir)
 		if os.path.exists(kconfig_path):
-			existing_kconfig = kunit_config.Kconfig()
-			existing_kconfig.read_from_file(kconfig_path)
+			existing_kconfig = kunit_config.parse_file(kconfig_path)
 			self._ops.make_arch_qemuconfig(self._kconfig)
 			if not self._kconfig.is_subset_of(existing_kconfig):
 				print('Regenerating .config ...')

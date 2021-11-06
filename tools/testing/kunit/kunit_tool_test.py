@@ -51,10 +51,9 @@ class KconfigTest(unittest.TestCase):
 		self.assertFalse(kconfig1.is_subset_of(kconfig0))
 
 	def test_read_from_file(self):
-		kconfig = kunit_config.Kconfig()
 		kconfig_path = test_data_path('test_read_from_file.kconfig')
 
-		kconfig.read_from_file(kconfig_path)
+		kconfig = kunit_config.parse_file(kconfig_path)
 
 		expected_kconfig = kunit_config.Kconfig()
 		expected_kconfig.add_entry(
@@ -87,8 +86,7 @@ class KconfigTest(unittest.TestCase):
 
 		expected_kconfig.write_to_file(kconfig_path)
 
-		actual_kconfig = kunit_config.Kconfig()
-		actual_kconfig.read_from_file(kconfig_path)
+		actual_kconfig = kunit_config.parse_file(kconfig_path)
 
 		self.assertEqual(actual_kconfig.entries(),
 				 expected_kconfig.entries())
