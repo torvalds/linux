@@ -34,6 +34,38 @@
 	writel(readl((addr) + (base)) & (val), (addr) + (base))
 
 /*
+ * multi sensor sync mode
+ * RKCIF_NOSYNC_MODE: not used sync mode
+ * RKCIF_MASTER_MASTER:	internal master->external master
+ * RKCIF_MASTER_SLAVE:	internal master->slave
+ * RKCIF_MASTER_MASTER: pwm/gpio->external master
+ * RKCIF_MASTER_MASTER: pwm/gpio->slave
+ */
+enum rkcif_sync_mode {
+	RKCIF_NOSYNC_MODE,
+	RKCIF_MASTER_MASTER,
+	RKCIF_MASTER_SLAVE,
+	RKCIF_EXT_MASTER,
+	RKCIF_EXT_SLAVE,
+};
+
+struct rkcif_sync_dev {
+	struct rkcif_device *cif_dev[RKCIF_DEV_MAX];
+	int count;
+	bool is_streaming[RKCIF_DEV_MAX];
+};
+
+struct rkcif_multi_sync_config {
+	struct rkcif_sync_dev int_master;
+	struct rkcif_sync_dev ext_master;
+	struct rkcif_sync_dev slave;
+	enum rkcif_sync_mode mode;
+	int dev_cnt;
+	int streaming_cnt;
+	bool is_attach;
+};
+
+/*
  * add new chip id in tail in time order
  * by increasing to distinguish cif version
  */
@@ -88,6 +120,7 @@ struct rkcif_hw {
 	atomic_t			power_cnt;
 	const struct rkcif_hw_match_data *match_data;
 	struct mutex			dev_lock;
+	struct rkcif_multi_sync_config	sync_config;
 };
 
 void rkcif_hw_soft_reset(struct rkcif_hw *cif_hw, bool is_rst_iommu);

@@ -994,6 +994,8 @@ static int rkcif_plat_hw_probe(struct platform_device *pdev)
 	cif_hw->irq = irq;
 	cif_hw->match_data = data;
 	cif_hw->chip_id = data->chip_id;
+	cif_hw->sync_config.is_attach = false;
+	cif_hw->sync_config.mode = RKCIF_NOSYNC_MODE;
 	if (data->chip_id >= CHIP_RK1808_CIF) {
 		res = platform_get_resource_byname(pdev,
 						   IORESOURCE_MEM,

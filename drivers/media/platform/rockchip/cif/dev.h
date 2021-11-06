@@ -709,6 +709,7 @@ struct rkcif_device {
 	bool				reset_work_cancel;
 	bool				iommu_en;
 	bool				is_use_dummybuf;
+	int				sync_type;
 };
 
 extern struct platform_driver rkcif_plat_drv;

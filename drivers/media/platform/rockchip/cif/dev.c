@@ -814,6 +814,71 @@ static int rkcif_pipeline_close(struct rkcif_pipeline *p)
 	return 0;
 }
 
+static void rkcif_set_sensor_streamon_in_sync_mode(struct rkcif_device *cif_dev)
+{
+	struct rkcif_hw *hw = cif_dev->hw_dev;
+	struct rkcif_device *dev = NULL;
+	int i = 0;
+	int on = 1;
+	int ret = 0;
+	bool is_streaming = false;
+
+	if (cif_dev->sync_type) {
+		hw->sync_config.streaming_cnt++;
+		if (hw->sync_config.streaming_cnt < hw->sync_config.dev_cnt)
+			return;
+	} else {
+		return;
+	}
+
+	if (hw->sync_config.mode == RKCIF_MASTER_MASTER ||
+	    hw->sync_config.mode == RKCIF_MASTER_SLAVE) {
+		for (i = 0; i < hw->sync_config.slave.count; i++) {
+			dev = hw->sync_config.slave.cif_dev[i];
+			is_streaming = hw->sync_config.slave.is_streaming[i];
+			if (!is_streaming) {
+				ret = v4l2_subdev_call(dev->terminal_sensor.sd, core, ioctl,
+						       RKMODULE_SET_QUICK_STREAM, &on);
+				if (!ret)
+					dev_info(dev->dev,
+						 "set RKMODULE_SET_QUICK_STREAM failed\n");
+				hw->sync_config.slave.is_streaming[i] = true;
+			}
+			v4l2_dbg(3, rkcif_debug, &dev->v4l2_dev,
+				 "quick stream in sync mode, slave_dev[%d]\n", i);
+
+		}
+		for (i = 0; i < hw->sync_config.ext_master.count; i++) {
+			dev = hw->sync_config.ext_master.cif_dev[i];
+			is_streaming = hw->sync_config.ext_master.is_streaming[i];
+			if (!is_streaming) {
+				ret = v4l2_subdev_call(dev->terminal_sensor.sd, core, ioctl,
+						       RKMODULE_SET_QUICK_STREAM, &on);
+				if (!ret)
+					dev_info(dev->dev,
+						 "set RKMODULE_SET_QUICK_STREAM failed\n");
+				hw->sync_config.ext_master.is_streaming[i] = true;
+			}
+			v4l2_dbg(3, rkcif_debug, &dev->v4l2_dev,
+				 "quick stream in sync mode, ext_master_dev[%d]\n", i);
+		}
+		for (i = 0; i < hw->sync_config.int_master.count; i++) {
+			dev = hw->sync_config.int_master.cif_dev[i];
+			is_streaming = hw->sync_config.int_master.is_streaming[i];
+			if (!is_streaming) {
+				ret = v4l2_subdev_call(dev->terminal_sensor.sd, core, ioctl,
+						       RKMODULE_SET_QUICK_STREAM, &on);
+				if (!ret)
+					dev_info(hw->dev,
+						 "set RKMODULE_SET_QUICK_STREAM failed\n");
+				hw->sync_config.int_master.is_streaming[i] = true;
+			}
+			v4l2_dbg(3, rkcif_debug, &dev->v4l2_dev,
+				 "quick stream in sync mode, int_master_dev[%d]\n", i);
+		}
+	}
+}
+
 /*
  * stream-on order: isp_subdev, mipi dphy, sensor
  * stream-off order: mipi dphy, sensor, isp_subdev
@@ -855,6 +920,8 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 			if (on && ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
 				goto err_stream_off;
 		}
+		if (on)
+			rkcif_set_sensor_streamon_in_sync_mode(cif_dev);
 	} else {
 		if (!on && atomic_dec_return(&p->stream_cnt) > 0)
 			return 0;
@@ -906,6 +973,9 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 				if (on && ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
 					goto err_stream_off;
 			}
+
+			if (on)
+				rkcif_set_sensor_streamon_in_sync_mode(cif_dev);
 		}
 	}
 
@@ -1553,6 +1623,7 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	cif_dev->pipe.set_stream = rkcif_pipeline_set_stream;
 	cif_dev->isr_hdl = rkcif_irq_handler;
 	cif_dev->id_use_cnt = 0;
+	cif_dev->sync_type = NO_SYNC_MODE;
 	if (cif_dev->chip_id == CHIP_RV1126_CIF_LITE)
 		cif_dev->isr_hdl = rkcif_irq_lite_handler;
 
