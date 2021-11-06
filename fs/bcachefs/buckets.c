@@ -1207,10 +1207,14 @@ static int bch2_mark_reflink_p(struct btree_trans *trans,
 	struct bkey_s_c_reflink_p p = bkey_s_c_to_reflink_p(k);
 	struct reflink_gc *ref;
 	size_t l, r, m;
-	u64 idx = le64_to_cpu(p.v->idx) - le32_to_cpu(p.v->front_pad);
-	u64 end_idx = le64_to_cpu(p.v->idx) + p.k->size +
-		le32_to_cpu(p.v->back_pad);
+	u64 idx = le64_to_cpu(p.v->idx);
+	u64 end = le64_to_cpu(p.v->idx) + p.k->size;
 	int ret = 0;
+
+	if (c->sb.version >= bcachefs_metadata_version_reflink_p_fix) {
+		idx -= le32_to_cpu(p.v->front_pad);
+		end += le32_to_cpu(p.v->back_pad);
+	}
 
 	l = 0;
 	r = c->reflink_gc_nr;
@@ -1224,7 +1228,7 @@ static int bch2_mark_reflink_p(struct btree_trans *trans,
 			r = m;
 	}
 
-	while (idx < end_idx && !ret)
+	while (idx < end && !ret)
 		ret = __bch2_mark_reflink_p(c, p, &idx, flags, l++);
 
 	return ret;
