@@ -1022,6 +1022,11 @@ static inline pgprot_t arch_filter_pgprot(pgprot_t prot)
 	return PAGE_READONLY_EXEC;
 }
 
+static inline bool pud_sect_supported(void)
+{
+	return PAGE_SIZE == SZ_4K;
+}
+
 
 #endif /* !__ASSEMBLY__ */
 

@@ -64,14 +64,26 @@ DECLARE_PER_CPU(const struct arch_timer_erratum_workaround *,
 
 static inline notrace u64 arch_timer_read_cntpct_el0(void)
 {
-	isb();
-	return read_sysreg(cntpct_el0);
+	u64 cnt;
+
+	asm volatile(ALTERNATIVE("isb\n mrs %0, cntpct_el0",
+				 "nop\n" __mrs_s("%0", SYS_CNTPCTSS_EL0),
+				 ARM64_HAS_ECV)
+		     : "=r" (cnt));
+
+	return cnt;
 }
 
 static inline notrace u64 arch_timer_read_cntvct_el0(void)
 {
-	isb();
-	return read_sysreg(cntvct_el0);
+	u64 cnt;
+
+	asm volatile(ALTERNATIVE("isb\n mrs %0, cntvct_el0",
+				 "nop\n" __mrs_s("%0", SYS_CNTVCTSS_EL0),
+				 ARM64_HAS_ECV)
+		     : "=r" (cnt));
+
+	return cnt;
 }
 
 #define arch_timer_reg_read_stable(reg)					\
@@ -171,8 +183,10 @@ static __always_inline u64 __arch_counter_get_cntpct(void)
 {
 	u64 cnt;
 
-	isb();
-	cnt = read_sysreg(cntpct_el0);
+	asm volatile(ALTERNATIVE("isb\n mrs %0, cntpct_el0",
+				 "nop\n" __mrs_s("%0", SYS_CNTPCTSS_EL0),
+				 ARM64_HAS_ECV)
+		     : "=r" (cnt));
 	arch_counter_enforce_ordering(cnt);
 	return cnt;
 }
@@ -190,8 +204,10 @@ static __always_inline u64 __arch_counter_get_cntvct(void)
 {
 	u64 cnt;
 
-	isb();
-	cnt = read_sysreg(cntvct_el0);
+	asm volatile(ALTERNATIVE("isb\n mrs %0, cntvct_el0",
+				 "nop\n" __mrs_s("%0", SYS_CNTVCTSS_EL0),
+				 ARM64_HAS_ECV)
+		     : "=r" (cnt));
 	arch_counter_enforce_ordering(cnt);
 	return cnt;
 }
