@@ -835,6 +835,9 @@ void mlx5_start_health_poll(struct mlx5_core_dev *dev)
 
 	health->timer.expires = jiffies + msecs_to_jiffies(poll_interval_ms);
 	add_timer(&health->timer);
+
+	if (mlx5_core_is_pf(dev))
+		queue_delayed_work(health->wq, &health->update_fw_log_ts_work, 0);
 }
 
 void mlx5_stop_health_poll(struct mlx5_core_dev *dev, bool disable_health)
@@ -902,8 +905,6 @@ int mlx5_health_init(struct mlx5_core_dev *dev)
 	INIT_WORK(&health->fatal_report_work, mlx5_fw_fatal_reporter_err_work);
 	INIT_WORK(&health->report_work, mlx5_fw_reporter_err_work);
 	INIT_DELAYED_WORK(&health->update_fw_log_ts_work, mlx5_health_log_ts_update);
-	if (mlx5_core_is_pf(dev))
-		queue_delayed_work(health->wq, &health->update_fw_log_ts_work, 0);
 
 	return 0;
 
