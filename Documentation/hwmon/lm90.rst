@@ -73,6 +73,36 @@ Supported chips:
 
 	       https://www.onsemi.com/PowerSolutions/product.do?id=ADT7461A
 
+  * Analog Devices ADT7481
+
+    Prefix: 'adt7481'
+
+    Addresses scanned: I2C 0x4b and 0x4c
+
+    Datasheet: Publicly available at the ON Semiconductor website
+
+	       https://www.onsemi.com/PowerSolutions/product.do?id=ADT7481
+
+  * Analog Devices ADT7482
+
+    Prefix: 'adt7482'
+
+    Addresses scanned: I2C 0x4c
+
+    Datasheet: Publicly available at the ON Semiconductor website
+
+	       https://www.onsemi.com/PowerSolutions/product.do?id=ADT7482
+
+  * Analog Devices ADT7483A
+
+    Prefix: 'adt7483a'
+
+    Addresses scanned: I2C 0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b, 0x4c, 0x4d, 0x4e
+
+    Datasheet: Publicly available at the ON Semiconductor website
+
+	       https://www.onsemi.com/PowerSolutions/product.do?id=ADT7483A
+
   * ON Semiconductor NCT1008
 
     Prefix: 'nct1008'
@@ -323,6 +353,14 @@ ADT7461, ADT7461A, NCT1008:
   * Extended temperature range (breaks compatibility)
   * Lower resolution for remote temperature
   * SMBus PEC support for Write Byte and Receive Byte transactions.
+  * 10 bit temperature resolution
+
+ADT7481, ADT7482, ADT7483:
+  * Temperature offset register
+  * SMBus PEC support
+  * 10 bit temperature resolution for external sensors
+  * Two remote sensors
+  * Selectable address (ADT7483)
 
 MAX6646, MAX6647, MAX6649:
   * Better local resolution

@@ -64,6 +64,10 @@
  * and extended mode. They are mostly compatible with LM90 except for a data
  * format difference for the temperature value registers.
  *
+ * This driver also supports ADT7481, ADT7482, and ADT7483 from Analog Devices
+ * / ON Semiconductor. The chips are similar to ADT7461 but support two external
+ * temperature sensors.
+ *
  * This driver also supports the SA56004 from Philips. This device is
  * pin-compatible with the LM86, the ED/EDP parts are also address-compatible.
  *
@@ -114,7 +118,7 @@ static const unsigned short normal_i2c[] = {
 	0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b, 0x48, 0x49, 0x4a, 0x4b, 0x4c,
 	0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
 
-enum chips { adm1032, adt7461, adt7461a, g781, lm86, lm90, lm99,
+enum chips { adm1032, adt7461, adt7461a, adt7481, g781, lm86, lm90, lm99,
 	max6646, max6648, max6654, max6657, max6659, max6680, max6696,
 	sa56004, tmp451, tmp461, w83l771,
 };
@@ -164,6 +168,13 @@ enum chips { adm1032, adt7461, adt7461a, g781, lm86, lm90, lm99,
 #define TMP461_REG_CHEN			0x16
 #define TMP461_REG_DFC			0x24
 
+/* ADT7481 registers */
+#define ADT7481_REG_STATUS2		0x23
+#define ADT7481_REG_CONFIG2		0x24
+
+#define ADT7481_REG_MAN_ID		0x3e
+#define ADT7481_REG_CHIP_ID		0x3d
+
 /* Device features */
 #define LM90_HAVE_EXTENDED_TEMP	BIT(0)	/* extended temperature support	*/
 #define LM90_HAVE_OFFSET	BIT(1)	/* temperature offset register	*/
@@ -191,6 +202,7 @@ enum chips { adm1032, adt7461, adt7461a, g781, lm86, lm90, lm99,
 #define LM90_STATUS_LHIGH	BIT(6)	/* local high temp limit tripped */
 #define LM90_STATUS_BUSY	BIT(7)	/* conversion is ongoing */
 
+/* MAX6695/6696 and ADT7481 2nd status register */
 #define MAX6696_STATUS2_R2THRM	BIT(1)	/* remote2 THERM limit tripped */
 #define MAX6696_STATUS2_R2OPEN	BIT(2)	/* remote2 is an open circuit */
 #define MAX6696_STATUS2_R2LOW	BIT(3)	/* remote2 low temp limit tripped */
@@ -207,6 +219,9 @@ static const struct i2c_device_id lm90_id[] = {
 	{ "adm1032", adm1032 },
 	{ "adt7461", adt7461 },
 	{ "adt7461a", adt7461a },
+	{ "adt7481", adt7481 },
+	{ "adt7482", adt7481 },
+	{ "adt7483a", adt7481 },
 	{ "g781", g781 },
 	{ "lm90", lm90 },
 	{ "lm86", lm86 },
@@ -344,6 +359,7 @@ struct lm90_params {
 				/* Upper 8 bits for max6695/96 */
 	u8 max_convrate;	/* Maximum conversion rate register value */
 	u8 resolution;		/* 16-bit resolution (default 11 bit) */
+	u8 reg_status2;		/* 2nd status register (optional) */
 	u8 reg_local_ext;	/* Extended local temp register (optional) */
 };
 
@@ -375,6 +391,16 @@ static const struct lm90_params lm90_params[] = {
 		  | LM90_HAVE_CRIT | LM90_HAVE_PEC | LM90_HAVE_ALARMS,
 		.alert_alarms = 0x7c,
 		.max_convrate = 10,
+	},
+	[adt7481] = {
+		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
+		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_EXTENDED_TEMP
+		  | LM90_HAVE_UNSIGNED_TEMP | LM90_HAVE_PEC
+		  | LM90_HAVE_TEMP3 | LM90_HAVE_CRIT,
+		.alert_alarms = 0x1c7c,
+		.max_convrate = 11,
+		.resolution = 10,
+		.reg_status2 = ADT7481_REG_STATUS2,
 	},
 	[g781] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
@@ -453,6 +479,7 @@ static const struct lm90_params lm90_params[] = {
 		  | LM90_HAVE_ALARMS,
 		.alert_alarms = 0x1c7c,
 		.max_convrate = 6,
+		.reg_status2 = MAX6696_REG_STATUS2,
 		.reg_local_ext = MAX6657_REG_LOCAL_TEMPL,
 	},
 	[w83l771] = {
@@ -549,6 +576,7 @@ struct lm90_data {
 	u16 alert_alarms;	/* Which alarm bits trigger ALERT# */
 				/* Upper 8 bits for max6695/96 */
 	u8 max_convrate;	/* Maximum conversion rate */
+	u8 reg_status2;		/* 2nd status register (optional) */
 	u8 reg_local_ext;	/* local extension register offset */
 
 	/* registers values */
@@ -679,18 +707,14 @@ static int lm90_update_confreg(struct lm90_data *data, u8 config)
  * various registers have different meanings as a result of selecting a
  * non-default remote channel.
  */
-static int lm90_select_remote_channel(struct lm90_data *data, int channel)
+static int lm90_select_remote_channel(struct lm90_data *data, bool second)
 {
-	int err = 0;
+	u8 config = data->config & ~0x08;
 
-	if (data->kind == max6696) {
-		u8 config = data->config & ~0x08;
+	if (second)
+		config |= 0x08;
 
-		if (channel)
-			config |= 0x08;
-		err = lm90_update_confreg(data, config);
-	}
-	return err;
+	return lm90_update_confreg(data, config);
 }
 
 static int lm90_write_convrate(struct lm90_data *data, int val)
@@ -806,8 +830,8 @@ static int lm90_update_limits(struct device *dev)
 		data->temp[REMOTE_EMERG] = val << 8;
 	}
 
-	if (data->kind == max6696) {
-		val = lm90_select_remote_channel(data, 1);
+	if (data->flags & LM90_HAVE_TEMP3) {
+		val = lm90_select_remote_channel(data, true);
 		if (val < 0)
 			return val;
 
@@ -816,10 +840,12 @@ static int lm90_update_limits(struct device *dev)
 			return val;
 		data->temp[REMOTE2_CRIT] = val << 8;
 
-		val = lm90_read_reg(client, MAX6659_REG_REMOTE_EMERG);
-		if (val < 0)
-			return val;
-		data->temp[REMOTE2_EMERG] = val << 8;
+		if (data->flags & LM90_HAVE_EMERGENCY) {
+			val = lm90_read_reg(client, MAX6659_REG_REMOTE_EMERG);
+			if (val < 0)
+				return val;
+			data->temp[REMOTE2_EMERG] = val << 8;
+		}
 
 		val = lm90_read_reg(client, LM90_REG_REMOTE_LOWH);
 		if (val < 0)
@@ -831,7 +857,7 @@ static int lm90_update_limits(struct device *dev)
 			return val;
 		data->temp[REMOTE2_HIGH] = val << 8;
 
-		lm90_select_remote_channel(data, 0);
+		lm90_select_remote_channel(data, false);
 	}
 
 	return 0;
@@ -914,8 +940,8 @@ static int lm90_update_alarms_locked(struct lm90_data *data, bool force)
 			return val;
 		alarms = val & ~LM90_STATUS_BUSY;
 
-		if (data->kind == max6696) {
-			val = lm90_read_reg(client, MAX6696_REG_STATUS2);
+		if (data->reg_status2) {
+			val = lm90_read_reg(client, data->reg_status2);
 			if (val < 0)
 				return val;
 			alarms |= val << 8;
@@ -1037,20 +1063,20 @@ static int lm90_update_device(struct device *dev)
 			return val;
 		data->temp[REMOTE_TEMP] = val;
 
-		if (data->kind == max6696) {
-			val = lm90_select_remote_channel(data, 1);
+		if (data->flags & LM90_HAVE_TEMP3) {
+			val = lm90_select_remote_channel(data, true);
 			if (val < 0)
 				return val;
 
 			val = lm90_read16(client, LM90_REG_REMOTE_TEMPH,
 					  LM90_REG_REMOTE_TEMPL, true);
 			if (val < 0) {
-				lm90_select_remote_channel(data, 0);
+				lm90_select_remote_channel(data, false);
 				return val;
 			}
 			data->temp[REMOTE2_TEMP] = val;
 
-			lm90_select_remote_channel(data, 0);
+			lm90_select_remote_channel(data, false);
 		}
 
 		val = lm90_update_alarms_locked(data, false);
@@ -1207,7 +1233,7 @@ static int lm90_set_temp(struct lm90_data *data, int index, int channel, long va
 					     lm90_temp_get_resolution(data, index));
 
 	if (channel > 1)
-		lm90_select_remote_channel(data, 1);
+		lm90_select_remote_channel(data, true);
 
 	err = lm90_write_reg(client, regh, data->temp[index] >> 8);
 	if (err < 0)
@@ -1216,7 +1242,7 @@ static int lm90_set_temp(struct lm90_data *data, int index, int channel, long va
 		err = lm90_write_reg(client, regl, data->temp[index] & 0xff);
 deselect:
 	if (channel > 1)
-		lm90_select_remote_channel(data, 0);
+		lm90_select_remote_channel(data, false);
 
 	return err;
 }
@@ -1568,8 +1594,14 @@ static const char *lm90_detect_national(struct i2c_client *client, int chip_id,
 static const char *lm90_detect_analog(struct i2c_client *client, int chip_id,
 				      int config1, int convrate)
 {
+	int config2 = i2c_smbus_read_byte_data(client, ADT7481_REG_CONFIG2);
+	int man_id2 = i2c_smbus_read_byte_data(client, ADT7481_REG_MAN_ID);
+	int chip_id2 = i2c_smbus_read_byte_data(client, ADT7481_REG_CHIP_ID);
 	int address = client->addr;
 	const char *name = NULL;
+
+	if (config2 < 0 || man_id2 < 0 || chip_id2 < 0)
+		return NULL;
 
 	switch (chip_id) {
 	case 0x40 ... 0x4f:	/* ADM1032 */
@@ -1591,6 +1623,28 @@ static const char *lm90_detect_analog(struct i2c_client *client, int chip_id,
 		if ((address == 0x4c || address == 0x4d) && !(config1 & 0x1b) &&
 		    convrate <= 0x0a)
 			name = "adt7461a";
+		break;
+	case 0x62:	/* ADT7481, undocumented */
+		if (man_id2 == 0x41 && chip_id2 == 0x81 &&
+		    (address == 0x4b || address == 0x4c) && !(config1 & 0x10) &&
+		    !(config2 & 0x7f) && (convrate & 0x0f) <= 0x0b) {
+			name = "adt7481";
+		}
+		break;
+	case 0x65:	/* ADT7482, datasheet */
+	case 0x75:	/* ADT7482, real chip */
+		if (man_id2 == 0x41 && chip_id2 == 0x82 &&
+		    address == 0x4c && !(config1 & 0x10) && !(config2 & 0x7f) &&
+		    convrate <= 0x0a)
+			name = "adt7482";
+		break;
+	case 0x94:	/* ADT7483 */
+		if (man_id2 == 0x41 && chip_id2 == 0x83 &&
+		    ((address >= 0x18 && address <= 0x1a) ||
+		     (address >= 0x29 && address <= 0x2b) ||
+		     (address >= 0x4c && address <= 0x4e)) &&
+		    !(config1 & 0x10) && !(config2 & 0x7f) && convrate <= 0x0a)
+			name = "adt7483a";
 		break;
 	default:
 		break;
@@ -1958,9 +2012,9 @@ static int lm90_init_client(struct i2c_client *client, struct lm90_data *data)
 		config |= 0x20;
 
 	/*
-	 * Select external channel 0 for max6695/96
+	 * Select external channel 0 for devices with three sensors
 	 */
-	if (data->kind == max6696)
+	if (data->flags & LM90_HAVE_TEMP3)
 		config &= ~0x08;
 
 	/*
@@ -2119,13 +2173,18 @@ static int lm90_probe(struct i2c_client *client)
 		data->channel_config[2] = HWMON_T_INPUT |
 			HWMON_T_MIN | HWMON_T_MAX |
 			HWMON_T_CRIT | HWMON_T_CRIT_HYST |
-			HWMON_T_EMERGENCY | HWMON_T_EMERGENCY_HYST |
 			HWMON_T_MIN_ALARM | HWMON_T_MAX_ALARM |
-			HWMON_T_CRIT_ALARM | HWMON_T_EMERGENCY_ALARM |
-			HWMON_T_FAULT;
+			HWMON_T_CRIT_ALARM | HWMON_T_FAULT;
+		if (data->flags & LM90_HAVE_EMERGENCY) {
+			data->channel_config[2] |= HWMON_T_EMERGENCY |
+				HWMON_T_EMERGENCY_HYST;
+		}
+		if (data->flags & LM90_HAVE_EMERGENCY_ALARM)
+			data->channel_config[2] |= HWMON_T_EMERGENCY_ALARM;
 	}
 
 	data->reg_local_ext = lm90_params[data->kind].reg_local_ext;
+	data->reg_status2 = lm90_params[data->kind].reg_status2;
 
 	/* Set maximum conversion rate */
 	data->max_convrate = lm90_params[data->kind].max_convrate;
