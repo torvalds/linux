@@ -5307,8 +5307,7 @@
 			auto    - Kernel selects the mitigation depending on
 				  the available CPU features and vulnerability.
 
-			Default mitigation:
-			If CONFIG_SECCOMP=y then "seccomp", otherwise "prctl"
+			Default mitigation: "prctl"
 
 			Not specifying this option is equivalent to
 			spectre_v2_user=auto.
@@ -5352,7 +5351,7 @@
 				  will disable SSB unless they explicitly opt out.
 
 			Default mitigations:
-			X86:	If CONFIG_SECCOMP=y "seccomp", otherwise "prctl"
+			X86:	"prctl"
 
 			On powerpc the options are:
 

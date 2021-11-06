@@ -643,7 +643,7 @@ static int imx8mq_mipi_csi_async_register(struct csi_state *state)
 	unsigned int i;
 	int ret;
 
-	v4l2_async_notifier_init(&state->notifier);
+	v4l2_async_nf_init(&state->notifier);
 
 	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(state->dev), 0, 0,
 					     FWNODE_GRAPH_ENDPOINT_NEXT);
@@ -669,8 +669,8 @@ static int imx8mq_mipi_csi_async_register(struct csi_state *state)
 		state->bus.num_data_lanes,
 		state->bus.flags);
 
-	asd = v4l2_async_notifier_add_fwnode_remote_subdev(&state->notifier,
-							   ep, struct v4l2_async_subdev);
+	asd = v4l2_async_nf_add_fwnode_remote(&state->notifier, ep,
+					      struct v4l2_async_subdev);
 	if (IS_ERR(asd)) {
 		ret = PTR_ERR(asd);
 		goto err_parse;
@@ -680,7 +680,7 @@ static int imx8mq_mipi_csi_async_register(struct csi_state *state)
 
 	state->notifier.ops = &imx8mq_mipi_csi_notify_ops;
 
-	ret = v4l2_async_subdev_notifier_register(&state->sd, &state->notifier);
+	ret = v4l2_async_subdev_nf_register(&state->sd, &state->notifier);
 	if (ret)
 		return ret;
 
@@ -937,8 +937,8 @@ cleanup:
 	imx8mq_mipi_csi_pm_suspend(&pdev->dev, true);
 
 	media_entity_cleanup(&state->sd.entity);
-	v4l2_async_notifier_unregister(&state->notifier);
-	v4l2_async_notifier_cleanup(&state->notifier);
+	v4l2_async_nf_unregister(&state->notifier);
+	v4l2_async_nf_cleanup(&state->notifier);
 	v4l2_async_unregister_subdev(&state->sd);
 icc:
 	imx8mq_mipi_csi_release_icc(pdev);
@@ -953,8 +953,8 @@ static int imx8mq_mipi_csi_remove(struct platform_device *pdev)
 	struct v4l2_subdev *sd = platform_get_drvdata(pdev);
 	struct csi_state *state = mipi_sd_to_csi2_state(sd);
 
-	v4l2_async_notifier_unregister(&state->notifier);
-	v4l2_async_notifier_cleanup(&state->notifier);
+	v4l2_async_nf_unregister(&state->notifier);
+	v4l2_async_nf_cleanup(&state->notifier);
 	v4l2_async_unregister_subdev(&state->sd);
 
 	pm_runtime_disable(&pdev->dev);
