@@ -1356,6 +1356,14 @@ int atomisp_subdev_register_entities(struct atomisp_sub_device *asd,
 	if (ret < 0)
 		goto error;
 
+	asd->video_out_preview.vdev.v4l2_dev = vdev;
+	asd->video_out_preview.vdev.device_caps = device_caps |
+						  V4L2_CAP_VIDEO_OUTPUT;
+	ret = video_register_device(&asd->video_out_preview.vdev,
+				    VFL_TYPE_VIDEO, -1);
+	if (ret < 0)
+		goto error;
+
 	asd->video_out_capture.vdev.v4l2_dev = vdev;
 	asd->video_out_capture.vdev.device_caps = device_caps |
 						  V4L2_CAP_VIDEO_OUTPUT;
@@ -1371,13 +1379,7 @@ int atomisp_subdev_register_entities(struct atomisp_sub_device *asd,
 				    VFL_TYPE_VIDEO, -1);
 	if (ret < 0)
 		goto error;
-	asd->video_out_preview.vdev.v4l2_dev = vdev;
-	asd->video_out_preview.vdev.device_caps = device_caps |
-						  V4L2_CAP_VIDEO_OUTPUT;
-	ret = video_register_device(&asd->video_out_preview.vdev,
-				    VFL_TYPE_VIDEO, -1);
-	if (ret < 0)
-		goto error;
+
 	asd->video_out_video_capture.vdev.v4l2_dev = vdev;
 	asd->video_out_video_capture.vdev.device_caps = device_caps |
 							V4L2_CAP_VIDEO_OUTPUT;
