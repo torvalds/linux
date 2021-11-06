@@ -2019,7 +2019,7 @@ static void ataflop_probe(dev_t dev)
 	if (drive >= FD_MAX_UNITS || type >= NUM_DISK_MINORS)
 		return;
 	if (unit[drive].disk[type])
-		return
+		return;
 	if (ataflop_alloc_disk(drive, type))
 		return;
 	if (add_disk(unit[drive].disk[type]))
