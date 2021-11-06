@@ -1660,7 +1660,7 @@ void rtl8188e_read_chip_version(struct adapter *padapter)
 
 	pHalData->rf_type = RF_1T1R;
 
-	MSG_88E("RF_Type is %x!!\n", pHalData->rf_type);
+	netdev_dbg(padapter->pnetdev, "RF_Type is %x!!\n", pHalData->rf_type);
 }
 
 void rtl8188e_SetHalODMVar(struct adapter *Adapter, enum hal_odm_variable eVariable, void *pValue1, bool bSet)
@@ -1713,7 +1713,8 @@ u8 GetEEPROMSize8188E(struct adapter *padapter)
 	/*  6: EEPROM used is 93C46, 4: boot from E-Fuse. */
 	size = (cr & BOOT_FROM_EEPROM) ? 6 : 4;
 
-	MSG_88E("EEPROM type is %s\n", size == 4 ? "E-FUSE" : "93C46");
+	netdev_dbg(padapter->pnetdev, "EEPROM type is %s\n",
+		   size == 4 ? "E-FUSE" : "93C46");
 
 	return size;
 }
