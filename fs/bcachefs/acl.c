@@ -339,7 +339,7 @@ btree_err:
 	if (unlikely(ret))
 		goto err;
 
-	bch2_inode_update_after_write(c, inode, &inode_u,
+	bch2_inode_update_after_write(&trans, inode, &inode_u,
 				      ATTR_CTIME|ATTR_MODE);
 
 	set_cached_acl(&inode->v, type, acl);

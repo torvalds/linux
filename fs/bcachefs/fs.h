@@ -172,7 +172,7 @@ struct inode *bch2_vfs_inode_get(struct bch_fs *, subvol_inum);
 typedef int (*inode_set_fn)(struct bch_inode_info *,
 			    struct bch_inode_unpacked *, void *);
 
-void bch2_inode_update_after_write(struct bch_fs *,
+void bch2_inode_update_after_write(struct btree_trans *,
 				   struct bch_inode_info *,
 				   struct bch_inode_unpacked *,
 				   unsigned);

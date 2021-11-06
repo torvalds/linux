@@ -166,9 +166,13 @@ inline struct bkey_s_c bch2_btree_path_peek_slot(struct btree_path *, struct bke
 #ifdef CONFIG_BCACHEFS_DEBUG
 void bch2_trans_verify_paths(struct btree_trans *);
 void bch2_trans_verify_locks(struct btree_trans *);
+void bch2_assert_pos_locked(struct btree_trans *, enum btree_id,
+			    struct bpos, bool);
 #else
 static inline void bch2_trans_verify_paths(struct btree_trans *trans) {}
 static inline void bch2_trans_verify_locks(struct btree_trans *trans) {}
+static inline void bch2_assert_pos_locked(struct btree_trans *trans, enum btree_id id,
+					  struct bpos pos, bool key_cache) {}
 #endif
 
 void bch2_btree_path_fix_key_modified(struct btree_trans *trans,

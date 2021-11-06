@@ -722,9 +722,9 @@ err:
 	return ret;
 }
 
-static int bch2_inode_find_by_inum_trans(struct btree_trans *trans,
-					 subvol_inum inum,
-					 struct bch_inode_unpacked *inode)
+int bch2_inode_find_by_inum_trans(struct btree_trans *trans,
+				  subvol_inum inum,
+				  struct bch_inode_unpacked *inode)
 {
 	struct btree_iter iter;
 	int ret;

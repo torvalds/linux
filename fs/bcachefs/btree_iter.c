@@ -46,7 +46,7 @@ static inline int __btree_path_cmp(const struct btree_path *l,
 				   unsigned		r_level)
 {
 	return   cmp_int(l->btree_id,	r_btree_id) ?:
-		 cmp_int(l->cached,	r_cached) ?:
+		 cmp_int((int) l->cached,	(int) r_cached) ?:
 		 bpos_cmp(l->pos,	r_pos) ?:
 		-cmp_int(l->level,	r_level);
 }
@@ -760,6 +760,43 @@ static int bch2_btree_iter_verify_ret(struct btree_iter *iter, struct bkey_s_c k
 out:
 	bch2_trans_iter_exit(trans, &copy);
 	return ret;
+}
+
+void bch2_assert_pos_locked(struct btree_trans *trans, enum btree_id id,
+			    struct bpos pos, bool key_cache)
+{
+	struct btree_path *path;
+	unsigned idx;
+	char buf[100];
+
+	trans_for_each_path_inorder(trans, path, idx) {
+		int cmp = cmp_int(path->btree_id, id) ?:
+			cmp_int(path->cached, key_cache);
+
+		if (cmp > 0)
+			break;
+		if (cmp < 0)
+			continue;
+
+		if (!(path->nodes_locked & 1) ||
+		    !path->should_be_locked)
+			continue;
+
+		if (!key_cache) {
+			if (bkey_cmp(pos, path->l[0].b->data->min_key) >= 0 &&
+			    bkey_cmp(pos, path->l[0].b->key.k.p) <= 0)
+				return;
+		} else {
+			if (!bkey_cmp(pos, path->pos))
+				return;
+		}
+	}
+
+	bch2_dump_trans_paths_updates(trans);
+	panic("not locked: %s %s%s\n",
+	      bch2_btree_ids[id],
+	      (bch2_bpos_to_text(&PBUF(buf), pos), buf),
+	      key_cache ? " cached" : "");
 }
 
 #else
@@ -1720,11 +1757,13 @@ void bch2_dump_trans_paths_updates(struct btree_trans *trans)
 	btree_trans_sort_paths(trans);
 
 	trans_for_each_path_inorder(trans, path, idx)
-		printk(KERN_ERR "path: idx %u ref %u:%u%s btree %s pos %s %pS\n",
+		printk(KERN_ERR "path: idx %u ref %u:%u%s%s btree %s pos %s locks %u %pS\n",
 		       path->idx, path->ref, path->intent_ref,
-		       path->preserve ? " preserve" : "",
+		       path->should_be_locked ? " S" : "",
+		       path->preserve ? " P" : "",
 		       bch2_btree_ids[path->btree_id],
 		       (bch2_bpos_to_text(&PBUF(buf1), path->pos), buf1),
+		       path->nodes_locked,
 #ifdef CONFIG_BCACHEFS_DEBUG
 		       (void *) path->ip_allocated
 #else
