@@ -1,16 +1,14 @@
 /*
  * DHD debugability Linux os layer
  *
- * <<Broadcom-WL-IPTag/Open:>>
+ * Copyright (C) 2020, Broadcom.
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -18,12 +16,11 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
- *      Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a license
- * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_debug_linux.c 710862 2017-07-14 07:43:59Z $
+ *
+ * <<Broadcom-WL-IPTag/Open:>>
+ *
+ * $Id$
  */
 
 #include <typedefs.h>
@@ -37,6 +34,7 @@
 
 #include <net/cfg80211.h>
 #include <wl_cfgvendor.h>
+#include <dhd_config.h>
 
 typedef void (*dbg_ring_send_sub_t)(void *ctx, const int ring_id, const void *data,
 	const uint32 len, const dhd_dbg_ring_status_t ring_status);
@@ -55,17 +53,17 @@ typedef struct dhd_dbg_os_ring_info {
 } linux_dbgring_info_t;
 
 struct log_level_table dhd_event_map[] = {
-	{1, WIFI_EVENT_DRIVER_EAPOL_FRAME_TRANSMIT_REQUESTED, 0, "DRIVER EAPOL TX REQ"},
-	{1, WIFI_EVENT_DRIVER_EAPOL_FRAME_RECEIVED, 0, "DRIVER EAPOL RX"},
-	{2, WIFI_EVENT_DRIVER_SCAN_REQUESTED, 0, "SCAN_REQUESTED"},
-	{2, WIFI_EVENT_DRIVER_SCAN_COMPLETE, 0, "SCAN COMPELETE"},
-	{3, WIFI_EVENT_DRIVER_SCAN_RESULT_FOUND, 0, "SCAN RESULT FOUND"},
-	{2, WIFI_EVENT_DRIVER_PNO_ADD, 0, "PNO ADD"},
-	{2, WIFI_EVENT_DRIVER_PNO_REMOVE, 0, "PNO REMOVE"},
-	{2, WIFI_EVENT_DRIVER_PNO_NETWORK_FOUND, 0, "PNO NETWORK FOUND"},
-	{2, WIFI_EVENT_DRIVER_PNO_SCAN_REQUESTED, 0, "PNO SCAN_REQUESTED"},
-	{1, WIFI_EVENT_DRIVER_PNO_SCAN_RESULT_FOUND, 0, "PNO SCAN RESULT FOUND"},
-	{1, WIFI_EVENT_DRIVER_PNO_SCAN_COMPLETE, 0, "PNO SCAN COMPELETE"}
+	{1, WIFI_EVENT_DRIVER_EAPOL_FRAME_TRANSMIT_REQUESTED, "DRIVER EAPOL TX REQ"},
+	{1, WIFI_EVENT_DRIVER_EAPOL_FRAME_RECEIVED, "DRIVER EAPOL RX"},
+	{2, WIFI_EVENT_DRIVER_SCAN_REQUESTED, "SCAN_REQUESTED"},
+	{2, WIFI_EVENT_DRIVER_SCAN_COMPLETE, "SCAN COMPELETE"},
+	{3, WIFI_EVENT_DRIVER_SCAN_RESULT_FOUND, "SCAN RESULT FOUND"},
+	{2, WIFI_EVENT_DRIVER_PNO_ADD, "PNO ADD"},
+	{2, WIFI_EVENT_DRIVER_PNO_REMOVE, "PNO REMOVE"},
+	{2, WIFI_EVENT_DRIVER_PNO_NETWORK_FOUND, "PNO NETWORK FOUND"},
+	{2, WIFI_EVENT_DRIVER_PNO_SCAN_REQUESTED, "PNO SCAN_REQUESTED"},
+	{1, WIFI_EVENT_DRIVER_PNO_SCAN_RESULT_FOUND, "PNO SCAN RESULT FOUND"},
+	{1, WIFI_EVENT_DRIVER_PNO_SCAN_COMPLETE, "PNO SCAN COMPELETE"}
 };
 
 static void
@@ -76,6 +74,8 @@ debug_data_send(dhd_pub_t *dhdp, int ring_id, const void *data, const uint32 len
 	dbg_ring_send_sub_t ring_sub_send;
 	ndev = dhd_linux_get_primary_netdev(dhdp);
 	if (!ndev)
+		return;
+	if (!VALID_RING(ring_id))
 		return;
 	if (ring_send_sub_cb[ring_id]) {
 		ring_sub_send = ring_send_sub_cb[ring_id];
@@ -101,25 +101,24 @@ dbg_ring_poll_worker(struct work_struct *work)
 	struct delayed_work *d_work = to_delayed_work(work);
 	bool sched = TRUE;
 	dhd_dbg_ring_t *ring;
-#if defined(STRICT_GCC_WARNINGS) && defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-qual"
-#endif
-	linux_dbgring_info_t *ring_info =
-		container_of(d_work, linux_dbgring_info_t, work);
-#if defined(STRICT_GCC_WARNINGS) && defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
-	dhd_pub_t *dhdp = ring_info->dhdp;
-	int ringid = ring_info->ring_id;
+	linux_dbgring_info_t *ring_info;
+	dhd_pub_t *dhdp;
+	int ringid;
 	dhd_dbg_ring_status_t ring_status;
 	void *buf;
 	dhd_dbg_ring_entry_t *hdr;
 	uint32 buflen, rlen;
 	unsigned long flags;
 
+	GCC_DIAGNOSTIC_PUSH_SUPPRESS_CAST();
+	ring_info = container_of(d_work, linux_dbgring_info_t, work);
+	GCC_DIAGNOSTIC_POP();
+
+	dhdp = ring_info->dhdp;
+	ringid = ring_info->ring_id;
+
 	ring = &dhdp->dbg->dbg_rings[ringid];
-	flags = dhd_os_spin_lock(ring->lock);
+	DHD_DBG_RING_LOCK(ring->lock, flags);
 	dhd_dbg_get_ring_status(dhdp, ringid, &ring_status);
 
 	if (ring->wp > ring->rp) {
@@ -141,7 +140,10 @@ dbg_ring_poll_worker(struct work_struct *work)
 		goto exit;
 	}
 
-	rlen = dhd_dbg_ring_pull(dhdp, ringid, buf, buflen);
+	DHD_DBG_RING_UNLOCK(ring->lock, flags);
+	rlen = dhd_dbg_pull_from_ring(dhdp, ringid, buf, buflen);
+	DHD_DBG_RING_LOCK(ring->lock, flags);
+
 	if (!ring->sched_pull) {
 		ring->sched_pull = TRUE;
 	}
@@ -166,8 +168,7 @@ exit:
 			schedule_delayed_work(d_work, ring_info->interval);
 		}
 	}
-
-	dhd_os_spin_unlock(ring->lock, flags);
+	DHD_DBG_RING_UNLOCK(ring->lock, flags);
 
 	return;
 }
@@ -199,13 +200,12 @@ dhd_os_start_logging(dhd_pub_t *dhdp, char *ring_name, int log_level,
 	int ret = BCME_OK;
 	int ring_id;
 	linux_dbgring_info_t *os_priv, *ring_info;
-	uint32 ms;
 
 	ring_id = dhd_dbg_find_ring_id(dhdp, ring_name);
 	if (!VALID_RING(ring_id))
 		return BCME_UNSUPPORTED;
 
-	DHD_DBGIF(("%s , log_level : %d, time_intval : %d, threshod %d Bytes\n",
+	DHD_INFO(("%s , log_level : %d, time_intval : %d, threshod %d Bytes\n",
 		__FUNCTION__, log_level, time_intval, threshold));
 
 	/* change the configuration */
@@ -220,14 +220,6 @@ dhd_os_start_logging(dhd_pub_t *dhdp, char *ring_name, int log_level,
 		return BCME_ERROR;
 	ring_info = &os_priv[ring_id];
 	ring_info->log_level = log_level;
-	if (ring_id == FW_VERBOSE_RING_ID || ring_id == FW_EVENT_RING_ID) {
-		ring_info->tsoffset = local_clock();
-		if (dhd_wl_ioctl_get_intiovar(dhdp, "rte_timesync", &ms, WLC_GET_VAR,
-				FALSE, 0))
-			DHD_ERROR(("%s rte_timesync failed\n", __FUNCTION__));
-		do_div(ring_info->tsoffset, 1000000);
-		ring_info->tsoffset -= ms;
-	}
 	if (time_intval == 0 || log_level == 0) {
 		ring_info->interval = 0;
 		cancel_delayed_work_sync(&ring_info->work);
@@ -253,7 +245,7 @@ dhd_os_reset_logging(dhd_pub_t *dhdp)
 
 	/* Stop all rings */
 	for (ring_id = DEBUG_RING_ID_INVALID + 1; ring_id < DEBUG_RING_ID_MAX; ring_id++) {
-		DHD_DBGIF(("%s: Stop ring buffer %d\n", __FUNCTION__, ring_id));
+		DHD_INFO(("%s: Stop ring buffer %d\n", __FUNCTION__, ring_id));
 
 		ring_info = &os_priv[ring_id];
 		/* cancel any pending work */
@@ -284,8 +276,8 @@ dhd_os_suppress_logging(dhd_pub_t *dhdp, bool suppress)
 	if (!os_priv)
 		return BCME_ERROR;
 
-	max_log_level = MAX(os_priv[FW_VERBOSE_RING_ID].log_level,
-		os_priv[FW_EVENT_RING_ID].log_level);
+	max_log_level = os_priv[FW_VERBOSE_RING_ID].log_level;
+
 	if (max_log_level == SUPPRESS_LOG_LEVEL) {
 		/* suppress the logging in FW not to wake up host while device in suspend mode */
 		ret = dhd_iovar(dhdp, 0, "logtrace", (char *)&enable, sizeof(enable), NULL, 0,
@@ -352,7 +344,7 @@ dhd_os_push_push_ring_data(dhd_pub_t *dhdp, int ring_id, void *data, int32 data_
 		msg_hdr.flags |= DBG_RING_ENTRY_FLAGS_HAS_BINARY;
 		msg_hdr.timestamp = local_clock();
 		/* convert to ms */
-		do_div(msg_hdr.timestamp, 1000000);
+		msg_hdr.timestamp = DIV_U64_BY_U32(msg_hdr.timestamp, NSEC_PER_MSEC);
 		msg_hdr.len = data_len;
 		/* filter the event for higher log level with current log level */
 		for (i = 0; i < ARRAYSIZE(dhd_event_map); i++) {
@@ -362,7 +354,17 @@ dhd_os_push_push_ring_data(dhd_pub_t *dhdp, int ring_id, void *data, int32 data_
 			}
 		}
 	}
-	ret = dhd_dbg_ring_push(dhdp, ring_id, &msg_hdr, event_data);
+#ifdef DHD_DEBUGABILITY_LOG_DUMP_RING
+	else if (ring_id == FW_VERBOSE_RING_ID || ring_id == DRIVER_LOG_RING_ID ||
+			ring_id == ROAM_STATS_RING_ID) {
+		msg_hdr.type = DBG_RING_ENTRY_DATA_TYPE;
+		msg_hdr.flags |= DBG_RING_ENTRY_FLAGS_HAS_TIMESTAMP;
+		msg_hdr.timestamp = local_clock();
+		msg_hdr.timestamp = DIV_U64_BY_U32(msg_hdr.timestamp, NSEC_PER_MSEC);
+		msg_hdr.len = strlen(data);
+	}
+#endif /* DHD_DEBUGABILITY_LOG_DUMP_RING */
+	ret = dhd_dbg_push_to_ring(dhdp, ring_id, &msg_hdr, event_data);
 	if (ret) {
 		DHD_ERROR(("%s : failed to push data into the ring (%d) with ret(%d)\n",
 			__FUNCTION__, ring_id, ret));
@@ -435,8 +437,15 @@ int
 dhd_os_dbg_get_feature(dhd_pub_t *dhdp, int32 *features)
 {
 	int ret = BCME_OK;
+	/* XXX : we need to find a way to get the features for dbg */
 	*features = 0;
-	*features |= DBG_MEMORY_DUMP_SUPPORTED;
+#ifdef DEBUGABILITY
+#ifndef DEBUGABILITY_DISABLE_MEMDUMP
+	// fix for RequestFirmwareDebugDump issue of VTS
+	if ((dhdp->conf->chip != BCM43751_CHIP_ID) && (dhdp->conf->chip != BCM43752_CHIP_ID) &&
+			(dhdp->conf->chip != BCM4375_CHIP_ID))
+		*features |= DBG_MEMORY_DUMP_SUPPORTED;
+#endif /* !DEBUGABILITY_DISABLE_MEMDUMP */
 	if (FW_SUPPORTED(dhdp, logtrace)) {
 		*features |= DBG_CONNECT_EVENT_SUPPORTED;
 		*features |= DBG_VERBOSE_LOG_SUPPORTED;
@@ -449,6 +458,7 @@ dhd_os_dbg_get_feature(dhd_pub_t *dhdp, int32 *features)
 		*features |= DBG_PACKET_FATE_SUPPORTED;
 	}
 #endif /* DBG_PKT_MON */
+#endif /* DEBUGABILITY */
 	return ret;
 }
 

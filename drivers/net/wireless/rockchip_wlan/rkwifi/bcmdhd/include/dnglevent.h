@@ -1,14 +1,16 @@
 /*
- * Broadcom Event  protocol definitions
+ * Broadcom Event protocol definitions
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
+ * Dependencies: bcmeth.h
+ *
+ * Copyright (C) 2020, Broadcom.
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -16,16 +18,9 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
- *      Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a license
- * other than the GPL, without Broadcom's express prior written consent.
  *
- * Dependencies: bcmeth.h
  *
- * $Id: dnglevent.h $
- *
- * <<Broadcom-WL-IPTag/Open:>>
+ * <<Broadcom-WL-IPTag/Dual:>>
  *
  * -----------------------------------------------------------------------------
  *
@@ -44,6 +39,9 @@
 #endif
 #include <bcmeth.h>
 #include <ethernet.h>
+#ifdef HEALTH_CHECK
+#include <dngl_defs.h>
+#endif /* HEALTH_CHECK */
 
 /* This marks the start of a packed structure section. */
 #include <packed_section_start.h>
@@ -51,6 +49,7 @@
 #define DNGL_E_RSRVD_1				0x0
 #define DNGL_E_RSRVD_2				0x1
 #define DNGL_E_SOCRAM_IND			0x2
+#define DNGL_E_PROFILE_DATA_IND			0x3
 typedef BWL_PRE_PACKED_STRUCT struct
 {
 	uint16  version; /* Current version is 1 */
@@ -72,9 +71,43 @@ typedef BWL_PRE_PACKED_STRUCT struct bcm_dngl_socramind {
 	uint8			value[1]; /* data value with variable length specified by length */
 } BWL_POST_PACKED_STRUCT bcm_dngl_socramind_t;
 
+typedef BWL_PRE_PACKED_STRUCT struct bcm_dngl_profile_data_ind_t {
+	uint16 tag;
+	uint16 length;
+	uint8 value[];
+} BWL_POST_PACKED_STRUCT bcm_dngl_profile_data_ind_t;
+
+typedef BWL_PRE_PACKED_STRUCT struct bcm_dngl_arm_event {
+	uint32 type;
+	uint32 value;
+} BWL_POST_PACKED_STRUCT bcm_dngl_arm_event_t;
+
+#define PROFILE_DATA_IND_INFO 0x1
+
+#define PROFILE_SUB_TYPE_ARM_STATS_INFO 0x1
+
+typedef BWL_PRE_PACKED_STRUCT struct bcm_dngl_arm_stats_ind {
+	uint16	tag;
+	uint16	length;
+	uint8	value[];
+} BWL_POST_PACKED_STRUCT bcm_dngl_arm_stats_ind_t;
+
+typedef BWL_PRE_PACKED_STRUCT struct bcm_dngl_arm_stats {
+	uint32	cycles;
+	uint32	timestamp;
+	uint16	freq;
+	uint16	roh;
+	uint16	num_events;
+	uint16  seq_no;
+	uint8	value[];
+} BWL_POST_PACKED_STRUCT bcm_dngl_arm_stats_t;
+
 /* SOCRAM_IND type tags */
-#define SOCRAM_IND_ASSERT_TAG		0x1
-#define SOCRAM_IND_TAG_HEALTH_CHECK	0x2
+typedef enum socram_ind_tag {
+	SOCRAM_IND_ASSERT_TAG = 1,
+	SOCRAM_IND_TAG_HEALTH_CHECK = 2
+} socram_ind_tag_t;
+
 /* Health check top level module tags */
 typedef BWL_PRE_PACKED_STRUCT struct bcm_dngl_healthcheck {
 	uint16			top_module_tag;	/* top level module tag */
@@ -90,11 +123,13 @@ typedef BWL_PRE_PACKED_STRUCT struct bcm_dngl_healthcheck {
 #define HEALTH_CHECK_PCIEDEV_FLAG_LINKDOWN_SHIFT		2
 #define HEALTH_CHECK_PCIEDEV_FLAG_MSI_INT_SHIFT			3
 #define HEALTH_CHECK_PCIEDEV_FLAG_NODS_SHIFT			4
+#define HEALTH_CHECK_PCIEDEV_FLAG_NO_HOST_WAKE_SHIFT		5
 #define HEALTH_CHECK_PCIEDEV_FLAG_IN_D3	1 << HEALTH_CHECK_PCIEDEV_FLAG_IN_D3_SHIFT
 #define HEALTH_CHECK_PCIEDEV_FLAG_AER	1 << HEALTH_CHECK_PCIEDEV_FLAG_AER_SHIFT
 #define HEALTH_CHECK_PCIEDEV_FLAG_LINKDOWN	1 << HEALTH_CHECK_PCIEDEV_FLAG_LINKDOWN_SHIFT
 #define HEALTH_CHECK_PCIEDEV_FLAG_MSI_INT	1 << HEALTH_CHECK_PCIEDEV_FLAG_MSI_INT_SHIFT
 #define HEALTH_CHECK_PCIEDEV_FLAG_NODS	1 << HEALTH_CHECK_PCIEDEV_FLAG_NODS_SHIFT
+#define HEALTH_CHECK_PCIEDEV_FLAG_NO_HOST_WAKE	1 << HEALTH_CHECK_PCIEDEV_FLAG_NO_HOST_WAKE_SHIFT
 /* PCIE Module TAGs */
 #define HEALTH_CHECK_PCIEDEV_INDUCED_IND	0x1
 #define HEALTH_CHECK_PCIEDEV_H2D_DMA_IND	0x2
@@ -103,8 +138,12 @@ typedef BWL_PRE_PACKED_STRUCT struct bcm_dngl_healthcheck {
 #define HEALTH_CHECK_PCIEDEV_D3ACK_STALL_IND	0x5
 #define HEALTH_CHECK_PCIEDEV_NODS_IND	0x6
 #define HEALTH_CHECK_PCIEDEV_LINKSPEED_FALLBACK_IND	0x7
+#define HEALTH_CHECK_PCIEDEV_DSACK_STALL_IND	0x8
+#define HEALTH_CHECK_PCIEDEV_FLOWRING_IND	0x9
+#define HEALTH_CHECK_PCIEDEV_HW_ASSERT_LONG_IND 0xA
+#define HEALTH_CHECK_PCIEDEV_RXPOST_LONG_IND	0xB
 
-#define HC_PCIEDEV_CONFIG_REGLIST_MAX	20
+#define HC_PCIEDEV_CONFIG_REGLIST_MAX	25
 typedef BWL_PRE_PACKED_STRUCT struct bcm_dngl_pcie_hc {
 	uint16			version; /* HEALTH_CHECK_PCIEDEV_VERSION_1 */
 	uint16			reserved;
@@ -113,6 +152,21 @@ typedef BWL_PRE_PACKED_STRUCT struct bcm_dngl_pcie_hc {
 	uint32			pcie_control_reg;
 	uint32			pcie_config_regs[HC_PCIEDEV_CONFIG_REGLIST_MAX];
 } BWL_POST_PACKED_STRUCT bcm_dngl_pcie_hc_t;
+
+/* define to avoid compile issues in older branches which define hchk_sw_entity_t */
+#ifdef HCHK_COMMON_SW_EVENT
+/* Enumerating top level SW entities for use by health check */
+typedef enum {
+	HCHK_SW_ENTITY_UNDEFINED = 0,
+	HCHK_SW_ENTITY_PCIE = 1,
+	HCHK_SW_ENTITY_SDIO = 2,
+	HCHK_SW_ENTITY_USB = 3,
+	HCHK_SW_ENTITY_RTE = 4,
+	HCHK_SW_ENTITY_WL_PRIMARY = 5, /* WL instance 0 */
+	HCHK_SW_ENTITY_WL_SECONDARY = 6, /* WL instance 1 */
+	HCHK_SW_ENTITY_MAX
+} hchk_sw_entity_t;
+#endif /* HCHK_COMMON_SW_EVENT */
 
 /* This marks the end of a packed structure section. */
 #include <packed_section_end.h>

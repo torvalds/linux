@@ -1,10 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
-choice
-	prompt "Select driver version for ap6xxx chips"
-
 config AP6XXX
-	tristate "stable version (wifi5)"
-	#depends on MMC && WLAN_80211
+	tristate "ap6xxx wireless cards support"
+	depends on RFKILL_RK
 	select CFG80211
 	select MAC80211
 	help
@@ -16,23 +13,20 @@ config AP6XXX
 	  If you choose to build a module, it'll be called dhd. Say M if
 	  unsure.
 
-config AP6XXX_WIFI6
-	tristate "support wifi6(80211ax)"
-	#depends on MMC && WLAN_80211
-	select CFG80211
-	select MAC80211
+choice
+	prompt "Enable Chip Interface"
+	depends on BCMDHD
+	default BCMDHD_SDIO
 	help
-	  This driver supports wifi6 for ap6xxx chipset.
+	  Enable Chip Interface.
 
-	  This driver uses the kernel's wireless extensions subsystem.
+config BCMDHD_SDIO
+	bool "SDIO bus interface support"
+	depends on BCMDHD && MMC
 
-	  If you choose to build a module, it'll be called dhd. Say M if
-	  unsure.
-
-config AP6XXX_INDEP_POWER
-	tristate "support WiFi keepalive during host shutdown"
-	select CFG80211
-	select MAC80211
+config BCMDHD_PCIE
+	bool "PCIe bus interface support"
+	depends on BCMDHD && PCI
 
 endchoice
 

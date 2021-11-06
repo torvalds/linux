@@ -1,14 +1,14 @@
 /*
  * SD-SPI Protocol Conversion - BCMSDH->gSPI Translation Layer
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
+ * Copyright (C) 2020, Broadcom.
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -16,15 +16,9 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
- *      Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a license
- * other than the GPL, without Broadcom's express prior written consent.
  *
  *
- * <<Broadcom-WL-IPTag/Open:>>
- *
- * $Id: bcmspibrcm.h 514727 2014-11-12 03:02:48Z $
+ * <<Broadcom-WL-IPTag/Dual:>>
  */
 #ifndef	_BCM_SPI_BRCM_H
 #define	_BCM_SPI_BRCM_H
@@ -35,7 +29,7 @@
 #endif
 /* global msglevel for debug messages - bitvals come from sdiovar.h */
 
-#if defined(DHD_DEBUG)
+#if defined(BCMDBG) || defined(DHD_DEBUG)
 #define sd_err(x)	do { if (sd_msglevel & SDH_ERROR_VAL) printf x; } while (0)
 #define sd_trace(x)	do { if (sd_msglevel & SDH_TRACE_VAL) printf x; } while (0)
 #define sd_info(x)	do { if (sd_msglevel & SDH_INFO_VAL)  printf x; } while (0)
@@ -51,7 +45,11 @@
 #define sd_ctrl(x)
 #endif
 
+#ifdef BCMPERFSTATS
+#define sd_log(x)	do { if (sd_msglevel & SDH_LOG_VAL)	 bcmlog x; } while (0)
+#else
 #define sd_log(x)
+#endif
 
 #define SDIOH_ASSERT(exp) \
 	do { if (!(exp)) \
@@ -78,7 +76,9 @@
 struct sdioh_info {
 	uint		cfg_bar;		/* pci cfg address for bar */
 	uint32		caps;			/* cached value of capabilities reg */
+#ifndef BCMSPI_ANDROID
 	void		*bar0;			/* BAR0 for PCI Device */
+#endif /* !BCMSPI_ANDROID */
 	osl_t		*osh;			/* osh handler */
 	void		*controller;	/* Pointer to SPI Controller's private data struct */
 	uint		lockcount;		/* nest count of spi_lock() calls */

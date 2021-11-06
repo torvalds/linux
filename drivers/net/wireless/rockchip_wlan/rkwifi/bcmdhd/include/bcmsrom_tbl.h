@@ -1,14 +1,14 @@
 /*
  * Table that encodes the srom formats for PCI/PCIe NICs.
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
+ * Copyright (C) 2020, Broadcom.
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -16,22 +16,15 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
- *      Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a license
- * other than the GPL, without Broadcom's express prior written consent.
  *
  *
- * <<Broadcom-WL-IPTag/Open:>>
- *
- * $Id: bcmsrom_tbl.h 616054 2016-01-29 13:22:24Z $
+ * <<Broadcom-WL-IPTag/Dual:>>
  */
 
 #ifndef	_bcmsrom_tbl_h_
 #define	_bcmsrom_tbl_h_
 
-#include "sbpcmcia.h"
-#include "wlioctl.h"
+#include <sbpcmcia.h>
 #include <bcmsrom_fmt.h>
 
 typedef struct {
@@ -48,12 +41,12 @@ typedef struct {
 #define	SRFL_PRSIGN	8		/* value is in signed decimal format */
 #define	SRFL_CCODE	0x10		/* value is in country code format */
 #define	SRFL_ETHADDR	0x20		/* value is an Ethernet address */
-#define SRFL_LEDDC	0x40		/* value is an LED duty cycle */
+#define SRFL_UNUSED	0x40		/* unused, was SRFL_LEDDC */
 #define SRFL_NOVAR	0x80		/* do not generate a nvram param, entry is for mfgc */
 #define SRFL_ARRAY	0x100		/* value is in an array. All elements EXCEPT FOR THE LAST
 					 * ONE in the array should have this flag set.
 					 */
-
+#define PRHEX_N_MORE (SRFL_PRHEX | SRFL_MORE)
 
 #define SROM_DEVID_PCIE	48
 
@@ -70,15 +63,14 @@ typedef struct {
  * - The last entry's name field must be NULL to indicate the end of the table. Other
  *   entries must have non-NULL name.
  */
-static const sromvar_t pci_sromvars[] = {
+#if !defined(SROM15_MEMOPT)
+static const sromvar_t BCMATTACHDATA(pci_sromvars)[] = {
 /*	name		revmask		flags		off			mask */
-#if defined(CABLECPE)
-	{"devid",	0xffffff00,	SRFL_PRHEX,	PCI_F0DEVID,		0xffff},
-#elif defined(BCMPCIEDEV) && defined(BCMPCIEDEV_ENABLED)
+#if defined(BCMPCIEDEV) && defined(BCMPCIEDEV_ENABLED)
 	{"devid",	0xffffff00,	SRFL_PRHEX, SROM_DEVID_PCIE,		0xffff},
 #else
 	{"devid",	0xffffff00,	SRFL_PRHEX|SRFL_NOVAR,	PCI_F0DEVID,	0xffff},
-#endif 
+#endif /* BCMPCIEDEV && BCMPCIEDEV_ENABLED */
 	{"boardrev",	0x0000000e,	SRFL_PRHEX,	SROM_AABREV,		SROM_BR_MASK},
 	{"boardrev",	0x000000f0,	SRFL_PRHEX,	SROM4_BREV,		0xffff},
 	{"boardrev",	0xffffff00,	SRFL_PRHEX,	SROM8_BREV,		0xffff},
@@ -111,22 +103,6 @@ static const sromvar_t pci_sromvars[] = {
 	{"regrev",	0x00000010,	0,		SROM4_REGREV,		0xffff},
 	{"regrev",	0x000000e0,	0,		SROM5_REGREV,		0xffff},
 	{"regrev",	0x00000700,	0,		SROM8_REGREV,		0xffff},
-	{"ledbh0",	0x0000000e,	SRFL_NOFFS,	SROM_LEDBH10,		0x00ff},
-	{"ledbh1",	0x0000000e,	SRFL_NOFFS,	SROM_LEDBH10,		0xff00},
-	{"ledbh2",	0x0000000e,	SRFL_NOFFS,	SROM_LEDBH32,		0x00ff},
-	{"ledbh3",	0x0000000e,	SRFL_NOFFS,	SROM_LEDBH32,		0xff00},
-	{"ledbh0",	0x00000010,	SRFL_NOFFS,	SROM4_LEDBH10,		0x00ff},
-	{"ledbh1",	0x00000010,	SRFL_NOFFS,	SROM4_LEDBH10,		0xff00},
-	{"ledbh2",	0x00000010,	SRFL_NOFFS,	SROM4_LEDBH32,		0x00ff},
-	{"ledbh3",	0x00000010,	SRFL_NOFFS,	SROM4_LEDBH32,		0xff00},
-	{"ledbh0",	0x000000e0,	SRFL_NOFFS,	SROM5_LEDBH10,		0x00ff},
-	{"ledbh1",	0x000000e0,	SRFL_NOFFS,	SROM5_LEDBH10,		0xff00},
-	{"ledbh2",	0x000000e0,	SRFL_NOFFS,	SROM5_LEDBH32,		0x00ff},
-	{"ledbh3",	0x000000e0,	SRFL_NOFFS,	SROM5_LEDBH32,		0xff00},
-	{"ledbh0",	0x00000700,	SRFL_NOFFS,	SROM8_LEDBH10,		0x00ff},
-	{"ledbh1",	0x00000700,	SRFL_NOFFS,	SROM8_LEDBH10,		0xff00},
-	{"ledbh2",	0x00000700,	SRFL_NOFFS,	SROM8_LEDBH32,		0x00ff},
-	{"ledbh3",	0x00000700,	SRFL_NOFFS,	SROM8_LEDBH32,		0xff00},
 	{"pa0b0",	0x0000000e,	SRFL_PRHEX,	SROM_WL0PAB0,		0xffff},
 	{"pa0b1",	0x0000000e,	SRFL_PRHEX,	SROM_WL0PAB1,		0xffff},
 	{"pa0b2",	0x0000000e,	SRFL_PRHEX,	SROM_WL0PAB2,		0xffff},
@@ -252,10 +228,6 @@ static const sromvar_t pci_sromvars[] = {
 	{"macaddr",	0x00000008,	SRFL_ETHADDR,	SROM3_MACHI,		0xffff},
 	{"il0macaddr",	0x00000007,	SRFL_ETHADDR,	SROM_MACHI_IL0,		0xffff},
 	{"et1macaddr",	0x00000007,	SRFL_ETHADDR,	SROM_MACHI_ET1,		0xffff},
-	{"leddc",	0x00000700,	SRFL_NOFFS|SRFL_LEDDC,	SROM8_LEDDC,	0xffff},
-	{"leddc",	0x000000e0,	SRFL_NOFFS|SRFL_LEDDC,	SROM5_LEDDC,	0xffff},
-	{"leddc",	0x00000010,	SRFL_NOFFS|SRFL_LEDDC,	SROM4_LEDDC,	0xffff},
-	{"leddc",	0x00000008,	SRFL_NOFFS|SRFL_LEDDC,	SROM3_LEDDC,	0xffff},
 
 	{"tempthresh",	0x00000700,	0,		SROM8_THERMAL,		0xff00},
 	{"tempoffset",	0x00000700,	0,		SROM8_THERMAL,		0x00ff},
@@ -474,11 +446,6 @@ static const sromvar_t pci_sromvars[] = {
 	{"macaddr",	0xfffff800,	SRFL_ETHADDR,		SROM11_MACHI,	0xffff},
 	{"ccode",	0xfffff800,	SRFL_CCODE,		SROM11_CCODE,	0xffff},
 	{"regrev",	0xfffff800,	0,			SROM11_REGREV,	0xffff},
-	{"ledbh0",	0xfffff800,	SRFL_NOFFS,		SROM11_LEDBH10,	0x00ff},
-	{"ledbh1",	0xfffff800,	SRFL_NOFFS,		SROM11_LEDBH10,	0xff00},
-	{"ledbh2",	0xfffff800,	SRFL_NOFFS,		SROM11_LEDBH32,	0x00ff},
-	{"ledbh3",	0xfffff800,	SRFL_NOFFS,		SROM11_LEDBH32,	0xff00},
-	{"leddc",	0xfffff800,	SRFL_NOFFS|SRFL_LEDDC,	SROM11_LEDDC,	0xffff},
 	{"aa2g",	0xfffff800,	0,			SROM11_AA,	0x00ff},
 	{"aa5g",	0xfffff800,	0,			SROM11_AA,	0xff00},
 	{"agbg0",	0xfffff800,	0,			SROM11_AGBG10,  0xff00},
@@ -710,16 +677,6 @@ static const sromvar_t pci_sromvars[] = {
 	{"pdoffset20in80m5gb3", 0xfffff000,	0,      SROM12_PDOFF_20in80M_5G_B3,    0xffff},
 	{"pdoffset20in80m5gb4", 0xfffff000,	0,      SROM12_PDOFF_20in80M_5G_B4,    0xffff},
 
-	{"pdoffset20in40m5gcore3",   0xffffe000, 0,     SROM13_PDOFFSET20IN40M5GCORE3,   0xffff},
-	{"pdoffset20in40m5gcore3_1", 0xffffe000, 0,     SROM13_PDOFFSET20IN40M5GCORE3_1, 0xffff},
-	{"pdoffset20in80m5gcore3",   0xffffe000, 0,     SROM13_PDOFFSET20IN80M5GCORE3,   0xffff},
-	{"pdoffset20in80m5gcore3_1", 0xffffe000, 0,     SROM13_PDOFFSET20IN80M5GCORE3_1, 0xffff},
-	{"pdoffset40in80m5gcore3",   0xffffe000, 0,     SROM13_PDOFFSET40IN80M5GCORE3,   0xffff},
-	{"pdoffset40in80m5gcore3_1", 0xffffe000, 0,     SROM13_PDOFFSET40IN80M5GCORE3_1, 0xffff},
-
-	{"pdoffset20in40m2g",        0xffffe000, 0,     SROM13_PDOFFSET20IN40M2G,        0xffff},
-	{"pdoffset20in40m2gcore3",   0xffffe000, 0,     SROM13_PDOFFSET20IN40M2GCORE3,   0xffff},
-
 	/* power per rate */
 	{"mcsbw205gx1po",       0xfffff000,     SRFL_MORE,      SROM12_MCSBW205GX1PO,   0xffff},
 	{"",                    0xfffff000,     0,              SROM12_MCSBW205GX1PO_1, 0xffff},
@@ -773,6 +730,9 @@ static const sromvar_t pci_sromvars[] = {
 	{"rpcal5gb2core3",      0xffffe000, 	0,	SROM13_RPCAL5GB23CORE3,         0x00ff},
 	{"rpcal5gb3core3",      0xffffe000, 	0,	SROM13_RPCAL5GB23CORE3,         0xff00},
 
+	{"sw_txchain_mask",	0xffffe000,	0,	SROM13_SW_TXRX_MASK,	0x000f},
+	{"sw_rxchain_mask",	0xffffe000,	0,	SROM13_SW_TXRX_MASK,	0x00f0},
+
 	{"eu_edthresh2g",       0x00002000,     0,       SROM13_EU_EDCRSTH,     0x00ff},
 	{"eu_edthresh5g",       0x00002000,     0,       SROM13_EU_EDCRSTH,     0xff00},
 
@@ -794,6 +754,18 @@ static const sromvar_t pci_sromvars[] = {
 	{"rxgains5ghelnagaina3",        0xffffe000,     0,       SROM13_RXGAINS1CORE3,  0x0700},
 	{"rxgains5ghtrisoa3",   0xffffe000,     0,       SROM13_RXGAINS1CORE3,  0x7800},
 	{"rxgains5ghtrelnabypa3", 0xffffe000,   0,       SROM13_RXGAINS1CORE3,  0x8000},
+
+	/* pdoffset */
+	{"pdoffset20in40m5gcore3",   0xffffe000, 0,     SROM13_PDOFFSET20IN40M5GCORE3,   0xffff},
+	{"pdoffset20in40m5gcore3_1", 0xffffe000, 0,     SROM13_PDOFFSET20IN40M5GCORE3_1, 0xffff},
+	{"pdoffset20in80m5gcore3",   0xffffe000, 0,     SROM13_PDOFFSET20IN80M5GCORE3,   0xffff},
+	{"pdoffset20in80m5gcore3_1", 0xffffe000, 0,     SROM13_PDOFFSET20IN80M5GCORE3_1, 0xffff},
+	{"pdoffset40in80m5gcore3",   0xffffe000, 0,     SROM13_PDOFFSET40IN80M5GCORE3,   0xffff},
+	{"pdoffset40in80m5gcore3_1", 0xffffe000, 0,     SROM13_PDOFFSET40IN80M5GCORE3_1, 0xffff},
+
+	{"pdoffset20in40m2g",        0xffffe000, 0,     SROM13_PDOFFSET20IN40M2G,        0xffff},
+	{"pdoffset20in40m2gcore3",   0xffffe000, 0,     SROM13_PDOFFSET20IN40M2GCORE3,   0xffff},
+	{"pdoffsetcck20m",           0xffffe000, 0,     SROM13_PDOFF_2G_CCK_20M,         0xffff},
 
 	/* power per rate */
 	{"mcs1024qam2gpo",      0xffffe000,     0,           SROM13_MCS1024QAM2GPO,     0xffff},
@@ -859,16 +831,6 @@ static const sromvar_t pci_sromvars[] = {
 
 	{"sb20in40hrlrpox",     0xffffe000,     0,       SROM13_SB20IN40HRLRPOX,        0xffff},
 
-	{"pdoffset20in40m2g",   0xffffe000,     0,      SROM13_PDOFFSET20IN40M2G,       0xffff},
-	{"pdoffset20in40m2gcore3", 0xffffe000,  0,      SROM13_PDOFFSET20IN40M2GCORE3,  0xffff},
-
-	{"pdoffset20in40m5gcore3", 0xffffe000, SRFL_MORE, SROM13_PDOFFSET20IN40M5GCORE3, 0xffff},
-	{"",                    0xffffe000,     0,  SROM13_PDOFFSET20IN40M5GCORE3_1,   0xffff},
-	{"pdoffset40in80m5gcore3", 0xffffe000, SRFL_MORE, SROM13_PDOFFSET40IN80M5GCORE3, 0xffff},
-	{"",                    0xffffe000,     0,  SROM13_PDOFFSET40IN80M5GCORE3_1,   0xffff},
-	{"pdoffset20in80m5gcore3", 0xffffe000, SRFL_MORE, SROM13_PDOFFSET20IN80M5GCORE3, 0xffff},
-	{"",                    0xffffe000,     0,  SROM13_PDOFFSET20IN80M5GCORE3_1,   0xffff},
-
 	{"swctrlmap4_cfg",      0xffffe000,     0,      SROM13_SWCTRLMAP4_CFG,          0xffff},
 	{"swctrlmap4_TX2g_fem3to0", 0xffffe000, 0,      SROM13_SWCTRLMAP4_TX2G_FEM3TO0, 0xffff},
 	{"swctrlmap4_RX2g_fem3to0", 0xffffe000, 0,      SROM13_SWCTRLMAP4_RX2G_FEM3TO0, 0xffff},
@@ -888,8 +850,68 @@ static const sromvar_t pci_sromvars[] = {
 	{"swctrlmap4_misc5g_fem7to4", 0xffffe000, 0,  SROM13_SWCTRLMAP4_MISC5G_FEM7TO4, 0xffff},
 	{NULL,		0,		0,		0,			0}
 };
+#endif /* !defined(SROM15_MEMOPT) */
 
-static const sromvar_t perpath_pci_sromvars[] = {
+static const sromvar_t BCMATTACHDATA(pci_srom15vars)[] = {
+	{"macaddr",	0x00008000,	SRFL_ETHADDR,		SROM15_MACHI,	0xffff},
+	{"caldata_offset", 0x00008000, 0, SROM15_CAL_OFFSET_LOC, 0xffff},
+	{"boardrev", 0x00008000, SRFL_PRHEX, SROM15_BRDREV, 0xffff},
+	{"ccode", 0x00008000, SRFL_CCODE, SROM15_CCODE, 0xffff},
+	{"regrev", 0x00008000, 0, SROM15_REGREV, 0xffff},
+	{NULL,		0,		0,		0,			0}
+};
+
+static const sromvar_t BCMATTACHDATA(pci_srom16vars)[] = {
+	{"macaddr",		0x00010000,	SRFL_ETHADDR,	SROM16_MACHI,		0xffff},
+	{"caldata_offset",	0x00010000,	0,	SROM16_CALDATA_OFFSET_LOC,	0xffff},
+	{"boardrev", 0x00010000,	SRFL_PRHEX,		SROM16_BOARDREV,	0xffff},
+	{"ccode",	0x00010000,	SRFL_CCODE,		SROM16_CCODE,		0xffff},
+	{"regrev",		0x00010000,	0,		SROM16_REGREV,		0xffff},
+	{NULL,			0,		0,		0,			0}
+};
+
+static const sromvar_t BCMATTACHDATA(pci_srom17vars)[] = {
+	{"boardrev",	0x00020000,	SRFL_PRHEX,	SROM17_BRDREV,		0xffff},
+	{"macaddr",	0x00020000,	SRFL_ETHADDR,	SROM17_MACADDR,		0xffff},
+	{"ccode",		0x00020000,	SRFL_CCODE,	SROM17_CCODE,		0xffff},
+	{"caldata_offset",	0x00020000,	0,		SROM17_CALDATA,		0xffff},
+	{"gain_cal_temp",	0x00020000,	SRFL_PRHEX,	SROM17_GCALTMP,		0xffff},
+	{"rssi_delta_2gb0_c0", 0x00020000,	PRHEX_N_MORE,	SROM17_C0SRD202G,	0xffff},
+	{"",		0x00020000,	0,		SROM17_C0SRD202G_1,	0xffff},
+	{"rssi_delta_5gl_c0", 0x00020000,	PRHEX_N_MORE,	SROM17_C0SRD205GL,	0xffff},
+	{"",		0x00020000,	0,		SROM17_C0SRD205GL_1,	0xffff},
+	{"rssi_delta_5gml_c0", 0x00020000,	PRHEX_N_MORE,	SROM17_C0SRD205GML,	0xffff},
+	{"",		0x00020000,	0,		SROM17_C0SRD205GML_1,	0xffff},
+	{"rssi_delta_5gmu_c0", 0x00020000,	PRHEX_N_MORE,	SROM17_C0SRD205GMU,	0xffff},
+	{"",		0x00020000,	0,		SROM17_C0SRD205GMU_1,	0xffff},
+	{"rssi_delta_5gh_c0", 0x00020000,	PRHEX_N_MORE,	SROM17_C0SRD205GH,	0xffff},
+	{"",		0x00020000,	0,		SROM17_C0SRD205GH_1,	0xffff},
+	{"rssi_delta_2gb0_c1", 0x00020000,	PRHEX_N_MORE,	SROM17_C1SRD202G,	0xffff},
+	{"",		0x00020000,	0,		SROM17_C1SRD202G_1,	0xffff},
+	{"rssi_delta_5gl_c1", 0x00020000,	PRHEX_N_MORE,	SROM17_C1SRD205GL,	0xffff},
+	{"",		0x00020000,	0,		SROM17_C1SRD205GL_1,	0xffff},
+	{"rssi_delta_5gml_c1", 0x00020000,	PRHEX_N_MORE,	SROM17_C1SRD205GML,	0xffff},
+	{"",		0x00020000,	0,		SROM17_C1SRD205GML_1,	0xffff},
+	{"rssi_delta_5gmu_c1", 0x00020000,	PRHEX_N_MORE,	SROM17_C1SRD205GMU,	0xffff},
+	{"",		0x00020000,	0,		SROM17_C1SRD205GMU_1,	0xffff},
+	{"rssi_delta_5gh_c1", 0x00020000,	PRHEX_N_MORE,	SROM17_C1SRD205GH,	0xffff},
+	{"",		0x00020000,	0,		SROM17_C1SRD205GH_1,	0xffff},
+	{"txpa_trim_magic",	0x00020000,	PRHEX_N_MORE,	SROM17_TRAMMAGIC,	0xffff},
+	{"",		0x00020000,	0,		SROM17_TRAMMAGIC_1,	0xffff},
+	{"txpa_trim_data",	0x00020000,	SRFL_PRHEX,	SROM17_TRAMDATA,	0xffff},
+	{NULL,		0,		0,		0,			0x00}
+};
+
+static const sromvar_t BCMATTACHDATA(pci_srom18vars)[] = {
+	{"macaddr",		0x00040000,	SRFL_ETHADDR,	SROM18_MACHI,		0xffff},
+	{"caldata_offset",	0x00040000,	0,	SROM18_CALDATA_OFFSET_LOC,	0xffff},
+	{"boardrev",		0x00040000,	SRFL_PRHEX,	SROM18_BOARDREV,	0xffff},
+	{"ccode",		0x00040000,	SRFL_CCODE,	SROM18_CCODE,		0xffff},
+	{"regrev",		0x00040000,	0,		SROM18_REGREV,		0xffff},
+	{NULL,			0,		0,		0,			0}
+};
+
+static const sromvar_t BCMATTACHDATA(perpath_pci_sromvars)[] = {
 	{"maxp2ga",	0x000000f0,	0,		SROM4_2G_ITT_MAXP,	0x00ff},
 	{"itt2ga",	0x000000f0,	0,		SROM4_2G_ITT_MAXP,	0xff00},
 	{"itt5ga",	0x000000f0,	0,		SROM4_5G_ITT_MAXP,	0xff00},
@@ -1065,168 +1087,6 @@ static const sromvar_t perpath_pci_sromvars[] = {
 	{NULL,		0,		0,		0, 			0}
 };
 
-#if !(defined(PHY_TYPE_HT) && defined(PHY_TYPE_N))
-#define	PHY_TYPE_HT		7	/* HT-Phy value */
-#define	PHY_TYPE_N		4	/* N-Phy value */
-#endif /* !(defined(PHY_TYPE_HT) && defined(PHY_TYPE_N)) */
-#if !defined(PHY_TYPE_AC)
-#define	PHY_TYPE_AC		11	/* AC-Phy value */
-#endif /* !defined(PHY_TYPE_AC) */
-#if !defined(PHY_TYPE_LCN20)
-#define	PHY_TYPE_LCN20		12	/* LCN20-Phy value */
-#endif /* !defined(PHY_TYPE_LCN20) */
-#if !defined(PHY_TYPE_NULL)
-#define	PHY_TYPE_NULL		0xf	/* Invalid Phy value */
-#endif /* !defined(PHY_TYPE_NULL) */
-
-typedef struct {
-	uint16	phy_type;
-	uint16	bandrange;
-	uint16	chain;
-	const char *vars;
-} pavars_t;
-
-static const pavars_t pavars[] = {
-	/* HTPHY */
-	{PHY_TYPE_HT, WL_CHAN_FREQ_RANGE_2G,  0, "pa2gw0a0 pa2gw1a0 pa2gw2a0"},
-	{PHY_TYPE_HT, WL_CHAN_FREQ_RANGE_2G,  1, "pa2gw0a1 pa2gw1a1 pa2gw2a1"},
-	{PHY_TYPE_HT, WL_CHAN_FREQ_RANGE_2G,  2, "pa2gw0a2 pa2gw1a2 pa2gw2a2"},
-	{PHY_TYPE_HT, WL_CHAN_FREQ_RANGE_5G_BAND0, 0, "pa5glw0a0 pa5glw1a0 pa5glw2a0"},
-	{PHY_TYPE_HT, WL_CHAN_FREQ_RANGE_5G_BAND0, 1, "pa5glw0a1 pa5glw1a1 pa5glw2a1"},
-	{PHY_TYPE_HT, WL_CHAN_FREQ_RANGE_5G_BAND0, 2, "pa5glw0a2 pa5glw1a2 pa5glw2a2"},
-	{PHY_TYPE_HT, WL_CHAN_FREQ_RANGE_5G_BAND1, 0, "pa5gw0a0 pa5gw1a0 pa5gw2a0"},
-	{PHY_TYPE_HT, WL_CHAN_FREQ_RANGE_5G_BAND1, 1, "pa5gw0a1 pa5gw1a1 pa5gw2a1"},
-	{PHY_TYPE_HT, WL_CHAN_FREQ_RANGE_5G_BAND1, 2, "pa5gw0a2 pa5gw1a2 pa5gw2a2"},
-	{PHY_TYPE_HT, WL_CHAN_FREQ_RANGE_5G_BAND2, 0, "pa5ghw0a0 pa5ghw1a0 pa5ghw2a0"},
-	{PHY_TYPE_HT, WL_CHAN_FREQ_RANGE_5G_BAND2, 1, "pa5ghw0a1 pa5ghw1a1 pa5ghw2a1"},
-	{PHY_TYPE_HT, WL_CHAN_FREQ_RANGE_5G_BAND2, 2, "pa5ghw0a2 pa5ghw1a2 pa5ghw2a2"},
-	{PHY_TYPE_HT, WL_CHAN_FREQ_RANGE_5G_BAND3, 0, "pa5gw0a3 pa5gw1a3 pa5gw2a3"},
-	{PHY_TYPE_HT, WL_CHAN_FREQ_RANGE_5G_BAND3, 1,  "pa5glw0a3 pa5glw1a3 pa5glw2a3"},
-	{PHY_TYPE_HT, WL_CHAN_FREQ_RANGE_5G_BAND3, 2, "pa5ghw0a3 pa5ghw1a3 pa5ghw2a3"},
-	/* NPHY */
-	{PHY_TYPE_N, WL_CHAN_FREQ_RANGE_2G,  0, "pa2gw0a0 pa2gw1a0 pa2gw2a0"},
-	{PHY_TYPE_N, WL_CHAN_FREQ_RANGE_2G,  1, "pa2gw0a1 pa2gw1a1 pa2gw2a1"},
-	{PHY_TYPE_N, WL_CHAN_FREQ_RANGE_5G_BAND0, 0, "pa5glw0a0 pa5glw1a0 pa5glw2a0"},
-	{PHY_TYPE_N, WL_CHAN_FREQ_RANGE_5G_BAND0, 1, "pa5glw0a1 pa5glw1a1 pa5glw2a1"},
-	{PHY_TYPE_N, WL_CHAN_FREQ_RANGE_5G_BAND1, 0, "pa5gw0a0 pa5gw1a0 pa5gw2a0"},
-	{PHY_TYPE_N, WL_CHAN_FREQ_RANGE_5G_BAND1, 1, "pa5gw0a1 pa5gw1a1 pa5gw2a1"},
-	{PHY_TYPE_N, WL_CHAN_FREQ_RANGE_5G_BAND2, 0, "pa5ghw0a0 pa5ghw1a0 pa5ghw2a0"},
-	{PHY_TYPE_N, WL_CHAN_FREQ_RANGE_5G_BAND2, 1, "pa5ghw0a1 pa5ghw1a1 pa5ghw2a1"},
-	/* ACPHY */
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_2G,  0, "pa2ga0"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_2G,  1, "pa2ga1"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_2G,  2, "pa2ga2"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_5G_4BAND,  0, "pa5ga0"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_5G_4BAND,  1, "pa5ga1"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_5G_4BAND,  2, "pa5ga2"},
-	/* LCN20PHY */
-	{PHY_TYPE_LCN20, WL_CHAN_FREQ_RANGE_2G,  0, "pa2ga0"},
-	{PHY_TYPE_NULL, 0, 0, ""}
-};
-
-
-static const pavars_t pavars_SROM12[] = {
-	/* ACPHY */
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_2G,  0, "pa2ga0"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_2G,  1, "pa2ga1"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_2G,  2, "pa2ga2"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_2G_40,  0, "pa2g40a0"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_2G_40,  1, "pa2g40a1"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_2G_40,  2, "pa2g40a2"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_5G_5BAND,  0, "pa5ga0"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_5G_5BAND,  1, "pa5ga1"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_5G_5BAND,  2, "pa5ga2"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_5G_5BAND_40,  0, "pa5g40a0"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_5G_5BAND_40,  1, "pa5g40a1"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_5G_5BAND_40,  2, "pa5g40a2"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_5G_5BAND_80,  0, "pa5g80a0"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_5G_5BAND_80,  1, "pa5g80a1"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_5G_5BAND_80,  2, "pa5g80a2"},
-	{PHY_TYPE_NULL, 0, 0, ""}
-};
-
-static const pavars_t pavars_SROM13[] = {
-	/* ACPHY */
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_2G,  0, "pa2ga0"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_2G,  1, "pa2ga1"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_2G,  2, "pa2ga2"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_2G,  3, "pa2ga3"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_2G_40,  0, "pa2g40a0"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_2G_40,  1, "pa2g40a1"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_2G_40,  2, "pa2g40a2"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_2G_40,  3, "pa2g40a3"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_5G_5BAND,  0, "pa5ga0"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_5G_5BAND,  1, "pa5ga1"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_5G_5BAND,  2, "pa5ga2"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_5G_5BAND,  3, "pa5ga3"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_5G_5BAND_40,  0, "pa5g40a0"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_5G_5BAND_40,  1, "pa5g40a1"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_5G_5BAND_40,  2, "pa5g40a2"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_5G_5BAND_40,  3, "pa5g40a3"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_5G_5BAND_80,  0, "pa5g80a0"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_5G_5BAND_80,  1, "pa5g80a1"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_5G_5BAND_80,  2, "pa5g80a2"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_5G_5BAND_80,  3, "pa5g80a3"},
-	{PHY_TYPE_NULL, 0, 0, ""}
-};
-
-/* pavars table when paparambwver is 1 */
-static const pavars_t pavars_bwver_1[] = {
-	/* ACPHY */
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_2G,  0, "pa2ga0"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_2G,  1, "pa2gccka0"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_2G,  1, "pa2ga2"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_5G_4BAND,  0, "pa5ga0"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_5G_4BAND,  1, "pa5gbw40a0"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_5G_4BAND,  2, "pa5gbw80a0"},
-	{PHY_TYPE_NULL, 0, 0, ""}
-};
-
-/* pavars table when paparambwver is 2 */
-static const pavars_t pavars_bwver_2[] = {
-	/* ACPHY */
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_2G,  0, "pa2ga0"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_2G,  1, "pa2ga1"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_5G_4BAND,  0, "pa5ga0"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_5G_4BAND,  1, "pa5ga1"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_5G_4BAND,  2, "pa5gbw4080a0"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_5G_4BAND,  3, "pa5gbw4080a1"},
-	{PHY_TYPE_NULL, 0, 0, ""}
-};
-
-/* pavars table when paparambwver is 3 */
-static const pavars_t pavars_bwver_3[] = {
-	/* ACPHY */
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_2G,  0, "pa2ga0"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_2G,  1, "pa2ga1"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_2G,  2, "pa2gccka0"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_2G,  3, "pa2gccka1"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_5G_4BAND,  0, "pa5ga0"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_5G_4BAND,  1, "pa5ga1"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_5G_4BAND,  2, "pa5gbw4080a0"},
-	{PHY_TYPE_AC, WL_CHAN_FREQ_RANGE_5G_4BAND,  3, "pa5gbw4080a1"},
-	{PHY_TYPE_NULL, 0, 0, ""}
-};
-
-typedef struct {
-	uint16	phy_type;
-	uint16	bandrange;
-	const char *vars;
-} povars_t;
-
-static const povars_t povars[] = {
-	/* NPHY */
-	{PHY_TYPE_N, WL_CHAN_FREQ_RANGE_2G,  "mcs2gpo0 mcs2gpo1 mcs2gpo2 mcs2gpo3 "
-	"mcs2gpo4 mcs2gpo5 mcs2gpo6 mcs2gpo7"},
-	{PHY_TYPE_N, WL_CHAN_FREQ_RANGE_5GL, "mcs5glpo0 mcs5glpo1 mcs5glpo2 mcs5glpo3 "
-	"mcs5glpo4 mcs5glpo5 mcs5glpo6 mcs5glpo7"},
-	{PHY_TYPE_N, WL_CHAN_FREQ_RANGE_5GM, "mcs5gpo0 mcs5gpo1 mcs5gpo2 mcs5gpo3 "
-	"mcs5gpo4 mcs5gpo5 mcs5gpo6 mcs5gpo7"},
-	{PHY_TYPE_N, WL_CHAN_FREQ_RANGE_5GH, "mcs5ghpo0 mcs5ghpo1 mcs5ghpo2 mcs5ghpo3 "
-	"mcs5ghpo4 mcs5ghpo5 mcs5ghpo6 mcs5ghpo7"},
-	{PHY_TYPE_NULL, 0, ""}
-};
-
 typedef struct {
 	uint8	tag;		/* Broadcom subtag name */
 	uint32	revmask;	/* Supported cis_sromrev bitmask. Some of the parameters in
@@ -1238,10 +1098,14 @@ typedef struct {
 	uint8	len;		/* Length field of the tuple, note that it includes the
 				 * subtag name (1 byte): 1 + tuple content length
 				 */
-	const char *params;
+	const char *params;	/* Each param is in this form: length(1 byte ascii) + var name
+				 * Note that the order here has to match the parsing
+				 * order in parsecis() in src/shared/bcmsrom.c
+				 */
 } cis_tuple_t;
 
 #define OTP_RAW		(0xff - 1)	/* Reserved tuple number for wrvar Raw input */
+/* quick hacks for supporting standard CIS tuples. */
 #define OTP_VERS_1	(0xff - 2)	/* CISTPL_VERS_1 */
 #define OTP_MANFID	(0xff - 3)	/* CISTPL_MANFID */
 #define OTP_RAW1	(0xff - 4)	/* Like RAW, but comes first */
@@ -1266,8 +1130,6 @@ static const cis_tuple_t cis_hnbuvars[] = {
 	{HNBU_AG,		0xffffffff, 5, "1ag0 1ag1 1ag2 1ag3"},
 	{HNBU_BOARDFLAGS,	0xffffffff, 21, "4boardflags 4boardflags2 4boardflags3 "
 	"4boardflags4 4boardflags5 "},
-	{HNBU_LEDS,		0xffffffff, 17, "1ledbh0 1ledbh1 1ledbh2 1ledbh3 1ledbh4 1ledbh5 "
-	"1ledbh6 1ledbh7 1ledbh8 1ledbh9 1ledbh10 1ledbh11 1ledbh12 1ledbh13 1ledbh14 1ledbh15"},
 	{HNBU_CCODE,		0xffffffff, 4, "2ccode 1cctl"},
 	{HNBU_CCKPO,		0xffffffff, 3, "2cckpo"},
 	{HNBU_OFDMPO,		0xffffffff, 5, "4ofdmpo"},
@@ -1288,7 +1150,6 @@ static const cis_tuple_t cis_hnbuvars[] = {
 	{HNBU_MACADDR,		0xffffffff, 7, "6macaddr"},	/* special case */
 	{HNBU_RDLSN,		0xffffffff, 3, "2rdlsn"},
 	{HNBU_BOARDTYPE,	0xffffffff, 3, "2boardtype"},
-	{HNBU_LEDDC,		0xffffffff, 3, "2leddc"},
 	{HNBU_RDLRNDIS,		0xffffffff, 2, "1rdlndis"},
 	{HNBU_CHAINSWITCH,	0xffffffff, 5, "1txchain 1rxchain 2antswitch"},
 	{HNBU_REGREV,		0xffffffff, 3, "2regrev"},
@@ -1341,10 +1202,10 @@ static const cis_tuple_t cis_hnbuvars[] = {
 	{HNBU_FEM_CFG,		0xfffff800, 5,	"0femctrl 0papdcap2g 0tworangetssi2g 0pdgain2g "
 	"0epagain2g 0tssiposslope2g 0gainctrlsph 0papdcap5g 0tworangetssi5g 0pdgain5g 0epagain5g "
 	"0tssiposslope5g"}, /* special case */
-	{HNBU_ACPA_C0,		0xfffff800, 39,	"2subband5gver 2maxp2ga0 2*3pa2ga0 "
+	{HNBU_ACPA_C0,		0x00001800, 39,	"2subband5gver 2maxp2ga0 2*3pa2ga0 "
 	"1*4maxp5ga0 2*12pa5ga0"},
-	{HNBU_ACPA_C1,		0xfffff800, 37,	"2maxp2ga1 2*3pa2ga1 1*4maxp5ga1 2*12pa5ga1"},
-	{HNBU_ACPA_C2,		0xfffff800, 37,	"2maxp2ga2 2*3pa2ga2 1*4maxp5ga2 2*12pa5ga2"},
+	{HNBU_ACPA_C1,		0x00001800, 37,	"2maxp2ga1 2*3pa2ga1 1*4maxp5ga1 2*12pa5ga1"},
+	{HNBU_ACPA_C2,		0x00001800, 37,	"2maxp2ga2 2*3pa2ga2 1*4maxp5ga2 2*12pa5ga2"},
 	{HNBU_MEAS_PWR,		0xfffff800, 5,	"1measpower 1measpower1 1measpower2 2rawtempsense"},
 	{HNBU_PDOFF,		0xfffff800, 13,	"2pdoffset40ma0 2pdoffset40ma1 2pdoffset40ma2 "
 	"2pdoffset80ma0 2pdoffset80ma1 2pdoffset80ma2"},
@@ -1392,16 +1253,50 @@ static const cis_tuple_t cis_hnbuvars[] = {
 	"2tx_duty_cycle_thresh_40_5g 2tx_duty_cycle_ofdm_80_5g 2tx_duty_cycle_thresh_80_5g"},
 	{HNBU_PDOFF_2G,		0xfffff800, 3,	"0pdoffset2g40ma0 0pdoffset2g40ma1 "
 	"0pdoffset2g40ma2 0pdoffset2g40mvalid"},
-	{HNBU_ACPA_CCK,		0xfffff800, 7,	"2*3pa2gccka0"},
+	{HNBU_ACPA_CCK_C0,	0xfffff800, 7,  "2*3pa2gccka0"},
+	{HNBU_ACPA_CCK_C1,	0xfffff800, 7,  "2*3pa2gccka1"},
 	{HNBU_ACPA_40,		0xfffff800, 25,	"2*12pa5gbw40a0"},
 	{HNBU_ACPA_80,		0xfffff800, 25,	"2*12pa5gbw80a0"},
 	{HNBU_ACPA_4080,	0xfffff800, 49,	"2*12pa5gbw4080a0 2*12pa5gbw4080a1"},
+	{HNBU_ACPA_4X4C0,	0xffffe000, 23, "1maxp2ga0 2*4pa2ga0 2*4pa2g40a0 "
+	"1maxp5gb0a0 1maxp5gb1a0 1maxp5gb2a0 1maxp5gb3a0 1maxp5gb4a0"},
+	{HNBU_ACPA_4X4C1,	0xffffe000, 23, "1maxp2ga1 2*4pa2ga1 2*4pa2g40a1 "
+	"1maxp5gb0a1 1maxp5gb1a1 1maxp5gb2a1 1maxp5gb3a1 1maxp5gb4a1"},
+	{HNBU_ACPA_4X4C2,	0xffffe000, 23, "1maxp2ga2 2*4pa2ga2 2*4pa2g40a2 "
+	"1maxp5gb0a2 1maxp5gb1a2 1maxp5gb2a2 1maxp5gb3a2 1maxp5gb4a2"},
+	{HNBU_ACPA_4X4C3,	0xffffe000, 23, "1maxp2ga3 2*4pa2ga3 2*4pa2g40a3 "
+	"1maxp5gb0a3 1maxp5gb1a3 1maxp5gb2a3 1maxp5gb3a3 1maxp5gb4a3"},
+	{HNBU_ACPA_BW20_4X4C0,	0xffffe000, 41, "2*20pa5ga0"},
+	{HNBU_ACPA_BW40_4X4C0,	0xffffe000, 41, "2*20pa5g40a0"},
+	{HNBU_ACPA_BW80_4X4C0,	0xffffe000, 41, "2*20pa5g80a0"},
+	{HNBU_ACPA_BW20_4X4C1,	0xffffe000, 41, "2*20pa5ga1"},
+	{HNBU_ACPA_BW40_4X4C1,	0xffffe000, 41, "2*20pa5g40a1"},
+	{HNBU_ACPA_BW80_4X4C1,	0xffffe000, 41, "2*20pa5g80a1"},
+	{HNBU_ACPA_BW20_4X4C2,	0xffffe000, 41, "2*20pa5ga2"},
+	{HNBU_ACPA_BW40_4X4C2,	0xffffe000, 41, "2*20pa5g40a2"},
+	{HNBU_ACPA_BW80_4X4C2,	0xffffe000, 41, "2*20pa5g80a2"},
+	{HNBU_ACPA_BW20_4X4C3,	0xffffe000, 41, "2*20pa5ga3"},
+	{HNBU_ACPA_BW40_4X4C3,	0xffffe000, 41, "2*20pa5g40a3"},
+	{HNBU_ACPA_BW80_4X4C3,	0xffffe000, 41, "2*20pa5g80a3"},
 	{HNBU_SUBBAND5GVER,	0xfffff800, 3,	"2subband5gver"},
 	{HNBU_PAPARAMBWVER,	0xfffff800, 2,	"1paparambwver"},
 	{HNBU_TXBFRPCALS,  0xfffff800, 11,
 	"2rpcal2g 2rpcal5gb0 2rpcal5gb1 2rpcal5gb2 2rpcal5gb3"}, /* txbf rpcalvars */
 	{HNBU_GPIO_PULL_DOWN,	0xffffffff, 5, "4gpdn"},
 	{HNBU_MACADDR2,		0xffffffff, 7, "6macaddr2"},	/* special case */
+	{HNBU_RSSI_DELTA_2G_B0,	0xffffffff, 17, "1*16rssi_delta_2gb0"},
+	{HNBU_RSSI_DELTA_2G_B1, 0xffffffff, 17, "1*16rssi_delta_2gb1"},
+	{HNBU_RSSI_DELTA_2G_B2, 0xffffffff, 17, "1*16rssi_delta_2gb2"},
+	{HNBU_RSSI_DELTA_2G_B3, 0xffffffff, 17, "1*16rssi_delta_2gb3"},
+	{HNBU_RSSI_DELTA_2G_B4, 0xffffffff, 17, "1*16rssi_delta_2gb4"},
+	{HNBU_RSSI_CAL_FREQ_GRP_2G, 0xffffffff,  8, "1*7rssi_cal_freq_grp"},
+	{HNBU_RSSI_DELTA_5GL, 0xffffffff, 25, "1*24rssi_delta_5gl"},
+	{HNBU_RSSI_DELTA_5GML, 0xffffffff, 25, "1*24rssi_delta_5gml"},
+	{HNBU_RSSI_DELTA_5GMU, 0xffffffff, 25, "1*24rssi_delta_5gmu"},
+	{HNBU_RSSI_DELTA_5GH, 0xffffffff, 25, "1*24rssi_delta_5gh"},
+	{HNBU_ACPA_6G_C0,	0x00000800, 45,	"2subband6gver 1*6maxp6ga0 2*18pa6ga0 "},
+	{HNBU_ACPA_6G_C1,	0x00000800, 43,	"1*6maxp6ga1 2*18pa6ga1 "},
+	{HNBU_ACPA_6G_C2,	0x00000800, 43,	"1*6maxp6ga2 2*18pa6ga2 "},
 	{0xFF,			0xffffffff, 0, ""}
 };
 

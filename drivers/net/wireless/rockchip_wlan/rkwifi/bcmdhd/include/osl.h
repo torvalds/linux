@@ -1,14 +1,14 @@
 /*
  * OS Abstraction Layer
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
+ * Copyright (C) 2020, Broadcom.
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -16,15 +16,9 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
- *      Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a license
- * other than the GPL, without Broadcom's express prior written consent.
  *
  *
- * <<Broadcom-WL-IPTag/Open:>>
- *
- * $Id: osl.h 642189 2016-06-07 21:12:50Z $
+ * <<Broadcom-WL-IPTag/Dual:>>
  */
 
 #ifndef _osl_h_
@@ -32,7 +26,23 @@
 
 #include <osl_decl.h>
 
+enum {
+	TAIL_BYTES_TYPE_FCS = 1,
+	TAIL_BYTES_TYPE_ICV = 2,
+	TAIL_BYTES_TYPE_MIC = 3
+};
+
+#ifdef DHD_EFI
+#define OSL_PKTTAG_SZ	40 /* Size of PktTag */
+#elif defined(MACOSX)
+#define OSL_PKTTAG_SZ	56
+#elif defined(__linux__)
+#define OSL_PKTTAG_SZ   48 /* standard linux pkttag size is 48 bytes */
+#else
+#ifndef OSL_PKTTAG_SZ
 #define OSL_PKTTAG_SZ	32 /* Size of PktTag */
+#endif /* !OSL_PKTTAG_SZ */
+#endif /* DHD_EFI */
 
 /* Drivers use PKTFREESETCB to register a callback function when a packet is freed by OSL */
 typedef void (*pktfree_cb_fn_t)(void *ctx, void *pkt, unsigned int status);
@@ -41,18 +51,31 @@ typedef void (*pktfree_cb_fn_t)(void *ctx, void *pkt, unsigned int status);
 typedef unsigned int (*osl_rreg_fn_t)(void *ctx, volatile void *reg, unsigned int size);
 typedef void  (*osl_wreg_fn_t)(void *ctx, volatile void *reg, unsigned int val, unsigned int size);
 
-
-#if defined(WL_UNITTEST)
+#if defined(EFI)
+#include <efi_osl.h>
+#elif defined(WL_UNITTEST)
 #include <utest_osl.h>
-#else
+#elif defined(__linux__)
 #include <linux_osl.h>
-#endif 
+#include <linux_pkt.h>
+#elif defined(NDIS)
+#include <ndis_osl.h>
+#elif defined(_RTE_)
+#include <rte_osl.h>
+#include <hnd_pkt.h>
+#elif defined(MACOSX)
+#include <macosx_osl.h>
+#else
+#error "Unsupported OSL requested"
+#endif /* defined(DOS) */
 
 #ifndef PKTDBG_TRACE
 #define PKTDBG_TRACE(osh, pkt, bit)	BCM_REFERENCE(osh)
 #endif
 
-#define PKTCTFMAP(osh, p)		BCM_REFERENCE(osh)
+#ifndef BCM_UPTIME_PROFILE
+#define OSL_GETCYCLES_PROF(x)
+#endif
 
 /* --------------------------------------------------------------------------
 ** Register manipulation macros.
@@ -70,34 +93,88 @@ typedef void  (*osl_wreg_fn_t)(void *ctx, volatile void *reg, unsigned int val, 
 
 #if !defined(OSL_SYSUPTIME)
 #define OSL_SYSUPTIME() (0)
+#define OSL_SYSUPTIME_NOT_DEFINED 1
+#endif /* !defined(OSL_SYSUPTIME) */
+
+#if !defined(OSL_SYSUPTIME_US)
+#define OSL_SYSUPTIME_US() (0)
+#define OSL_SYSUPTIME_US_NOT_DEFINED 1
+#endif /* !defined(OSL_SYSUPTIME) */
+
+#if defined(OSL_SYSUPTIME_NOT_DEFINED) && defined(OSL_SYSUPTIME_US_NOT_DEFINED)
 #define OSL_SYSUPTIME_SUPPORT FALSE
 #else
 #define OSL_SYSUPTIME_SUPPORT TRUE
 #endif /* OSL_SYSUPTIME */
 
-#if !defined(OSL_SYSUPTIME_US)
-#define OSL_SYSUPTIME_US() (0)
-#endif /* OSL_SYSUPTIME */
+#ifndef OSL_GET_LOCALTIME
+#define OSL_GET_LOCALTIME(sec, usec)	\
+	do { \
+		BCM_REFERENCE(sec); \
+		BCM_REFERENCE(usec); \
+	} while (0)
+#endif /* OSL_GET_LOCALTIME */
+
+#ifndef OSL_LOCALTIME_NS
+#define OSL_LOCALTIME_NS()	(OSL_SYSUPTIME_US() * NSEC_PER_USEC)
+#endif /* OSL_LOCALTIME_NS */
+
+#ifndef OSL_SYSTZTIME_US
+#define OSL_SYSTZTIME_US()	OSL_SYSUPTIME_US()
+#endif /* OSL_GET_SYSTZTIME */
+
+#if !defined(OSL_CPU_COUNTS_PER_US)
+#define OSL_CPU_COUNTS_PER_US() (0)
+#define OSL_CPU_COUNTS_PER_US_NOT_DEFINED 1
+#endif /* !defined(OSL_CPU_COUNTS_PER_US) */
 
 #ifndef OSL_SYS_HALT
+#ifdef __COVERITY__
+/*
+ * For Coverity builds, provide a definition that allows Coverity
+ * to model the lack of return. This avoids Coverity False Positive
+ * defects associated with data inconsistency being detected after
+ * we otherwise would have halted.
+ */
+#define OSL_SYS_HALT()   __coverity_panic__()
+#else /* __COVERITY__ */
 #define OSL_SYS_HALT()	do {} while (0)
-#endif
+#endif /* __COVERITY__ */
+#endif /* OSL_SYS_HALT */
+
+#ifndef DMB
+#define DMB()	do {} while (0)
+#endif /* DMB */
 
 #ifndef OSL_MEM_AVAIL
 #define OSL_MEM_AVAIL()	(0xffffffff)
 #endif
 
-#if !(defined(PKTC) || defined(PKTC_DONGLE))
-
 #ifndef OSL_OBFUSCATE_BUF
-/* For security reasons printing pointers is not allowed.
- * Some OSLs implement OSL_OBFUSCATE_BUF to OS specific obfuscate API.
- * If OSL_OBFUSCATE_BUF() is not implemented in OSL, then default to
- * printing the input pointer
- */
+#if defined (_RTE_)
+#define OSL_OBFUSCATE_BUF(x) osl_obfuscate_ptr(x)
+#else
 #define OSL_OBFUSCATE_BUF(x) (x)
-#endif /* OSL_OBFUSCATE_BUF */
+#endif	/* _RTE_ */
+#endif	/* OSL_OBFUSCATE_BUF */
 
+#ifndef OSL_GET_HCAPISTIMESYNC
+#if defined (_RTE_)
+#define OSL_GET_HCAPISTIMESYNC() osl_get_hcapistimesync()
+#else
+#define OSL_GET_HCAPISTIMESYNC()
+#endif	/* _RTE_ */
+#endif	/*  OSL_GET_HCAPISTIMESYNC */
+
+#ifndef OSL_GET_HCAPISPKTTXS
+#if defined (_RTE_)
+#define OSL_GET_HCAPISPKTTXS() osl_get_hcapispkttxs()
+#else
+#define OSL_GET_HCAPISPKTTXS()
+#endif	/* _RTE_ */
+#endif	/*  OSL_GET_HCAPISPKTTXS */
+
+#if !defined(PKTC_DONGLE)
 #define	PKTCGETATTR(skb)	(0)
 #define	PKTCSETATTR(skb, f, p, b) BCM_REFERENCE(skb)
 #define	PKTCCLRATTR(skb)	BCM_REFERENCE(skb)
@@ -125,14 +202,31 @@ do { \
 		(h) = (t) = (p); \
 	} \
 } while (0)
-#endif /* !linux || !PKTC */
+#endif /* !PKTC_DONGLE */
 
-#if !(defined(HNDCTF) || defined(PKTC_TX_DONGLE) || defined(PKTC))
+#ifndef PKTSETCHAINED
 #define PKTSETCHAINED(osh, skb)		BCM_REFERENCE(osh)
+#endif
+#ifndef PKTCLRCHAINED
 #define PKTCLRCHAINED(osh, skb)		BCM_REFERENCE(osh)
+#endif
+#ifndef PKTISCHAINED
 #define PKTISCHAINED(skb)		FALSE
 #endif
 
+#ifndef PKTGETPROFILEIDX
+#define PKTGETPROFILEIDX(p)		(-1)
+#endif
+
+#ifndef PKTCLRPROFILEIDX
+#define PKTCLRPROFILEIDX(p)
+#endif
+
+#ifndef PKTSETPROFILEIDX
+#define PKTSETPROFILEIDX(p, idx)	BCM_REFERENCE(idx)
+#endif
+
+#ifndef _RTE_
 /* Lbuf with fraglist */
 #ifndef PKTFRAGPKTID
 #define PKTFRAGPKTID(osh, lb)		(0)
@@ -188,9 +282,13 @@ do { \
 #define PKTSETFRAGDATA_HI(osh, lb, ix, addr)	BCM_REFERENCE(osh)
 #endif
 
+#ifndef PKTFRAGMOVE
+#define PKTFRAGMOVE(osh, dst, src) (BCM_REFERENCE(osh), BCM_REFERENCE(dst), BCM_REFERENCE(src))
+#endif
+
 /* RX FRAG */
 #ifndef PKTISRXFRAG
-#define PKTISRXFRAG(osh, lb)    	(0)
+#define PKTISRXFRAG(osh, lb)		(0)
 #endif
 #ifndef PKTSETRXFRAG
 #define PKTSETRXFRAG(osh, lb)		BCM_REFERENCE(osh)
@@ -205,6 +303,48 @@ do { \
 #endif
 #ifndef PKTSETTXFRAG
 #define PKTSETTXFRAG(osh, lb)		BCM_REFERENCE(osh)
+#endif
+
+/* TX ALFRAG */
+#ifndef PKTISTXALFRAG
+#define PKTISTXALFRAG(osh, lb)		(0)
+#endif
+#ifndef PKTSETTXALFRAG
+#define PKTSETTXALFRAG(osh, lb)		BCM_REFERENCE(osh)
+#endif
+#ifndef PKTRESETTXALFRAG
+#define PKTRESETTXALFRAG(osh, lb)	BCM_REFERENCE(osh)
+#endif
+
+#ifndef PKTNUMMPDUS
+#define PKTNUMMPDUS(osh, lb)		(1)
+#endif
+#ifndef PKTNUMPKTS
+#define PKTNUMPKTS(osh, lb)		(1)
+#endif
+
+#ifndef PKTISHWCSO
+#define PKTISHWCSO(osh, lb)		(FALSE)
+#endif
+
+#ifndef PKTISSUBMSDUTOEHDR
+#define PKTISSUBMSDUTOEHDR(osh, lb)	(FALSE)
+#endif
+
+#ifndef PKT_IS_HOST_SFHLLC
+#define PKT_IS_HOST_SFHLLC(osh, lb)	(FALSE)
+#endif
+
+#ifndef PKT_SET_HOST_SFHLLC
+#define PKT_SET_HOST_SFHLLC(osh, lb)	BCM_REFERENCE(osh)
+#endif
+
+#ifndef PKT_IS_HOST_SFHLLC_DONE
+#define PKT_IS_HOST_SFHLLC_DONE(osh, lb)	(FALSE)
+#endif
+
+#ifndef PKT_SET_HOST_SFHLLC_DONE
+#define PKT_SET_HOST_SFHLLC_DONE(osh, lb)	BCM_REFERENCE(osh)
 #endif
 
 /* Need Rx completion used for AMPDU reordering */
@@ -223,38 +363,120 @@ do { \
 #ifndef PKTFRAGISCHAINED
 #define PKTFRAGISCHAINED(osh, i)	(0)
 #endif
-/* TRIM Tail bytes from lfrag */
-#ifndef PKTFRAG_TRIM_TAILBYTES
-#define PKTFRAG_TRIM_TAILBYTES(osh, p, len, type)	PKTSETLEN(osh, p, PKTLEN(osh, p) - len)
-#endif
 #ifndef PKTISHDRCONVTD
 #define PKTISHDRCONVTD(osh, lb)		(0)
 #endif
 
-#ifdef BCM_SECURE_DMA
-#define SECURE_DMA_ENAB(osh) (1)
-#else
-
-#define SECURE_DMA_ENAB(osh) (0)
-#ifndef BCMDMA64OSL
-#define	SECURE_DMA_MAP(osh, va, size, direction, p, dmah, pcma, offset) ((dmaaddr_t) ((0)))
-#else
-#define	SECURE_DMA_MAP(osh, va, size, direction, p, dmah, pcma, offset) ((dmaaddr_t) {(0)})
+/* Forwarded pkt indication */
+#ifndef PKTISFRWDPKT
+#define PKTISFRWDPKT(osh, lb)		0
 #endif
-#define	SECURE_DMA_DD_MAP(osh, va, size, direction, p, dmah) 0
-#ifndef BCMDMA64OSL
-#define	SECURE_DMA_MAP_TXMETA(osh, va, size, direction, p, dmah, pcma) ((dmaaddr_t) ((0)))
-#else
-#define	SECURE_DMA_MAP_TXMETA(osh, va, size, direction, p, dmah, pcma) ((dmaaddr_t) {(0)})
+#ifndef PKTSETFRWDPKT
+#define PKTSETFRWDPKT(osh, lb)		BCM_REFERENCE(osh)
 #endif
-#define	SECURE_DMA_UNMAP(osh, pa, size, direction, p, dmah, pcma, offset)
-#define	SECURE_DMA_UNMAP_ALL(osh, pcma)
+#ifndef PKTRESETFRWDPKT
+#define PKTRESETFRWDPKT(osh, lb)	BCM_REFERENCE(osh)
+#endif
 
-#endif /* BCMDMA64OSL */
+/* PKT consumed for totlen calculation */
+#ifndef PKTISUSEDTOTLEN
+#define PKTISUSEDTOTLEN(osh, lb)		0
+#endif
+#ifndef PKTSETUSEDTOTLEN
+#define PKTSETUSEDTOTLEN(osh, lb)		BCM_REFERENCE(osh)
+#endif
+#ifndef PKTRESETUSEDTOTLEN
+#define PKTRESETUSEDTOTLEN(osh, lb)             BCM_REFERENCE(osh)
+#endif
 
+/* UDR Packet Indication */
+#ifndef PKTISUDR
+#define PKTISUDR(osh, lb)			0
+#endif
+
+#ifndef PKTSETUDR
+#define PKTSETUDR(osh, lb)			BCM_REFERENCE(osh)
+#endif
+
+#ifndef PKTSETUDR
+#define PKTRESETUDR(osh, lb)			BCM_REFERENCE(osh)
+#endif
+#endif	/* _RTE_ */
+
+#if !(defined(__linux__))
+#define PKTLIST_INIT(x)			BCM_REFERENCE(x)
+#define PKTLIST_ENQ(x, y)		BCM_REFERENCE(x)
+#define PKTLIST_DEQ(x)			BCM_REFERENCE(x)
+#define PKTLIST_UNLINK(x, y)		BCM_REFERENCE(x)
+#define PKTLIST_FINI(x)			BCM_REFERENCE(x)
+#endif
 
 #ifndef ROMMABLE_ASSERT
 #define ROMMABLE_ASSERT(exp) ASSERT(exp)
 #endif /* ROMMABLE_ASSERT */
+
+#ifndef MALLOC_NOPERSIST
+	#define MALLOC_NOPERSIST MALLOC
+#endif /* !MALLOC_NOPERSIST */
+
+#ifndef MALLOC_PERSIST
+	#define MALLOC_PERSIST MALLOC
+#endif /* !MALLOC_PERSIST */
+
+#ifndef MALLOC_RA
+	#define MALLOC_RA(osh, size, callsite) MALLOCZ(osh, size)
+#endif /* !MALLOC_RA */
+
+#ifndef MALLOC_PERSIST_ATTACH
+	#define MALLOC_PERSIST_ATTACH MALLOC
+#endif /* !MALLOC_PERSIST_ATTACH */
+
+#ifndef MALLOCZ_PERSIST_ATTACH
+	#define MALLOCZ_PERSIST_ATTACH MALLOCZ
+#endif /* !MALLOCZ_PERSIST_ATTACH */
+
+#ifndef MALLOCZ_NOPERSIST
+	#define MALLOCZ_NOPERSIST MALLOCZ
+#endif /* !MALLOCZ_NOPERSIST */
+
+#ifndef MALLOCZ_PERSIST
+	#define MALLOCZ_PERSIST MALLOCZ
+#endif /* !MALLOCZ_PERSIST */
+
+#ifndef MFREE_PERSIST
+	#define MFREE_PERSIST MFREE
+#endif /* !MFREE_PERSIST */
+
+#ifndef MALLOC_SET_NOPERSIST
+	#define MALLOC_SET_NOPERSIST(osh)	do { } while (0)
+#endif /* !MALLOC_SET_NOPERSIST */
+
+#ifndef MALLOC_CLEAR_NOPERSIST
+	#define MALLOC_CLEAR_NOPERSIST(osh)	do { } while (0)
+#endif /* !MALLOC_CLEAR_NOPERSIST */
+
+#if defined(OSL_MEMCHECK)
+#define MEMCHECK(f, l)	osl_memcheck(f, l)
+#else
+#define MEMCHECK(f, l)
+#endif /* OSL_MEMCHECK */
+
+#ifndef BCMDBGPERF
+#define PERF_TRACE_START(id)				do {} while (0)
+#define PERF_TRACE_END(id)				do {} while (0)
+#define PERF_TRACE_END2(id, mycounters)			do {} while (0)
+#define PERF_TRACE_END3(id, mycounters, coreunit)	do {} while (0)
+#define UPDATE_PERF_TRACE_COUNTER(counter, val)		do {} while (0)
+#define ADD_PERF_TRACE_COUNTER(counter, val)		do {} while (0)
+#endif /* OSL_MEMCHECK */
+
+/* Virtual/physical address translation. */
+#if !defined(OSL_VIRT_TO_PHYS_ADDR)
+	#define OSL_VIRT_TO_PHYS_ADDR(va)	((void*)(uintptr)(va))
+#endif
+
+#if !defined(OSL_PHYS_TO_VIRT_ADDR)
+	#define OSL_PHYS_TO_VIRT_ADDR(pa)	((void*)(uintptr)(pa))
+#endif
 
 #endif	/* _osl_h_ */

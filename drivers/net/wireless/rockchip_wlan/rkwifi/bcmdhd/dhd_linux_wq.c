@@ -2,14 +2,14 @@
  * Broadcom Dongle Host Driver (DHD), Generic work queue framework
  * Generic interface to handle dhd deferred work events
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
+ * Copyright (C) 2020, Broadcom.
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -17,15 +17,11 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
- *      Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a license
- * other than the GPL, without Broadcom's express prior written consent.
  *
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_linux_wq.c 641330 2016-06-02 06:55:00Z $
+ * $Id$
  */
 
 #include <linux/init.h>
@@ -46,6 +42,11 @@
 #include <dhd_dbg.h>
 #include <dhd_linux_wq.h>
 
+/*
+ * XXX: always make sure that the size of this structure is aligned to
+ * the power of 2 (2^n) i.e, if any new variable has to be added then
+ * modify the padding accordingly
+ */
 typedef struct dhd_deferred_event {
 	u8 event;		/* holds the event */
 	void *event_data;	/* holds event specific data */
@@ -71,28 +72,25 @@ struct dhd_deferred_wq {
 	struct work_struct deferred_work; /* should be the first member */
 
 	struct kfifo *prio_fifo;
-	struct kfifo *work_fifo;
-	u8 *prio_fifo_buf;
-	u8 *work_fifo_buf;
-	spinlock_t work_lock;
-	void *dhd_info; /* review: does it require */
+	struct kfifo			*work_fifo;
+	u8				*prio_fifo_buf;
+	u8				*work_fifo_buf;
+	spinlock_t			work_lock;
+	void				*dhd_info; /* review: does it require */
+	u32				event_skip_mask;
 };
 
 static inline struct kfifo*
 dhd_kfifo_init(u8 *buf, int size, spinlock_t *lock)
 {
 	struct kfifo *fifo;
-	gfp_t flags = CAN_SLEEP() ? GFP_KERNEL : GFP_ATOMIC;
+	gfp_t flags = CAN_SLEEP()? GFP_KERNEL : GFP_ATOMIC;
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 33))
-	fifo = kfifo_init(buf, size, flags, lock);
-#else
 	fifo = (struct kfifo *)kzalloc(sizeof(struct kfifo), flags);
 	if (!fifo) {
 		return NULL;
 	}
 	kfifo_init(fifo, buf, size);
-#endif /* (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 33)) */
 	return fifo;
 }
 
@@ -100,10 +98,7 @@ static inline void
 dhd_kfifo_free(struct kfifo *fifo)
 {
 	kfifo_free(fifo);
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 31))
-	/* FC11 releases the fifo memory */
 	kfree(fifo);
-#endif
 }
 
 /* deferred work functions */
@@ -112,10 +107,10 @@ static void dhd_deferred_work_handler(struct work_struct *data);
 void*
 dhd_deferred_work_init(void *dhd_info)
 {
-	struct dhd_deferred_wq *work = NULL;
-	u8* buf;
-	unsigned long fifo_size = 0;
-	gfp_t flags = CAN_SLEEP() ? GFP_KERNEL : GFP_ATOMIC;
+	struct dhd_deferred_wq	*work = NULL;
+	u8*	buf;
+	unsigned long	fifo_size = 0;
+	gfp_t	flags = CAN_SLEEP()? GFP_KERNEL : GFP_ATOMIC;
 
 	if (!dhd_info) {
 		DHD_ERROR(("%s: dhd info not initialized\n", __FUNCTION__));
@@ -170,6 +165,7 @@ dhd_deferred_work_init(void *dhd_info)
 	}
 
 	work->dhd_info = dhd_info;
+	work->event_skip_mask = 0;
 	DHD_ERROR(("%s: work queue initialized\n", __FUNCTION__));
 	return work;
 
@@ -185,7 +181,6 @@ void
 dhd_deferred_work_deinit(void *work)
 {
 	struct dhd_deferred_wq *deferred_work = work;
-
 
 	if (!deferred_work) {
 		DHD_ERROR(("%s: deferred work has been freed already\n",
@@ -254,6 +249,12 @@ dhd_deferred_schedule_work(void *workq, void *event_data, u8 event,
 		DHD_ERROR(("%s: unknown priority, priority=%d\n",
 			__FUNCTION__, priority));
 		return DHD_WQ_STS_UNKNOWN_PRIORITY;
+	}
+
+	if ((deferred_wq->event_skip_mask & (1 << event))) {
+		DHD_ERROR(("%s: Skip event requested. Mask = 0x%x\n",
+			__FUNCTION__, deferred_wq->event_skip_mask));
+		return DHD_WQ_STS_EVENT_SKIPPED;
 	}
 
 	/*
@@ -363,6 +364,12 @@ dhd_deferred_work_handler(struct work_struct *work)
 			continue;
 		}
 
+		/*
+		 * XXX: don't do NULL check for 'work_event.event_data'
+		 * as for some events like DHD_WQ_WORK_DHD_LOG_DUMP the
+		 * event data is always NULL even though rest of the
+		 * event parameters are valid
+		 */
 
 		if (work_event.event_handler) {
 			work_event.event_handler(deferred_work->dhd_info,
@@ -376,4 +383,23 @@ dhd_deferred_work_handler(struct work_struct *work)
 	} while (1);
 
 	return;
+}
+
+void
+dhd_deferred_work_set_skip(void *work, u8 event, bool set)
+{
+	struct dhd_deferred_wq *deferred_wq = (struct dhd_deferred_wq *)work;
+
+	if (!deferred_wq || !event || (event >= DHD_MAX_WQ_EVENTS)) {
+		DHD_ERROR(("%s: Invalid!!\n", __FUNCTION__));
+		return;
+	}
+
+	if (set) {
+		/* Set */
+		deferred_wq->event_skip_mask |= (1 << event);
+	} else {
+		/* Clear */
+		deferred_wq->event_skip_mask &= ~(1 << event);
+	}
 }

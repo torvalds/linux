@@ -621,7 +621,7 @@ dbus_get_fw_nvram(dhd_bus_t *dhd_bus, char *pfw_path, char *pnv_path)
 	/* For Get nvram */
 	file_exists = ((pnv_path != NULL) && (pnv_path[0] != '\0'));
 	if (file_exists) {
-		nv_image = dhd_os_open_image(pnv_path);
+		nv_image = dhd_os_open_image1(dhd_bus->dhd, pnv_path);
 		if (nv_image == NULL) {
 			printf("%s: Open nvram file failed %s\n", __FUNCTION__, pnv_path);
 			goto err;
@@ -646,14 +646,14 @@ dbus_get_fw_nvram(dhd_bus_t *dhd_bus, char *pfw_path, char *pnv_path)
 		goto err;
 	}
 	if (nv_image) {
-		dhd_os_close_image(nv_image);
+		dhd_os_close_image1(dhd_bus->dhd, nv_image);
 		nv_image = NULL;
 	}
 
 	/* For Get first block of fw to calculate total_len */
 	file_exists = ((pfw_path != NULL) && (pfw_path[0] != '\0'));
 	if (file_exists) {
-		fw_image = dhd_os_open_image(pfw_path);
+		fw_image = dhd_os_open_image1(dhd_bus->dhd, pfw_path);
 		if (fw_image == NULL) {
 			printf("%s: Open fw file failed %s\n", __FUNCTION__, pfw_path);
 			goto err;
@@ -730,11 +730,11 @@ err:
 	if (fw_memblock)
 		MFREE(dhd_bus->pub.osh, fw_memblock, MAX_NVRAMBUF_SIZE);
 	if (fw_image)
-		dhd_os_close_image(fw_image);
+		dhd_os_close_image1(dhd_bus->dhd, fw_image);
 	if (nv_memblock)
 		MFREE(dhd_bus->pub.osh, nv_memblock, MAX_NVRAMBUF_SIZE);
 	if (nv_image)
-		dhd_os_close_image(nv_image);
+		dhd_os_close_image1(dhd_bus->dhd, nv_image);
 
 	return bcmerror;
 }
@@ -1055,7 +1055,7 @@ dbus_if_send_irb_timeout(void *handle, dbus_irb_tx_t *txirb)
  * When lower DBUS level signals that a send IRB completed, either successful or not, the higher
  * level (e.g. dhd_linux.c) has to be notified, and transmit flow control has to be evaluated.
  */
-static void BCMFASTPATH
+static void
 dbus_if_send_irb_complete(void *handle, dbus_irb_tx_t *txirb, int status)
 {
 	dhd_bus_t *dhd_bus = (dhd_bus_t *) handle;
@@ -1126,7 +1126,7 @@ dbus_if_send_irb_complete(void *handle, dbus_irb_tx_t *txirb, int status)
  * level (e.g. dhd_linux.c) has to be notified, and fresh free receive IRBs may have to be given
  * to lower levels.
  */
-static void BCMFASTPATH
+static void
 dbus_if_recv_irb_complete(void *handle, dbus_irb_rx_t *rxirb, int status)
 {
 	dhd_bus_t *dhd_bus = (dhd_bus_t *) handle;
@@ -2682,9 +2682,6 @@ dhd_bus_devreset(dhd_pub_t *dhdp, uint8 flag)
 		}
 	}
 
-#ifdef PKT_STATICS
-	memset((uint8*) &tx_statics, 0, sizeof(pkt_statics_t));
-#endif
 	return bcmerror;
 }
 
@@ -2704,7 +2701,7 @@ dhd_bus_update_fw_nv_path(struct dhd_bus *bus, char *pfw_path,
 	bus->dhd->clm_path = pclm_path;
 	bus->dhd->conf_path = pconf_path;
 
-	dhd_conf_set_path_params(bus->dhd, NULL, bus->fw_path, bus->nv_path);
+	dhd_conf_set_path_params(bus->dhd, bus->fw_path, bus->nv_path);
 
 }
 
@@ -2781,9 +2778,10 @@ dhd_dbus_probe_cb(void *arg, const char *desc, uint32 bustype,
 	}
 
 	if (!g_pub) {
-		/* Ok, finish the attach to the OS network interface */
-		if (dhd_register_if(pub, 0, TRUE) != 0) {
-			DBUSERR(("%s: dhd_register_if failed\n", __FUNCTION__));
+		/* Ok, have the per-port tell the stack we're open for business */
+		if (dhd_attach_net(bus->dhd, TRUE) != 0)
+		{
+			DBUSERR(("%s: Net attach failed!!\n", __FUNCTION__));
 			goto fail;
 		}
 		pub->hang_report  = TRUE;

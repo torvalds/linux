@@ -10,7 +10,6 @@
 #define CCODE_43438
 #define CCODE_43436
 #define CCODE_43455C0
-#define CCODE_43456C5
 #endif
 #if defined(BCMSDIO) || defined(BCMPCIE)
 #define CCODE_4356A2
@@ -67,7 +66,7 @@ const char ccode_43455c0[] = \
 "GB/6 GD/2 GF/2 GP/2 GR/4 GT/1 GU/30 "\
 "HK/2 HR/4 HU/4 "\
 "ID/1 IE/5 IL/14 IN/3 IS/4 IT/4 "\
-"JO/3 JP/58 "\
+"JO/3 JP/45 "\
 "KH/2 KR/96 KW/5 KY/3 "\
 "LA/2 LB/5 LI/4 LK/1 LS/2 LT/4 LU/3 LV/4 "\
 "MA/2 MC/1 MD/2 ME/2 MK/2 MN/1 MQ/2 MR/2 MT/4 MU/2 MV/3 MW/1 MX/44 MY/3 "\
@@ -86,37 +85,6 @@ const char ccode_43455c0[] = \
 #else
 const char ccode_43455c0[] = "";
 #endif
-
-#ifdef CCODE_43456C5
-const char ccode_43456c5[] = \
-"AE/6 AG/2 AI/1 AL/2 AS/12 AT/4 AU/6 AW/2 AZ/2 "\
-"BA/2 BD/1 BE/4 BG/4 BH/4 BM/12 BN/4 BR/4 BS/2 BY/3 "\
-"CA/2 CH/4 CN/38 CO/17 CR/17 CY/4 CZ/4 "\
-"DE/7 DK/4 "\
-"EC/21 EE/4 EG/13 ES/4 ET/2 "\
-"FI/4 FR/5 "\
-"GB/6 GD/2 GF/2 GP/2 GR/4 GT/1 GU/30 "\
-"HK/2 HR/4 HU/4 "\
-"ID/1 IE/5 IL/14 IN/3 IS/4 IT/4 "\
-"JO/3 JP/58 "\
-"KH/2 KR/96 KW/5 KY/3 "\
-"LA/2 LB/5 LI/4 LK/1 LS/2 LT/4 LU/3 LV/4 "\
-"MA/2 MC/1 MD/2 ME/2 MK/2 MN/1 MQ/2 MR/2 MT/4 MU/2 MV/3 MW/1 MX/44 MY/3 "\
-"NI/2 NL/4 NO/4 NZ/4 "\
-"OM/4 "\
-"PA/17 PE/20 PH/5 PL/4 PR/38 PT/4 PY/2 "\
-"Q2/993 "\
-"RE/2 RO/4 RS/2 RU/13 "\
-"SE/4 SI/4 SK/4 SV/25 "\
-"TH/5 TN/1 TR/7 TT/3 TW/65 "\
-"UA/8 US/988 "\
-"VA/2 VE/3 VG/2 VN/4 "\
-"XZ/11 "\
-"YT/2 "\
-"ZA/6";
-#else
-const char ccode_43456c5[] = "";
-#endif
 #endif
 
 #ifdef CCODE_4356A2
@@ -130,7 +98,7 @@ const char ccode_4356a2[] = \
 "GB/6 GD/2 GF/2 GP/2 GR/4 GT/1 GU/12 "\
 "HK/2 HR/4 HU/4 "\
 "ID/13 IE/5 IL/7 IN/28 IS/4 IT/4 "\
-"JO/3 JP/58 "\
+"JO/3 JP/45 "\
 "KH/2 KR/57 KW/5 KY/3 "\
 "LA/2 LB/5 LI/4 LK/1 LS/2 LT/4 LU/3 LV/4 "\
 "MA/2 MC/1 MD/2 ME/2 MK/2 MN/1 MO/2 MR/2 MT/4 MQ/2 MU/2 MV/3 MW/1 MX/20 MY/16 "\
@@ -183,26 +151,27 @@ const char ccode_4359c0[] = "";
 
 #ifdef CCODE_4375B4
 const char ccode_4375b4[] = \
-"AE/6 AL/2 AM/1 AN/5 AR/21 AT/4 AU/6 AZ/2"\
-"BA/2 BE/4 BG/4 BH/4 BN/4 BO/5 BR/17 BY/3"\
-"CA/2 CH/4 CL/7 CN/38 CO/17 CR/17 CY/4 CZ/4"\
-"DE/7 DK/4 DZ/2 EC/18 EE/4 EG/13 ES/4"\
-"FI/4 FR/5"\
-"GB/6 GR/4"\
-"HK/999 HN/8 HR/4 HU/4"\
-"ID/5 IE/5 IL/7 IN/3 IS/4 IT/4"\
-"JO/3 JP/72"\
-"KE/1 KR/96 KW/5 KZ/5"\
-"LA/2 LB/5 LI/4 LK/2 LT/4 LU/4 LV/4"\
-"MA/7 MC/1 ME/2 MK/2 MO/4 MT/4 MX/20 MY/19"\
-"NL/4 NO/4 NZ/4"\
-"OM/4"\
-"PA/17 PE/20 PH/5 PK/2 PL/4 PR/20 PT/4"\
-"RO/4 RU/62"\
-"SA/5 SE/4 SG/12 SI/4 SK/4 SV/17"\
-"TH/5 TN/1 TR/7 TT/3 TW/65"\
-"UA/16 US/140 UY/10"\
-"VE/3 VN/4"\
+"AE/6 AL/2 AM/1 AN/5 AR/21 AT/4 AU/6 AZ/2 "\
+"BA/2 BE/4 BG/4 BH/4 BN/4 BO/5 BR/17 BY/3 "\
+"CA/2 CH/4 CL/7 CN/38 CO/17 CR/17 CY/4 CZ/4 "\
+"DE/7 DK/4 DZ/2 EC/18 EE/4 EG/13 ES/4 "\
+"FI/4 FR/5 "\
+"GB/6 GR/4 "\
+"HK/999 HN/8 HR/4 HU/4 "\
+"ID/5 IE/5 IL/7 IN/3 IS/4 IT/4 "\
+"JO/3 JP/72 "\
+"KE/1 KR/96 KW/5 KZ/5 "\
+"LA/2 LB/5 LI/4 LK/2 LT/4 LU/4 LV/4 "\
+"MA/7 MC/1 ME/2 MK/2 MO/4 MT/4 MX/20 MY/19 "\
+"NL/4 NO/4 NZ/4 "\
+"OM/4 "\
+"PA/17 PE/20 PH/5 PK/2 PL/4 PR/20 PT/4 "\
+"RO/4 RU/62 "\
+"SA/5 SE/4 SG/12 SI/4 SK/4 SV/17 "\
+"TH/5 TN/1 TR/7 TT/3 TW/65 "\
+"UA/16 US/140 UY/10 "\
+"VE/3 VN/4 "\
+"XZ/11 "\
 "ZA/19";
 #else
 const char ccode_4375b4[] = "";
@@ -240,7 +209,6 @@ typedef struct ccode_list_map_t {
 
 extern const char ccode_43438[];
 extern const char ccode_43455c0[];
-extern const char ccode_43456c5[];
 extern const char ccode_4356a2[];
 extern const char ccode_4359c0[];
 extern const char ccode_4358u[];
@@ -248,23 +216,23 @@ extern const char ccode_4358u[];
 const ccode_list_map_t ccode_list_map[] = {
 	/* ChipID		Chiprev		ccode  */
 #ifdef BCMSDIO
-	{BCM43430_CHIP_ID,	0,	ccode_43438, ""},
-	{BCM43430_CHIP_ID,	1,	ccode_43438, ""},
-	{BCM43430_CHIP_ID,	2,	ccode_43436, ""},
-	{BCM4345_CHIP_ID,	6,	ccode_43455c0, "XZ/11"},
-	{BCM43454_CHIP_ID,	6,	ccode_43455c0, "XZ/11"},
-	{BCM4345_CHIP_ID,	9,	ccode_43456c5, "XZ/11"},
-	{BCM43454_CHIP_ID,	9,	ccode_43456c5, "XZ/11"},
-	{BCM4354_CHIP_ID,	2,	ccode_4356a2, "XZ/11"},
-	{BCM4356_CHIP_ID,	2,	ccode_4356a2, "XZ/11"},
-	{BCM4371_CHIP_ID,	2,	ccode_4356a2, "XZ/11"},
-	{BCM4359_CHIP_ID,	9,	ccode_4359c0, "XZ/11"},
+	{BCM43430_CHIP_ID,	0,	ccode_43438,	""},
+	{BCM43430_CHIP_ID,	1,	ccode_43438,	""},
+	{BCM43430_CHIP_ID,	2,	ccode_43436,	""},
+	{BCM4345_CHIP_ID,	6,	ccode_43455c0,	"XZ/11"},
+	{BCM43454_CHIP_ID,	6,	ccode_43455c0,	"XZ/11"},
+	{BCM4345_CHIP_ID,	9,	ccode_43455c0,	"XZ/11"},
+	{BCM43454_CHIP_ID,	9,	ccode_43455c0,	"XZ/11"},
+	{BCM4354_CHIP_ID,	2,	ccode_4356a2,	"XZ/11"},
+	{BCM4356_CHIP_ID,	2,	ccode_4356a2,	"XZ/11"},
+	{BCM4371_CHIP_ID,	2,	ccode_4356a2,	"XZ/11"},
+	{BCM4359_CHIP_ID,	9,	ccode_4359c0,	"XZ/11"},
 #endif
 #ifdef BCMPCIE
-	{BCM4354_CHIP_ID,	2,	ccode_4356a2, "XZ/11"},
-	{BCM4356_CHIP_ID,	2,	ccode_4356a2, "XZ/11"},
-	{BCM4359_CHIP_ID,	9,	ccode_4359c0, "XZ/11"},
-	{BCM4375_CHIP_ID,	5,	ccode_4375b4, "XZ/11"},
+	{BCM4354_CHIP_ID,	2,	ccode_4356a2,	"XZ/11"},
+	{BCM4356_CHIP_ID,	2,	ccode_4356a2,	"XZ/11"},
+	{BCM4359_CHIP_ID,	9,	ccode_4359c0,	"XZ/11"},
+	{BCM4375_CHIP_ID,	5,	ccode_4375b4,	"XZ/11"},
 #endif
 #ifdef BCMDBUS
 	{BCM43569_CHIP_ID,	2,	ccode_4358u, "XW/0"},

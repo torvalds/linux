@@ -1,16 +1,14 @@
 /*
  * DHD debugability header file
  *
- * <<Broadcom-WL-IPTag/Open:>>
+ * Copyright (C) 2020, Broadcom.
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -18,28 +16,18 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
- *      Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a license
- * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_debug.h 705824 2017-06-19 13:58:39Z $
+ *
+ * <<Broadcom-WL-IPTag/Open:>>
+ *
+ * $Id$
  */
 
 #ifndef _dhd_debug_h_
 #define _dhd_debug_h_
 #include <event_log.h>
 #include <bcmutils.h>
-
-enum {
-	DEBUG_RING_ID_INVALID	= 0,
-	FW_VERBOSE_RING_ID,
-	FW_EVENT_RING_ID,
-	DHD_EVENT_RING_ID,
-	NAN_EVENT_RING_ID,
-	/* add new id here */
-	DEBUG_RING_ID_MAX
-};
+#include <dhd_dbg_ring.h>
 
 enum {
 	/* Feature set */
@@ -62,20 +50,33 @@ enum {
 	DBG_RING_ENTRY_FLAGS_HAS_TIMESTAMP = (1 << (1))
 };
 
-#define DBGRING_NAME_MAX		32
 /* firmware verbose ring, ring id 1 */
 #define FW_VERBOSE_RING_NAME		"fw_verbose"
-#define FW_VERBOSE_RING_SIZE		(64 * 1024)
+#define FW_VERBOSE_RING_SIZE		(256 * 1024)
 /* firmware event ring, ring id 2 */
 #define FW_EVENT_RING_NAME		"fw_event"
 #define FW_EVENT_RING_SIZE		(64 * 1024)
 /* DHD connection event ring, ring id 3 */
 #define DHD_EVENT_RING_NAME		"dhd_event"
 #define DHD_EVENT_RING_SIZE		(64 * 1024)
-
 /* NAN event ring, ring id 4 */
 #define NAN_EVENT_RING_NAME		"nan_event"
 #define NAN_EVENT_RING_SIZE		(64 * 1024)
+
+#ifdef DHD_DEBUGABILITY_LOG_DUMP_RING
+/* DHD driver log ring */
+#define DRIVER_LOG_RING_NAME		"driver_log"
+#define DRIVER_LOG_RING_SIZE		(256 * 1024)
+/* ROAM stats log ring */
+#define ROAM_STATS_RING_NAME		"roam_stats"
+#define ROAM_STATS_RING_SIZE		(64 * 1024)
+#endif /* DHD_DEBUGABILITY_LOG_DUMP_RING */
+
+#ifdef BTLOG
+/* BT log ring, ring id 5 */
+#define BT_LOG_RING_NAME		"bt_log"
+#define BT_LOG_RING_SIZE		(64 * 1024)
+#endif	/* BTLOG */
 
 #define TLV_LOG_SIZE(tlv) ((tlv) ? (sizeof(tlv_log) + (tlv)->len) : 0)
 
@@ -93,13 +94,6 @@ enum {
 #else
 #define DBG_RING_ACTIVE(dhdp, ring_id) 0
 #endif /* DEBUGABILITY */
-
-#define TXACTIVESZ(r, w, d)			(((r) <= (w)) ? ((w) - (r)) : ((d) - (r) + (w)))
-#define DBG_RING_READ_AVAIL_SPACE(w, r, d)	(((w) >= (r)) ? ((w) - (r)) : ((d) - (r)))
-#define DBG_RING_WRITE_SPACE_AVAIL_CONT(r, w, d)	(((w) >= (r)) ? ((d) - (w)) : ((r) - (w)))
-#define DBG_RING_WRITE_SPACE_AVAIL(r, w, d)	(d - (TXACTIVESZ(r, w, d)))
-#define DBG_RING_CHECK_WRITE_SPACE(r, w, d)	\
-	MIN(DBG_RING_WRITE_SPACE_AVAIL(r, w, d), DBG_RING_WRITE_SPACE_AVAIL_CONT(r, w, d))
 
 enum {
 	/* driver receive association command from kernel */
@@ -296,10 +290,16 @@ typedef struct per_packet_status_entry {
     uint8 *data;
 } per_packet_status_entry_t;
 
+#if defined(LINUX)
 #define PACKED_STRUCT __attribute__ ((packed))
+#else
+#define PACKED_STRUCT
+#endif
+
+#if defined(LINUX)
 typedef struct log_conn_event {
     uint16 event;
-    tlv_log *tlvs;
+    tlv_log tlvs[0];
 	/*
 	* separate parameter structure per event to be provided and optional data
 	* the event_data is expected to include an official android part, with some
@@ -308,6 +308,7 @@ typedef struct log_conn_event {
 	* understood by the developer only.
 	*/
 } PACKED_STRUCT log_conn_event_t;
+#endif /* defined(LINUX) */
 
 /*
  * Ring buffer name for power events ring. note that power event are extremely frequents
@@ -343,59 +344,39 @@ enum {
 	DBG_RING_ENTRY_NAN_EVENT_TYPE
 };
 
-typedef struct dhd_dbg_ring_entry {
-	uint16 len; /* payload length excluding the header */
-	uint8 flags;
-	uint8 type; /* Per ring specific */
-	uint64 timestamp; /* present if has_timestamp bit is set. */
-} PACKED_STRUCT dhd_dbg_ring_entry_t;
-
-#define DBG_RING_ENTRY_SIZE (sizeof(dhd_dbg_ring_entry_t))
-
-#define ENTRY_LENGTH(hdr) ((hdr)->len + DBG_RING_ENTRY_SIZE)
-
-#define PAYLOAD_MAX_LEN 65535
-
-typedef struct dhd_dbg_ring_status {
-	uint8 name[DBGRING_NAME_MAX];
-	uint32 flags;
-	int ring_id; /* unique integer representing the ring */
-	/* total memory size allocated for the buffer */
-	uint32 ring_buffer_byte_size;
-	uint32 verbose_level;
-	/* number of bytes that was written to the buffer by driver */
-	uint32 written_bytes;
-	/* number of bytes that was read from the buffer by user land */
-	uint32 read_bytes;
-	/* number of records that was read from the buffer by user land */
-	uint32 written_records;
-} dhd_dbg_ring_status_t;
-
 struct log_level_table {
 	int log_level;
 	uint16 tag;
-	uint8 sets;
 	char *desc;
 };
 
-#ifdef DEBUGABILITY
+#ifdef OEM_ANDROID
+/*
+ * Assuming that the Ring lock is mutex, bailing out if the
+ * callers are from atomic context. On a long term, one has to
+ * schedule a job to execute in sleepable context so that
+ * contents are pushed to the ring.
+ */
 #define DBG_EVENT_LOG(dhdp, connect_state)					\
 {										\
 	do {									\
 		uint16 state = connect_state;					\
-		if (DBG_RING_ACTIVE(dhdp, DHD_EVENT_RING_ID))			\
+		if (CAN_SLEEP() && DBG_RING_ACTIVE(dhdp, DHD_EVENT_RING_ID))			\
 			dhd_os_push_push_ring_data(dhdp, DHD_EVENT_RING_ID,	\
 				&state, sizeof(state));				\
 	} while (0);								\
 }
 #else
-#define DBG_EVENT_LOG(dhdp, connect_state)
-#endif /* DEBUGABILITY */
+#define DBG_EVENT_LOG(dhd, connect_state)
+#endif /* !OEM_ANDROID */
 
+/*
+ * Packet logging - HAL specific data
+ * XXX: These should be moved to wl_cfgvendor.h
+ */
 
 #define MD5_PREFIX_LEN				4
 #define MAX_FATE_LOG_LEN			32
-
 #define MAX_FRAME_LEN_ETHERNET		1518
 #define MAX_FRAME_LEN_80211_MGMT	2352 /* 802.11-2012 Fig. 8-34 */
 
@@ -415,8 +396,8 @@ typedef enum {
 	 */
 	TX_PKT_FATE_FW_DROP_INVALID,
 
-	/* Dropped by firmware due to lack of buffer space. */
-	TX_PKT_FATE_FW_DROP_NOBUFS,
+	/* Dropped by firmware due to lifetime expiration. */
+	TX_PKT_FATE_FW_DROP_EXPTIME,
 
 	/*
 	 * Dropped by firmware for any other reason. Includes
@@ -439,6 +420,9 @@ typedef enum {
 
 	/*  Dropped by driver for any other reason. */
 	TX_PKT_FATE_DRV_DROP_OTHER,
+
+	/* Packet free by firmware. */
+	TX_PKT_FATE_FW_PKT_FREE,
 
 	} wifi_tx_packet_fate;
 
@@ -478,6 +462,9 @@ typedef enum {
 
 	/* Dropped by driver for any other reason. */
 	RX_PKT_FATE_DRV_DROP_OTHER,
+
+	/* Indicate RX Host Wake up packet. */
+	RX_PKT_FATE_WAKE_PKT,
 
 	} wifi_rx_packet_fate;
 
@@ -581,7 +568,6 @@ typedef struct compat_wifi_frame_info {
 	} frame_content;
 } compat_wifi_frame_info_t;
 
-
 typedef struct compat_wifi_tx_report {
 	char md5_prefix[MD5_PREFIX_LEN];
 	wifi_tx_packet_fate fate;
@@ -593,7 +579,6 @@ typedef struct compat_wifi_rx_report {
 	wifi_rx_packet_fate fate;
 	compat_wifi_frame_info_t frame_inf;
 } compat_wifi_rx_report_t;
-
 
 /*
  * Packet logging - internal data
@@ -673,38 +658,6 @@ typedef struct dhd_dbg_pkt_mon
 	dbg_mon_rx_pkts_t rx_pkt_mon;
 } dhd_dbg_pkt_mon_t;
 
-enum dbg_ring_state {
-	RING_STOP       = 0,    /* ring is not initialized */
-	RING_ACTIVE,    /* ring is live and logging */
-	RING_SUSPEND    /* ring is initialized but not logging */
-};
-
-struct ring_statistics {
-	/* number of bytes that was written to the buffer by driver */
-	uint32 written_bytes;
-	/* number of bytes that was read from the buffer by user land */
-	uint32 read_bytes;
-	/* number of records that was written to the buffer by driver */
-	uint32 written_records;
-};
-
-typedef struct dhd_dbg_ring {
-	int     id;             /* ring id */
-	uint8   name[DBGRING_NAME_MAX]; /* name string */
-	uint32  ring_size;      /* numbers of item in ring */
-	uint32  wp;             /* write pointer */
-	uint32  rp;             /* read pointer */
-	uint32  log_level; /* log_level */
-	uint32  threshold; /* threshold bytes */
-	void *  ring_buf;       /* pointer of actually ring buffer */
-	void *  lock;           /* spin lock for ring access */
-	struct ring_statistics stat; /* statistics */
-	enum dbg_ring_state state;      /* ring state enum */
-	bool tail_padded;		/* writer does not have enough space */
-	uint32 rem_len;		/* number of bytes from wp_pad to end */
-	bool sched_pull;	/* schedule reader immediately */
-} dhd_dbg_ring_t;
-
 typedef struct dhd_dbg {
 	dhd_dbg_ring_t dbg_rings[DEBUG_RING_ID_MAX];
 	void *private;          /* os private_data */
@@ -765,12 +718,12 @@ typedef struct dhd_dbg {
 #ifdef DUMP_IOCTL_IOV_LIST
 typedef struct dhd_iov_li {
 	dll_t list;
-	uint32 cmd;
-	char buff[100];
+	uint32 cmd; /* command number */
+	char buff[100]; /* command name */
 } dhd_iov_li_t;
+#endif /* DUMP_IOCTL_IOV_LIST */
 
 #define IOV_LIST_MAX_LEN 5
-#endif /* DUMP_IOCTL_IOV_LIST */
 
 #ifdef DHD_DEBUG
 typedef struct {
@@ -781,26 +734,81 @@ typedef struct {
 } dhd_dbg_mwli_t;
 #endif /* DHD_DEBUG */
 
+#define DHD_OW_BI_RAW_EVENT_LOG_FMT 0xFFFF
+
+/* LSB 2 bits of format number to identify the type of event log */
+#define DHD_EVENT_LOG_HDR_MASK 0x3
+
+#define DHD_EVENT_LOG_FMT_NUM_OFFSET 2
+#define DHD_EVENT_LOG_FMT_NUM_MASK 0x3FFF
+/**
+ * OW:- one word
+ * TW:- two word
+ * NB:- non binary
+ * BI:- binary
+ */
+#define	DHD_OW_NB_EVENT_LOG_HDR 0
+#define DHD_TW_NB_EVENT_LOG_HDR 1
+#define DHD_BI_EVENT_LOG_HDR 3
+#define DHD_INVALID_EVENT_LOG_HDR 2
+
+#define DHD_TW_VALID_TAG_BITS_MASK 0xF
+#define DHD_OW_BI_EVENT_FMT_NUM 0x3FFF
+#define DHD_TW_BI_EVENT_FMT_NUM 0x3FFE
+
+#define DHD_TW_EVENT_LOG_TAG_OFFSET 8
+
+#define EVENT_TAG_TIMESTAMP_OFFSET 1
+#define EVENT_TAG_TIMESTAMP_EXT_OFFSET 2
+
+typedef struct prcd_event_log_hdr {
+	uint32 tag;		/* Event_log entry tag */
+	uint32 count;		/* Count of 4-byte entries */
+	uint32 fmt_num_raw;	/* Format number */
+	uint32 fmt_num;		/* Format number >> 2 */
+	uint32 armcycle;	/* global ARM CYCLE for TAG */
+	uint32 *log_ptr;	/* start of payload */
+	uint32	payload_len;
+	/* Extended event log header info
+	 * 0 - legacy, 1 - extended event log header present
+	 */
+	bool ext_event_log_hdr;
+	bool binary_payload;	/* 0 - non binary payload, 1 - binary payload */
+} prcd_event_log_hdr_t;		/* Processed event log header */
+
 /* dhd_dbg functions */
 extern void dhd_dbg_trace_evnt_handler(dhd_pub_t *dhdp, void *event_data,
 		void *raw_event_ptr, uint datalen);
+void dhd_dbg_msgtrace_log_parser(dhd_pub_t *dhdp, void *event_data,
+	void *raw_event_ptr, uint datalen, bool msgtrace_hdr_present,
+	uint32 msgtrace_seqnum);
+
+#ifdef BTLOG
+extern void dhd_dbg_bt_log_handler(dhd_pub_t *dhdp, void *data, uint datalen);
+#endif	/* BTLOG */
 extern int dhd_dbg_attach(dhd_pub_t *dhdp, dbg_pullreq_t os_pullreq,
 	dbg_urgent_noti_t os_urgent_notifier, void *os_priv);
 extern void dhd_dbg_detach(dhd_pub_t *dhdp);
 extern int dhd_dbg_start(dhd_pub_t *dhdp, bool start);
 extern int dhd_dbg_set_configuration(dhd_pub_t *dhdp, int ring_id,
 		int log_level, int flags, uint32 threshold);
-extern int dhd_dbg_get_ring_status(dhd_pub_t *dhdp, int ring_id,
-		dhd_dbg_ring_status_t *dbg_ring_status);
-extern int dhd_dbg_ring_push(dhd_pub_t *dhdp, int ring_id, dhd_dbg_ring_entry_t *hdr, void *data);
-extern int dhd_dbg_ring_pull(dhd_pub_t *dhdp, int ring_id, void *data, uint32 buf_len);
-extern int dhd_dbg_ring_pull_single(dhd_pub_t *dhdp, int ring_id, void *data, uint32 buf_len,
-		bool strip_header);
 extern int dhd_dbg_find_ring_id(dhd_pub_t *dhdp, char *ring_name);
+extern dhd_dbg_ring_t *dhd_dbg_get_ring_from_ring_id(dhd_pub_t *dhdp, int ring_id);
 extern void *dhd_dbg_get_priv(dhd_pub_t *dhdp);
 extern int dhd_dbg_send_urgent_evt(dhd_pub_t *dhdp, const void *data, const uint32 len);
-extern void dhd_dbg_verboselog_printf(dhd_pub_t *dhdp, event_log_hdr_t *hdr,
-	void *raw_event_ptr, uint32 *log_ptr);
+extern void dhd_dbg_verboselog_printf(dhd_pub_t *dhdp, prcd_event_log_hdr_t *plog_hdr,
+	void *raw_event_ptr, uint32 *log_ptr, uint32 logset, uint16 block);
+int dhd_dbg_pull_from_ring(dhd_pub_t *dhdp, int ring_id, void *data, uint32 buf_len);
+int dhd_dbg_pull_single_from_ring(dhd_pub_t *dhdp, int ring_id, void *data, uint32 buf_len,
+	bool strip_header);
+int dhd_dbg_push_to_ring(dhd_pub_t *dhdp, int ring_id, dhd_dbg_ring_entry_t *hdr,
+		void *data);
+int __dhd_dbg_get_ring_status(dhd_dbg_ring_t *ring, dhd_dbg_ring_status_t *ring_status);
+int dhd_dbg_get_ring_status(dhd_pub_t *dhdp, int ring_id,
+		dhd_dbg_ring_status_t *dbg_ring_status);
+#ifdef SHOW_LOGTRACE
+void dhd_dbg_read_ring_into_trace_buf(dhd_dbg_ring_t *ring, trace_buf_info_t *trace_buf_info);
+#endif /* SHOW_LOGTRACE */
 
 #ifdef DBG_PKT_MON
 extern int dhd_dbg_attach_pkt_monitor(dhd_pub_t *dhdp,
@@ -819,6 +827,9 @@ extern int dhd_dbg_monitor_get_rx_pkts(dhd_pub_t *dhdp, void __user *user_buf,
 		uint16 req_count, uint16 *resp_count);
 extern int dhd_dbg_detach_pkt_monitor(dhd_pub_t *dhdp);
 #endif /* DBG_PKT_MON */
+
+extern bool dhd_dbg_process_tx_status(dhd_pub_t *dhdp, void *pkt,
+		uint32 pktid, uint16 status);
 
 /* os wrapper function */
 extern int dhd_os_dbg_attach(dhd_pub_t *dhdp);
@@ -865,4 +876,16 @@ extern void dhd_iov_li_delete(dhd_pub_t *dhd, dll_t *list_head);
 #ifdef DHD_DEBUG
 extern void dhd_mw_list_delete(dhd_pub_t *dhd, dll_t *list_head);
 #endif /* DHD_DEBUG */
+
+void print_roam_enhanced_log(prcd_event_log_hdr_t *plog_hdr);
+
+typedef void (*print_roam_enhance_log_func)(prcd_event_log_hdr_t *plog_hdr);
+typedef struct _pr_roam_tbl {
+	uint8 version;
+	uint8 id;
+	print_roam_enhance_log_func pr_func;
+} pr_roam_tbl_t;
+
+extern uint32 dhd_dbg_get_fwverbose(dhd_pub_t *dhdp);
+extern void dhd_dbg_set_fwverbose(dhd_pub_t *dhdp, uint32 new_val);
 #endif /* _dhd_debug_h_ */

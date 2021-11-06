@@ -2,14 +2,14 @@
  * SDIO Host Controller Spec header file
  * Register map and definitions for the Standard Host Controller
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
+ * Copyright (C) 2020, Broadcom.
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -17,51 +17,59 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
- *      Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a license
- * other than the GPL, without Broadcom's express prior written consent.
  *
  *
- * <<Broadcom-WL-IPTag/Open:>>
- *
- * $Id: sdioh.h 514727 2014-11-12 03:02:48Z $
+ * <<Broadcom-WL-IPTag/Dual:>>
  */
 
 #ifndef	_SDIOH_H
 #define	_SDIOH_H
 
+/*
+ * Standard SD Host Control Register Map.
+ *
+ * Reference definitions from:
+ *  SD Specification, Part A2: SD Host Controller Standard Specification
+ *  Version 1.00
+ *  February, 2004
+ *  http://www.sdcard.org
+ *
+ *  One set for each SDIO slot on the controller board.
+ *  In PCI, each set is mapped into a BAR.  Since PCI only
+ *  has six BARS, spec compliant PCI SDIO host controllers are
+ *  limited to 6 slots.
+ */
 #define SD_SysAddr			0x000
 #define SD_BlockSize			0x004
-#define SD_BlockCount 			0x006
+#define SD_BlockCount			0x006
 #define SD_Arg0				0x008
-#define SD_Arg1 			0x00A
+#define SD_Arg1			0x00A /* Not really in spec, remove? */
 #define SD_TransferMode			0x00C
-#define SD_Command 			0x00E
+#define SD_Command			0x00E
 #define SD_Response0			0x010
-#define SD_Response1 			0x012
+#define SD_Response1			0x012
 #define SD_Response2			0x014
-#define SD_Response3 			0x016
+#define SD_Response3			0x016
 #define SD_Response4			0x018
-#define SD_Response5 			0x01A
+#define SD_Response5			0x01A
 #define SD_Response6			0x01C
-#define SD_Response7 			0x01E
+#define SD_Response7			0x01E
 #define SD_BufferDataPort0		0x020
-#define SD_BufferDataPort1 		0x022
+#define SD_BufferDataPort1		0x022
 #define SD_PresentState			0x024
 #define SD_HostCntrl			0x028
 #define SD_PwrCntrl			0x029
-#define SD_BlockGapCntrl 		0x02A
-#define SD_WakeupCntrl 			0x02B
-#define SD_ClockCntrl			0x02C
-#define SD_TimeoutCntrl 		0x02E
+#define SD_BlockGapCntrl		0x02A
+#define SD_WakeupCntrl			0x02B
+#define SD_ClockCntrl			0x02C /* Add (and use) bitdefs */
+#define SD_TimeoutCntrl		0x02E /* Add (and use) bitdefs */
 #define SD_SoftwareReset		0x02F
 #define SD_IntrStatus			0x030
-#define SD_ErrorIntrStatus 		0x032
+#define SD_ErrorIntrStatus		0x032 /* Add (and use) bitdefs */
 #define SD_IntrStatusEnable		0x034
-#define SD_ErrorIntrStatusEnable 	0x036
+#define SD_ErrorIntrStatusEnable	0x036
 #define SD_IntrSignalEnable		0x038
-#define SD_ErrorIntrSignalEnable 	0x03A
+#define SD_ErrorIntrSignalEnable	0x03A
 #define SD_CMD12ErrorStatus		0x03C
 #define SD_Capabilities			0x040
 #define SD_Capabilities3		0x044
@@ -70,7 +78,7 @@
 #define SD_ADMA_ErrStatus		0x054
 #define SD_ADMA_SysAddr			0x58
 #define SD_SlotInterruptStatus		0x0FC
-#define SD_HostControllerVersion 	0x0FE
+#define SD_HostControllerVersion	0x0FE
 #define	SD_GPIO_Reg			0x100
 #define	SD_GPIO_OE			0x104
 #define	SD_GPIO_Enable			0x108
@@ -96,7 +104,6 @@
 #define SD3_Tuning_Info_Register 0x0EC
 #define SD3_WL_BT_reset_register 0x0F0
 
-
 /* preset value indices */
 #define SD3_PRESETVAL_INITIAL_IX	0
 #define SD3_PRESETVAL_DESPEED_IX	1
@@ -108,16 +115,16 @@
 #define SD3_PRESETVAL_DDR50_IX		7
 
 /* SD_Capabilities reg (0x040) */
-#define CAP_TO_CLKFREQ_M 	BITFIELD_MASK(6)
-#define CAP_TO_CLKFREQ_S 	0
-#define CAP_TO_CLKUNIT_M  	BITFIELD_MASK(1)
-#define CAP_TO_CLKUNIT_S 	7
+#define CAP_TO_CLKFREQ_M	BITFIELD_MASK(6)
+#define CAP_TO_CLKFREQ_S	0
+#define CAP_TO_CLKUNIT_M	BITFIELD_MASK(1)
+#define CAP_TO_CLKUNIT_S	7
 /* Note: for sdio-2.0 case, this mask has to be 6 bits, but msb 2
 	bits are reserved. going ahead with 8 bits, as it is req for 3.0
 */
-#define CAP_BASECLK_M 		BITFIELD_MASK(8)
-#define CAP_BASECLK_S 		8
-#define CAP_MAXBLOCK_M 		BITFIELD_MASK(2)
+#define CAP_BASECLK_M		BITFIELD_MASK(8)
+#define CAP_BASECLK_S		8
+#define CAP_MAXBLOCK_M		BITFIELD_MASK(2)
 #define CAP_MAXBLOCK_S		16
 #define CAP_ADMA2_M		BITFIELD_MASK(1)
 #define CAP_ADMA2_S		19
@@ -139,7 +146,6 @@
 #define CAP_64BIT_HOST_S	28
 
 #define SDIO_OCR_READ_FAIL	(2)
-
 
 #define CAP_ASYNCINT_SUP_M	BITFIELD_MASK(1)
 #define CAP_ASYNCINT_SUP_S	29
@@ -183,6 +189,10 @@
 #define CAP3_RETUNING_MODES_M	BITFIELD_MASK(2)
 #define CAP3_RETUNING_MODES_S	(46 - CAP3_MSBits_OFFSET)
 
+#define CAP3_RETUNING_TC_DISABLED	(0x0)
+#define CAP3_RETUNING_TC_1024S		(0xB)
+#define CAP3_RETUNING_TC_OTHER		(0xF)
+
 #define CAP3_CLK_MULT_M		BITFIELD_MASK(8)
 #define CAP3_CLK_MULT_S		(48 - CAP3_MSBits_OFFSET)
 
@@ -212,12 +222,12 @@
 
 /* SD_Arg0: Offset 0x008, size = 4 bytes  */
 /* SD_TransferMode Offset 0x00C, size = 2 bytes */
-#define XFER_DMA_ENABLE_M   	BITFIELD_MASK(1)
+#define XFER_DMA_ENABLE_M	BITFIELD_MASK(1)
 #define XFER_DMA_ENABLE_S	0
-#define XFER_BLK_COUNT_EN_M 	BITFIELD_MASK(1)
+#define XFER_BLK_COUNT_EN_M	BITFIELD_MASK(1)
 #define XFER_BLK_COUNT_EN_S	1
-#define XFER_CMD_12_EN_M    	BITFIELD_MASK(1)
-#define XFER_CMD_12_EN_S 	2
+#define XFER_CMD_12_EN_M	BITFIELD_MASK(1)
+#define XFER_CMD_12_EN_S	2
 #define XFER_DATA_DIRECTION_M	BITFIELD_MASK(1)
 #define XFER_DATA_DIRECTION_S	4
 #define XFER_MULTI_BLOCK_M	BITFIELD_MASK(1)
@@ -225,9 +235,9 @@
 
 /* SD_Command: Offset 0x00E, size = 2 bytes */
 /* resp_type field */
-#define RESP_TYPE_NONE 		0
-#define RESP_TYPE_136  		1
-#define RESP_TYPE_48   		2
+#define RESP_TYPE_NONE		0
+#define RESP_TYPE_136		1
+#define RESP_TYPE_48		2
 #define RESP_TYPE_48_BUSY	3
 /* type field */
 #define CMD_TYPE_NORMAL		0
@@ -235,22 +245,22 @@
 #define CMD_TYPE_RESUME		2
 #define CMD_TYPE_ABORT		3
 
-#define CMD_RESP_TYPE_M		BITFIELD_MASK(2)	/* Bits [0-1] 	- Response type */
+#define CMD_RESP_TYPE_M		BITFIELD_MASK(2)	/* Bits [0-1]	- Response type */
 #define CMD_RESP_TYPE_S		0
-#define CMD_CRC_EN_M		BITFIELD_MASK(1)	/* Bit 3 	- CRC enable */
+#define CMD_CRC_EN_M		BITFIELD_MASK(1)	/* Bit 3	- CRC enable */
 #define CMD_CRC_EN_S		3
-#define CMD_INDEX_EN_M		BITFIELD_MASK(1)	/* Bit 4 	- Enable index checking */
+#define CMD_INDEX_EN_M		BITFIELD_MASK(1)	/* Bit 4	- Enable index checking */
 #define CMD_INDEX_EN_S		4
-#define CMD_DATA_EN_M		BITFIELD_MASK(1)	/* Bit 5 	- Using DAT line */
+#define CMD_DATA_EN_M		BITFIELD_MASK(1)	/* Bit 5	- Using DAT line */
 #define CMD_DATA_EN_S		5
-#define CMD_TYPE_M		BITFIELD_MASK(2)	/* Bit [6-7] 	- Normal, abort, resume, etc
+#define CMD_TYPE_M		BITFIELD_MASK(2)	/* Bit [6-7]	- Normal, abort, resume, etc
 							 */
 #define CMD_TYPE_S		6
-#define CMD_INDEX_M		BITFIELD_MASK(6)	/* Bits [8-13] 	- Command number */
+#define CMD_INDEX_M		BITFIELD_MASK(6)	/* Bits [8-13]	- Command number */
 #define CMD_INDEX_S		8
 
 /* SD_BufferDataPort0	: Offset 0x020, size = 2 or 4 bytes */
-/* SD_BufferDataPort1 	: Offset 0x022, size = 2 bytes */
+/* SD_BufferDataPort1	: Offset 0x022, size = 2 bytes */
 /* SD_PresentState	: Offset 0x024, size = 4 bytes */
 #define PRES_CMD_INHIBIT_M	BITFIELD_MASK(1)	/* Bit 0	May use CMD */
 #define PRES_CMD_INHIBIT_S	0
@@ -317,8 +327,9 @@
 #define HOST_CONTR_VER_3		(2)
 
 /* misc defines */
-#define SD1_MODE 		0x1	/* SD Host Cntrlr Spec */
-#define SD4_MODE 		0x2	/* SD Host Cntrlr Spec */
+/* Driver uses of these should be replaced! */
+#define SD1_MODE		0x1	/* SD Host Cntrlr Spec */
+#define SD4_MODE		0x2	/* SD Host Cntrlr Spec */
 
 /* SD_PwrCntrl: Offset 0x029, size = 1 bytes */
 #define PWR_BUS_EN_M		BITFIELD_MASK(1)	/* Bit 0	Power the bus */
@@ -405,9 +416,9 @@
 
 /* SD_WakeupCntr_BlockGapCntrl : Offset 0x02A , size = bytes */
 /* SD_ClockCntrl	: Offset 0x02C , size = bytes */
-/* SD_SoftwareReset_TimeoutCntrl 	: Offset 0x02E , size = bytes */
+/* SD_SoftwareReset_TimeoutCntrl	: Offset 0x02E , size = bytes */
 /* SD_IntrStatus	: Offset 0x030 , size = bytes */
-/* SD_ErrorIntrStatus 	: Offset 0x032 , size = bytes */
+/* SD_ErrorIntrStatus	: Offset 0x032 , size = bytes */
 /* SD_IntrStatusEnable	: Offset 0x034 , size = bytes */
 /* SD_ErrorIntrStatusEnable : Offset 0x036 , size = bytes */
 /* SD_IntrSignalEnable	: Offset 0x038 , size = bytes */

@@ -3,14 +3,14 @@
  *     export functions to client drivers
  *     abstract OS and BUS specific details of SDIO
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
+ * Copyright (C) 2020, Broadcom.
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -18,15 +18,9 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
- *      Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a license
- * other than the GPL, without Broadcom's express prior written consent.
  *
  *
- * <<Broadcom-WL-IPTag/Open:>>
- *
- * $Id: bcmsdh.h 698895 2017-05-11 02:55:17Z $
+ * <<Broadcom-WL-IPTag/Dual:>>
  */
 
 /**
@@ -40,11 +34,15 @@
 #define BCMSDH_INFO_VAL		0x0002 /* Info */
 extern const uint bcmsdh_msglevel;
 
-#define BCMSDH_ERROR(x) printf x
+#ifdef BCMDBG
+#define BCMSDH_ERROR(x)	do { if (bcmsdh_msglevel & BCMSDH_ERROR_VAL) printf x; } while (0)
+#define BCMSDH_INFO(x)	do { if (bcmsdh_msglevel & BCMSDH_INFO_VAL) printf x; } while (0)
+#else /* BCMDBG */
+#define BCMSDH_ERROR(x)
 #define BCMSDH_INFO(x)
+#endif /* BCMDBG */
 
-#if defined(BCMSDIO) && (defined(BCMSDIOH_STD) || defined(BCMSDIOH_BCM) || \
-	defined(BCMSDIOH_SPI))
+#if defined(BCMSDIO) && (defined(BCMSDIOH_STD) || defined(BCMSDIOH_BCM) || defined(BCMSDIOH_SPI))
 #define BCMSDH_ADAPTER
 #endif /* BCMSDIO && (BCMSDIOH_STD || BCMSDIOH_BCM || BCMSDIOH_SPI) */
 
@@ -52,6 +50,10 @@ extern const uint bcmsdh_msglevel;
 typedef struct bcmsdh_info bcmsdh_info_t;
 typedef void (*bcmsdh_cb_fn_t)(void *);
 
+#if defined(NDIS) && (NDISVER >= 0x0630) && defined(BCMDONGLEHOST)
+extern bcmsdh_info_t *bcmsdh_attach(osl_t *osh, void *cfghdl,
+	void **regsva, uint irq, shared_info_t *sh);
+#else
 
 #if defined(BT_OVER_SDIO)
 typedef enum {
@@ -80,6 +82,7 @@ struct bcmsdh_info
 	int		pkt_wake;
 #endif /* DHD_WAKE_STATUS */
 };
+#endif /* defined(NDIS) && (NDISVER >= 0x0630) && defined(BCMDONGLEHOST) */
 
 /* Detach - freeup resources allocated in attach */
 extern int bcmsdh_detach(osl_t *osh, void *sdh);
@@ -97,7 +100,7 @@ extern int bcmsdh_intr_dereg(void *sdh);
 /* Enable/disable SD card interrupt forward */
 extern void bcmsdh_intr_forward(void *sdh, bool pass);
 
-#if defined(DHD_DEBUG)
+#if defined(DHD_DEBUG) || defined(BCMDBG)
 /* Query pending interrupt status from the host controller */
 extern bool bcmsdh_intr_pending(void *sdh);
 #endif
@@ -142,6 +145,7 @@ extern uint32 bcmsdh_reg_write(void *sdh, uintptr addr, uint size, uint32 data);
 extern int bcmsdhsdio_set_sbaddr_window(void *sdh, uint32 address, bool force_set);
 
 /* Indicate if last reg read/write failed */
+/* Replace this with status pointers in reg_read/write */
 extern bool bcmsdh_regfail(void *sdh);
 
 /* Buffer transfer to/from device (client) core via cmd53.
@@ -156,6 +160,7 @@ extern bool bcmsdh_regfail(void *sdh);
  * Returns 0 or error code.
  * NOTE: Async operation is not currently supported.
  */
+
 typedef void (*bcmsdh_cmplt_fn_t)(void *handle, int status, bool sync_waiting);
 extern int bcmsdh_send_buf(void *sdh, uint32 addr, uint fn, uint flags,
                            uint8 *buf, uint nbytes, void *pkt,
@@ -168,6 +173,9 @@ extern void bcmsdh_glom_post(void *sdh, uint8 *frame, void *pkt, uint len);
 extern void bcmsdh_glom_clear(void *sdh);
 extern uint bcmsdh_set_mode(void *sdh, uint mode);
 extern bool bcmsdh_glom_enabled(void);
+#ifdef PKT_STATICS
+extern uint32 bcmsdh_get_spend_time(void *sdh) ;
+#endif
 /* Flags bits */
 #define SDIO_REQ_4BYTE	0x1	/* Four-byte target (backplane) width (vs. two-byte) */
 #define SDIO_REQ_FIXED	0x2	/* Fixed address (FIFO) (vs. incrementing address) */
@@ -198,6 +206,11 @@ extern int bcmsdh_stop(void *sdh);
 /* Wait system lock free */
 extern int bcmsdh_waitlockfree(void *sdh);
 
+/* Bogosity alert. This should only know about devids gleaned through
+ * the standard CIS (versus some client dependent method), and we already
+ * have an interface for the CIS.
+ * Remove me.
+ */
 /* Returns the "Device ID" of target device on the SDIO bus. */
 extern int bcmsdh_query_device(void *sdh);
 
@@ -206,7 +219,7 @@ extern uint bcmsdh_query_iofnum(void *sdh);
 
 /* Miscellaneous knob tweaker. */
 extern int bcmsdh_iovar_op(void *sdh, const char *name,
-                           void *params, int plen, void *arg, int len, bool set);
+                           void *params, uint plen, void *arg, uint len, bool set);
 
 /* Reset and reinitialize the device */
 extern int bcmsdh_reset(bcmsdh_info_t *sdh);
@@ -236,12 +249,13 @@ extern void bcmsdh_device_remove(void * sdh);
 extern int bcmsdh_reg_sdio_notify(void* semaphore);
 extern void bcmsdh_unreg_sdio_notify(void);
 
-#if defined(OOB_INTR_ONLY)
+#if defined(OOB_INTR_ONLY) || defined(BCMSPI_ANDROID)
 extern int bcmsdh_oob_intr_register(bcmsdh_info_t *bcmsdh, bcmsdh_cb_fn_t oob_irq_handler,
 	void* oob_irq_handler_context);
 extern void bcmsdh_oob_intr_unregister(bcmsdh_info_t *sdh);
 extern void bcmsdh_oob_intr_set(bcmsdh_info_t *sdh, bool enable);
-#endif 
+extern int bcmsdh_get_oob_intr_num(bcmsdh_info_t *bcmsdh);
+#endif /* defined(OOB_INTR_ONLY) || defined(BCMSPI_ANDROID) */
 extern void bcmsdh_dev_pm_stay_awake(bcmsdh_info_t *sdh);
 extern void bcmsdh_dev_relax(bcmsdh_info_t *sdh);
 extern bool bcmsdh_dev_pm_enabled(bcmsdh_info_t *sdh);
@@ -261,6 +275,9 @@ extern void bcmsdh_force_sbwad_calc(void *sdh, bool force);
 /* Function to pass chipid and rev to lower layers for controlling pr's */
 extern void bcmsdh_chipinfo(void *sdh, uint32 chip, uint32 chiprev);
 
+#ifdef BCMSPI
+extern void bcmsdh_dwordmode(void *sdh, bool set);
+#endif /* BCMSPI */
 
 extern int bcmsdh_sleep(void *sdh, bool enab);
 

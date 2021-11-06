@@ -2,14 +2,14 @@
  * Broadcom SDIO/PCMCIA
  * Software-specific definitions shared between device and host side
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
+ * Copyright (C) 2020, Broadcom.
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -17,15 +17,9 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
- *      Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a license
- * other than the GPL, without Broadcom's express prior written consent.
  *
  *
- * <<Broadcom-WL-IPTag/Open:>>
- *
- * $Id: bcmsdpcm.h 614070 2016-01-21 00:55:57Z $
+ * <<Broadcom-WL-IPTag/Dual:>>
  */
 
 #ifndef	_bcmsdpcm_h_
@@ -58,6 +52,8 @@
 #define SMB_DATA_DSACK		0x200	/* host acking a deepsleep request */
 #define SMB_DATA_DSNACK		0x400	/* host nacking a deepsleep request */
 #endif /* DS_PROT */
+/* force a trap */
+#define SMB_DATA_TRAP		0x800	/* host forcing trap */
 
 #define SMB_DATA_VERSION_MASK	0x00ff0000	/* host protocol version (sent with F2 enable) */
 #define SMB_DATA_VERSION_SHIFT	16		/* host protocol version (sent with F2 enable) */
@@ -97,7 +93,6 @@
 #define HMB_DATA_DSPROT_MASK	0xf00
 #endif /* DS_PROT */
 
-
 #define HMB_DATA_FCDATA_MASK	0xff000000	/* per prio flowcontrol data */
 #define HMB_DATA_FCDATA_SHIFT	24		/* per prio flowcontrol data */
 
@@ -107,6 +102,7 @@
 /*
  * Software-defined protocol header
  */
+/* Replace all this with packed struct */
 
 /* Current protocol version */
 #define SDPCM_PROT_VERSION	4
@@ -131,7 +127,7 @@
 
 /* Data Offset from SOF (HW Tag, SW Tag, Pad) */
 #define SDPCM_DOFFSET_OFFSET		3		/* Data Offset */
-#define SDPCM_DOFFSET_VALUE(p) 		(((uint8 *)p)[SDPCM_DOFFSET_OFFSET] & 0xff)
+#define SDPCM_DOFFSET_VALUE(p)		(((uint8 *)p)[SDPCM_DOFFSET_OFFSET] & 0xff)
 #define SDPCM_DOFFSET_MASK		0xff000000
 #define SDPCM_DOFFSET_SHIFT		24
 
@@ -158,7 +154,7 @@
 
 #define SDPCM_FLAG_RESVD0	0x01
 #define SDPCM_FLAG_RESVD1	0x02
-#define SDPCM_FLAG_GSPI_TXENAB	0x04
+#define SDPCM_FLAG_GSPI_TXENAB	0x04	/* GSPI Tx enable (PR55150 only) */
 #define SDPCM_FLAG_GLOMDESC	0x08	/* Superframe descriptor mask */
 
 /* For GLOM_CHANNEL frames, use a flag to indicate descriptor frame */
@@ -284,6 +280,7 @@ typedef volatile struct {
 #define SDPCM_SHARED_PENDING_BRPT  0x2000
 #define SDPCM_SHARED_FATAL_LOGBUF_VALID	0x100000
 #define SDPCM_SHARED_RXLIM_POST    0x4000
+#define SDPCM_SHARED_TXSEQ_SYNC    0x4000
 
 typedef struct {
 	uint32	flags;
@@ -295,8 +292,13 @@ typedef struct {
 	uint32  msgtrace_addr;
 	uint32  fwid;
 	uint32  device_fatal_logbuf_start;
+#ifdef BCMSDIO_TXSEQ_SYNC
+	uint32	txseq_sync_addr;
+#endif /* BCMSDIO_TXSEQ_SYNC */
 } sdpcm_shared_t;
 
-extern sdpcm_shared_t sdpcm_shared;
+/* Device F/W provides the following access function:
+ * sdpcm_shared_t *hnd_get_sdpcm_shared(void);
+ */
 
 #endif	/* _bcmsdpcm_h_ */

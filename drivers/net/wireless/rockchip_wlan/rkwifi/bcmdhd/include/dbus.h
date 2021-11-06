@@ -2,14 +2,14 @@
  * Dongle BUS interface Abstraction layer
  *   target serial buses like USB, SDIO, SPI, etc.
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
+ * Copyright (C) 2020, Broadcom.
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -17,15 +17,9 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
- *      Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a license
- * other than the GPL, without Broadcom's express prior written consent.
  *
  *
  * <<Broadcom-WL-IPTag/Open:>>
- *
- * $Id: dbus.h 596371 2015-10-30 22:43:47Z $
  */
 
 #ifndef __DBUS_H__
@@ -74,10 +68,6 @@ enum {
 	DBUS_ERR_RXZLP
 };
 
-#define BCM_OTP_SIZE_43236  84	/* number of 16 bit values */
-#define BCM_OTP_SW_RGN_43236	24  /* start offset of SW config region */
-#define BCM_OTP_ADDR_43236 0x18000800 /* address of otp base */
-
 #define ERR_CBMASK_TXFAIL		0x00000001
 #define ERR_CBMASK_RXFAIL		0x00000002
 #define ERR_CBMASK_ALL			0xFFFFFFFF
@@ -91,6 +81,25 @@ enum {
 #define DBUS_TX_RETRY_LIMIT		3		/* retries for failed txirb */
 #define DBUS_TX_TIMEOUT_INTERVAL	250		/* timeout for txirb complete, in ms */
 
+/*
+ * The max TCB/RCB data buffer size
+ * With USB RPC aggregation on,
+ *   rx buffer has to be a single big chunk memory due to dongle->host aggregation
+ *     Upper layer has to do byte copy to deaggregate the buffer to satisfy WL driver
+ *       one buffer per pkt requirement
+ *     Windows Vista may be able to use MDL to workaround this requirement
+ *   tx buffer has to copy over RPC buffer since they are managed in different domain
+ *     Without copy, DBUS and RPC has to break the encapsulation, which is not implemented
+ *     RPC aggregated buffer arrives as a chained buffers. bypte copy needs to traverse the chain
+ *     to form one continuous USB irb.
+ *   These buffer size must accomodate the MAX rpc agg size in both direction
+ *   #define BCM_RPC_TP_DNGL_AGG_MAX_BYTE
+ *   #define BCM_RPC_TP_HOST_AGG_MAX_BYTE
+ * Without USB RPC aggregation, these buffer size can be smaller like normal 2K
+ *  to fit max tcp pkt(ETH_MAX_DATA_SIZE) + d11/phy/rpc/overhead
+ *
+ * The number of buffer needed is upper layer dependent. e.g. rpc defines BCM_RPC_TP_DBUS_NTXQ
+ */
 #define DBUS_BUFFER_SIZE_TX	32000
 #define DBUS_BUFFER_SIZE_RX	24000
 
@@ -287,7 +296,7 @@ typedef struct dbus_pub {
 	int ntxq, nrxq, rxsize;
 	void *bus;
 	struct shared_info *sh;
-    void *dev_info;
+	void *dev_info;
 } dbus_pub_t;
 
 #define BUS_INFO(bus, type) (((type *) bus)->pub->bus)
@@ -339,8 +348,11 @@ extern int dbus_pnp_sleep(dbus_pub_t *pub);
 extern int dbus_pnp_resume(dbus_pub_t *pub, int *fw_reload);
 extern int dbus_pnp_disconnect(dbus_pub_t *pub);
 
-//extern int dhd_bus_iovar_op(dhd_pub_t *dhdp, const char *name,
+//extern int dbus_iovar_op(dbus_pub_t *pub, const char *name,
 //	void *params, int plen, void *arg, int len, bool set);
+#ifdef BCMDBG
+extern void dbus_hist_dump(dbus_pub_t *pub, struct bcmstrbuf *b);
+#endif /* BCMDBG */
 
 extern void *dhd_dbus_txq(const dbus_pub_t *pub);
 extern uint dhd_dbus_hdrlen(const dbus_pub_t *pub);
@@ -431,9 +443,24 @@ extern void *dbus_get_fw_nvfile(int devid, int chiprev, uint8 **fw, int *fwlen, 
 extern void dbus_release_fw_nvfile(void *firmware);
 #endif  /* #if defined(BCM_REQUEST_FW) */
 
-
 #if defined(EHCI_FASTPATH_TX) || defined(EHCI_FASTPATH_RX)
+/*
+ * Include file for the ECHI fastpath optimized USB
+ * Practically all the lines below have equivalent in some structures in other include (or even
+ * source) files This violates all kind of structure and layering, but cutting through layers is
+ * what the optimization is about. The definitions are NOT literally borrowed from any GPLd code;
+ * the file is intended to be GPL-clean
+ *
+ * Note that while some resemblance between this code and GPLd code in Linux might exist, it is
+ * due to the common sibling. See FreeBSD: head/sys/dev/usb/controller/ehci.h for the source of
+ * inspiration :-)
+ *
+ * The code assumes little endian throughout
+ */
 
+#if !defined(__linux__)
+#error "EHCI fastpath is for Linux only."
+#endif
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 0))
 	/* Backward compatibility */

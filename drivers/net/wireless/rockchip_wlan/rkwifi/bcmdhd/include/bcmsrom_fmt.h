@@ -1,14 +1,14 @@
 /*
  * SROM format definition.
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
+ * Copyright (C) 2020, Broadcom.
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -16,39 +16,42 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
- *      Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a license
- * other than the GPL, without Broadcom's express prior written consent.
  *
  *
- * <<Broadcom-WL-IPTag/Open:>>
- *
- * $Id: bcmsrom_fmt.h 646789 2016-06-30 19:43:02Z $
+ * <<Broadcom-WL-IPTag/Dual:>>
  */
 
 #ifndef	_bcmsrom_fmt_h_
 #define	_bcmsrom_fmt_h_
 
-#define SROM_MAXREV		13	/* max revision supported by driver */
+#define SROM_MAXREV		18	/* max revision supported by driver */
 
-/* Maximum srom: 12 Kilobits == 1536 bytes */
+/* Maximum srom: 16 Kilobits == 2048 bytes */
 
-#define	SROM_MAX		1536
-#define SROM_MAXW		594
+#define	SROM_MAX		2048
+#define SROM_MAXW		1024
 
 #ifdef LARGE_NVRAM_MAXSZ
-#define VARS_MAX                LARGE_NVRAM_MAXSZ
+#define VARS_MAX		LARGE_NVRAM_MAXSZ
 #else
-#define VARS_MAX                4096
+#if defined(BCMROMBUILD) || defined(DONGLEBUILD)
+#define VARS_MAX		4096
+#else
+#define LARGE_NVRAM_MAXSZ	8192
+#define VARS_MAX		LARGE_NVRAM_MAXSZ
+#endif /* BCMROMBUILD || DONGLEBUILD */
 #endif /* LARGE_NVRAM_MAXSZ */
 
 /* PCI fields */
 #define PCI_F0DEVID		48
 
+/* SROM Rev 2: 1 Kilobit map for 11a/b/g devices.
+ * SROM Rev 3: Upward compatible modification for lpphy and PCIe
+ * hardware workaround.
+ */
 
 #define	SROM_WORDS		64
-
+#define SROM_SIGN_MINWORDS 128
 #define SROM3_SWRGN_OFF		28	/* s/w region offset in words */
 
 #define	SROM_SSID		2
@@ -190,7 +193,6 @@
 #define SROM4_SWITCH_MASK	0xff00
 #define SROM4_SWITCH_SHIFT	8
 
-
 /* Per-path fields */
 #define	MAX_PATH_SROM		4
 #define	SROM4_PATH0		64
@@ -230,7 +232,6 @@
 #define	SROM4_BWDUPPO		200
 
 #define	SROM4_CRCREV		219
-
 
 /* SROM Rev 8: Make space for a 48word hardware header for PCIe rev >= 6.
  * This is acombined srom for both MIMO and SISO boards, usable in
@@ -299,7 +300,6 @@
 
 /* Measured power 1 & 2, 0-13 bits at offset 95, MSB 2 bits are unused for now. */
 #define SROM8_MPWR_1_AND_2	95
-
 
 /* Per-path offsets & fields */
 #define	SROM8_PATH0		96
@@ -412,7 +412,6 @@
 
 #define	SROM10_WORDS		230
 #define	SROM10_SIGNATURE	SROM4_SIGNATURE
-
 
 /* SROM REV 11 */
 #define SROM11_BREV			65
@@ -637,7 +636,6 @@
 #define	SROM11_WORDS				234
 #define	SROM11_SIGNATURE		0x0634
 
-
 /* SROM REV 12 */
 #define SROM12_SIGN                     64
 #define SROM12_WORDS			512
@@ -810,16 +808,6 @@
 #define SROM12_PDOFF_20in80M_5G_B3		491
 #define SROM12_PDOFF_20in80M_5G_B4		492
 
-#define SROM13_PDOFFSET20IN40M5GCORE3           98
-#define SROM13_PDOFFSET20IN40M5GCORE3_1         99
-#define SROM13_PDOFFSET20IN80M5GCORE3           510
-#define SROM13_PDOFFSET20IN80M5GCORE3_1         511
-#define SROM13_PDOFFSET40IN80M5GCORE3           105
-#define SROM13_PDOFFSET40IN80M5GCORE3_1         106
-
-#define SROM13_PDOFFSET20IN40M2G                94
-#define SROM13_PDOFFSET20IN40M2GCORE3           95
-
 #define SROM12_GPDN_L				91  /* GPIO pull down bits [15:0]  */
 #define SROM12_GPDN_H				233 /* GPIO pull down bits [31:16] */
 
@@ -827,7 +815,6 @@
 #define SROM13_WORDS                    590
 #define SROM13_SIGNATURE                0x4d55
 #define SROM13_CRCREV                   589
-
 
 /* Per-path fields and offset */
 #define MAX_PATH_SROM_13                        4
@@ -849,11 +836,6 @@
 #define SROM13_PDOFFSET20IN40M5GCORE3_1 99
 
 #define SROM13_ANTGAIN_BANDBGA          100
-
-#define SROM13_RXGAINS2CORE0            101
-#define SROM13_RXGAINS2CORE1            102
-#define SROM13_RXGAINS2CORE2            103
-#define SROM13_RXGAINS2CORE3            104
 
 #define SROM13_PDOFFSET40IN80M5GCORE3   105
 #define SROM13_PDOFFSET40IN80M5GCORE3_1 106
@@ -928,6 +910,8 @@
 #define SROM13_RPCAL5GB01CORE3          102
 #define SROM13_RPCAL5GB23CORE3          103
 
+#define SROM13_SW_TXRX_MASK		104
+
 #define SROM13_EU_EDCRSTH               232
 
 #define SROM13_SWCTRLMAP4_CFG			493
@@ -956,11 +940,82 @@
 #define SROM13_RXGAINERRCORE3           586
 #define SROM13_RXGAINERRCORE3_1         587
 
+#define SROM13_PDOFF_2G_CCK_20M		167
 
-#define SROM16_SIGN                     104
-#define SROM16_WORDS                    512
-#define SROM16_SIGNATURE                0x4347
-#define SROM16_CRCREV                   511
+#define SROM15_CALDATA_WORDS		943
+#define SROM15_CAL_OFFSET_LOC		68
+#define MAX_IOCTL_TXCHUNK_SIZE		1500
+#define SROM15_MAX_CAL_SIZE		1886
+#define SROM15_SIGNATURE		0x110c
+#define SROM15_WORDS			1024
+#define SROM15_MACHI			65
+#define SROM15_CRCREV			1023
+#define SROM15_BRDREV			69
+#define SROM15_CCODE			70
+#define SROM15_REGREV			71
+#define SROM15_SIGN				64
+
+#define SROM16_SIGN			128
+#define SROM16_WORDS			1024
+#define SROM16_SFLASH_WORDS		2048U
+#define SROM16_SIGNATURE		0x4357
+#define SROM16_CRCREV			1023
+#define SROM16_MACHI			(SROM16_SIGN + 1)
+#define SROM16_CALDATA_OFFSET_LOC	(SROM16_SIGN + 4)
+#define SROM16_BOARDREV			(SROM16_SIGN + 5)
+#define SROM16_CCODE			(SROM16_SIGN + 6)
+#define SROM16_REGREV			(SROM16_SIGN + 7)
+
+#define SROM_CALDATA_WORDS		832
+
+#define SROM17_SIGN		64
+#define SROM17_BRDREV		65
+#define SROM17_MACADDR		66
+#define SROM17_CCODE		69
+#define SROM17_CALDATA		70
+#define SROM17_GCALTMP		71
+
+#define SROM17_C0SRD202G	72
+#define SROM17_C0SRD202G_1	73
+#define SROM17_C0SRD205GL	74
+#define SROM17_C0SRD205GL_1	75
+#define SROM17_C0SRD205GML	76
+#define SROM17_C0SRD205GML_1	77
+#define SROM17_C0SRD205GMU	78
+#define SROM17_C0SRD205GMU_1	79
+#define SROM17_C0SRD205GH	80
+#define SROM17_C0SRD205GH_1	81
+
+#define SROM17_C1SRD202G	82
+#define SROM17_C1SRD202G_1	83
+#define SROM17_C1SRD205GL	84
+#define SROM17_C1SRD205GL_1	85
+#define SROM17_C1SRD205GML	86
+#define SROM17_C1SRD205GML_1	87
+#define SROM17_C1SRD205GMU	88
+#define SROM17_C1SRD205GMU_1	89
+#define SROM17_C1SRD205GH	90
+#define SROM17_C1SRD205GH_1	91
+
+#define SROM17_TRAMMAGIC	92
+#define SROM17_TRAMMAGIC_1	93
+#define SROM17_TRAMDATA		94
+
+#define SROM17_WORDS		256
+#define SROM17_CRCREV		255
+#define SROM17_CALDATA_WORDS	161
+#define SROM17_SIGNATURE	0x1103	/* 4355 in hex format */
+
+#define SROM18_SIGN			112
+#define SROM18_WORDS			1024
+#define SROM18_SIGNATURE		0x4377
+#define SROM18_CRCREV			1023
+#define SROM18_MACHI			(SROM18_SIGN + 1)
+#define SROM18_CALDATA_OFFSET_LOC	(SROM18_SIGN + 4)
+#define SROM18_BOARDREV			(SROM18_SIGN + 5)
+#define SROM18_CCODE			(SROM18_SIGN + 6)
+#define SROM18_REGREV			(SROM18_SIGN + 7)
+#define SROM18_CALDATA_WORDS		(SROM18_WORDS - SROM18_CALDATA_OFFSET_LOC)
 
 typedef struct {
 	uint8 tssipos;		/* TSSI positive slope, 1: positive, 0: negative */

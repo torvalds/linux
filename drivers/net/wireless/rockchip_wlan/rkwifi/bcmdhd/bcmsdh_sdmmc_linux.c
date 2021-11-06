@@ -1,14 +1,14 @@
 /*
  * BCMSDH Function Driver for the native SDIO/MMC driver in the Linux Kernel
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
+ * Copyright (C) 2020, Broadcom.
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -16,15 +16,11 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
- *      Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a license
- * other than the GPL, without Broadcom's express prior written consent.
  *
  *
- * <<Broadcom-WL-IPTag/Proprietary,Open:>>
+ * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcmsdh_sdmmc_linux.c 644124 2016-06-17 07:59:34Z $
+ * $Id$
  */
 
 #include <typedefs.h>
@@ -43,37 +39,13 @@
 #include <dhd_linux.h>
 #include <bcmsdh_sdmmc.h>
 #include <dhd_dbg.h>
+#include <bcmdevs.h>
 
 #if !defined(SDIO_VENDOR_ID_BROADCOM)
 #define SDIO_VENDOR_ID_BROADCOM		0x02d0
 #endif /* !defined(SDIO_VENDOR_ID_BROADCOM) */
 
 #define SDIO_DEVICE_ID_BROADCOM_DEFAULT	0x0000
-
-#if !defined(SDIO_DEVICE_ID_BROADCOM_4325_SDGWB)
-#define SDIO_DEVICE_ID_BROADCOM_4325_SDGWB	0x0492	/* BCM94325SDGWB */
-#endif /* !defined(SDIO_DEVICE_ID_BROADCOM_4325_SDGWB) */
-#if !defined(SDIO_DEVICE_ID_BROADCOM_4325)
-#define SDIO_DEVICE_ID_BROADCOM_4325	0x0493
-#endif /* !defined(SDIO_DEVICE_ID_BROADCOM_4325) */
-#if !defined(SDIO_DEVICE_ID_BROADCOM_4329)
-#define SDIO_DEVICE_ID_BROADCOM_4329	0x4329
-#endif /* !defined(SDIO_DEVICE_ID_BROADCOM_4329) */
-#if !defined(SDIO_DEVICE_ID_BROADCOM_4319)
-#define SDIO_DEVICE_ID_BROADCOM_4319	0x4319
-#endif /* !defined(SDIO_DEVICE_ID_BROADCOM_4319) */
-#if !defined(SDIO_DEVICE_ID_BROADCOM_4330)
-#define SDIO_DEVICE_ID_BROADCOM_4330	0x4330
-#endif /* !defined(SDIO_DEVICE_ID_BROADCOM_4330) */
-#if !defined(SDIO_DEVICE_ID_BROADCOM_4334)
-#define SDIO_DEVICE_ID_BROADCOM_4334    0x4334
-#endif /* !defined(SDIO_DEVICE_ID_BROADCOM_4334) */
-#if !defined(SDIO_DEVICE_ID_BROADCOM_4324)
-#define SDIO_DEVICE_ID_BROADCOM_4324    0x4324
-#endif /* !defined(SDIO_DEVICE_ID_BROADCOM_4324) */
-#if !defined(SDIO_DEVICE_ID_BROADCOM_43239)
-#define SDIO_DEVICE_ID_BROADCOM_43239    43239
-#endif /* !defined(SDIO_DEVICE_ID_BROADCOM_43239) */
 
 extern void wl_cfg80211_set_parent_dev(void *dev);
 extern void sdioh_sdmmc_devintr_off(sdioh_info_t *sd);
@@ -115,9 +87,7 @@ static int sdioh_probe(struct sdio_func *func)
 	adapter = dhd_wifi_platform_get_adapter(SDIO_BUS, host_idx, rca);
 	if (adapter != NULL) {
 		sd_err(("found adapter info '%s'\n", adapter->name));
-#ifdef BUS_POWER_RESTORE
 		adapter->sdio_func = func;
-#endif
 	} else
 		sd_err(("can't find adapter info for this chip\n"));
 
@@ -217,14 +187,23 @@ static void bcmsdh_sdmmc_remove(struct sdio_func *func)
 /* devices we support, null terminated */
 static const struct sdio_device_id bcmsdh_sdmmc_ids[] = {
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_DEFAULT) },
-	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4325_SDGWB) },
-	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4325) },
-	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4329) },
-	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4319) },
-	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4330) },
-	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4334) },
-	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4324) },
-	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_43239) },
+	/* XXX This should not be in the external release, as it will attach to any SDIO
+	 * device, even non-WLAN devices.
+	 * Need to add IDs for the FALCON-based chips and put this under BCMINTERNAL
+	 { SDIO_DEVICE_CLASS(SDIO_CLASS_NONE) },
+	 */
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, BCM4362_CHIP_ID) },
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, BCM43751_CHIP_ID) },
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, BCM43752_CHIP_ID) },
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, BCM43012_CHIP_ID) },
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, BCM43014_CHIP_ID) },
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, BCM43014_D11N_ID) },
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, BCM43014_D11N2G_ID) },
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, BCM43014_D11N5G_ID) },
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, BCM43013_CHIP_ID) },
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, BCM43013_D11N_ID) },
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, BCM43013_D11N2G_ID) },
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, BCM43013_D11N5G_ID) },
 	{ SDIO_DEVICE_CLASS(SDIO_CLASS_NONE)		},
 	{ 0, 0, 0, 0 /* end: all zeroes */
 	},
@@ -303,6 +282,7 @@ static struct semaphore *notify_semaphore = NULL;
 static int dummy_probe(struct sdio_func *func,
                               const struct sdio_device_id *id)
 {
+	sd_err(("%s: enter\n", __FUNCTION__));
 	if (func && (func->num != 2)) {
 		return 0;
 	}

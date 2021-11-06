@@ -2,14 +2,14 @@
  * Linux-specific abstractions to gain some independence from linux kernel versions.
  * Pave over some 2.2 versus 2.4 versus 2.6 kernel differences.
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
+ * Copyright (C) 2020, Broadcom.
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -17,20 +17,23 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
- *      Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a license
- * other than the GPL, without Broadcom's express prior written consent.
  *
  *
- * <<Broadcom-WL-IPTag/Open:>>
- *
- * $Id: linuxver.h 646721 2016-06-30 12:36:41Z $
+ * <<Broadcom-WL-IPTag/Dual:>>
  */
 
 #ifndef _linuxver_h_
 #define _linuxver_h_
 
+/*
+ * The below pragmas are added as workaround for errors caused by update
+ * of gcc version to 4.8.2. GCC 4.6 adds -Wunused-but-set-variable and
+ * -Wunused-but-set-parameter to -Wall, for some configurations those
+ * warnings are produced in linux kernel. So for now the below pragmas
+ * disable the offending warnings. Permanent solution is to use -isystem
+ * but there is a performance problem with this change on RHEL5 servers
+ *
+ */
 #if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-but-set-variable"
@@ -84,6 +87,8 @@
 #include <linux/interrupt.h>
 #include <linux/kthread.h>
 #include <linux/netdevice.h>
+#include <linux/time.h>
+#include <linux/rtc.h>
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
 #include <linux/semaphore.h>
 #else
@@ -112,6 +117,12 @@
 #endif
 #endif	/* LINUX_VERSION_CODE > KERNEL_VERSION(2, 5, 41) */
 
+/*
+ * TODO:
+ * daemonize() API is deprecated from kernel-3.8 onwards. More debugging
+ *      has to be done whether this can cause any issue in case, if driver is
+ *      loaded as a module from userspace.
+ */
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
 #define DAEMONIZE(a)	do { \
 		allow_signal(SIGKILL);	\
@@ -135,8 +146,7 @@
 #define	MY_INIT_WORK(_work, _func)	INIT_WORK(_work, _func)
 #else
 #define	MY_INIT_WORK(_work, _func)	INIT_WORK(_work, _func, _work)
-#if !(LINUX_VERSION_CODE == KERNEL_VERSION(2, 6, 18) && defined(RHEL_MAJOR) && \
-	(RHEL_MAJOR == 5))
+#if (!(LINUX_VERSION_CODE == KERNEL_VERSION(2, 6, 18) && defined(RHEL_MAJOR) && (RHEL_MAJOR == 5)))
 /* Exclude RHEL 5 */
 typedef void (*work_func_t)(void *work);
 #endif
@@ -160,7 +170,6 @@ typedef irqreturn_t(*FN_ISR) (int irq, void *dev_id, struct pt_regs *ptregs);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 17)
 #ifdef	CONFIG_NET_RADIO
-#define	CONFIG_WIRELESS_EXT
 #endif
 #endif	/* < 2.6.17 */
 
@@ -173,9 +182,12 @@ typedef irqreturn_t(*FN_ISR) (int irq, void *dev_id, struct pt_regs *ptregs);
 #include <linux/sched.h>
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32) */
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 9, 0))
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 9, 0)
 #include <linux/sched/rt.h>
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3, 9, 0) */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
+#include <uapi/linux/sched/types.h>
+#endif /* LINUX_VERS >= 4.11.0 */
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29)
 #include <net/lib80211.h>
@@ -188,7 +200,6 @@ typedef irqreturn_t(*FN_ISR) (int irq, void *dev_id, struct pt_regs *ptregs);
 #endif
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 30) */
 
-
 #ifndef __exit
 #define __exit
 #endif
@@ -196,12 +207,12 @@ typedef irqreturn_t(*FN_ISR) (int irq, void *dev_id, struct pt_regs *ptregs);
 #define __devexit
 #endif
 #ifndef __devinit
-#  if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 8, 0))
-#    define __devinit	__init
-#  else
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 8, 0))
+	#define __devinit	__init
+#else
 /* All devices are hotpluggable since linux 3.8.0 */
-#    define __devinit
-#  endif
+	#define __devinit
+#endif
 #endif /* !__devinit */
 #ifndef __devinitdata
 #define __devinitdata
@@ -332,7 +343,7 @@ static inline void *pci_alloc_consistent(struct pci_dev *hwdev, size_t size,
 	ret = (void *)__get_free_pages(gfp, get_order(size));
 
 	if (ret != NULL) {
-		memset(ret, 0, size);
+		bzero(ret, size);
 		*dma_handle = virt_to_bus(ret);
 	}
 	return ret;
@@ -342,8 +353,13 @@ static inline void pci_free_consistent(struct pci_dev *hwdev, size_t size,
 {
 	free_pages((unsigned long)vaddr, get_order(size));
 }
+#ifdef ILSIM
+extern uint pci_map_single(void *dev, void *va, uint size, int direction);
+extern void pci_unmap_single(void *dev, uint pa, uint size, int direction);
+#else
 #define pci_map_single(cookie, address, size, dir)	virt_to_bus(address)
 #define pci_unmap_single(cookie, address, size, dir)
+#endif
 
 #endif /* DMA mapping */
 
@@ -380,8 +396,19 @@ extern void timer_cb_compat(struct timer_list *tl);
 #define timer_pending(t) timer_pending(&((t)->timer))
 #define add_timer(t) add_timer(&((t)->timer))
 #define mod_timer(t, j) mod_timer(&((t)->timer), j)
-
 #endif /* LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0) */
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)
+#define rtc_time_to_tm(a, b) rtc_time64_to_tm(a, b)
+#else
+#define rtc_time_to_tm(a, b) rtc_time_to_tm(a, b)
+#endif /* LINUX_VER >= 3.19.0 */
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 20, 0)
+#define time_to_tm(a, b, c) time64_to_tm(a, b, c)
+#else
+#define time_to_tm(a, b, c) time_to_tm(a, b, c)
+#endif /* LINUX_VER >= 4.20.0 */
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 3, 43))
 
@@ -488,6 +515,7 @@ pci_save_state(struct pci_dev *dev, u32 *buffer)
 {
 	int i;
 	if (buffer) {
+		/* 100% dword access ok here? */
 		for (i = 0; i < 16; i++)
 			pci_read_config_dword(dev, i * 4, &buffer[i]);
 	}
@@ -584,30 +612,43 @@ typedef struct {
 	struct	semaphore sema;
 	int	terminated;
 	struct	completion completed;
+	int	flush_ind;
+	struct	completion flushed;
 	spinlock_t	spinlock;
 	int		up_cnt;
 } tsk_ctl_t;
 
-
+/* ANDREY: new MACROs to start stop threads(OLD kthread API STYLE) */
 /* requires  tsk_ctl_t tsk  argument, the caller's priv data is passed in owner ptr */
 /* note this macro assumes there may be only one context waiting on thread's completion */
+#ifndef DHD_LOG_PREFIX
+#define DHD_LOG_PREFIX "[dhd]"
+#endif
+#define DHD_LOG_PREFIXS DHD_LOG_PREFIX" "
 #ifdef DHD_DEBUG
-#define DBG_THR(x) printk x
+#define	printf_thr(fmt, args...)	printk(DHD_LOG_PREFIXS fmt , ## args)
+#define DBG_THR(args)		do {printf_thr args;} while (0)
 #else
 #define DBG_THR(x)
 #endif
+
+extern unsigned long osl_spin_lock(void *lock);
+extern void osl_spin_unlock(void *lock, unsigned long flags);
+
+#define TSK_LOCK(lock, flags)	(flags) = osl_spin_lock(lock)
+#define TSK_UNLOCK(lock, flags)	osl_spin_unlock((lock), (flags))
 
 static inline bool binary_sema_down(tsk_ctl_t *tsk)
 {
 	if (down_interruptible(&tsk->sema) == 0) {
 		unsigned long flags = 0;
-		spin_lock_irqsave(&tsk->spinlock, flags);
+		TSK_LOCK(&tsk->spinlock, flags);
 		if (tsk->up_cnt == 1)
 			tsk->up_cnt--;
 		else {
 			DBG_THR(("dhd_dpc_thread: Unexpected up_cnt %d\n", tsk->up_cnt));
 		}
-		spin_unlock_irqrestore(&tsk->spinlock, flags);
+		TSK_UNLOCK(&tsk->spinlock, flags);
 		return false;
 	} else
 		return true;
@@ -618,7 +659,7 @@ static inline bool binary_sema_up(tsk_ctl_t *tsk)
 	bool sem_up = false;
 	unsigned long flags = 0;
 
-	spin_lock_irqsave(&tsk->spinlock, flags);
+	TSK_LOCK(&tsk->spinlock, flags);
 	if (tsk->up_cnt == 0) {
 		tsk->up_cnt++;
 		sem_up = true;
@@ -627,7 +668,7 @@ static inline bool binary_sema_up(tsk_ctl_t *tsk)
 	} else
 		DBG_THR(("dhd_sched_dpc: unexpected up cnt %d!\n", tsk->up_cnt));
 
-	spin_unlock_irqrestore(&tsk->spinlock, flags);
+	TSK_UNLOCK(&tsk->spinlock, flags);
 
 	if (sem_up)
 		up(&tsk->sema);
@@ -635,7 +676,9 @@ static inline bool binary_sema_up(tsk_ctl_t *tsk)
 	return sem_up;
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0))
+#define SMP_RD_BARRIER_DEPENDS(x)
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0))
 #define SMP_RD_BARRIER_DEPENDS(x) smp_read_barrier_depends(x)
 #else
 #define SMP_RD_BARRIER_DEPENDS(x) smp_rmb(x)
@@ -645,14 +688,17 @@ static inline bool binary_sema_up(tsk_ctl_t *tsk)
 { \
 	sema_init(&((tsk_ctl)->sema), 0); \
 	init_completion(&((tsk_ctl)->completed)); \
+	init_completion(&((tsk_ctl)->flushed)); \
 	(tsk_ctl)->parent = owner; \
 	(tsk_ctl)->proc_name = name;  \
 	(tsk_ctl)->terminated = FALSE; \
+	(tsk_ctl)->flush_ind = FALSE; \
+	(tsk_ctl)->up_cnt = 0; \
 	(tsk_ctl)->p_task  = kthread_run(thread_func, tsk_ctl, (char*)name); \
 	if (IS_ERR((tsk_ctl)->p_task)) { \
-		(tsk_ctl)->thr_pid = DHD_PID_KT_INVALID; \
-		DBG_THR(("%s(): thread:%s:%lx failed\n", __FUNCTION__, \
-			(tsk_ctl)->proc_name, (tsk_ctl)->thr_pid)); \
+		(tsk_ctl)->thr_pid = -1; \
+		DBG_THR(("%s(): thread:%s create failed\n", __FUNCTION__, \
+			(tsk_ctl)->proc_name)); \
 	} else { \
 		(tsk_ctl)->thr_pid = (tsk_ctl)->p_task->pid; \
 		spin_lock_init(&((tsk_ctl)->spinlock)); \
@@ -661,15 +707,70 @@ static inline bool binary_sema_up(tsk_ctl_t *tsk)
 	}; \
 }
 
+#define PROC_WAIT_TIMEOUT_MSEC	5000 /* 5 seconds */
+
 #define PROC_STOP(tsk_ctl) \
 { \
+	uint timeout = (uint)msecs_to_jiffies(PROC_WAIT_TIMEOUT_MSEC); \
 	(tsk_ctl)->terminated = TRUE; \
 	smp_wmb(); \
 	up(&((tsk_ctl)->sema));	\
-	wait_for_completion(&((tsk_ctl)->completed)); \
-	DBG_THR(("%s(): thread:%s:%lx terminated OK\n", __FUNCTION__, \
+	DBG_THR(("%s(): thread:%s:%lx wait for terminate\n", __FUNCTION__, \
 			 (tsk_ctl)->proc_name, (tsk_ctl)->thr_pid)); \
+	timeout = (uint)wait_for_completion_timeout(&((tsk_ctl)->completed), timeout); \
+	if (timeout == 0) \
+		DBG_THR(("%s(): thread:%s:%lx terminate timeout\n", __FUNCTION__, \
+			 (tsk_ctl)->proc_name, (tsk_ctl)->thr_pid)); \
+	else \
+		DBG_THR(("%s(): thread:%s:%lx terminated OK\n", __FUNCTION__, \
+			 (tsk_ctl)->proc_name, (tsk_ctl)->thr_pid)); \
+	(tsk_ctl)->parent = NULL; \
+	(tsk_ctl)->proc_name = NULL;  \
 	(tsk_ctl)->thr_pid = -1; \
+	(tsk_ctl)->up_cnt = 0; \
+}
+
+#define PROC_STOP_USING_BINARY_SEMA(tsk_ctl) \
+{ \
+	uint timeout = (uint)msecs_to_jiffies(PROC_WAIT_TIMEOUT_MSEC); \
+	(tsk_ctl)->terminated = TRUE; \
+	smp_wmb(); \
+	binary_sema_up(tsk_ctl);	\
+	DBG_THR(("%s(): thread:%s:%lx wait for terminate\n", __FUNCTION__, \
+			 (tsk_ctl)->proc_name, (tsk_ctl)->thr_pid)); \
+	timeout = (uint)wait_for_completion_timeout(&((tsk_ctl)->completed), timeout); \
+	if (timeout == 0) \
+		DBG_THR(("%s(): thread:%s:%lx terminate timeout\n", __FUNCTION__, \
+			 (tsk_ctl)->proc_name, (tsk_ctl)->thr_pid)); \
+	else \
+		DBG_THR(("%s(): thread:%s:%lx terminated OK\n", __FUNCTION__, \
+			 (tsk_ctl)->proc_name, (tsk_ctl)->thr_pid)); \
+	(tsk_ctl)->parent = NULL; \
+	(tsk_ctl)->proc_name = NULL;  \
+	(tsk_ctl)->thr_pid = -1; \
+}
+
+/*
+* Flush is non-rentrant, so callers must make sure
+* there is no race condition.
+* For safer exit, added wait_for_completion_timeout
+* with 1 sec timeout.
+*/
+#define PROC_FLUSH_USING_BINARY_SEMA(tsk_ctl) \
+{ \
+	uint timeout = (uint)msecs_to_jiffies(PROC_WAIT_TIMEOUT_MSEC); \
+	(tsk_ctl)->flush_ind = TRUE; \
+	smp_wmb(); \
+	binary_sema_up(tsk_ctl);	\
+	DBG_THR(("%s(): thread:%s:%lx wait for flush\n", __FUNCTION__, \
+			 (tsk_ctl)->proc_name, (tsk_ctl)->thr_pid)); \
+	timeout = (uint)wait_for_completion_timeout(&((tsk_ctl)->flushed), timeout); \
+	if (timeout == 0) \
+		DBG_THR(("%s(): thread:%s:%lx flush timeout\n", __FUNCTION__, \
+			 (tsk_ctl)->proc_name, (tsk_ctl)->thr_pid)); \
+	else \
+		DBG_THR(("%s(): thread:%s:%lx flushed OK\n", __FUNCTION__, \
+			 (tsk_ctl)->proc_name, (tsk_ctl)->thr_pid)); \
 }
 
 /*  ----------------------- */
@@ -771,8 +872,10 @@ not match our unaligned address for < 2.6.24
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
 #define RANDOM32	prandom_u32
+#define RANDOM_BYTES    prandom_bytes
 #else
 #define RANDOM32	random32
+#define RANDOM_BYTES    get_random_bytes
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0) */
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
@@ -785,7 +888,7 @@ not match our unaligned address for < 2.6.24
  * Overide latest kfifo functions with
  * older version to work on older kernels
  */
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 33))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 33)) && !defined(WL_COMPAT_WIRELESS)
 #define kfifo_in_spinlocked(a, b, c, d)		kfifo_put(a, (u8 *)b, c)
 #define kfifo_out_spinlocked(a, b, c, d)	kfifo_get(a, (u8 *)b, c)
 #define kfifo_esize(a)				1
@@ -807,5 +910,16 @@ static inline struct inode *file_inode(const struct file *f)
 	return f->f_dentry->d_inode;
 }
 #endif /* (LINUX_VERSION_CODE < KERNEL_VERSION(3, 9, 0)) */
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0) */
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)
+#define vfs_write(fp, buf, len, pos) kernel_write(fp, buf, len, pos)
+#define vfs_read(fp, buf, len, pos) kernel_read(fp, buf, len, pos)
+int kernel_read_compat(struct file *file, loff_t offset, char *addr, unsigned long count);
+#else /* LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0) */
+#define kernel_read_compat(file, offset, addr, count) kernel_read(file, offset, addr, count)
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0) */
 
 #endif /* _linuxver_h_ */

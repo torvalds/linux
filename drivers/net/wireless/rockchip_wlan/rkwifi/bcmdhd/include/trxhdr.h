@@ -1,14 +1,14 @@
 /*
  * TRX image file header format.
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
+ * Copyright (C) 2020, Broadcom.
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -16,15 +16,9 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
- *      Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a license
- * other than the GPL, without Broadcom's express prior written consent.
  *
  *
- * <<Broadcom-WL-IPTag/Open:>>
- *
- * $Id: trxhdr.h 520026 2014-12-10 01:29:40Z $
+ * <<Broadcom-WL-IPTag/Dual:>>
  */
 
 #ifndef _TRX_HDR_H
@@ -80,7 +74,11 @@ struct trx_header {
 #define TRX_V2_MAX_OFFSETS	5
 #define SIZEOF_TRXHDR_V1	(sizeof(struct trx_header)+(TRX_V1_MAX_OFFSETS-1)*sizeof(uint32))
 #define SIZEOF_TRXHDR_V2	(sizeof(struct trx_header)+(TRX_V2_MAX_OFFSETS-1)*sizeof(uint32))
+#ifdef IL_BIGENDIAN
+#define TRX_VER(trx)		(ltoh32((trx)->flag_version>>16))
+#else
 #define TRX_VER(trx)		((trx)->flag_version>>16)
+#endif
 #define ISTRX_V1(trx)		(TRX_VER(trx) == TRX_V1)
 #define ISTRX_V2(trx)		(TRX_VER(trx) == TRX_V2)
 /* For V2, return size of V2 size: others, return V1 size */

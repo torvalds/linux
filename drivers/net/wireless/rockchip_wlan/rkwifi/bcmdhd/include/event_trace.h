@@ -1,14 +1,14 @@
 /*
  * Trace log blocks sent over HBUS
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
+ * Copyright (C) 2020, Broadcom.
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -16,15 +16,9 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
- *      Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a license
- * other than the GPL, without Broadcom's express prior written consent.
  *
  *
- * <<Broadcom-WL-IPTag/Open:>>
- *
- * $Id: event_trace.h 645268 2016-06-23 08:39:17Z $
+ * <<Broadcom-WL-IPTag/Dual:>>
  */
 
 /**
@@ -35,6 +29,8 @@
 
 #ifndef	_WL_DIAG_H
 #define	_WL_DIAG_H
+
+#include <event_log.h>
 
 #define DIAG_MAJOR_VERSION      1	/* 4 bits */
 #define DIAG_MINOR_VERSION      0	/* 4 bits */
@@ -119,5 +115,73 @@ typedef union {
 	};
 	uint32 t;
 } wl_event_log_id_ver_t;
+
+#define ETHER_ADDR_PACK_LOW(addr)  (((addr)->octet[3])<<24 | ((addr)->octet[2])<<16 | \
+	((addr)->octet[1])<<8 | ((addr)->octet[0]))
+#define ETHER_ADDR_PACK_HI(addr)   (((addr)->octet[5])<<8 | ((addr)->octet[4]))
+#define SSID_PACK(addr)   (((uint8)(addr)[0])<<24 | ((uint8)(addr)[1])<<16 | \
+	((uint8)(addr)[2])<<8 | ((uint8)(addr)[3]))
+
+/* for each event id with logging data, define its logging data structure */
+
+typedef union {
+	struct {
+		uint16 status:	16;
+		uint16 paraset:	16;
+	};
+	uint32 t;
+} wl_event_log_blk_ack_t;
+
+typedef union {
+	struct {
+		uint8	mode:	8;
+		uint8	count:	8;
+		uint16    ch:	16;
+	};
+	uint32 t;
+} wl_event_log_csa_t;
+
+typedef union {
+	struct {
+		uint8  status:		1;
+		uint16 notused:		15;
+		uint16 frag_tx_cnt:	16;
+	};
+	uint32 t;
+} wl_event_log_eapol_tx_t;
+
+typedef union {
+	struct {
+		uint16 tag;
+		uint16 length; /* length of value in bytes */
+	};
+	uint32 t;
+} wl_event_log_tlv_hdr_t;
+
+#ifdef WL_EVENT_LOG_COMPILE
+#define _WL_EVENT_LOG(tag, event, ...)					\
+	do {								\
+		event_log_top_t * event_log_top = event_log_get_top();	\
+		wl_event_log_id_ver_t entry = {{event, DIAG_VERSION}};	\
+		event_log_top->timestamp = OSL_SYSUPTIME();		\
+		EVENT_LOG(tag, "WL event", entry.t , ## __VA_ARGS__);	\
+	} while (0)
+#define WL_EVENT_LOG(args)	_WL_EVENT_LOG args
+#else
+#define WL_EVENT_LOG(args)
+#endif    /* WL_EVENT_LOG_COMPILE */
+
+#ifdef NAN_EVENT_LOG_COMPILE
+#define _NAN_EVENT_LOG(tag, event, ...)					\
+	do {								\
+		event_log_top_t * event_log_top = event_log_get_top();	\
+		wl_event_log_id_ver_t hdr = {{event, DIAG_VERSION}};	\
+		event_log_top->timestamp = OSL_SYSUPTIME();		\
+		EVENT_LOG(tag, "NAN event", hdr.t , ## __VA_ARGS__);	\
+	} while (0)
+#define NAN_EVENT_LOG(args)	_NAN_EVENT_LOG args
+#else
+#define NAN_EVENT_LOG(args)
+#endif /* NAN_EVENT_LOG_COMPILE */
 
 #endif	/* _WL_DIAG_H */

@@ -6,14 +6,14 @@
  *
  * NOTE: A ring of size N, may only hold N-1 elements.
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
+ * Copyright (C) 2020, Broadcom.
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -21,15 +21,9 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
- *      Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a license
- * other than the GPL, without Broadcom's express prior written consent.
  *
  *
- * <<Broadcom-WL-IPTag/Open:>>
- *
- * $Id: bcm_ring.h 596126 2015-10-29 19:53:48Z $
+ * <<Broadcom-WL-IPTag/Dual:>>
  */
 #ifndef __bcm_ring_included__
 #define __bcm_ring_included__
@@ -101,28 +95,6 @@
  * private L1 data cache.
  * +----------------------------------------------------------------------------
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
- *      Unless you and Broadcom execute a separate written software license
- * agreement governing use of this software, this software is licensed to you
- * under the terms of the GNU General Public License version 2 (the "GPL"),
- * available at http://www.broadcom.com/licenses/GPLv2.php, with the
- * following added to such license:
- * 
- *      As a special exception, the copyright holders of this software give you
- * permission to link this software with independent modules, and to copy and
- * distribute the resulting executable under terms of your choice, provided that
- * you also meet, for each linked independent module, the terms and conditions of
- * the license of that module.  An independent module is a module which is not
- * derived from this software.  The special exception does not apply to any
- * modifications of the software.
- * 
- *      Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a license
- * other than the GPL, without Broadcom's express prior written consent.
- *
- * $Id: bcm_ring.h 596126 2015-10-29 19:53:48Z $
- *
  * -*- Mode: C; tab-width: 4; indent-tabs-mode: t; c-basic-offset: 4 -*-
  * vim: set ts=4 noet sw=4 tw=80:
  *
@@ -166,23 +138,22 @@ typedef struct bcm_ring {     /* Ring context */
 	int read  __ring_aligned; /* READ index in a circular ring */
 } bcm_ring_t;
 
-
 static INLINE void bcm_ring_init(bcm_ring_t *ring);
 static INLINE void bcm_ring_copy(bcm_ring_t *to, bcm_ring_t *from);
-static INLINE bool bcm_ring_is_empty(bcm_ring_t *ring);
+static INLINE bool bcm_ring_is_empty(const bcm_ring_t *ring);
 
-static INLINE int  __bcm_ring_next_write(bcm_ring_t *ring, const int ring_size);
+static INLINE int  __bcm_ring_next_write(const bcm_ring_t *ring, const int ring_size);
 
-static INLINE bool __bcm_ring_full(bcm_ring_t *ring, int next_write);
+static INLINE bool __bcm_ring_full(const bcm_ring_t *ring, int next_write);
 static INLINE bool bcm_ring_is_full(bcm_ring_t *ring, const int ring_size);
 
 static INLINE void bcm_ring_prod_done(bcm_ring_t *ring, int write);
-static INLINE int  bcm_ring_prod_pend(bcm_ring_t *ring, int *pend_write,
+static INLINE int  bcm_ring_prod_pend(const bcm_ring_t *ring, int *pend_write,
                                       const int ring_size);
 static INLINE int  bcm_ring_prod(bcm_ring_t *ring, const int ring_size);
 
 static INLINE void bcm_ring_cons_done(bcm_ring_t *ring, int read);
-static INLINE int  bcm_ring_cons_pend(bcm_ring_t *ring, int *pend_read,
+static INLINE int  bcm_ring_cons_pend(const bcm_ring_t *ring, int *pend_read,
                                       const int ring_size);
 static INLINE int  bcm_ring_cons(bcm_ring_t *ring, const int ring_size);
 
@@ -194,7 +165,6 @@ static INLINE int  bcm_ring_prod_avail(const bcm_ring_t *ring,
 static INLINE int  bcm_ring_cons_avail(const bcm_ring_t *ring,
                                        const int ring_size);
 static INLINE void bcm_ring_cons_all(bcm_ring_t *ring);
-
 
 /**
  * bcm_ring_init - initialize a ring context.
@@ -232,12 +202,11 @@ bcm_ring_copy(bcm_ring_t *to, bcm_ring_t *from)
  * PS. does not return BCM_RING_EMPTY value.
  */
 static INLINE bool
-bcm_ring_is_empty(bcm_ring_t *ring)
+bcm_ring_is_empty(const bcm_ring_t *ring)
 {
 	RING_ASSERT(BCM_RING_IS_VALID(ring));
 	return (ring->read == ring->write);
 }
-
 
 /**
  * __bcm_ring_next_write - determine the index where the next write may occur
@@ -248,12 +217,11 @@ bcm_ring_is_empty(bcm_ring_t *ring)
  * PRIVATE INTERNAL USE ONLY.
  */
 static INLINE int
-__bcm_ring_next_write(bcm_ring_t *ring, const int ring_size)
+__bcm_ring_next_write(const bcm_ring_t *ring, const int ring_size)
 {
 	RING_ASSERT(BCM_RING_IS_VALID(ring) && BCM_RING_SIZE_IS_VALID(ring_size));
 	return ((ring->write + 1) % ring_size);
 }
-
 
 /**
  * __bcm_ring_full - support function for ring full test.
@@ -263,11 +231,10 @@ __bcm_ring_next_write(bcm_ring_t *ring, const int ring_size)
  * PRIVATE INTERNAL USE ONLY.
  */
 static INLINE bool
-__bcm_ring_full(bcm_ring_t *ring, int next_write)
+__bcm_ring_full(const bcm_ring_t *ring, int next_write)
 {
 	return (next_write == ring->read);
 }
-
 
 /**
  * bcm_ring_is_full - "Boolean" test whether a ring is full.
@@ -285,7 +252,6 @@ bcm_ring_is_full(bcm_ring_t *ring, const int ring_size)
 	return __bcm_ring_full(ring, next_write);
 }
 
-
 /**
  * bcm_ring_prod_done - commit a previously pending index where production
  * was requested.
@@ -300,7 +266,6 @@ bcm_ring_prod_done(bcm_ring_t *ring, int write)
 	ring->write = write;
 }
 
-
 /**
  * bcm_ring_prod_pend - Fetch in "pend" mode, the index where an element may be
  * produced.
@@ -309,7 +274,7 @@ bcm_ring_prod_done(bcm_ring_t *ring, int write)
  * @ring_size: size of the ring
  */
 static INLINE int
-bcm_ring_prod_pend(bcm_ring_t *ring, int *pend_write, const int ring_size)
+bcm_ring_prod_pend(const bcm_ring_t *ring, int *pend_write, const int ring_size)
 {
 	int rtn;
 	RING_ASSERT(BCM_RING_IS_VALID(ring) && BCM_RING_SIZE_IS_VALID(ring_size));
@@ -323,7 +288,6 @@ bcm_ring_prod_pend(bcm_ring_t *ring, int *pend_write, const int ring_size)
 	}
 	return rtn;
 }
-
 
 /**
  * bcm_ring_prod - Fetch and "commit" the next index where a ring element may
@@ -347,7 +311,6 @@ bcm_ring_prod(bcm_ring_t *ring, const int ring_size)
 	return prod_write;
 }
 
-
 /**
  * bcm_ring_cons_done - commit a previously pending read
  * @ring: pointer to a ring context
@@ -360,7 +323,6 @@ bcm_ring_cons_done(bcm_ring_t *ring, int read)
 	ring->read = read;
 }
 
-
 /**
  * bcm_ring_cons_pend - fetch in "pend" mode, the next index where a ring
  * element may be consumed.
@@ -369,7 +331,7 @@ bcm_ring_cons_done(bcm_ring_t *ring, int read)
  * @ring_size: size of the ring
  */
 static INLINE int
-bcm_ring_cons_pend(bcm_ring_t *ring, int *pend_read, const int ring_size)
+bcm_ring_cons_pend(const bcm_ring_t *ring, int *pend_read, const int ring_size)
 {
 	int rtn;
 	RING_ASSERT(BCM_RING_IS_VALID(ring) && BCM_RING_SIZE_IS_VALID(ring_size));
@@ -383,7 +345,6 @@ bcm_ring_cons_pend(bcm_ring_t *ring, int *pend_read, const int ring_size)
 	}
 	return rtn;
 }
-
 
 /**
  * bcm_ring_cons - fetch and "commit" the next index where a ring element may
@@ -405,7 +366,6 @@ bcm_ring_cons(bcm_ring_t *ring, const int ring_size)
 	return cons_read;
 }
 
-
 /**
  * bcm_ring_sync_read - on consumption, update peer's read index.
  * @peer: pointer to peer's producer ring context
@@ -419,7 +379,6 @@ bcm_ring_sync_read(bcm_ring_t *peer, const bcm_ring_t *self)
 	peer->read = self->read; /* flush read update to peer producer */
 }
 
-
 /**
  * bcm_ring_sync_write - on consumption, update peer's write index.
  * @peer: pointer to peer's consumer ring context
@@ -432,7 +391,6 @@ bcm_ring_sync_write(bcm_ring_t *peer, const bcm_ring_t *self)
 	RING_ASSERT(BCM_RING_IS_VALID(self));
 	peer->write = self->write; /* flush write update to peer consumer */
 }
-
 
 /**
  * bcm_ring_prod_avail - fetch total number of available empty slots in the
@@ -453,7 +411,6 @@ bcm_ring_prod_avail(const bcm_ring_t *ring, const int ring_size)
 	ASSERT(prod_avail < ring_size);
 	return prod_avail;
 }
-
 
 /**
  * bcm_ring_cons_avail - fetch total number of available elements for consumption.
@@ -476,7 +433,6 @@ bcm_ring_cons_avail(const bcm_ring_t *ring, const int ring_size)
 	return cons_avail;
 }
 
-
 /**
  * bcm_ring_cons_all - set ring in state where all elements are consumed.
  * @ring: pointer to a ring context
@@ -486,7 +442,6 @@ bcm_ring_cons_all(bcm_ring_t *ring)
 {
 	ring->read = ring->write;
 }
-
 
 /**
  * Work Queue
@@ -503,7 +458,6 @@ struct bcm_workq {
 } __ring_aligned;
 
 typedef struct bcm_workq bcm_workq_t;
-
 
 /* #define BCM_WORKQ_DEBUG */
 #if defined(BCM_WORKQ_DEBUG)
@@ -530,11 +484,10 @@ typedef struct bcm_workq bcm_workq_t;
 	((__elem_type *)((__workq)->buffer)) + (__index); \
 })
 
-
 static INLINE void bcm_workq_init(bcm_workq_t *workq, bcm_workq_t *workq_peer,
                                   void *buffer, int ring_size);
 
-static INLINE bool bcm_workq_is_empty(bcm_workq_t *workq_prod);
+static INLINE bool bcm_workq_is_empty(const bcm_workq_t *workq_prod);
 
 static INLINE void bcm_workq_prod_sync(bcm_workq_t *workq_prod);
 static INLINE void bcm_workq_cons_sync(bcm_workq_t *workq_cons);
@@ -572,7 +525,7 @@ bcm_workq_init(bcm_workq_t *workq, bcm_workq_t *workq_peer,
  * @workq_prod: producer's workq
  */
 static INLINE bool
-bcm_workq_is_empty(bcm_workq_t *workq_prod)
+bcm_workq_is_empty(const bcm_workq_t *workq_prod)
 {
 	return bcm_ring_is_empty(WORKQ_RING(workq_prod));
 }
@@ -603,7 +556,6 @@ bcm_workq_cons_sync(bcm_workq_t *workq_cons)
 	bcm_ring_sync_read(WORKQ_PEER_RING(workq_cons), WORKQ_RING(workq_cons));
 }
 
-
 /**
  * bcm_workq_prod_refresh - Fetch the updated consumer's read index
  * @workq_prod: producer's workq whose read index must be refreshed from peer
@@ -629,6 +581,5 @@ bcm_workq_cons_refresh(bcm_workq_t *workq_cons)
 	/* cons::write <--- prod::write */
 	bcm_ring_sync_write(WORKQ_RING(workq_cons), WORKQ_PEER_RING(workq_cons));
 }
-
 
 #endif /* ! __bcm_ring_h_included__ */

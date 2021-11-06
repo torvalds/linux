@@ -1,14 +1,14 @@
 /*
  * Broadcom PCI-SPI Host Controller Register Definitions
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
+ * Copyright (C) 2020, Broadcom.
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -16,15 +16,9 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
- *      Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a license
- * other than the GPL, without Broadcom's express prior written consent.
  *
  *
- * <<Broadcom-WL-IPTag/Open:>>
- *
- * $Id: bcmpcispi.h 514727 2014-11-12 03:02:48Z $
+ * <<Broadcom-WL-IPTag/Dual:>>
  */
 #ifndef	_BCM_PCI_SPI_H
 #define	_BCM_PCI_SPI_H
@@ -36,6 +30,34 @@
 #define	PAD		_XSTR(__LINE__)
 #endif	/* PAD */
 
+/*
++---------------------------------------------------------------------------+
+|                                                                           |
+|                     7     6     5     4     3     2     1       0         |
+| 0x0000  SPI_CTRL    SPIE  SPE   0     MSTR  CPOL  CPHA  SPR1    SPR0      |
+| 0x0004  SPI_STAT    SPIF  WCOL  ST1   ST0   WFFUL WFEMP RFFUL   RFEMP     |
+| 0x0008  SPI_DATA    Bits 31:0, data to send out on MOSI                   |
+| 0x000C  SPI_EXT     ICNT1 ICNT0 BSWAP *HSMODE           ESPR1   ESPR0     |
+| 0x0020  GPIO_OE     0=input, 1=output                   PWR_OE  CS_OE     |
+| 0x0024  GPIO_DATA   CARD:1=missing, 0=present     CARD  PWR_DAT CS_DAT    |
+| 0x0040  INT_EDGE    0=level, 1=edge                     DEV_E   SPI_E     |
+| 0x0044  INT_POL     1=active high, 0=active low         DEV_P   SPI_P     |
+| 0x0048  INTMASK                                         DEV     SPI       |
+| 0x004C  INTSTATUS                                       DEV     SPI       |
+| 0x0060  HEXDISP     Reset value: 0x14e443f5.  In hexdisp mode, value      |
+|                     shows on the Raggedstone1 4-digit 7-segment display.  |
+| 0x0064  CURRENT_MA  Low 16 bits indicate card current consumption in mA   |
+| 0x006C  DISP_SEL    Display mode (0=hexdisp, 1=current)         DSP       |
+| 0x00C0  PLL_CTL     bit31=ext_clk, remainder unused.                      |
+| 0x00C4  PLL_STAT                            LOCK                          |
+| 0x00C8  CLK_FREQ                                                          |
+| 0x00CC  CLK_CNT                                                           |
+|                                                                           |
+| *Notes: HSMODE is not implemented, never set this bit!                    |
+| BSWAP is available in rev >= 8                                            |
+|                                                                           |
++---------------------------------------------------------------------------+
+*/
 
 typedef volatile struct {
 	uint32 spih_ctrl;		/* 0x00 SPI Control Register */
@@ -146,14 +168,12 @@ typedef volatile struct {
 #define PCI_SYS_ERR_INT_EN	(1 << 4)	/* System Error Interrupt Enable */
 #define PCI_SOFTWARE_RESET	(1U << 31)	/* Software reset of the PCI Core. */
 
-
 /* PCI Core ISR Register bit definitions */
 #define PCI_INT_PROP_ST		(1 << 0)	/* Interrupt Propagation Status */
 #define PCI_WB_ERR_INT_ST	(1 << 1)	/* Wishbone Error Interrupt Status */
 #define PCI_PCI_ERR_INT_ST	(1 << 2)	/* PCI Error Interrupt Status */
 #define PCI_PAR_ERR_INT_ST	(1 << 3)	/* Parity Error Interrupt Status */
 #define PCI_SYS_ERR_INT_ST	(1 << 4)	/* System Error Interrupt Status */
-
 
 /* Registers on the Wishbone bus */
 #define SPIH_CTLR_INTR		(1 << 0)	/* SPI Host Controller Core Interrupt */

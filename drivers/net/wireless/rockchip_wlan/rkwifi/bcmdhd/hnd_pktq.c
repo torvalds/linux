@@ -1,14 +1,14 @@
 /*
  * HND generic pktq operation primitives
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
+ * Copyright (C) 2020, Broadcom.
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -16,15 +16,9 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
- *      Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a license
- * other than the GPL, without Broadcom's express prior written consent.
  *
  *
- * <<Broadcom-WL-IPTag/Open:>>
- *
- * $Id: hnd_pktq.c 644628 2016-06-21 06:25:58Z $
+ * <<Broadcom-WL-IPTag/Dual:>>
  */
 
 #include <typedefs.h>
@@ -44,14 +38,19 @@
 #define HND_PKTQ_MUTEX_DELETE(mutex)		OSL_EXT_SUCCESS
 #define HND_PKTQ_MUTEX_ACQUIRE(mutex, msec)	OSL_EXT_SUCCESS
 #define HND_PKTQ_MUTEX_RELEASE(mutex)		OSL_EXT_SUCCESS
-#endif /* */
+#endif /* HND_PKTQ_THREAD_SAFE */
 
+/* status during txfifo sync */
+#if defined(PROP_TXSTATUS)
+#define TXQ_PKT_DEL		0x01
+#define HEAD_PKT_FLUSHED	0xFF
+#endif /* defined(PROP_TXSTATUS) */
 /*
  * osl multiple-precedence packet queue
  * hi_prec is always >= the number of the highest non-empty precedence
  */
-void * BCMFASTPATH
-pktq_penq(struct pktq *pq, int prec, void *p)
+void *
+BCMFASTPATH(pktq_penq)(struct pktq *pq, int prec, void *p)
 {
 	struct pktq_prec *q;
 
@@ -59,11 +58,11 @@ pktq_penq(struct pktq *pq, int prec, void *p)
 	if (HND_PKTQ_MUTEX_ACQUIRE(&pq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
 		return NULL;
 
-	ASSERT(prec >= 0 && prec < pq->num_prec);
-	ASSERT(PKTLINK(p) == NULL);		/* queueing chains not allowed */
+	ASSERT_FP(prec >= 0 && prec < pq->num_prec);
+	ASSERT_FP(PKTLINK(p) == NULL);		/* queueing chains not allowed */
 
-	ASSERT(!pktq_full(pq));
-	ASSERT(!pktq_pfull(pq, prec));
+	ASSERT_FP(!pktq_full(pq));
+	ASSERT_FP(!pktqprec_full(pq, prec));
 
 	q = &pq->q[prec];
 
@@ -73,9 +72,9 @@ pktq_penq(struct pktq *pq, int prec, void *p)
 		q->head = p;
 
 	q->tail = p;
-	q->len++;
+	q->n_pkts++;
 
-	pq->len++;
+	pq->n_pkts_tot++;
 
 	if (pq->hi_prec < prec)
 		pq->hi_prec = (uint8)prec;
@@ -87,8 +86,79 @@ pktq_penq(struct pktq *pq, int prec, void *p)
 	return p;
 }
 
-void * BCMFASTPATH
-pktq_penq_head(struct pktq *pq, int prec, void *p)
+void *
+BCMFASTPATH(spktq_enq_chain)(struct spktq *dspq, struct spktq *sspq)
+{
+	struct pktq_prec *dq;
+	struct pktq_prec *sq;
+
+	/* protect shared resource */
+	if (HND_PKTQ_MUTEX_ACQUIRE(&dspq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
+		return NULL;
+
+	/* protect shared resource */
+	if (HND_PKTQ_MUTEX_ACQUIRE(&sspq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
+		return NULL;
+
+	dq = &dspq->q;
+	sq = &sspq->q;
+
+	if (dq->head) {
+		PKTSETLINK(OSL_PHYS_TO_VIRT_ADDR(dq->tail), OSL_VIRT_TO_PHYS_ADDR(sq->head));
+	}
+	else {
+		dq->head = sq->head;
+	}
+
+	dq->tail = sq->tail;
+	dq->n_pkts += sq->n_pkts;
+
+	/* protect shared resource */
+	if (HND_PKTQ_MUTEX_RELEASE(&dspq->mutex) != OSL_EXT_SUCCESS)
+		return NULL;
+
+	/* protect shared resource */
+	if (HND_PKTQ_MUTEX_RELEASE(&sspq->mutex) != OSL_EXT_SUCCESS)
+		return NULL;
+
+	return dspq;
+}
+
+/*
+ * osl simple, non-priority packet queue
+ */
+void *
+BCMFASTPATH(spktq_enq)(struct spktq *spq, void *p)
+{
+	struct pktq_prec *q;
+
+	/* protect shared resource */
+	if (HND_PKTQ_MUTEX_ACQUIRE(&spq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
+		return NULL;
+
+	ASSERT_FP(!spktq_full(spq));
+
+	PKTSETLINK(p, NULL);
+
+	q = &spq->q;
+
+	if (q->head)
+		PKTSETLINK(q->tail, p);
+	else
+		q->head = p;
+
+	q->tail = p;
+	q->n_pkts++;
+
+	/* protect shared resource */
+	if (HND_PKTQ_MUTEX_RELEASE(&spq->mutex) != OSL_EXT_SUCCESS)
+		return NULL;
+
+	return p;
+}
+
+void *
+BCMPOSTTRAPFASTPATH(pktq_penq_head)(struct pktq *pq, int prec, void *p)
 {
 	struct pktq_prec *q;
 
@@ -96,11 +166,11 @@ pktq_penq_head(struct pktq *pq, int prec, void *p)
 	if (HND_PKTQ_MUTEX_ACQUIRE(&pq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
 		return NULL;
 
-	ASSERT(prec >= 0 && prec < pq->num_prec);
-	ASSERT(PKTLINK(p) == NULL);		/* queueing chains not allowed */
+	ASSERT_FP(prec >= 0 && prec < pq->num_prec);
+	ASSERT_FP(PKTLINK(p) == NULL);		/* queueing chains not allowed */
 
-	ASSERT(!pktq_full(pq));
-	ASSERT(!pktq_pfull(pq, prec));
+	ASSERT_FP(!pktq_full(pq));
+	ASSERT_FP(!pktqprec_full(pq, prec));
 
 	q = &pq->q[prec];
 
@@ -109,13 +179,258 @@ pktq_penq_head(struct pktq *pq, int prec, void *p)
 
 	PKTSETLINK(p, q->head);
 	q->head = p;
-	q->len++;
+	q->n_pkts++;
 
-	pq->len++;
+	pq->n_pkts_tot++;
 
 	if (pq->hi_prec < prec)
 		pq->hi_prec = (uint8)prec;
 
+	/* protect shared resource */
+	if (HND_PKTQ_MUTEX_RELEASE(&pq->mutex) != OSL_EXT_SUCCESS)
+		return NULL;
+
+	return p;
+}
+
+void *
+BCMFASTPATH(spktq_enq_head)(struct spktq *spq, void *p)
+{
+	struct pktq_prec *q;
+
+	/* protect shared resource */
+	if (HND_PKTQ_MUTEX_ACQUIRE(&spq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
+		return NULL;
+
+	ASSERT_FP(!spktq_full(spq));
+
+	PKTSETLINK(p, NULL);
+
+	q = &spq->q;
+
+	if (q->head == NULL)
+		q->tail = p;
+
+	PKTSETLINK(p, q->head);
+	q->head = p;
+	q->n_pkts++;
+
+	/* protect shared resource */
+	if (HND_PKTQ_MUTEX_RELEASE(&spq->mutex) != OSL_EXT_SUCCESS)
+		return NULL;
+
+	return p;
+}
+
+void *
+BCMFASTPATH(pktq_pdeq)(struct pktq *pq, int prec)
+{
+	struct pktq_prec *q;
+	void *p;
+
+	/* protect shared resource */
+	if (HND_PKTQ_MUTEX_ACQUIRE(&pq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
+		return NULL;
+
+	ASSERT_FP(prec >= 0 && prec < pq->num_prec);
+
+	q = &pq->q[prec];
+
+	if ((p = q->head) == NULL)
+		goto done;
+
+	if ((q->head = PKTLINK(p)) == NULL)
+		q->tail = NULL;
+
+	q->n_pkts--;
+
+	pq->n_pkts_tot--;
+
+#ifdef WL_TXQ_STALL
+	q->dequeue_count++;
+#endif
+
+	PKTSETLINK(p, NULL);
+
+done:
+	/* protect shared resource */
+	if (HND_PKTQ_MUTEX_RELEASE(&pq->mutex) != OSL_EXT_SUCCESS)
+		return NULL;
+
+	return p;
+}
+
+void *
+BCMFASTPATH(spktq_deq)(struct spktq *spq)
+{
+	struct pktq_prec *q;
+	void *p;
+
+	/* protect shared resource */
+	if (HND_PKTQ_MUTEX_ACQUIRE(&spq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
+		return NULL;
+
+	q = &spq->q;
+
+	if ((p = q->head) == NULL)
+		goto done;
+
+	if ((q->head = PKTLINK(p)) == NULL)
+		q->tail = NULL;
+
+	q->n_pkts--;
+
+#ifdef WL_TXQ_STALL
+	q->dequeue_count++;
+#endif
+
+	PKTSETLINK(p, NULL);
+
+done:
+	/* protect shared resource */
+	if (HND_PKTQ_MUTEX_RELEASE(&spq->mutex) != OSL_EXT_SUCCESS)
+		return NULL;
+
+	return p;
+}
+
+void*
+BCMFASTPATH(spktq_deq_virt)(struct spktq *spq)
+{
+	struct pktq_prec *q;
+	void *p;
+
+	/* protect shared resource */
+	if (HND_PKTQ_MUTEX_ACQUIRE(&spq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
+		return NULL;
+
+	q = &spq->q;
+
+	if ((p = q->head) == NULL)
+		goto done;
+
+	p = (void *)OSL_PHYS_TO_VIRT_ADDR(p);
+
+	if ((q->head = (void*)PKTLINK(p)) == NULL)
+		q->tail = NULL;
+
+	q->n_pkts--;
+
+#ifdef WL_TXQ_STALL
+	q->dequeue_count++;
+#endif
+
+	PKTSETLINK(p, NULL);
+
+done:
+	/* protect shared resource */
+	if (HND_PKTQ_MUTEX_RELEASE(&spq->mutex) != OSL_EXT_SUCCESS)
+		return NULL;
+
+	return p;
+}
+
+void *
+BCMFASTPATH(pktq_pdeq_tail)(struct pktq *pq, int prec)
+{
+	struct pktq_prec *q;
+	void *p, *prev;
+
+	/* protect shared resource */
+	if (HND_PKTQ_MUTEX_ACQUIRE(&pq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
+		return NULL;
+
+	ASSERT_FP(prec >= 0 && prec < pq->num_prec);
+
+	q = &pq->q[prec];
+
+	if ((p = q->head) == NULL)
+		goto done;
+
+	for (prev = NULL; p != q->tail; p = PKTLINK(p))
+		prev = p;
+
+	if (prev)
+		PKTSETLINK(prev, NULL);
+	else
+		q->head = NULL;
+
+	q->tail = prev;
+	q->n_pkts--;
+
+	pq->n_pkts_tot--;
+
+#ifdef WL_TXQ_STALL
+	q->dequeue_count++;
+#endif
+done:
+	/* protect shared resource */
+	if (HND_PKTQ_MUTEX_RELEASE(&pq->mutex) != OSL_EXT_SUCCESS)
+		return NULL;
+
+	return p;
+}
+
+void *
+BCMFASTPATH(spktq_deq_tail)(struct spktq *spq)
+{
+	struct pktq_prec *q;
+	void *p, *prev;
+
+	/* protect shared resource */
+	if (HND_PKTQ_MUTEX_ACQUIRE(&spq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
+		return NULL;
+
+	q = &spq->q;
+
+	if ((p = q->head) == NULL)
+		goto done;
+
+	for (prev = NULL; p != q->tail; p = PKTLINK(p))
+		prev = p;
+
+	if (prev)
+		PKTSETLINK(prev, NULL);
+	else
+		q->head = NULL;
+
+	q->tail = prev;
+	q->n_pkts--;
+
+#ifdef WL_TXQ_STALL
+	q->dequeue_count++;
+#endif
+done:
+	/* protect shared resource */
+	if (HND_PKTQ_MUTEX_RELEASE(&spq->mutex) != OSL_EXT_SUCCESS)
+		return NULL;
+
+	return p;
+}
+
+void *
+pktq_peek_tail(struct pktq *pq, int *prec_out)
+{
+	int prec;
+	void *p = NULL;
+
+	/* protect shared resource */
+	if (HND_PKTQ_MUTEX_ACQUIRE(&pq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
+		return NULL;
+
+	if (pq->n_pkts_tot == 0)
+		goto done;
+
+	for (prec = 0; prec < pq->hi_prec; prec++)
+		if (pq->q[prec].head)
+			break;
+
+	if (prec_out)
+		*prec_out = prec;
+
+	p = pq->q[prec].tail;
+
+done:
 	/* protect shared resource */
 	if (HND_PKTQ_MUTEX_RELEASE(&pq->mutex) != OSL_EXT_SUCCESS)
 		return NULL;
@@ -126,8 +441,8 @@ pktq_penq_head(struct pktq *pq, int prec, void *p)
 /*
  * Append spktq 'list' to the tail of pktq 'pq'
  */
-void BCMFASTPATH
-pktq_append(struct pktq *pq, int prec, struct spktq *list)
+void
+BCMFASTPATH(pktq_append)(struct pktq *pq, int prec, struct spktq *list)
 {
 	struct pktq_prec *q;
 	struct pktq_prec *list_q;
@@ -136,17 +451,17 @@ pktq_append(struct pktq *pq, int prec, struct spktq *list)
 	if (HND_PKTQ_MUTEX_ACQUIRE(&pq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
 		return;
 
-	list_q = &list->q[0];
+	list_q = &list->q;
 
 	/* empty list check */
 	if (list_q->head == NULL)
 		goto done;
 
-	ASSERT(prec >= 0 && prec < pq->num_prec);
-	ASSERT(PKTLINK(list_q->tail) == NULL);         /* terminated list */
+	ASSERT_FP(prec >= 0 && prec < pq->num_prec);
+	ASSERT_FP(PKTLINK(list_q->tail) == NULL);         /* terminated list */
 
-	ASSERT(!pktq_full(pq));
-	ASSERT(!pktq_pfull(pq, prec));
+	ASSERT_FP(!pktq_full(pq));
+	ASSERT_FP(!pktqprec_full(pq, prec));
 
 	q = &pq->q[prec];
 
@@ -156,16 +471,19 @@ pktq_append(struct pktq *pq, int prec, struct spktq *list)
 		q->head = list_q->head;
 
 	q->tail = list_q->tail;
-	q->len += list_q->len;
-	pq->len += list_q->len;
+	q->n_pkts += list_q->n_pkts;
+	pq->n_pkts_tot += list_q->n_pkts;
 
 	if (pq->hi_prec < prec)
 		pq->hi_prec = (uint8)prec;
 
+#ifdef WL_TXQ_STALL
+	list_q->dequeue_count += list_q->n_pkts;
+#endif
+
 	list_q->head = NULL;
 	list_q->tail = NULL;
-	list_q->len = 0;
-	list->len = 0;
+	list_q->n_pkts = 0;
 
 done:
 	/* protect shared resource */
@@ -174,10 +492,57 @@ done:
 }
 
 /*
+ * Append spktq 'list' to the tail of spktq 'spq'
+ */
+void
+BCMFASTPATH(spktq_append)(struct spktq *spq, struct spktq *list)
+{
+	struct pktq_prec *q;
+	struct pktq_prec *list_q;
+
+	/* protect shared resource */
+	if (HND_PKTQ_MUTEX_ACQUIRE(&spq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
+		return;
+
+	list_q = &list->q;
+
+	/* empty list check */
+	if (list_q->head == NULL)
+		goto done;
+
+	ASSERT_FP(PKTLINK(list_q->tail) == NULL);         /* terminated list */
+
+	ASSERT_FP(!spktq_full(spq));
+
+	q = &spq->q;
+
+	if (q->head)
+		PKTSETLINK(q->tail, list_q->head);
+	else
+		q->head = list_q->head;
+
+	q->tail = list_q->tail;
+	q->n_pkts += list_q->n_pkts;
+
+#ifdef WL_TXQ_STALL
+	list_q->dequeue_count += list_q->n_pkts;
+#endif
+
+	list_q->head = NULL;
+	list_q->tail = NULL;
+	list_q->n_pkts = 0;
+
+done:
+	/* protect shared resource */
+	if (HND_PKTQ_MUTEX_RELEASE(&spq->mutex) != OSL_EXT_SUCCESS)
+		return;
+}
+
+/*
  * Prepend spktq 'list' to the head of pktq 'pq'
  */
-void BCMFASTPATH
-pktq_prepend(struct pktq *pq, int prec, struct spktq *list)
+void
+BCMFASTPATH(pktq_prepend)(struct pktq *pq, int prec, struct spktq *list)
 {
 	struct pktq_prec *q;
 	struct pktq_prec *list_q;
@@ -186,17 +551,17 @@ pktq_prepend(struct pktq *pq, int prec, struct spktq *list)
 	if (HND_PKTQ_MUTEX_ACQUIRE(&pq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
 		return;
 
-	list_q = &list->q[0];
+	list_q = &list->q;
 
 	/* empty list check */
 	if (list_q->head == NULL)
 		goto done;
 
-	ASSERT(prec >= 0 && prec < pq->num_prec);
-	ASSERT(PKTLINK(list_q->tail) == NULL);         /* terminated list */
+	ASSERT_FP(prec >= 0 && prec < pq->num_prec);
+	ASSERT_FP(PKTLINK(list_q->tail) == NULL);         /* terminated list */
 
-	ASSERT(!pktq_full(pq));
-	ASSERT(!pktq_pfull(pq, prec));
+	ASSERT_FP(!pktq_full(pq));
+	ASSERT_FP(!pktqprec_full(pq, prec));
 
 	q = &pq->q[prec];
 
@@ -212,16 +577,19 @@ pktq_prepend(struct pktq *pq, int prec, struct spktq *list)
 		q->tail = list_q->tail;
 	}
 
-	q->len += list_q->len;
-	pq->len += list_q->len;
+	q->n_pkts += list_q->n_pkts;
+	pq->n_pkts_tot += list_q->n_pkts;
 
 	if (pq->hi_prec < prec)
 		pq->hi_prec = (uint8)prec;
 
+#ifdef WL_TXQ_STALL
+	list_q->dequeue_count += list_q->n_pkts;
+#endif
+
 	list_q->head = NULL;
 	list_q->tail = NULL;
-	list_q->len = 0;
-	list->len = 0;
+	list_q->n_pkts = 0;
 
 done:
 	/* protect shared resource */
@@ -229,42 +597,61 @@ done:
 		return;
 }
 
-void * BCMFASTPATH
-pktq_pdeq(struct pktq *pq, int prec)
+/*
+ * Prepend spktq 'list' to the head of spktq 'spq'
+ */
+void
+BCMFASTPATH(spktq_prepend)(struct spktq *spq, struct spktq *list)
 {
 	struct pktq_prec *q;
-	void *p;
+	struct pktq_prec *list_q;
 
 	/* protect shared resource */
-	if (HND_PKTQ_MUTEX_ACQUIRE(&pq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
-		return NULL;
+	if (HND_PKTQ_MUTEX_ACQUIRE(&spq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
+		return;
 
-	ASSERT(prec >= 0 && prec < pq->num_prec);
+	list_q = &list->q;
 
-	q = &pq->q[prec];
-
-	if ((p = q->head) == NULL)
+	/* empty list check */
+	if (list_q->head == NULL)
 		goto done;
 
-	if ((q->head = PKTLINK(p)) == NULL)
-		q->tail = NULL;
+	ASSERT_FP(PKTLINK(list_q->tail) == NULL);         /* terminated list */
 
-	q->len--;
+	ASSERT_FP(!spktq_full(spq));
 
-	pq->len--;
+	q = &spq->q;
 
-	PKTSETLINK(p, NULL);
+	/* set the tail packet of list to point at the former pq head */
+	PKTSETLINK(list_q->tail, q->head);
+	/* the new q head is the head of list */
+	q->head = list_q->head;
+
+	/* If the q tail was non-null, then it stays as is.
+	 * If the q tail was null, it is now the tail of list
+	 */
+	if (q->tail == NULL) {
+		q->tail = list_q->tail;
+	}
+
+	q->n_pkts += list_q->n_pkts;
+
+#ifdef WL_TXQ_STALL
+	list_q->dequeue_count += list_q->n_pkts;
+#endif
+
+	list_q->head = NULL;
+	list_q->tail = NULL;
+	list_q->n_pkts = 0;
 
 done:
 	/* protect shared resource */
-	if (HND_PKTQ_MUTEX_RELEASE(&pq->mutex) != OSL_EXT_SUCCESS)
-		return NULL;
-
-	return p;
+	if (HND_PKTQ_MUTEX_RELEASE(&spq->mutex) != OSL_EXT_SUCCESS)
+		return;
 }
 
-void * BCMFASTPATH
-pktq_pdeq_prev(struct pktq *pq, int prec, void *prev_p)
+void *
+BCMFASTPATH(pktq_pdeq_prev)(struct pktq *pq, int prec, void *prev_p)
 {
 	struct pktq_prec *q;
 	void *p = NULL;
@@ -273,7 +660,7 @@ pktq_pdeq_prev(struct pktq *pq, int prec, void *prev_p)
 	if (HND_PKTQ_MUTEX_ACQUIRE(&pq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
 		return NULL;
 
-	ASSERT(prec >= 0 && prec < pq->num_prec);
+	ASSERT_FP(prec >= 0 && prec < pq->num_prec);
 
 	q = &pq->q[prec];
 
@@ -283,10 +670,13 @@ pktq_pdeq_prev(struct pktq *pq, int prec, void *prev_p)
 	if ((p = PKTLINK(prev_p)) == NULL)
 		goto done;
 
-	q->len--;
+	q->n_pkts--;
 
-	pq->len--;
+	pq->n_pkts_tot--;
 
+#ifdef WL_TXQ_STALL
+	q->dequeue_count++;
+#endif
 	PKTSETLINK(prev_p, PKTLINK(p));
 	PKTSETLINK(p, NULL);
 
@@ -298,8 +688,8 @@ done:
 	return p;
 }
 
-void * BCMFASTPATH
-pktq_pdeq_with_fn(struct pktq *pq, int prec, ifpkt_cb_t fn, int arg)
+void *
+BCMFASTPATH(pktq_pdeq_with_fn)(struct pktq *pq, int prec, ifpkt_cb_t fn, int arg)
 {
 	struct pktq_prec *q;
 	void *p, *prev = NULL;
@@ -308,7 +698,7 @@ pktq_pdeq_with_fn(struct pktq *pq, int prec, ifpkt_cb_t fn, int arg)
 	if (HND_PKTQ_MUTEX_ACQUIRE(&pq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
 		return NULL;
 
-	ASSERT(prec >= 0 && prec < pq->num_prec);
+	ASSERT_FP(prec >= 0 && prec < pq->num_prec);
 
 	q = &pq->q[prec];
 	p = q->head;
@@ -335,10 +725,13 @@ pktq_pdeq_with_fn(struct pktq *pq, int prec, ifpkt_cb_t fn, int arg)
 		}
 	}
 
-	q->len--;
+	q->n_pkts--;
 
-	pq->len--;
+	pq->n_pkts_tot--;
 
+#ifdef WL_TXQ_STALL
+	q->dequeue_count++;
+#endif
 	PKTSETLINK(p, NULL);
 
 done:
@@ -349,46 +742,8 @@ done:
 	return p;
 }
 
-void * BCMFASTPATH
-pktq_pdeq_tail(struct pktq *pq, int prec)
-{
-	struct pktq_prec *q;
-	void *p, *prev;
-
-	/* protect shared resource */
-	if (HND_PKTQ_MUTEX_ACQUIRE(&pq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
-		return NULL;
-
-	ASSERT(prec >= 0 && prec < pq->num_prec);
-
-	q = &pq->q[prec];
-
-	if ((p = q->head) == NULL)
-		goto done;
-
-	for (prev = NULL; p != q->tail; p = PKTLINK(p))
-		prev = p;
-
-	if (prev)
-		PKTSETLINK(prev, NULL);
-	else
-		q->head = NULL;
-
-	q->tail = prev;
-	q->len--;
-
-	pq->len--;
-
-done:
-	/* protect shared resource */
-	if (HND_PKTQ_MUTEX_RELEASE(&pq->mutex) != OSL_EXT_SUCCESS)
-		return NULL;
-
-	return p;
-}
-
-bool BCMFASTPATH
-pktq_pdel(struct pktq *pq, void *pktbuf, int prec)
+bool
+BCMFASTPATH(pktq_pdel)(struct pktq *pq, void *pktbuf, int prec)
 {
 	bool ret = FALSE;
 	struct pktq_prec *q;
@@ -398,7 +753,7 @@ pktq_pdel(struct pktq *pq, void *pktbuf, int prec)
 	if (HND_PKTQ_MUTEX_ACQUIRE(&pq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
 		return FALSE;
 
-	ASSERT(prec >= 0 && prec < pq->num_prec);
+	ASSERT_FP(prec >= 0 && prec < pq->num_prec);
 
 	/* Should this just assert pktbuf? */
 	if (!pktbuf)
@@ -420,8 +775,13 @@ pktq_pdel(struct pktq *pq, void *pktbuf, int prec)
 			q->tail = p;
 	}
 
-	q->len--;
-	pq->len--;
+	q->n_pkts--;
+	pq->n_pkts_tot--;
+
+#ifdef WL_TXQ_STALL
+	q->dequeue_count++;
+#endif
+
 	PKTSETLINK(pktbuf, NULL);
 	ret = TRUE;
 
@@ -452,9 +812,13 @@ _pktq_pfilter(struct pktq *pq, int prec, pktq_filter_t fltr, void* fltr_ctx,
 
 	q->head = NULL;
 	q->tail = NULL;
-	q->len = 0;
+	q->n_pkts = 0;
 
-	pq->len -= wq.len;
+#ifdef WL_TXQ_STALL
+	q->dequeue_count += wq.n_pkts;
+#endif
+
+	pq->n_pkts_tot -= wq.n_pkts;
 
 	/* protect shared resource */
 	if (HND_PKTQ_MUTEX_RELEASE(&pq->mutex) != OSL_EXT_SUCCESS)
@@ -465,7 +829,11 @@ _pktq_pfilter(struct pktq *pq, int prec, pktq_filter_t fltr, void* fltr_ctx,
 		/* unlink the current packet from the list */
 		wq.head = PKTLINK(p);
 		PKTSETLINK(p, NULL);
-		wq.len--;
+		wq.n_pkts--;
+
+#ifdef WL_TXQ_STALL
+		wq.dequeue_count++;
+#endif
 
 		/* call the filter function on current packet */
 		ASSERT(fltr != NULL);
@@ -491,7 +859,7 @@ _pktq_pfilter(struct pktq *pq, int prec, pktq_filter_t fltr, void* fltr_ctx,
 		}
 	}
 
-	ASSERT(wq.len == 0);
+	ASSERT(wq.n_pkts == 0);
 }
 
 void
@@ -514,10 +882,10 @@ pktq_filter(struct pktq *pq, pktq_filter_t fltr, void* fltr_ctx,
 	if (HND_PKTQ_MUTEX_ACQUIRE(&pq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
 		return;
 
-	/* Optimize if pktq len = 0, just return.
+	/* Optimize if pktq n_pkts = 0, just return.
 	 * pktq len of 0 means pktq's prec q's are all empty.
 	 */
-	if (pq->len > 0) {
+	if (pq->n_pkts_tot > 0) {
 		filter = TRUE;
 	}
 
@@ -537,25 +905,132 @@ pktq_filter(struct pktq *pq, pktq_filter_t fltr, void* fltr_ctx,
 	}
 }
 
+void
+spktq_filter(struct spktq *spq, pktq_filter_t fltr, void* fltr_ctx,
+	defer_free_pkt_fn_t defer, void *defer_ctx, flush_free_pkt_fn_t flush, void *flush_ctx)
+{
+	struct pktq_prec wq;
+	struct pktq_prec *q;
+	void *p = NULL;
+
+	/* protect shared resource */
+	if (HND_PKTQ_MUTEX_ACQUIRE(&spq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
+		return;
+
+	q = &spq->q;
+
+	/* Optimize if pktq_prec n_pkts = 0, just return. */
+	if (q->n_pkts == 0) {
+		(void)HND_PKTQ_MUTEX_RELEASE(&spq->mutex);
+		return;
+	}
+
+	wq = *q;
+
+	q->head = NULL;
+	q->tail = NULL;
+	q->n_pkts = 0;
+
+#ifdef WL_TXQ_STALL
+	q->dequeue_count += wq.n_pkts;
+#endif
+
+	/* protect shared resource */
+	if (HND_PKTQ_MUTEX_RELEASE(&spq->mutex) != OSL_EXT_SUCCESS)
+		return;
+
+	/* start with the head of the work queue */
+
+	while ((p = wq.head) != NULL) {
+		/* unlink the current packet from the list */
+		wq.head = PKTLINK(p);
+		PKTSETLINK(p, NULL);
+		wq.n_pkts--;
+
+#ifdef WL_TXQ_STALL
+		wq.dequeue_count++;
+#endif
+
+		/* call the filter function on current packet */
+		ASSERT(fltr != NULL);
+		switch ((*fltr)(fltr_ctx, p)) {
+		case PKT_FILTER_NOACTION:
+			/* put this packet back */
+			spktq_enq(spq, p);
+			break;
+
+		case PKT_FILTER_DELETE:
+			/* delete this packet */
+			ASSERT(defer != NULL);
+			(*defer)(defer_ctx, p);
+			break;
+
+		case PKT_FILTER_REMOVE:
+			/* pkt already removed from list */
+			break;
+
+		default:
+			ASSERT(0);
+			break;
+		}
+	}
+
+	ASSERT(wq.n_pkts == 0);
+
+	ASSERT(flush != NULL);
+	(*flush)(flush_ctx);
+}
+
 bool
-pktq_init(struct pktq *pq, int num_prec, int max_len)
+pktq_init(struct pktq *pq, int num_prec, uint max_pkts)
 {
 	int prec;
-
-	if (HND_PKTQ_MUTEX_CREATE("pktq", &pq->mutex) != OSL_EXT_SUCCESS)
-		return FALSE;
 
 	ASSERT(num_prec > 0 && num_prec <= PKTQ_MAX_PREC);
 
 	/* pq is variable size; only zero out what's requested */
 	bzero(pq, OFFSETOF(struct pktq, q) + (sizeof(struct pktq_prec) * num_prec));
 
+	if (HND_PKTQ_MUTEX_CREATE("pktq", &pq->mutex) != OSL_EXT_SUCCESS)
+		return FALSE;
+
 	pq->num_prec = (uint16)num_prec;
 
-	pq->max = (uint16)max_len;
+	pq->max_pkts = (uint16)max_pkts;
 
 	for (prec = 0; prec < num_prec; prec++)
-		pq->q[prec].max = pq->max;
+		pq->q[prec].max_pkts = pq->max_pkts;
+
+	return TRUE;
+}
+
+bool
+spktq_init(struct spktq *spq, uint max_pkts)
+{
+	bzero(spq, sizeof(struct spktq));
+
+	if (HND_PKTQ_MUTEX_CREATE("spktq", &spq->mutex) != OSL_EXT_SUCCESS)
+		return FALSE;
+
+	spq->q.max_pkts = (uint16)max_pkts;
+
+	return TRUE;
+}
+
+bool
+spktq_init_list(struct spktq *spq, uint max_pkts, void *head, void *tail, uint16 n_pkts)
+{
+	if (HND_PKTQ_MUTEX_CREATE("spktq", &spq->mutex) != OSL_EXT_SUCCESS)
+		return FALSE;
+
+	ASSERT(PKTLINK(tail) == NULL);
+	PKTSETLINK(tail, NULL);
+	spq->q.head = head;
+	spq->q.tail = tail;
+	spq->q.max_pkts = (uint16)max_pkts;
+	spq->q.n_pkts = n_pkts;
+	spq->q.stall_count = 0;
+	spq->q.dequeue_count = 0;
 
 	return TRUE;
 }
@@ -570,8 +1045,18 @@ pktq_deinit(struct pktq *pq)
 	return TRUE;
 }
 
+bool
+spktq_deinit(struct spktq *spq)
+{
+	BCM_REFERENCE(spq);
+	if (HND_PKTQ_MUTEX_DELETE(&spq->mutex) != OSL_EXT_SUCCESS)
+		return FALSE;
+
+	return TRUE;
+}
+
 void
-pktq_set_max_plen(struct pktq *pq, int prec, int max_len)
+pktq_set_max_plen(struct pktq *pq, int prec, uint max_pkts)
 {
 	ASSERT(prec >= 0 && prec < pq->num_prec);
 
@@ -580,15 +1065,15 @@ pktq_set_max_plen(struct pktq *pq, int prec, int max_len)
 		return;
 
 	if (prec < pq->num_prec)
-		pq->q[prec].max = (uint16)max_len;
+		pq->q[prec].max_pkts = (uint16)max_pkts;
 
 	/* protect shared resource */
 	if (HND_PKTQ_MUTEX_RELEASE(&pq->mutex) != OSL_EXT_SUCCESS)
 		return;
 }
 
-void * BCMFASTPATH
-pktq_deq(struct pktq *pq, int *prec_out)
+void *
+BCMFASTPATH(pktq_deq)(struct pktq *pq, int *prec_out)
 {
 	struct pktq_prec *q;
 	void *p = NULL;
@@ -598,7 +1083,7 @@ pktq_deq(struct pktq *pq, int *prec_out)
 	if (HND_PKTQ_MUTEX_ACQUIRE(&pq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
 		return NULL;
 
-	if (pq->len == 0)
+	if (pq->n_pkts_tot == 0)
 		goto done;
 
 	while ((prec = pq->hi_prec) > 0 && pq->q[prec].head == NULL)
@@ -612,9 +1097,13 @@ pktq_deq(struct pktq *pq, int *prec_out)
 	if ((q->head = PKTLINK(p)) == NULL)
 		q->tail = NULL;
 
-	q->len--;
+	q->n_pkts--;
 
-	pq->len--;
+	pq->n_pkts_tot--;
+
+#ifdef WL_TXQ_STALL
+	q->dequeue_count++;
+#endif
 
 	if (prec_out)
 		*prec_out = prec;
@@ -629,8 +1118,8 @@ done:
 	return p;
 }
 
-void * BCMFASTPATH
-pktq_deq_tail(struct pktq *pq, int *prec_out)
+void *
+BCMFASTPATH(pktq_deq_tail)(struct pktq *pq, int *prec_out)
 {
 	struct pktq_prec *q;
 	void *p = NULL, *prev;
@@ -640,7 +1129,7 @@ pktq_deq_tail(struct pktq *pq, int *prec_out)
 	if (HND_PKTQ_MUTEX_ACQUIRE(&pq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
 		return NULL;
 
-	if (pq->len == 0)
+	if (pq->n_pkts_tot == 0)
 		goto done;
 
 	for (prec = 0; prec < pq->hi_prec; prec++)
@@ -661,9 +1150,13 @@ pktq_deq_tail(struct pktq *pq, int *prec_out)
 		q->head = NULL;
 
 	q->tail = prev;
-	q->len--;
+	q->n_pkts--;
 
-	pq->len--;
+	pq->n_pkts_tot--;
+
+#ifdef WL_TXQ_STALL
+	q->dequeue_count++;
+#endif
 
 	if (prec_out)
 		*prec_out = prec;
@@ -688,7 +1181,7 @@ pktq_peek(struct pktq *pq, int *prec_out)
 	if (HND_PKTQ_MUTEX_ACQUIRE(&pq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
 		return NULL;
 
-	if (pq->len == 0)
+	if (pq->n_pkts_tot == 0)
 		goto done;
 
 	while ((prec = pq->hi_prec) > 0 && pq->q[prec].head == NULL)
@@ -708,30 +1201,22 @@ done:
 }
 
 void *
-pktq_peek_tail(struct pktq *pq, int *prec_out)
+spktq_peek(struct spktq *spq)
 {
-	int prec;
 	void *p = NULL;
 
 	/* protect shared resource */
-	if (HND_PKTQ_MUTEX_ACQUIRE(&pq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
+	if (HND_PKTQ_MUTEX_ACQUIRE(&spq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
 		return NULL;
 
-	if (pq->len == 0)
+	if (spq->q.n_pkts == 0)
 		goto done;
 
-	for (prec = 0; prec < pq->hi_prec; prec++)
-		if (pq->q[prec].head)
-			break;
-
-	if (prec_out)
-		*prec_out = prec;
-
-	p = pq->q[prec].tail;
+	p = spq->q.head;
 
 done:
 	/* protect shared resource */
-	if (HND_PKTQ_MUTEX_RELEASE(&pq->mutex) != OSL_EXT_SUCCESS)
+	if (HND_PKTQ_MUTEX_RELEASE(&spq->mutex) != OSL_EXT_SUCCESS)
 		return NULL;
 
 	return p;
@@ -753,6 +1238,55 @@ pktq_pflush(osl_t *osh, struct pktq *pq, int prec, bool dir)
 }
 
 void
+spktq_flush_ext(osl_t *osh, struct spktq *spq, bool dir,
+	void (*pktq_flush_cb)(void *ctx, void *pkt), void *pktq_flush_ctx)
+{
+	void *pkt;
+
+	/* no need for a mutex protection! */
+
+	/* start with the head of the list */
+	while ((pkt = spktq_deq(spq)) != NULL) {
+		if (pktq_flush_cb != NULL) {
+			pktq_flush_cb(pktq_flush_ctx, pkt);
+		}
+		/* delete this packet */
+		PKTFREE(osh, pkt, dir);
+	}
+}
+
+typedef struct {
+	spktq_cb_t cb;
+	void *arg;
+} spktq_cbinfo_t;
+static spktq_cbinfo_t spktq_cbinfo = {NULL, NULL};
+static spktq_cbinfo_t *spktq_cbinfo_get(void);
+
+/* Accessor function forced into RAM to keep spktq_cbinfo out of shdat */
+static spktq_cbinfo_t*
+BCMRAMFN(spktq_cbinfo_get)(void)
+{
+	return (&spktq_cbinfo);
+}
+
+void
+BCMATTACHFN(spktq_free_register)(spktq_cb_t cb, void *arg)
+{
+	spktq_cbinfo_t *cbinfop = spktq_cbinfo_get();
+	cbinfop->cb = cb;
+	cbinfop->arg = arg;
+}
+
+void
+spktq_cb(void *spq)
+{
+	spktq_cbinfo_t *cbinfop = spktq_cbinfo_get();
+	if (cbinfop->cb) {
+		cbinfop->cb(cbinfop->arg, spq);
+	}
+}
+
+void
 pktq_flush(osl_t *osh, struct pktq *pq, bool dir)
 {
 	bool flush = FALSE;
@@ -761,10 +1295,10 @@ pktq_flush(osl_t *osh, struct pktq *pq, bool dir)
 	if (HND_PKTQ_MUTEX_ACQUIRE(&pq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
 		return;
 
-	/* Optimize flush, if pktq len = 0, just return.
+	/* Optimize flush, if pktq n_pkts_tot = 0, just return.
 	 * pktq len of 0 means pktq's prec q's are all empty.
 	 */
-	if (pq->len > 0) {
+	if (pq->n_pkts_tot > 0) {
 		flush = TRUE;
 	}
 
@@ -795,7 +1329,7 @@ pktq_mlen(struct pktq *pq, uint prec_bmp)
 
 	for (prec = 0; prec <= pq->hi_prec; prec++)
 		if (prec_bmp & (1 << prec))
-			len += pq->q[prec].len;
+			len += pq->q[prec].n_pkts;
 
 	/* protect shared resource */
 	if (HND_PKTQ_MUTEX_RELEASE(&pq->mutex) != OSL_EXT_SUCCESS)
@@ -805,8 +1339,8 @@ pktq_mlen(struct pktq *pq, uint prec_bmp)
 }
 
 /* Priority peek from a specific set of precedences */
-void * BCMFASTPATH
-pktq_mpeek(struct pktq *pq, uint prec_bmp, int *prec_out)
+void *
+BCMFASTPATH(pktq_mpeek)(struct pktq *pq, uint prec_bmp, int *prec_out)
 {
 	struct pktq_prec *q;
 	void *p = NULL;
@@ -816,7 +1350,7 @@ pktq_mpeek(struct pktq *pq, uint prec_bmp, int *prec_out)
 	if (HND_PKTQ_MUTEX_ACQUIRE(&pq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
 		return NULL;
 
-	if (pq->len == 0)
+	if (pq->n_pkts_tot == 0)
 		goto done;
 
 	while ((prec = pq->hi_prec) > 0 && pq->q[prec].head == NULL)
@@ -842,8 +1376,8 @@ done:
 	return p;
 }
 /* Priority dequeue from a specific set of precedences */
-void * BCMFASTPATH
-pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out)
+void *
+BCMPOSTTRAPFASTPATH(pktq_mdeq)(struct pktq *pq, uint prec_bmp, int *prec_out)
 {
 	struct pktq_prec *q;
 	void *p = NULL;
@@ -853,7 +1387,7 @@ pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out)
 	if (HND_PKTQ_MUTEX_ACQUIRE(&pq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
 		return NULL;
 
-	if (pq->len == 0)
+	if (pq->n_pkts_tot == 0)
 		goto done;
 
 	while ((prec = pq->hi_prec) > 0 && pq->q[prec].head == NULL)
@@ -871,18 +1405,22 @@ pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out)
 	if ((q->head = PKTLINK(p)) == NULL)
 		q->tail = NULL;
 
-	q->len--;
+	q->n_pkts--;
 
 	// terence 20150308: fix for non-null pointer of skb->prev sent from ndo_start_xmit
-	if (q->len == 0) {
+	if (q->n_pkts == 0) {
 		q->head = NULL;
 		q->tail = NULL;
 	}
 
+#ifdef WL_TXQ_STALL
+	q->dequeue_count++;
+#endif
+
 	if (prec_out)
 		*prec_out = prec;
 
-	pq->len--;
+	pq->n_pkts_tot--;
 
 	PKTSETLINK(p, NULL);
 
@@ -896,7 +1434,7 @@ done:
 
 #ifdef HND_PKTQ_THREAD_SAFE
 int
-pktq_pavail(struct pktq *pq, int prec)
+pktqprec_avail_pkts(struct pktq *pq, int prec)
 {
 	int ret;
 
@@ -906,7 +1444,7 @@ pktq_pavail(struct pktq *pq, int prec)
 
 	ASSERT(prec >= 0 && prec < pq->num_prec);
 
-	ret = pq->q[prec].max - pq->q[prec].len;
+	ret = pq->q[prec].max_pkts - pq->q[prec].n_pkts;
 
 	/* protect shared resource */
 	if (HND_PKTQ_MUTEX_RELEASE(&pq->mutex) != OSL_EXT_SUCCESS)
@@ -916,7 +1454,7 @@ pktq_pavail(struct pktq *pq, int prec)
 }
 
 bool
-pktq_pfull(struct pktq *pq, int prec)
+BCMFASTPATH(pktqprec_full)(struct pktq *pq, int prec)
 {
 	bool ret;
 
@@ -924,9 +1462,9 @@ pktq_pfull(struct pktq *pq, int prec)
 	if (HND_PKTQ_MUTEX_ACQUIRE(&pq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
 		return FALSE;
 
-	ASSERT(prec >= 0 && prec < pq->num_prec);
+	ASSERT_FP(prec >= 0 && prec < pq->num_prec);
 
-	ret = pq->q[prec].len >= pq->q[prec].max;
+	ret = pq->q[prec].n_pkts >= pq->q[prec].max_pkts;
 
 	/* protect shared resource */
 	if (HND_PKTQ_MUTEX_RELEASE(&pq->mutex) != OSL_EXT_SUCCESS)
@@ -944,10 +1482,28 @@ pktq_avail(struct pktq *pq)
 	if (HND_PKTQ_MUTEX_ACQUIRE(&pq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
 		return 0;
 
-	ret = pq->max - pq->len;
+	ret = pq->max_pkts - pq->n_pkts_tot;
 
 	/* protect shared resource */
 	if (HND_PKTQ_MUTEX_RELEASE(&pq->mutex) != OSL_EXT_SUCCESS)
+		return 0;
+
+	return ret;
+}
+
+int
+spktq_avail(struct spktq *spq)
+{
+	int ret;
+
+	/* protect shared resource */
+	if (HND_PKTQ_MUTEX_ACQUIRE(&spq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
+		return 0;
+
+	ret = spq->q.max_pkts - spq->q.n_pkts;
+
+	/* protect shared resource */
+	if (HND_PKTQ_MUTEX_RELEASE(&spq->mutex) != OSL_EXT_SUCCESS)
 		return 0;
 
 	return ret;
@@ -962,7 +1518,7 @@ pktq_full(struct pktq *pq)
 	if (HND_PKTQ_MUTEX_ACQUIRE(&pq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
 		return FALSE;
 
-	ret = pq->len >= pq->max;
+	ret = pq->n_pkts_tot >= pq->max_pkts;
 
 	/* protect shared resource */
 	if (HND_PKTQ_MUTEX_RELEASE(&pq->mutex) != OSL_EXT_SUCCESS)
@@ -970,4 +1526,23 @@ pktq_full(struct pktq *pq)
 
 	return ret;
 }
+
+bool
+spktq_full(struct spktq *spq)
+{
+	bool ret;
+
+	/* protect shared resource */
+	if (HND_PKTQ_MUTEX_ACQUIRE(&spq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
+		return FALSE;
+
+	ret = spq->q.n_pkts >= spq->q.max_pkts;
+
+	/* protect shared resource */
+	if (HND_PKTQ_MUTEX_RELEASE(&spq->mutex) != OSL_EXT_SUCCESS)
+		return FALSE;
+
+	return ret;
+}
+
 #endif	/* HND_PKTQ_THREAD_SAFE */

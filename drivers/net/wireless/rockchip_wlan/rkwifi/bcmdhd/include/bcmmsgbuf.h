@@ -4,14 +4,14 @@
  *
  * Definitions subject to change without notice.
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
+ * Copyright (C) 2020, Broadcom.
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -19,15 +19,9 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
- *      Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a license
- * other than the GPL, without Broadcom's express prior written consent.
  *
  *
- * <<Broadcom-WL-IPTag/Open:>>
- *
- * $Id: bcmmsgbuf.h 676811 2016-12-24 20:48:46Z $
+ * <<Broadcom-WL-IPTag/Dual:>>
  */
 #ifndef _bcmmsgbuf_h_
 #define	_bcmmsgbuf_h_
@@ -44,7 +38,24 @@
 #define H2D_EPOCH_MODULO		253 /* sequence number wrap */
 #define H2D_EPOCH_INIT_VAL		(H2D_EPOCH_MODULO + 1)
 
-#define H2DRING_TXPOST_ITEMSIZE		48
+/* Txpost base workitem size w/o any extended tags */
+#define H2DRING_TXPOST_BASE_ITEMSIZE	48u
+
+/*
+ * The workitem size - H2DRING_TXPOST_ITEMSIZE is fixed at compile time
+ * only for FW, depending on the BCMPCIE_EXT_TXPOST_SUPPORT flag.
+ * For DHD the work item size is decided dynamically based on
+ * the dongle capability announced in the PCIE_SHARED2 flags which
+ * is read by DHD during dhdpcie_readshared(). Because this
+ * happens before DHD allocs memory for the flowrings, the workitem
+ * size can be dynamic for DHD.
+ */
+#define H2DRING_TXPOST_EXT_ITEMSIZE	56
+#if defined(BCMPCIE_EXT_TXPOST_SUPPORT)
+#define H2DRING_TXPOST_ITEMSIZE		H2DRING_TXPOST_EXT_ITEMSIZE
+#else
+#define H2DRING_TXPOST_ITEMSIZE		H2DRING_TXPOST_BASE_ITEMSIZE
+#endif
 #define H2DRING_RXPOST_ITEMSIZE		32
 #define H2DRING_CTRL_SUB_ITEMSIZE	40
 
@@ -58,16 +69,42 @@
 #define H2DRING_INFO_BUFPOST_ITEMSIZE	H2DRING_CTRL_SUB_ITEMSIZE
 #define D2HRING_INFO_BUFCMPLT_ITEMSIZE	D2HRING_CTRL_CMPLT_ITEMSIZE
 
-#define H2DRING_TXPOST_MAX_ITEM			512
-#define H2DRING_RXPOST_MAX_ITEM			512
-#define H2DRING_CTRL_SUB_MAX_ITEM		64
-#define D2HRING_TXCMPLT_MAX_ITEM		1024
-#define D2HRING_RXCMPLT_MAX_ITEM		512
+#define D2HRING_SNAPSHOT_CMPLT_ITEMSIZE		20
 
 #define H2DRING_DYNAMIC_INFO_MAX_ITEM          32
 #define D2HRING_DYNAMIC_INFO_MAX_ITEM          32
 
+#define H2DRING_TXPOST_MAX_ITEM			512
+
+#if defined(DHD_HTPUT_TUNABLES)
+#define H2DRING_RXPOST_MAX_ITEM			2048
+#define D2HRING_RXCMPLT_MAX_ITEM		1024
+#define D2HRING_TXCMPLT_MAX_ITEM		2048
+/* Only few htput flowrings use htput max items, other use normal max items */
+#define H2DRING_HTPUT_TXPOST_MAX_ITEM		2048
+#define H2DRING_CTRL_SUB_MAX_ITEM		128
+#else
+#define H2DRING_RXPOST_MAX_ITEM			512
+#define D2HRING_TXCMPLT_MAX_ITEM		1024
+#define D2HRING_RXCMPLT_MAX_ITEM		512
+#define H2DRING_CTRL_SUB_MAX_ITEM		64
+#endif /* DHD_HTPUT_TUNABLES */
+
+#define D2HRING_EDL_HDR_SIZE			48u
+#define D2HRING_EDL_ITEMSIZE			2048u
+#define D2HRING_EDL_MAX_ITEM			256u
+#define D2HRING_EDL_WATERMARK			(D2HRING_EDL_MAX_ITEM >> 5u)
+
+#ifdef BCM_ROUTER_DHD
+#define D2HRING_CTRL_CMPLT_MAX_ITEM		256
+#else
 #define D2HRING_CTRL_CMPLT_MAX_ITEM		64
+#endif
+
+/* Max pktids for each type of pkt, shared between host and dongle */
+#define MAX_PKTID_CTRL		(1024)
+#define MAX_PKTID_RX		(4 * 1024)
+#define MAX_PKTID_TX		(36 * 1024)
 
 enum {
 	DNGL_TO_HOST_MSGBUF,
@@ -84,6 +121,10 @@ enum {
 
 #define MESSAGE_PAYLOAD(a) (a & MSG_TYPE_INTERNAL_USE_START) ? TRUE : FALSE
 #define PCIEDEV_FIRMWARE_TSINFO 0x1
+#define PCIEDEV_FIRMWARE_TSINFO_FIRST	0x1
+#define PCIEDEV_FIRMWARE_TSINFO_MIDDLE	0x2
+#define PCIEDEV_BTLOG_POST		0x3
+#define PCIEDEV_BT_SNAPSHOT_POST	0x4
 
 #ifdef PCIE_API_REV1
 
@@ -144,6 +185,31 @@ typedef struct cmn_msg_hdr {
 	uint32 request_id;
 } cmn_msg_hdr_t;
 
+/* cmn aggregated work item msg hdr */
+typedef struct cmn_aggr_msg_hdr {
+	/** aggregate message type */
+	uint8		msg_type;
+	/** aggregation count */
+	uint8		aggr_cnt;
+	/* current phase */
+	uint8		phase;
+	/* flags or sequence number */
+	union {
+		uint8	flags; /* H2D direction */
+		uint8	epoch; /* D2H direction */
+	};
+} cmn_aggr_msg_hdr_t;
+
+/** cmn aggregated completion work item msg hdr */
+typedef struct compl_aggr_msg_hdr {
+	/** interface index this is valid for */
+	uint8		if_id;
+	/** status for the completion */
+	int8		status;
+	/** submisison flow ring id which generated this status */
+	uint16		ring_id;
+} compl_aggr_msg_hdr_t;
+
 /** message type */
 typedef enum bcmpcie_msgtype {
 	MSG_TYPE_GEN_STATUS		= 0x1,
@@ -168,7 +234,7 @@ typedef enum bcmpcie_msgtype {
 	MSG_TYPE_TX_STATUS		= 0x10,
 	MSG_TYPE_RXBUF_POST		= 0x11,
 	MSG_TYPE_RX_CMPLT		= 0x12,
-	MSG_TYPE_LPBK_DMAXFER 		= 0x13,
+	MSG_TYPE_LPBK_DMAXFER		= 0x13,
 	MSG_TYPE_LPBK_DMAXFER_CMPLT	= 0x14,
 	MSG_TYPE_FLOW_RING_RESUME	 = 0x15,
 	MSG_TYPE_FLOW_RING_RESUME_CMPLT	= 0x16,
@@ -190,20 +256,37 @@ typedef enum bcmpcie_msgtype {
 	MSG_TYPE_HOSTTIMSTAMP		= 0x26,
 	MSG_TYPE_HOSTTIMSTAMP_CMPLT	= 0x27,
 	MSG_TYPE_FIRMWARE_TIMESTAMP	= 0x28,
+	MSG_TYPE_SNAPSHOT_UPLOAD	= 0x29,
+	MSG_TYPE_SNAPSHOT_CMPLT		= 0x2A,
+	MSG_TYPE_H2D_RING_DELETE	= 0x2B,
+	MSG_TYPE_D2H_RING_DELETE	= 0x2C,
+	MSG_TYPE_H2D_RING_DELETE_CMPLT	= 0x2D,
+	MSG_TYPE_D2H_RING_DELETE_CMPLT	= 0x2E,
+	MSG_TYPE_TX_POST_AGGR		= 0x2F,
+	MSG_TYPE_TX_STATUS_AGGR		= 0x30,
+	MSG_TYPE_RXBUF_POST_AGGR	= 0x31,
+	MSG_TYPE_RX_CMPLT_AGGR		= 0x32,
 	MSG_TYPE_API_MAX_RSVD		= 0x3F
 } bcmpcie_msg_type_t;
 
+/* message type used in internal queue */
 typedef enum bcmpcie_msgtype_int {
-	MSG_TYPE_INTERNAL_USE_START	= 0x40,
-	MSG_TYPE_EVENT_PYLD		= 0x41,
-	MSG_TYPE_IOCT_PYLD		= 0x42,
+	MSG_TYPE_INTERNAL_USE_START	= 0x40,	/* internal pkt */
+	MSG_TYPE_EVENT_PYLD		= 0x41,	/* wl event pkt */
+	MSG_TYPE_IOCT_PYLD		= 0x42,	/* ioctl compl pkt */
 	MSG_TYPE_RX_PYLD		= 0x43,
 	MSG_TYPE_HOST_FETCH		= 0x44,
-	MSG_TYPE_LPBK_DMAXFER_PYLD	= 0x45,
-	MSG_TYPE_TXMETADATA_PYLD	= 0x46,
-	MSG_TYPE_INDX_UPDATE		= 0x47,
+	MSG_TYPE_LPBK_DMAXFER_PYLD	= 0x45,	/* loopback pkt */
+	MSG_TYPE_TXMETADATA_PYLD	= 0x46,	/* transmit status pkt */
+	MSG_TYPE_INDX_UPDATE		= 0x47,	/* write indx updated */
 	MSG_TYPE_INFO_PYLD		= 0x48,
-	MSG_TYPE_TS_EVENT_PYLD		= 0x49
+	MSG_TYPE_TS_EVENT_PYLD		= 0x49,
+	MSG_TYPE_PVT_BTLOG_CMPLT	= 0x4A,
+	MSG_TYPE_BTLOG_PYLD		= 0x4B,
+	MSG_TYPE_HMAPTEST_PYLD		= 0x4C,
+	MSG_TYPE_PVT_BT_SNAPSHOT_CMPLT  = 0x4D,
+	MSG_TYPE_BT_SNAPSHOT_PYLD       = 0x4E,
+	MSG_TYPE_LPBK_DMAXFER_PYLD_ADDR	= 0x4F	/* loopback from addr pkt */
 } bcmpcie_msgtype_int_t;
 
 typedef enum bcmpcie_msgtype_u {
@@ -238,19 +321,22 @@ typedef struct bcmpcie_soft_doorbell {
  * D2H_RING_CONFIG_SUBTYPE_MSI_DOORBELL
  */
 typedef enum bcmpcie_msi_intr_idx {
-	MSI_INTR_IDX_CTRL_CMPL_RING,
-	MSI_INTR_IDX_TXP_CMPL_RING,
-	MSI_INTR_IDX_RXP_CMPL_RING,
-	MSI_INTR_IDX_MAILBOX,
-	MSI_INTR_IDX_MAX
+	MSI_INTR_IDX_CTRL_CMPL_RING	= 0,
+	MSI_INTR_IDX_TXP_CMPL_RING	= 1,
+	MSI_INTR_IDX_RXP_CMPL_RING	= 2,
+	MSI_INTR_IDX_INFO_CMPL_RING	= 3,
+	MSI_INTR_IDX_MAILBOX		= 4,
+	MSI_INTR_IDX_MAX		= 5
 } bcmpcie_msi_intr_idx_t;
 
+#define BCMPCIE_D2H_MSI_OFFSET_SINGLE	0
 typedef enum bcmpcie_msi_offset_type {
-	BCMPCIE_D2H_MSI_OFFSET_MB0 = 2,
-	BCMPCIE_D2H_MSI_OFFSET_MB1,
-	BCMPCIE_D2H_MSI_OFFSET_DB0,
-	BCMPCIE_D2H_MSI_OFFSET_DB1,
-	BCMPCIE_D2H_MSI_OFFSET_MAX
+	BCMPCIE_D2H_MSI_OFFSET_MB0	= 2,
+	BCMPCIE_D2H_MSI_OFFSET_MB1	= 3,
+	BCMPCIE_D2H_MSI_OFFSET_DB0	= 4,
+	BCMPCIE_D2H_MSI_OFFSET_DB1	= 5,
+	BCMPCIE_D2H_MSI_OFFSET_H1_DB0	= 6,
+	BCMPCIE_D2H_MSI_OFFSET_MAX	= 7
 } bcmpcie_msi_offset_type_t;
 
 typedef struct bcmpcie_msi_offset {
@@ -265,6 +351,7 @@ typedef struct bcmpcie_msi_offset_config {
 
 #define BCMPCIE_D2H_MSI_OFFSET_DEFAULT	BCMPCIE_D2H_MSI_OFFSET_DB1
 
+#define BCMPCIE_D2H_MSI_SINGLE		0xFFFE
 
 /* if_id */
 #define BCMPCIE_CMNHDR_IFIDX_PHYINTF_SHFT	5
@@ -279,13 +366,14 @@ typedef struct bcmpcie_msi_offset_config {
 /* flags */
 #define BCMPCIE_CMNHDR_FLAGS_DMA_R_IDX		0x1
 #define BCMPCIE_CMNHDR_FLAGS_DMA_R_IDX_INTR	0x2
+#define BCMPCIE_CMNHDR_FLAGS_TS_SEQNUM_INIT	0x4
 #define BCMPCIE_CMNHDR_FLAGS_PHASE_BIT		0x80
 #define BCMPCIE_CMNHDR_PHASE_BIT_INIT		0x80
 
 /* IOCTL request message */
 typedef struct ioctl_req_msg {
 	/** common message header */
-	cmn_msg_hdr_t 	cmn_hdr;
+	cmn_msg_hdr_t	cmn_hdr;
 	/** ioctl command type */
 	uint32		cmd;
 	/** ioctl transaction ID, to pair with a ioctl response */
@@ -318,6 +406,13 @@ typedef struct ioctl_resp_evt_buf_post_msg {
 /* buffer post messages for device to use to return dbg buffers */
 typedef ioctl_resp_evt_buf_post_msg_t info_buf_post_msg_t;
 
+#ifdef DHD_EFI
+#define DHD_INFOBUF_RX_BUFPOST_PKTSZ	1800
+#else
+#define DHD_INFOBUF_RX_BUFPOST_PKTSZ	(2 * 1024)
+#endif
+
+#define DHD_BTLOG_RX_BUFPOST_PKTSZ	(2 * 1024)
 
 /* An infobuf host buffer starts with a 32 bit (LE) version. */
 #define PCIE_INFOBUF_V1                1
@@ -342,8 +437,46 @@ typedef struct info_buf_payload_hdr_s {
 	uint16 length;
 } info_buf_payload_hdr_t;
 
-#define PCIE_DMA_XFER_FLG_D11_LPBK_MASK	0x00000001
-#define PCIE_DMA_XFER_FLG_D11_LPBK_SHIFT	0
+/* BT logs/memory to DMA directly from BT memory to host */
+typedef struct info_buf_btlog_s {
+	void (*status_cb)(void *ctx, void *p, int error);	/* obsolete - to be removed */
+	void *ctx;
+	dma64addr_t src_addr;
+	uint32 length;
+	bool (*pcie_status_cb)(osl_t *osh, void *p, int error);
+	uint32 bt_intstatus;
+	int error;
+} info_buf_btlog_t;
+
+/** snapshot upload request message  */
+typedef struct snapshot_upload_request_msg {
+	/** common message header */
+	cmn_msg_hdr_t	cmn_hdr;
+	/** length of the snaphost buffer supplied */
+	uint32		snapshot_buf_len;
+	/** type of snapshot */
+	uint8		snapshot_type;
+	/** snapshot param    */
+	uint8		snapshot_param;
+	/** to align the host address on 8 byte boundary */
+	uint8		reserved[2];
+	/** always align on 8 byte boundary */
+	bcm_addr64_t	host_buf_addr;
+	uint32		rsvd[4];
+} snapshot_upload_request_msg_t;
+
+/** snapshot types  */
+typedef enum bcmpcie_snapshot_type {
+	SNAPSHOT_TYPE_BT		= 0,	/* Bluetooth SRAM and patch RAM */
+	SNAPSHOT_TYPE_WLAN_SOCRAM	= 1,	/* WLAN SOCRAM */
+	SNAPSHOT_TYPE_WLAN_HEAP		= 2,	/* WLAN HEAP */
+	SNAPSHOT_TYPE_WLAN_REGISTER	= 3	/* WLAN registers */
+} bcmpcie_snapshot_type_t;
+
+#define PCIE_DMA_XFER_FLG_D11_LPBK_MASK		0xF
+#define PCIE_DMA_XFER_FLG_D11_LPBK_SHIFT	2
+#define PCIE_DMA_XFER_FLG_CORE_NUMBER_MASK	3
+#define PCIE_DMA_XFER_FLG_CORE_NUMBER_SHIFT	0
 
 typedef struct pcie_dma_xfer_params {
 	/** common message header */
@@ -362,8 +495,13 @@ typedef struct pcie_dma_xfer_params {
 	/** delay before doing the dest txfer */
 	uint32		destdelay;
 	uint8		rsvd[3];
+	/* bit0: D11 DMA loopback flag */
 	uint8		flags;
 } pcie_dma_xfer_params_t;
+
+#define BCMPCIE_FLOW_RING_INTF_HP2P		0x01u /* bit0 */
+#define BCMPCIE_FLOW_RING_OPT_EXT_TXSTATUS	0x02u /* bit1 */
+#define BCMPCIE_FLOW_RING_INTF_MESH		0x04u /* bit2, identifies the mesh flow ring */
 
 /** Complete msgbuf hdr for flow ring update from host to dongle */
 typedef struct tx_flowring_create_request {
@@ -371,14 +509,14 @@ typedef struct tx_flowring_create_request {
 	uint8	da[ETHER_ADDR_LEN];
 	uint8	sa[ETHER_ADDR_LEN];
 	uint8	tid;
-	uint8 	if_flags;
+	uint8	if_flags;
 	uint16	flow_ring_id;
-	uint8 	tc;
+	uint8	tc;
 	/* priority_ifrmmask is to define core mask in ifrm mode.
 	 * currently it is not used for priority. so uses solely for ifrm mask
 	 */
 	uint8	priority_ifrmmask;
-	uint16 	int_vector;
+	uint16	int_vector;
 	uint16	max_items;
 	uint16	len_item;
 	bcm_addr64_t flow_ring_ptr;
@@ -387,14 +525,17 @@ typedef struct tx_flowring_create_request {
 typedef struct tx_flowring_delete_request {
 	cmn_msg_hdr_t   msg;
 	uint16	flow_ring_id;
-	uint16 	reason;
+	uint16	reason;
 	uint32	rsvd[7];
 } tx_flowring_delete_request_t;
+
+typedef tx_flowring_delete_request_t d2h_ring_delete_req_t;
+typedef tx_flowring_delete_request_t h2d_ring_delete_req_t;
 
 typedef struct tx_flowring_flush_request {
 	cmn_msg_hdr_t   msg;
 	uint16	flow_ring_id;
-	uint16 	reason;
+	uint16	reason;
 	uint32	rsvd[7];
 } tx_flowring_flush_request_t;
 
@@ -405,7 +546,7 @@ typedef enum ring_config_subtype {
 	D2H_RING_CONFIG_SUBTYPE_MSI_DOORBELL = 2   /* MSI configuration */
 } ring_config_subtype_t;
 
-typedef struct ring_config_req {
+typedef struct ring_config_req { /* pulled from upcoming rev6 ... */
 	cmn_msg_hdr_t	msg;
 	uint16	subtype;
 	uint16	ring_id;
@@ -497,6 +638,8 @@ typedef union ctrl_submit_item {
 	h2d_mailbox_data_t		h2d_mailbox_data;
 	host_timestamp_msg_t		host_ts;
 	ts_buf_post_msg_t		ts_buf_post;
+	d2h_ring_delete_req_t		d2h_delete;
+	h2d_ring_delete_req_t		h2d_delete;
 	unsigned char			check[H2DRING_CTRL_SUB_ITEMSIZE];
 } ctrl_submit_item_t;
 
@@ -507,8 +650,15 @@ typedef struct info_ring_submit_item {
 
 /** Control Completion messages (20 bytes) */
 typedef struct compl_msg_hdr {
-	/** status for the completion */
-	int16	status;
+	union {
+		/** status for the completion */
+		int16	status;
+
+		/* mutually exclusive with pkt fate debug feature */
+		struct pktts_compl_hdr {
+			uint16 d_t4; /* Delta TimeStamp 3: T4-tref */
+		} tx_pktts;
+	};
 	/** submisison flow ring id which generated this status */
 	union {
 	    uint16	ring_id;
@@ -520,11 +670,21 @@ typedef struct compl_msg_hdr {
 typedef uint32 dma_done_t;
 
 #define MAX_CLKSRC_ID	0xF
+#define TX_PKT_RETRY_CNT_0_MASK		0x000000FF
+#define TX_PKT_RETRY_CNT_0_SHIFT	0
+#define TX_PKT_RETRY_CNT_1_MASK		0x0000FF00
+#define TX_PKT_RETRY_CNT_1_SHIFT	8
+#define TX_PKT_RETRY_CNT_2_MASK		0x00FF0000
+#define TX_PKT_RETRY_CNT_2_SHIFT	16
+#define TX_PKT_BAND_INFO		0x0F000000
+#define TX_PKT_BAND_INFO_SHIFT		24
+#define TX_PKT_VALID_INFO		0xF0000000
+#define TX_PKT_VALID_INFO_SHIFT		28
 
 typedef struct ts_timestamp_srcid {
 	union {
 		uint32	ts_low; /* time stamp low 32 bits */
-		uint32	reserved; /* If timestamp not used */
+		uint32  rate_spec; /* use ratespec */
 	};
 	union {
 		uint32  ts_high; /* time stamp high 28 bits */
@@ -534,6 +694,7 @@ typedef struct ts_timestamp_srcid {
 			uint32  phase :1; /* Phase bit */
 			dma_done_t	marker_ext;
 		};
+		uint32 tx_pkt_band_retry_info;
 	};
 } ts_timestamp_srcid_t;
 
@@ -548,6 +709,12 @@ typedef ts_timestamp_t tick_count_64_t;
 typedef ts_timestamp_t ts_timestamp_ns_64_t;
 typedef ts_timestamp_t ts_correction_m_t;
 typedef ts_timestamp_t ts_correction_b_t;
+
+typedef struct _pktts {
+	uint32 tref; /* Ref Clk in uSec (currently, tsf) */
+	uint16 d_t2; /* Delta TimeStamp 1: T2-tref */
+	uint16 d_t3; /* Delta TimeStamp 2: T3-tref */
+} pktts_t;
 
 /* completion header status codes */
 #define	BCMPCIE_SUCCESS			0
@@ -567,6 +734,14 @@ typedef ts_timestamp_t ts_correction_b_t;
 #define BCMPCIE_RING_TYPE_INVALID	14
 #define BCMPCIE_NO_TS_EVENT_BUF		15
 #define BCMPCIE_MAX_TS_EVENT_BUF	16
+#define BCMPCIE_PCIE_NO_BTLOG_BUF	17
+#define BCMPCIE_BT_DMA_ERR		18
+#define BCMPCIE_BT_DMA_DESCR_FETCH_ERR	19
+#define BCMPCIE_SNAPSHOT_ERR		20
+#define BCMPCIE_NOT_READY		21
+#define BCMPCIE_INVALID_DATA		22
+#define BCMPCIE_NO_RESPONSE		23
+#define BCMPCIE_NO_CLOCK		24
 
 /** IOCTL completion response */
 typedef struct ioctl_compl_resp_msg {
@@ -589,7 +764,7 @@ typedef struct ioctl_req_ack_msg {
 	/** common message header */
 	cmn_msg_hdr_t		cmn_hdr;
 	/** completion message header */
-	compl_msg_hdr_t 	compl_hdr;
+	compl_msg_hdr_t		compl_hdr;
 	/** cmd id */
 	uint32			cmd;
 	uint32			rsvd;
@@ -650,7 +825,7 @@ typedef struct pcie_ring_status {
 
 typedef struct ring_create_response {
 	cmn_msg_hdr_t		cmn_hdr;
-	compl_msg_hdr_t 	cmplt;
+	compl_msg_hdr_t		cmplt;
 	uint32			rsvd[2];
 	/** XOR checksum or a magic number to audit DMA done */
 	dma_done_t		marker;
@@ -662,15 +837,19 @@ typedef ring_create_response_t d2h_ring_create_response_t;
 
 typedef struct tx_flowring_delete_response {
 	cmn_msg_hdr_t		msg;
-	compl_msg_hdr_t 	cmplt;
-	uint32			rsvd[2];
+	compl_msg_hdr_t		cmplt;
+	uint16			read_idx;
+	uint16			rsvd[3];
 	/** XOR checksum or a magic number to audit DMA done */
 	dma_done_t		marker;
 } tx_flowring_delete_response_t;
 
+typedef tx_flowring_delete_response_t	h2d_ring_delete_response_t;
+typedef tx_flowring_delete_response_t	d2h_ring_delete_response_t;
+
 typedef struct tx_flowring_flush_response {
 	cmn_msg_hdr_t		msg;
-	compl_msg_hdr_t 	cmplt;
+	compl_msg_hdr_t		cmplt;
 	uint32			rsvd[2];
 	/** XOR checksum or a magic number to audit DMA done */
 	dma_done_t		marker;
@@ -692,7 +871,8 @@ typedef struct ring_config_resp {
 	cmn_msg_hdr_t       cmn_hdr;
 	/** completion message header */
 	compl_msg_hdr_t     compl_hdr;
-	uint32          rsvd[2];
+	uint16		subtype;
+	uint16          rsvd[3];
 	/** XOR checksum or a magic number to audit DMA done */
 	dma_done_t      marker;
 } ring_config_resp_t;
@@ -716,11 +896,29 @@ typedef struct info_buf_resp {
 	uint16			info_data_len;
 	/* sequence number */
 	uint16			seqnum;
+	/* destination */
+	uint8			dest;
 	/* rsvd	*/
-	uint32			rsvd;
+	uint8			rsvd[3];
 	/* XOR checksum or a magic number to audit DMA done */
 	dma_done_t		marker;
 } info_buf_resp_t;
+
+/* snapshot completion msg: send from device to host */
+typedef struct snapshot_resp {
+	/* common message header */
+	cmn_msg_hdr_t		cmn_hdr;
+	/* completion message header */
+	compl_msg_hdr_t		compl_hdr;
+	/* snapshot length uploaded */
+	uint32			resp_len;
+	/* snapshot type */
+	uint8			type;
+	/* rsvd	*/
+	uint8			rsvd[3];
+	/* XOR checksum or a magic number to audit DMA done */
+	dma_done_t		marker;
+} snapshot_resp_t;
 
 typedef struct info_ring_cpl_item {
 	info_buf_resp_t		info_buf_post;
@@ -766,6 +964,8 @@ typedef union ctrl_completion_item {
 	d2h_ring_create_response_t	d2h_ring_create_resp;
 	host_timestamp_msg_cpl_t	host_ts_cpl;
 	fw_timestamp_event_msg_t	fw_ts_event;
+	h2d_ring_delete_response_t	h2d_ring_delete_resp;
+	d2h_ring_delete_response_t	d2h_ring_delete_resp;
 	unsigned char			ctrl_response[D2HRING_CTRL_CMPLT_ITEMSIZE];
 } ctrl_completion_item_t;
 
@@ -807,11 +1007,23 @@ typedef struct host_rxbuf_cmpl {
 	/** rx status */
 	uint32		rx_status_0;
 	uint32		rx_status_1;
-	/** XOR checksum or a magic number to audit DMA done */
-	/* This is for rev6 only. For IPC rev7, this is a reserved field */
-	dma_done_t	marker;
-	/* timestamp */
-	ipc_timestamp_t ts;
+
+	union { /* size per IPC = (3 x uint32) bytes */
+		struct {
+			/* used by Monitor mode */
+			uint32 marker;
+			/* timestamp */
+			ipc_timestamp_t ts;
+		};
+
+		/* LatTS_With_XORCSUM */
+		struct {
+			/* latency timestamp */
+			pktts_t rx_pktts;
+			/* XOR checksum or a magic number to audit DMA done */
+			dma_done_t marker_ext;
+		};
+	};
 } host_rxbuf_cmpl_t;
 
 typedef union rxbuf_complete_item {
@@ -819,8 +1031,7 @@ typedef union rxbuf_complete_item {
 	unsigned char		check[D2HRING_RXCMPLT_ITEMSIZE];
 } rxbuf_complete_item_t;
 
-
-typedef struct host_txbuf_post {
+typedef struct host_txbuf_post_v1 {
 	/** common message header */
 	cmn_msg_hdr_t   cmn_hdr;
 	/** eth header */
@@ -832,22 +1043,96 @@ typedef struct host_txbuf_post {
 
 	/** provided meta data buffer for txstatus */
 	bcm_addr64_t	metadata_buf_addr;
-	/** provided data buffer to receive data */
+	/** provided data buffer containing Tx payload */
 	bcm_addr64_t	data_buf_addr;
 	/** provided meta data buffer len */
 	uint16		metadata_buf_len;
-	/** provided data buffer len to receive data */
+	/** provided data buffer len */
 	uint16		data_len;
-	/** XOR checksum or a magic number to audit DMA done */
-	dma_done_t	marker;
-} host_txbuf_post_t;
+	union {
+		struct {
+			/** extended transmit flags */
+			uint8 ext_flags;
+			uint8 scale_factor;
+
+			/** user defined rate */
+			uint8 rate;
+			uint8 exp_time;
+		};
+		/** XOR checksum or a magic number to audit DMA done */
+		dma_done_t	marker;
+	};
+} host_txbuf_post_v1_t;
+
+typedef enum pkt_csum_type_shift {
+	PKT_CSUM_TYPE_IPV4_SHIFT = 0,		/* pkt has IPv4 hdr */
+	PKT_CSUM_TYPE_IPV6_SHIFT = 1,		/* pkt has IPv6 hdr */
+	PKT_CSUM_TYPE_TCP_SHIFT = 2,		/* pkt has TCP hdr */
+	PKT_CSUM_TYPE_UDP_SHIFT = 3,		/* pkt has UDP hdr */
+	PKT_CSUM_TYPE_NWK_CSUM_SHIFT = 4,	/* pkt requires IP csum offload */
+	PKT_CSUM_TYPE_TRANS_CSUM_SHIFT = 5,	/* pkt requires TCP/UDP csum offload */
+	PKT_CSUM_TYPE_PSEUDOHDR_CSUM_SHIFT = 6,	/* pkt requires pseudo header csum offload */
+} pkt_type_shift_t;
+
+typedef struct pkt_info_cso {
+	/* packet csum type = ipv4/v6|udp|tcp|nwk_csum|trans_csum|ph_csum */
+	uint8 ver;
+	uint8 pkt_csum_type;
+	uint8 nwk_hdr_len;	/* IP header length */
+	uint8 trans_hdr_len;	/* TCP header length */
+} pkt_info_cso_t;
+
+typedef struct host_txbuf_post_v2 {
+	/** common message header */
+	cmn_msg_hdr_t   cmn_hdr;
+	/** eth header */
+	uint8		txhdr[ETHER_HDR_LEN];
+	/** flags */
+	uint8		flags;
+	/** number of segments */
+	uint8		seg_cnt;
+
+	/** provided meta data buffer for txstatus */
+	bcm_addr64_t	metadata_buf_addr;
+	/** provided data buffer containing Tx payload */
+	bcm_addr64_t	data_buf_addr;
+	/** provided meta data buffer len */
+	uint16		metadata_buf_len;
+	/** provided data buffer len */
+	uint16		data_len;
+	struct {
+		/** extended transmit flags */
+		uint8 ext_flags;
+		uint8 scale_factor;
+
+		/** user defined rate */
+		uint8 rate;
+		uint8 exp_time;
+	};
+	/** additional information on the packet required for CSO */
+	pkt_info_cso_t pktinfo;
+	uint32 PAD;
+} host_txbuf_post_v2_t;
+
+#if defined(BCMPCIE_EXT_TXPOST_SUPPORT) || defined(TX_CSO)
+typedef host_txbuf_post_v2_t host_txbuf_post_t;
+#else
+typedef host_txbuf_post_v1_t host_txbuf_post_t;
+#endif
 
 #define BCMPCIE_PKT_FLAGS_FRAME_802_3	0x01
 #define BCMPCIE_PKT_FLAGS_FRAME_802_11	0x02
 
+#define BCMPCIE_PKT_FLAGS_FRAME_NORETRY		0x01	/* Disable retry on this frame */
+#define BCMPCIE_PKT_FLAGS_FRAME_NOAGGR		0x02	/* Disable aggregation for this frame */
+#define BCMPCIE_PKT_FLAGS_FRAME_UDR		0x04	/* User defined rate for this frame */
+#define BCMPCIE_PKT_FLAGS_FRAME_ATTR_MASK	0x07	/* Attribute mask */
+
 #define BCMPCIE_PKT_FLAGS_FRAME_EXEMPT_MASK	0x03	/* Exempt uses 2 bits */
 #define BCMPCIE_PKT_FLAGS_FRAME_EXEMPT_SHIFT	0x02	/* needs to be shifted past other bits */
 
+#define BCMPCIE_PKT_FLAGS_EPOCH_SHIFT           3u
+#define BCMPCIE_PKT_FLAGS_EPOCH_MASK            (1u << BCMPCIE_PKT_FLAGS_EPOCH_SHIFT)
 
 #define BCMPCIE_PKT_FLAGS_PRIO_SHIFT		5
 #define BCMPCIE_PKT_FLAGS_PRIO_MASK		(7 << BCMPCIE_PKT_FLAGS_PRIO_SHIFT)
@@ -858,12 +1143,19 @@ typedef struct host_txbuf_post {
 #define BCMPCIE_PKT_FLAGS_MONITOR_SHIFT		8
 #define BCMPCIE_PKT_FLAGS_MONITOR_MASK		(3 << BCMPCIE_PKT_FLAGS_MONITOR_SHIFT)
 
+#define BCMPCIE_PKT_FLAGS_FRAME_MESH		0x400u
+/* Indicate RX checksum verified and passed */
+#define BCMPCIE_PKT_FLAGS_RCSUM_VALID		0x800u
+
 /* These are added to fix up compile issues */
 #define BCMPCIE_TXPOST_FLAGS_FRAME_802_3	BCMPCIE_PKT_FLAGS_FRAME_802_3
 #define BCMPCIE_TXPOST_FLAGS_FRAME_802_11	BCMPCIE_PKT_FLAGS_FRAME_802_11
 #define BCMPCIE_TXPOST_FLAGS_PRIO_SHIFT		BCMPCIE_PKT_FLAGS_PRIO_SHIFT
 #define BCMPCIE_TXPOST_FLAGS_PRIO_MASK		BCMPCIE_PKT_FLAGS_PRIO_MASK
 
+#define BCMPCIE_TXPOST_FLAGS_HOST_SFH_LLC	0x10u
+#define BCMPCIE_TXPOST_RATE_EXT_USAGE		0x80 /* The rate field has extended usage */
+#define BCMPCIE_TXPOST_RATE_PROFILE_IDX_MASK	0x07 /* The Tx profile index in the rate field */
 
 /* H2D Txpost ring work items */
 typedef union txbuf_submit_item {
@@ -877,19 +1169,33 @@ typedef struct host_txbuf_cmpl {
 	cmn_msg_hdr_t	cmn_hdr;
 	/** completion message header */
 	compl_msg_hdr_t	compl_hdr;
-	union {
+
+	union { /* size per IPC = (3 x uint32) bytes */
+		/* Usage 1: TxS_With_TimeSync */
 		struct {
-			/** provided meta data len */
-			uint16	metadata_len;
-			/** WLAN side txstatus */
-			uint16	tx_status;
+			 struct {
+				union {
+					/** provided meta data len */
+					uint16	metadata_len;
+					/** provided extended TX status */
+					uint16	tx_status_ext;
+				}; /*Ext_TxStatus */
+
+				/** WLAN side txstatus */
+				uint16	tx_status;
+			}; /* TxS */
+			/* timestamp */
+			ipc_timestamp_t ts;
+		}; /* TxS_with_TS */
+
+		/* Usage 2: LatTS_With_XORCSUM */
+		struct {
+			/* latency timestamp */
+			pktts_t tx_pktts;
+			/* XOR checksum or a magic number to audit DMA done */
+			dma_done_t marker_ext;
 		};
-		/** XOR checksum or a magic number to audit DMA done */
-		/* This is for rev6 only. For IPC rev7, this is not used */
-		dma_done_t	marker;
 	};
-	/* timestamp */
-	ipc_timestamp_t ts;
 
 } host_txbuf_cmpl_t;
 
@@ -897,6 +1203,44 @@ typedef union txbuf_complete_item {
 	host_txbuf_cmpl_t	txcmpl;
 	unsigned char		check[D2HRING_TXCMPLT_ITEMSIZE];
 } txbuf_complete_item_t;
+
+#define METADATA_VER_1		1u
+#define METADATA_VER_2		2u
+#define PCIE_METADATA_VER	METADATA_VER_2
+
+/* version and length are not part of this structure.
+ * dhd queries version and length through bus iovar "bus:metadata_info".
+ */
+struct metadata_txcmpl_v1 {
+	uint32 tref; /* TSF or Ref Clock in uSecs */
+	uint16 d_t2; /* T2-fwt1 delta */
+	uint16 d_t3; /* T3-fwt1 delta */
+	uint16 d_t4; /* T4-fwt1 delta */
+	uint16 rsvd; /* reserved */
+};
+
+struct metadata_txcmpl_v2 {
+	uint32 tref; /* TSF or Ref Clock in uSecs */
+	uint16 d_t2; /* T2-fwt1 delta */
+	uint16 d_t3; /* T3-fwt1 delta */
+	uint16 d_t4; /* T4-fwt1 delta */
+
+	uint16 u_t1; /* PSM Packet Fetch Time in 32us */
+	uint16 u_t2; /* Medium Access Delay delta */
+	uint16 u_t3; /* Rx duration delta */
+	uint16 u_t4; /* Mac Suspend Duration delta */
+	uint16 u_t5; /* TxStatus Time in 32us */
+
+	uint16 u_c1; /* Number of times Tx was enabled */
+	uint16 u_c2; /* Other AC TxStatus count */
+	uint16 u_c3; /* DataRetry count */
+	uint16 u_c4; /* RTS */
+	uint16 u_c5; /* CTS */
+	uint16 u_c6; /* debug 1 */
+	uint16 u_c7; /* debug 2 */
+	uint16 u_c8; /* debug 3 */
+};
+typedef struct metadata_txcmpl_v2 metadata_txcmpl_t;
 
 #define BCMPCIE_D2H_METADATA_HDRLEN	4
 #define BCMPCIE_D2H_METADATA_MINLEN	(BCMPCIE_D2H_METADATA_HDRLEN + 4)
@@ -907,20 +1251,19 @@ typedef struct ret_buf_ptr {
 	uint32 high_addr;
 } ret_buf_t;
 
-
 #ifdef PCIE_API_REV1
 
 /* ioctl specific hdr */
 typedef struct ioctl_hdr {
-	uint16 		cmd;
+	uint16		cmd;
 	uint16		retbuf_len;
 	uint32		cmd_id;
 } ioctl_hdr_t;
 
 typedef struct ioctlptr_hdr {
-	uint16 		cmd;
+	uint16		cmd;
 	uint16		retbuf_len;
-	uint16 		buflen;
+	uint16		buflen;
 	uint16		rsvd;
 	uint32		cmd_id;
 } ioctlptr_hdr_t;
@@ -929,15 +1272,14 @@ typedef struct ioctlptr_hdr {
 
 typedef struct ioctl_req_hdr {
 	uint32		pkt_id;	/**< Packet ID */
-	uint32 		cmd;	/**< IOCTL ID */
+	uint32		cmd;	/**< IOCTL ID */
 	uint16		retbuf_len;
-	uint16 		buflen;
+	uint16		buflen;
 	uint16		xt_id;	/**< transaction ID */
 	uint16		rsvd[1];
 } ioctl_req_hdr_t;
 
 #endif /* PCIE_API_REV1 */
-
 
 /** Complete msgbuf hdr for ioctl from host to dongle */
 typedef struct ioct_reqst_hdr {
@@ -1138,6 +1480,7 @@ typedef struct tx_idle_flowring_resume_response {
 
 /* timesync related additions */
 
+/* defined similar to bcm_xtlv_t */
 typedef struct _bcm_xtlv {
 	uint16		id; /* TLV idenitifier */
 	uint16		len; /* TLV length in bytes */
@@ -1192,11 +1535,172 @@ typedef struct ts_host_timestamping_config {
 	/* time period to capture the device time stamp and toggle WLAN_TIME_SYNC_GPIO */
 	uint16			period_ms;
 	uint8			flags;
-	uint8			rsvd;
+	uint8			post_delay;
 	uint32			reset_cnt;
 } ts_host_timestamping_config_t;
 
 /* Flags in host timestamping config TLV */
 #define FLAG_HOST_RESET		(1 << 0)
+#define IS_HOST_RESET(x)	((x) & FLAG_HOST_RESET)
+#define CLEAR_HOST_RESET(x)	((x) & ~FLAG_HOST_RESET)
+
+#define FLAG_CONFIG_NODROP	(1 << 1)
+#define IS_CONFIG_NODROP(x)	((x) & FLAG_CONFIG_NODROP)
+#define CLEAR_CONFIG_NODROP(x)	((x) & ~FLAG_CONFIG_NODROP)
+
+/* HP2P RLLW Extended TxStatus info when host enables the same */
+#define D2H_TXSTATUS_EXT_PKT_WITH_OVRRD	0x8000 /**< set when pkt had override bit on */
+#define D2H_TXSTATUS_EXT_PKT_XMIT_ON5G	0x4000 /**< set when pkt xmitted on 5G */
+#define D2H_TXSTATUS_EXT_PKT_BT_DENY	0x2000 /**< set when WLAN is given prio over BT */
+#define D2H_TXSTATUS_EXT_PKT_NAV_SWITCH	0x1000 /**< set when band switched due to NAV intr */
+#define D2H_TXSTATUS_EXT_PKT_HOF_SWITCH	0x0800 /**< set when band switched due to HOF intr */
+
+/* H2D Txpost aggregated work item */
+#define TXBUF_AGGR_CNT	(2u)
+
+/* aggregated work item of txpost v2 */
+typedef struct host_txbuf_post_aggr_v2 {
+	/** common aggregated message header */
+	cmn_aggr_msg_hdr_t cmn_aggr_hdr;
+
+	/** data buffer len to transmit */
+	uint16		data_buf_len[TXBUF_AGGR_CNT];
+
+	/** address of data buffer to transmit */
+	bcm_addr64_t	data_buf_addr[TXBUF_AGGR_CNT];
+
+	/** packet Identifier for the associated host buffer */
+	uint32		request_id[TXBUF_AGGR_CNT];
+
+	/** eth header */
+	uint8		txhdr[ETHER_HDR_LEN];
+
+	/* reserved bytes */
+	uint16		reserved;
+
+	/** additional information on the packet required for CSO */
+	pkt_info_cso_t	pktinfo[TXBUF_AGGR_CNT];
+} host_txbuf_post_aggr_v2_t;
+
+/* aggregated work item of txpost v1 */
+typedef struct host_txbuf_post_aggr_v1 {
+	/** common aggregated message header */
+	cmn_aggr_msg_hdr_t cmn_aggr_hdr;
+
+	/** data buffer len to transmit */
+	uint16		data_buf_len[TXBUF_AGGR_CNT];
+
+	/** address of data buffer to transmit */
+	bcm_addr64_t	data_buf_addr[TXBUF_AGGR_CNT];
+
+	/** packet Identifier for the associated host buffer */
+	uint32		request_id[TXBUF_AGGR_CNT];
+
+	/** eth header */
+	uint8		txhdr[ETHER_HDR_LEN];
+
+	/* pad bytes */
+	uint16		PAD;
+} host_txbuf_post_aggr_v1_t;
+
+#if defined(BCMPCIE_EXT_TXPOST_SUPPORT) || defined(TX_CSO)
+typedef host_txbuf_post_aggr_v2_t host_txbuf_post_aggr_t;
+#else
+typedef host_txbuf_post_aggr_v1_t host_txbuf_post_aggr_t;
+#endif
+
+/* D2H Txcompletion ring aggregated work item */
+#define TXCPL_AGGR_CNT		(4u)
+
+/* head aggregated work item of txcpl */
+typedef struct host_txbuf_cmpl_aggr {
+	/** common aggregated message header */
+	cmn_aggr_msg_hdr_t cmn_aggr_hdr;
+
+	/** completion aggregated message header */
+	compl_aggr_msg_hdr_t compl_aggr_hdr;
+
+	/** packet Identifier for the associated host buffer */
+	uint32 request_id[TXCPL_AGGR_CNT];
+} host_txbuf_cmpl_aggr_t;
+
+#define TXCPL_AGGR_CNT_EXT	(6u)
+/* non-head aggregated work item of txcpl */
+typedef struct host_txbuf_cmpl_aggr_ext {
+	/** packet Identifier for the associated host buffer */
+	uint32 request_id[TXCPL_AGGR_CNT_EXT];
+} host_txbuf_cmpl_aggr_ext_t;
+
+/* H2D Rxpost ring aggregated work items */
+#define RXBUF_AGGR_CNT	(2u)
+
+/* aggregated work item of rxpost */
+typedef struct host_rxbuf_post_aggr {
+	/** common aggregated message header */
+	cmn_aggr_msg_hdr_t cmn_aggr_hdr;
+
+	/** data buffer len to transmit */
+	uint16		data_buf_len[RXBUF_AGGR_CNT];
+
+	/** packet Identifier for the associated host buffer */
+	uint32		request_id[RXBUF_AGGR_CNT];
+
+	/** address of data buffer to transmit */
+	bcm_addr64_t	data_buf_addr[RXBUF_AGGR_CNT];
+} host_rxbuf_post_aggr_t;
+
+/* D2H Rxcompletion ring for aggregated work items */
+#define RXCPL_AGGR_CNT		(2u)
+
+/* each rx buffer work item */
+typedef struct host_rxbuf_cmpl_pkt {
+	/** offset in the host rx buffer where the data starts */
+	uint16		data_offset;
+	/** filled up buffer len to receive data */
+	uint16		data_len;
+	/** packet Identifier for the associated host buffer */
+	uint32		request_id;
+} host_rxbuf_cmpl_item_t;
+
+/* head aggregated work item of rxcpl */
+typedef struct host_rxbuf_cmpl_aggr {
+	/** common aggregated message header */
+	cmn_aggr_msg_hdr_t cmn_aggr_hdr;
+
+	/** completion aggregated message header */
+	compl_aggr_msg_hdr_t compl_aggr_hdr;
+
+	/** rxbuffer work item */
+	host_rxbuf_cmpl_item_t	item[RXCPL_AGGR_CNT];
+} host_rxbuf_cmpl_aggr_t;
+
+#define RXCPL_AGGR_CNT_EXT	(5u)
+/* non-head aggregated work item of rxcpl */
+typedef struct host_rxbuf_cmpl_aggr_ext {
+	/** rxbuffer work item */
+	host_rxbuf_cmpl_item_t	item[RXCPL_AGGR_CNT_EXT];
+} host_rxbuf_cmpl_aggr_ext_t;
+
+/* txpost extended tag types */
+typedef uint8 txpost_ext_tag_type_t;
+enum {
+	TXPOST_EXT_TAG_TYPE_RSVD	= 0u,	/* Reserved */
+	TXPOST_EXT_TAG_TYPE_CSO		= 1u,
+	TXPOST_EXT_TAG_TYPE_MESH	= 2u,
+	TXPOST_EXT_TAG_TYPE_MAX		= 3u	/* NOTE: increment this as you add reasons above */
+};
+
+/* Fixed lengths for each extended tag */
+typedef uint8 txpost_ext_tag_len_t;
+enum {
+	TXPOST_EXT_TAG_LEN_RSVD		= 0u, /* Reserved */
+	TXPOST_EXT_TAG_LEN_CSO		= 4u,
+	TXPOST_EXT_TAG_LEN_MESH		= 20u
+};
+
+/*
+ * Note: The only requirement is that the overall size of the workitem be multiple of 8.
+ * However, each individual ext tag not necessarily 8x.
+ */
 
 #endif /* _bcmmsgbuf_h_ */

@@ -2,14 +2,14 @@
  * Header file of Broadcom Dongle Host Driver (DHD)
  * Prefered Network Offload code and Wi-Fi Location Service(WLS) code.
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
+ * Copyright (C) 2020, Broadcom.
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -17,21 +17,15 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
- *      Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a license
- * other than the GPL, without Broadcom's express prior written consent.
  *
  *
- * <<Broadcom-WL-IPTag/Open:>>
- *
- * $Id: dhd_pno.h 707287 2017-06-27 06:44:29Z $
+ * <<Broadcom-WL-IPTag/Dual:>>
  */
 
 #ifndef __DHD_PNO_H__
 #define __DHD_PNO_H__
 
-#if defined(PNO_SUPPORT)
+#if defined(OEM_ANDROID) && defined(PNO_SUPPORT)
 #define PNO_TLV_PREFIX			'S'
 #define PNO_TLV_VERSION			'1'
 #define PNO_TLV_SUBTYPE_LEGACY_PNO '2'
@@ -166,16 +160,6 @@ typedef struct cmd_tlv {
 } cmd_tlv_t;
 #if defined(GSCAN_SUPPORT) || defined(DHD_GET_VALID_CHANNELS)
 typedef enum {
-    WIFI_BAND_UNSPECIFIED,
-    WIFI_BAND_BG = 1,                       /* 2.4 GHz                   */
-    WIFI_BAND_A = 2,                        /* 5 GHz without DFS         */
-    WIFI_BAND_A_DFS = 4,                    /* 5 GHz DFS only            */
-    WIFI_BAND_A_WITH_DFS = 6,               /* 5 GHz with DFS            */
-    WIFI_BAND_ABG = 3,                      /* 2.4 GHz + 5 GHz; no DFS   */
-    WIFI_BAND_ABG_WITH_DFS = 7,             /* 2.4 GHz + 5 GHz with DFS  */
-} gscan_wifi_band_t;
-
-typedef enum {
 	HOTLIST_LOST,
 	HOTLIST_FOUND
 } hotlist_type_t;
@@ -305,6 +289,9 @@ struct dhd_pno_hotlist_params {
 	uint16 nbssid;
 	struct list_head bssid_list;
 };
+
+#define DHD_PNO_CHSPEC_SUPPORT_VER	14
+
 #if defined(GSCAN_SUPPORT) || defined(DHD_GET_VALID_CHANNELS)
 #define DHD_PNO_REPORT_NO_BATCH      (1 << 2)
 
@@ -321,7 +308,6 @@ typedef struct dhd_pno_gscan_channel_bucket {
 	uint16 bucket_max_multiple;
 	uint16 chan_list[GSCAN_MAX_CHANNELS_IN_BUCKET];
 } dhd_pno_gscan_channel_bucket_t;
-
 
 #define DHD_PNO_AUTH_CODE_OPEN  1 /*  Open   */
 #define DHD_PNO_AUTH_CODE_PSK   2 /* WPA_PSK or WPA2PSK */
@@ -349,16 +335,21 @@ typedef struct dhd_epno_results {
 	struct ether_addr bssid;
 } dhd_epno_results_t;
 
+typedef struct dhd_pno_swc_evt_param {
+	uint16 results_rxed_so_far;
+	wl_pfn_significant_net_t *change_array;
+} dhd_pno_swc_evt_param_t;
+
 typedef struct wifi_gscan_result {
-	uint64 ts;                           /* Time of discovery           */
-	char ssid[DOT11_MAX_SSID_LEN+1];     /* null terminated             */
-	struct ether_addr	macaddr;         /* BSSID                      */
-	uint32 channel;                      /* channel frequency in MHz    */
-	int32 rssi;                          /* in db                       */
-	uint64 rtt;                          /* in nanoseconds              */
-	uint64 rtt_sd;                       /* standard deviation in rtt   */
-	uint16 beacon_period;                /* units are Kusec             */
-	uint16 capability;                   /* Capability information       */
+	uint64 ts;			/* Time of discovery           */
+	char ssid[DOT11_MAX_SSID_LEN+1]; /* null terminated		*/
+	struct ether_addr macaddr;	/* BSSID                      */
+	uint32 channel;			/* channel frequency in MHz    */
+	int32 rssi;			/* in db                       */
+	uint64 rtt;			/* in nanoseconds              */
+	uint64 rtt_sd;			/* standard deviation in rtt   */
+	uint16 beacon_period;		/* units are Kusec             */
+	uint16 capability;		/* Capability information       */
 	uint32 pad;
 } wifi_gscan_result_t;
 
@@ -385,15 +376,17 @@ typedef struct dhd_pno_gscan_capabilities {
 	int max_ap_cache_per_scan;
 	int max_rssi_sample_size;
 	int max_scan_reporting_threshold;
-	int max_hotlist_aps;
+	int max_hotlist_bssids;
+	int max_hotlist_ssids;
 	int max_significant_wifi_change_aps;
+	int max_bssid_history_entries;
 	int max_epno_ssid_crc32;
 	int max_epno_hidden_ssid;
 	int max_white_list_ssid;
 } dhd_pno_gscan_capabilities_t;
 
 typedef struct dhd_epno_ssid_cfg {
-	wl_pfn_ssid_params_t params;
+	wl_ssid_ext_params_t params;
 	uint32 num_epno_ssid;
 	struct list_head epno_ssid_list;
 } dhd_epno_ssid_cfg_t;
@@ -403,6 +396,8 @@ struct dhd_pno_gscan_params {
 	uint8 bestn;
 	uint8 mscan;
 	uint8 buffer_threshold;
+	uint8 swc_nbssid_threshold;
+	uint8 swc_rssi_window_size;
 	uint8 lost_ap_window;
 	uint8 nchannel_buckets;
 	uint8 reason;
@@ -411,10 +406,13 @@ struct dhd_pno_gscan_params {
 	uint16 max_ch_bucket_freq;
 	gscan_results_cache_t *gscan_batch_cache;
 	gscan_results_cache_t *gscan_hotlist_found;
-	gscan_results_cache_t *gscan_hotlist_lost;
+	gscan_results_cache_t*gscan_hotlist_lost;
+	uint16 nbssid_significant_change;
 	uint16 nbssid_hotlist;
+	struct dhd_pno_swc_evt_param param_significant;
 	struct dhd_pno_gscan_channel_bucket channel_bucket[GSCAN_MAX_CH_BUCKETS];
 	struct list_head hotlist_bssid_list;
+	struct list_head significant_bssid_list;
 	dhd_epno_ssid_cfg_t epno_cfg;
 	uint32 scan_id;
 };
@@ -443,6 +441,7 @@ typedef struct gscan_hotlist_scan_params {
 } gscan_hotlist_scan_params_t;
 
 #endif /* GSCAN_SUPPORT || DHD_GET_VALID_CHANNELS */
+
 typedef union dhd_pno_params {
 	struct dhd_pno_legacy_params params_legacy;
 	struct dhd_pno_batch_params params_batch;
@@ -451,6 +450,7 @@ typedef union dhd_pno_params {
 	struct dhd_pno_gscan_params params_gscan;
 #endif /* GSCAN_SUPPORT || DHD_GET_VALID_CHANNELS */
 } dhd_pno_params_t;
+
 typedef struct dhd_pno_status_info {
 	dhd_pub_t *dhd;
 	struct work_struct work;
@@ -458,7 +458,12 @@ typedef struct dhd_pno_status_info {
 #ifdef GSCAN_SUPPORT
 	wait_queue_head_t batch_get_wait;
 #endif /* GSCAN_SUPPORT */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
+	wait_queue_head_t get_batch_done;
+	bool batch_recvd;
+#else
 	struct completion get_batch_done;
+#endif
 	bool wls_supported; /* wifi location service supported or not */
 	enum dhd_pno_status pno_status;
 	enum dhd_pno_mode pno_mode;
@@ -491,7 +496,7 @@ extern int
 dhd_dev_pno_set_for_hotlist(struct net_device *dev, wl_pfn_bssid_t *p_pfn_bssid,
 	struct dhd_pno_hotlist_params *hotlist_params);
 extern bool dhd_dev_is_legacy_pno_enabled(struct net_device *dev);
-#if defined(GSCAN_SUPPORT) || defined(DHD_GET_VALID_CHANNELS)
+#if defined (GSCAN_SUPPORT) || defined(DHD_GET_VALID_CHANNELS)
 extern void *
 dhd_dev_pno_get_gscan(struct net_device *dev, dhd_pno_gscan_cmd_cfg_t type, void *info,
         uint32 *len);
@@ -506,7 +511,7 @@ extern int dhd_dev_pno_run_gscan(struct net_device *dev, bool run, bool flush);
 extern int dhd_dev_pno_enable_full_scan_result(struct net_device *dev, bool real_time);
 int dhd_retreive_batch_scan_results(dhd_pub_t *dhd);
 extern void * dhd_dev_hotlist_scan_event(struct net_device *dev,
-            const void  *data, int *send_evt_bytes, hotlist_type_t type);
+            const void  *data, int *send_evt_bytes, hotlist_type_t type, u32 *buf_len);
 void * dhd_dev_process_full_gscan_result(struct net_device *dev,
             const void  *data, uint32 len, int *send_evt_bytes);
 extern int dhd_dev_gscan_batch_cache_cleanup(struct net_device *dev);
@@ -527,7 +532,6 @@ extern int dhd_pno_set_for_batch(dhd_pub_t *dhd, struct dhd_pno_batch_params *ba
 
 extern int dhd_pno_get_for_batch(dhd_pub_t *dhd, char *buf, int bufsize, int reason);
 
-
 extern int dhd_pno_stop_for_batch(dhd_pub_t *dhd);
 
 extern int dhd_pno_set_for_hotlist(dhd_pub_t *dhd, wl_pfn_bssid_t *p_pfn_bssid,
@@ -540,7 +544,7 @@ extern int dhd_pno_init(dhd_pub_t *dhd);
 extern int dhd_pno_deinit(dhd_pub_t *dhd);
 extern bool dhd_is_pno_supported(dhd_pub_t *dhd);
 extern bool dhd_is_legacy_pno_enabled(dhd_pub_t *dhd);
-#if defined(GSCAN_SUPPORT) || defined(DHD_GET_VALID_CHANNELS)
+#if defined (GSCAN_SUPPORT) || defined(DHD_GET_VALID_CHANNELS)
 extern void * dhd_pno_get_gscan(dhd_pub_t *dhd, dhd_pno_gscan_cmd_cfg_t type, void *info,
                        uint32 *len);
 #endif /* GSCAN_SUPPORT || DHD_GET_VALID_CHANNELS */
@@ -554,7 +558,7 @@ extern int dhd_pno_enable_full_scan_result(dhd_pub_t *dhd, bool real_time_flag);
 extern int dhd_pno_cfg_gscan(dhd_pub_t *dhd, dhd_pno_gscan_cmd_cfg_t type, void *buf);
 extern int dhd_dev_retrieve_batch_scan(struct net_device *dev);
 extern void *dhd_handle_hotlist_scan_evt(dhd_pub_t *dhd, const void *event_data,
-                       int *send_evt_bytes, hotlist_type_t type);
+                       int *send_evt_bytes, hotlist_type_t type, u32 *buf_len);
 extern void *dhd_process_full_gscan_result(dhd_pub_t *dhd, const void *event_data,
                        uint32 len, int *send_evt_bytes);
 extern int dhd_gscan_batch_cache_cleanup(dhd_pub_t *dhd);
@@ -567,6 +571,16 @@ extern int dhd_pno_set_epno(dhd_pub_t *dhd);
 extern int dhd_pno_flush_fw_epno(dhd_pub_t *dhd);
 extern void dhd_pno_set_epno_auth_flag(uint32 *wpa_auth);
 #endif /* GSCAN_SUPPORT */
-#endif 
+#endif /* #if defined(OEM_ANDROID) && defined(PNO_SUPPORT) */
 
+#if defined(NDIS)
+#if defined(PNO_SUPPORT)
+extern int dhd_pno_cfg(dhd_pub_t *dhd, wl_pfn_cfg_t *pcfg);
+extern int dhd_pno_suspend(dhd_pub_t *dhd, int pfn_suspend);
+extern int dhd_pno_set_add(dhd_pub_t *dhd, wl_pfn_t *netinfo, int nssid, ushort scan_fr,
+	ushort slowscan_fr, uint8 pno_repeat, uint8 pno_freq_expo_max, int16 flags);
+extern int dhd_pno_enable(dhd_pub_t *dhd, int pfn_enabled);
+extern int dhd_pno_clean(dhd_pub_t *dhd);
+#endif /* #if defined(PNO_SUPPORT) */
+#endif /* #if defined(NDIS) */
 #endif /* __DHD_PNO_H__ */

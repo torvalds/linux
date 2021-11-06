@@ -2,14 +2,14 @@
  *  BCMSDH interface glue
  *  implement bcmsdh API for SDIOH driver
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
+ * Copyright (C) 2020, Broadcom.
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -17,15 +17,11 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
- *      Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a license
- * other than the GPL, without Broadcom's express prior written consent.
  *
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcmsdh.c 671319 2016-11-21 14:27:29Z $
+ * $Id$
  */
 
 /**
@@ -40,6 +36,9 @@
 #include <bcmutils.h>
 #include <hndsoc.h>
 #include <siutils.h>
+#if !defined(BCMDONGLEHOST)
+#include <bcmsrom.h>
+#endif /* !defined(BCMDONGLEHOST) */
 #include <osl.h>
 
 #include <bcmsdh.h>	/* BRCM API for SDIO clients (such as wl, dhd) */
@@ -47,7 +46,7 @@
 #include <sbsdio.h>	/* SDIO device core hardware definitions. */
 #include <sdio.h>	/* SDIO Device and Protocol Specs */
 
-#if defined(BT_OVER_SDIO)
+#if defined (BT_OVER_SDIO)
 #include <dhd_bt_interface.h>
 #endif /* defined (BT_OVER_SDIO) */
 
@@ -57,13 +56,16 @@ const uint bcmsdh_msglevel = BCMSDH_ERROR_VAL;
 /* local copy of bcm sd handler */
 bcmsdh_info_t * l_bcmsdh = NULL;
 
-#if defined(BT_OVER_SDIO)
+#if defined (BT_OVER_SDIO)
 struct sdio_func *func_f3 = NULL;
 static f3intr_handler processf3intr = NULL;
 static dhd_hang_notification process_dhd_hang_notification = NULL;
 static dhd_hang_state_t g_dhd_hang_state = NO_HANG_STATE;
 #endif /* defined (BT_OVER_SDIO) */
 
+#if defined(NDIS) && (NDISVER < 0x0630)
+extern SDIOH_API_RC sdioh_detach(osl_t *osh, sdioh_info_t *sd);
+#endif
 
 #if defined(OOB_INTR_ONLY) && defined(HW_OOB) || defined(FORCE_WOWLAN)
 extern int
@@ -76,7 +78,7 @@ bcmsdh_enable_hw_oob_intr(bcmsdh_info_t *sdh, bool enable)
 }
 #endif
 
-#if defined(BT_OVER_SDIO)
+#if defined (BT_OVER_SDIO)
 void bcmsdh_btsdio_process_hang_state(dhd_hang_state_t new_state)
 {
 	bool state_change = false;
@@ -97,6 +99,7 @@ void bcmsdh_btsdio_process_hang_state(dhd_hang_state_t new_state)
 			if (HANG_RECOVERY_STATE == new_state ||
 				NO_HANG_STATE == new_state)
 				state_change = true;
+
 		break;
 
 		case HANG_RECOVERY_STATE:
@@ -173,12 +176,12 @@ bcmsdh_attach(osl_t *osh, void *sdioh, ulong *regsva)
 	bcmsdh->sdioh = sdioh;
 	bcmsdh->osh = osh;
 	bcmsdh->init_success = TRUE;
-	*regsva = SI_ENUM_BASE;
+	*regsva = si_enum_base(0);
 
 	bcmsdh_force_sbwad_calc(bcmsdh, FALSE);
 
 	/* Report the BAR, to fix if needed */
-	bcmsdh->sbwad = SI_ENUM_BASE;
+	bcmsdh->sbwad = si_enum_base(0);
 
 	/* save the handler locally */
 	l_bcmsdh = bcmsdh;
@@ -192,6 +195,10 @@ bcmsdh_detach(osl_t *osh, void *sdh)
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *)sdh;
 
 	if (bcmsdh != NULL) {
+#if defined(NDIS) && (NDISVER < 0x0630)
+		if (bcmsdh->sdioh)
+			sdioh_detach(osh, bcmsdh->sdioh);
+#endif
 		MFREE(osh, bcmsdh, sizeof(bcmsdh_info_t));
 	}
 
@@ -202,7 +209,7 @@ bcmsdh_detach(osl_t *osh, void *sdh)
 
 int
 bcmsdh_iovar_op(void *sdh, const char *name,
-                void *params, int plen, void *arg, int len, bool set)
+                void *params, uint plen, void *arg, uint len, bool set)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *)sdh;
 	return sdioh_iovar_op(bcmsdh->sdioh, name, params, plen, arg, len, set);
@@ -228,9 +235,17 @@ bcmsdh_intr_enable(void *sdh)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *)sdh;
 	SDIOH_API_RC status;
+#ifdef BCMSPI_ANDROID
+	uint32 data;
+#endif /* BCMSPI_ANDROID */
 	ASSERT(bcmsdh);
 
 	status = sdioh_interrupt_set(bcmsdh->sdioh, TRUE);
+#ifdef BCMSPI_ANDROID
+	data = bcmsdh_cfg_read_word(sdh, 0, 4, NULL);
+	data |= 0xE0E70000;
+	bcmsdh_cfg_write_word(sdh, 0, 4, data, NULL);
+#endif /* BCMSPI_ANDROID */
 	return (SDIOH_API_SUCCESS(status) ? 0 : BCME_ERROR);
 }
 
@@ -239,9 +254,17 @@ bcmsdh_intr_disable(void *sdh)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *)sdh;
 	SDIOH_API_RC status;
+#ifdef BCMSPI_ANDROID
+	uint32 data;
+#endif /* BCMSPI_ANDROID */
 	ASSERT(bcmsdh);
 
 	status = sdioh_interrupt_set(bcmsdh->sdioh, FALSE);
+#ifdef BCMSPI_ANDROID
+	data = bcmsdh_cfg_read_word(sdh, 0, 4, NULL);
+	data &= ~0xE0E70000;
+	bcmsdh_cfg_write_word(sdh, 0, 4, data, NULL);
+#endif /* BCMSPI_ANDROID */
 	return (SDIOH_API_SUCCESS(status) ? 0 : BCME_ERROR);
 }
 
@@ -275,7 +298,7 @@ bcmsdh_intr_dereg(void *sdh)
 	return (SDIOH_API_SUCCESS(status) ? 0 : BCME_ERROR);
 }
 
-#if defined(DHD_DEBUG)
+#if defined(DHD_DEBUG) || defined(BCMDBG)
 bool
 bcmsdh_intr_pending(void *sdh)
 {
@@ -285,7 +308,6 @@ bcmsdh_intr_pending(void *sdh)
 	return sdioh_interrupt_pending(bcmsdh->sdioh);
 }
 #endif
-
 
 int
 bcmsdh_devremove_reg(void *sdh, bcmsdh_cb_fn_t fn, void *argh)
@@ -412,7 +434,6 @@ bcmsdh_cfg_write_word(void *sdh, uint fnc_num, uint32 addr, uint32 data, int *er
 	             addr, data));
 }
 
-
 int
 bcmsdh_cis_read(void *sdh, uint func, uint8 *cis, uint length)
 {
@@ -495,6 +516,11 @@ bcmsdhsdio_set_sbaddr_window(void *sdh, uint32 address, bool force_set)
 			/* invalidate cached window var */
 			bcmsdh->sbwad = 0;
 
+#ifdef BCMDBG
+		if (err)
+			BCMSDH_ERROR(("%s: error setting address window %08x\n",
+				__FUNCTION__, address));
+#endif /* BCMDBG */
 	}
 
 	return err;
@@ -514,7 +540,7 @@ bcmsdh_reg_read(void *sdh, uintptr addr, uint size)
 
 	ASSERT(bcmsdh->init_success);
 
-	if (bcmsdhsdio_set_sbaddr_window(bcmsdh, addr, FALSE)) {
+	if (bcmsdhsdio_set_sbaddr_window(bcmsdh, addr, bcmsdh->force_sbwad_calc)) {
 		bcmsdh->regfail = TRUE; // terence 20130621: prevent dhd_dpc in dead lock
 		return 0xFFFFFFFF;
 	}
@@ -531,6 +557,7 @@ bcmsdh_reg_read(void *sdh, uintptr addr, uint size)
 	BCMSDH_INFO(("uint32data = 0x%x\n", word));
 
 	/* if ok, return appropriately masked word */
+	/* XXX Masking was put in for NDIS port, remove if not needed */
 	if (SDIOH_API_SUCCESS(status)) {
 		switch (size) {
 			case sizeof(uint8):
@@ -715,16 +742,57 @@ bcmsdh_stop(void *sdh)
 int
 bcmsdh_waitlockfree(void *sdh)
 {
+#ifdef LINUX
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *)sdh;
 
 	return sdioh_waitlockfree(bcmsdh->sdioh);
+#else
+	return 0;
+#endif
 }
 
 int
 bcmsdh_query_device(void *sdh)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *)sdh;
+#if defined(BCMDONGLEHOST)
 	bcmsdh->vendevid = (VENDOR_BROADCOM << 16) | 0;
+#else
+	uint8 *fn0cis[1];
+	int err;
+	char *vars;
+	uint varsz;
+	osl_t *osh = bcmsdh->osh;
+
+	bcmsdh->vendevid = ~(0);
+
+	if (!(fn0cis[0] = MALLOC(osh, SBSDIO_CIS_SIZE_LIMIT))) {
+		BCMSDH_ERROR(("%s: CIS malloc failed\n", __FUNCTION__));
+		return (bcmsdh->vendevid);
+	}
+
+	bzero(fn0cis[0], SBSDIO_CIS_SIZE_LIMIT);
+
+	if ((err = bcmsdh_cis_read(sdh, 0, fn0cis[0], SBSDIO_CIS_SIZE_LIMIT))) {
+		BCMSDH_ERROR(("%s: CIS read err %d, report unknown BRCM device\n",
+		              __FUNCTION__, err));
+		bcmsdh->vendevid = (VENDOR_BROADCOM << 16) | 0;
+		MFREE(osh, fn0cis[0], SBSDIO_CIS_SIZE_LIMIT);
+		return (bcmsdh->vendevid);
+	}
+
+	if (!err) {
+		if ((err = srom_parsecis(NULL, osh, fn0cis, 1, &vars, &varsz))) {
+			BCMSDH_ERROR(("%s: Error parsing CIS = %d\n", __FUNCTION__, err));
+		} else {
+			bcmsdh->vendevid = (getintvar(vars, "vendid") << 16) |
+			                    getintvar(vars, "devid");
+			MFREE(osh, vars, varsz);
+		}
+	}
+
+	MFREE(osh, fn0cis[0], SBSDIO_CIS_SIZE_LIMIT);
+#endif /* BCMDONGLEHOST */
 	return (bcmsdh->vendevid);
 }
 
@@ -747,6 +815,7 @@ bcmsdh_reset(bcmsdh_info_t *sdh)
 	return sdioh_sdio_reset(bcmsdh->sdioh);
 }
 
+/* XXX For use by NDIS port, remove if not needed. */
 void *bcmsdh_get_sdioh(bcmsdh_info_t *sdh)
 {
 	ASSERT(sdh);
@@ -757,7 +826,13 @@ void *bcmsdh_get_sdioh(bcmsdh_info_t *sdh)
 uint32
 bcmsdh_get_dstatus(void *sdh)
 {
+#ifdef BCMSPI
+	bcmsdh_info_t *p = (bcmsdh_info_t *)sdh;
+	sdioh_info_t *sd = (sdioh_info_t *)(p->sdioh);
+	return sdioh_get_dstatus(sd);
+#else
 	return 0;
+#endif /* BCMSPI */
 }
 uint32
 bcmsdh_cur_sbwad(void *sdh)
@@ -786,9 +861,25 @@ bcmsdh_force_sbwad_calc(void *sdh, bool force)
 void
 bcmsdh_chipinfo(void *sdh, uint32 chip, uint32 chiprev)
 {
+#ifdef BCMSPI
+	bcmsdh_info_t *p = (bcmsdh_info_t *)sdh;
+	sdioh_info_t *sd = (sdioh_info_t *)(p->sdioh);
+	sdioh_chipinfo(sd, chip, chiprev);
+#else
 	return;
+#endif /* BCMSPI */
 }
 
+#ifdef BCMSPI
+void
+bcmsdh_dwordmode(void *sdh, bool set)
+{
+	bcmsdh_info_t *p = (bcmsdh_info_t *)sdh;
+	sdioh_info_t *sd = (sdioh_info_t *)(p->sdioh);
+	sdioh_dwordmode(sd, set);
+	return;
+}
+#endif /* BCMSPI */
 
 int
 bcmsdh_sleep(void *sdh, bool enab)
@@ -845,3 +936,12 @@ bcmsdh_set_mode(void *sdh, uint mode)
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *)sdh;
 	return (sdioh_set_mode(bcmsdh->sdioh, mode));
 }
+
+#ifdef PKT_STATICS
+uint32
+bcmsdh_get_spend_time(void *sdh)
+{
+	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *)sdh;
+	return (sdioh_get_spend_time(bcmsdh->sdioh));
+}
+#endif

@@ -1,16 +1,14 @@
 /*
  * DHD debugability support
  *
- * <<Broadcom-WL-IPTag/Open:>>
+ * Copyright (C) 2020, Broadcom.
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -18,12 +16,11 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
- *      Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a license
- * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_debug.c 711908 2017-07-20 10:37:34Z $
+ *
+ * <<Broadcom-WL-IPTag/Open:>>
+ *
+ * $Id$
  */
 
 #include <typedefs.h>
@@ -33,33 +30,34 @@
 #include <dngl_stats.h>
 #include <dhd.h>
 #include <dhd_dbg.h>
+#include <dhd_dbg_ring.h>
 #include <dhd_debug.h>
 #include <dhd_mschdbg.h>
+#include <dhd_bus.h>
 
 #include <event_log.h>
 #include <event_trace.h>
 #include <msgtrace.h>
 
-#if defined(DHD_EFI)
+#if defined(DHD_EVENT_LOG_FILTER)
+#include <dhd_event_log_filter.h>
+#endif /* DHD_EVENT_LOG_FILTER */
+
+#if defined(DHD_EFI) || defined(NDIS)
+#if !defined(offsetof)
 #define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
+#endif	/* !defined(offsetof) */
+
 #define container_of(ptr, type, member) \
-		((type *)((char *)(ptr) - offsetof(type, member)))
-#endif 
+		(type *)((char *)(ptr) - offsetof(type, member))
+#endif /* defined(DHD_EFI ) || defined(NDIS) */
 
-#define DBGRING_FLUSH_THRESHOLD(ring)		(ring->ring_size / 3)
-#define RING_STAT_TO_STATUS(ring, status) \
-	do {               \
-		strncpy(status.name, ring->name, \
-			sizeof(status.name) - 1);  \
-		status.ring_id = ring->id;     \
-		status.ring_buffer_byte_size = ring->ring_size;  \
-		status.written_bytes = ring->stat.written_bytes; \
-		status.written_records = ring->stat.written_records; \
-		status.read_bytes = ring->stat.read_bytes; \
-		status.verbose_level = ring->log_level; \
-	} while (0)
+#ifdef DHD_DEBUGABILITY_LOG_DUMP_RING
+uint8 control_logtrace = LOGTRACE_RAW_FMT;
+#else
+uint8 control_logtrace = CUSTOM_CONTROL_LOGTRACE;
+#endif
 
-#define DHD_PKT_INFO DHD_ERROR
 struct map_table {
 	uint16 fw_id;
 	uint16 host_id;
@@ -121,53 +119,51 @@ struct map_table event_tag_map[] = {
 
 /* define log level per ring type */
 struct log_level_table fw_verbose_level_map[] = {
-	{1, EVENT_LOG_TAG_PCI_ERROR, EVENT_LOG_SET_BUS, "PCI_ERROR"},
-	{1, EVENT_LOG_TAG_PCI_WARN, EVENT_LOG_SET_BUS, "PCI_WARN"},
-	{2, EVENT_LOG_TAG_PCI_INFO, EVENT_LOG_SET_BUS, "PCI_INFO"},
-	{3, EVENT_LOG_TAG_PCI_DBG, EVENT_LOG_SET_BUS, "PCI_DEBUG"},
-	{3, EVENT_LOG_TAG_BEACON_LOG, EVENT_LOG_SET_WL, "BEACON_LOG"},
-	{2, EVENT_LOG_TAG_WL_ASSOC_LOG, EVENT_LOG_SET_WL, "ASSOC_LOG"},
-	{2, EVENT_LOG_TAG_WL_ROAM_LOG, EVENT_LOG_SET_WL, "ROAM_LOG"},
-	{1, EVENT_LOG_TAG_TRACE_WL_INFO, EVENT_LOG_SET_WL, "WL_INFO"},
-	{1, EVENT_LOG_TAG_TRACE_BTCOEX_INFO, EVENT_LOG_SET_WL, "BTCOEX_INFO"},
+	{1, EVENT_LOG_TAG_PCI_ERROR, "PCI_ERROR"},
+#ifndef DISABLE_PCI_LOGGING
+	{1, EVENT_LOG_TAG_PCI_WARN, "PCI_WARN"},
+	{2, EVENT_LOG_TAG_PCI_INFO, "PCI_INFO"},
+	{3, EVENT_LOG_TAG_PCI_DBG, "PCI_DEBUG"},
+#endif
+#ifndef DISABLE_BEACON_LOGGING
+	{3, EVENT_LOG_TAG_BEACON_LOG, "BEACON_LOG"},
+#endif
+	{2, EVENT_LOG_TAG_WL_ASSOC_LOG, "ASSOC_LOG"},
+	{2, EVENT_LOG_TAG_WL_ROAM_LOG, "ROAM_LOG"},
+	{1, EVENT_LOG_TAG_TRACE_WL_INFO, "WL INFO"},
+	{1, EVENT_LOG_TAG_TRACE_BTCOEX_INFO, "BTCOEX INFO"},
+#ifdef DHD_RANDMAC_LOGGING
+	{1, EVENT_LOG_TAG_RANDMAC_ERR, "RANDMAC_ERR"},
+#endif /* DHD_RANDMAC_LOGGING */
 #ifdef CUSTOMER_HW4_DEBUG
-	{3, EVENT_LOG_TAG_SCAN_WARN, EVENT_LOG_SET_WL, "SCAN_WARN"},
+	{3, EVENT_LOG_TAG_SCAN_WARN, "SCAN_WARN"},
 #else
-	{1, EVENT_LOG_TAG_SCAN_WARN, EVENT_LOG_SET_WL, "SCAN_WARN"},
+	{1, EVENT_LOG_TAG_SCAN_WARN, "SCAN_WARN"},
 #endif /* CUSTOMER_HW4_DEBUG */
-	{1, EVENT_LOG_TAG_SCAN_ERROR, EVENT_LOG_SET_WL, "SCAN_ERROR"},
-	{2, EVENT_LOG_TAG_SCAN_TRACE_LOW, EVENT_LOG_SET_WL, "SCAN_TRACE_LOW"},
-	{2, EVENT_LOG_TAG_SCAN_TRACE_HIGH, EVENT_LOG_SET_WL, "SCAN_TRACE_HIGH"}
-};
-
-struct log_level_table fw_event_level_map[] = {
-	{1, EVENT_LOG_TAG_TRACE_WL_INFO, EVENT_LOG_SET_WL, "WL_INFO"},
-	{1, EVENT_LOG_TAG_TRACE_BTCOEX_INFO, EVENT_LOG_SET_WL, "BTCOEX_INFO"},
-#ifdef CUSTOMER_HW4_DEBUG
-	{3, EVENT_LOG_TAG_BEACON_LOG, EVENT_LOG_SET_WL, "BEACON LOG"},
-#else
-	{2, EVENT_LOG_TAG_BEACON_LOG, EVENT_LOG_SET_WL, "BEACON LOG"},
-#endif /* CUSTOMER_HW4_DEBUG */
-};
-
-struct map_table nan_event_map[] = {
-	{TRACE_NAN_CLUSTER_STARTED, NAN_EVENT_CLUSTER_STARTED, "NAN_CLUSTER_STARTED"},
-	{TRACE_NAN_CLUSTER_JOINED, NAN_EVENT_CLUSTER_JOINED, "NAN_CLUSTER_JOINED"},
-	{TRACE_NAN_CLUSTER_MERGED, NAN_EVENT_CLUSTER_MERGED, "NAN_CLUSTER_MERGED"},
-	{TRACE_NAN_ROLE_CHANGED, NAN_EVENT_ROLE_CHANGED, "NAN_ROLE_CHANGED"},
-	{TRACE_NAN_SCAN_COMPLETE, NAN_EVENT_SCAN_COMPLETE, "NAN_SCAN_COMPLETE"},
-	{TRACE_NAN_STATUS_CHNG, NAN_EVENT_STATUS_CHNG, "NAN_STATUS_CHNG"},
-};
-
-struct log_level_table nan_event_level_map[] = {
-	{1, EVENT_LOG_TAG_NAN_ERROR, 0, "NAN_ERROR"},
-	{2, EVENT_LOG_TAG_NAN_INFO, 0, "NAN_INFO"},
-	{3, EVENT_LOG_TAG_NAN_DBG, 0, "NAN_DEBUG"},
-};
-
-struct map_table nan_evt_tag_map[] = {
-	{TRACE_TAG_BSSID, WIFI_TAG_BSSID, "BSSID"},
-	{TRACE_TAG_ADDR, WIFI_TAG_ADDR, "ADDR_0"},
+	{1, EVENT_LOG_TAG_SCAN_ERROR, "SCAN_ERROR"},
+	{2, EVENT_LOG_TAG_SCAN_TRACE_LOW, "SCAN_TRACE_LOW"},
+	{2, EVENT_LOG_TAG_SCAN_TRACE_HIGH, "SCAN_TRACE_HIGH"},
+#ifdef DHD_WL_ERROR_LOGGING
+	{3, EVENT_LOG_TAG_WL_ERROR, "WL_ERROR"},
+#endif
+#ifdef DHD_IE_ERROR_LOGGING
+	{3, EVENT_LOG_TAG_IE_ERROR, "IE_ERROR"},
+#endif
+#ifdef DHD_ASSOC_ERROR_LOGGING
+	{3, EVENT_LOG_TAG_ASSOC_ERROR, "ASSOC_ERROR"},
+#endif
+#ifdef DHD_PMU_ERROR_LOGGING
+	{3, EVENT_LOG_TAG_PMU_ERROR, "PMU_ERROR"},
+#endif
+#ifdef DHD_8021X_ERROR_LOGGING
+	{3, EVENT_LOG_TAG_4WAYHANDSHAKE, "8021X_ERROR"},
+#endif
+#ifdef DHD_AMPDU_ERROR_LOGGING
+	{3, EVENT_LOG_TAG_AMSDU_ERROR, "AMPDU_ERROR"},
+#endif
+#ifdef DHD_SAE_ERROR_LOGGING
+	{3, EVENT_LOG_TAG_SAE_ERROR, "SAE_ERROR"},
+#endif
 };
 
 /* reference tab table */
@@ -175,7 +171,7 @@ uint ref_tag_tbl[EVENT_LOG_TAG_MAX + 1] = {0};
 
 typedef struct dhddbg_loglist_item {
 	dll_t list;
-	event_log_hdr_t *hdr;
+	prcd_event_log_hdr_t prcd_log_hdr;
 } loglist_item_t;
 
 typedef struct dhbdbg_pending_item {
@@ -193,225 +189,82 @@ struct tracelog_header {
 #define TRACE_LOG_MAGIC_NUMBER 0xEAE47C06
 
 int
-dhd_dbg_ring_pull_single(dhd_pub_t *dhdp, int ring_id, void *data, uint32 buf_len,
-	bool strip_header)
+dhd_dbg_push_to_ring(dhd_pub_t *dhdp, int ring_id, dhd_dbg_ring_entry_t *hdr, void *data)
 {
 	dhd_dbg_ring_t *ring;
-	dhd_dbg_ring_entry_t *r_entry;
-	uint32 rlen;
-	char *buf;
-
-	if (!dhdp || !dhdp->dbg) {
-		return 0;
-	}
-
-	ring = &dhdp->dbg->dbg_rings[ring_id];
-
-	if (ring->state != RING_ACTIVE) {
-		return 0;
-	}
-
-	if (ring->rp == ring->wp) {
-		return 0;
-	}
-
-	r_entry = (dhd_dbg_ring_entry_t *)((uint8 *)ring->ring_buf + ring->rp);
-
-	/* Boundary Check */
-	rlen = ENTRY_LENGTH(r_entry);
-	if ((ring->rp + rlen) > ring->ring_size) {
-		DHD_ERROR(("%s: entry len %d is out of boundary of ring size %d,"
-			" current ring %d[%s] - rp=%d\n", __FUNCTION__, rlen,
-			ring->ring_size, ring->id, ring->name, ring->rp));
-		return 0;
-	}
-
-	if (strip_header) {
-		rlen = r_entry->len;
-		buf = (char *)r_entry + DBG_RING_ENTRY_SIZE;
-	} else {
-		rlen = ENTRY_LENGTH(r_entry);
-		buf = (char *)r_entry;
-	}
-	if (rlen > buf_len) {
-		DHD_ERROR(("%s: buf len %d is too small for entry len %d\n",
-			__FUNCTION__, buf_len, rlen));
-		DHD_ERROR(("%s: ring %d[%s] - ring size=%d, wp=%d, rp=%d\n",
-			__FUNCTION__, ring->id, ring->name, ring->ring_size,
-			ring->wp, ring->rp));
-		ASSERT(0);
-		return 0;
-	}
-
-	memcpy(data, buf, rlen);
-	/* update ring context */
-	ring->rp += ENTRY_LENGTH(r_entry);
-	/* skip padding if there is one */
-	if (ring->tail_padded && ((ring->rp + ring->rem_len) == ring->ring_size)) {
-		DHD_DBGIF(("%s: RING%d[%s] Found padding, rp=%d, wp=%d\n",
-			__FUNCTION__, ring->id, ring->name, ring->rp, ring->wp));
-		ring->rp = 0;
-		ring->tail_padded = FALSE;
-		ring->rem_len = 0;
-	}
-	if (ring->rp >= ring->ring_size) {
-		DHD_ERROR(("%s: RING%d[%s] rp pointed out of ring boundary,"
-			" rp=%d, ring_size=%d\n", __FUNCTION__, ring->id,
-			ring->name, ring->rp, ring->ring_size));
-		ASSERT(0);
-	}
-	ring->stat.read_bytes += ENTRY_LENGTH(r_entry);
-	DHD_DBGIF(("%s RING%d[%s]read_bytes %d, wp=%d, rp=%d\n", __FUNCTION__,
-		ring->id, ring->name, ring->stat.read_bytes, ring->wp, ring->rp));
-
-	return rlen;
-}
-
-int
-dhd_dbg_ring_pull(dhd_pub_t *dhdp, int ring_id, void *data, uint32 buf_len)
-{
-	int32 r_len, total_r_len = 0;
-	dhd_dbg_ring_t *ring;
-
-	if (!dhdp || !dhdp->dbg)
-		return 0;
-	ring = &dhdp->dbg->dbg_rings[ring_id];
-	if (ring->state != RING_ACTIVE)
-		return 0;
-
-	while (buf_len > 0) {
-		r_len = dhd_dbg_ring_pull_single(dhdp, ring_id, data, buf_len, FALSE);
-		if (r_len == 0)
-			break;
-		data = (uint8 *)data + r_len;
-		buf_len -= r_len;
-		total_r_len += r_len;
-	}
-
-	return total_r_len;
-}
-
-int
-dhd_dbg_ring_push(dhd_pub_t *dhdp, int ring_id, dhd_dbg_ring_entry_t *hdr, void *data)
-{
-	unsigned long flags;
-	uint32 pending_len;
-	uint32 w_len;
-	uint32 avail_size;
-	dhd_dbg_ring_t *ring;
-	dhd_dbg_ring_entry_t *w_entry, *r_entry;
+	int ret = 0;
+	uint32 pending_len = 0;
 
 	if (!dhdp || !dhdp->dbg) {
 		return BCME_BADADDR;
 	}
 
+	if (!VALID_RING(ring_id)) {
+		DHD_ERROR(("%s : invalid ring_id : %d\n", __FUNCTION__, ring_id));
+		return BCME_RANGE;
+	}
+
 	ring = &dhdp->dbg->dbg_rings[ring_id];
 
-	if (ring->state != RING_ACTIVE) {
-		return BCME_OK;
+	ret = dhd_dbg_ring_push(ring, hdr, data);
+	if (ret != BCME_OK)
+		return ret;
+
+	pending_len = dhd_dbg_ring_get_pending_len(ring);
+	dhd_dbg_ring_sched_pull(ring, pending_len, dhdp->dbg->pullreq,
+			dhdp->dbg->private, ring->id);
+
+	return ret;
+}
+
+dhd_dbg_ring_t *
+dhd_dbg_get_ring_from_ring_id(dhd_pub_t *dhdp, int ring_id)
+{
+	if (!dhdp || !dhdp->dbg) {
+		return NULL;
 	}
 
-	flags = dhd_os_spin_lock(ring->lock);
-
-	w_len = ENTRY_LENGTH(hdr);
-
-	if (w_len > ring->ring_size) {
-		dhd_os_spin_unlock(ring->lock, flags);
-		return BCME_ERROR;
+	if (!VALID_RING(ring_id)) {
+		DHD_ERROR(("%s : invalid ring_id : %d\n", __FUNCTION__, ring_id));
+		return NULL;
 	}
 
-	/* Claim the space */
-	do {
-		avail_size = DBG_RING_CHECK_WRITE_SPACE(ring->rp, ring->wp, ring->ring_size);
-		if (avail_size <= w_len) {
-			/* Prepare the space */
-			if (ring->rp <= ring->wp) {
-				ring->tail_padded = TRUE;
-				ring->rem_len = ring->ring_size - ring->wp;
-				DHD_DBGIF(("%s: RING%d[%s] Insuffient tail space,"
-					" rp=%d, wp=%d, rem_len=%d, ring_size=%d,"
-					" avail_size=%d, w_len=%d\n", __FUNCTION__,
-					ring->id, ring->name, ring->rp, ring->wp,
-					ring->rem_len, ring->ring_size, avail_size,
-					w_len));
+	return &dhdp->dbg->dbg_rings[ring_id];
+}
 
-				/* 0 pad insufficient tail space */
-				memset((uint8 *)ring->ring_buf + ring->wp, 0, ring->rem_len);
-				if (ring->rp == ring->wp) {
-					ring->rp = 0;
-				}
-				ring->wp = 0;
-			} else {
-				/* Not enough space for new entry, free some up */
-				r_entry = (dhd_dbg_ring_entry_t *)((uint8 *)ring->ring_buf +
-					ring->rp);
-				ring->rp += ENTRY_LENGTH(r_entry);
-				/* skip padding if there is one */
-				if (ring->tail_padded &&
-					((ring->rp + ring->rem_len) == ring->ring_size)) {
-					DHD_DBGIF(("%s: RING%d[%s] Found padding,"
-						" avail_size=%d, w_len=%d\n", __FUNCTION__,
-						ring->id, ring->name, avail_size, w_len));
-					ring->rp = 0;
-					ring->tail_padded = FALSE;
-					ring->rem_len = 0;
-				}
-				if (ring->rp >= ring->ring_size) {
-					DHD_ERROR(("%s: RING%d[%s] rp points out of boundary,"
-						" ring->rp = %d, ring->ring_size=%d\n",
-						__FUNCTION__, ring->id, ring->name, ring->rp,
-						ring->ring_size));
-					ASSERT(0);
-				}
-				ring->stat.read_bytes += ENTRY_LENGTH(r_entry);
-				DHD_DBGIF(("%s: RING%d[%s] read_bytes  %d, wp=%d, rp=%d\n",
-					__FUNCTION__, ring->id, ring->name, ring->stat.read_bytes,
-					ring->wp, ring->rp));
-			}
-		} else {
-			break;
-		}
-	} while (TRUE);
+int
+dhd_dbg_pull_single_from_ring(dhd_pub_t *dhdp, int ring_id, void *data, uint32 buf_len,
+	bool strip_header)
+{
+	dhd_dbg_ring_t *ring;
 
-	w_entry = (dhd_dbg_ring_entry_t *)((uint8 *)ring->ring_buf + ring->wp);
-	/* header */
-	memcpy(w_entry, hdr, DBG_RING_ENTRY_SIZE);
-	w_entry->len = hdr->len;
-	/* payload */
-	memcpy((char *)w_entry + DBG_RING_ENTRY_SIZE, data, w_entry->len);
-	/* update write pointer */
-	ring->wp += w_len;
-	if (ring->wp >= ring->ring_size) {
-		DHD_ERROR(("%s: RING%d[%s] wp pointed out of ring boundary, "
-			"wp=%d, ring_size=%d\n", __FUNCTION__, ring->id,
-			ring->name, ring->wp, ring->ring_size));
-		ASSERT(0);
-	}
-	/* update statistics */
-	ring->stat.written_records++;
-	ring->stat.written_bytes += w_len;
-	DHD_DBGIF(("%s : RING%d[%s] written_records %d, written_bytes %d, read_bytes=%d,"
-		" ring->threshold=%d, wp=%d, rp=%d\n", __FUNCTION__, ring->id, ring->name,
-		ring->stat.written_records, ring->stat.written_bytes, ring->stat.read_bytes,
-		ring->threshold, ring->wp, ring->rp));
-
-	/* Calculate current pending size */
-	if (ring->stat.written_bytes > ring->stat.read_bytes) {
-		pending_len = ring->stat.written_bytes - ring->stat.read_bytes;
-	} else if (ring->stat.written_bytes < ring->stat.read_bytes) {
-		pending_len = 0xFFFFFFFF - ring->stat.read_bytes + ring->stat.written_bytes;
-	} else {
-		pending_len = 0;
+	if (!dhdp || !dhdp->dbg) {
+		return 0;
 	}
 
-	/* if the current pending size is bigger than threshold */
-	if (ring->threshold > 0 &&
-	   (pending_len >= ring->threshold) && ring->sched_pull) {
-		dhdp->dbg->pullreq(dhdp->dbg->private, ring->id);
-		ring->sched_pull = FALSE;
+	if (!VALID_RING(ring_id)) {
+		DHD_ERROR(("%s : invalid ring_id : %d\n", __FUNCTION__, ring_id));
+		return BCME_RANGE;
 	}
-	dhd_os_spin_unlock(ring->lock, flags);
-	return BCME_OK;
+
+	ring = &dhdp->dbg->dbg_rings[ring_id];
+
+	return dhd_dbg_ring_pull_single(ring, data, buf_len, strip_header);
+}
+
+int
+dhd_dbg_pull_from_ring(dhd_pub_t *dhdp, int ring_id, void *data, uint32 buf_len)
+{
+	dhd_dbg_ring_t *ring;
+
+	if (!dhdp || !dhdp->dbg)
+		return 0;
+	if (!VALID_RING(ring_id)) {
+		DHD_ERROR(("%s : invalid ring_id : %d\n", __FUNCTION__, ring_id));
+		return BCME_RANGE;
+	}
+	ring = &dhdp->dbg->dbg_rings[ring_id];
+	return dhd_dbg_ring_pull(ring, data, buf_len, FALSE);
 }
 
 static int
@@ -434,13 +287,17 @@ done:
 	return 0;
 }
 
-#ifndef MACOSX_DHD
 static void
 dhd_dbg_msgtrace_msg_parser(void *event_data)
 {
 	msgtrace_hdr_t *hdr;
 	char *data, *s;
 	static uint32 seqnum_prev = 0;
+
+	if (!event_data) {
+		DHD_ERROR(("%s: event_data is NULL\n", __FUNCTION__));
+		return;
+	}
 
 	hdr = (msgtrace_hdr_t *)event_data;
 	data = (char *)event_data + MSGTRACE_HDRLEN;
@@ -470,278 +327,68 @@ dhd_dbg_msgtrace_msg_parser(void *event_data)
 	if (*data)
 		DHD_FWLOG(("[FWLOG] %s", data));
 }
-#endif /* MACOSX_DHD */
 #ifdef SHOW_LOGTRACE
-static const uint8 *
-event_get_tlv(uint16 id, const char* tlvs, uint tlvs_len)
-{
-	const uint8 *pos = (const uint8 *)tlvs;
-	const uint8 *end = pos + tlvs_len;
-	const tlv_log *tlv;
-	int rest;
-
-	while (pos + 1 < end) {
-		if (pos + 4 + pos[1] > end)
-			break;
-		tlv = (const tlv_log *) pos;
-		if (tlv->tag == id)
-			return pos;
-		rest = tlv->len % 4; /* padding values */
-		pos += 4 + tlv->len + rest;
-	}
-	return NULL;
-}
-
 #define DATA_UNIT_FOR_LOG_CNT 4
-/* #pragma used as a WAR to fix build failure,
- * ignore dropping of 'const' qualifier in tlv_data assignment
- * this pragma disables the warning only for the following function
- */
-#if defined(STRICT_GCC_WARNINGS) && defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-qual"
-#endif
-static int
-dhd_dbg_nan_event_handler(dhd_pub_t *dhdp, event_log_hdr_t *hdr, uint32 *data)
-{
-	int ret = BCME_OK;
-	wl_event_log_id_ver_t nan_hdr;
-	log_nan_event_t *evt_payload;
-	uint16 evt_payload_len = 0, tot_payload_len = 0;
-	dhd_dbg_ring_entry_t msg_hdr;
-	bool evt_match = FALSE;
-	event_log_hdr_t *ts_hdr;
-	uint32 *ts_data;
-	char *tlvs, *dest_tlvs;
-	tlv_log *tlv_data;
-	int tlv_len = 0;
-	int i = 0, evt_idx = 0;
-	char eaddr_buf[ETHER_ADDR_STR_LEN];
 
-	BCM_REFERENCE(eaddr_buf);
-
-	nan_hdr.t = *data;
-	DHD_DBGIF(("%s: version %u event %x\n", __FUNCTION__, nan_hdr.version,
-		nan_hdr.event));
-
-	if (nan_hdr.version != DIAG_VERSION) {
-		DHD_ERROR(("Event payload version %u mismatch with current version %u\n",
-			nan_hdr.version, DIAG_VERSION));
-		return BCME_VERSION;
-	}
-
-	/* nan event log should at least contain a wl_event_log_id_ver_t
-	 * header and a arm cycle count
-	 */
-	if (hdr->count < NAN_EVENT_LOG_MIN_LENGTH) {
-		return BCME_BADLEN;
-	}
-
-	memset(&msg_hdr, 0, sizeof(dhd_dbg_ring_entry_t));
-	ts_hdr = (event_log_hdr_t *)((uint8 *)data - sizeof(event_log_hdr_t));
-	if (ts_hdr->tag == EVENT_LOG_TAG_TS) {
-		ts_data = (uint32 *)ts_hdr - ts_hdr->count;
-		msg_hdr.timestamp = (uint64)ts_data[0];
-		msg_hdr.flags |= DBG_RING_ENTRY_FLAGS_HAS_TIMESTAMP;
-	}
-	msg_hdr.type = DBG_RING_ENTRY_NAN_EVENT_TYPE;
-	for (i = 0; i < ARRAYSIZE(nan_event_map); i++) {
-		if (nan_event_map[i].fw_id == nan_hdr.event) {
-			evt_match = TRUE;
-			evt_idx = i;
-			break;
-		}
-	}
-	if (evt_match) {
-		DHD_DBGIF(("%s : event (%s)\n", __FUNCTION__, nan_event_map[evt_idx].desc));
-		/* payload length for nan event data */
-		evt_payload_len = sizeof(log_nan_event_t) +
-			(hdr->count - 2) * DATA_UNIT_FOR_LOG_CNT;
-		if ((evt_payload = MALLOC(dhdp->osh, evt_payload_len)) == NULL) {
-			DHD_ERROR(("Memory allocation failed for nan evt log (%u)\n",
-				evt_payload_len));
-			return BCME_NOMEM;
-		}
-		evt_payload->version = NAN_EVENT_VERSION;
-		evt_payload->event = nan_event_map[evt_idx].host_id;
-		dest_tlvs = (char *)evt_payload->tlvs;
-		tot_payload_len = sizeof(log_nan_event_t);
-		tlvs = (char *)(&data[1]);
-		tlv_len = (hdr->count - 2) * DATA_UNIT_FOR_LOG_CNT;
-		for (i = 0; i < ARRAYSIZE(nan_evt_tag_map); i++) {
-			tlv_data = (tlv_log *)event_get_tlv(nan_evt_tag_map[i].fw_id,
-				tlvs, tlv_len);
-			if (tlv_data) {
-				DHD_DBGIF(("NAN evt tlv.tag(%s), tlv.len : %d, tlv.data :  ",
-					nan_evt_tag_map[i].desc, tlv_data->len));
-				memcpy(dest_tlvs, tlv_data, sizeof(tlv_log) + tlv_data->len);
-				tot_payload_len += tlv_data->len + sizeof(tlv_log);
-				switch (tlv_data->tag) {
-					case TRACE_TAG_BSSID:
-					case TRACE_TAG_ADDR:
-						DHD_DBGIF(("%s\n",
-						bcm_ether_ntoa(
-							(const struct ether_addr *)tlv_data->value,
-							eaddr_buf)));
-					break;
-					default:
-						if (DHD_DBGIF_ON()) {
-							prhex(NULL, &tlv_data->value[0],
-								tlv_data->len);
-						}
-					break;
-				}
-				dest_tlvs += tlv_data->len + sizeof(tlv_log);
-			}
-		}
-		msg_hdr.flags |= DBG_RING_ENTRY_FLAGS_HAS_BINARY;
-		msg_hdr.len = tot_payload_len;
-		dhd_dbg_ring_push(dhdp, NAN_EVENT_RING_ID, &msg_hdr, evt_payload);
-		MFREE(dhdp->osh, evt_payload, evt_payload_len);
-	}
-	return ret;
-}
-
-static int
-dhd_dbg_custom_evnt_handler(dhd_pub_t *dhdp, event_log_hdr_t *hdr, uint32 *data)
-{
-	int i = 0, match_idx = 0;
-	int payload_len, tlv_len;
-	uint16 tot_payload_len = 0;
-	int ret = BCME_OK;
-	int log_level;
-	wl_event_log_id_ver_t wl_log_id;
-	dhd_dbg_ring_entry_t msg_hdr;
-	log_conn_event_t *event_data;
-	bool evt_match = FALSE;
-	event_log_hdr_t *ts_hdr;
-	uint32 *ts_data;
-	char *tlvs, *dest_tlvs;
-	tlv_log *tlv_data;
-	static uint64 ts_saved = 0;
-	char eabuf[ETHER_ADDR_STR_LEN];
-	char chanbuf[CHANSPEC_STR_LEN];
-
-	BCM_REFERENCE(eabuf);
-	BCM_REFERENCE(chanbuf);
-	/* get a event type and version */
-	wl_log_id.t = *data;
-	if (wl_log_id.version != DIAG_VERSION)
-		return BCME_VERSION;
-
-	/* custom event log should at least contain a wl_event_log_id_ver_t
-	 * header and a arm cycle count
-	 */
-	if (hdr->count < NAN_EVENT_LOG_MIN_LENGTH) {
-		return BCME_BADLEN;
-	}
-
-	ts_hdr = (event_log_hdr_t *)((uint8 *)data - sizeof(event_log_hdr_t));
-	if (ts_hdr->tag == EVENT_LOG_TAG_TS) {
-		ts_data = (uint32 *)ts_hdr - ts_hdr->count;
-		ts_saved = (uint64)ts_data[0];
-	}
-	memset(&msg_hdr, 0, sizeof(dhd_dbg_ring_entry_t));
-	msg_hdr.timestamp = ts_saved;
-
-	DHD_DBGIF(("Android Event ver %d, payload %d words, ts %llu\n",
-		(*data >> 16), hdr->count - 1, ts_saved));
-
-	/* Perform endian convertion */
-	for (i = 0; i < hdr->count; i++) {
-		/* *(data + i) = ntoh32(*(data + i)); */
-		DHD_DATA(("%08x ", *(data + i)));
-	}
-	DHD_DATA(("\n"));
-	msg_hdr.flags |= DBG_RING_ENTRY_FLAGS_HAS_TIMESTAMP;
-	msg_hdr.flags |= DBG_RING_ENTRY_FLAGS_HAS_BINARY;
-	msg_hdr.type = DBG_RING_ENTRY_EVENT_TYPE;
-
-	/* convert the data to log_conn_event_t format */
-	for (i = 0; i < ARRAYSIZE(event_map); i++) {
-		if (event_map[i].fw_id == wl_log_id.event) {
-			evt_match = TRUE;
-			match_idx = i;
-			break;
-		}
-	}
-	if (evt_match) {
-		log_level = dhdp->dbg->dbg_rings[FW_EVENT_RING_ID].log_level;
-		/* filter the data based on log_level */
-		for (i = 0; i < ARRAYSIZE(fw_event_level_map); i++) {
-			if ((fw_event_level_map[i].tag == hdr->tag) &&
-				(fw_event_level_map[i].log_level > log_level)) {
-				return BCME_OK;
-			}
-		}
-		DHD_DBGIF(("%s : event (%s)\n", __FUNCTION__, event_map[match_idx].desc));
-		/* get the payload length for event data (skip : log header + timestamp) */
-		payload_len = sizeof(log_conn_event_t) + DATA_UNIT_FOR_LOG_CNT * (hdr->count - 2);
-		event_data = MALLOC(dhdp->osh, payload_len);
-		if (!event_data) {
-			DHD_ERROR(("failed to allocate the log_conn_event_t with length(%d)\n",
-				payload_len));
-			return BCME_NOMEM;
-		}
-		event_data->event = event_map[match_idx].host_id;
-		dest_tlvs = (char *)event_data->tlvs;
-		tot_payload_len = sizeof(log_conn_event_t);
-		tlvs = (char *)(&data[1]);
-		tlv_len = (hdr->count - 2) * DATA_UNIT_FOR_LOG_CNT;
-		for (i = 0; i < ARRAYSIZE(event_tag_map); i++) {
-			tlv_data = (tlv_log *)event_get_tlv(event_tag_map[i].fw_id,
-			         tlvs, tlv_len);
-			if (tlv_data) {
-				DHD_DBGIF(("tlv.tag(%s), tlv.len : %d, tlv.data :  ",
-					event_tag_map[i].desc, tlv_data->len));
-				memcpy(dest_tlvs, tlv_data, sizeof(tlv_log) + tlv_data->len);
-				tot_payload_len += tlv_data->len + sizeof(tlv_log);
-				switch (tlv_data->tag) {
-				case TRACE_TAG_BSSID:
-				case TRACE_TAG_ADDR:
-				case TRACE_TAG_ADDR1:
-				case TRACE_TAG_ADDR2:
-				case TRACE_TAG_ADDR3:
-				case TRACE_TAG_ADDR4:
-					DHD_DBGIF(("%s\n",
-					bcm_ether_ntoa((const struct ether_addr *)tlv_data->value,
-							eabuf)));
-					break;
-				case TRACE_TAG_SSID:
-					DHD_DBGIF(("%s\n", tlv_data->value));
-					break;
-				case TRACE_TAG_STATUS:
-					DHD_DBGIF(("%d\n", ltoh32_ua(&tlv_data->value[0])));
-					break;
-				case TRACE_TAG_REASON_CODE:
-					DHD_DBGIF(("%d\n", ltoh16_ua(&tlv_data->value[0])));
-					break;
-				case TRACE_TAG_RATE_MBPS:
-					DHD_DBGIF(("%d Kbps\n",
-						ltoh16_ua(&tlv_data->value[0]) * 500));
-					break;
-				case TRACE_TAG_CHANNEL_SPEC:
-					DHD_DBGIF(("%s\n",
-						wf_chspec_ntoa(
-							ltoh16_ua(&tlv_data->value[0]), chanbuf)));
-					break;
-				default:
-					if (DHD_DBGIF_ON()) {
-						prhex(NULL, &tlv_data->value[0], tlv_data->len);
-					}
-				}
-				dest_tlvs += tlv_data->len + sizeof(tlv_log);
-			}
-		}
-		msg_hdr.len = tot_payload_len;
-		dhd_dbg_ring_push(dhdp, FW_EVENT_RING_ID, &msg_hdr, event_data);
-		MFREE(dhdp->osh, event_data, payload_len);
-	}
-	return ret;
-}
 #if defined(STRICT_GCC_WARNINGS) && defined(__GNUC__)
 #pragma GCC diagnostic pop
 #endif
+
+int
+replace_percent_p_to_x(char *fmt)
+{
+	int p_to_x_done = FALSE;
+
+	while (*fmt != '\0')
+	{
+		/* Skip characters will we see a % */
+		if (*fmt++ != '%')
+		{
+			continue;
+		}
+
+		/*
+		 * Skip any flags, field width and precision:
+		 *Flags: Followed by %
+		 * #, 0, -, ' ', +
+		 */
+		if (*fmt == '#')
+			fmt++;
+
+		if (*fmt == '0' || *fmt == '-' || *fmt == '+')
+			fmt++;
+
+		/*
+		 * Field width:
+		 * An optional decimal digit string (with non-zero first digit)
+		 * specifying a minimum field width
+		 */
+		while (*fmt && bcm_isdigit(*fmt))
+			fmt++;
+
+		/*
+		 * Precision:
+		 * An optional precision, in the form of a period ('.')  followed by an
+		 * optional decimal digit string.
+		 */
+		if (*fmt == '.')
+		{
+			fmt++;
+			while (*fmt && bcm_isdigit(*fmt)) fmt++;
+		}
+
+		/* If %p is seen, change it to %x */
+		if (*fmt == 'p')
+		{
+			*fmt = 'x';
+			p_to_x_done = TRUE;
+		}
+		if (*fmt)
+			fmt++;
+	}
+
+	return p_to_x_done;
+}
 
 /* To identify format of types %Ns where N >= 0 is a number */
 bool
@@ -768,17 +415,137 @@ check_valid_string_format(char *curr_ptr)
 	}
 }
 
+/* To identify format of non string format types */
+bool
+check_valid_non_string_format(char *curr_ptr)
+{
+	char *next_ptr;
+	char *next_fmt_stptr;
+	char valid_fmt_types[17] = {'d', 'i', 'x', 'X', 'c', 'p', 'u',
+			'f', 'F', 'e', 'E', 'g', 'G', 'o',
+			'a', 'A', 'n'};
+	int i;
+	bool valid = FALSE;
+
+	/* Check for next % in the fmt str */
+	next_fmt_stptr = bcmstrstr(curr_ptr, "%");
+
+	for (next_ptr = curr_ptr; *next_ptr != '\0'; next_ptr++) {
+		for (i = 0; i < (int)((sizeof(valid_fmt_types))/sizeof(valid_fmt_types[0])); i++) {
+			if (*next_ptr == valid_fmt_types[i]) {
+				/* Check whether format type found corresponds to current %
+				 * and not the next one, if exists.
+				 */
+				if ((next_fmt_stptr == NULL) ||
+						(next_fmt_stptr && (next_ptr < next_fmt_stptr))) {
+					/* Not validating for length/width fields in
+					 * format specifier.
+					 */
+					valid = TRUE;
+				}
+				goto done;
+			}
+		}
+	}
+
+done:
+	return valid;
+}
+
 #define MAX_NO_OF_ARG	16
-#define FMTSTR_SIZE	132
-#define ROMSTR_SIZE	200
+#define FMTSTR_SIZE	200
+#define ROMSTR_SIZE	268
 #define SIZE_LOC_STR	50
+#define LOG_PRINT_CNT_MAX	16u
+#define EL_MSEC_PER_SEC	1000
+#ifdef DHD_LOG_PRINT_RATE_LIMIT
+#define MAX_LOG_PRINT_COUNT 100u
+#define LOG_PRINT_THRESH (1u * USEC_PER_SEC)
+#endif
+#define EL_PARSE_VER	"V02"
 static uint64 verboselog_ts_saved = 0;
+
+bool
+dhd_dbg_process_event_log_hdr(event_log_hdr_t *log_hdr, prcd_event_log_hdr_t *prcd_log_hdr)
+{
+	event_log_extended_hdr_t *ext_log_hdr;
+	uint16 event_log_fmt_num;
+	uint8 event_log_hdr_type;
+
+	/* Identify the type of event tag, payload type etc..  */
+	event_log_hdr_type = log_hdr->fmt_num & DHD_EVENT_LOG_HDR_MASK;
+	event_log_fmt_num = (log_hdr->fmt_num >> DHD_EVENT_LOG_FMT_NUM_OFFSET) &
+		DHD_EVENT_LOG_FMT_NUM_MASK;
+
+	switch (event_log_hdr_type) {
+		case DHD_OW_NB_EVENT_LOG_HDR:
+			prcd_log_hdr->ext_event_log_hdr = FALSE;
+			prcd_log_hdr->binary_payload = FALSE;
+			break;
+		case DHD_TW_NB_EVENT_LOG_HDR:
+			prcd_log_hdr->ext_event_log_hdr = TRUE;
+			prcd_log_hdr->binary_payload = FALSE;
+			break;
+		case DHD_BI_EVENT_LOG_HDR:
+			if (event_log_fmt_num == DHD_OW_BI_EVENT_FMT_NUM) {
+				prcd_log_hdr->ext_event_log_hdr = FALSE;
+				prcd_log_hdr->binary_payload = TRUE;
+			} else if (event_log_fmt_num == DHD_TW_BI_EVENT_FMT_NUM) {
+				prcd_log_hdr->ext_event_log_hdr = TRUE;
+				prcd_log_hdr->binary_payload = TRUE;
+			} else {
+				DHD_ERROR(("%s: invalid format number 0x%X\n",
+					__FUNCTION__, event_log_fmt_num));
+				return FALSE;
+			}
+			break;
+		case DHD_INVALID_EVENT_LOG_HDR:
+		default:
+			DHD_ERROR(("%s: invalid event log header type 0x%X\n",
+				__FUNCTION__, event_log_hdr_type));
+			return FALSE;
+	}
+
+	/* Parse extended and legacy event log headers and populate prcd_event_log_hdr_t */
+	if (prcd_log_hdr->ext_event_log_hdr) {
+		ext_log_hdr = (event_log_extended_hdr_t *)
+			((uint8 *)log_hdr - sizeof(event_log_hdr_t));
+		prcd_log_hdr->tag = ((ext_log_hdr->extended_tag &
+			DHD_TW_VALID_TAG_BITS_MASK) << DHD_TW_EVENT_LOG_TAG_OFFSET) | log_hdr->tag;
+	} else {
+		prcd_log_hdr->tag = log_hdr->tag;
+	}
+	prcd_log_hdr->count = log_hdr->count;
+	prcd_log_hdr->fmt_num_raw = log_hdr->fmt_num;
+	prcd_log_hdr->fmt_num = event_log_fmt_num;
+
+	/* update arm cycle */
+	/*
+	 * For loegacy event tag :-
+	 * |payload........|Timestamp| Tag
+	 *
+	 * For extended event tag:-
+	 * |payload........|Timestamp|extended Tag| Tag.
+	 *
+	 */
+	prcd_log_hdr->armcycle = prcd_log_hdr->ext_event_log_hdr ?
+		*(uint32 *)(log_hdr - EVENT_TAG_TIMESTAMP_EXT_OFFSET) :
+		*(uint32 *)(log_hdr - EVENT_TAG_TIMESTAMP_OFFSET);
+
+	/* update event log data pointer address */
+	prcd_log_hdr->log_ptr =
+		(uint32 *)log_hdr - log_hdr->count - prcd_log_hdr->ext_event_log_hdr;
+
+	/* handle error cases above this */
+	return TRUE;
+}
+
 static void
-dhd_dbg_verboselog_handler(dhd_pub_t *dhdp, event_log_hdr_t *hdr,
-		void *raw_event_ptr)
+dhd_dbg_verboselog_handler(dhd_pub_t *dhdp, prcd_event_log_hdr_t *plog_hdr,
+		void *raw_event_ptr, uint32 logset, uint16 block, uint32* data)
 {
 	event_log_hdr_t *ts_hdr;
-	uint32 *log_ptr = (uint32 *)hdr - hdr->count;
+	uint32 *log_ptr = plog_hdr->log_ptr;
 	char fmtstr_loc_buf[ROMSTR_SIZE] = { 0 };
 	uint32 rom_str_len = 0;
 	uint32 *ts_data;
@@ -787,17 +554,36 @@ dhd_dbg_verboselog_handler(dhd_pub_t *dhdp, event_log_hdr_t *hdr,
 		return;
 	}
 
-	/* Get time stamp if it's updated */
-	ts_hdr = (event_log_hdr_t *)((char *)log_ptr - sizeof(event_log_hdr_t));
-	if (ts_hdr->tag == EVENT_LOG_TAG_TS) {
-		ts_data = (uint32 *)ts_hdr - ts_hdr->count;
-		verboselog_ts_saved = (uint64)ts_data[0];
-		DHD_MSGTRACE_LOG(("EVENT_LOG_TS[0x%08x]: SYS:%08x CPU:%08x\n",
-			ts_data[ts_hdr->count - 1], ts_data[0], ts_data[1]));
+	if (log_ptr < data) {
+		DHD_ERROR(("Invalid log pointer, logptr : %p data : %p \n", log_ptr, data));
+		return;
 	}
 
-	if (hdr->tag == EVENT_LOG_TAG_ROM_PRINTF) {
-		rom_str_len = (hdr->count - 1) * sizeof(uint32);
+	if (log_ptr > data) {
+		/* Get time stamp if it's updated */
+		ts_hdr = (event_log_hdr_t *)((char *)log_ptr - sizeof(event_log_hdr_t));
+		if (ts_hdr->tag == EVENT_LOG_TAG_TS) {
+			ts_data = (uint32 *)ts_hdr - ts_hdr->count;
+			if (ts_data >= data) {
+				verboselog_ts_saved = (uint64)ts_data[0];
+				DHD_MSGTRACE_LOG(("EVENT_LOG_TS[0x%08x]: SYS:%08x CPU:%08x\n",
+					ts_data[ts_hdr->count - 1], ts_data[0], ts_data[1]));
+			}
+		} else if (ts_hdr->tag == EVENT_LOG_TAG_ENHANCED_TS) {
+			ets_msg_v1_t *ets;
+			ets = (ets_msg_v1_t *)ts_hdr - ts_hdr->count;
+			if ((uint32*)ets >= data &&
+				ts_hdr->count >= (sizeof(ets_msg_v1_t) / sizeof(uint32)) &&
+				ets->version == ENHANCED_TS_MSG_VERSION_1) {
+				DHD_MSGTRACE_LOG(("EVENT_LOG_ENHANCED_TS_V1: "
+					"SYS:%08x CPU:%08x CPUFREQ:%u\n",
+					ets->timestamp, ets->cyclecount, ets->cpu_freq));
+			}
+		}
+	}
+
+	if (plog_hdr->tag == EVENT_LOG_TAG_ROM_PRINTF) {
+		rom_str_len = (plog_hdr->count - 1) * sizeof(uint32);
 		if (rom_str_len >= (ROMSTR_SIZE -1))
 			rom_str_len = ROMSTR_SIZE - 1;
 
@@ -807,7 +593,7 @@ dhd_dbg_verboselog_handler(dhd_pub_t *dhdp, event_log_hdr_t *hdr,
 		fmtstr_loc_buf[rom_str_len] = '\0';
 
 		DHD_MSGTRACE_LOG(("EVENT_LOG_ROM[0x%08x]: %s",
-				log_ptr[hdr->count - 1], fmtstr_loc_buf));
+				log_ptr[plog_hdr->count - 1], fmtstr_loc_buf));
 
 		/* Add newline if missing */
 		if (fmtstr_loc_buf[strlen(fmtstr_loc_buf) - 1] != '\n')
@@ -816,18 +602,19 @@ dhd_dbg_verboselog_handler(dhd_pub_t *dhdp, event_log_hdr_t *hdr,
 		return;
 	}
 
-	if (hdr->tag == EVENT_LOG_TAG_MSCHPROFILE || hdr->tag == EVENT_LOG_TAG_MSCHPROFILE_TLV) {
-		wl_mschdbg_verboselog_handler(dhdp, raw_event_ptr, hdr->tag, log_ptr);
+	if (plog_hdr->tag == EVENT_LOG_TAG_MSCHPROFILE ||
+		plog_hdr->tag == EVENT_LOG_TAG_MSCHPROFILE_TLV) {
+		wl_mschdbg_verboselog_handler(dhdp, raw_event_ptr, plog_hdr, log_ptr);
 		return;
 	}
 
 	/* print the message out in a logprint  */
-	dhd_dbg_verboselog_printf(dhdp, hdr, raw_event_ptr, log_ptr);
+	dhd_dbg_verboselog_printf(dhdp, plog_hdr, raw_event_ptr, log_ptr, logset, block);
 }
 
 void
-dhd_dbg_verboselog_printf(dhd_pub_t *dhdp, event_log_hdr_t *hdr,
-	void *raw_event_ptr, uint32 *log_ptr)
+dhd_dbg_verboselog_printf(dhd_pub_t *dhdp, prcd_event_log_hdr_t *plog_hdr,
+	void *raw_event_ptr, uint32 *log_ptr, uint32 logset, uint16 block)
 {
 	dhd_event_log_t *raw_event = (dhd_event_log_t *)raw_event_ptr;
 	uint16 count;
@@ -842,39 +629,99 @@ dhd_dbg_verboselog_printf(dhd_pub_t *dhdp, event_log_hdr_t *hdr,
 	} u_arg;
 	u_arg arg[MAX_NO_OF_ARG] = {{0}};
 	char *c_ptr = NULL;
+	struct bcmstrbuf b;
+#ifdef DHD_LOG_PRINT_RATE_LIMIT
+	static int log_print_count = 0;
+	static uint64 ts0 = 0;
+	uint64 ts1 = 0;
+#endif /* DHD_LOG_PRINT_RATE_LIMIT */
 
 	BCM_REFERENCE(arg);
 
-	if (!raw_event) {
-		return;
+#ifdef DHD_LOG_PRINT_RATE_LIMIT
+	if (!ts0)
+		ts0 = OSL_SYSUPTIME_US();
+
+	ts1 = OSL_SYSUPTIME_US();
+
+	if (((ts1 - ts0) <= LOG_PRINT_THRESH) && (log_print_count >= MAX_LOG_PRINT_COUNT)) {
+		log_print_threshold = 1;
+		ts0 = 0;
+		log_print_count = 0;
+		DHD_ERROR(("%s: Log print water mark is reached,"
+			" console logs are dumped only to debug_dump file\n", __FUNCTION__));
+	} else if ((ts1 - ts0) > LOG_PRINT_THRESH) {
+		log_print_threshold = 0;
+		ts0 = 0;
+		log_print_count = 0;
 	}
 
+#endif /* DHD_LOG_PRINT_RATE_LIMIT */
 	/* print the message out in a logprint  */
-	if (!(raw_event->fmts) || hdr->fmt_num == 0xffff) {
+	if ((control_logtrace == LOGTRACE_RAW_FMT) || !(raw_event->fmts)) {
 		if (dhdp->dbg) {
 			log_level = dhdp->dbg->dbg_rings[FW_VERBOSE_RING_ID].log_level;
 			for (id = 0; id < ARRAYSIZE(fw_verbose_level_map); id++) {
-				if ((fw_verbose_level_map[id].tag == hdr->tag) &&
+				if ((fw_verbose_level_map[id].tag == plog_hdr->tag) &&
 					(fw_verbose_level_map[id].log_level > log_level))
 					return;
 			}
 		}
+		if (plog_hdr->binary_payload) {
+			DHD_ECNTR_LOG(("%d.%d EL:tag=%d len=%d fmt=0x%x",
+				(uint32)(log_ptr[plog_hdr->count - 1] / EL_MSEC_PER_SEC),
+				(uint32)(log_ptr[plog_hdr->count - 1] % EL_MSEC_PER_SEC),
+				plog_hdr->tag,
+				plog_hdr->count,
+				plog_hdr->fmt_num_raw));
 
-		DHD_EVENT(("%d.%d EL:tag=%d len=%d fmt=0x%x",
-			(uint32)verboselog_ts_saved / 1000,
-			(uint32)verboselog_ts_saved % 1000,
-			hdr->tag,
-			hdr->count,
-			hdr->fmt_num));
-
-		for (count = 0; count < (hdr->count-1); count++) {
-			if (count % 8 == 0)
-				DHD_EVENT(("\n\t%08x", log_ptr[count]));
-			else
-				DHD_EVENT((" %08x", log_ptr[count]));
+			for (count = 0; count < (plog_hdr->count - 1); count++) {
+				/* XXX: skip first line feed in case count 0 */
+				if (count && (count % LOG_PRINT_CNT_MAX == 0)) {
+					DHD_ECNTR_LOG(("\n\t%08x", log_ptr[count]));
+				} else {
+					DHD_ECNTR_LOG((" %08x", log_ptr[count]));
+				}
+			}
+			DHD_ECNTR_LOG(("\n"));
 		}
-		DHD_EVENT(("\n"));
+		else {
+			bcm_binit(&b, fmtstr_loc_buf, FMTSTR_SIZE);
+			/* XXX: The 'hdr->count - 1' is dongle time */
+#ifndef OEM_ANDROID
+			bcm_bprintf(&b, "%06d.%03d EL: %d 0x%x",
+				(uint32)(log_ptr[plog_hdr->count - 1] / EL_MSEC_PER_SEC),
+				(uint32)(log_ptr[plog_hdr->count - 1] % EL_MSEC_PER_SEC),
+				plog_hdr->tag,
+				plog_hdr->fmt_num_raw);
+#else
+			bcm_bprintf(&b, "%06d.%03d EL:%s:%u:%u %d %d 0x%x",
+				(uint32)(log_ptr[plog_hdr->count - 1] / EL_MSEC_PER_SEC),
+				(uint32)(log_ptr[plog_hdr->count - 1] % EL_MSEC_PER_SEC),
+				EL_PARSE_VER, logset, block,
+				plog_hdr->tag,
+				plog_hdr->count,
+				plog_hdr->fmt_num_raw);
+#endif /* !OEM_ANDROID */
+			for (count = 0; count < (plog_hdr->count - 1); count++) {
+				bcm_bprintf(&b, " %x", log_ptr[count]);
+			}
 
+			/* ensure preserve fw logs go to debug_dump only in case of customer4 */
+			if (logset < dhdp->event_log_max_sets &&
+				((0x01u << logset) & dhdp->logset_prsrv_mask)) {
+				DHD_PRSRV_MEM(("%s\n", b.origbuf));
+			} else {
+#ifdef DHD_DEBUGABILITY_LOG_DUMP_RING
+				DHD_FW_VERBOSE(("%s\n", b.origbuf));
+#else
+				DHD_FWLOG(("%s\n", b.origbuf));
+#endif
+#ifdef DHD_LOG_PRINT_RATE_LIMIT
+				log_print_count++;
+#endif /* DHD_LOG_PRINT_RATE_LIMIT */
+			}
+		}
 		return;
 	}
 
@@ -884,23 +731,46 @@ dhd_dbg_verboselog_printf(dhd_pub_t *dhdp, event_log_hdr_t *hdr,
 		return;
 	}
 
-	if ((hdr->fmt_num >> 2) < raw_event->num_fmts) {
-		if (hdr->tag == EVENT_LOG_TAG_MSCHPROFILE) {
+	if ((plog_hdr->fmt_num) < raw_event->num_fmts) {
+		if (plog_hdr->tag == EVENT_LOG_TAG_MSCHPROFILE) {
 			snprintf(fmtstr_loc_buf, FMTSTR_SIZE, "%s",
-				raw_event->fmts[hdr->fmt_num >> 2]);
-			hdr->count++;
+				raw_event->fmts[plog_hdr->fmt_num]);
+			plog_hdr->count++;
 		} else {
-			snprintf(fmtstr_loc_buf, FMTSTR_SIZE, "CONSOLE_E: %6d.%3d %s",
-				log_ptr[hdr->count-1]/1000, (log_ptr[hdr->count - 1] % 1000),
-				raw_event->fmts[hdr->fmt_num >> 2]);
+			snprintf(fmtstr_loc_buf, FMTSTR_SIZE, "CONSOLE_E:%u:%u %06d.%03d %s",
+				logset, block,
+				(uint32)(log_ptr[plog_hdr->count - 1] / EL_MSEC_PER_SEC),
+				(uint32)(log_ptr[plog_hdr->count - 1] % EL_MSEC_PER_SEC),
+				raw_event->fmts[plog_hdr->fmt_num]);
 		}
 		c_ptr = fmtstr_loc_buf;
 	} else {
-		DHD_ERROR(("%s: fmt number out of range \n", __FUNCTION__));
+		/* for ecounters, don't print the error as it will flood */
+		if ((plog_hdr->fmt_num != DHD_OW_BI_EVENT_FMT_NUM) &&
+			(plog_hdr->fmt_num != DHD_TW_BI_EVENT_FMT_NUM)) {
+			DHD_ERROR(("%s: fmt number: 0x%x out of range\n",
+				__FUNCTION__, plog_hdr->fmt_num));
+		} else {
+			DHD_INFO(("%s: fmt number: 0x%x out of range\n",
+				__FUNCTION__, plog_hdr->fmt_num));
+		}
+
 		goto exit;
 	}
 
-	for (count = 0; count < (hdr->count - 1); count++) {
+	if (plog_hdr->count > MAX_NO_OF_ARG) {
+		DHD_ERROR(("%s: plog_hdr->count(%d) out of range\n",
+			__FUNCTION__, plog_hdr->count));
+		goto exit;
+	}
+
+	/* print the format string which will be needed for debugging incorrect formats */
+	DHD_INFO(("%s: fmtstr_loc_buf = %s\n", __FUNCTION__, fmtstr_loc_buf));
+
+	/* Replace all %p to %x to handle 32 bit %p */
+	replace_percent_p_to_x(fmtstr_loc_buf);
+
+	for (count = 0; count < (plog_hdr->count - 1); count++) {
 		if (c_ptr != NULL)
 			if ((c_ptr = bcmstrstr(c_ptr, "%")) != NULL)
 				c_ptr++;
@@ -939,55 +809,165 @@ dhd_dbg_verboselog_printf(dhd_pub_t *dhdp, event_log_hdr_t *hdr,
 						"(s)0x%x", log_ptr[count]);
 					arg[count].addr = str_buf[count];
 				}
-			} else {
-				/* Other than string */
+			} else if (check_valid_non_string_format(c_ptr)) {
+				/* Other than string format */
 				arg[count].val = log_ptr[count];
+			} else {
+				/* There is nothing copied after % or improper format specifier
+				 * after current %, because of not enough buffer size for complete
+				 * copy of original fmt string.
+				 * This is causing error mentioned below.
+				 * Error: "Please remove unsupported %\x00 in format string"
+				 * error(lib/vsprintf.c:1900 format_decode+0x3bc/0x470).
+				 * Refer to JIRA: SWWLAN-200629 for detailed info.
+				 *
+				 * Terminate the string at current .
+				 */
+				*(c_ptr - 1) = '\0';
+				break;
 			}
 		}
 	}
 
-	/* Print FW logs */
-	DHD_FWLOG((fmtstr_loc_buf, arg[0], arg[1], arg[2], arg[3],
-		arg[4], arg[5], arg[6], arg[7], arg[8], arg[9], arg[10],
-		arg[11], arg[12], arg[13], arg[14], arg[15]));
+	/* ensure preserve fw logs go to debug_dump only in case of customer4 */
+	if (logset < dhdp->event_log_max_sets &&
+			((0x01u << logset) & dhdp->logset_prsrv_mask)) {
+		DHD_PRSRV_MEM((fmtstr_loc_buf, arg[0], arg[1], arg[2], arg[3],
+			arg[4], arg[5], arg[6], arg[7], arg[8], arg[9], arg[10],
+			arg[11], arg[12], arg[13], arg[14], arg[15]));
+	} else {
+		DHD_FWLOG((fmtstr_loc_buf, arg[0], arg[1], arg[2], arg[3],
+			arg[4], arg[5], arg[6], arg[7], arg[8], arg[9], arg[10],
+			arg[11], arg[12], arg[13], arg[14], arg[15]));
+#ifdef DHD_LOG_PRINT_RATE_LIMIT
+		log_print_count++;
+#endif /* DHD_LOG_PRINT_RATE_LIMIT */
+	}
 
 exit:
 	MFREE(dhdp->osh, str_buf, (MAX_NO_OF_ARG * SIZE_LOC_STR));
 }
 
-static void
+#if defined(EWP_BCM_TRACE) || defined(EWP_RTT_LOGGING) || \
+	defined(EWP_ECNTRS_LOGGING)
+static int
+dhd_dbg_send_evtlog_to_ring(prcd_event_log_hdr_t *plog_hdr,
+	dhd_dbg_ring_entry_t *msg_hdr, dhd_dbg_ring_t *ring,
+	uint16 max_payload_len, uint8 *logbuf)
+{
+	event_log_hdr_t *log_hdr;
+	struct tracelog_header *logentry_header;
+	uint16 len_chk = 0;
+
+	BCM_REFERENCE(log_hdr);
+	BCM_REFERENCE(logentry_header);
+	/*
+	 * check msg hdr len before pushing.
+	 * FW msg_hdr.len includes length of event log hdr,
+	 * logentry header and payload.
+	 */
+	len_chk = (sizeof(*logentry_header) + sizeof(*log_hdr) +
+			max_payload_len);
+	/* account extended event log header(extended_event_log_hdr) */
+	if (plog_hdr->ext_event_log_hdr) {
+		len_chk += sizeof(*log_hdr);
+	}
+	if (msg_hdr->len > len_chk) {
+		DHD_ERROR(("%s: EVENT_LOG_VALIDATION_FAILS: "
+			"msg_hdr->len=%u, max allowed for %s=%u\n",
+			__FUNCTION__, msg_hdr->len, ring->name, len_chk));
+		return BCME_ERROR;
+	}
+	dhd_dbg_ring_push(ring, msg_hdr, logbuf);
+	return BCME_OK;
+}
+#endif /* EWP_BCM_TRACE || EWP_RTT_LOGGING || EWP_ECNTRS_LOGGING */
+
+void
 dhd_dbg_msgtrace_log_parser(dhd_pub_t *dhdp, void *event_data,
-	void *raw_event_ptr, uint datalen)
+	void *raw_event_ptr, uint datalen, bool msgtrace_hdr_present,
+	uint32 msgtrace_seqnum)
 {
 	msgtrace_hdr_t *hdr;
-	char *data;
-	int id;
-	uint32 log_hdr_len = sizeof(event_log_hdr_t);
+	char *data, *tmpdata;
+	const uint32 log_hdr_len = sizeof(event_log_hdr_t);
 	uint32 log_pyld_len;
 	static uint32 seqnum_prev = 0;
 	event_log_hdr_t *log_hdr;
 	bool msg_processed = FALSE;
-	uint32 *log_ptr =  NULL;
+	prcd_event_log_hdr_t prcd_log_hdr;
+	prcd_event_log_hdr_t *plog_hdr;
 	dll_t list_head, *cur;
 	loglist_item_t *log_item;
-	int32 nan_evt_ring_log_level = 0;
 	dhd_dbg_ring_entry_t msg_hdr;
 	char *logbuf;
 	struct tracelog_header *logentry_header;
+	uint ring_data_len = 0;
+	bool ecntr_pushed = FALSE;
+	bool rtt_pushed = FALSE;
+	bool bcm_trace_pushed = FALSE;
+	bool dll_inited = FALSE;
+	uint32 logset = 0;
+	uint16 block = 0;
+	bool event_log_max_sets_queried;
+	uint32 event_log_max_sets;
+	uint min_expected_len = 0;
+	uint16 len_chk = 0;
+
+	BCM_REFERENCE(ecntr_pushed);
+	BCM_REFERENCE(rtt_pushed);
+	BCM_REFERENCE(bcm_trace_pushed);
+	BCM_REFERENCE(len_chk);
+
+	/* store event_logset_queried and event_log_max_sets in local variables
+	 * to avoid race conditions as they were set from different contexts(preinit)
+	 */
+	event_log_max_sets_queried = dhdp->event_log_max_sets_queried;
+	/* Make sure queried is read first with wmb and then max_sets,
+	 * as it is done in reverse order during preinit ioctls.
+	 */
+	OSL_SMP_WMB();
+	event_log_max_sets = dhdp->event_log_max_sets;
+
+	if (msgtrace_hdr_present)
+		min_expected_len = (MSGTRACE_HDRLEN + EVENT_LOG_BLOCK_LEN);
+	else
+		min_expected_len = EVENT_LOG_BLOCK_LEN;
 
 	/* log trace event consists of:
 	 * msgtrace header
 	 * event log block header
 	 * event log payload
 	 */
-	if (datalen <= MSGTRACE_HDRLEN + EVENT_LOG_BLOCK_HDRLEN) {
+	if (!event_data || (datalen <= min_expected_len)) {
+		DHD_ERROR(("%s: Not processing due to invalid event_data : %p or length : %d\n",
+			__FUNCTION__, event_data, datalen));
+		if (event_data && msgtrace_hdr_present) {
+			prhex("event_data dump", event_data, datalen);
+			tmpdata = (char *)event_data + MSGTRACE_HDRLEN;
+			if (tmpdata) {
+				DHD_ERROR(("EVENT_LOG_HDR[0x%x]: Set: 0x%08x length = %d\n",
+					ltoh16(*((uint16 *)(tmpdata+2))),
+					ltoh32(*((uint32 *)(tmpdata + 4))),
+					ltoh16(*((uint16 *)(tmpdata)))));
+			}
+		} else if (!event_data) {
+			DHD_ERROR(("%s: event_data is NULL, cannot dump prhex\n", __FUNCTION__));
+		}
+
 		return;
 	}
-	hdr = (msgtrace_hdr_t *)event_data;
-	data = (char *)event_data + MSGTRACE_HDRLEN;
-	datalen -= MSGTRACE_HDRLEN;
 
-	if (dhd_dbg_msgtrace_seqchk(&seqnum_prev, ntoh32(hdr->seqnum)))
+	if (msgtrace_hdr_present) {
+		hdr = (msgtrace_hdr_t *)event_data;
+		data = (char *)event_data + MSGTRACE_HDRLEN;
+		datalen -= MSGTRACE_HDRLEN;
+		msgtrace_seqnum = ntoh32(hdr->seqnum);
+	} else {
+		data = (char *)event_data;
+	}
+
+	if (dhd_dbg_msgtrace_seqchk(&seqnum_prev, msgtrace_seqnum))
 		return;
 
 	/* Save the whole message to event log ring */
@@ -998,21 +978,23 @@ dhd_dbg_msgtrace_log_parser(dhd_pub_t *dhdp, void *event_data,
 	logentry_header = (struct tracelog_header *)logbuf;
 	logentry_header->magic_num = TRACE_LOG_MAGIC_NUMBER;
 	logentry_header->buf_size = datalen;
-	logentry_header->seq_num = hdr->seqnum;
+	logentry_header->seq_num = msgtrace_seqnum;
 	msg_hdr.type = DBG_RING_ENTRY_DATA_TYPE;
+
+	ring_data_len = datalen + sizeof(*logentry_header);
 
 	if ((sizeof(*logentry_header) + datalen) > PAYLOAD_MAX_LEN) {
 		DHD_ERROR(("%s:Payload len=%u exceeds max len\n", __FUNCTION__,
 			((uint)sizeof(*logentry_header) + datalen)));
-		VMFREE(dhdp->osh, logbuf, sizeof(*logentry_header) + datalen);
-		return;
+		goto exit;
 	}
 
 	msg_hdr.len = sizeof(*logentry_header) + datalen;
 	memcpy(logbuf + sizeof(*logentry_header), data, datalen);
-	dhd_dbg_ring_push(dhdp, FW_VERBOSE_RING_ID, &msg_hdr, logbuf);
-	VMFREE(dhdp->osh, logbuf, sizeof(*logentry_header) + datalen);
-
+	DHD_DBGIF(("%s: datalen %d %d\n", __FUNCTION__, msg_hdr.len, datalen));
+#ifndef DHD_DEBUGABILITY_LOG_DUMP_RING
+	dhd_dbg_push_to_ring(dhdp, FW_VERBOSE_RING_ID, &msg_hdr, logbuf);
+#endif
 	/* Print sequence number, originating set and length of received
 	 * event log buffer. Refer to event log buffer structure in
 	 * event_log.h
@@ -1020,6 +1002,24 @@ dhd_dbg_msgtrace_log_parser(dhd_pub_t *dhdp, void *event_data,
 	DHD_MSGTRACE_LOG(("EVENT_LOG_HDR[0x%x]: Set: 0x%08x length = %d\n",
 		ltoh16(*((uint16 *)(data+2))), ltoh32(*((uint32 *)(data + 4))),
 		ltoh16(*((uint16 *)(data)))));
+
+	logset = ltoh32(*((uint32 *)(data + 4)));
+
+	if (logset >= event_log_max_sets) {
+		DHD_ERROR(("%s logset: %d max: %d out of range queried: %d\n",
+			__FUNCTION__, logset, event_log_max_sets, event_log_max_sets_queried));
+#ifdef DHD_FW_COREDUMP
+		if (event_log_max_sets_queried) {
+			DHD_ERROR(("%s: collect socram for DUMP_TYPE_LOGSET_BEYOND_RANGE\n",
+				__FUNCTION__));
+			dhdp->memdump_type = DUMP_TYPE_LOGSET_BEYOND_RANGE;
+			dhd_bus_mem_dump(dhdp);
+		}
+#endif /* DHD_FW_COREDUMP */
+	}
+
+	block = ltoh16(*((uint16 *)(data + 2)));
+
 	data += EVENT_LOG_BLOCK_HDRLEN;
 	datalen -= EVENT_LOG_BLOCK_HDRLEN;
 
@@ -1035,31 +1035,51 @@ dhd_dbg_msgtrace_log_parser(dhd_pub_t *dhdp, void *event_data,
 	 * data                                  log_hdr
 	 */
 	dll_init(&list_head);
+	dll_inited = TRUE;
+
 	while (datalen > log_hdr_len) {
 		log_hdr = (event_log_hdr_t *)(data + datalen - log_hdr_len);
+		memset(&prcd_log_hdr, 0, sizeof(prcd_log_hdr));
+		if (!dhd_dbg_process_event_log_hdr(log_hdr, &prcd_log_hdr)) {
+			DHD_ERROR(("%s: Error while parsing event log header\n",
+				__FUNCTION__));
+		}
+
 		/* skip zero padding at end of frame */
-		if (log_hdr->tag == EVENT_LOG_TAG_NULL) {
+		if (prcd_log_hdr.tag == EVENT_LOG_TAG_NULL) {
 			datalen -= log_hdr_len;
 			continue;
 		}
-		/* Check argument count, any event log should contain at least
+		/* Check argument count (for non-ecounter events only),
+		 * any event log should contain at least
 		 * one argument (4 bytes) for arm cycle count and up to 16
-		 * arguments when the format is valid
+		 * arguments except EVENT_LOG_TAG_STATS which could use the
+		 * whole payload of 256 words
 		 */
-		if (log_hdr->count == 0) {
+		if (prcd_log_hdr.count == 0) {
 			break;
 		}
-		if ((log_hdr->count > MAX_NO_OF_ARG) && (log_hdr->fmt_num != 0xffff)) {
+		/* Both tag_stats and proxd are binary payloads so skip
+		 * argument count check for these.
+		 */
+		if ((prcd_log_hdr.tag != EVENT_LOG_TAG_STATS) &&
+			(prcd_log_hdr.tag != EVENT_LOG_TAG_PROXD_SAMPLE_COLLECT) &&
+			(prcd_log_hdr.tag != EVENT_LOG_TAG_ROAM_ENHANCED_LOG) &&
+			(prcd_log_hdr.tag != EVENT_LOG_TAG_BCM_TRACE) &&
+			(prcd_log_hdr.count > MAX_NO_OF_ARG)) {
 			break;
 		}
 
-		log_pyld_len = log_hdr->count * DATA_UNIT_FOR_LOG_CNT;
+		log_pyld_len = (prcd_log_hdr.count + prcd_log_hdr.ext_event_log_hdr) *
+			DATA_UNIT_FOR_LOG_CNT;
 		/* log data should not cross the event data boundary */
-		if ((char *)log_hdr - data < log_pyld_len)
+		if ((uint32)((char *)log_hdr - data) < log_pyld_len) {
 			break;
+		}
 		/* skip 4 bytes time stamp packet */
-		if (log_hdr->tag == EVENT_LOG_TAG_TS) {
-			datalen -= log_pyld_len + log_hdr_len;
+		if (prcd_log_hdr.tag == EVENT_LOG_TAG_TS ||
+			prcd_log_hdr.tag == EVENT_LOG_TAG_ENHANCED_TS) {
+			datalen -= (log_pyld_len + log_hdr_len);
 			continue;
 		}
 		if (!(log_item = MALLOC(dhdp->osh, sizeof(*log_item)))) {
@@ -1067,7 +1087,17 @@ dhd_dbg_msgtrace_log_parser(dhd_pub_t *dhdp, void *event_data,
 				__FUNCTION__));
 			break;
 		}
-		log_item->hdr = log_hdr;
+
+		log_item->prcd_log_hdr.tag = prcd_log_hdr.tag;
+		log_item->prcd_log_hdr.count = prcd_log_hdr.count;
+		log_item->prcd_log_hdr.fmt_num = prcd_log_hdr.fmt_num;
+		log_item->prcd_log_hdr.fmt_num_raw = prcd_log_hdr.fmt_num_raw;
+		log_item->prcd_log_hdr.armcycle = prcd_log_hdr.armcycle;
+		log_item->prcd_log_hdr.log_ptr = prcd_log_hdr.log_ptr;
+		log_item->prcd_log_hdr.payload_len = prcd_log_hdr.payload_len;
+		log_item->prcd_log_hdr.ext_event_log_hdr = prcd_log_hdr.ext_event_log_hdr;
+		log_item->prcd_log_hdr.binary_payload = prcd_log_hdr.binary_payload;
+
 		dll_insert(&log_item->list, &list_head);
 		datalen -= (log_pyld_len + log_hdr_len);
 	}
@@ -1075,78 +1105,94 @@ dhd_dbg_msgtrace_log_parser(dhd_pub_t *dhdp, void *event_data,
 	while (!dll_empty(&list_head)) {
 		msg_processed = FALSE;
 		cur = dll_head_p(&list_head);
-#if defined(STRICT_GCC_WARNINGS) && defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-qual"
-#endif
+
+		GCC_DIAGNOSTIC_PUSH_SUPPRESS_CAST();
 		log_item = (loglist_item_t *)container_of(cur, loglist_item_t, list);
-#if defined(STRICT_GCC_WARNINGS) && defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
-		log_hdr = log_item->hdr;
-		log_ptr = (uint32 *)log_hdr - log_hdr->count;
+		GCC_DIAGNOSTIC_POP();
+
+		plog_hdr = &log_item->prcd_log_hdr;
+#if defined(EWP_ECNTRS_LOGGING) && defined(DHD_LOG_DUMP)
+		/* Ecounter tag can be time_data or log_stats+binary paloaod */
+		if ((plog_hdr->tag == EVENT_LOG_TAG_ECOUNTERS_TIME_DATA) ||
+			((plog_hdr->tag == EVENT_LOG_TAG_STATS) &&
+			(plog_hdr->binary_payload))) {
+			if (!ecntr_pushed && dhd_log_dump_ecntr_enabled()) {
+				if (dhd_dbg_send_evtlog_to_ring(plog_hdr, &msg_hdr,
+					dhdp->ecntr_dbg_ring,
+					PAYLOAD_ECNTR_MAX_LEN, logbuf) != BCME_OK) {
+					goto exit;
+				}
+				ecntr_pushed = TRUE;
+			}
+		}
+#endif /* EWP_ECNTRS_LOGGING && DHD_LOG_DUMP */
+
+		if (plog_hdr->tag == EVENT_LOG_TAG_ROAM_ENHANCED_LOG) {
+			print_roam_enhanced_log(plog_hdr);
+			msg_processed = TRUE;
+		}
+#if defined(EWP_RTT_LOGGING) && defined(DHD_LOG_DUMP)
+		if ((plog_hdr->tag == EVENT_LOG_TAG_PROXD_SAMPLE_COLLECT) &&
+				plog_hdr->binary_payload) {
+			if (!rtt_pushed && dhd_log_dump_rtt_enabled()) {
+				if (dhd_dbg_send_evtlog_to_ring(plog_hdr, &msg_hdr,
+					dhdp->rtt_dbg_ring,
+					PAYLOAD_RTT_MAX_LEN, logbuf) != BCME_OK) {
+					goto exit;
+				}
+				rtt_pushed = TRUE;
+			}
+		}
+#endif /* EWP_RTT_LOGGING && DHD_LOG_DUMP */
+
+#ifdef EWP_BCM_TRACE
+		if ((logset == EVENT_LOG_SET_BCM_TRACE) && !bcm_trace_pushed &&
+			plog_hdr->binary_payload) {
+			if (dhd_dbg_send_evtlog_to_ring(plog_hdr, &msg_hdr,
+				dhdp->bcm_trace_dbg_ring,
+				PAYLOAD_BCM_TRACE_MAX_LEN, logbuf) != BCME_OK) {
+				goto exit;
+			}
+			bcm_trace_pushed = TRUE;
+		}
+#endif /* EWP_BCM_TRACE */
+
+#if defined (DHD_EVENT_LOG_FILTER)
+		if (plog_hdr->tag == EVENT_LOG_TAG_STATS) {
+			dhd_event_log_filter_event_handler(dhdp, plog_hdr, plog_hdr->log_ptr);
+		}
+#endif /* DHD_EVENT_LOG_FILTER */
+		if (!msg_processed) {
+			dhd_dbg_verboselog_handler(dhdp, plog_hdr, raw_event_ptr,
+				logset, block, (uint32 *)data);
+		}
 		dll_delete(cur);
 		MFREE(dhdp->osh, log_item, sizeof(*log_item));
 
-		/* Before DHD debugability is implemented WLC_E_TRACE had been
-		 * used to carry verbose logging from firmware. We need to
-		 * be able to handle those messages even without a initialized
-		 * debug layer.
-		 */
-		if (dhdp->dbg) {
-			/* check the data for NAN event ring; keeping first as small table */
-			/* process only user configured to log */
-			nan_evt_ring_log_level = dhdp->dbg->dbg_rings[NAN_EVENT_RING_ID].log_level;
-			if (dhdp->dbg->dbg_rings[NAN_EVENT_RING_ID].log_level) {
-				for (id = 0; id < ARRAYSIZE(nan_event_level_map); id++) {
-					if (nan_event_level_map[id].tag == log_hdr->tag) {
-						/* dont process if tag log level is greater
-						 * than ring log level
-						 */
-						if (nan_event_level_map[id].log_level >
-							nan_evt_ring_log_level) {
-							msg_processed = TRUE;
-							break;
-						}
-						/* In case of BCME_VERSION error,
-						 * this is not NAN event type data
-						 */
-						if (dhd_dbg_nan_event_handler(dhdp,
-							log_hdr, log_ptr) != BCME_VERSION) {
-							msg_processed = TRUE;
-						}
-						break;
-					}
-				}
-			}
-			if (!msg_processed) {
-				/* check the data for event ring */
-				for (id = 0; id < ARRAYSIZE(fw_event_level_map); id++) {
-					if (fw_event_level_map[id].tag == log_hdr->tag) {
-						/* In case of BCME_VERSION error,
-						 * this is not event type data
-						 */
-						if (dhd_dbg_custom_evnt_handler(dhdp,
-							log_hdr, log_ptr) != BCME_VERSION) {
-							msg_processed = TRUE;
-						}
-						break;
-					}
-				}
-			}
-		}
-		if (!msg_processed)
-			dhd_dbg_verboselog_handler(dhdp, log_hdr, raw_event_ptr);
-
 	}
+	BCM_REFERENCE(log_hdr);
+exit:
+	while (dll_inited && (!dll_empty(&list_head))) {
+		cur = dll_head_p(&list_head);
+
+		GCC_DIAGNOSTIC_PUSH_SUPPRESS_CAST();
+		log_item = (loglist_item_t *)container_of(cur, loglist_item_t, list);
+		GCC_DIAGNOSTIC_POP();
+
+		dll_delete(cur);
+		MFREE(dhdp->osh, log_item, sizeof(*log_item));
+	}
+
+	VMFREE(dhdp->osh, logbuf, ring_data_len);
 }
 #else /* !SHOW_LOGTRACE */
 static INLINE void dhd_dbg_verboselog_handler(dhd_pub_t *dhdp,
-	event_log_hdr_t *hdr, void *raw_event_ptr) {};
-static INLINE void dhd_dbg_msgtrace_log_parser(dhd_pub_t *dhdp,
-	void *event_data, void *raw_event_ptr, uint datalen) {};
+	prcd_event_log_hdr_t *plog_hdr, void *raw_event_ptr, uint32 logset, uint16 block,
+	uint32 *data) {};
+INLINE void dhd_dbg_msgtrace_log_parser(dhd_pub_t *dhdp,
+	void *event_data, void *raw_event_ptr, uint datalen,
+	bool msgtrace_hdr_present, uint32 msgtrace_seqnum) {};
 #endif /* SHOW_LOGTRACE */
-#ifndef MACOSX_DHD
 void
 dhd_dbg_trace_evnt_handler(dhd_pub_t *dhdp, void *event_data,
 		void *raw_event_ptr, uint datalen)
@@ -1164,90 +1210,26 @@ dhd_dbg_trace_evnt_handler(dhd_pub_t *dhdp, void *event_data,
 	if (hdr->trace_type == MSGTRACE_HDR_TYPE_MSG)
 		dhd_dbg_msgtrace_msg_parser(event_data);
 	else if (hdr->trace_type == MSGTRACE_HDR_TYPE_LOG)
-		dhd_dbg_msgtrace_log_parser(dhdp, event_data, raw_event_ptr, datalen);
-}
-#endif /* MACOSX_DHD */
-static int
-dhd_dbg_ring_init(dhd_pub_t *dhdp, dhd_dbg_ring_t *ring, uint16 id, uint8 *name,
-		uint32 ring_sz, int section)
-{
-	void *buf;
-	unsigned long flags;
-#ifdef CONFIG_DHD_USE_STATIC_BUF
-	buf = DHD_OS_PREALLOC(dhdp, section, ring_sz);
-#else
-	buf = MALLOCZ(dhdp->osh, ring_sz);
-#endif
-	if (!buf)
-		return BCME_NOMEM;
-
-	ring->lock = dhd_os_spin_lock_init(dhdp->osh);
-
-	flags = dhd_os_spin_lock(ring->lock);
-	ring->id = id;
-	strncpy(ring->name, name, DBGRING_NAME_MAX);
-	ring->name[DBGRING_NAME_MAX - 1] = 0;
-	ring->ring_size = ring_sz;
-	ring->wp = ring->rp = 0;
-	ring->ring_buf = buf;
-	ring->threshold = DBGRING_FLUSH_THRESHOLD(ring);
-	ring->state = RING_SUSPEND;
-	ring->sched_pull = TRUE;
-	ring->rem_len = 0;
-	dhd_os_spin_unlock(ring->lock, flags);
-
-	return BCME_OK;
+		dhd_dbg_msgtrace_log_parser(dhdp, event_data, raw_event_ptr, datalen, TRUE, 0);
 }
 
-static void
-dhd_dbg_ring_deinit(dhd_pub_t *dhdp, dhd_dbg_ring_t *ring)
+#ifdef BTLOG
+void
+dhd_dbg_bt_log_handler(dhd_pub_t *dhdp, void *data, uint datalen)
 {
-	void *buf;
-	uint32 ring_sz;
-	unsigned long flags;
+	dhd_dbg_ring_entry_t msg_hdr;
+	int ret;
 
-	if (!ring->ring_buf)
-		return;
-
-	flags = dhd_os_spin_lock(ring->lock);
-	ring->id = 0;
-	ring->name[0] = 0;
-	ring_sz = ring->ring_size;
-	ring->ring_size = 0;
-	ring->wp = ring->rp = 0;
-	buf = ring->ring_buf;
-	ring->ring_buf = NULL;
-	memset(&ring->stat, 0, sizeof(ring->stat));
-	ring->threshold = 0;
-	ring->state = RING_STOP;
-	dhd_os_spin_unlock(ring->lock, flags);
-
-	dhd_os_spin_lock_deinit(dhdp->osh, ring->lock);
-#ifndef CONFIG_DHD_USE_STATIC_BUF
-	MFREE(dhdp->osh, buf, ring_sz);
-#endif
-}
-
-uint8
-dhd_dbg_find_sets_by_tag(uint16 tag)
-{
-	uint i;
-	uint8 sets = 0;
-
-	for (i = 0; i < ARRAYSIZE(fw_verbose_level_map); i++) {
-		if (fw_verbose_level_map[i].tag == tag) {
-			sets |= fw_verbose_level_map[i].sets;
-		}
+	/* push to ring */
+	memset(&msg_hdr, 0, sizeof(msg_hdr));
+	msg_hdr.type = DBG_RING_ENTRY_DATA_TYPE;
+	msg_hdr.len = datalen;
+	ret = dhd_dbg_push_to_ring(dhdp, BT_LOG_RING_ID, &msg_hdr, data);
+	if (ret != BCME_OK) {
+		DHD_ERROR(("%s ring push failed %d\n", __FUNCTION__, ret));
 	}
-
-	for (i = 0; i < ARRAYSIZE(fw_event_level_map); i++) {
-		if (fw_event_level_map[i].tag == tag) {
-			sets |= fw_event_level_map[i].sets;
-		}
-	}
-
-	return sets;
 }
+#endif	/* BTLOG */
 
 /*
  * dhd_dbg_set_event_log_tag : modify the state of an event log tag
@@ -1262,8 +1244,8 @@ dhd_dbg_set_event_log_tag(dhd_pub_t *dhdp, uint16 tag, uint8 set)
 
 	memset(&pars, 0, sizeof(pars));
 	pars.tag = tag;
-	pars.set = dhd_dbg_find_sets_by_tag(tag);
-	pars.flags = set ? EVENT_LOG_TAG_FLAG_LOG : EVENT_LOG_TAG_FLAG_NONE;
+	pars.set = set;
+	pars.flags = EVENT_LOG_TAG_FLAG_LOG;
 
 	if (!bcm_mkiovar(cmd, (char *)&pars, sizeof(pars), iovbuf, sizeof(iovbuf))) {
 		DHD_ERROR(("%s mkiovar failed\n", __FUNCTION__));
@@ -1281,38 +1263,25 @@ dhd_dbg_set_configuration(dhd_pub_t *dhdp, int ring_id, int log_level, int flags
 {
 	dhd_dbg_ring_t *ring;
 	uint8 set = 1;
-	unsigned long lock_flags;
 	int i, array_len = 0;
 	struct log_level_table *log_level_tbl = NULL;
 	if (!dhdp || !dhdp->dbg)
 		return BCME_BADADDR;
 
+	if (!VALID_RING(ring_id)) {
+		DHD_ERROR(("%s : invalid ring_id : %d\n", __FUNCTION__, ring_id));
+		return BCME_RANGE;
+	}
+
 	ring = &dhdp->dbg->dbg_rings[ring_id];
+	dhd_dbg_ring_config(ring, log_level, threshold);
 
-	if (ring->state == RING_STOP)
-		return BCME_UNSUPPORTED;
-
-	lock_flags = dhd_os_spin_lock(ring->lock);
-	if (log_level == 0)
-		ring->state = RING_SUSPEND;
-	else
-		ring->state = RING_ACTIVE;
-	ring->log_level = log_level;
-
-	ring->threshold = MIN(threshold, DBGRING_FLUSH_THRESHOLD(ring));
-	dhd_os_spin_unlock(ring->lock, lock_flags);
 	if (log_level > 0)
 		set = TRUE;
 
-	if (ring->id == FW_EVENT_RING_ID) {
-		log_level_tbl = fw_event_level_map;
-		array_len = ARRAYSIZE(fw_event_level_map);
-	} else if (ring->id == FW_VERBOSE_RING_ID) {
+	if (ring->id == FW_VERBOSE_RING_ID) {
 		log_level_tbl = fw_verbose_level_map;
 		array_len = ARRAYSIZE(fw_verbose_level_map);
-	} else if (ring->id == NAN_EVENT_RING_ID) {
-		log_level_tbl = nan_event_level_map;
-		array_len = ARRAYSIZE(nan_event_level_map);
 	}
 
 	for (i = 0; i < array_len; i++) {
@@ -1331,6 +1300,23 @@ dhd_dbg_set_configuration(dhd_pub_t *dhdp, int ring_id, int log_level, int flags
 	return BCME_OK;
 }
 
+int
+__dhd_dbg_get_ring_status(dhd_dbg_ring_t *ring, dhd_dbg_ring_status_t *get_ring_status)
+{
+	dhd_dbg_ring_status_t ring_status;
+	int ret = BCME_OK;
+
+	if (ring == NULL) {
+		return BCME_BADADDR;
+	}
+
+	bzero(&ring_status, sizeof(dhd_dbg_ring_status_t));
+	RING_STAT_TO_STATUS(ring, ring_status);
+	*get_ring_status = ring_status;
+
+	return ret;
+}
+
 /*
 * dhd_dbg_get_ring_status : get the ring status from the coresponding ring buffer
 * Return: An error code or 0 on success.
@@ -1343,17 +1329,14 @@ dhd_dbg_get_ring_status(dhd_pub_t *dhdp, int ring_id, dhd_dbg_ring_status_t *dbg
 	int id = 0;
 	dhd_dbg_t *dbg;
 	dhd_dbg_ring_t *dbg_ring;
-	dhd_dbg_ring_status_t ring_status;
 	if (!dhdp || !dhdp->dbg)
 		return BCME_BADADDR;
 	dbg = dhdp->dbg;
 
-	memset(&ring_status, 0, sizeof(dhd_dbg_ring_status_t));
 	for (id = DEBUG_RING_ID_INVALID + 1; id < DEBUG_RING_ID_MAX; id++) {
 		dbg_ring = &dbg->dbg_rings[id];
 		if (VALID_RING(dbg_ring->id) && (dbg_ring->id == ring_id)) {
-			RING_STAT_TO_STATUS(dbg_ring, ring_status);
-			*dbg_ring_status = ring_status;
+			__dhd_dbg_get_ring_status(dbg_ring, dbg_ring_status);
 			break;
 		}
 	}
@@ -1363,6 +1346,30 @@ dhd_dbg_get_ring_status(dhd_pub_t *dhdp, int ring_id, dhd_dbg_ring_status_t *dbg
 	}
 	return ret;
 }
+
+#ifdef SHOW_LOGTRACE
+void
+dhd_dbg_read_ring_into_trace_buf(dhd_dbg_ring_t *ring, trace_buf_info_t *trace_buf_info)
+{
+	dhd_dbg_ring_status_t ring_status;
+	uint32 rlen = 0;
+
+	rlen = dhd_dbg_ring_pull_single(ring, trace_buf_info->buf, TRACE_LOG_BUF_MAX_SIZE, TRUE);
+
+	trace_buf_info->size = rlen;
+	trace_buf_info->availability = NEXT_BUF_NOT_AVAIL;
+	if (rlen == 0) {
+		trace_buf_info->availability = BUF_NOT_AVAILABLE;
+		return;
+	}
+
+	__dhd_dbg_get_ring_status(ring, &ring_status);
+
+	if (ring_status.written_bytes != ring_status.read_bytes) {
+		trace_buf_info->availability = NEXT_BUF_AVAIL;
+	}
+}
+#endif /* SHOW_LOGTRACE */
 
 /*
 * dhd_dbg_find_ring_id : return ring_id based on ring_name
@@ -1419,13 +1426,7 @@ dhd_dbg_start(dhd_pub_t *dhdp, bool start)
 		dbg_ring = &dbg->dbg_rings[ring_id];
 		if (!start) {
 			if (VALID_RING(dbg_ring->id)) {
-				/* Initialize the information for the ring */
-				dbg_ring->state = RING_SUSPEND;
-				dbg_ring->log_level = 0;
-				dbg_ring->rp = dbg_ring->wp = 0;
-				dbg_ring->threshold = 0;
-				memset(&dbg_ring->stat, 0, sizeof(struct ring_statistics));
-				memset(dbg_ring->ring_buf, 0, dbg_ring->ring_size);
+				dhd_dbg_ring_start(dbg_ring);
 			}
 		}
 	}
@@ -1499,6 +1500,14 @@ __dhd_dbg_map_tx_status_to_pkt_fate(uint16 status)
 		case WLFC_CTL_PKTFLAG_DISCARD_NOACK:
 			pkt_fate = TX_PKT_FATE_SENT;
 			break;
+		case WLFC_CTL_PKTFLAG_EXPIRED:
+			pkt_fate = TX_PKT_FATE_FW_DROP_EXPTIME;
+			break;
+#ifndef OEM_ANDROID
+		case WLFC_CTL_PKTFLAG_MKTFREE:
+			pkt_fate = TX_PKT_FATE_FW_PKT_FREE;
+			break;
+#endif /* !OEM_ANDROID */
 		default:
 			pkt_fate = TX_PKT_FATE_FW_DROP_OTHER;
 			break;
@@ -1515,11 +1524,11 @@ __dhd_dbg_free_tx_pkts(dhd_pub_t *dhdp, dhd_dbg_tx_info_t *tx_pkts,
 {
 	uint16 count;
 
-	DHD_PKT_INFO(("%s, %d\n", __FUNCTION__, __LINE__));
 	count = 0;
 	while ((count < pkt_count) && tx_pkts) {
-		if (tx_pkts->info.pkt)
+		if (tx_pkts->info.pkt) {
 			PKTFREE(dhdp->osh, tx_pkts->info.pkt, TRUE);
+		}
 		tx_pkts++;
 		count++;
 	}
@@ -1533,11 +1542,11 @@ __dhd_dbg_free_rx_pkts(dhd_pub_t *dhdp, dhd_dbg_rx_info_t *rx_pkts,
 {
 	uint16 count;
 
-	DHD_PKT_INFO(("%s, %d\n", __FUNCTION__, __LINE__));
 	count = 0;
 	while ((count < pkt_count) && rx_pkts) {
-		if (rx_pkts->info.pkt)
+		if (rx_pkts->info.pkt) {
 			PKTFREE(dhdp->osh, rx_pkts->info.pkt, TRUE);
+		}
 		rx_pkts++;
 		count++;
 	}
@@ -1586,9 +1595,9 @@ __dhd_dbg_dump_rx_pkt_info(dhd_pub_t *dhdp, dhd_dbg_rx_info_t *rx_pkt,
 
 int
 dhd_dbg_attach_pkt_monitor(dhd_pub_t *dhdp,
-		dbg_mon_tx_pkts_t tx_pkt_mon,
-		dbg_mon_tx_status_t tx_status_mon,
-		dbg_mon_rx_pkts_t rx_pkt_mon)
+	dbg_mon_tx_pkts_t tx_pkt_mon,
+	dbg_mon_tx_status_t tx_status_mon,
+	dbg_mon_rx_pkts_t rx_pkt_mon)
 {
 
 	dhd_dbg_tx_report_t *tx_report = NULL;
@@ -1598,12 +1607,10 @@ dhd_dbg_attach_pkt_monitor(dhd_pub_t *dhdp,
 	dhd_dbg_pkt_mon_state_t tx_pkt_state;
 	dhd_dbg_pkt_mon_state_t tx_status_state;
 	dhd_dbg_pkt_mon_state_t rx_pkt_state;
-	gfp_t kflags;
 	uint32 alloc_len;
 	int ret = BCME_OK;
 	unsigned long flags;
 
-	DHD_PKT_INFO(("%s, %d\n", __FUNCTION__, __LINE__));
 	if (!dhdp || !dhdp->dbg) {
 		DHD_PKT_MON(("%s(): dhdp=%p, dhdp->dbg=%p\n", __FUNCTION__,
 			dhdp, (dhdp ? dhdp->dbg : NULL)));
@@ -1625,11 +1632,9 @@ dhd_dbg_attach_pkt_monitor(dhd_pub_t *dhdp,
 		return BCME_OK;
 	}
 
-	kflags = in_atomic() ? GFP_ATOMIC : GFP_KERNEL;
-
 	/* allocate and initialize tx packet monitoring */
 	alloc_len = sizeof(*tx_report);
-	tx_report = (dhd_dbg_tx_report_t *)kzalloc(alloc_len, kflags);
+	tx_report = (dhd_dbg_tx_report_t *)MALLOCZ(dhdp->osh, alloc_len);
 	if (unlikely(!tx_report)) {
 		DHD_ERROR(("%s(): could not allocate memory for - "
 			"dhd_dbg_tx_report_t\n", __FUNCTION__));
@@ -1638,7 +1643,7 @@ dhd_dbg_attach_pkt_monitor(dhd_pub_t *dhdp,
 	}
 
 	alloc_len = (sizeof(*tx_pkts) * MAX_FATE_LOG_LEN);
-	tx_pkts = (dhd_dbg_tx_info_t *)kzalloc(alloc_len, kflags);
+	tx_pkts = (dhd_dbg_tx_info_t *)MALLOCZ(dhdp->osh, alloc_len);
 	if (unlikely(!tx_pkts)) {
 		DHD_ERROR(("%s(): could not allocate memory for - "
 			"dhd_dbg_tx_info_t\n", __FUNCTION__));
@@ -1654,7 +1659,7 @@ dhd_dbg_attach_pkt_monitor(dhd_pub_t *dhdp,
 
 	/* allocate and initialze rx packet monitoring */
 	alloc_len = sizeof(*rx_report);
-	rx_report = (dhd_dbg_rx_report_t *)kzalloc(alloc_len, kflags);
+	rx_report = (dhd_dbg_rx_report_t *)MALLOCZ(dhdp->osh, alloc_len);
 	if (unlikely(!rx_report)) {
 		DHD_ERROR(("%s(): could not allocate memory for - "
 			"dhd_dbg_rx_report_t\n", __FUNCTION__));
@@ -1663,7 +1668,7 @@ dhd_dbg_attach_pkt_monitor(dhd_pub_t *dhdp,
 	}
 
 	alloc_len = (sizeof(*rx_pkts) * MAX_FATE_LOG_LEN);
-	rx_pkts = (dhd_dbg_rx_info_t *)kzalloc(alloc_len, kflags);
+	rx_pkts = (dhd_dbg_rx_info_t *)MALLOCZ(dhdp->osh, alloc_len);
 	if (unlikely(!rx_pkts)) {
 		DHD_ERROR(("%s(): could not allocate memory for - "
 			"dhd_dbg_rx_info_t\n", __FUNCTION__));
@@ -1682,10 +1687,12 @@ dhd_dbg_attach_pkt_monitor(dhd_pub_t *dhdp,
 fail:
 	/* tx packet monitoring */
 	if (tx_pkts) {
-		kfree(tx_pkts);
+		alloc_len = (sizeof(*tx_pkts) * MAX_FATE_LOG_LEN);
+		MFREE(dhdp->osh, tx_pkts, alloc_len);
 	}
 	if (tx_report) {
-		kfree(tx_report);
+		alloc_len = sizeof(*tx_report);
+		MFREE(dhdp->osh, tx_report, alloc_len);
 	}
 	dhdp->dbg->pkt_mon.tx_report = NULL;
 	dhdp->dbg->pkt_mon.tx_report->tx_pkts = NULL;
@@ -1696,10 +1703,12 @@ fail:
 
 	/* rx packet monitoring */
 	if (rx_pkts) {
-		kfree(rx_pkts);
+		alloc_len = (sizeof(*rx_pkts) * MAX_FATE_LOG_LEN);
+		MFREE(dhdp->osh, rx_pkts, alloc_len);
 	}
 	if (rx_report) {
-		kfree(rx_report);
+		alloc_len = sizeof(*rx_report);
+		MFREE(dhdp->osh, rx_report, alloc_len);
 	}
 	dhdp->dbg->pkt_mon.rx_report = NULL;
 	dhdp->dbg->pkt_mon.rx_report->rx_pkts = NULL;
@@ -1721,7 +1730,6 @@ dhd_dbg_start_pkt_monitor(dhd_pub_t *dhdp)
 	dhd_dbg_pkt_mon_state_t rx_pkt_state;
 	unsigned long flags;
 
-	DHD_PKT_INFO(("%s, %d\n", __FUNCTION__, __LINE__));
 	if (!dhdp || !dhdp->dbg) {
 		DHD_PKT_MON(("%s(): dhdp=%p, dhdp->dbg=%p\n", __FUNCTION__,
 			dhdp, (dhdp ? dhdp->dbg : NULL)));
@@ -1754,7 +1762,6 @@ dhd_dbg_start_pkt_monitor(dhd_pub_t *dhdp)
 		DHD_PKT_MON_UNLOCK(dhdp->dbg->pkt_mon_lock, flags);
 		return -EINVAL;
 	}
-
 
 	tx_pkt_state = dhdp->dbg->pkt_mon.tx_pkt_state;
 	tx_status_state = dhdp->dbg->pkt_mon.tx_status_state;
@@ -1890,7 +1897,7 @@ dhd_dbg_monitor_tx_status(dhd_pub_t *dhdp, void *pkt, uint32 pktid,
 
 				if (!found) {
 					/* still couldn't match tx_status */
-					DHD_ERROR(("%s(): couldn't match tx_status, pkt_pos=%u, "
+					DHD_INFO(("%s(): couldn't match tx_status, pkt_pos=%u, "
 						"status_pos=%u, pkt_fate=%u\n", __FUNCTION__,
 						pkt_pos, status_pos, pkt_fate));
 				}
@@ -1960,7 +1967,6 @@ dhd_dbg_stop_pkt_monitor(dhd_pub_t *dhdp)
 	dhd_dbg_pkt_mon_state_t rx_pkt_state;
 	unsigned long flags;
 
-	DHD_PKT_INFO(("%s, %d\n", __FUNCTION__, __LINE__));
 	if (!dhdp || !dhdp->dbg) {
 		DHD_PKT_MON(("%s(): dhdp=%p, dhdp->dbg=%p\n", __FUNCTION__,
 			dhdp, (dhdp ? dhdp->dbg : NULL)));
@@ -2014,7 +2020,6 @@ dhd_dbg_monitor_get_tx_pkts(dhd_pub_t *dhdp, void __user *user_buf,
 	uint16 pkt_count, count;
 	unsigned long flags;
 
-	DHD_PKT_INFO(("%s, %d\n", __FUNCTION__, __LINE__));
 	BCM_REFERENCE(ptr);
 	BCM_REFERENCE(cptr);
 
@@ -2071,7 +2076,6 @@ dhd_dbg_monitor_get_tx_pkts(dhd_pub_t *dhdp, void __user *user_buf,
 		}
 	} else
 #endif /* CONFIG_COMPAT */
-
 	{
 		ptr = (wifi_tx_report_t *)user_buf;
 		while ((count < pkt_count) && tx_pkt && ptr) {
@@ -2112,7 +2116,6 @@ dhd_dbg_monitor_get_rx_pkts(dhd_pub_t *dhdp, void __user *user_buf,
 	uint16 pkt_count, count;
 	unsigned long flags;
 
-	DHD_PKT_INFO(("%s, %d\n", __FUNCTION__, __LINE__));
 	BCM_REFERENCE(ptr);
 	BCM_REFERENCE(cptr);
 
@@ -2201,7 +2204,6 @@ dhd_dbg_detach_pkt_monitor(dhd_pub_t *dhdp)
 	dhd_dbg_pkt_mon_state_t rx_pkt_state;
 	unsigned long flags;
 
-	DHD_PKT_INFO(("%s, %d\n", __FUNCTION__, __LINE__));
 	if (!dhdp || !dhdp->dbg) {
 		DHD_PKT_MON(("%s(): dhdp=%p, dhdp->dbg=%p\n", __FUNCTION__,
 			dhdp, (dhdp ? dhdp->dbg : NULL)));
@@ -2232,10 +2234,11 @@ dhd_dbg_detach_pkt_monitor(dhd_pub_t *dhdp)
 		if (tx_report->tx_pkts) {
 			__dhd_dbg_free_tx_pkts(dhdp, tx_report->tx_pkts,
 				tx_report->pkt_pos);
-			kfree(tx_report->tx_pkts);
+			MFREE(dhdp->osh, tx_report->tx_pkts,
+				(sizeof(*tx_report->tx_pkts) * MAX_FATE_LOG_LEN));
 			dhdp->dbg->pkt_mon.tx_report->tx_pkts = NULL;
 		}
-		kfree(tx_report);
+		MFREE(dhdp->osh, tx_report, sizeof(*tx_report));
 		dhdp->dbg->pkt_mon.tx_report = NULL;
 	}
 	dhdp->dbg->pkt_mon.tx_pkt_mon = NULL;
@@ -2247,10 +2250,11 @@ dhd_dbg_detach_pkt_monitor(dhd_pub_t *dhdp)
 		if (rx_report->rx_pkts) {
 			__dhd_dbg_free_rx_pkts(dhdp, rx_report->rx_pkts,
 				rx_report->pkt_pos);
-			kfree(rx_report->rx_pkts);
+			MFREE(dhdp->osh, rx_report->rx_pkts,
+				(sizeof(*rx_report->rx_pkts) * MAX_FATE_LOG_LEN));
 			dhdp->dbg->pkt_mon.rx_report->rx_pkts = NULL;
 		}
-		kfree(rx_report);
+		MFREE(dhdp->osh, rx_report, sizeof(*rx_report));
 		dhdp->dbg->pkt_mon.rx_report = NULL;
 	}
 	dhdp->dbg->pkt_mon.rx_pkt_mon = NULL;
@@ -2261,56 +2265,529 @@ dhd_dbg_detach_pkt_monitor(dhd_pub_t *dhdp)
 }
 #endif /* DBG_PKT_MON */
 
+#if defined(DBG_PKT_MON) || defined(DHD_PKT_LOGGING)
+/*
+ * XXX: WAR: Because of the overloading by DMA marker field,
+ * tx_status in TX completion message cannot be used. As a WAR,
+ * send d11 tx_status through unused status field of PCIe
+ * completion header.
+ */
+bool
+dhd_dbg_process_tx_status(dhd_pub_t *dhdp, void *pkt, uint32 pktid,
+		uint16 status)
+{
+	bool pkt_fate = TRUE;
+	if (dhdp->d11_tx_status) {
+		pkt_fate = (status == WLFC_CTL_PKTFLAG_DISCARD) ? TRUE : FALSE;
+		DHD_DBG_PKT_MON_TX_STATUS(dhdp, pkt, pktid, status);
+	}
+	return pkt_fate;
+}
+#else /* DBG_PKT_MON || DHD_PKT_LOGGING */
+bool
+dhd_dbg_process_tx_status(dhd_pub_t *dhdp, void *pkt,
+		uint32 pktid, uint16 status)
+{
+	return TRUE;
+}
+#endif /* DBG_PKT_MON || DHD_PKT_LOGGING */
+
+#define	EL_LOG_STR_LEN	512
+
+#define PRINT_CHN_PER_LINE 8
+#define PRINT_CHAN_LINE(cnt) \
+{\
+	cnt ++; \
+	if (cnt >= PRINT_CHN_PER_LINE) { \
+		DHD_ERROR(("%s\n", b.origbuf)); \
+		bcm_binit(&b, pr_buf, EL_LOG_STR_LEN); \
+		bcm_bprintf(&b, "%s: ", prefix); \
+		cnt = 0; \
+	} \
+}
+
+void print_roam_chan_list(char *prefix, uint chan_num, uint16 band_2g,
+	uint16 uni2a, uint8 uni3, uint8 *uni2c)
+{
+	struct bcmstrbuf b;
+	char pr_buf[EL_LOG_STR_LEN] = { 0 };
+	int cnt = 0;
+	int idx, idx2;
+
+	bcm_binit(&b, pr_buf, EL_LOG_STR_LEN);
+	bcm_bprintf(&b, "%s: count(%d)", prefix, chan_num);
+	/* 2G channnels */
+	for (idx = 0; idx < NBITS(uint16); idx++) {
+		if (BCM_BIT(idx) & band_2g) {
+			bcm_bprintf(&b, " %d", idx);
+			PRINT_CHAN_LINE(cnt);
+
+		}
+	}
+
+	/* 5G UNII BAND 1, UNII BAND 2A */
+	for (idx = 0; idx < NBITS(uint16); idx++) {
+		if (BCM_BIT(idx) & uni2a) {
+			bcm_bprintf(&b, " %u", ROAM_CHN_UNI_2A + idx * ROAM_CHN_SPACE);
+			PRINT_CHAN_LINE(cnt);
+		}
+	}
+
+	/* 5G UNII BAND 2C */
+	for (idx2 = 0; idx2 < 3; idx2++) {
+		for (idx = 0; idx < NBITS(uint8); idx++) {
+			if (BCM_BIT(idx) & uni2c[idx2]) {
+				bcm_bprintf(&b, " %u", ROAM_CHN_UNI_2C +
+					idx2 * ROAM_CHN_SPACE * NBITS(uint8) +
+					idx * ROAM_CHN_SPACE);
+				PRINT_CHAN_LINE(cnt);
+			}
+		}
+	}
+
+	/* 5G UNII BAND 3 */
+	for (idx = 0; idx < NBITS(uint8); idx++) {
+		if (BCM_BIT(idx) & uni3) {
+			bcm_bprintf(&b, " %u", ROAM_CHN_UNI_3 + idx * ROAM_CHN_SPACE);
+			PRINT_CHAN_LINE(cnt);
+		}
+	}
+
+	if (cnt != 0) {
+		DHD_ERROR(("%s\n", b.origbuf));
+	}
+}
+
+void pr_roam_scan_start_v1(prcd_event_log_hdr_t *plog_hdr);
+void pr_roam_scan_cmpl_v1(prcd_event_log_hdr_t *plog_hdr);
+void pr_roam_cmpl_v1(prcd_event_log_hdr_t *plog_hdr);
+void pr_roam_nbr_req_v1(prcd_event_log_hdr_t *plog_hdr);
+void pr_roam_nbr_rep_v1(prcd_event_log_hdr_t *plog_hdr);
+void pr_roam_bcn_req_v1(prcd_event_log_hdr_t *plog_hdr);
+void pr_roam_bcn_rep_v1(prcd_event_log_hdr_t *plog_hdr);
+
+void pr_roam_scan_start_v2(prcd_event_log_hdr_t *plog_hdr);
+void pr_roam_scan_cmpl_v2(prcd_event_log_hdr_t *plog_hdr);
+void pr_roam_nbr_rep_v2(prcd_event_log_hdr_t *plog_hdr);
+void pr_roam_bcn_rep_v2(prcd_event_log_hdr_t *plog_hdr);
+void pr_roam_btm_rep_v2(prcd_event_log_hdr_t *plog_hdr);
+
+void pr_roam_bcn_req_v3(prcd_event_log_hdr_t *plog_hdr);
+void pr_roam_bcn_rep_v3(prcd_event_log_hdr_t *plog_hdr);
+void pr_roam_btm_rep_v3(prcd_event_log_hdr_t *plog_hdr);
+
+static const pr_roam_tbl_t roam_log_print_tbl[] =
+{
+	{ROAM_LOG_VER_1, ROAM_LOG_SCANSTART, pr_roam_scan_start_v1},
+	{ROAM_LOG_VER_1, ROAM_LOG_SCAN_CMPLT, pr_roam_scan_cmpl_v1},
+	{ROAM_LOG_VER_1, ROAM_LOG_ROAM_CMPLT, pr_roam_cmpl_v1},
+	{ROAM_LOG_VER_1, ROAM_LOG_NBR_REQ, pr_roam_nbr_req_v1},
+	{ROAM_LOG_VER_1, ROAM_LOG_NBR_REP, pr_roam_nbr_rep_v1},
+	{ROAM_LOG_VER_1, ROAM_LOG_BCN_REQ, pr_roam_bcn_req_v1},
+	{ROAM_LOG_VER_1, ROAM_LOG_BCN_REP, pr_roam_bcn_rep_v1},
+
+	{ROAM_LOG_VER_2, ROAM_LOG_SCANSTART, pr_roam_scan_start_v2},
+	{ROAM_LOG_VER_2, ROAM_LOG_SCAN_CMPLT, pr_roam_scan_cmpl_v2},
+	{ROAM_LOG_VER_2, ROAM_LOG_ROAM_CMPLT, pr_roam_cmpl_v1},
+	{ROAM_LOG_VER_2, ROAM_LOG_NBR_REQ, pr_roam_nbr_req_v1},
+	{ROAM_LOG_VER_2, ROAM_LOG_NBR_REP, pr_roam_nbr_rep_v2},
+	{ROAM_LOG_VER_2, ROAM_LOG_BCN_REQ, pr_roam_bcn_req_v1},
+	{ROAM_LOG_VER_2, ROAM_LOG_BCN_REP, pr_roam_bcn_rep_v2},
+	{ROAM_LOG_VER_2, ROAM_LOG_BTM_REP, pr_roam_btm_rep_v2},
+
+	{ROAM_LOG_VER_3, ROAM_LOG_SCANSTART, pr_roam_scan_start_v2},
+	{ROAM_LOG_VER_3, ROAM_LOG_SCAN_CMPLT, pr_roam_scan_cmpl_v2},
+	{ROAM_LOG_VER_3, ROAM_LOG_ROAM_CMPLT, pr_roam_cmpl_v1},
+	{ROAM_LOG_VER_3, ROAM_LOG_NBR_REQ, pr_roam_nbr_req_v1},
+	{ROAM_LOG_VER_3, ROAM_LOG_NBR_REP, pr_roam_nbr_rep_v2},
+	{ROAM_LOG_VER_3, ROAM_LOG_BCN_REQ, pr_roam_bcn_req_v3},
+	{ROAM_LOG_VER_3, ROAM_LOG_BCN_REP, pr_roam_bcn_rep_v3},
+	{ROAM_LOG_VER_3, ROAM_LOG_BTM_REP, pr_roam_btm_rep_v3},
+
+	{0, PRSV_PERIODIC_ID_MAX, NULL}
+
+};
+
+void pr_roam_scan_start_v1(prcd_event_log_hdr_t *plog_hdr)
+{
+	roam_log_trig_v1_t *log = (roam_log_trig_v1_t *)plog_hdr->log_ptr;
+
+	DHD_ERROR_ROAM(("ROAM_LOG_SCANSTART time: %d,"
+		" version:%d reason: %d rssi:%d cu:%d result:%d\n",
+		plog_hdr->armcycle, log->hdr.version, log->reason,
+		log->rssi, log->current_cu, log->result));
+	if (log->reason == WLC_E_REASON_DEAUTH ||
+		log->reason == WLC_E_REASON_DISASSOC) {
+		DHD_ERROR_ROAM(("  ROAM_LOG_PRT_ROAM: RCVD reason:%d\n",
+			log->prt_roam.rcvd_reason));
+	} else if (log->reason == WLC_E_REASON_BSSTRANS_REQ) {
+		DHD_ERROR_ROAM(("  ROAM_LOG_BSS_REQ: mode:%d candidate:%d token:%d "
+			"duration disassoc:%d valid:%d term:%d\n",
+			log->bss_trans.req_mode, log->bss_trans.nbrlist_size,
+			log->bss_trans.token, log->bss_trans.disassoc_dur,
+			log->bss_trans.validity_dur, log->bss_trans.bss_term_dur));
+	}
+}
+
+void pr_roam_scan_cmpl_v1(prcd_event_log_hdr_t *plog_hdr)
+{
+	roam_log_scan_cmplt_v1_t *log = (roam_log_scan_cmplt_v1_t *)plog_hdr->log_ptr;
+	char chanspec_buf[CHANSPEC_STR_LEN];
+	int i;
+
+	DHD_ERROR_ROAM(("ROAM_LOG_SCAN_CMPL: time:%d version:%d"
+		"is_full:%d scan_count:%d score_delta:%d",
+		plog_hdr->armcycle, log->hdr.version, log->full_scan,
+		log->scan_count, log->score_delta));
+	DHD_ERROR_ROAM(("  ROAM_LOG_CUR_AP: " MACDBG "rssi:%d score:%d channel:%s\n",
+			MAC2STRDBG((uint8 *)&log->cur_info.addr),
+			log->cur_info.rssi,
+			log->cur_info.score,
+			wf_chspec_ntoa_ex(log->cur_info.chanspec, chanspec_buf)));
+	for (i = 0; i < log->scan_list_size; i++) {
+		DHD_ERROR_ROAM(("  ROAM_LOG_CANDIDATE %d: " MACDBG
+			"rssi:%d score:%d channel:%s TPUT:%dkbps\n",
+			i, MAC2STRDBG((uint8 *)&log->scan_list[i].addr),
+			log->scan_list[i].rssi, log->scan_list[i].score,
+			wf_chspec_ntoa_ex(log->scan_list[i].chanspec,
+			chanspec_buf),
+			log->scan_list[i].estm_tput != ROAM_LOG_INVALID_TPUT?
+			log->scan_list[i].estm_tput:0));
+	}
+}
+
+void pr_roam_cmpl_v1(prcd_event_log_hdr_t *plog_hdr)
+{
+	roam_log_cmplt_v1_t *log = (roam_log_cmplt_v1_t *)plog_hdr->log_ptr;
+	char chanspec_buf[CHANSPEC_STR_LEN];
+
+	DHD_ERROR_ROAM(("ROAM_LOG_ROAM_CMPL: time: %d, version:%d"
+		"status: %d reason: %d channel:%s retry:%d " MACDBG "\n",
+		plog_hdr->armcycle, log->hdr.version, log->status, log->reason,
+		wf_chspec_ntoa_ex(log->chanspec, chanspec_buf),
+		log->retry, MAC2STRDBG((uint8 *)&log->addr)));
+}
+
+void pr_roam_nbr_req_v1(prcd_event_log_hdr_t *plog_hdr)
+{
+	roam_log_nbrreq_v1_t *log = (roam_log_nbrreq_v1_t *)plog_hdr->log_ptr;
+
+	DHD_ERROR_ROAM(("ROAM_LOG_NBR_REQ: time: %d, version:%d token:%d\n",
+		plog_hdr->armcycle, log->hdr.version, log->token));
+}
+
+void pr_roam_nbr_rep_v1(prcd_event_log_hdr_t *plog_hdr)
+{
+	roam_log_nbrrep_v1_t *log = (roam_log_nbrrep_v1_t *)plog_hdr->log_ptr;
+
+	DHD_ERROR_ROAM(("ROAM_LOG_NBR_REP: time:%d, veresion:%d chan_num:%d\n",
+		plog_hdr->armcycle, log->hdr.version, log->channel_num));
+}
+
+void pr_roam_bcn_req_v1(prcd_event_log_hdr_t *plog_hdr)
+{
+	roam_log_bcnrpt_req_v1_t *log = (roam_log_bcnrpt_req_v1_t *)plog_hdr->log_ptr;
+
+	DHD_ERROR_ROAM(("ROAM_LOG_BCN_REQ: time:%d, version:%d ret:%d"
+		"class:%d num_chan:%d ",
+		plog_hdr->armcycle, log->hdr.version,
+		log->result, log->reg, log->channel));
+	DHD_ERROR_ROAM(("ROAM_LOG_BCN_REQ: mode:%d is_wild:%d duration:%d"
+		"ssid_len:%d\n", log->mode, log->bssid_wild,
+		log->duration, log->ssid_len));
+}
+
+void pr_roam_bcn_rep_v1(prcd_event_log_hdr_t *plog_hdr)
+{
+	roam_log_bcnrpt_rep_v1_t *log = (roam_log_bcnrpt_rep_v1_t *)plog_hdr->log_ptr;
+	DHD_ERROR_ROAM(("ROAM_LOG_BCN_REP: time:%d, verseion:%d count:%d\n",
+		plog_hdr->armcycle, log->hdr.version,
+		log->count));
+}
+
+void pr_roam_scan_start_v2(prcd_event_log_hdr_t *plog_hdr)
+{
+	roam_log_trig_v2_t *log = (roam_log_trig_v2_t *)plog_hdr->log_ptr;
+	DHD_ERROR_ROAM(("ROAM_LOG_SCANSTART time: %d,"
+		" version:%d reason: %d rssi:%d cu:%d result:%d full_scan:%d\n",
+		plog_hdr->armcycle, log->hdr.version, log->reason,
+		log->rssi, log->current_cu, log->result,
+		log->result?(-1):log->full_scan));
+	if (log->reason == WLC_E_REASON_DEAUTH ||
+		log->reason == WLC_E_REASON_DISASSOC) {
+		DHD_ERROR_ROAM(("  ROAM_LOG_PRT_ROAM: RCVD reason:%d\n",
+			log->prt_roam.rcvd_reason));
+	} else if (log->reason == WLC_E_REASON_BSSTRANS_REQ) {
+		DHD_ERROR_ROAM(("  ROAM_LOG_BSS_REQ: mode:%d candidate:%d token:%d "
+			"duration disassoc:%d valid:%d term:%d\n",
+			log->bss_trans.req_mode, log->bss_trans.nbrlist_size,
+			log->bss_trans.token, log->bss_trans.disassoc_dur,
+			log->bss_trans.validity_dur, log->bss_trans.bss_term_dur));
+	} else if (log->reason == WLC_E_REASON_LOW_RSSI) {
+		DHD_ERROR_ROAM((" ROAM_LOG_LOW_RSSI: threshold:%d\n",
+			log->low_rssi.rssi_threshold));
+	}
+}
+
+void pr_roam_scan_cmpl_v2(prcd_event_log_hdr_t *plog_hdr)
+{
+	int i;
+	roam_log_scan_cmplt_v2_t *log = (roam_log_scan_cmplt_v2_t *)plog_hdr->log_ptr;
+	char chanspec_buf[CHANSPEC_STR_LEN];
+
+	DHD_ERROR_ROAM(("ROAM_LOG_SCAN_CMPL: time:%d version:%d"
+		"scan_count:%d score_delta:%d",
+		plog_hdr->armcycle, log->hdr.version,
+		log->scan_count, log->score_delta));
+	DHD_ERROR_ROAM(("  ROAM_LOG_CUR_AP: " MACDBG "rssi:%d score:%d channel:%s\n",
+			MAC2STRDBG((uint8 *)&log->cur_info.addr),
+			log->cur_info.rssi,
+			log->cur_info.score,
+			wf_chspec_ntoa_ex(log->cur_info.chanspec, chanspec_buf)));
+	for (i = 0; i < log->scan_list_size; i++) {
+		DHD_ERROR_ROAM(("  ROAM_LOG_CANDIDATE %d: " MACDBG
+			"rssi:%d score:%d cu :%d channel:%s TPUT:%dkbps\n",
+			i, MAC2STRDBG((uint8 *)&log->scan_list[i].addr),
+			log->scan_list[i].rssi, log->scan_list[i].score,
+			log->scan_list[i].cu * 100 / WL_MAX_CHANNEL_USAGE,
+			wf_chspec_ntoa_ex(log->scan_list[i].chanspec,
+			chanspec_buf),
+			log->scan_list[i].estm_tput != ROAM_LOG_INVALID_TPUT?
+			log->scan_list[i].estm_tput:0));
+	}
+	if (log->chan_num != 0) {
+		print_roam_chan_list("ROAM_LOG_SCAN_CHANLIST", log->chan_num,
+			log->band2g_chan_list, log->uni2a_chan_list,
+			log->uni3_chan_list, log->uni2c_chan_list);
+	}
+
+}
+
+void pr_roam_nbr_rep_v2(prcd_event_log_hdr_t *plog_hdr)
+{
+	roam_log_nbrrep_v2_t *log = (roam_log_nbrrep_v2_t *)plog_hdr->log_ptr;
+	DHD_ERROR_ROAM(("ROAM_LOG_NBR_REP: time:%d, veresion:%d chan_num:%d\n",
+		plog_hdr->armcycle, log->hdr.version, log->channel_num));
+	if (log->channel_num != 0) {
+		print_roam_chan_list("ROAM_LOG_NBR_REP_CHANLIST", log->channel_num,
+			log->band2g_chan_list, log->uni2a_chan_list,
+			log->uni3_chan_list, log->uni2c_chan_list);
+	}
+}
+
+void pr_roam_bcn_rep_v2(prcd_event_log_hdr_t *plog_hdr)
+{
+	roam_log_bcnrpt_rep_v2_t *log = (roam_log_bcnrpt_rep_v2_t *)plog_hdr->log_ptr;
+
+	DHD_ERROR_ROAM(("ROAM_LOG_BCN_REP: time:%d, verseion:%d count:%d mode:%d\n",
+		plog_hdr->armcycle, log->hdr.version,
+		log->count, log->reason));
+}
+
+void pr_roam_btm_rep_v2(prcd_event_log_hdr_t *plog_hdr)
+{
+	roam_log_btm_rep_v2_t *log = (roam_log_btm_rep_v2_t *)plog_hdr->log_ptr;
+	DHD_ERROR_ROAM(("ROAM_LOG_BTM_REP: time:%d version:%d req_mode:%d "
+		"status:%d ret:%d\n",
+		plog_hdr->armcycle, log->hdr.version,
+		log->req_mode, log->status, log->result));
+}
+
+void pr_roam_bcn_req_v3(prcd_event_log_hdr_t *plog_hdr)
+{
+	roam_log_bcnrpt_req_v3_t *log = (roam_log_bcnrpt_req_v3_t *)plog_hdr->log_ptr;
+
+	DHD_ERROR_ROAM(("ROAM_LOG_BCN_REQ: time:%d, version:%d ret:%d"
+		"class:%d %s ",
+		plog_hdr->armcycle, log->hdr.version,
+		log->result, log->reg, log->channel?"":"all_chan"));
+	DHD_ERROR_ROAM(("ROAM_LOG_BCN_REQ: mode:%d is_wild:%d duration:%d"
+		"ssid_len:%d\n", log->mode, log->bssid_wild,
+		log->duration, log->ssid_len));
+	if (log->channel_num != 0) {
+		print_roam_chan_list("ROAM_LOG_BCNREQ_SCAN_CHANLIST", log->channel_num,
+			log->band2g_chan_list, log->uni2a_chan_list,
+			log->uni3_chan_list, log->uni2c_chan_list);
+	}
+}
+
+static const char*
+pr_roam_bcn_rep_reason(uint16 reason_detail)
+{
+	static const char* reason_tbl[] = {
+		"BCNRPT_RSN_SUCCESS",
+		"BCNRPT_RSN_BADARG",
+		"BCNRPT_RSN_SCAN_ING",
+		"BCNRPT_RSN_SCAN_FAIL",
+		"UNKNOWN"
+	};
+
+	if (reason_detail >= ARRAYSIZE(reason_tbl)) {
+		DHD_ERROR_ROAM(("UNKNOWN Reason:%u\n", reason_detail));
+		ASSERT(0);
+		reason_detail = ARRAYSIZE(reason_tbl) - 1;
+
+	}
+	return reason_tbl[reason_detail];
+}
+
+void pr_roam_bcn_rep_v3(prcd_event_log_hdr_t *plog_hdr)
+{
+	roam_log_bcnrpt_rep_v3_t *log = (roam_log_bcnrpt_rep_v3_t *)plog_hdr->log_ptr;
+
+	DHD_ERROR_ROAM(("ROAM_LOG_BCN_REP: time:%d, verseion:%d count:%d mode:%d\n",
+		plog_hdr->armcycle, log->hdr.version,
+		log->count, log->reason));
+	DHD_ERROR_ROAM(("ROAM_LOG_BCN_REP: mode reason(%d):%s scan_stus:%u duration:%u\n",
+		log->reason_detail, pr_roam_bcn_rep_reason(log->reason_detail),
+		(log->reason_detail == BCNRPT_RSN_SCAN_FAIL)? log->scan_status:0,
+		log->duration));
+}
+
+void pr_roam_btm_rep_v3(prcd_event_log_hdr_t *plog_hdr)
+{
+	roam_log_btm_rep_v3_t *log = (roam_log_btm_rep_v3_t *)plog_hdr->log_ptr;
+	DHD_ERROR_ROAM(("ROAM_LOG_BTM_REP: time:%d version:%d req_mode:%d "
+		"status:%d ret:%d target:" MACDBG "\n",
+		plog_hdr->armcycle, log->hdr.version,
+		log->req_mode, log->status, log->result,
+		MAC2STRDBG((uint8 *)&log->target_addr)));
+}
+
+void
+print_roam_enhanced_log(prcd_event_log_hdr_t *plog_hdr)
+{
+	prsv_periodic_log_hdr_t *hdr = (prsv_periodic_log_hdr_t *)plog_hdr->log_ptr;
+	uint32 *ptr = (uint32 *)plog_hdr->log_ptr;
+	int i;
+	int loop_cnt = hdr->length / sizeof(uint32);
+	struct bcmstrbuf b;
+	char pr_buf[EL_LOG_STR_LEN] = { 0 };
+	const pr_roam_tbl_t *cur_elem = &roam_log_print_tbl[0];
+
+	while (cur_elem && cur_elem->pr_func) {
+		if (hdr->version == cur_elem->version &&
+			hdr->id == cur_elem->id) {
+			cur_elem->pr_func(plog_hdr);
+			return;
+		}
+		cur_elem++;
+	}
+
+	bcm_binit(&b, pr_buf, EL_LOG_STR_LEN);
+	bcm_bprintf(&b, "ROAM_LOG_UNKNOWN ID:%d ver:%d armcycle:%d",
+		hdr->id, hdr->version, plog_hdr->armcycle);
+	for (i = 0; i < loop_cnt && b.size > 0; i++) {
+		bcm_bprintf(&b, " %x", *ptr);
+		ptr++;
+	}
+	DHD_ERROR_ROAM(("%s\n", b.origbuf));
+}
+
 /*
  * dhd_dbg_attach: initialziation of dhd dbugability module
  *
  * Return: An error code or 0 on success.
  */
+#ifdef DHD_DEBUGABILITY_LOG_DUMP_RING
+struct dhd_dbg_ring_buf g_ring_buf;
+#endif /* DHD_DEBUGABILITY_LOG_DUMP_RING */
 int
 dhd_dbg_attach(dhd_pub_t *dhdp, dbg_pullreq_t os_pullreq,
 	dbg_urgent_noti_t os_urgent_notifier, void *os_priv)
 {
-	dhd_dbg_t *dbg;
-	int ret, ring_id;
+	dhd_dbg_t *dbg = NULL;
+	dhd_dbg_ring_t *ring = NULL;
+	int ret = BCME_ERROR, ring_id = 0;
+	void *buf = NULL;
+#ifdef DHD_DEBUGABILITY_LOG_DUMP_RING
+	struct dhd_dbg_ring_buf *ring_buf;
+#endif /* DHD_DEBUGABILITY_LOG_DUMP_RING */
 
 	dbg = MALLOCZ(dhdp->osh, sizeof(dhd_dbg_t));
 	if (!dbg)
 		return BCME_NOMEM;
 
+#ifdef CONFIG_DHD_USE_STATIC_BUF
+	buf = DHD_OS_PREALLOC(dhdp, DHD_PREALLOC_FW_VERBOSE_RING, FW_VERBOSE_RING_SIZE);
+#else
+	buf = MALLOCZ(dhdp->osh, FW_VERBOSE_RING_SIZE);
+#endif
+	if (!buf)
+		goto error;
 	ret = dhd_dbg_ring_init(dhdp, &dbg->dbg_rings[FW_VERBOSE_RING_ID], FW_VERBOSE_RING_ID,
-			(uint8 *)FW_VERBOSE_RING_NAME, FW_VERBOSE_RING_SIZE, DHD_PREALLOC_FW_VERBOSE_RING);
+			(uint8 *)FW_VERBOSE_RING_NAME, FW_VERBOSE_RING_SIZE, buf, FALSE);
 	if (ret)
 		goto error;
 
-	ret = dhd_dbg_ring_init(dhdp, &dbg->dbg_rings[FW_EVENT_RING_ID], FW_EVENT_RING_ID,
-			(uint8 *)FW_EVENT_RING_NAME, FW_EVENT_RING_SIZE, DHD_PREALLOC_FW_EVENT_RING);
-	if (ret)
+#ifdef CONFIG_DHD_USE_STATIC_BUF
+	buf = DHD_OS_PREALLOC(dhdp, DHD_PREALLOC_DHD_EVENT_RING, DHD_EVENT_RING_SIZE);
+#else
+	buf = MALLOCZ(dhdp->osh, DHD_EVENT_RING_SIZE);
+#endif
+	if (!buf)
 		goto error;
-
 	ret = dhd_dbg_ring_init(dhdp, &dbg->dbg_rings[DHD_EVENT_RING_ID], DHD_EVENT_RING_ID,
-			(uint8 *)DHD_EVENT_RING_NAME, DHD_EVENT_RING_SIZE, DHD_PREALLOC_DHD_EVENT_RING);
+			(uint8 *)DHD_EVENT_RING_NAME, DHD_EVENT_RING_SIZE, buf, FALSE);
 	if (ret)
 		goto error;
 
-	ret = dhd_dbg_ring_init(dhdp, &dbg->dbg_rings[NAN_EVENT_RING_ID], NAN_EVENT_RING_ID,
-			(uint8 *)NAN_EVENT_RING_NAME, NAN_EVENT_RING_SIZE, DHD_PREALLOC_NAN_EVENT_RING);
+#ifdef DHD_DEBUGABILITY_LOG_DUMP_RING
+	buf = MALLOCZ(dhdp->osh, DRIVER_LOG_RING_SIZE);
+	if (!buf)
+		goto error;
+	ret = dhd_dbg_ring_init(dhdp, &dbg->dbg_rings[DRIVER_LOG_RING_ID], DRIVER_LOG_RING_ID,
+			(uint8 *)DRIVER_LOG_RING_NAME, DRIVER_LOG_RING_SIZE, buf, FALSE);
 	if (ret)
 		goto error;
+
+	buf = MALLOCZ(dhdp->osh, ROAM_STATS_RING_SIZE);
+	if (!buf)
+		goto error;
+	ret = dhd_dbg_ring_init(dhdp, &dbg->dbg_rings[ROAM_STATS_RING_ID], ROAM_STATS_RING_ID,
+			(uint8 *)ROAM_STATS_RING_NAME, ROAM_STATS_RING_SIZE, buf, FALSE);
+	if (ret)
+		goto error;
+#endif /* DHD_DEBUGABILITY_LOG_DUMP_RING */
+#ifdef BTLOG
+	buf = MALLOCZ(dhdp->osh, BT_LOG_RING_SIZE);
+	if (!buf)
+		goto error;
+	ret = dhd_dbg_ring_init(dhdp, &dbg->dbg_rings[BT_LOG_RING_ID], BT_LOG_RING_ID,
+			BT_LOG_RING_NAME, BT_LOG_RING_SIZE, buf, FALSE);
+	if (ret)
+		goto error;
+#endif	/* BTLOG */
 
 	dbg->private = os_priv;
 	dbg->pullreq = os_pullreq;
 	dbg->urgent_notifier = os_urgent_notifier;
 	dhdp->dbg = dbg;
-
+#ifdef DHD_DEBUGABILITY_LOG_DUMP_RING
+	ring_buf = &g_ring_buf;
+	ring_buf->dhd_pub = dhdp;
+#endif /* DHD_DEBUGABILITY_LOG_DUMP_RING */
 	return BCME_OK;
 
 error:
 	for (ring_id = DEBUG_RING_ID_INVALID + 1; ring_id < DEBUG_RING_ID_MAX; ring_id++) {
 		if (VALID_RING(dbg->dbg_rings[ring_id].id)) {
-			dhd_dbg_ring_deinit(dhdp, &dbg->dbg_rings[ring_id]);
+			ring = &dbg->dbg_rings[ring_id];
+			dhd_dbg_ring_deinit(dhdp, ring);
+			if (ring->ring_buf) {
+#ifndef CONFIG_DHD_USE_STATIC_BUF
+				MFREE(dhdp->osh, ring->ring_buf, ring->ring_size);
+#endif
+				ring->ring_buf = NULL;
+			}
+			ring->ring_size = 0;
 		}
 	}
-	MFREE(dhdp->osh, dhdp->dbg, sizeof(dhd_dbg_t));
+	MFREE(dhdp->osh, dbg, sizeof(dhd_dbg_t));
+#ifdef DHD_DEBUGABILITY_LOG_DUMP_RING
+	ring_buf = &g_ring_buf;
+	ring_buf->dhd_pub = NULL;
+#endif /* DHD_DEBUGABILITY_LOG_DUMP_RING */
 
 	return ret;
 }
@@ -2323,13 +2800,49 @@ dhd_dbg_detach(dhd_pub_t *dhdp)
 {
 	int ring_id;
 	dhd_dbg_t *dbg;
+	dhd_dbg_ring_t *ring = NULL;
+#ifdef DHD_DEBUGABILITY_LOG_DUMP_RING
+	struct dhd_dbg_ring_buf *ring_buf;
+#endif /* DHD_DEBUGABILITY_LOG_DUMP_RING */
+
 	if (!dhdp->dbg)
 		return;
+
 	dbg = dhdp->dbg;
 	for (ring_id = DEBUG_RING_ID_INVALID + 1; ring_id < DEBUG_RING_ID_MAX; ring_id++) {
 		if (VALID_RING(dbg->dbg_rings[ring_id].id)) {
-			dhd_dbg_ring_deinit(dhdp, &dbg->dbg_rings[ring_id]);
+			ring = &dbg->dbg_rings[ring_id];
+			dhd_dbg_ring_deinit(dhdp, ring);
+			if (ring->ring_buf) {
+#ifndef CONFIG_DHD_USE_STATIC_BUF
+				MFREE(dhdp->osh, ring->ring_buf, ring->ring_size);
+#endif
+				ring->ring_buf = NULL;
+			}
+			ring->ring_size = 0;
 		}
 	}
 	MFREE(dhdp->osh, dhdp->dbg, sizeof(dhd_dbg_t));
+#ifdef DHD_DEBUGABILITY_LOG_DUMP_RING
+	ring_buf = &g_ring_buf;
+	ring_buf->dhd_pub = NULL;
+#endif /* DHD_DEBUGABILITY_LOG_DUMP_RING */
+}
+
+uint32
+dhd_dbg_get_fwverbose(dhd_pub_t *dhdp)
+{
+	if (dhdp && dhdp->dbg) {
+		return dhdp->dbg->dbg_rings[FW_VERBOSE_RING_ID].log_level;
+	}
+	return 0;
+}
+
+void
+dhd_dbg_set_fwverbose(dhd_pub_t *dhdp, uint32 new_val)
+{
+
+	if (dhdp && dhdp->dbg) {
+		dhdp->dbg->dbg_rings[FW_VERBOSE_RING_ID].log_level = new_val;
+	}
 }

@@ -1,14 +1,14 @@
 /*
  * bcmevent read-only data shared by kernel or app layers
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
+ * Copyright (C) 2020, Broadcom.
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -16,15 +16,9 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
- *      Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a license
- * other than the GPL, without Broadcom's express prior written consent.
  *
  *
- * <<Broadcom-WL-IPTag/Open:>>
- *
- * $Id: bcmevent.c 707287 2017-06-27 06:44:29Z $
+ * <<Broadcom-WL-IPTag/Dual:>>
  */
 
 #include <typedefs.h>
@@ -44,6 +38,9 @@ typedef struct {
 /* Use the actual name for event tracing */
 #define BCMEVENT_NAME(_event) {(_event), #_event}
 
+/* this becomes static data when all code is changed to use
+ * the bcmevent_get_name() API
+ */
 static const bcmevent_name_str_t bcmevent_names[] = {
 	BCMEVENT_NAME(WLC_E_SET_SSID),
 	BCMEVENT_NAME(WLC_E_JOIN),
@@ -84,6 +81,14 @@ static const bcmevent_name_str_t bcmevent_names[] = {
 	BCMEVENT_NAME(WLC_E_JOIN_START),
 	BCMEVENT_NAME(WLC_E_ROAM_START),
 	BCMEVENT_NAME(WLC_E_ASSOC_START),
+#ifdef EXT_STA
+	BCMEVENT_NAME(WLC_E_RESET_COMPLETE),
+	BCMEVENT_NAME(WLC_E_JOIN_START),
+	BCMEVENT_NAME(WLC_E_ROAM_START),
+	BCMEVENT_NAME(WLC_E_ASSOC_START),
+	BCMEVENT_NAME(WLC_E_ASSOC_RECREATED),
+	BCMEVENT_NAME(WLC_E_SPEEDY_RECREATE_FAIL),
+#endif /* EXT_STA */
 #if defined(IBSS_PEER_DISCOVERY_EVENT)
 	BCMEVENT_NAME(WLC_E_IBSS_ASSOC),
 #endif /* defined(IBSS_PEER_DISCOVERY_EVENT) */
@@ -104,14 +109,28 @@ static const bcmevent_name_str_t bcmevent_names[] = {
 #endif
 	BCMEVENT_NAME(WLC_E_RSSI),
 	BCMEVENT_NAME(WLC_E_PFN_SCAN_COMPLETE),
-	BCMEVENT_NAME(WLC_E_EXTLOG_MSG),
 	BCMEVENT_NAME(WLC_E_ACTION_FRAME),
 	BCMEVENT_NAME(WLC_E_ACTION_FRAME_RX),
 	BCMEVENT_NAME(WLC_E_ACTION_FRAME_COMPLETE),
+#if defined(NDIS)
+	BCMEVENT_NAME(WLC_E_PRE_ASSOC_IND),
+	BCMEVENT_NAME(WLC_E_PRE_REASSOC_IND),
+	BCMEVENT_NAME(WLC_E_CHANNEL_ADOPTED),
+	BCMEVENT_NAME(WLC_E_AP_STARTED),
+	BCMEVENT_NAME(WLC_E_DFS_AP_STOP),
+	BCMEVENT_NAME(WLC_E_DFS_AP_RESUME),
+	BCMEVENT_NAME(WLC_E_ASSOC_IND_NDIS),
+	BCMEVENT_NAME(WLC_E_REASSOC_IND_NDIS),
+	BCMEVENT_NAME(WLC_E_ACTION_FRAME_RX_NDIS),
+	BCMEVENT_NAME(WLC_E_AUTH_REQ),
+	BCMEVENT_NAME(WLC_E_IBSS_COALESCE),
+#endif /* #if defined(NDIS) */
+
 #ifdef BCMWAPI_WAI
 	BCMEVENT_NAME(WLC_E_WAI_STA_EVENT),
 	BCMEVENT_NAME(WLC_E_WAI_MSG),
 #endif /* BCMWAPI_WAI */
+
 	BCMEVENT_NAME(WLC_E_ESCAN_RESULT),
 	BCMEVENT_NAME(WLC_E_ACTION_FRAME_OFF_CHAN_COMPLETE),
 #ifdef WLP2P
@@ -124,9 +143,6 @@ static const bcmevent_name_str_t bcmevent_names[] = {
 	BCMEVENT_NAME(WLC_E_WAKE_EVENT),
 	BCMEVENT_NAME(WLC_E_DCS_REQUEST),
 	BCMEVENT_NAME(WLC_E_RM_COMPLETE),
-#ifdef WLMEDIA_HTSF
-	BCMEVENT_NAME(WLC_E_HTSFSYNC),
-#endif
 	BCMEVENT_NAME(WLC_E_OVERLAY_REQ),
 	BCMEVENT_NAME(WLC_E_CSA_COMPLETE_IND),
 	BCMEVENT_NAME(WLC_E_EXCESS_PM_WAKE_EVENT),
@@ -153,7 +169,7 @@ static const bcmevent_name_str_t bcmevent_names[] = {
 #ifdef WLWNM
 	BCMEVENT_NAME(WLC_E_WNM_STA_SLEEP),
 #endif /* WLWNM */
-#if defined(WL_PROXDETECT)
+#if defined(WL_PROXDETECT) || defined(RTT_SUPPORT)
 	BCMEVENT_NAME(WLC_E_PROXD),
 #endif
 	BCMEVENT_NAME(WLC_E_CCA_CHAN_QUAL),
@@ -163,6 +179,9 @@ static const bcmevent_name_str_t bcmevent_names[] = {
 #endif
 	BCMEVENT_NAME(WLC_E_PSTA_PRIMARY_INTF_IND),
 	BCMEVENT_NAME(WLC_E_TXFAIL_THRESH),
+#ifdef WLAIBSS
+	BCMEVENT_NAME(WLC_E_AIBSS_TXFAIL),
+#endif /* WLAIBSS */
 #ifdef GSCAN_SUPPORT
 	BCMEVENT_NAME(WLC_E_PFN_GSCAN_FULL_RESULT),
 	BCMEVENT_NAME(WLC_E_PFN_SSID_EXT),
@@ -174,10 +193,17 @@ static const bcmevent_name_str_t bcmevent_names[] = {
 	BCMEVENT_NAME(WLC_E_BT_WIFI_HANDOVER_REQ),
 #endif
 #ifdef WLFBT
-	BCMEVENT_NAME(WLC_E_FBT_AUTH_REQ_IND),
+	BCMEVENT_NAME(WLC_E_FBT),
 #endif /* WLFBT */
 	BCMEVENT_NAME(WLC_E_AUTHORIZED),
 	BCMEVENT_NAME(WLC_E_PROBREQ_MSG_RX),
+
+#ifdef WLAWDL
+	BCMEVENT_NAME(WLC_E_AWDL_AW),
+	BCMEVENT_NAME(WLC_E_AWDL_ROLE),
+	BCMEVENT_NAME(WLC_E_AWDL_EVENT),
+#endif /* WLAWDL */
+
 	BCMEVENT_NAME(WLC_E_CSA_START_IND),
 	BCMEVENT_NAME(WLC_E_CSA_DONE_IND),
 	BCMEVENT_NAME(WLC_E_CSA_FAILURE_IND),
@@ -186,10 +212,40 @@ static const bcmevent_name_str_t bcmevent_names[] = {
 	BCMEVENT_NAME(WLC_E_ALLOW_CREDIT_BORROW),
 	BCMEVENT_NAME(WLC_E_MSCH),
 	BCMEVENT_NAME(WLC_E_ULP),
+	BCMEVENT_NAME(WLC_E_NAN),
+	BCMEVENT_NAME(WLC_E_PKT_FILTER),
+	BCMEVENT_NAME(WLC_E_DMA_TXFLUSH_COMPLETE),
 	BCMEVENT_NAME(WLC_E_PSK_AUTH),
 	BCMEVENT_NAME(WLC_E_SDB_TRANSITION),
+	BCMEVENT_NAME(WLC_E_PFN_SCAN_BACKOFF),
+	BCMEVENT_NAME(WLC_E_PFN_BSSID_SCAN_BACKOFF),
+	BCMEVENT_NAME(WLC_E_AGGR_EVENT),
+	BCMEVENT_NAME(WLC_E_TVPM_MITIGATION),
+	BCMEVENT_NAME(WLC_E_SCAN),
+	BCMEVENT_NAME(WLC_E_SLOTTED_BSS_PEER_OP),
+	BCMEVENT_NAME(WLC_E_PHY_CAL),
+#ifdef WL_NAN
+	BCMEVENT_NAME(WLC_E_NAN_CRITICAL),
+	BCMEVENT_NAME(WLC_E_NAN_NON_CRITICAL),
+	BCMEVENT_NAME(WLC_E_NAN),
+#endif /* WL_NAN */
+	BCMEVENT_NAME(WLC_E_RPSNOA),
+	BCMEVENT_NAME(WLC_E_WA_LQM),
+	BCMEVENT_NAME(WLC_E_OBSS_DETECTION),
+	BCMEVENT_NAME(WLC_E_SC_CHAN_QUAL),
+	BCMEVENT_NAME(WLC_E_DYNSAR),
+	BCMEVENT_NAME(WLC_E_ROAM_CACHE_UPDATE),
+	BCMEVENT_NAME(WLC_E_AP_BCN_DRIFT),
+	BCMEVENT_NAME(WLC_E_PFN_SCAN_ALLGONE_EXT),
+#ifdef WL_CLIENT_SAE
+	BCMEVENT_NAME(WLC_E_AUTH_START),
+#endif /* WL_CLIENT_SAE */
+#ifdef WL_TWT
+	BCMEVENT_NAME(WLC_E_TWT_SETUP),
+	BCMEVENT_NAME(WLC_E_TWT_TEARDOWN),
+	BCMEVENT_NAME(WLC_E_TWT_INFO_FRM)
+#endif /* WL_TWT */
 };
-
 
 const char *bcmevent_get_name(uint event_type)
 {
@@ -287,11 +343,15 @@ is_wlc_event_frame(void *pktdata, uint pktlen, uint16 exp_usr_subtype,
 
 	/* check length in bcmeth_hdr */
 
+#ifdef BCMDONGLEHOST
 	/* temporary - header length not always set properly. When the below
 	 * !BCMDONGLEHOST is in all branches that use trunk DHD, the code
 	 * under BCMDONGLEHOST can be removed.
 	 */
 	evlen = (uint16)(pktend - (uint8 *)&bcm_event->bcm_hdr.version);
+#else
+	evlen = ntoh16_ua((void *)&bcm_event->bcm_hdr.length);
+#endif /* BCMDONGLEHOST */
 	evend = (uint8 *)&bcm_event->bcm_hdr.version + evlen;
 	if (evend != pktend) {
 		err = BCME_BADLEN;
@@ -342,7 +402,7 @@ is_wlc_event_frame(void *pktdata, uint pktlen, uint16 exp_usr_subtype,
 		break;
 
 	case BCMILCP_BCM_SUBTYPE_DNGLEVENT:
-#if defined(DNGL_EVENT_SUPPORT)
+#if defined(HEALTH_CHECK) || defined(DNGL_EVENT_SUPPORT)
 		if ((pktlen < sizeof(bcm_dngl_event_t)) ||
 			(evend < ((uint8 *)bcm_event + sizeof(bcm_dngl_event_t)))) {
 			err = BCME_BADLEN;
@@ -372,7 +432,7 @@ is_wlc_event_frame(void *pktdata, uint pktlen, uint16 exp_usr_subtype,
 #else
 		err = BCME_UNSUPPORTED;
 		break;
-#endif 
+#endif /* HEALTH_CHECK  || DNGL_EVENT_SUPPORT */
 
 	default:
 		err = BCME_NOTFOUND;

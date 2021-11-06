@@ -36,21 +36,6 @@ if BCMDHD
 source "drivers/net/wireless/rockchip_wlan/rkwifi/Kconfig"
 endif
 
-menuconfig RTL_WIRELESS_SOLUTION
-	bool "Realtek Wireless Device Driver Support"
-	default y
-
-if RTL_WIRELESS_SOLUTION
-source "drivers/net/wireless/rockchip_wlan/rtl8188eu/Kconfig"
-source "drivers/net/wireless/rockchip_wlan/rtl8188fu/Kconfig"
-source "drivers/net/wireless/rockchip_wlan/rtl8189fs/Kconfig"
-source "drivers/net/wireless/rockchip_wlan/rtl8723cs/Kconfig"
-source "drivers/net/wireless/rockchip_wlan/rtl8723ds/Kconfig"
-source "drivers/net/wireless/rockchip_wlan/rtl8821cs/Kconfig"
-source "drivers/net/wireless/rockchip_wlan/rtl8822bs/Kconfig"
-endif
-
-source "drivers/net/wireless/rockchip_wlan/mvl88w8977/Kconfig"
 source "drivers/net/wireless/rockchip_wlan/cywdhd/Kconfig"
 
 endif # WL_ROCKCHIP

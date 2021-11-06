@@ -3,14 +3,14 @@
  *
  * Dependencies: bcmeth.h
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
+ * Copyright (C) 2020, Broadcom.
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -18,15 +18,9 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
- *      Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a license
- * other than the GPL, without Broadcom's express prior written consent.
  *
  *
- * <<Broadcom-WL-IPTag/Open:>>
- *
- * $Id: bcmevent.h 700076 2017-05-17 14:42:22Z $
+ * <<Broadcom-WL-IPTag/Dual:>>
  *
  */
 
@@ -41,9 +35,9 @@
 #include <typedefs.h>
 /* #include <ethernet.h> -- TODO: req., excluded to overwhelming coupling (break up ethernet.h) */
 #include <bcmeth.h>
-#if defined(DNGL_EVENT_SUPPORT)
+#if defined(HEALTH_CHECK) || defined(DNGL_EVENT_SUPPORT)
 #include <dnglevent.h>
-#endif 
+#endif /* HEALTH_CHECK || DNGL_EVENT_SUPPORT */
 
 /* This marks the start of a packed structure section. */
 #include <packed_section_start.h>
@@ -104,9 +98,9 @@ typedef BWL_PRE_PACKED_STRUCT struct bcm_event {
  */
 typedef union bcm_event_msg_u {
 	wl_event_msg_t		event;
-#if defined(DNGL_EVENT_SUPPORT)
+#if defined(HEALTH_CHECK) || defined(DNGL_EVENT_SUPPORT)
 	bcm_dngl_event_msg_t	dngl_event;
-#endif 
+#endif /* HEALTH_CHECK || DNGL_EVENT_SUPPORT */
 
 	/* add new event here */
 } bcm_event_msg_u_t;
@@ -175,17 +169,22 @@ typedef union bcm_event_msg_u {
 #define WLC_E_ACTION_FRAME_COMPLETE	60	/* Action frame Tx complete */
 #define WLC_E_PRE_ASSOC_IND	61	/* assoc request received */
 #define WLC_E_PRE_REASSOC_IND	62	/* re-assoc request received */
-#define WLC_E_CHANNEL_ADOPTED	63
+#ifdef CSI_SUPPORT
+#define WLC_E_CSI		63
+#else
+#define WLC_E_CHANNEL_ADOPTED	63	/* channel adopted (obsoleted) */
+#endif /* CSI_SUPPORT */
 #define WLC_E_AP_STARTED	64	/* AP started */
 #define WLC_E_DFS_AP_STOP	65	/* AP stopped due to DFS */
 #define WLC_E_DFS_AP_RESUME	66	/* AP resumed due to DFS */
 #define WLC_E_WAI_STA_EVENT	67	/* WAI stations event */
-#define WLC_E_WAI_MSG 		68	/* event encapsulating an WAI message */
-#define WLC_E_ESCAN_RESULT 	69	/* escan result event */
-#define WLC_E_ACTION_FRAME_OFF_CHAN_COMPLETE 	70	/* action frame off channel complete */
+#define WLC_E_WAI_MSG		68	/* event encapsulating an WAI message */
+#define WLC_E_ESCAN_RESULT	69	/* escan result event */
+#define WLC_E_ACTION_FRAME_OFF_CHAN_COMPLETE	70	/* action frame off channel complete */
 #define WLC_E_PROBRESP_MSG	71	/* probe response received */
 #define WLC_E_P2P_PROBREQ_MSG	72	/* P2P Probe request received */
 #define WLC_E_DCS_REQUEST	73
+/* will enable this after proptxstatus code is merged back to ToT */
 #define WLC_E_FIFO_CREDIT_MAP	74	/* credits for D11 FIFOs. [AC0,AC1,AC2,AC3,BC_MC,ATIM] */
 #define WLC_E_ACTION_FRAME_RX	75	/* Received action frame event WITH
 					 * wl_event_rx_frame_data_t header
@@ -214,6 +213,13 @@ typedef union bcm_event_msg_u {
 #define WLC_E_SPEEDY_RECREATE_FAIL	93	/* fast assoc recreation failed */
 #define WLC_E_NATIVE			94	/* port-specific event and payload (e.g. NDIS) */
 #define WLC_E_PKTDELAY_IND		95	/* event for tx pkt delay suddently jump */
+
+#ifdef WLAWDL
+#define WLC_E_AWDL_AW			96	/* AWDL AW period starts */
+#define WLC_E_AWDL_ROLE			97	/* AWDL Master/Slave/NE master role event */
+#define WLC_E_AWDL_EVENT		98	/* Generic AWDL event */
+#endif /* WLAWDL */
+
 #define WLC_E_PSTA_PRIMARY_INTF_IND	99	/* psta primary interface indication */
 #define WLC_E_NAN			100     /* NAN event - Reserved for future */
 #define WLC_E_BEACON_FRAME_RX		101
@@ -276,17 +282,42 @@ typedef union bcm_event_msg_u {
 #define WLC_E_INVALID_IE		162	/* Received invalid IE */
 #define WLC_E_MODE_SWITCH		163	/* Mode switch event */
 #define WLC_E_PKT_FILTER		164	/* Packet filter event */
-#define WLC_E_DMA_TXFLUSH_COMPLETE		165	/* TxFlush done before changing
-											* tx/rxchain
-											*/
+#define WLC_E_DMA_TXFLUSH_COMPLETE	165	/* TxFlush done before changing tx/rxchain */
 #define WLC_E_FBT			166	/* FBT event */
-#define WLC_E_PFN_SCAN_BACKOFF	167	/* PFN SCAN Backoff event */
+#define WLC_E_PFN_SCAN_BACKOFF		167	/* PFN SCAN Backoff event */
 #define WLC_E_PFN_BSSID_SCAN_BACKOFF	168	/* PFN BSSID SCAN BAckoff event */
 #define WLC_E_AGGR_EVENT		169	/* Aggregated event */
 #define WLC_E_TVPM_MITIGATION		171	/* Change in mitigation applied by TVPM */
-#define WLC_E_LAST			172	/* highest val + 1 for range checking */
-#if (WLC_E_LAST > 172)
-#error "WLC_E_LAST: Invalid value for last event; must be <= 172."
+#define WLC_E_SCAN_START		172	/* Deprecated */
+#define WLC_E_SCAN			172	/* Scan event */
+#define WLC_E_MBO			173	/* MBO event */
+#define WLC_E_PHY_CAL			174	/* Phy calibration start indication to host */
+#define WLC_E_RPSNOA			175	/* Radio power save start/end indication to host */
+#define WLC_E_ADPS			176	/* ADPS event */
+#define WLC_E_SLOTTED_BSS_PEER_OP	177	/* Per peer SCB delete */
+#define WLC_E_GTK_KEYROT_NO_CHANSW	179	/* Avoid Chanswitch while GTK key rotation */
+#define WLC_E_ONBODY_STATUS_CHANGE	180	/* Indication of onbody status change */
+#define WLC_E_BCNRECV_ABORTED		181	/* Fake AP bcnrecv aborted roam event */
+#define WLC_E_PMK_INFO			182	/* PMK,PMKID information event */
+#define WLC_E_BSSTRANS			183	/* BSS Transition request / Response */
+#define WLC_E_WA_LQM			184	/* link quality monitoring */
+#define WLC_E_ACTION_FRAME_OFF_CHAN_DWELL_COMPLETE  185 /* action frame off channel
+						 *  dwell time complete
+						 */
+#define WLC_E_WSEC			186	/* wsec keymgmt event */
+#define WLC_E_OBSS_DETECTION		187	/* OBSS HW event */
+#define WLC_E_AP_BCN_MUTE		188	/* Beacon mute mitigation event */
+#define WLC_E_SC_CHAN_QUAL		189	/* Event to indicate the SC chanel quality */
+#define WLC_E_DYNSAR			190	/* Dynamic SAR indicate optimize on/off */
+#define WLC_E_ROAM_CACHE_UPDATE		191	/* Roam cache update indication */
+#define WLC_E_AP_BCN_DRIFT		192	/* Beacon Drift event */
+#define WLC_E_PFN_SCAN_ALLGONE_EXT	193	/* last found PFN network gets lost. */
+#define WLC_E_AUTH_START		194	/* notify upper layer to start auth */
+#define WLC_E_TWT_TEARDOWN		195	/* TWT Teardown Complete Event */
+#define WLC_E_TWT_INFO_FRM		196	/* TWT Info Event Notification */
+#define WLC_E_LAST			197	/* highest val + 1 for range checking */
+#if (WLC_E_LAST > 197)
+#error "WLC_E_LAST: Invalid value for last event; must be <= 197."
 #endif /* WLC_E_LAST */
 
 /* define an API for getting the string name of an event */
@@ -302,7 +333,80 @@ extern int is_wlc_event_frame(void *pktdata, uint pktlen, uint16 exp_usr_subtype
 void wl_event_to_host_order(wl_event_msg_t * evt);
 void wl_event_to_network_order(wl_event_msg_t * evt);
 
+#define WLC_ROAM_EVENT_V1 0x1u
 
+/* tlv ids for roam event */
+#define WLC_ROAM_NO_NETWORKS_TLV_ID 1
+
+/* No Networks reasons */
+#define WLC_E_REASON_NO_NETWORKS		0x0u /* value 0 means no networks found */
+#define WLC_E_REASON_NO_NETWORKS_BY_SCORE	0x01u /* bit 1 indicates filtered by score */
+
+/* bit mask field indicating fail reason */
+typedef uint32 wlc_roam_fail_reason_t;
+
+typedef struct wlc_roam_event_header {
+	uint16 version;		/* version */
+	uint16 length;		/* total length */
+} wlc_roam_event_header_t;
+
+typedef struct wlc_roam_event {
+	wlc_roam_event_header_t header;
+	uint8 xtlvs[];		/* data */
+} wl_roam_event_t;
+
+#define WLC_ROAM_PREP_EVENT_V1 0x1u
+#define WLC_ROAM_START_EVENT_V1 0x1u
+
+typedef struct wlc_roam_start_event {
+	uint16 version;		/* version */
+	uint16 length;		/* total length */
+	int16 rssi;		/* current bss rssi */
+	int8 pad[2];		/* padding */
+	uint8 xtlvs[];		/* optional xtlvs */
+} wlc_roam_start_event_t;
+
+typedef struct wlc_roam_prep_event {
+	uint16 version;		/* version */
+	uint16 length;		/* total length */
+	int16 rssi;		/* target bss rssi */
+	int8 pad[2];		/* padding */
+	uint8 xtlvs[];		/* optional xtlvs */
+} wlc_roam_prep_event_t;
+
+#define WLC_ROAM_CACHE_UPDATE_EVENT_V1	0x1u
+
+/* WLC_E_ROAM_CACHE_UPDATE event data prototype */
+typedef struct wlc_roam_cache_update_event {
+	uint16 version;		/* version */
+	uint16 length;		/* total length */
+	uint8 xtlvs[];		/* optional xtlvs */
+} wlc_roam_cache_update_event_t;
+
+typedef enum wlc_roam_cache_update_reason {
+	WLC_ROAM_CACHE_UPDATE_NEW_ROAM_CACHE = 1,	/* new roam cache */
+	WLC_ROAM_CACHE_UPDATE_JOIN = 2,			/* join bss */
+	WLC_ROAM_CACHE_UPDATE_RSSI_DELTA = 3,		/* rssi delta */
+	WLC_ROAM_CACHE_UPDATE_MOTION_RSSI_DELTA = 4,	/* motion rssi delta */
+	WLC_ROAM_CACHE_UPDATE_CHANNEL_MISS = 5,		/* channel missed */
+	WLC_ROAM_CACHE_UPDATE_START_SPLIT_SCAN = 6,	/* start split scan */
+	WLC_ROAM_CACHE_UPDATE_START_FULL_SCAN = 7,	/* start full scan */
+	WLC_ROAM_CACHE_UPDATE_INIT_ASSOC = 8,		/* init before assoc */
+	WLC_ROAM_CACHE_UPDATE_FULL_SCAN_FAILED = 9,	/* full scan failed */
+	WLC_ROAM_CACHE_UPDATE_NO_AP_FOUND = 10,		/* no ap found */
+	WLC_ROAM_CACHE_UPDATE_MISSING_AP = 11,		/* cached ap not found */
+	WLC_ROAM_CACHE_UPDATE_START_PART_SCAN = 12,	/* RCC */
+	WLC_ROAM_CACHE_UPDATE_RCC_MODE = 13,		/* RCC */
+	WLC_ROAM_CACHE_UPDATE_RCC_CHANNELS = 14,	/* RCC */
+	WLC_ROAM_CACHE_UPDATE_START_LP_FULL_SCAN = 15	/* start low power full scan */
+} wlc_roam_cache_update_reason_t;
+
+/*
+ * Please do not insert/delete events in the middle causing renumbering.
+ * It is a problem for host-device compatibility, especially with ROMmed chips.
+ */
+
+/* Translate between internal and exported status codes */
 /* Event status codes */
 #define WLC_E_STATUS_SUCCESS		0	/* operation was successful */
 #define WLC_E_STATUS_FAIL		1	/* operation failed */
@@ -318,8 +422,16 @@ void wl_event_to_network_order(wl_event_msg_t * evt);
 #define WLC_E_STATUS_11HQUIET		11	/* 802.11h quiet period started */
 #define WLC_E_STATUS_SUPPRESS		12	/* user disabled scanning (WLC_SET_SCANSUPPRESS) */
 #define WLC_E_STATUS_NOCHANS		13	/* no allowable channels to scan */
+#ifdef BCMCCX
+#define WLC_E_STATUS_CCXFASTRM		14	/* scan aborted due to CCX fast roam */
+#endif /* BCMCCX */
 #define WLC_E_STATUS_CS_ABORT		15	/* abort channel select */
 #define WLC_E_STATUS_ERROR		16	/* request failed due to error */
+#define WLC_E_STATUS_SLOTTED_PEER_ADD	17	/* Slotted scb for peer addition status */
+#define WLC_E_STATUS_SLOTTED_PEER_DEL	18	/* Slotted scb for peer deletion status */
+#define WLC_E_STATUS_RXBCN		19	/* Rx Beacon event for FAKEAP feature	*/
+#define WLC_E_STATUS_RXBCN_ABORT	20	/* Rx Beacon abort event for FAKEAP feature */
+#define WLC_E_STATUS_LOWPOWER_ON_LOWSPAN	21	/* LOWPOWER scan request during LOWSPAN */
 #define WLC_E_STATUS_INVALID 0xff  /* Invalid status code to init variables. */
 
 /* 4-way handshake event type */
@@ -343,15 +455,20 @@ void wl_event_to_network_order(wl_event_msg_t * evt);
 #define WLC_E_STATUS_SLICE_SWAP_START		3
 #define WLC_E_STATUS_SLICE_SWAP_COMPLETE	4
 
-
 /* SDB transition reason code */
 #define WLC_E_REASON_HOST_DIRECT	0
 #define WLC_E_REASON_INFRA_ASSOC	1
 #define WLC_E_REASON_INFRA_ROAM		2
 #define WLC_E_REASON_INFRA_DISASSOC	3
 #define WLC_E_REASON_NO_MODE_CHANGE_NEEDED	4
+
+#ifdef WLAWDL
 #define WLC_E_REASON_AWDL_ENABLE	5
 #define WLC_E_REASON_AWDL_DISABLE	6
+#endif /* WLAWDL */
+
+/* TX STAT ERROR REASON CODE */
+#define WLC_E_REASON_TXBACKOFF_NOT_DECREMENTED 0x1
 
 /* WLC_E_SDB_TRANSITION event data */
 #define WL_MAX_BSSCFG     4
@@ -371,6 +488,15 @@ typedef struct wl_event_sdb_trans {
 	struct wl_event_sdb_data values[WL_MAX_BSSCFG];
 } wl_event_sdb_trans_t;
 
+/* reason codes for WLC_E_GTK_KEYROT_NO_CHANSW event */
+#define WLC_E_GTKKEYROT_SCANDELAY       0       /* Delay scan while gtk in progress */
+
+#ifdef WLAWDL
+#define WLC_E_GTKKEYROT_SKIPCHANSW_AWDL 1       /* Avoid chansw by awdl while gtk in progress */
+#endif /* WLAWDL */
+
+#define WLC_E_GTKKEYROT_SKIPCHANSW_P2P  2       /* Avoid chansw by p2p while gtk in progress */
+
 /* roam reason codes */
 #define WLC_E_REASON_INITIAL_ASSOC	0	/* initial assoc */
 #define WLC_E_REASON_LOW_RSSI		1	/* roamed due to low RSSI */
@@ -378,17 +504,23 @@ typedef struct wl_event_sdb_trans {
 #define WLC_E_REASON_DISASSOC		3	/* roamed due to DISASSOC indication */
 #define WLC_E_REASON_BCNS_LOST		4	/* roamed due to lost beacons */
 
+/* Roam codes (5-7) used primarily by CCX */
 #define WLC_E_REASON_FAST_ROAM_FAILED	5	/* roamed due to fast roam failure */
 #define WLC_E_REASON_DIRECTED_ROAM	6	/* roamed due to request by AP */
 #define WLC_E_REASON_TSPEC_REJECTED	7	/* roamed due to TSPEC rejection */
 #define WLC_E_REASON_BETTER_AP		8	/* roamed due to finding better AP */
 #define WLC_E_REASON_MINTXRATE		9	/* roamed because at mintxrate for too long */
 #define WLC_E_REASON_TXFAIL		10	/* We can hear AP, but AP can't hear us */
-/* retained for precommit auto-merging errors; remove once all branches are synced */
-#define WLC_E_REASON_REQUESTED_ROAM	11
 #define WLC_E_REASON_BSSTRANS_REQ	11	/* roamed due to BSS Transition request by AP */
-#define WLC_E_REASON_LOW_RSSI_CU		12 /* roamed due to low RSSI and Channel Usage */
+#define WLC_E_REASON_LOW_RSSI_CU	12	/* roamed due to low RSSI and Channel Usage */
 #define WLC_E_REASON_RADAR_DETECTED	13	/* roamed due to radar detection by STA */
+#define WLC_E_REASON_CSA		14	/* roamed due to CSA from AP */
+#define WLC_E_REASON_ESTM_LOW		15	/* roamed due to ESTM low tput */
+#define WLC_E_REASON_SILENT_ROAM	16	/* roamed due to Silent roam */
+#define WLC_E_REASON_INACTIVITY		17	/* full roam scan due to inactivity */
+#define WLC_E_REASON_ROAM_SCAN_TIMEOUT		18	/* roam scan timer timeout */
+#define WLC_E_REASON_REASSOC		19	/* roamed due to reassoc iovar */
+#define WLC_E_REASON_LAST		20	/* NOTE: increment this as you add reasons above */
 
 /* prune reason codes */
 #define WLC_E_PRUNE_ENCR_MISMATCH	1	/* encryption mismatch */
@@ -401,12 +533,26 @@ typedef struct wl_event_sdb_trans {
 #define WLC_E_RSN_MISMATCH		8	/* STA does not support AP's RSN */
 #define WLC_E_PRUNE_NO_COMMON_RATES	9	/* No rates in common with AP */
 #define WLC_E_PRUNE_BASIC_RATES		10	/* STA does not support all basic rates of BSS */
+#ifdef BCMCCX
+#define WLC_E_PRUNE_CCXFAST_PREVAP	11	/* CCX FAST ROAM: prune previous AP */
+#endif /* def BCMCCX */
 #define WLC_E_PRUNE_CIPHER_NA		12	/* BSS's cipher not supported */
 #define WLC_E_PRUNE_KNOWN_STA		13	/* AP is already known to us as a STA */
+#ifdef BCMCCX
+#define WLC_E_PRUNE_CCXFAST_DROAM	14	/* CCX FAST ROAM: prune unqualified AP */
+#endif /* def BCMCCX */
 #define WLC_E_PRUNE_WDS_PEER		15	/* AP is already known to us as a WDS peer */
 #define WLC_E_PRUNE_QBSS_LOAD		16	/* QBSS LOAD - AAC is too low */
 #define WLC_E_PRUNE_HOME_AP		17	/* prune home AP */
+#ifdef BCMCCX
+#define WLC_E_PRUNE_AP_BLOCKED		18	/* prune blocked AP */
+#define WLC_E_PRUNE_NO_DIAG_SUPPORT	19	/* prune due to diagnostic mode not supported */
+#endif /* BCMCCX */
 #define WLC_E_PRUNE_AUTH_RESP_MAC	20	/* suppress auth resp by MAC filter */
+#define WLC_E_PRUNE_ASSOC_RETRY_DELAY	21	/* MBO assoc retry delay */
+#define WLC_E_PRUNE_RSSI_ASSOC_REJ	22	/* OCE RSSI-based assoc rejection */
+#define WLC_E_PRUNE_MAC_AVOID		23	/* AP's MAC addr is in STA's MAC avoid list */
+#define WLC_E_PRUNE_TRANSITION_DISABLE	24	/* AP's Transition Disable Policy */
 
 /* WPA failure reason codes carried in the WLC_E_PSK_SUP event */
 #define WLC_E_SUP_OTHER			0	/* Other reason */
@@ -427,7 +573,58 @@ typedef struct wl_event_sdb_trans {
 #define WLC_E_SUP_WPA_PSK_TMO		15	/* WPA PSK 4-way handshake timeout */
 #define WLC_E_SUP_WPA_PSK_M1_TMO	16	/* WPA PSK 4-way handshake M1 timeout */
 #define WLC_E_SUP_WPA_PSK_M3_TMO	17	/* WPA PSK 4-way handshake M3 timeout */
+#define WLC_E_SUP_GTK_UPDATE_FAIL	18  /* GTK update failure */
+#define WLC_E_SUP_TK_UPDATE_FAIL	19  /* TK update failure */
+#define WLC_E_SUP_KEY_INSTALL_FAIL	20  /* Buffered key install failure */
+#define WLC_E_SUP_PTK_UPDATE		21	/* PTK update */
+#define WLC_E_SUP_MSG1_PMKID_MISMATCH	22	/* MSG1 PMKID not matched to PMKSA cache list */
 
+/* event msg for WLC_E_SUP_PTK_UPDATE */
+typedef struct wlc_sup_ptk_update {
+	uint16 version;		/* 0x0001 */
+	uint16 length;		/* length of data that follows */
+	uint32 tsf_low;		/* tsf at which ptk updated by internal supplicant */
+	uint32 tsf_high;
+	uint8 key_id;		/* always 0 for PTK update */
+	uint8 tid;		/* tid for the PN below - PTK refresh is per key */
+	uint16 pn_low;
+	uint32 pn_high;		/* local highest PN of any tid of the key when M4 was sent */
+} wlc_sup_ptk_update_t;
+
+/* sub event of WLC_E_WSEC */
+typedef enum {
+	WLC_WSEC_EVENT_PTK_PN_SYNC_ERROR = 0x01
+} wl_wsec_event_type_t;
+
+/* sub event msg - WLC_WSEC_EVENT_PTK_PN_SYNC_ERROR */
+struct wlc_wsec_ptk_pn_sync_error_v1 {
+	uint32 tsf_low;		/* tsf at which PN sync error happened */
+	uint32 tsf_high;
+	uint8 key_id;		/* always 0 for PTK update */
+	uint8 tid;		/* tid for the PN below - PTK refresh is per key */
+	uint16 PAD1;
+	uint16 rx_seqn;		/* d11 seq number */
+	uint16 pn_low;
+	uint32 pn_high;		/* local PN window start for the tid */
+	uint16 key_idx;		/* key idx in the keymgmt */
+	uint16 rx_pn_low;
+	uint32 rx_pn_high;	/* Rx PN window start for the tid */
+	uint32 span_time;	/* time elapsed since replay */
+	uint32 span_pkts;	/* pkt count since replay */
+};
+
+typedef struct wlc_wsec_ptk_pn_sync_error_v1 wlc_wsec_ptk_pn_sync_error_t;
+
+/* WLC_E_WSEC event msg */
+typedef struct wlc_wsec_event {
+	uint16 version;		/* 0x0001 */
+	uint16 length;		/* length of data that follows */
+	uint16 type;		/* wsec_event_type_t */
+	uint16 PAD1;
+	union {
+		wlc_wsec_ptk_pn_sync_error_t pn_sync_err;
+	} data;
+} wlc_wsec_event_t;
 
 /* Ucode reason codes carried in the WLC_E_MACDBG event */
 #define WLC_E_MACDBG_LIST_PSM		0	/* Dump list update for PSM registers */
@@ -439,15 +636,41 @@ typedef struct wl_event_sdb_trans {
  * WLC_E_P2P_PROBREQ_MSG
  * WLC_E_ACTION_FRAME_RX
  */
-typedef BWL_PRE_PACKED_STRUCT struct wl_event_rx_frame_data {
+
+#ifdef WLAWDL
+#define WLC_E_AWDL_SCAN_START		1	/* Scan start indication to host */
+#define WLC_E_AWDL_SCAN_DONE		0	/* Scan Done indication to host */
+#endif /* WLAWDL */
+
+#define MAX_PHY_CORE_NUM 4u
+
+#define BCM_RX_FRAME_DATA_VERSION_2	2u
+
+typedef BWL_PRE_PACKED_STRUCT struct wl_event_rx_frame_data_v2 {
+	uint16	version;
+	uint16	len;
+	uint16	channel;	/* Matches chanspec_t format from bcmwifi_channels.h */
+	uint16	pad;
+	int32	rssi;
+	uint32	mactime;
+	uint32	rate;
+	int8    per_core_rssi[MAX_PHY_CORE_NUM];
+} BWL_POST_PACKED_STRUCT wl_event_rx_frame_data_v2_t;
+
+typedef BWL_PRE_PACKED_STRUCT struct wl_event_rx_frame_data_v1 {
 	uint16	version;
 	uint16	channel;	/* Matches chanspec_t format from bcmwifi_channels.h */
 	int32	rssi;
 	uint32	mactime;
 	uint32	rate;
-} BWL_POST_PACKED_STRUCT wl_event_rx_frame_data_t;
+} BWL_POST_PACKED_STRUCT wl_event_rx_frame_data_v1_t;
 
-#define BCM_RX_FRAME_DATA_VERSION 1
+#define BCM_RX_FRAME_DATA_VERSION_1 1u
+
+#ifndef WL_EVENT_RX_FRAME_DATA_ALIAS
+#define BCM_RX_FRAME_DATA_VERSION BCM_RX_FRAME_DATA_VERSION_1
+typedef wl_event_rx_frame_data_v1_t wl_event_rx_frame_data_t;
+#endif
 
 /* WLC_E_IF event data */
 typedef struct wl_event_data_if {
@@ -477,8 +700,15 @@ typedef struct wl_event_data_natoe {
 #define WLC_E_IF_ROLE_WDS		2	/* WDS link */
 #define WLC_E_IF_ROLE_P2P_GO		3	/* P2P Group Owner */
 #define WLC_E_IF_ROLE_P2P_CLIENT	4	/* P2P Client */
-#define WLC_E_IF_ROLE_IBSS              8       /* IBSS */
-#define WLC_E_IF_ROLE_NAN              9       /* NAN */
+
+#ifdef WLAWDL
+#define WLC_E_IF_ROLE_AWDL		7	/* AWDL */
+#endif /* WLAWDL */
+
+#define WLC_E_IF_ROLE_IBSS		8	/* IBSS */
+#define WLC_E_IF_ROLE_NAN		9	/* NAN */
+
+#define WLC_E_IF_ROLE_MESH		10u	/* identifies the role as MESH */
 
 /* WLC_E_RSSI event data */
 typedef struct wl_event_data_rssi {
@@ -487,15 +717,35 @@ typedef struct wl_event_data_rssi {
 	int32 noise;
 } wl_event_data_rssi_t;
 
+#define WL_EVENT_WA_LQM_VER	0	/* initial version */
+
+#define WL_EVENT_WA_LQM_BASIC	0	/* event sub-types */
+typedef struct {			/* payload of subevent in xtlv */
+	int32 rssi;
+	int32 snr;
+	uint32 tx_rate;
+	uint32 rx_rate;
+} wl_event_wa_lqm_basic_t;
+
+typedef struct wl_event_wa_lqm {
+	uint16 ver;			/* version */
+	uint16 len;			/* total length structure */
+	uint8 subevent[];		/* sub-event data in bcm_xtlv_t format */
+} wl_event_wa_lqm_t;
+
 /* WLC_E_IF flag */
 #define WLC_E_IF_FLAGS_BSSCFG_NOIF	0x1	/* no host I/F creation needed */
 
 /* Reason codes for LINK */
-#define WLC_E_LINK_BCN_LOSS     1   /* Link down because of beacon loss */
-#define WLC_E_LINK_DISASSOC     2   /* Link down because of disassoc */
-#define WLC_E_LINK_ASSOC_REC    3   /* Link down because assoc recreate failed */
-#define WLC_E_LINK_BSSCFG_DIS   4   /* Link down due to bsscfg down */
-
+/* Reason codes for LINK */
+#define WLC_E_LINK_BCN_LOSS		1	/* Link down because of beacon loss */
+#define WLC_E_LINK_DISASSOC		2	/* Link down because of disassoc */
+#define WLC_E_LINK_ASSOC_REC		3	/* Link down because assoc recreate failed */
+#define WLC_E_LINK_BSSCFG_DIS		4	/* Link down due to bsscfg down */
+#define WLC_E_LINK_ASSOC_FAIL		5	/* Link down due to assoc to new AP during roam */
+#define WLC_E_LINK_REASSOC_ROAM_FAIL	6	/* Link down due to reassoc roaming failed */
+#define WLC_E_LINK_LOWRSSI_ROAM_FAIL	7	/* Link down due to Low rssi roaming failed */
+#define WLC_E_LINK_NO_FIRST_BCN_RX	8	/* Link down due to 1st beacon rx failure */
 
 /* WLC_E_NDIS_LINK event data */
 typedef BWL_PRE_PACKED_STRUCT struct ndis_link_parms {
@@ -540,15 +790,98 @@ typedef BWL_PRE_PACKED_STRUCT struct ndis_link_parms {
 /* WLC_E_RANGING_EVENT subtypes */
 #define WLC_E_RANGING_RESULTS	0
 
+#define PHY_CAL_EVT_VERSION 1
+typedef struct wlc_phy_cal_info {
+	uint16 version; /* structure version */
+	uint16 length; /* length of the rest of the structure */
+	uint16 chanspec;
+	uint8 start;
+	uint8 phase;
+	int16 temp;
+	uint8 reason;
+	uint8 slice;
+} wlc_phy_cal_info_t;
+
+#ifdef WLAWDL
+/* WLC_E_AWDL_EVENT subtypes */
+#define WLC_E_AWDL_SCAN_STATUS		0
+#define WLC_E_AWDL_RX_ACT_FRAME		1
+#define WLC_E_AWDL_RX_PRB_RESP		2
+#define WLC_E_AWDL_PHYCAL_STATUS	3
+#define WLC_E_AWDL_WOWL_NULLPKT		4
+#define WLC_E_AWDL_OOB_AF_STATUS	5
+/* WLC_E_AWDL_RANGING_RESULTS will be removed and only WLC_E_AWDL_UNUSED will be here
+ * Keeping both of them to avoid compilation errot on trunk
+ * It will be removed after wlc_ranging merge from IGUANA
+ */
+#define WLC_E_AWDL_RANGING_RESULTS	6
+#define WLC_E_AWDL_UNUSED		6
+#define WLC_E_AWDL_SUB_PEER_STATE	7
+#define WLC_E_AWDL_SUB_INTERFACE_STATE	8
+#define WLC_E_AWDL_UCAST_AF_TXSTATUS	9
+#define WLC_E_AWDL_NAN_CLUSTER_MERGE	10
+#define WLC_E_AWDL_NAN_RX_BEACON	11
+#define WLC_E_AWDL_SD_DISCOVERY_RESULT	12
+#define WLC_E_AWDL_SD_REPLIED		13
+#define WLC_E_AWDL_SD_TERMINATED	14
+#define WLC_E_AWDL_SD_RECEIVE		15
+#define WLC_E_AWDL_SD_VNDR_IE		16
+#define WLC_E_AWDL_SD_DEVICE_STATE_IE	17
+#define WLC_E_AWDL_DFSP_NOTIF		18
+#define WLC_E_AWDL_DFSP_SUSPECT		19
+#define WLC_E_AWDL_DFSP_RESUME		20
+
+/* WLC_E_AWDL_SCAN_STATUS status values */
+#define WLC_E_AWDL_SCAN_START		1	/* Scan start indication to host */
+#define WLC_E_AWDL_SCAN_DONE		0	/* Scan Done indication to host */
+#define WLC_E_AWDL_PHYCAL_START		1	/* Phy calibration start indication to host */
+#define WLC_E_AWDL_PHYCAL_DONE		0	/* Phy calibration done indication to host */
+
+typedef BWL_PRE_PACKED_STRUCT struct {
+	uint8 subscribe_id;	/* local subscribe instance id */
+	uint8 publish_id;	/* publiser's  insance id */
+	struct ether_addr addr;  /* publsher's address */
+	uint8 service_info_len;  /* length of the service specific information in data[] */
+	uint8 data[1];		/* service specific info */
+} BWL_PRE_PACKED_STRUCT awdl_sd_discovery_result_t;
+
+typedef BWL_PRE_PACKED_STRUCT struct {
+	uint8 instance_id;
+	struct ether_addr addr;  /* publsher's address */
+} BWL_PRE_PACKED_STRUCT awdl_sd_replied_event_t;
+
+#define AWDL_SD_TERM_REASON_TIMEOUT	1
+#define AWDL_SD_TERM_REASON_USERREQ	2
+#define AWDL_SD_TERM_REASON_FAIL	3
+typedef BWL_PRE_PACKED_STRUCT struct {
+	uint8 instance_id;	/* publish instance id */
+	uint8 reason;		/* 1=timeout, 2=user request, 3=failure */
+} BWL_PRE_PACKED_STRUCT awdl_sd_term_event_t;
+
+typedef BWL_PRE_PACKED_STRUCT struct {
+	uint8 instance_id;	/* local publish/subscribe instance id */
+	uint8 sender_instance_id;
+	struct ether_addr addr;	/* sender's address */
+	uint8 service_info_len;	/* length of the service specific information in data[] */
+	uint8 data[1];		/* service specific info */
+} BWL_PRE_PACKED_STRUCT awdl_sd_receive_t;
+
+typedef BWL_PRE_PACKED_STRUCT struct {
+	struct ether_addr addr;	/* sender's address */
+	uint16 len;		/* length of data[] */
+	uint8 data[1];		/* vndr specific info */
+} BWL_PRE_PACKED_STRUCT awdl_sd_vndr_ie_event_t;
+
+#endif /* WLAWDL */
 
 /* GAS event data */
 typedef BWL_PRE_PACKED_STRUCT struct wl_event_gas {
-	uint16	channel;		/* channel of GAS protocol */
+	uint16	channel;	/* channel of GAS protocol */
 	uint8	dialog_token;	/* GAS dialog token */
 	uint8	fragment_id;	/* fragment id */
 	uint16	status_code;	/* status code on GAS completion */
-	uint16 	data_len;		/* length of data to follow */
-	uint8	data[1];		/* variable length specified by data_len */
+	uint16	data_len;	/* length of data to follow */
+	uint8	data[1];	/* variable length specified by data_len */
 } BWL_POST_PACKED_STRUCT wl_event_gas_t;
 
 /* service discovery TLV */
@@ -638,6 +971,31 @@ typedef BWL_PRE_PACKED_STRUCT struct proxd_event_ts_results {
 	ts_sample_t ts_buff[1];         /* Timestamps */
 } BWL_POST_PACKED_STRUCT wl_proxd_event_ts_results_t;
 
+#ifdef WLAWDL
+/* WLC_E_AWDL_AW event data */
+typedef BWL_PRE_PACKED_STRUCT struct awdl_aws_event_data {
+	uint32	fw_time;			/* firmware PMU time */
+	struct	ether_addr current_master;	/* Current master Mac addr */
+	uint16	aw_counter;			/* AW seq# */
+	uint8	aw_ext_count;			/* AW extension count */
+	uint8	aw_role;			/* AW role */
+	uint8	flags;				/* AW event flag */
+	uint16	aw_chan;
+	uint8	infra_rssi;			/* rssi on the infra channel */
+	uint32	infra_rxbcn_count;		/* number of beacons received */
+	struct  ether_addr top_master;		/* Top master */
+} BWL_POST_PACKED_STRUCT awdl_aws_event_data_t;
+
+/* For awdl_aws_event_data_t.flags */
+#define AWDL_AW_LAST_EXT	0x01
+
+/* WLC_E_AWDL_OOB_AF_STATUS event data */
+typedef BWL_PRE_PACKED_STRUCT struct awdl_oob_af_status_data {
+	uint32	tx_time_diff;
+	uint16	pkt_tag;
+	uint8	tx_chan;
+} BWL_POST_PACKED_STRUCT awdl_oob_af_status_data_t;
+#endif /* WLAWDL */
 
 /* Video Traffic Interference Monitor Event */
 #define INTFER_EVENT_VERSION		1
@@ -659,7 +1017,6 @@ typedef struct wl_rrm_event {
 	char payload[1]; /* Measurement payload */
 } wl_rrm_event_t;
 
-
 /* WLC_E_PSTA_PRIMARY_INTF_IND event data */
 typedef struct wl_psta_primary_intf_event {
 	struct ether_addr prim_ea;	/* primary intf ether addr */
@@ -676,7 +1033,9 @@ typedef struct wl_dpsta_intf_event {
 } wl_dpsta_intf_event_t;
 
 /*  **********  NAN protocol events/subevents  ********** */
+#ifndef NAN_EVENT_BUFFER_SIZE
 #define NAN_EVENT_BUFFER_SIZE 512 /* max size */
+#endif /* NAN_EVENT_BUFFER_SIZE */
 /* NAN Events sent by firmware */
 
 /*
@@ -703,16 +1062,10 @@ typedef enum wl_nan_events {
 	WL_NAN_EVENT_DATA_IF_ADD		= 18,	/* Unused */
 	WL_NAN_EVENT_DATA_PEER_ADD		= 19,	/* Event for peer add */
 	/* nan 2.0 */
-	/* Will be removed after source code is committed. */
-	WL_NAN_EVENT_DATA_IND			= 20,
 	WL_NAN_EVENT_PEER_DATAPATH_IND		= 20,	/* Incoming DP req */
-	/* Will be removed after source code is committed. */
-	WL_NAN_EVENT_DATA_CONF			= 21,
 	WL_NAN_EVENT_DATAPATH_ESTB		= 21,	/* DP Established */
 	WL_NAN_EVENT_SDF_RX			= 22,	/* SDF payload */
 	WL_NAN_EVENT_DATAPATH_END		= 23,	/* DP Terminate recvd */
-	/* Below event needs to be removed after source code is committed. */
-	WL_NAN_EVENT_DATA_END 			= 23,
 	WL_NAN_EVENT_BCN_RX			= 24,	/* received beacon payload */
 	WL_NAN_EVENT_PEER_DATAPATH_RESP		= 25,	/* Peer's DP response */
 	WL_NAN_EVENT_PEER_DATAPATH_CONF		= 26,	/* Peer's DP confirm */
@@ -721,13 +1074,45 @@ typedef enum wl_nan_events {
 	WL_NAN_EVENT_RNG_TERM_IND		= 29,	/* Range Termination */
 	WL_NAN_EVENT_PEER_DATAPATH_SEC_INST	= 30,   /* Peer's DP sec install */
 	WL_NAN_EVENT_TXS			= 31,   /* for tx status of follow-up and SDFs */
+	WL_NAN_EVENT_DW_START			= 32,	/* dw start */
+	WL_NAN_EVENT_DW_END			= 33,	/* dw end */
+	WL_NAN_EVENT_CHAN_BOUNDARY		= 34,	/* channel switch event */
+	WL_NAN_EVENT_MR_CHANGED			= 35,	/* AMR or IMR changed event during DW */
+	WL_NAN_EVENT_RNG_RESP_IND		= 36,	/* Range Response Rx */
+	WL_NAN_EVENT_PEER_SCHED_UPD_NOTIF	= 37,	/* Peer's schedule update notification */
+	WL_NAN_EVENT_PEER_SCHED_REQ		= 38,	/* Peer's schedule request */
+	WL_NAN_EVENT_PEER_SCHED_RESP		= 39,	/* Peer's schedule response */
+	WL_NAN_EVENT_PEER_SCHED_CONF		= 40,	/* Peer's schedule confirm */
+	WL_NAN_EVENT_SENT_DATAPATH_END		= 41,	/* Sent DP terminate frame */
+	WL_NAN_EVENT_SLOT_START			= 42,	/* SLOT_START event */
+	WL_NAN_EVENT_SLOT_END			= 43,	/* SLOT_END event */
+	WL_NAN_EVENT_HOST_ASSIST_REQ		= 44,	/* Requesting host assist */
+	WL_NAN_EVENT_RX_MGMT_FRM		= 45,	/* NAN management frame received */
+	WL_NAN_EVENT_DISC_CACHE_TIMEOUT		= 46,	/* Disc cache timeout */
+	WL_NAN_EVENT_OOB_AF_TXS			= 47,	/* OOB AF transmit status */
+	WL_NAN_EVENT_OOB_AF_RX			= 48,   /* OOB AF receive event */
+
+	/* keep WL_NAN_EVENT_INVALID as the last element */
 	WL_NAN_EVENT_INVALID				/* delimiter for max value */
 } nan_app_events_e;
 
-#define NAN_EV_MASK(ev) \
-		(1 << (ev - 1))
+/* remove after precommit */
+#define NAN_EV_MASK(ev)	(1 << (ev - 1))
 #define IS_NAN_EVT_ON(var, evt) ((var & (1 << (evt-1))) != 0)
+
+#define NAN_EV_MASK_SET(var, evt)	\
+	(((uint32)evt < WL_NAN_EVMASK_EXTN_LEN * 8) ? \
+	((*((uint8 *)var + ((evt - 1)/8))) |= (1 << ((evt - 1) %8))) : 0)
+#define IS_NAN_EVENT_ON(var, evt)	\
+	(((uint32)evt < WL_NAN_EVMASK_EXTN_LEN * 8) && \
+	(((*((uint8 *)var + ((evt - 1)/8))) & (1 << ((evt - 1) %8))) != 0))
+
 /*  ******************* end of NAN section *************** */
+
+typedef enum wl_scan_events {
+	WL_SCAN_START = 1,
+	WL_SCAN_END = 2
+} wl_scan_events;
 
 /* WLC_E_ULP event data */
 #define WL_ULP_EVENT_VERSION		1
@@ -760,7 +1145,6 @@ typedef struct wl_event_radar_detect_data {
 	uint16 target_chanspec; /*  Target chanspec after detection of radar on current_chanspec */
 	radar_detected_event_info_t radar_info[2];
 } wl_event_radar_detect_data_t;
-
 
 #define WL_EVENT_MODESW_VER_1			1
 #define WL_EVENT_MODESW_VER_CURRENT		WL_EVENT_MODESW_VER_1
@@ -854,17 +1238,73 @@ typedef struct {
  * own TWT parameter.
  */
 
-#define WL_TWT_SETUP_CPLT_VER	0
+#define WL_TWT_SETUP_CPLT_VER	0u
+
+/* TWT Setup Reason code */
+typedef enum wl_twt_setup_rc {
+	WL_TWT_SETUP_RC_ACCEPT	= 0,	/* TWT Setup Accepted */
+	WL_TWT_SETUP_RC_REJECT	= 1,	/* TWT Setup Rejected */
+	WL_TWT_SETUP_RC_TIMEOUT	= 2,	/* TWT Setup Time-out */
+	WL_TWT_SETUP_RC_IE	= 3,	/* TWT Setup IE Validation failed */
+	WL_TWT_SETUP_RC_PARAMS	= 4,	/* TWT Setup IE Params invalid */
+	WL_TWT_SETUP_RC_ERROR	= 5,	/* Generic Error cases */
+} wl_twt_setup_rc_t;
 
 /* TWT Setup Completion event data */
 typedef struct wl_twt_setup_cplt {
 	uint16 version;
 	uint16 length;	/* the byte count of fields from 'dialog' onwards */
-	uint8 dialog;	/* the dialog token user supplied to the TWT setup API */
-	uint8 pad[3];
+	uint8 dialog;	/* Setup frame dialog token */
+	uint8 reason_code;	/* see WL_TWT_SETUP_RC_XXXX */
+	uint8 pad[2];
 	int32 status;
 	/* wl_twt_sdesc_t desc; - defined in wlioctl.h */
 } wl_twt_setup_cplt_t;
+
+#define WL_TWT_TEARDOWN_CPLT_VER	0u
+
+/* TWT teardown Reason code */
+typedef enum wl_twt_td_rc {
+	WL_TWT_TD_RC_SUCCESS	= 0,	/* Teardown complete Successful */
+	WL_TWT_TD_RC_HOST	= 1,	/* Teardown triggered by Host */
+	WL_TWT_TD_RC_PEER	= 2,	/* Peer initiated teardown */
+	WL_TWT_TD_RC_MCHAN	= 3,	/* Teardown due to MCHAN Active */
+	WL_TWT_TD_RC_MCNX	= 4,	/* Teardown due to MultiConnection */
+	WL_TWT_TD_RC_SETUP_FAIL	= 5, /* Setup fail midway. Teardown all connections */
+	WL_TWT_TD_RC_SCHED	= 6,	/* Teardown by TWT Scheduler */
+	WL_TWT_TD_RC_CSA	= 7,	/* Teardown due to CSA */
+	WL_TWT_TD_RC_BTCX	= 8,	/* Teardown due to BTCX */
+	WL_TWT_TD_RC_ERROR	= 9,	/* Generic Error cases */
+} wl_twt_td_rc_t;
+
+/* TWT Teardown complete event data */
+typedef struct wl_twt_teardown_cplt {
+	uint16 version;
+	uint16 length;	/* the byte count of fields from 'reason_code' onwards */
+	uint8 reason_code;	/* WL_TWT_TD_RC_XXXX */
+	uint8 pad[3];
+	int32 status;
+	/* wl_twt_teardesc_t; - defined in wlioctl.h */
+} wl_twt_teardown_cplt_t;
+
+#define WL_TWT_INFO_CPLT_VER	0u
+
+/* TWT Info Reason code */
+typedef enum wl_twt_info_rc {
+	WL_TWT_INFO_RC_HOST	= 0,	/* Host initiated Info complete */
+	WL_TWT_INFO_RC_PEER	= 1,	/* Peer initiated TWT Info */
+	WL_TWT_INFO_RC_ERROR	= 2,	/* generic error conditions */
+} wl_twt_info_rc_t;
+
+/* TWT Info complete event data */
+typedef struct wl_twt_info_cplt {
+	uint16 version;
+	uint16 length;		/* the byte count of fields from 'reason_code' onwards */
+	uint8 reason_code;		/* WL_TWT_INFO_RC_XXXX */
+	uint8 pad[3];
+	int32 status;
+	/* wl_twt_infodesc_t; - defined in wlioctl.h */
+} wl_twt_info_cplt_t;
 
 #define WL_INVALID_IE_EVENT_VERSION	0
 
@@ -903,14 +1343,21 @@ typedef enum {
 	CHANSW_NAN = 18,	/* channel switch due to NAN */
 	CHANSW_NAN_DISC = 19,	/* channel switch due to NAN Disc */
 	CHANSW_NAN_SCHED = 20,	/* channel switch due to NAN Sched */
+
+#ifdef WLAWDL
 	CHANSW_AWDL_AW = 21,	/* channel switch due to AWDL aw */
 	CHANSW_AWDL_SYNC = 22,	/* channel switch due to AWDL sync */
 	CHANSW_AWDL_CAL = 23,	/* channel switch due to AWDL Cal */
 	CHANSW_AWDL_PSF = 24,	/* channel switch due to AWDL PSF */
 	CHANSW_AWDL_OOB_AF = 25, /* channel switch due to AWDL OOB action frame */
+#endif /* WLAWDL */
+
 	CHANSW_TDLS = 26,	/* channel switch due to TDLS */
 	CHANSW_PROXD = 27,	/* channel switch due to PROXD */
-	CHANSW_MAX_NUMBER = 28	/* max channel switch reason */
+	CHANSW_SLOTTED_BSS = 28, /* channel switch due to slotted bss */
+	CHANSW_SLOTTED_CMN_SYNC = 29, /* channel switch due to Common Sync Layer */
+	CHANSW_SLOTTED_BSS_CAL = 30,	/* channel switch due to Cal request from slotted bss */
+	CHANSW_MAX_NUMBER = 31	/* max channel switch reason */
 } wl_chansw_reason_t;
 
 #define CHANSW_REASON(reason)	(1 << reason)
@@ -925,7 +1372,6 @@ typedef struct event_aggr_data {
 					 */
 	uint8	data[];	/* Aggregate buffer containing Events */
 } event_aggr_data_t;
-
 
 /* WLC_E_TVPM_MITIGATION event structure version */
 #define WL_TVPM_MITIGATION_VERSION 1
@@ -944,5 +1390,228 @@ typedef struct wl_event_tvpm_mitigation {
 	uint8 pad;
 	uint16 on_off;		/* mitigation status bits */
 } wl_event_tvpm_mitigation_t;
+
+/* Event structures for sub health checks of PHY */
+
+#define WL_PHY_HC_DESENSE_STATS_VER (1)
+typedef struct wl_hc_desense_stats {
+	uint16 version;
+	uint16 chanspec;
+	int8 allowed_weakest_rssi; /* based on weakest link RSSI */
+	uint8 ofdm_desense; /* Desense requested for OFDM */
+	uint8 bphy_desense; /* Desense requested for bphy */
+	int8 glitch_upd_wait; /* wait post ACI mitigation */
+} wl_hc_desense_stats_v1_t;
+
+#define WL_PHY_HC_TEMP_STATS_VER (1)
+typedef struct wl_hc_temp_stats {
+	uint16 version;
+	uint16 chanspec;
+	int16 curtemp; /* Temperature */
+	uint8 temp_disthresh; /* Threshold to reduce tx chain */
+	uint8 temp_enthresh; /* Threshold to increase tx chains */
+	uint tempsense_period; /* Temperature check period */
+	bool heatedup; /* 1: temp throttling on */
+	uint8 bitmap; /* Indicating rx and tx chains */
+	uint8 pad[2];
+} wl_hc_temp_stats_v1_t;
+
+#define WL_PHY_HC_TEMP_STATS_VER_2 (2)
+typedef struct {
+	uint16 version;
+	uint16 chanspec;
+	int16 curtemp; /* Temperature */
+	uint8 pad[2];
+} wl_hc_temp_stats_v2_t;
+
+#define WL_PHY_HC_VCOCAL_STATS_VER (1)
+typedef struct wl_hc_vcocal_stats {
+	uint16 version;
+	uint16 chanspec;
+	int16 curtemp;	/* Temperature */
+	/* Ring buffer - Maintains history of previous 16 wake/sleep cycles */
+	uint16 vcocal_status_wake;
+	uint16 vcocal_status_sleep;
+	uint16 plllock_status_wake;
+	uint16 plllock_status_sleep;
+	/* Cal Codes */
+	uint16 cc_maincap;
+	uint16 cc_secondcap;
+	uint16 cc_auxcap;
+} wl_hc_vcocal_stats_v1_t;
+
+#define WL_PHY_HC_TXPWR_STATS_VER (1)
+typedef struct wl_hc_tx_stats {
+	uint16 version;
+	uint16 chanspec;
+	int8 tgt_pwr[MAX_PHY_CORE_NUM]; /* Target pwr (qdBm) */
+	int8 estPwr[MAX_PHY_CORE_NUM]; /* Rate corrected (qdBm) */
+	int8 estPwr_adj[MAX_PHY_CORE_NUM]; /* Max power (qdBm) */
+	uint8 baseindex[MAX_PHY_CORE_NUM]; /* Tx base index */
+	int16 temp;	/* Temperature */
+	uint16 TxCtrlWrd[3]; /* 6 PHY ctrl bytes */
+	int8 min_txpower; /* min tx power per ant */
+	uint8 pad[3];
+} wl_hc_txpwr_stats_v1_t;
+
+#define WL_PHY_HC_TXPWR_STATS_VER_2 (2)
+typedef struct {
+	uint16 version;
+	uint16 chanspec;
+	int8 tgt_pwr[MAX_PHY_CORE_NUM]; /* Target pwr (qdBm) */
+	uint8 estPwr[MAX_PHY_CORE_NUM]; /* Rate corrected (qdBm) */
+	uint8 estPwr_adj[MAX_PHY_CORE_NUM]; /* Max power (qdBm) */
+	uint8 baseindex[MAX_PHY_CORE_NUM]; /* Tx base index */
+	int16 temp;	/* Temperature */
+	uint16 TxCtrlWrd[3]; /* 6 PHY ctrl bytes */
+	int8 min_txpower; /* min tx power per ant */
+	uint8 pad[3];
+} wl_hc_txpwr_stats_v2_t;
+
+typedef enum wl_mbo_event_type {
+	WL_MBO_E_CELLULAR_NW_SWITCH = 1,
+	WL_MBO_E_BTM_RCVD = 2,
+	/* ADD before this */
+	WL_MBO_E_LAST = 3  /* highest val + 1 for range checking */
+} wl_mbo_event_type_t;
+
+/* WLC_E_MBO event structure version */
+#define WL_MBO_EVT_VER 1
+
+struct wl_event_mbo {
+	uint16 version;	/* structure version */
+	uint16 length;		/* length of the rest of the structure from type */
+	wl_mbo_event_type_t  type;		/* Event type */
+	uint8  data[];    /* Variable length data */
+};
+
+/* WLC_E_MBO_CELLULAR_NW_SWITCH event structure version */
+#define WL_MBO_CELLULAR_NW_SWITCH_VER 1
+
+/* WLC_E_MBO_CELLULAR_NW_SWITCH event data */
+struct wl_event_mbo_cell_nw_switch {
+	uint16 version;		/* structure version */
+	uint16 length;		/* length of the rest of the structure from reason */
+	/* Reason of switch as per MBO Tech spec */
+	uint8 reason;
+	/* pad */
+	uint8 pad;
+	/* delay after which re-association can be tried to current BSS (seconds) */
+	uint16 reassoc_delay;
+	/* How long current association will be there (milli seconds).
+	* This is zero if not known or value is overflowing.
+	*/
+	uint32 assoc_time_remain;
+};
+
+/* WLC_E_MBO_BTM_RCVD event structure version */
+#define WL_BTM_EVENT_DATA_VER_1       1
+/* Specific btm event type data */
+struct wl_btm_event_type_data {
+	uint16	version;
+	uint16	len;
+	uint8	transition_reason;	/* transition reason code */
+	uint8	pad[3];			/* pad */
+};
+
+/* WLC_E_PRUNE event structure version */
+#define WL_BSSID_PRUNE_EVT_VER_1	1
+/* MBO-OCE params */
+struct wl_bssid_prune_evt_info {
+	uint16 version;
+	uint16 len;
+	uint8	SSID[32];
+	uint32	time_remaining;		/* Time remaining */
+	struct ether_addr BSSID;
+	uint8	SSID_len;
+	uint8	reason;			/* Reason code */
+	int8	rssi_threshold;		/* RSSI threshold */
+	uint8	pad[3];			/* pad */
+};
+
+/* WLC_E_ADPS status */
+enum {
+	WL_E_STATUS_ADPS_DEAUTH = 0,
+	WL_E_STATUS_ADPS_MAX
+};
+
+/* WLC_E_ADPS event data */
+#define WL_EVENT_ADPS_VER_1		1
+
+/* WLC_E_ADPS event type */
+#define WL_E_TYPE_ADPS_BAD_AP		1
+
+typedef struct wl_event_adps_bad_ap {
+	uint32 status;
+	uint32 reason;
+	struct ether_addr ea;	/* bssid */
+} wl_event_adps_bad_ap_t;
+
+typedef struct wl_event_adps {
+	uint16	version;	/* structure version */
+	uint16	length;		/* length of structure */
+	uint32	type;		/* event type */
+	uint8	data[];		/* variable length data */
+} wl_event_adps_v1_t;
+
+typedef wl_event_adps_v1_t wl_event_adps_t;
+
+#define WLC_USER_E_KEY_UPDATE	1 /* Key add/remove */
+#define WLC_USER_E_FORCE_FLUSH	2 /* SDC force flush */
+
+/* OBSS HW event data */
+typedef struct wlc_obss_hw_event_data {
+	uint16 available_chanspec;	/* Contains band, channel and BW info */
+} wlc_obss_hw_event_data_t;
+
+/* status when WLC_E_OBSS_DETECTION */
+#define WLC_OBSS_BW_UPDATED	1 /* Sent when BW is update at SW */
+#define WLC_OBSS_BW_AVAILABLE	2 /* Sent When a change in BW is detected / noticed */
+
+/* WLC_E_DYNSAR event structure version */
+#define WL_DYNSAR_VERSION 1
+
+/* bits used in status field */
+#define WL_STATUS_DYNSAR_PWR_OPT	(1 << 0)	/* power optimized */
+#define WL_STATUS_DYNSAR_FAILSAFE	(1 << 1)	/* radio is using failsafe cap values */
+#define WL_STATUS_DYNSAR_NOMUTE_OPT	(1 << 2)	/* ack mute */
+
+/* Event structure for WLC_E_DYNSAR */
+typedef struct wl_event_dynsar {
+	uint16 version;         /* structure version */
+	uint16 length;          /* length of this structure */
+	uint32 timestamp_ms;    /* millisecond timestamp */
+	uint8  opt;             /* optimization power offset */
+	uint8  slice;           /* slice number */
+	uint8  status;		/* WL_STATUS_DYNSAR_XXX, to indicate which optimization
+				* is being applied
+				*/
+	uint8  pad;
+} wl_event_dynsar_t;
+
+/* status when WLC_E_AP_BCN_MUTE event is sent */
+#define BCN_MUTE_MITI_ACTIVE	1u	/* Mitigation is activated when probe response received
+					 * but Beacon is not received
+					 */
+#define BCN_MUTE_MITI_END	2u	/* Sent when beacon is received */
+#define BCN_MUTE_MITI_TIMEOUT	3u	/* Mitigation period is reached */
+
+/* bcn_mute_miti event data */
+#define WLC_BCN_MUTE_MITI_EVENT_DATA_VER_1	1u
+typedef struct wlc_bcn_mute_miti_event_data_v1 {
+	uint16	version;	/* Structure version number */
+	uint16	length;		/* Length of the whole struct */
+	uint16	uatbtt_count;	/* Number of UATBTT during mitigation */
+	uint8	PAD[2];		/* Pad to fit to 32 bit alignment */
+} wlc_bcn_mute_miti_event_data_v1_t;
+
+/* bcn_drift event data */
+#define WLC_BCN_DRIFT_EVENT_DATA_VER_1	(1u)
+typedef struct wlc_bcn_drift_event_data_v1 {
+	uint16	version;	/* Structure version number */
+	uint16	length;		/* Length of the whole struct */
+	int16	drift;		/* in ms */
+	int16	jitter;		/* in ms */
+} wlc_bcn_drift_event_data_v1_t;
 
 #endif /* _BCMEVENT_H_ */

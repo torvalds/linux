@@ -1,14 +1,14 @@
 /*
  * BCM43XX Sonics SiliconBackplane PCMCIA core hardware definitions.
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
+ * Copyright (C) 2020, Broadcom.
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -16,15 +16,9 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
- *      Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a license
- * other than the GPL, without Broadcom's express prior written consent.
  *
  *
- * <<Broadcom-WL-IPTag/Open:>>
- *
- * $Id: sbpcmcia.h 616054 2016-01-29 13:22:24Z $
+ * <<Broadcom-WL-IPTag/Dual:>>
  */
 
 #ifndef	_SBPCMCIA_H
@@ -60,12 +54,10 @@
 #define	COR_BLREN		0x01
 #define	COR_FUNEN		0x01
 
-
 #define	PCICIA_FCSR		(2 / 2)
 #define	PCICIA_PRR		(4 / 2)
 #define	PCICIA_SCR		(6 / 2)
 #define	PCICIA_ESR		(8 / 2)
-
 
 #define PCM_MEMOFF		0x0000
 #define F0_MEMOFF		0x1000
@@ -105,30 +97,314 @@
 #define	SRI_BLANK		0x04
 #define	SRI_OTP			0x80
 
-
 #define SROM16K_BANK_SEL_MASK		(3 << 11)
 #define SROM16K_BANK_SHFT_MASK		11
 #define SROM16K_ADDR_SEL_MASK	((1 << SROM16K_BANK_SHFT_MASK) - 1)
+#define SROM_PRSNT_MASK		0x1
+#define SROM_SUPPORT_SHIFT_MASK 30
+#define SROM_SUPPORTED	(0x1 << SROM_SUPPORT_SHIFT_MASK)
+#define SROM_SIZE_MASK    0x00000006
+#define SROM_SIZE_2K	2
+#define SROM_SIZE_512	1
+#define SROM_SIZE_128	0
+#define SROM_SIZE_SHFT_MASK  1
 
+/* CIS stuff */
 
+/* The CIS stops where the FCRs start */
+#define	CIS_SIZE		PCMCIA_FCR
+#define CIS_SIZE_12K    1154    /* Maximum h/w + s/w sub region size for 12k OTP */
+
+/* CIS tuple length field max */
+#define CIS_TUPLE_LEN_MAX	0xff
 
 /* Standard tuples we know about */
 
 #define CISTPL_NULL		0x00
 #define	CISTPL_END		0xff		/* End of the CIS tuple chain */
 
+#define	CISTPL_VERS_1		0x15		/* CIS ver, manf, dev & ver strings */
+#define	CISTPL_MANFID		0x20		/* Manufacturer and device id */
+#define CISTPL_FUNCID		0x21		/* Function identification */
+#define	CISTPL_FUNCE		0x22		/* Function extensions */
+#define	CISTPL_CFTABLE		0x1b		/* Config table entry */
+
+/* Function identifier provides context for the function extentions tuple */
+#define CISTPL_FID_SDIO		0x0c		/* Extensions defined by SDIO spec */
+
+/* Function extensions for LANs (assumed for extensions other than SDIO) */
+#define	LAN_TECH		1		/* Technology type */
+#define	LAN_SPEED		2		/* Raw bit rate */
+#define	LAN_MEDIA		3		/* Transmission media */
+#define	LAN_NID			4		/* Node identification (aka MAC addr) */
+#define	LAN_CONN		5		/* Connector standard */
+
+/* CFTable */
+#define CFTABLE_REGWIN_2K	0x08		/* 2k reg windows size */
+#define CFTABLE_REGWIN_4K	0x10		/* 4k reg windows size */
+#define CFTABLE_REGWIN_8K	0x20		/* 8k reg windows size */
+
+/* Vendor unique tuples are 0x80-0x8f. Within Broadcom we'll
+ * take one for HNBU, and use "extensions" (a la FUNCE) within it.
+ */
 
 #define	CISTPL_BRCM_HNBU	0x80
 
+/* Subtypes of BRCM_HNBU: */
+
+#define HNBU_SROMREV		0x00	/* A byte with sromrev, 1 if not present */
+#define HNBU_CHIPID		0x01	/* Two 16bit values: PCI vendor & device id */
 
 #define HNBU_BOARDREV		0x02	/* One byte board revision */
 
+#define HNBU_PAPARMS		0x03	/* PA parameters: 8 (sromrev == 1)
+					 * or 9 (sromrev > 1) bytes
+					 */
+#define HNBU_OEM		0x04	/* Eight bytes OEM data (sromrev == 1) */
+#define HNBU_CC			0x05	/* Default country code (sromrev == 1) */
+#define	HNBU_AA			0x06	/* Antennas available */
+#define	HNBU_AG			0x07	/* Antenna gain */
+#define HNBU_BOARDFLAGS		0x08	/* board flags (2 or 4 bytes) */
+#define HNBU_UNUSED		0x09	/* UNUSED (was LEDs) */
+#define HNBU_CCODE		0x0a	/* Country code (2 bytes ascii + 1 byte cctl)
+					 * in rev 2
+					 */
+#define HNBU_CCKPO		0x0b	/* 2 byte cck power offsets in rev 3 */
+#define HNBU_OFDMPO		0x0c	/* 4 byte 11g ofdm power offsets in rev 3 */
+#define HNBU_GPIOTIMER		0x0d	/* 2 bytes with on/off values in rev 3 */
+#define HNBU_PAPARMS5G		0x0e	/* 5G PA params */
+#define HNBU_ANT5G		0x0f	/* 4328 5G antennas available/gain */
+#define HNBU_RDLID		0x10	/* 2 byte USB remote downloader (RDL) product Id */
+#define HNBU_RSSISMBXA2G	0x11	/* 4328 2G RSSI mid pt sel & board switch arch,
+					 * 2 bytes, rev 3.
+					 */
+#define HNBU_RSSISMBXA5G	0x12	/* 4328 5G RSSI mid pt sel & board switch arch,
+					 * 2 bytes, rev 3.
+					 */
+#define HNBU_XTALFREQ		0x13	/* 4 byte Crystal frequency in kilohertz */
+#define HNBU_TRI2G		0x14	/* 4328 2G TR isolation, 1 byte */
+#define HNBU_TRI5G		0x15	/* 4328 5G TR isolation, 3 bytes */
+#define HNBU_RXPO2G		0x16	/* 4328 2G RX power offset, 1 byte */
+#define HNBU_RXPO5G		0x17	/* 4328 5G RX power offset, 1 byte */
+#define HNBU_BOARDNUM		0x18	/* board serial number, independent of mac addr */
+#define HNBU_MACADDR		0x19	/* mac addr override for the standard CIS LAN_NID */
+#define HNBU_RDLSN		0x1a	/* 2 bytes; serial # advertised in USB descriptor */
 
 #define HNBU_BOARDTYPE		0x1b	/* 2 bytes; boardtype */
 
+#define HNBU_UNUSED2		0x1c	/* was LEDs duty cycle */
 
 #define HNBU_HNBUCIS		0x1d	/* what follows is proprietary HNBU CIS format */
 
+#define HNBU_PAPARMS_SSLPNPHY	0x1e	/* SSLPNPHY PA params */
+#define HNBU_RSSISMBXA2G_SSLPNPHY 0x1f /* SSLPNPHY RSSI mid pt sel & board switch arch */
+#define HNBU_RDLRNDIS		0x20	/* 1 byte; 1 = RDL advertises RNDIS config */
+#define HNBU_CHAINSWITCH	0x21	/* 2 byte; txchain, rxchain */
+#define HNBU_REGREV		0x22	/* 1 byte; */
+#define HNBU_FEM		0x23	/* 2 or 4 byte: 11n frontend specification */
+#define HNBU_PAPARMS_C0		0x24	/* 8 or 30 bytes: 11n pa paramater for chain 0 */
+#define HNBU_PAPARMS_C1		0x25	/* 8 or 30 bytes: 11n pa paramater for chain 1 */
+#define HNBU_PAPARMS_C2		0x26	/* 8 or 30 bytes: 11n pa paramater for chain 2 */
+#define HNBU_PAPARMS_C3		0x27	/* 8 or 30 bytes: 11n pa paramater for chain 3 */
+#define HNBU_PO_CCKOFDM		0x28	/* 6 or 18 bytes: cck2g/ofdm2g/ofdm5g power offset */
+#define HNBU_PO_MCS2G		0x29	/* 8 bytes: mcs2g power offset */
+#define HNBU_PO_MCS5GM		0x2a	/* 8 bytes: mcs5g mid band power offset */
+#define HNBU_PO_MCS5GLH		0x2b	/* 16 bytes: mcs5g low-high band power offset */
+#define HNBU_PO_CDD		0x2c	/* 2 bytes: cdd2g/5g power offset */
+#define HNBU_PO_STBC		0x2d	/* 2 bytes: stbc2g/5g power offset */
+#define HNBU_PO_40M		0x2e	/* 2 bytes: 40Mhz channel 2g/5g power offset */
+#define HNBU_PO_40MDUP		0x2f	/* 2 bytes: 40Mhz channel dup 2g/5g power offset */
+
+#define HNBU_RDLRWU		0x30	/* 1 byte; 1 = RDL advertises Remote Wake-up */
+#define HNBU_WPS		0x31	/* 1 byte; GPIO pin for WPS button */
+#define HNBU_USBFS		0x32	/* 1 byte; 1 = USB advertises FS mode only */
+#define HNBU_BRMIN		0x33	/* 4 byte bootloader min resource mask */
+#define HNBU_BRMAX		0x34	/* 4 byte bootloader max resource mask */
+#define HNBU_PATCH		0x35	/* bootloader patch addr(2b) & data(4b) pair */
+#define HNBU_CCKFILTTYPE	0x36	/* CCK digital filter selection options */
+#define HNBU_OFDMPO5G		0x37	/* 4 * 3 = 12 byte 11a ofdm power offsets in rev 3 */
+#define HNBU_ELNA2G             0x38
+#define HNBU_ELNA5G             0x39
+#define HNBU_TEMPTHRESH 0x3A /* 2 bytes
+					 * byte1 tempthresh
+					 * byte2 period(msb 4 bits) | hysterisis(lsb 4 bits)
+					 */
+#define HNBU_UUID 0x3B /* 16 Bytes Hex */
+
+#define HNBU_USBEPNUM		0x40	/* USB endpoint numbers */
+
+/* POWER PER RATE for SROM V9 */
+#define HNBU_CCKBW202GPO       0x41    /* 2 bytes each
+					 * CCK Power offsets for 20 MHz rates (11, 5.5, 2, 1Mbps)
+					 * cckbw202gpo cckbw20ul2gpo
+					 */
+
+#define HNBU_LEGOFDMBW202GPO    0x42    /* 4 bytes each
+					 * OFDM power offsets for 20 MHz Legacy rates
+					 * (54, 48, 36, 24, 18, 12, 9, 6 Mbps)
+					 * legofdmbw202gpo  legofdmbw20ul2gpo
+					 */
+
+#define HNBU_LEGOFDMBW205GPO   0x43    /* 4 bytes each
+					* 5G band: OFDM power offsets for 20 MHz Legacy rates
+					* (54, 48, 36, 24, 18, 12, 9, 6 Mbps)
+					* low subband : legofdmbw205glpo  legofdmbw20ul2glpo
+					* mid subband :legofdmbw205gmpo  legofdmbw20ul2gmpo
+					* high subband :legofdmbw205ghpo  legofdmbw20ul2ghpo
+					*/
+
+#define HNBU_MCS2GPO    0x44    /* 4 bytes each
+				     * mcs 0-7  power-offset. LSB nibble: m0, MSB nibble: m7
+				     * mcsbw202gpo  mcsbw20ul2gpo mcsbw402gpo
+				     */
+#define HNBU_MCS5GLPO    0x45    /* 4 bytes each
+				     * 5G low subband mcs 0-7 power-offset.
+				     * LSB nibble: m0, MSB nibble: m7
+				     * mcsbw205glpo  mcsbw20ul5glpo mcsbw405glpo
+				     */
+#define HNBU_MCS5GMPO    0x46    /* 4 bytes each
+				     * 5G mid subband mcs 0-7 power-offset.
+				     * LSB nibble: m0, MSB nibble: m7
+				     * mcsbw205gmpo  mcsbw20ul5gmpo mcsbw405gmpo
+				     */
+#define HNBU_MCS5GHPO    0x47    /* 4 bytes each
+				     * 5G high subband mcs 0-7 power-offset.
+				     * LSB nibble: m0, MSB nibble: m7
+				     * mcsbw205ghpo  mcsbw20ul5ghpo mcsbw405ghpo
+				     */
+#define HNBU_MCS32PO	0x48	/*  2 bytes total
+				 * mcs-32 power offset for each band/subband.
+				 * LSB nibble: 2G band, MSB nibble:
+				 * mcs322ghpo, mcs325gmpo, mcs325glpo, mcs322gpo
+				 */
+#define HNBU_LEG40DUPPO	0x49 /*  2 bytes total
+				* Additional power offset for Legacy Dup40 transmissions.
+				 * Applied in addition to legofdmbw20ulXpo, X=2g, 5gl, 5gm, or 5gh.
+				 * LSB nibble: 2G band, MSB nibble: 5G band high subband.
+				 * leg40dup5ghpo, leg40dup5gmpo, leg40dup5glpo, leg40dup2gpo
+				 */
+
+#define HNBU_PMUREGS	0x4a /* Variable length (5 bytes for each register)
+				* The setting of the ChipCtrl, PLL, RegulatorCtrl, Up/Down Timer and
+				* ResourceDependency Table registers.
+				*/
+
+#define HNBU_PATCH2		0x4b	/* bootloader TCAM patch addr(4b) & data(4b) pair .
+				* This is required for socram rev 15 onwards.
+				*/
+
+#define HNBU_USBRDY		0x4c	/* Variable length (upto 5 bytes)
+				* This is to indicate the USB/HSIC host controller
+				* that the device is ready for enumeration.
+				*/
+
+#define HNBU_USBREGS	0x4d	/* Variable length
+				* The setting of the devcontrol, HSICPhyCtrl1 and HSICPhyCtrl2
+				* registers during the USB initialization.
+				*/
+
+#define HNBU_BLDR_TIMEOUT	0x4e	/* 2 bytes used for HSIC bootloader to reset chip
+				* on connect timeout.
+				* The Delay after USBConnect for timeout till dongle receives
+				* get_descriptor request.
+				*/
+#define HNBU_USBFLAGS		0x4f
+#define HNBU_PATCH_AUTOINC	0x50
+#define HNBU_MDIO_REGLIST	0x51
+#define HNBU_MDIOEX_REGLIST	0x52
+/* Unified OTP: tupple to embed USB manfid inside SDIO CIS */
+#define HNBU_UMANFID		0x53
+#define HNBU_PUBKEY		0x54	/* 128 byte; publick key to validate downloaded FW */
+#define HNBU_WOWLGPIO       0x55   /* 1 byte bit 7 initial polarity, bit 6..0 gpio pin */
+#define HNBU_MUXENAB		0x56	/* 1 byte to enable mux options */
+#define HNBU_GCI_CCR		0x57	/* GCI Chip control register */
+
+#define HNBU_FEM_CFG		0x58	/* FEM config */
+#define HNBU_ACPA_C0		0x59	/* ACPHY PA parameters: chain 0 */
+#define HNBU_ACPA_C1		0x5a	/* ACPHY PA parameters: chain 1 */
+#define HNBU_ACPA_C2		0x5b	/* ACPHY PA parameters: chain 2 */
+#define HNBU_MEAS_PWR		0x5c
+#define HNBU_PDOFF		0x5d
+#define HNBU_ACPPR_2GPO		0x5e	/* ACPHY Power-per-rate 2gpo */
+#define HNBU_ACPPR_5GPO		0x5f	/* ACPHY Power-per-rate 5gpo */
+#define HNBU_ACPPR_SBPO		0x60	/* ACPHY Power-per-rate sbpo */
+#define HNBU_NOISELVL		0x61
+#define HNBU_RXGAIN_ERR		0x62
+#define HNBU_AGBGA		0x63
+#define HNBU_USBDESC_COMPOSITE	0x64    /* USB WLAN/BT composite descriptor */
+#define HNBU_PATCH_AUTOINC8	0x65	/* Auto increment patch entry for 8 byte patching */
+#define HNBU_PATCH8		0x66	/* Patch entry for 8 byte patching */
+#define HNBU_ACRXGAINS_C0	0x67	/* ACPHY rxgains: chain 0 */
+#define HNBU_ACRXGAINS_C1	0x68	/* ACPHY rxgains: chain 1 */
+#define HNBU_ACRXGAINS_C2	0x69	/* ACPHY rxgains: chain 2 */
+#define HNBU_TXDUTY		0x6a	/* Tx duty cycle for ACPHY 5g 40/80 Mhz */
+#define HNBU_USBUTMI_CTL        0x6b    /* 2 byte USB UTMI/LDO Control */
+#define HNBU_PDOFF_2G		0x6c
+#define HNBU_USBSSPHY_UTMI_CTL0 0x6d    /* 4 byte USB SSPHY UTMI Control */
+#define HNBU_USBSSPHY_UTMI_CTL1 0x6e    /* 4 byte USB SSPHY UTMI Control */
+#define HNBU_USBSSPHY_UTMI_CTL2 0x6f    /* 4 byte USB SSPHY UTMI Control */
+#define HNBU_USBSSPHY_SLEEP0    0x70    /* 2 byte USB SSPHY sleep */
+#define HNBU_USBSSPHY_SLEEP1    0x71    /* 2 byte USB SSPHY sleep */
+#define HNBU_USBSSPHY_SLEEP2    0x72    /* 2 byte USB SSPHY sleep */
+#define HNBU_USBSSPHY_SLEEP3    0x73    /* 2 byte USB SSPHY sleep */
+#define HNBU_USBSSPHY_MDIO      0x74    /* USB SSPHY INIT regs setting */
+#define HNBU_USB30PHY_NOSS      0x75    /* USB30 NO Super Speed */
+#define HNBU_USB30PHY_U1U2      0x76    /* USB30 PHY U1U2 Enable */
+#define HNBU_USB30PHY_REGS      0x77    /* USB30 PHY REGs update */
+#define HNBU_GPIO_PULL_DOWN     0x78    /* 4 byte GPIO pull down mask */
+
+#define HNBU_SROM3SWRGN		0x80	/* 78 bytes; srom rev 3 s/w region without crc8
+					 * plus extra info appended.
+					 */
+#define HNBU_RESERVED		0x81
+#define HNBU_CUSTOM1		0x82	/* 4 byte; For non-BRCM post-mfg additions */
+#define HNBU_CUSTOM2		0x83	/* Reserved; For non-BRCM post-mfg additions */
+#define HNBU_ACPAPARAM		0x84	/* ACPHY PAPARAM */
+#define HNBU_ACPA_CCK_C0	0x86	/* ACPHY PA trimming parameters: CCK */
+#define HNBU_ACPA_40		0x87	/* ACPHY PA trimming parameters: 40 */
+#define HNBU_ACPA_80		0x88	/* ACPHY PA trimming parameters: 80 */
+#define HNBU_ACPA_4080		0x89	/* ACPHY PA trimming parameters: 40/80 */
+#define HNBU_SUBBAND5GVER	0x8a	/* subband5gver */
+#define HNBU_PAPARAMBWVER	0x8b	/* paparambwver */
+
+#define HNBU_MCS5Gx1PO		0x8c
+#define HNBU_ACPPR_SB8080_PO		0x8d
+#define HNBU_TXBFRPCALS			0x8f	/* phy txbf rpcalvars */
+#define HNBU_MACADDR2				0x90	/* (optional) 2nd mac-addr for RSDB chips */
+
+#define HNBU_ACPA_4X4C0	0x91
+#define HNBU_ACPA_4X4C1	0x92
+#define HNBU_ACPA_4X4C2	0x93
+#define HNBU_ACPA_4X4C3	0x94
+#define HNBU_ACPA_BW20_4X4C0	0x95
+#define HNBU_ACPA_BW40_4X4C0	0x96
+#define HNBU_ACPA_BW80_4X4C0	0x97
+#define HNBU_ACPA_BW20_4X4C1	0x98
+#define HNBU_ACPA_BW40_4X4C1	0x99
+#define HNBU_ACPA_BW80_4X4C1	0x9a
+#define HNBU_ACPA_BW20_4X4C2	0x9b
+#define HNBU_ACPA_BW40_4X4C2	0x9c
+#define HNBU_ACPA_BW80_4X4C2	0x9d
+#define HNBU_ACPA_BW20_4X4C3	0x9e
+#define HNBU_ACPA_BW40_4X4C3	0x9f
+#define HNBU_ACPA_BW80_4X4C3	0xa0
+#define HNBU_ACPA_CCK_C1	0xa1	/* ACPHY PA trimming parameters: CCK */
+
+#define HNBU_GAIN_CAL_TEMP          0xa2 /* RSSI Cal temperature parameter              */
+#define HNBU_RSSI_DELTA_2G_B0       0xa3 /* RSSI Cal parameter for 2G channel group 0   */
+#define HNBU_RSSI_DELTA_2G_B1       0xa4 /* RSSI Cal parameter for 2G channel group 1   */
+#define HNBU_RSSI_DELTA_2G_B2       0xa5 /* RSSI Cal parameter for 2G channel group 2   */
+#define HNBU_RSSI_DELTA_2G_B3       0xa6 /* RSSI Cal parameter for 2G channel group 3   */
+#define HNBU_RSSI_DELTA_2G_B4       0xa7 /* RSSI Cal parameter for 2G channel group 4   */
+#define HNBU_RSSI_CAL_FREQ_GRP_2G   0xa8 /* RSSI Cal parameter for channel group def.   */
+#define HNBU_RSSI_DELTA_5GL         0xa9 /* RSSI Cal parameter for 5G low channel       */
+#define HNBU_RSSI_DELTA_5GML        0xaa /* RSSI Cal parameter for 5G mid lower channel */
+#define HNBU_RSSI_DELTA_5GMU        0xab /* RSSI Cal parameter for 5G mid upper channel */
+#define HNBU_RSSI_DELTA_5GH         0xac /* RSSI Cal parameter for 5G high channel      */
+
+#define HNBU_ACPA_6G_C0         0xad /* paparams for 6G Core0 */
+#define HNBU_ACPA_6G_C1         0xae /* paparams for 6G Core1 */
+#define HNBU_ACPA_6G_C2         0xaf /* paparams for 6G Core2 */
 
 /* sbtmstatelow */
 #define SBTML_INT_ACK		0x40000		/* ack the sb interrupt */

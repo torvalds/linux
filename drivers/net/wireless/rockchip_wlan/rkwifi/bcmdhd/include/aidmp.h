@@ -1,14 +1,14 @@
 /*
  * Broadcom AMBA Interconnect definitions.
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
+ * Copyright (C) 2020, Broadcom.
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -16,15 +16,9 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
- *      Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a license
- * other than the GPL, without Broadcom's express prior written consent.
  *
  *
- * <<Broadcom-WL-IPTag/Open:>>
- *
- * $Id: aidmp.h 614820 2016-01-23 17:16:17Z $
+ * <<Broadcom-WL-IPTag/Dual:>>
  */
 
 #ifndef	_AIDMP_H
@@ -64,56 +58,57 @@
 #define	ER_SZ_MAX		4096 /* 4KB */
 
 /* EROM CompIdentA */
-#define	CIA_MFG_MASK		0xfff00000
-#define	CIA_MFG_SHIFT		20
-#define	CIA_CID_MASK		0x000fff00
-#define	CIA_CID_SHIFT		8
-#define	CIA_CCL_MASK		0x000000f0
-#define	CIA_CCL_SHIFT		4
+#define	CIA_MFG_MASK		0xfff00000u
+#define	CIA_MFG_SHIFT		20u
+#define	CIA_CID_MASK		0x000fff00u
+#define	CIA_CID_SHIFT		8u
+#define	CIA_CCL_MASK		0x000000f0u
+#define	CIA_CCL_SHIFT		4u
 
 /* EROM CompIdentB */
-#define	CIB_REV_MASK		0xff000000
-#define	CIB_REV_SHIFT		24
-#define	CIB_NSW_MASK		0x00f80000
-#define	CIB_NSW_SHIFT		19
-#define	CIB_NMW_MASK		0x0007c000
-#define	CIB_NMW_SHIFT		14
-#define	CIB_NSP_MASK		0x00003e00
-#define	CIB_NSP_SHIFT		9
-#define	CIB_NMP_MASK		0x000001f0
-#define	CIB_NMP_SHIFT		4
+#define	CIB_REV_MASK		0xff000000u
+#define	CIB_REV_SHIFT		24u
+#define	CIB_NSW_MASK		0x00f80000u
+#define	CIB_NSW_SHIFT		19u
+#define	CIB_NMW_MASK		0x0007c000u
+#define	CIB_NMW_SHIFT		14u
+#define	CIB_NSP_MASK		0x00003e00u
+#define	CIB_NSP_SHIFT		9u
+#define	CIB_NMP_MASK		0x000001f0u
+#define	CIB_NMP_SHIFT		4u
 
 /* EROM MasterPortDesc */
-#define	MPD_MUI_MASK		0x0000ff00
-#define	MPD_MUI_SHIFT		8
-#define	MPD_MP_MASK		0x000000f0
-#define	MPD_MP_SHIFT		4
+#define	MPD_MUI_MASK		0x0000ff00u
+#define	MPD_MUI_SHIFT		8u
+#define	MPD_MP_MASK		0x000000f0u
+#define	MPD_MP_SHIFT		4u
 
 /* EROM AddrDesc */
-#define	AD_ADDR_MASK		0xfffff000
-#define	AD_SP_MASK		0x00000f00
-#define	AD_SP_SHIFT		8
-#define	AD_ST_MASK		0x000000c0
-#define	AD_ST_SHIFT		6
-#define	AD_ST_SLAVE		0x00000000
-#define	AD_ST_BRIDGE		0x00000040
-#define	AD_ST_SWRAP		0x00000080
-#define	AD_ST_MWRAP		0x000000c0
-#define	AD_SZ_MASK		0x00000030
-#define	AD_SZ_SHIFT		4
-#define	AD_SZ_4K		0x00000000
-#define	AD_SZ_8K		0x00000010
-#define	AD_SZ_16K		0x00000020
-#define	AD_SZ_SZD		0x00000030
-#define	AD_AG32			0x00000008
-#define	AD_ADDR_ALIGN		0x00000fff
-#define	AD_SZ_BASE		0x00001000	/* 4KB */
+#define	AD_ADDR_MASK		0xfffff000u
+#define	AD_SP_MASK		0x00000f00u
+#define	AD_SP_SHIFT		8u
+#define	AD_ST_MASK		0x000000c0u
+#define	AD_ST_SHIFT		6u
+#define	AD_ST_SLAVE		0x00000000u
+#define	AD_ST_BRIDGE		0x00000040u
+#define	AD_ST_SWRAP		0x00000080u
+#define	AD_ST_MWRAP		0x000000c0u
+#define	AD_SZ_MASK		0x00000030u
+#define	AD_SZ_SHIFT		4u
+#define	AD_SZ_4K		0x00000000u
+#define	AD_SZ_8K		0x00000010u
+#define	AD_SZ_16K		0x00000020u
+#define	AD_SZ_SZD		0x00000030u
+#define	AD_AG32			0x00000008u
+#define	AD_ADDR_ALIGN		0x00000fffu
+#define	AD_SZ_BASE		0x00001000u	/* 4KB */
 
 /* EROM SizeDesc */
-#define	SD_SZ_MASK		0xfffff000
-#define	SD_SG32			0x00000008
-#define	SD_SZ_ALIGN		0x00000fff
+#define	SD_SZ_MASK		0xfffff000u
+#define	SD_SG32			0x00000008u
+#define	SD_SZ_ALIGN		0x00000fffu
 
+#define WRAPPER_TIMEOUT_CONFIG	0x4u
 
 #if !defined(_LANGUAGE_ASSEMBLY) && !defined(__ASSEMBLY__)
 
@@ -307,13 +302,15 @@ typedef volatile struct _aidmp {
 #define	AI_OOBDINWIDTH		0x364
 #define	AI_OOBDOUTWIDTH		0x368
 
-
+#if !defined(IL_BIGENDIAN)
 #define	AI_IOCTRLSET		0x400
 #define	AI_IOCTRLCLEAR		0x404
 #define	AI_IOCTRL		0x408
+#define AI_IOCTRL_BOOKER        0x248 /* Starting from OOBR base - 0x18006000 */
 #define	AI_IOSTATUS		0x500
 #define	AI_RESETCTRL		0x800
 #define	AI_RESETSTATUS		0x804
+#endif	/* IL_BIGENDIAN */
 
 #define	AI_IOCTRLWIDTH		0x700
 #define	AI_IOSTATUSWIDTH	0x704
@@ -376,7 +373,9 @@ typedef volatile struct _aidmp {
 #define AIELS_SLAVE_ERR         0x1
 #define AIELS_TIMEOUT           0x2
 #define AIELS_DECODE            0x3
-#define AIELS_TIMEOUT_MASK      0x3
+#define AIELS_ERROR_MASK	0x3
+#define AIELS_MULTIPLE_ERRORS	0x4
+#define ERRLOGID_AXIID_MASK	0xF
 
 /* errorlog status bit map, for SW use */
 #define AXI_WRAP_STS_NONE		(0)
@@ -386,6 +385,7 @@ typedef volatile struct _aidmp {
 #define AXI_WRAP_STS_PCI_RD_ERR		(1<<3)
 #define AXI_WRAP_STS_WRAP_RD_ERR	(1<<4)
 #define AXI_WRAP_STS_SET_CORE_FAIL	(1<<5)
+#define AXI_WRAP_STS_MULTIPLE_ERRORS	(1<<6)
 
 /* errlogFrags */
 #define AXI_ERRLOG_FLAGS_WRITE_REQ	(1<<24)
@@ -414,11 +414,25 @@ typedef volatile struct _aidmp {
 #define AI_OOBSEL_7_SHIFT	24
 #define AI_IOCTRL_ENABLE_D11_PME	(1 << 14)
 
+/* bit Specific for AI_OOBSELOUTB30 */
+#define OOB_B_ALP_REQUEST 0
+#define OOB_B_HT_REQUEST 1
+#define OOB_B_ILP_REQUEST 2
+#define OOB_B_ALP_AVAIL_REQUEST 3
+#define OOB_B_HT_AVAIL_REQUEST 4
+
 /* mask for interrupts from each core to wrapper */
 #define AI_OOBSELINA74_CORE_MASK       0x80808080
 #define AI_OOBSELINA30_CORE_MASK       0x80808080
 
+#define AI_OOBSEL_30_0_INTR_MASK	0x00000080
+#define AI_OOBSEL_30_3_INTR_MASK	0x80000000
+
+#define AI_OOBSEL_74_4_INTR_MASK	0x00000080
+#define AI_OOBSEL_74_7_INTR_MASK	0x80000000
+
 /* axi id mask in the error log id */
 #define AI_ERRLOGID_AXI_ID_MASK 0x07
+#define AI_ERRLOGID_AXI_ID_MASK_EXTD 0x1F
 
 #endif	/* _AIDMP_H */

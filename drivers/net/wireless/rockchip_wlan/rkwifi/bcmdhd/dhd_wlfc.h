@@ -1,12 +1,12 @@
 /*
- * Copyright (C) 1999-2017, Broadcom Corporation
- * 
+ * Copyright (C) 2020, Broadcom.
+ *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -14,26 +14,25 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
- *      Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a license
- * other than the GPL, without Broadcom's express prior written consent.
  *
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_wlfc.h 671530 2016-11-22 08:43:33Z $
+ * $Id$
  *
  */
 #ifndef __wlfc_host_driver_definitions_h__
 #define __wlfc_host_driver_definitions_h__
 
+#ifdef QMONITOR
+#include <dhd_qmon.h>
+#endif
 
 /* #define OOO_DEBUG */
 
 #define KERNEL_THREAD_RETURN_TYPE int
 
-typedef int (*f_commitpkt_t)(void* ctx, void* p);
+typedef int (*f_commitpkt_t)(struct dhd_bus *ctx, void* p);
 typedef bool (*f_processpkt_t)(void* p, void* arg);
 
 #define WLFC_UNSUPPORTED -9999
@@ -97,6 +96,7 @@ typedef struct wlfc_hanger {
 	uint32 failed_to_pop;
 	uint32 failed_slotfind;
 	uint32 slot_pos;
+	/** XXX: items[1] should be the last element here. Do not add new elements below it. */
 	wlfc_hanger_item_t items[1];
 } wlfc_hanger_t;
 
@@ -145,6 +145,11 @@ typedef struct wlfc_mac_descriptor {
 	struct pktq	psq;    /**< contains both 'delayed' and 'suppressed' packets */
 	/** packets at firmware queue */
 	struct pktq	afq;
+#if defined(BCMINTERNAL) && defined(OOO_DEBUG)
+	uint8 last_send_gen[AC_COUNT+1];
+	uint8 last_send_seq[AC_COUNT+1];
+	uint8 last_complete_seq[AC_COUNT+1];
+#endif /* defined(BCMINTERNAL) && defined(OOO_DEBUG) */
 	/** The AC pending bitmap that was reported to the fw at last change */
 	uint8 traffic_lastreported_bmp;
 	/** The new AC pending bitmap */
@@ -161,6 +166,9 @@ typedef struct wlfc_mac_descriptor {
 	/** flag. TRUE when remote MAC is in suppressed state */
 	uint8 suppressed;
 
+#ifdef QMONITOR
+	dhd_qmon_t qmon;
+#endif /* QMONITOR */
 
 #ifdef PROP_TXSTATUS_DEBUG
 	uint32 dstncredit_sent_packets;
@@ -168,8 +176,15 @@ typedef struct wlfc_mac_descriptor {
 	uint32 opened_ct;
 	uint32 closed_ct;
 #endif
+#ifdef PROPTX_MAXCOUNT
+	/** Max Number of packets at dongle for this entry. */
+	int transit_maxcount;
+#endif /* PROPTX_MAXCOUNT */
 	struct wlfc_mac_descriptor* prev;
 	struct wlfc_mac_descriptor* next;
+#ifdef BULK_DEQUEUE
+	uint16 release_count[AC_COUNT + 1];
+#endif
 } wlfc_mac_descriptor_t;
 
 /** A 'commit' is the hand over of a packet from the host OS layer to the layer below (eg DBUS) */
@@ -206,6 +221,8 @@ typedef struct athost_wl_stat_counters {
 	uint32	d11_suppress;
 	uint32	wl_suppress;
 	uint32	bad_suppress;
+	uint32	pkt_dropped;
+	uint32	pkt_exptime;
 	uint32	pkt_freed;
 	uint32	pkt_free_err;
 	uint32	psq_wlsup_retx;
@@ -341,6 +358,15 @@ typedef struct athost_wl_status_info {
 
 	bool	bcmc_credit_supported;
 
+#if defined(BCMINTERNAL) && defined(OOO_DEBUG)
+	uint8*	log_buf;
+	uint32	log_buf_offset;
+	bool	log_buf_full;
+#endif /* defined(BCMINTERNAL) && defined(OOO_DEBUG) */
+
+#ifdef BULK_DEQUEUE
+	uint8	max_release_count;
+#endif /* total_credit */
 } athost_wl_status_info_t;
 
 /** Please be mindful that total pkttag space is 32 octets only */
@@ -392,6 +418,7 @@ typedef struct dhd_pkttag {
 			uint32 thing2;
 		} sd;
 
+		/* XXX: using the USB typedef here will complicate life for anybody using dhd.h */
 		struct {
 			void *bus;
 			void *urb;
@@ -516,12 +543,15 @@ typedef struct dhd_pkttag {
 #define DHD_PKTTAG_SN(tag)			(((dhd_pkttag_t*)(tag))->sn)
 #endif /* BCM_OBJECT_TRACE */
 
+#define DHD_PKTID_IF_SHIFT			(16u)
+#define DHD_PKTID_FIFO_SHIFT			(8u)
+
 /* public functions */
 int dhd_wlfc_parse_header_info(dhd_pub_t *dhd, void* pktbuf, int tlv_hdr_len,
 	uchar *reorder_info_buf, uint *reorder_info_len);
 KERNEL_THREAD_RETURN_TYPE dhd_wlfc_transfer_packets(void *data);
 int dhd_wlfc_commit_packets(dhd_pub_t *dhdp, f_commitpkt_t fcommit,
-	void* commit_ctx, void *pktbuf, bool need_toggle_host_if);
+	struct dhd_bus *commit_ctx, void *pktbuf, bool need_toggle_host_if);
 int dhd_wlfc_txcomplete(dhd_pub_t *dhd, void *txp, bool success);
 int dhd_wlfc_init(dhd_pub_t *dhd);
 #ifdef SUPPORT_P2P_GO_PS
@@ -558,5 +588,9 @@ int dhd_wlfc_set_txstatus_ignore(dhd_pub_t *dhd, int val);
 
 int dhd_wlfc_get_rxpkt_chk(dhd_pub_t *dhd, int *val);
 int dhd_wlfc_set_rxpkt_chk(dhd_pub_t *dhd, int val);
+int dhd_txpkt_log_and_dump(dhd_pub_t *dhdp, void* pkt, uint16 *pktfate_status);
+#ifdef PROPTX_MAXCOUNT
+int dhd_wlfc_update_maxcount(dhd_pub_t *dhdp, uint8 ifid, int maxcount);
+#endif /* PROPTX_MAXCOUNT */
 
 #endif /* __wlfc_host_driver_definitions_h__ */

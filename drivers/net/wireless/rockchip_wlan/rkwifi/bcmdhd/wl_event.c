@@ -1,25 +1,25 @@
 
-#if defined(WL_EXT_IAPSTA) || defined(USE_IW)
-#include <bcmendian.h>
 #include <wl_android.h>
+#ifdef WL_EVENT
+#include <bcmendian.h>
 #include <dhd_config.h>
 
 #define EVENT_ERROR(name, arg1, args...) \
 	do { \
 		if (android_msg_level & ANDROID_ERROR_LEVEL) { \
-			printk(KERN_ERR "[dhd-%s] EVENT-ERROR) %s : " arg1, name, __func__, ## args); \
+			printk(KERN_ERR DHD_LOG_PREFIX "[%s] EVENT-ERROR) %s : " arg1, name, __func__, ## args); \
 		} \
 	} while (0)
 #define EVENT_TRACE(name, arg1, args...) \
 	do { \
 		if (android_msg_level & ANDROID_TRACE_LEVEL) { \
-			printk(KERN_ERR "[dhd-%s] EVENT-TRACE) %s : " arg1, name, __func__, ## args); \
+			printk(KERN_INFO DHD_LOG_PREFIX "[%s] EVENT-TRACE) %s : " arg1, name, __func__, ## args); \
 		} \
 	} while (0)
 #define EVENT_DBG(name, arg1, args...) \
 	do { \
 		if (android_msg_level & ANDROID_DBG_LEVEL) { \
-			printk(KERN_ERR "[dhd-%s] EVENT-DBG) %s : " arg1, name, __func__, ## args); \
+			printk(KERN_INFO DHD_LOG_PREFIX "[%s] EVENT-DBG) %s : " arg1, name, __func__, ## args); \
 		} \
 	} while (0)
 
@@ -60,7 +60,7 @@ struct wl_event_q {
 	s8 edata[1];
 };
 
-typedef s32(*EXT_EVENT_HANDLER) (struct net_device *dev, void *cb_argu,
+typedef void(*EXT_EVENT_HANDLER) (struct net_device *dev, void *cb_argu,
 	const wl_event_msg_t *e, void *data);
 
 typedef struct event_handler_list {
@@ -200,6 +200,7 @@ wl_ext_event_handler(struct work_struct *work_data)
 	struct net_device *dev = NULL;
 	struct event_handler_list *evt_node;
 	dhd_pub_t *dhd;
+	unsigned long flags = 0;
 
 	BCM_SET_CONTAINER_OF(event_params, work_data, struct wl_event_params, event_work);
 	DHD_EVENT_WAKE_LOCK(event_params->pub);
@@ -218,10 +219,13 @@ wl_ext_event_handler(struct work_struct *work_data)
 			EVENT_TRACE(dev->name, "Unknown Event (%d): ignoring\n", e->etype);
 			goto fail;
 		}
-		if (dhd->busstate == DHD_BUS_DOWN) {
+		DHD_GENERAL_LOCK(dhd, flags);
+		if (DHD_BUS_CHECK_DOWN_OR_DOWN_IN_PROGRESS(dhd)) {
 			EVENT_ERROR(dev->name, "BUS is DOWN.\n");
+			DHD_GENERAL_UNLOCK(dhd, flags);
 			goto fail;
 		}
+		DHD_GENERAL_UNLOCK(dhd, flags);
 		EVENT_DBG(dev->name, "event type (%d)\n", e->etype);
 		mutex_lock(&event_params->event_sync);
 		evt_node = event_params->evt_head.evt_head;
