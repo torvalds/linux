@@ -6342,7 +6342,10 @@ const struct bpf_func_proto bpf_btf_find_by_name_kind_proto = {
 	.arg4_type	= ARG_ANYTHING,
 };
 
-BTF_ID_LIST_GLOBAL_SINGLE(btf_task_struct_ids, struct, task_struct)
+BTF_ID_LIST_GLOBAL(btf_task_struct_ids)
+BTF_ID(struct, task_struct)
+BTF_ID(struct, file)
+BTF_ID(struct, vm_area_struct)
 
 /* BTF ID set registration API for modules */
 
