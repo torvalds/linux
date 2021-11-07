@@ -248,9 +248,6 @@ static int rx8025_set_time(struct device *dev, struct rtc_time *dt)
 	u8 date[7];
 	int ret;
 
-	if ((dt->tm_year < 100) || (dt->tm_year > 199))
-		return -EINVAL;
-
 	/*
 	 * Here the read-only bits are written as "0".  I'm not sure if that
 	 * is sound.
@@ -553,6 +550,8 @@ static int rx8025_probe(struct i2c_client *client,
 		return PTR_ERR(rx8025->rtc);
 
 	rx8025->rtc->ops = &rx8025_rtc_ops;
+	rx8025->rtc->range_min = RTC_TIMESTAMP_BEGIN_1900;
+	rx8025->rtc->range_max = RTC_TIMESTAMP_END_2099;
 
 	if (client->irq > 0) {
 		dev_info(&client->dev, "IRQ %d supplied\n", client->irq);
