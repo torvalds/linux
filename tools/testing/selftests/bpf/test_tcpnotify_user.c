@@ -25,6 +25,7 @@
 
 #include "test_tcpnotify.h"
 #include "trace_helpers.h"
+#include "testing_helpers.h"
 
 #define SOCKET_BUFFER_SIZE (getpagesize() < 8192L ? getpagesize() : 8192L)
 
@@ -92,7 +93,7 @@ int main(int argc, char **argv)
 	if (cg_fd < 0)
 		goto err;
 
-	if (bpf_prog_load(file, BPF_PROG_TYPE_SOCK_OPS, &obj, &prog_fd)) {
+	if (bpf_prog_test_load(file, BPF_PROG_TYPE_SOCK_OPS, &obj, &prog_fd)) {
 		printf("FAILED: load_bpf_file failed for: %s\n", file);
 		goto err;
 	}

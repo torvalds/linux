@@ -20,34 +20,33 @@ void test_fexit_stress(void)
 		BPF_EXIT_INSN(),
 	};
 
-	struct bpf_load_program_attr load_attr = {
-		.prog_type = BPF_PROG_TYPE_TRACING,
-		.license = "GPL",
-		.insns = trace_program,
-		.insns_cnt = sizeof(trace_program) / sizeof(struct bpf_insn),
+	LIBBPF_OPTS(bpf_prog_load_opts, trace_opts,
 		.expected_attach_type = BPF_TRACE_FEXIT,
-	};
+		.log_buf = error,
+		.log_size = sizeof(error),
+	);
 
 	const struct bpf_insn skb_program[] = {
 		BPF_MOV64_IMM(BPF_REG_0, 0),
 		BPF_EXIT_INSN(),
 	};
 
-	struct bpf_load_program_attr skb_load_attr = {
-		.prog_type = BPF_PROG_TYPE_SOCKET_FILTER,
-		.license = "GPL",
-		.insns = skb_program,
-		.insns_cnt = sizeof(skb_program) / sizeof(struct bpf_insn),
-	};
+	LIBBPF_OPTS(bpf_prog_load_opts, skb_opts,
+		.log_buf = error,
+		.log_size = sizeof(error),
+	);
 
 	err = libbpf_find_vmlinux_btf_id("bpf_fentry_test1",
-					 load_attr.expected_attach_type);
+					 trace_opts.expected_attach_type);
 	if (CHECK(err <= 0, "find_vmlinux_btf_id", "failed: %d\n", err))
 		goto out;
-	load_attr.attach_btf_id = err;
+	trace_opts.attach_btf_id = err;
 
 	for (i = 0; i < CNT; i++) {
-		fexit_fd[i] = bpf_load_program_xattr(&load_attr, error, sizeof(error));
+		fexit_fd[i] = bpf_prog_load(BPF_PROG_TYPE_TRACING, NULL, "GPL",
+					    trace_program,
+					    sizeof(trace_program) / sizeof(struct bpf_insn),
+					    &trace_opts);
 		if (CHECK(fexit_fd[i] < 0, "fexit loaded",
 			  "failed: %d errno %d\n", fexit_fd[i], errno))
 			goto out;
@@ -57,7 +56,9 @@ void test_fexit_stress(void)
 			goto out;
 	}
 
-	filter_fd = bpf_load_program_xattr(&skb_load_attr, error, sizeof(error));
+	filter_fd = bpf_prog_load(BPF_PROG_TYPE_SOCKET_FILTER, NULL, "GPL",
+				  skb_program, sizeof(skb_program) / sizeof(struct bpf_insn),
+				  &skb_opts);
 	if (CHECK(filter_fd < 0, "test_program_loaded", "failed: %d errno %d\n",
 		  filter_fd, errno))
 		goto out;

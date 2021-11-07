@@ -901,27 +901,27 @@ static void cleanup_relos(struct bpf_gen *gen, int insns)
 }
 
 void bpf_gen__prog_load(struct bpf_gen *gen,
-			struct bpf_prog_load_params *load_attr, int prog_idx)
+			enum bpf_prog_type prog_type, const char *prog_name,
+			const char *license, struct bpf_insn *insns, size_t insn_cnt,
+			struct bpf_prog_load_opts *load_attr, int prog_idx)
 {
 	int attr_size = offsetofend(union bpf_attr, fd_array);
-	int prog_load_attr, license, insns, func_info, line_info;
+	int prog_load_attr, license_off, insns_off, func_info, line_info;
 	union bpf_attr attr;
 
 	memset(&attr, 0, attr_size);
-	pr_debug("gen: prog_load: type %d insns_cnt %zd\n",
-		 load_attr->prog_type, load_attr->insn_cnt);
+	pr_debug("gen: prog_load: type %d insns_cnt %zd\n", prog_type, insn_cnt);
 	/* add license string to blob of bytes */
-	license = add_data(gen, load_attr->license, strlen(load_attr->license) + 1);
+	license_off = add_data(gen, license, strlen(license) + 1);
 	/* add insns to blob of bytes */
-	insns = add_data(gen, load_attr->insns,
-			 load_attr->insn_cnt * sizeof(struct bpf_insn));
+	insns_off = add_data(gen, insns, insn_cnt * sizeof(struct bpf_insn));
 
-	attr.prog_type = load_attr->prog_type;
+	attr.prog_type = prog_type;
 	attr.expected_attach_type = load_attr->expected_attach_type;
 	attr.attach_btf_id = load_attr->attach_btf_id;
 	attr.prog_ifindex = load_attr->prog_ifindex;
 	attr.kern_version = 0;
-	attr.insn_cnt = (__u32)load_attr->insn_cnt;
+	attr.insn_cnt = (__u32)insn_cnt;
 	attr.prog_flags = load_attr->prog_flags;
 
 	attr.func_info_rec_size = load_attr->func_info_rec_size;
@@ -934,15 +934,15 @@ void bpf_gen__prog_load(struct bpf_gen *gen,
 	line_info = add_data(gen, load_attr->line_info,
 			     attr.line_info_cnt * attr.line_info_rec_size);
 
-	memcpy(attr.prog_name, load_attr->name,
-	       min((unsigned)strlen(load_attr->name), BPF_OBJ_NAME_LEN - 1));
+	memcpy(attr.prog_name, prog_name,
+	       min((unsigned)strlen(prog_name), BPF_OBJ_NAME_LEN - 1));
 	prog_load_attr = add_data(gen, &attr, attr_size);
 
 	/* populate union bpf_attr with a pointer to license */
-	emit_rel_store(gen, attr_field(prog_load_attr, license), license);
+	emit_rel_store(gen, attr_field(prog_load_attr, license), license_off);
 
 	/* populate union bpf_attr with a pointer to instructions */
-	emit_rel_store(gen, attr_field(prog_load_attr, insns), insns);
+	emit_rel_store(gen, attr_field(prog_load_attr, insns), insns_off);
 
 	/* populate union bpf_attr with a pointer to func_info */
 	emit_rel_store(gen, attr_field(prog_load_attr, func_info), func_info);
@@ -974,12 +974,12 @@ void bpf_gen__prog_load(struct bpf_gen *gen,
 		emit(gen, BPF_STX_MEM(BPF_W, BPF_REG_0, BPF_REG_7,
 				      offsetof(union bpf_attr, attach_btf_obj_fd)));
 	}
-	emit_relos(gen, insns);
+	emit_relos(gen, insns_off);
 	/* emit PROG_LOAD command */
 	emit_sys_bpf(gen, BPF_PROG_LOAD, prog_load_attr, attr_size);
 	debug_ret(gen, "prog_load %s insn_cnt %d", attr.prog_name, attr.insn_cnt);
 	/* successful or not, close btf module FDs used in extern ksyms and attach_btf_obj_fd */
-	cleanup_relos(gen, insns);
+	cleanup_relos(gen, insns_off);
 	if (gen->attach_kind)
 		emit_sys_close_blob(gen,
 				    attr_field(prog_load_attr, attach_btf_obj_fd));

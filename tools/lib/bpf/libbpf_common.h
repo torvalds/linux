@@ -41,6 +41,18 @@
 #define __LIBBPF_MARK_DEPRECATED_0_7(X)
 #endif
 
+/* This set of internal macros allows to do "function overloading" based on
+ * number of arguments provided by used in backwards-compatible way during the
+ * transition to libbpf 1.0
+ * It's ugly but necessary evil that will be cleaned up when we get to 1.0.
+ * See bpf_prog_load() overload for example.
+ */
+#define ___libbpf_cat(A, B) A ## B
+#define ___libbpf_select(NAME, NUM) ___libbpf_cat(NAME, NUM)
+#define ___libbpf_nth(_1, _2, _3, _4, _5, _6, N, ...) N
+#define ___libbpf_cnt(...) ___libbpf_nth(__VA_ARGS__, 6, 5, 4, 3, 2, 1)
+#define ___libbpf_overload(NAME, ...) ___libbpf_select(NAME, ___libbpf_cnt(__VA_ARGS__))(__VA_ARGS__)
+
 /* Helper macro to declare and initialize libbpf options struct
  *
  * This dance with uninitialized declaration, followed by memset to zero,
@@ -54,7 +66,7 @@
  * including any extra padding, it with memset() and then assigns initial
  * values provided by users in struct initializer-syntax as varargs.
  */
-#define DECLARE_LIBBPF_OPTS(TYPE, NAME, ...)				    \
+#define LIBBPF_OPTS(TYPE, NAME, ...)					    \
 	struct TYPE NAME = ({ 						    \
 		memset(&NAME, 0, sizeof(struct TYPE));			    \
 		(struct TYPE) {						    \

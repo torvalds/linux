@@ -25,6 +25,7 @@
 #include "bpf_util.h"
 #include "bpf_rlimit.h"
 #include "test_maps.h"
+#include "testing_helpers.h"
 
 #ifndef ENOTSUPP
 #define ENOTSUPP 524
@@ -830,21 +831,21 @@ static void test_sockmap(unsigned int tasks, void *data)
 	}
 
 	/* Load SK_SKB program and Attach */
-	err = bpf_prog_load(SOCKMAP_PARSE_PROG,
+	err = bpf_prog_test_load(SOCKMAP_PARSE_PROG,
 			    BPF_PROG_TYPE_SK_SKB, &obj, &parse_prog);
 	if (err) {
 		printf("Failed to load SK_SKB parse prog\n");
 		goto out_sockmap;
 	}
 
-	err = bpf_prog_load(SOCKMAP_TCP_MSG_PROG,
+	err = bpf_prog_test_load(SOCKMAP_TCP_MSG_PROG,
 			    BPF_PROG_TYPE_SK_MSG, &obj, &msg_prog);
 	if (err) {
 		printf("Failed to load SK_SKB msg prog\n");
 		goto out_sockmap;
 	}
 
-	err = bpf_prog_load(SOCKMAP_VERDICT_PROG,
+	err = bpf_prog_test_load(SOCKMAP_VERDICT_PROG,
 			    BPF_PROG_TYPE_SK_SKB, &obj, &verdict_prog);
 	if (err) {
 		printf("Failed to load SK_SKB verdict prog\n");

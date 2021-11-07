@@ -42,7 +42,6 @@ static int create_map(int map_type, int map_flags, unsigned int size)
 static int bpf_map_lookup_elem_with_ref_bit(int fd, unsigned long long key,
 					    void *value)
 {
-	struct bpf_load_program_attr prog;
 	struct bpf_create_map_attr map;
 	struct bpf_insn insns[] = {
 		BPF_LD_MAP_VALUE(BPF_REG_9, 0, 0),
@@ -76,13 +75,7 @@ static int bpf_map_lookup_elem_with_ref_bit(int fd, unsigned long long key,
 
 	insns[0].imm = mfd;
 
-	memset(&prog, 0, sizeof(prog));
-	prog.prog_type = BPF_PROG_TYPE_SCHED_CLS;
-	prog.insns = insns;
-	prog.insns_cnt = ARRAY_SIZE(insns);
-	prog.license = "GPL";
-
-	pfd = bpf_load_program_xattr(&prog, NULL, 0);
+	pfd = bpf_prog_load(BPF_PROG_TYPE_SCHED_CLS, NULL, "GPL", insns, ARRAY_SIZE(insns), NULL);
 	if (pfd < 0) {
 		close(mfd);
 		return -1;

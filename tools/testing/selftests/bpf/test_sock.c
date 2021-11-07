@@ -328,18 +328,17 @@ static size_t probe_prog_length(const struct bpf_insn *fp)
 static int load_sock_prog(const struct bpf_insn *prog,
 			  enum bpf_attach_type attach_type)
 {
-	struct bpf_load_program_attr attr;
-	int ret;
+	LIBBPF_OPTS(bpf_prog_load_opts, opts);
+	int ret, insn_cnt;
 
-	memset(&attr, 0, sizeof(struct bpf_load_program_attr));
-	attr.prog_type = BPF_PROG_TYPE_CGROUP_SOCK;
-	attr.expected_attach_type = attach_type;
-	attr.insns = prog;
-	attr.insns_cnt = probe_prog_length(attr.insns);
-	attr.license = "GPL";
-	attr.log_level = 2;
+	insn_cnt = probe_prog_length(prog);
 
-	ret = bpf_load_program_xattr(&attr, bpf_log_buf, BPF_LOG_BUF_SIZE);
+	opts.expected_attach_type = attach_type;
+	opts.log_buf = bpf_log_buf;
+	opts.log_size = BPF_LOG_BUF_SIZE;
+	opts.log_level = 2;
+
+	ret = bpf_prog_load(BPF_PROG_TYPE_CGROUP_SOCK, NULL, "GPL", prog, insn_cnt, &opts);
 	if (verbose && ret < 0)
 		fprintf(stderr, "%s\n", bpf_log_buf);
 

@@ -21,6 +21,7 @@
 
 #include "../../../include/linux/filter.h"
 #include "bpf_rlimit.h"
+#include "testing_helpers.h"
 
 static struct bpf_insn prog[BPF_MAXINSNS];
 
@@ -57,7 +58,7 @@ static int bpf_try_load_prog(int insns, int fd_map,
 	int fd_prog;
 
 	bpf_filler(insns, fd_map);
-	fd_prog = bpf_load_program(BPF_PROG_TYPE_SCHED_CLS, prog, insns, "", 0,
+	fd_prog = bpf_test_load_program(BPF_PROG_TYPE_SCHED_CLS, prog, insns, "", 0,
 				   NULL, 0);
 	assert(fd_prog > 0);
 	if (fd_map > 0)

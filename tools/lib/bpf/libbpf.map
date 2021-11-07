@@ -395,6 +395,8 @@ LIBBPF_0.6.0 {
 		bpf_object__next_program;
 		bpf_object__prev_map;
 		bpf_object__prev_program;
+		bpf_prog_load_deprecated;
+		bpf_prog_load;
 		bpf_program__insn_cnt;
 		bpf_program__insns;
 		btf__add_btf;

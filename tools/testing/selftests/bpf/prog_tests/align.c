@@ -594,6 +594,12 @@ static int do_test_single(struct bpf_align_test *test)
 	struct bpf_insn *prog = test->insns;
 	int prog_type = test->prog_type;
 	char bpf_vlog_copy[32768];
+	LIBBPF_OPTS(bpf_prog_load_opts, opts,
+		.prog_flags = BPF_F_STRICT_ALIGNMENT,
+		.log_buf = bpf_vlog,
+		.log_size = sizeof(bpf_vlog),
+		.log_level = 2,
+	);
 	const char *line_ptr;
 	int cur_line = -1;
 	int prog_len, i;
@@ -601,9 +607,8 @@ static int do_test_single(struct bpf_align_test *test)
 	int ret;
 
 	prog_len = probe_filter_length(prog);
-	fd_prog = bpf_verify_program(prog_type ? : BPF_PROG_TYPE_SOCKET_FILTER,
-				     prog, prog_len, BPF_F_STRICT_ALIGNMENT,
-				     "GPL", 0, bpf_vlog, sizeof(bpf_vlog), 2);
+	fd_prog = bpf_prog_load(prog_type ? : BPF_PROG_TYPE_SOCKET_FILTER, NULL, "GPL",
+				prog, prog_len, &opts);
 	if (fd_prog < 0 && test->result != REJECT) {
 		printf("Failed to load program.\n");
 		printf("%s", bpf_vlog);
