@@ -93,6 +93,7 @@ struct gs_device_config {
 #define GS_CAN_MODE_TRIPLE_SAMPLE BIT(2)
 #define GS_CAN_MODE_ONE_SHOT BIT(3)
 #define GS_CAN_MODE_HW_TIMESTAMP BIT(4)
+/* GS_CAN_FEATURE_IDENTIFY BIT(5) */
 
 struct gs_device_mode {
 	__le32 mode;
