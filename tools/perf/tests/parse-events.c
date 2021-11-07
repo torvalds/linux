@@ -2045,7 +2045,6 @@ static int test_event(struct evlist_test *e)
 	struct evlist *evlist;
 	int ret;
 
-	bzero(&err, sizeof(err));
 	if (e->valid && !e->valid()) {
 		pr_debug("... SKIP");
 		return 0;
@@ -2055,6 +2054,7 @@ static int test_event(struct evlist_test *e)
 	if (evlist == NULL)
 		return -ENOMEM;
 
+	parse_events_error__init(&err);
 	ret = parse_events(evlist, e->name, &err);
 	if (ret) {
 		pr_debug("failed to parse event '%s', err %d, str '%s'\n",
@@ -2063,7 +2063,7 @@ static int test_event(struct evlist_test *e)
 	} else {
 		ret = e->check(evlist);
 	}
-
+	parse_events_error__exit(&err);
 	evlist__delete(evlist);
 
 	return ret;

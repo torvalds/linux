@@ -2301,6 +2301,19 @@ int __parse_events(struct evlist *evlist, const char *str,
 	return ret;
 }
 
+void parse_events_error__init(struct parse_events_error *err)
+{
+	bzero(err, sizeof(*err));
+}
+
+void parse_events_error__exit(struct parse_events_error *err)
+{
+	zfree(&err->str);
+	zfree(&err->help);
+	zfree(&err->first_str);
+	zfree(&err->first_help);
+}
+
 void parse_events_error__handle(struct parse_events_error *err, int idx,
 				char *str, char *help)
 {
@@ -2405,15 +2418,11 @@ void parse_events_error__print(struct parse_events_error *err,
 		return;
 
 	__parse_events_error__print(err->idx, err->str, err->help, event);
-	zfree(&err->str);
-	zfree(&err->help);
 
 	if (err->num_errors > 1) {
 		fputs("\nInitial error:\n", stderr);
 		__parse_events_error__print(err->first_idx, err->first_str,
 					err->first_help, event);
-		zfree(&err->first_str);
-		zfree(&err->first_help);
 	}
 }
 
@@ -2426,13 +2435,14 @@ int parse_events_option(const struct option *opt, const char *str,
 	struct parse_events_error err;
 	int ret;
 
-	bzero(&err, sizeof(err));
+	parse_events_error__init(&err);
 	ret = parse_events(evlist, str, &err);
 
 	if (ret) {
 		parse_events_error__print(&err, str);
 		fprintf(stderr, "Run 'perf list' for a list of valid events\n");
 	}
+	parse_events_error__exit(&err);
 
 	return ret;
 }

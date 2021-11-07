@@ -787,9 +787,11 @@ static int check_parse_id(const char *id, struct parse_events_error *error,
 
 static int check_parse_cpu(const char *id, bool same_cpu, const struct pmu_event *pe)
 {
-	struct parse_events_error error = { .idx = 0, };
+	struct parse_events_error error;
+	int ret;
 
-	int ret = check_parse_id(id, &error, NULL);
+	parse_events_error__init(&error);
+	ret = check_parse_id(id, &error, NULL);
 	if (ret && same_cpu) {
 		pr_warning("Parse event failed metric '%s' id '%s' expr '%s'\n",
 			pe->metric_name, id, pe->metric_expr);
@@ -800,22 +802,18 @@ static int check_parse_cpu(const char *id, bool same_cpu, const struct pmu_event
 			  id, pe->metric_name, pe->metric_expr);
 		ret = 0;
 	}
-	free(error.str);
-	free(error.help);
-	free(error.first_str);
-	free(error.first_help);
+	parse_events_error__exit(&error);
 	return ret;
 }
 
 static int check_parse_fake(const char *id)
 {
-	struct parse_events_error error = { .idx = 0, };
-	int ret = check_parse_id(id, &error, &perf_pmu__fake);
+	struct parse_events_error error;
+	int ret;
 
-	free(error.str);
-	free(error.help);
-	free(error.first_str);
-	free(error.first_help);
+	parse_events_error__init(&error);
+	ret = check_parse_id(id, &error, &perf_pmu__fake);
+	parse_events_error__exit(&error);
 	return ret;
 }
 

@@ -3063,15 +3063,11 @@ static bool evlist__add_vfs_getname(struct evlist *evlist)
 	struct parse_events_error err;
 	int ret;
 
-	bzero(&err, sizeof(err));
+	parse_events_error__init(&err);
 	ret = parse_events(evlist, "probe:vfs_getname*", &err);
-	if (ret) {
-		free(err.str);
-		free(err.help);
-		free(err.first_str);
-		free(err.first_help);
+	parse_events_error__exit(&err);
+	if (ret)
 		return false;
-	}
 
 	evlist__for_each_entry_safe(evlist, evsel, tmp) {
 		if (!strstarts(evsel__name(evsel), "probe:vfs_getname"))
@@ -4925,12 +4921,13 @@ int cmd_trace(int argc, const char **argv)
 	if (trace.perfconfig_events != NULL) {
 		struct parse_events_error parse_err;
 
-		bzero(&parse_err, sizeof(parse_err));
+		parse_events_error__init(&parse_err);
 		err = parse_events(trace.evlist, trace.perfconfig_events, &parse_err);
-		if (err) {
+		if (err)
 			parse_events_error__print(&parse_err, trace.perfconfig_events);
+		parse_events_error__exit(&parse_err);
+		if (err)
 			goto out;
-		}
 	}
 
 	if ((nr_cgroups || trace.cgroup) && !trace.opts.target.system_wide) {

@@ -242,6 +242,8 @@ int is_valid_tracepoint(const char *event_string);
 int valid_event_mount(const char *eventfs);
 char *parse_events_formats_error_string(char *additional_terms);
 
+void parse_events_error__init(struct parse_events_error *err);
+void parse_events_error__exit(struct parse_events_error *err);
 void parse_events_error__handle(struct parse_events_error *err, int idx,
 				char *str, char *help);
 void parse_events_error__print(struct parse_events_error *err,
