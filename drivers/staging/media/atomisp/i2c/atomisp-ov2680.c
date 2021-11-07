@@ -86,7 +86,7 @@ static int ov2680_write_reg(struct i2c_client *client, unsigned int len,
 	int ret;
 
 	if (len == 2)
-		put_unaligned_be16(val << (8 * (4 - len)), buf + 2);
+		put_unaligned_be16(val, buf + 2);
 	else if (len == 1)
 		buf[2] = val;
 	else
