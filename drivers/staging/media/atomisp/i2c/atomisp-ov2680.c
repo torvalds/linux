@@ -166,8 +166,6 @@ static int ov2680_get_intg_factor(struct i2c_client *client,
 				  struct camera_mipi_info *info,
 				  const struct ov2680_resolution *res)
 {
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct ov2680_device *dev = to_ov2680_sensor(sd);
 	struct atomisp_sensor_mode_data *buf = &info->data;
 	unsigned int pix_clk_freq_hz;
 	u16 reg_val;
@@ -180,7 +178,6 @@ static int ov2680_get_intg_factor(struct i2c_client *client,
 	/* pixel clock */
 	pix_clk_freq_hz = res->pix_clk_freq * 1000000;
 
-	dev->vt_pix_clk_freq_mhz = pix_clk_freq_hz;
 	buf->vt_pix_clk_freq_mhz = pix_clk_freq_hz;
 
 	/* get integration time */
@@ -434,24 +431,8 @@ err:
 	return ret;
 }
 
-static u32 ov2680_translate_bayer_order(enum atomisp_bayer_order code)
-{
-	switch (code) {
-	case atomisp_bayer_order_rggb:
-		return MEDIA_BUS_FMT_SRGGB10_1X10;
-	case atomisp_bayer_order_grbg:
-		return MEDIA_BUS_FMT_SGRBG10_1X10;
-	case atomisp_bayer_order_bggr:
-		return MEDIA_BUS_FMT_SBGGR10_1X10;
-	case atomisp_bayer_order_gbrg:
-		return MEDIA_BUS_FMT_SGBRG10_1X10;
-	}
-	return 0;
-}
-
 static int ov2680_v_flip(struct v4l2_subdev *sd, s32 value)
 {
-	struct ov2680_device *dev = to_ov2680_sensor(sd);
 	struct camera_mipi_info *ov2680_info = NULL;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
@@ -476,15 +457,12 @@ static int ov2680_v_flip(struct v4l2_subdev *sd, s32 value)
 	ov2680_info = v4l2_get_subdev_hostdata(sd);
 	if (ov2680_info) {
 		ov2680_info->raw_bayer_order = ov2680_bayer_order_mapping[index];
-		dev->format.code = ov2680_translate_bayer_order(
-				       ov2680_info->raw_bayer_order);
 	}
 	return ret;
 }
 
 static int ov2680_h_flip(struct v4l2_subdev *sd, s32 value)
 {
-	struct ov2680_device *dev = to_ov2680_sensor(sd);
 	struct camera_mipi_info *ov2680_info = NULL;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
@@ -510,8 +488,6 @@ static int ov2680_h_flip(struct v4l2_subdev *sd, s32 value)
 	ov2680_info = v4l2_get_subdev_hostdata(sd);
 	if (ov2680_info) {
 		ov2680_info->raw_bayer_order = ov2680_bayer_order_mapping[index];
-		dev->format.code = ov2680_translate_bayer_order(
-				       ov2680_info->raw_bayer_order);
 	}
 	return ret;
 }
@@ -1199,7 +1175,6 @@ static int ov2680_probe(struct i2c_client *client)
 
 	dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	dev->pad.flags = MEDIA_PAD_FL_SOURCE;
-	dev->format.code = MEDIA_BUS_FMT_SBGGR10_1X10;
 	dev->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	ret =
 	    v4l2_ctrl_handler_init(&dev->ctrl_handler,

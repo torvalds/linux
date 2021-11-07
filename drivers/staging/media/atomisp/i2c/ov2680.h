@@ -169,14 +169,10 @@ struct ov2680_format {
 struct ov2680_device {
 	struct v4l2_subdev sd;
 	struct media_pad pad;
-	struct v4l2_mbus_framefmt format;
 	struct mutex input_lock;
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct ov2680_resolution *res;
 	struct camera_sensor_platform_data *platform_data;
-	int vt_pix_clk_freq_mhz;
-	int run_mode;
-	u8 type;
 };
 
 /**
