@@ -814,21 +814,25 @@ static void test_btf_datasec(struct btf *btf, struct btf_dump *d, char *str,
 
 static void test_btf_dump_datasec_data(char *str)
 {
-	struct btf *btf = btf__parse("xdping_kern.o", NULL);
+	struct btf *btf;
 	struct btf_dump_opts opts = { .ctx = str };
 	char license[4] = "GPL";
 	struct btf_dump *d;
 
+	btf = btf__parse("xdping_kern.o", NULL);
 	if (!ASSERT_OK_PTR(btf, "xdping_kern.o BTF not found"))
 		return;
 
 	d = btf_dump__new(btf, NULL, &opts, btf_dump_snprintf);
 	if (!ASSERT_OK_PTR(d, "could not create BTF dump"))
-		return;
+		goto out;
 
 	test_btf_datasec(btf, d, str, "license",
 			 "SEC(\"license\") char[4] _license = (char[4])['G','P','L',];",
 			 license, sizeof(license));
+out:
+	btf_dump__free(d);
+	btf__free(btf);
 }
 
 void test_btf_dump() {
