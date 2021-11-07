@@ -361,7 +361,7 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 #define IQK_DELAY_TIME		1		/* ms */
 
 static u8 /* bit0 = 1 => Tx OK, bit1 = 1 => Rx OK */
-phy_PathA_IQK_8188E(struct adapter *adapt, bool configPathB)
+phy_PathA_IQK_8188E(struct adapter *adapt)
 {
 	u32 regeac, regE94, regE9C;
 	u8 result = 0x00;
@@ -859,7 +859,7 @@ static void phy_IQCalibrate_8188E(struct adapter *adapt, s32 result[][8], u8 t, 
 	ODM_SetBBReg(dm_odm, rRx_IQK, bMaskDWord, 0x81004800);
 
 	for (i = 0; i < retryCount; i++) {
-		PathAOK = phy_PathA_IQK_8188E(adapt, is2t);
+		PathAOK = phy_PathA_IQK_8188E(adapt);
 		if (PathAOK == 0x01) {
 			result[t][0] = (ODM_GetBBReg(dm_odm, rTx_Power_Before_IQK_A, bMaskDWord) & 0x3FF0000) >> 16;
 			result[t][1] = (ODM_GetBBReg(dm_odm, rTx_Power_After_IQK_A, bMaskDWord) & 0x3FF0000) >> 16;
