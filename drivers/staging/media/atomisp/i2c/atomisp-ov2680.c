@@ -387,7 +387,6 @@ static long ov2680_s_exposure(struct v4l2_subdev *sd,
 		return -EINVAL;
 	}
 
-	// EXPOSURE CONTROL DISABLED FOR INITIAL CHECKIN, TUNING DOESN'T WORK
 	return ov2680_set_exposure(sd, coarse_itg, analog_gain, digital_gain);
 }
 
@@ -825,7 +824,7 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct camera_mipi_info *ov2680_info = NULL;
 	struct ov2680_resolution *res;
-	int ret = 0;
+	int vts, ret = 0;
 
 	dev_dbg(&client->dev, "%s: %s: pad: %d, fmt: %p\n",
 		__func__,
@@ -869,6 +868,16 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 	if (ret)
 		dev_err(&client->dev,
 			"ov2680 write resolution register err: %d\n", ret);
+
+	/* If necessary increase the VTS to match exposure + MARGIN */
+	if (dev->exposure > vts - OV2680_INTEGRATION_TIME_MARGIN)
+		vts = dev->exposure + OV2680_INTEGRATION_TIME_MARGIN;
+	else
+		vts = dev->res->lines_per_frame;
+
+	ret = ov2680_write_reg(client, 2, OV2680_TIMING_VTS_H, vts);
+	if (ret)
+		dev_err(&client->dev, "ov2680 write vts err: %d\n", ret);
 
 	ret = ov2680_get_intg_factor(client, ov2680_info, res);
 	if (ret) {
