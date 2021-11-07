@@ -142,8 +142,6 @@ struct parse_events_state {
 	char			  *hybrid_pmu_name;
 };
 
-void parse_events__handle_error(struct parse_events_error *err, int idx,
-				char *str, char *help);
 void parse_events__shrink_config_terms(void);
 int parse_events__is_hardcoded_term(struct parse_events_term *term);
 int parse_events_term__num(struct parse_events_term **term,
@@ -244,8 +242,10 @@ int is_valid_tracepoint(const char *event_string);
 int valid_event_mount(const char *eventfs);
 char *parse_events_formats_error_string(char *additional_terms);
 
-void parse_events_print_error(struct parse_events_error *err,
-			      const char *event);
+void parse_events_error__handle(struct parse_events_error *err, int idx,
+				char *str, char *help);
+void parse_events_error__print(struct parse_events_error *err,
+			       const char *event);
 
 #ifdef HAVE_LIBELF_SUPPORT
 /*

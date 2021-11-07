@@ -1283,7 +1283,7 @@ static int pmu_config_term(const char *pmu_name,
 			unknown_term = NULL;
 		help_msg = parse_events_formats_error_string(pmu_term);
 		if (err) {
-			parse_events__handle_error(err, term->err_term,
+			parse_events_error__handle(err, term->err_term,
 						   unknown_term,
 						   help_msg);
 		} else {
@@ -1316,7 +1316,7 @@ static int pmu_config_term(const char *pmu_name,
 		if (term->no_value &&
 		    bitmap_weight(format->bits, PERF_PMU_FORMAT_BITS) > 1) {
 			if (err) {
-				parse_events__handle_error(err, term->err_val,
+				parse_events_error__handle(err, term->err_val,
 					   strdup("no value assigned for term"),
 					   NULL);
 			}
@@ -1331,7 +1331,7 @@ static int pmu_config_term(const char *pmu_name,
 						term->config, term->val.str);
 			}
 			if (err) {
-				parse_events__handle_error(err, term->err_val,
+				parse_events_error__handle(err, term->err_val,
 					strdup("expected numeric value"),
 					NULL);
 			}
@@ -1348,7 +1348,7 @@ static int pmu_config_term(const char *pmu_name,
 		if (err) {
 			char *err_str;
 
-			parse_events__handle_error(err, term->err_val,
+			parse_events_error__handle(err, term->err_val,
 				asprintf(&err_str,
 				    "value too big for format, maximum is %llu",
 				    (unsigned long long)max_val) < 0

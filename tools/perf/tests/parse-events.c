@@ -2059,7 +2059,7 @@ static int test_event(struct evlist_test *e)
 	if (ret) {
 		pr_debug("failed to parse event '%s', err %d, str '%s'\n",
 			 e->name, ret, err.str);
-		parse_events_print_error(&err, e->name);
+		parse_events_error__print(&err, e->name);
 	} else {
 		ret = e->check(evlist);
 	}

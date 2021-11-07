@@ -4928,7 +4928,7 @@ int cmd_trace(int argc, const char **argv)
 		bzero(&parse_err, sizeof(parse_err));
 		err = parse_events(trace.evlist, trace.perfconfig_events, &parse_err);
 		if (err) {
-			parse_events_print_error(&parse_err, trace.perfconfig_events);
+			parse_events_error__print(&parse_err, trace.perfconfig_events);
 			goto out;
 		}
 	}

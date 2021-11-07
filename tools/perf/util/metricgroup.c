@@ -1342,7 +1342,7 @@ static int parse_ids(struct perf_pmu *fake_pmu, struct expr_parse_ctx *ids,
 	bzero(&parse_error, sizeof(parse_error));
 	ret = __parse_events(parsed_evlist, events.buf, &parse_error, fake_pmu);
 	if (ret) {
-		parse_events_print_error(&parse_error, events.buf);
+		parse_events_error__print(&parse_error, events.buf);
 		goto err_out;
 	}
 	ret = decode_all_metric_ids(parsed_evlist, modifier);

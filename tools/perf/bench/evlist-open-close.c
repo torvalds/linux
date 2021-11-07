@@ -89,7 +89,7 @@ static struct evlist *bench__create_evlist(char *evstr)
 
 	ret = parse_events(evlist, evstr, &err);
 	if (ret) {
-		parse_events_print_error(&err, evstr);
+		parse_events_error__print(&err, evstr);
 		pr_err("Run 'perf list' for a list of valid events\n");
 		ret = 1;
 		goto out_delete_evlist;

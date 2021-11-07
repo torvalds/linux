@@ -128,7 +128,7 @@ static int expand_group_events(void)
 	if (ret < 0) {
 		pr_debug("failed to parse event '%s', err %d, str '%s'\n",
 			 event_str, ret, err.str);
-		parse_events_print_error(&err, event_str);
+		parse_events_error__print(&err, event_str);
 		goto out;
 	}
 
