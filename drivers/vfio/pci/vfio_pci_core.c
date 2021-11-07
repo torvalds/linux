@@ -565,7 +565,7 @@ static bool vfio_pci_dev_below_slot(struct pci_dev *pdev, struct pci_slot *slot)
 }
 
 struct vfio_pci_walk_info {
-	int (*fn)(struct pci_dev *, void *data);
+	int (*fn)(struct pci_dev *pdev, void *data);
 	void *data;
 	struct pci_dev *pdev;
 	bool slot;

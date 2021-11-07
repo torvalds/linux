@@ -2507,7 +2507,7 @@ void irdma_modify_qp_to_err(struct irdma_sc_qp *sc_qp)
 	struct irdma_qp *qp = sc_qp->qp_uk.back_qp;
 	struct ib_qp_attr attr;
 
-	if (qp->iwdev->reset)
+	if (qp->iwdev->rf->reset)
 		return;
 	attr.qp_state = IB_QPS_ERR;
 

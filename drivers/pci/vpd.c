@@ -99,6 +99,24 @@ error:
 	return off ?: PCI_VPD_SZ_INVALID;
 }
 
+static bool pci_vpd_available(struct pci_dev *dev)
+{
+	struct pci_vpd *vpd = &dev->vpd;
+
+	if (!vpd->cap)
+		return false;
+
+	if (vpd->len == 0) {
+		vpd->len = pci_vpd_size(dev);
+		if (vpd->len == PCI_VPD_SZ_INVALID) {
+			vpd->cap = 0;
+			return false;
+		}
+	}
+
+	return true;
+}
+
 /*
  * Wait for last operation to complete.
  * This code has to spin since there is no other notification from the PCI
@@ -145,7 +163,7 @@ static ssize_t pci_vpd_read(struct pci_dev *dev, loff_t pos, size_t count,
 	loff_t end = pos + count;
 	u8 *buf = arg;
 
-	if (!vpd->cap)
+	if (!pci_vpd_available(dev))
 		return -ENODEV;
 
 	if (pos < 0)
@@ -206,7 +224,7 @@ static ssize_t pci_vpd_write(struct pci_dev *dev, loff_t pos, size_t count,
 	loff_t end = pos + count;
 	int ret = 0;
 
-	if (!vpd->cap)
+	if (!pci_vpd_available(dev))
 		return -ENODEV;
 
 	if (pos < 0 || (pos & 3) || (count & 3))
@@ -242,14 +260,11 @@ static ssize_t pci_vpd_write(struct pci_dev *dev, loff_t pos, size_t count,
 
 void pci_vpd_init(struct pci_dev *dev)
 {
+	if (dev->vpd.len == PCI_VPD_SZ_INVALID)
+		return;
+
 	dev->vpd.cap = pci_find_capability(dev, PCI_CAP_ID_VPD);
 	mutex_init(&dev->vpd.lock);
-
-	if (!dev->vpd.len)
-		dev->vpd.len = pci_vpd_size(dev);
-
-	if (dev->vpd.len == PCI_VPD_SZ_INVALID)
-		dev->vpd.cap = 0;
 }
 
 static ssize_t vpd_read(struct file *filp, struct kobject *kobj,
@@ -294,13 +309,14 @@ const struct attribute_group pci_dev_vpd_attr_group = {
 
 void *pci_vpd_alloc(struct pci_dev *dev, unsigned int *size)
 {
-	unsigned int len = dev->vpd.len;
+	unsigned int len;
 	void *buf;
 	int cnt;
 
-	if (!dev->vpd.cap)
+	if (!pci_vpd_available(dev))
 		return ERR_PTR(-ENODEV);
 
+	len = dev->vpd.len;
 	buf = kmalloc(len, GFP_KERNEL);
 	if (!buf)
 		return ERR_PTR(-ENOMEM);

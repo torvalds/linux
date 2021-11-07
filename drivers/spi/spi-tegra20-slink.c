@@ -204,9 +204,6 @@ struct tegra_slink_data {
 	struct dma_async_tx_descriptor		*tx_dma_desc;
 };
 
-static int tegra_slink_runtime_suspend(struct device *dev);
-static int tegra_slink_runtime_resume(struct device *dev);
-
 static inline u32 tegra_slink_readl(struct tegra_slink_data *tspi,
 		unsigned long reg)
 {
@@ -1185,6 +1182,7 @@ static int tegra_slink_resume(struct device *dev)
 }
 #endif
 
+#ifdef CONFIG_PM
 static int tegra_slink_runtime_suspend(struct device *dev)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
@@ -1210,6 +1208,7 @@ static int tegra_slink_runtime_resume(struct device *dev)
 	}
 	return 0;
 }
+#endif /* CONFIG_PM */
 
 static const struct dev_pm_ops slink_pm_ops = {
 	SET_RUNTIME_PM_OPS(tegra_slink_runtime_suspend,

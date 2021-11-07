@@ -22090,6 +22090,7 @@ lpfc_read_object(struct lpfc_hba *phba, char *rdobject, uint32_t *datap,
 	uint32_t shdr_status, shdr_add_status;
 	union lpfc_sli4_cfg_shdr *shdr;
 	struct lpfc_dmabuf *pcmd;
+	u32 rd_object_name[LPFC_MBX_OBJECT_NAME_LEN_DW] = {0};
 
 	/* sanity check on queue memory */
 	if (!datap)
@@ -22113,10 +22114,10 @@ lpfc_read_object(struct lpfc_hba *phba, char *rdobject, uint32_t *datap,
 
 	memset((void *)read_object->u.request.rd_object_name, 0,
 	       LPFC_OBJ_NAME_SZ);
-	sprintf((uint8_t *)read_object->u.request.rd_object_name, rdobject);
+	scnprintf((char *)rd_object_name, sizeof(rd_object_name), rdobject);
 	for (j = 0; j < strlen(rdobject); j++)
 		read_object->u.request.rd_object_name[j] =
-			cpu_to_le32(read_object->u.request.rd_object_name[j]);
+			cpu_to_le32(rd_object_name[j]);
 
 	pcmd = kmalloc(sizeof(*pcmd), GFP_KERNEL);
 	if (pcmd)

@@ -55,7 +55,7 @@ static void i40iw_close(struct i40e_info *cdev_info, struct i40e_client *client,
 
 	iwdev = to_iwdev(ibdev);
 	if (reset)
-		iwdev->reset = true;
+		iwdev->rf->reset = true;
 
 	iwdev->iw_status = 0;
 	irdma_port_ibevent(iwdev);

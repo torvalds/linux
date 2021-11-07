@@ -118,32 +118,53 @@ static inline void disable_dirty_logging(struct kvm_vm *vm, int slots)
 	toggle_dirty_logging(vm, slots, false);
 }
 
-static void get_dirty_log(struct kvm_vm *vm, int slots, unsigned long *bitmap,
-			  uint64_t nr_pages)
+static void get_dirty_log(struct kvm_vm *vm, unsigned long *bitmaps[], int slots)
 {
-	uint64_t slot_pages = nr_pages / slots;
 	int i;
 
 	for (i = 0; i < slots; i++) {
 		int slot = PERF_TEST_MEM_SLOT_INDEX + i;
-		unsigned long *slot_bitmap = bitmap + i * slot_pages;
 
-		kvm_vm_get_dirty_log(vm, slot, slot_bitmap);
+		kvm_vm_get_dirty_log(vm, slot, bitmaps[i]);
 	}
 }
 
-static void clear_dirty_log(struct kvm_vm *vm, int slots, unsigned long *bitmap,
-			    uint64_t nr_pages)
+static void clear_dirty_log(struct kvm_vm *vm, unsigned long *bitmaps[],
+			    int slots, uint64_t pages_per_slot)
 {
-	uint64_t slot_pages = nr_pages / slots;
 	int i;
 
 	for (i = 0; i < slots; i++) {
 		int slot = PERF_TEST_MEM_SLOT_INDEX + i;
-		unsigned long *slot_bitmap = bitmap + i * slot_pages;
 
-		kvm_vm_clear_dirty_log(vm, slot, slot_bitmap, 0, slot_pages);
+		kvm_vm_clear_dirty_log(vm, slot, bitmaps[i], 0, pages_per_slot);
 	}
+}
+
+static unsigned long **alloc_bitmaps(int slots, uint64_t pages_per_slot)
+{
+	unsigned long **bitmaps;
+	int i;
+
+	bitmaps = malloc(slots * sizeof(bitmaps[0]));
+	TEST_ASSERT(bitmaps, "Failed to allocate bitmaps array.");
+
+	for (i = 0; i < slots; i++) {
+		bitmaps[i] = bitmap_zalloc(pages_per_slot);
+		TEST_ASSERT(bitmaps[i], "Failed to allocate slot bitmap.");
+	}
+
+	return bitmaps;
+}
+
+static void free_bitmaps(unsigned long *bitmaps[], int slots)
+{
+	int i;
+
+	for (i = 0; i < slots; i++)
+		free(bitmaps[i]);
+
+	free(bitmaps);
 }
 
 static void run_test(enum vm_guest_mode mode, void *arg)
@@ -151,9 +172,10 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	struct test_params *p = arg;
 	pthread_t *vcpu_threads;
 	struct kvm_vm *vm;
-	unsigned long *bmap;
+	unsigned long **bitmaps;
 	uint64_t guest_num_pages;
 	uint64_t host_num_pages;
+	uint64_t pages_per_slot;
 	int vcpu_id;
 	struct timespec start;
 	struct timespec ts_diff;
@@ -171,7 +193,9 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	guest_num_pages = (nr_vcpus * guest_percpu_mem_size) >> vm_get_page_shift(vm);
 	guest_num_pages = vm_adjust_num_guest_pages(mode, guest_num_pages);
 	host_num_pages = vm_num_host_pages(mode, guest_num_pages);
-	bmap = bitmap_zalloc(host_num_pages);
+	pages_per_slot = host_num_pages / p->slots;
+
+	bitmaps = alloc_bitmaps(p->slots, pages_per_slot);
 
 	if (dirty_log_manual_caps) {
 		cap.cap = KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2;
@@ -239,7 +263,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 			iteration, ts_diff.tv_sec, ts_diff.tv_nsec);
 
 		clock_gettime(CLOCK_MONOTONIC, &start);
-		get_dirty_log(vm, p->slots, bmap, host_num_pages);
+		get_dirty_log(vm, bitmaps, p->slots);
 		ts_diff = timespec_elapsed(start);
 		get_dirty_log_total = timespec_add(get_dirty_log_total,
 						   ts_diff);
@@ -248,7 +272,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 
 		if (dirty_log_manual_caps) {
 			clock_gettime(CLOCK_MONOTONIC, &start);
-			clear_dirty_log(vm, p->slots, bmap, host_num_pages);
+			clear_dirty_log(vm, bitmaps, p->slots, pages_per_slot);
 			ts_diff = timespec_elapsed(start);
 			clear_dirty_log_total = timespec_add(clear_dirty_log_total,
 							     ts_diff);
@@ -281,7 +305,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 			clear_dirty_log_total.tv_nsec, avg.tv_sec, avg.tv_nsec);
 	}
 
-	free(bmap);
+	free_bitmaps(bitmaps, p->slots);
 	free(vcpu_threads);
 	perf_test_destroy_vm(vm);
 }
@@ -308,11 +332,9 @@ static void help(char *name)
 	printf(" -v: specify the number of vCPUs to run.\n");
 	printf(" -o: Overlap guest memory accesses instead of partitioning\n"
 	       "     them into a separate region of memory for each vCPU.\n");
-	printf(" -s: specify the type of memory that should be used to\n"
-	       "     back the guest data region.\n\n");
+	backing_src_help("-s");
 	printf(" -x: Split the memory region into this number of memslots.\n"
-	       "     (default: 1)");
-	backing_src_help();
+	       "     (default: 1)\n");
 	puts("");
 	exit(0);
 }
@@ -324,7 +346,7 @@ int main(int argc, char *argv[])
 		.iterations = TEST_HOST_LOOP_N,
 		.wr_fract = 1,
 		.partition_vcpu_memory_access = true,
-		.backing_src = VM_MEM_SRC_ANONYMOUS,
+		.backing_src = DEFAULT_VM_MEM_SRC,
 		.slots = 1,
 	};
 	int opt;

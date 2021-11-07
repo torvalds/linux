@@ -29,7 +29,12 @@ CLANG_FLAGS	+= --prefix=$(GCC_TOOLCHAIN_DIR)$(notdir $(CROSS_COMPILE))
 else
 CLANG_FLAGS	+= -fintegrated-as
 endif
+# By default, clang only warns when it encounters an unknown warning flag or
+# certain optimization flags it knows it has not implemented.
+# Make it behave more like gcc by erroring when these flags are encountered
+# so they can be implemented or wrapped in cc-option.
 CLANG_FLAGS	+= -Werror=unknown-warning-option
+CLANG_FLAGS	+= -Werror=ignored-optimization-argument
 KBUILD_CFLAGS	+= $(CLANG_FLAGS)
 KBUILD_AFLAGS	+= $(CLANG_FLAGS)
 export CLANG_FLAGS

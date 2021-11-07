@@ -456,9 +456,7 @@ void afs_fs_fetch_data(struct afs_operation *op)
 	struct afs_read *req = op->fetch.req;
 	__be32 *bp;
 
-	if (upper_32_bits(req->pos) ||
-	    upper_32_bits(req->len) ||
-	    upper_32_bits(req->pos + req->len))
+	if (test_bit(AFS_SERVER_FL_HAS_FS64, &op->server->flags))
 		return afs_fs_fetch_data64(op);
 
 	_enter("");
@@ -1113,9 +1111,7 @@ void afs_fs_store_data(struct afs_operation *op)
 	       (unsigned long long)op->store.pos,
 	       (unsigned long long)op->store.i_size);
 
-	if (upper_32_bits(op->store.pos) ||
-	    upper_32_bits(op->store.size) ||
-	    upper_32_bits(op->store.i_size))
+	if (test_bit(AFS_SERVER_FL_HAS_FS64, &op->server->flags))
 		return afs_fs_store_data64(op);
 
 	call = afs_alloc_flat_call(op->net, &afs_RXFSStoreData,
@@ -1229,7 +1225,7 @@ static void afs_fs_setattr_size(struct afs_operation *op)
 	       key_serial(op->key), vp->fid.vid, vp->fid.vnode);
 
 	ASSERT(attr->ia_valid & ATTR_SIZE);
-	if (upper_32_bits(attr->ia_size))
+	if (test_bit(AFS_SERVER_FL_HAS_FS64, &op->server->flags))
 		return afs_fs_setattr_size64(op);
 
 	call = afs_alloc_flat_call(op->net, &afs_RXFSStoreData_as_Status,
@@ -1657,20 +1653,33 @@ static int afs_deliver_fs_get_capabilities(struct afs_call *call)
 			return ret;
 
 		count = ntohl(call->tmp);
-
 		call->count = count;
 		call->count2 = count;
-		afs_extract_discard(call, count * sizeof(__be32));
+		if (count == 0) {
+			call->unmarshall = 4;
+			call->tmp = 0;
+			break;
+		}
+
+		/* Extract the first word of the capabilities to call->tmp */
+		afs_extract_to_tmp(call);
 		call->unmarshall++;
 		fallthrough;
 
-		/* Extract capabilities words */
 	case 2:
 		ret = afs_extract_data(call, false);
 		if (ret < 0)
 			return ret;
 
-		/* TODO: Examine capabilities */
+		afs_extract_discard(call, (count - 1) * sizeof(__be32));
+		call->unmarshall++;
+		fallthrough;
+
+		/* Extract remaining capabilities words */
+	case 3:
+		ret = afs_extract_data(call, false);
+		if (ret < 0)
+			return ret;
 
 		call->unmarshall++;
 		break;

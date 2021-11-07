@@ -658,11 +658,10 @@ static const struct devlink_param enable_rdma_param =
 
 static int mlx5_devlink_rdma_param_register(struct devlink *devlink)
 {
-	struct mlx5_core_dev *dev = devlink_priv(devlink);
 	union devlink_param_value value;
 	int err;
 
-	if (!IS_ENABLED(CONFIG_MLX5_INFINIBAND) || MLX5_ESWITCH_MANAGER(dev))
+	if (!IS_ENABLED(CONFIG_MLX5_INFINIBAND))
 		return 0;
 
 	err = devlink_param_register(devlink, &enable_rdma_param);
@@ -679,9 +678,7 @@ static int mlx5_devlink_rdma_param_register(struct devlink *devlink)
 
 static void mlx5_devlink_rdma_param_unregister(struct devlink *devlink)
 {
-	struct mlx5_core_dev *dev = devlink_priv(devlink);
-
-	if (!IS_ENABLED(CONFIG_MLX5_INFINIBAND) || MLX5_ESWITCH_MANAGER(dev))
+	if (!IS_ENABLED(CONFIG_MLX5_INFINIBAND))
 		return;
 
 	devlink_param_unpublish(devlink, &enable_rdma_param);

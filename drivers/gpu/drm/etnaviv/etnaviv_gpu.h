@@ -101,6 +101,7 @@ struct etnaviv_gpu {
 	struct workqueue_struct *wq;
 	struct drm_gpu_scheduler sched;
 	bool initialized;
+	bool fe_running;
 
 	/* 'ring'-buffer: */
 	struct etnaviv_cmdbuf buffer;

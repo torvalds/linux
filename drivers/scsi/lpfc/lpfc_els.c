@@ -4015,11 +4015,11 @@ lpfc_cmpl_els_edc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				be32_to_cpu(pcgd->desc_tag),
 				be32_to_cpu(pcgd->desc_len),
 				be32_to_cpu(pcgd->xmt_signal_capability),
-				be32_to_cpu(pcgd->xmt_signal_frequency.count),
-				be32_to_cpu(pcgd->xmt_signal_frequency.units),
+				be16_to_cpu(pcgd->xmt_signal_frequency.count),
+				be16_to_cpu(pcgd->xmt_signal_frequency.units),
 				be32_to_cpu(pcgd->rcv_signal_capability),
-				be32_to_cpu(pcgd->rcv_signal_frequency.count),
-				be32_to_cpu(pcgd->rcv_signal_frequency.units));
+				be16_to_cpu(pcgd->rcv_signal_frequency.count),
+				be16_to_cpu(pcgd->rcv_signal_frequency.units));
 
 			/* Compare driver and Fport capabilities and choose
 			 * least common.
@@ -9387,7 +9387,7 @@ lpfc_display_fpin_wwpn(struct lpfc_hba *phba, __be64 *wwnlist, u32 cnt)
 		/* Extract the next WWPN from the payload */
 		wwn = *wwnlist++;
 		wwpn = be64_to_cpu(wwn);
-		len += scnprintf(buf + len, LPFC_FPIN_WWPN_LINE_SZ,
+		len += scnprintf(buf + len, LPFC_FPIN_WWPN_LINE_SZ - len,
 				 " %016llx", wwpn);
 
 		/* Log a message if we are on the last WWPN

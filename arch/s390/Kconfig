@@ -685,16 +685,6 @@ config STACK_GUARD
 	  The minimum size for the stack guard should be 256 for 31 bit and
 	  512 for 64 bit.
 
-config WARN_DYNAMIC_STACK
-	def_bool n
-	prompt "Emit compiler warnings for function with dynamic stack usage"
-	help
-	  This option enables the compiler option -mwarn-dynamicstack. If the
-	  compiler supports this options generates warnings for functions
-	  that dynamically allocate stack space using alloca.
-
-	  Say N if you are unsure.
-
 endmenu
 
 menu "I/O subsystem"

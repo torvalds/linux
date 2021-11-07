@@ -937,7 +937,7 @@ static struct acpi_device *acpi_pci_find_companion(struct device *dev);
 
 void pci_set_acpi_fwnode(struct pci_dev *dev)
 {
-	if (!ACPI_COMPANION(&dev->dev) && !pci_dev_is_added(dev))
+	if (!dev_fwnode(&dev->dev) && !pci_dev_is_added(dev))
 		ACPI_COMPANION_SET(&dev->dev,
 				   acpi_pci_find_companion(&dev->dev));
 }

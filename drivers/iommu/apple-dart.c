@@ -183,7 +183,6 @@ struct apple_dart_master_cfg {
 
 static struct platform_driver apple_dart_driver;
 static const struct iommu_ops apple_dart_iommu_ops;
-static const struct iommu_flush_ops apple_dart_tlb_ops;
 
 static struct apple_dart_domain *to_dart_domain(struct iommu_domain *dom)
 {
@@ -338,22 +337,6 @@ static void apple_dart_iotlb_sync_map(struct iommu_domain *domain,
 	apple_dart_domain_flush_tlb(to_dart_domain(domain));
 }
 
-static void apple_dart_tlb_flush_all(void *cookie)
-{
-	apple_dart_domain_flush_tlb(cookie);
-}
-
-static void apple_dart_tlb_flush_walk(unsigned long iova, size_t size,
-				      size_t granule, void *cookie)
-{
-	apple_dart_domain_flush_tlb(cookie);
-}
-
-static const struct iommu_flush_ops apple_dart_tlb_ops = {
-	.tlb_flush_all = apple_dart_tlb_flush_all,
-	.tlb_flush_walk = apple_dart_tlb_flush_walk,
-};
-
 static phys_addr_t apple_dart_iova_to_phys(struct iommu_domain *domain,
 					   dma_addr_t iova)
 {
@@ -435,7 +418,6 @@ static int apple_dart_finalize_domain(struct iommu_domain *domain,
 		.ias = 32,
 		.oas = 36,
 		.coherent_walk = 1,
-		.tlb = &apple_dart_tlb_ops,
 		.iommu_dev = dart->dev,
 	};
 
@@ -661,16 +643,34 @@ static int apple_dart_of_xlate(struct device *dev, struct of_phandle_args *args)
 	return -EINVAL;
 }
 
+static DEFINE_MUTEX(apple_dart_groups_lock);
+
+static void apple_dart_release_group(void *iommu_data)
+{
+	int i, sid;
+	struct apple_dart_stream_map *stream_map;
+	struct apple_dart_master_cfg *group_master_cfg = iommu_data;
+
+	mutex_lock(&apple_dart_groups_lock);
+
+	for_each_stream_map(i, group_master_cfg, stream_map)
+		for_each_set_bit(sid, &stream_map->sidmap, DART_MAX_STREAMS)
+			stream_map->dart->sid2group[sid] = NULL;
+
+	kfree(iommu_data);
+	mutex_unlock(&apple_dart_groups_lock);
+}
+
 static struct iommu_group *apple_dart_device_group(struct device *dev)
 {
-	static DEFINE_MUTEX(lock);
 	int i, sid;
 	struct apple_dart_master_cfg *cfg = dev_iommu_priv_get(dev);
 	struct apple_dart_stream_map *stream_map;
+	struct apple_dart_master_cfg *group_master_cfg;
 	struct iommu_group *group = NULL;
 	struct iommu_group *res = ERR_PTR(-EINVAL);
 
-	mutex_lock(&lock);
+	mutex_lock(&apple_dart_groups_lock);
 
 	for_each_stream_map(i, cfg, stream_map) {
 		for_each_set_bit(sid, &stream_map->sidmap, DART_MAX_STREAMS) {
@@ -698,6 +698,20 @@ static struct iommu_group *apple_dart_device_group(struct device *dev)
 #endif
 		group = generic_device_group(dev);
 
+	res = ERR_PTR(-ENOMEM);
+	if (!group)
+		goto out;
+
+	group_master_cfg = kzalloc(sizeof(*group_master_cfg), GFP_KERNEL);
+	if (!group_master_cfg) {
+		iommu_group_put(group);
+		goto out;
+	}
+
+	memcpy(group_master_cfg, cfg, sizeof(*group_master_cfg));
+	iommu_group_set_iommudata(group, group_master_cfg,
+		apple_dart_release_group);
+
 	for_each_stream_map(i, cfg, stream_map)
 		for_each_set_bit(sid, &stream_map->sidmap, DART_MAX_STREAMS)
 			stream_map->dart->sid2group[sid] = group;
@@ -705,7 +719,7 @@ static struct iommu_group *apple_dart_device_group(struct device *dev)
 	res = group;
 
 out:
-	mutex_unlock(&lock);
+	mutex_unlock(&apple_dart_groups_lock);
 	return res;
 }
 

@@ -2178,7 +2178,7 @@ mpt3sas_send_diag_release(struct MPT3SAS_ADAPTER *ioc, u8 buffer_type,
 		mpt3sas_check_cmd_timeout(ioc,
 		    ioc->ctl_cmds.status, mpi_request,
 		    sizeof(Mpi2DiagReleaseRequest_t)/4, reset_needed);
-		 *issue_reset = reset_needed;
+		*issue_reset = reset_needed;
 		rc = -EFAULT;
 		goto out;
 	}

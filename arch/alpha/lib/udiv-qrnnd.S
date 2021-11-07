@@ -25,6 +25,7 @@
  # along with GCC; see the file COPYING.  If not, write to the 
  # Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
  # MA 02111-1307, USA.
+#include <asm/export.h>
 
         .set noreorder
         .set noat
@@ -161,3 +162,4 @@ $Odd:
 	ret	$31,($26),1
 
 	.end	__udiv_qrnnd
+EXPORT_SYMBOL(__udiv_qrnnd)

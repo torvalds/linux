@@ -1019,16 +1019,18 @@ create_feature_instance(struct build_feature_devs_info *binfo,
 {
 	unsigned int irq_base, nr_irqs;
 	struct dfl_feature_info *finfo;
+	u8 revision = 0;
 	int ret;
-	u8 revision;
 	u64 v;
 
-	v = readq(binfo->ioaddr + ofst);
-	revision = FIELD_GET(DFH_REVISION, v);
+	if (fid != FEATURE_ID_AFU) {
+		v = readq(binfo->ioaddr + ofst);
+		revision = FIELD_GET(DFH_REVISION, v);
 
-	/* read feature size and id if inputs are invalid */
-	size = size ? size : feature_size(v);
-	fid = fid ? fid : feature_id(v);
+		/* read feature size and id if inputs are invalid */
+		size = size ? size : feature_size(v);
+		fid = fid ? fid : feature_id(v);
+	}
 
 	if (binfo->len - ofst < size)
 		return -EINVAL;

@@ -13,7 +13,7 @@
 # Stage 2 is handled by this file and does the following
 # 1) Find all modules listed in modules.order
 # 2) modpost is then used to
-# 3)  create one <module>.mod.c file pr. module
+# 3)  create one <module>.mod.c file per module
 # 4)  create one Module.symvers file with CRC for all exported symbols
 
 # Step 3 is used to place certain information in the module's ELF

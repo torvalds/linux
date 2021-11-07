@@ -805,11 +805,14 @@ void intel_dmc_ucode_resume(struct drm_i915_private *dev_priv)
  */
 void intel_dmc_ucode_fini(struct drm_i915_private *dev_priv)
 {
+	int id;
+
 	if (!HAS_DMC(dev_priv))
 		return;
 
 	intel_dmc_ucode_suspend(dev_priv);
 	drm_WARN_ON(&dev_priv->drm, dev_priv->dmc.wakeref);
 
-	kfree(dev_priv->dmc.dmc_info[DMC_FW_MAIN].payload);
+	for (id = 0; id < DMC_FW_MAX; id++)
+		kfree(dev_priv->dmc.dmc_info[id].payload);
 }

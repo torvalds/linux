@@ -362,8 +362,9 @@ static int __intel_context_active(struct i915_active *active)
 	return 0;
 }
 
-static int sw_fence_dummy_notify(struct i915_sw_fence *sf,
-				 enum i915_sw_fence_notify state)
+static int __i915_sw_fence_call
+sw_fence_dummy_notify(struct i915_sw_fence *sf,
+		      enum i915_sw_fence_notify state)
 {
 	return NOTIFY_DONE;
 }

@@ -206,7 +206,8 @@ static int __dma_map_sg_attrs(struct device *dev, struct scatterlist *sg,
 /**
  * dma_map_sg_attrs - Map the given buffer for DMA
  * @dev:	The device for which to perform the DMA operation
- * @sg:	The sg_table object describing the buffer
+ * @sg:		The sg_table object describing the buffer
+ * @nents:	Number of entries to map
  * @dir:	DMA direction
  * @attrs:	Optional DMA attributes for the map operation
  *
