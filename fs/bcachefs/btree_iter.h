@@ -253,8 +253,6 @@ static inline void bch2_btree_iter_set_pos(struct btree_iter *iter, struct bpos 
 	iter->k.p.offset	= iter->pos.offset	= new_pos.offset;
 	iter->k.p.snapshot	= iter->pos.snapshot	= new_pos.snapshot;
 	iter->k.size = 0;
-	if (iter->path->ref == 1)
-		iter->path->should_be_locked = false;
 }
 
 static inline void bch2_btree_iter_set_pos_to_extent_start(struct btree_iter *iter)

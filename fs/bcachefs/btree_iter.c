@@ -1654,19 +1654,19 @@ static struct btree_path *have_path_at_pos(struct btree_trans *trans, struct btr
 	return NULL;
 }
 
-static bool have_node_at_pos(struct btree_trans *trans, struct btree_path *path)
+static struct btree_path *have_node_at_pos(struct btree_trans *trans, struct btree_path *path)
 {
 	struct btree_path *next;
 
 	next = prev_btree_path(trans, path);
-	if (next && path_l(next)->b == path_l(path)->b)
-		return true;
+	if (next && next->level == path->level && path_l(next)->b == path_l(path)->b)
+		return next;
 
 	next = next_btree_path(trans, path);
-	if (next && path_l(next)->b == path_l(path)->b)
-		return true;
+	if (next && next->level == path->level && path_l(next)->b == path_l(path)->b)
+		return next;
 
-	return false;
+	return NULL;
 }
 
 static inline void __bch2_path_free(struct btree_trans *trans, struct btree_path *path)
@@ -1693,11 +1693,20 @@ void bch2_path_put(struct btree_trans *trans, struct btree_path *path, bool inte
 	    (dup = have_path_at_pos(trans, path))) {
 		dup->preserve = true;
 		path->preserve = false;
+		goto free;
 	}
 
 	if (!path->preserve &&
-	    have_node_at_pos(trans, path))
-		__bch2_path_free(trans, path);
+	    (dup = have_node_at_pos(trans, path)))
+		goto free;
+	return;
+free:
+	if (path->should_be_locked &&
+	    !btree_node_locked(dup, path->level))
+		return;
+
+	dup->should_be_locked |= path->should_be_locked;
+	__bch2_path_free(trans, path);
 }
 
 noinline __cold
