@@ -744,9 +744,15 @@ static int power_up(struct v4l2_subdev *sd)
 	/* according to DS, 20ms is needed between PWDN and i2c access */
 	msleep(20);
 
+	ret = ov2680_init_registers(sd);
+	if (ret)
+		goto fail_init_registers;
+
 	dev->power_on = true;
 	return 0;
 
+fail_init_registers:
+	dev->platform_data->flisclk_ctrl(sd, 0);
 fail_clk:
 	gpio_ctrl(sd, 0);
 fail_power:
@@ -807,8 +813,6 @@ static int ov2680_s_power(struct v4l2_subdev *sd, int on)
 		ret = power_down(sd);
 	} else {
 		ret = power_up(sd);
-		if (!ret)
-			ret = ov2680_init_registers(sd);
 	}
 
 	mutex_unlock(&dev->input_lock);
