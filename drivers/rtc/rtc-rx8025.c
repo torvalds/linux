@@ -403,17 +403,7 @@ static int rx8025_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	return 0;
 }
 
-static const struct rtc_class_ops rx8025_rtc_ops = {
-	.read_time = rx8025_get_time,
-	.set_time = rx8025_set_time,
-	.read_alarm = rx8025_read_alarm,
-	.set_alarm = rx8025_set_alarm,
-	.alarm_irq_enable = rx8025_alarm_irq_enable,
-};
-
 /*
- * Clock precision adjustment support
- *
  * According to the RX8025 SA/NB application manual the frequency and
  * temperature characteristics can be approximated using the following
  * equation:
@@ -424,11 +414,8 @@ static const struct rtc_class_ops rx8025_rtc_ops = {
  *   a : Coefficient = (-35 +-5) * 10**-9
  *   ut: Ultimate temperature in degree = +25 +-5 degree
  *   t : Any temperature in degree
- *
- * Note that the clock adjustment in ppb must be entered (which is
- * the negative value of the deviation).
  */
-static int rx8025_get_clock_adjust(struct device *dev, int *adj)
+static int rx8025_read_offset(struct device *dev, long *offset)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	int digoff;
@@ -437,63 +424,75 @@ static int rx8025_get_clock_adjust(struct device *dev, int *adj)
 	if (digoff < 0)
 		return digoff;
 
-	*adj = digoff >= 64 ? digoff - 128 : digoff;
-	if (*adj > 0)
-		(*adj)--;
-	*adj *= -RX8025_ADJ_RESOLUTION;
+	*offset = digoff >= 64 ? digoff - 128 : digoff;
+	if (*offset > 0)
+		(*offset)--;
+	*offset *= RX8025_ADJ_RESOLUTION;
 
 	return 0;
 }
 
-static int rx8025_set_clock_adjust(struct device *dev, int adj)
+static int rx8025_set_offset(struct device *dev, long offset)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	u8 digoff;
 	int err;
 
-	adj /= -RX8025_ADJ_RESOLUTION;
-	if (adj > RX8025_ADJ_DATA_MAX)
-		adj = RX8025_ADJ_DATA_MAX;
-	else if (adj < RX8025_ADJ_DATA_MIN)
-		adj = RX8025_ADJ_DATA_MIN;
-	else if (adj > 0)
-		adj++;
-	else if (adj < 0)
-		adj += 128;
-	digoff = adj;
+	offset /= RX8025_ADJ_RESOLUTION;
+	if (offset > RX8025_ADJ_DATA_MAX)
+		offset = RX8025_ADJ_DATA_MAX;
+	else if (offset < RX8025_ADJ_DATA_MIN)
+		offset = RX8025_ADJ_DATA_MIN;
+	else if (offset > 0)
+		offset++;
+	else if (offset < 0)
+		offset += 128;
+	digoff = offset;
 
 	err = rx8025_write_reg(client, RX8025_REG_DIGOFF, digoff);
 	if (err)
 		return err;
 
-	dev_dbg(dev, "%s: write 0x%02x\n", __func__, digoff);
-
 	return 0;
 }
+
+static const struct rtc_class_ops rx8025_rtc_ops = {
+	.read_time = rx8025_get_time,
+	.set_time = rx8025_set_time,
+	.read_alarm = rx8025_read_alarm,
+	.set_alarm = rx8025_set_alarm,
+	.alarm_irq_enable = rx8025_alarm_irq_enable,
+	.read_offset = rx8025_read_offset,
+	.set_offset = rx8025_set_offset,
+};
 
 static ssize_t rx8025_sysfs_show_clock_adjust(struct device *dev,
 					      struct device_attribute *attr,
 					      char *buf)
 {
-	int err, adj;
+	long adj;
+	int err;
 
-	err = rx8025_get_clock_adjust(dev, &adj);
+	dev_warn_once(dev, "clock_adjust_ppb is deprecated, use offset\n");
+	err = rx8025_read_offset(dev, &adj);
 	if (err)
 		return err;
 
-	return sprintf(buf, "%d\n", adj);
+	return sprintf(buf, "%ld\n", -adj);
 }
 
 static ssize_t rx8025_sysfs_store_clock_adjust(struct device *dev,
 					       struct device_attribute *attr,
 					       const char *buf, size_t count)
 {
-	int adj, err;
+	long adj;
+	int err;
 
-	if (sscanf(buf, "%i", &adj) != 1)
+	dev_warn_once(dev, "clock_adjust_ppb is deprecated, use offset\n");
+	if (kstrtol(buf, 10, &adj) != 0)
 		return -EINVAL;
 
-	err = rx8025_set_clock_adjust(dev, adj);
+	err = rx8025_set_offset(dev, -adj);
 
 	return err ? err : count;
 }
