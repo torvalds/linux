@@ -502,15 +502,14 @@ static DEVICE_ATTR(clock_adjust_ppb, S_IRUGO | S_IWUSR,
 		   rx8025_sysfs_show_clock_adjust,
 		   rx8025_sysfs_store_clock_adjust);
 
-static int rx8025_sysfs_register(struct device *dev)
-{
-	return device_create_file(dev, &dev_attr_clock_adjust_ppb);
-}
+static struct attribute *rx8025_attrs[] = {
+	&dev_attr_clock_adjust_ppb.attr,
+	NULL
+};
 
-static void rx8025_sysfs_unregister(struct device *dev)
-{
-	device_remove_file(dev, &dev_attr_clock_adjust_ppb);
-}
+static const struct attribute_group rx8025_attr_group = {
+	.attrs	= rx8025_attrs,
+};
 
 static int rx8025_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
@@ -562,18 +561,11 @@ static int rx8025_probe(struct i2c_client *client,
 	set_bit(RTC_FEATURE_ALARM_RES_MINUTE, rx8025->rtc->features);
 	clear_bit(RTC_FEATURE_UPDATE_INTERRUPT, rx8025->rtc->features);
 
-	err = devm_rtc_register_device(rx8025->rtc);
+	err = rtc_add_group(rx8025->rtc, &rx8025_attr_group);
 	if (err)
 		return err;
 
-	err = rx8025_sysfs_register(&client->dev);
-	return err;
-}
-
-static int rx8025_remove(struct i2c_client *client)
-{
-	rx8025_sysfs_unregister(&client->dev);
-	return 0;
+	return devm_rtc_register_device(rx8025->rtc);
 }
 
 static struct i2c_driver rx8025_driver = {
@@ -581,7 +573,6 @@ static struct i2c_driver rx8025_driver = {
 		.name = "rtc-rx8025",
 	},
 	.probe		= rx8025_probe,
-	.remove		= rx8025_remove,
 	.id_table	= rx8025_id,
 };
 
