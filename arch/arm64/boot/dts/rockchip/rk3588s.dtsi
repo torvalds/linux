@@ -706,6 +706,18 @@
 		status = "disabled";
 	};
 
+	rkispp0_vir0: rkispp0-vir0 {
+		compatible = "rockchip,rk3588-rkispp-vir";
+		rockchip,hw = <&rkispp0>;
+		status = "disabled";
+	};
+
+	rkispp1_vir0: rkispp1-vir0 {
+		compatible = "rockchip,rk3588-rkispp-vir";
+		rockchip,hw = <&rkispp1>;
+		status = "disabled";
+	};
+
 	rkvenc_ccu: rkvenc-ccu {
 		compatible = "rockchip,rkv-encoder-v2-ccu";
 		status = "disabled";
@@ -2180,6 +2192,19 @@
 		status = "disabled";
 	};
 
+	rkispp0: rkispp@fdcd0000 {
+		compatible = "rockchip,rk3588-rkispp";
+		reg = <0x0 0xfdcd0000 0x0 0x0f00>;
+		interrupts = <GIC_SPI 139 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "fec_irq";
+		clocks = <&cru ACLK_FISHEYE0>, <&cru HCLK_FISHEYE0>,
+			 <&cru CLK_FISHEYE0_CORE>;
+		clock-names = "aclk_ispp", "hclk_ispp", "clk_ispp";
+		power-domains = <&power RK3588_PD_FEC>;
+		iommus = <&fec0_mmu>;
+		status = "disabled";
+	};
+
 	fec0_mmu: iommu@fdcd0f00 {
 		compatible = "rockchip,iommu-v2";
 		reg = <0x0 0xfdcd0f00 0x0 0x100>;
@@ -2189,6 +2214,19 @@
 		clock-names = "aclk", "iface";
 		power-domains = <&power RK3588_PD_FEC>;
 		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
+	rkispp1: rkispp@fdcd8000 {
+		compatible = "rockchip,rk3588-rkispp";
+		reg = <0x0 0xfdcd8000 0x0 0x0f00>;
+		interrupts = <GIC_SPI 141 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "fec_irq";
+		clocks = <&cru ACLK_FISHEYE1>, <&cru HCLK_FISHEYE1>,
+			 <&cru CLK_FISHEYE1_CORE>;
+		clock-names = "aclk_ispp", "hclk_ispp", "clk_ispp";
+		power-domains = <&power RK3588_PD_FEC>;
+		iommus = <&fec1_mmu>;
 		status = "disabled";
 	};
 
