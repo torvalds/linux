@@ -12,13 +12,10 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/fb.h>
 #include <linux/mm.h>
 #include <linux/platform_device.h>
-#include <linux/string.h>
-#include <linux/uaccess.h>
 #include <linux/cfag12864b.h>
 
 #define CFAG12864BFB_NAME "cfag12864bfb"
@@ -41,8 +38,8 @@ static const struct fb_var_screeninfo cfag12864bfb_var = {
 	.yres_virtual = CFAG12864B_HEIGHT,
 	.bits_per_pixel = 1,
 	.red = { 0, 1, 0 },
-      	.green = { 0, 1, 0 },
-      	.blue = { 0, 1, 0 },
+	.green = { 0, 1, 0 },
+	.blue = { 0, 1, 0 },
 	.left_margin = 0,
 	.right_margin = 0,
 	.upper_margin = 0,
@@ -70,7 +67,7 @@ static const struct fb_ops cfag12864bfb_ops = {
 static int cfag12864bfb_probe(struct platform_device *device)
 {
 	int ret = -EINVAL;
- 	struct fb_info *info = framebuffer_alloc(0, &device->dev);
+	struct fb_info *info = framebuffer_alloc(0, &device->dev);
 
 	if (!info)
 		goto none;
