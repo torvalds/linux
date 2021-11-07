@@ -21,7 +21,8 @@ static int irdma_query_device(struct ib_device *ibdev,
 		return -EINVAL;
 
 	memset(props, 0, sizeof(*props));
-	ether_addr_copy((u8 *)&props->sys_image_guid, iwdev->netdev->dev_addr);
+	addrconf_addr_eui48((u8 *)&props->sys_image_guid,
+			    iwdev->netdev->dev_addr);
 	props->fw_ver = (u64)irdma_fw_major_ver(&rf->sc_dev) << 32 |
 			irdma_fw_minor_ver(&rf->sc_dev);
 	props->device_cap_flags = iwdev->device_cap_flags;
@@ -4308,24 +4309,6 @@ static enum rdma_link_layer irdma_get_link_layer(struct ib_device *ibdev,
 	return IB_LINK_LAYER_ETHERNET;
 }
 
-static __be64 irdma_mac_to_guid(struct net_device *ndev)
-{
-	const unsigned char *mac = ndev->dev_addr;
-	__be64 guid;
-	unsigned char *dst = (unsigned char *)&guid;
-
-	dst[0] = mac[0] ^ 2;
-	dst[1] = mac[1];
-	dst[2] = mac[2];
-	dst[3] = 0xff;
-	dst[4] = 0xfe;
-	dst[5] = mac[3];
-	dst[6] = mac[4];
-	dst[7] = mac[5];
-
-	return guid;
-}
-
 static const struct ib_device_ops irdma_roce_dev_ops = {
 	.attach_mcast = irdma_attach_mcast,
 	.create_ah = irdma_create_ah,
@@ -4395,7 +4378,8 @@ static const struct ib_device_ops irdma_dev_ops = {
 static void irdma_init_roce_device(struct irdma_device *iwdev)
 {
 	iwdev->ibdev.node_type = RDMA_NODE_IB_CA;
-	iwdev->ibdev.node_guid = irdma_mac_to_guid(iwdev->netdev);
+	addrconf_addr_eui48((u8 *)&iwdev->ibdev.node_guid,
+			    iwdev->netdev->dev_addr);
 	ib_set_device_ops(&iwdev->ibdev, &irdma_roce_dev_ops);
 }
 
@@ -4408,7 +4392,8 @@ static int irdma_init_iw_device(struct irdma_device *iwdev)
 	struct net_device *netdev = iwdev->netdev;
 
 	iwdev->ibdev.node_type = RDMA_NODE_RNIC;
-	ether_addr_copy((u8 *)&iwdev->ibdev.node_guid, netdev->dev_addr);
+	addrconf_addr_eui48((u8 *)&iwdev->ibdev.node_guid,
+			    netdev->dev_addr);
 	iwdev->ibdev.ops.iw_add_ref = irdma_qp_add_ref;
 	iwdev->ibdev.ops.iw_rem_ref = irdma_qp_rem_ref;
 	iwdev->ibdev.ops.iw_get_qp = irdma_get_qp;
