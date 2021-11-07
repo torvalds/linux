@@ -359,7 +359,14 @@ static int ov2680_set_exposure(struct v4l2_subdev *sd, int exposure,
 	int ret;
 
 	mutex_lock(&dev->input_lock);
-	ret = __ov2680_set_exposure(sd, exposure, gain, digitgain);
+
+	dev->exposure = exposure;
+	dev->gain = gain;
+	dev->digitgain = digitgain;
+
+	if (dev->power_on)
+		ret = __ov2680_set_exposure(sd, exposure, gain, digitgain);
+
 	mutex_unlock(&dev->input_lock);
 
 	return ret;
@@ -745,6 +752,10 @@ static int power_up(struct v4l2_subdev *sd)
 	msleep(20);
 
 	ret = ov2680_init_registers(sd);
+	if (ret)
+		goto fail_init_registers;
+
+	ret = __ov2680_set_exposure(sd, dev->exposure, dev->gain, dev->digitgain);
 	if (ret)
 		goto fail_init_registers;
 
@@ -1140,6 +1151,8 @@ static int ov2680_probe(struct i2c_client *client)
 	mutex_init(&dev->input_lock);
 
 	dev->res = &ov2680_res_preview[0];
+	dev->exposure = dev->res->lines_per_frame - OV2680_INTEGRATION_TIME_MARGIN;
+	dev->gain = 250; /* 0-2047 */
 	v4l2_i2c_subdev_init(&dev->sd, client, &ov2680_ops);
 
 	pdata = gmin_camera_platform_data(&dev->sd,

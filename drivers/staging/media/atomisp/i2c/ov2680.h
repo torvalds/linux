@@ -174,6 +174,9 @@ struct ov2680_device {
 	struct ov2680_resolution *res;
 	struct camera_sensor_platform_data *platform_data;
 	bool power_on;
+	u16 exposure;
+	u16 gain;
+	u16 digitgain;
 };
 
 /**
