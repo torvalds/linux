@@ -97,6 +97,7 @@ struct gs_device_config {
 #define GS_CAN_MODE_HW_TIMESTAMP BIT(4)
 /* GS_CAN_FEATURE_IDENTIFY BIT(5) */
 /* GS_CAN_FEATURE_USER_ID BIT(6) */
+#define GS_CAN_MODE_PAD_PKTS_TO_MAX_PKT_SIZE BIT(7)
 
 struct gs_device_mode {
 	__le32 mode;
@@ -128,6 +129,7 @@ struct gs_identify_mode {
 #define GS_CAN_FEATURE_HW_TIMESTAMP BIT(4)
 #define GS_CAN_FEATURE_IDENTIFY BIT(5)
 #define GS_CAN_FEATURE_USER_ID BIT(6)
+#define GS_CAN_FEATURE_PAD_PKTS_TO_MAX_PKT_SIZE BIT(7)
 
 struct gs_device_bt_const {
 	__le32 feature;
