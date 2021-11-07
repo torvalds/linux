@@ -410,32 +410,17 @@ static long ov2680_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 static int ov2680_q_exposure(struct v4l2_subdev *sd, s32 *value)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	u32 reg_v, reg_v2;
+	u32 reg_val;
 	int ret;
 
 	/* get exposure */
-	ret = ov2680_read_reg(client, 1,
-			      OV2680_EXPOSURE_L,
-			      &reg_v);
+	ret = ov2680_read_reg(client, 3, OV2680_EXPOSURE_H, &reg_val);
 	if (ret)
-		goto err;
+		return ret;
 
-	ret = ov2680_read_reg(client, 1,
-			      OV2680_EXPOSURE_M,
-			      &reg_v2);
-	if (ret)
-		goto err;
-
-	reg_v += reg_v2 << 8;
-	ret = ov2680_read_reg(client, 1,
-			      OV2680_EXPOSURE_H,
-			      &reg_v2);
-	if (ret)
-		goto err;
-
-	*value = reg_v + (reg_v2 << 16);
-err:
-	return ret;
+	/* Lower four bits are not part of the exposure val (always 0) */
+	*value = reg_val >> 4;
+	return 0;
 }
 
 static int ov2680_v_flip(struct v4l2_subdev *sd, s32 value)
