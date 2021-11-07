@@ -655,21 +655,11 @@ static int ov2680_init_registers(struct v4l2_subdev *sd)
 
 static int ov2680_init(struct v4l2_subdev *sd)
 {
-	struct ov2680_device *dev = to_ov2680_sensor(sd);
-
-	int ret;
-
-	mutex_lock(&dev->input_lock);
-
 	/* restore settings */
 	ov2680_res = ov2680_res_preview;
 	N_RES = N_RES_PREVIEW;
 
-	ret = ov2680_init_registers(sd);
-
-	mutex_unlock(&dev->input_lock);
-
-	return ret;
+	return ov2680_init_registers(sd);
 }
 
 static int power_ctrl(struct v4l2_subdev *sd, bool flag)
@@ -817,15 +807,21 @@ static int power_down(struct v4l2_subdev *sd)
 
 static int ov2680_s_power(struct v4l2_subdev *sd, int on)
 {
+	struct ov2680_device *dev = to_ov2680_sensor(sd);
 	int ret;
+
+	mutex_lock(&dev->input_lock);
 
 	if (on == 0) {
 		ret = power_down(sd);
 	} else {
 		ret = power_up(sd);
 		if (!ret)
-			return ov2680_init(sd);
+			ret = ov2680_init(sd);
 	}
+
+	mutex_unlock(&dev->input_lock);
+
 	return ret;
 }
 
