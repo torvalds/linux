@@ -167,6 +167,7 @@ static union kvm_mmu_page_role page_role_for_level(struct kvm_vcpu *vcpu,
 	role.direct = true;
 	role.gpte_is_8_bytes = true;
 	role.access = ACC_ALL;
+	role.ad_disabled = !shadow_accessed_mask;
 
 	return role;
 }
@@ -489,8 +490,8 @@ static void handle_changed_spte(struct kvm *kvm, int as_id, gfn_t gfn,
 }
 
 /*
- * tdp_mmu_set_spte_atomic_no_dirty_log - Set a TDP MMU SPTE atomically
- * and handle the associated bookkeeping, but do not mark the page dirty
+ * tdp_mmu_set_spte_atomic - Set a TDP MMU SPTE atomically
+ * and handle the associated bookkeeping.  Do not mark the page dirty
  * in KVM's dirty bitmaps.
  *
  * @kvm: kvm instance
@@ -499,9 +500,9 @@ static void handle_changed_spte(struct kvm *kvm, int as_id, gfn_t gfn,
  * Returns: true if the SPTE was set, false if it was not. If false is returned,
  *	    this function will have no side-effects.
  */
-static inline bool tdp_mmu_set_spte_atomic_no_dirty_log(struct kvm *kvm,
-							struct tdp_iter *iter,
-							u64 new_spte)
+static inline bool tdp_mmu_set_spte_atomic(struct kvm *kvm,
+					   struct tdp_iter *iter,
+					   u64 new_spte)
 {
 	lockdep_assert_held_read(&kvm->mmu_lock);
 
@@ -527,43 +528,6 @@ static inline bool tdp_mmu_set_spte_atomic_no_dirty_log(struct kvm *kvm,
 	return true;
 }
 
-/*
- * tdp_mmu_map_set_spte_atomic - Set a leaf TDP MMU SPTE atomically to resolve a
- * TDP page fault.
- *
- * @vcpu: The vcpu instance that took the TDP page fault.
- * @iter: a tdp_iter instance currently on the SPTE that should be set
- * @new_spte: The value the SPTE should be set to
- *
- * Returns: true if the SPTE was set, false if it was not. If false is returned,
- *	    this function will have no side-effects.
- */
-static inline bool tdp_mmu_map_set_spte_atomic(struct kvm_vcpu *vcpu,
-					       struct tdp_iter *iter,
-					       u64 new_spte)
-{
-	struct kvm *kvm = vcpu->kvm;
-
-	if (!tdp_mmu_set_spte_atomic_no_dirty_log(kvm, iter, new_spte))
-		return false;
-
-	/*
-	 * Use kvm_vcpu_gfn_to_memslot() instead of going through
-	 * handle_changed_spte_dirty_log() to leverage vcpu->last_used_slot.
-	 */
-	if (is_writable_pte(new_spte)) {
-		struct kvm_memory_slot *slot = kvm_vcpu_gfn_to_memslot(vcpu, iter->gfn);
-
-		if (slot && kvm_slot_dirty_track_enabled(slot)) {
-			/* Enforced by kvm_mmu_hugepage_adjust. */
-			WARN_ON_ONCE(iter->level > PG_LEVEL_4K);
-			mark_page_dirty_in_slot(kvm, slot, iter->gfn);
-		}
-	}
-
-	return true;
-}
-
 static inline bool tdp_mmu_zap_spte_atomic(struct kvm *kvm,
 					   struct tdp_iter *iter)
 {
@@ -573,7 +537,7 @@ static inline bool tdp_mmu_zap_spte_atomic(struct kvm *kvm,
 	 * immediately installing a present entry in its place
 	 * before the TLBs are flushed.
 	 */
-	if (!tdp_mmu_set_spte_atomic_no_dirty_log(kvm, iter, REMOVED_SPTE))
+	if (!tdp_mmu_set_spte_atomic(kvm, iter, REMOVED_SPTE))
 		return false;
 
 	kvm_flush_remote_tlbs_with_address(kvm, iter->gfn,
@@ -929,26 +893,26 @@ void kvm_tdp_mmu_invalidate_all_roots(struct kvm *kvm)
  * Installs a last-level SPTE to handle a TDP page fault.
  * (NPT/EPT violation/misconfiguration)
  */
-static int tdp_mmu_map_handle_target_level(struct kvm_vcpu *vcpu, int write,
-					  int map_writable,
-					  struct tdp_iter *iter,
-					  kvm_pfn_t pfn, bool prefault)
+static int tdp_mmu_map_handle_target_level(struct kvm_vcpu *vcpu,
+					  struct kvm_page_fault *fault,
+					  struct tdp_iter *iter)
 {
+	struct kvm_mmu_page *sp = sptep_to_sp(iter->sptep);
 	u64 new_spte;
 	int ret = RET_PF_FIXED;
-	int make_spte_ret = 0;
+	bool wrprot = false;
 
-	if (unlikely(is_noslot_pfn(pfn)))
+	WARN_ON(sp->role.level != fault->goal_level);
+	if (unlikely(!fault->slot))
 		new_spte = make_mmio_spte(vcpu, iter->gfn, ACC_ALL);
 	else
-		make_spte_ret = make_spte(vcpu, ACC_ALL, iter->level, iter->gfn,
-					 pfn, iter->old_spte, prefault, true,
-					 map_writable, !shadow_accessed_mask,
-					 &new_spte);
+		wrprot = make_spte(vcpu, sp, fault->slot, ACC_ALL, iter->gfn,
+					 fault->pfn, iter->old_spte, fault->prefetch, true,
+					 fault->map_writable, &new_spte);
 
 	if (new_spte == iter->old_spte)
 		ret = RET_PF_SPURIOUS;
-	else if (!tdp_mmu_map_set_spte_atomic(vcpu, iter, new_spte))
+	else if (!tdp_mmu_set_spte_atomic(vcpu->kvm, iter, new_spte))
 		return RET_PF_RETRY;
 
 	/*
@@ -956,10 +920,9 @@ static int tdp_mmu_map_handle_target_level(struct kvm_vcpu *vcpu, int write,
 	 * protected, emulation is needed. If the emulation was skipped,
 	 * the vCPU would have the same fault again.
 	 */
-	if (make_spte_ret & SET_SPTE_WRITE_PROTECTED_PT) {
-		if (write)
+	if (wrprot) {
+		if (fault->write)
 			ret = RET_PF_EMULATE;
-		kvm_make_request(KVM_REQ_TLB_FLUSH_CURRENT, vcpu);
 	}
 
 	/* If a MMIO SPTE is installed, the MMIO will need to be emulated. */
@@ -986,37 +949,26 @@ static int tdp_mmu_map_handle_target_level(struct kvm_vcpu *vcpu, int write,
  * Handle a TDP page fault (NPT/EPT violation/misconfiguration) by installing
  * page tables and SPTEs to translate the faulting guest physical address.
  */
-int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
-		    int map_writable, int max_level, kvm_pfn_t pfn,
-		    bool prefault)
+int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 {
-	bool nx_huge_page_workaround_enabled = is_nx_huge_page_enabled();
-	bool write = error_code & PFERR_WRITE_MASK;
-	bool exec = error_code & PFERR_FETCH_MASK;
-	bool huge_page_disallowed = exec && nx_huge_page_workaround_enabled;
 	struct kvm_mmu *mmu = vcpu->arch.mmu;
 	struct tdp_iter iter;
 	struct kvm_mmu_page *sp;
 	u64 *child_pt;
 	u64 new_spte;
 	int ret;
-	gfn_t gfn = gpa >> PAGE_SHIFT;
-	int level;
-	int req_level;
 
-	level = kvm_mmu_hugepage_adjust(vcpu, gfn, max_level, &pfn,
-					huge_page_disallowed, &req_level);
+	kvm_mmu_hugepage_adjust(vcpu, fault);
 
-	trace_kvm_mmu_spte_requested(gpa, level, pfn);
+	trace_kvm_mmu_spte_requested(fault);
 
 	rcu_read_lock();
 
-	tdp_mmu_for_each_pte(iter, mmu, gfn, gfn + 1) {
-		if (nx_huge_page_workaround_enabled)
-			disallowed_hugepage_adjust(iter.old_spte, gfn,
-						   iter.level, &pfn, &level);
+	tdp_mmu_for_each_pte(iter, mmu, fault->gfn, fault->gfn + 1) {
+		if (fault->nx_huge_page_workaround_enabled)
+			disallowed_hugepage_adjust(fault, iter.old_spte, iter.level);
 
-		if (iter.level == level)
+		if (iter.level == fault->goal_level)
 			break;
 
 		/*
@@ -1052,10 +1004,10 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 			new_spte = make_nonleaf_spte(child_pt,
 						     !shadow_accessed_mask);
 
-			if (tdp_mmu_set_spte_atomic_no_dirty_log(vcpu->kvm, &iter, new_spte)) {
+			if (tdp_mmu_set_spte_atomic(vcpu->kvm, &iter, new_spte)) {
 				tdp_mmu_link_page(vcpu->kvm, sp,
-						  huge_page_disallowed &&
-						  req_level >= iter.level);
+						  fault->huge_page_disallowed &&
+						  fault->req_level >= iter.level);
 
 				trace_kvm_mmu_get_page(sp, true);
 			} else {
@@ -1065,13 +1017,12 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 		}
 	}
 
-	if (iter.level != level) {
+	if (iter.level != fault->goal_level) {
 		rcu_read_unlock();
 		return RET_PF_RETRY;
 	}
 
-	ret = tdp_mmu_map_handle_target_level(vcpu, write, map_writable, &iter,
-					      pfn, prefault);
+	ret = tdp_mmu_map_handle_target_level(vcpu, fault, &iter);
 	rcu_read_unlock();
 
 	return ret;
@@ -1241,8 +1192,7 @@ retry:
 
 		new_spte = iter.old_spte & ~PT_WRITABLE_MASK;
 
-		if (!tdp_mmu_set_spte_atomic_no_dirty_log(kvm, &iter,
-							  new_spte)) {
+		if (!tdp_mmu_set_spte_atomic(kvm, &iter, new_spte)) {
 			/*
 			 * The iter must explicitly re-read the SPTE because
 			 * the atomic cmpxchg failed.
@@ -1310,8 +1260,7 @@ retry:
 				continue;
 		}
 
-		if (!tdp_mmu_set_spte_atomic_no_dirty_log(kvm, &iter,
-							  new_spte)) {
+		if (!tdp_mmu_set_spte_atomic(kvm, &iter, new_spte)) {
 			/*
 			 * The iter must explicitly re-read the SPTE because
 			 * the atomic cmpxchg failed.

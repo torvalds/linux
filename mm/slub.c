@@ -763,9 +763,9 @@ void print_tracking(struct kmem_cache *s, void *object)
 
 static void print_page_info(struct page *page)
 {
-	pr_err("Slab 0x%p objects=%u used=%u fp=0x%p flags=%#lx(%pGp)\n",
+	pr_err("Slab 0x%p objects=%u used=%u fp=0x%p flags=%pGp\n",
 	       page, page->objects, page->inuse, page->freelist,
-	       page->flags, &page->flags);
+	       &page->flags);
 
 }
 

@@ -129,4 +129,7 @@ config KVM_MMU_AUDIT
 	 This option adds a R/W kVM module parameter 'mmu_audit', which allows
 	 auditing of KVM MMU events at runtime.
 
+config KVM_EXTERNAL_WRITE_TRACKING
+	bool
+
 endif # VIRTUALIZATION
