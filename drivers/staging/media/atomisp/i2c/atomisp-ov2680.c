@@ -653,15 +653,6 @@ static int ov2680_init_registers(struct v4l2_subdev *sd)
 	return ret;
 }
 
-static int ov2680_init(struct v4l2_subdev *sd)
-{
-	/* restore settings */
-	ov2680_res = ov2680_res_preview;
-	N_RES = N_RES_PREVIEW;
-
-	return ov2680_init_registers(sd);
-}
-
 static int power_ctrl(struct v4l2_subdev *sd, bool flag)
 {
 	int ret = 0;
@@ -817,7 +808,7 @@ static int ov2680_s_power(struct v4l2_subdev *sd, int on)
 	} else {
 		ret = power_up(sd);
 		if (!ret)
-			ret = ov2680_init(sd);
+			ret = ov2680_init_registers(sd);
 	}
 
 	mutex_unlock(&dev->input_lock);
@@ -857,7 +848,7 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 				     ARRAY_SIZE(ov2680_res_preview), width,
 				     height, fmt->width, fmt->height);
 	if (!res)
-		res = &ov2680_res[N_RES - 1];
+		res = &ov2680_res_preview[N_RES_PREVIEW - 1];
 
 	fmt->width = res->width;
 	fmt->height = res->height;
@@ -975,11 +966,6 @@ static int ov2680_s_stream(struct v4l2_subdev *sd, int enable)
 	ret = ov2680_write_reg(client, 1, OV2680_SW_STREAM,
 			       enable ? OV2680_START_STREAMING :
 			       OV2680_STOP_STREAMING);
-#if 0
-	/* restore settings */
-	ov2680_res = ov2680_res_preview;
-	N_RES = N_RES_PREVIEW;
-#endif
 
 	//otp valid at stream on state
 	//if(!dev->otp_data)
@@ -1069,13 +1055,13 @@ static int ov2680_enum_frame_size(struct v4l2_subdev *sd,
 {
 	int index = fse->index;
 
-	if (index >= N_RES)
+	if (index >= N_RES_PREVIEW)
 		return -EINVAL;
 
-	fse->min_width = ov2680_res[index].width;
-	fse->min_height = ov2680_res[index].height;
-	fse->max_width = ov2680_res[index].width;
-	fse->max_height = ov2680_res[index].height;
+	fse->min_width = ov2680_res_preview[index].width;
+	fse->min_height = ov2680_res_preview[index].height;
+	fse->max_width = ov2680_res_preview[index].width;
+	fse->max_height = ov2680_res_preview[index].height;
 
 	return 0;
 }

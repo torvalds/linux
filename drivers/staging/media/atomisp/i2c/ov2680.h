@@ -838,7 +838,4 @@ static struct ov2680_resolution ov2680_res_preview[] = {
 
 #define N_RES_PREVIEW (ARRAY_SIZE(ov2680_res_preview))
 
-static struct ov2680_resolution *ov2680_res = ov2680_res_preview;
-static unsigned long N_RES = N_RES_PREVIEW;
-
 #endif
