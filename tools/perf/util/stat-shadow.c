@@ -444,6 +444,7 @@ void perf_stat__collect_metric_expr(struct evlist *evsel_list)
 						"Add %s event to groups to get metric expression for %s\n",
 						metric_name,
 						counter->name);
+					free(printed);
 					printed = strdup(metric_name);
 				}
 				invalid = true;
