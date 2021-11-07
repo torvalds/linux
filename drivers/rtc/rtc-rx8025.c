@@ -315,9 +315,6 @@ static int rx8025_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 	u8 ald[2];
 	int ctrl2, err;
 
-	if (client->irq <= 0)
-		return -EINVAL;
-
 	err = rx8025_read_regs(client, RX8025_REG_ALDMIN, 2, ald);
 	if (err)
 		return err;
@@ -351,9 +348,6 @@ static int rx8025_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	struct rx8025_data *rx8025 = dev_get_drvdata(dev);
 	u8 ald[2];
 	int err;
-
-	if (client->irq <= 0)
-		return -EINVAL;
 
 	ald[0] = bin2bcd(t->time.tm_min);
 	if (rx8025->ctrl1 & RX8025_BIT_CTRL1_1224)
@@ -559,10 +553,8 @@ static int rx8025_probe(struct i2c_client *client,
 						rx8025_handle_irq,
 						IRQF_ONESHOT,
 						"rx8025", client);
-		if (err) {
-			dev_err(&client->dev, "unable to request IRQ, alarms disabled\n");
-			client->irq = 0;
-		}
+		if (err)
+			clear_bit(RTC_FEATURE_ALARM, rx8025->rtc->features);
 	}
 
 	rx8025->rtc->max_user_freq = 1;
