@@ -142,10 +142,10 @@ config MEDIA_TEST_SUPPORT
 	prompt "Test drivers" if MEDIA_SUPPORT_FILTER
 	default y if !MEDIA_SUPPORT_FILTER
 	help
-	  Those drivers should not be used on production Kernels, but
-	  can be useful on debug ones. It enables several dummy drivers
-	  that simulate a real hardware. Very useful to test userspace
-	  applications and to validate if the subsystem core is doesn't
+	  These drivers should not be used on production kernels, but
+	  can be useful on debug ones. This option enables several dummy drivers
+	  that simulate real hardware. Very useful to test userspace
+	  applications and to validate if the subsystem core doesn't
 	  have regressions.
 
 	  Say Y if you want to use some virtual test driver.
