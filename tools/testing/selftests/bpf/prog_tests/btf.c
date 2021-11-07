@@ -4046,11 +4046,9 @@ static void *btf_raw_create(const struct btf_header *hdr,
 			next_str_idx < strs_cnt ? strs_idx[next_str_idx] : NULL;
 
 done:
+	free(strs_idx);
 	if (err) {
-		if (raw_btf)
-			free(raw_btf);
-		if (strs_idx)
-			free(strs_idx);
+		free(raw_btf);
 		return NULL;
 	}
 	return raw_btf;
