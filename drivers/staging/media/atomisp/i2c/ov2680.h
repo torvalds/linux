@@ -173,6 +173,7 @@ struct ov2680_device {
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct ov2680_resolution *res;
 	struct camera_sensor_platform_data *platform_data;
+	bool power_on;
 };
 
 /**

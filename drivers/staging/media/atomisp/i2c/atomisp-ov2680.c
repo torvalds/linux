@@ -736,6 +736,9 @@ static int power_up(struct v4l2_subdev *sd)
 		return -ENODEV;
 	}
 
+	if (dev->power_on)
+		return 0; /* Already on */
+
 	/* power control */
 	ret = power_ctrl(sd, 1);
 	if (ret)
@@ -760,6 +763,7 @@ static int power_up(struct v4l2_subdev *sd)
 	/* according to DS, 20ms is needed between PWDN and i2c access */
 	msleep(20);
 
+	dev->power_on = true;
 	return 0;
 
 fail_clk:
@@ -785,6 +789,9 @@ static int power_down(struct v4l2_subdev *sd)
 		return -ENODEV;
 	}
 
+	if (!dev->power_on)
+		return 0; /* Already off */
+
 	ret = dev->platform_data->flisclk_ctrl(sd, 0);
 	if (ret)
 		dev_err(&client->dev, "flisclk failed\n");
@@ -799,10 +806,13 @@ static int power_down(struct v4l2_subdev *sd)
 
 	/* power control */
 	ret = power_ctrl(sd, 0);
-	if (ret)
+	if (ret) {
 		dev_err(&client->dev, "vprog failed.\n");
+		return ret;
+	}
 
-	return ret;
+	dev->power_on = false;
+	return 0;
 }
 
 static int ov2680_s_power(struct v4l2_subdev *sd, int on)
@@ -866,7 +876,7 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 	dev_dbg(&client->dev, "%s: %dx%d\n",
 		__func__, fmt->width, fmt->height);
 
-	// IS IT NEEDED?
+	/* s_power has not been called yet for std v4l2 clients (camorama) */
 	power_up(sd);
 	ret = ov2680_write_reg_array(client, dev->res->regs);
 	if (ret)
@@ -998,16 +1008,6 @@ static int ov2680_s_config(struct v4l2_subdev *sd,
 	    (struct camera_sensor_platform_data *)platform_data;
 
 	mutex_lock(&dev->input_lock);
-	/*
-	 * power off the module, then power on it in future
-	 * as first power on by board may not fulfill the
-	 * power on sequqence needed by the module
-	 */
-	ret = power_down(sd);
-	if (ret) {
-		dev_err(&client->dev, "ov2680 power-off err.\n");
-		goto fail_power_off;
-	}
 
 	ret = power_up(sd);
 	if (ret) {
@@ -1041,7 +1041,6 @@ fail_csi_cfg:
 fail_power_on:
 	power_down(sd);
 	dev_err(&client->dev, "sensor power-gating failed\n");
-fail_power_off:
 	mutex_unlock(&dev->input_lock);
 	return ret;
 }
