@@ -255,22 +255,23 @@
 		};
 	};
 
-	spi_gpio {
-		compatible = "spi-gpio";
+	spi0: spi@10043000 {
+		compatible = "ingenic,jz4780-spi";
+		reg = <0x10043000 0x1c>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		num-chipselects = <2>;
 
-		gpio-miso = <&gpe 14 0>;
-		gpio-sck = <&gpe 15 0>;
-		gpio-mosi = <&gpe 17 0>;
-		cs-gpios = <&gpe 16 0>, <&gpe 18 0>;
+		interrupt-parent = <&intc>;
+		interrupts = <8>;
 
-		spidev@0 {
-			compatible = "spidev";
-			reg = <0>;
-			spi-max-frequency = <1000000>;
-		};
+		clocks = <&cgu JZ4780_CLK_SSI0>;
+		clock-names = "spi";
+
+		dmas = <&dma JZ4780_DMA_SSI0_RX 0xffffffff>,
+		       <&dma JZ4780_DMA_SSI0_TX 0xffffffff>;
+		dma-names = "rx", "tx";
+
+		status = "disabled";
 	};
 
 	uart0: serial@10030000 {
@@ -334,6 +335,25 @@
 
 		clocks = <&ext>, <&cgu JZ4780_CLK_UART4>;
 		clock-names = "baud", "module";
+
+		status = "disabled";
+	};
+
+	spi1: spi@10044000 {
+		compatible = "ingenic,jz4780-spi";
+		reg = <0x10044000 0x1c>;
+		#address-cells = <1>;
+		#size-sells = <0>;
+
+		interrupt-parent = <&intc>;
+		interrupts = <7>;
+
+		clocks = <&cgu JZ4780_CLK_SSI1>;
+		clock-names = "spi";
+
+		dmas = <&dma JZ4780_DMA_SSI1_RX 0xffffffff>,
+		       <&dma JZ4780_DMA_SSI1_TX 0xffffffff>;
+		dma-names = "rx", "tx";
 
 		status = "disabled";
 	};

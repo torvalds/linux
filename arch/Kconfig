@@ -191,6 +191,14 @@ config HAVE_OPTPROBES
 config HAVE_KPROBES_ON_FTRACE
 	bool
 
+config ARCH_CORRECT_STACKTRACE_ON_KRETPROBE
+	bool
+	help
+	  Since kretprobes modifies return address on the stack, the
+	  stacktrace may see the kretprobe trampoline address instead
+	  of correct one. If the architecture stacktrace code and
+	  unwinder can adjust such entries, select this configuration.
+
 config HAVE_FUNCTION_ERROR_INJECTION
 	bool
 

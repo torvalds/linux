@@ -1,0 +1,72 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/spi/ingenic,spi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Ingenic SoCs SPI controller devicetree bindings
+
+maintainers:
+  - Artur Rojek <contact@artur-rojek.eu>
+  - Paul Cercueil <paul@crapouillou.net>
+
+allOf:
+  - $ref: /schemas/spi/spi-controller.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - ingenic,jz4750-spi
+          - ingenic,jz4780-spi
+      - items:
+          - enum:
+              - ingenic,jz4760-spi
+              - ingenic,jz4770-spi
+          - const: ingenic,jz4750-spi
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  dmas:
+    maxItems: 2
+    minItems: 2
+
+  dma-names:
+    items:
+      - const: rx
+      - const: tx
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - dmas
+  - dma-names
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/jz4770-cgu.h>
+    spi@10043000 {
+      compatible = "ingenic,jz4770-spi", "ingenic,jz4750-spi";
+      reg = <0x10043000 0x1c>;
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      interrupt-parent = <&intc>;
+      interrupts = <8>;
+
+      clocks = <&cgu JZ4770_CLK_SSI0>;
+
+      dmas = <&dmac1 23 0xffffffff>, <&dmac1 22 0xffffffff>;
+      dma-names = "rx", "tx";
+    };
