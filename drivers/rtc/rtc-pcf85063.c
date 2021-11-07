@@ -299,7 +299,7 @@ static int pcf85063_ioctl(struct device *dev, unsigned int cmd,
 		if (ret < 0)
 			return ret;
 
-		status = status & PCF85063_REG_SC_OS ? RTC_VL_DATA_INVALID : 0;
+		status = (status & PCF85063_REG_SC_OS) ? RTC_VL_DATA_INVALID : 0;
 
 		return put_user(status, (unsigned int __user *)arg);
 
