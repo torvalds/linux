@@ -673,9 +673,8 @@ hal_EfusePgPacketWriteData(
 		struct pgpkt *pTargetPkt,
 		bool bPseudoTest);
 
-void rtl8188e_EfusePowerSwitch(struct adapter *pAdapter, u8 bWrite, u8 PwrState)
+void rtl8188e_EfusePowerSwitch(struct adapter *pAdapter, u8 PwrState)
 {
-	u8 tempval;
 	u16	tmpV16;
 
 	if (PwrState) {
@@ -700,22 +699,8 @@ void rtl8188e_EfusePowerSwitch(struct adapter *pAdapter, u8 bWrite, u8 PwrState)
 			tmpV16 |= (LOADER_CLK_EN | ANA8M);
 			rtw_write16(pAdapter, REG_SYS_CLKR, tmpV16);
 		}
-
-		if (bWrite) {
-			/*  Enable LDO 2.5V before read/write action */
-			tempval = rtw_read8(pAdapter, EFUSE_TEST + 3);
-			tempval &= 0x0F;
-			tempval |= (VOLTAGE_V25 << 4);
-			rtw_write8(pAdapter, EFUSE_TEST + 3, (tempval | 0x80));
-		}
 	} else {
 		rtw_write8(pAdapter, REG_EFUSE_ACCESS, EFUSE_ACCESS_OFF);
-
-		if (bWrite) {
-			/*  Disable LDO 2.5V after read/write action */
-			tempval = rtw_read8(pAdapter, EFUSE_TEST + 3);
-			rtw_write8(pAdapter, EFUSE_TEST + 3, (tempval & 0x7F));
-		}
 	}
 }
 

@@ -241,13 +241,13 @@ static void Efuse_ReadAllMap(struct adapter *pAdapter, u8 efuseType, u8 *Efuse, 
 {
 	u16 mapLen = 0;
 
-	rtl8188e_EfusePowerSwitch(pAdapter, false, true);
+	rtl8188e_EfusePowerSwitch(pAdapter, true);
 
 	rtl8188e_EFUSE_GetEfuseDefinition(pAdapter, efuseType, TYPE_EFUSE_MAP_LEN, (void *)&mapLen, pseudo);
 
 	rtl8188e_ReadEFuse(pAdapter, efuseType, 0, mapLen, Efuse, pseudo);
 
-	rtl8188e_EfusePowerSwitch(pAdapter, false, false);
+	rtl8188e_EfusePowerSwitch(pAdapter, false);
 }
 
 /*-----------------------------------------------------------------------------
