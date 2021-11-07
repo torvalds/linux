@@ -1071,18 +1071,16 @@ static int mlx5_function_setup(struct mlx5_core_dev *dev, bool boot)
 
 	mlx5_set_driver_version(dev);
 
-	mlx5_start_health_poll(dev);
-
 	err = mlx5_query_hca_caps(dev);
 	if (err) {
 		mlx5_core_err(dev, "query hca failed\n");
-		goto stop_health;
+		goto reclaim_boot_pages;
 	}
+
+	mlx5_start_health_poll(dev);
 
 	return 0;
 
-stop_health:
-	mlx5_stop_health_poll(dev, boot);
 reclaim_boot_pages:
 	mlx5_reclaim_startup_pages(dev);
 err_disable_hca:
