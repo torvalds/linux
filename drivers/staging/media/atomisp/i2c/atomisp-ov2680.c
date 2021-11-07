@@ -48,7 +48,7 @@ static enum atomisp_bayer_order ov2680_bayer_order_mapping[] = {
 
 /* i2c read/write stuff */
 static int ov2680_read_reg(struct i2c_client *client,
-			   int len, u16 reg, u16 *val)
+			   int len, u16 reg, u32 *val)
 {
 	struct i2c_msg msgs[2];
 	u8 addr_buf[2] = { reg >> 8, reg & 0xff };
@@ -168,7 +168,7 @@ static int ov2680_get_intg_factor(struct i2c_client *client,
 {
 	struct atomisp_sensor_mode_data *buf = &info->data;
 	unsigned int pix_clk_freq_hz;
-	u16 reg_val;
+	u32 reg_val;
 	int ret;
 
 	dev_dbg(&client->dev,  "++++ov2680_get_intg_factor\n");
@@ -410,7 +410,7 @@ static long ov2680_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 static int ov2680_q_exposure(struct v4l2_subdev *sd, s32 *value)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	u16 reg_v, reg_v2;
+	u32 reg_v, reg_v2;
 	int ret;
 
 	/* get exposure */
@@ -433,7 +433,7 @@ static int ov2680_q_exposure(struct v4l2_subdev *sd, s32 *value)
 	if (ret)
 		goto err;
 
-	*value = reg_v + (((u32)reg_v2 << 16));
+	*value = reg_v + (reg_v2 << 16);
 err:
 	return ret;
 }
@@ -443,7 +443,7 @@ static int ov2680_v_flip(struct v4l2_subdev *sd, s32 value)
 	struct camera_mipi_info *ov2680_info = NULL;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
-	u16 val;
+	u32 val;
 	u8 index;
 
 	dev_dbg(&client->dev, "@%s: value:%d\n", __func__, value);
@@ -473,7 +473,7 @@ static int ov2680_h_flip(struct v4l2_subdev *sd, s32 value)
 	struct camera_mipi_info *ov2680_info = NULL;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
-	u16 val;
+	u32 val;
 	u8 index;
 
 	dev_dbg(&client->dev, "@%s: value:%d\n", __func__, value);
@@ -933,7 +933,7 @@ static int ov2680_get_fmt(struct v4l2_subdev *sd,
 static int ov2680_detect(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
-	u16 high, low;
+	u32 high, low;
 	int ret;
 	u16 id;
 	u8 revision;
