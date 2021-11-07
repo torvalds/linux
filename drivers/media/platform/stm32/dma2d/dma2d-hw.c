@@ -26,16 +26,6 @@ static inline void reg_write(void __iomem *base, u32 reg, u32 val)
 	writel_relaxed(val, base + reg);
 }
 
-static inline void reg_set(void __iomem *base, u32 reg, u32 mask)
-{
-	reg_write(base, reg, reg_read(base, reg) | mask);
-}
-
-static inline void reg_clear(void __iomem *base, u32 reg, u32 mask)
-{
-	reg_write(base, reg, reg_read(base, reg) & ~mask);
-}
-
 static inline void reg_update_bits(void __iomem *base, u32 reg, u32 mask,
 				   u32 val)
 {
