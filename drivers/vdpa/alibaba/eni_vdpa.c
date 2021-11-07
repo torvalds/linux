@@ -450,11 +450,6 @@ static u16 eni_vdpa_get_num_queues(struct eni_vdpa *eni_vdpa)
 	return num;
 }
 
-static void eni_vdpa_free_irq_vectors(void *data)
-{
-	pci_free_irq_vectors(data);
-}
-
 static int eni_vdpa_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct device *dev = &pdev->dev;
@@ -487,13 +482,6 @@ static int eni_vdpa_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	eni_vdpa->vdpa.dma_dev = &pdev->dev;
 	eni_vdpa->queues = eni_vdpa_get_num_queues(eni_vdpa);
-
-	ret = devm_add_action_or_reset(dev, eni_vdpa_free_irq_vectors, pdev);
-	if (ret) {
-		ENI_ERR(pdev,
-			"failed for adding devres for freeing irq vectors\n");
-		goto err;
-	}
 
 	eni_vdpa->vring = devm_kcalloc(&pdev->dev, eni_vdpa->queues,
 				      sizeof(*eni_vdpa->vring),
