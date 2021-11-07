@@ -885,6 +885,7 @@ static void gs_destroy_candev(struct gs_can *dev)
 static int gs_usb_probe(struct usb_interface *intf,
 			const struct usb_device_id *id)
 {
+	struct usb_device *udev = interface_to_usbdev(intf);
 	struct gs_usb *dev;
 	int rc = -ENOMEM;
 	unsigned int icount, i;
@@ -898,8 +899,7 @@ static int gs_usb_probe(struct usb_interface *intf,
 	hconf->byte_order = cpu_to_le32(0x0000beef);
 
 	/* send host config */
-	rc = usb_control_msg(interface_to_usbdev(intf),
-			     usb_sndctrlpipe(interface_to_usbdev(intf), 0),
+	rc = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 			     GS_USB_BREQ_HOST_FORMAT,
 			     USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 			     1, intf->cur_altsetting->desc.bInterfaceNumber,
@@ -917,8 +917,7 @@ static int gs_usb_probe(struct usb_interface *intf,
 		return -ENOMEM;
 
 	/* read device config */
-	rc = usb_control_msg(interface_to_usbdev(intf),
-			     usb_rcvctrlpipe(interface_to_usbdev(intf), 0),
+	rc = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 			     GS_USB_BREQ_DEVICE_CONFIG,
 			     USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 			     1, intf->cur_altsetting->desc.bInterfaceNumber,
@@ -950,7 +949,7 @@ static int gs_usb_probe(struct usb_interface *intf,
 	init_usb_anchor(&dev->rx_submitted);
 
 	usb_set_intfdata(intf, dev);
-	dev->udev = interface_to_usbdev(intf);
+	dev->udev = udev;
 
 	for (i = 0; i < icount; i++) {
 		dev->canch[i] = gs_make_candev(i, intf, dconf);
