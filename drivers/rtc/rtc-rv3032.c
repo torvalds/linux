@@ -311,14 +311,6 @@ static int rv3032_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	u8 ctrl = 0;
 	int ret;
 
-	/* The alarm has no seconds, round up to nearest minute */
-	if (alrm->time.tm_sec) {
-		time64_t alarm_time = rtc_tm_to_time64(&alrm->time);
-
-		alarm_time += 60 - alrm->time.tm_sec;
-		rtc_time64_to_tm(alarm_time, &alrm->time);
-	}
-
 	ret = regmap_update_bits(rv3032->regmap, RV3032_CTRL2,
 				 RV3032_CTRL2_AIE | RV3032_CTRL2_UIE, 0);
 	if (ret)
@@ -958,6 +950,7 @@ static int rv3032_probe(struct i2c_client *client)
 	rv3032_trickle_charger_setup(&client->dev, rv3032);
 
 	set_bit(RTC_FEATURE_BACKUP_SWITCH_MODE, rv3032->rtc->features);
+	set_bit(RTC_FEATURE_ALARM_RES_MINUTE, rv3032->rtc->features);
 
 	rv3032->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	rv3032->rtc->range_max = RTC_TIMESTAMP_END_2099;
