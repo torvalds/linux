@@ -20,7 +20,7 @@
 #include "xfs_error.h"
 #include "xfs_ag.h"
 
-static kmem_zone_t *xfs_buf_zone;
+static struct kmem_cache *xfs_buf_cache;
 
 /*
  * Locking orders
@@ -220,7 +220,7 @@ _xfs_buf_alloc(
 	int			i;
 
 	*bpp = NULL;
-	bp = kmem_cache_zalloc(xfs_buf_zone, GFP_NOFS | __GFP_NOFAIL);
+	bp = kmem_cache_zalloc(xfs_buf_cache, GFP_NOFS | __GFP_NOFAIL);
 
 	/*
 	 * We don't want certain flags to appear in b_flags unless they are
@@ -247,7 +247,7 @@ _xfs_buf_alloc(
 	 */
 	error = xfs_buf_get_maps(bp, nmaps);
 	if (error)  {
-		kmem_cache_free(xfs_buf_zone, bp);
+		kmem_cache_free(xfs_buf_cache, bp);
 		return error;
 	}
 
@@ -307,7 +307,7 @@ xfs_buf_free(
 		kmem_free(bp->b_addr);
 
 	xfs_buf_free_maps(bp);
-	kmem_cache_free(xfs_buf_zone, bp);
+	kmem_cache_free(xfs_buf_cache, bp);
 }
 
 static int
@@ -2258,12 +2258,12 @@ xfs_buf_delwri_pushbuf(
 int __init
 xfs_buf_init(void)
 {
-	xfs_buf_zone = kmem_cache_create("xfs_buf", sizeof(struct xfs_buf), 0,
+	xfs_buf_cache = kmem_cache_create("xfs_buf", sizeof(struct xfs_buf), 0,
 					 SLAB_HWCACHE_ALIGN |
 					 SLAB_RECLAIM_ACCOUNT |
 					 SLAB_MEM_SPREAD,
 					 NULL);
-	if (!xfs_buf_zone)
+	if (!xfs_buf_cache)
 		goto out;
 
 	return 0;
@@ -2275,7 +2275,7 @@ xfs_buf_init(void)
 void
 xfs_buf_terminate(void)
 {
-	kmem_cache_destroy(xfs_buf_zone);
+	kmem_cache_destroy(xfs_buf_cache);
 }
 
 void xfs_buf_set_ref(struct xfs_buf *bp, int lru_ref)

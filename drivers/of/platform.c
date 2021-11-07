@@ -222,7 +222,7 @@ static struct amba_device *of_amba_device_create(struct device_node *node,
 {
 	struct amba_device *dev;
 	const void *prop;
-	int i, ret;
+	int ret;
 
 	pr_debug("Creating amba device %pOF\n", node);
 
@@ -252,10 +252,6 @@ static struct amba_device *of_amba_device_create(struct device_node *node,
 	prop = of_get_property(node, "arm,primecell-periphid", NULL);
 	if (prop)
 		dev->periphid = of_read_ulong(prop, 1);
-
-	/* Decode the IRQs and address ranges */
-	for (i = 0; i < AMBA_NR_IRQS; i++)
-		dev->irq[i] = irq_of_parse_and_map(node, i);
 
 	ret = of_address_to_resource(node, 0, &dev->res);
 	if (ret) {

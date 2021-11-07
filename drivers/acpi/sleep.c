@@ -815,14 +815,18 @@ void __weak acpi_s2idle_setup(void)
 
 static void acpi_sleep_suspend_setup(void)
 {
+	bool suspend_ops_needed = false;
 	int i;
 
 	for (i = ACPI_STATE_S1; i < ACPI_STATE_S4; i++)
-		if (acpi_sleep_state_supported(i))
+		if (acpi_sleep_state_supported(i)) {
 			sleep_states[i] = 1;
+			suspend_ops_needed = true;
+		}
 
-	suspend_set_ops(old_suspend_ordering ?
-		&acpi_suspend_ops_old : &acpi_suspend_ops);
+	if (suspend_ops_needed)
+		suspend_set_ops(old_suspend_ordering ?
+				&acpi_suspend_ops_old : &acpi_suspend_ops);
 
 	acpi_s2idle_setup();
 }

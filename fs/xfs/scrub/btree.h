@@ -39,11 +39,22 @@ struct xchk_btree {
 
 	/* internal scrub state */
 	union xfs_btree_rec		lastrec;
-	bool				firstrec;
-	union xfs_btree_key		lastkey[XFS_BTREE_MAXLEVELS];
-	bool				firstkey[XFS_BTREE_MAXLEVELS];
 	struct list_head		to_check;
+
+	/* this element must come last! */
+	union xfs_btree_key		lastkey[];
 };
+
+/*
+ * Calculate the size of a xchk_btree structure.  There are nlevels-1 slots for
+ * keys because we track leaf records separately in lastrec.
+ */
+static inline size_t
+xchk_btree_sizeof(unsigned int nlevels)
+{
+	return struct_size((struct xchk_btree *)NULL, lastkey, nlevels - 1);
+}
+
 int xchk_btree(struct xfs_scrub *sc, struct xfs_btree_cur *cur,
 		xchk_btree_rec_fn scrub_fn, const struct xfs_owner_info *oinfo,
 		void *private);

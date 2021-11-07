@@ -97,7 +97,7 @@ static int try_to_freeze_tasks(bool user_only)
 		       todo - wq_busy, wq_busy);
 
 		if (wq_busy)
-			show_workqueue_state();
+			show_all_workqueues();
 
 		if (pm_debug_messages_on) {
 			read_lock(&tasklist_lock);

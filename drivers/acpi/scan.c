@@ -2560,6 +2560,12 @@ int __init acpi_scan_init(void)
 		}
 	}
 
+	/*
+	 * Make sure that power management resources are not blocked by ACPI
+	 * device objects with no users.
+	 */
+	bus_for_each_dev(&acpi_bus_type, NULL, NULL, acpi_dev_turn_off_if_unused);
+
 	acpi_turn_off_unused_power_resources();
 
 	acpi_scan_initialized = true;

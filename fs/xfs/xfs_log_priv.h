@@ -497,7 +497,7 @@ xlog_recover_cancel(struct xlog *);
 extern __le32	 xlog_cksum(struct xlog *log, struct xlog_rec_header *rhead,
 			    char *dp, int size);
 
-extern kmem_zone_t *xfs_log_ticket_zone;
+extern struct kmem_cache *xfs_log_ticket_cache;
 struct xlog_ticket *
 xlog_ticket_alloc(
 	struct xlog	*log,

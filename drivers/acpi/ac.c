@@ -61,6 +61,7 @@ static SIMPLE_DEV_PM_OPS(acpi_ac_pm, NULL, acpi_ac_resume);
 
 static int ac_sleep_before_get_state_ms;
 static int ac_check_pmic = 1;
+static int ac_only;
 
 static struct acpi_driver acpi_ac_driver = {
 	.name = "ac",
@@ -92,6 +93,11 @@ static int acpi_ac_get_state(struct acpi_ac *ac)
 
 	if (!ac)
 		return -EINVAL;
+
+	if (ac_only) {
+		ac->state = 1;
+		return 0;
+	}
 
 	status = acpi_evaluate_integer(ac->device->handle, "_PSR", NULL,
 				       &ac->state);
@@ -200,6 +206,12 @@ static int __init ac_do_not_check_pmic_quirk(const struct dmi_system_id *d)
 	return 0;
 }
 
+static int __init ac_only_quirk(const struct dmi_system_id *d)
+{
+	ac_only = 1;
+	return 0;
+}
+
 /* Please keep this list alphabetically sorted */
 static const struct dmi_system_id ac_dmi_table[]  __initconst = {
 	{
@@ -207,6 +219,13 @@ static const struct dmi_system_id ac_dmi_table[]  __initconst = {
 		.callback = ac_do_not_check_pmic_quirk,
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "EF20EA"),
+		},
+	},
+	{
+		/* Kodlix GK45 returning incorrect state */
+		.callback = ac_only_quirk,
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "GK45"),
 		},
 	},
 	{
