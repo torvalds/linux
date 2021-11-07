@@ -402,26 +402,31 @@ int bch2_fpunch_at(struct btree_trans *trans, struct btree_iter *iter,
 	int ret = 0, ret2 = 0;
 	u32 snapshot;
 
-	while (1) {
+	while (!ret || ret == -EINTR) {
 		struct disk_reservation disk_res =
 			bch2_disk_reservation_init(c, 0);
 		struct bkey_i delete;
+
+		if (ret)
+			ret2 = ret;
 
 		bch2_trans_begin(trans);
 
 		ret = bch2_subvolume_get_snapshot(trans, inum.subvol, &snapshot);
 		if (ret)
-			goto btree_err;
+			continue;
 
 		bch2_btree_iter_set_snapshot(iter, snapshot);
 
 		k = bch2_btree_iter_peek(iter);
-		if (bkey_cmp(iter->pos, end_pos) >= 0)
+		if (bkey_cmp(iter->pos, end_pos) >= 0) {
+			bch2_btree_iter_set_pos(iter, end_pos);
 			break;
+		}
 
 		ret = bkey_err(k);
 		if (ret)
-			goto btree_err;
+			continue;
 
 		bkey_init(&delete.k);
 		delete.k.p = iter->pos;
@@ -434,17 +439,7 @@ int bch2_fpunch_at(struct btree_trans *trans, struct btree_iter *iter,
 				&disk_res, NULL,
 				0, i_sectors_delta, false);
 		bch2_disk_reservation_put(c, &disk_res);
-btree_err:
-		if (ret == -EINTR) {
-			ret2 = ret;
-			ret = 0;
-		}
-		if (ret)
-			break;
 	}
-
-	if (bkey_cmp(iter->pos, end_pos) > 0)
-		bch2_btree_iter_set_pos(iter, end_pos);
 
 	return ret ?: ret2;
 }
