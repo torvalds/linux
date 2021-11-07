@@ -12,6 +12,7 @@
 
 #include <linux/err.h>
 #include <linux/errno.h>
+#include <linux/jump_label.h>
 #include <linux/kernel.h>
 #include <linux/kmod.h>
 #include <linux/module.h>
@@ -30,6 +31,9 @@ EXPORT_SYMBOL_GPL(crypto_alg_sem);
 BLOCKING_NOTIFIER_HEAD(crypto_chain);
 EXPORT_SYMBOL_GPL(crypto_chain);
 
+DEFINE_STATIC_KEY_FALSE(crypto_boot_test_finished);
+EXPORT_SYMBOL_GPL(crypto_boot_test_finished);
+
 static struct crypto_alg *crypto_larval_wait(struct crypto_alg *alg);
 
 struct crypto_alg *crypto_mod_get(struct crypto_alg *alg)
@@ -46,11 +50,6 @@ void crypto_mod_put(struct crypto_alg *alg)
 	module_put(module);
 }
 EXPORT_SYMBOL_GPL(crypto_mod_put);
-
-static inline int crypto_is_test_larval(struct crypto_larval *larval)
-{
-	return larval->alg.cra_driver_name[0];
-}
 
 static struct crypto_alg *__crypto_alg_lookup(const char *name, u32 type,
 					      u32 mask)
@@ -163,10 +162,51 @@ void crypto_larval_kill(struct crypto_alg *alg)
 }
 EXPORT_SYMBOL_GPL(crypto_larval_kill);
 
+void crypto_wait_for_test(struct crypto_larval *larval)
+{
+	int err;
+
+	err = crypto_probing_notify(CRYPTO_MSG_ALG_REGISTER, larval->adult);
+	if (WARN_ON_ONCE(err != NOTIFY_STOP))
+		goto out;
+
+	err = wait_for_completion_killable(&larval->completion);
+	WARN_ON(err);
+	if (!err)
+		crypto_notify(CRYPTO_MSG_ALG_LOADED, larval);
+
+out:
+	crypto_larval_kill(&larval->alg);
+}
+EXPORT_SYMBOL_GPL(crypto_wait_for_test);
+
+static void crypto_start_test(struct crypto_larval *larval)
+{
+	if (!crypto_is_test_larval(larval))
+		return;
+
+	if (larval->test_started)
+		return;
+
+	down_write(&crypto_alg_sem);
+	if (larval->test_started) {
+		up_write(&crypto_alg_sem);
+		return;
+	}
+
+	larval->test_started = true;
+	up_write(&crypto_alg_sem);
+
+	crypto_wait_for_test(larval);
+}
+
 static struct crypto_alg *crypto_larval_wait(struct crypto_alg *alg)
 {
 	struct crypto_larval *larval = (void *)alg;
 	long timeout;
+
+	if (!static_branch_likely(&crypto_boot_test_finished))
+		crypto_start_test(larval);
 
 	timeout = wait_for_completion_killable_timeout(
 		&larval->completion, 60 * HZ);

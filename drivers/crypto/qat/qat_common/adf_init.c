@@ -79,6 +79,11 @@ int adf_dev_init(struct adf_accel_dev *accel_dev)
 		return -EFAULT;
 	}
 
+	if (hw_data->init_device && hw_data->init_device(accel_dev)) {
+		dev_err(&GET_DEV(accel_dev), "Failed to initialize device\n");
+		return -EFAULT;
+	}
+
 	if (hw_data->init_admin_comms && hw_data->init_admin_comms(accel_dev)) {
 		dev_err(&GET_DEV(accel_dev), "Failed initialize admin comms\n");
 		return -EFAULT;

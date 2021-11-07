@@ -53,27 +53,22 @@ EXPORT_SYMBOL_GPL(adf_disable_pf2vf_interrupts);
 static int adf_enable_msi(struct adf_accel_dev *accel_dev)
 {
 	struct adf_accel_pci *pci_dev_info = &accel_dev->accel_pci_dev;
-	int stat = pci_enable_msi(pci_dev_info->pci_dev);
-
-	if (stat) {
+	int stat = pci_alloc_irq_vectors(pci_dev_info->pci_dev, 1, 1,
+					 PCI_IRQ_MSI);
+	if (unlikely(stat < 0)) {
 		dev_err(&GET_DEV(accel_dev),
-			"Failed to enable MSI interrupts\n");
+			"Failed to enable MSI interrupt: %d\n", stat);
 		return stat;
 	}
 
-	accel_dev->vf.irq_name = kzalloc(ADF_MAX_MSIX_VECTOR_NAME, GFP_KERNEL);
-	if (!accel_dev->vf.irq_name)
-		return -ENOMEM;
-
-	return stat;
+	return 0;
 }
 
 static void adf_disable_msi(struct adf_accel_dev *accel_dev)
 {
 	struct pci_dev *pdev = accel_to_pci_dev(accel_dev);
 
-	kfree(accel_dev->vf.irq_name);
-	pci_disable_msi(pdev);
+	pci_free_irq_vectors(pdev);
 }
 
 static void adf_dev_stop_async(struct work_struct *work)
@@ -101,6 +96,11 @@ static void adf_pf2vf_bh_handler(void *data)
 
 	/* Read the message from PF */
 	msg = ADF_CSR_RD(pmisc_bar_addr, hw_data->get_pf2vf_offset(0));
+	if (!(msg & ADF_PF2VF_INT)) {
+		dev_info(&GET_DEV(accel_dev),
+			 "Spurious PF2VF interrupt, msg %X. Ignored\n", msg);
+		goto out;
+	}
 
 	if (!(msg & ADF_PF2VF_MSGORIGIN_SYSTEM))
 		/* Ignore legacy non-system (non-kernel) PF2VF messages */
@@ -149,6 +149,7 @@ static void adf_pf2vf_bh_handler(void *data)
 	msg &= ~ADF_PF2VF_INT;
 	ADF_CSR_WR(pmisc_bar_addr, hw_data->get_pf2vf_offset(0), msg);
 
+out:
 	/* Re-enable PF2VF interrupts */
 	adf_enable_pf2vf_interrupts(accel_dev);
 	return;
@@ -240,6 +241,7 @@ static int adf_request_msi_irq(struct adf_accel_dev *accel_dev)
 	}
 	cpu = accel_dev->accel_id % num_online_cpus();
 	irq_set_affinity_hint(pdev->irq, get_cpu_mask(cpu));
+	accel_dev->vf.irq_enabled = true;
 
 	return ret;
 }
@@ -271,8 +273,10 @@ void adf_vf_isr_resource_free(struct adf_accel_dev *accel_dev)
 {
 	struct pci_dev *pdev = accel_to_pci_dev(accel_dev);
 
-	irq_set_affinity_hint(pdev->irq, NULL);
-	free_irq(pdev->irq, (void *)accel_dev);
+	if (accel_dev->vf.irq_enabled) {
+		irq_set_affinity_hint(pdev->irq, NULL);
+		free_irq(pdev->irq, accel_dev);
+	}
 	adf_cleanup_bh(accel_dev);
 	adf_cleanup_pf2vf_bh(accel_dev);
 	adf_disable_msi(accel_dev);
