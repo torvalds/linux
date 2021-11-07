@@ -399,7 +399,7 @@ void rtw_stop_drv_threads(struct adapter *padapter)
 		wait_for_completion(&padapter->cmdpriv.stop_cmd_thread);
 }
 
-static u8 rtw_init_default_value(struct adapter *padapter)
+static void rtw_init_default_value(struct adapter *padapter)
 {
 	struct registry_priv *pregistrypriv = &padapter->registrypriv;
 	struct xmit_priv	*pxmitpriv = &padapter->xmitpriv;
@@ -444,7 +444,6 @@ static u8 rtw_init_default_value(struct adapter *padapter)
 	padapter->bRxRSSIDisplay = 0;
 	padapter->bNotifyChannelChange = 0;
 	padapter->bShowGetP2PState = 1;
-	return _SUCCESS;
 }
 
 u8 rtw_reset_drv_sw(struct adapter *padapter)
@@ -478,8 +477,6 @@ u8 rtw_reset_drv_sw(struct adapter *padapter)
 
 u8 rtw_init_drv_sw(struct adapter *padapter)
 {
-	u8	ret8 = _SUCCESS;
-
 	if ((rtw_init_cmd_priv(&padapter->cmdpriv)) == _FAIL)
 		return _FAIL;
 
@@ -519,14 +516,14 @@ u8 rtw_init_drv_sw(struct adapter *padapter)
 
 	rtw_init_pwrctrl_priv(padapter);
 
-	ret8 = rtw_init_default_value(padapter);
+	rtw_init_default_value(padapter);
 
 	rtl8188e_init_dm_priv(padapter);
 	rtl8188eu_InitSwLeds(padapter);
 
 	spin_lock_init(&padapter->br_ext_lock);
 
-	return ret8;
+	return _SUCCESS;
 }
 
 void rtw_cancel_all_timer(struct adapter *padapter)
