@@ -358,17 +358,6 @@ static int rx8025_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	if (client->irq <= 0)
 		return -EINVAL;
 
-	/*
-	 * Hardware alarm precision is 1 minute!
-	 * round up to nearest minute
-	 */
-	if (t->time.tm_sec) {
-		time64_t alarm_time = rtc_tm_to_time64(&t->time);
-
-		alarm_time += 60 - t->time.tm_sec;
-		rtc_time64_to_tm(alarm_time, &t->time);
-	}
-
 	ald[0] = bin2bcd(t->time.tm_min);
 	if (rx8025->ctrl1 & RX8025_BIT_CTRL1_1224)
 		ald[1] = bin2bcd(t->time.tm_hour);
@@ -579,8 +568,8 @@ static int rx8025_probe(struct i2c_client *client,
 
 	rx8025->rtc->max_user_freq = 1;
 
-	/* the rx8025 alarm only supports a minute accuracy */
-	rx8025->rtc->uie_unsupported = 1;
+	set_bit(RTC_FEATURE_ALARM_RES_MINUTE, rx8025->rtc->features);
+	clear_bit(RTC_FEATURE_UPDATE_INTERRUPT, rx8025->rtc->features);
 
 	err = devm_rtc_register_device(rx8025->rtc);
 	if (err)
