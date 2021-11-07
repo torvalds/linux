@@ -836,6 +836,37 @@ static int ne_sanity_check_user_mem_region_page(struct ne_enclave *ne_enclave,
 }
 
 /**
+ * ne_sanity_check_phys_mem_region() - Sanity check the start address and the size
+ *                                     of a physical memory region.
+ * @phys_mem_region_paddr : Physical start address of the region to be sanity checked.
+ * @phys_mem_region_size  : Length of the region to be sanity checked.
+ *
+ * Context: Process context. This function is called with the ne_enclave mutex held.
+ * Return:
+ * * 0 on success.
+ * * Negative return value on failure.
+ */
+static int ne_sanity_check_phys_mem_region(u64 phys_mem_region_paddr,
+					   u64 phys_mem_region_size)
+{
+	if (phys_mem_region_size & (NE_MIN_MEM_REGION_SIZE - 1)) {
+		dev_err_ratelimited(ne_misc_dev.this_device,
+				    "Physical mem region size is not multiple of 2 MiB\n");
+
+		return -EINVAL;
+	}
+
+	if (!IS_ALIGNED(phys_mem_region_paddr, NE_MIN_MEM_REGION_SIZE)) {
+		dev_err_ratelimited(ne_misc_dev.this_device,
+				    "Physical mem region address is not 2 MiB aligned\n");
+
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/**
  * ne_merge_phys_contig_memory_regions() - Add a memory region and merge the adjacent
  *                                         regions if they are physically contiguous.
  * @phys_contig_regions : Private data associated with the contiguous physical memory regions.
@@ -843,23 +874,31 @@ static int ne_sanity_check_user_mem_region_page(struct ne_enclave *ne_enclave,
  * @page_size :           Length of the region to be added.
  *
  * Context: Process context. This function is called with the ne_enclave mutex held.
+ * Return:
+ * * 0 on success.
+ * * Negative return value on failure.
  */
-static void
+static int
 ne_merge_phys_contig_memory_regions(struct ne_phys_contig_mem_regions *phys_contig_regions,
 				    u64 page_paddr, u64 page_size)
 {
 	unsigned long num = phys_contig_regions->num;
+	int rc = 0;
+
+	rc = ne_sanity_check_phys_mem_region(page_paddr, page_size);
+	if (rc < 0)
+		return rc;
 
 	/* Physically contiguous, just merge */
 	if (num && (phys_contig_regions->regions[num - 1].end + 1) == page_paddr) {
 		phys_contig_regions->regions[num - 1].end += page_size;
-
-		return;
+	} else {
+		phys_contig_regions->regions[num].start = page_paddr;
+		phys_contig_regions->regions[num].end = page_paddr + page_size - 1;
+		phys_contig_regions->num++;
 	}
 
-	phys_contig_regions->regions[num].start = page_paddr;
-	phys_contig_regions->regions[num].end = page_paddr + page_size - 1;
-	phys_contig_regions->num++;
+	return 0;
 }
 
 /**
@@ -939,9 +978,11 @@ static int ne_set_user_memory_region_ioctl(struct ne_enclave *ne_enclave,
 		if (rc < 0)
 			goto put_pages;
 
-		ne_merge_phys_contig_memory_regions(&phys_contig_mem_regions,
-						    page_to_phys(ne_mem_region->pages[i]),
-						    page_size(ne_mem_region->pages[i]));
+		rc = ne_merge_phys_contig_memory_regions(&phys_contig_mem_regions,
+							 page_to_phys(ne_mem_region->pages[i]),
+							 page_size(ne_mem_region->pages[i]));
+		if (rc < 0)
+			goto put_pages;
 
 		memory_size += page_size(ne_mem_region->pages[i]);
 
@@ -963,23 +1004,9 @@ static int ne_set_user_memory_region_ioctl(struct ne_enclave *ne_enclave,
 		u64 phys_region_addr = phys_contig_mem_regions.regions[i].start;
 		u64 phys_region_size = range_len(&phys_contig_mem_regions.regions[i]);
 
-		if (phys_region_size & (NE_MIN_MEM_REGION_SIZE - 1)) {
-			dev_err_ratelimited(ne_misc_dev.this_device,
-					    "Physical mem region size is not multiple of 2 MiB\n");
-
-			rc = -EINVAL;
-
+		rc = ne_sanity_check_phys_mem_region(phys_region_addr, phys_region_size);
+		if (rc < 0)
 			goto put_pages;
-		}
-
-		if (!IS_ALIGNED(phys_region_addr, NE_MIN_MEM_REGION_SIZE)) {
-			dev_err_ratelimited(ne_misc_dev.this_device,
-					    "Physical mem region address is not 2 MiB aligned\n");
-
-			rc = -EINVAL;
-
-			goto put_pages;
-		}
 	}
 
 	ne_mem_region->memory_size = mem_region.memory_size;
