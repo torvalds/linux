@@ -399,7 +399,7 @@ phy_PathA_IQK_8188E(struct adapter *adapt)
 }
 
 static u8 /* bit0 = 1 => Tx OK, bit1 = 1 => Rx OK */
-phy_PathA_RxIQK(struct adapter *adapt, bool configPathB)
+phy_PathA_RxIQK(struct adapter *adapt)
 {
 	u32 regeac, regE94, regE9C, regEA4, u4tmp;
 	u8 result = 0x00;
@@ -868,7 +868,7 @@ static void phy_IQCalibrate_8188E(struct adapter *adapt, s32 result[][8], u8 t, 
 	}
 
 	for (i = 0; i < retryCount; i++) {
-		PathAOK = phy_PathA_RxIQK(adapt, is2t);
+		PathAOK = phy_PathA_RxIQK(adapt);
 		if (PathAOK == 0x03) {
 			result[t][2] = (ODM_GetBBReg(dm_odm, rRx_Power_Before_IQK_A_2, bMaskDWord) & 0x3FF0000) >> 16;
 			result[t][3] = (ODM_GetBBReg(dm_odm, rRx_Power_After_IQK_A_2, bMaskDWord) & 0x3FF0000) >> 16;
