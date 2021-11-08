@@ -321,6 +321,26 @@ struct aspeed_mctp_endpoint {
 
 struct kmem_cache *packet_cache;
 
+void data_dump(struct aspeed_mctp *priv, struct mctp_pcie_packet_data *data)
+{
+	int i;
+
+	dev_dbg(priv->dev, "Address %08x", (u32)data);
+	dev_dbg(priv->dev, "VDM header:");
+	for (i = 0; i < PCIE_VDM_HDR_SIZE_DW; i++) {
+		dev_dbg(priv->dev, "%02x %02x %02x %02x", data->hdr[i] & 0xff,
+			(data->hdr[i] >> 8) & 0xff, (data->hdr[i] >> 16) & 0xff,
+			(data->hdr[i] >> 24) & 0xff);
+	}
+	dev_dbg(priv->dev, "Data payload:");
+	for (i = 0; i < PCIE_VDM_DATA_SIZE_DW; i++) {
+		dev_dbg(priv->dev, "%02x %02x %02x %02x",
+			data->payload[i] & 0xff, (data->payload[i] >> 8) & 0xff,
+			(data->payload[i] >> 16) & 0xff,
+			(data->payload[i] >> 24) & 0xff);
+	}
+}
+
 void *aspeed_mctp_packet_alloc(gfp_t flags)
 {
 	return kmem_cache_alloc(packet_cache, flags);
@@ -472,6 +492,7 @@ static void aspeed_mctp_emit_tx_cmd(struct mctp_channel *tx,
 		sizeof(packet->data.hdr) / sizeof(u32);
 	u32 offset;
 
+	data_dump(priv, &packet->data);
 	aspeed_mctp_swap_pcie_vdm_hdr(&packet->data);
 
 	if (priv->match_data->vdm_hdr_direct_xfer) {
@@ -491,6 +512,8 @@ static void aspeed_mctp_emit_tx_cmd(struct mctp_channel *tx,
 		if (tx->wr_ptr == TX_PACKET_COUNT - 1)
 			tx_cmd->tx_hi |= TX_LAST_CMD;
 	}
+	dev_dbg(priv->dev, "tx->wr_prt: %d, tx_cmd: hi:%08x lo:%08x\n",
+		tx->wr_ptr, tx_cmd->tx_hi, tx_cmd->tx_lo);
 
 	tx->wr_ptr = (tx->wr_ptr + 1) % TX_PACKET_COUNT;
 }
@@ -658,8 +681,8 @@ void aspeed_mctp_rx_hdr_prep(struct aspeed_mctp *priv, u8 *hdr, u32 rx_lo)
 	/*
 	 * MCTP controller will map the routing type to reduce one bit
 	 * 0 (Route to RC) -> 0,
-	 * 2(Route by ID) -> 1,
-	 * 3(Broadcast from RC) -> 2
+	 * 2 (Route by ID) -> 1,
+	 * 3 (Broadcast from RC) -> 2
 	 */
 	routing_type = FIELD_GET(RX_PACKET_ROUTING_TYPE, rx_lo);
 	routing_type = routing_type ? routing_type + 1 : 0;
@@ -770,7 +793,7 @@ static void aspeed_mctp_rx_tasklet(unsigned long data)
 			} else {
 				dev_dbg(priv->dev, "Failed to allocate RX packet\n");
 			}
-
+			data_dump(priv, &rx_packet->data);
 			*hdr = 0;
 			rx->wr_ptr = (rx->wr_ptr + 1) % rx->buffer_count;
 			hdr = (u32 *)&rx_buf[rx->wr_ptr];
@@ -810,6 +833,10 @@ static void aspeed_mctp_rx_tasklet(unsigned long data)
 			} else {
 				dev_dbg(priv->dev, "Failed to allocate RX packet\n");
 			}
+			dev_dbg(priv->dev,
+				"rx->wr_ptr = %d, rx_cmd->rx_lo = %08x",
+				rx->wr_ptr, *hdr);
+			data_dump(priv, &rx_packet->data);
 			*hdr = 0;
 			rx->wr_ptr = (rx->wr_ptr + 1) % rx->buffer_count;
 			payload = (u32 *)&rx_buf[rx->wr_ptr];
@@ -2106,4 +2133,4 @@ module_exit(aspeed_mctp_exit)
 MODULE_DEVICE_TABLE(of, aspeed_mctp_match_table);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Iwona Winiarska <iwona.winiarska@intel.com>");
-MODULE_DESCRIPTION("Aspeed AST2600 MCTP driver");
+MODULE_DESCRIPTION("Aspeed MCTP driver");
