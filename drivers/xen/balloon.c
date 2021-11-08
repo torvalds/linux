@@ -80,9 +80,8 @@
 static uint __read_mostly balloon_boot_timeout = 180;
 module_param(balloon_boot_timeout, uint, 0444);
 
-static int xen_hotplug_unpopulated;
-
 #ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
+static int xen_hotplug_unpopulated;
 
 static struct ctl_table balloon_table[] = {
 	{
@@ -115,6 +114,8 @@ static struct ctl_table xen_root[] = {
 	{ }
 };
 
+#else
+#define xen_hotplug_unpopulated 0
 #endif
 
 /*
