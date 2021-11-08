@@ -41,8 +41,7 @@ Optional:
 - mali-supply : Phandle to the top level regulator for the Mali device.
                 Refer to
 Documentation/devicetree/bindings/regulator/regulator.txt for details.
-- shadercores-supply : Phandle to shader cores regulator for the Mali device.
-                       This is optional.
+- mem-supply : Phandle to memory regulator for the Mali device. This is optional.
 - operating-points-v2 : Refer to Documentation/devicetree/bindings/power/mali-opp.txt
 for details.
 - quirks_gpu : Used to write to the JM_CONFIG or CSF_CONFIG register.
@@ -198,7 +197,7 @@ gpu: gpu@6e000000 {
 	clocks = <&clk_mali 0>, <&clk_mali 1>;
 	clock-names = "clk_mali", "shadercores";
 	mali-supply = <&supply0_3v3>;
-	shadercores-supply = <&supply1_3v3>;
+	mem-supply = <&supply1_3v3>;
 	system-coherency = <31>;
 	operating-points-v2 = <&gpu_opp_table>;
 };

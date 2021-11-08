@@ -4404,7 +4404,7 @@ int power_control_init(struct kbase_device *kbdev)
 	unsigned int i;
 #if defined(CONFIG_REGULATOR)
 	static const char *regulator_names[] = {
-		"mali", "shadercores"
+		"mali", "mem"
 	};
 #endif /* CONFIG_REGULATOR */
 
@@ -4487,8 +4487,22 @@ int power_control_init(struct kbase_device *kbdev)
 #if ((KERNEL_VERSION(4, 10, 0) <= LINUX_VERSION_CODE) && \
 	defined(CONFIG_REGULATOR))
 	if (kbdev->nr_regulators > 0) {
-		kbdev->opp_table = dev_pm_opp_set_regulators(kbdev->dev,
-			regulator_names, kbdev->nr_regulators);
+		kbdev->opp_table =
+			dev_pm_opp_set_regulators(kbdev->dev, regulator_names,
+						  kbdev->nr_regulators);
+		if (IS_ERR(kbdev->opp_table)) {
+			dev_err(kbdev->dev, "Failed to set regulators\n");
+			return 0;
+		}
+		kbdev->opp_table =
+			dev_pm_opp_register_set_opp_helper(kbdev->dev,
+							   kbase_devfreq_opp_helper);
+		if (IS_ERR(kbdev->opp_table)) {
+			dev_pm_opp_put_regulators(kbdev->opp_table);
+			kbdev->opp_table = NULL;
+			dev_err(kbdev->dev, "Failed to set opp helper\n");
+			return 0;
+		}
 	}
 #endif /* (KERNEL_VERSION(4, 10, 0) <= LINUX_VERSION_CODE */
 #ifdef CONFIG_ARCH_ROCKCHIP
@@ -4519,8 +4533,10 @@ void power_control_term(struct kbase_device *kbdev)
 	dev_pm_opp_of_remove_table(kbdev->dev);
 #if ((KERNEL_VERSION(4, 10, 0) <= LINUX_VERSION_CODE) && \
 	defined(CONFIG_REGULATOR))
-	if (!IS_ERR_OR_NULL(kbdev->opp_table))
+	if (!IS_ERR_OR_NULL(kbdev->opp_table)) {
+		dev_pm_opp_unregister_set_opp_helper(kbdev->opp_table);
 		dev_pm_opp_put_regulators(kbdev->opp_table);
+	}
 #endif /* (KERNEL_VERSION(4, 10, 0) <= LINUX_VERSION_CODE */
 #endif /* CONFIG_PM_OPP */
 

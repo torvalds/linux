@@ -45,6 +45,7 @@ static struct monitor_dev_profile mali_mdevp = {
 	.type = MONITOR_TPYE_DEV,
 	.low_temp_adjust = rockchip_monitor_dev_low_temp_adjust,
 	.high_temp_adjust = rockchip_monitor_dev_high_temp_adjust,
+	.update_volt = rockchip_monitor_check_rate_volt,
 };
 
 /**
@@ -122,157 +123,100 @@ void kbase_devfreq_opp_translate(struct kbase_device *kbdev, unsigned long freq,
 	}
 }
 
+int kbase_devfreq_opp_helper(struct dev_pm_set_opp_data *data)
+{
+	struct device *dev = data->dev;
+	struct dev_pm_opp_supply *old_supply_vdd = &data->old_opp.supplies[0];
+	struct dev_pm_opp_supply *old_supply_mem = &data->old_opp.supplies[1];
+	struct dev_pm_opp_supply *new_supply_vdd = &data->new_opp.supplies[0];
+	struct dev_pm_opp_supply *new_supply_mem = &data->new_opp.supplies[1];
+	struct regulator *vdd_reg = data->regulators[0];
+	struct regulator *mem_reg = data->regulators[1];
+	struct clk *clk = data->clk;
+	unsigned long old_freq = data->old_opp.rate;
+	unsigned long new_freq = data->new_opp.rate;
+	int ret = 0;
+
+	/* Scaling up? Scale voltage before frequency */
+	if (new_freq >= old_freq) {
+		ret = regulator_set_voltage(mem_reg, new_supply_mem->u_volt,
+					    INT_MAX);
+		if (ret) {
+			dev_err(dev, "failed to set volt %lu uV for mem reg\n",
+				new_supply_mem->u_volt);
+			goto restore_voltage;
+		}
+		ret = regulator_set_voltage(vdd_reg, new_supply_vdd->u_volt,
+					    INT_MAX);
+		if (ret) {
+			dev_err(dev, "failed to set volt %lu uV for vdd reg\n",
+				new_supply_vdd->u_volt);
+			goto restore_voltage;
+		}
+	}
+
+	/* Change frequency */
+	dev_dbg(dev, "switching OPP: %lu Hz --> %lu Hz\n", old_freq, new_freq);
+	ret = clk_set_rate(clk, new_freq);
+	if (ret) {
+		dev_err(dev, "failed to set clk rate: %d\n", ret);
+		goto restore_voltage;
+	}
+
+	/* Scaling down? Scale voltage after frequency */
+	if (new_freq < old_freq) {
+		ret = regulator_set_voltage(vdd_reg, new_supply_vdd->u_volt,
+					    INT_MAX);
+		if (ret) {
+			dev_err(dev, "failed to set volt %lu uV for vdd reg\n",
+				new_supply_vdd->u_volt);
+			goto restore_freq;
+		}
+		ret = regulator_set_voltage(mem_reg, new_supply_mem->u_volt,
+					    INT_MAX);
+		if (ret) {
+			dev_err(dev, "failed to set volt %lu uV for mem reg\n",
+				new_supply_mem->u_volt);
+			goto restore_freq;
+		}
+	}
+
+	return 0;
+
+restore_freq:
+	if (clk_set_rate(clk, old_freq))
+		dev_err(dev, "failed to restore old-freq %lu Hz\n", old_freq);
+restore_voltage:
+	regulator_set_voltage(mem_reg, old_supply_mem->u_volt, INT_MAX);
+	regulator_set_voltage(vdd_reg, old_supply_vdd->u_volt, INT_MAX);
+
+	return ret;
+}
+
 static int
-kbase_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
+kbase_devfreq_target(struct device *dev, unsigned long *freq, u32 flags)
 {
 	struct kbase_device *kbdev = dev_get_drvdata(dev);
 	struct dev_pm_opp *opp;
-	unsigned long nominal_freq, nominal_volt;
-	unsigned long freqs[BASE_MAX_NR_CLOCKS_REGULATORS] = {0};
-	unsigned long old_freqs[BASE_MAX_NR_CLOCKS_REGULATORS] = {0};
-	unsigned long volts[BASE_MAX_NR_CLOCKS_REGULATORS] = {0};
-	unsigned int i;
-	u64 core_mask = 0;
+	int ret = 0;
 
-	nominal_freq = *target_freq;
+	if (!mali_mdevp.is_checked)
+		return -EINVAL;
 
-#if KERNEL_VERSION(4, 11, 0) > LINUX_VERSION_CODE
-	rcu_read_lock();
-#endif
-	opp = devfreq_recommended_opp(dev, &nominal_freq, flags);
-	if (IS_ERR_OR_NULL(opp)) {
-#if KERNEL_VERSION(4, 11, 0) > LINUX_VERSION_CODE
-		rcu_read_unlock();
-#endif
-		dev_err(dev, "Failed to get opp (%ld)\n", PTR_ERR(opp));
+	opp = devfreq_recommended_opp(dev, freq, flags);
+	if (IS_ERR(opp))
 		return PTR_ERR(opp);
-	}
-	nominal_volt = dev_pm_opp_get_voltage(opp);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
-	rcu_read_unlock();
-#endif
-#if KERNEL_VERSION(4, 11, 0) <= LINUX_VERSION_CODE
 	dev_pm_opp_put(opp);
-#endif
 
-	kbase_devfreq_opp_translate(kbdev,
-				    nominal_freq,
-				    &core_mask,
-				    freqs,
-				    volts);
-
-	/*
-	 * Only update if there is a change of frequency
-	 */
-	if (kbdev->current_nominal_freq == nominal_freq) {
-		unsigned int i;
-		int err;
-
-		*target_freq = nominal_freq;
-
-#ifdef CONFIG_REGULATOR
-		for (i = 0; i < kbdev->nr_regulators; i++) {
-			if (kbdev->current_voltages[i] == volts[i])
-				continue;
-
-			err = regulator_set_voltage(kbdev->regulators[i],
-						    volts[i],
-						    INT_MAX);
-			if (err) {
-				dev_err(dev, "Failed to set voltage (%d)\n", err);
-				return err;
-			}
-			kbdev->current_voltages[i] = volts[i];
-		}
-#endif
-		return 0;
+	rockchip_monitor_volt_adjust_lock(kbdev->mdev_info);
+	ret = dev_pm_opp_set_rate(dev, *freq);
+	if (!ret) {
+		kbdev->current_nominal_freq = *freq;
+		KBASE_TLSTREAM_AUX_DEVFREQ_TARGET(kbdev, (u64)*freq);
 	}
+	rockchip_monitor_volt_adjust_unlock(kbdev->mdev_info);
 
-	dev_dbg(dev, "%lu-->%lu\n", kbdev->current_nominal_freq, nominal_freq);
-
-#if IS_ENABLED(CONFIG_REGULATOR)
-	/* Regulators and clocks work in pairs: every clock has a regulator,
-	 * and we never expect to have more regulators than clocks.
-	 *
-	 * We always need to increase the voltage before increasing
-	 * the frequency of a regulator/clock pair, otherwise the clock
-	 * wouldn't have enough power to perform the transition.
-	 *
-	 * It's always safer to decrease the frequency before decreasing
-	 * voltage of a regulator/clock pair, otherwise the clock could have
-	 * problems operating if it is deprived of the necessary power
-	 * to sustain its current frequency (even if that happens for a short
-	 * transition interval).
-	 */
-
-	for (i = 0; i < kbdev->nr_clocks; i++)
-		old_freqs[i] = kbdev->current_freqs[i];
-
-	for (i = 0; i < kbdev->nr_clocks; i++) {
-		if (kbdev->regulators[i] &&
-				kbdev->current_voltages[i] != volts[i] &&
-				old_freqs[i] < freqs[i]) {
-			int err;
-
-			err = regulator_set_voltage(kbdev->regulators[i],
-				volts[i], INT_MAX);
-			if (!err) {
-				kbdev->current_voltages[i] = volts[i];
-			} else {
-				dev_err(dev, "Failed to increase voltage (%d) (target %lu)\n",
-					err, volts[i]);
-				return err;
-			}
-		}
-	}
-#endif
-
-	for (i = 0; i < kbdev->nr_clocks; i++) {
-		if (kbdev->clocks[i]) {
-			int err;
-
-			err = clk_set_rate(kbdev->clocks[i], freqs[i]);
-			if (!err) {
-				kbdev->current_freqs[i] = freqs[i];
-			} else {
-				dev_err(dev, "Failed to set clock %lu (target %lu)\n",
-					freqs[i], *target_freq);
-				return err;
-			}
-		}
-	}
-
-#if IS_ENABLED(CONFIG_REGULATOR)
-	for (i = 0; i < kbdev->nr_clocks; i++) {
-		if (kbdev->regulators[i] &&
-				kbdev->current_voltages[i] != volts[i] &&
-				old_freqs[i] > freqs[i]) {
-			int err;
-
-			err = regulator_set_voltage(kbdev->regulators[i],
-				volts[i], INT_MAX);
-			if (!err) {
-				kbdev->current_voltages[i] = volts[i];
-			} else {
-				dev_err(dev, "Failed to decrease voltage (%d) (target %lu)\n",
-					err, volts[i]);
-				return err;
-			}
-		}
-	}
-#endif
-
-	kbase_devfreq_set_core_mask(kbdev, core_mask);
-
-	*target_freq = nominal_freq;
-	kbdev->current_nominal_freq = nominal_freq;
-	kbdev->current_core_mask = core_mask;
-	if (kbdev->devfreq)
-		kbdev->devfreq->last_status.current_frequency = nominal_freq;
-
-	KBASE_TLSTREAM_AUX_DEVFREQ_TARGET(kbdev, (u64)nominal_freq);
-
-	return 0;
+	return ret;
 }
 
 void kbase_devfreq_force_freq(struct kbase_device *kbdev, unsigned long freq)
@@ -692,7 +636,6 @@ int kbase_devfreq_init(struct kbase_device *kbdev)
 	struct devfreq_dev_profile *dp;
 	int err;
 	struct dev_pm_opp *opp;
-	unsigned long opp_rate;
 	unsigned int i;
 
 	if (kbdev->nr_clocks == 0) {
@@ -709,9 +652,14 @@ int kbase_devfreq_init(struct kbase_device *kbdev)
 	}
 	kbdev->current_nominal_freq = kbdev->current_freqs[0];
 
+	opp = devfreq_recommended_opp(kbdev->dev, &kbdev->current_nominal_freq, 0);
+	if (IS_ERR(opp))
+		return PTR_ERR(opp);
+	dev_pm_opp_put(opp);
+
 	dp = &kbdev->devfreq_profile;
 
-	dp->initial_freq = kbdev->current_freqs[0];
+	dp->initial_freq = kbdev->current_nominal_freq;
 	dp->polling_ms = 100;
 	dp->target = kbase_devfreq_target;
 	dp->get_dev_status = kbase_devfreq_status;
@@ -771,18 +719,13 @@ int kbase_devfreq_init(struct kbase_device *kbdev)
 		goto opp_notifier_failed;
 	}
 
-	opp_rate = kbdev->current_freqs[0]; /* Bifrost GPU has only 1 clock. */
-	opp = devfreq_recommended_opp(kbdev->dev, &opp_rate, 0);
-	if (!IS_ERR(opp))
-		dev_pm_opp_put(opp);
-	kbdev->devfreq->last_status.current_frequency = opp_rate;
-
 	mali_mdevp.data = kbdev->devfreq;
 	kbdev->mdev_info = rockchip_system_monitor_register(kbdev->dev,
 			&mali_mdevp);
 	if (IS_ERR(kbdev->mdev_info)) {
 		dev_dbg(kbdev->dev, "without system monitor\n");
                kbdev->mdev_info = NULL;
+	       mali_mdevp.is_checked = true;
 	}
 #if IS_ENABLED(CONFIG_DEVFREQ_THERMAL)
 	if (of_find_compatible_node(kbdev->dev->of_node, NULL,

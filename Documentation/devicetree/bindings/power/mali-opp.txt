@@ -63,7 +63,7 @@ Optional properties:
 
 - opp-microvolt: List of one or two voltages in micro Volts. They shall correspond
   to the regulators declared under the Mali device node, and follow the order:
-  "toplevel", "shadercores".
+  "logic", "memory".
 
   A single regulator's voltage is specified with an array of size one or three.
   Single entry is for target voltage and three entries are for <target min max>
