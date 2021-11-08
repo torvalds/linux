@@ -11580,6 +11580,11 @@ F:	Documentation/devicetree/bindings/*/*max77802.txt
 F:	drivers/regulator/max77802-regulator.c
 F:	include/dt-bindings/*/*max77802.h
 
+MAXIM MAX77976 BATTERY CHARGER
+M:	Luca Ceresoli <luca@lucaceresoli.net>
+S:	Supported
+F:	Documentation/devicetree/bindings/power/supply/maxim,max77976.yaml
+
 MAXIM MUIC CHARGER DRIVERS FOR EXYNOS BASED BOARDS
 M:	Krzysztof Kozlowski <krzysztof.kozlowski@canonical.com>
 M:	Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
