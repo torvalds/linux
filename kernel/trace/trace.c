@@ -5635,7 +5635,7 @@ static const char readme_msg[] =
 	"\t        - a numeric literal: e.g. ms_per_sec=1000,\n"
 	"\t        - an arithmetic expression: e.g. time_secs=current_timestamp/1000\n"
 	"\n"
-	"\t    hist trigger aritmethic expressions support addition(+), subtraction(-),\n"
+	"\t    hist trigger arithmetic expressions support addition(+), subtraction(-),\n"
 	"\t    multiplication(*) and division(/) operators. An operand can be either a\n"
 	"\t    variable reference, field or numeric literal.\n"
 	"\n"
