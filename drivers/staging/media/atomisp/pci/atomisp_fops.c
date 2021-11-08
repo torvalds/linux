@@ -901,7 +901,7 @@ done:
 	rt_mutex_unlock(&isp->mutex);
 
 	/* Ensure that a mode is set */
-	if (asd)
+	if (asd && pipe)
 		v4l2_ctrl_s_ctrl(asd->run_mode, pipe->default_run_mode);
 
 	return 0;
