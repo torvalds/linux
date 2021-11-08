@@ -829,7 +829,7 @@ static int smc_connect_rdma(struct smc_sock *smc,
 	smc_rmb_sync_sg_for_device(&smc->conn);
 
 	reason_code = smc_clc_send_confirm(smc, ini->first_contact_local,
-					   SMC_V1);
+					   SMC_V1, NULL);
 	if (reason_code)
 		goto connect_abort;
 
@@ -883,6 +883,7 @@ static int smc_connect_ism(struct smc_sock *smc,
 			   struct smc_clc_msg_accept_confirm *aclc,
 			   struct smc_init_info *ini)
 {
+	u8 *eid = NULL;
 	int rc = 0;
 
 	ini->is_smcd = true;
@@ -918,8 +919,15 @@ static int smc_connect_ism(struct smc_sock *smc,
 	smc_rx_init(smc);
 	smc_tx_init(smc);
 
+	if (aclc->hdr.version > SMC_V1) {
+		struct smc_clc_msg_accept_confirm_v2 *clc_v2 =
+			(struct smc_clc_msg_accept_confirm_v2 *)aclc;
+
+		eid = clc_v2->eid;
+	}
+
 	rc = smc_clc_send_confirm(smc, ini->first_contact_local,
-				  aclc->hdr.version);
+				  aclc->hdr.version, eid);
 	if (rc)
 		goto connect_abort;
 	mutex_unlock(&smc_server_lgr_pending);
@@ -1533,9 +1541,8 @@ static void smc_find_ism_v2_device_serv(struct smc_sock *new_smc,
 	pclc_smcd = smc_get_clc_msg_smcd(pclc);
 	smc_v2_ext = smc_get_clc_v2_ext(pclc);
 	smcd_v2_ext = smc_get_clc_smcd_v2_ext(smc_v2_ext);
-	if (!smcd_v2_ext ||
-	    !smc_v2_ext->hdr.flag.seid) { /* no system EID support for SMCD */
-		smc_find_ism_store_rc(SMC_CLC_DECL_NOSEID, ini);
+	if (!smcd_v2_ext) {
+		smc_find_ism_store_rc(SMC_CLC_DECL_NOV2DEXT, ini);
 		goto not_found;
 	}
 
@@ -1555,13 +1562,13 @@ static void smc_find_ism_v2_device_serv(struct smc_sock *new_smc,
 	}
 	mutex_unlock(&smcd_dev_list.mutex);
 
-	if (ini->ism_dev[0]) {
-		smc_ism_get_system_eid(ini->ism_dev[0], &eid);
-		if (memcmp(eid, smcd_v2_ext->system_eid, SMC_MAX_EID_LEN))
-			goto not_found;
-	} else {
+	if (!ini->ism_dev[0])
 		goto not_found;
-	}
+
+	smc_ism_get_system_eid(&eid);
+	if (!smc_clc_match_eid(ini->negotiated_eid, smc_v2_ext,
+			       smcd_v2_ext->system_eid, eid))
+		goto not_found;
 
 	/* separate - outside the smcd_dev_list.lock */
 	smcd_version = ini->smcd_version;
@@ -1579,6 +1586,7 @@ static void smc_find_ism_v2_device_serv(struct smc_sock *new_smc,
 	}
 	/* no V2 ISM device could be initialized */
 	ini->smcd_version = smcd_version;	/* restore original value */
+	ini->negotiated_eid[0] = 0;
 
 not_found:
 	ini->smcd_version &= ~SMC_V2;
@@ -1788,7 +1796,8 @@ static void smc_listen_work(struct work_struct *work)
 
 	/* send SMC Accept CLC message */
 	rc = smc_clc_send_accept(new_smc, ini->first_contact_local,
-				 ini->smcd_version == SMC_V2 ? SMC_V2 : SMC_V1);
+				 ini->smcd_version == SMC_V2 ? SMC_V2 : SMC_V1,
+				 ini->negotiated_eid);
 	if (rc)
 		goto out_unlock;
 
@@ -2662,6 +2671,7 @@ static void __exit smc_exit(void)
 	proto_unregister(&smc_proto);
 	smc_pnet_exit();
 	smc_nl_exit();
+	smc_clc_exit();
 	unregister_pernet_subsys(&smc_net_stat_ops);
 	unregister_pernet_subsys(&smc_net_ops);
 	rcu_barrier();

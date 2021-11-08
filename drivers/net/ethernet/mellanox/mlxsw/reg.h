@@ -5681,6 +5681,14 @@ static inline void mlxsw_reg_pspa_pack(char *payload, u8 swid, u8 local_port)
 
 MLXSW_REG_DEFINE(pmaos, MLXSW_REG_PMAOS_ID, MLXSW_REG_PMAOS_LEN);
 
+/* reg_pmaos_rst
+ * Module reset toggle.
+ * Note: Setting reset while module is plugged-in will result in transition to
+ * "initializing" operational state.
+ * Access: OP
+ */
+MLXSW_ITEM32(reg, pmaos, rst, 0x00, 31, 1);
+
 /* reg_pmaos_slot_index
  * Slot index.
  * Access: Index
@@ -5692,6 +5700,24 @@ MLXSW_ITEM32(reg, pmaos, slot_index, 0x00, 24, 4);
  * Access: Index
  */
 MLXSW_ITEM32(reg, pmaos, module, 0x00, 16, 8);
+
+enum mlxsw_reg_pmaos_admin_status {
+	MLXSW_REG_PMAOS_ADMIN_STATUS_ENABLED = 1,
+	MLXSW_REG_PMAOS_ADMIN_STATUS_DISABLED = 2,
+	/* If the module is active and then unplugged, or experienced an error
+	 * event, the operational status should go to "disabled" and can only
+	 * be enabled upon explicit enable command.
+	 */
+	MLXSW_REG_PMAOS_ADMIN_STATUS_ENABLED_ONCE = 3,
+};
+
+/* reg_pmaos_admin_status
+ * Module administrative state (the desired state of the module).
+ * Note: To disable a module, all ports associated with the port must be
+ * administatively down first.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pmaos, admin_status, 0x00, 8, 4);
 
 /* reg_pmaos_ase
  * Admin state update enable.
@@ -5721,13 +5747,10 @@ enum mlxsw_reg_pmaos_e {
  */
 MLXSW_ITEM32(reg, pmaos, e, 0x04, 0, 2);
 
-static inline void mlxsw_reg_pmaos_pack(char *payload, u8 module,
-					enum mlxsw_reg_pmaos_e e)
+static inline void mlxsw_reg_pmaos_pack(char *payload, u8 module)
 {
 	MLXSW_REG_ZERO(pmaos, payload);
 	mlxsw_reg_pmaos_module_set(payload, module);
-	mlxsw_reg_pmaos_e_set(payload, e);
-	mlxsw_reg_pmaos_ee_set(payload, true);
 }
 
 /* PPLR - Port Physical Loopback Register
@@ -5764,6 +5787,69 @@ static inline void mlxsw_reg_pplr_pack(char *payload, u8 local_port,
 	mlxsw_reg_pplr_lb_en_set(payload,
 				 phy_local ?
 				 MLXSW_REG_PPLR_LB_TYPE_BIT_PHY_LOCAL : 0);
+}
+
+/* PMTDB - Port Module To local DataBase Register
+ * ----------------------------------------------
+ * The PMTDB register allows to query the possible module<->local port
+ * mapping than can be used in PMLP. It does not represent the actual/current
+ * mapping of the local to module. Actual mapping is only defined by PMLP.
+ */
+#define MLXSW_REG_PMTDB_ID 0x501A
+#define MLXSW_REG_PMTDB_LEN 0x40
+
+MLXSW_REG_DEFINE(pmtdb, MLXSW_REG_PMTDB_ID, MLXSW_REG_PMTDB_LEN);
+
+/* reg_pmtdb_slot_index
+ * Slot index (0: Main board).
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pmtdb, slot_index, 0x00, 24, 4);
+
+/* reg_pmtdb_module
+ * Module number.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pmtdb, module, 0x00, 16, 8);
+
+/* reg_pmtdb_ports_width
+ * Port's width
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pmtdb, ports_width, 0x00, 12, 4);
+
+/* reg_pmtdb_num_ports
+ * Number of ports in a single module (split/breakout)
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pmtdb, num_ports, 0x00, 8, 4);
+
+enum mlxsw_reg_pmtdb_status {
+	MLXSW_REG_PMTDB_STATUS_SUCCESS,
+};
+
+/* reg_pmtdb_status
+ * Status
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, pmtdb, status, 0x00, 0, 4);
+
+/* reg_pmtdb_port_num
+ * The local_port value which can be assigned to the module.
+ * In case of more than one port, port<x> represent the /<x> port of
+ * the module.
+ * Access: RO
+ */
+MLXSW_ITEM16_INDEXED(reg, pmtdb, port_num, 0x04, 0, 8, 0x02, 0x00, false);
+
+static inline void mlxsw_reg_pmtdb_pack(char *payload, u8 slot_index, u8 module,
+					u8 ports_width, u8 num_ports)
+{
+	MLXSW_REG_ZERO(pmtdb, payload);
+	mlxsw_reg_pmtdb_slot_index_set(payload, slot_index);
+	mlxsw_reg_pmtdb_module_set(payload, module);
+	mlxsw_reg_pmtdb_ports_width_set(payload, ports_width);
+	mlxsw_reg_pmtdb_num_ports_set(payload, num_ports);
 }
 
 /* PMPE - Port Module Plug/Unplug Event Register
@@ -5860,67 +5946,51 @@ static inline void mlxsw_reg_pddr_pack(char *payload, u8 local_port,
 	mlxsw_reg_pddr_page_select_set(payload, page_select);
 }
 
-/* PMTM - Port Module Type Mapping Register
- * ----------------------------------------
- * The PMTM allows query or configuration of module types.
+/* PLLP - Port Local port to Label Port mapping Register
+ * -----------------------------------------------------
+ * The PLLP register returns the mapping from Local Port into Label Port.
  */
-#define MLXSW_REG_PMTM_ID 0x5067
-#define MLXSW_REG_PMTM_LEN 0x10
+#define MLXSW_REG_PLLP_ID 0x504A
+#define MLXSW_REG_PLLP_LEN 0x10
 
-MLXSW_REG_DEFINE(pmtm, MLXSW_REG_PMTM_ID, MLXSW_REG_PMTM_LEN);
+MLXSW_REG_DEFINE(pllp, MLXSW_REG_PLLP_ID, MLXSW_REG_PLLP_LEN);
 
-/* reg_pmtm_module
- * Module number.
+/* reg_pllp_local_port
+ * Local port number.
  * Access: Index
  */
-MLXSW_ITEM32(reg, pmtm, module, 0x00, 16, 8);
+MLXSW_ITEM32(reg, pllp, local_port, 0x00, 16, 8);
 
-enum mlxsw_reg_pmtm_module_type {
-	/* Backplane with 4 lanes */
-	MLXSW_REG_PMTM_MODULE_TYPE_BP_4X,
-	/* QSFP */
-	MLXSW_REG_PMTM_MODULE_TYPE_QSFP,
-	/* SFP */
-	MLXSW_REG_PMTM_MODULE_TYPE_SFP,
-	/* Backplane with single lane */
-	MLXSW_REG_PMTM_MODULE_TYPE_BP_1X = 4,
-	/* Backplane with two lane */
-	MLXSW_REG_PMTM_MODULE_TYPE_BP_2X = 8,
-	/* Chip2Chip4x */
-	MLXSW_REG_PMTM_MODULE_TYPE_C2C4X = 10,
-	/* Chip2Chip2x */
-	MLXSW_REG_PMTM_MODULE_TYPE_C2C2X,
-	/* Chip2Chip1x */
-	MLXSW_REG_PMTM_MODULE_TYPE_C2C1X,
-	/* QSFP-DD */
-	MLXSW_REG_PMTM_MODULE_TYPE_QSFP_DD = 14,
-	/* OSFP */
-	MLXSW_REG_PMTM_MODULE_TYPE_OSFP,
-	/* SFP-DD */
-	MLXSW_REG_PMTM_MODULE_TYPE_SFP_DD,
-	/* DSFP */
-	MLXSW_REG_PMTM_MODULE_TYPE_DSFP,
-	/* Chip2Chip8x */
-	MLXSW_REG_PMTM_MODULE_TYPE_C2C8X,
-};
-
-/* reg_pmtm_module_type
- * Module type.
- * Access: RW
+/* reg_pllp_label_port
+ * Front panel label of the port.
+ * Access: RO
  */
-MLXSW_ITEM32(reg, pmtm, module_type, 0x04, 0, 4);
+MLXSW_ITEM32(reg, pllp, label_port, 0x00, 0, 8);
 
-static inline void mlxsw_reg_pmtm_pack(char *payload, u8 module)
+/* reg_pllp_split_num
+ * Label split mapping for local_port.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, pllp, split_num, 0x04, 0, 4);
+
+/* reg_pllp_slot_index
+ * Slot index (0: Main board).
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, pllp, slot_index, 0x08, 0, 4);
+
+static inline void mlxsw_reg_pllp_pack(char *payload, u8 local_port)
 {
-	MLXSW_REG_ZERO(pmtm, payload);
-	mlxsw_reg_pmtm_module_set(payload, module);
+	MLXSW_REG_ZERO(pllp, payload);
+	mlxsw_reg_pllp_local_port_set(payload, local_port);
 }
 
-static inline void
-mlxsw_reg_pmtm_unpack(char *payload,
-		      enum mlxsw_reg_pmtm_module_type *module_type)
+static inline void mlxsw_reg_pllp_unpack(char *payload, u8 *label_port,
+					 u8 *split_num, u8 *slot_index)
 {
-	*module_type = mlxsw_reg_pmtm_module_type_get(payload);
+	*label_port = mlxsw_reg_pllp_label_port_get(payload);
+	*split_num = mlxsw_reg_pllp_split_num_get(payload);
+	*slot_index = mlxsw_reg_pllp_slot_index_get(payload);
 }
 
 /* HTGT - Host Trap Group Table
@@ -12200,9 +12270,10 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(pspa),
 	MLXSW_REG(pmaos),
 	MLXSW_REG(pplr),
+	MLXSW_REG(pmtdb),
 	MLXSW_REG(pmpe),
 	MLXSW_REG(pddr),
-	MLXSW_REG(pmtm),
+	MLXSW_REG(pllp),
 	MLXSW_REG(htgt),
 	MLXSW_REG(hpkt),
 	MLXSW_REG(rgcr),

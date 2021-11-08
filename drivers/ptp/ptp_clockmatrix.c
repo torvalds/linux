@@ -33,14 +33,22 @@ module_param(firmware, charp, 0);
 
 #define SETTIME_CORRECTION (0)
 
-static int contains_full_configuration(const struct firmware *fw)
+static int _idtcm_adjfine(struct idtcm_channel *channel, long scaled_ppm);
+
+static int contains_full_configuration(struct idtcm *idtcm,
+				       const struct firmware *fw)
 {
-	s32 full_count = FULL_FW_CFG_BYTES - FULL_FW_CFG_SKIPPED_BYTES;
 	struct idtcm_fwrc *rec = (struct idtcm_fwrc *)fw->data;
+	u16 scratch = IDTCM_FW_REG(idtcm->fw_ver, V520, SCRATCH);
+	s32 full_count;
 	s32 count = 0;
 	u16 regaddr;
 	u8 loaddr;
 	s32 len;
+
+	/* 4 bytes skipped every 0x80 */
+	full_count = (scratch - GPIO_USER_CONTROL) -
+		     ((scratch >> 7) - (GPIO_USER_CONTROL >> 7)) * 4;
 
 	/* If the firmware contains 'full configuration' SM_RESET can be used
 	 * to ensure proper configuration.
@@ -57,7 +65,7 @@ static int contains_full_configuration(const struct firmware *fw)
 		rec++;
 
 		/* Top (status registers) and bottom are read-only */
-		if (regaddr < GPIO_USER_CONTROL || regaddr >= SCRATCH)
+		if (regaddr < GPIO_USER_CONTROL || regaddr >= scratch)
 			continue;
 
 		/* Page size 128, last 4 bytes of page skipped */
@@ -150,6 +158,19 @@ static int idtcm_strverscmp(const char *version1, const char *version2)
 	}
 
 	return 0;
+}
+
+static enum fw_version idtcm_fw_version(const char *version)
+{
+	enum fw_version ver = V_DEFAULT;
+
+	if (idtcm_strverscmp(version, "4.8.7") >= 0)
+		ver = V487;
+
+	if (idtcm_strverscmp(version, "5.2.0") >= 0)
+		ver = V520;
+
+	return ver;
 }
 
 static int idtcm_xfer_read(struct idtcm *idtcm,
@@ -388,13 +409,14 @@ static int _idtcm_gettime(struct idtcm_channel *channel,
 			  struct timespec64 *ts)
 {
 	struct idtcm *idtcm = channel->idtcm;
+	u16 tod_read_cmd = IDTCM_FW_REG(idtcm->fw_ver, V520, TOD_READ_PRIMARY_CMD);
 	u8 buf[TOD_BYTE_COUNT];
 	u8 timeout = 10;
 	u8 trigger;
 	int err;
 
 	err = idtcm_read(idtcm, channel->tod_read_primary,
-			 TOD_READ_PRIMARY_CMD, &trigger, sizeof(trigger));
+			 tod_read_cmd, &trigger, sizeof(trigger));
 	if (err)
 		return err;
 
@@ -403,7 +425,7 @@ static int _idtcm_gettime(struct idtcm_channel *channel,
 	trigger &= ~TOD_READ_TRIGGER_MODE; /* single shot */
 
 	err = idtcm_write(idtcm, channel->tod_read_primary,
-			  TOD_READ_PRIMARY_CMD, &trigger, sizeof(trigger));
+			  tod_read_cmd, &trigger, sizeof(trigger));
 	if (err)
 		return err;
 
@@ -413,7 +435,7 @@ static int _idtcm_gettime(struct idtcm_channel *channel,
 			idtcm->start_time = ktime_get_raw();
 
 		err = idtcm_read(idtcm, channel->tod_read_primary,
-				 TOD_READ_PRIMARY_CMD, &trigger,
+				 tod_read_cmd, &trigger,
 				 sizeof(trigger));
 		if (err)
 			return err;
@@ -559,35 +581,10 @@ static int _sync_pll_output(struct idtcm *idtcm,
 	return err;
 }
 
-static int sync_source_dpll_tod_pps(u16 tod_addr, u8 *sync_src)
-{
-	int err = 0;
-
-	switch (tod_addr) {
-	case TOD_0:
-		*sync_src = SYNC_SOURCE_DPLL0_TOD_PPS;
-		break;
-	case TOD_1:
-		*sync_src = SYNC_SOURCE_DPLL1_TOD_PPS;
-		break;
-	case TOD_2:
-		*sync_src = SYNC_SOURCE_DPLL2_TOD_PPS;
-		break;
-	case TOD_3:
-		*sync_src = SYNC_SOURCE_DPLL3_TOD_PPS;
-		break;
-	default:
-		err = -EINVAL;
-	}
-
-	return err;
-}
-
 static int idtcm_sync_pps_output(struct idtcm_channel *channel)
 {
 	struct idtcm *idtcm = channel->idtcm;
 	u8 pll;
-	u8 sync_src;
 	u8 qn;
 	u8 qn_plus_1;
 	int err = 0;
@@ -595,10 +592,6 @@ static int idtcm_sync_pps_output(struct idtcm_channel *channel)
 	u8 out11_mux = 0;
 	u8 temp;
 	u16 output_mask = channel->output_mask;
-
-	err = sync_source_dpll_tod_pps(channel->tod_n, &sync_src);
-	if (err)
-		return err;
 
 	err = idtcm_read(idtcm, 0, HW_Q8_CTRL_SPARE,
 			 &temp, sizeof(temp));
@@ -655,8 +648,8 @@ static int idtcm_sync_pps_output(struct idtcm_channel *channel)
 		}
 
 		if (qn != 0 || qn_plus_1 != 0)
-			err = _sync_pll_output(idtcm, pll, sync_src, qn,
-					       qn_plus_1);
+			err = _sync_pll_output(idtcm, pll, channel->sync_src,
+					       qn, qn_plus_1);
 
 		if (err)
 			return err;
@@ -666,8 +659,8 @@ static int idtcm_sync_pps_output(struct idtcm_channel *channel)
 }
 
 static int _idtcm_set_dpll_hw_tod(struct idtcm_channel *channel,
-			       struct timespec64 const *ts,
-			       enum hw_tod_write_trig_sel wr_trig)
+				  struct timespec64 const *ts,
+				  enum hw_tod_write_trig_sel wr_trig)
 {
 	struct idtcm *idtcm = channel->idtcm;
 	u8 buf[TOD_BYTE_COUNT];
@@ -793,46 +786,46 @@ static int _idtcm_set_dpll_scsr_tod(struct idtcm_channel *channel,
 	return 0;
 }
 
-static int get_output_base_addr(u8 outn)
+static int get_output_base_addr(enum fw_version ver, u8 outn)
 {
 	int base;
 
 	switch (outn) {
 	case 0:
-		base = OUTPUT_0;
+		base = IDTCM_FW_REG(ver, V520, OUTPUT_0);
 		break;
 	case 1:
-		base = OUTPUT_1;
+		base = IDTCM_FW_REG(ver, V520, OUTPUT_1);
 		break;
 	case 2:
-		base = OUTPUT_2;
+		base = IDTCM_FW_REG(ver, V520, OUTPUT_2);
 		break;
 	case 3:
-		base = OUTPUT_3;
+		base = IDTCM_FW_REG(ver, V520, OUTPUT_3);
 		break;
 	case 4:
-		base = OUTPUT_4;
+		base = IDTCM_FW_REG(ver, V520, OUTPUT_4);
 		break;
 	case 5:
-		base = OUTPUT_5;
+		base = IDTCM_FW_REG(ver, V520, OUTPUT_5);
 		break;
 	case 6:
-		base = OUTPUT_6;
+		base = IDTCM_FW_REG(ver, V520, OUTPUT_6);
 		break;
 	case 7:
-		base = OUTPUT_7;
+		base = IDTCM_FW_REG(ver, V520, OUTPUT_7);
 		break;
 	case 8:
-		base = OUTPUT_8;
+		base = IDTCM_FW_REG(ver, V520, OUTPUT_8);
 		break;
 	case 9:
-		base = OUTPUT_9;
+		base = IDTCM_FW_REG(ver, V520, OUTPUT_9);
 		break;
 	case 10:
-		base = OUTPUT_10;
+		base = IDTCM_FW_REG(ver, V520, OUTPUT_10);
 		break;
 	case 11:
-		base = OUTPUT_11;
+		base = IDTCM_FW_REG(ver, V520, OUTPUT_11);
 		break;
 	default:
 		base = -EINVAL;
@@ -929,9 +922,9 @@ static int idtcm_start_phase_pull_in(struct idtcm_channel *channel)
 	return err;
 }
 
-static int idtcm_do_phase_pull_in(struct idtcm_channel *channel,
-				  s32 offset_ns,
-				  u32 max_ffo_ppb)
+static int do_phase_pull_in_fw(struct idtcm_channel *channel,
+			       s32 offset_ns,
+			       u32 max_ffo_ppb)
 {
 	int err;
 
@@ -1000,7 +993,7 @@ static int _idtcm_adjtime_deprecated(struct idtcm_channel *channel, s64 delta)
 	s64 now;
 
 	if (abs(delta) < PHASE_PULL_IN_THRESHOLD_NS_DEPRECATED) {
-		err = idtcm_do_phase_pull_in(channel, delta, 0);
+		err = channel->do_phase_pull_in(channel, delta, 0);
 	} else {
 		idtcm->calculate_overhead_flag = 1;
 
@@ -1032,7 +1025,9 @@ static int idtcm_state_machine_reset(struct idtcm *idtcm)
 
 	clear_boot_status(idtcm);
 
-	err = idtcm_write(idtcm, RESET_CTRL, SM_RESET, &byte, sizeof(byte));
+	err = idtcm_write(idtcm, RESET_CTRL,
+			  IDTCM_FW_REG(idtcm->fw_ver, V520, SM_RESET),
+			  &byte, sizeof(byte));
 
 	if (!err) {
 		for (i = 0; i < 30; i++) {
@@ -1214,6 +1209,7 @@ static void display_pll_and_masks(struct idtcm *idtcm)
 static int idtcm_load_firmware(struct idtcm *idtcm,
 			       struct device *dev)
 {
+	u16 scratch = IDTCM_FW_REG(idtcm->fw_ver, V520, SCRATCH);
 	char fname[128] = FW_FILENAME;
 	const struct firmware *fw;
 	struct idtcm_fwrc *rec;
@@ -1226,7 +1222,7 @@ static int idtcm_load_firmware(struct idtcm *idtcm,
 	if (firmware) /* module parameter */
 		snprintf(fname, sizeof(fname), "%s", firmware);
 
-	dev_dbg(&idtcm->client->dev, "requesting firmware '%s'", fname);
+	dev_info(&idtcm->client->dev, "firmware '%s'", fname);
 
 	err = request_firmware(&fw, fname, dev);
 	if (err) {
@@ -1239,7 +1235,7 @@ static int idtcm_load_firmware(struct idtcm *idtcm,
 
 	rec = (struct idtcm_fwrc *) fw->data;
 
-	if (contains_full_configuration(fw))
+	if (contains_full_configuration(idtcm, fw))
 		idtcm_state_machine_reset(idtcm);
 
 	for (len = fw->size; len > 0; len -= sizeof(*rec)) {
@@ -1263,7 +1259,7 @@ static int idtcm_load_firmware(struct idtcm *idtcm,
 			err = 0;
 
 			/* Top (status registers) and bottom are read-only */
-			if (regaddr < GPIO_USER_CONTROL || regaddr >= SCRATCH)
+			if (regaddr < GPIO_USER_CONTROL || regaddr >= scratch)
 				continue;
 
 			/* Page size 128, last 4 bytes of page skipped */
@@ -1292,7 +1288,7 @@ static int idtcm_output_enable(struct idtcm_channel *channel,
 	int err;
 	u8 val;
 
-	base = get_output_base_addr(outn);
+	base = get_output_base_addr(idtcm->fw_ver, outn);
 
 	if (!(base > 0)) {
 		dev_err(&idtcm->client->dev,
@@ -1360,52 +1356,330 @@ static int idtcm_perout_enable(struct idtcm_channel *channel,
 }
 
 static int idtcm_get_pll_mode(struct idtcm_channel *channel,
-			      enum pll_mode *pll_mode)
+			      enum pll_mode *mode)
 {
 	struct idtcm *idtcm = channel->idtcm;
 	int err;
 	u8 dpll_mode;
 
-	err = idtcm_read(idtcm, channel->dpll_n, DPLL_MODE,
+	err = idtcm_read(idtcm, channel->dpll_n,
+			 IDTCM_FW_REG(idtcm->fw_ver, V520, DPLL_MODE),
 			 &dpll_mode, sizeof(dpll_mode));
 	if (err)
 		return err;
 
-	*pll_mode = (dpll_mode >> PLL_MODE_SHIFT) & PLL_MODE_MASK;
+	*mode = (dpll_mode >> PLL_MODE_SHIFT) & PLL_MODE_MASK;
 
 	return 0;
 }
 
 static int idtcm_set_pll_mode(struct idtcm_channel *channel,
-			      enum pll_mode pll_mode)
+			      enum pll_mode mode)
 {
 	struct idtcm *idtcm = channel->idtcm;
 	int err;
 	u8 dpll_mode;
 
-	err = idtcm_read(idtcm, channel->dpll_n, DPLL_MODE,
+	err = idtcm_read(idtcm, channel->dpll_n,
+			 IDTCM_FW_REG(idtcm->fw_ver, V520, DPLL_MODE),
 			 &dpll_mode, sizeof(dpll_mode));
 	if (err)
 		return err;
 
 	dpll_mode &= ~(PLL_MODE_MASK << PLL_MODE_SHIFT);
 
-	dpll_mode |= (pll_mode << PLL_MODE_SHIFT);
+	dpll_mode |= (mode << PLL_MODE_SHIFT);
 
-	channel->pll_mode = pll_mode;
-
-	err = idtcm_write(idtcm, channel->dpll_n, DPLL_MODE,
+	err = idtcm_write(idtcm, channel->dpll_n,
+			  IDTCM_FW_REG(idtcm->fw_ver, V520, DPLL_MODE),
 			  &dpll_mode, sizeof(dpll_mode));
+	return err;
+}
+
+static int idtcm_get_manual_reference(struct idtcm_channel *channel,
+				      enum manual_reference *ref)
+{
+	struct idtcm *idtcm = channel->idtcm;
+	u8 dpll_manu_ref_cfg;
+	int err;
+
+	err = idtcm_read(idtcm, channel->dpll_ctrl_n,
+			 DPLL_CTRL_DPLL_MANU_REF_CFG,
+			 &dpll_manu_ref_cfg, sizeof(dpll_manu_ref_cfg));
 	if (err)
 		return err;
+
+	dpll_manu_ref_cfg &= (MANUAL_REFERENCE_MASK << MANUAL_REFERENCE_SHIFT);
+
+	*ref = dpll_manu_ref_cfg >> MANUAL_REFERENCE_SHIFT;
 
 	return 0;
 }
 
+static int idtcm_set_manual_reference(struct idtcm_channel *channel,
+				      enum manual_reference ref)
+{
+	struct idtcm *idtcm = channel->idtcm;
+	u8 dpll_manu_ref_cfg;
+	int err;
+
+	err = idtcm_read(idtcm, channel->dpll_ctrl_n,
+			 DPLL_CTRL_DPLL_MANU_REF_CFG,
+			 &dpll_manu_ref_cfg, sizeof(dpll_manu_ref_cfg));
+	if (err)
+		return err;
+
+	dpll_manu_ref_cfg &= ~(MANUAL_REFERENCE_MASK << MANUAL_REFERENCE_SHIFT);
+
+	dpll_manu_ref_cfg |= (ref << MANUAL_REFERENCE_SHIFT);
+
+	err = idtcm_write(idtcm, channel->dpll_ctrl_n,
+			  DPLL_CTRL_DPLL_MANU_REF_CFG,
+			  &dpll_manu_ref_cfg, sizeof(dpll_manu_ref_cfg));
+
+	return err;
+}
+
+static int configure_dpll_mode_write_frequency(struct idtcm_channel *channel)
+{
+	struct idtcm *idtcm = channel->idtcm;
+	int err;
+
+	err = idtcm_set_pll_mode(channel, PLL_MODE_WRITE_FREQUENCY);
+
+	if (err)
+		dev_err(&idtcm->client->dev, "Failed to set pll mode to write frequency");
+	else
+		channel->mode = PTP_PLL_MODE_WRITE_FREQUENCY;
+
+	return err;
+}
+
+static int configure_dpll_mode_write_phase(struct idtcm_channel *channel)
+{
+	struct idtcm *idtcm = channel->idtcm;
+	int err;
+
+	err = idtcm_set_pll_mode(channel, PLL_MODE_WRITE_PHASE);
+
+	if (err)
+		dev_err(&idtcm->client->dev, "Failed to set pll mode to write phase");
+	else
+		channel->mode = PTP_PLL_MODE_WRITE_PHASE;
+
+	return err;
+}
+
+static int configure_manual_reference_write_frequency(struct idtcm_channel *channel)
+{
+	struct idtcm *idtcm = channel->idtcm;
+	int err;
+
+	err = idtcm_set_manual_reference(channel, MANU_REF_WRITE_FREQUENCY);
+
+	if (err)
+		dev_err(&idtcm->client->dev, "Failed to set manual reference to write frequency");
+	else
+		channel->mode = PTP_PLL_MODE_WRITE_FREQUENCY;
+
+	return err;
+}
+
+static int configure_manual_reference_write_phase(struct idtcm_channel *channel)
+{
+	struct idtcm *idtcm = channel->idtcm;
+	int err;
+
+	err = idtcm_set_manual_reference(channel, MANU_REF_WRITE_PHASE);
+
+	if (err)
+		dev_err(&idtcm->client->dev, "Failed to set manual reference to write phase");
+	else
+		channel->mode = PTP_PLL_MODE_WRITE_PHASE;
+
+	return err;
+}
+
+static int idtcm_stop_phase_pull_in(struct idtcm_channel *channel)
+{
+	int err;
+
+	err = _idtcm_adjfine(channel, channel->current_freq_scaled_ppm);
+	if (err)
+		return err;
+
+	channel->phase_pull_in = false;
+
+	return 0;
+}
+
+static long idtcm_work_handler(struct ptp_clock_info *ptp)
+{
+	struct idtcm_channel *channel = container_of(ptp, struct idtcm_channel, caps);
+	struct idtcm *idtcm = channel->idtcm;
+
+	mutex_lock(&idtcm->reg_lock);
+
+	(void)idtcm_stop_phase_pull_in(channel);
+
+	mutex_unlock(&idtcm->reg_lock);
+
+	/* Return a negative value here to not reschedule */
+	return -1;
+}
+
+static s32 phase_pull_in_scaled_ppm(s32 current_ppm, s32 phase_pull_in_ppb)
+{
+	/* ppb = scaled_ppm * 125 / 2^13 */
+	/* scaled_ppm = ppb * 2^13 / 125 */
+
+	s64 max_scaled_ppm = (PHASE_PULL_IN_MAX_PPB << 13) / 125;
+	s64 scaled_ppm = (phase_pull_in_ppb << 13) / 125;
+
+	current_ppm += scaled_ppm;
+
+	if (current_ppm > max_scaled_ppm)
+		current_ppm = max_scaled_ppm;
+	else if (current_ppm < -max_scaled_ppm)
+		current_ppm = -max_scaled_ppm;
+
+	return current_ppm;
+}
+
+static int do_phase_pull_in_sw(struct idtcm_channel *channel,
+			       s32 delta_ns,
+			       u32 max_ffo_ppb)
+{
+	s32 current_ppm = channel->current_freq_scaled_ppm;
+	u32 duration_ms = MSEC_PER_SEC;
+	s32 delta_ppm;
+	s32 ppb;
+	int err;
+
+	/* If the ToD correction is less than PHASE_PULL_IN_MIN_THRESHOLD_NS,
+	 * skip. The error introduced by the ToD adjustment procedure would
+	 * be bigger than the required ToD correction
+	 */
+	if (abs(delta_ns) < PHASE_PULL_IN_MIN_THRESHOLD_NS)
+		return 0;
+
+	if (max_ffo_ppb == 0)
+		max_ffo_ppb = PHASE_PULL_IN_MAX_PPB;
+
+	/* For most cases, keep phase pull-in duration 1 second */
+	ppb = delta_ns;
+	while (abs(ppb) > max_ffo_ppb) {
+		duration_ms *= 2;
+		ppb /= 2;
+	}
+
+	delta_ppm = phase_pull_in_scaled_ppm(current_ppm, ppb);
+
+	err = _idtcm_adjfine(channel, delta_ppm);
+
+	if (err)
+		return err;
+
+	/* schedule the worker to cancel phase pull-in */
+	ptp_schedule_worker(channel->ptp_clock,
+			    msecs_to_jiffies(duration_ms) - 1);
+
+	channel->phase_pull_in = true;
+
+	return 0;
+}
+
+static int initialize_operating_mode_with_manual_reference(struct idtcm_channel *channel,
+							   enum manual_reference ref)
+{
+	struct idtcm *idtcm = channel->idtcm;
+
+	channel->mode = PTP_PLL_MODE_UNSUPPORTED;
+	channel->configure_write_frequency = configure_manual_reference_write_frequency;
+	channel->configure_write_phase = configure_manual_reference_write_phase;
+	channel->do_phase_pull_in = do_phase_pull_in_sw;
+
+	switch (ref) {
+	case MANU_REF_WRITE_PHASE:
+		channel->mode = PTP_PLL_MODE_WRITE_PHASE;
+		break;
+	case MANU_REF_WRITE_FREQUENCY:
+		channel->mode = PTP_PLL_MODE_WRITE_FREQUENCY;
+		break;
+	default:
+		dev_warn(&idtcm->client->dev,
+			 "Unsupported MANUAL_REFERENCE: 0x%02x", ref);
+	}
+
+	return 0;
+}
+
+static int initialize_operating_mode_with_pll_mode(struct idtcm_channel *channel,
+						   enum pll_mode mode)
+{
+	struct idtcm *idtcm = channel->idtcm;
+	int err = 0;
+
+	channel->mode = PTP_PLL_MODE_UNSUPPORTED;
+	channel->configure_write_frequency = configure_dpll_mode_write_frequency;
+	channel->configure_write_phase = configure_dpll_mode_write_phase;
+	channel->do_phase_pull_in = do_phase_pull_in_fw;
+
+	switch (mode) {
+	case  PLL_MODE_WRITE_PHASE:
+		channel->mode = PTP_PLL_MODE_WRITE_PHASE;
+		break;
+	case PLL_MODE_WRITE_FREQUENCY:
+		channel->mode = PTP_PLL_MODE_WRITE_FREQUENCY;
+		break;
+	default:
+		dev_err(&idtcm->client->dev,
+			"Unsupported PLL_MODE: 0x%02x", mode);
+		err = -EINVAL;
+	}
+
+	return err;
+}
+
+static int initialize_dco_operating_mode(struct idtcm_channel *channel)
+{
+	enum manual_reference ref = MANU_REF_XO_DPLL;
+	enum pll_mode mode = PLL_MODE_DISABLED;
+	struct idtcm *idtcm = channel->idtcm;
+	int err;
+
+	channel->mode = PTP_PLL_MODE_UNSUPPORTED;
+
+	err = idtcm_get_pll_mode(channel, &mode);
+	if (err) {
+		dev_err(&idtcm->client->dev, "Unable to read pll mode!");
+		return err;
+	}
+
+	if (mode == PLL_MODE_PLL) {
+		err = idtcm_get_manual_reference(channel, &ref);
+		if (err) {
+			dev_err(&idtcm->client->dev, "Unable to read manual reference!");
+			return err;
+		}
+		err = initialize_operating_mode_with_manual_reference(channel, ref);
+	} else {
+		err = initialize_operating_mode_with_pll_mode(channel, mode);
+	}
+
+	if (channel->mode == PTP_PLL_MODE_WRITE_PHASE)
+		channel->configure_write_frequency(channel);
+
+	return err;
+}
+
 /* PTP Hardware Clock interface */
 
-/*
+/**
  * Maximum absolute value for write phase offset in picoseconds
+ *
+ * @channel:  channel
+ * @delta_ns: delta in nanoseconds
  *
  * Destination signed register is 32-bit register in resolution of 50ps
  *
@@ -1420,8 +1694,8 @@ static int _idtcm_adjphase(struct idtcm_channel *channel, s32 delta_ns)
 	s32 phase_50ps;
 	s64 offset_ps;
 
-	if (channel->pll_mode != PLL_MODE_WRITE_PHASE) {
-		err = idtcm_set_pll_mode(channel, PLL_MODE_WRITE_PHASE);
+	if (channel->mode != PTP_PLL_MODE_WRITE_PHASE) {
+		err = channel->configure_write_phase(channel);
 		if (err)
 			return err;
 	}
@@ -1459,8 +1733,8 @@ static int _idtcm_adjfine(struct idtcm_channel *channel, long scaled_ppm)
 	u8 buf[6] = {0};
 	s64 fcw;
 
-	if (channel->pll_mode  != PLL_MODE_WRITE_FREQUENCY) {
-		err = idtcm_set_pll_mode(channel, PLL_MODE_WRITE_FREQUENCY);
+	if (channel->mode  != PTP_PLL_MODE_WRITE_FREQUENCY) {
+		err = channel->configure_write_frequency(channel);
 		if (err)
 			return err;
 	}
@@ -1577,29 +1851,29 @@ static int idtcm_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	enum scsr_tod_write_type_sel type;
 	int err;
 
-	if (abs(delta) < PHASE_PULL_IN_THRESHOLD_NS) {
-		err = idtcm_do_phase_pull_in(channel, delta, 0);
-		if (err)
-			dev_err(&idtcm->client->dev,
-				"Failed at line %d in %s!", __LINE__, __func__);
-		return err;
-	}
-
-	if (delta >= 0) {
-		ts = ns_to_timespec64(delta);
-		type = SCSR_TOD_WR_TYPE_SEL_DELTA_PLUS;
-	} else {
-		ts = ns_to_timespec64(-delta);
-		type = SCSR_TOD_WR_TYPE_SEL_DELTA_MINUS;
-	}
+	if (channel->phase_pull_in == true)
+		return 0;
 
 	mutex_lock(&idtcm->reg_lock);
 
-	err = _idtcm_settime(channel, &ts, type);
-	if (err)
-		dev_err(&idtcm->client->dev,
-			"Failed at line %d in %s!", __LINE__, __func__);
-
+	if (abs(delta) < PHASE_PULL_IN_THRESHOLD_NS) {
+		err = channel->do_phase_pull_in(channel, delta, 0);
+		if (err)
+			dev_err(&idtcm->client->dev,
+				"Failed at line %d in %s!", __LINE__, __func__);
+	} else {
+		if (delta >= 0) {
+			ts = ns_to_timespec64(delta);
+			type = SCSR_TOD_WR_TYPE_SEL_DELTA_PLUS;
+		} else {
+			ts = ns_to_timespec64(-delta);
+			type = SCSR_TOD_WR_TYPE_SEL_DELTA_MINUS;
+		}
+		err = _idtcm_settime(channel, &ts, type);
+		if (err)
+			dev_err(&idtcm->client->dev,
+				"Failed at line %d in %s!", __LINE__, __func__);
+	}
 	mutex_unlock(&idtcm->reg_lock);
 
 	return err;
@@ -1629,14 +1903,20 @@ static int idtcm_adjfine(struct ptp_clock_info *ptp,  long scaled_ppm)
 	struct idtcm *idtcm = channel->idtcm;
 	int err;
 
+	if (channel->phase_pull_in == true)
+		return 0;
+
+	if (scaled_ppm == channel->current_freq_scaled_ppm)
+		return 0;
+
 	mutex_lock(&idtcm->reg_lock);
 
 	err = _idtcm_adjfine(channel, scaled_ppm);
-	if (err)
-		dev_err(&idtcm->client->dev,
-			"Failed at line %d in %s!", __LINE__, __func__);
 
 	mutex_unlock(&idtcm->reg_lock);
+
+	if (!err)
+		channel->current_freq_scaled_ppm = scaled_ppm;
 
 	return err;
 }
@@ -1675,243 +1955,35 @@ static int idtcm_enable(struct ptp_clock_info *ptp,
 	return -EOPNOTSUPP;
 }
 
-static int _enable_pll_tod_sync(struct idtcm *idtcm,
-				u8 pll,
-				u8 sync_src,
-				u8 qn,
-				u8 qn_plus_1)
-{
-	int err;
-	u8 val;
-	u16 dpll;
-	u16 out0 = 0, out1 = 0;
-
-	if (qn == 0 && qn_plus_1 == 0)
-		return 0;
-
-	switch (pll) {
-	case 0:
-		dpll = DPLL_0;
-		if (qn)
-			out0 = OUTPUT_0;
-		if (qn_plus_1)
-			out1 = OUTPUT_1;
-		break;
-	case 1:
-		dpll = DPLL_1;
-		if (qn)
-			out0 = OUTPUT_2;
-		if (qn_plus_1)
-			out1 = OUTPUT_3;
-		break;
-	case 2:
-		dpll = DPLL_2;
-		if (qn)
-			out0 = OUTPUT_4;
-		if (qn_plus_1)
-			out1 = OUTPUT_5;
-		break;
-	case 3:
-		dpll = DPLL_3;
-		if (qn)
-			out0 = OUTPUT_6;
-		if (qn_plus_1)
-			out1 = OUTPUT_7;
-		break;
-	case 4:
-		dpll = DPLL_4;
-		if (qn)
-			out0 = OUTPUT_8;
-		break;
-	case 5:
-		dpll = DPLL_5;
-		if (qn)
-			out0 = OUTPUT_9;
-		if (qn_plus_1)
-			out1 = OUTPUT_8;
-		break;
-	case 6:
-		dpll = DPLL_6;
-		if (qn)
-			out0 = OUTPUT_10;
-		if (qn_plus_1)
-			out1 = OUTPUT_11;
-		break;
-	case 7:
-		dpll = DPLL_7;
-		if (qn)
-			out0 = OUTPUT_11;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	/*
-	 * Enable OUTPUT OUT_SYNC.
-	 */
-	if (out0) {
-		err = idtcm_read(idtcm, out0, OUT_CTRL_1, &val, sizeof(val));
-		if (err)
-			return err;
-
-		val &= ~OUT_SYNC_DISABLE;
-
-		err = idtcm_write(idtcm, out0, OUT_CTRL_1, &val, sizeof(val));
-		if (err)
-			return err;
-	}
-
-	if (out1) {
-		err = idtcm_read(idtcm, out1, OUT_CTRL_1, &val, sizeof(val));
-		if (err)
-			return err;
-
-		val &= ~OUT_SYNC_DISABLE;
-
-		err = idtcm_write(idtcm, out1, OUT_CTRL_1, &val, sizeof(val));
-		if (err)
-			return err;
-	}
-
-	/* enable dpll sync tod pps, must be set before dpll_mode */
-	err = idtcm_read(idtcm, dpll, DPLL_TOD_SYNC_CFG, &val, sizeof(val));
-	if (err)
-		return err;
-
-	val &= ~(TOD_SYNC_SOURCE_MASK << TOD_SYNC_SOURCE_SHIFT);
-	val |= (sync_src << TOD_SYNC_SOURCE_SHIFT);
-	val |= TOD_SYNC_EN;
-
-	return idtcm_write(idtcm, dpll, DPLL_TOD_SYNC_CFG, &val, sizeof(val));
-}
-
-static int idtcm_enable_tod_sync(struct idtcm_channel *channel)
-{
-	struct idtcm *idtcm = channel->idtcm;
-	u8 pll;
-	u8 sync_src;
-	u8 qn;
-	u8 qn_plus_1;
-	u8 cfg;
-	int err = 0;
-	u16 output_mask = channel->output_mask;
-	u8 out8_mux = 0;
-	u8 out11_mux = 0;
-	u8 temp;
-
-	/*
-	 * set tod_out_sync_enable to 0.
-	 */
-	err = idtcm_read(idtcm, channel->tod_n, TOD_CFG, &cfg, sizeof(cfg));
-	if (err)
-		return err;
-
-	cfg &= ~TOD_OUT_SYNC_ENABLE;
-
-	err = idtcm_write(idtcm, channel->tod_n, TOD_CFG, &cfg, sizeof(cfg));
-	if (err)
-		return err;
-
-	switch (channel->tod_n) {
-	case TOD_0:
-		sync_src = 0;
-		break;
-	case TOD_1:
-		sync_src = 1;
-		break;
-	case TOD_2:
-		sync_src = 2;
-		break;
-	case TOD_3:
-		sync_src = 3;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	err = idtcm_read(idtcm, 0, HW_Q8_CTRL_SPARE, &temp, sizeof(temp));
-	if (err)
-		return err;
-
-	if ((temp & Q9_TO_Q8_FANOUT_AND_CLOCK_SYNC_ENABLE_MASK) ==
-	    Q9_TO_Q8_FANOUT_AND_CLOCK_SYNC_ENABLE_MASK)
-		out8_mux = 1;
-
-	err = idtcm_read(idtcm, 0, HW_Q11_CTRL_SPARE, &temp, sizeof(temp));
-	if (err)
-		return err;
-
-	if ((temp & Q10_TO_Q11_FANOUT_AND_CLOCK_SYNC_ENABLE_MASK) ==
-	    Q10_TO_Q11_FANOUT_AND_CLOCK_SYNC_ENABLE_MASK)
-		out11_mux = 1;
-
-	for (pll = 0; pll < 8; pll++) {
-		qn = 0;
-		qn_plus_1 = 0;
-
-		if (pll < 4) {
-			/* First 4 pll has 2 outputs */
-			qn = output_mask & 0x1;
-			output_mask = output_mask >> 1;
-			qn_plus_1 = output_mask & 0x1;
-			output_mask = output_mask >> 1;
-		} else if (pll == 4) {
-			if (out8_mux == 0) {
-				qn = output_mask & 0x1;
-				output_mask = output_mask >> 1;
-			}
-		} else if (pll == 5) {
-			if (out8_mux) {
-				qn_plus_1 = output_mask & 0x1;
-				output_mask = output_mask >> 1;
-			}
-			qn = output_mask & 0x1;
-			output_mask = output_mask >> 1;
-		} else if (pll == 6) {
-			qn = output_mask & 0x1;
-			output_mask = output_mask >> 1;
-			if (out11_mux) {
-				qn_plus_1 = output_mask & 0x1;
-				output_mask = output_mask >> 1;
-			}
-		} else if (pll == 7) {
-			if (out11_mux == 0) {
-				qn = output_mask & 0x1;
-				output_mask = output_mask >> 1;
-			}
-		}
-
-		if (qn != 0 || qn_plus_1 != 0)
-			err = _enable_pll_tod_sync(idtcm, pll, sync_src, qn,
-					       qn_plus_1);
-		if (err)
-			return err;
-	}
-
-	return err;
-}
-
 static int idtcm_enable_tod(struct idtcm_channel *channel)
 {
 	struct idtcm *idtcm = channel->idtcm;
 	struct timespec64 ts = {0, 0};
+	u16 tod_cfg = IDTCM_FW_REG(idtcm->fw_ver, V520, TOD_CFG);
 	u8 cfg;
 	int err;
+
+	/* STEELAI-366 - Temporary workaround for ts2phc compatibility */
+	if (0) {
+		err = idtcm_output_mask_enable(channel, false);
+		if (err)
+			return err;
+	}
 
 	/*
 	 * Start the TOD clock ticking.
 	 */
-	err = idtcm_read(idtcm, channel->tod_n, TOD_CFG, &cfg, sizeof(cfg));
+	err = idtcm_read(idtcm, channel->tod_n, tod_cfg, &cfg, sizeof(cfg));
 	if (err)
 		return err;
 
 	cfg |= TOD_ENABLE;
 
-	err = idtcm_write(idtcm, channel->tod_n, TOD_CFG, &cfg, sizeof(cfg));
+	err = idtcm_write(idtcm, channel->tod_n, tod_cfg, &cfg, sizeof(cfg));
 	if (err)
 		return err;
 
-	if (idtcm->deprecated)
+	if (idtcm->fw_ver < V487)
 		return _idtcm_settime_deprecated(channel, &ts);
 	else
 		return _idtcm_settime(channel, &ts,
@@ -1939,10 +2011,7 @@ static void idtcm_set_version_info(struct idtcm *idtcm)
 	snprintf(idtcm->version, sizeof(idtcm->version), "%u.%u.%u",
 		 major, minor, hotfix);
 
-	if (idtcm_strverscmp(idtcm->version, "4.8.7") >= 0)
-		idtcm->deprecated = 0;
-	else
-		idtcm->deprecated = 1;
+	idtcm->fw_ver = idtcm_fw_version(idtcm->version);
 
 	dev_info(&idtcm->client->dev,
 		 "%d.%d.%d, Id: 0x%04x  HW Rev: %d  OTP Config Select: %d",
@@ -1960,6 +2029,7 @@ static const struct ptp_clock_info idtcm_caps = {
 	.gettime64	= &idtcm_gettime,
 	.settime64	= &idtcm_settime,
 	.enable		= &idtcm_enable,
+	.do_aux_work	= &idtcm_work_handler,
 };
 
 static const struct ptp_clock_info idtcm_caps_deprecated = {
@@ -1972,10 +2042,12 @@ static const struct ptp_clock_info idtcm_caps_deprecated = {
 	.gettime64	= &idtcm_gettime,
 	.settime64	= &idtcm_settime_deprecated,
 	.enable		= &idtcm_enable,
+	.do_aux_work	= &idtcm_work_handler,
 };
 
 static int configure_channel_pll(struct idtcm_channel *channel)
 {
+	struct idtcm *idtcm = channel->idtcm;
 	int err = 0;
 
 	switch (channel->pll) {
@@ -1997,7 +2069,7 @@ static int configure_channel_pll(struct idtcm_channel *channel)
 		break;
 	case 2:
 		channel->dpll_freq = DPLL_FREQ_2;
-		channel->dpll_n = DPLL_2;
+		channel->dpll_n = IDTCM_FW_REG(idtcm->fw_ver, V520, DPLL_2);
 		channel->hw_dpll_n = HW_DPLL_2;
 		channel->dpll_phase = DPLL_PHASE_2;
 		channel->dpll_ctrl_n = DPLL_CTRL_2;
@@ -2013,7 +2085,7 @@ static int configure_channel_pll(struct idtcm_channel *channel)
 		break;
 	case 4:
 		channel->dpll_freq = DPLL_FREQ_4;
-		channel->dpll_n = DPLL_4;
+		channel->dpll_n = IDTCM_FW_REG(idtcm->fw_ver, V520, DPLL_4);
 		channel->hw_dpll_n = HW_DPLL_4;
 		channel->dpll_phase = DPLL_PHASE_4;
 		channel->dpll_ctrl_n = DPLL_CTRL_4;
@@ -2029,7 +2101,7 @@ static int configure_channel_pll(struct idtcm_channel *channel)
 		break;
 	case 6:
 		channel->dpll_freq = DPLL_FREQ_6;
-		channel->dpll_n = DPLL_6;
+		channel->dpll_n = IDTCM_FW_REG(idtcm->fw_ver, V520, DPLL_6);
 		channel->hw_dpll_n = HW_DPLL_6;
 		channel->dpll_phase = DPLL_PHASE_6;
 		channel->dpll_ctrl_n = DPLL_CTRL_6;
@@ -2052,6 +2124,7 @@ static int configure_channel_pll(struct idtcm_channel *channel)
 
 static int idtcm_enable_channel(struct idtcm *idtcm, u32 index)
 {
+	enum fw_version fw_ver = idtcm->fw_ver;
 	struct idtcm_channel *channel;
 	int err;
 
@@ -2059,6 +2132,9 @@ static int idtcm_enable_channel(struct idtcm *idtcm, u32 index)
 		return -EINVAL;
 
 	channel = &idtcm->channel[index];
+
+	channel->idtcm = idtcm;
+	channel->current_freq_scaled_ppm = 0;
 
 	/* Set pll addresses */
 	err = configure_channel_pll(channel);
@@ -2068,32 +2144,34 @@ static int idtcm_enable_channel(struct idtcm *idtcm, u32 index)
 	/* Set tod addresses */
 	switch (index) {
 	case 0:
-		channel->tod_read_primary = TOD_READ_PRIMARY_0;
-		channel->tod_write = TOD_WRITE_0;
-		channel->tod_n = TOD_0;
+		channel->tod_read_primary = IDTCM_FW_REG(fw_ver, V520, TOD_READ_PRIMARY_0);
+		channel->tod_write = IDTCM_FW_REG(fw_ver, V520, TOD_WRITE_0);
+		channel->tod_n = IDTCM_FW_REG(fw_ver, V520, TOD_0);
+		channel->sync_src = SYNC_SOURCE_DPLL0_TOD_PPS;
 		break;
 	case 1:
-		channel->tod_read_primary = TOD_READ_PRIMARY_1;
-		channel->tod_write = TOD_WRITE_1;
-		channel->tod_n = TOD_1;
+		channel->tod_read_primary = IDTCM_FW_REG(fw_ver, V520, TOD_READ_PRIMARY_1);
+		channel->tod_write = IDTCM_FW_REG(fw_ver, V520, TOD_WRITE_1);
+		channel->tod_n = IDTCM_FW_REG(fw_ver, V520, TOD_1);
+		channel->sync_src = SYNC_SOURCE_DPLL1_TOD_PPS;
 		break;
 	case 2:
-		channel->tod_read_primary = TOD_READ_PRIMARY_2;
-		channel->tod_write = TOD_WRITE_2;
-		channel->tod_n = TOD_2;
+		channel->tod_read_primary = IDTCM_FW_REG(fw_ver, V520, TOD_READ_PRIMARY_2);
+		channel->tod_write = IDTCM_FW_REG(fw_ver, V520, TOD_WRITE_2);
+		channel->tod_n = IDTCM_FW_REG(fw_ver, V520, TOD_2);
+		channel->sync_src = SYNC_SOURCE_DPLL2_TOD_PPS;
 		break;
 	case 3:
-		channel->tod_read_primary = TOD_READ_PRIMARY_3;
-		channel->tod_write = TOD_WRITE_3;
-		channel->tod_n = TOD_3;
+		channel->tod_read_primary = IDTCM_FW_REG(fw_ver, V520, TOD_READ_PRIMARY_3);
+		channel->tod_write = IDTCM_FW_REG(fw_ver, V520, TOD_WRITE_3);
+		channel->tod_n = IDTCM_FW_REG(fw_ver, V520, TOD_3);
+		channel->sync_src = SYNC_SOURCE_DPLL3_TOD_PPS;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	channel->idtcm = idtcm;
-
-	if (idtcm->deprecated)
+	if (idtcm->fw_ver < V487)
 		channel->caps = idtcm_caps_deprecated;
 	else
 		channel->caps = idtcm_caps;
@@ -2101,22 +2179,9 @@ static int idtcm_enable_channel(struct idtcm *idtcm, u32 index)
 	snprintf(channel->caps.name, sizeof(channel->caps.name),
 		 "IDT CM TOD%u", index);
 
-	if (!idtcm->deprecated) {
-		err = idtcm_enable_tod_sync(channel);
-		if (err) {
-			dev_err(&idtcm->client->dev,
-				"Failed at line %d in %s!", __LINE__, __func__);
-			return err;
-		}
-	}
-
-	/* Sync pll mode with hardware */
-	err = idtcm_get_pll_mode(channel, &channel->pll_mode);
-	if (err) {
-		dev_err(&idtcm->client->dev,
-			"Error: %s - Unable to read pll mode", __func__);
+	err = initialize_dco_operating_mode(channel);
+	if (err)
 		return err;
-	}
 
 	err = idtcm_enable_tod(channel);
 	if (err) {
@@ -2149,7 +2214,6 @@ static void ptp_clock_unregister_all(struct idtcm *idtcm)
 
 	for (i = 0; i < MAX_TOD; i++) {
 		channel = &idtcm->channel[i];
-
 		if (channel->ptp_clock)
 			ptp_clock_unregister(channel->ptp_clock);
 	}
