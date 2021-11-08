@@ -1827,6 +1827,19 @@ bool dc_commit_state(struct dc *dc, struct dc_state *context)
 		dc_stream_log(dc, stream);
 	}
 
+	/*
+	 * Previous validation was perfomred with fast_validation = true and
+	 * the full DML state required for hardware programming was skipped.
+	 *
+	 * Re-validate here to calculate these parameters / watermarks.
+	 */
+	result = dc_validate_global_state(dc, context, false);
+	if (result != DC_OK) {
+		DC_LOG_ERROR("DC commit global validation failure: %s (%d)",
+			     dc_status_to_str(result), result);
+		return result;
+	}
+
 	result = dc_commit_state_no_check(dc, context);
 
 	return (result == DC_OK);
