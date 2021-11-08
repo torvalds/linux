@@ -800,8 +800,8 @@ static const struct arm_smmu_impl qcom_smmu_impl = {
 
 #define QTB_NS_DBG_PORT_N_OT_SNAPSHOT(port_num)	(0xc10 + (0x10 * port_num))
 
-#define TCU_TESTBUS_SEL_ALL		0x3
-#define TBU_TESTBUS_SEL_ALL		0xf
+#define TCU_TESTBUS_SEL_ALL		0x7
+#define TBU_TESTBUS_SEL_ALL		0x7f
 
 struct actlr_setting {
 	struct arm_smmu_smr smr;

@@ -108,7 +108,7 @@ static void arm_smmu_debug_program_tbu_testbus(void __iomem *tbu_base,
 	u32 reg;
 
 	reg = arm_smmu_debug_tbu_testbus_select(tbu_base, READ, 0);
-	reg = (reg & ~TCU_PTW_QUEUE_MASK) | tbu_testbus;
+	reg = (reg & ~TBU_MASK) | tbu_testbus;
 	arm_smmu_debug_tbu_testbus_select(tbu_base, WRITE, reg);
 }
 
@@ -143,6 +143,36 @@ void arm_smmu_debug_dump_tbu_testbus(struct device *dev, void __iomem *tbu_base,
 		dev_info(dev, "Dumping multi master qchannel:\n");
 		arm_smmu_debug_program_tbu_testbus(tbu_base,
 				TBU_MULTIMASTER_QCHANNEL_TESTBUS);
+		dev_info(dev, "testbus_sel: 0x%lx val: 0x%llx\n",
+			arm_smmu_debug_tbu_testbus_select(tbu_base,
+						READ, 0),
+			arm_smmu_debug_tbu_testbus_output(tbu_base));
+	}
+
+	if (tbu_testbus_sel & TBU_CLK_GATE_CONTROLLER_EXT_TESTBUS_SEL) {
+		dev_info(dev, "Dumping tbu clk gate controller ext:\n");
+		arm_smmu_debug_program_tbu_testbus(tbu_base,
+				TBU_CLK_GATE_CONTROLLER_EXT_TESTBUS);
+		dev_info(dev, "testbus_sel: 0x%lx val: 0x%llx\n",
+			arm_smmu_debug_tbu_testbus_select(tbu_base,
+						READ, 0),
+			arm_smmu_debug_tbu_testbus_output(tbu_base));
+	}
+
+	if (tbu_testbus_sel & TBU_LOW_POWER_STATUS_TESTBUS_SEL) {
+		dev_info(dev, "Dumping tbu low power status:\n");
+		arm_smmu_debug_program_tbu_testbus(tbu_base,
+				TBU_LOW_POWER_STATUS_TESTBUS);
+		dev_info(dev, "testbus_sel: 0x%lx val: 0x%llx\n",
+			arm_smmu_debug_tbu_testbus_select(tbu_base,
+						READ, 0),
+			arm_smmu_debug_tbu_testbus_output(tbu_base));
+	}
+
+	if (tbu_testbus_sel & TBU_QNS4_VLD_RDY_SEL) {
+		dev_info(dev, "Dumping tbu qns4 vld rdy:\n");
+		arm_smmu_debug_program_tbu_testbus(tbu_base,
+				TBU_QNS4_VLD_RDY);
 		dev_info(dev, "testbus_sel: 0x%lx val: 0x%llx\n",
 			arm_smmu_debug_tbu_testbus_select(tbu_base,
 						READ, 0),
@@ -215,6 +245,15 @@ void arm_smmu_debug_dump_tcu_testbus(struct device *dev, phys_addr_t phys_addr,
 				 tcu_base, PTW_AND_CACHE_TESTBUS, READ, 0), i,
 				 arm_smmu_debug_tcu_testbus_output(phys_addr));
 		}
+	}
+
+	if (tcu_testbus_sel & TCU_CD_TESTBUS_SEL) {
+		dev_info(dev, "Dumping TCU CD testbus:\n");
+		arm_smmu_debug_program_tcu_testbus(dev, phys_addr, tcu_base,
+				TCU_CD_TESTBUS, 0, 1, 0, false);
+		arm_smmu_debug_program_tcu_testbus(dev, phys_addr, tcu_base,
+						   ~TCU_PTW_QUEUE_MASK, 1,
+						   2, TCU_CD_TESTBUS_SHIFT, true);
 	}
 
 	/* program ARM_SMMU_TESTBUS_SEL_HLOS1_NS to select TCU clk testbus*/
