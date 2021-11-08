@@ -45,6 +45,11 @@
  */
 #define AMDGPU_SVM_RANGE_RETRY_FAULT_PENDING	2000
 
+struct criu_svm_metadata {
+	struct list_head list;
+	struct kfd_criu_svm_range_priv_data data;
+};
+
 static void svm_range_evict_svm_bo_worker(struct work_struct *work);
 static bool
 svm_range_cpu_invalidate_pagetables(struct mmu_interval_notifier *mni,
@@ -2875,6 +2880,7 @@ int svm_range_list_init(struct kfd_process *p)
 	INIT_DELAYED_WORK(&svms->restore_work, svm_range_restore_work);
 	INIT_WORK(&svms->deferred_list_work, svm_range_deferred_list_work);
 	INIT_LIST_HEAD(&svms->deferred_range_list);
+	INIT_LIST_HEAD(&svms->criu_svm_metadata_list);
 	spin_lock_init(&svms->deferred_list_lock);
 
 	for (i = 0; i < p->n_pdds; i++)
@@ -3479,6 +3485,58 @@ fill_values:
 	}
 
 	return 0;
+}
+
+int kfd_criu_restore_svm(struct kfd_process *p,
+			 uint8_t __user *user_priv_ptr,
+			 uint64_t *priv_data_offset,
+			 uint64_t max_priv_data_size)
+{
+	uint64_t svm_priv_data_size, svm_object_md_size, svm_attrs_size;
+	int nattr_common = 4, nattr_accessibility = 1;
+	struct criu_svm_metadata *criu_svm_md = NULL;
+	struct svm_range_list *svms = &p->svms;
+	uint32_t num_devices;
+	int ret = 0;
+
+	num_devices = p->n_pdds;
+	/* Handle one SVM range object at a time, also the number of gpus are
+	 * assumed to be same on the restore node, checking must be done while
+	 * evaluating the topology earlier */
+
+	svm_attrs_size = sizeof(struct kfd_ioctl_svm_attribute) *
+		(nattr_common + nattr_accessibility * num_devices);
+	svm_object_md_size = sizeof(struct criu_svm_metadata) + svm_attrs_size;
+
+	svm_priv_data_size = sizeof(struct kfd_criu_svm_range_priv_data) +
+								svm_attrs_size;
+
+	criu_svm_md = kzalloc(svm_object_md_size, GFP_KERNEL);
+	if (!criu_svm_md) {
+		pr_err("failed to allocate memory to store svm metadata\n");
+		return -ENOMEM;
+	}
+	if (*priv_data_offset + svm_priv_data_size > max_priv_data_size) {
+		ret = -EINVAL;
+		goto exit;
+	}
+
+	ret = copy_from_user(&criu_svm_md->data, user_priv_ptr + *priv_data_offset,
+			     svm_priv_data_size);
+	if (ret) {
+		ret = -EFAULT;
+		goto exit;
+	}
+	*priv_data_offset += svm_priv_data_size;
+
+	list_add_tail(&criu_svm_md->list, &svms->criu_svm_metadata_list);
+
+	return 0;
+
+
+exit:
+	kfree(criu_svm_md);
+	return ret;
 }
 
 int svm_range_get_info(struct kfd_process *p, uint32_t *num_svm_ranges,

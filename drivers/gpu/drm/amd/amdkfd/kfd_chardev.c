@@ -2643,8 +2643,8 @@ static int criu_restore_objects(struct file *filep,
 				goto exit;
 			break;
 		case KFD_CRIU_OBJECT_TYPE_SVM_RANGE:
-			/* TODO: Implement SVM range */
-			*priv_offset += sizeof(struct kfd_criu_svm_range_priv_data);
+			ret = kfd_criu_restore_svm(p, (uint8_t __user *)args->priv_data,
+						     priv_offset, max_priv_data_size);
 			if (ret)
 				goto exit;
 			break;

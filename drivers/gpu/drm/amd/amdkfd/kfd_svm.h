@@ -188,6 +188,10 @@ int svm_range_get_info(struct kfd_process *p, uint32_t *num_svm_ranges,
 int kfd_criu_checkpoint_svm(struct kfd_process *p,
 			    uint8_t __user *user_priv_data,
 			    uint64_t *priv_offset);
+int kfd_criu_restore_svm(struct kfd_process *p,
+			 uint8_t __user *user_priv_ptr,
+			 uint64_t *priv_data_offset,
+			 uint64_t max_priv_data_size);
 struct kfd_process_device *
 svm_range_get_pdd_by_adev(struct svm_range *prange, struct amdgpu_device *adev);
 void svm_range_list_lock_and_flush_work(struct svm_range_list *svms, struct mm_struct *mm);
@@ -239,6 +243,14 @@ static inline int kfd_criu_checkpoint_svm(struct kfd_process *p,
 					  uint64_t *priv_offset)
 {
 	return 0;
+}
+
+static inline int kfd_criu_restore_svm(struct kfd_process *p,
+				       uint8_t __user *user_priv_ptr,
+				       uint64_t *priv_data_offset,
+				       uint64_t max_priv_data_size)
+{
+	return -EINVAL;
 }
 
 #define KFD_IS_SVM_API_SUPPORTED(dev) false
