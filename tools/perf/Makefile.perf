@@ -519,8 +519,8 @@ $(kvm_ioctl_array): $(kvm_hdr_dir)/kvm.h $(kvm_ioctl_tbl)
 socket_arrays := $(beauty_outdir)/socket.c
 socket_tbl := $(srctree)/tools/perf/trace/beauty/socket.sh
 
-$(socket_arrays): $(linux_uapi_dir)/in.h $(socket_tbl)
-	$(Q)$(SHELL) '$(socket_tbl)' $(linux_uapi_dir) > $@
+$(socket_arrays): $(linux_uapi_dir)/in.h $(beauty_linux_dir)/socket.h $(socket_tbl)
+	$(Q)$(SHELL) '$(socket_tbl)' $(linux_uapi_dir) $(beauty_linux_dir) > $@
 
 sockaddr_arrays := $(beauty_outdir)/sockaddr.c
 sockaddr_tbl := $(srctree)/tools/perf/trace/beauty/sockaddr.sh

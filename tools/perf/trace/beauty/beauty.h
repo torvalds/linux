@@ -62,6 +62,8 @@ size_t pid__scnprintf_fd(struct trace *trace, pid_t pid, int fd, char *bf, size_
 
 extern struct strarray strarray__socket_families;
 
+extern struct strarray strarray__socket_level;
+
 /**
  * augmented_arg: extra payload for syscall pointer arguments
  
