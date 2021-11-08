@@ -113,6 +113,8 @@
 #define TX_DATA_ADDR_MASK_2500	GENMASK(30, 8)
 #define TX_DATA_ADDR_2500(x) \
 	FIELD_PREP(TX_DATA_ADDR_MASK_2500, DATA_ADDR_2500(x))
+#define TX_PACKET_SIZE_2500(x) \
+	FIELD_PREP(GENMASK(11, 2), DATA_ADDR_2500(x))
 #define TX_PACKET_DEST_EID	GENMASK(7, 0)
 #define TX_PACKET_TARGET_ID	GENMASK(31, 16)
 #define TX_PACKET_ROUTING_TYPE	BIT(14)
@@ -478,7 +480,7 @@ static void aspeed_mctp_tx_cmd_prep(u32 *tx_hdr, struct aspeed_mctp_tx_cmd *tx_c
 			TX_INTERRUPT_AFTER_CMD |
 			FIELD_PREP(TX_PACKET_ROUTING_TYPE, routing_type) |
 			FIELD_PREP(TX_PACKET_TAG_OWNER, tag_owner) |
-			TX_PACKET_SIZE(packet_size) |
+			TX_PACKET_SIZE_2500(packet_size) |
 			FIELD_PREP(TX_PACKET_PADDING_LEN, padding_len);
 }
 
