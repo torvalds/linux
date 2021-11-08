@@ -265,9 +265,6 @@ static int meson_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	struct meson_pwm_channel *channel = &meson->channels[pwm->hwpwm];
 	int err = 0;
 
-	if (!state)
-		return -EINVAL;
-
 	if (!state->enabled) {
 		if (state->polarity == PWM_POLARITY_INVERSED) {
 			/*
