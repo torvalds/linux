@@ -9,9 +9,10 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
+#include "trace/beauty/generated/socket.c"
+
 static size_t socket__scnprintf_ipproto(int protocol, char *bf, size_t size, bool show_prefix)
 {
-#include "trace/beauty/generated/socket_ipproto_array.c"
 	static DEFINE_STRARRAY(socket_ipproto, "IPPROTO_");
 
 	return strarray__scnprintf(&strarray__socket_ipproto, bf, size, "%d", show_prefix, protocol);
