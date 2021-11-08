@@ -11584,6 +11584,7 @@ MAXIM MAX77976 BATTERY CHARGER
 M:	Luca Ceresoli <luca@lucaceresoli.net>
 S:	Supported
 F:	Documentation/devicetree/bindings/power/supply/maxim,max77976.yaml
+F:	drivers/power/supply/max77976_charger.c
 
 MAXIM MUIC CHARGER DRIVERS FOR EXYNOS BASED BOARDS
 M:	Krzysztof Kozlowski <krzysztof.kozlowski@canonical.com>
