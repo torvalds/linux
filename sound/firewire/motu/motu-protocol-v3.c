@@ -189,7 +189,7 @@ int snd_motu_protocol_v3_switch_fetching_mode(struct snd_motu *motu,
 					  sizeof(reg));
 }
 
-static int detect_packet_formats_dual_opt_iface(struct snd_motu *motu, u32 data)
+static int detect_packet_formats_with_opt_ifaces(struct snd_motu *motu, u32 data)
 {
 	if (data & V3_ENABLE_OPT_IN_IFACE_A) {
 		if (data & V3_NO_ADAT_OPT_IN_IFACE_A) {
@@ -261,8 +261,9 @@ int snd_motu_protocol_v3_cache_packet_formats(struct snd_motu *motu)
 
 	if (motu->spec == &snd_motu_spec_828mk3_fw ||
 	    motu->spec == &snd_motu_spec_828mk3_hybrid ||
-	    motu->spec == &snd_motu_spec_traveler_mk3)
-		return detect_packet_formats_dual_opt_iface(motu, data);
+	    motu->spec == &snd_motu_spec_traveler_mk3 ||
+	    motu->spec == &snd_motu_spec_track16)
+		return detect_packet_formats_with_opt_ifaces(motu, data);
 	else
 		return 0;
 }
@@ -315,6 +316,16 @@ const struct snd_motu_spec snd_motu_spec_audio_express = {
 		 SND_MOTU_SPEC_REGISTER_DSP,
 	.tx_fixed_pcm_chunks = {10, 10, 0},
 	.rx_fixed_pcm_chunks = {10, 10, 0},
+};
+
+const struct snd_motu_spec snd_motu_spec_track16 = {
+	.name = "Track16",
+	.protocol_version = SND_MOTU_PROTOCOL_V3,
+	.flags = SND_MOTU_SPEC_RX_MIDI_3RD_Q |
+		 SND_MOTU_SPEC_TX_MIDI_3RD_Q |
+		 SND_MOTU_SPEC_COMMAND_DSP,
+	.tx_fixed_pcm_chunks = {14, 14, 14},
+	.rx_fixed_pcm_chunks = {6, 6, 6},
 };
 
 const struct snd_motu_spec snd_motu_spec_4pre = {
