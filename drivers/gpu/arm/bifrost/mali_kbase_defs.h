@@ -152,8 +152,10 @@
  * the device node.
  * This is dependent on support for of_property_read_u64_array() in the
  * kernel.
+ * While, the number of clocks could be more than regulators,
+ * as mentioned in power_control_init().
  */
-#define BASE_MAX_NR_CLOCKS_REGULATORS (2)
+#define BASE_MAX_NR_CLOCKS_REGULATORS (3)
 
 /* Forward declarations */
 struct kbase_context;

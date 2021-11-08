@@ -33,7 +33,7 @@
 #include <linux/completion.h>
 
 #ifndef BASE_MAX_NR_CLOCKS_REGULATORS
-#define BASE_MAX_NR_CLOCKS_REGULATORS 2
+#define BASE_MAX_NR_CLOCKS_REGULATORS 3
 #endif
 
 /**

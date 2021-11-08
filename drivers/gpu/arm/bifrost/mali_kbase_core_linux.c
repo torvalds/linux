@@ -4406,7 +4406,6 @@ int power_control_init(struct kbase_device *kbdev)
 	static const char *regulator_names[] = {
 		"mali", "shadercores"
 	};
-	BUILD_BUG_ON(ARRAY_SIZE(regulator_names) < BASE_MAX_NR_CLOCKS_REGULATORS);
 #endif /* CONFIG_REGULATOR */
 
 	if (!kbdev)
@@ -4489,7 +4488,7 @@ int power_control_init(struct kbase_device *kbdev)
 	defined(CONFIG_REGULATOR))
 	if (kbdev->nr_regulators > 0) {
 		kbdev->opp_table = dev_pm_opp_set_regulators(kbdev->dev,
-			regulator_names, BASE_MAX_NR_CLOCKS_REGULATORS);
+			regulator_names, kbdev->nr_regulators);
 	}
 #endif /* (KERNEL_VERSION(4, 10, 0) <= LINUX_VERSION_CODE */
 #ifdef CONFIG_ARCH_ROCKCHIP
