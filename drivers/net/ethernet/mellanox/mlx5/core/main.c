@@ -1112,8 +1112,9 @@ static int mlx5_load(struct mlx5_core_dev *dev)
 
 	err = mlx5_fw_tracer_init(dev->tracer);
 	if (err) {
-		mlx5_core_err(dev, "Failed to init FW tracer\n");
-		goto err_fw_tracer;
+		mlx5_core_err(dev, "Failed to init FW tracer %d\n", err);
+		mlx5_fw_tracer_destroy(dev->tracer);
+		dev->tracer = NULL;
 	}
 
 	mlx5_fw_reset_events_start(dev);
@@ -1121,8 +1122,9 @@ static int mlx5_load(struct mlx5_core_dev *dev)
 
 	err = mlx5_rsc_dump_init(dev);
 	if (err) {
-		mlx5_core_err(dev, "Failed to init Resource dump\n");
-		goto err_rsc_dump;
+		mlx5_core_err(dev, "Failed to init Resource dump %d\n", err);
+		mlx5_rsc_dump_destroy(dev);
+		dev->rsc_dump = NULL;
 	}
 
 	err = mlx5_fpga_device_start(dev);
@@ -1192,11 +1194,9 @@ err_tls_start:
 	mlx5_fpga_device_stop(dev);
 err_fpga_start:
 	mlx5_rsc_dump_cleanup(dev);
-err_rsc_dump:
 	mlx5_hv_vhca_cleanup(dev->hv_vhca);
 	mlx5_fw_reset_events_stop(dev);
 	mlx5_fw_tracer_cleanup(dev->tracer);
-err_fw_tracer:
 	mlx5_eq_table_destroy(dev);
 err_eq_table:
 	mlx5_irq_table_destroy(dev);
@@ -1537,6 +1537,7 @@ static int probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		dev_err(&pdev->dev, "mlx5_crdump_enable failed with error code %d\n", err);
 
 	pci_save_state(pdev);
+	devlink_register(devlink);
 	if (!mlx5_core_is_mp_slave(dev))
 		devlink_reload_enable(devlink);
 	return 0;
@@ -1559,6 +1560,7 @@ static void remove_one(struct pci_dev *pdev)
 	struct devlink *devlink = priv_to_devlink(dev);
 
 	devlink_reload_disable(devlink);
+	devlink_unregister(devlink);
 	mlx5_crdump_disable(dev);
 	mlx5_drain_health_wq(dev);
 	mlx5_uninit_one(dev);

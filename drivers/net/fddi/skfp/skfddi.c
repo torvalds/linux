@@ -1012,7 +1012,7 @@ static int skfp_siocdevprivate(struct net_device *dev, struct ifreq *rq, void __
  *   is contained in a single physically contiguous buffer
  *   in which the virtual address of the start of packet
  *   (skb->data) can be converted to a physical address
- *   by using pci_map_single().
+ *   by using dma_map_single().
  *
  *   We have an internal queue for packets we can not send 
  *   immediately. Packets in this queue can be given to the 

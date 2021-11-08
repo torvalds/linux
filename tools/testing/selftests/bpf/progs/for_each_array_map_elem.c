@@ -47,7 +47,7 @@ check_percpu_elem(struct bpf_map *map, __u32 *key, __u64 *val,
 
 u32 arraymap_output = 0;
 
-SEC("classifier")
+SEC("tc")
 int test_pkt_access(struct __sk_buff *skb)
 {
 	struct callback_ctx data;

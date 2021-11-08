@@ -633,7 +633,7 @@ static void test_tc_redirect_peer_l3(struct netns_setup_result *setup_result)
 	struct nstoken *nstoken = NULL;
 	int err;
 	int tunnel_pid = -1;
-	int src_fd, target_fd;
+	int src_fd, target_fd = -1;
 	int ifindex;
 
 	/* Start a L3 TUN/TAP tunnel between the src and dst namespaces.

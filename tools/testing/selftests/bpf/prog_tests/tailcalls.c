@@ -21,7 +21,7 @@ static void test_tailcall_1(void)
 	if (CHECK_FAIL(err))
 		return;
 
-	prog = bpf_object__find_program_by_title(obj, "classifier");
+	prog = bpf_object__find_program_by_name(obj, "entry");
 	if (CHECK_FAIL(!prog))
 		goto out;
 
@@ -38,9 +38,9 @@ static void test_tailcall_1(void)
 		goto out;
 
 	for (i = 0; i < bpf_map__def(prog_array)->max_entries; i++) {
-		snprintf(prog_name, sizeof(prog_name), "classifier/%i", i);
+		snprintf(prog_name, sizeof(prog_name), "classifier_%d", i);
 
-		prog = bpf_object__find_program_by_title(obj, prog_name);
+		prog = bpf_object__find_program_by_name(obj, prog_name);
 		if (CHECK_FAIL(!prog))
 			goto out;
 
@@ -70,9 +70,9 @@ static void test_tailcall_1(void)
 	      err, errno, retval);
 
 	for (i = 0; i < bpf_map__def(prog_array)->max_entries; i++) {
-		snprintf(prog_name, sizeof(prog_name), "classifier/%i", i);
+		snprintf(prog_name, sizeof(prog_name), "classifier_%d", i);
 
-		prog = bpf_object__find_program_by_title(obj, prog_name);
+		prog = bpf_object__find_program_by_name(obj, prog_name);
 		if (CHECK_FAIL(!prog))
 			goto out;
 
@@ -92,9 +92,9 @@ static void test_tailcall_1(void)
 
 	for (i = 0; i < bpf_map__def(prog_array)->max_entries; i++) {
 		j = bpf_map__def(prog_array)->max_entries - 1 - i;
-		snprintf(prog_name, sizeof(prog_name), "classifier/%i", j);
+		snprintf(prog_name, sizeof(prog_name), "classifier_%d", j);
 
-		prog = bpf_object__find_program_by_title(obj, prog_name);
+		prog = bpf_object__find_program_by_name(obj, prog_name);
 		if (CHECK_FAIL(!prog))
 			goto out;
 
@@ -159,7 +159,7 @@ static void test_tailcall_2(void)
 	if (CHECK_FAIL(err))
 		return;
 
-	prog = bpf_object__find_program_by_title(obj, "classifier");
+	prog = bpf_object__find_program_by_name(obj, "entry");
 	if (CHECK_FAIL(!prog))
 		goto out;
 
@@ -176,9 +176,9 @@ static void test_tailcall_2(void)
 		goto out;
 
 	for (i = 0; i < bpf_map__def(prog_array)->max_entries; i++) {
-		snprintf(prog_name, sizeof(prog_name), "classifier/%i", i);
+		snprintf(prog_name, sizeof(prog_name), "classifier_%d", i);
 
-		prog = bpf_object__find_program_by_title(obj, prog_name);
+		prog = bpf_object__find_program_by_name(obj, prog_name);
 		if (CHECK_FAIL(!prog))
 			goto out;
 
@@ -233,7 +233,7 @@ static void test_tailcall_count(const char *which)
 	if (CHECK_FAIL(err))
 		return;
 
-	prog = bpf_object__find_program_by_title(obj, "classifier");
+	prog = bpf_object__find_program_by_name(obj, "entry");
 	if (CHECK_FAIL(!prog))
 		goto out;
 
@@ -249,7 +249,7 @@ static void test_tailcall_count(const char *which)
 	if (CHECK_FAIL(map_fd < 0))
 		goto out;
 
-	prog = bpf_object__find_program_by_title(obj, "classifier/0");
+	prog = bpf_object__find_program_by_name(obj, "classifier_0");
 	if (CHECK_FAIL(!prog))
 		goto out;
 
@@ -329,7 +329,7 @@ static void test_tailcall_4(void)
 	if (CHECK_FAIL(err))
 		return;
 
-	prog = bpf_object__find_program_by_title(obj, "classifier");
+	prog = bpf_object__find_program_by_name(obj, "entry");
 	if (CHECK_FAIL(!prog))
 		goto out;
 
@@ -354,9 +354,9 @@ static void test_tailcall_4(void)
 		return;
 
 	for (i = 0; i < bpf_map__def(prog_array)->max_entries; i++) {
-		snprintf(prog_name, sizeof(prog_name), "classifier/%i", i);
+		snprintf(prog_name, sizeof(prog_name), "classifier_%d", i);
 
-		prog = bpf_object__find_program_by_title(obj, prog_name);
+		prog = bpf_object__find_program_by_name(obj, prog_name);
 		if (CHECK_FAIL(!prog))
 			goto out;
 
@@ -417,7 +417,7 @@ static void test_tailcall_5(void)
 	if (CHECK_FAIL(err))
 		return;
 
-	prog = bpf_object__find_program_by_title(obj, "classifier");
+	prog = bpf_object__find_program_by_name(obj, "entry");
 	if (CHECK_FAIL(!prog))
 		goto out;
 
@@ -442,9 +442,9 @@ static void test_tailcall_5(void)
 		return;
 
 	for (i = 0; i < bpf_map__def(prog_array)->max_entries; i++) {
-		snprintf(prog_name, sizeof(prog_name), "classifier/%i", i);
+		snprintf(prog_name, sizeof(prog_name), "classifier_%d", i);
 
-		prog = bpf_object__find_program_by_title(obj, prog_name);
+		prog = bpf_object__find_program_by_name(obj, prog_name);
 		if (CHECK_FAIL(!prog))
 			goto out;
 
@@ -503,7 +503,7 @@ static void test_tailcall_bpf2bpf_1(void)
 	if (CHECK_FAIL(err))
 		return;
 
-	prog = bpf_object__find_program_by_title(obj, "classifier");
+	prog = bpf_object__find_program_by_name(obj, "entry");
 	if (CHECK_FAIL(!prog))
 		goto out;
 
@@ -521,9 +521,9 @@ static void test_tailcall_bpf2bpf_1(void)
 
 	/* nop -> jmp */
 	for (i = 0; i < bpf_map__def(prog_array)->max_entries; i++) {
-		snprintf(prog_name, sizeof(prog_name), "classifier/%i", i);
+		snprintf(prog_name, sizeof(prog_name), "classifier_%d", i);
 
-		prog = bpf_object__find_program_by_title(obj, prog_name);
+		prog = bpf_object__find_program_by_name(obj, prog_name);
 		if (CHECK_FAIL(!prog))
 			goto out;
 
@@ -587,7 +587,7 @@ static void test_tailcall_bpf2bpf_2(void)
 	if (CHECK_FAIL(err))
 		return;
 
-	prog = bpf_object__find_program_by_title(obj, "classifier");
+	prog = bpf_object__find_program_by_name(obj, "entry");
 	if (CHECK_FAIL(!prog))
 		goto out;
 
@@ -603,7 +603,7 @@ static void test_tailcall_bpf2bpf_2(void)
 	if (CHECK_FAIL(map_fd < 0))
 		goto out;
 
-	prog = bpf_object__find_program_by_title(obj, "classifier/0");
+	prog = bpf_object__find_program_by_name(obj, "classifier_0");
 	if (CHECK_FAIL(!prog))
 		goto out;
 
@@ -665,7 +665,7 @@ static void test_tailcall_bpf2bpf_3(void)
 	if (CHECK_FAIL(err))
 		return;
 
-	prog = bpf_object__find_program_by_title(obj, "classifier");
+	prog = bpf_object__find_program_by_name(obj, "entry");
 	if (CHECK_FAIL(!prog))
 		goto out;
 
@@ -682,9 +682,9 @@ static void test_tailcall_bpf2bpf_3(void)
 		goto out;
 
 	for (i = 0; i < bpf_map__def(prog_array)->max_entries; i++) {
-		snprintf(prog_name, sizeof(prog_name), "classifier/%i", i);
+		snprintf(prog_name, sizeof(prog_name), "classifier_%d", i);
 
-		prog = bpf_object__find_program_by_title(obj, prog_name);
+		prog = bpf_object__find_program_by_name(obj, prog_name);
 		if (CHECK_FAIL(!prog))
 			goto out;
 
@@ -762,7 +762,7 @@ static void test_tailcall_bpf2bpf_4(bool noise)
 	if (CHECK_FAIL(err))
 		return;
 
-	prog = bpf_object__find_program_by_title(obj, "classifier");
+	prog = bpf_object__find_program_by_name(obj, "entry");
 	if (CHECK_FAIL(!prog))
 		goto out;
 
@@ -779,9 +779,9 @@ static void test_tailcall_bpf2bpf_4(bool noise)
 		goto out;
 
 	for (i = 0; i < bpf_map__def(prog_array)->max_entries; i++) {
-		snprintf(prog_name, sizeof(prog_name), "classifier/%i", i);
+		snprintf(prog_name, sizeof(prog_name), "classifier_%d", i);
 
-		prog = bpf_object__find_program_by_title(obj, prog_name);
+		prog = bpf_object__find_program_by_name(obj, prog_name);
 		if (CHECK_FAIL(!prog))
 			goto out;
 

@@ -15,6 +15,7 @@
 #define ICE_DCB_HW_CHG		2 /* DCB configuration changed, no reset */
 
 void ice_dcb_rebuild(struct ice_pf *pf);
+int ice_dcb_sw_dflt_cfg(struct ice_pf *pf, bool ets_willing, bool locked);
 u8 ice_dcb_get_ena_tc(struct ice_dcbx_cfg *dcbcfg);
 u8 ice_dcb_get_num_tc(struct ice_dcbx_cfg *dcbcfg);
 void ice_vsi_set_dcb_tc_cfg(struct ice_vsi *vsi);
@@ -59,6 +60,12 @@ static inline bool ice_is_dcb_active(struct ice_pf *pf)
 	return (test_bit(ICE_FLAG_FW_LLDP_AGENT, pf->flags) ||
 		test_bit(ICE_FLAG_DCB_ENA, pf->flags));
 }
+
+static inline u8 ice_get_pfc_mode(struct ice_pf *pf)
+{
+	return pf->hw.port_info->qos_cfg.local_dcbx_cfg.pfc_mode;
+}
+
 #else
 static inline void ice_dcb_rebuild(struct ice_pf *pf) { }
 
@@ -111,6 +118,11 @@ ice_is_pfc_causing_hung_q(struct ice_pf __always_unused *pf,
 			  unsigned int __always_unused txqueue)
 {
 	return false;
+}
+
+static inline u8 ice_get_pfc_mode(struct ice_pf *pf)
+{
+	return 0;
 }
 
 static inline void ice_pf_dcb_recfg(struct ice_pf *pf) { }

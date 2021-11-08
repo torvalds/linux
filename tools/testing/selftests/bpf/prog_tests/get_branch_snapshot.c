@@ -38,10 +38,9 @@ static int create_perf_events(void)
 
 static void close_perf_events(void)
 {
-	int cpu = 0;
-	int fd;
+	int cpu, fd;
 
-	while (cpu++ < cpu_cnt) {
+	for (cpu = 0; cpu < cpu_cnt; cpu++) {
 		fd = pfd_array[cpu];
 		if (fd < 0)
 			break;

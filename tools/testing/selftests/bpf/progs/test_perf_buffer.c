@@ -8,8 +8,8 @@
 
 struct {
 	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
-	__uint(key_size, sizeof(int));
-	__uint(value_size, sizeof(int));
+	__type(key, int);
+	__type(value, int);
 } perf_buf_map SEC(".maps");
 
 SEC("tp/raw_syscalls/sys_enter")

@@ -1294,7 +1294,7 @@ int rvu_get_blkaddr_from_slot(struct rvu *rvu, int blktype, u16 pcifunc,
 	int numlfs, total_lfs = 0, nr_blocks = 0;
 	int i, num_blkaddr[BLK_COUNT] = { 0 };
 	struct rvu_block *block;
-	int blkaddr = -ENODEV;
+	int blkaddr;
 	u16 start_slot;
 
 	if (!is_blktype_attached(pfvf, blktype))
@@ -3239,6 +3239,10 @@ static int rvu_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	rvu_dbg_init(rvu);
 
 	mutex_init(&rvu->rswitch.switch_lock);
+
+	if (rvu->fwdata)
+		ptp_start(rvu->ptp, rvu->fwdata->sclk, rvu->fwdata->ptp_ext_clk_rate,
+			  rvu->fwdata->ptp_ext_tstamp);
 
 	return 0;
 err_dl:

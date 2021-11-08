@@ -150,7 +150,8 @@
 #define ATH8035_PHY_ID				0x004dd072
 #define AT8030_PHY_ID_MASK			0xffffffef
 
-#define QCA8327_PHY_ID				0x004dd034
+#define QCA8327_A_PHY_ID			0x004dd033
+#define QCA8327_B_PHY_ID			0x004dd034
 #define QCA8337_PHY_ID				0x004dd036
 #define QCA8K_PHY_ID_MASK			0xffffffff
 
@@ -1409,30 +1410,49 @@ static struct phy_driver at803x_driver[] = {
 	.config_aneg		= at803x_config_aneg,
 }, {
 	/* QCA8337 */
-	.phy_id = QCA8337_PHY_ID,
-	.phy_id_mask = QCA8K_PHY_ID_MASK,
-	.name = "QCA PHY 8337",
+	.phy_id			= QCA8337_PHY_ID,
+	.phy_id_mask		= QCA8K_PHY_ID_MASK,
+	.name			= "Qualcomm Atheros 8337 internal PHY",
 	/* PHY_GBIT_FEATURES */
-	.probe = at803x_probe,
-	.flags = PHY_IS_INTERNAL,
-	.config_init = qca83xx_config_init,
-	.soft_reset = genphy_soft_reset,
-	.get_sset_count = at803x_get_sset_count,
-	.get_strings = at803x_get_strings,
-	.get_stats = at803x_get_stats,
+	.probe			= at803x_probe,
+	.flags			= PHY_IS_INTERNAL,
+	.config_init		= qca83xx_config_init,
+	.soft_reset		= genphy_soft_reset,
+	.get_sset_count		= at803x_get_sset_count,
+	.get_strings		= at803x_get_strings,
+	.get_stats		= at803x_get_stats,
+	.suspend		= genphy_suspend,
+	.resume			= genphy_resume,
 }, {
-	/* QCA8327 */
-	.phy_id = QCA8327_PHY_ID,
-	.phy_id_mask = QCA8K_PHY_ID_MASK,
-	.name = "QCA PHY 8327",
+	/* QCA8327-A from switch QCA8327-AL1A */
+	.phy_id			= QCA8327_A_PHY_ID,
+	.phy_id_mask		= QCA8K_PHY_ID_MASK,
+	.name			= "Qualcomm Atheros 8327-A internal PHY",
 	/* PHY_GBIT_FEATURES */
-	.probe = at803x_probe,
-	.flags = PHY_IS_INTERNAL,
-	.config_init = qca83xx_config_init,
-	.soft_reset = genphy_soft_reset,
-	.get_sset_count = at803x_get_sset_count,
-	.get_strings = at803x_get_strings,
-	.get_stats = at803x_get_stats,
+	.probe			= at803x_probe,
+	.flags			= PHY_IS_INTERNAL,
+	.config_init		= qca83xx_config_init,
+	.soft_reset		= genphy_soft_reset,
+	.get_sset_count		= at803x_get_sset_count,
+	.get_strings		= at803x_get_strings,
+	.get_stats		= at803x_get_stats,
+	.suspend		= genphy_suspend,
+	.resume			= genphy_resume,
+}, {
+	/* QCA8327-B from switch QCA8327-BL1A */
+	.phy_id			= QCA8327_B_PHY_ID,
+	.phy_id_mask		= QCA8K_PHY_ID_MASK,
+	.name			= "Qualcomm Atheros 8327-B internal PHY",
+	/* PHY_GBIT_FEATURES */
+	.probe			= at803x_probe,
+	.flags			= PHY_IS_INTERNAL,
+	.config_init		= qca83xx_config_init,
+	.soft_reset		= genphy_soft_reset,
+	.get_sset_count		= at803x_get_sset_count,
+	.get_strings		= at803x_get_strings,
+	.get_stats		= at803x_get_stats,
+	.suspend		= genphy_suspend,
+	.resume			= genphy_resume,
 }, };
 
 module_phy_driver(at803x_driver);
@@ -1444,7 +1464,8 @@ static struct mdio_device_id __maybe_unused atheros_tbl[] = {
 	{ PHY_ID_MATCH_EXACT(ATH8035_PHY_ID) },
 	{ PHY_ID_MATCH_EXACT(ATH9331_PHY_ID) },
 	{ PHY_ID_MATCH_EXACT(QCA8337_PHY_ID) },
-	{ PHY_ID_MATCH_EXACT(QCA8327_PHY_ID) },
+	{ PHY_ID_MATCH_EXACT(QCA8327_A_PHY_ID) },
+	{ PHY_ID_MATCH_EXACT(QCA8327_B_PHY_ID) },
 	{ }
 };
 

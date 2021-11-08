@@ -48,7 +48,7 @@
  * requests that the packet not be fragmented. MF indicates that a packet has
  * been fragmented.
  */
-#define ICE_FDIR_IPV4_PKT_FLAG_DF		0x20
+#define ICE_FDIR_IPV4_PKT_FLAG_MF		0x20
 
 enum ice_fltr_prgm_desc_dest {
 	ICE_FLTR_PRGM_DESC_DEST_DROP_PKT,

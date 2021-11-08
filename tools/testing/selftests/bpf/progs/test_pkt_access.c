@@ -97,7 +97,7 @@ int test_pkt_write_access_subprog(struct __sk_buff *skb, __u32 off)
 	return 0;
 }
 
-SEC("classifier/test_pkt_access")
+SEC("tc")
 int test_pkt_access(struct __sk_buff *skb)
 {
 	void *data_end = (void *)(long)skb->data_end;

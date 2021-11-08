@@ -11,6 +11,7 @@
 #include <linux/etherdevice.h>
 #include <linux/iommu.h>
 #include <linux/if_vlan.h>
+#include <net/xdp.h>
 
 #define LBK_CHAN_BASE	0x000
 #define SDP_CHAN_BASE	0x700
@@ -24,6 +25,8 @@
 
 #define OTX2_MAX_GSO_SEGS	255
 #define OTX2_MAX_FRAGS_IN_SQE	9
+
+#define MAX_XDP_MTU	(1530 - OTX2_ETH_HLEN)
 
 /* Rx buffer size should be in multiples of 128bytes */
 #define RCV_FRAG_LEN1(x)				\
@@ -55,6 +58,9 @@
  * with valid CQEs.
  */
 #define CQ_QCOUNT_DEFAULT	1
+
+#define CQ_OP_STAT_OP_ERR       63
+#define CQ_OP_STAT_CQ_ERR       46
 
 struct queue_stats {
 	u64	bytes;
@@ -96,7 +102,8 @@ struct otx2_snd_queue {
 enum cq_type {
 	CQ_RX,
 	CQ_TX,
-	CQS_PER_CINT = 2, /* RQ + SQ */
+	CQ_XDP,
+	CQS_PER_CINT = 3, /* RQ + SQ + XDP */
 };
 
 struct otx2_cq_poll {
@@ -122,9 +129,12 @@ struct otx2_cq_queue {
 	u16			pool_ptrs;
 	u32			cqe_cnt;
 	u32			cq_head;
+	u32			cq_tail;
+	u32			pend_cqe;
 	void			*cqe_base;
 	struct qmem		*cqe;
 	struct otx2_pool	*rbpool;
+	struct xdp_rxq_info xdp_rxq;
 } ____cacheline_aligned_in_smp;
 
 struct otx2_qset {

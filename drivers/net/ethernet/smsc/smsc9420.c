@@ -788,7 +788,7 @@ static int smsc9420_alloc_rx_buffer(struct smsc9420_pdata *pd, int index)
 				 PKT_BUF_SZ, DMA_FROM_DEVICE);
 	if (dma_mapping_error(&pd->pdev->dev, mapping)) {
 		dev_kfree_skb_any(skb);
-		netif_warn(pd, rx_err, pd->dev, "pci_map_single failed!\n");
+		netif_warn(pd, rx_err, pd->dev, "dma_map_single failed!\n");
 		return -ENOMEM;
 	}
 
@@ -940,7 +940,7 @@ static netdev_tx_t smsc9420_hard_start_xmit(struct sk_buff *skb,
 				 DMA_TO_DEVICE);
 	if (dma_mapping_error(&pd->pdev->dev, mapping)) {
 		netif_warn(pd, tx_err, pd->dev,
-			   "pci_map_single failed, dropping packet\n");
+			   "dma_map_single failed, dropping packet\n");
 		return NETDEV_TX_BUSY;
 	}
 
@@ -1551,7 +1551,7 @@ smsc9420_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (!pd->rx_ring)
 		goto out_free_io_4;
 
-	/* descriptors are aligned due to the nature of pci_alloc_consistent */
+	/* descriptors are aligned due to the nature of dma_alloc_coherent */
 	pd->tx_ring = (pd->rx_ring + RX_RING_SIZE);
 	pd->tx_dma_addr = pd->rx_dma_addr +
 	    sizeof(struct smsc9420_dma_desc) * RX_RING_SIZE;

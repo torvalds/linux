@@ -803,7 +803,10 @@ static int do_skeleton(int argc, char **argv)
 			}						    \n\
 									    \n\
 			err = %1$s__create_skeleton(obj);		    \n\
-			err = err ?: bpf_object__open_skeleton(obj->skeleton, opts);\n\
+			if (err)					    \n\
+				goto err_out;				    \n\
+									    \n\
+			err = bpf_object__open_skeleton(obj->skeleton, opts);\n\
 			if (err)					    \n\
 				goto err_out;				    \n\
 									    \n\

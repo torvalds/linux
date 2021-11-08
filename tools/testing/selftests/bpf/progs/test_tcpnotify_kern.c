@@ -24,8 +24,8 @@ struct {
 struct {
 	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
 	__uint(max_entries, 2);
-	__uint(key_size, sizeof(int));
-	__uint(value_size, sizeof(__u32));
+	__type(key, int);
+	__type(value, __u32);
 } perf_event_map SEC(".maps");
 
 int _version SEC("version") = 1;

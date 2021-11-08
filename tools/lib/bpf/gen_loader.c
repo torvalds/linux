@@ -5,6 +5,7 @@
 #include <string.h>
 #include <errno.h>
 #include <linux/filter.h>
+#include <sys/param.h>
 #include "btf.h"
 #include "bpf.h"
 #include "libbpf.h"
@@ -135,13 +136,17 @@ void bpf_gen__init(struct bpf_gen *gen, int log_level)
 
 static int add_data(struct bpf_gen *gen, const void *data, __u32 size)
 {
+	__u32 size8 = roundup(size, 8);
+	__u64 zero = 0;
 	void *prev;
 
-	if (realloc_data_buf(gen, size))
+	if (realloc_data_buf(gen, size8))
 		return 0;
 	prev = gen->data_cur;
 	memcpy(gen->data_cur, data, size);
 	gen->data_cur += size;
+	memcpy(gen->data_cur, &zero, size8 - size);
+	gen->data_cur += size8 - size;
 	return prev - gen->data_start;
 }
 

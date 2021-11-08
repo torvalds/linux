@@ -3,7 +3,7 @@
 
 void test_probe_user(void)
 {
-	const char *prog_name = "kprobe/__sys_connect";
+	const char *prog_name = "handle_sys_connect";
 	const char *obj_file = "./test_probe_user.o";
 	DECLARE_LIBBPF_OPTS(bpf_object_open_opts, opts, );
 	int err, results_map_fd, sock_fd, duration = 0;
@@ -18,7 +18,7 @@ void test_probe_user(void)
 	if (!ASSERT_OK_PTR(obj, "obj_open_file"))
 		return;
 
-	kprobe_prog = bpf_object__find_program_by_title(obj, prog_name);
+	kprobe_prog = bpf_object__find_program_by_name(obj, prog_name);
 	if (CHECK(!kprobe_prog, "find_probe",
 		  "prog '%s' not found\n", prog_name))
 		goto cleanup;

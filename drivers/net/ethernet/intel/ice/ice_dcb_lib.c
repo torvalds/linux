@@ -544,7 +544,7 @@ static int ice_dcb_init_cfg(struct ice_pf *pf, bool locked)
  * @ets_willing: configure ETS willing
  * @locked: was this function called with RTNL held
  */
-static int ice_dcb_sw_dflt_cfg(struct ice_pf *pf, bool ets_willing, bool locked)
+int ice_dcb_sw_dflt_cfg(struct ice_pf *pf, bool ets_willing, bool locked)
 {
 	struct ice_aqc_port_ets_elem buf = { 0 };
 	struct ice_dcbx_cfg *dcbcfg;
@@ -726,6 +726,11 @@ int ice_init_pf_dcb(struct ice_pf *pf, bool locked)
 		/* FW LLDP is disabled, activate SW DCBX/LLDP mode */
 		dev_info(dev, "FW LLDP is disabled, DCBx/LLDP in SW mode.\n");
 		clear_bit(ICE_FLAG_FW_LLDP_AGENT, pf->flags);
+		err = ice_aq_set_pfc_mode(&pf->hw, ICE_AQC_PFC_VLAN_BASED_PFC,
+					  NULL);
+		if (err)
+			dev_info(dev, "Failed to set VLAN PFC mode\n");
+
 		err = ice_dcb_sw_dflt_cfg(pf, true, locked);
 		if (err) {
 			dev_err(dev, "Failed to set local DCB config %d\n",

@@ -202,7 +202,7 @@ void sk_stream_kill_queues(struct sock *sk)
 	WARN_ON(!skb_queue_empty(&sk->sk_write_queue));
 
 	/* Account for returned memory. */
-	sk_mem_reclaim(sk);
+	sk_mem_reclaim_final(sk);
 
 	WARN_ON(sk->sk_wmem_queued);
 	WARN_ON(sk->sk_forward_alloc);

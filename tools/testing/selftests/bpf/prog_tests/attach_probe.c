@@ -14,6 +14,20 @@ void test_attach_probe(void)
 	struct test_attach_probe* skel;
 	size_t uprobe_offset;
 	ssize_t base_addr, ref_ctr_offset;
+	bool legacy;
+
+	/* Check if new-style kprobe/uprobe API is supported.
+	 * Kernels that support new FD-based kprobe and uprobe BPF attachment
+	 * through perf_event_open() syscall expose
+	 * /sys/bus/event_source/devices/kprobe/type and
+	 * /sys/bus/event_source/devices/uprobe/type files, respectively. They
+	 * contain magic numbers that are passed as "type" field of
+	 * perf_event_attr. Lack of such file in the system indicates legacy
+	 * kernel with old-style kprobe/uprobe attach interface through
+	 * creating per-probe event through tracefs. For such cases
+	 * ref_ctr_offset feature is not supported, so we don't test it.
+	 */
+	legacy = access("/sys/bus/event_source/devices/kprobe/type", F_OK) != 0;
 
 	base_addr = get_base_addr();
 	if (CHECK(base_addr < 0, "get_base_addr",
@@ -45,10 +59,11 @@ void test_attach_probe(void)
 		goto cleanup;
 	skel->links.handle_kretprobe = kretprobe_link;
 
-	ASSERT_EQ(uprobe_ref_ctr, 0, "uprobe_ref_ctr_before");
+	if (!legacy)
+		ASSERT_EQ(uprobe_ref_ctr, 0, "uprobe_ref_ctr_before");
 
 	uprobe_opts.retprobe = false;
-	uprobe_opts.ref_ctr_offset = ref_ctr_offset;
+	uprobe_opts.ref_ctr_offset = legacy ? 0 : ref_ctr_offset;
 	uprobe_link = bpf_program__attach_uprobe_opts(skel->progs.handle_uprobe,
 						      0 /* self pid */,
 						      "/proc/self/exe",
@@ -58,11 +73,12 @@ void test_attach_probe(void)
 		goto cleanup;
 	skel->links.handle_uprobe = uprobe_link;
 
-	ASSERT_GT(uprobe_ref_ctr, 0, "uprobe_ref_ctr_after");
+	if (!legacy)
+		ASSERT_GT(uprobe_ref_ctr, 0, "uprobe_ref_ctr_after");
 
 	/* if uprobe uses ref_ctr, uretprobe has to use ref_ctr as well */
 	uprobe_opts.retprobe = true;
-	uprobe_opts.ref_ctr_offset = ref_ctr_offset;
+	uprobe_opts.ref_ctr_offset = legacy ? 0 : ref_ctr_offset;
 	uretprobe_link = bpf_program__attach_uprobe_opts(skel->progs.handle_uretprobe,
 							 -1 /* any pid */,
 							 "/proc/self/exe",

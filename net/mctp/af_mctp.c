@@ -16,6 +16,9 @@
 #include <net/mctpdevice.h>
 #include <net/sock.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/mctp.h>
+
 /* socket implementation */
 
 static int mctp_release(struct socket *sock)
@@ -223,16 +226,61 @@ static const struct proto_ops mctp_dgram_ops = {
 	.sendpage	= sock_no_sendpage,
 };
 
+static void mctp_sk_expire_keys(struct timer_list *timer)
+{
+	struct mctp_sock *msk = container_of(timer, struct mctp_sock,
+					     key_expiry);
+	struct net *net = sock_net(&msk->sk);
+	unsigned long next_expiry, flags;
+	struct mctp_sk_key *key;
+	struct hlist_node *tmp;
+	bool next_expiry_valid = false;
+
+	spin_lock_irqsave(&net->mctp.keys_lock, flags);
+
+	hlist_for_each_entry_safe(key, tmp, &msk->keys, sklist) {
+		spin_lock(&key->lock);
+
+		if (!time_after_eq(key->expiry, jiffies)) {
+			trace_mctp_key_release(key, MCTP_TRACE_KEY_TIMEOUT);
+			key->valid = false;
+			hlist_del_rcu(&key->hlist);
+			hlist_del_rcu(&key->sklist);
+			spin_unlock(&key->lock);
+			mctp_key_unref(key);
+			continue;
+		}
+
+		if (next_expiry_valid) {
+			if (time_before(key->expiry, next_expiry))
+				next_expiry = key->expiry;
+		} else {
+			next_expiry = key->expiry;
+			next_expiry_valid = true;
+		}
+		spin_unlock(&key->lock);
+	}
+
+	spin_unlock_irqrestore(&net->mctp.keys_lock, flags);
+
+	if (next_expiry_valid)
+		mod_timer(timer, next_expiry);
+}
+
 static int mctp_sk_init(struct sock *sk)
 {
 	struct mctp_sock *msk = container_of(sk, struct mctp_sock, sk);
 
 	INIT_HLIST_HEAD(&msk->keys);
+	timer_setup(&msk->key_expiry, mctp_sk_expire_keys, 0);
 	return 0;
 }
 
 static void mctp_sk_close(struct sock *sk, long timeout)
 {
+	struct mctp_sock *msk = container_of(sk, struct mctp_sock, sk);
+
+	del_timer_sync(&msk->key_expiry);
 	sk_common_release(sk);
 }
 
@@ -263,21 +311,23 @@ static void mctp_sk_unhash(struct sock *sk)
 	/* remove tag allocations */
 	spin_lock_irqsave(&net->mctp.keys_lock, flags);
 	hlist_for_each_entry_safe(key, tmp, &msk->keys, sklist) {
-		hlist_del_rcu(&key->sklist);
-		hlist_del_rcu(&key->hlist);
+		hlist_del(&key->sklist);
+		hlist_del(&key->hlist);
 
-		spin_lock(&key->reasm_lock);
+		trace_mctp_key_release(key, MCTP_TRACE_KEY_CLOSED);
+
+		spin_lock(&key->lock);
 		if (key->reasm_head)
 			kfree_skb(key->reasm_head);
 		key->reasm_head = NULL;
 		key->reasm_dead = true;
-		spin_unlock(&key->reasm_lock);
+		key->valid = false;
+		spin_unlock(&key->lock);
 
-		kfree_rcu(key, rcu);
+		/* key is no longer on the lookup lists, unref */
+		mctp_key_unref(key);
 	}
 	spin_unlock_irqrestore(&net->mctp.keys_lock, flags);
-
-	synchronize_rcu();
 }
 
 static struct proto mctp_proto = {
@@ -385,7 +435,7 @@ static __exit void mctp_exit(void)
 	sock_unregister(PF_MCTP);
 }
 
-module_init(mctp_init);
+subsys_initcall(mctp_init);
 module_exit(mctp_exit);
 
 MODULE_DESCRIPTION("MCTP core");

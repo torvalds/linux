@@ -594,6 +594,9 @@ struct bcmgenet_priv {
 
 	/* other misc variables */
 	struct bcmgenet_hw_params *hw_params;
+	unsigned autoneg_pause:1;
+	unsigned tx_pause:1;
+	unsigned rx_pause:1;
 
 	/* MDIO bus variables */
 	wait_queue_head_t wq;
@@ -606,10 +609,6 @@ struct bcmgenet_priv {
 	bool clk_eee_enabled;
 
 	/* PHY device variables */
-	int old_link;
-	int old_speed;
-	int old_duplex;
-	int old_pause;
 	phy_interface_t phy_interface;
 	int phy_addr;
 	int ext_phy;
@@ -690,6 +689,7 @@ int bcmgenet_mii_init(struct net_device *dev);
 int bcmgenet_mii_config(struct net_device *dev, bool init);
 int bcmgenet_mii_probe(struct net_device *dev);
 void bcmgenet_mii_exit(struct net_device *dev);
+void bcmgenet_phy_pause_set(struct net_device *dev, bool rx, bool tx);
 void bcmgenet_phy_power_set(struct net_device *dev, bool enable);
 void bcmgenet_mii_setup(struct net_device *dev);
 

@@ -1028,7 +1028,7 @@ static void dfx_bus_config_check(DFX_board_t *bp)
  *						or read adapter MAC address
  *
  * Assumptions:
- *   Memory allocated from pci_alloc_consistent() call is physically
+ *   Memory allocated from dma_alloc_coherent() call is physically
  *   contiguous, locked memory.
  *
  * Side Effects:
@@ -3249,7 +3249,7 @@ static void dfx_rcv_queue_process(
  *   is contained in a single physically contiguous buffer
  *   in which the virtual address of the start of packet
  *   (skb->data) can be converted to a physical address
- *   by using pci_map_single().
+ *   by using dma_map_single().
  *
  *   Since the adapter architecture requires a three byte
  *   packet request header to prepend the start of packet,
@@ -3402,7 +3402,7 @@ static netdev_tx_t dfx_xmt_queue_pkt(struct sk_buff *skb,
 	 *			skb->data.
 	 *		 6. The physical address of the start of packet
 	 *			can be determined from the virtual address
-	 *			by using pci_map_single() and is only 32-bits
+	 *			by using dma_map_single() and is only 32-bits
 	 *			wide.
 	 */
 

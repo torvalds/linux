@@ -14,13 +14,15 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 
+#include <linux/if_vlan.h>
+
 #include <linux/of_net.h>
 #include <linux/of_platform.h>
 
 #include <xway_dma.h>
 
 /* DMA */
-#define XRX200_DMA_DATA_LEN	0x600
+#define XRX200_DMA_DATA_LEN	(SZ_64K - 1)
 #define XRX200_DMA_RX		0
 #define XRX200_DMA_TX		1
 
@@ -109,7 +111,8 @@ static void xrx200_flush_dma(struct xrx200_chan *ch)
 			break;
 
 		desc->ctl = LTQ_DMA_OWN | LTQ_DMA_RX_OFFSET(NET_IP_ALIGN) |
-			    XRX200_DMA_DATA_LEN;
+			    (ch->priv->net_dev->mtu + VLAN_ETH_HLEN +
+			     ETH_FCS_LEN);
 		ch->dma.desc++;
 		ch->dma.desc %= LTQ_DESC_NUM;
 	}
@@ -157,19 +160,20 @@ static int xrx200_close(struct net_device *net_dev)
 
 static int xrx200_alloc_skb(struct xrx200_chan *ch)
 {
+	int len = ch->priv->net_dev->mtu + VLAN_ETH_HLEN + ETH_FCS_LEN;
 	struct sk_buff *skb = ch->skb[ch->dma.desc];
 	dma_addr_t mapping;
 	int ret = 0;
 
 	ch->skb[ch->dma.desc] = netdev_alloc_skb_ip_align(ch->priv->net_dev,
-							  XRX200_DMA_DATA_LEN);
+							  len);
 	if (!ch->skb[ch->dma.desc]) {
 		ret = -ENOMEM;
 		goto skip;
 	}
 
 	mapping = dma_map_single(ch->priv->dev, ch->skb[ch->dma.desc]->data,
-				 XRX200_DMA_DATA_LEN, DMA_FROM_DEVICE);
+				 len, DMA_FROM_DEVICE);
 	if (unlikely(dma_mapping_error(ch->priv->dev, mapping))) {
 		dev_kfree_skb_any(ch->skb[ch->dma.desc]);
 		ch->skb[ch->dma.desc] = skb;
@@ -182,8 +186,7 @@ static int xrx200_alloc_skb(struct xrx200_chan *ch)
 	wmb();
 skip:
 	ch->dma.desc_base[ch->dma.desc].ctl =
-		LTQ_DMA_OWN | LTQ_DMA_RX_OFFSET(NET_IP_ALIGN) |
-		XRX200_DMA_DATA_LEN;
+		LTQ_DMA_OWN | LTQ_DMA_RX_OFFSET(NET_IP_ALIGN) | len;
 
 	return ret;
 }
@@ -343,10 +346,57 @@ err_drop:
 	return NETDEV_TX_OK;
 }
 
+static int
+xrx200_change_mtu(struct net_device *net_dev, int new_mtu)
+{
+	struct xrx200_priv *priv = netdev_priv(net_dev);
+	struct xrx200_chan *ch_rx = &priv->chan_rx;
+	int old_mtu = net_dev->mtu;
+	bool running = false;
+	struct sk_buff *skb;
+	int curr_desc;
+	int ret = 0;
+
+	net_dev->mtu = new_mtu;
+
+	if (new_mtu <= old_mtu)
+		return ret;
+
+	running = netif_running(net_dev);
+	if (running) {
+		napi_disable(&ch_rx->napi);
+		ltq_dma_close(&ch_rx->dma);
+	}
+
+	xrx200_poll_rx(&ch_rx->napi, LTQ_DESC_NUM);
+	curr_desc = ch_rx->dma.desc;
+
+	for (ch_rx->dma.desc = 0; ch_rx->dma.desc < LTQ_DESC_NUM;
+	     ch_rx->dma.desc++) {
+		skb = ch_rx->skb[ch_rx->dma.desc];
+		ret = xrx200_alloc_skb(ch_rx);
+		if (ret) {
+			net_dev->mtu = old_mtu;
+			break;
+		}
+		dev_kfree_skb_any(skb);
+	}
+
+	ch_rx->dma.desc = curr_desc;
+	if (running) {
+		napi_enable(&ch_rx->napi);
+		ltq_dma_open(&ch_rx->dma);
+		ltq_dma_enable_irq(&ch_rx->dma);
+	}
+
+	return ret;
+}
+
 static const struct net_device_ops xrx200_netdev_ops = {
 	.ndo_open		= xrx200_open,
 	.ndo_stop		= xrx200_close,
 	.ndo_start_xmit		= xrx200_start_xmit,
+	.ndo_change_mtu		= xrx200_change_mtu,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };
@@ -456,7 +506,7 @@ static int xrx200_probe(struct platform_device *pdev)
 	net_dev->netdev_ops = &xrx200_netdev_ops;
 	SET_NETDEV_DEV(net_dev, dev);
 	net_dev->min_mtu = ETH_ZLEN;
-	net_dev->max_mtu = XRX200_DMA_DATA_LEN;
+	net_dev->max_mtu = XRX200_DMA_DATA_LEN - VLAN_ETH_HLEN - ETH_FCS_LEN;
 
 	/* load the memory ranges */
 	priv->pmac_reg = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);

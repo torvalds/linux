@@ -671,6 +671,16 @@ struct ice_aqc_sw_rules_elem {
 	} __packed pdata;
 };
 
+/* Query PFC Mode (direct 0x0302)
+ * Set PFC Mode (direct 0x0303)
+ */
+struct ice_aqc_set_query_pfc_mode {
+	u8	pfc_mode;
+/* For Query Command response, reserved in all other cases */
+#define ICE_AQC_PFC_VLAN_BASED_PFC	1
+#define ICE_AQC_PFC_DSCP_BASED_PFC	2
+	u8	rsvd[15];
+};
 /* Get Default Topology (indirect 0x0400) */
 struct ice_aqc_get_topo {
 	u8 port_num;
@@ -1936,6 +1946,7 @@ struct ice_aq_desc {
 		struct ice_aqc_nvm_pkg_data pkg_data;
 		struct ice_aqc_nvm_pass_comp_tbl pass_comp_tbl;
 		struct ice_aqc_pf_vf_msg virt;
+		struct ice_aqc_set_query_pfc_mode set_query_pfc_mode;
 		struct ice_aqc_lldp_get_mib lldp_get_mib;
 		struct ice_aqc_lldp_set_mib_change lldp_set_event;
 		struct ice_aqc_lldp_stop lldp_stop;
@@ -2039,6 +2050,10 @@ enum ice_adminq_opc {
 	ice_aqc_opc_remove_sw_rules			= 0x02A2,
 
 	ice_aqc_opc_clear_pf_cfg			= 0x02A4,
+
+	/* DCB commands */
+	ice_aqc_opc_query_pfc_mode			= 0x0302,
+	ice_aqc_opc_set_pfc_mode			= 0x0303,
 
 	/* transmit scheduler commands */
 	ice_aqc_opc_get_dflt_topo			= 0x0400,

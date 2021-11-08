@@ -27,15 +27,29 @@
 
 #define SJA1105_UNKNOWN_MULTICAST	0x010000000000ull
 
-static void sja1105_hw_reset(struct gpio_desc *gpio, unsigned int pulse_len,
-			     unsigned int startup_delay)
+/* Configure the optional reset pin and bring up switch */
+static int sja1105_hw_reset(struct device *dev, unsigned int pulse_len,
+			    unsigned int startup_delay)
 {
+	struct gpio_desc *gpio;
+
+	gpio = gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(gpio))
+		return PTR_ERR(gpio);
+
+	if (!gpio)
+		return 0;
+
 	gpiod_set_value_cansleep(gpio, 1);
 	/* Wait for minimum reset pulse length */
 	msleep(pulse_len);
 	gpiod_set_value_cansleep(gpio, 0);
 	/* Wait until chip is ready after reset */
 	msleep(startup_delay);
+
+	gpiod_put(gpio);
+
+	return 0;
 }
 
 static void
@@ -1766,6 +1780,7 @@ static int sja1105_fdb_del(struct dsa_switch *ds, int port,
 static int sja1105_fdb_dump(struct dsa_switch *ds, int port,
 			    dsa_fdb_dump_cb_t *cb, void *data)
 {
+	struct dsa_port *dp = dsa_to_port(ds, port);
 	struct sja1105_private *priv = ds->priv;
 	struct device *dev = ds->dev;
 	int i;
@@ -1802,7 +1817,7 @@ static int sja1105_fdb_dump(struct dsa_switch *ds, int port,
 		u64_to_ether_addr(l2_lookup.macaddr, macaddr);
 
 		/* We need to hide the dsa_8021q VLANs from the user. */
-		if (!priv->vlan_aware)
+		if (!dsa_port_is_vlan_filtering(dp))
 			l2_lookup.vlanid = 0;
 		rc = cb(macaddr, l2_lookup.vlanid, l2_lookup.lockeds, data);
 		if (rc)
@@ -2295,11 +2310,6 @@ int sja1105_vlan_filtering(struct dsa_switch *ds, int port, bool enabled,
 		tpid2 = ETH_P_SJA1105;
 	}
 
-	if (priv->vlan_aware == enabled)
-		return 0;
-
-	priv->vlan_aware = enabled;
-
 	table = &priv->static_config.tables[BLK_IDX_GENERAL_PARAMS];
 	general_params = table->entries;
 	/* EtherType used to identify inner tagged (C-tag) VLAN traffic */
@@ -2332,7 +2342,7 @@ int sja1105_vlan_filtering(struct dsa_switch *ds, int port, bool enabled,
 	 */
 	table = &priv->static_config.tables[BLK_IDX_L2_LOOKUP_PARAMS];
 	l2_lookup_params = table->entries;
-	l2_lookup_params->shared_learn = !priv->vlan_aware;
+	l2_lookup_params->shared_learn = !enabled;
 
 	for (port = 0; port < ds->num_ports; port++) {
 		if (dsa_is_unused_port(ds, port))
@@ -2965,7 +2975,6 @@ static int sja1105_setup_ports(struct sja1105_private *priv)
 			continue;
 
 		dp->priv = sp;
-		sp->dp = dp;
 		sp->data = tagger_data;
 		slave = dp->slave;
 		kthread_init_work(&sp->xmit_work, sja1105_port_deferred_xmit);
@@ -3229,16 +3238,13 @@ static int sja1105_probe(struct spi_device *spi)
 		return -EINVAL;
 	}
 
+	rc = sja1105_hw_reset(dev, 1, 1);
+	if (rc)
+		return rc;
+
 	priv = devm_kzalloc(dev, sizeof(struct sja1105_private), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
-
-	/* Configure the optional reset pin and bring up switch */
-	priv->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
-	if (IS_ERR(priv->reset_gpio))
-		dev_dbg(dev, "reset-gpios not defined, ignoring\n");
-	else
-		sja1105_hw_reset(priv->reset_gpio, 1, 1);
 
 	/* Populate our driver private structure (priv) based on
 	 * the device tree node that was probed (spi)

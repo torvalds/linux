@@ -23,7 +23,10 @@
 #include <net/netlink.h>
 #include <net/sock.h>
 
+#include <trace/events/mctp.h>
+
 static const unsigned int mctp_message_maxlen = 64 * 1024;
+static const unsigned long mctp_key_lifetime = 6 * CONFIG_HZ;
 
 /* route output callbacks */
 static int mctp_route_discard(struct mctp_route *route, struct sk_buff *skb)
@@ -83,25 +86,43 @@ static bool mctp_key_match(struct mctp_sk_key *key, mctp_eid_t local,
 	return true;
 }
 
+/* returns a key (with key->lock held, and refcounted), or NULL if no such
+ * key exists.
+ */
 static struct mctp_sk_key *mctp_lookup_key(struct net *net, struct sk_buff *skb,
-					   mctp_eid_t peer)
+					   mctp_eid_t peer,
+					   unsigned long *irqflags)
+	__acquires(&key->lock)
 {
 	struct mctp_sk_key *key, *ret;
+	unsigned long flags;
 	struct mctp_hdr *mh;
 	u8 tag;
-
-	WARN_ON(!rcu_read_lock_held());
 
 	mh = mctp_hdr(skb);
 	tag = mh->flags_seq_tag & (MCTP_HDR_TAG_MASK | MCTP_HDR_FLAG_TO);
 
 	ret = NULL;
+	spin_lock_irqsave(&net->mctp.keys_lock, flags);
 
-	hlist_for_each_entry_rcu(key, &net->mctp.keys, hlist) {
-		if (mctp_key_match(key, mh->dest, peer, tag)) {
+	hlist_for_each_entry(key, &net->mctp.keys, hlist) {
+		if (!mctp_key_match(key, mh->dest, peer, tag))
+			continue;
+
+		spin_lock(&key->lock);
+		if (key->valid) {
+			refcount_inc(&key->refs);
 			ret = key;
 			break;
 		}
+		spin_unlock(&key->lock);
+	}
+
+	if (ret) {
+		spin_unlock(&net->mctp.keys_lock);
+		*irqflags = flags;
+	} else {
+		spin_unlock_irqrestore(&net->mctp.keys_lock, flags);
 	}
 
 	return ret;
@@ -121,9 +142,17 @@ static struct mctp_sk_key *mctp_key_alloc(struct mctp_sock *msk,
 	key->local_addr = local;
 	key->tag = tag;
 	key->sk = &msk->sk;
-	spin_lock_init(&key->reasm_lock);
+	key->valid = true;
+	spin_lock_init(&key->lock);
+	refcount_set(&key->refs, 1);
 
 	return key;
+}
+
+void mctp_key_unref(struct mctp_sk_key *key)
+{
+	if (refcount_dec_and_test(&key->refs))
+		kfree(key);
 }
 
 static int mctp_key_add(struct mctp_sk_key *key, struct mctp_sock *msk)
@@ -138,12 +167,20 @@ static int mctp_key_add(struct mctp_sk_key *key, struct mctp_sock *msk)
 	hlist_for_each_entry(tmp, &net->mctp.keys, hlist) {
 		if (mctp_key_match(tmp, key->local_addr, key->peer_addr,
 				   key->tag)) {
-			rc = -EEXIST;
-			break;
+			spin_lock(&tmp->lock);
+			if (tmp->valid)
+				rc = -EEXIST;
+			spin_unlock(&tmp->lock);
+			if (rc)
+				break;
 		}
 	}
 
 	if (!rc) {
+		refcount_inc(&key->refs);
+		key->expiry = jiffies + mctp_key_lifetime;
+		timer_reduce(&msk->key_expiry, key->expiry);
+
 		hlist_add_head(&key->hlist, &net->mctp.keys);
 		hlist_add_head(&key->sklist, &msk->keys);
 	}
@@ -153,28 +190,35 @@ static int mctp_key_add(struct mctp_sk_key *key, struct mctp_sock *msk)
 	return rc;
 }
 
-/* Must be called with key->reasm_lock, which it will release. Will schedule
- * the key for an RCU free.
+/* We're done with the key; unset valid and remove from lists. There may still
+ * be outstanding refs on the key though...
  */
 static void __mctp_key_unlock_drop(struct mctp_sk_key *key, struct net *net,
 				   unsigned long flags)
-	__releases(&key->reasm_lock)
+	__releases(&key->lock)
 {
 	struct sk_buff *skb;
 
 	skb = key->reasm_head;
 	key->reasm_head = NULL;
 	key->reasm_dead = true;
-	spin_unlock_irqrestore(&key->reasm_lock, flags);
+	key->valid = false;
+	spin_unlock_irqrestore(&key->lock, flags);
 
 	spin_lock_irqsave(&net->mctp.keys_lock, flags);
-	hlist_del_rcu(&key->hlist);
-	hlist_del_rcu(&key->sklist);
+	hlist_del(&key->hlist);
+	hlist_del(&key->sklist);
 	spin_unlock_irqrestore(&net->mctp.keys_lock, flags);
-	kfree_rcu(key, rcu);
+
+	/* one unref for the lists */
+	mctp_key_unref(key);
+
+	/* and one for the local reference */
+	mctp_key_unref(key);
 
 	if (skb)
 		kfree_skb(skb);
+
 }
 
 static int mctp_frag_queue(struct mctp_sk_key *key, struct sk_buff *skb)
@@ -248,8 +292,10 @@ static int mctp_route_input(struct mctp_route *route, struct sk_buff *skb)
 
 	rcu_read_lock();
 
-	/* lookup socket / reasm context, exactly matching (src,dest,tag) */
-	key = mctp_lookup_key(net, skb, mh->src);
+	/* lookup socket / reasm context, exactly matching (src,dest,tag).
+	 * we hold a ref on the key, and key->lock held.
+	 */
+	key = mctp_lookup_key(net, skb, mh->src, &f);
 
 	if (flags & MCTP_HDR_FLAG_SOM) {
 		if (key) {
@@ -260,10 +306,12 @@ static int mctp_route_input(struct mctp_route *route, struct sk_buff *skb)
 			 * key for reassembly - we'll create a more specific
 			 * one for future packets if required (ie, !EOM).
 			 */
-			key = mctp_lookup_key(net, skb, MCTP_ADDR_ANY);
+			key = mctp_lookup_key(net, skb, MCTP_ADDR_ANY, &f);
 			if (key) {
 				msk = container_of(key->sk,
 						   struct mctp_sock, sk);
+				spin_unlock_irqrestore(&key->lock, f);
+				mctp_key_unref(key);
 				key = NULL;
 			}
 		}
@@ -282,11 +330,13 @@ static int mctp_route_input(struct mctp_route *route, struct sk_buff *skb)
 		if (flags & MCTP_HDR_FLAG_EOM) {
 			sock_queue_rcv_skb(&msk->sk, skb);
 			if (key) {
-				spin_lock_irqsave(&key->reasm_lock, f);
 				/* we've hit a pending reassembly; not much we
 				 * can do but drop it
 				 */
+				trace_mctp_key_release(key,
+						       MCTP_TRACE_KEY_REPLIED);
 				__mctp_key_unlock_drop(key, net, f);
+				key = NULL;
 			}
 			rc = 0;
 			goto out_unlock;
@@ -303,7 +353,7 @@ static int mctp_route_input(struct mctp_route *route, struct sk_buff *skb)
 				goto out_unlock;
 			}
 
-			/* we can queue without the reasm lock here, as the
+			/* we can queue without the key lock here, as the
 			 * key isn't observable yet
 			 */
 			mctp_frag_queue(key, skb);
@@ -318,17 +368,21 @@ static int mctp_route_input(struct mctp_route *route, struct sk_buff *skb)
 			if (rc)
 				kfree(key);
 
-		} else {
-			/* existing key: start reassembly */
-			spin_lock_irqsave(&key->reasm_lock, f);
+			trace_mctp_key_acquire(key);
 
+			/* we don't need to release key->lock on exit */
+			key = NULL;
+
+		} else {
 			if (key->reasm_head || key->reasm_dead) {
 				/* duplicate start? drop everything */
+				trace_mctp_key_release(key,
+						       MCTP_TRACE_KEY_INVALIDATED);
 				__mctp_key_unlock_drop(key, net, f);
 				rc = -EEXIST;
+				key = NULL;
 			} else {
 				rc = mctp_frag_queue(key, skb);
-				spin_unlock_irqrestore(&key->reasm_lock, f);
 			}
 		}
 
@@ -336,8 +390,6 @@ static int mctp_route_input(struct mctp_route *route, struct sk_buff *skb)
 		/* this packet continues a previous message; reassemble
 		 * using the message-specific key
 		 */
-
-		spin_lock_irqsave(&key->reasm_lock, f);
 
 		/* we need to be continuing an existing reassembly... */
 		if (!key->reasm_head)
@@ -351,9 +403,9 @@ static int mctp_route_input(struct mctp_route *route, struct sk_buff *skb)
 		if (!rc && flags & MCTP_HDR_FLAG_EOM) {
 			sock_queue_rcv_skb(key->sk, key->reasm_head);
 			key->reasm_head = NULL;
+			trace_mctp_key_release(key, MCTP_TRACE_KEY_REPLIED);
 			__mctp_key_unlock_drop(key, net, f);
-		} else {
-			spin_unlock_irqrestore(&key->reasm_lock, f);
+			key = NULL;
 		}
 
 	} else {
@@ -363,6 +415,10 @@ static int mctp_route_input(struct mctp_route *route, struct sk_buff *skb)
 
 out_unlock:
 	rcu_read_unlock();
+	if (key) {
+		spin_unlock_irqrestore(&key->lock, f);
+		mctp_key_unref(key);
+	}
 out:
 	if (rc)
 		kfree_skb(skb);
@@ -412,7 +468,7 @@ static int mctp_route_output(struct mctp_route *route, struct sk_buff *skb)
 static void mctp_route_release(struct mctp_route *rt)
 {
 	if (refcount_dec_and_test(&rt->refs)) {
-		dev_put(rt->dev->dev);
+		mctp_dev_put(rt->dev);
 		kfree_rcu(rt, rcu);
 	}
 }
@@ -454,11 +510,15 @@ static void mctp_reserve_tag(struct net *net, struct mctp_sk_key *key,
 
 	lockdep_assert_held(&mns->keys_lock);
 
+	key->expiry = jiffies + mctp_key_lifetime;
+	timer_reduce(&msk->key_expiry, key->expiry);
+
 	/* we hold the net->key_lock here, allowing updates to both
 	 * then net and sk
 	 */
 	hlist_add_head_rcu(&key->hlist, &mns->keys);
 	hlist_add_head_rcu(&key->sklist, &msk->keys);
+	refcount_inc(&key->refs);
 }
 
 /* Allocate a locally-owned tag value for (saddr, daddr), and reserve
@@ -474,6 +534,10 @@ static int mctp_alloc_local_tag(struct mctp_sock *msk,
 	int rc = -EAGAIN;
 	u8 tagbits;
 
+	/* for NULL destination EIDs, we may get a response from any peer */
+	if (daddr == MCTP_ADDR_NULL)
+		daddr = MCTP_ADDR_ANY;
+
 	/* be optimistic, alloc now */
 	key = mctp_key_alloc(msk, saddr, daddr, 0, GFP_KERNEL);
 	if (!key)
@@ -488,14 +552,26 @@ static int mctp_alloc_local_tag(struct mctp_sock *msk,
 	 * tags. If we find a conflict, clear that bit from tagbits
 	 */
 	hlist_for_each_entry(tmp, &mns->keys, hlist) {
+		/* We can check the lookup fields (*_addr, tag) without the
+		 * lock held, they don't change over the lifetime of the key.
+		 */
+
 		/* if we don't own the tag, it can't conflict */
 		if (tmp->tag & MCTP_HDR_FLAG_TO)
 			continue;
 
-		if ((tmp->peer_addr == daddr ||
-		     tmp->peer_addr == MCTP_ADDR_ANY) &&
-		    tmp->local_addr == saddr)
+		if (!((tmp->peer_addr == daddr ||
+		       tmp->peer_addr == MCTP_ADDR_ANY) &&
+		       tmp->local_addr == saddr))
+			continue;
+
+		spin_lock(&tmp->lock);
+		/* key must still be valid. If we find a match, clear the
+		 * potential tag value
+		 */
+		if (tmp->valid)
 			tagbits &= ~(1 << tmp->tag);
+		spin_unlock(&tmp->lock);
 
 		if (!tagbits)
 			break;
@@ -504,6 +580,8 @@ static int mctp_alloc_local_tag(struct mctp_sock *msk,
 	if (tagbits) {
 		key->tag = __ffs(tagbits);
 		mctp_reserve_tag(net, key, msk);
+		trace_mctp_key_acquire(key);
+
 		*tagp = key->tag;
 		rc = 0;
 	}
@@ -550,6 +628,20 @@ struct mctp_route *mctp_route_lookup(struct net *net, unsigned int dnet,
 	}
 
 	return rt;
+}
+
+static struct mctp_route *mctp_route_lookup_null(struct net *net,
+						 struct net_device *dev)
+{
+	struct mctp_route *rt;
+
+	list_for_each_entry_rcu(rt, &net->mctp.routes, list) {
+		if (rt->dev->dev == dev && rt->type == RTN_LOCAL &&
+		    refcount_inc_not_zero(&rt->refs))
+			return rt;
+	}
+
+	return NULL;
 }
 
 /* sends a skb to rt and releases the route. */
@@ -741,7 +833,7 @@ static int mctp_route_add(struct mctp_dev *mdev, mctp_eid_t daddr_start,
 	rt->max = daddr_start + daddr_extent;
 	rt->mtu = mtu;
 	rt->dev = mdev;
-	dev_hold(rt->dev->dev);
+	mctp_dev_hold(rt->dev);
 	rt->type = type;
 	rt->output = rtfn;
 
@@ -821,13 +913,18 @@ static int mctp_pkttype_receive(struct sk_buff *skb, struct net_device *dev,
 				struct net_device *orig_dev)
 {
 	struct net *net = dev_net(dev);
+	struct mctp_dev *mdev;
 	struct mctp_skb_cb *cb;
 	struct mctp_route *rt;
 	struct mctp_hdr *mh;
 
-	/* basic non-data sanity checks */
-	if (dev->type != ARPHRD_MCTP)
+	rcu_read_lock();
+	mdev = __mctp_dev_get(dev);
+	rcu_read_unlock();
+	if (!mdev) {
+		/* basic non-data sanity checks */
 		goto err_drop;
+	}
 
 	if (!pskb_may_pull(skb, sizeof(struct mctp_hdr)))
 		goto err_drop;
@@ -841,11 +938,14 @@ static int mctp_pkttype_receive(struct sk_buff *skb, struct net_device *dev,
 		goto err_drop;
 
 	cb = __mctp_cb(skb);
-	rcu_read_lock();
-	cb->net = READ_ONCE(__mctp_dev_get(dev)->net);
-	rcu_read_unlock();
+	cb->net = READ_ONCE(mdev->net);
 
 	rt = mctp_route_lookup(net, cb->net, mh->dest);
+
+	/* NULL EID, but addressed to our physical address */
+	if (!rt && mh->dest == MCTP_ADDR_NULL && skb->pkt_type == PACKET_HOST)
+		rt = mctp_route_lookup_null(net, dev);
+
 	if (!rt)
 		goto err_drop;
 
@@ -926,10 +1026,15 @@ static int mctp_route_nlparse(struct sk_buff *skb, struct nlmsghdr *nlh,
 	return 0;
 }
 
+static const struct nla_policy rta_metrics_policy[RTAX_MAX + 1] = {
+	[RTAX_MTU]		= { .type = NLA_U32 },
+};
+
 static int mctp_newroute(struct sk_buff *skb, struct nlmsghdr *nlh,
 			 struct netlink_ext_ack *extack)
 {
 	struct nlattr *tb[RTA_MAX + 1];
+	struct nlattr *tbx[RTAX_MAX + 1];
 	mctp_eid_t daddr_start;
 	struct mctp_dev *mdev;
 	struct rtmsg *rtm;
@@ -946,8 +1051,15 @@ static int mctp_newroute(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return -EINVAL;
 	}
 
-	/* TODO: parse mtu from nlparse */
 	mtu = 0;
+	if (tb[RTA_METRICS]) {
+		rc = nla_parse_nested(tbx, RTAX_MAX, tb[RTA_METRICS],
+				      rta_metrics_policy, NULL);
+		if (rc < 0)
+			return rc;
+		if (tbx[RTAX_MTU])
+			mtu = nla_get_u32(tbx[RTAX_MTU]);
+	}
 
 	if (rtm->rtm_type != RTN_UNICAST)
 		return -EINVAL;

@@ -46,6 +46,15 @@ enum libbpf_strict_mode {
 	 */
 	LIBBPF_STRICT_DIRECT_ERRS = 0x02,
 
+	/*
+	 * Enforce strict BPF program section (SEC()) names.
+	 * E.g., while prefiously SEC("xdp_whatever") or SEC("perf_event_blah") were
+	 * allowed, with LIBBPF_STRICT_SEC_PREFIX this will become
+	 * unrecognized by libbpf and would have to be just SEC("xdp") and
+	 * SEC("xdp") and SEC("perf_event").
+	 */
+	LIBBPF_STRICT_SEC_NAME = 0x04,
+
 	__LIBBPF_STRICT_LAST,
 };
 

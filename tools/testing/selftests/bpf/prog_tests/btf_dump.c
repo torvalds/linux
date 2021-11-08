@@ -358,12 +358,27 @@ static void test_btf_dump_int_data(struct btf *btf, struct btf_dump *d,
 	TEST_BTF_DUMP_DATA_OVER(btf, d, NULL, str, int, sizeof(int)-1, "", 1);
 
 #ifdef __SIZEOF_INT128__
-	TEST_BTF_DUMP_DATA(btf, d, NULL, str, __int128, BTF_F_COMPACT,
-			   "(__int128)0xffffffffffffffff",
-			   0xffffffffffffffff);
-	ASSERT_OK(btf_dump_data(btf, d, "__int128", NULL, 0, &i, 16, str,
-				"(__int128)0xfffffffffffffffffffffffffffffffe"),
-		  "dump __int128");
+	/* gcc encode unsigned __int128 type with name "__int128 unsigned" in dwarf,
+	 * and clang encode it with name "unsigned __int128" in dwarf.
+	 * Do an availability test for either variant before doing actual test.
+	 */
+	if (btf__find_by_name(btf, "unsigned __int128") > 0) {
+		TEST_BTF_DUMP_DATA(btf, d, NULL, str, unsigned __int128, BTF_F_COMPACT,
+				   "(unsigned __int128)0xffffffffffffffff",
+				   0xffffffffffffffff);
+		ASSERT_OK(btf_dump_data(btf, d, "unsigned __int128", NULL, 0, &i, 16, str,
+					"(unsigned __int128)0xfffffffffffffffffffffffffffffffe"),
+			  "dump unsigned __int128");
+	} else if (btf__find_by_name(btf, "__int128 unsigned") > 0) {
+		TEST_BTF_DUMP_DATA(btf, d, NULL, str, __int128 unsigned, BTF_F_COMPACT,
+				   "(__int128 unsigned)0xffffffffffffffff",
+				   0xffffffffffffffff);
+		ASSERT_OK(btf_dump_data(btf, d, "__int128 unsigned", NULL, 0, &i, 16, str,
+					"(__int128 unsigned)0xfffffffffffffffffffffffffffffffe"),
+			  "dump unsigned __int128");
+	} else {
+		ASSERT_TRUE(false, "unsigned_int128_not_found");
+	}
 #endif
 }
 
