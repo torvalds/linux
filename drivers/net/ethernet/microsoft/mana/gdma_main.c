@@ -1424,7 +1424,7 @@ static void mana_gd_shutdown(struct pci_dev *pdev)
 {
 	struct gdma_context *gc = pci_get_drvdata(pdev);
 
-	dev_info(&pdev->dev, "Shutdown was calledd\n");
+	dev_info(&pdev->dev, "Shutdown was called\n");
 
 	mana_remove(&gc->mana, true);
 
