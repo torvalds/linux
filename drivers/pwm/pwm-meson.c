@@ -148,8 +148,7 @@ static void meson_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct meson_pwm_channel *channel = pwm_get_chip_data(pwm);
 
-	if (channel)
-		clk_disable_unprepare(channel->clk);
+	clk_disable_unprepare(channel->clk);
 }
 
 static int meson_pwm_calc(struct meson_pwm *meson, struct pwm_device *pwm,
