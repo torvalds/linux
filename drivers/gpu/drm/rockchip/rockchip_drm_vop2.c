@@ -2429,8 +2429,8 @@ static int vop2_wb_encoder_atomic_check(struct drm_encoder *encoder,
 			       struct drm_connector_state *conn_state)
 {
 	struct vop2_wb_connector_state *wb_state = to_wb_state(conn_state);
-	struct drm_crtc *crtc = cstate->crtc;
-	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(cstate);
+	struct vop2_video_port *vp = to_vop2_video_port(cstate->crtc);
 	struct drm_framebuffer *fb;
 	struct drm_gem_object *obj, *uv_obj;
 	struct rockchip_gem_object *rk_obj, *rk_uv_obj;
@@ -2442,6 +2442,12 @@ static int vop2_wb_encoder_atomic_check(struct drm_encoder *encoder,
 
 	fb = conn_state->writeback_job->fb;
 	DRM_DEV_DEBUG(vp->vop2->dev, "%d x % d\n", fb->width, fb->height);
+
+	if (!is_yuv_support(fb->format->format) && is_yuv_output(vcstate->bus_format)) {
+		DRM_ERROR("YUV2RGB is not supported by writeback\n");
+		return -EINVAL;
+	}
+
 	if ((fb->width > cstate->mode.hdisplay) ||
 	    ((fb->height != cstate->mode.vdisplay) &&
 	    (fb->height != (cstate->mode.vdisplay >> 1)))) {
