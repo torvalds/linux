@@ -36,8 +36,14 @@ patternProperties:
   '^clock-controller@[a-f0-9]+$':
     $ref: ../clock/brcm,iproc-clocks.yaml
 
+  '^phy@[a-f0-9]+$':
+    $ref: ../phy/bcm-ns-usb2-phy.yaml
+
   '^pin-controller@[a-f0-9]+$':
     $ref: ../pinctrl/brcm,ns-pinmux.yaml
+
+  '^syscon@[a-f0-9]+$':
+    $ref: syscon.yaml
 
   '^thermal@[a-f0-9]+$':
     $ref: ../thermal/brcm,ns-thermal.yaml
@@ -49,6 +55,7 @@ required:
 
 examples:
   - |
+    #include <dt-bindings/clock/bcm-nsp.h>
     cru-bus@1800c100 {
         compatible = "brcm,ns-cru", "simple-mfd";
         reg = <0x1800c100 0x1d0>;
@@ -71,6 +78,20 @@ examples:
             clocks = <&osc>;
             clock-output-names = "genpll", "phy", "ethernetclk", "usbclk",
                                  "iprocfast", "sata1", "sata2";
+        };
+
+        phy@164 {
+            compatible = "brcm,ns-usb2-phy";
+            reg = <0x164 0x4>;
+            brcm,syscon-clkset = <&clkset>;
+            clocks = <&genpll BCM_NSP_GENPLL_USB_PHY_REF_CLK>;
+            clock-names = "phy-ref-clk";
+            #phy-cells = <0>;
+        };
+
+        clkset: syscon@180 {
+            compatible = "brcm,cru-clkset", "syscon";
+            reg = <0x180 0x4>;
         };
 
         pin-controller@1c0 {
