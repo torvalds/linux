@@ -1371,6 +1371,16 @@ void rvin_stop_streaming(struct rvin_dev *vin)
 
 	spin_unlock_irqrestore(&vin->qlock, flags);
 
+	/* If something went wrong, free buffers with an error. */
+	if (!buffersFreed) {
+		return_unused_buffers(vin, VB2_BUF_STATE_ERROR);
+		for (i = 0; i < HW_BUFFER_NUM; i++) {
+			if (vin->buf_hw[i].buffer)
+				vb2_buffer_done(&vin->buf_hw[i].buffer->vb2_buf,
+						VB2_BUF_STATE_ERROR);
+		}
+	}
+
 	rvin_set_stream(vin, 0);
 
 	/* disable interrupts */
