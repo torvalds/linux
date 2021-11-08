@@ -1529,7 +1529,9 @@ samsung_mipi_dphy_clk_lane_timing_init(struct samsung_mipi_dcphy *samsung)
 	timing = samsung_mipi_dphy_get_timing(samsung);
 	regmap_write(samsung->regmap, DPHY_MC_GNR_CON0, 0xf000);
 	regmap_write(samsung->regmap, DPHY_MC_ANA_CON0, 0x7133);
-	regmap_write(samsung->regmap, DPHY_MC_ANA_CON1, 0x0001);
+
+	if (lane_hs_rate >= 4500)
+		regmap_write(samsung->regmap, DPHY_MC_ANA_CON1, 0x0001);
 
 	/*
 	 * Divide-by-2 Clock from Serial Clock. Use this when data rate is under
@@ -1576,10 +1578,12 @@ samsung_mipi_dphy_data_lane_timing_init(struct samsung_mipi_dcphy *samsung)
 	regmap_write(samsung->regmap, COMBO_MD2_ANA_CON0, 0x7133);
 	regmap_write(samsung->regmap, DPHY_MD3_ANA_CON0, 0x7133);
 
-	regmap_write(samsung->regmap, COMBO_MD0_ANA_CON1, 0x0001);
-	regmap_write(samsung->regmap, COMBO_MD1_ANA_CON1, 0x0001);
-	regmap_write(samsung->regmap, COMBO_MD2_ANA_CON1, 0x0001);
-	regmap_write(samsung->regmap, DPHY_MD3_ANA_CON1, 0x0001);
+	if (lane_hs_rate >= 4500) {
+		regmap_write(samsung->regmap, COMBO_MD0_ANA_CON1, 0x0001);
+		regmap_write(samsung->regmap, COMBO_MD1_ANA_CON1, 0x0001);
+		regmap_write(samsung->regmap, COMBO_MD2_ANA_CON1, 0x0001);
+		regmap_write(samsung->regmap, DPHY_MD3_ANA_CON1, 0x0001);
+	}
 
 	/*
 	 * Divide-by-2 Clock from Serial Clock. Use this when data rate is under
