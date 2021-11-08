@@ -162,6 +162,24 @@
 	status = "okay";
 };
 
+&dp0 {
+	status = "okay";
+};
+
+&dp0_in_vp2 {
+	status = "okay";
+};
+
+&dp1 {
+	pinctrl-0 = <&dp1m2_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&dp1_in_vp2 {
+	status = "okay";
+};
+
 /*
  * mipi_dcphy0 needs to be enabled
  * when dsi0 is enabled
@@ -843,6 +861,17 @@
 			source-pdos =
 				<PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
 
+			altmodes {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				altmode@0 {
+					reg = <0>;
+					svid = <0xff01>;
+					vdo = <0xffffffff>;
+				};
+			};
+
 			ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -853,6 +882,14 @@
 						remote-endpoint = <&usbdp_phy0_orientation_switch>;
 					};
 				};
+
+				port@1 {
+					reg = <1>;
+					dp_altmode_mux: endpoint {
+						remote-endpoint = <&usbdp_phy0_dp_altmode_mux>;
+					};
+				};
+
 			};
 		};
 	};
@@ -1022,6 +1059,10 @@
 
 &usbdp_phy0 {
 	orientation-switch;
+	svid = <0xff01>;
+	sbu1-dc-gpios = <&gpio4 RK_PA6 GPIO_ACTIVE_HIGH>;
+	sbu2-dc-gpios = <&gpio4 RK_PA7 GPIO_ACTIVE_HIGH>;
+
 	port {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -1029,7 +1070,16 @@
 			reg = <0>;
 			remote-endpoint = <&usbc0_orien_sw>;
 		};
+
+		usbdp_phy0_dp_altmode_mux: endpoint@1 {
+			reg = <1>;
+			remote-endpoint = <&dp_altmode_mux>;
+		};
 	};
+};
+
+&usbdp_phy1 {
+	rockchip,dp-lane-mux = <2 3>;
 };
 
 &usbdrd_dwc3_0 {

@@ -140,6 +140,26 @@
 	status = "okay";
 };
 
+&dp0 {
+	pinctrl-0 = <&dp0m2_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&dp0_in_vp2 {
+	status = "okay";
+};
+
+&dp1 {
+	pinctrl-0 = <&dp1m2_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&dp1_in_vp2 {
+	status = "okay";
+};
+
 /*
  * mipi_dcphy1 needs to be enabled
  * when dsi1 is enabled
@@ -316,4 +336,17 @@
 
 &u2phy3_host {
 	phy-supply = <&vcc5v0_host>;
+};
+
+&usbdp_phy0 {
+	rockchip,dp-lane-mux = <2 3>;
+};
+
+&usbdp_phy1 {
+	rockchip,dp-lane-mux = <2 3>;
+};
+
+&vcc3v3_lcd_n {
+	gpio = <&gpio1 RK_PC4 GPIO_ACTIVE_HIGH>;
+	enable-active-high;
 };

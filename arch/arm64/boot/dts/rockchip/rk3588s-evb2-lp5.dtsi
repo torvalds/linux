@@ -115,6 +115,16 @@
 	status = "okay";
 };
 
+&dp0 {
+	pinctrl-0 = <&dp1m2_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&dp0_in_vp2 {
+	status = "okay";
+};
+
 /*
  * mipi_dcphy0 needs to be enabled
  * when dsi0 is enabled
@@ -900,6 +910,10 @@
 
 &u2phy3_host {
 	phy-supply = <&vcc5v0_u3host>;
+};
+
+&usbdp_phy0 {
+	rockchip,dp-lane-mux = <0 1 2 3>;
 };
 
 &usbdrd_dwc3_0 {
