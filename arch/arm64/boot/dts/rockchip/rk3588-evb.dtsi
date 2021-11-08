@@ -975,3 +975,11 @@
 &usbdrd_dwc3_1 {
 	status = "okay";
 };
+
+&vop {
+	status = "okay";
+};
+
+&vop_mmu {
+	status = "okay";
+};

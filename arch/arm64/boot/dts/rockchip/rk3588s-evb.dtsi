@@ -947,3 +947,11 @@
 &usbhost_dwc3_0 {
 	status = "okay";
 };
+
+&vop {
+	status = "okay";
+};
+
+&vop_mmu {
+	status = "okay";
+};
