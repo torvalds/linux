@@ -59,6 +59,8 @@
  *  VERSION     : 01-00-19
  *  04 Nov 2021 : 1. Disabled link state latency configuration for all PCIe ports by default
  *  VERSION     : 01-00-20
+ *  08 Nov 2021 : 1. Added macro for Maximum Port
+ *  VERSION     : 01-00-21
  */
 
 #ifndef __COMMON_H__
@@ -87,7 +89,7 @@
 
 /* Indepenedent Suspend/Resume Debug */
 #undef TC956X_PM_DEBUG
-
+#define TC956X_MAX_PORT		2
 /* Suspend-Resume Enum Counter */
 enum TC956X_INDEPENDENT_PORT_PM_SUSPEND {
 	NO_PORT_SUSPENDED = 0, /* Normal State */

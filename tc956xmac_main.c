@@ -67,6 +67,8 @@
  *  VERSION     : 01-00-19
  *  04 Nov 2021 : 1. Stopped disabling/enabling of MAC TX during Link down/up.
  *  VERSION     : 01-00-20
+ *  08 Nov 2021 : 1. Skip queuing PHY Work during suspend.
+ *  VERSION     : 01-00-21
  */
 
 #include <linux/clk.h>
@@ -217,8 +219,7 @@ static const struct config_parameter_list config_param_list[] = {
 };
 
 static uint16_t mdio_bus_id;
-extern enum TC956X_INDEPENDENT_PORT_PM_SUSPEND tc956xmac_pm_suspend_counter;
-static bool tc956xmac_pm_wol_interrupt = false; /* Flag for clearing interrupt after resume. */
+static bool tc956xmac_pm_wol_interrupt[TC956X_MAX_PORT]; /* Port-wise flag for clearing interrupt after resume. */
 #define CONFIG_PARAM_NUM ARRAY_SIZE(config_param_list)
 int tc956xmac_rx_parser_configuration(struct tc956xmac_priv *);
 
@@ -345,7 +346,8 @@ static irqreturn_t tc956xmac_wol_interrupt(int irq, void *dev_id)
 
 	/* Set flag to clear interrupt after resume */
 	DBGPR_FUNC(priv->device, "%s\n", __func__);
-	tc956xmac_pm_wol_interrupt = true;
+	/* Set flag to indicate WOL interrupt trigger */
+	tc956xmac_pm_wol_interrupt[priv->port_num] = true;
 	return IRQ_HANDLED;
 }
 
@@ -4241,6 +4243,7 @@ static int tc956xmac_open(struct net_device *dev)
 			}
 		}
 #endif
+		tc956xmac_pm_wol_interrupt[priv->port_num] = false; /* Initialize flag for PHY Work queue */
 	}
 	tc956xmac_enable_all_queues(priv);
 	tc956xmac_start_all_queues(priv);
@@ -5804,7 +5807,13 @@ static irqreturn_t tc956xmac_interrupt(int irq, void *dev_id)
 	if (val & TC956X_EXT_PHY_ETH_INT) {
 		KPRINT_INFO("PHY Interrupt %s \n", __func__);
 		/* Queue the work in system_wq */
-		queue_work(system_wq, &priv->emac_phy_work);
+		if (priv->tc956x_port_pm_suspend == true) {
+			KPRINT_INFO("%s : (Do not queue PHY Work during suspend. Set WOL Interrupt flag) \n", __func__);
+			tc956xmac_pm_wol_interrupt[priv->port_num] = true;
+		} else {
+			KPRINT_INFO("%s : (Queue PHY Work.) \n", __func__);
+			queue_work(system_wq, &priv->emac_phy_work);
+		}
 		/* phy_mac_interrupt(priv->dev->phydev); */
 		val = readl(priv->ioaddr + TC956X_MSI_OUT_EN_OFFSET(priv->port_num)); /* MSI_OUT_EN: Reading */
 		val &= (~(1 << MSI_INT_EXT_PHY));
@@ -10642,7 +10651,6 @@ int tc956xmac_suspend(struct device *dev)
 		goto clean_exit;
 
 	/* Invoke device driver close only when net inteface is up and running. */
-	
 	rtnl_lock();
 	tc956xmac_release(ndev);
 	rtnl_unlock();
@@ -10742,10 +10750,10 @@ int tc956xmac_resume(struct device *dev)
 	rtnl_unlock();
 
 clean_exit:
-	if ((priv->wolopts) && (tc956xmac_pm_wol_interrupt)) {
+	if (tc956xmac_pm_wol_interrupt[priv->port_num]) {
 		KPRINT_INFO("%s : Port %d Clearing WOL and queuing phy work", __func__, priv->port_num);
 		/* Clear WOL Interrupt after resume, if WOL enabled */
-		tc956xmac_pm_wol_interrupt = false;
+		tc956xmac_pm_wol_interrupt[priv->port_num] = false;
 		/* Queue the work in system_wq */
 		queue_work(system_wq, &priv->emac_phy_work);
 	}

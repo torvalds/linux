@@ -80,6 +80,10 @@
  *  VERSION     : 01-00-19
  *  04 Nov 2021 : 1. Version update
  *  VERSION     : 01-00-20
+ *  08 Nov 2021 : 1. Version update.
+ 		  2. Cancel PHY Workqueue before suspend.
+ 		  3. Restore Gen 3 Speed after resume.
+ *  VERSION     : 01-00-21
  */
 
 #include <linux/clk-provider.h>
@@ -112,7 +116,7 @@ static unsigned int tc956x_port1_interface = ENABLE_SGMII_INTERFACE;
 unsigned int tc956x_port0_filter_phy_pause_frames = DISABLE;
 unsigned int tc956x_port1_filter_phy_pause_frames = DISABLE;
 
-static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 2, 0};
+static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 2, 1};
 
 enum TC956X_INDEPENDENT_PORT_PM_SUSPEND tc956xmac_pm_suspend_counter = NO_PORT_SUSPENDED;
 struct mutex tc956x_pm_suspend_lock;
@@ -2520,11 +2524,23 @@ static int tc956x_pcie_suspend(struct device *dev)
 	u8 i;
 	u32 val;
 #endif
+	struct phy_device *phydev; /* For cancelling Work queue */
+	int addr = priv->plat->phy_addr;
+	phydev = mdiobus_get_phy(priv->mii, addr);
 
 	DBGPR_FUNC(&(pdev->dev), "-->%s\n", __func__);
 	if (priv->tc956x_port_pm_suspend == true) {
 		DBGPR_FUNC(&(pdev->dev), "<--%s : Port %d already Suspended \n", __func__, priv->port_num);
 		return -1;
+	}
+	/* Set flag to avoid queuing any more work */
+	priv->tc956x_port_pm_suspend = true;
+ 	/* Flush all work-queues before suspend start */
+	if(phydev->drv != NULL) {
+		if ((true == priv->plat->phy_interrupt_mode) && (phydev->drv->config_intr)) {
+			DBGPR_FUNC(&(pdev->dev), "%s : (Flush All PHY work-queues) \n", __func__);
+			cancel_work_sync(&priv->emac_phy_work);
+		}
 	}
 
 	mutex_lock(&tc956x_pm_suspend_lock);
@@ -2536,8 +2552,6 @@ static int tc956x_pcie_suspend(struct device *dev)
 		goto err;
 	} else
 		DBGPR_FUNC(&(pdev->dev), "%s : (Number of Ports Suspended = [%d]) \n", __func__, ret);
-
-	priv->tc956x_port_pm_suspend = true;
 
 	/* Call tc956xmac_suspend() */
 	tc956xmac_suspend(&pdev->dev);
@@ -2781,6 +2795,9 @@ static int tc956x_pcie_resume(struct device *dev)
 #ifdef DMA_OFFLOAD_ENABLE
 	u8 i;
 #endif
+#ifdef TC956X_PCIE_GEN3_SETTING
+	u32 val;
+#endif
 
 	DBGPR_FUNC(&(pdev->dev), "-->%s\n", __func__);
 	if (priv->tc956x_port_pm_suspend == false) {
@@ -2800,6 +2817,27 @@ static int tc956x_pcie_resume(struct device *dev)
 		pci_disable_device(pdev);
 		goto err;
 	}
+#ifdef TC956X_PCIE_GEN3_SETTING
+	if (tc956xmac_pm_suspend_counter > SINGLE_PORT_SUSPENDED) {
+		/* Reset Speed to Gen3 after resume */
+		DBGPR_FUNC(&(pdev->dev), "%s : Port %d - Set Speed to Gen3", __func__, priv->port_num);
+		val = readl(priv->ioaddr + TC956X_GLUE_EFUSE_CTRL);
+		if ((val & 0x10) == 0) {
+			DBGPR_FUNC(&(pdev->dev), "<--%s : Applying Gen3 setting\n", __func__);
+			/* 0x4002C01C SSREG_GLUE_EFUSE_CTRL.pcie_usp_gen3_disable_efuse_ignore */
+			writel(0x10, priv->ioaddr + TC956X_GLUE_EFUSE_CTRL);
+			/* 0x4002C030 All PHY_COREs are selected */
+			writel(0x0f, priv->ioaddr + TC956X_GLUE_PHY_REG_ACCESS_CTRL);
+			/* 0x40028000 All Lanes are selected */
+			writel(0x0f , priv->ioaddr + TC956X_PHY_CORE0_GL_LANE_ACCESS);
+			/* 0x4002B268 PMA_LN_PCS2PMA_PHYMODE_R2.pcs2pma_phymode */
+			writel(0x02, priv->ioaddr + TC956X_PMA_LN_PCS2PMA_PHYMODE_R2);
+		}
+	
+		if ((tc956x_speed >= 1) && (tc956x_speed <= 3))
+			tc956x_set_pci_speed(pdev, tc956x_speed);
+	}
+#endif
 
 	/* Configure TA map registers */
 	if (tc956xmac_pm_suspend_counter > SINGLE_PORT_SUSPENDED) {
