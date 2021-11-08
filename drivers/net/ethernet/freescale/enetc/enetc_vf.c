@@ -143,10 +143,8 @@ static int enetc_vf_probe(struct pci_dev *pdev,
 	int err;
 
 	err = enetc_pci_probe(pdev, KBUILD_MODNAME, 0);
-	if (err) {
-		dev_err(&pdev->dev, "PCI probing failed\n");
-		return err;
-	}
+	if (err)
+		return dev_err_probe(&pdev->dev, err, "PCI probing failed\n");
 
 	si = pci_get_drvdata(pdev);
 

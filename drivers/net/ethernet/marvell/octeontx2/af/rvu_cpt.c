@@ -197,6 +197,141 @@ int rvu_mbox_handler_cpt_lf_free(struct rvu *rvu, struct msg_req *req,
 	return ret;
 }
 
+static int cpt_inline_ipsec_cfg_inbound(struct rvu *rvu, int blkaddr, u8 cptlf,
+					struct cpt_inline_ipsec_cfg_msg *req)
+{
+	u16 sso_pf_func = req->sso_pf_func;
+	u8 nix_sel;
+	u64 val;
+
+	val = rvu_read64(rvu, blkaddr, CPT_AF_LFX_CTL(cptlf));
+	if (req->enable && (val & BIT_ULL(16))) {
+		/* IPSec inline outbound path is already enabled for a given
+		 * CPT LF, HRM states that inline inbound & outbound paths
+		 * must not be enabled at the same time for a given CPT LF
+		 */
+		return CPT_AF_ERR_INLINE_IPSEC_INB_ENA;
+	}
+	/* Check if requested 'CPTLF <=> SSOLF' mapping is valid */
+	if (sso_pf_func && !is_pffunc_map_valid(rvu, sso_pf_func, BLKTYPE_SSO))
+		return CPT_AF_ERR_SSO_PF_FUNC_INVALID;
+
+	nix_sel = (blkaddr == BLKADDR_CPT1) ? 1 : 0;
+	/* Enable CPT LF for IPsec inline inbound operations */
+	if (req->enable)
+		val |= BIT_ULL(9);
+	else
+		val &= ~BIT_ULL(9);
+
+	val |= (u64)nix_sel << 8;
+	rvu_write64(rvu, blkaddr, CPT_AF_LFX_CTL(cptlf), val);
+
+	if (sso_pf_func) {
+		/* Set SSO_PF_FUNC */
+		val = rvu_read64(rvu, blkaddr, CPT_AF_LFX_CTL2(cptlf));
+		val |= (u64)sso_pf_func << 32;
+		val |= (u64)req->nix_pf_func << 48;
+		rvu_write64(rvu, blkaddr, CPT_AF_LFX_CTL2(cptlf), val);
+	}
+	if (req->sso_pf_func_ovrd)
+		/* Set SSO_PF_FUNC_OVRD for inline IPSec */
+		rvu_write64(rvu, blkaddr, CPT_AF_ECO, 0x1);
+
+	/* Configure the X2P Link register with the cpt base channel number and
+	 * range of channels it should propagate to X2P
+	 */
+	if (!is_rvu_otx2(rvu)) {
+		val = (ilog2(NIX_CHAN_CPT_X2P_MASK + 1) << 16);
+		val |= rvu->hw->cpt_chan_base;
+
+		rvu_write64(rvu, blkaddr, CPT_AF_X2PX_LINK_CFG(0), val);
+		rvu_write64(rvu, blkaddr, CPT_AF_X2PX_LINK_CFG(1), val);
+	}
+
+	return 0;
+}
+
+static int cpt_inline_ipsec_cfg_outbound(struct rvu *rvu, int blkaddr, u8 cptlf,
+					 struct cpt_inline_ipsec_cfg_msg *req)
+{
+	u16 nix_pf_func = req->nix_pf_func;
+	int nix_blkaddr;
+	u8 nix_sel;
+	u64 val;
+
+	val = rvu_read64(rvu, blkaddr, CPT_AF_LFX_CTL(cptlf));
+	if (req->enable && (val & BIT_ULL(9))) {
+		/* IPSec inline inbound path is already enabled for a given
+		 * CPT LF, HRM states that inline inbound & outbound paths
+		 * must not be enabled at the same time for a given CPT LF
+		 */
+		return CPT_AF_ERR_INLINE_IPSEC_OUT_ENA;
+	}
+
+	/* Check if requested 'CPTLF <=> NIXLF' mapping is valid */
+	if (nix_pf_func && !is_pffunc_map_valid(rvu, nix_pf_func, BLKTYPE_NIX))
+		return CPT_AF_ERR_NIX_PF_FUNC_INVALID;
+
+	/* Enable CPT LF for IPsec inline outbound operations */
+	if (req->enable)
+		val |= BIT_ULL(16);
+	else
+		val &= ~BIT_ULL(16);
+	rvu_write64(rvu, blkaddr, CPT_AF_LFX_CTL(cptlf), val);
+
+	if (nix_pf_func) {
+		/* Set NIX_PF_FUNC */
+		val = rvu_read64(rvu, blkaddr, CPT_AF_LFX_CTL2(cptlf));
+		val |= (u64)nix_pf_func << 48;
+		rvu_write64(rvu, blkaddr, CPT_AF_LFX_CTL2(cptlf), val);
+
+		nix_blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, nix_pf_func);
+		nix_sel = (nix_blkaddr == BLKADDR_NIX0) ? 0 : 1;
+
+		val = rvu_read64(rvu, blkaddr, CPT_AF_LFX_CTL(cptlf));
+		val |= (u64)nix_sel << 8;
+		rvu_write64(rvu, blkaddr, CPT_AF_LFX_CTL(cptlf), val);
+	}
+
+	return 0;
+}
+
+int rvu_mbox_handler_cpt_inline_ipsec_cfg(struct rvu *rvu,
+					  struct cpt_inline_ipsec_cfg_msg *req,
+					  struct msg_rsp *rsp)
+{
+	u16 pcifunc = req->hdr.pcifunc;
+	struct rvu_block *block;
+	int cptlf, blkaddr, ret;
+	u16 actual_slot;
+
+	blkaddr = rvu_get_blkaddr_from_slot(rvu, BLKTYPE_CPT, pcifunc,
+					    req->slot, &actual_slot);
+	if (blkaddr < 0)
+		return CPT_AF_ERR_LF_INVALID;
+
+	block = &rvu->hw->block[blkaddr];
+
+	cptlf = rvu_get_lf(rvu, block, pcifunc, actual_slot);
+	if (cptlf < 0)
+		return CPT_AF_ERR_LF_INVALID;
+
+	switch (req->dir) {
+	case CPT_INLINE_INBOUND:
+		ret = cpt_inline_ipsec_cfg_inbound(rvu, blkaddr, cptlf, req);
+		break;
+
+	case CPT_INLINE_OUTBOUND:
+		ret = cpt_inline_ipsec_cfg_outbound(rvu, blkaddr, cptlf, req);
+		break;
+
+	default:
+		return CPT_AF_ERR_PARAM;
+	}
+
+	return ret;
+}
+
 static bool is_valid_offset(struct rvu *rvu, struct cpt_rd_wr_reg_msg *req)
 {
 	u64 offset = req->reg_offset;

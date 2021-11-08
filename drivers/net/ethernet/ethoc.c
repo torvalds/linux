@@ -707,20 +707,16 @@ static int ethoc_mdio_probe(struct net_device *dev)
 	else
 		phy = phy_find_first(priv->mdio);
 
-	if (!phy) {
-		dev_err(&dev->dev, "no PHY found\n");
-		return -ENXIO;
-	}
+	if (!phy)
+		return dev_err_probe(&dev->dev, -ENXIO, "no PHY found\n");
 
 	priv->old_duplex = -1;
 	priv->old_link = -1;
 
 	err = phy_connect_direct(dev, phy, ethoc_mdio_poll,
 				 PHY_INTERFACE_MODE_GMII);
-	if (err) {
-		dev_err(&dev->dev, "could not attach to PHY\n");
-		return err;
-	}
+	if (err)
+		return dev_err_probe(&dev->dev, err, "could not attach to PHY\n");
 
 	phy_set_max_speed(phy, SPEED_100);
 
