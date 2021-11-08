@@ -857,7 +857,6 @@ EXPORT_SYMBOL_GPL(kvm_post_set_cr0);
 int kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 {
 	unsigned long old_cr0 = kvm_read_cr0(vcpu);
-	unsigned long pdptr_bits = X86_CR0_CD | X86_CR0_NW | X86_CR0_PG;
 
 	cr0 |= X86_CR0_ET;
 
@@ -887,7 +886,7 @@ int kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 	}
 #endif
 	if (!(vcpu->arch.efer & EFER_LME) && (cr0 & X86_CR0_PG) &&
-	    is_pae(vcpu) && ((cr0 ^ old_cr0) & pdptr_bits) &&
+	    is_pae(vcpu) && ((cr0 ^ old_cr0) & X86_CR0_PDPTR_BITS) &&
 	    !load_pdptrs(vcpu, vcpu->arch.walk_mmu, kvm_read_cr3(vcpu)))
 		return 1;
 
