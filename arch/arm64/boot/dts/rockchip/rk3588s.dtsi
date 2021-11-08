@@ -2169,10 +2169,8 @@
 		resets = <&cru SRST_M_I2S0_8CH_TX>, <&cru SRST_M_I2S0_8CH_RX>;
 		reset-names = "tx-m", "rx-m";
 		pinctrl-names = "default";
-		pinctrl-0 = <&i2s0_lrck_rx
-			     &i2s0_lrck_tx
-			     &i2s0_sclk_rx
-			     &i2s0_sclk_tx
+		pinctrl-0 = <&i2s0_lrck
+			     &i2s0_sclk
 			     &i2s0_sdi0
 			     &i2s0_sdi1
 			     &i2s0_sdi2
@@ -2196,10 +2194,8 @@
 		resets = <&cru SRST_M_I2S1_8CH_TX>, <&cru SRST_M_I2S1_8CH_RX>;
 		reset-names = "tx-m", "rx-m";
 		pinctrl-names = "default";
-		pinctrl-0 = <&i2s1m0_lrck_rx
-			     &i2s1m0_lrck_tx
-			     &i2s1m0_sclk_rx
-			     &i2s1m0_sclk_tx
+		pinctrl-0 = <&i2s1m0_lrck
+			     &i2s1m0_sclk
 			     &i2s1m0_sdi0
 			     &i2s1m0_sdi1
 			     &i2s1m0_sdi2
@@ -2222,10 +2218,8 @@
 		dma-names = "tx", "rx";
 		power-domains = <&power RK3588_PD_AUDIO>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&i2s2m1_lrck_rx
-			     &i2s2m1_lrck_tx
-			     &i2s2m1_sclk_rx
-			     &i2s2m1_sclk_tx
+		pinctrl-0 = <&i2s2m1_lrck
+			     &i2s2m1_sclk
 			     &i2s2m1_sdi
 			     &i2s2m1_sdo>;
 		#sound-dai-cells = <0>;

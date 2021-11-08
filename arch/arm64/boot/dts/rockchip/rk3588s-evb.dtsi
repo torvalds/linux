@@ -173,8 +173,8 @@
 &i2s0_8ch {
 	status = "okay";
 	rockchip,clk-trcm = <1>;
-	pinctrl-0 = <&i2s0_lrck_tx
-		     &i2s0_sclk_tx
+	pinctrl-0 = <&i2s0_lrck
+		     &i2s0_sclk
 		     &i2s0_sdi0
 		     &i2s0_sdo0>;
 };
