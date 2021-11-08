@@ -1051,8 +1051,6 @@ EXPORT_SYMBOL_GPL(kvm_post_set_cr4);
 int kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 {
 	unsigned long old_cr4 = kvm_read_cr4(vcpu);
-	unsigned long pdptr_bits = X86_CR4_PGE | X86_CR4_PSE | X86_CR4_PAE |
-				   X86_CR4_SMEP;
 
 	if (!kvm_is_valid_cr4(vcpu, cr4))
 		return 1;
@@ -1063,7 +1061,7 @@ int kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 		if ((cr4 ^ old_cr4) & X86_CR4_LA57)
 			return 1;
 	} else if (is_paging(vcpu) && (cr4 & X86_CR4_PAE)
-		   && ((cr4 ^ old_cr4) & pdptr_bits)
+		   && ((cr4 ^ old_cr4) & X86_CR4_PDPTR_BITS)
 		   && !load_pdptrs(vcpu, vcpu->arch.walk_mmu,
 				   kvm_read_cr3(vcpu)))
 		return 1;
