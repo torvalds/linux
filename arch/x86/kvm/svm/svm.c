@@ -1598,10 +1598,16 @@ static void svm_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
 
 static void svm_cache_reg(struct kvm_vcpu *vcpu, enum kvm_reg reg)
 {
+	kvm_register_mark_available(vcpu, reg);
+
 	switch (reg) {
 	case VCPU_EXREG_PDPTR:
-		BUG_ON(!npt_enabled);
-		load_pdptrs(vcpu, vcpu->arch.walk_mmu, kvm_read_cr3(vcpu));
+		/*
+		 * When !npt_enabled, mmu->pdptrs[] is already available since
+		 * it is always updated per SDM when moving to CRs.
+		 */
+		if (npt_enabled)
+			load_pdptrs(vcpu, vcpu->arch.walk_mmu, kvm_read_cr3(vcpu));
 		break;
 	default:
 		KVM_BUG_ON(1, vcpu->kvm);
@@ -3974,8 +3980,7 @@ static __no_kcsan fastpath_t svm_vcpu_run(struct kvm_vcpu *vcpu)
 		vcpu->arch.apf.host_apf_flags =
 			kvm_read_and_reset_apf_flags();
 
-	if (npt_enabled)
-		kvm_register_clear_available(vcpu, VCPU_EXREG_PDPTR);
+	kvm_register_clear_available(vcpu, VCPU_EXREG_PDPTR);
 
 	/*
 	 * We need to handle MC intercepts here before the vcpu has a chance to
