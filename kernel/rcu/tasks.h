@@ -42,7 +42,7 @@ struct rcu_tasks_percpu {
  * @init_fract: Initial backoff sleep interval.
  * @gp_jiffies: Time of last @gp_state transition.
  * @gp_start: Most recent grace-period start in jiffies.
- * @n_gps: Number of grace periods completed since boot.
+ * @tasks_gp_seq: Number of grace periods completed since boot.
  * @n_ipis: Number of IPIs sent to encourage grace periods to end.
  * @n_ipis_fails: Number of IPI-send failures.
  * @pregp_func: This flavor's pre-grace-period function (optional).
@@ -64,7 +64,7 @@ struct rcu_tasks {
 	int init_fract;
 	unsigned long gp_jiffies;
 	unsigned long gp_start;
-	unsigned long n_gps;
+	unsigned long tasks_gp_seq;
 	unsigned long n_ipis;
 	unsigned long n_ipis_fails;
 	struct task_struct *kthread_ptr;
@@ -273,8 +273,9 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 		// Wait for one grace period.
 		set_tasks_gp_state(rtp, RTGS_WAIT_GP);
 		rtp->gp_start = jiffies;
+		rcu_seq_start(&rtp->tasks_gp_seq);
 		rtp->gp_func(rtp);
-		rtp->n_gps++;
+		rcu_seq_end(&rtp->tasks_gp_seq);
 
 		/* Invoke the callbacks. */
 		set_tasks_gp_state(rtp, RTGS_INVOKE_CBS);
@@ -335,7 +336,7 @@ static void show_rcu_tasks_generic_gp_kthread(struct rcu_tasks *rtp, char *s)
 		rtp->kname,
 		tasks_gp_state_getname(rtp), data_race(rtp->gp_state),
 		jiffies - data_race(rtp->gp_jiffies),
-		data_race(rtp->n_gps),
+		data_race(rcu_seq_current(&rtp->tasks_gp_seq)),
 		data_race(rtp->n_ipis_fails), data_race(rtp->n_ipis),
 		".k"[!!data_race(rtp->kthread_ptr)],
 		".C"[!!data_race(rtpcp->cbs_head)],
