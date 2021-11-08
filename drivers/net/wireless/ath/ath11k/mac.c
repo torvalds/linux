@@ -5638,7 +5638,8 @@ static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
 			goto err_peer_del;
 		}
 
-		ret = ath11k_wmi_pdev_set_ps_mode(ar, arvif->vdev_id, false);
+		ret = ath11k_wmi_pdev_set_ps_mode(ar, arvif->vdev_id,
+						  WMI_STA_PS_MODE_DISABLED);
 		if (ret) {
 			ath11k_warn(ar->ab, "failed to disable vdev %d ps mode: %d\n",
 				    arvif->vdev_id, ret);
