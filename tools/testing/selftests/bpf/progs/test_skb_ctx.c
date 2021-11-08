@@ -25,6 +25,12 @@ int process(struct __sk_buff *skb)
 		return 1;
 	if (skb->gso_size != 10)
 		return 1;
+	if (skb->ingress_ifindex != 11)
+		return 1;
+	if (skb->ifindex != 1)
+		return 1;
+	if (skb->hwtstamp != 11)
+		return 1;
 
 	return 0;
 }

@@ -1058,6 +1058,66 @@
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 },
 {
+	"padding after gso_size is not accessible",
+	.insns = {
+	BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1,
+		    offsetofend(struct __sk_buff, gso_size)),
+	BPF_MOV64_IMM(BPF_REG_0, 0),
+	BPF_EXIT_INSN(),
+	},
+	.result = REJECT,
+	.result_unpriv = REJECT,
+	.errstr = "invalid bpf_context access off=180 size=4",
+	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+},
+{
+	"read hwtstamp from CGROUP_SKB",
+	.insns = {
+	BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_1,
+		    offsetof(struct __sk_buff, hwtstamp)),
+	BPF_MOV64_IMM(BPF_REG_0, 0),
+	BPF_EXIT_INSN(),
+	},
+	.result = ACCEPT,
+	.prog_type = BPF_PROG_TYPE_CGROUP_SKB,
+},
+{
+	"read hwtstamp from CGROUP_SKB",
+	.insns = {
+	BPF_LDX_MEM(BPF_DW, BPF_REG_1, BPF_REG_1,
+		    offsetof(struct __sk_buff, hwtstamp)),
+	BPF_MOV64_IMM(BPF_REG_0, 0),
+	BPF_EXIT_INSN(),
+	},
+	.result = ACCEPT,
+	.prog_type = BPF_PROG_TYPE_CGROUP_SKB,
+},
+{
+	"write hwtstamp from CGROUP_SKB",
+	.insns = {
+	BPF_MOV64_IMM(BPF_REG_0, 0),
+	BPF_STX_MEM(BPF_DW, BPF_REG_1, BPF_REG_0,
+		    offsetof(struct __sk_buff, hwtstamp)),
+	BPF_MOV64_IMM(BPF_REG_0, 0),
+	BPF_EXIT_INSN(),
+	},
+	.result = REJECT,
+	.result_unpriv = REJECT,
+	.errstr = "invalid bpf_context access off=184 size=8",
+	.prog_type = BPF_PROG_TYPE_CGROUP_SKB,
+},
+{
+	"read hwtstamp from CLS",
+	.insns = {
+	BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_1,
+		    offsetof(struct __sk_buff, hwtstamp)),
+	BPF_MOV64_IMM(BPF_REG_0, 0),
+	BPF_EXIT_INSN(),
+	},
+	.result = ACCEPT,
+	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+},
+{
 	"check wire_len is not readable by sockets",
 	.insns = {
 		BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1,

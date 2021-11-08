@@ -6,45 +6,6 @@
 
 static int duration;
 
-static int trigger_module_test_read(int read_sz)
-{
-	int fd, err;
-
-	fd = open("/sys/kernel/bpf_testmod", O_RDONLY);
-	err = -errno;
-	if (CHECK(fd < 0, "testmod_file_open", "failed: %d\n", err))
-		return err;
-
-	read(fd, NULL, read_sz);
-	close(fd);
-
-	return 0;
-}
-
-static int trigger_module_test_write(int write_sz)
-{
-	int fd, err;
-	char *buf = malloc(write_sz);
-
-	if (!buf)
-		return -ENOMEM;
-
-	memset(buf, 'a', write_sz);
-	buf[write_sz-1] = '\0';
-
-	fd = open("/sys/kernel/bpf_testmod", O_WRONLY);
-	err = -errno;
-	if (CHECK(fd < 0, "testmod_file_open", "failed: %d\n", err)) {
-		free(buf);
-		return err;
-	}
-
-	write(fd, buf, write_sz);
-	close(fd);
-	free(buf);
-	return 0;
-}
-
 static int delete_module(const char *name, int flags)
 {
 	return syscall(__NR_delete_module, name, flags);
