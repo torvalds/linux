@@ -120,15 +120,9 @@ static inline struct meson_pwm *to_meson_pwm(struct pwm_chip *chip)
 static int meson_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct meson_pwm *meson = to_meson_pwm(chip);
-	struct meson_pwm_channel *channel;
+	struct meson_pwm_channel *channel = &meson->channels[pwm->hwpwm];
 	struct device *dev = chip->dev;
 	int err;
-
-	channel = pwm_get_chip_data(pwm);
-	if (channel)
-		return 0;
-
-	channel = &meson->channels[pwm->hwpwm];
 
 	if (channel->clk_parent) {
 		err = clk_set_parent(channel->clk, channel->clk_parent);
