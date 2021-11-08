@@ -74,14 +74,15 @@ EXPORT_SYMBOL_GPL(mt76_queues_read);
 static int mt76_rx_queues_read(struct seq_file *s, void *data)
 {
 	struct mt76_dev *dev = dev_get_drvdata(s->private);
-	int i;
+	int i, queued;
 
 	seq_puts(s, "     queue | hw-queued |      head |      tail |\n");
 	mt76_for_each_q_rx(dev, i) {
 		struct mt76_queue *q = &dev->q_rx[i];
 
+		queued = mt76_is_usb(dev) ? q->ndesc - q->queued : q->queued;
 		seq_printf(s, " %9d | %9d | %9d | %9d |\n",
-			   i, q->queued, q->head, q->tail);
+			   i, queued, q->head, q->tail);
 	}
 
 	return 0;
