@@ -4582,7 +4582,8 @@ static void get_min_max_dc_plane_scaling(struct drm_device *dev,
 }
 
 
-static int fill_dc_scaling_info(const struct drm_plane_state *state,
+static int fill_dc_scaling_info(struct amdgpu_device *adev,
+				const struct drm_plane_state *state,
 				struct dc_scaling_info *scaling_info)
 {
 	int scale_w, scale_h, min_downscale, max_upscale;
@@ -4596,7 +4597,8 @@ static int fill_dc_scaling_info(const struct drm_plane_state *state,
 	/*
 	 * For reasons we don't (yet) fully understand a non-zero
 	 * src_y coordinate into an NV12 buffer can cause a
-	 * system hang. To avoid hangs (and maybe be overly cautious)
+	 * system hang on DCN1x.
+	 * To avoid hangs (and maybe be overly cautious)
 	 * let's reject both non-zero src_x and src_y.
 	 *
 	 * We currently know of only one use-case to reproduce a
@@ -4604,10 +4606,10 @@ static int fill_dc_scaling_info(const struct drm_plane_state *state,
 	 * is to gesture the YouTube Android app into full screen
 	 * on ChromeOS.
 	 */
-	if (state->fb &&
-	    state->fb->format->format == DRM_FORMAT_NV12 &&
-	    (scaling_info->src_rect.x != 0 ||
-	     scaling_info->src_rect.y != 0))
+	if (((adev->ip_versions[DCE_HWIP][0] == IP_VERSION(1, 0, 0)) ||
+	    (adev->ip_versions[DCE_HWIP][0] == IP_VERSION(1, 0, 1))) &&
+	    (state->fb && state->fb->format->format == DRM_FORMAT_NV12 &&
+	    (scaling_info->src_rect.x != 0 || scaling_info->src_rect.y != 0)))
 		return -EINVAL;
 
 	scaling_info->src_rect.width = state->src_w >> 16;
@@ -5513,7 +5515,7 @@ static int fill_dc_plane_attributes(struct amdgpu_device *adev,
 	int ret;
 	bool force_disable_dcc = false;
 
-	ret = fill_dc_scaling_info(plane_state, &scaling_info);
+	ret = fill_dc_scaling_info(adev, plane_state, &scaling_info);
 	if (ret)
 		return ret;
 
@@ -7576,7 +7578,7 @@ static int dm_plane_atomic_check(struct drm_plane *plane,
 	if (ret)
 		return ret;
 
-	ret = fill_dc_scaling_info(new_plane_state, &scaling_info);
+	ret = fill_dc_scaling_info(adev, new_plane_state, &scaling_info);
 	if (ret)
 		return ret;
 
@@ -9024,7 +9026,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			bundle->surface_updates[planes_count].gamut_remap_matrix = &dc_plane->gamut_remap_matrix;
 		}
 
-		fill_dc_scaling_info(new_plane_state,
+		fill_dc_scaling_info(dm->adev, new_plane_state,
 				     &bundle->scaling_infos[planes_count]);
 
 		bundle->surface_updates[planes_count].scaling_info =
