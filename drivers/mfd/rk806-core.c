@@ -360,6 +360,135 @@ const struct regmap_config rk806_regmap_config_spi = {
 };
 EXPORT_SYMBOL_GPL(rk806_regmap_config_spi);
 
+static struct kobject *rk806_kobj[2];
+static struct rk806 *rk806_master;
+static struct rk806 *rk806_slaver;
+
+static ssize_t rk806_master_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf,
+				  size_t count)
+{
+	u32 input[2], addr, data;
+	struct rk806 *rk806;
+	char cmd;
+	int ret;
+
+	ret = sscanf(buf, "%c ", &cmd);
+	if (ret != 1) {
+		pr_err("Unknown command\n");
+		goto out;
+	}
+
+	rk806 = rk806_master;
+	if (!rk806) {
+		pr_err("error! rk806 master is NULL\n");
+		return 0;
+	}
+
+	switch (cmd) {
+	case 'w':
+		ret = sscanf(buf, "%c %x %x", &cmd, &input[0], &input[1]);
+		if (ret != 3) {
+			pr_err("error! cmd format: echo w [addr] [value]\n");
+			goto out;
+		};
+
+		addr = input[0] & 0xff;
+		data = input[1] & 0xff;
+		pr_info("cmd : %c %x %x\n\n", cmd, input[0], input[1]);
+
+		regmap_write(rk806->regmap, addr, data);
+		regmap_read(rk806->regmap, addr, &data);
+		pr_info("new: %x %x\n", addr, data);
+		break;
+	case 'r':
+		ret = sscanf(buf, "%c %x ", &cmd, &input[0]);
+		if (ret != 2) {
+			pr_err("error! cmd format: echo r [addr]\n");
+			goto out;
+		};
+
+		pr_info("cmd : %c %x\n\n", cmd, input[0]);
+		addr = input[0] & 0xff;
+
+		regmap_read(rk806->regmap, addr, &data);
+		pr_info("%x %x\n", input[0], data);
+		break;
+	default:
+		pr_err("Unknown command\n");
+		break;
+	}
+
+out:
+	return count;
+}
+
+static ssize_t rk806_slaver_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf,
+				  size_t count)
+{
+	u32 input[2], addr, data;
+	struct rk806 *rk806;
+	char cmd;
+	int ret;
+
+	ret = sscanf(buf, "%c ", &cmd);
+	if (ret != 1) {
+		pr_err("Unknown command\n");
+		goto out;
+	}
+
+	rk806 = rk806_slaver;
+	if (!rk806) {
+		pr_err("error! rk806 slaver is NULL\n");
+		return 0;
+	}
+
+	switch (cmd) {
+	case 'w':
+		ret = sscanf(buf, "%c %x %x", &cmd, &input[0], &input[1]);
+		if (ret != 3) {
+			pr_err("error! cmd format: echo w [addr] [value]\n");
+			goto out;
+		};
+
+		addr = input[0] & 0xff;
+		data = input[1] & 0xff;
+		pr_info("cmd : %c %x %x\n\n", cmd, input[0], input[1]);
+
+		regmap_write(rk806->regmap, addr, data);
+		regmap_read(rk806->regmap, addr, &data);
+		pr_info("new: %x %x\n", addr, data);
+		break;
+	case 'r':
+		ret = sscanf(buf, "%c %x ", &cmd, &input[0]);
+		if (ret != 2) {
+			pr_err("error! cmd format: echo r [addr]\n");
+			goto out;
+		};
+		pr_info("cmd : %c %x\n\n", cmd, input[0]);
+
+		addr = input[0] & 0xff;
+		regmap_read(rk806->regmap, addr, &data);
+		pr_info("%x %x\n", input[0], data);
+		break;
+	default:
+		pr_err("Unknown command\n");
+		break;
+	}
+
+out:
+	return count;
+}
+
+static struct device_attribute rk806_master_attrs =
+		__ATTR(debug, 0200, NULL, rk806_master_store);
+
+static struct device_attribute rk806_slaver_attrs =
+		__ATTR(debug, 0200, NULL, rk806_slaver_store);
+
 int rk806_field_read(struct rk806 *rk806,
 		     enum rk806_fields field_id)
 {
@@ -579,6 +708,7 @@ static int rk806_init(struct rk806 *rk806)
 
 int rk806_device_init(struct rk806 *rk806)
 {
+	struct device_node *np = rk806->dev->of_node;
 	struct rk806_platform_data *pdata;
 	int name_h, name_l, chip_ver, otp_ver;
 	int on_source, off_source;
@@ -647,12 +777,46 @@ int rk806_device_init(struct rk806 *rk806)
 	rk806_pinctrl_init(rk806);
 	rk806_init(rk806);
 
+	if (strcmp(np->name, "rk806slave")) {
+		rk806_kobj[0] = kobject_create_and_add(np->name, NULL);
+		if (rk806_kobj[0]) {
+			ret = sysfs_create_file(rk806_kobj[0], &rk806_master_attrs.attr);
+			if (ret)
+				dev_err(rk806->dev, "create %s sysfs error\n", np->name);
+			else
+				rk806_master = rk806;
+		}
+	} else {
+		rk806_kobj[1] = kobject_create_and_add(np->name, NULL);
+		if (rk806_kobj[1]) {
+			ret = sysfs_create_file(rk806_kobj[1], &rk806_slaver_attrs.attr);
+			if (ret)
+				dev_err(rk806->dev, "create %s sysfs error\n", np->name);
+			else
+				rk806_slaver = rk806;
+		}
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rk806_device_init);
 
 int rk806_device_exit(struct rk806 *rk806)
 {
+	struct device_node *np = rk806->dev->of_node;
+
+	if (strcmp(np->name, "rk806slave")) {
+		if (rk806_kobj[0]) {
+			sysfs_remove_file(rk806_kobj[0], &rk806_master_attrs.attr);
+			kobject_put(rk806_kobj[0]);
+		}
+	} else {
+		if (rk806_kobj[1]) {
+			sysfs_remove_file(rk806_kobj[1], &rk806_slaver_attrs.attr);
+			kobject_put(rk806_kobj[1]);
+		}
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rk806_device_exit);
