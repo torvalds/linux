@@ -132,6 +132,13 @@ int mlx5dr_cmd_query_device(struct mlx5_core_dev *mdev,
 
 	caps->isolate_vl_tc = MLX5_CAP_GEN(mdev, isolate_vl_tc_new);
 
+	/* geneve_tlv_option_0_exist is the indication of
+	 * STE support for lookup type flex_parser_ok
+	 */
+	caps->flex_parser_ok_bits_supp =
+		MLX5_CAP_FLOWTABLE(mdev,
+				   flow_table_properties_nic_receive.ft_field_support.geneve_tlv_option_0_exist);
+
 	if (caps->flex_protocols & MLX5_FLEX_PARSER_ICMP_V4_ENABLED) {
 		caps->flex_parser_id_icmp_dw0 = MLX5_CAP_GEN(mdev, flex_parser_id_icmp_dw0);
 		caps->flex_parser_id_icmp_dw1 = MLX5_CAP_GEN(mdev, flex_parser_id_icmp_dw1);

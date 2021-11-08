@@ -447,6 +447,14 @@ struct mlx5_ifc_ste_flex_parser_1_bits {
 	u8         flex_parser_4[0x20];
 };
 
+struct mlx5_ifc_ste_flex_parser_ok_bits {
+	u8         flex_parser_3[0x20];
+	u8         flex_parser_2[0x20];
+	u8         flex_parsers_ok[0x8];
+	u8         reserved_at_48[0x18];
+	u8         flex_parser_0[0x20];
+};
+
 struct mlx5_ifc_ste_flex_parser_tnl_bits {
 	u8         flex_parser_tunneling_header_63_32[0x20];
 

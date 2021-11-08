@@ -135,6 +135,7 @@ struct mlx5dr_ste_ctx {
 	void DR_STE_CTX_BUILDER(tnl_vxlan_gpe);
 	void DR_STE_CTX_BUILDER(tnl_geneve);
 	void DR_STE_CTX_BUILDER(tnl_geneve_tlv_opt);
+	void DR_STE_CTX_BUILDER(tnl_geneve_tlv_opt_exist);
 	void DR_STE_CTX_BUILDER(register_0);
 	void DR_STE_CTX_BUILDER(register_1);
 	void DR_STE_CTX_BUILDER(src_gvmi_qpn);

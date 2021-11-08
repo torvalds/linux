@@ -719,6 +719,8 @@ static void dr_ste_copy_mask_misc(char *mask, struct mlx5dr_match_misc *spec, bo
 	spec->vxlan_vni = IFC_GET_CLR(fte_match_set_misc, mask, vxlan_vni, clr);
 
 	spec->geneve_vni = IFC_GET_CLR(fte_match_set_misc, mask, geneve_vni, clr);
+	spec->geneve_tlv_option_0_exist =
+		IFC_GET_CLR(fte_match_set_misc, mask, geneve_tlv_option_0_exist, clr);
 	spec->geneve_oam = IFC_GET_CLR(fte_match_set_misc, mask, geneve_oam, clr);
 
 	spec->outer_ipv6_flow_label =
@@ -1212,6 +1214,21 @@ void mlx5dr_ste_build_tnl_geneve_tlv_opt(struct mlx5dr_ste_ctx *ste_ctx,
 	sb->caps = caps;
 	sb->inner = inner;
 	ste_ctx->build_tnl_geneve_tlv_opt_init(sb, mask);
+}
+
+void mlx5dr_ste_build_tnl_geneve_tlv_opt_exist(struct mlx5dr_ste_ctx *ste_ctx,
+					       struct mlx5dr_ste_build *sb,
+					       struct mlx5dr_match_param *mask,
+					       struct mlx5dr_cmd_caps *caps,
+					       bool inner, bool rx)
+{
+	if (!ste_ctx->build_tnl_geneve_tlv_opt_exist_init)
+		return;
+
+	sb->rx = rx;
+	sb->caps = caps;
+	sb->inner = inner;
+	ste_ctx->build_tnl_geneve_tlv_opt_exist_init(sb, mask);
 }
 
 void mlx5dr_ste_build_tnl_gtpu(struct mlx5dr_ste_ctx *ste_ctx,

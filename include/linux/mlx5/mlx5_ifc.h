@@ -372,7 +372,8 @@ struct mlx5_ifc_flow_table_fields_supported_bits {
 	u8         reserved_at_37[0x9];
 
 	u8         geneve_tlv_option_0_data[0x1];
-	u8         reserved_at_41[0x4];
+	u8         geneve_tlv_option_0_exist[0x1];
+	u8         reserved_at_42[0x3];
 	u8         outer_first_mpls_over_udp[0x4];
 	u8         outer_first_mpls_over_gre[0x4];
 	u8         inner_first_mpls[0x4];
@@ -551,7 +552,8 @@ struct mlx5_ifc_fte_match_set_misc_bits {
 	u8         bth_opcode[0x8];
 
 	u8         geneve_vni[0x18];
-	u8         reserved_at_d8[0x7];
+	u8         reserved_at_d8[0x6];
+	u8         geneve_tlv_option_0_exist[0x1];
 	u8         geneve_oam[0x1];
 
 	u8         reserved_at_e0[0xc];

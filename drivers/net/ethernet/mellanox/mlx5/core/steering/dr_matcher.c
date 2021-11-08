@@ -141,6 +141,19 @@ static bool dr_mask_is_tnl_geneve_tlv_opt(struct mlx5dr_match_misc3 *misc3)
 }
 
 static bool
+dr_matcher_supp_flex_parser_ok(struct mlx5dr_cmd_caps *caps)
+{
+	return caps->flex_parser_ok_bits_supp;
+}
+
+static bool dr_mask_is_tnl_geneve_tlv_opt_exist_set(struct mlx5dr_match_misc *misc,
+						    struct mlx5dr_domain *dmn)
+{
+	return dr_matcher_supp_flex_parser_ok(&dmn->info.caps) &&
+	       misc->geneve_tlv_option_0_exist;
+}
+
+static bool
 dr_matcher_supp_tnl_geneve(struct mlx5dr_cmd_caps *caps)
 {
 	return (caps->sw_format_ver == MLX5_STEERING_FORMAT_CONNECTX_6DX) ||
@@ -521,6 +534,10 @@ static int dr_matcher_set_ste_builders(struct mlx5dr_matcher *matcher,
 				mlx5dr_ste_build_tnl_geneve_tlv_opt(ste_ctx, &sb[idx++],
 								    &mask, &dmn->info.caps,
 								    inner, rx);
+			if (dr_mask_is_tnl_geneve_tlv_opt_exist_set(&mask.misc, dmn))
+				mlx5dr_ste_build_tnl_geneve_tlv_opt_exist(ste_ctx, &sb[idx++],
+									  &mask, &dmn->info.caps,
+									  inner, rx);
 		} else if (dr_mask_is_tnl_gtpu_any(&mask, dmn)) {
 			if (dr_mask_is_tnl_gtpu_flex_parser_0(&mask, dmn))
 				mlx5dr_ste_build_tnl_gtpu_flex_parser_0(ste_ctx, &sb[idx++],

@@ -442,6 +442,11 @@ void mlx5dr_ste_build_tnl_geneve_tlv_opt(struct mlx5dr_ste_ctx *ste_ctx,
 					 struct mlx5dr_match_param *mask,
 					 struct mlx5dr_cmd_caps *caps,
 					 bool inner, bool rx);
+void mlx5dr_ste_build_tnl_geneve_tlv_opt_exist(struct mlx5dr_ste_ctx *ste_ctx,
+					       struct mlx5dr_ste_build *sb,
+					       struct mlx5dr_match_param *mask,
+					       struct mlx5dr_cmd_caps *caps,
+					       bool inner, bool rx);
 void mlx5dr_ste_build_tnl_gtpu(struct mlx5dr_ste_ctx *ste_ctx,
 			       struct mlx5dr_ste_build *sb,
 			       struct mlx5dr_match_param *mask,
@@ -666,7 +671,8 @@ struct mlx5dr_match_misc {
 	u32 reserved_auto3:8;
 
 	u32 geneve_vni:24;		/* GENEVE VNI field (outer) */
-	u32 reserved_auto4:7;
+	u32 reserved_auto4:6;
+	u32 geneve_tlv_option_0_exist:1;
 	u32 geneve_oam:1;		/* GENEVE OAM field (outer) */
 
 	u32 reserved_auto5:12;
@@ -842,6 +848,7 @@ struct mlx5dr_cmd_caps {
 	u8 flex_parser_id_gtpu_teid;
 	u8 flex_parser_id_gtpu_dw_2;
 	u8 flex_parser_id_gtpu_first_ext_dw_0;
+	u8 flex_parser_ok_bits_supp;
 	u8 max_ft_level;
 	u16 roce_min_src_udp;
 	u8 sw_format_ver;
