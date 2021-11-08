@@ -137,6 +137,126 @@ void drm_gem_shmem_print_info(struct drm_printer *p, unsigned int indent,
 			      const struct drm_gem_object *obj);
 
 struct sg_table *drm_gem_shmem_get_sg_table(struct drm_gem_object *obj);
+
+/*
+ * GEM object functions
+ */
+
+/**
+ * drm_gem_shmem_object_free - GEM object function for drm_gem_shmem_free_object()
+ * @obj: GEM object to free
+ *
+ * This function wraps drm_gem_shmem_free_object(). Drivers that employ the shmem helpers
+ * should use it as their &drm_gem_object_funcs.free handler.
+ */
+static inline void drm_gem_shmem_object_free(struct drm_gem_object *obj)
+{
+	drm_gem_shmem_free_object(obj);
+}
+
+/**
+ * drm_gem_shmem_object_print_info() - Print &drm_gem_shmem_object info for debugfs
+ * @p: DRM printer
+ * @indent: Tab indentation level
+ * @obj: GEM object
+ *
+ * This function wraps drm_gem_shmem_print_info(). Drivers that employ the shmem helpers should
+ * use this function as their &drm_gem_object_funcs.print_info handler.
+ */
+static inline void drm_gem_shmem_object_print_info(struct drm_printer *p, unsigned int indent,
+						   const struct drm_gem_object *obj)
+{
+	drm_gem_shmem_print_info(p, indent, obj);
+}
+
+/**
+ * drm_gem_shmem_object_pin - GEM object function for drm_gem_shmem_pin()
+ * @obj: GEM object
+ *
+ * This function wraps drm_gem_shmem_pin(). Drivers that employ the shmem helpers should
+ * use it as their &drm_gem_object_funcs.pin handler.
+ */
+static inline int drm_gem_shmem_object_pin(struct drm_gem_object *obj)
+{
+	return drm_gem_shmem_pin(obj);
+}
+
+/**
+ * drm_gem_shmem_object_unpin - GEM object function for drm_gem_shmem_unpin()
+ * @obj: GEM object
+ *
+ * This function wraps drm_gem_shmem_unpin(). Drivers that employ the shmem helpers should
+ * use it as their &drm_gem_object_funcs.unpin handler.
+ */
+static inline void drm_gem_shmem_object_unpin(struct drm_gem_object *obj)
+{
+	drm_gem_shmem_unpin(obj);
+}
+
+/**
+ * drm_gem_shmem_object_get_sg_table - GEM object function for drm_gem_shmem_get_sg_table()
+ * @obj: GEM object
+ *
+ * This function wraps drm_gem_shmem_get_sg_table(). Drivers that employ the shmem helpers should
+ * use it as their &drm_gem_object_funcs.get_sg_table handler.
+ *
+ * Returns:
+ * A pointer to the scatter/gather table of pinned pages or NULL on failure.
+ */
+static inline struct sg_table *drm_gem_shmem_object_get_sg_table(struct drm_gem_object *obj)
+{
+	return drm_gem_shmem_get_sg_table(obj);
+}
+
+/*
+ * drm_gem_shmem_object_vmap - GEM object function for drm_gem_shmem_vmap()
+ * @obj: GEM object
+ * @map: Returns the kernel virtual address of the SHMEM GEM object's backing store.
+ *
+ * This function wraps drm_gem_shmem_vmap(). Drivers that employ the shmem helpers should
+ * use it as their &drm_gem_object_funcs.vmap handler.
+ *
+ * Returns:
+ * 0 on success or a negative error code on failure.
+ */
+static inline int drm_gem_shmem_object_vmap(struct drm_gem_object *obj, struct dma_buf_map *map)
+{
+	return drm_gem_shmem_vmap(obj, map);
+}
+
+/*
+ * drm_gem_shmem_object_vunmap - GEM object function for drm_gem_shmem_vunmap()
+ * @obj: GEM object
+ * @map: Kernel virtual address where the SHMEM GEM object was mapped
+ *
+ * This function wraps drm_gem_shmem_vunmap(). Drivers that employ the shmem helpers should
+ * use it as their &drm_gem_object_funcs.vunmap handler.
+ */
+static inline void drm_gem_shmem_object_vunmap(struct drm_gem_object *obj, struct dma_buf_map *map)
+{
+	drm_gem_shmem_vunmap(obj, map);
+}
+
+/**
+ * drm_gem_shmem_object_mmap - GEM object function for drm_gem_shmem_mmap()
+ * @obj: GEM object
+ * @vma: VMA for the area to be mapped
+ *
+ * This function wraps drm_gem_shmem_mmap(). Drivers that employ the shmem helpers should
+ * use it as their &drm_gem_object_funcs.mmap handler.
+ *
+ * Returns:
+ * 0 on success or a negative error code on failure.
+ */
+static inline int drm_gem_shmem_object_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
+{
+	return drm_gem_shmem_mmap(obj, vma);
+}
+
+/*
+ * Driver ops
+ */
+
 struct drm_gem_object *
 drm_gem_shmem_prime_import_sg_table(struct drm_device *dev,
 				    struct dma_buf_attachment *attach,
