@@ -53,6 +53,8 @@ struct rockchip_grf_reg_field {
 /**
  * struct rockchip_dp_chip_data - splite the grf setting of kind of chips
  * @lcdc_sel: grf register field of lcdc_sel
+ * @spdif_sel: grf register field of spdif_sel
+ * @i2s_sel: grf register field of i2s_sel
  * @edp_mode: grf register field of edp_mode
  * @chip_type: specific chip type
  * @ssc: check if SSC is supported by source
@@ -60,6 +62,8 @@ struct rockchip_grf_reg_field {
  */
 struct rockchip_dp_chip_data {
 	const struct rockchip_grf_reg_field lcdc_sel;
+	const struct rockchip_grf_reg_field spdif_sel;
+	const struct rockchip_grf_reg_field i2s_sel;
 	const struct rockchip_grf_reg_field edp_mode;
 	u32	chip_type;
 	bool	ssc;
@@ -113,6 +117,11 @@ static int rockchip_dp_audio_hw_params(struct device *dev, void *data,
 {
 	struct rockchip_dp_device *dp = dev_get_drvdata(dev);
 
+	rockchip_grf_field_write(dp->grf, &dp->data->spdif_sel,
+				 daifmt->fmt == HDMI_SPDIF);
+	rockchip_grf_field_write(dp->grf, &dp->data->i2s_sel,
+				 daifmt->fmt == HDMI_I2S);
+
 	return analogix_dp_audio_hw_params(dp->adp, daifmt, params);
 }
 
@@ -121,6 +130,9 @@ static void rockchip_dp_audio_shutdown(struct device *dev, void *data)
 	struct rockchip_dp_device *dp = dev_get_drvdata(dev);
 
 	analogix_dp_audio_shutdown(dp->adp);
+
+	rockchip_grf_field_write(dp->grf, &dp->data->spdif_sel, 0);
+	rockchip_grf_field_write(dp->grf, &dp->data->i2s_sel, 0);
 }
 
 static int rockchip_dp_audio_startup(struct device *dev, void *data)
@@ -617,13 +629,19 @@ static const struct rockchip_dp_chip_data rk3568_edp[] = {
 static const struct rockchip_dp_chip_data rk3588_edp[] = {
 	{
 		.chip_type = RK3588_EDP,
+		.spdif_sel = GRF_REG_FIELD(0x0000, 4, 4),
+		.i2s_sel = GRF_REG_FIELD(0x0000, 3, 3),
 		.edp_mode = GRF_REG_FIELD(0x0000, 0, 0),
 		.ssc = true,
+		.audio = true,
 	},
 	{
 		.chip_type = RK3588_EDP,
+		.spdif_sel = GRF_REG_FIELD(0x0004, 4, 4),
+		.i2s_sel = GRF_REG_FIELD(0x0004, 3, 3),
 		.edp_mode = GRF_REG_FIELD(0x0004, 0, 0),
 		.ssc = true,
+		.audio = true,
 	},
 	{ /* sentinel */ }
 };
