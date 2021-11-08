@@ -12,5 +12,5 @@ ipproto_regex='^[[:space:]]+IPPROTO_(\w+)[[:space:]]+=[[:space:]]+([[:digit:]]+)
 
 egrep $ipproto_regex ${uapi_header_dir}/in.h | \
 	sed -r "s/$ipproto_regex/\2 \1/g"	| \
-	sort | xargs printf "\t[%s] = \"%s\",\n"
+	sort -n | xargs printf "\t[%s] = \"%s\",\n"
 printf "};\n"
