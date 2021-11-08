@@ -1732,13 +1732,17 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 		 * same area for Y plane as well.
 		 */
 		if (linked) {
-			struct intel_plane_state *linked_new_plane_state =
-			  intel_atomic_get_new_plane_state(state, linked);
-			struct drm_rect *linked_sel_fetch_area =
-			  &linked_new_plane_state->psr2_sel_fetch_area;
+			struct intel_plane_state *linked_new_plane_state;
+			struct drm_rect *linked_sel_fetch_area;
 
+			linked_new_plane_state = intel_atomic_get_plane_state(state, linked);
+			if (IS_ERR(linked_new_plane_state))
+				return PTR_ERR(linked_new_plane_state);
+
+			linked_sel_fetch_area = &linked_new_plane_state->psr2_sel_fetch_area;
 			linked_sel_fetch_area->y1 = sel_fetch_area->y1;
 			linked_sel_fetch_area->y2 = sel_fetch_area->y2;
+			crtc_state->update_planes |= BIT(linked->id);
 		}
 	}
 
