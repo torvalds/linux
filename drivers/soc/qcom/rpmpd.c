@@ -102,7 +102,6 @@ struct rpmpd {
 	const bool active_only;
 	unsigned int corner;
 	bool enabled;
-	const char *res_name;
 	const int res_type;
 	const int res_id;
 	struct qcom_smd_rpm *rpm;
