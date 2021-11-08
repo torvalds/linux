@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config VIDEO_ROCKCHIP_HDMIRX
+	tristate "Rockchip HDMI Receiver driver"
+	depends on VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select HDMI
+	help
+	  Support for Rockchip HDMI RX PHY and Controller.
+	  This driver supports HDMI 2.0 version.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called rockchip_hdmirx.
