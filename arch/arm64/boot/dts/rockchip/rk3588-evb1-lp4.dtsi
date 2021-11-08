@@ -178,6 +178,14 @@
 	//pinctrl-0 = <&lcd_rst_gpio>;
 };
 
+&hdmi0 {
+	status = "okay";
+};
+
+&hdmi0_in_vp0 {
+	status = "okay";
+};
+
 &i2c2 {
 	status = "okay";
 

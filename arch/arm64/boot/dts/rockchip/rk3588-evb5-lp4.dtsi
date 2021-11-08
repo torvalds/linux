@@ -120,6 +120,14 @@
 	status = "disabled";
 };
 
+&hdmi1 {
+	status = "okay";
+};
+
+&hdmi1_in_vp0 {
+	status = "okay";
+};
+
 &i2c6 {
 	status = "okay";
 	gt1x: gt1x@14 {
