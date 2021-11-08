@@ -48,6 +48,7 @@
 #include "util/util.h" // perf_exe()
 #include "cputopo.h"
 #include "bpf-event.h"
+#include "bpf-utils.h"
 #include "clockid.h"
 #include "pmu-hybrid.h"
 
@@ -1006,17 +1007,17 @@ static int write_bpf_prog_info(struct feat_fd *ff,
 
 		node = rb_entry(next, struct bpf_prog_info_node, rb_node);
 		next = rb_next(&node->rb_node);
-		len = sizeof(struct bpf_prog_info_linear) +
+		len = sizeof(struct perf_bpil) +
 			node->info_linear->data_len;
 
 		/* before writing to file, translate address to offset */
-		bpf_program__bpil_addr_to_offs(node->info_linear);
+		bpil_addr_to_offs(node->info_linear);
 		ret = do_write(ff, node->info_linear, len);
 		/*
 		 * translate back to address even when do_write() fails,
 		 * so that this function never changes the data.
 		 */
-		bpf_program__bpil_offs_to_addr(node->info_linear);
+		bpil_offs_to_addr(node->info_linear);
 		if (ret < 0)
 			goto out;
 	}
@@ -3018,9 +3019,9 @@ static int process_dir_format(struct feat_fd *ff,
 #ifdef HAVE_LIBBPF_SUPPORT
 static int process_bpf_prog_info(struct feat_fd *ff, void *data __maybe_unused)
 {
-	struct bpf_prog_info_linear *info_linear;
 	struct bpf_prog_info_node *info_node;
 	struct perf_env *env = &ff->ph->env;
+	struct perf_bpil *info_linear;
 	u32 count, i;
 	int err = -1;
 
@@ -3049,7 +3050,7 @@ static int process_bpf_prog_info(struct feat_fd *ff, void *data __maybe_unused)
 			goto out;
 		}
 
-		info_linear = malloc(sizeof(struct bpf_prog_info_linear) +
+		info_linear = malloc(sizeof(struct perf_bpil) +
 				     data_len);
 		if (!info_linear)
 			goto out;
@@ -3071,7 +3072,7 @@ static int process_bpf_prog_info(struct feat_fd *ff, void *data __maybe_unused)
 			goto out;
 
 		/* after reading from file, translate offset to address */
-		bpf_program__bpil_offs_to_addr(info_linear);
+		bpil_offs_to_addr(info_linear);
 		info_node->info_linear = info_linear;
 		perf_env__insert_bpf_prog_info(env, info_node);
 	}

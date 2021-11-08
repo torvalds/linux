@@ -79,7 +79,7 @@ static struct pmu_event pme_test[] = {
 }
 };
 
-static struct pmu_events_map map = {
+static const struct pmu_events_map map = {
 	.cpuid		= "test",
 	.version	= "1",
 	.type		= "core",

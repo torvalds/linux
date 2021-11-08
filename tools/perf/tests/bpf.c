@@ -123,12 +123,13 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 	struct parse_events_state parse_state;
 	struct parse_events_error parse_error;
 
-	bzero(&parse_error, sizeof(parse_error));
+	parse_events_error__init(&parse_error);
 	bzero(&parse_state, sizeof(parse_state));
 	parse_state.error = &parse_error;
 	INIT_LIST_HEAD(&parse_state.list);
 
 	err = parse_events_load_bpf_obj(&parse_state, &parse_state.list, obj, NULL);
+	parse_events_error__exit(&parse_error);
 	if (err || list_empty(&parse_state.list)) {
 		pr_debug("Failed to add events selected by BPF\n");
 		return TEST_FAIL;

@@ -122,6 +122,7 @@ enum perf_output_field {
 	PERF_OUTPUT_TOD             = 1ULL << 32,
 	PERF_OUTPUT_DATA_PAGE_SIZE  = 1ULL << 33,
 	PERF_OUTPUT_CODE_PAGE_SIZE  = 1ULL << 34,
+	PERF_OUTPUT_INS_LAT         = 1ULL << 35,
 };
 
 struct perf_script {
@@ -188,6 +189,7 @@ struct output_option {
 	{.str = "tod", .field = PERF_OUTPUT_TOD},
 	{.str = "data_page_size", .field = PERF_OUTPUT_DATA_PAGE_SIZE},
 	{.str = "code_page_size", .field = PERF_OUTPUT_CODE_PAGE_SIZE},
+	{.str = "ins_lat", .field = PERF_OUTPUT_INS_LAT},
 };
 
 enum {
@@ -262,7 +264,8 @@ static struct {
 			      PERF_OUTPUT_DSO | PERF_OUTPUT_PERIOD |
 			      PERF_OUTPUT_ADDR | PERF_OUTPUT_DATA_SRC |
 			      PERF_OUTPUT_WEIGHT | PERF_OUTPUT_PHYS_ADDR |
-			      PERF_OUTPUT_DATA_PAGE_SIZE | PERF_OUTPUT_CODE_PAGE_SIZE,
+			      PERF_OUTPUT_DATA_PAGE_SIZE | PERF_OUTPUT_CODE_PAGE_SIZE |
+			      PERF_OUTPUT_INS_LAT,
 
 		.invalid_fields = PERF_OUTPUT_TRACE | PERF_OUTPUT_BPF_OUTPUT,
 	},
@@ -520,6 +523,10 @@ static int evsel__check_attr(struct evsel *evsel, struct perf_session *session)
 
 	if (PRINT_FIELD(CODE_PAGE_SIZE) &&
 	    evsel__check_stype(evsel, PERF_SAMPLE_CODE_PAGE_SIZE, "CODE_PAGE_SIZE", PERF_OUTPUT_CODE_PAGE_SIZE))
+		return -EINVAL;
+
+	if (PRINT_FIELD(INS_LAT) &&
+	    evsel__check_stype(evsel, PERF_SAMPLE_WEIGHT_STRUCT, "WEIGHT_STRUCT", PERF_OUTPUT_INS_LAT))
 		return -EINVAL;
 
 	return 0;
@@ -2038,6 +2045,9 @@ static void process_event(struct perf_script *script,
 
 	if (PRINT_FIELD(WEIGHT))
 		fprintf(fp, "%16" PRIu64, sample->weight);
+
+	if (PRINT_FIELD(INS_LAT))
+		fprintf(fp, "%16" PRIu16, sample->ins_lat);
 
 	if (PRINT_FIELD(IP)) {
 		struct callchain_cursor *cursor = NULL;
@@ -3715,7 +3725,7 @@ int cmd_script(int argc, const char **argv)
 		     "addr,symoff,srcline,period,iregs,uregs,brstack,"
 		     "brstacksym,flags,bpf-output,brstackinsn,brstackoff,"
 		     "callindent,insn,insnlen,synth,phys_addr,metric,misc,ipc,tod,"
-		     "data_page_size,code_page_size",
+		     "data_page_size,code_page_size,ins_lat",
 		     parse_output_fields),
 	OPT_BOOLEAN('a', "all-cpus", &system_wide,
 		    "system-wide collection from all CPUs"),
@@ -3835,6 +3845,9 @@ int cmd_script(int argc, const char **argv)
 
 	data.path  = input_name;
 	data.force = symbol_conf.force;
+
+	if (symbol__validate_sym_arguments())
+		return -1;
 
 	if (argc > 1 && !strncmp(argv[0], "rec", strlen("rec"))) {
 		rec_script_path = get_script_path(argv[1], RECORD_SUFFIX);

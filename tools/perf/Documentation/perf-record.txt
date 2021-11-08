@@ -596,6 +596,22 @@ options.
 'perf record --dry-run -e' can act as a BPF script compiler if llvm.dump-obj
 in config file is set to true.
 
+--synth=TYPE::
+Collect and synthesize given type of events (comma separated).  Note that
+this option controls the synthesis from the /proc filesystem which represent
+task status for pre-existing threads.
+
+Kernel (and some other) events are recorded regardless of the
+choice in this option.  For example, --synth=no would have MMAP events for
+kernel and modules.
+
+Available types are:
+  'task'    - synthesize FORK and COMM events for each task
+  'mmap'    - synthesize MMAP events for each process (implies 'task')
+  'cgroup'  - synthesize CGROUP events for each cgroup
+  'all'     - synthesize all events (default)
+  'no'      - do not synthesize any of the above events
+
 --tail-synthesize::
 Instead of collecting non-sample events (for example, fork, comm, mmap) at
 the beginning of record, collect them during finalizing an output file.

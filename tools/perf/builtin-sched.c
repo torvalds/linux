@@ -3538,6 +3538,7 @@ int cmd_sched(int argc, const char **argv)
 		.fork_event	    = replay_fork_event,
 	};
 	unsigned int i;
+	int ret;
 
 	for (i = 0; i < ARRAY_SIZE(sched.curr_pid); i++)
 		sched.curr_pid[i] = -1;
@@ -3598,6 +3599,9 @@ int cmd_sched(int argc, const char **argv)
 				parse_options_usage(NULL, timehist_options, "n", true);
 			return -EINVAL;
 		}
+		ret = symbol__validate_sym_arguments();
+		if (ret)
+			return ret;
 
 		return perf_sched__timehist(&sched);
 	} else {

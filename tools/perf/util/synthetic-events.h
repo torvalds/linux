@@ -27,6 +27,18 @@ struct target;
 
 union perf_event;
 
+enum perf_record_synth {
+	PERF_SYNTH_TASK		= 1 << 0,
+	PERF_SYNTH_MMAP		= 1 << 1,
+	PERF_SYNTH_CGROUP	= 1 << 2,
+
+	/* last element */
+	PERF_SYNTH_MAX		= 1 << 3,
+};
+#define PERF_SYNTH_ALL  (PERF_SYNTH_MAX - 1)
+
+int parse_synth_opt(char *str);
+
 typedef int (*perf_event__handler_t)(struct perf_tool *tool, union perf_event *event,
 				     struct perf_sample *sample, struct machine *machine);
 
@@ -53,8 +65,8 @@ int perf_event__synthesize_stat_events(struct perf_stat_config *config, struct p
 int perf_event__synthesize_stat_round(struct perf_tool *tool, u64 time, u64 type, perf_event__handler_t process, struct machine *machine);
 int perf_event__synthesize_stat(struct perf_tool *tool, u32 cpu, u32 thread, u64 id, struct perf_counts_values *count, perf_event__handler_t process, struct machine *machine);
 int perf_event__synthesize_thread_map2(struct perf_tool *tool, struct perf_thread_map *threads, perf_event__handler_t process, struct machine *machine);
-int perf_event__synthesize_thread_map(struct perf_tool *tool, struct perf_thread_map *threads, perf_event__handler_t process, struct machine *machine, bool mmap_data);
-int perf_event__synthesize_threads(struct perf_tool *tool, perf_event__handler_t process, struct machine *machine, bool mmap_data, unsigned int nr_threads_synthesize);
+int perf_event__synthesize_thread_map(struct perf_tool *tool, struct perf_thread_map *threads, perf_event__handler_t process, struct machine *machine, bool needs_mmap, bool mmap_data);
+int perf_event__synthesize_threads(struct perf_tool *tool, perf_event__handler_t process, struct machine *machine, bool needs_mmap, bool mmap_data, unsigned int nr_threads_synthesize);
 int perf_event__synthesize_tracing_data(struct perf_tool *tool, int fd, struct evlist *evlist, perf_event__handler_t process);
 int perf_event__synth_time_conv(const struct perf_event_mmap_page *pc, struct perf_tool *tool, perf_event__handler_t process, struct machine *machine);
 pid_t perf_event__synthesize_comm(struct perf_tool *tool, union perf_event *event, pid_t pid, perf_event__handler_t process, struct machine *machine);
@@ -65,10 +77,10 @@ size_t perf_event__sample_event_size(const struct perf_sample *sample, u64 type,
 
 int __machine__synthesize_threads(struct machine *machine, struct perf_tool *tool,
 				  struct target *target, struct perf_thread_map *threads,
-				  perf_event__handler_t process, bool data_mmap,
+				  perf_event__handler_t process, bool needs_mmap, bool data_mmap,
 				  unsigned int nr_threads_synthesize);
 int machine__synthesize_threads(struct machine *machine, struct target *target,
-				struct perf_thread_map *threads, bool data_mmap,
+				struct perf_thread_map *threads, bool needs_mmap, bool data_mmap,
 				unsigned int nr_threads_synthesize);
 
 #ifdef HAVE_AUXTRACE_SUPPORT
