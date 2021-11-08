@@ -126,7 +126,7 @@ int bch2_data_update_index_update(struct bch_write_op *op)
 		struct extent_ptr_decoded p;
 		struct bpos next_pos;
 		bool did_work = false;
-		bool extending = false, should_check_enospc;
+		bool should_check_enospc;
 		s64 i_sectors_delta = 0, disk_sectors_delta = 0;
 		unsigned i;
 
@@ -212,7 +212,6 @@ int bch2_data_update_index_update(struct bch_write_op *op)
 		bch2_extent_normalize(c, bkey_i_to_s(insert));
 
 		ret = bch2_sum_sector_overwrites(&trans, &iter, insert,
-						 &extending,
 						 &should_check_enospc,
 						 &i_sectors_delta,
 						 &disk_sectors_delta);

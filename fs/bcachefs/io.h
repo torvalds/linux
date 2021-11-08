@@ -70,7 +70,7 @@ static inline struct workqueue_struct *index_update_wq(struct bch_write_op *op)
 }
 
 int bch2_sum_sector_overwrites(struct btree_trans *, struct btree_iter *,
-			       struct bkey_i *, bool *, bool *, s64 *, s64 *);
+			       struct bkey_i *, bool *, s64 *, s64 *);
 int bch2_extent_update(struct btree_trans *, subvol_inum,
 		       struct btree_iter *, struct bkey_i *,
 		       struct disk_reservation *, u64, s64 *, bool);

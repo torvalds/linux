@@ -198,7 +198,6 @@ void bch2_bio_alloc_pages_pool(struct bch_fs *c, struct bio *bio,
 int bch2_sum_sector_overwrites(struct btree_trans *trans,
 			       struct btree_iter *extent_iter,
 			       struct bkey_i *new,
-			       bool *maybe_extending,
 			       bool *usage_increasing,
 			       s64 *i_sectors_delta,
 			       s64 *disk_sectors_delta)
@@ -210,7 +209,6 @@ int bch2_sum_sector_overwrites(struct btree_trans *trans,
 	bool new_compressed = bch2_bkey_sectors_compressed(bkey_i_to_s_c(new));
 	int ret = 0;
 
-	*maybe_extending	= true;
 	*usage_increasing	= false;
 	*i_sectors_delta	= 0;
 	*disk_sectors_delta	= 0;
@@ -237,31 +235,8 @@ int bch2_sum_sector_overwrites(struct btree_trans *trans,
 		     (!new_compressed && bch2_bkey_sectors_compressed(old))))
 			*usage_increasing = true;
 
-		if (bkey_ge(old.k->p, new->k.p)) {
-			/*
-			 * Check if there's already data above where we're
-			 * going to be writing to - this means we're definitely
-			 * not extending the file:
-			 *
-			 * Note that it's not sufficient to check if there's
-			 * data up to the sector offset we're going to be
-			 * writing to, because i_size could be up to one block
-			 * less:
-			 */
-			if (!bkey_cmp(old.k->p, new->k.p)) {
-				old = bch2_btree_iter_next(&iter);
-				ret = bkey_err(old);
-				if (ret)
-					break;
-			}
-
-			if (old.k && !bkey_err(old) &&
-			    old.k->p.inode == extent_iter->pos.inode &&
-			    bkey_extent_is_data(old.k))
-				*maybe_extending = false;
-
+		if (bkey_ge(old.k->p, new->k.p))
 			break;
-		}
 	}
 
 	bch2_trans_iter_exit(trans, &iter);
@@ -283,7 +258,7 @@ int bch2_extent_update(struct btree_trans *trans,
 	struct bch_inode_unpacked inode_u;
 	struct bpos next_pos;
 	struct bkey_s_c inode;
-	bool extending = false, usage_increasing;
+	bool usage_increasing;
 	s64 i_sectors_delta = 0, disk_sectors_delta = 0;
 	int ret;
 
@@ -305,7 +280,6 @@ int bch2_extent_update(struct btree_trans *trans,
 	next_pos = k->k.p;
 
 	ret = bch2_sum_sector_overwrites(trans, iter, k,
-			&extending,
 			&usage_increasing,
 			&i_sectors_delta,
 			&disk_sectors_delta);
@@ -321,10 +295,6 @@ int bch2_extent_update(struct btree_trans *trans,
 		if (ret)
 			return ret;
 	}
-
-	new_i_size = extending
-		? min(k->k.p.offset << 9, new_i_size)
-		: 0;
 
 	bch2_trans_iter_init(trans, &inode_iter, BTREE_ID_inodes,
 			     SPOS(0, inum.inum, iter->snapshot),
