@@ -864,7 +864,6 @@ xfs_da3_node_rebalance(
 {
 	struct xfs_da_intnode	*node1;
 	struct xfs_da_intnode	*node2;
-	struct xfs_da_intnode	*tmpnode;
 	struct xfs_da_node_entry *btree1;
 	struct xfs_da_node_entry *btree2;
 	struct xfs_da_node_entry *btree_s;
@@ -894,9 +893,7 @@ xfs_da3_node_rebalance(
 	    ((be32_to_cpu(btree2[0].hashval) < be32_to_cpu(btree1[0].hashval)) ||
 	     (be32_to_cpu(btree2[nodehdr2.count - 1].hashval) <
 			be32_to_cpu(btree1[nodehdr1.count - 1].hashval)))) {
-		tmpnode = node1;
-		node1 = node2;
-		node2 = tmpnode;
+		swap(node1, node2);
 		xfs_da3_node_hdr_from_disk(dp->i_mount, &nodehdr1, node1);
 		xfs_da3_node_hdr_from_disk(dp->i_mount, &nodehdr2, node2);
 		btree1 = nodehdr1.btree;
