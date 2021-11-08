@@ -2354,6 +2354,9 @@
   irq_work_sync
   is_dma_buf_file
   is_vmalloc_addr
+  iwe_stream_add_event
+  iwe_stream_add_point
+  iwe_stream_add_value
   jiffies
   jiffies64_to_msecs
   jiffies_64_to_clock_t
@@ -2362,6 +2365,7 @@
   kasan_flag_enabled
   kasprintf
   kern_mount
+  kern_path
   kern_unmount
   kernel_bind
   kernel_connect
@@ -2430,6 +2434,7 @@
   kstrtoint_from_user
   kstrtol_from_user
   kstrtoll
+  kstrtos16
   kstrtos8
   kstrtos8_from_user
   kstrtou16
@@ -2887,6 +2892,7 @@
   part_end_io_acct
   part_start_io_acct
   passthru_features_check
+  path_put
   pause_cpus
   pci_alloc_irq_vectors_affinity
   pci_assign_resource
