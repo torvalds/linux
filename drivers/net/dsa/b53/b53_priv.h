@@ -124,7 +124,6 @@ struct b53_device {
 	/* used ports mask */
 	u16 enabled_ports;
 	unsigned int imp_port;
-	unsigned int cpu_port;
 
 	/* connect specific data */
 	u8 current_page;
