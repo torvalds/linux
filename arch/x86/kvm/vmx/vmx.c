@@ -3114,9 +3114,9 @@ static void vmx_load_mmu_pgd(struct kvm_vcpu *vcpu, hpa_t root_hpa,
 
 		if (!enable_unrestricted_guest && !is_paging(vcpu))
 			guest_cr3 = to_kvm_vmx(kvm)->ept_identity_map_addr;
-		else if (test_bit(VCPU_EXREG_CR3, (ulong *)&vcpu->arch.regs_avail))
+		else if (kvm_register_is_dirty(vcpu, VCPU_EXREG_CR3))
 			guest_cr3 = vcpu->arch.cr3;
-		else /* vmcs01.GUEST_CR3 is already up-to-date. */
+		else /* vmcs.GUEST_CR3 is already up-to-date. */
 			update_guest_cr3 = false;
 		vmx_ept_load_pdptrs(vcpu);
 	} else {
