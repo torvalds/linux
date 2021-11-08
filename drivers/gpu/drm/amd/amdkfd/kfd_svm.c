@@ -3487,6 +3487,109 @@ fill_values:
 	return 0;
 }
 
+int kfd_criu_resume_svm(struct kfd_process *p)
+{
+	struct kfd_ioctl_svm_attribute *set_attr_new, *set_attr = NULL;
+	int nattr_common = 4, nattr_accessibility = 1;
+	struct criu_svm_metadata *criu_svm_md = NULL;
+	struct svm_range_list *svms = &p->svms;
+	struct criu_svm_metadata *next = NULL;
+	uint32_t set_flags = 0xffffffff;
+	int i, j, num_attrs, ret = 0;
+	uint64_t set_attr_size;
+	struct mm_struct *mm;
+
+	if (list_empty(&svms->criu_svm_metadata_list)) {
+		pr_debug("No SVM data from CRIU restore stage 2\n");
+		return ret;
+	}
+
+	mm = get_task_mm(p->lead_thread);
+	if (!mm) {
+		pr_err("failed to get mm for the target process\n");
+		return -ESRCH;
+	}
+
+	num_attrs = nattr_common + (nattr_accessibility * p->n_pdds);
+
+	i = j = 0;
+	list_for_each_entry(criu_svm_md, &svms->criu_svm_metadata_list, list) {
+		pr_debug("criu_svm_md[%d]\n\tstart: 0x%llx size: 0x%llx (npages)\n",
+			 i, criu_svm_md->data.start_addr, criu_svm_md->data.size);
+
+		for (j = 0; j < num_attrs; j++) {
+			pr_debug("\ncriu_svm_md[%d]->attrs[%d].type : 0x%x \ncriu_svm_md[%d]->attrs[%d].value : 0x%x\n",
+				 i, j, criu_svm_md->data.attrs[j].type,
+				 i, j, criu_svm_md->data.attrs[j].value);
+			switch (criu_svm_md->data.attrs[j].type) {
+			/* During Checkpoint operation, the query for
+			 * KFD_IOCTL_SVM_ATTR_PREFETCH_LOC attribute might
+			 * return KFD_IOCTL_SVM_LOCATION_UNDEFINED if they were
+			 * not used by the range which was checkpointed. Care
+			 * must be taken to not restore with an invalid value
+			 * otherwise the gpuidx value will be invalid and
+			 * set_attr would eventually fail so just replace those
+			 * with another dummy attribute such as
+			 * KFD_IOCTL_SVM_ATTR_SET_FLAGS.
+			 */
+			case KFD_IOCTL_SVM_ATTR_PREFETCH_LOC:
+				if (criu_svm_md->data.attrs[j].value ==
+				    KFD_IOCTL_SVM_LOCATION_UNDEFINED) {
+					criu_svm_md->data.attrs[j].type =
+						KFD_IOCTL_SVM_ATTR_SET_FLAGS;
+					criu_svm_md->data.attrs[j].value = 0;
+				}
+				break;
+			case KFD_IOCTL_SVM_ATTR_SET_FLAGS:
+				set_flags = criu_svm_md->data.attrs[j].value;
+				break;
+			default:
+				break;
+			}
+		}
+
+		/* CLR_FLAGS is not available via get_attr during checkpoint but
+		 * it needs to be inserted before restoring the ranges so
+		 * allocate extra space for it before calling set_attr
+		 */
+		set_attr_size = sizeof(struct kfd_ioctl_svm_attribute) *
+						(num_attrs + 1);
+		set_attr_new = krealloc(set_attr, set_attr_size,
+					    GFP_KERNEL);
+		if (!set_attr_new) {
+			ret = -ENOMEM;
+			goto exit;
+		}
+		set_attr = set_attr_new;
+
+		memcpy(set_attr, criu_svm_md->data.attrs, num_attrs *
+					sizeof(struct kfd_ioctl_svm_attribute));
+		set_attr[num_attrs].type = KFD_IOCTL_SVM_ATTR_CLR_FLAGS;
+		set_attr[num_attrs].value = ~set_flags;
+
+		ret = svm_range_set_attr(p, mm, criu_svm_md->data.start_addr,
+					 criu_svm_md->data.size, num_attrs + 1,
+					 set_attr);
+		if (ret) {
+			pr_err("CRIU: failed to set range attributes\n");
+			goto exit;
+		}
+
+		i++;
+	}
+exit:
+	kfree(set_attr);
+	list_for_each_entry_safe(criu_svm_md, next, &svms->criu_svm_metadata_list, list) {
+		pr_debug("freeing criu_svm_md[]\n\tstart: 0x%llx\n",
+						criu_svm_md->data.start_addr);
+		kfree(criu_svm_md);
+	}
+
+	mmput(mm);
+	return ret;
+
+}
+
 int kfd_criu_restore_svm(struct kfd_process *p,
 			 uint8_t __user *user_priv_ptr,
 			 uint64_t *priv_data_offset,
