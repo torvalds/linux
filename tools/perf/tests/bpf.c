@@ -297,7 +297,7 @@ static int check_env(void)
 	}
 
 	err = bpf_load_program(BPF_PROG_TYPE_KPROBE, insns,
-			       sizeof(insns) / sizeof(insns[0]),
+			       ARRAY_SIZE(insns),
 			       license, kver_int, NULL, 0);
 	if (err < 0) {
 		pr_err("Missing basic BPF support, skip this test: %s\n",
