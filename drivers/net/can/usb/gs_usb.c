@@ -45,6 +45,7 @@ enum gs_usb_breq {
 	GS_USB_BREQ_QUIRK_CANTACT_PRO_DATA_BITTIMING = GS_USB_BREQ_GET_USER_ID,
 	GS_USB_BREQ_SET_USER_ID,
 	GS_USB_BREQ_DATA_BITTIMING,
+	GS_USB_BREQ_BT_CONST_EXT,
 };
 
 enum gs_can_mode {
@@ -103,6 +104,7 @@ struct gs_device_config {
 #define GS_CAN_MODE_PAD_PKTS_TO_MAX_PKT_SIZE BIT(7)
 #define GS_CAN_MODE_FD BIT(8)
 /* GS_CAN_FEATURE_REQ_USB_QUIRK_LPC546XX BIT(9) */
+/* GS_CAN_FEATURE_BT_CONST_EXT BIT(10) */
 
 struct gs_device_mode {
 	__le32 mode;
@@ -137,7 +139,8 @@ struct gs_identify_mode {
 #define GS_CAN_FEATURE_PAD_PKTS_TO_MAX_PKT_SIZE BIT(7)
 #define GS_CAN_FEATURE_FD BIT(8)
 #define GS_CAN_FEATURE_REQ_USB_QUIRK_LPC546XX BIT(9)
-#define GS_CAN_FEATURE_MASK GENMASK(9, 0)
+#define GS_CAN_FEATURE_BT_CONST_EXT BIT(10)
+#define GS_CAN_FEATURE_MASK GENMASK(10, 0)
 
 /* internal quirks - keep in GS_CAN_FEATURE space for now */
 
@@ -157,6 +160,28 @@ struct gs_device_bt_const {
 	__le32 brp_min;
 	__le32 brp_max;
 	__le32 brp_inc;
+} __packed;
+
+struct gs_device_bt_const_extended {
+	__le32 feature;
+	__le32 fclk_can;
+	__le32 tseg1_min;
+	__le32 tseg1_max;
+	__le32 tseg2_min;
+	__le32 tseg2_max;
+	__le32 sjw_max;
+	__le32 brp_min;
+	__le32 brp_max;
+	__le32 brp_inc;
+
+	__le32 dtseg1_min;
+	__le32 dtseg1_max;
+	__le32 dtseg2_min;
+	__le32 dtseg2_max;
+	__le32 dsjw_max;
+	__le32 dbrp_min;
+	__le32 dbrp_max;
+	__le32 dbrp_inc;
 } __packed;
 
 #define GS_CAN_FLAG_OVERFLOW BIT(0)
@@ -225,7 +250,7 @@ struct gs_can {
 	struct usb_device *udev;
 	struct usb_interface *iface;
 
-	struct can_bittiming_const bt_const;
+	struct can_bittiming_const bt_const, data_bt_const;
 	unsigned int channel;	/* channel number */
 
 	u32 feature;
@@ -906,6 +931,7 @@ static struct gs_can *gs_make_candev(unsigned int channel,
 	struct net_device *netdev;
 	int rc;
 	struct gs_device_bt_const *bt_const;
+	struct gs_device_bt_const_extended *bt_const_extended;
 	u32 feature;
 
 	bt_const = kmalloc(sizeof(*bt_const), GFP_KERNEL);
@@ -989,6 +1015,9 @@ static struct gs_can *gs_make_candev(unsigned int channel,
 
 	if (feature & GS_CAN_FEATURE_FD) {
 		dev->can.ctrlmode_supported |= CAN_CTRLMODE_FD;
+		/* The data bit timing will be overwritten, if
+		 * GS_CAN_FEATURE_BT_CONST_EXT is set.
+		 */
 		dev->can.data_bittiming_const = &dev->bt_const;
 		dev->can.do_set_data_bittiming = gs_usb_set_data_bittiming;
 	}
@@ -1021,6 +1050,43 @@ static struct gs_can *gs_make_candev(unsigned int channel,
 			netdev->ethtool_ops = &gs_usb_ethtool_ops;
 
 	kfree(bt_const);
+
+	/* fetch extended bit timing constants if device has feature
+	 * GS_CAN_FEATURE_FD and GS_CAN_FEATURE_BT_CONST_EXT
+	 */
+	if (feature & GS_CAN_FEATURE_FD &&
+	    feature & GS_CAN_FEATURE_BT_CONST_EXT) {
+		bt_const_extended = kmalloc(sizeof(*bt_const_extended), GFP_KERNEL);
+		if (!bt_const_extended)
+			return ERR_PTR(-ENOMEM);
+
+		rc = usb_control_msg(interface_to_usbdev(intf),
+				     usb_rcvctrlpipe(interface_to_usbdev(intf), 0),
+				     GS_USB_BREQ_BT_CONST_EXT,
+				     USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
+				     channel, 0, bt_const_extended,
+				     sizeof(*bt_const_extended),
+				     1000);
+		if (rc < 0) {
+			dev_err(&intf->dev,
+				"Couldn't get extended bit timing const for channel (err=%d)\n",
+				rc);
+			kfree(bt_const_extended);
+			return ERR_PTR(rc);
+		}
+
+		strcpy(dev->data_bt_const.name, "gs_usb");
+		dev->data_bt_const.tseg1_min = le32_to_cpu(bt_const_extended->dtseg1_min);
+		dev->data_bt_const.tseg1_max = le32_to_cpu(bt_const_extended->dtseg1_max);
+		dev->data_bt_const.tseg2_min = le32_to_cpu(bt_const_extended->dtseg2_min);
+		dev->data_bt_const.tseg2_max = le32_to_cpu(bt_const_extended->dtseg2_max);
+		dev->data_bt_const.sjw_max = le32_to_cpu(bt_const_extended->dsjw_max);
+		dev->data_bt_const.brp_min = le32_to_cpu(bt_const_extended->dbrp_min);
+		dev->data_bt_const.brp_max = le32_to_cpu(bt_const_extended->dbrp_max);
+		dev->data_bt_const.brp_inc = le32_to_cpu(bt_const_extended->dbrp_inc);
+
+		dev->can.data_bittiming_const = &dev->data_bt_const;
+	}
 
 	SET_NETDEV_DEV(netdev, &intf->dev);
 
