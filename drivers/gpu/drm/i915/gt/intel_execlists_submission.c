@@ -2186,7 +2186,8 @@ struct execlists_capture {
 static void execlists_capture_work(struct work_struct *work)
 {
 	struct execlists_capture *cap = container_of(work, typeof(*cap), work);
-	const gfp_t gfp = GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_NOWARN;
+	const gfp_t gfp = __GFP_KSWAPD_RECLAIM | __GFP_RETRY_MAYFAIL |
+		__GFP_NOWARN;
 	struct intel_engine_cs *engine = cap->rq->engine;
 	struct intel_gt_coredump *gt = cap->error->gt;
 	struct intel_engine_capture_vma *vma;
