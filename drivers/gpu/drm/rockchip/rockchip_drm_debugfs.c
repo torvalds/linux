@@ -60,7 +60,7 @@ int rockchip_drm_dump_plane_buffer(struct vop_dump_info *dump_info, int frame_co
 	const char *ptr;
 	char file_name[100];
 	int width;
-	size_t size;
+	size_t size, uv_size = 0;
 	void *kvaddr;
 	struct file *file;
 	loff_t pos = 0;
@@ -72,8 +72,12 @@ int rockchip_drm_dump_plane_buffer(struct vop_dump_info *dump_info, int frame_co
 	bpp = rockchip_drm_get_bpp(dump_info->format);
 
 	if (dump_info->yuv_format) {
+		u8 hsub = dump_info->format->hsub;
+		u8 vsub = dump_info->format->vsub;
+
 		width = dump_info->pitches;
 		flags = O_RDWR | O_CREAT | O_APPEND;
+		uv_size = (width * dump_info->height * bpp >> 3) * 2 / hsub / vsub;
 		snprintf(file_name, 100, "%s/video%d_%d_%s.%s", DUMP_BUF_PATH,
 			 width, dump_info->height, format,
 			 "bin");
@@ -96,7 +100,7 @@ int rockchip_drm_dump_plane_buffer(struct vop_dump_info *dump_info, int frame_co
 	if (dump_info->AFBC_flag)
 		size = get_afbc_size(width, dump_info->height, bpp);
 	else
-		size = width * dump_info->height * bpp >> 3;
+		size = (width * dump_info->height * bpp >> 3) + uv_size;
 
 	ptr = file_name;
 	file = filp_open(ptr, flags, 0644);
