@@ -3556,7 +3556,7 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		if (!guest_pv_has(vcpu, KVM_FEATURE_PV_EOI))
 			return 1;
 
-		if (kvm_lapic_enable_pv_eoi(vcpu, data, sizeof(u8)))
+		if (kvm_lapic_set_pv_eoi(vcpu, data, sizeof(u8)))
 			return 1;
 		break;
 
