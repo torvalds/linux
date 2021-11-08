@@ -76,26 +76,6 @@ static DEFINE_MUTEX(nb_smu_ind_mutex);
 #define ZEN_CUR_TEMP_SHIFT			21
 #define ZEN_CUR_TEMP_RANGE_SEL_MASK		BIT(19)
 
-#define ZEN_SVI_BASE				0x0005A000
-
-/* F17h thermal registers through SMN */
-#define F17H_M01H_SVI_TEL_PLANE0		(ZEN_SVI_BASE + 0xc)
-#define F17H_M01H_SVI_TEL_PLANE1		(ZEN_SVI_BASE + 0x10)
-#define F17H_M31H_SVI_TEL_PLANE0		(ZEN_SVI_BASE + 0x14)
-#define F17H_M31H_SVI_TEL_PLANE1		(ZEN_SVI_BASE + 0x10)
-
-#define F17H_M01H_CFACTOR_ICORE			1000000	/* 1A / LSB	*/
-#define F17H_M01H_CFACTOR_ISOC			250000	/* 0.25A / LSB	*/
-#define F17H_M31H_CFACTOR_ICORE			1000000	/* 1A / LSB	*/
-#define F17H_M31H_CFACTOR_ISOC			310000	/* 0.31A / LSB	*/
-
-/* F19h thermal registers through SMN */
-#define F19H_M01_SVI_TEL_PLANE0			(ZEN_SVI_BASE + 0x14)
-#define F19H_M01_SVI_TEL_PLANE1			(ZEN_SVI_BASE + 0x10)
-
-#define F19H_M01H_CFACTOR_ICORE			1000000	/* 1A / LSB	*/
-#define F19H_M01H_CFACTOR_ISOC			310000	/* 0.31A / LSB	*/
-
 struct k10temp_data {
 	struct pci_dev *pdev;
 	void (*read_htcreg)(struct pci_dev *pdev, u32 *regval);
