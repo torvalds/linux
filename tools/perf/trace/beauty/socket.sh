@@ -8,9 +8,9 @@ else
 fi
 
 printf "static const char *socket_ipproto[] = {\n"
-regex='^[[:space:]]+IPPROTO_(\w+)[[:space:]]+=[[:space:]]+([[:digit:]]+),.*'
+ipproto_regex='^[[:space:]]+IPPROTO_(\w+)[[:space:]]+=[[:space:]]+([[:digit:]]+),.*'
 
-egrep $regex ${uapi_header_dir}/in.h | \
-	sed -r "s/$regex/\2 \1/g"	| \
+egrep $ipproto_regex ${uapi_header_dir}/in.h | \
+	sed -r "s/$ipproto_regex/\2 \1/g"	| \
 	sort | xargs printf "\t[%s] = \"%s\",\n"
 printf "};\n"
