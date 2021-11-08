@@ -52,6 +52,7 @@ struct rcu_tasks_percpu {
  * @postgp_func: This flavor's post-grace-period function (optional).
  * @call_func: This flavor's call_rcu()-equivalent function.
  * @rtpcpu: This flavor's rcu_tasks_percpu structure.
+ * @percpu_enqueue_shift: Shift down CPU ID this much when enqueuing callbacks.
  * @name: This flavor's textual name.
  * @kname: This flavor's kthread name.
  */
@@ -75,6 +76,7 @@ struct rcu_tasks {
 	postgp_func_t postgp_func;
 	call_rcu_func_t call_func;
 	struct rcu_tasks_percpu __percpu *rtpcpu;
+	int percpu_enqueue_shift;
 	char *name;
 	char *kname;
 };
@@ -91,6 +93,7 @@ static struct rcu_tasks rt_name =							\
 	.call_func = call,								\
 	.rtpcpu = &rt_name ## __percpu,							\
 	.name = n,									\
+	.percpu_enqueue_shift = ilog2(CONFIG_NR_CPUS),					\
 	.kname = #rt_name,								\
 }
 
@@ -169,6 +172,7 @@ static void cblist_init_generic(struct rcu_tasks *rtp)
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&rtp->cbs_gbl_lock, flags);
+	rtp->percpu_enqueue_shift = ilog2(nr_cpu_ids);
 	for_each_possible_cpu(cpu) {
 		struct rcu_tasks_percpu *rtpcp = per_cpu_ptr(rtp->rtpcpu, cpu);
 
@@ -195,7 +199,8 @@ static void call_rcu_tasks_generic(struct rcu_head *rhp, rcu_callback_t func,
 	rhp->next = NULL;
 	rhp->func = func;
 	local_irq_save(flags);
-	rtpcp = per_cpu_ptr(rtp->rtpcpu, 0 /* smp_processor_id() */);
+	rtpcp = per_cpu_ptr(rtp->rtpcpu,
+			    smp_processor_id() >> READ_ONCE(rtp->percpu_enqueue_shift));
 	raw_spin_lock(&rtpcp->cbs_pcpu_lock);
 	if (!rtpcp->cbs_tail) {
 		raw_spin_unlock(&rtpcp->cbs_pcpu_lock); // irqs remain disabled.
