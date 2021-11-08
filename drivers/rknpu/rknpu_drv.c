@@ -401,10 +401,21 @@ static int rknpu_power_on(struct rknpu_device *rknpu_dev)
 #ifndef FPGA_PLATFORM
 	ret = regulator_enable(rknpu_dev->vdd);
 	if (ret) {
-		LOG_DEV_ERROR(
-			dev, "failed to enable regulator for rknpu, ret = %d\n",
-			ret);
+		LOG_DEV_ERROR(dev,
+			      "failed to enable vdd reg for rknpu, ret = %d\n",
+			      ret);
 		return ret;
+	}
+
+	if (rknpu_dev->mem) {
+		ret = regulator_enable(rknpu_dev->mem);
+		if (ret) {
+			LOG_DEV_ERROR(
+				dev,
+				"failed to enable mem reg for rknpu, ret = %d\n",
+				ret);
+			return ret;
+		}
 	}
 #endif
 
@@ -480,6 +491,9 @@ static int rknpu_power_off(struct rknpu_device *rknpu_dev)
 
 #ifndef FPGA_PLATFORM
 	regulator_disable(rknpu_dev->vdd);
+
+	if (rknpu_dev->mem)
+		regulator_disable(rknpu_dev->mem);
 #endif
 
 	return 0;
@@ -490,81 +504,109 @@ static struct monitor_dev_profile npu_mdevp = {
 	.type = MONITOR_TPYE_DEV,
 	.low_temp_adjust = rockchip_monitor_dev_low_temp_adjust,
 	.high_temp_adjust = rockchip_monitor_dev_high_temp_adjust,
+	.update_volt = rockchip_monitor_check_rate_volt,
 };
 
-static int npu_devfreq_target(struct device *dev, unsigned long *target_freq,
+static int npu_opp_helper(struct dev_pm_set_opp_data *data)
+{
+	struct device *dev = data->dev;
+	struct dev_pm_opp_supply *old_supply_vdd = &data->old_opp.supplies[0];
+	struct dev_pm_opp_supply *old_supply_mem = &data->old_opp.supplies[1];
+	struct dev_pm_opp_supply *new_supply_vdd = &data->new_opp.supplies[0];
+	struct dev_pm_opp_supply *new_supply_mem = &data->new_opp.supplies[1];
+	struct regulator *vdd_reg = data->regulators[0];
+	struct regulator *mem_reg = data->regulators[1];
+	struct clk *clk = data->clk;
+	unsigned long old_freq = data->old_opp.rate;
+	unsigned long new_freq = data->new_opp.rate;
+	int ret = 0;
+
+	/* Scaling up? Scale voltage before frequency */
+	if (new_freq >= old_freq) {
+		ret = regulator_set_voltage(mem_reg, new_supply_mem->u_volt,
+					    INT_MAX);
+		if (ret) {
+			LOG_DEV_ERROR(dev,
+				      "failed to set volt %lu uV for mem reg\n",
+				      new_supply_mem->u_volt);
+			goto restore_voltage;
+		}
+		ret = regulator_set_voltage(vdd_reg, new_supply_vdd->u_volt,
+					    INT_MAX);
+		if (ret) {
+			LOG_DEV_ERROR(dev,
+				      "failed to set volt %lu uV for vdd reg\n",
+				      new_supply_vdd->u_volt);
+			goto restore_voltage;
+		}
+	}
+
+	/* Change frequency */
+	LOG_DEV_DEBUG(dev, "switching OPP: %lu Hz --> %lu Hz\n", old_freq,
+		      new_freq);
+	ret = clk_set_rate(clk, new_freq);
+	if (ret) {
+		LOG_DEV_ERROR(dev, "failed to set clk rate: %d\n", ret);
+		goto restore_voltage;
+	}
+
+	/* Scaling down? Scale voltage after frequency */
+	if (new_freq < old_freq) {
+		ret = regulator_set_voltage(vdd_reg, new_supply_vdd->u_volt,
+					    INT_MAX);
+		if (ret) {
+			LOG_DEV_ERROR(dev,
+				      "failed to set volt %lu uV for vdd reg\n",
+				      new_supply_vdd->u_volt);
+			goto restore_freq;
+		}
+		ret = regulator_set_voltage(mem_reg, new_supply_mem->u_volt,
+					    INT_MAX);
+		if (ret) {
+			LOG_DEV_ERROR(dev,
+				      "failed to set volt %lu uV for mem reg\n",
+				      new_supply_mem->u_volt);
+			goto restore_freq;
+		}
+	}
+
+	return 0;
+
+restore_freq:
+	if (clk_set_rate(clk, old_freq))
+		LOG_DEV_ERROR(dev, "failed to restore old-freq %lu Hz\n",
+			      old_freq);
+restore_voltage:
+	regulator_set_voltage(mem_reg, old_supply_mem->u_volt, INT_MAX);
+	regulator_set_voltage(vdd_reg, old_supply_vdd->u_volt, INT_MAX);
+
+	return ret;
+}
+
+static int npu_devfreq_target(struct device *dev, unsigned long *freq,
 			      u32 flags)
 {
 	struct rknpu_device *rknpu_dev = dev_get_drvdata(dev);
-	struct dev_pm_opp *opp = NULL;
-	unsigned long freq = *target_freq;
-	unsigned long old_freq = rknpu_dev->current_freq;
-	unsigned long volt, old_volt = rknpu_dev->current_volt;
-	int ret = -EINVAL;
+	struct dev_pm_opp *opp;
+	int ret = 0;
 
-#if KERNEL_VERSION(4, 11, 0) > LINUX_VERSION_CODE
-	rcu_read_lock();
-#endif
+	if (!npu_mdevp.is_checked)
+		return -EINVAL;
 
-	opp = devfreq_recommended_opp(dev, &freq, flags);
-	if (IS_ERR(opp)) {
-#if KERNEL_VERSION(4, 11, 0) > LINUX_VERSION_CODE
-		rcu_read_unlock();
-#endif
-		LOG_DEV_ERROR(dev, "failed to get opp (%ld)\n", PTR_ERR(opp));
+	opp = devfreq_recommended_opp(dev, freq, flags);
+	if (IS_ERR(opp))
 		return PTR_ERR(opp);
-	}
-	volt = dev_pm_opp_get_voltage(opp);
-#if KERNEL_VERSION(4, 11, 0) > LINUX_VERSION_CODE
-	rcu_read_unlock();
-#endif
+	dev_pm_opp_put(opp);
 
-	/*
-	 * Only update if there is a change of frequency
-	 */
-	if (old_freq == freq) {
-		*target_freq = freq;
-		if (old_volt == volt)
-			return 0;
-		ret = regulator_set_voltage(rknpu_dev->vdd, volt, INT_MAX);
-		if (ret) {
-			LOG_DEV_ERROR(dev, "failed to set volt %lu\n", volt);
-			return ret;
-		}
-		rknpu_dev->current_volt = volt;
-		return 0;
+	rockchip_monitor_volt_adjust_lock(rknpu_dev->mdev_info);
+	ret = dev_pm_opp_set_rate(dev, *freq);
+	if (!ret) {
+		rknpu_dev->current_freq = *freq;
+		if (rknpu_dev->devfreq)
+			rknpu_dev->devfreq->last_status.current_frequency =
+				*freq;
 	}
-
-	if (rknpu_dev->vdd && old_volt != volt && old_freq < freq) {
-		ret = regulator_set_voltage(rknpu_dev->vdd, volt, INT_MAX);
-		if (ret) {
-			LOG_DEV_ERROR(dev, "failed to increase volt %lu\n",
-				      volt);
-			return ret;
-		}
-	}
-	LOG_DEV_DEBUG(dev, "%luHz %luuV -> %luHz %luuV\n", old_freq, old_volt,
-		      freq, volt);
-	ret = clk_set_rate(rknpu_dev->clks[0].clk, freq);
-	if (ret) {
-		LOG_DEV_ERROR(dev, "failed to set clock %lu\n", freq);
-		return ret;
-	}
-	*target_freq = freq;
-	rknpu_dev->current_freq = freq;
-
-	if (rknpu_dev->devfreq)
-		rknpu_dev->devfreq->last_status.current_frequency = freq;
-
-	if (rknpu_dev->vdd && old_volt != volt && old_freq > freq) {
-		ret = regulator_set_voltage(rknpu_dev->vdd, volt, INT_MAX);
-		if (ret) {
-			LOG_DEV_ERROR(dev, "failed to decrease volt %lu\n",
-				      volt);
-			return ret;
-		}
-	}
-	rknpu_dev->current_volt = volt;
+	rockchip_monitor_volt_adjust_unlock(rknpu_dev->mdev_info);
 
 	return ret;
 }
@@ -607,59 +649,32 @@ static struct devfreq_cooling_power npu_cooling_power = {
 	.get_static_power = &npu_get_static_power,
 };
 
-static int npu_devfreq_adjust_current_freq_volt(struct device *dev,
-						struct rknpu_device *rknpu_dev)
-{
-	unsigned long volt, old_freq, freq;
-	struct dev_pm_opp *opp = NULL;
-	int ret = -EINVAL;
-
-	old_freq = clk_get_rate(rknpu_dev->clks[0].clk);
-	freq = old_freq;
-
-#if KERNEL_VERSION(4, 11, 0) > LINUX_VERSION_CODE
-	rcu_read_lock();
-#endif
-
-	opp = devfreq_recommended_opp(dev, &freq, 0);
-	volt = dev_pm_opp_get_voltage(opp);
-
-#if KERNEL_VERSION(4, 11, 0) > LINUX_VERSION_CODE
-	rcu_read_unlock();
-#endif
-
-	if (freq >= old_freq && rknpu_dev->vdd) {
-		ret = regulator_set_voltage(rknpu_dev->vdd, volt, INT_MAX);
-		if (ret) {
-			LOG_DEV_ERROR(dev, "failed to set volt %lu\n", volt);
-			return ret;
-		}
-	}
-	LOG_DEV_DEBUG(dev, "adjust current freq=%luHz, volt=%luuV\n", freq,
-		      volt);
-	ret = clk_set_rate(rknpu_dev->clks[0].clk, freq);
-	if (ret) {
-		LOG_DEV_ERROR(dev, "failed to set clock %lu\n", freq);
-		return ret;
-	}
-	if (freq < old_freq && rknpu_dev->vdd) {
-		ret = regulator_set_voltage(rknpu_dev->vdd, volt, INT_MAX);
-		if (ret) {
-			LOG_DEV_ERROR(dev, "failed to set volt %lu\n", volt);
-			return ret;
-		}
-	}
-	rknpu_dev->current_freq = freq;
-	rknpu_dev->current_volt = volt;
-
-	return 0;
-}
-
 static int rknpu_devfreq_init(struct rknpu_device *rknpu_dev)
 {
 	struct device *dev = rknpu_dev->dev;
 	struct devfreq_dev_profile *dp = &npu_devfreq_profile;
+	struct dev_pm_opp *opp;
+	struct opp_table *reg_table = NULL;
+	struct opp_table *opp_table = NULL;
+	const char *const reg_names[] = { "rknpu", "mem" };
 	int ret = -EINVAL;
+
+	if (of_find_property(dev->of_node, "rknpu-supply", NULL) &&
+	    of_find_property(dev->of_node, "mem-supply", NULL)) {
+		reg_table = dev_pm_opp_set_regulators(dev, reg_names, 2);
+		if (IS_ERR(reg_table))
+			return PTR_ERR(reg_table);
+		opp_table =
+			dev_pm_opp_register_set_opp_helper(dev, npu_opp_helper);
+		if (IS_ERR(opp_table)) {
+			dev_pm_opp_put_regulators(reg_table);
+			return PTR_ERR(opp_table);
+		}
+	} else {
+		reg_table = dev_pm_opp_set_regulators(dev, reg_names, 1);
+		if (IS_ERR(reg_table))
+			return PTR_ERR(reg_table);
+	}
 
 	ret = rockchip_init_opp_table(dev, NULL, "npu_leakage", "rknpu");
 
@@ -668,11 +683,14 @@ static int rknpu_devfreq_init(struct rknpu_device *rknpu_dev)
 		return ret;
 	}
 
-	ret = npu_devfreq_adjust_current_freq_volt(dev, rknpu_dev);
-	if (ret) {
-		LOG_DEV_ERROR(dev, "failed to adjust current freq volt\n");
+	rknpu_dev->current_freq = clk_get_rate(rknpu_dev->clks[0].clk);
+
+	opp = devfreq_recommended_opp(dev, &rknpu_dev->current_freq, 0);
+	if (IS_ERR(opp)) {
+		ret = PTR_ERR(opp);
 		return ret;
 	}
+	dev_pm_opp_put(opp);
 	dp->initial_freq = rknpu_dev->current_freq;
 
 	rknpu_dev->devfreq =
@@ -693,35 +711,25 @@ static int rknpu_devfreq_init(struct rknpu_device *rknpu_dev)
 	if (IS_ERR(rknpu_dev->mdev_info)) {
 		LOG_DEV_DEBUG(dev, "without system monitor\n");
 		rknpu_dev->mdev_info = NULL;
+		npu_mdevp.is_checked = true;
 	}
 
 	of_property_read_u32(dev->of_node, "dynamic-power-coefficient",
 			     (u32 *)&npu_cooling_power.dyn_power_coeff);
-
-#if KERNEL_VERSION(4, 4, 179) <= LINUX_VERSION_CODE
 	rknpu_dev->model_data =
 		rockchip_ipa_power_model_init(dev, "npu_leakage");
 	if (IS_ERR_OR_NULL(rknpu_dev->model_data)) {
-#else
-	ret = rockchip_ipa_power_model_init(dev, &rknpu_dev->model_data);
-	if (ret) {
-#endif
 		rknpu_dev->model_data = NULL;
 		LOG_DEV_ERROR(dev, "failed to initialize power model\n");
 	} else if (rknpu_dev->model_data->dynamic_coefficient) {
 		npu_cooling_power.dyn_power_coeff =
 			rknpu_dev->model_data->dynamic_coefficient;
 	}
-
 	if (!npu_cooling_power.dyn_power_coeff) {
 		LOG_DEV_ERROR(dev, "failed to get dynamic-coefficient\n");
 		goto out;
 	}
 
-#if KERNEL_VERSION(4, 4, 179) > LINUX_VERSION_CODE
-	rockchip_of_get_leakage(dev, "npu_leakage",
-				&rknpu_dev->model_data->leakage);
-#endif
 	rknpu_dev->devfreq_cooling = of_devfreq_cooling_register_power(
 		dev->of_node, rknpu_dev->devfreq, &npu_cooling_power);
 	if (IS_ERR_OR_NULL(rknpu_dev->devfreq_cooling))
@@ -846,6 +854,19 @@ static int rknpu_probe(struct platform_device *pdev)
 			return ret;
 		}
 		rknpu_dev->vdd = NULL;
+	}
+
+	rknpu_dev->mem = devm_regulator_get_optional(dev, "mem");
+	if (IS_ERR(rknpu_dev->mem)) {
+		if (PTR_ERR(rknpu_dev->mem) != -ENODEV) {
+			ret = PTR_ERR(rknpu_dev->mem);
+			LOG_DEV_ERROR(
+				dev,
+				"failed to get mem regulator for rknpu: %d\n",
+				ret);
+			return ret;
+		}
+		rknpu_dev->mem = NULL;
 	}
 #endif
 

@@ -91,6 +91,7 @@ struct rknpu_device {
 	struct clk_bulk_data *clks;
 	int num_clks;
 	struct regulator *vdd;
+	struct regulator *mem;
 	struct monitor_dev_info *mdev_info;
 	struct ipa_power_model_data *model_data;
 	struct thermal_cooling_device *devfreq_cooling;
