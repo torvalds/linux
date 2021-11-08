@@ -1049,6 +1049,83 @@ static int ath11k_mac_monitor_stop(struct ath11k *ar)
 	return 0;
 }
 
+static int ath11k_mac_vif_setup_ps(struct ath11k_vif *arvif)
+{
+	struct ath11k *ar = arvif->ar;
+	struct ieee80211_vif *vif = arvif->vif;
+	struct ieee80211_conf *conf = &ar->hw->conf;
+	enum wmi_sta_powersave_param param;
+	enum wmi_sta_ps_mode psmode;
+	int ret;
+	int timeout;
+	bool enable_ps;
+
+	lockdep_assert_held(&arvif->ar->conf_mutex);
+
+	if (arvif->vif->type != NL80211_IFTYPE_STATION)
+		return 0;
+
+	enable_ps = arvif->ps;
+
+	if (!arvif->is_started) {
+		/* mac80211 can update vif powersave state while disconnected.
+		 * Firmware doesn't behave nicely and consumes more power than
+		 * necessary if PS is disabled on a non-started vdev. Hence
+		 * force-enable PS for non-running vdevs.
+		 */
+		psmode = WMI_STA_PS_MODE_ENABLED;
+	} else if (enable_ps) {
+		psmode = WMI_STA_PS_MODE_ENABLED;
+		param = WMI_STA_PS_PARAM_INACTIVITY_TIME;
+
+		timeout = conf->dynamic_ps_timeout;
+		if (timeout == 0) {
+			/* firmware doesn't like 0 */
+			timeout = ieee80211_tu_to_usec(vif->bss_conf.beacon_int) / 1000;
+		}
+
+		ret = ath11k_wmi_set_sta_ps_param(ar, arvif->vdev_id, param,
+						  timeout);
+		if (ret) {
+			ath11k_warn(ar->ab, "failed to set inactivity time for vdev %d: %i\n",
+				    arvif->vdev_id, ret);
+			return ret;
+		}
+	} else {
+		psmode = WMI_STA_PS_MODE_DISABLED;
+	}
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac vdev %d psmode %s\n",
+		   arvif->vdev_id, psmode ? "enable" : "disable");
+
+	ret = ath11k_wmi_pdev_set_ps_mode(ar, arvif->vdev_id, psmode);
+	if (ret) {
+		ath11k_warn(ar->ab, "failed to set sta power save mode %d for vdev %d: %d\n",
+			    psmode, arvif->vdev_id, ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int ath11k_mac_config_ps(struct ath11k *ar)
+{
+	struct ath11k_vif *arvif;
+	int ret = 0;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	list_for_each_entry(arvif, &ar->arvifs, list) {
+		ret = ath11k_mac_vif_setup_ps(arvif);
+		if (ret) {
+			ath11k_warn(ar->ab, "failed to setup powersave: %d\n", ret);
+			break;
+		}
+	}
+
+	return ret;
+}
+
 static int ath11k_mac_op_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct ath11k *ar = hw->priv;
@@ -2940,6 +3017,16 @@ static void ath11k_mac_op_bss_info_changed(struct ieee80211_hw *hw,
 
 		arvif->txpower = info->txpower;
 		ath11k_mac_txpower_recalc(ar);
+	}
+
+	if (changed & BSS_CHANGED_PS &&
+	    ar->ab->hw_params.supports_sta_ps) {
+		arvif->ps = vif->bss_conf.ps;
+
+		ret = ath11k_mac_config_ps(ar);
+		if (ret)
+			ath11k_warn(ar->ab, "failed to setup ps on vdev %i: %d\n",
+				    arvif->vdev_id, ret);
 	}
 
 	if (changed & BSS_CHANGED_MCAST_RATE &&
