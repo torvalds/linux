@@ -22,6 +22,8 @@
 		hdmi1 = &hdmi1;
 		rkcif_mipi_lvds4= &rkcif_mipi_lvds4;
 		rkcif_mipi_lvds5= &rkcif_mipi_lvds5;
+		usbdp0 = &usbdp_phy0;
+		usbdp1 = &usbdp_phy1;
 	};
 
 	/* dphy1 full mode */
