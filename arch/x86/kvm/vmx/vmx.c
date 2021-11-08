@@ -2989,7 +2989,7 @@ void ept_save_pdptrs(struct kvm_vcpu *vcpu)
 	mmu->pdptrs[2] = vmcs_read64(GUEST_PDPTR2);
 	mmu->pdptrs[3] = vmcs_read64(GUEST_PDPTR3);
 
-	kvm_register_mark_dirty(vcpu, VCPU_EXREG_PDPTR);
+	kvm_register_mark_available(vcpu, VCPU_EXREG_PDPTR);
 }
 
 #define CR3_EXITING_BITS (CPU_BASED_CR3_LOAD_EXITING | \
