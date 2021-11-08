@@ -2421,6 +2421,7 @@ static const struct vop2_ctrl rk3588_vop_ctrl = {
 	.hdmi_dual_en = VOP_REG(RK3568_DSP_IF_CTRL, 0x1, 8),
 	.edp_dual_en = VOP_REG(RK3568_DSP_IF_CTRL, 0x1, 8),
 	.dp_dual_en = VOP_REG(RK3568_DSP_IF_CTRL, 0x1, 9),
+	.mipi_dual_en = VOP_REG(RK3568_DSP_IF_CTRL, 0x1, 10),
 	.mipi0_ds_mode = VOP_REG(RK3568_DSP_IF_CTRL, 0x1, 11),
 	.mipi1_ds_mode = VOP_REG(RK3568_DSP_IF_CTRL, 0x1, 12),
 	.hdmi0_dclk_div = VOP_REG(RK3568_DSP_IF_CTRL, 0x3, 16),

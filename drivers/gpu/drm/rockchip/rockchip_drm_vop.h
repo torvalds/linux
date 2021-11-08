@@ -973,6 +973,7 @@ struct vop2_ctrl {
 	struct vop_reg dp_dual_en;
 	struct vop_reg edp_dual_en;
 	struct vop_reg hdmi_dual_en;
+	struct vop_reg mipi_dual_en;
 
 	struct vop_reg hdmi0_dclk_div;
 	struct vop_reg hdmi0_pixclk_div;

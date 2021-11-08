@@ -5255,6 +5255,9 @@ static void vop2_setup_dual_channel_if(struct drm_crtc *crtc)
 	case DRM_MODE_CONNECTOR_HDMIA:
 		VOP_CTRL_SET(vop2, hdmi_dual_en, 1);
 		break;
+	case DRM_MODE_CONNECTOR_DSI:
+		VOP_CTRL_SET(vop2, mipi_dual_en, 1);
+		break;
 	default:
 		break;
 	}
