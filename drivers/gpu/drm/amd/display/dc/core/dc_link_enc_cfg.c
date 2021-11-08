@@ -151,6 +151,7 @@ static void add_link_enc_assignment(
 						.ep_type = stream->link->ep_type},
 					.eng_id = eng_id,
 					.stream = stream};
+				dc_stream_retain(stream);
 				state->res_ctx.link_enc_cfg_ctx.link_enc_avail[eng_idx] = ENGINE_ID_UNKNOWN;
 				stream->link_enc = stream->ctx->dc->res_pool->link_encoders[eng_idx];
 				break;
@@ -247,7 +248,10 @@ static void clear_enc_assignments(const struct dc *dc, struct dc_state *state)
 	for (i = 0; i < MAX_PIPES; i++) {
 		state->res_ctx.link_enc_cfg_ctx.link_enc_assignments[i].valid = false;
 		state->res_ctx.link_enc_cfg_ctx.link_enc_assignments[i].eng_id = ENGINE_ID_UNKNOWN;
-		state->res_ctx.link_enc_cfg_ctx.link_enc_assignments[i].stream = NULL;
+		if (state->res_ctx.link_enc_cfg_ctx.link_enc_assignments[i].stream != NULL) {
+			dc_stream_release(state->res_ctx.link_enc_cfg_ctx.link_enc_assignments[i].stream);
+			state->res_ctx.link_enc_cfg_ctx.link_enc_assignments[i].stream = NULL;
+		}
 	}
 
 	for (i = 0; i < dc->res_pool->res_cap->num_dig_link_enc; i++) {

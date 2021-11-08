@@ -808,6 +808,10 @@ void dc_stream_set_static_screen_params(struct dc *dc,
 
 static void dc_destruct(struct dc *dc)
 {
+	// reset link encoder assignment table on destruct
+	if (dc->res_pool->funcs->link_encs_assign)
+		link_enc_cfg_init(dc, dc->current_state);
+
 	if (dc->current_state) {
 		dc_release_state(dc->current_state);
 		dc->current_state = NULL;
