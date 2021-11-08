@@ -50,6 +50,19 @@
 		status = "disabled";
 	};
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		/* Reserve 128MB cma memory for hdmirx driver */
+		hdmirx_reserved: hdmirx@10000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0x10000000 0x0 (128 * 0x100000)>;
+			status = "disabled";
+		};
+	};
+
 	rkcif_mipi_lvds4: rkcif-mipi-lvds4 {
 		compatible = "rockchip,rkcif-mipi-lvds";
 		rockchip,hw = <&rkcif>;
@@ -460,6 +473,30 @@
 				};
 			};
 		};
+	};
+
+	hdmirx_ctrler: hdmirx-controller@fdee0000 {
+		compatible = "rk3588,hdmirx-ctrler", "rockchip,hdmirx-ctrler";
+		reg = <0x0 0xfdee0000 0x0 0x6000>;
+		reg-names = "hdmirx_regs";
+		power-domains = <&power RK3588_PD_VO1>;
+		rockchip,grf = <&sys_grf>;
+		rockchip,vo1_grf = <&vo1_grf>;
+		memory-region = <&hdmirx_reserved>;
+		interrupts = <GIC_SPI 177 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 178 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 179 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "cec", "hdmi", "dma";
+		clocks = <&cru ACLK_HDMIRX>, <&cru CLK_HDMIRX_AUD>,
+			 <&cru CLK_CR_PARA>, <&cru PCLK_HDMIRX>,
+			 <&cru CLK_HDMIRX_REF>, <&hclk_vo1>;
+		clock-names = "aclk", "audio", "cr_para", "pclk", "ref", "hclk_vo1";
+		resets = <&cru SRST_A_HDMIRX>, <&cru SRST_P_HDMIRX>,
+			 <&cru SRST_HDMIRX_REF>;
+		reset-names = "rst_a", "rst_p", "rst_ref";
+		pinctrl-0 = <&hdmim1_rx_cec &hdmim1_rx_hpdin &hdmim1_rx_scl &hdmim1_rx_sda>;
+		pinctrl-names = "default";
+		status = "disabled";
 	};
 
 	pcie3x4: pcie@fe150000 {
