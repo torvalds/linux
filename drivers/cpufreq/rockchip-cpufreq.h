@@ -7,10 +7,17 @@
 
 #if IS_ENABLED(CONFIG_ARM_ROCKCHIP_CPUFREQ)
 int rockchip_cpufreq_adjust_power_scale(struct device *dev);
+int rockchip_cpufreq_opp_set_rate(struct device *dev, unsigned long target_freq);
 #else
 static inline int rockchip_cpufreq_adjust_power_scale(struct device *dev)
 {
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
+}
+
+static inline int rockchip_cpufreq_opp_set_rate(struct device *dev,
+						unsigned long target_freq);
+{
+	return -EOPNOTSUPP;
 }
 #endif /* CONFIG_ARM_ROCKCHIP_CPUFREQ */
 

@@ -34,14 +34,10 @@
 #include "rockchip-cpufreq.h"
 
 struct cluster_info {
-	struct opp_table *opp_table;
 	struct list_head list_head;
 	struct monitor_dev_info *mdev_info;
 	cpumask_t cpus;
 	int scale;
-	bool offline;
-	bool freq_limit;
-	bool is_check_init;
 };
 static LIST_HEAD(cluster_info_list);
 
@@ -252,55 +248,39 @@ static int rockchip_cpufreq_set_volt(struct device *dev,
 {
 	int ret;
 
-	dev_dbg(dev, "%s: %s voltages (mV): %lu %lu %lu\n", __func__, reg_name,
+	dev_dbg(dev, "%s: %s voltages (uV): %lu %lu %lu\n", __func__, reg_name,
 		supply->u_volt_min, supply->u_volt, supply->u_volt_max);
 
 	ret = regulator_set_voltage_triplet(reg, supply->u_volt_min,
 					    supply->u_volt, supply->u_volt_max);
 	if (ret)
-		dev_err(dev, "%s: failed to set voltage (%lu %lu %lu mV): %d\n",
+		dev_err(dev, "%s: failed to set voltage (%lu %lu %lu uV): %d\n",
 			__func__, supply->u_volt_min, supply->u_volt,
 			supply->u_volt_max, ret);
 
 	return ret;
 }
 
-static int opp_helper(struct dev_pm_set_opp_data *data)
+static int cpu_opp_helper(struct dev_pm_set_opp_data *data)
 {
 	struct dev_pm_opp_supply *old_supply_vdd = &data->old_opp.supplies[0];
+	struct dev_pm_opp_supply *old_supply_mem = &data->old_opp.supplies[1];
 	struct dev_pm_opp_supply *new_supply_vdd = &data->new_opp.supplies[0];
+	struct dev_pm_opp_supply *new_supply_mem = &data->new_opp.supplies[1];
 	struct regulator *vdd_reg = data->regulators[0];
+	struct regulator *mem_reg = data->regulators[1];
 	struct device *dev = data->dev;
 	struct clk *clk = data->clk;
-	struct cluster_info *cluster;
-	struct dev_pm_opp_supply *old_supply_mem;
-	struct dev_pm_opp_supply *new_supply_mem;
-	struct regulator *mem_reg;
 	unsigned long old_freq = data->old_opp.rate;
 	unsigned long new_freq = data->new_opp.rate;
-	unsigned int regulator_count = data->regulator_count;
 	int ret = 0;
-
-	if (regulator_count > 1) {
-		old_supply_mem = &data->old_opp.supplies[1];
-		new_supply_mem = &data->new_opp.supplies[1];
-		mem_reg = data->regulators[1];
-	}
-
-	cluster = rockchip_cluster_info_lookup(dev->id);
-	if (!cluster)
-		return -ENOMEM;
-
-	rockchip_monitor_volt_adjust_lock(cluster->mdev_info);
 
 	/* Scaling up? Scale voltage before frequency */
 	if (new_freq >= old_freq) {
-		if (regulator_count > 1) {
-			ret = rockchip_cpufreq_set_volt(dev, mem_reg,
-							new_supply_mem, "mem");
-			if (ret)
-				goto restore_voltage;
-		}
+		ret = rockchip_cpufreq_set_volt(dev, mem_reg, new_supply_mem,
+						"mem");
+		if (ret)
+			goto restore_voltage;
 		ret = rockchip_cpufreq_set_volt(dev, vdd_reg, new_supply_vdd,
 						"vdd");
 		if (ret)
@@ -322,15 +302,11 @@ static int opp_helper(struct dev_pm_set_opp_data *data)
 						"vdd");
 		if (ret)
 			goto restore_freq;
-		if (regulator_count > 1) {
-			ret = rockchip_cpufreq_set_volt(dev, mem_reg,
-							new_supply_mem, "mem");
-			if (ret)
-				goto restore_freq;
-		}
+		ret = rockchip_cpufreq_set_volt(dev, mem_reg, new_supply_mem,
+						"mem");
+		if (ret)
+			goto restore_freq;
 	}
-
-	rockchip_monitor_volt_adjust_unlock(cluster->mdev_info);
 
 	return 0;
 
@@ -339,12 +315,8 @@ restore_freq:
 		dev_err(dev, "%s: failed to restore old-freq (%lu Hz)\n",
 			__func__, old_freq);
 restore_voltage:
-	if (regulator_count > 1 && old_supply_mem->u_volt)
-		rockchip_cpufreq_set_volt(dev, mem_reg, old_supply_mem, "mem");
-	if (old_supply_vdd->u_volt)
-		rockchip_cpufreq_set_volt(dev, vdd_reg, old_supply_vdd, "vdd");
-
-	rockchip_monitor_volt_adjust_unlock(cluster->mdev_info);
+	rockchip_cpufreq_set_volt(dev, mem_reg, old_supply_mem, "mem");
+	rockchip_cpufreq_set_volt(dev, vdd_reg, old_supply_vdd, "vdd");
 
 	return ret;
 }
@@ -403,12 +375,12 @@ static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 			ret = PTR_ERR(reg_table);
 			goto pname_opp_table;
 		}
-	}
-
-	opp_table = dev_pm_opp_register_set_opp_helper(dev, opp_helper);
-	if (IS_ERR(opp_table)) {
-		ret = PTR_ERR(opp_table);
-		goto reg_opp_table;
+		opp_table = dev_pm_opp_register_set_opp_helper(dev,
+							       cpu_opp_helper);
+		if (IS_ERR(opp_table)) {
+			ret = PTR_ERR(opp_table);
+			goto reg_opp_table;
+		}
 	}
 
 	of_node_put(np);
@@ -439,6 +411,23 @@ int rockchip_cpufreq_adjust_power_scale(struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rockchip_cpufreq_adjust_power_scale);
+
+int rockchip_cpufreq_opp_set_rate(struct device *dev, unsigned long target_freq)
+{
+	struct cluster_info *cluster;
+	int ret = 0;
+
+	cluster = rockchip_cluster_info_lookup(dev->id);
+	if (!cluster)
+		return -EINVAL;
+
+	rockchip_monitor_volt_adjust_lock(cluster->mdev_info);
+	ret = dev_pm_opp_set_rate(dev, target_freq);
+	rockchip_monitor_volt_adjust_unlock(cluster->mdev_info);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(rockchip_cpufreq_opp_set_rate);
 
 static int rockchip_cpufreq_suspend(struct cpufreq_policy *policy)
 {

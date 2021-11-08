@@ -62,7 +62,11 @@ static int set_target(struct cpufreq_policy *policy, unsigned int index)
 	struct private_data *priv = policy->driver_data;
 	unsigned long freq = policy->freq_table[index].frequency;
 
+#ifdef CONFIG_ARCH_ROCKCHIP
+	return rockchip_cpufreq_opp_set_rate(priv->cpu_dev, freq * 1000);
+#else
 	return dev_pm_opp_set_rate(priv->cpu_dev, freq * 1000);
+#endif
 }
 
 /*
