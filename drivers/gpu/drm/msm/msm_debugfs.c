@@ -242,6 +242,9 @@ void msm_debugfs_init(struct drm_minor *minor)
 	debugfs_create_u32("hangcheck_period_ms", 0600, minor->debugfs_root,
 		&priv->hangcheck_period);
 
+	debugfs_create_bool("disable_err_irq", 0600, minor->debugfs_root,
+		&priv->disable_err_irq);
+
 	debugfs_create_file("shrink", S_IRWXU, minor->debugfs_root,
 		dev, &shrink_fops);
 

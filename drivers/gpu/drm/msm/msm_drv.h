@@ -240,6 +240,15 @@ struct msm_drm_private {
 
 	/* For hang detection, in ms */
 	unsigned int hangcheck_period;
+
+	/**
+	 * disable_err_irq:
+	 *
+	 * Disable handling of GPU hw error interrupts, to force fallback to
+	 * sw hangcheck timer.  Written (via debugfs) by igt tests to test
+	 * the sw hangcheck mechanism.
+	 */
+	bool disable_err_irq;
 };
 
 struct msm_format {
