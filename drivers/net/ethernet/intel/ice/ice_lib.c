@@ -1983,6 +1983,7 @@ static struct ice_q_vector *ice_pull_qvec_from_rc(struct ice_ring_container *rc)
 	case ICE_TX_CONTAINER:
 		if (rc->tx_ring)
 			return rc->tx_ring->q_vector;
+		break;
 	default:
 		break;
 	}

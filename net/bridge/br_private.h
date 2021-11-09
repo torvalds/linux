@@ -956,9 +956,11 @@ int br_multicast_toggle_vlan_snooping(struct net_bridge *br, bool on,
 				      struct netlink_ext_ack *extack);
 bool br_multicast_toggle_global_vlan(struct net_bridge_vlan *vlan, bool on);
 
-int br_mdb_replay(struct net_device *br_dev, struct net_device *dev,
-		  const void *ctx, bool adding, struct notifier_block *nb,
-		  struct netlink_ext_ack *extack);
+void br_switchdev_mdb_notify(struct net_device *dev,
+			     struct net_bridge_mdb_entry *mp,
+			     struct net_bridge_port_group *pg,
+			     int type);
+
 int br_rports_fill_info(struct sk_buff *skb,
 			const struct net_bridge_mcast *brmctx);
 int br_multicast_dump_querier_state(struct sk_buff *skb,
@@ -1394,12 +1396,11 @@ static inline bool br_multicast_toggle_global_vlan(struct net_bridge_vlan *vlan,
 	return false;
 }
 
-static inline int br_mdb_replay(struct net_device *br_dev,
-				struct net_device *dev, const void *ctx,
-				bool adding, struct notifier_block *nb,
-				struct netlink_ext_ack *extack)
+static inline void br_switchdev_mdb_notify(struct net_device *dev,
+					   struct net_bridge_mdb_entry *mp,
+					   struct net_bridge_port_group *pg,
+					   int type)
 {
-	return -EOPNOTSUPP;
 }
 
 static inline bool
@@ -1459,9 +1460,6 @@ void br_vlan_notify(const struct net_bridge *br,
 		    const struct net_bridge_port *p,
 		    u16 vid, u16 vid_range,
 		    int cmd);
-int br_vlan_replay(struct net_device *br_dev, struct net_device *dev,
-		   const void *ctx, bool adding, struct notifier_block *nb,
-		   struct netlink_ext_ack *extack);
 bool br_vlan_can_enter_range(const struct net_bridge_vlan *v_curr,
 			     const struct net_bridge_vlan *range_end);
 
@@ -1708,13 +1706,11 @@ static inline bool br_vlan_can_enter_range(const struct net_bridge_vlan *v_curr,
 	return true;
 }
 
-static inline int br_vlan_replay(struct net_device *br_dev,
-				 struct net_device *dev, const void *ctx,
-				 bool adding, struct notifier_block *nb,
-				 struct netlink_ext_ack *extack)
+static inline u16 br_vlan_flags(const struct net_bridge_vlan *v, u16 pvid)
 {
-	return -EOPNOTSUPP;
+	return 0;
 }
+
 #endif
 
 /* br_vlan_options.c */

@@ -37,8 +37,20 @@ enum ice_protocol_type {
 	ICE_TCP_IL,
 	ICE_UDP_OF,
 	ICE_UDP_ILOS,
+	ICE_VXLAN,
+	ICE_GENEVE,
+	ICE_NVGRE,
+	ICE_VXLAN_GPE,
 	ICE_SCTP_IL,
 	ICE_PROTOCOL_LAST
+};
+
+enum ice_sw_tunnel_type {
+	ICE_NON_TUN = 0,
+	ICE_SW_TUN_VXLAN,
+	ICE_SW_TUN_GENEVE,
+	ICE_SW_TUN_NVGRE,
+	ICE_ALL_TUNNELS /* All tunnel types including NVGRE */
 };
 
 /* Decoders for ice_prot_id:
@@ -74,6 +86,8 @@ enum ice_prot_id {
 	ICE_PROT_INVALID	= 255  /* when offset == ICE_FV_OFFSET_INVAL */
 };
 
+#define ICE_VNI_OFFSET		12 /* offset of VNI from ICE_PROT_UDP_OF */
+
 #define ICE_MAC_OFOS_HW		1
 #define ICE_MAC_IL_HW		4
 #define ICE_ETYPE_OL_HW		9
@@ -85,8 +99,15 @@ enum ice_prot_id {
 #define ICE_IPV6_IL_HW		41
 #define ICE_TCP_IL_HW		49
 #define ICE_UDP_ILOS_HW		53
+#define ICE_GRE_OF_HW		64
 
 #define ICE_UDP_OF_HW	52 /* UDP Tunnels */
+#define ICE_META_DATA_ID_HW 255 /* this is used for tunnel type */
+
+#define ICE_MDID_SIZE 2
+#define ICE_TUN_FLAG_MDID 21
+#define ICE_TUN_FLAG_MDID_OFF (ICE_MDID_SIZE * ICE_TUN_FLAG_MDID)
+#define ICE_TUN_FLAG_MASK 0xFF
 
 #define ICE_TUN_FLAG_FV_IND 2
 
@@ -152,6 +173,18 @@ struct ice_l4_hdr {
 	__be16 check;
 };
 
+struct ice_udp_tnl_hdr {
+	__be16 field;
+	__be16 proto_type;
+	__be32 vni;     /* only use lower 24-bits */
+};
+
+struct ice_nvgre_hdr {
+	__be16 flags;
+	__be16 protocol;
+	__be32 tni_flow;
+};
+
 union ice_prot_hdr {
 	struct ice_ether_hdr eth_hdr;
 	struct ice_ethtype_hdr ethertype;
@@ -160,6 +193,8 @@ union ice_prot_hdr {
 	struct ice_ipv6_hdr ipv6_hdr;
 	struct ice_l4_hdr l4_hdr;
 	struct ice_sctp_hdr sctp_hdr;
+	struct ice_udp_tnl_hdr tnl_hdr;
+	struct ice_nvgre_hdr nvgre_hdr;
 };
 
 /* This is mapping table entry that maps every word within a given protocol

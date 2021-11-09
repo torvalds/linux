@@ -171,6 +171,7 @@ struct ice_adv_rule_flags_info {
 };
 
 struct ice_adv_rule_info {
+	enum ice_sw_tunnel_type tun_type;
 	struct ice_sw_act_ctrl sw_act;
 	u32 priority;
 	u8 rx; /* true means LOOKUP_RX otherwise LOOKUP_TX */
@@ -210,6 +211,8 @@ struct ice_sw_recipe {
 
 	/* Bit map specifying the IDs associated with this group of recipe */
 	DECLARE_BITMAP(r_bitmap, ICE_MAX_NUM_RECIPES);
+
+	enum ice_sw_tunnel_type tun_type;
 
 	/* List of type ice_fltr_mgmt_list_entry or adv_rule */
 	u8 adv_rule;
