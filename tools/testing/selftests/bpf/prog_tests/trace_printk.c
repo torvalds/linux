@@ -8,7 +8,7 @@
 #define TRACEBUF	"/sys/kernel/debug/tracing/trace_pipe"
 #define SEARCHMSG	"testing,testing"
 
-void test_trace_printk(void)
+void serial_test_trace_printk(void)
 {
 	int err = 0, iter = 0, found = 0;
 	struct trace_printk__bss *bss;

@@ -72,7 +72,7 @@ void test_neg_xdp_devmap_helpers(void)
 }
 
 
-void test_xdp_devmap_attach(void)
+void serial_test_xdp_devmap_attach(void)
 {
 	if (test__start_subtest("DEVMAP with programs in entries"))
 		test_xdp_with_devmap_helpers();

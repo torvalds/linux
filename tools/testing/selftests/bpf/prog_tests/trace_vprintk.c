@@ -8,7 +8,7 @@
 #define TRACEBUF	"/sys/kernel/debug/tracing/trace_pipe"
 #define SEARCHMSG	"1,2,3,4,5,6,7,8,9,10"
 
-void test_trace_vprintk(void)
+void serial_test_trace_vprintk(void)
 {
 	int err = 0, iter = 0, found = 0;
 	struct trace_vprintk__bss *bss;

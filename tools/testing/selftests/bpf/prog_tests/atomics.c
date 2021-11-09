@@ -225,6 +225,7 @@ void test_atomics(void)
 		test__skip();
 		goto cleanup;
 	}
+	skel->bss->pid = getpid();
 
 	if (test__start_subtest("add"))
 		test_add(skel);

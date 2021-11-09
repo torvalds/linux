@@ -3,7 +3,6 @@
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 
-int _version SEC("version") = 1;
 char _license[] SEC("license") = "GPL";
 
 SEC("skb_ctx")

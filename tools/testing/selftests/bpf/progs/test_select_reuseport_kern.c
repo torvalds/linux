@@ -15,8 +15,6 @@
 #include <bpf/bpf_helpers.h>
 #include "test_select_reuseport_common.h"
 
-int _version SEC("version") = 1;
-
 #ifndef offsetof
 #define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
 #endif

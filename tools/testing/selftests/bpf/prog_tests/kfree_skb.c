@@ -48,7 +48,8 @@ static void on_sample(void *ctx, int cpu, void *data, __u32 size)
 	*(bool *)ctx = true;
 }
 
-void test_kfree_skb(void)
+/* TODO: fix kernel panic caused by this test in parallel mode */
+void serial_test_kfree_skb(void)
 {
 	struct __sk_buff skb = {};
 	struct bpf_prog_test_run_attr tattr = {

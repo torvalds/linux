@@ -28,8 +28,6 @@ struct {
 	__type(value, __u32);
 } perf_event_map SEC(".maps");
 
-int _version SEC("version") = 1;
-
 SEC("sockops")
 int bpf_testcb(struct bpf_sock_ops *skops)
 {

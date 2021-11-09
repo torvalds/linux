@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <test_progs.h>
 
-void test_probe_user(void)
+/* TODO: corrupts other tests uses connect() */
+void serial_test_probe_user(void)
 {
 	const char *prog_name = "handle_sys_connect";
 	const char *obj_file = "./test_probe_user.o";

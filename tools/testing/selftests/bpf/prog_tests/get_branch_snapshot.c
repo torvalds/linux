@@ -6,6 +6,30 @@
 static int *pfd_array;
 static int cpu_cnt;
 
+static bool is_hypervisor(void)
+{
+	char *line = NULL;
+	bool ret = false;
+	size_t len;
+	FILE *fp;
+
+	fp = fopen("/proc/cpuinfo", "r");
+	if (!fp)
+		return false;
+
+	while (getline(&line, &len, fp) != -1) {
+		if (!strncmp(line, "flags", 5)) {
+			if (strstr(line, "hypervisor") != NULL)
+				ret = true;
+			break;
+		}
+	}
+
+	free(line);
+	fclose(fp);
+	return ret;
+}
+
 static int create_perf_events(void)
 {
 	struct perf_event_attr attr = {0};
@@ -49,7 +73,7 @@ static void close_perf_events(void)
 	free(pfd_array);
 }
 
-void test_get_branch_snapshot(void)
+void serial_test_get_branch_snapshot(void)
 {
 	struct get_branch_snapshot *skel = NULL;
 	int err;
@@ -79,6 +103,16 @@ void test_get_branch_snapshot(void)
 
 	if (skel->bss->total_entries < 16) {
 		/* too few entries for the hit/waste test */
+		test__skip();
+		goto cleanup;
+	}
+
+	if (is_hypervisor()) {
+		/* As of today, LBR in hypervisor cannot be stopped before
+		 * too many entries are flushed. Skip the hit/waste test
+		 * for now in hypervisor until we optimize the LBR in
+		 * hypervisor.
+		 */
 		test__skip();
 		goto cleanup;
 	}

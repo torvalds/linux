@@ -15,7 +15,6 @@
 #include <bpf/bpf_endian.h>
 
 #define barrier() __asm__ __volatile__("": : :"memory")
-int _version SEC("version") = 1;
 
 /* llvm will optimize both subprograms into exactly the same BPF assembly
  *

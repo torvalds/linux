@@ -16,8 +16,6 @@
 #include <bpf/bpf_endian.h>
 #include "test_iptunnel_common.h"
 
-int _version SEC("version") = 1;
-
 struct {
 	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
 	__uint(max_entries, 256);

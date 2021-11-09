@@ -173,6 +173,28 @@ LIBBPF_API int btf__find_str(struct btf *btf, const char *s);
 LIBBPF_API int btf__add_str(struct btf *btf, const char *s);
 LIBBPF_API int btf__add_type(struct btf *btf, const struct btf *src_btf,
 			     const struct btf_type *src_type);
+/**
+ * @brief **btf__add_btf()** appends all the BTF types from *src_btf* into *btf*
+ * @param btf BTF object which all the BTF types and strings are added to
+ * @param src_btf BTF object which all BTF types and referenced strings are copied from
+ * @return BTF type ID of the first appended BTF type, or negative error code
+ *
+ * **btf__add_btf()** can be used to simply and efficiently append the entire
+ * contents of one BTF object to another one. All the BTF type data is copied
+ * over, all referenced type IDs are adjusted by adding a necessary ID offset.
+ * Only strings referenced from BTF types are copied over and deduplicated, so
+ * if there were some unused strings in *src_btf*, those won't be copied over,
+ * which is consistent with the general string deduplication semantics of BTF
+ * writing APIs.
+ *
+ * If any error is encountered during this process, the contents of *btf* is
+ * left intact, which means that **btf__add_btf()** follows the transactional
+ * semantics and the operation as a whole is all-or-nothing.
+ *
+ * *src_btf* has to be non-split BTF, as of now copying types from split BTF
+ * is not supported and will result in -ENOTSUP error code returned.
+ */
+LIBBPF_API int btf__add_btf(struct btf *btf, const struct btf *src_btf);
 
 LIBBPF_API int btf__add_int(struct btf *btf, const char *name, size_t byte_sz, int encoding);
 LIBBPF_API int btf__add_float(struct btf *btf, const char *name, size_t byte_sz);

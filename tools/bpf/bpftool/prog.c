@@ -25,7 +25,6 @@
 #include <bpf/bpf.h>
 #include <bpf/btf.h>
 #include <bpf/libbpf.h>
-#include <bpf/bpf_gen_internal.h>
 #include <bpf/skel_internal.h>
 
 #include "cfg.h"
@@ -1601,7 +1600,7 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 		goto err_close_obj;
 
 	if (first_prog_only) {
-		prog = bpf_program__next(NULL, obj);
+		prog = bpf_object__next_program(obj, NULL);
 		if (!prog) {
 			p_err("object file doesn't contain any bpf program");
 			goto err_close_obj;
