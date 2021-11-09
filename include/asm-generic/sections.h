@@ -129,6 +129,22 @@ static inline bool init_section_intersects(void *virt, size_t size)
 }
 
 /**
+ * is_kernel_core_data - checks if the pointer address is located in the
+ *			 .data section
+ *
+ * @addr: address to check
+ *
+ * Returns: true if the address is located in .data, false otherwise.
+ * Note: On some archs it may return true for core RODATA, and false
+ *       for others. But will always be true for core RW data.
+ */
+static inline bool is_kernel_core_data(unsigned long addr)
+{
+	return addr >= (unsigned long)_sdata &&
+	       addr < (unsigned long)_edata;
+}
+
+/**
  * is_kernel_rodata - checks if the pointer address is located in the
  *                    .rodata section
  *
