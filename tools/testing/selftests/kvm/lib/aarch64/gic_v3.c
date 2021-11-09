@@ -90,6 +90,29 @@ static void gicv3_write_eoir(uint32_t irq)
 	isb();
 }
 
+static void gicv3_write_dir(uint32_t irq)
+{
+	write_sysreg_s(irq, SYS_ICC_DIR_EL1);
+	isb();
+}
+
+static void gicv3_set_priority_mask(uint64_t mask)
+{
+	write_sysreg_s(mask, SYS_ICC_PMR_EL1);
+}
+
+static void gicv3_set_eoi_split(bool split)
+{
+	uint32_t val;
+
+	/* All other fields are read-only, so no need to read CTLR first. In
+	 * fact, the kernel does the same.
+	 */
+	val = split ? (1U << 1) : 0;
+	write_sysreg_s(val, SYS_ICC_CTLR_EL1);
+	isb();
+}
+
 uint32_t gicv3_reg_readl(uint32_t cpu_or_dist, uint64_t offset)
 {
 	void *base = cpu_or_dist & DIST_BIT ? gicv3_data.dist_base
@@ -174,24 +197,68 @@ static uint32_t gicv3_read_reg(uint32_t intid, uint64_t offset,
 	return val;
 }
 
-static void gicv3_irq_enable(unsigned int intid)
+static void gicv3_set_priority(uint32_t intid, uint32_t prio)
+{
+	gicv3_write_reg(intid, GICD_IPRIORITYR, 32, 8, prio);
+}
+
+/* Sets the intid to be level-sensitive or edge-triggered. */
+static void gicv3_irq_set_config(uint32_t intid, bool is_edge)
+{
+	uint32_t val;
+
+	/* N/A for private interrupts. */
+	GUEST_ASSERT(get_intid_range(intid) == SPI_RANGE);
+	val = is_edge ? 2 : 0;
+	gicv3_write_reg(intid, GICD_ICFGR, 32, 2, val);
+}
+
+static void gicv3_irq_enable(uint32_t intid)
 {
 	bool is_spi = get_intid_range(intid) == SPI_RANGE;
-	unsigned int val = 1;
 	uint32_t cpu = guest_get_vcpuid();
 
-	gicv3_write_reg(intid, GICD_ISENABLER, 32, 1, val);
+	gicv3_write_reg(intid, GICD_ISENABLER, 32, 1, 1);
 	gicv3_wait_for_rwp(is_spi ? DIST_BIT : cpu);
 }
 
-static void gicv3_irq_disable(unsigned int intid)
+static void gicv3_irq_disable(uint32_t intid)
 {
 	bool is_spi = get_intid_range(intid) == SPI_RANGE;
-	uint32_t val = 1;
 	uint32_t cpu = guest_get_vcpuid();
 
-	gicv3_write_reg(intid, GICD_ICENABLER, 32, 1, val);
+	gicv3_write_reg(intid, GICD_ICENABLER, 32, 1, 1);
 	gicv3_wait_for_rwp(is_spi ? DIST_BIT : cpu);
+}
+
+static void gicv3_irq_set_active(uint32_t intid)
+{
+	gicv3_write_reg(intid, GICD_ISACTIVER, 32, 1, 1);
+}
+
+static void gicv3_irq_clear_active(uint32_t intid)
+{
+	gicv3_write_reg(intid, GICD_ICACTIVER, 32, 1, 1);
+}
+
+static bool gicv3_irq_get_active(uint32_t intid)
+{
+	return gicv3_read_reg(intid, GICD_ISACTIVER, 32, 1);
+}
+
+static void gicv3_irq_set_pending(uint32_t intid)
+{
+	gicv3_write_reg(intid, GICD_ISPENDR, 32, 1, 1);
+}
+
+static void gicv3_irq_clear_pending(uint32_t intid)
+{
+	gicv3_write_reg(intid, GICD_ICPENDR, 32, 1, 1);
+}
+
+static bool gicv3_irq_get_pending(uint32_t intid)
+{
+	return gicv3_read_reg(intid, GICD_ISPENDR, 32, 1);
 }
 
 static void gicv3_enable_redist(void *redist_base)
@@ -315,4 +382,15 @@ const struct gic_common_ops gicv3_ops = {
 	.gic_irq_disable = gicv3_irq_disable,
 	.gic_read_iar = gicv3_read_iar,
 	.gic_write_eoir = gicv3_write_eoir,
+	.gic_write_dir = gicv3_write_dir,
+	.gic_set_priority_mask = gicv3_set_priority_mask,
+	.gic_set_eoi_split = gicv3_set_eoi_split,
+	.gic_set_priority = gicv3_set_priority,
+	.gic_irq_set_active = gicv3_irq_set_active,
+	.gic_irq_clear_active = gicv3_irq_clear_active,
+	.gic_irq_get_active = gicv3_irq_get_active,
+	.gic_irq_set_pending = gicv3_irq_set_pending,
+	.gic_irq_clear_pending = gicv3_irq_clear_pending,
+	.gic_irq_get_pending = gicv3_irq_get_pending,
+	.gic_irq_set_config = gicv3_irq_set_config,
 };
