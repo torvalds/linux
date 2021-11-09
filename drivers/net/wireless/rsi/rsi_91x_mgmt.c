@@ -276,7 +276,7 @@ static void rsi_set_default_parameters(struct rsi_common *common)
 	common->channel_width = BW_20MHZ;
 	common->rts_threshold = IEEE80211_MAX_RTS_THRESHOLD;
 	common->channel = 1;
-	common->min_rate = 0xffff;
+	memset(&common->rate_config, 0, sizeof(common->rate_config));
 	common->fsm_state = FSM_CARD_NOT_READY;
 	common->iface_down = true;
 	common->endpoint = EP_2GHZ_20MHZ;
@@ -1314,7 +1314,7 @@ static int rsi_send_auto_rate_request(struct rsi_common *common,
 	u8 band = hw->conf.chandef.chan->band;
 	u8 num_supported_rates = 0;
 	u8 rate_table_offset, rate_offset = 0;
-	u32 rate_bitmap;
+	u32 rate_bitmap, configured_rates;
 	u16 *selected_rates, min_rate;
 	bool is_ht = false, is_sgi = false;
 	u16 frame_len = sizeof(struct rsi_auto_rate);
@@ -1364,6 +1364,10 @@ static int rsi_send_auto_rate_request(struct rsi_common *common,
 			is_sgi = true;
 	}
 
+	/* Limit to any rates administratively configured by cfg80211 */
+	configured_rates = common->rate_config[band].configured_mask ?: 0xffffffff;
+	rate_bitmap &= configured_rates;
+
 	if (band == NL80211_BAND_2GHZ) {
 		if ((rate_bitmap == 0) && (is_ht))
 			min_rate = RSI_RATE_MCS0;
@@ -1389,10 +1393,13 @@ static int rsi_send_auto_rate_request(struct rsi_common *common,
 	num_supported_rates = jj;
 
 	if (is_ht) {
-		for (ii = 0; ii < ARRAY_SIZE(mcs); ii++)
-			selected_rates[jj++] = mcs[ii];
-		num_supported_rates += ARRAY_SIZE(mcs);
-		rate_offset += ARRAY_SIZE(mcs);
+		for (ii = 0; ii < ARRAY_SIZE(mcs); ii++) {
+			if (configured_rates & BIT(ii + ARRAY_SIZE(rsi_rates))) {
+				selected_rates[jj++] = mcs[ii];
+				num_supported_rates++;
+				rate_offset++;
+			}
+		}
 	}
 
 	sort(selected_rates, jj, sizeof(u16), &rsi_compare, NULL);
@@ -1482,7 +1489,7 @@ void rsi_inform_bss_status(struct rsi_common *common,
 					      qos_enable,
 					      aid, sta_id,
 					      vif);
-		if (common->min_rate == 0xffff)
+		if (!common->rate_config[common->band].fixed_enabled)
 			rsi_send_auto_rate_request(common, sta, sta_id, vif);
 		if (opmode == RSI_OPMODE_STA &&
 		    !(assoc_cap & WLAN_CAPABILITY_PRIVACY) &&
@@ -2071,6 +2078,9 @@ static int rsi_handle_ta_confirm_type(struct rsi_common *common,
 				if (common->reinit_hw) {
 					complete(&common->wlan_init_completion);
 				} else {
+					if (common->bt_defer_attach)
+						rsi_attach_bt(common);
+
 					return rsi_mac80211_attach(common);
 				}
 			}

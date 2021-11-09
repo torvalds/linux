@@ -3777,7 +3777,7 @@ static int ipw_queue_tx_init(struct ipw_priv *priv,
 	    dma_alloc_coherent(&dev->dev, sizeof(q->bd[0]) * count,
 			       &q->q.dma_addr, GFP_KERNEL);
 	if (!q->bd) {
-		IPW_ERROR("pci_alloc_consistent(%zd) failed\n",
+		IPW_ERROR("dma_alloc_coherent(%zd) failed\n",
 			  sizeof(q->bd[0]) * count);
 		kfree(q->txb);
 		q->txb = NULL;

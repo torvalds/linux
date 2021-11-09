@@ -37,7 +37,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.fw = {
 			.dir = "IPQ8074/hw2.0",
 			.board_size = 256 * 1024,
-			.cal_size = 256 * 1024,
+			.cal_offset = 128 * 1024,
 		},
 		.max_radios = 3,
 		.bdf_addr = 0x4B0C0000,
@@ -59,7 +59,17 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.vdev_start_delay = false,
 		.htt_peer_map_v2 = true,
 		.tcl_0_only = false,
-		.spectral_fft_sz = 2,
+
+		.spectral = {
+			.fft_sz = 2,
+			/* HW bug, expected BIN size is 2 bytes but HW report as 4 bytes.
+			 * so added pad size as 2 bytes to compensate the BIN size
+			 */
+			.fft_pad_sz = 2,
+			.summary_pad_sz = 0,
+			.fft_hdr_len = 16,
+			.max_fft_bins = 512,
+		},
 
 		.interface_modes = BIT(NL80211_IFTYPE_STATION) |
 					BIT(NL80211_IFTYPE_AP) |
@@ -78,7 +88,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.fw = {
 			.dir = "IPQ6018/hw1.0",
 			.board_size = 256 * 1024,
-			.cal_size = 256 * 1024,
+			.cal_offset = 128 * 1024,
 		},
 		.max_radios = 2,
 		.bdf_addr = 0x4ABC0000,
@@ -100,7 +110,14 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.vdev_start_delay = false,
 		.htt_peer_map_v2 = true,
 		.tcl_0_only = false,
-		.spectral_fft_sz = 4,
+
+		.spectral = {
+			.fft_sz = 4,
+			.fft_pad_sz = 0,
+			.summary_pad_sz = 0,
+			.fft_hdr_len = 16,
+			.max_fft_bins = 512,
+		},
 
 		.interface_modes = BIT(NL80211_IFTYPE_STATION) |
 					BIT(NL80211_IFTYPE_AP) |
@@ -119,7 +136,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.fw = {
 			.dir = "QCA6390/hw2.0",
 			.board_size = 256 * 1024,
-			.cal_size = 256 * 1024,
+			.cal_offset = 128 * 1024,
 		},
 		.max_radios = 3,
 		.bdf_addr = 0x4B0C0000,
@@ -141,7 +158,14 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.vdev_start_delay = true,
 		.htt_peer_map_v2 = false,
 		.tcl_0_only = true,
-		.spectral_fft_sz = 0,
+
+		.spectral = {
+			.fft_sz = 0,
+			.fft_pad_sz = 0,
+			.summary_pad_sz = 0,
+			.fft_hdr_len = 0,
+			.max_fft_bins = 0,
+		},
 
 		.interface_modes = BIT(NL80211_IFTYPE_STATION) |
 					BIT(NL80211_IFTYPE_AP),
@@ -159,7 +183,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.fw = {
 			.dir = "QCN9074/hw1.0",
 			.board_size = 256 * 1024,
-			.cal_size = 256 * 1024,
+			.cal_offset = 128 * 1024,
 		},
 		.max_radios = 1,
 		.single_pdev_only = false,
@@ -180,6 +204,15 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.vdev_start_delay = false,
 		.htt_peer_map_v2 = true,
 		.tcl_0_only = false,
+
+		.spectral = {
+			.fft_sz = 2,
+			.fft_pad_sz = 0,
+			.summary_pad_sz = 16,
+			.fft_hdr_len = 24,
+			.max_fft_bins = 1024,
+		},
+
 		.interface_modes = BIT(NL80211_IFTYPE_STATION) |
 					BIT(NL80211_IFTYPE_AP) |
 					BIT(NL80211_IFTYPE_MESH_POINT),
@@ -197,7 +230,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.fw = {
 			.dir = "WCN6855/hw2.0",
 			.board_size = 256 * 1024,
-			.cal_size = 256 * 1024,
+			.cal_offset = 128 * 1024,
 		},
 		.max_radios = 3,
 		.bdf_addr = 0x4B0C0000,
@@ -219,7 +252,14 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.vdev_start_delay = true,
 		.htt_peer_map_v2 = false,
 		.tcl_0_only = true,
-		.spectral_fft_sz = 0,
+
+		.spectral = {
+			.fft_sz = 0,
+			.fft_pad_sz = 0,
+			.summary_pad_sz = 0,
+			.fft_hdr_len = 0,
+			.max_fft_bins = 0,
+		},
 
 		.interface_modes = BIT(NL80211_IFTYPE_STATION) |
 					BIT(NL80211_IFTYPE_AP),

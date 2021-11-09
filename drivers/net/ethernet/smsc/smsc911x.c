@@ -2375,7 +2375,7 @@ static int smsc911x_probe_config(struct smsc911x_platform_config *config,
 		phy_interface = PHY_INTERFACE_MODE_NA;
 	config->phy_interface = phy_interface;
 
-	device_get_mac_address(dev, config->mac, ETH_ALEN);
+	device_get_mac_address(dev, config->mac);
 
 	err = device_property_read_u32(dev, "reg-io-width", &width);
 	if (err == -ENXIO)

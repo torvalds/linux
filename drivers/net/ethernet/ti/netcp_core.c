@@ -2035,7 +2035,7 @@ static int netcp_create_interface(struct netcp_device *netcp_device,
 		devm_iounmap(dev, efuse);
 		devm_release_mem_region(dev, res.start, size);
 	} else {
-		ret = of_get_mac_address(node_interface, ndev->dev_addr);
+		ret = of_get_ethdev_address(node_interface, ndev);
 		if (ret)
 			eth_random_addr(ndev->dev_addr);
 	}

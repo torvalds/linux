@@ -218,6 +218,30 @@ static u16 ice_calc_q_handle(struct ice_vsi *vsi, struct ice_ring *ring, u8 tc)
 }
 
 /**
+ * ice_eswitch_calc_q_handle
+ * @ring: pointer to ring which unique index is needed
+ *
+ * To correctly work with many netdevs ring->q_index of Tx rings on switchdev
+ * VSI can repeat. Hardware ring setup requires unique q_index. Calculate it
+ * here by finding index in vsi->tx_rings of this ring.
+ *
+ * Return ICE_INVAL_Q_INDEX when index wasn't found. Should never happen,
+ * because VSI is get from ring->vsi, so it has to be present in this VSI.
+ */
+static u16 ice_eswitch_calc_q_handle(struct ice_ring *ring)
+{
+	struct ice_vsi *vsi = ring->vsi;
+	int i;
+
+	ice_for_each_txq(vsi, i) {
+		if (vsi->tx_rings[i] == ring)
+			return i;
+	}
+
+	return ICE_INVAL_Q_INDEX;
+}
+
+/**
  * ice_cfg_xps_tx_ring - Configure XPS for a Tx ring
  * @ring: The Tx ring to configure
  *
@@ -279,6 +303,9 @@ ice_setup_tx_ctx(struct ice_ring *ring, struct ice_tlan_ctx *tlan_ctx, u16 pf_q)
 		/* Firmware expects vmvf_num to be absolute VF ID */
 		tlan_ctx->vmvf_num = hw->func_caps.vf_base_id + vsi->vf_id;
 		tlan_ctx->vmvf_type = ICE_TLAN_CTX_VMVF_TYPE_VF;
+		break;
+	case ICE_VSI_SWITCHDEV_CTRL:
+		tlan_ctx->vmvf_type = ICE_TLAN_CTX_VMVF_TYPE_VMQ;
 		break;
 	default:
 		return;
@@ -746,7 +773,14 @@ ice_vsi_cfg_txq(struct ice_vsi *vsi, struct ice_ring *ring,
 	/* Add unique software queue handle of the Tx queue per
 	 * TC into the VSI Tx ring
 	 */
-	ring->q_handle = ice_calc_q_handle(vsi, ring, tc);
+	if (vsi->type == ICE_VSI_SWITCHDEV_CTRL) {
+		ring->q_handle = ice_eswitch_calc_q_handle(ring);
+
+		if (ring->q_handle == ICE_INVAL_Q_INDEX)
+			return -ENODEV;
+	} else {
+		ring->q_handle = ice_calc_q_handle(vsi, ring, tc);
+	}
 
 	status = ice_ena_vsi_txq(vsi->port_info, vsi->idx, tc, ring->q_handle,
 				 1, qg_buf, buf_len, NULL);

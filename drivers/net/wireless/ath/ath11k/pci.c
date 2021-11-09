@@ -430,6 +430,8 @@ static void ath11k_pci_force_wake(struct ath11k_base *ab)
 
 static void ath11k_pci_sw_reset(struct ath11k_base *ab, bool power_on)
 {
+	mdelay(100);
+
 	if (power_on) {
 		ath11k_pci_enable_ltssm(ab);
 		ath11k_pci_clear_all_intrs(ab);
@@ -439,9 +441,9 @@ static void ath11k_pci_sw_reset(struct ath11k_base *ab, bool power_on)
 	}
 
 	ath11k_mhi_clear_vector(ab);
+	ath11k_pci_clear_dbg_registers(ab);
 	ath11k_pci_soc_global_reset(ab);
 	ath11k_mhi_set_mhictrl_reset(ab);
-	ath11k_pci_clear_dbg_registers(ab);
 }
 
 int ath11k_pci_get_msi_irq(struct device *dev, unsigned int vector)

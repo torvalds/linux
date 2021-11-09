@@ -17,6 +17,7 @@ struct mlxsw_env_module_info {
 	bool is_overheat;
 	int num_ports_mapped;
 	int num_ports_up;
+	enum ethtool_module_power_mode_policy power_mode_policy;
 };
 
 struct mlxsw_env {
@@ -445,6 +446,152 @@ out:
 }
 EXPORT_SYMBOL(mlxsw_env_reset_module);
 
+int
+mlxsw_env_get_module_power_mode(struct mlxsw_core *mlxsw_core, u8 module,
+				struct ethtool_module_power_mode_params *params,
+				struct netlink_ext_ack *extack)
+{
+	struct mlxsw_env *mlxsw_env = mlxsw_core_env(mlxsw_core);
+	char mcion_pl[MLXSW_REG_MCION_LEN];
+	u32 status_bits;
+	int err;
+
+	if (WARN_ON_ONCE(module >= mlxsw_env->module_count))
+		return -EINVAL;
+
+	mutex_lock(&mlxsw_env->module_info_lock);
+
+	params->policy = mlxsw_env->module_info[module].power_mode_policy;
+
+	mlxsw_reg_mcion_pack(mcion_pl, module);
+	err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(mcion), mcion_pl);
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack, "Failed to retrieve module's power mode");
+		goto out;
+	}
+
+	status_bits = mlxsw_reg_mcion_module_status_bits_get(mcion_pl);
+	if (!(status_bits & MLXSW_REG_MCION_MODULE_STATUS_BITS_PRESENT_MASK))
+		goto out;
+
+	if (status_bits & MLXSW_REG_MCION_MODULE_STATUS_BITS_LOW_POWER_MASK)
+		params->mode = ETHTOOL_MODULE_POWER_MODE_LOW;
+	else
+		params->mode = ETHTOOL_MODULE_POWER_MODE_HIGH;
+
+out:
+	mutex_unlock(&mlxsw_env->module_info_lock);
+	return err;
+}
+EXPORT_SYMBOL(mlxsw_env_get_module_power_mode);
+
+static int mlxsw_env_module_enable_set(struct mlxsw_core *mlxsw_core,
+				       u8 module, bool enable)
+{
+	enum mlxsw_reg_pmaos_admin_status admin_status;
+	char pmaos_pl[MLXSW_REG_PMAOS_LEN];
+
+	mlxsw_reg_pmaos_pack(pmaos_pl, module);
+	admin_status = enable ? MLXSW_REG_PMAOS_ADMIN_STATUS_ENABLED :
+				MLXSW_REG_PMAOS_ADMIN_STATUS_DISABLED;
+	mlxsw_reg_pmaos_admin_status_set(pmaos_pl, admin_status);
+	mlxsw_reg_pmaos_ase_set(pmaos_pl, true);
+
+	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(pmaos), pmaos_pl);
+}
+
+static int mlxsw_env_module_low_power_set(struct mlxsw_core *mlxsw_core,
+					  u8 module, bool low_power)
+{
+	u16 eeprom_override_mask, eeprom_override;
+	char pmmp_pl[MLXSW_REG_PMMP_LEN];
+
+	mlxsw_reg_pmmp_pack(pmmp_pl, module);
+	mlxsw_reg_pmmp_sticky_set(pmmp_pl, true);
+	/* Mask all the bits except low power mode. */
+	eeprom_override_mask = ~MLXSW_REG_PMMP_EEPROM_OVERRIDE_LOW_POWER_MASK;
+	mlxsw_reg_pmmp_eeprom_override_mask_set(pmmp_pl, eeprom_override_mask);
+	eeprom_override = low_power ? MLXSW_REG_PMMP_EEPROM_OVERRIDE_LOW_POWER_MASK :
+				      0;
+	mlxsw_reg_pmmp_eeprom_override_set(pmmp_pl, eeprom_override);
+
+	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(pmmp), pmmp_pl);
+}
+
+static int __mlxsw_env_set_module_power_mode(struct mlxsw_core *mlxsw_core,
+					     u8 module, bool low_power,
+					     struct netlink_ext_ack *extack)
+{
+	int err;
+
+	err = mlxsw_env_module_enable_set(mlxsw_core, module, false);
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack, "Failed to disable module");
+		return err;
+	}
+
+	err = mlxsw_env_module_low_power_set(mlxsw_core, module, low_power);
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack, "Failed to set module's power mode");
+		goto err_module_low_power_set;
+	}
+
+	err = mlxsw_env_module_enable_set(mlxsw_core, module, true);
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack, "Failed to enable module");
+		goto err_module_enable_set;
+	}
+
+	return 0;
+
+err_module_enable_set:
+	mlxsw_env_module_low_power_set(mlxsw_core, module, !low_power);
+err_module_low_power_set:
+	mlxsw_env_module_enable_set(mlxsw_core, module, true);
+	return err;
+}
+
+int
+mlxsw_env_set_module_power_mode(struct mlxsw_core *mlxsw_core, u8 module,
+				enum ethtool_module_power_mode_policy policy,
+				struct netlink_ext_ack *extack)
+{
+	struct mlxsw_env *mlxsw_env = mlxsw_core_env(mlxsw_core);
+	bool low_power;
+	int err = 0;
+
+	if (WARN_ON_ONCE(module >= mlxsw_env->module_count))
+		return -EINVAL;
+
+	if (policy != ETHTOOL_MODULE_POWER_MODE_POLICY_HIGH &&
+	    policy != ETHTOOL_MODULE_POWER_MODE_POLICY_AUTO) {
+		NL_SET_ERR_MSG_MOD(extack, "Unsupported power mode policy");
+		return -EOPNOTSUPP;
+	}
+
+	mutex_lock(&mlxsw_env->module_info_lock);
+
+	if (mlxsw_env->module_info[module].power_mode_policy == policy)
+		goto out;
+
+	/* If any ports are up, we are already in high power mode. */
+	if (mlxsw_env->module_info[module].num_ports_up)
+		goto out_set_policy;
+
+	low_power = policy == ETHTOOL_MODULE_POWER_MODE_POLICY_AUTO;
+	err = __mlxsw_env_set_module_power_mode(mlxsw_core, module, low_power,
+						extack);
+	if (err)
+		goto out;
+
+out_set_policy:
+	mlxsw_env->module_info[module].power_mode_policy = policy;
+out:
+	mutex_unlock(&mlxsw_env->module_info_lock);
+	return err;
+}
+EXPORT_SYMBOL(mlxsw_env_set_module_power_mode);
+
 static int mlxsw_env_module_has_temp_sensor(struct mlxsw_core *mlxsw_core,
 					    u8 module,
 					    bool *p_has_temp_sensor)
@@ -794,15 +941,33 @@ EXPORT_SYMBOL(mlxsw_env_module_port_unmap);
 int mlxsw_env_module_port_up(struct mlxsw_core *mlxsw_core, u8 module)
 {
 	struct mlxsw_env *mlxsw_env = mlxsw_core_env(mlxsw_core);
+	int err = 0;
 
 	if (WARN_ON_ONCE(module >= mlxsw_env->module_count))
 		return -EINVAL;
 
 	mutex_lock(&mlxsw_env->module_info_lock);
-	mlxsw_env->module_info[module].num_ports_up++;
-	mutex_unlock(&mlxsw_env->module_info_lock);
 
-	return 0;
+	if (mlxsw_env->module_info[module].power_mode_policy !=
+	    ETHTOOL_MODULE_POWER_MODE_POLICY_AUTO)
+		goto out_inc;
+
+	if (mlxsw_env->module_info[module].num_ports_up != 0)
+		goto out_inc;
+
+	/* Transition to high power mode following first port using the module
+	 * being put administratively up.
+	 */
+	err = __mlxsw_env_set_module_power_mode(mlxsw_core, module, false,
+						NULL);
+	if (err)
+		goto out_unlock;
+
+out_inc:
+	mlxsw_env->module_info[module].num_ports_up++;
+out_unlock:
+	mutex_unlock(&mlxsw_env->module_info_lock);
+	return err;
 }
 EXPORT_SYMBOL(mlxsw_env_module_port_up);
 
@@ -814,7 +979,22 @@ void mlxsw_env_module_port_down(struct mlxsw_core *mlxsw_core, u8 module)
 		return;
 
 	mutex_lock(&mlxsw_env->module_info_lock);
+
 	mlxsw_env->module_info[module].num_ports_up--;
+
+	if (mlxsw_env->module_info[module].power_mode_policy !=
+	    ETHTOOL_MODULE_POWER_MODE_POLICY_AUTO)
+		goto out_unlock;
+
+	if (mlxsw_env->module_info[module].num_ports_up != 0)
+		goto out_unlock;
+
+	/* Transition to low power mode following last port using the module
+	 * being put administratively down.
+	 */
+	__mlxsw_env_set_module_power_mode(mlxsw_core, module, true, NULL);
+
+out_unlock:
 	mutex_unlock(&mlxsw_env->module_info_lock);
 }
 EXPORT_SYMBOL(mlxsw_env_module_port_down);
@@ -824,7 +1004,7 @@ int mlxsw_env_init(struct mlxsw_core *mlxsw_core, struct mlxsw_env **p_env)
 	char mgpir_pl[MLXSW_REG_MGPIR_LEN];
 	struct mlxsw_env *env;
 	u8 module_count;
-	int err;
+	int i, err;
 
 	mlxsw_reg_mgpir_pack(mgpir_pl);
 	err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(mgpir), mgpir_pl);
@@ -836,6 +1016,13 @@ int mlxsw_env_init(struct mlxsw_core *mlxsw_core, struct mlxsw_env **p_env)
 	env = kzalloc(struct_size(env, module_info, module_count), GFP_KERNEL);
 	if (!env)
 		return -ENOMEM;
+
+	/* Firmware defaults to high power mode policy where modules are
+	 * transitioned to high power mode following plug-in.
+	 */
+	for (i = 0; i < module_count; i++)
+		env->module_info[i].power_mode_policy =
+			ETHTOOL_MODULE_POWER_MODE_POLICY_HIGH;
 
 	mutex_init(&env->module_info_lock);
 	env->core = mlxsw_core;

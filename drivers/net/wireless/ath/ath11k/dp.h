@@ -195,6 +195,7 @@ struct ath11k_pdev_dp {
 #define DP_RXDMA_MONITOR_DESC_RING_SIZE	4096
 
 #define DP_RX_BUFFER_SIZE	2048
+#define	DP_RX_BUFFER_SIZE_LITE  1024
 #define DP_RX_BUFFER_ALIGN_SIZE	128
 
 #define DP_RXDMA_BUF_COOKIE_BUF_ID	GENMASK(17, 0)
@@ -1591,6 +1592,13 @@ struct ath11k_htt_extd_stats_msg {
 	u32 info1;
 	u8 data[0];
 } __packed;
+
+#define	HTT_MAC_ADDR_L32_0	GENMASK(7, 0)
+#define	HTT_MAC_ADDR_L32_1	GENMASK(15, 8)
+#define	HTT_MAC_ADDR_L32_2	GENMASK(23, 16)
+#define	HTT_MAC_ADDR_L32_3	GENMASK(31, 24)
+#define	HTT_MAC_ADDR_H16_0	GENMASK(7, 0)
+#define	HTT_MAC_ADDR_H16_1	GENMASK(15, 8)
 
 struct htt_mac_addr {
 	u32 mac_addr_l32;

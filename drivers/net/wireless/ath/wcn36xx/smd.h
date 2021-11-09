@@ -163,4 +163,7 @@ int wcn36xx_smd_wlan_host_suspend_ind(struct wcn36xx *wcn);
 
 int wcn36xx_smd_host_resume(struct wcn36xx *wcn);
 
+int wcn36xx_smd_enter_imps(struct wcn36xx *wcn);
+int wcn36xx_smd_exit_imps(struct wcn36xx *wcn);
+
 #endif	/* _SMD_H_ */

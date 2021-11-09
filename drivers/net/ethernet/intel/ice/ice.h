@@ -63,6 +63,7 @@
 #include "ice_fdir.h"
 #include "ice_xsk.h"
 #include "ice_arfs.h"
+#include "ice_repr.h"
 #include "ice_lag.h"
 
 #define ICE_BAR0		0
@@ -84,6 +85,7 @@
 #define ICE_FDIR_MSIX		2
 #define ICE_RDMA_NUM_AEQ_MSIX	4
 #define ICE_MIN_RDMA_MSIX	2
+#define ICE_ESWITCH_MSIX	1
 #define ICE_NO_VSI		0xffff
 #define ICE_VSI_MAP_CONTIG	0
 #define ICE_VSI_MAP_SCATTER	1
@@ -311,10 +313,6 @@ struct ice_vsi {
 	spinlock_t arfs_lock;	/* protects aRFS hash table and filter state */
 	atomic_t *arfs_last_fltr_id;
 
-	/* devlink port data */
-	struct devlink_port devlink_port;
-	bool devlink_port_registered;
-
 	u16 max_frame;
 	u16 rx_buf_len;
 
@@ -353,6 +351,8 @@ struct ice_vsi {
 	unsigned long *af_xdp_zc_qps;	 /* tracks AF_XDP ZC enabled qps */
 	u16 num_xdp_txq;		 /* Used XDP queues */
 	u8 xdp_mapping_mode;		 /* ICE_MAP_MODE_[CONTIG|SCATTER] */
+
+	struct net_device **target_netdevs;
 
 	/* setup back reference, to which aggregator node this VSI
 	 * corresponds to
@@ -413,6 +413,12 @@ enum ice_pf_flags {
 	ICE_PF_FLAGS_NBITS		/* must be last */
 };
 
+struct ice_switchdev_info {
+	struct ice_vsi *control_vsi;
+	struct ice_vsi *uplink_vsi;
+	bool is_running;
+};
+
 struct ice_agg_node {
 	u32 agg_id;
 #define ICE_MAX_VSIS_IN_AGG_NODE	64
@@ -425,6 +431,9 @@ struct ice_pf {
 
 	struct devlink_region *nvm_region;
 	struct devlink_region *devcaps_region;
+
+	/* devlink port data */
+	struct devlink_port devlink_port;
 
 	/* OS reserved IRQ details */
 	struct msix_entry *msix_entries;
@@ -439,6 +448,7 @@ struct ice_pf {
 
 	struct ice_vsi **vsi;		/* VSIs created by the driver */
 	struct ice_sw *first_sw;	/* first switch created by firmware */
+	u16 eswitch_mode;		/* current mode of eswitch */
 	/* Virtchnl/SR-IOV config info */
 	struct ice_vf *vf;
 	u16 num_alloc_vfs;		/* actual number of VFs allocated */
@@ -507,6 +517,8 @@ struct ice_pf {
 	struct ice_link_default_override_tlv link_dflt_override;
 	struct ice_lag *lag; /* Link Aggregation information */
 
+	struct ice_switchdev_info switchdev;
+
 #define ICE_INVALID_AGG_NODE_ID		0
 #define ICE_PF_AGG_NODE_ID_START	1
 #define ICE_MAX_PF_AGG_NODES		32
@@ -518,6 +530,7 @@ struct ice_pf {
 
 struct ice_netdev_priv {
 	struct ice_vsi *vsi;
+	struct ice_repr *repr;
 };
 
 /**
@@ -603,6 +616,19 @@ static inline struct ice_vsi *ice_get_main_vsi(struct ice_pf *pf)
 }
 
 /**
+ * ice_get_netdev_priv_vsi - return VSI associated with netdev priv.
+ * @np: private netdev structure
+ */
+static inline struct ice_vsi *ice_get_netdev_priv_vsi(struct ice_netdev_priv *np)
+{
+	/* In case of port representor return source port VSI. */
+	if (np->repr)
+		return np->repr->src_vsi;
+	else
+		return np->vsi;
+}
+
+/**
  * ice_get_ctrl_vsi - Get the control VSI
  * @pf: PF instance
  */
@@ -613,6 +639,18 @@ static inline struct ice_vsi *ice_get_ctrl_vsi(struct ice_pf *pf)
 		return NULL;
 
 	return pf->vsi[pf->ctrl_vsi_idx];
+}
+
+/**
+ * ice_is_switchdev_running - check if switchdev is configured
+ * @pf: pointer to PF structure
+ *
+ * Returns true if eswitch mode is set to DEVLINK_ESWITCH_MODE_SWITCHDEV
+ * and switchdev is configured, false otherwise.
+ */
+static inline bool ice_is_switchdev_running(struct ice_pf *pf)
+{
+	return pf->switchdev.is_running;
 }
 
 /**
@@ -643,7 +681,9 @@ bool netif_is_ice(struct net_device *dev);
 int ice_vsi_setup_tx_rings(struct ice_vsi *vsi);
 int ice_vsi_setup_rx_rings(struct ice_vsi *vsi);
 int ice_vsi_open_ctrl(struct ice_vsi *vsi);
+int ice_vsi_open(struct ice_vsi *vsi);
 void ice_set_ethtool_ops(struct net_device *netdev);
+void ice_set_ethtool_repr_ops(struct net_device *netdev);
 void ice_set_ethtool_safe_mode_ops(struct net_device *netdev);
 u16 ice_get_avail_txq_count(struct ice_pf *pf);
 u16 ice_get_avail_rxq_count(struct ice_pf *pf);

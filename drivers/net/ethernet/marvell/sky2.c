@@ -4720,7 +4720,7 @@ static struct net_device *sky2_init_netdev(struct sky2_hw *hw, unsigned port,
 	 * 1) from device tree data
 	 * 2) from internal registers set by bootloader
 	 */
-	ret = of_get_mac_address(hw->pdev->dev.of_node, dev->dev_addr);
+	ret = of_get_ethdev_address(hw->pdev->dev.of_node, dev);
 	if (ret)
 		memcpy_fromio(dev->dev_addr, hw->regs + B2_MAC_1 + port * 8,
 			      ETH_ALEN);

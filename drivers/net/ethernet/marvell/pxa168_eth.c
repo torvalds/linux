@@ -1434,7 +1434,7 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 
 	INIT_WORK(&pep->tx_timeout_task, pxa168_eth_tx_timeout_task);
 
-	err = of_get_mac_address(pdev->dev.of_node, dev->dev_addr);
+	err = of_get_ethdev_address(pdev->dev.of_node, dev);
 	if (err) {
 		/* try reading the mac address, if set by the bootloader */
 		pxa168_eth_get_mac_address(dev, dev->dev_addr);
