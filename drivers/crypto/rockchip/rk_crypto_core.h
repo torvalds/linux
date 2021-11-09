@@ -30,6 +30,10 @@
 
 #define RK_CRYPTO_PRIORITY		300
 
+/*  Increase the addr_vir buffer size from 1 to 8 pages */
+#define RK_BUFFER_ORDER			3
+#define RK_BUFFER_SIZE			(PAGE_SIZE << RK_BUFFER_ORDER)
+
 struct rk_crypto_soc_data {
 	char				**valid_algs_name;
 	int				valid_algs_num;
@@ -66,6 +70,7 @@ struct rk_crypto_dev {
 	/* the public variable */
 	struct crypto_async_request	*async_req;
 	void				*addr_vir;
+	u32				vir_max;
 
 	bool				busy;
 	void (*request_crypto)(struct rk_crypto_dev *rk_dev, const char *name);

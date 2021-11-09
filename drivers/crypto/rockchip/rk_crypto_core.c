@@ -169,8 +169,8 @@ static int rk_load_data(struct rk_crypto_dev *rk_dev,
 			alg_ctx->addr_out = sg_dma_address(sg_dst);
 		}
 	} else {
-		count = (alg_ctx->left_bytes > PAGE_SIZE) ?
-			PAGE_SIZE : alg_ctx->left_bytes;
+		count = (alg_ctx->left_bytes > rk_dev->vir_max) ?
+			rk_dev->vir_max : alg_ctx->left_bytes;
 
 		if (!sg_pcopy_to_buffer(alg_ctx->req_src, alg_ctx->src_nents,
 					rk_dev->addr_vir, count,
@@ -674,12 +674,14 @@ static int rk_crypto_probe(struct platform_device *pdev)
 		goto err_crypto;
 	}
 
-	rk_dev->addr_vir = (char *)__get_free_page(GFP_KERNEL);
+	rk_dev->addr_vir = (void *)__get_free_pages(GFP_KERNEL, RK_BUFFER_ORDER);
 	if (!rk_dev->addr_vir) {
 		err = -ENOMEM;
 		dev_err(dev, "__get_free_page failed.\n");
 		goto err_crypto;
 	}
+
+	rk_dev->vir_max = RK_BUFFER_SIZE;
 
 	platform_set_drvdata(pdev, rk_dev);
 
