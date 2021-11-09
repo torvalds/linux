@@ -66,6 +66,7 @@ typedef enum {
 	KVM_SET_LEVEL_INFO_HIGH,
 	KVM_INJECT_IRQFD,
 	KVM_WRITE_ISPENDR,
+	KVM_WRITE_ISACTIVER,
 } kvm_inject_cmd;
 
 struct kvm_inject_args {
@@ -96,6 +97,9 @@ static void kvm_inject_get_call(struct kvm_vm *vm, struct ucall *uc,
 #define KVM_INJECT(cmd, intid)							\
 	_KVM_INJECT_MULTI(cmd, intid, 1, false)
 
+#define KVM_ACTIVATE(cmd, intid)						\
+	kvm_inject_call(cmd, intid, 1, 1, false);
+
 struct kvm_inject_desc {
 	kvm_inject_cmd cmd;
 	/* can inject PPIs, PPIs, and/or SPIs. */
@@ -119,12 +123,21 @@ static struct kvm_inject_desc inject_level_fns[] = {
 	{ 0, },
 };
 
+static struct kvm_inject_desc set_active_fns[] = {
+	/*                                      sgi    ppi    spi */
+	{ KVM_WRITE_ISACTIVER,			true,  true,  true },
+	{ 0, },
+};
+
 #define for_each_inject_fn(t, f)						\
 	for ((f) = (t); (f)->cmd; (f)++)
 
 #define for_each_supported_inject_fn(args, t, f)				\
 	for_each_inject_fn(t, f)						\
 		if ((args)->kvm_supports_irqfd || (f)->cmd != KVM_INJECT_IRQFD)
+
+#define for_each_supported_activate_fn(args, t, f)				\
+	for_each_supported_inject_fn((args), (t), (f))
 
 /* Shared between the guest main thread and the IRQ handlers. */
 volatile uint64_t irq_handled;
@@ -145,6 +158,12 @@ static uint64_t gic_read_ap1r0(void)
 
 	dsb(sy);
 	return reg;
+}
+
+static void gic_write_ap1r0(uint64_t val)
+{
+	write_sysreg_s(val, SYS_ICV_AP1R0_EL1);
+	isb();
 }
 
 static void guest_set_irq_line(uint32_t intid, uint32_t level);
@@ -275,6 +294,55 @@ static void guest_inject(struct test_args *args,
 }
 
 /*
+ * Restore the active state of multiple concurrent IRQs (given by
+ * concurrent_irqs).  This does what a live-migration would do on the
+ * destination side assuming there are some active IRQs that were not
+ * deactivated yet.
+ */
+static void guest_restore_active(struct test_args *args,
+		uint32_t first_intid, uint32_t num,
+		kvm_inject_cmd cmd)
+{
+	uint32_t prio, intid, ap1r;
+	int i;
+
+	/* Set the priorities of the first (KVM_NUM_PRIOS - 1) IRQs
+	 * in descending order, so intid+1 can preempt intid.
+	 */
+	for (i = 0, prio = (num - 1) * 8; i < num; i++, prio -= 8) {
+		GUEST_ASSERT(prio >= 0);
+		intid = i + first_intid;
+		gic_set_priority(intid, prio);
+	}
+
+	/* In a real migration, KVM would restore all GIC state before running
+	 * guest code.
+	 */
+	for (i = 0; i < num; i++) {
+		intid = i + first_intid;
+		KVM_ACTIVATE(cmd, intid);
+		ap1r = gic_read_ap1r0();
+		ap1r |= 1U << i;
+		gic_write_ap1r0(ap1r);
+	}
+
+	/* This is where the "migration" would occur. */
+
+	/* finish handling the IRQs starting with the highest priority one. */
+	for (i = 0; i < num; i++) {
+		intid = num - i - 1 + first_intid;
+		gic_set_eoi(intid);
+		if (args->eoi_split)
+			gic_set_dir(intid);
+	}
+
+	for (i = 0; i < num; i++)
+		GUEST_ASSERT(!gic_irq_get_active(i + first_intid));
+	GUEST_ASSERT_EQ(gic_read_ap1r0(), 0);
+	GUEST_ASSERT_IAR_EMPTY();
+}
+
+/*
  * Polls the IAR until it's not a spurious interrupt.
  *
  * This function should only be used in test_inject_preemption (with IRQs
@@ -391,6 +459,19 @@ static void test_preemption(struct test_args *args, struct kvm_inject_desc *f)
 		test_inject_preemption(args, MIN_SPI, 4, f->cmd);
 }
 
+static void test_restore_active(struct test_args *args, struct kvm_inject_desc *f)
+{
+	/* Test up to 4 active IRQs. Same reason as in test_preemption. */
+	if (f->sgi)
+		guest_restore_active(args, MIN_SGI, 4, f->cmd);
+
+	if (f->ppi)
+		guest_restore_active(args, MIN_PPI, 4, f->cmd);
+
+	if (f->spi)
+		guest_restore_active(args, MIN_SPI, 4, f->cmd);
+}
+
 static void guest_code(struct test_args args)
 {
 	uint32_t i, nr_irqs = args.nr_irqs;
@@ -421,6 +502,12 @@ static void guest_code(struct test_args args)
 		test_preemption(&args, f);
 		test_injection_failure(&args, f);
 	}
+
+	/* Restore the active state of IRQs. This would happen when live
+	 * migrating IRQs in the middle of being handled.
+	 */
+	for_each_supported_activate_fn(&args, set_active_fns, f)
+		test_restore_active(&args, f);
 
 	GUEST_DONE();
 }
@@ -618,6 +705,10 @@ static void run_guest_cmd(struct kvm_vm *vm, int gic_fd,
 		for (i = intid; i < intid + num; i++)
 			kvm_irq_write_ispendr_check(gic_fd, i,
 					VCPU_ID, expect_failure);
+		break;
+	case KVM_WRITE_ISACTIVER:
+		for (i = intid; i < intid + num; i++)
+			kvm_irq_write_isactiver(gic_fd, i, VCPU_ID);
 		break;
 	default:
 		break;
