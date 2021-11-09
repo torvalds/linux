@@ -50,6 +50,7 @@
 #include "smc_rx.h"
 #include "smc_close.h"
 #include "smc_stats.h"
+#include "smc_tracepoint.h"
 
 static DEFINE_MUTEX(smc_server_lgr_pending);	/* serialize link group
 						 * creation on server
@@ -564,6 +565,7 @@ static void smc_switch_to_fallback(struct smc_sock *smc, int reason_code)
 	smc->use_fallback = true;
 	smc->fallback_rsn = reason_code;
 	smc_stat_fallback(smc);
+	trace_smc_switch_to_fallback(smc, reason_code);
 	if (smc->sk.sk_socket && smc->sk.sk_socket->file) {
 		smc->clcsock->file = smc->sk.sk_socket->file;
 		smc->clcsock->file->private_data = smc->clcsock;

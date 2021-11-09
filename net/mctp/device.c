@@ -260,6 +260,24 @@ void mctp_dev_put(struct mctp_dev *mdev)
 	}
 }
 
+void mctp_dev_release_key(struct mctp_dev *dev, struct mctp_sk_key *key)
+	__must_hold(&key->lock)
+{
+	if (!dev)
+		return;
+	if (dev->ops && dev->ops->release_flow)
+		dev->ops->release_flow(dev, key);
+	key->dev = NULL;
+	mctp_dev_put(dev);
+}
+
+void mctp_dev_set_key(struct mctp_dev *dev, struct mctp_sk_key *key)
+	__must_hold(&key->lock)
+{
+	mctp_dev_hold(dev);
+	key->dev = dev;
+}
+
 static struct mctp_dev *mctp_add_dev(struct net_device *dev)
 {
 	struct mctp_dev *mdev;
@@ -413,6 +431,39 @@ static int mctp_dev_notify(struct notifier_block *this, unsigned long event,
 
 	return NOTIFY_OK;
 }
+
+static int mctp_register_netdevice(struct net_device *dev,
+				   const struct mctp_netdev_ops *ops)
+{
+	struct mctp_dev *mdev;
+
+	mdev = mctp_add_dev(dev);
+	if (IS_ERR(mdev))
+		return PTR_ERR(mdev);
+
+	mdev->ops = ops;
+
+	return register_netdevice(dev);
+}
+
+int mctp_register_netdev(struct net_device *dev,
+			 const struct mctp_netdev_ops *ops)
+{
+	int rc;
+
+	rtnl_lock();
+	rc = mctp_register_netdevice(dev, ops);
+	rtnl_unlock();
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(mctp_register_netdev);
+
+void mctp_unregister_netdev(struct net_device *dev)
+{
+	unregister_netdev(dev);
+}
+EXPORT_SYMBOL_GPL(mctp_unregister_netdev);
 
 static struct rtnl_af_ops mctp_af_ops = {
 	.family = AF_MCTP,

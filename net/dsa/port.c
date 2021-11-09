@@ -1168,6 +1168,10 @@ static int dsa_port_phylink_register(struct dsa_port *dp)
 	dp->pl_config.type = PHYLINK_DEV;
 	dp->pl_config.pcs_poll = ds->pcs_poll;
 
+	if (ds->ops->phylink_get_interfaces)
+		ds->ops->phylink_get_interfaces(ds, dp->index,
+					dp->pl_config.supported_interfaces);
+
 	dp->pl = phylink_create(&dp->pl_config, of_fwnode_handle(port_dn),
 				mode, &dsa_port_phylink_mac_ops);
 	if (IS_ERR(dp->pl)) {

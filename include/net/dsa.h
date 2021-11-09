@@ -645,6 +645,8 @@ struct dsa_switch_ops {
 	/*
 	 * PHYLINK integration
 	 */
+	void	(*phylink_get_interfaces)(struct dsa_switch *ds, int port,
+					  unsigned long *supported_interfaces);
 	void	(*phylink_validate)(struct dsa_switch *ds, int port,
 				    unsigned long *supported,
 				    struct phylink_link_state *state);

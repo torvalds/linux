@@ -844,7 +844,7 @@ netxen_check_options(struct netxen_adapter *adapter)
 	adapter->fw_version = NETXEN_VERSION_CODE(fw_major, fw_minor, fw_build);
 
 	/* Get FW Mini Coredump template and store it */
-	 if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
 		if (adapter->mdump.md_template == NULL ||
 				adapter->fw_version > prev_fw_version) {
 			kfree(adapter->mdump.md_template);

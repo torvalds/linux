@@ -38,6 +38,7 @@
 #include "eswitch.h"
 #include "en/tc_ct.h"
 #include "en/tc_tun.h"
+#include "en/tc/int_port.h"
 #include "en_rep.h"
 
 #define MLX5E_TC_FLOW_ID_MASK 0x0000ffff
@@ -56,7 +57,7 @@
 int mlx5e_tc_num_filters(struct mlx5e_priv *priv, unsigned long flags);
 
 struct mlx5e_tc_update_priv {
-	struct net_device *tun_dev;
+	struct net_device *fwd_dev;
 };
 
 struct mlx5_nic_flow_attr {
@@ -103,6 +104,8 @@ struct mlx5_rx_tun_attr {
 
 #define MLX5E_TC_TABLE_CHAIN_TAG_BITS 16
 #define MLX5E_TC_TABLE_CHAIN_TAG_MASK GENMASK(MLX5E_TC_TABLE_CHAIN_TAG_BITS - 1, 0)
+
+#define MLX5E_TC_MAX_INT_PORT_NUM (8)
 
 #if IS_ENABLED(CONFIG_MLX5_CLS_ACT)
 
@@ -283,6 +286,12 @@ bool mlx5e_tc_is_vf_tunnel(struct net_device *out_dev, struct net_device *route_
 int mlx5e_tc_query_route_vport(struct net_device *out_dev, struct net_device *route_dev,
 			       u16 *vport);
 
+int mlx5e_set_fwd_to_int_port_actions(struct mlx5e_priv *priv,
+				      struct mlx5_flow_attr *attr,
+				      int ifindex,
+				      enum mlx5e_tc_int_port_type type,
+				      u32 *action,
+				      int out_index);
 #else /* CONFIG_MLX5_CLS_ACT */
 static inline int  mlx5e_tc_nic_init(struct mlx5e_priv *priv) { return 0; }
 static inline void mlx5e_tc_nic_cleanup(struct mlx5e_priv *priv) {}

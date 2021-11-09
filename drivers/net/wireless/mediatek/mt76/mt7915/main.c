@@ -172,6 +172,9 @@ static void mt7915_init_bitrate_mask(struct ieee80211_vif *vif)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(mvif->bitrate_mask.control); i++) {
+		mvif->bitrate_mask.control[i].gi = NL80211_TXRATE_DEFAULT_GI;
+		mvif->bitrate_mask.control[i].he_gi = GENMASK(7, 0);
+		mvif->bitrate_mask.control[i].he_ltf = GENMASK(7, 0);
 		mvif->bitrate_mask.control[i].legacy = GENMASK(31, 0);
 		memset(mvif->bitrate_mask.control[i].ht_mcs, GENMASK(7, 0),
 		       sizeof(mvif->bitrate_mask.control[i].ht_mcs));
@@ -663,7 +666,7 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	if (ret)
 		return ret;
 
-	return mt7915_mcu_add_rate_ctrl(dev, vif, sta);
+	return mt7915_mcu_add_rate_ctrl(dev, vif, sta, false);
 }
 
 void mt7915_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
@@ -994,7 +997,6 @@ static void mt7915_sta_rc_work(void *data, struct ieee80211_sta *sta)
 {
 	struct mt7915_sta *msta = (struct mt7915_sta *)sta->drv_priv;
 	struct mt7915_dev *dev = msta->vif->phy->dev;
-	struct ieee80211_hw *hw = msta->vif->phy->mt76->hw;
 	u32 *changed = data;
 
 	spin_lock_bh(&dev->sta_poll_lock);
@@ -1002,8 +1004,6 @@ static void mt7915_sta_rc_work(void *data, struct ieee80211_sta *sta)
 	if (list_empty(&msta->rc_list))
 		list_add_tail(&msta->rc_list, &dev->sta_rc_list);
 	spin_unlock_bh(&dev->sta_poll_lock);
-
-	ieee80211_queue_work(hw, &dev->rc_work);
 }
 
 static void mt7915_sta_rc_update(struct ieee80211_hw *hw,
@@ -1011,7 +1011,11 @@ static void mt7915_sta_rc_update(struct ieee80211_hw *hw,
 				 struct ieee80211_sta *sta,
 				 u32 changed)
 {
+	struct mt7915_phy *phy = mt7915_hw_phy(hw);
+	struct mt7915_dev *dev = phy->dev;
+
 	mt7915_sta_rc_work(&changed, sta);
+	ieee80211_queue_work(hw, &dev->rc_work);
 }
 
 static int
@@ -1019,22 +1023,22 @@ mt7915_set_bitrate_mask(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			const struct cfg80211_bitrate_mask *mask)
 {
 	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
-	enum nl80211_band band = mvif->phy->mt76->chandef.chan->band;
-	u32 changed;
+	struct mt7915_phy *phy = mt7915_hw_phy(hw);
+	struct mt7915_dev *dev = phy->dev;
+	u32 changed = IEEE80211_RC_SUPP_RATES_CHANGED;
 
-	if (mask->control[band].gi == NL80211_TXRATE_FORCE_LGI)
-		return -EINVAL;
-
-	changed = IEEE80211_RC_SUPP_RATES_CHANGED;
 	mvif->bitrate_mask = *mask;
 
-	/* Update firmware rate control to add a boundary on top of table
-	 * to limit the rate selection for each peer, so when set bitrates
-	 * vht-mcs-5 1:9, which actually means nss = 1 mcs = 0~9. This only
-	 * applies to data frames as for the other mgmt, mcast, bcast still
-	 * use legacy rates as it is.
+	/* if multiple rates across different preambles are given we can
+	 * reconfigure this info with all peers using sta_rec command with
+	 * the below exception cases.
+	 * - single rate : if a rate is passed along with different preambles,
+	 * we select the highest one as fixed rate. i.e VHT MCS for VHT peers.
+	 * - multiple rates: if it's not in range format i.e 0-{7,8,9} for VHT
+	 * then multiple MCS setting (MCS 4,5,6) is not supported.
 	 */
 	ieee80211_iterate_stations_atomic(hw, mt7915_sta_rc_work, &changed);
+	ieee80211_queue_work(hw, &dev->rc_work);
 
 	return 0;
 }

@@ -739,6 +739,7 @@ int ath11k_dp_service_srng(struct ath11k_base *ab,
 			   int budget)
 {
 	struct napi_struct *napi = &irq_grp->napi;
+	const struct ath11k_hw_hal_params *hal_params;
 	int grp_id = irq_grp->grp_id;
 	int work_done = 0;
 	int i = 0, j;
@@ -821,8 +822,9 @@ int ath11k_dp_service_srng(struct ath11k_base *ab,
 				struct ath11k_pdev_dp *dp = &ar->dp;
 				struct dp_rxdma_ring *rx_ring = &dp->rx_refill_buf_ring;
 
+				hal_params = ab->hw_params.hal_params;
 				ath11k_dp_rxbufs_replenish(ab, id, rx_ring, 0,
-							   HAL_RX_BUF_RBM_SW3_BM);
+							   hal_params->rx_buf_rbm);
 			}
 		}
 	}

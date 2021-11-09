@@ -291,6 +291,22 @@ config GTP
 	  To compile this drivers as a module, choose M here: the module
 	  will be called gtp.
 
+config AMT
+	tristate "Automatic Multicast Tunneling (AMT)"
+	depends on INET && IP_MULTICAST
+	select NET_UDP_TUNNEL
+	help
+	  This allows one to create AMT(Automatic Multicast Tunneling)
+	  virtual interfaces that provide multicast tunneling.
+	  There are two roles, Gateway, and Relay.
+	  Gateway Encapsulates IGMP/MLD traffic from listeners to the Relay.
+	  Gateway Decapsulates multicast traffic from the Relay to Listeners.
+	  Relay Encapsulates multicast traffic from Sources to Gateway.
+	  Relay Decapsulates IGMP/MLD traffic from Gateway.
+
+	  To compile this drivers as a module, choose M here: the module
+	  will be called amt.
+
 config MACSEC
 	tristate "IEEE 802.1AE MAC-level encryption (MACsec)"
 	select CRYPTO

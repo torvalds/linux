@@ -13,6 +13,30 @@ enum {
 	MLX5E_ROUTE_ENTRY_VALID     = BIT(0),
 };
 
+static int mlx5e_set_int_port_tunnel(struct mlx5e_priv *priv,
+				     struct mlx5_flow_attr *attr,
+				     struct mlx5e_encap_entry *e,
+				     int out_index)
+{
+	struct net_device *route_dev;
+	int err = 0;
+
+	route_dev = dev_get_by_index(dev_net(e->out_dev), e->route_dev_ifindex);
+
+	if (!route_dev || !netif_is_ovs_master(route_dev))
+		goto out;
+
+	err = mlx5e_set_fwd_to_int_port_actions(priv, attr, e->route_dev_ifindex,
+						MLX5E_TC_INT_PORT_EGRESS,
+						&attr->action, out_index);
+
+out:
+	if (route_dev)
+		dev_put(route_dev);
+
+	return err;
+}
+
 struct mlx5e_route_key {
 	int ip_version;
 	union {
@@ -808,6 +832,17 @@ attach_flow:
 				       out_index);
 	if (err)
 		goto out_err;
+
+	err = mlx5e_set_int_port_tunnel(priv, attr, e, out_index);
+	if (err == -EOPNOTSUPP) {
+		/* If device doesn't support int port offload,
+		 * redirect to uplink vport.
+		 */
+		mlx5_core_dbg(priv->mdev, "attaching int port as encap dev not supported, using uplink\n");
+		err = 0;
+	} else if (err) {
+		goto out_err;
+	}
 
 	flow->encaps[out_index].e = e;
 	list_add(&flow->encaps[out_index].list, &e->flows);

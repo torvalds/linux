@@ -34,6 +34,7 @@
 #include "smc_ism.h"
 #include "smc_netlink.h"
 #include "smc_stats.h"
+#include "smc_tracepoint.h"
 
 #define SMC_LGR_NUM_INCR		256
 #define SMC_LGR_FREE_DELAY_SERV		(600 * HZ)
@@ -1620,15 +1621,19 @@ static void smcr_link_down(struct smc_link *lnk)
 /* must be called under lgr->llc_conf_mutex lock */
 void smcr_link_down_cond(struct smc_link *lnk)
 {
-	if (smc_link_downing(&lnk->state))
+	if (smc_link_downing(&lnk->state)) {
+		trace_smcr_link_down(lnk, __builtin_return_address(0));
 		smcr_link_down(lnk);
+	}
 }
 
 /* will get the lgr->llc_conf_mutex lock */
 void smcr_link_down_cond_sched(struct smc_link *lnk)
 {
-	if (smc_link_downing(&lnk->state))
+	if (smc_link_downing(&lnk->state)) {
+		trace_smcr_link_down(lnk, __builtin_return_address(0));
 		schedule_work(&lnk->link_down_wrk);
+	}
 }
 
 void smcr_port_err(struct smc_ib_device *smcibdev, u8 ibport)

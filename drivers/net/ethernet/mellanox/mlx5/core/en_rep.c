@@ -53,6 +53,7 @@
 #define CREATE_TRACE_POINTS
 #include "diag/en_rep_tracepoint.h"
 #include "en_accel/ipsec.h"
+#include "en/tc/int_port.h"
 
 #define MLX5E_REP_PARAMS_DEF_LOG_SQ_SIZE \
 	max(0x7, MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE)
@@ -857,12 +858,22 @@ static void mlx5e_cleanup_rep_rx(struct mlx5e_priv *priv)
 
 static int mlx5e_init_ul_rep_rx(struct mlx5e_priv *priv)
 {
+	int err;
+
 	mlx5e_create_q_counters(priv);
-	return mlx5e_init_rep_rx(priv);
+	err = mlx5e_init_rep_rx(priv);
+	if (err)
+		goto out;
+
+	mlx5e_tc_int_port_init_rep_rx(priv);
+
+out:
+	return err;
 }
 
 static void mlx5e_cleanup_ul_rep_rx(struct mlx5e_priv *priv)
 {
+	mlx5e_tc_int_port_cleanup_rep_rx(priv);
 	mlx5e_cleanup_rep_rx(priv);
 	mlx5e_destroy_q_counters(priv);
 }

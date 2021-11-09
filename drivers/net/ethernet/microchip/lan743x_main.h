@@ -831,7 +831,7 @@ struct lan743x_rx_buffer_info {
 	unsigned int    buffer_length;
 };
 
-#define LAN743X_RX_RING_SIZE        (65)
+#define LAN743X_RX_RING_SIZE        (128)
 
 #define RX_PROCESS_RESULT_NOTHING_TO_DO     (0)
 #define RX_PROCESS_RESULT_BUFFER_RECEIVED   (1)

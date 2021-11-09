@@ -102,7 +102,7 @@ struct devlink_dpipe_header devlink_dpipe_header_ethernet = {
 	.fields_count = ARRAY_SIZE(devlink_dpipe_fields_ethernet),
 	.global = true,
 };
-EXPORT_SYMBOL(devlink_dpipe_header_ethernet);
+EXPORT_SYMBOL_GPL(devlink_dpipe_header_ethernet);
 
 static struct devlink_dpipe_field devlink_dpipe_fields_ipv4[] = {
 	{
@@ -119,7 +119,7 @@ struct devlink_dpipe_header devlink_dpipe_header_ipv4 = {
 	.fields_count = ARRAY_SIZE(devlink_dpipe_fields_ipv4),
 	.global = true,
 };
-EXPORT_SYMBOL(devlink_dpipe_header_ipv4);
+EXPORT_SYMBOL_GPL(devlink_dpipe_header_ipv4);
 
 static struct devlink_dpipe_field devlink_dpipe_fields_ipv6[] = {
 	{
@@ -136,7 +136,7 @@ struct devlink_dpipe_header devlink_dpipe_header_ipv6 = {
 	.fields_count = ARRAY_SIZE(devlink_dpipe_fields_ipv6),
 	.global = true,
 };
-EXPORT_SYMBOL(devlink_dpipe_header_ipv6);
+EXPORT_SYMBOL_GPL(devlink_dpipe_header_ipv6);
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(devlink_hwmsg);
 EXPORT_TRACEPOINT_SYMBOL_GPL(devlink_hwerr);
@@ -182,15 +182,17 @@ struct net *devlink_net(const struct devlink *devlink)
 }
 EXPORT_SYMBOL_GPL(devlink_net);
 
-static void devlink_put(struct devlink *devlink)
+void devlink_put(struct devlink *devlink)
 {
 	if (refcount_dec_and_test(&devlink->refcount))
 		complete(&devlink->comp);
 }
 
-static bool __must_check devlink_try_get(struct devlink *devlink)
+struct devlink *__must_check devlink_try_get(struct devlink *devlink)
 {
-	return refcount_inc_not_zero(&devlink->refcount);
+	if (refcount_inc_not_zero(&devlink->refcount))
+		return devlink;
+	return NULL;
 }
 
 static struct devlink *devlink_get_from_attrs(struct net *net,
@@ -3365,7 +3367,7 @@ void devlink_dpipe_entry_clear(struct devlink_dpipe_entry *entry)
 		kfree(value[value_index].mask);
 	}
 }
-EXPORT_SYMBOL(devlink_dpipe_entry_clear);
+EXPORT_SYMBOL_GPL(devlink_dpipe_entry_clear);
 
 static int devlink_dpipe_entries_fill(struct genl_info *info,
 				      enum devlink_command cmd, int flags,
@@ -11281,55 +11283,28 @@ static struct devlink_port *netdev_to_devlink_port(struct net_device *dev)
 	return dev->netdev_ops->ndo_get_devlink_port(dev);
 }
 
-static struct devlink *netdev_to_devlink(struct net_device *dev)
-{
-	struct devlink_port *devlink_port = netdev_to_devlink_port(dev);
-
-	if (!devlink_port)
-		return NULL;
-
-	return devlink_port->devlink;
-}
-
-void devlink_compat_running_version(struct net_device *dev,
+void devlink_compat_running_version(struct devlink *devlink,
 				    char *buf, size_t len)
 {
-	struct devlink *devlink;
-
-	dev_hold(dev);
-	rtnl_unlock();
-
-	devlink = netdev_to_devlink(dev);
-	if (!devlink || !devlink->ops->info_get)
-		goto out;
+	if (!devlink->ops->info_get)
+		return;
 
 	mutex_lock(&devlink->lock);
 	__devlink_compat_running_version(devlink, buf, len);
 	mutex_unlock(&devlink->lock);
-
-out:
-	rtnl_lock();
-	dev_put(dev);
 }
 
-int devlink_compat_flash_update(struct net_device *dev, const char *file_name)
+int devlink_compat_flash_update(struct devlink *devlink, const char *file_name)
 {
 	struct devlink_flash_update_params params = {};
-	struct devlink *devlink;
 	int ret;
 
-	dev_hold(dev);
-	rtnl_unlock();
-
-	devlink = netdev_to_devlink(dev);
-	if (!devlink || !devlink->ops->flash_update) {
-		ret = -EOPNOTSUPP;
-		goto out;
-	}
+	if (!devlink->ops->flash_update)
+		return -EOPNOTSUPP;
 
 	ret = request_firmware(&params.fw, file_name, devlink->dev);
 	if (ret)
-		goto out;
+		return ret;
 
 	mutex_lock(&devlink->lock);
 	devlink_flash_update_begin_notify(devlink);
@@ -11338,10 +11313,6 @@ int devlink_compat_flash_update(struct net_device *dev, const char *file_name)
 	mutex_unlock(&devlink->lock);
 
 	release_firmware(params.fw);
-
-out:
-	rtnl_lock();
-	dev_put(dev);
 
 	return ret;
 }

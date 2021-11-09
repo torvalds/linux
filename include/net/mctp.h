@@ -152,6 +152,12 @@ struct mctp_sk_key {
 
 	/* expiry timeout; valid (above) cleared on expiry */
 	unsigned long	expiry;
+
+	/* free to use for device flow state tracking. Initialised to
+	 * zero on initial key creation
+	 */
+	unsigned long	dev_flow_state;
+	struct mctp_dev	*dev;
 };
 
 struct mctp_skb_cb {
@@ -188,6 +194,13 @@ static inline struct mctp_skb_cb *mctp_cb(struct sk_buff *skb)
 	WARN_ON(cb->magic != 0x4d435450);
 	return (void *)(skb->cb);
 }
+
+/* If CONFIG_MCTP_FLOWS, we may add one of these as a SKB extension,
+ * indicating the flow to the device driver.
+ */
+struct mctp_flow {
+	struct mctp_sk_key *key;
+};
 
 /* Route definition.
  *

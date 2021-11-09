@@ -19,6 +19,7 @@
 static int ice_eswitch_setup_env(struct ice_pf *pf)
 {
 	struct ice_vsi *uplink_vsi = pf->switchdev.uplink_vsi;
+	struct net_device *uplink_netdev = uplink_vsi->netdev;
 	struct ice_vsi *ctrl_vsi = pf->switchdev.control_vsi;
 	struct ice_port_info *pi = pf->hw.port_info;
 	bool rule_added = false;
@@ -26,6 +27,11 @@ static int ice_eswitch_setup_env(struct ice_pf *pf)
 	ice_vsi_manage_vlan_stripping(ctrl_vsi, false);
 
 	ice_remove_vsi_fltr(&pf->hw, uplink_vsi->idx);
+
+	netif_addr_lock_bh(uplink_netdev);
+	__dev_uc_unsync(uplink_netdev, NULL);
+	__dev_mc_unsync(uplink_netdev, NULL);
+	netif_addr_unlock_bh(uplink_netdev);
 
 	if (ice_vsi_add_vlan(uplink_vsi, 0, ICE_FWD_TO_VSI))
 		goto err_def_rx;
