@@ -275,10 +275,10 @@ static unsigned int qcom_lmh_get_throttle_freq(struct qcom_cpufreq_data *data)
 
 static void qcom_lmh_dcvs_notify(struct qcom_cpufreq_data *data)
 {
-	unsigned long max_capacity, capacity, freq_hz, throttled_freq;
 	struct cpufreq_policy *policy = data->policy;
 	int cpu = cpumask_first(policy->cpus);
 	struct device *dev = get_cpu_device(cpu);
+	unsigned long freq_hz, throttled_freq;
 	struct dev_pm_opp *opp;
 	unsigned int freq;
 
@@ -295,17 +295,8 @@ static void qcom_lmh_dcvs_notify(struct qcom_cpufreq_data *data)
 
 	throttled_freq = freq_hz / HZ_PER_KHZ;
 
-	/* Update thermal pressure */
-
-	max_capacity = arch_scale_cpu_capacity(cpu);
-	capacity = mult_frac(max_capacity, throttled_freq, policy->cpuinfo.max_freq);
-
-	/* Don't pass boost capacity to scheduler */
-	if (capacity > max_capacity)
-		capacity = max_capacity;
-
-	arch_set_thermal_pressure(policy->related_cpus,
-				  max_capacity - capacity);
+	/* Update thermal pressure (the boost frequencies are accepted) */
+	arch_update_thermal_pressure(policy->related_cpus, throttled_freq);
 
 	/*
 	 * In the unlikely case policy is unregistered do not enable
