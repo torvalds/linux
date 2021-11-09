@@ -23,11 +23,11 @@ typedef void (*postgp_func_t)(struct rcu_tasks *rtp);
 /**
  * struct rcu_tasks_percpu - Per-CPU component of definition for a Tasks-RCU-like mechanism.
  * @cblist: Callback list.
- * @cbs_pcpu_lock: Lock protecting per-CPU callback list.
+ * @lock: Lock protecting per-CPU callback list.
  */
 struct rcu_tasks_percpu {
 	struct rcu_segcblist cblist;
-	raw_spinlock_t cbs_pcpu_lock;
+	raw_spinlock_t __private lock;
 };
 
 /**
@@ -82,7 +82,7 @@ struct rcu_tasks {
 
 #define DEFINE_RCU_TASKS(rt_name, gp, call, n)						\
 static DEFINE_PER_CPU(struct rcu_tasks_percpu, rt_name ## __percpu) = {			\
-	.cbs_pcpu_lock = __RAW_SPIN_LOCK_UNLOCKED(rt_name ## __percpu.cbs_pcpu_lock),	\
+	.lock = __RAW_SPIN_LOCK_UNLOCKED(rt_name ## __percpu.cbs_pcpu_lock),		\
 };											\
 static struct rcu_tasks rt_name =							\
 {											\
@@ -177,11 +177,11 @@ static void cblist_init_generic(struct rcu_tasks *rtp)
 
 		WARN_ON_ONCE(!rtpcp);
 		if (cpu)
-			raw_spin_lock_init(&rtpcp->cbs_pcpu_lock);
-		raw_spin_lock(&rtpcp->cbs_pcpu_lock); // irqs already disabled.
+			raw_spin_lock_init(&ACCESS_PRIVATE(rtpcp, lock));
+		raw_spin_lock_rcu_node(rtpcp); // irqs already disabled.
 		if (rcu_segcblist_empty(&rtpcp->cblist))
 			rcu_segcblist_init(&rtpcp->cblist);
-		raw_spin_unlock(&rtpcp->cbs_pcpu_lock); // irqs remain disabled.
+		raw_spin_unlock_rcu_node(rtpcp); // irqs remain disabled.
 	}
 	raw_spin_unlock_irqrestore(&rtp->cbs_gbl_lock, flags);
 
@@ -200,15 +200,15 @@ static void call_rcu_tasks_generic(struct rcu_head *rhp, rcu_callback_t func,
 	local_irq_save(flags);
 	rtpcp = per_cpu_ptr(rtp->rtpcpu,
 			    smp_processor_id() >> READ_ONCE(rtp->percpu_enqueue_shift));
-	raw_spin_lock(&rtpcp->cbs_pcpu_lock);
+	raw_spin_lock_rcu_node(rtpcp); // irqs already disabled.
 	if (!rcu_segcblist_is_enabled(&rtpcp->cblist)) {
-		raw_spin_unlock(&rtpcp->cbs_pcpu_lock); // irqs remain disabled.
+		raw_spin_unlock_rcu_node(rtpcp); // irqs remain disabled.
 		cblist_init_generic(rtp);
-		raw_spin_lock(&rtpcp->cbs_pcpu_lock); // irqs already disabled.
+		raw_spin_lock_rcu_node(rtpcp); // irqs already disabled.
 	}
 	needwake = rcu_segcblist_empty(&rtpcp->cblist);
 	rcu_segcblist_enqueue(&rtpcp->cblist, rhp);
-	raw_spin_unlock_irqrestore(&rtpcp->cbs_pcpu_lock, flags);
+	raw_spin_unlock_irqrestore_rcu_node(rtpcp, flags);
 	/* We can't create the thread unless interrupts are enabled. */
 	if (needwake && READ_ONCE(rtp->kthread_ptr))
 		wake_up(&rtp->cbs_wq);
@@ -250,11 +250,10 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 		set_tasks_gp_state(rtp, RTGS_WAIT_CBS);
 
 		/* Pick up any new callbacks. */
-		raw_spin_lock_irqsave(&rtpcp->cbs_pcpu_lock, flags);
-		smp_mb__after_spinlock(); // Order updates vs. GP.
+		raw_spin_lock_irqsave_rcu_node(rtpcp, flags);
 		rcu_segcblist_advance(&rtpcp->cblist, rcu_seq_current(&rtp->tasks_gp_seq));
 		(void)rcu_segcblist_accelerate(&rtpcp->cblist, rcu_seq_snap(&rtp->tasks_gp_seq));
-		raw_spin_unlock_irqrestore(&rtpcp->cbs_pcpu_lock, flags);
+		raw_spin_unlock_irqrestore_rcu_node(rtpcp, flags);
 
 		/* If there were none, wait a bit and start over. */
 		if (!rcu_segcblist_pend_cbs(&rtpcp->cblist)) {
@@ -277,11 +276,10 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 
 		/* Invoke the callbacks. */
 		set_tasks_gp_state(rtp, RTGS_INVOKE_CBS);
-		raw_spin_lock_irqsave(&rtpcp->cbs_pcpu_lock, flags);
-		smp_mb__after_spinlock(); // Order updates vs. GP.
+		raw_spin_lock_irqsave_rcu_node(rtpcp, flags);
 		rcu_segcblist_advance(&rtpcp->cblist, rcu_seq_current(&rtp->tasks_gp_seq));
 		rcu_segcblist_extract_done_cbs(&rtpcp->cblist, &rcl);
-		raw_spin_unlock_irqrestore(&rtpcp->cbs_pcpu_lock, flags);
+		raw_spin_unlock_irqrestore_rcu_node(rtpcp, flags);
 		len = rcl.len;
 		for (rhp = rcu_cblist_dequeue(&rcl); rhp; rhp = rcu_cblist_dequeue(&rcl)) {
 			local_bh_disable();
@@ -289,10 +287,10 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 			local_bh_enable();
 			cond_resched();
 		}
-		raw_spin_lock_irqsave(&rtpcp->cbs_pcpu_lock, flags);
+		raw_spin_lock_irqsave_rcu_node(rtpcp, flags);
 		rcu_segcblist_add_len(&rtpcp->cblist, -len);
 		(void)rcu_segcblist_accelerate(&rtpcp->cblist, rcu_seq_snap(&rtp->tasks_gp_seq));
-		raw_spin_unlock_irqrestore(&rtpcp->cbs_pcpu_lock, flags);
+		raw_spin_unlock_irqrestore_rcu_node(rtpcp, flags);
 		/* Paranoid sleep to keep this from entering a tight loop */
 		schedule_timeout_idle(rtp->gp_sleep);
 	}
@@ -470,10 +468,10 @@ static void rcu_tasks_wait_gp(struct rcu_tasks *rtp)
 // exit_tasks_rcu_finish() functions begin and end, respectively, the SRCU
 // read-side critical sections waited for by rcu_tasks_postscan().
 //
-// Pre-grace-period update-side code is ordered before the grace via the
-// ->cbs_lock and the smp_mb__after_spinlock().  Pre-grace-period read-side
-// code is ordered before the grace period via synchronize_rcu() call
-// in rcu_tasks_pregp_step() and by the scheduler's locks and interrupt
+// Pre-grace-period update-side code is ordered before the grace
+// via the raw_spin_lock.*rcu_node().  Pre-grace-period read-side code
+// is ordered before the grace period via synchronize_rcu() call in
+// rcu_tasks_pregp_step() and by the scheduler's locks and interrupt
 // disabling.
 
 /* Pre-grace-period preparation. */
