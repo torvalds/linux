@@ -85,9 +85,6 @@
 
 #define IGC_WUFC_EXT_FILTER_MASK GENMASK(31, 8)
 
-/* Physical Func Reset Done Indication */
-#define IGC_CTRL_EXT_LINK_MODE_MASK	0x00C00000
-
 /* Loop limit on how long we wait for auto-negotiation to complete */
 #define COPPER_LINK_UP_LIMIT		10
 #define PHY_AUTO_NEG_LIMIT		45
