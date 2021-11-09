@@ -1400,6 +1400,7 @@ static int sc92031_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	void __iomem* port_base;
 	struct net_device *dev;
 	struct sc92031_priv *priv;
+	u8 addr[ETH_ALEN];
 	u32 mac0, mac1;
 
 	err = pci_enable_device(pdev);
@@ -1458,12 +1459,13 @@ static int sc92031_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	mac0 = ioread32(port_base + MAC0);
 	mac1 = ioread32(port_base + MAC0 + 4);
-	dev->dev_addr[0] = mac0 >> 24;
-	dev->dev_addr[1] = mac0 >> 16;
-	dev->dev_addr[2] = mac0 >> 8;
-	dev->dev_addr[3] = mac0;
-	dev->dev_addr[4] = mac1 >> 8;
-	dev->dev_addr[5] = mac1;
+	addr[0] = mac0 >> 24;
+	addr[1] = mac0 >> 16;
+	addr[2] = mac0 >> 8;
+	addr[3] = mac0;
+	addr[4] = mac1 >> 8;
+	addr[5] = mac1;
+	eth_hw_addr_set(dev, addr);
 
 	err = register_netdev(dev);
 	if (err < 0)

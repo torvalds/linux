@@ -4515,6 +4515,8 @@ int rvu_mbox_handler_nix_lf_stop_rx(struct rvu *rvu, struct msg_req *req,
 	return rvu_cgx_start_stop_io(rvu, pcifunc, false);
 }
 
+#define RX_SA_BASE  GENMASK_ULL(52, 7)
+
 void rvu_nix_lf_teardown(struct rvu *rvu, u16 pcifunc, int blkaddr, int nixlf)
 {
 	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, pcifunc);
@@ -4522,6 +4524,7 @@ void rvu_nix_lf_teardown(struct rvu *rvu, u16 pcifunc, int blkaddr, int nixlf)
 	int pf = rvu_get_pf(pcifunc);
 	struct mac_ops *mac_ops;
 	u8 cgx_id, lmac_id;
+	u64 sa_base;
 	void *cgxd;
 	int err;
 
@@ -4578,6 +4581,14 @@ void rvu_nix_lf_teardown(struct rvu *rvu, u16 pcifunc, int blkaddr, int nixlf)
 	nix_ctx_free(rvu, pfvf);
 
 	nix_free_all_bandprof(rvu, pcifunc);
+
+	sa_base = rvu_read64(rvu, blkaddr, NIX_AF_LFX_RX_IPSEC_SA_BASE(nixlf));
+	if (FIELD_GET(RX_SA_BASE, sa_base)) {
+		err = rvu_cpt_ctx_flush(rvu, pcifunc);
+		if (err)
+			dev_err(rvu->dev,
+				"CPT ctx flush failed with error: %d\n", err);
+	}
 }
 
 #define NIX_AF_LFX_TX_CFG_PTP_EN	BIT_ULL(32)

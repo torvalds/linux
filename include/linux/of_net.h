@@ -8,7 +8,7 @@
 
 #include <linux/phy.h>
 
-#ifdef CONFIG_OF
+#if defined(CONFIG_OF) && defined(CONFIG_NET)
 #include <linux/of.h>
 
 struct net_device;

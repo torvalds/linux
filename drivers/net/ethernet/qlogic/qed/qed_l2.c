@@ -2848,7 +2848,7 @@ static int qed_fp_cqe_completion(struct qed_dev *dev,
 				      cqe);
 }
 
-static int qed_req_bulletin_update_mac(struct qed_dev *cdev, u8 *mac)
+static int qed_req_bulletin_update_mac(struct qed_dev *cdev, const u8 *mac)
 {
 	int i, ret;
 

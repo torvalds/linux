@@ -2162,7 +2162,7 @@ lcs_new_device(struct ccwgroup_device *ccwgdev)
 	card->dev->ml_priv = card;
 	card->dev->netdev_ops = &lcs_netdev_ops;
 	card->dev->dev_port = card->portno;
-	memcpy(card->dev->dev_addr, card->mac, LCS_MAC_LENGTH);
+	eth_hw_addr_set(card->dev, card->mac);
 #ifdef CONFIG_IP_MULTICAST
 	if (!lcs_check_multicast_support(card))
 		card->dev->netdev_ops = &lcs_mc_netdev_ops;

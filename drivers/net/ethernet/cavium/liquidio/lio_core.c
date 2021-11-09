@@ -490,7 +490,6 @@ void cleanup_rx_oom_poll_fn(struct net_device *netdev)
 		wq = &lio->rxq_status_wq[q_no];
 		if (wq->wq) {
 			cancel_delayed_work_sync(&wq->wk.work);
-			flush_workqueue(wq->wq);
 			destroy_workqueue(wq->wq);
 			wq->wq = NULL;
 		}

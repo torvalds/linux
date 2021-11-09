@@ -478,6 +478,18 @@ static inline int qed_sriov_disable(struct qed_dev *cdev, bool pci_enabled)
 static inline void qed_inform_vf_link_state(struct qed_hwfn *hwfn)
 {
 }
+
+static inline void qed_sriov_vfpf_malicious(struct qed_hwfn *p_hwfn,
+					    struct fw_err_data *p_data)
+{
+}
+
+static inline int qed_sriov_eqe_event(struct qed_hwfn *p_hwfn, u8 opcode,
+				      __le16 echo, union event_ring_data *data,
+				      u8  fw_return_code)
+{
+	return 0;
+}
 #endif
 
 #define qed_for_each_vf(_p_hwfn, _i)			  \

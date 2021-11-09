@@ -1070,7 +1070,7 @@ u32 qed_vf_hw_bar_size(struct qed_hwfn *p_hwfn, enum BAR_ID bar_id);
  *
  * Return: Int.
  */
-int qed_vf_pf_bulletin_update_mac(struct qed_hwfn *p_hwfn, u8 *p_mac);
+int qed_vf_pf_bulletin_update_mac(struct qed_hwfn *p_hwfn, const u8 *p_mac);
 
 #else
 static inline void qed_vf_get_link_params(struct qed_hwfn *p_hwfn,
@@ -1259,7 +1259,7 @@ static inline int qed_vf_pf_tunnel_param_update(struct qed_hwfn *p_hwfn,
 }
 
 static inline int qed_vf_pf_bulletin_update_mac(struct qed_hwfn *p_hwfn,
-						u8 *p_mac)
+						const u8 *p_mac)
 {
 	return -EINVAL;
 }

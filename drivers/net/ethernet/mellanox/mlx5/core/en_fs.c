@@ -71,12 +71,12 @@ struct mlx5e_l2_hash_node {
 	bool   mpfs;
 };
 
-static inline int mlx5e_hash_l2(u8 *addr)
+static inline int mlx5e_hash_l2(const u8 *addr)
 {
 	return addr[5];
 }
 
-static void mlx5e_add_l2_to_hash(struct hlist_head *hash, u8 *addr)
+static void mlx5e_add_l2_to_hash(struct hlist_head *hash, const u8 *addr)
 {
 	struct mlx5e_l2_hash_node *hn;
 	int ix = mlx5e_hash_l2(addr);

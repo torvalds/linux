@@ -677,6 +677,10 @@ mlx5_esw_bridge_egress_flow_create(u16 vport_num, u16 esw_owner_vhca_id, const u
 	if (!rule_spec)
 		return ERR_PTR(-ENOMEM);
 
+	if (MLX5_CAP_ESW_FLOWTABLE(bridge->br_offloads->esw->dev, flow_source) &&
+	    vport_num == MLX5_VPORT_UPLINK)
+		rule_spec->flow_context.flow_source =
+			MLX5_FLOW_CONTEXT_FLOW_SOURCE_LOCAL_VPORT;
 	rule_spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
 
 	dmac_v = MLX5_ADDR_OF(fte_match_param, rule_spec->match_value,

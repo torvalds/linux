@@ -1001,6 +1001,7 @@ static int encx24j600_spi_probe(struct spi_device *spi)
 	struct net_device *ndev;
 	struct encx24j600_priv *priv;
 	u16 eidled;
+	u8 addr[ETH_ALEN];
 
 	ndev = alloc_etherdev(sizeof(struct encx24j600_priv));
 
@@ -1056,7 +1057,8 @@ static int encx24j600_spi_probe(struct spi_device *spi)
 	}
 
 	/* Get the MAC address from the chip */
-	encx24j600_hw_get_macaddr(priv, ndev->dev_addr);
+	encx24j600_hw_get_macaddr(priv, addr);
+	eth_hw_addr_set(ndev, addr);
 
 	ndev->ethtool_ops = &encx24j600_ethtool_ops;
 

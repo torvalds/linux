@@ -536,7 +536,7 @@ int qed_mcp_ov_update_mtu(struct qed_hwfn *p_hwfn,
  * Return: Int - 0 - Operation was successul.
  */
 int qed_mcp_ov_update_mac(struct qed_hwfn *p_hwfn,
-			  struct qed_ptt *p_ptt, u8 *mac);
+			  struct qed_ptt *p_ptt, const u8 *mac);
 
 /**
  * qed_mcp_ov_update_wol(): Send WOL mode to MFW.

@@ -39,9 +39,7 @@
 #define RCV_FRAG_LEN(x)	\
 		((RCV_FRAG_LEN1(x) < 2048) ? 2048 : RCV_FRAG_LEN1(x))
 
-#define DMA_BUFFER_LEN(x)		\
-		((x) - OTX2_HEAD_ROOM - \
-		OTX2_DATA_ALIGN(sizeof(struct skb_shared_info)))
+#define DMA_BUFFER_LEN(x)	((x) - OTX2_HEAD_ROOM)
 
 /* IRQ triggered when NIX_LF_CINTX_CNT[ECOUNT]
  * is equal to this value.

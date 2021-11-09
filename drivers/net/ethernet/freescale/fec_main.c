@@ -1768,11 +1768,8 @@ static int fec_get_mac(struct net_device *ndev)
 		return 0;
 	}
 
-	eth_hw_addr_set(ndev, iap);
-
 	/* Adjust MAC if using macaddr */
-	if (iap == macaddr)
-		 ndev->dev_addr[ETH_ALEN-1] = macaddr[ETH_ALEN-1] + fep->dev_id;
+	eth_hw_addr_gen(ndev, iap, iap == macaddr ? fep->dev_id : 0);
 
 	return 0;
 }

@@ -937,9 +937,8 @@ static int mlx5e_get_rss_hash_opt(struct mlx5e_priv *priv,
 	return 0;
 }
 
-int mlx5e_ethtool_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
+int mlx5e_ethtool_set_rxnfc(struct mlx5e_priv *priv, struct ethtool_rxnfc *cmd)
 {
-	struct mlx5e_priv *priv = netdev_priv(dev);
 	int err = 0;
 
 	switch (cmd->cmd) {
@@ -960,10 +959,9 @@ int mlx5e_ethtool_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 	return err;
 }
 
-int mlx5e_ethtool_get_rxnfc(struct net_device *dev,
+int mlx5e_ethtool_get_rxnfc(struct mlx5e_priv *priv,
 			    struct ethtool_rxnfc *info, u32 *rule_locs)
 {
-	struct mlx5e_priv *priv = netdev_priv(dev);
 	int err = 0;
 
 	switch (info->cmd) {

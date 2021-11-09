@@ -1113,7 +1113,7 @@ struct qed_common_ops {
  *
  * Return: Int.
  */
-	int (*update_mac)(struct qed_dev *cdev, u8 *mac);
+	int (*update_mac)(struct qed_dev *cdev, const u8 *mac);
 
 /**
  * update_mtu(): API to inform the change in the mtu.

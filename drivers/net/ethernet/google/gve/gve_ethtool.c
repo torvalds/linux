@@ -330,8 +330,7 @@ gve_get_ethtool_stats(struct net_device *netdev,
 			data[i++] = tmp_tx_bytes;
 			data[i++] = tx->wake_queue;
 			data[i++] = tx->stop_queue;
-			data[i++] = be32_to_cpu(gve_tx_load_event_counter(priv,
-									  tx));
+			data[i++] = gve_tx_load_event_counter(priv, tx);
 			data[i++] = tx->dma_mapping_error;
 			/* stats from NIC */
 			if (skip_nic_stats) {

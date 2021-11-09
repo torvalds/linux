@@ -952,7 +952,7 @@ qed_llh_remove_filter(struct qed_hwfn *p_hwfn,
 }
 
 int qed_llh_add_mac_filter(struct qed_dev *cdev,
-			   u8 ppfid, u8 mac_addr[ETH_ALEN])
+			   u8 ppfid, const u8 mac_addr[ETH_ALEN])
 {
 	struct qed_hwfn *p_hwfn = QED_LEADING_HWFN(cdev);
 	struct qed_ptt *p_ptt = qed_ptt_acquire(p_hwfn);

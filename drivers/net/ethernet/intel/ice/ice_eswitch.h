@@ -22,7 +22,7 @@ void ice_eswitch_update_repr(struct ice_vsi *vsi);
 void ice_eswitch_stop_all_tx_queues(struct ice_pf *pf);
 
 struct net_device *
-ice_eswitch_get_target_netdev(struct ice_ring *rx_ring,
+ice_eswitch_get_target_netdev(struct ice_rx_ring *rx_ring,
 			      union ice_32b_rx_flex_desc *rx_desc);
 
 void ice_eswitch_set_target_vsi(struct sk_buff *skb,
@@ -68,7 +68,7 @@ static inline bool ice_is_eswitch_mode_switchdev(struct ice_pf *pf)
 }
 
 static inline struct net_device *
-ice_eswitch_get_target_netdev(struct ice_ring *rx_ring,
+ice_eswitch_get_target_netdev(struct ice_rx_ring *rx_ring,
 			      union ice_32b_rx_flex_desc *rx_desc)
 {
 	return rx_ring->netdev;

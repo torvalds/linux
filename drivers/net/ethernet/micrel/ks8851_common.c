@@ -165,6 +165,7 @@ static void ks8851_read_mac_addr(struct net_device *dev)
 {
 	struct ks8851_net *ks = netdev_priv(dev);
 	unsigned long flags;
+	u8 addr[ETH_ALEN];
 	u16 reg;
 	int i;
 
@@ -172,9 +173,10 @@ static void ks8851_read_mac_addr(struct net_device *dev)
 
 	for (i = 0; i < ETH_ALEN; i += 2) {
 		reg = ks8851_rdreg16(ks, KS_MAR(i));
-		dev->dev_addr[i] = reg >> 8;
-		dev->dev_addr[i + 1] = reg & 0xff;
+		addr[i] = reg >> 8;
+		addr[i + 1] = reg & 0xff;
 	}
+	eth_hw_addr_set(dev, addr);
 
 	ks8851_unlock(ks, &flags);
 }
@@ -1247,7 +1249,7 @@ err_reg_io:
 }
 EXPORT_SYMBOL_GPL(ks8851_probe_common);
 
-int ks8851_remove_common(struct device *dev)
+void ks8851_remove_common(struct device *dev)
 {
 	struct ks8851_net *priv = dev_get_drvdata(dev);
 
@@ -1261,8 +1263,6 @@ int ks8851_remove_common(struct device *dev)
 		gpio_set_value(priv->gpio, 0);
 	regulator_disable(priv->vdd_reg);
 	regulator_disable(priv->vdd_io);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(ks8851_remove_common);
 

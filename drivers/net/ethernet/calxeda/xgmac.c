@@ -607,7 +607,7 @@ static inline void xgmac_mac_disable(void __iomem *ioaddr)
 	writel(value, ioaddr + XGMAC_CONTROL);
 }
 
-static void xgmac_set_mac_addr(void __iomem *ioaddr, unsigned char *addr,
+static void xgmac_set_mac_addr(void __iomem *ioaddr, const unsigned char *addr,
 			       int num)
 {
 	u32 data;
@@ -1693,6 +1693,7 @@ static int xgmac_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct net_device *ndev = NULL;
 	struct xgmac_priv *priv = NULL;
+	u8 addr[ETH_ALEN];
 	u32 uid;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -1785,7 +1786,8 @@ static int xgmac_probe(struct platform_device *pdev)
 	ndev->max_mtu = XGMAC_MAX_MTU;
 
 	/* Get the MAC address */
-	xgmac_get_mac_addr(priv->base, ndev->dev_addr, 0);
+	xgmac_get_mac_addr(priv->base, addr, 0);
+	eth_hw_addr_set(ndev, addr);
 	if (!is_valid_ether_addr(ndev->dev_addr))
 		netdev_warn(ndev, "MAC address %pM not valid",
 			 ndev->dev_addr);

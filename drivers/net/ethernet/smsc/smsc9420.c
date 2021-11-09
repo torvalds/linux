@@ -404,7 +404,7 @@ static const struct ethtool_ops smsc9420_ethtool_ops = {
 static void smsc9420_set_mac_address(struct net_device *dev)
 {
 	struct smsc9420_pdata *pd = netdev_priv(dev);
-	u8 *dev_addr = dev->dev_addr;
+	const u8 *dev_addr = dev->dev_addr;
 	u32 mac_high16 = (dev_addr[5] << 8) | dev_addr[4];
 	u32 mac_low32 = (dev_addr[3] << 24) | (dev_addr[2] << 16) |
 	    (dev_addr[1] << 8) | dev_addr[0];
@@ -416,6 +416,7 @@ static void smsc9420_set_mac_address(struct net_device *dev)
 static void smsc9420_check_mac_address(struct net_device *dev)
 {
 	struct smsc9420_pdata *pd = netdev_priv(dev);
+	u8 addr[ETH_ALEN];
 
 	/* Check if mac address has been specified when bringing interface up */
 	if (is_valid_ether_addr(dev->dev_addr)) {
@@ -427,15 +428,16 @@ static void smsc9420_check_mac_address(struct net_device *dev)
 		 * it will already have been set */
 		u32 mac_high16 = smsc9420_reg_read(pd, ADDRH);
 		u32 mac_low32 = smsc9420_reg_read(pd, ADDRL);
-		dev->dev_addr[0] = (u8)(mac_low32);
-		dev->dev_addr[1] = (u8)(mac_low32 >> 8);
-		dev->dev_addr[2] = (u8)(mac_low32 >> 16);
-		dev->dev_addr[3] = (u8)(mac_low32 >> 24);
-		dev->dev_addr[4] = (u8)(mac_high16);
-		dev->dev_addr[5] = (u8)(mac_high16 >> 8);
+		addr[0] = (u8)(mac_low32);
+		addr[1] = (u8)(mac_low32 >> 8);
+		addr[2] = (u8)(mac_low32 >> 16);
+		addr[3] = (u8)(mac_low32 >> 24);
+		addr[4] = (u8)(mac_high16);
+		addr[5] = (u8)(mac_high16 >> 8);
 
-		if (is_valid_ether_addr(dev->dev_addr)) {
+		if (is_valid_ether_addr(addr)) {
 			/* eeprom values are valid  so use them */
+			eth_hw_addr_set(dev, addr);
 			netif_dbg(pd, probe, pd->dev,
 				  "Mac Address is read from EEPROM\n");
 		} else {

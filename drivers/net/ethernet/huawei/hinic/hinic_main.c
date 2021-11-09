@@ -1181,6 +1181,7 @@ static int nic_dev_init(struct pci_dev *pdev)
 	struct net_device *netdev;
 	struct hinic_hwdev *hwdev;
 	struct devlink *devlink;
+	u8 addr[ETH_ALEN];
 	int err, num_qps;
 
 	devlink = hinic_devlink_alloc(&pdev->dev);
@@ -1259,11 +1260,12 @@ static int nic_dev_init(struct pci_dev *pdev)
 
 	pci_set_drvdata(pdev, netdev);
 
-	err = hinic_port_get_mac(nic_dev, netdev->dev_addr);
+	err = hinic_port_get_mac(nic_dev, addr);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to get mac address\n");
 		goto err_get_mac;
 	}
+	eth_hw_addr_set(netdev, addr);
 
 	if (!is_valid_ether_addr(netdev->dev_addr)) {
 		if (!HINIC_IS_VF(nic_dev->hwdev->hwif)) {

@@ -4031,6 +4031,7 @@ get_hw_addr(struct net_device *dev)
     int broken, i, k, tmp, status = 0;
     u_short j,chksum;
     struct de4x5_private *lp = netdev_priv(dev);
+    u8 addr[ETH_ALEN];
 
     broken = de4x5_bad_srom(lp);
 
@@ -4042,27 +4043,29 @@ get_hw_addr(struct net_device *dev)
 	    if (lp->chipset == DC21040) {
 		while ((tmp = inl(DE4X5_APROM)) < 0);
 		k += (u_char) tmp;
-		dev->dev_addr[i++] = (u_char) tmp;
+		addr[i++] = (u_char) tmp;
 		while ((tmp = inl(DE4X5_APROM)) < 0);
 		k += (u_short) (tmp << 8);
-		dev->dev_addr[i++] = (u_char) tmp;
+		addr[i++] = (u_char) tmp;
 	    } else if (!broken) {
-		dev->dev_addr[i] = (u_char) lp->srom.ieee_addr[i]; i++;
-		dev->dev_addr[i] = (u_char) lp->srom.ieee_addr[i]; i++;
+		addr[i] = (u_char) lp->srom.ieee_addr[i]; i++;
+		addr[i] = (u_char) lp->srom.ieee_addr[i]; i++;
 	    } else if ((broken == SMC) || (broken == ACCTON)) {
-		dev->dev_addr[i] = *((u_char *)&lp->srom + i); i++;
-		dev->dev_addr[i] = *((u_char *)&lp->srom + i); i++;
+		addr[i] = *((u_char *)&lp->srom + i); i++;
+		addr[i] = *((u_char *)&lp->srom + i); i++;
 	    }
 	} else {
 	    k += (u_char) (tmp = inb(EISA_APROM));
-	    dev->dev_addr[i++] = (u_char) tmp;
+	    addr[i++] = (u_char) tmp;
 	    k += (u_short) ((tmp = inb(EISA_APROM)) << 8);
-	    dev->dev_addr[i++] = (u_char) tmp;
+	    addr[i++] = (u_char) tmp;
 	}
 
 	if (k > 0xffff) k-=0xffff;
     }
     if (k == 0xffff) k=0;
+
+    eth_hw_addr_set(dev, addr);
 
     if (lp->bus == PCI) {
 	if (lp->chipset == DC21040) {
@@ -4095,8 +4098,9 @@ get_hw_addr(struct net_device *dev)
 		    int x = dev->dev_addr[i];
 		    x = ((x & 0xf) << 4) + ((x & 0xf0) >> 4);
 		    x = ((x & 0x33) << 2) + ((x & 0xcc) >> 2);
-		    dev->dev_addr[i] = ((x & 0x55) << 1) + ((x & 0xaa) >> 1);
+		    addr[i] = ((x & 0x55) << 1) + ((x & 0xaa) >> 1);
 	    }
+	    eth_hw_addr_set(dev, addr);
     }
 #endif /* CONFIG_PPC_PMAC */
 
@@ -4158,12 +4162,9 @@ test_bad_enet(struct net_device *dev, int status)
     if ((tmp == 0) || (tmp == 0x5fa)) {
 	if ((lp->chipset == last.chipset) &&
 	    (lp->bus_num == last.bus) && (lp->bus_num > 0)) {
-	    for (i=0; i<ETH_ALEN; i++) dev->dev_addr[i] = last.addr[i];
-	    for (i=ETH_ALEN-1; i>2; --i) {
-		dev->dev_addr[i] += 1;
-		if (dev->dev_addr[i] != 0) break;
-	    }
-	    for (i=0; i<ETH_ALEN; i++) last.addr[i] = dev->dev_addr[i];
+	    eth_addr_inc(last.addr);
+	    eth_hw_addr_set(dev, last.addr);
+
 	    if (!an_exception(lp)) {
 		dev->irq = last.irq;
 	    }
@@ -5391,9 +5392,7 @@ de4x5_siocdevprivate(struct net_device *dev, struct ifreq *rq, void __user *data
 	if (netif_queue_stopped(dev))
 		return -EBUSY;
 	netif_stop_queue(dev);
-	for (i=0; i<ETH_ALEN; i++) {
-	    dev->dev_addr[i] = tmp.addr[i];
-	}
+	eth_hw_addr_set(dev, tmp.addr);
 	build_setup_frame(dev, PHYS_ADDR_ONLY);
 	/* Set up the descriptor and give ownership to the card */
 	load_packet(dev, lp->setup_frame, TD_IC | PERFECT_F | TD_SET |

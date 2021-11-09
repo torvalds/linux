@@ -313,7 +313,7 @@ static void macb_get_hwaddr(struct macb *bp)
 		addr[5] = (top >> 8) & 0xff;
 
 		if (is_valid_ether_addr(addr)) {
-			memcpy(bp->dev->dev_addr, addr, sizeof(addr));
+			eth_hw_addr_set(bp->dev, addr);
 			return;
 		}
 	}

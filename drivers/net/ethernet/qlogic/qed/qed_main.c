@@ -2888,7 +2888,7 @@ static int qed_update_drv_state(struct qed_dev *cdev, bool active)
 	return status;
 }
 
-static int qed_update_mac(struct qed_dev *cdev, u8 *mac)
+static int qed_update_mac(struct qed_dev *cdev, const u8 *mac)
 {
 	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
 	struct qed_ptt *ptt;

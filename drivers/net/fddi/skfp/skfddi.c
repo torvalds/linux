@@ -925,7 +925,7 @@ static int skfp_ctl_set_mac_address(struct net_device *dev, void *addr)
 	unsigned long Flags;
 
 
-	memcpy(dev->dev_addr, p_sockaddr->sa_data, FDDI_K_ALEN);
+	dev_addr_set(dev, p_sockaddr->sa_data);
 	spin_lock_irqsave(&bp->DriverLock, Flags);
 	ResetAdapter(smc);
 	spin_unlock_irqrestore(&bp->DriverLock, Flags);

@@ -2851,7 +2851,7 @@ int qed_mcp_ov_update_mtu(struct qed_hwfn *p_hwfn,
 }
 
 int qed_mcp_ov_update_mac(struct qed_hwfn *p_hwfn,
-			  struct qed_ptt *p_ptt, u8 *mac)
+			  struct qed_ptt *p_ptt, const u8 *mac)
 {
 	struct qed_mcp_mb_params mb_params;
 	u32 mfw_mac[2];

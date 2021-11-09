@@ -508,10 +508,12 @@ static void eeprom_readword(struct ql3_adapter *qdev,
 
 static void ql_set_mac_addr(struct net_device *ndev, u16 *addr)
 {
-	__le16 *p = (__le16 *)ndev->dev_addr;
-	p[0] = cpu_to_le16(addr[0]);
-	p[1] = cpu_to_le16(addr[1]);
-	p[2] = cpu_to_le16(addr[2]);
+	__le16 buf[ETH_ALEN / 2];
+
+	buf[0] = cpu_to_le16(addr[0]);
+	buf[1] = cpu_to_le16(addr[1]);
+	buf[2] = cpu_to_le16(addr[2]);
+	eth_hw_addr_set(ndev, (u8 *)buf);
 }
 
 static int ql_get_nvram_params(struct ql3_adapter *qdev)

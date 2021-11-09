@@ -2141,6 +2141,7 @@ err_ct_tuples_nat_ht:
 err_ct_tuples_ht:
 	rhashtable_destroy(&ct_priv->zone_ht);
 err_ct_zone_ht:
+	mlx5_chains_destroy_global_table(chains, ct_priv->ct_nat);
 err_ct_nat_tbl:
 	mlx5_chains_destroy_global_table(chains, ct_priv->ct);
 err_ct_tbl:

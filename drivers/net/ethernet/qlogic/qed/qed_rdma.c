@@ -1965,7 +1965,7 @@ static void qed_rdma_remove_user(void *rdma_cxt, u16 dpi)
 
 static int qed_roce_ll2_set_mac_filter(struct qed_dev *cdev,
 				       u8 *old_mac_address,
-				       u8 *new_mac_address)
+				       const u8 *new_mac_address)
 {
 	int rc = 0;
 

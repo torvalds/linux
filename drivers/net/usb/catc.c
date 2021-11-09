@@ -615,7 +615,7 @@ static void catc_stats_timer(struct timer_list *t)
  * Receive modes. Broadcast, Multicast, Promisc.
  */
 
-static void catc_multicast(unsigned char *addr, u8 *multicast)
+static void catc_multicast(const unsigned char *addr, u8 *multicast)
 {
 	u32 crc;
 

@@ -40,10 +40,10 @@
 #include "lib/eq.h"
 #include "lib/mlx5.h"
 #include "lib/pci_vsc.h"
+#include "lib/tout.h"
 #include "diag/fw_tracer.h"
 
 enum {
-	MLX5_HEALTH_POLL_INTERVAL	= 2 * HZ,
 	MAX_MISSES			= 3,
 };
 
@@ -219,11 +219,9 @@ unlock:
 	mutex_unlock(&dev->intf_state_mutex);
 }
 
-#define MLX5_CRDUMP_WAIT_MS	60000
-#define MLX5_FW_RESET_WAIT_MS	1000
 void mlx5_error_sw_reset(struct mlx5_core_dev *dev)
 {
-	unsigned long end, delay_ms = MLX5_FW_RESET_WAIT_MS;
+	unsigned long end, delay_ms = mlx5_tout_ms(dev, PCI_TOGGLE);
 	int lock = -EBUSY;
 
 	mutex_lock(&dev->intf_state_mutex);
@@ -237,7 +235,7 @@ void mlx5_error_sw_reset(struct mlx5_core_dev *dev)
 		lock = lock_sem_sw_reset(dev, true);
 
 		if (lock == -EBUSY) {
-			delay_ms = MLX5_CRDUMP_WAIT_MS;
+			delay_ms = mlx5_tout_ms(dev, FULL_CRDUMP);
 			goto recover_from_sw_reset;
 		}
 		/* Execute SW reset */
@@ -307,13 +305,11 @@ static void mlx5_handle_bad_state(struct mlx5_core_dev *dev)
 	mlx5_disable_device(dev);
 }
 
-/* How much time to wait until health resetting the driver (in msecs) */
-#define MLX5_RECOVERY_WAIT_MSECS 60000
 int mlx5_health_wait_pci_up(struct mlx5_core_dev *dev)
 {
 	unsigned long end;
 
-	end = jiffies + msecs_to_jiffies(MLX5_RECOVERY_WAIT_MSECS);
+	end = jiffies + msecs_to_jiffies(mlx5_tout_ms(dev, FW_RESET));
 	while (sensor_pci_not_working(dev)) {
 		if (time_after(jiffies, end))
 			return -ETIMEDOUT;
@@ -674,13 +670,13 @@ static void mlx5_fw_reporters_destroy(struct mlx5_core_dev *dev)
 		devlink_health_reporter_destroy(health->fw_fatal_reporter);
 }
 
-static unsigned long get_next_poll_jiffies(void)
+static unsigned long get_next_poll_jiffies(struct mlx5_core_dev *dev)
 {
 	unsigned long next;
 
 	get_random_bytes(&next, sizeof(next));
 	next %= HZ;
-	next += jiffies + MLX5_HEALTH_POLL_INTERVAL;
+	next += jiffies + msecs_to_jiffies(mlx5_tout_ms(dev, HEALTH_POLL_INTERVAL));
 
 	return next;
 }
@@ -740,11 +736,12 @@ static void poll_health(struct timer_list *t)
 		queue_work(health->wq, &health->report_work);
 
 out:
-	mod_timer(&health->timer, get_next_poll_jiffies());
+	mod_timer(&health->timer, get_next_poll_jiffies(dev));
 }
 
 void mlx5_start_health_poll(struct mlx5_core_dev *dev)
 {
+	u64 poll_interval_ms =  mlx5_tout_ms(dev, HEALTH_POLL_INTERVAL);
 	struct mlx5_core_health *health = &dev->priv.health;
 
 	timer_setup(&health->timer, poll_health, 0);
@@ -753,7 +750,7 @@ void mlx5_start_health_poll(struct mlx5_core_dev *dev)
 	health->health = &dev->iseg->health;
 	health->health_counter = &dev->iseg->health_counter;
 
-	health->timer.expires = round_jiffies(jiffies + MLX5_HEALTH_POLL_INTERVAL);
+	health->timer.expires = jiffies + msecs_to_jiffies(poll_interval_ms);
 	add_timer(&health->timer);
 }
 

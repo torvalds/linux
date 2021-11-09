@@ -617,7 +617,7 @@ void qede_fill_rss_params(struct qede_dev *edev,
 
 static int qede_set_ucast_rx_mac(struct qede_dev *edev,
 				 enum qed_filter_xcast_params_type opcode,
-				 unsigned char mac[ETH_ALEN])
+				 const unsigned char mac[ETH_ALEN])
 {
 	struct qed_filter_ucast_params ucast;
 

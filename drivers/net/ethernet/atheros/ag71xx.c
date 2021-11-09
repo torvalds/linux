@@ -1971,7 +1971,7 @@ static int ag71xx_probe(struct platform_device *pdev)
 	err = of_get_ethdev_address(np, ndev);
 	if (err) {
 		netif_err(ag, probe, ndev, "invalid MAC address, using random address\n");
-		eth_random_addr(ndev->dev_addr);
+		eth_hw_addr_random(ndev);
 	}
 
 	err = of_get_phy_mode(np, &ag->phy_if_mode);

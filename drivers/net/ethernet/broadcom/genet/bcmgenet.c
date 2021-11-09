@@ -3266,7 +3266,7 @@ static void bcmgenet_umac_reset(struct bcmgenet_priv *priv)
 }
 
 static void bcmgenet_set_hw_addr(struct bcmgenet_priv *priv,
-				 unsigned char *addr)
+				 const unsigned char *addr)
 {
 	bcmgenet_umac_writel(priv, get_unaligned_be32(&addr[0]), UMAC_MAC0);
 	bcmgenet_umac_writel(priv, get_unaligned_be16(&addr[4]), UMAC_MAC1);
@@ -3560,7 +3560,7 @@ static void bcmgenet_timeout(struct net_device *dev, unsigned int txqueue)
 #define MAX_MDF_FILTER	17
 
 static inline void bcmgenet_set_mdf_addr(struct bcmgenet_priv *priv,
-					 unsigned char *addr,
+					 const unsigned char *addr,
 					 int *i)
 {
 	bcmgenet_umac_writel(priv, addr[0] << 8 | addr[1],
@@ -4085,8 +4085,12 @@ static int bcmgenet_probe(struct platform_device *pdev)
 		eth_hw_addr_set(dev, pd->mac_address);
 	else
 		if (device_get_ethdev_address(&pdev->dev, dev))
-			if (has_acpi_companion(&pdev->dev))
-				bcmgenet_get_hw_addr(priv, dev->dev_addr);
+			if (has_acpi_companion(&pdev->dev)) {
+				u8 addr[ETH_ALEN];
+
+				bcmgenet_get_hw_addr(priv, addr);
+				eth_hw_addr_set(dev, addr);
+			}
 
 	if (!is_valid_ether_addr(dev->dev_addr)) {
 		dev_warn(&pdev->dev, "using random Ethernet MAC\n");

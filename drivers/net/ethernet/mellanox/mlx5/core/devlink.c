@@ -454,7 +454,8 @@ static int mlx5_devlink_enable_roce_validate(struct devlink *devlink, u32 id,
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
 	bool new_state = val.vbool;
 
-	if (new_state && !MLX5_CAP_GEN(dev, roce)) {
+	if (new_state && !MLX5_CAP_GEN(dev, roce) &&
+	    !MLX5_CAP_GEN(dev, roce_rw_supported)) {
 		NL_SET_ERR_MSG_MOD(extack, "Device doesn't support RoCE");
 		return -EOPNOTSUPP;
 	}
@@ -796,6 +797,7 @@ static void mlx5_devlink_traps_unregister(struct devlink *devlink)
 
 int mlx5_devlink_register(struct devlink *devlink)
 {
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
 	int err;
 
 	err = devlink_params_register(devlink, mlx5_devlink_params,
@@ -812,6 +814,9 @@ int mlx5_devlink_register(struct devlink *devlink)
 	err = mlx5_devlink_traps_register(devlink);
 	if (err)
 		goto traps_reg_err;
+
+	if (!mlx5_core_is_mp_slave(dev))
+		devlink_set_features(devlink, DEVLINK_F_RELOAD);
 
 	return 0;
 

@@ -67,7 +67,7 @@ static int tipc_ib_addr2msg(char *msg, struct tipc_media_addr *addr)
 /* Convert raw InfiniBand address format to media addr format */
 static int tipc_ib_raw2addr(struct tipc_bearer *b,
 			    struct tipc_media_addr *addr,
-			    char *msg)
+			    const char *msg)
 {
 	memset(addr, 0, sizeof(*addr));
 	memcpy(addr->value, msg, INFINIBAND_ALEN);

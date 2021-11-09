@@ -1373,7 +1373,7 @@ exit:
 
 int
 qed_vf_pf_bulletin_update_mac(struct qed_hwfn *p_hwfn,
-			      u8 *p_mac)
+			      const u8 *p_mac)
 {
 	struct qed_vf_iov *p_iov = p_hwfn->vf_iov_info;
 	struct vfpf_bulletin_update_mac_tlv *p_req;

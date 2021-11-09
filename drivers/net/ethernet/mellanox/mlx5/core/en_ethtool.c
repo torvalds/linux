@@ -2137,12 +2137,14 @@ int mlx5e_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 		return 0;
 	}
 
-	return mlx5e_ethtool_get_rxnfc(dev, info, rule_locs);
+	return mlx5e_ethtool_get_rxnfc(priv, info, rule_locs);
 }
 
 int mlx5e_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 {
-	return mlx5e_ethtool_set_rxnfc(dev, cmd);
+	struct mlx5e_priv *priv = netdev_priv(dev);
+
+	return mlx5e_ethtool_set_rxnfc(priv, cmd);
 }
 
 static int query_port_status_opcode(struct mlx5_core_dev *mdev, u32 *status_opcode)

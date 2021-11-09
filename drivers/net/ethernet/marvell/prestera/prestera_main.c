@@ -338,11 +338,14 @@ static int prestera_port_create(struct prestera_switch *sw, u32 id)
 		goto err_port_init;
 	}
 
+	eth_hw_addr_gen(dev, sw->base_mac, port->fp_id);
 	/* firmware requires that port's MAC address consist of the first
 	 * 5 bytes of the base MAC address
 	 */
-	memcpy(dev->dev_addr, sw->base_mac, dev->addr_len - 1);
-	dev->dev_addr[dev->addr_len - 1] = port->fp_id;
+	if (memcmp(dev->dev_addr, sw->base_mac, ETH_ALEN - 1)) {
+		dev_warn(prestera_dev(sw), "Port MAC address wraps for port(%u)\n", id);
+		dev_addr_mod(dev, 0, sw->base_mac, ETH_ALEN - 1);
+	}
 
 	err = prestera_hw_port_mac_set(port, dev->dev_addr);
 	if (err) {

@@ -279,6 +279,7 @@
 #define PTP_GENERAL_CONFIG_CLOCK_EVENT_1MS_	(3)
 #define PTP_GENERAL_CONFIG_CLOCK_EVENT_10MS_	(4)
 #define PTP_GENERAL_CONFIG_CLOCK_EVENT_200MS_	(5)
+#define PTP_GENERAL_CONFIG_CLOCK_EVENT_TOGGLE_	(6)
 #define PTP_GENERAL_CONFIG_CLOCK_EVENT_X_SET_(channel, value) \
 	(((value) & 0x7) << (1 + ((channel) << 2)))
 #define PTP_GENERAL_CONFIG_RELOAD_ADD_X_(channel)	(BIT((channel) << 2))

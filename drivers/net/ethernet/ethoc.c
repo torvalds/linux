@@ -802,8 +802,8 @@ static int ethoc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 static void ethoc_do_set_mac_address(struct net_device *dev)
 {
+	const unsigned char *mac = dev->dev_addr;
 	struct ethoc *priv = netdev_priv(dev);
-	unsigned char *mac = dev->dev_addr;
 
 	ethoc_write(priv, MAC_ADDR0, (mac[2] << 24) | (mac[3] << 16) |
 				     (mac[4] <<  8) | (mac[5] <<  0));
@@ -1154,8 +1154,12 @@ static int ethoc_probe(struct platform_device *pdev)
 	/* Check that the given MAC address is valid. If it isn't, read the
 	 * current MAC from the controller.
 	 */
-	if (!is_valid_ether_addr(netdev->dev_addr))
-		ethoc_get_mac_address(netdev, netdev->dev_addr);
+	if (!is_valid_ether_addr(netdev->dev_addr)) {
+		u8 addr[ETH_ALEN];
+
+		ethoc_get_mac_address(netdev, addr);
+		eth_hw_addr_set(netdev, addr);
+	}
 
 	/* Check the MAC again for validity, if it still isn't choose and
 	 * program a random one.

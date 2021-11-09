@@ -1503,7 +1503,7 @@ static int smsc911x_soft_reset(struct smsc911x_data *pdata)
 
 /* Sets the device MAC address to dev_addr, called with mac_lock held */
 static void
-smsc911x_set_hw_mac_address(struct smsc911x_data *pdata, u8 dev_addr[6])
+smsc911x_set_hw_mac_address(struct smsc911x_data *pdata, const u8 dev_addr[6])
 {
 	u32 mac_high16 = (dev_addr[5] << 8) | dev_addr[4];
 	u32 mac_low32 = (dev_addr[3] << 24) | (dev_addr[2] << 16) |
@@ -2162,13 +2162,15 @@ static void smsc911x_read_mac_address(struct net_device *dev)
 	struct smsc911x_data *pdata = netdev_priv(dev);
 	u32 mac_high16 = smsc911x_mac_read(pdata, ADDRH);
 	u32 mac_low32 = smsc911x_mac_read(pdata, ADDRL);
+	u8 addr[ETH_ALEN];
 
-	dev->dev_addr[0] = (u8)(mac_low32);
-	dev->dev_addr[1] = (u8)(mac_low32 >> 8);
-	dev->dev_addr[2] = (u8)(mac_low32 >> 16);
-	dev->dev_addr[3] = (u8)(mac_low32 >> 24);
-	dev->dev_addr[4] = (u8)(mac_high16);
-	dev->dev_addr[5] = (u8)(mac_high16 >> 8);
+	addr[0] = (u8)(mac_low32);
+	addr[1] = (u8)(mac_low32 >> 8);
+	addr[2] = (u8)(mac_low32 >> 16);
+	addr[3] = (u8)(mac_low32 >> 24);
+	addr[4] = (u8)(mac_high16);
+	addr[5] = (u8)(mac_high16 >> 8);
+	eth_hw_addr_set(dev, addr);
 }
 
 /* Initializing private device structures, only called from probe */

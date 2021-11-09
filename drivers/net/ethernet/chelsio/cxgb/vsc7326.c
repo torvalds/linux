@@ -379,7 +379,7 @@ static int mac_intr_clear(struct cmac *mac)
 }
 
 /* Expect MAC address to be in network byte order. */
-static int mac_set_address(struct cmac* mac, u8 addr[6])
+static int mac_set_address(struct cmac* mac, const u8 addr[6])
 {
 	u32 val;
 	int port = mac->instance->index;

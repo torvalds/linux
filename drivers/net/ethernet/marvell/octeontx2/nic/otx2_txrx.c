@@ -181,8 +181,9 @@ static void otx2_set_rxtstamp(struct otx2_nic *pfvf,
 	skb_hwtstamps(skb)->hwtstamp = ns_to_ktime(tsns);
 }
 
-static void otx2_skb_add_frag(struct otx2_nic *pfvf, struct sk_buff *skb,
-			      u64 iova, int len, struct nix_rx_parse_s *parse)
+static bool otx2_skb_add_frag(struct otx2_nic *pfvf, struct sk_buff *skb,
+			      u64 iova, int len, struct nix_rx_parse_s *parse,
+			      int qidx)
 {
 	struct page *page;
 	int off = 0;
@@ -203,11 +204,22 @@ static void otx2_skb_add_frag(struct otx2_nic *pfvf, struct sk_buff *skb,
 	}
 
 	page = virt_to_page(va);
-	skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page,
-			va - page_address(page) + off, len - off, pfvf->rbsize);
+	if (likely(skb_shinfo(skb)->nr_frags < MAX_SKB_FRAGS)) {
+		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page,
+				va - page_address(page) + off,
+				len - off, pfvf->rbsize);
 
-	otx2_dma_unmap_page(pfvf, iova - OTX2_HEAD_ROOM,
-			    pfvf->rbsize, DMA_FROM_DEVICE);
+		otx2_dma_unmap_page(pfvf, iova - OTX2_HEAD_ROOM,
+				    pfvf->rbsize, DMA_FROM_DEVICE);
+		return true;
+	}
+
+	/* If more than MAX_SKB_FRAGS fragments are received then
+	 * give back those buffer pointers to hardware for reuse.
+	 */
+	pfvf->hw_ops->aura_freeptr(pfvf, qidx, iova & ~0x07ULL);
+
+	return false;
 }
 
 static void otx2_set_rxhash(struct otx2_nic *pfvf,
@@ -349,9 +361,9 @@ static void otx2_rcv_pkt_handler(struct otx2_nic *pfvf,
 		seg_addr = &sg->seg_addr;
 		seg_size = (void *)sg;
 		for (seg = 0; seg < sg->segs; seg++, seg_addr++) {
-			otx2_skb_add_frag(pfvf, skb, *seg_addr, seg_size[seg],
-					  parse);
-			cq->pool_ptrs++;
+			if (otx2_skb_add_frag(pfvf, skb, *seg_addr,
+					      seg_size[seg], parse, cq->cq_idx))
+				cq->pool_ptrs++;
 		}
 		start += sizeof(*sg);
 	}

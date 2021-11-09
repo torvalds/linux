@@ -125,7 +125,8 @@ struct ice_vf {
 	 * the main LAN VSI for the PF.
 	 */
 	u16 lan_vsi_num;		/* ID as used by firmware */
-	unsigned int tx_rate;		/* Tx bandwidth limit in Mbps */
+	unsigned int min_tx_rate;	/* Minimum Tx bandwidth limit in Mbps */
+	unsigned int max_tx_rate;	/* Maximum Tx bandwidth limit in Mbps */
 	DECLARE_BITMAP(vf_states, ICE_VF_STATES_NBITS);	/* VF runtime states */
 
 	u64 num_inval_msgs;		/* number of continuous invalid msgs */
@@ -171,6 +172,10 @@ ice_is_malicious_vf(struct ice_pf *pf, struct ice_rq_event_info *event,
 int
 ice_set_vf_port_vlan(struct net_device *netdev, int vf_id, u16 vlan_id, u8 qos,
 		     __be16 vlan_proto);
+
+int
+ice_set_vf_bw(struct net_device *netdev, int vf_id, int min_tx_rate,
+	      int max_tx_rate);
 
 int ice_set_vf_trust(struct net_device *netdev, int vf_id, bool trusted);
 
@@ -299,6 +304,14 @@ ice_set_vf_spoofchk(struct net_device __always_unused *netdev,
 static inline int
 ice_set_vf_link_state(struct net_device __always_unused *netdev,
 		      int __always_unused vf_id, int __always_unused link_state)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int
+ice_set_vf_bw(struct net_device __always_unused *netdev,
+	      int __always_unused vf_id, int __always_unused min_tx_rate,
+	      int __always_unused max_tx_rate)
 {
 	return -EOPNOTSUPP;
 }

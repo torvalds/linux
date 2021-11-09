@@ -5,6 +5,7 @@
 #include "ice_eswitch.h"
 #include "ice_devlink.h"
 #include "ice_virtchnl_pf.h"
+#include "ice_tc_lib.h"
 
 /**
  * ice_repr_get_sw_port_id - get port ID associated with representor
@@ -141,6 +142,55 @@ ice_repr_get_devlink_port(struct net_device *netdev)
 	return &repr->vf->devlink_port;
 }
 
+static int
+ice_repr_setup_tc_cls_flower(struct ice_repr *repr,
+			     struct flow_cls_offload *flower)
+{
+	switch (flower->command) {
+	case FLOW_CLS_REPLACE:
+		return ice_add_cls_flower(repr->netdev, repr->src_vsi, flower);
+	case FLOW_CLS_DESTROY:
+		return ice_del_cls_flower(repr->src_vsi, flower);
+	default:
+		return -EINVAL;
+	}
+}
+
+static int
+ice_repr_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
+			   void *cb_priv)
+{
+	struct flow_cls_offload *flower = (struct flow_cls_offload *)type_data;
+	struct ice_netdev_priv *np = (struct ice_netdev_priv *)cb_priv;
+
+	switch (type) {
+	case TC_SETUP_CLSFLOWER:
+		return ice_repr_setup_tc_cls_flower(np->repr, flower);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static LIST_HEAD(ice_repr_block_cb_list);
+
+static int
+ice_repr_setup_tc(struct net_device *netdev, enum tc_setup_type type,
+		  void *type_data)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+
+	switch (type) {
+	case TC_SETUP_BLOCK:
+		return flow_block_cb_setup_simple((struct flow_block_offload *)
+						  type_data,
+						  &ice_repr_block_cb_list,
+						  ice_repr_setup_tc_block_cb,
+						  np, np, true);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static const struct net_device_ops ice_repr_netdev_ops = {
 	.ndo_get_phys_port_name = ice_repr_get_phys_port_name,
 	.ndo_get_stats64 = ice_repr_get_stats64,
@@ -148,6 +198,7 @@ static const struct net_device_ops ice_repr_netdev_ops = {
 	.ndo_stop = ice_repr_stop,
 	.ndo_start_xmit = ice_eswitch_port_start_xmit,
 	.ndo_get_devlink_port = ice_repr_get_devlink_port,
+	.ndo_setup_tc = ice_repr_setup_tc,
 };
 
 /**
@@ -169,6 +220,8 @@ ice_repr_reg_netdev(struct net_device *netdev)
 	eth_hw_addr_random(netdev);
 	netdev->netdev_ops = &ice_repr_netdev_ops;
 	ice_set_ethtool_repr_ops(netdev);
+
+	netdev->hw_features |= NETIF_F_HW_TC;
 
 	netif_carrier_off(netdev);
 	netif_tx_stop_all_queues(netdev);

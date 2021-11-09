@@ -1117,7 +1117,7 @@ static int dfx_driver_init(struct net_device *dev, const char *print_name,
 	 *       dfx_ctl_set_mac_address.
 	 */
 
-	memcpy(dev->dev_addr, bp->factory_mac_addr, FDDI_K_ALEN);
+	dev_addr_set(dev, bp->factory_mac_addr);
 	if (dfx_bus_tc)
 		board_name = "DEFTA";
 	if (dfx_bus_eisa)
@@ -1474,7 +1474,7 @@ static int dfx_open(struct net_device *dev)
 	 *		 address.
 	 */
 
-	memcpy(dev->dev_addr, bp->factory_mac_addr, FDDI_K_ALEN);
+	dev_addr_set(dev, bp->factory_mac_addr);
 
 	/* Clear local unicast/multicast address tables and counts */
 
@@ -2379,7 +2379,7 @@ static int dfx_ctl_set_mac_address(struct net_device *dev, void *addr)
 
 	/* Copy unicast address to driver-maintained structs and update count */
 
-	memcpy(dev->dev_addr, p_sockaddr->sa_data, FDDI_K_ALEN);	/* update device struct */
+	dev_addr_set(dev, p_sockaddr->sa_data);				/* update device struct */
 	memcpy(&bp->uc_table[0], p_sockaddr->sa_data, FDDI_K_ALEN);	/* update driver struct */
 	bp->uc_count = 1;
 

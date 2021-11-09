@@ -66,10 +66,6 @@ enum {
 };
 
 enum {
-	/* one minute for the sake of bringup. Generally, commands must always
-	 * complete and we may need to increase this timeout value
-	 */
-	MLX5_CMD_TIMEOUT_MSEC	= 60 * 1000,
 	MLX5_CMD_WQ_MAX_NAME	= 32,
 };
 
@@ -156,6 +152,7 @@ enum {
 	MLX5_REG_MIRC		 = 0x9162,
 	MLX5_REG_SBCAM		 = 0xB01F,
 	MLX5_REG_RESOURCE_DUMP   = 0xC000,
+	MLX5_REG_DTOR            = 0xC00E,
 };
 
 enum mlx5_qpts_trust_state {
@@ -754,6 +751,7 @@ struct mlx5_core_dev {
 		u32 qcam[MLX5_ST_SZ_DW(qcam_reg)];
 		u8  embedded_cpu;
 	} caps;
+	struct mlx5_timeouts	*timeouts;
 	u64			sys_image_guid;
 	phys_addr_t		iseg_base;
 	struct mlx5_init_seg __iomem *iseg;
@@ -1244,6 +1242,16 @@ static inline int mlx5_core_native_port_num(struct mlx5_core_dev *dev)
 	return MLX5_CAP_GEN(dev, native_port_num);
 }
 
+static inline int mlx5_get_dev_index(struct mlx5_core_dev *dev)
+{
+	int idx = MLX5_CAP_GEN(dev, native_port_num);
+
+	if (idx >= 1 && idx <= MLX5_MAX_PORTS)
+		return idx - 1;
+	else
+		return PCI_FUNC(dev->pdev->devfn);
+}
+
 enum {
 	MLX5_TRIGGERED_CMD_COMP = (u64)1 << 32,
 };
@@ -1252,11 +1260,12 @@ static inline bool mlx5_is_roce_init_enabled(struct mlx5_core_dev *dev)
 {
 	struct devlink *devlink = priv_to_devlink(dev);
 	union devlink_param_value val;
+	int err;
 
-	devlink_param_driverinit_value_get(devlink,
-					   DEVLINK_PARAM_GENERIC_ID_ENABLE_ROCE,
-					   &val);
-	return val.vbool;
+	err = devlink_param_driverinit_value_get(devlink,
+						 DEVLINK_PARAM_GENERIC_ID_ENABLE_ROCE,
+						 &val);
+	return err ? MLX5_CAP_GEN(dev, roce) : val.vbool;
 }
 
 #endif /* MLX5_DRIVER_H */

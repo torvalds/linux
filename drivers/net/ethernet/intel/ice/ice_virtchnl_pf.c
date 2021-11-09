@@ -5,6 +5,7 @@
 #include "ice_base.h"
 #include "ice_lib.h"
 #include "ice_fltr.h"
+#include "ice_dcb_lib.h"
 #include "ice_flow.h"
 #include "ice_eswitch.h"
 #include "ice_virtchnl_allowlist.h"
@@ -831,7 +832,7 @@ static struct ice_vsi *ice_vf_vsi_setup(struct ice_vf *vf)
 	struct ice_pf *pf = vf->pf;
 	struct ice_vsi *vsi;
 
-	vsi = ice_vsi_setup(pf, pi, ICE_VSI_VF, vf->vf_id);
+	vsi = ice_vsi_setup(pf, pi, ICE_VSI_VF, vf->vf_id, NULL);
 
 	if (!vsi) {
 		dev_err(ice_pf_to_dev(pf), "Failed to create VF VSI\n");
@@ -858,7 +859,7 @@ struct ice_vsi *ice_vf_ctrl_vsi_setup(struct ice_vf *vf)
 	struct ice_pf *pf = vf->pf;
 	struct ice_vsi *vsi;
 
-	vsi = ice_vsi_setup(pf, pi, ICE_VSI_CTRL, vf->vf_id);
+	vsi = ice_vsi_setup(pf, pi, ICE_VSI_CTRL, vf->vf_id, NULL);
 	if (!vsi) {
 		dev_err(ice_pf_to_dev(pf), "Failed to create VF control VSI\n");
 		ice_vf_ctrl_invalidate_vsi(vf);
@@ -882,6 +883,40 @@ struct ice_vsi *ice_vf_ctrl_vsi_setup(struct ice_vf *vf)
 static int ice_calc_vf_first_vector_idx(struct ice_pf *pf, struct ice_vf *vf)
 {
 	return pf->sriov_base_vector + vf->vf_id * pf->num_msix_per_vf;
+}
+
+/**
+ * ice_vf_rebuild_host_tx_rate_cfg - re-apply the Tx rate limiting configuration
+ * @vf: VF to re-apply the configuration for
+ *
+ * Called after a VF VSI has been re-added/rebuild during reset. The PF driver
+ * needs to re-apply the host configured Tx rate limiting configuration.
+ */
+static int ice_vf_rebuild_host_tx_rate_cfg(struct ice_vf *vf)
+{
+	struct device *dev = ice_pf_to_dev(vf->pf);
+	struct ice_vsi *vsi = ice_get_vf_vsi(vf);
+	int err;
+
+	if (vf->min_tx_rate) {
+		err = ice_set_min_bw_limit(vsi, (u64)vf->min_tx_rate * 1000);
+		if (err) {
+			dev_err(dev, "failed to set min Tx rate to %d Mbps for VF %u, error %d\n",
+				vf->min_tx_rate, vf->vf_id, err);
+			return err;
+		}
+	}
+
+	if (vf->max_tx_rate) {
+		err = ice_set_max_bw_limit(vsi, (u64)vf->max_tx_rate * 1000);
+		if (err) {
+			dev_err(dev, "failed to set max Tx rate to %d Mbps for VF %u, error %d\n",
+				vf->max_tx_rate, vf->vf_id, err);
+			return err;
+		}
+	}
+
+	return 0;
 }
 
 /**
@@ -1420,6 +1455,11 @@ static void ice_vf_rebuild_host_cfg(struct ice_vf *vf)
 	if (ice_vf_rebuild_host_vlan_cfg(vf))
 		dev_err(dev, "failed to rebuild VLAN configuration for VF %u\n",
 			vf->vf_id);
+
+	if (ice_vf_rebuild_host_tx_rate_cfg(vf))
+		dev_err(dev, "failed to rebuild Tx rate limiting configuration for VF %u\n",
+			vf->vf_id);
+
 	/* rebuild aggregator node config for main VF VSI */
 	ice_vf_rebuild_aggregator_node_cfg(vsi);
 }
@@ -1975,7 +2015,8 @@ static int ice_ena_vfs(struct ice_pf *pf, u16 num_vfs)
 
 	clear_bit(ICE_VF_DIS, pf->state);
 
-	if (ice_eswitch_configure(pf))
+	ret = ice_eswitch_configure(pf);
+	if (ret)
 		goto err_unroll_sriov;
 
 	return 0;
@@ -3347,7 +3388,7 @@ static int ice_vc_dis_qs_msg(struct ice_vf *vf, u8 *msg)
 		q_map = vqs->tx_queues;
 
 		for_each_set_bit(vf_q_id, &q_map, ICE_MAX_RSS_QS_PER_VF) {
-			struct ice_ring *ring = vsi->tx_rings[vf_q_id];
+			struct ice_tx_ring *ring = vsi->tx_rings[vf_q_id];
 			struct ice_txq_meta txq_meta = { 0 };
 
 			if (!ice_vc_isvalid_q_id(vf, vqs->vsi_id, vf_q_id)) {
@@ -4747,8 +4788,8 @@ ice_get_vf_cfg(struct net_device *netdev, int vf_id, struct ifla_vf_info *ivi)
 		ivi->linkstate = IFLA_VF_LINK_STATE_ENABLE;
 	else
 		ivi->linkstate = IFLA_VF_LINK_STATE_DISABLE;
-	ivi->max_tx_rate = vf->tx_rate;
-	ivi->min_tx_rate = 0;
+	ivi->max_tx_rate = vf->max_tx_rate;
+	ivi->min_tx_rate = vf->min_tx_rate;
 	return 0;
 }
 
@@ -4798,11 +4839,6 @@ int ice_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 	struct ice_pf *pf = ice_netdev_to_pf(netdev);
 	struct ice_vf *vf;
 	int ret;
-
-	if (ice_is_eswitch_mode_switchdev(pf)) {
-		dev_info(ice_pf_to_dev(pf), "Trusted VF is forbidden in switchdev mode\n");
-		return -EOPNOTSUPP;
-	}
 
 	if (ice_validate_vf_id(pf, vf_id))
 		return -EINVAL;
@@ -4863,6 +4899,11 @@ int ice_set_vf_trust(struct net_device *netdev, int vf_id, bool trusted)
 	struct ice_vf *vf;
 	int ret;
 
+	if (ice_is_eswitch_mode_switchdev(pf)) {
+		dev_info(ice_pf_to_dev(pf), "Trusted VF is forbidden in switchdev mode\n");
+		return -EOPNOTSUPP;
+	}
+
 	if (ice_validate_vf_id(pf, vf_id))
 		return -EINVAL;
 
@@ -4922,6 +4963,122 @@ int ice_set_vf_link_state(struct net_device *netdev, int vf_id, int link_state)
 	}
 
 	ice_vc_notify_vf_link_state(vf);
+
+	return 0;
+}
+
+/**
+ * ice_calc_all_vfs_min_tx_rate - calculate cumulative min Tx rate on all VFs
+ * @pf: PF associated with VFs
+ */
+static int ice_calc_all_vfs_min_tx_rate(struct ice_pf *pf)
+{
+	int rate = 0, i;
+
+	ice_for_each_vf(pf, i)
+		rate += pf->vf[i].min_tx_rate;
+
+	return rate;
+}
+
+/**
+ * ice_min_tx_rate_oversubscribed - check if min Tx rate causes oversubscription
+ * @vf: VF trying to configure min_tx_rate
+ * @min_tx_rate: min Tx rate in Mbps
+ *
+ * Check if the min_tx_rate being passed in will cause oversubscription of total
+ * min_tx_rate based on the current link speed and all other VFs configured
+ * min_tx_rate
+ *
+ * Return true if the passed min_tx_rate would cause oversubscription, else
+ * return false
+ */
+static bool
+ice_min_tx_rate_oversubscribed(struct ice_vf *vf, int min_tx_rate)
+{
+	int link_speed_mbps = ice_get_link_speed_mbps(ice_get_vf_vsi(vf));
+	int all_vfs_min_tx_rate = ice_calc_all_vfs_min_tx_rate(vf->pf);
+
+	/* this VF's previous rate is being overwritten */
+	all_vfs_min_tx_rate -= vf->min_tx_rate;
+
+	if (all_vfs_min_tx_rate + min_tx_rate > link_speed_mbps) {
+		dev_err(ice_pf_to_dev(vf->pf), "min_tx_rate of %d Mbps on VF %u would cause oversubscription of %d Mbps based on the current link speed %d Mbps\n",
+			min_tx_rate, vf->vf_id,
+			all_vfs_min_tx_rate + min_tx_rate - link_speed_mbps,
+			link_speed_mbps);
+		return true;
+	}
+
+	return false;
+}
+
+/**
+ * ice_set_vf_bw - set min/max VF bandwidth
+ * @netdev: network interface device structure
+ * @vf_id: VF identifier
+ * @min_tx_rate: Minimum Tx rate in Mbps
+ * @max_tx_rate: Maximum Tx rate in Mbps
+ */
+int
+ice_set_vf_bw(struct net_device *netdev, int vf_id, int min_tx_rate,
+	      int max_tx_rate)
+{
+	struct ice_pf *pf = ice_netdev_to_pf(netdev);
+	struct ice_vsi *vsi;
+	struct device *dev;
+	struct ice_vf *vf;
+	int ret;
+
+	dev = ice_pf_to_dev(pf);
+	if (ice_validate_vf_id(pf, vf_id))
+		return -EINVAL;
+
+	vf = &pf->vf[vf_id];
+	ret = ice_check_vf_ready_for_cfg(vf);
+	if (ret)
+		return ret;
+
+	vsi = ice_get_vf_vsi(vf);
+
+	/* when max_tx_rate is zero that means no max Tx rate limiting, so only
+	 * check if max_tx_rate is non-zero
+	 */
+	if (max_tx_rate && min_tx_rate > max_tx_rate) {
+		dev_err(dev, "Cannot set min Tx rate %d Mbps greater than max Tx rate %d Mbps\n",
+			min_tx_rate, max_tx_rate);
+		return -EINVAL;
+	}
+
+	if (min_tx_rate && ice_is_dcb_active(pf)) {
+		dev_err(dev, "DCB on PF is currently enabled. VF min Tx rate limiting not allowed on this PF.\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (ice_min_tx_rate_oversubscribed(vf, min_tx_rate))
+		return -EINVAL;
+
+	if (vf->min_tx_rate != (unsigned int)min_tx_rate) {
+		ret = ice_set_min_bw_limit(vsi, (u64)min_tx_rate * 1000);
+		if (ret) {
+			dev_err(dev, "Unable to set min-tx-rate for VF %d\n",
+				vf->vf_id);
+			return ret;
+		}
+
+		vf->min_tx_rate = min_tx_rate;
+	}
+
+	if (vf->max_tx_rate != (unsigned int)max_tx_rate) {
+		ret = ice_set_max_bw_limit(vsi, (u64)max_tx_rate * 1000);
+		if (ret) {
+			dev_err(dev, "Unable to set max-tx-rate for VF %d\n",
+				vf->vf_id);
+			return ret;
+		}
+
+		vf->max_tx_rate = max_tx_rate;
+	}
 
 	return 0;
 }

@@ -1623,8 +1623,8 @@ static void mvneta_set_ucast_addr(struct mvneta_port *pp, u8 last_nibble,
 }
 
 /* Set mac address */
-static void mvneta_mac_addr_set(struct mvneta_port *pp, unsigned char *addr,
-				int queue)
+static void mvneta_mac_addr_set(struct mvneta_port *pp,
+				const unsigned char *addr, int queue)
 {
 	unsigned int mac_h;
 	unsigned int mac_l;
@@ -1914,7 +1914,7 @@ static int mvneta_rx_refill(struct mvneta_port *pp,
 }
 
 /* Handle tx checksum */
-static u32 mvneta_skb_tx_csum(struct mvneta_port *pp, struct sk_buff *skb)
+static u32 mvneta_skb_tx_csum(struct sk_buff *skb)
 {
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		int ip_hdr_len = 0;
@@ -2595,8 +2595,7 @@ err_drop_frame:
 }
 
 static inline void
-mvneta_tso_put_hdr(struct sk_buff *skb,
-		   struct mvneta_port *pp, struct mvneta_tx_queue *txq)
+mvneta_tso_put_hdr(struct sk_buff *skb, struct mvneta_tx_queue *txq)
 {
 	int hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
 	struct mvneta_tx_buf *buf = &txq->buf[txq->txq_put_index];
@@ -2604,7 +2603,7 @@ mvneta_tso_put_hdr(struct sk_buff *skb,
 
 	tx_desc = mvneta_txq_next_desc_get(txq);
 	tx_desc->data_size = hdr_len;
-	tx_desc->command = mvneta_skb_tx_csum(pp, skb);
+	tx_desc->command = mvneta_skb_tx_csum(skb);
 	tx_desc->command |= MVNETA_TXD_F_DESC;
 	tx_desc->buf_phys_addr = txq->tso_hdrs_phys +
 				 txq->txq_put_index * TSO_HEADER_SIZE;
@@ -2681,7 +2680,7 @@ static int mvneta_tx_tso(struct sk_buff *skb, struct net_device *dev,
 		hdr = txq->tso_hdrs + txq->txq_put_index * TSO_HEADER_SIZE;
 		tso_build_hdr(skb, hdr, &tso, data_left, total_len == 0);
 
-		mvneta_tso_put_hdr(skb, pp, txq);
+		mvneta_tso_put_hdr(skb, txq);
 
 		while (data_left > 0) {
 			int size;
@@ -2799,7 +2798,7 @@ static netdev_tx_t mvneta_tx(struct sk_buff *skb, struct net_device *dev)
 	/* Get a descriptor for the first part of the packet */
 	tx_desc = mvneta_txq_next_desc_get(txq);
 
-	tx_cmd = mvneta_skb_tx_csum(pp, skb);
+	tx_cmd = mvneta_skb_tx_csum(skb);
 
 	tx_desc->data_size = skb_headlen(skb);
 

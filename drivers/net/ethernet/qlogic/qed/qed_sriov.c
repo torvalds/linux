@@ -5224,7 +5224,6 @@ void qed_iov_wq_stop(struct qed_dev *cdev, bool schedule_first)
 			cancel_delayed_work_sync(&cdev->hwfns[i].iov_task);
 		}
 
-		flush_workqueue(cdev->hwfns[i].iov_wq);
 		destroy_workqueue(cdev->hwfns[i].iov_wq);
 	}
 }

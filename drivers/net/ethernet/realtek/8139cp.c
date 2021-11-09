@@ -1889,6 +1889,7 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	void __iomem *regs;
 	resource_size_t pciaddr;
 	unsigned int addr_len, i, pci_using_dac;
+	__le16 addr[ETH_ALEN / 2];
 
 	pr_info_once("%s", version);
 
@@ -1979,8 +1980,8 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* read MAC address from EEPROM */
 	addr_len = read_eeprom (regs, 0, 8) == 0x8129 ? 8 : 6;
 	for (i = 0; i < 3; i++)
-		((__le16 *) (dev->dev_addr))[i] =
-		    cpu_to_le16(read_eeprom (regs, i + 7, addr_len));
+		addr[i] = cpu_to_le16(read_eeprom (regs, i + 7, addr_len));
+	eth_hw_addr_set(dev, (u8 *)addr);
 
 	dev->netdev_ops = &cp_netdev_ops;
 	netif_napi_add(dev, &cp->napi, cp_rx_poll, 16);
