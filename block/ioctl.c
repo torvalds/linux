@@ -154,6 +154,7 @@ static int blk_ioctl_zeroout(struct block_device *bdev, fmode_t mode,
 {
 	uint64_t range[2];
 	uint64_t start, end, len;
+	struct inode *inode = bdev->bd_inode;
 	int err;
 
 	if (!(mode & FMODE_WRITE))
@@ -176,12 +177,17 @@ static int blk_ioctl_zeroout(struct block_device *bdev, fmode_t mode,
 		return -EINVAL;
 
 	/* Invalidate the page cache, including dirty pages */
+	filemap_invalidate_lock(inode->i_mapping);
 	err = truncate_bdev_range(bdev, mode, start, end);
 	if (err)
-		return err;
+		goto fail;
 
-	return blkdev_issue_zeroout(bdev, start >> 9, len >> 9, GFP_KERNEL,
-			BLKDEV_ZERO_NOUNMAP);
+	err = blkdev_issue_zeroout(bdev, start >> 9, len >> 9, GFP_KERNEL,
+				   BLKDEV_ZERO_NOUNMAP);
+
+fail:
+	filemap_invalidate_unlock(inode->i_mapping);
+	return err;
 }
 
 static int put_ushort(unsigned short __user *argp, unsigned short val)
