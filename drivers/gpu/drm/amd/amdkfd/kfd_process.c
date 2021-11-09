@@ -1317,14 +1317,13 @@ bool kfd_process_xnack_mode(struct kfd_process *p, bool supported)
 		 * support the SVM APIs and don't need to be considered
 		 * for the XNACK mode selection.
 		 */
-		if (dev->device_info->asic_family < CHIP_VEGA10)
+		if (!KFD_IS_SOC15(dev))
 			continue;
 		/* Aldebaran can always support XNACK because it can support
 		 * per-process XNACK mode selection. But let the dev->noretry
 		 * setting still influence the default XNACK mode.
 		 */
-		if (supported &&
-		    dev->device_info->asic_family == CHIP_ALDEBARAN)
+		if (supported && KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 2))
 			continue;
 
 		/* GFXv10 and later GPUs do not support shader preemption
@@ -1332,7 +1331,7 @@ bool kfd_process_xnack_mode(struct kfd_process *p, bool supported)
 		 * management and memory-manager-related preemptions or
 		 * even deadlocks.
 		 */
-		if (dev->device_info->asic_family >= CHIP_NAVI10)
+		if (KFD_GC_VERSION(dev) >= IP_VERSION(10, 1, 1))
 			return false;
 
 		if (dev->noretry)

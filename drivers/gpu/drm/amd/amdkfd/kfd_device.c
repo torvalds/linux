@@ -848,23 +848,23 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 static void kfd_cwsr_init(struct kfd_dev *kfd)
 {
 	if (cwsr_enable && kfd->device_info->supports_cwsr) {
-		if (kfd->device_info->asic_family < CHIP_VEGA10) {
+		if (KFD_GC_VERSION(kfd) < IP_VERSION(9, 0, 1)) {
 			BUILD_BUG_ON(sizeof(cwsr_trap_gfx8_hex) > PAGE_SIZE);
 			kfd->cwsr_isa = cwsr_trap_gfx8_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx8_hex);
-		} else if (kfd->device_info->asic_family == CHIP_ARCTURUS) {
+		} else if (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 1)) {
 			BUILD_BUG_ON(sizeof(cwsr_trap_arcturus_hex) > PAGE_SIZE);
 			kfd->cwsr_isa = cwsr_trap_arcturus_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_arcturus_hex);
-		} else if (kfd->device_info->asic_family == CHIP_ALDEBARAN) {
+		} else if (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 2)) {
 			BUILD_BUG_ON(sizeof(cwsr_trap_aldebaran_hex) > PAGE_SIZE);
 			kfd->cwsr_isa = cwsr_trap_aldebaran_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_aldebaran_hex);
-		} else if (kfd->device_info->asic_family < CHIP_NAVI10) {
+		} else if (KFD_GC_VERSION(kfd) < IP_VERSION(10, 1, 1)) {
 			BUILD_BUG_ON(sizeof(cwsr_trap_gfx9_hex) > PAGE_SIZE);
 			kfd->cwsr_isa = cwsr_trap_gfx9_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx9_hex);
-		} else if (kfd->device_info->asic_family < CHIP_SIENNA_CICHLID) {
+		} else if (KFD_GC_VERSION(kfd) < IP_VERSION(10, 3, 0)) {
 			BUILD_BUG_ON(sizeof(cwsr_trap_nv1x_hex) > PAGE_SIZE);
 			kfd->cwsr_isa = cwsr_trap_nv1x_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_nv1x_hex);
@@ -885,16 +885,15 @@ static int kfd_gws_init(struct kfd_dev *kfd)
 	if (kfd->dqm->sched_policy == KFD_SCHED_POLICY_NO_HWS)
 		return 0;
 
-	if (hws_gws_support
-		|| (kfd->device_info->asic_family == CHIP_VEGA10
-			&& kfd->mec2_fw_version >= 0x81b3)
-		|| (kfd->device_info->asic_family >= CHIP_VEGA12
-			&& kfd->device_info->asic_family <= CHIP_RAVEN
-			&& kfd->mec2_fw_version >= 0x1b3)
-		|| (kfd->device_info->asic_family == CHIP_ARCTURUS
-			&& kfd->mec2_fw_version >= 0x30)
-		|| (kfd->device_info->asic_family == CHIP_ALDEBARAN
-			&& kfd->mec2_fw_version >= 0x28))
+	if (hws_gws_support || (KFD_IS_SOC15(kfd) &&
+		((KFD_GC_VERSION(kfd) == IP_VERSION(9, 0, 1)
+			&& kfd->mec2_fw_version >= 0x81b3) ||
+		(KFD_GC_VERSION(kfd) <= IP_VERSION(9, 4, 0)
+			&& kfd->mec2_fw_version >= 0x1b3)  ||
+		(KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 1)
+			&& kfd->mec2_fw_version >= 0x30)   ||
+		(KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 2)
+			&& kfd->mec2_fw_version >= 0x28))))
 		ret = amdgpu_amdkfd_alloc_gws(kfd->adev,
 				kfd->adev->gds.gws_size, &kfd->gws);
 
@@ -962,10 +961,9 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	 * calculate max size of runlist packet.
 	 * There can be only 2 packets at once
 	 */
-	map_process_packet_size =
-			kfd->device_info->asic_family == CHIP_ALDEBARAN ?
+	map_process_packet_size = KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 2) ?
 				sizeof(struct pm4_mes_map_process_aldebaran) :
-					sizeof(struct pm4_mes_map_process);
+				sizeof(struct pm4_mes_map_process);
 	size += (KFD_MAX_NUM_OF_PROCESSES * map_process_packet_size +
 		max_num_of_queues_per_device * sizeof(struct pm4_mes_map_queues)
 		+ sizeof(struct pm4_mes_runlist)) * 2;
