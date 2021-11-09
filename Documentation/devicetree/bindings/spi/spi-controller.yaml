@@ -94,73 +94,8 @@ patternProperties:
   "^.*@[0-9a-f]+$":
     type: object
 
-    properties:
-      compatible:
-        description:
-          Compatible of the SPI device.
-
-      reg:
-        minItems: 1
-        maxItems: 256
-        items:
-          minimum: 0
-          maximum: 256
-        description:
-          Chip select used by the device.
-
-      spi-3wire:
-        $ref: /schemas/types.yaml#/definitions/flag
-        description:
-          The device requires 3-wire mode.
-
-      spi-cpha:
-        $ref: /schemas/types.yaml#/definitions/flag
-        description:
-          The device requires shifted clock phase (CPHA) mode.
-
-      spi-cpol:
-        $ref: /schemas/types.yaml#/definitions/flag
-        description:
-          The device requires inverse clock polarity (CPOL) mode.
-
-      spi-cs-high:
-        $ref: /schemas/types.yaml#/definitions/flag
-        description:
-          The device requires the chip select active high.
-
-      spi-lsb-first:
-        $ref: /schemas/types.yaml#/definitions/flag
-        description:
-          The device requires the LSB first mode.
-
-      spi-max-frequency:
-        $ref: /schemas/types.yaml#/definitions/uint32
-        description:
-          Maximum SPI clocking speed of the device in Hz.
-
-      spi-rx-bus-width:
-        description:
-          Bus width to the SPI bus used for read transfers.
-          If 0 is provided, then no RX will be possible on this device.
-        $ref: /schemas/types.yaml#/definitions/uint32
-        enum: [0, 1, 2, 4, 8]
-        default: 1
-
-      spi-rx-delay-us:
-        description:
-          Delay, in microseconds, after a read transfer.
-
-      spi-tx-bus-width:
-        description:
-          Bus width to the SPI bus used for write transfers.
-          If 0 is provided, then no TX will be possible on this device.
-        $ref: /schemas/types.yaml#/definitions/uint32
-        enum: [0, 1, 2, 4, 8]
-        default: 1
-
-      spi-tx-delay-us:
-        description:
-          Delay, in microseconds, after a write transfer.
+    allOf:
+      - $ref: spi-peripheral-props.yaml
 
     required:
       - compatible
