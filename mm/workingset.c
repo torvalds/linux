@@ -543,6 +543,13 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
 		goto out;
 	}
 
+	if (!spin_trylock(&mapping->host->i_lock)) {
+		xa_unlock(&mapping->i_pages);
+		spin_unlock_irq(lru_lock);
+		ret = LRU_RETRY;
+		goto out;
+	}
+
 	list_lru_isolate(lru, item);
 	__dec_lruvec_kmem_state(node, WORKINGSET_NODES);
 
@@ -562,6 +569,9 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
 
 out_invalid:
 	xa_unlock_irq(&mapping->i_pages);
+	if (mapping_shrinkable(mapping))
+		inode_add_lru(mapping->host);
+	spin_unlock(&mapping->host->i_lock);
 	ret = LRU_REMOVED_RETRY;
 out:
 	cond_resched();
