@@ -587,12 +587,12 @@ static int btmrvl_set_bdaddr(struct hci_dev *hdev, const bdaddr_t *bdaddr)
 	return 0;
 }
 
-static bool btmrvl_prevent_wake(struct hci_dev *hdev)
+static bool btmrvl_wakeup(struct hci_dev *hdev)
 {
 	struct btmrvl_private *priv = hci_get_drvdata(hdev);
 	struct btmrvl_sdio_card *card = priv->btmrvl_dev.card;
 
-	return !device_may_wakeup(&card->func->dev);
+	return device_may_wakeup(&card->func->dev);
 }
 
 /*
@@ -696,7 +696,7 @@ int btmrvl_register_hdev(struct btmrvl_private *priv)
 	hdev->send  = btmrvl_send_frame;
 	hdev->setup = btmrvl_setup;
 	hdev->set_bdaddr = btmrvl_set_bdaddr;
-	hdev->prevent_wake = btmrvl_prevent_wake;
+	hdev->wakeup = btmrvl_wakeup;
 	SET_HCIDEV_DEV(hdev, &card->func->dev);
 
 	hdev->dev_type = priv->btmrvl_dev.dev_type;

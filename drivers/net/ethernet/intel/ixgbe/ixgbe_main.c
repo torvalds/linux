@@ -8792,7 +8792,7 @@ static int ixgbe_set_mac(struct net_device *netdev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
+	eth_hw_addr_set(netdev, addr->sa_data);
 	memcpy(hw->mac.addr, addr->sa_data, netdev->addr_len);
 
 	ixgbe_mac_set_default_filter(adapter);
@@ -10927,7 +10927,7 @@ skip_sriov:
 	eth_platform_get_mac_address(&adapter->pdev->dev,
 				     adapter->hw.mac.perm_addr);
 
-	memcpy(netdev->dev_addr, hw->mac.perm_addr, netdev->addr_len);
+	eth_hw_addr_set(netdev, hw->mac.perm_addr);
 
 	if (!is_valid_ether_addr(netdev->dev_addr)) {
 		e_dev_err("invalid MAC address\n");

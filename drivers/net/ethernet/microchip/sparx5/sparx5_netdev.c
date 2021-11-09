@@ -162,7 +162,7 @@ static int sparx5_set_mac_address(struct net_device *dev, void *p)
 	sparx5_mact_learn(sparx5, PGID_CPU, addr->sa_data, port->pvid);
 
 	/* Record the address */
-	ether_addr_copy(dev->dev_addr, addr->sa_data);
+	eth_hw_addr_set(dev, addr->sa_data);
 
 	return 0;
 }

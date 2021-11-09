@@ -5581,7 +5581,7 @@ static int netdev_set_mac_address(struct net_device *dev, void *addr)
 		memcpy(hw->override_addr, mac->sa_data, ETH_ALEN);
 	}
 
-	memcpy(dev->dev_addr, mac->sa_data, ETH_ALEN);
+	eth_hw_addr_set(dev, mac->sa_data);
 
 	interrupt = hw_block_intr(hw);
 
@@ -7005,10 +7005,9 @@ static int pcidev_init(struct pci_dev *pdev, const struct pci_device_id *id)
 		dev->mem_end = dev->mem_start + reg_len - 1;
 		dev->irq = pdev->irq;
 		if (MAIN_PORT == i)
-			memcpy(dev->dev_addr, hw_priv->hw.override_addr,
-			       ETH_ALEN);
+			eth_hw_addr_set(dev, hw_priv->hw.override_addr);
 		else {
-			memcpy(dev->dev_addr, sw->other_addr, ETH_ALEN);
+			eth_hw_addr_set(dev, sw->other_addr);
 			if (ether_addr_equal(sw->other_addr, hw->override_addr))
 				dev->dev_addr[5] += port->first_port;
 		}

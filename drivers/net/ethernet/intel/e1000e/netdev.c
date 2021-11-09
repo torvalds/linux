@@ -4787,7 +4787,7 @@ static int e1000_set_mac(struct net_device *netdev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
+	eth_hw_addr_set(netdev, addr->sa_data);
 	memcpy(adapter->hw.mac.addr, addr->sa_data, netdev->addr_len);
 
 	hw->mac.ops.rar_set(&adapter->hw, adapter->hw.mac.addr, 0);
@@ -7590,7 +7590,7 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_err(&pdev->dev,
 			"NVM Read Error while reading MAC address\n");
 
-	memcpy(netdev->dev_addr, adapter->hw.mac.addr, netdev->addr_len);
+	eth_hw_addr_set(netdev, adapter->hw.mac.addr);
 
 	if (!is_valid_ether_addr(netdev->dev_addr)) {
 		dev_err(&pdev->dev, "Invalid MAC Address: %pM\n",

@@ -1030,7 +1030,7 @@ ixgb_set_mac(struct net_device *netdev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
+	eth_hw_addr_set(netdev, addr->sa_data);
 
 	ixgb_rar_set(&adapter->hw, addr->sa_data, 0);
 

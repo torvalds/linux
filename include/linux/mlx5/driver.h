@@ -59,6 +59,8 @@
 
 #define MLX5_ADEV_NAME "mlx5_core"
 
+#define MLX5_IRQ_EQ_CTRL (U8_MAX)
+
 enum {
 	MLX5_BOARD_ID_LEN = 64,
 };

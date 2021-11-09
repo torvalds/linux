@@ -4013,7 +4013,7 @@ static int dpaa2_eth_set_mac_addr(struct dpaa2_eth_priv *priv)
 				return err;
 			}
 		}
-		memcpy(net_dev->dev_addr, mac_addr, net_dev->addr_len);
+		eth_hw_addr_set(net_dev, mac_addr);
 	} else if (is_zero_ether_addr(dpni_mac_addr)) {
 		/* No MAC address configured, fill in net_dev->dev_addr
 		 * with a random one
@@ -4038,7 +4038,7 @@ static int dpaa2_eth_set_mac_addr(struct dpaa2_eth_priv *priv)
 		/* NET_ADDR_PERM is default, all we have to do is
 		 * fill in the device addr.
 		 */
-		memcpy(net_dev->dev_addr, dpni_mac_addr, net_dev->addr_len);
+		eth_hw_addr_set(net_dev, dpni_mac_addr);
 	}
 
 	return 0;

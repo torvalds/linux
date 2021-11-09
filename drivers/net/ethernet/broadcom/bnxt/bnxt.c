@@ -12369,7 +12369,7 @@ static int bnxt_change_mac_addr(struct net_device *dev, void *p)
 	if (rc)
 		return rc;
 
-	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+	eth_hw_addr_set(dev, addr->sa_data);
 	if (netif_running(dev)) {
 		bnxt_close_nic(bp, false, false);
 		rc = bnxt_open_nic(bp, false, false);
@@ -13103,7 +13103,7 @@ static int bnxt_init_mac_addr(struct bnxt *bp)
 	int rc = 0;
 
 	if (BNXT_PF(bp)) {
-		memcpy(bp->dev->dev_addr, bp->pf.mac_addr, ETH_ALEN);
+		eth_hw_addr_set(bp->dev, bp->pf.mac_addr);
 	} else {
 #ifdef CONFIG_BNXT_SRIOV
 		struct bnxt_vf_info *vf = &bp->vf;
@@ -13111,7 +13111,7 @@ static int bnxt_init_mac_addr(struct bnxt *bp)
 
 		if (is_valid_ether_addr(vf->mac_addr)) {
 			/* overwrite netdev dev_addr with admin VF MAC */
-			memcpy(bp->dev->dev_addr, vf->mac_addr, ETH_ALEN);
+			eth_hw_addr_set(bp->dev, vf->mac_addr);
 			/* Older PF driver or firmware may not approve this
 			 * correctly.
 			 */

@@ -1217,7 +1217,7 @@ void bnxt_update_vf_mac(struct bnxt *bp)
 
 	/* overwrite netdev dev_addr with admin VF MAC */
 	if (is_valid_ether_addr(bp->vf.mac_addr))
-		memcpy(bp->dev->dev_addr, bp->vf.mac_addr, ETH_ALEN);
+		eth_hw_addr_set(bp->dev, bp->vf.mac_addr);
 update_vf_mac_exit:
 	hwrm_req_drop(bp, req);
 	if (inform_pf)

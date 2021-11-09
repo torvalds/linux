@@ -19,6 +19,7 @@ struct ionic_lif;
 #define PCI_DEVICE_ID_PENSANDO_IONIC_ETH_VF	0x1003
 
 #define DEVCMD_TIMEOUT  10
+#define IONIC_ADMINQ_TIME_SLICE		msecs_to_jiffies(100)
 
 #define IONIC_PHC_UPDATE_NS	10000000000	    /* 10s in nanoseconds */
 #define NORMAL_PPB		1000000000	    /* one billion parts per billion */

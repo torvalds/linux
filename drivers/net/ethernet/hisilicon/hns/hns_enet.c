@@ -1194,7 +1194,7 @@ static int hns_nic_net_set_mac_address(struct net_device *ndev, void *p)
 		return ret;
 	}
 
-	memcpy(ndev->dev_addr, mac_addr->sa_data, ndev->addr_len);
+	eth_hw_addr_set(ndev, mac_addr->sa_data);
 
 	return 0;
 }

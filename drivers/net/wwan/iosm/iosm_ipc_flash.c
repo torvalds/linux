@@ -330,18 +330,20 @@ ipc_flash_erase_err:
 static int ipc_flash_download_region(struct iosm_devlink *ipc_devlink,
 				     const struct firmware *fw, u8 *mdm_rsp)
 {
+	u32 raw_len, rest_len = fw->size - IOSM_DEVLINK_HDR_SIZE;
+	struct iosm_devlink_image *fls_data;
 	__le32 reg_info[2]; /* 0th position region address, 1st position size */
+	u32 nand_address;
 	char *file_ptr;
-	u32 rest_len;
-	u32 raw_len;
 	int ret;
 
-	file_ptr = (char *)fw->data;
-	reg_info[0] = cpu_to_le32(ipc_devlink->param.address);
+	fls_data = (struct iosm_devlink_image *)fw->data;
+	file_ptr = (void *)(fls_data + 1);
+	nand_address = le32_to_cpu(fls_data->region_address);
+	reg_info[0] = cpu_to_le32(nand_address);
 
 	if (!ipc_devlink->param.erase_full_flash_done) {
-		reg_info[1] = cpu_to_le32(ipc_devlink->param.address +
-					  fw->size - 2);
+		reg_info[1] = cpu_to_le32(nand_address + rest_len - 2);
 		ret = ipc_flash_send_receive(ipc_devlink, FLASH_ERASE_START,
 					     (u8 *)reg_info, IOSM_MDM_SEND_8,
 					     mdm_rsp);
@@ -358,8 +360,6 @@ static int ipc_flash_download_region(struct iosm_devlink *ipc_devlink,
 				     (u8 *)reg_info, IOSM_MDM_SEND_4, mdm_rsp);
 	if (ret)
 		goto dl_region_fail;
-
-	rest_len = fw->size;
 
 	/* Request Flash Write Raw Image */
 	ret = ipc_flash_send_data(ipc_devlink, IOSM_EBL_DW_PACK_SIZE,
@@ -399,9 +399,12 @@ dl_region_fail:
 int ipc_flash_send_fls(struct iosm_devlink *ipc_devlink,
 		       const struct firmware *fw, u8 *mdm_rsp)
 {
+	u32 fw_size = fw->size - IOSM_DEVLINK_HDR_SIZE;
+	struct iosm_devlink_image *fls_data;
 	u16 flash_cmd;
 	int ret;
 
+	fls_data = (struct iosm_devlink_image *)fw->data;
 	if (ipc_devlink->param.erase_full_flash) {
 		ipc_devlink->param.erase_full_flash = false;
 		ret = ipc_flash_full_erase(ipc_devlink, mdm_rsp);
@@ -410,19 +413,20 @@ int ipc_flash_send_fls(struct iosm_devlink *ipc_devlink,
 	}
 
 	/* Request Sec Start */
-	if (!ipc_devlink->param.download_region) {
+	if (!fls_data->download_region) {
 		ret = ipc_flash_send_receive(ipc_devlink, FLASH_SEC_START,
-					     (u8 *)fw->data, fw->size, mdm_rsp);
+					     (u8 *)fw->data +
+					     IOSM_DEVLINK_HDR_SIZE, fw_size,
+					     mdm_rsp);
 		if (ret)
 			goto ipc_flash_err;
 	} else {
 		/* Download regions */
-		ipc_devlink->param.region_count -= IOSM_SET_FLAG;
 		ret = ipc_flash_download_region(ipc_devlink, fw, mdm_rsp);
 		if (ret)
 			goto ipc_flash_err;
 
-		if (!ipc_devlink->param.region_count) {
+		if (fls_data->last_region) {
 			/* Request Sec End */
 			flash_cmd = IOSM_MDM_SEND_DATA;
 			ret = ipc_flash_send_receive(ipc_devlink, FLASH_SEC_END,
@@ -445,17 +449,18 @@ ipc_flash_err:
 int ipc_flash_boot_psi(struct iosm_devlink *ipc_devlink,
 		       const struct firmware *fw)
 {
+	u32 bytes_read, psi_size = fw->size - IOSM_DEVLINK_HDR_SIZE;
 	u8 psi_ack_byte[IOSM_PSI_ACK], read_data[2];
-	u32 bytes_read;
 	u8 *psi_code;
 	int ret;
 
 	dev_dbg(ipc_devlink->dev, "Boot transfer PSI");
-	psi_code = kmemdup(fw->data, fw->size, GFP_KERNEL);
+	psi_code = kmemdup(fw->data + IOSM_DEVLINK_HDR_SIZE, psi_size,
+			   GFP_KERNEL);
 	if (!psi_code)
 		return -ENOMEM;
 
-	ret = ipc_imem_sys_devlink_write(ipc_devlink, psi_code, fw->size);
+	ret = ipc_imem_sys_devlink_write(ipc_devlink, psi_code, psi_size);
 	if (ret) {
 		dev_err(ipc_devlink->dev, "RPSI Image write failed");
 		goto ipc_flash_psi_free;
@@ -501,7 +506,7 @@ ipc_flash_psi_free:
 int ipc_flash_boot_ebl(struct iosm_devlink *ipc_devlink,
 		       const struct firmware *fw)
 {
-	u32 ebl_size = fw->size;
+	u32 ebl_size = fw->size - IOSM_DEVLINK_HDR_SIZE;
 	u8 read_data[2];
 	u32 bytes_read;
 	int ret;
@@ -553,8 +558,9 @@ int ipc_flash_boot_ebl(struct iosm_devlink *ipc_devlink,
 		goto ipc_flash_ebl_err;
 	}
 
-	ret = ipc_imem_sys_devlink_write(ipc_devlink, (unsigned char *)fw->data,
-					 fw->size);
+	ret = ipc_imem_sys_devlink_write(ipc_devlink,
+					 (u8 *)fw->data + IOSM_DEVLINK_HDR_SIZE,
+					 ebl_size);
 	if (ret) {
 		dev_err(ipc_devlink->dev, "EBL data transfer failed");
 		goto ipc_flash_ebl_err;

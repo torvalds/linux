@@ -674,7 +674,7 @@ static int mlxsw_sp_port_set_mac_address(struct net_device *dev, void *p)
 	err = mlxsw_sp_port_dev_addr_set(mlxsw_sp_port, addr->sa_data);
 	if (err)
 		return err;
-	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+	eth_hw_addr_set(dev, addr->sa_data);
 	return 0;
 }
 

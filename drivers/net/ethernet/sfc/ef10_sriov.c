@@ -523,7 +523,7 @@ int efx_ef10_sriov_set_vf_mac(struct efx_nic *efx, int vf_i, u8 *mac)
 			goto fail;
 
 		if (vf->efx)
-			ether_addr_copy(vf->efx->net_dev->dev_addr, mac);
+			eth_hw_addr_set(vf->efx->net_dev, mac);
 	}
 
 	ether_addr_copy(vf->mac, mac);

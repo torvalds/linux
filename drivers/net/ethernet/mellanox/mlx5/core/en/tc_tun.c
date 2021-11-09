@@ -120,6 +120,11 @@ static int mlx5e_route_lookup_ipv4_get(struct mlx5e_priv *priv,
 
 		uplink_dev = mlx5_eswitch_uplink_get_proto_dev(esw, REP_ETH);
 		attr->fl.fl4.flowi4_oif = uplink_dev->ifindex;
+	} else {
+		struct mlx5e_tc_tunnel *tunnel = mlx5e_get_tc_tun(mirred_dev);
+
+		if (tunnel && tunnel->get_remote_ifindex)
+			attr->fl.fl4.flowi4_oif = tunnel->get_remote_ifindex(mirred_dev);
 	}
 
 	rt = ip_route_output_key(dev_net(mirred_dev), &attr->fl.fl4);
@@ -437,12 +442,15 @@ static int mlx5e_route_lookup_ipv6_get(struct mlx5e_priv *priv,
 				       struct net_device *mirred_dev,
 				       struct mlx5e_tc_tun_route_attr *attr)
 {
+	struct mlx5e_tc_tunnel *tunnel = mlx5e_get_tc_tun(mirred_dev);
 	struct net_device *route_dev;
 	struct net_device *out_dev;
 	struct dst_entry *dst;
 	struct neighbour *n;
 	int ret;
 
+	if (tunnel && tunnel->get_remote_ifindex)
+		attr->fl.fl6.flowi6_oif = tunnel->get_remote_ifindex(mirred_dev);
 	dst = ipv6_stub->ipv6_dst_lookup_flow(dev_net(mirred_dev), NULL, &attr->fl.fl6,
 					      NULL);
 	if (IS_ERR(dst))

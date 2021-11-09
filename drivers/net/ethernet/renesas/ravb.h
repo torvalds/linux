@@ -81,6 +81,7 @@ enum ravb_reg {
 	RQC3	= 0x00A0,
 	RQC4	= 0x00A4,
 	RPC	= 0x00B0,
+	RTC	= 0x00B4,	/* R-Car Gen3 and RZ/G2L only */
 	UFCW	= 0x00BC,
 	UFCS	= 0x00C0,
 	UFCV0	= 0x00C4,
@@ -187,13 +188,14 @@ enum ravb_reg {
 	PIR	= 0x0520,
 	PSR	= 0x0528,
 	PIPR	= 0x052c,
+	CXR31	= 0x0530,	/* RZ/G2L only */
 	MPR	= 0x0558,
 	PFTCR	= 0x055c,
 	PFRCR	= 0x0560,
 	GECMR	= 0x05b0,
 	MAHR	= 0x05c0,
 	MALR	= 0x05c8,
-	TROCR	= 0x0700,	/* R-Car Gen3 only */
+	TROCR	= 0x0700,	/* R-Car Gen3 and RZ/G2L only */
 	CEFCR	= 0x0740,
 	FRECR	= 0x0748,
 	TSFRCR	= 0x0750,
@@ -810,10 +812,11 @@ enum ECMR_BIT {
 	ECMR_TXF	= 0x00010000,	/* Documented for R-Car Gen3 only */
 	ECMR_RXF	= 0x00020000,
 	ECMR_PFR	= 0x00040000,
-	ECMR_ZPF	= 0x00080000,	/* Documented for R-Car Gen3 only */
+	ECMR_ZPF	= 0x00080000,	/* Documented for R-Car Gen3 and RZ/G2L */
 	ECMR_RZPF	= 0x00100000,
 	ECMR_DPAD	= 0x00200000,
 	ECMR_RCSC	= 0x00800000,
+	ECMR_RCPT	= 0x02000000,	/* Documented for RZ/G2L only */
 	ECMR_TRCCM	= 0x04000000,
 };
 
@@ -823,6 +826,7 @@ enum ECSR_BIT {
 	ECSR_MPD	= 0x00000002,
 	ECSR_LCHNG	= 0x00000004,
 	ECSR_PHYI	= 0x00000008,
+	ECSR_PFRI	= 0x00000010,
 };
 
 /* ECSIPR */
@@ -857,9 +861,13 @@ enum MPR_BIT {
 
 /* GECMR */
 enum GECMR_BIT {
-	GECMR_SPEED	= 0x00000001,
-	GECMR_SPEED_100	= 0x00000000,
-	GECMR_SPEED_1000 = 0x00000001,
+	GECMR_SPEED		= 0x00000001,
+	GECMR_SPEED_100		= 0x00000000,
+	GECMR_SPEED_1000	= 0x00000001,
+	GBETH_GECMR_SPEED	= 0x00000030,
+	GBETH_GECMR_SPEED_10	= 0x00000000,
+	GBETH_GECMR_SPEED_100	= 0x00000010,
+	GBETH_GECMR_SPEED_1000	= 0x00000020,
 };
 
 /* The Ethernet AVB descriptor definitions. */
@@ -949,12 +957,19 @@ enum RAVB_QUEUE {
 	RAVB_NC,	/* Network Control Queue */
 };
 
+enum CXR31_BIT {
+	CXR31_SEL_LINK0	= 0x00000001,
+	CXR31_SEL_LINK1	= 0x00000008,
+};
+
 #define DBAT_ENTRY_NUM	22
 #define RX_QUEUE_OFFSET	4
 #define NUM_RX_QUEUE	2
 #define NUM_TX_QUEUE	2
 
 #define RX_BUF_SZ	(2048 - ETH_FCS_LEN + sizeof(__sum16))
+
+#define GBETH_RX_BUFF_MAX 8192
 
 struct ravb_tstamp_skb {
 	struct list_head list;
@@ -985,8 +1000,8 @@ struct ravb_hw_info {
 	void *(*alloc_rx_desc)(struct net_device *ndev, int q);
 	bool (*receive)(struct net_device *ndev, int *quota, int q);
 	void (*set_rate)(struct net_device *ndev);
-	int (*set_rx_csum_feature)(struct net_device *ndev, netdev_features_t features);
-	void (*dmac_init)(struct net_device *ndev);
+	int (*set_feature)(struct net_device *ndev, netdev_features_t features);
+	int (*dmac_init)(struct net_device *ndev);
 	void (*emac_init)(struct net_device *ndev);
 	const char (*gstrings_stats)[ETH_GSTRING_LEN];
 	size_t gstrings_size;
@@ -994,14 +1009,18 @@ struct ravb_hw_info {
 	netdev_features_t net_features;
 	int stats_len;
 	size_t max_rx_len;
+	u32 tsrq;
 	unsigned aligned_tx: 1;
 
 	/* hardware features */
 	unsigned internal_delay:1;	/* AVB-DMAC has internal delays */
 	unsigned tx_counters:1;		/* E-MAC has TX counters */
 	unsigned multi_irqs:1;		/* AVB-DMAC and E-MAC has multiple irqs */
-	unsigned no_ptp_cfg_active:1;	/* AVB-DMAC does not support gPTP active in config mode */
-	unsigned ptp_cfg_active:1;	/* AVB-DMAC has gPTP support active in config mode */
+	unsigned gptp:1;		/* AVB-DMAC has gPTP support */
+	unsigned ccc_gac:1;		/* AVB-DMAC has gPTP support active in config mode */
+	unsigned nc_queue:1;		/* AVB-DMAC has NC queue */
+	unsigned magic_pkt:1;		/* E-MAC supports magic packet detection */
+	unsigned half_duplex:1;		/* E-MAC supports half duplex mode */
 };
 
 struct ravb_private {
@@ -1055,6 +1074,8 @@ struct ravb_private {
 	unsigned txcidm:1;		/* TX Clock Internal Delay Mode */
 	unsigned rgmii_override:1;	/* Deprecated rgmii-*id behavior */
 	unsigned int num_tx_desc;	/* TX descriptors per packet */
+
+	int duplex;
 
 	const struct ravb_hw_info *info;
 	struct reset_control *rstc;

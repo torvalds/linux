@@ -3564,7 +3564,7 @@ static int ql3xxx_set_mac_address(struct net_device *ndev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(ndev->dev_addr, addr->sa_data, ndev->addr_len);
+	eth_hw_addr_set(ndev, addr->sa_data);
 
 	spin_lock_irqsave(&qdev->hw_lock, hw_flags);
 	/* Program lower 32 bits of the MAC address */

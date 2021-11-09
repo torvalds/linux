@@ -29,6 +29,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+#include <linux/etherdevice.h>
 #include "common.h"
 #include "regs.h"
 #include "sge_defs.h"
@@ -3758,8 +3759,7 @@ int t3_prep_adapter(struct adapter *adapter, const struct adapter_info *ai,
 		memcpy(hw_addr, adapter->params.vpd.eth_base, 5);
 		hw_addr[5] = adapter->params.vpd.eth_base[5] + i;
 
-		memcpy(adapter->port[i]->dev_addr, hw_addr,
-		       ETH_ALEN);
+		eth_hw_addr_set(adapter->port[i], hw_addr);
 		init_link_config(&p->link_config, p->phy.caps);
 		p->phy.ops->power_down(&p->phy, 1);
 

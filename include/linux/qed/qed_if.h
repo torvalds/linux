@@ -24,6 +24,9 @@
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <net/devlink.h>
 
+#define QED_TX_SWS_TIMER_DFLT  500
+#define QED_TWO_MSL_TIMER_DFLT 4000
+
 enum dcbx_protocol_type {
 	DCBX_PROTOCOL_ISCSI,
 	DCBX_PROTOCOL_FCOE,
@@ -588,7 +591,7 @@ enum qed_int_mode {
 };
 
 struct qed_sb_info {
-	struct status_block_e4 *sb_virt;
+	struct status_block *sb_virt;
 	dma_addr_t sb_phys;
 	u32 sb_ack; /* Last given ack */
 	u16 igu_sb_id;
@@ -613,7 +616,6 @@ enum qed_hw_err_type {
 enum qed_dev_type {
 	QED_DEV_TYPE_BB,
 	QED_DEV_TYPE_AH,
-	QED_DEV_TYPE_E5,
 };
 
 struct qed_dev_info {
@@ -819,47 +821,47 @@ struct qed_common_cb_ops {
 
 struct qed_selftest_ops {
 /**
- * @brief selftest_interrupt - Perform interrupt test
+ * selftest_interrupt(): Perform interrupt test.
  *
- * @param cdev
+ * @cdev: Qed dev pointer.
  *
- * @return 0 on success, error otherwise.
+ * Return: 0 on success, error otherwise.
  */
 	int (*selftest_interrupt)(struct qed_dev *cdev);
 
 /**
- * @brief selftest_memory - Perform memory test
+ * selftest_memory(): Perform memory test.
  *
- * @param cdev
+ * @cdev: Qed dev pointer.
  *
- * @return 0 on success, error otherwise.
+ * Return: 0 on success, error otherwise.
  */
 	int (*selftest_memory)(struct qed_dev *cdev);
 
 /**
- * @brief selftest_register - Perform register test
+ * selftest_register(): Perform register test.
  *
- * @param cdev
+ * @cdev: Qed dev pointer.
  *
- * @return 0 on success, error otherwise.
+ * Return: 0 on success, error otherwise.
  */
 	int (*selftest_register)(struct qed_dev *cdev);
 
 /**
- * @brief selftest_clock - Perform clock test
+ * selftest_clock(): Perform clock test.
  *
- * @param cdev
+ * @cdev: Qed dev pointer.
  *
- * @return 0 on success, error otherwise.
+ * Return: 0 on success, error otherwise.
  */
 	int (*selftest_clock)(struct qed_dev *cdev);
 
 /**
- * @brief selftest_nvram - Perform nvram test
+ * selftest_nvram(): Perform nvram test.
  *
- * @param cdev
+ * @cdev: Qed dev pointer.
  *
- * @return 0 on success, error otherwise.
+ * Return: 0 on success, error otherwise.
  */
 	int (*selftest_nvram) (struct qed_dev *cdev);
 };
@@ -927,47 +929,53 @@ struct qed_common_ops {
 				  enum qed_hw_err_type err_type);
 
 /**
- * @brief can_link_change - can the instance change the link or not
+ * can_link_change(): can the instance change the link or not.
  *
- * @param cdev
+ * @cdev: Qed dev pointer.
  *
- * @return true if link-change is allowed, false otherwise.
+ * Return: true if link-change is allowed, false otherwise.
  */
 	bool (*can_link_change)(struct qed_dev *cdev);
 
 /**
- * @brief set_link - set links according to params
+ * set_link(): set links according to params.
  *
- * @param cdev
- * @param params - values used to override the default link configuration
+ * @cdev: Qed dev pointer.
+ * @params: values used to override the default link configuration.
  *
- * @return 0 on success, error otherwise.
+ * Return: 0 on success, error otherwise.
  */
 	int		(*set_link)(struct qed_dev *cdev,
 				    struct qed_link_params *params);
 
 /**
- * @brief get_link - returns the current link state.
+ * get_link(): returns the current link state.
  *
- * @param cdev
- * @param if_link - structure to be filled with current link configuration.
+ * @cdev: Qed dev pointer.
+ * @if_link: structure to be filled with current link configuration.
+ *
+ * Return: Void.
  */
 	void		(*get_link)(struct qed_dev *cdev,
 				    struct qed_link_output *if_link);
 
 /**
- * @brief - drains chip in case Tx completions fail to arrive due to pause.
+ * drain(): drains chip in case Tx completions fail to arrive due to pause.
  *
- * @param cdev
+ * @cdev: Qed dev pointer.
+ *
+ * Return: Int.
  */
 	int		(*drain)(struct qed_dev *cdev);
 
 /**
- * @brief update_msglvl - update module debug level
+ * update_msglvl(): update module debug level.
  *
- * @param cdev
- * @param dp_module
- * @param dp_level
+ * @cdev: Qed dev pointer.
+ * @dp_module: Debug module.
+ * @dp_level: Debug level.
+ *
+ * Return: Void.
  */
 	void		(*update_msglvl)(struct qed_dev *cdev,
 					 u32 dp_module,
@@ -981,70 +989,73 @@ struct qed_common_ops {
 				      struct qed_chain *p_chain);
 
 /**
- * @brief nvm_flash - Flash nvm data.
+ * nvm_flash(): Flash nvm data.
  *
- * @param cdev
- * @param name - file containing the data
+ * @cdev: Qed dev pointer.
+ * @name: file containing the data.
  *
- * @return 0 on success, error otherwise.
+ * Return: 0 on success, error otherwise.
  */
 	int (*nvm_flash)(struct qed_dev *cdev, const char *name);
 
 /**
- * @brief nvm_get_image - reads an entire image from nvram
+ * nvm_get_image(): reads an entire image from nvram.
  *
- * @param cdev
- * @param type - type of the request nvram image
- * @param buf - preallocated buffer to fill with the image
- * @param len - length of the allocated buffer
+ * @cdev: Qed dev pointer.
+ * @type: type of the request nvram image.
+ * @buf: preallocated buffer to fill with the image.
+ * @len: length of the allocated buffer.
  *
- * @return 0 on success, error otherwise
+ * Return: 0 on success, error otherwise.
  */
 	int (*nvm_get_image)(struct qed_dev *cdev,
 			     enum qed_nvm_images type, u8 *buf, u16 len);
 
 /**
- * @brief set_coalesce - Configure Rx coalesce value in usec
+ * set_coalesce(): Configure Rx coalesce value in usec.
  *
- * @param cdev
- * @param rx_coal - Rx coalesce value in usec
- * @param tx_coal - Tx coalesce value in usec
- * @param qid - Queue index
- * @param sb_id - Status Block Id
+ * @cdev: Qed dev pointer.
+ * @rx_coal: Rx coalesce value in usec.
+ * @tx_coal: Tx coalesce value in usec.
+ * @handle: Handle.
  *
- * @return 0 on success, error otherwise.
+ * Return: 0 on success, error otherwise.
  */
 	int (*set_coalesce)(struct qed_dev *cdev,
 			    u16 rx_coal, u16 tx_coal, void *handle);
 
 /**
- * @brief set_led - Configure LED mode
+ * set_led() - Configure LED mode.
  *
- * @param cdev
- * @param mode - LED mode
+ * @cdev: Qed dev pointer.
+ * @mode: LED mode.
  *
- * @return 0 on success, error otherwise.
+ * Return: 0 on success, error otherwise.
  */
 	int (*set_led)(struct qed_dev *cdev,
 		       enum qed_led_mode mode);
 
 /**
- * @brief attn_clr_enable - Prevent attentions from being reasserted
+ * attn_clr_enable(): Prevent attentions from being reasserted.
  *
- * @param cdev
- * @param clr_enable
+ * @cdev: Qed dev pointer.
+ * @clr_enable: Clear enable.
+ *
+ * Return: Void.
  */
 	void (*attn_clr_enable)(struct qed_dev *cdev, bool clr_enable);
 
 /**
- * @brief db_recovery_add - add doorbell information to the doorbell
- * recovery mechanism.
+ * db_recovery_add(): add doorbell information to the doorbell
+ *                    recovery mechanism.
  *
- * @param cdev
- * @param db_addr - doorbell address
- * @param db_data - address of where db_data is stored
- * @param db_is_32b - doorbell is 32b pr 64b
- * @param db_is_user - doorbell recovery addresses are user or kernel space
+ * @cdev: Qed dev pointer.
+ * @db_addr: Doorbell address.
+ * @db_data: Dddress of where db_data is stored.
+ * @db_width: Doorbell is 32b or 64b.
+ * @db_space: Doorbell recovery addresses are user or kernel space.
+ *
+ * Return: Int.
  */
 	int (*db_recovery_add)(struct qed_dev *cdev,
 			       void __iomem *db_addr,
@@ -1053,114 +1064,130 @@ struct qed_common_ops {
 			       enum qed_db_rec_space db_space);
 
 /**
- * @brief db_recovery_del - remove doorbell information from the doorbell
+ * db_recovery_del(): remove doorbell information from the doorbell
  * recovery mechanism. db_data serves as key (db_addr is not unique).
  *
- * @param cdev
- * @param db_addr - doorbell address
- * @param db_data - address where db_data is stored. Serves as key for the
- *		    entry to delete.
+ * @cdev: Qed dev pointer.
+ * @db_addr: Doorbell address.
+ * @db_data: Address where db_data is stored. Serves as key for the
+ *           entry to delete.
+ *
+ * Return: Int.
  */
 	int (*db_recovery_del)(struct qed_dev *cdev,
 			       void __iomem *db_addr, void *db_data);
 
 /**
- * @brief recovery_process - Trigger a recovery process
+ * recovery_process(): Trigger a recovery process.
  *
- * @param cdev
+ * @cdev: Qed dev pointer.
  *
- * @return 0 on success, error otherwise.
+ * Return: 0 on success, error otherwise.
  */
 	int (*recovery_process)(struct qed_dev *cdev);
 
 /**
- * @brief recovery_prolog - Execute the prolog operations of a recovery process
+ * recovery_prolog(): Execute the prolog operations of a recovery process.
  *
- * @param cdev
+ * @cdev: Qed dev pointer.
  *
- * @return 0 on success, error otherwise.
+ * Return: 0 on success, error otherwise.
  */
 	int (*recovery_prolog)(struct qed_dev *cdev);
 
 /**
- * @brief update_drv_state - API to inform the change in the driver state.
+ * update_drv_state(): API to inform the change in the driver state.
  *
- * @param cdev
- * @param active
+ * @cdev: Qed dev pointer.
+ * @active: Active
  *
+ * Return: Int.
  */
 	int (*update_drv_state)(struct qed_dev *cdev, bool active);
 
 /**
- * @brief update_mac - API to inform the change in the mac address
+ * update_mac(): API to inform the change in the mac address.
  *
- * @param cdev
- * @param mac
+ * @cdev: Qed dev pointer.
+ * @mac: MAC.
  *
+ * Return: Int.
  */
 	int (*update_mac)(struct qed_dev *cdev, u8 *mac);
 
 /**
- * @brief update_mtu - API to inform the change in the mtu
+ * update_mtu(): API to inform the change in the mtu.
  *
- * @param cdev
- * @param mtu
+ * @cdev: Qed dev pointer.
+ * @mtu: MTU.
  *
+ * Return: Int.
  */
 	int (*update_mtu)(struct qed_dev *cdev, u16 mtu);
 
 /**
- * @brief update_wol - update of changes in the WoL configuration
+ * update_wol(): Update of changes in the WoL configuration.
  *
- * @param cdev
- * @param enabled - true iff WoL should be enabled.
+ * @cdev: Qed dev pointer.
+ * @enabled: true iff WoL should be enabled.
+ *
+ * Return: Int.
  */
 	int (*update_wol) (struct qed_dev *cdev, bool enabled);
 
 /**
- * @brief read_module_eeprom
+ * read_module_eeprom(): Read EEPROM.
  *
- * @param cdev
- * @param buf - buffer
- * @param dev_addr - PHY device memory region
- * @param offset - offset into eeprom contents to be read
- * @param len - buffer length, i.e., max bytes to be read
+ * @cdev: Qed dev pointer.
+ * @buf: buffer.
+ * @dev_addr: PHY device memory region.
+ * @offset: offset into eeprom contents to be read.
+ * @len: buffer length, i.e., max bytes to be read.
+ *
+ * Return: Int.
  */
 	int (*read_module_eeprom)(struct qed_dev *cdev,
 				  char *buf, u8 dev_addr, u32 offset, u32 len);
 
 /**
- * @brief get_affin_hwfn_idx
+ * get_affin_hwfn_idx(): Get affine HW function.
  *
- * @param cdev
+ * @cdev: Qed dev pointer.
+ *
+ * Return: u8.
  */
 	u8 (*get_affin_hwfn_idx)(struct qed_dev *cdev);
 
 /**
- * @brief read_nvm_cfg - Read NVM config attribute value.
- * @param cdev
- * @param buf - buffer
- * @param cmd - NVM CFG command id
- * @param entity_id - Entity id
+ * read_nvm_cfg(): Read NVM config attribute value.
  *
+ * @cdev: Qed dev pointer.
+ * @buf: Buffer.
+ * @cmd: NVM CFG command id.
+ * @entity_id: Entity id.
+ *
+ * Return: Int.
  */
 	int (*read_nvm_cfg)(struct qed_dev *cdev, u8 **buf, u32 cmd,
 			    u32 entity_id);
 /**
- * @brief read_nvm_cfg - Read NVM config attribute value.
- * @param cdev
- * @param cmd - NVM CFG command id
+ * read_nvm_cfg_len(): Read NVM config attribute value.
  *
- * @return config id length, 0 on error.
+ * @cdev: Qed dev pointer.
+ * @cmd: NVM CFG command id.
+ *
+ * Return: config id length, 0 on error.
  */
 	int (*read_nvm_cfg_len)(struct qed_dev *cdev, u32 cmd);
 
 /**
- * @brief set_grc_config - Configure value for grc config id.
- * @param cdev
- * @param cfg_id - grc config id
- * @param val - grc config value
+ * set_grc_config(): Configure value for grc config id.
  *
+ * @cdev: Qed dev pointer.
+ * @cfg_id: grc config id
+ * @val: grc config value
+ *
+ * Return: Int.
  */
 	int (*set_grc_config)(struct qed_dev *cdev, u32 cfg_id, u32 val);
 
@@ -1386,7 +1413,7 @@ static inline u16 qed_sb_update_sb_idx(struct qed_sb_info *sb_info)
 	u16 rc = 0;
 
 	prod = le32_to_cpu(sb_info->sb_virt->prod_index) &
-	       STATUS_BLOCK_E4_PROD_INDEX_MASK;
+	       STATUS_BLOCK_PROD_INDEX_MASK;
 	if (sb_info->sb_ack != prod) {
 		sb_info->sb_ack = prod;
 		rc |= QED_SB_IDX;
@@ -1397,18 +1424,16 @@ static inline u16 qed_sb_update_sb_idx(struct qed_sb_info *sb_info)
 }
 
 /**
+ * qed_sb_ack(): This function creates an update command for interrupts
+ *               that is  written to the IGU.
  *
- * @brief This function creates an update command for interrupts that is
- *        written to the IGU.
+ * @sb_info: This is the structure allocated and
+ *           initialized per status block. Assumption is
+ *           that it was initialized using qed_sb_init
+ * @int_cmd: Enable/Disable/Nop
+ * @upd_flg: Whether igu consumer should be updated.
  *
- * @param sb_info       - This is the structure allocated and
- *                 initialized per status block. Assumption is
- *                 that it was initialized using qed_sb_init
- * @param int_cmd       - Enable/Disable/Nop
- * @param upd_flg       - whether igu consumer should be
- *                 updated.
- *
- * @return inline void
+ * Return: inline void.
  */
 static inline void qed_sb_ack(struct qed_sb_info *sb_info,
 			      enum igu_int_cmd int_cmd,

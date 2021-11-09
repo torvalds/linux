@@ -602,7 +602,7 @@ mlx5e_tc_sample_offload(struct mlx5e_tc_psample *tc_psample,
 	}
 	sample_flow->pre_attr = pre_attr;
 
-	return sample_flow->post_rule;
+	return sample_flow->pre_rule;
 
 err_pre_offload_rule:
 	kfree(pre_attr);
@@ -613,7 +613,7 @@ err_sample_restore:
 err_obj_id:
 	sampler_put(tc_psample, sample_flow->sampler);
 err_sampler:
-	if (!post_act_handle)
+	if (sample_flow->post_rule)
 		del_post_rule(esw, sample_flow, attr);
 err_post_rule:
 	if (post_act_handle)
@@ -628,9 +628,7 @@ mlx5e_tc_sample_unoffload(struct mlx5e_tc_psample *tc_psample,
 			  struct mlx5_flow_handle *rule,
 			  struct mlx5_flow_attr *attr)
 {
-	struct mlx5_esw_flow_attr *esw_attr = attr->esw_attr;
 	struct mlx5e_sample_flow *sample_flow;
-	struct mlx5_vport_tbl_attr tbl_attr;
 	struct mlx5_eswitch *esw;
 
 	if (IS_ERR_OR_NULL(tc_psample))
@@ -650,23 +648,14 @@ mlx5e_tc_sample_unoffload(struct mlx5e_tc_psample *tc_psample,
 	 */
 	sample_flow = attr->sample_attr->sample_flow;
 	mlx5_eswitch_del_offloaded_rule(esw, sample_flow->pre_rule, sample_flow->pre_attr);
-	if (!sample_flow->post_act_handle)
-		mlx5_eswitch_del_offloaded_rule(esw, sample_flow->post_rule,
-						sample_flow->post_attr);
 
 	sample_restore_put(tc_psample, sample_flow->restore);
 	mapping_remove(esw->offloads.reg_c0_obj_pool, attr->sample_attr->restore_obj_id);
 	sampler_put(tc_psample, sample_flow->sampler);
-	if (sample_flow->post_act_handle) {
+	if (sample_flow->post_act_handle)
 		mlx5e_tc_post_act_del(tc_psample->post_act, sample_flow->post_act_handle);
-	} else {
-		tbl_attr.chain = attr->chain;
-		tbl_attr.prio = attr->prio;
-		tbl_attr.vport = esw_attr->in_rep->vport;
-		tbl_attr.vport_ns = &mlx5_esw_vport_tbl_sample_ns;
-		mlx5_esw_vporttbl_put(esw, &tbl_attr);
-		kfree(sample_flow->post_attr);
-	}
+	else
+		del_post_rule(esw, sample_flow, attr);
 
 	kfree(sample_flow->pre_attr);
 	kfree(sample_flow);

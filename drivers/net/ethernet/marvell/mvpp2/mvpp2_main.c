@@ -6083,7 +6083,7 @@ static void mvpp2_port_copy_mac_addr(struct net_device *dev, struct mvpp2 *priv,
 
 	if (fwnode_get_mac_address(fwnode, fw_mac_addr, ETH_ALEN)) {
 		*mac_from = "firmware node";
-		ether_addr_copy(dev->dev_addr, fw_mac_addr);
+		eth_hw_addr_set(dev, fw_mac_addr);
 		return;
 	}
 
@@ -6091,7 +6091,7 @@ static void mvpp2_port_copy_mac_addr(struct net_device *dev, struct mvpp2 *priv,
 		mvpp21_get_mac_address(port, hw_mac_addr);
 		if (is_valid_ether_addr(hw_mac_addr)) {
 			*mac_from = "hardware";
-			ether_addr_copy(dev->dev_addr, hw_mac_addr);
+			eth_hw_addr_set(dev, hw_mac_addr);
 			return;
 		}
 	}
@@ -6301,12 +6301,7 @@ static void mvpp2_phylink_validate(struct phylink_config *config,
 	case PHY_INTERFACE_MODE_XAUI:
 	case PHY_INTERFACE_MODE_NA:
 		if (mvpp2_port_supports_xlg(port)) {
-			phylink_set(mask, 10000baseT_Full);
-			phylink_set(mask, 10000baseCR_Full);
-			phylink_set(mask, 10000baseSR_Full);
-			phylink_set(mask, 10000baseLR_Full);
-			phylink_set(mask, 10000baseLRM_Full);
-			phylink_set(mask, 10000baseER_Full);
+			phylink_set_10g_modes(mask);
 			phylink_set(mask, 10000baseKR_Full);
 		}
 		if (state->interface != PHY_INTERFACE_MODE_NA)

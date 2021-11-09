@@ -1660,7 +1660,7 @@ static int slic_read_eeprom(struct slic_device *sdev)
 		goto free_eeprom;
 	}
 	/* set mac address */
-	ether_addr_copy(sdev->netdev->dev_addr, mac[devfn]);
+	eth_hw_addr_set(sdev->netdev, mac[devfn]);
 free_eeprom:
 	dma_free_coherent(&sdev->pdev->dev, SLIC_EEPROM_SIZE, eeprom, paddr);
 

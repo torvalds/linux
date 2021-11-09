@@ -112,7 +112,7 @@ static int mpc52xx_fec_set_mac_address(struct net_device *dev, void *addr)
 {
 	struct sockaddr *sock = addr;
 
-	memcpy(dev->dev_addr, sock->sa_data, dev->addr_len);
+	eth_hw_addr_set(dev, sock->sa_data);
 
 	mpc52xx_fec_set_paddr(dev, sock->sa_data);
 	return 0;

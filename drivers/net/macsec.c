@@ -3614,7 +3614,7 @@ static int macsec_set_mac_address(struct net_device *dev, void *p)
 	dev_uc_del(real_dev, dev->dev_addr);
 
 out:
-	ether_addr_copy(dev->dev_addr, addr->sa_data);
+	eth_hw_addr_set(dev, addr->sa_data);
 	macsec->secy.sci = dev_to_sci(dev, MACSEC_PORT_ES);
 
 	/* If h/w offloading is available, propagate to the device */

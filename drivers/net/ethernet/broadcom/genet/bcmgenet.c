@@ -3633,7 +3633,7 @@ static int bcmgenet_set_mac_addr(struct net_device *dev, void *p)
 	if (netif_running(dev))
 		return -EBUSY;
 
-	ether_addr_copy(dev->dev_addr, addr->sa_data);
+	eth_hw_addr_set(dev, addr->sa_data);
 
 	return 0;
 }
@@ -4082,7 +4082,7 @@ static int bcmgenet_probe(struct platform_device *pdev)
 		bcmgenet_power_up(priv, GENET_POWER_PASSIVE);
 
 	if (pd && !IS_ERR_OR_NULL(pd->mac_address))
-		ether_addr_copy(dev->dev_addr, pd->mac_address);
+		eth_hw_addr_set(dev, pd->mac_address);
 	else
 		if (!device_get_mac_address(&pdev->dev, dev->dev_addr, ETH_ALEN))
 			if (has_acpi_companion(&pdev->dev))

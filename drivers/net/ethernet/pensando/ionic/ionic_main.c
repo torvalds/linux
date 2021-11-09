@@ -7,6 +7,7 @@
 #include <linux/netdevice.h>
 #include <linux/utsname.h>
 #include <generated/utsrelease.h>
+#include <linux/ctype.h>
 
 #include "ionic.h"
 #include "ionic_bus.h"
@@ -300,21 +301,45 @@ err_out:
 int ionic_adminq_wait(struct ionic_lif *lif, struct ionic_admin_ctx *ctx, int err)
 {
 	struct net_device *netdev = lif->netdev;
+	unsigned long time_limit;
+	unsigned long time_start;
+	unsigned long time_done;
 	unsigned long remaining;
 	const char *name;
 
+	name = ionic_opcode_to_str(ctx->cmd.cmd.opcode);
+
 	if (err) {
-		if (!test_bit(IONIC_LIF_F_FW_RESET, lif->state)) {
-			name = ionic_opcode_to_str(ctx->cmd.cmd.opcode);
+		if (!test_bit(IONIC_LIF_F_FW_RESET, lif->state))
 			netdev_err(netdev, "Posting of %s (%d) failed: %d\n",
 				   name, ctx->cmd.cmd.opcode, err);
-		}
 		return err;
 	}
 
-	remaining = wait_for_completion_timeout(&ctx->work,
-						HZ * (ulong)DEVCMD_TIMEOUT);
-	return ionic_adminq_check_err(lif, ctx, (remaining == 0));
+	time_start = jiffies;
+	time_limit = time_start + HZ * (ulong)DEVCMD_TIMEOUT;
+	do {
+		remaining = wait_for_completion_timeout(&ctx->work,
+							IONIC_ADMINQ_TIME_SLICE);
+
+		/* check for done */
+		if (remaining)
+			break;
+
+		/* interrupt the wait if FW stopped */
+		if (test_bit(IONIC_LIF_F_FW_RESET, lif->state)) {
+			netdev_err(netdev, "%s (%d) interrupted, FW in reset\n",
+				   name, ctx->cmd.cmd.opcode);
+			return -ENXIO;
+		}
+
+	} while (time_before(jiffies, time_limit));
+	time_done = jiffies;
+
+	dev_dbg(lif->ionic->dev, "%s: elapsed %d msecs\n",
+		__func__, jiffies_to_msecs(time_done - time_start));
+
+	return ionic_adminq_check_err(lif, ctx, time_after_eq(time_done, time_limit));
 }
 
 int ionic_adminq_post_wait(struct ionic_lif *lif, struct ionic_admin_ctx *ctx)
@@ -450,12 +475,22 @@ int ionic_identify(struct ionic *ionic)
 	}
 	mutex_unlock(&ionic->dev_cmd_lock);
 
-	dev_info(ionic->dev, "FW: %s\n", idev->dev_info.fw_version);
-
 	if (err) {
-		dev_err(ionic->dev, "Cannot identify ionic: %dn", err);
+		dev_err(ionic->dev, "Cannot identify ionic: %d\n", err);
 		goto err_out;
 	}
+
+	if (isprint(idev->dev_info.fw_version[0]) &&
+	    isascii(idev->dev_info.fw_version[0]))
+		dev_info(ionic->dev, "FW: %.*s\n",
+			 (int)(sizeof(idev->dev_info.fw_version) - 1),
+			 idev->dev_info.fw_version);
+	else
+		dev_info(ionic->dev, "FW: (invalid string) 0x%02x 0x%02x 0x%02x 0x%02x ...\n",
+			 (u8)idev->dev_info.fw_version[0],
+			 (u8)idev->dev_info.fw_version[1],
+			 (u8)idev->dev_info.fw_version[2],
+			 (u8)idev->dev_info.fw_version[3]);
 
 	err = ionic_lif_identify(ionic, IONIC_LIF_TYPE_CLASSIC,
 				 &ionic->ident.lif);

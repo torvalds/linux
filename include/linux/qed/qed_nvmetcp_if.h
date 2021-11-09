@@ -171,6 +171,23 @@ struct nvmetcp_task_params {
  *			@param dest_port
  * @clear_all_filters: Clear all filters.
  *			@param cdev
+ * @init_read_io: Init read IO.
+ *			@task_params
+ *			@cmd_pdu_header
+ *			@nvme_cmd
+ *			@sgl_task_params
+ * @init_write_io: Init write IO.
+ *			@task_params
+ *			@cmd_pdu_header
+ *			@nvme_cmd
+ *			@sgl_task_params
+ * @init_icreq_exchange: Exchange ICReq.
+ *			@task_params
+ *			@init_conn_req_pdu_hdr
+ *			@tx_sgl_task_params
+ *			@rx_sgl_task_params
+ * @init_task_cleanup: Init task cleanup.
+ *			@task_params
  */
 struct qed_nvmetcp_ops {
 	const struct qed_common_ops *common;

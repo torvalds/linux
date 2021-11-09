@@ -2024,7 +2024,7 @@ static int liquidio_set_mac(struct net_device *netdev, void *p)
 		return -EIO;
 	}
 
-	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
+	eth_hw_addr_set(netdev, addr->sa_data);
 	memcpy(((u8 *)&lio->linfo.hw_addr) + 2, addr->sa_data, ETH_ALEN);
 
 	return 0;
@@ -3634,7 +3634,7 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 
 		/* Copy MAC Address to OS network device structure */
 
-		ether_addr_copy(netdev->dev_addr, mac);
+		eth_hw_addr_set(netdev, mac);
 
 		/* By default all interfaces on a single Octeon uses the same
 		 * tx and rx queues

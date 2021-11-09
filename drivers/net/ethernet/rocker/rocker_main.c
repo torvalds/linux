@@ -1954,7 +1954,7 @@ static int rocker_port_set_mac_address(struct net_device *dev, void *p)
 	err = rocker_cmd_set_port_settings_macaddr(rocker_port, addr->sa_data);
 	if (err)
 		return err;
-	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+	eth_hw_addr_set(dev, addr->sa_data);
 	return 0;
 }
 

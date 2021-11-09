@@ -2028,7 +2028,7 @@ static int netcp_create_interface(struct netcp_device *netcp_device,
 
 		emac_arch_get_mac_addr(efuse_mac_addr, efuse, efuse_mac);
 		if (is_valid_ether_addr(efuse_mac_addr))
-			ether_addr_copy(ndev->dev_addr, efuse_mac_addr);
+			eth_hw_addr_set(ndev, efuse_mac_addr);
 		else
 			eth_random_addr(ndev->dev_addr);
 

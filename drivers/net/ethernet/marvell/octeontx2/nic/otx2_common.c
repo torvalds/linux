@@ -188,7 +188,7 @@ static int otx2_hw_get_mac_addr(struct otx2_nic *pfvf,
 		return PTR_ERR(msghdr);
 	}
 	rsp = (struct nix_get_mac_addr_rsp *)msghdr;
-	ether_addr_copy(netdev->dev_addr, rsp->mac_addr);
+	eth_hw_addr_set(netdev, rsp->mac_addr);
 	mutex_unlock(&pfvf->mbox.lock);
 
 	return 0;
@@ -203,7 +203,7 @@ int otx2_set_mac_address(struct net_device *netdev, void *p)
 		return -EADDRNOTAVAIL;
 
 	if (!otx2_hw_set_mac_addr(pfvf, addr->sa_data)) {
-		memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
+		eth_hw_addr_set(netdev, addr->sa_data);
 		/* update dmac field in vlan offload rule */
 		if (netif_running(netdev) &&
 		    pfvf->flags & OTX2_FLAG_RX_VLAN_SUPPORT)

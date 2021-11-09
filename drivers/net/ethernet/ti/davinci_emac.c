@@ -1132,7 +1132,7 @@ static int emac_dev_setmac_addr(struct net_device *ndev, void *addr)
 
 	/* Store mac addr in priv and rx channel and set it in EMAC hw */
 	memcpy(priv->mac_addr, sa->sa_data, ndev->addr_len);
-	memcpy(ndev->dev_addr, sa->sa_data, ndev->addr_len);
+	eth_hw_addr_set(ndev, sa->sa_data);
 
 	/* MAC address is configured only after the interface is enabled. */
 	if (netif_running(ndev)) {
@@ -1899,7 +1899,7 @@ static int davinci_emac_probe(struct platform_device *pdev)
 
 	rc = davinci_emac_try_get_mac(pdev, res_ctrl ? 0 : 1, priv->mac_addr);
 	if (!rc)
-		ether_addr_copy(ndev->dev_addr, priv->mac_addr);
+		eth_hw_addr_set(ndev, priv->mac_addr);
 
 	if (!is_valid_ether_addr(priv->mac_addr)) {
 		/* Use random MAC if still none obtained. */

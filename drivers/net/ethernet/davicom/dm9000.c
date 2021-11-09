@@ -1670,7 +1670,7 @@ dm9000_probe(struct platform_device *pdev)
 
 	if (!is_valid_ether_addr(ndev->dev_addr) && pdata != NULL) {
 		mac_src = "platform data";
-		memcpy(ndev->dev_addr, pdata->dev_addr, ETH_ALEN);
+		eth_hw_addr_set(ndev, pdata->dev_addr);
 	}
 
 	if (!is_valid_ether_addr(ndev->dev_addr)) {

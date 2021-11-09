@@ -1227,7 +1227,7 @@ static int set_mac_address(struct net_device *dev, void *p)
 	if (netif_running(dev))
 		return -EBUSY;
 
-	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+	eth_hw_addr_set(dev, addr->sa_data);
 
 	cs89_dbg(0, debug, "%s: Setting MAC address to %pM\n",
 		 dev->name, dev->dev_addr);

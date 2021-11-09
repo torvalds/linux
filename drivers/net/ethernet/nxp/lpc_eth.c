@@ -1092,7 +1092,7 @@ static int lpc_set_mac_address(struct net_device *ndev, void *p)
 
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
-	memcpy(ndev->dev_addr, addr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(ndev, addr->sa_data);
 
 	spin_lock_irqsave(&pldat->lock, flags);
 

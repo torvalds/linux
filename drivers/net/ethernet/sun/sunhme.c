@@ -2707,9 +2707,9 @@ static int happy_meal_sbus_probe_one(struct platform_device *op, int is_qfe)
 		addr = of_get_property(dp, "local-mac-address", &len);
 
 		if (qfe_slot != -1 && addr && len == ETH_ALEN)
-			memcpy(dev->dev_addr, addr, ETH_ALEN);
+			eth_hw_addr_set(dev, addr);
 		else
-			memcpy(dev->dev_addr, idprom->id_ethaddr, ETH_ALEN);
+			eth_hw_addr_set(dev, idprom->id_ethaddr);
 	}
 
 	hp = netdev_priv(dev);
@@ -3055,9 +3055,9 @@ static int happy_meal_pci_probe(struct pci_dev *pdev,
 		    (addr = of_get_property(dp, "local-mac-address", &len))
 			!= NULL &&
 		    len == 6) {
-			memcpy(dev->dev_addr, addr, ETH_ALEN);
+			eth_hw_addr_set(dev, addr);
 		} else {
-			memcpy(dev->dev_addr, idprom->id_ethaddr, ETH_ALEN);
+			eth_hw_addr_set(dev, idprom->id_ethaddr);
 		}
 #else
 		get_hme_mac_nonsparc(pdev, &dev->dev_addr[0]);

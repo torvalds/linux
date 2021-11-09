@@ -1015,7 +1015,7 @@ static int ax88179_set_mac_addr(struct net_device *net, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(net->dev_addr, addr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(net, addr->sa_data);
 
 	/* Set the MAC address */
 	ret = ax88179_write_cmd(dev, AX_ACCESS_MAC, AX_NODE_ID, ETH_ALEN,
@@ -1310,7 +1310,7 @@ static void ax88179_get_mac_addr(struct usbnet *dev)
 	}
 
 	if (is_valid_ether_addr(mac)) {
-		memcpy(dev->net->dev_addr, mac, ETH_ALEN);
+		eth_hw_addr_set(dev->net, mac);
 	} else {
 		netdev_info(dev->net, "invalid MAC address, using random\n");
 		eth_hw_addr_random(dev->net);

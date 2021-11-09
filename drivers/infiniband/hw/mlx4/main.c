@@ -2275,7 +2275,7 @@ static void mlx4_ib_update_qps(struct mlx4_ib_dev *ibdev,
 	u64 release_mac = MLX4_IB_INVALID_MAC;
 	struct mlx4_ib_qp *qp;
 
-	new_smac = mlx4_mac_to_u64(dev->dev_addr);
+	new_smac = ether_addr_to_u64(dev->dev_addr);
 	atomic64_set(&ibdev->iboe.mac[port - 1], new_smac);
 
 	/* no need for update QP1 and mac registration in non-SRIOV */

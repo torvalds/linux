@@ -40,7 +40,7 @@ static int enetc_pf_set_mac_addr(struct net_device *ndev, void *addr)
 	if (!is_valid_ether_addr(saddr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(ndev->dev_addr, saddr->sa_data, ndev->addr_len);
+	eth_hw_addr_set(ndev, saddr->sa_data);
 	enetc_pf_set_primary_mac_addr(&priv->si->hw, 0, saddr->sa_data);
 
 	return 0;

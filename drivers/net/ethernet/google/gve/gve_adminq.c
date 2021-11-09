@@ -733,7 +733,7 @@ int gve_adminq_describe_device(struct gve_priv *priv)
 	}
 	priv->dev->max_mtu = mtu;
 	priv->num_event_counters = be16_to_cpu(descriptor->counters);
-	ether_addr_copy(priv->dev->dev_addr, descriptor->mac);
+	eth_hw_addr_set(priv->dev, descriptor->mac);
 	mac = descriptor->mac;
 	dev_info(&priv->pdev->dev, "MAC addr: %pM\n", mac);
 	priv->tx_pages_per_qpl = be16_to_cpu(descriptor->tx_pages_per_qpl);

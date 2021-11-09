@@ -635,7 +635,7 @@ static int nmclan_config(struct pcmcia_device *link)
 	  kfree(buf);
 	  goto failed;
   }
-  memcpy(dev->dev_addr, buf, ETH_ALEN);
+  eth_hw_addr_set(dev, buf);
   kfree(buf);
 
   /* Verify configuration by reading the MACE ID. */

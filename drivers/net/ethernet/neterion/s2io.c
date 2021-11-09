@@ -5202,7 +5202,7 @@ static int s2io_set_mac_addr(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+	eth_hw_addr_set(dev, addr->sa_data);
 
 	/* store the MAC address in CAM */
 	return do_s2io_prog_unicast(dev, dev->dev_addr);
@@ -7954,7 +7954,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 
 	/*  Set the factory defined MAC address initially   */
 	dev->addr_len = ETH_ALEN;
-	memcpy(dev->dev_addr, sp->def_mac_addr, ETH_ALEN);
+	eth_hw_addr_set(dev, sp->def_mac_addr[0].mac_addr);
 
 	/* initialize number of multicast & unicast MAC entries variables */
 	if (sp->device_type == XFRAME_I_DEVICE) {

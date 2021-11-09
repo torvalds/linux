@@ -12,6 +12,18 @@
 #include "iosm_ipc_imem_ops.h"
 #include "iosm_ipc_pcie.h"
 
+/* Image ext max len */
+#define IOSM_DEVLINK_MAX_IMG_LEN 3
+/* Magic Header */
+#define IOSM_DEVLINK_MAGIC_HEADER "IOSM_DEVLINK_HEADER"
+/* Magic Header len */
+#define IOSM_DEVLINK_MAGIC_HEADER_LEN 20
+/* Devlink image type */
+#define IOSM_DEVLINK_IMG_TYPE 4
+/* Reserve header size */
+#define IOSM_DEVLINK_RESERVED 34
+/* Devlink Image Header size */
+#define IOSM_DEVLINK_HDR_SIZE sizeof(struct iosm_devlink_image)
 /* MAX file name length */
 #define IOSM_MAX_FILENAME_LEN 32
 /* EBL response size */
@@ -32,19 +44,11 @@
  * enum iosm_devlink_param_id - Enum type to different devlink params
  * @IOSM_DEVLINK_PARAM_ID_BASE:			Devlink param base ID
  * @IOSM_DEVLINK_PARAM_ID_ERASE_FULL_FLASH:     Set if full erase required
- * @IOSM_DEVLINK_PARAM_ID_DOWNLOAD_REGION:	Set if fls file to be
- *						flashed is Loadmap/region file
- * @IOSM_DEVLINK_PARAM_ID_ADDRESS:		Address of the region to be
- *						flashed
- * @IOSM_DEVLINK_PARAM_ID_REGION_COUNT:		Max region count
  */
 
 enum iosm_devlink_param_id {
 	IOSM_DEVLINK_PARAM_ID_BASE = DEVLINK_PARAM_GENERIC_ID_MAX,
 	IOSM_DEVLINK_PARAM_ID_ERASE_FULL_FLASH,
-	IOSM_DEVLINK_PARAM_ID_DOWNLOAD_REGION,
-	IOSM_DEVLINK_PARAM_ID_ADDRESS,
-	IOSM_DEVLINK_PARAM_ID_REGION_COUNT,
 };
 
 /**
@@ -94,21 +98,33 @@ struct iosm_devlink_sio {
 
 /**
  * struct iosm_flash_params - List of flash params required for flashing
- * @address:		Address of the region file to be flashed
- * @region_count:	Maximum no of regions for each fls file
- * @download_region:	To be set if region is being flashed
  * @erase_full_flash:   To set the flashing mode
  *                      erase_full_flash = 1; full erase
  *                      erase_full_flash = 0; no erase
  * @erase_full_flash_done: Flag to check if it is a full erase
  */
 struct iosm_flash_params {
-	u32 address;
-	u8 region_count;
-	u8 download_region;
 	u8 erase_full_flash;
 	u8 erase_full_flash_done;
 };
+
+/**
+ * struct iosm_devlink_image - Structure with Fls file header info
+ * @magic_header:	Header of the firmware image
+ * @image_type:		Firmware image type
+ * @region_address:	Address of the region to be flashed
+ * @download_region:	Field to identify if it is a region
+ * @last_region:	Field to identify if it is last region
+ * @reserved:		Reserved field
+ */
+struct iosm_devlink_image {
+	char magic_header[IOSM_DEVLINK_MAGIC_HEADER_LEN];
+	char image_type[IOSM_DEVLINK_IMG_TYPE];
+	__le32 region_address;
+	u8 download_region;
+	u8 last_region;
+	u8 reserved[IOSM_DEVLINK_RESERVED];
+} __packed;
 
 /**
  * struct iosm_ebl_ctx_data -  EBL ctx data used during flashing

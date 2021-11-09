@@ -1524,7 +1524,7 @@ static int ixp4xx_eth_probe(struct platform_device *pdev)
 
 	port->plat = plat;
 	npe_port_tab[NPE_ID(port->id)] = port;
-	memcpy(ndev->dev_addr, plat->hwaddr, ETH_ALEN);
+	eth_hw_addr_set(ndev, plat->hwaddr);
 
 	platform_set_drvdata(pdev, ndev);
 

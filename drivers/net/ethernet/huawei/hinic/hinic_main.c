@@ -656,7 +656,7 @@ static int hinic_set_mac_addr(struct net_device *netdev, void *addr)
 
 	err = change_mac_addr(netdev, new_mac);
 	if (!err)
-		memcpy(netdev->dev_addr, new_mac, ETH_ALEN);
+		eth_hw_addr_set(netdev, new_mac);
 
 	return err;
 }

@@ -283,6 +283,7 @@ struct mlx4_en_tx_ring {
 	struct mlx4_bf		bf;
 
 	/* Following part should be mostly read */
+	void __iomem		*doorbell_address;
 	__be32			doorbell_qpn;
 	__be32			mr_key;
 	u32			size; /* number of TXBBs */

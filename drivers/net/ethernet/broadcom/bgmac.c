@@ -1241,7 +1241,7 @@ static int bgmac_set_mac_address(struct net_device *net_dev, void *addr)
 	if (ret < 0)
 		return ret;
 
-	ether_addr_copy(net_dev->dev_addr, sa->sa_data);
+	eth_hw_addr_set(net_dev, sa->sa_data);
 	bgmac_write_mac_address(bgmac, net_dev->dev_addr);
 
 	eth_commit_mac_addr_change(net_dev, addr);

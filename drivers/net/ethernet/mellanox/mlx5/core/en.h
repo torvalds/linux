@@ -251,6 +251,9 @@ struct mlx5e_params {
 		u16 mode;
 		u8 num_tc;
 		struct netdev_tc_txq tc_to_txq[TC_MAX_QUEUE];
+		struct {
+			struct mlx5e_mqprio_rl *rl;
+		} channel;
 	} mqprio;
 	bool rx_cqe_compress_def;
 	bool tunneled_offload_en;
@@ -877,6 +880,7 @@ struct mlx5e_priv {
 #endif
 	struct mlx5e_scratchpad    scratchpad;
 	struct mlx5e_htb           htb;
+	struct mlx5e_mqprio_rl    *mqprio_rl;
 };
 
 struct mlx5e_rx_handlers {
@@ -1002,7 +1006,8 @@ int mlx5e_modify_sq(struct mlx5_core_dev *mdev, u32 sqn,
 		    struct mlx5e_modify_sq_param *p);
 int mlx5e_open_txqsq(struct mlx5e_channel *c, u32 tisn, int txq_ix,
 		     struct mlx5e_params *params, struct mlx5e_sq_param *param,
-		     struct mlx5e_txqsq *sq, int tc, u16 qos_queue_group_id, u16 qos_qid);
+		     struct mlx5e_txqsq *sq, int tc, u16 qos_queue_group_id,
+		     struct mlx5e_sq_stats *sq_stats);
 void mlx5e_activate_txqsq(struct mlx5e_txqsq *sq);
 void mlx5e_deactivate_txqsq(struct mlx5e_txqsq *sq);
 void mlx5e_free_txqsq(struct mlx5e_txqsq *sq);

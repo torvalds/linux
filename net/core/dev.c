@@ -5853,7 +5853,7 @@ static void gro_normal_one(struct napi_struct *napi, struct sk_buff *skb, int se
 		gro_normal_list(napi);
 }
 
-static int napi_gro_complete(struct napi_struct *napi, struct sk_buff *skb)
+static void napi_gro_complete(struct napi_struct *napi, struct sk_buff *skb)
 {
 	struct packet_offload *ptype;
 	__be16 type = skb->protocol;
@@ -5882,12 +5882,11 @@ static int napi_gro_complete(struct napi_struct *napi, struct sk_buff *skb)
 	if (err) {
 		WARN_ON(&ptype->list == head);
 		kfree_skb(skb);
-		return NET_RX_SUCCESS;
+		return;
 	}
 
 out:
 	gro_normal_one(napi, skb, NAPI_GRO_CB(skb)->count);
-	return NET_RX_SUCCESS;
 }
 
 static void __napi_gro_flush_chain(struct napi_struct *napi, u32 index,

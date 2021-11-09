@@ -708,7 +708,7 @@ static int tc35815_read_plat_dev_addr(struct net_device *dev)
 					    lp->pci_dev, tc35815_mac_match);
 	if (pd) {
 		if (pd->platform_data)
-			memcpy(dev->dev_addr, pd->platform_data, ETH_ALEN);
+			eth_hw_addr_set(dev, pd->platform_data);
 		put_device(pd);
 		return is_valid_ether_addr(dev->dev_addr) ? 0 : -ENODEV;
 	}

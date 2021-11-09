@@ -985,7 +985,7 @@ static int w5100_set_macaddr(struct net_device *ndev, void *addr)
 
 	if (!is_valid_ether_addr(sock_addr->sa_data))
 		return -EADDRNOTAVAIL;
-	memcpy(ndev->dev_addr, sock_addr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(ndev, sock_addr->sa_data);
 	w5100_write_macaddr(priv);
 	return 0;
 }
@@ -1155,7 +1155,7 @@ int w5100_probe(struct device *dev, const struct w5100_ops *ops,
 	INIT_WORK(&priv->restart_work, w5100_restart_work);
 
 	if (mac_addr)
-		memcpy(ndev->dev_addr, mac_addr, ETH_ALEN);
+		eth_hw_addr_set(ndev, mac_addr);
 	else
 		eth_hw_addr_random(ndev);
 

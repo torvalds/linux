@@ -3459,7 +3459,7 @@ static int skge_set_mac_address(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(dev, addr->sa_data);
 
 	if (!netif_running(dev)) {
 		memcpy_toio(hw->regs + B2_MAC_1 + port*8, dev->dev_addr, ETH_ALEN);

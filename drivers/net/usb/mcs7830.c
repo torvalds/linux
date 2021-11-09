@@ -159,7 +159,7 @@ static int mcs7830_set_mac_address(struct net_device *netdev, void *p)
 		return ret;
 
 	/* it worked --> adopt it on netdev side */
-	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
+	eth_hw_addr_set(netdev, addr->sa_data);
 
 	return 0;
 }

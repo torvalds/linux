@@ -25,6 +25,7 @@
 #include "qed_dev_api.h"
 #include "qed_fcoe.h"
 #include "qed_hsi.h"
+#include "qed_iro_hsi.h"
 #include "qed_hw.h"
 #include "qed_init_ops.h"
 #include "qed_int.h"
@@ -1396,12 +1397,13 @@ void qed_resc_free(struct qed_dev *cdev)
 			qed_rdma_info_free(p_hwfn);
 		}
 
+		qed_spq_unregister_async_cb(p_hwfn, PROTOCOLID_COMMON);
 		qed_iov_free(p_hwfn);
 		qed_l2_free(p_hwfn);
 		qed_dmae_info_free(p_hwfn);
 		qed_dcbx_info_free(p_hwfn);
 		qed_dbg_user_data_free(p_hwfn);
-		qed_fw_overlay_mem_free(p_hwfn, p_hwfn->fw_overlay_mem);
+		qed_fw_overlay_mem_free(p_hwfn, &p_hwfn->fw_overlay_mem);
 
 		/* Destroy doorbell recovery mechanism */
 		qed_db_recovery_teardown(p_hwfn);
@@ -1483,8 +1485,8 @@ static u16 qed_init_qm_get_num_pf_rls(struct qed_hwfn *p_hwfn)
 	u16 num_pf_rls, num_vfs = qed_init_qm_get_num_vfs(p_hwfn);
 
 	/* num RLs can't exceed resource amount of rls or vports */
-	num_pf_rls = (u16) min_t(u32, RESC_NUM(p_hwfn, QED_RL),
-				 RESC_NUM(p_hwfn, QED_VPORT));
+	num_pf_rls = (u16)min_t(u32, RESC_NUM(p_hwfn, QED_RL),
+				RESC_NUM(p_hwfn, QED_VPORT));
 
 	/* Make sure after we reserve there's something left */
 	if (num_pf_rls < num_vfs + NUM_DEFAULT_RLS)
@@ -1532,8 +1534,8 @@ static void qed_init_qm_params(struct qed_hwfn *p_hwfn)
 	bool four_port;
 
 	/* pq and vport bases for this PF */
-	qm_info->start_pq = (u16) RESC_START(p_hwfn, QED_PQ);
-	qm_info->start_vport = (u8) RESC_START(p_hwfn, QED_VPORT);
+	qm_info->start_pq = (u16)RESC_START(p_hwfn, QED_PQ);
+	qm_info->start_vport = (u8)RESC_START(p_hwfn, QED_VPORT);
 
 	/* rate limiting and weighted fair queueing are always enabled */
 	qm_info->vport_rl_en = true;
@@ -1628,9 +1630,9 @@ static void qed_init_qm_advance_vport(struct qed_hwfn *p_hwfn)
  */
 
 /* flags for pq init */
-#define PQ_INIT_SHARE_VPORT     (1 << 0)
-#define PQ_INIT_PF_RL           (1 << 1)
-#define PQ_INIT_VF_RL           (1 << 2)
+#define PQ_INIT_SHARE_VPORT     BIT(0)
+#define PQ_INIT_PF_RL           BIT(1)
+#define PQ_INIT_VF_RL           BIT(2)
 
 /* defines for pq init */
 #define PQ_INIT_DEFAULT_WRR_GROUP       1
@@ -2290,7 +2292,7 @@ int qed_resc_alloc(struct qed_dev *cdev)
 			goto alloc_no_mem;
 		}
 
-		rc = qed_eq_alloc(p_hwfn, (u16) n_eqes);
+		rc = qed_eq_alloc(p_hwfn, (u16)n_eqes);
 		if (rc)
 			goto alloc_err;
 
@@ -2375,6 +2377,49 @@ alloc_err:
 	return rc;
 }
 
+static int qed_fw_err_handler(struct qed_hwfn *p_hwfn,
+			      u8 opcode,
+			      u16 echo,
+			      union event_ring_data *data, u8 fw_return_code)
+{
+	if (fw_return_code != COMMON_ERR_CODE_ERROR)
+		goto eqe_unexpected;
+
+	if (data->err_data.recovery_scope == ERR_SCOPE_FUNC &&
+	    le16_to_cpu(data->err_data.entity_id) >= MAX_NUM_PFS) {
+		qed_sriov_vfpf_malicious(p_hwfn, &data->err_data);
+		return 0;
+	}
+
+eqe_unexpected:
+	DP_ERR(p_hwfn,
+	       "Skipping unexpected eqe 0x%02x, FW return code 0x%x, echo 0x%x\n",
+	       opcode, fw_return_code, echo);
+	return -EINVAL;
+}
+
+static int qed_common_eqe_event(struct qed_hwfn *p_hwfn,
+				u8 opcode,
+				__le16 echo,
+				union event_ring_data *data,
+				u8 fw_return_code)
+{
+	switch (opcode) {
+	case COMMON_EVENT_VF_PF_CHANNEL:
+	case COMMON_EVENT_VF_FLR:
+		return qed_sriov_eqe_event(p_hwfn, opcode, echo, data,
+					   fw_return_code);
+	case COMMON_EVENT_FW_ERROR:
+		return qed_fw_err_handler(p_hwfn, opcode,
+					  le16_to_cpu(echo), data,
+					  fw_return_code);
+	default:
+		DP_INFO(p_hwfn->cdev, "Unknown eqe event 0x%02x, echo 0x%x\n",
+			opcode, echo);
+		return -EINVAL;
+	}
+}
+
 void qed_resc_setup(struct qed_dev *cdev)
 {
 	int i;
@@ -2403,6 +2448,8 @@ void qed_resc_setup(struct qed_dev *cdev)
 
 		qed_l2_setup(p_hwfn);
 		qed_iov_setup(p_hwfn);
+		qed_spq_register_async_cb(p_hwfn, PROTOCOLID_COMMON,
+					  qed_common_eqe_event);
 #ifdef CONFIG_QED_LL2
 		if (p_hwfn->using_ll2)
 			qed_ll2_setup(p_hwfn);
@@ -2430,9 +2477,8 @@ int qed_final_cleanup(struct qed_hwfn *p_hwfn,
 	u32 command = 0, addr, count = FINAL_CLEANUP_POLL_CNT;
 	int rc = -EBUSY;
 
-	addr = GTT_BAR0_MAP_REG_USDM_RAM +
-		USTORM_FLR_FINAL_ACK_OFFSET(p_hwfn->rel_pf_id);
-
+	addr = GET_GTT_REG_ADDR(GTT_BAR0_MAP_REG_USDM_RAM,
+				USTORM_FLR_FINAL_ACK, p_hwfn->rel_pf_id);
 	if (is_vf)
 		id += 0x10;
 
@@ -2592,7 +2638,7 @@ static void qed_init_cache_line_size(struct qed_hwfn *p_hwfn,
 			cache_line_size);
 	}
 
-	if (L1_CACHE_BYTES > wr_mbs)
+	if (wr_mbs < L1_CACHE_BYTES)
 		DP_INFO(p_hwfn,
 			"The cache line size for padding is suboptimal for performance [OS cache line size 0x%x, wr mbs 0x%x]\n",
 			L1_CACHE_BYTES, wr_mbs);
@@ -2608,12 +2654,20 @@ static int qed_hw_init_common(struct qed_hwfn *p_hwfn,
 			      struct qed_ptt *p_ptt, int hw_mode)
 {
 	struct qed_qm_info *qm_info = &p_hwfn->qm_info;
-	struct qed_qm_common_rt_init_params params;
+	struct qed_qm_common_rt_init_params *params;
 	struct qed_dev *cdev = p_hwfn->cdev;
 	u8 vf_id, max_num_vfs;
 	u16 num_pfs, pf_id;
 	u32 concrete_fid;
 	int rc = 0;
+
+	params = kzalloc(sizeof(*params), GFP_KERNEL);
+	if (!params) {
+		DP_NOTICE(p_hwfn->cdev,
+			  "Failed to allocate common init params\n");
+
+		return -ENOMEM;
+	}
 
 	qed_init_cau_rt_data(cdev);
 
@@ -2627,16 +2681,15 @@ static int qed_hw_init_common(struct qed_hwfn *p_hwfn,
 			qm_info->pf_wfq_en = true;
 	}
 
-	memset(&params, 0, sizeof(params));
-	params.max_ports_per_engine = p_hwfn->cdev->num_ports_in_engine;
-	params.max_phys_tcs_per_port = qm_info->max_phys_tcs_per_port;
-	params.pf_rl_en = qm_info->pf_rl_en;
-	params.pf_wfq_en = qm_info->pf_wfq_en;
-	params.global_rl_en = qm_info->vport_rl_en;
-	params.vport_wfq_en = qm_info->vport_wfq_en;
-	params.port_params = qm_info->qm_port_params;
+	params->max_ports_per_engine = p_hwfn->cdev->num_ports_in_engine;
+	params->max_phys_tcs_per_port = qm_info->max_phys_tcs_per_port;
+	params->pf_rl_en = qm_info->pf_rl_en;
+	params->pf_wfq_en = qm_info->pf_wfq_en;
+	params->global_rl_en = qm_info->vport_rl_en;
+	params->vport_wfq_en = qm_info->vport_wfq_en;
+	params->port_params = qm_info->qm_port_params;
 
-	qed_qm_common_rt_init(p_hwfn, &params);
+	qed_qm_common_rt_init(p_hwfn, params);
 
 	qed_cxt_hw_init_common(p_hwfn);
 
@@ -2644,7 +2697,7 @@ static int qed_hw_init_common(struct qed_hwfn *p_hwfn,
 
 	rc = qed_init_run(p_hwfn, p_ptt, PHASE_ENGINE, ANY_PHASE_ID, hw_mode);
 	if (rc)
-		return rc;
+		goto out;
 
 	qed_wr(p_hwfn, p_ptt, PSWRQ2_REG_L2P_VALIDATE_VFID, 0);
 	qed_wr(p_hwfn, p_ptt, PGLUE_B_REG_USE_CLIENTID_IN_TAG, 1);
@@ -2663,7 +2716,7 @@ static int qed_hw_init_common(struct qed_hwfn *p_hwfn,
 	max_num_vfs = QED_IS_AH(cdev) ? MAX_NUM_VFS_K2 : MAX_NUM_VFS_BB;
 	for (vf_id = 0; vf_id < max_num_vfs; vf_id++) {
 		concrete_fid = qed_vfid_to_concrete(p_hwfn, vf_id);
-		qed_fid_pretend(p_hwfn, p_ptt, (u16) concrete_fid);
+		qed_fid_pretend(p_hwfn, p_ptt, (u16)concrete_fid);
 		qed_wr(p_hwfn, p_ptt, CCFC_REG_STRONG_ENABLE_VF, 0x1);
 		qed_wr(p_hwfn, p_ptt, CCFC_REG_WEAK_ENABLE_VF, 0x0);
 		qed_wr(p_hwfn, p_ptt, TCFC_REG_STRONG_ENABLE_VF, 0x1);
@@ -2671,6 +2724,9 @@ static int qed_hw_init_common(struct qed_hwfn *p_hwfn,
 	}
 	/* pretend to original PF */
 	qed_fid_pretend(p_hwfn, p_ptt, p_hwfn->rel_pf_id);
+
+out:
+	kfree(params);
 
 	return rc;
 }
@@ -2784,7 +2840,7 @@ qed_hw_init_pf_doorbell_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 			qed_rdma_dpm_bar(p_hwfn, p_ptt);
 	}
 
-	p_hwfn->wid_count = (u16) n_cpus;
+	p_hwfn->wid_count = (u16)n_cpus;
 
 	DP_INFO(p_hwfn,
 		"doorbell bar: normal_region_size=%d, pwm_region_size=%d, dpi_size=%d, dpi_count=%d, roce_edpm=%s, page_size=%lu\n",
@@ -3503,8 +3559,8 @@ static void qed_hw_hwfn_prepare(struct qed_hwfn *p_hwfn)
 static void get_function_id(struct qed_hwfn *p_hwfn)
 {
 	/* ME Register */
-	p_hwfn->hw_info.opaque_fid = (u16) REG_RD(p_hwfn,
-						  PXP_PF_ME_OPAQUE_ADDR);
+	p_hwfn->hw_info.opaque_fid = (u16)REG_RD(p_hwfn,
+						 PXP_PF_ME_OPAQUE_ADDR);
 
 	p_hwfn->hw_info.concrete_fid = REG_RD(p_hwfn, PXP_PF_ME_CONCRETE_ADDR);
 
@@ -3670,12 +3726,14 @@ u32 qed_get_hsi_def_val(struct qed_dev *cdev, enum qed_hsi_def_type type)
 
 	return qed_hsi_def_val[type][chip_id];
 }
+
 static int
 qed_hw_set_soft_resc_size(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	u32 resc_max_val, mcp_resp;
 	u8 res_id;
 	int rc;
+
 	for (res_id = 0; res_id < QED_MAX_RESC; res_id++) {
 		switch (res_id) {
 		case QED_LL2_RAM_QUEUE:
@@ -3921,7 +3979,7 @@ static int qed_hw_get_resc(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	 * resources allocation queries should be atomic. Since several PFs can
 	 * run in parallel - a resource lock is needed.
 	 * If either the resource lock or resource set value commands are not
-	 * supported - skip the the max values setting, release the lock if
+	 * supported - skip the max values setting, release the lock if
 	 * needed, and proceed to the queries. Other failures, including a
 	 * failure to acquire the lock, will cause this function to fail.
 	 */
@@ -4775,7 +4833,7 @@ int qed_fw_l2_queue(struct qed_hwfn *p_hwfn, u16 src_id, u16 *dst_id)
 	if (src_id >= RESC_NUM(p_hwfn, QED_L2_QUEUE)) {
 		u16 min, max;
 
-		min = (u16) RESC_START(p_hwfn, QED_L2_QUEUE);
+		min = (u16)RESC_START(p_hwfn, QED_L2_QUEUE);
 		max = min + RESC_NUM(p_hwfn, QED_L2_QUEUE);
 		DP_NOTICE(p_hwfn,
 			  "l2_queue id [%d] is not valid, available indices [%d - %d]\n",
@@ -4909,7 +4967,7 @@ int qed_set_rxq_coalesce(struct qed_hwfn *p_hwfn,
 		goto out;
 
 	address = BAR0_MAP_REG_USDM_RAM +
-		  USTORM_ETH_QUEUE_ZONE_OFFSET(p_cid->abs.queue_id);
+		  USTORM_ETH_QUEUE_ZONE_GTT_OFFSET(p_cid->abs.queue_id);
 
 	rc = qed_set_coalesce(p_hwfn, p_ptt, address, &eth_qzone,
 			      sizeof(struct ustorm_eth_queue_zone), timeset);
@@ -4948,7 +5006,7 @@ int qed_set_txq_coalesce(struct qed_hwfn *p_hwfn,
 		goto out;
 
 	address = BAR0_MAP_REG_XSDM_RAM +
-		  XSTORM_ETH_QUEUE_ZONE_OFFSET(p_cid->abs.queue_id);
+		  XSTORM_ETH_QUEUE_ZONE_GTT_OFFSET(p_cid->abs.queue_id);
 
 	rc = qed_set_coalesce(p_hwfn, p_ptt, address, &eth_qzone,
 			      sizeof(struct xstorm_eth_queue_zone), timeset);

@@ -875,7 +875,7 @@ bnad_set_netdev_perm_addr(struct bnad *bnad)
 
 	ether_addr_copy(netdev->perm_addr, bnad->perm_addr);
 	if (is_zero_ether_addr(netdev->dev_addr))
-		ether_addr_copy(netdev->dev_addr, bnad->perm_addr);
+		eth_hw_addr_set(netdev, bnad->perm_addr);
 }
 
 /* Control Path Handlers */
@@ -3249,7 +3249,7 @@ bnad_set_mac_address(struct net_device *netdev, void *addr)
 
 	err = bnad_mac_addr_set_locked(bnad, sa->sa_data);
 	if (!err)
-		ether_addr_copy(netdev->dev_addr, sa->sa_data);
+		eth_hw_addr_set(netdev, sa->sa_data);
 
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 

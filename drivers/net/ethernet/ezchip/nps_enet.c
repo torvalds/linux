@@ -421,7 +421,7 @@ static s32 nps_enet_set_mac_address(struct net_device *ndev, void *p)
 
 	res = eth_mac_addr(ndev, p);
 	if (!res) {
-		ether_addr_copy(ndev->dev_addr, addr->sa_data);
+		eth_hw_addr_set(ndev, addr->sa_data);
 		nps_enet_set_hw_mac_address(ndev);
 	}
 

@@ -1613,7 +1613,7 @@ static int ibmveth_set_mac_addr(struct net_device *dev, void *p)
 		return rc;
 	}
 
-	ether_addr_copy(dev->dev_addr, addr->sa_data);
+	eth_hw_addr_set(dev, addr->sa_data);
 
 	return 0;
 }
@@ -1720,7 +1720,7 @@ static int ibmveth_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	netdev->min_mtu = IBMVETH_MIN_MTU;
 	netdev->max_mtu = ETH_MAX_MTU - IBMVETH_BUFF_OH;
 
-	memcpy(netdev->dev_addr, mac_addr_p, ETH_ALEN);
+	eth_hw_addr_set(netdev, mac_addr_p);
 
 	if (firmware_has_feature(FW_FEATURE_CMO))
 		memcpy(pool_count, pool_count_cmo, sizeof(pool_count));

@@ -375,8 +375,8 @@ static int __net_init seg6_net_init(struct net *net)
 
 #ifdef CONFIG_IPV6_SEG6_HMAC
 	if (seg6_hmac_net_init(net)) {
-		kfree(sdata);
 		kfree(rcu_dereference_raw(sdata->tun_src));
+		kfree(sdata);
 		return -ENOMEM;
 	};
 #endif

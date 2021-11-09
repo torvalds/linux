@@ -1000,7 +1000,7 @@ static int cpsw_ndo_set_mac_address(struct net_device *ndev, void *p)
 			   flags, vid);
 
 	ether_addr_copy(priv->mac_addr, addr->sa_data);
-	ether_addr_copy(ndev->dev_addr, priv->mac_addr);
+	eth_hw_addr_set(ndev, priv->mac_addr);
 	cpsw_set_slave_mac(&cpsw->slaves[slave_no], priv);
 
 	pm_runtime_put(cpsw->dev);
@@ -1401,7 +1401,7 @@ static int cpsw_create_ports(struct cpsw_common *cpsw)
 			dev_info(cpsw->dev, "Random MACID = %pM\n",
 				 priv->mac_addr);
 		}
-		ether_addr_copy(ndev->dev_addr, slave_data->mac_addr);
+		eth_hw_addr_set(ndev, slave_data->mac_addr);
 		ether_addr_copy(priv->mac_addr, slave_data->mac_addr);
 
 		cpsw->slaves[i].ndev = ndev;

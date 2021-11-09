@@ -3171,19 +3171,50 @@ out_ok:
 	return true;
 }
 
-static bool actions_match_supported(struct mlx5e_priv *priv,
-				    struct flow_action *flow_action,
-				    struct mlx5e_tc_flow_parse_attr *parse_attr,
-				    struct mlx5e_tc_flow *flow,
-				    struct netlink_ext_ack *extack)
+static bool
+actions_match_supported_fdb(struct mlx5e_priv *priv,
+			    struct mlx5e_tc_flow_parse_attr *parse_attr,
+			    struct mlx5e_tc_flow *flow,
+			    struct netlink_ext_ack *extack)
 {
-	bool ct_flow = false, ct_clear = false;
-	u32 actions;
+	struct mlx5_esw_flow_attr *esw_attr = flow->attr->esw_attr;
+	bool ct_flow, ct_clear;
 
-	ct_clear = flow->attr->ct_attr.ct_action &
-		TCA_CT_ACT_CLEAR;
+	ct_clear = flow->attr->ct_attr.ct_action & TCA_CT_ACT_CLEAR;
 	ct_flow = flow_flag_test(flow, CT) && !ct_clear;
-	actions = flow->attr->action;
+
+	if (esw_attr->split_count && ct_flow &&
+	    !MLX5_CAP_GEN(esw_attr->in_mdev, reg_c_preserve)) {
+		/* All registers used by ct are cleared when using
+		 * split rules.
+		 */
+		NL_SET_ERR_MSG_MOD(extack, "Can't offload mirroring with action ct");
+		return false;
+	}
+
+	if (esw_attr->split_count > 0 && !mlx5_esw_has_fwd_fdb(priv->mdev)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "current firmware doesn't support split rule for port mirroring");
+		netdev_warn_once(priv->netdev,
+				 "current firmware doesn't support split rule for port mirroring\n");
+		return false;
+	}
+
+	return true;
+}
+
+static bool
+actions_match_supported(struct mlx5e_priv *priv,
+			struct flow_action *flow_action,
+			struct mlx5e_tc_flow_parse_attr *parse_attr,
+			struct mlx5e_tc_flow *flow,
+			struct netlink_ext_ack *extack)
+{
+	u32 actions = flow->attr->action;
+	bool ct_flow, ct_clear;
+
+	ct_clear = flow->attr->ct_attr.ct_action & TCA_CT_ACT_CLEAR;
+	ct_flow = flow_flag_test(flow, CT) && !ct_clear;
 
 	if (!(actions &
 	      (MLX5_FLOW_CONTEXT_ACTION_FWD_DEST | MLX5_FLOW_CONTEXT_ACTION_DROP))) {
@@ -3191,23 +3222,14 @@ static bool actions_match_supported(struct mlx5e_priv *priv,
 		return false;
 	}
 
-	if (mlx5e_is_eswitch_flow(flow)) {
-		if (flow->attr->esw_attr->split_count && ct_flow &&
-		    !MLX5_CAP_GEN(flow->attr->esw_attr->in_mdev, reg_c_preserve)) {
-			/* All registers used by ct are cleared when using
-			 * split rules.
-			 */
-			NL_SET_ERR_MSG_MOD(extack,
-					   "Can't offload mirroring with action ct");
-			return false;
-		}
-	}
+	if (actions & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR &&
+	    !modify_header_match_supported(priv, &parse_attr->spec, flow_action,
+					   actions, ct_flow, ct_clear, extack))
+		return false;
 
-	if (actions & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
-		return modify_header_match_supported(priv, &parse_attr->spec,
-						     flow_action, actions,
-						     ct_flow, ct_clear,
-						     extack);
+	if (mlx5e_is_eswitch_flow(flow) &&
+	    !actions_match_supported_fdb(priv, parse_attr, flow, extack))
+		return false;
 
 	return true;
 }
@@ -3356,10 +3378,50 @@ static int validate_goto_chain(struct mlx5e_priv *priv,
 	return 0;
 }
 
-static int parse_tc_nic_actions(struct mlx5e_priv *priv,
-				struct flow_action *flow_action,
+static int
+actions_prepare_mod_hdr_actions(struct mlx5e_priv *priv,
 				struct mlx5e_tc_flow *flow,
+				struct mlx5_flow_attr *attr,
+				struct pedit_headers_action *hdrs,
 				struct netlink_ext_ack *extack)
+{
+	struct mlx5e_tc_flow_parse_attr *parse_attr = attr->parse_attr;
+	enum mlx5_flow_namespace_type ns_type;
+	int err;
+
+	if (!hdrs[TCA_PEDIT_KEY_EX_CMD_SET].pedits &&
+	    !hdrs[TCA_PEDIT_KEY_EX_CMD_ADD].pedits)
+		return 0;
+
+	ns_type = get_flow_name_space(flow);
+
+	err = alloc_tc_pedit_action(priv, ns_type, parse_attr, hdrs,
+				    &attr->action, extack);
+	if (err)
+		return err;
+
+	/* In case all pedit actions are skipped, remove the MOD_HDR flag. */
+	if (parse_attr->mod_hdr_acts.num_actions > 0)
+		return 0;
+
+	attr->action &= ~MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
+	dealloc_mod_hdr_actions(&parse_attr->mod_hdr_acts);
+
+	if (ns_type != MLX5_FLOW_NAMESPACE_FDB)
+		return 0;
+
+	if (!((attr->action & MLX5_FLOW_CONTEXT_ACTION_VLAN_POP) ||
+	      (attr->action & MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH)))
+		attr->esw_attr->split_count = 0;
+
+	return 0;
+}
+
+static int
+parse_tc_nic_actions(struct mlx5e_priv *priv,
+		     struct flow_action *flow_action,
+		     struct mlx5e_tc_flow *flow,
+		     struct netlink_ext_ack *extack)
 {
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 	struct mlx5_flow_attr *attr = flow->attr;
@@ -3469,27 +3531,16 @@ static int parse_tc_nic_actions(struct mlx5e_priv *priv,
 		}
 	}
 
-	if (hdrs[TCA_PEDIT_KEY_EX_CMD_SET].pedits ||
-	    hdrs[TCA_PEDIT_KEY_EX_CMD_ADD].pedits) {
-		err = alloc_tc_pedit_action(priv, MLX5_FLOW_NAMESPACE_KERNEL,
-					    parse_attr, hdrs, &action, extack);
-		if (err)
-			return err;
-		/* in case all pedit actions are skipped, remove the MOD_HDR
-		 * flag.
-		 */
-		if (parse_attr->mod_hdr_acts.num_actions == 0) {
-			action &= ~MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
-			dealloc_mod_hdr_actions(&parse_attr->mod_hdr_acts);
-		}
-	}
-
 	attr->action = action;
 
 	if (attr->dest_chain && parse_attr->mirred_ifindex[0]) {
 		NL_SET_ERR_MSG(extack, "Mirroring goto chain rules isn't supported");
 		return -EOPNOTSUPP;
 	}
+
+	err = actions_prepare_mod_hdr_actions(priv, flow, attr, hdrs, extack);
+	if (err)
+		return err;
 
 	if (!actions_match_supported(priv, flow_action, parse_attr, flow, extack))
 		return -EOPNOTSUPP;
@@ -3761,6 +3812,11 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 
 	flow_action_for_each(i, act, flow_action) {
 		switch (act->id) {
+		case FLOW_ACTION_ACCEPT:
+			action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
+				MLX5_FLOW_CONTEXT_ACTION_COUNT;
+			attr->flags |= MLX5_ESW_ATTR_FLAG_ACCEPT;
+			break;
 		case FLOW_ACTION_DROP:
 			action |= MLX5_FLOW_CONTEXT_ACTION_DROP |
 				  MLX5_FLOW_CONTEXT_ACTION_COUNT;
@@ -4045,26 +4101,12 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 			return err;
 	}
 
-	if (hdrs[TCA_PEDIT_KEY_EX_CMD_SET].pedits ||
-	    hdrs[TCA_PEDIT_KEY_EX_CMD_ADD].pedits) {
-		err = alloc_tc_pedit_action(priv, MLX5_FLOW_NAMESPACE_FDB,
-					    parse_attr, hdrs, &action, extack);
-		if (err)
-			return err;
-		/* in case all pedit actions are skipped, remove the MOD_HDR
-		 * flag. we might have set split_count either by pedit or
-		 * pop/push. if there is no pop/push either, reset it too.
-		 */
-		if (parse_attr->mod_hdr_acts.num_actions == 0) {
-			action &= ~MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
-			dealloc_mod_hdr_actions(&parse_attr->mod_hdr_acts);
-			if (!((action & MLX5_FLOW_CONTEXT_ACTION_VLAN_POP) ||
-			      (action & MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH)))
-				esw_attr->split_count = 0;
-		}
-	}
-
 	attr->action = action;
+
+	err = actions_prepare_mod_hdr_actions(priv, flow, attr, hdrs, extack);
+	if (err)
+		return err;
+
 	if (!actions_match_supported(priv, flow_action, parse_attr, flow, extack))
 		return -EOPNOTSUPP;
 
@@ -4079,13 +4121,6 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 
 		NL_SET_ERR_MSG(extack, "Decap with goto isn't supported");
 		netdev_warn(priv->netdev, "Decap with goto isn't supported");
-		return -EOPNOTSUPP;
-	}
-
-	if (esw_attr->split_count > 0 && !mlx5_esw_has_fwd_fdb(priv->mdev)) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "current firmware doesn't support split rule for port mirroring");
-		netdev_warn_once(priv->netdev, "current firmware doesn't support split rule for port mirroring\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -5007,9 +5042,11 @@ int mlx5e_tc_esw_init(struct rhashtable *tc_ht)
 	}
 	uplink_priv->tunnel_mapping = mapping;
 
-	/* 0xFFF is reserved for stack devices slow path table mark */
+	/* Two last values are reserved for stack devices slow path table mark
+	 * and bridge ingress push mark.
+	 */
 	mapping = mapping_create_for_id(mapping_id, MAPPING_TYPE_TUNNEL_ENC_OPTS,
-					sz_enc_opts, ENC_OPTS_BITS_MASK - 1, true);
+					sz_enc_opts, ENC_OPTS_BITS_MASK - 2, true);
 	if (IS_ERR(mapping)) {
 		err = PTR_ERR(mapping);
 		goto err_enc_opts_mapping;

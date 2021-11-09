@@ -1939,7 +1939,7 @@ static int smsc911x_set_mac_address(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(dev, addr->sa_data);
 
 	spin_lock_irq(&pdata->mac_lock);
 	smsc911x_set_hw_mac_address(pdata, dev->dev_addr);
@@ -2525,7 +2525,7 @@ static int smsc911x_drv_probe(struct platform_device *pdev)
 		SMSC_TRACE(pdata, probe,
 			   "MAC Address is specified by configuration");
 	} else if (is_valid_ether_addr(pdata->config.mac)) {
-		memcpy(dev->dev_addr, pdata->config.mac, ETH_ALEN);
+		eth_hw_addr_set(dev, pdata->config.mac);
 		SMSC_TRACE(pdata, probe,
 			   "MAC Address specified by platform data");
 	} else {

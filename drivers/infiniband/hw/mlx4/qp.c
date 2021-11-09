@@ -1853,7 +1853,7 @@ static int mlx4_set_path(struct mlx4_ib_dev *dev, const struct ib_qp_attr *qp,
 			 u16 vlan_id, u8 *smac)
 {
 	return _mlx4_set_path(dev, &qp->ah_attr,
-			      mlx4_mac_to_u64(smac),
+			      ether_addr_to_u64(smac),
 			      vlan_id,
 			      path, &mqp->pri, port);
 }

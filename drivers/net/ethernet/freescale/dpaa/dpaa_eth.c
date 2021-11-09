@@ -268,7 +268,7 @@ static int dpaa_netdev_init(struct net_device *net_dev,
 
 	if (is_valid_ether_addr(mac_addr)) {
 		memcpy(net_dev->perm_addr, mac_addr, net_dev->addr_len);
-		memcpy(net_dev->dev_addr, mac_addr, net_dev->addr_len);
+		eth_hw_addr_set(net_dev, mac_addr);
 	} else {
 		eth_hw_addr_random(net_dev);
 		err = priv->mac_dev->change_addr(priv->mac_dev->fman_mac,

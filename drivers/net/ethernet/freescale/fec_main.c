@@ -1768,7 +1768,7 @@ static int fec_get_mac(struct net_device *ndev)
 		return 0;
 	}
 
-	memcpy(ndev->dev_addr, iap, ETH_ALEN);
+	eth_hw_addr_set(ndev, iap);
 
 	/* Adjust MAC if using macaddr */
 	if (iap == macaddr)
@@ -3326,7 +3326,7 @@ fec_set_mac_address(struct net_device *ndev, void *p)
 	if (addr) {
 		if (!is_valid_ether_addr(addr->sa_data))
 			return -EADDRNOTAVAIL;
-		memcpy(ndev->dev_addr, addr->sa_data, ndev->addr_len);
+		eth_hw_addr_set(ndev, addr->sa_data);
 	}
 
 	/* Add netif status check here to avoid system hang in below case:

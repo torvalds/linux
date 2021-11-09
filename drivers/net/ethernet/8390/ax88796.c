@@ -716,7 +716,7 @@ static int ax_init_dev(struct net_device *dev)
 			for (i = 0; i < 16; i++)
 				SA_prom[i] = SA_prom[i+i];
 
-		memcpy(dev->dev_addr, SA_prom, ETH_ALEN);
+		eth_hw_addr_set(dev, SA_prom);
 	}
 
 #ifdef CONFIG_AX88796_93CX6
@@ -733,7 +733,7 @@ static int ax_init_dev(struct net_device *dev)
 				       (__le16 __force *)mac_addr,
 				       sizeof(mac_addr) >> 1);
 
-		memcpy(dev->dev_addr, mac_addr, ETH_ALEN);
+		eth_hw_addr_set(dev, mac_addr);
 	}
 #endif
 	if (ax->plat->wordlength == 2) {
@@ -757,7 +757,7 @@ static int ax_init_dev(struct net_device *dev)
 
 	if ((ax->plat->flags & AXFLG_MAC_FROMPLATFORM) &&
 	    ax->plat->mac_addr)
-		memcpy(dev->dev_addr, ax->plat->mac_addr, ETH_ALEN);
+		eth_hw_addr_set(dev, ax->plat->mac_addr);
 
 	if (!is_valid_ether_addr(dev->dev_addr)) {
 		eth_hw_addr_random(dev);

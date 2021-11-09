@@ -555,7 +555,7 @@ static int hisi_femac_set_mac_address(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(skaddr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(dev->dev_addr, skaddr->sa_data, dev->addr_len);
+	eth_hw_addr_set(dev, skaddr->sa_data);
 	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 
 	hisi_femac_set_hw_mac_addr(priv, dev->dev_addr);

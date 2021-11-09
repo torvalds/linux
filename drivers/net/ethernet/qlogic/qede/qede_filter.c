@@ -557,7 +557,7 @@ void qede_force_mac(void *dev, u8 *mac, bool forced)
 		return;
 	}
 
-	ether_addr_copy(edev->ndev->dev_addr, mac);
+	eth_hw_addr_set(edev->ndev, mac);
 	__qede_unlock(edev);
 }
 
@@ -1101,7 +1101,7 @@ int qede_set_mac_addr(struct net_device *ndev, void *p)
 			goto out;
 	}
 
-	ether_addr_copy(ndev->dev_addr, addr->sa_data);
+	eth_hw_addr_set(ndev, addr->sa_data);
 	DP_INFO(edev, "Setting device MAC to %pM\n", addr->sa_data);
 
 	if (edev->state != QEDE_STATE_OPEN) {

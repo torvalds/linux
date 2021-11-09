@@ -773,7 +773,7 @@ static int arc_emac_set_address(struct net_device *ndev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(ndev->dev_addr, addr->sa_data, ndev->addr_len);
+	eth_hw_addr_set(ndev, addr->sa_data);
 
 	arc_emac_set_address_internal(ndev);
 

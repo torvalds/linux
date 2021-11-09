@@ -304,7 +304,7 @@ void eth_commit_mac_addr_change(struct net_device *dev, void *p)
 {
 	struct sockaddr *addr = p;
 
-	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(dev, addr->sa_data);
 }
 EXPORT_SYMBOL(eth_commit_mac_addr_change);
 

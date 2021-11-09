@@ -6386,7 +6386,7 @@ static int niu_set_mac_addr(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(dev, addr->sa_data);
 
 	if (!netif_running(dev))
 		return 0;
@@ -8344,7 +8344,7 @@ static void niu_pci_vpd_validate(struct niu *np)
 		return;
 	}
 
-	memcpy(dev->dev_addr, vpd->local_mac, ETH_ALEN);
+	eth_hw_addr_set(dev, vpd->local_mac);
 
 	val8 = dev->dev_addr[5];
 	dev->dev_addr[5] += np->port;
@@ -9235,7 +9235,7 @@ static int niu_get_of_props(struct niu *np)
 		netdev_err(dev, "%pOF: OF MAC address prop len (%d) is wrong\n",
 			   dp, prop_len);
 	}
-	memcpy(dev->dev_addr, mac_addr, dev->addr_len);
+	eth_hw_addr_set(dev, mac_addr);
 	if (!is_valid_ether_addr(&dev->dev_addr[0])) {
 		netdev_err(dev, "%pOF: OF MAC address is invalid\n", dp);
 		netdev_err(dev, "%pOF: [ %pM ]\n", dp, dev->dev_addr);

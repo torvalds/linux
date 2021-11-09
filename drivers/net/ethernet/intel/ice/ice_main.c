@@ -3143,7 +3143,7 @@ static int ice_cfg_netdev(struct ice_vsi *vsi)
 	if (vsi->type == ICE_VSI_PF) {
 		SET_NETDEV_DEV(netdev, ice_pf_to_dev(vsi->back));
 		ether_addr_copy(mac_addr, vsi->port_info->mac.perm_addr);
-		ether_addr_copy(netdev->dev_addr, mac_addr);
+		eth_hw_addr_set(netdev, mac_addr);
 		ether_addr_copy(netdev->perm_addr, mac_addr);
 	}
 
@@ -5150,7 +5150,7 @@ static int ice_set_mac_address(struct net_device *netdev, void *pi)
 	netif_addr_lock_bh(netdev);
 	ether_addr_copy(old_mac, netdev->dev_addr);
 	/* change the netdev's MAC address */
-	memcpy(netdev->dev_addr, mac, netdev->addr_len);
+	eth_hw_addr_set(netdev, mac);
 	netif_addr_unlock_bh(netdev);
 
 	/* Clean up old MAC filter. Not an error if old filter doesn't exist */
@@ -5178,7 +5178,7 @@ err_update_filters:
 		netdev_err(netdev, "can't set MAC %pM. filter update failed\n",
 			   mac);
 		netif_addr_lock_bh(netdev);
-		ether_addr_copy(netdev->dev_addr, old_mac);
+		eth_hw_addr_set(netdev, old_mac);
 		netif_addr_unlock_bh(netdev);
 		return err;
 	}
