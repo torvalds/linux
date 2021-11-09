@@ -844,6 +844,9 @@ static bool steal_from_global_rsv(struct btrfs_fs_info *fs_info,
 	struct btrfs_block_rsv *global_rsv = &fs_info->global_block_rsv;
 	u64 min_bytes;
 
+	if (!ticket->steal)
+		return false;
+
 	if (global_rsv->space_info != space_info)
 		return false;
 
@@ -899,8 +902,7 @@ static bool maybe_fail_all_tickets(struct btrfs_fs_info *fs_info,
 		ticket = list_first_entry(&space_info->tickets,
 					  struct reserve_ticket, list);
 
-		if (!aborted && ticket->steal &&
-		    steal_from_global_rsv(fs_info, space_info, ticket))
+		if (!aborted && steal_from_global_rsv(fs_info, space_info, ticket))
 			return true;
 
 		if (!aborted && btrfs_test_opt(fs_info, ENOSPC_DEBUG))
