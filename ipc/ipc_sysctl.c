@@ -23,7 +23,6 @@ static void *get_ipc(struct ctl_table *table)
 	return which;
 }
 
-#ifdef CONFIG_PROC_SYSCTL
 static int proc_ipc_dointvec(struct ctl_table *table, int write,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -116,18 +115,6 @@ static int proc_ipc_dointvec_minmax_checkpoint_restore(struct ctl_table *table,
 
 	return proc_ipc_dointvec_minmax(table, write, buffer, lenp, ppos);
 }
-#endif
-
-#else
-#define proc_ipc_doulongvec_minmax NULL
-#define proc_ipc_dointvec	   NULL
-#define proc_ipc_dointvec_minmax   NULL
-#define proc_ipc_dointvec_minmax_orphans   NULL
-#define proc_ipc_auto_msgmni	   NULL
-#define proc_ipc_sem_dointvec	   NULL
-#ifdef CONFIG_CHECKPOINT_RESTORE
-#define proc_ipc_dointvec_minmax_checkpoint_restore	NULL
-#endif	/* CONFIG_CHECKPOINT_RESTORE */
 #endif
 
 int ipc_mni = IPCMNI;
