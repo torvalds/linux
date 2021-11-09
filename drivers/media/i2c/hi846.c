@@ -2162,7 +2162,11 @@ static int hi846_remove(struct i2c_client *client)
 	return 0;
 }
 
-static UNIVERSAL_DEV_PM_OPS(hi846_pm_ops, hi846_suspend, hi846_resume, NULL);
+static const struct dev_pm_ops hi846_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
+	SET_RUNTIME_PM_OPS(hi846_suspend, hi846_resume, NULL)
+};
 
 static const struct of_device_id hi846_of_match[] = {
 	{ .compatible = "hynix,hi846", },
